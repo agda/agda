@@ -60,7 +60,7 @@ expandLitPattern p = traverse (traverse expand) p
           Con z _ <- ignoreSharing <$> primZero
           Con s _ <- ignoreSharing <$> primSuc
           let zero  = A.ConP info (A.AmbQ [setRange r z]) []
-              suc p = A.ConP info (A.AmbQ [setRange r s]) [defaultArg $ unnamed p]
+              suc p = A.ConP info (A.AmbQ [setRange r s]) [defaultNamedArg p]
               info  = A.PatRange r
               p'    = foldr ($) zero $ genericReplicate n suc
           return $ foldr (A.AsP info) p' xs

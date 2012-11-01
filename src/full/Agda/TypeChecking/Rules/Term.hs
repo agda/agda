@@ -532,7 +532,7 @@ checkExpr e t =
               let arg x e =
                     case [ a | a <- axs, unArg a == x ] of
                       [a] -> unnamed e <$ a
-                      _   -> defaultArg $ unnamed e -- we only end up here if the field names are bad
+                      _   -> defaultNamedArg e -- we only end up here if the field names are bad
               let meta x = A.Underscore $ A.MetaInfo (getRange e) scope Nothing (show x)
                   missingExplicits = [ (unArg a, [unnamed . meta <$> a])
                                      | a <- axs, argHiding a == NotHidden
@@ -604,7 +604,7 @@ checkExpr e t =
             _         -> typeError $ ShouldBeRecordType t
           where
             replaceFields :: Name -> A.ExprInfo -> Arg A.QName -> Maybe A.Expr -> Maybe A.Expr
-            replaceFields n ei (Arg NotHidden _ p) Nothing  = Just $ A.App ei (A.Def p) $ defaultArg (unnamed $ A.Var n)
+            replaceFields n ei (Arg NotHidden _ p) Nothing  = Just $ A.App ei (A.Def p) $ defaultNamedArg $ A.Var n
             replaceFields _ _  (Arg _         _ _) Nothing  = Nothing
             replaceFields _ _  _                   (Just e) = Just $ e
 

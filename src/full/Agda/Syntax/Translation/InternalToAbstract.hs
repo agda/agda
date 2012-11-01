@@ -450,7 +450,7 @@ stripImplicits ps wps =
     , "  wps  = " ++ show wps
     , "  vars = " ++ show vars
     ]
-  let allps       = ps ++ map (defaultArg . unnamed) wps
+  let allps       = ps ++ map defaultNamedArg wps
       sps         = foldl (.) (strip vars) (map rearrangeBinding $ Set.toList vars) $ allps
       (ps', wps') = splitAt (length sps - length wps) sps
   reportSLn "syntax.reify.implicit" 30 $ unlines
@@ -667,14 +667,13 @@ instance Reify Sort Expr where
                 I.Type (I.Max [I.ClosedLevel n]) -> return $ A.Set exprInfo n
                 I.Type a -> do
                   a <- reify a
-                  return $ A.App exprInfo (A.Set exprInfo 0)
-                                          (defaultArg (unnamed a))
+                  return $ A.App exprInfo (A.Set exprInfo 0) (defaultNamedArg a)
                 I.Prop       -> return $ A.Prop exprInfo
                 I.Inf       -> A.Var <$> freshName_ "Setω"
                 I.DLub s1 s2 -> do
                   lub <- freshName_ "dLub" -- TODO: hack
                   (e1,e2) <- reify (s1, I.Lam NotHidden $ fmap Sort s2)
-                  let app x y = A.App exprInfo x (defaultArg $ unnamed y)
+                  let app x y = A.App exprInfo x (defaultNamedArg y)
                   return $ A.Var lub `app` e1 `app` e2
 
 instance Reify Level Expr where

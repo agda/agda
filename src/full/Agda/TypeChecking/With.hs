@@ -63,7 +63,7 @@ buildWithFunction aux gamma qs perm n1 n cs = mapM buildWithClause cs
       typeError $ NotImplemented "with clauses for definitions by copatterns"
     buildWithClause (A.Clause (LHS i (A.LHSHead _ ps) wps) rhs wh) = do
       let (wps0, wps1) = genericSplitAt n wps
-          ps0          = map (defaultArg . unnamed) wps0
+          ps0          = map defaultNamedArg wps0
       rhs <- buildRHS rhs
       (ps1, ps2)  <- genericSplitAt n1 <$> stripWithClausePatterns gamma qs perm ps
       let result = A.Clause (LHS i (A.LHSHead aux (ps1 ++ ps0 ++ ps2)) wps1) rhs wh

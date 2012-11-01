@@ -132,7 +132,7 @@ refine ii mr e =
 				    , metaNumber = Nothing
                                     , metaNameSuggestion = ""
 				    }
-                      in App (ExprRange $ r) e (defaultArg $ unnamed metaVar)
+                      in App (ExprRange $ r) e (defaultNamedArg metaVar)
                  --ToDo: The position of metaVar is not correct
                  --ToDo: The fixity of metavars is not correct -- fixed? MT
 

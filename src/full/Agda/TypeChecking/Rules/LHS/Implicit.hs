@@ -74,7 +74,7 @@ insertImplicitPatterns exh ps tel@(ExtendTel arg tel') = case ps of
         where
           continue p = (p :) <$> insertImplicitPatterns exh ps (absBody tel')
   where
-    dummy = defaultArg $ unnamed ()
+    dummy = defaultNamedArg ()
 
     insImp x tel = case insertImplicit x $ map (argFromDom . fmap fst) $ telToList tel of
       BadImplicits   -> typeError $ WrongHidingInLHS (telePi tel $ sort Prop)
