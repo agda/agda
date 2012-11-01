@@ -17,7 +17,7 @@
 module Agda.Syntax.Translation.InternalToAbstract
   ( Reify(..)
   , ReifyWhen(..)
-  , NamedClause(..)
+  , NamedClause
   , reifyPatterns
   ) where
 
@@ -397,7 +397,7 @@ reifyTerm expandAnonDefs v = do
            --drop lambda lifted arguments
            Just (h , nh) <- Map.lookup x <$> getExtLambdaTele
            let n = h + nh
-           cls <- mapM (reify . (NamedClause x) . (dropArgs n)) $ defClauses info
+           cls <- mapM (reify . (QNamed x) . (dropArgs n)) $ defClauses info
            -- Karim: Currently Abs2Conc does not require a DefInfo thus we
            -- use __IMPOSSIBLE__.
            napps (A.ExtendedLam exprInfo __IMPOSSIBLE__ x cls) =<< reify vs
@@ -430,9 +430,8 @@ instance Reify Elim Expr where
       appl :: String -> Arg Expr -> Expr
       appl s v = A.App exprInfo (A.Lit (LitString noRange s)) $ fmap unnamed v
 
-data NamedClause = NamedClause QName I.Clause
--- Named clause does not need 'Recursion' flag since I.Clause has it
--- data NamedClause = NamedClause QName Recursion I.Clause
+type NamedClause = QNamed I.Clause
+-- data NamedClause = NamedClause QName I.Clause
 
 instance Reify ClauseBody RHS where
   reify NoBody     = return AbsurdRHS
@@ -629,7 +628,7 @@ reifyPatterns tel perm ps = evalStateT (reifyArgs ps) 0
         i = PatRange noRange
 
 instance Reify NamedClause A.Clause where
-  reify (NamedClause f (I.Clause _ tel perm ps body)) = addCtxTel tel $ do
+  reify (QNamed f (I.Clause _ tel perm ps body)) = addCtxTel tel $ do
     ps  <- reifyPatterns tel perm ps
     lhs <- liftTCM $ reifyDisplayFormP $ LHS info (LHSHead f ps) []
     nfv <- getDefFreeVars f

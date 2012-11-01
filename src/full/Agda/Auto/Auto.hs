@@ -305,7 +305,7 @@ auto ii rng argstr = liftTCM $ do
                         -- Normalise the dot patterns
                         ps <- addCtxTel tel $ normalise ps
                         body <- etaContractBody body
-                        liftM modifyAbstractClause $ inContext [] $ reify $ NamedClause def $ I.Clause noRange tel perm ps body
+                        liftM modifyAbstractClause $ inContext [] $ reify $ AN.QNamed def $ I.Clause noRange tel perm ps body
                       ) cls'
                      pcs <- withInteractionId ii $ mapM prettyA cls''
                      ticks <- liftIO $ readIORef ticks

@@ -146,7 +146,7 @@ makeAbsurdClause f (SClause tel perm ps _ _) = do
   withCurrentModule (qnameModule f) $ do
     -- Normalise the dot patterns
     ps <- addCtxTel tel $ normalise ps
-    inContext [] $ reify $ NamedClause f $ Clause noRange tel perm ps NoBody
+    inContext [] $ reify $ QNamed f $ Clause noRange tel perm ps NoBody
 
 -- | Make a clause with a question mark as rhs.
 makeAbstractClause :: QName -> SplitClause -> TCM A.Clause

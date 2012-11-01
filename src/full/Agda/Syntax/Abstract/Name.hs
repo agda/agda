@@ -1,10 +1,16 @@
-{-# LANGUAGE CPP, DeriveDataTypeable, GeneralizedNewtypeDeriving, FlexibleContexts #-}
+{-# LANGUAGE CPP,
+  DeriveDataTypeable, GeneralizedNewtypeDeriving,
+  DeriveFunctor, DeriveFoldable, DeriveTraversable,
+  FlexibleContexts #-}
 
 {-| Abstract names should carry unique identifiers and stuff. Not right now though.
 -}
 module Agda.Syntax.Abstract.Name where
 
 import Control.Monad.State
+
+import Data.Foldable (Foldable)
+import Data.Traversable (Traversable)
 import Data.Typeable (Typeable)
 import Data.List
 import Data.Function
@@ -44,6 +50,13 @@ data QName = QName { qnameModule :: ModuleName
 		   , qnameName	 :: Name
 		   }
     deriving (Typeable)
+
+-- | Something preceeded by a qualified name.
+data QNamed a = QNamed
+  { qname  :: QName
+  , qnamed :: a
+  }
+  deriving (Typeable, Show, Functor, Foldable, Traversable)
 
 -- | A module name is just a qualified name.
 --

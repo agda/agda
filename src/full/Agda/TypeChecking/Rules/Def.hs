@@ -159,7 +159,7 @@ checkFunDef' t rel delayed i name cs =
 
         reportSDoc "tc.cc" 15 $ do
           sep [ text "clauses before rebindClause"
-              , nest 2 $ prettyTCM (map (NamedClause name) cs)
+              , nest 2 $ prettyTCM (map (QNamed name) cs)
               ]
 
         -- Annotate the clauses with which arguments are actually used.
@@ -175,7 +175,7 @@ checkFunDef' t rel delayed i name cs =
 
         reportSDoc "tc.cc" 15 $ do
           sep [ text "clauses before compilation"
-              , nest 2 $ prettyTCM (map (NamedClause name) cs)
+              , nest 2 $ prettyTCM (map (QNamed name) cs)
               ]
 
         -- Coverage check and compile the clauses
