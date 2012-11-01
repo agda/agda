@@ -423,7 +423,10 @@ Special commands:
  (unless (eq 'run (agda2-process-status))
    (agda2-restart))
  (agda2-highlight-setup)
- (agda2-highlight-reload)
+ (condition-case err
+     (agda2-highlight-reload)
+   (error (message "Highlighting not loaded: %s"
+                   (error-message-string err))))
  (agda2-comments-and-paragraphs-setup)
  (force-mode-line-update)
  ;; Protect global value of default-input-method from set-input-method.
