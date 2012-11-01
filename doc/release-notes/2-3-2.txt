@@ -18,6 +18,8 @@ Installation
   You can now compile the Emacs mode Lisp files by running "agda-mode
   compile". This command is run by "make install".
 
+  Compilation can, in some cases, give a noticeable speedup.
+
   WARNING: If you reinstall the Agda mode without recompiling the
   Emacs Lisp files, then Emacs may continue using the old, compiled
   files.
@@ -601,15 +603,6 @@ Emacs mode
 
   Users who have customised certain haskell-mode variables (such as
   haskell-ghci-program-args) may want to update their configuration.
-
-* Command which compiles the Emacs mode's files.
-
-  You can compile the Emacs mode's files using "agda-mode compile".
-  This can, in some cases, give a noticeable speedup.
-
-  WARNING: If you reinstall the Agda mode without recompiling the
-  Emacs Lisp files, then Emacs may continue using the old, compiled
-  files.
 
 LaTeX-backend
 -------------
