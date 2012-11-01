@@ -19,8 +19,7 @@ open import Relation.Binary.Product.Pointwise as Pointwise
   using (_×-Rel_)
 import Relation.Binary.Product.StrictLex as Strict
 
-private
- module Dummy {a₁ a₂ ℓ₁ ℓ₂} {A₁ : Set a₁} {A₂ : Set a₂} where
+module _ {a₁ a₂ ℓ₁ ℓ₂} {A₁ : Set a₁} {A₂ : Set a₂} where
 
   ×-Lex : (_≈₁_ _≤₁_ : Rel A₁ ℓ₁) → (_≤₂_ : Rel A₂ ℓ₂) →
           Rel (A₁ × A₂) _
@@ -149,8 +148,6 @@ private
     ; _≤?_         = ×-decidable (_≟_ to₁) (_≤?_ to₁) (_≤?_ to₂)
     }
     where open IsDecTotalOrder
-
-open Dummy public
 
 -- "Packages" (e.g. posets) can also be combined.
 

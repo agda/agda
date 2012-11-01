@@ -22,8 +22,7 @@ open import Relation.Binary.Product.Pointwise as Pointwise
   using (_×-Rel_)
 open import Relation.Nullary
 
-private
- module Dummy {a₁ a₂ ℓ₁ ℓ₂} {A₁ : Set a₁} {A₂ : Set a₂} where
+module _ {a₁ a₂ ℓ₁ ℓ₂} {A₁ : Set a₁} {A₂ : Set a₂} where
 
   ×-Lex : (_≈₁_ _<₁_ : Rel A₁ ℓ₁) → (_≤₂_ : Rel A₂ ℓ₂) →
           Rel (A₁ × A₂) _
@@ -249,8 +248,6 @@ private
                                       (<-resp-≈ spo₂)
       }
     where open IsStrictTotalOrder
-
-open Dummy public
 
 -- "Packages" (e.g. preorders) can also be combined.
 

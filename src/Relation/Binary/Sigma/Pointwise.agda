@@ -49,9 +49,8 @@ Rel B = REL B B
 ------------------------------------------------------------------------
 -- Rel preserves many properties
 
-private
- module Dummy {a b ℓ₁ ℓ₂} {A : Set a} {B : A → Set b}
-              {R₁ : B.Rel A ℓ₁} {R₂ : I.Rel B ℓ₂} where
+module _ {a b ℓ₁ ℓ₂} {A : Set a} {B : A → Set b}
+         {R₁ : B.Rel A ℓ₁} {R₂ : I.Rel B ℓ₂} where
 
   refl : B.Reflexive R₁ → I.Reflexive B R₂ →
          B.Reflexive (Rel B R₁ R₂)
@@ -76,8 +75,6 @@ private
     ; trans = transitive (B.IsEquivalence.trans eq₁)
                          (I.IsEquivalence.trans eq₂)
     }
-
-open Dummy public
 
 setoid : ∀ {b₁ b₂ i₁ i₂} →
          (A : B.Setoid b₁ b₂) → I.Setoid (B.Setoid.Carrier A) i₁ i₂ →

@@ -27,8 +27,7 @@ open import Relation.Nullary.Product
 open import Relation.Binary
 import Relation.Binary.PropositionalEquality as P
 
-private
- module Dummy {a₁ a₂ ℓ₁ ℓ₂} {A₁ : Set a₁} {A₂ : Set a₂} where
+module _ {a₁ a₂ ℓ₁ ℓ₂} {A₁ : Set a₁} {A₂ : Set a₂} where
 
   infixr 2 _×-Rel_
 
@@ -208,8 +207,6 @@ private
       ; <-resp-≈      = <-resp-≈ spo₁ ×-≈-respects₂ <-resp-≈ spo₂
       }
     where open IsStrictPartialOrder
-
-open Dummy public
 
 -- "Packages" (e.g. setoids) can also be combined.
 

@@ -24,8 +24,7 @@ open import Relation.Binary.Consequences
 open import Relation.Binary.List.Pointwise as Pointwise
    using ([]; _∷_; head; tail)
 
-private
- module Dummy {A : Set} where
+module _ {A : Set} where
 
   data Lex (P : Set) (_≈_ _<_ : Rel A zero) : Rel (List A) zero where
     base : P                             → Lex P _≈_ _<_ []       []
@@ -281,8 +280,6 @@ private
     ; compare       = <-compare Eq.sym compare
     ; <-resp-≈      = respects₂ isEquivalence <-resp-≈
     } where open IsStrictTotalOrder sto
-
-open Dummy public
 
 -- "Packages" (e.g. preorders) can also be handled.
 

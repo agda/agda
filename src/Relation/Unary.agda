@@ -25,9 +25,8 @@ Pred A ℓ = A → Set ℓ
 
 -- I.e., they can be seen as subsets of the universe of discourse.
 
-private
- module Dummy {a} {A : Set a} -- The universe of discourse.
-          where
+module _ {a} {A : Set a} -- The universe of discourse.
+         where
 
   -- Set membership.
 
@@ -111,8 +110,6 @@ private
 
   _∩_ : ∀ {ℓ₁ ℓ₂} → Pred A ℓ₁ → Pred A ℓ₂ → Pred A _
   P ∩ Q = λ x → x ∈ P × x ∈ Q
-
-open Dummy public
 
 ------------------------------------------------------------------------
 -- Unary relation combinators

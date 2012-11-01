@@ -11,8 +11,7 @@ module Relation.Binary.On where
 open import Function
 open import Data.Product
 
-private
- module Dummy {a b} {A : Set a} {B : Set b} (f : B → A) where
+module _ {a b} {A : Set a} {B : Set b} (f : B → A) where
 
   implies : ∀ {ℓ₁ ℓ₂} (≈ : Rel A ℓ₁) (∼ : Rel A ℓ₂) →
             ≈ ⇒ ∼ → (≈ on f) ⇒ (∼ on f)
@@ -142,8 +141,6 @@ private
     ; <-resp-≈      = respects₂ < ≈ Sto.<-resp-≈
     }
     where module Sto = IsStrictTotalOrder sto
-
-open Dummy public
 
 preorder : ∀ {p₁ p₂ p₃ b} {B : Set b} (P : Preorder p₁ p₂ p₃) →
            (B → Preorder.Carrier P) → Preorder _ _ _

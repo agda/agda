@@ -28,8 +28,7 @@ open import Relation.Nullary
 open import Relation.Binary
 import Relation.Binary.PropositionalEquality as P
 
-private
- module Dummy {a₁ a₂} {A₁ : Set a₁} {A₂ : Set a₂} where
+module _ {a₁ a₂} {A₁ : Set a₁} {A₂ : Set a₂} where
 
   ----------------------------------------------------------------------
   -- Sums of relations
@@ -324,8 +323,6 @@ private
     ; <-resp-≈      = <-resp-≈ sto₁ ⊎-≈-respects₂    <-resp-≈ sto₂
     }
     where open IsStrictTotalOrder
-
-open Dummy public
 
 ------------------------------------------------------------------------
 -- The game can be taken even further...

@@ -25,8 +25,7 @@ import Relation.Binary.List.StrictLex as Strict
 
 open import Relation.Binary.List.Pointwise as Pointwise using ([])
 
-private
- module Dummy {A : Set} where
+module _ {A : Set} where
 
   Lex : (P : Set) → (_≈_ _≤_ : Rel A zero) → Rel (List A) zero
   Lex P _≈_ _≤_ = Strict.Lex P _≈_ (Conv._<_ _≈_ _≤_)
@@ -156,8 +155,6 @@ private
   <-isStrictTotalOrder dec tot =
     Strict.<-isStrictTotalOrder
       (Conv.isTotalOrder⟶isStrictTotalOrder _ _ dec tot)
-
-open Dummy public
 
 -- "Packages" (e.g. preorders) can also be handled.
 

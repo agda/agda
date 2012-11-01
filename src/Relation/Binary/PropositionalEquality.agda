@@ -152,11 +152,9 @@ import Relation.Binary.EqReasoning as EqR
 -- time.
 
 module ≡-Reasoning where
-  private
-    module Dummy {a} {A : Set a} where
-      open EqR (setoid A) public
-        hiding (_≡⟨_⟩_) renaming (_≈⟨_⟩_ to _≡⟨_⟩_)
-  open Dummy public
+  module _ {a} {A : Set a} where
+    open EqR (setoid A) public
+      hiding (_≡⟨_⟩_) renaming (_≈⟨_⟩_ to _≡⟨_⟩_)
 
   infixr 2 _≅⟨_⟩_
 

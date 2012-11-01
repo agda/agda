@@ -150,8 +150,7 @@ module Equality {a ℓ} {A : Set a} -- The "return type".
 ------------------------------------------------------------------------
 -- Lemmas relating the three relations
 
-private
- module Dummy {a ℓ} {A : Set a} {_∼_ : A → A → Set ℓ} where
+module _ {a ℓ} {A : Set a} {_∼_ : A → A → Set ℓ} where
 
   open Equality _∼_ using (Rel; _≅_; _≳_; _≲_; _≈_; _⇓[_]_; _⇑[_])
   open Equality.Rel
@@ -469,12 +468,9 @@ private
   associative refl-∼ (later x) f g =
     later (♯ associative refl-∼ (♭ x) f g)
 
-open Dummy public
-
-private
- module Dummy₂ {s ℓ} {A B : Set s}
-               {_∼A_ : A → A → Set ℓ}
-               {_∼B_ : B → B → Set ℓ} where
+module _ {s ℓ} {A B : Set s}
+         {_∼A_ : A → A → Set ℓ}
+         {_∼B_ : B → B → Set ℓ} where
 
   open Equality
   private
@@ -538,10 +534,7 @@ private
                                           now z ∎)
                                     , ≳⇒ fz⇑)
 
-open Dummy₂ public
-
-private
- module Dummy₃ {ℓ} {A B : Set ℓ} {_∼_ : B → B → Set ℓ} where
+module _ {ℓ} {A B : Set ℓ} {_∼_ : B → B → Set ℓ} where
 
   open Equality
 
@@ -555,8 +548,6 @@ private
   _≡->>=-cong_ {k} {f₁ = f₁} {f₂} x₁≈x₂ f₁≈f₂ =
     x₁≈x₂ >>=-cong λ {x} x≡x′ →
     P.subst (λ y → Rel _∼_ k (f₁ x) (f₂ y)) x≡x′ (f₁≈f₂ x)
-
-open Dummy₃ public
 
 ------------------------------------------------------------------------
 -- Productivity checker workaround
