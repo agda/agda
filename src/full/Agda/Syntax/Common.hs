@@ -226,6 +226,18 @@ instance Show a => Show (Named String a) where
 -- | Only 'Hidden' arguments can have names.
 type NamedArg a = Arg (Named String a)
 
+-- | Get the content of a 'NamedArg'.
+namedArg :: NamedArg a -> a
+namedArg = namedThing . unArg
+
+defaultNamedArg :: a -> NamedArg a
+defaultNamedArg = defaultArg . unnamed
+
+-- | The functor instance for 'NamedArg' would be ambiguous,
+--   so we give it another name here.
+updateNamedArg :: (a -> b) -> NamedArg a -> NamedArg b
+updateNamedArg = fmap . fmap
+
 ---------------------------------------------------------------------------
 -- * Infixity, access, abstract, etc.
 ---------------------------------------------------------------------------
