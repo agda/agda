@@ -170,44 +170,72 @@ data RHS	= RHS Expr
                     --   The RHS shouldn't be another RewriteRHS
   deriving (Typeable, Show)
 
-{-
-data LHS	= LHS
-  { lhsInfo     :: LHSInfo
-  , lhsDefName  :: QName               -- ^ name of function we are defining
-  , lhsPats     :: [NamedArg Pattern]  -- ^ function parameters (patterns)
-  , lhsWithPats :: [Pattern]           -- ^ with patterns (after |)
-  }
-  deriving (Typeable, Show)
--}
-
-data LHS	= LHS
-  { lhsInfo     :: LHSInfo
-  , lhsCore     :: LHSCore
-  , lhsWithPats :: [Pattern]           -- ^ with patterns (after |)
+-- | The lhs of a clause in spine view (inside-out).
+--   Projection patterns are contained in @spLhsPats@,
+--   represented as @DefP d []@.
+data SpineLHS = SpineLHS
+  { spLhsInfo     :: LHSInfo             -- ^ Range.
+  , spLhsDefName  :: QName               -- ^ Name of function we are defining.
+  , spLhsPats     :: [NamedArg Pattern]  -- ^ Function parameters (patterns).
+  , spLhsWithPats :: [Pattern]           -- ^ @with@ patterns (after @|@).
   }
   deriving (Typeable, Show)
 
--- | Parameterised over the type of dot patterns.
+-- | The lhs of a clause in projection-application view (outside-in).
+--   Projection patters are represented as 'LHSProj's.
+data LHS = LHS
+  { lhsInfo     :: LHSInfo               -- ^ Range.
+  , lhsCore     :: LHSCore               -- ^ Copatterns.
+  , lhsWithPats :: [Pattern]             -- ^ @with@ patterns (after @|@).
+  }
+  deriving (Typeable, Show)
+
+-- | The lhs minus @with@-patterns in projection-application view.
+--   Parameterised over the type @e@ of dot patterns.
 data LHSCore' e
-  = LHSHead  { lhsDefName  :: QName                    -- ^ @f@
-             , lhsPats     :: [NamedArg (Pattern' e)]  -- ^ @ps@
+    -- | The head applied to ordinary patterns.
+  = LHSHead  { lhsDefName  :: QName                    -- ^ Head @f@.
+             , lhsPats     :: [NamedArg (Pattern' e)]  -- ^ Applied to patterns @ps@.
              }
-  | LHSProj  { lhsDestructor :: QName      -- ^ record projection identifier
-             , lhsPatsLeft   :: [NamedArg (Pattern' e)]  -- ^ side patterns
-             , lhsFocus      :: NamedArg (LHSCore' e)    -- ^ main branch
-             , lhsPatsRight  :: [NamedArg (Pattern' e)]  -- ^ side patterns
+    -- | Projection
+  | LHSProj  { lhsDestructor :: QName
+               -- ^ Record projection identifier.
+             , lhsPatsLeft   :: [NamedArg (Pattern' e)]
+               -- ^ Indices of the projection.
+               --   Currently none @[]@, since we do not have indexed records.
+             , lhsFocus      :: NamedArg (LHSCore' e)
+               -- ^ Main branch.
+             , lhsPatsRight  :: [NamedArg (Pattern' e)]
+               -- ^ Further applied to patterns.
              }
   deriving (Typeable, Show, Functor, Foldable, Traversable)
 
 type LHSCore = LHSCore' Expr
 
+lhsToSpine :: LHS -> SpineLHS
+lhsToSpine (LHS i core wps) = SpineLHS i f ps wps
+  where QNamed f ps = lhsCoreToSpine core
+
+lhsCoreToSpine :: LHSCore' e -> QNamed [NamedArg (Pattern' e)]
+lhsCoreToSpine (LHSHead f ps) = QNamed f ps
+lhsCoreToSpine (LHSProj d ps1 h ps2) = (++ (p : ps2)) <$> lhsCoreToSpine (namedArg h)
+  where p = updateNamedArg (const $ DefP i d ps1) h
+        i = PatRange noRange
+
+-- spineToLhsCore ::
+
+-- | Used for checking pattern linearity.
 lhsCoreAllPatterns :: LHSCore' e -> [Pattern' e]
+lhsCoreAllPatterns = map namedArg . qnamed . lhsCoreToSpine
+{- OLD code, dumps projection patterns, superfluous
 lhsCoreAllPatterns (LHSHead f ps) = map (namedThing . unArg) ps
 lhsCoreAllPatterns (LHSProj d ps1 l ps2) =
   map (namedThing . unArg) ps1 ++
   lhsCoreAllPatterns (namedThing $ unArg l) ++
   map (namedThing . unArg) ps2
+-}
 
+-- | Used in AbstractToConcrete.
 lhsCoreToPattern :: LHSCore -> Pattern
 lhsCoreToPattern lc =
   case lc of
@@ -220,18 +248,7 @@ mapLHSHead :: (QName -> [NamedArg Pattern] -> LHSCore) -> LHSCore -> LHSCore
 mapLHSHead f (LHSHead x ps)        = f x ps
 mapLHSHead f (LHSProj d ps1 l ps2) =
   LHSProj d ps1 (fmap (fmap (mapLHSHead f)) l) ps2
-{-
-data LHSCore
-  = LHSHead  { lhsDefName  :: QName               -- ^ @f@
-             , lhsPats     :: [NamedArg Pattern]  -- ^ @ps@
-             }
-  | LHSProj  { lhsDestructor :: QName      -- ^ record projection identifier
-             , lhsPatsLeft   :: [NamedArg Pattern]  -- ^ side patterns
-             , lhsFocus      :: NamedArg LHSCore    -- ^ main branch
-             , lhsPatsRight  :: [NamedArg Pattern]  -- ^ side patterns
-             }
-  deriving (Typeable, Show)
--}
+
 {- UNUSED
 mapLHSHeadM :: (Monad m) => (QName -> [NamedArg Pattern] -> m LHSCore) -> LHSCore -> m LHSCore
 mapLHSHeadM f (LHSHead x ps)        = f x ps
@@ -241,16 +258,19 @@ mapLHSHeadM f (LHSProj d ps1 l ps2) = do
 -}
 
 -- | Parameterised over the type of dot patterns.
-data Pattern' e	= VarP Name
-		| ConP PatInfo AmbiguousQName [NamedArg (Pattern' e)]
-		| DefP PatInfo QName          [NamedArg (Pattern' e)]  -- ^ defined pattern
-		| WildP PatInfo
-		| AsP PatInfo Name (Pattern' e)
-		| DotP PatInfo e
-		| AbsurdP PatInfo
-		| LitP Literal
-		| ImplicitP PatInfo	-- ^ generated at type checking for implicit arguments
-                | PatternSynP PatInfo QName [NamedArg (Pattern' e)]
+data Pattern' e
+  = VarP Name
+  | ConP PatInfo AmbiguousQName [NamedArg (Pattern' e)]
+  | DefP PatInfo QName          [NamedArg (Pattern' e)]
+    -- ^ Defined pattern: function definition @f ps@ or destructor pattern @d p ps@.
+  | WildP PatInfo
+  | AsP PatInfo Name (Pattern' e)
+  | DotP PatInfo e
+  | AbsurdP PatInfo
+  | LitP Literal
+  | ImplicitP PatInfo
+    -- ^ Generated at type checking for implicit arguments.
+  | PatternSynP PatInfo QName [NamedArg (Pattern' e)]
   deriving (Typeable, Show, Functor, Foldable, Traversable)
 
 type Pattern  = Pattern' Expr

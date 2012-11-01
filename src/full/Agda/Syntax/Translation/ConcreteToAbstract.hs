@@ -128,7 +128,9 @@ checkPatternLinearity ps = case xs \\ nub xs of
       A.DotP _ _             -> []
       A.AbsurdP _            -> []
       A.LitP _               -> []
-      A.DefP _ _ args        -> __IMPOSSIBLE__
+      A.DefP _ _ args        -> concatMap (vars . namedThing . unArg) args
+        -- Projection pattern, @args@ should be empty unless we have
+        -- indexed records.
       A.ImplicitP _          -> __IMPOSSIBLE__
       A.PatternSynP _ _ args -> concatMap (vars . namedThing . unArg) args
 
