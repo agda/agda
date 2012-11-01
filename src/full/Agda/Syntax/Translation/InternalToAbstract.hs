@@ -169,7 +169,7 @@ reifyDisplayFormP lhs@(A.LHS i (A.LHSHead x ps) wps) =
       "display form of " ++ show x ++ " " ++ show ps ++ " " ++ show wps ++ ":\n  " ++ show md
     case md of
       Just d  | okDisplayForm d ->
-        reifyDisplayFormP =<< displayLHS (map (namedThing . unArg) ps) wps d
+        reifyDisplayFormP =<< displayLHS (map namedArg ps) wps d
       _ -> return lhs
   where
     okDisplayForm (DWithApp (d : ds) []) =
@@ -455,12 +455,12 @@ stripImplicits ps wps =
       (ps', wps') = splitAt (length sps - length wps) sps
   reportSLn "syntax.reify.implicit" 30 $ unlines
     [ "  ps'  = " ++ show ps'
-    , "  wps' = " ++ show (map (namedThing . unArg) wps')
+    , "  wps' = " ++ show (map namedArg wps')
     ]
-  return (ps', map (namedThing . unArg) wps')
+  return (ps', map namedArg wps')
   where
     argsVars = Set.unions . map argVars
-    argVars = patVars . namedThing . unArg
+    argVars = patVars . namedArg
     patVars p = case p of
       A.VarP x      -> Set.singleton x
       A.ConP _ _ ps -> argsVars ps
@@ -492,7 +492,7 @@ stripImplicits ps wps =
           , noInterestingBindings p
           , all (flip canStrip []) $ takeWhile ((Hidden ==) . argHiding) as
           ]
-          where p = namedThing $ unArg a
+          where p = namedArg a
 
         stripArg a = fmap (fmap stripPat) a
 

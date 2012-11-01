@@ -228,11 +228,11 @@ lhsCoreToSpine (LHSProj d ps1 h ps2) = (++ (p : ps2)) <$> lhsCoreToSpine (namedA
 lhsCoreAllPatterns :: LHSCore' e -> [Pattern' e]
 lhsCoreAllPatterns = map namedArg . qnamed . lhsCoreToSpine
 {- OLD code, dumps projection patterns, superfluous
-lhsCoreAllPatterns (LHSHead f ps) = map (namedThing . unArg) ps
+lhsCoreAllPatterns (LHSHead f ps) = map namedArg ps
 lhsCoreAllPatterns (LHSProj d ps1 l ps2) =
-  map (namedThing . unArg) ps1 ++
-  lhsCoreAllPatterns (namedThing $ unArg l) ++
-  map (namedThing . unArg) ps2
+  map namedArg ps1 ++
+  lhsCoreAllPatterns (namedArg l) ++
+  map namedArg ps2
 -}
 
 -- | Used in AbstractToConcrete.
@@ -576,7 +576,7 @@ allNames (FunDef _ q _ cls)       = q <| Fold.foldMap allNamesC cls
 
   allNamesApp :: ModuleApplication -> Seq QName
   allNamesApp (SectionApp bindss _ es) = Fold.foldMap allNamesBinds bindss ><
-                                         Fold.foldMap allNamesE (map (namedThing . unArg) es)
+                                         Fold.foldMap allNamesE (map namedArg es)
   allNamesApp RecordModuleIFS {}       = Seq.empty
 
 allNames (Section _ _ _ decls) = Fold.foldMap allNames decls

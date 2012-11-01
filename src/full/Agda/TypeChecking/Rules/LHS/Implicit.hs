@@ -53,7 +53,7 @@ insertImplicitPatterns exh ps tel@(ExtendTel arg tel') = case ps of
       Just []	-> __IMPOSSIBLE__
       Just hs	-> insertImplicitPatterns exh (implicitPs hs ++ p : ps) tel
       Nothing
-        | A.ImplicitP{} <- namedThing $ unArg p,
+        | A.ImplicitP{} <- namedArg p,
           argHiding p /= Instance -> do
           -- Eta expand implicit patterns of record type (issue 473),
           -- but not instance arguments since then they won't be found

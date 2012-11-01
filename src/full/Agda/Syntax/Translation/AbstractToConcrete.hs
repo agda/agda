@@ -357,7 +357,7 @@ instance ToConcrete A.Expr C.Expr where
               -- we know all lhs are of the form `.extlam p1 p2 ... pn`,
               -- with the name .extlam leftmost. It is our mission to remove it.
           let removeApp (C.RawAppP r (_:es)) = C.RawAppP r es
-              removeApp (C.AppP (C.IdentP _) np) = namedThing $ unArg np
+              removeApp (C.AppP (C.IdentP _) np) = namedArg np
               removeApp (C.AppP p np) = (C.AppP (removeApp p) np)
               removeApp _ = __IMPOSSIBLE__
           let decl2clause (C.FunClause lhs rhs wh) = (lhs {lhsOriginalPattern = removeApp $ lhsOriginalPattern lhs},rhs,wh)
@@ -717,7 +717,7 @@ instance ToConcrete RangeAndPragma C.Pragma where
 
 -- Left hand sides --------------------------------------------------------
 
-noImplicitArgs = filter (noImplicit . namedThing . unArg)
+noImplicitArgs = filter (noImplicit . namedArg)
 noImplicitPats = filter noImplicit
 
 noImplicit (A.ImplicitP _) = False
@@ -823,7 +823,7 @@ recoverOpApp bracket opApp view e mDefault = case view e of
   Nothing -> mDefault
   Just (hd, args)
     | all notHidden args  -> do
-      let  args' = map (namedThing . unArg) args
+      let  args' = map namedArg args
       case hd of
         HdVar  n
           | isNoName n    -> mDefault

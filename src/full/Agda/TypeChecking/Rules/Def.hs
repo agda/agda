@@ -367,13 +367,13 @@ checkClause t c@(A.Clause (A.LHS i (A.LHSHead x aps) []) rhs0 wh) =
           handleRHS rhs =
               case rhs of
                 A.RHS e
-                  | any (containsAbsurdPattern . namedThing . unArg) aps ->
+                  | any (containsAbsurdPattern . namedArg) aps ->
                     typeError $ AbsurdPatternRequiresNoRHS aps
                   | otherwise -> do
                     v <- checkExpr e t'
                     return (mkBody v, NoWithFunction)
                 A.AbsurdRHS
-                  | any (containsAbsurdPattern . namedThing . unArg) aps
+                  | any (containsAbsurdPattern . namedArg) aps
                               -> return (NoBody, NoWithFunction)
                   | otherwise -> typeError $ NoRHSRequiresAbsurdPattern aps
                 A.RewriteRHS [] (_:_) _ _ -> __IMPOSSIBLE__
@@ -629,7 +629,7 @@ containsAbsurdPattern p = case p of
     A.DotP _ _    -> False
     A.LitP _      -> False
     A.AsP _ _ p   -> containsAbsurdPattern p
-    A.ConP _ _ ps -> any (containsAbsurdPattern . namedThing . unArg) ps
+    A.ConP _ _ ps -> any (containsAbsurdPattern . namedArg) ps
     A.DefP _ _ _  -> __IMPOSSIBLE__
     A.PatternSynP _ _ _ -> __IMPOSSIBLE__ -- False
 

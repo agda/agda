@@ -193,7 +193,7 @@ clauseToPath (Clause lhs _ wheredecls) = typeError $ NotImplemented $ "copattern
 lhsToPath :: [ProjEntry] -> LHSCore -> ScopeM (ProjPath LHSCore)
 lhsToPath acc lhs@LHSHead{}         = return $ Path acc lhs
 lhsToPath acc (LHSProj f [] lhs ps) | Just xs <- mapM (T.mapM (T.mapM fromVarP)) ps =
-    lhsToPath (ProjEntry f xs : acc) $ namedThing $ unArg lhs
+    lhsToPath (ProjEntry f xs : acc) $ namedArg lhs
   where fromVarP :: Pattern -> Maybe Name
         fromVarP (VarP n) = Just n
         fromVarP _        = Nothing

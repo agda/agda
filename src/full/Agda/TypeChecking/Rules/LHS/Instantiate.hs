@@ -152,7 +152,7 @@ nothingToSplitError (Problem ps _ tel pr) = splitError ps tel
 	  p	     -> typeError $ IlltypedPattern p (unDom a)
       | otherwise = underAbstraction a tel $ \tel -> splitError ps tel
       where
-	strip = snd . asView . namedThing . unArg
+	strip = snd . asView . namedArg
 	isBad p = case strip p of
 	  A.DotP _ _   -> True
 	  A.ConP _ _ _ -> True

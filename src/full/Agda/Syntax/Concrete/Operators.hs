@@ -436,9 +436,9 @@ classifyPattern conf p =
     Arg _ _ (Named _ (IdentP x)) : ps | x `elem` fldNames conf -> do
       -- ps0 :: [NamedArg ParseLHS]
       ps0 <- mapM classPat ps
-      let (ps1, rest) = span (isLeft . namedThing . unArg) ps0
+      let (ps1, rest) = span (isLeft . namedArg) ps0
       (p2, ps3) <- uncons rest -- when (null rest): no field pattern or def pattern found
-      guard $ all (isLeft . namedThing . unArg) ps3
+      guard $ all (isLeft . namedArg) ps3
       let (f, lhs)      = fromR p2
           (ps', _:ps'') = splitAt (length ps1) ps
       return $ Right (f, LHSProj x ps' lhs ps'')
@@ -449,7 +449,7 @@ classifyPattern conf p =
       return $ Left p
 
   where -- allNames = conNames conf ++ fldNames conf
-        validPat = validConPattern (conNames conf) . namedThing . unArg
+        validPat = validConPattern (conNames conf) . namedArg
         classPat :: NamedArg Pattern -> Maybe (NamedArg ParseLHS)
         classPat = Trav.mapM (Trav.mapM (classifyPattern conf))
         fromR :: NamedArg (Either a (b, c)) -> (b, NamedArg c)

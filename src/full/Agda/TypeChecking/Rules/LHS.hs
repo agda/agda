@@ -54,18 +54,18 @@ import Agda.Utils.Impossible
 flexiblePatterns :: [NamedArg A.Pattern] -> TCM FlexibleVars
 flexiblePatterns nps = map fst <$> filterM (flexible . snd) (zip [0..] $ reverse ps)
   where
-    ps = map (namedThing . unArg) nps
+    ps = map namedArg nps
     flexible (A.DotP _ _)    = return True
     flexible (A.ImplicitP _) = return True
     flexible (A.ConP _ (A.AmbQ [c]) qs) =
       ifM (isJust <$> isRecordConstructor c)
-          (andM $ map (flexible . namedThing . unArg) qs)
+          (andM $ map (flexible . namedArg) qs)
           (return False)
     flexible _               = return False
 
 -- | Compute the dot pattern instantiations.
 dotPatternInsts :: [NamedArg A.Pattern] -> Substitution -> [Dom Type] -> TCM [DotPatternInst]
-dotPatternInsts ps s as = dpi (map (namedThing . unArg) ps) (reverse s) as
+dotPatternInsts ps s as = dpi (map namedArg ps) (reverse s) as
   where
     dpi (_ : _)  []            _       = __IMPOSSIBLE__
     dpi (_ : _)  (Just _ : _)  []      = __IMPOSSIBLE__
@@ -88,7 +88,7 @@ dotPatternInsts ps s as = dpi (map (namedThing . unArg) ps) (reverse s) as
               bs0 = instTel ftel (map unArg us)
               -- Andreas, 2012-09-19 propagate relevance info to dot patterns
               bs  = map (mapDomRelevance (composeRelevance (domRelevance a))) bs0
-          dpi (map (namedThing . unArg) qs ++ ps) (map (Just . unArg) us ++ s) (bs ++ as)
+          dpi (map namedArg qs ++ ps) (map (Just . unArg) us ++ s) (bs ++ as)
 
         _           -> __IMPOSSIBLE__
 
@@ -134,7 +134,7 @@ instantiatePattern sub perm ps
 
 -- | Check if a problem is solved. That is, if the patterns are all variables.
 isSolvedProblem :: Problem -> Bool
-isSolvedProblem = all (isVar . snd . asView . namedThing . unArg) . problemInPat
+isSolvedProblem = all (isVar . snd . asView . namedArg) . problemInPat
   where
     isVar (A.VarP _)      = True
     isVar (A.WildP _)     = True
@@ -162,7 +162,7 @@ noShadowingOfConstructors
   -> Problem -> TCM ()
 noShadowingOfConstructors mkCall problem =
   traceCall mkCall $ do
-    let pat = map (snd . asView . namedThing . unArg) $
+    let pat = map (snd . asView . namedArg) $
                   problemInPat problem
         tel = map (unEl . snd . unDom) $ telToList $ problemTel problem
     zipWithM' noShadowing pat tel
@@ -238,7 +238,7 @@ bindLHSVars []       (ExtendTel _ _)   _   = __IMPOSSIBLE__
 bindLHSVars (_ : _)   EmptyTel         _   = __IMPOSSIBLE__
 bindLHSVars []        EmptyTel         ret = ret
 bindLHSVars (p : ps) (ExtendTel a tel) ret =
-  case namedThing $ unArg p of
+  case namedArg p of
     A.VarP x      -> addCtx x a $ bindLHSVars ps (absBody tel) ret
     A.WildP _     -> bindDummy (absName tel)
     A.ImplicitP _ -> bindDummy (absName tel)

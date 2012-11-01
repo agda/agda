@@ -902,7 +902,7 @@ checkConstructorApplication org t c args = do
           removeScope e                  = e
           notUnderscore A.Underscore{} = False
           notUnderscore _              = True
-      in  (rest,) $ any notUnderscore $ map (removeScope . namedThing . unArg) hargs
+      in  (rest,) $ any notUnderscore $ map (removeScope . namedArg) hargs
 
 {- UNUSED CODE, BUT DON'T REMOVE (2012-04-18)
 

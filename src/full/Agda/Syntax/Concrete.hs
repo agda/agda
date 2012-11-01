@@ -368,7 +368,7 @@ patternNames :: Pattern -> [Name]
 patternNames p =
   case p of
     IdentP x             -> [unqualify x]
-    AppP p p'            -> concatMap patternNames [p, namedThing $ unArg p']
+    AppP p p'            -> concatMap patternNames [p, namedArg p']
     RawAppP _ ps         -> concatMap patternNames  ps
     OpAppP _ name ps     -> unqualify name : concatMap patternNames ps
     HiddenP _ (namedPat) -> patternNames (namedThing namedPat)

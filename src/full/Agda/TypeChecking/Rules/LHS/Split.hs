@@ -82,7 +82,7 @@ splitProblem (Problem ps (perm, qs) tel pr) = do
     splitP (p : ps) ((i, q) : qs) tel0@(ExtendTel a tel) = do
       let tryAgain = splitP (p : ps) ((i, q) : qs) tel0
       p <- lift $ expandLitPattern p
-      case asView $ namedThing $ unArg p of
+      case asView $ namedArg p of
 
         -- Case: literal pattern
 	(xs, p@(A.LitP lit))  -> do

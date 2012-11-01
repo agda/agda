@@ -122,17 +122,17 @@ checkPatternLinearity ps = case xs \\ nub xs of
     vars :: A.Pattern' e -> [C.Name]
     vars p = case p of
       A.VarP x               -> [nameConcrete x]
-      A.ConP _ _ args        -> concatMap (vars . namedThing . unArg) args
+      A.ConP _ _ args        -> concatMap (vars . namedArg) args
       A.WildP _              -> []
       A.AsP _ x p            -> nameConcrete x : vars p
       A.DotP _ _             -> []
       A.AbsurdP _            -> []
       A.LitP _               -> []
-      A.DefP _ _ args        -> concatMap (vars . namedThing . unArg) args
+      A.DefP _ _ args        -> concatMap (vars . namedArg) args
         -- Projection pattern, @args@ should be empty unless we have
         -- indexed records.
       A.ImplicitP _          -> __IMPOSSIBLE__
-      A.PatternSynP _ _ args -> concatMap (vars . namedThing . unArg) args
+      A.PatternSynP _ _ args -> concatMap (vars . namedArg) args
 
 -- | Compute the type of the record constructor (with bogus target type)
 recordConstructorType :: [NiceDeclaration] -> C.Expr

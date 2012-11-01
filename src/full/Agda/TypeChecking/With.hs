@@ -131,7 +131,7 @@ stripWithClausePatterns gamma qs perm ps = do
           ps <- underAbstraction a tel $ \tel -> strip tel ps qs
           return $ p : ps
 
-        DotP v  -> case namedThing $ unArg p of
+        DotP v  -> case namedArg p of
           A.DotP _ _    -> ok
           A.ImplicitP _ -> ok
           _ -> do
@@ -145,7 +145,7 @@ stripWithClausePatterns gamma qs perm ps = do
               ps <- strip (tel `absApp` v) ps qs
               return $ p : ps
 
-        ConP c _ qs' -> case namedThing $ unArg p of
+        ConP c _ qs' -> case namedArg p of
           A.ConP _ (A.AmbQ cs') ps' -> do
 
             Con c' [] <- ignoreSharing <$> (constructorForm =<< reduce (Con c []))
@@ -196,11 +196,11 @@ stripWithClausePatterns gamma qs perm ps = do
             strip tel'' psi' (qs' ++ qs)
           _ -> mismatch
 
-        LitP lit -> case namedThing $ unArg p of
+        LitP lit -> case namedArg p of
           A.LitP lit' | lit == lit' -> strip (tel `absApp` Lit lit) ps qs
           _ -> mismatch
       where
-        mismatch = typeError $ WithClausePatternMismatch (namedThing $ unArg p0) (unArg q)
+        mismatch = typeError $ WithClausePatternMismatch (namedArg p0) (unArg q)
     strip tel ps qs = error $ "huh? " ++ show (size tel) ++ " " ++ show (size ps) ++ " " ++ show (size qs)
 
 -- | Construct the display form for a with function. It will display

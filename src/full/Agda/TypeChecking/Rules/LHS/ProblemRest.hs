@@ -39,7 +39,7 @@ useNamesFromPattern ps = telFromList . zipWith ren (toPats ps ++ repeat dummy) .
     ren (A.VarP x) (Dom NotHidden r (_, a)) = Dom NotHidden r (show x, a)
     ren A.PatternSynP{} _ = __IMPOSSIBLE__  -- ensure there are no syns left
     ren _ a = a
-    toPats = map (namedThing . unArg)
+    toPats = map namedArg
 
 -- | Are there any untyped user patterns left?
 noProblemRest :: Problem -> Bool
