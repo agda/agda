@@ -158,7 +158,6 @@ library
                     Agda.Syntax.Concrete.Name
                     Agda.Syntax.Concrete.Operators.Parser
                     Agda.Syntax.Concrete.Operators
---                    Agda.Syntax.Concrete.Copatterns
                     Agda.Syntax.Concrete.Pretty
                     Agda.Syntax.Concrete
                     Agda.Syntax.Fixity

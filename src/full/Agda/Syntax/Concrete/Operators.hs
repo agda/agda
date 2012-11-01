@@ -364,12 +364,12 @@ parsePat prs p = case p of
   -- corecursive function defined by copattern matching
   alternate : {A : Set}(a b : A) -> Tree A
   -- shallow copatterns
-               child True  (alternate a b) = alternate b a
-               label       (alternate a b) = a
+         label (alternate a b)              = a
+         child (alternate a b) True         = alternate b a
   -- deep copatterns:
-  label       (child False (alternate a b)) = b
-  child True  (child False (alternate a b)) = alternate a b
-  child False (child False (alternate a b)) = alternate a b
+  label (child (alternate a b) False)       = b
+  child (child (alternate a b) False) True  = alternate a b
+  child (child (alternate a b) False) False = alternate a b
 
   Delivers an infinite tree
 
@@ -489,69 +489,6 @@ parsePatternOrSyn lhsOrPatSyn p = do
   case res of
     Left p -> return p
     _      -> typeError $ NoParseForLHS lhsOrPatSyn p
-
-{- TRASH
-
--- | Parses a left-hand side, and makes sure that it defined the expected name.
---   TODO: check the arities of constructors. There is a possible ambiguity with
---   postfix constructors:
---      Assume _ * is a constructor. Then 'true *' can be parsed as either the
---      intended _* applied to true, or as true applied to a variable *. If we
---      check arities this problem won't appear.
-parseLHS :: Name -> Pattern -> ScopeM LHSCore
-parseLHS top p = do
-    let ms = qualifierModules $ patternQNames p
-    flat <- flattenScope ms <$> getScope
-    patP <- buildParser (getRange p) flat DontUseBoundNames
-    let cons = getNames [ConName, PatternSynName] flat
-    reportSLn "parse.op" 10 $ "cons = " ++ show cons ++ "\np = " ++ show p
-    reportSLn "parse.op" 10 $ "parsed = " ++ show (parsePat patP p)
-    case [ res | p' <- parsePat patP p
-               , res <- validPattern top cons p' ] of
-        [(p,lhs)] -> return lhs
-        []    -> typeError $ NoParseForLHS p
-        rs  -> typeError $ AmbiguousParseForLHS p $ map (fullParen . fst) rs
-    where
-        getNames kinds flat = map fst $ getDefinedNames kinds flat
-
-        -- validPattern returns an empty or singleton list (morally a Maybe)
-        validPattern :: Name -> [QName] -> Pattern -> [(Pattern, LHSCore)]
-        validPattern top cons p = case lhsArgs' p of
-            Just (x, args) | x == top && all (validConPattern cons . namedThing . unArg) args ->
-              [(p, LHSHead x args)]
-            _ -> []
-
--- | Parses a pattern.
---   TODO: check the arities of constructors. There is a possible ambiguity with
---   postfix constructors:
---      Assume _ * is a constructor. Then 'true *' can be parsed as either the
---      intended _* applied to true, or as true applied to a variable *. If we
---      check arities this problem won't appear.
-parsePattern :: Pattern -> ScopeM Pattern
-parsePattern = parsePatternOrSyn True
-
-parsePatternSyn :: Pattern -> ScopeM Pattern
-parsePatternSyn = parsePatternOrSyn False
-
-parsePatternOrSyn :: Bool -> Pattern -> ScopeM Pattern
-parsePatternOrSyn isLHS p = do
-    let ms = qualifierModules $ patternQNames p
-    flat <- flattenScope ms <$> getScope
-    patP <- buildParser (getRange p) flat DontUseBoundNames
-    let cons = getNames [ConName, PatternSynName] flat
-    reportSLn "parse.op" 10 $ "cons = " ++ show cons ++ "\np = " ++ show p
-    reportSLn "parse.op" 10 $ "parsed = " ++ show (parsePat patP p)
-    case filter (validConPattern cons) $ parsePat patP p of
-        [p] -> return p
-        []  | isLHS     -> typeError $ NoParseForLHS p
-            | otherwise -> typeError $ NoParseForPatternSynonym p
-
-        ps  | isLHS     -> typeError $ AmbiguousParseForLHS p $ map fullParen ps
-            | otherwise -> typeError $ AmbiguousParseForPatternSynonym p $ map fullParen ps
-    where
-        getNames kinds flat = map fst $ getDefinedNames kinds flat
-
--}
 
 -- | Helper function for 'parseLHS' and 'parsePattern'.
 validConPattern :: [QName] -> Pattern -> Bool
