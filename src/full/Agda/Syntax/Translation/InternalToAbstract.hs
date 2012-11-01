@@ -163,7 +163,7 @@ reifyDisplayFormP lhs@(A.LHS i A.LHSProj{} wps) =
   typeError $ NotImplemented "reifyDisplayForm for copatterns"
 reifyDisplayFormP lhs@(A.LHS i (A.LHSHead x ps) wps) =
   ifM (not <$> displayFormsEnabled) (return lhs) $ do
-    let vs = [ Arg h Relevant $ I.Var n [] | (n, h) <- zip [0..] $ map argHiding ps]
+    let vs = [ Arg h Relevant $ I.var n | (n, h) <- zip [0..] $ map argHiding ps]
     md <- liftTCM $ displayForm x vs
     reportSLn "syntax.reify.display" 20 $
       "display form of " ++ show x ++ " " ++ show ps ++ " " ++ show wps ++ ":\n  " ++ show md
