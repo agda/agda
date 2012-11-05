@@ -270,7 +270,10 @@ instance Reduce Term where
   reduceB v = {-# SCC "reduce<Term>" #-} do
     v <- instantiate v
     case v of
-      MetaV x args -> notBlocked . MetaV x <$> reduce args
+--    Andreas, 2012-11-05 not reducing meta args does not destroy anything
+--    and seems to save 2% sec on the standard library
+--      MetaV x args -> notBlocked . MetaV x <$> reduce args
+      MetaV x args -> return $ notBlocked v
       Def f args   -> unfoldDefinition False reduceB (Def f []) f args
       Con c args   -> do
           -- Constructors can reduce when they come from an
