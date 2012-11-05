@@ -4,26 +4,38 @@
 
 \ProvidesPackage{agda}
 
-\RequirePackage{ucs, amsfonts, amssymb, xcolor, polytable}
-\RequirePackage[safe]{tipa} % See page 12 of the tipa manual for what
+\usepackage{ifxetex, xcolor, polytable}
+
+% XeLaTeX
+\ifxetex
+    \usepackage{polyglossia}
+    \usepackage{fontspec}
+    \usepackage[]{unicode-math}
+
+% pdfLaTeX
+\else
+    \usepackage{ucs, amsfonts, amssymb}
+    \usepackage[safe]{tipa} % See page 12 of the tipa manual for what
                             % safe does.
 
-% FIX: This doesn't seem to help solve the pipe problem?
-%   http://tex.stackexchange.com/questions/1774/how-to-insert-pipe-symbol-in-latex
-\RequirePackage[T1]{fontenc}
+    % FIX: This doesn't seem to help solve the pipe problem?
+    % http://tex.stackexchange.com/questions/1774/how-to-insert-pipe-symbol-in-latex
+    \usepackage[T1]{fontenc}
+    \usepackage[utf8x]{inputenc}
 
-\RequirePackage[utf8x]{inputenc}
-
-% ----------------------------------------------------------------------
-
-\DeclareUnicodeCharacter{9657}{$\triangleright$}
-\DeclareUnicodeCharacter{8759}{::}
-\DeclareUnicodeCharacter{8263}{$?\!?$}
-\DeclareUnicodeCharacter{737} {$^l$}  % FIX: Ugly, apparently ^r is
-                                      % defined, I can't find the
-                                      % definition though.
-\DeclareUnicodeCharacter{8718}{$\blacksquare$}
-\DeclareUnicodeCharacter{8255}{$\_$} % FIX: Couldn't find \undertie.
+    % FIX: Complete the list and send it upstream to the ucs package devs.
+    \DeclareUnicodeCharacter{9657}{$\triangleright$}
+    \DeclareUnicodeCharacter{8759}{::}
+    \DeclareUnicodeCharacter{8263}{$?\!?$}
+    \DeclareUnicodeCharacter{737} {$^l$}  % FIX: Ugly, apparently ^r is
+                                          % defined, I can't find the
+                                          % definition though.
+    \DeclareUnicodeCharacter{8718}{$\blacksquare$}
+    \DeclareUnicodeCharacter{8255}{$\_$} % FIX: Couldn't find \undertie.
+    \DeclareUnicodeCharacter{9667}{$\triangleleft$}
+    \DeclareUnicodeCharacter{10218}{$\langle\!\langle$}
+    \DeclareUnicodeCharacter{10219}{$\rangle\!\rangle$}
+\fi
 
 % ----------------------------------------------------------------------
 % Font styles.
