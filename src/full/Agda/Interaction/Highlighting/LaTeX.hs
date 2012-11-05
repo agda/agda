@@ -190,6 +190,10 @@ cmdArg    x = T.singleton '{' <+> x <+> T.singleton '}'
 cmdIndent i = cmdPrefix <+> T.pack "Indent" <+>
                   cmdArg (T.pack (show i)) <+> cmdArg T.empty
 
+infixl'     = T.pack "infixl"
+infix'      = T.pack "infix"
+infixr'     = T.pack "infixr"
+
 ------------------------------------------------------------------------
 -- * Automaton.
 
@@ -227,6 +231,11 @@ code = do
     tell $ ptClose <+> tok
     unsetInCode
     nonCode
+
+  when (tok `elem` [ infixl', infix', infixr' ]) $ do
+    tell $ cmdPrefix <+> T.pack "Keyword" <+> cmdArg tok
+    fixity
+    code
 
   when (isSpaces tok) $ do
     spaces $ T.group tok
@@ -267,6 +276,35 @@ escape (T.uncons -> Just (c, s)) = T.pack (replace c) <+> escape s
     _    -> [ c ]
 escape _                         = __IMPOSSIBLE__
 
+-- | Fixity declarations need a special treatment. The operations in
+-- declarations like:
+--
+--     infix num op1 op2 op3
+--
+-- are treated as comments and thus grouped together with the newlines
+-- that follow, which results incorrect LaTeX output -- the following
+-- state remedies the problem by breaking on newlines.
+fixity :: LaTeX ()
+fixity = do
+  tok <- nextToken
+
+  case T.breakOn (T.pack "\n") tok of
+
+    -- Spaces.
+    (sps, nls) | nls == T.empty && isSpaces sps -> do
+        spaces $ T.group sps
+        fixity
+
+    -- Fixity level.
+    (num, nls) | nls == T.empty -> do
+        tell $ cmdPrefix <+> T.pack "Number" <+> cmdArg num
+        fixity
+
+    -- Operations followed by newlines.
+    (ops, nls) | otherwise      -> do
+        tell $ escape ops
+        spaces (T.group nls)
+
 
 -- | Spaces are grouped before processed, because multiple consecutive
 -- spaces determine the alignment of the code and consecutive newline
@@ -279,7 +317,6 @@ spaces ((T.uncons -> Nothing)       : ss) = __IMPOSSIBLE__
 spaces ((T.uncons -> Just (' ', s)) : []) | T.null s = do
   moveColumn 1
   tell $ T.singleton ' '
-  code
 
 -- Multiple spaces.
 spaces (s@(T.uncons -> Just (' ', _)) : ss) = do
