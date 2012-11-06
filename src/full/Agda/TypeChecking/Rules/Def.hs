@@ -125,6 +125,7 @@ checkAlias t' rel delayed i name e = do
                       , funProjection     = Nothing
                       , funStatic         = False
                       , funCopy           = False
+                      , funTerminates     = Nothing
                       }
   reportSDoc "tc.def.alias" 20 $ text "checkAlias: leaving"
 
@@ -201,6 +202,7 @@ checkFunDef' t rel delayed i name cs =
                             , funProjection     = Nothing
                             , funStatic         = False
                             , funCopy           = False
+                            , funTerminates     = Nothing
                             }
 
         -- Andreas 2012-02-13: postpone polarity computation until after positivity check

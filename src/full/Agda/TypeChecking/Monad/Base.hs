@@ -598,7 +598,10 @@ data Defn = Axiom
             , funStatic         :: Bool
               -- ^ Should calls to this function be normalised at compile-time?
             , funCopy           :: Bool
-              -- ^ Has this function been created by a module instantiation?
+              -- ^ Has this function been created by a module
+                                   -- instantiation?
+            , funTerminates     :: Maybe Bool
+              -- ^ Has this function been termination checked?  Did it pass?
             }
 	  | Datatype
             { dataPars           :: Nat           -- nof parameters

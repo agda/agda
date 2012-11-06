@@ -446,6 +446,7 @@ checkExpr e t =
                       , funProjection     = Nothing
                       , funStatic         = False
                       , funCopy           = False
+                      , funTerminates     = Just True
                       }
                   -- Andreas 2012-01-30: since aux is lifted to toplevel
                   -- it needs to be applied to the current telescope (issue 557)

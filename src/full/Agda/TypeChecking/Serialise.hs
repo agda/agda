@@ -890,14 +890,14 @@ instance EmbPrj CompiledRepresentation where
 
 instance EmbPrj Defn where
   icode Axiom                                   = icode0 0
-  icode (Function    a b c d e f g h i)         = icode9 1 a b c d e f g h i
+  icode (Function    a b c d e f g h i j)       = icode10 1 a b c d e f g h i j
   icode (Datatype    a b c d e f g h)           = icode8 2 a b c d e f g h
   icode (Record      a b c d e f g h i j k l)   = icode12 3 a b c d e f g h i j k l
   icode (Constructor a b c d e)                 = icode5 4 a b c d e
   icode (Primitive   a b c d)                   = icode4 5 a b c d
   value = vcase valu where
     valu [0]                                    = valu0 Axiom
-    valu [1, a, b, c, d, e, f, g, h, i]         = valu9 Function a b c d e f g h i
+    valu [1, a, b, c, d, e, f, g, h, i, j]      = valu10 Function a b c d e f g h i j
     valu [2, a, b, c, d, e, f, g, h]            = valu8 Datatype a b c d e f g h
     valu [3, a, b, c, d, e, f, g, h, i, j, k, l]= valu12 Record  a b c d e f g h i j k l
     valu [4, a, b, c, d, e]                     = valu5 Constructor a b c d e
@@ -978,10 +978,12 @@ instance EmbPrj I.Pattern where
   icode (ConP a b c) = icode3' a b c
   icode (LitP a    ) = icode1 2 a
   icode (DotP a    ) = icode1 3 a
+  icode (ProjP a   ) = icode1 4 a
   value = vcase valu where valu [a]       = valu1 VarP a
                            valu [a, b, c] = valu3 ConP a b c
                            valu [2, a]    = valu1 LitP a
                            valu [3, a]    = valu1 DotP a
+                           valu [4, a]    = valu1 ProjP a
                            valu _         = malformed
 
 instance EmbPrj a => EmbPrj (Builtin a) where

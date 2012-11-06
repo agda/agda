@@ -363,6 +363,7 @@ checkRecordProjections m r q tel ftel fs = checkProjs EmptyTel ftel fs
                        -- index of the record argument (in the type), start counting with 1
                      , funStatic         = False
                      , funCopy           = False
+                     , funTerminates     = Just True
                      }
         computePolarity projname
 

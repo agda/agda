@@ -104,6 +104,13 @@ addConstant q d = do
   where
     new +++ old = new { defDisplay = defDisplay new ++ defDisplay old }
 
+-- | Set termination info of a defined function symbol.
+setTerminates :: QName -> Bool -> TCM ()
+setTerminates q b = modifySignature $ updateDefinition q $ updateTheDef $ setT
+  where
+    setT def@Function{} = def { funTerminates = Just b }
+    setT def            = def
+
 addHaskellCode :: QName -> HaskellType -> HaskellCode -> TCM ()
 addHaskellCode q hsTy hsDef = modifySignature $ updateDefinition q $ updateDefCompiledRep $ addHs
   -- TODO: sanity checking
@@ -298,6 +305,7 @@ applySection new ptel old ts rd rm = do
                         , funProjection     = proj
                         , funStatic         = False
                         , funCopy           = True
+                        , funTerminates     = Just True
                         }
                   reportSLn "tc.mod.apply" 80 $ "new def for " ++ show x ++ "\n  " ++ show newDef
                   return newDef

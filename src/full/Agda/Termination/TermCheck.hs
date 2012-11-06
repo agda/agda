@@ -126,8 +126,13 @@ termMutual :: Info.MutualInfo -> [A.Declaration] -> TCM Result
 termMutual i ds = if names == [] then return mempty else
   -- we set the range to avoid panics when printing error messages
   traceCall (SetRange (Info.mutualRange i)) $ do
+
+  mutualBlock <- findMutualBlock (head names)
+  let allNames = Set.elems mutualBlock
+
   if not (Info.mutualTermCheck i) then do
       reportSLn "term.warn.yes" 2 $ "Skipping termination check for " ++ show names
+      forM_ allNames $ \ q -> setTerminates q True -- considered terminating!
       return mempty
    else do
      -- get list of sets of mutually defined names from the TCM
@@ -139,8 +144,6 @@ termMutual i ds = if names == [] then return mempty else
 
      reportSLn "term.top" 10 $ "Termination checking " ++ show names ++
        " with cutoff=" ++ show cutoff ++ "..."
-     mutualBlock <- findMutualBlock (head names)
-     let allNames = Set.elems mutualBlock
 
      -- Get the name of size suc (if sized types are enabled)
      suc <- sizeSucName
@@ -161,9 +164,14 @@ termMutual i ds = if names == [] then return mempty else
 
      -- new check currently only makes a difference for copatterns
      -- since it is slow, only invoke it if --copatterns
-     ifM (optCopatterns <$> pragmaOptions)
+     res <- ifM (optCopatterns <$> pragmaOptions)
        (forM' allNames $ termFunction conf names allNames) -- new check one after another
        (termMutual' conf names allNames) -- old check, all at once
+
+     -- record result of termination check in signature
+     let terminates = null res
+     forM_ allNames $ \ q -> setTerminates q terminates
+     return res
 
   where
   getName (A.FunDef i x delayed cs) = [x]
@@ -175,6 +183,7 @@ termMutual i ds = if names == [] then return mempty else
 
   -- the mutual names mentioned in the abstract syntax
   names = concatMap getName ds
+
 
 -- | @termMutual' conf names allNames@ checks @allNames@ for termination.
 --

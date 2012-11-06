@@ -149,6 +149,7 @@ bindBuiltinFlat e =
                    , funProjection     = Just (inf, 3)
                    , funStatic         = False
                    , funCopy           = False
+                   , funTerminates     = Just True
                    }
                 }
     return flatE
