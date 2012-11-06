@@ -45,6 +45,10 @@ reduceHead v = ignoreAbstractMode $ do
       def <- theDef <$> getConstInfo f
       case def of
         -- Andreas, 2012-11-06 unfold aliases (single clause terminating functions)
+        -- see test/succeed/Issue747
+        -- We restrict this to terminating functions to not make the
+        -- type checker loop here on non-terminating functions.
+        -- see test/fail/TerminationInfiniteRecord
         Function{ funClauses = [ _ ], funDelayed = NotDelayed, funTerminates = Just True }
                                         -> unfoldDefinition False reduceHead v0 f args
         Datatype{ dataClause = Just _ } -> unfoldDefinition False reduceHead v0 f args
