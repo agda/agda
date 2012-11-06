@@ -41,11 +41,14 @@ reduceHead v = ignoreAbstractMode $ do
   reportSDoc "tc.inj.reduce" 30 $ text "reduceHead" <+> prettyTCM v
   case ignoreSharing v of
     Def f args -> do
+      let v0 = Def f []
       def <- theDef <$> getConstInfo f
       case def of
---         Function{ funClauses = [ _ ] }  -> unfoldDefinition False reduceHead v f args
-        Datatype{ dataClause = Just _ } -> unfoldDefinition False reduceHead v f args
-        Record{ recClause = Just _ }    -> unfoldDefinition False reduceHead v f args
+        -- Andreas, 2012-11-06 unfold aliases (single clause terminating functions)
+        Function{ funClauses = [ _ ], funDelayed = NotDelayed, funTerminates = Just True }
+                                        -> unfoldDefinition False reduceHead v0 f args
+        Datatype{ dataClause = Just _ } -> unfoldDefinition False reduceHead v0 f args
+        Record{ recClause = Just _ }    -> unfoldDefinition False reduceHead v0 f args
         _                               -> return $ notBlocked v
     _ -> return $ notBlocked v
 
@@ -66,13 +69,20 @@ headSymbol v = ignoreAbstractMode $ do
           if Set.member f fs
             then return Nothing
             else return (Just $ ConHead f)
-        _           -> return Nothing
+        Function{}    -> return Nothing
+        Primitive{}   -> return Nothing
+        Constructor{} -> __IMPOSSIBLE__
     Con c _ -> return (Just $ ConHead c)
     Sort _  -> return (Just SortHead)
     Pi _ _  -> return (Just PiHead)
     Lit _   -> return Nothing -- handle literal heads as well? can't think of
                               -- any examples where it would be useful...
-    _       -> return Nothing
+    Lam{}   -> return Nothing
+    Var{}   -> return Nothing
+    Level{} -> return Nothing
+    MetaV{} -> return Nothing
+    DontCare{} -> return Nothing
+    Shared{}   -> __IMPOSSIBLE__
 
 checkInjectivity :: QName -> [Clause] -> TCM FunctionInverse
 checkInjectivity f cs
