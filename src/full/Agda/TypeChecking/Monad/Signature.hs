@@ -84,6 +84,9 @@ updateDefArgOccurrences f def = def { defArgOccurrences = f (defArgOccurrences d
 updateDefPolarity :: ([Polarity] -> [Polarity]) -> (Definition -> Definition)
 updateDefPolarity f def = def { defPolarity = f (defPolarity def) }
 
+updateDefCompiledRep :: (CompiledRepresentation -> CompiledRepresentation) -> (Definition -> Definition)
+updateDefCompiledRep f def = def { defCompiledRep = f (defCompiledRep def) }
+
 -- | Add a constant to the signature. Lifts the definition to top level.
 addConstant :: QName -> Definition -> TCM ()
 addConstant q d = do
@@ -102,46 +105,35 @@ addConstant q d = do
     new +++ old = new { defDisplay = defDisplay new ++ defDisplay old }
 
 addHaskellCode :: QName -> HaskellType -> HaskellCode -> TCM ()
-addHaskellCode q hsTy hsDef =
+addHaskellCode q hsTy hsDef = modifySignature $ updateDefinition q $ updateDefCompiledRep $ addHs
   -- TODO: sanity checking
-  modifySignature $ \sig -> sig
-  { sigDefinitions = HMap.adjust addHs q $ sigDefinitions sig }
   where
-    addHs def = def { defCompiledRep = (defCompiledRep def) { compiledHaskell = Just $ HsDefn hsTy hsDef } }
+    addHs crep = crep { compiledHaskell = Just $ HsDefn hsTy hsDef }
 
 addHaskellType :: QName -> HaskellType -> TCM ()
-addHaskellType q hsTy =
+addHaskellType q hsTy = modifySignature $ updateDefinition q $ updateDefCompiledRep $ addHs
   -- TODO: sanity checking
-  modifySignature $ \sig -> sig
-  { sigDefinitions = HMap.adjust addHs q $ sigDefinitions sig }
   where
-    addHs def = def { defCompiledRep = (defCompiledRep def) { compiledHaskell = Just $ HsType hsTy } }
+    addHs crep = crep { compiledHaskell = Just $ HsType hsTy }
 
 addEpicCode :: QName -> EpicCode -> TCM ()
-addEpicCode q epDef =
+addEpicCode q epDef = modifySignature $ updateDefinition q $ updateDefCompiledRep $ addEp
   -- TODO: sanity checking
-  modifySignature $ \sig -> sig
-  { sigDefinitions = HMap.adjust addEp q $ sigDefinitions sig }
   where
-    --addEp def@Defn{theDef = con@Constructor{}} =
-      --def{theDef = con{conHsCode = Just (hsTy, hsDef)}}
-    addEp def = def { defCompiledRep = (defCompiledRep def) { compiledEpic = Just epDef } }
+    addEp crep = crep { compiledEpic = Just epDef }
 
 addJSCode :: QName -> String -> TCM ()
 addJSCode q jsDef =
   case JS.parse jsDef of
     Left e ->
-      modifySignature $ \sig -> sig
-      { sigDefinitions = HMap.adjust (addJS (Just e)) q $ sigDefinitions sig }
+      modifySignature $ updateDefinition q $ updateDefCompiledRep $ addJS (Just e)
     Right s ->
       typeError (CompilationError ("Failed to parse ECMAScript (..." ++ s ++ ") for " ++ show q))
   where
-    addJS e def = def{defCompiledRep = (defCompiledRep def){compiledJS = e}}
+    addJS e crep = crep { compiledJS = e }
 
 markStatic :: QName -> TCM ()
-markStatic q =
-  modifySignature $ \sig -> sig
-  { sigDefinitions = HMap.adjust mark q $ sigDefinitions sig }
+markStatic q = modifySignature $ updateDefinition q $ mark
   where
     mark def@Defn{theDef = fun@Function{}} =
       def{theDef = fun{funStatic = True}}
