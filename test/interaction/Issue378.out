@@ -1,0 +1,13 @@
+Agda2> (agda2-status-action "")
+(agda2-info-action "*Type-checking*" "" nil)
+(agda2-highlight-clear)
+(agda2-info-action "*Type-checking*" "Checking Issue378 (Issue378.agda).\n" t)
+(agda2-info-action "*Type-checking*" "Finished Issue378.\n" t)
+(agda2-status-action "")
+(agda2-info-action "*All Goals*" "?0 : {n : ℕ} → n ≡ n\n" nil)
+((last . 1) . (agda2-goals-action '(0)))
+Agda2> (agda2-give-action 0 "λ {n} → S₁ (S₅ n) (S₅ n)")
+(agda2-status-action "")
+(agda2-info-action "*All Goals*" "" nil)
+((last . 1) . (agda2-goals-action '()))
+Agda2> 
