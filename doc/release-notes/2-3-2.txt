@@ -482,6 +482,18 @@ Type checking
   not available yet when meta-variables are solved.
   (See test/fail/BrokenInferenceDueToNonvariantPolarity.agda)
 
+* Agda now expands simple definitions (one clause, terminating)
+  to check whether a function is constructor headed. [Issue 747]
+  For instance, the following now also works:
+
+    MyPair : Set -> Set -> Set
+    MyPair A B = Pair A B
+
+    Vec : Set -> Nat -> Set
+    Vec A zero    = Unit
+    Vec A (suc n) = MyPair A (Vec A n)
+
+  Here, Unit and Pair are data or record types.
 
 Compiler backends
 =================
