@@ -1436,16 +1436,16 @@ to display the given position."
   (interactive "P")
   (annotation-goto-indirect (point) other-window))
 
-(defun agda2-goto-definition-mouse (ev prefix)
+(defun agda2-goto-definition-mouse (ev)
   "Go to the definition site of the name clicked on, if any.
-Otherwise, yank (see `mouse-yank-at-click')."
-  (interactive "e\nP")
+Otherwise, yank (see `mouse-yank-primary')."
+  (interactive "e")
   (let ((pos (posn-point (event-end ev))))
     (if (annotation-goto-possible pos)
         (annotation-goto-indirect pos)
       ;; FIXME: Shouldn't we use something like
       ;; (call-interactively (key-binding ev))?  --Stef
-      (mouse-yank-at-click ev prefix))))
+      (mouse-yank-primary ev))))
 
 (defun agda2-go-back nil
   "Go back to the previous position in which
