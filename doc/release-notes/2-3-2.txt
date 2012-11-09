@@ -260,7 +260,7 @@ Type checking
   empty vector is already ruled out by instantiating n to a suc _.
 
 * Instance arguments resolution will now consider candidates which
-  still need expect arguments. For example:
+  still expect hidden arguments. For example:
 
     record Eq (A : Set) : Set where
       field eq : A → A → Bool
@@ -274,7 +274,7 @@ Type checking
     testFin = eq fin1 fin2
 
   The type-checker will now resolve the instance argument of the eq
-  function to eqFin {_}. This is only done for implicit arguments, not
+  function to eqFin {_}. This is only done for hidden arguments, not
   instance arguments, so that the instance search stays non-recursive.
 
 * Constraint solving: Upgraded Miller patterns to record patterns. [Issue 456]
