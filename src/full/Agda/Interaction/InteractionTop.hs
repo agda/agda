@@ -204,7 +204,7 @@ runInteraction (IOTCM current highlighting highlightingMethod cmd)
 
         res <- (`catchError` (return . Just)) $ do
 
-            -- | Raises an error if the given file is not the one currently
+            -- Raises an error if the given file is not the one currently
             -- loaded.
             cf <- gets theCurrentFile
             when (not (independent cmd) && Just current /= (fst <$> cf)) $
@@ -250,38 +250,38 @@ runInteraction (IOTCM current highlighting highlightingMethod cmd)
 ----------------------------------------------------------------------------
 -- | An interactive computation.
 
-data Interaction where
+data Interaction
     -- | @cmd_load m includes@ loads the module in file @m@, using
     -- @includes@ as the include directories.
-    Cmd_load            :: FilePath -> [FilePath] -> Interaction
+  = Cmd_load            FilePath [FilePath]
 
     -- | @cmd_compile b m includes@ compiles the module in file @m@ using
     -- the backend @b@, using @includes@ as the include directories.
-    Cmd_compile         :: Backend -> FilePath -> [FilePath] -> Interaction
+  | Cmd_compile         Backend FilePath [FilePath]
 
-    Cmd_constraints     :: Interaction
+  | Cmd_constraints
 
-    -- Show unsolved metas. If there are no unsolved metas but unsolved constraints
+    -- | Show unsolved metas. If there are no unsolved metas but unsolved constraints
     -- show those instead.
-    Cmd_metas           :: Interaction
+  | Cmd_metas
 
     -- | Shows all the top-level names in the given module, along with
     -- their types. Uses the top-level scope.
-    Cmd_show_module_contents_toplevel
-                        :: String -> Interaction
+  | Cmd_show_module_contents_toplevel
+                        String
 
-    Cmd_solveAll        :: Interaction
+  | Cmd_solveAll
 
     -- | Parse the given expression (as if it were defined at the
     -- top-level of the current module) and infer its type.
-    Cmd_infer_toplevel  :: B.Rewrite  -- ^ Normalise the type?
-                        -> String
-                        -> Interaction
+  | Cmd_infer_toplevel  B.Rewrite  -- Normalise the type?
+                        String
+
 
     -- | Parse and type check the given expression (as if it were defined
     -- at the top-level of the current module) and normalise it.
-    Cmd_compute_toplevel :: Bool -- ^ Ignore abstract?
-                         -> String -> Interaction
+  | Cmd_compute_toplevel Bool -- Ignore abstract?
+                         String
 
     ------------------------------------------------------------------------
     -- Syntax highlighting
@@ -301,18 +301,18 @@ data Interaction where
     -- command tries not to do that. One result of this is that the
     -- command uses the current include directories, whatever they happen
     -- to be.
-    Cmd_load_highlighting_info
-                        :: FilePath -> Interaction
+  | Cmd_load_highlighting_info
+                        FilePath
 
     ------------------------------------------------------------------------
     -- Implicit arguments
 
     -- | Tells Agda whether or not to show implicit arguments.
-    ShowImplicitArgs    :: Bool -- ^ Show them?
-                        -> Interaction
+  | ShowImplicitArgs    Bool -- Show them?
+
 
     -- | Toggle display of implicit arguments.
-    ToggleImplicitArgs  :: Interaction
+  | ToggleImplicitArgs
 
     ------------------------------------------------------------------------
     -- | Goal commands
@@ -320,51 +320,51 @@ data Interaction where
     -- If the range is 'noRange', then the string comes from the
     -- minibuffer rather than the goal.
 
-    Cmd_give            :: InteractionId -> Range -> String -> Interaction
+  | Cmd_give            InteractionId Range String
 
-    Cmd_refine          :: InteractionId -> Range -> String -> Interaction
+  | Cmd_refine          InteractionId Range String
 
-    Cmd_intro           :: Bool -> InteractionId -> Range -> String -> Interaction
+  | Cmd_intro           Bool InteractionId Range String
 
-    Cmd_refine_or_intro :: Bool -> InteractionId -> Range -> String -> Interaction
+  | Cmd_refine_or_intro Bool InteractionId Range String
 
-    Cmd_auto            :: InteractionId -> Range -> String -> Interaction
+  | Cmd_auto            InteractionId Range String
 
-    Cmd_context         :: B.Rewrite -> InteractionId -> Range -> String -> Interaction
+  | Cmd_context         B.Rewrite InteractionId Range String
 
-    Cmd_infer           :: B.Rewrite -> InteractionId -> Range -> String -> Interaction
+  | Cmd_infer           B.Rewrite InteractionId Range String
 
-    Cmd_goal_type       :: B.Rewrite -> InteractionId -> Range -> String -> Interaction
+  | Cmd_goal_type       B.Rewrite InteractionId Range String
 
     -- | Displays the current goal and context.
-    Cmd_goal_type_context :: B.Rewrite -> InteractionId -> Range -> String -> Interaction
+  | Cmd_goal_type_context B.Rewrite InteractionId Range String
 
     -- | Displays the current goal and context /and/ infers the type of an
     -- expression.
-    Cmd_goal_type_context_infer
-                        :: B.Rewrite -> InteractionId -> Range -> String -> Interaction
+  | Cmd_goal_type_context_infer
+                        B.Rewrite InteractionId Range String
 
     -- | Shows all the top-level names in the given module, along with
     -- their types. Uses the scope of the given goal.
-    Cmd_show_module_contents
-                        :: InteractionId -> Range -> String -> Interaction
+  | Cmd_show_module_contents
+                        InteractionId Range String
 
-    Cmd_make_case       :: InteractionId -> Range -> String -> Interaction
+  | Cmd_make_case       InteractionId Range String
 
-    Cmd_compute         :: Bool -- ^ Ignore abstract?
-                        -> InteractionId -> Range -> String -> Interaction
+  | Cmd_compute         Bool -- Ignore abstract?
+                        InteractionId Range String
         deriving Read
 
 data IOTCM
     = IOTCM
         FilePath
-         -- ^ The current file. If this file does not match
+         -- -^ The current file. If this file does not match
          -- 'theCurrentFile, and the 'Interaction' is not
          -- \"independent\", then an error is raised.
         HighlightingLevel
         HighlightingMethod
         Interaction
-         -- ^ What to do
+         -- -^ What to do
             deriving Read
 
 ---------------------------------------------------------
