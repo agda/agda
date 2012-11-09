@@ -202,7 +202,7 @@ Language
 
     open M {namedArg = bla}
 
-  This feature was (accidentally?) introduced in Agda 2.3.0.
+  This feature has been introduced in Agda 2.3.0 already.
 
 * Multiple type signatures sharing a same type can now be written as a single
   type signature.
@@ -364,7 +364,7 @@ Type checking
       where myId : forall {A} -> A -> A
             myId x = x
 
-  To be able to fill in the metavariable _1 in
+  To be able to fill in the meta variable _1 in
 
     myId : {A : Set _1} -> A -> A
 
@@ -386,8 +386,8 @@ Type checking
   Before, Agda would eagerly introduce the hidden parameter {v} as
   unnamed left-hand side parameter, leaving no way to refer to it.
 
-  The related issue 655 has also been adressed.  It is now possible
-  to make `synonymn' definitions
+  The related issue 655 has also been addressed.  It is now possible
+  to make `synonym' definitions
 
     name = expression
 
@@ -510,7 +510,7 @@ Compiler backends
 
     {-# COMPILED_DATA PartialBool Bool True #-}
 
-  The default behaviour remains as it used to be and rejects the above
+  The default behavior remains as it used to be and rejects the above
   program.
 
 Tools
@@ -675,7 +675,7 @@ Implemented features:
   * Two or more spaces can be used to force alignment of things, like
     with lhs2tex. See example above.
 
-  * The highlighting information produced by the typechecker is used to
+  * The highlighting information produced by the type checker is used to
     generate the output. For example, the data declaration in the example
     above, produces:
 
@@ -690,7 +690,7 @@ Implemented features:
     data-dir into the working directory (and thus made available to the
     latex environment).
 
-    If the default agda.sty isn't satisfactory (colours, fonts, spacing,
+    If the default agda.sty isn't satisfactory (colors, fonts, spacing,
     etc) then the user can modify it and make put it somewhere where the
     latex environment can find it. Hopefully most aspects should be
     modifiable via agda.sty rather than having to tweak the
