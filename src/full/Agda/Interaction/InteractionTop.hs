@@ -1,7 +1,6 @@
 {-# LANGUAGE CPP, TypeSynonymInstances, FlexibleInstances,
              MultiParamTypeClasses, Rank2Types,
-             GeneralizedNewtypeDeriving, ScopedTypeVariables,
-             GADTs #-}
+             GeneralizedNewtypeDeriving, ScopedTypeVariables #-}
 {-# OPTIONS -fno-cse #-}
 
 module Agda.Interaction.InteractionTop
