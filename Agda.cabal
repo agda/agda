@@ -4,7 +4,7 @@ cabal-version:   >= 1.8
 build-type:      Simple
 license:         OtherLicense
 license-file:    LICENSE
-author:          Ulf Norell, Nils Anders Danielsson, Andreas Abel, Catarina Coquand, Makoto Takeyama, and many more.
+author:          Ulf Norell, Nils Anders Danielsson, Andreas Abel, Makoto Takeyama, Catarina Coquand, with contributions by Stevan Andjelkovic, Marcin Benke, Jean-Philippe Bernardy, James Chapman, Dominique Devriese, Peter Divanski, Fredrik Nordvall Forsberg, Olle Frediksson, Daniel Gustafsson, Alan Jeffrey, Fredrik Lindblad, Guilhem Moulin, Nicolas Pouillard, Andrés Sicard-Ramírez and many more.
 maintainer:      Ulf Norell <ulfn@chalmers.se>
 homepage:        http://wiki.portal.chalmers.se/agda/
 bug-reports:     http://code.google.com/p/agda/issues/list
