@@ -1,0 +1,32 @@
+------------------------------------------------------------------------
+-- Release notes for Agda 2 version 2.3.4
+------------------------------------------------------------------------
+
+Important changes since 2.3.2:
+
+Installation
+============
+
+Pragmas and Options
+===================
+
+Language
+========
+
+Goal and error display
+======================
+
+Type checking
+=============
+
+Compiler backends
+=================
+
+Tools
+=====
+
+Emacs mode
+----------
+
+LaTeX-backend
+-------------
