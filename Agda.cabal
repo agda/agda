@@ -330,8 +330,8 @@ library
   -- The Cabal-generated module Paths_Agda triggers a warning under
   -- GHC 7.2.1/7.2.2 (at least when certain versions of Cabal are
   -- used).
-  -- if impl(ghc < 7.2.1) || impl(ghc > 7.2.2)
-  --   ghc-options:    -Werror
+  if impl(ghc < 7.2.1) || impl(ghc > 7.2.2)
+    ghc-options:    -Werror
   if impl(ghc >= 6.12)
     ghc-options:    -fwarn-dodgy-exports
                     -fwarn-wrong-do-bind
