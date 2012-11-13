@@ -40,8 +40,10 @@ module Agda.Termination.SparseMatrix
 
 import Data.Array
 import qualified Data.List as List
-import Agda.Utils.Pretty hiding (isEmpty)
+import Data.Maybe
 import Data.Monoid
+
+import Agda.Utils.Pretty hiding (isEmpty)
 import Agda.Utils.QuickCheck
 import Agda.Utils.TestHelpers
 import Agda.Termination.Semiring (HasZero(..), SemiRing, Semiring)
@@ -129,12 +131,12 @@ strictlySorted (MIx i j) ((MIx i' j', b) : l) =
   (i < i' || i == i' &&  j < j' ) && strictlySorted (MIx i' j') b
 -}
 
-instance (Ord i, Integral i, Enum i, Show i, Show b, HasZero b) => Show (Matrix i b) where
+instance (Ord i, Integral i, Enum i, Ix i, Show i, Show b, HasZero b) => Show (Matrix i b) where
   showsPrec _ m =
     showString "Agda.Termination.Matrix.fromLists " . shows (size m) .
     showString " " . shows (toLists m)
 
-instance (Show i, Integral i, HasZero b, Pretty b) =>
+instance (Show i, Integral i, Ix i, HasZero b, Pretty b) =>
          Pretty (Matrix i b) where
   pretty = vcat . map (hsep . map pretty) . toLists
 
@@ -142,7 +144,7 @@ instance (Arbitrary i, Num i, Integral i, Arbitrary b, HasZero b)
          => Arbitrary (Matrix i b) where
   arbitrary     = matrix =<< arbitrary
 
-instance (Show i, Ord i, Integral i, Enum i, CoArbitrary b, HasZero b) => CoArbitrary (Matrix i b) where
+instance (Show i, Ord i, Integral i, Enum i, Ix i, CoArbitrary b, HasZero b) => CoArbitrary (Matrix i b) where
   coarbitrary m = coarbitrary (toLists m)
 
 
@@ -214,18 +216,20 @@ blowUpSparseVec zero n l = aux 1 l
                  | otherwise = zero : aux (i+1) []
         aux i ((j,b):l) | i <= n && j == i = b : aux (succ i) l
         aux i ((j,b):l) | i <= n && j >= i = zero : aux (succ i) ((j,b):l)
-        aux i l = error $ "blowUpSparseVec (n = " ++ show n ++ ") aux i=" ++ show i ++ " j=" ++ show (fst (head l)) ++ " length l = " ++ show (length l)
--- __IMPOSSIBLE__
+        aux i l = __IMPOSSIBLE__
+          -- error $ "blowUpSparseVec (n = " ++ show n ++ ") aux i=" ++ show i ++ " j=" ++ show (fst (head l)) ++ " length l = " ++ show (length l)
 
 -- | Converts a matrix to a list of row lists.
 
-toLists :: (Show i, Ord i, Integral i, Enum i, HasZero b) => Matrix i b -> [[b]]
-toLists m = blowUpSparseVec emptyRow (rows sz) $
-    map (\ (i,r) -> (i, blowUpSparseVec zeroElement (cols sz) r)) $ toSparseRows m
---            [ [ maybe zeroElement id $ lookup (MIx { row = r, col = c }) (unM m)
---            | c <- [1 .. cols sz] ] | r <- [1 .. rows sz] ]
-  where sz = size m
-        emptyRow = take (fromIntegral (cols sz)) $ repeat zeroElement
+toLists :: (Show i, Ord i, Integral i, Enum i, Ix i, HasZero b) => Matrix i b -> [[b]]
+toLists m = -- if not $ matrixInvariant m then __IMPOSSIBLE__ else
+    blowUpSparseVec emptyRow nr $
+      map (\ (i,r) -> (i, blowUpSparseVec zeroElement nc r)) $ toSparseRows m
+  where
+    sz = size m
+    nr = rows sz
+    nc = cols sz
+    emptyRow = take (fromIntegral nc) $ repeat zeroElement
 
 prop_fromLists_toLists :: TM -> Bool
 prop_fromLists_toLists m = fromLists (size m) (toLists m) == m
@@ -276,12 +280,24 @@ transpose m = M { size = transposeSize (size m)
                 , unM  = List.sortBy (\ (i,a) (j,b) -> compare i j) $
                            map (\(MIx i j, b) -> (MIx j i, b)) $ unM m }
 
+prop_transpose :: TM -> Bool
+prop_transpose m = matrixInvariant m' && m == transpose m'
+  where m' = transpose m
+
 -- | @'add' (+) m1 m2@ adds @m1@ and @m2@. Uses @(+)@ to add values.
 --
--- Precondition: @'size' m1 == 'size' m2@.
+-- No longer precondition: @'size' m1 == 'size' m2@.
 
 add :: (Ord i) => (a -> a -> a) -> Matrix i a -> Matrix i a -> Matrix i a
-add plus m1 m2 = M (size m1) $ mergeAssocWith plus (unM m1) (unM m2)
+add plus m1 m2 = M (supSize m1 m2) $ mergeAssocWith plus (unM m1) (unM m2)
+
+-- | Compute the matrix size of the union of two matrices.
+supSize m1 m2 = Size { rows = r, cols = c }
+  where
+    sz1 = size m1
+    sz2 = size m2
+    r   = max (rows sz1) (rows sz2)
+    c   = max (cols sz1) (cols sz2)
 
 -- | assoc list union
 mergeAssocWith :: (Ord i) => (a -> a -> a) -> [(i,a)] -> [(i,a)] -> [(i,a)]
@@ -295,10 +311,18 @@ mergeAssocWith f l@((i,a):l') m@((j,b):m')
 -- | @'intersectWith' f m1 m2@ build the pointwise conjunction @m1@ and @m2@.
 --   Uses @f@ to combine non-zero values.
 --
--- Precondition: @'size' m1 == 'size' m2@.
+-- No longer precondition: @'size' m1 == 'size' m2@.
 
 intersectWith :: (Ord i) => (a -> a -> a) -> Matrix i a -> Matrix i a -> Matrix i a
-intersectWith f m1 m2 = M (size m1) $ interAssocWith f (unM m1) (unM m2)
+intersectWith f m1 m2 = M (infSize m1 m2) $ interAssocWith f (unM m1) (unM m2)
+
+-- | Compute the matrix size of the intersection of two matrices.
+infSize m1 m2 = Size { rows = r, cols = c }
+  where
+    sz1 = size m1
+    sz2 = size m2
+    r   = min (rows sz1) (rows sz2)
+    c   = min (cols sz1) (cols sz2)
 
 -- | assoc list intersection
 interAssocWith :: (Ord i) => (a -> a -> a) -> [(i,a)] -> [(i,a)] -> [(i,a)]
@@ -353,12 +377,18 @@ prop_mul sz =
 
 -- | @'diagonal' m@ extracts the diagonal of @m@.
 --
--- Precondition: @'square' m@.
+-- No longer precondition: @'square' m@.
 
 diagonal :: (Show i, Enum i, Num i, Ix i, HasZero b) => Matrix i b -> Array i b
-diagonal m = listArray (1, rows sz) $ blowUpSparseVec zeroElement (rows sz) $
-  map (\ ((MIx i j),b) -> (i,b)) $ filter (\ ((MIx i j),b) -> i==j) (unM m)
-  where sz = size m
+diagonal m = -- if r /= c then __IMPOSSIBLE__ else  -- works also for non-square
+  listArray (1, n) $ blowUpSparseVec zeroElement n $
+    mapMaybe (\ ((MIx i j),b) -> if i==j then Just (i,b) else Nothing) $ unM m
+--    map (\ ((MIx i j),b) -> (i,b)) $ filter (\ ((MIx i j),b) -> i==j) (unM m)
+  where
+    sz = size m
+    r  = rows sz
+    c  = cols sz
+    n  = max r c
 
 prop_diagonal =
   forAll natural $ \n ->
@@ -416,7 +446,8 @@ zipWith f m1 m2
 
 tests :: IO Bool
 tests = runTests "Agda.Termination.Matrix"
-  [ quickCheck' prop_Arbitrary_Size
+  [ quickCheck' prop_transpose
+  , quickCheck' prop_Arbitrary_Size
   , quickCheck' prop_Arbitrary_Matrix
   , quickCheck' prop_Arbitrary_MIx
   , quickCheck' prop_fromIndexList
