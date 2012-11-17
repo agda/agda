@@ -2,6 +2,7 @@
 module Agda.Utils.Update
   ( Change
   , MonadChange(..)
+  , runChange
   , Updater
   , sharing
   , runUpdater
@@ -19,6 +20,8 @@ import Control.Monad.Writer.Strict
 import Data.Traversable (Traversable(..), traverse)
 
 import Data.Monoid
+
+import Agda.Utils.Tuple
 
 -- * Change monad.
 
@@ -47,35 +50,6 @@ instance MonadChange Identity where
 type EndoFun a = a -> a
 type Updater a = a -> Change a
 
--- BEGIN MOCK
-
--- * Mock updater
-
-type Change = Identity
-
--- | Replace result of updating with original input if nothing has changed.
-{-# INLINE sharing #-}
-sharing :: Updater a -> Updater a
-sharing f a = f a
-
--- | Run an updater.
-{-# INLINE runUpdater #-}
-runUpdater :: Updater a -> EndoFun a
-runUpdater f a = runIdentity (f a)
-
--- | Mark a computation as dirty.
-{-# INLINE dirty #-}
-dirty :: Updater a
-dirty = Identity
-
-{-# INLINE ifDirty #-}
-ifDirty :: Identity a -> (a -> Identity b) -> (a -> Identity b) -> Identity b
-ifDirty m f g = m >>= f
-
--- END MOCK
-
-{- UNCOMMENT this if you want Q-combinators that do something
-
 -- BEGIN REAL STUFF
 
 -- | The @Change@ monad.
@@ -88,17 +62,13 @@ instance MonadChange Change where
     (a, Any dirty) <- listen (fromChange m)
     return (a, dirty)
 
--- * Proper updater (Q-combinators)
+-- | Run a 'Change' computation, returning result plus change flag.
+runChange :: Change a -> (a, Bool)
+runChange = mapSnd getAny . runWriter . fromChange
 
--- | Replace result of updating with original input if nothing has changed.
-sharing :: Updater a -> Updater a
-sharing f a = do
-  (a', changed) <- listenDirty $ f a
-  return $ if changed then a' else a
-
--- | Run an updater.
-runUpdater :: Updater a -> EndoFun a
-runUpdater f a = fst $ runWriter $ fromChange $ sharing f a
+-- | Blindly run an updater.
+runUpdater :: Updater a -> a -> (a, Bool)
+runUpdater f a = runChange $ f a
 
 -- | Mark a computation as dirty.
 dirty :: Updater a
@@ -113,8 +83,19 @@ ifDirty m f g = do
   (a, dirty) <- listenDirty m
   if dirty then f a else g a
 
+-- * Proper updater (Q-combinators)
+
+-- | Replace result of updating with original input if nothing has changed.
+sharing :: Updater a -> Updater a
+sharing f a = do
+  (a', changed) <- listenDirty $ f a
+  return $ if changed then a' else a
+
+-- | Eval an updater (using 'sharing').
+evalUpdater :: Updater a -> EndoFun a
+evalUpdater f a = fst $ runWriter $ fromChange $ sharing f a
+
 -- END REAL STUFF
--}
 
 -- * Updater transformer classes
 
@@ -128,7 +109,7 @@ class Traversable f => Updater1 f where
 
   updater1   = traverse
   updates1 f = sharing $ updater1 f
-  update1  f = runUpdater $ updater1 f
+  update1  f = evalUpdater $ updater1 f
 
 instance Updater1 Maybe where
 
@@ -145,7 +126,7 @@ class Updater2 f where
   update2  :: Updater a -> Updater b -> EndoFun (f a b)
 
   updates2 f1 f2 = sharing $ updater2 f1 f2
-  update2  f1 f2 = runUpdater $ updater2 f1 f2
+  update2  f1 f2 = evalUpdater $ updater2 f1 f2
 
 instance Updater2 (,) where
   updater2 f1 f2 (a,b) = (,) <$> sharing f1 a <*> sharing f2 b
@@ -154,3 +135,30 @@ instance Updater2 Either where
   updater2 f1 f2 (Left a)  = Left <$> f1 a
   updater2 f1 f2 (Right b) = Right <$> f2 b
 
+
+{-- BEGIN MOCK
+
+-- * Mock updater
+
+type Change = Identity
+
+-- | Replace result of updating with original input if nothing has changed.
+{-# INLINE sharing #-}
+sharing :: Updater a -> Updater a
+sharing f a = f a
+
+-- | Run an updater.
+{-# INLINE evalUpdater #-}
+evalUpdater :: Updater a -> EndoFun a
+evalUpdater f a = runIdentity (f a)
+
+-- | Mark a computation as dirty.
+{-# INLINE dirty #-}
+dirty :: Updater a
+dirty = Identity
+
+{-# INLINE ifDirty #-}
+ifDirty :: Identity a -> (a -> Identity b) -> (a -> Identity b) -> Identity b
+ifDirty m f g = m >>= f
+
+-- END MOCK -}

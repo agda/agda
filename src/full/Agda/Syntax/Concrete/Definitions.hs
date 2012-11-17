@@ -32,6 +32,7 @@ import Agda.Syntax.Concrete.Pretty
 import Agda.Utils.Pretty
 import Agda.Utils.List (mhead, isSublistOf)
 import Agda.Utils.Monad
+import Agda.Utils.Update
 
 #include "../../undefined.h"
 import Agda.Utils.Impossible
@@ -173,7 +174,7 @@ instance Show DeclarationException where
   show (UnknownNamesInFixityDecl xs) = show $ fsep $
     pwords "Names out of scope in fixity declarations:" ++ map pretty xs
   show (UselessPrivate _)      = show $ fsep $
-    pwords "Using private here has no effect. Move it to the type signatures to make the definitions private."
+    pwords "Using private here has no effect. Private applies only to declarations that introduce new indentifiers into the module, like type signatures and data, record, and module declarations."
   show (UselessAbstract _)      = show $ fsep $
     pwords "Using abstract here has no effect. Move it to the definitions to make them abstract."
   show (InvalidNoTerminationCheckPragma _) = show $ fsep $
@@ -684,17 +685,6 @@ niceDeclarations ds = do
       RecDef{}  -> False
       _         -> True
 
-    privateBlock _ [] = return []
-    privateBlock r ds
-      | all uselessPrivate ds = throwError $ UselessPrivate r
-      | otherwise             = return $ map mkPrivate ds
-
-    uselessPrivate d = case d of
-      FunDef{}  -> True
-      DataDef{} -> True
-      RecDef{}  -> True
-      _         -> False
-
     -- Make a declaration abstract
     mkAbstract d =
         case d of
@@ -723,6 +713,78 @@ niceDeclarations ds = do
     mkAbstractWhere (AnyWhere ds)    = AnyWhere [Abstract noRange ds]
     mkAbstractWhere (SomeWhere m ds) = SomeWhere m [Abstract noRange ds]
 
+    privateBlock _ [] = return []
+    privateBlock r ds = do
+      let (ds', anyChange) = runChange $ mapM mkPrivate ds
+      if anyChange then return ds' else throwError $ UselessPrivate r
+
+    -- Make a declaration private.
+    -- Andreas, 2012-11-17:
+    -- Mark computation 'dirty' if there was a declaration that could be privatized.
+    -- If no privatization is taking place, we want to complain about 'UselessPrivate'.
+    -- Alternatively, we could only dirty if a non-private thing was privatized.
+    -- Then, nested 'private's would sometimes also be complained about.
+    mkPrivate :: Updater NiceDeclaration
+    mkPrivate d =
+      case d of
+        Axiom r f p rel x e              -> (\ p -> Axiom r f p rel x e) <$> setPrivate p
+        NiceField r f p a x e            -> (\ p -> NiceField r f p a x e) <$> setPrivate p
+        PrimitiveFunction r f p a x e    -> (\ p -> PrimitiveFunction r f p a x e) <$> setPrivate p
+        NiceMutual r termCheck ds        -> NiceMutual r termCheck <$> mapM mkPrivate ds
+        NiceModule r p a x tel ds        -> (\ p -> NiceModule r p a x tel ds) <$> setPrivate p
+        NiceModuleMacro r p a x ma op is -> (\ p -> NiceModuleMacro r p a x ma op is) <$> setPrivate p
+        FunSig r f p rel tc x e          -> (\ p -> FunSig r f p rel tc x e) <$> setPrivate p
+        NiceRecSig r f p x ls t          -> (\ p -> NiceRecSig r f p x ls t) <$> setPrivate p
+        NiceDataSig r f p x ls t         -> (\ p -> NiceDataSig r f p x ls t) <$> setPrivate p
+        NiceFunClause r p a termCheck d  -> (\ p -> NiceFunClause r p a termCheck d) <$> setPrivate p
+{-
+        Axiom r f _ rel x e              -> dirty $ Axiom r f PrivateAccess rel x e
+        NiceField r f _ a x e            -> dirty $ NiceField r f PrivateAccess a x e
+        PrimitiveFunction r f _ a x e    -> dirty $ PrimitiveFunction r f PrivateAccess a x e
+        NiceMutual r termCheck ds        -> NiceMutual r termCheck <$> mapM mkPrivate ds
+        NiceModule r _ a x tel ds        -> dirty $ NiceModule r PrivateAccess a x tel ds
+        NiceModuleMacro r _ a x ma op is -> dirty $ NiceModuleMacro r PrivateAccess a x ma op is
+        FunSig r f _ rel tc x e          -> dirty $ FunSig r f PrivateAccess rel tc x e
+        NiceRecSig r f _ x ls t          -> dirty $ NiceRecSig r f PrivateAccess x ls t
+        NiceDataSig r f _ x ls t         -> dirty $ NiceDataSig r f PrivateAccess x ls t
+        NiceFunClause r _ a termCheck d  -> dirty $ NiceFunClause r PrivateAccess a termCheck d
+-}
+        NicePragma _ _                   -> return $ d
+        NiceOpen _ _ _                   -> return $ d
+        NiceImport _ _ _ _ _             -> return $ d
+        FunDef{}                         -> return $ d
+        DataDef{}                        -> return $ d
+        RecDef{}                         -> return $ d
+        NicePatternSyn _ _ _ _ _         -> return $ d
+
+    setPrivate :: Updater Access
+    setPrivate p = case p of
+      PrivateAccess -> return p
+      _             -> dirty $ PrivateAccess
+
+    mkPrivateClause :: Updater Clause
+    mkPrivateClause (Clause x lhs rhs wh with) = do
+        wh <- mkPrivateWhere wh
+        Clause x lhs rhs wh <$> mapM mkPrivateClause with
+
+    mkPrivateWhere :: Updater WhereClause
+    mkPrivateWhere  NoWhere         = return $ NoWhere
+    mkPrivateWhere (AnyWhere ds)    = dirty  $ AnyWhere [Private (getRange ds) ds]
+    mkPrivateWhere (SomeWhere m ds) = dirty  $ SomeWhere m [Private (getRange ds) ds]
+
+{- OLD CODE, with two functions (uselessPrivate, mkPrivate) to be maintained in sync.
+
+    privateBlock _ [] = return []
+    privateBlock r ds
+      | all uselessPrivate ds = throwError $ UselessPrivate r
+      | otherwise             = return $ map mkPrivate ds
+
+    uselessPrivate d = case d of
+      FunDef{}  -> True
+      DataDef{} -> True
+      RecDef{}  -> True
+      _         -> False
+
     -- Make a declaration private
     mkPrivate d =
         case d of
@@ -750,6 +812,7 @@ niceDeclarations ds = do
     mkPrivateWhere  NoWhere         = NoWhere
     mkPrivateWhere (AnyWhere ds)    = AnyWhere [Private (getRange ds) ds]
     mkPrivateWhere (SomeWhere m ds) = SomeWhere m [Private (getRange ds) ds]
+-}
 
 -- | Add more fixities. Throw an exception for multiple fixity declarations.
 plusFixities :: Map.Map Name Fixity' -> Map.Map Name Fixity' -> Nice (Map.Map Name Fixity')
