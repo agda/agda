@@ -758,7 +758,7 @@ instance ToAbstract LetDef [A.LetBinding] where
                                 m
                      ]
 
-            NiceModuleMacro r p a x modapp open dir | not (C.publicOpen dir) ->
+            NiceModuleMacro r p x modapp open dir | not (C.publicOpen dir) ->
               checkModuleMacro LetApply r p x modapp open dir
 
             _   -> notAValidLetBinding d
@@ -939,7 +939,7 @@ instance ToAbstract NiceDeclaration A.Declaration where
 
     NiceModule _ _ _ C.Qual{} _ _ -> __IMPOSSIBLE__
 
-    NiceModuleMacro r p a x modapp open dir ->
+    NiceModuleMacro r p x modapp open dir ->
       checkModuleMacro Apply r p x modapp open dir
 
     NiceOpen r x dir -> do

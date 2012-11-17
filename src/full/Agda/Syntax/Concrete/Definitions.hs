@@ -59,7 +59,7 @@ data NiceDeclaration
         | PrimitiveFunction Range Fixity' Access IsAbstract Name Expr
         | NiceMutual Range TerminationCheck [NiceDeclaration]
         | NiceModule Range Access IsAbstract QName Telescope [Declaration]
-        | NiceModuleMacro Range Access IsAbstract Name ModuleApplication OpenShortHand ImportDirective
+        | NiceModuleMacro Range Access Name ModuleApplication OpenShortHand ImportDirective
         | NiceOpen Range QName ImportDirective
         | NiceImport Range QName (Maybe AsName) OpenShortHand ImportDirective
         | NicePragma Range Pragma
@@ -130,7 +130,7 @@ instance HasRange NiceDeclaration where
   getRange (NiceField r _ _ _ _ _)         = r
   getRange (NiceMutual r _ _)              = r
   getRange (NiceModule r _ _ _ _ _)        = r
-  getRange (NiceModuleMacro r _ _ _ _ _ _) = r
+  getRange (NiceModuleMacro r _ _ _ _ _)   = r
   getRange (NiceOpen r _ _)                = r
   getRange (NiceImport r _ _ _ _)          = r
   getRange (NicePragma r _)                = r
@@ -440,7 +440,7 @@ niceDeclarations ds = do
           (NiceModule r PublicAccess ConcreteDef x tel ds' :) <$> nice ds
 
         ModuleMacro r x modapp op is ->
-          (NiceModuleMacro r PublicAccess ConcreteDef x modapp op is :)
+          (NiceModuleMacro r PublicAccess x modapp op is :)
             <$> nice ds
 
         Infix _ _           -> nice ds
@@ -691,12 +691,12 @@ niceDeclarations ds = do
             NiceField r f a _ x e            -> NiceField r f a AbstractDef x e
             PrimitiveFunction r f a _ x e    -> PrimitiveFunction r f a AbstractDef x e
             NiceMutual r termCheck ds        -> NiceMutual r termCheck (map mkAbstract ds)
-            NiceModuleMacro r a _ x ma op is -> NiceModuleMacro r a AbstractDef x ma op is
             FunDef r ds f _ tc x cs          -> FunDef r ds f AbstractDef tc x (map mkAbstractClause cs)
             DataDef r f _ x ps cs            -> DataDef r f AbstractDef x ps $ map mkAbstract cs
             RecDef r f _ x i c ps cs         -> RecDef r f AbstractDef x i c ps $ map mkAbstract cs
             NiceFunClause r a _ termCheck d  -> NiceFunClause r a AbstractDef termCheck d
             NiceModule{}                     -> d
+            NiceModuleMacro{}                -> d
             Axiom{}                          -> d
             NicePragma{}                     -> d
             NiceOpen{}                       -> d
@@ -732,7 +732,7 @@ niceDeclarations ds = do
         PrimitiveFunction r f p a x e    -> (\ p -> PrimitiveFunction r f p a x e) <$> setPrivate p
         NiceMutual r termCheck ds        -> NiceMutual r termCheck <$> mapM mkPrivate ds
         NiceModule r p a x tel ds        -> (\ p -> NiceModule r p a x tel ds) <$> setPrivate p
-        NiceModuleMacro r p a x ma op is -> (\ p -> NiceModuleMacro r p a x ma op is) <$> setPrivate p
+        NiceModuleMacro r p x ma op is   -> (\ p -> NiceModuleMacro r p x ma op is) <$> setPrivate p
         FunSig r f p rel tc x e          -> (\ p -> FunSig r f p rel tc x e) <$> setPrivate p
         NiceRecSig r f p x ls t          -> (\ p -> NiceRecSig r f p x ls t) <$> setPrivate p
         NiceDataSig r f p x ls t         -> (\ p -> NiceDataSig r f p x ls t) <$> setPrivate p
@@ -743,7 +743,7 @@ niceDeclarations ds = do
         PrimitiveFunction r f _ a x e    -> dirty $ PrimitiveFunction r f PrivateAccess a x e
         NiceMutual r termCheck ds        -> NiceMutual r termCheck <$> mapM mkPrivate ds
         NiceModule r _ a x tel ds        -> dirty $ NiceModule r PrivateAccess a x tel ds
-        NiceModuleMacro r _ a x ma op is -> dirty $ NiceModuleMacro r PrivateAccess a x ma op is
+        NiceModuleMacro r _ x ma op is   -> dirty $ NiceModuleMacro r PrivateAccess x ma op is
         FunSig r f _ rel tc x e          -> dirty $ FunSig r f PrivateAccess rel tc x e
         NiceRecSig r f _ x ls t          -> dirty $ NiceRecSig r f PrivateAccess x ls t
         NiceDataSig r f _ x ls t         -> dirty $ NiceDataSig r f PrivateAccess x ls t
@@ -793,7 +793,7 @@ niceDeclarations ds = do
             PrimitiveFunction r f _ a x e    -> PrimitiveFunction r f PrivateAccess a x e
             NiceMutual r termCheck ds        -> NiceMutual r termCheck (map mkPrivate ds)
             NiceModule r _ a x tel ds        -> NiceModule r PrivateAccess a x tel ds
-            NiceModuleMacro r _ a x ma op is -> NiceModuleMacro r PrivateAccess a x ma op is
+            NiceModuleMacro r _ x ma op is   -> NiceModuleMacro r PrivateAccess x ma op is
             FunSig r f _ rel tc x e          -> FunSig r f PrivateAccess rel tc x e
             NiceRecSig r f _ x ls t          -> NiceRecSig r f PrivateAccess x ls t
             NiceDataSig r f _ x ls t         -> NiceDataSig r f PrivateAccess x ls t
@@ -859,7 +859,7 @@ notSoNiceDeclaration d =
       PrimitiveFunction r _ _ _ x e    -> Primitive r [TypeSig Relevant x e]
       NiceMutual r _ ds                -> Mutual r $ map notSoNiceDeclaration ds
       NiceModule r _ _ x tel ds        -> Module r x tel ds
-      NiceModuleMacro r _ _ x ma o dir -> ModuleMacro r x ma o dir
+      NiceModuleMacro r _ x ma o dir   -> ModuleMacro r x ma o dir
       NiceOpen r x dir                 -> Open r x dir
       NiceImport r x as o dir          -> Import r x as o dir
       NicePragma _ p                   -> Pragma p
@@ -886,7 +886,7 @@ notSoNiceDeclarations = concatMap notNice
       PrimitiveFunction r _ _ _ x e    -> [Primitive r [TypeSig Relevant x e]]
       NiceMutual _ _ ds                -> concatMap notNice ds
       NiceModule r _ _ x tel ds        -> [Module r x tel ds]
-      NiceModuleMacro r _ _ x ma o dir -> [ModuleMacro r x ma o dir]
+      NiceModuleMacro r _ x ma o dir   -> [ModuleMacro r x ma o dir]
       NiceOpen r x dir                 -> [Open r x dir]
       NiceImport r x as o dir          -> [Import r x as o dir]
       NicePragma _ p                   -> [Pragma p]

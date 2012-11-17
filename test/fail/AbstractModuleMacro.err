@@ -1,0 +1,3 @@
+AbstractModuleMacro.agda:5,1-6,19
+Using abstract here has no effect. Move it to the definitions to
+make them abstract.
