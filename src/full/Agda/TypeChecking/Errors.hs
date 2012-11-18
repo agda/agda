@@ -282,7 +282,7 @@ instance PrettyTCM TypeError where
 		pwords "The pattern constructs an element of" ++ [prettyTCM q] ++
 		pwords "which is not the right datatype"
 	    ShouldBeRecordType t -> fsep $
-		pwords "Expected record type, found " ++ [prettyTCM t]
+		pwords "Expected non-abstract record type, found " ++ [prettyTCM t]
 	    ShouldBeRecordPattern p -> fsep $
 		pwords "Expected record pattern" -- ", found " ++ [prettyTCM p]
 	    DifferentArities ->
@@ -677,6 +677,7 @@ instance PrettyTCM TypeError where
             showPat _ (I.DotP _)        = text "._"
             showPat n (I.ConP c _ args) = mpar n args $ prettyTCM c <+> fsep (map showArg args)
             showPat _ (I.LitP l)        = text (show l)
+            showPat _ I.ProjP{}         = __IMPOSSIBLE__
 
 notCmp :: Comparison -> TCM Doc
 notCmp cmp = text $ "!" ++ show cmp

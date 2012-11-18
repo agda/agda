@@ -603,13 +603,13 @@ makeAbstract d =
                , theDef = def
                }
   where
-    makeAbs Datatype   {dataAbstr = AbstractDef} = Just Axiom
-    makeAbs Function   {funAbstr  = AbstractDef} = Just Axiom
-    makeAbs Constructor{conAbstr  = AbstractDef} = Nothing
-    -- Andreas, 2012-11-17:  Record projections, being mere type signatures
-    -- are not changed by `abstract'.
-    makeAbs d@Record{}                           = Just d
-    makeAbs d                                    = Just d
+    makeAbs Datatype   {} = Just Axiom
+    makeAbs Function   {} = Just Axiom
+    makeAbs Constructor{} = Nothing
+    -- Andreas, 2012-11-18:  Make record constructor and projections abstract.
+    makeAbs d@Record{}    = Just Axiom
+    -- Q: what about primitive?
+    makeAbs d             = Just d
 
 -- | Enter abstract mode. Abstract definition in the current module are transparent.
 inAbstractMode :: TCM a -> TCM a

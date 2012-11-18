@@ -1,0 +1,4 @@
+Issue759a.agda:12,10-32
+Expected non-abstract record type, found Wrap
+when checking that the expression record { wrapped = a } has type
+Wrap .A

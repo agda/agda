@@ -58,13 +58,10 @@ recordModule :: QName -> ModuleName
 recordModule = mnameFromList . qnameToList
 
 -- | Get the definition for a record. Throws an exception if the name
---   does not refer to a record.
+--   does not refer to a record or the record is abstract.
 getRecordDef :: QName -> TCM Defn
-getRecordDef r = do
-  def <- theDef <$> getConstInfo r
-  case def of
-    Record{} -> return def
-    _        -> typeError $ ShouldBeRecordType (El Prop $ Def r [])
+getRecordDef r = maybe err return =<< isRecord r
+  where err = typeError $ ShouldBeRecordType (El Prop $ Def r [])
 
 -- | Get the field names of a record.
 getRecordFieldNames :: QName -> TCM [Arg C.Name]
