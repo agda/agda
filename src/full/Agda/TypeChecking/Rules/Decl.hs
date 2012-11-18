@@ -75,6 +75,11 @@ checkDecls ds = do
 
 checkDecl :: A.Declaration -> TCM ()
 checkDecl d = do
+    reportSDoc "tc.decl" 10 $ vcat
+      [ text "checking declaration"
+      , prettyA d
+      ]
+
     -- Issue 418 fix: freeze metas before checking an abstract things
     when isAbstract freezeMetas
 
