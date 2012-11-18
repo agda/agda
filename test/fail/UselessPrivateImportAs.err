@@ -1,4 +1,4 @@
 UselessPrivateImportAs.agda:3,1-4,29
 Using private here has no effect. Private applies only to
-declarations that introduce new indentifiers into the module, like
+declarations that introduce new identifiers into the module, like
 type signatures and data, record, and module declarations.

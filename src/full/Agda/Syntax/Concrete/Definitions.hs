@@ -174,7 +174,7 @@ instance Show DeclarationException where
   show (UnknownNamesInFixityDecl xs) = show $ fsep $
     pwords "Names out of scope in fixity declarations:" ++ map pretty xs
   show (UselessPrivate _)      = show $ fsep $
-    pwords "Using private here has no effect. Private applies only to declarations that introduce new indentifiers into the module, like type signatures and data, record, and module declarations."
+    pwords "Using private here has no effect. Private applies only to declarations that introduce new identifiers into the module, like type signatures and data, record, and module declarations."
   show (UselessAbstract _)      = show $ fsep $
     pwords "Using abstract here has no effect. Move it to the definitions to make them abstract."
   show (InvalidNoTerminationCheckPragma _) = show $ fsep $
