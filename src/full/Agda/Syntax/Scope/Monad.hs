@@ -43,9 +43,6 @@ type ScopeM = TCM
 
 -- * Errors
 
-notInScope :: C.QName -> ScopeM a
-notInScope x = typeError $ NotInScope [x]
-
 isDatatypeModule :: A.ModuleName -> ScopeM Bool
 isDatatypeModule m = do
    sc <- getScope

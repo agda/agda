@@ -1416,6 +1416,10 @@ typeError err = liftTCM $ do
     s  <- get
     throwError $ TypeError s cl
 
+-- | Scope error.
+notInScope :: C.QName -> TCM a
+notInScope x = typeError $ NotInScope [x]
+
 -- | Running the type checking monad
 runTCM :: TCMT IO a -> IO (Either TCErr a)
 runTCM m = (Right <$> runTCM' m) `E.catch` (return . Left)

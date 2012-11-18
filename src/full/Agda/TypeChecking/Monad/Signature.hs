@@ -410,7 +410,7 @@ getConstInfo q = liftTCM $ join $ pureTCM $ \st env ->
       | treatAbstractly' q' env =
         case makeAbstract d of
           Just d	-> return d
-          Nothing	-> typeError $ NotInScope [qnameToConcrete q]
+          Nothing	-> notInScope $ qnameToConcrete q
             -- the above can happen since the scope checker is a bit sloppy with 'abstract'
       | otherwise = return d
       where

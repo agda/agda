@@ -60,7 +60,7 @@ lookupPatternSyn x = do
             si <- getPatternSynImports
             case Map.lookup x si of
                 Just d  -> return d
-                Nothing -> typeError $ NotInScope [qnameToConcrete x]
+                Nothing -> notInScope $ qnameToConcrete x
 
 -- | Sets stExtLambdaTele .
 setExtLambdaTele :: Map QName (Int , Int) -> TCM ()

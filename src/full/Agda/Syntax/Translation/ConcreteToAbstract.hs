@@ -47,7 +47,7 @@ import Agda.Syntax.Notation
 import Agda.Syntax.Scope.Base
 import Agda.Syntax.Scope.Monad
 
-import Agda.TypeChecking.Monad.Base (TypeError(..), Call(..), typeError,
+import Agda.TypeChecking.Monad.Base (TypeError(..), Call(..), typeError, notInScope,
                                      TCErr(..), extendlambdaname)
 import Agda.TypeChecking.Monad.Trace (traceCall, traceCallCPS, setCurrentRange)
 import Agda.TypeChecking.Monad.State
