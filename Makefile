@@ -29,6 +29,8 @@ endif
 
 ## Default target #########################################################
 
+quick : install-O0-bin quicktest
+
 ifeq ($(is_configured),Yes)
 default : compile-emacs-mode
 # tags
@@ -43,6 +45,7 @@ CABAL_CMD=cabal
 
 # Options used by cabal install.
 CABAL_OPTIONS=
+#  -f old-time
 #  -f epic
 
 install : update-cabal install-bin compile-emacs-mode setup-emacs-mode
@@ -55,6 +58,12 @@ update-cabal :
 # Installs the Emacs mode, but does not set it up.
 install-bin :
 	$(CABAL_CMD) install --disable-library-profiling --disable-documentation $(CABAL_OPTIONS)
+
+install-O0-bin :
+	$(CABAL_CMD) install -O0 --disable-library-profiling --disable-documentation $(CABAL_OPTIONS)
+
+install-O2-bin :
+	$(CABAL_CMD) install -O2 --disable-library-profiling --disable-documentation $(CABAL_OPTIONS)
 
 install-prof-bin :
 	$(CABAL_CMD) install --enable-library-profiling --enable-executable-profiling \
@@ -172,7 +181,9 @@ TAGS :
 
 ## Testing ###########################################################
 
-test : check-whitespace succeed fail interaction examples tests library-test compiler-test lib-succeed epic-test
+test : check-whitespace succeed fail interaction examples library-test lib-succeed # epic-test compiler-test tests
+
+quicktest : succeed fail
 
 tests :
 	@echo "======================================================================"
@@ -212,7 +223,7 @@ std-lib :
 up-to-date-std-lib : std-lib
 	@(cd std-lib && darcs pull -a && make setup)
 
-library-test : up-to-date-std-lib
+library-test : # up-to-date-std-lib
 	@echo "======================================================================"
 	@echo "========================== Standard library =========================="
 	@echo "======================================================================"
@@ -220,7 +231,11 @@ library-test : up-to-date-std-lib
           time $(PWD)/$(AGDA_BIN) -i. -isrc README.agda $(AGDA_TEST_FLAGS) \
             +RTS -s)
 
-compiler-test : up-to-date-std-lib
+continue-library-test :
+	@(cd std-lib && \
+          time $(PWD)/$(AGDA_BIN) -i. -isrc README.agda +RTS -s)
+
+compiler-test : # up-to-date-std-lib
 	@echo "======================================================================"
 	@echo "============================== Compiler =============================="
 	@echo "======================================================================"
@@ -262,6 +277,7 @@ info :
 	@echo "The agda binary is at:         $(AGDA_BIN)"
 	@echo "Do we have ghc 6.4?            $(HAVE_GHC_6_4)"
 	@echo "Is this the darcs repository?  $(is_darcs_repo)"
+	@echo "Agda test flags are:           $(AGDA_TEST_FLAGS)"
 
 else	# is_configured
 
