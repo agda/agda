@@ -176,7 +176,7 @@ instance Show DeclarationException where
   show (UselessPrivate _)      = show $ fsep $
     pwords "Using private here has no effect. Private applies only to declarations that introduce new identifiers into the module, like type signatures and data, record, and module declarations."
   show (UselessAbstract _)      = show $ fsep $
-    pwords "Using abstract here has no effect. Move it to the definitions to make them abstract."
+    pwords "Using abstract here has no effect. Abstract applies only definitions like data definitions, record type definitions and function clauses."
   show (InvalidNoTerminationCheckPragma _) = show $ fsep $
     pwords "The NO_TERMINATION_CHECK pragma can only preceed a mutual block or a function definition."
   show (NotAllowedInMutual nd) = show $ fsep $
@@ -673,6 +673,52 @@ niceDeclarations ds = do
         loneNames = filter (\ (_, x) -> not (List.any (\ (_, x') -> x == x') defNames)) sigNames
 
     abstractBlock _ [] = return []
+    abstractBlock r ds = do
+      let (ds', anyChange) = runChange $ mapM mkAbstract ds
+          inherited        = r == noRange
+          -- hack to avoid failing on inherited abstract blocks in where clauses
+      if anyChange || inherited then return ds' else throwError $ UselessAbstract r
+
+    -- Make a declaration abstract
+    mkAbstract :: Updater NiceDeclaration
+    mkAbstract d =
+      case d of
+        NiceMutual r termCheck ds        -> NiceMutual r termCheck <$> mapM mkAbstract ds
+        FunDef r ds f a tc x cs          -> (\ a -> FunDef r ds f a tc x)  <$> setAbstract a <*> mapM mkAbstractClause cs
+        DataDef r f a x ps cs            -> (\ a -> DataDef r f a x ps)    <$> setAbstract a <*> mapM mkAbstract cs
+        RecDef r f a x i c ps cs         -> (\ a -> RecDef r f a x i c ps) <$> setAbstract a <*> mapM mkAbstract cs
+        NiceFunClause r p a termCheck d  -> (\ a -> NiceFunClause r p a termCheck d) <$> setAbstract a
+        -- no effect on fields or primitives, the InAbstract field there is unused
+        NiceField r f p _ x e            -> return $ NiceField r f p AbstractDef x e
+        PrimitiveFunction r f p _ x e    -> return $ PrimitiveFunction r f p AbstractDef x e
+        NiceModule{}                     -> return $ d
+        NiceModuleMacro{}                -> return $ d
+        Axiom{}                          -> return $ d
+        NicePragma{}                     -> return $ d
+        NiceOpen{}                       -> return $ d
+        NiceImport{}                     -> return $ d
+        FunSig{}                         -> return $ d
+        NiceRecSig{}                     -> return $ d
+        NiceDataSig{}                    -> return $ d
+        NicePatternSyn{}                 -> return $ d
+
+    setAbstract :: Updater IsAbstract
+    setAbstract a = case a of
+      AbstractDef -> return a
+      ConcreteDef -> dirty $ AbstractDef
+
+    mkAbstractClause :: Updater Clause
+    mkAbstractClause (Clause x lhs rhs wh with) = do
+        wh <- mkAbstractWhere wh
+        Clause x lhs rhs wh <$> mapM mkAbstractClause with
+
+    mkAbstractWhere :: Updater WhereClause
+    mkAbstractWhere  NoWhere         = return $ NoWhere
+    mkAbstractWhere (AnyWhere ds)    = dirty $ AnyWhere [Abstract noRange ds]
+    mkAbstractWhere (SomeWhere m ds) = dirty $SomeWhere m [Abstract noRange ds]
+
+{- OLD CODE
+    abstractBlock _ [] = return []
     abstractBlock r ds
         -- hack to avoid failing on inherited abstract blocks in where clauses
       | r == noRange           = return $ map mkAbstract ds
@@ -712,7 +758,7 @@ niceDeclarations ds = do
     mkAbstractWhere  NoWhere         = NoWhere
     mkAbstractWhere (AnyWhere ds)    = AnyWhere [Abstract noRange ds]
     mkAbstractWhere (SomeWhere m ds) = SomeWhere m [Abstract noRange ds]
-
+-}
     privateBlock _ [] = return []
     privateBlock r ds = do
       let (ds', anyChange) = runChange $ mapM mkPrivate ds

@@ -9,6 +9,7 @@ not true  = false
 not false = true
 
 abstract
+
   Answer : Set
   Answer = Bool
 
@@ -33,3 +34,6 @@ data Answers : Set where
 
 yes-or-no : Answers
 yes-or-no = more-answers yes (one-answer no)
+
+-- Andreas, 2012-11-17  What is the point of this test case?
+-- (Other than testing that 'abstract' does not do something outrageously stupid?)

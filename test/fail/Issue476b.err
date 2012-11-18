@@ -1,3 +1,4 @@
 Issue476b.agda:4,1-5,15
-Using abstract here has no effect. Move it to the definitions to
-make them abstract.
+Using abstract here has no effect. Abstract applies only
+definitions like data definitions, record type definitions and
+function clauses.
