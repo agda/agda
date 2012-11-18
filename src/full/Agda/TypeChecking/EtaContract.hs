@@ -44,12 +44,14 @@ etaContract = traverseTermM etaOnce
 
 etaOnce :: Term -> TCM Term
 etaOnce v = do
-  reportSDoc "tc.eta" 70 $ text "eta-contracting" <+> prettyTCM v
+  -- Andreas, 2012-11-18: this call to reportSDoc seems to cost me 2%
+  -- performance on the std-lib
+  -- reportSDoc "tc.eta" 70 $ text "eta-contracting" <+> prettyTCM v
   eta v
   where
     eta v@Shared{} = updateSharedTerm eta v
     eta t@(Lam h (Abs _ b)) = do  -- NoAbs can't be eta'd
-      reportSDoc "tc.eta" 20 $ text "eta-contracting lambda" <+> prettyTCM t
+      -- reportSDoc "tc.eta" 20 $ text "eta-contracting lambda" <+> prettyTCM t
       imp <- shouldEtaContractImplicit
       case binAppView b of
         App u (Arg h' r v)
@@ -71,7 +73,7 @@ etaOnce v = do
     -- abstract records whose constructors are not in scope.
     -- To be able to eta-contract them, we ignore abstract.
     eta t@(Con c args) = ignoreAbstractMode $ do
-      reportSDoc "tc.eta" 20 $ text "eta-contracting record" <+> prettyTCM t
+      -- reportSDoc "tc.eta" 20 $ text "eta-contracting record" <+> prettyTCM t
       r <- getConstructorData c -- fails in ConcreteMode if c is abstract
       ifM (isEtaRecord r)
           (etaContractRecord r c args)
