@@ -120,7 +120,12 @@ computePolarity x = do
   setPolarity x $ pol -- purgeNonvariant pol -- temporarily disable non-variance
 
   -- make 'Nonvariant' args 'UnusedArg' in type and clause telescope
-  t <- nonvariantToUnusedArg pol t
+  -- Andreas 2012-11-18: skip this for abstract definitions (fixing issue 755).
+  -- This means that the most precise type for abstract definitions
+  -- is not available, even to other abstract definitions.
+  -- A proper fix would be to introduce a second type for use within abstract.
+  t <- if (defAbstract def == AbstractDef) then return t else
+         nonvariantToUnusedArg pol t
   modifySignature $ updateDefinition x $
    updateTheDef (nonvariantToUnusedArgInDef pol) . updateDefType (const t)
 

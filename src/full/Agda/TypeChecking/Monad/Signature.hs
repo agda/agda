@@ -593,13 +593,23 @@ instantiateDef d = do
 
 -- | Give the abstract view of a definition.
 makeAbstract :: Definition -> Maybe Definition
-makeAbstract d = do def <- makeAbs $ theDef d
-		    return d { theDef = def }
-    where
-	makeAbs Datatype   {dataAbstr = AbstractDef} = Just Axiom
-	makeAbs Function   {funAbstr  = AbstractDef} = Just Axiom
-	makeAbs Constructor{conAbstr  = AbstractDef} = Nothing
-	makeAbs d                                    = Just d
+makeAbstract d =
+  case defAbstract d of
+    ConcreteDef -> return d
+    AbstractDef -> do
+      def <- makeAbs $ theDef d
+      return d { defArgOccurrences = [] -- no positivity info for abstract things!
+               , defPolarity       = [] -- no polarity info for abstract things!
+               , theDef = def
+               }
+  where
+    makeAbs Datatype   {dataAbstr = AbstractDef} = Just Axiom
+    makeAbs Function   {funAbstr  = AbstractDef} = Just Axiom
+    makeAbs Constructor{conAbstr  = AbstractDef} = Nothing
+    -- Andreas, 2012-11-17:  Record projections, being mere type signatures
+    -- are not changed by `abstract'.
+    makeAbs d@Record{}                           = Just d
+    makeAbs d                                    = Just d
 
 -- | Enter abstract mode. Abstract definition in the current module are transparent.
 inAbstractMode :: TCM a -> TCM a

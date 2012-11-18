@@ -404,7 +404,8 @@ compareAtom cmp t m n =
                     pol <- polarities v
                     reportSDoc "tc.conv.elim" 10 $
                       text "compareElim" <+> vcat
-                        [ text "a    =" <+> prettyTCM a
+                        [ text "pol  =" <+> text (show pol)
+                        , text "a    =" <+> prettyTCM a
                         , text "v    =" <+> prettyTCM v
                         , text "els1 =" <+> prettyTCM els1
                         , text "els2 =" <+> prettyTCM els2
