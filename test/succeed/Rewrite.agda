@@ -2,9 +2,6 @@ module Rewrite where
 
 open import Common.Equality
 
-sym : {A : Set}{x y : A} → x ≡ y → y ≡ x
-sym refl = refl
-
 data Nat : Set where
   zero : Nat
   suc  : Nat → Nat

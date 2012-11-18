@@ -14,8 +14,5 @@ postulate
 eq : x ≡ y
 eq = primTrustMe
 
-sym : ∀ {a} {A : Set a} {x y : A} → x ≡ y → y ≡ x
-sym refl = refl
-
 does-not-evaluate-to-refl : sym (sym eq) ≡ eq
 does-not-evaluate-to-refl = refl

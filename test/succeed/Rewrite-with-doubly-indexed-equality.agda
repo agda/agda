@@ -3,17 +3,7 @@
 module Rewrite-with-doubly-indexed-equality where
 
 open import Common.Level
-
-infix 4 _≡_
-
-data _≡_ {a} {A : Set a} : A → A → Set a where
-  refl : ∀ {x} → x ≡ x
-
-{-# BUILTIN EQUALITY _≡_  #-}
-{-# BUILTIN REFL     refl #-}
-
-sym : {A : Set}{x y : A} → x ≡ y → y ≡ x
-sym refl = refl
+open import Common.Equality
 
 data Nat : Set where
   zero : Nat

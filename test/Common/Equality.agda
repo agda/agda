@@ -15,3 +15,9 @@ subst P refl t = t
 
 cong : ∀ {a b}{A : Set a}{B : Set b}(f : A → B){x y : A} → x ≡ y → f x ≡ f y
 cong f refl = refl
+
+sym : ∀ {a}{A : Set a}{x y : A} → x ≡ y → y ≡ x
+sym refl = refl
+
+trans : ∀ {a}{A : Set a}{x y z : A} → x ≡ y → y ≡ z → x ≡ z
+trans refl refl = refl
