@@ -154,7 +154,7 @@ checkEqualityHH :: TypeHH -> Term -> Term -> Unify ()
 checkEqualityHH (Hom a) u v = do
     ok <- liftTCM $ noConstraints (True <$ equalTerm a u v)  -- no constraints left
             `catchError` \ err -> return False
-    if ok then return () else addEquality a u v
+    unless ok $ addEquality a u v
 checkEqualityHH aHH@(Het a1 a2) u v = -- reportPostponing -- enter "dirty" mode
     addEqualityHH aHH u v -- postpone, enter "dirty" mode
 
