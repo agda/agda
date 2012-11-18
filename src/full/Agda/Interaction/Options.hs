@@ -5,7 +5,7 @@ module Agda.Interaction.Options
     , PragmaOptions(..)
     , OptionsPragma
     , Flag
-    , Verbosity
+    , Verbosity(..)
     , checkOpts
     , parseStandardOptions
     , parsePragmaOptions
@@ -46,7 +46,22 @@ isLiterate file = ".lagda" `isSuffixOf` file
 deriving instance Functor OptDescr
 deriving instance Functor ArgDescr
 
-type Verbosity = Trie String Int
+-- | Verbosity levels.
+--   Separate cases for 0 and 1 are for optimization.
+data Verbosity
+  = ZeroVerbosity                      -- ^ Verbosity level 0: silence. (For interaction.)
+  | BatchVerbosity                     -- ^ Verbosity level 1: imports, warnings etc. (For batch.)
+  | CustomVerbosity (Trie String Int)  -- ^ Trie of verbosity levels.  (For debugging.)
+
+-- | Translate verbosity level into verbosity trie.
+trieVerbosity :: Verbosity -> Trie String Int
+trieVerbosity v = case v of
+  ZeroVerbosity     -> Trie.singleton [] 0
+  BatchVerbosity    -> Trie.singleton [] 1
+  CustomVerbosity t -> t
+
+instance Show Verbosity where
+  show = show . trieVerbosity
 
 data CommandLineOptions =
     Options { optProgramName          :: String
@@ -120,12 +135,12 @@ mapFlag f (Option _ long arg descr) = Option [] (map f long) arg descr
 
 -- | For batch usage.
 defaultVerbosity :: Verbosity
-defaultVerbosity = Trie.singleton [] 1
+defaultVerbosity = BatchVerbosity -- Trie.singleton [] 1
 
 -- | For interactive usage, do not print any debug messages
 --   by default.
 defaultInteractionVerbosity :: Verbosity
-defaultInteractionVerbosity = Trie.singleton [] 0
+defaultInteractionVerbosity = ZeroVerbosity -- Trie.singleton [] 0
 
 defaultInteractionOptions :: PragmaOptions
 defaultInteractionOptions = defaultPragmaOptions
@@ -312,7 +327,7 @@ includeFlag d o = return $ o { optIncludeDirs = Left (d : ds) }
 
 verboseFlag s o =
     do  (k,n) <- parseVerbose s
-        return $ o { optVerbose = Trie.insert k n $ optVerbose o }
+        return $ o { optVerbose = CustomVerbosity $ Trie.insert k n $ trieVerbosity $ optVerbose o }
   where
     parseVerbose s = case wordsBy (`elem` ":.") s of
       []  -> usage

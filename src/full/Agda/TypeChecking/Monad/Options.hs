@@ -268,10 +268,24 @@ typeInType = not . optUniverseCheck <$> pragmaOptions
 --   reportSLn
 --   reportSDoc
 
-getVerbosity :: TCM (Trie String Int)
+getVerbosity :: TCM Verbosity
 getVerbosity = optVerbose <$> pragmaOptions
 
 type VerboseKey = String
+
+hasVerbosity :: VerboseKey -> Int -> TCM Bool
+hasVerbosity k n = do
+  v <- getVerbosity
+  case v of
+    ZeroVerbosity  -> return $ n <= 0
+    BatchVerbosity -> return $ n <= 1
+    CustomVerbosity t -> do
+      when (n < 0) __IMPOSSIBLE__
+      let ks = wordsBy (`elem` ".:") k
+          m  = maximum $ 0 : Trie.lookupPath ks t
+      return (n <= m)
+
+{- OLD CODE, no optimization
 
 hasVerbosity :: VerboseKey -> Int -> TCM Bool
 hasVerbosity k n | n < 0     = __IMPOSSIBLE__
@@ -280,7 +294,7 @@ hasVerbosity k n | n < 0     = __IMPOSSIBLE__
     let ks = wordsBy (`elem` ".:") k
 	m  = maximum $ 0 : Trie.lookupPath ks t
     return (n <= m)
-
+-}
 -- | If this command is run under the Emacs mode, then it formats the
 -- debug message in such a way that the Emacs mode can understand it.
 
