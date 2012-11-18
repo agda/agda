@@ -521,13 +521,21 @@ checkExpr e t =
 	  -- coerce (Sort Prop) (sort $ mkType 1) t
 
 	A.Rec _ fs  -> do
+          reportSDoc "tc.term.rec" 10 $ sep
+            [ text "checking record expression"
+            , prettyA e
+            ]
 	  t <- reduce t
 	  case ignoreSharing $ unEl t of
 	    Def r vs  -> do
+              reportSDoc "tc.term.rec" 20 $ text $ "  r   = " ++ show r
 	      axs    <- getRecordFieldNames r
               let xs = map unArg axs
+              reportSDoc "tc.term.rec" 20 $ text $ "  xs  = " ++ show xs
 	      ftel   <- getRecordFieldTypes r
+              reportSDoc "tc.term.rec" 20 $ text   "  ftel= " <> prettyTCM ftel
               con    <- getRecordConstructor r
+              reportSDoc "tc.term.rec" 20 $ text $ "  con = " ++ show con
               scope  <- getScope
               let arg x e =
                     case [ a | a <- axs, unArg a == x ] of
@@ -547,6 +555,7 @@ checkExpr e t =
                         es -- (zipWith (\ax e -> fmap (const (unnamed e)) ax) axs es)
                         tel
               -- Don't need to block here!
+              reportSDoc "tc.term.rec" 20 $ text $ "finished record expression"
 	      return $ Con con args
             MetaV _ _ -> do
               let fields = map fst fs

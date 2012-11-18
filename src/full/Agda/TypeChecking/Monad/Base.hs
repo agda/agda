@@ -995,9 +995,10 @@ type LetBindings = Map Name (Open (Term, Dom Type))
 -- ** Abstract mode
 ---------------------------------------------------------------------------
 
-data AbstractMode = AbstractMode       -- ^ abstract things in the current module can be accessed
-		  | ConcreteMode       -- ^ no abstract things can be accessed
-		  | IgnoreAbstractMode -- ^ all abstract things can be accessed
+data AbstractMode
+  = AbstractMode        -- ^ Abstract things in the current module can be accessed.
+  | ConcreteMode        -- ^ No abstract things can be accessed.
+  | IgnoreAbstractMode  -- ^ All abstract things can be accessed.
   deriving (Typeable)
 
 ---------------------------------------------------------------------------

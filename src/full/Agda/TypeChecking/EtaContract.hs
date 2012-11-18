@@ -9,6 +9,7 @@ import Agda.Syntax.Internal.Generic
 import Agda.TypeChecking.Substitute
 import Agda.TypeChecking.Free
 import Agda.TypeChecking.Monad
+import {-# SOURCE #-} Agda.TypeChecking.Pretty
 import {-# SOURCE #-} Agda.TypeChecking.Records
 import {-# SOURCE #-} Agda.TypeChecking.Datatypes
 import Agda.Utils.Monad
@@ -42,10 +43,13 @@ etaContract :: TermLike a => a -> TCM a
 etaContract = traverseTermM etaOnce
 
 etaOnce :: Term -> TCM Term
-etaOnce v = eta v
+etaOnce v = do
+  reportSDoc "tc.eta" 70 $ text "eta-contracting" <+> prettyTCM v
+  eta v
   where
     eta v@Shared{} = updateSharedTerm eta v
     eta t@(Lam h (Abs _ b)) = do  -- NoAbs can't be eta'd
+      reportSDoc "tc.eta" 20 $ text "eta-contracting lambda" <+> prettyTCM t
       imp <- shouldEtaContractImplicit
       case binAppView b of
         App u (Arg h' r v)
@@ -62,8 +66,13 @@ etaOnce v = eta v
           MetaLevel{}      -> False
         isVar0 _ = False
         allowed imp h' = h == h' && (imp || h == NotHidden)
-    eta t@(Con c args) = do
-      r <- getConstructorData c
+
+    -- Andreas, 2012-12-18:  Abstract definitions could contain
+    -- abstract records whose constructors are not in scope.
+    -- To be able to eta-contract them, we ignore abstract.
+    eta t@(Con c args) = ignoreAbstractMode $ do
+      reportSDoc "tc.eta" 20 $ text "eta-contracting record" <+> prettyTCM t
+      r <- getConstructorData c -- fails in ConcreteMode if c is abstract
       ifM (isEtaRecord r)
           (etaContractRecord r c args)
           (return t)
