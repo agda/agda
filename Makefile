@@ -29,8 +29,6 @@ endif
 
 ## Default target #########################################################
 
-quick : install-O0-bin quicktest
-
 ifeq ($(is_configured),Yes)
 default : compile-emacs-mode
 # tags
@@ -181,7 +179,9 @@ TAGS :
 
 ## Testing ###########################################################
 
-test : check-whitespace succeed fail interaction examples library-test lib-succeed # epic-test compiler-test tests
+quick : install-O0-bin quicktest
+
+test : check-whitespace succeed fail interaction examples library-test lib-succeed epic-test compiler-test tests
 
 quicktest : succeed fail
 
