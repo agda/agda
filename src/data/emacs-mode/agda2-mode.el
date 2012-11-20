@@ -830,7 +830,7 @@ Assumes that <clause> = {!<variables>!} is on one line."
 	 (bracketCount 0)
 	 cl)
     (re-search-backward "{!")
-      (while (and (not (equal (preceding-char) ?;)) (>= bracketCount 0))
+      (while (and (not (equal (preceding-char) ?\;)) (>= bracketCount 0))
 	(backward-char)
 	(if (equal (preceding-char) ?}) (incf bracketCount))
 	(if (equal (preceding-char) ?{) (decf bracketCount)))
