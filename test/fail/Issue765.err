@@ -1,0 +1,7 @@
+Issue765.agda:63,11-15
+The indices
+  sup (inj₁ n) ⊥-elim
+are not constructors (or literals) applied to variables (note that
+parameters count as constructor arguments)
+when checking that the pattern refl has type
+sup (inj₁ m) ⊥-elim ≡ sup (inj₁ n) ⊥-elim

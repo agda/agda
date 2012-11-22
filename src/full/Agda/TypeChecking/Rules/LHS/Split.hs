@@ -266,7 +266,9 @@ wellFormedIndices t = do
 
   constructorApplications :: [(Arg Term, Dom Type)] -> TCM (Maybe [Nat])
   constructorApplications args = do
-    xs <- mapM (\(e, t) -> constructorApplication (unArg e) (ignoreSharingType $ unDom t))
+    xs <- mapM (\(e, t) -> do
+                   t <- reduce (unDom t)
+                   constructorApplication (unArg e) (ignoreSharingType t))
                args
     return (concat <$> sequence xs)
 
