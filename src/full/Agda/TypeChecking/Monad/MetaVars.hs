@@ -244,6 +244,17 @@ freezeMetas = modifyMetaStore $ Map.map freeze where
   freeze :: MetaVariable -> MetaVariable
   freeze mvar = mvar { mvFrozen = Frozen }
 
+{- UNUSED -- DOES NOT DO THE JOB
+-- | Unfreeze meta and its type if this is a meta again.
+unfreezeMeta :: MetaId -> TCM ()
+unfreezeMeta x = do
+  updateMetaVar x $ \ mv -> mv { mvFrozen = Instantiable }
+  mv <- lookupMeta x
+  case ignoreSharing $ unEl $ jMetaType $ mvJudgement mv of
+    MetaV y _ -> unfreezeMeta y
+    _ -> return ()
+-}
+
 unfreezeMetas :: TCM ()
 unfreezeMetas = modifyMetaStore $ Map.map unfreeze where
   unfreeze :: MetaVariable -> MetaVariable
