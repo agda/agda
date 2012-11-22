@@ -174,7 +174,7 @@ termMutual i ds = if names == [] then return mempty else
      return res
 
   where
-  getName (A.FunDef i x delayed cs) = [x]
+  getName (A.FunDef i x delayed hasSig cs) = [x]
   getName (A.RecDef _ _ _ _ _ _ ds) = concatMap getName ds
   getName (A.Mutual _ ds)       = concatMap getName ds
   getName (A.Section _ _ _ ds)  = concatMap getName ds

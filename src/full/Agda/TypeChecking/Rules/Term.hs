@@ -1029,7 +1029,7 @@ checkHeadApplication e t hd args = do
           , nest 2 $ prettyA clause <> text "."
           ]
 
-      escapeContextToTopLevel $ checkFunDef Delayed info c' [clause]
+      escapeContextToTopLevel $ checkFunDef info c' Delayed HasTypeSig [clause]
 
       reportSDoc "tc.term.expr.coind" 15 $ do
         def <- theDef <$> getConstInfo c'

@@ -1,4 +1,4 @@
-{-# LANGUAGE CPP #-}
+{-# LANGUAGE CPP, PatternGuards #-}
 
 module Agda.TypeChecking.Rules.Def where
 
@@ -71,25 +71,48 @@ import Agda.Utils.Impossible
 -- * Definitions by pattern matching
 ---------------------------------------------------------------------------
 
-checkFunDef :: Delayed -> Info.DefInfo -> QName -> [A.Clause] -> TCM ()
-checkFunDef delayed i name cs = do
+checkFunDef :: Info.DefInfo -> QName -> Delayed -> HasTypeSig -> [A.Clause] -> TCM ()
+checkFunDef i name delayed hs cs = do
+  reportSLn "tc.def" 70 $ "checking function definition"
+  case hs of
+    HasTypeSig -> do
+        reportSLn "tc.def" 70 $ "which has a type signature"
         -- Get the type and relevance of the function
         t    <- typeOfConst name
         rel  <- relOfConst name
+        checkFunDef' t rel delayed i name cs
+    NoTypeSig p -> do
+        reportSLn "tc.def" 70 $ "which does not have a type signature"
         case trivialClause cs of
           -- if we have just one clause without pattern matching and
           -- without a type signature, then infer, to allow
           -- "aliases" for things starting with hidden abstractions
-          Just e | isMeta (ignoreSharing $ unEl t) ->
-            traceCall (CheckFunDef (getRange i) (qnameName name) cs) $
+          Just e  -> traceCall (CheckFunDef (getRange i) (qnameName name) cs) $
+                     checkAlias delayed i name e
+          Nothing -> do
+            let rel = Relevant
+            t <- traceCall (SetRange (getRange name)) $ newTypeMeta_
+            addDef rel name t Axiom
+            checkFunDef' t rel delayed i name cs
+{- OLD
+          Just e | Just x <- isMeta (ignoreSharing $ unEl t) ->
+            traceCall (CheckFunDef (getRange i) (qnameName name) cs) $ do
+              -- Andreas, 2012-11-22: if the alias is in an abstract block
+              -- it has been frozen.  We unfreeze it to enable type inference.
+              -- See issue 729.
+              forM_ (allMetas t) $ unfreezeMeta
               checkAlias t rel delayed i name e
           _ -> checkFunDef' t rel delayed i name cs
+-}
   where
-    isMeta MetaV{} = True
-    isMeta _       = False
+{- OLD
+    isMeta (MetaV x _) = Just x
+    isMeta _           = Nothing
+-}
     trivialClause [A.Clause (A.LHS i (A.LHSHead f []) []) (A.RHS e) []] = Just e
     trivialClause _ = Nothing
 
+{- OLD
 -- | Check a trivial definition of the form @f = e@
 checkAlias :: Type -> Relevance -> Delayed -> Info.DefInfo -> QName -> A.Expr -> TCM ()
 checkAlias t' rel delayed i name e = do
@@ -100,6 +123,26 @@ checkAlias t' rel delayed i name e = do
   -- Infer the type of the rhs
   (v, t) <- applyRelevanceToContext rel $ inferOrCheck e (Just t')
   -- v <- coerce v t t'
+-}
+
+addDef rel name t = addConstant name . Defn rel name t [] [] (defaultDisplayForm name) 0 noCompiledRep
+
+-- | Check a trivial definition of the form @f = e@
+checkAlias :: Delayed -> Info.DefInfo -> QName -> A.Expr -> TCM ()
+checkAlias delayed i name e = do
+  let rel = Relevant -- functions without type sig are relevant
+      add = addDef rel name
+
+  reportSDoc "tc.def.alias" 10 $ text "checkAlias" <+> vcat
+    [ text (show name) <+> equals <+> prettyTCM e
+    ]
+
+  -- add a meta type signature (in case alias is recursive)
+  t' <- traceCall (SetRange (getRange name)) $ newTypeMeta_
+  add t' $ Axiom
+
+  -- Infer the type of the rhs
+  (v, t) <- applyRelevanceToContext rel $ inferOrCheck e (Just t')
   reportSDoc "tc.def.alias" 20 $ text "checkAlias: finished checking"
 
   solveSizeConstraints
@@ -110,23 +153,22 @@ checkAlias t' rel delayed i name e = do
     -- (test/succeed/Issue655.agda)
 
   -- Add the definition
-  addConstant name $ Defn rel name t [] [] (defaultDisplayForm name) 0 noCompiledRep
-                   $ Function
-                      { funClauses        = [Clause (getRange i) EmptyTel (idP 0) [] $ Body v] -- trivial clause @name = v@
-                      , funCompiled       = Done [] v
-                      , funDelayed        = delayed
-                      , funInv            = NotInjective
-                      , funAbstr          = Info.defAbstract i
+  add t $ Function
+    { funClauses        = [Clause (getRange i) EmptyTel (idP 0) [] $ Body v] -- trivial clause @name = v@
+    , funCompiled       = Done [] v
+    , funDelayed        = delayed
+    , funInv            = NotInjective
+    , funAbstr          = Info.defAbstract i
 {-
-                      , funPolarity       = []
-                      , funArgOccurrences = []
+    , funPolarity       = []
+    , funArgOccurrences = []
 -}
-                      , funMutual         = []
-                      , funProjection     = Nothing
-                      , funStatic         = False
-                      , funCopy           = False
-                      , funTerminates     = Nothing
-                      }
+    , funMutual         = []
+    , funProjection     = Nothing
+    , funStatic         = False
+    , funCopy           = False
+    , funTerminates     = Nothing
+    }
   reportSDoc "tc.def.alias" 20 $ text "checkAlias: leaving"
 
 
@@ -594,7 +636,7 @@ checkWithFunction (WithFunction f aux gamma delta1 delta2 vs as b qs perm' perm 
   cs <- buildWithFunction aux gamma qs perm (size delta1) (size as) cs
 
   -- Check the with function
-  checkFunDef NotDelayed info aux cs
+  checkFunDef info aux NotDelayed HasTypeSig cs
 
   where
     info = Info.mkDefInfo (nameConcrete $ qnameName aux) defaultFixity' PublicAccess ConcreteDef (getRange cs)

@@ -23,6 +23,10 @@ import Agda.Utils.Impossible
 data Delayed = Delayed | NotDelayed
   deriving (Typeable, Show, Eq, Ord)
 
+-- | Does a function definition come with a type signature?
+data HasTypeSig = HasTypeSig | NoTypeSig Access
+  deriving (Typeable, Show, Eq, Ord)
+
 data Induction = Inductive | CoInductive
   deriving (Typeable, Eq, Ord)
 

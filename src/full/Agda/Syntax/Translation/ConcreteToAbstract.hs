@@ -543,11 +543,11 @@ instance ToAbstract C.Expr A.Expr where
             insertApp _ = __IMPOSSIBLE__
             insertHead (C.LHS p wps eqs with) = C.LHS (insertApp p) wps eqs with
             insertHead (C.Ellipsis r wps eqs with) = C.Ellipsis r wps eqs with
-        scdef <- toAbstract (C.FunDef r [] defaultFixity' ConcreteDef True cname
+        scdef <- toAbstract (C.FunDef r [] defaultFixity' ConcreteDef True HasTypeSig cname
                                (map (\(lhs,rhs,wh) -> -- wh = NoWhere, see parser for more info
                                       C.Clause cname (insertHead lhs) rhs wh []) cs))
         case scdef of
-          (A.ScopedDecl si [A.FunDef di qname' NotDelayed cs]) -> do
+          (A.ScopedDecl si [A.FunDef di qname' NotDelayed HasTypeSig cs]) -> do
             setScope si
             return $ A.ExtendedLam (ExprRange r) di qname' cs
           _ -> __IMPOSSIBLE__
@@ -727,13 +727,19 @@ instance ToAbstract LetDefs [A.LetBinding] where
 instance ToAbstract LetDef [A.LetBinding] where
     toAbstract (LetDef d) =
         case d of
-            NiceMutual _ _ d@[C.FunSig _ fx _ rel _ x t, C.FunDef _ _ _ abstract _ _ [cl]] ->
+            NiceMutual _ _ d@[C.FunSig _ fx _ rel _ x t, C.FunDef _ _ _ abstract _ _ _ [cl]] ->
                 do  when (abstract == AbstractDef) $ do
                       typeError $ GenericError $ "abstract not allowed in let expressions"
                     e <- letToAbstract cl
                     t <- toAbstract t
                     x <- toAbstract (NewName $ C.BName x fx)
                     return [ A.LetBind (LetRange $ getRange d) rel x t e ]
+            NiceMutual _ _ [C.FunDef r _ fx abstract _ (NoTypeSig p) x [cl]] ->
+                do  when (abstract == AbstractDef) $ do
+                      typeError $ GenericError $ "abstract not allowed in let expressions"
+                    e <- letToAbstract cl
+                    x <- toAbstract (NewName $ C.BName x fx)
+                    return [ A.LetPatBind (LetRange r) (A.VarP x) e ]
 
             -- irrefutable let binding, like  (x , y) = rhs
             NiceFunClause r PublicAccess ConcreteDef termCheck d@(C.FunClause (C.LHS p [] [] []) (C.RHS rhs) NoWhere) -> do
@@ -858,11 +864,17 @@ instance ToAbstract NiceDeclaration A.Declaration where
   -- Type signatures
     C.FunSig r f p rel tc x t -> toAbstractNiceAxiom (C.Axiom r f p rel x t)
   -- Function definitions
-    C.FunDef r ds f a tc x cs -> do
+    C.FunDef r ds f a tc hasSig x cs -> do
         printLocals 10 $ "checking def " ++ show x
-        (x',cs) <- toAbstract (OldName x,cs)
+        x' <- case hasSig of
+                HasTypeSig -> toAbstract $ OldName x
+                NoTypeSig p -> do
+                  x' <- freshAbstractQName f x
+                  bindName p DefName x x'
+                  return x'
+        cs <- toAbstract cs
         (delayed, cs) <- translateCopatternClauses cs
-        return [ A.FunDef (mkDefInfo x f PublicAccess a r) x' delayed cs ]
+        return [ A.FunDef (mkDefInfo x f PublicAccess a r) x' delayed hasSig cs ]
 
   -- Uncategorized function clauses
     C.NiceFunClause r acc abs termCheck (C.FunClause lhs rhs wcls) ->
