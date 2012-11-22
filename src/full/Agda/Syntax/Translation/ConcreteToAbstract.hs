@@ -365,7 +365,8 @@ instance ToAbstract OldName A.QName where
     rx <- resolveName (C.QName x)
     case rx of
       DefinedName _ d -> return $ anameName d
-      _               -> error $ show x ++ " - " ++ show rx
+      _               -> __IMPOSSIBLE__
+        -- error $ show x ++ " - " ++ show rx
 
 newtype NewModuleName      = NewModuleName      C.Name
 newtype NewModuleQName     = NewModuleQName     C.QName
