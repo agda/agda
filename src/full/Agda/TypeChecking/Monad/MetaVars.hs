@@ -51,8 +51,7 @@ lookupMeta m =
 	    _	    -> fail $ "no such meta variable " ++ show m
 
 updateMetaVar :: MetaId -> (MetaVariable -> MetaVariable) -> TCM ()
-updateMetaVar m f =
-  modify $ \st -> st { stMetaStore = Map.adjust f m $ stMetaStore st }
+updateMetaVar m f = modifyMetaStore $ Map.adjust f m
 
 getMetaPriority :: MetaId -> TCM MetaPriority
 getMetaPriority i = mvPriority <$> lookupMeta i
