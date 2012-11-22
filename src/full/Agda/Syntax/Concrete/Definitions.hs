@@ -53,7 +53,7 @@ import Debug.Trace
     modifiers have been distributed to the individual declarations.
 -}
 data NiceDeclaration
-        = Axiom Range Fixity' Access Relevance Name (Maybe Expr)
+        = Axiom Range Fixity' Access Relevance Name Expr
             -- ^ Axioms and functions can be declared irrelevant.
         | NiceField Range Fixity' Access IsAbstract Name (Arg Expr)
         | PrimitiveFunction Range Fixity' Access IsAbstract Name Expr
@@ -68,8 +68,7 @@ data NiceDeclaration
         | NiceFunClause Range Access IsAbstract TerminationCheck Declaration
           -- ^ a uncategorized function clause, could be a function clause
           --   without type signature or a pattern lhs (e.g. for irrefutable let)x
-        | FunSig Range Fixity' Access Relevance TerminationCheck Name (Maybe Expr)
-          -- ^ If there was no function signature, the type is 'Nothing'.
+        | FunSig Range Fixity' Access Relevance TerminationCheck Name Expr
         | FunDef  Range [Declaration] Fixity' IsAbstract TerminationCheck Name [Clause] -- ^ block of function clauses (we have seen the type signature before)
         | DataDef Range Fixity' IsAbstract Name [LamBinding] [NiceConstructor]
         | RecDef Range Fixity' IsAbstract Name (Maybe Induction) (Maybe (ThingWithFixity Name)) [LamBinding] [NiceDeclaration]
@@ -549,21 +548,19 @@ niceDeclarations ds = do
     niceAxiom _ = __IMPOSSIBLE__
 
     toPrim :: NiceDeclaration -> NiceDeclaration
-    toPrim (Axiom r f a rel x (Just t)) = PrimitiveFunction r f a ConcreteDef x t
-    toPrim _                            = __IMPOSSIBLE__
+    toPrim (Axiom r f a rel x t) = PrimitiveFunction r f a ConcreteDef x t
+    toPrim _                     = __IMPOSSIBLE__
 
     -- Create a function definition.
     mkFunDef rel termCheck x mt ds0 = do
       cs <- mkClauses x $ expandEllipsis ds0
       f  <- getFixity x
-      return [ FunSig (fuseRange x t) f PublicAccess rel termCheck x mt
+      return [ FunSig (fuseRange x t) f PublicAccess rel termCheck x t
              , FunDef (getRange ds0) ds0 f ConcreteDef termCheck x cs ]
-{-
         where
           t = case mt of
                 Just t  -> t
                 Nothing -> underscore (getRange x)
--}
 
     underscore r = Underscore r Nothing
 
@@ -911,7 +908,7 @@ notSoNiceDeclaration d =
     case d of
       Axiom _ _ _ rel x e              -> TypeSig rel x e
       NiceField _ _ _ _ x argt         -> Field x argt
-      PrimitiveFunction r _ _ _ x e    -> Primitive r [TypeSig Relevant x $ Just e]
+      PrimitiveFunction r _ _ _ x e    -> Primitive r [TypeSig Relevant x e]
       NiceMutual r _ ds                -> Mutual r $ map notSoNiceDeclaration ds
       NiceModule r _ _ x tel ds        -> Module r x tel ds
       NiceModuleMacro r _ x ma o dir   -> ModuleMacro r x ma o dir

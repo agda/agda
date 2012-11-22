@@ -256,10 +256,8 @@ type Constructor = TypeSignature
     which type in the intended family the constructor targets.
 -}
 
-typeSig r x t = TypeSig r x (Just t)
-
 data Declaration
-	= TypeSig Relevance Name (Maybe Expr) -- ^ Axioms and functions can be irrelevant.
+	= TypeSig Relevance Name Expr -- ^ Axioms and functions can be irrelevant.
         | Field Name (Arg Expr) -- ^ Record field, can be hidden and/or irrelevant.
 	| FunClause LHS RHS WhereClause
 	| DataSig     !Range Induction Name [LamBinding] Expr -- ^ lone data signature in mutual block

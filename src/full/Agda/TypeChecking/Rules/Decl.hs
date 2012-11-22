@@ -243,14 +243,13 @@ checkDecl d = do
       return termErrs
 
 -- | Type check an axiom.
-checkAxiom :: Info.DefInfo -> Relevance -> QName -> Maybe A.Expr -> TCM ()
-checkAxiom i rel0 x me = do
+checkAxiom :: Info.DefInfo -> Relevance -> QName -> A.Expr -> TCM ()
+checkAxiom i rel0 x e = do
   -- Andreas, 2012-04-18  if we are in irrelevant context, axioms is irrelevant
   -- even if not declared as such (Issue 610).
   rel <- max rel0 <$> asks envRelevance
   -- rel <- ifM ((Irrelevant ==) <$> asks envRelevance) (return Irrelevant) (return rel0)
-  -- Andreas, 2012-11-22 x has no type assigned, we create one
-  t <- maybe (traceCall (SetRange (getRange x)) $ newTypeMeta_) isType_ me
+  t <- isType_ e
   reportSDoc "tc.decl.ax" 10 $ sep
     [ text $ "checked type signature"
     , nest 2 $ prettyTCM rel <> prettyTCM x <+> text ":" <+> prettyTCM t
@@ -263,7 +262,7 @@ checkAxiom i rel0 x me = do
   -- when postulate $
   maybe solveIrrelevantMetas (const $ return ()) =<< asks envMutualBlock
 
-  whenJust me $ \ e -> traceCall (IsType_ e) $ solveSizeConstraints  -- need Range for error message
+  traceCall (IsType_ e) $ solveSizeConstraints  -- need Range for error message
 
   -- Andreas, 2011-05-31, that freezing below is probably wrong:
   -- when (Info.defAbstract i == AbstractDef) $ freezeMetas
