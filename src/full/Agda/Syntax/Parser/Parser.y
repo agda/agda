@@ -916,16 +916,16 @@ Declaration
 -- Type signatures of the form "n1 n2 n3 ... : Type", with at least
 -- one bound name.
 TypeSigs :: { [Declaration] }
-TypeSigs : SpaceIds ':' Expr { map (flip (TypeSig Relevant) $3) $1 }
+TypeSigs : SpaceIds ':' Expr { map (flip (typeSig Relevant) $3) $1 }
 
 RelTypeSigs :: { [Declaration] }
-RelTypeSigs : MaybeDottedIds ':' Expr { map (\ (Arg _ rel x) -> TypeSig rel x $3) $1 }
+RelTypeSigs : MaybeDottedIds ':' Expr { map (\ (Arg _ rel x) -> typeSig rel x $3) $1 }
 
 -- A variant of TypeSigs where any sub-sequence of names can be marked
 -- as hidden or irrelevant using braces and dots:
 -- {n1 .n2} n3 .n4 {n5} .{n6 n7} ... : Type.
 ArgTypeSigs :: { [Arg Declaration] }
-ArgTypeSigs : ArgIds ':' Expr { map (fmap (flip (TypeSig Relevant) $3)) $1 }
+ArgTypeSigs : ArgIds ':' Expr { map (fmap (flip (typeSig Relevant) $3)) $1 }
 
 -- Function declarations. The left hand side is parsed as an expression to allow
 -- declarations like 'x::xs ++ ys = e', when '::' has higher precedence than '++'.
@@ -987,7 +987,7 @@ Infix : 'infix'  Int SpaceBIds  { Infix (NonAssoc (getRange ($1,$3)) $2) $3 }
 -- Field declarations.
 Fields :: { [Declaration] }
 Fields : 'field' ArgTypeSignatures
-            { let toField (Arg h rel (TypeSig _ x t)) = Field x (Arg h rel t) in map toField $2 }
+            { let toField (Arg h rel (TypeSig _ x (Just t))) = Field x (Arg h rel t) in map toField $2 }
 --REM            { let toField (h, TypeSig x t) = Field h x t in map toField $2 }
 
 -- Mutually recursive declarations.
@@ -1524,7 +1524,7 @@ funClauseOrTypeSigs lhs (JustRHS   rhs) wh = return [FunClause lhs rhs wh]
 funClauseOrTypeSigs lhs (TypeSigsRHS e) wh
   | NoWhere <- wh,
     LHS p [] [] [] <- lhs,
-    Just names <- namesOfPattern p = return $ map (\(x,y) -> TypeSig x y e) names
+    Just names <- namesOfPattern p = return $ map (\(x,y) -> typeSig x y e) names
   | otherwise                      = parseError "Illegal function clause or type signature"
 
 {--------------------------------------------------------------------------

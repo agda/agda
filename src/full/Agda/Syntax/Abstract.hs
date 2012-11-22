@@ -66,7 +66,7 @@ data Expr
   deriving (Typeable, Show)
 
 data Declaration
-	= Axiom      DefInfo Relevance QName Expr          -- ^ postulate
+	= Axiom      DefInfo Relevance QName (Maybe Expr)  -- ^ postulate or type signature
 	| Field      DefInfo QName (Arg Expr)		   -- ^ record field
 	| Primitive  DefInfo QName Expr			   -- ^ primitive function
 	| Mutual     MutualInfo [Declaration]              -- ^ a bunch of mutually recursive definitions
@@ -118,10 +118,11 @@ data Pragma = OptionsPragma [String]
             | EtaPragma QName
   deriving (Typeable, Show)
 
-data LetBinding = LetBind LetInfo Relevance Name Expr Expr    -- ^ LetBind info rel name type defn
-                | LetPatBind LetInfo Pattern Expr -- ^ irrefutable pattern binding
-                | LetApply ModuleInfo ModuleName ModuleApplication (Map QName QName) (Map ModuleName ModuleName)
-                | LetOpen ModuleInfo ModuleName     -- ^ only for highlighting and abstractToConcrete
+data LetBinding
+  = LetBind LetInfo Relevance Name (Maybe Expr) Expr    -- ^ LetBind info rel name type defn
+  | LetPatBind LetInfo Pattern Expr -- ^ irrefutable pattern binding
+  | LetApply ModuleInfo ModuleName ModuleApplication (Map QName QName) (Map ModuleName ModuleName)
+  | LetOpen ModuleInfo ModuleName     -- ^ only for highlighting and abstractToConcrete
   deriving (Typeable, Show)
 
 -- | Only 'Axiom's.
