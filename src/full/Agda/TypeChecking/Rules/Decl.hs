@@ -80,7 +80,7 @@ checkDecl d = do
       , prettyA d
       ]
 
-    -- Issue 418 fix: freeze metas before checking an abstract things
+    -- Issue 418 fix: freeze metas before checking an abstract thing
     when isAbstract freezeMetas
 
     let -- What kind of final checks/computations should be performed

@@ -1,4 +1,4 @@
-{-# LANGUAGE CPP #-}
+{-# LANGUAGE CPP, PatternGuards #-}
 
 module Agda.TypeChecking.Rules.Def where
 
@@ -80,13 +80,17 @@ checkFunDef delayed i name cs = do
           -- if we have just one clause without pattern matching and
           -- without a type signature, then infer, to allow
           -- "aliases" for things starting with hidden abstractions
-          Just e | isMeta (ignoreSharing $ unEl t) ->
-            traceCall (CheckFunDef (getRange i) (qnameName name) cs) $
+          Just e | Just x <- isMeta (ignoreSharing $ unEl t) ->
+            traceCall (CheckFunDef (getRange i) (qnameName name) cs) $ do
+              -- Andreas, 2012-11-22: if the alias is in an abstract block
+              -- it has been frozen.  We unfreeze it to enable type inference.
+              -- See issue 729.
+              whenM (isFrozen x) $ unfreezeMeta x
               checkAlias t rel delayed i name e
           _ -> checkFunDef' t rel delayed i name cs
   where
-    isMeta MetaV{} = True
-    isMeta _       = False
+    isMeta (MetaV x _) = Just x
+    isMeta _           = Nothing
     trivialClause [A.Clause (A.LHS i (A.LHSHead f []) []) (A.RHS e) []] = Just e
     trivialClause _ = Nothing
 

@@ -27,6 +27,7 @@ import Agda.TypeChecking.Substitute
 import Agda.Utils.Monad
 import Agda.Utils.Fresh
 import Agda.Utils.Permutation
+import Agda.Utils.Pointer
 
 #include "../../undefined.h"
 import Agda.Utils.Impossible
@@ -244,17 +245,7 @@ freezeMetas = modifyMetaStore $ Map.map freeze where
   freeze :: MetaVariable -> MetaVariable
   freeze mvar = mvar { mvFrozen = Frozen }
 
-{- UNUSED -- DOES NOT DO THE JOB
--- | Unfreeze meta and its type if this is a meta again.
-unfreezeMeta :: MetaId -> TCM ()
-unfreezeMeta x = do
-  updateMetaVar x $ \ mv -> mv { mvFrozen = Instantiable }
-  mv <- lookupMeta x
-  case ignoreSharing $ unEl $ jMetaType $ mvJudgement mv of
-    MetaV y _ -> unfreezeMeta y
-    _ -> return ()
--}
-
+-- | Thaw all meta variables.
 unfreezeMetas :: TCM ()
 unfreezeMetas = modifyMetaStore $ Map.map unfreeze where
   unfreeze :: MetaVariable -> MetaVariable
@@ -264,3 +255,44 @@ isFrozen :: MetaId -> TCM Bool
 isFrozen x = do
   mvar <- lookupMeta x
   return $ mvFrozen mvar == Frozen
+
+-- | Unfreeze meta and its type if this is a meta again.
+--   Does not unfreeze deep occurrences of metas.
+class UnFreezeMeta a where
+  unfreezeMeta :: a -> TCM ()
+
+instance UnFreezeMeta MetaId where
+  unfreezeMeta x = do
+    updateMetaVar x $ \ mv -> mv { mvFrozen = Instantiable }
+    unfreezeMeta =<< do jMetaType . mvJudgement <$> lookupMeta x
+
+instance UnFreezeMeta Type where
+  unfreezeMeta (El s t) = unfreezeMeta s >> unfreezeMeta t
+
+instance UnFreezeMeta Term where
+  unfreezeMeta (Shared p)    = unfreezeMeta $ derefPtr p
+  unfreezeMeta (MetaV x _)   = unfreezeMeta x
+  unfreezeMeta (Sort s)      = unfreezeMeta s
+  unfreezeMeta (Level l)     = unfreezeMeta l
+  unfreezeMeta (DontCare t)  = unfreezeMeta t
+  unfreezeMeta _             = return ()
+
+instance UnFreezeMeta Sort where
+  unfreezeMeta (Type l)      = unfreezeMeta l
+  unfreezeMeta _             = return ()
+
+instance UnFreezeMeta Level where
+  unfreezeMeta (Max ls)      = unfreezeMeta ls
+
+instance UnFreezeMeta PlusLevel where
+  unfreezeMeta (Plus _ a)    = unfreezeMeta a
+  unfreezeMeta ClosedLevel{} = return ()
+
+instance UnFreezeMeta LevelAtom where
+  unfreezeMeta (MetaLevel x _)    = unfreezeMeta x
+  unfreezeMeta (BlockedLevel _ t) = unfreezeMeta t
+  unfreezeMeta (NeutralLevel t)   = unfreezeMeta t
+  unfreezeMeta (UnreducedLevel t) = unfreezeMeta t
+
+instance UnFreezeMeta a => UnFreezeMeta [a] where
+  unfreezeMeta = mapM_ unfreezeMeta
