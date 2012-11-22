@@ -2,7 +2,6 @@
 
 module Agda.TypeChecking.Rules.Decl where
 
-import Control.Applicative ((<$))
 import Control.Monad
 import Control.Monad.Error
 import Control.Monad.Reader
@@ -102,11 +101,7 @@ checkDecl d = do
       A.Import i x             -> none $ checkImport i x
       A.Pragma i p             -> none $ checkPragma i p
       A.ScopedDecl scope ds    -> none $ setScope scope >> checkDecls ds
-{-
-      A.FunDef i x delayed hs cs -> mutual $ check x i $
-                                     Set.singleton x <$ checkFunDef i x delayed hs cs
--}
-      A.FunDef i x delayed hs cs -> impossible $ check x i $ checkFunDef i x delayed hs cs
+      A.FunDef i x delayed cs  -> impossible $ check x i $ checkFunDef delayed i x cs
       A.DataDef i x ps cs      -> impossible $ check x i $ checkDataDef i x ps cs
       A.RecDef i x ind c ps tel cs -> mutual $ check x i $ do
                                     checkRecDef i x ind c ps tel cs

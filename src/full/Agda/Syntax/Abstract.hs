@@ -76,7 +76,7 @@ data Declaration
 	| Pragma     Range	Pragma
         | Open       ModuleInfo ModuleName
           -- ^ only retained for highlighting purposes
-        | FunDef     DefInfo QName Delayed HasTypeSig [Clause] -- ^ sequence of function clauses
+        | FunDef     DefInfo QName Delayed [Clause] -- ^ sequence of function clauses
         | DataSig    DefInfo QName Telescope Expr -- ^ lone data signature
             -- ^ the 'LamBinding's are 'DomainFree' and binds the parameters of the datatype.
         | DataDef    DefInfo QName [LamBinding] [Constructor]
@@ -96,7 +96,7 @@ instance GetDefInfo Declaration where
   getDefInfo (Field i _ _) = Just i
   getDefInfo (Primitive i _ _) = Just i
   getDefInfo (ScopedDecl _ (d:_)) = getDefInfo d
-  getDefInfo (FunDef i _ _ _ _) = Just i
+  getDefInfo (FunDef i _ _ _) = Just i
   getDefInfo (DataSig i _ _ _) = Just i
   getDefInfo (DataDef i _ _ _) = Just i
   getDefInfo (RecSig i _ _ _) = Just i
@@ -330,7 +330,7 @@ instance HasRange Declaration where
     getRange (Pragma	 i _	    ) = getRange i
     getRange (Open       i _        ) = getRange i
     getRange (ScopedDecl _ d	    ) = getRange d
-    getRange (FunDef     i _ _ _ _  ) = getRange i
+    getRange (FunDef     i _ _ _    ) = getRange i
     getRange (DataSig    i _ _ _    ) = getRange i
     getRange (DataDef    i _ _ _    ) = getRange i
     getRange (RecSig     i _ _ _    ) = getRange i
@@ -427,9 +427,6 @@ instance KillRange Expr where
 instance KillRange Relevance where
   killRange rel = rel -- no range to kill
 
-instance KillRange HasTypeSig where
-  killRange h = h -- no range to kill
-
 instance KillRange Declaration where
   killRange (Axiom      i rel a b     ) = killRange4 Axiom      i rel a b
   killRange (Field      i a b         ) = killRange3 Field      i a b
@@ -442,7 +439,7 @@ instance KillRange Declaration where
   killRange (Pragma     i a           ) = Pragma (killRange i) a
   killRange (Open       i x           ) = killRange2 Open       i x
   killRange (ScopedDecl a d           ) = killRange1 (ScopedDecl a) d
-  killRange (FunDef  i a b c d        ) = killRange4 FunDef  i a b c d
+  killRange (FunDef  i a b c          ) = killRange4 FunDef  i a b c
   killRange (DataSig i a b c          ) = killRange4 DataSig i a b c
   killRange (DataDef i a b c          ) = killRange4 DataDef i a b c
   killRange (RecSig  i a b c          ) = killRange4 RecSig  i a b c
@@ -519,7 +516,7 @@ allNames (DataDef _ q _ decls)    = q <| Fold.foldMap allNames decls
 allNames (RecSig _ q _ _)         = Seq.singleton q
 allNames (RecDef _ q _ c _ _ decls) =
   q <| foldMap Seq.singleton c >< Fold.foldMap allNames decls
-allNames (FunDef _ q _ _ cls)     = q <| Fold.foldMap allNamesC cls
+allNames (FunDef _ q _ cls)       = q <| Fold.foldMap allNamesC cls
   where
   allNamesC :: Clause -> Seq QName
   allNamesC (Clause _ rhs decls) = allNamesR rhs ><
@@ -612,7 +609,7 @@ instance AnyAbstract Declaration where
   anyAbstract (Mutual     _ ds)      = anyAbstract ds
   anyAbstract (ScopedDecl _ ds)      = anyAbstract ds
   anyAbstract (Section _ _ _ ds)     = anyAbstract ds
-  anyAbstract (FunDef i _ _ _ _)     = defAbstract i == AbstractDef
+  anyAbstract (FunDef i _ _ _)       = defAbstract i == AbstractDef
   anyAbstract (DataDef i _ _ _)      = defAbstract i == AbstractDef
   anyAbstract (RecDef i _ _ _ _ _ _) = defAbstract i == AbstractDef
   anyAbstract (DataSig i _ _ _)      = defAbstract i == AbstractDef
