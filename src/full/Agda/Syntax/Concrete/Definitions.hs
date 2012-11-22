@@ -471,19 +471,22 @@ niceDeclarations ds = do
                       span (couldBeFunClauseOf (Map.lookup x fixs) x) (d : ds)
                , not (null fits)
                ] of
+
             -- case: clauses match none of the sigs
-            -- then the lhs can only be a single identifier
-            -- treat it as a function clause without a type signature
             [] -> case lhs of
+              -- Subcase: The lhs is single identifier.
+              -- Treat it as a function clause without a type signature.
               LHS p [] _ _ | IdentP (QName x) <- removeSingletonRawAppP p -> do
                 ds <- nice ds
                 d  <- mkFunDef Relevant termCheck x Nothing [d] -- fun def without type signature is relevant
                 return $ d ++ ds
+              -- Subcase: The lhs is a proper pattern.
+              -- This could be a let-pattern binding. Pass it on.
+              -- A missing type signature error might be raise in ConcreteToAbstract
               _ -> do
                 ds <- nice ds
                 return $ NiceFunClause (getRange d) PublicAccess ConcreteDef termCheck d : ds
--- OLD:             _ -> throwError $ MissingTypeSignature lhs
--- error now raised in ConcreteToAbstract
+
             -- case: clauses match exactly one of the sigs
             [(x,(fits,rest))] -> do
                removeLoneSig x
@@ -492,6 +495,7 @@ niceDeclarations ds = do
                fx  <- getFixity x
                d   <- return $ FunDef (getRange fits) fits fx ConcreteDef termCheck x cs
                return $ d : ds1
+
             -- case: clauses match more than one sigs (ambiguity)
             l -> throwError $ AmbiguousFunClauses lhs (map fst l) -- "ambiguous function clause; cannot assign it uniquely to one type signature"
     niceFunClause _ _ _ = __IMPOSSIBLE__
@@ -808,6 +812,8 @@ niceDeclarations ds = do
       PrivateAccess -> return p
       _             -> dirty $ PrivateAccess
 
+    -- Andreas, 2012-11-22: Q: is this necessary?
+    -- Are where clauses not always private?
     mkPrivateClause :: Updater Clause
     mkPrivateClause (Clause x lhs rhs wh with) = do
         wh <- mkPrivateWhere wh
