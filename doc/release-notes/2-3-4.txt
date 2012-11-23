@@ -30,3 +30,10 @@ Emacs mode
 
 LaTeX-backend
 -------------
+
+* Two new color scheme options were added to agda.sty:
+
+  \usepackage[bw]{agda}, which highlights in black and white;
+  \usepackage[conor]{agda}, which highlights using Conor's colors.
+
+  The default (no options passed) is to use the standard colors.
