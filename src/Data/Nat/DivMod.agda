@@ -56,17 +56,12 @@ private
 
 -- A specification of integer division.
 
-data DivMod : ℕ → ℕ → Set where
-  result : {divisor : ℕ} (q : ℕ) (r : Fin divisor) →
-           DivMod (toℕ r + q * divisor) divisor
-
--- Sometimes the following type is more usable; functions in indices
--- can be inconvenient.
-
-data DivMod' (dividend divisor : ℕ) : Set where
-  result : (q : ℕ) (r : Fin divisor)
-           (eq : dividend ≡ toℕ r + q * divisor) →
-           DivMod' dividend divisor
+record DivMod (dividend divisor : ℕ) : Set where
+  constructor result
+  field
+    quotient  : ℕ
+    remainder : Fin divisor
+    property  : dividend ≡ toℕ remainder + quotient * divisor
 
 -- Integer division with remainder.
 
@@ -77,15 +72,15 @@ data DivMod' (dividend divisor : ℕ) : Set where
 -- properly (see "Inductive Families Need Not Store Their Indices"
 -- (Brady, McBride, McKinna, TYPES 2003)).
 
-_divMod'_ : (dividend divisor : ℕ) {≢0 : False (divisor ≟ 0)} →
-            DivMod' dividend divisor
-_divMod'_ m n {≢0} = <-rec Pred dm m n {≢0}
+_divMod_ : (dividend divisor : ℕ) {≢0 : False (divisor ≟ 0)} →
+           DivMod dividend divisor
+_divMod_ m n {≢0} = <-rec Pred dm m n {≢0}
   where
   Pred : ℕ → Set
   Pred dividend = (divisor : ℕ) {≢0 : False (divisor ≟ 0)} →
-                  DivMod' dividend divisor
+                  DivMod dividend divisor
 
-  1+_ : ∀ {k n} → DivMod' (suc k) n → DivMod' (suc n + k) n
+  1+_ : ∀ {k n} → DivMod (suc k) n → DivMod (suc n + k) n
   1+_ {k} {n} (result q r eq) = result (1 + q) r (lem₃ n k q r eq)
 
   dm : (dividend : ℕ) → <-Rec Pred dividend → Pred dividend
@@ -99,21 +94,12 @@ _divMod'_ m n {≢0} = <-rec Pred dm m n {≢0}
     1+ rec (suc k) le (suc n)
     where le = s≤′s (s≤′s (n≤′m+n n k))
 
--- A variant.
-
-_divMod_ : (dividend divisor : ℕ) {≢0 : False (divisor ≟ 0)} →
-           DivMod dividend divisor
-_divMod_ m n {≢0} with _divMod'_ m n {≢0}
-.(toℕ r + q * n) divMod n | result q r refl = result q r
-
 -- Integer division.
 
 _div_ : (dividend divisor : ℕ) {≢0 : False (divisor ≟ 0)} → ℕ
-_div_ m n {≢0} with _divMod_ m n {≢0}
-.(toℕ r + q * n) div n | result q r = q
+_div_ m n {≢0} = DivMod.quotient $ _divMod_ m n {≢0}
 
 -- The remainder after integer division.
 
 _mod_ : (dividend divisor : ℕ) {≢0 : False (divisor ≟ 0)} → Fin divisor
-_mod_ m n {≢0} with _divMod_ m n {≢0}
-.(toℕ r + q * n) mod n | result q r = r
+_mod_ m n {≢0} = DivMod.remainder $ _divMod_ m n {≢0}

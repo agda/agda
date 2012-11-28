@@ -200,7 +200,7 @@ _∣?_ : Decidable _∣_
 zero  ∣? zero                         = yes (0 ∣0)
 zero  ∣? suc n                        = no ((λ ()) ∘′ 0∣⇒≡0)
 suc m ∣? n                            with n divMod suc m
-suc m ∣? .(q * suc m)                 | result q zero    =
+suc m ∣? .(q * suc m)                 | result q zero    refl =
   yes $ divides q refl
-suc m ∣? .(1 + Fin.toℕ r + q * suc m) | result q (suc r) =
+suc m ∣? .(1 + Fin.toℕ r + q * suc m) | result q (suc r) refl =
   no $ nonZeroDivisor-lemma m q (suc r) (λ())
