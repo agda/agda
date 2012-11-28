@@ -10,7 +10,7 @@ open import Category.Applicative
 open import Data.Nat
 open import Data.Fin using (Fin; zero; suc)
 open import Data.List as List using (List)
-open import Data.Product using (∃; ∃₂; _×_; _,_)
+open import Data.Product as Prod using (∃; ∃₂; _×_; _,_)
 open import Function
 open import Relation.Binary.PropositionalEquality using (_≡_; refl)
 
@@ -134,6 +134,13 @@ group (suc n) k xs                  with splitAt k xs
 group (suc n) k .(ys ++ zs)         | (ys , zs , refl) with group n k zs
 group (suc n) k .(ys ++ concat zss) | (ys , ._ , refl) | (zss , refl) =
   ((ys ∷ zss) , refl)
+
+-- Splits a vector into two "halves".
+
+split : ∀ {a n} {A : Set a} → Vec A n → Vec A ⌈ n /2⌉ × Vec A ⌊ n /2⌋
+split []           = ([]     , [])
+split (x ∷ [])     = (x ∷ [] , [])
+split (x ∷ y ∷ xs) = Prod.map (_∷_ x) (_∷_ y) (split xs)
 
 reverse : ∀ {a n} {A : Set a} → Vec A n → Vec A n
 reverse {A = A} = foldl (Vec A) (λ rev x → x ∷ rev) []
