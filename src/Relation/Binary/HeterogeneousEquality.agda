@@ -167,7 +167,7 @@ module ≅-Reasoning where
 
   infix  4 _IsRelatedTo_
   infix  2 _∎
-  infixr 2 _≅⟨_⟩_ _≡⟨_⟩_
+  infixr 2 _≅⟨_⟩_ _≡⟨_⟩_ _≡⟨⟩_
   infix  1 begin_
 
   data _IsRelatedTo_ {a} {A : Set a} (x : A) {b} {B : Set b} (y : B) :
@@ -186,6 +186,10 @@ module ≅-Reasoning where
   _≡⟨_⟩_ : ∀ {a} {A : Set a} (x : A) {y c} {C : Set c} {z : C} →
            x ≡ y → y IsRelatedTo z → x IsRelatedTo z
   _ ≡⟨ x≡y ⟩ relTo y≅z = relTo (trans (reflexive x≡y) y≅z)
+
+  _≡⟨⟩_ : ∀ {a} {A : Set a} (x : A) {b} {B : Set b} {y : B} →
+          x IsRelatedTo y → x IsRelatedTo y
+  _ ≡⟨⟩ x≅y = x≅y
 
   _∎ : ∀ {a} {A : Set a} (x : A) → x IsRelatedTo x
   _∎ _ = relTo refl

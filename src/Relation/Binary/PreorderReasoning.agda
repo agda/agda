@@ -32,7 +32,7 @@ open Preorder P
 
 infix  4 _IsRelatedTo_
 infix  2 _∎
-infixr 2 _∼⟨_⟩_ _≈⟨_⟩_
+infixr 2 _∼⟨_⟩_ _≈⟨_⟩_ _≈⟨⟩_
 infix  1 begin_
 
 -- This seemingly unnecessary type is used to make it possible to
@@ -49,6 +49,9 @@ _ ∼⟨ x∼y ⟩ relTo y∼z = relTo (trans x∼y y∼z)
 
 _≈⟨_⟩_ : ∀ x {y z} → x ≈ y → y IsRelatedTo z → x IsRelatedTo z
 _ ≈⟨ x≈y ⟩ relTo y∼z = relTo (trans (reflexive x≈y) y∼z)
+
+_≈⟨⟩_ : ∀ x {y} → x IsRelatedTo y → x IsRelatedTo y
+_ ≈⟨⟩ x∼y = x∼y
 
 _∎ : ∀ x → x IsRelatedTo x
 _∎ _ = relTo refl
