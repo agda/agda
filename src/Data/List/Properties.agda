@@ -33,12 +33,12 @@ private
   open module LMP {ℓ} = RawMonadPlus (List.monadPlus {ℓ = ℓ})
   module LM {a} {A : Set a} = Monoid (List.monoid A)
 
-∷-injective : ∀ {a} {A : Set a} {x y xs ys} →
-              (x ∷ xs ∶ List A) ≡ y ∷ ys → x ≡ y × xs ≡ ys
+∷-injective : ∀ {a} {A : Set a} {x y : A} {xs ys} →
+              x ∷ xs ≡ y List.∷ ys → x ≡ y × xs ≡ ys
 ∷-injective refl = (refl , refl)
 
-∷ʳ-injective : ∀ {a} {A : Set a} {x y} xs ys →
-               (xs ∷ʳ x ∶ List A) ≡ ys ∷ʳ y → xs ≡ ys × x ≡ y
+∷ʳ-injective : ∀ {a} {A : Set a} {x y : A} xs ys →
+               xs ∷ʳ x ≡ ys ∷ʳ y → xs ≡ ys × x ≡ y
 ∷ʳ-injective []          []          refl = (refl , refl)
 ∷ʳ-injective (x ∷ xs)    (y  ∷ ys)   eq   with ∷-injective eq
 ∷ʳ-injective (x ∷ xs)    (.x ∷ ys)   eq   | (refl , eq′) =
@@ -371,7 +371,7 @@ module Monad where
   left-zero f = refl
 
   right-zero : ∀ {ℓ} {A B : Set ℓ} (xs : List A) →
-               (xs >>= const ∅) ≡ (∅ ∶ List B)
+               (xs >>= const ∅) ≡ ∅ {A = B}
   right-zero []       = refl
   right-zero (x ∷ xs) = right-zero xs
 
@@ -434,7 +434,7 @@ module Applicative where
 
   -- ∅ is a left zero for _⊛_.
 
-  left-zero : ∀ {ℓ} {A B : Set ℓ} xs → (∅ ∶ List (A → B)) ⊛ xs ≡ ∅
+  left-zero : ∀ {ℓ} {A B : Set ℓ} (xs : List A) → ∅ ⊛ xs ≡ ∅ {A = B}
   left-zero xs = begin
     ∅ ⊛ xs          ≡⟨ refl ⟩
     (∅ >>= pam xs)  ≡⟨ Monad.left-zero (pam xs) ⟩

@@ -20,7 +20,7 @@ open import Data.Empty
 open import Data.List
 open import Data.Product hiding (proj₁; proj₂)
 open import Data.Unit
-open import Function hiding (type-signature)
+open import Function
 open import Level
 open import Relation.Nullary
 open import Relation.Nullary.Decidable

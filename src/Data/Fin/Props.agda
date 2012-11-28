@@ -28,8 +28,7 @@ open import Category.Applicative
 -- Properties
 
 private
-  drop-suc : ∀ {o} {m n : Fin o} →
-             suc m ≡ (suc n ∶ Fin (suc o)) → m ≡ n
+  drop-suc : ∀ {o} {m n : Fin o} → Fin.suc m ≡ suc n → m ≡ n
   drop-suc refl = refl
 
 preorder : ℕ → Preorder _ _ _

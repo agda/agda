@@ -13,7 +13,7 @@ infixl 8 _ˢ_
 infixl 1 _on_
 infixl 1 _⟨_⟩_
 infixr 0 _-[_]-_ _$_
-infixr 0 type-signature
+infixl 0 _∋_
 
 ------------------------------------------------------------------------
 -- Types
@@ -87,10 +87,8 @@ f -[ _*_ ]- g = λ x y → f x y * g x y
 -- In Agda you cannot annotate every subexpression with a type
 -- signature. This function can be used instead.
 
-type-signature : ∀ {a} (A : Set a) → A → A
-type-signature A x = x
-
-syntax type-signature A x = x ∶ A
+_∋_ : ∀ {a} (A : Set a) → A → A
+A ∋ x = x
 
 -- Case expressions (to be used with pattern-matching lambdas, see
 -- README.Case).
