@@ -190,6 +190,20 @@ _≟_ = DecSetoid._≟_ decSetoid
 ------------------------------------------------------------------------
 -- Arithmetic
 
+-- Power of two.
+
+infixr 8 2^_
+
+2^_ : ℕ → Bin⁺
+2^ 0    = []
+2^ 1+ n = 0b ∷ 2^ n
+
+-- Base 2 logarithm (rounded downwards).
+
+⌊log₂_⌋ : Bin⁺ → ℕ
+⌊log₂ (b ∷ bs) ⌋ = 1+ ⌊log₂ bs ⌋
+⌊log₂ []       ⌋ = 0
+
 -- Multiplication by 2.
 
 infix 7 _*2 _*2+1
