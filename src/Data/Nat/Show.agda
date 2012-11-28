@@ -10,6 +10,7 @@ open import Data.Nat
 open import Relation.Nullary.Decidable using (True)
 open import Data.String as String using (String)
 open import Data.Digit
+open import Data.Product using (proj₁)
 open import Function
 open import Data.List
 
@@ -24,7 +25,7 @@ showInBase base {base≥2} {base≤16} n =
   String.fromList $
   map (showDigit {base≤16 = base≤16}) $
   reverse $
-  theDigits base {base≥2 = base≥2} n
+  proj₁ $ toDigits base {base≥2 = base≥2} n
 
 -- show n is a string containing the decimal expansion of n (starting
 -- with the most significant digit).

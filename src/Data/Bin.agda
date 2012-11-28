@@ -75,8 +75,7 @@ fromBits (1+ 1+ () ∷ bs) | _
 -- Converting from a natural number.
 
 fromℕ : ℕ → Bin
-fromℕ n                with toDigits 2 n
-fromℕ .(fromDigits bs) | digits bs = fromBits bs
+fromℕ n = fromBits $ proj₁ $ toDigits 2 n
 
 ------------------------------------------------------------------------
 -- (Bin, _≡_, _<_) is a strict total order

@@ -13,11 +13,12 @@ open import Data.Fin as Fin using (Fin; zero; suc; toℕ)
 open import Relation.Nullary.Decidable
 open import Data.Char using (Char)
 open import Data.List
+open import Data.Product
 open import Data.Vec as Vec using (Vec; _∷_; [])
 open import Induction.Nat
 open import Data.Nat.DivMod
 open ≤-Reasoning
-open import Relation.Binary.PropositionalEquality
+open import Relation.Binary.PropositionalEquality as P using (_≡_; refl)
 open import Function
 
 ------------------------------------------------------------------------
@@ -94,28 +95,20 @@ fromDigits {base} (d ∷ ds) = toℕ d + fromDigits ds * base
 -- This function should be linear in n, if optimised properly (see
 -- Data.Nat.DivMod).
 
-data Digits (base : ℕ) : ℕ → Set where
-  digits : (ds : List (Fin base)) → Digits base (fromDigits ds)
-
 toDigits : (base : ℕ) {base≥2 : True (2 ≤? base)} (n : ℕ) →
-           Digits base n
+           ∃ λ (ds : List (Fin base)) → fromDigits ds ≡ n
 toDigits zero       {base≥2 = ()} _
 toDigits (suc zero) {base≥2 = ()} _
 toDigits (suc (suc k)) n = <-rec Pred helper n
   where
   base = suc (suc k)
-  Pred = Digits base
+  Pred = λ n → ∃ λ ds → fromDigits ds ≡ n
 
-  cons : ∀ {n} (r : Fin base) → Pred n → Pred (toℕ r + n * base)
-  cons r (digits ds) = digits (r ∷ ds)
+  cons : ∀ {m} (r : Fin base) → Pred m → Pred (toℕ r + m * base)
+  cons r (ds , eq) = (r ∷ ds , P.cong (λ i → toℕ r + i * base) eq)
 
   helper : ∀ n → <-Rec Pred n → Pred n
   helper n                       rec with n divMod base
-  helper .(toℕ r + 0     * base) rec | result zero    r refl = digits (r ∷ [])
+  helper .(toℕ r + 0     * base) rec | result zero    r refl = ([ r ] , refl)
   helper .(toℕ r + suc x * base) rec | result (suc x) r refl =
     cons r (rec (suc x) (lem (pred (suc x)) k (toℕ r)))
-
-theDigits : (base : ℕ) {base≥2 : True (2 ≤? base)} (n : ℕ) →
-            List (Fin base)
-theDigits base {base≥2} n       with toDigits base {base≥2} n
-theDigits base .(fromDigits ds) | digits ds = ds
