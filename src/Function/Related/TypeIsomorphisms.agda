@@ -9,6 +9,7 @@ module Function.Related.TypeIsomorphisms where
 
 open import Algebra
 import Algebra.FunctionProperties as FP
+import Algebra.RingSolver.Natural-coefficients
 open import Data.Empty
 open import Data.Product as Prod hiding (swap)
 open import Data.Sum as Sum
@@ -17,7 +18,7 @@ open import Level
 open import Function
 open import Function.Equality using (_⟨$⟩_)
 open import Function.Equivalence as Eq using (_⇔_; module Equivalence)
-open import Function.Inverse using (_↔_; module Inverse)
+open import Function.Inverse as Inv using (_↔_; module Inverse)
 open import Function.Related as Related
 open import Relation.Binary
 open import Relation.Binary.Product.Pointwise
@@ -185,6 +186,20 @@ open import Relation.Nullary
     where
     from : B × A ⊎ C × A → (B ⊎ C) × A
     from = [ Prod.map inj₁ id , Prod.map inj₂ id ]
+
+module Solver s {ℓ} =
+  Algebra.RingSolver.Natural-coefficients (×⊎-CommutativeSemiring s ℓ)
+
+private
+
+  -- A test of the solver above.
+
+  test : (A B C : Set) →
+         (Lift ⊤ × A × (B ⊎ C)) ↔ (A × B ⊎ C × (Lift ⊥ ⊎ A))
+  test = solve 3 (λ A B C → con 1 :* (A :* (B :+ C)) :=
+                            A :* B :+ C :* (con 0 :+ A))
+                 Inv.id
+    where open Solver bijection
 
 ------------------------------------------------------------------------
 -- Some reordering lemmas
