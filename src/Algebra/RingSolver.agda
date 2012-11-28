@@ -50,7 +50,7 @@ data Op : Set where
   [+] : Op
   [*] : Op
 
--- The polynomials are indexed over the number of variables.
+-- The polynomials are indexed on the number of variables.
 
 data Polynomial (m : ℕ) : Set r₁ where
   op   : (o : Op) (p₁ : Polynomial m) (p₂ : Polynomial m) → Polynomial m
