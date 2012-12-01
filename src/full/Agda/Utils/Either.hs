@@ -12,6 +12,8 @@ module Agda.Utils.Either
   ) where
 
 import Control.Arrow
+import Control.Applicative
+
 import Agda.Utils.QuickCheck
 import Agda.Utils.TestHelpers
 
@@ -45,6 +47,36 @@ isLeft :: Either a b -> Bool
 isLeft (Right _) = False
 isLeft (Left _)  = True
 
+-- | Returns @'Just' <input with tags stripped>@ if all elements are
+-- to the right, and otherwise 'Nothing'.
+--
+-- @
+--  allRight xs ==
+--    if all isRight xs then
+--      Just (map (\(Right x) -> x) xs)
+--     else
+--      Nothing
+-- @
+
+allRight :: [Either a b] -> Maybe [b]
+allRight []             = Just []
+allRight (Left  _ : _ ) = Nothing
+allRight (Right b : xs) = (b:) <$> allRight xs
+
+prop_allRight xs =
+  allRight xs ==
+    if all isRight xs then
+      Just (map fromRight xs)
+     else
+      Nothing
+  where
+  fromRight (Right x) = x
+  fromRight (Left _)  = __IMPOSSIBLE__
+
+{- Andreas, 2012-12-01 I do not know why it makes sense to copy
+   the input (only extra work for the garbage collector...
+   So I disable the code below...
+
 -- | Returns @'Right' <input with tags stripped>@ if all elements are
 -- to the right, and otherwise @Left <input>@:
 --
@@ -72,6 +104,7 @@ prop_allRight xs =
   where
   fromRight (Right x) = x
   fromRight (Left _)  = __IMPOSSIBLE__
+-}
 
 ------------------------------------------------------------------------
 -- All tests

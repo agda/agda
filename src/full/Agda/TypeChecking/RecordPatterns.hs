@@ -653,12 +653,12 @@ recordTree p@(ConP _ Nothing _) = return $ Left $ translatePattern p
 recordTree (ConP c (Just t) ps) = do
   rs <- mapM (recordTree . unArg) ps
   case allRight rs of
-    Left rs ->
+    Nothing ->
       return $ Left $ do
         (ps', ss, cs) <- unzip3 <$> mapM (either id removeTree) rs
         return (ConP c (Just t) (ps' `withArgsFrom` ps),
                 concat ss, concat cs)
-    Right ts -> liftTCM $ do
+    Just ts -> liftTCM $ do
       t <- reduce t
       fields <- getRecordTypeFields (unArg t)
       let proj p = \x -> Def (unArg p) [defaultArg x]
