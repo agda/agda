@@ -272,8 +272,14 @@ instance Enum NameId where
   fromEnum (NameId n _) = fromIntegral n
 
 instance Hashable NameId where
+#if MIN_VERSION_hashable(1,2,0)
+  {-# INLINE hashWithSalt #-}
+  hashWithSalt salt (NameId n m) = hashWithSalt salt (n, m)
+#else
   {-# INLINE hash #-}
   hash (NameId n m) = hash (n, m)
+#endif
+
 
 newtype Constr a = Constr a
 
