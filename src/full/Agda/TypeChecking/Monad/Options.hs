@@ -187,9 +187,9 @@ setIncludeDirs incs relativeTo = do
   incs <- getIncludeDirs
   case oldIncs of
     Right incs' | incs' /= incs -> do
-      ho <- stInteractionOutputCallback <$> get
+      ho <- getInteractionOutputCallback
       resetAllState
-      modify $ \st -> st { stInteractionOutputCallback = ho }
+      setInteractionOutputCallback ho
       setIncs incs
     _                           -> return ()
 

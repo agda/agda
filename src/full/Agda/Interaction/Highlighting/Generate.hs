@@ -112,8 +112,8 @@ printHighlightingInfo x = do
     "Printing highlighting info:\n" ++ show x
   unless (null $ ranges x) $ do
     st <- get
-    liftTCM $ stInteractionOutputCallback st
-                (Resp_HighlightingInfo x (stModuleToSource st))
+    liftTCM $ appInteractionOutputCallback $
+        Resp_HighlightingInfo x (stModuleToSource st)
 
 -- | Highlighting levels.
 

@@ -262,7 +262,7 @@ getInterface' x includeStateChanges =
                   Nothing -> "."
                   Just f  -> " (" ++ f ++ ")."
         ifM (envEmacs <$> ask)
-            (get >>= \st -> stInteractionOutputCallback st $ Resp_RunningInfo s)
+            (appInteractionOutputCallback $ Resp_RunningInfo s)
             (reportSLn "" 1 s)
 
       skip file = do
@@ -340,7 +340,7 @@ getInterface' x includeStateChanges =
             isig     <- getImportedSignature
             ibuiltin <- gets stImportedBuiltins
             ipatsyns <- getPatternSynImports
-            ho       <- stInteractionOutputCallback <$> get
+            ho       <- getInteractionOutputCallback
             -- Every interface is treated in isolation. Note: Changes
             -- to stDecodedModules are not preserved if an error is
             -- encountered in an imported module.
@@ -351,8 +351,8 @@ getInterface' x includeStateChanges =
                                   }) $ do
                      setDecodedModules ds
                      setCommandLineOptions opts
+                     setInteractionOutputCallback ho
                      modify $ \s -> s { stModuleToSource     = mf
-                                      , stInteractionOutputCallback = ho
                                       }
                      setVisitedModules vs
                      addImportedThings isig ibuiltin Set.empty ipatsyns

@@ -100,32 +100,8 @@ initCommandState = CommandState
 -- | Monad for computing answers to interactive commands.
 --
 --   'CommandM' is 'TCM' extended with state 'CommandState'.
---
---   'StateT' is in a newtype wrapper because we would like to prevent
---   the accidental use of 'lift'.
---   Instead of 'lift' one can use 'liftCommandM', see below.
 
-newtype CommandM a = CommandM { unCommandM :: StateT CommandState TCM a }
-    deriving (Monad, MonadIO, Functor, MonadState CommandState, MonadError TCErr)
-
--- | Wrapped 'runStateT' for 'CommandM'.
-
-runCommandM :: CommandM a -> CommandState -> TCM (a, CommandState)
-runCommandM = runStateT . unCommandM
-
--- | lift a TCM action to CommandM.
---
---   'liftCommandM' is a customized form of 'lift' for 'StateT'.
---   At the end of the lifted action 'stInteractionOutputCallback' is set
---   to its original value because the value is lost during the execution
---   of some TCM actions.
-
-liftCommandM :: TCM a -> CommandM a
-liftCommandM m = CommandM $ lift $ do
-    outf <- gets stInteractionOutputCallback
-    a <- m
-    modify $ \st -> st { stInteractionOutputCallback = outf }
-    return a
+type CommandM a = StateT CommandState TCM a
 
 -- | Build an opposite action to 'lift' for state monads.
 
@@ -144,7 +120,7 @@ revLift run lift f = do
 --   Use only if main errors are already catched.
 
 commandMToIO :: (forall x . (CommandM a -> IO x) -> IO x) -> CommandM a
-commandMToIO ci_i = revLift runCommandM liftCommandM $ \ct -> revLift runSafeTCM liftIO $ ci_i . (. ct)
+commandMToIO ci_i = revLift runStateT lift $ \ct -> revLift runSafeTCM liftIO $ ci_i . (. ct)
 
 -- | 'runSafeTCM' runs a safe 'TMC' action (a 'TCM' action which cannot fail)
 
@@ -162,14 +138,12 @@ runSafeTCM m st = do
 -- | Lift a TCM action transformer to a CommandM action transformer.
 
 liftCommandMT :: (forall a . TCM a -> TCM a) -> CommandM a -> CommandM a
-liftCommandMT f m = revLift runCommandM liftCommandM $ f . ($ m)
+liftCommandMT f m = revLift runStateT lift $ f . ($ m)
 
 -- | Put a response by the callback function given by 'stInteractionOutputCallback'.
 
 putResponse :: Response -> CommandM ()
-putResponse x = liftCommandM $ do
-  callback <- stInteractionOutputCallback <$> get
-  callback x
+putResponse = lift . appInteractionOutputCallback
 
 {- UNUSED
 
@@ -178,8 +152,8 @@ putResponse x = liftCommandM $ do
 
 makeSilent :: Interaction -> Interaction
 makeSilent i = i { command = do
-  opts <- liftCommandM commandLineOptions
-  liftCommandM $ TM.setCommandLineOptions $ opts
+  opts <- lift commandLineOptions
+  lift $ TM.setCommandLineOptions $ opts
     { optPragmaOptions =
         (optPragmaOptions opts)
           { optVerbose = Trie.singleton [] 0 }
@@ -207,7 +181,7 @@ runInteraction (IOTCM current highlighting highlightingMethod cmd)
             -- loaded.
             cf <- gets theCurrentFile
             when (not (independent cmd) && Just current /= (fst <$> cf)) $
-                liftCommandM $ typeError $ GenericError "Error: First load the file."
+                lift $ typeError $ GenericError "Error: First load the file."
 
             interpret cmd
 
@@ -235,8 +209,8 @@ runInteraction (IOTCM current highlighting highlightingMethod cmd)
     -- error. Because this function may switch the focus to another file
     -- the status information is also updated.
     handleErr e = do
-        s <- liftCommandM $ prettyError e
-        x <- liftCommandM . gets $ optShowImplicit . stPragmaOptions
+        s <- lift $ prettyError e
+        x <- lift . gets $ optShowImplicit . stPragmaOptions
         let
         mapM_ putResponse $
             [ Resp_DisplayInfo $ Info_Error s ] ++
@@ -459,7 +433,7 @@ interpret (Cmd_compile b file includes) =
   cmd_load' file includes False $ \(i, mw) -> do
     case mw of
       Nothing -> do
-        liftCommandM $ case b of
+        lift $ case b of
           MAlonzo -> MAlonzo.compilerMain i
           Epic    -> Epic.compilerMain i
           JS      -> JS.compilerMain i
@@ -471,19 +445,19 @@ interpret (Cmd_compile b file includes) =
           ]
 
 interpret Cmd_constraints =
-    display_info . Info_Constraints . unlines . map show =<< liftCommandM B.getConstraints
+    display_info . Info_Constraints . unlines . map show =<< lift B.getConstraints
 
 interpret Cmd_metas = do -- CL.showMetas []
-  ims <- liftCommandM $ B.typesOfVisibleMetas B.AsIs
+  ims <- lift $ B.typesOfVisibleMetas B.AsIs
   -- Show unsolved implicit arguments normalised.
-  hms <- liftCommandM $ B.typesOfHiddenMetas B.Normalised
+  hms <- lift $ B.typesOfHiddenMetas B.Normalised
   if not $ null ims && null hms
     then do
-      di <- liftCommandM $ forM ims $ \i -> B.withInteractionId (B.outputFormId $ B.OutputForm 0 i) (showATop i)
-      dh <- liftCommandM $ mapM showA' hms
+      di <- lift $ forM ims $ \i -> B.withInteractionId (B.outputFormId $ B.OutputForm 0 i) (showATop i)
+      dh <- lift $ mapM showA' hms
       display_info $ Info_AllGoals $ unlines $ di ++ dh
     else do
-      cs <- liftCommandM B.getConstraints
+      cs <- lift B.getConstraints
       if null cs
         then display_info $ Info_AllGoals ""
         else interpret Cmd_constraints
@@ -504,7 +478,7 @@ interpret (Cmd_show_module_contents_toplevel s) =
   liftCommandMT B.atTopLevel $ showModuleContents noRange s
 
 interpret Cmd_solveAll = do
-  out <- liftCommandM $ mapM lowr =<< B.getSolvedInteractionPoints
+  out <- lift $ mapM lowr =<< B.getSolvedInteractionPoints
   putResponse $ Resp_SolveAll out
   where
       lowr (i, m, e) = do
@@ -523,13 +497,13 @@ interpret (Cmd_compute_toplevel ignore s) =
   where c = B.evalInCurrent
 
 interpret (ShowImplicitArgs showImpl) = do
-  opts <- liftCommandM commandLineOptions
+  opts <- lift commandLineOptions
   setCommandLineOptions' $
     opts { optPragmaOptions =
              (optPragmaOptions opts) { optShowImplicit = showImpl } }
 
 interpret ToggleImplicitArgs = do
-  opts <- liftCommandM commandLineOptions
+  opts <- lift commandLineOptions
   let ps = optPragmaOptions opts
   setCommandLineOptions' $
     opts { optPragmaOptions =
@@ -538,9 +512,9 @@ interpret ToggleImplicitArgs = do
 interpret (Cmd_load_highlighting_info source) = do
     -- Make sure that the include directories have
     -- been set.
-    setCommandLineOptions' =<< liftCommandM commandLineOptions
+    setCommandLineOptions' =<< lift commandLineOptions
 
-    resp <- liftCommandM $ liftIO . tellToUpdateHighlighting =<< do
+    resp <- lift $ liftIO . tellToUpdateHighlighting =<< do
       ex <- liftIO $ doesFileExist source
       case ex of
         False -> return Nothing
@@ -570,7 +544,7 @@ interpret (Cmd_give ii rng s) = give_gen ii rng s B.give $ \rng s ce ->
 interpret (Cmd_refine ii rng s) = give_gen ii rng s B.refine $ \_ s -> Give_String . show
 
 interpret (Cmd_intro pmLambda ii rng _) = do
-  ss <- liftCommandM $ B.introTactic pmLambda ii
+  ss <- lift $ B.introTactic pmLambda ii
   liftCommandMT (B.withInteractionId ii) $ case ss of
     []    -> do
       display_info $ Info_Intro $ text "No introduction forms found."
@@ -589,7 +563,7 @@ interpret (Cmd_refine_or_intro pmLambda ii r s) = interpret $
   (if null s then Cmd_intro pmLambda else Cmd_refine) ii r s
 
 interpret (Cmd_auto ii rng s) = do
-  (res, msg) <- liftCommandM $ Auto.auto ii rng s
+  (res, msg) <- lift $ Auto.auto ii rng s
   case res of
    Left xs -> do
     forM_ xs $ \(ii, s) -> do
@@ -606,22 +580,22 @@ interpret (Cmd_auto ii rng s) = do
    Right (Right s) -> give_gen' B.refine (\_ s -> Give_String . show) ii rng s
 
 interpret (Cmd_context norm ii _ _) =
-  display_info . Info_Context =<< liftCommandM (prettyContext norm False ii)
+  display_info . Info_Context =<< lift (prettyContext norm False ii)
 
 interpret (Cmd_infer norm ii rng s) =
   display_info . Info_InferredType
-    =<< liftCommandM (B.withInteractionId ii
+    =<< lift (B.withInteractionId ii
           (prettyATop =<< B.typeInMeta ii norm =<< B.parseExprIn ii rng s))
 
 interpret (Cmd_goal_type norm ii _ _) =
   display_info . Info_CurrentGoal
-    =<< liftCommandM (B.withInteractionId ii $ prettyTypeOfMeta norm ii)
+    =<< lift (B.withInteractionId ii $ prettyTypeOfMeta norm ii)
 
 interpret (Cmd_goal_type_context norm ii rng s) =
   cmd_goal_type_context_and empty norm ii rng s
 
 interpret (Cmd_goal_type_context_infer norm ii rng s) = do
-  typ <- liftCommandM $ B.withInteractionId ii $
+  typ <- lift $ B.withInteractionId ii $
            prettyATop =<< B.typeInMeta ii norm =<< B.parseExprIn ii rng s
   cmd_goal_type_context_and (text "Have:" <+> typ) norm ii rng s
 
@@ -629,10 +603,10 @@ interpret (Cmd_show_module_contents ii rng s) =
   liftCommandMT (B.withInteractionId ii) $ showModuleContents rng s
 
 interpret (Cmd_make_case ii rng s) = do
-  (casectxt , cs) <- liftCommandM $ makeCase ii rng s
+  (casectxt , cs) <- lift $ makeCase ii rng s
   liftCommandMT (B.withInteractionId ii) $ do
-    hidden <- liftCommandM $ showImplicitArguments
-    pcs <- liftCommandM $ mapM prettyA $ List.map (extlam_dropLLifted casectxt hidden) cs
+    hidden <- lift $ showImplicitArguments
+    pcs <- lift $ mapM prettyA $ List.map (extlam_dropLLifted casectxt hidden) cs
     putResponse $ Resp_MakeCase (emacscmd casectxt) (List.map (extlam_dropName casectxt . render) pcs)
   where
     render = renderStyle (style { mode = OneLineMode })
@@ -658,8 +632,8 @@ interpret (Cmd_make_case ii rng s) = do
          (SA.Clause (SA.LHS info (SA.LHSHead name (drop n nps)) ps) rhs decl)
 
 interpret (Cmd_compute ignore ii rng s) = do
-  e <- liftCommandM $ B.parseExprIn ii rng s
-  d <- liftCommandM $ B.withInteractionId ii $ do
+  e <- lift $ B.parseExprIn ii rng s
+  d <- lift $ B.withInteractionId ii $ do
          let c = B.evalInCurrent e
          v <- if ignore then ignoreAbstractMode c else c
          prettyATop v
@@ -681,7 +655,7 @@ cmd_load' :: FilePath -> [FilePath]
 cmd_load' file includes unsolvedOK cmd = do
     f <- liftIO $ absolute file
     ex <- liftIO $ doesFileExist $ filePath f
-    liftCommandM $ setIncludeDirs includes $
+    lift $ setIncludeDirs includes $
       if ex then ProjectRoot f else CurrentDir
 
     -- Forget the previous "current file" and interaction points.
@@ -695,7 +669,7 @@ cmd_load' file includes unsolvedOK cmd = do
     -- file is reloaded, including the choice of whether or not to
     -- display implicit arguments. (At this point the include
     -- directories have already been set, so they are preserved.)
-    opts <- liftCommandM $ commandLineOptions
+    opts <- lift $ commandLineOptions
     defaultOptions <- gets optionsOnReload
     setCommandLineOptions' $
       defaultOptions { optIncludeDirs   = optIncludeDirs opts
@@ -709,7 +683,7 @@ cmd_load' file includes unsolvedOK cmd = do
     -- Reset the state, preserving options and decoded modules. Note
     -- that if the include directories have changed, then the decoded
     -- modules are reset when cmd_load' is run by ioTCM.
-    liftCommandM resetState
+    lift resetState
 
     -- Clear the info buffer to make room for information about which
     -- module is currently being type-checked.
@@ -718,14 +692,14 @@ cmd_load' file includes unsolvedOK cmd = do
     -- Remove any prior syntax highlighting.
     putResponse Resp_ClearHighlighting
 
-    ok <- liftCommandM $ Imp.typeCheck f
+    ok <- lift $ Imp.typeCheck f
 
     -- The module type checked. If the file was not changed while the
     -- type checker was running then the interaction points and the
     -- "current file" are stored.
     t' <- liftIO $ getModificationTime file
     when (t == t') $ do
-      is <- liftCommandM $ sortInteractionPoints =<< getInteractionPoints
+      is <- lift $ sortInteractionPoints =<< getInteractionPoints
       modify $ \st -> st { theInteractionPoints = is
                          , theCurrentFile       = Just (f, t)
                          }
@@ -744,9 +718,9 @@ give_gen ii rng s give_ref mk_newtxt =
   give_gen' give_ref mk_newtxt ii rng s
 
 give_gen' give_ref mk_newtxt ii rng s = do
-  scope     <- liftCommandM $ getInteractionScope ii
-  (ae, iis) <- liftCommandM $ give_ref ii Nothing =<< B.parseExprIn ii rng s
-  iis       <- liftCommandM $ sortInteractionPoints iis
+  scope     <- lift $ getInteractionScope ii
+  (ae, iis) <- lift $ give_ref ii Nothing =<< B.parseExprIn ii rng s
+  iis       <- lift $ sortInteractionPoints iis
   modify $ \st -> st { theInteractionPoints =
                            replace ii iis (theInteractionPoints st) }
   putResponse $ Resp_GiveAction ii $ mk_newtxt rng s $ abstractToConcrete (makeEnv scope) ae
@@ -789,8 +763,8 @@ prettyContext norm rev ii = B.withInteractionId ii $ do
 -- context.
 
 cmd_goal_type_context_and doc norm ii _ _ = do
-  goal <- liftCommandM $ B.withInteractionId ii $ prettyTypeOfMeta norm ii
-  ctx  <- liftCommandM $ prettyContext norm True ii
+  goal <- lift $ B.withInteractionId ii $ prettyTypeOfMeta norm ii
+  ctx  <- lift $ prettyContext norm True ii
   display_info $ Info_GoalType
                 (text "Goal:" <+> goal $+$
                  doc $+$
@@ -802,8 +776,8 @@ cmd_goal_type_context_and doc norm ii _ _ = do
 
 showModuleContents :: Range -> String -> CommandM ()
 showModuleContents rng s = do
-  (modules, types) <- liftCommandM $ B.moduleContents rng s
-  types' <- liftCommandM $ mapM (\(x, t) -> do
+  (modules, types) <- lift $ B.moduleContents rng s
+  types' <- lift $ mapM (\(x, t) -> do
                     t <- prettyTCM t
                     return (show x, text ":" <+> t))
                  types
@@ -817,7 +791,7 @@ showModuleContents rng s = do
 
 setCommandLineOptions' :: CommandLineOptions -> CommandM ()
 setCommandLineOptions' opts = do
-    liftCommandM $ TM.setCommandLineOptions opts
+    lift $ TM.setCommandLineOptions opts
     displayStatus
 
 
@@ -826,12 +800,12 @@ setCommandLineOptions' opts = do
 status :: CommandM Status
 status = do
   cf <- gets theCurrentFile
-  showImpl <- liftCommandM showImplicitArguments
+  showImpl <- lift showImplicitArguments
 
   -- Check if the file was successfully type checked, and has not
   -- changed since. Note: This code does not check if any dependencies
   -- have changed, and uses a time stamp to check for changes.
-  checked  <- liftCommandM $ case cf of
+  checked  <- lift $ case cf of
     Nothing     -> return False
     Just (f, t) -> do
       t' <- liftIO $ getModificationTime $ filePath f
@@ -1011,7 +985,7 @@ parseAndDoAtToplevel
 parseAndDoAtToplevel cmd title s = do
   e <- liftIO $ parse exprParser s
   display_info . title =<<
-    liftCommandM (B.atTopLevel $ prettyA =<< cmd =<< concreteToAbstract_ e)
+    lift (B.atTopLevel $ prettyA =<< cmd =<< concreteToAbstract_ e)
 
 -- | Tell to highlight the code using the given highlighting
 -- info (unless it is @Nothing@).

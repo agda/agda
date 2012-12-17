@@ -35,11 +35,11 @@ mimicGHCi = do
 
     liftIO $ hSetBuffering stdout NoBuffering
 
-    modify $ \st -> st { stInteractionOutputCallback =
-                           liftIO . putStrLn . show <=< lispifyResponse }
+    setInteractionOutputCallback $
+        liftIO . putStrLn . show <=< lispifyResponse
 
     opts <- commandLineOptions
-    _ <- interact' `runCommandM` initCommandState { optionsOnReload = opts }
+    _ <- interact' `runStateT` initCommandState { optionsOnReload = opts }
     return ()
   where
 
