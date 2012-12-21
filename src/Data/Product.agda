@@ -25,7 +25,13 @@ record Σ {a b} (A : Set a) (B : A → Set b) : Set (a ⊔ b) where
 
 open Σ public
 
-syntax Σ A (λ x → B) = Σ[ x ∈ A ] B
+-- The syntax declaration below is attached to Σ-syntax, to make it
+-- easy to import Σ without the special syntax.
+
+Σ-syntax : ∀ {a b} (A : Set a) → (A → Set b) → Set (a ⊔ b)
+Σ-syntax = Σ
+
+syntax Σ-syntax A (λ x → B) = Σ[ x ∈ A ] B
 
 ∃ : ∀ {a b} {A : Set a} → (A → Set b) → Set (a ⊔ b)
 ∃ = Σ _
