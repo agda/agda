@@ -7,11 +7,13 @@
 
 module Data.Fin.Props where
 
+open import Algebra
 open import Data.Fin
 open import Data.Nat as N
   using (ℕ; zero; suc; s≤s; z≤n; _∸_)
   renaming (_≤_ to _ℕ≤_; _<_ to _ℕ<_; _+_ to _ℕ+_)
 import Data.Nat.Properties as N
+open import Data.Product
 open import Function
 open import Function.Equality as FunS using (_⟨$⟩_)
 open import Function.Injection
@@ -156,18 +158,25 @@ reverse {suc n} i  = inject≤ (n ℕ- i) (N.n∸m≤n (toℕ i) (suc n))
 
 reverse-prop : ∀ {n} → (i : Fin n) → toℕ (reverse i) ≡ n ∸ suc (toℕ i)
 reverse-prop {zero} ()
-reverse-prop {suc n} i = inject≤-lemma _ _ ⟨ P.trans ⟩ toℕ‿ℕ- n i
-  where
-  toℕ‿ℕ- : ∀ n i → toℕ (n ℕ- i) ≡ n ∸ toℕ i
-  toℕ‿ℕ- n zero = to-from n
-  toℕ‿ℕ- zero (suc ())
-  toℕ‿ℕ- (suc n) (suc i) = toℕ‿ℕ- n i
-
-reverse-involutive : ∀ {n} → Involutive _≡_ reverse
-reverse-involutive {n} i = toℕ-injective (reverse-prop _ ⟨ P.trans ⟩ eq)
+reverse-prop {suc n} i = begin
+  toℕ (inject≤ (n ℕ- i) _)  ≡⟨ inject≤-lemma _ _ ⟩
+  toℕ (n ℕ- i)              ≡⟨ toℕ‿ℕ- n i ⟩
+  n ∸ toℕ i                 ∎
   where
   open P.≡-Reasoning
-  open import Algebra
+
+  toℕ‿ℕ- : ∀ n i → toℕ (n ℕ- i) ≡ n ∸ toℕ i
+  toℕ‿ℕ- n       zero     = to-from n
+  toℕ‿ℕ- zero    (suc ())
+  toℕ‿ℕ- (suc n) (suc i)  = toℕ‿ℕ- n i
+
+reverse-involutive : ∀ {n} → Involutive _≡_ reverse
+reverse-involutive {n} i = toℕ-injective (begin
+  toℕ (reverse (reverse i))  ≡⟨ reverse-prop _ ⟩
+  n ∸ suc (toℕ (reverse i))  ≡⟨ eq ⟩
+  toℕ i                      ∎)
+  where
+  open P.≡-Reasoning
   open CommutativeSemiring N.commutativeSemiring using (+-comm)
 
   lem₁ : ∀ m n → (m ℕ+ n) ∸ (m ℕ+ n ∸ m) ≡ m
@@ -178,18 +187,16 @@ reverse-involutive {n} i = toℕ-injective (reverse-prop _ ⟨ P.trans ⟩ eq)
     m                     ∎
 
   lem₂ : ∀ n → (i : Fin n) → n ∸ suc (n ∸ suc (toℕ i)) ≡ toℕ i
-  lem₂ zero ()
-  lem₂ (suc n) i = begin
+  lem₂ zero    ()
+  lem₂ (suc n) i  = begin
     n ∸ (n ∸ toℕ i)                     ≡⟨ cong (λ ξ → ξ ∸ (ξ ∸ toℕ i)) i+j≡k ⟩
     (toℕ i ℕ+ j) ∸ (toℕ i ℕ+ j ∸ toℕ i) ≡⟨ lem₁ (toℕ i) j ⟩
     toℕ i                               ∎
     where
-    open import Data.Product
-
     decompose-n : ∃ λ j → n ≡ toℕ i ℕ+ j
     decompose-n = n ∸ toℕ i , P.sym (N.m+n∸m≡n (prop-toℕ-≤ i))
 
-    j = proj₁ decompose-n
+    j     = proj₁ decompose-n
     i+j≡k = proj₂ decompose-n
 
   eq : n ∸ suc (toℕ (reverse i)) ≡ toℕ i

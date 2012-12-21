@@ -6,7 +6,9 @@
 
 module Data.Container where
 
+open import Data.M
 open import Data.Product as Prod hiding (map)
+open import Data.W
 open import Function renaming (id to ⟨id⟩; _∘_ to _⟨∘⟩_)
 open import Function.Equality using (_⟨$⟩_)
 open import Function.Inverse using (_↔_; module Inverse)
@@ -17,8 +19,6 @@ open import Relation.Binary
 open import Relation.Binary.PropositionalEquality as P
   using (_≡_; _≗_; refl)
 open import Relation.Unary using (_⊆_)
-open import Data.W
-open import Data.M
 
 ------------------------------------------------------------------------
 -- Containers
@@ -41,7 +41,7 @@ open Container public
 ⟦_⟧ : ∀ {ℓ} → Container ℓ → Set ℓ → Set ℓ
 ⟦ C ⟧ X = Σ[ s ∈ Shape C ] (Position C s → X)
 
--- The least and greatest fixpoint of a container.
+-- The least and greatest fixpoints of a container.
 
 μ : ∀ {ℓ} → Container ℓ → Set ℓ
 μ C = W (Shape C) (Position C)
