@@ -40,6 +40,12 @@ fromWitness : ∀ {p} {P : Set p} {Q : Dec P} → P → True Q
 fromWitness {Q = yes p} = const _
 fromWitness {Q = no ¬p} = ¬p
 
+-- Variants for False.
+
+toWitnessFalse : ∀ {p} {P : Set p} {Q : Dec P} → False Q → ¬ P
+toWitnessFalse {Q = yes _}  ()
+toWitnessFalse {Q = no  ¬p} _  = ¬p
+
 fromWitnessFalse : ∀ {p} {P : Set p} {Q : Dec P} → ¬ P → False Q
 fromWitnessFalse {Q = yes p} = flip _$_ p
 fromWitnessFalse {Q = no ¬p} = const _
