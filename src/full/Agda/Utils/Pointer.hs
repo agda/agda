@@ -1,4 +1,4 @@
-{-# LANGUAGE DeriveDataTypeable, CPP #-}
+{-# LANGUAGE DeriveDataTypeable #-}
 module Agda.Utils.Pointer
   ( Ptr, newPtr, derefPtr, setPtr
   , updatePtr, updatePtrM
@@ -71,11 +71,7 @@ instance Ord (Ptr a) where
   compare = compare `on` ptrTag
 
 instance Hashable (Ptr a) where
-#if MIN_VERSION_hashable(1,2,0)
   hashWithSalt salt = (hashWithSalt salt) . ptrTag
-#else
-  hash = hash . ptrTag
-#endif
 
 instance NFData (Ptr a) where
 

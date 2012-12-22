@@ -239,13 +239,8 @@ instance Show Name where
   show x = show (nameConcrete x) -- ++ "|" ++ show (nameId x)
 
 instance Hashable Name where
-#if MIN_VERSION_hashable(1,2,0)
   {-# INLINE hashWithSalt #-}
   hashWithSalt salt = (hashWithSalt salt) . nameId
-#else
-  {-# INLINE hash #-}
-  hash = hash . nameId
-#endif
 
 instance Show QName where
   show q = concat $ intersperse "." $ map show $ qnameToList q
@@ -260,13 +255,8 @@ instance Ord QName where
   compare = compare `on` qnameName
 
 instance Hashable QName where
-#if MIN_VERSION_hashable(1,2,0)
   {-# INLINE hashWithSalt #-}
   hashWithSalt salt = (hashWithSalt salt) . qnameName
-#else
-  {-# INLINE hash #-}
-  hash = hash . qnameName
-#endif
 
 instance HasRange Name where
   getRange = getRange . nameConcrete
