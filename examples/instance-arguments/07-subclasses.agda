@@ -10,10 +10,95 @@
 
 module 07-subclasses where
 
-open import Data.Bool hiding (_≟_)
-open import Data.Nat hiding (_<_)
-open import Relation.Nullary.Decidable
-open import Function using (_$_; id)
+module Imports where
+  module L where
+    postulate
+      Level : Set
+      zero  : Level
+      suc   : Level → Level
+      _⊔_   : Level → Level → Level
+
+    {-# BUILTIN LEVEL     Level #-}
+    {-# BUILTIN LEVELZERO zero  #-}
+    {-# BUILTIN LEVELSUC  suc   #-}
+    {-# BUILTIN LEVELMAX  _⊔_   #-}
+
+  -- extract from Function
+  id : ∀ {a} {A : Set a} → A → A
+  id x = x
+
+  _$_ : ∀ {a b} {A : Set a} {B : A → Set b} →
+        ((x : A) → B x) → ((x : A) → B x)
+  f $ x = f x
+
+  _∘_ : ∀ {a b c}
+          {A : Set a} {B : A → Set b} {C : {x : A} → B x → Set c} →
+        (∀ {x} (y : B x) → C y) → (g : (x : A) → B x) →
+        ((x : A) → C (g x))
+  f ∘ g = λ x → f (g x)
+
+  -- extract from Data.Bool
+  infixr 5 _∨_ 
+  data Bool : Set where
+    true  : Bool
+    false : Bool
+
+  not : Bool → Bool
+  not true  = false
+  not false = true
+
+  _∨_ : Bool → Bool → Bool
+  true  ∨ b = true
+  false ∨ b = b
+
+  -- extract from Relation.Nullary.Decidable and friends
+  infix 3 ¬_
+
+  data ⊥ : Set where
+
+  ¬_ : ∀ {ℓ} → Set ℓ → Set ℓ
+  ¬ P = P → ⊥
+
+  data Dec {p} (P : Set p) : Set p where
+    yes : ( p :   P) → Dec P
+    no  : (¬p : ¬ P) → Dec P
+  ⌊_⌋ : ∀ {p} {P : Set p} → Dec P → Bool
+  ⌊ yes _ ⌋ = true
+  ⌊ no  _ ⌋ = false
+
+
+  -- extract from Relation.Binary.PropositionalEquality
+  data _≡_ {a} {A : Set a} (x : A) : A → Set a where
+    refl : x ≡ x
+
+  cong : ∀ {a b} {A : Set a} {B : Set b}
+         (f : A → B) {x y} → x ≡ y → f x ≡ f y
+  cong f refl = refl
+
+  -- extract from Data.Nat
+  data ℕ : Set where
+    zero : ℕ
+    suc  : (n : ℕ) → ℕ
+
+  {-# BUILTIN NATURAL ℕ    #-}
+  {-# BUILTIN ZERO    zero #-}
+  {-# BUILTIN SUC     suc  #-}
+
+  pred : ℕ → ℕ
+  pred zero    = zero
+  pred (suc n) = n
+
+  _≟_ : (x y : ℕ) → Dec (x ≡ y)
+  zero  ≟ zero   = yes refl
+  suc m ≟ suc n  with m ≟ n
+  suc m ≟ suc .m | yes refl = yes refl
+  suc m ≟ suc n  | no prf   = no (prf ∘ cong pred)
+  zero  ≟ suc n  = no λ()
+  suc m ≟ zero   = no λ()
+
+open Imports
+
+-- Begin of actual example!
 
 record Eq (A : Set) : Set where
   field eq : A → A → Bool
@@ -76,6 +161,7 @@ module test₁ where
   open Ord₁ {{...}}
   open Eq {{...}}
 
+  eqNat : Eq _
   eqNat = eqA
 
   test₁ = 5 < 3
@@ -83,7 +169,9 @@ module test₁ where
   test₃ = eq true false
   test₄ : {A : Set} → {{ ordA : Ord₁ A }} → A → A → Bool
   test₄ a b = a < b ∨ eq a b 
-    where eqA' = eqA
+    where
+      eqA' : Eq _
+      eqA' = eqA
 
 module test₂ where
   open Ord₂ {{...}}
@@ -96,7 +184,7 @@ module test₂ where
   test₂ = eq 5 3
   test₃ = eq true false
   test₄ : {A : Set} → {eqA : Eq A} → {{ ordA : Ord₂ eqA }} → A → A → Bool
-  test₄ a b = a < b ∨ eq a b 
+  test₄ {eqA = _} a b = a < b ∨ eq a b 
 
 
 module test₃ where
@@ -130,5 +218,5 @@ module test₄′ where
   test₂ = eq 5 3
   test₃ = eq true false
   test₄ : {A : Set} → {eqA : Eq A} → {{ ordA : Ord₄ eqA }} → A → A → Bool
-  test₄ a b = a < b ∨ eq a b 
+  test₄ {eqA = _} a b = a < b ∨ eq a b 
 

@@ -19,7 +19,9 @@ test_files = Vec.agda Lookup.agda Binary.agda Setoid.agda \
 	instance-arguments/02-classes-indep.agda \
 	instance-arguments/04-equality.agda \
 	instance-arguments/06-listEquality.agda \
+	instance-arguments/07-subclasses.agda \
 	instance-arguments/08-higherOrder.agda \
+	instance-arguments/13-implicitProofObligations.agda \
 	instance-arguments/14-implicitConfigurations.agda
 # the other instance-arguments examples use the standard library,
 # seemingly no way to include it during test run...
