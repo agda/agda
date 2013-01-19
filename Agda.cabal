@@ -60,7 +60,7 @@ library
     build-depends:  epic >= 0.1.13 && < 0.10
 
   if os(windows)
-    build-depends:  Win32 == 2.2.*
+    build-depends:  Win32 < 2.4
 
   build-depends:    base >= 4.2 && < 4.7,
                     -- mtl-2.1 contains a severe bug
