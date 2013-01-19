@@ -34,6 +34,7 @@ mimicGHCi :: TCM ()
 mimicGHCi = do
 
     liftIO $ hSetBuffering stdout NoBuffering
+    liftIO $ hSetEncoding  stdout utf8
 
     setInteractionOutputCallback $
         liftIO . putStrLn . show <=< lispifyResponse
