@@ -604,7 +604,8 @@ dLub s1 b@(Abs _ s2) = case occurrence 0 $ freeVars s2 of
   Flexible      -> DLub s1 b
   Irrelevantly  -> DLub s1 b
   NoOccurrence  -> sLub s1 (absApp b __IMPOSSIBLE__)
-  Free.Unused   -> sLub s1 (absApp b __IMPOSSIBLE__)
+--  Free.Unused   -> sLub s1 (absApp b __IMPOSSIBLE__) -- triggers Issue784
+  Free.Unused   -> DLub s1 b
   StronglyRigid -> Inf
   WeaklyRigid   -> Inf
 

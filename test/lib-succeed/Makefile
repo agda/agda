@@ -15,12 +15,13 @@ V = 1
 
 # Getting all agda files
 excluded=
-allagda=$(patsubst %.agda,%.test,$(filter-out $(excluded),$(shell find . -name "*.agda")))
+allagda=$(patsubst %.agda,%.test,$(filter-out $(excluded),$(shell ls *.*agda)))
+#allagda=$(patsubst %.agda,%.test,$(filter-out $(excluded),$(shell find . -name "*.agda")))
 # allagda=$(patsubst %.agda,%.test,$(shell find . -name "*.agda"))
-alllagda=$(patsubst %.lagda,%.test,$(shell find . -name "*.lagda"))
+# alllagda=$(patsubst %.lagda,%.test,$(shell find . -name "*.lagda"))
 
 default : all
-all : $(allagda) $(alllagda)
+all : $(allagda) # $(alllagda)
 
 #  --vim $(AGDA_TEST_FLAGS)
 
