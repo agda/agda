@@ -33,8 +33,10 @@ import Agda.Interaction.Highlighting.Emacs
 mimicGHCi :: TCM ()
 mimicGHCi = do
 
-    liftIO $ hSetBuffering stdout NoBuffering
-    liftIO $ hSetEncoding  stdout utf8
+    liftIO $ do
+      hSetBuffering stdout NoBuffering
+      hSetEncoding  stdout utf8
+      hSetEncoding  stdin  utf8
 
     setInteractionOutputCallback $
         liftIO . putStrLn . show <=< lispifyResponse
