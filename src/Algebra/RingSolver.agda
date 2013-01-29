@@ -6,7 +6,7 @@
 
 -- Uses ideas from the Coq ring tactic. See "Proving Equalities in a
 -- Commutative Ring Done Right in Coq" by Grégoire and Mahboubi. The
--- code below is not optimised like theirs, though (in particular our
+-- code below is not optimised like theirs, though (in particular, our
 -- Horner normal forms are not sparse).
 
 open import Algebra
@@ -19,7 +19,7 @@ module Algebra.RingSolver
   (Coeff : RawRing r₁)               -- Coefficient "ring".
   (R : AlmostCommutativeRing r₂ r₃)  -- Main "ring".
   (morphism : Coeff -Raw-AlmostCommutative⟶ R)
-  (_coeff≟_ : Decidable (coeff≈ morphism))
+  (_coeff≟_ : Decidable (Induced-equivalence morphism))
   where
 
 import Algebra.RingSolver.Lemmas as L; open L Coeff R morphism
@@ -27,11 +27,12 @@ private module C = RawRing Coeff
 open AlmostCommutativeRing R renaming (zero to zero*)
 import Algebra.FunctionProperties as P; open P _≈_
 open import Algebra.Morphism
-open _-Raw-AlmostCommutative⟶_ morphism renaming (⟦_⟧ to ⟦_⟧')
+open _-Raw-AlmostCommutative⟶_ morphism renaming (⟦_⟧ to ⟦_⟧′)
 import Algebra.Operations as Ops; open Ops semiring
 
 open import Relation.Binary
 open import Relation.Nullary.Core
+import Relation.Binary.EqReasoning as EqR; open EqR setoid
 import Relation.Binary.PropositionalEquality as PropEq
 import Relation.Binary.Reflection as Reflection
 
@@ -43,12 +44,12 @@ open import Data.Vec
 open import Function
 open import Level using (_⊔_)
 
-infix  9 _↑ :-_ -‿NF_
-infixr 9 _:^_ _^-NF_ _:↑_
-infix  8 _*x _*x+_
-infixl 8 _:*_ _*-NF_ _↑-*-NF_
-infixl 7 _:+_ _+-NF_ _:-_
-infixl 0 _∶_
+infix  9 :-_ -H_ -N_
+infixr 9 _:^_ _^N_
+infix  8 _*x+_ _*x+HN_ _*x+H_
+infixl 8 _:*_ _*N_ _*H_ _*NH_ _*HN_
+infixl 7 _:+_ _:-_ _+H_ _+N_
+infix  4 _≈H_ _≈N_
 
 ------------------------------------------------------------------------
 -- Polynomials
@@ -57,7 +58,7 @@ data Op : Set where
   [+] : Op
   [*] : Op
 
--- The polynomials are indexed on the number of variables.
+-- The polynomials are indexed by the number of variables.
 
 data Polynomial (m : ℕ) : Set r₁ where
   op   : (o : Op) (p₁ : Polynomial m) (p₂ : Polynomial m) → Polynomial m
@@ -85,412 +86,454 @@ sem [*] = _*_
 
 ⟦_⟧ : ∀ {n} → Polynomial n → Vec Carrier n → Carrier
 ⟦ op o p₁ p₂ ⟧ ρ = ⟦ p₁ ⟧ ρ ⟨ sem o ⟩ ⟦ p₂ ⟧ ρ
-⟦ con c ⟧      ρ = ⟦ c ⟧'
-⟦ var x ⟧      ρ = lookup x ρ
-⟦ p :^ n ⟧     ρ = ⟦ p ⟧ ρ ^ n
-⟦ :- p ⟧       ρ = - ⟦ p ⟧ ρ
+⟦ con c      ⟧ ρ = ⟦ c ⟧′
+⟦ var x      ⟧ ρ = lookup x ρ
+⟦ p :^ n     ⟧ ρ = ⟦ p ⟧ ρ ^ n
+⟦ :- p       ⟧ ρ = - ⟦ p ⟧ ρ
 
 ------------------------------------------------------------------------
 -- Normal forms of polynomials
 
--- A univariate polynomial of degree d
---     p = a_d x^d + a_{d-1}x^{d-1} + ... + a_0
+-- A univariate polynomial of degree d,
+--
+--     p = a_d x^d + a_{d-1}x^{d-1} + … + a_0,
+--
 -- is represented in Horner normal form by
---     p = ((a_d x + a_{d-1})x + ...)x + a_0
--- Note that a Horner normal form is basically a right-associative list of coefficients, and
--- we can allow the case of an empty list standing for the zero polynomial of degree "-1"
-
--- Given this representation of univariate polynomials over an arbitrary ring, polynomials
--- in any number of variables over the ring C may be represented by the canonical isomorphisms
---     C[] = C
---     C[X1,...Xn] = C[X1,...,Xn-1][Xn]
+--
+--     p = ((a_d x + a_{d-1})x + …)x + a_0.
+--
+-- Note that Horner normal forms can be represented as lists, with the
+-- empty list standing for the zero polynomial of degree "-1".
+--
+-- Given this representation of univariate polynomials over an
+-- arbitrary ring, polynomials in any number of variables over the
+-- ring C can be represented via the isomorphisms
+--
+--     C[] ≅ C
+--
+-- and
+--
+--     C[X_0,...X_{n+1}] ≅ C[X_0,...,X_n][X_{n+1}].
 
 mutual
+
+  -- The polynomial representations are indexed by the polynomial's
+  -- degree.
+
   data HNF : ℕ → Set r₁ where
-    ∅ : ∀ {n} → HNF (suc n)
+    ∅     : ∀ {n} → HNF (suc n)
     _*x+_ : ∀ {n} → HNF (suc n) → Normal n → HNF (suc n)
+
   data Normal : ℕ → Set r₁ where
-    con : C.Carrier → Normal zero
+    con  : C.Carrier → Normal zero
     poly : ∀ {n} → HNF (suc n) → Normal (suc n)
-  -- Note that these datatypes do *not* ensure uniqueness of normal forms, since it
-  -- is possible to build an HNF (∅ *x+ c) with c ≈ C*.0#.  In order to rule out this
-  -- possibility not excluded by types, below we introduce an operation _guarded-*x+_
-  -- which explicitly checks for this case and returns ∅ as a normal form.
+
+  -- Note that the data types above do /not/ ensure uniqueness of
+  -- normal forms: the zero polynomial of degree one can be
+  -- represented using both ∅ and ∅ *x+ con C.0#.
+
+mutual
+
+  -- Semantics.
+
+  ⟦_⟧H : ∀ {n} → HNF (suc n) → Vec Carrier (suc n) → Carrier
+  ⟦ ∅       ⟧H _       = 0#
+  ⟦ p *x+ c ⟧H (x ∷ ρ) = ⟦ p ⟧H (x ∷ ρ) * x + ⟦ c ⟧N ρ
+
+  ⟦_⟧N : ∀ {n} → Normal n → Vec Carrier n → Carrier
+  ⟦ con c  ⟧N _ = ⟦ c ⟧′
+  ⟦ poly p ⟧N ρ = ⟦ p ⟧H ρ
 
 ------------------------------------------------------------------------
 -- Equality and decidability
 
 mutual
-  data _HNF-≈_ : ∀ {n} → HNF n → HNF n → Set (r₁ ⊔ r₃) where
-    ∅≈ : ∀ {n} → _HNF-≈_ {suc n} ∅ ∅
-    *x+≈ : ∀ {n} {p₁ p₂ : HNF (suc n)} {c₁ c₂ : Normal n} →
-           p₁ HNF-≈ p₂ → c₁ Normal-≈ c₂ → (p₁ *x+ c₁) HNF-≈ (p₂ *x+ c₂)
 
-  data _Normal-≈_ : ∀ {n} → Normal n → Normal n → Set (r₁ ⊔ r₃) where
-    con≈ : ∀ {c₁ c₂} → coeff≈ morphism c₁ c₂ → (con c₁) Normal-≈ (con c₂)
-    poly≈ : ∀ {n} {p₁ p₂ : HNF (suc n)} → p₁ HNF-≈ p₂ → (poly p₁) Normal-≈ (poly p₂)
+  -- Equality.
 
-data Normal : (n : ℕ) → Polynomial n → Set (r₁ ⊔ r₂ ⊔ r₃) where
-  con   : (c : C.Carrier) → Normal 0 (con c)
-  _↑    : ∀ {n p'} (p : Normal n p') → Normal (suc n) (p' :↑ 1)
-  _*x+_ : ∀ {n p' c'} (p : Normal (suc n) p') (c : Normal n c') →
-          Normal (suc n) (p' :* var zero :+ c' :↑ 1)
-  _∶_   : ∀ {n p₁ p₂} (p : Normal n p₁) (eq : p₁ ≛ p₂) → Normal n p₂
+  data _≈H_ : ∀ {n} → HNF n → HNF n → Set (r₁ ⊔ r₃) where
+    ∅     : ∀ {n} → _≈H_ {suc n} ∅ ∅
+    _*x+_ : ∀ {n} {p₁ p₂ : HNF (suc n)} {c₁ c₂ : Normal n} →
+            p₁ ≈H p₂ → c₁ ≈N c₂ → (p₁ *x+ c₁) ≈H (p₂ *x+ c₂)
 
-⟦_⟧-Normal : ∀ {n p} → Normal n p → Vec Carrier n → Carrier
-⟦ p ∶ _   ⟧-Normal ρ       = ⟦ p ⟧-Normal ρ
-⟦ con c   ⟧-Normal ρ       = ⟦ c ⟧'
-⟦ p ↑     ⟧-Normal (x ∷ ρ) = ⟦ p ⟧-Normal ρ
-⟦ p *x+ c ⟧-Normal (x ∷ ρ) = (⟦ p ⟧-Normal (x ∷ ρ) * x) + ⟦ c ⟧-Normal ρ
+  data _≈N_ : ∀ {n} → Normal n → Normal n → Set (r₁ ⊔ r₃) where
+    con  : ∀ {c₁ c₂} → ⟦ c₁ ⟧′ ≈ ⟦ c₂ ⟧′ → con c₁ ≈N con c₂
+    poly : ∀ {n} {p₁ p₂ : HNF (suc n)} → p₁ ≈H p₂ → poly p₁ ≈N poly p₂
+
+mutual
+
+  -- Equality is decidable.
+
+  _≟H_ : ∀ {n} → Decidable (_≈H_ {n = n})
+  ∅           ≟H ∅           = yes ∅
+  ∅           ≟H (_ *x+ _)   = no λ()
+  (_ *x+ _)   ≟H ∅           = no λ()
+  (p₁ *x+ c₁) ≟H (p₂ *x+ c₂) with p₁ ≟H p₂ | c₁ ≟N c₂
+  ... | yes p₁≈p₂ | yes c₁≈c₂ = yes (p₁≈p₂ *x+ c₁≈c₂)
+  ... | _         | no  c₁≉c₂ = no  λ { (_ *x+ c₁≈c₂) → c₁≉c₂ c₁≈c₂ }
+  ... | no  p₁≉p₂ | _         = no  λ { (p₁≈p₂ *x+ _) → p₁≉p₂ p₁≈p₂ }
+
+  _≟N_ : ∀ {n} → Decidable (_≈N_ {n = n})
+  con c₁ ≟N con c₂ with c₁ coeff≟ c₂
+  ... | yes c₁≈c₂ = yes (con c₁≈c₂)
+  ... | no  c₁≉c₂ = no  λ { (con c₁≈c₂) → c₁≉c₂ c₁≈c₂}
+  poly p₁ ≟N poly p₂ with p₁ ≟H p₂
+  ... | yes p₁≈p₂ = yes (poly p₁≈p₂)
+  ... | no  p₁≉p₂ = no  λ { (poly p₁≈p₂) → p₁≉p₂ p₁≈p₂ }
+
+mutual
+
+  -- The semantics respect the equality relations defined above.
+
+  ⟦_⟧H-cong : ∀ {n} {p₁ p₂ : HNF (suc n)} →
+              p₁ ≈H p₂ → ∀ ρ → ⟦ p₁ ⟧H ρ ≈ ⟦ p₂ ⟧H ρ
+  ⟦ ∅               ⟧H-cong _       = refl
+  ⟦ p₁≈p₂ *x+ c₁≈c₂ ⟧H-cong (x ∷ ρ) =
+    (⟦ p₁≈p₂ ⟧H-cong (x ∷ ρ) ⟨ *-cong ⟩ refl)
+      ⟨ +-cong ⟩
+    ⟦ c₁≈c₂ ⟧N-cong ρ
+
+  ⟦_⟧N-cong :
+    ∀ {n} {p₁ p₂ : Normal n} →
+    p₁ ≈N p₂ → ∀ ρ → ⟦ p₁ ⟧N ρ ≈ ⟦ p₂ ⟧N ρ
+  ⟦ con c₁≈c₂  ⟧N-cong _ = c₁≈c₂
+  ⟦ poly p₁≈p₂ ⟧N-cong ρ = ⟦ p₁≈p₂ ⟧H-cong ρ
 
 ------------------------------------------------------------------------
 -- Ring operations on Horner normal forms
 
+-- Zero.
+
+0H : ∀ {n} → HNF (suc n)
+0H = ∅
+
+0N : ∀ {n} → Normal n
+0N {zero}  = con C.0#
+0N {suc n} = poly 0H
+
 mutual
-  HNF-0# : ∀ {n} → HNF (suc n)
-  HNF-0# = ∅
 
-  Normal-0# : ∀ {n} → Normal n
-  Normal-0# {zero} = con C.0#
-  Normal-0# {suc n} = poly HNF-0#
+  -- One.
 
-mutual
-  HNF-1# : ∀ {n} → HNF (suc n)
-  HNF-1# {n} = ∅ *x+ Normal-1# {n}
+  1H : ∀ {n} → HNF (suc n)
+  1H {n} = ∅ *x+ 1N {n}
 
-  Normal-1# : ∀ {n} → Normal n
-  Normal-1# {zero} = con C.1#
-  Normal-1# {suc n} = poly HNF-1#
+  1N : ∀ {n} → Normal n
+  1N {zero}  = con C.1#
+  1N {suc n} = poly 1H
 
-_guarded-*x+_ : ∀ {n} → HNF (suc n) → Normal n → HNF (suc n)
-(p₁ *x+ c') guarded-*x+ c = (p₁ *x+ c') *x+ c
-∅ guarded-*x+ c with c Normal-≟ Normal-0# 
+-- A simplifying variant of _*x+_.
+
+_*x+HN_ : ∀ {n} → HNF (suc n) → Normal n → HNF (suc n)
+(p *x+ c′) *x+HN c = (p *x+ c′) *x+ c
+∅          *x+HN c with c ≟N 0N
 ... | yes c≈0 = ∅
-... | no c≉0 = ∅ *x+ c
-
-  _+-NF_ : ∀ {n p₁ p₂} → Normal n p₁ → Normal n p₂ → Normal n (p₁ :+ p₂)
-  (p₁ ∶ eq₁) +-NF (p₂ ∶ eq₂) = p₁ +-NF p₂                    ∶ eq₁  ⟨ +-cong ⟩ eq₂
-  (p₁ ∶ eq)  +-NF p₂         = p₁ +-NF p₂                    ∶ eq   ⟨ +-cong ⟩ refl
-  p₁         +-NF (p₂ ∶ eq)  = p₁ +-NF p₂                    ∶ refl ⟨ +-cong ⟩ eq
-  con c₁     +-NF con c₂     = con (C._+_ c₁ c₂)             ∶ +-homo _ _
-  p₁ ↑       +-NF p₂ ↑       = (p₁ +-NF p₂) ↑                ∶ refl
-  p₁ *x+ c₁  +-NF p₂ ↑       = p₁ *x+ (c₁ +-NF p₂)           ∶ sym (+-assoc _ _ _)
-  p₁ *x+ c₁  +-NF p₂ *x+ c₂  = (p₁ +-NF p₂) *x+ (c₁ +-NF c₂) ∶ lemma₁ _ _ _ _ _
-  p₁ ↑       +-NF p₂ *x+ c₂  = p₂ *x+ (p₁ +-NF c₂)           ∶ lemma₂ _ _ _
-
-  _*x : ∀ {n p} → Normal (suc n) p → Normal (suc n) (p :* var zero)
-  p *x = p *x+ con-NF C.0# ∶ lemma₀ _
-
-_HNF-*x+_ : ∀ {n} → HNF (suc n) → HNF (suc n) → HNF (suc n)
-p₁ HNF-*x+ (p₂ *x+ c) = (p₁ HNF-+ p₂) guarded-*x+ c
-∅ HNF-*x+ ∅ = ∅
-(p₁ *x+ c) HNF-*x+ ∅ = (p₁ *x+ c) *x+ Normal-0#
+... | no  c≉0 = ∅ *x+ c
 
 mutual
-  HNF-actˡ : ∀ {n} → Normal n → HNF (suc n) → HNF (suc n)
-  HNF-actˡ c ∅ = ∅
-  HNF-actˡ c (p *x+ c') with c Normal-≟  Normal-0#
+
+  -- Addition.
+
+  _+H_ : ∀ {n} → HNF (suc n) → HNF (suc n) → HNF (suc n)
+  ∅           +H p           = p
+  p           +H ∅           = p
+  (p₁ *x+ c₁) +H (p₂ *x+ c₂) = (p₁ +H p₂) *x+HN (c₁ +N c₂)
+
+  _+N_ : ∀ {n} → Normal n → Normal n → Normal n
+  con c₁  +N con c₂  = con (c₁ C.+ c₂)
+  poly p₁ +N poly p₂ = poly (p₁ +H p₂)
+
+-- Multiplication.
+
+_*x+H_ : ∀ {n} → HNF (suc n) → HNF (suc n) → HNF (suc n)
+p₁         *x+H (p₂ *x+ c) = (p₁ +H p₂) *x+HN c
+∅          *x+H ∅          = ∅
+(p₁ *x+ c) *x+H ∅          = (p₁ *x+ c) *x+ 0N
+
+mutual
+
+  _*NH_ : ∀ {n} → Normal n → HNF (suc n) → HNF (suc n)
+  c *NH ∅          = ∅
+  c *NH (p *x+ c′) with c ≟N 0N
   ... | yes c≈0 = ∅
-  ... | no c≉0  = HNF-actˡ c p *x+ (c Normal-* c') 
+  ... | no  c≉0 = (c *NH p) *x+ (c *N c′)
 
-    _↑-*-NF_ : ∀ {n p₁ p₂} →
-               Normal n p₁ → Normal (suc n) p₂ →
-               Normal (suc n) (p₁ :↑ 1 :* p₂)
-    p₁ ↑-*-NF (p₂ ∶ eq)   = p₁ ↑-*-NF p₂                    ∶ refl ⟨ *-cong ⟩ eq
-    p₁ ↑-*-NF p₂ ↑        = (p₁ *-NF p₂) ↑                  ∶ refl
-    p₁ ↑-*-NF (p₂ *x+ c₂) = (p₁ ↑-*-NF p₂) *x+ (p₁ *-NF c₂) ∶ lemma₄ _ _ _ _
+  _*HN_ : ∀ {n} → HNF (suc n) → Normal n → HNF (suc n)
+  ∅          *HN c = ∅
+  (p *x+ c′) *HN c with c ≟N 0N
+  ... | yes c≈0 = ∅
+  ... | no  c≉0 = (p *HN c) *x+ (c′ *N c)
 
-    _*-NF_ : ∀ {n p₁ p₂} →
-             Normal n p₁ → Normal n p₂ → Normal n (p₁ :* p₂)
-    (p₁ ∶ eq₁)  *-NF (p₂ ∶ eq₂)  = p₁ *-NF p₂                      ∶ eq₁  ⟨ *-cong ⟩ eq₂
-    (p₁ ∶ eq)   *-NF p₂          = p₁ *-NF p₂                      ∶ eq   ⟨ *-cong ⟩ refl
-    p₁          *-NF (p₂ ∶ eq)   = p₁ *-NF p₂                      ∶ refl ⟨ *-cong ⟩ eq
-    con c₁      *-NF con c₂      = con (C._*_ c₁ c₂)               ∶ *-homo _ _
-    p₁ ↑        *-NF p₂ ↑        = (p₁ *-NF p₂) ↑                  ∶ refl
-    (p₁ *x+ c₁) *-NF p₂ ↑        = (p₁ *-NF p₂ ↑) *x+ (c₁ *-NF p₂) ∶ lemma₃ _ _ _ _
-    p₁ ↑        *-NF (p₂ *x+ c₂) = (p₁ ↑ *-NF p₂) *x+ (p₁ *-NF c₂) ∶ lemma₄ _ _ _ _
-    (p₁ *x+ c₁) *-NF (p₂ *x+ c₂) =
-      (p₁ *-NF p₂) *x *x +-NF
-      (p₁ *-NF c₂ ↑ +-NF c₁ ↑-*-NF p₂) *x+ (c₁ *-NF c₂)            ∶ lemma₅ _ _ _ _ _
+  _*H_ : ∀ {n} → HNF (suc n) → HNF (suc n) → HNF (suc n)
+  ∅           *H _           = ∅
+  (_ *x+ _)   *H ∅           = ∅
+  (p₁ *x+ c₁) *H (p₂ *x+ c₂) =
+    ((p₁ *H p₂) *x+H (p₁ *HN c₂ +H c₁ *NH p₂)) *x+HN (c₁ *N c₂)
 
-  -‿NF_ : ∀ {n p} → Normal n p → Normal n (:- p)
-  -‿NF (p ∶ eq)  = -‿NF p ∶ -‿cong eq
-  -‿NF con c     = con (C.-_ c) ∶ -‿homo _
-  -‿NF (p ↑)     = (-‿NF p) ↑
-  -‿NF (p *x+ c) = -‿NF p *x+ -‿NF c ∶ lemma₆ _ _ _
+  _*N_ : ∀ {n} → Normal n → Normal n → Normal n
+  con c₁  *N con c₂  = con (c₁ C.* c₂)
+  poly p₁ *N poly p₂ = poly (p₁ *H p₂)
 
-  var-NF : ∀ {n} → (i : Fin n) → Normal n (var i)
-  var-NF zero    = con-NF C.1# *x+ con-NF C.0# ∶ lemma₇ _
-  var-NF (suc i) = var-NF i ↑
+-- Exponentiation.
 
-  _^-NF_ : ∀ {n p} → Normal n p → (i : ℕ) → Normal n (p :^ i)
-  p ^-NF zero  = con-NF C.1#     ∶ 1-homo
-  p ^-NF suc n = p *-NF p ^-NF n ∶ refl
+_^N_ : ∀ {n} → Normal n → ℕ → Normal n
+p ^N zero  = 1N
+p ^N suc n = p *N (p ^N n)
 
-_Normal-^_ : ∀ {n} → Normal n → ℕ → Normal n
-p Normal-^ zero = Normal-1#
-p Normal-^ suc n = p Normal-* (p Normal-^ n)
+mutual
+
+  -- Negation.
+
+  -H_ : ∀ {n} → HNF (suc n) → HNF (suc n)
+  -H p = (-N 1N) *NH p
+
+  -N_ : ∀ {n} → Normal n → Normal n
+  -N con c  = con (C.- c)
+  -N poly p = poly (-H p)
 
 ------------------------------------------------------------------------
--- Evaluation and normalisation
-
-mutual
-  ⟦_⟧-HNF : ∀ {n} → HNF (suc n) → Carrier → Vec Carrier n → Carrier
-  ⟦_⟧-HNF ∅ x xs = 0#
-  ⟦_⟧-HNF (p *x+ c) x xs = ⟦ p ⟧-HNF x xs * x + ⟦ c ⟧-Normal xs
-
-  ⟦_⟧-Normal : ∀ {n} → Normal n → Vec Carrier n → Carrier
-  ⟦ con c ⟧-Normal [] = ⟦ c ⟧'
-  ⟦ poly p ⟧-Normal (x ∷ xs) = ⟦ p ⟧-HNF x xs
-
-con-HNF : ∀ {n} → Normal n → HNF (suc n)
-con-HNF c with c Normal-≟ Normal-0#
-... | yes _ = ∅
-... | no _ = ∅ *x+ c
-
-var-HNF : ∀ {n} → HNF (suc n)
-var-HNF = (∅ *x+ Normal-1#) *x+ Normal-0#
+-- Normalisation
 
 normalise-con : ∀ {n} → C.Carrier → Normal n
-normalise-con {zero} c = con c
-normalise-con {suc n} c = poly (con-HNF (normalise-con {n} c))
+normalise-con {zero}  c = con c
+normalise-con {suc n} c = poly (∅ *x+HN normalise-con c)
 
 normalise-var : ∀ {n} → Fin n → Normal n
-normalise-var {zero} ()
-normalise-var {suc n} zero = poly var-HNF
-normalise-var {suc n} (suc i) = poly (con-HNF (normalise-var {n} i))
+normalise-var zero    = poly ((∅ *x+ 1N) *x+ 0N)
+normalise-var (suc i) = poly (∅ *x+HN normalise-var i)
 
 normalise : ∀ {n} → Polynomial n → Normal n
-normalise (op [+] t₁ t₂) = normalise t₁ Normal-+ normalise t₂
-normalise (op [*] t₁ t₂) = normalise t₁ Normal-* normalise t₂
-normalise (con c) = normalise-con c
-normalise (var i) = normalise-var i
-normalise (t :^ k) = normalise t Normal-^ k
-normalise (:- t) = Normal-‿ normalise t
+normalise (op [+] t₁ t₂) = normalise t₁ +N normalise t₂
+normalise (op [*] t₁ t₂) = normalise t₁ *N normalise t₂
+normalise (con c)        = normalise-con c
+normalise (var i)        = normalise-var i
+normalise (t :^ k)       = normalise t ^N k
+normalise (:- t)         = -N normalise t
+
+-- Evaluation after normalisation.
 
 ⟦_⟧↓ : ∀ {n} → Polynomial n → Vec Carrier n → Carrier
-⟦_⟧↓ p ρ = ⟦ normalise p ⟧-Normal ρ
+⟦ p ⟧↓ ρ = ⟦ normalise p ⟧N ρ
+
+------------------------------------------------------------------------
+-- Homomorphism lemmas
+
+0N-homo : ∀ {n} ρ → ⟦ 0N {n} ⟧N ρ ≈ 0#
+0N-homo []      = 0-homo
+0N-homo (x ∷ ρ) = refl
+
+-- If c is equal to 0N, then c is semantically equal to 0#.
+
+0≈⟦0⟧ : ∀ {n} {c : Normal n} → c ≈N 0N → ∀ ρ → 0# ≈ ⟦ c ⟧N ρ
+0≈⟦0⟧ {c = c} c≈0 ρ = sym (begin
+  ⟦ c  ⟧N ρ  ≈⟨ ⟦ c≈0 ⟧N-cong ρ ⟩
+  ⟦ 0N ⟧N ρ  ≈⟨ 0N-homo ρ ⟩
+  0#         ∎)
+
+1N-homo : ∀ {n} ρ → ⟦ 1N {n} ⟧N ρ ≈ 1#
+1N-homo []      = 1-homo
+1N-homo (x ∷ ρ) = begin
+  0# * x + ⟦ 1N ⟧N ρ  ≈⟨ refl ⟨ +-cong ⟩ 1N-homo ρ ⟩
+  0# * x + 1#         ≈⟨ lemma₆ _ _ ⟩
+  1#                  ∎
+
+-- _*x+HN_ is equal to _*x+_.
+
+*x+HN≈*x+ : ∀ {n} (p : HNF (suc n)) (c : Normal n) →
+            ∀ ρ → ⟦ p *x+HN c ⟧H ρ ≈ ⟦ p *x+ c ⟧H ρ
+*x+HN≈*x+ (p *x+ c′) c ρ       = refl
+*x+HN≈*x+ ∅          c (x ∷ ρ) with c ≟N 0N
+... | yes c≈0 = begin
+  0#                 ≈⟨ 0≈⟦0⟧ c≈0 ρ ⟩
+  ⟦ c ⟧N ρ           ≈⟨ sym $ lemma₆ _ _ ⟩
+  0# * x + ⟦ c ⟧N ρ  ∎
+... | no c≉0 = refl
+
+∅*x+HN-homo : ∀ {n} (c : Normal n) x ρ →
+              ⟦ ∅ *x+HN c ⟧H (x ∷ ρ) ≈ ⟦ c ⟧N ρ
+∅*x+HN-homo c x ρ with c ≟N 0N
+... | yes c≈0 = 0≈⟦0⟧ c≈0 ρ
+... | no  c≉0 = lemma₆ _ _
+
+mutual
+
+  +H-homo : ∀ {n} (p₁ p₂ : HNF (suc n)) →
+            ∀ ρ → ⟦ p₁ +H p₂ ⟧H ρ ≈ ⟦ p₁ ⟧H ρ + ⟦ p₂ ⟧H ρ
+  +H-homo ∅           p₂          ρ       = sym (proj₁ +-identity _)
+  +H-homo (p₁ *x+ x₁) ∅           ρ       = sym (proj₂ +-identity _)
+  +H-homo (p₁ *x+ c₁) (p₂ *x+ c₂) (x ∷ ρ) = begin
+    ⟦ (p₁ +H p₂) *x+HN (c₁ +N c₂) ⟧H (x ∷ ρ)                           ≈⟨ *x+HN≈*x+ (p₁ +H p₂) (c₁ +N c₂) (x ∷ ρ) ⟩
+
+    ⟦ p₁ +H p₂ ⟧H (x ∷ ρ) * x + ⟦ c₁ +N c₂ ⟧N ρ                        ≈⟨ (+H-homo p₁ p₂ (x ∷ ρ) ⟨ *-cong ⟩ refl) ⟨ +-cong ⟩ +N-homo c₁ c₂ ρ ⟩
+
+    (⟦ p₁ ⟧H (x ∷ ρ) + ⟦ p₂ ⟧H (x ∷ ρ)) * x + (⟦ c₁ ⟧N ρ + ⟦ c₂ ⟧N ρ)  ≈⟨ lemma₁ _ _ _ _ _ ⟩
+
+    (⟦ p₁ ⟧H (x ∷ ρ) * x + ⟦ c₁ ⟧N ρ) +
+    (⟦ p₂ ⟧H (x ∷ ρ) * x + ⟦ c₂ ⟧N ρ)                                  ∎
+
+  +N-homo : ∀ {n} (p₁ p₂ : Normal n) →
+            ∀ ρ → ⟦ p₁ +N p₂ ⟧N ρ ≈ ⟦ p₁ ⟧N ρ + ⟦ p₂ ⟧N ρ
+  +N-homo (con c₁)  (con c₂)  _ = +-homo _ _
+  +N-homo (poly p₁) (poly p₂) ρ = +H-homo p₁ p₂ ρ
+
+*x+H-homo :
+  ∀ {n} (p₁ p₂ : HNF (suc n)) x ρ →
+  ⟦ p₁ *x+H p₂ ⟧H (x ∷ ρ) ≈
+  ⟦ p₁ ⟧H (x ∷ ρ) * x + ⟦ p₂ ⟧H (x ∷ ρ)
+*x+H-homo ∅         ∅ _ _ = sym $ lemma₆ _ _
+*x+H-homo (p *x+ c) ∅ x ρ = begin
+  ⟦ p *x+ c ⟧H (x ∷ ρ) * x + ⟦ 0N ⟧N ρ  ≈⟨ refl ⟨ +-cong ⟩ 0N-homo ρ ⟩
+  ⟦ p *x+ c ⟧H (x ∷ ρ) * x + 0#         ∎
+*x+H-homo p₁         (p₂ *x+ c₂) x ρ = begin
+  ⟦ (p₁ +H p₂) *x+HN c₂ ⟧H (x ∷ ρ)                         ≈⟨ *x+HN≈*x+ (p₁ +H p₂) c₂ (x ∷ ρ) ⟩
+  ⟦ p₁ +H p₂ ⟧H (x ∷ ρ) * x + ⟦ c₂ ⟧N ρ                    ≈⟨ (+H-homo p₁ p₂ (x ∷ ρ) ⟨ *-cong ⟩ refl) ⟨ +-cong ⟩ refl ⟩
+  (⟦ p₁ ⟧H (x ∷ ρ) + ⟦ p₂ ⟧H (x ∷ ρ)) * x + ⟦ c₂ ⟧N ρ      ≈⟨ lemma₀ _ _ _ _ ⟩
+  ⟦ p₁ ⟧H (x ∷ ρ) * x + (⟦ p₂ ⟧H (x ∷ ρ) * x + ⟦ c₂ ⟧N ρ)  ∎
+
+mutual
+
+  *NH-homo :
+    ∀ {n} (c : Normal n) (p : HNF (suc n)) x ρ →
+    ⟦ c *NH p ⟧H (x ∷ ρ) ≈ ⟦ c ⟧N ρ * ⟦ p ⟧H (x ∷ ρ)
+  *NH-homo c ∅          x ρ = sym (proj₂ zero* _)
+  *NH-homo c (p *x+ c′) x ρ with c ≟N 0N
+  ... | yes c≈0 = begin
+    0#                                            ≈⟨ sym (proj₁ zero* _) ⟩
+    0# * (⟦ p ⟧H (x ∷ ρ) * x + ⟦ c′ ⟧N ρ)         ≈⟨ 0≈⟦0⟧ c≈0 ρ ⟨ *-cong ⟩ refl ⟩
+    ⟦ c ⟧N ρ  * (⟦ p ⟧H (x ∷ ρ) * x + ⟦ c′ ⟧N ρ)  ∎
+  ... | no c≉0 = begin
+    ⟦ c *NH p ⟧H (x ∷ ρ) * x + ⟦ c *N c′ ⟧N ρ                 ≈⟨ (*NH-homo c p x ρ ⟨ *-cong ⟩ refl) ⟨ +-cong ⟩ *N-homo c c′ ρ ⟩
+    (⟦ c ⟧N ρ * ⟦ p ⟧H (x ∷ ρ)) * x + (⟦ c ⟧N ρ * ⟦ c′ ⟧N ρ)  ≈⟨ lemma₃ _ _ _ _ ⟩
+    ⟦ c ⟧N ρ * (⟦ p ⟧H (x ∷ ρ) * x + ⟦ c′ ⟧N ρ)               ∎
+
+  *HN-homo :
+    ∀ {n} (p : HNF (suc n)) (c : Normal n) x ρ →
+    ⟦ p *HN c ⟧H (x ∷ ρ) ≈ ⟦ p ⟧H (x ∷ ρ) * ⟦ c ⟧N ρ
+  *HN-homo ∅          c x ρ = sym (proj₁ zero* _)
+  *HN-homo (p *x+ c′) c x ρ with c ≟N 0N
+  ... | yes c≈0 = begin
+    0#                                           ≈⟨ sym (proj₂ zero* _) ⟩
+    (⟦ p ⟧H (x ∷ ρ) * x + ⟦ c′ ⟧N ρ) * 0#        ≈⟨ refl ⟨ *-cong ⟩ 0≈⟦0⟧ c≈0 ρ ⟩
+    (⟦ p ⟧H (x ∷ ρ) * x + ⟦ c′ ⟧N ρ) * ⟦ c ⟧N ρ  ∎
+  ... | no c≉0 = begin
+    ⟦ p *HN c ⟧H (x ∷ ρ) * x + ⟦ c′ *N c ⟧N ρ                 ≈⟨ (*HN-homo p c x ρ ⟨ *-cong ⟩ refl) ⟨ +-cong ⟩ *N-homo c′ c ρ ⟩
+    (⟦ p ⟧H (x ∷ ρ) * ⟦ c ⟧N ρ) * x + (⟦ c′ ⟧N ρ * ⟦ c ⟧N ρ)  ≈⟨ lemma₂ _ _ _ _ ⟩
+    (⟦ p ⟧H (x ∷ ρ) * x + ⟦ c′ ⟧N ρ) * ⟦ c ⟧N ρ               ∎
+
+  *H-homo : ∀ {n} (p₁ p₂ : HNF (suc n)) →
+            ∀ ρ → ⟦ p₁ *H p₂ ⟧H ρ ≈ ⟦ p₁ ⟧H ρ * ⟦ p₂ ⟧H ρ
+  *H-homo ∅           p₂          ρ       = sym $ proj₁ zero* _
+  *H-homo (p₁ *x+ c₁) ∅           ρ       = sym $ proj₂ zero* _
+  *H-homo (p₁ *x+ c₁) (p₂ *x+ c₂) (x ∷ ρ) = begin
+    ⟦ ((p₁ *H p₂) *x+H ((p₁ *HN c₂) +H (c₁ *NH p₂))) *x+HN
+      (c₁ *N c₂) ⟧H (x ∷ ρ)                                              ≈⟨ *x+HN≈*x+ ((p₁ *H p₂) *x+H ((p₁ *HN c₂) +H (c₁ *NH p₂)))
+                                                                                      (c₁ *N c₂) (x ∷ ρ) ⟩
+    ⟦ (p₁ *H p₂) *x+H
+      ((p₁ *HN c₂) +H (c₁ *NH p₂)) ⟧H (x ∷ ρ) * x +
+    ⟦ c₁ *N c₂ ⟧N ρ                                                      ≈⟨ (*x+H-homo (p₁ *H p₂) ((p₁ *HN c₂) +H (c₁ *NH p₂)) x ρ
+                                                                               ⟨ *-cong ⟩
+                                                                             refl)
+                                                                              ⟨ +-cong ⟩
+                                                                            *N-homo c₁ c₂ ρ ⟩
+    (⟦ p₁ *H p₂ ⟧H (x ∷ ρ) * x +
+     ⟦ (p₁ *HN c₂) +H (c₁ *NH p₂) ⟧H (x ∷ ρ)) * x +
+    ⟦ c₁ ⟧N ρ * ⟦ c₂ ⟧N ρ                                                ≈⟨ (((*H-homo p₁ p₂ (x ∷ ρ) ⟨ *-cong ⟩ refl)
+                                                                                ⟨ +-cong ⟩
+                                                                              (+H-homo (p₁ *HN c₂) (c₁ *NH p₂) (x ∷ ρ)))
+                                                                               ⟨ *-cong ⟩
+                                                                             refl)
+                                                                              ⟨ +-cong ⟩
+                                                                            refl ⟩
+    (⟦ p₁ ⟧H (x ∷ ρ) * ⟦ p₂ ⟧H (x ∷ ρ) * x +
+     (⟦ p₁ *HN c₂ ⟧H (x ∷ ρ) + ⟦ c₁ *NH p₂ ⟧H (x ∷ ρ))) * x +
+    ⟦ c₁ ⟧N ρ * ⟦ c₂ ⟧N ρ                                                ≈⟨ ((refl ⟨ +-cong ⟩ (*HN-homo p₁ c₂ x ρ ⟨ +-cong ⟩ *NH-homo c₁ p₂ x ρ))
+                                                                               ⟨ *-cong ⟩
+                                                                             refl)
+                                                                              ⟨ +-cong ⟩
+                                                                            refl ⟩
+    (⟦ p₁ ⟧H (x ∷ ρ) * ⟦ p₂ ⟧H (x ∷ ρ) * x +
+     (⟦ p₁ ⟧H (x ∷ ρ) * ⟦ c₂ ⟧N ρ + ⟦ c₁ ⟧N ρ * ⟦ p₂ ⟧H (x ∷ ρ))) * x +
+    (⟦ c₁ ⟧N ρ * ⟦ c₂ ⟧N ρ)                                              ≈⟨ lemma₄ _ _ _ _ _ ⟩
+
+    (⟦ p₁ ⟧H (x ∷ ρ) * x + ⟦ c₁ ⟧N ρ) *
+    (⟦ p₂ ⟧H (x ∷ ρ) * x + ⟦ c₂ ⟧N ρ)                                    ∎
+
+  *N-homo : ∀ {n} (p₁ p₂ : Normal n) →
+            ∀ ρ → ⟦ p₁ *N p₂ ⟧N ρ ≈ ⟦ p₁ ⟧N ρ * ⟦ p₂ ⟧N ρ
+  *N-homo (con c₁)  (con c₂)  _ = *-homo _ _
+  *N-homo (poly p₁) (poly p₂) ρ = *H-homo p₁ p₂ ρ
+
+^N-homo : ∀ {n} (p : Normal n) (k : ℕ) →
+          ∀ ρ → ⟦ p ^N k ⟧N ρ ≈ ⟦ p ⟧N ρ ^ k
+^N-homo p zero    ρ = 1N-homo ρ
+^N-homo p (suc k) ρ = begin
+  ⟦ p *N (p ^N k) ⟧N ρ       ≈⟨ *N-homo p (p ^N k) ρ ⟩
+  ⟦ p ⟧N ρ * ⟦ p ^N k ⟧N ρ   ≈⟨ refl ⟨ *-cong ⟩ ^N-homo p k ρ ⟩
+  ⟦ p ⟧N ρ * (⟦ p ⟧N ρ ^ k)  ∎
+
+mutual
+
+  -H‿-homo : ∀ {n} (p : HNF (suc n)) →
+             ∀ ρ → ⟦ -H p ⟧H ρ ≈ - ⟦ p ⟧H ρ
+  -H‿-homo p (x ∷ ρ) = begin
+    ⟦ (-N 1N) *NH p ⟧H (x ∷ ρ)     ≈⟨ *NH-homo (-N 1N) p x ρ ⟩
+    ⟦ -N 1N ⟧N ρ * ⟦ p ⟧H (x ∷ ρ)  ≈⟨ trans (-N‿-homo 1N ρ) (-‿cong (1N-homo ρ)) ⟨ *-cong ⟩ refl ⟩
+    - 1# * ⟦ p ⟧H (x ∷ ρ)          ≈⟨ lemma₇ _ ⟩
+    - ⟦ p ⟧H (x ∷ ρ)               ∎
+
+  -N‿-homo : ∀ {n} (p : Normal n) →
+             ∀ ρ → ⟦ -N p ⟧N ρ ≈ - ⟦ p ⟧N ρ
+  -N‿-homo (con c)  _ = -‿homo _
+  -N‿-homo (poly p) ρ = -H‿-homo p ρ
 
 ------------------------------------------------------------------------
 -- Correctness
 
--- Correctness (⟦_⟧↓ ≈ ⟦_⟧) follows from the fact that ⟦_⟧-Normal is a homomorphism.
--- To show this, we also need to show (due to the use of the guarded constructor) that
--- ⟦_⟧-Normal respects equality of normal forms.
+correct-con : ∀ {n} (c : C.Carrier) (ρ : Vec Carrier n) →
+              ⟦ normalise-con c ⟧N ρ ≈ ⟦ c ⟧′
+correct-con c []      = refl
+correct-con c (x ∷ ρ) = begin
+  ⟦ ∅ *x+HN normalise-con c ⟧H (x ∷ ρ)  ≈⟨ ∅*x+HN-homo (normalise-con c) x ρ ⟩
+  ⟦ normalise-con c ⟧N ρ            ≈⟨ correct-con c ρ ⟩
+  ⟦ c ⟧′                                   ∎
 
-mutual
-  HNF-eval-cong : ∀ {n} {p₁ p₂ : HNF (suc n)} → p₁ HNF-≈ p₂ → ∀ x (xs : Vec Carrier n) →
-                ⟦ p₁ ⟧-HNF x xs ≈ ⟦ p₂ ⟧-HNF x xs
-  HNF-eval-cong ∅≈ x xs = refl
-  HNF-eval-cong (*x+≈ p₁≈p₂ c₁≈c₂) x xs = +-cong (*-cong (HNF-eval-cong p₁≈p₂ x xs) refl) (Normal-eval-cong c₁≈c₂ xs)
+correct-var : ∀ {n} (i : Fin n) →
+              ∀ ρ → ⟦ normalise-var i ⟧N ρ ≈ lookup i ρ
+correct-var ()      []
+correct-var (suc i) (x ∷ ρ) = begin
+  ⟦ ∅ *x+HN normalise-var i ⟧H (x ∷ ρ)  ≈⟨ ∅*x+HN-homo (normalise-var i) x ρ ⟩
+  ⟦ normalise-var i ⟧N ρ                ≈⟨ correct-var i ρ ⟩
+  lookup i ρ                            ∎
+correct-var zero (x ∷ ρ) = begin
+  (0# * x + ⟦ 1N ⟧N ρ) * x + ⟦ 0N ⟧N ρ  ≈⟨ ((refl ⟨ +-cong ⟩ 1N-homo ρ) ⟨ *-cong ⟩ refl) ⟨ +-cong ⟩ 0N-homo ρ ⟩
+  (0# * x + 1#) * x + 0#                ≈⟨ lemma₅ _ ⟩
+  x                                     ∎
 
-  Normal-eval-cong : ∀ {n} {p₁ p₂ : Normal n} → p₁ Normal-≈ p₂ → ∀ (xs : Vec Carrier n) →
-                ⟦ p₁ ⟧-Normal xs ≈ ⟦ p₂ ⟧-Normal xs
-  Normal-eval-cong (con≈ c₁≈c₂) [] = c₁≈c₂
-  Normal-eval-cong (poly≈ p₁≈p₂) (x ∷ xs) = HNF-eval-cong p₁≈p₂ x xs
-
-Normal-eval-resp : ∀ {n} {p₁ p₂ : Normal n} → p₁ Normal-≈ p₂ → ∀ {xs : Vec Carrier n} {r} →
-                ⟦ p₂ ⟧-Normal xs ≈ r → ⟦ p₁ ⟧-Normal xs ≈ r
-Normal-eval-resp p₁≈p₂ {xs} [p₂]≈r = trans (Normal-eval-cong p₁≈p₂ xs) [p₂]≈r
-
-  nf-sound : ∀ {n p} (nf : Normal n p) ρ →
-             ⟦ nf ⟧-Normal ρ ≈ ⟦ p ⟧ ρ
-  nf-sound (nf ∶ eq)         ρ       = nf-sound nf ρ ⟨ trans ⟩ eq
-  nf-sound (con c)           ρ       = refl
-  nf-sound (_↑ {p' = p'} nf) (x ∷ ρ) =
-    nf-sound nf ρ ⟨ trans ⟩ sym (raise-sem p' ρ)
-  nf-sound (_*x+_ {c' = c'} nf₁ nf₂) (x ∷ ρ) =
-    (nf-sound nf₁ (x ∷ ρ) ⟨ *-cong ⟩ refl)
-      ⟨ +-cong ⟩
-    (nf-sound nf₂ ρ ⟨ trans ⟩ sym (raise-sem c' ρ))
-
-Normal-0-homo : ∀ {n} xs → ⟦ Normal-0# {n} ⟧-Normal xs ≈ 0#
-Normal-0-homo [] = 0-homo
-Normal-0-homo (x ∷ xs) = refl
-
-Normal-1-homo : ∀ {n} xs → ⟦ Normal-1# {n} ⟧-Normal xs ≈ 1#
-Normal-1-homo [] = 1-homo
-Normal-1-homo (x ∷ xs) = begin
-  0# * x + ⟦ Normal-1# ⟧-Normal xs  ≈⟨ refl ⟨ +-cong ⟩ (Normal-1-homo xs) ⟩
-  0# * x + 1#                         ≈⟨ lemma₈ _ _ ⟩
-  1#                                  ∎
-
-lemma-eval-c≈0 : ∀ {n} {c : Normal n} → c Normal-≈ Normal-0# → ∀ (xs : Vec Carrier n) →
-               0# ≈ ⟦ c ⟧-Normal xs
-lemma-eval-c≈0 c≈0 xs = sym $ Normal-eval-resp c≈0 (Normal-0-homo xs)
-
--- the guarded version of _*x+_ does not affect the result of evaluation, up to equality
-lemma-eval-guarded : ∀ {n} → (p : HNF (suc n)) (c : Normal n) → ∀ x (xs : Vec Carrier n) →
-      ⟦ p guarded-*x+ c ⟧-HNF x xs ≈ ⟦ p *x+ c ⟧-HNF x xs
-lemma-eval-guarded (p *x+ c') c x xs = refl
-lemma-eval-guarded ∅ c x xs with c Normal-≟ Normal-0#
-... | yes c≈0 = begin
-  0#                            ≈⟨ lemma-eval-c≈0 c≈0 xs ⟩
-  ⟦ c ⟧-Normal xs             ≈⟨ sym $ lemma₈ _ _ ⟩
-  0# * x + ⟦ c ⟧-Normal xs    ∎
-... | no c≉0 = refl
-
-mutual
- HNF-+-homo : ∀ {n} (p₁ p₂ : HNF (suc n)) x (xs : Vec Carrier n) →
-     ⟦ p₁ HNF-+ p₂ ⟧-HNF x xs ≈ ⟦ p₁ ⟧-HNF x xs + ⟦ p₂ ⟧-HNF x xs
- HNF-+-homo ∅ p₂ x xs = sym (proj₁ +-identity _) 
- HNF-+-homo (p₁ *x+ x₁) ∅ x xs = sym (proj₂ +-identity _)
- HNF-+-homo (p₁ *x+ c₁) (p₂ *x+ c₂) x xs = begin
-   ⟦ (p₁ HNF-+ p₂) guarded-*x+ (c₁ Normal-+ c₂) ⟧-HNF x xs 
-      ≈⟨ lemma-eval-guarded (p₁ HNF-+ p₂) (c₁ Normal-+ c₂) x xs ⟩
-   ⟦ p₁ HNF-+ p₂ ⟧-HNF x xs * x + ⟦ c₁ Normal-+ c₂ ⟧-Normal xs
-      ≈⟨ (HNF-+-homo p₁ p₂ x xs ⟨ *-cong ⟩ refl) ⟨ +-cong ⟩ Normal-+-homo c₁ c₂ xs ⟩
-       (⟦ p₁ ⟧-HNF x xs + ⟦ p₂ ⟧-HNF x xs) * x + (⟦ c₁ ⟧-Normal xs + ⟦ c₂ ⟧-Normal xs)
-      ≈⟨ lemma₁ _ _ _ _ _ ⟩
-   (⟦ p₁ ⟧-HNF x xs * x + ⟦ c₁ ⟧-Normal xs) + (⟦ p₂ ⟧-HNF x xs * x + ⟦ c₂ ⟧-Normal xs)
-      ∎
-
- Normal-+-homo : ∀ {n} (p₁ p₂ : Normal n) (xs : Vec Carrier n) →
-         ⟦ p₁ Normal-+ p₂ ⟧-Normal xs ≈ ⟦ p₁ ⟧-Normal xs + ⟦ p₂ ⟧-Normal xs
- Normal-+-homo (con c₁) (con c₂) [] = +-homo _ _
- Normal-+-homo (poly p₁) (poly p₂) (x ∷ xs) = HNF-+-homo p₁ p₂ x xs
-
-HNF-*x+-homo : ∀ {n} (p₁ p₂ : HNF (suc n)) x (xs : Vec Carrier n) →
-     ⟦ p₁ HNF-*x+ p₂ ⟧-HNF x xs ≈ ⟦ p₁ ⟧-HNF x xs * x + ⟦ p₂ ⟧-HNF x xs
-HNF-*x+-homo p₁ (p₂ *x+ c₂) x xs = begin
-  ⟦ (p₁ HNF-+ p₂) guarded-*x+ c₂ ⟧-HNF x xs
-       ≈⟨ lemma-eval-guarded (p₁ HNF-+ p₂) c₂ x xs ⟩
-  ⟦ p₁ HNF-+ p₂ ⟧-HNF x xs * x + ⟦ c₂ ⟧-Normal xs
-       ≈⟨ (HNF-+-homo p₁ p₂ x xs ⟨ *-cong ⟩ refl) ⟨ +-cong ⟩ refl ⟩
-  (⟦ p₁ ⟧-HNF x xs + ⟦ p₂ ⟧-HNF x xs) * x + ⟦ c₂ ⟧-Normal xs
-       ≈⟨ lemma₀ _ _ _ _ ⟩
-  ⟦ p₁ ⟧-HNF x xs * x + (⟦ p₂ ⟧-HNF x xs * x + ⟦ c₂ ⟧-Normal xs)
-       ∎
-HNF-*x+-homo ∅ ∅ x xs = sym $ lemma₈ _ _
-HNF-*x+-homo (p₁ *x+ x) ∅ x₁ xs = +-cong refl (Normal-0-homo xs)
-
-mutual
-  HNF-actˡ-homo : ∀ {n} (c : Normal n) (p : HNF (suc n)) x (xs : Vec Carrier n) →
-                 ⟦ HNF-actˡ c p ⟧-HNF x xs ≈ ⟦ c ⟧-Normal xs * ⟦ p ⟧-HNF x xs
-  HNF-actˡ-homo c ∅ x xs = sym (proj₂ zero* _)
-  HNF-actˡ-homo c (p *x+ c') x xs with c Normal-≟ Normal-0#
-  ... | yes c≈0 = begin
-    0#
-       ≈⟨ sym (proj₁ zero* _) ⟩
-    0# * (⟦ p ⟧-HNF x xs * x + ⟦ c' ⟧-Normal xs)
-       ≈⟨ lemma-eval-c≈0 c≈0 xs ⟨ *-cong ⟩ refl ⟩
-    ⟦ c ⟧-Normal xs  * (⟦ p ⟧-HNF x xs * x + ⟦ c' ⟧-Normal xs)
-       ∎
-  ... | no c≉0 = begin
-    ⟦ HNF-actˡ c p ⟧-HNF x xs * x + ⟦ c Normal-* c' ⟧-Normal xs
-       ≈⟨ (HNF-actˡ-homo c p x xs ⟨ *-cong ⟩ refl) ⟨ +-cong ⟩ Normal-*-homo c c' xs ⟩
-    (⟦ c ⟧-Normal xs * ⟦ p ⟧-HNF x xs) * x + (⟦ c ⟧-Normal xs * ⟦ c' ⟧-Normal xs)
-       ≈⟨ lemma₄ _ _ _ _ ⟩
-    ⟦ c ⟧-Normal xs * (⟦ p ⟧-HNF x xs * x + ⟦ c' ⟧-Normal xs)
-       ∎
-
-  HNF-actʳ-homo : ∀ {n} (p : HNF (suc n)) (c : Normal n) x (xs : Vec Carrier n) →
-                 ⟦ HNF-actʳ p c ⟧-HNF x xs ≈ ⟦ p ⟧-HNF x xs * ⟦ c ⟧-Normal xs
-  HNF-actʳ-homo ∅ c x xs = sym (proj₁ zero* _)
-  HNF-actʳ-homo (p *x+ c') c x xs with c Normal-≟ Normal-0#
-  ... | yes c≈0 = begin
-    0#
-       ≈⟨ sym (proj₂ zero* _) ⟩
-    (⟦ p ⟧-HNF x xs * x + ⟦ c' ⟧-Normal xs) * 0#
-       ≈⟨ refl ⟨ *-cong ⟩ lemma-eval-c≈0 c≈0 xs ⟩
-    (⟦ p ⟧-HNF x xs * x + ⟦ c' ⟧-Normal xs) * ⟦ c ⟧-Normal xs
-       ∎
-  ... | no c≉0 = begin
-    ⟦ HNF-actʳ p c ⟧-HNF x xs * x + ⟦ c' Normal-* c ⟧-Normal xs
-       ≈⟨ (HNF-actʳ-homo p c x xs ⟨ *-cong ⟩ refl) ⟨ +-cong ⟩ Normal-*-homo c' c xs ⟩
-    (⟦ p ⟧-HNF x xs * ⟦ c ⟧-Normal xs) * x + (⟦ c' ⟧-Normal xs * ⟦ c ⟧-Normal xs)
-       ≈⟨ lemma₃ _ _ _ _ ⟩
-    (⟦ p ⟧-HNF x xs * x + ⟦ c' ⟧-Normal xs) * ⟦ c ⟧-Normal xs
-       ∎
-
-  HNF-*-homo : ∀ {n} (p₁ p₂ : HNF (suc n)) x (xs : Vec Carrier n) →
-    ⟦ p₁ HNF-* p₂ ⟧-HNF x xs ≈ ⟦ p₁ ⟧-HNF x xs * ⟦ p₂ ⟧-HNF x xs
-  HNF-*-homo ∅ p₂ x xs = sym (proj₁ zero* _)
-  HNF-*-homo (p₁ *x+ c₁) ∅ x xs = sym $ proj₂ zero* _
-  HNF-*-homo (p₁ *x+ c₁) (p₂ *x+ c₂) x xs = begin
-    ⟦ ((p₁ HNF-* p₂) HNF-*x+ (HNF-actʳ p₁ c₂ HNF-+ HNF-actˡ c₁ p₂)) guarded-*x+
-        (c₁ Normal-* c₂) ⟧-HNF x xs
-       ≈⟨ lemma-eval-guarded ((p₁ HNF-* p₂) HNF-*x+ (HNF-actʳ p₁ c₂ HNF-+ HNF-actˡ c₁ p₂)) (c₁ Normal-* c₂) x xs ⟩
-    ⟦(p₁ HNF-* p₂) HNF-*x+ (HNF-actʳ p₁ c₂ HNF-+ HNF-actˡ c₁ p₂) ⟧-HNF x xs * x +
-    ⟦ c₁ Normal-* c₂ ⟧-Normal xs
-       ≈⟨ (HNF-*x+-homo (p₁ HNF-* p₂) (HNF-actʳ p₁ c₂ HNF-+ HNF-actˡ c₁ p₂) x xs ⟨ *-cong ⟩ refl) ⟨ +-cong ⟩ Normal-*-homo c₁ c₂ xs ⟩
-    (⟦ p₁ HNF-* p₂ ⟧-HNF x xs * x +  ⟦ HNF-actʳ p₁ c₂ HNF-+ HNF-actˡ c₁ p₂ ⟧-HNF x xs) * x +
-    (⟦ c₁ ⟧-Normal xs * ⟦ c₂ ⟧-Normal xs)
-       ≈⟨ ((HNF-*-homo p₁ p₂ x xs ⟨ *-cong ⟩ refl) ⟨ +-cong ⟩ (trans (HNF-+-homo (HNF-actʳ p₁ c₂) (HNF-actˡ c₁ p₂) x xs) (HNF-actʳ-homo p₁ c₂ x xs ⟨ +-cong ⟩ HNF-actˡ-homo c₁ p₂ x xs)) ⟨ *-cong ⟩ refl) ⟨ +-cong ⟩ refl ⟩
-    ((⟦ p₁ ⟧-HNF x xs * ⟦ p₂ ⟧-HNF x xs) * x + ((⟦ p₁ ⟧-HNF x xs * ⟦ c₂ ⟧-Normal xs) +
-     (⟦ c₁ ⟧-Normal xs * ⟦ p₂ ⟧-HNF x xs))) * x
-    + (⟦ c₁ ⟧-Normal xs * ⟦ c₂ ⟧-Normal xs)
-       ≈⟨ lemma₅′ _ _ _ _ _ ⟩
-    (⟦ p₁ ⟧-HNF x xs * x + ⟦ c₁ ⟧-Normal xs) * (⟦ p₂ ⟧-HNF x xs * x + ⟦ c₂ ⟧-Normal xs)
-       ∎
-
-  Normal-*-homo : ∀ {n} (p₁ p₂ : Normal n) (xs : Vec Carrier n) →
-                ⟦ p₁ Normal-* p₂ ⟧-Normal xs ≈ ⟦ p₁ ⟧-Normal xs * ⟦ p₂ ⟧-Normal xs
-  Normal-*-homo (con c₁) (con c₂) [] = *-homo _ _
-  Normal-*-homo (poly p₁) (poly p₂) (x ∷ xs) = HNF-*-homo p₁ p₂ x xs
-
-mutual
-  HNF-‿-homo : ∀ {n} (p : HNF (suc n)) x (xs : Vec Carrier n) →
-              ⟦ HNF-‿ p ⟧-HNF x xs ≈ - ⟦ p ⟧-HNF x xs
-  HNF-‿-homo p x xs =  begin
-    ⟦ HNF-actˡ (Normal-‿ Normal-1#) p ⟧-HNF x xs
-        ≈⟨ HNF-actˡ-homo (Normal-‿ Normal-1#) p x xs ⟩
-    ⟦ Normal-‿ Normal-1# ⟧-Normal xs * ⟦ p ⟧-HNF x xs
-        ≈⟨ trans (Normal-‿-homo Normal-1# xs) (-‿cong (Normal-1-homo xs)) ⟨ *-cong ⟩ refl ⟩
-    - 1# * ⟦ p ⟧-HNF x xs
-        ≈⟨ lemma₉ _ ⟩
-    - ⟦ p ⟧-HNF x xs
-        ∎
-
-  Normal-‿-homo : ∀ {n} (p : Normal n) (xs : Vec Carrier n) →
-                ⟦ Normal-‿ p ⟧-Normal xs ≈ - ⟦ p ⟧-Normal xs
-  Normal-‿-homo (con c) [] = -‿homo _
-  Normal-‿-homo (poly p) (x ∷ xs) = HNF-‿-homo p x xs
-
-Normal-^-homo : ∀ {n} (p : Normal n) (k : ℕ) (xs : Vec Carrier n) →
-                ⟦ p Normal-^ k ⟧-Normal xs ≈ ⟦ p ⟧-Normal xs ^ k
-Normal-^-homo p zero xs = Normal-1-homo xs
-Normal-^-homo p (suc k) xs = begin
-  ⟦ p Normal-* (p Normal-^ k) ⟧-Normal xs         ≈⟨ Normal-*-homo p (p Normal-^ k) xs ⟩
-  ⟦ p ⟧-Normal xs * ⟦ p Normal-^ k ⟧-Normal xs  ≈⟨ refl ⟨ *-cong ⟩ Normal-^-homo p k xs ⟩
-  ⟦ p ⟧-Normal xs * (⟦ p ⟧-Normal xs ^ k)       ∎
-
-con-HNF-homo : ∀ {n} → (c : Normal n) → ∀ x (xs : Vec Carrier n) →
-          ⟦ con-HNF c ⟧-HNF x xs ≈ ⟦ c ⟧-Normal xs
-con-HNF-homo c x xs with c Normal-≟ Normal-0#
-... | yes c≈0 = lemma-eval-c≈0 c≈0 xs
-... | no c≉0 = lemma₈ _ _
-
-correct : ∀ {n} (p : Polynomial n) (xs : Vec Carrier n) → ⟦ p ⟧↓ xs ≈ ⟦ p ⟧ xs
-correct (op [+] p₁ p₂) xs = trans (Normal-+-homo (normalise p₁) (normalise p₂) xs) (+-cong (correct p₁ xs) (correct p₂ xs)) 
-correct (op [*] p₁ p₂) xs = trans (Normal-*-homo (normalise p₁) (normalise p₂) xs) (*-cong (correct p₁ xs) (correct p₂ xs)) 
-correct (:- p) xs = trans (Normal-‿-homo (normalise p) xs) (-‿cong (correct p xs))
-correct (p :^ k) xs = trans (Normal-^-homo (normalise p) k xs) (^-cong (correct p xs) (PropEq.refl {x = k}))
-correct (con c) xs = correct-con c xs
-  where
-    correct-con : ∀ {n} (c : C.Carrier) (xs : Vec Carrier n) → 
-                ⟦ normalise-con c ⟧-Normal xs ≈ ⟦ c ⟧'
-    correct-con c [] = refl
-    correct-con c (x ∷ xs) = trans (con-HNF-homo (normalise-con c) x xs) (correct-con c xs) 
-correct (var i) xs = correct-var i xs
-  where
-    correct-var : ∀ {n} (i : Fin n) (xs : Vec Carrier n) → 
-                  ⟦ normalise-var i ⟧-Normal xs ≈ lookup i xs
-    correct-var () []
-    correct-var zero (x ∷ xs) = begin
-      (0# * x + ⟦ Normal-1# ⟧-Normal xs) * x + ⟦ Normal-0# ⟧-Normal xs
-         ≈⟨ ((refl ⟨ +-cong ⟩ Normal-1-homo xs) ⟨ *-cong ⟩ refl) ⟨ +-cong ⟩ Normal-0-homo xs ⟩
-      (0# * x + 1#) * x + 0#
-         ≈⟨ lemma₇ _ ⟩
-      x  ∎
-    correct-var (suc i) (x ∷ xs) = trans (con-HNF-homo (normalise-var i) x xs) (correct-var i xs)
-
-open Reflection setoid var ⟦_⟧ ⟦_⟧↓ correct
-  public using (prove; solve) renaming (_⊜_ to _:=_)
+correct : ∀ {n} (p : Polynomial n) → ∀ ρ → ⟦ p ⟧↓ ρ ≈ ⟦ p ⟧ ρ
+correct (op [+] p₁ p₂) ρ = begin
+  ⟦ normalise p₁ +N normalise p₂ ⟧N ρ  ≈⟨ +N-homo (normalise p₁) (normalise p₂) ρ ⟩
+  ⟦ p₁ ⟧↓ ρ + ⟦ p₂ ⟧↓ ρ                ≈⟨ correct p₁ ρ ⟨ +-cong ⟩ correct p₂ ρ ⟩
+  ⟦ p₁ ⟧ ρ + ⟦ p₂ ⟧ ρ                  ∎
+correct (op [*] p₁ p₂) ρ = begin
+  ⟦ normalise p₁ *N normalise p₂ ⟧N ρ  ≈⟨ *N-homo (normalise p₁) (normalise p₂) ρ ⟩
+  ⟦ p₁ ⟧↓ ρ * ⟦ p₂ ⟧↓ ρ                ≈⟨ correct p₁ ρ ⟨ *-cong ⟩ correct p₂ ρ ⟩
+  ⟦ p₁ ⟧ ρ * ⟦ p₂ ⟧ ρ                  ∎
+correct (con c)  ρ = correct-con c ρ
+correct (var i)  ρ = correct-var i ρ
+correct (p :^ k) ρ = begin
+  ⟦ normalise p ^N k ⟧N ρ  ≈⟨ ^N-homo (normalise p) k ρ ⟩
+  ⟦ p ⟧↓ ρ ^ k             ≈⟨ correct p ρ ⟨ ^-cong ⟩ PropEq.refl {x = k} ⟩
+  ⟦ p ⟧ ρ ^ k              ∎
+correct (:- p) ρ = begin
+  ⟦ -N normalise p ⟧N ρ  ≈⟨ -N‿-homo (normalise p) ρ ⟩
+  - ⟦ p ⟧↓ ρ             ≈⟨ -‿cong (correct p ρ) ⟩
+  - ⟦ p ⟧ ρ              ∎
 
 ------------------------------------------------------------------------
 -- "Tactics"
 
+open Reflection setoid var ⟦_⟧ ⟦_⟧↓ correct public
+  using (prove; solve) renaming (_⊜_ to _:=_)
 
 -- For examples of how solve and _:=_ can be used to
 -- semi-automatically prove ring equalities, see, for instance,

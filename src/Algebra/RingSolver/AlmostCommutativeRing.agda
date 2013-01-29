@@ -99,13 +99,15 @@ record _-Raw-AlmostCommutative⟶_
   }
   where open AlmostCommutativeRing R
 
--- the homomorphism induces a notion of equality on the raw ring
-coeff≈ : ∀ {c₁ c₂ ℓ} {Coeff : RawRing c₁} {R : AlmostCommutativeRing c₂ ℓ}
-      -> Coeff -Raw-AlmostCommutative⟶ R -> Rel (RawRing.Carrier Coeff) ℓ
-coeff≈ {R = R} morphism a b =
-  let open AlmostCommutativeRing R in
-  let open _-Raw-AlmostCommutative⟶_ morphism in
-  ⟦ a ⟧ ≈ ⟦ b ⟧
+-- A homomorphism induces a notion of equivalence on the raw ring.
+
+Induced-equivalence :
+  ∀ {c₁ c₂ ℓ} {Coeff : RawRing c₁} {R : AlmostCommutativeRing c₂ ℓ} →
+  Coeff -Raw-AlmostCommutative⟶ R → Rel (RawRing.Carrier Coeff) ℓ
+Induced-equivalence {R = R} morphism a b = ⟦ a ⟧ ≈ ⟦ b ⟧
+  where
+  open AlmostCommutativeRing R
+  open _-Raw-AlmostCommutative⟶_ morphism
 
 ------------------------------------------------------------------------
 -- Conversions

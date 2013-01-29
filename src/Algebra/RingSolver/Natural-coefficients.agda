@@ -6,19 +6,27 @@
 ------------------------------------------------------------------------
 
 open import Algebra
+import Algebra.Operations
+open import Relation.Nullary
 
 module Algebra.RingSolver.Natural-coefficients
-         {r₁ r₂} (R : CommutativeSemiring r₁ r₂) where
+         {r₁ r₂}
+         (R : CommutativeSemiring r₁ r₂)
+         (dec : let open CommutativeSemiring R
+                    open Algebra.Operations semiring in
+                ∀ m n → Dec (m × 1# ≈ n × 1#)) where
 
-import Algebra.Operations
 import Algebra.RingSolver
 open import Algebra.RingSolver.AlmostCommutativeRing
 open import Data.Nat as ℕ
 open import Data.Product using (module Σ)
 open import Function
+import Relation.Binary.EqReasoning
+import Relation.Nullary.Decidable as Dec
 
 open CommutativeSemiring R
 open Algebra.Operations semiring
+open Relation.Binary.EqReasoning setoid
 
 private
 
@@ -50,6 +58,25 @@ private
     ; 1-homo = refl
     }
 
+  -- Equality of certain expressions can be decided.
+
+  dec′ : ∀ m n → Dec (m ×′ 1# ≈ n ×′ 1#)
+  dec′ m n = Dec.map′ to from (dec m n)
+    where
+    to : m × 1# ≈ n × 1# → m ×′ 1# ≈ n ×′ 1#
+    to m≈n = begin
+      m ×′ 1#  ≈⟨ sym $ ×≈×′ m 1# ⟩
+      m ×  1#  ≈⟨ m≈n ⟩
+      n ×  1#  ≈⟨ ×≈×′ n 1# ⟩
+      n ×′ 1#  ∎
+
+    from : m ×′ 1# ≈ n ×′ 1# → m × 1# ≈ n × 1#
+    from m≈n = begin
+      m ×  1#  ≈⟨ ×≈×′ m 1# ⟩
+      m ×′ 1#  ≈⟨ m≈n ⟩
+      n ×′ 1#  ≈⟨ sym $ ×≈×′ n 1# ⟩
+      n ×  1#  ∎
+
 -- The instantiation.
 
-open Algebra.RingSolver _ _ homomorphism public
+open Algebra.RingSolver _ _ homomorphism dec′ public

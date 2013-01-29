@@ -4,7 +4,7 @@
 -- Some boring lemmas used by the ring solver
 ------------------------------------------------------------------------
 
--- Note that these proofs use all "almost commutative ring" properties
+-- Note that these proofs use all "almost commutative ring" properties.
 
 open import Algebra
 open import Algebra.RingSolver.AlmostCommutativeRing
@@ -42,8 +42,8 @@ lemma₁ a b c d x = begin
   a * x + (c + (b * x + d))  ≈⟨ sym $ +-assoc _ _ _ ⟩
   (a * x + c) + (b * x + d)  ∎
 
-lemma₃ : ∀ a b c x → a * c * x + b * c ≈ (a * x + b) * c
-lemma₃ a b c x = begin
+lemma₂ : ∀ a b c x → a * c * x + b * c ≈ (a * x + b) * c
+lemma₂ a b c x = begin
   a * c * x + b * c  ≈⟨ lem ⟨ +-cong ⟩ refl ⟩
   a * x * c + b * c  ≈⟨ sym $ proj₂ distrib _ _ _ ⟩
   (a * x + b) * c    ∎
@@ -54,76 +54,60 @@ lemma₃ a b c x = begin
     a * (x * c)  ≈⟨ sym $ *-assoc _ _ _ ⟩
     a * x * c    ∎
 
-lemma₄ : ∀ a b c x → a * b * x + a * c ≈ a * (b * x + c)
-lemma₄ a b c x = begin
+lemma₃ : ∀ a b c x → a * b * x + a * c ≈ a * (b * x + c)
+lemma₃ a b c x = begin
   a * b * x + a * c    ≈⟨ *-assoc _ _ _ ⟨ +-cong ⟩ refl ⟩
   a * (b * x) + a * c  ≈⟨ sym $ proj₁ distrib _ _ _ ⟩
   a * (b * x + c)      ∎
 
-lemma₅ : ∀ a b c d x →
-         a * c * x * x + ((a * d + b * c) * x + b * d) ≈
+lemma₄ : ∀ a b c d x →
+         (a * c * x + (a * d + b * c)) * x + b * d ≈
          (a * x + b) * (c * x + d)
-lemma₅ a b c d x = begin
-  a * c * x * x +
-  ((a * d + b * c) * x + b * d)          ≈⟨ lem₁ ⟨ +-cong ⟩
-                                            (lem₂ ⟨ +-cong ⟩ refl) ⟩
-  a * x * (c * x) +
-  (a * x * d + b * (c * x) + b * d)      ≈⟨ refl ⟨ +-cong ⟩ +-assoc _ _ _ ⟩
-  a * x * (c * x) +
-  (a * x * d + (b * (c * x) + b * d))    ≈⟨ sym $ +-assoc _ _ _ ⟩
-  a * x * (c * x) + a * x * d +
-  (b * (c * x) + b * d)                  ≈⟨ sym $ proj₁ distrib _ _ _
-                                                  ⟨ +-cong ⟩
-                                                proj₁ distrib _ _ _ ⟩
-  a * x * (c * x + d) + b * (c * x + d)  ≈⟨ sym $ proj₂ distrib _ _ _ ⟩
-  (a * x + b) * (c * x + d)              ∎
+lemma₄ a b c d x = begin
+  (a * c * x + (a * d + b * c)) * x + b * d              ≈⟨ proj₂ distrib _ _ _ ⟨ +-cong ⟩ refl ⟩
+  (a * c * x * x + (a * d + b * c) * x) + b * d          ≈⟨ refl ⟨ +-cong ⟩ ((refl ⟨ +-cong ⟩ refl) ⟨ *-cong ⟩ refl) ⟨ +-cong ⟩ refl ⟩
+  (a * c * x * x + (a * d + b * c) * x) + b * d          ≈⟨ +-assoc _ _ _  ⟩
+  a * c * x * x + ((a * d + b * c) * x + b * d)          ≈⟨ lem₁ ⟨ +-cong ⟩ (lem₂ ⟨ +-cong ⟩ refl) ⟩
+  a * x * (c * x) + (a * x * d + b * (c * x) + b * d)    ≈⟨ refl ⟨ +-cong ⟩ +-assoc _ _ _ ⟩
+  a * x * (c * x) + (a * x * d + (b * (c * x) + b * d))  ≈⟨ sym $ +-assoc _ _ _ ⟩
+  a * x * (c * x) + a * x * d + (b * (c * x) + b * d)    ≈⟨ sym $ proj₁ distrib _ _ _ ⟨ +-cong ⟩ proj₁ distrib _ _ _ ⟩
+  a * x * (c * x + d) + b * (c * x + d)                  ≈⟨ sym $ proj₂ distrib _ _ _ ⟩
+  (a * x + b) * (c * x + d)                              ∎
   where
-  lem₁' = begin
+  lem₁′ = begin
     a * c * x    ≈⟨ *-assoc _ _ _ ⟩
     a * (c * x)  ≈⟨ refl ⟨ *-cong ⟩ *-comm _ _ ⟩
     a * (x * c)  ≈⟨ sym $ *-assoc _ _ _ ⟩
     a * x * c    ∎
 
   lem₁ = begin
-    a * c * x * x    ≈⟨ lem₁' ⟨ *-cong ⟩ refl ⟩
+    a * c * x * x    ≈⟨ lem₁′ ⟨ *-cong ⟩ refl ⟩
     a * x * c * x    ≈⟨ *-assoc _ _ _ ⟩
     a * x * (c * x)  ∎
 
   lem₂ = begin
     (a * d + b * c) * x        ≈⟨ proj₂ distrib _ _ _ ⟩
     a * d * x + b * c * x      ≈⟨ *-assoc _ _ _ ⟨ +-cong ⟩ *-assoc _ _ _ ⟩
-    a * (d * x) + b * (c * x)  ≈⟨ (refl ⟨ *-cong ⟩ *-comm _ _)
-                                    ⟨ +-cong ⟩ refl ⟩
+    a * (d * x) + b * (c * x)  ≈⟨ (refl ⟨ *-cong ⟩ *-comm _ _) ⟨ +-cong ⟩ refl ⟩
     a * (x * d) + b * (c * x)  ≈⟨ sym $ *-assoc _ _ _ ⟨ +-cong ⟩ refl ⟩
     a * x * d + b * (c * x)    ∎
 
-lemma₅′ : ∀ a b c d x →
-         (a * c * x + (a * d + b * c)) * x + b * d ≈
-         (a * x + b) * (c * x + d)
-lemma₅′ a b c d x = begin
-    (a * c * x + (a * d + b * c)) * x + b * d      ≈⟨ proj₂ distrib _ _ _ ⟨ +-cong ⟩ refl ⟩
-    (a * c * x * x + (a * d + b * c) * x) + b * d  ≈⟨ refl ⟨ +-cong ⟩ ((refl ⟨ +-cong ⟩ refl) ⟨ *-cong ⟩ refl) ⟨ +-cong ⟩ refl ⟩
-    (a * c * x * x + (a * d + b * c) * x) + b * d  ≈⟨ +-assoc _ _ _  ⟩
-    a * c * x * x + ((a * d + b * c) * x + b * d)  ≈⟨ lemma₅ _ _ _ _ _ ⟩
-    (a * x + b) * (c * x + d)                      ∎
-
-lemma₇ : ∀ x → (0# * x + 1#) * x + 0# ≈ x
-lemma₇ x = begin
+lemma₅ : ∀ x → (0# * x + 1#) * x + 0# ≈ x
+lemma₅ x = begin
   (0# * x + 1#) * x + 0#   ≈⟨ ((zeroˡ _ ⟨ +-cong ⟩ refl) ⟨ *-cong ⟩ refl) ⟨ +-cong ⟩ refl ⟩
   (0# + 1#) * x + 0#       ≈⟨ (proj₁ +-identity _ ⟨ *-cong ⟩ refl) ⟨ +-cong ⟩ refl ⟩
   1# * x + 0#              ≈⟨ proj₂ +-identity _ ⟩
   1# * x                   ≈⟨ proj₁ *-identity _ ⟩
   x                        ∎
 
-lemma₈ : ∀ a x → 0# * x + a ≈ a
-lemma₈ a x = begin
+lemma₆ : ∀ a x → 0# * x + a ≈ a
+lemma₆ a x = begin
   0# * x + a    ≈⟨ zeroˡ _ ⟨ +-cong ⟩ refl ⟩
   0# + a        ≈⟨ proj₁ +-identity _ ⟩
   a             ∎
 
-lemma₉ : ∀ x → - 1# * x ≈ - x
-lemma₉ x = begin
+lemma₇ : ∀ x → - 1# * x ≈ - x
+lemma₇ x = begin
   - 1# * x      ≈⟨ -‿*-distribˡ _ _ ⟩
   - (1# * x)    ≈⟨ -‿cong (proj₁ *-identity _) ⟩
   - x           ∎
-

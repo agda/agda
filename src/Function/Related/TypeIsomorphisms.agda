@@ -9,12 +9,15 @@ module Function.Related.TypeIsomorphisms where
 
 open import Algebra
 import Algebra.FunctionProperties as FP
+import Algebra.Operations
 import Algebra.RingSolver.Natural-coefficients
+open import Algebra.Structures
 open import Data.Empty
+open import Data.Nat as Nat using (zero; suc)
 open import Data.Product as Prod hiding (swap)
 open import Data.Sum as Sum
 open import Data.Unit
-open import Level
+open import Level hiding (zero; suc)
 open import Function
 open import Function.Equality using (_⟨$⟩_)
 open import Function.Equivalence as Eq using (_⇔_; module Equivalence)
@@ -25,6 +28,7 @@ open import Relation.Binary.Product.Pointwise
 open import Relation.Binary.PropositionalEquality as P using (_≡_; _≗_)
 open import Relation.Binary.Sum
 open import Relation.Nullary
+import Relation.Nullary.Decidable as Dec
 
 ------------------------------------------------------------------------
 -- Σ is "associative"
@@ -142,7 +146,7 @@ open import Relation.Nullary
     inv = [ (λ _ → P.refl) , (λ _ → P.refl) ]
 
 ×⊎-CommutativeSemiring : Symmetric-kind → (ℓ : Level) →
-                         CommutativeSemiring _ _
+                         CommutativeSemiring (Level.suc ℓ) ℓ
 ×⊎-CommutativeSemiring k ℓ = record
   { Carrier               = Set ℓ
   ; _≈_                   = Related ⌊ k ⌋
@@ -150,14 +154,7 @@ open import Relation.Nullary
   ; _*_                   = _×_
   ; 0#                    = Lift ⊥
   ; 1#                    = Lift ⊤
-  ; isCommutativeSemiring = record
-    { +-isCommutativeMonoid = isCommutativeMonoid $
-                                ⊎-CommutativeMonoid k ℓ
-    ; *-isCommutativeMonoid = isCommutativeMonoid $
-                                ×-CommutativeMonoid k ℓ
-    ; distribʳ              = λ A B C → ↔⇒ $ right-distrib A B C
-    ; zeroˡ                 = λ A → ↔⇒ $ left-zero A
-    }
+  ; isCommutativeSemiring = isCommutativeSemiring
   }
   where
   open CommutativeMonoid
@@ -187,8 +184,123 @@ open import Relation.Nullary
     from : B × A ⊎ C × A → (B ⊎ C) × A
     from = [ Prod.map inj₁ id , Prod.map inj₂ id ]
 
+  -- NOTE: One can (at the time of writing) make coefficient-dec
+  -- type-check much faster by making isCommutativeSemiring abstract.
+
+  isCommutativeSemiring :
+    IsCommutativeSemiring
+      {ℓ = ℓ} (Related ⌊ k ⌋) _⊎_ _×_ (Lift ⊥) (Lift ⊤)
+  isCommutativeSemiring = record
+    { +-isCommutativeMonoid = isCommutativeMonoid $
+                                ⊎-CommutativeMonoid k ℓ
+    ; *-isCommutativeMonoid = isCommutativeMonoid $
+                                ×-CommutativeMonoid k ℓ
+    ; distribʳ              = λ A B C → ↔⇒ $ right-distrib A B C
+    ; zeroˡ                 = λ A → ↔⇒ $ left-zero A
+    }
+
+private
+
+  -- A decision procedure used by the solver below.
+
+  coefficient-dec :
+    ∀ s ℓ →
+    let open CommutativeSemiring (×⊎-CommutativeSemiring s ℓ)
+        open Algebra.Operations semiring renaming (_×_ to Times)
+    in
+
+    ∀ m n → Dec (Times m 1# ∼[ ⌊ s ⌋ ] Times n 1#)
+
+  coefficient-dec equivalence ℓ m n with m | n
+  ... | zero  | zero  = yes (Eq.equivalence id id)
+  ... | zero  | suc _ = no  (λ eq → lower (Equivalence.from eq ⟨$⟩ inj₁ _))
+  ... | suc _ | zero  = no  (λ eq → lower (Equivalence.to   eq ⟨$⟩ inj₁ _))
+  ... | suc _ | suc _ = yes (Eq.equivalence (λ _ → inj₁ _) (λ _ → inj₁ _))
+  coefficient-dec bijection ℓ m n = Dec.map′ to (from m n) (Nat._≟_ m n)
+    where
+    open CommutativeSemiring (×⊎-CommutativeSemiring bijection ℓ)
+      using (1#; semiring)
+    open Algebra.Operations semiring renaming (_×_ to Times)
+
+    to : ∀ {m n} → m ≡ n → Times m 1# ↔ Times n 1#
+    to {m} P.refl = Times m 1# ∎
+      where open Related.EquationalReasoning
+
+    from : ∀ m n → Times m 1# ↔ Times n 1# → m ≡ n
+    from zero    zero    _   = P.refl
+    from zero    (suc n) 0↔+ = ⊥-elim $ lower $ Inverse.from 0↔+ ⟨$⟩ inj₁ _
+    from (suc m) zero    +↔0 = ⊥-elim $ lower $ Inverse.to   +↔0 ⟨$⟩ inj₁ _
+    from (suc m) (suc n) +↔+ = P.cong suc $ from m n (pred↔pred +↔+)
+      where
+      open P.≡-Reasoning
+
+      ↑⊤ : Set ℓ
+      ↑⊤ = Lift ⊤
+
+      inj₁≢inj₂ : ∀ {A : Set ℓ} {x : ↑⊤ ⊎ A} {y} →
+                  x ≡ inj₂ y → x ≡ inj₁ _ → ⊥
+      inj₁≢inj₂ {x = x} {y} eq₁ eq₂ =
+        P.subst [ const ⊥ , const ⊤ ] (begin
+          inj₂ y  ≡⟨ P.sym eq₁ ⟩
+          x       ≡⟨ eq₂ ⟩
+          inj₁ _  ∎)
+          _
+
+      g′ : {A B : Set ℓ}
+           (f : (↑⊤ ⊎ A) ↔ (↑⊤ ⊎ B)) (x : A) (y z : ↑⊤ ⊎ B) →
+           Inverse.to f ⟨$⟩ inj₂ x ≡ y →
+           Inverse.to f ⟨$⟩ inj₁ _ ≡ z →
+           B
+      g′ _ _ (inj₂ y)       _  _   _   = y
+      g′ _ _ (inj₁ _) (inj₂ z) _   _   = z
+      g′ f _ (inj₁ _) (inj₁ _) eq₁ eq₂ = ⊥-elim $
+        inj₁≢inj₂ (Inverse.to-from f eq₁) (Inverse.to-from f eq₂)
+
+      g : {A B : Set ℓ} → (↑⊤ ⊎ A) ↔ (↑⊤ ⊎ B) → A → B
+      g f x = g′ f x _ _ P.refl P.refl
+
+      g′∘g′ : ∀ {A B} (f : (↑⊤ ⊎ A) ↔ (↑⊤ ⊎ B))
+              x y₁ z₁ y₂ z₂ eq₁₁ eq₂₁ eq₁₂ eq₂₂ →
+              g′ (reverse f) (g′ f x y₁ z₁ eq₁₁ eq₂₁) y₂ z₂ eq₁₂ eq₂₂ ≡
+              x
+      g′∘g′ f x (inj₂ y₁) _ (inj₂ y₂) _ eq₁₁ _ eq₁₂ _ =
+        P.cong [ const y₂ , id ] (begin
+          inj₂ y₂                     ≡⟨ P.sym eq₁₂ ⟩
+          Inverse.from f ⟨$⟩ inj₂ y₁  ≡⟨ Inverse.to-from f eq₁₁ ⟩
+          inj₂ x                      ∎)
+      g′∘g′ f x (inj₁ _) (inj₂ _) (inj₁ _) (inj₂ z₂) eq₁₁ _ _ eq₂₂ =
+        P.cong [ const z₂ , id ] (begin
+          inj₂ z₂                    ≡⟨ P.sym eq₂₂ ⟩
+          Inverse.from f ⟨$⟩ inj₁ _  ≡⟨ Inverse.to-from f eq₁₁ ⟩
+          inj₂ x                     ∎)
+      g′∘g′ f _ (inj₂ y₁) _ (inj₁ _) _ eq₁₁ _ eq₁₂ _ =
+        ⊥-elim $ inj₁≢inj₂ (Inverse.to-from f eq₁₁) eq₁₂
+      g′∘g′ f _ (inj₁ _) (inj₂ z₁) (inj₂ y₂) _ _ eq₂₁ eq₁₂ _ =
+        ⊥-elim $ inj₁≢inj₂ eq₁₂ (Inverse.to-from f eq₂₁)
+      g′∘g′ f _ (inj₁ _) (inj₂ _) (inj₁ _) (inj₁ _) eq₁₁ _ _ eq₂₂ =
+        ⊥-elim $ inj₁≢inj₂ (Inverse.to-from f eq₁₁) eq₂₂
+      g′∘g′ f _ (inj₁ _) (inj₁ _) _ _ eq₁₁ eq₂₁ _ _ =
+        ⊥-elim $ inj₁≢inj₂ (Inverse.to-from f eq₁₁)
+                           (Inverse.to-from f eq₂₁)
+
+      g∘g : ∀ {A B} (f : (↑⊤ ⊎ A) ↔ (↑⊤ ⊎ B)) x →
+            g (reverse f) (g f x) ≡ x
+      g∘g f x = g′∘g′ f x _ _ _ _ P.refl P.refl P.refl P.refl
+
+      pred↔pred : {A B : Set ℓ} → (↑⊤ ⊎ A) ↔ (↑⊤ ⊎ B) → A ↔ B
+      pred↔pred X⊎↔X⊎ = record
+        { to         = P.→-to-⟶ $ g          X⊎↔X⊎
+        ; from       = P.→-to-⟶ $ g (reverse X⊎↔X⊎)
+        ; inverse-of = record
+          { left-inverse-of  = g∘g          X⊎↔X⊎
+          ; right-inverse-of = g∘g (reverse X⊎↔X⊎)
+          }
+        }
+
 module Solver s {ℓ} =
-  Algebra.RingSolver.Natural-coefficients (×⊎-CommutativeSemiring s ℓ)
+  Algebra.RingSolver.Natural-coefficients
+    (×⊎-CommutativeSemiring s ℓ)
+    (coefficient-dec s ℓ)
 
 private
 
@@ -288,7 +400,8 @@ A⇔B →-cong-⇔ C⇔D = record
   where open Related.EquationalReasoning
 
 ¬-cong : ∀ {a b} →
-         P.Extensionality a zero → P.Extensionality b zero →
+         P.Extensionality a Level.zero →
+         P.Extensionality b Level.zero →
          ∀ {k} {A : Set a} {B : Set b} →
          A ∼[ ⌊ k ⌋ ] B → (¬ A) ∼[ ⌊ k ⌋ ] (¬ B)
 ¬-cong extA extB A≈B = →-cong extA extB A≈B (⊥ ∎)
