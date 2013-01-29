@@ -35,13 +35,16 @@ private
     }
 
   -- There is a homomorphism from ℕ to R.
+  --
+  -- Note that _×′_ is used rather than _×_. If _×_ were used, then
+  -- Function.Related.TypeIsomorphisms.test would fail to type-check.
 
   homomorphism :
     ℕ-ring -Raw-AlmostCommutative⟶ fromCommutativeSemiring R
   homomorphism = record
-    { ⟦_⟧    = λ n → n × 1#
-    ; +-homo = ×-homo-+ 1#
-    ; *-homo = ×1-homo-*
+    { ⟦_⟧    = λ n → n ×′ 1#
+    ; +-homo = ×′-homo-+ 1#
+    ; *-homo = ×′1-homo-*
     ; -‿homo = λ _ → refl
     ; 0-homo = refl
     ; 1-homo = refl
