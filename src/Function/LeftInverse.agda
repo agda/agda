@@ -10,7 +10,7 @@ open import Data.Product
 open import Level
 import Relation.Binary.EqReasoning as EqReasoning
 open import Relation.Binary
-open import Function.Equality as F
+open import Function.Equality as Eq
   using (_⟶_; _⟨$⟩_) renaming (_∘_ to _⟪∘⟫_)
 open import Function.Equivalence using (Equivalence)
 open import Function.Injection using (Injective; Injection)
@@ -39,13 +39,15 @@ record LeftInverse {f₁ f₂ t₁ t₂}
     from            : To ⟶ From
     left-inverse-of : from LeftInverseOf to
 
-  open Setoid      From
+  private
+    open module F = Setoid From
+    open module T = Setoid To
   open EqReasoning From
 
   injective : Injective to
   injective {x} {y} eq = begin
-    x                    ≈⟨ sym (left-inverse-of x) ⟩
-    from ⟨$⟩ (to ⟨$⟩ x)  ≈⟨ F.cong from eq ⟩
+    x                    ≈⟨ F.sym (left-inverse-of x) ⟩
+    from ⟨$⟩ (to ⟨$⟩ x)  ≈⟨ Eq.cong from eq ⟩
     from ⟨$⟩ (to ⟨$⟩ y)  ≈⟨ left-inverse-of y ⟩
     y                    ∎
 
@@ -57,6 +59,12 @@ record LeftInverse {f₁ f₂ t₁ t₂}
     { to   = to
     ; from = from
     }
+
+  to-from : ∀ {x y} → to ⟨$⟩ x T.≈ y → from ⟨$⟩ y F.≈ x
+  to-from {x} {y} to-x≈y = begin
+    from ⟨$⟩ y           ≈⟨ Eq.cong from (T.sym to-x≈y) ⟩
+    from ⟨$⟩ (to ⟨$⟩ x)  ≈⟨ left-inverse-of x ⟩
+    x                    ∎
 
 -- The set of all right inverses between two setoids.
 
@@ -76,8 +84,8 @@ From ↞ To = LeftInverse (P.setoid From) (P.setoid To)
 
 id : ∀ {s₁ s₂} {S : Setoid s₁ s₂} → LeftInverse S S
 id {S = S} = record
-  { to              = F.id
-  ; from            = F.id
+  { to              = Eq.id
+  ; from            = Eq.id
   ; left-inverse-of = λ _ → Setoid.refl S
   }
 
@@ -90,7 +98,7 @@ _∘_ {F = F} f g = record
   { to              = to   f ⟪∘⟫ to   g
   ; from            = from g ⟪∘⟫ from f
   ; left-inverse-of = λ x → begin
-      from g ⟨$⟩ (from f ⟨$⟩ (to f ⟨$⟩ (to g ⟨$⟩ x)))  ≈⟨ F.cong (from g) (left-inverse-of f (to g ⟨$⟩ x)) ⟩
+      from g ⟨$⟩ (from f ⟨$⟩ (to f ⟨$⟩ (to g ⟨$⟩ x)))  ≈⟨ Eq.cong (from g) (left-inverse-of f (to g ⟨$⟩ x)) ⟩
       from g ⟨$⟩ (to g ⟨$⟩ x)                          ≈⟨ left-inverse-of g x ⟩
       x                                                ∎
   }

@@ -60,7 +60,8 @@ record Inverse {f₁ f₂ t₁ t₂}
     }
 
   open Bijection bijection public
-    using (equivalence; surjective; surjection; right-inverse)
+    using (equivalence; surjective; surjection; right-inverse;
+           to-from; from-to)
 
 -- The set of all inverses between two sets.
 

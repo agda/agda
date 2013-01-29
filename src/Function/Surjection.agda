@@ -44,6 +44,9 @@ record Surjection {f₁ f₂ t₁ t₂}
     ; left-inverse-of = right-inverse-of
     }
 
+  open LeftInverse right-inverse public
+    using () renaming (to-from to from-to)
+
   injective : Injective from
   injective = LeftInverse.injective right-inverse
 

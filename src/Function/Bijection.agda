@@ -53,7 +53,8 @@ record Bijection {f₁ f₂ t₁ t₂}
     ; surjective = surjective
     }
 
-  open Surjection surjection public using (equivalence; right-inverse)
+  open Surjection surjection public
+    using (equivalence; right-inverse; from-to)
 
   left-inverse : LeftInverse From To
   left-inverse = record
@@ -61,6 +62,8 @@ record Bijection {f₁ f₂ t₁ t₂}
     ; from            = from
     ; left-inverse-of = left-inverse-of
     }
+
+  open LeftInverse left-inverse public using (to-from)
 
 -- Identity and composition. (Note that these proofs are superfluous,
 -- given that Bijection is equivalent to Function.Inverse.Inverse.)
