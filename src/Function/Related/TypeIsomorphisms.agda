@@ -184,20 +184,23 @@ import Relation.Nullary.Decidable as Dec
     from : B × A ⊎ C × A → (B ⊎ C) × A
     from = [ Prod.map inj₁ id , Prod.map inj₂ id ]
 
-  -- NOTE: One can (at the time of writing) make coefficient-dec
-  -- type-check much faster by making isCommutativeSemiring abstract.
+  abstract
 
-  isCommutativeSemiring :
-    IsCommutativeSemiring
-      {ℓ = ℓ} (Related ⌊ k ⌋) _⊎_ _×_ (Lift ⊥) (Lift ⊤)
-  isCommutativeSemiring = record
-    { +-isCommutativeMonoid = isCommutativeMonoid $
-                                ⊎-CommutativeMonoid k ℓ
-    ; *-isCommutativeMonoid = isCommutativeMonoid $
-                                ×-CommutativeMonoid k ℓ
-    ; distribʳ              = λ A B C → ↔⇒ $ right-distrib A B C
-    ; zeroˡ                 = λ A → ↔⇒ $ left-zero A
-    }
+    -- If isCommutativeSemiring is made concrete, then it takes much
+    -- more time to type-check coefficient-dec (at the time of
+    -- writing, on a given system, using certain Agda options).
+
+    isCommutativeSemiring :
+      IsCommutativeSemiring
+        {ℓ = ℓ} (Related ⌊ k ⌋) _⊎_ _×_ (Lift ⊥) (Lift ⊤)
+    isCommutativeSemiring = record
+      { +-isCommutativeMonoid = isCommutativeMonoid $
+                                  ⊎-CommutativeMonoid k ℓ
+      ; *-isCommutativeMonoid = isCommutativeMonoid $
+                                  ×-CommutativeMonoid k ℓ
+      ; distribʳ              = λ A B C → ↔⇒ $ right-distrib A B C
+      ; zeroˡ                 = λ A → ↔⇒ $ left-zero A
+      }
 
 private
 
