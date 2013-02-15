@@ -385,7 +385,7 @@ checkMutual i ds = inMutualBlock $ do
 
   verboseS "tc.decl.mutual" 20 $ do
     blockId <- currentOrFreshMutualBlock
-    reportSDoc "" 0 $ vcat $
+    reportSDoc "tc.decl.mutual" 20 $ vcat $
       (text "Checking mutual block" <+> text (show blockId) <> text ":") :
       map (nest 2 . prettyA) ds
 
@@ -414,8 +414,8 @@ checkSection i x tel ds =
       dx   <- prettyTCM x
       dtel <- mapM prettyA tel
       dtel' <- prettyTCM =<< lookupSection x
-      reportSLn "" 0 $ "checking section " ++ show dx ++ " " ++ show dtel
-      reportSLn "" 0 $ "    actual tele: " ++ show dtel'
+      reportSLn "tc.section.check" 10 $ "checking section " ++ show dx ++ " " ++ show dtel
+      reportSLn "tc.section.check" 10 $ "    actual tele: " ++ show dtel'
     withCurrentModule x $ checkDecls ds
 
 checkModuleArity :: ModuleName -> Telescope -> [I.NamedArg A.Expr] -> TCM Telescope

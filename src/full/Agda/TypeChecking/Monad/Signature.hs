@@ -587,8 +587,9 @@ instantiateDef d = do
   verboseS "tc.sig.inst" 30 $ do
     ctx <- getContext
     m   <- currentModule
-    reportSLn "" 0 $ "instDef in " ++ show m ++ ": " ++ show (defName d) ++ " " ++
-			unwords (map show . take (size vs) . reverse . map (fst . unDom) $ ctx)
+    reportSLn "tc.sig.inst" 30 $
+      "instDef in " ++ show m ++ ": " ++ show (defName d) ++ " " ++
+      unwords (map show . take (size vs) . reverse . map (fst . unDom) $ ctx)
   return $ d `apply` vs
 
 -- | Give the abstract view of a definition.

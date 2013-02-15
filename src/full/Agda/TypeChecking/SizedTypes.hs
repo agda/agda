@@ -546,7 +546,7 @@ solveSizeConstraints = whenM haveSizedTypes $ do
   verboseS "tc.size.solve" 20 $
       -- debug print the type of all size metas
       forM_ metas $ \ (m, _) ->
-          reportSDoc "" 0 $ prettyTCM =<< mvJudgement <$> lookupMeta m
+          reportSDoc "tc.size.solve" 20 $ prettyTCM =<< mvJudgement <$> lookupMeta m
 
   -- run the Warshall solver
   case W.solve $ map mkFlex metas ++ map mkConstr cs of

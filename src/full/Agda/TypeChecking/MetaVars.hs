@@ -444,7 +444,7 @@ etaExpandMeta kinds m = whenM (isEtaExpandable m) $ do
               inTopContext $ do
                 verboseS "tc.meta.eta" 15 $ do
                   du <- prettyTCM u
-                  reportSLn "" 0 $ "eta expanding: " ++ show m ++ " --> " ++ show du
+                  reportSLn "tc.meta.eta" 15 $ "eta expanding: " ++ show m ++ " --> " ++ show du
                 -- Andreas, 2012-03-29: No need for occurrence check etc.
                 -- we directly assign the solution for the meta
                 -- 2012-05-23: We also bypass the check for frozen.
@@ -583,7 +583,7 @@ assign x args v = do
 	reportSLn "tc.meta.assign" 15 "passed occursCheck"
 	verboseS "tc.meta.assign" 30 $ do
 	  let n = size v
-	  when (n > 200) $ reportSDoc "" 0 $
+	  when (n > 200) $ reportSDoc "tc.meta.assign" 30 $
             sep [ text "size" <+> text (show n)
 --                , nest 2 $ text "type" <+> prettyTCM t
                 , nest 2 $ text "term" <+> prettyTCM v

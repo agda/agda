@@ -82,12 +82,12 @@ nothingAppliedToInstanceArg e = typeError $ NothingAppliedToInstanceArg e
 printLocals :: Int -> String -> ScopeM ()
 printLocals v s = verboseS "scope.top" v $ do
   locals <- getLocalVars
-  reportSLn "" 0 $ s ++ " " ++ show locals
+  reportSLn "scope.top" v $ s ++ " " ++ show locals
 
 printScope :: String -> Int -> String -> ScopeM ()
 printScope tag v s = verboseS ("scope." ++ tag) v $ do
   scope <- getScope
-  reportSDoc "" 0 $ return $ vcat [ text s, text $ show scope ]
+  reportSDoc ("scope." ++ tag) v $ return $ vcat [ text s, text $ show scope ]
 
 {--------------------------------------------------------------------------
     Helpers

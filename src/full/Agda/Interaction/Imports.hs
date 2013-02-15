@@ -115,7 +115,7 @@ scopeCheckImport x = do
     reportSLn "import.scope" 5 $ "Scope checking " ++ show x
     verboseS "import.scope" 10 $ do
       visited <- Map.keys <$> getVisitedModules
-      reportSLn "" 0 $
+      reportSLn "import.scope" 10 $
         "  visited: " ++ intercalate ", " (map (render . pretty) visited)
     i <- fst <$> getInterface x
     addImport x
@@ -461,7 +461,7 @@ createInterface file mname =
       "Creating interface for " ++ render (pretty mname) ++ "."
     verboseS "import.iface.create" 10 $ do
       visited <- Map.keys <$> getVisitedModules
-      reportSLn "" 0 $
+      reportSLn "import.iface.create" 10 $
         "  visited: " ++ intercalate ", " (map (render . pretty) visited)
 
     previousHsImports <- getHaskellImports

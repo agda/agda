@@ -25,7 +25,7 @@ displayForm c vs = do
     unless (null odfs) $ verboseS "tc.display.top" 100 $ do
       n <- getContextId
       let fvs = map (\(OpenThing n _) -> n) odfs
-      reportSLn "" 0 $ "displayForm: context = " ++ show n ++ ", dfs = " ++ show fvs
+      reportSLn "tc.display.top" 100 $ "displayForm: context = " ++ show n ++ ", dfs = " ++ show fvs
     dfs	  <- do
       xs <- mapM tryOpen odfs
       return [ df | Just df <- xs ]

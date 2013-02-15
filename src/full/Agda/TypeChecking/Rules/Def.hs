@@ -649,8 +649,8 @@ checkWhere n [A.Section _ m tel ds]  ret = do
       dx   <- prettyTCM m
       dtel <- mapM prettyA tel
       dtel' <- prettyTCM =<< lookupSection m
-      reportSLn "" 0 $ "checking where section " ++ show dx ++ " " ++ show dtel
-      reportSLn "" 0 $ "        actual tele: " ++ show dtel'
+      reportSLn "tc.def.where" 10 $ "checking where section " ++ show dx ++ " " ++ show dtel
+      reportSLn "tc.def.where" 10 $ "        actual tele: " ++ show dtel'
     withCurrentModule m $ checkDecls ds >> ret
 checkWhere _ _ _ = __IMPOSSIBLE__
 

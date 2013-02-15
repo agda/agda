@@ -816,8 +816,7 @@ inferHead (A.Con (AmbQ [c])) = do
   -- Next get the number of parameters in the current context.
   Constructor{conPars = n} <- theDef <$> (instantiateDef =<< getConstInfo c)
 
-  verboseS "tc.term.con" 7 $ do
-    reportSLn "" 0 $ unwords [show c, "has", show n, "parameters."]
+  reportSLn "tc.term.con" 7 $ unwords [show c, "has", show n, "parameters."]
 
   -- So when applying the constructor throw away the parameters.
   return (apply u . genericDrop n, a)
@@ -845,7 +844,7 @@ inferDef mkTerm x =
       ds <- mapM prettyTCM vs
       dx <- prettyTCM x
       dt <- prettyTCM $ defType d
-      reportSLn "" 0 $ "inferred def " ++ unwords (show dx : map show ds) ++ " : " ++ show dt
+      reportSLn "tc.term.def" 10 $ "inferred def " ++ unwords (show dx : map show ds) ++ " : " ++ show dt
     return (mkTerm x vs, defType d)
 
 -- | Check the type of a constructor application. This is easier than
