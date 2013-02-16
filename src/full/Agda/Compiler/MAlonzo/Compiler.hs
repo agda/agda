@@ -288,9 +288,15 @@ argpatts ps0 bvs = evalStateT (mapM pat' ps0) bvs
     (tilde . HS.PParen) <$>
       (HS.PApp <$> lift (conhqn q) <*> mapM pat' ps)
 
+  {- Andreas, 2013-02-15 this triggers Issue 794,
+     because it fails to count the variables bound in p,
+     thus, the following variables bound by patterns do
+     not correspond to the according rhs-variables.
+
   -- Andreas, 2010-09-29
   -- do not match against irrelevant stuff
   pat' (Arg _ Irrelevant _) = return $ HS.PWildCard
+  -}
   pat' (Arg _ _          p) = pat p
 
   tildesEnabled = False
