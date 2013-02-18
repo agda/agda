@@ -991,16 +991,22 @@ compareConArgs suc ts ps =
         (0,1) -> return Term.unknown   -- c not<= c x
         (1,0) -> __IMPOSSIBLE__
         (1,1) -> compareTerm' suc (unArg (head ts)) (head ps)
+        (_,_) -> foldl (Term..*.) Term.le <$>
+                   zipWithM (compareTerm' suc) (map unArg ts) ps
+           -- corresponds to taking the size, not the height
+           -- allows examples like (x, y) < (Succ x, y)
+{- version which does an "order matrix"
+   -- Andreas, 2013-02-18 disabled because it is unclear
+   -- how to scale idempotency test to matrix-shaped orders (need thinking/researcH)
+   -- Trigges issue 787.
         (_,_) -> do -- build "call matrix"
           m <- mapM (\t -> mapM (compareTerm' suc (unArg t)) ps) ts
           let m2 = makeCM (genericLength ps) (genericLength ts) m
           return $ Term.orderMat (Term.mat m2)
-{-
+-}
+{- version which takes height
 --    if null ts then Term.Le
 --               else Term.infimum (zipWith compareTerm' (map unArg ts) ps)
-     foldl (Term..*.) Term.Le (zipWith compareTerm' (map unArg ts) ps)
-       -- corresponds to taking the size, not the height
-       -- allows examples like (x, y) < (Succ x, y)
 -}
 
 compareVar :: (?cutoff :: Int) => Maybe QName -> Nat -> DeBruijnPat -> TCM Term.Order
