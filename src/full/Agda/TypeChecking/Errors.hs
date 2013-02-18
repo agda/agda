@@ -32,6 +32,7 @@ import Agda.Syntax.Translation.AbstractToConcrete
 import Agda.Syntax.Scope.Base (ScopeInfo(..))
 import Agda.Syntax.Scope.Monad (isDatatypeModule)
 import Agda.TypeChecking.Monad.Base
+import Agda.TypeChecking.Monad.Closure
 import Agda.TypeChecking.Monad.Context
 import Agda.TypeChecking.Monad.Options
 import Agda.TypeChecking.Pretty
@@ -204,6 +205,7 @@ errorString err = case err of
     ShouldBeRecordType{}                     -> "ShouldBeRecordType"
     ShouldBeRecordPattern{}                  -> "ShouldBeRecordPattern"
     ShouldEndInApplicationOfTheDatatype{}    -> "ShouldEndInApplicationOfTheDatatype"
+    SplitError{}                             -> "SplitError"
     TerminationCheckFailed{}                 -> "TerminationCheckFailed"
     TooFewFields{}                           -> "TooFewFields"
     TooManyArgumentsInLHS{}                  -> "TooManyArgumentsInLHS"
@@ -631,6 +633,8 @@ instance PrettyTCM TypeError where
             CoverageCantSplitType a -> fsep $
               pwords "Cannot split on argument of non-datatype" ++ [prettyTCM a]
 
+            SplitError e -> prettyTCM e
+
 	    NotStrictlyPositive d ocs -> fsep $
 		pwords "The datatype" ++ [prettyTCM d] ++ pwords "is not strictly positive, because"
 		++ prettyOcc "it" ocs
@@ -689,6 +693,23 @@ instance PrettyTCM TypeError where
 notCmp :: Comparison -> TCM Doc
 notCmp cmp = text $ "!" ++ show cmp
 
+instance PrettyTCM SplitError where
+  prettyTCM err = case err of
+    NotADatatype t -> enterClosure t $ \ t -> fsep $
+      pwords "Cannot pattern match on non-datatype" ++ [prettyTCM t]
+    IrrelevantDatatype t -> enterClosure t $ \ t -> fsep $
+      pwords "Cannot pattern match on datatype" ++ [prettyTCM t] ++
+      pwords "since it is declared irrelevant"
+    CoinductiveDatatype t -> enterClosure t $ \ t -> fsep $
+      pwords "Cannot pattern match on the coinductive type" ++ [prettyTCM t]
+{- UNUSED
+    NoRecordConstructor t -> fsep $
+      pwords "Cannot pattern match on record" ++ [prettyTCM t] ++
+      pwords "because it has no constructor"
+ -}
+    CantSplit c tel cIxs gIxs flex -> prettyTCM (CoverageCantSplitOn c tel cIxs gIxs)
+    GenericSplitError s -> fsep $
+      pwords "Split failed:" ++ pwords s
 
 instance PrettyTCM Call where
     prettyTCM c = case c of

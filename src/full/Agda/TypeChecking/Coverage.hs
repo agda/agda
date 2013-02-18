@@ -79,44 +79,6 @@ clauseToSplitClause cl = SClause
   , scTarget = Nothing
   }
 
-data SplitError = NotADatatype (Closure Type) -- ^ neither data type nor record
-                | IrrelevantDatatype (Closure Type)   -- ^ data type, but in irrelevant position
-                | CoinductiveDatatype (Closure Type)  -- ^ coinductive data type
-{- UNUSED
-                | NoRecordConstructor Type  -- ^ record type, but no constructor
- -}
-                | CantSplit QName Telescope Args Args [Term]
-                | GenericSplitError String
-  deriving (Show)
-
-instance PrettyTCM SplitError where
-  prettyTCM err = case err of
-    NotADatatype t -> enterClosure t $ \ t -> fsep $
-      pwords "Cannot pattern match on non-datatype" ++ [prettyTCM t]
-    IrrelevantDatatype t -> enterClosure t $ \ t -> fsep $
-      pwords "Cannot pattern match on datatype" ++ [prettyTCM t] ++
-      pwords "since it is declared irrelevant"
-    CoinductiveDatatype t -> enterClosure t $ \ t -> fsep $
-      pwords "Cannot pattern match on the coinductive type" ++ [prettyTCM t]
-{- UNUSED
-    NoRecordConstructor t -> fsep $
-      pwords "Cannot pattern match on record" ++ [prettyTCM t] ++
-      pwords "because it has no constructor"
- -}
-    CantSplit c tel cIxs gIxs flex -> addCtxTel tel $ vcat
-      [ fsep $ pwords "Cannot decide whether there should be a case for the constructor" ++ [prettyTCM c <> text ","] ++
-               pwords "since the unification gets stuck on unifying the inferred indices"
-      , nest 2 $ prettyTCM cIxs
-      , fsep $ pwords "with the expected indices"
-      , nest 2 $ prettyTCM gIxs
-      ]
-    GenericSplitError s -> fsep $
-      pwords "Split failed:" ++ pwords s
-
-instance Error SplitError where
-  noMsg  = strMsg ""
-  strMsg = GenericSplitError
-
 type CoverM = ExceptionT SplitError TCM
 
 {- UNUSED

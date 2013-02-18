@@ -103,8 +103,7 @@ makeCase hole rng s = withInteractionId hole $ do
   split f (var : vars) clause = do
     z <- splitClauseWithAbs clause var
     case z of
-      Left err          -> typeError . GenericError . show =<<
-                             prettyTCM err
+      Left err          -> typeError $ SplitError err
       Right (Left cl)   -> (:[]) <$> makeAbsurdClause f cl
       Right (Right cov)
         | null vars -> mapM (makeAbstractClause f) $ splitClauses cov

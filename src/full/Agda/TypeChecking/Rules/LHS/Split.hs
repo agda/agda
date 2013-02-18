@@ -18,7 +18,7 @@ import Agda.Syntax.Internal.Pattern
 import qualified Agda.Syntax.Abstract as A
 import qualified Agda.Syntax.Info as A
 
-import Agda.TypeChecking.Monad
+import Agda.TypeChecking.Monad hiding (SplitError)
 import Agda.TypeChecking.Pretty
 import Agda.TypeChecking.Reduce
 import Agda.TypeChecking.Substitute
