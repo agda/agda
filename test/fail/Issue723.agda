@@ -45,3 +45,6 @@ n : ℕ
 n = default 5
 -- now we get unsolved metas
 -- that's kind of ok
+
+n₃ = (default ∶ (_ → _)) 5
+-- also unsolved metas (worked before switching of the occurs-error (Issue 795))

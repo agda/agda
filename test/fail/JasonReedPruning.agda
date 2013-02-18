@@ -1,6 +1,11 @@
 -- Andreas, 2012-05-04 Example from Jason Reed, LFMTP 2009
+
+-- Andreas, 2013-02-18 occurs check does not longer give error, hence
+-- we only get unsolved metas.
+{-
 {-# OPTIONS --allow-unsolved-metas #-}
 -- The option is supplied to force a real error to pass the regression test.
+-}
 module JasonReedPruning where
 
 open import Common.Equality

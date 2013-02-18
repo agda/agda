@@ -224,8 +224,19 @@ instance Occurs Term where
             -- Check for loop
             --   don't fail hard on this, since we might still be on the top-level
             --   after some killing (Issue 442)
+            --
+            -- Andreas, 2013-02-18  Issue 795 demonstrates that a recursive
+            -- occurrence of a meta could be solved by the identity.
+            --   ? (Q A) = Q (? A)
+            -- So, do not throw an error.
+            -- I guess the error was there from times when occurrence check
+            -- was done after the "lhs=linear variables" check, but now
+            -- occurrence check comes first.
+            {-
             when (m == m') $ if ctx == Top then patternViolation else
               abort ctx $ MetaOccursInItself m'
+            -}
+            when (m == m') patternViolation
 
             -- The arguments of a meta are in a flexible position
             (MetaV m' <$> occurs red Flex m xs vs) `catchError` \err -> do

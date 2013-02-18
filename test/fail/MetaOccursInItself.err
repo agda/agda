@@ -1,3 +1,4 @@
-MetaOccursInItself.agda:15,18-19
-Refuse to construct infinite term by instantiating _9 to List _9
-when checking that the expression x has type List _9
+
+Unsolved metas at the following locations:
+  MetaOccursInItself.agda:18,9-10
+  MetaOccursInItself.agda:18,18-19

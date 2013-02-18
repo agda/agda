@@ -16,6 +16,10 @@ Language
 Goal and error display
 ======================
 
+* The error message "Refuse to construct infinite term" has been
+  removed, instead one gets unsolved meta variables.  Reason: the
+  error was thrown over-eagerly. [Issue 795]
+
 Type checking
 =============
 

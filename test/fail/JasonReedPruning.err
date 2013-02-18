@@ -1,3 +1,5 @@
-JasonReedPruning.agda:21,19-23
-Refuse to construct infinite term by instantiating _22 to f _22
-when checking that the expression refl has type _22 ≡ f _22
+
+Unsolved metas at the following locations:
+  JasonReedPruning.agda:23,11-12
+  JasonReedPruning.agda:21,11-12
+  JasonReedPruning.agda:26,19-23
