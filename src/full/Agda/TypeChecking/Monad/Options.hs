@@ -18,6 +18,7 @@ import Agda.TypeChecking.Monad.State
 import Agda.Interaction.EmacsCommand as Emacs
 import Agda.Interaction.FindFile
 import Agda.Interaction.Options
+import Agda.Interaction.Response
 import Agda.Utils.FileName
 import Agda.Utils.Monad
 import Agda.Utils.List
@@ -281,39 +282,27 @@ hasVerbosity k n | n < 0     = __IMPOSSIBLE__
 	m  = maximum $ 0 : Trie.lookupPath ks t
     return (n <= m)
 
--- | If this command is run under the Emacs mode, then it formats the
--- debug message in such a way that the Emacs mode can understand it.
-
-emacsifyDebugMessage :: String -- ^ The debug message.
-                     -> TCM String
-emacsifyDebugMessage s =
-  ifM (envEmacs <$> ask)
-      (return $ Emacs.response $
-         L [ A "agda2-verbose"
-           , A (quote s)
-           ])
-      (return s)
-
 -- | Displays a debug message in a suitable way.
-displayDebugMessage :: String -> TCM ()
-displayDebugMessage s =
-  liftIO . putStr =<< emacsifyDebugMessage s
+displayDebugMessage :: Int     -- The message's debug level.
+                    -> String  -- Message.
+                    -> TCM ()
+displayDebugMessage n s =
+  appInteractionOutputCallback (Resp_RunningInfo n s)
 
 -- | Precondition: The level must be non-negative.
 verboseS :: VerboseKey -> Int -> TCM () -> TCM ()
 verboseS k n action = whenM (hasVerbosity k n) action
 
 reportS :: VerboseKey -> Int -> String -> TCM ()
-reportS k n s = verboseS k n $ displayDebugMessage s
+reportS k n s = verboseS k n $ displayDebugMessage n s
 
 reportSLn :: VerboseKey -> Int -> String -> TCM ()
-reportSLn k n s = verboseS k n $ do
-  displayDebugMessage (s ++ "\n")
-  liftIO $ hFlush stdout
+reportSLn k n s = verboseS k n $
+  displayDebugMessage n (s ++ "\n")
 
 reportSDoc :: VerboseKey -> Int -> TCM Doc -> TCM ()
 reportSDoc k n d = verboseS k n $ do
-  displayDebugMessage . (++ "\n") . show =<< do
+  displayDebugMessage n . (++ "\n") . show =<< do
     d `catchError` \ err ->
       (\ s -> (sep $ map text
                  [ "Printing debug message"
@@ -327,6 +316,6 @@ verboseBracket k n s m = do
   v <- hasVerbosity k n
   if not v then m
            else do
-    displayDebugMessage $ "{ " ++ s ++ "\n"
-    x <- m `finally` displayDebugMessage "}\n"
+    displayDebugMessage n $ "{ " ++ s ++ "\n"
+    x <- m `finally` displayDebugMessage n "}\n"
     return x

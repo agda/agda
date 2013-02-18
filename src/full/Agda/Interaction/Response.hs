@@ -19,7 +19,9 @@ import Agda.TypeChecking.Monad.Base
 import Agda.Syntax.Concrete (Expr)
 import Agda.Utils.Pretty
 
+import Control.Monad.Trans
 import Data.Int
+import System.IO
 
 #include "../undefined.h"
 import Agda.Utils.Impossible
@@ -39,7 +41,8 @@ data Response
     | Resp_MakeCase String [String]
     | Resp_SolveAll [(InteractionId, Expr)]
     | Resp_DisplayInfo DisplayInfo
-    | Resp_RunningInfo String
+    | Resp_RunningInfo Int String
+      -- ^ The integer is the message's debug level.
     | Resp_ClearRunningInfo
     | Resp_ClearHighlighting
 
@@ -106,10 +109,22 @@ data GiveResult
 
 type InteractionOutputCallback = Response -> TCM ()
 
--- | The default 'InteractionOutputCallback' function
---   is set to @__@@IMPOSSIBLE__@ because in this way it is easier to
---   recognize that some response is lost due to an uninitialized
---   'InteractionOutputCallback' function.
+-- | The default 'InteractionOutputCallback' function prints certain
+-- things to stdout (other things generate internal errors).
 
 defaultInteractionOutputCallback :: InteractionOutputCallback
-defaultInteractionOutputCallback = __IMPOSSIBLE__
+defaultInteractionOutputCallback r = case r of
+  Resp_HighlightingInfo {}  -> __IMPOSSIBLE__
+  Resp_Status {}            -> __IMPOSSIBLE__
+  Resp_JumpToError {}       -> __IMPOSSIBLE__
+  Resp_InteractionPoints {} -> __IMPOSSIBLE__
+  Resp_GiveAction {}        -> __IMPOSSIBLE__
+  Resp_MakeCaseAction {}    -> __IMPOSSIBLE__
+  Resp_MakeCase {}          -> __IMPOSSIBLE__
+  Resp_SolveAll {}          -> __IMPOSSIBLE__
+  Resp_DisplayInfo {}       -> __IMPOSSIBLE__
+  Resp_RunningInfo _ s      -> liftIO $ do
+                                 putStr s
+                                 hFlush stdout
+  Resp_ClearRunningInfo {}  -> __IMPOSSIBLE__
+  Resp_ClearHighlighting {} -> __IMPOSSIBLE__

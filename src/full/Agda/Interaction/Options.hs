@@ -118,18 +118,11 @@ type OptionsPragma = [String]
 mapFlag :: (String -> String) -> OptDescr a -> OptDescr a
 mapFlag f (Option _ long arg descr) = Option [] (map f long) arg descr
 
--- | For batch usage.
 defaultVerbosity :: Verbosity
 defaultVerbosity = Trie.singleton [] 1
 
--- | For interactive usage, do not print any debug messages
---   by default.
-defaultInteractionVerbosity :: Verbosity
-defaultInteractionVerbosity = Trie.singleton [] 0
-
 defaultInteractionOptions :: PragmaOptions
 defaultInteractionOptions = defaultPragmaOptions
-  { optVerbose = defaultInteractionVerbosity }
 
 defaultOptions :: CommandLineOptions
 defaultOptions =

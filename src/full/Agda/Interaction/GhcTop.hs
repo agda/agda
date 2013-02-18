@@ -85,7 +85,9 @@ lispifyResponse (Resp_DisplayInfo info) = return $ case info of
   where f content bufname = display_info' False bufname content
 lispifyResponse Resp_ClearHighlighting = return $ L [ A "agda2-highlight-clear" ]
 lispifyResponse Resp_ClearRunningInfo = return $ clearRunningInfo
-lispifyResponse (Resp_RunningInfo s) = return $ displayRunningInfo $ s ++ "\n"
+lispifyResponse (Resp_RunningInfo n s)
+  | n <= 1    = return $ displayRunningInfo s
+  | otherwise = return $ L [A "agda2-verbose", A (quote s)]
 lispifyResponse (Resp_Status s)
     = return $ L [ A "agda2-status-action"
                  , A (quote $ intercalate "," $ catMaybes [checked, showImpl])
