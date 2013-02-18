@@ -1,8 +1,6 @@
 Issue292d.agda:33,1-13
-Cannot decide whether there should be a case for the constructor
-d₂, since the unification gets stuck on unifying the inferred
-indices
-  [i₂]
-with the expected indices
-  [i₁]
+I'm not sure if there should be a case for the constructor d₂,
+because I get stuck when trying to solve the following unification
+problems (inferred index ≟ expected index):
+  i₂ ≟ i₁
 when checking the definition of Bad

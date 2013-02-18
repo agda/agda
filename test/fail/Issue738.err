@@ -1,8 +1,6 @@
 Issue738.agda:41,3-14
-Cannot decide whether there should be a case for the constructor
-mkb, since the unification gets stuck on unifying the inferred
-indices
-  [λ x → b]
-with the expected indices
-  [λ x → a]
+I'm not sure if there should be a case for the constructor mkb,
+because I get stuck when trying to solve the following unification
+problems (inferred index ≟ expected index):
+  λ x → b ≟ λ x → a
 when checking the definition of foo

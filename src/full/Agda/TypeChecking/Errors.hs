@@ -620,12 +620,15 @@ instance PrettyTCM TypeError where
                       then return ps
                       else return ps  -- TODO: remove implicit arguments which aren't constructors
 
-            CoverageCantSplitOn c tel cIxs gIxs -> inContext [] $ addCtxTel tel $ vcat
-              [ fsep $ pwords "Cannot decide whether there should be a case for the constructor" ++ [prettyTCM c <> text ","] ++
-                       pwords "since the unification gets stuck on unifying the inferred indices"
-              , nest 2 $ prettyTCM cIxs
-              , fsep $ pwords "with the expected indices"
-              , nest 2 $ prettyTCM gIxs ]
+            CoverageCantSplitOn c tel cIxs gIxs
+              | length cIxs /= length gIxs -> __IMPOSSIBLE__
+              | otherwise                  -> inContext [] $ addCtxTel tel $ vcat (
+                  [ fsep $ pwords "I'm not sure if there should be a case for the constructor" ++
+                           [prettyTCM c <> text ","] ++
+                           pwords "because I get stuck when trying to solve the following" ++
+                           pwords "unification problems (inferred index ≟ expected index):"
+                  ] ++
+                  zipWith (\c g -> nest 2 $ prettyTCM c <+> text "≟" <+> prettyTCM g) cIxs gIxs)
 
             CoverageCantSplitIrrelevantType a -> fsep $
               pwords "Cannot split on argument of irrelevant datatype" ++ [prettyTCM a]

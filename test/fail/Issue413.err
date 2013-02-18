@@ -1,8 +1,6 @@
 Issue413.agda:14,1-29
-Cannot decide whether there should be a case for the constructor
-isℕ, since the unification gets stuck on unifying the inferred
-indices
-  [ℕ]
-with the expected indices
-  [Bool]
+I'm not sure if there should be a case for the constructor isℕ,
+because I get stuck when trying to solve the following unification
+problems (inferred index ≟ expected index):
+  ℕ ≟ Bool
 when checking the definition of g
