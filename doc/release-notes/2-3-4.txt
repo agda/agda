@@ -19,6 +19,11 @@ Goal and error display
 Type checking
 =============
 
+* A buggy facility coined "matrix-shaped orders" that supported
+  uncurried functions (which take tuples of arguments instead of one
+  argument after another) has been removed from the termination
+  checker. [Issue 787]
+
 Compiler backends
 =================
 
