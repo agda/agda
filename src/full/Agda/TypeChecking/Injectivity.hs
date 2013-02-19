@@ -35,12 +35,22 @@ import Agda.Utils.Impossible
 
 -- | Reduce simple (single clause) definitions.
 reduceHead :: Term -> TCM (Blocked Term)
-reduceHead v = ignoreAbstractMode $ do
+reduceHead v = do -- ignoreAbstractMode $ do
+  -- Andreas, 2013-02-18 ignoreAbstractMode leads to information leakage
+  -- see Issue 796
+
   -- first, possibly rewrite literal v to constructor form
   v <- constructorForm v
   reportSDoc "tc.inj.reduce" 30 $ text "reduceHead" <+> prettyTCM v
   case ignoreSharing v of
     Def f args -> do
+
+      abstractMode <- envAbstractMode <$> ask
+      isAbstract <- treatAbstractly f
+      reportSLn "tc.inj.reduce" 50 $
+        "reduceHead: we are in " ++ show abstractMode++ "; " ++ show f ++
+        " is treated " ++ if isAbstract then "abstractly" else "concretely"
+
       let v0 = Def f []
       def <- theDef <$> getConstInfo f
       case def of
@@ -49,23 +59,30 @@ reduceHead v = ignoreAbstractMode $ do
         -- We restrict this to terminating functions to not make the
         -- type checker loop here on non-terminating functions.
         -- see test/fail/TerminationInfiniteRecord
-        Function{ funClauses = [ _ ], funDelayed = NotDelayed, funTerminates = Just True }
-                                        -> unfoldDefinition False reduceHead v0 f args
+        Function{ funClauses = [ _ ], funDelayed = NotDelayed, funTerminates = Just True } -> do
+          reportSLn "tc.inj.reduce" 50 $ "reduceHead: head " ++ show f ++ " is Function"
+          unfoldDefinition False reduceHead v0 f args
         Datatype{ dataClause = Just _ } -> unfoldDefinition False reduceHead v0 f args
         Record{ recClause = Just _ }    -> unfoldDefinition False reduceHead v0 f args
         _                               -> return $ notBlocked v
     _ -> return $ notBlocked v
 
 headSymbol :: Term -> TCM (Maybe TermHead)
-headSymbol v = ignoreAbstractMode $ do
+headSymbol v = do -- ignoreAbstractMode $ do
+  -- Andreas, 2013-02-18 ignoreAbstractMode leads to information leakage
+
   v <- ignoreBlocking <$> reduceHead v
   case ignoreSharing v of
     Def f _ -> do
-      def <- theDef <$> getConstInfo f
+      def <- theDef <$> do ignoreAbstractMode $ getConstInfo f
+        -- Andreas, 2013-02-18
+        -- if we do not ignoreAbstractMode here, abstract Functions get turned
+        -- into Axioms, but we want to distinguish these.
       case def of
         Datatype{}  -> return (Just $ ConHead f)
         Record{}    -> return (Just $ ConHead f)
         Axiom{}     -> do
+          reportSLn "tc.inj.axiom" 50 $ "headSymbol: " ++ show f ++ " is an Axiom."
           -- Don't treat axioms in the current mutual block
           -- as constructors (they might have definitions we
           -- don't know about yet).

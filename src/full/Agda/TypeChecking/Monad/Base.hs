@@ -996,6 +996,10 @@ initEnv = TCEnv { envContext	         = []
                 , envActiveProblems      = [0]
                 , envAssignMetas         = True
 		, envAbstractMode        = AbstractMode
+  -- Andreas, 2013-02-18: I was surprised to see that type-checking
+  -- is started in AbstractMode (I would have expected ConcreteMode).
+  -- However, AbstractMode makes sense because a module can see into
+  -- all its abstract definitions.  (See also discussion on issue 796)
                 , envRelevance           = Relevant
                 , envColors              = []
                 , envDisplayFormsEnabled = True
@@ -1039,7 +1043,7 @@ data AbstractMode
   = AbstractMode        -- ^ Abstract things in the current module can be accessed.
   | ConcreteMode        -- ^ No abstract things can be accessed.
   | IgnoreAbstractMode  -- ^ All abstract things can be accessed.
-  deriving (Typeable)
+  deriving (Typeable, Show)
 
 ---------------------------------------------------------------------------
 -- ** Insertion of implicit arguments

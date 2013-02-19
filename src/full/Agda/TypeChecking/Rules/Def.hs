@@ -176,6 +176,7 @@ checkFunDef' t info delayed i name cs =
         -- possibly due to missing eta-contraction!?
 
         -- Check if the function is injective
+        reportSLn "tc.inj.def" 20 $ "checkFunDef': checking injectivity..."
         inv <- checkInjectivity name cs
 
         reportSDoc "tc.cc" 15 $ do

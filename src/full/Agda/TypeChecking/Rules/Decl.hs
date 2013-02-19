@@ -214,6 +214,7 @@ checkDecl d = do
           checkInj _ = return ()
 
       namesDefs <- mapM (\ q -> (q,) <$> getConstInfo q) $ Set.toList names
+      reportSLn "tc.inj.decl" 20 $ "checkDecl: checking injectivity..."
       mapM_ checkInj namesDefs
 
       -- Non-mutual definitions can be considered for
