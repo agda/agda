@@ -1,3 +1,4 @@
 
 Failed to solve the following constraints:
   [0] Is empty: unit2 ≅ unit1
+      [ at Issue292c.agda:41,19-21 ]

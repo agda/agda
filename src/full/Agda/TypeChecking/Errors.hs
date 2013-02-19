@@ -459,7 +459,11 @@ instance PrettyTCM TypeError where
 		$$ nest 2 (vcat $ map (text . show) rs)
 	    UnsolvedConstraints cs ->
 		fsep ( pwords "Failed to solve the following constraints:" )
-		$$ nest 2 (vcat $ map prettyTCM cs)
+		$$ nest 2 (vcat $ map prettyConstraint cs)
+              where prettyConstraint :: ProblemConstraint -> TCM Doc
+                    prettyConstraint c = f (prettyTCM c)
+                      where s   = show (getRange c)
+                            f d = if null s then d else d $$ nest 4 (text ("[ at " ++ s ++ " ]"))
 	    CyclicModuleDependency ms ->
 		fsep (pwords "cyclic module dependency:")
 		$$ nest 2 (vcat $ map pretty ms)

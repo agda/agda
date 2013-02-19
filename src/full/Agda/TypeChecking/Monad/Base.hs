@@ -301,6 +301,9 @@ data ProblemConstraint = PConstr
   }
   deriving (Typeable, Show)
 
+instance HasRange ProblemConstraint where
+  getRange = getRange . theConstraint
+
 data Constraint
   = ValueCmp Comparison Type Term Term
   | ElimCmp [Polarity] Type Term [Elim] [Elim]
@@ -316,6 +319,21 @@ data Constraint
     -- ^ the range is the one of the absurd pattern
   | FindInScope MetaId [(Term, Type)]
   deriving (Typeable, Show)
+
+instance HasRange Constraint where
+  getRange (IsEmpty r t) = r
+  getRange _ = noRange
+{- no Range instances for Term, Type, Elm, Tele, Sort, Level, MetaId
+  getRange (ValueCmp cmp a u v) = getRange (a,u,v)
+  getRange (ElimCmp pol a v es es') = getRange (a,v,es,es')
+  getRange (TypeCmp cmp a b) = getRange (a,b)
+  getRange (TelCmp a b cmp tel tel') = getRange (a,b,tel,tel')
+  getRange (SortCmp cmp s s') = getRange (s,s')
+  getRange (LevelCmp cmp l l') = getRange (l,l')
+  getRange (UnBlock x) = getRange x
+  getRange (Guarded c pid) = getRange c
+  getRange (FindInScope x cands) = getRange x
+-}
 
 data Comparison = CmpEq | CmpLeq
   deriving (Eq, Typeable)

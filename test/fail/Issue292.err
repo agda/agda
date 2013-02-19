@@ -1,4 +1,6 @@
 
 Failed to solve the following constraints:
   [0] Is empty: false2 ≅ true
+      [ at Issue292.agda:37,20-22 ]
   [0] Is empty: true2 ≅ true
+      [ at Issue292.agda:36,19-21 ]

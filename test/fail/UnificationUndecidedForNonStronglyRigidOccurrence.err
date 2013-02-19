@@ -1,3 +1,4 @@
 
 Failed to solve the following constraints:
   [0] Is empty: n ≡ f n
+      [ at UnificationUndecidedForNonStronglyRigidOccurrence.agda:12,7-9 ]
