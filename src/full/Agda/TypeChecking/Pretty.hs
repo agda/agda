@@ -4,7 +4,8 @@ module Agda.TypeChecking.Pretty where
 
 import Control.Applicative hiding (empty)
 
-import Agda.Syntax.Common
+import Agda.Syntax.Common hiding (Arg, Dom, NamedArg, ArgInfo)
+import qualified Agda.Syntax.Common as Common
 import Agda.Syntax.Internal
 import Agda.Syntax.Literal
 import Agda.Syntax.Translation.InternalToAbstract
@@ -225,16 +226,20 @@ newtype PrettyContext = PrettyContext Context
 instance PrettyTCM PrettyContext where
   prettyTCM (PrettyContext ctx) = P.fsep . reverse <$> pr (map ctxEntry ctx)
       where
+          pr :: [Dom (Name, Type)] -> TCM [P.Doc]
           pr []		   = return []
-          pr (Dom h r (x,t) : ctx) = escapeContext 1 $ do
+          pr (Common.Dom info (x,t) : ctx) = escapeContext 1 $ do
               d    <- prettyTCM t
               x    <- prettyTCM x
               dctx <- pr ctx
-              return $ P.pRelevance r (par h (P.hsep [ x, P.text ":", d])) : dctx
+              -- TODO guilhem: show colors
+              return $ P.pRelevance info' (par (P.hsep [ x, P.text ":", d])) : dctx
             where
-              par NotHidden = P.parens
-              par Hidden    = P.braces
-              par Instance  = P.dbraces
+              info' = mapArgInfoColors (const []) info
+              par = case argInfoHiding info of
+                     NotHidden -> P.parens
+                     Hidden    -> P.braces
+                     Instance  -> P.dbraces
 
 instance PrettyTCM Context where
   prettyTCM = prettyTCM . PrettyContext

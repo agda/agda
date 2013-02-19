@@ -78,5 +78,5 @@ unElimView v = case v of
 unElim :: Term -> [Elim] -> Term
 unElim v [] = v
 unElim v (Apply u : es) = unElim (v `apply` [u]) es
-unElim v (Proj f : es)  = unElim (Def f [Arg NotHidden Relevant v]) es
+unElim v (Proj f : es)  = unElim (Def f [defaultArg v]) es
 -}

@@ -8,7 +8,7 @@ import qualified Data.Traversable as T (mapM)
 import Data.List
 
 import Agda.Syntax.Common
-import Agda.Syntax.Internal
+import Agda.Syntax.Internal as I
 import Agda.Syntax.Abstract (LHS(..), RHS(..))
 import qualified Agda.Syntax.Abstract as A
 import Agda.Syntax.Position
@@ -55,7 +55,7 @@ withFunctionType delta1 vs as delta2 b = {-dontEtaContractImplicit $-} do
   return $ telePi_ delta1 $ foldr (uncurry piAbstractTerm) b vas
 
 -- | Compute the clauses for the with-function given the original patterns.
-buildWithFunction :: QName -> Telescope -> [Arg Pattern] -> Permutation ->
+buildWithFunction :: QName -> Telescope -> [I.Arg Pattern] -> Permutation ->
                      Nat -> Nat -> [A.Clause] -> TCM [A.Clause]
 buildWithFunction aux gamma qs perm n1 n cs = mapM buildWithClause cs
   where
@@ -91,7 +91,7 @@ buildWithFunction aux gamma qs perm n1 n cs = mapM buildWithClause cs
 
     @ps'@ - patterns for with function (presumably of type @Δ@)
 -}
-stripWithClausePatterns :: Telescope -> [Arg Pattern] -> Permutation -> [NamedArg A.Pattern] -> TCM [NamedArg A.Pattern]
+stripWithClausePatterns :: Telescope -> [I.Arg Pattern] -> Permutation -> [A.NamedArg A.Pattern] -> TCM [A.NamedArg A.Pattern]
 stripWithClausePatterns gamma qs perm ps = do
   psi <- insertImplicitPatterns ExpandLast ps gamma
   unless (size psi == size gamma) $ fail $ "wrong number of arguments in with clause: given " ++ show (size psi) ++ ", expected " ++ show (size gamma)
@@ -111,7 +111,7 @@ stripWithClausePatterns gamma qs perm ps = do
   where
     -- implicit args inserted at top level
     -- all three arguments should have the same size
-    strip :: Telescope -> [NamedArg A.Pattern] -> [Arg Pattern] -> TCM [NamedArg A.Pattern]
+    strip :: Telescope -> [A.NamedArg A.Pattern] -> [I.Arg Pattern] -> TCM [A.NamedArg A.Pattern]
     strip _           []      (_ : _) = __IMPOSSIBLE__
     strip _           (_ : _) []      = __IMPOSSIBLE__
     strip EmptyTel    (_ : _) _       = __IMPOSSIBLE__
@@ -175,7 +175,7 @@ stripWithClausePatterns gamma qs perm ps = do
                    ]
 
             -- Compute the new telescope
-            let v     = Con c [ Arg h r (var i) | (i, Arg h r _) <- zip (downFrom $ size qs') qs' ]
+            let v     = Con c [ Arg info (var i) | (i, Arg info _) <- zip (downFrom $ size qs') qs' ]
 --            let v     = Con c $ reverse [ Arg h r (var i) | (i, Arg h r _) <- zip [0..] $ reverse qs' ]
                 tel'' = tel' `abstract` absApp (raise (size tel') tel) v
 
@@ -208,7 +208,7 @@ stripWithClausePatterns gamma qs perm ps = do
 --   For instance, @aux a b c@ as @f (suc a) (suc b) | c@
 --
 --   @n@ is the number of with arguments.
-withDisplayForm :: QName -> QName -> Telescope -> Telescope -> Nat -> [Arg Pattern] -> Permutation -> TCM DisplayForm
+withDisplayForm :: QName -> QName -> Telescope -> Telescope -> Nat -> [I.Arg Pattern] -> Permutation -> TCM DisplayForm
 withDisplayForm f aux delta1 delta2 n qs perm@(Perm m _) = do
   topArgs <- raise (n + size delta1 + size delta2) <$> getContextArgs
   x <- freshNoName_
@@ -262,7 +262,7 @@ withDisplayForm f aux delta1 delta2 n qs perm@(Perm m _) = do
         -- We had the wrong permutation and we used it incorrectly. Should work now.
         term i = maybe wild var $ findIndex (Just i ==) rho
 
-patsToTerms :: [Arg Pattern] -> [Arg DisplayTerm]
+patsToTerms :: [I.Arg Pattern] -> [I.Arg DisplayTerm]
 patsToTerms ps = evalState (toTerms ps) 0
   where
     mapMr f xs = reverse <$> mapM f (reverse xs)
@@ -273,10 +273,10 @@ patsToTerms ps = evalState (toTerms ps) 0
       put (i + 1)
       return i
 
-    toTerms :: [Arg Pattern] -> State Nat [Arg DisplayTerm]
+    toTerms :: [I.Arg Pattern] -> State Nat [I.Arg DisplayTerm]
     toTerms ps = mapMr toArg ps
 
-    toArg :: Arg Pattern -> State Nat (Arg DisplayTerm)
+    toArg :: I.Arg Pattern -> State Nat (I.Arg DisplayTerm)
     toArg = T.mapM toTerm
 
     toTerm :: Pattern -> State Nat DisplayTerm

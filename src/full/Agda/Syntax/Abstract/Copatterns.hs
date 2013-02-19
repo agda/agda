@@ -14,7 +14,8 @@ import Data.Traversable as T
 
 import Agda.Syntax.Abstract
 import Agda.Syntax.Abstract.Name as A
-import Agda.Syntax.Common
+import Agda.Syntax.Common hiding (Arg, Dom, NamedArg)
+import qualified Agda.Syntax.Common as Common
 import qualified Agda.Syntax.Concrete.Name as C
 import Agda.Syntax.Info
 import Agda.Syntax.Position
@@ -218,9 +219,9 @@ pathToRecord pps =
             foldr abstract (return e) xs
 
           abstract :: NamedArg Name -> ScopeM Expr -> ScopeM Expr
-          abstract (Arg h r (Named Nothing x)) me =
-            Lam (ExprRange noRange) (DomainFree h r x) <$> me
-          abstract (Arg _ _ (Named Just{} _)) me = typeError $ NotImplemented $
+          abstract (Common.Arg info (Named Nothing x)) me =
+            Lam (ExprRange noRange) (DomainFree info x) <$> me
+          abstract (Common.Arg _ (Named Just{} _)) me = typeError $ NotImplemented $
             "named arguments in projection patterns"
 
 -- | Similar to 'groupClauses'.

@@ -563,12 +563,12 @@ instance EmbPrj A.Pattern where
      i = PatRange noRange
 
 instance EmbPrj A.LamBinding where
-  icode (A.DomainFree a b c) = icode3 0 a b c
-  icode (A.DomainFull a)     = icode1 1 a
+  icode (A.DomainFree i e) = icode2 0 i e
+  icode (A.DomainFull a)   = icode1 1 a
 
-  value = vcase valu where valu [0, a, b, c] = valu3 A.DomainFree a b c
-                           valu [1, a]       = valu1 A.DomainFull a
-                           valu _            = malformed
+  value = vcase valu where valu [0, i, e] = valu2 A.DomainFree i e
+                           valu [1, a]    = valu1 A.DomainFull a
+                           valu _         = malformed
 
 instance EmbPrj A.TypedBindings where
   icode (A.TypedBindings a b) = icode2' a b
@@ -583,6 +583,12 @@ instance EmbPrj A.TypedBinding where
   value = vcase valu where valu [0, a, b, c] = valu3 A.TBind a b c
                            valu [1, a]       = valu1 A.TNoBind a
                            valu _            = malformed
+
+instance EmbPrj c => EmbPrj (Agda.Syntax.Common.ArgInfo c) where
+  icode (ArgInfo h r cs) = icode3' h r cs
+
+  value = vcase valu where valu [h, r, cs] = valu3 ArgInfo h r cs
+                           valu _          = malformed
 
 instance EmbPrj A.LetBinding where
   icode (A.LetBind _ a b c d)  = icode4 0 a b c d
@@ -629,15 +635,15 @@ instance EmbPrj Permutation where
   value = vcase valu where valu [a, b] = valu2 Perm a b
                            valu _      = malformed
 
-instance (EmbPrj a) => EmbPrj (Agda.Syntax.Common.Arg a) where
-  icode (Arg a b c) = icode3' a b c
-  value = vcase valu where valu [a, b, c] = valu3 Arg a b c
-                           valu _         = malformed
+instance (EmbPrj a, EmbPrj c) => EmbPrj (Agda.Syntax.Common.Arg c a) where
+  icode (Arg i e) = icode2' i e
+  value = vcase valu where valu [i, e] = valu2 Arg i e
+                           valu _      = malformed
 
-instance (EmbPrj a) => EmbPrj (Agda.Syntax.Common.Dom a) where
-  icode (Dom a b c) = icode3' a b c
-  value = vcase valu where valu [a, b, c] = valu3 Dom a b c
-                           valu _         = malformed
+instance (EmbPrj a, EmbPrj c) => EmbPrj (Agda.Syntax.Common.Dom c a) where
+  icode (Dom i e) = icode2' i e
+  value = vcase valu where valu [i, e] = valu2 Dom i e
+                           valu _      = malformed
 
 instance EmbPrj Agda.Syntax.Common.Induction where
   icode Inductive   = icode0'

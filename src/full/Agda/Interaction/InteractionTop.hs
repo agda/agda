@@ -901,7 +901,7 @@ instance LowerMeta (OpApp SC.Expr) where
   lowerMeta (SyntaxBindingLambda r bs e) = SyntaxBindingLambda r (lowerMeta bs) (lowerMeta e)
 
 instance LowerMeta SC.LamBinding where
-  lowerMeta b@(SC.DomainFree _ _ _) = b
+  lowerMeta b@(SC.DomainFree _ _) = b
   lowerMeta (SC.DomainFull tb)    = SC.DomainFull (lowerMeta tb)
 
 instance LowerMeta SC.TypedBindings where
@@ -960,7 +960,7 @@ instance LowerMeta SC.WhereClause where
 instance LowerMeta a => LowerMeta [a] where
   lowerMeta as = List.map lowerMeta as
 
-instance LowerMeta a => LowerMeta (Arg a) where
+instance LowerMeta a => LowerMeta (SC.Arg a) where
   lowerMeta aa = fmap lowerMeta aa
 
 instance LowerMeta a => LowerMeta (Named name a) where

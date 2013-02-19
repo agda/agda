@@ -23,10 +23,12 @@ import Data.Typeable (Typeable)
 import qualified Agda.Syntax.Concrete as C
 import Agda.Syntax.Concrete.Pretty ()
 import Agda.Syntax.Info
-import Agda.Syntax.Common
+import Agda.Syntax.Common hiding (Arg, Dom, NamedArg, ArgInfo)
+import qualified Agda.Syntax.Common as Common
 import Agda.Syntax.Fixity
 import Agda.Syntax.Position
 import Agda.Syntax.Abstract.Name
+import Agda.Syntax.Abstract.Name as A (QNamed)
 import Agda.Syntax.Literal
 import Agda.Syntax.Scope.Base
 
@@ -35,6 +37,24 @@ import Agda.Utils.Tuple
 
 #include "../undefined.h"
 import Agda.Utils.Impossible
+
+type Color      = Expr
+type Arg a      = Common.Arg Color a
+type Dom a      = Common.Dom Color a
+type NamedArg a = Common.NamedArg Color a
+type ArgInfo    = Common.ArgInfo Color
+
+instance Eq Color where
+  Var x == Var y = x == y
+  Def x == Def y = x == y
+  -- TODO guilhem:
+  _ == _         = __IMPOSSIBLE__
+
+instance Ord Color where
+  Var x <= Var y = x <= y
+  Def x <= Def y = x <= y
+  -- TODO guilhem:
+  _ <= _         = __IMPOSSIBLE__
 
 data Expr
         = Var  Name			     -- ^ Bound variables
@@ -66,7 +86,7 @@ data Expr
   deriving (Typeable, Show)
 
 data Declaration
-	= Axiom      DefInfo Relevance QName Expr          -- ^ postulate
+	= Axiom      DefInfo ArgInfo QName Expr          -- ^ postulate
 	| Field      DefInfo QName (Arg Expr)		   -- ^ record field
 	| Primitive  DefInfo QName Expr			   -- ^ primitive function
 	| Mutual     MutualInfo [Declaration]              -- ^ a bunch of mutually recursive definitions
@@ -118,7 +138,7 @@ data Pragma = OptionsPragma [String]
             | EtaPragma QName
   deriving (Typeable, Show)
 
-data LetBinding = LetBind LetInfo Relevance Name Expr Expr    -- ^ LetBind info rel name type defn
+data LetBinding = LetBind LetInfo ArgInfo Name Expr Expr -- ^ LetBind info rel name type defn
                 | LetPatBind LetInfo Pattern Expr -- ^ irrefutable pattern binding
                 | LetApply ModuleInfo ModuleName ModuleApplication (Map QName QName) (Map ModuleName ModuleName)
                 | LetOpen ModuleInfo ModuleName     -- ^ only for highlighting and abstractToConcrete
@@ -131,7 +151,7 @@ type Field          = TypeSignature
 
 -- | A lambda binding is either domain free or typed.
 data LamBinding
-	= DomainFree Hiding Relevance Name  -- ^ . @x@ or @{x}@ or @.x@ or @.{x}@
+	= DomainFree ArgInfo Name   -- ^ . @x@ or @{x}@ or @.x@ or @.{x}@
 	| DomainFull TypedBindings  -- ^ . @(xs:e)@ or @{xs:e}@
   deriving (Typeable, Show)
 
@@ -216,7 +236,7 @@ lhsToSpine :: LHS -> SpineLHS
 lhsToSpine (LHS i core wps) = SpineLHS i f ps wps
   where QNamed f ps = lhsCoreToSpine core
 
-lhsCoreToSpine :: LHSCore' e -> QNamed [NamedArg (Pattern' e)]
+lhsCoreToSpine :: LHSCore' e -> A.QNamed [NamedArg (Pattern' e)]
 lhsCoreToSpine (LHSHead f ps) = QNamed f ps
 lhsCoreToSpine (LHSProj d ps1 h ps2) = (++ (p : ps2)) <$> lhsCoreToSpine (namedArg h)
   where p = updateNamedArg (const $ DefP i d ps1) h
@@ -281,8 +301,8 @@ type Patterns = [NamedArg Pattern]
  --------------------------------------------------------------------------}
 
 instance HasRange LamBinding where
-    getRange (DomainFree _ _ x) = getRange x
-    getRange (DomainFull b)     = getRange b
+    getRange (DomainFree _ x) = getRange x
+    getRange (DomainFull b)   = getRange b
 
 instance HasRange TypedBindings where
     getRange (TypedBindings r _) = r
@@ -384,8 +404,8 @@ instance SetRange (Pattern' a) where
     setRange r (PatternSynP _ n as) = PatternSynP (PatRange r) (setRange r n) as
 
 instance KillRange LamBinding where
-  killRange (DomainFree h r x) = killRange1 (DomainFree h r) x
-  killRange (DomainFull b)     = killRange1 DomainFull b
+  killRange (DomainFree info x) = killRange1 (DomainFree info) x
+  killRange (DomainFull b)      = killRange1 DomainFull b
 
 instance KillRange TypedBindings where
   killRange (TypedBindings r b) = TypedBindings (killRange r) (killRange b)
@@ -480,11 +500,14 @@ instance KillRange RHS where
   killRange (WithRHS q e cs)         = killRange3 WithRHS q e cs
   killRange (RewriteRHS x es rhs wh) = killRange4 RewriteRHS x es rhs wh
 
+instance KillRange ArgInfo where
+  killRange info = info -- no Range to kill
+
 instance KillRange LetBinding where
-  killRange (LetBind  i rel a b c   ) = killRange5 LetBind  i rel a b c
+  killRange (LetBind    i info a b c) = killRange5 LetBind  i info a b c
   killRange (LetPatBind i a b       ) = killRange3 LetPatBind i a b
-  killRange (LetApply i a b c d     ) = killRange3 LetApply i a b c d
-  killRange (LetOpen  i x           ) = killRange2 LetOpen  i x
+  killRange (LetApply   i a b c d   ) = killRange3 LetApply i a b c d
+  killRange (LetOpen    i x         ) = killRange2 LetOpen  i x
 
 instanceUniverseBiT' [] [t| (Declaration, QName)          |]
 instanceUniverseBiT' [] [t| (Declaration, AmbiguousQName) |]
@@ -531,42 +554,42 @@ allNames (FunDef _ q _ cls)       = q <| Fold.foldMap allNamesC cls
                     >< Fold.foldMap allNames cls
 
   allNamesE :: Expr -> Seq QName
-  allNamesE Var {}                  = Seq.empty
-  allNamesE Def {}                  = Seq.empty
-  allNamesE Con {}                  = Seq.empty
-  allNamesE Lit {}                  = Seq.empty
-  allNamesE QuestionMark {}         = Seq.empty
-  allNamesE Underscore {}           = Seq.empty
-  allNamesE (App _ e1 e2)           = Fold.foldMap allNamesE [e1, namedThing (unArg e2)]
-  allNamesE (WithApp _ e es)        = Fold.foldMap allNamesE (e : es)
-  allNamesE (Lam _ b e)             = allNamesLam b >< allNamesE e
-  allNamesE AbsurdLam {}            = Seq.empty
-  allNamesE (ExtendedLam _ _ q cls) = q <| Fold.foldMap allNamesC cls
-  allNamesE (Pi _ tel e)            = Fold.foldMap allNamesBinds tel ><
-                                                allNamesE e
-  allNamesE (Fun _ (Arg _ _ e1) e2) = Fold.foldMap allNamesE [e1, e2]
-  allNamesE Set {}                  = Seq.empty
-  allNamesE Prop {}                 = Seq.empty
-  allNamesE (Let _ lbs e)           = Fold.foldMap allNamesLet lbs ><
-                                                allNamesE e
-  allNamesE ETel {}                 = __IMPOSSIBLE__
-  allNamesE (Rec _ fields)          = Fold.foldMap allNamesE (map snd fields)
-  allNamesE (RecUpdate _ e fs)      = allNamesE e >< Fold.foldMap allNamesE (map snd fs)
-  allNamesE (ScopedExpr _ e)        = allNamesE e
-  allNamesE (QuoteGoal _ _ e)       = allNamesE e
-  allNamesE Quote {}                = Seq.empty
-  allNamesE QuoteTerm {}            = Seq.empty
-  allNamesE Unquote {}              = Seq.empty
-  allNamesE DontCare {}             = Seq.empty
-  allNamesE (PatternSyn x)          = Seq.empty
+  allNamesE Var {}                       = Seq.empty
+  allNamesE Def {}                       = Seq.empty
+  allNamesE Con {}                       = Seq.empty
+  allNamesE Lit {}                       = Seq.empty
+  allNamesE QuestionMark {}              = Seq.empty
+  allNamesE Underscore {}                = Seq.empty
+  allNamesE (App _ e1 e2)                = Fold.foldMap allNamesE [e1, namedThing (unArg e2)]
+  allNamesE (WithApp _ e es)             = Fold.foldMap allNamesE (e : es)
+  allNamesE (Lam _ b e)                  = allNamesLam b >< allNamesE e
+  allNamesE AbsurdLam {}                 = Seq.empty
+  allNamesE (ExtendedLam _ _ q cls)      = q <| Fold.foldMap allNamesC cls
+  allNamesE (Pi _ tel e)                 = Fold.foldMap allNamesBinds tel ><
+                                                        allNamesE e
+  allNamesE (Fun _ (Common.Arg _ e1) e2) = Fold.foldMap allNamesE [e1, e2]
+  allNamesE Set {}                       = Seq.empty
+  allNamesE Prop {}                      = Seq.empty
+  allNamesE (Let _ lbs e)                = Fold.foldMap allNamesLet lbs ><
+                                                        allNamesE e
+  allNamesE ETel {}                      = __IMPOSSIBLE__
+  allNamesE (Rec _ fields)               = Fold.foldMap allNamesE (map snd fields)
+  allNamesE (RecUpdate _ e fs)           = allNamesE e >< Fold.foldMap allNamesE (map snd fs)
+  allNamesE (ScopedExpr _ e)             = allNamesE e
+  allNamesE (QuoteGoal _ _ e)            = allNamesE e
+  allNamesE Quote {}                     = Seq.empty
+  allNamesE QuoteTerm {}                 = Seq.empty
+  allNamesE Unquote {}                   = Seq.empty
+  allNamesE DontCare {}                  = Seq.empty
+  allNamesE (PatternSyn x)               = Seq.empty
 
   allNamesLam :: LamBinding -> Seq QName
   allNamesLam DomainFree {}      = Seq.empty
   allNamesLam (DomainFull binds) = allNamesBinds binds
 
   allNamesBinds :: TypedBindings -> Seq QName
-  allNamesBinds (TypedBindings _ (Arg _ _ (TBind _ _ e))) = allNamesE e
-  allNamesBinds (TypedBindings _ (Arg _ _ (TNoBind e)))   = allNamesE e
+  allNamesBinds (TypedBindings _ (Common.Arg _ (TBind _ _ e))) = allNamesE e
+  allNamesBinds (TypedBindings _ (Common.Arg _ (TNoBind e)))   = allNamesE e
 
   allNamesLet :: LetBinding -> Seq QName
   allNamesLet (LetBind _ _ _ e1 e2)  = Fold.foldMap allNamesE [e1, e2]
@@ -638,7 +661,7 @@ type PatternSynDefns = Map QName PatternSynDefn
 lambdaLiftExpr :: [Name] -> Expr -> Expr
 lambdaLiftExpr []     e = e
 lambdaLiftExpr (n:ns) e = Lam (ExprRange noRange)
-                                     (DomainFree NotHidden Relevant n) $
+                                     (DomainFree defaultArgInfo n) $
                                      lambdaLiftExpr ns e
 
 substPattern :: [(Name, Pattern)] -> Pattern -> Pattern

@@ -12,10 +12,10 @@ import qualified Data.List as List (sort, nub)
 import Agda.Utils.QuickCheck hiding (Args)
 
 import Agda.Syntax.Position
-import Agda.Syntax.Common
+import Agda.Syntax.Common as Common
 import Agda.Syntax.Literal
 import Agda.Syntax.Fixity
-import Agda.Syntax.Internal
+import Agda.Syntax.Internal as I
 import qualified Agda.Syntax.Concrete.Name as C
 import Agda.TypeChecking.Free
 import Agda.TypeChecking.Substitute
@@ -191,11 +191,11 @@ instance GenC Hiding where
       HiddenFreqs {hiddenFreq = hideF, notHiddenFreq = nohideF } =
 	hiddenFreqs $ tcFrequencies conf
 
-instance GenC a => GenC (Arg a) where
-  genC conf = (\ (h, a) -> Arg h Relevant a) <$> genC conf
+instance (GenC c, GenC a) => GenC (Common.Arg c a) where
+  genC conf = (\ (h, a) -> Arg (setArgInfoHiding h defaultArgInfo) a) <$> genC conf
 
-instance GenC a => GenC (Dom a) where
-  genC conf = (\ (h, a) -> Dom h Relevant a) <$> genC conf
+instance (GenC c, GenC a) => GenC (Common.Dom c a) where
+  genC conf = (\ (h, a) -> Dom (setArgInfoHiding h defaultArgInfo) a) <$> genC conf
 
 instance GenC a => GenC (Abs a) where
   genC conf = Abs "x" <$> genC (extendConf conf)
@@ -279,7 +279,7 @@ instance GenC Term where
       piF   = freq (piFreq   . termFreqs)
 
       genLam :: Gen Term
-      genLam = Lam <$> genC conf <*> genC (isntTypeConf $ decrConf conf)
+      genLam = Lam <$> (flip setArgInfoHiding defaultArgInfo <$> genC conf) <*> genC (isntTypeConf $ decrConf conf)
 
       genPi :: Gen Term
       genPi = uncurry Pi <$> genC conf
@@ -403,12 +403,12 @@ instance ShrinkC a b => ShrinkC (Abs a) (Abs b) where
   shrinkC conf (Abs   s x) = Abs s <$> shrinkC (extendConf conf) x
   noShrink = fmap noShrink
 
-instance ShrinkC a b => ShrinkC (Arg a) (Arg b) where
-  shrinkC conf (Arg h r x) = (\ (h,x) -> Arg h r x) <$> shrinkC conf (h, x)
+instance ShrinkC a b => ShrinkC (I.Arg a) (I.Arg b) where
+  shrinkC conf (Arg info x) = (\ (h,x) -> Arg (setArgInfoHiding h info) x) <$> shrinkC conf (argInfoHiding info, x)
   noShrink = fmap noShrink
 
-instance ShrinkC a b => ShrinkC (Dom a) (Dom b) where
-  shrinkC conf (Dom h r x) = (\ (h,x) -> Dom h r x) <$> shrinkC conf (h, x)
+instance ShrinkC a b => ShrinkC (I.Dom a) (I.Dom b) where
+  shrinkC conf (Dom info x) = (\ (h,x) -> Dom (setArgInfoHiding h info) x) <$> shrinkC conf (argInfoHiding info, x)
   noShrink = fmap noShrink
 
 instance ShrinkC a b => ShrinkC (Blocked a) (Blocked b) where
@@ -448,7 +448,8 @@ instance ShrinkC Term Term where
 		    (uncurry Con <$> shrinkC conf (ConName d, NoType args))
     Lit l	 -> Lit <$> shrinkC conf l
     Level l      -> [] -- TODO
-    Lam h b      -> killAbs b : (uncurry Lam <$> shrinkC conf (h, b))
+    Lam info b   -> killAbs b : ((\(h,x) -> Lam (setArgInfoHiding h defaultArgInfo) x)
+                                 <$> shrinkC conf (argInfoHiding info, b))
     Pi a b       -> unEl (unDom a) : unEl (killAbs b) :
 		    (uncurry Pi <$> shrinkC conf (a, b))
     Sort s       -> Sort <$> shrinkC conf s
@@ -495,10 +496,10 @@ instance KillVar Telescope where
   killVar i EmptyTel	      = EmptyTel
   killVar i (ExtendTel a tel) = uncurry ExtendTel $ killVar i (a, tel)
 
-instance KillVar a => KillVar (Arg a) where
+instance KillVar a => KillVar (I.Arg a) where
   killVar i = fmap (killVar i)
 
-instance KillVar a => KillVar (Dom a) where
+instance KillVar a => KillVar (I.Dom a) where
   killVar i = fmap (killVar i)
 
 instance KillVar a => KillVar (Abs a) where

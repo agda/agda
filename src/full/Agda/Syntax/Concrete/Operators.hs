@@ -40,7 +40,8 @@ import Data.List
 import Data.Function
 
 import Agda.Syntax.Concrete.Pretty ()
-import Agda.Syntax.Common
+import Agda.Syntax.Common hiding (Arg, Dom, NamedArg)
+import qualified Agda.Syntax.Common as Common
 import Agda.Syntax.Concrete hiding (appView)
 import Agda.Syntax.Concrete.Operators.Parser
 import qualified Agda.Syntax.Abstract.Name as A
@@ -315,8 +316,8 @@ lhsArgs p = case lhsArgs' p of
 --   into @(f, ps)@.
 lhsArgs' :: Pattern -> Maybe (Name, [NamedArg Pattern])
 lhsArgs' p = case patternAppView p of
-    Arg _ _ (Named _ (IdentP (QName x))) : ps -> Just (x, ps)
-    _                                         -> Nothing
+    Common.Arg _ (Named _ (IdentP (QName x))) : ps -> Just (x, ps)
+    _                                              -> Nothing
 
 -- | View a pattern @p@ as a list @p0 .. pn@ where @p0@ is the identifier
 --   (in most cases a constructor).
@@ -329,8 +330,8 @@ patternAppView p = case p of
     ParenP _ p    -> patternAppView p
     RawAppP _ _   -> __IMPOSSIBLE__
     _             -> [ mkHead p ]
-  where mkHead    = Arg NotHidden Relevant . unnamed
-        notHidden = Arg NotHidden Relevant . unnamed
+  where mkHead    = defaultArg . unnamed
+        notHidden = defaultArg . unnamed
 
 
 ---------------------------------------------------------------------------
@@ -340,7 +341,8 @@ patternAppView p = case p of
 -- | Returns the list of possible parses.
 parsePat :: ReadP Pattern Pattern -> Pattern -> [Pattern]
 parsePat prs p = case p of
-    AppP p (Arg h r q) -> fullParen' <$> (AppP <$> parsePat prs p <*> (Arg h r <$> traverse (parsePat prs) q))
+    AppP p (Common.Arg info q) ->
+        fullParen' <$> (AppP <$> parsePat prs p <*> (Common.Arg info <$> traverse (parsePat prs) q))
     RawAppP _ ps     -> fullParen' <$> (parsePat prs =<< parse prs ps)
     OpAppP r d ps    -> fullParen' . OpAppP r d <$> mapM (parsePat prs) ps
     HiddenP _ _      -> fail "bad hidden argument"
@@ -428,12 +430,12 @@ classifyPattern conf p =
   case patternAppView p of
 
     -- case @f ps@
-    Arg _ _ (Named _ (IdentP x@(QName f))) : ps | Just f == topName conf -> do
+    Common.Arg _ (Named _ (IdentP x@(QName f))) : ps | Just f == topName conf -> do
       guard $ all validPat ps
       return $ Right (f, LHSHead f ps)
 
     -- case @d ps@
-    Arg _ _ (Named _ (IdentP x)) : ps | x `elem` fldNames conf -> do
+    Common.Arg _ (Named _ (IdentP x)) : ps | x `elem` fldNames conf -> do
       -- ps0 :: [NamedArg ParseLHS]
       ps0 <- mapM classPat ps
       let (ps1, rest) = span (isLeft . namedArg) ps0
@@ -453,8 +455,8 @@ classifyPattern conf p =
         classPat :: NamedArg Pattern -> Maybe (NamedArg ParseLHS)
         classPat = Trav.mapM (Trav.mapM (classifyPattern conf))
         fromR :: NamedArg (Either a (b, c)) -> (b, NamedArg c)
-        fromR (Arg h r (Named n (Right (b, c)))) = (b, Arg h r (Named n c))
-        fromR (Arg h r (Named n (Left  a     ))) = __IMPOSSIBLE__
+        fromR (Common.Arg info (Named n (Right (b, c)))) = (b, Common.Arg info (Named n c))
+        fromR (Common.Arg info (Named n (Left  a     ))) = __IMPOSSIBLE__
 
 
 
@@ -574,9 +576,9 @@ fullParen' e = case exprView e of
     HiddenArgV _ -> e
     InstanceArgV _ -> e
     ParenV _     -> e
-    AppV e1 (Arg h r e2) -> par $ unExprView $ AppV (fullParen' e1) (Arg h r e2')
+    AppV e1 (Common.Arg info e2) -> par $ unExprView $ AppV (fullParen' e1) (Common.Arg info e2')
         where
-            e2' = case h of
+            e2' = case argInfoHiding info of
                 Hidden    -> e2
                 Instance  -> e2
                 NotHidden -> fullParen' <$> e2

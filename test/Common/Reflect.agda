@@ -25,11 +25,16 @@ data Relevance : Set where
 {-# BUILTIN RELEVANT   relevant   #-}
 {-# BUILTIN IRRELEVANT irrelevant #-}
 
-data Arg A : Set where
-  arg : Hiding → Relevance → A → Arg A
+data ArgInfo : Set where
+  arginfo : Hiding → Relevance → ArgInfo
 
-{-# BUILTIN ARG Arg #-}
-{-# BUILTIN ARGARG arg #-}
+data Arg A : Set where
+  arg : ArgInfo → A → Arg A
+
+{-# BUILTIN ARGINFO    ArgInfo #-}
+{-# BUILTIN ARG        Arg     #-}
+{-# BUILTIN ARGARG     arg     #-}
+{-# BUILTIN ARGARGINFO arginfo #-}
 
 mutual
 

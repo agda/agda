@@ -9,7 +9,7 @@ import Data.Monoid
 import Agda.Syntax.Common
 import Agda.Syntax.Position
 import Agda.Syntax.Info
-import Agda.Syntax.Internal
+import Agda.Syntax.Internal as I
 import qualified Agda.Syntax.Abstract as A
 
 import Agda.TypeChecking.Monad
@@ -32,11 +32,12 @@ import Agda.Utils.Impossible
 
 -- MOVED from LHS:
 -- | Rename the variables in a telescope using the names from a given pattern
-useNamesFromPattern :: [NamedArg A.Pattern] -> Telescope -> Telescope
+useNamesFromPattern :: [A.NamedArg A.Pattern] -> Telescope -> Telescope
 useNamesFromPattern ps = telFromList . zipWith ren (toPats ps ++ repeat dummy) . telToList
   where
     dummy = A.WildP __IMPOSSIBLE__
-    ren (A.VarP x) (Dom NotHidden r (_, a)) = Dom NotHidden r (show x, a)
+    ren (A.VarP x) (Dom info (_, a)) | isArgInfoNotHidden info =
+            Dom info (show x, a)
     ren A.PatternSynP{} _ = __IMPOSSIBLE__  -- ensure there are no syns left
     ren _ a = a
     toPats = map namedArg
@@ -50,7 +51,7 @@ typeFromProblem :: Problem -> Type
 typeFromProblem (Problem _ _ _ (ProblemRest _ a)) = a
 
 -- | Construct an initial 'split' 'Problem' from user patterns.
-problemFromPats :: [NamedArg A.Pattern] -- ^ The user patterns.
+problemFromPats :: [A.NamedArg A.Pattern] -- ^ The user patterns.
   -> Type            -- ^ The type the user patterns eliminate.
   -> TCM Problem     -- ^ The initial problem constructed from the user patterns.
 problemFromPats ps a = do
@@ -58,7 +59,7 @@ problemFromPats ps a = do
   -- For the initial problem, do not insert trailing implicits.
   -- This has the effect of not including trailing hidden domains in the problem telescope.
   -- In all later call to insertImplicitPatterns, we can then use ExpandLast.
-  ps <- insertImplicitPatterns DontExpandLast ps tel0'
+  ps <- insertImplicitPatterns DontExpandLast ps tel0' :: TCM [A.NamedArg A.Pattern]
   -- unless (size tel0' >= size ps) $ typeError $ TooManyArgumentsInLHS a
   let tel0      = useNamesFromPattern ps tel0'
       (as, bs)  = splitAt (size ps) $ telToList tel0
@@ -70,10 +71,10 @@ problemFromPats ps a = do
       -- patterns ps2 eliminate type b
 
       -- internal patterns start as all variables
-      ips      = map (argFromDom . fmap (VarP . fst)) as
+  ips <- mapM (return . argFromDom . fmap (VarP . fst)) as
 
       -- the initial problem for starting the splitting
-      problem  = Problem ps1 (idP $ size ps1, ips) gamma pr
+  let problem  = Problem ps1 (idP $ size ps1, ips) gamma pr :: Problem
   reportSDoc "tc.lhs.problem" 10 $
     vcat [ text "checking lhs -- generated an initial split problem:"
 	 , nest 2 $ vcat

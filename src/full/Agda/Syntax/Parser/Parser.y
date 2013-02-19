@@ -34,10 +34,11 @@ import Agda.Syntax.Position hiding (tests)
 import Agda.Syntax.Parser.Monad
 import Agda.Syntax.Parser.Lexer
 import Agda.Syntax.Parser.Tokens
-import Agda.Syntax.Concrete
+import Agda.Syntax.Concrete as C
 import Agda.Syntax.Concrete.Name
 import Agda.Syntax.Concrete.Pretty
-import Agda.Syntax.Common
+import Agda.Syntax.Common hiding (Arg, Dom, NamedArg)
+import qualified Agda.Syntax.Common as Common
 import Agda.Syntax.Fixity
 import Agda.Syntax.Notation
 import Agda.Syntax.Literal
@@ -135,6 +136,7 @@ import Agda.Utils.Tuple
     '}}'	{ TokSymbol SymDoubleCloseBrace $$ }
     '{'		{ TokSymbol SymOpenBrace $$ }
     '}'		{ TokSymbol SymCloseBrace $$ }
+--    ':{'	{ TokSymbol SymColonBrace $$ }
     vopen	{ TokSymbol SymOpenVirtualBrace $$ }
     vclose	{ TokSymbol SymCloseVirtualBrace $$ }
     vsemi	{ TokSymbol SymVirtualSemi $$ }
@@ -339,23 +341,10 @@ DoubleCloseBrace
       else return $ getRange ($1, $2)
     }
 
-{- UNUSED
--- Space separated list of one or more identifiers, some of which may
--- be surrounded by braces.
-HiddenIds :: { [Arg Name] }
-HiddenIds
-    : Id HiddenIds               { defaultArg $1 : $2 }
-    | Id	                 { [defaultArg $1] }
-    | '{{' SpaceIds DoubleCloseBrace HiddenIds { map (Arg Instance Relevant) $2 ++ $4 }
-    | '{{' SpaceIds DoubleCloseBrace         { map (Arg Instance Relevant) $2 }
-    | '{' SpaceIds '}' HiddenIds { map (Arg Hidden Relevant) $2 ++ $4 }
-    | '{' SpaceIds '}'           { map (Arg Hidden Relevant) $2 }
--}
-
 -- A possibly dotted identifier.
 MaybeDottedId :: { Arg Name }
 MaybeDottedId
-  : '.' Id { Arg NotHidden Irrelevant $2 }
+  : '.' Id { setArgRelevance Irrelevant $ defaultArg $2 }
   | Id     { defaultArg $1 }
 
 -- Space separated list of one or more possibly dotted identifiers.
@@ -374,14 +363,14 @@ ArgIds
     | '{{' MaybeDottedIds DoubleCloseBrace        { map makeInstance $2 }
     | '{' MaybeDottedIds '}' ArgIds   { map hide $2 ++ $4 }
     | '{' MaybeDottedIds '}'          { map hide $2 }
-    | '.' '{' SpaceIds '}' ArgIds     { map (Arg Hidden Irrelevant) $3 ++ $5 }
-    | '.' '{' SpaceIds '}'            { map (Arg Hidden Irrelevant) $3 }
-    | '.' '{{' SpaceIds DoubleCloseBrace ArgIds   { map (Arg Instance Irrelevant) $3 ++ $5 }
-    | '.' '{{' SpaceIds DoubleCloseBrace          { map (Arg Instance Irrelevant) $3 }
-    | '..' '{' SpaceIds '}' ArgIds    { map (Arg Hidden NonStrict) $3 ++ $5 }
-    | '..' '{' SpaceIds '}'           { map (Arg Hidden NonStrict) $3 }
-    | '..' '{{' SpaceIds DoubleCloseBrace ArgIds  { map (Arg Instance NonStrict) $3 ++ $5 }
-    | '..' '{{' SpaceIds DoubleCloseBrace         { map (Arg Instance NonStrict) $3 }
+    | '.' '{' SpaceIds '}' ArgIds     { map (hide . setArgRelevance Irrelevant . defaultArg) $3 ++ $5 }
+    | '.' '{' SpaceIds '}'            { map (hide . setArgRelevance Irrelevant . defaultArg) $3 }
+    | '.' '{{' SpaceIds DoubleCloseBrace ArgIds   { map (makeInstance . setArgRelevance Irrelevant . defaultArg) $3 ++ $5 }
+    | '.' '{{' SpaceIds DoubleCloseBrace          { map (makeInstance . setArgRelevance Irrelevant . defaultArg) $3 }
+    | '..' '{' SpaceIds '}' ArgIds    { map (hide . setArgRelevance NonStrict . defaultArg) $3 ++ $5 }
+    | '..' '{' SpaceIds '}'           { map (hide . setArgRelevance NonStrict . defaultArg) $3 }
+    | '..' '{{' SpaceIds DoubleCloseBrace ArgIds  { map (makeInstance . setArgRelevance NonStrict . defaultArg) $3 ++ $5 }
+    | '..' '{{' SpaceIds DoubleCloseBrace         { map (makeInstance . setArgRelevance NonStrict . defaultArg) $3 }
 
 QId :: { QName }
 QId : q_id  {% mkQName $1 }
@@ -625,23 +614,37 @@ TypedBindingss
 -- Andreas, 2011-04-27: or ..(x1 .. xn : A) or ..{y1 .. ym : B}
 TypedBindings :: { TypedBindings }
 TypedBindings
-    : '.' '(' TBind ')'    { TypedBindings (getRange ($2,$3,$4)) (Arg NotHidden         Irrelevant $3) }
-    | '.' '{' TBind '}'    { TypedBindings (getRange ($2,$3,$4)) (Arg Hidden            Irrelevant $3) }
+    : '.' '(' TBind ')'    { TypedBindings (getRange ($2,$3,$4))
+                                           (setArgRelevance Irrelevant $ defaultColoredArg $3) }
+    | '.' '{' TBind '}'    { TypedBindings (getRange ($2,$3,$4))
+                                           (hide $ setArgRelevance Irrelevant $ defaultColoredArg $3) }
     | '.' '{{' TBind DoubleCloseBrace  { TypedBindings (getRange ($2,$3,$4))
-                                         (Arg Instance Irrelevant $3) }
-    | '..' '(' TBind ')'    { TypedBindings (getRange ($2,$3,$4)) (Arg NotHidden         NonStrict $3) }
-    | '..' '{' TBind '}'    { TypedBindings (getRange ($2,$3,$4)) (Arg Hidden            NonStrict $3) }
-    | '..' '{{' TBind DoubleCloseBrace  { TypedBindings (getRange ($2,$3,$4)) (Arg Instance NonStrict $3) }
-    | '(' TBind ')'        { TypedBindings (getRange ($1,$2,$3)) (Arg NotHidden         Relevant $2) }
-    | '{{' TBind DoubleCloseBrace      { TypedBindings (getRange ($1,$2,$3)) (Arg Instance Relevant $2) }
-    | '{' TBind '}'        { TypedBindings (getRange ($1,$2,$3)) (Arg Hidden            Relevant $2) }
+                                                       (makeInstance $ setArgRelevance Irrelevant $ defaultColoredArg $3) }
+    | '..' '(' TBind ')'    { TypedBindings (getRange ($2,$3,$4))
+                                            (setArgRelevance NonStrict $ defaultColoredArg $3) }
+    | '..' '{' TBind '}'    { TypedBindings (getRange ($2,$3,$4))
+                                            (hide $ setArgRelevance NonStrict $ defaultColoredArg $3) }
+    | '..' '{{' TBind DoubleCloseBrace  { TypedBindings (getRange ($2,$3,$4))
+                                                        (makeInstance $ setArgRelevance NonStrict $ defaultColoredArg $3) }
+    | '(' TBind ')'        { TypedBindings (getRange ($1,$2,$3))
+                                           (defaultColoredArg $2) }
+    | '{{' TBind DoubleCloseBrace      { TypedBindings (getRange ($1,$2,$3))
+                                                       (makeInstance $ defaultColoredArg $2) }
+    | '{' TBind '}'        { TypedBindings (getRange ($1,$2,$3))
+                                           (hide $ defaultColoredArg $2) }
 
 
--- x1 .. xn:A
-TBind :: { TypedBinding }
-TBind : CommaBIds ':' Expr  { TBind (getRange ($1,$2,$3)) (map mkBoundName_ $1) $3 }
-
-
+-- x1 .. xn : A
+-- x1 .. xn :{i1 i2 ..} A
+TBind :: { ( [Color], TypedBinding ) }
+TBind : CommaBIds ':' Expr              { ( [], TBind (getRange ($1,$2,$3))    (map mkBoundName_ $1) $3 ) }
+-- | Colors are not yet allowed in the syntax.
+--      | CommaBIds ':{' Colors '}' Expr  { ( $3, TBind (getRange ($1,$2,$3,$4,$5)) (map mkBoundName_ $1) $5 ) }
+{-
+Colors :: { [Color] }
+Colors : QId Colors { Ident $1 : $2 }
+       | QId        { [Ident $1] }
+-}
 -- A non-empty sequence of lambda bindings.
 LamBindings :: { [LamBinding] }
 LamBindings
@@ -750,7 +753,7 @@ DomainFreeBinding
     | '.' BId		{ [DomainFree NotHidden Irrelevant $ mkBoundName_ $2]  }
     | '..' BId		{ [DomainFree NotHidden NonStrict $ mkBoundName_ $2]  }
     | '{' CommaBIds '}' { map (DomainFree Hidden Relevant . mkBoundName_) $2 }
-    | '{{' CommaBIds DoubleCloseBrace { map (DomainFree Instance Relevant . mkBoundName_) $2 }
+    | '{{' CommaBIds DoubleCloseBrace { map (DomainFree (setArgInfoHiding Instance defaultArgInfo) . mkBoundName_) $2 }
     | '.' '{' CommaBIds '}' { map (DomainFree Hidden Irrelevant . mkBoundName_) $3 }
     | '.' '{{' CommaBIds DoubleCloseBrace { map (DomainFree Instance Irrelevant . mkBoundName_) $3 }
     | '..' '{' CommaBIds '}' { map (DomainFree Hidden NonStrict . mkBoundName_) $3 }
@@ -761,16 +764,16 @@ DomainFreeBinding
 -- A domain free binding is either x or {x1 .. xn}
 DomainFreeBindingAbsurd :: { Either [LamBinding] [Expr]}
 DomainFreeBindingAbsurd
-    : BId		{ Left [DomainFree NotHidden Relevant $ mkBoundName_ $1]  }
-    | '.' BId		{ Left [DomainFree NotHidden Irrelevant $ mkBoundName_ $2]  }
-    | '..' BId		{ Left [DomainFree NotHidden NonStrict $ mkBoundName_ $2]  }
+    : BId		{ Left [DomainFree defaultArgInfo $ mkBoundName_ $1]  }
+    | '.' BId		{ Left [DomainFree (setArgInfoRelevance Irrelevant $ defaultArgInfo) $ mkBoundName_ $2]  }
+    | '..' BId		{ Left [DomainFree (setArgInfoRelevance NonStrict $ defaultArgInfo) $ mkBoundName_ $2]  }
     | '{' CommaBIdAndAbsurds '}'
-         { either (Left . map (DomainFree Hidden Relevant . mkBoundName_)) Right $2 }
-    | '{{' CommaBIds DoubleCloseBrace { Left $ map (DomainFree Instance Relevant . mkBoundName_) $2 }
-    | '.' '{' CommaBIds '}' { Left $ map (DomainFree Hidden Irrelevant . mkBoundName_) $3 }
-    | '.' '{{' CommaBIds DoubleCloseBrace { Left $ map (DomainFree Instance Irrelevant . mkBoundName_) $3 }
-    | '..' '{' CommaBIds '}' { Left $ map (DomainFree Hidden NonStrict . mkBoundName_) $3 }
-    | '..' '{{' CommaBIds DoubleCloseBrace { Left $ map (DomainFree Instance NonStrict . mkBoundName_) $3 }
+         { either (Left . map (DomainFree (setArgInfoHiding Hidden $ defaultArgInfo) . mkBoundName_)) Right $2 }
+    | '{{' CommaBIds DoubleCloseBrace { Left $ map (DomainFree (setArgInfoHiding Instance $ defaultArgInfo) . mkBoundName_) $2 }
+    | '.' '{' CommaBIds '}' { Left $ map (DomainFree (setArgInfoHiding Hidden $ setArgInfoRelevance Irrelevant $ defaultArgInfo) . mkBoundName_) $3 }
+    | '.' '{{' CommaBIds DoubleCloseBrace { Left $ map (DomainFree (setArgInfoHiding Instance $ setArgInfoRelevance Irrelevant $ defaultArgInfo) . mkBoundName_) $3 }
+    | '..' '{' CommaBIds '}' { Left $ map (DomainFree (setArgInfoHiding Hidden $ setArgInfoRelevance NonStrict $ defaultArgInfo) . mkBoundName_) $3 }
+    | '..' '{{' CommaBIds DoubleCloseBrace { Left $ map (DomainFree  (setArgInfoHiding Instance $ setArgInfoRelevance NonStrict $ defaultArgInfo) . mkBoundName_) $3 }
 
 
 {--------------------------------------------------------------------------
@@ -916,16 +919,16 @@ Declaration
 -- Type signatures of the form "n1 n2 n3 ... : Type", with at least
 -- one bound name.
 TypeSigs :: { [Declaration] }
-TypeSigs : SpaceIds ':' Expr { map (flip (TypeSig Relevant) $3) $1 }
+TypeSigs : SpaceIds ':' Expr { map (flip (TypeSig defaultArgInfo) $3) $1 }
 
 RelTypeSigs :: { [Declaration] }
-RelTypeSigs : MaybeDottedIds ':' Expr { map (\ (Arg _ rel x) -> TypeSig rel x $3) $1 }
+RelTypeSigs : MaybeDottedIds ':' Expr { map (\ (Common.Arg info x) -> TypeSig info x $3) $1 }
 
 -- A variant of TypeSigs where any sub-sequence of names can be marked
 -- as hidden or irrelevant using braces and dots:
 -- {n1 .n2} n3 .n4 {n5} .{n6 n7} ... : Type.
 ArgTypeSigs :: { [Arg Declaration] }
-ArgTypeSigs : ArgIds ':' Expr { map (fmap (flip (TypeSig Relevant) $3)) $1 }
+ArgTypeSigs : ArgIds ':' Expr { map (fmap (flip (TypeSig defaultArgInfo) $3)) $1 }
 
 -- Function declarations. The left hand side is parsed as an expression to allow
 -- declarations like 'x::xs ++ ys = e', when '::' has higher precedence than '++'.
@@ -987,7 +990,7 @@ Infix : 'infix'  Int SpaceBIds  { Infix (NonAssoc (getRange ($1,$3)) $2) $3 }
 -- Field declarations.
 Fields :: { [Declaration] }
 Fields : 'field' ArgTypeSignatures
-            { let toField (Arg h rel (TypeSig _ x t)) = Field x (Arg h rel t) in map toField $2 }
+            { let toField (Common.Arg info (TypeSig _ x t)) = Field x (Common.Arg info t) in map toField $2 }
 --REM            { let toField (h, TypeSig x t) = Field h x t in map toField $2 }
 
 -- Mutually recursive declarations.
@@ -1398,7 +1401,7 @@ forallPi bs e = Pi (map addType bs) e
 -- | Converts lambda bindings to typed bindings.
 addType :: LamBinding -> TypedBindings
 addType (DomainFull b)	 = b
-addType (DomainFree h rel x) = TypedBindings r $ Arg h rel $ TBind r [x] $ Underscore r Nothing
+addType (DomainFree info x) = TypedBindings r $ Common.Arg info $ TBind r [x] $ Underscore r Nothing
   where r = getRange x
 
 -- | Check that an import directive doesn't contain repeated names
@@ -1513,9 +1516,9 @@ parsePanic s = parseError $ "Internal parser error: " ++ s ++ ". Please report t
 data RHSOrTypeSigs = JustRHS RHS
                    | TypeSigsRHS Expr
 
-namesOfPattern :: Pattern -> Maybe [(Relevance, Name)]
-namesOfPattern (IdentP (QName i))         = Just [(Relevant, i)]
-namesOfPattern (DotP _ (Ident (QName i))) = Just [(Irrelevant, i)]
+namesOfPattern :: Pattern -> Maybe [(C.ArgInfo, Name)]
+namesOfPattern (IdentP (QName i))         = Just [(defaultArgInfo, i)]
+namesOfPattern (DotP _ (Ident (QName i))) = Just [(setArgInfoRelevance Irrelevant defaultArgInfo, i)]
 namesOfPattern (RawAppP _ ps)             = fmap concat $ mapM namesOfPattern ps
 namesOfPattern _                          = Nothing
 

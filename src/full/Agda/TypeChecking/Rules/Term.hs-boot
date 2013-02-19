@@ -3,7 +3,7 @@ module Agda.TypeChecking.Rules.Term where
 
 import qualified Agda.Syntax.Abstract as A
 import Agda.Syntax.Internal
-import Agda.Syntax.Common
+import Agda.Syntax.Common hiding (Arg, Dom, NamedArg)
 import Agda.Syntax.Position
 import Agda.TypeChecking.Monad.Base
 import Control.Monad.Error (ErrorT)

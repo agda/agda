@@ -41,6 +41,7 @@ coreBuiltins :: [BuiltinInfo]
 coreBuiltins = map (\(x,z) -> BuiltinInfo x z)
   [ (builtinList               |-> BuiltinData (tset --> tset) [builtinNil, builtinCons])
   , (builtinArg                |-> BuiltinData (tset --> tset) [builtinArgArg])
+  , (builtinArgInfo            |-> BuiltinData tset [builtinArgArgInfo])
   , (builtinBool               |-> BuiltinData tset [builtinTrue, builtinFalse])
   , (builtinNat                |-> BuiltinData tset [builtinZero, builtinSuc])
   , (builtinLevel              |-> builtinPostulate tset)
@@ -74,7 +75,8 @@ coreBuiltins = map (\(x,z) -> BuiltinInfo x z)
   , (builtinSuc                |-> BuiltinDataCons (tnat --> tnat))
   , (builtinTrue               |-> BuiltinDataCons tbool)
   , (builtinFalse              |-> BuiltinDataCons tbool)
-  , (builtinArgArg             |-> BuiltinDataCons (hPi "A" tset (thiding --> trelevance --> tv0 --> targ tv0)))
+  , (builtinArgArg             |-> BuiltinDataCons (hPi "A" tset (targinfo --> tv0 --> targ tv0)))
+  , (builtinArgArgInfo         |-> BuiltinDataCons (thiding --> trelevance --> targinfo))
   , (builtinAgdaTypeEl         |-> BuiltinDataCons (tsort --> tterm --> ttype))
   , (builtinAgdaTermVar        |-> BuiltinDataCons (tnat --> targs --> tterm))
   , (builtinAgdaTermLam        |-> BuiltinDataCons (thiding --> tterm --> tterm))
@@ -150,6 +152,8 @@ coreBuiltins = map (\(x,z) -> BuiltinInfo x z)
         tbool      = el primBool
         thiding    = el primHiding
         trelevance = el primRelevance
+--        tcolors    = el (list primAgdaTerm) -- TODO guilhem
+        targinfo   = el primArgInfo
         ttype      = el primAgdaType
         tsort      = el primAgdaSort
         tdefn      = el primAgdaDefinition

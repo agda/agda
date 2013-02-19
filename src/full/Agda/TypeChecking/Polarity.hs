@@ -1,4 +1,4 @@
-{-# LANGUAGE CPP, PatternGuards #-}
+{-# LANGUAGE CPP, PatternGuards, FlexibleInstances #-}
 module Agda.TypeChecking.Polarity where
 
 import Control.Applicative
@@ -8,7 +8,7 @@ import Data.List
 import Data.Traversable (traverse)
 
 import Agda.Syntax.Common
-import Agda.Syntax.Internal
+import Agda.Syntax.Internal as I
 
 import Agda.TypeChecking.Monad
 import Agda.TypeChecking.Pretty
@@ -256,7 +256,7 @@ sizePolarity d pol0 = do
           (parTel, ixTel) = genericSplitAt np $ telToList tel
       case ixTel of
         []                 -> exit  -- No size index
-        Dom _ _ (_, a) : _ -> ifM ((/= Just BoundedNo) <$> isSizeType a) exit $ do
+        Dom _ (_, a) : _ -> ifM ((/= Just BoundedNo) <$> isSizeType a) exit $ do
           -- we assume the size index to be 'Covariant' ...
           let pol   = genericTake np pol0
               polCo = pol ++ [Covariant]
@@ -303,7 +303,7 @@ checkSizeIndex np i a =
           -> return $ and [ excl, i == j ]
         _ -> return False
       where
-        (pars, Arg _ _ ix : ixs) = genericSplitAt np args
+        (pars, Arg _ ix : ixs) = genericSplitAt np args
     _ -> __IMPOSSIBLE__
 
 -- | @polarities i a@ computes the list of polarities of de Bruijn index @i@
@@ -320,10 +320,10 @@ polarity i x = do
     [] -> return Nonvariant
     ps -> return $ foldr1 (/\) ps
 
-instance HasPolarity a => HasPolarity (Arg a) where
+instance HasPolarity a => HasPolarity (I.Arg a) where
   polarities i = polarities i . unArg
 
-instance HasPolarity a => HasPolarity (Dom a) where
+instance HasPolarity a => HasPolarity (I.Dom a) where
   polarities i = polarities i . unDom
 
 instance HasPolarity a => HasPolarity (Abs a) where

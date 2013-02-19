@@ -416,7 +416,7 @@ contextOfMeta ii norm = do
 	visible _	     = __IMPOSSIBLE__
         reifyContext xs = reverse <$> zipWithM out [1..] xs
 
-        out i (Dom h _ (x, t)) = escapeContext i $ do
+        out i (Dom _ (x, t)) = escapeContext i $ do
           t' <- reify =<< rewrite norm t
           return $ OfType x t'
 
@@ -478,7 +478,7 @@ introTactic pmLambda ii = do
      `catchError` \_ -> return []
     _ -> __IMPOSSIBLE__
   where
-    conName [Arg _ _ (I.ConP c _ _)] = [c]
+    conName [Arg _ (I.ConP c _ _)] = [c]
     conName [_]                      = []
     conName _                        = __IMPOSSIBLE__
 
@@ -493,7 +493,7 @@ introTactic pmLambda ii = do
             okHiding    = if allHidden then const True else okHiding0
         vars <- -- setShowImplicitArguments (imp || allHidden) $
                 (if allHidden then withShowAllArguments else id) $
-                  mapM showTCM [ Arg h Relevant (var i)
+                  mapM showTCM [ setArgHiding h $ defaultArg $ var i :: I.Arg Term
                                | (h, i) <- zip hs $ downFrom n
                                , okHiding h
                                ]
@@ -519,7 +519,7 @@ introTactic pmLambda ii = do
       hfs <- getRecordFieldNames d
       fs <- ifM showImplicitArguments
             (return $ map unArg hfs)
-            (return [ f | (Arg NotHidden _ f) <- hfs ])
+            (return [ unArg a | a <- hfs, argHiding a == NotHidden ])
       return
         [ concat $
             "record {" :

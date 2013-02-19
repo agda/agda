@@ -5,7 +5,8 @@ module Agda.TypeChecking.Telescope where
 import Control.Applicative
 import Data.List
 
-import Agda.Syntax.Common
+import Agda.Syntax.Common hiding (Arg, Dom, NamedArg, ArgInfo)
+import qualified Agda.Syntax.Common as Common
 import Agda.Syntax.Internal
 
 import Agda.TypeChecking.Monad
@@ -77,7 +78,7 @@ teleArgNames :: Telescope -> [Arg String]
 teleArgNames = map (argFromDom . fmap fst) . telToList
 
 teleArgs :: Telescope -> Args
-teleArgs tel = [ Arg h r (var i) | (i, Dom h r _) <- zip (downFrom $ size l) l ]
+teleArgs tel = [ Common.Arg info (var i) | (i, Common.Dom info _) <- zip (downFrom $ size l) l ]
   where l = telToList tel
 
 -- | A telescope split in two.

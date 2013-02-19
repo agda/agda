@@ -15,6 +15,7 @@ module Agda.Syntax.Concrete
     , LamBinding(..)
     , TypedBindings(..)
     , TypedBinding(..)
+    , ColoredTypedBinding(..)
     , BoundName(..), mkBoundName_
     , Telescope -- (..)
       -- * Declarations
@@ -34,6 +35,12 @@ module Agda.Syntax.Concrete
     , topLevelModuleName
     -- * Pattern tools
     , patternHead, patternNames
+    -- * Concrete instances
+    , Color
+    , Arg
+    , Dom
+    , NamedArg
+    , ArgInfo
     )
     where
 
@@ -41,7 +48,8 @@ import Data.Typeable (Typeable)
 import Data.Foldable hiding (concatMap)
 import Data.Traversable
 import Agda.Syntax.Position
-import Agda.Syntax.Common
+import Agda.Syntax.Common hiding (Arg, Dom, NamedArg, ArgInfo)
+import qualified Agda.Syntax.Common as Common
 import Agda.Syntax.Fixity
 import Agda.Syntax.Notation
 import Agda.Syntax.Literal
@@ -50,6 +58,12 @@ import Agda.Syntax.Concrete.Name
 
 import Agda.Utils.Impossible
 #include "../undefined.h"
+
+type Color      = Expr
+type Arg a      = Common.Arg Color a
+type Dom a      = Common.Dom Color a
+type NamedArg a = Common.NamedArg Color a
+type ArgInfo    = Common.ArgInfo Color
 
 data OpApp e
         = SyntaxBindingLambda !Range [LamBinding] e -- ^ an abstraction inside a special syntax declaration (see Issue 358 why we introduce this).
@@ -115,8 +129,8 @@ data Pattern
 
 -- | A lambda binding is either domain free or typed.
 data LamBinding
-	= DomainFree Hiding Relevance BoundName -- ^ . @x@ or @{x}@ or @.x@ or @.{x}@ or @{.x}@
-	| DomainFull TypedBindings              -- ^ . @(xs : e)@ or @{xs : e}@
+	= DomainFree ArgInfo BoundName -- ^ . @x@ or @{x}@ or @.x@ or @.{x}@ or @{.x}@
+	| DomainFull TypedBindings     -- ^ . @(xs : e)@ or @{xs : e}@
     deriving (Typeable)
 
 
@@ -141,6 +155,8 @@ data TypedBinding
 	| TNoBind Expr		    -- No binding @A@, equivalent to @_ : A@.
     deriving (Typeable)
 
+-- | Color a TypeBinding. Used by Pretty.
+data ColoredTypedBinding = WithColors [Color] TypedBinding
 
 -- | A telescope is a sequence of typed bindings. Bound variables are in scope
 --   in later types.
@@ -257,7 +273,8 @@ type Constructor = TypeSignature
 -}
 
 data Declaration
-	= TypeSig Relevance Name Expr -- ^ Axioms and functions can be irrelevant.
+	= TypeSig ArgInfo Name Expr
+        -- ^ Axioms and functions can be irrelevant. (Hiding should be NotHidden)
         | Field Name (Arg Expr) -- ^ Record field, can be hidden and/or irrelevant.
 	| FunClause LHS RHS WhereClause
 	| DataSig     !Range Induction Name [LamBinding] Expr -- ^ lone data signature in mutual block
@@ -334,9 +351,9 @@ appView (App r e1 e2) = vApp (appView e1) e2
 	vApp (AppView e es) arg = AppView e (es ++ [arg])
 appView (RawApp _ (e:es)) = AppView e $ map arg es
     where
-	arg (HiddenArg   _ e) = Arg Hidden    Relevant e
-	arg (InstanceArg _ e) = Arg Instance  Relevant e
-	arg e		      = Arg NotHidden Relevant (unnamed e)
+	arg (HiddenArg   _ e) = noColorArg Hidden    Relevant e
+	arg (InstanceArg _ e) = noColorArg Instance  Relevant e
+	arg e		      = noColorArg NotHidden Relevant (unnamed e)
 appView e = AppView e []
 
 {--------------------------------------------------------------------------
@@ -436,8 +453,8 @@ instance HasRange TypedBinding where
     getRange (TNoBind e)   = getRange e
 
 instance HasRange LamBinding where
-    getRange (DomainFree _ _ x)	= getRange x
-    getRange (DomainFull b)	= getRange b
+    getRange (DomainFree _ x) = getRange x
+    getRange (DomainFull b)   = getRange b
 
 instance HasRange BoundName where
   getRange = getRange . boundName
@@ -537,7 +554,7 @@ instance KillRange BoundName where
   killRange (BName n f) = killRange2 BName n f
 
 instance KillRange Declaration where
-  killRange (TypeSig r n e)         = killRange2 (TypeSig r) n e
+  killRange (TypeSig i n e)         = killRange2 (TypeSig i) n e
   killRange (Field n a)             = killRange2 Field n a
   killRange (FunClause l r w)       = killRange3 FunClause l r w
   killRange (DataSig _ i n l e)     = killRange4 (DataSig noRange) i n l e
@@ -600,8 +617,9 @@ instance KillRange ImportedName where
   killRange (ImportedName   n) = killRange1 ImportedName   n
 
 instance KillRange LamBinding where
-  killRange (DomainFree h r b) = killRange2 (\h -> DomainFree h r) h b
-  killRange (DomainFull t)     = killRange1 DomainFull t
+  killRange (DomainFree i b) = killRange2 (\h -> DomainFree $ i {argInfoHiding = h})
+                                          (argInfoHiding i) b
+  killRange (DomainFull t)   = killRange1 DomainFull t
 
 instance KillRange LHS where
   killRange (LHS p ps r w)     = killRange4 LHS p ps r w

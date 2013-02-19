@@ -13,7 +13,7 @@ module UnquoteSetOmega where
 
 -- while building the syntax of ∀ ℓ → Set ℓ (of type Setω) is harmless
 `∀ℓ→Setℓ : Term
-`∀ℓ→Setℓ = pi (arg visible relevant ``Level) (el (lit 0) (sort (set (var 0 []))))
+`∀ℓ→Setℓ = pi (arg (arginfo visible relevant) ``Level) (el (lit 0) (sort (set (var 0 []))))
 
 -- unquoting it is harmfull
 ∀ℓ→Setℓ = unquote `∀ℓ→Setℓ

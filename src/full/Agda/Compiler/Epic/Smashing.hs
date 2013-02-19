@@ -75,7 +75,7 @@ xs +++ ys = unflattenTel names $ map (raise (size ys)) (flattenTel xs) ++ flatte
   where names = teleNames xs ++ teleNames ys
 
 -- | Can a datatype be inferred? If so, return the only possible value.
-inferable :: Set QName -> QName -> [Arg Term] ->  Compile TCM (Maybe Expr)
+inferable :: Set QName -> QName -> [SI.Arg Term] ->  Compile TCM (Maybe Expr)
 inferable visited dat args | dat `S.member` visited = return Nothing
 inferable visited dat args = do
   lift $ reportSLn "epic.smashing" 10 $ "  inferring:" ++ (show dat)

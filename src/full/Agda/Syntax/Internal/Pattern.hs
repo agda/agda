@@ -1,7 +1,9 @@
+{-# FlexibleInstances #-}
 
 module Agda.Syntax.Internal.Pattern where
 
-import Agda.Syntax.Common
+import Agda.Syntax.Common hiding (Arg, Dom, NamedArg)
+import qualified Agda.Syntax.Common as Common
 import Agda.Syntax.Internal
 import Agda.Utils.Tuple
 
@@ -30,7 +32,8 @@ allHolesWithContents []       = []
 allHolesWithContents (p : ps) = map left phs ++ map (right p) (allHolesWithContents ps)
   where
     phs :: [(Pattern, Arg OneHolePattern)]
-    phs = map (id -*- Arg (argHiding p) Relevant) (holes $ unArg p)
+    phs = map (id -*- setArgHiding (argHiding p) . defaultArg)
+              (holes $ unArg p)
 
     holes :: Pattern -> [(Pattern, OneHolePattern)]
     holes p@(VarP _)     = [(p, Hole)]

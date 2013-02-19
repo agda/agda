@@ -24,7 +24,8 @@ import Data.Traversable (traverse)
 
 import Debug.Trace (trace)
 import Agda.Syntax.Concrete
-import Agda.Syntax.Common
+import Agda.Syntax.Common hiding (Arg, Dom, NamedArg, ArgInfo)
+import qualified Agda.Syntax.Common as Common
 import Agda.Syntax.Position
 import Agda.Syntax.Fixity
 import Agda.Syntax.Notation
@@ -53,8 +54,8 @@ import Debug.Trace
     modifiers have been distributed to the individual declarations.
 -}
 data NiceDeclaration
-        = Axiom Range Fixity' Access Relevance Name Expr
-            -- ^ Axioms and functions can be declared irrelevant.
+        = Axiom Range Fixity' Access ArgInfo Name Expr
+            -- ^ Axioms and functions can be declared irrelevant. (Hiding should be NotHidden)
         | NiceField Range Fixity' Access IsAbstract Name (Arg Expr)
         | PrimitiveFunction Range Fixity' Access IsAbstract Name Expr
         | NiceMutual Range TerminationCheck [NiceDeclaration]
@@ -68,7 +69,7 @@ data NiceDeclaration
         | NiceFunClause Range Access IsAbstract TerminationCheck Declaration
           -- ^ a uncategorized function clause, could be a function clause
           --   without type signature or a pattern lhs (e.g. for irrefutable let)x
-        | FunSig Range Fixity' Access Relevance TerminationCheck Name Expr
+        | FunSig Range Fixity' Access ArgInfo TerminationCheck Name Expr
         | FunDef  Range [Declaration] Fixity' IsAbstract TerminationCheck Name [Clause] -- ^ block of function clauses (we have seen the type signature before)
         | DataDef Range Fixity' IsAbstract Name [LamBinding] [NiceConstructor]
         | RecDef Range Fixity' IsAbstract Name (Maybe Induction) (Maybe (ThingWithFixity Name)) [LamBinding] [NiceDeclaration]
@@ -294,9 +295,9 @@ declKind _                            = OtherDecl
 -- | Compute visible parameters of a data or record signature or definition.
 parameters :: [LamBinding] -> Params
 parameters = List.concat . List.map numP where
-  numP (DomainFree h _ _) = [h]
-  numP (DomainFull (TypedBindings _ (Arg h _ (TBind _ xs _)))) = List.replicate (length xs) h
-  numP (DomainFull (TypedBindings _ (Arg _ _ (TNoBind{})))) =  __IMPOSSIBLE__
+  numP (DomainFree i _) = [argInfoHiding i]
+  numP (DomainFull (TypedBindings _ (Common.Arg i (TBind _ xs _)))) = List.replicate (length xs) $ argInfoHiding i
+  numP (DomainFull (TypedBindings _ (Common.Arg _ (TNoBind{}))))    = __IMPOSSIBLE__
 
 {- OLD:
 
@@ -478,7 +479,7 @@ niceDeclarations ds = do
               -- Treat it as a function clause without a type signature.
               LHS p [] _ _ | IdentP (QName x) <- removeSingletonRawAppP p -> do
                 ds <- nice ds
-                d  <- mkFunDef Relevant termCheck x Nothing [d] -- fun def without type signature is relevant
+                d  <- mkFunDef defaultArgInfo termCheck x Nothing [d] -- fun def without type signature is relevant
                 return $ d ++ ds
               -- Subcase: The lhs is a proper pattern.
               -- This could be a let-pattern binding. Pass it on.
@@ -501,12 +502,12 @@ niceDeclarations ds = do
     niceFunClause _ _ _ = __IMPOSSIBLE__
 
     niceTypeSig :: TerminationCheck -> Declaration -> [Declaration] -> Nice [NiceDeclaration]
-    niceTypeSig termCheck d@(TypeSig rel x t) ds = do
+    niceTypeSig termCheck d@(TypeSig info x t) ds = do
       fx <- getFixity x
       -- register x as lone type signature, to recognize clauses later
       addLoneSig (FunName termCheck) x
       ds <- nice ds
-      return $ FunSig (getRange d) fx PublicAccess rel termCheck x t : ds
+      return $ FunSig (getRange d) fx PublicAccess info termCheck x t : ds
     niceTypeSig _ _ _ = __IMPOSSIBLE__
 
     -- We could add a default type signature here, but at the moment we can't
@@ -528,10 +529,10 @@ niceDeclarations ds = do
          [mkSig (fuseRange x t) f PublicAccess x tel t | Just t <- [mt] ] ++
          [mkDef (getRange x) f ConcreteDef x (concatMap dropType tel) ds | Just ds <- [mds] ]
       where
-        dropType (DomainFull (TypedBindings r (Arg h rel TNoBind{}))) =
-          [DomainFree h rel $ mkBoundName_ $ noName r]
-        dropType (DomainFull (TypedBindings r (Arg h rel (TBind _ xs _)))) =
-          map (DomainFree h rel) xs
+        dropType (DomainFull (TypedBindings r (Common.Arg i TNoBind{}))) =
+          [DomainFree i $ mkBoundName_ $ noName r]
+        dropType (DomainFull (TypedBindings r (Common.Arg i (TBind _ xs _)))) =
+          map (DomainFree i) xs
         dropType b@DomainFree{} = [b]
 
     -- Translate axioms
@@ -552,10 +553,10 @@ niceDeclarations ds = do
     toPrim _                     = __IMPOSSIBLE__
 
     -- Create a function definition.
-    mkFunDef rel termCheck x mt ds0 = do
+    mkFunDef info termCheck x mt ds0 = do
       cs <- mkClauses x $ expandEllipsis ds0
       f  <- getFixity x
-      return [ FunSig (fuseRange x t) f PublicAccess rel termCheck x t
+      return [ FunSig (fuseRange x t) f PublicAccess info termCheck x t
              , FunDef (getRange ds0) ds0 f ConcreteDef termCheck x cs ]
         where
           t = case mt of
@@ -908,7 +909,7 @@ notSoNiceDeclaration d =
     case d of
       Axiom _ _ _ rel x e              -> TypeSig rel x e
       NiceField _ _ _ _ x argt         -> Field x argt
-      PrimitiveFunction r _ _ _ x e    -> Primitive r [TypeSig Relevant x e]
+      PrimitiveFunction r _ _ _ x e    -> Primitive r [TypeSig defaultArgInfo x e]
       NiceMutual r _ ds                -> Mutual r $ map notSoNiceDeclaration ds
       NiceModule r _ _ x tel ds        -> Module r x tel ds
       NiceModuleMacro r _ x ma o dir   -> ModuleMacro r x ma o dir

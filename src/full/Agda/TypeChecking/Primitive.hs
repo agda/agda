@@ -16,7 +16,7 @@ import Agda.Interaction.Options
 
 import Agda.Syntax.Position
 import Agda.Syntax.Common hiding (Nat)
-import Agda.Syntax.Internal
+import Agda.Syntax.Internal as I
 import Agda.Syntax.Literal
 import Agda.Syntax.Concrete.Pretty ()
 import Agda.Syntax.Abstract.Name
@@ -147,7 +147,7 @@ instance (PrimTerm a, ToTerm a) => ToTerm [a] where
 
 -- From Haskell value to Agda term
 
-type FromTermFunction a = Arg Term -> TCM (Reduced (MaybeReduced (Arg Term)) a)
+type FromTermFunction a = I.Arg Term -> TCM (Reduced (MaybeReduced (I.Arg Term)) a)
 
 class FromTerm a where
     fromTerm :: TCM (FromTermFunction a)
@@ -222,7 +222,10 @@ instance (ToTerm a, FromTerm a) => FromTerm [a] where
       mkList nil cons toA fromA t = do
         b <- reduceB t
         let t = ignoreBlocking b
-        let arg = Arg (argHiding t) (argRelevance t)
+        let arg = Arg (ArgInfo { argInfoHiding = argHiding t
+                               , argInfoRelevance = argRelevance t
+                               , argInfoColors = argColors t
+                               })
         case unArg t of
           Con c []
             | c == nil  -> return $ YesReduction []
@@ -273,7 +276,7 @@ primTrustMe = do
             primEquality <#> varM 3 <#> varM 2 <@> varM 1 <@> varM 0
   Con rf [] <- ignoreSharing <$> primRefl
   n         <- conPars . theDef <$> getConstInfo rf
-  let refl x | n == 2    = Con rf [Arg Hidden Forced x]
+  let refl x | n == 2    = Con rf [setArgRelevance Forced $ hide $ defaultArg x]
              | n == 3    = Con rf []
              | otherwise = __IMPOSSIBLE__
   return $ PrimImpl t $ PrimFun __IMPOSSIBLE__ 4 $ \ts ->
@@ -378,7 +381,7 @@ mkPrimFun2 f = do
           redBind (toA v)
               (\v' -> [v', notReduced w]) $ \x ->
           redBind (toB w)
-              (\w' -> [ reduced $ notBlocked $ Arg (argHiding v) (argRelevance v) (fromA x)
+              (\w' -> [ reduced $ notBlocked $ Arg (argInfo v) (fromA x)
                       , w']) $ \y ->
           redReturn $ fromC $ f x y
         _ -> __IMPOSSIBLE__
@@ -398,7 +401,7 @@ mkPrimFun4 f = do
     t <- primType f
     return $ PrimImpl t $ PrimFun __IMPOSSIBLE__ 4 $ \ts ->
       let argFrom fromX a x =
-            reduced $ notBlocked $ Arg (argHiding a) (argRelevance a) (fromX x)
+            reduced $ notBlocked $ Arg (argInfo a) (fromX x)
       in case ts of
         [a,b,c,d] -> liftTCM $
           redBind (toA a)
@@ -425,7 +428,7 @@ infixr 4 -->
 a --> b = do
     a' <- a
     b' <- b
-    return $ El (getSort a' `sLub` getSort b') $ Pi (Dom NotHidden Relevant a') (NoAbs "_" b')
+    return $ El (getSort a' `sLub` getSort b') $ Pi (Dom defaultArgInfo a') (NoAbs "_" b')
 
 infixr 4 .-->
 
@@ -433,19 +436,20 @@ infixr 4 .-->
 a .--> b = do
     a' <- a
     b' <- b
-    return $ El (getSort a' `sLub` getSort b') $ Pi (Dom NotHidden Irrelevant a') (NoAbs "_" b')
+    return $ El (getSort a' `sLub` getSort b') $
+             Pi (Dom (setArgInfoRelevance Irrelevant defaultArgInfo) a') (NoAbs "_" b')
 
-gpi :: Hiding -> Relevance -> String -> TCM Type -> TCM Type -> TCM Type
-gpi h r name a b = do
+gpi :: I.ArgInfo -> String -> TCM Type -> TCM Type -> TCM Type
+gpi info name a b = do
   a <- a
   x <- freshName_ name
-  b <- addCtx x (Dom h r a) b
+  b <- addCtx x (Dom info a) b
   return $ El (getSort a `dLub` Abs name (getSort b))
-              (Pi (Dom h r a) (Abs name b))
+              (Pi (Dom info a) (Abs name b))
 
 hPi, nPi :: String -> TCM Type -> TCM Type -> TCM Type
-hPi = gpi Hidden Relevant
-nPi = gpi NotHidden Relevant
+hPi = gpi $ setArgInfoHiding Hidden $ defaultArgInfo
+nPi = gpi defaultArgInfo
 
 varM :: Int -> TCM Term
 varM = return . var
@@ -456,7 +460,7 @@ gApply :: Hiding -> TCM Term -> TCM Term -> TCM Term
 gApply h a b = do
     x <- a
     y <- b
-    return $ x `apply` [Arg h Relevant y]
+    return $ x `apply` [Arg (setArgInfoHiding h defaultArgInfo) y]
 
 (<@>),(<#>) :: TCM Term -> TCM Term -> TCM Term
 (<@>) = gApply NotHidden
@@ -474,15 +478,15 @@ el t = El (mkType 0) <$> t
 tset :: TCM Type
 tset = return $ sort (mkType 0)
 
--- | Abbreviation: @argN = 'Arg' 'NotHidden' 'Relevant'@.
+-- | Abbreviation: @argN = 'Arg' 'defaultArgInfo'@.
 
-argN = Arg NotHidden Relevant
-domN = Dom NotHidden Relevant
+argN = Arg defaultArgInfo
+domN = Dom defaultArgInfo
 
--- | Abbreviation: @argH = 'Arg' 'Hidden' 'Relevant'@.
+-- | Abbreviation: @argH = 'hide' 'Arg' 'defaultArgInfo'@.
 
-argH = Arg Hidden Relevant
-domH = Dom Hidden Relevant
+argH = Arg $ setArgInfoHiding Hidden defaultArgInfo
+domH = Dom $ setArgInfoHiding Hidden defaultArgInfo
 
 ---------------------------------------------------------------------------
 -- * The actual primitive functions

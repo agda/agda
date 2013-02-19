@@ -8,7 +8,7 @@ import qualified Data.List as List
 import Control.Applicative
 import Control.Monad
 
-import Agda.Syntax.Internal
+import Agda.Syntax.Internal as I
 import Agda.Syntax.Internal.Pattern
 import qualified Agda.Syntax.Abstract as A
 import Agda.Syntax.Common
@@ -51,7 +51,7 @@ import Agda.Utils.Impossible
 -- | Compute the set of flexible patterns in a list of patterns. The result is
 --   the deBruijn indices of the flexible patterns. A pattern is flexible if it
 --   is dotted or implicit.
-flexiblePatterns :: [NamedArg A.Pattern] -> TCM FlexibleVars
+flexiblePatterns :: [A.NamedArg A.Pattern] -> TCM FlexibleVars
 flexiblePatterns nps = map fst <$> filterM (flexible . snd) (zip [0..] $ reverse ps)
   where
     ps = map namedArg nps
@@ -64,7 +64,7 @@ flexiblePatterns nps = map fst <$> filterM (flexible . snd) (zip [0..] $ reverse
     flexible _               = return False
 
 -- | Compute the dot pattern instantiations.
-dotPatternInsts :: [NamedArg A.Pattern] -> Substitution -> [Dom Type] -> TCM [DotPatternInst]
+dotPatternInsts :: [A.NamedArg A.Pattern] -> Substitution -> [I.Dom Type] -> TCM [DotPatternInst]
 dotPatternInsts ps s as = dpi (map namedArg ps) (reverse s) as
   where
     dpi (_ : _)  []            _       = __IMPOSSIBLE__
@@ -92,7 +92,7 @@ dotPatternInsts ps s as = dpi (map namedArg ps) (reverse s) as
 
         _           -> __IMPOSSIBLE__
 
-instantiatePattern :: Substitution -> Permutation -> [Arg Pattern] -> [Arg Pattern]
+instantiatePattern :: Substitution -> Permutation -> [I.Arg Pattern] -> [I.Arg Pattern]
 instantiatePattern sub perm ps
   | length sub /= length hps = error $ unlines [ "instantiatePattern:"
                                                , "  sub  = " ++ show sub
@@ -215,7 +215,7 @@ noShadowingOfConstructors mkCall problem =
 
 -- | Check that a dot pattern matches it's instantiation.
 checkDotPattern :: DotPatternInst -> TCM ()
-checkDotPattern (DPI e v (Dom h r a)) =
+checkDotPattern (DPI e v (Dom info a)) =
   traceCall (CheckDotPattern e v) $ do
   reportSDoc "tc.lhs.dot" 15 $
     sep [ text "checking dot pattern"
@@ -223,7 +223,7 @@ checkDotPattern (DPI e v (Dom h r a)) =
         , nest 2 $ text "=" <+> prettyTCM v
         , nest 2 $ text ":" <+> prettyTCM a
         ]
-  applyRelevanceToContext r $ do
+  applyRelevanceToContext (argInfoRelevance info) $ do
     u <- checkExpr e a
     -- Should be ok to do noConstraints here
     noConstraints $ equalTerm a u v
@@ -233,7 +233,7 @@ checkDotPattern (DPI e v (Dom h r a)) =
 --   the same size as the pattern list.
 --   There could also be 'A.ConP's resulting from eta expanded implicit record
 --   patterns.
-bindLHSVars :: [NamedArg A.Pattern] -> Telescope -> TCM a -> TCM a
+bindLHSVars :: [A.NamedArg A.Pattern] -> Telescope -> TCM a -> TCM a
 bindLHSVars []       (ExtendTel _ _)   _   = __IMPOSSIBLE__
 bindLHSVars (_ : _)   EmptyTel         _   = __IMPOSSIBLE__
 bindLHSVars []        EmptyTel         ret = ret
@@ -251,7 +251,8 @@ bindLHSVars (p : ps) (ExtendTel a tel) ret =
       Def r vs <- reduce (unEl $ unDom a)
       ftel     <- (`apply` vs) <$> getRecordFieldTypes r
       let n   = size ftel
-          eta = Con c [ Var i [] <$ (namedThing <$> q) | (q, i) <- zip qs [n - 1, n - 2..0] ]
+          eta = Con c [ Var i [] <$ (namedThing <$> setArgColors [] q) | (q, i) <- zip qs [n - 1, n - 2..0] ]
+          -- ^ TODO guilhem
       bindLHSVars (qs ++ ps) (ftel `abstract` absApp (raise (size ftel) tel) eta) ret
     A.ConP{}        -> __IMPOSSIBLE__
     A.DefP{}        -> __IMPOSSIBLE__
@@ -274,13 +275,13 @@ bindAsPatterns (AsB x v a : asb) ret = do
     sep [ text ":" <+> prettyTCM a
         , text "=" <+> prettyTCM v
         ]
-  addLetBinding Relevant x v a $ bindAsPatterns asb ret
+  addLetBinding defaultArgInfo x v a $ bindAsPatterns asb ret
 
 -- | Check a LHS. Main function.
 checkLeftHandSide
   :: (Maybe r -> Call)
      -- ^ Trace, e.g. @CheckPatternShadowing clause@
-  -> [NamedArg A.Pattern]
+  -> [A.NamedArg A.Pattern]
      -- ^ The patterns.
   -> Type
      -- ^ The expected type @a = Γ → b@.
@@ -290,7 +291,7 @@ checkLeftHandSide
       -> Telescope      -- Δ : The types of the pattern variables.
       -> S.Substitution -- σ : The patterns in form of a substitution Δ ⊢ σ : Γ
       -> [String]       -- Names for the variables in Δ, for binding the body.
-      -> [Arg Pattern]  -- The patterns in internal syntax.
+      -> [I.Arg Pattern]-- The patterns in internal syntax.
       -> Type           -- The type of the body. Is @bσ@ if @Γ@ is defined.
       -> Permutation    -- The permutation from pattern vars to @Δ@.
       -> TCM a)
@@ -350,7 +351,7 @@ checkLeftHandSide c ps a ret = do
           Left (SplitPanic err) -> __IMPOSSIBLE__
 
           -- Split on literal pattern
-          Right (Split p0 xs (Arg _ _ (LitFocus lit iph hix a)) p1) -> do
+          Right (Split p0 xs (Arg _ (LitFocus lit iph hix a)) p1) -> do
 
             -- plug the hole with a lit pattern
             let ip    = plugHole (LitP lit) iph
@@ -378,7 +379,7 @@ checkLeftHandSide c ps a ret = do
             checkLHS st'
 
           -- Split on constructor pattern
-          Right (Split p0 xs (Arg h rel
+          Right (Split p0 xs (Arg info
                   ( Focus { focusCon      = c
                           , focusConArgs  = qs
                           , focusRange    = r
@@ -395,12 +396,12 @@ checkLeftHandSide c ps a ret = do
                                              (El Prop $ Def d $ vs ++ ws)) $ do
 
             let delta1 = problemTel p0
-            let typeOfSplitVar = Arg h rel a
+            let typeOfSplitVar = Arg info a
 
             reportSDoc "tc.lhs.split" 10 $ sep
               [ text "checking lhs"
               , nest 2 $ text "tel =" <+> prettyTCM (problemTel problem)
-              , nest 2 $ text "rel =" <+> (text $ show rel)
+              , nest 2 $ text "rel =" <+> (text $ show $ argInfoRelevance info)
               ]
 
             reportSDoc "tc.lhs.split" 15 $ sep
@@ -441,7 +442,7 @@ checkLeftHandSide c ps a ret = do
 -}
 
             -- Andreas 2010-09-07  propagate relevance info to new vars
-            gamma' <- return $ fmap (applyRelevance rel) gamma'
+            gamma' <- return $ fmap (applyRelevance $ argInfoRelevance info) gamma'
 {-
             reportSDoc "tc.lhs.top" 20 $ nest 2 $ vcat
               [ text "gamma' =" <+> text (show gamma')
@@ -628,7 +629,7 @@ checkLeftHandSide c ps a ret = do
 
 -- Ensures that we are not performing pattern matching on codata.
 
-noPatternMatchingOnCodata :: [Arg Pattern] -> TCM ()
+noPatternMatchingOnCodata :: [I.Arg Pattern] -> TCM ()
 noPatternMatchingOnCodata = mapM_ (check . unArg)
   where
   check (VarP {})   = return ()

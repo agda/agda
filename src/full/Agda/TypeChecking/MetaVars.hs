@@ -13,7 +13,7 @@ import qualified Data.Map as Map
 
 import Agda.Syntax.Common
 import qualified Agda.Syntax.Info as Info
-import Agda.Syntax.Internal
+import Agda.Syntax.Internal as I
 import Agda.Syntax.Internal.Generic
 import Agda.Syntax.Position
 import Agda.Syntax.Literal
@@ -222,7 +222,7 @@ newValueMetaCtx' b t vs = do
 newTelMeta :: Telescope -> TCM Args
 newTelMeta tel = newArgsMeta (abstract tel $ El Prop $ Sort Prop)
 
-type Condition = Dom Type -> Abs Type -> Bool
+type Condition = I.Dom Type -> Abs Type -> Bool
 trueCondition _ _ = True
 
 newArgsMeta :: Type -> TCM Args
@@ -241,9 +241,9 @@ newArgsMetaCtx' :: Condition -> Type -> Telescope -> Args -> TCM Args
 newArgsMetaCtx' condition (El s tm) tel ctx = do
   tm <- reduce tm
   case ignoreSharing tm of
-    Pi dom@(Dom h r a) codom | condition dom codom -> do
-      arg  <- (Arg h r) <$> do
-              applyRelevanceToContext r $
+    Pi dom@(Dom info a) codom | condition dom codom -> do
+      arg  <- Arg info <$> do
+              applyRelevanceToContext (argInfoRelevance info) $
                {-
                  -- Andreas, 2010-09-24 skip irrelevant record fields when eta-expanding a meta var
                  -- Andreas, 2010-10-11 this is WRONG, see Issue 347
@@ -562,7 +562,7 @@ assign x args v = do
             fromIrrVar (Shared p)   = fromIrrVar (derefPtr p)
             fromIrrVar _ = return []
         irrVL <- concat <$> mapM fromIrrVar
-                   [ v | Arg h r v <- args, irrelevantOrUnused r ]
+                   [ v | Arg info v <- args, irrelevantOrUnused (argInfoRelevance info) ]
         reportSDoc "tc.meta.assign" 20 $
             let pr (Var n []) = text (show n)
                 pr (Def c []) = prettyTCM c
@@ -704,7 +704,7 @@ checkLinearity elemFVs ids0 = do
         (throwError ())
 
 -- Intermediate result in the following function
-type Res = Maybe [(Arg Nat, Term)]
+type Res = Maybe [(I.Arg Nat, Term)]
 
 -- | Check that arguments @args@ to a metavar are in pattern fragment.
 --   Assumes all arguments already in whnf and eta-reduced.
@@ -728,46 +728,53 @@ inverseSubst args = fmap (map (mapFst unArg)) <$> loop (zip args terms)
         , text "  aborting assignment" ]
       throwError ()
 
-    isVarOrIrrelevant :: Res -> (Arg Term, Term) -> ErrorT () TCM Res
+    isVarOrIrrelevant :: Res -> (I.Arg Term, Term) -> ErrorT () TCM Res
     isVarOrIrrelevant vars (arg, t) =
       case ignoreSharing <$> arg of
         -- i := x
-        Arg h r (Var i []) -> return $ (Arg h r i, t) `cons` vars
+        Arg info (Var i []) -> return $ (Arg info i, t) `cons` vars
 
         -- (i, j) := x  becomes  [i := fst x, j := snd x]
-        Arg h r (Con c vs) -> do
+        Arg info (Con c vs) -> do
           isRC <- lift $ isRecordConstructor c
           case isRC of
             Just (_, Record{ recFields = fs }) -> do
-                let aux (Arg _ _ v) (Arg h' r' f) =
-                      (Arg (min h h') (max r r') v, -- OLD: (stripDontCare v),
+                let aux (Arg _ v) (Arg info' f) =
+                      (Arg (ArgInfo { argInfoColors = argInfoColors info
+                                        -- ^ TODO guilhem
+                                      , argInfoHiding = min (argInfoHiding info)
+                                                            (argInfoHiding info')
+                                      , argInfoRelevance = max (argInfoRelevance info)
+                                                               (argInfoRelevance info')
+                                      })
+                           v, -- OLD: (stripDontCare v),
                        Def f [defaultArg t])
                 res <- loop $ zipWith aux vs fs
                 return $ res `append` vars
             Just _ ->  __IMPOSSIBLE__
-            Nothing | irrelevantOrUnused r -> return vars
+            Nothing | irrelevantOrUnused (argInfoRelevance info) -> return vars
                     | otherwise -> failure
 
         -- An irrelevant argument which is not an irrefutable pattern is dropped
-        Arg h r _ | irrelevantOrUnused r -> return vars
+        Arg info _ | irrelevantOrUnused (argInfoRelevance info) -> return vars
 
         -- Distinguish args that can be eliminated (Con,Lit,Lam,unsure) ==> failure
         -- from those that can only put somewhere as a whole ==> return Nothing
-        Arg _ _ Var{}      -> return $ Nothing -- neutral
-        Arg _ _ v@(Def{})  -> do
+        Arg _ Var{}      -> return $ Nothing -- neutral
+        Arg _ v@(Def{})  -> do
           elV <- lift $ elimView v
           case elV of
             VarElim{}      -> return $ Nothing -- neutral
             _              -> failure
-        Arg _ _ Lam{}      -> failure
-        Arg _ _ Lit{}      -> failure
-        Arg _ _ MetaV{}    -> failure
-        Arg _ _ Pi{}       -> return $ Nothing
-        Arg _ _ Sort{}     -> return $ Nothing
-        Arg _ _ Level{}    -> return $ Nothing
-        Arg _ _ DontCare{} -> __IMPOSSIBLE__
+        Arg _ Lam{}      -> failure
+        Arg _ Lit{}      -> failure
+        Arg _ MetaV{}    -> failure
+        Arg _ Pi{}       -> return $ Nothing
+        Arg _ Sort{}     -> return $ Nothing
+        Arg _ Level{}    -> return $ Nothing
+        Arg _ DontCare{} -> __IMPOSSIBLE__
 
-        Arg h r (Shared p) -> isVarOrIrrelevant vars (Arg h r $ derefPtr p, t)
+        Arg info (Shared p) -> isVarOrIrrelevant vars (Arg info $ derefPtr p, t)
 
     -- managing an assoc list where duplicate indizes cannot be irrelevant vars
     append :: Res -> Res -> Res
@@ -775,15 +782,16 @@ inverseSubst args = fmap (map (mapFst unArg)) <$> loop (zip args terms)
     append (Just res) vars = foldr cons vars res
 
     -- adding an irrelevant entry only if not present
-    cons :: (Arg Nat, Term) -> Res -> Res
+    cons :: (I.Arg Nat, Term) -> Res -> Res
     cons a Nothing = Nothing
-    cons a@(Arg h Irrelevant i, t) (Just vars)    -- TODO? UnusedArg?!
+    cons a@(Arg (ArgInfo _ Irrelevant _) i, t) (Just vars)    -- TODO? UnusedArg?!
       | any ((i==) . unArg . fst) vars  = Just vars
       | otherwise                       = Just $ a : vars
     -- adding a relevant entry:
-    cons a@(Arg h r          i, t) (Just vars) = Just $ a :
+    cons a@(Arg info i, t) (Just vars) =
+      Just $ a :
       -- filter out duplicate irrelevants
-      filter (not . (\ a@(Arg h r j, t) -> r == Irrelevant && i == j)) vars
+      filter (not . (\ a@(Arg info j, t) -> isArgInfoIrrelevant info && i == j)) vars
 
 updateMeta :: MetaId -> Term -> TCM ()
 updateMeta mI v = do

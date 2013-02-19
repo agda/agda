@@ -102,34 +102,37 @@ moreRelevant r r' =
 --   @Dom@ is used in 'Pi' of internal syntax, in 'Context' and 'Telescope'.
 --   'Arg' is used for actual arguments ('Var', 'Con', 'Def' etc.)
 --   and in 'Abstract' syntax and other situations.
-data Dom e = Dom
-  { domHiding    :: Hiding
-  , domRelevance :: Relevance
-  , unDom        :: e
+data Dom c e = Dom
+  { domInfo   :: ArgInfo c
+  , unDom     :: e
   } deriving (Typeable, Eq, Ord, Functor, Foldable, Traversable)
 
-argFromDom :: Dom a -> Arg a
-argFromDom (Dom h r a) = Arg h r a
+domHiding    = argInfoHiding    . domInfo
+domRelevance = argInfoRelevance . domInfo
+domColors    = argInfoColors    . domInfo
 
-domFromArg :: Arg a -> Dom a
-domFromArg (Arg h r a) = Dom h r a
+argFromDom :: Dom c a -> Arg c a
+argFromDom (Dom i a) = Arg i a
 
-mapDomHiding :: (Hiding -> Hiding) -> Dom a -> Dom a
-mapDomHiding f dom = dom { domHiding = f (domHiding dom) }
+domFromArg :: Arg c a -> Dom c a
+domFromArg (Arg i a) = Dom i a
 
-mapDomRelevance :: (Relevance -> Relevance) -> Dom a -> Dom a
-mapDomRelevance f dom = dom { domRelevance = f (domRelevance dom) }
+mapDomHiding :: (Hiding -> Hiding) -> Dom c a -> Dom c a
+mapDomHiding f = domFromArg . mapArgHiding f . argFromDom
 
-instance HasRange a => HasRange (Dom a) where
+mapDomRelevance :: (Relevance -> Relevance) -> Dom c a -> Dom c a
+mapDomRelevance f = domFromArg . mapArgRelevance f . argFromDom
+
+instance HasRange a => HasRange (Dom c a) where
     getRange = getRange . unDom
 
-instance KillRange a => KillRange (Dom a) where
+instance KillRange a => KillRange (Dom c a) where
   killRange = fmap killRange
 
-instance Sized a => Sized (Dom a) where
+instance Sized a => Sized (Dom c a) where
   size = size . unDom
 
-instance Show a => Show (Dom a) where
+instance (Show a, Show c) => Show (Dom c a) where
     show = show . argFromDom
 
 ---------------------------------------------------------------------------
@@ -137,53 +140,112 @@ instance Show a => Show (Dom a) where
 ---------------------------------------------------------------------------
 
 -- | A function argument can be hidden and/or irrelevant.
-data Arg e  = Arg
-  { argHiding    :: Hiding
-  , argRelevance :: Relevance
+data Arg c e  = Arg
+  { argInfo :: ArgInfo c
   , unArg :: e
   } deriving (Typeable, Ord, Functor, Foldable, Traversable)
 
-instance Eq a => Eq (Arg a) where
-  Arg h1 _ x1 == Arg h2 _ x2 = (h1, x1) == (h2, x2)
+data ArgInfo c = ArgInfo
+  { argInfoHiding    :: Hiding
+  , argInfoRelevance :: Relevance
+  , argInfoColors    :: [c]
+  } deriving (Typeable, Eq, Ord, Functor, Foldable, Traversable, Show)
 
-mapArgHiding :: (Hiding -> Hiding) -> Arg a -> Arg a
-mapArgHiding f arg = arg { argHiding = f (argHiding arg) }
+argHiding    = argInfoHiding    . argInfo
+argRelevance = argInfoRelevance . argInfo
+argColors    = argInfoColors    . argInfo
 
-mapArgRelevance :: (Relevance -> Relevance) -> Arg a -> Arg a
-mapArgRelevance f arg = arg { argRelevance = f (argRelevance arg) }
+instance (Eq a, Eq c) => Eq (Arg c a) where
+  Arg (ArgInfo h1 _ cs1) x1 == Arg (ArgInfo h2 _ cs2) x2 = (h1, cs1, x1) == (h2, cs2, x2)
 
-makeInstance :: Arg a -> Arg a
-makeInstance a = a { argHiding = Instance }
+mapArgInfo :: (ArgInfo c -> ArgInfo c') -> Arg c a -> Arg c' a
+mapArgInfo f arg = arg { argInfo = f $ argInfo arg }
 
-hide :: Arg a -> Arg a
-hide a = a { argHiding = Hidden }
+mapArgInfoHiding :: (Hiding -> Hiding) -> ArgInfo c -> ArgInfo c
+mapArgInfoHiding f info = info { argInfoHiding = f $ argInfoHiding info }
 
-defaultArg :: a -> Arg a
-defaultArg = Arg NotHidden Relevant
+mapArgInfoRelevance :: (Relevance -> Relevance) -> ArgInfo c -> ArgInfo c
+mapArgInfoRelevance f info = info { argInfoRelevance = f $ argInfoRelevance info }
 
-isHiddenArg :: Arg a -> Bool
+mapArgInfoColors :: ([c] -> [c']) -> ArgInfo c -> ArgInfo c'
+mapArgInfoColors f info = info { argInfoColors = f $ argInfoColors info }
+
+mapArgHiding :: (Hiding -> Hiding) -> Arg c a -> Arg c a
+mapArgHiding = mapArgInfo . mapArgInfoHiding
+
+mapArgRelevance :: (Relevance -> Relevance) -> Arg c a -> Arg c a
+mapArgRelevance = mapArgInfo . mapArgInfoRelevance
+
+mapArgColors :: ([c] -> [c']) -> Arg c a -> Arg c' a
+mapArgColors = mapArgInfo . mapArgInfoColors
+
+setArgInfoHiding :: Hiding -> ArgInfo c -> ArgInfo c
+setArgInfoHiding = mapArgInfoHiding . const
+
+setArgInfoRelevance :: Relevance -> ArgInfo c -> ArgInfo c
+setArgInfoRelevance = mapArgInfoRelevance . const
+
+setArgHiding :: Hiding -> Arg c a -> Arg c a
+setArgHiding = mapArgHiding . const
+
+setArgRelevance :: Relevance -> Arg c a -> Arg c a
+setArgRelevance = mapArgRelevance . const
+
+setArgColors :: [c] -> Arg c' a -> Arg c a
+setArgColors = mapArgColors . const
+
+makeInstance :: Arg c a -> Arg c a
+makeInstance = setArgHiding Instance
+
+hide :: Arg c a -> Arg c a
+hide = setArgHiding Hidden
+
+defaultArgInfo :: ArgInfo c
+defaultArgInfo =  ArgInfo { argInfoHiding    = NotHidden
+                          , argInfoRelevance = Relevant
+                          , argInfoColors    = [] }
+
+defaultArg :: a -> Arg c a
+defaultArg = Arg defaultArgInfo
+
+defaultColoredArg :: ([c],a) -> Arg c a
+defaultColoredArg (cs,a) = setArgColors cs $ defaultArg a
+
+noColorArg :: Hiding -> Relevance -> a -> Arg c a
+noColorArg h r = Arg $ ArgInfo { argInfoHiding    = h
+                               , argInfoRelevance = r
+                               , argInfoColors    = []
+                               }
+
+isHiddenArg :: Arg c a -> Bool
 isHiddenArg arg = argHiding arg /= NotHidden
+
+isArgInfoHidden    info = argInfoHiding info == Hidden
+isArgInfoNotHidden info = argInfoHiding info == NotHidden
+
+isArgInfoRelevant   info = argInfoRelevance info == Relevant
+isArgInfoIrrelevant info = argInfoRelevance info == Irrelevant
 
 -- | @xs \`withArgsFrom\` args@ translates @xs@ into a list of 'Arg's,
 -- using the elements in @args@ to fill in the non-'unArg' fields.
 --
 -- Precondition: The two lists should have equal length.
 
-withArgsFrom :: [a] -> [Arg b] -> [Arg a]
+withArgsFrom :: [a] -> [Arg c b] -> [Arg c a]
 xs `withArgsFrom` args =
   zipWith (\x arg -> fmap (const x) arg) xs args
 
-instance HasRange a => HasRange (Arg a) where
+instance HasRange a => HasRange (Arg c a) where
     getRange = getRange . unArg
 
-instance KillRange a => KillRange (Arg a) where
+instance KillRange a => KillRange (Arg c a) where
   killRange = fmap killRange
 
-instance Sized a => Sized (Arg a) where
+instance Sized a => Sized (Arg c a) where
   size = size . unArg
 
-instance Show a => Show (Arg a) where
-    show (Arg h r x) = showR r $ showH h $ show x
+instance (Show a, Show c) => Show (Arg c a) where
+    show (Arg (ArgInfo h r cs) x) = showC cs $ showR r $ showH h $ show x
       where
         showH Hidden     s = "{" ++ s ++ "}"
         showH NotHidden  s = "(" ++ s ++ ")"
@@ -193,6 +255,7 @@ instance Show a => Show (Arg a) where
         showR Forced     s = "!" ++ s
         showR UnusedArg  s = "k" ++ s -- constant
         showR Relevant   s = "r" ++ s -- Andreas: I want to see it explicitly
+        showC cs         s = show cs ++ s
 
 ---------------------------------------------------------------------------
 -- * Named arguments
@@ -224,18 +287,18 @@ instance Show a => Show (Named String a) where
     show (Named (Just n) x) = n ++ " = " ++ show x
 
 -- | Only 'Hidden' arguments can have names.
-type NamedArg a = Arg (Named String a)
+type NamedArg c a = Arg c (Named String a)
 
 -- | Get the content of a 'NamedArg'.
-namedArg :: NamedArg a -> a
+namedArg :: NamedArg c a -> a
 namedArg = namedThing . unArg
 
-defaultNamedArg :: a -> NamedArg a
+defaultNamedArg :: a -> NamedArg c a
 defaultNamedArg = defaultArg . unnamed
 
 -- | The functor instance for 'NamedArg' would be ambiguous,
 --   so we give it another name here.
-updateNamedArg :: (a -> b) -> NamedArg a -> NamedArg b
+updateNamedArg :: (a -> b) -> NamedArg c a -> NamedArg c b
 updateNamedArg = fmap . fmap
 
 ---------------------------------------------------------------------------

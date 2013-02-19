@@ -8,7 +8,8 @@ import Control.Applicative
 import Control.Monad
 
 import Agda.Syntax.Common
-import Agda.Syntax.Internal
+import Agda.Syntax.Internal as I
+import qualified Agda.Syntax.Abstract as A (Arg,NamedArg)
 
 import Agda.TypeChecking.Irrelevance
 import {-# SOURCE #-} Agda.TypeChecking.MetaVars
@@ -33,11 +34,12 @@ implicitArgs 0 expand t0 = return ([], t0)
 implicitArgs n expand t0 = do
     t0' <- reduce t0
     case ignoreSharing $ unEl t0' of
-      Pi (Dom h rel a) b | expand h -> do
-          when (h == Instance) $ reportSLn "tc.term.args.ifs" 15 $
+      Pi (Dom info a) b | expand (argInfoHiding info) -> do
+          when (argInfoHiding info == Instance) $ reportSLn "tc.term.args.ifs" 15 $
             "inserting implicit meta for type " ++ show a
-          v  <- applyRelevanceToContext rel $ newMeta h (absName b) a
-          let arg = Arg h rel v
+          v  <- applyRelevanceToContext (argInfoRelevance info) $
+                newMeta (argInfoHiding info) (absName b) a
+          let arg = Arg info v
           mapFst (arg:) <$> implicitArgs (n-1) expand (absApp b v)
       _ -> return ([], t0')
   where
@@ -79,11 +81,11 @@ impInsert [] = NoInsertNeeded
 impInsert hs = ImpInsert hs
 
 -- | The list should be non-empty.
-insertImplicit :: NamedArg e -> [Arg String] -> ImplicitInsertion
+insertImplicit :: A.NamedArg e -> [I.Arg String] -> ImplicitInsertion
 insertImplicit _ [] = __IMPOSSIBLE__
-insertImplicit a ts | argHiding a == NotHidden = impInsert $ nofHidden ts
+insertImplicit a ts | isArgInfoNotHidden (argInfo a) = impInsert $ nofHidden ts
   where
-    nofHidden :: [Arg a] -> [Hiding]
+    nofHidden :: [I.Arg a] -> [Hiding]
     nofHidden = takeWhile (NotHidden /=) . map argHiding
 insertImplicit a ts =
   case nameOf (unArg a) of
@@ -94,9 +96,9 @@ insertImplicit a ts =
     upto h (NotHidden:_) = Nothing
     upto h (h':_) | h == h' = Just []
     upto h (h':hs) = (h':) <$> upto h hs
-    find _ x _ (Arg NotHidden _ _ : _) = NoSuchName x
-    find hs x hidingx (Arg hidingy r y : ts)
-      | x == y && hidingx == hidingy = impInsert $ reverse hs
-      | x == y && hidingx /= hidingy = BadImplicits
-      | otherwise = find (hidingy:hs) x hidingx ts
+    find _ x _ (a@(Arg{}) : _) | isArgInfoNotHidden (argInfo a) = NoSuchName x
+    find hs x hidingx (a@(Arg _ y) : ts)
+      | x == y && hidingx == argHiding a = impInsert $ reverse hs
+      | x == y && hidingx /= argHiding a = BadImplicits
+      | otherwise = find (argHiding a:hs) x hidingx ts
     find i x _ []			     = NoSuchName x

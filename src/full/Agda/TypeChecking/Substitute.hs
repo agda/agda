@@ -14,7 +14,8 @@ import Data.Map (Map)
 import qualified Data.Map as Map
 import qualified Data.Set as Set
 
-import Agda.Syntax.Common
+import Agda.Syntax.Common hiding (Arg, Dom, NamedArg)
+import qualified Agda.Syntax.Common as Common
 import Agda.Syntax.Internal
 import Agda.Syntax.Position
 
@@ -67,7 +68,7 @@ instance Subst a => Apply (Tele a) where
   apply (ExtendTel _ tel) (t : ts) = absApp tel (unArg t) `apply` ts
 
 instance Apply Definition where
-  apply (Defn rel x t pol occ df m c d) args = Defn rel x (piApply t args) (apply pol args) (apply occ args) df m c (apply d args)
+  apply (Defn info x t pol occ df m c d) args = Defn info x (piApply t args) (apply pol args) (apply occ args) df m c (apply d args)
 
 instance Apply [Base.Occurrence] where
   apply occ args = drop (length args) occ
@@ -220,8 +221,8 @@ instance Abstract Telescope where
   abstract (ExtendTel arg tel') tel = ExtendTel arg $ fmap (`abstract` tel) tel'
 
 instance Abstract Definition where
-  abstract tel (Defn rel x t pol occ df m c d) =
-    Defn rel x (abstract tel t) (abstract tel pol) (abstract tel occ) df m c (abstract tel d)
+  abstract tel (Defn info x t pol occ df m c d) =
+    Defn info x (abstract tel t) (abstract tel pol) (abstract tel occ) df m c (abstract tel d)
 
 instance Abstract [Base.Occurrence] where
   abstract tel []  = []
@@ -281,8 +282,8 @@ instance Abstract a => Abstract (Case a) where
     Branches (abstract tel cs) (abstract tel ls) (abstract tel m)
 
 telVars :: Telescope -> [Arg Pattern]
-telVars EmptyTel                    = []
-telVars (ExtendTel (Dom h r a) tel) = Arg h r (VarP $ absName tel) : telVars (unAbs tel)
+telVars EmptyTel                            = []
+telVars (ExtendTel (Common.Dom info a) tel) = Common.Arg info (VarP $ absName tel) : telVars (unAbs tel)
 
 instance Abstract FunctionInverse where
   abstract tel NotInjective  = NotInjective
@@ -304,7 +305,8 @@ instance Abstract v => Abstract (Map k v) where
 abstractArgs :: Abstract a => Args -> a -> a
 abstractArgs args x = abstract tel x
     where
-        tel   = foldr (\(Arg h r x) -> ExtendTel (Dom h r $ sort Prop) . Abs x) EmptyTel
+        tel   = foldr (\(Common.Arg info x) -> ExtendTel (Common.Dom info $ sort Prop) . Abs x)
+                      EmptyTel
               $ zipWith (fmap . const) names args
         names = cycle $ map (:[]) ['a'..'z']
 
@@ -552,7 +554,8 @@ data TelV a = TelV (Tele (Dom a)) a
 type TelView = TelV Type
 
 telFromList :: [Dom (String, Type)] -> Telescope
-telFromList = foldr (\(Dom h r (x, a)) -> ExtendTel (Dom h r a) . Abs x) EmptyTel
+telFromList = foldr (\(Common.Dom info (x, a)) -> ExtendTel (Common.Dom info a) . Abs x)
+                    EmptyTel
 
 telToList :: Telescope -> [Dom (String, Type)]
 telToList EmptyTel = []
@@ -567,7 +570,7 @@ telView' t = case ignoreSharing $ unEl t of
 
 -- | @mkPi dom t = telePi (telFromList [dom]) t@
 mkPi :: Dom (String, Type) -> Type -> Type
-mkPi (Dom h r (x, a)) b = el $ Pi (Dom h r a) (mkAbs x b)
+mkPi (Common.Dom info (x, a)) b = el $ Pi (Common.Dom info a) (mkAbs x b)
   where
     el = El $ dLub (getSort a) (Abs x (getSort b)) -- dLub checks x freeIn
 
@@ -592,7 +595,7 @@ telePi_ (ExtendTel u tel) t = el $ Pi u b
 
 teleLam :: Telescope -> Term -> Term
 teleLam  EmptyTel	  t = t
-teleLam (ExtendTel u tel) t = Lam (domHiding u) $ flip teleLam t <$> tel
+teleLam (ExtendTel u tel) t = Lam (domInfo u) $ flip teleLam t <$> tel
 
 -- | Dependent least upper bound, to assign a level to expressions
 --   like @forall i -> Set i@.

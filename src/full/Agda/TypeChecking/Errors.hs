@@ -16,7 +16,8 @@ import qualified Data.Map as Map (empty)
 
 import System.FilePath
 
-import Agda.Syntax.Common
+import Agda.Syntax.Common hiding (Arg, Dom, NamedArg)
+import qualified Agda.Syntax.Common as Common
 import Agda.Syntax.Fixity
 import Agda.Syntax.Position
 import qualified Agda.Syntax.Info as A
@@ -218,6 +219,7 @@ errorString err = case err of
     UnequalTerms{}                           -> "UnequalTerms"
     UnequalTypes{}                           -> "UnequalTypes"
     UnequalTelescopes{}                      -> "UnequalTelescopes"
+    UnequalColors{}                          -> "UnequalTelescopes"
     HeterogeneousEquality{}                  -> "HeterogeneousEquality"
     UnexpectedWithPatterns{}                 -> "UnexpectedWithPatterns"
     UninstantiatedDotPattern{}               -> "UninstantiatedDotPattern"
@@ -384,6 +386,7 @@ instance PrettyTCM TypeError where
 		[prettyTCM a, notCmp cmp, prettyTCM b]
 	    UnequalTypes cmp a b -> fsep $
 		[prettyTCM a, notCmp cmp, prettyTCM b]
+            UnequalColors a b -> error "TODO guilhem 4"
 	    HeterogeneousEquality u a v b -> fsep $
                 pwords "Refuse to solve heterogeneous constraint" ++
                 [prettyTCM u] ++ pwords ":" ++ [prettyTCM a] ++ pwords "=?=" ++
@@ -671,10 +674,11 @@ instance PrettyTCM TypeError where
               | n > 0 && not (null args) = parens
               | otherwise                = id
 
-            showArg :: Arg I.Pattern -> TCM Doc
-            showArg (Arg Hidden r x)    = braces $ showPat 0 x
-            showArg (Arg Instance r x)  = dbraces $ showPat 0 x
-            showArg (Arg NotHidden r x) = showPat 1 x
+            showArg :: I.Arg I.Pattern -> TCM Doc
+            showArg (Common.Arg info x) = case argInfoHiding info of
+                    Hidden -> braces $ showPat 0 x
+                    Instance -> dbraces $ showPat 0 x
+                    NotHidden -> showPat 1 x
 
             showPat :: Integer -> I.Pattern -> TCM Doc
             showPat _ (I.VarP _)        = text "_"
@@ -757,6 +761,10 @@ instance PrettyTCM Call where
             info = A.ModuleInfo noRange noRange Nothing Nothing Nothing
 
 	where
-	    hPretty a = pretty =<< abstractToConcreteCtx (hiddenArgumentCtx (argHiding a)) a
+            hPretty :: I.Arg (Named String Expr) -> TCM Doc
+            hPretty a = do
+                info <- reify $ argInfo a
+                pretty =<< (abstractToConcreteCtx (hiddenArgumentCtx (argHiding a))
+                         $ Common.Arg info $ unArg a)
 
 	    simpleDecl = D.notSoNiceDeclaration

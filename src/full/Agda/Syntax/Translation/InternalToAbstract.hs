@@ -36,7 +36,8 @@ import Data.Traversable as Trav
 
 import Agda.Syntax.Literal
 import Agda.Syntax.Position
-import Agda.Syntax.Common
+import Agda.Syntax.Common hiding (Arg, Dom, NamedArg, ArgInfo)
+import qualified Agda.Syntax.Common as Common
 import Agda.Syntax.Info as Info
 import Agda.Syntax.Fixity
 import Agda.Syntax.Abstract as A
@@ -67,18 +68,30 @@ import Agda.Utils.Impossible
 
 -- Composition reified applications ---------------------------------------
 
-napps :: Expr -> [NamedArg Expr] -> TCM Expr
+napps :: Expr -> [I.NamedArg Expr] -> TCM Expr
 napps e args = do
   dontShowImp <- not <$> showImplicitArguments
   let apply1 e arg | isHiddenArg arg && dontShowImp = e
                    | otherwise = App exprInfo e arg
-  return $ foldl' apply1 e args
+  foldl' apply1 e <$> reify args
 
-apps :: Expr -> [Arg Expr] -> TCM Expr
+apps :: Expr -> [I.Arg Expr] -> TCM Expr
 apps e args = napps e $ map (fmap unnamed) args
 
-reifyApp :: Expr -> [Arg Term] -> TCM Expr
-reifyApp e vs = apps e =<< reify vs
+reifyApp :: Expr -> [I.Arg Term] -> TCM Expr
+reifyApp e vs = apps e =<< reifyIArgs vs
+
+reifyIArg :: Reify i a => I.Arg i -> TCM (I.Arg a)
+reifyIArg i = Common.Arg (argInfo i) <$> reify (unArg i)
+
+reifyIArgs :: Reify i a => [I.Arg i] -> TCM [I.Arg a]
+reifyIArgs = mapM reifyIArg
+
+reifyIArg' :: I.Arg e -> TCM (A.Arg e)
+reifyIArg' e = flip Common.Arg (unArg e) <$> reify (argInfo e)
+
+reifyIArgs' :: [I.Arg e] -> TCM [A.Arg e]
+reifyIArgs' = mapM reifyIArg'
 
 -- Omitting information ---------------------------------------------------
 
@@ -102,8 +115,9 @@ instance Reify i Expr => ReifyWhen i Expr where
   reifyWhen True  i = reify i
   reifyWhen False t = return underscore
 
-instance ReifyWhen i a => ReifyWhen (Arg i) (Arg a) where
-  reifyWhen b = traverse (reifyWhen b)
+instance ReifyWhen i a => ReifyWhen (I.Arg i) (A.Arg a) where
+  reifyWhen b i = do info <- reify $ argInfo i
+                     traverse (reifyWhen b) $ i { argInfo = info }
 
 instance ReifyWhen i a => ReifyWhen (Named n i) (Named n a) where
   reifyWhen b = traverse (reifyWhen b)
@@ -138,8 +152,8 @@ instance Reify DisplayTerm Expr where
   reify d = case d of
     DTerm v -> reifyTerm False v
     DDot  v -> reify v
-    DCon c vs -> apps (A.Con (AmbQ [c])) =<< reify vs
-    DDef f vs -> apps (A.Def f) =<< reify vs
+    DCon c vs -> apps (A.Con (AmbQ [c])) =<< reifyIArgs vs
+    DDef f vs -> apps (A.Def f) =<< reifyIArgs vs
     DWithApp us vs -> do
       us <- reify us
       let wapp [e] = e
@@ -163,7 +177,9 @@ reifyDisplayFormP lhs@(A.LHS i A.LHSProj{} wps) =
   typeError $ NotImplemented "reifyDisplayForm for copatterns"
 reifyDisplayFormP lhs@(A.LHS i (A.LHSHead x ps) wps) =
   ifM (not <$> displayFormsEnabled) (return lhs) $ do
-    let vs = [ Arg h Relevant $ I.var n | (n, h) <- zip [0..] $ map argHiding ps]
+    let vs = [ setArgHiding h $ defaultArg $ I.var n
+             | (n, h) <- zip [0..] $ map argHiding ps
+             ]
     md <- liftTCM $ displayForm x vs
     reportSLn "syntax.reify.display" 20 $
       "display form of " ++ show x ++ " " ++ show ps ++ " " ++ show wps ++ ":\n  " ++ show md
@@ -205,7 +221,8 @@ reifyDisplayFormP lhs@(A.LHS i (A.LHSHead x ps) wps) =
       (f, vs, ds) -> do
         ds <- mapM termToPat ds
         vs <- mapM argToPat vs
-        return $ LHS i (LHSHead f vs) (ds ++ wps)
+        vs' <- reifyIArgs' vs
+        return $ LHS i (LHSHead f vs') (ds ++ wps)
       where
         info = PatRange noRange
         argToPat arg = fmap unnamed <$> traverse termToPat arg
@@ -214,10 +231,12 @@ reifyDisplayFormP lhs@(A.LHS i (A.LHSHead x ps) wps) =
 
         termToPat :: DisplayTerm -> TCM A.Pattern
         termToPat (DTerm (I.Var n [])) = return $ ps !! n
-        termToPat (DCon c vs) = A.ConP info (AmbQ [c]) <$> mapM argToPat vs
+        termToPat (DCon c vs) = do vs' <- reifyIArgs' vs
+                                   A.ConP info (AmbQ [c]) <$> mapM argToPat vs'
         termToPat (DDot v) = A.DotP info <$> termToExpr v
         termToPat (DDef _ []) = return $ A.WildP info
-        termToPat (DTerm (I.Con c vs)) = A.ConP info (AmbQ [c]) <$> mapM (argToPat . fmap DTerm) vs
+        termToPat (DTerm (I.Con c vs)) = do vs' <- reifyIArgs' vs
+                                            A.ConP info (AmbQ [c]) <$> mapM (argToPat . fmap DTerm) vs'
         termToPat (DTerm (I.Def _ [])) = return $ A.WildP info
         termToPat v = A.DotP info <$> reify v -- __IMPOSSIBLE__
 
@@ -258,10 +277,10 @@ reifyTerm expandAnonDefs v = do
         case isR of
           True -> do
             showImp <- showImplicitArguments
-            let keep (a, v) = showImp || argHiding a == NotHidden
+            let keep (a, v) = showImp || isArgInfoNotHidden (argInfo a)
             r  <- getConstructorData x
             xs <- getRecordFieldNames r
-            vs <- map unArg <$> reify vs
+            vs <- map unArg <$> reifyIArgs vs
             return $ A.Rec exprInfo $ map (unArg *** id) $ filter keep $ zip xs vs
           False -> reifyDisplayForm x vs $ do
             ci <- getConstInfo x
@@ -274,7 +293,7 @@ reifyTerm expandAnonDefs v = do
             when (n > np) __IMPOSSIBLE__
             let h = A.Con (AmbQ [x])
             if null vs then return h else do
-            es <- reify vs
+            es <- reifyIArgs vs
             -- Andreas, 2012-04-20: do not reify parameter arguments of constructor
             -- if the first regular constructor argument is hidden
             -- we turn it into a named argument, in order to avoid confusion
@@ -295,8 +314,8 @@ reifyTerm expandAnonDefs v = do
                 -- Andreas, 2012-09-18
                 -- If the first regular constructor argument is hidden,
                 -- we keep the parameters to avoid confusion.
-                (Dom Hidden _ _ : _) -> do
-                  let us = genericReplicate (np - n) $ Arg Hidden Relevant underscore
+                (Common.Dom info _ : _) | isArgInfoHidden info -> do
+                  let us = genericReplicate (np - n) $ setArgRelevance Relevant (Common.Arg info underscore)
                   apps h $ us ++ es
                 -- otherwise, we drop all parameters
                 _ -> apps h es
@@ -310,20 +329,23 @@ reifyTerm expandAnonDefs v = do
                 ]
               napps h $ genericDrop (n - np) $ nameFirstIfHidden doms es
 -}
-      I.Lam h b    -> do
+      I.Lam info b    -> do
         (x,e) <- reify b
-        return $ A.Lam exprInfo (DomainFree h Relevant x) e
+        info <- reify info
+        return $ A.Lam exprInfo (DomainFree info x) e
         -- Andreas, 2011-04-07 we do not need relevance information at internal Lambda
       I.Lit l        -> reify l
       I.Level l      -> reify l
       I.Pi a b       -> case b of
         NoAbs _ b -> uncurry (A.Fun $ exprInfo) <$> reify (a,b)
         b         -> do
-          Arg h r a <- reify a
+          Common.Arg info a <- reify a
           (x, b)    <- reify b
-          return $ A.Pi exprInfo [TypedBindings noRange $ Arg h r (TBind noRange [x] a)] b
+          return $ A.Pi exprInfo [TypedBindings noRange $ Common.Arg info (TBind noRange [x] a)] b
       I.Sort s     -> reify s
-      I.MetaV x vs -> uncurry apps =<< reify (x,vs)
+      I.MetaV x vs -> do vs' <- reifyIArgs vs
+                         x' <- reify x
+                         apps x' vs'
       I.DontCare v -> A.DontCare <$> reifyTerm expandAnonDefs v
       I.Shared p   -> reifyTerm expandAnonDefs $ derefPtr p
 
@@ -353,7 +375,7 @@ reifyTerm expandAnonDefs v = do
 
       reifyDef' x@(QName _ name) vs = do
         mdefn <- liftTCM $ (Just <$> getConstInfo x) `catchError` \_ -> return Nothing
-        (pad, vs :: [NamedArg Term]) <-
+        (pad, vs :: [I.NamedArg Term]) <-
           case mdefn of
             Nothing -> (,) [] <$> do map (fmap unnamed) <$> (flip genericDrop vs <$> getDefFreeVars x)
             Just defn -> do
@@ -379,8 +401,8 @@ reifyTerm expandAnonDefs v = do
                         return (np, map (argFromDom . (fmap $ const whocares)) as, dom)
                       _ -> return (0, [], __IMPOSSIBLE__)
               -- Now pad' ++ vs' = drop n (pad ++ vs)
-              let pad' = genericDrop n pad
-                  vs'  :: [Arg Term]
+              pad' <- reifyIArgs' $ genericDrop n pad
+              let vs'  :: [I.Arg Term]
                   vs'  = genericDrop (max 0 (n - size pad)) vs
               -- Andreas, 2012-04-21: get rid of hidden underscores {_}
               -- Keep non-hidden arguments of the padding
@@ -400,34 +422,35 @@ reifyTerm expandAnonDefs v = do
            cls <- mapM (reify . (QNamed x) . (dropArgs n)) $ defClauses info
            -- Karim: Currently Abs2Conc does not require a DefInfo thus we
            -- use __IMPOSSIBLE__.
-           napps (A.ExtendedLam exprInfo __IMPOSSIBLE__ x cls) =<< reify vs
+           napps (A.ExtendedLam exprInfo __IMPOSSIBLE__ x cls) =<< reifyIArgs vs
           else do
            let apps = foldl' (\e a -> A.App exprInfo e (fmap unnamed a))
-           napps (A.Def x `apps` pad) =<< reify vs
+           napps (A.Def x `apps` pad) =<< reifyIArgs vs
 
 -- | @nameFirstIfHidden n (a1->...an->{x:a}->b) ({e} es) = {x = e} es@
-nameFirstIfHidden :: [Dom (String, t)] -> [Arg a] -> [NamedArg a]
+nameFirstIfHidden :: [I.Dom (String, t)] -> [I.Arg a] -> [I.NamedArg a]
 nameFirstIfHidden _         []                    = []
 nameFirstIfHidden []        (_ : _)               = __IMPOSSIBLE__
-nameFirstIfHidden (dom : _) (Arg Hidden r e : es) =
-  Arg Hidden r (Named (Just $ fst $ unDom dom) e) : map (fmap unnamed) es
+nameFirstIfHidden (dom : _) (Common.Arg info e : es) | isArgInfoHidden info =
+  Common.Arg info (Named (Just $ fst $ unDom dom) e) : map (fmap unnamed) es
 nameFirstIfHidden _         es                    = map (fmap unnamed) es
 
 instance Reify i a => Reify (Named n i) (Named n a) where
   reify = traverse reify
 
 -- | Skip reification of implicit and irrelevant args if option is off.
-instance (ReifyWhen i a) => Reify (Arg i) (Arg a) where
-  reify (Arg h r i) = Arg h r <$> do flip reifyWhen i =<< condition
-    where condition = (return (h /= Hidden) `or2M` showImplicitArguments)
-              `and2M` (return (r /= Irrelevant) `or2M` showIrrelevantArguments)
+instance (ReifyWhen i a) => Reify (I.Arg i) (A.Arg a) where
+  reify (Common.Arg info i) = liftM2 Common.Arg (reify info)
+                                                (flip reifyWhen i =<< condition)
+    where condition = (return (argInfoHiding info /= Hidden) `or2M` showImplicitArguments)
+              `and2M` (return (argInfoRelevance info /= Irrelevant) `or2M` showIrrelevantArguments)
 
 instance Reify Elim Expr where
   reify e = case e of
     I.Apply v -> appl "apply" <$> reify v
-    I.Proj f  -> appl "proj"  <$> reify (defaultArg $ I.Def f [])
+    I.Proj f  -> appl "proj"  <$> reify ((defaultArg $ I.Def f []) :: I.Arg Term)
     where
-      appl :: String -> Arg Expr -> Expr
+      appl :: String -> A.Arg Expr -> Expr
       appl s v = A.App exprInfo (A.Lit (LitString noRange s)) $ fmap unnamed v
 
 type NamedClause = QNamed I.Clause
@@ -438,8 +461,8 @@ instance Reify ClauseBody RHS where
   reify (Body v)   = RHS <$> reify v
   reify (Bind b)   = reify $ absBody b  -- the variables should already be bound
 
-stripImplicits :: [NamedArg A.Pattern] -> [A.Pattern] ->
-                  TCM ([NamedArg A.Pattern], [A.Pattern])
+stripImplicits :: [A.NamedArg A.Pattern] -> [A.Pattern] ->
+                  TCM ([A.NamedArg A.Pattern], [A.Pattern])
 stripImplicits ps wps =
   ifM showImplicitArguments (return (ps, wps)) $ do
   let vars = dotVars (ps, wps)
@@ -523,7 +546,7 @@ stripImplicits ps wps =
 class DotVars a where
   dotVars :: a -> Set Name
 
-instance DotVars a => DotVars (Arg a) where
+instance DotVars a => DotVars (A.Arg a) where
   dotVars a = if isHiddenArg a then Set.empty else dotVars (unArg a)
 
 instance DotVars a => DotVars (Named s a) where
@@ -598,11 +621,14 @@ instance DotVars TypedBinding where
   dotVars (TBind _ _ e) = dotVars e
   dotVars (TNoBind e)   = dotVars e
 
-reifyPatterns :: I.Telescope -> Permutation -> [Arg I.Pattern] -> TCM [NamedArg A.Pattern]
+reifyPatterns :: I.Telescope -> Permutation -> [I.Arg I.Pattern] -> TCM [A.NamedArg A.Pattern]
 reifyPatterns tel perm ps = evalStateT (reifyArgs ps) 0
   where
-    reifyArgs as = map (fmap unnamed) <$> mapM reifyArg as
-    reifyArg a   = traverse reifyPat a
+    reifyArgs :: [I.Arg I.Pattern] -> StateT Nat TCM [A.NamedArg A.Pattern]
+    reifyArgs is = map (fmap unnamed) <$> mapM reifyArg is
+
+    reifyArg :: I.Arg I.Pattern -> StateT Nat TCM (A.Arg A.Pattern)
+    reifyArg i = traverse reifyPat (setArgColors [] i) -- TODO guilhem
 
     tick = do i <- get; put (i + 1); return i
 
@@ -610,6 +636,7 @@ reifyPatterns tel perm ps = evalStateT (reifyArgs ps) 0
       where
         vars = permute (invertP perm) [0..]
 
+    reifyPat :: I.Pattern -> StateT Nat TCM A.Pattern
     reifyPat p = case p of
       I.VarP s    -> do
         i <- tick
@@ -646,8 +673,8 @@ instance Reify NamedClause A.Clause where
                 (ps, wps) <- stripImplicits ps wps
                 return (wps, LHSHead f ps)
               stripIs (LHSProj d ps1 l ps2) = do
-                Arg h r (Named n (wps, l)) <- Trav.mapM (Trav.mapM stripIs) l
-                return (wps, LHSProj d ps1 (Arg h r (Named n l)) ps2)
+                Common.Arg info (Named n (wps, l)) <- Trav.mapM (Trav.mapM stripIs) l
+                return (wps, LHSProj d ps1 (Common.Arg info (Named n l)) ps2)
 {-
       dropParams n (LHS i (LHSHead f ps) wps) = LHS i (LHSHead f (genericDrop n ps)) wps
       stripImps (LHS i (LHSHead f ps) wps) = do
@@ -671,7 +698,7 @@ instance Reify Sort Expr where
                 I.Inf       -> A.Var <$> freshName_ "Setω"
                 I.DLub s1 s2 -> do
                   lub <- freshName_ "dLub" -- TODO: hack
-                  (e1,e2) <- reify (s1, I.Lam NotHidden $ fmap Sort s2)
+                  (e1,e2) <- reify (s1, I.Lam defaultArgInfo $ fmap Sort s2)
                   let app x y = A.App exprInfo x (defaultNamedArg y)
                   return $ A.Var lub `app` e1 `app` e2
 
@@ -694,13 +721,16 @@ instance (Free i, Reify i a) => Reify (Abs i) (Name, a) where
 instance Reify I.Telescope A.Telescope where
   reify EmptyTel = return []
   reify (ExtendTel arg tel) = do
-    Arg h rel e <- reify arg
+    Common.Arg info e <- reify arg
     (x,bs)  <- reify tel
     let r = getRange e
-    return $ TypedBindings r (Arg h rel (TBind r [x] e)) : bs
+    return $ TypedBindings r (Common.Arg info (TBind r [x] e)) : bs
 
-instance Reify i a => Reify (Dom i) (Arg a) where
-    reify (Dom h r i) = Arg h r <$> reify i
+instance Reify I.ArgInfo A.ArgInfo where
+    reify i = flip (mapArgInfoColors.const) i <$> reify (argInfoColors i)
+
+instance Reify i a => Reify (I.Dom i) (A.Arg a) where
+    reify (Common.Dom info i) = liftM2 Common.Arg (reify info) (reify i)
 
 instance Reify i a => Reify [i] [a] where
     reify = traverse reify

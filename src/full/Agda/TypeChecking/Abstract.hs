@@ -1,9 +1,10 @@
-{-# LANGUAGE CPP #-}
+{-# LANGUAGE CPP, FlexibleInstances #-}
 
 -- | Functions for abstracting terms over other terms.
 module Agda.TypeChecking.Abstract where
 
-import Agda.Syntax.Common
+import Agda.Syntax.Common hiding (Arg, Dom, NamedArg)
+import qualified Agda.Syntax.Common as Common
 import Agda.Syntax.Internal
 import Agda.TypeChecking.Substitute
 import Data.Function
@@ -14,7 +15,7 @@ import Agda.Utils.Impossible
 piAbstractTerm :: Term -> Type -> Type -> Type
 piAbstractTerm v a b = fun a (abstractTerm v b)
   where
-    fun a b = El s $ Pi (Dom NotHidden Relevant a) $ mkAbs "w" b
+    fun a b = El s $ Pi (Common.Dom defaultArgInfo a) $ mkAbs "w" b
       where s = (sLub `on` getSort) a b
 
 class AbstractTerm a where

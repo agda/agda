@@ -19,7 +19,7 @@ import qualified Data.Set as Set
 import Agda.Syntax.Common
 import Agda.Syntax.Position
 import qualified Agda.Syntax.Abstract as A
-import Agda.Syntax.Internal
+import Agda.Syntax.Internal as I
 import qualified Agda.Syntax.Info as Info
 import qualified Agda.Syntax.Abstract.Pretty as A
 import Agda.Syntax.Fixity
@@ -49,7 +49,7 @@ import Agda.TypeChecking.SizedTypes
 import Agda.TypeChecking.CompiledClause (CompiledClauses(..))
 import Agda.TypeChecking.CompiledClause.Compile
 
-import Agda.TypeChecking.Rules.Term                ( checkExpr, inferExpr, inferExprForWith, inferOrCheck, checkTelescope_, isType_ )
+import Agda.TypeChecking.Rules.Term                ( checkExpr, inferExpr, inferExprForWith, inferOrCheck, checkTelescope_, isType_, convArg )
 import Agda.TypeChecking.Rules.LHS                 ( checkLeftHandSide )
 import Agda.TypeChecking.Rules.LHS.Implicit        ( insertImplicitPatterns )
 import {-# SOURCE #-} Agda.TypeChecking.Rules.Decl ( checkDecls )
@@ -75,7 +75,7 @@ checkFunDef :: Delayed -> Info.DefInfo -> QName -> [A.Clause] -> TCM ()
 checkFunDef delayed i name cs = do
         -- Get the type and relevance of the function
         t    <- typeOfConst name
-        rel  <- relOfConst name
+        info  <- flip setArgInfoRelevance defaultArgInfo <$> relOfConst name
         case trivialClause cs of
           -- if we have just one clause without pattern matching and
           -- without a type signature, then infer, to allow
@@ -86,8 +86,8 @@ checkFunDef delayed i name cs = do
               -- it has been frozen.  We unfreeze it to enable type inference.
               -- See issue 729.
               whenM (isFrozen x) $ unfreezeMeta x
-              checkAlias t rel delayed i name e
-          _ -> checkFunDef' t rel delayed i name cs
+              checkAlias t info delayed i name e
+          _ -> checkFunDef' t info delayed i name cs
   where
     isMeta (MetaV x _) = Just x
     isMeta _           = Nothing
@@ -95,14 +95,15 @@ checkFunDef delayed i name cs = do
     trivialClause _ = Nothing
 
 -- | Check a trivial definition of the form @f = e@
-checkAlias :: Type -> Relevance -> Delayed -> Info.DefInfo -> QName -> A.Expr -> TCM ()
-checkAlias t' rel delayed i name e = do
+checkAlias :: Type -> I.ArgInfo -> Delayed -> Info.DefInfo -> QName -> A.Expr -> TCM ()
+checkAlias t' info delayed i name e = do
   reportSDoc "tc.def.alias" 10 $ text "checkAlias" <+> vcat
     [ text (show name) <+> colon  <+> prettyTCM t'
     , text (show name) <+> equals <+> prettyTCM e
     ]
   -- Infer the type of the rhs
-  (v, t) <- applyRelevanceToContext rel $ inferOrCheck e (Just t')
+  (v, t) <- applyRelevanceToContext (argInfoRelevance info) $
+                                    inferOrCheck e (Just t')
   -- v <- coerce v t t'
   reportSDoc "tc.def.alias" 20 $ text "checkAlias: finished checking"
 
@@ -114,7 +115,7 @@ checkAlias t' rel delayed i name e = do
     -- (test/succeed/Issue655.agda)
 
   -- Add the definition
-  addConstant name $ Defn rel name t [] [] (defaultDisplayForm name) 0 noCompiledRep
+  addConstant name $ Defn info name t [] [] (defaultDisplayForm name) 0 noCompiledRep
                    $ Function
                       { funClauses        = [Clause (getRange i) EmptyTel (idP 0) [] $ Body v] -- trivial clause @name = v@
                       , funCompiled       = Done [] v
@@ -136,8 +137,8 @@ checkAlias t' rel delayed i name e = do
 
 -- | Type check a definition by pattern matching. The third argument
 -- specifies whether the clauses are delayed or not.
-checkFunDef' :: Type -> Relevance -> Delayed -> Info.DefInfo -> QName -> [A.Clause] -> TCM ()
-checkFunDef' t rel delayed i name cs =
+checkFunDef' :: Type -> I.ArgInfo -> Delayed -> Info.DefInfo -> QName -> [A.Clause] -> TCM ()
+checkFunDef' t info delayed i name cs =
 
     traceCall (CheckFunDef (getRange i) (qnameName name) cs) $ do   -- TODO!! (qnameName)
         reportSDoc "tc.def.fun" 10 $
@@ -152,7 +153,7 @@ checkFunDef' t rel delayed i name cs =
 
         -- Check the clauses
         let check c = do
-              c <- applyRelevanceToContext rel $ checkClause t c
+              c <- applyRelevanceToContext (argInfoRelevance info) $ checkClause t c
               solveSizeConstraints
               return c
         cs <- traceCall NoHighlighting $  -- To avoid flicker.
@@ -191,7 +192,7 @@ checkFunDef' t rel delayed i name cs =
               ]
 
         -- Add the definition
-        addConstant name $ Defn rel name t [] [] (defaultDisplayForm name) 0 noCompiledRep
+        addConstant name $ Defn info name t [] [] (defaultDisplayForm name) 0 noCompiledRep
                          $ Function
                             { funClauses        = cs
                             , funCompiled       = cc
@@ -261,7 +262,7 @@ trailingImplicits t cs@(c:_) = do
 
 -- | @dropNonHidden n tel@ drops @n@ non-hidden domains from @tel@,
 --   including all hidden domains that come before the @n@th non-hidden one.
-dropNonHidden :: Nat -> [Dom (String, Type)] -> [Dom (String, Type)]
+dropNonHidden :: Nat -> [I.Dom (String, Type)] -> [I.Dom (String, Type)]
 dropNonHidden 0 l = l
 dropNonHidden n l = case dropWhile ((NotHidden /=) . domHiding) l of
   []    -> [] -- or raise a type checking error "too many arguments in lhs"
@@ -297,7 +298,7 @@ patternDiff ps1 ps2 = drop (length ps2) ps1
 patchUpTrailingImplicits :: A.Patterns -> (A.Patterns, A.Patterns) -> A.Clause -> A.Clause
 patchUpTrailingImplicits should (ps, is) c | length is >= length should = c
 patchUpTrailingImplicits should (ps, is) (A.Clause (A.LHS i (A.LHSHead x aps) []) rhs0 wh) =
-  let imp  = Arg Hidden Relevant $ Named Nothing $ A.ImplicitP $
+  let imp  = hide $ defaultArg $ Named Nothing $ A.ImplicitP $
                Info.PatRange noRange
       imps = replicate (length should - length is) imp
   in  A.Clause (A.LHS i (A.LHSHead x (ps ++ is ++ imps)) []) rhs0 wh
@@ -350,7 +351,7 @@ data WithFunctionProblem
                      [Term]         -- with expressions
                      [Type]         -- types of the with expressions
                      Type           -- type of the right hand side
-                     [Arg Pattern]  -- parent patterns
+                     [I.Arg Pattern]-- parent patterns
                      Permutation    -- permutation reordering the variables in the parent pattern
                      Permutation    -- final permutation (including permutation for the parent clause)
                      [A.Clause]     -- the given clauses for the with function
@@ -366,20 +367,21 @@ checkClause t c@(A.Clause (A.LHS i (A.LHSHead x aps) []) rhs0 wh) =
       -- introduce trailing implicits for checking the where decls
       TelV htel t0 <- telViewUpTo' (-1) ((Hidden==) . domHiding) t'
       let n = size htel
+          aps' = map convArg aps
       (body, with) <- addCtxTel htel $ checkWhere (size delta + n) wh $ escapeContext (size htel) $ let
           -- for the body, we remove the implicits again
           handleRHS rhs =
               case rhs of
                 A.RHS e
                   | any (containsAbsurdPattern . namedArg) aps ->
-                    typeError $ AbsurdPatternRequiresNoRHS aps
+                    typeError $ AbsurdPatternRequiresNoRHS aps'
                   | otherwise -> do
                     v <- checkExpr e t'
                     return (mkBody v, NoWithFunction)
                 A.AbsurdRHS
                   | any (containsAbsurdPattern . namedArg) aps
                               -> return (NoBody, NoWithFunction)
-                  | otherwise -> typeError $ NoRHSRequiresAbsurdPattern aps
+                  | otherwise -> typeError $ NoRHSRequiresAbsurdPattern aps'
                 A.RewriteRHS [] (_:_) _ _ -> __IMPOSSIBLE__
                 A.RewriteRHS (_:_) [] _ _ -> __IMPOSSIBLE__
                 A.RewriteRHS [] [] rhs [] -> handleRHS rhs
@@ -388,7 +390,7 @@ checkClause t c@(A.Clause (A.LHS i (A.LHSHead x aps) []) rhs0 wh) =
                      (proof,t) <- inferExpr eq
                      t' <- reduce =<< instantiateFull t
                      equality <- primEquality >>= \eq ->
-                      let lamV (Lam h b)  = ((h:) *** id) $ lamV (unAbs b)
+                      let lamV (Lam i b)  = ((argInfoHiding i:) *** id) $ lamV (unAbs b)
                           lamV (Shared p) = lamV (derefPtr p)
                           lamV v          = ([], v) in
                       return $ case lamV eq of
@@ -400,8 +402,10 @@ checkClause t c@(A.Clause (A.LHS i (A.LHSHead x aps) []) rhs0 wh) =
                          Con reflCon [] -> reflCon
                          _              -> __IMPOSSIBLE__
                      (rewriteType,rewriteFrom,rewriteTo) <- case ignoreSharing $ unEl t' of
-                         Def equality' [_level, Arg Hidden Relevant rewriteType,
-                                        Arg NotHidden Relevant rewriteFrom, Arg NotHidden Relevant rewriteTo]
+                         Def equality' [_level,
+                                        Arg (ArgInfo Hidden Relevant _) rewriteType,
+                                        Arg (ArgInfo NotHidden Relevant _) rewriteFrom,
+                                        Arg (ArgInfo NotHidden Relevant _) rewriteTo]
                             | equality' == equality ->
                               return (rewriteType, rewriteFrom, rewriteTo)
                          _ -> do
@@ -585,7 +589,7 @@ checkWithFunction (WithFunction f aux gamma delta1 delta2 vs as b qs perm' perm 
       , prettyList $ map prettyTCM ts
       , prettyTCM dt
       ]
-  addConstant aux (Defn Relevant aux auxType [] [] [df] 0 noCompiledRep Axiom)
+  addConstant aux (Defn defaultArgInfo aux auxType [] [] [df] 0 noCompiledRep Axiom)
   solveSizeConstraints
 
   reportSDoc "tc.with.top" 10 $ sep
@@ -646,7 +650,8 @@ actualConstructor c = do
     where
         stripLambdas v = case ignoreSharing v of
             Con c _ -> return c
-            Lam h b -> do
+            Lam info b -> do
                 x <- freshName_ $ absName b
-                addCtx x (Dom h Relevant $ sort Prop) $ stripLambdas (absBody b)
+                addCtx x (Dom info $ sort Prop) $
+                         stripLambdas (absBody b)
             _       -> typeError $ GenericError $ "Not a constructor: " ++ show c

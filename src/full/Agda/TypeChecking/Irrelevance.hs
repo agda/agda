@@ -11,7 +11,9 @@ import qualified Data.Map as Map
 
 import Agda.Interaction.Options hiding (tests)
 
-import Agda.Syntax.Common
+import Agda.Syntax.Common hiding (Arg, Dom, NamedArg, ArgInfo)
+import qualified Agda.Syntax.Common as Common
+import Agda.Syntax.Internal (Arg, Dom, NamedArg, ArgInfo)
 
 import Agda.TypeChecking.Monad
 
@@ -89,10 +91,7 @@ nonStrictToIrr rel       = rel
 -- | Prepare parts of a parameter telescope for abstraction in constructors
 --   and projections.
 hideAndRelParams :: Dom a -> Dom a
-hideAndRelParams a = a
-  { domRelevance = nonStrictToIrr (domRelevance a)
-  , domHiding    = Hidden
-  }
+hideAndRelParams = mapDomHiding (const Hidden) . mapDomRelevance nonStrictToIrr
 
 {- UNUSED
 -- | @modifyArgRelevance f arg@ applies @f@ to the 'argRelevance' component of @arg@.

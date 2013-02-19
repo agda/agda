@@ -1,4 +1,5 @@
-{-# LANGUAGE CPP, PatternGuards, ImplicitParams, TupleSections #-}
+{-# LANGUAGE CPP, PatternGuards, ImplicitParams, TupleSections,
+             FlexibleInstances #-}
 
 {- Checking for Structural recursion
    Authors: Andreas Abel, Nils Anders Danielsson, Ulf Norell,
@@ -26,7 +27,7 @@ import Data.Set (Set)
 
 import qualified Agda.Syntax.Abstract as A
 -- import Agda.Syntax.Abstract.Pretty (prettyA)
-import Agda.Syntax.Internal
+import Agda.Syntax.Internal as I
 import qualified Agda.Syntax.Info as Info
 import Agda.Syntax.Position
 import Agda.Syntax.Common
@@ -630,7 +631,7 @@ termTerm conf names f delayed pats0 t0 = do
                -> Induction
                   -- ^ Should the constructor be treated as
                   --   inductive or coinductive?
-               -> [(Arg Term, Bool)]
+               -> [(I.Arg Term, Bool)]
                   -- ^ All the arguments, and for every
                   --   argument a boolean which is 'True' iff the
                   --   argument should be viewed as preserving
@@ -646,7 +647,7 @@ termTerm conf names f delayed pats0 t0 = do
                               (False, _)           -> Term.unknown
 
              -- Handles function applications @g args0@.
-             function :: QName -> [Arg Term] -> TCM Calls
+             function :: QName -> [I.Arg Term] -> TCM Calls
              function g args0 = do
                let args1 = map unArg args0
                args2 <- mapM instantiateFull args1
@@ -819,8 +820,8 @@ termTerm conf names f delayed pats0 t0 = do
              Term.unknown
 
 -- | Rewrite type @tel -> Size< u@ to @tel -> Size@.
-maskSizeLt :: Dom Type -> TCM (Dom Type)
-maskSizeLt dom@(Dom h r a) = do
+maskSizeLt :: I.Dom Type -> TCM (I.Dom Type)
+maskSizeLt dom@(Dom info a) = do
   (msize, msizelt) <- getBuiltinSize
   case (msize, msizelt) of
     (_ , Nothing) -> return dom
@@ -828,7 +829,7 @@ maskSizeLt dom@(Dom h r a) = do
     (Just size, Just sizelt) -> do
       TelV tel c <- telView a
       case ignoreSharingType a of
-        El s (Def d [v]) | d == sizelt -> return $ Dom h r $
+        El s (Def d [v]) | d == sizelt -> return $ Dom info $
           abstract tel $ El s $ Def size []
         _ -> return dom
 
@@ -919,8 +920,8 @@ stripProjections t = case ignoreSharing t of
 class StripAllProjections a where
   stripAllProjections :: a -> TCM a
 
-instance StripAllProjections a => StripAllProjections (Arg a) where
-  stripAllProjections (Arg h r a) = Arg h r <$> stripAllProjections a
+instance StripAllProjections a => StripAllProjections (I.Arg a) where
+  stripAllProjections (Arg info a) = Arg info <$> stripAllProjections a
 
 instance StripAllProjections a => StripAllProjections [a] where
   stripAllProjections = mapM stripAllProjections

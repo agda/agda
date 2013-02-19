@@ -38,23 +38,23 @@ match (Done xs t) args _ _
     m              = length args
     toTm           = map (unArg . ignoreReduced)
     (args0, args1) = splitAt n $ map (fmap $ fmap shared) args
-    lam x t        = Lam (argHiding x) (Abs (unArg x) t)
+    lam x t        = Lam (argInfo x) (Abs (unArg x) t)
 match (Case n bs) args patch stack =
   case genericSplitAt n args of
     (_, []) -> return $ NoReduction $ NotBlocked $ patch $ map ignoreReduced args
-    (args0, MaybeRed red (Arg h r v0) : args1) -> do
+    (args0, MaybeRed red (Arg info v0) : args1) -> do
       w  <- case red of
               Reduced b  -> return $ fmap (const v0) b
               NotReduced ->
                 unfoldCorecursion =<< instantiate v0
       cv <- constructorForm $ ignoreBlocking w
       let v      = ignoreBlocking w
-          args'  = args0 ++ [MaybeRed red $ Arg h r v] ++ args1
+          args'  = args0 ++ [MaybeRed red $ Arg info v] ++ args1
           stack' = maybe [] (\c -> [(c, args', patch)]) (catchAllBranch bs)
                    ++ stack
-          patchLit args = patch (args0 ++ [Arg h r v] ++ args1)
+          patchLit args = patch (args0 ++ [Arg info v] ++ args1)
             where (args0, args1) = splitAt n args
-          patchCon c m args = patch (args0 ++ [Arg h r $ Con c vs] ++ args1)
+          patchCon c m args = patch (args0 ++ [Arg info $ Con c vs] ++ args1)
             where (args0, args1') = splitAt n args
                   (vs, args1)     = splitAt m args1'
       case ignoreSharing <$> w of

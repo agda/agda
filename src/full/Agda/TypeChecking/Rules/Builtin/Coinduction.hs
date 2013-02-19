@@ -132,7 +132,7 @@ bindBuiltinFlat e =
                , theDef = Function
                    { funClauses        = [clause]
                    , funCompiled       =
-                      let hid   = Arg Hidden Relevant
+                      let hid   = hide . defaultArg
                           nohid = defaultArg in
                       Case 0 (Branches (Map.singleton sharp
                                  (WithArity 1 (Done [nohid "x"] (var 0))))

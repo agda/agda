@@ -22,10 +22,10 @@ unEl : Type → Term
 unEl (el _ t) = t
 
 argᵛʳ : ∀{A} → A → Arg A
-argᵛʳ = arg visible relevant
+argᵛʳ = arg (arginfo visible relevant)
 
 argʰʳ : ∀{A} → A → Arg A
-argʰʳ = arg hidden relevant
+argʰʳ = arg (arginfo hidden relevant)
 
 el₀ : Term → Type
 el₀ = el (lit 0)
@@ -37,7 +37,7 @@ set₀ : Type
 set₀ = el₁ (sort (lit 0))
 
 unCheck : Term → Term
-unCheck (def x (_ ∷ _ ∷ arg _ _ t ∷ [])) = t
+unCheck (def x (_ ∷ _ ∷ arg _ t ∷ [])) = t
 unCheck t = unknown
 
 mutual
@@ -129,5 +129,5 @@ mutual
 
 test₁₄ : Check 1
 test₁₄ = quoteGoal t in
-           t is con (quote ℕ.suc) (argᵛʳ (con (quote ℕ.zero) []) ∷ [])
+           t is con ( quote ℕ.suc ) (argᵛʳ (con (quote ℕ.zero) []) ∷ [])
            of course

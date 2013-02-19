@@ -580,7 +580,7 @@ solveSizeConstraints = whenM haveSizedTypes $ do
                   Just x -> return $ plus (var x) n
                   Nothing -> __IMPOSSIBLE__
 -}
-                lam _ v = Lam NotHidden $ Abs "s" v -- hiding does not matter
+                lam _ v = Lam defaultArgInfo $ Abs "s" v -- hiding does not matter
 
                 -- convert size expression to term and abstract
                 v = flip (foldr lam) [0..ar-1] $ term e

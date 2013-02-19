@@ -8,8 +8,9 @@ import Control.Applicative
 import Agda.Syntax.Common
 import Agda.Syntax.Position
 import Agda.Syntax.Info
-import Agda.Syntax.Internal
+import Agda.Syntax.Internal as I
 import qualified Agda.Syntax.Abstract as A
+import Agda.Syntax.Translation.InternalToAbstract (reify)
 
 import Agda.TypeChecking.Monad
 import Agda.TypeChecking.Implicit
@@ -37,7 +38,7 @@ insertImplicitProblem (Problem ps qs tel pr) = do
   return $ Problem ps' qs tel pr
 
 -- | Insert implicit patterns in a list of patterns.
-insertImplicitPatterns :: ExpandHidden -> [NamedArg A.Pattern] -> Telescope -> TCM [NamedArg A.Pattern]
+insertImplicitPatterns :: ExpandHidden -> [A.NamedArg A.Pattern] -> Telescope -> TCM [A.NamedArg A.Pattern]
 insertImplicitPatterns exh            ps EmptyTel = return ps
 insertImplicitPatterns DontExpandLast [] tel      = return []
 insertImplicitPatterns exh ps tel@(ExtendTel arg tel') = case ps of
@@ -66,7 +67,9 @@ insertImplicitPatterns exh ps tel@(ExtendTel arg tel') = case ps of
               ifM (isEtaRecord d) (do
                 c  <- getRecordConstructor d
                 fs <- getRecordFieldNames d
-                let qs = map (implicitP <$) fs
+                qs <- mapM (\i -> do let Arg info e = implicitP <$ i
+                                     flip Arg e <$> reify info)
+                           fs
                 continue ((A.ConP (PatRange noRange) (A.AmbQ [c]) qs <$) <$> p)
               ) (continue p)
             _ -> continue p
@@ -85,4 +88,4 @@ insertImplicitPatterns exh ps tel@(ExtendTel arg tel') = case ps of
     implicitP = unnamed $ A.ImplicitP $ PatRange $ noRange
 
     implicitPs [] = []
-    implicitPs (h : hs) = (Arg h Relevant implicitP) : implicitPs hs
+    implicitPs (h : hs) = (setArgHiding h $ defaultArg implicitP) : implicitPs hs

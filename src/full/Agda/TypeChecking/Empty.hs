@@ -38,7 +38,7 @@ isEmptyType r t = do
     -- xs _ : ts t and try to split on _ (the last variable)
       tel0 <- getContextTelescope
       let gamma = telToList tel0 ++ [domFromArg $ defaultArg ("_", t)]
-          ps    = [ Arg h r $ VarP x | Dom h r (x, _) <- gamma ]
+          ps    = [ Arg info $ VarP x | Dom info (x, _) <- gamma ]
           tel   = telFromList gamma
 
       dontAssignMetas $ do

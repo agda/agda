@@ -17,7 +17,7 @@ import Data.Maybe (mapMaybe)
 
 import Agda.Syntax.Position
 import Agda.Syntax.Common
-import Agda.Syntax.Internal
+import Agda.Syntax.Internal as I
 import Agda.TypeChecking.Datatypes (isDataOrRecordType, DataOrRecord(..))
 import Agda.TypeChecking.Records (unguardedRecord, recursiveRecord)
 import Agda.TypeChecking.Monad
@@ -439,10 +439,10 @@ instance ComputeOccurrences a => ComputeOccurrences (Abs a) where
   occurrences (Abs   _ b) = withExtendedOccEnv Nothing $ occurrences b
   occurrences (NoAbs _ b) = occurrences b
 
-instance ComputeOccurrences a => ComputeOccurrences (Arg a) where
+instance ComputeOccurrences a => ComputeOccurrences (I.Arg a) where
   occurrences = occurrences . unArg
 
-instance ComputeOccurrences a => ComputeOccurrences (Dom a) where
+instance ComputeOccurrences a => ComputeOccurrences (I.Dom a) where
   occurrences = occurrences . unDom
 
 instance ComputeOccurrences a => ComputeOccurrences [a] where

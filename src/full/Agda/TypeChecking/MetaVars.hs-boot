@@ -1,8 +1,7 @@
 
 module Agda.TypeChecking.MetaVars where
 
-import Agda.Syntax.Common	    ( Dom )
-import Agda.Syntax.Internal	    ( MetaId, Term, Sort, Type, Args, Abs )
+import Agda.Syntax.Internal	    ( MetaId, Term, Sort, Type, Args, Abs, Dom )
 import Agda.TypeChecking.Monad.Base ( TCM, RunMetaOccursCheck(..) )
 
 type Condition = Dom Type -> Abs Type -> Bool

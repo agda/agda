@@ -37,6 +37,7 @@ data Symbol
 	| SymOpenBrace	      | SymCloseBrace
 	| SymOpenVirtualBrace | SymCloseVirtualBrace
 	| SymOpenPragma	      | SymClosePragma | SymEllipsis | SymDotDot
+--        | SymColonBrace
     deriving (Eq, Show)
 
 data Token

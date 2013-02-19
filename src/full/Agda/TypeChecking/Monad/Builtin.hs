@@ -86,7 +86,7 @@ primInteger, primFloat, primChar, primString, primBool, primTrue, primFalse,
     primLevel, primLevelZero, primLevelSuc, primLevelMax,
     primIrrAxiom,
     -- builtins for reflection:
-    primQName, primArg, primArgArg, primAgdaTerm, primAgdaTermVar,
+    primQName, primArgInfo, primArgArgInfo, primArg, primArgArg, primAgdaTerm, primAgdaTermVar,
     primAgdaTermLam, primAgdaTermDef, primAgdaTermCon, primAgdaTermPi,
     primAgdaTermSort, primAgdaTermUnsupported,
     primAgdaType, primAgdaTypeEl,
@@ -146,6 +146,8 @@ primVisible      = getBuiltin builtinVisible
 primRelevance    = getBuiltin builtinRelevance
 primRelevant     = getBuiltin builtinRelevant
 primIrrelevant   = getBuiltin builtinIrrelevant
+primArgInfo      = getBuiltin builtinArgInfo
+primArgArgInfo   = getBuiltin builtinArgArgInfo
 primAgdaSortSet  = getBuiltin builtinAgdaSortSet
 primAgdaSortLit  = getBuiltin builtinAgdaSortLit
 primAgdaSortUnsupported = getBuiltin builtinAgdaSortUnsupported
@@ -218,6 +220,8 @@ builtinRelevance    = "RELEVANCE"
 builtinRelevant     = "RELEVANT"
 builtinIrrelevant   = "IRRELEVANT"
 builtinArg          = "ARG"
+builtinArgInfo      = "ARGINFO"
+builtinArgArgInfo   = "ARGARGINFO"
 builtinArgArg       = "ARGARG"
 builtinAgdaTerm         = "AGDATERM"
 builtinAgdaTermVar      = "AGDATERMVAR"

@@ -139,7 +139,7 @@ makeProjection x = inContext [] $ do
     --
     candidateArgs :: [Term] -> Term -> [(QName,Int)]
     candidateArgs vs (Shared p) = candidateArgs vs $ derefPtr p
-    candidateArgs vs (Pi (Dom r h (El _ def)) b)
+    candidateArgs vs (Pi (Dom info (El _ def)) b)
       | Def d us <- ignoreSharing def,
         vs == map unArg us = (d, length vs) : candidateRec vs b
     candidateArgs vs (Pi _ b) = candidateRec vs b

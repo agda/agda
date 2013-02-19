@@ -24,7 +24,8 @@ import Data.Traversable
 import Data.IORef
 import Data.Hashable
 
-import Agda.Syntax.Common
+import Agda.Syntax.Common hiding (Arg, Dom, NamedArg, ArgInfo)
+import qualified Agda.Syntax.Common as Common
 import qualified Agda.Syntax.Concrete as C
 import qualified Agda.Syntax.Concrete.Definitions as D
 import qualified Agda.Syntax.Abstract as A
@@ -489,6 +490,9 @@ getMetaSig m = clSignature $ getMetaInfo m
 getMetaRelevance :: MetaVariable -> Relevance
 getMetaRelevance = envRelevance . getMetaEnv
 
+getMetaColors :: MetaVariable -> [Color]
+getMetaColors = envColors . getMetaEnv
+
 ---------------------------------------------------------------------------
 -- ** Interaction meta variables
 ---------------------------------------------------------------------------
@@ -549,10 +553,13 @@ data DisplayTerm = DWithApp [DisplayTerm] Args
 defaultDisplayForm :: QName -> [Open DisplayForm]
 defaultDisplayForm c = []
 
+defRelevance = argInfoRelevance . defArgInfo
+defColors    = argInfoColors    . defArgInfo
+
 data Definition = Defn
-  { defRelevance      :: Relevance -- ^ Some defs can be irrelevant (but not hidden).
+  { defArgInfo        :: ArgInfo -- ^ Hiding should not be used.
   , defName           :: QName
-  , defType           :: Type	      -- ^ Type of the lifted definition.
+  , defType           :: Type	 -- ^ Type of the lifted definition.
   , defPolarity       :: [Polarity]
   , defArgOccurrences :: [Occurrence]
   , defDisplay        :: [Open DisplayForm]
@@ -715,8 +722,8 @@ notReduced x = MaybeRed NotReduced x
 
 reduced :: Blocked (Arg Term) -> MaybeReduced (Arg Term)
 reduced b = case fmap ignoreSharing <$> b of
-  NotBlocked (Arg _ _ (MetaV x _)) -> MaybeRed (Reduced $ Blocked x ()) v
-  _                                -> MaybeRed (Reduced $ () <$ b)      v
+  NotBlocked (Common.Arg _ (MetaV x _)) -> MaybeRed (Reduced $ Blocked x ()) v
+  _                                     -> MaybeRed (Reduced $ () <$ b)      v
   where
     v = ignoreBlocking b
 
@@ -938,6 +945,7 @@ data TCEnv =
                 -- ^ Are we checking an irrelevant argument? (=@Irrelevant@)
                 -- Then top-level irrelevant declarations are enabled.
                 -- Other value: @Relevant@, then only relevant decls. are avail.
+          , envColors              :: [Color]
           , envDisplayFormsEnabled :: Bool
                 -- ^ Sometimes we want to disable display forms.
           , envReifyInteractionPoints :: Bool
@@ -989,6 +997,7 @@ initEnv = TCEnv { envContext	         = []
                 , envAssignMetas         = True
 		, envAbstractMode        = AbstractMode
                 , envRelevance           = Relevant
+                , envColors              = []
                 , envDisplayFormsEnabled = True
                 , envReifyInteractionPoints = True
                 , envEtaContractImplicit    = True
@@ -1160,6 +1169,8 @@ data TypeError
 	    -- ^ The two function types have different relevance.
 	| UnequalHiding Term Term
 	    -- ^ The two function types have different hiding.
+	| UnequalColors Term Term
+	    -- ^ The two function types have different color.
 	| UnequalSorts Sort Sort
         | UnequalBecauseOfUniverseConflict Comparison Term Term
         | HeterogeneousEquality Term Type Term Type

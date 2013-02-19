@@ -69,24 +69,24 @@ module ReflectLibrary where
   lamʰ = lam hidden
 
   argᵛʳ : ∀{A} → A → Arg A
-  argᵛʳ = arg visible relevant
+  argᵛʳ = arg (arginfo visible relevant)
 
   argʰʳ : ∀{A} → A → Arg A
-  argʰʳ = arg hidden relevant
+  argʰʳ = arg (arginfo hidden relevant)
 
-  app` : (Args → Term) → (hrs : List (Hiding × Relevance)) → Term →⟨ length hrs ⟩ Term
+  app` : (Args → Term) → (hrs : List ArgInfo) → Term →⟨ length hrs ⟩ Term
   app` f = go [] where
-    go : List (Arg Term) → (hrs : List (Hiding × Relevance)) → Term →⟨ length hrs ⟩ Term
+    go : List (Arg Term) → (hrs : List ArgInfo) → Term →⟨ length hrs ⟩ Term
     go args []             = f (reverse args)
-    go args ((h , r) ∷ hs) = λ t → go (arg h r t ∷ args) hs
+    go args (i ∷ hs) = λ t → go (arg i t ∷ args) hs
 
-  con` : QName → (hrs : List (Hiding × Relevance)) → Term →⟨ length hrs ⟩ Term
+  con` : QName → (hrs : List ArgInfo) → Term →⟨ length hrs ⟩ Term
   con` x = app` (con x)
 
-  def` : QName → (hrs : List (Hiding × Relevance)) → Term →⟨ length hrs ⟩ Term
+  def` : QName → (hrs : List ArgInfo) → Term →⟨ length hrs ⟩ Term
   def` x = app` (def x)
 
-  var` : ℕ → (hrs : List (Hiding × Relevance)) → Term →⟨ length hrs ⟩ Term
+  var` : ℕ → (hrs : List ArgInfo) → Term →⟨ length hrs ⟩ Term
   var` x = app` (var x)
 
   coe : ∀ {A : Set} {z : A} n → (Term →⟨ length (replicate n z) ⟩ Term) → Term →⟨ n ⟩ Term
@@ -94,13 +94,13 @@ module ReflectLibrary where
   coe (suc n) f = λ t → coe n (f t)
 
   con`ⁿʳ : QName → (n : ℕ) → Term →⟨ n ⟩ Term
-  con`ⁿʳ x n = coe n (app` (con x) (replicate n (visible , relevant)))
+  con`ⁿʳ x n = coe n (app` (con x) (replicate n (arginfo visible relevant)))
 
   def`ⁿʳ : QName → (n : ℕ) → Term →⟨ n ⟩ Term
-  def`ⁿʳ x n = coe n (app` (def x) (replicate n (visible , relevant)))
+  def`ⁿʳ x n = coe n (app` (def x) (replicate n (arginfo visible relevant)))
 
   var`ⁿʳ : ℕ → (n : ℕ) → Term →⟨ n ⟩ Term
-  var`ⁿʳ x n = coe n (app` (var x) (replicate n (visible , relevant)))
+  var`ⁿʳ x n = coe n (app` (var x) (replicate n (arginfo visible relevant)))
 
   sort₀ : Sort
   sort₀ = lit 0
@@ -128,7 +128,7 @@ module ReflectLibrary where
   getSort (el s _) = s
 
   unArg : ∀ {A} → Arg A → A
-  unArg (arg _ _ a) = a
+  unArg (arg _ a) = a
 
   `Level : Term
   `Level = def (quote Level) []
@@ -159,7 +159,7 @@ module ReflectLibrary where
 
   decodeSort : Sort → Maybe Level
   decodeSort (set (con c [])) = when (quote lzero == c) (just lzero)
-  decodeSort (set (con c (arg visible relevant s ∷ [])))
+  decodeSort (set (con c (arg (arginfo visible relevant) s ∷ [])))
     = when (quote lsuc == c) (mapMaybe lsuc (decodeSort (set s)))
   decodeSort (set (sort s)) = decodeSort s
   decodeSort (set _) = nothing
@@ -175,10 +175,10 @@ module ReflectLibrary where
   Π t u = el (getSort (unArg t) `⊔` getSort u) (pi t u)
 
   Πᵛʳ : Type → Type → Type
-  Πᵛʳ t u = el (getSort t `⊔` getSort u) (pi (arg visible relevant t) u)
+  Πᵛʳ t u = el (getSort t `⊔` getSort u) (pi (arg (arginfo visible relevant) t) u)
 
   Πʰʳ : Type → Type → Type
-  Πʰʳ t u = el (getSort t `⊔` getSort u) (pi (arg hidden relevant t) u)
+  Πʰʳ t u = el (getSort t `⊔` getSort u) (pi (arg (arginfo hidden relevant) t) u)
 
 open ReflectLibrary
 
@@ -343,7 +343,7 @@ test-proj = unquote (tuple (replicate n `refl)) where n = 9
 
 module Test where
   data Squash (A : Set) : Set where
-    squash : unquote (unEl (Π (arg visible irrelevant (``var₀ 0 [])) (el₀ (def (quote Squash) (argᵛʳ (var 1 []) ∷ [])))))
+    squash : unquote (unEl (Π (arg (arginfo visible irrelevant) (``var₀ 0 [])) (el₀ (def (quote Squash) (argᵛʳ (var 1 []) ∷ [])))))
 
 data Squash (A : Set) : Set where
   squash : .A → Squash A
@@ -352,7 +352,7 @@ data Squash (A : Set) : Set where
 `Squash = def`ⁿʳ (quote Squash) 1
 
 squash-type : Type
-squash-type = Π (arg visible irrelevant (``var₀ 0 [])) (el₀ (`Squash (var 1 [])))
+squash-type = Π (arg (arginfo visible irrelevant) (``var₀ 0 [])) (el₀ (`Squash (var 1 [])))
 
 test-squash : ∀ {A} → (.A → Squash A) ≡ unquote (unEl squash-type)
 test-squash = refl

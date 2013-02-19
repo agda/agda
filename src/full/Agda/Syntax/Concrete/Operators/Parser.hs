@@ -3,7 +3,8 @@
 module Agda.Syntax.Concrete.Operators.Parser where
 
 import Agda.Syntax.Position
-import Agda.Syntax.Common
+import Agda.Syntax.Common hiding (Arg, Dom, NamedArg)
+import qualified Agda.Syntax.Common as Common
 import Agda.Syntax.Fixity
 import Agda.Syntax.Notation
 import Agda.Syntax.Concrete
@@ -132,9 +133,9 @@ rebuild (name,_,syn) r es = do
 
 rebuildBinding :: ExprView e -> ReadP a LamBinding
   -- Andreas, 2011-04-07 put just 'Relevant' here, is this correct?
-rebuildBinding (LocalV (QName name)) = return $ DomainFree NotHidden Relevant (mkBoundName_ name)
-rebuildBinding (WildV e)     =
-  return $ DomainFree NotHidden Relevant (mkBoundName_ $ Name noRange [Hole])
+rebuildBinding (LocalV (QName name)) = return $ DomainFree defaultArgInfo $ mkBoundName_ name
+rebuildBinding (WildV e) =
+  return $ DomainFree defaultArgInfo $ mkBoundName_ $ Name noRange [Hole]
 rebuildBinding _ = fail "variable name expected"
 
 ($$$) :: (e -> ReadP a e) -> ReadP a e -> ReadP a e
@@ -187,20 +188,20 @@ appP top p = do
 	isInstance (InstanceArgV _) = True
 	isInstance _	            = False
 
-	nothidden = Arg NotHidden Relevant . unnamed <$> do
+	nothidden = defaultArg . unnamed <$> do
 	    e <- p
 	    case exprView e of
-		HiddenArgV _ -> pfail
+		HiddenArgV   _ -> pfail
 		InstanceArgV _ -> pfail
-		_	     -> return e
+		_	       -> return e
 
 	instanceH = do
 	    InstanceArgV e <- exprView <$> satisfy (isInstance . exprView)
-	    return $ Arg Instance Relevant e
+	    return $ makeInstance $ defaultArg e
 
 	hidden = do
 	    HiddenArgV e <- exprView <$> satisfy (isHidden . exprView)
-	    return $ Arg Hidden Relevant e
+	    return $ hide $ defaultArg e
 
 atomP :: IsExpr e => (QName -> Bool) -> ReadP e e
 atomP p = do

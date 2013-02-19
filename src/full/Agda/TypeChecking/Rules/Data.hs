@@ -49,7 +49,7 @@ checkDataDef :: Info.DefInfo -> QName -> [A.LamBinding] -> [A.Constructor] -> TC
 checkDataDef i name ps cs =
     traceCall (CheckDataDef (getRange i) (qnameName name) ps cs) $ do -- TODO!! (qnameName)
 	let countPars A.DomainFree{} = 1
-            countPars (A.DomainFull (A.TypedBindings _ (Arg _ _ b))) = case b of
+            countPars (A.DomainFull (A.TypedBindings _ (Arg _ b))) = case b of
               A.TNoBind{}   -> 1
               A.TBind _ xs _ -> size xs
             npars = sum $ map countPars ps
@@ -112,7 +112,7 @@ checkDataDef i name ps cs =
                                    }
 
 	    escapeContext (size tel) $ do
-	      addConstant name ( Defn Relevant name t [] [] (defaultDisplayForm name) 0 noCompiledRep dataDef )
+	      addConstant name ( Defn defaultArgInfo name t [] [] (defaultDisplayForm name) 0 noCompiledRep dataDef )
 
 	    -- Check the types of the constructors
 	    mapM_ (checkConstructor name tel' nofIxs s) cs
@@ -136,7 +136,7 @@ checkDataDef i name ps cs =
 
 	-- Add the datatype to the signature with its constructors. It was previously
 	-- added without them.
-	addConstant name (Defn Relevant name t [] [] (defaultDisplayForm name) 0 noCompiledRep $
+	addConstant name (Defn defaultArgInfo name t [] [] (defaultDisplayForm name) 0 noCompiledRep $
                             dataDef { dataCons = map cname cs }
 			 )
         -- Andreas 2012-02-13: postpone polarity computation until after positivity check
@@ -193,7 +193,7 @@ checkConstructor d tel nofIxs s con@(A.Axiom i _ c e) =
         -- add parameters to constructor type and put into signature
         escapeContext (size tel)
 	    $ addConstant c
-	    $ Defn Relevant c (telePi tel t') [] [] (defaultDisplayForm c) 0 noCompiledRep
+	    $ Defn defaultArgInfo c (telePi tel t') [] [] (defaultDisplayForm c) 0 noCompiledRep
 	    $ Constructor (size tel) c d (Info.defAbstract i) Inductive
   where
     debugEnter c e =
@@ -223,14 +223,14 @@ checkConstructor _ _ _ _ _ = __IMPOSSIBLE__ -- constructors are axioms
 -- | Bind the parameters of a datatype.
 bindParameters :: [A.LamBinding] -> Type -> (Telescope -> Type -> TCM a) -> TCM a
 bindParameters [] a ret = ret EmptyTel a
-bindParameters (A.DomainFull (A.TypedBindings _ (Arg h rel (A.TBind _ xs _))) : bs) a ret =
-  bindParameters ([ A.DomainFree h rel x | x <- xs ] ++ bs) a ret
-bindParameters (A.DomainFull (A.TypedBindings _ (Arg h rel (A.TNoBind _))) : bs) a ret = do
+bindParameters (A.DomainFull (A.TypedBindings _ (Arg info (A.TBind _ xs _))) : bs) a ret =
+  bindParameters ([ A.DomainFree info x | x <- xs ] ++ bs) a ret
+bindParameters (A.DomainFull (A.TypedBindings _ (Arg info (A.TNoBind _))) : bs) a ret = do
   x <- freshNoName_
-  bindParameters (A.DomainFree h rel x : bs) a ret
-bindParameters ps0@(A.DomainFree h rel x : ps) (El _ (Pi arg@(Dom h' rel' a) b)) ret
+  bindParameters (A.DomainFree info x : bs) a ret
+bindParameters ps0@(A.DomainFree info x : ps) (El _ (Pi arg@(Dom info' a) b)) ret
   -- Andreas, 2011-04-07 ignore relevance information in binding?!
-    | h /= h' =
+    | argInfoHiding info /= argInfoHiding info' =
 	__IMPOSSIBLE__
     | otherwise = addCtx x arg $ bindParameters ps (absBody b) $ \tel s ->
 		    ret (ExtendTel arg $ Abs (show x) tel) s
@@ -258,11 +258,11 @@ fitsIn t s = do
   -- to be indexed by the universe level.
 --   noConstraints $ s' `leqSort` s
   case ignoreSharing $ unEl t of
-    Pi arg@(Dom h r a) _ -> do
+    Pi arg@(Dom info a) _ -> do
       let s' = getSort a
       s' `leqSort` s
       x <- freshName_ (argName t)
-      let v  = Arg h r $ var 0
+      let v  = Arg info $ var 0
           t' = piApply (raise 1 t) [v]
       addCtx x arg $ fitsIn t' (raise 1 s)
     _		     -> return ()
@@ -298,7 +298,7 @@ constructs nofPars t q = constrT 0 t
 
 		sameVar arg i
                   -- skip irrelevant parameters
-                  | argRelevance arg == Irrelevant = return ()
+                  | isArgInfoIrrelevant (argInfo arg) = return ()
 		  | otherwise = do
 		    t <- typeOfBV i
 		    equalTerm t (unArg arg) (var i)

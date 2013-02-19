@@ -59,7 +59,7 @@ etaExpand def@(Def n ts) = do
         toEta :: Num a => a
         toEta = fromIntegral $ len - length ts
         term  = raise toEta def `apply` [ defaultArg $ Var i [] | i <- [toEta - 1, toEta - 2 .. 0]]
-    return $ foldr (\ v t -> Lam NotHidden (Abs v t)) term $ replicate toEta "staticVar"
+    return $ foldr (\ v t -> Lam defaultArgInfo (Abs v t)) term $ replicate toEta "staticVar"
 etaExpand x = return x
 
 evaluateTerm :: Term -> Compile TCM Term

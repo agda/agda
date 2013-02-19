@@ -7,7 +7,7 @@ import Data.List (genericReplicate, nubBy, findIndex)
 import Data.Function
 
 import Agda.Syntax.Common
-import Agda.Syntax.Internal
+import Agda.Syntax.Internal as I
 import Agda.TypeChecking.CompiledClause
 import Agda.TypeChecking.Coverage
 import Agda.TypeChecking.Coverage.SplitTree
@@ -56,7 +56,7 @@ compileClauses mt cs = do
       cc <- translateCompiledClauses cc
       return cc
 
-type Cl  = ([Arg Pattern], ClauseBody)
+type Cl  = ([I.Arg Pattern], ClauseBody)
 type Cls = [Cl]
 
 compileWithSplitTree :: SplitTree -> Cls -> CompiledClauses
@@ -142,8 +142,8 @@ expandCatchAlls n cs = case cs of
                | otherwise -> map (expand ps b) expansions ++ (ps, b) : expandCatchAlls n cs
   _ -> __IMPOSSIBLE__
   where
-    isCatchAll (Arg _ _ ConP{}) = False
-    isCatchAll (Arg _ _ LitP{}) = False
+    isCatchAll (Arg _ ConP{}) = False
+    isCatchAll (Arg _ LitP{}) = False
     isCatchAll _      = True
     nth qs = p
       where (_, p, _) = extractNthElement' n qs

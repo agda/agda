@@ -265,7 +265,7 @@ applySection new ptel old ts rd rm = do
         pol = defPolarity d `apply` ts
         occ = defArgOccurrences d `apply` ts
 	-- the name is set by the addConstant function
-	nd y = Defn (defRelevance d) y t pol occ [] (-1) noCompiledRep <$> def  -- TODO: mutual block?
+	nd y = Defn (defArgInfo d) y t pol occ [] (-1) noCompiledRep <$> def  -- TODO: mutual block?
         oldDef = theDef d
 	isCon = case oldDef of
 	  Constructor{} -> True
@@ -651,6 +651,10 @@ typeOfConst q = defType <$> (instantiateDef =<< getConstInfo q)
 -- | get relevance of a constant
 relOfConst :: QName -> TCM Relevance
 relOfConst q = defRelevance <$> getConstInfo q
+
+-- | get colors of a constant
+colOfConst :: QName -> TCM [Color]
+colOfConst q = defColors <$> getConstInfo q
 
 -- | The name must be a datatype.
 sortOfConst :: QName -> TCM Sort

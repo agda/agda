@@ -10,7 +10,8 @@ import qualified Data.Set as Set
 import Data.Set (Set)
 
 import Agda.Syntax.Position
-import Agda.Syntax.Common
+import Agda.Syntax.Common hiding (Arg,Dom)
+import qualified Agda.Syntax.Common as C
 import Agda.Syntax.Internal
 import Agda.Syntax.Internal.Pattern
 
@@ -272,7 +273,7 @@ isDatatype ind at = do
           | i == CoInductive && ind /= CoInductive ->
               throw CoinductiveDatatype
           -- Andreas, 2011-10-03 allow some splitting on irrelevant data (if only one constr. matches)
-          | domRelevance at == Irrelevant && not splitOnIrrelevantDataAllowed ->
+          | isArgInfoIrrelevant (domInfo at) && not splitOnIrrelevantDataAllowed ->
               throw IrrelevantDatatype
           | otherwise -> do
               let (ps, is) = genericSplitAt np args
@@ -504,8 +505,8 @@ split' ind sc@(SClause tel perm ps _ target) (x, mcons) = liftTCM $ runException
   -- Split the telescope at the variable
   -- t = type of the variable,  Δ₁ ⊢ t
   (n, t, delta1, delta2) <- do
-    let (tel1, Dom h r (n, t) : tel2) = genericSplitAt (size tel - x - 1) $ telToList tel
-    return (n, Dom h r t, telFromList tel1, telFromList tel2)
+    let (tel1, C.Dom info (n, t) : tel2) = genericSplitAt (size tel - x - 1) $ telToList tel
+    return (n, C.Dom info t, telFromList tel1, telFromList tel2)
 
   -- Compute the one hole context of the patterns at the variable
   (hps, hix) <- do

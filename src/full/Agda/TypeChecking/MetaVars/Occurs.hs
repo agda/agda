@@ -1,4 +1,4 @@
-{-# LANGUAGE CPP #-}
+{-# LANGUAGE CPP, FlexibleInstances #-}
 
 module Agda.TypeChecking.MetaVars.Occurs where
 
@@ -15,7 +15,7 @@ import qualified Data.Set
 import Data.Traversable (traverse)
 
 import Agda.Syntax.Common
-import Agda.Syntax.Internal
+import Agda.Syntax.Internal as I
 import Agda.TypeChecking.Monad
 import Agda.TypeChecking.Reduce
 import Agda.TypeChecking.Pretty
@@ -379,16 +379,16 @@ instance (Occurs a, Subst a) => Occurs (Abs a) where
   metaOccurs m (Abs   s x) = metaOccurs m x
   metaOccurs m (NoAbs s x) = metaOccurs m x
 
-instance Occurs a => Occurs (Arg a) where
-  occurs red ctx m xs (Arg h r@Irrelevant{} x) = Arg h r <$>
+instance Occurs a => Occurs (I.Arg a) where
+  occurs red ctx m xs (Arg info x) | isArgInfoIrrelevant info = Arg info <$>
     occurs red Irrel m (goIrrelevant xs) x
-  occurs red ctx m xs (Arg h r              x) = Arg h r <$>
+  occurs red ctx m xs (Arg info x) = Arg info <$>
     occurs red ctx m xs x
 
   metaOccurs m a = metaOccurs m (unArg a)
 
-instance Occurs a => Occurs (Dom a) where
-  occurs red ctx m xs (Dom h r x) = Dom h r <$> occurs red ctx m xs x
+instance Occurs a => Occurs (I.Dom a) where
+  occurs red ctx m xs (Dom info x) = Dom info <$> occurs red ctx m xs x
   metaOccurs m = metaOccurs m . unDom
 
 instance (Occurs a, Occurs b) => Occurs (a,b) where
@@ -525,28 +525,28 @@ killArgs kills m = do
 --   Invariant: @k'i == True@ iff @ki == True@ and pruning the @i@th argument from
 --   type @b@ is possible without creating unbound variables.
 --   @t'@ is type @t@ after pruning all @k'i==True@.
-killedType :: [(Dom (String, Type), Bool)] -> Type -> ([Arg Bool], Type)
+killedType :: [(I.Dom (String, Type), Bool)] -> Type -> ([I.Arg Bool], Type)
 killedType [] b = ([], b)
-killedType ((arg@(Dom h r _), kill) : kills) b
-  | dontKill  = (Arg h r False : args, mkPi arg b') -- OLD: telePi (telFromList [arg]) b')
-  | otherwise = (Arg h r True  : args, subst __IMPOSSIBLE__ b')
+killedType ((arg@(Dom info _), kill) : kills) b
+  | dontKill  = (Arg info False : args, mkPi arg b') -- OLD: telePi (telFromList [arg]) b')
+  | otherwise = (Arg info True  : args, subst __IMPOSSIBLE__ b')
   where
     (args, b') = killedType kills b
     dontKill = not kill || 0 `freeIn` b'
 
 -- The list starts with the last argument
-performKill :: [Arg Bool] -> MetaId -> Type -> TCM ()
+performKill :: [I.Arg Bool] -> MetaId -> Type -> TCM ()
 performKill kills m a = do
   mv <- lookupMeta m
   when (mvFrozen mv == Frozen) __IMPOSSIBLE__
   let perm = Perm (size kills)
-             [ i | (i, Arg _ _ False) <- zip [0..] (reverse kills) ]
+             [ i | (i, Arg _ False) <- zip [0..] (reverse kills) ]
   m' <- newMeta (mvInfo mv) (mvPriority mv) perm
                 (HasType __IMPOSSIBLE__ a)
   -- Andreas, 2010-10-15 eta expand new meta variable if necessary
   etaExpandMetaSafe m'
-  let vars = reverse [ Arg h r (var i) | (i, Arg h r False) <- zip [0..] kills ]
-      lam b a = Lam (argHiding a) (Abs "v" b)
+  let vars = reverse [ Arg info (var i) | (i, Arg info False) <- zip [0..] kills ]
+      lam b a = Lam (argInfo a) (Abs "v" b)
       u       = foldl' lam (MetaV m' vars) kills
 {- OLD CODE
       hs   = reverse [ argHiding a | a <- kills ]

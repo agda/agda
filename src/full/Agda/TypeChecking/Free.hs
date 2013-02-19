@@ -1,4 +1,4 @@
-{-# LANGUAGE CPP #-}
+{-# LANGUAGE CPP, FlexibleInstances #-}
 
 -- | Computing the free variables of a term.
 module Agda.TypeChecking.Free
@@ -18,7 +18,7 @@ module Agda.TypeChecking.Free
 import qualified Agda.Utils.VarSet as Set
 import Agda.Utils.VarSet (VarSet)
 
-import Agda.Syntax.Common
+import Agda.Syntax.Common hiding (Arg, Dom, NamedArg)
 import Agda.Syntax.Internal
 
 #include "../undefined.h"
@@ -201,12 +201,15 @@ instance (Free a, Free b) => Free (a,b) where
   freeVars' conf (x,y) = freeVars' conf x `union` freeVars' conf y
 
 instance Free a => Free (Arg a) where
-  freeVars' conf (Arg h Irrelevant a) = irrelevantly $ freeVars' conf a
-  freeVars' conf (Arg h UnusedArg  a) = unused $ freeVars' conf a
-  freeVars' conf (Arg h r          a) = freeVars' conf a
+  freeVars' conf a = f $ freeVars' conf $ unArg a
+    where f = case argRelevance a of
+               Irrelevant -> irrelevantly
+               UnusedArg  -> unused
+               _          -> id
+
 
 instance Free a => Free (Dom a) where
-  freeVars' conf (Dom h r a) = freeVars' conf a
+  freeVars' conf = freeVars' conf . unDom
 
 instance Free a => Free (Abs a) where
   freeVars' conf (Abs   _ b) = subtractFV 1 $ delete 0 $ freeVars' conf b

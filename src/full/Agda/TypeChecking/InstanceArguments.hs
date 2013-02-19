@@ -12,7 +12,7 @@ import Data.List as List
 import Agda.Syntax.Common
 import Agda.Syntax.Position
 import Agda.Syntax.Scope.Base
-import Agda.Syntax.Internal
+import Agda.Syntax.Internal as I
 
 import Agda.TypeChecking.Implicit (implicitArgs)
 import Agda.TypeChecking.Irrelevance
@@ -42,12 +42,16 @@ initialIFSCandidates = do
     getContextVars = do
       ctx <- getContext
       let vars = [ (var i, raise (i + 1) t)
-                 | (Dom h r (x, t), i) <- zip ctx [0..], not (unusableRelevance r)
+                 | (Dom info (x, t), i) <- zip ctx [0..]
+                 , not (unusableRelevance $ argInfoRelevance info)
                  ]
       -- get let bindings
       env <- asks envLetBindings
       env <- mapM (getOpen . snd) $ Map.toList env
-      let lets = [ (v,t) | (v, Dom h r t) <- env, not (unusableRelevance r) ]
+      let lets = [ (v,t)
+                 | (v, Dom info t) <- env
+                 , not (unusableRelevance $ argInfoRelevance info)
+                 ]
       return $ vars ++ lets
 
     getScopeDefs :: TCM [(Term, Type)]

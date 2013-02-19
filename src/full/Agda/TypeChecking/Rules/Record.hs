@@ -8,7 +8,7 @@ import Control.Monad.Reader
 
 import qualified Agda.Syntax.Abstract as A
 import Agda.Syntax.Common
-import Agda.Syntax.Internal
+import Agda.Syntax.Internal as I
 import Agda.Syntax.Position
 import qualified Agda.Syntax.Info as Info
 
@@ -23,7 +23,7 @@ import Agda.TypeChecking.Irrelevance
 import Agda.TypeChecking.CompiledClause.Compile
 
 import Agda.TypeChecking.Rules.Data ( bindParameters, fitsIn )
-import Agda.TypeChecking.Rules.Term ( isType_ )
+import Agda.TypeChecking.Rules.Term ( isType_, convArg )
 import {-# SOURCE #-} Agda.TypeChecking.Rules.Decl (checkDecl)
 
 import Agda.Utils.Size
@@ -109,20 +109,20 @@ checkRecDef i name ind con ps contel fields =
       -- Add record type to signature.
       reportSDoc "tc.rec" 15 $ text "adding record type to signature"
 
-      let getName :: A.Declaration -> [Arg QName]
+      let getName :: A.Declaration -> [A.Arg QName]
           getName (A.Field _ x arg)    = [fmap (const x) arg]
 	  getName (A.ScopedDecl _ [f]) = getName f
 	  getName _		       = []
 
           indCo = maybe Inductive id ind -- default is 'Inductive' for backwards compatibility but should maybe be 'Coinductive'
 
-      addConstant name $ Defn Relevant name t0 [] [] (defaultDisplayForm name) 0 noCompiledRep
+      addConstant name $ Defn defaultArgInfo name t0 [] [] (defaultDisplayForm name) 0 noCompiledRep
 		       $ Record { recPars           = 0
                                 , recClause         = Nothing
                                 , recCon            = conName
                                 , recNamedCon       = hasNamedCon
                                 , recConType        = contype
-				, recFields         = concatMap getName fields
+				, recFields         = concatMap (map convArg.getName) fields
                                 , recTel            = ftel
 				, recAbstr          = Info.defAbstract i
                                 , recEtaEquality    = True
@@ -140,7 +140,7 @@ checkRecDef i name ind con ps contel fields =
       -- Andreas, 2011-05-19 moved this here, it was below the record module
       --   creation
       addConstant conName $
-        Defn Relevant conName contype [] [] (defaultDisplayForm conName) 0 noCompiledRep $
+        Defn defaultArgInfo conName contype [] [] (defaultDisplayForm conName) 0 noCompiledRep $
              Constructor { conPars   = 0
                          , conSrcCon = conName
                          , conData   = name
@@ -166,12 +166,13 @@ checkRecDef i name ind con ps contel fields =
           m    = qnameToMName name
           -- make record parameters hidden and non-stricts irrelevant
 	  htel = map hideAndRelParams $ telToList tel
-	  tel' = telFromList $ htel ++ [Dom NotHidden recordRelevance ("r", rect)]
-          ext (Dom h r (x, t)) = addCtx x (Dom h r t)
+          info = setArgInfoRelevance recordRelevance defaultArgInfo
+	  tel' = telFromList $ htel ++ [Dom info ("r", rect)]
+          ext (Dom info (x, t)) = addCtx x (Dom info t)
 
       escapeContext (size tel) $ flip (foldr ext) ctx $
        -- the record variable has the empty name by intention, see issue 208
-       underAbstraction (Dom NotHidden recordRelevance rect) (Abs "" ()) $ \_ -> do
+       underAbstraction (Dom info rect) (Abs "" ()) $ \_ -> do
 	reportSDoc "tc.rec.def" 10 $ sep
 	  [ text "record section:"
 	  , nest 2 $ sep
@@ -222,7 +223,7 @@ checkRecordProjections m r q tel ftel fs = checkProjs EmptyTel ftel fs
     checkProjs ftel1 ftel2 (A.ScopedDecl scope fs' : fs) =
       setScope scope >> checkProjs ftel1 ftel2 (fs' ++ fs)
 
-    checkProjs ftel1 (ExtendTel (Dom h rel t) ftel2) (A.Field info x _ : fs) = do
+    checkProjs ftel1 (ExtendTel (Dom i t) ftel2) (A.Field info x _ : fs) = do
       -- Andreas, 2012-06-07:
       -- Issue 387: It is wrong to just type check field types again
       -- because then meta variables are created again.
@@ -260,8 +261,9 @@ checkRecordProjections m r q tel ftel fs = checkProjs EmptyTel ftel fs
       let finalt   = telePi tel t
 	  projname = qualify m $ qnameName x
           projcall = Def projname [defaultArg $ var 0]
+          rel      = argInfoRelevance i
           -- the recursive call
-          recurse  = checkProjs (abstract ftel1 $ ExtendTel (Dom h rel t)
+          recurse  = checkProjs (abstract ftel1 $ ExtendTel (Dom i t)
                                  $ Abs (show $ qnameName projname) EmptyTel)
                                 (ftel2 `absApp` projcall) fs
 
@@ -310,7 +312,7 @@ checkRecordProjections m r q tel ftel fs = checkProjs EmptyTel ftel fs
           (ptel,[rt]) = splitAt (size tel - 1) $ telToList tel
 	  conp	 = defaultArg
 		 $ ConP q (Just (argFromDom $ fmap snd rt))
-                   [ Arg h r (VarP "x") | Dom h r _ <- telToList ftel ]
+                   [ Arg info (VarP "x") | Dom info _ <- telToList ftel ]
 	  nobind 0 = id
 	  nobind n = Bind . Abs "_" . nobind (n - 1)
 	  body	 = nobind (size ftel1)
@@ -347,7 +349,7 @@ checkRecordProjections m r q tel ftel fs = checkProjs EmptyTel ftel fs
             ]
 
       escapeContext (size tel) $ do
-	addConstant projname $ Defn rel projname (killRange finalt) [] [StrictPos] (defaultDisplayForm projname) 0 noCompiledRep
+	addConstant projname $ Defn i projname (killRange finalt) [] [StrictPos] (defaultDisplayForm projname) 0 noCompiledRep
           $ Function { funClauses        = [clause]
                      , funCompiled       = cc
                      , funDelayed        = NotDelayed

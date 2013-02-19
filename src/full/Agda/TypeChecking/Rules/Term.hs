@@ -24,7 +24,7 @@ import Agda.Syntax.Common
 import Agda.Syntax.Translation.AbstractToConcrete
 import Agda.Syntax.Concrete.Pretty
 import Agda.Syntax.Fixity
-import Agda.Syntax.Internal
+import Agda.Syntax.Internal as I
 import Agda.Syntax.Position
 import Agda.Syntax.Literal
 import Agda.Syntax.Abstract.Views
@@ -86,10 +86,10 @@ isType_ :: A.Expr -> TCM Type
 isType_ e =
   traceCall (IsType_ e) $ sharedType <$>
   case unScope e of
-    A.Fun i (Arg h r t) b -> do
-      a <- Dom h r <$> isType_ t
+    A.Fun i (Arg info t) b -> do
+      a <- Dom info <$> isType_ t
       b <- isType_ b
-      return $ El (sLub (getSort $ unDom a) (getSort b)) (Pi a (NoAbs "_" b))
+      return $ El (sLub (getSort $ unDom a) (getSort b)) (Pi (convDom a) (NoAbs "_" b))
     A.Pi _ tel e -> do
       checkTelescope_ tel $ \tel -> do
         t   <- instantiateFull =<< isType_ e
@@ -98,7 +98,7 @@ isType_ e =
     A.Set _ n    -> do
       n <- ifM typeInType (return 0) (return n)
       return $ sort (mkType n)
-    A.App i s (Arg NotHidden r l)
+    A.App i s (Arg (ArgInfo NotHidden r cs) l)
       | A.Set _ 0 <- unScope s ->
       ifM (not <$> hasUniversePolymorphism)
           (typeError $ GenericError "Use --universe-polymorphism to enable level arguments to Set")
@@ -174,18 +174,19 @@ data LamOrPi = LamNotPi | PiNotLam deriving (Eq,Show)
 --   Parametrized by a flag wether we check a typed lambda or a Pi. This flag
 --   is needed for irrelevance.
 checkTypedBindings :: LamOrPi -> A.TypedBindings -> (Telescope -> TCM a) -> TCM a
-checkTypedBindings lamOrPi (A.TypedBindings i (Arg h rel b)) ret =
-    checkTypedBinding lamOrPi h rel b $ \bs ->
-    ret $ foldr (\(x,t) -> ExtendTel (Dom h rel t) . Abs x) EmptyTel bs
+checkTypedBindings lamOrPi (A.TypedBindings i (Arg info b)) ret =
+    checkTypedBinding lamOrPi info b $ \bs ->
+    ret $ foldr (\(x,t) -> ExtendTel (convDom $ Dom info t) . Abs x) EmptyTel bs
 
-checkTypedBinding :: LamOrPi -> Hiding -> Relevance -> A.TypedBinding -> ([(String,Type)] -> TCM a) -> TCM a
-checkTypedBinding lamOrPi h rel (A.TBind i xs e) ret = do
+checkTypedBinding :: LamOrPi -> A.ArgInfo -> A.TypedBinding -> ([(String,Type)] -> TCM a) -> TCM a
+checkTypedBinding lamOrPi info (A.TBind i xs e) ret = do
     -- Andreas, 2011-04-26 irrelevant function arguments may appear
     -- non-strictly in the codomain type
     -- 2011-10-04 if flag --experimental-irrelevance is set
     allowed <- optExperimentalIrrelevance <$> pragmaOptions
     t <- modEnv lamOrPi allowed $ isType_ e
-    addCtxs xs (Dom h (modRel lamOrPi allowed rel) t) $ ret $ mkTel xs t
+    let info' = mapArgInfoRelevance (modRel lamOrPi allowed) info
+    addCtxs xs (convDom $ Dom info' t) $ ret $ mkTel xs t
     where
         -- if we are checking a typed lambda, we resurrect before we check the
         -- types, but do not modify the new context entries
@@ -197,14 +198,14 @@ checkTypedBinding lamOrPi h rel (A.TBind i xs e) ret = do
         modRel _        _    = id
 	mkTel [] t     = []
 	mkTel (x:xs) t = (show $ nameConcrete x,t) : mkTel xs (raise 1 t)
-checkTypedBinding lamOrPi h rel (A.TNoBind e) ret = do
+checkTypedBinding lamOrPi info (A.TNoBind e) ret = do
     t <- isType_ e
     ret [("_",t)]
 
 -- | Type check a lambda expression.
-checkLambda :: Arg A.TypedBinding -> A.Expr -> Type -> TCM Term
-checkLambda (Arg _ _ A.TNoBind{}) _ _ = __IMPOSSIBLE__
-checkLambda (Arg h r (A.TBind _ xs typ)) body target = do
+checkLambda :: I.Arg A.TypedBinding -> A.Expr -> Type -> TCM Term
+checkLambda (Arg _ A.TNoBind{}) _ _ = __IMPOSSIBLE__
+checkLambda (Arg info (A.TBind _ xs typ)) body target = do
   let numbinds = length xs
   TelV tel btyp <- telViewUpTo numbinds target
   if size tel < size xs || numbinds /= 1
@@ -216,7 +217,7 @@ checkLambda (Arg h r (A.TBind _ xs typ)) body target = do
       verboseS "tc.term.lambda" 5 $ tick "lambda-no-target-type"
 
       -- First check that argsT is a valid type
-      argsT <- workOnTypes $ Dom h r <$> isType_ typ
+      argsT <- workOnTypes $ Dom info <$> isType_ typ
 
       -- In order to have as much type information as possible when checking
       -- body, we first unify (xs : argsT) → ?t₁ with the target type. If this
@@ -225,7 +226,7 @@ checkLambda (Arg h r (A.TBind _ xs typ)) body target = do
       t1 <- addCtxs xs argsT $ workOnTypes newTypeMeta_
       let tel = telFromList $ mkTel xs argsT
       -- Do not coerce hidden lambdas
-      if (h /= NotHidden) then do
+      if (argInfoHiding info /= NotHidden) then do
         pid <- newProblem_ $ leqType (telePi tel t1) target
         -- Now check body : ?t₁
         v <- addCtxs xs argsT $ checkExpr body t1
@@ -239,9 +240,10 @@ checkLambda (Arg h r (A.TBind _ xs typ)) body target = do
 
     useTargetType tel@(ExtendTel arg (Abs y EmptyTel)) btyp = do
         verboseS "tc.term.lambda" 5 $ tick "lambda-with-target-type"
-        unless (domHiding    arg == h) $ typeError $ WrongHidingInLambda target
+        unless (domHiding    arg == argInfoHiding info) $ typeError $ WrongHidingInLambda target
         -- Andreas, 2011-10-01 ignore relevance in lambda if not explicitly given
-        let r' = domRelevance arg -- relevance of function type
+        let r  = argInfoRelevance info
+            r' = domRelevance arg -- relevance of function type
         when (r == Irrelevant && r' /= r) $ typeError $ WrongIrrelevanceInLambda target
 --        unless (argRelevance arg == r) $ typeError $ WrongIrrelevanceInLambda target
         -- We only need to block the final term on the argument type
@@ -249,8 +251,8 @@ checkLambda (Arg h r (A.TBind _ xs typ)) body target = do
         -- compare the argument types first, so we spawn a new problem for that
         -- check.
         (pid, argT) <- newProblem $ isTypeEqualTo typ (unDom arg)
-        v <- add x y (Dom h r' argT) $ checkExpr body btyp
-        blockTermOnProblem target (Lam h $ Abs (show $ nameConcrete x) v) pid
+        v <- add x y (Dom (setArgInfoRelevance r' info) argT) $ checkExpr body btyp
+        blockTermOnProblem target (Lam info $ Abs (show $ nameConcrete x) v) pid
       where
         [x] = xs
         add x y | C.isNoName (nameConcrete x) = addCtxString y
@@ -291,7 +293,7 @@ reduceCon c = do
 --
 -- Checks @e := ((_ : t0) args) : t@.
 checkArguments' ::
-  ExpandHidden -> ExpandInstances -> Range -> [NamedArg A.Expr] -> Type -> Type -> A.Expr ->
+  ExpandHidden -> ExpandInstances -> Range -> [I.NamedArg A.Expr] -> Type -> Type -> A.Expr ->
   (Args -> Type -> TCM Term) -> TCM Term
 checkArguments' exph expIFS r args t0 t e k = do
   z <- runErrorT $ checkArguments exph expIFS r args t0 t
@@ -331,12 +333,13 @@ checkExpr e t =
 
     case e of
 	-- Insert hidden lambda if appropriate
-	_   | Pi (Dom h rel _) _ <- ignoreSharing $ unEl t
-            , not (hiddenLambdaOrHole h e)
-            , h /= NotHidden                          -> do
+	_   | Pi (Dom info _) _ <- ignoreSharing $ unEl t
+            , not (hiddenLambdaOrHole (argInfoHiding info) e)
+            , argInfoHiding info /= NotHidden -> do
 		x <- freshName r (argName t)
+                info <- reify info
                 reportSLn "tc.term.expr.impl" 15 $ "Inserting implicit lambda"
-		checkExpr (A.Lam (A.ExprRange $ getRange e) (domainFree h rel x) e) t
+		checkExpr (A.Lam (A.ExprRange $ getRange e) (domainFree info x) e) t
 	    where
 		r = case rStart $ getRange e of
                       Nothing  -> noRange
@@ -345,9 +348,9 @@ checkExpr e t =
                 hiddenLambdaOrHole h (A.AbsurdLam _ h') | h == h'                      = True
                 hiddenLambdaOrHole h (A.ExtendedLam _ _ _ [])                          = False
                 hiddenLambdaOrHole h (A.ExtendedLam _ _ _ cls)                         = any hiddenLHS cls
-		hiddenLambdaOrHole h (A.Lam _ (A.DomainFree h' _ _) _) | h == h'       = True
-		hiddenLambdaOrHole h (A.Lam _ (A.DomainFull (A.TypedBindings _ (Arg h' _ _))) _)
-                  | h == h'                                                            = True
+		hiddenLambdaOrHole h (A.Lam _ (A.DomainFree info' _) _) | h == argInfoHiding info'       = True
+		hiddenLambdaOrHole h (A.Lam _ (A.DomainFull (A.TypedBindings _ (Arg info' _))) _)
+                  | h == argInfoHiding info'                                                            = True
 		hiddenLambdaOrHole _ (A.QuestionMark _)				       = True
 		hiddenLambdaOrHole _ _						       = False
 
@@ -361,7 +364,7 @@ checkExpr e t =
 	A.WithApp _ e es -> typeError $ NotImplemented "type checking of with application"
 
         -- check |- Set l : t  (requires universe polymorphism)
-        A.App i s (Arg NotHidden r l)
+        A.App i s (Arg (ArgInfo NotHidden r cs) l)
           | A.Set _ 0 <- unScope s ->
           ifM (not <$> hasUniversePolymorphism)
               (typeError $ GenericError "Use --universe-polymorphism to enable level arguments to Set")
@@ -377,7 +380,7 @@ checkExpr e t =
               text "against" <+> prettyTCM t
             coerce (Sort $ Type n) (sort $ sSuc $ Type n) t
 
-        A.App i q (Arg NotHidden r e)
+        A.App i q (Arg (ArgInfo NotHidden r cs) e)
           | A.Quote _ <- unScope q -> do
           let quoted (A.Def x) = return x
               quoted (A.Con (AmbQ [x])) = return x
@@ -405,11 +408,11 @@ checkExpr e t =
           t <- instantiateFull t
           ifBlockedType t (\ m t' -> postponeTypeCheckingProblem_ e t') $ \ t' -> do
             case ignoreSharing $ unEl t' of
-              Pi dom@(Dom h' r a) _
-                | h == h' && not (null $ allMetas a) ->
+              Pi dom@(Dom info' a) _
+                | h == argInfoHiding info' && not (null $ allMetas a) ->
                     postponeTypeCheckingProblem e t' $
                       null . allMetas <$> instantiateFull a
-                | h == h' -> blockTerm t' $ do
+                | h == argInfoHiding info' -> blockTerm t' $ do
                   isEmptyType (getRange i) a
                   -- Add helper function
                   top <- currentModule
@@ -423,14 +426,16 @@ checkExpr e t =
                     , nest 2 $ text "of type" <+> prettyTCM t'
                     ]
                   addConstant aux
-                    $ Defn rel aux t' [Nonvariant] [Unused] (defaultDisplayForm aux) 0 noCompiledRep
+                    $ Defn (setArgInfoRelevance rel info') aux t'
+                           [Nonvariant] [Unused] (defaultDisplayForm aux)
+                           0 noCompiledRep
                     $ Function
                       { funClauses        =
                           [Clause
                             { clauseRange = getRange e
                             , clauseTel   = EmptyTel   -- telFromList [fmap ("()",) dom]
                             , clausePerm  = Perm 1 []  -- Perm 1 [0]
-                            , clausePats  = [Arg h r $ VarP "()"]
+                            , clausePats  = [Arg info' $ VarP "()"]
                             , clauseBody  = Bind $ NoAbs "()" NoBody
                             }
                           ]
@@ -470,13 +475,14 @@ checkExpr e t =
            ifBlockedType t (\ m t' -> postponeTypeCheckingProblem_ e t') $ \ t -> do
              j   <- currentOrFreshMutualBlock
              rel <- asks envRelevance
+             let info = setArgInfoRelevance rel defaultArgInfo
              addConstant qname $
-               Defn rel qname t [] [] (defaultDisplayForm qname) j noCompiledRep Axiom
+               Defn info qname t [] [] (defaultDisplayForm qname) j noCompiledRep Axiom
              reportSDoc "tc.term.exlam" 50 $
                text "extended lambda's implementation \"" <> prettyTCM qname <>
                text "\" has type: " $$ prettyTCM t -- <+>
 --               text " where clauses: " <+> text (show cs)
-             abstract (A.defAbstract di) $ checkFunDef' t rel NotDelayed di qname cs
+             abstract (A.defAbstract di) $ checkFunDef' t info NotDelayed di qname cs
              args     <- getContextArgs
              top      <- currentModule
              freevars <- getSecFreeVars top
@@ -489,9 +495,9 @@ checkExpr e t =
 	    abstract ConcreteDef = inConcreteMode
 	    abstract AbstractDef = inAbstractMode
 
-	A.Lam i (A.DomainFull (A.TypedBindings _ b)) e -> checkLambda b e t
+	A.Lam i (A.DomainFull (A.TypedBindings _ b)) e -> checkLambda (convArg b) e t
 
-	A.Lam i (A.DomainFree h rel x) e0 -> checkExpr (A.Lam i (domainFree h rel x) e0) t
+	A.Lam i (A.DomainFree info x) e0 -> checkExpr (A.Lam i (domainFree info x) e0) t
 
 	A.Lit lit    -> checkLiteral lit t
 	A.Let i ds e -> checkLetBindings ds $ checkExpr e t
@@ -507,11 +513,11 @@ checkExpr e t =
                    , nest 2 $ text "cxt =" <+> (prettyTCM =<< getContextTelescope)
                    ]
 	    coerce (unEl t') (sort s) t
-	A.Fun _ (Arg h r a) b -> do
+	A.Fun _ (Arg info a) b -> do
 	    a' <- isType_ a
 	    b' <- isType_ b
 	    s <- reduce $ getSort a' `sLub` getSort b'
-	    coerce (Pi (Dom h r a') (NoAbs "_" b')) (sort s) t
+	    coerce (Pi (convDom $ Dom info a') (NoAbs "_" b')) (sort s) t
 	A.Set _ n    -> do
           n <- ifM typeInType (return 0) (return n)
 	  coerce (Sort $ mkType n) (sort $ mkType $ n + 1) t
@@ -543,7 +549,7 @@ checkExpr e t =
                       _   -> defaultNamedArg e -- we only end up here if the field names are bad
               let meta x = A.Underscore $ A.MetaInfo (getRange e) scope Nothing (show x)
                   missingExplicits = [ (unArg a, [unnamed . meta <$> a])
-                                     | a <- axs, argHiding a == NotHidden
+                                     | a <- axs, isArgInfoNotHidden (argInfo a)
                                      , notElem (unArg a) (map fst fs) ]
               -- In es omitted explicit fields are replaced by underscores
               -- (from missingExplicits). Omitted implicit or instance fields
@@ -595,7 +601,7 @@ checkExpr e t =
             Def r vs  -> do
               rec <- checkExpr recexpr t
               name <- freshNoName (getRange recexpr)
-              addLetBinding Relevant name rec t $ do
+              addLetBinding defaultArgInfo name rec t $ do
                 projs <- recFields <$> getRecordDef r
                 axs <- getRecordFieldNames r
                 scope <- getScope
@@ -612,10 +618,11 @@ checkExpr e t =
                   coerce v inferred t
             _         -> typeError $ ShouldBeRecordType t
           where
-            replaceFields :: Name -> A.ExprInfo -> Arg A.QName -> Maybe A.Expr -> Maybe A.Expr
-            replaceFields n ei (Arg NotHidden _ p) Nothing  = Just $ A.App ei (A.Def p) $ defaultNamedArg $ A.Var n
-            replaceFields _ _  (Arg _         _ _) Nothing  = Nothing
-            replaceFields _ _  _                   (Just e) = Just $ e
+            replaceFields :: Name -> A.ExprInfo -> I.Arg A.QName -> Maybe A.Expr -> Maybe A.Expr
+            replaceFields n ei a@(Arg _ p) Nothing | isArgInfoNotHidden (argInfo a) =
+                Just $ A.App ei (A.Def p) $ defaultNamedArg $ A.Var n
+            replaceFields _ _  (Arg _ _) Nothing  = Nothing
+            replaceFields _ _  _         (Just e) = Just $ e
 
 	A.DontCare e -> -- resurrect vars
           ifM ((Irrelevant ==) <$> asks envRelevance)
@@ -636,7 +643,7 @@ checkExpr e t =
             []  -> do
               quoted <- quoteTerm (unEl t')
               tmType <- agdaTermType
-              (v, ty) <- addLetBinding Relevant x quoted tmType (inferExpr e)
+              (v, ty) <- addLetBinding defaultArgInfo x quoted tmType (inferExpr e)
               blockTerm t' $ coerce v ty t'
 
         A.ETel _   -> __IMPOSSIBLE__
@@ -707,12 +714,12 @@ checkExpr e t =
                 let unblock = isJust <$> getCon -- to unblock, call getCon later again
                 mc <- getCon
                 case mc of
-                  Just c  -> checkConstructorApplication e t c args
+                  Just c  -> checkConstructorApplication e t c $ map convArg args
                   Nothing -> postponeTypeCheckingProblem e t unblock
 
               -- Subcase: non-ambiguous constructor
             | Application (A.Con (AmbQ [c])) args <- appView e ->
-                checkConstructorApplication e t c args
+                checkConstructorApplication e t c $ map convArg args
 
               -- Subcase: pattern synonym
             | Application (A.PatternSyn n) args <- appView e -> do
@@ -727,13 +734,13 @@ checkExpr e t =
 
               -- Subcase: defined symbol or variable.
             | Application hd args <- appView e ->
-                checkHeadApplication e t hd args
+                checkHeadApplication e t hd $ map convArg args
 
-domainFree h rel x =
-  A.DomainFull $ A.TypedBindings r $ Arg h rel $ A.TBind r [x] $ A.Underscore info
+domainFree info x =
+  A.DomainFull $ A.TypedBindings r $ Arg info $ A.TBind r [x] $ A.Underscore underscoreInfo
   where
     r = getRange x
-    info = A.MetaInfo
+    underscoreInfo = A.MetaInfo
       { A.metaRange          = r
       , A.metaScope          = emptyScopeInfo
       , A.metaNumber         = Nothing
@@ -790,10 +797,10 @@ inferHead (A.Def x) = do
         , nest 2 $ parens (text "ctx =" <+> text (show cxt))
         , nest 2 $ parens (text "n =" <+> text (show n))
         , nest 2 $ parens (text "m =" <+> text (show m)) ]
-      let hs | n == 0    = __IMPOSSIBLE__
-             | otherwise = genericReplicate (n - 1) NotHidden -- TODO: hiding
+      let is | n == 0    = __IMPOSSIBLE__
+             | otherwise = genericReplicate (n - 1) defaultArgInfo -- TODO: hiding
           names = [ s ++ [c] | s <- "" : names, c <- ['a'..'z'] ]
-          eta   = foldr (\(h, s) -> Lam h . NoAbs s) (Def x []) (zip hs names)
+          eta   = foldr (\(i, s) -> Lam i . NoAbs s) (Def x []) (zip is names)
       (u, a) <- inferDef (\f vs -> eta `apply` vs) x
       return (apply u, a)
 inferHead (A.Con (AmbQ [c])) = do
@@ -843,7 +850,7 @@ inferDef mkTerm x =
 -- | Check the type of a constructor application. This is easier than
 --   a general application since the implicit arguments can be inserted
 --   without looking at the arguments to the constructor.
-checkConstructorApplication :: A.Expr -> Type -> QName -> [NamedArg A.Expr] -> TCM Term
+checkConstructorApplication :: A.Expr -> Type -> QName -> [I.NamedArg A.Expr] -> TCM Term
 checkConstructorApplication org t c args = do
   reportSDoc "tc.term.con" 50 $ vcat
     [ text "entering checkConstructorApplication"
@@ -945,7 +952,7 @@ checkConstructorApplication org t c args = do
 --
 -- Precondition: The head @hd@ has to be unambiguous, and there should
 -- not be any need to insert hidden lambdas.
-checkHeadApplication :: A.Expr -> Type -> A.Expr -> [NamedArg A.Expr] -> TCM Term
+checkHeadApplication :: A.Expr -> Type -> A.Expr -> [I.NamedArg A.Expr] -> TCM Term
 checkHeadApplication e t hd args = do
   kit       <- coinductionKit
   case hd of
@@ -1006,16 +1013,19 @@ checkHeadApplication e t hd args = do
       -- If we are in irrelevant position, add definition irrelevantly.
       -- TODO: is this sufficient?
       rel <- asks envRelevance
-      addConstant c' (Defn rel c' t [] [] (defaultDisplayForm c') i noCompiledRep $ Axiom)
+      addConstant c' (Defn (setArgInfoRelevance rel defaultArgInfo)
+                           c' t [] [] (defaultDisplayForm c')
+                  i noCompiledRep $ Axiom)
 
       -- Define and type check the fresh function.
-      ctx <- getContext
+      ctx <- getContext >>= mapM (\d -> flip Dom (unDom d) <$> reify (domInfo d))
+      args' <- mapM (\a -> flip Arg (unArg a) <$> reify (argInfo a)) args
       let info   = A.mkDefInfo (A.nameConcrete $ A.qnameName c') defaultFixity'
                                PublicAccess ConcreteDef noRange
-          pats   = map (\ (Dom h r (n, _)) -> Arg h r $ Named Nothing $ A.VarP n) $
+          pats   = map (\ (Dom info (n, _)) -> Arg info $ Named Nothing $ A.VarP n) $
                        reverse ctx
           clause = A.Clause (A.LHS (A.LHSRange noRange) (A.LHSHead c' pats) [])
-                            (A.RHS $ unAppView (A.Application (A.Con (AmbQ [c])) args))
+                            (A.RHS $ unAppView (A.Application (A.Con (AmbQ [c])) args'))
                             []
 
       reportSDoc "tc.term.expr.coind" 15 $ vcat $
@@ -1067,7 +1077,7 @@ traceCallE call m = do
 --   that have to be solved for everything to be well-formed.
 --
 --   TODO: doesn't do proper blocking of terms
-checkArguments :: ExpandHidden -> ExpandInstances -> Range -> [NamedArg A.Expr] -> Type -> Type ->
+checkArguments :: ExpandHidden -> ExpandInstances -> Range -> [I.NamedArg A.Expr] -> Type -> Type ->
                   ErrorT Type TCM (Args, Type)
 checkArguments DontExpandLast _ _ [] t0 t1 = return ([], t0)
 checkArguments exh    expandIFS r [] t0 t1 =
@@ -1075,9 +1085,9 @@ checkArguments exh    expandIFS r [] t0 t1 =
       t1' <- unEl <$> reduce t1
       implicitArgs (-1) (expand t1') t0
     where
-      expand (Pi  (Dom h   _ _) _) Hidden = h /= Hidden
+      expand (Pi  (Dom info _) _) Hidden = argInfoHiding info /= Hidden
       expand _                     Hidden = True
-      expand (Pi  (Dom h _ _) _) Instance = h /= Instance && expandIFS == ExpandInstanceArguments
+      expand (Pi  (Dom info _) _) Instance = argInfoHiding info /= Instance && expandIFS == ExpandInstanceArguments
       expand _                   Instance = expandIFS == ExpandInstanceArguments
       expand _                  NotHidden = False
 
@@ -1106,7 +1116,7 @@ checkArguments exh expandIFS r [] t0 t1 =
 	notHPi _ _		        = True
 -}
 
-checkArguments exh expandIFS r args0@(Arg h _ e : args) t0 t1 =
+checkArguments exh expandIFS r args0@(Arg info e : args) t0 t1 =
     traceCallE (CheckArguments r args0 t0 t1) $ do
       lift $ reportSDoc "tc.term.args" 30 $ sep
         [ text "checkArguments"
@@ -1126,10 +1136,10 @@ checkArguments exh expandIFS r args0@(Arg h _ e : args) t0 t1 =
           -- (t0', cs) <- forcePi h (name e) t0
           e' <- return $ namedThing e
           case ignoreSharing $ unEl t0' of
-              Pi (Dom h' rel a) _ |
-                h == h' && (h == NotHidden || sameName (nameOf e) (nameInPi $ unEl t0')) -> do
-                  u  <- lift $ applyRelevanceToContext rel $ checkExpr e' a
-                  let arg = Arg h rel u  -- save relevance info in argument
+              Pi (Dom info' a) _ |
+                argInfoHiding info == argInfoHiding info' && (isArgInfoNotHidden info || sameName (nameOf e) (nameInPi $ unEl t0')) -> do
+                  u  <- lift $ applyRelevanceToContext (argInfoRelevance info') $ checkExpr e' a
+                  let arg = Arg info' u  -- save relevance info in argument
                   (us, t0'') <- checkArguments exh expandIFS (fuseRange r e) args (piApply t0' [arg]) t1
                   return (arg : us, t0'')
 {- UNUSED.  2012-04-02 do not insert DontCare (is redundant anyway)
@@ -1139,16 +1149,16 @@ checkArguments exh expandIFS r args0@(Arg h _ e : args) t0 t1 =
                                    arg { unArg = DontCare $ unArg arg }
                                   else arg
 -}
-              Pi (Dom Instance rel a) b | expandIFS == ExpandInstanceArguments ->
-                insertIFSUnderscore rel (absName b) a
-              Pi (Dom Hidden rel a) b   -> insertUnderscore rel (absName b)
-              Pi (Dom NotHidden _ _) _  -> lift $ typeError $ WrongHidingInApplication t0'
+              Pi (Dom info a) b | argInfoHiding info == Instance && expandIFS == ExpandInstanceArguments ->
+                insertIFSUnderscore (argInfoRelevance info) (absName b) a
+              Pi (Dom info a) b | isArgInfoHidden info  -> insertUnderscore (argInfoRelevance info) (absName b)
+              Pi (Dom info _) _  | isArgInfoNotHidden info -> lift $ typeError $ WrongHidingInApplication t0'
               _ -> lift $ typeError $ ShouldBePi t0'
     where
 	insertIFSUnderscore rel x a = do
           lift $ reportSLn "tc.term.args.ifs" 15 $ "inserting implicit meta (2) for type " ++ show a
           v <- lift $ applyRelevanceToContext rel $ initializeIFSMeta x a
-          let arg = Arg Instance rel v
+          let arg = makeInstance $ setArgRelevance rel $ defaultArg v
           (vs, t0'') <- checkArguments exh expandIFS r args0 (piApply t0 [arg]) t1
           return (arg : vs, t0'')
 
@@ -1160,7 +1170,7 @@ checkArguments exh expandIFS r args0@(Arg h _ e : args) t0 t1 =
 		  , A.metaNumber = Nothing
                   , A.metaNameSuggestion = x
 		  }
-	  checkArguments exh expandIFS r (Arg Hidden rel (unnamed m) : args0) t0 t1
+	  checkArguments exh expandIFS r (hide (setArgRelevance rel $ defaultArg $ unnamed m) : args0) t0 t1
 
 	name (Named _ (A.Var x)) = show x
 	name (Named (Just x) _)    = x
@@ -1175,7 +1185,7 @@ checkArguments exh expandIFS r args0@(Arg h _ e : args) t0 t1 =
 
 
 -- | Check that a list of arguments fits a telescope.
-checkArguments_ :: ExpandHidden -> Range -> [NamedArg A.Expr] -> Telescope -> TCM Args
+checkArguments_ :: ExpandHidden -> Range -> [I.NamedArg A.Expr] -> Telescope -> TCM Args
 checkArguments_ exh r args tel = do
     z <- runErrorT $ checkArguments exh ExpandInstanceArguments r args (telePi tel $ sort Prop) (sort Prop)
     case z of
@@ -1212,7 +1222,9 @@ inferOrCheck :: A.Expr -> Maybe Type -> TCM (Term, Type)
 inferOrCheck e mt = case e of
   _ | Application hd args <- appView e, defOrVar hd -> traceCall (InferExpr e) $ do
     (f, t0) <- inferHead hd
-    res <- runErrorT $ checkArguments DontExpandLast ExpandInstanceArguments (getRange hd) args t0 $ maybe (sort Prop) id mt
+    res <- runErrorT $ checkArguments DontExpandLast ExpandInstanceArguments
+                                      (getRange hd) (map convArg args) t0 $
+                                      maybe (sort Prop) id mt
     case res of
       Right (vs, t1) -> maybe (return (f vs, t1))
                               (\ t -> (,t) <$> coerce (f vs) t1 t)
@@ -1255,18 +1267,18 @@ checkLetBindings = foldr (.) id . map checkLetBinding
 
 checkLetBinding :: A.LetBinding -> TCM a -> TCM a
 
-checkLetBinding b@(A.LetBind i rel x t e) ret =
+checkLetBinding b@(A.LetBind i info x t e) ret =
   traceCallCPS_ (CheckLetBinding b) ret $ \ret -> do
     t <- isType_ t
-    v <- applyRelevanceToContext rel $ checkExpr e t
-    addLetBinding rel x v t ret
+    v <- applyRelevanceToContext (argInfoRelevance info) $ checkExpr e t
+    addLetBinding (convArgInfo info) x v t ret
 
 checkLetBinding b@(A.LetPatBind i p e) ret =
   traceCallCPS_ (CheckLetBinding b) ret $ \ret -> do
     (v, t) <- inferExpr e
     let -- construct a type  t -> dummy  for use in checkLeftHandSide
-        t0 = El (getSort t) $ Pi (Dom NotHidden Relevant t) (NoAbs "_" typeDontCare)
-        p0 = Arg NotHidden Relevant (Named Nothing p)
+        t0 = El (getSort t) $ Pi (Dom defaultArgInfo t) (NoAbs "_" typeDontCare)
+        p0 = Arg defaultArgInfo (Named Nothing p)
     reportSDoc "tc.term.let.pattern" 10 $ vcat
       [ text "let-binding pattern p at type t"
       , nest 2 $ vcat
@@ -1313,11 +1325,11 @@ checkLetBinding b@(A.LetPatBind i p e) ret =
         -- We get a list of types
         let ts   = map unDom tsl
         -- and relevances.
-        let rels = map domRelevance tsl
+        let infos = map domInfo tsl
         -- We get list of names of the let-bound vars from the context.
         let xs   = map (fst . unDom) (reverse binds)
         -- We add all the bindings to the context.
-        foldr (uncurry4 addLetBinding) ret $ zip4 rels xs sigma ts
+        foldr (uncurry4 addLetBinding) ret $ zip4 infos xs sigma ts
 
 checkLetBinding (A.LetApply i x modapp rd rm) ret = do
   -- Any variables in the context that doesn't belong to the current
@@ -1336,3 +1348,12 @@ checkLetBinding (A.LetApply i x modapp rd rm) ret = do
   withAnonymousModule x new ret
 -- LetOpen is only used for highlighting and has no semantics
 checkLetBinding A.LetOpen{} ret = ret
+
+convDom :: A.Dom e -> I.Dom e
+convDom = domFromArg . convArg . argFromDom
+
+convArg :: A.Arg e -> I.Arg e
+convArg = mapArgInfo convArgInfo
+
+convArgInfo :: A.ArgInfo -> I.ArgInfo
+convArgInfo = mapArgInfoColors $ const $ [] -- "TODO guilhem 5"

@@ -13,7 +13,7 @@ import Agda.Interaction.Options
 import Agda.Syntax.Common
 import Agda.Syntax.Literal
 import Agda.Syntax.Position
-import Agda.Syntax.Internal
+import Agda.Syntax.Internal as I
 import Agda.Syntax.Internal.Pattern
 import qualified Agda.Syntax.Abstract as A
 import qualified Agda.Syntax.Info as A
@@ -46,7 +46,7 @@ asView (A.AsP _ x p) = (x :) -*- id $ asView p
 asView p	     = ([], p)
 
 -- | TODO: move somewhere else
-expandLitPattern :: NamedArg A.Pattern -> TCM (NamedArg A.Pattern)
+expandLitPattern :: A.NamedArg A.Pattern -> TCM (A.NamedArg A.Pattern)
 expandLitPattern p = traverse (traverse expand) p
   where
     expand p = case asView p of
@@ -74,7 +74,7 @@ splitProblem (Problem ps (perm, qs) tel pr) = do
     runErrorT $
       splitP ps (permute perm $ zip [0..] $ allHoles qs) tel
   where
-    splitP :: [NamedArg A.Pattern] -> [(Int, OneHolePatterns)] -> Telescope -> ErrorT SplitError TCM SplitProblem
+    splitP :: [A.NamedArg A.Pattern] -> [(Int, OneHolePatterns)] -> Telescope -> ErrorT SplitError TCM SplitProblem
     splitP _	    []		 (ExtendTel _ _)	 = __IMPOSSIBLE__
     splitP _	    (_:_)	  EmptyTel		 = __IMPOSSIBLE__
     splitP []	     _		  _			 = throwError $ NothingToSplit
@@ -264,7 +264,7 @@ wellFormedIndices t = do
 
   constructorApplication _ _ = return Nothing
 
-  constructorApplications :: [(Arg Term, Dom Type)] -> TCM (Maybe [Nat])
+  constructorApplications :: [(I.Arg Term, I.Dom Type)] -> TCM (Maybe [Nat])
   constructorApplications args = do
     xs <- mapM (\(e, t) -> do
                    t <- reduce (unDom t)
@@ -278,7 +278,7 @@ wellFormedIndices t = do
 --
 -- Precondition: @t@ has to start with @length args@ pis.
 
-withTypesFrom :: Args -> Type -> TCM [(Arg Term, Dom Type)]
+withTypesFrom :: Args -> Type -> TCM [(I.Arg Term, I.Dom Type)]
 []           `withTypesFrom` _ = return []
 (arg : args) `withTypesFrom` t = do
   t <- reduce t

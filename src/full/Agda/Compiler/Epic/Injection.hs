@@ -13,7 +13,7 @@ import Data.Set(Set)
 import qualified Data.Set as S
 
 import Agda.Syntax.Common
-import Agda.Syntax.Internal
+import Agda.Syntax.Internal as I
 import Agda.Syntax.Literal
 import Agda.TypeChecking.CompiledClause
 import Agda.TypeChecking.Monad hiding ((!!!))
@@ -47,7 +47,7 @@ findInjection defs = do
         Just inj@(InjectiveFun nvar arity) -> case theDef def of
             f@(Function{})   -> do
                 modifyEI $ \s -> s { injectiveFuns = M.insert q inj (injectiveFuns s) }
-                let ns = replicate arity (Arg NotHidden Relevant "")
+                let ns = replicate arity (defaultArg "")
                 return $ (,) q $ def { theDef = f { funCompiled = Done ns $
                                                       var $ arity - nvar - 1 } }
             _                -> __IMPOSSIBLE__
@@ -121,7 +121,7 @@ nrBinds p = case p of
     ConP c typ args -> sum $ map (nrBinds . unArg) args
     LitP l          -> 0
 
-substForDot :: [Arg Pattern] -> Substitution
+substForDot :: [I.Arg Pattern] -> Substitution
 substForDot = makeSubst 0 0 . reverse . calcDots
   where
     makeSubst i accum [] = raiseS (i + accum)

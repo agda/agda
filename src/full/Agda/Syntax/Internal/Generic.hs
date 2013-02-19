@@ -1,4 +1,4 @@
-{-# LANGUAGE CPP #-}
+{-# LANGUAGE CPP, FlexibleInstances #-}
 
 module Agda.Syntax.Internal.Generic where
 
@@ -6,7 +6,7 @@ import Control.Applicative
 import Data.Traversable
 import Data.Monoid
 import Data.Foldable
-import Agda.Syntax.Common
+import Agda.Syntax.Common hiding (Arg, Dom, NamedArg)
 import Agda.Syntax.Internal
 
 #include "../../undefined.h"

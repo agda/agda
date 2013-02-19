@@ -23,7 +23,7 @@ makeForcedArgs (T.El _ term) = case term of
     T.Pi  arg ab  -> isRel arg : makeForcedArgs (T.unAbs ab)
     _ -> []
   where
-    isRel :: S.Dom T.Type -> Forced
+    isRel :: T.Dom T.Type -> Forced
     isRel arg = case S.domRelevance arg of
       S.Relevant   -> NotForced
       S.Irrelevant -> Forced

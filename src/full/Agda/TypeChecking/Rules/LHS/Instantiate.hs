@@ -3,7 +3,7 @@
 module Agda.TypeChecking.Rules.LHS.Instantiate where
 
 import Agda.Syntax.Common
-import Agda.Syntax.Internal
+import Agda.Syntax.Internal as I
 import qualified Agda.Syntax.Abstract as A
 
 import Agda.TypeChecking.Monad
@@ -28,7 +28,7 @@ import Agda.Utils.Impossible
 -- | Instantiate a telescope with a substitution. Might reorder the telescope.
 --   @instantiateTel (Γ : Tel)(σ : Γ --> Γ) = Γσ~@
 --   Monadic only for debugging purposes.
-instantiateTel :: Substitution -> Telescope -> TCM (Telescope, Permutation, S.Substitution, [Dom Type])
+instantiateTel :: Substitution -> Telescope -> TCM (Telescope, Permutation, S.Substitution, [I.Dom Type])
 instantiateTel s tel = liftTCM $ do
 
   tel <- normalise tel
@@ -98,7 +98,7 @@ instantiateTel s tel = liftTCM $ do
   p <- case reorderTel tel3 of
     Nothing -> inContext [] $ do
       xs <- mapM freshName_ names3
-      addCtxs xs (Dom NotHidden Relevant prop) $ do
+      addCtxs xs (Dom defaultArgInfo prop) $ do
         err <- sep [ text "Recursive telescope in left hand side:"
                    , fsep [ parens (prettyTCM x <+> text ":" <+> prettyTCM t)
                           | (x, t) <- zip xs tel3 ]

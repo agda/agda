@@ -2,7 +2,7 @@
 module Agda.Syntax.Abstract.Views where
 
 import Agda.Syntax.Position
-import Agda.Syntax.Common
+import Agda.Syntax.Common hiding (Arg, Dom, NamedArg)
 import Agda.Syntax.Abstract
 import Agda.Syntax.Info
 

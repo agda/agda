@@ -21,7 +21,8 @@ import Data.Maybe
 import qualified Data.List as List
 
 import Agda.Syntax.Position
-import Agda.Syntax.Common
+import Agda.Syntax.Common hiding (Arg, Dom, NamedArg, ArgInfo)
+import qualified Agda.Syntax.Common as Common
 import Agda.Syntax.Literal
 import Agda.Syntax.Abstract.Name
 
@@ -34,6 +35,12 @@ import Agda.Utils.Pointer
 #include "../undefined.h"
 import Agda.Utils.Impossible
 
+type Color      = Term
+type Arg a      = Common.Arg Color a
+type Dom a      = Common.Dom Color a
+type NamedArg a = Common.NamedArg Color a
+type ArgInfo    = Common.ArgInfo Color
+
 -- | Raw values.
 --
 --   @Def@ is used for both defined and undefined constants.
@@ -42,7 +49,7 @@ import Agda.Utils.Impossible
 --     list of clauses.
 --
 data Term = Var {-# UNPACK #-} !Int Args             -- ^ @x vs@ neutral
-	  | Lam Hiding (Abs Term)    -- ^ terms are beta normal
+	  | Lam ArgInfo (Abs Term)   -- ^ Terms are beta normal. Relevance is ignored
 	  | Lit Literal
 	  | Def QName Args           -- ^ @f vs@, possibly a redex
 	  | Con QName Args           -- ^ @c vs@
@@ -184,10 +191,10 @@ data Pattern = VarP String  -- name suggestion
 -- | Extract pattern variables in left-to-right order.
 --   A 'DotP' is also treated as variable (see docu for 'Clause').
 patternVars :: Arg Pattern -> [Arg (Either String Term)]
-patternVars (Arg h r (VarP x)     ) = [Arg h r $ Left x]
-patternVars (Arg h r (DotP t)     ) = [Arg h r $ Right t]
-patternVars (Arg h r (ConP _ _ ps)) = List.concat $ map patternVars ps
-patternVars (Arg h r (LitP l)     ) = []
+patternVars (Common.Arg i (VarP x)     ) = [Common.Arg i $ Left x]
+patternVars (Common.Arg i (DotP t)     ) = [Common.Arg i $ Right t]
+patternVars (Common.Arg i (ConP _ _ ps)) = List.concat $ map patternVars ps
+patternVars (Common.Arg i (LitP l)     ) = []
 
 -- | Does the pattern perform a match that could fail?
 properlyMatching :: Pattern -> Bool
@@ -408,13 +415,16 @@ instance KillRange Term where
     Def c vs    -> killRange2 Def c vs
     Con c vs    -> killRange2 Con c vs
     MetaV m vs  -> killRange1 (MetaV m) vs
-    Lam h f     -> killRange2 Lam h f
+    Lam i f     -> killRange1 Lam i f
     Lit l       -> killRange1 Lit l
     Level l     -> killRange1 Level l
     Pi a b      -> killRange2 Pi a b
     Sort s      -> killRange1 Sort s
     DontCare mv -> killRange1 DontCare mv
     Shared p    -> Shared $ updatePtr killRange p
+
+instance KillRange ArgInfo where
+  killRange (Common.ArgInfo h r cs) = killRange2 (flip Common.ArgInfo r) h cs
 
 instance KillRange Level where
   killRange (Max as) = killRange1 Max as

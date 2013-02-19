@@ -1,4 +1,4 @@
-{-# LANGUAGE CPP #-}
+{-# LANGUAGE CPP, FlexibleInstances #-}
 
 module Agda.TypeChecking.Quote where
 
@@ -6,7 +6,7 @@ import Control.Applicative
 
 import Agda.Syntax.Position
 import Agda.Syntax.Literal
-import Agda.Syntax.Internal
+import Agda.Syntax.Internal as I
 import Agda.Syntax.Common
 
 import Agda.TypeChecking.Monad
@@ -28,6 +28,7 @@ quotingKit = do
   nil <- primNil
   cons <- primCons
   arg <- primArgArg
+  arginfo <- primArgArgInfo
   var <- primAgdaTermVar
   lam <- primAgdaTermLam
   def <- primAgdaTermDef
@@ -52,6 +53,10 @@ quotingKit = do
       quoteRelevance NonStrict  = relevant
       quoteRelevance Forced     = relevant
       quoteRelevance UnusedArg  = relevant
+      quoteColors _ = nil -- TODO guilhem
+      quoteArgInfo (ArgInfo h r cs) = arginfo @@ quoteHiding h
+                                              @@ quoteRelevance r
+                                --              @@ quoteColors cs
       quoteLit (LitInt   _ n)   = iterate suc zero !! fromIntegral n
       quoteLit _                = unsupported
       -- We keep no ranges in the quoted term, so the equality on terms
@@ -68,12 +73,12 @@ quotingKit = do
       list [] = nil
       list (a : as) = cons @@ a @@ list as
       zero = con @@ quoteName z @@ nil
-      suc n = con @@ quoteName s @@ list [arg @@ visible @@ relevant @@ n]
-      quoteDom q (Dom h r t) = arg @@ quoteHiding h @@ quoteRelevance r @@ q t
-      quoteArg q (Arg h r t) = arg @@ quoteHiding h @@ quoteRelevance r @@ q t
+      suc n = con @@ quoteName s @@ list [arg @@ quoteArgInfo defaultArgInfo @@ n]
+      quoteDom q (Dom info t) = arg @@ quoteArgInfo info @@ q t
+      quoteArg q (Arg info t) = arg @@ quoteArgInfo info @@ q t
       quoteArgs ts = list (map (quoteArg quote) ts)
       quote (Var n ts) = var @@ Lit (LitInt noRange $ fromIntegral n) @@ quoteArgs ts
-      quote (Lam h t) = lam @@ quoteHiding h @@ quote (absBody t)
+      quote (Lam info t) = lam @@ quoteHiding (argInfoHiding info) @@ quote (absBody t)
       quote (Def x ts) = def @@ quoteName x @@ quoteArgs ts
       quote (Con x ts) = con @@ quoteName x @@ quoteArgs ts
       quote (Pi t u) = pi @@ quoteDom quoteType t
@@ -117,28 +122,40 @@ unquoteFailed kind msg t = do doc <- prettyTCM t
 class Unquote a where
   unquote :: Term -> TCM a
 
-unquoteH :: Unquote a => Arg Term -> TCM a
-unquoteH (Arg Hidden Relevant x) = unquote x
-unquoteH _                       = unquoteFailedGeneric "argument. It should be `hidden'."
+unquoteH :: Unquote a => I.Arg Term -> TCM a
+unquoteH a | isArgInfoHidden (argInfo a) && isArgInfoRelevant (argInfo a) =
+    unquote $ unArg a
+unquoteH _ = unquoteFailedGeneric "argument. It should be `hidden'."
 
-unquoteN :: Unquote a => Arg Term -> TCM a
-unquoteN (Arg NotHidden Relevant x) = unquote x
-unquoteN _                          = unquoteFailedGeneric "argument. It should be `visible'"
+unquoteN :: Unquote a => I.Arg Term -> TCM a
+unquoteN a | isArgInfoNotHidden (argInfo a) && isArgInfoRelevant (argInfo a) =
+    unquote $ unArg a
+unquoteN _ = unquoteFailedGeneric "argument. It should be `visible'"
 
 choice :: Monad m => [(m Bool, m a)] -> m a -> m a
 choice [] dflt = dflt
 choice ((mb, mx) : mxs) dflt = do b <- mb
                                   if b then mx else choice mxs dflt
 
-instance Unquote a => Unquote (Arg a) where
+instance Unquote I.ArgInfo where
   unquote t = do
     t <- reduce t
     case ignoreSharing t of
-      Con c [hid,rel,x] -> do
+      Con c [h,r] -> do
         choice
-          [(c `isCon` primArgArg, Arg <$> unquoteN hid <*> unquoteN rel <*> unquoteN x)]
-          (unquoteFailed "Arg" "arity 3 and not the `arg' constructor" t)
-      _ -> unquoteFailed "Arg" "not of arity 3" t
+          [(c `isCon` primArgArgInfo, ArgInfo <$> unquoteN h <*> unquoteN r <*> return [])]
+          (unquoteFailed "ArgInfo" "arity 2 and not the `arginfo' constructor" t)
+      _ -> unquoteFailed "ArgInfo" "not of arity 2" t
+
+instance Unquote a => Unquote (I.Arg a) where
+  unquote t = do
+    t <- reduce t
+    case ignoreSharing t of
+      Con c [info,x] -> do
+        choice
+          [(c `isCon` primArgArg, Arg <$> unquoteN info <*> unquoteN x)]
+          (unquoteFailed "Arg" "arity 2 and not the `arg' constructor" t)
+      _ -> unquoteFailed "Arg" "not of arity 2" t
 
 instance Unquote Integer where
   unquote t = do
@@ -246,7 +263,7 @@ instance Unquote Term where
           [(c `isCon` primAgdaTermVar, Var <$> (fromInteger <$> unquoteN x) <*> unquoteN y)
           ,(c `isCon` primAgdaTermCon, Con <$> unquoteN x <*> unquoteN y)
           ,(c `isCon` primAgdaTermDef, Def <$> unquoteN x <*> unquoteN y)
-          ,(c `isCon` primAgdaTermLam, Lam <$> unquoteN x <*> unquoteN y)
+          ,(c `isCon` primAgdaTermLam, Lam <$> (flip setArgInfoHiding defaultArgInfo <$> unquoteN x) <*> unquoteN y)
           ,(c `isCon` primAgdaTermPi,  Pi  <$> (domFromArg <$> unquoteN x) <*> unquoteN y)]
           (unquoteFailed "Term" "arity 2 and none of Var, Con, Def, Lam, Pi" t)
 

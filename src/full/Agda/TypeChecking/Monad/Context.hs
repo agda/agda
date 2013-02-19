@@ -8,7 +8,8 @@ import qualified Data.Map as Map
 
 import Agda.Syntax.Concrete.Name (isNoName)
 import Agda.Syntax.Abstract.Name
-import Agda.Syntax.Common
+import Agda.Syntax.Common hiding (Arg, Dom, NamedArg, ArgInfo)
+import qualified Agda.Syntax.Common as Common
 import Agda.Syntax.Internal
 import Agda.Syntax.Scope.Base
 import Agda.TypeChecking.Monad.Base
@@ -34,7 +35,7 @@ modifyContextEntries f = map (modifyContextEntry f)
 -- | Modify a 'Context' in a computation.
 {-# SPECIALIZE modifyContext :: (Context -> Context) -> TCM a -> TCM a #-}
 modifyContext :: MonadTCM tcm => (Context -> Context) -> tcm a -> tcm a
-modifyContext f = local $ \ e -> e { envContext = f (envContext e) }
+modifyContext f = local $ \e -> e { envContext = f $ envContext e }
 
 {-# SPECIALIZE mkContextEntry :: Dom (Name, Type) -> TCM ContextEntry #-}
 mkContextEntry :: MonadTCM tcm => Dom (Name, Type) -> tcm ContextEntry
@@ -106,7 +107,7 @@ addCtxString_ s = addCtxString s dummyDom
 
 -- | Context entries without a type have this dummy type.
 dummyDom :: Dom Type
-dummyDom = Dom NotHidden Relevant $ El Prop $ Sort Prop
+dummyDom = Common.Dom defaultArgInfo $ El Prop $ Sort Prop
 
 -- | Go under an abstraction.
 {-# SPECIALIZE underAbstraction :: Subst a => Dom Type -> Abs a -> (a -> TCM b) -> TCM b #-}
@@ -135,10 +136,10 @@ addCtxTel (ExtendTel t tel) ret = underAbstraction t tel $ \tel -> addCtxTel tel
 
 
 -- | Add a let bound variable
-{-# SPECIALIZE addLetBinding :: Relevance -> Name -> Term -> Type -> TCM a -> TCM a #-}
-addLetBinding :: MonadTCM tcm => Relevance -> Name -> Term -> Type -> tcm a -> tcm a
-addLetBinding rel x v t0 ret = do
-    let t = Dom NotHidden rel t0
+{-# SPECIALIZE addLetBinding :: ArgInfo -> Name -> Term -> Type -> TCM a -> TCM a #-}
+addLetBinding :: MonadTCM tcm => ArgInfo -> Name -> Term -> Type -> tcm a -> tcm a
+addLetBinding info x v t0 ret = do
+    let t = Common.Dom (setArgInfoHiding NotHidden info) t0
     vt <- liftTCM $ makeOpen (v, t)
     flip local ret $ \e -> e { envLetBindings = Map.insert x vt $ envLetBindings e }
 
@@ -160,7 +161,7 @@ getContextSize = genericLength <$> asks envContext
 getContextArgs :: MonadTCM tcm => tcm Args
 getContextArgs = do
   ctx <- getContext
-  return $ reverse $ [ Arg h r $ var i | (Dom h r _, i) <- zip ctx [0..] ]
+  return $ reverse $ [ Common.Arg info $ var i | (Common.Dom info _, i) <- zip ctx [0..] ]
 
 {-# SPECIALIZE getContextTerms :: TCM [Term] #-}
 getContextTerms :: MonadTCM tcm => tcm [Term]
@@ -171,7 +172,7 @@ getContextTerms = map unArg <$> getContextArgs
 getContextTelescope :: MonadTCM tcm => tcm Telescope
 getContextTelescope = foldr extTel EmptyTel . reverse <$> getContext
   where
-    extTel (Dom h r (x, t)) = ExtendTel (Dom h r t) . Abs (show x)
+    extTel (Common.Dom info (x, t)) = ExtendTel (Common.Dom info t) . Abs (show x)
 
 -- | Check if we are in a compatible context, i.e. an extension of the given context.
 {-# SPECIALIZE getContextId :: TCM [CtxId] #-}
@@ -184,8 +185,8 @@ getContextId = asks $ map ctxId . envContext
 typeOfBV' :: MonadTCM tcm => Nat -> tcm (Dom Type)
 typeOfBV' n =
     do	ctx <- getContext
-	Dom h r (_,t) <- ctx !!! n
-	return $ Dom h r $ raise (n + 1) t
+	Common.Dom info (_,t) <- ctx !!! n
+	return $ Common.Dom info $ raise (n + 1) t
 
 {-# SPECIALIZE typeOfBV :: Nat -> TCM Type #-}
 typeOfBV :: MonadTCM tcm => Nat -> tcm Type
@@ -195,7 +196,7 @@ typeOfBV i = unDom <$> typeOfBV' i
 nameOfBV :: MonadTCM tcm => Nat -> tcm Name
 nameOfBV n =
     do	ctx <- getContext
-	Dom _ _ (x,_) <- ctx !!! n
+	Common.Dom _ (x,_) <- ctx !!! n
 	return x
 
 -- | TODO: move(?)

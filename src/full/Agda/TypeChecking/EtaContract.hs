@@ -3,7 +3,8 @@
 -- | Compute eta short normal forms.
 module Agda.TypeChecking.EtaContract where
 
-import Agda.Syntax.Common
+import Agda.Syntax.Common hiding (Arg, Dom, NamedArg, ArgInfo)
+import qualified Agda.Syntax.Common as Common
 import Agda.Syntax.Internal
 import Agda.Syntax.Internal.Generic
 import Agda.TypeChecking.Substitute
@@ -50,12 +51,13 @@ etaOnce v = do
   eta v
   where
     eta v@Shared{} = updateSharedTerm eta v
-    eta t@(Lam h (Abs _ b)) = do  -- NoAbs can't be eta'd
-      -- reportSDoc "tc.eta" 20 $ text "eta-contracting lambda" <+> prettyTCM t
+    eta t@(Lam i (Abs _ b)) = do  -- NoAbs can't be eta'd
       imp <- shouldEtaContractImplicit
       case binAppView b of
-        App u (Arg h' r v)
-          | (r == Irrelevant || isVar0 v) && allowed imp h' && not (freeIn 0 u) ->
+        App u (Common.Arg info v)
+          | (isArgInfoIrrelevant info || isVar0 v)
+                    && allowed imp info
+                    && not (freeIn 0 u) ->
             return $ subst __IMPOSSIBLE__ u
         _ -> return t
       where
@@ -67,7 +69,7 @@ etaOnce v = do
           BlockedLevel{}   -> False
           MetaLevel{}      -> False
         isVar0 _ = False
-        allowed imp h' = h == h' && (imp || h == NotHidden)
+        allowed imp i' = argInfoHiding i == argInfoHiding i' && (imp || isArgInfoNotHidden i)
 
     -- Andreas, 2012-12-18:  Abstract definitions could contain
     -- abstract records whose constructors are not in scope.

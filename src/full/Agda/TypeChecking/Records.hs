@@ -12,8 +12,9 @@ import Data.Function
 
 import Agda.Syntax.Common
 import qualified Agda.Syntax.Concrete.Name as C
+import qualified Agda.Syntax.Abstract as A
 import Agda.Syntax.Abstract.Name
-import Agda.Syntax.Internal
+import Agda.Syntax.Internal as I
 import Agda.Syntax.Position
 import Agda.TypeChecking.Monad
 import Agda.TypeChecking.Substitute
@@ -64,7 +65,7 @@ getRecordDef r = maybe err return =<< isRecord r
   where err = typeError $ ShouldBeRecordType (El Prop $ Def r [])
 
 -- | Get the field names of a record.
-getRecordFieldNames :: QName -> TCM [Arg C.Name]
+getRecordFieldNames :: QName -> TCM [I.Arg C.Name]
 getRecordFieldNames r =
   map (fmap (nameConcrete . qnameName)) . recFields <$> getRecordDef r
 
@@ -85,7 +86,7 @@ getRecordFieldTypes :: QName -> TCM Telescope
 getRecordFieldTypes r = recTel <$> getRecordDef r
 
 -- | Get the field names belonging to a record type.
-getRecordTypeFields :: Type -> TCM [Arg QName]
+getRecordTypeFields :: Type -> TCM [I.Arg QName]
 getRecordTypeFields t =
   case ignoreSharing $ unEl t of
     Def r _ -> do
@@ -196,7 +197,7 @@ etaExpandRecord r pars u = do
 etaContractRecord :: QName -> QName -> Args -> TCM Term
 etaContractRecord r c args = do
   Record{ recPars = npars, recFields = xs } <- getRecordDef r
-  let check :: Arg Term -> Arg QName -> Maybe (Maybe Term)
+  let check :: I.Arg Term -> I.Arg QName -> Maybe (Maybe Term)
       check a ax = do
       -- @a@ is the constructor argument, @ax@ the corr. record field name
         -- skip irrelevant record fields by returning DontCare
@@ -245,18 +246,19 @@ isSingletonRecord' regardIrrelevance r ps = do
   def <- getRecordDef r
   emap (Con $ recCon def) <$> check (recTel def `apply` ps)
   where
-  check :: Telescope -> TCM (Either MetaId (Maybe [Arg Term]))
+  check :: Telescope -> TCM (Either MetaId (Maybe [I.Arg Term]))
   check EmptyTel            = return $ Right $ Just []
-  check (ExtendTel arg@(Dom h Irrelevant _) tel) | regardIrrelevance =
-    underAbstraction arg tel $ \ tel ->
-      emap (Arg h Irrelevant garbage :) <$> check tel
-  check (ExtendTel arg@(Dom h r t) tel) = do
-    isSing <- isSingletonType' regardIrrelevance t
+  check (ExtendTel dom tel)
+        | isArgInfoIrrelevant (domInfo dom) && regardIrrelevance =
+    underAbstraction dom tel $ \ tel ->
+      emap (Arg (domInfo dom) garbage :) <$> check tel
+  check (ExtendTel dom tel) = do
+    isSing <- isSingletonType' regardIrrelevance $ unDom dom
     case isSing of
       Left mid       -> return $ Left mid
       Right Nothing  -> return $ Right Nothing
-      Right (Just v) -> underAbstraction arg tel $ \ tel ->
-        emap (Arg h r v :) <$> check tel
+      Right (Just v) -> underAbstraction dom tel $ \ tel ->
+        emap (Arg (domInfo dom) v :) <$> check tel
   garbage :: Term
   garbage = Sort Prop
 

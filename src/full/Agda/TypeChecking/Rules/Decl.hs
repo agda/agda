@@ -19,7 +19,7 @@ import Data.Sequence ((|>))
 
 import Agda.Syntax.Abstract (AnyAbstract(..))
 import qualified Agda.Syntax.Abstract as A
-import Agda.Syntax.Internal
+import Agda.Syntax.Internal as I
 import qualified Agda.Syntax.Info as Info
 import Agda.Syntax.Position
 import Agda.Syntax.Common
@@ -165,7 +165,7 @@ checkDecl d = do
     unScope d = return d
 
     checkSig i x ps t = checkTypeSignature $
-      A.Axiom i Relevant x (A.Pi (Info.ExprRange (fuseRange ps t)) ps t)
+      A.Axiom i defaultArgInfo x (A.Pi (Info.ExprRange (fuseRange ps t)) ps t)
 
     check x i m = do
       reportSDoc "tc.decl" 5 $ text "Checking" <+> prettyTCM x <> text "."
@@ -243,11 +243,12 @@ checkDecl d = do
       return termErrs
 
 -- | Type check an axiom.
-checkAxiom :: Info.DefInfo -> Relevance -> QName -> A.Expr -> TCM ()
-checkAxiom i rel0 x e = do
+checkAxiom :: Info.DefInfo -> A.ArgInfo -> QName -> A.Expr -> TCM ()
+checkAxiom i info0 x e = do
   -- Andreas, 2012-04-18  if we are in irrelevant context, axioms is irrelevant
   -- even if not declared as such (Issue 610).
-  rel <- max rel0 <$> asks envRelevance
+  rel <- max (argInfoRelevance info0) <$> asks envRelevance
+  let info = setArgInfoRelevance rel $ convArgInfo info0
   -- rel <- ifM ((Irrelevant ==) <$> asks envRelevance) (return Irrelevant) (return rel0)
   t <- isType_ e
   reportSDoc "tc.decl.ax" 10 $ sep
@@ -256,7 +257,7 @@ checkAxiom i rel0 x e = do
     ]
   -- Not safe. See Issue 330
   -- t <- addForcingAnnotations t
-  addConstant x (Defn rel x t [] [] (defaultDisplayForm x) 0 noCompiledRep Axiom)
+  addConstant x (Defn info x t [] [] (defaultDisplayForm x) 0 noCompiledRep Axiom)
 
   -- for top-level axioms (postulates) try to solve irrelevant metas
   -- when postulate $
@@ -276,7 +277,7 @@ checkPrimitive i x e =
     noConstraints $ equalType t t'
     let s  = show $ nameConcrete $ qnameName x
     bindPrimitive s pf
-    addConstant x (Defn Relevant x t [] [] (defaultDisplayForm x) 0 noCompiledRep $
+    addConstant x (Defn defaultArgInfo x t [] [] (defaultDisplayForm x) 0 noCompiledRep $
                 Primitive (Info.defAbstract i) s Nothing Nothing)
     where
 	nameString (Name _ x _ _) = show x
@@ -390,10 +391,10 @@ checkTypeSignature :: A.TypeSignature -> TCM ()
 checkTypeSignature (A.ScopedDecl scope ds) = do
   setScope scope
   mapM_ checkTypeSignature ds
-checkTypeSignature (A.Axiom i rel x e) =
+checkTypeSignature (A.Axiom i info x e) =
     case Info.defAccess i of
-	PublicAccess  -> inConcreteMode $ checkAxiom i rel x e
-	PrivateAccess -> inAbstractMode $ checkAxiom i rel x e
+	PublicAccess  -> inConcreteMode $ checkAxiom i info x e
+	PrivateAccess -> inAbstractMode $ checkAxiom i info x e
         OnlyQualified -> __IMPOSSIBLE__
 checkTypeSignature _ = __IMPOSSIBLE__	-- type signatures are always axioms
 
@@ -410,17 +411,17 @@ checkSection i x tel ds =
       reportSLn "" 0 $ "    actual tele: " ++ show dtel'
     withCurrentModule x $ checkDecls ds
 
-checkModuleArity :: ModuleName -> Telescope -> [NamedArg A.Expr] -> TCM Telescope
+checkModuleArity :: ModuleName -> Telescope -> [I.NamedArg A.Expr] -> TCM Telescope
 checkModuleArity m tel args = check tel args
   where
     bad = typeError $ ModuleArityMismatch m tel args
 
     check eta []             = return eta
     check EmptyTel (_:_)     = bad
-    check (ExtendTel (Dom h _ _) btel) args0@(Arg h' _ (Named name _) : args) =
+    check (ExtendTel (Dom info _) btel) args0@(Arg info' (Named name _) : args) =
       let y   = absName btel
           tel = absBody btel in
-      case (h, h', name) of
+      case (argInfoHiding info, argInfoHiding info', name) of
         (Instance, NotHidden, _) -> check tel args0
         (Instance, Hidden, _) -> bad
         (Instance, Instance, Nothing) -> check tel args
@@ -453,7 +454,8 @@ checkSectionApplication' i m1 (A.SectionApp ptel m2 args) rd rm =
   tel <- lookupSection m2
   vs  <- freeVarsToApply $ qnameFromList $ mnameToList m2
   let tel' = apply tel vs
-  etaTel <- checkModuleArity m2 tel' args
+      args'= map convArg args
+  etaTel <- checkModuleArity m2 tel' $ args'
   let tel'' = telFromList $ take (size tel' - size etaTel) $ telToList tel'
   addCtxTel etaTel $ addSection m1 (size ptel + size etaTel)
   reportSDoc "tc.section.apply" 15 $ vcat
@@ -464,7 +466,7 @@ checkSectionApplication' i m1 (A.SectionApp ptel m2 args) rd rm =
     , nest 2 $ text "tel''=" <+> prettyTCM tel''
     , nest 2 $ text "eta  =" <+> prettyTCM etaTel
     ]
-  ts <- noConstraints $ checkArguments_ DontExpandLast (getRange i) args tel''
+  ts <- noConstraints $ checkArguments_ DontExpandLast (getRange i) args' tel''
   reportSDoc "tc.section.apply" 20 $ vcat
     [ sep [ text "applySection", prettyTCM m1, text "=", prettyTCM m2, fsep $ map prettyTCM (vs ++ ts) ]
     , nest 2 $ text "  defs:" <+> text (show rd)
@@ -484,7 +486,8 @@ checkSectionApplication' i m1 (A.RecordModuleIFS x) rd rm = do
       telInst = instFinal tel
       instFinal :: Telescope -> Telescope
       instFinal (ExtendTel _ NoAbs{}) = __IMPOSSIBLE__
-      instFinal (ExtendTel (Dom h r t) (Abs n EmptyTel)) = ExtendTel (Dom Instance r t) (Abs n EmptyTel)
+      instFinal (ExtendTel (Dom info t) (Abs n EmptyTel)) =
+          ExtendTel (Dom (setArgInfoHiding Instance info) t) (Abs n EmptyTel)
       instFinal (ExtendTel arg (Abs n tel)) = ExtendTel arg (Abs n (instFinal tel))
       instFinal EmptyTel = __IMPOSSIBLE__
       args = teleArgs tel

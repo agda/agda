@@ -7,7 +7,7 @@ import Data.Monoid ( Monoid(mappend,mempty) )
 import Agda.Syntax.Common
 import Agda.Syntax.Literal
 import Agda.Syntax.Position
-import Agda.Syntax.Internal
+import Agda.Syntax.Internal as I
 import Agda.Syntax.Internal.Pattern
 import qualified Agda.Syntax.Abstract as A
 
@@ -30,7 +30,7 @@ type FlexibleVars   = [Nat]
 --   In @Problem ps p delta@,
 --   @ps@ are the user patterns of supposed type @delta@.
 --   @p@ is the pattern resulting from the splitting.
-data Problem' p	    = Problem { problemInPat  :: [NamedArg A.Pattern]
+data Problem' p	    = Problem { problemInPat  :: [A.NamedArg A.Pattern]
 			      , problemOutPat :: p
 			      , problemTel    :: Telescope
                               , problemRest   :: ProblemRest
@@ -55,23 +55,23 @@ data Problem' p	    = Problem { problemInPat  :: [NamedArg A.Pattern]
 --   As we instantiate @b@ to @false@, the 'restType' reduces to
 --   @Nat -> Nat@ and we can move pattern @zero@ over to @problemInPat@.
 data ProblemRest    = ProblemRest
-  { restPats :: [NamedArg A.Pattern]  -- ^ non-empty list of user patterns which could not yet be typed
+  { restPats :: [A.NamedArg A.Pattern]  -- ^ non-empty list of user patterns which could not yet be typed
   , restType :: Type                  -- ^ type eliminated by 'restPats'
   }
 
 data Focus	    = Focus   { focusCon      :: QName
-			      , focusConArgs  :: [NamedArg A.Pattern]
+			      , focusConArgs  :: [A.NamedArg A.Pattern]
 			      , focusRange    :: Range
 			      , focusOutPat   :: OneHolePatterns
 			      , focusHoleIx   :: Int  -- ^ Index of focused variable in the out patterns.
 			      , focusDatatype :: QName
-			      , focusParams   :: [Arg Term]
-			      , focusIndices  :: [Arg Term]
+			      , focusParams   :: [I.Arg Term]
+			      , focusIndices  :: [I.Arg Term]
                               , focusType     :: Type -- ^ Type of variable we are splitting, kept for record patterns.
 			      }
 		    | LitFocus Literal OneHolePatterns Int Type
 
-data SplitProblem   = Split ProblemPart [Name] (Arg Focus) (Abs ProblemPart)
+data SplitProblem   = Split ProblemPart [Name] (I.Arg Focus) (Abs ProblemPart)
                       -- ^ the [Name]s give the as-bindings for the focus
 
 data SplitError	    = NothingToSplit
@@ -79,10 +79,10 @@ data SplitError	    = NothingToSplit
 
 -- | The permutation should permute @allHoles@ of the patterns to correspond to
 --   the abstract patterns in the problem.
-type Problem	 = Problem' (Permutation, [Arg Pattern])
+type Problem	 = Problem' (Permutation, [I.Arg Pattern])
 type ProblemPart = Problem' ()
 
-data DotPatternInst = DPI A.Expr Term (Dom Type)
+data DotPatternInst = DPI A.Expr Term (I.Dom Type)
 data AsBinding      = AsB Name Term Type
 
 -- | State worked on during the main loop of checking a lhs.

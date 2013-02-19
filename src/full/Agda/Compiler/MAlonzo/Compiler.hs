@@ -26,7 +26,7 @@ import Agda.Interaction.Imports
 import Agda.Interaction.Options
 import Agda.Syntax.Common
 import qualified Agda.Syntax.Concrete.Name as CN
-import Agda.Syntax.Internal
+import Agda.Syntax.Internal as I
 import Agda.Syntax.Literal
 import Agda.TypeChecking.Monad
 import Agda.TypeChecking.Monad.Builtin
@@ -125,12 +125,12 @@ definitions defs = do
 definition :: Maybe CoinductionKit -> Definition -> TCM [HS.Decl]
 -- ignore irrelevant definitions
 {- Andreas, 2012-10-02: Invariant no longer holds
-definition kit (Defn Forced     _ _  _ _ _ _ _ _) = __IMPOSSIBLE__
-definition kit (Defn UnusedArg  _ _  _ _ _ _ _ _) = __IMPOSSIBLE__
-definition kit (Defn NonStrict  _ _  _ _ _ _ _ _) = __IMPOSSIBLE__
+definition kit (Defn Forced    _ _  _ _ _ _ _ _) = __IMPOSSIBLE__
+definition kit (Defn UnusedArg _ _  _ _ _ _ _ _) = __IMPOSSIBLE__
+definition kit (Defn NonStrict _ _  _ _ _ _ _ _) = __IMPOSSIBLE__
 -}
-definition kit (Defn Irrelevant _ _  _ _ _ _ _ _) = return []
-definition kit (Defn _          q ty _ _ _ _ compiled d) = do
+definition kit (Defn info      _ _ _ _ _ _ _ _) | isArgInfoIrrelevant info = return []
+definition kit (Defn _         q ty _ _ _ _ compiled d) = do
   checkTypeOfMain q ty $ do
   (infodecl q :) <$> case d of
 
@@ -266,12 +266,12 @@ clause q (i, isLast, Clause{ clausePats = ps, clauseBody = b }) =
   bvars (Bind (NoAbs _ b)) n = HS.PWildCard : bvars b n
   bvars NoBody             _ = repeat HS.PWildCard -- ?
 
-  isCon (Arg _ _ ConP{}) = True
-  isCon _                = False
+  isCon (Arg _ ConP{}) = True
+  isCon _              = False
 
 -- argpatts aps xs = hps
 -- xs is alist of haskell *variables* in form of patterns (because of wildcard)
-argpatts :: [Arg Pattern] -> [HS.Pat] -> TCM [HS.Pat]
+argpatts :: [I.Arg Pattern] -> [HS.Pat] -> TCM [HS.Pat]
 argpatts ps0 bvs = evalStateT (mapM pat' ps0) bvs
   where
   pat   (VarP _   ) = do v <- gets head; modify tail; return v
@@ -295,9 +295,9 @@ argpatts ps0 bvs = evalStateT (mapM pat' ps0) bvs
 
   -- Andreas, 2010-09-29
   -- do not match against irrelevant stuff
-  pat' (Arg _ Irrelevant _) = return $ HS.PWildCard
-  -}
-  pat' (Arg _ _          p) = pat p
+  pat' a | isArgInfoIrrelevant (argInfo a) = return $ HS.PWildCard
+-}
+  pat' a = pat $ unArg a
 
   tildesEnabled = False
 
@@ -311,8 +311,8 @@ argpatts ps0 bvs = evalStateT (mapM pat' ps0) bvs
          <*> (andM $ L.map irr' ps)
 
   -- | Irrelevant patterns are naturally irrefutable.
-  irr' (Arg _ Irrelevant _) = return $ True
-  irr' (Arg _ _          p) = irr p
+  irr' a | isArgInfoIrrelevant (argInfo a) = return $ True
+  irr' a = irr $ unArg a
 
 clausebody :: ClauseBody -> TCM HS.Exp
 clausebody b0 = runReaderT (go b0) 0 where
@@ -346,9 +346,9 @@ term tm0 = case ignoreSharing tm0 of
   where apps =  foldM (\h a -> HS.App h <$> term' a)
 
 -- | Irrelevant arguments are replaced by Haskells' ().
-term' :: Arg Term -> ReaderT Nat TCM HS.Exp
-term' (Arg _ Irrelevant _) = return HS.unit_con
-term' (Arg _ _          t) = term t
+term' :: I.Arg Term -> ReaderT Nat TCM HS.Exp
+term' a | isArgInfoIrrelevant (argInfo a) = return HS.unit_con
+term' a = term $ unArg a
 
 literal :: Literal -> TCM HS.Exp
 literal l = case l of

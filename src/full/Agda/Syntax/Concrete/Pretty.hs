@@ -7,7 +7,8 @@ module Agda.Syntax.Concrete.Pretty where
 
 import Data.Char
 
-import Agda.Syntax.Common
+import qualified Agda.Syntax.Common as Common
+import Agda.Syntax.Common hiding (Arg, Dom, NamedArg, ArgInfo)
 import Agda.Syntax.Position
 import Agda.Syntax.Concrete
 import Agda.Syntax.Fixity
@@ -41,15 +42,17 @@ arrow  = text "\x2192"
 lambda = text "\x03bb"
 underscore = text "_"
 
-pHidden :: Pretty a => Hiding -> a -> Doc
-pHidden Hidden	    = braces' . pretty
-pHidden Instance    = dbraces . pretty
-pHidden NotHidden   = pretty
+pHidden :: Pretty a => ArgInfo -> a -> Doc
+pHidden i = bracks h . pretty
+  where bracks Hidden   = braces'
+        bracks Instance = dbraces
+        bracks NotHidden= id
+        h = argInfoHiding i
 
-pRelevance :: Pretty a => Relevance -> a -> Doc
-pRelevance rel a =
+pRelevance :: Pretty a => ArgInfo -> a -> Doc
+pRelevance i a =
   let d = pretty a
-  in  if render d == "_" then d else pretty rel <> d
+  in  if render d == "_" then d else pretty (argInfoRelevance i) <> d
 {-
 pRelevance Forced     a = pretty a
 pRelevance UnusedArg  a = pretty a
@@ -184,18 +187,32 @@ instance Pretty BoundName where
   pretty = pretty . boundName
 
 instance Pretty LamBinding where
-    pretty (DomainFree h r x) = pRelevance r $ pHidden h $ pretty x
-    pretty (DomainFull b)     = pretty b
+    -- TODO guilhem: colors are unused (colored syntax disallowed)
+    pretty (DomainFree i x) = pRelevance i $ pHidden i $ pretty x
+    pretty (DomainFull b)   = pretty b
 
 instance Pretty TypedBindings where
-    pretty (TypedBindings _ (Arg h rel b)) =
-	pRelevance rel $ bracks $ pretty b
+    pretty (TypedBindings _ a) =
+	pRelevance (argInfo a) $ bracks $ pretty $ WithColors (argColors a) $ unArg a
 	where
-	    bracks = case h of
+	    bracks = case argHiding a of
 			Hidden	    -> braces'
 			Instance    -> dbraces
 			NotHidden   -> parens
 
+
+instance Pretty ColoredTypedBinding where
+    pretty (WithColors cs  (TNoBind e))    =
+	    pretty e <+> pColors "" cs
+                -- (x y :{ i j } A) -> ...
+    pretty (WithColors cs (TBind _ xs e)) =
+	sep [ fsep (map pretty xs)
+	    , pColors ":" cs <+> pretty e
+	    ]
+
+pColors :: String -> [Color] -> Doc
+pColors s [] = text s
+pColors s cs = text (s ++ "{") <+> fsep (map pretty cs) <+> text "}"
 
 instance Pretty TypedBinding where
     pretty (TNoBind e) = pretty e
@@ -205,10 +222,10 @@ instance Pretty TypedBinding where
 	    ]
 
 smashTel :: Telescope -> Telescope
-smashTel (TypedBindings r (Arg h  rel  (TBind r' xs e)) :
-          TypedBindings _ (Arg h' rel' (TBind _  ys e')) : tel)
-  | h == h' && rel == rel' && show e == show e' =
-    smashTel (TypedBindings r (Arg h rel (TBind r' (xs ++ ys) e)) : tel)
+smashTel (TypedBindings r (Common.Arg i  (TBind r' xs e)) :
+          TypedBindings _ (Common.Arg i' (TBind _  ys e')) : tel)
+  | show i == show i' && show e == show e' =
+    smashTel (TypedBindings r (Common.Arg i (TBind r' (xs ++ ys) e)) : tel)
 smashTel (b : tel) = b : smashTel tel
 smashTel [] = []
 
@@ -262,13 +279,14 @@ instance Pretty ModuleApplication where
 instance Pretty Declaration where
     pretty d =
 	case d of
-	    TypeSig rel x e ->
-                sep [ pRelevance rel $ pretty x <+> text ":"
+	    TypeSig i x e ->
+                sep [ pRelevance i $ pretty x <+> pColors ":" (argInfoColors i)
 		    , nest 2 $ pretty e
 		    ]
-            Field x (Arg h rel e) ->
+            Field x (Common.Arg i e) ->
                 sep [ text "field"
-                    , nest 2 $ pRelevance rel $ pHidden h (TypeSig Relevant x e)
+                    , nest 2 $ pRelevance i $ pHidden i $
+                               TypeSig (i {argInfoRelevance = Relevant}) x e
                     ]
 	    FunClause lhs rhs wh ->
 		sep [ pretty lhs
@@ -418,8 +436,9 @@ instance Pretty Fixity where
 instance Pretty e => Pretty (Arg e) where
  -- Andreas 2010-09-21: do not print relevance in general, only in function types!
  -- Andreas 2010-09-24: and in record fields
-    pretty (Arg h r e) = -- pRelevance r $
-                         pHidden h e
+    pretty a = -- pRelevance r $
+               -- TODO guilhem: print colors
+               pHidden (argInfo a) $ unArg a
 
 instance Pretty e => Pretty (Named String e) where
     pretty (Named Nothing e) = pretty e

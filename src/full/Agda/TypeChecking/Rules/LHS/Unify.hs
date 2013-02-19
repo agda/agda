@@ -20,7 +20,7 @@ import Data.Foldable (Foldable)
 import Data.Traversable (Traversable,traverse)
 
 import Agda.Syntax.Common
-import Agda.Syntax.Internal
+import Agda.Syntax.Internal as I
 import Agda.Syntax.Literal
 import Agda.Syntax.Position
 
@@ -298,7 +298,7 @@ instance (PrettyTCM a) => PrettyTCM (HomHet a) where
 type TermHH    = HomHet Term
 type TypeHH    = HomHet Type
 --type FunViewHH = FunV TypeHH
-type TelHH     = Tele (Dom TypeHH)
+type TelHH     = Tele (I.Dom TypeHH)
 type TelViewHH = TelV TypeHH
 
 absAppHH :: SubstHH t tHH => Abs t -> TermHH -> tHH
@@ -341,11 +341,11 @@ instance SubstHH Type (HomHet Type) where
   -- terms we can match on
   trivialHH = Hom
 
-instance SubstHH a b => SubstHH (Arg a) (Arg b) where
+instance SubstHH a b => SubstHH (I.Arg a) (I.Arg b) where
   substUnderHH n u = fmap $ substUnderHH n u
   trivialHH = fmap trivialHH
 
-instance SubstHH a b => SubstHH (Dom a) (Dom b) where
+instance SubstHH a b => SubstHH (I.Dom a) (I.Dom b) where
   substUnderHH n u = fmap $ substUnderHH n u
   trivialHH = fmap trivialHH
 
@@ -364,7 +364,7 @@ instance SubstHH a b => SubstHH (Tele a) (Tele b) where
   trivialHH = fmap trivialHH
 
 -- | Unify indices.
-unifyIndices_ :: MonadTCM tcm => FlexibleVars -> Type -> [Arg Term] -> [Arg Term] -> tcm Substitution
+unifyIndices_ :: MonadTCM tcm => FlexibleVars -> Type -> [I.Arg Term] -> [I.Arg Term] -> tcm Substitution
 unifyIndices_ flex a us vs = liftTCM $ do
   r <- unifyIndices flex a us vs
   case r of
@@ -372,7 +372,7 @@ unifyIndices_ flex a us vs = liftTCM $ do
     DontKnow err  -> throwError err
     NoUnify a u v -> typeError $ UnequalTerms CmpEq u v a
 
-unifyIndices :: MonadTCM tcm => FlexibleVars -> Type -> [Arg Term] -> [Arg Term] -> tcm UnificationResult
+unifyIndices :: MonadTCM tcm => FlexibleVars -> Type -> [I.Arg Term] -> [I.Arg Term] -> tcm UnificationResult
 unifyIndices flex a us vs = liftTCM $ do
     a <- reduce a
     reportSDoc "tc.lhs.unify" 10 $
@@ -415,8 +415,8 @@ unifyIndices flex a us vs = liftTCM $ do
     unifyConstructorArgs ::
          TypeHH  -- ^ The ureduced type of the constructor, instantiated to the parameters.
                  --   Possibly heterogeneous, since pars of lhs and rhs might differ.
-      -> [Arg Term]  -- ^ the arguments of the constructor (lhs)
-      -> [Arg Term]  -- ^ the arguments of the constructor (rhs)
+      -> [I.Arg Term]  -- ^ the arguments of the constructor (lhs)
+      -> [I.Arg Term]  -- ^ the arguments of the constructor (rhs)
       -> Unify ()
     unifyConstructorArgs a12 [] [] = return ()
     unifyConstructorArgs a12 vs1 vs2 = do
@@ -439,14 +439,14 @@ unifyIndices flex a us vs = liftTCM $ do
 
     unifyConArgs ::
          TelHH  -- ^ The telescope(s) of the constructor args    [length = n].
-      -> [Arg Term]  -- ^ the arguments of the constructor (lhs) [length = n].
-      -> [Arg Term]  -- ^ the arguments of the constructor (rhs) [length = n].
+      -> [I.Arg Term]  -- ^ the arguments of the constructor (lhs) [length = n].
+      -> [I.Arg Term]  -- ^ the arguments of the constructor (rhs) [length = n].
       -> Unify ()
     unifyConArgs _ (_ : _) [] = __IMPOSSIBLE__
     unifyConArgs _ [] (_ : _) = __IMPOSSIBLE__
     unifyConArgs _ []      [] = return ()
     unifyConArgs EmptyTel _ _ = __IMPOSSIBLE__
-    unifyConArgs tel0@(ExtendTel a@(Dom _ rel bHH) tel) us0@(arg@(Arg _ _ u) : us) vs0@(Arg _ _ v : vs) = do
+    unifyConArgs tel0@(ExtendTel a@(Dom _ bHH) tel) us0@(arg@(Arg _ u) : us) vs0@(Arg _ v : vs) = do
       liftTCM $ reportSDoc "tc.lhs.unify" 15 $ sep
         [ text "unifyConArgs"
 	-- , nest 2 $ parens (prettyTCM tel0)
@@ -462,7 +462,7 @@ unifyIndices flex a us vs = liftTCM $ do
       -- in case of dependent function type, we cannot postpone
       -- unification of u and v, otherwise us or vs might be ill-typed
       -- skip irrelevant parts
-      uHH <- if (rel == Irrelevant) then return $ Hom u else
+      uHH <- if (isArgInfoIrrelevant $ domInfo a) then return $ Hom u else
                ifClean (unifyHH bHH u v) (return $ Hom u) (return $ Het u v)
 
       liftTCM $ reportSDoc "tc.lhs.unify" 25 $
@@ -477,11 +477,11 @@ unifyIndices flex a us vs = liftTCM $ do
 
 
     -- | Used for arguments of a 'Def', not 'Con'.
-    unifyArgs :: Type -> [Arg Term] -> [Arg Term] -> Unify ()
+    unifyArgs :: Type -> [I.Arg Term] -> [I.Arg Term] -> Unify ()
     unifyArgs _ (_ : _) [] = __IMPOSSIBLE__
     unifyArgs _ [] (_ : _) = __IMPOSSIBLE__
     unifyArgs _ [] [] = return ()
-    unifyArgs a us0@(arg@(Arg _ _ u) : us) vs0@(Arg _ _ v : vs) = do
+    unifyArgs a us0@(arg@(Arg _ u) : us) vs0@(Arg _ v : vs) = do
       liftTCM $ reportSDoc "tc.lhs.unify" 15 $ sep
         [ text "unifyArgs"
 	, nest 2 $ parens (prettyTCM a)
@@ -496,7 +496,7 @@ unifyIndices flex a us vs = liftTCM $ do
           -- unification of u and v, otherwise us or vs might be ill-typed
           let dep = dependent $ unEl a
           -- skip irrelevant parts
-	  unless (domRelevance b == Irrelevant) $
+	  unless (isArgInfoIrrelevant $ domInfo b) $
             (if dep then noPostponing else id) $
               unify (unDom b) u v
           arg <- traverse ureduce arg
@@ -782,8 +782,8 @@ isEtaRecordTypeHH (Het a1 a2) = do
 
 -- | Views an expression (pair) as type shape.  Fails if not same shape.
 data ShapeView a
-  = PiSh (Dom a) (Abs a)
-  | FunSh (Dom a) a
+  = PiSh (I.Dom a) (I.Abs a)
+  | FunSh (I.Dom a) a
   | DefSh QName   -- ^ data/record
   | VarSh Nat     -- ^ neutral type
   | LitSh Literal -- ^ built-in type
@@ -815,13 +815,17 @@ shapeViewHH (Het a1 a2) = do
   (a2, sh2) <- shapeView a2
   return . (Het a1 a2,) $ case (sh1, sh2) of
 
-    (PiSh (Dom h1 r1 a1) b1, PiSh (Dom h2 r2 a2) b2)
-      | h1 == h2 ->
-      PiSh (Dom h1 (min r1 r2) (Het a1 a2)) (Abs (absName b1) (Het (absBody b1) (absBody b2)))
+    (PiSh d1@(Dom i1 a1) b1, PiSh (Dom i2 a2) b2)
+      | argInfoHiding i1 == argInfoHiding i2 ->
+      PiSh (Dom (setArgInfoRelevance (min (argInfoRelevance i1) (argInfoRelevance i2)) i1)
+                (Het a1 a2))
+           (Abs (absName b1) (Het (absBody b1) (absBody b2)))
 
-    (FunSh (Dom h1 r1 a1) b1, FunSh (Dom h2 r2 a2) b2)
-      | h1 == h2 ->
-      FunSh (Dom h1 (min r1 r2) (Het a1 a2)) (Het b1 b2)
+    (FunSh d1@(Dom i1 a1) b1, FunSh (Dom i2 a2) b2)
+      | argInfoHiding i1 == argInfoHiding i2 ->
+      FunSh (Dom (setArgInfoRelevance (min (argInfoRelevance i1) (argInfoRelevance i2)) i1)
+                 (Het a1 a2))
+            (Het b1 b2)
 
     (DefSh d1, DefSh d2) | d1 == d2 -> DefSh d1
     (VarSh x1, VarSh x2) | x1 == x2 -> VarSh x1

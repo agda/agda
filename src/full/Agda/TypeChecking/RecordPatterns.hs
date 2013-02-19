@@ -22,8 +22,7 @@ import qualified Data.Map as Map
 import qualified Data.Traversable as Trav
 
 import Agda.Syntax.Common
-import Agda.Syntax.Internal
-
+import Agda.Syntax.Internal as I
 import Agda.TypeChecking.CompiledClause
 import Agda.TypeChecking.Coverage.SplitTree
 import Agda.TypeChecking.Datatypes
@@ -539,7 +538,7 @@ data Kind = VarPat | DotPat
 -- patterns, should be removed, and a new variable, with the name @x@,
 -- inserted instead. The type of the new variable is @t@.
 
-type Changes = [Either Pattern (Kind -> Nat, String, Dom Type)]
+type Changes = [Either Pattern (Kind -> Nat, String, I.Dom Type)]
 
 -- | Record pattern trees.
 
@@ -547,7 +546,7 @@ data RecordTree
   = Leaf Pattern
     -- ^ Corresponds to variable and dot patterns; contains the
     -- original pattern.
-  | RecCon (Arg Type) [(Term -> Term, RecordTree)]
+  | RecCon (I.Arg Type) [(Term -> Term, RecordTree)]
     -- ^ @RecCon t args@ stands for a record constructor application:
     -- @t@ is the type of the application, and the list contains a
     -- projection function and a tree for every argument.
@@ -628,7 +627,7 @@ translatePattern p@LitP{} = return (p, [], [])
 -- | 'translatePattern' lifted to lists of arguments.
 
 translatePatterns ::
-  [Arg Pattern] -> RecPatM ([Arg Pattern], [Term], Changes)
+  [I.Arg Pattern] -> RecPatM ([I.Arg Pattern], [Term], Changes)
 translatePatterns ps = do
   (ps', ss, cs) <- unzip3 <$> mapM (translatePattern . unArg) ps
   return (ps' `withArgsFrom` ps, concat ss, concat cs)
@@ -677,10 +676,10 @@ translateTel
   :: Changes
      -- ^ Explanation of how the telescope should be changed. Types
      -- should be in the context of the old telescope.
-  -> [(String, Dom Type)]
+  -> [(String, I.Dom Type)]
      -- ^ Old telescope, flattened, in textual left-to-right
      -- order.
-  -> [Maybe (String, Dom Type)]
+  -> [Maybe (String, I.Dom Type)]
      -- ^ New telescope, flattened, in textual left-to-right order.
      -- 'Nothing' is used to indicate the locations of dot patterns.
 translateTel (Left (DotP{}) : rest)   tel = Nothing : translateTel rest tel

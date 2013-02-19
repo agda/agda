@@ -16,7 +16,8 @@ import Data.Traversable
 import Data.Hashable
 
 import Agda.Syntax.Position
-import Agda.Syntax.Common
+import Agda.Syntax.Common hiding (Arg, Dom, NamedArg, ArgInfo)
+import qualified Agda.Syntax.Common as Common
 import Agda.Syntax.Internal
 import Agda.Syntax.Scope.Base (Scope)
 import Agda.Syntax.Literal
@@ -250,8 +251,9 @@ instance Reduce t => Reduce [t] where
     reduce = traverse reduce
 
 instance Reduce t => Reduce (Arg t) where
-    reduce a@(Arg h Irrelevant t) = return a  -- Don't reduce irr. args!?
-    reduce a                      = traverse reduce a
+    reduce a = case argRelevance a of
+                 Irrelevant -> return a             -- Don't reduce irr. args!?
+                 _          -> traverse reduce a
 
     reduceB t = traverse id <$> traverse reduceB t
 
@@ -296,15 +298,15 @@ instance Reduce Term where
         case v of
           _ | Just v == mz  -> return $ Lit $ LitInt (getRange c) 0
           _		    -> return v
-      reduceNat v@(Con c [Arg NotHidden Relevant w]) = do
+      reduceNat v@(Con c [a]) | isArgInfoNotHidden (argInfo a) && isArgInfoRelevant (argInfo a) = do
         ms  <- fmap ignoreSharing <$> getBuiltin' builtinSuc
         case v of
-          _ | Just (Con c []) == ms -> inc <$> reduce w
+          _ | Just (Con c []) == ms -> inc <$> reduce (unArg a)
           _	                    -> return v
           where
             inc w = case ignoreSharing w of
               Lit (LitInt r n) -> Lit (LitInt (fuseRange c r) $ n + 1)
-              _                -> Con c [Arg NotHidden Relevant w]
+              _                -> Con c [defaultArg w]
       reduceNat v = return v
 
 -- | If the first argument is 'True', then a single delayed clause may
@@ -543,8 +545,8 @@ instance (Subst t, Normalise t) => Normalise (Abs t) where
     normalise (NoAbs x v) = NoAbs x <$> normalise v
 
 instance Normalise t => Normalise (Arg t) where
-    normalise a@(Arg h Irrelevant t) = return a -- Andreas, 2012-04-02: Do not normalize irrelevant terms!?
-    normalise a = traverse normalise a
+    normalise a | isArgInfoIrrelevant (argInfo a) = return a -- Andreas, 2012-04-02: Do not normalize irrelevant terms!?
+                | otherwise                       = traverse normalise a
 
 instance Normalise t => Normalise (Dom t) where
     normalise = traverse normalise

@@ -6,7 +6,7 @@ import Control.Applicative ((<$>))
 import Data.List
 
 import Agda.Syntax.Common
-import Agda.Syntax.Internal
+import Agda.Syntax.Internal as I
 import Agda.TypeChecking.Monad
 import Agda.TypeChecking.Reduce
 import Agda.TypeChecking.Telescope
@@ -31,7 +31,7 @@ getConstructorData c = do
 --
 --   For getting just the arity of constructor @c@,
 --   use @either id size <$> getConstructorArity c@.
-getConstructorArity :: QName -> TCM (Either Nat [Arg QName])
+getConstructorArity :: QName -> TCM (Either Nat [I.Arg QName])
 getConstructorArity c = do
   Defn{ defType = t, theDef = def } <- getConstInfo c
   case def of

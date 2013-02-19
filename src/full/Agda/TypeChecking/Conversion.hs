@@ -56,8 +56,8 @@ mlevel = liftTCM $ (Just <$> primLevel) `catchError` \_ -> return Nothing
 sameVars :: Args -> Args -> Bool
 sameVars xs ys = and $ zipWith same xs ys
     where
-	same (Arg _ _ (Var n [])) (Arg _ _ (Var m [])) = n == m
-	same _ _				       = False
+	same (Arg _ (Var n [])) (Arg _ (Var m [])) = n == m
+        same _ _                                   = False
 
 -- | @intersectVars us vs@ checks whether all relevant elements in @us@ and @vs@
 --   are variables, and if yes, returns a prune list which says @True@ for
@@ -65,9 +65,9 @@ sameVars xs ys = and $ zipWith same xs ys
 intersectVars :: Args -> Args -> Maybe [Bool]
 intersectVars = zipWithM areVars where
     -- ignore irrelevant args
-    areVars u v | argRelevance u == Irrelevant        = Just False -- do not prune
-    areVars (Arg _ _ (Var n [])) (Arg _ _ (Var m [])) = Just $ n /= m -- prune different vars
-    areVars _ _                                       = Nothing
+    areVars u v | isArgInfoIrrelevant (argInfo u) = Just False -- do not prune
+    areVars (Arg _ (Var n [])) (Arg _ (Var m [])) = Just $ n /= m -- prune different vars
+    areVars _ _                                   = Nothing
 
 equalTerm :: Type -> Term -> Term -> TCM ()
 equalTerm = compareTerm CmpEq
@@ -216,11 +216,11 @@ compareTerm' cmp a m n =
     -- equality at function type (accounts for eta)
     equalFun :: Term -> Term -> Term -> TCM ()
     equalFun (Shared p) m n = equalFun (derefPtr p) m n
-    equalFun (Pi dom@(Dom h r _) b) m n = do
+    equalFun (Pi dom@(Dom info _) b) m n = do
         name <- freshName_ $ properName $ absName b
         addCtx name dom $ compareTerm cmp (absBody b) m' n'
       where
-        (m',n') = raise 1 (m,n) `apply` [Arg h r $ var 0]
+        (m',n') = raise 1 (m,n) `apply` [Arg info $ var 0]
         properName "_" = "x"
         properName  x  =  x
     equalFun _ _ _ = __IMPOSSIBLE__
@@ -248,8 +248,8 @@ compareTel t1 t2 cmp tel1 tel2 =
     (EmptyTel, EmptyTel) -> return ()
     (EmptyTel, _)        -> bad
     (_, EmptyTel)        -> bad
-    (ExtendTel arg1@(Dom h1 r1 a1) tel1, ExtendTel arg2@(Dom h2 r2 a2) tel2)
-      | h1 /= h2 -> bad
+    (ExtendTel arg1@(Dom i1 a1) tel1, ExtendTel arg2@(Dom i2 a2) tel2)
+      | argInfoHiding i1 /= argInfoHiding i2 -> bad
         -- Andreas, 2011-09-11 do not test r1 == r2 because they could differ
         -- e.g. one could be Forced and the other Relevant (see fail/UncurryMeta)
       | otherwise -> do
@@ -261,7 +261,7 @@ compareTel t1 t2 cmp tel1 tel2 =
               c = TelCmp t1 t2 cmp (absApp tel1' arg) (absApp tel2' arg)
 -}
               c = TelCmp t1 t2 cmp (absBody tel1) (absBody tel2)
-              r = max r1 r2  -- take "most irrelevant"
+              r = max (argInfoRelevance i1) (argInfoRelevance i2) -- take "most irrelevant"
               dependent = (r /= Irrelevant) && isBinderUsed tel2
           addCtx name arg1 $
             if dependent
@@ -432,10 +432,12 @@ compareAtom cmp t m n =
           _ -> __IMPOSSIBLE__
 
         equalFun t1 t2 = case (ignoreSharing t1, ignoreSharing t2) of
-	  (Pi dom1@(Dom h1 r1 a1) b1, Pi (Dom h2 r2 a2) b2)
-	    | h1 /= h2	-> typeError $ UnequalHiding t1 t2
+	  (Pi dom1@(Dom i1 a1) b1, Pi (Dom i2 a2) b2)
+	    | argInfoHiding i1 /= argInfoHiding i2 -> typeError $ UnequalHiding t1 t2
             -- Andreas 2010-09-21 compare r1 and r2, but ignore forcing annotations!
-	    | not (compareRelevance cmp (ignoreForced r2) (ignoreForced r1)) -> typeError $ UnequalRelevance cmp t1 t2
+	    | not (compareRelevance cmp (ignoreForced $ argInfoRelevance i2)
+                                        (ignoreForced $ argInfoRelevance i1))
+                -> typeError $ UnequalRelevance cmp t1 t2
 	    | otherwise -> verboseBracket "tc.conv.fun" 15 "compare function types" $ do
                 reportSDoc "tc.conv.fun" 20 $ nest 2 $ vcat
                   [ text "t1 =" <+> prettyTCM t1
@@ -473,28 +475,34 @@ compareElims pols0 a v els01@(Apply arg1 : els1) els02@(Apply arg2 : els2) =
     , text "arg1 =" <+> prettyTCM arg1
     , text "arg2 =" <+> prettyTCM arg2
     ]
-  reportSDoc "tc.conv.elim" 50 $ nest 2 $ vcat
+  reportSDoc "tc.conv.elim" 10 $ nest 2 $ vcat
     [ text "v    =" <+> text (show v)
     , text "arg1 =" <+> text (show arg1)
     , text "arg2 =" <+> text (show arg2)
+    , text ""
     ]
   let (pol, pols) = nextPolarity pols0
   ab <- reduceB a
   let a = ignoreBlocking ab
   catchConstraint (ElimCmp pols0 a v els01 els02) $ do
+  reportSDoc "tc.conv.elim" 10 $ nest 2 $ vcat
+    [ text "ab = " <+> text (show ab)
+    , text "x = " <+> text (show (ignoreSharing . unEl <$> ab))
+    ]
   case ignoreSharing . unEl <$> ab of
     Blocked{}                     -> patternViolation
     NotBlocked MetaV{}            -> patternViolation
-    NotBlocked (Pi (Dom _ r b) _) -> do
+    NotBlocked (Pi (Dom info b) _) -> do
       mlvl <- mlevel
-      let checkArg = applyRelevanceToContext r $ case r of
+      let checkArg = applyRelevanceToContext (argInfoRelevance info) $
+                         case argInfoRelevance info of
             Forced     -> return ()
             r | irrelevantOrUnused r ->
                           compareIrrelevant b (unArg arg1) (unArg arg2)
             _          -> compareWithPol pol (flip compareTerm b)
                             (unArg arg1) (unArg arg2)
           dependent = case ignoreSharing $ unEl a of
-            Pi (Dom _ _ (El _ lvl')) c -> 0 `freeInIgnoringSorts` absBody c
+            Pi (Dom _ (El _ lvl')) c -> 0 `freeInIgnoringSorts` absBody c
                                           && Just lvl' /= mlvl
             _ -> False
 
@@ -504,7 +512,12 @@ compareElims pols0 a v els01@(Apply arg1 : els1) els02@(Apply arg2 : els2) =
         then guardConstraint theRest checkArg
         else checkArg >> solveConstraint_ theRest
 
-    _ -> __IMPOSSIBLE__
+    NotBlocked (Def info _) -> do
+                       reportSDoc "tc.conv.elim" 10 $ text "crash!"
+                       __IMPOSSIBLE__
+    NotBlocked a -> do reportSDoc "tc.conv.elim" 50 $ text (show a)
+                       __IMPOSSIBLE__
+--    _ -> __IMPOSSIBLE__
 compareElims pols a v els01@(Proj f : els1) els02@(Proj f' : els2)
   | f /= f'   = typeError . GenericError . show =<< prettyTCM f <+> text "/=" <+> prettyTCM f'
   | otherwise = do
@@ -513,7 +526,7 @@ compareElims pols a v els01@(Proj f : els1) els02@(Proj f' : els2)
       Def r us -> do
         let (pol, _) = nextPolarity pols
         ft <- defType <$> getConstInfo f  -- get type of projection function
-        let arg = Arg NotHidden Relevant v  -- TODO: not necessarily relevant?
+        let arg = defaultArg v  -- TODO: not necessarily relevant?
         let c = piApply ft (us ++ [arg])
         (cmp, els1, els2) <- return $ case pol of
               Invariant     -> (CmpEq, els1, els2)
