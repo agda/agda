@@ -60,6 +60,9 @@ data Relevance
                 --   of meta-variables with relevance 'UnusedArg'
     deriving (Typeable, Show, Eq, Enum, Bounded)
 
+instance KillRange Relevance where
+  killRange rel = rel -- no range to kill
+
 instance Arbitrary Relevance where
   arbitrary = elements [minBound..maxBound]
 
@@ -126,8 +129,8 @@ mapDomRelevance f = domFromArg . mapArgRelevance f . argFromDom
 instance HasRange a => HasRange (Dom c a) where
     getRange = getRange . unDom
 
-instance KillRange a => KillRange (Dom c a) where
-  killRange = fmap killRange
+instance (KillRange c, KillRange a) => KillRange (Dom c a) where
+  killRange (Dom info a) = killRange2 Dom info a
 
 instance Sized a => Sized (Dom c a) where
   size = size . unDom
@@ -150,6 +153,9 @@ data ArgInfo c = ArgInfo
   , argInfoRelevance :: Relevance
   , argInfoColors    :: [c]
   } deriving (Typeable, Eq, Ord, Functor, Foldable, Traversable, Show)
+
+instance KillRange c => KillRange (ArgInfo c) where
+  killRange (ArgInfo h r cs) = killRange3 ArgInfo h r cs
 
 argHiding    = argInfoHiding    . argInfo
 argRelevance = argInfoRelevance . argInfo
@@ -238,8 +244,8 @@ xs `withArgsFrom` args =
 instance HasRange a => HasRange (Arg c a) where
     getRange = getRange . unArg
 
-instance KillRange a => KillRange (Arg c a) where
-  killRange = fmap killRange
+instance (KillRange c, KillRange a) => KillRange (Arg c a) where
+  killRange (Arg info a) = killRange2 Arg info a
 
 instance Sized a => Sized (Arg c a) where
   size = size . unArg

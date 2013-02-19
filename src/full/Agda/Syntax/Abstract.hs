@@ -86,7 +86,7 @@ data Expr
   deriving (Typeable, Show)
 
 data Declaration
-	= Axiom      DefInfo ArgInfo QName Expr          -- ^ postulate
+	= Axiom      DefInfo ArgInfo QName Expr            -- ^ postulate (can be irrelevant and colored, but not hidden)
 	| Field      DefInfo QName (Arg Expr)		   -- ^ record field
 	| Primitive  DefInfo QName Expr			   -- ^ primitive function
 	| Mutual     MutualInfo [Declaration]              -- ^ a bunch of mutually recursive definitions
@@ -444,9 +444,6 @@ instance KillRange Expr where
   killRange (DontCare e)           = DontCare e
   killRange (PatternSyn x)         = killRange1 PatternSyn x
 
-instance KillRange Relevance where
-  killRange rel = rel -- no range to kill
-
 instance KillRange Declaration where
   killRange (Axiom      i rel a b     ) = killRange4 Axiom      i rel a b
   killRange (Field      i a b         ) = killRange3 Field      i a b
@@ -499,9 +496,6 @@ instance KillRange RHS where
   killRange (RHS e)                  = killRange1 RHS e
   killRange (WithRHS q e cs)         = killRange3 WithRHS q e cs
   killRange (RewriteRHS x es rhs wh) = killRange4 RewriteRHS x es rhs wh
-
-instance KillRange ArgInfo where
-  killRange info = info -- no Range to kill
 
 instance KillRange LetBinding where
   killRange (LetBind    i info a b c) = killRange5 LetBind  i info a b c

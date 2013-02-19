@@ -617,8 +617,7 @@ instance KillRange ImportedName where
   killRange (ImportedName   n) = killRange1 ImportedName   n
 
 instance KillRange LamBinding where
-  killRange (DomainFree i b) = killRange2 (\h -> DomainFree $ i {argInfoHiding = h})
-                                          (argInfoHiding i) b
+  killRange (DomainFree i b) = killRange2 DomainFree i b
   killRange (DomainFull t)   = killRange1 DomainFull t
 
 instance KillRange LHS where

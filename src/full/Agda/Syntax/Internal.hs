@@ -423,9 +423,6 @@ instance KillRange Term where
     DontCare mv -> killRange1 DontCare mv
     Shared p    -> Shared $ updatePtr killRange p
 
-instance KillRange ArgInfo where
-  killRange (Common.ArgInfo h r cs) = killRange2 (flip Common.ArgInfo r) h cs
-
 instance KillRange Level where
   killRange (Max as) = killRange1 Max as
 
