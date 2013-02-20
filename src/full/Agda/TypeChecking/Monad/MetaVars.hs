@@ -63,9 +63,10 @@ getMetaRelevance x = miRelevance . mvInfo <$> lookupMeta x
 -}
 
 isSortMeta :: MetaId -> TCM Bool
-isSortMeta m = do
-  mv <- lookupMeta m
-  return $ case mvJudgement mv of
+isSortMeta m = isSortMeta_ <$> lookupMeta m
+
+isSortMeta_ :: MetaVariable -> Bool
+isSortMeta_ mv = case mvJudgement mv of
     HasType{} -> False
     IsSort{}  -> True
 
