@@ -995,11 +995,15 @@ initEnv = TCEnv { envContext	         = []
                 , envSolvingConstraints  = False
                 , envActiveProblems      = [0]
                 , envAssignMetas         = True
-		, envAbstractMode        = AbstractMode
-  -- Andreas, 2013-02-18: I was surprised to see that type-checking
-  -- is started in AbstractMode (I would have expected ConcreteMode).
-  -- However, AbstractMode makes sense because a module can see into
-  -- all its abstract definitions.  (See also discussion on issue 796)
+		, envAbstractMode        = ConcreteMode
+  -- Andreas, 2013-02-21:  This was 'AbstractMode' until now.
+  -- However, top-level checks for mutual blocks, such as
+  -- constructor-headedness, should not be able to look into
+  -- abstract definitions unless abstract themselves.
+  -- (See also discussion on issue 796.)
+  -- The initial mode should be 'ConcreteMode', ensuring you
+  -- can only look into abstract things in an abstract
+  -- definition (which sets 'AbstractMode').
                 , envRelevance           = Relevant
                 , envColors              = []
                 , envDisplayFormsEnabled = True
