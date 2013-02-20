@@ -71,16 +71,16 @@ data Relevance : Set where
 
 -- Arguments.
 
-data ArgInfo : Set where
-  arginfo : (v : Visibility) (r : Relevance) → ArgInfo
+data Arg-info : Set where
+  arg-info : (v : Visibility) (r : Relevance) → Arg-info
 
-data Arg A : Set where
-  arg : ArgInfo → (x : A) → Arg A
+data Arg (A : Set) : Set where
+  arg : (i : Arg-info) (x : A) → Arg A
 
-{-# BUILTIN ARGINFO    ArgInfo #-}
-{-# BUILTIN ARG        Arg     #-}
-{-# BUILTIN ARGARG     arg     #-}
-{-# BUILTIN ARGARGINFO arginfo #-}
+{-# BUILTIN ARGINFO    Arg-info #-}
+{-# BUILTIN ARGARGINFO arg-info #-}
+{-# BUILTIN ARG        Arg      #-}
+{-# BUILTIN ARGARG     arg      #-}
 
 -- Terms.
 
@@ -202,11 +202,11 @@ private
   arg₂ : ∀ {A i i′} {x x′ : A} → arg i x ≡ arg i′ x′ → x ≡ x′
   arg₂ refl = refl
 
-  arginfo₁ : ∀ {v v′ r r′} → arginfo v r ≡ arginfo v′ r′ → v ≡ v′
-  arginfo₁ refl = refl
+  arg-info₁ : ∀ {v v′ r r′} → arg-info v r ≡ arg-info v′ r′ → v ≡ v′
+  arg-info₁ refl = refl
 
-  arginfo₂ : ∀ {v v′ r r′} → arginfo v r ≡ arginfo v′ r′ → r ≡ r′
-  arginfo₂ refl = refl
+  arg-info₂ : ∀ {v v′ r r′} → arg-info v r ≡ arg-info v′ r′ → r ≡ r′
+  arg-info₂ refl = refl
 
   cons₁ : ∀ {A : Set} {x y} {xs ys : List A} → x ∷ xs ≡ y ∷ ys → x ≡ y
   cons₁ refl = refl
@@ -276,11 +276,11 @@ irrelevant ≟-Relevance irrelevant = yes refl
 relevant   ≟-Relevance irrelevant = no λ()
 irrelevant ≟-Relevance relevant   = no λ()
 
-_≟-ArgInfo_ : Decidable (_≡_ {A = ArgInfo})
-arginfo v r ≟-ArgInfo arginfo v′ r′ =
-  Dec.map′ (cong₂′ arginfo)
-          < arginfo₁ , arginfo₂ >
-          (v ≟-Visibility v′ ×-dec r ≟-Relevance r′)
+_≟-Arg-info_ : Decidable (_≡_ {A = Arg-info})
+arg-info v r ≟-Arg-info arg-info v′ r′ =
+  Dec.map′ (cong₂′ arg-info)
+           < arg-info₁ , arg-info₂ >
+           (v ≟-Visibility v′ ×-dec r ≟-Relevance r′)
 
 mutual
   infix 4 _≟_ _≟-Args_ _≟-ArgType_
@@ -288,14 +288,14 @@ mutual
   _≟-ArgTerm_ : Decidable (_≡_ {A = Arg Term})
   arg i a ≟-ArgTerm arg i′ a′ =
     Dec.map′ (cong₂′ arg)
-     < arg₁ , arg₂ > 
-     (i ≟-ArgInfo i′ ×-dec a ≟ a′)
+             < arg₁ , arg₂ >
+             (i ≟-Arg-info i′ ×-dec a ≟ a′)
 
   _≟-ArgType_ : Decidable (_≡_ {A = Arg Type})
   arg i a ≟-ArgType arg i′ a′ =
     Dec.map′ (cong₂′ arg)
-     < arg₁ , arg₂ > 
-     (i ≟-ArgInfo i′ ×-dec a ≟-Type a′)
+             < arg₁ , arg₂ >
+             (i ≟-Arg-info i′ ×-dec a ≟-Type a′)
 
   _≟-Args_ : Decidable (_≡_ {A = List (Arg Term)})
   []       ≟-Args []       = yes refl
