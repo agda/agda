@@ -1,0 +1,4 @@
+Issue4.agda:23,6-9
+Bad is not strictly positive, because it occurs in the first
+argument to T in the type of the constructor bad in the definition
+of Bad.
