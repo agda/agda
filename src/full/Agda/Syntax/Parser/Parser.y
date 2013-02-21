@@ -291,8 +291,7 @@ semi : ';'    { $1 }
      | vsemi  { $1 }
 
 
--- Enter the 'imp_dir' lex state, where we can parse the keywords 'using',
--- 'hiding', 'renaming' and 'to'.
+-- Enter the 'imp_dir' lex state, where we can parse the keyword 'to'.
 beginImpDir :: { () }
 beginImpDir : {- empty -}   {% pushLexState imp_dir }
 

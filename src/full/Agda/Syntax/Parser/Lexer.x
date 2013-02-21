@@ -187,7 +187,7 @@ tokens :-
 <0,code> "("		{ symbol SymOpenParen }
 <0,code> ")"		{ symbol SymCloseParen }
 <0,code> "->"		{ symbol SymArrow }
-<0,code> "\"		{ symbol SymLambda }
+<0,code> "\"		{ symbol SymLambda } -- "
 <0,code> "@"		{ symbol SymAs }
 <0,code> "{{" /[^!]		{ symbol SymDoubleOpenBrace }
 -- We don't lex '}}' into a SymDoubleCloseBrace. Instead, we lex it as
@@ -207,7 +207,12 @@ tokens :-
 <0,code> @float		{ literal LitFloat }
 
 -- Identifiers
-<0,code> @q_ident	{ identifier }
+<0,code,imp_dir_> @q_ident	{ identifier }
+-- Andreas, 2013-02-21, added identifiers to the 'imp_dir_' state.
+-- This is to fix issue 782: 'toz' should not be lexed as 'to'
+-- (followed by 'z' after leaving imp_dir_).
+-- With identifiers in state imp_dir_, 'toz' should be lexed as
+-- identifier 'toz' in imp_dir_ state, leading to a parse error later.
 
 {
 
