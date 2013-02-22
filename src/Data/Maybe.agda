@@ -18,6 +18,7 @@ open import Data.Maybe.Core public
 
 open import Data.Bool using (Bool; true; false)
 open import Data.Unit using (⊤)
+open import Relation.Nullary
 
 boolToMaybe : Bool → Maybe ⊤
 boolToMaybe true  = just _
@@ -26,6 +27,10 @@ boolToMaybe false = nothing
 maybeToBool : ∀ {a} {A : Set a} → Maybe A → Bool
 maybeToBool (just _) = true
 maybeToBool nothing  = false
+
+decToMaybe : ∀ {a} {A : Set a} → Dec A → Maybe A
+decToMaybe (yes x) = just x
+decToMaybe (no _)  = nothing
 
 -- A dependent eliminator.
 
@@ -93,7 +98,6 @@ monadPlus {f} = record
 ------------------------------------------------------------------------
 -- Equality
 
-open import Relation.Nullary
 open import Relation.Binary as B
 
 data Eq {a ℓ} {A : Set a} (_≈_ : Rel A ℓ) : Rel (Maybe A) (a ⊔ ℓ) where
