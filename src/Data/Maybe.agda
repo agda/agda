@@ -63,9 +63,12 @@ open import Category.Functor
 open import Category.Monad
 open import Category.Monad.Identity
 
+map : ∀ {a b} {A : Set a} {B : Set b} → (A → B) → Maybe A → Maybe B
+map f = maybe (just ∘ f) nothing
+
 functor : ∀ {f} → RawFunctor (Maybe {a = f})
 functor = record
-  { _<$>_ = λ f → maybe (just ∘ f) nothing
+  { _<$>_ = map
   }
 
 monadT : ∀ {f} {M : Set f → Set f} →

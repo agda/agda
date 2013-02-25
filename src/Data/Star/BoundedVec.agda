@@ -18,7 +18,6 @@ open import Function
 import Data.Maybe as Maybe
 open import Relation.Binary
 open import Relation.Binary.Consequences
-open import Category.Monad
 
 ------------------------------------------------------------------------
 -- The type
@@ -44,9 +43,7 @@ _∷_ = that
 ↑ : ∀ {a n} → BoundedVec a n → BoundedVec a (suc n)
 ↑ {a} = gmap inc lift
   where
-  open RawMonad Maybe.monad
-
-  inc = _<$>_ (map-NonEmpty suc)
+  inc = Maybe.map (map-NonEmpty suc)
 
   lift : Pointer (λ _ → a) (λ _ → ⊤) =[ inc ]⇒
          Pointer (λ _ → a) (λ _ → ⊤)

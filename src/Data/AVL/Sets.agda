@@ -12,7 +12,6 @@ module Data.AVL.Sets
   (isStrictTotalOrder : IsStrictTotalOrder _≡_ _<_)
   where
 
-open import Category.Functor
 import Data.AVL as AVL
 open import Data.Bool
 open import Data.List as List using (List)
@@ -21,8 +20,6 @@ open import Data.Product as Prod using (_×_; _,_; proj₁)
 open import Data.Unit
 open import Function
 open import Level
-
-open RawFunctor (Maybe.functor {f = k ⊔ ℓ})
 
 -- The set type. (Note that Set is a reserved word.)
 
@@ -48,10 +45,10 @@ _∈?_ : Key → ⟨Set⟩ → Bool
 _∈?_ = S._∈?_
 
 headTail : ⟨Set⟩ → Maybe (Key × ⟨Set⟩)
-headTail s = Prod.map proj₁ id <$> S.headTail s
+headTail s = Maybe.map (Prod.map proj₁ id) (S.headTail s)
 
 initLast : ⟨Set⟩ → Maybe (⟨Set⟩ × Key)
-initLast s = Prod.map id proj₁ <$> S.initLast s
+initLast s = Maybe.map (Prod.map id proj₁) (S.initLast s)
 
 fromList : List Key → ⟨Set⟩
 fromList = S.fromList ∘ List.map (λ k → (k , _))

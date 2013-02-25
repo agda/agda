@@ -15,15 +15,12 @@ module Data.AVL.IndexedMap
   (isStrictTotalOrder : IsStrictTotalOrder _≡_ _<_)
   where
 
-open import Category.Functor
 import Data.AVL
 open import Data.Bool
 open import Data.List as List using (List)
 open import Data.Maybe as Maybe
 open import Function
 open import Level
-
-open RawFunctor (Maybe.functor {f = i ⊔ k ⊔ v ⊔ ℓ})
 
 -- Key/value pairs.
 
@@ -68,10 +65,10 @@ _∈?_ : ∀ {i} → Key i → Map → Bool
 _∈?_ k = AVL._∈?_ (, k)
 
 headTail : Map → Maybe (KV × Map)
-headTail m = Prod.map toKV id <$> AVL.headTail m
+headTail m = Maybe.map (Prod.map toKV id) (AVL.headTail m)
 
 initLast : Map → Maybe (Map × KV)
-initLast m = Prod.map id toKV <$> AVL.initLast m
+initLast m = Maybe.map (Prod.map id toKV) (AVL.initLast m)
 
 fromList : List KV → Map
 fromList = AVL.fromList ∘ List.map fromKV

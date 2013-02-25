@@ -103,23 +103,19 @@ q₅′ = refl
 -- Partitioning a tree into the smallest element plus the rest, or the
 -- largest element plus the rest.
 
-open import Category.Functor using (module RawFunctor)
 open import Function using (id)
-import Level
-
-open RawFunctor (Maybe.functor {f = Level.zero}) using (_<$>_)
 
 v₆ : headTail t₀ ≡ nothing
 v₆ = refl
 
-v₇ : Prod.map id toList <$> headTail t₂ ≡
+v₇ : Maybe.map (Prod.map id toList) (headTail t₂) ≡
      just ((1 , v₁) , ((2 , v₂) ∷ []))
 v₇ = refl
 
 v₈ : initLast t₀ ≡ nothing
 v₈ = refl
 
-v₉ : Prod.map toList id <$> initLast t₄ ≡
+v₉ : Maybe.map (Prod.map toList id) (initLast t₄) ≡
      just (((1 , v₁) ∷ []) ,′ (2 , v₂))
 v₉ = refl
 
