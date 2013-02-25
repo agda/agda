@@ -13,6 +13,8 @@ open import Relation.Nullary
 
 -- Some properties which are preserved by _⊎_.
 
+infixr 1 _¬-⊎_ _⊎-dec_
+
 _¬-⊎_ : ∀ {p q} {P : Set p} {Q : Set q} →
         ¬ P → ¬ Q → ¬ (P ⊎ Q)
 (¬p ¬-⊎ ¬q) (inj₁ p) = ¬p p
