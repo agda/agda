@@ -10,6 +10,7 @@
 module Data.List.Properties where
 
 open import Algebra
+import Algebra.Monoid-solver
 open import Category.Monad
 open import Data.Bool
 open import Data.List as List
@@ -32,6 +33,9 @@ private
     Algebra.FunctionProperties (_≡_ {A = A})
   open module LMP {ℓ} = RawMonadPlus (List.monadPlus {ℓ = ℓ})
   module LM {a} {A : Set a} = Monoid (List.monoid A)
+
+module List-solver {a} {A : Set a} =
+  Algebra.Monoid-solver (monoid A) renaming (id to nil)
 
 ∷-injective : ∀ {a} {A : Set a} {x y : A} {xs ys} →
               x ∷ xs ≡ y List.∷ ys → x ≡ y × xs ≡ ys
