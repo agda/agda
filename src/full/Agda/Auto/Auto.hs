@@ -30,7 +30,7 @@ import Agda.Syntax.Position
 import qualified Agda.Syntax.Internal as I
 import Agda.Syntax.Common
 import Agda.Syntax.Translation.InternalToAbstract
-import Agda.Syntax.Translation.AbstractToConcrete (abstractToConcrete, abstractToConcrete_, makeEnv, runAbsToCon, toConcrete)
+import Agda.Syntax.Translation.AbstractToConcrete (abstractToConcreteEnv, abstractToConcrete_, makeEnv, runAbsToCon, toConcrete)
 import Agda.Interaction.BasicOps hiding (refine)
 import Agda.Interaction.MakeCase (findClause)
 import Agda.TypeChecking.Reduce (normalise)
@@ -260,7 +260,7 @@ auto ii rng argstr = liftTCM $ do
                           Just ii' -> do (ae, []) <- give ii' Nothing expr
                                          mv <- lookupMeta mi
                                          let scope = getMetaScope mv
-                                             ce = abstractToConcrete (makeEnv scope) ae
+                                         ce <- abstractToConcreteEnv (makeEnv scope) ae
                                          let cmnt = if ii' == ii then agsyinfo ticks else ""
                                          return $ Just (ii', show ce ++ cmnt)
                          ) exprs

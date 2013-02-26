@@ -723,7 +723,7 @@ give_gen' give_ref mk_newtxt ii rng s = do
   iis       <- lift $ sortInteractionPoints iis
   modify $ \st -> st { theInteractionPoints =
                            replace ii iis (theInteractionPoints st) }
-  putResponse $ Resp_GiveAction ii $ mk_newtxt rng s $ abstractToConcrete (makeEnv scope) ae
+  putResponse . Resp_GiveAction ii . mk_newtxt rng s =<< do lift $ abstractToConcreteEnv (makeEnv scope) ae
   interpret Cmd_metas
   where
   -- Substitutes xs for x in ys.

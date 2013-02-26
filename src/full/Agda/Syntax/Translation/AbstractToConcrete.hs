@@ -1,3 +1,4 @@
+-- {-# OPTIONS -fwarn-unused-binds #-}
 {-# LANGUAGE CPP, PatternGuards, MultiParamTypeClasses, FunctionalDependencies,
              TypeSynonymInstances, FlexibleInstances, UndecidableInstances
   #-}
@@ -12,12 +13,12 @@ module Agda.Syntax.Translation.AbstractToConcrete
     ( ToConcrete(..)
     , toConcreteCtx
     , abstractToConcrete_
+    , abstractToConcreteEnv
     , runAbsToCon
     , RangeAndPragma(..)
     , abstractToConcreteCtx
     , withScope
     , makeEnv
-    , abstractToConcrete
     , AbsToCon, DontTouchMe, Env
     , noTakenNames
     ) where
@@ -46,6 +47,7 @@ import Agda.Syntax.Scope.Base
 
 import Agda.TypeChecking.Monad.State (getScope)
 import Agda.TypeChecking.Monad.Base  (TCM, NamedMeta(..))
+import Agda.TypeChecking.Monad.Options
 
 import Agda.Utils.Maybe
 import Agda.Utils.Monad hiding (bracket)
@@ -91,6 +93,27 @@ noTakenNames = local $ \e -> e { takenNames = Set.empty }
 
 -- The Monad --------------------------------------------------------------
 
+-- | We put the translation into TCM in order to print debug messages.
+type AbsToCon = ReaderT Env TCM
+
+runAbsToCon :: AbsToCon c -> TCM c
+runAbsToCon m = do
+  scope <- getScope
+  runReaderT m (makeEnv scope)
+
+abstractToConcreteEnv :: ToConcrete a c => Env -> a -> TCM c
+abstractToConcreteEnv flags a = runReaderT (toConcrete a) flags
+
+abstractToConcreteCtx :: ToConcrete a c => Precedence -> a -> TCM c
+abstractToConcreteCtx ctx x = do
+  scope <- getScope
+  let scope' = scope { scopePrecedence = ctx }
+  abstractToConcreteEnv (makeEnv scope') x
+
+abstractToConcrete_ :: ToConcrete a c => a -> TCM c
+abstractToConcrete_ = runAbsToCon . toConcrete
+
+{-
 -- | We make the translation monadic for modularity purposes.
 type AbsToCon = Reader Env
 
@@ -99,8 +122,13 @@ runAbsToCon m = do
   scope <- getScope
   return $ runReader m (makeEnv scope)
 
+abstractToConcreteEnv :: ToConcrete a c => Env -> a -> TCM c
+abstractToConcreteEnv flags a = return $ runReader (toConcrete a) flags
+
+{- Andreas, 2013-02-26 discontinue non-monadic version in favor of debug msg.
 abstractToConcrete :: ToConcrete a c => Env -> a -> c
 abstractToConcrete flags a = runReader (toConcrete a) flags
+-}
 
 abstractToConcreteCtx :: ToConcrete a c => Precedence -> a -> TCM c
 abstractToConcreteCtx ctx x = do
@@ -114,6 +142,7 @@ abstractToConcrete_ :: ToConcrete a c => a -> TCM c
 abstractToConcrete_ x = do
   scope <- getScope
   return $ abstractToConcrete (makeEnv scope) x
+-}
 
 -- Dealing with names -----------------------------------------------------
 
@@ -193,6 +222,7 @@ bracketP_ par m =
     do  e <- m
         bracket' (ParenP (getRange e)) par e
 
+{- UNUSED
 -- | Pattern bracketing
 bracketP :: (Precedence -> Bool) -> (C.Pattern -> AbsToCon a)
                                  -> ((C.Pattern -> AbsToCon a) -> AbsToCon a)
@@ -200,6 +230,7 @@ bracketP :: (Precedence -> Bool) -> (C.Pattern -> AbsToCon a)
 bracketP par ret m = m $ \p -> do
     p <- bracket' (ParenP $ getRange p) par p
     ret p
+-}
 
 -- Dealing with infix declarations ----------------------------------------
 
@@ -212,8 +243,10 @@ withInfixDecl i x m = do
  where fixDecl = [C.Infix (theFixity $ defFixity i) [x] | theFixity (defFixity i) /= defaultFixity]
        synDecl = [C.Syntax x (theNotation (defFixity i))]
 
+{- UNUSED
 withInfixDecls :: [(DefInfo, C.Name)] -> AbsToCon [C.Declaration] -> AbsToCon [C.Declaration]
 withInfixDecls = foldr (.) id . map (uncurry withInfixDecl)
+-}
 
 -- Dealing with private definitions ---------------------------------------
 
@@ -362,16 +395,24 @@ instance ToConcrete A.Expr C.Expr where
             lamView e = ([], e)
     toConcrete (A.ExtendedLam i di qname cs) =
         bracket lamBrackets $ do
-          decls <- toConcrete cs
+          decls <- concat <$> toConcrete cs
               -- we know all lhs are of the form `.extlam p1 p2 ... pn`,
               -- with the name .extlam leftmost. It is our mission to remove it.
-          let removeApp (C.RawAppP r (_:es)) = C.RawAppP r es
-              removeApp (C.AppP (C.IdentP _) np) = namedArg np
-              removeApp (C.AppP p np) = (C.AppP (removeApp p) np)
-              removeApp _ = __IMPOSSIBLE__
-          let decl2clause (C.FunClause lhs rhs wh) = (lhs {lhsOriginalPattern = removeApp $ lhsOriginalPattern lhs},rhs,wh)
+          let removeApp (C.RawAppP r (_:es)) = return $ C.RawAppP r es
+              removeApp (C.AppP (C.IdentP _) np) = return $ namedArg np
+              removeApp (C.AppP p np) = do
+                p <- removeApp p
+                return $ C.AppP p np
+              removeApp p = do
+                lift $ reportSLn "extendedlambda" 50 $ "abstractToConcrete removeApp p = " ++ show p
+                return p -- __IMPOSSIBLE__ -- Andreas, this is actually not impossible, my strictification exposed this sleeping bug
+          let decl2clause (C.FunClause lhs rhs wh) = do
+                let p = lhsOriginalPattern lhs
+                lift $ reportSLn "extendedlambda" 50 $ "abstractToConcrete extended lambda pattern p = " ++ show p
+                p' <- removeApp p
+                return (lhs{ lhsOriginalPattern = p' }, rhs, wh)
               decl2clause _ = __IMPOSSIBLE__
-          return $ C.ExtendedLam (getRange i) (map decl2clause $ concat decls)
+          C.ExtendedLam (getRange i) <$> mapM decl2clause decls
     toConcrete (A.Pi _ [] e) = toConcrete e
     toConcrete t@(A.Pi i _ _)  = case piTel t of
       (tel, e) ->
@@ -569,6 +610,7 @@ instance ToConcrete (Maybe A.QName) (Maybe C.Name) where
     x' <- toConcrete (qnameName x)
     return $ Just x'
 
+{- UNUSED
 -- | Helper function used in instance @ToConcrete Definition@.
 telToTypedBindingss :: [C.LamBinding] -> [C.TypedBindings]
 telToTypedBindingss = map lamBindingToTypedBindings where
@@ -579,6 +621,7 @@ telToTypedBindingss = map lamBindingToTypedBindings where
       C.DomainFull t     -> t
       C.DomainFree info n -> C.TypedBindings noRange $
         Common.Arg info $ C.TBind noRange [n] $ C.Underscore noRange Nothing
+-}
 
 instance ToConcrete (Constr A.Constructor) C.Declaration where
   toConcrete (Constr (A.ScopedDecl scope [d])) =
@@ -865,11 +908,13 @@ recoverOpApp bracket opApp view e mDefault = case view e of
     where
       xs       = C.nameParts $ C.unqualify n
       numHoles = length (filter (== Hole) xs)
+{- UNUSED
       msg      = concat [ "doQName "
                         , showList xs ""
                         , " on "
                         , show (length es)
                         , " args" ]
+-}
 
   -- binary case
   doQName fixity n as
