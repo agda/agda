@@ -457,6 +457,8 @@ checkClause t c@(A.Clause (A.LHS i (A.LHSHead x aps) []) rhs0 wh) =
                       SplitTel delta1 delta2 perm' = splitTelescope fv delta
                       finalPerm = composeP perm' perm
 
+                  reportSLn "tc.with.top" 75 $ "delta  = " ++ show delta
+
                   -- Andreas, 2012-09-17: for printing delta,
                   -- we should remove it from the context first
                   reportSDoc "tc.with.top" 25 $ escapeContext (size delta) $ vcat
@@ -499,6 +501,27 @@ checkClause t c@(A.Clause (A.LHS i (A.LHSHead x aps) []) rhs0 wh) =
                         rho = parallelS (replicate (size delta2) __IMPOSSIBLE__)
                     return $ applySubst rho $ renameP (reverseP perm') (vs, as)
 
+
+                  -- Andreas, 2013-02-26 add with-name to signature for printing purposes
+                  addConstant aux (Defn defaultArgInfo aux typeDontCare [] [] [] 0 noCompiledRep Axiom)
+
+                  -- Andreas, 2013-02-26 separate msgs to see which goes wrong
+                  reportSDoc "tc.with.top" 20 $
+                    text "    with arguments" <+> do escapeContext (size delta2) $ prettyList (map prettyTCM vs)
+                  reportSDoc "tc.with.top" 20 $
+                    text "             types" <+> do escapeContext (size delta2) $ prettyList (map prettyTCM as)
+                  reportSDoc "tc.with.top" 20 $
+                    text "with function call" <+> prettyTCM v
+                  reportSDoc "tc.with.top" 20 $
+                    text "           context" <+> (prettyTCM =<< getContextTelescope)
+                  reportSDoc "tc.with.top" 20 $
+                    text "             delta" <+> do escapeContext (size delta) $ prettyTCM delta
+                  reportSDoc "tc.with.top" 20 $
+                    text "                fv" <+> text (show fv)
+                  reportSDoc "tc.with.top" 20 $
+                    text "              body" <+> (addCtxTel delta $ prettyTCM $ mkBody v)
+
+{-
                   reportSDoc "tc.with.top" 20 $ vcat
                     [ text "    with arguments" <+> do escapeContext (size delta2) $ prettyList (map prettyTCM vs)
                     , text "             types" <+> do escapeContext (size delta2) $ prettyList (map prettyTCM as)
@@ -508,6 +531,7 @@ checkClause t c@(A.Clause (A.LHS i (A.LHSHead x aps) []) rhs0 wh) =
                     , text "                fv" <+> text (show fv)
                     , text "              body" <+> (addCtxTel delta $ prettyTCM $ mkBody v)
                     ]
+-}
                   gamma <- maybe (typeError $ NotImplemented "with clauses for functions with unfolding arity") return mgamma
                   return (mkBody v, WithFunction x aux gamma delta1 delta2 vs as t' ps perm' finalPerm cs)
           in handleRHS rhs0
