@@ -485,7 +485,8 @@ checkExpr e t =
              abstract (A.defAbstract di) $ checkFunDef' t info NotDelayed di qname cs
              args     <- getContextArgs
              top      <- currentModule
-             freevars <- getSecFreeVars top
+             freevars <- getModuleFreeVars top
+             -- freevars <- getSecFreeVars top --Andreas, 2013-02-26 this could be wrong in the presence of module parameters and a where block
              let argsNoParam = genericDrop freevars args -- don't count module parameters
              let (hid, notHid) = partition ((Hidden ==) . argHiding) argsNoParam
              addExtLambdaTele qname (length hid, length notHid)
