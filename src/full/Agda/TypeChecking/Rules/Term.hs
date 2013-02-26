@@ -860,7 +860,7 @@ checkConstructorApplication org t c args = do
       , text "c    =" <+> prettyTCM c
       , text "args =" <+> prettyTCM args
     ] ]
-  let (args', paramsGiven) = checkForParams args
+  let paramsGiven = checkForParams args
   if paramsGiven then fallback else do
     reportSDoc "tc.term.con" 50 $ text "checkConstructorApplication: no parameters explicitly supplied, continuing..."
     cdef  <- getConstInfo c
@@ -884,8 +884,8 @@ checkConstructorApplication org t c args = do
         flip (maybe fallback) (sequenceA $ List2 (npars, npars')) $ \(List2 (n,n')) -> do
         reportSDoc "tc.term.con" 50 $ nest 2 $ text $ "n    = " ++ show n
         reportSDoc "tc.term.con" 50 $ nest 2 $ text $ "n'   = " ++ show n'
-        -- when (n > n') __IMPOSSIBLE__ -- NOT IN SCOPE `__IMPOSSIBLE__' WHY???
-        when (n > n') bla
+        when (n > n')  -- preprocessor does not like ', so put on next line
+          __IMPOSSIBLE__
         let ps    = genericTake n $ genericDrop (n' - n) vs
             ctype = defType cdef
         reportSDoc "tc.term.con" 20 $ vcat
@@ -894,6 +894,11 @@ checkConstructorApplication org t c args = do
                           , text "ctype  =" <+> prettyTCM ctype ] ]
         let ctype' = ctype `piApply` ps
         reportSDoc "tc.term.con" 20 $ nest 2 $ text "ctype' =" <+> prettyTCM ctype'
+        -- get the parameter names
+        TelV ptel _ <- telViewUpTo n ctype
+        let pnames = map (fst . unDom) $ telToList ptel
+        -- drop the parameter arguments
+            args' = dropArgs pnames args
         -- check the non-parameter arguments
         checkArguments' ExpandLast ExpandInstanceArguments (getRange c) args' ctype' t org $ \us t' -> do
           reportSDoc "tc.term.con" 20 $ nest 2 $ vcat
@@ -905,7 +910,6 @@ checkConstructorApplication org t c args = do
         fallback
   where
     fallback = checkHeadApplication org t (A.Con (AmbQ [c])) args
-    bla = __IMPOSSIBLE__
 
     -- Check if there are explicitly given hidden arguments,
     -- in which case we fall back to default type checking.
@@ -918,7 +922,16 @@ checkConstructorApplication org t c args = do
           removeScope e                  = e
           notUnderscore A.Underscore{} = False
           notUnderscore _              = True
-      in  (rest,) $ any notUnderscore $ map (removeScope . namedArg) hargs
+      in  any notUnderscore $ map (removeScope . namedArg) hargs
+
+    -- Drop the constructor arguments that correspond to parameters.
+    dropArgs [] args                                   = args
+    dropArgs ps []                                     = args
+    dropArgs ps args@(arg : _) | not (isHiddenArg arg) = args
+    dropArgs (p:ps) args@(arg : args')
+      | (nameOf (unArg arg)) `elem` [Nothing, Just p]  = dropArgs ps args'
+      | otherwise                                      = dropArgs ps args
+
 
 {- UNUSED CODE, BUT DON'T REMOVE (2012-04-18)
 

@@ -1,0 +1,4 @@
+Issue799a.agda:11,5-6
+D Set should be a function type, but it isn't
+when checking that {B = _} are valid arguments to a function of
+type D Set

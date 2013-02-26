@@ -1,0 +1,4 @@
+Issue799.agda:8,5-6
+D should be a function type, but it isn't
+when checking that {_} {_} {interesting-argument = _} {_} {_} {_}
+are valid arguments to a function of type D
