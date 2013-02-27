@@ -380,7 +380,7 @@ instance ComputeOccurrences Clause where
         DotP{}      -> 1
         ConP _ _ ps -> sum $ map (nVars . unArg) ps
         LitP{}      -> 0
-        ProjP{}     -> 0
+        -- ProjP{}     -> 0
 
 instance ComputeOccurrences Term where
   occurrences v = case v of
