@@ -25,6 +25,7 @@ import Agda.TypeChecking.Monad.Builtin (primInf, CoinductionKit(..), coinduction
 import Agda.TypeChecking.Reduce
 import Agda.TypeChecking.Pretty
 import Agda.TypeChecking.Substitute
+import Agda.TypeChecking.Telescope
 
 import Agda.Utils.Impossible
 import Agda.Utils.Permutation
@@ -468,7 +469,7 @@ computeOccurrences q = do
     Datatype{dataPars = np, dataCons = cs}       -> do
       let conOcc c = do
             a <- defType <$> getConstInfo c
-            TelV tel t <- telView' <$> normalise a
+            TelV tel t <- telView' <$> normalise a -- normalization needed e.g. for test/succeed/Bush.agda
             let indices = case unEl t of
                             Def _ vs -> genericDrop np vs
                             _        -> __IMPOSSIBLE__

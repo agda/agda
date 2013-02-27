@@ -757,6 +757,11 @@ defDelayed :: Definition -> Delayed
 defDelayed Defn{theDef = Function{funDelayed = d}} = d
 defDelayed _                                       = NotDelayed
 
+-- | Has the definition failed the termination checker?
+defNonterminating :: Definition -> Bool
+defNonterminating Defn{theDef = Function{funTerminates = Just False}} = True
+defNonterminating _                                                   = False
+
 -- | Is the definition just a copy created by a module instantiation?
 defCopy :: Definition -> Bool
 defCopy Defn{theDef = Function{funCopy = b}} = b

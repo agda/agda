@@ -1,7 +1,3 @@
-
-Termination checking failed for the following functions:
-  D
-Problematic calls:
-  .TypeConstructorsWhichPreserveGuardedness4.♯-0
-    (at TypeConstructorsWhichPreserveGuardedness4.agda:11,10-11)
-  D (at TypeConstructorsWhichPreserveGuardedness4.agda:11,13-14)
+TypeConstructorsWhichPreserveGuardedness4.agda:14,1-7
+Type mismatch
+when checking that the pattern fold f has type D

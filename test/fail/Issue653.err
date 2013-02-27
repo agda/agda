@@ -1,0 +1,4 @@
+Issue653.agda:12,8-9
+B is not strictly positive, because it occurs in the second
+argument to P in the first clause in the definition of A, which
+occurs in the type of the constructor c in the definition of B.

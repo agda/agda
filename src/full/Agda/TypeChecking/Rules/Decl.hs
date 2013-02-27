@@ -184,6 +184,25 @@ checkDecl d = do
     -- contains the names defined in the mutual block.
     mutualChecks names = do
 
+      -- Termination checking.
+      -- Andreas, 2013-02-27: check termination before injectivity,
+      -- to avoid making the injectivity checker loop.
+      reportSLn "tc.decl" 20 $ "checkDecl: checking termination..."
+      termErrs <-
+        ifM (optTerminationCheck <$> pragmaOptions)
+          (disableDestructiveUpdate $ case d of
+             A.RecDef {} -> return []
+                            -- Record module definitions should not be
+                            -- termination-checked twice.
+             _           -> do
+               termErrs <- {- nubList <$> -} termDecl d
+               modify $ \st ->
+                 st { stTermErrs = Fold.foldl' (|>) (stTermErrs st) termErrs }
+               return termErrs)
+          (return [])
+
+      -- Positivity checking.
+      reportSLn "tc.decl" 20 $ "checkDecl: checking positivity..."
       checkStrictlyPositive names
 
       -- Andreas, 2012-02-13: Polarity computation uses info from
@@ -202,23 +221,6 @@ checkDecl d = do
               Primitive{}   -> Nothing
       mapM_ computePolarity =<<
         (catMaybes <$> mapM relevant (Set.toList names))
-
-      -- Termination checking.
-      -- Andreas, 2013-02-27: check termination before injectivity,
-      -- to avoid making the injectivity checker loop.
-      reportSLn "tc.decl" 20 $ "checkDecl: checking termination..."
-      termErrs <-
-        ifM (optTerminationCheck <$> pragmaOptions)
-          (disableDestructiveUpdate $ case d of
-             A.RecDef {} -> return []
-                            -- Record module definitions should not be
-                            -- termination-checked twice.
-             _           -> do
-               termErrs <- {- nubList <$> -} termDecl d
-               modify $ \st ->
-                 st { stTermErrs = Fold.foldl' (|>) (stTermErrs st) termErrs }
-               return termErrs)
-          (return [])
 
       -- Andreas, 2012-09-11:  Injectivity check stores clauses
       -- whose 'Relevance' is affected by polarity computation,

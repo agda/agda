@@ -322,12 +322,12 @@ unfoldDefinition unfoldDelayed keepGoing v0 f args =
       return $ notBlocked $ Con (c `withRangeOf` f) args
     Primitive{primAbstr = ConcreteDef, primName = x, primClauses = cls} -> do
       pf <- getPrimitive x
-      reducePrimitive x v0 f args pf (defDelayed info)
+      reducePrimitive x v0 f args pf (defDelayed info) (defNonterminating info)
                       (maybe [] id cls) (defCompiled info)
-    _  -> reduceNormal v0 f (map notReduced args) (defDelayed info)
+    _  -> reduceNormal v0 f (map notReduced args) (defDelayed info) (defNonterminating info)
                        (defClauses info) (defCompiled info)
   where
-    reducePrimitive x v0 f args pf delayed cls mcc
+    reducePrimitive x v0 f args pf delayed nonterminating cls mcc
         | n < ar    = return $ notBlocked $ v0 `apply` args -- not fully applied
         | otherwise = {-# SCC "reducePrimitive" #-} do
             let (args1,args2) = genericSplitAt ar args
@@ -339,7 +339,7 @@ unfoldDefinition unfoldDelayed keepGoing v0 f args =
                 else
                   reduceNormal v0 f (args1' ++
                                      map notReduced args2)
-                               delayed cls mcc
+                               delayed nonterminating cls mcc
               YesReduction v ->
                 keepGoing $ v `apply` args2
         where
@@ -350,9 +350,10 @@ unfoldDefinition unfoldDelayed keepGoing v0 f args =
             mredToBlocked (MaybeRed NotReduced  x) = notBlocked x
             mredToBlocked (MaybeRed (Reduced b) x) = x <$ b
 
-    reduceNormal :: Term -> QName -> [MaybeReduced (Arg Term)] -> Delayed -> [Clause] -> Maybe CompiledClauses -> TCM (Blocked Term)
-    reduceNormal v0 f args delayed def mcc = {-# SCC "reduceNormal" #-} do
+    reduceNormal :: Term -> QName -> [MaybeReduced (Arg Term)] -> Delayed -> Bool -> [Clause] -> Maybe CompiledClauses -> TCM (Blocked Term)
+    reduceNormal v0 f args delayed nonterminating def mcc = {-# SCC "reduceNormal" #-} do
         case def of
+          _ | nonterminating -> defaultResult
           _ | Delayed <- delayed,
               not unfoldDelayed -> defaultResult
           [] -> defaultResult -- no definition for head
@@ -393,6 +394,16 @@ reduceDef_ info f vs = do
       args = map notReduced vs
       cls  = (defClauses info)
       mcc  = (defCompiled info)
+  if (defDelayed info == Delayed) || (defNonterminating info)
+   then return $ NoReduction ()
+   else do
+      ev <- maybe (appDef' v0 cls args)
+                  (\cc -> appDef v0 cc args) mcc
+      case ev of
+        YesReduction t    -> return $ YesReduction t
+        NoReduction args' -> return $ NoReduction ()
+
+{- OLD
       delayed = (defDelayed info)
   case delayed of
     Delayed -> return $ NoReduction ()
@@ -402,6 +413,7 @@ reduceDef_ info f vs = do
       case ev of
         YesReduction t    -> return $ YesReduction t
         NoReduction args' -> return $ NoReduction ()
+-}
 
 -- Apply a defined function to it's arguments.
 --   The original term is the first argument applied to the third.

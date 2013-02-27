@@ -28,6 +28,16 @@ Type checking
   argument after another) has been removed from the termination
   checker. [Issue 787]
 
+* Definitions which fail the termination checker are not unfolded any
+  longer to avoid loops or stack overflows in Agda.  However, the
+  termination checker for a mutual block is only invoked after
+  type-checking, so there can still be loops if you define a
+  non-terminating function.  But termination checking now happens
+  befor the other supplementary checks: positivity, polarity,
+  injectivity and projection-likeness.
+  Note that with the pragma {-# NO_TERMINATION_CHECK #-} you can make
+  Agda treat any function as terminating.
+
 Compiler backends
 =================
 
