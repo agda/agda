@@ -1,6 +1,6 @@
 {-# LANGUAGE CPP, MultiParamTypeClasses, FunctionalDependencies,
              UndecidableInstances, TypeSynonymInstances, FlexibleInstances,
-             ScopedTypeVariables
+             ScopedTypeVariables, TupleSections
   #-}
 
 {-|
@@ -374,10 +374,12 @@ reifyTerm expandAnonDefs v = do
       reifyDef _ x vs = reifyDef' x vs
 
       reifyDef' x@(QName _ name) vs = do
+        -- We should drop this many arguments from the local context.
+        n <- getDefFreeVars x
         mdefn <- liftTCM $ (Just <$> getConstInfo x) `catchError` \_ -> return Nothing
-        (pad, vs :: [I.NamedArg Term]) <-
+        (pad, vs :: [I.NamedArg Term]) <- do
           case mdefn of
-            Nothing -> (,) [] <$> do map (fmap unnamed) <$> (flip genericDrop vs <$> getDefFreeVars x)
+            Nothing   -> return ([], map (fmap unnamed) $ genericDrop n vs)
             Just defn -> do
               let def = theDef defn
               -- This is tricky:
@@ -388,8 +390,6 @@ reifyTerm expandAnonDefs v = do
               --  * when showImplicits is on we'd like to see the dropped
               --    projection arguments
 
-              -- We should drop this many arguments from the local context.
-              n <- getDefFreeVars x
               -- These are the dropped projection arguments
               (np, pad, dom) <-
                   case def of
@@ -414,7 +414,7 @@ reifyTerm expandAnonDefs v = do
         df <- displayFormsEnabled
         if df && isPrefixOf extendlambdaname (show name)
           then do
-           reportSLn "int2abs.reifyterm.def" 10 $ "reifying extended lambda with definition: " ++ show x
+           reportSLn "int2abs.reifyterm.def" 10 $ "reifying extended lambda with definition: x = " ++ show x
            info <- getConstInfo x
            --drop lambda lifted arguments
            Just (h , nh) <- Map.lookup x <$> getExtLambdaTele
