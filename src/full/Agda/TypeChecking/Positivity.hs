@@ -380,6 +380,7 @@ instance ComputeOccurrences Clause where
         DotP{}      -> 1
         ConP _ _ ps -> sum $ map (nVars . unArg) ps
         LitP{}      -> 0
+        ProjP{}     -> 0
 
 instance ComputeOccurrences Term where
   occurrences v = case v of
@@ -467,6 +468,11 @@ computeOccurrences q = do
         mapM (getOccurrences []) cs
     Datatype{dataClause = Just c} -> getOccurrences [] =<< instantiateFull c
     Datatype{dataPars = np, dataCons = cs}       -> do
+      -- Andreas, 2013-02-27: first, each data index occurs as matched on.
+      TelV tel t <- telView $ defType def
+      let xs  = [np .. size tel - 1] -- argument positions corresponding to indices
+          ioccs = concatOccurs $ map (occursAs Matched . here . AnArg) xs
+      -- Then, we compute the occurrences in the constructor types.
       let conOcc c = do
             a <- defType <$> getConstInfo c
             TelV tel t <- telView' <$> normalise a -- normalization needed e.g. for test/succeed/Bush.agda
@@ -477,7 +483,7 @@ computeOccurrences q = do
                 vars np = map (Just . AnArg) $ downFrom np
             (>+<) <$> (occursAs (ConArgType c) <$> getOccurrences (vars np) tel')
                   <*> (occursAs (IndArgType c) . onlyVarsUpTo np <$> getOccurrences (vars $ size tel) indices)
-      concatOccurs <$> mapM conOcc cs
+      (>+<) ioccs <$> (concatOccurs <$> mapM conOcc cs)
     Record{recClause = Just c} -> getOccurrences [] =<< instantiateFull c
     Record{recPars = np, recTel = tel} -> do
       let tel' = telFromList $ genericDrop np $ telToList tel
