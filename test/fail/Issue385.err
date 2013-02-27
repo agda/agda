@@ -1,0 +1,3 @@
+Issue385.agda:11,1-21
+Cannot rewrite by equation of type {A : Set _3} {x : A} → x ≡ x
+when checking that the clause bad rewrite loop = ? has type Set
