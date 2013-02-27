@@ -1,0 +1,6 @@
+
+Termination checking failed for the following functions:
+  lem
+Problematic calls:
+  lem (suc n)
+    (at Issue801.agda:17,31-34)

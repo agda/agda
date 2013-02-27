@@ -203,31 +203,10 @@ checkDecl d = do
       mapM_ computePolarity =<<
         (catMaybes <$> mapM relevant (Set.toList names))
 
-      -- Andreas, 2012-09-11:  Injectivity check stores clauses
-      -- whose 'Relevance' is affected by polarity computation,
-      -- so do it here.
-
-      let checkInj (q, def@Defn{ theDef = d@Function{ funClauses = cs }}) = do
-            inv <- checkInjectivity q cs
-            modifySignature $ updateDefinition q $ const $
-              def { theDef = d { funInv = inv }}
-          checkInj _ = return ()
-
-      namesDefs <- mapM (\ q -> (q,) <$> getConstInfo q) $ Set.toList names
-      reportSLn "tc.inj.decl" 20 $ "checkDecl: checking injectivity..."
-      mapM_ checkInj namesDefs
-
-      -- Non-mutual definitions can be considered for
-      -- projection likeness
-      case Set.toList names of
-        [d] -> do
-          def <- getConstInfo d
-          case theDef def of
-            Function{} -> makeProjection (defName def)
-            _          -> return ()
-        _ -> return ()
-
       -- Termination checking.
+      -- Andreas, 2013-02-27: check termination before injectivity,
+      -- to avoid making the injectivity checker loop.
+      reportSLn "tc.decl" 20 $ "checkDecl: checking termination..."
       termErrs <-
         ifM (optTerminationCheck <$> pragmaOptions)
           (disableDestructiveUpdate $ case d of
@@ -240,6 +219,31 @@ checkDecl d = do
                  st { stTermErrs = Fold.foldl' (|>) (stTermErrs st) termErrs }
                return termErrs)
           (return [])
+
+      -- Andreas, 2012-09-11:  Injectivity check stores clauses
+      -- whose 'Relevance' is affected by polarity computation,
+      -- so do it here.
+
+      let checkInj (q, def@Defn{ theDef = d@Function{ funClauses = cs, funTerminates = Just True }}) = do
+            inv <- checkInjectivity q cs
+            modifySignature $ updateDefinition q $ const $
+              def { theDef = d { funInv = inv }}
+          checkInj _ = return ()
+
+      namesDefs <- mapM (\ q -> (q,) <$> getConstInfo q) $ Set.toList names
+      reportSLn "tc.decl" 20 $ "checkDecl: checking injectivity..."
+      mapM_ checkInj namesDefs
+
+      -- Non-mutual definitions can be considered for
+      -- projection likeness
+      reportSLn "tc.decl" 20 $ "checkDecl: checking projection-likeness..."
+      case Set.toList names of
+        [d] -> do
+          def <- getConstInfo d
+          case theDef def of
+            Function{} -> makeProjection (defName def)
+            _          -> return ()
+        _ -> return ()
 
       return termErrs
 
