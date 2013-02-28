@@ -8,9 +8,11 @@ SHELL=bash
 
 uname:=$(shell uname)
 ifeq (NT-5,$(findstring NT-5,$(uname)))
-pwd=$(shell (cmd /c 'echo %CD%') | sed -e 's/\\/\\\\\\\\/g')\\\\
+pwd=$(shell (cmd /c 'echo %CD%') | sed -e 's/\\/\\\\\\\\/g')
+pwdPlusDelimiter=$(pwd)\\\\
 else
-pwd=$(shell pwd)/
+pwd=$(shell pwd)
+pwdPlusDelimiter=$(pwd)/
 endif
 
 # use gsed on Mac OS instead of sed
@@ -39,9 +41,11 @@ run_test=if test -f $*.in; \
          | $(sed) "s/goal_command \\([0-9]\+\\) \\([^ ]\+\\) \\(\"[^\"]*\"\\)/IOTCM currentFile None Indirect (\\2 \\1 noRange \\3)/g" \
          | $(sed) "s/currentFile/\"$(wildcard $*.agda $*.lagda)\"/g" \
          | agda --interaction $(RTS_$*) \
-           2>&1 | $(sed) -e 's"$(pwd)""g' -e 's"$(TMPDIR).*$$""'; \
+           2>&1 | $(sed) -e 's"$(pwdPlusDelimiter)""g' \
+                         -e 's"$(pwd)""g' -e 's"$(TMPDIR).*$$""'; \
     else source ./$*.sh \
-        | $(sed) -e 's"$(pwd)""g' -e 's"$(TMPDIR).*$$""'; \
+        | $(sed) -e 's"$(pwdPlusDelimiter)""g' \
+                 -e 's"$(pwd)""g' -e 's"$(TMPDIR).*$$""'; \
     fi
 
 # Note that RTS_... variables are ignored when .sh files are used.
