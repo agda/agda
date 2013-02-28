@@ -67,7 +67,11 @@ compilePrelude = do
 -- | Compile an interface into an executable using Epic
 compilerMain :: Interface -> TCM ()
 compilerMain inter = do
-    epic_exist <- liftIO $ rawSystem "ghc-pkg" ["-v0", "field", "epic", "id"]
+    (epic_exist, _, _) <-
+       liftIO $ readProcessWithExitCode
+                  "ghc-pkg"
+                  ["-v0", "field", "epic", "id"]
+                  ""
     case epic_exist of
         ExitSuccess -> flip evalStateT initCompileState $ do
             compilePrelude
