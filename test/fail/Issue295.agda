@@ -1,5 +1,4 @@
--- A cut-down example:
-
+-- {-# OPTIONS -v tc.with:50 #-}
 module Issue295 where
 
 data ⊥ : Set where

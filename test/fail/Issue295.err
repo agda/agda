@@ -1,4 +1,4 @@
-Issue295.agda:18,21-34
+Issue295.agda:17,21-34
 (a ⟶ b) ﹔ (c ⟶ d) | b != e ⟶ f of type Arr
 when checking that the expression ∙ a b c d F G has type
 Fun (e ⟶ f)

@@ -353,6 +353,7 @@ data WithFunctionProblem
                      [Type]         -- types of the with expressions
                      Type           -- type of the right hand side
                      [I.Arg Pattern]-- parent patterns
+                     Permutation    -- permutation resulting from splitting the telescope into needed and unneeded vars
                      Permutation    -- permutation reordering the variables in the parent pattern
                      Permutation    -- final permutation (including permutation for the parent clause)
                      [A.Clause]     -- the given clauses for the with function
@@ -533,7 +534,7 @@ checkClause t c@(A.Clause (A.LHS i (A.LHSHead x aps) []) rhs0 wh) =
                     ]
 -}
                   gamma <- maybe (typeError $ NotImplemented "with clauses for functions with unfolding arity") return mgamma
-                  return (mkBody v, WithFunction x aux gamma delta1 delta2 vs as t' ps perm' finalPerm cs)
+                  return (mkBody v, WithFunction x aux gamma delta1 delta2 vs as t' ps perm' perm finalPerm cs)
           in handleRHS rhs0
       escapeContext (size delta) $ checkWithFunction with
 
@@ -560,7 +561,7 @@ checkClause t (A.Clause (A.LHS _ _ ps@(_ : _)) _ _) = typeError $ UnexpectedWith
 
 checkWithFunction :: WithFunctionProblem -> TCM ()
 checkWithFunction NoWithFunction = return ()
-checkWithFunction (WithFunction f aux gamma delta1 delta2 vs as b qs perm' perm cs) = do
+checkWithFunction (WithFunction f aux gamma delta1 delta2 vs as b qs perm' perm finalPerm cs) = do
 
   reportSDoc "tc.with.top" 10 $ vcat
     [ text "checkWithFunction"
@@ -574,13 +575,14 @@ checkWithFunction (WithFunction f aux gamma delta1 delta2 vs as b qs perm' perm 
       , text "qs     =" <+> text (show qs)
       , text "perm'  =" <+> text (show perm')
       , text "perm   =" <+> text (show perm)
+      , text "fperm   =" <+> text (show finalPerm)
       ]
     ]
 
   -- Add the type of the auxiliary function to the signature
 
   -- With display forms are closed
-  df <- makeClosed <$> withDisplayForm f aux delta1 delta2 (size as) qs perm'
+  df <- makeClosed <$> withDisplayForm f aux delta1 delta2 (size as) qs perm' perm
 
   reportSLn "tc.with.top" 20 "created with display form"
 
@@ -624,7 +626,7 @@ checkWithFunction (WithFunction f aux gamma delta1 delta2 vs as b qs perm' perm 
     ]
 
   -- Construct the body for the with function
-  cs <- buildWithFunction aux gamma qs perm (size delta1) (size as) cs
+  cs <- buildWithFunction aux gamma qs finalPerm (size delta1) (size as) cs
 
   -- Check the with function
   checkFunDef NotDelayed info aux cs

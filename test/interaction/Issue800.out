@@ -1,0 +1,11 @@
+Agda2> (agda2-status-action "")
+(agda2-info-action "*Type-checking*" "" nil)
+(agda2-highlight-clear)
+(agda2-info-action "*Type-checking*" "Checking Issue800 (Issue800.agda).\n" t)
+(agda2-info-action "*Type-checking*" "Finished Issue800.\n" t)
+(agda2-status-action "")
+(agda2-info-action "*All Goals*" "?0 : ⊤\n" nil)
+((last . 1) . (agda2-goals-action '(0)))
+Agda2> ((last . 2) . (agda2-make-case-action '("bug .l k (itt l) | itt .k = ?")))
+((last . 1) . (agda2-goals-action '(0)))
+Agda2> 

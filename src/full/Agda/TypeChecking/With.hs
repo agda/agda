@@ -4,7 +4,7 @@ module Agda.TypeChecking.With where
 import Control.Applicative
 import Control.Monad
 import Control.Monad.State
-import qualified Data.Traversable as T (mapM)
+import qualified Data.Traversable as T (mapM, traverse)
 import Data.List
 
 import Agda.Syntax.Common
@@ -208,14 +208,15 @@ stripWithClausePatterns gamma qs perm ps = do
 --   For instance, @aux a b c@ as @f (suc a) (suc b) | c@
 --
 --   @n@ is the number of with arguments.
-withDisplayForm :: QName -> QName -> Telescope -> Telescope -> Nat -> [I.Arg Pattern] -> Permutation -> TCM DisplayForm
-withDisplayForm f aux delta1 delta2 n qs perm@(Perm m _) = do
+withDisplayForm :: QName -> QName -> Telescope -> Telescope -> Nat -> [I.Arg Pattern] -> Permutation -> Permutation -> TCM DisplayForm
+withDisplayForm f aux delta1 delta2 n qs perm@(Perm m _) lhsPerm = do
   topArgs <- raise (n + size delta1 + size delta2) <$> getContextArgs
   x <- freshNoName_
   let wild = Def (qualify (mnameFromList []) x) []
 
-  let top = genericLength topArgs
-      vs = map (fmap DTerm) topArgs ++ (applySubst (sub ys wild) $ patsToTerms qs)
+  let tqs = patsToTerms lhsPerm qs
+      top = genericLength topArgs
+      vs = map (fmap DTerm) topArgs ++ applySubst (sub ys wild) tqs
       dt = DWithApp (DDef f vs : map DTerm withArgs) []
       withArgs = map var $ genericTake n $ downFrom $ size delta2 + n
 --      withArgs = reverse $ map var [size delta2..size delta2 + n - 1]
@@ -244,8 +245,8 @@ withDisplayForm f aux delta1 delta2 n qs perm@(Perm m _) = do
       , text "dt     =" <+> do addFullCtx $ prettyTCM dt
       , text "ys     =" <+> text (show ys)
       , text "raw    =" <+> text (show display)
-      , text "qsToTm =" <+> prettyTCM (patsToTerms qs) -- ctx would be permuted form of delta1 ++ delta2
-      , text "sub qs =" <+> prettyTCM (applySubst (sub ys wild) $ patsToTerms qs)
+      , text "qsToTm =" <+> prettyTCM tqs -- ctx would be permuted form of delta1 ++ delta2
+      , text "sub qs =" <+> prettyTCM (applySubst (sub ys wild) tqs)
       ]
     ]
 
@@ -253,6 +254,7 @@ withDisplayForm f aux delta1 delta2 n qs perm@(Perm m _) = do
   where
     -- Note: The upper bound (m - 1) was previously commented out. I
     -- restored it in order to make the substitution finite.
+    -- Andreas, 2013-02-28: Who is "I"?
     sub rho wild = parallelS $ map term [0 .. m - 1]
       where
         -- thinking required.. but ignored
@@ -261,6 +263,30 @@ withDisplayForm f aux delta1 delta2 n qs perm@(Perm m _) = do
         -- Ulf, 2011-09-02: Thinking done. Neither was correct.
         -- We had the wrong permutation and we used it incorrectly. Should work now.
         term i = maybe wild var $ findIndex (Just i ==) rho
+
+-- Andreas, 2013-02-28 modeled after Coverage/Match/buildMPatterns
+-- The permutation is the one of the original clause.
+patsToTerms :: Permutation -> [I.Arg Pattern] -> [I.Arg DisplayTerm]
+patsToTerms perm ps = evalState (toTerms ps) xs
+  where
+    xs   = permute (invertP perm) $ downFrom (size perm)
+    tick = do x : xs <- get; put xs; return x
+
+    toTerms :: [I.Arg Pattern] -> State [Nat] [I.Arg DisplayTerm]
+    toTerms ps = mapM (T.traverse toTerm) ps
+
+    toTerm :: Pattern -> State [Nat] DisplayTerm
+    toTerm p = case p of
+      VarP _      -> DTerm . var <$> tick
+      DotP t      -> DDot t <$ tick
+      ConP c _ ps -> DCon c <$> toTerms ps
+      LitP l      -> return $ DTerm (Lit l)
+
+{- OLD
+-- Andreas, 2013-02-28: this translation does not take the permutation
+-- into account.  I replaced it with a new one (see above).
+-- There are so many similar implementations to translate patterns in Agda,
+-- opportunity for some refactoring!?
 
 patsToTerms :: [I.Arg Pattern] -> [I.Arg DisplayTerm]
 patsToTerms ps = evalState (toTerms ps) 0
@@ -285,3 +311,4 @@ patsToTerms ps = evalState (toTerms ps) 0
       DotP t      -> return $ DDot t
       ConP c _ ps -> DCon c <$> toTerms ps
       LitP l      -> return $ DTerm (Lit l)
+-}
