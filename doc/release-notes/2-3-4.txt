@@ -10,6 +10,22 @@ Installation
 Pragmas and Options
 ===================
 
+* Pragma NO_TERMINATION_CHECK placed within a mutual block is now
+  applied to the whole mutual block (rather than being discarded
+  silently).  Adding to the uses 1.-4. outlined in the release notes
+  for 2.3.2 we allow:
+
+  3a. Skipping an old-style mutual block: Somewhere within 'mutual'
+      block before a type signature or first function clause.
+
+       mutual
+         {-# NO_TERMINATION_CHECK #-}
+         c : A
+         c = d
+
+         d : A
+         d = c
+
 Language
 ========
 

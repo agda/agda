@@ -665,7 +665,7 @@ niceDeclarations ds = do
           []  -> return ()
           (NiceFunClause _ _ _ _ (FunClause lhs _ _)):_ -> throwError $ MissingTypeSignature lhs
           d:_ -> throwError $ NotAllowedInMutual d
-        return $ NiceMutual r True $ sigs ++ other  -- termCheck is adjusted later
+        return $ NiceMutual r (all termCheck ds) $ sigs ++ other
       where
         -- Pull type signatures to the top
         (sigs, other) = partition isTypeSig ds
@@ -676,6 +676,14 @@ niceDeclarations ds = do
         defNames  = [ (k, x) | LoneDef k x <- map declKind ds ]
         -- compute the set difference with equality just on names
         loneNames = filter (\ (_, x) -> not (List.any (\ (_, x') -> x == x') defNames)) sigNames
+
+        -- Andreas, 2013-02-28 (issue 804):
+        -- do not termination check a mutual block if any of its
+        -- inner declarations comes with a {-# NO_TERMINATION_CHECK #-}
+        termCheck (FunSig _ _ _ _ tc _ _) = tc
+        termCheck (FunDef _ _ _ _ tc _ _) = tc
+        termCheck (NiceMutual _ tc _)     = tc
+        termCheck _                       = True
 
     abstractBlock _ [] = return []
     abstractBlock r ds = do
