@@ -650,92 +650,73 @@ checkExpr e t =
         A.ETel _   -> __IMPOSSIBLE__
 
 	-- Application
-          -- Subcase: ambiguous constructor
-	_   | Application (A.Con (AmbQ cs@(_:_:_))) args <- appView e -> do
-                -- First we should figure out which constructor we want.
-                reportSLn "tc.check.term" 40 $ "Ambiguous constructor: " ++ show cs
+        _   | Application hd args <- appView e -> checkApplication hd args e t
 
-                -- Get the datatypes of the various constructors
-                let getData Constructor{conData = d} = d
-                    getData _                        = __IMPOSSIBLE__
-                reportSLn "tc.check.term" 40 $ "  ranges before: " ++ show (getRange cs)
-                -- We use the reduced constructor when disambiguating, but
-                -- the original constructor for type checking. This is important
-                -- since they may have different types (different parameters).
-                -- See issue 279.
-                cs  <- zip cs . zipWith setRange (map getRange cs) <$> mapM reduceCon cs
-                reportSLn "tc.check.term" 40 $ "  ranges after: " ++ show (getRange cs)
-                reportSLn "tc.check.term" 40 $ "  reduced: " ++ show cs
-                dcs <- mapM (\(c0, c1) -> (getData /\ const c0) . theDef <$> getConstInfo c1) cs
+-- | @checkApplication hd args e t@ checks an application.
+--   Precondition: @Application hs args = appView e@
+checkApplication :: A.Expr -> A.Args -> A.Expr -> Type -> TCM Term
+checkApplication hd args e t = do
+  case hd of
 
-                -- Type error
-                let badCon t = typeError $ DoesNotConstructAnElementOf
+    -- Subcase: ambiguous constructor
+    A.Con (AmbQ cs@(_:_:_)) -> do
+      -- First we should figure out which constructor we want.
+      reportSLn "tc.check.term" 40 $ "Ambiguous constructor: " ++ show cs
+
+      -- Get the datatypes of the various constructors
+      let getData Constructor{conData = d} = d
+          getData _                        = __IMPOSSIBLE__
+      reportSLn "tc.check.term" 40 $ "  ranges before: " ++ show (getRange cs)
+      -- We use the reduced constructor when disambiguating, but
+      -- the original constructor for type checking. This is important
+      -- since they may have different types (different parameters).
+      -- See issue 279.
+      cs  <- zip cs . zipWith setRange (map getRange cs) <$> mapM reduceCon cs
+      reportSLn "tc.check.term" 40 $ "  ranges after: " ++ show (getRange cs)
+      reportSLn "tc.check.term" 40 $ "  reduced: " ++ show cs
+      dcs <- mapM (\(c0, c1) -> (getData /\ const c0) . theDef <$> getConstInfo c1) cs
+
+      -- Type error
+      let badCon t = typeError $ DoesNotConstructAnElementOf
                                             (fst $ head cs) t
-{- OLD CODE
-                -- Lets look at the target type at this point
-                let getCon = do
-                      TelV _ t1 <- telView t
-                      t1 <- reduceB $ unEl t1
-                      reportSDoc "tc.check.term.con" 40 $ nest 2 $
-                        text "target type: " <+> prettyTCM t1
-                      case ignoreSharing <$> t1 of
-                        NotBlocked (Def d _) -> do
-                          let dataOrRec = case [ c | (d', c) <- dcs, d == d' ] of
-                                [c] -> do
-                                  reportSLn "tc.check.term" 40 $ "  decided on: " ++ show c
-                                  return (Just c)
-                                []  -> badCon (Def d [])
-                                cs  -> typeError $ GenericError $
-                                        "Can't resolve overloaded constructors targeting the same datatype (" ++ show d ++
-                                        "): " ++ unwords (map show cs)
-                          defn <- theDef <$> getConstInfo d
-                          case defn of
-                            Datatype{} -> dataOrRec
-                            Record{}   -> dataOrRec
-                            _ -> badCon (ignoreBlocking t1)
-                        NotBlocked (MetaV _ _)  -> return Nothing
-                        Blocked{} -> return Nothing
-                        _ -> badCon (ignoreBlocking t1)
--}
-                -- Lets look at the target type at this point
-                let getCon = do
-                     TelV _ t1 <- telView t
-                     reportSDoc "tc.check.term.con" 40 $ nest 2 $
-                       text "target type: " <+> prettyTCM t1
-                     ifBlocked (unEl t1) (\ m t -> return Nothing) $ \ t' ->
-                       (isDataOrRecord t' >>=) $ maybe (badCon t') $ \ d ->
-                           case [ c | (d', c) <- dcs, d == d' ] of
-                                [c] -> do
-                                  reportSLn "tc.check.term" 40 $ "  decided on: " ++ show c
-                                  return (Just c)
-                                []  -> badCon (Def d [])
-                                cs  -> typeError $ GenericError $
-                                        "Can't resolve overloaded constructors targeting the same datatype (" ++ show d ++
-                                        "): " ++ unwords (map show cs)
-                let unblock = isJust <$> getCon -- to unblock, call getCon later again
-                mc <- getCon
-                case mc of
-                  Just c  -> checkConstructorApplication e t c $ map convArg args
-                  Nothing -> postponeTypeCheckingProblem e t unblock
+      -- Lets look at the target type at this point
+      let getCon = do
+           TelV _ t1 <- telView t
+           reportSDoc "tc.check.term.con" 40 $ nest 2 $
+             text "target type: " <+> prettyTCM t1
+           ifBlocked (unEl t1) (\ m t -> return Nothing) $ \ t' ->
+             (isDataOrRecord t' >>=) $ maybe (badCon t') $ \ d ->
+                 case [ c | (d', c) <- dcs, d == d' ] of
+                      [c] -> do
+                        reportSLn "tc.check.term" 40 $ "  decided on: " ++ show c
+                        return (Just c)
+                      []  -> badCon (Def d [])
+                      cs  -> typeError $ GenericError $
+                              "Can't resolve overloaded constructors targeting the same datatype (" ++ show d ++
+                              "): " ++ unwords (map show cs)
+      let unblock = isJust <$> getCon -- to unblock, call getCon later again
+      mc <- getCon
+      case mc of
+        Just c  -> checkConstructorApplication e t c $ map convArg args
+        Nothing -> postponeTypeCheckingProblem e t unblock
 
-              -- Subcase: non-ambiguous constructor
-            | Application (A.Con (AmbQ [c])) args <- appView e ->
-                checkConstructorApplication e t c $ map convArg args
+    -- Subcase: non-ambiguous constructor
+    (A.Con (AmbQ [c])) ->
+      checkConstructorApplication e t c $ map convArg args
 
-              -- Subcase: pattern synonym
-            | Application (A.PatternSyn n) args <- appView e -> do
-                (ns, p) <- lookupPatternSyn n
-                -- Expand the pattern synonym by substituting for
-                -- the arguments we have got and lambda-lifting
-                -- over the ones we haven't.
-                let (zs, ns', as) = zipWithTails (\n a -> (n, namedThing (unArg a))) ns args
-                    p'            = A.patternToExpr $ setRange (getRange n) p
-                    e'            = A.lambdaLiftExpr ns' (A.substExpr zs p') `A.app` as
-                checkExpr e' t
+    -- Subcase: pattern synonym
+    (A.PatternSyn n) -> do
+      (ns, p) <- lookupPatternSyn n
+      -- Expand the pattern synonym by substituting for
+      -- the arguments we have got and lambda-lifting
+      -- over the ones we haven't.
+      let (zs, ns', as) = zipWithTails (\n a -> (n, namedThing (unArg a))) ns args
+          p'            = A.patternToExpr $ setRange (getRange n) p
+          e'            = A.lambdaLiftExpr ns' (A.substExpr zs p') `A.app` as
+      checkExpr e' t
 
-              -- Subcase: defined symbol or variable.
-            | Application hd args <- appView e ->
-                checkHeadApplication e t hd $ map convArg args
+    -- Subcase: defined symbol or variable.
+    _ -> checkHeadApplication e t hd $ map convArg args
 
 domainFree info x =
   A.DomainFull $ A.TypedBindings r $ Arg info $ A.TBind r [x] $ A.Underscore underscoreInfo
