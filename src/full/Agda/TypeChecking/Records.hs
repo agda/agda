@@ -201,7 +201,7 @@ etaContractRecord r c args = do
       check a ax = do
       -- @a@ is the constructor argument, @ax@ the corr. record field name
         -- skip irrelevant record fields by returning DontCare
-        case (argRelevance a, ignoreSharing $ unArg a) of
+        case (getRelevance a, ignoreSharing $ unArg a) of
           (Irrelevant, _) -> Just Nothing
           -- if @a@ is the record field name applied to a single argument
           -- then it passes the check
@@ -249,7 +249,7 @@ isSingletonRecord' regardIrrelevance r ps = do
   check :: Telescope -> TCM (Either MetaId (Maybe [I.Arg Term]))
   check EmptyTel            = return $ Right $ Just []
   check (ExtendTel dom tel)
-        | isArgInfoIrrelevant (domInfo dom) && regardIrrelevance =
+        | isIrrelevant dom && regardIrrelevance =
     underAbstraction dom tel $ \ tel ->
       emap (Arg (domInfo dom) garbage :) <$> check tel
   check (ExtendTel dom tel) = do

@@ -185,7 +185,7 @@ checkTypedBinding lamOrPi info (A.TBind i xs e) ret = do
     -- 2011-10-04 if flag --experimental-irrelevance is set
     allowed <- optExperimentalIrrelevance <$> pragmaOptions
     t <- modEnv lamOrPi allowed $ isType_ e
-    let info' = mapArgInfoRelevance (modRel lamOrPi allowed) info
+    let info' = mapRelevance (modRel lamOrPi allowed) info
     addCtxs xs (convDom $ Dom info' t) $ ret $ mkTel xs t
     where
         -- if we are checking a typed lambda, we resurrect before we check the
@@ -226,7 +226,7 @@ checkLambda (Arg info (A.TBind _ xs typ)) body target = do
       t1 <- addCtxs xs argsT $ workOnTypes newTypeMeta_
       let tel = telFromList $ mkTel xs argsT
       -- Do not coerce hidden lambdas
-      if (argInfoHiding info /= NotHidden) then do
+      if (getHiding info /= NotHidden) then do
         pid <- newProblem_ $ leqType (telePi tel t1) target
         -- Now check body : ?t₁
         v <- addCtxs xs argsT $ checkExpr body t1
@@ -240,18 +240,18 @@ checkLambda (Arg info (A.TBind _ xs typ)) body target = do
 
     useTargetType tel@(ExtendTel arg (Abs y EmptyTel)) btyp = do
         verboseS "tc.term.lambda" 5 $ tick "lambda-with-target-type"
-        unless (domHiding    arg == argInfoHiding info) $ typeError $ WrongHidingInLambda target
+        unless (getHiding arg == getHiding info) $ typeError $ WrongHidingInLambda target
         -- Andreas, 2011-10-01 ignore relevance in lambda if not explicitly given
-        let r  = argInfoRelevance info
-            r' = domRelevance arg -- relevance of function type
+        let r  = getRelevance info
+            r' = getRelevance arg -- relevance of function type
         when (r == Irrelevant && r' /= r) $ typeError $ WrongIrrelevanceInLambda target
---        unless (argRelevance arg == r) $ typeError $ WrongIrrelevanceInLambda target
+--        unless (getRelevance arg == r) $ typeError $ WrongIrrelevanceInLambda target
         -- We only need to block the final term on the argument type
         -- comparison. The body will be blocked if necessary. We still want to
         -- compare the argument types first, so we spawn a new problem for that
         -- check.
         (pid, argT) <- newProblem $ isTypeEqualTo typ (unDom arg)
-        v <- add x y (Dom (setArgInfoRelevance r' info) argT) $ checkExpr body btyp
+        v <- add x y (Dom (setRelevance r' info) argT) $ checkExpr body btyp
         blockTermOnProblem target (Lam info $ Abs (show $ nameConcrete x) v) pid
       where
         [x] = xs
@@ -334,8 +334,8 @@ checkExpr e t =
     case e of
 	-- Insert hidden lambda if appropriate
 	_   | Pi (Dom info _) _ <- ignoreSharing $ unEl t
-            , not (hiddenLambdaOrHole (argInfoHiding info) e)
-            , argInfoHiding info /= NotHidden -> do
+            , not (hiddenLambdaOrHole (getHiding info) e)
+            , getHiding info /= NotHidden -> do
 		x <- freshName r (argName t)
                 info <- reify info
                 reportSLn "tc.term.expr.impl" 15 $ "Inserting implicit lambda"
@@ -348,13 +348,13 @@ checkExpr e t =
                 hiddenLambdaOrHole h (A.AbsurdLam _ h') | h == h'                      = True
                 hiddenLambdaOrHole h (A.ExtendedLam _ _ _ [])                          = False
                 hiddenLambdaOrHole h (A.ExtendedLam _ _ _ cls)                         = any hiddenLHS cls
-		hiddenLambdaOrHole h (A.Lam _ (A.DomainFree info' _) _) | h == argInfoHiding info'       = True
+		hiddenLambdaOrHole h (A.Lam _ (A.DomainFree info' _) _) | h == getHiding info'       = True
 		hiddenLambdaOrHole h (A.Lam _ (A.DomainFull (A.TypedBindings _ (Arg info' _))) _)
-                  | h == argInfoHiding info'                                                            = True
+                  | h == getHiding info'                                                            = True
 		hiddenLambdaOrHole _ (A.QuestionMark _)				       = True
 		hiddenLambdaOrHole _ _						       = False
 
-                hiddenLHS (A.Clause (A.LHS _ (A.LHSHead _ (a : _)) _) _ _) = elem (argHiding a) [Hidden, Instance]
+                hiddenLHS (A.Clause (A.LHS _ (A.LHSHead _ (a : _)) _) _ _) = elem (getHiding a) [Hidden, Instance]
                 hiddenLHS _ = False
 
         -- a meta variable without arguments: type check directly for efficiency
@@ -409,10 +409,10 @@ checkExpr e t =
           ifBlockedType t (\ m t' -> postponeTypeCheckingProblem_ e t') $ \ t' -> do
             case ignoreSharing $ unEl t' of
               Pi dom@(Dom info' a) _
-                | h == argInfoHiding info' && not (null $ allMetas a) ->
+                | h == getHiding info' && not (null $ allMetas a) ->
                     postponeTypeCheckingProblem e t' $
                       null . allMetas <$> instantiateFull a
-                | h == argInfoHiding info' -> blockTerm t' $ do
+                | h == getHiding info' -> blockTerm t' $ do
                   isEmptyType (getRange i) a
                   -- Add helper function
                   top <- currentModule
@@ -426,7 +426,7 @@ checkExpr e t =
                     , nest 2 $ text "of type" <+> prettyTCM t'
                     ]
                   addConstant aux
-                    $ Defn (setArgInfoRelevance rel info') aux t'
+                    $ Defn (setRelevance rel info') aux t'
                            [Nonvariant] [Unused] (defaultDisplayForm aux)
                            0 noCompiledRep
                     $ Function
@@ -475,7 +475,7 @@ checkExpr e t =
            ifBlockedType t (\ m t' -> postponeTypeCheckingProblem_ e t') $ \ t -> do
              j   <- currentOrFreshMutualBlock
              rel <- asks envRelevance
-             let info = setArgInfoRelevance rel defaultArgInfo
+             let info = setRelevance rel defaultArgInfo
              addConstant qname $
                Defn info qname t [] [] (defaultDisplayForm qname) j noCompiledRep Axiom
              reportSDoc "tc.term.exlam" 50 $
@@ -488,7 +488,7 @@ checkExpr e t =
              freevars <- getModuleFreeVars top
              -- freevars <- getSecFreeVars top --Andreas, 2013-02-26 this could be wrong in the presence of module parameters and a where block
              let argsNoParam = genericDrop freevars args -- don't count module parameters
-             let (hid, notHid) = partition ((Hidden ==) . argHiding) argsNoParam
+             let (hid, notHid) = partition isHidden argsNoParam
              addExtLambdaTele qname (length hid, length notHid)
              reduce $ (Def qname [] `apply` args)
           where
@@ -550,7 +550,7 @@ checkExpr e t =
                       _   -> defaultNamedArg e -- we only end up here if the field names are bad
               let meta x = A.Underscore $ A.MetaInfo (getRange e) scope Nothing (show x)
                   missingExplicits = [ (unArg a, [unnamed . meta <$> a])
-                                     | a <- axs, isArgInfoNotHidden (argInfo a)
+                                     | a <- axs, notHidden a
                                      , notElem (unArg a) (map fst fs) ]
               -- In es omitted explicit fields are replaced by underscores
               -- (from missingExplicits). Omitted implicit or instance fields
@@ -620,7 +620,7 @@ checkExpr e t =
             _         -> typeError $ ShouldBeRecordType t
           where
             replaceFields :: Name -> A.ExprInfo -> I.Arg A.QName -> Maybe A.Expr -> Maybe A.Expr
-            replaceFields n ei a@(Arg _ p) Nothing | isArgInfoNotHidden (argInfo a) =
+            replaceFields n ei a@(Arg _ p) Nothing | notHidden a =
                 Just $ A.App ei (A.Def p) $ defaultNamedArg $ A.Var n
             replaceFields _ _  (Arg _ _) Nothing  = Nothing
             replaceFields _ _  _         (Just e) = Just $ e
@@ -766,7 +766,7 @@ inferHead e = do
   case e of
     (A.Var x) -> do -- traceCall (InferVar x) $ do
       (u, a) <- getVarInfo x
-      when (unusableRelevance $ domRelevance a) $
+      when (unusableRelevance $ getRelevance a) $
         typeError $ VariableIsIrrelevant x
       return (apply u, unDom a)
     (A.Def x) -> do
@@ -819,7 +819,7 @@ inferHead e = do
 inferHead :: A.Expr -> TCM (Args -> Term, Type)
 inferHead (A.Var x) = do -- traceCall (InferVar x) $ do
   (u, a) <- getVarInfo x
-  when (unusableRelevance $ domRelevance a) $
+  when (unusableRelevance $ getRelevance a) $
     typeError $ VariableIsIrrelevant x
   return (apply u, unDom a)
 inferHead (A.Def x) = do
@@ -957,7 +957,7 @@ checkConstructorApplication org t c args = do
     --
     -- Andreas, 2012-04-18: if all inital args are underscores, ignore them
     checkForParams args =
-      let (hargs, rest) = span isHiddenArg args
+      let (hargs, rest) = span isHidden args
           removeScope (A.ScopedExpr _ e) = removeScope e
           removeScope e                  = e
           notUnderscore A.Underscore{} = False
@@ -967,7 +967,7 @@ checkConstructorApplication org t c args = do
     -- Drop the constructor arguments that correspond to parameters.
     dropArgs [] args                                   = args
     dropArgs ps []                                     = args
-    dropArgs ps args@(arg : _) | not (isHiddenArg arg) = args
+    dropArgs ps args@(arg : _) | not (isHidden arg) = args
     dropArgs (p:ps) args@(arg : args')
       | (nameOf (unArg arg)) `elem` [Nothing, Just p]  = dropArgs ps args'
       | otherwise                                      = dropArgs ps args
@@ -1066,7 +1066,7 @@ checkHeadApplication e t hd args = do
       -- If we are in irrelevant position, add definition irrelevantly.
       -- TODO: is this sufficient?
       rel <- asks envRelevance
-      addConstant c' (Defn (setArgInfoRelevance rel defaultArgInfo)
+      addConstant c' (Defn (setRelevance rel defaultArgInfo)
                            c' t [] [] (defaultDisplayForm c')
                   i noCompiledRep $ Axiom)
 
@@ -1138,9 +1138,9 @@ checkArguments exh    expandIFS r [] t0 t1 =
       t1' <- unEl <$> reduce t1
       implicitArgs (-1) (expand t1') t0
     where
-      expand (Pi  (Dom info _) _) Hidden = argInfoHiding info /= Hidden
+      expand (Pi  (Dom info _) _) Hidden = getHiding info /= Hidden
       expand _                     Hidden = True
-      expand (Pi  (Dom info _) _) Instance = argInfoHiding info /= Instance && expandIFS == ExpandInstanceArguments
+      expand (Pi  (Dom info _) _) Instance = getHiding info /= Instance && expandIFS == ExpandInstanceArguments
       expand _                   Instance = expandIFS == ExpandInstanceArguments
       expand _                  NotHidden = False
 
@@ -1190,8 +1190,8 @@ checkArguments exh expandIFS r args0@(Arg info e : args) t0 t1 =
           e' <- return $ namedThing e
           case ignoreSharing $ unEl t0' of
               Pi (Dom info' a) _ |
-                argInfoHiding info == argInfoHiding info' && (isArgInfoNotHidden info || sameName (nameOf e) (nameInPi $ unEl t0')) -> do
-                  u  <- lift $ applyRelevanceToContext (argInfoRelevance info') $ checkExpr e' a
+                getHiding info == getHiding info' && (notHidden info || sameName (nameOf e) (nameInPi $ unEl t0')) -> do
+                  u  <- lift $ applyRelevanceToContext (getRelevance info') $ checkExpr e' a
                   let arg = Arg info' u  -- save relevance info in argument
                   (us, t0'') <- checkArguments exh expandIFS (fuseRange r e) args (piApply t0' [arg]) t1
                   return (arg : us, t0'')
@@ -1202,16 +1202,16 @@ checkArguments exh expandIFS r args0@(Arg info e : args) t0 t1 =
                                    arg { unArg = DontCare $ unArg arg }
                                   else arg
 -}
-              Pi (Dom info a) b | argInfoHiding info == Instance && expandIFS == ExpandInstanceArguments ->
-                insertIFSUnderscore (argInfoRelevance info) (absName b) a
-              Pi (Dom info a) b | isArgInfoHidden info  -> insertUnderscore (argInfoRelevance info) (absName b)
-              Pi (Dom info _) _  | isArgInfoNotHidden info -> lift $ typeError $ WrongHidingInApplication t0'
+              Pi (Dom info a) b | getHiding info == Instance && expandIFS == ExpandInstanceArguments ->
+                insertIFSUnderscore (getRelevance info) (absName b) a
+              Pi (Dom info a) b | isHidden info  -> insertUnderscore (getRelevance info) (absName b)
+              Pi (Dom info _) _  | notHidden info -> lift $ typeError $ WrongHidingInApplication t0'
               _ -> lift $ typeError $ ShouldBePi t0'
     where
 	insertIFSUnderscore rel x a = do
           lift $ reportSLn "tc.term.args.ifs" 15 $ "inserting implicit meta (2) for type " ++ show a
           v <- lift $ applyRelevanceToContext rel $ initializeIFSMeta x a
-          let arg = makeInstance $ setArgRelevance rel $ defaultArg v
+          let arg = makeInstance $ setRelevance rel $ defaultArg v
           (vs, t0'') <- checkArguments exh expandIFS r args0 (piApply t0 [arg]) t1
           return (arg : vs, t0'')
 
@@ -1223,7 +1223,7 @@ checkArguments exh expandIFS r args0@(Arg info e : args) t0 t1 =
 		  , A.metaNumber = Nothing
                   , A.metaNameSuggestion = x
 		  }
-	  checkArguments exh expandIFS r (hide (setArgRelevance rel $ defaultArg $ unnamed m) : args0) t0 t1
+	  checkArguments exh expandIFS r (hide (setRelevance rel $ defaultArg $ unnamed m) : args0) t0 t1
 
 	name (Named _ (A.Var x)) = show x
 	name (Named (Just x) _)    = x
@@ -1296,7 +1296,7 @@ inferOrCheck e mt = case e of
 inferExprForWith :: A.Expr -> TCM (Term, Type)
 inferExprForWith e = do
   (v, t) <- inferExpr e
-  TelV tel t0 <- telViewUpTo' (-1) ((NotHidden /=) . domHiding) t
+  TelV tel t0 <- telViewUpTo' (-1) ((NotHidden /=) . getHiding) t
   case ignoreSharing $ unEl t0 of
     Def d vs -> do
       res <- isDataOrRecordType d
@@ -1323,7 +1323,7 @@ checkLetBinding :: A.LetBinding -> TCM a -> TCM a
 checkLetBinding b@(A.LetBind i info x t e) ret =
   traceCallCPS_ (CheckLetBinding b) ret $ \ret -> do
     t <- isType_ t
-    v <- applyRelevanceToContext (argInfoRelevance info) $ checkExpr e t
+    v <- applyRelevanceToContext (getRelevance info) $ checkExpr e t
     addLetBinding (convArgInfo info) x v t ret
 
 checkLetBinding b@(A.LetPatBind i p e) ret =

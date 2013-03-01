@@ -380,7 +380,7 @@ instance (Occurs a, Subst a) => Occurs (Abs a) where
   metaOccurs m (NoAbs s x) = metaOccurs m x
 
 instance Occurs a => Occurs (I.Arg a) where
-  occurs red ctx m xs (Arg info x) | isArgInfoIrrelevant info = Arg info <$>
+  occurs red ctx m xs (Arg info x) | isIrrelevant info = Arg info <$>
     occurs red Irrel m (goIrrelevant xs) x
   occurs red ctx m xs (Arg info x) = Arg info <$>
     occurs red ctx m xs x

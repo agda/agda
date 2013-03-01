@@ -251,7 +251,7 @@ instance Reduce t => Reduce [t] where
     reduce = traverse reduce
 
 instance Reduce t => Reduce (Arg t) where
-    reduce a = case argRelevance a of
+    reduce a = case getRelevance a of
                  Irrelevant -> return a             -- Don't reduce irr. args!?
                  _          -> traverse reduce a
 
@@ -298,7 +298,7 @@ instance Reduce Term where
         case v of
           _ | Just v == mz  -> return $ Lit $ LitInt (getRange c) 0
           _		    -> return v
-      reduceNat v@(Con c [a]) | isArgInfoNotHidden (argInfo a) && isArgInfoRelevant (argInfo a) = do
+      reduceNat v@(Con c [a]) | notHidden a && isRelevant a = do
         ms  <- fmap ignoreSharing <$> getBuiltin' builtinSuc
         case v of
           _ | Just (Con c []) == ms -> inc <$> reduce (unArg a)
@@ -557,7 +557,7 @@ instance (Subst t, Normalise t) => Normalise (Abs t) where
     normalise (NoAbs x v) = NoAbs x <$> normalise v
 
 instance Normalise t => Normalise (Arg t) where
-    normalise a | isArgInfoIrrelevant (argInfo a) = return a -- Andreas, 2012-04-02: Do not normalize irrelevant terms!?
+    normalise a | isIrrelevant a = return a -- Andreas, 2012-04-02: Do not normalize irrelevant terms!?
                 | otherwise                       = traverse normalise a
 
 instance Normalise t => Normalise (Dom t) where

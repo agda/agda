@@ -24,7 +24,7 @@ makeForcedArgs (T.El _ term) = case term of
     _ -> []
   where
     isRel :: T.Dom T.Type -> Forced
-    isRel arg = case S.domRelevance arg of
+    isRel arg = case S.getRelevance arg of
       S.Relevant   -> NotForced
       S.Irrelevant -> Forced
       S.UnusedArg  -> Forced

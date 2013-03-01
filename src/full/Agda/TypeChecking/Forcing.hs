@@ -70,7 +70,7 @@ force xs t = aux 0 t
       El s (Pi  a b) -> El s $ Pi  (upd a) (fmap (aux (i + 1)) b)
       _ -> __IMPOSSIBLE__
       where
-        upd a | i `elem` xs = a { domInfo = mapArgInfoRelevance
+        upd a | i `elem` xs = a { domInfo = mapRelevance
                                               (composeRelevance Forced)
                                               (domInfo a) }
               | otherwise   = a

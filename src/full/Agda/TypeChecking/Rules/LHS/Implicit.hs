@@ -55,7 +55,7 @@ insertImplicitPatterns exh ps tel@(ExtendTel arg tel') = case ps of
       Just hs	-> insertImplicitPatterns exh (implicitPs hs ++ p : ps) tel
       Nothing
         | A.ImplicitP{} <- namedArg p,
-          argHiding p /= Instance -> do
+          getHiding p /= Instance -> do
           -- Eta expand implicit patterns of record type (issue 473),
           -- but not instance arguments since then they won't be found
           -- by the instance search
@@ -88,4 +88,4 @@ insertImplicitPatterns exh ps tel@(ExtendTel arg tel') = case ps of
     implicitP = unnamed $ A.ImplicitP $ PatRange $ noRange
 
     implicitPs [] = []
-    implicitPs (h : hs) = (setArgHiding h $ defaultArg implicitP) : implicitPs hs
+    implicitPs (h : hs) = (setHiding h $ defaultArg implicitP) : implicitPs hs

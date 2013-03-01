@@ -129,7 +129,7 @@ definition kit (Defn Forced    _ _  _ _ _ _ _ _) = __IMPOSSIBLE__
 definition kit (Defn UnusedArg _ _  _ _ _ _ _ _) = __IMPOSSIBLE__
 definition kit (Defn NonStrict _ _  _ _ _ _ _ _) = __IMPOSSIBLE__
 -}
-definition kit (Defn info      _ _ _ _ _ _ _ _) | isArgInfoIrrelevant info = return []
+definition kit (Defn info      _ _ _ _ _ _ _ _) | isIrrelevant info = return []
 definition kit (Defn _         q ty _ _ _ _ compiled d) = do
   checkTypeOfMain q ty $ do
   (infodecl q :) <$> case d of
@@ -295,7 +295,7 @@ argpatts ps0 bvs = evalStateT (mapM pat' ps0) bvs
 
   -- Andreas, 2010-09-29
   -- do not match against irrelevant stuff
-  pat' a | isArgInfoIrrelevant (argInfo a) = return $ HS.PWildCard
+  pat' a | isIrrelevant a = return $ HS.PWildCard
 -}
   pat' a = pat $ unArg a
 
@@ -311,7 +311,7 @@ argpatts ps0 bvs = evalStateT (mapM pat' ps0) bvs
          <*> (andM $ L.map irr' ps)
 
   -- | Irrelevant patterns are naturally irrefutable.
-  irr' a | isArgInfoIrrelevant (argInfo a) = return $ True
+  irr' a | isIrrelevant a = return $ True
   irr' a = irr $ unArg a
 
 clausebody :: ClauseBody -> TCM HS.Exp
@@ -347,7 +347,7 @@ term tm0 = case ignoreSharing tm0 of
 
 -- | Irrelevant arguments are replaced by Haskells' ().
 term' :: I.Arg Term -> ReaderT Nat TCM HS.Exp
-term' a | isArgInfoIrrelevant (argInfo a) = return HS.unit_con
+term' a | isIrrelevant a = return HS.unit_con
 term' a = term $ unArg a
 
 literal :: Literal -> TCM HS.Exp

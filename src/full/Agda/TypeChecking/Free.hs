@@ -202,7 +202,7 @@ instance (Free a, Free b) => Free (a,b) where
 
 instance Free a => Free (Arg a) where
   freeVars' conf a = f $ freeVars' conf $ unArg a
-    where f = case argRelevance a of
+    where f = case getRelevance a of
                Irrelevant -> irrelevantly
                UnusedArg  -> unused
                _          -> id

@@ -1,4 +1,4 @@
-{-# FlexibleInstances #-}
+{-# LANGUAGE FlexibleInstances #-}
 
 module Agda.Syntax.Internal.Pattern where
 
@@ -32,7 +32,7 @@ allHolesWithContents []       = []
 allHolesWithContents (p : ps) = map left phs ++ map (right p) (allHolesWithContents ps)
   where
     phs :: [(Pattern, Arg OneHolePattern)]
-    phs = map (id -*- setArgHiding (argHiding p) . defaultArg)
+    phs = map (id -*- setHiding (getHiding p) . defaultArg)
               (holes $ unArg p)
 
     holes :: Pattern -> [(Pattern, OneHolePattern)]

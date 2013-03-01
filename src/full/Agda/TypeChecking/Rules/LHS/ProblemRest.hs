@@ -36,7 +36,7 @@ useNamesFromPattern :: [A.NamedArg A.Pattern] -> Telescope -> Telescope
 useNamesFromPattern ps = telFromList . zipWith ren (toPats ps ++ repeat dummy) . telToList
   where
     dummy = A.WildP __IMPOSSIBLE__
-    ren (A.VarP x) (Dom info (_, a)) | isArgInfoNotHidden info =
+    ren (A.VarP x) (Dom info (_, a)) | notHidden info =
             Dom info (show x, a)
     ren A.PatternSynP{} _ = __IMPOSSIBLE__  -- ensure there are no syns left
     ren _ a = a

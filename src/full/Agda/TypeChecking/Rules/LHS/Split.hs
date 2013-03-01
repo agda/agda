@@ -91,7 +91,7 @@ splitProblem (Problem ps (perm, qs) tel pr) = do
           -- not indexed.
 
           -- Andreas, 2010-09-07 cannot split on irrelevant args
-          when (unusableRelevance $ domRelevance a) $
+          when (unusableRelevance $ getRelevance a) $
             typeError $ SplitOnIrrelevant p a
 	  b <- lift $ litType lit
 	  ok <- lift $ do
@@ -129,7 +129,7 @@ splitProblem (Problem ps (perm, qs) tel pr) = do
 	      def <- liftTCM $ theDef <$> getConstInfo d
               unless (defIsRecord def) $
                 -- cannot split on irrelevant or non-strict things
-                when (unusableRelevance $ domRelevance a) $ do
+                when (unusableRelevance $ getRelevance a) $ do
                   -- Andreas, 2011-10-04 unless allowed by option
                   allowed <- liftTCM $ optExperimentalIrrelevance <$> pragmaOptions
                   unless allowed $ typeError $ SplitOnIrrelevant p a

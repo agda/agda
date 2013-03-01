@@ -139,7 +139,7 @@ addCtxTel (ExtendTel t tel) ret = underAbstraction t tel $ \tel -> addCtxTel tel
 {-# SPECIALIZE addLetBinding :: ArgInfo -> Name -> Term -> Type -> TCM a -> TCM a #-}
 addLetBinding :: MonadTCM tcm => ArgInfo -> Name -> Term -> Type -> tcm a -> tcm a
 addLetBinding info x v t0 ret = do
-    let t = Common.Dom (setArgInfoHiding NotHidden info) t0
+    let t = Common.Dom (setHiding NotHidden info) t0
     vt <- liftTCM $ makeOpen (v, t)
     flip local ret $ \e -> e { envLetBindings = Map.insert x vt $ envLetBindings e }
 

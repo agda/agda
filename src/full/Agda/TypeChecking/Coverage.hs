@@ -235,7 +235,7 @@ isDatatype ind at = do
           | i == CoInductive && ind /= CoInductive ->
               throw CoinductiveDatatype
           -- Andreas, 2011-10-03 allow some splitting on irrelevant data (if only one constr. matches)
-          | isArgInfoIrrelevant (domInfo at) && not splitOnIrrelevantDataAllowed ->
+          | isIrrelevant at && not splitOnIrrelevantDataAllowed ->
               throw IrrelevantDatatype
           | otherwise -> do
               let (ps, is) = genericSplitAt np args
@@ -512,7 +512,7 @@ split' ind sc@(SClause tel perm ps _ target) (x, mcons) = liftTCM $ runException
     -- Andreas, 2011-10-03
     -- if more than one constructor matches, we cannot be irrelevant
     -- (this piece of code is unreachable if --experimental-irrelevance is off)
-    (_ : _ : _) | unusableRelevance (domRelevance t) ->
+    (_ : _ : _) | unusableRelevance (getRelevance t) ->
       throwException . IrrelevantDatatype =<< do liftTCM $ buildClosure (unDom t)
 
   -- Andreas, 2012-10-10 fail if precomputed constructor set does not cover

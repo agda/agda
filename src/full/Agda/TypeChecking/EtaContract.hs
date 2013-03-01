@@ -55,7 +55,7 @@ etaOnce v = do
       imp <- shouldEtaContractImplicit
       case binAppView b of
         App u (Common.Arg info v)
-          | (isArgInfoIrrelevant info || isVar0 v)
+          | (isIrrelevant info || isVar0 v)
                     && allowed imp info
                     && not (freeIn 0 u) ->
             return $ subst __IMPOSSIBLE__ u
@@ -69,7 +69,7 @@ etaOnce v = do
           BlockedLevel{}   -> False
           MetaLevel{}      -> False
         isVar0 _ = False
-        allowed imp i' = argInfoHiding i == argInfoHiding i' && (imp || isArgInfoNotHidden i)
+        allowed imp i' = getHiding i == getHiding i' && (imp || notHidden i)
 
     -- Andreas, 2012-12-18:  Abstract definitions could contain
     -- abstract records whose constructors are not in scope.

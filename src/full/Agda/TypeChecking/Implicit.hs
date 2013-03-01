@@ -34,11 +34,11 @@ implicitArgs 0 expand t0 = return ([], t0)
 implicitArgs n expand t0 = do
     t0' <- reduce t0
     case ignoreSharing $ unEl t0' of
-      Pi (Dom info a) b | expand (argInfoHiding info) -> do
-          when (argInfoHiding info == Instance) $ reportSLn "tc.term.args.ifs" 15 $
+      Pi (Dom info a) b | expand (getHiding info) -> do
+          when (getHiding info == Instance) $ reportSLn "tc.term.args.ifs" 15 $
             "inserting implicit meta for type " ++ show a
-          v  <- applyRelevanceToContext (argInfoRelevance info) $
-                newMeta (argInfoHiding info) (absName b) a
+          v  <- applyRelevanceToContext (getRelevance info) $
+                newMeta (getHiding info) (absName b) a
           let arg = Arg info v
           mapFst (arg:) <$> implicitArgs (n-1) expand (absApp b v)
       _ -> return ([], t0')
@@ -83,22 +83,22 @@ impInsert hs = ImpInsert hs
 -- | The list should be non-empty.
 insertImplicit :: A.NamedArg e -> [I.Arg String] -> ImplicitInsertion
 insertImplicit _ [] = __IMPOSSIBLE__
-insertImplicit a ts | isArgInfoNotHidden (argInfo a) = impInsert $ nofHidden ts
+insertImplicit a ts | notHidden a = impInsert $ nofHidden ts
   where
     nofHidden :: [I.Arg a] -> [Hiding]
-    nofHidden = takeWhile (NotHidden /=) . map argHiding
+    nofHidden = takeWhile (NotHidden /=) . map getHiding
 insertImplicit a ts =
   case nameOf (unArg a) of
-    Nothing -> maybe BadImplicits impInsert $ upto (argHiding a) $ map argHiding ts
-    Just x  -> find [] x (argHiding a) ts
+    Nothing -> maybe BadImplicits impInsert $ upto (getHiding a) $ map getHiding ts
+    Just x  -> find [] x (getHiding a) ts
   where
     upto h [] = Nothing
     upto h (NotHidden:_) = Nothing
     upto h (h':_) | h == h' = Just []
     upto h (h':hs) = (h':) <$> upto h hs
-    find _ x _ (a@(Arg{}) : _) | isArgInfoNotHidden (argInfo a) = NoSuchName x
+    find _ x _ (a@(Arg{}) : _) | notHidden a = NoSuchName x
     find hs x hidingx (a@(Arg _ y) : ts)
-      | x == y && hidingx == argHiding a = impInsert $ reverse hs
-      | x == y && hidingx /= argHiding a = BadImplicits
-      | otherwise = find (argHiding a:hs) x hidingx ts
+      | x == y && hidingx == getHiding a = impInsert $ reverse hs
+      | x == y && hidingx /= getHiding a = BadImplicits
+      | otherwise = find (getHiding a:hs) x hidingx ts
     find i x _ []			     = NoSuchName x

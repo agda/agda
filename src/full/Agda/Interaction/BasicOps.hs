@@ -493,7 +493,7 @@ introTactic pmLambda ii = do
             okHiding    = if allHidden then const True else okHiding0
         vars <- -- setShowImplicitArguments (imp || allHidden) $
                 (if allHidden then withShowAllArguments else id) $
-                  mapM showTCM [ setArgHiding h $ defaultArg $ var i :: I.Arg Term
+                  mapM showTCM [ setHiding h $ defaultArg $ var i :: I.Arg Term
                                | (h, i) <- zip hs $ downFrom n
                                , okHiding h
                                ]
@@ -502,7 +502,7 @@ introTactic pmLambda ii = do
            else return [ unwords $ ["λ"]      ++ vars ++ ["→", "?"] ]
       where
         n = size tel
-        hs   = map domHiding $ telToList tel
+        hs   = map getHiding $ telToList tel
         tel' = telFromList [ fmap makeName b | b <- telToList tel ]
         makeName ("_", t) = ("x", t)
         makeName (x, t)   = (x, t)
@@ -519,7 +519,7 @@ introTactic pmLambda ii = do
       hfs <- getRecordFieldNames d
       fs <- ifM showImplicitArguments
             (return $ map unArg hfs)
-            (return [ unArg a | a <- hfs, argHiding a == NotHidden ])
+            (return [ unArg a | a <- hfs, getHiding a == NotHidden ])
       return
         [ concat $
             "record {" :

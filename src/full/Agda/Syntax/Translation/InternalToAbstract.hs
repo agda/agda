@@ -66,12 +66,12 @@ import Agda.Utils.Size
 #include "../../undefined.h"
 import Agda.Utils.Impossible
 
--- Composition reified applications ---------------------------------------
+-- Composition of reified applications ------------------------------------
 
 napps :: Expr -> [I.NamedArg Expr] -> TCM Expr
 napps e args = do
   dontShowImp <- not <$> showImplicitArguments
-  let apply1 e arg | isHiddenArg arg && dontShowImp = e
+  let apply1 e arg | notVisible arg && dontShowImp = e
                    | otherwise = App exprInfo e arg
   foldl' apply1 e <$> reify args
 
@@ -177,8 +177,8 @@ reifyDisplayFormP lhs@(A.LHS i A.LHSProj{} wps) =
   typeError $ NotImplemented "reifyDisplayForm for copatterns"
 reifyDisplayFormP lhs@(A.LHS i (A.LHSHead x ps) wps) =
   ifM (not <$> displayFormsEnabled) (return lhs) $ do
-    let vs = [ setArgHiding h $ defaultArg $ I.var n
-             | (n, h) <- zip [0..] $ map argHiding ps
+    let vs = [ setHiding h $ defaultArg $ I.var n
+             | (n, h) <- zip [0..] $ map getHiding ps
              ]
     md <- liftTCM $ displayForm x vs
     reportSLn "syntax.reify.display" 20 $
@@ -277,7 +277,7 @@ reifyTerm expandAnonDefs v = do
         case isR of
           True -> do
             showImp <- showImplicitArguments
-            let keep (a, v) = showImp || isArgInfoNotHidden (argInfo a)
+            let keep (a, v) = showImp || notHidden a
             r  <- getConstructorData x
             xs <- getRecordFieldNames r
             vs <- map unArg <$> reifyIArgs vs
@@ -314,8 +314,8 @@ reifyTerm expandAnonDefs v = do
                 -- Andreas, 2012-09-18
                 -- If the first regular constructor argument is hidden,
                 -- we keep the parameters to avoid confusion.
-                (Common.Dom info _ : _) | isArgInfoHidden info -> do
-                  let us = genericReplicate (np - n) $ setArgRelevance Relevant (Common.Arg info underscore)
+                (Common.Dom info _ : _) | isHidden info -> do
+                  let us = genericReplicate (np - n) $ setRelevance Relevant (Common.Arg info underscore)
                   apps h $ us ++ es
                 -- otherwise, we drop all parameters
                 _ -> apps h es
@@ -407,8 +407,8 @@ reifyTerm expandAnonDefs v = do
               -- Andreas, 2012-04-21: get rid of hidden underscores {_}
               -- Keep non-hidden arguments of the padding
               showImp <- showImplicitArguments
-              return (filter (not . isHiddenArg) pad',
-                if not (null pad) && showImp && isHiddenArg (last pad)
+              return (filter visible pad',
+                if not (null pad) && showImp && notVisible (last pad)
                    then nameFirstIfHidden [dom] vs'
                    else map (fmap unnamed) vs')
         df <- displayFormsEnabled
@@ -431,7 +431,7 @@ reifyTerm expandAnonDefs v = do
 nameFirstIfHidden :: [I.Dom (String, t)] -> [I.Arg a] -> [I.NamedArg a]
 nameFirstIfHidden _         []                    = []
 nameFirstIfHidden []        (_ : _)               = __IMPOSSIBLE__
-nameFirstIfHidden (dom : _) (Common.Arg info e : es) | isArgInfoHidden info =
+nameFirstIfHidden (dom : _) (Common.Arg info e : es) | isHidden info =
   Common.Arg info (Named (Just $ fst $ unDom dom) e) : map (fmap unnamed) es
 nameFirstIfHidden _         es                    = map (fmap unnamed) es
 
@@ -505,14 +505,14 @@ stripImplicits ps wps =
     strip dvs ps = stripArgs ps
       where
         stripArgs [] = []
-        stripArgs (a : as) = case argHiding a of
+        stripArgs (a : as) = case getHiding a of
           Hidden | canStrip a as -> stripArgs as
           _                      -> stripArg a : stripArgs as
 
         canStrip a as = and
           [ varOrDot p
           , noInterestingBindings p
-          , all (flip canStrip []) $ takeWhile ((Hidden ==) . argHiding) as
+          , all (flip canStrip []) $ takeWhile isHidden as
           ]
           where p = namedArg a
 
@@ -547,7 +547,7 @@ class DotVars a where
   dotVars :: a -> Set Name
 
 instance DotVars a => DotVars (A.Arg a) where
-  dotVars a = if isHiddenArg a then Set.empty else dotVars (unArg a)
+  dotVars a = if notVisible a then Set.empty else dotVars (unArg a)
 
 instance DotVars a => DotVars (Named s a) where
   dotVars = dotVars . namedThing

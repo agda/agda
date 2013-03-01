@@ -462,7 +462,7 @@ unifyIndices flex a us vs = liftTCM $ do
       -- in case of dependent function type, we cannot postpone
       -- unification of u and v, otherwise us or vs might be ill-typed
       -- skip irrelevant parts
-      uHH <- if (isArgInfoIrrelevant $ domInfo a) then return $ Hom u else
+      uHH <- if isIrrelevant a then return $ Hom u else
                ifClean (unifyHH bHH u v) (return $ Hom u) (return $ Het u v)
 
       liftTCM $ reportSDoc "tc.lhs.unify" 25 $
@@ -496,7 +496,7 @@ unifyIndices flex a us vs = liftTCM $ do
           -- unification of u and v, otherwise us or vs might be ill-typed
           let dep = dependent $ unEl a
           -- skip irrelevant parts
-	  unless (isArgInfoIrrelevant $ domInfo b) $
+	  unless (isIrrelevant b) $
             (if dep then noPostponing else id) $
               unify (unDom b) u v
           arg <- traverse ureduce arg
@@ -817,13 +817,13 @@ shapeViewHH (Het a1 a2) = do
 
     (PiSh d1@(Dom i1 a1) b1, PiSh (Dom i2 a2) b2)
       | argInfoHiding i1 == argInfoHiding i2 ->
-      PiSh (Dom (setArgInfoRelevance (min (argInfoRelevance i1) (argInfoRelevance i2)) i1)
+      PiSh (Dom (setRelevance (min (getRelevance i1) (getRelevance i2)) i1)
                 (Het a1 a2))
            (Abs (absName b1) (Het (absBody b1) (absBody b2)))
 
     (FunSh d1@(Dom i1 a1) b1, FunSh (Dom i2 a2) b2)
       | argInfoHiding i1 == argInfoHiding i2 ->
-      FunSh (Dom (setArgInfoRelevance (min (argInfoRelevance i1) (argInfoRelevance i2)) i1)
+      FunSh (Dom (setRelevance (min (getRelevance i1) (getRelevance i2)) i1)
                  (Het a1 a2))
             (Het b1 b2)
 

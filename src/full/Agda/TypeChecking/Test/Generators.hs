@@ -192,10 +192,10 @@ instance GenC Hiding where
 	hiddenFreqs $ tcFrequencies conf
 
 instance (GenC c, GenC a) => GenC (Common.Arg c a) where
-  genC conf = (\ (h, a) -> Arg (setArgInfoHiding h defaultArgInfo) a) <$> genC conf
+  genC conf = (\ (h, a) -> Arg (setHiding h defaultArgInfo) a) <$> genC conf
 
 instance (GenC c, GenC a) => GenC (Common.Dom c a) where
-  genC conf = (\ (h, a) -> Dom (setArgInfoHiding h defaultArgInfo) a) <$> genC conf
+  genC conf = (\ (h, a) -> Dom (setHiding h defaultArgInfo) a) <$> genC conf
 
 instance GenC a => GenC (Abs a) where
   genC conf = Abs "x" <$> genC (extendConf conf)
@@ -279,7 +279,7 @@ instance GenC Term where
       piF   = freq (piFreq   . termFreqs)
 
       genLam :: Gen Term
-      genLam = Lam <$> (flip setArgInfoHiding defaultArgInfo <$> genC conf) <*> genC (isntTypeConf $ decrConf conf)
+      genLam = Lam <$> (flip setHiding defaultArgInfo <$> genC conf) <*> genC (isntTypeConf $ decrConf conf)
 
       genPi :: Gen Term
       genPi = uncurry Pi <$> genC conf
@@ -404,11 +404,11 @@ instance ShrinkC a b => ShrinkC (Abs a) (Abs b) where
   noShrink = fmap noShrink
 
 instance ShrinkC a b => ShrinkC (I.Arg a) (I.Arg b) where
-  shrinkC conf (Arg info x) = (\ (h,x) -> Arg (setArgInfoHiding h info) x) <$> shrinkC conf (argInfoHiding info, x)
+  shrinkC conf (Arg info x) = (\ (h,x) -> Arg (setHiding h info) x) <$> shrinkC conf (argInfoHiding info, x)
   noShrink = fmap noShrink
 
 instance ShrinkC a b => ShrinkC (I.Dom a) (I.Dom b) where
-  shrinkC conf (Dom info x) = (\ (h,x) -> Dom (setArgInfoHiding h info) x) <$> shrinkC conf (argInfoHiding info, x)
+  shrinkC conf (Dom info x) = (\ (h,x) -> Dom (setHiding h info) x) <$> shrinkC conf (argInfoHiding info, x)
   noShrink = fmap noShrink
 
 instance ShrinkC a b => ShrinkC (Blocked a) (Blocked b) where
@@ -448,7 +448,7 @@ instance ShrinkC Term Term where
 		    (uncurry Con <$> shrinkC conf (ConName d, NoType args))
     Lit l	 -> Lit <$> shrinkC conf l
     Level l      -> [] -- TODO
-    Lam info b   -> killAbs b : ((\(h,x) -> Lam (setArgInfoHiding h defaultArgInfo) x)
+    Lam info b   -> killAbs b : ((\(h,x) -> Lam (setHiding h defaultArgInfo) x)
                                  <$> shrinkC conf (argInfoHiding info, b))
     Pi a b       -> unEl (unDom a) : unEl (killAbs b) :
 		    (uncurry Pi <$> shrinkC conf (a, b))

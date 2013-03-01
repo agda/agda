@@ -93,7 +93,7 @@ addConstant q d = do
   reportSLn "tc.signature" 20 $ "adding constant " ++ show q ++ " to signature"
   tel <- getContextTelescope
   let tel' = killRange $ case theDef d of
-	      Constructor{} -> fmap (mapDomHiding (const Hidden)) tel
+	      Constructor{} -> fmap (setHiding Hidden) tel
 	      _		    -> tel
   let d' = abstract tel' $ d { defName = q }
   reportSLn "tc.signature" 30 $ "lambda-lifted definition = " ++ show d'

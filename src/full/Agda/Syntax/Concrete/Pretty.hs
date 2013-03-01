@@ -195,7 +195,7 @@ instance Pretty TypedBindings where
     pretty (TypedBindings _ a) =
 	pRelevance (argInfo a) $ bracks $ pretty $ WithColors (argColors a) $ unArg a
 	where
-	    bracks = case argHiding a of
+	    bracks = case getHiding a of
 			Hidden	    -> braces'
 			Instance    -> dbraces
 			NotHidden   -> parens

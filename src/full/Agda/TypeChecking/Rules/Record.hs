@@ -80,7 +80,7 @@ checkRecDef i name ind con ps contel fields =
           -- A record is irrelevant if all of its fields are.
           -- In this case, the associated module parameter will be irrelevant.
           -- See issue 392.
-          recordRelevance = minimum $ Irrelevant : (map domRelevance $ telToList ftel)
+          recordRelevance = minimum $ Irrelevant : (map getRelevance $ telToList ftel)
 
       -- Compute correct type of constructor
 
@@ -160,13 +160,13 @@ checkRecDef i name ind con ps contel fields =
       -}
 
       -- make record parameters hidden
-      ctx <- (reverse . map (mapDomHiding $ const Hidden) . take (size tel)) <$> getContext
+      ctx <- (reverse . map (setHiding Hidden) . take (size tel)) <$> getContext
 
       let -- name of record module
           m    = qnameToMName name
           -- make record parameters hidden and non-stricts irrelevant
 	  htel = map hideAndRelParams $ telToList tel
-          info = setArgInfoRelevance recordRelevance defaultArgInfo
+          info = setRelevance recordRelevance defaultArgInfo
 	  tel' = telFromList $ htel ++ [Dom info ("r", rect)]
           ext (Dom info (x, t)) = addCtx x (Dom info t)
 

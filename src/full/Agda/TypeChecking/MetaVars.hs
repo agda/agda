@@ -243,7 +243,7 @@ newArgsMetaCtx' condition (El s tm) tel ctx = do
   case ignoreSharing tm of
     Pi dom@(Dom info a) codom | condition dom codom -> do
       arg  <- Arg info <$> do
-              applyRelevanceToContext (argInfoRelevance info) $
+              applyRelevanceToContext (getRelevance info) $
                {-
                  -- Andreas, 2010-09-24 skip irrelevant record fields when eta-expanding a meta var
                  -- Andreas, 2010-10-11 this is WRONG, see Issue 347
@@ -562,7 +562,7 @@ assign x args v = do
             fromIrrVar (Shared p)   = fromIrrVar (derefPtr p)
             fromIrrVar _ = return []
         irrVL <- concat <$> mapM fromIrrVar
-                   [ v | Arg info v <- args, irrelevantOrUnused (argInfoRelevance info) ]
+                   [ v | Arg info v <- args, irrelevantOrUnused (getRelevance info) ]
         reportSDoc "tc.meta.assign" 20 $
             let pr (Var n []) = text (show n)
                 pr (Def c []) = prettyTCM c
@@ -752,11 +752,11 @@ inverseSubst args = fmap (map (mapFst unArg)) <$> loop (zip args terms)
                 res <- loop $ zipWith aux vs fs
                 return $ res `append` vars
             Just _ ->  __IMPOSSIBLE__
-            Nothing | irrelevantOrUnused (argInfoRelevance info) -> return vars
+            Nothing | irrelevantOrUnused (getRelevance info) -> return vars
                     | otherwise -> failure
 
         -- An irrelevant argument which is not an irrefutable pattern is dropped
-        Arg info _ | irrelevantOrUnused (argInfoRelevance info) -> return vars
+        Arg info _ | irrelevantOrUnused (getRelevance info) -> return vars
 
         -- Distinguish args that can be eliminated (Con,Lit,Lam,unsure) ==> failure
         -- from those that can only put somewhere as a whole ==> return Nothing
@@ -791,7 +791,7 @@ inverseSubst args = fmap (map (mapFst unArg)) <$> loop (zip args terms)
     cons a@(Arg info i, t) (Just vars) =
       Just $ a :
       -- filter out duplicate irrelevants
-      filter (not . (\ a@(Arg info j, t) -> isArgInfoIrrelevant info && i == j)) vars
+      filter (not . (\ a@(Arg info j, t) -> isIrrelevant info && i == j)) vars
 
 updateMeta :: MetaId -> Term -> TCM ()
 updateMeta mI v = do

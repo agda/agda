@@ -433,11 +433,11 @@ fmLevel m (I.Plus _ l) = case l of
 
 -- ---------------------------------------------
 
-cnvh info = case C.argInfoHiding info of
+cnvh info = case C.getHiding info of
     C.NotHidden -> NotHidden
     C.Instance  -> Instance
     C.Hidden    -> Hidden
-icnvh h = (C.setArgInfoHiding h' C.defaultArgInfo)
+icnvh h = (C.setHiding h' C.defaultArgInfo)
     where
     h' = case h of
         NotHidden -> C.NotHidden

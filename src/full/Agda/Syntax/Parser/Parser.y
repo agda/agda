@@ -343,7 +343,7 @@ DoubleCloseBrace
 -- A possibly dotted identifier.
 MaybeDottedId :: { Arg Name }
 MaybeDottedId
-  : '.' Id { setArgRelevance Irrelevant $ defaultArg $2 }
+  : '.' Id { setRelevance Irrelevant $ defaultArg $2 }
   | Id     { defaultArg $1 }
 
 -- Space separated list of one or more possibly dotted identifiers.
@@ -362,14 +362,14 @@ ArgIds
     | '{{' MaybeDottedIds DoubleCloseBrace        { map makeInstance $2 }
     | '{' MaybeDottedIds '}' ArgIds   { map hide $2 ++ $4 }
     | '{' MaybeDottedIds '}'          { map hide $2 }
-    | '.' '{' SpaceIds '}' ArgIds     { map (hide . setArgRelevance Irrelevant . defaultArg) $3 ++ $5 }
-    | '.' '{' SpaceIds '}'            { map (hide . setArgRelevance Irrelevant . defaultArg) $3 }
-    | '.' '{{' SpaceIds DoubleCloseBrace ArgIds   { map (makeInstance . setArgRelevance Irrelevant . defaultArg) $3 ++ $5 }
-    | '.' '{{' SpaceIds DoubleCloseBrace          { map (makeInstance . setArgRelevance Irrelevant . defaultArg) $3 }
-    | '..' '{' SpaceIds '}' ArgIds    { map (hide . setArgRelevance NonStrict . defaultArg) $3 ++ $5 }
-    | '..' '{' SpaceIds '}'           { map (hide . setArgRelevance NonStrict . defaultArg) $3 }
-    | '..' '{{' SpaceIds DoubleCloseBrace ArgIds  { map (makeInstance . setArgRelevance NonStrict . defaultArg) $3 ++ $5 }
-    | '..' '{{' SpaceIds DoubleCloseBrace         { map (makeInstance . setArgRelevance NonStrict . defaultArg) $3 }
+    | '.' '{' SpaceIds '}' ArgIds     { map (hide . setRelevance Irrelevant . defaultArg) $3 ++ $5 }
+    | '.' '{' SpaceIds '}'            { map (hide . setRelevance Irrelevant . defaultArg) $3 }
+    | '.' '{{' SpaceIds DoubleCloseBrace ArgIds   { map (makeInstance . setRelevance Irrelevant . defaultArg) $3 ++ $5 }
+    | '.' '{{' SpaceIds DoubleCloseBrace          { map (makeInstance . setRelevance Irrelevant . defaultArg) $3 }
+    | '..' '{' SpaceIds '}' ArgIds    { map (hide . setRelevance NonStrict . defaultArg) $3 ++ $5 }
+    | '..' '{' SpaceIds '}'           { map (hide . setRelevance NonStrict . defaultArg) $3 }
+    | '..' '{{' SpaceIds DoubleCloseBrace ArgIds  { map (makeInstance . setRelevance NonStrict . defaultArg) $3 ++ $5 }
+    | '..' '{{' SpaceIds DoubleCloseBrace         { map (makeInstance . setRelevance NonStrict . defaultArg) $3 }
 
 QId :: { QName }
 QId : q_id  {% mkQName $1 }
@@ -614,17 +614,17 @@ TypedBindingss
 TypedBindings :: { TypedBindings }
 TypedBindings
     : '.' '(' TBind ')'    { TypedBindings (getRange ($2,$3,$4))
-                                           (setArgRelevance Irrelevant $ defaultColoredArg $3) }
+                                           (setRelevance Irrelevant $ defaultColoredArg $3) }
     | '.' '{' TBind '}'    { TypedBindings (getRange ($2,$3,$4))
-                                           (hide $ setArgRelevance Irrelevant $ defaultColoredArg $3) }
+                                           (hide $ setRelevance Irrelevant $ defaultColoredArg $3) }
     | '.' '{{' TBind DoubleCloseBrace  { TypedBindings (getRange ($2,$3,$4))
-                                                       (makeInstance $ setArgRelevance Irrelevant $ defaultColoredArg $3) }
+                                                       (makeInstance $ setRelevance Irrelevant $ defaultColoredArg $3) }
     | '..' '(' TBind ')'    { TypedBindings (getRange ($2,$3,$4))
-                                            (setArgRelevance NonStrict $ defaultColoredArg $3) }
+                                            (setRelevance NonStrict $ defaultColoredArg $3) }
     | '..' '{' TBind '}'    { TypedBindings (getRange ($2,$3,$4))
-                                            (hide $ setArgRelevance NonStrict $ defaultColoredArg $3) }
+                                            (hide $ setRelevance NonStrict $ defaultColoredArg $3) }
     | '..' '{{' TBind DoubleCloseBrace  { TypedBindings (getRange ($2,$3,$4))
-                                                        (makeInstance $ setArgRelevance NonStrict $ defaultColoredArg $3) }
+                                                        (makeInstance $ setRelevance NonStrict $ defaultColoredArg $3) }
     | '(' TBind ')'        { TypedBindings (getRange ($1,$2,$3))
                                            (defaultColoredArg $2) }
     | '{{' TBind DoubleCloseBrace      { TypedBindings (getRange ($1,$2,$3))
@@ -752,7 +752,7 @@ DomainFreeBinding
     | '.' BId		{ [DomainFree NotHidden Irrelevant $ mkBoundName_ $2]  }
     | '..' BId		{ [DomainFree NotHidden NonStrict $ mkBoundName_ $2]  }
     | '{' CommaBIds '}' { map (DomainFree Hidden Relevant . mkBoundName_) $2 }
-    | '{{' CommaBIds DoubleCloseBrace { map (DomainFree (setArgInfoHiding Instance defaultArgInfo) . mkBoundName_) $2 }
+    | '{{' CommaBIds DoubleCloseBrace { map (DomainFree (setHiding Instance defaultArgInfo) . mkBoundName_) $2 }
     | '.' '{' CommaBIds '}' { map (DomainFree Hidden Irrelevant . mkBoundName_) $3 }
     | '.' '{{' CommaBIds DoubleCloseBrace { map (DomainFree Instance Irrelevant . mkBoundName_) $3 }
     | '..' '{' CommaBIds '}' { map (DomainFree Hidden NonStrict . mkBoundName_) $3 }
@@ -764,15 +764,15 @@ DomainFreeBinding
 DomainFreeBindingAbsurd :: { Either [LamBinding] [Expr]}
 DomainFreeBindingAbsurd
     : BId		{ Left [DomainFree defaultArgInfo $ mkBoundName_ $1]  }
-    | '.' BId		{ Left [DomainFree (setArgInfoRelevance Irrelevant $ defaultArgInfo) $ mkBoundName_ $2]  }
-    | '..' BId		{ Left [DomainFree (setArgInfoRelevance NonStrict $ defaultArgInfo) $ mkBoundName_ $2]  }
+    | '.' BId		{ Left [DomainFree (setRelevance Irrelevant $ defaultArgInfo) $ mkBoundName_ $2]  }
+    | '..' BId		{ Left [DomainFree (setRelevance NonStrict $ defaultArgInfo) $ mkBoundName_ $2]  }
     | '{' CommaBIdAndAbsurds '}'
-         { either (Left . map (DomainFree (setArgInfoHiding Hidden $ defaultArgInfo) . mkBoundName_)) Right $2 }
-    | '{{' CommaBIds DoubleCloseBrace { Left $ map (DomainFree (setArgInfoHiding Instance $ defaultArgInfo) . mkBoundName_) $2 }
-    | '.' '{' CommaBIds '}' { Left $ map (DomainFree (setArgInfoHiding Hidden $ setArgInfoRelevance Irrelevant $ defaultArgInfo) . mkBoundName_) $3 }
-    | '.' '{{' CommaBIds DoubleCloseBrace { Left $ map (DomainFree (setArgInfoHiding Instance $ setArgInfoRelevance Irrelevant $ defaultArgInfo) . mkBoundName_) $3 }
-    | '..' '{' CommaBIds '}' { Left $ map (DomainFree (setArgInfoHiding Hidden $ setArgInfoRelevance NonStrict $ defaultArgInfo) . mkBoundName_) $3 }
-    | '..' '{{' CommaBIds DoubleCloseBrace { Left $ map (DomainFree  (setArgInfoHiding Instance $ setArgInfoRelevance NonStrict $ defaultArgInfo) . mkBoundName_) $3 }
+         { either (Left . map (DomainFree (setHiding Hidden $ defaultArgInfo) . mkBoundName_)) Right $2 }
+    | '{{' CommaBIds DoubleCloseBrace { Left $ map (DomainFree (setHiding Instance $ defaultArgInfo) . mkBoundName_) $2 }
+    | '.' '{' CommaBIds '}' { Left $ map (DomainFree (setHiding Hidden $ setRelevance Irrelevant $ defaultArgInfo) . mkBoundName_) $3 }
+    | '.' '{{' CommaBIds DoubleCloseBrace { Left $ map (DomainFree (setHiding Instance $ setRelevance Irrelevant $ defaultArgInfo) . mkBoundName_) $3 }
+    | '..' '{' CommaBIds '}' { Left $ map (DomainFree (setHiding Hidden $ setRelevance NonStrict $ defaultArgInfo) . mkBoundName_) $3 }
+    | '..' '{{' CommaBIds DoubleCloseBrace { Left $ map (DomainFree  (setHiding Instance $ setRelevance NonStrict $ defaultArgInfo) . mkBoundName_) $3 }
 
 
 {--------------------------------------------------------------------------
@@ -1517,7 +1517,7 @@ data RHSOrTypeSigs = JustRHS RHS
 
 namesOfPattern :: Pattern -> Maybe [(C.ArgInfo, Name)]
 namesOfPattern (IdentP (QName i))         = Just [(defaultArgInfo, i)]
-namesOfPattern (DotP _ (Ident (QName i))) = Just [(setArgInfoRelevance Irrelevant defaultArgInfo, i)]
+namesOfPattern (DotP _ (Ident (QName i))) = Just [(setRelevance Irrelevant defaultArgInfo, i)]
 namesOfPattern (RawAppP _ ps)             = fmap concat $ mapM namesOfPattern ps
 namesOfPattern _                          = Nothing
 

@@ -87,7 +87,7 @@ dotPatternInsts ps s as = dpi (map namedArg ps) (reverse s) as
               instTel ExtendTel{} []               = __IMPOSSIBLE__
               bs0 = instTel ftel (map unArg us)
               -- Andreas, 2012-09-19 propagate relevance info to dot patterns
-              bs  = map (mapDomRelevance (composeRelevance (domRelevance a))) bs0
+              bs  = map (mapRelevance (composeRelevance (getRelevance a))) bs0
           dpi (map namedArg qs ++ ps) (map (Just . unArg) us ++ s) (bs ++ as)
 
         _           -> __IMPOSSIBLE__

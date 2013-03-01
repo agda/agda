@@ -75,7 +75,7 @@ checkFunDef :: Delayed -> Info.DefInfo -> QName -> [A.Clause] -> TCM ()
 checkFunDef delayed i name cs = do
         -- Get the type and relevance of the function
         t    <- typeOfConst name
-        info  <- flip setArgInfoRelevance defaultArgInfo <$> relOfConst name
+        info  <- flip setRelevance defaultArgInfo <$> relOfConst name
         case trivialClause cs of
           -- if we have just one clause without pattern matching and
           -- without a type signature, then infer, to allow
@@ -247,11 +247,11 @@ trailingImplicits t cs@(c:_) = do
   -- compute the trailing implicits from type t
   TelV tel t0 <- telView t
   let -- number of non-hidden patterns
-      nh  = genericLength $ filter ((NotHidden ==) . argHiding) ps
+      nh  = genericLength $ filter ((NotHidden ==) . getHiding) ps
       -- drop nh non-hidden domains from t
       l   = dropNonHidden nh $ telToList tel
       -- take the hidden domains immediately after the dropped stuff
-      is   = takeWhile ((NotHidden /=) . domHiding) l
+      is   = takeWhile ((NotHidden /=) . getHiding) l
       itel = telFromList is
       -- get the trailing implicit patterns
       ipss = map snd pps
@@ -265,7 +265,7 @@ trailingImplicits t cs@(c:_) = do
 --   including all hidden domains that come before the @n@th non-hidden one.
 dropNonHidden :: Nat -> [I.Dom (String, Type)] -> [I.Dom (String, Type)]
 dropNonHidden 0 l = l
-dropNonHidden n l = case dropWhile ((NotHidden /=) . domHiding) l of
+dropNonHidden n l = case dropWhile ((NotHidden /=) . getHiding) l of
   []    -> [] -- or raise a type checking error "too many arguments in lhs"
   (_:l) -> dropNonHidden (n-1) l
 
@@ -278,7 +278,7 @@ splitTrailingImplicits (A.Clause (A.LHS _ A.LHSProj{} []) _ _) =
 splitTrailingImplicits (A.Clause (A.LHS _ _ ps@(_ : _)) _ _) =
   typeError $ UnexpectedWithPatterns ps
 splitTrailingImplicits (A.Clause (A.LHS _ (A.LHSHead _ aps) []) _ _) = do
-  let (ips, ps) = span ((Hidden==) . argHiding) $ reverse aps
+  let (ips, ps) = span isHidden $ reverse aps
   return (reverse ps, reverse ips)
 
 {- UNUSED
@@ -367,7 +367,7 @@ checkClause t c@(A.Clause (A.LHS i (A.LHSHead x aps) []) rhs0 wh) =
     checkLeftHandSide (CheckPatternShadowing c) aps t $ \ mgamma delta sub xs ps t' perm -> do
       let mkBody v = foldr (\x t -> Bind $ Abs x t) (Body $ applySubst sub v) xs
       -- introduce trailing implicits for checking the where decls
-      TelV htel t0 <- telViewUpTo' (-1) ((Hidden==) . domHiding) t'
+      TelV htel t0 <- telViewUpTo' (-1) isHidden t'
       let n = size htel
           aps' = map convArg aps
       (body, with) <- addCtxTel htel $ checkWhere (size delta + n) wh $ escapeContext (size htel) $ let
@@ -392,7 +392,7 @@ checkClause t c@(A.Clause (A.LHS i (A.LHSHead x aps) []) rhs0 wh) =
                      (proof,t) <- inferExpr eq
                      t' <- reduce =<< instantiateFull t
                      equality <- primEquality >>= \eq ->
-                      let lamV (Lam i b)  = ((argInfoHiding i:) *** id) $ lamV (unAbs b)
+                      let lamV (Lam i b)  = ((getHiding i:) *** id) $ lamV (unAbs b)
                           lamV (Shared p) = lamV (derefPtr p)
                           lamV v          = ([], v) in
                       return $ case lamV eq of

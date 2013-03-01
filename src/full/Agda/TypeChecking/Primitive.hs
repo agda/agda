@@ -222,8 +222,8 @@ instance (ToTerm a, FromTerm a) => FromTerm [a] where
       mkList nil cons toA fromA t = do
         b <- reduceB t
         let t = ignoreBlocking b
-        let arg = Arg (ArgInfo { argInfoHiding = argHiding t
-                               , argInfoRelevance = argRelevance t
+        let arg = Arg (ArgInfo { argInfoHiding = getHiding t
+                               , argInfoRelevance = getRelevance t
                                , argInfoColors = argColors t
                                })
         case unArg t of
@@ -276,7 +276,7 @@ primTrustMe = do
             primEquality <#> varM 3 <#> varM 2 <@> varM 1 <@> varM 0
   Con rf [] <- ignoreSharing <$> primRefl
   n         <- conPars . theDef <$> getConstInfo rf
-  let refl x | n == 2    = Con rf [setArgRelevance Forced $ hide $ defaultArg x]
+  let refl x | n == 2    = Con rf [setRelevance Forced $ hide $ defaultArg x]
              | n == 3    = Con rf []
              | otherwise = __IMPOSSIBLE__
   return $ PrimImpl t $ PrimFun __IMPOSSIBLE__ 4 $ \ts ->
@@ -437,7 +437,7 @@ a .--> b = do
     a' <- a
     b' <- b
     return $ El (getSort a' `sLub` getSort b') $
-             Pi (Dom (setArgInfoRelevance Irrelevant defaultArgInfo) a') (NoAbs "_" b')
+             Pi (Dom (setRelevance Irrelevant defaultArgInfo) a') (NoAbs "_" b')
 
 gpi :: I.ArgInfo -> String -> TCM Type -> TCM Type -> TCM Type
 gpi info name a b = do
@@ -448,7 +448,7 @@ gpi info name a b = do
               (Pi (Dom info a) (Abs name b))
 
 hPi, nPi :: String -> TCM Type -> TCM Type -> TCM Type
-hPi = gpi $ setArgInfoHiding Hidden $ defaultArgInfo
+hPi = gpi $ setHiding Hidden $ defaultArgInfo
 nPi = gpi defaultArgInfo
 
 varM :: Int -> TCM Term
@@ -460,7 +460,7 @@ gApply :: Hiding -> TCM Term -> TCM Term -> TCM Term
 gApply h a b = do
     x <- a
     y <- b
-    return $ x `apply` [Arg (setArgInfoHiding h defaultArgInfo) y]
+    return $ x `apply` [Arg (setHiding h defaultArgInfo) y]
 
 (<@>),(<#>) :: TCM Term -> TCM Term -> TCM Term
 (<@>) = gApply NotHidden
@@ -485,8 +485,8 @@ domN = Dom defaultArgInfo
 
 -- | Abbreviation: @argH = 'hide' 'Arg' 'defaultArgInfo'@.
 
-argH = Arg $ setArgInfoHiding Hidden defaultArgInfo
-domH = Dom $ setArgInfoHiding Hidden defaultArgInfo
+argH = Arg $ setHiding Hidden defaultArgInfo
+domH = Dom $ setHiding Hidden defaultArgInfo
 
 ---------------------------------------------------------------------------
 -- * The actual primitive functions

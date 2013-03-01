@@ -411,15 +411,15 @@ instance ToAbstract OldModuleName A.ModuleName where
 
 -- | Peel off 'C.HiddenArg' and represent it as an 'NamedArg'.
 mkNamedArg :: C.Expr -> C.NamedArg C.Expr
-mkNamedArg (C.HiddenArg   _ e) = Common.Arg (mapArgInfoHiding (const Hidden)   defaultArgInfo) e
-mkNamedArg (C.InstanceArg _ e) = Common.Arg (mapArgInfoHiding (const Instance) defaultArgInfo) e
+mkNamedArg (C.HiddenArg   _ e) = Common.Arg (setHiding Hidden defaultArgInfo) e
+mkNamedArg (C.InstanceArg _ e) = Common.Arg (setHiding Instance defaultArgInfo) e
 mkNamedArg e                   = Common.Arg defaultArgInfo $ unnamed e
 
 -- | Peel off 'C.HiddenArg' and represent it as an 'Arg', throwing away any name.
 mkArg' :: C.ArgInfo -> C.Expr -> C.Arg C.Expr
-mkArg' info (C.HiddenArg   _ e) = Common.Arg (mapArgInfoHiding (const Hidden)    info) $ namedThing e
-mkArg' info (C.InstanceArg _ e) = Common.Arg (mapArgInfoHiding (const Instance)  info) $ namedThing e
-mkArg' info e                   = Common.Arg (mapArgInfoHiding (const NotHidden) info) e
+mkArg' info (C.HiddenArg   _ e) = Common.Arg (setHiding Hidden info) $ namedThing e
+mkArg' info (C.InstanceArg _ e) = Common.Arg (setHiding Instance info) $ namedThing e
+mkArg' info e                   = Common.Arg (setHiding NotHidden info) e
 
 -- | By default, arguments are @Relevant@.
 mkArg :: C.Expr -> C.Arg C.Expr
@@ -566,7 +566,7 @@ instance ToAbstract C.Expr A.Expr where
       C.Fun r e1 e2 -> do
         Common.Arg info (e0, dotted) <- traverse (toAbstractDot FunctionSpaceDomainCtx) $ mkArg e1
         info <- toAbstract info
-        let e1 = Common.Arg ((if dotted then mapArgInfoRelevance (const Irrelevant) else id) info) e0
+        let e1 = Common.Arg ((if dotted then setRelevance Irrelevant else id) info) e0
         e2 <- toAbstractCtx TopCtx e2
         return $ A.Fun (ExprRange r) e1 e2
 
@@ -816,7 +816,7 @@ instance ToAbstract NiceDeclaration A.Declaration where
       t' <- toAbstractCtx TopCtx t
       y  <- freshAbstractQName f x
       irrProj <- optIrrelevantProjections <$> pragmaOptions
-      unless (isArgInfoIrrelevant (argInfo t) && not irrProj) $
+      unless (isIrrelevant t && not irrProj) $
         -- Andreas, 2010-09-24: irrelevant fields are not in scope
         -- this ensures that projections out of irrelevant fields cannot occur
         -- Ulf: unless you turn on --irrelevant-projections
@@ -1275,7 +1275,7 @@ instance ToAbstract C.LHSCore (A.LHSCore' C.Expr) where
 
 instance ToAbstract c a => ToAbstract (C.Arg c) (A.Arg a) where
     toAbstract (Common.Arg info e) =
-        Common.Arg <$> toAbstract info <*> toAbstractCtx (hiddenArgumentCtx $ argInfoHiding info) e
+        Common.Arg <$> toAbstract info <*> toAbstractCtx (hiddenArgumentCtx $ getHiding info) e
 
 instance ToAbstract c a => ToAbstract (Named name c) (Named name a) where
     toAbstract (Named n e) = Named n <$> toAbstract e

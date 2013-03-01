@@ -91,23 +91,17 @@ nonStrictToIrr rel       = rel
 -- | Prepare parts of a parameter telescope for abstraction in constructors
 --   and projections.
 hideAndRelParams :: Dom a -> Dom a
-hideAndRelParams = mapDomHiding (const Hidden) . mapDomRelevance nonStrictToIrr
-
-{- UNUSED
--- | @modifyArgRelevance f arg@ applies @f@ to the 'argRelevance' component of @arg@.
-modifyArgRelevance :: (Relevance -> Relevance) -> Arg a -> Arg a
-modifyArgRelevance f a = a { argRelevance = f (argRelevance a) }
--}
+hideAndRelParams = setHiding Hidden . mapRelevance nonStrictToIrr
 
 -- | Used to modify context when going into a @rel@ argument.
 inverseApplyRelevance :: Relevance -> Dom a -> Dom a
-inverseApplyRelevance rel = mapDomRelevance (rel `inverseComposeRelevance`)
+inverseApplyRelevance rel = mapRelevance (rel `inverseComposeRelevance`)
 
 -- | Compose two relevance flags.
 --   This function is used to update the relevance information
 --   on pattern variables @a@ after a match against something @rel@.
 applyRelevance :: Relevance -> Dom a -> Dom a
-applyRelevance rel = mapDomRelevance (rel `composeRelevance`)
+applyRelevance rel = mapRelevance (rel `composeRelevance`)
 
 -- * Operations on 'Context'.
 
@@ -127,7 +121,7 @@ doWorkOnTypes = verboseBracket "tc.irr" 20 "workOnTypes" . workOnTypes' True
 workOnTypes' :: Bool -> TCM a -> TCM a
 workOnTypes' allowed cont =
   if allowed then
-    liftTCM $ modifyContext (modifyContextEntries $ mapDomRelevance $ irrToNonStrict) cont
+    liftTCM $ modifyContext (modifyContextEntries $ mapRelevance $ irrToNonStrict) cont
    else cont
 
 -- | (Conditionally) wake up irrelevant variables and make them relevant.

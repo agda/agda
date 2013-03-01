@@ -97,9 +97,9 @@ matchPattern (Arg info' (ConP c _ ps))     (Arg info v) =
           -- something irrelevant will just continue matching against
           -- irrelevant stuff
           -- NotBlocked (Sort Prop)
-          _  | isArgInfoIrrelevant info -> do
+          _  | isIrrelevant info -> do
 		(m, vs) <- matchPatterns ps $
-                  repeat $ setArgRelevance Irrelevant $ defaultArg $ Sort Prop
+                  repeat $ setRelevance Irrelevant $ defaultArg $ Sort Prop
 		return (m, Arg info $ Con c vs)
 	  NotBlocked (Con c' vs)
 	    | c == c'             -> do

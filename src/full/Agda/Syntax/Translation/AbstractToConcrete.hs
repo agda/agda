@@ -309,13 +309,13 @@ instance ToConcrete A.ArgInfo C.ArgInfo where
 
 instance ToConcrete a c => ToConcrete (A.Arg a) (C.Arg c) where
     toConcrete (Common.Arg info x) = liftM2 Common.Arg (toConcrete info) (f x)
-      where f = case argInfoHiding info of
+      where f = case getHiding info of
                   Hidden    -> toConcreteCtx TopCtx
                   Instance  -> toConcreteCtx TopCtx
                   NotHidden -> toConcrete
 
     bindToConcrete (Common.Arg info x) ret = do info <- toConcrete info
-                                                bindToConcreteCtx (hiddenArgumentCtx $ argInfoHiding info) x $
+                                                bindToConcreteCtx (hiddenArgumentCtx $ getHiding info) x $
                                                                   ret . Common.Arg info
 
 instance ToConcrete a c => ToConcrete (Named name a) (Named name c) where
@@ -430,13 +430,13 @@ instance ToConcrete A.Expr C.Expr where
              b' <- toConcreteCtx TopCtx b
              return $ C.Fun (getRange i) (addRel a' $ mkArg a') b'
         where
-            irr        = argRelevance a `elem` [Irrelevant, NonStrict]
-            addRel a e = case argRelevance a of
+            irr        = getRelevance a `elem` [Irrelevant, NonStrict]
+            addRel a e = case getRelevance a of
                            Irrelevant -> addDot a e
                            NonStrict  -> addDot a (addDot a e)
                            _          -> e
             addDot a e = Dot (getRange a) e
-            mkArg (Common.Arg info e) = case argInfoHiding info of
+            mkArg (Common.Arg info e) = case getHiding info of
                                           Hidden    -> HiddenArg   (getRange e) (unnamed e)
                                           Instance  -> InstanceArg (getRange e) (unnamed e)
                                           NotHidden -> e
@@ -893,8 +893,10 @@ recoverOpApp bracket opApp view e mDefault = case view e of
   isNoName :: A.Name -> Bool
   isNoName = C.isNoName . A.nameConcrete
 
+{- RETIRED
   notHidden :: A.NamedArg a -> Bool
-  notHidden = isArgInfoNotHidden . argInfo
+  notHidden = notHidden . argInfo
+-}
 
   doQNameHelper fixityHelper conHelper n as = do
     x <- toConcrete n

@@ -298,7 +298,7 @@ constructs nofPars t q = constrT 0 t
 
 		sameVar arg i
                   -- skip irrelevant parameters
-                  | isArgInfoIrrelevant (argInfo arg) = return ()
+                  | isIrrelevant arg = return ()
 		  | otherwise = do
 		    t <- typeOfBV i
 		    equalTerm t (unArg arg) (var i)

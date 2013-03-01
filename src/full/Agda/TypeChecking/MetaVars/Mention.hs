@@ -56,7 +56,7 @@ instance MentionsMeta t => MentionsMeta (Abs t) where
   mentionsMeta x = mentionsMeta x . unAbs
 
 instance MentionsMeta t => MentionsMeta (I.Arg t) where
-  mentionsMeta x a | isArgInfoIrrelevant (argInfo a) = False
+  mentionsMeta x a | isIrrelevant a = False
   -- ^ we don't have to look inside irrelevant arguments when deciding to wake constraints
   mentionsMeta x a = mentionsMeta x (unArg a)
 

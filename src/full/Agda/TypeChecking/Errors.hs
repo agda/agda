@@ -682,7 +682,7 @@ instance PrettyTCM TypeError where
               | otherwise                = id
 
             showArg :: I.Arg I.Pattern -> TCM Doc
-            showArg (Common.Arg info x) = case argInfoHiding info of
+            showArg (Common.Arg info x) = case getHiding info of
                     Hidden -> braces $ showPat 0 x
                     Instance -> dbraces $ showPat 0 x
                     NotHidden -> showPat 1 x
@@ -788,7 +788,7 @@ instance PrettyTCM Call where
             hPretty :: I.Arg (Named String Expr) -> TCM Doc
             hPretty a = do
                 info <- reify $ argInfo a
-                pretty =<< (abstractToConcreteCtx (hiddenArgumentCtx (argHiding a))
+                pretty =<< (abstractToConcreteCtx (hiddenArgumentCtx (getHiding a))
                          $ Common.Arg info $ unArg a)
 
 	    simpleDecl = D.notSoNiceDeclaration

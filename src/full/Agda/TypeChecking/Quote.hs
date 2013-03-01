@@ -78,7 +78,7 @@ quotingKit = do
       quoteArg q (Arg info t) = arg @@ quoteArgInfo info @@ q t
       quoteArgs ts = list (map (quoteArg quote) ts)
       quote (Var n ts) = var @@ Lit (LitInt noRange $ fromIntegral n) @@ quoteArgs ts
-      quote (Lam info t) = lam @@ quoteHiding (argInfoHiding info) @@ quote (absBody t)
+      quote (Lam info t) = lam @@ quoteHiding (getHiding info) @@ quote (absBody t)
       quote (Def x ts) = def @@ quoteName x @@ quoteArgs ts
       quote (Con x ts) = con @@ quoteName x @@ quoteArgs ts
       quote (Pi t u) = pi @@ quoteDom quoteType t
@@ -123,12 +123,12 @@ class Unquote a where
   unquote :: Term -> TCM a
 
 unquoteH :: Unquote a => I.Arg Term -> TCM a
-unquoteH a | isArgInfoHidden (argInfo a) && isArgInfoRelevant (argInfo a) =
+unquoteH a | isHidden a && isRelevant a =
     unquote $ unArg a
 unquoteH _ = unquoteFailedGeneric "argument. It should be `hidden'."
 
 unquoteN :: Unquote a => I.Arg Term -> TCM a
-unquoteN a | isArgInfoNotHidden (argInfo a) && isArgInfoRelevant (argInfo a) =
+unquoteN a | notHidden a && isRelevant a =
     unquote $ unArg a
 unquoteN _ = unquoteFailedGeneric "argument. It should be `visible'"
 
@@ -263,7 +263,7 @@ instance Unquote Term where
           [(c `isCon` primAgdaTermVar, Var <$> (fromInteger <$> unquoteN x) <*> unquoteN y)
           ,(c `isCon` primAgdaTermCon, Con <$> unquoteN x <*> unquoteN y)
           ,(c `isCon` primAgdaTermDef, Def <$> unquoteN x <*> unquoteN y)
-          ,(c `isCon` primAgdaTermLam, Lam <$> (flip setArgInfoHiding defaultArgInfo <$> unquoteN x) <*> unquoteN y)
+          ,(c `isCon` primAgdaTermLam, Lam <$> (flip setHiding defaultArgInfo <$> unquoteN x) <*> unquoteN y)
           ,(c `isCon` primAgdaTermPi,  Pi  <$> (domFromArg <$> unquoteN x) <*> unquoteN y)]
           (unquoteFailed "Term" "arity 2 and none of Var, Con, Def, Lam, Pi" t)
 

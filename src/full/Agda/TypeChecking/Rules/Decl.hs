@@ -254,8 +254,8 @@ checkAxiom :: Info.DefInfo -> A.ArgInfo -> QName -> A.Expr -> TCM ()
 checkAxiom i info0 x e = do
   -- Andreas, 2012-04-18  if we are in irrelevant context, axioms is irrelevant
   -- even if not declared as such (Issue 610).
-  rel <- max (argInfoRelevance info0) <$> asks envRelevance
-  let info = setArgInfoRelevance rel $ convArgInfo info0
+  rel <- max (getRelevance info0) <$> asks envRelevance
+  let info = setRelevance rel $ convArgInfo info0
   -- rel <- ifM ((Irrelevant ==) <$> asks envRelevance) (return Irrelevant) (return rel0)
   t <- isType_ e
   reportSDoc "tc.decl.ax" 10 $ sep
@@ -494,7 +494,7 @@ checkSectionApplication' i m1 (A.RecordModuleIFS x) rd rm = do
       instFinal :: Telescope -> Telescope
       instFinal (ExtendTel _ NoAbs{}) = __IMPOSSIBLE__
       instFinal (ExtendTel (Dom info t) (Abs n EmptyTel)) =
-          ExtendTel (Dom (setArgInfoHiding Instance info) t) (Abs n EmptyTel)
+          ExtendTel (Dom (setHiding Instance info) t) (Abs n EmptyTel)
       instFinal (ExtendTel arg (Abs n tel)) = ExtendTel arg (Abs n (instFinal tel))
       instFinal EmptyTel = __IMPOSSIBLE__
       args = teleArgs tel
