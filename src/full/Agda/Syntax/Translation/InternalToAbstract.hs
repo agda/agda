@@ -161,7 +161,7 @@ instance Reify DisplayTerm Expr where
           wapp [] = __IMPOSSIBLE__
       reifyApp (wapp us) vs
 
-reifyDisplayForm :: QName -> Args -> TCM A.Expr -> TCM A.Expr
+reifyDisplayForm :: QName -> I.Args -> TCM A.Expr -> TCM A.Expr
 reifyDisplayForm x vs fallback = do
   enabled <- displayFormsEnabled
   if enabled

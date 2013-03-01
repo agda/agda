@@ -43,6 +43,7 @@ type Arg a      = Common.Arg Color a
 type Dom a      = Common.Dom Color a
 type NamedArg a = Common.NamedArg Color a
 type ArgInfo    = Common.ArgInfo Color
+type Args       = [NamedArg Expr]
 
 instance Eq Color where
   Var x == Var y = x == y
