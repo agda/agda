@@ -776,6 +776,64 @@ inferMeta newMeta i =
       t' <- jMetaType . mvJudgement <$> lookupMeta (MetaId n)
       return (v, t')
 
+
+-- | Infer the type of a head thing (variable, function symbol, or constructor).
+--   We return a function that applies the head to arguments.
+--   This is because in case of a constructor we want to drop the parameters.
+inferHead :: A.Expr -> TCM (Args -> Term, Type)
+inferHead e = do
+  case e of
+    (A.Var x) -> do -- traceCall (InferVar x) $ do
+      (u, a) <- getVarInfo x
+      when (unusableRelevance $ domRelevance a) $
+        typeError $ VariableIsIrrelevant x
+      return (apply u, unDom a)
+    (A.Def x) -> do
+      proj <- isProjection x
+      case proj of
+        Nothing -> do
+          (u, a) <- inferDef Def x
+          return (apply u, a)
+        Just{} -> do
+          Just (r, n) <- funProjection . theDef <$> getConstInfo x
+          cxt <- size <$> freeVarsToApply x
+          m <- getDefFreeVars x
+          reportSDoc "tc.term.proj" 10 $ sep
+            [ text "building projection" <+> prettyTCM x
+            , nest 2 $ parens (text "ctx =" <+> text (show cxt))
+            , nest 2 $ parens (text "n =" <+> text (show n))
+            , nest 2 $ parens (text "m =" <+> text (show m)) ]
+          let is | n == 0    = __IMPOSSIBLE__
+                 | otherwise = genericReplicate (n - 1) defaultArgInfo -- TODO: hiding
+              names = [ s ++ [c] | s <- "" : names, c <- ['a'..'z'] ]
+              eta   = foldr (\(i, s) -> Lam i . NoAbs s) (Def x []) (zip is names)
+          (u, a) <- inferDef (\f vs -> eta `apply` vs) x
+          return (apply u, a)
+    (A.Con (AmbQ [c])) -> do
+
+      -- Constructors are polymorphic internally.
+      -- So, when building the constructor term
+      -- we should throw away arguments corresponding to parameters.
+
+      -- First, inferDef will try to apply the constructor
+      -- to the free parameters of the current context. We ignore that.
+      (u, a) <- inferDef (\c _ -> Con c []) c
+
+      -- Next get the number of parameters in the current context.
+      Constructor{conPars = n} <- theDef <$> (instantiateDef =<< getConstInfo c)
+
+      reportSLn "tc.term.con" 7 $ unwords [show c, "has", show n, "parameters."]
+
+      -- So when applying the constructor throw away the parameters.
+      return (apply u . genericDrop n, a)
+    (A.Con _) -> __IMPOSSIBLE__  -- inferHead will only be called on unambiguous constructors
+    (A.QuestionMark i) -> inferMeta newQuestionMark i
+    (A.Underscore i)   -> inferMeta (newValueMeta RunMetaOccursCheck) i
+    e -> do
+      (term, t) <- inferExpr e
+      return (apply term, t)
+
+{-
 -- | Infer the type of a head thing (variable, function symbol, or constructor)
 inferHead :: A.Expr -> TCM (Args -> Term, Type)
 inferHead (A.Var x) = do -- traceCall (InferVar x) $ do
@@ -825,6 +883,7 @@ inferHead (A.QuestionMark i)  = inferMeta newQuestionMark i
 inferHead (A.Underscore i) = inferMeta (newValueMeta RunMetaOccursCheck) i
 inferHead e = do (term, t) <- inferExpr e
                  return (apply term, t)
+-}
 
 inferDef :: (QName -> Args -> Term) -> QName -> TCM (Term, Type)
 inferDef mkTerm x =
