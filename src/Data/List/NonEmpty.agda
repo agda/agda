@@ -6,13 +6,23 @@
 
 module Data.List.NonEmpty where
 
-open import Data.Product hiding (map)
-open import Data.Nat
-open import Function
-open import Data.Vec as Vec using (Vec; []; _∷_)
-open import Data.List as List using (List; []; _∷_)
 open import Category.Monad
-open import Relation.Binary.PropositionalEquality
+open import Data.Bool
+open import Data.Bool.Properties
+open import Data.List as List using (List; []; _∷_)
+open import Data.Maybe using (nothing; just)
+open import Data.Nat as Nat
+open import Data.Product using (∃; proj₁; proj₂; _,_; ,_)
+open import Data.Sum as Sum using (_⊎_; inj₁; inj₂)
+open import Data.Unit
+open import Data.Vec as Vec using (Vec; []; _∷_)
+open import Function
+open import Function.Equality using (_⟨$⟩_)
+open import Function.Equivalence
+  using () renaming (module Equivalence to Eq)
+open import Relation.Binary.PropositionalEquality as P
+  using (_≡_; refl; [_])
+open import Relation.Nullary.Decidable using (⌊_⌋)
 
 infixr 5 _∷_ _∷ʳ_ _⁺++⁺_ _++⁺_ _⁺++_
 
@@ -124,6 +134,47 @@ last xs with snocView xs
 last .([ y ])   | [ y ]    = y
 last .(ys ∷ʳ y) | ys ∷ʳ′ y = y
 
+-- Groups all contiguous elements for which the predicate returns the
+-- same result into lists.
+
+split : ∀ {a} {A : Set a}
+        (p : A → Bool) → List A →
+        List (List⁺ (∃ (T ∘ p)) ⊎ List⁺ (∃ (T ∘ not ∘ p)))
+split p []       = []
+split p (x ∷ xs) with p x | P.inspect p x | split p xs
+... | true  | [ px≡t ] | inj₁ xs′ ∷ xss = inj₁ ((x , Eq.from T-≡     ⟨$⟩ px≡t) ∷ xs′) ∷ xss
+... | true  | [ px≡t ] | xss            = inj₁ [ x , Eq.from T-≡     ⟨$⟩ px≡t ]       ∷ xss
+... | false | [ px≡f ] | inj₂ xs′ ∷ xss = inj₂ ((x , Eq.from T-not-≡ ⟨$⟩ px≡f) ∷ xs′) ∷ xss
+... | false | [ px≡f ] | xss            = inj₂ [ x , Eq.from T-not-≡ ⟨$⟩ px≡f ]       ∷ xss
+
+-- If we flatten the list returned by split, then we get the list we
+-- started with.
+
+flatten : ∀ {a p q} {A : Set a} {P : A → Set p} {Q : A → Set q} →
+          List (List⁺ (∃ P) ⊎ List⁺ (∃ Q)) → List A
+flatten = List.concat ∘
+          List.map Sum.[ toList ∘ map proj₁ , toList ∘ map proj₁ ]
+
+flatten-split :
+  ∀ {a} {A : Set a}
+  (p : A → Bool) (xs : List A) → flatten (split p xs) ≡ xs
+flatten-split p []       = refl
+flatten-split p (x ∷ xs)
+  with p x | P.inspect p x | split p xs | flatten-split p xs
+... | true  | [ _ ] | []         | hyp = P.cong (_∷_ x) hyp
+... | true  | [ _ ] | inj₁ _ ∷ _ | hyp = P.cong (_∷_ x) hyp
+... | true  | [ _ ] | inj₂ _ ∷ _ | hyp = P.cong (_∷_ x) hyp
+... | false | [ _ ] | []         | hyp = P.cong (_∷_ x) hyp
+... | false | [ _ ] | inj₁ _ ∷ _ | hyp = P.cong (_∷_ x) hyp
+... | false | [ _ ] | inj₂ _ ∷ _ | hyp = P.cong (_∷_ x) hyp
+
+-- Groups all contiguous elements /not/ satisfying the predicate into
+-- lists. Elements satisfying the predicate are dropped.
+
+wordsBy : ∀ {a} {A : Set a} → (A → Bool) → List A → List (List⁺ A)
+wordsBy p =
+  List.gfilter Sum.[ const nothing , just ∘′ map proj₁ ] ∘ split p
+
 ------------------------------------------------------------------------
 -- Examples
 
@@ -174,3 +225,30 @@ private
 
   snoc : (a ∷ b ∷ [ c ]) ∷ʳ a ≡ a ∷ b ∷ c ∷ [ a ]
   snoc = refl
+
+  split-true : split (const true) (a ∷ b ∷ c ∷ []) ≡
+               inj₁ ((a , tt) ∷ (b , tt) ∷ [ c , tt ]) ∷ []
+  split-true = refl
+
+  split-false : split (const false) (a ∷ b ∷ c ∷ []) ≡
+                inj₂ ((a , tt) ∷ (b , tt) ∷ [ c , tt ]) ∷ []
+  split-false = refl
+
+  split-≡1 :
+    split (λ n → ⌊ n Nat.≟ 1 ⌋) (1 ∷ 2 ∷ 3 ∷ 1 ∷ 1 ∷ 2 ∷ 1 ∷ []) ≡
+    inj₁ [ 1 , tt ] ∷ inj₂ ((2 , tt) ∷ [ 3 , tt ]) ∷
+    inj₁ ((1 , tt) ∷ [ 1 , tt ]) ∷ inj₂ [ 2 , tt ] ∷ inj₁ [ 1 , tt ] ∷
+    []
+  split-≡1 = refl
+
+  wordsBy-true : wordsBy (const true) (a ∷ b ∷ c ∷ []) ≡ []
+  wordsBy-true = refl
+
+  wordsBy-false : wordsBy (const false) (a ∷ b ∷ c ∷ []) ≡
+                  (a ∷ b ∷ [ c ]) ∷ []
+  wordsBy-false = refl
+
+  wordsBy-≡1 :
+    wordsBy (λ n → ⌊ n Nat.≟ 1 ⌋) (1 ∷ 2 ∷ 3 ∷ 1 ∷ 1 ∷ 2 ∷ 1 ∷ []) ≡
+    (2 ∷ [ 3 ]) ∷ [ 2 ] ∷ []
+  wordsBy-≡1 = refl
