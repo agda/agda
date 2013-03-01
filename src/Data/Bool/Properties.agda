@@ -279,6 +279,10 @@ T-≡ : ∀ {b} → T b ⇔ b ≡ true
 T-≡ {false} = equivalence (λ ())       (λ ())
 T-≡ {true}  = equivalence (const refl) (const _)
 
+T-not-≡ : ∀ {b} → T (not b) ⇔ b ≡ false
+T-not-≡ {false} = equivalence (const refl) (const _)
+T-not-≡ {true}  = equivalence (λ ())       (λ ())
+
 T-∧ : ∀ {b₁ b₂} → T (b₁ ∧ b₂) ⇔ (T b₁ × T b₂)
 T-∧ {true}  {true}  = equivalence (const (_ , _)) (const _)
 T-∧ {true}  {false} = equivalence (λ ())          proj₂
