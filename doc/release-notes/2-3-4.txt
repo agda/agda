@@ -63,6 +63,9 @@ Tools
 Emacs mode
 ----------
 
+* Key bindings for lots of "mathematical" characters (examples: 𝐴𝑨𝒜𝓐𝔄)
+  have been added to the Agda input method.
+
 LaTeX-backend
 -------------
 
