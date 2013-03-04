@@ -33,6 +33,7 @@ import qualified Data.Map as Map
 import Data.Map (Map)
 import Data.List hiding (sort)
 import Data.Traversable as Trav
+import Data.Maybe
 
 import Agda.Syntax.Literal
 import Agda.Syntax.Position
@@ -412,14 +413,17 @@ reifyTerm expandAnonDefs v = do
                    then nameFirstIfHidden [dom] vs'
                    else map (fmap unnamed) vs')
         df <- displayFormsEnabled
-        if df && isPrefixOf extendlambdaname (show name)
+        let extLam = case mdefn of
+                      Nothing -> Nothing
+                      Just defn -> case theDef defn of
+                                    Function{ funExtLam = Just (h, nh) } -> Just (h + nh)
+                                    _                                    -> Nothing
+        if df && isJust extLam
           then do
            reportSLn "int2abs.reifyterm.def" 10 $ "reifying extended lambda with definition: x = " ++ show x
            info <- getConstInfo x
            --drop lambda lifted arguments
-           Just (h , nh) <- Map.lookup x <$> getExtLambdaTele
-           let n = h + nh
-           cls <- mapM (reify . (QNamed x) . (dropArgs n)) $ defClauses info
+           cls <- mapM (reify . (QNamed x) . (dropArgs $ fromJust extLam)) $ defClauses info
            -- Karim: Currently Abs2Conc does not require a DefInfo thus we
            -- use __IMPOSSIBLE__.
            napps (A.ExtendedLam exprInfo __IMPOSSIBLE__ x cls) =<< reifyIArgs vs

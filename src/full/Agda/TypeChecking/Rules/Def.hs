@@ -87,7 +87,7 @@ checkFunDef delayed i name cs = do
               -- See issue 729.
               whenM (isFrozen x) $ unfreezeMeta x
               checkAlias t info delayed i name e
-          _ -> checkFunDef' t info delayed i name cs
+          _ -> checkFunDef' t info delayed Nothing i name cs
   where
     isMeta (MetaV x _) = Just x
     isMeta _           = Nothing
@@ -131,14 +131,19 @@ checkAlias t' info delayed i name e = do
                       , funStatic         = False
                       , funCopy           = False
                       , funTerminates     = Nothing
+                      , funExtLam         = Nothing
                       }
   reportSDoc "tc.def.alias" 20 $ text "checkAlias: leaving"
 
 
 -- | Type check a definition by pattern matching. The third argument
 -- specifies whether the clauses are delayed or not.
-checkFunDef' :: Type -> I.ArgInfo -> Delayed -> Info.DefInfo -> QName -> [A.Clause] -> TCM ()
-checkFunDef' t info delayed i name cs =
+-- The fourth argument specifies if if we are checking a definition
+-- arising from an extended lambda or not, in which case it contains
+-- information about lambda lifted arguments.
+checkFunDef' :: Type -> I.ArgInfo -> Delayed -> Maybe (Int, Int) -> Info.DefInfo -> QName ->
+                [A.Clause] -> TCM ()
+checkFunDef' t info delayed extlam i name cs =
 
     traceCall (CheckFunDef (getRange i) (qnameName name) cs) $ do   -- TODO!! (qnameName)
         reportSDoc "tc.def.fun" 10 $
@@ -209,6 +214,7 @@ checkFunDef' t info delayed i name cs =
                             , funStatic         = False
                             , funCopy           = False
                             , funTerminates     = Nothing
+                            , funExtLam         = extlam
                             }
 
         -- Andreas 2012-02-13: postpone polarity computation until after positivity check

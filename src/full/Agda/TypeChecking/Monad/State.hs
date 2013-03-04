@@ -62,17 +62,6 @@ lookupPatternSyn x = do
                 Just d  -> return d
                 Nothing -> notInScope $ qnameToConcrete x
 
--- | Sets stExtLambdaTele .
-setExtLambdaTele :: Map QName (Int , Int) -> TCM ()
-setExtLambdaTele tele = modify $ \s -> s { stExtLambdaTele = tele }
-
--- | Get stExtLambdaTele.
-getExtLambdaTele :: TCM (Map QName (Int , Int))
-getExtLambdaTele = gets stExtLambdaTele
-
-addExtLambdaTele :: QName -> (Int , Int) -> TCM ()
-addExtLambdaTele id x = getExtLambdaTele >>= setExtLambdaTele . (insert id x)
-
 -- | Modify the current scope.
 modifyScope :: (ScopeInfo -> ScopeInfo) -> TCM ()
 modifyScope f = do

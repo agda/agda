@@ -150,6 +150,7 @@ bindBuiltinFlat e =
                    , funStatic         = False
                    , funCopy           = False
                    , funTerminates     = Just True
+                   , funExtLam         = Nothing
                    }
                 }
     return flatE

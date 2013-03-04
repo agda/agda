@@ -7,4 +7,5 @@ import Agda.TypeChecking.Monad
 import qualified Agda.Syntax.Internal as I
 
 checkFunDef :: Delayed -> DefInfo -> QName -> [Clause] -> TCM ()
-checkFunDef' :: I.Type -> I.ArgInfo -> Delayed -> DefInfo -> QName -> [Clause] -> TCM ()
+checkFunDef' :: I.Type -> I.ArgInfo -> Delayed -> Maybe (Int,Int) -> DefInfo -> QName -> [Clause]
+                  -> TCM ()

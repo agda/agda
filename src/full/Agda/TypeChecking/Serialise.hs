@@ -87,7 +87,7 @@ import Agda.Utils.Impossible
 -- 32-bit machines). Word64 does not have these problems.
 
 currentInterfaceVersion :: Word64
-currentInterfaceVersion = 20121106 * 10 + 0
+currentInterfaceVersion = 20130304 * 10 + 0
 
 -- | Constructor tag (maybe omitted) and argument indices.
 
@@ -896,14 +896,14 @@ instance EmbPrj CompiledRepresentation where
 
 instance EmbPrj Defn where
   icode Axiom                                   = icode0 0
-  icode (Function    a b c d e f g h i j)       = icode10 1 a b c d e f g h i j
+  icode (Function    a b c d e f g h i j k)     = icode11 1 a b c d e f g h i j k
   icode (Datatype    a b c d e f g h)           = icode8 2 a b c d e f g h
   icode (Record      a b c d e f g h i j k l)   = icode12 3 a b c d e f g h i j k l
   icode (Constructor a b c d e)                 = icode5 4 a b c d e
   icode (Primitive   a b c d)                   = icode4 5 a b c d
   value = vcase valu where
     valu [0]                                    = valu0 Axiom
-    valu [1, a, b, c, d, e, f, g, h, i, j]      = valu10 Function a b c d e f g h i j
+    valu [1, a, b, c, d, e, f, g, h, i, j, k]   = valu11 Function a b c d e f g h i j k
     valu [2, a, b, c, d, e, f, g, h]            = valu8 Datatype a b c d e f g h
     valu [3, a, b, c, d, e, f, g, h, i, j, k, l]= valu12 Record  a b c d e f g h i j k l
     valu [4, a, b, c, d, e]                     = valu5 Constructor a b c d e

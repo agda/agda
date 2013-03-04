@@ -452,6 +452,7 @@ checkExpr e t =
                       , funStatic         = False
                       , funCopy           = False
                       , funTerminates     = Just True
+                      , funExtLam         = Nothing
                       }
                   -- Andreas 2012-01-30: since aux is lifted to toplevel
                   -- it needs to be applied to the current telescope (issue 557)
@@ -482,14 +483,14 @@ checkExpr e t =
                text "extended lambda's implementation \"" <> prettyTCM qname <>
                text "\" has type: " $$ prettyTCM t -- <+>
 --               text " where clauses: " <+> text (show cs)
-             abstract (A.defAbstract di) $ checkFunDef' t info NotDelayed di qname cs
              args     <- getContextArgs
              top      <- currentModule
              freevars <- getModuleFreeVars top
              -- freevars <- getSecFreeVars top --Andreas, 2013-02-26 this could be wrong in the presence of module parameters and a where block
              let argsNoParam = genericDrop freevars args -- don't count module parameters
              let (hid, notHid) = partition isHidden argsNoParam
-             addExtLambdaTele qname (length hid, length notHid)
+             abstract (A.defAbstract di) $ checkFunDef' t info NotDelayed
+                                                        (Just (length hid, length notHid)) di qname cs
              reduce $ (Def qname [] `apply` args)
           where
 	    -- Concrete definitions cannot use information about abstract things.

@@ -93,7 +93,6 @@ data TCState =
            -- ^ Options applying to the current file. @OPTIONS@
            -- pragmas only affect this field.
 	 , stStatistics	       :: Statistics
-         , stExtLambdaTele     :: Map QName (Int , Int)
 	 , stMutualBlocks      :: Map MutualId (Set QName)
 	 , stLocalBuiltins     :: BuiltinThings PrimFun
          , stImportedBuiltins  :: BuiltinThings PrimFun
@@ -151,7 +150,6 @@ initState =
          , stPatternSynImports = Map.empty
 	 , stPragmaOptions     = defaultInteractionOptions
 	 , stStatistics	       = Map.empty
-         , stExtLambdaTele     = Map.empty
 	 , stMutualBlocks      = Map.empty
 	 , stLocalBuiltins     = Map.empty
 	 , stImportedBuiltins  = Map.empty
@@ -640,6 +638,9 @@ data Defn = Axiom
                                    -- instantiation?
             , funTerminates     :: Maybe Bool
               -- ^ Has this function been termination checked?  Did it pass?
+            , funExtLam         :: Maybe (Int,Int)
+              -- ^ Is this function generated from an extended lambda?
+              --   If yes, then return the number of hidden and non-hidden lambda-lifted arguments
             }
 	  | Datatype
             { dataPars           :: Nat           -- nof parameters

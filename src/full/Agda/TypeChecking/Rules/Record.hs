@@ -366,6 +366,7 @@ checkRecordProjections m r q tel ftel fs = checkProjs EmptyTel ftel fs
                      , funStatic         = False
                      , funCopy           = False
                      , funTerminates     = Just True
+                     , funExtLam         = Nothing
                      }
         computePolarity projname
 

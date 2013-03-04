@@ -306,6 +306,7 @@ applySection new ptel old ts rd rm = do
                         , funStatic         = False
                         , funCopy           = True
                         , funTerminates     = Just True
+                        , funExtLam         = extlam
                         }
                   reportSLn "tc.mod.apply" 80 $ "new def for " ++ show x ++ "\n  " ++ show newDef
                   return newDef
@@ -316,6 +317,9 @@ applySection new ptel old ts rd rm = do
                     proj = case oldDef of
                       Function{funProjection = Just (r, n)}
                         | size ts < n -> Just (r, n - size ts)
+                      _ -> Nothing
+                    extlam = case oldDef of
+                      Function{funExtLam = e} -> e
                       _ -> Nothing
         ts' | null ts   = []
             | otherwise = case oldDef of

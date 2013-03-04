@@ -55,10 +55,10 @@ findClause m = do
   sig <- getImportedSignature
   let res = do
         def <- HMap.elems $ sigDefinitions sig
-        Function{funClauses = cs} <- [theDef def]
+        Function{funClauses = cs, funExtLam = extlam} <- [theDef def]
         c <- cs
         unless (rhsIsm $ clauseBody c) []
-        return (defName def, c)
+        return (defName def, c, extlam)
   case res of
     []  -> do
       reportSDoc "interaction.case" 10 $ vcat $
@@ -68,10 +68,8 @@ findClause m = do
         ]
       reportSDoc "interaction.case" 100 $ vcat $ map (text . show) (HMap.elems $ sigDefinitions sig)  -- you asked for it!
       typeError $ GenericError "Right hand side must be a single hole when making a case distinction."
-    [(n,c)] | isPrefixOf extendlambdaname $ show $ A.qnameName n -> do
-                                               Just (h , nh) <- Map.lookup n <$> getExtLambdaTele
-                                               return (ExtendedLambda h nh , n , c)
-            | otherwise                                          -> return (FunctionDef , n , c)
+    [(n,c, Just (h, nh))] -> return (ExtendedLambda h nh , n , c)
+    [(n,c, Nothing)]      -> return (FunctionDef , n , c)
     _   -> __IMPOSSIBLE__
   where
     rhsIsm (Bind b)   = rhsIsm $ unAbs b
