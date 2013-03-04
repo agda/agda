@@ -304,6 +304,11 @@ length-++ : ∀ {a} {A : Set a} (xs : List A) {ys} →
 length-++ []       = refl
 length-++ (x ∷ xs) = P.cong suc (length-++ xs)
 
+length-replicate : ∀ {a} {A : Set a} n {x : A} →
+                   length (replicate n x) ≡ n
+length-replicate zero    = refl
+length-replicate (suc n) = P.cong suc (length-replicate n)
+
 length-gfilter : ∀ {a b} {A : Set a} {B : Set b} (p : A → Maybe B) xs →
                  length (gfilter p xs) ≤ length xs
 length-gfilter p []       = z≤n
