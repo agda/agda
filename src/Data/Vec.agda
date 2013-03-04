@@ -59,7 +59,7 @@ infixl 4 _⊛_
 
 _⊛_ : ∀ {a b n} {A : Set a} {B : Set b} →
       Vec (A → B) n → Vec A n → Vec B n
-[]       ⊛ []       = []
+[]       ⊛ _        = []
 (f ∷ fs) ⊛ (x ∷ xs) = f x ∷ (fs ⊛ xs)
 
 replicate : ∀ {a n} {A : Set a} → A → Vec A n
