@@ -30,7 +30,7 @@ getExact (exact a) = a
 ≡-exact (exact a) = refl
 
 Ref-ℕ : ℕ → Set
-Ref-ℕ a = Σ[ native ∶ nativeRef ℕ ] nativeGet-ℕ native ≡ a
+Ref-ℕ a = Σ[ native ∈ nativeRef ℕ ] nativeGet-ℕ native ≡ a
 
 private
   -- making these private to avoid further using

@@ -6,7 +6,7 @@ open import Data.String public using (String; _≟_)
 open import Function public
 open import Data.List using (List; []; _∷_; _++_; [_]; filter) renaming (map to mapL)
 open import Data.List.Any public using (Any; here; there) renaming (map to mapA; any to anyA)
-open import Data.Product public using (Σ; proj₁; proj₂; _,_; _×_) renaming (map to mapΣ)
+open import Data.Product public using (Σ; Σ-syntax; proj₁; proj₂; _,_; _×_) renaming (map to mapΣ)
 open import Data.Unit public using (⊤; Unit; unit)
 open import Data.Empty public using (⊥; ⊥-elim)
 open import Relation.Binary.Core public
@@ -32,7 +32,7 @@ NamedType : ∀ ℓ → Set (Level.suc ℓ)
 NamedType ℓ = Named (Set ℓ)
 
 NamedValue : ∀ ℓ → Set (Level.suc ℓ)
-NamedValue ℓ = Named (Σ[ A ∶ Set ℓ ] A)
+NamedValue ℓ = Named (Σ[ A ∈ Set ℓ ] A)
 
 Names : Set
 Names = List String
@@ -125,7 +125,7 @@ NonRepetitiveNames : ∀ {ℓ} {A : Set ℓ} → List (Named A) → Set
 NonRepetitiveNames = NonRepetitive ∘ names
 
 NonRepetitiveTypes : ∀ ℓ → Set (Level.suc ℓ)
-NonRepetitiveTypes ℓ = Σ[ t ∶ Types ℓ ] NonRepetitiveNames t
+NonRepetitiveTypes ℓ = Σ[ t ∈ Types ℓ ] NonRepetitiveNames t
 
 -- lemmas
 
@@ -290,8 +290,8 @@ nr-x≋y {y = .(l₁ ++ e₁ ∷ e₂ ∷ l₂)} (perm l₁ e₁ e₂ l₂ p) u 
 
     ≋-step : ∀ {ℓ} {A : Set ℓ} (l₁ : List A) (e₁ : A) (e₂ : A) (l₂ : List A) → NonRepetitive (l₁ ++ e₁ ∷ e₂ ∷ l₂) → NonRepetitive (l₁ ++ e₂ ∷ e₁ ∷ l₂)
     ≋-step [] e₁ e₂ l₂ (_∷_ .{e₁} .{e₂ ∷ l₂} e₁∉e₂∷l₂ (_∷_ .{e₂} .{l₂} e₂∉l₂ pU)) = e₂∉e₁∷l₂ ∷ e₁∉l₂ ∷ pU where
-        e₁∉l₂ = x∉y∷l⇒x∉l e₁∉e₂∷l₂ ∶ e₁ ∉ l₂
-        e₂∉e₁∷l₂ = x≢y⇒x∉l⇒x∉y∷l (≢-sym $ x∉y∷l⇒x≢y e₁∉e₂∷l₂) e₂∉l₂ ∶ e₂ ∉ e₁ ∷ l₂
+        e₁∉l₂ = e₁ ∉ l₂ ∋ x∉y∷l⇒x∉l e₁∉e₂∷l₂
+        e₂∉e₁∷l₂ = e₂ ∉ e₁ ∷ l₂ ∋ x≢y⇒x∉l⇒x∉y∷l (≢-sym $ x∉y∷l⇒x≢y e₁∉e₂∷l₂) e₂∉l₂
     ≋-step (h₁ ∷ t₁) e₁ e₂ l₂ (_∷_ .{h₁} .{t₁ ++ e₁ ∷ e₂ ∷ l₂} p∉ pU) = ∉-step t₁ e₁ e₂ l₂ p∉ ∷ ≋-step t₁ e₁ e₂ l₂ pU
 
 nr-x⇒nr-t-x : ∀ {ℓ} {x : Values ℓ} → NonRepetitiveNames x → NonRepetitiveNames (types x)
@@ -363,7 +363,7 @@ e∈x⇒e∈y∪x [] = id
 e∈x⇒e∈y∪x (h ∷ t) = there ∘ e∈x⇒e∈y∪x t
 
 e∈x⇒e∈x∪y : ∀ {ℓ} {A : Set ℓ} {e : A} {x : List A} (y : List A) → e ∈ x → e ∈ x ∪ y
-e∈x⇒e∈x∪y {e = e} {x = x} y e∈x = x⊆y≋z f (∪-sym y x) (here refl ∶ e ∈ [ e ]) where
+e∈x⇒e∈x∪y {e = e} {x = x} y e∈x = x⊆y≋z f (∪-sym y x) (e ∈ [ e ] ∋ here refl) where
     f : [ e ] ⊆ y ∪ x
     f {è} (here {x = .e} p) = ≡-elim′ (λ z → z ∈ y ∪ x) (≡-sym p) (e∈x⇒e∈y∪x y e∈x)
     f (there ())
@@ -455,7 +455,7 @@ nr-x∖y {x = x ∷ xs} (x∉xs ∷ nr-xs) y with x ∈? y
 x⊆y⇒e∉y⇒e∉x : ∀ {ℓ} {A : Set ℓ} {e : A} {x y : List A} → x ⊆ y → e ∉ y → e ∉ x
 x⊆y⇒e∉y⇒e∉x x⊆y e∉y e∈x = e∉y $ x⊆y e∈x
 
-e∈n-l⇒∃è,n-è≡e×è∈l : ∀ {ℓ} {A : Set ℓ} {e : String} {l : List (Named A)} → e ∈ names l → Σ[ è ∶ Named A ] e ≡ proj₁ è × è ∈ l
+e∈n-l⇒∃è,n-è≡e×è∈l : ∀ {ℓ} {A : Set ℓ} {e : String} {l : List (Named A)} → e ∈ names l → Σ[ è ∈ Named A ] e ≡ proj₁ è × è ∈ l
 e∈n-l⇒∃è,n-è≡e×è∈l {l = []} ()
 e∈n-l⇒∃è,n-è≡e×è∈l {l = h ∷ t} (here e≡n-h) = h , e≡n-h , here refl
 e∈n-l⇒∃è,n-è≡e×è∈l {l = h ∷ t} (there e∈n-t) with e∈n-l⇒∃è,n-è≡e×è∈l e∈n-t
@@ -491,7 +491,7 @@ x⊆x∖y∪y : (x y : Names) → x ⊆ x ∖ y ∪ y
 x⊆x∖y∪y [] _ = []⊆x _
 x⊆x∖y∪y (h ∷ t) y with h ∈? y
 x⊆x∖y∪y (h ∷ t) y | yes h∈y = x⊆z⇒y⊆z⇒x∪y⊆z (e∈l⇒[e]⊆l $ e∈x⇒e∈y∪x (t ∖ y) h∈y) (x⊆x∖y∪y t y)
-x⊆x∖y∪y (h ∷ t) y | no _ = x∪y⊆x̀∪ỳ (≋⇒⊆ refl ∶ [ h ] ⊆ [ h ]) (x⊆x∖y∪y t y)
+x⊆x∖y∪y (h ∷ t) y | no _ = x∪y⊆x̀∪ỳ ([ h ] ⊆ [ h ] ∋ ≋⇒⊆ refl) (x⊆x∖y∪y t y)
 
 e₁∈l⇒e₁∉l∖e₂⇒e₁≡e₂ : {e₁ e₂ : String} {l : Names} → e₁ ∈ l → e₁ ∉ l ∖ [ e₂ ] → e₁ ≡ e₂
 e₁∈l⇒e₁∉l∖e₂⇒e₁≡e₂ {e₁ = e₁} {e₂ = e₂} {l = l} e₁∈l e₁∉l∖e₂ with e₁ ≟ e₂
@@ -540,7 +540,7 @@ n-x⊆n⇒x∖n≡[] : ∀ {ℓ} {A : Set ℓ} (x : List (Named A)) (n : Names) 
 n-x⊆n⇒x∖n≡[] [] _ _ = refl
 n-x⊆n⇒x∖n≡[] (h ∷ t) n n-x⊆n with proj₁ h ∈? n
 ... | yes _ = n-x⊆n⇒x∖n≡[] t n $ x∪y⊆z⇒y⊆z [ proj₁ h ] (names t) (x≋y⊆z (≡⇒≋ $ n-x∪y [ h ] t) n-x⊆n)
-... | no h∉n = ⊥-elim $ h∉n $ n-x⊆n (here refl ∶ proj₁ h ∈ proj₁ h ∷ names t)
+... | no h∉n = ⊥-elim $ h∉n $ n-x⊆n (proj₁ h ∈ proj₁ h ∷ names t ∋ here refl)
 
 x∖x≡[] : ∀ {ℓ} {A : Set ℓ} (x : List (Named A)) → x ∖∖ names x ≡ []
 x∖x≡[] x = n-x⊆n⇒x∖n≡[] x (names x) (≋⇒⊆ refl)
@@ -667,10 +667,10 @@ x≋y∪z⇒x∖y≋z {x} nr-x y z x≋y∪z = ≋-trans (≡⇒≋ $ ≡-sym $ 
     p₃ : names ux ∖ names uy ≡ x ∖ y
     p₃ = ≡-cong₂ _∖_ (nn-x≡x x) (nn-x≡x y)
 
-h∈x⇒∃t,x≋h∷t : ∀ {ℓ} {A : Set ℓ} {h : A} {x : List A} → h ∈ x → NonRepetitive x → Σ[ t ∶ List A ] x ≋ h ∷ t
+h∈x⇒∃t,x≋h∷t : ∀ {ℓ} {A : Set ℓ} {h : A} {x : List A} → h ∈ x → NonRepetitive x → Σ[ t ∈ List A ] x ≋ h ∷ t
 h∈x⇒∃t,x≋h∷t {h = h} .{x = x ∷ xs} (here {x = x} {xs = xs} h≡x) (x∉xs ∷ nr-xs) = xs , ≡⇒≋ (≡-cong (λ z → z ∷ xs) (≡-sym h≡x))
 h∈x⇒∃t,x≋h∷t {h = h} .{x = x ∷ xs} (there {x = x} {xs = xs} h∈xs) (x∉xs ∷ nr-xs) =
-    let t , xs≋h∷t = (h∈x⇒∃t,x≋h∷t h∈xs nr-xs ∶ (Σ[ t ∶ List _ ] xs ≋ h ∷ t))
+    let t , xs≋h∷t = ((Σ[ t ∈ List _ ] xs ≋ h ∷ t) ∋ h∈x⇒∃t,x≋h∷t h∈xs nr-xs)
         p₁ : x ∷ xs ≋ x ∷ h ∷ t
         p₁ = y≋ỳ⇒x∪y≋x∪ỳ [ x ] xs≋h∷t
         p₂ : x ∷ h ∷ t ≋ h ∷ x ∷ t
@@ -681,10 +681,10 @@ nr-x∪y⇒nr-y : ∀ {ℓ} {A : Set ℓ} (x y : List A) → NonRepetitive (x �
 nr-x∪y⇒nr-y [] _ nr-y = nr-y
 nr-x∪y⇒nr-y (h ∷ t) y (_ ∷ nr-t∪y) = nr-x∪y⇒nr-y t y nr-t∪y
 
-x⊆y⇒∃x̀,y≋x∪x̀ : ∀ {ℓ} {A : Set ℓ} {x y : List A} → NonRepetitive x → NonRepetitive y → x ⊆ y → Σ[ x̀ ∶ List A ] y ≋ x ∪ x̀
+x⊆y⇒∃x̀,y≋x∪x̀ : ∀ {ℓ} {A : Set ℓ} {x y : List A} → NonRepetitive x → NonRepetitive y → x ⊆ y → Σ[ x̀ ∈ List A ] y ≋ x ∪ x̀
 x⊆y⇒∃x̀,y≋x∪x̀ {x = []} {y = y} _ _ _ = y , refl
 x⊆y⇒∃x̀,y≋x∪x̀ {x = h ∷ t} {y = y} (h∉t ∷ nr-t) nr-y h∷t⊆y =
-    let ỳ , y≋h∷ỳ = h∈x⇒∃t,x≋h∷t (h∷t⊆y (here refl ∶ h ∈ h ∷ t)) nr-y
+    let ỳ , y≋h∷ỳ = h∈x⇒∃t,x≋h∷t (h∷t⊆y (h ∈ h ∷ t ∋ here refl)) nr-y
         p₁ : t ⊆ ỳ
         p₁ = x⊆e∷y⇒e∉x⇒x⊆y (x⊆y≋z (x∪y⊆z⇒y⊆z [ h ] t h∷t⊆y) y≋h∷ỳ) h∉t
         nr-ỳ = nr-x∪y⇒nr-y [ h ] ỳ $ nr-x≋y y≋h∷ỳ nr-y

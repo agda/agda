@@ -9,7 +9,7 @@ open import Issue784.Context
 Transformer : ∀ {ℓ} → NonRepetitiveTypes ℓ → NonRepetitiveTypes ℓ → Set (Level.suc ℓ)
 Transformer {ℓ} (t-in , nr-in) (t-out , nr-out) =
   (v : Context ℓ) → NonRepetitiveContext v → t-in ⊆ signature v → NonRepetitive (ctxnames v ∖ names t-in ∪ names t-out) →
-  Σ[ w ∶ Context ℓ ] signature w ≋ signature v ∖∖ names t-in ∪ t-out
+  Σ[ w ∈ Context ℓ ] signature w ≋ signature v ∖∖ names t-in ∪ t-out
 
 pipe : ∀ {ℓ} {t-in₁ t-out₁ t-in₂ t-out₂ : Types ℓ} {nr-in₁ nr-out₁ nr-in₂ nr-out₂} →
        Transformer (t-in₁ , nr-in₁) (t-out₁ , nr-out₁) →
@@ -71,7 +71,7 @@ pipe {ℓ} {t-in₁} {t-out₁} {t-in₂} {t-out₂} {nr-in₁} {nr-out₁} {nr-
             p₁ : NonRepetitive (n-in₂ ∖ n-out₁ ∪ n-out₁)
             p₁ = nr-x∖y∪y nr-in₂ nr-out₁
 
-        w-all₁ : Σ[ w ∶ Context ℓ ] signature w ≋ signature (context v̀) ∖∖ names t-in₁ ∪ t-out₁
+        w-all₁ : Σ[ w ∈ Context ℓ ] signature w ≋ signature (context v̀) ∖∖ names t-in₁ ∪ t-out₁
         w-all₁ = tr₁ (context v̀) nr-v̀ i₁⊆v̀ nr-v̀∖i₁∪o₁
 
         w₁ = Context.get $ proj₁ w-all₁
@@ -132,14 +132,14 @@ pipe {ℓ} {t-in₁} {t-out₁} {t-in₂} {t-out₂} {nr-in₁} {nr-out₁} {nr-
             p₅ : NonRepetitiveNames (types w₁ ∖∖ n-in₂ ∪ t-out₂)
             p₅ = nr-x≋y (≋-sym $ n-x≋y w₁∖i₂∪o₂≋out) nr-out
 
-        w-all₂ : Σ[ w ∶ Context ℓ ] signature w ≋ signature (context w₁) ∖∖ names t-in₂ ∪ t-out₂
+        w-all₂ : Σ[ w ∈ Context ℓ ] signature w ≋ signature (context w₁) ∖∖ names t-in₂ ∪ t-out₂
         w-all₂ = tr₂ (context w₁) nr-w₁ i₂⊆w₁ nr-w₁∖i₂∪o₂
 
         w₂ = Context.get $ proj₁ w-all₂
         w₂≋out : types w₂ ≋ t-out
         w₂≋out = ≋-trans (proj₂ w-all₂) w₁∖i₂∪o₂≋out
 
-        w = v ∖∖ n-in ∪ w₂ ∶ Values ℓ
+        w =  Values ℓ ∋ v ∖∖ n-in ∪ w₂ 
         w≋out : types w ≋ types v ∖∖ n-in ∪ t-out
         w≋out = ≋-trans (≡⇒≋ p₁) p₂ where
             p₁ : types (v ∖∖ n-in ∪ w₂) ≡ types v ∖∖ n-in ∪ types w₂
@@ -190,5 +190,6 @@ record Unique {ℓ} (A : Set ℓ) : Set ℓ where
 extract : ∀ {ℓ} {n : String} {A : Set ℓ} → let t = [ (n , Pure A) ] in {nr!-t : NonRepetitiveNames! t} → Transformer ([] , []) (t , s-nr!⇒nr nr!-t) → A
 extract {n = n} {A = A} {nr!-t = nr!-t} tr =
   let e = n , Pure A
-      v , t-v≋t = (tr (context []) [] (≋⇒⊆ refl) (s-nr!⇒nr nr!-t) ∶ (Σ[ v ∶ Context _ ] signature v ≋ [ e ]))
-   in Pure.get ∘ getBySignature $ a∈x⇒x≋y⇒a∈y (here refl ∶ e ∈ [ e ]) (≋-sym t-v≋t)
+      v , t-v≋t = (Σ[ v ∈ Context _ ] signature v ≋ [ e ]) ∋ tr (context []) [] (≋⇒⊆ refl) (s-nr!⇒nr nr!-t)
+  in Pure.get ∘ getBySignature $ a∈x⇒x≋y⇒a∈y (e ∈ [ e ] ∋ here refl) (≋-sym t-v≋t)
+
