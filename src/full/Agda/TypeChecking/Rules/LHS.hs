@@ -466,6 +466,9 @@ checkLeftHandSide c ps a ret = do
             -- Compute the flexible variables
             flex <- flexiblePatterns (problemInPat p0 ++ qs')
 
+            -- Compute the constructor indices by dropping the parameters
+            let us' = drop (size vs) us
+
 	    reportSDoc "tc.lhs.top" 15 $ addCtxTel delta1 $
 	      sep [ text "preparing to unify"
 		  , nest 2 $ vcat
@@ -474,13 +477,14 @@ checkLeftHandSide c ps a ret = do
 		    , text "gamma  =" <+> prettyTCM gamma
 		    , text "gamma' =" <+> prettyTCM gamma'
 		    , text "vs     =" <+> brackets (fsep $ punctuate comma $ map prettyTCM vs)
+		    , text "us'    =" <+> brackets (fsep $ punctuate comma $ map prettyTCM us')
 		    , text "ws     =" <+> brackets (fsep $ punctuate comma $ map prettyTCM ws)
 		    ]
 		  ]
 
             -- Unify constructor target and given type (in Δ₁Γ)
             sub0 <- addCtxTel (delta1 `abstract` gamma) $
-                    unifyIndices_ flex (raise (size gamma) da) (drop (size vs) us) (raise (size gamma) ws)
+                    unifyIndices_ flex (raise (size gamma) da) us' (raise (size gamma) ws)
 
             -- We should substitute c ys for x in Δ₂ and sigma
             let ys     = teleArgs gamma
