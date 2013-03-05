@@ -2,7 +2,6 @@
 -- {-# OPTIONS -v tc:100 -v term:100 #-}
 -- {-# OPTIONS -v tc.def.alias:20 #-}
 -- {-# OPTIONS -v tc:0 -v term:0  #-}
-
 module Issue655 where
 
 -- import Common.Level -- this should not be necessary

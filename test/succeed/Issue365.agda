@@ -1,4 +1,4 @@
-
+-- {-# OPTIONS -v tc.cover.cover:10 -v tc.cover.splittree:100 -v tc.cover.strategy:100 -v tc.cc:100 #-}
 module Issue365 where
 
 {- Basic data types -}

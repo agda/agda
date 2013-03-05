@@ -1,4 +1,4 @@
-
+-- {-# OPTIONS -v extendedlambda:100 -v int2abs.reifyterm.def:100 #-}
 module Issue435 where
 
 data Bool : Set where

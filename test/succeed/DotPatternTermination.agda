@@ -1,4 +1,5 @@
 {-# OPTIONS --show-implicit #-}
+-- {-# OPTIONS -v tc.cover.strategy:20 -v tc.cover.precomputed:10 #-}
 -- {-# OPTIONS -v term.check.clause:25 #-}
 module DotPatternTermination where
 
