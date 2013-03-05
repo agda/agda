@@ -397,11 +397,12 @@ unifyIndices flex a us vs = liftTCM $ do
       Left (GenericUnifyException     err)  -> fail err
       Right _                               -> do
         checkEqualities $ applySubst (makeSubstitution s) eqs
-        let n = maximum $ (-1) : flex
+        let n = maximum $ (-1) : flex'
         return $ Unifies $ flattenSubstitution [ Map.lookup i s | i <- [0..n] ]
   `catchError` \err -> return $ DontKnow err
   where
-    flexible i = i `elem` flex
+    flex'      = map unArg flex
+    flexible i = i `elem` flex'
 
     flexibleTerm (Var i []) = flexible i
     flexibleTerm (Shared p) = flexibleTerm (derefPtr p)

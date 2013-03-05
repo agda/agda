@@ -22,7 +22,7 @@ import Agda.Utils.Impossible
 -}
 
 type Substitution   = [Maybe Term]
-type FlexibleVars   = [Nat]
+type FlexibleVars   = [A.Arg Nat]
 
 -- | State of typechecking a LHS; input to 'split'.
 --   [Ulf Norell's PhD, page. 35]

@@ -283,12 +283,16 @@ computeNeighbourhood delta1 n delta2 perm d pars ixs hix hps con = do
   let preserve (x, t@(El _ (Def d' _))) | d == d' = (n, t)
       preserve (x, (El s (Shared p))) = preserve (x, El s $ derefPtr p)
       preserve p = p
-      gamma = telFromList . map (fmap preserve) . telToList $ gamma0
+      gammal = map (fmap preserve) . telToList $ gamma0
+      gamma  = telFromList gammal
 
   debugInit con ctype pars ixs cixs delta1 delta2 gamma hps hix
 
   -- All variables are flexible
-  let flex = [0..size delta1 + size gamma - 1]
+  -- let flex = [0..size delta1 + size gamma - 1]
+  let gammaDelta1  = gammal ++ telToList delta1
+      clearColor d = noColorArg (getHiding d) (getRelevance d) (unDom d)
+      flex = (downFrom $ size gammaDelta1) `withArgsFrom` map clearColor gammaDelta1
 
   -- Unify constructor target and given type (in Δ₁Γ)
   let conIxs   = drop (size pars) cixs
@@ -304,7 +308,7 @@ computeNeighbourhood delta1 n delta2 perm d pars ixs hix hps con = do
     DontKnow _    -> do
       debugCantSplit
       throwException $ CantSplit con (delta1 `abstract` gamma) conIxs givenIxs
-                                 [ var i | i <- flex ]
+                                 [ var i | C.Arg _ i <- flex ]
     Unifies sub   -> do
       debugSubst "sub" sub
 

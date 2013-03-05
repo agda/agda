@@ -18,6 +18,7 @@ import Agda.Syntax.Literal
 import Agda.Syntax.Position(noRange)
 import Agda.Syntax.Internal(Tele(..), Telescope, Term, Abs(..), unAbs, absName, Type, Args, QName, unEl)
 import Agda.TypeChecking.Monad
+import Agda.TypeChecking.Rules.LHS.Problem (FlexibleVars)
 import Agda.TypeChecking.Rules.LHS.Unify
 import Agda.TypeChecking.Rules.LHS.Instantiate
 import Agda.TypeChecking.Substitute
@@ -142,7 +143,7 @@ insertTele er n ins term (ExtendTel x xs) = do
 
 mkCon c n = SI.Con c [ defaultArg $ SI.Var (fromIntegral i) [] | i <- [n - 1, n - 2 .. 0] ]
 
-unifyI :: Telescope -> [Nat] -> Type -> Args -> Args -> Compile TCM [Maybe Term]
+unifyI :: Telescope -> FlexibleVars -> Type -> Args -> Args -> Compile TCM [Maybe Term]
 unifyI tele flex typ a1 a2 = lift $ addCtxTel tele $ unifyIndices_ flex typ a1 a2
 
 takeTele 0 _ = EmptyTel
@@ -213,7 +214,7 @@ forcedExpr vars tele expr = case expr of
                               , text "ctyp:" <+> prettyTCM ctyp
                               ]
                             unifyI (takeTele (n + length as) tele'')
-                                   [0 .. n + length as]
+                                   (map defaultArg [0 .. n + length as])
                                    (setType `apply` take typPars a1)
                                    (drop typPars a1)
                                    (drop typPars a2)
