@@ -66,6 +66,9 @@ Emacs mode
 * Key bindings for lots of "mathematical" characters (examples: 𝐴𝑨𝒜𝓐𝔄)
   have been added to the Agda input method.
 
+* Key bindings for "blackboard bold" B (𝔹) and 0-9 (𝟘-𝟡) have been added
+  to the Agda input method (\bb and \b[0-9]).
+
 LaTeX-backend
 -------------
 
