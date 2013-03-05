@@ -1,4 +1,4 @@
-{-# LANGUAGE CPP, DeriveFunctor, DeriveFoldable, DeriveTraversable #-}
+{-# LANGUAGE CPP, FlexibleInstances, DeriveFunctor, DeriveFoldable, DeriveTraversable #-}
 module Agda.TypeChecking.Rules.LHS.Problem where
 
 import Control.Monad.Error
@@ -27,13 +27,13 @@ type Substitution   = [Maybe Term]
 type FlexibleVars   = [FlexibleVar Nat]
 
 -- | When we encounter a flexible variable in the unifier, where did it come from?
---   The alternatives are orders such that we will assign the lower one first,
+--   The alternatives are ordered such that we will assign the higher one first,
 --   i.e., first we try to assign a @DotFlex@, then...
 data FlexibleVarKind
-  = DotFlex      -- ^ From a dot pattern ('DotP').
+  = RecordFlex   -- ^ From a record pattern ('ConP').
   | ImplicitFlex -- ^ From a hidden formal argument ('ImplicitP').
-  | RecordFlex   -- ^ From a record pattern ('ConP').
-  deriving (Eq, Show)
+  | DotFlex      -- ^ From a dot pattern ('DotP').
+  deriving (Eq, Ord, Show)
 
 -- | Flexible variables are equipped with information where they come from,
 --   in order to make a choice which one to assign when two flexibles are unified.
@@ -41,7 +41,7 @@ data FlexibleVar a = FlexibleVar
   { flexHiding :: Hiding
   , flexKind   :: FlexibleVarKind
   , flexVar    :: a
-  } deriving (Show, Functor, Foldable, Traversable)
+  } deriving (Eq, Show, Functor, Foldable, Traversable)
 
 instance LensHiding (FlexibleVar a) where
   getHiding     = flexHiding
@@ -52,6 +52,15 @@ defaultFlexibleVar a = FlexibleVar Hidden ImplicitFlex a
 
 flexibleVarFromHiding :: Hiding -> a -> FlexibleVar a
 flexibleVarFromHiding h a = FlexibleVar h ImplicitFlex a
+
+instance Ord (FlexibleVar Nat) where
+  (FlexibleVar h1 f1 i1) >= (FlexibleVar h2 f2 i2) =
+    f1 > f2 || (f1 == f2 && (hgt h1 h2 || (h1 == h2 && i1 <= i2)))
+    where hgt x y | x == y = False
+          hgt Hidden _ = True
+          hgt _ Hidden = False
+          hgt Instance _ = True
+          hgt _ _ = False
 
 -- | State of typechecking a LHS; input to 'split'.
 --   [Ulf Norell's PhD, page. 35]

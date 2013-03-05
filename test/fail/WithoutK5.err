@@ -1,12 +1,12 @@
 WithoutK5.agda:11,24-28
 The variables
   A
-  b
+  a
 which are used (perhaps as constructor parameters) in the index
 expressions
   refl
 are free in the parameters
-  {_≡_ {A} b b}
+  {_≡_ {A} a a}
   refl
 when checking that the pattern refl has type
-_≡_ {_≡_ {A} b b} refl refl
+_≡_ {_≡_ {A} a a} refl refl

@@ -1,4 +1,5 @@
 {-# LANGUAGE CPP, MultiParamTypeClasses, FlexibleInstances, TupleSections,
+    PatternGuards,
     GeneralizedNewtypeDeriving,
     DeriveDataTypeable, DeriveFunctor, DeriveFoldable, DeriveTraversable #-}
 
@@ -204,7 +205,7 @@ occursCheck i u a = do
 (|->) :: Nat -> (Term, Type) -> Unify ()
 i |-> (u, a) = do
   occursCheck i u a
-  liftTCM $ reportSDoc "tc.lhs.unify" 15 $ prettyTCM (var i) <+> text ":=" <+> prettyTCM u
+  liftTCM $ reportSDoc "tc.lhs.unify.assign" 15 $ prettyTCM (var i) <+> text ":=" <+> prettyTCM u
   modSub $ Map.insert i (killRange u)
   -- Apply substitution to itself (issue 552)
   rho  <- onSub id
@@ -596,6 +597,21 @@ unifyIndices flex a us vs = liftTCM $ do
             v <- liftTCM $ reallyUnLevelView l
             unifyAtomHH aHH u v
 	(Var i us, Var j vs) | i == j  -> checkEqualityHH aHH u v
+-- Andreas, 2013-03-05: the following flex/flex case is an attempt at
+-- better dotting (see Issue811).  Does not work perfectly, maybe the best choice
+-- which variable to assign cannot made locally, but would need a look at the full
+-- picture!?  Or maybe the information on flexible variables in not yet good enough
+-- in the call to split in Coverage.
+        (Var i [], Var j []) | homogeneous, Just fi <- findFlexible i, Just fj <- findFlexible j -> do
+            liftTCM $ reportSDoc "tc.lhs.unify.flexflex" 20 $
+              sep [ text "unifying flexible/flexible"
+                  , nest 2 $ text "i =" <+> prettyTCM u <+> text ("; fi = " ++ show fi)
+                  , nest 2 $ text "j =" <+> prettyTCM v <+> text ("; fj = " ++ show fj)
+                  ]
+            -- We assign the "bigger" variable, where dotted, hidden, earlier is bigger
+            -- (in this order, see Problem.hs).
+            -- The comparison is total.
+            if fj >= fi then j |->> (u, a) else i |->> (v, a)
 	(Var i [], _) | homogeneous && flexible i -> i |->> (v, a)
 	(_, Var j []) | homogeneous && flexible j -> j |->> (u, a)
 	(Con c us, Con c' vs)
