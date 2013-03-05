@@ -23,6 +23,7 @@ import Agda.TypeChecking.Monad.Options
 import Agda.TypeChecking.Monad.Exception
 import Agda.TypeChecking.Monad.Context
 
+import Agda.TypeChecking.Rules.LHS.Problem (FlexibleVar(..),flexibleVarFromHiding)
 import Agda.TypeChecking.Rules.LHS.Unify
 import Agda.TypeChecking.Rules.LHS.Instantiate
 import Agda.TypeChecking.Rules.LHS
@@ -291,8 +292,8 @@ computeNeighbourhood delta1 n delta2 perm d pars ixs hix hps con = do
   -- All variables are flexible
   -- let flex = [0..size delta1 + size gamma - 1]
   let gammaDelta1  = gammal ++ telToList delta1
-      clearColor d = noColorArg (getHiding d) (getRelevance d) (unDom d)
-      flex = (downFrom $ size gammaDelta1) `withArgsFrom` map clearColor gammaDelta1
+      makeFlex i d = flexibleVarFromHiding (getHiding d) i
+      flex = zipWith makeFlex [0 .. size gammaDelta1 - 1] gammaDelta1
 
   -- Unify constructor target and given type (in Δ₁Γ)
   let conIxs   = drop (size pars) cixs
@@ -308,7 +309,7 @@ computeNeighbourhood delta1 n delta2 perm d pars ixs hix hps con = do
     DontKnow _    -> do
       debugCantSplit
       throwException $ CantSplit con (delta1 `abstract` gamma) conIxs givenIxs
-                                 [ var i | C.Arg _ i <- flex ]
+                                 (map (var . flexVar) flex)
     Unifies sub   -> do
       debugSubst "sub" sub
 

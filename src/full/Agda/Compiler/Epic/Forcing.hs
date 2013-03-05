@@ -18,7 +18,7 @@ import Agda.Syntax.Literal
 import Agda.Syntax.Position(noRange)
 import Agda.Syntax.Internal(Tele(..), Telescope, Term, Abs(..), unAbs, absName, Type, Args, QName, unEl)
 import Agda.TypeChecking.Monad
-import Agda.TypeChecking.Rules.LHS.Problem (FlexibleVars)
+import Agda.TypeChecking.Rules.LHS.Problem (FlexibleVars, defaultFlexibleVar)
 import Agda.TypeChecking.Rules.LHS.Unify
 import Agda.TypeChecking.Rules.LHS.Instantiate
 import Agda.TypeChecking.Substitute
@@ -214,7 +214,7 @@ forcedExpr vars tele expr = case expr of
                               , text "ctyp:" <+> prettyTCM ctyp
                               ]
                             unifyI (takeTele (n + length as) tele'')
-                                   (map defaultArg [0 .. n + length as])
+                                   (map defaultFlexibleVar [0 .. n + length as])
                                    (setType `apply` take typPars a1)
                                    (drop typPars a1)
                                    (drop typPars a2)

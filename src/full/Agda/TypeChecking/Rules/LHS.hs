@@ -52,9 +52,13 @@ import Agda.Utils.Impossible
 --   the deBruijn indices of the flexible patterns. A pattern is flexible if it
 --   is dotted or implicit.
 flexiblePatterns :: [A.NamedArg A.Pattern] -> TCM FlexibleVars
-flexiblePatterns nps = map setArg <$> filterM (flexible . namedArg . snd) (zip [0..] $ reverse nps)
+flexiblePatterns nps = map setFlex <$> filterM (flexible . namedArg . snd) (zip [0..] $ reverse nps)
   where
-    setArg (i, Arg ai _) = Arg ai i
+    setFlex (i, Arg ai p)    = FlexibleVar (getHiding ai) (classify $ namedThing p) i
+    classify A.DotP{}        = DotFlex
+    classify A.ImplicitP{}   = ImplicitFlex
+    classify A.ConP{}        = RecordFlex
+    classify _               = __IMPOSSIBLE__
     flexible (A.DotP _ _)    = return True
     flexible (A.ImplicitP _) = return True
     flexible (A.ConP _ (A.AmbQ [c]) qs) =

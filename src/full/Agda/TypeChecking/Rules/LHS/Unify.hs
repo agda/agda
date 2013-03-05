@@ -401,8 +401,10 @@ unifyIndices flex a us vs = liftTCM $ do
         return $ Unifies $ flattenSubstitution [ Map.lookup i s | i <- [0..n] ]
   `catchError` \err -> return $ DontKnow err
   where
-    flex'      = map unArg flex
+    flex'      = map flexVar flex
     flexible i = i `elem` flex'
+    findFlexible i = find ((i ==) . flexVar) flex
+    flexibleHid  i = fmap getHiding $ findFlexible i
 
     flexibleTerm (Var i []) = flexible i
     flexibleTerm (Shared p) = flexibleTerm (derefPtr p)

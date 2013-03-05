@@ -1,8 +1,10 @@
-{-# LANGUAGE CPP #-}
+{-# LANGUAGE CPP, DeriveFunctor, DeriveFoldable, DeriveTraversable #-}
 module Agda.TypeChecking.Rules.LHS.Problem where
 
 import Control.Monad.Error
 import Data.Monoid ( Monoid(mappend,mempty) )
+import Data.Foldable
+import Data.Traversable
 
 import Agda.Syntax.Common
 import Agda.Syntax.Literal
@@ -22,7 +24,34 @@ import Agda.Utils.Impossible
 -}
 
 type Substitution   = [Maybe Term]
-type FlexibleVars   = [A.Arg Nat]
+type FlexibleVars   = [FlexibleVar Nat]
+
+-- | When we encounter a flexible variable in the unifier, where did it come from?
+--   The alternatives are orders such that we will assign the lower one first,
+--   i.e., first we try to assign a @DotFlex@, then...
+data FlexibleVarKind
+  = DotFlex      -- ^ From a dot pattern ('DotP').
+  | ImplicitFlex -- ^ From a hidden formal argument ('ImplicitP').
+  | RecordFlex   -- ^ From a record pattern ('ConP').
+  deriving (Eq, Show)
+
+-- | Flexible variables are equipped with information where they come from,
+--   in order to make a choice which one to assign when two flexibles are unified.
+data FlexibleVar a = FlexibleVar
+  { flexHiding :: Hiding
+  , flexKind   :: FlexibleVarKind
+  , flexVar    :: a
+  } deriving (Show, Functor, Foldable, Traversable)
+
+instance LensHiding (FlexibleVar a) where
+  getHiding     = flexHiding
+  mapHiding f x = x { flexHiding = f (flexHiding x) }
+
+defaultFlexibleVar :: a -> FlexibleVar a
+defaultFlexibleVar a = FlexibleVar Hidden ImplicitFlex a
+
+flexibleVarFromHiding :: Hiding -> a -> FlexibleVar a
+flexibleVarFromHiding h a = FlexibleVar h ImplicitFlex a
 
 -- | State of typechecking a LHS; input to 'split'.
 --   [Ulf Norell's PhD, page. 35]
