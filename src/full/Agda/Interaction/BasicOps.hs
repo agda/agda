@@ -461,30 +461,42 @@ introTactic pmLambda ii = do
   withMetaInfo (getMetaInfo mv) $ case mvJudgement mv of
     HasType _ t -> do
         t <- reduce =<< piApply t <$> getContextArgs
+        -- Andreas, 2013-03-05 Issue 810: skip hidden domains in introduction
+        -- of constructor.
+        TelV tel' t <- telViewUpTo' (-1) notVisible t
+        -- if we cannot introduce a constructor, we try a lambda
+        let fallback = do
+              TelV tel _ <- telView t
+              reportSDoc "interaction.intro" 20 $ TP.sep
+                [ TP.text "introTactic/fallback"
+                , TP.text "tel' = " TP.<+> prettyTCM tel'
+                , TP.text "tel  = " TP.<+> prettyTCM tel
+                ]
+              case (tel', tel) of
+                (EmptyTel, EmptyTel) -> return []
+                _ -> introFun (telToList tel' ++ telToList tel)
+
         case ignoreSharing $ unEl t of
           I.Def d _ -> do
             def <- getConstInfo d
             case theDef def of
-              Datatype{}                 -> introData t
+              Datatype{}    -> addCtxTel tel' $ introData t
               Record{ recNamedCon = name }
-                | name      -> introData t
-                | otherwise -> introRec d
-              _                          -> return []
-          _ -> do
-            TelV tel _ <- telView t
-            case tel of
-              EmptyTel -> return []
-              tel      -> introFun tel
+                | name      -> addCtxTel tel' $ introData t
+                | otherwise -> addCtxTel tel' $ introRec d
+              _ -> fallback
+          _ -> fallback
      `catchError` \_ -> return []
     _ -> __IMPOSSIBLE__
   where
     conName [Arg _ (I.ConP c _ _)] = [c]
-    conName [_]                      = []
-    conName _                        = __IMPOSSIBLE__
+    conName [_]                    = []
+    conName _                      = __IMPOSSIBLE__
 
     showTCM v = show <$> prettyTCM v
 
     introFun tel = addCtxTel tel' $ do
+        reportSDoc "interaction.intro" 10 $ do TP.text "introFun" TP.<+> prettyTCM (telFromList tel)
         imp <- showImplicitArguments
         let okHiding0 h = imp || h == NotHidden
             -- if none of the vars were displayed, we would get a parse error
@@ -502,8 +514,8 @@ introTactic pmLambda ii = do
            else return [ unwords $ ["λ"]      ++ vars ++ ["→", "?"] ]
       where
         n = size tel
-        hs   = map getHiding $ telToList tel
-        tel' = telFromList [ fmap makeName b | b <- telToList tel ]
+        hs   = map getHiding tel
+        tel' = telFromList [ fmap makeName b | b <- tel ]
         makeName ("_", t) = ("x", t)
         makeName (x, t)   = (x, t)
 
