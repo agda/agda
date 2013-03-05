@@ -1,4 +1,4 @@
-
+-- {-# OPTIONS -v tc.lhs.top:15 -v tc.lhs.unify:100 #-}
 -- There was a bug which caused the type checker to forget
 -- the name of implicit arguments which weren't used in the
 -- return type.
@@ -24,7 +24,7 @@ index  evenZ     = zero
 index (evenSS e) = suc (suc (index e))
 
 sameIndex : {n : Nat}(e : Even n) -> index e == n
-sameIndex evenZ = refl 
+sameIndex evenZ = refl
 sameIndex (evenSS e) with index e | sameIndex e
 ... | ._ | refl = refl
 
@@ -33,4 +33,3 @@ sameIndex (evenSS e) with index e | sameIndex e
 * : {n : Nat}{e : Even n} -> Even (index e)
 * {e = e} with index e | sameIndex e
 ... | ._ | refl = e
-
