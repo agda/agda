@@ -35,6 +35,7 @@ elimView v = do
   v <- unLevel v
   reportSLn "tc.conv.elim" 50 $ "v = " ++ show v
   case ignoreSharing v of
+    Def f [] -> return $ DefElim f [] -- Andreas, 2013-03-05 it is not impossible that f is an unapplied projection
     Def f vs -> do
       proj <- isProjection f
       case proj of
