@@ -173,6 +173,10 @@ IsJust = Any (λ _ → ⊤)
 IsNothing : ∀ {a} {A : Set a} → Maybe A → Set
 IsNothing = All (λ _ → ⊥)
 
+toWitness : ∀ {p} {P : Set p} (m : Maybe P) → IsJust m → P
+toWitness (just p) _         = p
+toWitness nothing  (lift ())
+
 anyDec : ∀ {a p} {A : Set a} {P : A → Set p} →
          U.Decidable P → U.Decidable (Any P)
 anyDec p nothing  = no (λ { (lift ()) })
