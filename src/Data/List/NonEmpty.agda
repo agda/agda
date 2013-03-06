@@ -12,7 +12,7 @@ open import Data.Bool.Properties
 open import Data.List as List using (List; []; _∷_)
 open import Data.Maybe using (nothing; just)
 open import Data.Nat as Nat
-open import Data.Product using (∃; proj₁; proj₂; _,_; ,_)
+open import Data.Product using (_×_; ∃; proj₁; proj₂; _,_; ,_; uncurry)
 open import Data.Sum as Sum using (_⊎_; inj₁; inj₂)
 open import Data.Unit
 open import Data.Vec as Vec using (Vec; []; _∷_)
@@ -20,84 +20,90 @@ open import Function
 open import Function.Equality using (_⟨$⟩_)
 open import Function.Equivalence
   using () renaming (module Equivalence to Eq)
-open import Relation.Binary.PropositionalEquality as P
-  using (_≡_; refl; [_])
+open import Relation.Binary.PropositionalEquality as P using (_≡_; refl)
 open import Relation.Nullary.Decidable using (⌊_⌋)
 
-infixr 5 _∷_ _∷ʳ_ _⁺++⁺_ _++⁺_ _⁺++_
+------------------------------------------------------------------------
+-- Non-empty lists
 
-data List⁺ {a} (A : Set a) : Set a where
-  [_] : (x : A) → List⁺ A
-  _∷_ : (x : A) (xs : List⁺ A) → List⁺ A
+List⁺ : ∀ {a} → Set a → Set a
+List⁺ A = A × List A
+
+open Data.Product public using () renaming (_,_ to _∷_)
+
+[_] : ∀ {a} {A : Set a} → A → List⁺ A
+[ x ] = x ∷ []
+
+infixr 5 _∷⁺_
+
+_∷⁺_ : ∀ {a} {A : Set a} → A → List⁺ A → List⁺ A
+x ∷⁺ y ∷ xs = x ∷ y ∷ xs
 
 length_-1 : ∀ {a} {A : Set a} → List⁺ A → ℕ
-length [ x ]  -1 = 0
-length x ∷ xs -1 = 1 + length xs -1
+length x ∷ xs -1 = List.length xs
 
 ------------------------------------------------------------------------
 -- Conversion
 
+toList : ∀ {a} {A : Set a} → List⁺ A → List A
+toList (x ∷ xs) = x ∷ xs
+
 fromVec : ∀ {n a} {A : Set a} → Vec A (suc n) → List⁺ A
-fromVec {zero}  (x ∷ _)  = [ x ]
-fromVec {suc n} (x ∷ xs) = x ∷ fromVec xs
+fromVec (x ∷ xs) = x ∷ Vec.toList xs
 
 toVec : ∀ {a} {A : Set a} (xs : List⁺ A) → Vec A (suc (length xs -1))
-toVec [ x ]    = Vec.[_] x
-toVec (x ∷ xs) = x ∷ toVec xs
+toVec (x ∷ xs) = x ∷ Vec.fromList xs
 
 lift : ∀ {a b} {A : Set a} {B : Set b} →
        (∀ {m} → Vec A (suc m) → ∃ λ n → Vec B (suc n)) →
        List⁺ A → List⁺ B
 lift f xs = fromVec (proj₂ (f (toVec xs)))
 
-fromList : ∀ {a} {A : Set a} → A → List A → List⁺ A
-fromList x xs = fromVec (Vec.fromList (x ∷ xs))
-
-toList : ∀ {a} {A : Set a} → List⁺ A → List A
-toList {a} = Vec.toList {a} ∘ toVec
-
 ------------------------------------------------------------------------
 -- Other operations
 
 head : ∀ {a} {A : Set a} → List⁺ A → A
-head {a} = Vec.head {a} ∘ toVec
+head (x ∷ xs) = x
 
 tail : ∀ {a} {A : Set a} → List⁺ A → List A
-tail {a} = Vec.toList {a} ∘ Vec.tail {a} ∘ toVec
+tail (x ∷ xs) = xs
 
 map : ∀ {a b} {A : Set a} {B : Set b} → (A → B) → List⁺ A → List⁺ B
-map f = lift (λ xs → (, Vec.map f xs))
+map f (x ∷ xs) = (f x ∷ List.map f xs)
 
 -- Right fold. Note that s is only applied to the last element (see
 -- the examples below).
 
 foldr : ∀ {a b} {A : Set a} {B : Set b} →
         (A → B → B) → (A → B) → List⁺ A → B
-foldr c s [ x ]    = s x
-foldr c s (x ∷ xs) = c x (foldr c s xs)
+foldr {A = A} {B} c s = uncurry foldr′
+  where
+  foldr′ : A → List A → B
+  foldr′ x []       = s x
+  foldr′ x (y ∷ xs) = c x (foldr′ y xs)
 
 -- Left fold. Note that s is only applied to the first element (see
 -- the examples below).
 
 foldl : ∀ {a b} {A : Set a} {B : Set b} →
         (B → A → B) → (A → B) → List⁺ A → B
-foldl c s [ x ]    = s x
-foldl c s (x ∷ xs) = foldl c (c (s x)) xs
+foldl c s (x ∷ xs) = List.foldl c (s x) xs
 
 -- Append (several variants).
 
+infixr 5 _⁺++⁺_ _++⁺_ _⁺++_
+
 _⁺++⁺_ : ∀ {a} {A : Set a} → List⁺ A → List⁺ A → List⁺ A
-xs ⁺++⁺ ys = foldr _∷_ (λ x → x ∷ ys) xs
+(x ∷ xs) ⁺++⁺ (y ∷ ys) = x ∷ (xs List.++ y ∷ ys)
 
 _⁺++_ : ∀ {a} {A : Set a} → List⁺ A → List A → List⁺ A
-xs ⁺++ ys = foldr _∷_ (λ x → fromList x ys) xs
+(x ∷ xs) ⁺++ ys = x ∷ (xs List.++ ys)
 
 _++⁺_ : ∀ {a} {A : Set a} → List A → List⁺ A → List⁺ A
-xs ++⁺ ys = List.foldr _∷_ ys xs
+xs ++⁺ ys = List.foldr _∷⁺_ ys xs
 
 concat : ∀ {a} {A : Set a} → List⁺ (List⁺ A) → List⁺ A
-concat [ xs ]     = xs
-concat (xs ∷ xss) = xs ⁺++⁺ concat xss
+concat (xs ∷ xss) = xs ⁺++ List.concat (List.map toList xss)
 
 monad : ∀ {f} → RawMonad (List⁺ {a = f})
 monad = record
@@ -110,28 +116,31 @@ reverse = lift (,_ ∘′ Vec.reverse)
 
 -- Snoc.
 
-_∷ʳ_ : ∀ {a} {A : Set a} → List⁺ A → A → List⁺ A
-xs ∷ʳ x = foldr _∷_ (λ y → y ∷ [ x ]) xs
+infixr 5 _∷ʳ_ _⁺∷ʳ_
+
+_∷ʳ_ : ∀ {a} {A : Set a} → List A → A → List⁺ A
+[]       ∷ʳ y = [ y ]
+(x ∷ xs) ∷ʳ y = x ∷ (xs List.∷ʳ y)
+
+_⁺∷ʳ_ : ∀ {a} {A : Set a} → List⁺ A → A → List⁺ A
+xs ⁺∷ʳ x = toList xs ∷ʳ x
 
 -- A snoc-view of non-empty lists.
 
 infixl 5 _∷ʳ′_
 
 data SnocView {a} {A : Set a} : List⁺ A → Set a where
-  [_]   : (x : A)                → SnocView [ x ]
-  _∷ʳ′_ : (xs : List⁺ A) (x : A) → SnocView (xs ∷ʳ x)
+  _∷ʳ′_ : (xs : List A) (x : A) → SnocView (xs ∷ʳ x)
 
 snocView : ∀ {a} {A : Set a} (xs : List⁺ A) → SnocView xs
-snocView [ x ]            = [ x ]
-snocView (x ∷ xs)         with snocView xs
-snocView (x ∷ .([ y ]))   | [ y ]    = [ x ] ∷ʳ′ y
-snocView (x ∷ .(ys ∷ʳ y)) | ys ∷ʳ′ y = (x ∷ ys) ∷ʳ′ y
+snocView (x ∷ xs)              with List.initLast xs
+snocView (x ∷ .[])             | []            = []       ∷ʳ′ x
+snocView (x ∷ .(xs List.∷ʳ y)) | xs List.∷ʳ' y = (x ∷ xs) ∷ʳ′ y
 
 -- The last element in the list.
 
 last : ∀ {a} {A : Set a} → List⁺ A → A
 last xs with snocView xs
-last .([ y ])   | [ y ]    = y
 last .(ys ∷ʳ y) | ys ∷ʳ′ y = y
 
 -- Groups all contiguous elements for which the predicate returns the
@@ -142,10 +151,10 @@ split : ∀ {a} {A : Set a}
         List (List⁺ (∃ (T ∘ p)) ⊎ List⁺ (∃ (T ∘ not ∘ p)))
 split p []       = []
 split p (x ∷ xs) with p x | P.inspect p x | split p xs
-... | true  | [ px≡t ] | inj₁ xs′ ∷ xss = inj₁ ((x , Eq.from T-≡     ⟨$⟩ px≡t) ∷ xs′) ∷ xss
-... | true  | [ px≡t ] | xss            = inj₁ [ x , Eq.from T-≡     ⟨$⟩ px≡t ]       ∷ xss
-... | false | [ px≡f ] | inj₂ xs′ ∷ xss = inj₂ ((x , Eq.from T-not-≡ ⟨$⟩ px≡f) ∷ xs′) ∷ xss
-... | false | [ px≡f ] | xss            = inj₂ [ x , Eq.from T-not-≡ ⟨$⟩ px≡f ]       ∷ xss
+... | true  | P.[ px≡t ] | inj₁ xs′ ∷ xss = inj₁ ((x , Eq.from T-≡     ⟨$⟩ px≡t) ∷⁺ xs′) ∷ xss
+... | true  | P.[ px≡t ] | xss            = inj₁ [ x , Eq.from T-≡     ⟨$⟩ px≡t ]        ∷ xss
+... | false | P.[ px≡f ] | inj₂ xs′ ∷ xss = inj₂ ((x , Eq.from T-not-≡ ⟨$⟩ px≡f) ∷⁺ xs′) ∷ xss
+... | false | P.[ px≡f ] | xss            = inj₂ [ x , Eq.from T-not-≡ ⟨$⟩ px≡f ]        ∷ xss
 
 -- If we flatten the list returned by split, then we get the list we
 -- started with.
@@ -161,12 +170,12 @@ flatten-split :
 flatten-split p []       = refl
 flatten-split p (x ∷ xs)
   with p x | P.inspect p x | split p xs | flatten-split p xs
-... | true  | [ _ ] | []         | hyp = P.cong (_∷_ x) hyp
-... | true  | [ _ ] | inj₁ _ ∷ _ | hyp = P.cong (_∷_ x) hyp
-... | true  | [ _ ] | inj₂ _ ∷ _ | hyp = P.cong (_∷_ x) hyp
-... | false | [ _ ] | []         | hyp = P.cong (_∷_ x) hyp
-... | false | [ _ ] | inj₁ _ ∷ _ | hyp = P.cong (_∷_ x) hyp
-... | false | [ _ ] | inj₂ _ ∷ _ | hyp = P.cong (_∷_ x) hyp
+... | true  | P.[ _ ] | []         | hyp = P.cong (_∷_ x) hyp
+... | true  | P.[ _ ] | inj₁ _ ∷ _ | hyp = P.cong (_∷_ x) hyp
+... | true  | P.[ _ ] | inj₂ _ ∷ _ | hyp = P.cong (_∷_ x) hyp
+... | false | P.[ _ ] | []         | hyp = P.cong (_∷_ x) hyp
+... | false | P.[ _ ] | inj₁ _ ∷ _ | hyp = P.cong (_∷_ x) hyp
+... | false | P.[ _ ] | inj₂ _ ∷ _ | hyp = P.cong (_∷_ x) hyp
 
 -- Groups all contiguous elements /not/ satisfying the predicate into
 -- lists. Elements satisfying the predicate are dropped.
@@ -189,55 +198,58 @@ private
                  (a b c : A)
                  where
 
-  hd : head (a ∷ b ∷ [ c ]) ≡ a
+  hd : head (a ∷⁺ b ∷⁺ [ c ]) ≡ a
   hd = refl
 
-  tl : tail (a ∷ b ∷ [ c ]) ≡ b ∷ c ∷ []
+  tl : tail (a ∷⁺ b ∷⁺ [ c ]) ≡ b ∷ c ∷ []
   tl = refl
 
-  mp : map f (a ∷ b ∷ [ c ]) ≡ f a ∷ f b ∷ [ f c ]
+  mp : map f (a ∷⁺ b ∷⁺ [ c ]) ≡ f a ∷⁺ f b ∷⁺ [ f c ]
   mp = refl
 
-  right : foldr _⊕_ f (a ∷ b ∷ [ c ]) ≡ a ⊕ (b ⊕ f c)
+  right : foldr _⊕_ f (a ∷⁺ b ∷⁺ [ c ]) ≡ a ⊕ (b ⊕ f c)
   right = refl
 
-  left : foldl _⊗_ f (a ∷ b ∷ [ c ]) ≡ (f a ⊗ b) ⊗ c
+  left : foldl _⊗_ f (a ∷⁺ b ∷⁺ [ c ]) ≡ (f a ⊗ b) ⊗ c
   left = refl
 
-  ⁺app⁺ : (a ∷ b ∷ [ c ]) ⁺++⁺ (b ∷ [ c ]) ≡
-          a ∷ b ∷ c ∷ b ∷ [ c ]
+  ⁺app⁺ : (a ∷⁺ b ∷⁺ [ c ]) ⁺++⁺ (b ∷⁺ [ c ]) ≡
+          a ∷⁺ b ∷⁺ c ∷⁺ b ∷⁺ [ c ]
   ⁺app⁺ = refl
 
-  ⁺app : (a ∷ b ∷ [ c ]) ⁺++ (b ∷ c ∷ []) ≡
-          a ∷ b ∷ c ∷ b ∷ [ c ]
+  ⁺app : (a ∷⁺ b ∷⁺ [ c ]) ⁺++ (b ∷ c ∷ []) ≡
+          a ∷⁺ b ∷⁺ c ∷⁺ b ∷⁺ [ c ]
   ⁺app = refl
 
-  app⁺ : (a ∷ b ∷ c ∷ []) ++⁺ (b ∷ [ c ]) ≡
-          a ∷ b ∷ c ∷ b ∷ [ c ]
+  app⁺ : (a ∷ b ∷ c ∷ []) ++⁺ (b ∷⁺ [ c ]) ≡
+          a ∷⁺ b ∷⁺ c ∷⁺ b ∷⁺ [ c ]
   app⁺ = refl
 
-  conc : concat ((a ∷ b ∷ [ c ]) ∷ [ b ∷ [ c ] ]) ≡
-         a ∷ b ∷ c ∷ b ∷ [ c ]
+  conc : concat ((a ∷⁺ b ∷⁺ [ c ]) ∷⁺ [ b ∷⁺ [ c ] ]) ≡
+         a ∷⁺ b ∷⁺ c ∷⁺ b ∷⁺ [ c ]
   conc = refl
 
-  rev : reverse (a ∷ b ∷ [ c ]) ≡ c ∷ b ∷ [ a ]
+  rev : reverse (a ∷⁺ b ∷⁺ [ c ]) ≡ c ∷⁺ b ∷⁺ [ a ]
   rev = refl
 
-  snoc : (a ∷ b ∷ [ c ]) ∷ʳ a ≡ a ∷ b ∷ c ∷ [ a ]
+  snoc : (a ∷ b ∷ c ∷ []) ∷ʳ a ≡ a ∷⁺ b ∷⁺ c ∷⁺ [ a ]
   snoc = refl
 
+  snoc⁺ : (a ∷⁺ b ∷⁺ [ c ]) ⁺∷ʳ a ≡ a ∷⁺ b ∷⁺ c ∷⁺ [ a ]
+  snoc⁺ = refl
+
   split-true : split (const true) (a ∷ b ∷ c ∷ []) ≡
-               inj₁ ((a , tt) ∷ (b , tt) ∷ [ c , tt ]) ∷ []
+               inj₁ ((a , tt) ∷⁺ (b , tt) ∷⁺ [ c , tt ]) ∷ []
   split-true = refl
 
   split-false : split (const false) (a ∷ b ∷ c ∷ []) ≡
-                inj₂ ((a , tt) ∷ (b , tt) ∷ [ c , tt ]) ∷ []
+                inj₂ ((a , tt) ∷⁺ (b , tt) ∷⁺ [ c , tt ]) ∷ []
   split-false = refl
 
   split-≡1 :
     split (λ n → ⌊ n Nat.≟ 1 ⌋) (1 ∷ 2 ∷ 3 ∷ 1 ∷ 1 ∷ 2 ∷ 1 ∷ []) ≡
-    inj₁ [ 1 , tt ] ∷ inj₂ ((2 , tt) ∷ [ 3 , tt ]) ∷
-    inj₁ ((1 , tt) ∷ [ 1 , tt ]) ∷ inj₂ [ 2 , tt ] ∷ inj₁ [ 1 , tt ] ∷
+    inj₁ [ 1 , tt ] ∷ inj₂ ((2 , tt) ∷⁺ [ 3 , tt ]) ∷
+    inj₁ ((1 , tt) ∷⁺ [ 1 , tt ]) ∷ inj₂ [ 2 , tt ] ∷ inj₁ [ 1 , tt ] ∷
     []
   split-≡1 = refl
 
@@ -245,10 +257,10 @@ private
   wordsBy-true = refl
 
   wordsBy-false : wordsBy (const false) (a ∷ b ∷ c ∷ []) ≡
-                  (a ∷ b ∷ [ c ]) ∷ []
+                  (a ∷⁺ b ∷⁺ [ c ]) ∷ []
   wordsBy-false = refl
 
   wordsBy-≡1 :
     wordsBy (λ n → ⌊ n Nat.≟ 1 ⌋) (1 ∷ 2 ∷ 3 ∷ 1 ∷ 1 ∷ 2 ∷ 1 ∷ []) ≡
-    (2 ∷ [ 3 ]) ∷ [ 2 ] ∷ []
+    (2 ∷⁺ [ 3 ]) ∷ [ 2 ] ∷ []
   wordsBy-≡1 = refl

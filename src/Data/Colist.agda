@@ -15,7 +15,6 @@ open import Data.Nat           using (ℕ; zero; suc)
 open import Data.Conat         using (Coℕ; zero; suc)
 open import Data.List          using (List; []; _∷_)
 open import Data.List.NonEmpty using (List⁺; _∷_)
-                               renaming ([_] to [_]⁺)
 open import Data.BoundedVec.Inefficient as BVec
   using (BoundedVec; []; _∷_)
 open import Data.Product using (_,_)
@@ -91,9 +90,9 @@ _++_ : ∀ {a} {A : Set a} → Colist A → Colist A → Colist A
 (x ∷ xs) ++ ys = x ∷ ♯ (♭ xs ++ ys)
 
 concat : ∀ {a} {A : Set a} → Colist (List⁺ A) → Colist A
-concat []               = []
-concat ([ x ]⁺   ∷ xss) = x ∷ ♯ concat (♭ xss)
-concat ((x ∷ xs) ∷ xss) = x ∷ ♯ concat (xs ∷ xss)
+concat []                     = []
+concat ((x ∷ [])       ∷ xss) = x ∷ ♯ concat (♭ xss)
+concat ((x ∷ (y ∷ xs)) ∷ xss) = x ∷ ♯ concat ((y ∷ xs) ∷ xss)
 
 [_] : ∀ {a} {A : Set a} → A → Colist A
 [ x ] = x ∷ ♯ []
