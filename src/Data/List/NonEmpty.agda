@@ -116,7 +116,7 @@ reverse = lift (,_ ∘′ Vec.reverse)
 
 -- Snoc.
 
-infixr 5 _∷ʳ_ _⁺∷ʳ_
+infixl 5 _∷ʳ_ _⁺∷ʳ_
 
 _∷ʳ_ : ∀ {a} {A : Set a} → List A → A → List⁺ A
 []       ∷ʳ y = [ y ]
