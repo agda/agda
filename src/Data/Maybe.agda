@@ -157,34 +157,28 @@ decSetoid D = record
 -- Any and All
 
 open import Data.Empty using (⊥)
-import Relation.Nullary.Decidable as Dec
 open import Relation.Unary as U
 
-data Any {a} {A : Set a} (P : A → Set a) : Maybe A → Set a where
-  just : ∀ {x} (px : P x) → Any P (just x)
+Any : ∀ {a p} {A : Set a} → (A → Set p) → Maybe A → Set p
+Any P (just x) = P x
+Any P nothing  = Lift ⊥
 
-data All {a} {A : Set a} (P : A → Set a) : Maybe A → Set a where
-  just    : ∀ {x} (px : P x) → All P (just x)
-  nothing : All P nothing
+All : ∀ {a p} {A : Set a} → (A → Set p) → Maybe A → Set p
+All P (just x) = P x
+All P nothing  = Lift ⊤
 
-IsJust : ∀ {a} {A : Set a} → Maybe A → Set a
-IsJust = Any (λ _ → Lift ⊤)
+IsJust : ∀ {a} {A : Set a} → Maybe A → Set
+IsJust = Any (λ _ → ⊤)
 
-IsNothing : ∀ {a} {A : Set a} → Maybe A → Set a
-IsNothing = All (λ _ → Lift ⊥)
+IsNothing : ∀ {a} {A : Set a} → Maybe A → Set
+IsNothing = All (λ _ → ⊥)
 
-private
+anyDec : ∀ {a p} {A : Set a} {P : A → Set p} →
+         U.Decidable P → U.Decidable (Any P)
+anyDec p nothing  = no (λ { (lift ()) })
+anyDec p (just x) = p x
 
-  drop-just-Any : ∀ {A} {P : A → Set} {x} → Any P (just x) → P x
-  drop-just-Any (just px) = px
-
-  drop-just-All : ∀ {A} {P : A → Set} {x} → All P (just x) → P x
-  drop-just-All (just px) = px
-
-anyDec : ∀ {A} {P : A → Set} → U.Decidable P → U.Decidable (Any P)
-anyDec p nothing  = no λ()
-anyDec p (just x) = Dec.map′ just drop-just-Any (p x)
-
-allDec : ∀ {A} {P : A → Set} → U.Decidable P → U.Decidable (All P)
-allDec p nothing  = yes nothing
-allDec p (just x) = Dec.map′ just drop-just-All (p x)
+allDec : ∀ {a p} {A : Set a} {P : A → Set p} →
+         U.Decidable P → U.Decidable (All P)
+allDec p nothing  = yes _
+allDec p (just x) = p x
