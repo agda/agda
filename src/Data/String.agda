@@ -57,6 +57,12 @@ toList = primStringToList
 fromList : List Char → String
 fromList = primStringFromList
 
+toList∘fromList : ∀ s → toList (fromList s) ≡ s
+toList∘fromList s = trustMe
+
+fromList∘toList : ∀ s → fromList (toList s) ≡ s
+fromList∘toList s = trustMe
+
 toVec : (s : String) → Vec Char (List.length (toList s))
 toVec s = Vec.fromList (toList s)
 
