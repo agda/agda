@@ -8,7 +8,6 @@ module Relation.Binary.Consequences where
 
 open import Relation.Binary.Core hiding (refl)
 open import Relation.Nullary
-open import Relation.Nullary.Decidable as Dec
 open import Relation.Binary.PropositionalEquality.Core
 open import Function
 open import Data.Sum
@@ -37,6 +36,17 @@ asym⟶antisym :
   Asymmetric _<_ → Antisymmetric _≈_ _<_
 asym⟶antisym asym x<y y<x = ⊥-elim (asym x<y y<x)
 
+asym⟶irr :
+  ∀ {a ℓ₁ ℓ₂} {A : Set a} {_≈_ : Rel A ℓ₁} {_<_ : Rel A ℓ₂} →
+  _<_ Respects₂ _≈_ → Symmetric _≈_ →
+  Asymmetric _<_ → Irreflexive _≈_ _<_
+asym⟶irr {_<_ = _<_} resp sym asym {x} {y} x≈y x<y = asym x<y y<x
+  where
+  y<y : y < y
+  y<y = proj₂ resp x≈y x<y
+  y<x : y < x
+  y<x = proj₁ resp (sym x≈y) y<y
+
 total⟶refl :
   ∀ {a ℓ₁ ℓ₂} {A : Set a} {_≈_ : Rel A ℓ₁} {_∼_ : Rel A ℓ₂} →
   _∼_ Respects₂ _≈_ → Symmetric _≈_ →
@@ -62,12 +72,37 @@ total+dec⟶dec {_≈_ = _≈_} {_≤_ = _≤_} refl antisym total _≟_ = dec
   ...   | yes  x≈y = yes (refl x≈y)
   ...   | no  ¬x≈y = no (λ x≤y → ¬x≈y (antisym x≤y y≤x))
 
+tri⟶asym :
+  ∀ {a ℓ₁ ℓ₂} {A : Set a} {_≈_ : Rel A ℓ₁} {_<_ : Rel A ℓ₂} →
+  Trichotomous _≈_ _<_ → Asymmetric _<_
+tri⟶asym tri {x} {y} x<y x>y with tri x y
+... | tri< _   _ x≯y = x≯y x>y
+... | tri≈ _   _ x≯y = x≯y x>y
+... | tri> x≮y _ _   = x≮y x<y
+
+tri⟶irr :
+  ∀ {a ℓ₁ ℓ₂} {A : Set a} {_≈_ : Rel A ℓ₁} {_<_ : Rel A ℓ₂} →
+  _<_ Respects₂ _≈_ → Symmetric _≈_ →
+  Trichotomous _≈_ _<_ → Irreflexive _≈_ _<_
+tri⟶irr resp sym tri = asym⟶irr resp sym (tri⟶asym tri)
+
+tri⟶dec≈ :
+  ∀ {a ℓ₁ ℓ₂} {A : Set a} {_≈_ : Rel A ℓ₁} {_<_ : Rel A ℓ₂} →
+  Trichotomous _≈_ _<_ → Decidable _≈_
+tri⟶dec≈ compare x y with compare x y
+... | tri< _ x≉y _ = no  x≉y
+... | tri≈ _ x≈y _ = yes x≈y
+... | tri> _ x≉y _ = no  x≉y
+
+tri⟶dec< :
+  ∀ {a ℓ₁ ℓ₂} {A : Set a} {_≈_ : Rel A ℓ₁} {_<_ : Rel A ℓ₂} →
+  Trichotomous _≈_ _<_ → Decidable _<_
+tri⟶dec< compare x y with compare x y
+... | tri< x<y _ _ = yes x<y
+... | tri≈ x≮y _ _ = no  x≮y
+... | tri> x≮y _ _ = no  x≮y
+
 map-NonEmpty : ∀ {a b p q} {A : Set a} {B : Set b}
                  {P : REL A B p} {Q : REL A B q} →
                P ⇒ Q → NonEmpty P → NonEmpty Q
 map-NonEmpty f x = nonEmpty (f (NonEmpty.proof x))
-
-map-Decidable : ∀ {a b p q} {A : Set a} {B : Set b}
-                  {P : REL A B p} {Q : REL A B q} →
-                P ⇒ Q → Q ⇒ P → Decidable P → Decidable Q
-map-Decidable to from dec x y = Dec.map′ to from (dec x y)

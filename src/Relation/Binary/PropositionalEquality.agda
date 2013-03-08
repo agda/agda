@@ -13,7 +13,7 @@ open import Data.Unit.Core
 open import Level
 open import Relation.Binary
 import Relation.Binary.Indexed as I
-open import Relation.Binary.Consequences.Core
+open import Relation.Binary.Consequences
 open import Relation.Binary.HeterogeneousEquality.Core as H using (_≅_)
 
 -- Some of the definitions can be found in the following modules:
