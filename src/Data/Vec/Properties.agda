@@ -184,6 +184,17 @@ map-lookup-allFin {n = n} xs = begin
   xs                                 ∎
   where open P.≡-Reasoning
 
+-- tabulate f contains f i.
+
+∈-tabulate : ∀ {n a} {A : Set a} (f : Fin n → A) i → f i ∈ tabulate f
+∈-tabulate f zero    = here
+∈-tabulate f (suc i) = there (∈-tabulate (f ∘ suc) i)
+
+-- allFin n contains all elements in Fin n.
+
+∈-allFin : ∀ {n} (i : Fin n) → i ∈ allFin n
+∈-allFin = ∈-tabulate id
+
 -- sum commutes with _++_.
 
 sum-++-commute : ∀ {m n} (xs : Vec ℕ m) {ys : Vec ℕ n} →
