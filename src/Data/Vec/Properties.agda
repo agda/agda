@@ -11,6 +11,8 @@ open import Category.Applicative.Indexed
 open import Category.Monad
 open import Category.Monad.Identity
 open import Data.Vec
+open import Data.List.Any
+  using (here; there) renaming (module Membership-≡ to List)
 open import Data.Nat
 open import Data.Empty using (⊥-elim)
 import Data.Nat.Properties as Nat
@@ -276,6 +278,19 @@ foldr-fusion {B = B} {f} e {C} h fuse =
 
 idIsFold : ∀ {a n} {A : Set a} → id ≗ foldr (Vec A) {n} _∷_ []
 idIsFold = foldr-universal _ _ id refl (λ _ _ → refl)
+
+-- The _∈_ predicate is equivalent (in the following sense) to the
+-- corresponding predicate for lists.
+
+∈⇒List-∈ : ∀ {a} {A : Set a} {n x} {xs : Vec A n} →
+           x ∈ xs → x List.∈ toList xs
+∈⇒List-∈ here       = here P.refl
+∈⇒List-∈ (there x∈) = there (∈⇒List-∈ x∈)
+
+List-∈⇒∈ : ∀ {a} {A : Set a} {x : A} {xs} →
+           x List.∈ xs → x ∈ fromList xs
+List-∈⇒∈ (here P.refl) = here
+List-∈⇒∈ (there x∈)    = there (List-∈⇒∈ x∈)
 
 -- Proof irrelevance for _[_]=_.
 
