@@ -94,7 +94,8 @@ buildWithFunction aux gamma qs perm n1 n cs = mapM buildWithClause cs
 stripWithClausePatterns :: Telescope -> [I.Arg Pattern] -> Permutation -> [A.NamedArg A.Pattern] -> TCM [A.NamedArg A.Pattern]
 stripWithClausePatterns gamma qs perm ps = do
   psi <- insertImplicitPatterns ExpandLast ps gamma
-  unless (size psi == size gamma) $ fail $ "wrong number of arguments in with clause: given " ++ show (size psi) ++ ", expected " ++ show (size gamma)
+  unless (size psi == size gamma) $
+    typeError $ GenericError $ "Wrong number of arguments in with clause: given " ++ show (size psi) ++ ", expected " ++ show (size gamma)
   reportSDoc "tc.with.strip" 10 $ vcat
     [ text "stripping patterns"
     , nest 2 $ text "gamma = " <+> prettyTCM gamma
