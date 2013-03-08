@@ -11,7 +11,7 @@ open import Data.Sum
 open import Function
 open import Level
 import Relation.Binary.PropositionalEquality.Core as PropEq
-open import Relation.Binary.Consequences
+open import Relation.Binary.Consequences.Core
 open import Relation.Binary.Core as Core using (_≡_)
 import Relation.Binary.Indexed.Core as I
 
