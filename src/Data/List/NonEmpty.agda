@@ -39,8 +39,8 @@ infixr 5 _∷⁺_
 _∷⁺_ : ∀ {a} {A : Set a} → A → List⁺ A → List⁺ A
 x ∷⁺ y ∷ xs = x ∷ y ∷ xs
 
-length_-1 : ∀ {a} {A : Set a} → List⁺ A → ℕ
-length x ∷ xs -1 = List.length xs
+length : ∀ {a} {A : Set a} → List⁺ A → ℕ
+length (x ∷ xs) = suc (List.length xs)
 
 ------------------------------------------------------------------------
 -- Conversion
@@ -51,7 +51,7 @@ toList (x ∷ xs) = x ∷ xs
 fromVec : ∀ {n a} {A : Set a} → Vec A (suc n) → List⁺ A
 fromVec (x ∷ xs) = x ∷ Vec.toList xs
 
-toVec : ∀ {a} {A : Set a} (xs : List⁺ A) → Vec A (suc (length xs -1))
+toVec : ∀ {a} {A : Set a} (xs : List⁺ A) → Vec A (length xs)
 toVec (x ∷ xs) = x ∷ Vec.fromList xs
 
 lift : ∀ {a b} {A : Set a} {B : Set b} →
