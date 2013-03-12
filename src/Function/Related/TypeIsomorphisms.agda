@@ -28,7 +28,7 @@ open import Relation.Binary.Product.Pointwise
 open import Relation.Binary.PropositionalEquality as P using (_≡_; _≗_)
 open import Relation.Binary.Sum
 open import Relation.Nullary
-import Relation.Nullary.Decidable as Dec
+open import Relation.Nullary.Decidable as Dec using (True)
 
 ------------------------------------------------------------------------
 -- Σ is "associative"
@@ -428,3 +428,25 @@ Related-cong {A = A} {B} {C} {D} A≈B C≈D =
                           D  ∼⟨ sym C≈D ⟩
                           C  ∎)
   where open Related.EquationalReasoning
+
+------------------------------------------------------------------------
+-- A lemma relating True dec and P, where dec : Dec P
+
+True↔ : ∀ {p} {P : Set p}
+        (dec : Dec P) → ((p₁ p₂ : P) → p₁ ≡ p₂) → True dec ↔ P
+True↔ (yes p) irr = record
+  { to         = P.→-to-⟶ (λ _ → p)
+  ; from       = P.→-to-⟶ (λ _ → _)
+  ; inverse-of = record
+    { left-inverse-of  = λ _ → P.refl
+    ; right-inverse-of = irr p
+    }
+  }
+True↔ (no ¬p) _ = record
+  { to         = P.→-to-⟶ (λ ())
+  ; from       = P.→-to-⟶ (λ p → ¬p p)
+  ; inverse-of = record
+    { left-inverse-of  = λ ()
+    ; right-inverse-of = λ p → ⊥-elim (¬p p)
+    }
+  }
