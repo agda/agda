@@ -36,8 +36,11 @@ useNamesFromPattern :: [A.NamedArg A.Pattern] -> Telescope -> Telescope
 useNamesFromPattern ps = telFromList . zipWith ren (toPats ps ++ repeat dummy) . telToList
   where
     dummy = A.WildP __IMPOSSIBLE__
-    ren (A.VarP x) (Dom info (_, a)) | notHidden info =
-            Dom info (show x, a)
+    ren (A.VarP x) (Dom info (_, a)) | notHidden info = Dom info (show x, a)
+    -- Andreas, 2013-03-13: inserted the following line in the hope to fix issue 819
+    -- but it does not do the job, instead, it puts a lot of "_"s
+    -- instead of more sensible names into error messages.
+    -- ren A.WildP{}  (Dom info (_, a)) | notHidden info = Dom info ("_", a)
     ren A.PatternSynP{} _ = __IMPOSSIBLE__  -- ensure there are no syns left
     ren _ a = a
     toPats = map namedArg

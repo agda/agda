@@ -285,6 +285,7 @@ data Pattern' e
   | DefP PatInfo QName          [NamedArg (Pattern' e)]
     -- ^ Defined pattern: function definition @f ps@ or destructor pattern @d p ps@.
   | WildP PatInfo
+    -- ^ Underscore pattern entered by user.
   | AsP PatInfo Name (Pattern' e)
   | DotP PatInfo e
   | AbsurdP PatInfo
