@@ -138,6 +138,12 @@ setoid A = record
   trans : Transitive _≈_
   trans (x≡ ∷ xs≈) (y≡ ∷ ys≈) = P.trans x≡ y≡ ∷ ♯ trans (♭ xs≈) (♭ ys≈)
 
+head-cong : ∀ {A} {xs ys : Stream A} → xs ≈ ys → head xs ≡ head ys
+head-cong (x≡ ∷ _) = x≡
+
+tail-cong : ∀ {A} {xs ys : Stream A} → xs ≈ ys → tail xs ≈ tail ys
+tail-cong (_ ∷ xs≈) = ♭ xs≈
+
 map-cong : ∀ {A B} (f : A → B) {xs ys} →
            xs ≈ ys → map f xs ≈ map f ys
 map-cong f (x≡ ∷ xs≈) = P.cong f x≡ ∷ ♯ map-cong f (♭ xs≈)
