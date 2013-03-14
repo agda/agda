@@ -11,6 +11,7 @@ open import Data.Colist using (Colist; []; _∷_)
 open import Data.Vec    using (Vec;    []; _∷_)
 open import Data.Nat using (ℕ; zero; suc)
 open import Relation.Binary
+open import Relation.Binary.PropositionalEquality as P using (_≡_)
 
 ------------------------------------------------------------------------
 -- The type
@@ -95,7 +96,8 @@ _++_ : ∀ {A} → Colist A → Stream A → Stream A
 infix 4 _≈_
 
 data _≈_ {A} : Stream A → Stream A → Set where
-  _∷_ : ∀ x {xs ys} (xs≈ : ∞ (♭ xs ≈ ♭ ys)) → x ∷ xs ≈ x ∷ ys
+  _∷_ : ∀ {x y xs ys}
+        (x≡ : x ≡ y) (xs≈ : ∞ (♭ xs ≈ ♭ ys)) → x ∷ xs ≈ y ∷ ys
 
 -- x ∈ xs means that x is a member of xs.
 
@@ -128,23 +130,23 @@ setoid A = record
   }
   where
   refl : Reflexive _≈_
-  refl {x ∷ _} = x ∷ ♯ refl
+  refl {_ ∷ _} = P.refl ∷ ♯ refl
 
   sym : Symmetric _≈_
-  sym (x ∷ xs≈) = x ∷ ♯ sym (♭ xs≈)
+  sym (x≡ ∷ xs≈) = P.sym x≡ ∷ ♯ sym (♭ xs≈)
 
   trans : Transitive _≈_
-  trans (x ∷ xs≈) (.x ∷ ys≈) = x ∷ ♯ trans (♭ xs≈) (♭ ys≈)
+  trans (x≡ ∷ xs≈) (y≡ ∷ ys≈) = P.trans x≡ y≡ ∷ ♯ trans (♭ xs≈) (♭ ys≈)
 
 map-cong : ∀ {A B} (f : A → B) {xs ys} →
            xs ≈ ys → map f xs ≈ map f ys
-map-cong f (x ∷ xs≈) = f x ∷ ♯ map-cong f (♭ xs≈)
+map-cong f (x≡ ∷ xs≈) = P.cong f x≡ ∷ ♯ map-cong f (♭ xs≈)
 
 zipWith-cong : ∀ {A B C} (_∙_ : A → B → C) {xs xs′ ys ys′} →
                xs ≈ xs′ → ys ≈ ys′ →
                zipWith _∙_ xs ys ≈ zipWith _∙_ xs′ ys′
-zipWith-cong _∙_ (x ∷ xs≈) (y ∷ ys≈) =
-  (x ∙ y) ∷ ♯ zipWith-cong _∙_ (♭ xs≈) (♭ ys≈)
+zipWith-cong _∙_ (x≡ ∷ xs≈) (y≡ ∷ ys≈) =
+  P.cong₂ _∙_ x≡ y≡ ∷ ♯ zipWith-cong _∙_ (♭ xs≈) (♭ ys≈)
 
 infixr 5 _⋎-cong_
 
