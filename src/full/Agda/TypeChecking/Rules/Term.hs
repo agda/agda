@@ -425,8 +425,8 @@ checkExpr e t =
 	A.WithApp _ e es -> typeError $ NotImplemented "type checking of with application"
 
         -- check |- Set l : t  (requires universe polymorphism)
-        A.App i s (Arg (ArgInfo NotHidden r cs) l)
-          | A.Set _ 0 <- unScope s ->
+        A.App i s (Arg ai l)
+          | A.Set _ 0 <- unScope s, visible ai ->
           ifM (not <$> hasUniversePolymorphism)
               (typeError $ GenericError "Use --universe-polymorphism to enable level arguments to Set")
           $ do
@@ -441,8 +441,8 @@ checkExpr e t =
               text "against" <+> prettyTCM t
             coerce (Sort $ Type n) (sort $ sSuc $ Type n) t
 
-        A.App i q (Arg (ArgInfo NotHidden r cs) e)
-          | A.Quote _ <- unScope q -> do
+        A.App i q (Arg ai e)
+          | A.Quote _ <- unScope q, visible ai -> do
           let quoted (A.Def x) = return x
               quoted (A.Con (AmbQ [x])) = return x
               quoted (A.Con (AmbQ xs))  = typeError $ GenericError $ "quote: Ambigous name: " ++ show xs
