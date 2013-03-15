@@ -75,8 +75,8 @@ data Expr
         | Prop ExprInfo			     -- ^
         | Let  ExprInfo [LetBinding] Expr    -- ^
         | ETel Telescope                     -- ^ only used when printing telescopes
-	| Rec  ExprInfo [(C.Name, Expr)]     -- ^ record construction
-	| RecUpdate ExprInfo Expr [(C.Name, Expr)]     -- ^ record update
+	| Rec  ExprInfo Assigns              -- ^ record construction
+	| RecUpdate ExprInfo Expr Assigns    -- ^ record update
 	| ScopedExpr ScopeInfo Expr	     -- ^ scope annotation
         | QuoteGoal ExprInfo Name Expr       -- ^ binds @Name@ to current type in @Expr@
         | Quote ExprInfo                     -- ^
@@ -85,6 +85,10 @@ data Expr
         | DontCare Expr                      -- ^ for printing DontCare from Syntax.Internal
         | PatternSyn QName
   deriving (Typeable, Show)
+
+-- | Record field assignment @f = e@.
+type Assign  = (C.Name, Expr)
+type Assigns = [Assign]
 
 data Declaration
 	= Axiom      DefInfo ArgInfo QName Expr            -- ^ postulate (can be irrelevant and colored, but not hidden)

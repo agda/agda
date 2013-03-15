@@ -354,6 +354,115 @@ checkExtendedLambda i di qname cs e t = do
     abstract AbstractDef = inAbstractMode
 
 ---------------------------------------------------------------------------
+-- * Records
+---------------------------------------------------------------------------
+
+-- | @checkRecordExpression fs e t@ checks record construction against type @t@.
+-- Precondition @e = Rec _ fs@.
+checkRecordExpression :: A.Assigns -> A.Expr -> Type -> TCM Term
+checkRecordExpression fs e t = do
+  reportSDoc "tc.term.rec" 10 $ sep
+    [ text "checking record expression"
+    , prettyA e
+    ]
+  t <- reduce t
+  case ignoreSharing $ unEl t of
+    Def r vs  -> do
+      reportSDoc "tc.term.rec" 20 $ text $ "  r   = " ++ show r
+      axs    <- getRecordFieldNames r
+      let xs = map unArg axs
+      reportSDoc "tc.term.rec" 20 $ text $ "  xs  = " ++ show xs
+      ftel   <- getRecordFieldTypes r
+      reportSDoc "tc.term.rec" 20 $ text   "  ftel= " <> prettyTCM ftel
+      con    <- getRecordConstructor r
+      reportSDoc "tc.term.rec" 20 $ text $ "  con = " ++ show con
+      scope  <- getScope
+      let arg x e =
+            case [ a | a <- axs, unArg a == x ] of
+              [a] -> unnamed e <$ a
+              _   -> defaultNamedArg e -- we only end up here if the field names are bad
+      let meta x = A.Underscore $ A.MetaInfo (getRange e) scope Nothing (show x)
+          missingExplicits = [ (unArg a, [unnamed . meta <$> a])
+                             | a <- axs, notHidden a
+                             , notElem (unArg a) (map fst fs) ]
+      -- In es omitted explicit fields are replaced by underscores
+      -- (from missingExplicits). Omitted implicit or instance fields
+      -- are still left out and inserted later by checkArguments_.
+      es   <- concat <$> orderFields r [] xs ([ (x, [arg x e]) | (x, e) <- fs ] ++
+                                              missingExplicits)
+      let tel = ftel `apply` vs
+      args <- checkArguments_ ExpandLast (getRange e)
+                es -- (zipWith (\ax e -> fmap (const (unnamed e)) ax) axs es)
+                tel
+      -- Don't need to block here!
+      reportSDoc "tc.term.rec" 20 $ text $ "finished record expression"
+      return $ Con con args
+    MetaV _ _ -> do
+      let fields = map fst fs
+      rs <- findPossibleRecords fields
+      case rs of
+          -- If there are no records with the right fields we might as well fail right away.
+        [] -> case fs of
+          []       -> typeError $ GenericError "There are no records in scope"
+          [(f, _)] -> typeError $ GenericError $ "There is no known record with the field " ++ show f
+          _        -> typeError $ GenericError $ "There is no known record with the fields " ++ unwords (map show fields)
+          -- If there's only one record with the appropriate fields, go with that.
+        [r] -> do
+          def <- getConstInfo r
+          vs  <- newArgsMeta (defType def)
+          let target = piApply (defType def) vs
+              s      = case ignoreSharing $ unEl target of
+                         Level l -> Type l
+                         Sort s  -> s
+                         _       -> __IMPOSSIBLE__
+              inferred = El s $ Def r vs
+          v <- checkExpr e inferred
+          coerce v inferred t
+          -- Andreas 2012-04-21: OLD CODE, WRONG DIRECTION, I GUESS:
+          -- blockTerm t $ v <$ leqType_ t inferred
+
+          -- If there are more than one possible record we postpone
+        _:_:_ -> do
+          reportSDoc "tc.term.expr.rec" 10 $ sep
+            [ text "Postponing type checking of"
+            , nest 2 $ prettyA e <+> text ":" <+> prettyTCM t
+            ]
+          postponeTypeCheckingProblem_ e t
+    _         -> typeError $ ShouldBeRecordType t
+
+
+-- | @checkRecordUpdate ei recexpr fs e t@
+-- Precondition @e = RecUpdate ei recexpr fs@.
+checkRecordUpdate :: A.ExprInfo -> A.Expr -> A.Assigns -> A.Expr -> Type -> TCM Term
+checkRecordUpdate ei recexpr fs e t = do
+  case ignoreSharing $ unEl t of
+    Def r vs  -> do
+      rec <- checkExpr recexpr t
+      name <- freshNoName (getRange recexpr)
+      addLetBinding defaultArgInfo name rec t $ do
+        projs <- recFields <$> getRecordDef r
+        axs <- getRecordFieldNames r
+        scope <- getScope
+        let xs = map unArg axs
+        es <- orderFields r Nothing xs $ map (\(x, e) -> (x, Just e)) fs
+        let es' = zipWith (replaceFields name ei) projs es
+        checkExpr (A.Rec ei [ (x, e) | (x, Just e) <- zip xs es' ]) t
+    MetaV _ _ -> do
+      inferred <- inferExpr recexpr >>= reduce . snd
+      case ignoreSharing $ unEl inferred of
+        MetaV _ _ -> postponeTypeCheckingProblem_ e t
+        _         -> do
+          v <- checkExpr e inferred
+          coerce v inferred t
+    _         -> typeError $ ShouldBeRecordType t
+  where
+    replaceFields :: Name -> A.ExprInfo -> I.Arg A.QName -> Maybe A.Expr -> Maybe A.Expr
+    replaceFields n ei a@(Arg _ p) Nothing | notHidden a =
+        Just $ A.App ei (A.Def p) $ defaultNamedArg $ A.Var n
+    replaceFields _ _  (Arg _ _) Nothing  = Nothing
+    replaceFields _ _  _         (Just e) = Just $ e
+
+---------------------------------------------------------------------------
 -- * Literal
 ---------------------------------------------------------------------------
 
@@ -529,103 +638,9 @@ checkExpr e t =
           -- s <- ifM typeInType (return $ mkType 0) (return Prop)
 	  -- coerce (Sort Prop) (sort $ mkType 1) t
 
-	A.Rec _ fs  -> do
-          reportSDoc "tc.term.rec" 10 $ sep
-            [ text "checking record expression"
-            , prettyA e
-            ]
-	  t <- reduce t
-	  case ignoreSharing $ unEl t of
-	    Def r vs  -> do
-              reportSDoc "tc.term.rec" 20 $ text $ "  r   = " ++ show r
-	      axs    <- getRecordFieldNames r
-              let xs = map unArg axs
-              reportSDoc "tc.term.rec" 20 $ text $ "  xs  = " ++ show xs
-	      ftel   <- getRecordFieldTypes r
-              reportSDoc "tc.term.rec" 20 $ text   "  ftel= " <> prettyTCM ftel
-              con    <- getRecordConstructor r
-              reportSDoc "tc.term.rec" 20 $ text $ "  con = " ++ show con
-              scope  <- getScope
-              let arg x e =
-                    case [ a | a <- axs, unArg a == x ] of
-                      [a] -> unnamed e <$ a
-                      _   -> defaultNamedArg e -- we only end up here if the field names are bad
-              let meta x = A.Underscore $ A.MetaInfo (getRange e) scope Nothing (show x)
-                  missingExplicits = [ (unArg a, [unnamed . meta <$> a])
-                                     | a <- axs, notHidden a
-                                     , notElem (unArg a) (map fst fs) ]
-              -- In es omitted explicit fields are replaced by underscores
-              -- (from missingExplicits). Omitted implicit or instance fields
-              -- are still left out and inserted later by checkArguments_.
-	      es   <- concat <$> orderFields r [] xs ([ (x, [arg x e]) | (x, e) <- fs ] ++
-                                                      missingExplicits)
-	      let tel = ftel `apply` vs
-              args <- checkArguments_ ExpandLast (getRange e)
-                        es -- (zipWith (\ax e -> fmap (const (unnamed e)) ax) axs es)
-                        tel
-              -- Don't need to block here!
-              reportSDoc "tc.term.rec" 20 $ text $ "finished record expression"
-	      return $ Con con args
-            MetaV _ _ -> do
-              let fields = map fst fs
-              rs <- findPossibleRecords fields
-              case rs of
-                  -- If there are no records with the right fields we might as well fail right away.
-                [] -> case fs of
-                  []       -> typeError $ GenericError "There are no records in scope"
-                  [(f, _)] -> typeError $ GenericError $ "There is no known record with the field " ++ show f
-                  _        -> typeError $ GenericError $ "There is no known record with the fields " ++ unwords (map show fields)
-                  -- If there's only one record with the appropriate fields, go with that.
-                [r] -> do
-                  def <- getConstInfo r
-                  vs  <- newArgsMeta (defType def)
-                  let target = piApply (defType def) vs
-                      s      = case ignoreSharing $ unEl target of
-                                 Level l -> Type l
-                                 Sort s  -> s
-                                 _       -> __IMPOSSIBLE__
-                      inferred = El s $ Def r vs
-                  v <- checkExpr e inferred
-                  coerce v inferred t
-                  -- Andreas 2012-04-21: OLD CODE, WRONG DIRECTION, I GUESS:
-                  -- blockTerm t $ v <$ leqType_ t inferred
+	A.Rec _ fs  -> checkRecordExpression fs e t
 
-                  -- If there are more than one possible record we postpone
-                _:_:_ -> do
-                  reportSDoc "tc.term.expr.rec" 10 $ sep
-                    [ text "Postponing type checking of"
-                    , nest 2 $ prettyA e <+> text ":" <+> prettyTCM t
-                    ]
-                  postponeTypeCheckingProblem_ e t
-	    _         -> typeError $ ShouldBeRecordType t
-
-        A.RecUpdate ei recexpr fs -> do
-          case ignoreSharing $ unEl t of
-            Def r vs  -> do
-              rec <- checkExpr recexpr t
-              name <- freshNoName (getRange recexpr)
-              addLetBinding defaultArgInfo name rec t $ do
-                projs <- recFields <$> getRecordDef r
-                axs <- getRecordFieldNames r
-                scope <- getScope
-                let xs = map unArg axs
-                es <- orderFields r Nothing xs $ map (\(x, e) -> (x, Just e)) fs
-                let es' = zipWith (replaceFields name ei) projs es
-                checkExpr (A.Rec ei [ (x, e) | (x, Just e) <- zip xs es' ]) t
-            MetaV _ _ -> do
-              inferred <- inferExpr recexpr >>= reduce . snd
-              case ignoreSharing $ unEl inferred of
-                MetaV _ _ -> postponeTypeCheckingProblem_ e t
-                _         -> do
-                  v <- checkExpr e inferred
-                  coerce v inferred t
-            _         -> typeError $ ShouldBeRecordType t
-          where
-            replaceFields :: Name -> A.ExprInfo -> I.Arg A.QName -> Maybe A.Expr -> Maybe A.Expr
-            replaceFields n ei a@(Arg _ p) Nothing | notHidden a =
-                Just $ A.App ei (A.Def p) $ defaultNamedArg $ A.Var n
-            replaceFields _ _  (Arg _ _) Nothing  = Nothing
-            replaceFields _ _  _         (Just e) = Just $ e
+        A.RecUpdate ei recexpr fs -> checkRecordUpdate ei recexpr fs e t
 
 	A.DontCare e -> -- resurrect vars
           ifM ((Irrelevant ==) <$> asks envRelevance)
