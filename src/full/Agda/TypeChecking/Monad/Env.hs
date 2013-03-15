@@ -44,3 +44,10 @@ withIncreasedModuleNestingLevel :: TCM a -> TCM a
 withIncreasedModuleNestingLevel =
   local (\e -> e { envModuleNestingLevel =
                      envModuleNestingLevel e + 1 })
+
+-- | Restore setting for 'ExpandLast' to default.
+doExpandLast :: TCM a -> TCM a
+doExpandLast = local $ \ e -> e { envExpandLast = ExpandLast }
+
+dontExpandLast :: TCM a -> TCM a
+dontExpandLast = local $ \ e -> e { envExpandLast = DontExpandLast }

@@ -987,6 +987,10 @@ data TCEnv =
                 --   doing speculative checking, like solve instance metas, or
                 --   when updating might break abstraction, as is the case when
                 --   checking abstract definitions.
+          , envExpandLast :: ExpandHidden
+                -- ^ When type-checking an alias f=e, we do not want
+                -- to insert hidden arguments in the end, because
+                -- these will become unsolved metas.
 	  }
     deriving (Typeable)
 
@@ -1023,6 +1027,7 @@ initEnv = TCEnv { envContext	         = []
                 , envHighlightingMethod     = Indirect
                 , envModuleNestingLevel     = -1
                 , envAllowDestructiveUpdate = True
+                , envExpandLast             = ExpandLast
 		}
 
 ---------------------------------------------------------------------------

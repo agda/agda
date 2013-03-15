@@ -13,4 +13,3 @@ f'' = λ .{x y z : _} -> P x
 
 g : ((.A -> Set) -> Set) -> Set
 g k = k f
- 

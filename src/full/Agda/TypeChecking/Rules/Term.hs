@@ -508,7 +508,7 @@ checkArguments' exph expIFS r args t0 t e k = do
 checkExpr :: A.Expr -> Type -> TCM Term
 checkExpr e t =
   verboseBracket "tc.term.expr.top" 5 "checkExpr" $
-  traceCall (CheckExpr e t) $ localScope $ shared <$> do
+  traceCall (CheckExpr e t) $ localScope $ doExpandLast $ shared <$> do
     reportSDoc "tc.term.expr.top" 15 $
         text "Checking" <+> sep
 	  [ fsep [ prettyTCM e, text ":", prettyTCM t ]
@@ -664,6 +664,10 @@ checkExpr e t =
 
 -- | @checkApplication hd args e t@ checks an application.
 --   Precondition: @Application hs args = appView e@
+--
+--   @checkApplication@ disambiguates constructors
+--   (and continues to 'checkConstructorApplication')
+--   and resolves pattern synonyms.
 checkApplication :: A.Expr -> A.Args -> A.Expr -> Type -> TCM Term
 checkApplication hd args e t = do
   case hd of
@@ -687,8 +691,8 @@ checkApplication hd args e t = do
       dcs <- mapM (\(c0, c1) -> (getData /\ const c0) . theDef <$> getConstInfo c1) cs
 
       -- Type error
-      let badCon t = typeError $ DoesNotConstructAnElementOf
-                                            (fst $ head cs) t
+      let badCon t = typeError $ DoesNotConstructAnElementOf (fst $ head cs) t
+
       -- Lets look at the target type at this point
       let getCon = do
            TelV _ t1 <- telView t
@@ -987,7 +991,8 @@ checkConstructorApplication org t c args = do
         -- drop the parameter arguments
             args' = dropArgs pnames args
         -- check the non-parameter arguments
-        checkArguments' ExpandLast ExpandInstanceArguments (getRange c) args' ctype' t org $ \us t' -> do
+        expandLast <- asks envExpandLast
+        checkArguments' expandLast ExpandInstanceArguments (getRange c) args' ctype' t org $ \us t' -> do
           reportSDoc "tc.term.con" 20 $ nest 2 $ vcat
             [ text "us     =" <+> prettyTCM us
             , text "t'     =" <+> prettyTCM t' ]
@@ -1064,7 +1069,8 @@ checkHeadApplication e t hd args = do
         [ text "checkHeadApplication inferred" <+>
           prettyTCM c <+> text ":" <+> prettyTCM t0
         ]
-      checkArguments' ExpandLast ExpandInstanceArguments (getRange hd) args t0 t e $ \vs t1 -> do
+      expandLast <- asks envExpandLast
+      checkArguments' expandLast ExpandInstanceArguments (getRange hd) args t0 t e $ \vs t1 -> do
         TelV eTel eType <- telView t
         -- If the expected type @eType@ is a metavariable we have to make
         -- sure it's instantiated to the proper pi type
@@ -1150,7 +1156,8 @@ checkHeadApplication e t hd args = do
   where
   defaultResult = do
     (f, t0) <- inferHead hd
-    checkArguments' ExpandLast ExpandInstanceArguments (getRange hd) args t0 t e $ \vs t1 ->
+    expandLast <- asks envExpandLast
+    checkArguments' expandLast ExpandInstanceArguments (getRange hd) args t0 t e $ \vs t1 ->
       coerce (f vs) t1 t
 
 instance Error Type where
@@ -1294,12 +1301,11 @@ checkArguments_ exh r args tel = do
 -- | Infer the type of an expression. Implemented by checking against a meta
 --   variable.  Except for neutrals, for them a polymorphic type is inferred.
 inferExpr :: A.Expr -> TCM (Term, Type)
-inferExpr e = inferOrCheck e Nothing
-{-
-case e of
+-- inferExpr e = inferOrCheck e Nothing
+inferExpr e = case e of
   _ | Application hd args <- appView e, defOrVar hd -> traceCall (InferExpr e) $ do
     (f, t0) <- inferHead hd
-    res <- runErrorT $ checkArguments DontExpandLast ExpandInstanceArguments (getRange hd) args t0 (sort Prop)
+    res <- runErrorT $ checkArguments DontExpandLast ExpandInstanceArguments (getRange hd) (map convArg args) t0 (sort Prop)
     case res of
       Right (vs, t1) -> return (f vs, t1)
       Left t1 -> fallback -- blocked on type t1
@@ -1309,13 +1315,23 @@ case e of
       t <- workOnTypes $ newTypeMeta_
       v <- checkExpr e t
       return (v,t)
--}
 
 defOrVar :: A.Expr -> Bool
 defOrVar A.Var{} = True
 defOrVar A.Def{} = True
+defOrVar (A.ScopedExpr _ e) = defOrVar e
 defOrVar _     = False
 
+-- | Used to check aliases @f = e@.
+--   Switches off 'ExpandLast' for the checking of top-level application.
+checkDontExpandLast :: A.Expr -> Type -> TCM Term
+checkDontExpandLast e t = case e of
+  _ | Application hd args <- appView e,  defOrVar hd ->
+    traceCall (CheckExpr e t) $ localScope $ dontExpandLast $ shared <$> do
+      checkApplication hd args e t
+  _ -> checkExpr e t -- note that checkExpr always sets ExpandLast
+
+{- Andreas, 2013-03-15 UNUSED, but don't remove
 inferOrCheck :: A.Expr -> Maybe Type -> TCM (Term, Type)
 inferOrCheck e mt = case e of
   _ | Application hd args <- appView e, defOrVar hd -> traceCall (InferExpr e) $ do
@@ -1334,6 +1350,7 @@ inferOrCheck e mt = case e of
       t <- maybe (workOnTypes $ newTypeMeta_) return mt
       v <- checkExpr e t
       return (v,t)
+-}
 
 -- | Infer the type of an expression, and if it is of the form
 --   @{tel} -> D vs@ for some datatype @D@ then insert the hidden

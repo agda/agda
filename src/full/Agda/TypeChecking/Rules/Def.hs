@@ -49,7 +49,7 @@ import Agda.TypeChecking.SizedTypes
 import Agda.TypeChecking.CompiledClause (CompiledClauses(..))
 import Agda.TypeChecking.CompiledClause.Compile
 
-import Agda.TypeChecking.Rules.Term                ( checkExpr, inferExpr, inferExprForWith, inferOrCheck, checkTelescope_, isType_, convArg )
+import Agda.TypeChecking.Rules.Term                ( checkExpr, inferExpr, inferExprForWith, checkDontExpandLast, checkTelescope_, isType_, convArg )
 import Agda.TypeChecking.Rules.LHS                 ( checkLeftHandSide )
 import Agda.TypeChecking.Rules.LHS.Implicit        ( insertImplicitPatterns )
 import {-# SOURCE #-} Agda.TypeChecking.Rules.Decl ( checkDecls )
@@ -105,6 +105,12 @@ checkAlias t' info delayed i name e = do
   (v, t) <- applyRelevanceToContext (argInfoRelevance info) $
                                     inferOrCheck e (Just t')
   -- v <- coerce v t t'
+-}
+
+  -- Infer the type of the rhs
+  v <- applyRelevanceToContext (getRelevance info) $ checkDontExpandLast e t'
+  let t = t'
+
   reportSDoc "tc.def.alias" 20 $ text "checkAlias: finished checking"
 
   solveSizeConstraints
