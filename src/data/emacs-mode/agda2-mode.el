@@ -888,6 +888,16 @@ If APPEND is nil, then any previous text is removed before TEXT
 is inserted, and point is placed before this text."
   (interactive)
   (with-current-buffer (agda2-info-buffer)
+    ;; In some cases the jump-to-position-mentioned-in-text
+    ;; functionality (see compilation-error-regexp-alist above) didn't
+    ;; work: Emacs jumped to the wrong position. However, it seems to
+    ;; work if compilation-forget-errors is used. This problem may be
+    ;; related to Emacs bug #9679
+    ;; (http://debbugs.gnu.org/cgi/bugreport.cgi?bug=9679). The idea
+    ;; to use compilation-forget-errors comes from a comment due to
+    ;; Oleksandr Manzyuk
+    ;; (https://github.com/haskell/haskell-mode/issues/67).
+    (compilation-forget-errors)
     (unless append (erase-buffer))
     (save-excursion
       (goto-char (point-max))
