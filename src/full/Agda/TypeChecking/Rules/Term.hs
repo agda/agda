@@ -324,6 +324,34 @@ checkAbsurdLambda i h e t = do
         | otherwise -> typeError $ WrongHidingInLambda t'
       _ -> typeError $ ShouldBePi t'
 
+-- | @checkExtendedLambda i di qname cs e t@ check pattern matching lambda.
+-- Precondition: @e = ExtendedLam i di qname cs@
+checkExtendedLambda :: A.ExprInfo -> A.DefInfo -> QName -> [A.Clause] ->
+                       A.Expr -> Type -> TCM Term
+checkExtendedLambda i di qname cs e t = do
+   t <- instantiateFull t
+   ifBlockedType t (\ m t' -> postponeTypeCheckingProblem_ e t') $ \ t -> do
+     j   <- currentOrFreshMutualBlock
+     rel <- asks envRelevance
+     let info = setRelevance rel defaultArgInfo
+     addConstant qname $
+       Defn info qname t [] [] (defaultDisplayForm qname) j noCompiledRep Axiom
+     reportSDoc "tc.term.exlam" 50 $
+       text "extended lambda's implementation \"" <> prettyTCM qname <>
+       text "\" has type: " $$ prettyTCM t -- <+> text " where clauses: " <+> text (show cs)
+     args     <- getContextArgs
+     top      <- currentModule
+     freevars <- getModuleFreeVars top
+     -- freevars <- getSecFreeVars top --Andreas, 2013-02-26 this could be wrong in the presence of module parameters and a where block
+     let argsNoParam = genericDrop freevars args -- don't count module parameters
+     let (hid, notHid) = partition isHidden argsNoParam
+     abstract (A.defAbstract di) $ checkFunDef' t info NotDelayed
+                                                (Just (length hid, length notHid)) di qname cs
+     reduce $ (Def qname [] `apply` args)
+  where
+    -- Concrete definitions cannot use information about abstract things.
+    abstract ConcreteDef = inConcreteMode
+    abstract AbstractDef = inAbstractMode
 
 ---------------------------------------------------------------------------
 -- * Literal
@@ -465,33 +493,10 @@ checkExpr e t =
         A.Quote _ -> typeError $ GenericError "quote must be applied to a defined name"
         A.QuoteTerm _ -> typeError $ GenericError "quoteTerm must be applied to a term"
         A.Unquote _ -> typeError $ GenericError "unquote must be applied to a term"
+
         A.AbsurdLam i h -> checkAbsurdLambda i h e t
 
-        A.ExtendedLam i di qname cs -> do
-           t <- instantiateFull t
-           ifBlockedType t (\ m t' -> postponeTypeCheckingProblem_ e t') $ \ t -> do
-             j   <- currentOrFreshMutualBlock
-             rel <- asks envRelevance
-             let info = setRelevance rel defaultArgInfo
-             addConstant qname $
-               Defn info qname t [] [] (defaultDisplayForm qname) j noCompiledRep Axiom
-             reportSDoc "tc.term.exlam" 50 $
-               text "extended lambda's implementation \"" <> prettyTCM qname <>
-               text "\" has type: " $$ prettyTCM t -- <+>
---               text " where clauses: " <+> text (show cs)
-             args     <- getContextArgs
-             top      <- currentModule
-             freevars <- getModuleFreeVars top
-             -- freevars <- getSecFreeVars top --Andreas, 2013-02-26 this could be wrong in the presence of module parameters and a where block
-             let argsNoParam = genericDrop freevars args -- don't count module parameters
-             let (hid, notHid) = partition isHidden argsNoParam
-             abstract (A.defAbstract di) $ checkFunDef' t info NotDelayed
-                                                        (Just (length hid, length notHid)) di qname cs
-             reduce $ (Def qname [] `apply` args)
-          where
-	    -- Concrete definitions cannot use information about abstract things.
-	    abstract ConcreteDef = inConcreteMode
-	    abstract AbstractDef = inAbstractMode
+        A.ExtendedLam i di qname cs -> checkExtendedLambda i di qname cs e t
 
 	A.Lam i (A.DomainFull (A.TypedBindings _ b)) e -> checkLambda (convArg b) e t
 
