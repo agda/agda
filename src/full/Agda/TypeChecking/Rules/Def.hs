@@ -171,7 +171,8 @@ checkFunDef' t info delayed extlam i name cs =
                 mapM check cs
 
         -- Check that all clauses have the same number of arguments
-        unless (allEqual $ map npats cs) $ typeError DifferentArities
+        -- unless (allEqual $ map npats cs) $ typeError DifferentArities
+        -- Andreas, 2013-03-15 disable this check to allow flexible arity (issue 727)
 
         reportSDoc "tc.cc" 15 $ do
           sep [ text "clauses before rebindClause"

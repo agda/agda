@@ -88,7 +88,10 @@ problemFromPats ps a = do
            , text "xs    =" <+> text (show $ map (fst . unDom) as)
 	   , text "tel0  =" <+> prettyTCM tel0
 	   , text "b0    =" <+> prettyTCM b0
+	   , text "ps1   =" <+> fsep (map prettyA ps1)
+	   -- , text "ips   =" <+> prettyTCM ips  -- no prettyTCM instance
 	   , text "gamma =" <+> prettyTCM gamma
+	   , text "ps2   =" <+> fsep (map prettyA ps2)
 	   , text "b     =" <+> addCtxTel gamma (prettyTCM b)
 	   ]
 	 ]
