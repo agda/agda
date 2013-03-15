@@ -29,6 +29,27 @@ Pragmas and Options
 Language
 ========
 
+* Function clauses may now have different arity, e.g.,
+
+    Sum : ℕ → Set
+    Sum 0       = ℕ
+    Sum (suc n) = ℕ → Sum n
+
+    sum : (n : ℕ) → ℕ → Sum n
+    sum 0       acc   = acc
+    sum (suc n) acc m = sum n (m + acc)
+
+  or,
+
+    T : Bool → Set
+    T true  = Bool
+    T false = Bool → Bool
+
+    f : (b : Bool) → T b
+    f false true  = false
+    f false false = true
+    f true = true
+
 Goal and error display
 ======================
 
