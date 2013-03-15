@@ -739,7 +739,13 @@ domainFree info x =
       , A.metaNameSuggestion = show x
       }
 
+---------------------------------------------------------------------------
+-- * Meta variables
+---------------------------------------------------------------------------
+
 checkMeta :: (Type -> TCM Term) -> Type -> A.MetaInfo -> TCM Term
+checkMeta newMeta t i = fst <$> checkOrInferMeta newMeta (Just t) i
+{-
 checkMeta newMeta t i = do
   case A.metaNumber i of
     Nothing -> do
@@ -752,8 +758,11 @@ checkMeta newMeta t i = do
       let v = MetaV (MetaId n) []
       t' <- jMetaType . mvJudgement <$> lookupMeta (MetaId n)
       coerce v t' t
+-}
 
 inferMeta :: (Type -> TCM Term) -> A.MetaInfo -> TCM (Args -> Term, Type)
+inferMeta newMeta i = mapFst apply <$> checkOrInferMeta newMeta Nothing i
+{-
 inferMeta newMeta i =
   case A.metaNumber i of
     Nothing -> do
@@ -766,7 +775,32 @@ inferMeta newMeta i =
       let v = MetaV (MetaId n)
       t' <- jMetaType . mvJudgement <$> lookupMeta (MetaId n)
       return (v, t')
+-}
 
+-- | Type check a meta variable.
+--   If its type is not given, we return its type, or a fresh one, if it is a new meta.
+--   If its type is given, we check that the meta has this type, and we return the same
+--   type.
+checkOrInferMeta :: (Type -> TCM Term) -> Maybe Type -> A.MetaInfo -> TCM (Term, Type)
+checkOrInferMeta newMeta mt i = do
+  case A.metaNumber i of
+    Nothing -> do
+      setScope (A.metaScope i)
+      t <- maybe (workOnTypes $ newTypeMeta_) return mt
+      v <- newMeta t
+      setValueMetaName v (A.metaNameSuggestion i)
+      return (v, t)
+    -- Rechecking an existing metavariable
+    Just n -> do
+      let v = MetaV (MetaId n) []
+      t' <- jMetaType . mvJudgement <$> lookupMeta (MetaId n)
+      case mt of
+        Nothing -> return (v, t')
+        Just t  -> (,t) <$> coerce v t' t
+
+---------------------------------------------------------------------------
+-- * Applications
+---------------------------------------------------------------------------
 
 -- | Infer the type of a head thing (variable, function symbol, or constructor).
 --   We return a function that applies the head to arguments.
