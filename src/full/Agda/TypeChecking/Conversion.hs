@@ -460,82 +460,92 @@ compareRelevance :: Comparison -> Relevance -> Relevance -> Bool
 compareRelevance CmpEq  = (==)
 compareRelevance CmpLeq = (<=)
 
--- | Type-directed equality on eliminator spines
+-- | @compareElims pols a v els1 els2@ performs type-directed equality on eliminator spines.
+--   @t@ is the type of the head @v@.
 compareElims :: [Polarity] -> Type -> Term -> [Elim] -> [Elim] -> TCM ()
-compareElims _ _ _ [] [] = return ()
-compareElims _ _ _ [] (_:_) = __IMPOSSIBLE__
-compareElims _ _ _ (_:_) [] = __IMPOSSIBLE__
-compareElims _ _ _ (Apply{} : _) (Proj{} : _) = __IMPOSSIBLE__
-compareElims _ _ _ (Proj{} : _) (Apply{} : _) = __IMPOSSIBLE__
-compareElims pols0 a v els01@(Apply arg1 : els1) els02@(Apply arg2 : els2) =
-  verboseBracket "tc.conv.elim" 20 "compare Apply" $ do
-  reportSDoc "tc.conv.elim" 25 $ nest 2 $ vcat
-    [ text "a    =" <+> prettyTCM a
-    , text "v    =" <+> prettyTCM v
-    , text "arg1 =" <+> prettyTCM arg1
-    , text "arg2 =" <+> prettyTCM arg2
-    ]
-  reportSDoc "tc.conv.elim" 10 $ nest 2 $ vcat
-    [ text "v    =" <+> text (show v)
-    , text "arg1 =" <+> text (show arg1)
-    , text "arg2 =" <+> text (show arg2)
-    , text ""
-    ]
-  let (pol, pols) = nextPolarity pols0
-  ab <- reduceB a
-  let a = ignoreBlocking ab
-  catchConstraint (ElimCmp pols0 a v els01 els02) $ do
-  reportSDoc "tc.conv.elim" 10 $ nest 2 $ vcat
-    [ text "ab = " <+> text (show ab)
-    , text "x = " <+> text (show (ignoreSharing . unEl <$> ab))
-    ]
-  case ignoreSharing . unEl <$> ab of
-    Blocked{}                     -> patternViolation
-    NotBlocked MetaV{}            -> patternViolation
-    NotBlocked (Pi (Dom info b) _) -> do
-      mlvl <- mlevel
-      let checkArg = applyRelevanceToContext (argInfoRelevance info) $
-                         case argInfoRelevance info of
-            Forced     -> return ()
-            r | irrelevantOrUnused r ->
-                          compareIrrelevant b (unArg arg1) (unArg arg2)
-            _          -> compareWithPol pol (flip compareTerm b)
-                            (unArg arg1) (unArg arg2)
-          dependent = case ignoreSharing $ unEl a of
-            Pi (Dom _ (El _ lvl')) c -> 0 `freeInIgnoringSorts` absBody c
-                                          && Just lvl' /= mlvl
-            _ -> False
+compareElims pols0 a v els01 els02 = do
+  let v1 = unElim v els01
+      v2 = unElim v els02
+      failure = typeError $ UnequalTerms CmpEq v1 v2 a
+        -- Andreas, 2013-03-15 since one of the spines is empty, @a@
+        -- is the correct type here.
+  case (els01, els02) of
+    ([]         , []         ) -> return ()
+    ([]         , Proj{}:_   ) -> failure -- not impossible, see issue 821
+    (Proj{}  : _, []         ) -> failure -- could be x.p =?= x for projection p
+    ([]         , Apply{} : _) -> __IMPOSSIBLE__
+    (Apply{} : _, []         ) -> __IMPOSSIBLE__
+    (Apply{} : _, Proj{}  : _) -> __IMPOSSIBLE__
+    (Proj{}  : _, Apply{} : _) -> __IMPOSSIBLE__
+    (Apply arg1 : els1, Apply arg2 : els2) ->
+      verboseBracket "tc.conv.elim" 20 "compare Apply" $ do
+      reportSDoc "tc.conv.elim" 25 $ nest 2 $ vcat
+        [ text "a    =" <+> prettyTCM a
+        , text "v    =" <+> prettyTCM v
+        , text "arg1 =" <+> prettyTCM arg1
+        , text "arg2 =" <+> prettyTCM arg2
+        ]
+      reportSDoc "tc.conv.elim" 10 $ nest 2 $ vcat
+        [ text "v    =" <+> text (show v)
+        , text "arg1 =" <+> text (show arg1)
+        , text "arg2 =" <+> text (show arg2)
+        , text ""
+        ]
+      let (pol, pols) = nextPolarity pols0
+      ab <- reduceB a
+      let a = ignoreBlocking ab
+      catchConstraint (ElimCmp pols0 a v els01 els02) $ do
+      reportSDoc "tc.conv.elim" 10 $ nest 2 $ vcat
+        [ text "ab = " <+> text (show ab)
+        , text "x = " <+> text (show (ignoreSharing . unEl <$> ab))
+        ]
+      case ignoreSharing . unEl <$> ab of
+        Blocked{}                     -> patternViolation
+        NotBlocked MetaV{}            -> patternViolation
+        NotBlocked (Pi (Dom info b) _) -> do
+          mlvl <- mlevel
+          let checkArg = applyRelevanceToContext (argInfoRelevance info) $
+                             case argInfoRelevance info of
+                Forced     -> return ()
+                r | irrelevantOrUnused r ->
+                              compareIrrelevant b (unArg arg1) (unArg arg2)
+                _          -> compareWithPol pol (flip compareTerm b)
+                                (unArg arg1) (unArg arg2)
+              dependent = case ignoreSharing $ unEl a of
+                Pi (Dom _ (El _ lvl')) c -> 0 `freeInIgnoringSorts` absBody c
+                                              && Just lvl' /= mlvl
+                _ -> False
 
-          theRest = ElimCmp pols (piApply a [arg1]) (apply v [arg1]) els1 els2
+              theRest = ElimCmp pols (piApply a [arg1]) (apply v [arg1]) els1 els2
 
-      if dependent
-        then guardConstraint theRest checkArg
-        else checkArg >> solveConstraint_ theRest
+          if dependent
+            then guardConstraint theRest checkArg
+            else checkArg >> solveConstraint_ theRest
 
-    NotBlocked (Def info _) -> do
-                       reportSDoc "tc.conv.elim" 10 $ text "crash!"
-                       __IMPOSSIBLE__
-    NotBlocked a -> do reportSDoc "tc.conv.elim" 50 $ text (show a)
-                       __IMPOSSIBLE__
---    _ -> __IMPOSSIBLE__
-compareElims pols a v els01@(Proj f : els1) els02@(Proj f' : els2)
-  | f /= f'   = typeError . GenericError . show =<< prettyTCM f <+> text "/=" <+> prettyTCM f'
-  | otherwise = do
-    a <- reduce a
-    case ignoreSharing $ unEl a of
-      Def r us -> do
-        let (pol, _) = nextPolarity pols
-        ft <- defType <$> getConstInfo f  -- get type of projection function
-        let arg = defaultArg v  -- TODO: not necessarily relevant?
-        let c = piApply ft (us ++ [arg])
-        (cmp, els1, els2) <- return $ case pol of
-              Invariant     -> (CmpEq, els1, els2)
-              Covariant     -> (CmpLeq, els1, els2)
-              Contravariant -> (CmpLeq, els2, els1)
-              Nonvariant    -> __IMPOSSIBLE__ -- the polarity should be Invariant
-        pols' <- getPolarity' cmp f
-        compareElims pols' c (Def f [arg]) els1 els2
-      _ -> __IMPOSSIBLE__
+        NotBlocked (Def info _) -> do
+                           reportSDoc "tc.conv.elim" 10 $ text "crash!"
+                           __IMPOSSIBLE__
+        NotBlocked a -> do reportSDoc "tc.conv.elim" 50 $ text (show a)
+                           __IMPOSSIBLE__
+
+    (Proj f : els1, Proj f' : els2)
+      | f /= f'   -> typeError . GenericError . show =<< prettyTCM f <+> text "/=" <+> prettyTCM f'
+      | otherwise -> do
+        a <- reduce a
+        case ignoreSharing $ unEl a of
+          Def r us -> do
+            let (pol, _) = nextPolarity pols0
+            ft <- defType <$> getConstInfo f  -- get type of projection function
+            let arg = defaultArg v  -- TODO: not necessarily relevant?
+            let c = piApply ft (us ++ [arg])
+            (cmp, els1, els2) <- return $ case pol of
+                  Invariant     -> (CmpEq, els1, els2)
+                  Covariant     -> (CmpLeq, els1, els2)
+                  Contravariant -> (CmpLeq, els2, els1)
+                  Nonvariant    -> __IMPOSSIBLE__ -- the polarity should be Invariant
+            pols' <- getPolarity' cmp f
+            compareElims pols' c (Def f [arg]) els1 els2
+          _ -> __IMPOSSIBLE__
 
 -- | "Compare" two terms in irrelevant position.  This always succeeds.
 --   However, we can dig for solutions of irrelevant metas in the

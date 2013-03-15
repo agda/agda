@@ -1,0 +1,3 @@
+Issue821.agda:21,9-10
+x != (f _ x) of type (D A)
+when checking that the expression p has type P (f _ x)

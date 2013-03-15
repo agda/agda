@@ -75,9 +75,10 @@ unElimView v = case v of
   ConElim x es  -> unElim (Con x []) es
   MetaElim x es -> unElim (MetaV x []) es
   NoElim v      -> v
+-}
 
+-- | For producing error messages.
 unElim :: Term -> [Elim] -> Term
 unElim v [] = v
 unElim v (Apply u : es) = unElim (v `apply` [u]) es
 unElim v (Proj f : es)  = unElim (Def f [defaultArg v]) es
--}
