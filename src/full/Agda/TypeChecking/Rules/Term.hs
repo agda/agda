@@ -646,11 +646,7 @@ checkExpr e t =
           ifM ((Irrelevant ==) <$> asks envRelevance)
             (DontCare <$> do applyRelevanceToContext Irrelevant $ checkExpr e t)
             (internalError "DontCare may only appear in irrelevant contexts")
-{- STALE?:
-   Andreas, 2011-10-03 why do I get an internal error for Issue337?
-                        -- except that should be fixed now (issue 337)
-                        __IMPOSSIBLE__
--}
+
 	A.ScopedExpr scope e -> setScope scope >> checkExpr e t
 
         e0@(A.QuoteGoal _ x e) -> do
