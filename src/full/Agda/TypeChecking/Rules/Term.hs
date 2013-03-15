@@ -202,6 +202,10 @@ checkTypedBinding lamOrPi info (A.TNoBind e) ret = do
     t <- isType_ e
     ret [("_",t)]
 
+---------------------------------------------------------------------------
+-- * Lambda abstractions
+---------------------------------------------------------------------------
+
 -- | Type check a lambda expression.
 checkLambda :: I.Arg A.TypedBinding -> A.Expr -> Type -> TCM Term
 checkLambda (Arg _ A.TNoBind{}) _ _ = __IMPOSSIBLE__
@@ -259,10 +263,67 @@ checkLambda (Arg info (A.TBind _ xs typ)) body target = do
                 | otherwise                   = addCtx x
     useTargetType _ _ = __IMPOSSIBLE__
 
-
     mkTel []       t = []
     mkTel (x : xs) t = ((,) s <$> t) : mkTel xs (raise 1 t)
       where s = show $ nameConcrete x
+
+-- | @checkAbsurdLambda i h e t@ checks absurd lambda against type @t@.
+--   Precondition: @e = AbsurdLam i h@
+checkAbsurdLambda :: A.ExprInfo -> Hiding -> A.Expr -> Type -> TCM Term
+checkAbsurdLambda i h e t = do
+  t <- instantiateFull t
+  ifBlockedType t (\ m t' -> postponeTypeCheckingProblem_ e t') $ \ t' -> do
+    case ignoreSharing $ unEl t' of
+      Pi dom@(Dom info' a) _
+        | h == getHiding info' && not (null $ allMetas a) ->
+            postponeTypeCheckingProblem e t' $
+              null . allMetas <$> instantiateFull a
+        | h == getHiding info' -> blockTerm t' $ do
+          isEmptyType (getRange i) a
+          -- Add helper function
+          top <- currentModule
+          let name = "absurd"
+          aux <- qualify top <$> freshName (getRange i) name
+          -- if we are in irrelevant position, the helper function
+          -- is added as irrelevant
+          rel <- asks envRelevance
+          reportSDoc "tc.term.absurd" 10 $ vcat
+            [ text "Adding absurd function" <+> prettyTCM rel <> prettyTCM aux
+            , nest 2 $ text "of type" <+> prettyTCM t'
+            ]
+          addConstant aux
+            $ Defn (setRelevance rel info') aux t'
+                   [Nonvariant] [Unused] (defaultDisplayForm aux)
+                   0 noCompiledRep
+            $ Function
+              { funClauses        =
+                  [Clause
+                    { clauseRange = getRange e
+                    , clauseTel   = EmptyTel   -- telFromList [fmap ("()",) dom]
+                    , clausePerm  = Perm 1 []  -- Perm 1 [0]
+                    , clausePats  = [Arg info' $ VarP "()"]
+                    , clauseBody  = Bind $ NoAbs "()" NoBody
+                    }
+                  ]
+              , funCompiled       = Fail
+              , funDelayed        = NotDelayed
+              , funInv            = NotInjective
+              , funAbstr          = ConcreteDef
+              , funMutual         = []
+              , funProjection     = Nothing
+              , funStatic         = False
+              , funCopy           = False
+              , funTerminates     = Just True
+              , funExtLam         = Nothing
+              }
+          -- Andreas 2012-01-30: since aux is lifted to toplevel
+          -- it needs to be applied to the current telescope (issue 557)
+          tel <- getContextTelescope
+          return $ Def aux $ teleArgs tel
+          -- WAS: return (Def aux [])
+        | otherwise -> typeError $ WrongHidingInLambda t'
+      _ -> typeError $ ShouldBePi t'
+
 
 ---------------------------------------------------------------------------
 -- * Literal
@@ -404,73 +465,8 @@ checkExpr e t =
         A.Quote _ -> typeError $ GenericError "quote must be applied to a defined name"
         A.QuoteTerm _ -> typeError $ GenericError "quoteTerm must be applied to a term"
         A.Unquote _ -> typeError $ GenericError "unquote must be applied to a term"
-        A.AbsurdLam i h -> do
-          t <- instantiateFull t
-          ifBlockedType t (\ m t' -> postponeTypeCheckingProblem_ e t') $ \ t' -> do
-            case ignoreSharing $ unEl t' of
-              Pi dom@(Dom info' a) _
-                | h == getHiding info' && not (null $ allMetas a) ->
-                    postponeTypeCheckingProblem e t' $
-                      null . allMetas <$> instantiateFull a
-                | h == getHiding info' -> blockTerm t' $ do
-                  isEmptyType (getRange i) a
-                  -- Add helper function
-                  top <- currentModule
-                  let name = "absurd"
-                  aux <- qualify top <$> freshName (getRange i) name
-                  -- if we are in irrelevant position, the helper function
-                  -- is added as irrelevant
-                  rel <- asks envRelevance
-                  reportSDoc "tc.term.absurd" 10 $ vcat
-                    [ text "Adding absurd function" <+> prettyTCM rel <> prettyTCM aux
-                    , nest 2 $ text "of type" <+> prettyTCM t'
-                    ]
-                  addConstant aux
-                    $ Defn (setRelevance rel info') aux t'
-                           [Nonvariant] [Unused] (defaultDisplayForm aux)
-                           0 noCompiledRep
-                    $ Function
-                      { funClauses        =
-                          [Clause
-                            { clauseRange = getRange e
-                            , clauseTel   = EmptyTel   -- telFromList [fmap ("()",) dom]
-                            , clausePerm  = Perm 1 []  -- Perm 1 [0]
-                            , clausePats  = [Arg info' $ VarP "()"]
-                            , clauseBody  = Bind $ NoAbs "()" NoBody
-                            }
-                          ]
-                      , funCompiled       = Fail
-                      , funDelayed        = NotDelayed
-                      , funInv            = NotInjective
-                      , funAbstr          = ConcreteDef
-{-
-                      , funPolarity       = [Nonvariant] -- WAS: [Covariant]
-                      , funArgOccurrences = [Unused]
--}
-                      , funMutual         = []
-                      , funProjection     = Nothing
-                      , funStatic         = False
-                      , funCopy           = False
-                      , funTerminates     = Just True
-                      , funExtLam         = Nothing
-                      }
-                  -- Andreas 2012-01-30: since aux is lifted to toplevel
-                  -- it needs to be applied to the current telescope (issue 557)
-                  tel <- getContextTelescope
-                  return $ Def aux $ teleArgs tel
-                  -- WAS: return (Def aux [])
-                | otherwise -> typeError $ WrongHidingInLambda t'
-              _ -> typeError $ ShouldBePi t'
+        A.AbsurdLam i h -> checkAbsurdLambda i h e t
 
-{- OLD
-        A.ExtendedLam i di qname cs -> do
-             t <- reduceB =<< instantiateFull t
-             let isMeta t = case ignoreSharing $ unEl t of { MetaV{} -> True; _ -> False }
-             case t of
-               Blocked{}                 -> postponeTypeCheckingProblem_ e $ ignoreBlocking t
-               NotBlocked t' | isMeta t' -> postponeTypeCheckingProblem_ e $ ignoreBlocking t
-               NotBlocked t -> do
--}
         A.ExtendedLam i di qname cs -> do
            t <- instantiateFull t
            ifBlockedType t (\ m t' -> postponeTypeCheckingProblem_ e t') $ \ t -> do
