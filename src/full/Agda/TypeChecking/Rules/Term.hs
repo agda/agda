@@ -728,6 +728,9 @@ checkApplication hd args e t = do
     -- Subcase: defined symbol or variable.
     _ -> checkHeadApplication e t hd $ map convArg args
 
+-- | Turn a domain-free binding (e.g. lambda) into a domain-full one,
+--   by inserting an underscore for the missing type.
+domainFree :: A.ArgInfo -> A.Name -> A.LamBinding
 domainFree info x =
   A.DomainFull $ A.TypedBindings r $ Arg info $ A.TBind r [x] $ A.Underscore underscoreInfo
   where
