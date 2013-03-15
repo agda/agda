@@ -495,9 +495,6 @@ makeDomainFree b@(A.DomainFull (A.TypedBindings r (Common.Arg info (A.TBind _ [x
   case unScope t of
     A.Underscore MetaInfo{metaNumber = Nothing} -> A.DomainFree info x
     _ -> b
-  where
-    unScope (A.ScopedExpr _ e) = unScope e
-    unScope e = e
 makeDomainFree b = b
 
 -- Binder instances -------------------------------------------------------

@@ -33,3 +33,8 @@ isSet (ScopedExpr _ e) = isSet e
 isSet (App _ e _)      = isSet e
 isSet (Set{})          = True
 isSet _                = False
+
+-- | Remove top 'ScopedExpr' wrappers.
+unScope :: Expr -> Expr
+unScope (ScopedExpr scope e) = unScope e
+unScope e                    = e

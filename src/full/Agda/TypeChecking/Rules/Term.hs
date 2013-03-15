@@ -16,6 +16,7 @@ import Data.Traversable (traverse,sequenceA)
 import Agda.Interaction.Options
 
 import qualified Agda.Syntax.Abstract as A
+import Agda.Syntax.Abstract.Views (unScope)
 import qualified Agda.Syntax.Abstract.Views as A
 import qualified Agda.Syntax.Info as A
 import Agda.Syntax.Concrete.Pretty () -- only Pretty instances
@@ -503,9 +504,6 @@ checkArguments' exph expIFS r args t0 t e k = do
     Left t0            -> postponeTypeCheckingProblem e t (unblockedTester t0)
       -- if unsuccessful, postpone checking e : t until t0 unblocks
 
-unScope (A.ScopedExpr scope e) = unScope e
-unScope e                      = e
-
 -- | Type check an expression.
 checkExpr :: A.Expr -> Type -> TCM Term
 checkExpr e t =
@@ -521,15 +519,16 @@ checkExpr e t =
     t <- reduce t
     reportSDoc "tc.term.expr.top" 15 $
         text "    --> " <+> prettyTCM t
+
     let scopedExpr (A.ScopedExpr scope e) = setScope scope >> scopedExpr e
 	scopedExpr e			  = return e
-
-        unScope (A.ScopedExpr scope e) = unScope e
-        unScope e                      = e
 
     e <- scopedExpr e
 
     case e of
+
+	A.ScopedExpr scope e -> __IMPOSSIBLE__ -- setScope scope >> checkExpr e t
+
 	-- Insert hidden lambda if appropriate
 	_   | Pi (Dom info _) _ <- ignoreSharing $ unEl t
             , not (hiddenLambdaOrHole (getHiding info) e)
@@ -646,8 +645,6 @@ checkExpr e t =
           ifM ((Irrelevant ==) <$> asks envRelevance)
             (DontCare <$> do applyRelevanceToContext Irrelevant $ checkExpr e t)
             (internalError "DontCare may only appear in irrelevant contexts")
-
-	A.ScopedExpr scope e -> setScope scope >> checkExpr e t
 
         e0@(A.QuoteGoal _ x e) -> do
           t' <- etaContract =<< normalise t
@@ -971,11 +968,9 @@ checkConstructorApplication org t c args = do
     -- Andreas, 2012-04-18: if all inital args are underscores, ignore them
     checkForParams args =
       let (hargs, rest) = span isHidden args
-          removeScope (A.ScopedExpr _ e) = removeScope e
-          removeScope e                  = e
           notUnderscore A.Underscore{} = False
           notUnderscore _              = True
-      in  any notUnderscore $ map (removeScope . namedArg) hargs
+      in  any notUnderscore $ map (unScope . namedArg) hargs
 
     -- Drop the constructor arguments that correspond to parameters.
     dropArgs [] args                                   = args
