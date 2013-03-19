@@ -389,19 +389,19 @@ generateLaTeX mod hi = do
     , "Checking if " ++ defaultStyFile ++ " is found by the LaTeX environment."
     ]
 
-  merrors <- callCompiler' "kpsewhich" [ defaultStyFile ]
+  merrors <- callCompiler' "kpsewhich" [ "--path=" ++ dir,  defaultStyFile ]
 
   when (isJust merrors) $ do
     TCM.reportSLn "latex" 1 $ unlines
       [ ""
       , defaultStyFile ++ " was not found. Copying a default version of " ++
           defaultStyFile
-      , "into the working directory."
+      , "into the directory " ++ dir ++ "."
       ]
 
     liftIO $ do
       styFile <- getDataFileName defaultStyFile
-      liftIO $ copyFile styFile defaultStyFile
+      liftIO $ copyFile styFile (dir </> defaultStyFile)
 
   liftIO $ do
     source <- UTF8.readTextFile (modToFile mod <.> "lagda")

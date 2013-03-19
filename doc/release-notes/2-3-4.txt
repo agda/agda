@@ -99,3 +99,12 @@ LaTeX-backend
   \usepackage[conor]{agda}, which highlights using Conor's colors.
 
   The default (no options passed) is to use the standard colors.
+
+* If agda.sty cannot be found by the latex environment, it is now
+  copied into the latex output directory ('latex' by default) instead
+  of the working directory. This means that the commands needed to
+  produce a PDF now is
+
+    agda --latex -i . <file>.lagda
+    cd latex
+    pdflatex <file>.tex
