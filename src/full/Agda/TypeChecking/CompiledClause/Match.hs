@@ -45,8 +45,7 @@ match (Case n bs) args patch stack =
     (args0, MaybeRed red (Arg info v0) : args1) -> do
       w  <- case red of
               Reduced b  -> return $ fmap (const v0) b
-              NotReduced ->
-                unfoldCorecursion =<< instantiate v0
+              NotReduced -> unfoldCorecursion v0
       cv <- constructorForm $ ignoreBlocking w
       let v      = ignoreBlocking w
           args'  = args0 ++ [MaybeRed red $ Arg info v] ++ args1
@@ -81,7 +80,11 @@ match' :: Stack -> TCM (Reduced (Blocked Args) Term)
 match' ((c, args, patch):stack) = match c args patch stack
 match' [] = typeError $ GenericError "Incomplete pattern matching"
 
-unfoldCorecursion v = case v of
-  Def f args -> unfoldDefinition True unfoldCorecursion (Def f []) f args
-  Shared{}   -> fmap shared <$> unfoldCorecursion (ignoreSharing v) -- don't update when unfolding corecursion!
-  _          -> reduceB v
+-- Andreas, 2013-03-20 recursive invokations of unfoldCorecursion
+-- need also to instantiate metas, see Issue 826.
+unfoldCorecursion v = do
+  v <- instantiate v
+  case v of
+    Def f args -> unfoldDefinition True unfoldCorecursion (Def f []) f args
+    Shared{}   -> fmap shared <$> unfoldCorecursion (ignoreSharing v) -- don't update when unfolding corecursion!
+    _          -> reduceB v
