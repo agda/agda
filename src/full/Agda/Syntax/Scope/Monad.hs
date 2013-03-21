@@ -196,12 +196,21 @@ data ResolvedName = VarName A.Name
 
 -- | Look up the abstract name referred to by a given concrete name.
 resolveName :: C.QName -> ScopeM ResolvedName
-resolveName x = do
+resolveName = resolveName' allKindsOfNames
+
+-- | Look up the abstract name corresponding to a concrete name of
+--   a certain kind.
+--   Sometimes we know already that we are dealing with a constructor
+--   or pattern synonym (e.g. when we have parsed a pattern).
+--   Then, we can ignore conflicting definitions of that name
+--   of a different kind. (See issue 822.)
+resolveName' :: [KindOfName] -> C.QName -> ScopeM ResolvedName
+resolveName' kinds x = do
   scope <- getScope
   let vars = map (C.QName -*- id) $ scopeLocals scope
   case lookup x vars of
     Just y  -> return $ VarName $ y { nameConcrete = unqualify x }
-    Nothing -> case scopeLookup' x scope of
+    Nothing -> case filter ((`elem` kinds) . anameKind . fst) $ scopeLookup' x scope of
       [] -> return UnknownName
       ds | all ((==ConName) . anameKind . fst) ds ->
         return $ ConstructorName

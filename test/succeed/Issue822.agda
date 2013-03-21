@@ -10,14 +10,8 @@ module M₂ where
   data D : Set₁ where
     [_] : Set → D
 
-module M₃ where
-
-  data D : Set₁ where
-    [_] : Set → D
-
 open M₁
 open M₂
-open M₃
 
 Foo : _ → Set
 Foo [ A ] = A
@@ -44,4 +38,4 @@ Foo [ A ] = A
 -- (except for under a dot).
 
 -- Andreas, 2013-03-21
--- To reproduce an error, one now needs ambiguous constructors.
+-- Accepted now.

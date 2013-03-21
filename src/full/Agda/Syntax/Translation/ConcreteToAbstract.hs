@@ -334,7 +334,7 @@ data APatName = VarPatName A.Name
 instance ToAbstract PatName APatName where
   toAbstract (PatName x) = do
     reportSLn "scope.pat" 10 $ "checking pattern name: " ++ show x
-    rx <- resolveName x
+    rx <- resolveName' [ConName, PatternSynName] x -- Andreas, 2013-03-21 ignore conflicting names which cannot be meant since we are in a pattern
     z  <- case (rx, x) of
       -- TODO: warn about shadowing
       (VarName y,       C.QName x)                          -> return $ Left x -- typeError $ RepeatedVariableInPattern y x

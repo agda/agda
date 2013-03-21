@@ -50,6 +50,21 @@ Language
     f false false = true
     f true = true
 
+* Ambiguous names in patterns are now optimistically resolved in favor
+  of constructors. [Issue 822] In particular, the following succeeds now:
+
+    module M where
+
+      data D : Set₁ where
+        [_] : Set → D
+
+    postulate [_] : Set → Set
+
+    open M
+
+    Foo : _ → Set
+    Foo [ A ] = A
+
 Goal and error display
 ======================
 
