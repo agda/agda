@@ -134,8 +134,11 @@ stripWithClausePatterns gamma qs perm ps = do
           return $ p : ps
 
         DotP v  -> case namedArg p of
-          A.DotP _ _    -> ok
-          A.ImplicitP _ -> ok
+          A.DotP _ _    -> ok p
+          A.ImplicitP _ -> ok p
+          -- Andreas, 2013-03-21 in case the implicit A.pattern has already been eta-expanded
+          -- we just fold it back.  This fixes issues 665 and 824.
+          A.ConP ci _ _ | patImplicit ci -> ok $ updateNamedArg (const $ A.ImplicitP patNoRange) p
           _ -> do
             d <- prettyA p
             typeError $ GenericError $
@@ -143,7 +146,7 @@ stripWithClausePatterns gamma qs perm ps = do
                 "also be inaccessible in the with clause, when checking the " ++
                 "pattern " ++ show d ++ ","
           where
-            ok = do
+            ok p = do
               ps <- strip (tel `absApp` v) ps qs
               return $ p : ps
 
