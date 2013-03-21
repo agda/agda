@@ -4,6 +4,7 @@ module Agda.TypeChecking.Rules.LHS.Implicit where
 
 import Data.Maybe
 import Control.Applicative
+import Control.Monad (forM)
 
 import Agda.Syntax.Common
 import Agda.Syntax.Position
@@ -42,6 +43,9 @@ expandImplicitPattern :: Type -> A.NamedArg A.Pattern -> TCM (A.NamedArg A.Patte
 expandImplicitPattern a p = maybe (return p) return =<< expandImplicitPattern' a p
 
 -- | Try to eta-expand implicit pattern.
+--   Returns 'Nothing' unless dealing with a record type that has eta-expansion
+--   and a constructor @c@.  In this case, it returns 'Just' @c _ _ ... _@
+--   (record constructor applied to as many implicit patterns as there are fields).
 expandImplicitPattern' :: Type -> A.NamedArg A.Pattern -> TCM (Maybe (A.NamedArg A.Pattern))
 expandImplicitPattern' a p
   | A.ImplicitP{} <- namedArg p, getHiding p /= Instance = do
@@ -52,14 +56,16 @@ expandImplicitPattern' a p
      flip (maybe (return Nothing)) res $ \ (d, _) -> do
        -- Andreas, 2012-06-10: only expand guarded records,
        -- otherwise we might run into an infinite loop
-       c  <- getRecordConstructor d
-       fs <- getRecordFieldNames d
-       qs <- mapM (\i -> do let Arg info e = implicitP <$ i
-                            flip Arg e <$> reify info)
-                  fs
-       let q  = A.ConP (ConPatInfo True patNoRange) (A.AmbQ [c]) qs
-           p' = updateNamedArg (const q) p   -- WAS: ((q <$) <$> p)  -- Andreas, 2013-03-21 forbiddingly cryptic
-       return $ Just p'
+       def <- getRecordDef d
+       -- Andreas, 2013-03-21: only expand records that have a constructor:
+       if not (recNamedCon def) then return Nothing else do
+         -- generate one implicit pattern for each field
+         qs <- forM (recFields def) $ \ f -> flip Arg implicitP <$> reify (argInfo f)
+         -- generate the pattern (c _ _ ... _)
+         let q  = A.ConP (ConPatInfo True patNoRange) (A.AmbQ [recCon def]) qs
+         -- equip it with the name/arginfo of the original implicit pattern
+             p' = updateNamedArg (const q) p   -- WAS: ((q <$) <$> p)  -- Andreas, 2013-03-21 forbiddingly cryptic
+         return $ Just p'
   | otherwise = return Nothing
 
 implicitP = unnamed $ A.ImplicitP $ PatRange $ noRange
