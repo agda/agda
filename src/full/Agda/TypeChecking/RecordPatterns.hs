@@ -61,7 +61,7 @@ recordPatternToProjections p =
     LitP{}             -> typeError $ ShouldBeRecordPattern p
     DotP{}             -> typeError $ ShouldBeRecordPattern p
     ConP c Nothing  ps -> typeError $ ShouldBeRecordPattern p
-    ConP c (Just t) ps -> do
+    ConP c (Just (_, t)) ps -> do
       t <- reduce t
       fields <- getRecordTypeFields (unArg t)
       concat <$> zipWithM comb (map proj fields) (map unArg ps)
@@ -650,13 +650,13 @@ recordTree ::
   Pattern ->
   RecPatM (Either (RecPatM (Pattern, [Term], Changes)) RecordTree)
 recordTree p@(ConP _ Nothing _) = return $ Left $ translatePattern p
-recordTree (ConP c (Just t) ps) = do
+recordTree (ConP c ci@(Just (_, t)) ps) = do
   rs <- mapM (recordTree . unArg) ps
   case allRight rs of
     Nothing ->
       return $ Left $ do
         (ps', ss, cs) <- unzip3 <$> mapM (either id removeTree) rs
-        return (ConP c (Just t) (ps' `withArgsFrom` ps),
+        return (ConP c ci (ps' `withArgsFrom` ps),
                 concat ss, concat cs)
     Just ts -> liftTCM $ do
       t <- reduce t

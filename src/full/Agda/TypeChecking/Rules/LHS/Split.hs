@@ -59,9 +59,10 @@ expandLitPattern p = traverse (traverse expand) p
         | otherwise -> do
           Con z _ <- ignoreSharing <$> primZero
           Con s _ <- ignoreSharing <$> primSuc
-          let zero  = A.ConP info (A.AmbQ [setRange r z]) []
-              suc p = A.ConP info (A.AmbQ [setRange r s]) [defaultNamedArg p]
+          let zero  = A.ConP cinfo (A.AmbQ [setRange r z]) []
+              suc p = A.ConP cinfo (A.AmbQ [setRange r s]) [defaultNamedArg p]
               info  = A.PatRange r
+              cinfo = A.ConPatInfo False info
               p'    = foldr ($) zero $ genericReplicate n suc
           return $ foldr (A.AsP info) p' xs
       _ -> return p
@@ -107,7 +108,7 @@ splitProblem (Problem ps (perm, qs) tel pr) = do
 	    else keepGoing
 
         -- Case: constructor pattern
-	(xs, p@(A.ConP _ (A.AmbQ cs) args)) -> do
+	(xs, p@(A.ConP ci (A.AmbQ cs) args)) -> do
           let tryInstantiate a'
                 | [c] <- cs = do
                     -- Type is blocked by a meta and constructor is unambiguous,
@@ -173,7 +174,7 @@ splitProblem (Problem ps (perm, qs) tel pr) = do
 
 		  return $ Split mempty
 				 xs
-				 (argFromDom $ fmap (Focus c args (getRange p) q i d pars ixs) a)
+				 (argFromDom $ fmap (Focus c (A.patImplicit ci) args (getRange p) q i d pars ixs) a)
 				 (fmap (\ tel -> Problem ps () tel __IMPOSSIBLE__) tel)
             -- Subcase: split type is not a Def
 	    _	-> keepGoing

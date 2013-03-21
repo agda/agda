@@ -429,6 +429,7 @@ checkClause t c@(A.Clause (A.LHS i (A.LHSHead x aps) []) rhs0 wh) =
                           typeError $ GenericError $ show err
 
                      let info = PatRange noRange
+                         cinfo = ConPatInfo False info
                          metaInfo = Info.emptyMetaInfo
                          underscore = A.Underscore metaInfo
 
@@ -443,7 +444,7 @@ checkClause t c@(A.Clause (A.LHS i (A.LHSHead x aps) []) rhs0 wh) =
                                     (A.RewriteRHS names eqs (insertPatterns pats rhs) inner)
                                     outer]
                          pats = [A.DotP info underscore, -- rewriteToExpr,
-                                 A.ConP info (AmbQ [reflCon]) []]
+                                 A.ConP cinfo (AmbQ [reflCon]) []]
                      reportSDoc "tc.rewrite.top" 25 $ vcat
                                          [ text "from = " <+> prettyTCM rewriteFromExpr,
                                            text "to = " <+> prettyTCM rewriteToExpr,

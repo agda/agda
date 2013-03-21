@@ -98,6 +98,7 @@ data ProblemRest    = ProblemRest
   }
 
 data Focus	    = Focus   { focusCon      :: QName
+                              , focusImplicit :: Bool -- ^ Do we come from an implicit record pattern?
 			      , focusConArgs  :: [A.NamedArg A.Pattern]
 			      , focusRange    :: Range
 			      , focusOutPat   :: OneHolePatterns

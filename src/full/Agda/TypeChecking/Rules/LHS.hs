@@ -387,6 +387,7 @@ checkLeftHandSide c ps a ret = do
           -- Split on constructor pattern
           Right (Split p0 xs (Arg info
                   ( Focus { focusCon      = c
+                          , focusImplicit = impl
                           , focusConArgs  = qs
                           , focusRange    = r
                           , focusOutPat   = iph
@@ -397,7 +398,7 @@ checkLeftHandSide c ps a ret = do
                           , focusType     = a
                           }
                   )) p1
-                ) -> traceCall (CheckPattern (A.ConP (PatRange r) (A.AmbQ [c]) qs)
+                ) -> traceCall (CheckPattern (A.ConP (ConPatInfo impl $ PatRange r) (A.AmbQ [c]) qs)
                                              (problemTel p0)
                                              (El Prop $ Def d $ vs ++ ws)) $ do
 
@@ -516,7 +517,7 @@ checkLeftHandSide c ps a ret = do
             -- Thus, it has to be raised by 1 (the "hole" variable)
             -- plus the length of delta2 (the variables coming after the hole).
             storedPatternType <- ifM (isJust <$> isRecord d)
-              (return $ Just $ raise (1 + size delta2) $ typeOfSplitVar)
+              (return $ Just (impl, raise (1 + size delta2) typeOfSplitVar))
               (return $ Nothing)
 
             -- Plug the hole in the out pattern with c ys

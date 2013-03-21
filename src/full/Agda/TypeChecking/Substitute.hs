@@ -475,6 +475,9 @@ instance Subst LevelAtom where
   applySubst rho      (NeutralLevel v)   = UnreducedLevel $ applySubst rho v
   applySubst rho      (UnreducedLevel v) = UnreducedLevel $ applySubst rho v
 
+instance Subst Bool where
+  applySubst rho = id
+
 instance Subst Pattern where
   applySubst rho p = case p of
     VarP s       -> VarP s

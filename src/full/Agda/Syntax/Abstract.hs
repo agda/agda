@@ -285,7 +285,7 @@ mapLHSHeadM f (LHSProj d ps1 l ps2) = do
 -- | Parameterised over the type of dot patterns.
 data Pattern' e
   = VarP Name
-  | ConP PatInfo AmbiguousQName [NamedArg (Pattern' e)]
+  | ConP ConPatInfo AmbiguousQName [NamedArg (Pattern' e)]
   | DefP PatInfo QName          [NamedArg (Pattern' e)]
     -- ^ Defined pattern: function definition @f ps@ or destructor pattern @d p ps@.
   | WildP PatInfo
@@ -399,7 +399,7 @@ instance HasRange LetBinding where
 -- setRange for patterns applies the range to the outermost pattern constructor
 instance SetRange (Pattern' a) where
     setRange r (VarP x)             = VarP (setRange r x)
-    setRange r (ConP _ ns as)       = ConP (PatRange r) (AmbQ $ map (setRange r) $ unAmbQ ns) as
+    setRange r (ConP i ns as)       = ConP (setRange r i) (AmbQ $ map (setRange r) $ unAmbQ ns) as
     setRange r (DefP _ n as)        = DefP (PatRange r) (setRange r n) as
     setRange r (WildP _)            = WildP (PatRange r)
     setRange r (ImplicitP _)        = ImplicitP (PatRange r)

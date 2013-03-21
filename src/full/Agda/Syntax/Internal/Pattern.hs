@@ -10,9 +10,8 @@ import Agda.Utils.Tuple
 data OneHolePatterns = OHPats [Arg Pattern] (Arg OneHolePattern) [Arg Pattern]
   deriving (Show)
 data OneHolePattern  = Hole
-		     | OHCon QName (Maybe (Arg Type)) OneHolePatterns
-                       -- ^ The type serves the same role as the type
-                       -- argument to 'ConP'.
+		     | OHCon QName ConPatternInfo OneHolePatterns
+                       -- ^ The type in 'ConPatternInfo' serves the same role as in 'ConP'.
                        --
                        -- TODO: If a hole is plugged this type may
                        -- have to be updated in some way.

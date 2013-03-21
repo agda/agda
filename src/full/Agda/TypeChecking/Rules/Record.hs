@@ -311,7 +311,7 @@ checkRecordProjections m r q tel ftel fs = checkProjs EmptyTel ftel fs
           -- (rt) which should be  R ptel
           (ptel,[rt]) = splitAt (size tel - 1) $ telToList tel
 	  conp	 = defaultArg
-		 $ ConP q (Just (argFromDom $ fmap snd rt))
+		 $ ConP q (Just (False, argFromDom $ fmap snd rt))
                    [ Arg info (VarP "x") | Dom info _ <- telToList ftel ]
 	  nobind 0 = id
 	  nobind n = Bind . Abs "_" . nobind (n - 1)

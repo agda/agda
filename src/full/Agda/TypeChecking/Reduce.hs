@@ -601,6 +601,9 @@ instance Normalise Constraint where
   normalise (FindInScope m cands) = FindInScope m <$> mapM normalise cands
   normalise (IsEmpty r t)         = IsEmpty r <$> normalise t
 
+instance Normalise Bool where
+  normalise = return
+
 instance Normalise Pattern where
   normalise p = case p of
     VarP _       -> return p
@@ -680,6 +683,9 @@ instance InstantiateFull LevelAtom where
           (UnreducedLevel <$> instantiateFull v)
           (BlockedLevel m <$> instantiateFull v)
     UnreducedLevel v -> UnreducedLevel <$> instantiateFull v
+
+instance InstantiateFull Bool where
+    instantiateFull = return
 
 instance InstantiateFull Pattern where
     instantiateFull v@VarP{}       = return v

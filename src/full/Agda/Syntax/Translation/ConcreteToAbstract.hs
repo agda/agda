@@ -1330,7 +1330,7 @@ instance ToAbstract C.Pattern (A.Pattern' C.Expr) where
         px <- toAbstract (PatName x)
         case px of
             VarPatName y        -> return $ VarP y
-            ConPatName ds       -> return $ ConP (PatRange (getRange p))
+            ConPatName ds       -> return $ ConP (ConPatInfo False $ PatRange (getRange p))
                                                  (AmbQ $ map anameName ds)
                                                  []
             PatternSynPatName d -> return $ PatternSynP (PatRange (getRange p))
@@ -1339,7 +1339,7 @@ instance ToAbstract C.Pattern (A.Pattern' C.Expr) where
     toAbstract p0@(AppP p q) = do
         (p', q') <- toAbstract (p,q)
         case p' of
-            ConP _ x as        -> return $ ConP info x (as ++ [q'])
+            ConP i x as        -> return $ ConP (i {patInfo = info}) x (as ++ [q'])
             DefP _ x as        -> return $ DefP info x (as ++ [q'])
             PatternSynP _ x as -> return $ PatternSynP info x (as ++ [q'])
             _                  -> typeError $ InvalidPattern p0
@@ -1351,7 +1351,7 @@ instance ToAbstract C.Pattern (A.Pattern' C.Expr) where
         p <- toAbstract (IdentP op)
         ps <- toAbstract ps
         case p of
-          ConP        _ x as -> return $ ConP info x
+          ConP        i x as -> return $ ConP (i {patInfo = info}) x
                                     (as ++ map (defaultArg . unnamed) ps)
           DefP        _ x as -> return $ DefP info x
                                     (as ++ map (defaultArg . unnamed) ps)

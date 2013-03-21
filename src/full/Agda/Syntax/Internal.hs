@@ -178,15 +178,22 @@ instance HasRange Clause where
 --     This also meshes well with the fact that values (i.e.
 --     the arguments we are matching with) use @QName@.
 --
-data Pattern = VarP String  -- name suggestion
-             | DotP Term
-	     | ConP QName (Maybe (Arg Type)) [Arg Pattern]
-               -- ^ The type is @'Just' t@' iff the pattern is a
-               -- record pattern. The scope used for the type is given
-               -- by any outer scope plus the clause's telescope
-               -- ('clauseTel').
-	     | LitP Literal
+data Pattern
+  = VarP String
+    -- ^ The @String@ is a name suggestion.
+  | DotP Term
+  | ConP QName ConPatternInfo [Arg Pattern]
+  | LitP Literal
   deriving (Typeable, Show)
+
+-- | The @ConPatternInfo@ states whether the constructor belongs to
+--   a record type (@Just@) or data type (@Nothing@).
+--   In the former case, the @Bool@ says whether the record pattern
+--   orginates from the expansion of an implicit pattern.
+--   The @Type@ is the type of the whole record pattern.
+--   The scope used for the type is given by any outer scope
+--   plus the clause's telescope ('clauseTel').
+type ConPatternInfo = Maybe (Bool, Arg Type)
 
 -- | Extract pattern variables in left-to-right order.
 --   A 'DotP' is also treated as variable (see docu for 'Clause').

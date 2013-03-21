@@ -549,7 +549,7 @@ instance EmbPrj A.Pattern where
   value = vcase valu
     where
      valu [0, a]    = valu1 A.VarP a
-     valu [1, a, b] = valu2 (A.ConP i) a b
+     valu [1, a, b] = valu2 (A.ConP (ConPatInfo False i)) a b
      valu [2, a, b] = valu2 (A.DefP i) a b
      valu [3]       = valu0 (A.WildP i)
      valu [4, a, b] = valu2 (A.AsP i) a b

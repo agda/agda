@@ -1,4 +1,4 @@
-{-# LANGUAGE CPP #-}
+{-# LANGUAGE CPP, PatternGuards #-}
 module Agda.TypeChecking.With where
 
 import Control.Applicative
@@ -11,6 +11,7 @@ import Agda.Syntax.Common
 import Agda.Syntax.Internal as I
 import Agda.Syntax.Abstract (LHS(..), RHS(..))
 import qualified Agda.Syntax.Abstract as A
+import Agda.Syntax.Info
 import Agda.Syntax.Position
 
 import Agda.TypeChecking.Monad
@@ -32,9 +33,9 @@ import Agda.Utils.Size
 import Agda.Utils.Impossible
 
 showPat (VarP x)              = text x
-showPat (DotP t)              = comma <> text (showsPrec 10 t "")
+showPat (DotP t)              = text (".(" ++ show t ++ ")") -- showsPrec 10 t ""
 showPat (ConP c Nothing ps)   = parens $ prettyTCM c <+> fsep (map (showPat . unArg) ps)
-showPat (ConP c (Just t) ps)  = parens $ prettyTCM c <+> fsep (map (showPat . unArg) ps) <+> text ":" <+> prettyTCM t
+showPat (ConP c (Just (b, t)) ps)  = (if b then braces else parens) $ prettyTCM c <+> fsep (map (showPat . unArg) ps) <+> text ":" <+> prettyTCM t
 showPat (LitP l)              = text (show l)
 
 withFunctionType :: Telescope -> [Term] -> [Type] -> Telescope -> Type -> TCM Type
@@ -118,14 +119,14 @@ stripWithClausePatterns gamma qs perm ps = do
     strip EmptyTel    (_ : _) _       = __IMPOSSIBLE__
     strip ExtendTel{} []      _       = __IMPOSSIBLE__
     strip EmptyTel    []      []      | 0 == 0 = return []
-    strip (ExtendTel a tel) (p0 : ps) (q : qs) = do
+    strip tel0@(ExtendTel a tel) ps0@(p0 : ps) qs0@(q : qs) = do
       p <- expandLitPattern p0
       reportSDoc "tc.with.strip" 15 $ vcat
         [ text "strip"
-        , nest 2 $ text "ps  =" <+> fsep (punctuate comma $ map prettyA (p0 : ps))
+        , nest 2 $ text "ps0 =" <+> fsep (punctuate comma $ map prettyA ps0)
         , nest 2 $ text "exp =" <+> prettyA p
-        , nest 2 $ text "qs  =" <+> fsep (punctuate comma $ map (showPat . unArg) (q : qs))
-        , nest 2 $ text "tel =" <+> prettyTCM (ExtendTel a tel)
+        , nest 2 $ text "qs0 =" <+> fsep (punctuate comma $ map (showPat . unArg) qs0)
+        , nest 2 $ text "tel0=" <+> prettyTCM tel0
         ]
       case unArg q of
         VarP _  -> do
@@ -146,7 +147,14 @@ stripWithClausePatterns gamma qs perm ps = do
               ps <- strip (tel `absApp` v) ps qs
               return $ p : ps
 
-        ConP c _ qs' -> case namedArg p of
+        ConP c ci qs' -> case namedArg p of
+          -- Andreas, 2013-03-21 if we encounter an implicit pattern in the with-clause
+          -- that has been expanded in the parent clause, we expand it and restart
+          A.ImplicitP _ | Just (True, _) <- ci -> do
+            maybe __IMPOSSIBLE__ (\ p -> strip tel0 (p : ps) qs0) =<<
+              expandImplicitPattern' (unDom a) p
+
+
           A.ConP _ (A.AmbQ cs') ps' -> do
 
             Con c' [] <- ignoreSharing <$> (constructorForm =<< reduce (Con c []))

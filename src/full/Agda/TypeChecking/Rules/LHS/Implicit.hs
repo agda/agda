@@ -37,6 +37,33 @@ insertImplicitProblem (Problem ps qs tel pr) = do
   ps' <- insertImplicitPatterns ExpandLast ps tel
   return $ Problem ps' qs tel pr
 
+-- | Eta-expand implicit pattern if of record type.
+expandImplicitPattern :: Type -> A.NamedArg A.Pattern -> TCM (A.NamedArg A.Pattern)
+expandImplicitPattern a p = maybe (return p) return =<< expandImplicitPattern' a p
+
+-- | Try to eta-expand implicit pattern.
+expandImplicitPattern' :: Type -> A.NamedArg A.Pattern -> TCM (Maybe (A.NamedArg A.Pattern))
+expandImplicitPattern' a p
+  | A.ImplicitP{} <- namedArg p, getHiding p /= Instance = do
+     -- Eta expand implicit patterns of record type (issue 473),
+     -- but not instance arguments since then they won't be found
+     -- by the instance search
+     res <- isEtaRecordType =<< reduce a
+     flip (maybe (return Nothing)) res $ \ (d, _) -> do
+       -- Andreas, 2012-06-10: only expand guarded records,
+       -- otherwise we might run into an infinite loop
+       c  <- getRecordConstructor d
+       fs <- getRecordFieldNames d
+       qs <- mapM (\i -> do let Arg info e = implicitP <$ i
+                            flip Arg e <$> reify info)
+                  fs
+       let q  = A.ConP (ConPatInfo True $ PatRange noRange) (A.AmbQ [c]) qs
+           p' = updateNamedArg (const q) p   -- WAS: ((q <$) <$> p)  -- Andreas, 2013-03-21 forbiddingly cryptic
+       return $ Just p'
+  | otherwise = return Nothing
+
+implicitP = unnamed $ A.ImplicitP $ PatRange $ noRange
+
 -- | Insert implicit patterns in a list of patterns.
 insertImplicitPatterns :: ExpandHidden -> [A.NamedArg A.Pattern] -> Telescope -> TCM [A.NamedArg A.Pattern]
 insertImplicitPatterns exh            ps EmptyTel = return ps
@@ -53,27 +80,7 @@ insertImplicitPatterns exh ps tel@(ExtendTel arg tel') = case ps of
     case i of
       Just []	-> __IMPOSSIBLE__
       Just hs	-> insertImplicitPatterns exh (implicitPs hs ++ p : ps) tel
-      Nothing
-        | A.ImplicitP{} <- namedArg p,
-          getHiding p /= Instance -> do
-          -- Eta expand implicit patterns of record type (issue 473),
-          -- but not instance arguments since then they won't be found
-          -- by the instance search
-          a <- reduce (unDom arg)
-          case ignoreSharing $ unEl a of
-            Def d _ ->
-              -- Andreas, 2012-06-10: only expand guarded records,
-              -- otherwise we might run into an infinite loop
-              ifM (isEtaRecord d) (do
-                c  <- getRecordConstructor d
-                fs <- getRecordFieldNames d
-                qs <- mapM (\i -> do let Arg info e = implicitP <$ i
-                                     flip Arg e <$> reify info)
-                           fs
-                continue ((A.ConP (PatRange noRange) (A.AmbQ [c]) qs <$) <$> p)
-              ) (continue p)
-            _ -> continue p
-        | otherwise -> continue p
+      Nothing   -> continue =<< expandImplicitPattern (unDom arg) p
         where
           continue p = (p :) <$> insertImplicitPatterns exh ps (absBody tel')
   where
@@ -84,8 +91,6 @@ insertImplicitPatterns exh ps tel@(ExtendTel arg tel') = case ps of
       NoSuchName x   -> typeError $ WrongHidingInLHS (telePi tel $ sort Prop)
       ImpInsert n    -> return $ Just n
       NoInsertNeeded -> return Nothing
-
-    implicitP = unnamed $ A.ImplicitP $ PatRange $ noRange
 
     implicitPs [] = []
     implicitPs (h : hs) = (setHiding h $ defaultArg implicitP) : implicitPs hs

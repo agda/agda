@@ -226,6 +226,7 @@ reifyDisplayFormP lhs@(A.LHS i (A.LHSHead x ps) wps) =
         return $ LHS i (LHSHead f vs') (ds ++ wps)
       where
         info = PatRange noRange
+        ci   = ConPatInfo False info
         argToPat arg = fmap unnamed <$> traverse termToPat arg
 
         len = genericLength ps
@@ -233,11 +234,11 @@ reifyDisplayFormP lhs@(A.LHS i (A.LHSHead x ps) wps) =
         termToPat :: DisplayTerm -> TCM A.Pattern
         termToPat (DTerm (I.Var n [])) = return $ ps !! n
         termToPat (DCon c vs) = do vs' <- reifyIArgs' vs
-                                   A.ConP info (AmbQ [c]) <$> mapM argToPat vs'
+                                   A.ConP ci (AmbQ [c]) <$> mapM argToPat vs'
         termToPat (DDot v) = A.DotP info <$> termToExpr v
         termToPat (DDef _ []) = return $ A.WildP info
         termToPat (DTerm (I.Con c vs)) = do vs' <- reifyIArgs' vs
-                                            A.ConP info (AmbQ [c]) <$> mapM (argToPat . fmap DTerm) vs'
+                                            A.ConP ci (AmbQ [c]) <$> mapM (argToPat . fmap DTerm) vs'
         termToPat (DTerm (I.Def _ [])) = return $ A.WildP info
         termToPat v = A.DotP info <$> reify v -- __IMPOSSIBLE__
 
@@ -642,7 +643,7 @@ reifyPatterns tel perm ps = evalStateT (reifyArgs ps) 0
 
     reifyPat :: I.Pattern -> StateT Nat TCM A.Pattern
     reifyPat p = case p of
-      I.VarP s    -> do
+      I.VarP s -> do
         i <- tick
         let j = translate i
         lift $ A.VarP <$> nameOfBV (size tel - 1 - j)
@@ -653,8 +654,9 @@ reifyPatterns tel perm ps = evalStateT (reifyArgs ps) 0
         if Set.member "()" vars
           then return $ A.DotP i $ underscore
           else return $ A.DotP i t
-      I.LitP l             -> return (A.LitP l)
-      I.ConP c _ ps -> A.ConP i (AmbQ [c]) <$> reifyArgs ps
+      I.LitP l  -> return $ A.LitP l
+      I.ConP c mt ps -> A.ConP ci (AmbQ [c]) <$> reifyArgs ps
+        where ci = flip ConPatInfo i $ maybe False fst mt
       where
         i = PatRange noRange
 

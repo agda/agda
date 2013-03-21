@@ -206,3 +206,21 @@ instance HasRange PatInfo where
 instance KillRange PatInfo where
   killRange (PatRange r)    = PatRange $ killRange r
   killRange (PatSource r f) = PatSource (killRange r) f
+
+data ConPatInfo = ConPatInfo
+  { patImplicit :: Bool
+    -- ^ Does this pattern come form the eta-expansion of an implicit pattern.
+  , patInfo     :: PatInfo
+  }
+
+instance Show ConPatInfo where
+  show (ConPatInfo b i) = (if b then ("implicit " ++) else id) $ show i
+
+instance HasRange ConPatInfo where
+  getRange = getRange . patInfo
+
+instance KillRange ConPatInfo where
+  killRange (ConPatInfo b i) = ConPatInfo b $ killRange i
+
+instance SetRange ConPatInfo where
+  setRange r (ConPatInfo b i) = ConPatInfo b $ PatRange r
