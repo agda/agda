@@ -207,6 +207,11 @@ instance KillRange PatInfo where
   killRange (PatRange r)    = PatRange $ killRange r
   killRange (PatSource r f) = PatSource (killRange r) f
 
+-- | Empty range for patterns.
+patNoRange :: PatInfo
+patNoRange = PatRange noRange
+
+-- | Constructor pattern info.
 data ConPatInfo = ConPatInfo
   { patImplicit :: Bool
     -- ^ Does this pattern come form the eta-expansion of an implicit pattern.

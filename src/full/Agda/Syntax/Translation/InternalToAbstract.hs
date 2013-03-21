@@ -225,22 +225,26 @@ reifyDisplayFormP lhs@(A.LHS i (A.LHSHead x ps) wps) =
         vs' <- reifyIArgs' vs
         return $ LHS i (LHSHead f vs') (ds ++ wps)
       where
-        info = PatRange noRange
-        ci   = ConPatInfo False info
+        ci   = ConPatInfo False patNoRange
         argToPat arg = fmap unnamed <$> traverse termToPat arg
 
         len = genericLength ps
 
         termToPat :: DisplayTerm -> TCM A.Pattern
+
         termToPat (DTerm (I.Var n [])) = return $ ps !! n
-        termToPat (DCon c vs) = do vs' <- reifyIArgs' vs
-                                   A.ConP ci (AmbQ [c]) <$> mapM argToPat vs'
-        termToPat (DDot v) = A.DotP info <$> termToExpr v
-        termToPat (DDef _ []) = return $ A.WildP info
-        termToPat (DTerm (I.Con c vs)) = do vs' <- reifyIArgs' vs
-                                            A.ConP ci (AmbQ [c]) <$> mapM (argToPat . fmap DTerm) vs'
-        termToPat (DTerm (I.Def _ [])) = return $ A.WildP info
-        termToPat v = A.DotP info <$> reify v -- __IMPOSSIBLE__
+
+        termToPat (DCon c vs)          = A.ConP ci (AmbQ [c]) <$> do
+          mapM argToPat =<< reifyIArgs' vs
+
+        termToPat (DTerm (I.Con c vs)) = A.ConP ci (AmbQ [c]) <$> do
+          mapM (argToPat . fmap DTerm) =<< reifyIArgs' vs
+
+        termToPat (DTerm (I.Def _ [])) = return $ A.WildP patNoRange
+        termToPat (DDef _ [])          = return $ A.WildP patNoRange
+
+        termToPat (DDot v)             = A.DotP patNoRange <$> termToExpr v
+        termToPat v                    = A.DotP patNoRange <$> reify v -- __IMPOSSIBLE__
 
         argsToExpr = mapM (traverse termToExpr)
 
@@ -649,16 +653,13 @@ reifyPatterns tel perm ps = evalStateT (reifyArgs ps) 0
         lift $ A.VarP <$> nameOfBV (size tel - 1 - j)
       I.DotP v -> do
         t <- lift $ reify v
-        let vars = Set.map show (dotVars t)
         tick
-        if Set.member "()" vars
-          then return $ A.DotP i $ underscore
-          else return $ A.DotP i t
+        let vars = Set.map show (dotVars t)
+            t'   = if Set.member "()" vars then underscore else t
+        return $ A.DotP patNoRange t'
       I.LitP l  -> return $ A.LitP l
       I.ConP c mt ps -> A.ConP ci (AmbQ [c]) <$> reifyArgs ps
-        where ci = flip ConPatInfo i $ maybe False fst mt
-      where
-        i = PatRange noRange
+        where ci = flip ConPatInfo patNoRange $ maybe False fst mt
 
 instance Reify NamedClause A.Clause where
   reify (QNamed f (I.Clause _ tel perm ps body)) = addCtxTel tel $ do

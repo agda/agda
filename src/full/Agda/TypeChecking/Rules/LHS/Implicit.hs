@@ -57,7 +57,7 @@ expandImplicitPattern' a p
        qs <- mapM (\i -> do let Arg info e = implicitP <$ i
                             flip Arg e <$> reify info)
                   fs
-       let q  = A.ConP (ConPatInfo True $ PatRange noRange) (A.AmbQ [c]) qs
+       let q  = A.ConP (ConPatInfo True patNoRange) (A.AmbQ [c]) qs
            p' = updateNamedArg (const q) p   -- WAS: ((q <$) <$> p)  -- Andreas, 2013-03-21 forbiddingly cryptic
        return $ Just p'
   | otherwise = return Nothing

@@ -560,7 +560,7 @@ instance EmbPrj A.Pattern where
      valu [9, a, b] = valu2 (A.PatternSynP i) a b
      valu _         = malformed
 
-     i = PatRange noRange
+     i = patNoRange
 
 instance EmbPrj A.LamBinding where
   icode (A.DomainFree i e) = icode2 0 i e

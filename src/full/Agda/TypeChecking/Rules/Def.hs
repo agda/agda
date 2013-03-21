@@ -313,8 +313,7 @@ patternDiff ps1 ps2 = drop (length ps2) ps1
 patchUpTrailingImplicits :: A.Patterns -> (A.Patterns, A.Patterns) -> A.Clause -> A.Clause
 patchUpTrailingImplicits should (ps, is) c | length is >= length should = c
 patchUpTrailingImplicits should (ps, is) (A.Clause (A.LHS i (A.LHSHead x aps) []) rhs0 wh) =
-  let imp  = hide $ defaultArg $ Named Nothing $ A.ImplicitP $
-               Info.PatRange noRange
+  let imp  = hide $ defaultArg $ Named Nothing $ A.ImplicitP $ Info.patNoRange
       imps = replicate (length should - length is) imp
   in  A.Clause (A.LHS i (A.LHSHead x (ps ++ is ++ imps)) []) rhs0 wh
 patchUpTrailingImplicits _ _ _ = __IMPOSSIBLE__
@@ -428,8 +427,7 @@ checkClause t c@(A.Clause (A.LHS i (A.LHSHead x aps) []) rhs0 wh) =
                           err <- text "Cannot rewrite by equation of type" <+> prettyTCM t'
                           typeError $ GenericError $ show err
 
-                     let info = PatRange noRange
-                         cinfo = ConPatInfo False info
+                     let cinfo = ConPatInfo False patNoRange
                          metaInfo = Info.emptyMetaInfo
                          underscore = A.Underscore metaInfo
 
@@ -443,7 +441,7 @@ checkClause t c@(A.Clause (A.LHS i (A.LHSHead x aps) []) rhs0 wh) =
                                   [A.Clause (A.LHS i (A.LHSHead x aps) pats)
                                     (A.RewriteRHS names eqs (insertPatterns pats rhs) inner)
                                     outer]
-                         pats = [A.DotP info underscore, -- rewriteToExpr,
+                         pats = [A.DotP patNoRange underscore, -- rewriteToExpr,
                                  A.ConP cinfo (AmbQ [reflCon]) []]
                      reportSDoc "tc.rewrite.top" 25 $ vcat
                                          [ text "from = " <+> prettyTCM rewriteFromExpr,
