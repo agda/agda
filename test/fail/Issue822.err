@@ -1,0 +1,10 @@
+Issue822.agda:17,1-10
+Ambiguous name [_]. It could refer to any one of
+  M₁.[_]
+  bound at
+  Issue822.agda:6,13-16
+  M₂.[_]
+  bound at
+  Issue822.agda:11,5-8
+when scope checking the left-hand side Foo [ A ] in the definition
+of Foo

@@ -94,8 +94,12 @@ getDefinedNames kinds names =
   [ (x, A.nameFixity $ A.qnameName $ anameName d)
   | (x, ds) <- Map.toList names
   , d       <- take 1 ds
-  , anameKind d `elem` kinds
-  ]
+  , any (\ d -> anameKind d `elem` kinds) ds
+  -- Andreas, 2013-03-21 see Issue 822
+  -- Names can have different kinds, i.e., 'defined' and 'constructor'.
+  -- We need to consider all names that have *any* matching kind,
+  -- not only those whose first appearing kind is matching.
+ ]
 
 -- | Compute all names (first component) and operators (second component) in
 --   scope.
