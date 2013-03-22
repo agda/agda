@@ -17,6 +17,7 @@ import Control.Monad.Reader
 import Control.Monad.State
 
 import Data.List
+import Data.Monoid
 import Data.Map (Map)
 import qualified Data.Map as Map
 import qualified Data.Traversable as Trav
@@ -36,6 +37,7 @@ import Agda.TypeChecking.Telescope
 
 import Agda.Utils.Either
 import Agda.Utils.List
+import Agda.Utils.Monad
 import qualified Agda.Utils.Map as Map
 import Agda.Utils.Maybe
 import Agda.Utils.Permutation
@@ -140,7 +142,7 @@ translateCompiledClauses cc = snd <$> loop cc
           let (isRC, n)   = either (False,) ((True,) . size) dataOrRecCon
               (xs0, rest) = genericSplitAt i xs
               (xs1, xs2 ) = genericSplitAt n rest
-              -- if all dropped variables are virgins and we are record cons.
+              -- if all dropped variables (xs1) are virgins and we are record cons.
               -- then new variable x is also virgin
               -- and we can translate away the split
               x           = isRC && and xs1
@@ -164,10 +166,33 @@ translateCompiledClauses cc = snd <$> loop cc
                   , catchAllBranch = catchAll })
 
         -- case: translated away one record pattern
-        [cc] -> return (xs, cc)
+        [cc] -> do
+                -- Andreas, 2013-03-22
+                -- Due to catch-all-expansion this is actually possible:
+                -- -- we cannot have a catch-all if we had a record pattern
+                -- whenJust catchAll __IMPOSSIBLE__
+                -- We just drop the catch-all clause.  This is safe because
+                -- for record patterns we have expanded all the catch-alls.
+                return (xs, cc) -- mergeCatchAll cc catchAll)
 
         -- case: more than one record patterns (impossible)
         _    -> __IMPOSSIBLE__
+
+{- UNUSED
+instance Monoid CompiledClauses where
+  mempty = __IMPOSSIBLE__
+  mappend (Case n c) (Case n' c') | n == n' = Case n $ mappend c c'
+  mappend _ _ = __IMPOSSIBLE__
+
+mergeCatchAll :: CompiledClauses -> Maybe CompiledClauses -> CompiledClauses
+mergeCatchAll cc ca = maybe cc (mappend cc) ca
+{-
+  case (cc, ca) of
+    (_       , Nothing) -> cc
+    (Case n c, Just (Case n' c')) | n == n' -> Case n $ mappend c c'
+    _                   -> __IMPOSSIBLE__ -- this would mean non-determinism
+-}
+-}
 
 -- | @replaceByProjections i projs cc@ replaces variables @i..i+n-1@
 --   (counted from left) by projections @projs_1 i .. projs_n i@.

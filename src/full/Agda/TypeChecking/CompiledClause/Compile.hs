@@ -1,6 +1,7 @@
 {-# LANGUAGE CPP #-}
 module Agda.TypeChecking.CompiledClause.Compile where
 
+import Control.Applicative
 import Data.Monoid
 import qualified Data.Map as Map
 import Data.List (genericReplicate, nubBy, findIndex)
@@ -44,6 +45,10 @@ compileClauses mt cs = do
         ]
   -}
       -- cs <- mapM translateRecordPatterns cs
+
+      reportSDoc "tc.cc" 30 $ sep $ do
+        (text "clauses patterns  before compilation") : do
+          map (prettyTCM . map unArg . fst) cls
       reportSDoc "tc.cc" 50 $ do
         sep [ text "clauses before compilation"
             , (nest 2 . text . show) cs
@@ -65,7 +70,10 @@ compileWithSplitTree t cs = case t of
     -- the coverage checker does not count dot patterns as variables
     -- in case trees however, they count as variable patterns
     let n = i -- countInDotPatterns i cs
-    in  Case n $ compiles ts $ splitOn n cs
+    in  Case n $ compiles ts $ splitOn (length ts == 1) n cs
+        -- if there is just one case, we force expansion of catch-alls
+        -- this is needed to generate a sound tree on which we can
+        -- collapse record pattern splits
   SplittingDone n -> compile cs
     -- after end of split tree, continue with left-to-right strategy
 
@@ -94,7 +102,7 @@ compileWithSplitTree t cs = case t of
 
 compile :: Cls -> CompiledClauses
 compile cs = case nextSplit cs of
-  Just n  -> Case n $ fmap compile $ splitOn n cs
+  Just n  -> Case n $ fmap compile $ splitOn False n cs
   Nothing -> case map getBody cs of
     -- It's possible to get more than one clause here due to
     -- catch-all expansion.
@@ -123,8 +131,10 @@ nextSplit ((ps, _):_) = findIndex isPat $ map unArg ps
     isPat ConP{} = True
     isPat LitP{} = True
 
-splitOn :: Int -> Cls -> Case Cls
-splitOn n cs = mconcat $ map (fmap (:[]) . splitC n) $ expandCatchAlls n cs
+-- | @splitOn single n cs@ will force expansion of catch-alls
+--   if @single@.
+splitOn :: Bool -> Int -> Cls -> Case Cls
+splitOn single n cs = mconcat $ map (fmap (:[]) . splitC n) $ expandCatchAlls single n cs
 
 splitC :: Int -> Cl -> Case Cl
 splitC n (ps, b) = case unArg p of
@@ -134,14 +144,39 @@ splitC n (ps, b) = case unArg p of
   where
     (ps0, p, ps1) = extractNthElement' n ps
 
--- Expand catch-alls that appear before actual matches.
-expandCatchAlls :: Int -> Cls -> Cls
-expandCatchAlls n cs = case cs of
+-- | Expand catch-alls that appear before actual matches.
+--
+-- Example:
+-- @@
+--    true  y
+--    x     false
+--    false y
+-- @@
+-- will expand the catch-all @x@ to @false@.
+--
+-- Catch-alls need also to be expanded if
+-- they come before/after a record pattern, otherwise we get into
+-- trouble when we want to eliminate splits on records later.
+--
+expandCatchAlls :: Bool -> Int -> Cls -> Cls
+expandCatchAlls single n cs =
+  -- Andreas, 2013-03-22
+  -- if there is a single case (such as for record splits)
+  -- we force expansion
+  if single then doExpand =<< cs else
+  case cs of
   _            | all (isCatchAll . nth . fst) cs -> cs
-  (ps, b) : cs | not (isCatchAll (nth ps)) -> (ps, b) : expandCatchAlls n cs
-               | otherwise -> map (expand ps b) expansions ++ (ps, b) : expandCatchAlls n cs
+  (ps, b) : cs | not (isCatchAll (nth ps)) -> (ps, b) : expandCatchAlls False n cs
+               | otherwise -> map (expand ps b) expansions ++ (ps, b) : expandCatchAlls False n cs
   _ -> __IMPOSSIBLE__
   where
+    -- In case there is only one branch in the split tree, we expand all
+    -- catch-alls for this position
+    -- The @expansions@ are collected from all the clauses @cs@ then.
+    doExpand c@(ps, b)
+      | isCatchAll (nth ps) = map (expand ps b) expansions
+      | otherwise           = [c]
+
     isCatchAll (Arg _ ConP{}) = False
     isCatchAll (Arg _ LitP{}) = False
     isCatchAll _      = True
