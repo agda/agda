@@ -1,0 +1,3 @@
+Issue279-3.agda:16,18-21
+P != Q of type Set
+when checking that the pattern r q has type M.R Q

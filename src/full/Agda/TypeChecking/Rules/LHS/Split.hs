@@ -24,6 +24,7 @@ import Agda.TypeChecking.Reduce
 import Agda.TypeChecking.Substitute
 import Agda.TypeChecking.Constraints
 import Agda.TypeChecking.Conversion
+import Agda.TypeChecking.Datatypes
 import Agda.TypeChecking.Rules.LHS.Problem
 import Agda.TypeChecking.Rules.LHS.ProblemRest
 -- import Agda.TypeChecking.Rules.Term
@@ -122,6 +123,7 @@ splitProblem (Problem ps (perm, qs) tel pr) = do
                       `catchError` \_ -> return False
                   if ok then tryAgain else keepGoing
                 | otherwise = keepGoing
+          -- ifBlockedType reduces the type
           ifBlockedType (unDom a) (const tryInstantiate) $ \ a' -> do
 	  case ignoreSharing $ unEl a' of
 
@@ -169,6 +171,18 @@ splitProblem (Problem ps (perm, qs) tel pr) = do
 			 , nest 2 $ text "ixs  =" <+> fsep (punctuate comma $ map prettyTCM ixs)
 			 ]
 
+                  -- Andreas, 2013-03-22 fixing issue 279
+                  -- To resolve ambiguous constructors, Agda always looks up
+                  -- their original definition and reconstructs the parameters
+                  -- from the type @Def d vs@ we check against.
+                  -- However, the constructor could come from a module instantiation
+                  -- with some of the parameters already fixed.
+                  -- Agda did not make sure the two parameter lists coincide,
+                  -- so we add a check here.
+                  -- I guess this issue could be solved more systematically,
+                  -- but the extra check here is non-invasive to the existing code.
+                  checkParsIfUnambiguous cs d pars
+
                   whenM (optWithoutK <$> pragmaOptions) $
                     wellFormedIndices a'
 
@@ -185,6 +199,26 @@ splitProblem (Problem ps (perm, qs) tel pr) = do
 	  let p0 = Problem [p] () (ExtendTel a $ fmap (const EmptyTel) tel) mempty
 	  Split p1 xs foc p2 <- underAbstraction a tel $ \tel -> splitP ps qs tel
 	  return $ Split (mappend p0 p1) xs foc p2
+
+-- | @checkParsIfUnambiguous [c] d pars@ checks that the data/record type
+--   behind @c@ is has initial parameters (coming e.g. from a module instantiation)
+--   that coincide with an prefix of @pars@.
+checkParsIfUnambiguous :: [QName] -> QName -> Args -> TCM ()
+checkParsIfUnambiguous [c] d pars = do
+  dc <- getConstructorData c
+  a  <- reduce (Def dc [])
+  case ignoreSharing a of
+    Def d0 vs -> do -- compare parameters
+      reportSDoc "tc.lhs.split" 40 $
+        vcat [ nest 2 $ text "d                   =" <+> prettyTCM d
+             , nest 2 $ text "d0 (should be == d) =" <+> prettyTCM d0
+             , nest 2 $ text "dc                  =" <+> prettyTCM dc
+             ]
+      -- when (d0 /= d) __IMPOSSIBLE__ -- d could have extra qualification
+      t <- typeOfConst d
+      compareArgs [] t (Def d []) vs (take (length vs) pars)
+    _ -> __IMPOSSIBLE__
+checkParsIfUnambiguous _ _ _ = return ()
 
 -- | Takes a type, which must be a data or record type application,
 -- and checks that the indices are constructors (or literals) applied
