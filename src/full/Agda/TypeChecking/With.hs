@@ -32,11 +32,7 @@ import Agda.Utils.Size
 #include "../undefined.h"
 import Agda.Utils.Impossible
 
-showPat (VarP x)              = text x
-showPat (DotP t)              = text (".(" ++ show t ++ ")") -- showsPrec 10 t ""
-showPat (ConP c Nothing ps)   = parens $ prettyTCM c <+> fsep (map (showPat . unArg) ps)
-showPat (ConP c (Just (b, t)) ps)  = (if b then braces else parens) $ prettyTCM c <+> fsep (map (showPat . unArg) ps) <+> text ":" <+> prettyTCM t
-showPat (LitP l)              = text (show l)
+-- showPat moved to TypeChecking.Pretty as prettyTCM instance
 
 withFunctionType :: Telescope -> [Term] -> [Type] -> Telescope -> Type -> TCM Type
 withFunctionType delta1 vs as delta2 b = {-dontEtaContractImplicit $-} do
@@ -101,7 +97,7 @@ stripWithClausePatterns gamma qs perm ps = do
     [ text "stripping patterns"
     , nest 2 $ text "gamma = " <+> prettyTCM gamma
     , nest 2 $ text "psi = " <+> fsep (punctuate comma $ map prettyA psi)
-    , nest 2 $ text "qs  = " <+> fsep (punctuate comma $ map (showPat . unArg) qs)
+    , nest 2 $ text "qs  = " <+> fsep (punctuate comma $ map (prettyTCM . unArg) qs)
     ]
   ps' <- strip gamma psi qs
   let psp = permute perm ps'
@@ -125,7 +121,7 @@ stripWithClausePatterns gamma qs perm ps = do
         [ text "strip"
         , nest 2 $ text "ps0 =" <+> fsep (punctuate comma $ map prettyA ps0)
         , nest 2 $ text "exp =" <+> prettyA p
-        , nest 2 $ text "qs0 =" <+> fsep (punctuate comma $ map (showPat . unArg) qs0)
+        , nest 2 $ text "qs0 =" <+> fsep (punctuate comma $ map (prettyTCM . unArg) qs0)
         , nest 2 $ text "tel0=" <+> prettyTCM tel0
         ]
       case unArg q of

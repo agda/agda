@@ -243,3 +243,14 @@ instance PrettyTCM PrettyContext where
 
 instance PrettyTCM Context where
   prettyTCM = prettyTCM . PrettyContext
+
+instance PrettyTCM Pattern where
+  prettyTCM = showPat
+    where
+      showPat (VarP x)                  = text x
+      showPat (DotP t)                  = text $ ".(" ++ show t ++ ")"
+      showPat (ConP c Nothing ps)       = parens $
+        prettyTCM c <+> fsep (map (showPat . unArg) ps)
+      showPat (ConP c (Just (b, t)) ps) = (if b then braces else parens) $
+        prettyTCM c <+> fsep (map (showPat . unArg) ps) <+> text ":" <+> prettyTCM t
+      showPat (LitP l)                  = text (show l)
