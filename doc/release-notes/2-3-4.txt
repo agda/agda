@@ -99,6 +99,48 @@ Type checking
   Note that with the pragma {-# NO_TERMINATION_CHECK #-} you can make
   Agda treat any function as terminating.
 
+* Implicit patterns of record type are now only eta-expanded if there
+  is a record constructor. [Issues 473, 635]
+
+    data D : Set where
+      d : D
+
+    data P : D → Set where
+      p : P d
+
+    record Rc : Set where
+      constructor c
+      field f : D
+
+    works : {r : Rc} → P (Rc.f r) → Set
+    works p = D
+
+  This works since the implicit pattern {r} is eta-expanded to
+  {c x} which allows the type of p to reduce to P x and x to be
+  unified with d.  The corresponding explicit version is:
+
+    works' : (r : Rc) → P (Rc.f r) → Set
+    works' (c .d) p = D
+
+  However, if the record constructor is removed, the same example will
+  fail:
+
+    record R : Set where
+      field f : D
+
+    fails : {r : R} → P (R.f r) → Set
+    fails p = D
+
+    -- d != R.f r of type D
+    -- when checking that the pattern p has type P (R.f r)
+
+  The error is justified since there is no pattern we could write down
+  for r.  It would have to look like
+
+    record { f = .d }
+
+  but anonymous record patterns are not part of the language.
+
 Compiler backends
 =================
 
