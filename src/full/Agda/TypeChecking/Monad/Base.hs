@@ -991,6 +991,9 @@ data TCEnv =
                 -- ^ When type-checking an alias f=e, we do not want
                 -- to insert hidden arguments in the end, because
                 -- these will become unsolved metas.
+          , envAppDef :: Maybe QName
+                -- ^ We are reducing an application of this function.
+                -- (For debugging of incomplete matches only.)
 	  }
     deriving (Typeable)
 
@@ -1028,6 +1031,7 @@ initEnv = TCEnv { envContext	         = []
                 , envModuleNestingLevel     = -1
                 , envAllowDestructiveUpdate = True
                 , envExpandLast             = ExpandLast
+                , envAppDef                 = Nothing
 		}
 
 ---------------------------------------------------------------------------

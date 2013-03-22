@@ -2,6 +2,7 @@
 module Agda.TypeChecking.CompiledClause.Match where
 
 import Control.Applicative
+import Control.Monad.Reader (asks)
 import qualified Data.Map as Map
 import Data.Traversable
 import Data.List
@@ -78,7 +79,10 @@ match (Case n bs) args patch stack =
 
 match' :: Stack -> TCM (Reduced (Blocked Args) Term)
 match' ((c, args, patch):stack) = match c args patch stack
-match' [] = typeError $ GenericError "Incomplete pattern matching"
+match' [] = do
+  mf <- asks envAppDef
+  flip (maybe __IMPOSSIBLE__) mf $ \ f -> do
+    typeError $ GenericError $ "Incomplete pattern matching when applying " ++ show f
 
 -- Andreas, 2013-03-20 recursive invokations of unfoldCorecursion
 -- need also to instantiate metas, see Issue 826.

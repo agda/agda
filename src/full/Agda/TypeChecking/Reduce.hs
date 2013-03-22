@@ -358,8 +358,7 @@ unfoldDefinition unfoldDelayed keepGoing v0 f args =
               not unfoldDelayed -> defaultResult
           [] -> defaultResult -- no definition for head
           cls -> do
-            ev <- maybe (appDef' v0 cls args)
-                        (\cc -> appDef v0 cc args) mcc
+            ev <- appDef_ f v0 cls mcc args
             case ev of
               NoReduction v -> do
                 reportSDoc "tc.reduce" 90 $ vcat
@@ -397,23 +396,19 @@ reduceDef_ info f vs = do
   if (defDelayed info == Delayed) || (defNonterminating info)
    then return $ NoReduction ()
    else do
-      ev <- maybe (appDef' v0 cls args)
-                  (\cc -> appDef v0 cc args) mcc
+      ev <- appDef_ f v0 cls mcc args
       case ev of
         YesReduction t    -> return $ YesReduction t
         NoReduction args' -> return $ NoReduction ()
 
-{- OLD
-      delayed = (defDelayed info)
-  case delayed of
-    Delayed -> return $ NoReduction ()
-    NotDelayed -> do
-      ev <- maybe (appDef' v0 cls args)
-                  (\cc -> appDef v0 cc args) mcc
-      case ev of
-        YesReduction t    -> return $ YesReduction t
-        NoReduction args' -> return $ NoReduction ()
--}
+-- | Apply a definition using the compiled clauses, or fall back to
+--   ordinary clauses if no compiled clauses exist.
+appDef_ :: QName -> Term -> [Clause] -> Maybe CompiledClauses -> MaybeReducedArgs -> TCM (Reduced (Blocked Term) Term)
+appDef_ f v0 cls mcc args =
+  local (\ e -> e { envAppDef = Just f }) $ do
+    maybe (appDef' v0 cls args)
+          (\cc -> appDef v0 cc args) mcc
+
 
 -- Apply a defined function to it's arguments.
 --   The original term is the first argument applied to the third.
