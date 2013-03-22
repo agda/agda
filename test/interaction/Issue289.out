@@ -1,0 +1,12 @@
+Agda2> (agda2-status-action "")
+(agda2-info-action "*Type-checking*" "" nil)
+(agda2-highlight-clear)
+(agda2-info-action "*Type-checking*" "Checking Issue289 (Issue289.agda).\n" t)
+(agda2-info-action "*Type-checking*" "Finished Issue289.\n" t)
+(agda2-status-action "Checked")
+(agda2-info-action "*All Goals*" "?0 : ⊤\n" nil)
+((last . 1) . (agda2-goals-action '(0)))
+Agda2> (agda2-info-action "*Error*" "Issue289.agda:9,11-16\nSince goal is solved, further case distinction is not supported;\ntry `Solve constraints' instead\nwhen checking that the expression ? has type ⊤" nil)
+((last . 3) . (agda2-goto '("Issue289.agda" . 104)))
+(agda2-status-action "")
+Agda2> 

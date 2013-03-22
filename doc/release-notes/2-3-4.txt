@@ -72,6 +72,15 @@ Goal and error display
   removed, instead one gets unsolved meta variables.  Reason: the
   error was thrown over-eagerly. [Issue 795]
 
+* If an interactive case split fails with message
+
+    Since goal is solved, further case distinction is not supported;
+    try `Solve constraints' instead
+
+  then the associated interaction meta is assigned to a solution.
+  Press C-c C-= (Show constraints) to view the solution and C-c C-s
+  (Solve constraints) to apply it. [Issue 289]
+
 Type checking
 =============
 

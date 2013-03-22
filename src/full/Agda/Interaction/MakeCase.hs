@@ -31,6 +31,7 @@ import Agda.TypeChecker
 
 import Agda.Interaction.BasicOps
 
+import Agda.Utils.Monad
 import Agda.Utils.Size
 import Agda.Utils.Permutation
 import qualified Agda.Utils.HashMap as HMap
@@ -67,7 +68,13 @@ findClause m = do
         , text "but could not find it in the signature"
         ]
       reportSDoc "interaction.case" 100 $ vcat $ map (text . show) (HMap.elems $ sigDefinitions sig)  -- you asked for it!
-      typeError $ GenericError "Right hand side must be a single hole when making a case distinction."
+      ifM (isInstantiatedMeta m)
+        -- Andreas, 2012-03-22 If the goal has been solved by eta expansion, further
+        -- case splitting is pointless and `smart-ass Agda' will refuse.
+        -- Maybe not the best solution, but the lazy alternative to replace this
+        -- SUPER UGLY HACK.
+        (typeError $ GenericError "Since goal is solved, further case distinction is not supported; try `Solve constraints' instead")
+        (typeError $ GenericError "Right hand side must be a single hole when making a case distinction")
     [(n,c, Just (h, nh))] -> return (ExtendedLambda h nh , n , c)
     [(n,c, Nothing)]      -> return (FunctionDef , n , c)
     _   -> __IMPOSSIBLE__
@@ -80,7 +87,7 @@ findClause m = do
 
 makeCase :: InteractionId -> Range -> String -> TCM (CaseContext , [A.Clause])
 makeCase hole rng s = withInteractionId hole $ do
-  meta        <- lookupInteractionId hole
+  meta <- lookupInteractionId hole
   (casectxt, f, clause@(Clause{ clauseTel = tel, clausePerm = perm, clausePats = ps })) <- findClause meta
   reportSDoc "interaction.case" 10 $ vcat
     [ text "splitting clause:"
