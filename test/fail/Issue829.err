@@ -1,0 +1,3 @@
+Issue829.agda:22,21-24
+x != f (c x tt) of type ⊥
+when checking that the expression g x has type P (f (c x tt))

@@ -173,8 +173,9 @@ expandCatchAlls single n cs =
     -- In case there is only one branch in the split tree, we expand all
     -- catch-alls for this position
     -- The @expansions@ are collected from all the clauses @cs@ then.
+    -- Note: @expansions@ could be empty, so we keep the orignal clause.
     doExpand c@(ps, b)
-      | isCatchAll (nth ps) = map (expand ps b) expansions
+      | isCatchAll (nth ps) = map (expand ps b) expansions ++ [c]
       | otherwise           = [c]
 
     isCatchAll (Arg _ ConP{}) = False
