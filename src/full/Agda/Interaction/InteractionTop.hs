@@ -665,10 +665,10 @@ cmd_load' file includes unsolvedOK cmd = do
 
     t <- liftIO $ getModificationTime file
 
-    -- All options (except for the verbosity setting) are reset when a
-    -- file is reloaded, including the choice of whether or not to
-    -- display implicit arguments. (At this point the include
-    -- directories have already been set, so they are preserved.)
+    -- All options are reset when a file is reloaded, including the
+    -- choice of whether or not to display implicit arguments. (At
+    -- this point the include directories have already been set, so
+    -- they are preserved.)
     opts <- lift $ commandLineOptions
     defaultOptions <- gets optionsOnReload
     setCommandLineOptions' $
@@ -676,7 +676,6 @@ cmd_load' file includes unsolvedOK cmd = do
                      , optPragmaOptions =
                          (optPragmaOptions defaultOptions)
                            { optAllowUnsolved = unsolvedOK
-                           , optVerbose       = optVerbose (optPragmaOptions opts)
                            }
                      }
 
