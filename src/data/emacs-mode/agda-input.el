@@ -316,6 +316,10 @@ order for the change to take effect."
   ("increment" . ("∆"))
   ("inf"       . ("∞"))
 
+  ;; Extra operators for linear logic.
+  ("-o"  . ("⊸"))
+  ("par" . ("⅋"))
+
   ;; Circled operators.
 
   ("o+"  . ("⊕"))
