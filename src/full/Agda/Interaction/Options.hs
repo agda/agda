@@ -292,8 +292,8 @@ compileFlag      o = return $ o { optCompile    = True }
 compileEpicFlag  o = return $ o { optEpicCompile = True}
 compileJSFlag    o = return $ o { optJSCompile = True}
 compileDirFlag f o = return $ o { optCompileDir = Just f }
-ghcFlag        f o = return $ o { optGhcFlags   = f : optGhcFlags o }
-epicFlagsFlag  s o = return $ o { optEpicFlags  = optEpicFlags o ++ [s]}
+ghcFlag        f o = return $ o { optGhcFlags   = optGhcFlags o  ++ [f] }  -- NOTE: Quadratic in number of flags.
+epicFlagsFlag  s o = return $ o { optEpicFlags  = optEpicFlags o ++ [s] }  -- NOTE: Quadratic in number of flags.
 
 htmlFlag      o = return $ o { optGenerateHTML = True }
 dependencyGraphFlag f o = return $ o { optDependencyGraph  = Just f }
