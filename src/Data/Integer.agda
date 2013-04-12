@@ -91,6 +91,8 @@ signAbs i = PropEq.subst SignAbs (◃-left-inverse i) $
 ------------------------------------------------------------------------
 -- Equality is decidable
 
+infix 4 _≟_
+
 _≟_ : Decidable {A = ℤ} _≡_
 i ≟ j with Sign._≟_ (sign i) (sign j) | ℕ._≟_ ∣ i ∣ ∣ j ∣
 i ≟ j | yes sign-≡ | yes abs-≡ = yes (◃-cong sign-≡ abs-≡)

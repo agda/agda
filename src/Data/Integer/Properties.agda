@@ -15,9 +15,9 @@ open import Data.Integer hiding (suc; _≤?_)
 import Data.Integer.Addition.Properties as Add
 import Data.Integer.Multiplication.Properties as Mul
 open import Data.Nat
-  using (ℕ; suc; zero; _∸_; _≤?_; _<_; _≥_; _≱_; s≤s; z≤n)
+  using (ℕ; suc; zero; _∸_; _≤?_; _<_; _≥_; _≱_; s≤s; z≤n; ≤-pred)
   renaming (_+_ to _ℕ+_; _*_ to _ℕ*_)
-open import Data.Nat.Properties as ℕ using (_*-mono_)
+open import Data.Nat.Properties as ℕ using (_*-mono_; cancel-*-right-≤)
 open import Data.Product using (proj₁; proj₂; _,_)
 open import Data.Sign as Sign using () renaming (_*_ to _S*_)
 import Data.Sign.Properties as SignProp
@@ -353,3 +353,24 @@ cancel-*-right i j .(s ◃ suc n) ≢0 eq | s ◂ suc n
        | sign (s₂ ◃ suc n₂) | sign-◃ s₂ n₂
   ... | .(suc n₁) | refl | .s₁ | refl | .(suc n₂) | refl | .s₂ | refl =
     SignProp.cancel-*-right s₁ s₂ (sign-cong eq)
+
+cancel-*-+-right-≤ : ∀ m n o → m * + suc o ≤ n * + suc o → m ≤ n
+cancel-*-+-right-≤ (-[1+ m ]) (-[1+ n ]) o (-≤- n≤m)
+  = -≤- (≤-pred (cancel-*-right-≤ (suc n) (suc m) o (s≤s n≤m)))
+cancel-*-+-right-≤ ℤ.-[1+ _ ] (+ _)      _ _         = -≤+
+cancel-*-+-right-≤ (+ 0)      ℤ.-[1+ _ ] _ ()
+cancel-*-+-right-≤ (+ suc _)  ℤ.-[1+ _ ] _ ()
+cancel-*-+-right-≤ (+ 0)      (+ 0)      _ _         = +≤+ z≤n
+cancel-*-+-right-≤ (+ 0)      (+ suc _)  _ _         = +≤+ z≤n
+cancel-*-+-right-≤ (+ suc _)  (+ 0)      _ (+≤+ ())
+cancel-*-+-right-≤ (+ suc m)  (+ suc n)  o (+≤+ m≤n)
+  = +≤+ (cancel-*-right-≤ (suc m) (suc n) o m≤n)
+
+*-+-right-mono : ∀ n → (λ x → x * + suc n) Preserves _≤_ ⟶ _≤_
+*-+-right-mono _ (-≤+ {_}     {0})         = -≤+
+*-+-right-mono _ (-≤+ {_}     {suc _} )    = -≤+
+*-+-right-mono x (-≤-                 n≤m) = -≤- (≤-pred (s≤s n≤m *-mono ≤-refl {suc x}))
+*-+-right-mono _ (+≤+ {0}     {0}     m≤n) = +≤+ m≤n
+*-+-right-mono _ (+≤+ {0}     {suc _} m≤n) = +≤+ z≤n
+*-+-right-mono _ (+≤+ {suc _} {0}     ())
+*-+-right-mono x (+≤+ {suc _} {suc _} m≤n) = +≤+ (m≤n *-mono ≤-refl {suc x})
