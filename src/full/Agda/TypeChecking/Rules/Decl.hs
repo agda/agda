@@ -430,13 +430,13 @@ checkModuleArity m tel args = check tel args
           tel = absBody btel in
       case (argInfoHiding info, argInfoHiding info', name) of
         (Instance, NotHidden, _) -> check tel args0
-        (Instance, Hidden, _) -> bad
+        (Instance, Hidden, _)    -> check tel args0
         (Instance, Instance, Nothing) -> check tel args
         (Instance, Instance, Just x)
           | x == y                -> check tel args
           | otherwise             -> check tel args0
         (Hidden, NotHidden, _)    -> check tel args0
-        (Hidden, Instance, _)    -> bad
+        (Hidden, Instance, _)     -> check tel args0
         (Hidden, Hidden, Nothing) -> check tel args
         (Hidden, Hidden, Just x)
           | x == y                -> check tel args
