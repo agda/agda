@@ -257,6 +257,7 @@ fitsIn t s = do
   -- The line below would be simpler, but doesn't allow datatypes
   -- to be indexed by the universe level.
 --   noConstraints $ s' `leqSort` s
+  t <- reduce t
   case ignoreSharing $ unEl t of
     Pi arg@(Dom info a) _ -> do
       let s' = getSort a
@@ -265,7 +266,8 @@ fitsIn t s = do
       let v  = Arg info $ var 0
           t' = piApply (raise 1 t) [v]
       addCtx x arg $ fitsIn t' (raise 1 s)
-    _		     -> return ()
+    _ -> return () -- getSort t `leqSort` s  -- Andreas, 2013-04-13 not necessary since constructor type ends in data type
+
 
 -- | Check that a type constructs something of the given datatype. The first
 --   argument is the number of parameters to the datatype.
