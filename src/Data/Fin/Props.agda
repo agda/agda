@@ -16,10 +16,10 @@ import Data.Nat.Properties as N
 open import Data.Product
 open import Function
 open import Function.Equality as FunS using (_⟨$⟩_)
-open import Function.Injection
-  using (Injection; module Injection)
+open import Function.Injection using (_↣_)
 open import Algebra.FunctionProperties
 open import Relation.Nullary
+open import Relation.Nullary.Decidable using (map-injection)
 open import Relation.Binary
 open import Relation.Binary.PropositionalEquality as P
   using (_≡_; refl; cong; subst)
@@ -208,11 +208,8 @@ reverse-involutive {n} i = toℕ-injective (begin
 -- If there is an injection from a set to a finite set, then equality
 -- of the set can be decided.
 
-eq? : ∀ {s₁ s₂ n} {S : Setoid s₁ s₂} →
-      Injection S (P.setoid (Fin n)) → Decidable (Setoid._≈_ S)
-eq? inj x y with to ⟨$⟩ x ≟ to ⟨$⟩ y where open Injection inj
-... | yes tox≡toy = yes (Injection.injective inj tox≡toy)
-... | no  tox≢toy = no  (tox≢toy ∘ FunS.cong (Injection.to inj))
+eq? : ∀ {a n} {A : Set a} → A ↣ Fin n → Decidable {A = A} _≡_
+eq? inj = map-injection inj _≟_
 
 -- Quantification over finite sets commutes with applicative functors.
 

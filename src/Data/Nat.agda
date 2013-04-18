@@ -8,12 +8,12 @@ module Data.Nat where
 
 open import Function
 open import Function.Equality as F using (_⟨$⟩_)
-open import Function.Injection
-  using (Injection; module Injection)
+open import Function.Injection using (_↣_)
 open import Data.Sum
 open import Data.Empty
 import Level
 open import Relation.Nullary
+open import Relation.Nullary.Decidable using (map-injection)
 open import Relation.Binary
 open import Relation.Binary.PropositionalEquality as PropEq
   using (_≡_; refl)
@@ -195,11 +195,8 @@ compare (suc .(suc m + k)) (suc .m)           | greater m k = greater (suc m) k
 -- If there is an injection from a set to ℕ, then equality of the set
 -- can be decided.
 
-eq? : ∀ {s₁ s₂} {S : Setoid s₁ s₂} →
-      Injection S (PropEq.setoid ℕ) → Decidable (Setoid._≈_ S)
-eq? inj x y with to ⟨$⟩ x ≟ to ⟨$⟩ y where open Injection inj
-... | yes tox≡toy = yes (Injection.injective inj tox≡toy)
-... | no  tox≢toy = no  (tox≢toy ∘ F.cong (Injection.to inj))
+eq? : ∀ {a} {A : Set a} → A ↣ ℕ → Decidable {A = A} _≡_
+eq? inj = map-injection inj _≟_
 
 ------------------------------------------------------------------------
 -- Some properties

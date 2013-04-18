@@ -11,10 +11,13 @@ open import Data.Empty
 open import Data.Product hiding (map)
 open import Data.Unit
 open import Function
-open import Function.Equality using (_⟨$⟩_)
+open import Function.Equality using (_⟨$⟩_; Π)
 open import Function.Equivalence
   using (_⇔_; equivalence; module Equivalence)
+open import Function.Injection using (module Injection; Injection; _↣_)
+open Injection
 open import Level using (Lift)
+open import Relation.Binary using (module Setoid; Setoid; Decidable)
 open import Relation.Binary.PropositionalEquality
 open import Relation.Nullary
 
@@ -57,6 +60,17 @@ map P⇔Q (no ¬p) = no (¬p ∘ _⟨$⟩_ (Equivalence.from P⇔Q))
 map′ : ∀ {p q} {P : Set p} {Q : Set q} →
        (P → Q) → (Q → P) → Dec P → Dec Q
 map′ P→Q Q→P = map (equivalence P→Q Q→P)
+
+module _ {a₁ a₂ b₁ b₂} {A : Setoid a₁ a₂} {B : Setoid b₁ b₂} where
+
+  open Injection
+  open Setoid A using () renaming (_≈_ to _≈A_)
+  open Setoid B using () renaming (_≈_ to _≈B_)
+
+  map-injection : (inj : Injection A B) → Decidable _≈B_ → Decidable _≈A_
+  map-injection inj dec x y with dec (to inj ⟨$⟩ x) (to inj ⟨$⟩ y)
+  ... | yes injx≈injy = yes (injective inj injx≈injy)
+  ... | no  injx≉injy = no (λ x≈y → injx≉injy (Π.cong (to inj) x≈y))
 
 -- If a decision procedure returns "yes", then we can extract the
 -- proof using from-yes.
