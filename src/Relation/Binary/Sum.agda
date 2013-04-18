@@ -25,6 +25,7 @@ open import Function.Surjection as Surj
   using (Surjection; _↠_; module Surjection)
 open import Level
 open import Relation.Nullary
+open import Relation.Nullary.Decidable using (map′)
 open import Relation.Binary
 import Relation.Binary.PropositionalEquality as P
 
@@ -403,6 +404,17 @@ sto₁ ⊎-<-strictTotalOrder sto₂ = record
 ------------------------------------------------------------------------
 -- Some properties related to "relatedness"
 
+private
+  to-cong : ∀ {a b} {A : Set a} {B : Set b} →
+            (P._≡_ ⊎-Rel P._≡_) ⇒ P._≡_ {A = A ⊎ B}
+  to-cong (₁∼₂ ())
+  to-cong (₁∼₁ P.refl) = P.refl
+  to-cong (₂∼₂ P.refl) = P.refl
+
+  from-cong : ∀ {a b} {A : Set a} {B : Set b} →
+              P._≡_ {A = A ⊎ B} ⇒ (P._≡_ ⊎-Rel P._≡_)
+  from-cong P.refl = P.refl ⊎-refl P.refl
+
 ⊎-Rel↔≡ : ∀ {a b} (A : Set a) (B : Set b) →
           Inverse (P.setoid A ⊎-setoid P.setoid B) (P.setoid (A ⊎ B))
 ⊎-Rel↔≡ _ _ = record
@@ -413,14 +425,6 @@ sto₁ ⊎-<-strictTotalOrder sto₂ = record
     ; right-inverse-of = λ _ → P.refl
     }
   }
-  where
-  to-cong : (P._≡_ ⊎-Rel P._≡_) ⇒ P._≡_
-  to-cong (₁∼₂ ())
-  to-cong (₁∼₁ P.refl) = P.refl
-  to-cong (₂∼₂ P.refl) = P.refl
-
-  from-cong : P._≡_ ⇒ (P._≡_ ⊎-Rel P._≡_)
-  from-cong P.refl = P.refl ⊎-refl P.refl
 
 _⊎-⟶_ :
   ∀ {s₁ s₂ s₃ s₄ s₅ s₆ s₇ s₈}
@@ -579,3 +583,13 @@ _⊎-cong_ {reverse-injection}   = λ f g → lam (app-↢ f ⊎-↣ app-↢ g)
 _⊎-cong_ {left-inverse}        = _⊎-↞_
 _⊎-cong_ {surjection}          = _⊎-↠_
 _⊎-cong_ {bijection}           = _⊎-↔_
+
+------------------------------------------------------------------------
+
+-- If the components of a sum are decidable, then so is the sum.
+_⊎-≟_ : ∀ {a b} {A : Set a} {B : Set b} →
+          Decidable {A = A} P._≡_ → Decidable {A = B} P._≡_ →
+        Decidable {A = A ⊎ B} P._≡_
+(dec₁ ⊎-≟ dec₂) s₁ s₂ = map′ to-cong from-cong (s₁ ≟ s₂)
+  where
+  open DecSetoid (P.decSetoid dec₁ ⊎-decSetoid P.decSetoid dec₂)
