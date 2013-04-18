@@ -7,10 +7,12 @@
 module Relation.Binary.List.Pointwise where
 
 open import Function
+open import Function.Inverse using (Inverse)
 open import Data.Product hiding (map)
 open import Data.List hiding (map)
 open import Level
 open import Relation.Nullary
+open import Relation.Nullary.Decidable using (map′)
 open import Relation.Binary renaming (Rel to Rel₂)
 open import Relation.Binary.PropositionalEquality as PropEq using (_≡_)
 
@@ -169,3 +171,21 @@ poset : ∀ {c ℓ₁ ℓ₂} → Poset c ℓ₁ ℓ₂ → Poset _ _ _
 poset p = record
   { isPartialOrder = isPartialOrder (Poset.isPartialOrder p)
   }
+
+Rel-Rel↔≡ : ∀ {a} {A : Set a} →
+            Inverse (setoid (PropEq.setoid A)) (PropEq.setoid (List A))
+Rel-Rel↔≡ = record
+  { to         = record { _⟨$⟩_ = id; cong = Rel≡⇒≡ }
+  ; from       = record { _⟨$⟩_ = id; cong = ≡⇒Rel≡ }
+  ; inverse-of = record
+    { left-inverse-of  = λ _ → refl PropEq.refl
+    ; right-inverse-of = λ _ → PropEq.refl
+    }
+  }
+
+-- If the components of a list are decidable, then so is the list.
+decidable-≡ : ∀ {a} {A : Set a} →
+              Decidable {A = A} _≡_ → Decidable {A = List A} _≡_
+decidable-≡ dec xs ys = map′ Rel≡⇒≡ ≡⇒Rel≡ (xs ≟ ys)
+  where
+  open DecSetoid (decSetoid (PropEq.decSetoid dec))
