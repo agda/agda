@@ -450,3 +450,65 @@ True↔ (no ¬p) _ = record
     ; right-inverse-of = λ p → ⊥-elim (¬p p)
     }
   }
+
+------------------------------------------------------------------------
+-- Equality between pairs can be expressed as a pair of equalities.
+
+Σ-≡,≡↔≡ : ∀ {a b} {A : Set a} {B : A → Set b} {p₁ p₂ : Σ A B} →
+          (∃ λ (p : proj₁ p₁ P.≡ proj₁ p₂) →
+             P.subst B p (proj₂ p₁) P.≡ proj₂ p₂) ↔
+          (p₁ P.≡ p₂)
+Σ-≡,≡↔≡ {A = A}{B} = record
+  { to         = P.→-to-⟶ to
+  ; from       = P.→-to-⟶ from
+  ; inverse-of = record
+    { left-inverse-of  = left-inverse-of
+    ; right-inverse-of = right-inverse-of
+    }
+  }
+  where
+  to : {p₁ p₂ : Σ A B} → Σ (proj₁ p₁ P.≡ proj₁ p₂)
+         (λ p → P.subst B p (proj₂ p₁) P.≡ proj₂ p₂) →
+       p₁ P.≡ p₂
+  to (P.refl , P.refl) = P.refl
+
+  from : {p₁ p₂ : Σ A B} → p₁ P.≡ p₂ →
+         Σ (proj₁ p₁ P.≡ proj₁ p₂)
+           (λ p → P.subst B p (proj₂ p₁) P.≡ proj₂ p₂)
+  from P.refl = P.refl , P.refl
+
+  left-inverse-of : {p₁ p₂ : Σ A B} (p : Σ (proj₁ p₁ P.≡ proj₁ p₂)
+                    (λ x → P.subst B x (proj₂ p₁) P.≡ proj₂ p₂)) →
+                    from (to p) P.≡ p
+  left-inverse-of (P.refl , P.refl) = P.refl
+
+  right-inverse-of : {p₁ p₂ : Σ A B} (p : p₁ P.≡ p₂) → to (from p) P.≡ p
+  right-inverse-of P.refl = P.refl
+
+×-≡,≡↔≡ : ∀ {a b} {A : Set a} {B : Set b} {p₁ p₂ : A × B} →
+          (proj₁ p₁ P.≡ proj₁ p₂ × proj₂ p₁ P.≡ proj₂ p₂) ↔
+          p₁ P.≡ p₂
+×-≡,≡↔≡ {A = A}{B} = record
+  { to         = P.→-to-⟶ to
+  ; from       = P.→-to-⟶ from
+  ; inverse-of = record
+    { left-inverse-of  = left-inverse-of
+    ; right-inverse-of = right-inverse-of
+    }
+  }
+  where
+  to : {p₁ p₂ : A × B} →
+       (proj₁ p₁ P.≡ proj₁ p₂) × (proj₂ p₁ P.≡ proj₂ p₂) → p₁ P.≡ p₂
+  to (P.refl , P.refl) = P.refl
+
+  from : {p₁ p₂ : A × B} → p₁ P.≡ p₂ →
+         (proj₁ p₁ P.≡ proj₁ p₂) × (proj₂ p₁ P.≡ proj₂ p₂)
+  from P.refl = P.refl , P.refl
+
+  left-inverse-of : {p₁ p₂ : A × B} →
+                    (p : (proj₁ p₁ P.≡ proj₁ p₂) × (proj₂ p₁ P.≡ proj₂ p₂)) →
+                    from (to p) P.≡ p
+  left-inverse-of (P.refl , P.refl) = P.refl
+
+  right-inverse-of : {p₁ p₂ : A × B} (p : p₁ P.≡ p₂) → to (from p) P.≡ p
+  right-inverse-of P.refl = P.refl
