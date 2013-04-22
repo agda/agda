@@ -19,7 +19,7 @@ open import Function.Equality as FunS using (_⟨$⟩_)
 open import Function.Injection using (_↣_)
 open import Algebra.FunctionProperties
 open import Relation.Nullary
-open import Relation.Nullary.Decidable using (map-injection)
+import Relation.Nullary.Decidable as Dec
 open import Relation.Binary
 open import Relation.Binary.PropositionalEquality as P
   using (_≡_; refl; cong; subst)
@@ -205,11 +205,11 @@ reverse-involutive {n} i = toℕ-injective (begin
     n ∸ suc (n ∸ suc (toℕ i)) ≡⟨ lem₂ n i ⟩
     toℕ i                     ∎
 
--- If there is an injection from a set to a finite set, then equality
--- of the set can be decided.
+-- If there is an injection from a type to a finite set, then the type
+-- has decidable equality.
 
 eq? : ∀ {a n} {A : Set a} → A ↣ Fin n → Decidable {A = A} _≡_
-eq? inj = map-injection inj _≟_
+eq? inj = Dec.via-injection inj _≟_
 
 -- Quantification over finite sets commutes with applicative functors.
 

@@ -13,7 +13,7 @@ open import Data.Sum
 open import Data.Empty
 import Level
 open import Relation.Nullary
-open import Relation.Nullary.Decidable using (map-injection)
+import Relation.Nullary.Decidable as Dec
 open import Relation.Binary
 open import Relation.Binary.PropositionalEquality as PropEq
   using (_≡_; refl)
@@ -192,11 +192,11 @@ compare (suc .m)           (suc .(suc m + k)) | less    m k = less    (suc m) k
 compare (suc .m)           (suc .m)           | equal   m   = equal   (suc m)
 compare (suc .(suc m + k)) (suc .m)           | greater m k = greater (suc m) k
 
--- If there is an injection from a set to ℕ, then equality of the set
--- can be decided.
+-- If there is an injection from a type to ℕ, then the type has
+-- decidable equality.
 
 eq? : ∀ {a} {A : Set a} → A ↣ ℕ → Decidable {A = A} _≡_
-eq? inj = map-injection inj _≟_
+eq? inj = Dec.via-injection inj _≟_
 
 ------------------------------------------------------------------------
 -- Some properties

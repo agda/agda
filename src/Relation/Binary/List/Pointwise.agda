@@ -12,9 +12,9 @@ open import Data.Product hiding (map)
 open import Data.List hiding (map)
 open import Level
 open import Relation.Nullary
-open import Relation.Nullary.Decidable using (map′)
+import Relation.Nullary.Decidable as Dec using (map′)
 open import Relation.Binary renaming (Rel to Rel₂)
-open import Relation.Binary.PropositionalEquality as PropEq using (_≡_)
+open import Relation.Binary.PropositionalEquality as P using (_≡_)
 
 infixr 5 _∷_
 
@@ -129,9 +129,9 @@ isDecEquivalence : ∀ {a ℓ} {A : Set a}
                      {_≈_ : Rel₂ A ℓ} → IsDecEquivalence _≈_ →
                    IsDecEquivalence (Rel _≈_)
 isDecEquivalence eq = record
-  { isEquivalence = isEquivalence Dec.isEquivalence
-  ; _≟_           = decidable     Dec._≟_
-  } where module Dec = IsDecEquivalence eq
+  { isEquivalence = isEquivalence DE.isEquivalence
+  ; _≟_           = decidable     DE._≟_
+  } where module DE = IsDecEquivalence eq
 
 isPartialOrder : ∀ {a ℓ₁ ℓ₂} {A : Set a}
                    {_≈_ : Rel₂ A ℓ₁} {_≤_ : Rel₂ A ℓ₂} →
@@ -141,16 +141,6 @@ isPartialOrder po = record
   { isPreorder = isPreorder    PO.isPreorder
   ; antisym    = antisymmetric PO.antisym
   } where module PO = IsPartialOrder po
-
--- Rel _≡_ coincides with _≡_.
-
-Rel≡⇒≡ : ∀ {a} {A : Set a} → Rel {A = A} _≡_ ⇒ _≡_
-Rel≡⇒≡ []                    = PropEq.refl
-Rel≡⇒≡ (PropEq.refl ∷ xs∼ys) with Rel≡⇒≡ xs∼ys
-Rel≡⇒≡ (PropEq.refl ∷ xs∼ys) | PropEq.refl = PropEq.refl
-
-≡⇒Rel≡ : ∀ {a} {A : Set a} → _≡_ ⇒ Rel {A = A} _≡_
-≡⇒Rel≡ PropEq.refl = refl PropEq.refl
 
 preorder : ∀ {p₁ p₂ p₃} → Preorder p₁ p₂ p₃ → Preorder _ _ _
 preorder p = record
@@ -172,20 +162,29 @@ poset p = record
   { isPartialOrder = isPartialOrder (Poset.isPartialOrder p)
   }
 
-Rel-Rel↔≡ : ∀ {a} {A : Set a} →
-            Inverse (setoid (PropEq.setoid A)) (PropEq.setoid (List A))
-Rel-Rel↔≡ = record
+-- Rel _≡_ coincides with _≡_.
+
+Rel≡⇒≡ : ∀ {a} {A : Set a} → Rel {A = A} _≡_ ⇒ _≡_
+Rel≡⇒≡ []               = P.refl
+Rel≡⇒≡ (P.refl ∷ xs∼ys) with Rel≡⇒≡ xs∼ys
+Rel≡⇒≡ (P.refl ∷ xs∼ys) | P.refl = P.refl
+
+≡⇒Rel≡ : ∀ {a} {A : Set a} → _≡_ ⇒ Rel {A = A} _≡_
+≡⇒Rel≡ P.refl = refl P.refl
+
+Rel↔≡ : ∀ {a} {A : Set a} →
+        Inverse (setoid (P.setoid A)) (P.setoid (List A))
+Rel↔≡ = record
   { to         = record { _⟨$⟩_ = id; cong = Rel≡⇒≡ }
   ; from       = record { _⟨$⟩_ = id; cong = ≡⇒Rel≡ }
   ; inverse-of = record
-    { left-inverse-of  = λ _ → refl PropEq.refl
-    ; right-inverse-of = λ _ → PropEq.refl
+    { left-inverse-of  = λ _ → refl P.refl
+    ; right-inverse-of = λ _ → P.refl
     }
   }
 
--- If the components of a list are decidable, then so is the list.
 decidable-≡ : ∀ {a} {A : Set a} →
               Decidable {A = A} _≡_ → Decidable {A = List A} _≡_
-decidable-≡ dec xs ys = map′ Rel≡⇒≡ ≡⇒Rel≡ (xs ≟ ys)
+decidable-≡ dec xs ys = Dec.map′ Rel≡⇒≡ ≡⇒Rel≡ (xs ≟ ys)
   where
-  open DecSetoid (decSetoid (PropEq.decSetoid dec))
+  open DecSetoid (decSetoid (P.decSetoid dec))

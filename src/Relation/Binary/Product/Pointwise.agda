@@ -23,10 +23,10 @@ open import Function.Related
 open import Function.Surjection as Surj
   using (Surjection; _↠_; module Surjection)
 open import Level
-open import Relation.Nullary.Decidable using (map′)
+import Relation.Nullary.Decidable as Dec
 open import Relation.Nullary.Product
 open import Relation.Binary
-import Relation.Binary.PropositionalEquality as P
+open import Relation.Binary.PropositionalEquality as P using (_≡_)
 
 module _ {a₁ a₂ ℓ₁ ℓ₂} {A₁ : Set a₁} {A₂ : Set a₂} where
 
@@ -252,12 +252,13 @@ s₁ ×-strictPartialOrder s₂ = record
 -- Some properties related to "relatedness"
 
 private
+
   to-cong : ∀ {a b} {A : Set a} {B : Set b} →
-            (P._≡_ ×-Rel P._≡_) ⇒ P._≡_ {A = A × B}
+            (_≡_ ×-Rel _≡_) ⇒ _≡_ {A = A × B}
   to-cong {i = (x , y)} {j = (.x , .y)} (P.refl , P.refl) = P.refl
 
   from-cong : ∀ {a b} {A : Set a} {B : Set b} →
-              P._≡_ {A = A × B} ⇒ (P._≡_ ×-Rel P._≡_)
+              _≡_ {A = A × B} ⇒ (_≡_ ×-Rel _≡_)
   from-cong P.refl = (P.refl , P.refl)
 
 ×-Rel↔≡ : ∀ {a b} {A : Set a} {B : Set b} →
@@ -270,6 +271,13 @@ private
     ; right-inverse-of = λ _ → P.refl
     }
   }
+
+_×-≟_ : ∀ {a b} {A : Set a} {B : Set b} →
+        Decidable {A = A} _≡_ → Decidable {A = B} _≡_ →
+        Decidable {A = A × B} _≡_
+(dec₁ ×-≟ dec₂) p₁ p₂ = Dec.map′ to-cong from-cong (p₁ ≟ p₂)
+  where
+  open DecSetoid (P.decSetoid dec₁ ×-decSetoid P.decSetoid dec₂)
 
 _×-⟶_ :
   ∀ {s₁ s₂ s₃ s₄ s₅ s₆ s₇ s₈}
@@ -419,13 +427,3 @@ _×-cong_ {reverse-injection}   = λ f g → lam (app-↢ f ×-↣ app-↢ g)
 _×-cong_ {left-inverse}        = _×-↞_
 _×-cong_ {surjection}          = _×-↠_
 _×-cong_ {bijection}           = _×-↔_
-
-------------------------------------------------------------------------
-
--- If the components of a pair are decidable, then so is the pair.
-_×-≟_ : ∀ {a b} {A : Set a} {B : Set b} →
-          Decidable {A = A} P._≡_ → Decidable {A = B} P._≡_ →
-        Decidable {A = A × B} P._≡_
-(dec₁ ×-≟ dec₂) p₁ p₂ = map′ to-cong from-cong (p₁ ≟ p₂)
-  where
-  open DecSetoid (P.decSetoid dec₁ ×-decSetoid P.decSetoid dec₂)
