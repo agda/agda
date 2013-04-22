@@ -607,8 +607,10 @@ reloaded from `agda2-highlighting-file', unless
                                            (symbol-name (car cmd)))))
                     ;; Do not echo highlighting commands.
                   (with-current-buffer agda2-process-buffer
-                    (insert line)
-                    (insert "\n"))
+                    (save-excursion
+                      (goto-char (point-max))
+                      (insert line)
+                      (insert "\n")))
                   (incf agda2-responses))
                 (if (equal 'last (car-safe (car cmd)))
                     (push (cons (cdr (car cmd)) (cdr cmd))
