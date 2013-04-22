@@ -740,8 +740,7 @@ inverseSubst args = fmap (map (mapFst unArg)) <$> loop (zip args terms)
           case isRC of
             Just (_, Record{ recFields = fs }) -> do
                 let aux (Arg _ v) (Arg info' f) =
-                      (Arg (ArgInfo { argInfoColors = argInfoColors info
-                                        -- ^ TODO guilhem
+                      (Arg (ArgInfo { argInfoColors = argInfoColors info -- TODO guilhem
                                       , argInfoHiding = min (argInfoHiding info)
                                                             (argInfoHiding info')
                                       , argInfoRelevance = max (argInfoRelevance info)

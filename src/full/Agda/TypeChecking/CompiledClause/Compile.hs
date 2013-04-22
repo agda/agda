@@ -147,11 +147,13 @@ splitC n (ps, b) = case unArg p of
 -- | Expand catch-alls that appear before actual matches.
 --
 -- Example:
--- @@
+--
+-- @
 --    true  y
 --    x     false
 --    false y
--- @@
+-- @
+--
 -- will expand the catch-all @x@ to @false@.
 --
 -- Catch-alls need also to be expanded if
