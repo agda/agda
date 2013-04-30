@@ -603,8 +603,8 @@ reloaded from `agda2-highlighting-file', unless
               (when cmd
                 (unless (and (symbolp (car cmd))
                              (let ((case-fold-search nil))
-                             (string-match "^agda2-highlight-"
-                                           (symbol-name (car cmd)))))
+                               (string-match "^agda2-highlight-"
+                                             (symbol-name (car cmd)))))
                     ;; Do not echo highlighting commands.
                   (with-current-buffer agda2-process-buffer
                     (save-excursion
