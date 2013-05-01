@@ -16,6 +16,7 @@ import Data.Maybe
 import qualified Agda.Syntax.Concrete as C -- ToDo: Remove with instance of ToConcrete
 import Agda.Syntax.Position
 import Agda.Syntax.Abstract as A hiding (Open)
+import Agda.Syntax.Abstract.Views (deepUnScope)
 import Agda.Syntax.Common
 import Agda.Syntax.Info(ExprInfo(..),MetaInfo(..),emptyMetaInfo)
 import Agda.Syntax.Internal as I
@@ -94,6 +95,10 @@ give ii mr e = liftTCM $ do
   mis <- getInteractionPoints
   r <- getInteractionRange ii
   updateMetaVarRange mi $ maybe r id mr
+  reportSDoc "interaction.give" 10 $
+    TP.text "giving expression" TP.<+> prettyTCM e
+  reportSDoc "interaction.give" 50 $
+    TP.text $ show $ deepUnScope e
   giveExpr mi e `catchError` \err -> case err of
     PatternErr _ -> do
       err <- withInteractionId ii $ TP.text "Failed to give" TP.<+> prettyTCM e
@@ -118,6 +123,10 @@ refine ii mr e =
         mv <- lookupMeta mi
         let range = maybe (getRange mv) id mr
         let scope = M.getMetaScope mv
+        reportSDoc "interaction.refine" 10 $
+          TP.text "refining with expression" TP.<+> prettyTCM e
+        reportSDoc "interaction.refine" 50 $
+          TP.text $ show $ deepUnScope e
         tryRefine 10 range scope e
   where tryRefine :: Int -> Range -> ScopeInfo -> Expr -> TCM (Expr,[InteractionId])
         tryRefine nrOfMetas r scope e = try nrOfMetas e
@@ -127,7 +136,7 @@ refine ii mr e =
                  appMeta e =
                       let metaVar = QuestionMark
 				  $ Agda.Syntax.Info.MetaInfo
-				    { Agda.Syntax.Info.metaRange = r
+				    { Agda.Syntax.Info.metaRange = rightMargin r -- Andreas, 2013-05-01 conflate range to its right margin to ensure that appended metas are last in numbering.  This fixes issue 841.
                                     , Agda.Syntax.Info.metaScope = scope { scopePrecedence = ArgumentCtx }
 				    , metaNumber = Nothing
                                     , metaNameSuggestion = ""

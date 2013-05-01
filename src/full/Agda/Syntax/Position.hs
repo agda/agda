@@ -24,6 +24,7 @@ module Agda.Syntax.Position
   , Range
   , Range'(..)
   , rangeInvariant
+  , rightMargin
   , noRange
   , posToRange
   , rStart
@@ -132,6 +133,12 @@ rangeInvariant (Range []) = True
 rangeInvariant (Range is) =
   all intervalInvariant is &&
   and (zipWith (<) (map iEnd $ init is) (map iStart $ tail is))
+
+-- | Conflate a range to its right margin.
+rightMargin :: Range -> Range
+rightMargin r@(Range is) =
+  if null is then r else
+  let i = last is in Range [ i { iStart = iEnd i } ]
 
 -- | Things that have a range are instances of this class.
 class HasRange t where
