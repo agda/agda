@@ -194,7 +194,7 @@ _·_ : ∀ {s} {Sig : Signature s} (r : Record Sig)
 _·_ {Sig = ∅}            r       ℓ {}
 _·_ {Sig = Sig , ℓ′ ∶ A} (rec r) ℓ {ℓ∈} with ℓ ≟ ℓ′
 ... | yes _ = Σ.proj₂ r
-... | no  _ = _·_ (Σ.proj₁ r) ℓ  {ℓ∈}
+... | no  _ = _·_ (Σ.proj₁ r) ℓ {ℓ∈}
 _·_ {Sig = Sig , ℓ′ ≔ a} (rec r) ℓ {ℓ∈} with ℓ ≟ ℓ′
 ... | yes _ = Manifest-Σ.proj₂ r
 ... | no  _ = _·_ (Manifest-Σ.proj₁ r) ℓ {ℓ∈}
@@ -224,7 +224,7 @@ mutual
   drop-With {Sig = ∅} {ℓ∈ = ()}      r
   drop-With {Sig = Sig , ℓ′ ∶ A} {ℓ} (rec r) with ℓ ≟ ℓ′
   ... | yes _ = rec (Manifest-Σ.proj₁ r , Manifest-Σ.proj₂ r)
-  ... | no  _ = rec (drop-With (Σ.proj₁ r)  , Σ.proj₂ r)
+  ... | no  _ = rec (drop-With (Σ.proj₁ r) , Σ.proj₂ r)
   drop-With {Sig = Sig , ℓ′ ≔ a} {ℓ} (rec r) with ℓ ≟ ℓ′
   ... | yes _ = rec (Manifest-Σ.proj₁ r ,)
   ... | no  _ = rec (drop-With (Manifest-Σ.proj₁ r) ,)
