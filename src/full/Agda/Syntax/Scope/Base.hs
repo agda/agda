@@ -525,17 +525,15 @@ scopeLookup q scope = map fst $ scopeLookup' q scope
 scopeLookup' :: forall a. InScope a => C.QName -> ScopeInfo -> [(a, Access)]
 scopeLookup' q scope = nubBy ((==) `on` fst) $ findName q root ++ imports
   where
-    this    :: A.ModuleName
-    this    = scopeCurrent scope
 
     current :: Scope
-    current = moduleScope this
+    current = moduleScope $ scopeCurrent scope
 
     root    :: Scope
     root    = mergeScopes $ current : map moduleScope (scopeParents current)
 
-    tag = inScopeTag :: InScopeTag a
-
+    -- return all possible splittings, e.g.
+    -- splitName X.Y.Z = [(X, Y.Z), (X.Y, Z)]
     splitName :: C.QName -> [(C.QName, C.QName)]
     splitName (C.QName x) = []
     splitName (C.Qual x q) = (C.QName x, q) : do
@@ -546,7 +544,7 @@ scopeLookup' q scope = nubBy ((==) `on` fst) $ findName q root ++ imports
     imported q = maybe [] ((:[]) . (, PublicAccess)) $ Map.lookup q $ scopeImports root
 
     topImports :: [(a, Access)]
-    topImports = case tag of
+    topImports = case (inScopeTag :: InScopeTag a) of
       NameTag   -> []
       ModuleTag -> map (AbsModule *** id) (imported q)
 
@@ -567,7 +565,7 @@ scopeLookup' q scope = nubBy ((==) `on` fst) $ findName q root ++ imports
     findName :: forall a. InScope a => C.QName -> Scope -> [(a, Access)]
     findName (C.QName x)  s = lookupName x s
     findName (C.Qual x q) s = do
-        m <- nub $ mods ++ defs -- record types will appear bot as a mod and a def
+        m <- nub $ mods ++ defs -- record types will appear both as a mod and a def
         Just s' <- return $ Map.lookup m (scopeModules scope)
         findName q (restrictPrivate s')
       where
