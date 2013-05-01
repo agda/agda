@@ -1,5 +1,5 @@
 {-# OPTIONS --universe-polymorphism #-}
-open import Common.Prelude renaming (Nat to ℕ)
+open import Common.Prelude renaming (Nat to ℕ; module Nat to ℕ)
 open import Common.Level
 open import Common.Reflect
 
