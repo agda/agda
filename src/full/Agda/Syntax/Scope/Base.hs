@@ -565,12 +565,19 @@ scopeLookup' q scope = nubBy ((==) `on` fst) $ findName q root ++ imports
     findName :: forall a. InScope a => C.QName -> Scope -> [(a, Access)]
     findName (C.QName x)  s = lookupName x s
     findName (C.Qual x q) s = do
+        -- Andreas, 2013-05-01:  Issue 836 complains about the feature
+        -- that constructors can also be qualified by their datatype
+        -- and projections by their record type.  This feature is off
+        -- if we just consider the modules:
+        -- m <- mods
+        -- The feature is on if we consider also the data and record types:
         m <- nub $ mods ++ defs -- record types will appear both as a mod and a def
         Just s' <- return $ Map.lookup m (scopeModules scope)
         findName q (restrictPrivate s')
       where
         mods, defs :: [ModuleName]
         mods = amodName . fst <$> lookupName x s
+        -- Andreas, 2013-05-01: Issue 836 debates this feature:
         -- Qualified constructors are qualified by their datatype rather than a module
         defs = mnameFromList . qnameToList . anameName . fst <$> lookupName x s
 
