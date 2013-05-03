@@ -138,15 +138,33 @@ matchLits c ps perm =
     Yes _ -> True
     _     -> False
 
--- | @matchClause mlist qs i c@ checks whther clause @c@ number @i@
+-- | @matchClause mlist qs i c@ checks whether clause @c@ number @i@
 --   covers a split clause with patterns @qs@.
 matchClause :: MatchLit -> [Arg MPat] -> Nat -> Clause -> Match Nat
-matchClause mlit qs i c = fmap (const i) $ matchPats mlit (clausePats c) qs
+matchClause mlit qs i c = i <$ matchPats mlit (clausePats c) qs
 
 -- | @matchPats mlist ps qs@ checks whether a function clause with patterns
---   @ps@ covers a split clause with patterns @qs@
+--   @ps@ covers a split clause with patterns @qs@.
+--
+--   Issue 842: if in case of functions with varying arity,
+--   the split clause has proper patterns left, we refuse to match,
+--   because it would be troublesome to construct the split tree later.
+--   We would have to move bindings from the rhs to the lhs.
+--   For example, this is rejected:
+--   @
+--     F : Bool -> Set1
+--     F true = Set
+--     F      = \ x -> Set
+--   @
 matchPats :: MatchLit -> [Arg Pattern] -> [Arg MPat] -> Match ()
-matchPats mlit ps qs = mconcat $ zipWith (matchPat mlit) (map unArg ps) (map unArg qs)
+matchPats mlit ps qs = mconcat $ properMatchesLeft :
+    zipWith (matchPat mlit) (map unArg ps) (map unArg qs)
+  where properMatchesLeft =
+          if any (properMatch . unArg) $ drop (length ps) qs
+          then No else Yes ()
+        properMatch ConMP{} = True
+        properMatch LitMP{} = True
+        properMatch _       = False
 
 -- | Combine results of checking whether function clause patterns
 --   covers split clause patterns.
