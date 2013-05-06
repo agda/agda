@@ -70,7 +70,7 @@ recordPatternToProjections p =
   where
     proj p = \ x -> Def (unArg p) [defaultArg x]
     comb :: (Term -> Term) -> Pattern -> TCM [Term -> Term]
-    comb prj p = map (prj .) <$> recordPatternToProjections p
+    comb prj p = map (\ f -> f . prj) <$> recordPatternToProjections p
 
 
 ---------------------------------------------------------------------------
