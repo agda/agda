@@ -78,6 +78,7 @@ etaOnce v = do
       -- reportSDoc "tc.eta" 20 $ text "eta-contracting record" <+> prettyTCM t
       r <- getConstructorData c -- fails in ConcreteMode if c is abstract
       ifM (isEtaRecord r)
-          (etaContractRecord r c args)
+          (do -- reportSDoc "tc.eta" 20 $ text "eta-contracting record" <+> prettyTCM t
+              etaContractRecord r c args)
           (return t)
     eta t = return t

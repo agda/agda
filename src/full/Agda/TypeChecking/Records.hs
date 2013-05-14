@@ -191,8 +191,8 @@ etaExpandRecord r pars u = do
 
 -- | The fields should be eta contracted already.
 --
---   We can eta constract if all fields @f = ...@ are irrelevant
---   or the corresponding projection @f = f v@ of the same value @v@,
+--   We can eta contract if all fields @f = ...@ are irrelevant
+--   or all fields @f@ are the projection @f v@ of the same value @v@,
 --   but we need at least one relevant field to find the value @v@.
 etaContractRecord :: QName -> QName -> Args -> TCM Term
 etaContractRecord r c args = do
@@ -211,7 +211,11 @@ etaContractRecord r c args = do
       fallBack = return (Con c args)
   case compare (length args) (length xs) of
     LT -> fallBack       -- Not fully applied
-    GT -> __IMPOSSIBLE__ -- Too many arguments. Impossible.
+    GT -> do
+      reportSDoc "tc.record.eta" 15 $
+        text "record constructor is applied to too many arguments: "
+          <+> prettyTCM (Con c args)
+      __IMPOSSIBLE__ -- Too many arguments. Impossible.
     EQ -> do
       case zipWithM check args xs of
         Just as -> case [ a | Just a <- as ] of
