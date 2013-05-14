@@ -306,7 +306,7 @@ termSection x ds = do
 
 -- | Termination check a definition by pattern matching.
 termDef :: DBPConf -> MutualNames -> QName -> TCM Calls
-termDef use names name = do
+termDef use names name = ignoreAbstractMode $ do
 	-- Retrieve definition
         def <- getConstInfo name
         -- returns a TC.Monad.Base.Definition

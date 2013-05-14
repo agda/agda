@@ -1,0 +1,8 @@
+
+Termination checking failed for the following functions:
+  foo
+Problematic calls:
+  bar
+    (at Issue847.agda:7,7-10)
+  foo
+    (at Issue847.agda:10,9-12)
