@@ -1,8 +1,8 @@
 
 Termination checking failed for the following functions:
-  foo
+  bad
 Problematic calls:
-  bar
-    (at Issue847.agda:7,7-10)
-  foo
-    (at Issue847.agda:10,9-12)
+  bad′
+    (at Issue847.agda:6,7-11)
+  bad
+    (at Issue847.agda:10,12-15)

@@ -77,16 +77,21 @@ type Result = [TerminationError]
 -- use of a NubList did not achieve the desired effect, now unnecessary
 -- type Result = NubList TerminationError
 
--- | Termination check a sequence of declarations.
-termDecls :: [A.Declaration] -> TCM Result
-termDecls ds = concat <$> mapM termDecl ds
-
 -- | Termination check a single declaration.
 termDecl :: A.Declaration -> TCM Result
-termDecl (A.ScopedDecl scope ds) = do
+termDecl d = ignoreAbstractMode $ termDecl' d
+
+-- | Termination check a sequence of declarations.
+termDecls :: [A.Declaration] -> TCM Result
+termDecls ds = concat <$> mapM termDecl' ds
+
+-- | Termination check a single declaration (without necessarily
+-- ignoring @abstract@).
+termDecl' :: A.Declaration -> TCM Result
+termDecl' (A.ScopedDecl scope ds) = do
   setScope scope
   termDecls ds
-termDecl d = case d of
+termDecl' d = case d of
     A.Axiom {}            -> return mempty
     A.Field {}            -> return mempty
     A.Primitive {}        -> return mempty
@@ -306,7 +311,7 @@ termSection x ds = do
 
 -- | Termination check a definition by pattern matching.
 termDef :: DBPConf -> MutualNames -> QName -> TCM Calls
-termDef use names name = ignoreAbstractMode $ do
+termDef use names name = do
 	-- Retrieve definition
         def <- getConstInfo name
         -- returns a TC.Monad.Base.Definition
