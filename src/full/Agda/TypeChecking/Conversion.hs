@@ -48,6 +48,9 @@ import Agda.TypeChecking.Monad.Debug
 #include "../undefined.h"
 import Agda.Utils.Impossible
 
+($>) :: Functor f => f a -> b -> f b
+($>) = flip (<$)
+
 mlevel :: TCM (Maybe Term)
 mlevel = liftTCM $ (Just <$> primLevel) `catchError` \_ -> return Nothing
 
@@ -451,6 +454,7 @@ compareAtom cmp t m n =
                        else return dom1
                 name <- freshName_ (suggest b1 b2)
                 addCtx name dom $ compareType cmp (absBody b1) (absBody b2)
+                stealConstraints pid
                 -- Andreas, 2013-05-15 Now, comparison of codomains is not
                 -- blocked any more by getting stuck on domains.
                 -- Only the domain type in context will be blocked.
@@ -494,13 +498,13 @@ compareElims pols0 a v els01 els02 = do
     (Proj{}  : _, Apply{} : _) -> __IMPOSSIBLE__
     (Apply arg1 : els1, Apply arg2 : els2) ->
       verboseBracket "tc.conv.elim" 20 "compare Apply" $ do
-      reportSDoc "tc.conv.elim" 25 $ nest 2 $ vcat
+      reportSDoc "tc.conv.elim" 10 $ nest 2 $ vcat
         [ text "a    =" <+> prettyTCM a
         , text "v    =" <+> prettyTCM v
         , text "arg1 =" <+> prettyTCM arg1
         , text "arg2 =" <+> prettyTCM arg2
         ]
-      reportSDoc "tc.conv.elim" 10 $ nest 2 $ vcat
+      reportSDoc "tc.conv.elim" 25 $ nest 2 $ vcat
         [ text "v    =" <+> text (show v)
         , text "arg1 =" <+> text (show arg1)
         , text "arg2 =" <+> text (show arg2)
@@ -519,23 +523,55 @@ compareElims pols0 a v els01 els02 = do
         NotBlocked MetaV{}            -> patternViolation
         NotBlocked (Pi (Dom info b) _) -> do
           mlvl <- mlevel
-          let checkArg = applyRelevanceToContext (argInfoRelevance info) $
-                             case argInfoRelevance info of
+          let r = getRelevance info
+              dependent = case ignoreSharing $ unEl a of
+                Pi (Dom _ (El _ lvl')) c -> 0 `freeInIgnoringSorts` absBody c
+                                              && Just lvl' /= mlvl
+                _ -> False
+
+-- NEW, Andreas, 2013-05-15
+
+          -- compare arg1 and arg2
+          pid <- newProblem_ $ applyRelevanceToContext r $
+              case r of
                 Forced     -> return ()
                 r | irrelevantOrUnused r ->
                               compareIrrelevant b (unArg arg1) (unArg arg2)
                 _          -> compareWithPol pol (flip compareTerm b)
                                 (unArg arg1) (unArg arg2)
-              dependent = case ignoreSharing $ unEl a of
-                Pi (Dom _ (El _ lvl')) c -> 0 `freeInIgnoringSorts` absBody c
-                                              && Just lvl' /= mlvl
-                _ -> False
+          -- if comparison got stuck and function type is dependent, block arg
+          arg <- if dependent
+                 then (arg1 $>) <$> blockTermOnProblem b (unArg arg1) pid
+                 else return arg1
+          -- continue, possibly with blocked instantiation
+          compareElims pols (piApply a [arg]) (apply v [arg]) els1 els2
+          -- any left over constraints of arg are associatd to the comparison
+          stealConstraints pid
+
+{- Stealing solves this issue:
+
+   Does not create enough blocked tc-problems,
+   see test/fail/DontPrune.
+   (There are remaining problems which do not show up as yellow.)
+   Need to find a way to associate pid also to result of compareElims.
+-}
+
+{- OLD, before 2013-05-15
+
+          let checkArg = applyRelevanceToContext r $
+                             case r of
+                Forced     -> return ()
+                r | irrelevantOrUnused r ->
+                              compareIrrelevant b (unArg arg1) (unArg arg2)
+                _          -> compareWithPol pol (flip compareTerm b)
+                                (unArg arg1) (unArg arg2)
 
               theRest = ElimCmp pols (piApply a [arg1]) (apply v [arg1]) els1 els2
 
           if dependent
             then guardConstraint theRest checkArg
             else checkArg >> solveConstraint_ theRest
+-}
 
         NotBlocked (Def info _) -> do
                            reportSDoc "tc.conv.elim" 10 $ text "crash!"
