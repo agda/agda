@@ -432,7 +432,7 @@ compareAtom cmp t m n =
           _ -> __IMPOSSIBLE__
 
         equalFun t1 t2 = case (ignoreSharing t1, ignoreSharing t2) of
-	  (Pi dom1@(Dom i1 a1) b1, Pi (Dom i2 a2) b2)
+	  (Pi dom1@(Dom i1 a1@(El a1s a1t)) b1, Pi (Dom i2 a2) b2)
 	    | argInfoHiding i1 /= argInfoHiding i2 -> typeError $ UnequalHiding t1 t2
             -- Andreas 2010-09-21 compare r1 and r2, but ignore forcing annotations!
 	    | not (compareRelevance cmp (ignoreForced $ argInfoRelevance i2)
@@ -442,6 +442,20 @@ compareAtom cmp t m n =
                 reportSDoc "tc.conv.fun" 20 $ nest 2 $ vcat
                   [ text "t1 =" <+> prettyTCM t1
                   , text "t2 =" <+> prettyTCM t2 ]
+
+                -- We only need to require a1 == a2 if t2 is a dependent function type.
+                -- If it's non-dependent it doesn't matter what we add to the context.
+                pid <- newProblem_ $ compareType cmp a2 a1
+                dom <- if isBinderUsed b2
+                       then Dom i1 . El a1s <$> blockTermOnProblem (El Inf $ Sort a1s) a1t pid
+                       else return dom1
+                name <- freshName_ (suggest b1 b2)
+                addCtx name dom $ compareType cmp (absBody b1) (absBody b2)
+                -- Andreas, 2013-05-15 Now, comparison of codomains is not
+                -- blocked any more by getting stuck on domains.
+                -- Only the domain type in context will be blocked.
+
+{- OLD
                 let checkDom = escapeContext 1 $ compareType cmp a2 a1
                     conCoDom = TypeCmp cmp (absBody b1) (absBody b2)
                 -- We only need to require a1 == a2 if t2 is a dependent function type.
@@ -451,6 +465,7 @@ compareAtom cmp t m n =
                   if isBinderUsed b2 -- dependent function type?
                   then guardConstraint conCoDom checkDom
                   else checkDom >> solveConstraint_ conCoDom
+-}
 	    where
 		suggest b1 b2 = head $
                   [ x | x <- map absName [b1,b2], x /= "_"] ++ ["_"]
