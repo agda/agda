@@ -70,7 +70,7 @@ data MPat = VarMP Nat | ConMP QName [Arg MPat] | LitMP Literal | WildMP
 buildMPatterns :: Permutation -> [Arg Pattern] -> [Arg MPat]
 buildMPatterns perm ps = evalState (mapM (traverse build) ps) xs
   where
-    xs   = permute (invertP perm) $ downFrom (size perm)  -- reverse [0 .. size perm - 1]
+    xs   = permute (invertP perm) $ downFrom (size perm)
     tick = do x : xs <- get; put xs; return x
 
     build (VarP _)        = VarMP <$> tick
@@ -202,7 +202,7 @@ matchPat mlit (LitP l) q = mlit l q
 -- matchPat mlit (ConP c (Just _) ps) q | recordPattern ps = Yes ()  -- Andreas, 2012-07-25 record patterns always match!
 matchPat mlit (ConP c _ ps) q = case q of
   VarMP x -> Block [(x, Just [c])]
-  WildMP  -> Yes ()
+  WildMP{} -> No -- Andreas, 2013-05-15 this was "Yes()" triggering issue 849
   ConMP c' qs
     | c == c'   -> matchPats mlit ps qs
     | otherwise -> No

@@ -1,0 +1,4 @@
+Issue849.agda:25,1-26,11
+Incomplete pattern matching for f. Missing cases:
+  f ._ (d2 _)
+when checking the definition of f
