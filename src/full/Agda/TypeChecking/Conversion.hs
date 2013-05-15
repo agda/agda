@@ -1,4 +1,4 @@
-{-# LANGUAGE CPP, PatternGuards #-}
+{-# LANGUAGE CPP, PatternGuards, TypeSynonymInstances, FlexibleInstances #-}
 
 module Agda.TypeChecking.Conversion where
 
@@ -220,25 +220,16 @@ compareTerm' cmp a m n =
     equalFun :: Term -> Term -> Term -> TCM ()
     equalFun (Shared p) m n = equalFun (derefPtr p) m n
     equalFun (Pi dom@(Dom info _) b) m n = do
-        name <- freshName_ $ properName $ absName b
+        -- name <- freshName_ $ properName $ absName b
+        name <- freshName_ $ suggest (absName b) "x"
         addCtx name dom $ compareTerm cmp (absBody b) m' n'
       where
         (m',n') = raise 1 (m,n) `apply` [Arg info $ var 0]
+{-
         properName "_" = "x"
         properName  x  =  x
-    equalFun _ _ _ = __IMPOSSIBLE__
-{- OLD CODE
-    equalFun :: (Dom Type, Type) -> Term -> Term -> TCM ()
-    equalFun (a@(Dom h r _), t) m n = do
-        name <- freshName_ (suggest $ unEl t)
-        addCtx name a $ compareTerm cmp t' m' n'
-      where
-        p	= Arg h r $ var 0
-        (m',n') = raise 1 (m,n) `apply` [p]
-        t'	= raise 1 t `piApply` [p]
-        suggest (Pi _ b) = absName b
-        suggest _	 = __IMPOSSIBLE__
 -}
+    equalFun _ _ _ = __IMPOSSIBLE__
 
 -- | @compareTel t1 t2 cmp tel1 tel1@ checks whether pointwise
 --   @tel1 \`cmp\` tel2@ and complains that @t2 \`cmp\` t1@ failed if
@@ -251,32 +242,46 @@ compareTel t1 t2 cmp tel1 tel2 =
     (EmptyTel, EmptyTel) -> return ()
     (EmptyTel, _)        -> bad
     (_, EmptyTel)        -> bad
-    (ExtendTel arg1@(Dom i1 a1) tel1, ExtendTel arg2@(Dom i2 a2) tel2)
-      | argInfoHiding i1 /= argInfoHiding i2 -> bad
+    (ExtendTel dom1@(Dom i1 a1) tel1, ExtendTel dom2@(Dom i2 a2) tel2)
+      | getHiding i1 /= getHiding i2 -> bad
         -- Andreas, 2011-09-11 do not test r1 == r2 because they could differ
         -- e.g. one could be Forced and the other Relevant (see fail/UncurryMeta)
       | otherwise -> do
           name <- freshName_ (suggest (absName tel1) (absName tel2))
-          let checkArg = escapeContext 1 $ compareType cmp a1 a2
-{- OLD
-          let (tel1', tel2') = raise 1 (tel1, tel2)
-              arg            = var 0
-              c = TelCmp t1 t2 cmp (absApp tel1' arg) (absApp tel2' arg)
--}
-              c = TelCmp t1 t2 cmp (absBody tel1) (absBody tel2)
-              r = max (argInfoRelevance i1) (argInfoRelevance i2) -- take "most irrelevant"
+          let r = max (getRelevance i1) (getRelevance i2) -- take "most irrelevant"
               dependent = (r /= Irrelevant) && isBinderUsed tel2
-          addCtx name arg1 $
+-- NEW
+          pid <- newProblem_ $ compareType cmp a1 a2
+          dom <- if dependent
+                 then Dom i1 <$> blockTypeOnProblem a1 pid
+                 else return dom1
+          addCtx name dom $ compareTel t1 t2 cmp (absBody tel1) (absBody tel2)
+          stealConstraints pid
+
+{- OLD, before 2013-05-15
+          let checkDom = escapeContext 1 $ compareType cmp a1 a2
+              c = TelCmp t1 t2 cmp (absBody tel1) (absBody tel2)
+
+          addCtx name dom1 $
             if dependent
-	    then guardConstraint c checkArg
-	    else checkArg >> solveConstraint_ c
-          where
-            suggest "_" y = y
-            suggest  x  _ = x
+	    then guardConstraint c checkDom
+	    else checkDom >> solveConstraint_ c
+-}
   where
     -- Andreas, 2011-05-10 better report message about types
     bad = typeError $ UnequalTypes cmp t2 t1 -- switch t2 and t1 because of contravariance!
 --    bad = typeError $ UnequalTelescopes cmp tel1 tel2
+
+-- | Pick the better name suggestion, i.e., the one that is not just underscore.
+class Suggest a where
+  suggest :: a -> a -> String
+
+instance Suggest String where
+  suggest "_" y = y
+  suggest  x  _ = x
+
+instance Suggest (Abs a) where
+  suggest b1 b2 = suggest (absName b1) (absName b2)
 
 -- | Syntax directed equality on atomic values
 --
@@ -423,7 +428,9 @@ compareAtom cmp t m n =
                     compareArgs [] a' (Con x []) xArgs yArgs
             _ -> typeError $ UnequalTerms cmp m n t
     where
-        conType c (El _ v) = case ignoreSharing v of
+        -- Andreas, 2013-05-15 due to new postponement strategy, type can now be blocked
+        conType c t = ifBlocked (unEl t) (\ _ _ -> patternViolation) $ \ v ->
+         case ignoreSharing v of
           Def d args -> do
             npars <- do
               def <- theDef <$> getConstInfo d
@@ -432,7 +439,9 @@ compareAtom cmp t m n =
                                    _                      -> __IMPOSSIBLE__
             a <- defType <$> getConstInfo c
             return $ piApply a (genericTake npars args)
-          _ -> __IMPOSSIBLE__
+          v -> do reportSDoc "impossible" 10 $
+                    text "expected data/record type, found " <+> prettyTCM v
+                  __IMPOSSIBLE__
 
         equalFun t1 t2 = case (ignoreSharing t1, ignoreSharing t2) of
 	  (Pi dom1@(Dom i1 a1@(El a1s a1t)) b1, Pi (Dom i2 a2) b2)
@@ -450,7 +459,8 @@ compareAtom cmp t m n =
                 -- If it's non-dependent it doesn't matter what we add to the context.
                 pid <- newProblem_ $ compareType cmp a2 a1
                 dom <- if isBinderUsed b2
-                       then Dom i1 . El a1s <$> blockTermOnProblem (El Inf $ Sort a1s) a1t pid
+                       then Dom i1 <$> blockTypeOnProblem a1 pid
+                       -- then Dom i1 . El a1s <$> blockTermOnProblem (El Inf $ Sort a1s) a1t pid
                        else return dom1
                 name <- freshName_ (suggest b1 b2)
                 addCtx name dom $ compareType cmp (absBody b1) (absBody b2)
@@ -470,9 +480,11 @@ compareAtom cmp t m n =
                   then guardConstraint conCoDom checkDom
                   else checkDom >> solveConstraint_ conCoDom
 -}
+{-
 	    where
 		suggest b1 b2 = head $
                   [ x | x <- map absName [b1,b2], x /= "_"] ++ ["_"]
+-}
 	  _ -> __IMPOSSIBLE__
 
 compareRelevance :: Comparison -> Relevance -> Relevance -> Bool
@@ -523,11 +535,18 @@ compareElims pols0 a v els01 els02 = do
         NotBlocked MetaV{}            -> patternViolation
         NotBlocked (Pi (Dom info b) _) -> do
           mlvl <- mlevel
-          let r = getRelevance info
-              dependent = case ignoreSharing $ unEl a of
-                Pi (Dom _ (El _ lvl')) c -> 0 `freeInIgnoringSorts` absBody c
-                                              && Just lvl' /= mlvl
+          let dependent = case ignoreSharing $ unEl a of
+                -- Level-polymorphism (x : Level) -> ... does not count as dependency here
+                Pi (Dom _ (El _ lvl')) (Abs _ c) -> Just lvl' /= mlvl
+                   -- NB: we could drop the free variable test and still be sound.
+                   -- It is a trade-off between the administrative effort of
+                   -- creating a blocking and traversing a term for free variables.
+                   -- Apparently, it is believed that checking free vars is cheaper.
+                   -- Andreas, 2013-05-15
+                   && 0 `freeInIgnoringSorts` c
                 _ -> False
+
+              r = getRelevance info
 
 -- NEW, Andreas, 2013-05-15
 

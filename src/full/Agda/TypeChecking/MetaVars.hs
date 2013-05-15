@@ -315,6 +315,9 @@ blockTermOnProblem t v pid =
         listenToMeta (CheckConstraint i cmp) x
         return v
 
+blockTypeOnProblem :: Type -> ProblemId -> TCM Type
+blockTypeOnProblem (El s a) pid = El s <$> blockTermOnProblem (El Inf $ Sort s) a pid
+
 -- | @unblockedTester t@ returns @False@ if @t@ is a meta or a blocked term.
 --
 --   Auxiliary function to create a postponed type checking problem.
