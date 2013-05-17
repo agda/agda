@@ -1169,6 +1169,10 @@ whereToAbstract r whname whds inner = do
   x <- inner
   setCurrentModule old
   bindModule acc m am
+  -- Issue 848: if the module was anonymous (module _ where) open it public
+  when (maybe False C.isNoName whname) $
+    openModule_ (C.QName m) $
+      defaultImportDir { publicOpen = True }
   return (x, ds)
 
 data RightHandSide = RightHandSide

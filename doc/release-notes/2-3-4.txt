@@ -65,6 +65,35 @@ Language
     Foo : _ → Set
     Foo [ A ] = A
 
+* Anonymous where-modules are opened public. [Issue 848]
+
+    <clauses>
+    f args = rhs
+      module _ telescope where
+        body
+    <more clauses>
+
+  means the following (not proper Agda code, since you cannot put a
+  module in-between clauses)
+
+    <clauses>
+    module _ {arg-telescope} telescope where
+      body
+
+    f args = rhs
+    <more clauses>
+
+  Example:
+
+    A : Set1
+    A = B module _ where
+      B : Set1
+      B = Set
+
+    C : Set1
+    C = B
+
+
 Goal and error display
 ======================
 
