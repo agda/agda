@@ -4,7 +4,7 @@ module Agda.Syntax.Internal.Defs where
 import Control.Monad.Reader
 import Control.Monad.Writer
 
-import qualified Data.Traversable as Trav
+import qualified Data.Foldable as Fold
 
 import Agda.Syntax.Common
 import Agda.Syntax.Internal hiding (ArgInfo, Arg, Dom)
@@ -87,13 +87,13 @@ instance GetDefs LevelAtom where
 -- collection instances
 
 instance GetDefs a => GetDefs (Maybe a) where
-  getDefs = void . Trav.mapM getDefs
+  getDefs = Fold.mapM_ getDefs
 
 instance GetDefs a => GetDefs [a] where
-  getDefs = mapM_ getDefs
+  getDefs = Fold.mapM_ getDefs
 
 instance GetDefs c => GetDefs (ArgInfo c) where
-  getDefs = void . Trav.mapM getDefs
+  getDefs = Fold.mapM_ getDefs
 
 instance (GetDefs c, GetDefs a) => GetDefs (Arg c a) where
   getDefs (Arg c a) = getDefs c >> getDefs a
