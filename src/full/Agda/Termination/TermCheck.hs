@@ -37,6 +37,7 @@ import Agda.Syntax.Translation.InternalToAbstract
 import Agda.Termination.CallGraph   as Term
 import qualified Agda.Termination.SparseMatrix as Term
 import qualified Agda.Termination.Termination  as Term
+import Agda.Termination.RecCheck
 
 import Agda.TypeChecking.Monad
 import Agda.TypeChecking.Pretty
@@ -59,7 +60,7 @@ import Agda.Interaction.Options
 
 import Agda.Utils.List
 import Agda.Utils.Size
-import Agda.Utils.Monad ((<$>), mapM', forM', ifM)
+import Agda.Utils.Monad ((<$>), mapM', forM', ifM, or2M)
 -- import Agda.Utils.NubList
 import Agda.Utils.Pointed
 import Agda.Utils.Permutation
@@ -135,12 +136,14 @@ termMutual i ds = if names == [] then return mempty else
 
   mutualBlock <- findMutualBlock (head names)
   let allNames = Set.elems mutualBlock
+      -- no need to term-check if the declarations are acyclic
+      skip = not <$> recursive allNames
 
-  if not (Info.mutualTermCheck i) then do
+  ifM (return (not (Info.mutualTermCheck i)) `or2M` skip) (do
       reportSLn "term.warn.yes" 2 $ "Skipping termination check for " ++ show names
       forM_ allNames $ \ q -> setTerminates q True -- considered terminating!
-      return mempty
-   else do
+      return mempty)
+   $ do
      -- get list of sets of mutually defined names from the TCM
      -- this includes local and auxiliary functions introduced
      -- during type-checking
