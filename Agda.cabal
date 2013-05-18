@@ -164,6 +164,7 @@ library
                     Agda.Syntax.Fixity
                     Agda.Syntax.Info
                     Agda.Syntax.Internal
+                    Agda.Syntax.Internal.Defs
                     Agda.Syntax.Internal.Generic
                     Agda.Syntax.Internal.Pattern
                     Agda.Syntax.Literal
