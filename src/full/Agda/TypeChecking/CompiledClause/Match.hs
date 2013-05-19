@@ -54,6 +54,7 @@ match' :: Stack -> TCM (Reduced (Blocked Args) Term)
 match' ((c, args, patch) : stack) = do
   let no          args = return $ NoReduction $ NotBlocked $ patch $ map ignoreReduced args
       noBlocked x args = return $ NoReduction $ Blocked x  $ patch $ map ignoreReduced args
+      yes t            = flip YesReduction t <$> asks envSimplification
   case c of
 
     -- impossible case
@@ -62,12 +63,10 @@ match' ((c, args, patch) : stack) = do
     -- done matching
     Done xs t
       -- if the function was partially applied, return a lambda
-      | m < n     -> return $ YesReduction $
-                      applySubst (toSubst args) $ foldr lam t (drop m xs)
+      | m < n     -> yes $ applySubst (toSubst args) $ foldr lam t (drop m xs)
       -- otherwise, just apply instantiation to body
       -- apply the result to any extra arguments
-      | otherwise -> return $ YesReduction $
-                      applySubst (toSubst args0) t `apply` map ignoreReduced args1
+      | otherwise -> yes $ applySubst (toSubst args0) t `apply` map ignoreReduced args1
       where
         n              = length xs
         m              = length args
@@ -121,7 +120,7 @@ match' ((c, args, patch) : stack) = do
             NotBlocked (MetaV x _) -> noBlocked x args'
 
             -- In case of a literal, try also its constructor form
-            NotBlocked (Lit l) -> do
+            NotBlocked (Lit l) -> performedSimplification $ do
               cv <- constructorForm v
               let cFrame stack = case ignoreSharing cv of
                     Con c vs -> conFrame c vs stack
@@ -129,7 +128,8 @@ match' ((c, args, patch) : stack) = do
               match' $ litFrame l $ cFrame stack'
 
             -- In case of a constructor, push the conFrame
-            NotBlocked (Con c vs) -> match' $ conFrame c vs $ stack'
+            NotBlocked (Con c vs) -> performedSimplification $
+              match' $ conFrame c vs $ stack'
 
             NotBlocked _ -> no args'
 

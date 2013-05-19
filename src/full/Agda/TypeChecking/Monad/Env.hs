@@ -3,6 +3,7 @@ module Agda.TypeChecking.Monad.Env where
 
 import Control.Monad.Reader
 import Data.List
+import Data.Monoid
 
 import Agda.Syntax.Common
 import Agda.Syntax.Abstract.Name
@@ -51,3 +52,11 @@ doExpandLast = local $ \ e -> e { envExpandLast = ExpandLast }
 
 dontExpandLast :: TCM a -> TCM a
 dontExpandLast = local $ \ e -> e { envExpandLast = DontExpandLast }
+
+-- | If the reduced did a proper match (constructor or literal pattern),
+--   then record this as simplification step.
+performedSimplification :: TCM a -> TCM a
+performedSimplification = local $ \ e -> e { envSimplification = YesSimplification }
+
+performedSimplification' :: Simplification -> TCM a -> TCM a
+performedSimplification' simpl = local $ \ e -> e { envSimplification = simpl `mappend` envSimplification e }

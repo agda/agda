@@ -23,15 +23,15 @@ import Agda.Utils.Impossible
 
 -- | If matching is inconclusive (@DontKnow@) we want to know whether
 --   it is due to a particular meta variable.
-data Match = Yes [Term] | No | DontKnow (Maybe MetaId)
+data Match = Yes Simplification [Term] | No | DontKnow (Maybe MetaId)
 
 instance Monoid Match where
-    mempty = Yes []
+    mempty = Yes mempty []
 
-    Yes us     `mappend` Yes vs		  = Yes (us ++ vs)
-    Yes _      `mappend` No		  = No
-    Yes _      `mappend` DontKnow m	  = DontKnow m
-    No	       `mappend` _		  = No
+    Yes s us   `mappend` Yes s' vs        = Yes (s `mappend` s') (us ++ vs)
+    Yes _ _    `mappend` No               = No
+    Yes _ _    `mappend` DontKnow m       = DontKnow m
+    No	       `mappend` _                = No
 
     -- Nothing means blocked by a variable.  In this case no instantiation of
     -- meta-variables will make progress.
@@ -60,7 +60,7 @@ matchPattern (Arg info' (LitP l)) arg@(Arg info v) = do
     let v = ignoreBlocking w
     case ignoreSharing <$> w of
 	NotBlocked (Lit l')
-	    | l == l'          -> return (Yes [], Arg info v)
+	    | l == l'          -> return (Yes YesSimplification [], Arg info v)
 	    | otherwise        -> return (No, Arg info v)
 	NotBlocked (MetaV x _) -> return (DontKnow $ Just x, Arg info v)
 	Blocked x _            -> return (DontKnow $ Just x, Arg info v)
@@ -103,9 +103,12 @@ matchPattern (Arg info' (ConP c _ ps))     (Arg info v) =
 		return (m, Arg info $ Con c vs)
 	  NotBlocked (Con c' vs)
 	    | c == c'             -> do
-		(m, vs) <- matchPatterns ps vs
+		(m, vs) <- yesSimplification <$> matchPatterns ps vs
 		return (m, Arg info $ Con c' vs)
 	    | otherwise           -> return (No, Arg info v)
 	  NotBlocked (MetaV x vs) -> return (DontKnow $ Just x, Arg info v)
 	  Blocked x _             -> return (DontKnow $ Just x, Arg info v)
           _                       -> return (DontKnow Nothing, Arg info v)
+
+yesSimplification (Yes _ vs, us) = (Yes YesSimplification vs, us)
+yesSimplification r              = r

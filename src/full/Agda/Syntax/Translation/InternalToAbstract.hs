@@ -363,7 +363,7 @@ reifyTerm expandAnonDefs v = do
       reifyDef True x@(QName m name) vs | A.isAnonymousModuleName m = do
         r <- reduceDefCopy x vs
         case r of
-          YesReduction v -> do
+          YesReduction _ v -> do
             reportSLn "reify.anon" 20 $ unlines
               [ "reduction on defined ident. in anonymous module"
               , "x = " ++ show x

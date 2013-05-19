@@ -228,7 +228,7 @@ instance (ToTerm a, FromTerm a) => FromTerm [a] where
                                })
         case unArg t of
           Con c []
-            | c == nil  -> return $ YesReduction []
+            | c == nil  -> return $ YesReduction NoSimplification []
           Con c [x,xs]
             | c == cons ->
               redBind (toA x)
@@ -245,17 +245,17 @@ redBind :: TCM (Reduced a a') -> (a -> b) ->
 redBind ma f k = do
     r <- ma
     case r of
-	NoReduction x	-> return $ NoReduction $ f x
-	YesReduction y	-> k y
+	NoReduction x    -> return $ NoReduction $ f x
+	YesReduction _ y -> k y
 
 redReturn :: a -> TCM (Reduced a' a)
-redReturn = return . YesReduction
+redReturn = return . YesReduction NoSimplification
 
 fromReducedTerm :: (Term -> Maybe a) -> TCM (FromTermFunction a)
 fromReducedTerm f = return $ \t -> do
     b <- reduceB t
     case f $ ignoreSharing $ unArg (ignoreBlocking b) of
-	Just x	-> return $ YesReduction x
+	Just x	-> return $ YesReduction NoSimplification x
 	Nothing	-> return $ NoReduction (reduced b)
 
 fromLiteral :: (Literal -> Maybe a) -> TCM (FromTermFunction a)
@@ -590,4 +590,3 @@ lookupPrimitiveFunctionQ q = do
             Name _ x _ _ -> show x
   PrimImpl t pf <- lookupPrimitiveFunction s
   return (s, PrimImpl t $ pf { primFunName = q })
-

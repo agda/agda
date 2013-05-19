@@ -1,4 +1,4 @@
-{-# LANGUAGE CPP, PatternGuards,
+{-# LANGUAGE CPP, PatternGuards, TupleSections,
              TypeSynonymInstances, FlexibleInstances #-}
 
 module Agda.TypeChecking.Reduce where
@@ -314,12 +314,18 @@ instance Reduce Term where
 unfoldDefinition ::
   Bool -> (Term -> TCM (Blocked Term)) ->
   Term -> QName -> Args -> TCM (Blocked Term)
-unfoldDefinition unfoldDelayed keepGoing v0 f args =
+unfoldDefinition b keepGoing v f args = snd <$>
+  unfoldDefinition' b (\ t -> (NoSimplification,) <$> keepGoing t) v f args
+
+unfoldDefinition' ::
+  Bool -> (Term -> TCM (Simplification, Blocked Term)) ->
+  Term -> QName -> Args -> TCM (Simplification, Blocked Term)
+unfoldDefinition' unfoldDelayed keepGoing v0 f args =
   {-# SCC "reduceDef" #-} do
   info <- getConstInfo f
   case theDef info of
     Constructor{conSrcCon = c} ->
-      return $ notBlocked $ Con (c `withRangeOf` f) args
+      retSimpl $ notBlocked $ Con (c `withRangeOf` f) args
     Primitive{primAbstr = ConcreteDef, primName = x, primClauses = cls} -> do
       pf <- getPrimitive x
       reducePrimitive x v0 f args pf (defDelayed info) (defNonterminating info)
@@ -327,20 +333,21 @@ unfoldDefinition unfoldDelayed keepGoing v0 f args =
     _  -> reduceNormal v0 f (map notReduced args) (defDelayed info) (defNonterminating info)
                        (defClauses info) (defCompiled info)
   where
+    retSimpl v = (,v) <$> asks envSimplification
     reducePrimitive x v0 f args pf delayed nonterminating cls mcc
-        | n < ar    = return $ notBlocked $ v0 `apply` args -- not fully applied
+        | n < ar    = retSimpl $ notBlocked $ v0 `apply` args -- not fully applied
         | otherwise = {-# SCC "reducePrimitive" #-} do
             let (args1,args2) = genericSplitAt ar args
             r <- def args1
             case r of
               NoReduction args1' ->
                 if null cls then
-                  return $ apply (Def f []) <$> traverse id (map mredToBlocked args1' ++ map notBlocked args2)
+                  retSimpl $ apply (Def f []) <$> traverse id (map mredToBlocked args1' ++ map notBlocked args2)
                 else
                   reduceNormal v0 f (args1' ++
                                      map notReduced args2)
                                delayed nonterminating cls mcc
-              YesReduction v ->
+              YesReduction simpl v -> performedSimplification' simpl $
                 keepGoing $ v `apply` args2
         where
             n	= genericLength args
@@ -350,7 +357,7 @@ unfoldDefinition unfoldDelayed keepGoing v0 f args =
             mredToBlocked (MaybeRed NotReduced  x) = notBlocked x
             mredToBlocked (MaybeRed (Reduced b) x) = x <$ b
 
-    reduceNormal :: Term -> QName -> [MaybeReduced (Arg Term)] -> Delayed -> Bool -> [Clause] -> Maybe CompiledClauses -> TCM (Blocked Term)
+    reduceNormal :: Term -> QName -> [MaybeReduced (Arg Term)] -> Delayed -> Bool -> [Clause] -> Maybe CompiledClauses -> TCM (Simplification, Blocked Term)
     reduceNormal v0 f args delayed nonterminating def mcc = {-# SCC "reduceNormal" #-} do
         case def of
           _ | nonterminating -> defaultResult
@@ -365,15 +372,15 @@ unfoldDefinition unfoldDelayed keepGoing v0 f args =
                   [ text "*** tried to reduce " <+> prettyTCM f
                   , text "    args    " <+> prettyTCM (map (unArg . ignoreReduced) args)
                   , text "    stuck on" <+> prettyTCM (ignoreBlocking v) ]
-                return v
-              YesReduction v -> do
+                retSimpl v
+              YesReduction simpl v -> performedSimplification' simpl $ do
                 reportSDoc "tc.reduce" 90 $ vcat
                   [ text "*** reduced definition: " <+> prettyTCM f
                   ]
                 reportSDoc "tc.reduce" 100 $ text "    result" <+> prettyTCM v $$
                                              text "    raw   " <+> text (show v)
                 keepGoing v
-      where defaultResult = return $ notBlocked $ v0 `apply` (map ignoreReduced args)
+      where defaultResult = retSimpl $ notBlocked $ v0 `apply` (map ignoreReduced args)
 
 -- | Reduce a non-primitive definition if it is a copy linking to another def.
 reduceDefCopy :: QName -> Args -> TCM (Reduced () Term)
@@ -398,8 +405,8 @@ reduceDef_ info f vs = do
    else do
       ev <- appDef_ f v0 cls mcc args
       case ev of
-        YesReduction t    -> return $ YesReduction t
-        NoReduction args' -> return $ NoReduction ()
+        YesReduction simpl t -> return $ YesReduction simpl t
+        NoReduction args'    -> return $ NoReduction ()
 
 -- | Apply a definition using the compiled clauses, or fall back to
 --   ordinary clauses if no compiled clauses exist.
@@ -416,8 +423,8 @@ appDef :: Term -> CompiledClauses -> MaybeReducedArgs -> TCM (Reduced (Blocked T
 appDef v cc args = liftTCM $ do
   r <- matchCompiled cc args
   case r of
-    YesReduction t    -> return $ YesReduction t
-    NoReduction args' -> return $ NoReduction $ fmap (apply v) args'
+    YesReduction simpl t -> return $ YesReduction simpl t
+    NoReduction args'    -> return $ NoReduction $ fmap (apply v) args'
 
 appDef' :: Term -> [Clause] -> MaybeReducedArgs -> TCM (Reduced (Blocked Term) Term)
 appDef' _ [] _ = {- ' -} __IMPOSSIBLE__
@@ -427,8 +434,8 @@ appDef' v cls@(Clause {clausePats = ps} : _) args
     let (args0, args1) = splitAt n args
     r <- goCls cls (map ignoreReduced args0)
     case r of
-      YesReduction u -> return $ YesReduction $ u `apply` map ignoreReduced args1
-      NoReduction v  -> return $ NoReduction $ (`apply` map ignoreReduced args1) <$> v
+      YesReduction simpl u -> return $ YesReduction simpl $ u `apply` map ignoreReduced args1
+      NoReduction v        -> return $ NoReduction $ (`apply` map ignoreReduced args1) <$> v
   where
 
     n = genericLength ps
@@ -443,22 +450,23 @@ appDef' v cls@(Clause {clausePats = ps} : _) args
             No		  -> goCls cls args
             DontKnow Nothing  -> return $ NoReduction $ notBlocked $ v `apply` args
             DontKnow (Just m) -> return $ NoReduction $ blocked m $ v `apply` args
-            Yes args'
-              | hasBody body  -> return $ YesReduction (
+            Yes simpl args'
+              | hasBody body  -> return $ YesReduction simpl $
                   -- TODO: let matchPatterns also return the reduced forms
                   -- of the original arguments!
-                  app args' body)
+                  -- Andreas, 2013-05-19 isn't this done now?
+                  app args' body
               | otherwise	  -> return $ NoReduction $ notBlocked $ v `apply` args
 
     hasBody (Body _) = True
     hasBody NoBody   = False
     hasBody (Bind b) = hasBody (unAbs b)
 
-    app []		 (Body v') = v'
+    app []           (Body v') = v'
     app (arg : args) (Bind b)  = app args $ absApp b arg -- CBN
-    app  _		  NoBody   = __IMPOSSIBLE__
-    app (_ : _)	 (Body _)  = __IMPOSSIBLE__
-    app []		 (Bind _)  = __IMPOSSIBLE__
+    app  _            NoBody   = __IMPOSSIBLE__
+    app (_ : _)	     (Body _)  = __IMPOSSIBLE__
+    app []           (Bind _)  = __IMPOSSIBLE__
 
 
 instance Reduce a => Reduce (Closure a) where
@@ -486,6 +494,148 @@ instance Reduce Constraint where
 
 instance (Ord k, Reduce e) => Reduce (Map k e) where
     reduce = traverse reduce
+
+---------------------------------------------------------------------------
+-- * Simplification
+---------------------------------------------------------------------------
+
+-- | Only unfold definitions if this leads to simplification
+--   which means that a constructor/literal pattern is matched.
+class Simplify t where
+  simplify :: t -> TCM t
+
+instance Simplify Term where
+  simplify v = do
+    v <- instantiate v
+    case v of
+      Def f vs   -> do
+        let keepGoing v = (,NotBlocked v) <$> asks envSimplification
+        (simpl, v) <- unfoldDefinition' False keepGoing (Def f []) f vs
+        reportSDoc "tc.simplify" 20 $
+          text ("simplify: unfolding definition returns " ++ show simpl)
+            <+> prettyTCM (ignoreBlocking v)
+        case simpl of
+          YesSimplification -> simplifyBlocked v -- Dangerous, but if @simpl@ then @v /= Def f vs@
+          NoSimplification  -> Def f <$> simplify vs
+      MetaV x vs -> MetaV x  <$> simplify vs
+      Con c vs   -> Con c    <$> simplify vs
+      Sort s     -> sortTm   <$> simplify s
+      Level l    -> levelTm  <$> simplify l
+      Pi a b     -> Pi       <$> simplify a <*> simplify b
+      Lit l      -> return v
+      Var i vs   -> Var i    <$> simplify vs
+      Lam h v    -> Lam h    <$> simplify v
+      DontCare v -> DontCare <$> simplify v
+      Shared{}   -> updateSharedTerm simplify v
+
+simplifyBlocked :: Simplify t => Blocked t -> TCM t
+simplifyBlocked (Blocked _ t)  = return t
+simplifyBlocked (NotBlocked t) = simplify t
+
+instance Simplify Type where
+    simplify (El s t) = El <$> simplify s <*> simplify t
+
+instance Simplify Elim where
+  simplify (Apply v) = Apply <$> simplify v
+  simplify (Proj f)  = pure $ Proj f
+
+instance Simplify Sort where
+    simplify s = do
+      case s of
+        DLub s1 s2 -> dLub <$> simplify s1 <*> simplify s2
+        Type s     -> levelSort <$> simplify s
+        Prop       -> return s
+        Inf        -> return s
+
+instance Simplify Level where
+  simplify (Max as) = levelMax <$> simplify as
+
+instance Simplify PlusLevel where
+  simplify l@ClosedLevel{} = return l
+  simplify (Plus n l) = Plus n <$> simplify l
+
+instance Simplify LevelAtom where
+  simplify l = do
+    l <- instantiate l
+    case l of
+      MetaLevel m vs   -> MetaLevel m <$> simplify vs
+      BlockedLevel m v -> BlockedLevel m <$> simplify v
+      NeutralLevel v   -> NeutralLevel   <$> simplify v -- ??
+      UnreducedLevel v -> UnreducedLevel <$> simplify v -- ??
+
+instance (Subst t, Simplify t) => Simplify (Abs t) where
+    simplify a@(Abs x _) = Abs x <$> underAbstraction_ a simplify
+    simplify (NoAbs x v) = NoAbs x <$> simplify v
+
+instance Simplify t => Simplify (Arg t) where
+    simplify = traverse simplify
+
+instance Simplify t => Simplify (Dom t) where
+    simplify = traverse simplify
+
+instance Simplify t => Simplify [t] where
+    simplify = traverse simplify
+
+instance (Ord k, Simplify e) => Simplify (Map k e) where
+    simplify = traverse simplify
+
+instance Simplify a => Simplify (Maybe a) where
+    simplify = traverse simplify
+
+instance (Simplify a, Simplify b) => Simplify (a,b) where
+    simplify (x,y) = (,) <$> simplify x <*> simplify y
+
+instance (Simplify a, Simplify b, Simplify c) => Simplify (a,b,c) where
+    simplify (x,y,z) =
+	do  (x,(y,z)) <- simplify (x,(y,z))
+	    return (x,y,z)
+
+instance Simplify a => Simplify (Closure a) where
+    simplify cl = do
+	x <- enterClosure cl simplify
+	return $ cl { clValue = x }
+
+instance (Subst a, Simplify a) => Simplify (Tele a) where
+  simplify EmptyTel        = return EmptyTel
+  simplify (ExtendTel a b) = uncurry ExtendTel <$> simplify (a, b)
+
+instance Simplify ProblemConstraint where
+  simplify (PConstr pid c) = PConstr pid <$> simplify c
+
+instance Simplify Constraint where
+  simplify (ValueCmp cmp t u v) = do
+    (t,u,v) <- simplify (t,u,v)
+    return $ ValueCmp cmp t u v
+  simplify (ElimCmp cmp t v as bs) =
+    ElimCmp cmp <$> simplify t <*> simplify v <*> simplify as <*> simplify bs
+  simplify (LevelCmp cmp u v)    = uncurry (LevelCmp cmp) <$> simplify (u,v)
+  simplify (TypeCmp cmp a b)     = uncurry (TypeCmp cmp) <$> simplify (a,b)
+  simplify (TelCmp a b cmp tela telb) = uncurry (TelCmp a b cmp) <$> simplify (tela,telb)
+  simplify (SortCmp cmp a b)     = uncurry (SortCmp cmp) <$> simplify (a,b)
+  simplify (Guarded c pid)       = Guarded <$> simplify c <*> pure pid
+  simplify (UnBlock m)           = return $ UnBlock m
+  simplify (FindInScope m cands) = FindInScope m <$> mapM simplify cands
+  simplify (IsEmpty r t)         = IsEmpty r <$> simplify t
+
+instance Simplify Bool where
+  simplify = return
+
+instance Simplify Pattern where
+  simplify p = case p of
+    VarP _       -> return p
+    LitP _       -> return p
+    ConP c mt ps -> ConP c <$> simplify mt <*> simplify ps
+    DotP v       -> DotP <$> simplify v
+    ProjP _      -> return p
+
+instance Simplify ClauseBody where
+    simplify (Body   t) = Body   <$> simplify t
+    simplify (Bind   b) = Bind   <$> simplify b
+    simplify  NoBody	= return NoBody
+
+instance Simplify DisplayForm where
+  simplify (Display n ps v) = Display n <$> simplify ps <*> return v
+
 
 ---------------------------------------------------------------------------
 -- * Normalisation

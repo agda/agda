@@ -706,7 +706,22 @@ defIsDataOrRecord _          = False
 newtype Fields = Fields [(C.Name, Type)]
   deriving (Typeable)
 
-data Reduced no yes = NoReduction no | YesReduction yes
+-- | Did we encounter a simplifying reduction?
+--   In terms of CIC, that would be a iota-reduction.
+--   In terms of Agda, this is a constructor or literal
+--   pattern that matched.
+--   Just beta-reduction (substitution) or delta-reduction
+--   (unfolding of definitions) does not count as simplifying?
+
+data Simplification = YesSimplification | NoSimplification
+  deriving (Typeable, Eq, Show)
+
+instance Monoid Simplification where
+  mempty = NoSimplification
+  mappend YesSimplification _ = YesSimplification
+  mappend NoSimplification  s = s
+
+data Reduced no yes = NoReduction no | YesReduction Simplification yes
     deriving (Typeable, Functor)
 
 data IsReduced = NotReduced | Reduced (Blocked ())
@@ -994,6 +1009,9 @@ data TCEnv =
           , envAppDef :: Maybe QName
                 -- ^ We are reducing an application of this function.
                 -- (For debugging of incomplete matches only.)
+          , envSimplification :: Simplification
+                -- ^ Did we encounter a simplification (proper match)
+                --   during the current reduction process?
 	  }
     deriving (Typeable)
 
@@ -1032,6 +1050,7 @@ initEnv = TCEnv { envContext	         = []
                 , envAllowDestructiveUpdate = True
                 , envExpandLast             = ExpandLast
                 , envAppDef                 = Nothing
+                , envSimplification         = NoSimplification
 		}
 
 ---------------------------------------------------------------------------
