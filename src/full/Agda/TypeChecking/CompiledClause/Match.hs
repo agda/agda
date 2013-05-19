@@ -22,7 +22,6 @@ import Agda.Utils.Impossible
 
 matchCompiled :: CompiledClauses -> MaybeReducedArgs -> TCM (Reduced (Blocked Args) Term)
 matchCompiled c args = match' [(c, args, id)]
--- OLD: matchCompiled c args = match c args id []
 
 -- | A stack entry is a triple consisting of
 --   1. the part of the case tree to continue matching,
@@ -48,8 +47,10 @@ type Stack = [Frame]
 --
 --   An empty stack is an exception that can come only from an incomplete
 --   function definition.
+
+-- TODO: literal/constructor pattern conflict (for Nat)
+
 match' :: Stack -> TCM (Reduced (Blocked Args) Term)
--- OLD: match' ((c, args, patch):stack) = match c args patch stack
 match' ((c, args, patch) : stack) = do
   let no          args = return $ NoReduction $ NotBlocked $ patch $ map ignoreReduced args
       noBlocked x args = return $ NoReduction $ Blocked x  $ patch $ map ignoreReduced args
@@ -89,22 +90,21 @@ match' ((c, args, patch) : stack) = do
               -- replace the @n@th argument by its reduced form
               args'  = args0 ++ [MaybeRed red $ Arg info v] ++ args1
               -- if a catch-all clause exists, put it on the stack
-              stack' = maybe [] (\c -> [(c, args', patch)]) (catchAllBranch bs)
-                       ++ stack
+              stack' = maybe stack (\c -> (c, args', patch) : stack) (catchAllBranch bs)
               -- If our argument is @Lit l@, we push @litFrame l@ onto the stack.
-              litFrame l =
+              litFrame l stack =
                 case Map.lookup l (litBranches bs) of
-                  Nothing -> []
-                  Just cc -> [(cc, args0 ++ args1, patchLit)]
+                  Nothing -> stack
+                  Just cc -> (cc, args0 ++ args1, patchLit) : stack
               -- If our argument (or its constructor form) is @Con c vs@
               -- we push @conFrame c vs@ onto the stack.
-              conFrame c vs =
+              conFrame c vs stack =
                 case Map.lookup c (conBranches bs) of
-                    Nothing -> []
-                    Just cc -> [( content cc
-                                , args0 ++ map (MaybeRed red) vs ++ args1
-                                , patchCon c (length vs)
-                                )]
+                    Nothing -> stack
+                    Just cc -> ( content cc
+                               , args0 ++ map (MaybeRed red) vs ++ args1
+                               , patchCon c (length vs)
+                               ) : stack
               -- The new patch function restores the @n@th argument to @v@:
               -- In case we matched a literal, just put @v@ back.
               patchLit args = patch (args0 ++ [Arg info v] ++ args1)
@@ -123,13 +123,13 @@ match' ((c, args, patch) : stack) = do
             -- In case of a literal, try also its constructor form
             NotBlocked (Lit l) -> do
               cv <- constructorForm v
-              let cFrame = case ignoreSharing cv of
-                    Con c vs -> conFrame c vs
-                    _        -> []
-              match' $ litFrame l ++ cFrame ++ stack'
+              let cFrame stack = case ignoreSharing cv of
+                    Con c vs -> conFrame c vs stack
+                    _        -> stack
+              match' $ litFrame l $ cFrame stack'
 
-            -- In case of a constructor, push the conFram
-            NotBlocked (Con c vs) -> match' $ conFrame c vs ++ stack'
+            -- In case of a constructor, push the conFrame
+            NotBlocked (Con c vs) -> match' $ conFrame c vs $ stack'
 
             NotBlocked _ -> no args'
 
@@ -139,73 +139,6 @@ match' [] = do
   flip (maybe __IMPOSSIBLE__) mf $ \ f -> do
     typeError $ GenericError $ "Incomplete pattern matching when applying " ++ show f
 
-{-OLD
--- TODO: literal/constructor pattern conflict (for Nat)
-
-match :: CompiledClauses -> MaybeReducedArgs -> (Args -> Args) -> Stack -> TCM (Reduced (Blocked Args) Term)
-match Fail args patch stack = return $ NoReduction $ NotBlocked (patch $ map ignoreReduced args)
-match (Done xs t) args _ _
-  | m < n     = return $ YesReduction $ applySubst (parallelS $ reverse $ toTm args)
-                                      $ foldr lam t (drop m xs)
-  | otherwise = return $ YesReduction $
-                  applySubst (parallelS $ reverse $ toTm args0) t `apply` map ignoreReduced args1
-  where
-    n              = length xs
-    m              = length args
-    toTm           = map (unArg . ignoreReduced)
-    (args0, args1) = splitAt n $ map (fmap $ fmap shared) args
-    lam x t        = Lam (argInfo x) (Abs (unArg x) t)
-match (Case n bs) args patch stack =
-  case genericSplitAt n args of
-    (_, []) -> return $ NoReduction $ NotBlocked $ patch $ map ignoreReduced args
-    (args0, MaybeRed red (Arg info v0) : args1) -> do
-      w  <- case red of
-              Reduced b  -> return $ fmap (const v0) b
-              NotReduced -> unfoldCorecursion v0
-      cv <- constructorForm $ ignoreBlocking w
-      let v      = ignoreBlocking w
-          args'  = args0 ++ [MaybeRed red $ Arg info v] ++ args1
-          pargs  = patch $ map ignoreReduced args'
-          stack' = maybe [] (\c -> [(c, args', patch)]) (catchAllBranch bs)
-                   ++ stack
-          patchLit args = patch (args0 ++ [Arg info v] ++ args1)
-            where (args0, args1) = splitAt n args
-          patchCon c m args = patch (args0 ++ [Arg info $ Con c vs] ++ args1)
-            where (args0, args1') = splitAt n args
-                  (vs, args1)     = splitAt m args1'
-          conFrame c vs =
-            case Map.lookup c (conBranches bs) of
-                Nothing -> []
-                Just cc -> [( content cc
-                            , args0 ++ map (MaybeRed red) vs ++ args1
-                            , patchCon c (length vs)
-                            )]
-      case ignoreSharing <$> w of
-        Blocked x _            -> return $ NoReduction $ Blocked x pargs
-        NotBlocked (MetaV x _) -> return $ NoReduction $ Blocked x pargs
-        NotBlocked (Lit l) -> case Map.lookup l (litBranches bs) of
-          Nothing -> match' stack''
-          Just cc -> match cc (args0 ++ args1) patchLit stack''
-          where
-            stack'' = (++ stack') $ case ignoreSharing cv of
-              Con c vs -> conFrame c vs
-{- OLD
-              Con c vs -> case Map.lookup c (conBranches bs) of
-                Nothing -> []
-                Just cc -> [(content cc, args0 ++ map (MaybeRed red) vs ++ args1, patchCon c (length vs))]
--}
-              _        -> []
-        NotBlocked (Con c vs) -> match' $ conFrame c vs ++ stack'
-{- OLD
-          case Map.lookup c (conBranches bs) of
-            Nothing -> match' stack'
-            Just cc -> match (content cc)
-                             (args0 ++ map (MaybeRed red) vs ++ args1)
-                             (patchCon c (length vs))
-                             stack'
--}
-        NotBlocked _ -> return $ NoReduction $ NotBlocked pargs
--}
 
 -- Andreas, 2013-03-20 recursive invokations of unfoldCorecursion
 -- need also to instantiate metas, see Issue 826.
