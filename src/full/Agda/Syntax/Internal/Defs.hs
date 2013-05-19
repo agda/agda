@@ -1,3 +1,5 @@
+{-# LANGUAGE TypeSynonymInstances, FlexibleInstances #-}
+
 -- | Extract used definitions from terms.
 module Agda.Syntax.Internal.Defs where
 
@@ -9,25 +11,36 @@ import qualified Data.Foldable as Fold
 import Agda.Syntax.Common
 import Agda.Syntax.Internal hiding (ArgInfo, Arg, Dom)
 
--- | @getDefs' lookup keep a@ extracts all used definitions
---   (functions, data/record types) from @a@ that satisfy @keep@.
+-- | @getDefs' lookup emb a@ extracts all used definitions
+--   (functions, data/record types) from @a@, embedded into a monoid via @emb@.
 --   Instantiations of meta variables are obtained via @lookup@.
 --
---   @keep@ is expected to be selective so the result will be a short list.
---   (Otherwise switch to a result @Set@).
-getDefs' :: GetDefs a => (MetaId -> Maybe Term) -> (QName -> Bool) -> a -> [QName]
-getDefs' lookup keep = execWriter . (`runReaderT` GetDefsEnv lookup keep) . getDefs
+--   Typical monoid instances would be @[QName]@ or @Set QName@.
+--   Note that @emb@ can also choose to discard a used definition
+--   by mapping to the unit of the monoid.
+getDefs' :: (GetDefs a, Monoid b) => (MetaId -> Maybe Term) -> (QName -> b) -> a -> b
+getDefs' lookup emb = execWriter . (`runReaderT` GetDefsEnv lookup emb) . getDefs
 
 -- | Inputs to and outputs of @getDefs'@ are organized as a monad.
-type GetDefsM = ReaderT GetDefsEnv (Writer [QName])
+type GetDefsM b = ReaderT (GetDefsEnv b) (Writer b)
 
-data GetDefsEnv = GetDefsEnv
+data GetDefsEnv b = GetDefsEnv
   { lookupMeta :: MetaId -> Maybe Term
-  , keepDef    :: QName -> Bool
+  , embDef     :: QName -> b
   }
 
+-- | What it takes to get the used definitions.
+class Monad m => MonadGetDefs m where
+  doDef  :: QName -> m ()
+  doMeta :: MetaId -> m ()
+
+instance Monoid b => MonadGetDefs (GetDefsM b) where
+  doDef  d = tell . ($ d) =<< asks embDef
+  doMeta x = getDefs . ($ x) =<< asks lookupMeta
+
+-- | Getting the used definitions.
 class GetDefs a where
-  getDefs :: a -> GetDefsM ()
+  getDefs :: MonadGetDefs m => a -> m ()
 
 instance GetDefs Clause where
   getDefs = getDefs . clauseBody
@@ -40,10 +53,7 @@ instance GetDefs ClauseBody where
 
 instance GetDefs Term where
   getDefs v = case v of
-    Def d vs   -> do
-      keep <- asks keepDef
-      when (keep d) $ tell [d]
-      getDefs vs
+    Def d vs   -> doDef d >> getDefs vs
     Con c vs   -> getDefs vs
     Lit l      -> return ()
     Var i vs   -> getDefs vs
@@ -56,9 +66,7 @@ instance GetDefs Term where
     Shared p   -> getDefs $ derefPtr p  -- TODO: exploit sharing!
 
 instance GetDefs MetaId where
-  getDefs x = do
-    lookup <- asks lookupMeta
-    getDefs $ lookup x
+  getDefs x = doMeta x
 
 instance GetDefs Type where
   getDefs (El s t) = getDefs s >> getDefs t

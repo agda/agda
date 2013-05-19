@@ -50,6 +50,8 @@ recDef names name = do
       let lookup x = case mvInstantiation <$> Map.lookup x st of
             Just (InstV v) -> Just v
             _              -> Nothing
+          -- we collect only those used definitions that are in @names@
+          emb d = if d `elem` names then [d] else []
       -- get all the Defs that are in names
-      return $ getDefs' lookup (`elem` names) cls
+      return $ getDefs' lookup emb cls
     _ -> return []
