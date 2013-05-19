@@ -149,7 +149,7 @@ refine ii mr e =
 evalInCurrent :: Expr -> TCM Expr
 evalInCurrent e =
     do  (v, t) <- inferExpr e
-	v' <- {- etaContract =<< -} normalise v
+	v' <- {- etaContract =<< -} simplify =<< reduce v -- WAS: normalise
 	reify v'
 
 
@@ -161,13 +161,14 @@ evalInMeta ii e =
 	    evalInCurrent e
 
 
-data Rewrite =  AsIs | Instantiated | HeadNormal | Normalised
+data Rewrite =  AsIs | Instantiated | HeadNormal | Simplified | Normalised
     deriving (Read)
 
 --rewrite :: Rewrite -> Term -> TCM Term
 rewrite AsIs	     t = return t
 rewrite Instantiated t = return t   -- reify does instantiation
 rewrite HeadNormal   t = {- etaContract =<< -} reduce t
+rewrite Simplified   t = {- etaContract =<< -} simplify t
 rewrite Normalised   t = {- etaContract =<< -} normalise t
 
 
