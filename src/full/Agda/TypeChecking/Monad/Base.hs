@@ -1100,12 +1100,13 @@ data OccPos = NonPositively | ArgumentTo Nat QName
 data CallInfo = CallInfo
   { callInfoRange :: Range
     -- ^ Range of the head identifier.
-  , callInfoCall :: String
-    -- ^ Formatted representation of the call.
-    --
-    -- ('Doc' would perhaps be better here, but 'Doc' doesn't come
-    -- with an 'Ord' instance.)
-  } deriving (Eq, Ord, Typeable, Show)
+  , callInfoCall :: Closure Term
+    -- ^ To be formatted representation of the call.
+  } deriving Typeable -- (Eq, Ord, Show)
+
+instance Eq CallInfo where (==) = (==) `on` callInfoRange
+instance Ord CallInfo where (<=) = (<=) `on` callInfoRange
+instance Show CallInfo where show = show . callInfoRange
 
 -- | Information about a mutual block which did not pass the
 -- termination checker.

@@ -709,7 +709,12 @@ termTerm conf names f delayed pats0 t0 = do
                             , nest 2 $ text ("call matrix (with guardedness): " ++ show matrix')
                             ])
 
-                     doc <- prettyTCM (Def g args0)
+                     -- Andreas, 2013-05-19 as pointed out by Andrea Vezzosi,
+                     -- printing the call eagerly is forbiddingly expensive.
+                     -- So we build a closure such that we can print the call
+                     -- whenever we really need to.
+                     -- This saves 30s (12%) on the std-lib!
+                     doc <- buildClosure (Def g args0)
                      return
                        (Term.insert
                          (Term.Call { Term.source = fInd
@@ -718,7 +723,7 @@ termTerm conf names f delayed pats0 t0 = do
                                     })
                          (Set.singleton
                             (CallInfo { callInfoRange = getRange g
-                                      , callInfoCall  = show doc
+                                      , callInfoCall  = doc
                                       }))
                          calls)
 

@@ -263,7 +263,7 @@ instance PrettyTCM TypeError where
                                                (concatMap termErrFunctions because))))
               $$ fwords "Problematic calls:"
               $$ (nest 2 $ vcat $
-                    map (\c -> let call = text (callInfoCall c) in
+                    map (\c -> let call = prettyTCM (callInfoCall c) in
                                case show (callInfoRange c) of
                                  "" -> call
                                  r  -> call $$ nest 2 (text "(at" <+> text r <> text ")"))
