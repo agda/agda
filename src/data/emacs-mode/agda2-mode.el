@@ -977,7 +977,7 @@ argument)."
 
 With a prefix argument the result is not explicitly normalised.")
      (interactive "P")
-     (let ((,eval (if not-normalise "Instantiated" "Normalised")))
+     (let ((,eval (if not-normalise "Instantiated" "Simplified"))) ;; WAS: "Normalised"
        (agda2-goal-cmd (concat ,cmd " " ,eval)
                        ,want)))))
 
