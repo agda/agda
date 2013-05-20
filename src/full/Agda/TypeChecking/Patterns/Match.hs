@@ -53,8 +53,9 @@ matchPatterns ps vs = do
     return (mconcat ms, vs)
 
 matchPattern :: I.Arg Pattern -> I.Arg Term -> TCM (Match, I.Arg Term)
-matchPattern (Arg _  (VarP _)) arg@(Arg _ v) = return (Yes [v], arg)
-matchPattern (Arg _  (DotP _)) arg@(Arg _ v) = return (Yes [v], arg)
+-- matchPattern (Arg _  ProjP{})  _             = __IMPOSSIBLE__
+matchPattern (Arg _  (VarP _)) arg@(Arg _ v) = return (Yes NoSimplification [v], arg)
+matchPattern (Arg _  (DotP _)) arg@(Arg _ v) = return (Yes NoSimplification [v], arg)
 matchPattern (Arg info' (LitP l)) arg@(Arg info v) = do
     w <- reduceB v
     let v = ignoreBlocking w

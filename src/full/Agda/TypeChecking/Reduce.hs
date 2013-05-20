@@ -626,7 +626,7 @@ instance Simplify Pattern where
     LitP _       -> return p
     ConP c mt ps -> ConP c <$> simplify mt <*> simplify ps
     DotP v       -> DotP <$> simplify v
-    ProjP _      -> return p
+--    ProjP _      -> return p
 
 instance Simplify ClauseBody where
     simplify (Body   t) = Body   <$> simplify t
