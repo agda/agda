@@ -55,17 +55,17 @@ import Data.Monoid
 -- This criterion is strictly more liberal than searching for a
 -- lexicographic order (and easier to implement, but harder to justify).
 
-terminates :: (Ord meta, Monoid meta, ?cutoff :: Int) => CallGraph meta -> Either meta ()
+terminates :: (Monoid meta, ?cutoff :: Int) => CallGraph meta -> Either meta ()
 terminates cs = let ccs = complete cs
                 in
                   checkIdems $ toList ccs
 
-terminatesFilter :: (Ord meta, Monoid meta, ?cutoff :: Int) =>
+terminatesFilter :: (Monoid meta, ?cutoff :: Int) =>
   (Index -> Bool) -> CallGraph meta -> Either meta ()
 terminatesFilter f cs = checkIdems $ filter f' $ toList $ complete cs
   where f' (c,m) = f (source c) && f (target c)
 
-checkIdems :: (Ord meta, Monoid meta, ?cutoff :: Int) => [(Call,meta)] -> Either meta ()
+checkIdems :: (Monoid meta, ?cutoff :: Int) => [(Call,meta)] -> Either meta ()
 checkIdems [] = Right ()
 checkIdems ((c,m):xs) = if (checkIdem c) then checkIdems xs else Left m
 

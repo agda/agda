@@ -64,11 +64,23 @@ import Agda.Utils.Monad ((<$>), mapM', forM', ifM, or2M)
 -- import Agda.Utils.NubList
 import Agda.Utils.Pointed
 import Agda.Utils.Permutation
+-- import Agda.Utils.Tree (Tree)
+-- import qualified Agda.Utils.Tree as Tree
 
 #include "../undefined.h"
 import Agda.Utils.Impossible
 
-type Calls = Term.CallGraph (Set CallInfo)
+-- | The call information is stored as free monoid
+--   over 'CallInfo'.  As long as we never look at it,
+--   only accumulate it, it does not matter whether we use
+--   'Set', (nub) list, or 'Tree'.
+--   Internally, due to lazyness, it is anyway a binary tree of
+--   'mappend' nodes and singleton leafs.
+--   Since we define no order on 'CallInfo' (expensive),
+--   we cannot use a 'Set' or nub list.
+--   Performance-wise, I could not see a difference between Set and list.
+type Calls = Term.CallGraph [CallInfo]
+
 type MutualNames = [QName]
 
 -- | The result of termination checking a module.
@@ -223,7 +235,7 @@ termMutual' conf names allNames = do
        Left calls -> do
          return $ point $ TerminationError
                    { termErrFunctions = names
-                   , termErrCalls     = Set.toList calls
+                   , termErrCalls     = calls
                    }
        Right _ -> do
          reportSLn "term.warn.yes" 2
@@ -281,7 +293,7 @@ termFunction conf0 names allNames name = do
        Left calls -> do
          return $ point $ TerminationError
                    { termErrFunctions = if name `elem` names then [name] else []
-                   , termErrCalls     = Set.toList calls
+                   , termErrCalls     = calls
                    }
        Right _ -> do
          reportSLn "term.warn.yes" 2
@@ -721,7 +733,7 @@ termTerm conf names f delayed pats0 t0 = do
                                     , Term.target = toInteger gInd'
                                     , Term.cm     = makeCM ncols nrows matrix'
                                     })
-                         (Set.singleton
+                         (point
                             (CallInfo { callInfoRange = getRange g
                                       , callInfoCall  = doc
                                       }))

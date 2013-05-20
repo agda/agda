@@ -1121,10 +1121,11 @@ data CallInfo = CallInfo
     -- ^ Range of the head identifier.
   , callInfoCall :: Closure Term
     -- ^ To be formatted representation of the call.
-  } deriving Typeable -- (Eq, Ord, Show)
+  } deriving Typeable
 
-instance Eq CallInfo where (==) = (==) `on` callInfoRange
-instance Ord CallInfo where (<=) = (<=) `on` callInfoRange
+-- no Eq, Ord instances: too expensive! (see issues 851, 852)
+
+-- | This 'Show' is rudimentary, but probably also unused.
 instance Show CallInfo where show = show . callInfoRange
 
 -- | Information about a mutual block which did not pass the
@@ -1136,14 +1137,8 @@ data TerminationError = TerminationError
     -- automatically generated functions.)
   , termErrCalls :: [CallInfo]
     -- ^ The problematic call sites.
-  } deriving (Typeable, Show, Eq)
+  } deriving (Typeable, Show)
 
-{-
--- | We consider two 'TerminationError's equal if they report the same
---   invalid calls.
-instance Eq TerminationError where
-  (==) = (==) `on` termErrCalls
--}
 
 data SplitError = NotADatatype (Closure Type) -- ^ neither data type nor record
                 | IrrelevantDatatype (Closure Type)   -- ^ data type, but in irrelevant position

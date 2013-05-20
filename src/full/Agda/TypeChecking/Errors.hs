@@ -11,7 +11,8 @@ import Control.Applicative ( (<$>) )
 import Control.Monad.State
 import Control.Monad.Error
 
-import Data.List (nub)
+import Data.Function
+import Data.List (nub, sortBy)
 import qualified Data.Map as Map (empty)
 
 import System.FilePath
@@ -39,6 +40,7 @@ import Agda.TypeChecking.Pretty
 
 import Agda.Utils.FileName
 import Agda.Utils.Monad
+import qualified Agda.Utils.Pretty as P
 import Agda.Utils.Size
 
 #include "../undefined.h"
@@ -247,6 +249,13 @@ instance PrettyTCM TCErr where
 	PatternErr _    -> sayWhere err $ panic "uncaught pattern violation"
 	{- AbortAssign _   -> sayWhere err $ panic "uncaught aborted assignment" -- UNUSED -}
 
+instance PrettyTCM CallInfo where
+  prettyTCM c = do
+    let call = prettyTCM $ callInfoCall c
+    case show $ callInfoRange c of
+      "" -> call
+      r  -> call $$ nest 2 (text "(at" <+> text r <> text ")")
+
 instance PrettyTCM TypeError where
     prettyTCM err = do
 	case err of
@@ -262,12 +271,9 @@ instance PrettyTCM TypeError where
                     fsep (punctuate comma (map (text . show . qnameName)
                                                (concatMap termErrFunctions because))))
               $$ fwords "Problematic calls:"
-              $$ (nest 2 $ vcat $
-                    map (\c -> let call = prettyTCM (callInfoCall c) in
-                               case show (callInfoRange c) of
-                                 "" -> call
-                                 r  -> call $$ nest 2 (text "(at" <+> text r <> text ")"))
-                        (nub $ concatMap termErrCalls because))
+              $$ (nest 2 $ fmap (P.vcat . nub) $
+                    mapM prettyTCM $ sortBy (compare `on` callInfoRange) $
+                    concatMap termErrCalls because)
 	    PropMustBeSingleton -> fwords
 		"Datatypes in Prop must have at most one constructor when proof irrelevance is enabled"
 	    DataMustEndInSort t -> fsep $

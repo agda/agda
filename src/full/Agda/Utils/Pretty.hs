@@ -5,7 +5,11 @@ module Agda.Utils.Pretty
     , module Text.PrettyPrint
     ) where
 
+import Data.Function
 import Text.PrettyPrint
+
+instance Eq Doc where
+  (==) = (==) `on` render
 
 class Pretty a where
     pretty	:: a -> Doc

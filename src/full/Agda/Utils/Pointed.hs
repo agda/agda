@@ -1,5 +1,7 @@
 module Agda.Utils.Pointed where
 
+import Data.Set
+
 -- | Pointed class.
 --
 --   We could have used Data.Pointed by Edward Kmett, but it has a
@@ -12,3 +14,6 @@ instance Pointed [] where
 
 instance Pointed Maybe where
   point = Just
+
+instance Pointed Set where
+  point = singleton
