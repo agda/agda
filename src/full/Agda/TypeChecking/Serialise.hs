@@ -803,6 +803,11 @@ instance EmbPrj Definition where
   value = vcase valu where valu [rel, a, b, c, d, e, f, g, h] = valu9 Defn rel a b c d e f g h
                            valu _                             = malformed
 
+instance EmbPrj Projection where
+  icode (Projection a b c) = icode3' a b c
+  value = vcase valu where valu [a, b, c] = valu3 Projection a b c
+                           valu _         = malformed
+
 instance EmbPrj HaskellRepresentation where
   icode (HsType a)   = icode1' a
   icode (HsDefn a b) = icode2' a b

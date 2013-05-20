@@ -360,7 +360,7 @@ checkRecordProjections m r q tel ftel fs = checkProjs EmptyTel ftel fs
                      , funArgOccurrences = [StrictPos]
 -}
                      , funMutual         = []
-                     , funProjection     = Just (r, size ptel + 1)
+                     , funProjection     = Just $ Projection True r $ size ptel + 1
                        -- name of the record type and
                        -- index of the record argument (in the type), start counting with 1
                      , funStatic         = False

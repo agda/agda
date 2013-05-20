@@ -63,7 +63,7 @@ makeProjection x = inContext [] $ do
           -- cc <- compileClauses (Just (x, __IMPOSSIBLE__)) cls'
           reportSLn "tc.proj.like" 20 $ "  rewrote clauses to\n    " ++ show cc
           let newDef = def
-                       { funProjection     = Just (d, n + 1)
+                       { funProjection     = Just $ Projection False d (n + 1)
                        , funClauses        = cls'
                        , funCompiled       = cc
                        , funInv            = dropArgs n $ funInv def

@@ -826,8 +826,7 @@ inferHead e = do
         Nothing -> do
           (u, a) <- inferDef Def x
           return (apply u, a)
-        Just{} -> do
-          Just (r, n) <- funProjection . theDef <$> getConstInfo x
+        Just Projection{ projIndex = n } -> do
           cxt <- size <$> freeVarsToApply x
           m <- getDefFreeVars x
           reportSDoc "tc.term.proj" 10 $ sep

@@ -1,4 +1,4 @@
-{-# LANGUAGE CPP, PatternGuards, ImplicitParams, TupleSections,
+{-# LANGUAGE CPP, PatternGuards, ImplicitParams, TupleSections, NamedFieldPuns,
              FlexibleInstances #-}
 
 {- Checking for Structural recursion
@@ -60,7 +60,7 @@ import Agda.Interaction.Options
 
 import Agda.Utils.List
 import Agda.Utils.Size
-import Agda.Utils.Monad ((<$>), mapM', forM', ifM, or2M)
+import Agda.Utils.Monad ((<$>), mapM', forM', ifM, or2M, and2M)
 -- import Agda.Utils.NubList
 import Agda.Utils.Pointed
 import Agda.Utils.Permutation
@@ -925,8 +925,9 @@ isProjectionButNotFlat qn = do
     else do
       mp <- isProjection qn
       case mp of
-        Nothing     -> return False
-        Just (r, _) -> isInductiveRecord r
+        Nothing -> return False
+        Just Projection{ projProper, projFromType } ->
+          return projProper `and2M` isInductiveRecord projFromType
 
 
 -- | Remove projections until a term is no longer a projection.

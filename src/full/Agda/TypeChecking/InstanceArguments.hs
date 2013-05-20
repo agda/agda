@@ -80,8 +80,8 @@ initialIFSCandidates = do
           args <- freeVarsToApply q
           let vs = case theDef def of
                -- drop parameters if it's a projection function...
-               Function{ funProjection = Just (_,i) } -> genericDrop (i - 1) args
-               _                                      -> args
+               Function{ funProjection = Just p } -> genericDrop (projIndex p - 1) args
+               _                                  -> args
           return [(Def q vs, t)]
       where
         -- unbound constant throws an internal error

@@ -610,6 +610,16 @@ data Occurrence
 
 instance NFData Occurrence
 
+-- | Additional information for projection 'Function's.
+data Projection = Projection
+  { projProper   :: Bool  -- ^ @True@ if record projection, @False@ if only projection-like.
+  , projFromType :: QName -- ^ Type projected from.  Record type if @projProper@.
+  , projIndex    :: Int   -- ^ Index of the record argument.
+                          --   Start counting with 1, because 0 means that
+                          --   it is already applied to the record.
+                          --   (Can happen in module instantiation.)
+  } deriving (Typeable, Eq, Ord, Show)
+
 data Defn = Axiom
 	  | Function
             { funClauses        :: [Clause]
@@ -624,7 +634,7 @@ data Defn = Axiom
             , funAbstr          :: IsAbstract
             , funDelayed        :: Delayed
               -- ^ Are the clauses of this definition delayed?
-            , funProjection     :: Maybe (QName, Int)
+            , funProjection     :: Maybe Projection
               -- ^ Is it a record projection?
               --   If yes, then return the name of the record type and index of
               --   the record argument.  Start counting with 1, because 0 means that

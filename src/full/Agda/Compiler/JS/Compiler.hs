@@ -1,4 +1,4 @@
-{-# LANGUAGE CPP #-}
+{-# LANGUAGE CPP, NamedFieldPuns #-}
 
 module Agda.Compiler.JS.Compiler where
 
@@ -34,9 +34,10 @@ import Agda.TypeChecking.Level ( reallyUnLevelView )
 import Agda.TypeChecking.Monad
   ( TCM, Definition(Defn), Definitions, Interface,
     JSCode, Defn(Record,Datatype,Constructor,Primitive,Function,Axiom),
+    Projection(Projection), projProper, projFromType, projIndex,
     iModuleName, iImportedModules, theDef, getConstInfo, typeOfConst,
     ignoreAbstractMode, miInterface, getVisitedModules,
-    defName, defType, funClauses, funProjection,
+    defName, defType, funClauses, funProjection, projectionArgs,
     dataPars, dataIxs, dataClause, dataCons,
     conPars, conData, conSrcCon,
     recClause, recCon, recFields, recPars, recNamedCon,
@@ -235,7 +236,16 @@ defn q ls t Nothing (Function { funProjection = proj, funClauses = cls }) = do
     Just e ->
       return (curriedLambda (arity t) e)
     Nothing -> case proj of
-      Just (p,i) -> do
+      Just Projection{ projProper, projFromType = p, projIndex = i } -> do
+        -- Andreas, 2013-05-20: whether a projection is proper is now stored.
+        if projProper then
+          -- For projections from records we use a field lookup
+            return (curriedLambda (numPars cls)
+              (Lookup (Local (LocalId 0)) (last ls)))
+         else
+            -- For anything else we generate code, after adding (i-1) dummy lambdas
+            return (dummyLambda (i-1) (lambda cs))
+{- OLD way of finding out whether a projection is proper (ie. from record)
         d <- getConstInfo p
         case theDef d of
           -- For projections from records we use a field lookup
@@ -245,6 +255,7 @@ defn q ls t Nothing (Function { funProjection = proj, funClauses = cls }) = do
           _ ->
             -- For anything else we generate code, after adding (i-1) dummy lambdas
             return (dummyLambda (i-1) (lambda cs))
+-}
       Nothing ->
         return (lambda cs)
 defn q ls t (Just e) (Primitive {}) =
@@ -344,7 +355,7 @@ body (NoBody) = return Undefined
 term :: Term -> TCM Exp
 term (Var   i as)         = do
   e <- return (Local (LocalId i))
-  es <- args Nothing as
+  es <- args 0 as
   return (curriedApply e es)
 term (Lam   _ at)         = Lambda 1 <$> term (absBody at)
 term (Lit   l)            = return (literal l)
@@ -359,7 +370,7 @@ term (Def q as) = do
     _ -> case defJSDef d of
       -- Inline functions with an FFI definition
       Just e -> do
-        es <- args (defProjection d) as
+        es <- args (projectionArgs $ theDef d) as
         return (curriedApply e es)
       Nothing -> do
         t <- normalise (defType d)
@@ -371,19 +382,19 @@ term (Def q as) = do
           -- Everything else we leave non-inline
           Nothing -> do
             e <- qname q
-            es <- args (defProjection d) as
+            es <- args (projectionArgs $ theDef d) as
             return (curriedApply e es)
 term (Con q as) = do
   d <- getConstInfo q
   case defJSDef d of
     -- Inline functions with an FFI definition
     Just e -> do
-      es <- args Nothing as
+      es <- args 0 as
       return (curriedApply e es)
     -- Everything else we leave non-inline
     Nothing -> do
       e <- qname q
-      es <- args Nothing as
+      es <- args 0 as
       return (curriedApply e es)
 term (Pi    _ _)          = return (String "*")
 term (Sort  _)            = return (String "*")
@@ -415,16 +426,24 @@ isSingleton t = case unEl t of
       _ -> return (Nothing)
   _              -> return (Nothing)
 
+{- OBSOLETE, see Signature.hs
 defProjection :: Definition -> Maybe (QName, Int)
 defProjection Defn { theDef = Function { funProjection = p } } = p
 defProjection _                                                = Nothing
+-}
 
-args :: Maybe(QName, Int) -> Args -> TCM [Exp]
+{-
+args :: Maybe Projection -> Args -> TCM [Exp]
 args Nothing as =
   mapM (term . unArg) as
-args (Just (q,i)) as = do
+args (Just p) as = do
   es <- mapM (term . unArg) as
-  return (replicate (i-1) Undefined ++ es)
+  return (replicate (projIndex p - 1) Undefined ++ es)
+-}
+
+args :: Int -> Args -> TCM [Exp]
+args n as = (replicate n Undefined ++) <$>
+  mapM (term . unArg) as
 
 qname :: QName -> TCM Exp
 qname q = do

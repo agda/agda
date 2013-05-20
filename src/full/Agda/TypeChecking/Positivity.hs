@@ -139,7 +139,7 @@ checkStrictlyPositive qs = disableDestructiveUpdate $ do
 
 getDefArity def = case theDef def of
   Function{ funClauses = cs, funProjection = proj } -> do
-    let dropped = maybe 0 (subtract 1 . snd) proj
+    let dropped = maybe 0 (subtract 1 . projIndex) proj
     subtract dropped . arity <$> instantiateFull (defType def)
   Datatype{ dataPars = n } -> return n
   Record{ recPars = n }    -> return n

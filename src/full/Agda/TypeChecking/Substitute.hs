@@ -88,13 +88,13 @@ instance Apply Defn where
 --        , funArgOccurrences = drop (length args) occ
         }
     Function{ funClauses = cs, funCompiled = cc, funInv = inv
-            , funProjection = Just (r, n) {-, funArgOccurrences = occ -} }
-      | m < n  -> d { funProjection = Just (r, n - m) }
+            , funProjection = Just p@Projection{ projIndex = n } {-, funArgOccurrences = occ -} }
+      | m < n  -> d { funProjection = Just $ p { projIndex = n - m } }
       | otherwise ->
         d { funClauses        = apply cs args'
           , funCompiled       = apply cc args'
           , funInv            = apply inv args'
-          , funProjection     = Just (r, 0)
+          , funProjection     = Just $ p { projIndex = 0 }
 --          , funArgOccurrences = drop 1 occ
           }
       where args' = [last args]
@@ -242,8 +242,8 @@ instance Abstract Defn where
 --        , funArgOccurrences = replicate (size tel) Mixed ++ occ -- TODO: check occurrence
         }
     Function{ funClauses = cs, funCompiled = cc, funInv = inv
-            , funProjection = Just (r, n) {-, funArgOccurrences = occ-} } ->
-      d { funProjection = Just (r, n + size tel) }
+            , funProjection = Just p@Projection{projIndex = n} {-, funArgOccurrences = occ-} } ->
+      d { funProjection = Just p{ projIndex = n + size tel } }
     Datatype{ dataPars = np, dataClause = cl {-, dataArgOccurrences = occ-} } ->
       d { dataPars = np + size tel, dataClause = abstract tel cl
 --        , dataArgOccurrences = replicate (size tel) Mixed ++ occ -- TODO: check occurrence

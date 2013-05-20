@@ -169,13 +169,16 @@ lookupSection m = do
 -- Add display forms to all names @xn@ such that @x = x1 es1@, ... @xn-1 = xn esn@.
 addDisplayForms :: QName -> TCM ()
 addDisplayForms x = do
+  def  <- getConstInfo x
   args <- getContextArgs
+{- OLD
   n    <- do
     proj <- isProjection x
     return $ case proj of
       Just (_, n) -> n
       Nothing     -> 0
-  add (drop (n - 1) args) x x []
+-}
+  add (drop (projectionArgs $ theDef def) args) x x []
   where
     add args top x vs0 = do
       def <- getConstInfo x
@@ -315,15 +318,15 @@ applySection new ptel old ts rd rm = do
                       Function{funMutual = m} -> m
                       _ -> []
                     proj = case oldDef of
-                      Function{funProjection = Just (r, n)}
-                        | size ts < n -> Just (r, n - size ts)
+                      Function{funProjection = Just p@Projection{projIndex = n}}
+                        | size ts < n -> Just $ p { projIndex = n - size ts }
                       _ -> Nothing
                     extlam = case oldDef of
                       Function{funExtLam = e} -> e
                       _ -> Nothing
         ts' | null ts   = []
             | otherwise = case oldDef of
-                Function{funProjection = Just (_, n)}
+                Function{funProjection = Just Projection{ projIndex = n}}
                   | n == 0       -> __IMPOSSIBLE__
                   | otherwise    -> drop (n - 1) ts
                 _ -> ts
@@ -670,9 +673,15 @@ sortOfConst q =
 	    _			   -> fail $ "Expected " ++ show q ++ " to be a datatype."
 
 -- | Is it the name of a record projection?
-isProjection :: QName -> TCM (Maybe (QName, Int))
-isProjection qn = do
-  def <- theDef <$> getConstInfo qn
+isProjection :: QName -> TCM (Maybe Projection)
+isProjection qn = isProjection_ . theDef <$> getConstInfo qn
+
+isProjection_ :: Defn -> Maybe Projection
+isProjection_ def =
   case def of
-    Function { funProjection = result } -> return $ result
-    _                                   -> return $ Nothing
+    Function { funProjection = result } -> result
+    _                                   -> Nothing
+
+-- | Number of dropped initial arguments.
+projectionArgs :: Defn -> Int
+projectionArgs = maybe 0 (pred . projIndex) . isProjection_
