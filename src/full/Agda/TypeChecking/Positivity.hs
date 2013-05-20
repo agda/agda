@@ -121,7 +121,7 @@ checkStrictlyPositive qs = disableDestructiveUpdate $ do
 
     -- Set the polarity of the arguments to a definition
     setArgs g q = do
-      reportSDoc "tc.pos.args" 5 $ text "checking args of" <+> prettyTCM q
+      reportSDoc "tc.pos.args" 10 $ text "checking args of" <+> prettyTCM q
       n <- getDefArity =<< getConstInfo q
       let nArgs = maximum $ n :
                     [ i + 1 | (ArgNode q1 i) <- Set.toList $ Graph.nodes g
