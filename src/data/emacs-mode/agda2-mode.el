@@ -972,12 +972,25 @@ normalise types or not when running CMD (through
 `agda2-goal-cmd'; WANT is used as `agda2-goal-cmd's WANT
 argument)."
   (let ((eval (make-symbol "eval")))
-  `(defun ,name (&optional not-normalise)
+  `(defun ,name (&optional prefix)
      ,(concat comment ".
 
-With a prefix argument the result is not explicitly normalised.")
+The form of the result depends on the prefix argument:
+
+* If the prefix argument is `nil' (i.e., if no prefix argument is
+  given), then the result is simplified.
+
+* If the prefix argument is `(4)' (for instance if C-u is typed
+  exactly once right before the command is invoked), then the
+  result is neither explicitly normalised nor simplified.
+
+* If any other prefix argument is used (for instance if C-u is
+  typed twice right before the command is invoked), then the
+  result is normalised.")
      (interactive "P")
-     (let ((,eval (if not-normalise "Instantiated" "Simplified"))) ;; WAS: "Normalised"
+     (let ((,eval (cond ((equal prefix nil) "Simplified")
+                        ((equal prefix '(4)) "Instantiated")
+                        ("Normalised"))))
        (agda2-goal-cmd (concat ,cmd " " ,eval)
                        ,want)))))
 
@@ -989,12 +1002,25 @@ normalise types or not when running CMD (through
 `agda2-go' t nil; the string PROMPT is used as the goal command
 prompt)."
   (let ((eval (make-symbol "eval")))
-    `(defun ,name (not-normalise expr)
+    `(defun ,name (prefix expr)
        ,(concat comment ".
 
-With a prefix argument the result is not explicitly normalised.")
+The form of the result depends on the prefix argument:
+
+* If the prefix argument is `nil' (i.e., if no prefix argument is
+  given), then the result is simplified.
+
+* If the prefix argument is `(4)' (for instance if C-u is typed
+  exactly once right before the command is invoked), then the
+  result is neither explicitly normalised nor simplified.
+
+* If any other prefix argument is used (for instance if C-u is
+  typed twice right before the command is invoked), then the
+  result is normalised.")
        (interactive ,(concat "P\nM" prompt ": "))
-       (let ((,eval (if not-normalise "Instantiated" "Normalised")))
+       (let ((,eval (cond ((equal prefix nil) "Simplified")
+                          ((equal prefix '(4)) "Instantiated")
+                          ("Normalised"))))
          (agda2-go t nil
                    (concat ,cmd " " ,eval " "
                            (agda2-string-quote expr)))))))

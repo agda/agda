@@ -149,7 +149,7 @@ refine ii mr e =
 evalInCurrent :: Expr -> TCM Expr
 evalInCurrent e =
     do  (v, t) <- inferExpr e
-	v' <- {- etaContract =<< -} simplify =<< reduce v -- WAS: normalise
+	v' <- {- etaContract =<< -} normalise v
 	reify v'
 
 

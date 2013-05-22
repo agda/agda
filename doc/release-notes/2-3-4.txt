@@ -185,6 +185,26 @@ Emacs mode
 * Key bindings for "blackboard bold" B (𝔹) and 0-9 (𝟘-𝟡) have been added
   to the Agda input method (\bb and \b[0-9]).
 
+* Key bindings for controlling simplification/normalisation:
+
+  [TODO: Simplification should be explained somewhere.]
+
+  Commands like "Goal type and context" (C-c C-,) could previously be
+  invoked in two ways. By default the output was normalised, but if a
+  prefix argument was used (for instance via C-u C-c C-,), then no
+  explicit normalisation was performed. Now there are three options:
+
+  * By default (C-c C-,) the output is simplified.
+
+  * If C-u is used exactly once (C-u C-c C-,), then the result is
+    neither (explicitly) normalised nor simplified.
+
+  * If C-u is used twice (C-u C-u C-c C-,), then the result is
+    normalised.
+
+  [TODO: As part of the release of Agda 2.3.4 the key binding page on
+  the wiki should be updated.]
+
 LaTeX-backend
 -------------
 
