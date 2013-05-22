@@ -1,3 +1,4 @@
+-- {-# OPTIONS -v tc.lhs.problem:10 #-}
 -- {-# OPTIONS --compile --ghc-flag=-i.. #-}
 module Issue727 where
 

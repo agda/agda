@@ -506,17 +506,17 @@ checkArguments' exph expIFS r args t0 t e k = do
 
 -- | Type check an expression.
 checkExpr :: A.Expr -> Type -> TCM Term
-checkExpr e t =
+checkExpr e t0 =
   verboseBracket "tc.term.expr.top" 5 "checkExpr" $
-  traceCall (CheckExpr e t) $ localScope $ doExpandLast $ shared <$> do
+  traceCall (CheckExpr e t0) $ localScope $ doExpandLast $ shared <$> do
     reportSDoc "tc.term.expr.top" 15 $
         text "Checking" <+> sep
-	  [ fsep [ prettyTCM e, text ":", prettyTCM t ]
+	  [ fsep [ prettyTCM e, text ":", prettyTCM t0 ]
 	  , nest 2 $ text "at " <+> (text . show =<< getCurrentRange)
 	  ]
     reportSDoc "tc.term.expr.top.detailed" 80 $
-      text "Checking" <+> fsep [ prettyTCM e, text ":", text (show t) ]
-    t <- reduce t
+      text "Checking" <+> fsep [ prettyTCM e, text ":", text (show t0) ]
+    t <- reduce t0
     reportSDoc "tc.term.expr.top" 15 $
         text "    --> " <+> prettyTCM t
 
@@ -555,8 +555,8 @@ checkExpr e t =
                 hiddenLHS _ = False
 
         -- a meta variable without arguments: type check directly for efficiency
-	A.QuestionMark i -> checkMeta newQuestionMark t i
-	A.Underscore i   -> checkMeta (newValueMeta RunMetaOccursCheck) t i
+	A.QuestionMark i -> checkMeta newQuestionMark t0 i -- Andreas, 2013-05-22 use unreduced type t0!
+	A.Underscore i   -> checkMeta (newValueMeta RunMetaOccursCheck) t0 i
 
 	A.WithApp _ e es -> typeError $ NotImplemented "type checking of with application"
 

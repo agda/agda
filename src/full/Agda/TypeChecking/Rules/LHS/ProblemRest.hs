@@ -64,14 +64,15 @@ problemFromPats ps a = do
   -- In all later call to insertImplicitPatterns, we can then use ExpandLast.
   ps <- insertImplicitPatterns DontExpandLast ps tel0' :: TCM [A.NamedArg A.Pattern]
   -- unless (size tel0' >= size ps) $ typeError $ TooManyArgumentsInLHS a
-  let tel0      = useNamesFromPattern ps tel0'
-      (as, bs)  = splitAt (size ps) $ telToList tel0
+
+  -- Redo the telView, in order to *not* normalize the clause type further than necessary.
+  -- (See issue 734.)
+  TelV tel0 b  <- telViewUpTo (length ps) a
+  let gamma     = useNamesFromPattern ps tel0
+      as        = telToList gamma
       (ps1,ps2) = splitAt (size as) ps
-      gamma     = telFromList as
-      b         = telePi (telFromList bs) b0
       -- now (gamma -> b) = a and |gamma| = |ps1|
       pr        = ProblemRest ps2 b
-      -- patterns ps2 eliminate type b
 
       -- internal patterns start as all variables
   ips <- mapM (return . argFromDom . fmap (VarP . fst)) as
@@ -80,21 +81,17 @@ problemFromPats ps a = do
   let problem  = Problem ps1 (idP $ size ps1, ips) gamma pr :: Problem
   reportSDoc "tc.lhs.problem" 10 $
     vcat [ text "checking lhs -- generated an initial split problem:"
-	 , nest 2 $ vcat
-	   [ text "ps    =" <+> fsep (map prettyA ps)
-	   , text "a     =" <+> prettyTCM a
-	   , text "a'    =" <+> prettyTCM (telePi tel0  b0)
-	   , text "a''   =" <+> prettyTCM (telePi tel0' b0)
+         , nest 2 $ vcat
+           [ text "ps    =" <+> fsep (map prettyA ps)
+           , text "a     =" <+> prettyTCM a
            , text "xs    =" <+> text (show $ map (fst . unDom) as)
-	   , text "tel0  =" <+> prettyTCM tel0
-	   , text "b0    =" <+> prettyTCM b0
-	   , text "ps1   =" <+> fsep (map prettyA ps1)
-	   -- , text "ips   =" <+> prettyTCM ips  -- no prettyTCM instance
-	   , text "gamma =" <+> prettyTCM gamma
-	   , text "ps2   =" <+> fsep (map prettyA ps2)
-	   , text "b     =" <+> addCtxTel gamma (prettyTCM b)
-	   ]
-	 ]
+           , text "ps1   =" <+> fsep (map prettyA ps1)
+        -- , text "ips   =" <+> prettyTCM ips  -- no prettyTCM instance
+           , text "gamma =" <+> prettyTCM gamma
+           , text "ps2   =" <+> fsep (map prettyA ps2)
+           , text "b     =" <+> addCtxTel gamma (prettyTCM b)
+           ]
+         ]
   return problem
 
 {-
@@ -112,15 +109,28 @@ updateProblemRest_ p@(Problem ps0 (perm0@(Perm n0 is0), qs0) tel0 (ProblemRest p
     EmptyTel -> return (0, p)  -- no progress
     ExtendTel{} -> do     -- a did reduce to a pi-type
       ps <- insertImplicitPatterns DontExpandLast ps tel'
-      let tel       = useNamesFromPattern ps tel'
-          (as, bs)  = splitAt (size ps) $ telToList tel
+      -- Issue 734: Redo the telView to preserve clause types as much as possible.
+      TelV tel b   <- telViewUpTo (length ps) a
+      let gamma     = useNamesFromPattern ps tel
+          as        = telToList gamma
           (ps1,ps2) = splitAt (size as) ps
           tel1      = telFromList $ telToList tel0 ++ as
-          b         = telePi (telFromList bs) b0
           pr        = ProblemRest ps2 b
           qs1       = map (argFromDom . fmap (VarP . fst)) as
           n         = size as
           perm1     = liftP n perm0 -- IS: Perm (n0 + n) $ is0 ++ [n0..n0+n-1]
+      reportSDoc "tc.lhs.problem" 10 $ addCtxTel tel0 $ vcat
+        [ text "checking lhs -- updated split problem:"
+        , nest 2 $ vcat
+          [ text "ps    =" <+> fsep (map prettyA ps)
+          , text "a     =" <+> prettyTCM a
+          , text "xs    =" <+> text (show $ map (fst . unDom) as)
+          , text "ps1   =" <+> fsep (map prettyA ps1)
+          , text "gamma =" <+> prettyTCM gamma
+          , text "ps2   =" <+> fsep (map prettyA ps2)
+          , text "b     =" <+> addCtxTel gamma (prettyTCM b)
+          ]
+        ]
       return $ (n,) $ Problem (ps0 ++ ps1) (perm1, raise n qs0 ++ qs1) tel1 pr
 
 updateProblemRest :: LHSState -> TCM LHSState
