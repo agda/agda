@@ -192,12 +192,19 @@ occursCheck m xs v = liftTCM $ do
 instance Occurs Term where
   occurs red ctx m xs v = do
     v <- unfold red v
+    -- occurs' ctx $ ignoreBlocking v  -- fails test/succeed/DontPruneBlocked
     case v of
       -- Don't fail on blocked terms or metas
-      Blocked _ v  -> occurs' Flex v
-      NotBlocked v -> occurs' ctx v
+      NotBlocked v        -> occurs' ctx v
+      -- Blocked _ v@MetaV{} -> occurs' ctx v  -- does not help with issue 856
+      Blocked _ v         -> occurs' Flex v
     where
-      occurs' ctx v = case v of
+      occurs' ctx v = do
+      reportSDoc "tc.meta.occurs" 45 $
+        text ("occursCheck (" ++ show ctx ++ ") of ") <+> prettyTCM v
+      reportSDoc "tc.meta.occurs" 70 $
+        nest 2 $ text $ show v
+      case v of
         Var i vs   -> do
           if (i `allowedVar` xs) then Var i <$> occ (weakly ctx) vs else do
             -- if the offending variable is of singleton type,
