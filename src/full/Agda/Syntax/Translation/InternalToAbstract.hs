@@ -335,6 +335,7 @@ reifyTerm expandAnonDefs v = do
                 ]
               napps h $ genericDrop (n - np) $ nameFirstIfHidden doms es
 -}
+      I.Lam info b | isAbsurdBody b -> return $ A.AbsurdLam exprInfo $ getHiding info
       I.Lam info b    -> do
         (x,e) <- reify b
         info <- reify info

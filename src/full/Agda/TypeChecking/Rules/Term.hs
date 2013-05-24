@@ -276,11 +276,14 @@ checkAbsurdLambda i h e t = do
   ifBlockedType t (\ m t' -> postponeTypeCheckingProblem_ e t') $ \ t' -> do
     case ignoreSharing $ unEl t' of
       Pi dom@(Dom info' a) _
-        | h == getHiding info' && not (null $ allMetas a) ->
+        | h /= getHiding info' -> typeError $ WrongHidingInLambda t'
+        | not (null $ allMetas a) ->
             postponeTypeCheckingProblem e t' $
               null . allMetas <$> instantiateFull a
-        | h == getHiding info' -> blockTerm t' $ do
+        | otherwise -> blockTerm t' $ do
           isEmptyType (getRange i) a
+          return $ Lam info' absurdBody
+{- OLD
           -- Add helper function
           top <- currentModule
           let name = "absurd"
@@ -322,7 +325,7 @@ checkAbsurdLambda i h e t = do
           tel <- getContextTelescope
           return $ Def aux $ teleArgs tel
           -- WAS: return (Def aux [])
-        | otherwise -> typeError $ WrongHidingInLambda t'
+-}
       _ -> typeError $ ShouldBePi t'
 
 -- | @checkExtendedLambda i di qname cs e t@ check pattern matching lambda.

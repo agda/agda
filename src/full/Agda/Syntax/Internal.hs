@@ -212,6 +212,19 @@ properlyMatching (ConP _ mt ps) = List.or $ isNothing mt -- not a record cons
   : map (properlyMatching . unArg) ps  -- or one of subpatterns is a proper m
 
 ---------------------------------------------------------------------------
+-- * Absurd Lambda
+---------------------------------------------------------------------------
+
+-- | Absurd lambdas are internally represented as identity
+--   with variable name "()".
+absurdBody :: Abs Term
+absurdBody = Abs "()" $ Var 0 []
+
+isAbsurdBody :: Abs Term -> Bool
+isAbsurdBody (Abs "()" (Var 0 [])) = True
+isAbsurdBody _                     = False
+
+---------------------------------------------------------------------------
 -- * Smart constructors
 ---------------------------------------------------------------------------
 
