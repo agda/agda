@@ -123,7 +123,7 @@ Type checking
   termination checker for a mutual block is only invoked after
   type-checking, so there can still be loops if you define a
   non-terminating function.  But termination checking now happens
-  befor the other supplementary checks: positivity, polarity,
+  before the other supplementary checks: positivity, polarity,
   injectivity and projection-likeness.
   Note that with the pragma {-# NO_TERMINATION_CHECK #-} you can make
   Agda treat any function as terminating.
