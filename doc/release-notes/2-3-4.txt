@@ -170,6 +170,15 @@ Type checking
 
   but anonymous record patterns are not part of the language.
 
+* Absurd lambdas at different source locations are no longer
+  different. [Issue 857]
+  In particular, the following code type-checks now:
+
+    absurd-equality : _≡_ {A = ⊥ → ⊥} (λ()) λ()
+    absurd-equality = refl
+
+  Which is a good thing!
+
 Compiler backends
 =================
 
