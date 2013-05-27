@@ -1,5 +1,5 @@
 {-# LANGUAGE CPP, PatternGuards, ImplicitParams, TupleSections, NamedFieldPuns,
-             FlexibleInstances #-}
+             FlexibleInstances, TypeSynonymInstances #-}
 
 {- Checking for Structural recursion
    Authors: Andreas Abel, Nils Anders Danielsson, Ulf Norell,

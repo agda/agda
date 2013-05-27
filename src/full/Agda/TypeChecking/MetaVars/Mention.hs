@@ -1,4 +1,4 @@
-{-# LANGUAGE FlexibleInstances #-}
+{-# LANGUAGE FlexibleInstances, TypeSynonymInstances #-}
 module Agda.TypeChecking.MetaVars.Mention where
 
 import Data.Traversable

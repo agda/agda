@@ -1,4 +1,4 @@
-{-# LANGUAGE CPP, FlexibleInstances #-}
+{-# LANGUAGE CPP, FlexibleInstances, TypeSynonymInstances #-}
 
 module Agda.TypeChecking.MetaVars.Occurs where
 

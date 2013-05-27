@@ -1,4 +1,4 @@
-{-# LANGUAGE CPP, FlexibleInstances #-}
+{-# LANGUAGE CPP, FlexibleInstances, TypeSynonymInstances #-}
 {-# OPTIONS -fno-warn-orphans #-}
 
 {-| Pretty printer for the concrete syntax.

@@ -1,6 +1,6 @@
 {-# LANGUAGE CPP, MultiParamTypeClasses, FunctionalDependencies,
              FlexibleInstances, UndecidableInstances, OverlappingInstances,
-             ScopedTypeVariables
+             ScopedTypeVariables, TypeSynonymInstances
   #-}
 
 {-| Translation from "Agda.Syntax.Concrete" to "Agda.Syntax.Abstract". Involves scope analysis,

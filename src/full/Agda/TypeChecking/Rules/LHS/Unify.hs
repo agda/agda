@@ -1,7 +1,6 @@
 {-# LANGUAGE CPP, MultiParamTypeClasses, FlexibleInstances, TupleSections,
-    PatternGuards,
-    GeneralizedNewtypeDeriving,
-    DeriveDataTypeable, DeriveFunctor, DeriveFoldable, DeriveTraversable #-}
+    PatternGuards, GeneralizedNewtypeDeriving, DeriveDataTypeable,
+    DeriveFunctor, DeriveFoldable, DeriveTraversable, TypeSynonymInstances #-}
 
 module Agda.TypeChecking.Rules.LHS.Unify where
 
