@@ -1,0 +1,3 @@
+MatchingOnCoinductiveRecord.agda:19,1-22
+Pattern matching on coinductive types is not allowed
+when checking that the clause force (inn y) = inn y has type U → U

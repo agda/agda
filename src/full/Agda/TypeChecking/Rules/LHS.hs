@@ -653,4 +653,4 @@ noPatternMatchingOnCodata = mapM_ (check . unArg)
       Nothing    -> __IMPOSSIBLE__
       Just False -> mapM_ (check . unArg) ps
       Just True  -> typeError $
-        GenericError "Pattern matching on codata is not allowed"
+        GenericError "Pattern matching on coinductive types is not allowed"

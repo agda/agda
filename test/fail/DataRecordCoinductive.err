@@ -1,6 +1,4 @@
-
-Termination checking failed for the following functions:
-  consume
-Problematic calls:
-  consume xs
-    (at DataRecordCoinductive.agda:35,29-36)
+DataRecordCoinductive.agda:35,3-39
+Pattern matching on coinductive types is not allowed
+when checking that the clause consume (cons (x ∷ xs)) = consume xs
+has type {A : Set} → Stream A → ⊥
