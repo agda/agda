@@ -321,6 +321,11 @@ instance PrettyTCM TypeError where
               pwords "does not construct an element of" ++ [prettyTCM t]
             ConstructorPatternInWrongDatatype c d -> fsep $
               [prettyTCM c] ++ pwords "is not a constructor of the datatype" ++ [prettyTCM d]
+            IndicesNotConstructorApplications [i] ->
+              fwords "The index"
+              $$ nest 2 (prettyTCM i)
+              $$ fsep (pwords "is not a constructor (or literal) applied to variables" ++
+                       pwords "(note that parameters count as constructor arguments)")
             IndicesNotConstructorApplications is ->
               fwords "The indices"
               $$ nest 2 (vcat $ map prettyTCM is)
