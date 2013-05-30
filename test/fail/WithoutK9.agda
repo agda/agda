@@ -1,5 +1,5 @@
 {-# OPTIONS --without-K --show-implicit #-}
-
+{-# OPTIONS -v tc.data:100 #-}
 module WithoutK9 where
 
 module Eq {A : Set} (x : A) where
@@ -15,3 +15,4 @@ module Bad {A : Set} {x : A} where
 
   weak-K : {y : A} (p q : E._≡_ y) (α β : p ≡ q) → α ≡ β
   weak-K refl .refl refl refl = refl
+

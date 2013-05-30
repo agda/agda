@@ -1,4 +1,5 @@
 {-# OPTIONS --show-implicit #-}
+-- {-# OPTIONS -v tc.data:25 #-}
 -- {-# OPTIONS -v tc.conv.coerce:0 -v tc.with:25 #-}
 
 module FilterSub where

@@ -242,11 +242,27 @@ wellFormedIndices t = do
       def       <- getConstInfo d
       typedArgs <- args `withTypesFrom` defType def
 
+{- OLD
       let noPars = case theDef def of
             Datatype { dataPars = n } -> n
             Record   { recPars  = n } -> n
             _                         -> __IMPOSSIBLE__
           (pars, ixs) = genericSplitAt noPars typedArgs
+      return (map fst pars, ixs)
+-}
+      -- Andreas, 2013-05-30:
+      -- * treat non-linear parameters as indices
+      -- * ignore big parameters
+      let (noPars, smallPars, nonLinPars) = case theDef def of
+            Datatype { dataPars = n, dataSmallPars = Perm _ sps, dataNonLinPars = Perm _ is }
+                                      -> (n, sps, is)
+            Record   { recPars  = n } -> (n, [0..n-1], []) -- TODO: smallness for record pars
+            _                         -> __IMPOSSIBLE__
+          (pars0, ixs0) = genericSplitAt noPars typedArgs
+          -- Andreas, 2013-05-30 take only the small parameters
+          pars = map (pars0 !!) (smallPars \\ nonLinPars)
+          -- add the non-linear parameters to the indices
+          ixs  = map (pars0 !!) nonLinPars ++ ixs0
       return (map fst pars, ixs)
 
     _ -> __IMPOSSIBLE__
@@ -279,6 +295,7 @@ wellFormedIndices t = do
     conDef  <- getConstInfo c
     dataDef <- getConstInfo d
 
+{- OLD
     let noPars = case theDef dataDef of
           Datatype { dataPars = n } -> n
           Record   { recPars  = n } -> n
@@ -296,6 +313,32 @@ wellFormedIndices t = do
            ]
 
     constructorApplications =<< allArgs `withTypesFrom` defType conDef
+-}
+
+    let (noPars, smallPars) = case theDef dataDef of
+          Datatype { dataPars = n, dataSmallPars = Perm _ is }
+                                    -> (n, is)
+          Record   { recPars  = n } -> (n, [0..n-1])
+          _                         -> __IMPOSSIBLE__
+
+        dataPars = take noPars dataArgs
+
+    allArgs <- (dataPars ++ conArgs) `withTypesFrom` defType conDef
+
+    -- skip big parameters during reconstruction
+    let ixs  = drop noPars allArgs
+        pars = map (allArgs !!) smallPars
+
+    reportSDoc "tc.lhs.split.well-formed" 20 $
+      fsep [ text "Reconstructed parameters:"
+           , nest 2 $
+               prettyTCM (Con c []) <+>
+               text "(:" <+> prettyTCM (defType conDef) <> text ")" <+>
+               text "<<" <+> prettyTCM (map fst pars) <+> text ">>" <+>
+               prettyTCM conArgs
+           ]
+
+    constructorApplications $ pars ++ ixs
 
   constructorApplication _ _ = return Nothing
 

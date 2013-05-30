@@ -653,11 +653,13 @@ data Defn = Axiom
               --   If yes, then return the number of hidden and non-hidden lambda-lifted arguments
             }
 	  | Datatype
-            { dataPars           :: Nat           -- nof parameters
-	    , dataIxs            :: Nat           -- nof indices
-            , dataInduction      :: Induction  -- data or codata?
-            , dataClause         :: (Maybe Clause) -- this might be in an instantiated module
-            , dataCons           :: [QName]        -- constructor names
+            { dataPars           :: Nat            -- ^ Number of parameters.
+            , dataSmallPars      :: Permutation    -- ^ Parameters that are maybe small.
+            , dataNonLinPars     :: Permutation    -- ^ Parameters that appear in indices.
+            , dataIxs            :: Nat            -- ^ Number of indices.
+            , dataInduction      :: Induction      -- ^ @data@ or @codata@ (legacy).
+            , dataClause         :: (Maybe Clause) -- ^ This might be in an instantiated module.
+            , dataCons           :: [QName]        -- ^ Constructor names.
             , dataSort           :: Sort
 {- MOVED
             , dataPolarity       :: [Polarity]

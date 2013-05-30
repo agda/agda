@@ -1,4 +1,5 @@
 {-# OPTIONS --without-K --show-implicit #-}
+-- {-# OPTIONS -v tc.data.sort:20 -v tc.lhs.split.well-formed:100 #-}
 
 module WithoutK5 where
 

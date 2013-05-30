@@ -1,12 +1,22 @@
-WithoutK9.agda:17,26-30
-The variables
-  A
-  x
-which are used (perhaps as constructor parameters) in the index
-expressions
-  refl
-are free in the parameters
+checking datatype _≡_
+  type (parameters instantiated):    A → Set
+  type (full):    A → Set
+  sort:    Set
+  indices: 1
+  params: []
+  small params: []
+checking constructor refl : _≡_ x
+checking that _≡_ x ends in _≡_
+  nofPars = 2
+these constructor parameters are non-linear: [1]
+checking that the type fits in Set
+does _≡_ x of sort Set fit in Set ?
+adding constructor refl : _≡_ x
+WithoutK9.agda:17,21-25
+The indices
   {E._≡_ x}
   refl
-when checking that the pattern refl has type
-_≡_ {E._≡_ x} refl refl
+  q
+are not constructors (or literals) applied to variables (note that
+parameters count as constructor arguments)
+when checking that the pattern refl has type _≡_ {E._≡_ x} refl q

@@ -99,9 +99,12 @@ instance Apply Defn where
           }
       where args' = [last args]
             m = size args
-    Datatype{ dataPars = np, dataClause = cl
+    Datatype{ dataPars = np, dataSmallPars = sps, dataNonLinPars = nlps, dataClause = cl
             {-, dataArgOccurrences = occ-} } ->
-      d { dataPars = np - size args, dataClause = apply cl args
+      d { dataPars = np - size args
+        , dataSmallPars  = apply sps args
+        , dataNonLinPars = apply nlps args
+        , dataClause     = apply cl args
 --        , dataArgOccurrences = drop (length args) occ
         }
     Record{ recPars = np, recConType = t, recClause = cl, recTel = tel
@@ -185,6 +188,7 @@ instance (Apply a, Apply b, Apply c) => Apply (a,b,c) where
 
 instance Apply Permutation where
   -- The permutation must start with [0..m - 1]
+  -- NB: section (- m) not possible (unary minus), hence (flip (-) m)
   apply (Perm n xs) args = Perm (n - m) $ map (flip (-) m) $ genericDrop m xs
     where
       m = size args
@@ -244,8 +248,11 @@ instance Abstract Defn where
     Function{ funClauses = cs, funCompiled = cc, funInv = inv
             , funProjection = Just p@Projection{projIndex = n} {-, funArgOccurrences = occ-} } ->
       d { funProjection = Just p{ projIndex = n + size tel } }
-    Datatype{ dataPars = np, dataClause = cl {-, dataArgOccurrences = occ-} } ->
-      d { dataPars = np + size tel, dataClause = abstract tel cl
+    Datatype{ dataPars = np, dataSmallPars = sps, dataNonLinPars = nlps, dataClause = cl {-, dataArgOccurrences = occ-} } ->
+      d { dataPars = np + size tel
+        , dataSmallPars = abstract tel sps
+        , dataNonLinPars = abstract tel nlps
+        , dataClause = abstract tel cl
 --        , dataArgOccurrences = replicate (size tel) Mixed ++ occ -- TODO: check occurrence
         }
     Record{ recPars = np, recConType = t, recClause = cl, recTel = tel'

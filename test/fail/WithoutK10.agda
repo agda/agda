@@ -1,4 +1,5 @@
 {-# OPTIONS --without-K --show-implicit #-}
+-- {-# OPTIONS -v tc.data.sort:20 -v tc.lhs.split.well-formed:100 #-}
 
 module WithoutK10 where
 
@@ -10,3 +11,4 @@ data D {A : Set} (f : Unit → A) : A → Set where
 
 Foo : ∀ {A} {x : A} → D (let f = λ { unit → x } in f) x → Set₁
 Foo d = Set
+

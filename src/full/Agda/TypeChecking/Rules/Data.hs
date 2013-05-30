@@ -7,6 +7,8 @@ import Control.Monad
 import Control.Monad.Trans
 
 import Data.List (genericTake)
+import Data.Set (Set)
+import qualified Data.Set as Set
 
 import qualified Agda.Syntax.Abstract as A
 import Agda.Syntax.Internal
@@ -15,6 +17,7 @@ import Agda.Syntax.Position
 import qualified Agda.Syntax.Info as Info
 
 import Agda.TypeChecking.Monad
+import Agda.TypeChecking.Monad.Builtin (primLevel)
 import Agda.TypeChecking.Conversion
 import Agda.TypeChecking.Substitute
 import Agda.TypeChecking.MetaVars
@@ -33,8 +36,10 @@ import Agda.Interaction.Options
 
 import Agda.Utils.List
 import Agda.Utils.Monad
+import Agda.Utils.Permutation
 import Agda.Utils.Size
 import Agda.Utils.Tuple
+import qualified Agda.Utils.VarSet as VarSet
 
 #include "../../undefined.h"
 import Agda.Utils.Impossible
@@ -64,6 +69,9 @@ checkDataDef i name ps cs =
         let unTelV (TelV tel a) = telePi tel a
         t <- unTelV <$> telView t
 
+        -- Top level free vars
+        freeVars <- getContextArgs
+
 	-- The parameters are in scope when checking the constructors.
 	dataDef <- bindParameters ps t $ \tel t0 -> do
 
@@ -84,6 +92,9 @@ checkDataDef i name ps cs =
 
             s <- return $ raise (-nofIxs) s
 
+            -- the small parameters are taken into consideration for --without-K
+            smallPars <- smallParams tel s
+
             reportSDoc "tc.data.sort" 20 $ vcat
               [ text "checking datatype" <+> prettyTCM name
               , nest 2 $ vcat
@@ -92,11 +103,14 @@ checkDataDef i name ps cs =
                 , text "sort:   " <+> prettyTCM s
                 , text "indices:" <+> text (show nofIxs)
                 , text "params:"  <+> text (show ps)
+                , text "small params:" <+> text (show smallPars)
                 ]
               ]
 
 	    -- Change the datatype from an axiom to a datatype with no constructors.
             let dataDef = Datatype { dataPars           = npars
+                                   , dataSmallPars      = Perm npars smallPars
+                                   , dataNonLinPars     = Perm npars []
                                    , dataIxs            = nofIxs
                                    , dataInduction      = Inductive
                                    , dataClause         = Nothing
@@ -115,10 +129,19 @@ checkDataDef i name ps cs =
 	      addConstant name ( Defn defaultArgInfo name t [] [] (defaultDisplayForm name) 0 noCompiledRep dataDef )
 
 	    -- Check the types of the constructors
-	    mapM_ (checkConstructor name tel' nofIxs s) cs
+            -- collect the non-linear parameters of each constructor
+	    nonLins <- mapM (checkConstructor name tel' nofIxs s) cs
+            -- compute the ascending list of non-linear parameters of the data type
+            let nonLinPars0 = Set.toAscList $ Set.unions $ map Set.fromList nonLins
+                -- The constructors are analyzed in the absolute context,
+                -- but the data definition happens in the relative module context,
+                -- so we apply to the free module variables.
+                -- Unfortunately, we lose precision here, since 'abstract', which
+                -- is then performed by addConstand, cannot restore the linearity info.
+                nonLinPars  = Perm (npars + size freeVars) nonLinPars0 `apply` freeVars
 
 	    -- Return the data definition
-	    return dataDef
+	    return dataDef{ dataNonLinPars = nonLinPars }
 
         let nofIxs = dataIxs dataDef
             s      = dataSort dataDef
@@ -158,10 +181,31 @@ checkDataDef i name ps cs =
             equalType t (sort s)
             return (0, s)
 
+-- | A parameter is small if its sort fits into the data sort.
+--   @smallParams@ overapproximates the small parameters (in doubt: small).
+smallParams :: Telescope -> Sort -> TCM [Int]
+smallParams tel s = do
+  mlvl <- mlevel
+  -- get the types of the parameters
+  let as = map (snd . unDom) $ telToList tel
+  -- get the big parameters
+  concat <$> do
+    forM (zip [0..] as) $ \ (i, a) -> do
+      -- A type is small if it is not Level or its sort is <= the data sort.
+      -- In doubt (unsolvable constraints), a type is small.
+      -- So, only if we have a solid error, the type is big.
+      localState $ do
+        ([] <$ do equalTerm topSort (unEl a) =<< primLevel)
+        <|> ([i] <$ (getSort a `leqSort` s))
+        <|> return []
+  where
+    (<|>) m1 m2 = m1 `catchError_` (const m2)
+
 -- | Type check a constructor declaration. Checks that the constructor targets
 --   the datatype and that it fits inside the declared sort.
+--   Returns the non-linear parameters.
 checkConstructor :: QName -> Telescope -> Nat -> Sort
-                 -> A.Constructor -> TCM ()
+                 -> A.Constructor -> TCM [Int]
 checkConstructor d tel nofIxs s (A.ScopedDecl scope [con]) = do
   setScope scope
   checkConstructor d tel nofIxs s con
@@ -176,9 +220,11 @@ checkConstructor d tel nofIxs s con@(A.Axiom i _ c e) =
         debugEnter c e
 	t <- isType_ e
         -- check that the type of the constructor ends in the data type
-	n <- size <$> getContextTelescope
+	n <- getContextSize
+	-- OLD: n <- size <$> getContextTelescope
         debugEndsIn t d n
-	constructs n t d
+	nonLinPars <- constructs n t d
+        debugNonLinPars nonLinPars
         -- check that the sort (universe level) of the constructor type
         -- is contained in the sort of the data type
         -- (to avoid impredicative existential types)
@@ -187,14 +233,14 @@ checkConstructor d tel nofIxs s con@(A.Axiom i _ c e) =
         -- check which constructor arguments are determined by the type ('forcing')
         t' <- addForcingAnnotations t
         debugAdd c t'
-{-
-        return t'
--}
+
         -- add parameters to constructor type and put into signature
         escapeContext (size tel)
 	    $ addConstant c
 	    $ Defn defaultArgInfo c (telePi tel t') [] [] (defaultDisplayForm c) 0 noCompiledRep
 	    $ Constructor (size tel) c d (Info.defAbstract i) Inductive
+
+        return nonLinPars
   where
     debugEnter c e =
       reportSDoc "tc.data.con" 5 $ vcat
@@ -208,6 +254,8 @@ checkConstructor d tel nofIxs s con@(A.Axiom i _ c e) =
               ]
         , nest 2 $ text "nofPars =" <+> text (show n)
         ]
+    debugNonLinPars xs =
+      reportSDoc "tc.data.con" 15 $ text $ "these constructor parameters are non-linear: " ++ show xs
     debugFitsIn s =
       reportSDoc "tc.data.con" 15 $ sep
         [ text "checking that the type fits in"
@@ -261,21 +309,24 @@ fitsIn t s = do
     Pi dom b -> do
       getSort (unDom dom) `leqSort` s
       addCtxString (absName b) dom $ fitsIn (absBody b) (raise 1 s)
-{- OLD, pedestrian code
-      x <- freshName_ (argName t)
-      let v  = Arg info $ var 0
-          t' = piApply (raise 1 t) [v]
-      addCtx x dom $ fitsIn t' (raise 1 s)
--}
     _ -> return () -- getSort t `leqSort` s  -- Andreas, 2013-04-13 not necessary since constructor type ends in data type
 
+-- | Return the parameters that share variables with the indices
+-- nonLinearParameters :: Int -> Type -> TCM [Int]
+-- nonLinearParameters nPars t =
 
 -- | Check that a type constructs something of the given datatype. The first
 --   argument is the number of parameters to the datatype.
+--
+--   As a side effect, return the parameters that occur free in indices.
+--   E.g. in @data Eq (A : Set)(a : A) : A -> Set where refl : Eq A a a@
+--   this would include parameter @a@, but not @A@.
+--
 --   TODO: what if there's a meta here?
-constructs :: Int -> Type -> QName -> TCM ()
+constructs :: Int -> Type -> QName -> TCM [Int]
 constructs nofPars t q = constrT 0 t
     where
+{- OLD
         constrT :: Nat -> Type -> TCM ()
 	constrT n (El s v) = constr n s v
 
@@ -284,18 +335,36 @@ constructs nofPars t q = constrT 0 t
 	    v <- reduce v
 	    case ignoreSharing v of
 		Pi _ (NoAbs _ b) -> constrT n b
-		Pi a b	-> underAbstraction a b $ \t ->
-			   constrT (n + 1) t
+		Pi a b	         -> underAbstraction a b $ constrT (n + 1)
 		Def d vs
 		    | d == q -> checkParams n =<< reduce (take nofPars vs)
 						    -- we only check the parameters
 		_ -> bad $ El s v
 
 	bad t = typeError $ ShouldEndInApplicationOfTheDatatype t
+-}
+        constrT :: Nat -> Type -> TCM [Int]
+        constrT n t = do
+	    t <- reduce t
+	    case ignoreSharing $ unEl t of
+		Pi _ (NoAbs _ b)  -> constrT n b
+		Pi a b	          -> underAbstraction a b $ constrT (n + 1)
+                  -- OR: addCxtString (absName b) a $ constrT (n + 1) (absBody b)
+		Def d vs | d == q -> do
+                  (pars, ixs) <- normalise $ splitAt nofPars vs
+                  -- check that the constructor parameters are the data parameters
+                  checkParams n pars
+                  -- compute the non-linear parameters
+                  m <- getContextSize  -- Note: n /= m if NoAbs encountered
+                  let nl = nonLinearParams m pars ixs
+                  -- assert that these are correct indices into the parameter vector
+                  when (any (< 0) nl) __IMPOSSIBLE__
+                  when (any (>= nofPars) nl) __IMPOSSIBLE__
+                  return nl
+		_ -> typeError $ ShouldEndInApplicationOfTheDatatype t
 
 	checkParams n vs = zipWithM_ sameVar vs ps
 	    where
---		ps = reverse [ i | (i,_) <- zip [n..] vs ]
                 nvs = size vs
 		ps = genericTake nvs $ downFrom (n + nvs)
 
@@ -305,6 +374,19 @@ constructs nofPars t q = constrT 0 t
 		  | otherwise = do
 		    t <- typeOfBV i
 		    equalTerm t (unArg arg) (var i)
+
+        -- return the parameters (numbered 0,1,...,size pars-1 from left to right)
+        -- that occur relevantly in the indices
+        nonLinearParams n pars ixs =
+          -- compute the free de Bruijn indices in the data indices
+          -- ALT: Ignore all sorts?
+          let fv = freeVars' FreeConf{ fcIgnoreSorts = IgnoreInAnnotations } ixs
+          -- keep relevant ones, convert to de Bruijn levels
+          -- note: xs is descending list
+              xs = map ((n-1) -) $ VarSet.toList $ relevantVars fv
+          -- keep those that correspond to parameters
+          -- in ascending list
+          in  reverse $ filter (< size pars) xs
 
 {- UNUSED, Andreas 2012-09-13
 -- | Force a type to be a specific datatype.

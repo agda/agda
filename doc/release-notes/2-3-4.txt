@@ -179,6 +179,18 @@ Type checking
 
   Which is a good thing!
 
+* --without-K is less restrictive. [Issue 712]
+  The handling of parameters differs from Agda 2.3.2 as follows:
+
+  1. Parameters that occur in constructor indices are classified as
+     `non-linear' and treated just as indices.
+
+  2. Parameters that are `big', i.e., levels or type arguments of
+     equal size (universe level) than the data type are disregarded by
+     the analysis.
+
+  TODO: examples!
+
 Compiler backends
 =================
 
