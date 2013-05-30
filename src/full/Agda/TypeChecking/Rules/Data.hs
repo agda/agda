@@ -247,25 +247,26 @@ bindParameters (b : bs) t _ = typeError $ DataTooManyParameters
 --   The first argument is the type of the constructor.
 fitsIn :: Type -> Sort -> TCM ()
 fitsIn t s = do
-  t <- instantiateFull t
-  s' <- instantiateFull (getSort t)
   reportSDoc "tc.data.fits" 10 $
     sep [ text "does" <+> prettyTCM t
-        , text "of sort" <+> prettyTCM s'
+        , text "of sort" <+> prettyTCM (getSort t)
         , text "fit in" <+> prettyTCM s <+> text "?"
         ]
-  -- The line below would be simpler, but doesn't allow datatypes
+  -- The code below would be simpler, but doesn't allow datatypes
   -- to be indexed by the universe level.
---   noConstraints $ s' `leqSort` s
+  -- s' <- instantiateFull (getSort t)
+  -- noConstraints $ s' `leqSort` s
   t <- reduce t
   case ignoreSharing $ unEl t of
-    Pi arg@(Dom info a) _ -> do
-      let s' = getSort a
-      s' `leqSort` s
+    Pi dom b -> do
+      getSort (unDom dom) `leqSort` s
+      addCtxString (absName b) dom $ fitsIn (absBody b) (raise 1 s)
+{- OLD, pedestrian code
       x <- freshName_ (argName t)
       let v  = Arg info $ var 0
           t' = piApply (raise 1 t) [v]
-      addCtx x arg $ fitsIn t' (raise 1 s)
+      addCtx x dom $ fitsIn t' (raise 1 s)
+-}
     _ -> return () -- getSort t `leqSort` s  -- Andreas, 2013-04-13 not necessary since constructor type ends in data type
 
 
