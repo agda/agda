@@ -50,6 +50,7 @@ import Agda.Syntax.Scope.Monad
 import Agda.TypeChecking.Monad as M hiding (MetaInfo)
 import Agda.TypeChecking.Reduce
 import {-# SOURCE #-} Agda.TypeChecking.Records
+import Agda.TypeChecking.CompiledClause (CompiledClauses(Fail))
 import Agda.TypeChecking.DisplayForm
 import Agda.TypeChecking.Level
 import Agda.TypeChecking.Monad.Builtin
@@ -335,7 +336,7 @@ reifyTerm expandAnonDefs v = do
                 ]
               napps h $ genericDrop (n - np) $ nameFirstIfHidden doms es
 -}
-      I.Lam info b | isAbsurdBody b -> return $ A.AbsurdLam exprInfo $ getHiding info
+--      I.Lam info b | isAbsurdBody b -> return $ A.AbsurdLam exprInfo $ getHiding info
       I.Lam info b    -> do
         (x,e) <- reify b
         info <- reify info
@@ -361,6 +362,7 @@ reifyTerm expandAnonDefs v = do
       -- to improve error messages.
       -- Don't do this if we have just expanded into a display form,
       -- otherwise we loop!
+      reifyDef :: Bool -> QName -> I.Args -> TCM Expr
       reifyDef True x@(QName m name) vs | A.isAnonymousModuleName m = do
         r <- reduceDefCopy x vs
         case r of
@@ -380,10 +382,20 @@ reifyTerm expandAnonDefs v = do
             reifyDef' x vs
       reifyDef _ x vs = reifyDef' x vs
 
+      reifyDef' :: QName -> I.Args -> TCM Expr
       reifyDef' x@(QName _ name) vs = do
         -- We should drop this many arguments from the local context.
         n <- getDefFreeVars x
         mdefn <- liftTCM $ (Just <$> getConstInfo x) `catchError` \_ -> return Nothing
+        -- check if we have an absurd lambda
+        let reifyAbsurdLambda cont =
+              case theDef <$> mdefn of
+                Just Function{ funCompiled = Fail,
+                  funClauses = [I.Clause { clausePats = [Common.Arg info (I.VarP "()")] }] }
+                  | isAbsurdLambdaName (nameConcrete name) -> do
+                    apps (A.AbsurdLam exprInfo $ getHiding info) =<< reifyIArgs vs
+                _ -> cont
+        reifyAbsurdLambda $ do
         (pad, vs :: [I.NamedArg Term]) <- do
           case mdefn of
             Nothing   -> return ([], map (fmap unnamed) $ genericDrop n vs)

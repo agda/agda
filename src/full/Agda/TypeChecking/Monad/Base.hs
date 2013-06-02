@@ -1567,3 +1567,12 @@ forkTCM m = do
 
 -- | Base name for extended lambda patterns
 extendlambdaname = ".extendedlambda"
+
+-- | Name of absurdLambda definitions.
+absurdLambdaName = "absurdLambda"
+
+-- | Check whether we have an definition from an absurd lambda.
+isAbsurdLambdaName :: C.Name -> Bool
+isAbsurdLambdaName (C.Name _ [C.Id "absurdLambda"]) = True
+isAbsurdLambdaName _ = False
+

@@ -282,12 +282,10 @@ checkAbsurdLambda i h e t = do
               null . allMetas <$> instantiateFull a
         | otherwise -> blockTerm t' $ do
           isEmptyType (getRange i) a
-          return $ Lam info' absurdBody
-{- OLD
+--          return $ Lam info' absurdBody
           -- Add helper function
           top <- currentModule
-          let name = "absurd"
-          aux <- qualify top <$> freshName (getRange i) name
+          aux <- qualify top <$> freshName (getRange i) absurdLambdaName
           -- if we are in irrelevant position, the helper function
           -- is added as irrelevant
           rel <- asks envRelevance
@@ -324,8 +322,6 @@ checkAbsurdLambda i h e t = do
           -- it needs to be applied to the current telescope (issue 557)
           tel <- getContextTelescope
           return $ Def aux $ teleArgs tel
-          -- WAS: return (Def aux [])
--}
       _ -> typeError $ ShouldBePi t'
 
 -- | @checkExtendedLambda i di qname cs e t@ check pattern matching lambda.

@@ -17,6 +17,7 @@ import Agda.Syntax.Common
 import Agda.Syntax.Internal
 import Agda.Syntax.Translation.InternalToAbstract (reify)
 import Agda.TypeChecking.Monad
+import Agda.TypeChecking.CompiledClause (CompiledClauses(Fail))
 import Agda.TypeChecking.MetaVars
 import Agda.TypeChecking.MetaVars.Occurs (killArgs,PruneResult(..))
 import Agda.TypeChecking.Reduce
@@ -397,10 +398,16 @@ compareAtom cmp t m n =
                   -- constructor applications at this point, so t really is the
                   -- datatype of x. See issue 676 for an example where it
                   -- failed.
+{-
                 (DefElim x els1, DefElim y els2) | x == y ->
                   cmpElim (defType <$> getConstInfo x) (Def x []) els1 els2
                 (DefElim x els1, DefElim y els2) ->
                   trySizeUniv cmp t m n x els1 y els2
+-}
+                (DefElim x els1, DefElim y els2) -> do
+                   ifM (equalDef x y)
+                     (cmpElim (defType <$> getConstInfo x) (Def x []) els1 els2)
+                     (trySizeUniv cmp t m n x els1 y els2)
                 (MetaElim{}, _) -> __IMPOSSIBLE__   -- projections from metas should have been eta expanded
                 (_, MetaElim{}) -> __IMPOSSIBLE__
                 _ -> typeError $ UnequalTerms cmp m n t
@@ -1056,3 +1063,20 @@ equalSort s1 s2 =
           NeutralLevel (Shared p) -> isInf notok (Plus 0 $ NeutralLevel $ derefPtr p)
           NeutralLevel (Sort Inf) -> return ()
           _                       -> notok
+
+---------------------------------------------------------------------------
+-- * Definitions
+---------------------------------------------------------------------------
+
+-- | Structural equality for definitions.
+--   Rudimentary implementation, only works for absurd lambdas now.
+equalDef :: QName -> QName -> TCM Bool
+equalDef f f'
+  | f == f'   = return True
+  | otherwise =  do
+      def  <- getConstInfo f
+      def' <- getConstInfo f'
+      case (theDef def, theDef def') of
+        (Function{ funCompiled = Fail},
+         Function{ funCompiled = Fail}) -> return True
+        _ -> return False
