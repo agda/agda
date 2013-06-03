@@ -1569,10 +1569,10 @@ forkTCM m = do
 extendlambdaname = ".extendedlambda"
 
 -- | Name of absurdLambda definitions.
-absurdLambdaName = "absurdLambda"
+absurdLambdaName = ".absurdlambda"
 
 -- | Check whether we have an definition from an absurd lambda.
-isAbsurdLambdaName :: C.Name -> Bool
-isAbsurdLambdaName (C.Name _ [C.Id "absurdLambda"]) = True
+isAbsurdLambdaName :: QName -> Bool
+isAbsurdLambdaName (QName _ Name{nameConcrete = C.Name _ [C.Id ".absurdlambda"]}) = True
 isAbsurdLambdaName _ = False
 

@@ -398,16 +398,17 @@ compareAtom cmp t m n =
                   -- constructor applications at this point, so t really is the
                   -- datatype of x. See issue 676 for an example where it
                   -- failed.
-{-
                 (DefElim x els1, DefElim y els2) | x == y ->
                   cmpElim (defType <$> getConstInfo x) (Def x []) els1 els2
                 (DefElim x els1, DefElim y els2) ->
-                  trySizeUniv cmp t m n x els1 y els2
--}
+                  unlessM (bothAbsurd x y) $ do
+                    trySizeUniv cmp t m n x els1 y els2
+{-
                 (DefElim x els1, DefElim y els2) -> do
                    ifM (equalDef x y)
                      (cmpElim (defType <$> getConstInfo x) (Def x []) els1 els2)
                      (trySizeUniv cmp t m n x els1 y els2)
+-}
                 (MetaElim{}, _) -> __IMPOSSIBLE__   -- projections from metas should have been eta expanded
                 (_, MetaElim{}) -> __IMPOSSIBLE__
                 _ -> typeError $ UnequalTerms cmp m n t
@@ -1068,6 +1069,18 @@ equalSort s1 s2 =
 -- * Definitions
 ---------------------------------------------------------------------------
 
+bothAbsurd :: QName -> QName -> TCM Bool
+bothAbsurd f f'
+  | isAbsurdLambdaName f, isAbsurdLambdaName f' = do
+      def  <- getConstInfo f
+      def' <- getConstInfo f'
+      case (theDef def, theDef def') of
+        (Function{ funCompiled = Fail},
+         Function{ funCompiled = Fail}) -> return True
+        _ -> return False
+  | otherwise = return False
+
+{-
 -- | Structural equality for definitions.
 --   Rudimentary implementation, only works for absurd lambdas now.
 equalDef :: QName -> QName -> TCM Bool
@@ -1080,3 +1093,4 @@ equalDef f f'
         (Function{ funCompiled = Fail},
          Function{ funCompiled = Fail}) -> return True
         _ -> return False
+-}

@@ -391,9 +391,11 @@ reifyTerm expandAnonDefs v = do
         let reifyAbsurdLambda cont =
               case theDef <$> mdefn of
                 Just Function{ funCompiled = Fail,
-                  funClauses = [I.Clause { clausePats = [Common.Arg info (I.VarP "()")] }] }
-                  | isAbsurdLambdaName (nameConcrete name) -> do
-                    apps (A.AbsurdLam exprInfo $ getHiding info) =<< reifyIArgs vs
+                  funClauses = [I.Clause { clausePats = ps }] }
+                  | isAbsurdLambdaName x -> do
+                    -- get hiding info from last pattern, which should be ()
+                    let h = getHiding $ last ps
+                    apps (A.AbsurdLam exprInfo h) =<< reifyIArgs vs
                 _ -> cont
         reifyAbsurdLambda $ do
         (pad, vs :: [I.NamedArg Term]) <- do
