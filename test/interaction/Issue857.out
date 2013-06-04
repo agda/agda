@@ -7,6 +7,6 @@ Agda2> (agda2-status-action "")
 (agda2-info-action "*All Goals*" "?0 : ⊥-elim x ≡ tt\n" nil)
 ((last . 1) . (agda2-goals-action '(0)))
 Agda2> (agda2-status-action "")
-(agda2-info-action "*Current Goal*" ".Issue857.absurdLambda x ≡ tt" nil)
+(agda2-info-action "*Current Goal*" "(λ ()) x ≡ tt" nil)
 ((last . 1) . (agda2-goals-action '(0)))
 Agda2> 
