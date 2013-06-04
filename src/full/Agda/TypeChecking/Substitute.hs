@@ -7,7 +7,7 @@ import Control.Monad.Reader
 import Control.Arrow ((***))
 
 import Data.Typeable (Typeable)
-import Data.List hiding (sort)
+import Data.List hiding (sort, drop)
 import qualified Data.List as List
 import Data.Function
 import Data.Map (Map)
@@ -71,10 +71,10 @@ instance Apply Definition where
   apply (Defn info x t pol occ df m c d) args = Defn info x (piApply t args) (apply pol args) (apply occ args) df m c (apply d args)
 
 instance Apply [Base.Occurrence] where
-  apply occ args = drop (length args) occ
+  apply occ args = List.drop (length args) occ
 
 instance Apply [Polarity] where
-  apply pol args = drop (length args) pol
+  apply pol args = List.drop (length args) pol
 
 instance Apply Defn where
   apply d [] = d
@@ -85,7 +85,7 @@ instance Apply Defn where
       d { funClauses    = apply cs args
         , funCompiled   = apply cc args
         , funInv        = apply inv args
---        , funArgOccurrences = drop (length args) occ
+--        , funArgOccurrences = List.drop (length args) occ
         }
     Function{ funClauses = cs, funCompiled = cc, funInv = inv
             , funProjection = Just p@Projection{ projIndex = n } {-, funArgOccurrences = occ -} }
@@ -95,7 +95,7 @@ instance Apply Defn where
           , funCompiled       = apply cc args'
           , funInv            = apply inv args'
           , funProjection     = Just $ p { projIndex = 0 }
---          , funArgOccurrences = drop 1 occ
+--          , funArgOccurrences = List.drop 1 occ
           }
       where args' = [last args]
             m = size args
@@ -105,13 +105,13 @@ instance Apply Defn where
         , dataSmallPars  = apply sps args
         , dataNonLinPars = apply nlps args
         , dataClause     = apply cl args
---        , dataArgOccurrences = drop (length args) occ
+--        , dataArgOccurrences = List.drop (length args) occ
         }
     Record{ recPars = np, recConType = t, recClause = cl, recTel = tel
           {-, recArgOccurrences = occ-} } ->
       d { recPars = np - size args, recConType = apply t args
         , recClause = apply cl args, recTel = apply tel args
---        , recArgOccurrences = drop (length args) occ
+--        , recArgOccurrences = List.drop (length args) occ
         }
     Constructor{ conPars = np } ->
       d { conPars = np - size args }
@@ -124,13 +124,13 @@ instance Apply PrimFun where
 instance Apply Clause where
     apply (Clause r tel perm ps b) args =
       Clause r (apply tel args) (apply perm args)
-             (drop (size args) ps) (apply b args)
+             (List.drop (size args) ps) (apply b args)
 
 instance Apply CompiledClauses where
   apply cc args = case cc of
     Fail     -> Fail
     Done hs t
-      | length hs >= len -> Done (drop len hs)
+      | length hs >= len -> Done (List.drop len hs)
                                  (applySubst
                                     (parallelS $
                                        [ var i | i <- [0..length hs - len - 1]] ++
@@ -185,6 +185,12 @@ instance (Apply a, Apply b) => Apply (a,b) where
 
 instance (Apply a, Apply b, Apply c) => Apply (a,b,c) where
     apply (x,y,z) args = (apply x args, apply y args, apply z args)
+
+instance DoDrop a => Apply (Drop a) where
+  apply x args = dropMore (size args) x
+
+instance DoDrop a => Abstract (Drop a) where
+  abstract tel x = unDrop (size tel) x
 
 instance Apply Permutation where
   -- The permutation must start with [0..m - 1]

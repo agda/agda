@@ -1,0 +1,10 @@
+Issue865Big.agda:9,7-11
+The variables
+  A
+  A
+in the indices
+  A
+  A
+are not distinct (note that parameters count as constructor
+arguments)
+when checking that the pattern refl has type A ≡ A

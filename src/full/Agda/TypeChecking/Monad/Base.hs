@@ -655,7 +655,7 @@ data Defn = Axiom
 	  | Datatype
             { dataPars           :: Nat            -- ^ Number of parameters.
             , dataSmallPars      :: Permutation    -- ^ Parameters that are maybe small.
-            , dataNonLinPars     :: Permutation    -- ^ Parameters that appear in indices.
+            , dataNonLinPars     :: Drop Permutation  -- ^ Parameters that appear in indices.
             , dataIxs            :: Nat            -- ^ Number of indices.
             , dataInduction      :: Induction      -- ^ @data@ or @codata@ (legacy).
             , dataClause         :: (Maybe Clause) -- ^ This might be in an instantiated module.

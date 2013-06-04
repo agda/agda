@@ -1,5 +1,5 @@
 {-# OPTIONS --without-K --show-implicit #-}
-{-# OPTIONS -v tc.data:100 #-}
+-- {-# OPTIONS -v tc.data:100 #-}
 module WithoutK9 where
 
 module Eq {A : Set} (x : A) where

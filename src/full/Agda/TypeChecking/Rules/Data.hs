@@ -110,7 +110,7 @@ checkDataDef i name ps cs =
 	    -- Change the datatype from an axiom to a datatype with no constructors.
             let dataDef = Datatype { dataPars           = npars
                                    , dataSmallPars      = Perm npars smallPars
-                                   , dataNonLinPars     = Perm npars []
+                                   , dataNonLinPars     = Drop 0 $ Perm npars []
                                    , dataIxs            = nofIxs
                                    , dataInduction      = Inductive
                                    , dataClause         = Nothing
@@ -138,7 +138,7 @@ checkDataDef i name ps cs =
                 -- so we apply to the free module variables.
                 -- Unfortunately, we lose precision here, since 'abstract', which
                 -- is then performed by addConstand, cannot restore the linearity info.
-                nonLinPars  = Perm (npars + size freeVars) nonLinPars0 `apply` freeVars
+                nonLinPars  = Drop (size freeVars) $ Perm (npars + size freeVars) nonLinPars0
 
 	    -- Return the data definition
 	    return dataDef{ dataNonLinPars = nonLinPars }

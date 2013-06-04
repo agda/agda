@@ -40,7 +40,7 @@ import Agda.Utils.List
 import Agda.Utils.Monad
 import qualified Agda.Utils.Map as Map
 import Agda.Utils.Maybe
-import Agda.Utils.Permutation
+import Agda.Utils.Permutation hiding (dropFrom)
 import Agda.Utils.Size
 
 #include "../undefined.h"

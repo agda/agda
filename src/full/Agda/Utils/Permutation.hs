@@ -1,8 +1,14 @@
-{-# LANGUAGE DeriveDataTypeable, CPP #-}
+{-# LANGUAGE CPP, DeriveDataTypeable, DeriveFunctor, DeriveFoldable, DeriveTraversable #-}
 module Agda.Utils.Permutation where
 
+import Prelude hiding (drop)
+import Data.List hiding (drop)
+import qualified Data.List as List
+
+import Data.Foldable (Foldable)
+import Data.Traversable (Traversable)
 import Data.Typeable (Typeable)
-import Data.List
+
 import Agda.Utils.Size
 import Agda.Utils.Impossible
 
@@ -129,3 +135,34 @@ topoSort parent xs = fmap (Perm (size xs)) $ topo g
       where
 	xs = [ x | (x, []) <- g ]
 	remove x g = [ (y, filter (/= x) ys) | (y, ys) <- g, x /= y ]
+
+-- * Drop (apply) and undrop (abstract)
+
+-- | Delayed dropping which allows undropping.
+data Drop a = Drop
+  { dropN    :: Int  -- ^ Non-negative number of things to drop.
+  , dropFrom :: a    -- ^ Where to drop from.
+  }
+  deriving (Eq, Ord, Show, Typeable, Functor, Foldable, Traversable)
+
+-- | Things that support delayed dropping.
+class DoDrop a where
+
+  doDrop :: Drop a -> a              -- ^ Perform the dropping.
+
+  dropMore :: Int -> Drop a -> Drop a  -- ^ Drop more.
+  dropMore n (Drop m xs) = Drop (m + n) xs
+
+  unDrop :: Int -> Drop a -> Drop a  -- ^ Pick up dropped stuff.
+  unDrop n (Drop m xs)
+    | n <= m    = Drop (m - n) xs
+    | otherwise = __IMPOSSIBLE__
+
+instance DoDrop [a] where
+  doDrop   (Drop m xs) = List.drop m xs
+
+instance DoDrop Permutation where
+  doDrop (Drop k (Perm n xs)) =
+    Perm (n + m) $ [0..m-1] ++ map (+ m) (List.drop k xs)
+    where m = -k
+  unDrop m = dropMore (-m) -- allow picking up more than dropped

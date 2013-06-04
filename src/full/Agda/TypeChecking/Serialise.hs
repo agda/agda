@@ -87,7 +87,7 @@ import Agda.Utils.Impossible
 -- 32-bit machines). Word64 does not have these problems.
 
 currentInterfaceVersion :: Word64
-currentInterfaceVersion = 20130530 * 10 + 0
+currentInterfaceVersion = 20130604 * 10 + 0
 
 -- | Constructor tag (maybe omitted) and argument indices.
 
@@ -633,6 +633,11 @@ instance EmbPrj Telescope where
 instance EmbPrj Permutation where
   icode (Perm a b) = icode2' a b
   value = vcase valu where valu [a, b] = valu2 Perm a b
+                           valu _      = malformed
+
+instance EmbPrj a => EmbPrj (Drop a) where
+  icode (Drop a b) = icode2' a b
+  value = vcase valu where valu [a, b] = valu2 Drop a b
                            valu _      = malformed
 
 instance (EmbPrj a, EmbPrj c) => EmbPrj (Agda.Syntax.Common.Arg c a) where

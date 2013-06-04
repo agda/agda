@@ -254,8 +254,8 @@ wellFormedIndices t = do
       -- * treat non-linear parameters as indices
       -- * ignore big parameters
       let (noPars, smallPars, nonLinPars) = case theDef def of
-            Datatype { dataPars = n, dataSmallPars = Perm _ sps, dataNonLinPars = Perm _ is }
-                                      -> (n, sps, is)
+            Datatype { dataPars = n, dataSmallPars = Perm _ sps, dataNonLinPars = nl }
+                                      -> (n, sps, permPicks $ doDrop nl)
             Record   { recPars  = n } -> (n, [0..n-1], []) -- TODO: smallness for record pars
             _                         -> __IMPOSSIBLE__
           (pars0, ixs0) = genericSplitAt noPars typedArgs
