@@ -74,6 +74,8 @@ followed:
 
 * Update the download page on the Agda Wiki.
 
+* Announce the release of the new version on the Agda mailing list.
+
 * Update the version numbers again, so that released and development
   versions are not confused, and remove the "this" source-repository
   section from the Cabal file. (This would be unnecessary if we had
