@@ -296,3 +296,9 @@ T-∨ {false} {false} = equivalence inj₁ [ id , id ]
 proof-irrelevance : ∀ {b} (p q : T b) → p ≡ q
 proof-irrelevance {true}  _  _  = refl
 proof-irrelevance {false} () ()
+
+push-function-into-if :
+  ∀ {a b} {A : Set a} {B : Set b} (f : A → B) x {y z} →
+  f (if x then y else z) ≡ (if x then f y else f z)
+push-function-into-if _ true  = P.refl
+push-function-into-if _ false = P.refl
