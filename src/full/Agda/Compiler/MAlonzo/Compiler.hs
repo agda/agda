@@ -129,8 +129,15 @@ definition kit (Defn Forced    _ _  _ _ _ _ _ _) = __IMPOSSIBLE__
 definition kit (Defn UnusedArg _ _  _ _ _ _ _ _) = __IMPOSSIBLE__
 definition kit (Defn NonStrict _ _  _ _ _ _ _ _) = __IMPOSSIBLE__
 -}
-definition kit (Defn info      _ _ _ _ _ _ _ _) | isIrrelevant info = return []
+definition kit (Defn info      q _ _ _ _ _ _ _) | isIrrelevant info = do
+  reportSDoc "malonzo.definition" 10 $
+    text "Not compiling" <+> prettyTCM q <> text "."
+  return []
 definition kit (Defn _         q ty _ _ _ _ compiled d) = do
+  reportSDoc "malonzo.definition" 10 $ vcat
+    [ text "Compiling" <+> prettyTCM q <> text ":"
+    , nest 2 $ text (show d)
+    ]
   checkTypeOfMain q ty $ do
   (infodecl q :) <$> case d of
 
