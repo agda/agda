@@ -72,7 +72,23 @@ followed:
 
     scp Agda-$VERSION.tar.gz code.haskell.org:/srv/code/Agda/
 
-* Update the download page on the Agda Wiki.
+* Update the Agda Wiki:
+
+  ** Add page related to the release notes called
+
+     http://wiki.portal.chalmers.se/agda/pmwiki.php?n=Main.Version-X-Y-Z
+
+  ** Add page related to the README called
+
+     http://wiki.portal.chalmers.se/agda/pmwiki.php?n=Main.README-X-Y-Z
+
+  ** Update the Download page.
+
+  ** Update the Main page.
+
+  ** Update the Release Notes page (under Documentation).
+
+  ** If necessary, update the Standard Library page.
 
 * Announce the release of the new version on the Agda mailing list.
 
