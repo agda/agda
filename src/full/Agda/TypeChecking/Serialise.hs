@@ -102,6 +102,7 @@ type Node = [Int32]
 
 type HashTable k v = H.BasicHashTable k v
 
+-- | State of the the encoder.
 data Dict = Dict{ nodeD     :: !(HashTable Node    Int32)
                 , stringD   :: !(HashTable String  Int32)
                 , integerD  :: !(HashTable Integer Int32)
@@ -115,9 +116,13 @@ data Dict = Dict{ nodeD     :: !(HashTable Node    Int32)
                 , fileMod   :: !SourceToModule
                 }
 
+-- | Universal type, wraps everything.
 data U    = forall a . Typeable a => U !a
+
+-- | Univeral memo structure, to introduce sharing during decoding
 type Memo = HashTable (Int32, TypeRep) U    -- (node index, type rep)
 
+-- | State of the decoder.
 data St = St
   { nodeE     :: !(Array Int32 Node)
   , stringE   :: !(Array Int32 String)
@@ -1176,15 +1181,29 @@ icodeN :: [Int32] -> S Int32
 icodeN = icodeX nodeD nodeC
 
 {-# INLINE vcase #-}
+-- | @vcase value ix@ decodes thing represented by @ix :: Int32@
+--   via the @valu@ function and stores it in 'nodeMemo'.
+--   If @ix@ is present in 'nodeMemo', @valu@ is not used, but
+--   the thing is read from 'nodeMemo' instead.
 vcase :: forall a . EmbPrj a => (Node -> R a) -> Int32 -> R a
 vcase valu = \ix -> do
     memo <- gets nodeMemo
+    -- compute run-time representation of type a
+    let aTyp = typeOf (undefined :: a)
+    -- to introduce sharing, see if we have seen a thing
+    -- represented by ix before
+    maybeU <- liftIO $ H.lookup memo (ix, aTyp)
+{- OLD, Andreas, 2013-06-14 I do not understand why aTyp is
+   declared inside the do, when it is return unmodified anyway
     (aTyp, maybeU) <- liftIO $ do
       let aTyp = typeOf (undefined :: a)
       maybeU <- H.lookup memo (ix, aTyp)
       return (aTyp, maybeU)
+-}
     case maybeU of
+      -- yes, we have seen it before, use the version from memo
       Just (U u) -> maybe malformed return (cast u)
+      -- no, it's new, so generate it via valu and insert it into memo
       Nothing    -> do
           v <- valu . (! ix) =<< gets nodeE
           liftIO $ H.insert memo (ix, aTyp) (U v)
