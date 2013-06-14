@@ -16,17 +16,21 @@ open import Data.Maybe.Core public
 ------------------------------------------------------------------------
 -- Some operations
 
-open import Data.Bool using (Bool; true; false)
+open import Data.Bool using (Bool; true; false; not)
 open import Data.Unit using (⊤)
+open import Function
 open import Relation.Nullary
 
 boolToMaybe : Bool → Maybe ⊤
 boolToMaybe true  = just _
 boolToMaybe false = nothing
 
-maybeToBool : ∀ {a} {A : Set a} → Maybe A → Bool
-maybeToBool (just _) = true
-maybeToBool nothing  = false
+is-just : ∀ {a} {A : Set a} → Maybe A → Bool
+is-just (just _) = true
+is-just nothing  = false
+
+is-nothing : ∀ {a} {A : Set a} → Maybe A → Bool
+is-nothing = not ∘ is-just
 
 decToMaybe : ∀ {a} {A : Set a} → Dec A → Maybe A
 decToMaybe (yes x) = just x
@@ -58,7 +62,6 @@ from-just nothing  = _
 ------------------------------------------------------------------------
 -- Maybe monad
 
-open import Function
 open import Category.Functor
 open import Category.Monad
 open import Category.Monad.Identity
@@ -156,33 +159,37 @@ decSetoid D = record
 ------------------------------------------------------------------------
 -- Any and All
 
+open Data.Bool using (T)
 open import Data.Empty using (⊥)
+import Relation.Nullary.Decidable as Dec
 open import Relation.Unary as U
 
-Any : ∀ {a p} {A : Set a} → (A → Set p) → Maybe A → Set p
-Any P (just x) = P x
-Any P nothing  = Lift ⊥
+data Any {a p} {A : Set a} (P : A → Set p) : Maybe A → Set (a ⊔ p) where
+  just : ∀ {x} (px : P x) → Any P (just x)
 
-All : ∀ {a p} {A : Set a} → (A → Set p) → Maybe A → Set p
-All P (just x) = P x
-All P nothing  = Lift ⊤
+data All {a p} {A : Set a} (P : A → Set p) : Maybe A → Set (a ⊔ p) where
+  just    : ∀ {x} (px : P x) → All P (just x)
+  nothing : All P nothing
 
-IsJust : ∀ {a} {A : Set a} → Maybe A → Set
-IsJust = Any (λ _ → ⊤)
+Is-just : ∀ {a} {A : Set a} → Maybe A → Set a
+Is-just = Any (λ _ → ⊤)
 
-IsNothing : ∀ {a} {A : Set a} → Maybe A → Set
-IsNothing = All (λ _ → ⊥)
+Is-nothing : ∀ {a} {A : Set a} → Maybe A → Set a
+Is-nothing = All (λ _ → ⊥)
 
-toWitness : ∀ {p} {P : Set p} (m : Maybe P) → IsJust m → P
-toWitness (just p) _         = p
-toWitness nothing  (lift ())
+to-witness : ∀ {p} {P : Set p} {m : Maybe P} → Is-just m → P
+to-witness (just {x = p} _) = p
+
+to-witness-T : ∀ {p} {P : Set p} (m : Maybe P) → T (is-just m) → P
+to-witness-T (just p) _  = p
+to-witness-T nothing  ()
 
 anyDec : ∀ {a p} {A : Set a} {P : A → Set p} →
          U.Decidable P → U.Decidable (Any P)
-anyDec p nothing  = no (λ { (lift ()) })
-anyDec p (just x) = p x
+anyDec p nothing  = no λ()
+anyDec p (just x) = Dec.map′ just (λ { (Any.just px) → px }) (p x)
 
 allDec : ∀ {a p} {A : Set a} {P : A → Set p} →
          U.Decidable P → U.Decidable (All P)
-allDec p nothing  = yes _
-allDec p (just x) = p x
+allDec p nothing  = yes nothing
+allDec p (just x) = Dec.map′ just (λ { (All.just px) → px }) (p x)

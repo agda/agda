@@ -400,7 +400,7 @@ map : ({k : Key} → Value k → Value k) → Tree → Tree
 map f (tree t) = tree $ Indexed.map f t
 
 _∈?_ : Key → Tree → Bool
-k ∈? t = maybeToBool (lookup k t)
+k ∈? t = is-just (lookup k t)
 
 headTail : Tree → Maybe (KV × Tree)
 headTail (tree (Indexed.leaf _)) = nothing
