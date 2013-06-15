@@ -1,7 +1,6 @@
-
 {-# OPTIONS --universe-polymorphism #-}
 
-module NiceGoals where
+module Issue293a where
 
 ------------------------------------------------------------------------
 
@@ -34,12 +33,18 @@ module M (rm : RawMonoid zero zero) where
   thm : ∀ x → x ∙ ε ≈ x
   thm = {!!}
 
-  -- agda2-goal-and-context:
+  -- Previous agda2-goal-and-context:
 
   -- rm : RawMonoid zero zero
   -- ------------------------
   -- Goal: (x : RawMonoid.Carrier rm) →
   --       RawMonoid._≈_ rm (RawMonoid._∙_ rm x (RawMonoid.ε rm)) x
+
+  -- Current agda2-goal-and-context:
+
+  -- rm : RawMonoid zero zero
+  -- ------------------------
+  -- Goal: (x : Carrier) → x ∙ ε ≈ x
 
 ------------------------------------------------------------------------
 
@@ -60,12 +65,11 @@ module M′ (rm : RawMonoid′) where
   thm′ : ∀ x → x ∙ ε ≈ x
   thm′ = {!!}
 
-  -- agda2-goal-and-context:
+  -- Previous and current agda2-goal-and-context:
 
   -- rm : RawMonoid′
   -- ---------------
   -- Goal: (x : Carrier) → x ∙ ε ≈ x
-
 
 ------------------------------------------------------------------------
 
@@ -93,31 +97,15 @@ module M″ (rm : RawMonoid″ (List Bool)) where
   thm″ : ∀ x → x ∙ ε ≈ x
   thm″ = {!!}
 
-  -- agda2-goal-and-context:
+  -- Previous agda2-goal-and-context:
 
   -- rm : RawMonoid″ (List Bool)
   -- ---------------------------
   -- Goal: (x : List Bool) →
   --       RawMonoid″._≈_ rm (RawMonoid″._∙_ rm x (RawMonoid″.ε rm)) x
 
-module M₁ (Z : Set₁) where
+  -- Current agda2-goal-and-context:
 
-  postulate
-    P : Set
-    Q : Set → Set
-
-module M₂ (X Y : Set) where
-
-  module M₁′ = M₁ Set
-  open M₁′
-
-  p : P
-  p = {!!}
-
-  q : Q X
-  q = {!!}
-
-postulate X : Set
-
-pp : M₂.M₁′.P X X
-pp = {!!}
+  -- rm : RawMonoid″ (List Bool)
+  -- ---------------------------
+  -- Goal: (x : List Bool) → x ∙ ε ≈ x
