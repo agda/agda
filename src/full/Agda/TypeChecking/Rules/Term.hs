@@ -421,13 +421,22 @@ checkRecordExpression fs e t = do
           -- If there's only one record with the appropriate fields, go with that.
         [r] -> do
           def <- getConstInfo r
-          vs  <- newArgsMeta (defType def)
-          let target = piApply (defType def) vs
-              s      = case ignoreSharing $ unEl target of
-                         Level l -> Type l
-                         Sort s  -> s
-                         _       -> __IMPOSSIBLE__
-              inferred = El s $ Def r vs
+          let rt = defType def
+          vs  <- newArgsMeta rt
+          target <- reduce $ piApply rt vs
+          s  <- case ignoreSharing $ unEl target of
+                  Level l -> return $ Type l
+                  Sort s  -> return s
+                  v       -> do
+                    reportSDoc "impossible" 10 $ vcat
+                      [ text "The impossible happened when checking record expression against meta"
+                      , text "Candidate record type r = " <+> prettyTCM r
+                      , text "Type of r               = " <+> prettyTCM rt
+                      , text "Ends in (should be sort)= " <+> prettyTCM v
+                      , text $ "  Raw                   =  " ++ show v
+                      ]
+                    __IMPOSSIBLE__
+          let inferred = El s $ Def r vs
           v <- checkExpr e inferred
           coerce v inferred t
           -- Andreas 2012-04-21: OLD CODE, WRONG DIRECTION, I GUESS:
