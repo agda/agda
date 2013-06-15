@@ -560,7 +560,7 @@ assign x args v = do
         -- Update 2011-03-27: Also irr. vars under record constructors.
         let fromIrrVar (Var i [])   = return [i]
             fromIrrVar (Con c vs)   =
-              ifM (isNothing <$> isRecordConstructor c) (return []) $
+              ifM (isNothing <$> isRecordConstructor (conName c)) (return []) $
                 concat <$> mapM (fromIrrVar . {- stripDontCare .-} unArg) vs
             fromIrrVar (Shared p)   = fromIrrVar (derefPtr p)
             fromIrrVar _ = return []
@@ -677,11 +677,6 @@ assign x args v = do
           patternViolation
 
 
--- cannot move this PrettyTCM instance to Typechecking.Pretty
--- because then it conflicts with an instance in Typechecking.Positivity
-instance (PrettyTCM a, PrettyTCM b) => PrettyTCM (a,b) where
-  prettyTCM (a, b) = parens $ prettyTCM a <> comma <> prettyTCM b
-
 type FVs = Set.VarSet
 type SubstCand = [(Nat,Term)] -- ^ a possibly non-deterministic substitution
 
@@ -739,7 +734,7 @@ inverseSubst args = fmap (map (mapFst unArg)) <$> loop (zip args terms)
 
         -- (i, j) := x  becomes  [i := fst x, j := snd x]
         Arg info (Con c vs) -> do
-          isRC <- lift $ isRecordConstructor c
+          isRC <- lift $ isRecordConstructor $ conName c
           case isRC of
             Just (_, Record{ recFields = fs }) -> do
                 let aux (Arg _ v) (Arg info' f) =

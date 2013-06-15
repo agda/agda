@@ -146,7 +146,7 @@ xForPrim table = do
   qs <- HMap.keys <$> curDefs
   bs <- toList <$> gets stBuiltinThings
   let getName (Builtin (Def q _))    = q
-      getName (Builtin (Con q _))    = q
+      getName (Builtin (Con q _))    = conName q
       getName (Builtin (Shared p))   = getName (Builtin $ derefPtr p)
       getName (Builtin _)            = __IMPOSSIBLE__
       getName (Prim (PrimFun q _ _)) = q
@@ -271,14 +271,14 @@ repl subs = go where
 
 pconName :: String -> TCM String
 pconName s = toS =<< getBuiltin s where
-  toS (Con q _) = prettyPrint <$> conhqn q
+  toS (Con q _) = prettyPrint <$> conhqn (conName q)
   toS (Lam _ t) = toS (unAbs t)
   toS _ = mazerror $ "pconName" ++ s
 
 hasCompiledData :: [String] -> TCM Bool
 hasCompiledData (s:_) = toB =<< getBuiltin s where
   toB (Con q _)         = do
-    def <- getConstInfo =<< ignoreAbstractMode (canonicalName q)
+    def <- getConstInfo =<< ignoreAbstractMode (canonicalName (conName q))
     return $ case compiledHaskell $ defCompiledRep def of
       Just{}  -> True
       Nothing -> False

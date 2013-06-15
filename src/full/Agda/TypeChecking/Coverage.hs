@@ -32,10 +32,11 @@ import qualified Agda.TypeChecking.Rules.LHS.Split as Split
 import Agda.TypeChecking.Coverage.Match
 import Agda.TypeChecking.Coverage.SplitTree
 
+import Agda.TypeChecking.Datatypes (getConForm)
 import Agda.TypeChecking.Pretty
 import Agda.TypeChecking.Substitute
 import Agda.TypeChecking.Reduce
-import Agda.TypeChecking.Primitive (constructorForm)
+-- import Agda.TypeChecking.Primitive (constructorForm)
 import Agda.TypeChecking.Telescope
 import Agda.TypeChecking.Irrelevance
 
@@ -241,8 +242,8 @@ isDatatype ind at = do
           | otherwise -> do
               let (ps, is) = genericSplitAt np args
               return (d, ps, is, cs)
-        Record{recPars = np, recCon = c} ->
-          return (d, args, [], [c])
+        Record{recPars = np, recConHead = con} ->
+          return (d, args, [], [conName con])
         _ -> throw NotADatatype
     _ -> throw NotADatatype
 
@@ -267,10 +268,14 @@ computeNeighbourhood delta1 n delta2 perm d pars ixs hix hps con = do
   dtype <- liftTCM $ (`piApply` pars) . defType <$> getConstInfo d
 
   -- Get the real constructor name
+  con <- liftTCM $ getConForm con
+{-
+  con <- conSrcCon . theDef <$> getConstInfo con
   Con con [] <- liftTCM $ ignoreSharing <$> (constructorForm =<< normalise (Con con []))
+-}
 
   -- Get the type of the constructor
-  ctype <- liftTCM $ defType <$> getConstInfo con
+  ctype <- liftTCM $ defType <$> getConInfo con
 
   -- Lookup the type of the constructor at the given parameters
   (gamma0, cixs) <- do
@@ -308,7 +313,7 @@ computeNeighbourhood delta1 n delta2 perm d pars ixs hix hps con = do
       return []
     DontKnow _    -> do
       debugCantSplit
-      throwException $ CantSplit con (delta1 `abstract` gamma) conIxs givenIxs
+      throwException $ CantSplit (conName con) (delta1 `abstract` gamma) conIxs givenIxs
                                  (map (var . flexVar) flex)
     Unifies sub   -> do
       debugSubst "sub" sub
@@ -326,7 +331,7 @@ computeNeighbourhood delta1 n delta2 perm d pars ixs hix hps con = do
 
       -- Plug the hole with the constructor and apply ρ
       -- TODO: Is it really correct to use Nothing here?
-      let conp = ConP con Nothing $ map (fmap VarP) $ teleArgNames gamma
+      let conp = ConP (conName con) Nothing $ map (fmap VarP) $ teleArgNames gamma
           ps   = plugHole conp hps
           ps'  = applySubst rho ps      -- Δ₁ΓΔ₂' ⊢ ps'
       debugPlugged ps ps'

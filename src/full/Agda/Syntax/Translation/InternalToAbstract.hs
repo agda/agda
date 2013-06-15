@@ -54,7 +54,7 @@ import Agda.TypeChecking.CompiledClause (CompiledClauses(Fail))
 import Agda.TypeChecking.DisplayForm
 import Agda.TypeChecking.Level
 import Agda.TypeChecking.Monad.Builtin
-import Agda.TypeChecking.Datatypes
+import {-# SOURCE #-} Agda.TypeChecking.Datatypes
 import Agda.TypeChecking.Free
 import Agda.TypeChecking.Substitute
 import Agda.TypeChecking.Telescope
@@ -238,7 +238,7 @@ reifyDisplayFormP lhs@(A.LHS i (A.LHSHead x ps) wps) =
         termToPat (DCon c vs)          = A.ConP ci (AmbQ [c]) <$> do
           mapM argToPat =<< reifyIArgs' vs
 
-        termToPat (DTerm (I.Con c vs)) = A.ConP ci (AmbQ [c]) <$> do
+        termToPat (DTerm (I.Con c vs)) = A.ConP ci (AmbQ [conName c]) <$> do
           mapM (argToPat . fmap DTerm) =<< reifyIArgs' vs
 
         termToPat (DTerm (I.Def _ [])) = return $ A.WildP patNoRange
@@ -254,7 +254,7 @@ reifyDisplayFormP lhs@(A.LHS i (A.LHSHead x ps) wps) =
         termToExpr (I.Var n [])
           | n < len = return $ A.patternToExpr $ ps !! n
         termToExpr (I.Con c vs) =
-          apps (A.Con (AmbQ [c])) =<< argsToExpr vs
+          apps (A.Con (AmbQ [conName c])) =<< argsToExpr vs
         termToExpr (I.Def f vs) =
           apps (A.Def f) =<< argsToExpr vs
         termToExpr (I.Var n vs) =
@@ -279,7 +279,8 @@ reifyTerm expandAnonDefs v = do
           x  <- liftTCM $ nameOfBV n `catchError` \_ -> freshName_ ("@" ++ show n)
           reifyApp (A.Var x) vs
       I.Def x vs   -> reifyDisplayForm x vs $ reifyDef expandAnonDefs x vs
-      I.Con x vs   -> do
+      I.Con c vs   -> do
+        let x = conName c
         isR <- isGeneratedRecordConstructor x
         case isR of
           True -> do

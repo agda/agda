@@ -78,7 +78,7 @@ buildMPatterns perm ps = evalState (mapM (traverse build) ps) xs
     build (DotP t)        = tick *> buildT t
     build (LitP l)        = return $ LitMP l
 
-    buildT (Con c args)   = ConMP c <$> mapM (traverse buildT) args
+    buildT (Con c args)   = ConMP (conName c) <$> mapM (traverse buildT) args
     buildT (Var i [])     = return (VarMP i)
     buildT _              = return WildMP
 

@@ -275,7 +275,7 @@ primTrustMe = do
           El (varSort 3) <$>
             primEquality <#> varM 3 <#> varM 2 <@> varM 1 <@> varM 0
   Con rf [] <- ignoreSharing <$> primRefl
-  n         <- conPars . theDef <$> getConstInfo rf
+  n         <- conPars . theDef <$> getConInfo rf
   let refl x | n == 2    = Con rf [setRelevance Forced $ hide $ defaultArg x]
              | n == 3    = Con rf []
              | otherwise = __IMPOSSIBLE__

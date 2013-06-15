@@ -18,7 +18,7 @@ import Agda.TypeChecking.Level
 data ElimView
   = VarElim Nat [Elim]
   | DefElim QName [Elim]
-  | ConElim QName [Elim]
+  | ConElim ConHead [Elim]
   | MetaElim MetaId [Elim]
   | NoElim Term
   deriving (Show)

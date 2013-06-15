@@ -87,7 +87,7 @@ import Agda.Utils.Impossible
 -- 32-bit machines). Word64 does not have these problems.
 
 currentInterfaceVersion :: Word64
-currentInterfaceVersion = 20130613 * 10 + 0
+currentInterfaceVersion = 20130615 * 10 + 0
 
 -- | Constructor tag (maybe omitted) and argument indices.
 
@@ -685,6 +685,11 @@ instance EmbPrj Agda.Syntax.Common.Relevance where
                            valu [4] = valu0 UnusedArg
                            valu _   = malformed
 
+instance EmbPrj I.ConHead where
+  icode (ConHead a b) = icode2' a b
+  value = vcase valu where valu [a, b] = valu2 ConHead a b
+                           valu _      = malformed
+
 instance EmbPrj I.Type where
   icode (El a b) = icode2' a b
   value = vcase valu where valu [a, b] = valu2 El a b
@@ -959,12 +964,12 @@ instance EmbPrj FunctionInverse where
                            valu _   = malformed
 
 instance EmbPrj TermHead where
-  icode SortHead    = icode0'
-  icode PiHead      = icode0 1
-  icode (ConHead a) = icode1 2 a
+  icode SortHead     = icode0'
+  icode PiHead       = icode0 1
+  icode (ConsHead a) = icode1 2 a
   value = vcase valu where valu []     = valu0 SortHead
                            valu [1]    = valu0 PiHead
-                           valu [2, a] = valu1 ConHead a
+                           valu [2, a] = valu1 ConsHead a
                            valu _      = malformed
 
 instance EmbPrj Agda.Syntax.Common.IsAbstract where

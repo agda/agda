@@ -280,7 +280,7 @@ instance Reduce Term where
       Con c args   -> do
           -- Constructors can reduce when they come from an
           -- instantiated module.
-          v <- unfoldDefinition False reduceB (Con c []) c args
+          v <- unfoldDefinition False reduceB (Con c []) (conName c) args
           traverse reduceNat v
       Sort s   -> fmap sortTm <$> reduceB s
       Level l  -> fmap levelTm <$> reduceB l

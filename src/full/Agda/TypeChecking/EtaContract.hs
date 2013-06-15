@@ -76,7 +76,7 @@ etaOnce v = do
     -- To be able to eta-contract them, we ignore abstract.
     eta t@(Con c args) = ignoreAbstractMode $ do
       -- reportSDoc "tc.eta" 20 $ text "eta-contracting record" <+> prettyTCM t
-      r <- getConstructorData c -- fails in ConcreteMode if c is abstract
+      r <- getConstructorData $ conName c -- fails in ConcreteMode if c is abstract
       ifM (isEtaRecord r)
           (do -- reportSDoc "tc.eta" 20 $ text "eta-contracting record" <+> prettyTCM t
               etaContractRecord r c args)

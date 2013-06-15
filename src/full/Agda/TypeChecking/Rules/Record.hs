@@ -114,15 +114,18 @@ checkRecDef i name ind con ps contel fields =
 	  getName (A.ScopedDecl _ [f]) = getName f
 	  getName _		       = []
 
+          fs = concatMap (map convArg . getName) fields
+          con = ConHead conName $ map unArg fs
+
           indCo = maybe Inductive id ind -- default is 'Inductive' for backwards compatibility but should maybe be 'Coinductive'
 
       addConstant name $ Defn defaultArgInfo name t0 [] [] (defaultDisplayForm name) 0 noCompiledRep
 		       $ Record { recPars           = 0
                                 , recClause         = Nothing
-                                , recCon            = conName
+                                , recConHead        = con
                                 , recNamedCon       = hasNamedCon
                                 , recConType        = contype
-				, recFields         = concatMap (map convArg.getName) fields
+				, recFields         = fs
                                 , recTel            = ftel
 				, recAbstr          = Info.defAbstract i
                                 , recEtaEquality    = True
@@ -142,7 +145,7 @@ checkRecDef i name ind con ps contel fields =
       addConstant conName $
         Defn defaultArgInfo conName contype [] [] (defaultDisplayForm conName) 0 noCompiledRep $
              Constructor { conPars   = 0
-                         , conSrcCon = conName
+                         , conSrcCon = con
                          , conData   = name
                          , conAbstr  = Info.defAbstract conInfo
                          , conInd    = indCo

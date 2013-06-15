@@ -141,7 +141,8 @@ insertTele er n ins term (ExtendTel x xs) = do
     (xs', typ) <- insertTele er (n - 1) ins term (unAbs xs)
     return (ExtendTel x $ Abs (absName xs) xs' , typ)
 
-mkCon c n = SI.Con c [ defaultArg $ SI.Var (fromIntegral i) [] | i <- [n - 1, n - 2 .. 0] ]
+-- TODO: restore fields in ConHead
+mkCon c n = SI.Con (SI.ConHead c []) [ defaultArg $ SI.Var (fromIntegral i) [] | i <- [n - 1, n - 2 .. 0] ]
 
 unifyI :: Telescope -> FlexibleVars -> Type -> Args -> Args -> Compile TCM [Maybe Term]
 unifyI tele flex typ a1 a2 = lift $ addCtxTel tele $ unifyIndices_ flex typ a1 a2
@@ -281,7 +282,8 @@ replaceForced (vars,uvars) tele (fvar : fvars) unif e = do
 -- the proper case-expressions.
 buildTerm :: Var -> Nat -> Term -> Compile TCM (Expr -> Expr, Var)
 buildTerm var idx (SI.Var i _) | idx == i = return (id, var)
-buildTerm var idx (SI.Con c args) = do
+buildTerm var idx (SI.Con con args) = do
+    let c = SI.conName con
     vs <- replicateM (length args) newName
     (pos , arg) <- fromMaybe __IMPOSSIBLE__ <$> findPosition idx (map (Just . unArg) args)
     (fun' , v) <- buildTerm (vs !! pos) idx arg
@@ -304,6 +306,6 @@ findPosition var ts = (listToMaybe . catMaybes <$>) . forM (zip [0..] ts) $ \ (n
     pred t = case t of
       SI.Var i _ | var == i -> return True
       SI.Con c args         -> do
-          forc <- getForcedArgs c
+          forc <- getForcedArgs $ SI.conName c
           or <$> mapM (pred . unArg) (notForced forc args)
       _                  -> return False

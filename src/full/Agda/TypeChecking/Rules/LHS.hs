@@ -24,8 +24,9 @@ import qualified Agda.TypeChecking.Substitute as S (Substitution)
 import Agda.TypeChecking.Telescope
 import Agda.TypeChecking.Conversion
 import Agda.TypeChecking.Constraints
+import Agda.TypeChecking.Datatypes
 import Agda.TypeChecking.Irrelevance
-import Agda.TypeChecking.Primitive (constructorForm)
+-- import Agda.TypeChecking.Primitive (constructorForm)
 import {-# SOURCE #-} Agda.TypeChecking.Empty
 -- Duplicate import??
 -- import Agda.TypeChecking.Telescope (renamingR, teleArgs)
@@ -254,8 +255,9 @@ bindLHSVars (p : ps) (ExtendTel a tel) ret =
     A.ConP _ (A.AmbQ [c]) qs -> do -- eta expanded record pattern
       Def r vs <- reduce (unEl $ unDom a)
       ftel     <- (`apply` vs) <$> getRecordFieldTypes r
+      con      <- getConHead c
       let n   = size ftel
-          eta = Con c [ Var i [] <$ (namedThing <$> setArgColors [] q) | (q, i) <- zip qs [n - 1, n - 2..0] ]
+          eta = Con con [ var i <$ (namedThing <$> setArgColors [] q) | (q, i) <- zip qs [n - 1, n - 2..0] ]
           -- ^ TODO guilhem
       bindLHSVars (qs ++ ps) (ftel `abstract` absApp (raise (size ftel) tel) eta) ret
     A.ConP{}        -> __IMPOSSIBLE__
@@ -421,9 +423,13 @@ checkLeftHandSide c ps a ret = do
                 ]
               ]
 
+{-
+            c <- conSrcCon . theDef <$> getConstInfo c
             Con c' [] <- ignoreSharing <$> (constructorForm =<< normalise (Con c []))
             c  <- return $ c' `withRangeOf` c
-            ca <- defType <$> getConstInfo c
+-}
+            c <- (`withRangeOf` c) <$> getConForm c
+            ca <- defType <$> getConInfo c
 
             reportSDoc "tc.lhs.split" 20 $ nest 2 $ vcat
               [ text "ca =" <+> prettyTCM ca
@@ -459,7 +465,7 @@ checkLeftHandSide c ps a ret = do
             qs' <- insertImplicitPatterns ExpandLast qs gamma'
 
             unless (size qs' == size gamma') $
-              typeError $ WrongNumberOfConstructorArguments c (size gamma') (size qs')
+              typeError $ WrongNumberOfConstructorArguments (conName c) (size gamma') (size qs')
 
             let gamma = useNamesFromPattern qs' gamma'
 
@@ -522,7 +528,7 @@ checkLeftHandSide c ps a ret = do
 
             -- Plug the hole in the out pattern with c ys
             let ysp = map (argFromDom . fmap (VarP . fst)) $ telToList gamma
-                ip  = plugHole (ConP c storedPatternType ysp) iph
+                ip  = plugHole (ConP (conName c) storedPatternType ysp) iph
                 ip0 = applySubst rho0 ip
 
             -- Δ₁Γ ⊢ sub0, we need something in Δ₁ΓΔ₂

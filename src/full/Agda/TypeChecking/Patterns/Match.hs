@@ -10,10 +10,11 @@ import Agda.Syntax.Common
 import Agda.Syntax.Internal as I
 import Agda.Syntax.Literal
 
+import Agda.TypeChecking.Datatypes (getConHead)
 import Agda.TypeChecking.Reduce
 import Agda.TypeChecking.Monad
 import Agda.TypeChecking.Monad.Builtin
-import Agda.TypeChecking.Primitive
+import Agda.TypeChecking.Primitive (constructorForm)
 import Agda.TypeChecking.Pretty
 
 import Agda.Utils.Monad
@@ -101,9 +102,10 @@ matchPattern (Arg info' (ConP c _ ps))     (Arg info v) =
           _  | isIrrelevant info -> do
 		(m, vs) <- matchPatterns ps $
                   repeat $ setRelevance Irrelevant $ defaultArg $ Sort Prop
-		return (m, Arg info $ Con c vs)
+                con <- getConHead c
+		return (m, Arg info $ Con con vs)
 	  NotBlocked (Con c' vs)
-	    | c == c'             -> do
+	    | c == conName c'     -> do
 		(m, vs) <- yesSimplification <$> matchPatterns ps vs
 		return (m, Arg info $ Con c' vs)
 	    | otherwise           -> return (No, Arg info v)

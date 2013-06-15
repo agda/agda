@@ -9,6 +9,7 @@ import Agda.Syntax.Literal
 import Agda.Syntax.Internal as I
 import Agda.Syntax.Common
 
+import {-# SOURCE #-} Agda.TypeChecking.Datatypes
 import Agda.TypeChecking.Monad
 import Agda.TypeChecking.Monad.Builtin
 import Agda.TypeChecking.Reduce
@@ -72,15 +73,15 @@ quotingKit = do
       quoteType (El s t) = el @@ quoteSort s @@ quote t
       list [] = nil
       list (a : as) = cons @@ a @@ list as
-      zero = con @@ quoteName z @@ nil
-      suc n = con @@ quoteName s @@ list [arg @@ quoteArgInfo defaultArgInfo @@ n]
+      zero = con @@ quoteConName z @@ nil
+      suc n = con @@ quoteConName s @@ list [arg @@ quoteArgInfo defaultArgInfo @@ n]
       quoteDom q (Dom info t) = arg @@ quoteArgInfo info @@ q t
       quoteArg q (Arg info t) = arg @@ quoteArgInfo info @@ q t
       quoteArgs ts = list (map (quoteArg quote) ts)
       quote (Var n ts) = var @@ Lit (LitInt noRange $ fromIntegral n) @@ quoteArgs ts
       quote (Lam info t) = lam @@ quoteHiding (getHiding info) @@ quote (absBody t)
       quote (Def x ts) = def @@ quoteName x @@ quoteArgs ts
-      quote (Con x ts) = con @@ quoteName x @@ quoteArgs ts
+      quote (Con x ts) = con @@ quoteConName x @@ quoteArgs ts
       quote (Pi t u) = pi @@ quoteDom quoteType t
                           @@ quoteType (absBody u)
       quote (Level _) = unsupported
@@ -94,6 +95,9 @@ quotingKit = do
 quoteName :: QName -> Term
 quoteName x = Lit (LitQName noRange x)
 
+quoteConName :: ConHead -> Term
+quoteConName = quoteName . conName
+
 quoteTerm :: Term -> TCM Term
 quoteTerm v = ($v) . fst <$> quotingKit
 
@@ -106,7 +110,7 @@ agdaTermType = El (mkType 0) <$> primAgdaTerm
 qNameType :: TCM Type
 qNameType = El (mkType 0) <$> primQName
 
-isCon :: QName -> TCM Term -> TCM Bool
+isCon :: ConHead -> TCM Term -> TCM Bool
 isCon con tm = do t <- tm
                   case ignoreSharing t of
                     Con con' _ -> return (con == con')
@@ -211,6 +215,11 @@ instance Unquote QName where
     case ignoreSharing t of
       Lit (LitQName _ x) -> return x
       _                  -> unquoteFailed "QName" "not a literal qname value" t
+
+instance Unquote ConHead where
+  unquote t = do
+    x <- unquote t
+    getConHead x
 
 instance Unquote a => Unquote (Abs a) where
   unquote t = do x <- freshNoName_

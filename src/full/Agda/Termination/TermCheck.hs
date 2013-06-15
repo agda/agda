@@ -443,7 +443,7 @@ termToDBP conf t
     t <- stripProjections =<< constructorForm t
     case ignoreSharing t of
       Var i []    -> return $ VarDBP i
-      Con c args  -> ConDBP c <$> mapM (termToDBP conf . unArg) args
+      Con c args  -> ConDBP (conName c) <$> mapM (termToDBP conf . unArg) args
       Def s [arg]
         | Just s == withSizeSuc conf -> ConDBP s . (:[]) <$> termToDBP conf (unArg arg)
       Lit l       -> return $ LitDBP l
@@ -743,7 +743,7 @@ termTerm conf names f delayed pats0 t0 = do
          case ignoreSharing t of
 
             -- Constructed value.
-            Con c args
+            Con ConHead{conName = c} args
               | Just c == sharp conf ->
                 constructor c CoInductive $ zip args (repeat True)
               | otherwise -> do
@@ -978,7 +978,7 @@ compareTerm' suc (Lit l) p = do
 compareTerm' _ t@Con{} (ConDBP c ps)
   | any (isSubTerm t) ps = decrease <$> offsetFromConstructor c <*> return Term.le
 compareTerm' suc (Con c ts) (ConDBP c' ps)
-  | c == c' = compareConArgs suc ts ps
+  | conName c == c' = compareConArgs suc ts ps
 compareTerm' suc (Def s ts) (ConDBP s' ps)
   | s == s' && Just s == suc = compareConArgs suc ts ps
 -- new cases for counting constructors / projections
@@ -988,7 +988,7 @@ compareTerm' suc (Def s [t]) p | Just s == suc = do
     increase 1 <$> compareTerm' suc (unArg t) p
 compareTerm' suc (Con c []) p = return Term.le
 compareTerm' suc (Con c ts) p = do
-    increase <$> offsetFromConstructor c
+    increase <$> offsetFromConstructor (conName c)
              <*> (infimum <$> mapM (\ t -> compareTerm' suc (unArg t) p) ts)
 compareTerm' suc t p | isSubTerm t p = return Term.le
 compareTerm' _ _ _ = return Term.unknown
@@ -999,7 +999,7 @@ isSubTerm t p = equal t p || properSubTerm t p
   where
     equal (Shared p) dbp = equal (derefPtr p) dbp
     equal (Con c ts) (ConDBP c' ps) =
-      and $ (c == c')
+      and $ (conName c == c')
           : (length ts == length ps)
           : zipWith equal (map unArg ts) ps
     equal (Var i []) (VarDBP j) = i == j

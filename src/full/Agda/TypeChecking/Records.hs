@@ -66,8 +66,10 @@ getRecordDef r = maybe err return =<< isRecord r
 
 -- | Get the field names of a record.
 getRecordFieldNames :: QName -> TCM [I.Arg C.Name]
-getRecordFieldNames r =
-  map (fmap (nameConcrete . qnameName)) . recFields <$> getRecordDef r
+getRecordFieldNames r = recordFieldNames <$> getRecordDef r
+
+recordFieldNames :: Defn -> [I.Arg C.Name]
+recordFieldNames = map (fmap (nameConcrete . qnameName)) . recFields
 
 -- | Find all records with at least the given fields.
 findPossibleRecords :: [C.Name] -> TCM [QName]
@@ -103,8 +105,8 @@ getRecordConstructorType r = recConType <$> getRecordDef r
 
 -- | Returns the given record type's constructor name (with an empty
 -- range).
-getRecordConstructor :: QName -> TCM QName
-getRecordConstructor r = killRange <$> recCon <$> getRecordDef r
+getRecordConstructor :: QName -> TCM ConHead
+getRecordConstructor r = killRange <$> recConHead <$> getRecordDef r
 
 -- | Check if a name refers to a record.
 --   If yes, return record definition.
@@ -194,7 +196,7 @@ etaExpandRecord r pars u = do
 --   We can eta contract if all fields @f = ...@ are irrelevant
 --   or all fields @f@ are the projection @f v@ of the same value @v@,
 --   but we need at least one relevant field to find the value @v@.
-etaContractRecord :: QName -> QName -> Args -> TCM Term
+etaContractRecord :: QName -> ConHead -> Args -> TCM Term
 etaContractRecord r c args = do
   Record{ recPars = npars, recFields = xs } <- getRecordDef r
   let check :: I.Arg Term -> I.Arg QName -> Maybe (Maybe Term)
@@ -248,7 +250,7 @@ isSingletonRecordModuloRelevance r ps = mapRight isJust <$> isSingletonRecord' T
 isSingletonRecord' :: Bool -> QName -> Args -> TCM (Either MetaId (Maybe Term))
 isSingletonRecord' regardIrrelevance r ps = do
   def <- getRecordDef r
-  emap (Con $ recCon def) <$> check (recTel def `apply` ps)
+  emap (Con $ recConHead def) <$> check (recTel def `apply` ps)
   where
   check :: Telescope -> TCM (Either MetaId (Maybe [I.Arg Term]))
   check EmptyTel            = return $ Right $ Just []

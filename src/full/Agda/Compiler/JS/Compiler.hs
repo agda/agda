@@ -26,6 +26,7 @@ import Agda.Syntax.Internal
     Clause(Clause), Pattern(VarP,DotP,LitP,ConP), Abs(Abs),
     ClauseBody(Body,NoBody,Bind),
     Term(Var,Lam,Lit,Level,Def,Con,Pi,Sort,MetaV,DontCare,Shared),
+    conName,
     derefPtr,
     toTopLevelModuleName, clausePats, clauseBody, arity, unEl, unAbs )
 import Agda.TypeChecking.Substitute ( absBody )
@@ -40,7 +41,7 @@ import Agda.TypeChecking.Monad
     defName, defType, funClauses, funProjection, projectionArgs,
     dataPars, dataIxs, dataClause, dataCons,
     conPars, conData, conSrcCon,
-    recClause, recCon, recFields, recPars, recNamedCon,
+    recClause, recConHead, recFields, recPars, recNamedCon,
     primClauses, defJSDef )
 import Agda.TypeChecking.Monad.Options ( setCommandLineOptions, commandLineOptions, reportSLn )
 import Agda.TypeChecking.Reduce ( instantiateFull, normalise )
@@ -384,7 +385,8 @@ term (Def q as) = do
             e <- qname q
             es <- args (projectionArgs $ theDef d) as
             return (curriedApply e es)
-term (Con q as) = do
+term (Con con as) = do
+  let q = conName con
   d <- getConstInfo q
   case defJSDef d of
     -- Inline functions with an FFI definition
@@ -421,8 +423,8 @@ isSingleton t = case unEl t of
         case (arity (defType c) == np) of
           True -> Just <$> qname p
           False -> return (Nothing)
-      Record { recCon = p, recFields = [] } ->
-        Just <$> qname p
+      Record { recConHead = con, recFields = [] } ->
+        Just <$> qname (conName con)
       _ -> return (Nothing)
   _              -> return (Nothing)
 

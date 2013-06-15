@@ -34,10 +34,11 @@ import Agda.TypeChecking.Substitute
 import Agda.TypeChecking.Free
 import Agda.TypeChecking.Constraints
 import Agda.TypeChecking.Conversion
+import Agda.TypeChecking.Datatypes
 import Agda.TypeChecking.Empty
 import Agda.TypeChecking.MetaVars
 import Agda.TypeChecking.Rebind
-import Agda.TypeChecking.Primitive hiding (Nat)
+-- import Agda.TypeChecking.Primitive hiding (Nat)
 import Agda.TypeChecking.With
 import Agda.TypeChecking.Telescope
 import Agda.TypeChecking.Coverage
@@ -442,7 +443,7 @@ checkClause t c@(A.Clause (A.LHS i (A.LHSHead x aps) []) rhs0 wh) =
                                     (A.RewriteRHS names eqs (insertPatterns pats rhs) inner)
                                     outer]
                          pats = [A.DotP patNoRange underscore, -- rewriteToExpr,
-                                 A.ConP cinfo (AmbQ [reflCon]) []]
+                                 A.ConP cinfo (AmbQ [conName reflCon]) []]
                      reportSDoc "tc.rewrite.top" 25 $ vcat
                                          [ text "from = " <+> prettyTCM rewriteFromExpr,
                                            text "to = " <+> prettyTCM rewriteToExpr,
@@ -681,11 +682,13 @@ containsAbsurdPattern p = case p of
     A.DefP _ _ _  -> __IMPOSSIBLE__
     A.PatternSynP _ _ _ -> __IMPOSSIBLE__ -- False
 
+{- UNUSED
 actualConstructor :: QName -> TCM QName
 actualConstructor c = do
-    v <- constructorForm =<< normalise (Con c [])
+--    v <- constructorForm =<< normalise (Con c [])
+    v <- constructorForm =<< getConTerm c
     case ignoreSharing v of
-        Con c _ -> return c
+        Con c _ -> return $ conName c
         _       -> actualConstructor =<< stripLambdas v
     where
         stripLambdas v = case ignoreSharing v of
@@ -695,3 +698,4 @@ actualConstructor c = do
                 addCtx x (Dom info $ sort Prop) $
                          stripLambdas (absBody b)
             _       -> typeError $ GenericError $ "Not a constructor: " ++ show c
+-}

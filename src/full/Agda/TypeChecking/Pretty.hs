@@ -77,6 +77,9 @@ instance PrettyTCM a => PrettyTCM (Closure a) where
 instance PrettyTCM a => PrettyTCM [a] where
   prettyTCM = prettyList . map prettyTCM
 
+instance (PrettyTCM a, PrettyTCM b) => PrettyTCM (a,b) where
+  prettyTCM (a, b) = parens $ prettyTCM a <> comma <> prettyTCM b
+
 instance PrettyTCM Nat where prettyTCM = text . show
 instance PrettyTCM Term where prettyTCM x = prettyA =<< reify x
 instance PrettyTCM Type where prettyTCM x = prettyA =<< reify x
@@ -214,6 +217,9 @@ instance PrettyTCM QName where
 
 instance PrettyTCM ModuleName where
   prettyTCM x = P.pretty <$> abstractToConcrete_ x
+
+instance PrettyTCM ConHead where
+  prettyTCM = prettyTCM . conName
 
 instance PrettyTCM Telescope where
   prettyTCM tel = P.fsep . map P.pretty <$> (do

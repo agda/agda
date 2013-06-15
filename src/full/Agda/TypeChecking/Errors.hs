@@ -141,6 +141,7 @@ errorString err = case err of
     CyclicModuleDependency{}                 -> "CyclicModuleDependency"
     DataMustEndInSort{}                      -> "DataMustEndInSort"
 -- UNUSED:    DataTooManyParameters{}                  -> "DataTooManyParameters"
+    CantResolveOverloadedConstructorsTargetingSameDatatype{} -> "CantResolveOverloadedConstructorsTargetingSameDatatype"
     DifferentArities                         -> "DifferentArities"
     DoesNotConstructAnElementOf{}            -> "DoesNotConstructAnElementOf"
     DuplicateBuiltinBinding{}                -> "DuplicateBuiltinBinding"
@@ -316,6 +317,8 @@ instance PrettyTCM TypeError where
             WrongNumberOfConstructorArguments c expect given -> fsep $
               pwords "The constructor" ++ [prettyTCM c] ++ pwords "expects" ++
               [text (show expect)] ++ pwords "arguments, but has been given" ++ [text (show given)]
+            CantResolveOverloadedConstructorsTargetingSameDatatype d cs -> fsep $
+              pwords ("Can't resolve overloaded constructors targeting the same datatype (" ++ show d ++ "):") ++ map (text . show) cs
             DoesNotConstructAnElementOf c t -> fsep $
               pwords "the constructor" ++ [prettyTCM c] ++
               pwords "does not construct an element of" ++ [prettyTCM t]

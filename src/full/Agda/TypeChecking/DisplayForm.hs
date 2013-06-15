@@ -50,7 +50,7 @@ displayForm c vs = do
 --       Just h  -> maybe False (const True) $ inverseScopeLookupName h scope
 --       Nothing -> __IMPOSSIBLE__ -- TODO: currently all display forms have heads
     hd (DTerm (Def x _))    = Just x
-    hd (DTerm (Con x _))    = Just x
+    hd (DTerm (Con x _))    = Just $ conName x
     hd (DTerm (Shared p))   = hd (DTerm $ derefPtr p)
     hd (DWithApp (d : _) _) = hd d
     hd _		    = Nothing

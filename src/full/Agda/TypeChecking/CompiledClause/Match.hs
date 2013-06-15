@@ -98,7 +98,7 @@ match' ((c, args, patch) : stack) = do
               -- If our argument (or its constructor form) is @Con c vs@
               -- we push @conFrame c vs@ onto the stack.
               conFrame c vs stack =
-                case Map.lookup c (conBranches bs) of
+                case Map.lookup (conName c) (conBranches bs) of
                     Nothing -> stack
                     Just cc -> ( content cc
                                , args0 ++ map (MaybeRed red) vs ++ args1

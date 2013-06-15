@@ -124,7 +124,7 @@ haskellType = liftTCM . fromType
             hsForall <$> getHsVar 0 <*>
               (hsFun <$> fromType (unDom a) <*> fromType b)
           else hsFun <$> fromType (unDom a) <*> fromType (absApp b __IMPOSSIBLE__)
-        Con c args -> hsApp <$> getHsType c <*> fromArgs args
+        Con c args -> hsApp <$> getHsType (conName c) <*> fromArgs args
         Lam{}      -> err
         Level{}    -> return hsUnit
         Lit{}      -> return hsUnit

@@ -369,6 +369,7 @@ checkRecordExpression fs e t = do
   case ignoreSharing $ unEl t of
     Def r vs  -> do
       reportSDoc "tc.term.rec" 20 $ text $ "  r   = " ++ show r
+{-
       axs    <- getRecordFieldNames r
       let xs = map unArg axs
       reportSDoc "tc.term.rec" 20 $ text $ "  xs  = " ++ show xs
@@ -376,6 +377,17 @@ checkRecordExpression fs e t = do
       reportSDoc "tc.term.rec" 20 $ text   "  ftel= " <> prettyTCM ftel
       con    <- getRecordConstructor r
       reportSDoc "tc.term.rec" 20 $ text $ "  con = " ++ show con
+-}
+      def <- getRecordDef r
+      let axs  = recordFieldNames def
+          xs   = map unArg axs
+          ftel = recTel def
+          con  = killRange $ recConHead def
+      reportSDoc "tc.term.rec" 20 $ vcat
+        [ text $ "  xs  = " ++ show xs
+        , text   "  ftel= " <> prettyTCM ftel
+        , text $ "  con = " ++ show con
+        ]
       scope  <- getScope
       let arg x e =
             case [ a | a <- axs, unArg a == x ] of
@@ -478,11 +490,13 @@ checkLiteral lit t = do
 -- * Terms
 ---------------------------------------------------------------------------
 
+{- MOVED to TC.Datatypes.getConForm
 -- TODO: move somewhere suitable
-reduceCon :: QName -> TCM QName
-reduceCon c = do
-  Con c [] <- ignoreSharing <$> (constructorForm =<< reduce (Con c []))
+reduceCon :: QName -> TCM ConHead
+reduceCon x = do
+  Con c [] <- ignoreSharing <$> (constructorForm =<< getConHead c)
   return c
+-}
 
 -- | @checkArguments' exph r args t0 t e k@ tries @checkArguments exph args t0 t@.
 -- If it succeeds, it continues @k@ with the returned results.  If it fails,
@@ -684,13 +698,18 @@ checkApplication hd args e t = do
       -- the original constructor for type checking. This is important
       -- since they may have different types (different parameters).
       -- See issue 279.
+      cons  <- mapM getConForm cs
+      reportSLn "tc.check.term" 40 $ "  reduced: " ++ show cons
+      dcs <- zipWithM (\ c con -> (, setConName c con) . getData . theDef <$> getConInfo con) cs cons
+{-
       cs  <- zip cs . zipWith setRange (map getRange cs) <$> mapM reduceCon cs
       reportSLn "tc.check.term" 40 $ "  ranges after: " ++ show (getRange cs)
       reportSLn "tc.check.term" 40 $ "  reduced: " ++ show cs
       dcs <- mapM (\(c0, c1) -> (getData /\ const c0) . theDef <$> getConstInfo c1) cs
-
+-}
       -- Type error
-      let badCon t = typeError $ DoesNotConstructAnElementOf (fst $ head cs) t
+      let badCon t = typeError $ DoesNotConstructAnElementOf (head cs) t
+--      let badCon t = typeError $ DoesNotConstructAnElementOf (fst $ head cs) t
 
       -- Lets look at the target type at this point
       let getCon = do
@@ -704,9 +723,12 @@ checkApplication hd args e t = do
                         reportSLn "tc.check.term" 40 $ "  decided on: " ++ show c
                         return (Just c)
                       []  -> badCon (Def d [])
+                      cs  -> typeError $ CantResolveOverloadedConstructorsTargetingSameDatatype d $ map conName cs
+{-
                       cs  -> typeError $ GenericError $
                               "Can't resolve overloaded constructors targeting the same datatype (" ++ show d ++
                               "): " ++ unwords (map show cs)
+-}
       let unblock = isJust <$> getCon -- to unblock, call getCon later again
       mc <- getCon
       case mc of
@@ -714,8 +736,11 @@ checkApplication hd args e t = do
         Nothing -> postponeTypeCheckingProblem e t unblock
 
     -- Subcase: non-ambiguous constructor
-    (A.Con (AmbQ [c])) ->
-      checkConstructorApplication e t c $ map convArg args
+    (A.Con (AmbQ [c])) -> do
+      -- augment c with record fields, but do not revert to original name
+      con <- getOrigConHead c
+--      con <- setConName c . conSrcCon . theDef <$> getConstInfo c
+      checkConstructorApplication e t con $ map convArg args
 
     -- Subcase: pattern synonym
     (A.PatternSyn n) -> do
@@ -823,7 +848,7 @@ inferHead e = do
       proj <- isProjection x
       case proj of
         Nothing -> do
-          (u, a) <- inferDef Def x
+          (u, a) <- inferDef (\ f args -> return $ Def f args) x
           return (apply u, a)
         Just Projection{ projIndex = n } -> do
           cxt <- size <$> freeVarsToApply x
@@ -837,7 +862,7 @@ inferHead e = do
                  | otherwise = genericReplicate (n - 1) defaultArgInfo -- TODO: hiding
               names = [ s ++ [c] | s <- "" : names, c <- ['a'..'z'] ]
               eta   = foldr (\(i, s) -> Lam i . NoAbs s) (Def x []) (zip is names)
-          (u, a) <- inferDef (\f vs -> eta `apply` vs) x
+          (u, a) <- inferDef (\f vs -> return $ eta `apply` vs) x
           return (apply u, a)
     (A.Con (AmbQ [c])) -> do
 
@@ -847,7 +872,7 @@ inferHead e = do
 
       -- First, inferDef will try to apply the constructor
       -- to the free parameters of the current context. We ignore that.
-      (u, a) <- inferDef (\c _ -> Con c []) c
+      (u, a) <- inferDef (\ c _ -> getOrigConTerm c) c
 
       -- Next get the number of parameters in the current context.
       Constructor{conPars = n} <- theDef <$> (instantiateDef =<< getConstInfo c)
@@ -915,7 +940,7 @@ inferHead e = do (term, t) <- inferExpr e
                  return (apply term, t)
 -}
 
-inferDef :: (QName -> Args -> Term) -> QName -> TCM (Term, Type)
+inferDef :: (QName -> Args -> TCM Term) -> QName -> TCM (Term, Type)
 inferDef mkTerm x =
     traceCall (InferDef (getRange x) x) $ do
     d  <- instantiateDef =<< getConstInfo x
@@ -934,12 +959,13 @@ inferDef mkTerm x =
       dx <- prettyTCM x
       dt <- prettyTCM $ defType d
       reportSLn "tc.term.def" 10 $ "inferred def " ++ unwords (show dx : map show ds) ++ " : " ++ show dt
-    return (mkTerm x vs, defType d)
+    (, defType d) <$> mkTerm x vs
+--    return (mkTerm x vs, defType d)
 
 -- | Check the type of a constructor application. This is easier than
 --   a general application since the implicit arguments can be inserted
 --   without looking at the arguments to the constructor.
-checkConstructorApplication :: A.Expr -> Type -> QName -> [I.NamedArg A.Expr] -> TCM Term
+checkConstructorApplication :: A.Expr -> Type -> ConHead -> [I.NamedArg A.Expr] -> TCM Term
 checkConstructorApplication org t c args = do
   reportSDoc "tc.term.con" 50 $ vcat
     [ text "entering checkConstructorApplication"
@@ -952,7 +978,7 @@ checkConstructorApplication org t c args = do
   let paramsGiven = checkForParams args
   if paramsGiven then fallback else do
     reportSDoc "tc.term.con" 50 $ text "checkConstructorApplication: no parameters explicitly supplied, continuing..."
-    cdef  <- getConstInfo c
+    cdef  <- getConInfo c
     let Constructor{conData = d} = theDef cdef
     reportSDoc "tc.term.con" 50 $ nest 2 $ text "d    =" <+> prettyTCM d
     -- Issue 661: t maybe an evaluated form of d .., so we evaluate d
@@ -999,7 +1025,7 @@ checkConstructorApplication org t c args = do
         reportSDoc "tc.term.con" 50 $ nest 2 $ text "we are not at a datatype, falling back"
         fallback
   where
-    fallback = checkHeadApplication org t (A.Con (AmbQ [c])) args
+    fallback = checkHeadApplication org t (A.Con (AmbQ [conName c])) args
 
     -- Check if there are explicitly given hidden arguments,
     -- in which case we fall back to default type checking.

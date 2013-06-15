@@ -197,7 +197,8 @@ definition kit (Defn _         q ty _ _ _ _ compiled d) = do
       (ars, cds) <- unzip <$> mapM condecl cs
       return $ tvaldecl q (dataInduction d) (maximum (np:ars) - np) (np + ni) cds cl
     Constructor{} -> return []
-    Record{ recClause = cl, recCon = c, recFields = flds } -> do
+    Record{ recClause = cl, recConHead = con, recFields = flds } -> do
+      let c = conName con
       let noFields = genericLength flds
       let ar = arity ty
       cd <- snd <$> condecl c
@@ -339,7 +340,8 @@ term tm0 = case ignoreSharing tm0 of
                               local (1+) (term $ absBody at)
   Lit   l    -> lift $ literal l
   Def   q as -> (`apps` as) . HS.Var =<< lift (xhqn "d" q)
-  Con   q as -> do
+  Con   c as -> do
+    let q = conName c
     kit <- lift coinductionKit
     if Just q == (nameOfSharp <$> kit)
       then (`apps` as) . HS.Var =<< lift (xhqn "d" q)

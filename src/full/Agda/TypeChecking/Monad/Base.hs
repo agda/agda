@@ -1,4 +1,5 @@
-{-# LANGUAGE CPP, ExistentialQuantification, FlexibleContexts, Rank2Types,
+{-# LANGUAGE CPP, NamedFieldPuns,
+             ExistentialQuantification, FlexibleContexts, Rank2Types,
              TypeSynonymInstances, MultiParamTypeClasses, FlexibleInstances,
              UndecidableInstances, DeriveDataTypeable, GeneralizedNewtypeDeriving,
              DeriveFunctor, DeriveFoldable, DeriveTraversable
@@ -671,10 +672,11 @@ data Defn = Axiom
 	  | Record
             { recPars           :: Nat                  -- ^ Number of parameters.
             , recClause         :: Maybe Clause
-            , recCon            :: QName                -- ^ Constructor name.
+--            , recCon            :: QName                -- ^ Constructor name.
+            , recConHead        :: ConHead              -- ^ Constructor name and fields.
             , recNamedCon       :: Bool
             , recConType        :: Type                 -- ^ The record constructor's type.
-            , recFields         :: [Arg A.QName]
+            , recFields         :: [Arg QName]
             , recTel            :: Telescope            -- ^ The record field telescope
 {- MOVED
             , recPolarity       :: [Polarity]
@@ -688,7 +690,9 @@ data Defn = Axiom
             }
 	  | Constructor
             { conPars   :: Nat         -- nof parameters
-	    , conSrcCon :: QName       -- original constructor (this might be in a module instance)
+--            , conHead   :: ConHead     -- ^ Name of constructor and fields.
+	    , conSrcCon :: ConHead     -- ^ Name of (original) constructor and fields. (This might be in a module instance.)
+--	    , conSrcCon :: QName       -- original constructor (this might be in a module instance)
 	    , conData   :: QName       -- name of datatype or record type
 	    , conAbstr  :: IsAbstract
             , conInd    :: Induction   -- ^ Inductive or coinductive?
@@ -705,6 +709,10 @@ data Defn = Axiom
             }
             -- ^ Primitive or builtin functions.
     deriving (Typeable, Show)
+
+recCon :: Defn -> QName
+recCon Record{ recConHead } = conName recConHead
+recCon _ = __IMPOSSIBLE__
 
 defIsRecord :: Defn -> Bool
 defIsRecord Record{} = True
@@ -817,7 +825,7 @@ data FunctionInverse' c
 
 data TermHead = SortHead
               | PiHead
-              | ConHead QName
+              | ConsHead QName
   deriving (Typeable, Eq, Ord, Show)
 
 ---------------------------------------------------------------------------
@@ -1195,6 +1203,8 @@ data TypeError
           -- ^ Indices (variables), index expressions (with
           -- constructors applied to reconstructed parameters),
           -- parameters.
+        | CantResolveOverloadedConstructorsTargetingSameDatatype QName [QName]
+          -- ^ Datatype, constructors.
         | DoesNotConstructAnElementOf QName Term -- ^ constructor, type
 	| DifferentArities
 	    -- ^ Varying number of arguments for a function.

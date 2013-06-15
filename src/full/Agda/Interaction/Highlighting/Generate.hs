@@ -517,7 +517,7 @@ generateConstructorInfo modMap file kinds decl = do
   getConstructorP _              = []
 
   getConstructor :: I.Term -> [A.QName]
-  getConstructor (I.Con q _) = [q]
+  getConstructor (I.Con q _) = [I.conName q]
   getConstructor _           = []
 
 -- | Prints syntax highlighting info for an error.

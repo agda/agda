@@ -194,7 +194,8 @@ getConst :: Bool -> AN.QName -> TMode -> TOM (ConstRef O)
 getConst iscon name mode = do
  def <- lift $ getConstInfo name
  case MB.theDef def of
-  MB.Record {MB.recCon = conname} -> do
+  MB.Record {MB.recConHead = con} -> do
+   let conname = I.conName con
    cmap <- fst `liftM` gets sConsts
    case Map.lookup name cmap of
     Just (mode', c) ->
@@ -363,7 +364,8 @@ tomyExp (I.Def name as) = do
  c <- getConst False name TMAll
  as' <- tomyExps as
  return $ NotM $ App Nothing (NotM OKVal) (Const c) as'
-tomyExp (I.Con name as) = do
+tomyExp (I.Con con as) = do
+ let name = I.conName con
  c <- getConst True name TMAll
  as' <- tomyExps as
  def <- lift $ getConstInfo name
@@ -466,7 +468,15 @@ frommyExp (NotM e) =
   App _ _ (Const c) as -> do
    cdef <- lift $ readIORef c
    let (iscon, name) = cdorigin cdef
-       (ndrop, h) = case iscon of {Just n -> (n, I.Con); Nothing -> (0, I.Def)}
+{-
+   case iscon of
+      Just n -> do
+        v <- getConTerm name -- We are not in TCM
+        frommyExps n as v
+-}
+       (ndrop, h) = case iscon of
+                      Just n -> (n, \ q -> I.Con (I.ConHead q [])) -- TODO: restore fields
+                      Nothing -> (0, I.Def)
    frommyExps ndrop as (h name [])
   Lam hid (Abs mid t) -> do
    t' <- frommyExp t

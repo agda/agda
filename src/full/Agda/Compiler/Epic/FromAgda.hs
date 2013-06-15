@@ -245,8 +245,8 @@ substTerm env term = case term of
       return $ case del of
         True  -> Lazy f
         False -> f
-    T.Con q args -> do
-        let con = unqname q
+    T.Con c args -> do
+        let con = unqname $ conName c
         apps con <$> mapM (substTerm env . unArg) args
     T.Shared p -> substTerm env $ derefPtr p
     T.Pi _ _ -> return UNIT

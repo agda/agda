@@ -137,7 +137,7 @@ checkDataDef i name ps cs =
                 -- but the data definition happens in the relative module context,
                 -- so we apply to the free module variables.
                 -- Unfortunately, we lose precision here, since 'abstract', which
-                -- is then performed by addConstand, cannot restore the linearity info.
+                -- is then performed by addConstant, cannot restore the linearity info.
                 nonLinPars  = Drop (size freeVars) $ Perm (npars + size freeVars) nonLinPars0
 
 	    -- Return the data definition
@@ -235,10 +235,11 @@ checkConstructor d tel nofIxs s con@(A.Axiom i _ c e) =
         debugAdd c t'
 
         -- add parameters to constructor type and put into signature
+        let con = ConHead c [] -- data constructors have no projectable fields
         escapeContext (size tel)
 	    $ addConstant c
 	    $ Defn defaultArgInfo c (telePi tel t') [] [] (defaultDisplayForm c) 0 noCompiledRep
-	    $ Constructor (size tel) c d (Info.defAbstract i) Inductive
+	    $ Constructor (size tel) con d (Info.defAbstract i) Inductive
 
         return nonLinPars
   where

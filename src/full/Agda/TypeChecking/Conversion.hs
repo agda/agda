@@ -445,7 +445,7 @@ compareAtom cmp t m n =
               return $ case def of Datatype{dataPars = n} -> n
                                    Record{recPars = n}    -> n
                                    _                      -> __IMPOSSIBLE__
-            a <- defType <$> getConstInfo c
+            a <- defType <$> getConInfo c
             return $ piApply a (genericTake npars args)
           v -> do reportSDoc "impossible" 10 $
                     text "expected data/record type, found " <+> prettyTCM v

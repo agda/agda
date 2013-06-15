@@ -98,7 +98,7 @@ getBuiltins =
            else return Nothing
 
 defName (T.Def q []) = q
-defName (T.Con q []) = q
+defName (T.Con q []) = T.conName q
 defName _            = __IMPOSSIBLE__
 
 head'' (x:xs) e = x

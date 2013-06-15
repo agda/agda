@@ -96,7 +96,7 @@ bindBuiltinSharp e =
     addConstant sharp $
       sharpDefn { theDef = Constructor
                     { conPars   = 2
-                    , conSrcCon = sharp
+                    , conSrcCon = ConHead sharp [] -- TODO: possibly add flat as field here
                     , conData   = defName infDefn
                     , conAbstr  = ConcreteDef
                     , conInd    = CoInductive

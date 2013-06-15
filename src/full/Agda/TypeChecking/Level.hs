@@ -85,7 +85,7 @@ reallyUnLevelView nv =
     unPlusV zer suc (ClosedLevel n) = foldr (.) id (genericReplicate n suc) zer
     unPlusV _   suc (Plus n a)      = foldr (.) id (genericReplicate n suc) (unLevelAtom a)
 
-maybePrimCon :: TCM Term -> TCM (Maybe QName)
+maybePrimCon :: TCM Term -> TCM (Maybe ConHead)
 maybePrimCon prim = liftTCM $ do
     Con c [] <- prim
     return (Just c)

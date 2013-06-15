@@ -60,8 +60,8 @@ expandLitPattern p = traverse (traverse expand) p
         | otherwise -> do
           Con z _ <- ignoreSharing <$> primZero
           Con s _ <- ignoreSharing <$> primSuc
-          let zero  = A.ConP cinfo (A.AmbQ [setRange r z]) []
-              suc p = A.ConP cinfo (A.AmbQ [setRange r s]) [defaultNamedArg p]
+          let zero  = A.ConP cinfo (A.AmbQ [setRange r $ conName z]) []
+              suc p = A.ConP cinfo (A.AmbQ [setRange r $ conName s]) [defaultNamedArg p]
               info  = A.PatRange r
               cinfo = A.ConPatInfo False info
               p'    = foldr ($) zero $ genericReplicate n suc
@@ -151,17 +151,19 @@ splitProblem (Problem ps (perm, qs) tel pr) = do
                       d'  <- canonicalName d
                       let cons def = case theDef def of
                             Datatype{dataCons = cs} -> cs
-                            Record{recCon = c}      -> [c]
+                            Record{recConHead = c}      -> [conName c]
                             _                       -> __IMPOSSIBLE__
                       cs0 <- cons <$> getConstInfo d'
                       case [ c | (c, c') <- zip cs cs', elem c' cs0 ] of
                         [c]   -> return c
                         []    -> typeError $ ConstructorPatternInWrongDatatype (head cs) d
                         cs    -> -- if there are more than one we give up (they might have different types)
+                          typeError $ CantResolveOverloadedConstructorsTargetingSameDatatype d cs
+{-
                           typeError $ GenericError $
                             "Can't resolve overloaded constructors targeting the same datatype (" ++ show d ++ "):" ++
                             unwords (map show cs)
-
+-}
 		  let (pars, ixs) = genericSplitAt np vs
 		  reportSDoc "tc.lhs.split" 10 $
 		    vcat [ sep [ text "splitting on"
@@ -292,7 +294,7 @@ wellFormedIndices t = do
   constructorApplication (Lit {})        _ = return (Just [])
   constructorApplication (Shared p)      t  = constructorApplication (derefPtr p) t
   constructorApplication (Con c conArgs) (El _ (Def d dataArgs)) = do
-    conDef  <- getConstInfo c
+    conDef  <- getConInfo c
     dataDef <- getConstInfo d
 
 {- OLD

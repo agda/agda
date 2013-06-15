@@ -254,7 +254,7 @@ applyDroppingParameters :: Term -> Args -> TCM Term
 applyDroppingParameters t vs =
   case ignoreSharing t of
     Con c [] -> do
-      def <- theDef <$> getConstInfo c
+      def <- theDef <$> getConInfo c
       case def of
         Constructor {conPars = n} -> return $ Con c (genericDrop n vs)
         _ -> __IMPOSSIBLE__

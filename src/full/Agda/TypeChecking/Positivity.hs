@@ -540,19 +540,21 @@ instance PrettyTCM Occurrence where
   prettyTCM Mixed     = text "-[*]->"
   prettyTCM Unused    = text "-[ ]->"
 
-instance PrettyTCM n => PrettyTCM (n, Edge) where
-  prettyTCM (n, Edge o w) =
+data WithNode n a = WithNode n a
+
+instance PrettyTCM n => PrettyTCM (WithNode n Edge) where
+  prettyTCM (WithNode n (Edge o w)) =
     prettyTCM o <+> prettyTCM n <+> fsep (pwords $ show w)
 
-instance PrettyTCM n => PrettyTCM (n, Occurrence) where
-  prettyTCM (n, o) = prettyTCM o <+> prettyTCM n
+instance PrettyTCM n => PrettyTCM (WithNode n Occurrence) where
+  prettyTCM (WithNode n o) = prettyTCM o <+> prettyTCM n
 
-instance (PrettyTCM n, PrettyTCM (n, e)) => PrettyTCM (Graph n e) where
+instance (PrettyTCM n, PrettyTCM (WithNode n e)) => PrettyTCM (Graph n e) where
   prettyTCM g = vcat $ map pr $ Map.assocs $ Graph.unGraph g
     where
       pr (n, es) = sep
         [ prettyTCM n
-        , nest 2 $ vcat $ map prettyTCM $ Map.assocs es
+        , nest 2 $ vcat $ map (prettyTCM . uncurry WithNode) $ Map.assocs es
         ]
 
 data Edge = Edge Occurrence OccursWhere

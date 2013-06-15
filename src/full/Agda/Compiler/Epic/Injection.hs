@@ -107,7 +107,9 @@ patternToTerm :: Nat -> Pattern -> Term
 patternToTerm n p = case p of
     VarP v          -> var n
     DotP t          -> t
-    ConP c typ args -> Con c $ zipWith (\ arg t -> arg {unArg = t}) args
+    ConP c typ args ->
+                 let con = ConHead c [] -- TODO restore fields
+                 in  Con con $ zipWith (\ arg t -> arg {unArg = t}) args
                              $ snd
                              $ foldr (\ arg (n, ts) -> (n + nrBinds arg, patternToTerm n arg : ts))
                                      (n , [])
@@ -260,7 +262,9 @@ unionConstraints (Just c : cs) = do
     args1' <- map unArg <$> mapM (lift . reduce) args1
     args2' <- map unArg <$> mapM (lift . reduce) args2
     unionConstraints <$> zipWithM (\a b -> (a <: b) injs) args1' args2'
-(Con c1 args1 <: Con c2 args2) injs = do
+(Con con1 args1 <: Con con2 args2) injs = do
+    let c1 = conName con1
+        c2 = conName con2
     args1' <- map unArg <$> flip notForced args1 <$> getForcedArgs c1
     args2' <- map unArg <$> (mapM (lift . reduce) =<< flip notForced args2 <$> getForcedArgs c2)
     if length args1' == length args2'

@@ -41,6 +41,41 @@ type Dom a      = Common.Dom Color a
 type NamedArg a = Common.NamedArg Color a
 type ArgInfo    = Common.ArgInfo Color
 
+-- | Store the names of the record fields in the constructor.
+--   This allows reduction of projection redexes outside of TCM.
+--   For instance, during substitution and application.
+data ConHead = ConHead
+  { conName   :: QName   -- ^ The name of the constructor.
+  , conFields :: [QName] -- ^ The name of the fields.
+  } deriving (Typeable)
+
+instance Eq ConHead where
+  (==) = (==) `on` conName
+
+instance Ord ConHead where
+  (<=) = (<=) `on` conName
+
+instance Show ConHead where
+  show (ConHead c fs) = show c ++ show fs
+
+instance HasRange ConHead where
+  getRange = getRange . conName
+
+instance SetRange ConHead where
+  setRange r = mapConName (setRange r)
+
+class LensConName a where
+  getConName :: a -> QName
+  setConName :: QName -> a -> a
+  setConName = mapConName . const
+  mapConName :: (QName -> QName) -> a -> a
+  mapConName f a = setConName (f (getConName a)) a
+
+instance LensConName ConHead where
+  getConName = conName
+  setConName c con = con { conName = c }
+
+
 -- | Raw values.
 --
 --   @Def@ is used for both defined and undefined constants.
@@ -52,7 +87,7 @@ data Term = Var {-# UNPACK #-} !Int Args             -- ^ @x vs@ neutral
 	  | Lam ArgInfo (Abs Term)   -- ^ Terms are beta normal. Relevance is ignored
 	  | Lit Literal
 	  | Def QName Args           -- ^ @f vs@, possibly a redex
-	  | Con QName Args           -- ^ @c vs@
+	  | Con ConHead Args         -- ^ @c vs@
 	  | Pi (Dom Type) (Abs Type) -- ^ dependent or non-dependent function space
 	  | Sort Sort
           | Level Level
@@ -428,6 +463,9 @@ instance Sized a => Sized (Abs a) where
 ---------------------------------------------------------------------------
 -- * KillRange instances.
 ---------------------------------------------------------------------------
+
+instance KillRange ConHead where
+  killRange (ConHead c fs) = killRange2 ConHead c fs
 
 instance KillRange Term where
   killRange v = case v of

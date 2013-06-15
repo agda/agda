@@ -22,6 +22,7 @@ import Agda.TypeChecking.Pretty
 import Agda.TypeChecking.Rules.LHS.Implicit
 import Agda.TypeChecking.Rules.LHS.Split (expandLitPattern)
 import Agda.TypeChecking.Abstract
+import Agda.TypeChecking.Datatypes
 import Agda.TypeChecking.EtaContract
 import Agda.TypeChecking.Telescope
 
@@ -155,22 +156,27 @@ stripWithClausePatterns gamma qs perm ps = do
 
 
           A.ConP _ (A.AmbQ cs') ps' -> do
-
+{- OLD
             Con c' [] <- ignoreSharing <$> (constructorForm =<< reduce (Con c []))
             c <- return $ c' `withRangeOf` c
+-}
+            c <- (`withRangeOf` c) <$> getConForm c
+            cs' <- mapM getConForm cs'
+{- OLD
             let getCon (Con c []) = c
                 getCon (Shared p) = getCon (derefPtr p)
                 getCon _ = __IMPOSSIBLE__
             cs' <- map getCon <$> (mapM constructorForm =<< mapM (\c' -> reduce $ Con c' []) cs')
-
+-}
             unless (elem c cs') mismatch
 
             -- The type is a datatype
             Def d us <- ignoreSharing <$> normalise (unEl $ unDom a)
 
             -- Compute the argument telescope for the constructor
-            Con c []    <- ignoreSharing <$> (constructorForm =<< normalise (Con c []))
-            Defn {defType = ct, theDef = Constructor{conPars = np}}  <- getConstInfo c
+-- ALREADY normal:
+--            Con c []    <- ignoreSharing <$> (constructorForm =<< normalise (Con c []))
+            Defn {defType = ct, theDef = Constructor{conPars = np}}  <- getConInfo c
             let ct' = ct `apply` genericTake np us
             TelV tel' _ <- telView ct'
 
@@ -195,7 +201,7 @@ stripWithClausePatterns gamma qs perm ps = do
 
             -- Insert implicit patterns (just for the constructor arguments)
             psi' <- insertImplicitPatterns ExpandLast ps' tel'
-            unless (size psi' == size tel') $ typeError $ WrongNumberOfConstructorArguments c (size tel') (size psi')
+            unless (size psi' == size tel') $ typeError $ WrongNumberOfConstructorArguments (conName c) (size tel') (size psi')
 
             -- Do it again for everything (is this necessary?)
             psi' <- insertImplicitPatterns ExpandLast (psi' ++ ps) tel''

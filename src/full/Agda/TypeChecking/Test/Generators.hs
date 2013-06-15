@@ -161,7 +161,7 @@ newtype YesType a   = YesType	{ unYesType :: a     }
 newtype NoType  a   = NoType	{ unNoType  :: a     }
 newtype VarName	    = VarName	{ unVarName :: Nat   }
 newtype DefName	    = DefName	{ unDefName :: QName }
-newtype ConName	    = ConName	{ unConName :: QName }
+newtype ConName	    = ConName	{ unConName :: ConHead }
 newtype SizedList a = SizedList { unSizedList :: [a] }
 
 fixSize :: TermConfiguration -> Gen a -> Gen a
@@ -287,7 +287,7 @@ instance GenC Term where
       genVar, genDef, genCon :: Gen Args -> Gen Term
       genVar args = Var <$> elements vars <*> args
       genDef args = Def <$> elements defs <*> args
-      genCon args = Con <$> elements cons <*> args
+      genCon args = Con <$> (flip ConHead [] <$> elements cons) <*> args
 
       genName :: Gen Args -> Gen Term
       genName args = frequency
@@ -373,8 +373,8 @@ instance ShrinkC DefName QName where
   shrinkC conf (DefName c) = takeWhile (/= c) $ tcDefinedNames conf
   noShrink = unDefName
 
-instance ShrinkC ConName QName where
-  shrinkC conf (ConName c) = takeWhile (/= c) $ tcConstructorNames conf
+instance ShrinkC ConName ConHead where
+  shrinkC conf (ConName (ConHead{conName = c})) = map (flip ConHead []) $ takeWhile (/= c) $ tcConstructorNames conf
   noShrink = unConName
 
 instance ShrinkC Literal Literal where
@@ -444,8 +444,8 @@ instance ShrinkC Term Term where
 		    (uncurry Var <$> shrinkC conf (VarName i, NoType args))
     Def d args   -> map unArg args ++
 		    (uncurry Def <$> shrinkC conf (DefName d, NoType args))
-    Con d args   -> map unArg args ++
-		    (uncurry Con <$> shrinkC conf (ConName d, NoType args))
+    Con c args   -> map unArg args ++
+		    (uncurry Con <$> shrinkC conf (ConName c, NoType args))
     Lit l	 -> Lit <$> shrinkC conf l
     Level l      -> [] -- TODO
     Lam info b   -> killAbs b : ((\(h,x) -> Lam (setHiding h defaultArgInfo) x)

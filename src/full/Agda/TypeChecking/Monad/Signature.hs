@@ -361,7 +361,7 @@ canonicalName :: QName -> TCM QName
 canonicalName x = do
   def <- theDef <$> getConstInfo x
   case def of
-    Constructor{conSrcCon = c}                                -> return c
+    Constructor{conSrcCon = c}                                -> return $ conName c
     Record{recClause = Just (Clause{ clauseBody = body })}    -> canonicalName $ extract body
     Datatype{dataClause = Just (Clause{ clauseBody = body })} -> canonicalName $ extract body
     _                                                         -> return x
@@ -433,6 +433,11 @@ getConstInfo q = liftTCM $ join $ pureTCM $ \st env ->
 
         init' [] = {-'-} __IMPOSSIBLE__
         init' xs = init xs
+
+{-# INLINE getConInfo #-}
+{-# SPECIALIZE getConstInfo :: QName -> TCM Definition #-}
+getConInfo :: MonadTCM tcm => ConHead -> tcm Definition
+getConInfo = getConstInfo . conName
 
 -- | Look up the polarity of a definition.
 getPolarity :: QName -> TCM [Polarity]

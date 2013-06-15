@@ -79,8 +79,8 @@ headSymbol v = do -- ignoreAbstractMode $ do
         -- if we do not ignoreAbstractMode here, abstract Functions get turned
         -- into Axioms, but we want to distinguish these.
       case def of
-        Datatype{}  -> return (Just $ ConHead f)
-        Record{}    -> return (Just $ ConHead f)
+        Datatype{}  -> return (Just $ ConsHead f)
+        Record{}    -> return (Just $ ConsHead f)
         Axiom{}     -> do
           reportSLn "tc.inj.axiom" 50 $ "headSymbol: " ++ show f ++ " is an Axiom."
           -- Don't treat axioms in the current mutual block
@@ -89,11 +89,11 @@ headSymbol v = do -- ignoreAbstractMode $ do
           fs <- lookupMutualBlock =<< currentOrFreshMutualBlock
           if Set.member f fs
             then return Nothing
-            else return (Just $ ConHead f)
+            else return (Just $ ConsHead f)
         Function{}    -> return Nothing
         Primitive{}   -> return Nothing
         Constructor{} -> __IMPOSSIBLE__
-    Con c _ -> return (Just $ ConHead c)
+    Con c _ -> return (Just $ ConsHead $ conName c)
     Sort _  -> return (Just SortHead)
     Pi _ _  -> return (Just PiHead)
     Lit _   -> return Nothing -- handle literal heads as well? can't think of
@@ -281,5 +281,6 @@ useInjectivity cmp a u v = do
     metaPat (VarP _) = nextMeta
     metaPat (ConP c mt args) = do
       args <- metaArgs args
-      return $ Con c args
+      let con = ConHead c [] -- TODO restore fields
+      return $ Con con args
     metaPat (LitP l) = return $ Lit l

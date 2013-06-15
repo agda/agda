@@ -1,4 +1,5 @@
-{-# LANGUAGE CPP, TypeSynonymInstances, FlexibleInstances, OverlappingInstances,
+{-# LANGUAGE CPP, PatternGuards,
+    TypeSynonymInstances, FlexibleInstances, OverlappingInstances,
     DeriveDataTypeable, DeriveFunctor, StandaloneDeriving #-}
 module Agda.TypeChecking.Substitute where
 
@@ -23,6 +24,7 @@ import Agda.TypeChecking.Monad.Base as Base
 import Agda.TypeChecking.Free as Free
 import Agda.TypeChecking.CompiledClause
 
+import Agda.Utils.List
 import Agda.Utils.Monad
 import Agda.Utils.Size
 import Agda.Utils.Permutation
@@ -40,7 +42,7 @@ instance Apply Term where
     apply m args@(a:args0) =
         case m of
             Var i args'   -> Var i (args' ++ args)
-            Def c args'   -> Def c (args' ++ args)
+            Def f args'   -> defApp f args' args  -- remove projection redexes
             Con c args'   -> Con c (args' ++ args)
             Lam _ u       -> absApp u (unArg a) `apply` args0
             MetaV x args' -> MetaV x (args' ++ args)
@@ -51,6 +53,27 @@ instance Apply Term where
             Sort _        -> __IMPOSSIBLE__
             DontCare mv   -> DontCare $ mv `apply` args  -- Andreas, 2011-10-02
               -- need to go under DontCare, since "with" might resurrect irrelevant term
+
+-- | If $v$ is a record value, @canProject f v@
+--   returns its field @f@.
+canProject :: QName -> Term -> Maybe (Arg Term)
+canProject f v =
+  case ignoreSharing v of
+    (Con (ConHead _ fs) vs) -> do
+      i <- elemIndex f fs
+      mhead (drop i vs)
+    _ -> Nothing
+
+-- | @defApp f us vs@ applies @Def f us@ to further arguments @vs@,
+--   eliminating top projection redexes.
+--   If @us@ is not empty, we cannot have a projection redex, since
+--   the record argument is the first one.
+defApp :: QName -> Args -> Args -> Term
+defApp f [] (a:as) | Just v <- canProject f (unArg a) = dontCare v `apply` as
+  where
+    -- protect irrelevant fields (see issue 610)
+    dontCare (Common.Arg ai v) = if getRelevance ai == Irrelevant then DontCare v else v
+defApp f as bs = Def f $ as ++ bs
 
 instance Apply Type where
   apply = piApply
@@ -451,7 +474,7 @@ instance Subst Term where
   applySubst rho t    = case t of
     Var i vs    -> lookupS rho i `apply` applySubst rho vs
     Lam h m     -> Lam h $ applySubst rho m
-    Def c vs    -> Def c $ applySubst rho vs
+    Def f vs    -> defApp f [] $ applySubst rho vs -- Def f $ applySubst rho vs
     Con c vs    -> Con c $ applySubst rho vs
     MetaV x vs  -> MetaV x $ applySubst rho vs
     Lit l       -> Lit l

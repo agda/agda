@@ -743,13 +743,13 @@ unifyIndices flex a us vs = liftTCM $ do
 -- Precondition: The type has to correspond to an application of the
 -- given constructor.
 dataOrRecordType
-  :: QName -- ^ Constructor name.
+  :: ConHead -- ^ Constructor name.
   -> Type  -- ^ Type of constructor application (must end in data/record).
   -> TCM (Maybe Type) -- ^ Type of constructor, applied to pars.
 dataOrRecordType c a = fmap (\ (d, b, args) -> b `apply` args) <$> dataOrRecordType' c a
 
 dataOrRecordType' ::
-     QName -- ^ Constructor name.
+     ConHead -- ^ Constructor name.
   -> Type  -- ^ Type of constructor application (must end in data/record).
   -> TCM (Maybe (QName, Type, Args))
            -- ^ Name of data/record type,
@@ -763,7 +763,7 @@ dataOrRecordType' c a = do
     return (d, args)
   def <- theDef <$> getConstInfo d
   r <- case def of
-    Datatype{dataPars = n} -> Just . ((,) n) . defType <$> getConstInfo c
+    Datatype{dataPars = n} -> Just . ((,) n) . defType <$> getConInfo c
     Record  {recPars  = n} -> Just . ((,) n) <$> getRecordConstructorType d
     _		           -> return Nothing
   return $ fmap (\ (n, a') -> (d, a', genericTake n args)) r
@@ -771,7 +771,7 @@ dataOrRecordType' c a = do
 -- | Heterogeneous situation.
 --   @a1@ and @a2@ need to end in same datatype/record.
 dataOrRecordTypeHH ::
-     QName      -- ^ Constructor name.
+     ConHead      -- ^ Constructor name.
   -> TypeHH     -- ^ Type(s) of constructor application (must end in same data/record).
   -> TCM (Maybe TypeHH) -- ^ Type of constructor, instantiated possibly heterogeneously to parameters.
 dataOrRecordTypeHH c (Hom a) = fmap Hom <$> dataOrRecordType c a

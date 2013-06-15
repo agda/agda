@@ -200,8 +200,9 @@ expandCatchAlls single n cs =
     expand ps b q =
       case q of
         ConP c _ qs' -> (ps0 ++ [defaultArg $ ConP c Nothing (genericReplicate m $ defaultArg $ VarP "_")] ++ ps1,
-                         substBody n' m (Con c (map var [m - 1, m - 2..0])) b)
+                         substBody n' m (Con con (map var [m - 1, m - 2..0])) b)
           where m = length qs'
+                con = ConHead c [] -- TODO: restore fields
         LitP l -> (ps0 ++ [defaultArg $ LitP l] ++ ps1, substBody n' 0 (Lit l) b)
         _ -> __IMPOSSIBLE__
       where
