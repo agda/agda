@@ -184,10 +184,11 @@ definition kit (Defn _         q ty _ _ _ _ compiled d) = do
                                (HS.BDecls [])]
         ]
 
-    Axiom{}                                -> return $ fb axiomErr
-    Function{ funClauses =        cls } -> function cls
-    Primitive{ primClauses = Just cls } -> function cls
+    Axiom{} -> return $ fb axiomErr
     Primitive{ primClauses = Nothing, primName = s } -> fb <$> primBody s
+    Primitive{ primClauses = Just [], primName = s } -> fb <$> primBody s
+    Primitive{ primClauses = Just cls } -> function cls
+    Function{ funClauses =        cls } -> function cls
     Datatype{ dataPars = np, dataIxs = ni, dataClause = cl, dataCons = cs }
       | Just (HsType ty) <- compiledHaskell compiled -> do
       ccs <- concat <$> mapM checkConstructorType cs

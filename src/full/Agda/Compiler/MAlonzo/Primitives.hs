@@ -172,6 +172,11 @@ primBody s = maybe unimplemented (either (hsVarUQ . HS.Ident) id <$>) $
   , "primNatToInteger"   |-> bltQual' "NATURAL" mazNatToInteger
   , "primShowInteger"    |-> return "(show :: Integer -> String)"
 
+  -- Levels
+  , "primLevelZero"   |-> return "()"
+  , "primLevelSuc"    |-> return "(\\ _ -> ())"
+  , "primLevelMax"    |-> return "(\\ _ _ -> ())"
+
   -- Natural number functions
   , "primNatPlus"     |-> binNat "(+)"
   , "primNatMinus"    |-> binNat "(-)"
