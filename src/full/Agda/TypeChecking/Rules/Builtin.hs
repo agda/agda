@@ -366,7 +366,7 @@ bindBuiltinInfo (BuiltinInfo s d) e = do
                 a   = defAbstract info
                 mcc = defCompiled info
             bindPrimitive pfname $ pf { primFunName = qx }
-            addConstant qx $ info { theDef = Primitive a pfname (Just cls) mcc }
+            addConstant qx $ info { theDef = Primitive a pfname cls mcc }
 
             -- needed? yes, for checking equations for mul
             bindBuiltinName s v

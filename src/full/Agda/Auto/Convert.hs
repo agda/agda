@@ -93,8 +93,8 @@ tomy imi icns typs = do
      (cont, projfcns2) <- case defn of
       MB.Axiom {} -> return (Postulate, [])
       MB.Function {MB.funClauses = clauses} -> clausesToDef clauses
-      MB.Primitive {MB.primClauses = Just clauses} -> clausesToDef clauses
-      MB.Primitive {} -> throwError $ strMsg "Auto: Primitive functions are not supported"
+      -- MB.Primitive {MB.primClauses = []} -> throwError $ strMsg "Auto: Primitive functions are not supported" -- Andreas, 2013-06-17 breaks interaction/AutoMisc
+      MB.Primitive {MB.primClauses = clauses} -> clausesToDef clauses
       MB.Datatype {MB.dataCons = cons} -> do
        cons2 <- mapM (\con -> getConst True con TMAll) cons
        return (Datatype cons2 [], [])

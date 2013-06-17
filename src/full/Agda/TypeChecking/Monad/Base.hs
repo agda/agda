@@ -700,9 +700,8 @@ data Defn = Axiom
 	  | Primitive
             { primAbstr :: IsAbstract
             , primName  :: String
-            , primClauses :: Maybe [Clause]
-              -- ^ 'Nothing' for primitive functions, @'Just'
-              -- something@ for builtin functions.
+            , primClauses :: [Clause]
+              -- ^ 'null' for primitive functions, @not null@ for builtin functions.
             , primCompiled :: Maybe CompiledClauses
               -- ^ 'Nothing' for primitive functions, @'Just'
               -- something@ for builtin functions.
@@ -772,7 +771,7 @@ data PrimFun = PrimFun
 
 defClauses :: Definition -> [Clause]
 defClauses Defn{theDef = Function{funClauses = cs}}        = cs
-defClauses Defn{theDef = Primitive{primClauses = Just cs}} = cs
+defClauses Defn{theDef = Primitive{primClauses = cs}}      = cs
 defClauses Defn{theDef = Datatype{dataClause = Just c}}    = [c]
 defClauses Defn{theDef = Record{recClause = Just c}}       = [c]
 defClauses _                                               = []

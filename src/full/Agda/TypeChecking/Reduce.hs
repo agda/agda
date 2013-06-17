@@ -329,7 +329,7 @@ unfoldDefinition' unfoldDelayed keepGoing v0 f args =
     Primitive{primAbstr = ConcreteDef, primName = x, primClauses = cls} -> do
       pf <- getPrimitive x
       reducePrimitive x v0 f args pf (defDelayed info) (defNonterminating info)
-                      (maybe [] id cls) (defCompiled info)
+                      cls (defCompiled info)
     _  -> reduceNormal v0 f (map notReduced args) (defDelayed info) (defNonterminating info)
                        (defClauses info) (defCompiled info)
   where

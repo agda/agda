@@ -285,7 +285,7 @@ checkPrimitive i x e =
     let s  = show $ nameConcrete $ qnameName x
     bindPrimitive s pf
     addConstant x (Defn defaultArgInfo x t [] [] (defaultDisplayForm x) 0 noCompiledRep $
-                Primitive (Info.defAbstract i) s Nothing Nothing)
+                Primitive (Info.defAbstract i) s [] Nothing)
     where
 	nameString (Name _ x _ _) = show x
 
