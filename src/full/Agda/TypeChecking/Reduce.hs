@@ -377,8 +377,8 @@ unfoldDefinition' unfoldDelayed keepGoing v0 f args =
                 reportSDoc "tc.reduce" 90 $ vcat
                   [ text "*** reduced definition: " <+> prettyTCM f
                   ]
-                reportSDoc "tc.reduce" 100 $ text "    result" <+> prettyTCM v $$
-                                             text "    raw   " <+> text (show v)
+                reportSDoc "tc.reduce"  95 $ text "    result" <+> prettyTCM v
+                reportSDoc "tc.reduce" 100 $ text "    raw   " <+> text (show v)
                 keepGoing v
       where defaultResult = retSimpl $ notBlocked $ v0 `apply` (map ignoreReduced args)
 

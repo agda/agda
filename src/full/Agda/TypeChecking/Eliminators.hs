@@ -8,6 +8,7 @@ import Control.Monad
 import Agda.Syntax.Common
 import Agda.Syntax.Internal
 import Agda.TypeChecking.Monad
+import {-# SOURCE #-} Agda.TypeChecking.Pretty
 import Agda.TypeChecking.Substitute
 import Agda.Utils.Impossible
 import Agda.TypeChecking.Reduce
@@ -33,6 +34,7 @@ elimView v = do
   -- suc (neutral) into Level (Max [Plus 1 (NeutralLevel neutral)]) which the below pattern
   -- match does not handle.
   v <- unLevel v
+  reportSDoc "tc.conv.elim" 30 $ text "elimView of " <+> prettyTCM v
   reportSLn "tc.conv.elim" 50 $ "v = " ++ show v
   case ignoreSharing v of
     Def f [] -> return $ DefElim f [] -- Andreas, 2013-03-05 it is not impossible that f is an unapplied projection
