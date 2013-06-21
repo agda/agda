@@ -22,6 +22,7 @@ import Agda.TypeChecking.MetaVars
 import Agda.TypeChecking.MetaVars.Occurs (killArgs,PruneResult(..))
 import Agda.TypeChecking.Reduce
 import Agda.TypeChecking.Substitute
+import Agda.TypeChecking.SyntacticEquality
 import Agda.TypeChecking.Telescope
 import Agda.TypeChecking.Constraints
 import Agda.TypeChecking.Errors
@@ -101,8 +102,13 @@ compareTerm :: Comparison -> Type -> Term -> Term -> TCM ()
   -- Andreas, 2012-02-14: This is UNSOUND for subtyping!
 compareTerm cmp a u v = do
   -- Check syntactic equality first. This actually saves us quite a bit of work.
+  ((u, v), equal) <- checkSyntacticEquality u v
+{- OLD CODE, traverses the *full* terms u v at each step, even if they
+   are different somewhere.  Leads to infeasibility in issue 854.
   (u, v) <- instantiateFull (u, v)
-  if u == v then unifyPointers cmp u v $ verboseS "profile.sharing" 20 $ tick "equal terms" else do
+  let equal = u == v
+-}
+  if equal then unifyPointers cmp u v $ verboseS "profile.sharing" 20 $ tick "equal terms" else do
   verboseS "profile.sharing" 20 $ tick "unequal terms"
   let checkPointerEquality def | not $ null $ List.intersect (pointerChain u) (pointerChain v) = do
         verboseS "profile.sharing" 10 $ tick "pointer equality"

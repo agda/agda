@@ -271,6 +271,7 @@ library
                     Agda.TypeChecking.Serialise
                     Agda.TypeChecking.SizedTypes
                     Agda.TypeChecking.Substitute
+                    Agda.TypeChecking.SyntacticEquality
                     Agda.TypeChecking.Telescope
                     Agda.TypeChecking.Test.Generators
                     Agda.TypeChecking.Tests

@@ -61,3 +61,7 @@ mapSndM f ~(a,b) = (a,) <$> f b
 
 newtype List2 a = List2 { list2 :: (a,a) }
   deriving (Eq, Functor, Foldable, Traversable)
+
+instance Applicative List2 where
+  pure a                            = List2 (a,a)
+  (List2 (f,f')) <*> (List2 (a,a')) = List2 (f a, f' a')
