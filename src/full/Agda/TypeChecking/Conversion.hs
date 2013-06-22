@@ -614,8 +614,7 @@ compareElims pols0 a v els01 els02 = do
 
     (Proj f : els1, Proj f' : els2)
       | f /= f'   -> typeError . GenericError . show =<< prettyTCM f <+> text "/=" <+> prettyTCM f'
-      | otherwise -> do
-        a <- reduce a
+      | otherwise -> ifBlockedType a (\ m t -> patternViolation) $ \ a -> do
         case ignoreSharing $ unEl a of
           Def r us -> do
             let (pol, _) = nextPolarity pols0
@@ -629,7 +628,10 @@ compareElims pols0 a v els01 els02 = do
                   Nonvariant    -> __IMPOSSIBLE__ -- the polarity should be Invariant
             pols' <- getPolarity' cmp f
             compareElims pols' c (Def f [arg]) els1 els2
-          _ -> __IMPOSSIBLE__
+          _ -> do
+            reportSDoc "impossible" 10 $
+              text "projecting from unexpected type " <+> prettyTCM a
+            __IMPOSSIBLE__
 
 -- | "Compare" two terms in irrelevant position.  This always succeeds.
 --   However, we can dig for solutions of irrelevant metas in the
