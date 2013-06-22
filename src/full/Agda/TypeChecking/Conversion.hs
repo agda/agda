@@ -508,7 +508,7 @@ compareRelevance CmpLeq = (<=)
 -- | @compareElims pols a v els1 els2@ performs type-directed equality on eliminator spines.
 --   @t@ is the type of the head @v@.
 compareElims :: [Polarity] -> Type -> Term -> [Elim] -> [Elim] -> TCM ()
-compareElims pols0 a v els01 els02 = do
+compareElims pols0 a v els01 els02 = catchConstraint (ElimCmp pols0 a v els01 els02) $ do
   let v1 = unElim v els01
       v2 = unElim v els02
       failure = typeError $ UnequalTerms CmpEq v1 v2 a
@@ -537,29 +537,19 @@ compareElims pols0 a v els01 els02 = do
         , text ""
         ]
       let (pol, pols) = nextPolarity pols0
-      ab <- reduceB a
-      let a = ignoreBlocking ab
-      catchConstraint (ElimCmp pols0 a v els01 els02) $ do
-      reportSDoc "tc.conv.elim" 10 $ nest 2 $ vcat
-        [ text "ab = " <+> text (show ab)
-        , text "x = " <+> text (show (ignoreSharing . unEl <$> ab))
-        ]
-      case ignoreSharing . unEl <$> ab of
-        Blocked{}                     -> patternViolation
-        NotBlocked MetaV{}            -> patternViolation
-        NotBlocked (Pi (Dom info b) _) -> do
+      ifBlockedType a (\ m t -> patternViolation) $ \ a -> do
+      case ignoreSharing . unEl $ a of
+        (Pi (Dom info b) codom) -> do
           mlvl <- mlevel
-          let dependent = case ignoreSharing $ unEl a of
+          let freeInCoDom (Abs _ c) = 0 `freeInIgnoringSorts` c
+              freeInCoDom _         = False
+              dependent = (Just (unEl b) /= mlvl) && freeInCoDom codom
                 -- Level-polymorphism (x : Level) -> ... does not count as dependency here
-                Pi (Dom _ (El _ lvl')) (Abs _ c) -> Just lvl' /= mlvl
                    -- NB: we could drop the free variable test and still be sound.
                    -- It is a trade-off between the administrative effort of
                    -- creating a blocking and traversing a term for free variables.
                    -- Apparently, it is believed that checking free vars is cheaper.
                    -- Andreas, 2013-05-15
-                   && 0 `freeInIgnoringSorts` c
-                _ -> False
-
               r = getRelevance info
 
 -- NEW, Andreas, 2013-05-15
@@ -606,11 +596,10 @@ compareElims pols0 a v els01 els02 = do
             else checkArg >> solveConstraint_ theRest
 -}
 
-        NotBlocked (Def info _) -> do
-                           reportSDoc "tc.conv.elim" 10 $ text "crash!"
-                           __IMPOSSIBLE__
-        NotBlocked a -> do reportSDoc "tc.conv.elim" 50 $ text (show a)
-                           __IMPOSSIBLE__
+        a -> do
+          reportSDoc "impossible" 10 $
+            text "unexpected type when comparing apply eliminations " <+> prettyTCM a
+          __IMPOSSIBLE__
 
     (Proj f : els1, Proj f' : els2)
       | f /= f'   -> typeError . GenericError . show =<< prettyTCM f <+> text "/=" <+> prettyTCM f'
