@@ -1,4 +1,4 @@
-module builtin where
+module Builtin where
 
 data Bool : Set where
   false : Bool
@@ -28,6 +28,12 @@ data Nat : Set where
 {-# BUILTIN SUC     suc  #-}
 {-# BUILTIN ZERO    zero #-}
 
+zero' : Nat
+zero' = 0
+
+one : Nat
+one = 1
+
 postulate
   Int    : Set
   String : Set
@@ -44,9 +50,9 @@ data List (A : Set) : Set where
   nil  : List A
   _::_ : A -> List A -> List A
 
-{-# BUILTIN LIST    List   #-}
-{-# BUILTIN NIL     nil    #-}
-{-# BUILTIN CONS    _::_   #-}
+{-# BUILTIN LIST List   #-}
+{-# BUILTIN NIL  nil    #-}
+{-# BUILTIN CONS  _::_   #-}
 
 primitive
 
@@ -123,8 +129,10 @@ _-_  = primIntegerMinus
 _==_ = primIntegerEquality
 _/_  = primFloatDiv
 
+pi : Float
 pi = 3.141592653589793
 
+sin : Float -> Float
 sin = primSin
 
 cos : Float -> Float
@@ -160,4 +168,3 @@ mapStr f = stringAsList (map f)
 -- Testing unicode literals
 uString = "åäö⊢ξ∀"
 uChar   = '∀'
-
