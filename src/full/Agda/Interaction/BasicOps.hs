@@ -9,7 +9,7 @@ import Control.Monad.Error
 import Control.Monad.Reader
 import Control.Monad.State
 import qualified Data.Map as Map
-import Data.Map (Map)
+-- import Data.Map (Map)
 import Data.List
 import Data.Maybe
 
@@ -35,7 +35,7 @@ import Agda.TypeChecking.MetaVars
 import Agda.TypeChecking.Reduce
 import Agda.TypeChecking.Substitute
 import Agda.TypeChecking.Telescope
-import Agda.TypeChecking.EtaContract (etaContract)
+-- import Agda.TypeChecking.EtaContract (etaContract)
 import Agda.TypeChecking.Coverage
 import Agda.TypeChecking.Records
 import Agda.TypeChecking.Irrelevance (wakeIrrelevantVars)

@@ -8,7 +8,7 @@
 module Agda.Syntax.Info where
 
 import Data.Typeable (Typeable)
-import Text.Show.Functions
+-- import Text.Show.Functions
 
 import qualified Agda.Syntax.Concrete.Name as C
 import Agda.Syntax.Common

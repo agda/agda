@@ -4,7 +4,7 @@ module Agda.TypeChecking.With where
 import Control.Applicative
 import Control.Monad
 import Control.Monad.State
-import qualified Data.Traversable as T (mapM, traverse)
+import qualified Data.Traversable as T (traverse)
 import Data.List
 
 import Agda.Syntax.Common
@@ -17,7 +17,7 @@ import Agda.Syntax.Position
 import Agda.TypeChecking.Monad
 import Agda.TypeChecking.Substitute
 import Agda.TypeChecking.Reduce
-import Agda.TypeChecking.Primitive hiding (Nat)
+-- import Agda.TypeChecking.Primitive hiding (Nat)
 import Agda.TypeChecking.Pretty
 import Agda.TypeChecking.Rules.LHS.Implicit
 import Agda.TypeChecking.Rules.LHS.Split (expandLitPattern)

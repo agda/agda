@@ -8,7 +8,7 @@ import Agda.Utils.TestHelpers
 import Agda.Utils.QuickCheck
 import Agda.Utils.Tuple
 
-import Text.Show.Functions
+import Text.Show.Functions ()
 import Data.Function
 import Data.List
 import Data.Maybe

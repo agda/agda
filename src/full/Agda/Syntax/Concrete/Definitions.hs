@@ -10,7 +10,7 @@ module Agda.Syntax.Concrete.Definitions
     , notSoNiceDeclaration
     ) where
 
-import Control.Arrow ((***), (&&&))
+import Control.Arrow ((***))
 import Control.Applicative
 import Data.Typeable (Typeable)
 import Data.Foldable hiding (concatMap, mapM_, notElem, elem, all)
@@ -19,17 +19,17 @@ import Data.Map (Map)
 import Control.Monad.Error
 import Control.Monad.State
 import Data.List as List
-import Data.Maybe
+-- import Data.Maybe
 import Data.Traversable (traverse)
 
-import Debug.Trace (trace)
+-- import Debug.Trace (trace)
 import Agda.Syntax.Concrete
 import Agda.Syntax.Common hiding (Arg, Dom, NamedArg, ArgInfo)
 import qualified Agda.Syntax.Common as Common
 import Agda.Syntax.Position
 import Agda.Syntax.Fixity
 import Agda.Syntax.Notation
-import Agda.Syntax.Concrete.Pretty
+import Agda.Syntax.Concrete.Pretty ()
 import Agda.Utils.Pretty
 import Agda.Utils.List (mhead, isSublistOf)
 import Agda.Utils.Monad
@@ -38,11 +38,11 @@ import Agda.Utils.Update
 #include "../../undefined.h"
 import Agda.Utils.Impossible
 
-import Control.Applicative
-import Control.Monad.Error
-import Data.Char
+-- import Control.Applicative
+-- import Control.Monad.Error
+-- import Data.Char
 
-import Debug.Trace
+-- import Debug.Trace
 
 {--------------------------------------------------------------------------
     Types

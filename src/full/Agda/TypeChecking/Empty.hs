@@ -14,8 +14,8 @@ import Agda.TypeChecking.Constraints
 import Agda.TypeChecking.Reduce
 import Agda.TypeChecking.Substitute
 
-import Agda.Utils.Permutation
-import Agda.Utils.Size
+-- import Agda.Utils.Permutation
+-- import Agda.Utils.Size
 
 {- UNUSED
 -- | Make sure that a type is empty.

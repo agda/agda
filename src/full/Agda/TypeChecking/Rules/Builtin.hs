@@ -4,7 +4,7 @@ module Agda.TypeChecking.Rules.Builtin (bindBuiltin, bindPostulatedName) where
 import Control.Applicative
 import Control.Monad
 import Control.Monad.Error
-import Data.Maybe
+-- import Data.Maybe
 import Data.List (find)
 
 import qualified Agda.Syntax.Abstract as A
@@ -19,7 +19,7 @@ import Agda.TypeChecking.Substitute
 import Agda.TypeChecking.Primitive
 import Agda.TypeChecking.Constraints
 import Agda.TypeChecking.Reduce
-import Agda.TypeChecking.Pretty
+-- import Agda.TypeChecking.Pretty
 import Agda.TypeChecking.Irrelevance
 import Agda.TypeChecking.SizedTypes ( builtinSizeHook )
 import Agda.TypeChecking.Rules.Term ( checkExpr , inferExpr )

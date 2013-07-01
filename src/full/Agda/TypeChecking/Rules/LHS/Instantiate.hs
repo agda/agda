@@ -9,7 +9,7 @@ import qualified Agda.Syntax.Abstract as A
 import Agda.TypeChecking.Monad
 import Agda.TypeChecking.Substitute hiding (Substitution)
 import qualified Agda.TypeChecking.Substitute as S (Substitution)
-import Agda.TypeChecking.Free
+-- import Agda.TypeChecking.Free
 import Agda.TypeChecking.Pretty
 import Agda.TypeChecking.Reduce
 import Agda.TypeChecking.Telescope

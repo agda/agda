@@ -29,7 +29,7 @@ module Agda.Syntax.Parser.Monad
     where
 
 import Control.Exception
-import Data.Char
+-- import Data.Char
 import Data.Int
 import Data.Typeable
 
@@ -41,7 +41,7 @@ import Agda.Syntax.Position
 
 import Agda.Utils.FileName
 import qualified Agda.Utils.IO.UTF8 as UTF8
-import Agda.Utils.Monad
+-- import Agda.Utils.Monad
 
 {--------------------------------------------------------------------------
     The parse monad

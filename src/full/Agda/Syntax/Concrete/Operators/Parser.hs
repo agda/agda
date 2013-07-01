@@ -4,11 +4,11 @@ module Agda.Syntax.Concrete.Operators.Parser where
 
 import Agda.Syntax.Position
 import Agda.Syntax.Common hiding (Arg, Dom, NamedArg)
-import qualified Agda.Syntax.Common as Common
+-- import qualified Agda.Syntax.Common as Common
 import Agda.Syntax.Fixity
 import Agda.Syntax.Notation
 import Agda.Syntax.Concrete
-import Agda.Syntax.Concrete.Name
+-- import Agda.Syntax.Concrete.Name
 import Agda.Utils.ReadP
 import Agda.Utils.Monad
 

@@ -7,7 +7,7 @@ module Agda.Compiler.HaskellTypes where
 
 import Control.Applicative
 import Control.Monad.Error
-import Data.Char
+-- import Data.Char
 
 import Agda.Syntax.Common
 import Agda.Syntax.Internal
@@ -18,7 +18,7 @@ import Agda.TypeChecking.Reduce
 -- import Agda.TypeChecking.Rules.Builtin.Coinduction
 import Agda.TypeChecking.Substitute
 import Agda.TypeChecking.Free
-import Agda.Utils.Monad
+-- import Agda.Utils.Monad
 import Agda.Utils.Impossible
 
 #include "../undefined.h"

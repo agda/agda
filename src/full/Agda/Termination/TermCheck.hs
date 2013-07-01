@@ -18,12 +18,12 @@ import Control.Monad.Error
 import Control.Monad.State
 
 import Data.List as List
-import qualified Data.Map as Map
-import Data.Map (Map)
-import qualified Data.Maybe as Maybe
+-- import qualified Data.Map as Map
+-- import Data.Map (Map)
+-- import qualified Data.Maybe as Maybe
 import Data.Monoid
 import qualified Data.Set as Set
-import Data.Set (Set)
+-- import Data.Set (Set)
 
 import qualified Agda.Syntax.Abstract as A
 -- import Agda.Syntax.Abstract.Pretty (prettyA)
@@ -32,7 +32,7 @@ import qualified Agda.Syntax.Info as Info
 import Agda.Syntax.Position
 import Agda.Syntax.Common
 import Agda.Syntax.Literal (Literal(LitString))
-import Agda.Syntax.Translation.InternalToAbstract
+-- import Agda.Syntax.Translation.InternalToAbstract
 
 import Agda.Termination.CallGraph   as Term
 import qualified Agda.Termination.SparseMatrix as Term
@@ -42,25 +42,25 @@ import Agda.Termination.RecCheck
 import Agda.TypeChecking.Monad
 import Agda.TypeChecking.Pretty
 import Agda.TypeChecking.Reduce (reduce, normalise, instantiate, instantiateFull)
-import Agda.TypeChecking.Records (isRecordConstructor, isRecord, isInductiveRecord)
-import Agda.TypeChecking.Rules.Builtin.Coinduction
-import Agda.TypeChecking.Rules.Term (isType_)
-import Agda.TypeChecking.Substitute (abstract,raise)
+import Agda.TypeChecking.Records (isRecordConstructor, isInductiveRecord)
+-- import Agda.TypeChecking.Rules.Builtin.Coinduction
+-- import Agda.TypeChecking.Rules.Term (isType_)
+-- import Agda.TypeChecking.Substitute (abstract,raise)
 import Agda.TypeChecking.Telescope
 import Agda.TypeChecking.EtaContract
 import Agda.TypeChecking.Monad.Builtin
-import Agda.TypeChecking.Monad.Signature (isProjection, mutuallyRecursive)
+-- import Agda.TypeChecking.Monad.Signature (isProjection, mutuallyRecursive)
 import Agda.TypeChecking.Primitive (constructorForm)
 import Agda.TypeChecking.Level (reallyUnLevelView)
 import Agda.TypeChecking.Substitute
 import Agda.TypeChecking.SizedTypes
 
-import qualified Agda.Interaction.Highlighting.Range as R
+-- import qualified Agda.Interaction.Highlighting.Range as R
 import Agda.Interaction.Options
 
 import Agda.Utils.List
 import Agda.Utils.Size
-import Agda.Utils.Monad ((<$>), mapM', forM', ifM, or2M, and2M)
+import Agda.Utils.Monad (mapM', forM', ifM, or2M, and2M)
 -- import Agda.Utils.NubList
 import Agda.Utils.Pointed
 import Agda.Utils.Permutation

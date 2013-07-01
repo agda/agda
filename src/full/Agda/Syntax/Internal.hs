@@ -27,7 +27,7 @@ import Agda.Syntax.Literal
 import Agda.Syntax.Abstract.Name
 
 import Agda.Utils.Geniplate
-import Agda.Utils.Monad
+-- import Agda.Utils.Monad
 import Agda.Utils.Size
 import Agda.Utils.Permutation
 import Agda.Utils.Pointer

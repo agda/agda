@@ -13,21 +13,21 @@ import Control.Monad.State
 import Control.Monad.Error
 
 import qualified Agda.Syntax.Internal as I
-import qualified Agda.Syntax.Literal as I
+-- import qualified Agda.Syntax.Literal as I
 import qualified Agda.Syntax.Common as C
 import qualified Agda.Syntax.Abstract.Name as AN
 import qualified Agda.Syntax.Abstract as A
 import qualified Agda.Syntax.Position as SP
 import qualified Agda.TypeChecking.Monad.Base as MB
 import Agda.TypeChecking.Monad.Signature (getConstInfo, getDefFreeVars, getImportedSignature)
-import Agda.Utils.Permutation (Permutation(Perm), idP, permute, takeP)
-import Agda.Interaction.BasicOps (rewrite, Rewrite(..))
+import Agda.Utils.Permutation (Permutation(Perm), permute, takeP)
+-- import Agda.Interaction.BasicOps (rewrite, Rewrite(..))
 import Agda.TypeChecking.Level (reallyUnLevelView)
 import Agda.TypeChecking.Monad.Base (mvJudgement, mvPermutation, getMetaInfo, ctxEntry, envContext, clEnv)
 import Agda.TypeChecking.Monad.MetaVars (lookupMeta, withMetaInfo)
 import Agda.TypeChecking.Monad.Context (getContextArgs)
 import Agda.TypeChecking.Monad.Constraints (getAllConstraints)
-import Agda.TypeChecking.Substitute (piApply, raise)
+import Agda.TypeChecking.Substitute (piApply)
 import qualified Agda.TypeChecking.Substitute as I (absBody)
 import Agda.TypeChecking.Reduce (Normalise, normalise, instantiate)
 import Agda.TypeChecking.EtaContract (etaContract)

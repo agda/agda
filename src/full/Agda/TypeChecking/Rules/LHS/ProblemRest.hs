@@ -2,23 +2,23 @@
 
 module Agda.TypeChecking.Rules.LHS.ProblemRest where
 
-import Control.Applicative
+-- import Control.Applicative
 
-import Data.Monoid
+-- import Data.Monoid
 
 import Agda.Syntax.Common
-import Agda.Syntax.Position
-import Agda.Syntax.Info
+-- import Agda.Syntax.Position
+-- import Agda.Syntax.Info
 import Agda.Syntax.Internal as I
 import qualified Agda.Syntax.Abstract as A
 
 import Agda.TypeChecking.Monad
 import Agda.TypeChecking.Pretty
-import Agda.TypeChecking.Reduce
+-- import Agda.TypeChecking.Reduce
 import Agda.TypeChecking.Telescope
-import Agda.TypeChecking.Implicit
+-- import Agda.TypeChecking.Implicit
 import Agda.TypeChecking.Substitute
-import Agda.TypeChecking.Pretty
+-- import Agda.TypeChecking.Pretty
 
 import Agda.TypeChecking.Rules.LHS.Problem
 import Agda.TypeChecking.Rules.LHS.Implicit

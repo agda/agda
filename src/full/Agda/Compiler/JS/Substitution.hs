@@ -1,17 +1,16 @@
 module Agda.Compiler.JS.Substitution where
 
 import Prelude hiding ( map, lookup )
-import Data.Typeable ( Typeable )
-import Data.Map ( Map, empty, toList, unionWith, singleton, findWithDefault )
+-- import Data.Typeable ( Typeable )
+import Data.Map ( empty, unionWith, singleton, findWithDefault )
 import qualified Data.Map as M ( map )
-import Data.Map ( Map )
 import Data.List ( genericIndex )
 import qualified Data.List as L ( map )
 
 import Agda.Syntax.Common ( Nat )
 import Agda.Compiler.JS.Syntax
   ( Exp(Self,Undefined,Local,Lambda,Object,Apply,Lookup,If,BinOp,PreOp),
-    MemberId, LocalId(LocalId), GlobalId(GlobalId) )
+    MemberId, LocalId(LocalId) )
 import Agda.Utils.Function ( iterate' )
 
 -- Map for expressions

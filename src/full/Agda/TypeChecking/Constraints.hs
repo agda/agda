@@ -1,38 +1,38 @@
 {-# LANGUAGE CPP #-}
 module Agda.TypeChecking.Constraints where
 
-import System.IO
+-- import System.IO
 
 import Control.Monad.State
 import Control.Monad.Reader
 import Control.Monad.Error
 import Control.Applicative
-import Data.Map as Map
+-- import Data.Map as Map
 import Data.List as List
-import Data.Set as Set
+-- import Data.Set as Set
 
-import Agda.Syntax.Common
-import Agda.Syntax.Position
+-- import Agda.Syntax.Common
+-- import Agda.Syntax.Position
 import Agda.Syntax.Internal
-import qualified Agda.Syntax.Abstract as A
-import Agda.Syntax.Scope.Base
+-- import qualified Agda.Syntax.Abstract as A
+-- import Agda.Syntax.Scope.Base
 import Agda.TypeChecking.Monad
 import Agda.TypeChecking.Errors
 import Agda.TypeChecking.InstanceArguments
-import Agda.TypeChecking.Irrelevance (unusableRelevance)
+-- import Agda.TypeChecking.Irrelevance (unusableRelevance)
 import Agda.TypeChecking.Pretty
 import Agda.TypeChecking.Reduce
 import Agda.TypeChecking.Substitute
 import Agda.TypeChecking.LevelConstraints
 -- import Agda.TypeChecking.SizedTypes (solveSizeConstraints)
-import Agda.TypeChecking.MetaVars.Mention
+-- import Agda.TypeChecking.MetaVars.Mention
 
-import {-# SOURCE #-} Agda.TypeChecking.Rules.Term (checkExpr, checkArguments)
+import {-# SOURCE #-} Agda.TypeChecking.Rules.Term (checkExpr)
 import {-# SOURCE #-} Agda.TypeChecking.Conversion
 import {-# SOURCE #-} Agda.TypeChecking.MetaVars
 import {-# SOURCE #-} Agda.TypeChecking.Empty
 import {-# SOURCE #-} Agda.TypeChecking.UniversePolymorphism
-import Agda.TypeChecking.Free
+-- import Agda.TypeChecking.Free
 
 import Agda.Utils.Fresh
 import Agda.Utils.Monad

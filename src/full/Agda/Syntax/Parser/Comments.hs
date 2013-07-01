@@ -1,4 +1,4 @@
-{-# LANGUAGE CPP #-}
+-- {-# LANGUAGE CPP #-}
 
 {-| This module defines the lex action to lex nested comments. As is well-known
     this cannot be done by regular expressions (which, incidently, is probably
@@ -21,8 +21,8 @@ import Agda.Syntax.Position
 
 import Agda.Utils.Monad
 
-#include "../../undefined.h"
-import Agda.Utils.Impossible
+-- #include "../../undefined.h"
+-- import Agda.Utils.Impossible
 
 -- | Should comment tokens be output?
 

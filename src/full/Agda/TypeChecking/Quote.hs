@@ -1,4 +1,5 @@
-{-# LANGUAGE CPP, FlexibleInstances, TypeSynonymInstances #-}
+-- {-# LANGUAGE CPP #-}
+{-# LANGUAGE FlexibleInstances, TypeSynonymInstances #-}
 
 module Agda.TypeChecking.Quote where
 
@@ -16,8 +17,8 @@ import Agda.TypeChecking.Reduce
 import Agda.TypeChecking.Pretty
 import Agda.TypeChecking.Substitute
 
-#include "../undefined.h"
-import Agda.Utils.Impossible
+-- #include "../undefined.h"
+-- import Agda.Utils.Impossible
 
 quotingKit :: TCM ((Term -> Term), (Type -> Term))
 quotingKit = do

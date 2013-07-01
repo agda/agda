@@ -1,4 +1,4 @@
-{-# LANGUAGE CPP #-}
+-- {-# LANGUAGE CPP #-}
 
 module Agda.TypeChecking.Monad.Context where
 
@@ -11,7 +11,7 @@ import Agda.Syntax.Abstract.Name
 import Agda.Syntax.Common hiding (Arg, Dom, NamedArg, ArgInfo)
 import qualified Agda.Syntax.Common as Common
 import Agda.Syntax.Internal
-import Agda.Syntax.Scope.Base
+-- import Agda.Syntax.Scope.Base
 import Agda.TypeChecking.Monad.Base
 import Agda.TypeChecking.Substitute
 import Agda.TypeChecking.Monad.Open
@@ -19,8 +19,8 @@ import Agda.TypeChecking.Monad.Open
 import Agda.Utils.Monad
 import Agda.Utils.Fresh
 
-#include "../../undefined.h"
-import Agda.Utils.Impossible
+-- #include "../../undefined.h"
+-- import Agda.Utils.Impossible
 
 -- * Modifying the context
 

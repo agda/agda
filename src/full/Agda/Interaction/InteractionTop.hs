@@ -9,17 +9,17 @@ module Agda.Interaction.InteractionTop
   where
 
 import System.Directory
-import qualified System.IO as IO
+-- import qualified System.IO as IO
 import Data.Maybe
 import Data.Function
 import Control.Applicative hiding (empty)
 import qualified Control.Exception as E
 
 import Agda.Utils.Pretty
-import Agda.Utils.String
+-- import Agda.Utils.String
 import Agda.Utils.FileName
 import Agda.Utils.Tuple
-import qualified Agda.Utils.IO.UTF8 as UTF8
+-- import qualified Agda.Utils.IO.UTF8 as UTF8
 
 import Control.Monad.Identity
 import Control.Monad.Error
@@ -45,14 +45,14 @@ import Agda.Syntax.Abstract.Pretty
 import Agda.Syntax.Translation.ConcreteToAbstract
 import Agda.Syntax.Translation.AbstractToConcrete hiding (withScope)
 
-import Agda.Interaction.Exceptions
+-- import Agda.Interaction.Exceptions
 import Agda.Interaction.FindFile
 import Agda.Interaction.Options
 import Agda.Interaction.MakeCase
 import Agda.Interaction.Response
 import qualified Agda.Interaction.BasicOps as B
-import Agda.Interaction.Highlighting.Emacs
-import Agda.Interaction.Highlighting.Generate
+-- import Agda.Interaction.Highlighting.Emacs
+-- import Agda.Interaction.Highlighting.Generate
 import Agda.Interaction.Highlighting.Precise hiding (Postulate)
 import qualified Agda.Interaction.Imports as Imp
 

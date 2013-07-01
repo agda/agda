@@ -3,7 +3,7 @@
 module Agda.Syntax.Internal.Pattern where
 
 import Agda.Syntax.Common hiding (Arg, Dom, NamedArg)
-import qualified Agda.Syntax.Common as Common
+-- import qualified Agda.Syntax.Common as Common
 import Agda.Syntax.Internal
 import Agda.Utils.Tuple
 

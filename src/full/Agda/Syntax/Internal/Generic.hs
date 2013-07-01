@@ -1,4 +1,5 @@
-{-# LANGUAGE CPP, FlexibleInstances, TypeSynonymInstances #-}
+-- {-# LANGUAGE CPP #-}
+{-# LANGUAGE FlexibleInstances, TypeSynonymInstances #-}
 
 module Agda.Syntax.Internal.Generic where
 
@@ -6,11 +7,11 @@ import Control.Applicative
 import Data.Traversable
 import Data.Monoid
 import Data.Foldable
-import Agda.Syntax.Common hiding (Arg, Dom, NamedArg)
+-- import Agda.Syntax.Common hiding (Arg, Dom, NamedArg)
 import Agda.Syntax.Internal
 
-#include "../../undefined.h"
-import Agda.Utils.Impossible
+-- #include "../../undefined.h"
+-- import Agda.Utils.Impossible
 
 class TermLike a where
   traverseTerm  :: (Term -> Term) -> a -> a

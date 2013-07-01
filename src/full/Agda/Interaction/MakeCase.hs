@@ -5,23 +5,23 @@ module Agda.Interaction.MakeCase where
 import Prelude hiding (mapM, mapM_)
 import Control.Applicative
 import Control.Monad hiding (mapM, mapM_)
-import Control.Monad.State hiding (mapM, mapM_)
+-- import Control.Monad.State hiding (mapM, mapM_)
 import Data.Maybe
-import qualified Data.Map as Map
+-- import qualified Data.Map as Map
 import Data.Traversable
-import Data.List
+-- import Data.List
 
 import Agda.Syntax.Common
 import Agda.Syntax.Position
 import qualified Agda.Syntax.Abstract as A
 import qualified Agda.Syntax.Info as A
-import Agda.Syntax.Abstract.Views
+-- import Agda.Syntax.Abstract.Views
 import Agda.Syntax.Internal
 import Agda.Syntax.Translation.InternalToAbstract
-import Agda.Syntax.Scope.Base (emptyScopeInfo)
+-- import Agda.Syntax.Scope.Base (emptyScopeInfo)
 
 import Agda.TypeChecking.Monad
-import qualified Agda.TypeChecking.Monad.Context as Context
+-- import qualified Agda.TypeChecking.Monad.Context as Context
 import Agda.TypeChecking.Coverage
 import Agda.TypeChecking.Pretty
 import Agda.TypeChecking.Reduce
@@ -32,8 +32,8 @@ import Agda.TypeChecker
 import Agda.Interaction.BasicOps
 
 import Agda.Utils.Monad
-import Agda.Utils.Size
-import Agda.Utils.Permutation
+-- import Agda.Utils.Size
+-- import Agda.Utils.Permutation
 import qualified Agda.Utils.HashMap as HMap
 
 #include "../undefined.h"

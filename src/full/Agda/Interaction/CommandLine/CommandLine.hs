@@ -5,9 +5,9 @@ module Agda.Interaction.CommandLine.CommandLine where
 import Control.Monad.Error
 import Control.Monad.Reader
 import Control.Applicative
-import Data.Char
-import Data.Set as Set
-import Data.Map as Map
+-- import Data.Char
+-- import Data.Set as Set
+-- import Data.Map as Map
 import Data.List as List
 import Data.Maybe
 
@@ -16,28 +16,28 @@ import Agda.Interaction.Monad
 
 import qualified Agda.Syntax.Abstract as A
 import Agda.Syntax.Common
-import Agda.Syntax.Internal
+-- import Agda.Syntax.Internal
 import Agda.Syntax.Parser
 import Agda.Syntax.Position
 import Agda.Syntax.Scope.Base
-import Agda.Syntax.Scope.Monad
+-- import Agda.Syntax.Scope.Monad
 import Agda.Syntax.Translation.ConcreteToAbstract
-import Agda.Syntax.Translation.InternalToAbstract
+-- import Agda.Syntax.Translation.InternalToAbstract
 import Agda.Syntax.Abstract.Pretty
 
 import Text.PrettyPrint
 
 import Agda.TypeChecker
-import Agda.TypeChecking.Conversion
+-- import Agda.TypeChecking.Conversion
 import Agda.TypeChecking.Constraints
 import Agda.TypeChecking.Monad
-import Agda.TypeChecking.MetaVars
+-- import Agda.TypeChecking.MetaVars
 import Agda.TypeChecking.Reduce
 import Agda.TypeChecking.Errors
 import Agda.TypeChecking.Substitute
 
 import Agda.Utils.Monad
-import Agda.Utils.Fresh
+-- import Agda.Utils.Fresh
 
 #include "../../undefined.h"
 import Agda.Utils.Impossible

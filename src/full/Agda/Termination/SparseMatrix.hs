@@ -41,12 +41,12 @@ module Agda.Termination.SparseMatrix
 import Data.Array
 import qualified Data.List as List
 import Data.Maybe
-import Data.Monoid
+-- import Data.Monoid
 
 import Agda.Utils.Pretty hiding (isEmpty)
 import Agda.Utils.QuickCheck
 import Agda.Utils.TestHelpers
-import Agda.Termination.Semiring (HasZero(..), SemiRing, Semiring)
+import Agda.Termination.Semiring (HasZero(..), Semiring)
 import qualified Agda.Termination.Semiring as Semiring
 
 #include "../undefined.h"

@@ -25,7 +25,7 @@ import Agda.Utils.Fresh
 import Agda.Utils.Size
 import Agda.Utils.Suffix
 
-import Agda.Syntax.Notation
+-- import Agda.Syntax.Notation
 
 #include "../../undefined.h"
 import Agda.Utils.Impossible

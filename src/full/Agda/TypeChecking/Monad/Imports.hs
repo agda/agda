@@ -4,11 +4,11 @@ module Agda.TypeChecking.Monad.Imports where
 import Control.Monad.State
 import Control.Monad.Reader
 
-import Data.Maybe
-import Data.Map (Map)
+-- import Data.Maybe
+-- import Data.Map (Map)
 import Data.Set (Set)
 import qualified Data.Map as Map
-import qualified Data.List as List
+-- import qualified Data.List as List
 import qualified Data.Set as Set
 
 import Agda.Syntax.Abstract.Name

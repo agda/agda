@@ -7,7 +7,7 @@ module Agda.TypeChecking.Errors
     , warningsToError
     ) where
 
-import Control.Applicative ( (<$>) )
+-- import Control.Applicative ( (<$>) )
 import Control.Monad.State
 import Control.Monad.Error
 
@@ -15,7 +15,7 @@ import Data.Function
 import Data.List (nub, sortBy)
 import qualified Data.Map as Map (empty)
 
-import System.FilePath
+-- import System.FilePath
 
 import Agda.Syntax.Common hiding (Arg, Dom, NamedArg)
 import qualified Agda.Syntax.Common as Common
@@ -27,10 +27,10 @@ import qualified Agda.Syntax.Concrete.Definitions as D
 import Agda.Syntax.Abstract as A
 import Agda.Syntax.Internal as I
 import qualified Agda.Syntax.Abstract.Pretty as P
-import qualified Agda.Syntax.Concrete.Pretty as P
+-- import qualified Agda.Syntax.Concrete.Pretty as P
 import Agda.Syntax.Translation.InternalToAbstract
 import Agda.Syntax.Translation.AbstractToConcrete
-import Agda.Syntax.Scope.Base (ScopeInfo(..))
+-- import Agda.Syntax.Scope.Base (ScopeInfo(..))
 import Agda.Syntax.Scope.Monad (isDatatypeModule)
 import Agda.TypeChecking.Monad.Base
 import Agda.TypeChecking.Monad.Closure
@@ -41,7 +41,7 @@ import Agda.TypeChecking.Pretty
 import Agda.Utils.FileName
 import Agda.Utils.Monad
 import qualified Agda.Utils.Pretty as P
-import Agda.Utils.Size
+-- import Agda.Utils.Size
 
 #include "../undefined.h"
 import Agda.Utils.Impossible

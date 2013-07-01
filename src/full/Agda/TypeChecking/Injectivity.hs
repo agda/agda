@@ -4,7 +4,7 @@ module Agda.TypeChecking.Injectivity where
 
 import Prelude hiding (mapM)
 import Control.Applicative
-import Control.Monad hiding (mapM)
+-- import Control.Monad hiding (mapM)
 import Control.Monad.Error hiding (mapM)
 import Control.Monad.State hiding (mapM)
 import Control.Monad.Reader hiding (mapM)
@@ -12,7 +12,7 @@ import Data.Map (Map)
 import qualified Data.Map as Map
 import qualified Data.Set as Set
 import Data.Maybe
-import Data.List
+-- import Data.List
 import Data.Traversable
 
 import Agda.Syntax.Common
@@ -27,7 +27,7 @@ import Agda.TypeChecking.Pretty
 import Agda.TypeChecking.Constraints
 import Agda.TypeChecking.Polarity
 import Agda.Utils.List
-import Agda.Utils.Monad
+-- import Agda.Utils.Monad
 import Agda.Utils.Permutation
 
 #include "../undefined.h"

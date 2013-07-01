@@ -22,10 +22,10 @@ import qualified Data.Map as Map
 import Test.QuickCheck
 import Agda.Utils.TestHelpers
 import Agda.Syntax.Common
-import Agda.Utils.QuickCheck
+-- import Agda.Utils.QuickCheck
 import Agda.Utils.SemiRing
 
-import Debug.Trace
+-- import Debug.Trace
 
 type Matrix a = Array (Int,Int) a
 

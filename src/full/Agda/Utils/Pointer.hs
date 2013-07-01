@@ -13,7 +13,7 @@ import Data.Hashable
 import Data.IORef
 import Data.Traversable
 import System.IO.Unsafe
-import Data.HashTable.IO
+-- import Data.HashTable.IO
 import Data.Typeable
 
 data Ptr a = Ptr { ptrTag :: !Integer

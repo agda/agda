@@ -46,7 +46,7 @@ import Agda.Utils.Permutation
 import Agda.Utils.Size
 import Agda.Utils.Tuple
 import Agda.Utils.List
-import Agda.Utils.Maybe
+-- import Agda.Utils.Maybe
 import Agda.Utils.Monad
 
 #include "../undefined.h"

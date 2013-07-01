@@ -2,14 +2,14 @@
 module Agda.Compiler.Epic.Forcing where
 
 import Control.Applicative
-import Control.Arrow (first, second)
+-- import Control.Arrow (first, second)
 import Control.Monad
 import Control.Monad.State
-import Control.Monad.Trans
+-- import Control.Monad.Trans
 
 import Data.Char
 import Data.List hiding (sort)
-import qualified Data.Map as M
+-- import qualified Data.Map as M
 import Data.Maybe
 
 import Agda.Syntax.Common
@@ -20,16 +20,16 @@ import Agda.Syntax.Internal(Tele(..), Telescope, Term, Abs(..), unAbs, absName, 
 import Agda.TypeChecking.Monad
 import Agda.TypeChecking.Rules.LHS.Problem (FlexibleVars, defaultFlexibleVar)
 import Agda.TypeChecking.Rules.LHS.Unify
-import Agda.TypeChecking.Rules.LHS.Instantiate
+-- import Agda.TypeChecking.Rules.LHS.Instantiate
 import Agda.TypeChecking.Substitute
-  (raiseFrom, raise, applySubst, apply, wkS, raiseS, dropS, (++#), TelV(..))
+  (applySubst, apply, wkS, raiseS, dropS, (++#), TelV(..))
 import qualified Agda.TypeChecking.Substitute as S
 import Agda.TypeChecking.Pretty as P
 import Agda.TypeChecking.Reduce
 import Agda.TypeChecking.Telescope
-import Agda.Utils.List
+-- import Agda.Utils.List
 import Agda.Utils.Monad
-import Agda.Utils.Permutation
+-- import Agda.Utils.Permutation
 import Agda.Utils.Size
 import qualified Agda.Utils.HashMap as HM
 

@@ -11,10 +11,10 @@ import Agda.Syntax.Common hiding (Arg, Dom, NamedArg, ArgInfo)
 import Agda.Syntax.Internal
 import Agda.TypeChecking.Monad
 import Agda.TypeChecking.Substitute
-import Agda.TypeChecking.Reduce
+-- import Agda.TypeChecking.Reduce
 import Agda.TypeChecking.Level
-import Agda.Syntax.Scope.Base
-import Agda.Utils.Size
+-- import Agda.Syntax.Scope.Base
+-- import Agda.Utils.Size
 
 #include "../undefined.h"
 import Agda.Utils.Impossible

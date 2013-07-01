@@ -9,17 +9,17 @@ import Control.Monad
 
 import Agda.Syntax.Common
 import Agda.Syntax.Internal as I
-import qualified Agda.Syntax.Abstract as A (Arg,NamedArg)
+import qualified Agda.Syntax.Abstract as A (NamedArg)
 
 import Agda.TypeChecking.Irrelevance
 import {-# SOURCE #-} Agda.TypeChecking.MetaVars
 import Agda.TypeChecking.Monad
 import Agda.TypeChecking.Reduce
 import Agda.TypeChecking.Substitute
-import Agda.TypeChecking.Telescope
+-- import Agda.TypeChecking.Telescope
 import {-# SOURCE #-} Agda.TypeChecking.InstanceArguments
 
-import Agda.Utils.Size
+-- import Agda.Utils.Size
 import Agda.Utils.Tuple
 
 #include "../undefined.h"

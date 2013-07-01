@@ -7,9 +7,9 @@ import Agda.Utils.Impossible
 
 import Control.Monad.Error
 import Control.Monad.State
-import System.IO.Unsafe (unsafePerformIO)
+-- import System.IO.Unsafe (unsafePerformIO)
 import Data.List
-import Data.Map (Map)
+-- import Data.Map (Map)
 import qualified Data.Map as Map
 import Data.IORef
 import qualified System.Timeout
@@ -20,19 +20,19 @@ import Agda.TypeChecking.Monad.Base
 import Agda.TypeChecking.Monad.MetaVars
 import Agda.TypeChecking.Monad.Context
 import Agda.TypeChecking.Monad.Signature
-import Agda.TypeChecking.Monad.State (getScope)
+-- import Agda.TypeChecking.Monad.State (getScope)
 import Agda.TypeChecking.Substitute
 import qualified Agda.Syntax.Abstract as A
 import Agda.Syntax.Abstract.Pretty (prettyA)
 import qualified Text.PrettyPrint as PP
-import qualified Agda.Syntax.Concrete as C
+-- import qualified Agda.Syntax.Concrete as C
 import Agda.Syntax.Position
 import qualified Agda.Syntax.Internal as I
-import Agda.Syntax.Common
+-- import Agda.Syntax.Common
 import Agda.Syntax.Translation.InternalToAbstract
 import Agda.Syntax.Translation.AbstractToConcrete (abstractToConcreteEnv, abstractToConcrete_, makeEnv, runAbsToCon, toConcrete)
 import Agda.Interaction.BasicOps hiding (refine)
-import Agda.Interaction.MakeCase (findClause)
+-- import Agda.Interaction.MakeCase (findClause)
 import Agda.TypeChecking.Reduce (normalise)
 import qualified Agda.Syntax.Scope.Base
 import Agda.Syntax.Scope.Monad (withCurrentModule)

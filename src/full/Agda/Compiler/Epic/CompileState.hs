@@ -26,7 +26,7 @@ import Agda.TypeChecking.Reduce
 
 #include "../../undefined.h"
 import Agda.Utils.Impossible
-import Agda.Utils.Monad
+-- import Agda.Utils.Monad
 import qualified Agda.Utils.HashMap as HM
 
 

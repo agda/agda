@@ -4,8 +4,8 @@ module Agda.Utils.QuickCheck
   , module Agda.Utils.QuickCheck
   ) where
 
-import Control.Monad
-import Control.Applicative
+-- import Control.Monad
+-- import Control.Applicative
 import Test.QuickCheck
 
 isSuccess :: Result -> Bool

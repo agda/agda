@@ -25,13 +25,13 @@ module Agda.Syntax.Translation.AbstractToConcrete
 
 import Control.Applicative
 import Control.Monad.Reader
-import Data.Char
+-- import Data.Char
 import qualified Data.Map as Map
-import Data.Map (Map)
+-- import Data.Map (Map)
 import qualified Data.Set as Set
 import Data.Set (Set)
 import Data.List as List
-import qualified Data.Traversable as Trav
+-- import qualified Data.Traversable as Trav
 
 import Agda.Syntax.Common hiding (Arg, Dom, NamedArg)
 import qualified Agda.Syntax.Common as Common
@@ -40,7 +40,7 @@ import Agda.Syntax.Info
 import Agda.Syntax.Internal (MetaId(..))
 import Agda.Syntax.Fixity
 import Agda.Syntax.Concrete as C
-import Agda.Syntax.Concrete.Pretty
+-- import Agda.Syntax.Concrete.Pretty
 import Agda.Syntax.Abstract as A
 import Agda.Syntax.Abstract.Views as AV
 import Agda.Syntax.Scope.Base
@@ -49,10 +49,10 @@ import Agda.TypeChecking.Monad.State (getScope)
 import Agda.TypeChecking.Monad.Base  (TCM, NamedMeta(..))
 import Agda.TypeChecking.Monad.Options
 
-import Agda.Utils.Maybe
+-- import Agda.Utils.Maybe
 import Agda.Utils.Monad hiding (bracket)
 import Agda.Utils.Tuple
-import Agda.Utils.Suffix
+-- import Agda.Utils.Suffix
 
 #include "../../undefined.h"
 import Agda.Utils.Impossible

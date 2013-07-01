@@ -2,13 +2,13 @@
 module Agda.Compiler.Epic.CaseOpts where
 
 import Control.Applicative
-import Control.Monad
+-- import Control.Monad
 
 import Agda.TypeChecking.Monad
 
 import Agda.Compiler.Epic.AuxAST
 import Agda.Compiler.Epic.CompileState
-import Agda.Compiler.Epic.Interface
+-- import Agda.Compiler.Epic.Interface
 
 caseOpts :: [Fun] -> Compile TCM [Fun]
 caseOpts = mapM  $ \ def -> case def of

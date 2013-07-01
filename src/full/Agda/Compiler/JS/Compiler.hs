@@ -4,14 +4,14 @@ module Agda.Compiler.JS.Compiler where
 
 import Prelude hiding ( null, writeFile )
 import Control.Monad.Reader ( liftIO )
-import Control.Monad.State ( get, put )
-import Data.List ( intercalate, map, filter, isPrefixOf, concat, genericDrop, genericLength, partition )
-import Data.Set ( Set, empty, null, insert, difference, delete )
-import Data.Map ( Map, fold, singleton, fromList, toList, toAscList, insertWith, elems )
+-- import Control.Monad.State ( get, put )
+import Data.List ( intercalate, genericLength, partition )
+import Data.Set ( Set, null, insert, difference, delete )
+import Data.Map ( fromList, elems )
 import qualified Data.Set as Set
 import qualified Data.Map as Map
 import System.Directory ( createDirectoryIfMissing )
-import System.FilePath ( pathSeparator, splitFileName, (</>) )
+import System.FilePath ( splitFileName, (</>) )
 
 import Agda.Interaction.FindFile ( findFile, findInterfaceFile )
 import Agda.Interaction.Imports ( isNewerThan )
@@ -19,11 +19,11 @@ import Agda.Interaction.Options ( optCompileDir )
 import Agda.Syntax.Common ( Nat, Arg, unArg )
 import Agda.Syntax.Concrete.Name ( projectRoot )
 import Agda.Syntax.Abstract.Name
-  ( ModuleName(MName), QName(QName),
+  ( ModuleName(MName), QName,
     mnameToList, qnameName, qnameModule, isInModule, nameId )
 import Agda.Syntax.Internal
   ( Name, Args, Type,
-    Clause(Clause), Pattern(VarP,DotP,LitP,ConP), Abs(Abs),
+    Clause, Pattern(VarP,DotP,LitP,ConP), Abs,
     ClauseBody(Body,NoBody,Bind),
     Term(Var,Lam,Lit,Level,Def,Con,Pi,Sort,MetaV,DontCare,Shared),
     conName,
@@ -33,16 +33,16 @@ import Agda.TypeChecking.Substitute ( absBody )
 import Agda.Syntax.Literal ( Literal(LitInt,LitFloat,LitString,LitChar,LitQName) )
 import Agda.TypeChecking.Level ( reallyUnLevelView )
 import Agda.TypeChecking.Monad
-  ( TCM, Definition(Defn), Definitions, Interface,
+  ( TCM, Definition(Defn), Interface,
     JSCode, Defn(Record,Datatype,Constructor,Primitive,Function,Axiom),
     Projection(Projection), projProper, projFromType, projIndex,
-    iModuleName, iImportedModules, theDef, getConstInfo, typeOfConst,
+    iModuleName, iImportedModules, theDef, getConstInfo,
     ignoreAbstractMode, miInterface, getVisitedModules,
     defName, defType, funClauses, funProjection, projectionArgs,
-    dataPars, dataIxs, dataClause, dataCons,
-    conPars, conData, conSrcCon,
-    recClause, recConHead, recFields, recPars, recNamedCon,
-    primClauses, defJSDef )
+    dataPars, dataCons,
+    conPars, conData,
+    recConHead, recFields, recNamedCon,
+    defJSDef )
 import Agda.TypeChecking.Monad.Options ( setCommandLineOptions, commandLineOptions, reportSLn )
 import Agda.TypeChecking.Reduce ( instantiateFull, normalise )
 import Agda.Utils.FileName ( filePath )
@@ -59,7 +59,7 @@ import Agda.Compiler.JS.Syntax
     LocalId(LocalId), GlobalId(GlobalId), MemberId(MemberId), Export(Export), Module(Module),
     modName, expName, uses )
 import Agda.Compiler.JS.Substitution
-  ( curriedLambda, curriedApply, fix, emp, object, subst, apply )
+  ( curriedLambda, curriedApply, emp, subst, apply )
 import Agda.Compiler.JS.Case ( Tag(Tag), Case(Case), Patt(VarPatt,Tagged), lambda )
 import Agda.Compiler.JS.Pretty ( pretty )
 

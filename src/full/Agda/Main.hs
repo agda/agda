@@ -9,27 +9,27 @@ import Control.Monad.State
 import Control.Monad.Error
 import Control.Applicative
 
-import Data.List
-import Data.Map (Map)
-import qualified Data.Map as Map
+-- import Data.List
+-- import Data.Map (Map)
+-- import qualified Data.Map as Map
 import Data.Maybe
 
 import System.Environment
 import System.Exit
-import System.FilePath
+-- import System.FilePath
 
-import Agda.Syntax.Position
-import Agda.Syntax.Parser
+-- import Agda.Syntax.Position
+-- import Agda.Syntax.Parser
 import Agda.Syntax.Concrete.Pretty ()
-import qualified Agda.Syntax.Abstract as A
-import Agda.Syntax.Abstract.Pretty
-import Agda.Syntax.Translation.ConcreteToAbstract
-import Agda.Syntax.Translation.AbstractToConcrete
-import Agda.Syntax.Translation.InternalToAbstract
-import Agda.Syntax.Abstract.Name
-import Agda.Syntax.Scope.Base
+-- import qualified Agda.Syntax.Abstract as A
+-- import Agda.Syntax.Abstract.Pretty
+-- import Agda.Syntax.Translation.ConcreteToAbstract
+-- import Agda.Syntax.Translation.AbstractToConcrete
+-- import Agda.Syntax.Translation.InternalToAbstract
+-- import Agda.Syntax.Abstract.Name
+-- import Agda.Syntax.Scope.Base
 
-import Agda.Interaction.Exceptions
+-- import Agda.Interaction.Exceptions
 import Agda.Interaction.CommandLine.CommandLine
 import Agda.Interaction.Options
 import Agda.Interaction.Monad
@@ -39,28 +39,28 @@ import qualified Agda.Interaction.Highlighting.Dot as Dot
 import qualified Agda.Interaction.Highlighting.LaTeX as LaTeX
 import Agda.Interaction.Highlighting.HTML
 
-import Agda.TypeChecker
+-- import Agda.TypeChecker
 import Agda.TypeChecking.Monad
-import Agda.TypeChecking.Reduce
+-- import Agda.TypeChecking.Reduce
 import Agda.TypeChecking.Errors
-import qualified Agda.TypeChecking.Serialise
-import Agda.TypeChecking.Serialise
-import Agda.TypeChecking.SizedTypes
+-- import qualified Agda.TypeChecking.Serialise
+-- import Agda.TypeChecking.Serialise
+-- import Agda.TypeChecking.SizedTypes
 
 import Agda.Compiler.MAlonzo.Compiler as MAlonzo
 import Agda.Compiler.Epic.Compiler as Epic
 import Agda.Compiler.JS.Compiler as JS
 
-import Agda.Termination.TermCheck
+-- import Agda.Termination.TermCheck
 
 import Agda.Utils.Monad
-import Agda.Utils.FileName
-import Agda.Utils.Pretty
+-- import Agda.Utils.FileName
+-- import Agda.Utils.Pretty
 
 import Agda.Tests
 import Agda.Version
 
-import qualified System.IO as IO
+-- import qualified System.IO as IO
 
 #include "undefined.h"
 import Agda.Utils.Impossible

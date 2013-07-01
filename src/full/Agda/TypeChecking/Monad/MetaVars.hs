@@ -7,27 +7,27 @@ import Control.Monad.Reader
 import qualified Data.Map as Map
 import qualified Data.Set as Set
 
-import Agda.Syntax.Common
+-- import Agda.Syntax.Common
 import Agda.Syntax.Internal
 import Agda.Syntax.Position
 import Agda.Syntax.Scope.Base
 
 import Agda.TypeChecking.Monad.Base
-import Agda.TypeChecking.Monad.Env
-import Agda.TypeChecking.Monad.Signature
-import Agda.TypeChecking.Monad.State
+-- import Agda.TypeChecking.Monad.Env
+-- import Agda.TypeChecking.Monad.Signature
+-- import Agda.TypeChecking.Monad.State
 import Agda.TypeChecking.Monad.Trace
 import Agda.TypeChecking.Monad.Closure
-import Agda.TypeChecking.Monad.Open
+-- import Agda.TypeChecking.Monad.Open
 import Agda.TypeChecking.Monad.Options (reportSLn)
-import Agda.TypeChecking.Monad.Sharing
-import Agda.TypeChecking.Substitute
+-- import Agda.TypeChecking.Monad.Sharing
+-- import Agda.TypeChecking.Substitute
 -- import Agda.TypeChecking.Pretty -- LEADS TO import cycle
 
-import Agda.Utils.Monad
+-- import Agda.Utils.Monad
 import Agda.Utils.Fresh
 import Agda.Utils.Permutation
-import Agda.Utils.Pointer
+-- import Agda.Utils.Pointer
 
 #include "../../undefined.h"
 import Agda.Utils.Impossible

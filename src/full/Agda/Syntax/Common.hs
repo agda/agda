@@ -6,14 +6,14 @@
 module Agda.Syntax.Common where
 
 import Data.Typeable (Typeable)
-import Control.Applicative
+-- import Control.Applicative
 import Data.Foldable
 import Data.Traversable
 import Data.Hashable
 import Test.QuickCheck
 
 import Agda.Syntax.Position
-import Agda.Utils.Monad
+-- import Agda.Utils.Monad
 import Agda.Utils.Size
 
 #include "../undefined.h"

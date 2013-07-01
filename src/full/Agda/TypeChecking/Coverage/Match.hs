@@ -5,15 +5,15 @@ module Agda.TypeChecking.Coverage.Match where
 import Control.Applicative
 import Control.Monad.State
 
-import Data.Map (Map)
-import qualified Data.Map as Map
+-- import Data.Map (Map)
+-- import qualified Data.Map as Map
 import Data.Monoid
 import Data.Traversable (traverse)
-import Data.Function
+-- import Data.Function
 
 import Agda.Syntax.Common hiding (Arg, Dom, NamedArg)
 import Agda.Syntax.Internal
-import Agda.Syntax.Internal.Pattern
+-- import Agda.Syntax.Internal.Pattern
 import Agda.Syntax.Literal
 
 import Agda.Utils.Permutation

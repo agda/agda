@@ -2,7 +2,7 @@
 
 module Agda.TypeChecking.Rules.LHS.Implicit where
 
-import Data.Maybe
+-- import Data.Maybe
 import Control.Applicative
 import Control.Monad (forM)
 
@@ -22,7 +22,7 @@ import Agda.TypeChecking.Reduce
 
 import Agda.TypeChecking.Rules.LHS.Problem
 
-import Agda.Utils.Monad
+-- import Agda.Utils.Monad
 
 #include "../../../undefined.h"
 import Agda.Utils.Impossible

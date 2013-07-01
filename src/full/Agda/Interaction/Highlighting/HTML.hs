@@ -23,17 +23,17 @@ import qualified Data.List as List
 
 import Paths_Agda
 
-import Agda.Interaction.FindFile
-import Agda.Interaction.Highlighting.Generate
+-- import Agda.Interaction.FindFile
+-- import Agda.Interaction.Highlighting.Generate
 import Agda.Interaction.Highlighting.Precise
-import Agda.Interaction.Highlighting.Range
+-- import Agda.Interaction.Highlighting.Range
 import Agda.TypeChecking.Monad (TCM)
 import qualified Agda.TypeChecking.Monad as TCM
 import qualified Agda.Syntax.Abstract as A
 import qualified Agda.Syntax.Concrete as C
 import Agda.Syntax.Common
-import qualified Agda.Syntax.Scope.Monad as Scope
-import Agda.Syntax.Translation.ConcreteToAbstract
+-- import qualified Agda.Syntax.Scope.Monad as Scope
+-- import Agda.Syntax.Translation.ConcreteToAbstract
 import Agda.Interaction.Options
 import Agda.Utils.FileName (filePath)
 import qualified Agda.Utils.IO.UTF8 as UTF8

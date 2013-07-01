@@ -11,7 +11,7 @@ import Agda.Utils.Impossible ( Impossible(Impossible), throwImpossible )
 
 import Agda.Compiler.JS.Pretty ( Pretty, pretty, pretties )
 import Agda.Compiler.JS.Syntax
-  ( Exp(Undefined,Local,Lambda,Object,Apply,Lookup),
+  ( Exp(Undefined,Local,Lambda,Object,Apply),
     LocalId(LocalId), MemberId )
 import Agda.Compiler.JS.Substitution ( shiftFrom )
 

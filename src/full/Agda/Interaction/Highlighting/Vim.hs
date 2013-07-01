@@ -1,17 +1,17 @@
-{-# LANGUAGE CPP #-}
+-- {-# LANGUAGE CPP #-}
 
 module Agda.Interaction.Highlighting.Vim where
 
 import Control.Monad.Trans
-import Data.Char
+-- import Data.Char
 import Data.Function ( on )
-import Data.Set ( Set )
-import Data.Map ( Map )
+-- import Data.Set ( Set )
+-- import Data.Map ( Map )
 import System.FilePath
 
 import qualified Data.List as List
 import qualified Data.Map as Map
-import qualified Data.Set as Set
+-- import qualified Data.Set as Set
 
 import Agda.Syntax.Scope.Base
 import Agda.Syntax.Concrete.Name as CName
@@ -21,8 +21,8 @@ import Agda.TypeChecking.Monad
 import qualified Agda.Utils.IO.UTF8 as UTF8
 import Agda.Utils.Tuple
 
-#include "../../undefined.h"
-import Agda.Utils.Impossible
+-- #include "../../undefined.h"
+-- import Agda.Utils.Impossible
 
 -- defined in Data.Function
 -- on f g x y = f (g x) (g y)

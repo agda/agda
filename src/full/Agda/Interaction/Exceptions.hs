@@ -5,8 +5,8 @@ module Agda.Interaction.Exceptions where
 
 import Prelude
 import Control.Exception as E
-import Control.Monad.Trans
-import System.Exit
+-- import Control.Monad.Trans
+-- import System.Exit
 
 import Agda.Syntax.Position
 import Agda.Syntax.Parser ( ParseError(..) )

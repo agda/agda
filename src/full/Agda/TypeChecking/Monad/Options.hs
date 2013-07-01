@@ -9,20 +9,20 @@ import Data.Maybe
 import Text.PrettyPrint
 import System.Directory
 import System.FilePath
-import System.IO
+-- import System.IO
 
 import Agda.Syntax.Concrete
 import {-# SOURCE #-} Agda.TypeChecking.Errors
 import Agda.TypeChecking.Monad.Base
 import Agda.TypeChecking.Monad.State
-import Agda.Interaction.EmacsCommand as Emacs
+-- import Agda.Interaction.EmacsCommand as Emacs
 import Agda.Interaction.FindFile
 import Agda.Interaction.Options
 import Agda.Interaction.Response
 import Agda.Utils.FileName
 import Agda.Utils.Monad
 import Agda.Utils.List
-import Agda.Utils.String
+-- import Agda.Utils.String
 import Agda.Utils.Trie (Trie)
 import qualified Agda.Utils.Trie as Trie
 

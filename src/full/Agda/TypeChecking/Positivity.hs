@@ -28,7 +28,7 @@ import Agda.TypeChecking.Substitute
 import Agda.TypeChecking.Telescope
 
 import Agda.Utils.Impossible
-import Agda.Utils.Permutation
+-- import Agda.Utils.Permutation
 import Agda.Utils.Size
 import Agda.Utils.List
 import Agda.Utils.Monad

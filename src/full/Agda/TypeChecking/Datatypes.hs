@@ -3,13 +3,13 @@
 module Agda.TypeChecking.Datatypes where
 
 import Control.Applicative ((<$>))
-import Data.List
+-- import Data.List
 
 import Agda.Syntax.Common
 import Agda.Syntax.Internal as I
 import Agda.TypeChecking.Monad
 import Agda.TypeChecking.Primitive (constructorForm)
-import Agda.TypeChecking.Reduce
+-- import Agda.TypeChecking.Reduce
 import Agda.TypeChecking.Telescope
 import Agda.TypeChecking.Substitute
 

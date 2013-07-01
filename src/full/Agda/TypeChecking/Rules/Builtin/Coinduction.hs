@@ -2,7 +2,7 @@
 -- | Handling of the INFINITY, SHARP and FLAT builtins.
 ------------------------------------------------------------------------
 
-{-# LANGUAGE CPP #-}
+-- {-# LANGUAGE CPP #-}
 
 module Agda.TypeChecking.Rules.Builtin.Coinduction where
 
@@ -13,7 +13,7 @@ import qualified Data.Map as Map
 import qualified Agda.Syntax.Abstract as A
 import Agda.Syntax.Common
 import Agda.Syntax.Internal
-import Agda.Syntax.Literal
+-- import Agda.Syntax.Literal
 import Agda.Syntax.Position
 
 import Agda.TypeChecking.CompiledClause
@@ -25,10 +25,10 @@ import Agda.TypeChecking.Reduce
 import Agda.TypeChecking.Rules.Builtin
 import Agda.TypeChecking.Rules.Term
 
-import Agda.Utils.Impossible
+-- import Agda.Utils.Impossible
 import Agda.Utils.Permutation
 
-#include "../../../undefined.h"
+-- #include "../../../undefined.h"
 
 -- | The type of @∞@.
 

@@ -5,13 +5,13 @@ import Control.Arrow ((&&&))
 import Control.Applicative
 import Control.Monad.State
 import Control.Monad.Reader
-import Data.Map as Map
+-- import Data.Map as Map
 import Data.List as List
 
 import Agda.TypeChecking.Monad.Base
-import Agda.TypeChecking.Monad.Signature
-import Agda.TypeChecking.Monad.Env
-import Agda.TypeChecking.Monad.State
+-- import Agda.TypeChecking.Monad.Signature
+-- import Agda.TypeChecking.Monad.Env
+-- import Agda.TypeChecking.Monad.State
 import Agda.TypeChecking.Monad.Closure
 import Agda.TypeChecking.Monad.Options
 import Agda.Utils.Monad

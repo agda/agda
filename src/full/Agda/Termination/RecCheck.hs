@@ -19,7 +19,7 @@ import Data.Graph
 
 import Data.List (nub)
 import qualified Data.Map as Map
-import Data.Map (Map)
+-- import Data.Map (Map)
 
 import Agda.Syntax.Internal
 import Agda.Syntax.Internal.Defs

@@ -4,7 +4,7 @@
 
 module Agda.TypeChecking.Rules.LHS.Unify where
 
-import Control.Arrow ((***), (&&&))
+import Control.Arrow ((***))
 import Control.Applicative hiding (empty)
 import Control.Monad.State
 import Control.Monad.Reader

@@ -45,8 +45,8 @@ module Agda.Syntax.Concrete
     where
 
 import Data.Typeable (Typeable)
-import Data.Foldable hiding (concatMap)
-import Data.Traversable
+-- import Data.Foldable hiding (concatMap)
+-- import Data.Traversable
 import Agda.Syntax.Position
 import Agda.Syntax.Common hiding (Arg, Dom, NamedArg, ArgInfo)
 import qualified Agda.Syntax.Common as Common

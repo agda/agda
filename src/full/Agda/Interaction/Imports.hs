@@ -6,7 +6,7 @@ module Agda.Interaction.Imports where
 
 import Prelude
 
-import Control.Arrow
+-- import Control.Arrow
 import Control.Monad.Error
 import Control.Monad.Reader
 import Control.Monad.State
@@ -17,42 +17,42 @@ import qualified Data.Map as Map
 import qualified Data.List as List
 import qualified Data.Set as Set
 import qualified Data.Foldable as Fold (toList)
-import qualified Data.ByteString.Lazy as BS
+-- import qualified Data.ByteString.Lazy as BS
 import Data.List
 import Data.Maybe
 import Data.Monoid (mempty, mappend)
 import Data.Map (Map)
 import Data.Set (Set)
 import System.Directory (doesFileExist, getModificationTime, removeFile)
-import System.FilePath hiding (splitPath)
+-- import System.FilePath hiding (splitPath)
 
-import Agda.Syntax.Position
+-- import Agda.Syntax.Position
 import qualified Agda.Syntax.Abstract as A
 import qualified Agda.Syntax.Concrete as C
 import Agda.Syntax.Abstract.Name
 import Agda.Syntax.Parser
 import Agda.Syntax.Scope.Base
-import Agda.Syntax.Scope.Monad
+-- import Agda.Syntax.Scope.Monad
 import Agda.Syntax.Translation.ConcreteToAbstract
 import Agda.Syntax.Internal
 
-import Agda.Termination.TermCheck
+-- import Agda.Termination.TermCheck
 
 import Agda.TypeChecking.Errors
 import Agda.TypeChecking.Reduce
 import Agda.TypeChecking.Monad
-import Agda.TypeChecking.Monad.Builtin
+-- import Agda.TypeChecking.Monad.Builtin
 import Agda.TypeChecking.Serialise
 import Agda.TypeChecking.Primitive
 import Agda.TypeChecker
 
-import Agda.Interaction.EmacsCommand
+-- import Agda.Interaction.EmacsCommand
 import Agda.Interaction.FindFile
 import Agda.Interaction.Options
 import Agda.Interaction.Highlighting.Precise (HighlightingInfo)
 import Agda.Interaction.Highlighting.Generate
 import Agda.Interaction.Highlighting.Vim
-import qualified Agda.Interaction.Highlighting.Range as R
+-- import qualified Agda.Interaction.Highlighting.Range as R
 
 import Agda.Utils.FileName
 import Agda.Utils.Monad

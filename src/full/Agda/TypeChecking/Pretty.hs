@@ -16,7 +16,7 @@ import qualified Agda.Syntax.Abstract.Pretty as P
 import qualified Agda.Syntax.Concrete.Pretty as P
 
 import Agda.TypeChecking.Monad
-import Agda.TypeChecking.Eliminators
+-- import Agda.TypeChecking.Eliminators
 
 import qualified Agda.Utils.Pretty as P
 import Agda.Utils.Impossible

@@ -1,4 +1,4 @@
-{-# LANGUAGE CPP #-}
+-- {-# LANGUAGE CPP #-}
 
 {-| This module contains the building blocks used to construct the lexer.
 -}
@@ -28,14 +28,14 @@ import Agda.Syntax.Parser.Monad
 import Agda.Syntax.Parser.Tokens
 import Agda.Syntax.Position
 import Agda.Syntax.Literal
-import Agda.Syntax.Concrete.Name
+-- import Agda.Syntax.Concrete.Name
 
 import Agda.Utils.List
 import Agda.Utils.Tuple
 import Agda.Utils.Unicode
 
-#include "../../undefined.h"
-import Agda.Utils.Impossible
+-- #include "../../undefined.h"
+-- import Agda.Utils.Impossible
 
 {--------------------------------------------------------------------------
     Scan functions

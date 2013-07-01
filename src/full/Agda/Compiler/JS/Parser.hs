@@ -7,21 +7,20 @@ module Agda.Compiler.JS.Parser where
 -- will generate ECMAScript "1 + 2" from Agda "1 + 2".
 
 import Prelude hiding ( exp, lookup )
-import Control.Monad.Identity ( Identity )
+-- import Control.Monad.Identity ( Identity )
 import Data.List ( genericLength )
-import Data.Char ( isSpace, isLetter, isAlphaNum, isDigit )
+import Data.Char ( isLetter, isAlphaNum, isDigit )
 import Data.Map ( Map, fromList, union, empty )
-import qualified Data.Map as M
 import qualified Data.Map as M
 
 import Agda.Utils.ReadP
-  ( ReadP, (+++), (<++), between, chainl1, char, choice, look, many, many1,
+  ( ReadP, (+++), (<++), between, char, choice, look, many,
     munch, munch1, parse', pfail, satisfy, sepBy, string, skipSpaces )
 
 import Agda.Syntax.Common ( Nat )
 import Agda.Compiler.JS.Syntax
   ( LocalId(LocalId), GlobalId(GlobalId), MemberId(MemberId),
-    Exp(Self,Local,Global,Undefined,String,Integer,Lambda,Apply,Object,Lookup,If,BinOp,PreOp,Const) )
+    Exp(Local,Global,Undefined,String,Integer,Lambda,Apply,Object,Lookup,If,BinOp,PreOp,Const) )
 
 type Parser = ReadP Char
 

@@ -16,7 +16,7 @@ module Agda.TypeChecking.Coverage.SplitTree where
 import Data.Tree
 import Test.QuickCheck
 
-import Agda.Syntax.Common
+-- import Agda.Syntax.Common
 import Agda.Syntax.Abstract.Name
 
 import Agda.Utils.Monad

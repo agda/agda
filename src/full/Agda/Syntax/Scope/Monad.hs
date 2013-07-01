@@ -18,7 +18,7 @@ import qualified Data.Map as Map
 import Agda.Syntax.Common
 import Agda.Syntax.Position
 import Agda.Syntax.Fixity
-import Agda.Syntax.Notation
+-- import Agda.Syntax.Notation
 import Agda.Syntax.Abstract.Name as A
 import Agda.Syntax.Concrete as C
 import Agda.Syntax.Scope.Base

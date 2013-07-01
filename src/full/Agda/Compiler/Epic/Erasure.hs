@@ -24,7 +24,7 @@ import Agda.Compiler.Epic.Interface
 import Agda.TypeChecking.Monad.Base (TCM)
 import qualified Agda.Syntax.Internal as SI
 import qualified Agda.Syntax.Common   as SC
-import Agda.TypeChecking.Monad (MonadTCM, reportSDoc)
+import Agda.TypeChecking.Monad (reportSDoc)
 import Agda.TypeChecking.Pretty as P
 
 #include "../../undefined.h"

@@ -10,14 +10,14 @@ module Agda.Interaction.Highlighting.LaTeX
 import Data.Char
 import Data.Maybe
 import Data.Function
-import Data.List
+-- import Data.List
 import Control.Monad.RWS
 import Control.Monad.Error
-import Control.Monad.Trans
+-- import Control.Monad.Trans
 import System.Directory
 import System.FilePath
-import System.Process
-import System.Exit
+-- import System.Process
+-- import System.Exit
 import Data.Text (Text)
 import qualified Data.Text          as T
 import qualified Data.Text.Encoding as E

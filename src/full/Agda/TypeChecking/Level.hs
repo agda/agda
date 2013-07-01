@@ -5,9 +5,9 @@ import Control.Monad.Error
 import Control.Applicative
 import Data.List as List
 
-import Agda.Syntax.Position
+-- import Agda.Syntax.Position
 import Agda.Syntax.Common
-import Agda.Syntax.Literal
+-- import Agda.Syntax.Literal
 import Agda.Syntax.Internal
 import Agda.TypeChecking.Monad
 import Agda.TypeChecking.Substitute

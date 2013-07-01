@@ -1,7 +1,7 @@
 {-# LANGUAGE CPP #-}
 module Agda.TypeChecking.CompiledClause.Compile where
 
-import Control.Applicative
+-- import Control.Applicative
 import Data.Monoid
 import qualified Data.Map as Map
 import Data.List (genericReplicate, nubBy, findIndex)

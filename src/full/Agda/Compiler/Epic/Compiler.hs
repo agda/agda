@@ -12,7 +12,7 @@ import Data.Set(Set)
 import qualified Data.Set as S
 import Data.Maybe
 import Data.Monoid
-import qualified Language.Haskell.Exts.Syntax as Haskell
+-- import qualified Language.Haskell.Exts.Syntax as Haskell
 import System.Directory ( canonicalizePath, createDirectoryIfMissing
                         , getCurrentDirectory, setCurrentDirectory
                         )
@@ -22,8 +22,8 @@ import System.Process hiding (env)
 
 import Paths_Agda
 import Agda.Compiler.CallCompiler
-import Agda.Compiler.MAlonzo.Pretty -- TODO: Move shared code to Compiler.*
-import Agda.Compiler.MAlonzo.Primitives (checkTypeOfMain)
+-- import Agda.Compiler.MAlonzo.Pretty -- TODO: Move shared code to Compiler.*
+-- import Agda.Compiler.MAlonzo.Primitives (checkTypeOfMain)
 import Agda.Interaction.FindFile
 import Agda.Interaction.Options
 import Agda.Interaction.Imports
@@ -36,7 +36,7 @@ import Agda.TypeChecking.Serialise
 import Agda.Utils.FileName
 import qualified Agda.Utils.HashMap as HMap
 
-import qualified Agda.TypeChecking.Pretty as P
+-- import qualified Agda.TypeChecking.Pretty as P
 
 import Agda.Compiler.Epic.CompileState
 import qualified Agda.Compiler.Epic.CaseOpts     as COpts

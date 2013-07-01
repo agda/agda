@@ -1,4 +1,5 @@
-{-# LANGUAGE CPP, FlexibleInstances, TypeSynonymInstances #-}
+-- {-# LANGUAGE CPP #-}
+{-# LANGUAGE FlexibleInstances, TypeSynonymInstances #-}
 
 -- | Functions for abstracting terms over other terms.
 module Agda.TypeChecking.Abstract where
@@ -9,8 +10,8 @@ import Agda.Syntax.Internal
 import Agda.TypeChecking.Substitute
 import Data.Function
 
-#include "../undefined.h"
-import Agda.Utils.Impossible
+-- #include "../undefined.h"
+-- import Agda.Utils.Impossible
 
 piAbstractTerm :: Term -> Type -> Type -> Type
 piAbstractTerm v a b = fun a (abstractTerm v b)

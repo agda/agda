@@ -4,10 +4,10 @@ module Agda.TypeChecking.Rules.Data where
 
 import Control.Applicative
 import Control.Monad
-import Control.Monad.Trans
+-- import Control.Monad.Trans
 
 import Data.List (genericTake)
-import Data.Set (Set)
+-- import Data.Set (Set)
 import qualified Data.Set as Set
 
 import qualified Agda.Syntax.Abstract as A
@@ -22,9 +22,9 @@ import Agda.TypeChecking.Conversion
 import Agda.TypeChecking.Substitute
 import Agda.TypeChecking.MetaVars
 import Agda.TypeChecking.Reduce
-import Agda.TypeChecking.Constraints
+-- import Agda.TypeChecking.Constraints
 import Agda.TypeChecking.Pretty
-import Agda.TypeChecking.Polarity
+-- import Agda.TypeChecking.Polarity
 import Agda.TypeChecking.Free
 import Agda.TypeChecking.Forcing
 import Agda.TypeChecking.Irrelevance
@@ -32,7 +32,7 @@ import Agda.TypeChecking.Telescope
 
 import {-# SOURCE #-} Agda.TypeChecking.Rules.Term ( isType_ )
 
-import Agda.Interaction.Options
+-- import Agda.Interaction.Options
 
 import Agda.Utils.List
 import Agda.Utils.Monad

@@ -1,10 +1,10 @@
-{-# LANGUAGE CPP #-}
+-- {-# LANGUAGE CPP #-}
 
 module Agda.TypeChecking.Monad.Mutual where
 
 import Control.Monad.Reader
 import Control.Monad.State
-import Data.Map (Map)
+-- import Data.Map (Map)
 import qualified Data.Map as Map
 import Data.Set (Set)
 import qualified Data.Set as Set
@@ -13,9 +13,9 @@ import qualified Agda.Utils.HashMap as HMap
 import Agda.Syntax.Internal
 import Agda.TypeChecking.Monad.Base
 import Agda.Utils.Fresh
-import Agda.Utils.Impossible
+-- import Agda.Utils.Impossible
 
-#include "../../undefined.h"
+-- #include "../../undefined.h"
 
 noMutualBlock :: TCM a -> TCM a
 noMutualBlock = local $ \e -> e { envMutualBlock = Nothing }

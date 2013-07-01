@@ -1,4 +1,4 @@
-{-# LANGUAGE CPP #-}
+-- {-# LANGUAGE CPP #-}
 
 module Agda.TypeChecking.Monad.Open
 	( makeOpen
@@ -12,15 +12,15 @@ import Control.Monad
 import Control.Monad.Error
 import Data.List
 
-import Agda.Syntax.Common
+-- import Agda.Syntax.Common
 
 import Agda.TypeChecking.Substitute
 import Agda.TypeChecking.Monad.Base
 
 import {-# SOURCE #-} Agda.TypeChecking.Monad.Context
 
-#include "../../undefined.h"
-import Agda.Utils.Impossible
+-- #include "../../undefined.h"
+-- import Agda.Utils.Impossible
 
 -- | Create an open term in the current context.
 makeOpen :: a -> TCM (Open a)

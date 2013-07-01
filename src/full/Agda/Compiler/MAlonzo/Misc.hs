@@ -6,23 +6,23 @@ import Control.Monad.State
 import Data.List as L
 import Data.Map as M
 import Data.Set as S
-import Data.Maybe
+-- import Data.Maybe
 import Data.Function
 import qualified Language.Haskell.Exts.Syntax as HS
-import System.IO
+-- import System.IO
 
-import Agda.Interaction.Imports
+-- import Agda.Interaction.Imports
 import Agda.Syntax.Common
-import qualified Agda.Syntax.Concrete.Name as C
+-- import qualified Agda.Syntax.Concrete.Name as C
 import Agda.Syntax.Internal
-import Agda.Syntax.Position
-import Agda.Syntax.Scope.Base
-import Agda.Syntax.Translation.ConcreteToAbstract
+-- import Agda.Syntax.Position
+-- import Agda.Syntax.Scope.Base
+-- import Agda.Syntax.Translation.ConcreteToAbstract
 import Agda.TypeChecking.Monad
 import Agda.TypeChecking.Monad.Builtin
-import Agda.Utils.FileName
+-- import Agda.Utils.FileName
 import Agda.Utils.Monad
-import Agda.Utils.Pretty
+-- import Agda.Utils.Pretty
 
 import Agda.Utils.Impossible
 #include "../../undefined.h"

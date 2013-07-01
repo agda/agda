@@ -3,7 +3,7 @@
 module Agda.TypeChecking.Eliminators where
 
 import Control.Applicative
-import Control.Monad
+-- import Control.Monad
 
 import Agda.Syntax.Common
 import Agda.Syntax.Internal

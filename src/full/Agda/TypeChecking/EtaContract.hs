@@ -10,7 +10,7 @@ import Agda.Syntax.Internal.Generic
 import Agda.TypeChecking.Substitute
 import Agda.TypeChecking.Free
 import Agda.TypeChecking.Monad
-import {-# SOURCE #-} Agda.TypeChecking.Pretty
+-- import {-# SOURCE #-} Agda.TypeChecking.Pretty
 import {-# SOURCE #-} Agda.TypeChecking.Records
 import {-# SOURCE #-} Agda.TypeChecking.Datatypes
 import Agda.Utils.Monad

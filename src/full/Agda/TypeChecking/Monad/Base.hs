@@ -6,7 +6,7 @@
   #-}
 module Agda.TypeChecking.Monad.Base where
 
-import Control.Arrow
+-- import Control.Arrow
 import qualified Control.Concurrent as C
 import Control.DeepSeq
 import Control.Exception as E
@@ -14,7 +14,7 @@ import Control.Monad.Error
 import Control.Monad.State
 import Control.Monad.Reader
 import Control.Applicative
-import Data.Function
+-- import Data.Function
 import Data.Int
 import Data.Map as Map
 import Data.Set as Set
@@ -23,7 +23,7 @@ import Data.Typeable (Typeable)
 import Data.Foldable
 import Data.Traversable
 import Data.IORef
-import Data.Hashable
+-- import Data.Hashable
 
 import Agda.Syntax.Common hiding (Arg, Dom, NamedArg, ArgInfo)
 import qualified Agda.Syntax.Common as Common
@@ -40,7 +40,7 @@ import Agda.TypeChecking.CompiledClause
 import Agda.Interaction.Exceptions
 import {-# SOURCE #-} Agda.Interaction.FindFile
 import Agda.Interaction.Options
-import qualified Agda.Interaction.Highlighting.Range as R
+-- import qualified Agda.Interaction.Highlighting.Range as R
 import {-# SOURCE #-} Agda.Interaction.Response
   (InteractionOutputCallback, defaultInteractionOutputCallback, Response)
 import Agda.Interaction.Highlighting.Precise
@@ -51,7 +51,7 @@ import qualified Agda.Compiler.JS.Syntax as JS
 
 import Agda.Utils.FileName
 import Agda.Utils.Fresh
-import Agda.Utils.Monad
+-- import Agda.Utils.Monad
 import Agda.Utils.Permutation
 import Agda.Utils.Pretty
 import Agda.Utils.Time

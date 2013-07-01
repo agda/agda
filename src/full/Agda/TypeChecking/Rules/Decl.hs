@@ -3,21 +3,21 @@
 module Agda.TypeChecking.Rules.Decl where
 
 import Control.Monad
-import Control.Monad.Error
+-- import Control.Monad.Error
 import Control.Monad.Reader
-import Control.Monad.Trans
+-- import Control.Monad.Trans
 import Control.Monad.State (modify)
 
 import qualified Data.Foldable as Fold
 import Data.Maybe
-import qualified Data.Map as Map
+-- import qualified Data.Map as Map
 import Data.Map (Map)
-import qualified Data.List as List
+-- import qualified Data.List as List
 import qualified Data.Set as Set
 import Data.Set (Set)
 import Data.Sequence ((|>))
 
-import Agda.Syntax.Abstract (AnyAbstract(..))
+-- import Agda.Syntax.Abstract (AnyAbstract(..))
 import qualified Agda.Syntax.Abstract as A
 import Agda.Syntax.Internal as I
 import qualified Agda.Syntax.Info as Info
@@ -27,7 +27,7 @@ import Agda.Syntax.Common
 import Agda.TypeChecking.Errors
 import Agda.TypeChecking.Monad
 import Agda.TypeChecking.Monad.Builtin
-import Agda.TypeChecking.Monad.Mutual
+-- import Agda.TypeChecking.Monad.Mutual
 import Agda.TypeChecking.Pretty
 import Agda.TypeChecking.Constraints
 import Agda.TypeChecking.Positivity
@@ -39,7 +39,7 @@ import Agda.TypeChecking.Substitute
 import Agda.TypeChecking.Reduce
 import Agda.TypeChecking.SizedTypes
 import Agda.TypeChecking.Telescope
-import Agda.TypeChecking.Forcing
+-- import Agda.TypeChecking.Forcing
 import Agda.TypeChecking.Injectivity
 import Agda.TypeChecking.InstanceArguments (solveIrrelevantMetas)
 

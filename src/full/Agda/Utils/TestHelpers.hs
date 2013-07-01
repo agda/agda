@@ -24,7 +24,7 @@ module Agda.Utils.TestHelpers
   where
 
 import Control.Monad
-import Data.List
+-- import Data.List
 
 import Agda.Utils.QuickCheck
 

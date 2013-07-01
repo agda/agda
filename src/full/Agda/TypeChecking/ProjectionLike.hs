@@ -3,20 +3,20 @@ module Agda.TypeChecking.ProjectionLike where
 
 import Control.Monad
 
-import Data.Map (Map)
+-- import Data.Map (Map)
 import qualified Data.Map as Map
-import Data.List
+-- import Data.List
 
 import Agda.Syntax.Abstract.Name
 import Agda.Syntax.Common
 import Agda.Syntax.Internal
-import Agda.Syntax.Position
+-- import Agda.Syntax.Position
 
 import Agda.TypeChecking.Monad
 import Agda.TypeChecking.Free (isBinderUsed)
 import Agda.TypeChecking.Substitute
 import Agda.TypeChecking.Positivity
-import Agda.TypeChecking.CompiledClause
+-- import Agda.TypeChecking.CompiledClause
 -- import Agda.TypeChecking.CompiledClause.Compile
 
 import Agda.TypeChecking.DropArgs

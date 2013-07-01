@@ -49,7 +49,7 @@ module Agda.Syntax.Position
 import Data.Typeable (Typeable)
 import Data.List
 import Data.Function
-import Data.Set (Set, (\\))
+import Data.Set (Set)
 import qualified Data.Set as Set
 import Data.Int
 import Agda.Utils.QuickCheck

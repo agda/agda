@@ -36,7 +36,7 @@ import Data.Array
 import Data.List as List
 import Agda.Utils.QuickCheck
 import Agda.Utils.TestHelpers
-import Agda.Termination.Semiring (Semiring,SemiRing)
+import Agda.Termination.Semiring (Semiring)
 import qualified Agda.Termination.Semiring as Semiring
 
 ------------------------------------------------------------------------

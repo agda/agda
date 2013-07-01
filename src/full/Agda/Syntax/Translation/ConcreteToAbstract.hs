@@ -26,7 +26,7 @@ import Prelude hiding (mapM)
 import Control.Applicative
 import Control.Monad.Reader hiding (mapM)
 import Control.Monad.Error hiding (mapM)
-import Data.Typeable
+-- import Data.Typeable
 import Data.Traversable (mapM, traverse)
 import Data.List ((\\), nub, foldl')
 import qualified Data.Map as Map
@@ -41,8 +41,8 @@ import Agda.Syntax.Common hiding (Arg, Dom, NamedArg, ArgInfo)
 import qualified Agda.Syntax.Common as Common
 import Agda.Syntax.Info
 import Agda.Syntax.Concrete.Definitions as C
-import Agda.Syntax.Concrete.Pretty
-import Agda.Syntax.Abstract.Pretty
+-- import Agda.Syntax.Concrete.Pretty
+-- import Agda.Syntax.Abstract.Pretty
 import Agda.Syntax.Fixity
 import Agda.Syntax.Notation
 import Agda.Syntax.Scope.Base
@@ -50,7 +50,7 @@ import Agda.Syntax.Scope.Monad
 
 import Agda.TypeChecking.Monad.Base (TypeError(..), Call(..), typeError, notInScope,
                                      TCErr(..), extendlambdaname)
-import Agda.TypeChecking.Monad.Trace (traceCall, traceCallCPS, setCurrentRange)
+import Agda.TypeChecking.Monad.Trace (traceCall, setCurrentRange)
 import Agda.TypeChecking.Monad.State
 import Agda.TypeChecking.Monad.Options
 
@@ -58,7 +58,7 @@ import {-# SOURCE #-} Agda.Interaction.Imports (scopeCheckImport)
 import Agda.Interaction.Options
 
 import Agda.Utils.Monad
-import Agda.Utils.Tuple
+-- import Agda.Utils.Tuple
 import Agda.Utils.List
 import Agda.Utils.Fresh
 import Agda.Utils.Pretty

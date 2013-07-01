@@ -7,11 +7,11 @@ import Control.Applicative
 import Control.Monad
 import Control.Monad.State
 import Data.Char
-import Data.Map(Map)
+-- import Data.Map(Map)
 import qualified Data.Map as M
 import Data.Maybe
 
-import Agda.Interaction.Options
+-- import Agda.Interaction.Options
 import Agda.Syntax.Common
 import Agda.Syntax.Internal hiding (Term(..))
 import qualified Agda.Syntax.Internal as T

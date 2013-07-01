@@ -6,17 +6,17 @@ module Agda.Compiler.Epic.Epic
   , prettyEpic
   ) where
 
-import Control.Monad.State
+-- import Control.Monad.State
 
 import Data.Char
 import Data.List
 
-import Data.Map (Map)
-import qualified Data.Map as M
+-- import Data.Map (Map)
+-- import qualified Data.Map as M
 
 import Agda.TypeChecking.Monad
-import Agda.TypeChecking.Pretty (prettyTCM)
-import Agda.TypeChecking.Reduce
+-- import Agda.TypeChecking.Pretty (prettyTCM)
+-- import Agda.TypeChecking.Reduce
 
 #include "../../undefined.h"
 import Agda.Utils.Impossible

@@ -10,13 +10,13 @@ import Control.Monad
 import Control.Monad.State
 import Data.Function
 import Data.List
-import qualified Data.Map as M
+-- import qualified Data.Map as M
 import Data.Maybe
 
 import Agda.Syntax.Common
 import Agda.Syntax.Internal
 import Agda.TypeChecking.Monad
-import Agda.TypeChecking.Substitute
+-- import Agda.TypeChecking.Substitute
 import Agda.Utils.Monad (andM)
 
 import Agda.Compiler.Epic.CompileState

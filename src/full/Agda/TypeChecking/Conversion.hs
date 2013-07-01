@@ -12,7 +12,7 @@ import Data.List hiding (sort)
 import qualified Data.List as List
 
 import Agda.Syntax.Abstract.Views (isSet)
-import Agda.Syntax.Literal
+-- import Agda.Syntax.Literal
 import Agda.Syntax.Common
 import Agda.Syntax.Internal
 import Agda.Syntax.Translation.InternalToAbstract (reify)
@@ -37,7 +37,7 @@ import Agda.TypeChecking.Monad.Builtin
 import Agda.TypeChecking.Level
 import Agda.TypeChecking.Implicit (implicitArgs)
 import Agda.TypeChecking.Irrelevance
-import Agda.TypeChecking.EtaContract
+-- import Agda.TypeChecking.EtaContract
 import Agda.TypeChecking.Eliminators
 -- import Agda.TypeChecking.UniversePolymorphism
 
@@ -45,7 +45,7 @@ import Agda.Utils.Size
 import Agda.Utils.Monad
 import Agda.Utils.Maybe
 
-import Agda.TypeChecking.Monad.Debug
+-- import Agda.TypeChecking.Monad.Debug
 
 #include "../undefined.h"
 import Agda.Utils.Impossible

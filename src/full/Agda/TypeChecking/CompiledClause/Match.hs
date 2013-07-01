@@ -4,7 +4,7 @@ module Agda.TypeChecking.CompiledClause.Match where
 import Control.Applicative
 import Control.Monad.Reader (asks)
 import qualified Data.Map as Map
-import Data.Traversable
+-- import Data.Traversable
 import Data.List
 
 import Agda.Syntax.Internal
@@ -15,7 +15,7 @@ import Agda.TypeChecking.Substitute
 import Agda.TypeChecking.Reduce
 import Agda.TypeChecking.Primitive
 
-import Agda.Utils.List
+-- import Agda.Utils.List
 
 import Agda.Utils.Impossible
 #include "../../undefined.h"

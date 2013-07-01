@@ -6,7 +6,7 @@ module Agda.Syntax.Parser.StringLiterals
     ( litString, litChar
     ) where
 
-import Control.Monad.State
+-- import Control.Monad.State
 import Data.Char
 
 import Agda.Syntax.Parser.Alex

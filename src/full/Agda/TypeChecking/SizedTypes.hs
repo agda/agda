@@ -2,7 +2,7 @@
 module Agda.TypeChecking.SizedTypes where
 
 import Control.Monad.Error
-import Control.Monad
+-- import Control.Monad
 
 import Data.Function
 import Data.List
@@ -30,7 +30,7 @@ import Agda.Utils.Monad
 import Agda.Utils.Impossible
 import Agda.Utils.Size
 import Agda.Utils.Tuple
-import Agda.Utils.Pretty (render)
+-- import Agda.Utils.Pretty (render)
 
 #include "../undefined.h"
 

@@ -13,7 +13,7 @@ module Agda.Termination.Termination
   , Agda.Termination.Termination.tests
   ) where
 
-import Agda.Termination.Lexicographic
+-- import Agda.Termination.Lexicographic
 import Agda.Termination.CallGraph
 import Agda.Termination.SparseMatrix
 
@@ -21,14 +21,14 @@ import Agda.Utils.Either
 import Agda.Utils.TestHelpers
 import Agda.Utils.QuickCheck
 
-import Control.Arrow
+-- import Control.Arrow
 
-import Data.Array (Array)
+-- import Data.Array (Array)
 import qualified Data.Array as Array
 import Data.Set (Set)
 import qualified Data.Set as Set
-import Data.Map (Map)
-import qualified Data.Map as Map
+-- import Data.Map (Map)
+-- import qualified Data.Map as Map
 import Data.Monoid
 
 -- | TODO: This comment seems to be partly out of date.

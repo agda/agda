@@ -8,7 +8,7 @@ module Agda.Syntax.Concrete.Name where
 import Control.Applicative
 
 import Data.List
-import Data.Maybe
+-- import Data.Maybe
 import Data.Typeable (Typeable)
 
 import System.FilePath

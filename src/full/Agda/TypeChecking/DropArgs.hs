@@ -2,7 +2,7 @@
 module Agda.TypeChecking.DropArgs where
 
 import Agda.Syntax.Internal
-import Agda.Syntax.Position
+-- import Agda.Syntax.Position
 
 import Agda.TypeChecking.Monad
 import Agda.TypeChecking.Substitute
