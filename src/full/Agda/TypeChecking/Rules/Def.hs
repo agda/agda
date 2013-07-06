@@ -102,6 +102,7 @@ checkAlias t' info delayed i name e = do
     [ text (show name) <+> colon  <+> prettyTCM t'
     , text (show name) <+> equals <+> prettyTCM e
     ]
+
 {-
   -- Infer the type of the rhs
   (v, t) <- applyRelevanceToContext (argInfoRelevance info) $
@@ -162,7 +163,7 @@ checkFunDef' t info delayed extlam i name cs =
 
         -- Ensure that all clauses have the same number of trailing hidden patterns
         -- This is necessary since trailing implicits are no longer eagerly inserted.
-        cs <- trailingImplicits t cs
+        cs <- trailingImplicits t $ map (fmap A.lhsToSpine) cs
 
         -- Check the clauses
         let check c = do
@@ -255,7 +256,7 @@ Example:
 
 such that the arity of the clauses of @test@ is uniform.
 -}
-trailingImplicits :: Type -> [A.Clause] -> TCM [A.Clause]
+trailingImplicits :: Type -> [A.SpineClause] -> TCM [A.SpineClause]
 trailingImplicits t []       = __IMPOSSIBLE__
 trailingImplicits t cs@(c:_) = do
   pps@((ps,ips):_) <- mapM splitTrailingImplicits cs
@@ -287,6 +288,14 @@ dropNonHidden n l = case dropWhile ((NotHidden /=) . getHiding) l of
 -- | @splitTrailingImplicits c@ returns the patterns of clause @c@
 --   as pair @(ps, ips)@ where @ips@ are the trailing implicit patterns
 --   and @ps@ is the rest.
+splitTrailingImplicits :: A.SpineClause -> TCM (A.Patterns, A.Patterns)
+splitTrailingImplicits (A.Clause (A.SpineLHS _ _ _ wps@(_ : _)) _ _) =
+  typeError $ UnexpectedWithPatterns wps
+splitTrailingImplicits (A.Clause (A.SpineLHS _ _ aps []) _ _) = do
+  let (ips, ps) = span isHidden $ reverse aps
+  return (reverse ps, reverse ips)
+
+{- OLD
 splitTrailingImplicits :: A.Clause -> TCM (A.Patterns, A.Patterns)
 splitTrailingImplicits (A.Clause (A.LHS _ A.LHSProj{} []) _ _) =
   typeError $ NotImplemented "type checking definitions by copatterns"
@@ -295,6 +304,7 @@ splitTrailingImplicits (A.Clause (A.LHS _ _ ps@(_ : _)) _ _) =
 splitTrailingImplicits (A.Clause (A.LHS _ (A.LHSHead _ aps) []) _ _) = do
   let (ips, ps) = span isHidden $ reverse aps
   return (reverse ps, reverse ips)
+-}
 
 {- UNUSED
 -- | Compute the difference between two list of hidden patterns.
@@ -311,6 +321,14 @@ patternDiff ps1 ps2 = drop (length ps2) ps1
 --   are there originally).  @should@ is an extension of @is@.
 --   The returned clause contains an extension of @is@ by new wildcards
 --   to match @should@.
+patchUpTrailingImplicits :: A.Patterns -> (A.Patterns, A.Patterns) -> A.SpineClause -> A.SpineClause
+patchUpTrailingImplicits should (ps, is) c | length is >= length should = c
+patchUpTrailingImplicits should (ps, is) (A.Clause (A.SpineLHS i x aps []) rhs0 wh) =
+  let imp  = hide $ defaultArg $ Named Nothing $ A.ImplicitP $ Info.patNoRange
+      imps = replicate (length should - length is) imp
+  in  A.Clause (A.SpineLHS i x (ps ++ is ++ imps) []) rhs0 wh
+patchUpTrailingImplicits _ _ _ = __IMPOSSIBLE__
+{- OLD
 patchUpTrailingImplicits :: A.Patterns -> (A.Patterns, A.Patterns) -> A.Clause -> A.Clause
 patchUpTrailingImplicits should (ps, is) c | length is >= length should = c
 patchUpTrailingImplicits should (ps, is) (A.Clause (A.LHS i (A.LHSHead x aps) []) rhs0 wh) =
@@ -318,6 +336,7 @@ patchUpTrailingImplicits should (ps, is) (A.Clause (A.LHS i (A.LHSHead x aps) []
       imps = replicate (length should - length is) imp
   in  A.Clause (A.LHS i (A.LHSHead x (ps ++ is ++ imps)) []) rhs0 wh
 patchUpTrailingImplicits _ _ _ = __IMPOSSIBLE__
+-}
 
 {- OLD
 -- | Ensure that all clauses have the same number of trailing implicits.
@@ -373,12 +392,22 @@ data WithFunctionProblem
                      [A.Clause]     -- the given clauses for the with function
 
 -- | Type check a function clause.
+{-
 checkClause :: Type -> A.Clause -> TCM Clause
 checkClause t c@(A.Clause (A.LHS i (A.LHSProj{}) []) rhs0 wh) =
   typeError $ NotImplemented "type checking definitions by copatterns"
 checkClause t c@(A.Clause (A.LHS i (A.LHSHead x aps) []) rhs0 wh) =
-    traceCall (CheckClause t c) $
-    checkLeftHandSide (CheckPatternShadowing c) aps t $ \ mgamma delta sub xs ps t' perm -> do
+-}
+checkClause :: Type -> A.SpineClause -> TCM Clause
+{-
+checkClause t c@(A.Clause lhs rhs0 wh) = do
+    let A.SpineLHS i x aps withPats = A.lhsToSpine lhs
+-}
+checkClause t c@(A.Clause (A.SpineLHS i x aps withPats) rhs0 wh) = do
+    unless (null withPats) $
+      typeError $ UnexpectedWithPatterns withPats
+    traceCall (CheckClause t c) $ do
+    checkLeftHandSide (CheckPatternShadowing c) (Just x) aps t $ \ mgamma delta sub xs ps t' perm -> do
       let mkBody v = foldr (\x t -> Bind $ Abs x t) (Body $ applySubst sub v) xs
       -- introduce trailing implicits for checking the where decls
       TelV htel t0 <- telViewUpTo' (-1) isHidden t'
@@ -572,8 +601,9 @@ checkClause t c@(A.Clause (A.LHS i (A.LHSHead x aps) []) rhs0 wh) =
                , clausePats  = ps
                , clauseBody  = body
                }
-
+{-
 checkClause t (A.Clause (A.LHS _ _ ps@(_ : _)) _ _) = typeError $ UnexpectedWithPatterns ps
+-}
 
 checkWithFunction :: WithFunctionProblem -> TCM ()
 checkWithFunction NoWithFunction = return ()
@@ -633,7 +663,7 @@ checkWithFunction (WithFunction f aux gamma delta1 delta2 vs as b qs perm' perm 
       , prettyTCM dt
       ]
   addConstant aux (Defn defaultArgInfo aux auxType [] [] [df] 0 noCompiledRep Axiom)
-  solveSizeConstraints
+  -- solveSizeConstraints -- Andreas, 2012-10-16 does not seem necessary
 
   reportSDoc "tc.with.top" 10 $ sep
     [ text "added with function" <+> (prettyTCM aux) <+> text "of type"
@@ -681,7 +711,7 @@ containsAbsurdPattern p = case p of
     A.LitP _      -> False
     A.AsP _ _ p   -> containsAbsurdPattern p
     A.ConP _ _ ps -> any (containsAbsurdPattern . namedArg) ps
-    A.DefP _ _ _  -> __IMPOSSIBLE__
+    A.DefP _ _ _  -> False  -- projection pattern
     A.PatternSynP _ _ _ -> __IMPOSSIBLE__ -- False
 
 {- UNUSED

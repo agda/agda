@@ -117,6 +117,15 @@ isRecord r = do
     Record{} -> Just def
     _        -> Nothing
 
+-- | Reduce a type and check whether it is a record type.
+--   Succeeds only if type is not blocked by a meta var.
+--   If yes, return its name, parameters, and definition.
+isRecordType :: Type -> TCM (Maybe (QName, Args, Defn))
+isRecordType t = ifBlockedType t (\ _ _ -> return Nothing) $ \ t -> do
+  case ignoreSharing $ unEl t of
+    Def r vs -> fmap (r,vs,) <$> isRecord r
+    _        -> return Nothing
+
 -- | Check if a name refers to an eta expandable record.
 isEtaRecord :: QName -> TCM Bool
 isEtaRecord r = maybe False recEtaEquality <$> isRecord r

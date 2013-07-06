@@ -1005,10 +1005,12 @@ instance EmbPrj I.Pattern where
   icode (ConP a b c) = icode3' a b c
   icode (LitP a    ) = icode1 2 a
   icode (DotP a    ) = icode1 3 a
+  icode (ProjP a   ) = icode1 4 a
   value = vcase valu where valu [a]       = valu1 VarP a
                            valu [a, b, c] = valu3 ConP a b c
                            valu [2, a]    = valu1 LitP a
                            valu [3, a]    = valu1 DotP a
+                           valu [4, a]    = valu1 ProjP a
                            valu _         = malformed
 
 instance EmbPrj a => EmbPrj (Builtin a) where

@@ -54,6 +54,29 @@ typeFromProblem :: Problem -> Type
 typeFromProblem (Problem _ _ _ (ProblemRest _ a)) = a
 
 -- | Construct an initial 'split' 'Problem' from user patterns.
+--   Example:
+--   @
+--
+--      Case : {A : Set} → Maybe A → Set → Set → Set
+--      Case nothing  B C = B
+--      Case (just _) B C = C
+--
+--      sample : {A : Set} (m : Maybe A) → Case m Bool (Maybe A → Bool)
+--      sample (just a) (just b) = true
+--      sample (just a) nothing  = false
+--      sample nothing           = true
+--   @
+--   The problem generated for the first clause of @sample@
+--   with patterns @just a, just b@ would be:
+--   @
+--      problemInPat  = ["_", "just a"]
+--      problemOutPat = [identity-permutation, ["A", "m"]]
+--      problemTel    = [A : Set, m : Maybe A]
+--      problemRest   =
+--        restPats    = ["just b"]
+--        restType    = "Case m Bool (Maybe A -> Bool)"
+--   @
+
 problemFromPats :: [A.NamedArg A.Pattern] -- ^ The user patterns.
   -> Type            -- ^ The type the user patterns eliminate.
   -> TCM Problem     -- ^ The initial problem constructed from the user patterns.

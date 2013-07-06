@@ -1,4 +1,4 @@
-{-# LANGUAGE CPP, PatternGuards, TupleSections,
+{-# LANGUAGE CPP, PatternGuards, TupleSections, DoAndIfThenElse,
              TypeSynonymInstances, FlexibleInstances #-}
 
 module Agda.TypeChecking.Reduce where
@@ -31,6 +31,7 @@ import Agda.TypeChecking.EtaContract
 import Agda.TypeChecking.CompiledClause
 import {-# SOURCE #-} Agda.TypeChecking.Pretty
 
+import {-# SOURCE #-} Agda.TypeChecking.Eliminators
 -- import {-# SOURCE #-} Agda.TypeChecking.Level
 import {-# SOURCE #-} Agda.TypeChecking.Patterns.Match
 import {-# SOURCE #-} Agda.TypeChecking.CompiledClause.Match
@@ -309,6 +310,8 @@ instance Reduce Term where
               _                -> Con c [defaultArg w]
       reduceNat v = return v
 
+-- reduceDefined :: Term
+
 -- | If the first argument is 'True', then a single delayed clause may
 -- be unfolded.
 unfoldDefinition ::
@@ -323,17 +326,56 @@ unfoldDefinition' ::
 unfoldDefinition' unfoldDelayed keepGoing v0 f args =
   {-# SCC "reduceDef" #-} do
   info <- getConstInfo f
-  case theDef info of
+  let def = theDef info
+      v   = v0 `apply` args
+  case def of
     Constructor{conSrcCon = c} ->
       retSimpl $ notBlocked $ Con (c `withRangeOf` f) args
     Primitive{primAbstr = ConcreteDef, primName = x, primClauses = cls} -> do
       pf <- getPrimitive x
       reducePrimitive x v0 f args pf (defDelayed info) (defNonterminating info)
                       cls (defCompiled info)
-    _  -> reduceNormal v0 f (map notReduced args) (defDelayed info) (defNonterminating info)
+    _  -> do
+      allowed <- asks envAllowedReductions
+      -- case f is projection:
+      if isProperProjection def then
+        if ProjectionReductions `elem` allowed then do
+          -- we cannot call elimView right away, since it calls back to reduce
+          -- get rid of projection if possible
+          (simpl, w) <- onlyReduceProjections $ do
+            reduceNormal (retSimpl <=< reduceB) v0 f (map notReduced args)
+              (defDelayed info) (defNonterminating info)
+              (defClauses info) (defCompiled info)
+          -- Now @w@ should not have any reducible projection in the head.
+          -- By not allowing reentrace (dontReduceProjections),
+          -- we can now call elimView without risk of circularity.
+          case w of
+            Blocked{} -> return (simpl, w)
+            NotBlocked w' -> do
+              ev <- dontReduceProjections $ elimView w'
+              case ev of
+                DefElim f es -> performedSimplification' simpl $ do
+                  reduceDefElim f es
+                _ -> return (simpl, w)
+        else retSimpl $ notBlocked v
+      -- case f is not a projection:
+      else if FunctionReductions `elem` allowed then
+        -- proceed as before, without calling elimView
+        reduceNormal keepGoing v0 f (map notReduced args)
+                       (defDelayed info) (defNonterminating info)
                        (defClauses info) (defCompiled info)
+        else retSimpl $ notBlocked v
   where
+
     retSimpl v = (,v) <$> asks envSimplification
+
+    reduceDefElim :: QName -> [Elim] -> TCM (Simplification, Blocked Term)
+    reduceDefElim f es = do
+      info <- getConstInfo f
+      reduceNormalE keepGoing (Def f []) f (map notReduced es)
+                       (defDelayed info) (defNonterminating info)
+                       (defClauses info) (defCompiled info)
+
     reducePrimitive x v0 f args pf delayed nonterminating cls mcc
         | n < ar    = retSimpl $ notBlocked $ v0 `apply` args -- not fully applied
         | otherwise = {-# SCC "reducePrimitive" #-} do
@@ -344,8 +386,8 @@ unfoldDefinition' unfoldDelayed keepGoing v0 f args =
                 if null cls then
                   retSimpl $ apply (Def f []) <$> traverse id (map mredToBlocked args1' ++ map notBlocked args2)
                 else
-                  reduceNormal v0 f (args1' ++
-                                     map notReduced args2)
+                  reduceNormal keepGoing v0 f
+                               (args1' ++ map notReduced args2)
                                delayed nonterminating cls mcc
               YesReduction simpl v -> performedSimplification' simpl $
                 keepGoing $ v `apply` args2
@@ -357,20 +399,30 @@ unfoldDefinition' unfoldDelayed keepGoing v0 f args =
             mredToBlocked (MaybeRed NotReduced  x) = notBlocked x
             mredToBlocked (MaybeRed (Reduced b) x) = x <$ b
 
-    reduceNormal :: Term -> QName -> [MaybeReduced (Arg Term)] -> Delayed -> Bool -> [Clause] -> Maybe CompiledClauses -> TCM (Simplification, Blocked Term)
-    reduceNormal v0 f args delayed nonterminating def mcc = {-# SCC "reduceNormal" #-} do
-        case def of
-          _ | nonterminating -> defaultResult
-          _ | Delayed <- delayed,
-              not unfoldDelayed -> defaultResult
-          [] -> defaultResult -- no definition for head
-          cls -> do
-            ev <- appDef_ f v0 cls mcc args
+    reduceNormal ::  (Term -> TCM (Simplification, Blocked Term)) -> Term -> QName -> [MaybeReduced (Arg Term)] -> Delayed -> Bool -> [Clause] -> Maybe CompiledClauses -> TCM (Simplification, Blocked Term)
+    reduceNormal keepGoing v0 f args = reduceNormalE keepGoing v0 f $ map (fmap Apply) args
+
+    reduceNormalE :: (Term -> TCM (Simplification, Blocked Term)) -> Term -> QName -> [MaybeReduced Elim] -> Delayed -> Bool -> [Clause] -> Maybe CompiledClauses -> TCM (Simplification, Blocked Term)
+    reduceNormalE keepGoing v0 f args delayed nonterminating def mcc = {-# SCC "reduceNormal" #-} do
+      case def of
+        _ | nonterminating -> defaultResult
+        _ | Delayed <- delayed,
+            not unfoldDelayed -> defaultResult
+        [] -> defaultResult -- no definition for head
+{- OBSOLETE
+        -- stop here if we only want to reduce (proper) projections
+        -- but the symbol @f@ is not one
+        cls -> ifM (asks envOnlyReduceProjections `and2M` do not . maybe False projProper <$> isProjection f) defaultResult $ do
+-}
+        cls -> allowAllReductions $ do
+            -- In subterms, we allow all reductions.
+            ev <- appDefE_ f v0 cls mcc args
             case ev of
               NoReduction v -> do
                 reportSDoc "tc.reduce" 90 $ vcat
-                  [ text "*** tried to reduce " <+> prettyTCM f
-                  , text "    args    " <+> prettyTCM (map (unArg . ignoreReduced) args)
+--                  [ text "*** tried to reduce " <+> prettyTCM f
+--                  , text "    args    " <+> prettyTCM (map (unArg . ignoreReduced) args)
+                  [ text "*** tried to reduce " <+> prettyTCM vfull
                   , text "    stuck on" <+> prettyTCM (ignoreBlocking v) ]
                 retSimpl v
               YesReduction simpl v -> performedSimplification' simpl $ do
@@ -380,7 +432,9 @@ unfoldDefinition' unfoldDelayed keepGoing v0 f args =
                 reportSDoc "tc.reduce"  95 $ text "    result" <+> prettyTCM v
                 reportSDoc "tc.reduce" 100 $ text "    raw   " <+> text (show v)
                 keepGoing v
-      where defaultResult = retSimpl $ notBlocked $ v0 `apply` (map ignoreReduced args)
+      where defaultResult = retSimpl $ notBlocked $ vfull
+            vfull         = v0 `unElim` (map ignoreReduced args)
+--      where defaultResult = retSimpl $ notBlocked $ v0 `apply` (map ignoreReduced args)
 
 -- | Reduce a non-primitive definition if it is a copy linking to another def.
 reduceDefCopy :: QName -> Args -> TCM (Reduced () Term)
@@ -411,63 +465,94 @@ reduceDef_ info f vs = do
 -- | Apply a definition using the compiled clauses, or fall back to
 --   ordinary clauses if no compiled clauses exist.
 appDef_ :: QName -> Term -> [Clause] -> Maybe CompiledClauses -> MaybeReducedArgs -> TCM (Reduced (Blocked Term) Term)
-appDef_ f v0 cls mcc args =
+appDef_ f v0 cls mcc args = appDefE_ f v0 cls mcc $ map (fmap Apply) args
+
+appDefE_ :: QName -> Term -> [Clause] -> Maybe CompiledClauses -> MaybeReducedElims -> TCM (Reduced (Blocked Term) Term)
+appDefE_ f v0 cls mcc args =
   local (\ e -> e { envAppDef = Just f }) $ do
-    maybe (appDef' v0 cls args)
-          (\cc -> appDef v0 cc args) mcc
+    maybe (appDefE' v0 cls args)
+          (\cc -> appDefE v0 cc args) mcc
 
 
--- Apply a defined function to it's arguments.
+-- | Apply a defined function to it's arguments, using the compiled clauses.
 --   The original term is the first argument applied to the third.
 appDef :: Term -> CompiledClauses -> MaybeReducedArgs -> TCM (Reduced (Blocked Term) Term)
-appDef v cc args = liftTCM $ do
-  r <- matchCompiled cc args
+appDef v cc args = appDefE v cc $ map (fmap Apply) args
+
+appDefE :: Term -> CompiledClauses -> MaybeReducedElims -> TCM (Reduced (Blocked Term) Term)
+appDefE v cc args = liftTCM $ do
+  r <- matchCompiledE cc args
   case r of
     YesReduction simpl t -> return $ YesReduction simpl t
-    NoReduction args'    -> return $ NoReduction $ fmap (apply v) args'
+    NoReduction args'    -> return $ NoReduction $ fmap (unElim v) args'
 
+-- | Apply a defined function to it's arguments, using the original clauses.
 appDef' :: Term -> [Clause] -> MaybeReducedArgs -> TCM (Reduced (Blocked Term) Term)
-appDef' _ [] _ = {- ' -} __IMPOSSIBLE__
-appDef' v cls@(Clause {clausePats = ps} : _) args
-  | m < n     = return $ NoReduction $ notBlocked $ v `apply` map ignoreReduced args
+appDef' v cls args = appDefE' v cls $ map (fmap Apply) args
+
+appDefE' :: Term -> [Clause] -> MaybeReducedElims -> TCM (Reduced (Blocked Term) Term)
+appDefE' _ [] _ = {- ' -} __IMPOSSIBLE__
+appDefE' v cls@(Clause {clausePats = ps} : _) args
+  | m < n     = return $ NoReduction $ notBlocked $ v `unElim` map ignoreReduced args
   | otherwise = do
     let (args0, args1) = splitAt n args
     r <- goCls cls (map ignoreReduced args0)
     case r of
-      YesReduction simpl u -> return $ YesReduction simpl $ u `apply` map ignoreReduced args1
-      NoReduction v        -> return $ NoReduction $ (`apply` map ignoreReduced args1) <$> v
+      YesReduction simpl u -> return $ YesReduction simpl $ u `unElim` map ignoreReduced args1
+      NoReduction v        -> return $ NoReduction $ (`unElim` map ignoreReduced args1) <$> v
   where
 
     n = genericLength ps
     m = genericLength args
 
-    goCls :: [Clause] -> Args -> TCM (Reduced (Blocked Term) Term)
+    goCls :: [Clause] -> [Elim] -> TCM (Reduced (Blocked Term) Term)
     goCls [] args = typeError $ IncompletePatternMatching v args
     goCls (cl@(Clause { clausePats = pats
                       , clauseBody = body }) : cls) args = do
-        (m, args) <- matchPatterns pats args
+        (m, args) <- matchCopatterns pats args
         case m of
             No		  -> goCls cls args
-            DontKnow Nothing  -> return $ NoReduction $ notBlocked $ v `apply` args
-            DontKnow (Just m) -> return $ NoReduction $ blocked m $ v `apply` args
+            DontKnow Nothing  -> return $ NoReduction $ notBlocked $ v `unElim` args
+            DontKnow (Just m) -> return $ NoReduction $ blocked m $ v `unElim` args
             Yes simpl args'
               | hasBody body  -> return $ YesReduction simpl $
                   -- TODO: let matchPatterns also return the reduced forms
                   -- of the original arguments!
                   -- Andreas, 2013-05-19 isn't this done now?
-                  app args' body
-              | otherwise	  -> return $ NoReduction $ notBlocked $ v `apply` args
+                  app args' body EmptyS
+              | otherwise	  -> return $ NoReduction $ notBlocked $ v `unElim` args
 
     hasBody (Body _) = True
     hasBody NoBody   = False
     hasBody (Bind b) = hasBody (unAbs b)
 
+    -- NEW version, building an explicit substitution from arguments
+    -- and executing it using parallel substitution.
+    -- Calculating the de Bruijn indices: ;-) for the Bind case
+    --   Simply-typed version
+    --   (we are not interested in types, only in de Bruijn indices here)
+    --   Γ ⊢ σ : Δ
+    --   Γ ⊢ v : A
+    --   Γ ⊢ (σ,v) : Δ.A
+    --   Δ ⊢ λ b : A → B
+    --   Δ.A ⊢ b : B
+    app :: [Elim] -> ClauseBody -> Substitution -> Term
+    app []           (Body v')      sigma = applySubst sigma v'
+    app (Proj f : args)    b        sigma = app args b sigma
+    app (Apply arg : args) (Bind b) sigma = app args (absBody b) (unArg arg :# sigma) -- CBN
+    app  _            NoBody        sigma = __IMPOSSIBLE__
+    app (_ : _)	     (Body _)       sigma = __IMPOSSIBLE__
+    app []           (Bind _)       sigma = __IMPOSSIBLE__
+
+{- OLD version, one substitution after another
+    app :: [Elim] -> ClauseBody -> Term
     app []           (Body v') = v'
-    app (arg : args) (Bind b)  = app args $ absApp b arg -- CBN
+    app (Proj f : args)    b         = app args b
+    app (Apply arg : args) (Bind b)  = app args $ absApp b $ unArg arg -- CBN
     app  _            NoBody   = __IMPOSSIBLE__
     app (_ : _)	     (Body _)  = __IMPOSSIBLE__
     app []           (Bind _)  = __IMPOSSIBLE__
-
+-}
 
 instance Reduce a => Reduce (Closure a) where
     reduce cl = do
@@ -626,7 +711,7 @@ instance Simplify Pattern where
     LitP _       -> return p
     ConP c mt ps -> ConP c <$> simplify mt <*> simplify ps
     DotP v       -> DotP <$> simplify v
---    ProjP _      -> return p
+    ProjP _      -> return p
 
 instance Simplify ClauseBody where
     simplify (Body   t) = Body   <$> simplify t
@@ -755,6 +840,7 @@ instance Normalise Pattern where
     LitP _       -> return p
     ConP c mt ps -> ConP c <$> normalise mt <*> normalise ps
     DotP v       -> DotP <$> normalise v
+    ProjP _      -> return p
 
 instance Normalise DisplayForm where
   normalise (Display n ps v) = Display n <$> normalise ps <*> return v
@@ -837,6 +923,7 @@ instance InstantiateFull Pattern where
     instantiateFull (DotP t)       = DotP <$> instantiateFull t
     instantiateFull (ConP n mt ps) = ConP n <$> instantiateFull mt <*> instantiateFull ps
     instantiateFull l@LitP{}       = return l
+    instantiateFull p@ProjP{}      = return p
 
 instance InstantiateFull ClauseBody where
     instantiateFull (Body   t) = Body   <$> instantiateFull t

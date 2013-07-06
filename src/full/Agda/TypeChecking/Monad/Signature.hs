@@ -687,6 +687,9 @@ isProjection_ def =
     Function { funProjection = result } -> result
     _                                   -> Nothing
 
+isProperProjection :: Defn -> Bool
+isProperProjection = maybe False projProper . isProjection_
+
 -- | Number of dropped initial arguments.
 projectionArgs :: Defn -> Int
 projectionArgs = maybe 0 (pred . projIndex) . isProjection_

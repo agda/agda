@@ -2,7 +2,7 @@
 Termination checking failed for the following functions:
   illdefined
 Problematic calls:
-  illdefined
+  S.head illdefined
     (at CopatternNonterminating.agda:17,28-38)
-  illdefined
+  S.tail illdefined
     (at CopatternNonterminating.agda:18,28-38)

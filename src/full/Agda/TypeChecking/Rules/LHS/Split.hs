@@ -1,4 +1,4 @@
-{-# LANGUAGE CPP, PatternGuards #-}
+{-# LANGUAGE CPP, PatternGuards, ScopedTypeVariables #-}
 
 module Agda.TypeChecking.Rules.LHS.Split where
 
@@ -25,10 +25,13 @@ import Agda.TypeChecking.Substitute
 import Agda.TypeChecking.Constraints
 import Agda.TypeChecking.Conversion
 import Agda.TypeChecking.Datatypes
+import Agda.TypeChecking.Patterns (patternsToElims)
+import Agda.TypeChecking.Records
 import Agda.TypeChecking.Rules.LHS.Problem
 -- import Agda.TypeChecking.Rules.LHS.ProblemRest
 -- import Agda.TypeChecking.Rules.Term
 import Agda.TypeChecking.Monad.Builtin
+import Agda.TypeChecking.Eliminators
 import Agda.TypeChecking.Free
 import Agda.TypeChecking.Irrelevance
 import Agda.TypeChecking.MetaVars
@@ -68,18 +71,52 @@ expandLitPattern p = traverse (traverse expand) p
           return $ foldr (A.AsP info) p' xs
       _ -> return p
 
--- | Split a problem at the first constructor of datatype type. Implicit
---   patterns should have been inserted.
-splitProblem :: Problem -> TCM (Either SplitError SplitProblem)
-splitProblem (Problem ps (perm, qs) tel pr) = do
+-- | Split a problem at the first constructor pattern which is
+--   actually of datatype type.
+--
+--   Or, if there is no constructor pattern left and the rest type
+--   is a record type and the first rest pattern is a projection
+--   pattern, split the rest type.
+--
+--   Implicit patterns should have been inserted.
+
+splitProblem ::
+  Maybe QName -- ^ The definition we are checking at the moment.
+  -> Problem  -- ^ The current state of the lhs patterns.
+  -> TCM (Either SplitError SplitProblem)
+splitProblem mf (Problem ps (perm, qs) tel pr) = do
     reportS "tc.lhs.split" 20 $ "initiating splitting\n"
     runErrorT $
       splitP ps (permute perm $ zip [0..] $ allHoles qs) tel
   where
+    -- Result splitting
+    splitRest :: ProblemRest -> ErrorT SplitError TCM SplitProblem
+    splitRest (ProblemRest (p : ps) b) | Just f <- mf = do
+      -- let (failure :: ErrorT SplitError TCM SplitProblem) = throwError $ NothingToSplit
+      case namedArg p of
+        A.DefP _ d [] -> do -- case: projection pattern
+          isR <- lift $ isRecordType b
+          case isR of
+            Just (r, vs, Record{ recFields = fs }) -- , recTel = tel})
+              | d `elem` map unArg fs -> do
+--              | Just i <- findIndex ((d ==) . unArg) fs -> do
+                es <- lift $ patternsToElims perm qs
+                -- the record "self" is the definition f applied to the patterns
+                let self = defaultArg $ Def f [] `unElim` es
+                -- get the type of projection d applied to "self"
+                -- WRONG: let (dType :: Type) = snd (unDom (telToList tel !! i))
+                dType <- lift $ typeOfConst d
+                return $ SplitRest (defaultArg d) $ dType `apply` (vs ++ [self])
+            _ -> throwError $ NothingToSplit
+        _ -> throwError $ NothingToSplit
+    splitRest _ = throwError $ NothingToSplit
+
+    -- TODO: telescope does not one-to-one correspond to patterns if we have proj. patterns
+    -- proj. patterns need to be skipped
     splitP :: [A.NamedArg A.Pattern] -> [(Int, OneHolePatterns)] -> Telescope -> ErrorT SplitError TCM SplitProblem
     splitP _	    []		 (ExtendTel _ _)	 = __IMPOSSIBLE__
     splitP _	    (_:_)	  EmptyTel		 = __IMPOSSIBLE__
-    splitP []	     _		  _			 = throwError $ NothingToSplit
+    splitP []	     _		  _			 = splitRest pr -- WAS: throwError $ NothingToSplit
     splitP ps	    []		  EmptyTel		 = __IMPOSSIBLE__
     splitP (p : ps) ((i, q) : qs) tel0@(ExtendTel a tel) = do
       let tryAgain = splitP (p : ps) ((i, q) : qs) tel0
@@ -198,9 +235,18 @@ splitProblem (Problem ps (perm, qs) tel pr) = do
 	p -> keepGoing
       where
 	keepGoing = do
-	  let p0 = Problem [p] () (ExtendTel a $ fmap (const EmptyTel) tel) mempty
+          r <- underAbstraction a tel $ \tel -> splitP ps qs tel
+          case r of
+            SplitRest{} -> return r
+	    Split p1 xs foc p2 -> do
+  	      let p0 = Problem [p] () (ExtendTel a (EmptyTel <$ tel)) mempty
+	      return $ Split (mappend p0 p1) xs foc p2
+{- OLD
+	keepGoing = do
+	  let p0 = Problem [p] () (ExtendTel a (EmptyTel <$ tel)) mempty
 	  Split p1 xs foc p2 <- underAbstraction a tel $ \tel -> splitP ps qs tel
 	  return $ Split (mappend p0 p1) xs foc p2
+-}
 
 -- | @checkParsIfUnambiguous [c] d pars@ checks that the data/record type
 --   behind @c@ is has initial parameters (coming e.g. from a module instantiation)

@@ -18,6 +18,11 @@ class TermLike a where
   traverseTermM :: (Monad m, Applicative m) => (Term -> m Term) -> a -> m a
   foldTerm      :: Monoid m => (Term -> m) -> a -> m
 
+instance TermLike a => TermLike (Elim' a) where
+  traverseTerm  f = fmap (traverseTerm f)
+  traverseTermM f = traverse (traverseTermM f)
+  foldTerm f = foldMap (foldTerm f)
+
 instance TermLike a => TermLike (Arg a) where
   traverseTerm  f = fmap (traverseTerm f)
   traverseTermM f = traverse (traverseTermM f)

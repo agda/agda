@@ -92,6 +92,7 @@ data Problem' p	    = Problem { problemInPat  :: [A.NamedArg A.Pattern]
 --   @
 --   As we instantiate @b@ to @false@, the 'restType' reduces to
 --   @Nat -> Nat@ and we can move pattern @zero@ over to @problemInPat@.
+
 data ProblemRest    = ProblemRest
   { restPats :: [A.NamedArg A.Pattern]  -- ^ non-empty list of user patterns which could not yet be typed
   , restType :: Type                  -- ^ type eliminated by 'restPats'
@@ -112,9 +113,11 @@ data Focus	    = Focus   { focusCon      :: QName
 
 data SplitProblem   = Split ProblemPart [Name] (I.Arg Focus) (Abs ProblemPart)
                       -- ^ the [Name]s give the as-bindings for the focus
+                    | SplitRest { splitProjection :: I.Arg QName, splitRestType :: Type }
+                      -- ^ Split on projection pattern.
 
 data SplitError	    = NothingToSplit
-		    | SplitPanic String
+		    | SplitPanic String -- ^ __IMPOSSIBLE__, only there to make this instance of 'Error'.
 
 -- | The permutation should permute @allHoles@ of the patterns to correspond to
 --   the abstract patterns in the problem.

@@ -260,3 +260,4 @@ instance PrettyTCM Pattern where
       showPat (ConP c (Just (b, t)) ps) = (if b then braces else parens) $
         prettyTCM c <+> fsep (map (showPat . unArg) ps) <+> text ":" <+> prettyTCM t
       showPat (LitP l)                  = text (show l)
+      showPat (ProjP q)                 = text (show q)

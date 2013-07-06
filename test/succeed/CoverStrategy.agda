@@ -23,7 +23,7 @@ data Tree : ℕ → Set where
 test : ∀ {hˡ hʳ} → Tree hˡ → hˡ ∼ hʳ → Set
 test (node pr) pr = ℕ
 test (node eq) pr = ℕ
-test x         eq = ℕ
+test (node _ ) eq = ℕ
 
 {- We cannot split on 'Tree hˡ' if we have already split on 'hˡ ∼ hʳ'
 bla : ∀ {hˡ hʳ} → Tree hˡ → hˡ ∼ hʳ → Set
@@ -31,3 +31,9 @@ bla nod pr = {!nod!}
 bla nod eq = {!!}
 -}
 
+{- DOES NOT type check, fails even before the coverage checker
+interactive : ∀ {hˡ hʳ} → hˡ ∼ hʳ → Tree hˡ → Set
+interactive pr (node pr) = ?
+interactive pr (node eq) = {!!}
+interactive eq (node pr) = ?
+-}

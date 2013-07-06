@@ -7,3 +7,4 @@ import Agda.TypeChecking.Monad.Base
 import Agda.TypeChecking.CompiledClause
 
 matchCompiled :: CompiledClauses -> MaybeReducedArgs -> TCM (Reduced (Blocked Args) Term)
+matchCompiledE :: CompiledClauses -> MaybeReducedElims -> TCM (Reduced (Blocked [Elim]) Term)

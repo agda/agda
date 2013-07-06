@@ -334,7 +334,7 @@ niceDeclarations ds = do
     declaredNames d = case d of
       TypeSig _ x _                                -> [x]
       Field x _                                    -> [x]
-      FunClause (LHS p [] _ _) _ _
+      FunClause (LHS p [] [] []) _ _
         | IdentP (QName x) <- removeSingletonRawAppP p -> [x]
       FunClause{}                                  -> []
       DataSig _ _ x _ _                            -> [x]
@@ -477,7 +477,7 @@ niceDeclarations ds = do
             [] -> case lhs of
               -- Subcase: The lhs is single identifier.
               -- Treat it as a function clause without a type signature.
-              LHS p [] _ _ | IdentP (QName x) <- removeSingletonRawAppP p -> do
+              LHS p [] [] [] | IdentP (QName x) <- removeSingletonRawAppP p -> do
                 ds <- nice ds
                 d  <- mkFunDef defaultArgInfo termCheck x Nothing [d] -- fun def without type signature is relevant
                 return $ d ++ ds

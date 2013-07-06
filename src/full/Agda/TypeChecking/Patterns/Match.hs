@@ -1,4 +1,4 @@
--- {-# LANGUAGE CPP #-}
+{-# LANGUAGE CPP, DeriveFunctor #-}
 
 module Agda.TypeChecking.Patterns.Match where
 
@@ -18,15 +18,17 @@ import Agda.TypeChecking.Primitive (constructorForm)
 import Agda.TypeChecking.Pretty
 
 import Agda.Utils.Monad
+import Agda.Utils.Tuple
 
--- #include "../../undefined.h"
--- import Agda.Utils.Impossible
+#include "../../undefined.h"
+import Agda.Utils.Impossible
 
 -- | If matching is inconclusive (@DontKnow@) we want to know whether
 --   it is due to a particular meta variable.
-data Match = Yes Simplification [Term] | No | DontKnow (Maybe MetaId)
+data Match a = Yes Simplification [a] | No | DontKnow (Maybe MetaId)
+  deriving (Functor)
 
-instance Monoid Match where
+instance Monoid (Match a) where
     mempty = Yes mempty []
 
     Yes s us   `mappend` Yes s' vs        = Yes (s `mappend` s') (us ++ vs)
@@ -42,7 +44,34 @@ instance Monoid Match where
     -- equivalence to case-trees.
     DontKnow m `mappend` _		  = DontKnow m
 
-matchPatterns :: [I.Arg Pattern] -> [I.Arg Term] -> TCM (Match, [I.Arg Term])
+-- | @matchCopatterns ps es@ matches spine @es@ against copattern spine @ps@.
+--
+--   Returns 'Yes' and a substitution for the pattern variables
+--   (in form of [Elim]) if matching was successful.
+--
+--   Returns 'No' if there was a constructor or projection mismatch.
+--
+--   Returns 'DontKnow' if an argument could not be evaluated to
+--   constructor form because of a blocking meta variable.
+--
+--   In any case, also returns spine @es@ in reduced form
+--   (with all the weak head reductions performed that were necessary
+--   to come to a decision).
+matchCopatterns :: [I.Arg Pattern] -> [Elim] -> TCM (Match Elim, [Elim])
+matchCopatterns ps vs = mapFst mconcat . unzip <$>
+  zipWithM' matchCopattern ps vs
+
+-- | Match a single copattern.
+matchCopattern :: I.Arg Pattern -> Elim -> TCM (Match Elim, Elim)
+matchCopattern (Arg _ (ProjP p)) elim@(Proj q)
+  | p == q    = return (Yes YesSimplification [], elim)
+  | otherwise = return (No                      , elim)
+matchCopattern (Arg _ (ProjP p)) elim@Apply{}
+              = return (DontKnow Nothing, elim)
+matchCopattern _ elim@Proj{} = return (DontKnow Nothing, elim)
+matchCopattern p (Apply v) = (fmap (Apply . defaultArg) -*- Apply) <$> matchPattern p v
+
+matchPatterns :: [I.Arg Pattern] -> [I.Arg Term] -> TCM (Match Term, [I.Arg Term])
 matchPatterns ps vs = do
     reportSDoc "tc.match" 50 $
       vcat [ text "matchPatterns"
@@ -53,8 +82,9 @@ matchPatterns ps vs = do
     (ms,vs) <- unzip <$> zipWithM' matchPattern ps vs
     return (mconcat ms, vs)
 
-matchPattern :: I.Arg Pattern -> I.Arg Term -> TCM (Match, I.Arg Term)
--- matchPattern (Arg _  ProjP{})  _             = __IMPOSSIBLE__
+-- | Match a single pattern.
+matchPattern :: I.Arg Pattern -> I.Arg Term -> TCM (Match Term, I.Arg Term)
+matchPattern (Arg _  ProjP{})  _             = __IMPOSSIBLE__
 matchPattern (Arg _  (VarP _)) arg@(Arg _ v) = return (Yes NoSimplification [v], arg)
 matchPattern (Arg _  (DotP _)) arg@(Arg _ v) = return (Yes NoSimplification [v], arg)
 matchPattern (Arg info' (LitP l)) arg@(Arg info v) = do
@@ -108,7 +138,7 @@ matchPattern (Arg info' (ConP c _ ps))     (Arg info v) =
 	    | c == conName c'     -> do
 		(m, vs) <- yesSimplification <$> matchPatterns ps vs
 		return (m, Arg info $ Con c' vs)
-	    | otherwise           -> return (No, Arg info v)
+	    | otherwise           -> return (No, Arg info v) -- NOTE: v the reduced thing(shadowing!). Andreas, 2013-07-03
 	  NotBlocked (MetaV x vs) -> return (DontKnow $ Just x, Arg info v)
 	  Blocked x _             -> return (DontKnow $ Just x, Arg info v)
           _                       -> return (DontKnow Nothing, Arg info v)

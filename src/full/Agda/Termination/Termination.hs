@@ -78,6 +78,7 @@ checkIdems ((c,m):xs) = if (checkIdem c) then checkIdems xs else Left m
 checkIdem :: (?cutoff :: Int) => Call -> Bool
 checkIdem c = let
   b = target c == source c
+  -- c0 = fmap collapseO c -- does not help for issue 787
   idem = (c >*< c) == c
   diag =  Array.elems $ diagonal (mat (cm c))
   hasDecr = any isDecr $ diag

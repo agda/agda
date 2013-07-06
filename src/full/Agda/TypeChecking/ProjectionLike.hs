@@ -118,6 +118,7 @@ makeProjection x = inContext [] $ do
         noMatches = all (noMatch . unArg)
         noMatch ConP{} = False
         noMatch LitP{} = False
+        noMatch ProjP{}= False
         noMatch VarP{} = True
         noMatch DotP{} = True
 

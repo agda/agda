@@ -12,7 +12,8 @@ include $(TOP)/mk/config.mk
 V = 0
 
 # Getting all agda files
-excluded=./Epic.agda
+excluded=./Epic.agda ./ColistMutual.agda ./MuNuElim.agda ./SizedCoinductiveRecords.agda
+# ./Issue655.agda
 allagda=$(patsubst %.agda,%.test,$(filter-out $(excluded),$(shell find . -name "*.agda")))
 # allagda=$(patsubst %.agda,%.test,$(shell find . -name "*.agda"))
 alllagda=$(patsubst %.lagda,%.test,$(shell find . -name "*.lagda"))

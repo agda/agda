@@ -108,8 +108,10 @@ type Args = [Arg Term]
 -- | Eliminations, subsuming applications and projections.
 --   Used for a view which exposes the head of a neutral term.
 --
-data Elim = Apply (Arg Term) | Proj QName -- ^ name of a record projection
-  deriving (Show)
+data Elim' a = Apply (Arg a) | Proj QName -- ^ name of a record projection
+  deriving (Show, Functor, Foldable, Traversable)
+
+type Elim = Elim' Term
 
 -- | Binder.
 --   'Abs': The bound variable might appear in the body.
@@ -200,6 +202,7 @@ data Clause = Clause
     , clauseBody      :: ClauseBody
     }
   deriving (Typeable, Show)
+
 data ClauseBody = Body Term
 		| Bind (Abs ClauseBody)
 		| NoBody    -- ^ for absurd clauses.
@@ -220,6 +223,8 @@ data Pattern
   | DotP Term
   | ConP QName ConPatternInfo [Arg Pattern]
   | LitP Literal
+  | ProjP QName
+    -- ^ Projection copattern.  Can only appear by itself.
   deriving (Typeable, Show)
 
 -- | The @ConPatternInfo@ states whether the constructor belongs to
@@ -238,6 +243,7 @@ patternVars (Common.Arg i (VarP x)     ) = [Common.Arg i $ Left x]
 patternVars (Common.Arg i (DotP t)     ) = [Common.Arg i $ Right t]
 patternVars (Common.Arg i (ConP _ _ ps)) = List.concat $ map patternVars ps
 patternVars (Common.Arg i (LitP l)     ) = []
+patternVars (Common.Arg i ProjP{}      ) = []
 
 -- | Does the pattern perform a match that could fail?
 properlyMatching :: Pattern -> Bool
@@ -246,6 +252,7 @@ properlyMatching DotP{} = False
 properlyMatching LitP{} = True
 properlyMatching (ConP _ mt ps) = List.or $ isNothing mt -- not a record cons
   : map (properlyMatching . unArg) ps  -- or one of subpatterns is a proper m
+properlyMatching ProjP{} = True
 
 ---------------------------------------------------------------------------
 -- * Absurd Lambda
@@ -272,6 +279,7 @@ ignoreSharingType :: Type -> Type
 -- ignoreSharingType (El s v) = El s (ignoreSharing v)
 ignoreSharingType v = v
 
+-- | Introduce sharing.
 shared :: Term -> Term
 -- shared v@Shared{}   = v
 -- shared v@(Var _ []) = v

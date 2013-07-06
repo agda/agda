@@ -9,6 +9,7 @@ open import Common.Equality
 
 record Stream (A : Set) : Set where
   coinductive
+  constructor cons
   field
     head : A
     tail : Stream A
@@ -22,8 +23,10 @@ record _≈_ {A : Set}(s t : Stream A) : Set where
 module B = _≈_
 
 repeat : {A : Set}(a : A) → Stream A
+-- repeat a = cons a (repeat a)
 S.head (repeat a) = a
 S.tail (repeat a) = repeat a
+
 
 module CoPat where
 

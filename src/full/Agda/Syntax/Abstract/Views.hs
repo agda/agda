@@ -131,5 +131,5 @@ instance ExprLike (Pattern' a) where
   traverseExpr f e = return e
 
 -- | TODO: currently does not go into clauses.
-instance ExprLike Clause where
+instance ExprLike (Clause' a) where
   traverseExpr f e = return e

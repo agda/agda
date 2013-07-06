@@ -1190,8 +1190,11 @@ checkHeadApplication e t hd args = do
   defaultResult = do
     (f, t0) <- inferHead hd
     expandLast <- asks envExpandLast
-    checkArguments' expandLast ExpandInstanceArguments (getRange hd) args t0 t e $ \vs t1 ->
+    checkArguments' expandLast ExpandInstanceArguments (getRange hd) args t0 t e $ \vs t1 -> do
       coerce (f vs) t1 t
+      -- -- try to remove projection redexes  -- fails succeed/Issue286
+      -- v <- onlyReduceProjections $ reduce $ f vs
+      -- coerce v t1 t
 
 instance Error Type where
   strMsg _ = __IMPOSSIBLE__
@@ -1434,7 +1437,7 @@ checkLetBinding b@(A.LetPatBind i p e) ret =
         , text "t     =" <+> prettyTCM t
         ]
       ]
-    checkLeftHandSide (CheckPattern p EmptyTel t) [p0] t0 $ \ mgamma delta sub xs ps t' perm -> do
+    checkLeftHandSide (CheckPattern p EmptyTel t) Nothing [p0] t0 $ \ mgamma delta sub xs ps t' perm -> do
       -- A single pattern in internal syntax is returned.
       let p = case ps of [p] -> unArg p; _ -> __IMPOSSIBLE__
       reportSDoc "tc.term.let.pattern" 20 $ nest 2 $ vcat

@@ -55,7 +55,7 @@ update-cabal :
 
 # Installs the Emacs mode, but does not set it up.
 install-bin :
-	$(CABAL_CMD) install --disable-library-profiling --disable-documentation $(CABAL_OPTIONS)
+	time $(CABAL_CMD) install --disable-library-profiling --disable-documentation $(CABAL_OPTIONS)
 
 install-O0-bin :
 	$(CABAL_CMD) install -O0 --disable-library-profiling --disable-documentation $(CABAL_OPTIONS)
@@ -181,7 +181,7 @@ TAGS :
 
 quick : install-O0-bin quicktest
 
-test : check-whitespace succeed fail interaction examples library-test lib-succeed epic-test compiler-test tests
+test : check-whitespace succeed fail interaction examples library-test lib-succeed # epic-test compiler-test tests
 
 quicktest : succeed fail
 

@@ -6,6 +6,19 @@ open import Common.Equality
 
 data Bool : Set where true false : Bool
 
+data Maybe (A : Set) : Set where
+  nothing : Maybe A
+  just : A → Maybe A
+
+Case : {A : Set} → Maybe A → Set → Set → Set
+Case nothing  B C = B
+Case (just _) B C = C
+
+sample : {A : Set} (m : Maybe A) → Case m Bool (Maybe A → Bool)
+sample (just a) (just b) = true
+sample (just a) nothing  = false
+sample nothing           = true
+
 g : Bool -> Bool -> Bool
 g false true  = false
 g true = \ x -> true

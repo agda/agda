@@ -33,9 +33,12 @@ import Agda.TypeChecking.Coverage.Match
 import Agda.TypeChecking.Coverage.SplitTree
 
 import Agda.TypeChecking.Datatypes (getConForm)
+import Agda.TypeChecking.Eliminators (unElim)
+import Agda.TypeChecking.Patterns (patternsToElims)
 import Agda.TypeChecking.Pretty
 import Agda.TypeChecking.Substitute
 import Agda.TypeChecking.Reduce
+import Agda.TypeChecking.Records (isRecordType)
 -- import Agda.TypeChecking.Primitive (constructorForm)
 import Agda.TypeChecking.Telescope
 import Agda.TypeChecking.Irrelevance
@@ -45,6 +48,7 @@ import Agda.Interaction.Options
 import Agda.Utils.Permutation
 import Agda.Utils.Size
 import Agda.Utils.Tuple
+-- import Agda.Utils.Function (rot3)
 import Agda.Utils.List
 -- import Agda.Utils.Maybe
 import Agda.Utils.Monad
@@ -118,25 +122,13 @@ coverageCheck f t cs = do
       xs           = map (argFromDom . fmap (const $ VarP "_")) $ lgamma
       -- construct the initial split clause
       sc           = SClause gamma (idP n) xs idS $ Just a
-{- OLD
-  let -- n             = arity
-      -- lgamma/gamma' = telescope of non-dropped arguments
-      -- xs            = variable patterns fitting lgamma
-      n            = genericLength $ clausePats $ head cs
-      (lgamma, rgamma) = genericSplitAt n $ telToList gamma
-      gamma'       = telFromList lgamma
-      xs           = map (argFromDom . fmap (const $ VarP "_")) $ lgamma
-      -- construct the initial split clause
-      b            = telePi (telFromList rgamma) a
-      sc           = SClause gamma' (idP n) xs idS $ Just b
--}
   reportSDoc "tc.cover.top" 10 $ vcat
     [ text "Coverage checking"
     , nest 2 $ vcat $ map (text . show . clausePats) cs
     ]
   -- used = actually used clauses for cover
   -- pss  = uncovered cases
-  (splitTree, used, pss) <- cover cs sc
+  (splitTree, used, pss) <- cover f cs sc
   reportSDoc "tc.cover.splittree" 10 $ vcat
     [ text "generated split tree for" <+> prettyTCM f
     , text $ show splitTree
@@ -156,11 +148,11 @@ coverageCheck f t cs = do
   return splitTree
 
 
--- | @cover cs (SClause _ _ ps _) = return (splitTree, used, pss)@.
+-- | @cover f cs (SClause _ _ ps _) = return (splitTree, used, pss)@.
 --   checks that the list of clauses @cs@ covers the given split clause.
 --   Returns the @splitTree@, the @used@ clauses, and missing cases @pss@.
-cover :: [Clause] -> SplitClause -> TCM (SplitTree, Set Nat, [[Arg Pattern]])
-cover cs sc@(SClause tel perm ps _ target) = do
+cover :: QName -> [Clause] -> SplitClause -> TCM (SplitTree, Set Nat, [[Arg Pattern]])
+cover f cs sc@(SClause tel perm ps _ target) = do
   reportSDoc "tc.cover.cover" 10 $ vcat
     [ text "checking coverage of pattern:"
     , nest 2 $ text "tel  =" <+> prettyTCM tel
@@ -176,6 +168,34 @@ cover cs sc@(SClause tel perm ps _ target) = do
       reportSLn "tc.cover.cover"  10 $ "literal matches: " ++ show is
       return (SplittingDone (size tel), Set.fromList (i : is), [])
     No       -> return (SplittingDone (size tel), Set.empty, [ps])
+
+    -- case: split into projection patterns
+    BlockP   -> do
+      -- if we want to split projections, but have no target type, we give up
+      let done = return (SplittingDone (size tel), Set.empty, [ps])
+      flip (maybe done) target $ \ t -> do
+        isR <- isRecordType t
+        case isR of
+          Just (_r, vs, Record{ recFields = fs }) -> do  -- , recTel = tel }) -> do
+            (projs, (trees, useds, psss)) <- mapSnd unzip3 . unzip <$> do
+--              forM (zip fs $ telToList tel) $ \ (proj, dom) -> do
+              forM fs $ \ proj -> do
+                -- compute the new target
+                dType <- typeOfConst $ unArg proj
+                es    <- patternsToElims perm ps
+                let self    = defaultArg $ Def f [] `unElim` es
+                    -- type of projection instantiated at self
+                    target' = Just $ dType `apply` (vs ++ [self])
+                    sc' = sc { scPats   = scPats sc ++ [fmap ProjP proj]
+                             , scTarget = target'
+                             }
+                (unArg proj,) <$> cover f cs sc'
+            let n = length ps -- past the last argument, is pos. of proj pat.
+                tree = SplitAt n $ zip projs trees
+            return (tree, Set.unions useds, concat psss)
+          _ -> done
+
+    -- case: split on variable
     Block bs -> do
       reportSLn "tc.cover.strategy" 20 $ "blocking vars = " ++ show bs
       -- xs is a non-empty lists of blocking variables
@@ -197,7 +217,7 @@ cover cs sc@(SClause tel perm ps _ target) = do
         Right (Covering n []) ->
           return (SplittingDone (size tel), Set.empty, [])
         Right (Covering n scs) -> do
-          (trees, useds, psss) <- unzip3 <$> mapM (cover cs) (map snd scs)
+          (trees, useds, psss) <- unzip3 <$> mapM (cover f cs) (map snd scs)
           let tree = SplitAt n $ zipWith (\ (q,_) t -> (q,t)) scs trees
           return (tree, Set.unions useds, concat psss)
 

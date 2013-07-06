@@ -180,11 +180,14 @@ type Telescope	= [TypedBindings]
 -- | We could throw away @where@ clauses at this point and translate them to
 --   @let@. It's not obvious how to remember that the @let@ was really a
 --   @where@ clause though, so for the time being we keep it here.
-data Clause	= Clause
-  { clauseLHS        :: LHS
+data Clause' lhs = Clause
+  { clauseLHS        :: lhs
   , clauseRHS        :: RHS
   , clauseWhereDecls :: [Declaration]
-  } deriving (Typeable, Show)
+  } deriving (Typeable, Show, Functor, Foldable, Traversable)
+
+type Clause = Clause' LHS
+type SpineClause = Clause' SpineLHS
 
 data RHS	= RHS Expr
 		| AbsurdRHS
@@ -206,7 +209,7 @@ data SpineLHS = SpineLHS
   }
   deriving (Typeable, Show)
 
--- | The lhs of a clause in projection-application view (outside-in).
+-- | The lhs of a clause in focused (projection-application) view (outside-in).
 --   Projection patters are represented as 'LHSProj's.
 data LHS = LHS
   { lhsInfo     :: LHSInfo               -- ^ Range.
@@ -237,6 +240,7 @@ data LHSCore' e
 
 type LHSCore = LHSCore' Expr
 
+-- | Convert a focused lhs to spine view.
 lhsToSpine :: LHS -> SpineLHS
 lhsToSpine (LHS i core wps) = SpineLHS i f ps wps
   where QNamed f ps = lhsCoreToSpine core
@@ -244,10 +248,33 @@ lhsToSpine (LHS i core wps) = SpineLHS i f ps wps
 lhsCoreToSpine :: LHSCore' e -> A.QNamed [NamedArg (Pattern' e)]
 lhsCoreToSpine (LHSHead f ps) = QNamed f ps
 lhsCoreToSpine (LHSProj d ps1 h ps2) = (++ (p : ps2)) <$> lhsCoreToSpine (namedArg h)
-  where p = updateNamedArg (const $ DefP i d ps1) h
-        i = PatRange noRange
+  where p = updateNamedArg (const $ DefP patNoRange d ps1) h
 
--- spineToLhsCore ::
+-- | Convert a lhs from spine view into focused view.
+spineToLhs :: SpineLHS -> LHS
+spineToLhs (SpineLHS i f ps wps) = LHS i (spineToLhsCore $ QNamed f ps) wps
+
+spineToLhsCore :: QNamed [NamedArg (Pattern' e)] -> LHSCore' e
+spineToLhsCore (QNamed f ps) = lhsCoreAddSpine (LHSHead f []) ps
+
+-- | Add applicative patterns (non-projection patterns) to the right.
+lhsCoreApp :: LHSCore' e -> [NamedArg (Pattern' e)] -> LHSCore' e
+lhsCoreApp (LHSHead f ps)        ps' = LHSHead f $ ps ++ ps'
+lhsCoreApp (LHSProj d ps1 h ps2) ps' = LHSProj d ps1 h $ ps2 ++ ps'
+
+-- | Add projection and applicative patterns to the right.
+lhsCoreAddSpine :: LHSCore' e -> [NamedArg (Pattern' e)] -> LHSCore' e
+lhsCoreAddSpine core ps = case ps2 of
+    []                                      -> lhsCoreApp core ps
+    (Common.Arg info (Named n (DefP i d ps0)) : ps2') ->
+       LHSProj d ps0 (Common.Arg info $ Named n $ lhsCoreApp core ps1) []
+         `lhsCoreAddSpine` ps2'
+    _ -> __IMPOSSIBLE__
+  where
+    (ps1, ps2) = break (isDefP . namedArg) ps
+    isDefP DefP{} = True
+    isDefP _      = False
+
 
 -- | Used for checking pattern linearity.
 lhsCoreAllPatterns :: LHSCore' e -> [Pattern' e]
@@ -267,7 +294,7 @@ lhsCoreToPattern lc =
     LHSHead f aps -> DefP noInfo f aps
     LHSProj d aps1 lhscore aps2 -> DefP noInfo d $
       aps1 ++ fmap (fmap lhsCoreToPattern) lhscore : aps2
-  where noInfo = PatRange noRange -- TODO, preserve range!
+  where noInfo = patNoRange -- TODO, preserve range!
 
 mapLHSHead :: (QName -> [NamedArg Pattern] -> LHSCore) -> LHSCore -> LHSCore
 mapLHSHead f (LHSHead x ps)        = f x ps
@@ -281,6 +308,10 @@ mapLHSHeadM f (LHSProj d ps1 l ps2) = do
   l <- mapLHSHead f l
   return $ LHSProj d ps1 l ps2
 -}
+
+---------------------------------------------------------------------------
+-- * Patterns
+---------------------------------------------------------------------------
 
 -- | Parameterised over the type of dot patterns.
 data Pattern' e
@@ -301,6 +332,20 @@ data Pattern' e
 
 type Pattern  = Pattern' Expr
 type Patterns = [NamedArg Pattern]
+
+-- | Check whether we are a projection pattern.
+class IsProjP a where
+  isProjP :: a -> Maybe QName
+
+instance IsProjP (Pattern' e) where
+  isProjP (DefP _ d []) = Just d
+  isProjP _             = Nothing
+
+instance IsProjP a => IsProjP (Common.Arg c a) where
+  isProjP = isProjP . unArg
+
+instance IsProjP a => IsProjP (Named n a) where
+  isProjP = isProjP . namedThing
 
 {--------------------------------------------------------------------------
     Instances
@@ -374,6 +419,9 @@ instance HasRange (Pattern' e) where
     getRange (LitP l)	         = getRange l
     getRange (PatternSynP i _ _) = getRange i
 
+instance HasRange SpineLHS where
+    getRange (SpineLHS i _ _ _)  = getRange i
+
 instance HasRange LHS where
     getRange (LHS i _ _)   = getRange i
 
@@ -381,7 +429,7 @@ instance HasRange (LHSCore' e) where
     getRange (LHSHead f ps) = fuseRange f ps
     getRange (LHSProj d ps1 lhscore ps2) = d `fuseRange` ps1 `fuseRange` lhscore `fuseRange` ps2
 
-instance HasRange Clause where
+instance HasRange a => HasRange (Clause' a) where
     getRange (Clause lhs rhs ds) = getRange (lhs,rhs,ds)
 
 instance HasRange RHS where
@@ -487,6 +535,9 @@ instance KillRange e => KillRange (Pattern' e) where
   killRange (LitP l)            = killRange1 LitP l
   killRange (PatternSynP i a p) = killRange3 PatternSynP i a p
 
+instance KillRange SpineLHS where
+  killRange (SpineLHS i a b c)  = killRange4 SpineLHS i a b c
+
 instance KillRange LHS where
   killRange (LHS i a b)   = killRange3 LHS i a b
 
@@ -494,7 +545,7 @@ instance KillRange e => KillRange (LHSCore' e) where
   killRange (LHSHead a b)     = killRange2 LHSHead a b
   killRange (LHSProj a b c d) = killRange4 LHSProj a b c d
 
-instance KillRange Clause where
+instance KillRange a => KillRange (Clause' a) where
   killRange (Clause lhs rhs ds) = killRange3 Clause lhs rhs ds
 
 instance KillRange RHS where

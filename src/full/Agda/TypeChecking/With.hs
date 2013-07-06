@@ -122,7 +122,7 @@ stripWithClausePatterns gamma qs perm ps = do
     strip _           (_ : _) []      = __IMPOSSIBLE__
     strip EmptyTel    (_ : _) _       = __IMPOSSIBLE__
     strip ExtendTel{} []      _       = __IMPOSSIBLE__
-    strip EmptyTel    []      []      | 0 == 0 = return []
+    strip EmptyTel    []      []      = return []
     strip tel0@(ExtendTel a tel) ps0@(p0 : ps) qs0@(q : qs) = do
       p <- expandLitPattern p0
       reportSDoc "tc.with.strip" 15 $ vcat
@@ -222,7 +222,8 @@ stripWithClausePatterns gamma qs perm ps = do
           _ -> mismatch
       where
         mismatch = typeError $ WithClausePatternMismatch (namedArg p0) (unArg q)
-    strip tel ps qs = error $ "huh? " ++ show (size tel) ++ " " ++ show (size ps) ++ " " ++ show (size qs)
+    -- UNREACHABLE:
+    -- strip tel ps qs = error $ "huh? " ++ show (size tel) ++ " " ++ show (size ps) ++ " " ++ show (size qs)
 
 -- | Construct the display form for a with function. It will display
 --   applications of the with function as applications to the original function.

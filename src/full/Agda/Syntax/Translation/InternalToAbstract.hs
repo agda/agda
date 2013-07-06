@@ -177,10 +177,14 @@ reifyDisplayForm x vs fallback = do
         Just d  -> reify d
     else fallback
 
+{-
 reifyDisplayFormP :: A.LHS -> TCM A.LHS
 reifyDisplayFormP lhs@(A.LHS i A.LHSProj{} wps) =
   typeError $ NotImplemented "reifyDisplayForm for copatterns"
 reifyDisplayFormP lhs@(A.LHS i (A.LHSHead x ps) wps) =
+-}
+reifyDisplayFormP :: A.SpineLHS -> TCM A.SpineLHS
+reifyDisplayFormP lhs@(A.SpineLHS i x ps wps) =
   ifM (not <$> displayFormsEnabled) (return lhs) $ do
     let vs = [ setHiding h $ defaultArg $ I.var n
              | (n, h) <- zip [0..] $ map getHiding ps
@@ -226,8 +230,9 @@ reifyDisplayFormP lhs@(A.LHS i (A.LHSHead x ps) wps) =
       (f, vs, ds) -> do
         ds <- mapM termToPat ds
         vs <- mapM argToPat vs
-        vs' <- reifyIArgs' vs
-        return $ LHS i (LHSHead f vs') (ds ++ wps)
+        vs <- reifyIArgs' vs
+        return $ SpineLHS i f vs (ds ++ wps)
+--        return $ LHS i (LHSHead f vs) (ds ++ wps)
       where
         ci   = ConPatInfo False patNoRange
         argToPat arg = fmap unnamed <$> traverse termToPat arg
@@ -677,19 +682,25 @@ reifyPatterns tel perm ps = evalStateT (reifyArgs ps) 0
             t'   = if Set.member "()" vars then underscore else t
         return $ A.DotP patNoRange t'
       I.LitP l  -> return $ A.LitP l
+      I.ProjP d -> return $ A.DefP patNoRange d []
       I.ConP c mt ps -> A.ConP ci (AmbQ [c]) <$> reifyArgs ps
         where ci = flip ConPatInfo patNoRange $ maybe False fst mt
 
 instance Reify NamedClause A.Clause where
   reify (QNamed f (I.Clause _ tel perm ps body)) = addCtxTel tel $ do
     ps  <- reifyPatterns tel perm ps
-    lhs <- liftTCM $ reifyDisplayFormP $ LHS info (LHSHead f ps) []
+    lhs <- liftTCM $ reifyDisplayFormP $ SpineLHS info f ps [] -- LHS info (LHSHead f ps) []
     nfv <- getDefFreeVars f
     lhs <- stripImps $ dropParams nfv lhs
+    reportSLn "reify" 60 $ "reifying NamedClause, lhs = " ++ show lhs
     rhs <- reify body
-    return $ A.Clause lhs rhs []
+    reportSLn "reify" 60 $ "reifying NamedClause, rhs = " ++ show rhs
+    let result = A.Clause (spineToLhs lhs) rhs []
+    reportSLn "reify" 60 $ "reified NamedClause, result = " ++ show result
+    return result
     where
       info = LHSRange noRange
+{-
       dropParams n (LHS i lhscore wps) =
         LHS i (mapLHSHead (\ f ps -> LHSHead f (genericDrop n ps)) lhscore) wps
       stripImps (LHS i lhscore wps) = do
@@ -701,11 +712,32 @@ instance Reify NamedClause A.Clause where
               stripIs (LHSProj d ps1 l ps2) = do
                 Common.Arg info (Named n (wps, l)) <- Trav.mapM (Trav.mapM stripIs) l
                 return (wps, LHSProj d ps1 (Common.Arg info (Named n l)) ps2)
+-}
 {-
       dropParams n (LHS i (LHSHead f ps) wps) = LHS i (LHSHead f (genericDrop n ps)) wps
       stripImps (LHS i (LHSHead f ps) wps) = do
         (ps, wps) <- stripImplicits ps wps
         return $ LHS i (LHSHead f ps) wps
+-}
+      dropParams n (SpineLHS i f ps wps) = SpineLHS i f (genericDrop n ps) wps
+      stripImps (SpineLHS i f ps wps) = do
+        (ps, wps) <- stripImplicits ps wps
+        return $ SpineLHS i f ps wps
+
+{-
+
+    -- Turn post fix projections @ps ++ DefP d []@ from internal syntax
+    -- into prefix projections @DefP d ps@.
+    postToPreProj :: [NamedArg A.Pattern] -> [NamedArg A.Pattern]
+    postToPreProj ps = case ps2 of
+        []          -> ps
+        (defp : ps) -> fmap (fmap (setDefP ps1)) defp : postToPreProj ps
+      where
+        (ps1, ps2) = break (isDefP . namedArg) ps
+        isDefP A.DefP{} = True
+        isDefP _        = False
+        setDefP ps (A.DefP i d []) = A.DefP i d ps
+        setDefP ps _               = __IMPOSSIBLE__
 -}
 
 instance Reify Type Expr where

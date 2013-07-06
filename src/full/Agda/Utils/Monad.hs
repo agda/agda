@@ -30,6 +30,9 @@ import Agda.Utils.List
 #include "../undefined.h"
 import Agda.Utils.Impossible
 
+(<.>) :: Functor m => (b -> c) -> (a -> m b) -> a -> m c
+(f <.> g) a = f <$> g a
+
 -- Conditionals and monads ------------------------------------------------
 
 -- | @when_@ is just @Control.Monad.when@ with a more general type.

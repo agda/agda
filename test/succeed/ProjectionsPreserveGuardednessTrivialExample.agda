@@ -1,7 +1,5 @@
+-- {-# OPTIONS -v term:30 #-}
 -- 2010-10-14
-
-{-# OPTIONS --universe-polymorphism #-}
-
 module ProjectionsPreserveGuardednessTrivialExample where
 
 -- Coinduction is only available with universe polymorphism
@@ -34,8 +32,8 @@ postulate
 
 -- Products
 
-infixr 4 _,_ 
-infixr 2 _×_ 
+infixr 4 _,_
+infixr 2 _×_
 
 record Σ {a b} (A : Set a) (B : A → Set b) : Set (a ⊔ b) where
   constructor _,_

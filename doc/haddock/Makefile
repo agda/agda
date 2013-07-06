@@ -84,12 +84,12 @@ endif
 src/% : $(FULL_SRC_DIR)/% src
 	@echo Preprocessing $* for haddock
 	@$(MKDIR) -p $(dir $@)
-	@$(GHC) -E -optP-P -optP-I$(FULL_SRC_DIR) -D__HADDOCK__ -o $@ $<
+	-$(GHC) -E -optP-P -optP-I$(FULL_SRC_DIR) -D__HADDOCK__ -o $@ $<
 
 src/% : $(FULL_OUT_DIR)/% src
 	@echo Preprocessing $* for haddock
 	@$(MKDIR) -p $(dir $@)
-	@$(GHC) -E -optP-P -optP-I$(FULL_SRC_DIR) -D__HADDOCK__ -o $@ $<
+	-$(GHC) -E -optP-P -optP-I$(FULL_SRC_DIR) -D__HADDOCK__ -o $@ $<
 
 src :
 	$(MKDIR) -p src
@@ -145,4 +145,8 @@ debug :
 	@echo "  $(src_hs_files)"
 	@echo The preprocessed files are
 	@echo "  $(dst_hs_files)"
+	@echo We are at directory
+	@pwd
+	@echo FULL_SRC_DIR = $(FULL_SRC_DIR)
+	@echo FULL_OUT_DIR = $(FULL_OUT_DIR)
 

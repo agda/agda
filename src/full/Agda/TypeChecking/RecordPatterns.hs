@@ -67,6 +67,7 @@ recordPatternToProjections p =
       t <- reduce t
       fields <- getRecordTypeFields (unArg t)
       concat <$> zipWithM comb (map proj fields) (map unArg ps)
+    ProjP{}            -> __IMPOSSIBLE__ -- copattern cannot appear here
   where
     proj p = \ x -> Def (unArg p) [defaultArg x]
     comb :: (Term -> Term) -> Pattern -> TCM [Term -> Term]
@@ -138,7 +139,12 @@ translateCompiledClauses cc = snd <$> loop cc
       (ccs, xssc, conMap)    <- Map.unzip3 <$> do
         Trav.forM (Map.mapWithKey (,) conMap) $ \ (c, WithArity ar cc) -> do
           (xs, cc)     <- loop cc
-          dataOrRecCon <- getConstructorArity c
+--          dataOrRecCon <- getConstructorArity c  -- TODO: c could be a projection
+          dataOrRecCon <- do
+            isProj <- isProjection c
+            case isProj of
+               Nothing -> getConstructorArity c
+               Just{}  -> return $ Left 0
           let (isRC, n)   = either (False,) ((True,) . size) dataOrRecCon
               (xs0, rest) = genericSplitAt i xs
               (xs1, xs2 ) = genericSplitAt n rest
@@ -648,6 +654,7 @@ translatePattern p@(ConP _ (Just _) _) = do
 translatePattern p@VarP{} = removeTree (Leaf p)
 translatePattern p@DotP{} = removeTree (Leaf p)
 translatePattern p@LitP{} = return (p, [], [])
+translatePattern p@ProjP{}= __IMPOSSIBLE__
 
 -- | 'translatePattern' lifted to lists of arguments.
 
@@ -691,6 +698,7 @@ recordTree (ConP c ci@(Just (_, t)) ps) = do
 recordTree p@VarP{} = return (Right (Leaf p))
 recordTree p@DotP{} = return (Right (Leaf p))
 recordTree p@LitP{} = return $ Left $ translatePattern p
+recordTree p@ProjP{}= __IMPOSSIBLE__
 
 ------------------------------------------------------------------------
 -- Translation of the clause telescope and body

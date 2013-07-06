@@ -9,7 +9,7 @@ data Nat : Set where
   suc   : Nat -> Nat
 
 data Vec (X : Set) : Nat -> Set where
-  [] : X ^ zero
+  [] : Vec X zero
   cons : (n : Nat) -> X -> Vec X n -> Vec X (suc n)
 
 foldl : (S : Set)(T : Nat -> Set) ->
@@ -19,7 +19,8 @@ foldl : (S : Set)(T : Nat -> Set) ->
 foldl S T0  f t ._ [] = t
 foldl S Tsn f t ._ (cons m s ss) =
   foldl S _ -- (\ n -> Tsn (suc n))
-        (\ n -> f _) (f _ t s) _ ss
+--        (\ n -> f _) (f _ t s) _ ss
+           _ (f zero t s) _ ss
 --        (\ n -> f (suc n)) (f zero t s) _ ss
 
 {- PROTOCOL:

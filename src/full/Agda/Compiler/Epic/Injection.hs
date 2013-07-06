@@ -115,6 +115,7 @@ patternToTerm n p = case p of
                                      (n , [])
                              $ map unArg args
     LitP l          -> Lit l
+    ProjP d         -> Def d [] -- Andreas, 2012-10-31 that might not be enought to get a term from list of patterns (TODO)
 
 nrBinds :: Num i => Pattern -> i
 nrBinds p = case p of
@@ -122,6 +123,7 @@ nrBinds p = case p of
     DotP t          -> 0
     ConP c typ args -> sum $ map (nrBinds . unArg) args
     LitP l          -> 0
+    ProjP{}         -> 0
 
 substForDot :: [I.Arg Pattern] -> Substitution
 substForDot = makeSubst 0 0 . reverse . calcDots
@@ -136,6 +138,7 @@ substForDot = makeSubst 0 0 . reverse . calcDots
         DotP t          -> [True]
         ConP c typ args -> calcDots args
         LitP l          -> [False]
+        ProjP{}         -> [False]
 
 isInjectiveHere :: QName  -- ^ Name of the function being tested
                 -> Int    -- ^ The current argument

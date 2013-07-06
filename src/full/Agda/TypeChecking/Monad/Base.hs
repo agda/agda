@@ -743,7 +743,11 @@ instance Monoid Simplification where
 data Reduced no yes = NoReduction no | YesReduction Simplification yes
     deriving (Typeable, Functor)
 
-data IsReduced = NotReduced | Reduced (Blocked ())
+-- | Three cases: 1. not reduced, 2. reduced, but blocked, 3. reduced, not blocked.
+data IsReduced
+  = NotReduced
+  | Reduced    (Blocked ())
+
 data MaybeReduced a = MaybeRed
   { isReduced     :: IsReduced
   , ignoreReduced :: a
@@ -751,6 +755,7 @@ data MaybeReduced a = MaybeRed
   deriving (Functor)
 
 type MaybeReducedArgs = [MaybeReduced (Arg Term)]
+type MaybeReducedElims = [MaybeReduced Elim]
 
 notReduced :: a -> MaybeReduced a
 notReduced x = MaybeRed NotReduced x
@@ -761,6 +766,16 @@ reduced b = case fmap ignoreSharing <$> b of
   _                                     -> MaybeRed (Reduced $ () <$ b)      v
   where
     v = ignoreBlocking b
+
+-- | Controlling 'reduce'.
+data AllowedReduction
+  = ProjectionReductions -- ^ proper projections may be reduced
+  | FunctionReductions   -- ^ functions which are not projections may be reduced
+  deriving (Show, Eq, Ord, Enum, Bounded)
+
+type AllowedReductions = [AllowedReduction]
+
+allReductions = [minBound..maxBound]
 
 data PrimFun = PrimFun
 	{ primFunName		:: QName
@@ -844,13 +859,13 @@ type Statistics = Map String Integer
 -- ** Trace
 ---------------------------------------------------------------------------
 
-data Call = CheckClause Type A.Clause (Maybe Clause)
+data Call = CheckClause Type A.SpineClause (Maybe Clause)
 	  | forall a. CheckPattern A.Pattern Telescope Type (Maybe a)
 	  | CheckLetBinding A.LetBinding (Maybe ())
 	  | InferExpr A.Expr (Maybe (Term, Type))
 	  | CheckExpr A.Expr Type (Maybe Term)
 	  | CheckDotPattern A.Expr Term (Maybe Constraints)
-	  | CheckPatternShadowing A.Clause (Maybe ())
+	  | CheckPatternShadowing A.SpineClause (Maybe ())
 	  | IsTypeCall A.Expr Sort (Maybe Type)
 	  | IsType_ A.Expr (Maybe Type)
 	  | InferVar Name (Maybe (Term, Type))
@@ -1031,6 +1046,7 @@ data TCEnv =
           , envSimplification :: Simplification
                 -- ^ Did we encounter a simplification (proper match)
                 --   during the current reduction process?
+          , envAllowedReductions :: AllowedReductions
 	  }
     deriving (Typeable)
 
@@ -1070,6 +1086,7 @@ initEnv = TCEnv { envContext	         = []
                 , envExpandLast             = ExpandLast
                 , envAppDef                 = Nothing
                 , envSimplification         = NoSimplification
+                , envAllowedReductions      = allReductions
 		}
 
 ---------------------------------------------------------------------------
@@ -1276,7 +1293,7 @@ data TypeError
     -- Coverage errors
     -- TODO: Remove some of the constructors in this section, now that
     -- the SplitError constructor has been added?
-	| IncompletePatternMatching Term Args -- can only happen if coverage checking is switched off
+	| IncompletePatternMatching Term [Elim] -- can only happen if coverage checking is switched off
         | CoverageFailure QName [[Arg Pattern]]
         | UnreachableClauses QName [[Arg Pattern]]
         | CoverageCantSplitOn QName Telescope Args Args

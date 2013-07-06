@@ -1,5 +1,6 @@
 {-# LANGUAGE CPP, PatternGuards, ImplicitParams, TupleSections, NamedFieldPuns,
-             FlexibleInstances, TypeSynonymInstances #-}
+             FlexibleInstances, TypeSynonymInstances,
+             DeriveFunctor #-}
 
 {- Checking for Structural recursion
    Authors: Andreas Abel, Nils Anders Danielsson, Ulf Norell,
@@ -18,13 +19,15 @@ import Control.Monad.Error
 import Control.Monad.State
 
 import Data.List as List
--- import qualified Data.Map as Map
 -- import Data.Map (Map)
--- import qualified Data.Maybe as Maybe
+-- import qualified Data.Map as Map
+import Data.Maybe (mapMaybe)
 import Data.Monoid
-import qualified Data.Set as Set
 -- import Data.Set (Set)
+import qualified Data.Set as Set
+import Data.Traversable (traverse)
 
+import Agda.Syntax.Abstract (IsProjP(..))
 import qualified Agda.Syntax.Abstract as A
 -- import Agda.Syntax.Abstract.Pretty (prettyA)
 import Agda.Syntax.Internal as I
@@ -47,6 +50,7 @@ import Agda.TypeChecking.Records (isRecordConstructor, isInductiveRecord)
 -- import Agda.TypeChecking.Rules.Term (isType_)
 -- import Agda.TypeChecking.Substitute (abstract,raise)
 import Agda.TypeChecking.Telescope
+import Agda.TypeChecking.Eliminators
 import Agda.TypeChecking.EtaContract
 import Agda.TypeChecking.Monad.Builtin
 -- import Agda.TypeChecking.Monad.Signature (isProjection, mutuallyRecursive)
@@ -60,7 +64,7 @@ import Agda.Interaction.Options
 
 import Agda.Utils.List
 import Agda.Utils.Size
-import Agda.Utils.Monad (mapM', forM', ifM, or2M, and2M)
+import Agda.Utils.Monad (mapM', forM', ifM, or2M, and2M, (<.>))
 -- import Agda.Utils.NubList
 import Agda.Utils.Pointed
 import Agda.Utils.Permutation
@@ -363,25 +367,36 @@ termDef use names name = do
 
 -}
 
-data DeBruijnPat = VarDBP Nat  -- de Bruijn Index
-	         | ConDBP QName [DeBruijnPat]
-                   -- ^ The name refers to either an ordinary
-                   --   constructor or the successor function on sized
-                   --   types.
-	         | LitDBP Literal
+data DeBruijnPat' a
+  = VarDBP a  -- ^ De Bruijn Index.
+  | ConDBP QName [DeBruijnPat' a]
+    -- ^ The name refers to either an ordinary
+    --   constructor or the successor function on sized types.
+  | LitDBP Literal
+  | ProjDBP QName
+  deriving (Functor, Show)
+
+type DeBruijnPat = DeBruijnPat' Nat
+
+instance IsProjP (DeBruijnPat' a) where
+  isProjP (ProjDBP d) = Just d
+  isProjP _           = Nothing
 
 instance PrettyTCM DeBruijnPat where
   prettyTCM (VarDBP i)    = text $ show i
   prettyTCM (ConDBP c ps) = parens (prettyTCM c <+> hsep (map prettyTCM ps))
   prettyTCM (LitDBP l)    = prettyTCM l
+  prettyTCM (ProjDBP d)   = prettyTCM d
 
 unusedVar :: DeBruijnPat
 unusedVar = LitDBP (LitString noRange "term.unused.pat.var")
 
+{- RETIRED, just use fmap
 adjIndexDBP :: (Nat -> Nat) -> DeBruijnPat -> DeBruijnPat
 adjIndexDBP f (VarDBP i)      = VarDBP (f i)
 adjIndexDBP f (ConDBP c args) = ConDBP c (map (adjIndexDBP f) args)
 adjIndexDBP f (LitDBP l)      = LitDBP l
+-}
 
 {- | liftDeBruijnPat p n
 
@@ -390,7 +405,7 @@ adjIndexDBP f (LitDBP l)      = LitDBP l
 -}
 
 liftDBP :: DeBruijnPat -> DeBruijnPat
-liftDBP = adjIndexDBP (1+)
+liftDBP = fmap (1+) -- adjIndexDBP (1+)
 
 {- | Configuration parameters to termination checker.
 -}
@@ -453,7 +468,8 @@ termToDBP conf t
 stripCoConstructors :: DBPConf -> DeBruijnPat -> TCM DeBruijnPat
 stripCoConstructors conf p = case p of
   VarDBP _  -> return p
-  LitDBP _ -> return p
+  LitDBP _  -> return p
+  ProjDBP _ -> return p
   ConDBP c args -> do
     ind <- if withSizeSuc conf == Just c then
              return Inductive
@@ -530,7 +546,7 @@ openClause conf perm ps body = do
     build (ConP con _ ps) = ConDBP con <$> mapM (build . unArg) ps
     build (DotP t)        = tick *> do lift $ termToDBP conf t
     build (LitP l)        = return $ LitDBP l
-
+    build (ProjP d)       = return $ ProjDBP d
 
 -- | Extract recursive calls from one clause.
 termClause :: DBPConf -> MutualNames -> QName -> Delayed -> Clause -> TCM Calls
@@ -554,27 +570,6 @@ termClause conf names name delayed
        Just t -> do
           dbpats <- mapM (stripCoConstructors conf) dbpats
           termTerm conf names name delayed dbpats t
-
-{-
-  addCtxTel tel $ do
-    argPats' <- normalise argPats'
-    -- The termination checker doesn't know about reordered telescopes
-    let argPats = substs (renamingR perm) argPats'
-    dbs <- stripBinds conf (nVars - 1) (map unArg argPats) body
-    case dbs of
-       Nothing -> return Term.empty
-       Just (-1, dbpats, Body t) -> do
-          dbpats <- mapM (stripCoConstructors conf) dbpats
-          termTerm conf names name delayed dbpats t
-          -- note: convert dB levels into dB indices
-       Just (n, dbpats, Body t) -> internalError $ "termClause: misscalculated number of vars: guess=" ++ show nVars ++ ", real=" ++ show (nVars - 1 - n)
-       Just (n, dbpats, b)  -> internalError $ "termClause: not a Body" -- ++ show b
-  where
-    nVars = boundVars body
-    boundVars (Bind b)   = 1 + boundVars (absBody b)
-    boundVars NoBody     = 0
-    boundVars (Body _)   = 0
--}
 
 -- | Extract recursive calls from a term.
 termTerm :: DBPConf -> MutualNames -> QName -> Delayed -> [DeBruijnPat] -> Term -> TCM Calls
@@ -666,30 +661,56 @@ termTerm conf names f delayed pats0 t0 = do
                               (True,  CoInductive) -> Term.lt .*. guarded
                               (False, _)           -> Term.unknown
 
+             -- Handle guardedness preserving type constructor.
+             guardPresTyCon :: QName -> [Elim] -> (QName -> [Elim] -> TCM Calls) -> TCM Calls
+             guardPresTyCon g es cont
+              | guardingTypeConstructors conf = do
+                def <- getConstInfo g
+                let occs = defArgOccurrences def
+                    preserves = (StrictPos <=)
+                    -- Data or record type constructor.
+                    con = constructor g Inductive $   -- guardedness preserving
+                            zip (argsFromElims es)
+                                (map preserves occs ++ repeat False)
+                case theDef def of
+                  Datatype{} -> con
+                  Record{}   -> con
+                  _          -> cont g es
+              | otherwise = cont g es
+
              -- Handles function applications @g args0@.
              function :: QName -> [I.Arg Term] -> TCM Calls
-             function g args0 = do
-               let args1 = map unArg args0
-               args2 <- mapM instantiateFull args1
+             function g0 args0 = do
+              let gArgs = Def g0 args0
+              reportSDoc "term.function" 30 $
+                text "termination checking function call " <+> prettyTCM gArgs
+              ev <- elimView' terminationElimViewConf gArgs -- elimView that does not reduce, and only accepts proper projections into the spine
+              case ev of
+               ConElim{} -> loop pats guarded $ unElimView ev
+               NoElim v  -> do
+                 reportSDoc "term.elim" 10 $ text "got NoElim " <+> prettyTCM v
+                 reportSDoc "term.elim" 50 $ text $ show v
+                 loop pats guarded v
+               MetaElim x es -> mapM' (loop pats Term.unknown . unArg) $ argsFromElims es
+               VarElim  x es -> mapM' (loop pats Term.unknown . unArg) $ argsFromElims es
+               DefElim  g es -> guardPresTyCon g es $ \ g es -> do
 
                -- We have to reduce constructors in case they're reexported.
                let reduceCon t = case ignoreSharing t of
                       Con c vs -> (`apply` vs) <$> reduce (Con c [])  -- make sure we don't reduce the arguments
                       _        -> return t
-               args2 <- mapM reduceCon args2
-               args  <- mapM etaContract args2
+               es <- mapM (etaContract <=< traverse reduceCon <=< instantiateFull) es
 
                -- If the function is a projection, then preserve guardedness
                -- for its principal argument.
-               isProj <- isProjectionButNotFlat g
+               isProj <- isProjectionButNotCoinductive g
                let unguards = repeat Term.unknown
                let guards = if isProj then guarded : unguards
                                            -- proj => preserve guardedness of principal argument
                                       else unguards -- not a proj ==> unguarded
                -- collect calls in the arguments of this call
+               let args = map unArg $ argsFromElims es
                calls <- mapM' (uncurry (loop pats)) (zip guards args)
-               -- calls <- mapM' (loop pats Term.unknown) args
-
 
                reportSDoc "term.found.call" 20
                        (sep [ text "found call from" <+> prettyTCM f
@@ -705,13 +726,19 @@ termTerm conf names f delayed pats0 t0 = do
                   -- call is to one of the mutally recursive functions
                   Just gInd' -> do
 
+                     (nrows, ncols, matrix) <- compareArgs (withSizeSuc conf) pats es
+                     reportSLn "term.guardedness" 20 $
+                       "composing with guardedness " ++ show guarded ++
+                       " counting as " ++ show (ifDelayed guarded)
+                     let matrix' = composeGuardedness (ifDelayed guarded) matrix
+{- OLD
                      matrix <- compareArgs (withSizeSuc conf) pats args
                      let (nrows, ncols, matrix') = addGuardedness
                             (ifDelayed guarded)  -- only delayed defs can be guarded
                             (genericLength args) -- number of rows
                             (genericLength pats) -- number of cols
                             matrix
-
+-}
 
                      reportSDoc "term.kept.call" 5
                        (sep [ text "kept call from" <+> prettyTCM f
@@ -726,7 +753,7 @@ termTerm conf names f delayed pats0 t0 = do
                      -- So we build a closure such that we can print the call
                      -- whenever we really need to.
                      -- This saves 30s (12%) on the std-lib!
-                     doc <- buildClosure (Def g args0)
+                     doc <- buildClosure gArgs
                      return
                        (Term.insert
                          (Term.Call { Term.source = fInd
@@ -761,15 +788,13 @@ termTerm conf names f delayed pats0 t0 = do
                           ]
                 constructor c ind $ zip args (repeat True)
 
-            Def g args0
+            Def g args0 -> guardPresTyCon g (map Apply args0) $
+                \ g es -> function g $ argsFromElims es
+{-
               | guardingTypeConstructors conf -> do
                 def <- getConstInfo g
                 let occs = defArgOccurrences def
                 case theDef def of
-{-
-                  Datatype {dataArgOccurrences = occs} -> con occs
-                  Record   {recArgOccurrences  = occs} -> con occs
--}
                   Datatype{} -> con occs
                   Record{}   -> con occs
                   _          -> fun
@@ -790,7 +815,7 @@ termTerm conf names f delayed pats0 t0 = do
 
               -- Call to defined function.
               fun = function g args0
-
+-}
             -- Abstraction. Preserves guardedness.
             Lam h (Abs x t) -> addCtxString_ x $
               loop (map liftDBP pats) guarded t
@@ -865,9 +890,45 @@ maskSizeLt dom@(Dom info a) = do
      with |ts| rows and |pats| columns.
 
      If sized types are enabled, @suc@ is the name of the size successor.
+
+     The guardedness is the number of projection patterns in @pats@
+     minus the number of projections in @ts@
  -}
-compareArgs ::  (?cutoff :: Int) => Maybe QName -> [DeBruijnPat] -> [Term] -> TCM [[Term.Order]]
-compareArgs suc pats ts = mapM (\t -> mapM (compareTerm suc t) pats) ts
+compareArgs ::  (Integral n, ?cutoff :: Int) => Maybe QName -> [DeBruijnPat] -> [Elim] -> TCM (n, n, [[Term.Order]])
+compareArgs suc pats es = do
+  -- matrix <- forM es $ forM pats . compareTerm suc  -- UNREADABLE pointfree style
+  matrix <- forM es $ \ e -> forM pats $ \ p -> compareElim suc e p
+  -- count the number of coinductive projection(pattern)s in caller and callee
+  projsCaller <- genericLength <$> do
+    filterM (not <.> isProjectionButNotCoinductive) $ mapMaybe isProjP pats
+  projsCallee <- genericLength <$> do
+    filterM (not <.> isProjectionButNotCoinductive) $ mapMaybe isProjElim es
+  let guardedness = decr $ projsCaller - projsCallee
+  reportSLn "term.guardedness" 30 $ "compareArgs: guardedness of call: " ++ show guardedness
+  return $ addGuardedness guardedness (size es) (size pats) matrix
+
+-- OLD:
+-- compareArgs ::  (?cutoff :: Int) => Maybe QName -> [DeBruijnPat] -> [Term] -> TCM ([[Term.Order]])
+-- compareArgs suc pats ts = matrix <- mapM (\t -> mapM (compareTerm suc t) pats) ts
+
+-- | @compareElim suc e dbpat@
+--   Precondition: top meta variable resolved
+compareElim :: (?cutoff :: Int) => Maybe QName -> Elim -> DeBruijnPat -> TCM Term.Order
+compareElim suc e p = do
+  reportSDoc "term.compare" 30 $ sep
+    [ text "compareElim"
+    , nest 2 $ text "e = " <+> prettyTCM e
+    , nest 2 $ text "p = " <+> prettyTCM p
+    ]
+  reportSDoc "term.compare" 50 $ sep
+    [ nest 2 $ text $ "e = " ++ show e
+    , nest 2 $ text $ "p = " ++ show p
+    ]
+  case (e, p) of
+    (Proj d, ProjDBP d') | d == d' -> return Term.le
+    (Proj{}, _         )           -> return Term.unknown
+    (Apply{}, ProjDBP{})           -> return Term.unknown
+    (Apply arg, p)                 -> compareTerm suc (unArg arg) p
 
 -- | 'makeCM' turns the result of 'compareArgs' into a proper call matrix
 makeCM :: Index -> Index -> [[Term.Order]] -> Term.CallMatrix
@@ -885,9 +946,14 @@ addGuardedness g nrows ncols m = (nrows, ncols, m)
 
 -- | 'addGuardedness' adds guardedness flag in the upper left corner (0,0).
 addGuardedness :: Integral n => Order -> n -> n -> [[Term.Order]] -> (n, n, [[Term.Order]])
-addGuardedness g nrows ncols m =
+addGuardedness o nrows ncols m =
   (nrows + 1, ncols + 1,
-   (g : genericReplicate ncols Term.unknown) : map (Term.unknown :) m)
+   (o : genericReplicate ncols Term.unknown) : map (Term.unknown :) m)
+
+-- | Compose something with the upper-left corner of a call matrix
+composeGuardedness :: (?cutoff :: Int) => Term.Order -> [[Term.Order]] -> [[Term.Order]]
+composeGuardedness o ((corner : row) : rows) = ((o .*. corner) : row) : rows
+composeGuardedness _ _ = __IMPOSSIBLE__
 
 -- | Stripping off a record constructor is not counted as decrease, in
 --   contrast to a data constructor.
@@ -901,6 +967,7 @@ subPatterns p = case p of
   VarDBP _    -> []
   ConDBP c ps -> ps ++ concatMap subPatterns ps
   LitDBP _    -> []
+  ProjDBP _   -> []
 
 compareTerm :: (?cutoff :: Int) => Maybe QName -> Term -> DeBruijnPat -> TCM Term.Order
 compareTerm suc t p = do
@@ -917,8 +984,8 @@ compareTerm t p = Term.supremum $ compareTerm' t p : map cmp (subPatterns p)
 --   projection. That is, it flat doesn't preserve either structural order
 --   or guardedness like other projections do.
 --   Andreas, 2012-06-09: the same applies to projections of recursive records.
-isProjectionButNotFlat :: QName -> TCM Bool
-isProjectionButNotFlat qn = do
+isProjectionButNotCoinductive :: QName -> TCM Bool
+isProjectionButNotCoinductive qn = do
   flat <- fmap nameOfFlat <$> coinductionKit
   if Just qn == flat
     then return False
@@ -936,7 +1003,7 @@ stripProjections :: Term -> TCM Term
 stripProjections t = case ignoreSharing t of
   DontCare t -> stripProjections t
   Def qn ts@(~(r : _)) -> do
-    isProj <- isProjectionButNotFlat qn
+    isProj <- isProjectionButNotCoinductive qn
     case isProj of
       True | not (null ts) -> stripProjections $ unArg r
       _ -> return t
@@ -1039,6 +1106,7 @@ compareConArgs suc ts ps =
 compareVar :: (?cutoff :: Int) => Maybe QName -> Nat -> DeBruijnPat -> TCM Term.Order
 compareVar suc i (VarDBP j)    = compareVarVar suc i j
 compareVar suc i (LitDBP _)    = return $ Term.unknown
+compareVar suc i (ProjDBP _)   = return $ Term.unknown
 compareVar suc i (ConDBP c ps) = do
   decrease <$> offsetFromConstructor c
            <*> (Term.supremum <$> mapM (compareVar suc i) ps)

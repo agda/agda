@@ -10,3 +10,6 @@ iterate' :: Integral i => i -> (a -> a) -> a -> a
 iterate' 0 f x             = x
 iterate' n f x | n > 0     = iterate' (n - 1) f $! f x
                | otherwise = error "iterate': Negative input."
+
+rot3 :: (a -> b -> c -> d) -> b -> c -> a -> d
+rot3 f b c a = f a b c

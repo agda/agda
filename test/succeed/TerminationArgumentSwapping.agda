@@ -1,3 +1,4 @@
+-- {-# OPTIONS -v term:30 #-}
 module TerminationArgumentSwapping where
 
 -- subtyping simple types

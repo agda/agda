@@ -864,7 +864,8 @@ instance ToAbstract NiceDeclaration A.Declaration where
     C.FunDef r ds f a tc x cs -> do
         printLocals 10 $ "checking def " ++ show x
         (x',cs) <- toAbstract (OldName x,cs)
-        (delayed, cs) <- translateCopatternClauses cs
+        let delayed = NotDelayed
+        -- (delayed, cs) <- translateCopatternClauses cs -- TODO
         return [ A.FunDef (mkDefInfo x f PublicAccess a r) x' delayed cs ]
 
   -- Uncategorized function clauses

@@ -14,7 +14,8 @@ include $(TOP)/mk/config.mk
 V = 1
 
 # Getting all agda files
-excluded=
+excluded=Issue784.agda Issue846.agda
+# Issue784 needs too much memory, no good for my Mac
 allagda=$(patsubst %.agda,%.test,$(filter-out $(excluded),$(shell ls *.*agda)))
 #allagda=$(patsubst %.agda,%.test,$(filter-out $(excluded),$(shell find . -name "*.agda")))
 # allagda=$(patsubst %.agda,%.test,$(shell find . -name "*.agda"))

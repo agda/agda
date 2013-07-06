@@ -427,8 +427,14 @@ compareAtom cmp t m n =
                     , text $ "ev2 = " ++ show ev2 ]
               case (ev1, ev2) of
                 (VarElim x els1, VarElim y els2) | x == y -> cmpElim (typeOfBV x) (Var x []) els1 els2
-                (ConElim x els1, ConElim y els2) | x == y ->
-                  cmpElim (conType x t) (Con x []) els1 els2
+                (ConElim x args1, ConElim y args2) | x == y -> do
+                  a <- conType x t
+                  compareArgs [] a (Con x []) args1 args2
+                  -- Andreas, 2013-05-23 Ok, if there cannot be
+                  -- any projection eliminations from constructors,
+                  -- let's be explicit about it!
+--                (ConElim x els1, ConElim y els2) | x == y ->
+--                  cmpElim (conType x t) (Con x []) els1 els2
                   -- Andreas 2012-01-17 careful!  In the presence of
                   -- projection eliminations, t is NOT the datatype x belongs to
                   -- Ulf 2012-07-12: actually projection likeness is carefully
@@ -564,7 +570,7 @@ compareElims pols0 a v els01 els02 = catchConstraint (ElimCmp pols0 a v els01 el
         , text "arg1 =" <+> prettyTCM arg1
         , text "arg2 =" <+> prettyTCM arg2
         ]
-      reportSDoc "tc.conv.elim" 25 $ nest 2 $ vcat
+      reportSDoc "tc.conv.elim" 50 $ nest 2 $ vcat
         [ text "v    =" <+> text (show v)
         , text "arg1 =" <+> text (show arg1)
         , text "arg2 =" <+> text (show arg2)

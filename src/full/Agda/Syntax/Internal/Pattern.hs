@@ -4,8 +4,17 @@ module Agda.Syntax.Internal.Pattern where
 
 import Agda.Syntax.Common hiding (Arg, Dom, NamedArg)
 -- import qualified Agda.Syntax.Common as Common
+import Agda.Syntax.Abstract (IsProjP(..))
 import Agda.Syntax.Internal
 import Agda.Utils.Tuple
+
+-- * Tools for patterns
+
+instance IsProjP Pattern where
+  isProjP (ProjP d) = Just d
+  isProjP _         = Nothing
+
+-- * One hole patterns
 
 data OneHolePatterns = OHPats [Arg Pattern] (Arg OneHolePattern) [Arg Pattern]
   deriving (Show)
@@ -38,7 +47,8 @@ allHolesWithContents (p : ps) = map left phs ++ map (right p) (allHolesWithConte
     holes p@(VarP _)     = [(p, Hole)]
     holes p@(DotP _)     = [(p, Hole)]
     holes (ConP c mt qs) = map (id -*- OHCon c mt) $ allHolesWithContents qs
-    holes _              = []
+    holes LitP{}         = []
+    holes ProjP{}        = []
 
     left  (p, ph)               = (p, OHPats [] ph ps)
     right q (p, OHPats ps h qs) = (p, OHPats (q : ps) h qs)

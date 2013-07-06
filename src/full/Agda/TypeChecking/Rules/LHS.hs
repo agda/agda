@@ -10,6 +10,7 @@ import Control.Monad
 
 import Agda.Syntax.Internal as I
 import Agda.Syntax.Internal.Pattern
+import Agda.Syntax.Abstract (IsProjP(..))
 import qualified Agda.Syntax.Abstract as A
 import Agda.Syntax.Common
 import Agda.Syntax.Info
@@ -136,16 +137,30 @@ instantiatePattern sub perm ps
         mergeP (VarP _) (LitP _)      = __IMPOSSIBLE__
         mergeP (LitP _) (ConP _ _ _)  = __IMPOSSIBLE__
         mergeP (LitP _) (VarP _)      = __IMPOSSIBLE__
+        mergeP (ProjP x) (ProjP y)
+          | x == y                    = ProjP x
+          | otherwise                 = __IMPOSSIBLE__
+        mergeP ProjP{} _              = __IMPOSSIBLE__
+        mergeP _       ProjP{}        = __IMPOSSIBLE__
 
 -- | Check if a problem is solved. That is, if the patterns are all variables.
 isSolvedProblem :: Problem -> Bool
-isSolvedProblem = all (isVar . snd . asView . namedArg) . problemInPat
+isSolvedProblem problem = null (restPats $ problemRest problem) &&
+    all (isSolved . snd . asView . namedArg) (problemInPat problem)
   where
+    isSolved (A.DefP _ _ []) = True  -- projection pattern
+    isSolved (A.VarP _)      = True
+    isSolved (A.WildP _)     = True
+    isSolved (A.ImplicitP _) = True
+    isSolved (A.AbsurdP _)   = True
+    isSolved _               = False
+{-
     isVar (A.VarP _)      = True
     isVar (A.WildP _)     = True
     isVar (A.ImplicitP _) = True
     isVar (A.AbsurdP _)   = True
     isVar _               = False
+-}
 
 -- | For each user-defined pattern variable in the 'Problem', check
 -- that the corresponding data type (if any) does not contain a
@@ -154,14 +169,6 @@ isSolvedProblem = all (isVar . snd . asView . namedArg) . problemInPat
 --
 -- Precondition: The problem has to be solved.
 
-{-
-noShadowingOfConstructors
-  :: A.Clause
-     -- ^ The entire clause (used for error reporting).
-  -> Problem -> TCM ()
-noShadowingOfConstructors c problem =
-  traceCall (CheckPatternShadowing c) $ do
--}
 noShadowingOfConstructors
   :: (Maybe r -> Call) -- ^ Trace, e.g., @CheckPatternShadowing clause@
   -> Problem -> TCM ()
@@ -170,14 +177,14 @@ noShadowingOfConstructors mkCall problem =
     let pat = map (snd . asView . namedArg) $
                   problemInPat problem
         tel = map (unEl . snd . unDom) $ telToList $ problemTel problem
-    zipWithM' noShadowing pat tel
+    zipWithM noShadowing pat tel -- TODO: does not work for flexible arity and projection patterns
     return ()
   where
   noShadowing (A.WildP     {}) t = return ()
   noShadowing (A.AbsurdP   {}) t = return ()
   noShadowing (A.ImplicitP {}) t = return ()
   noShadowing (A.ConP      {}) t = return ()  -- only happens for eta expanded record patterns
-  noShadowing (A.DefP      {}) t = __IMPOSSIBLE__
+  noShadowing (A.DefP      {}) t = return ()  -- projection pattern
   noShadowing (A.AsP       {}) t = __IMPOSSIBLE__
   noShadowing (A.DotP      {}) t = __IMPOSSIBLE__
   noShadowing (A.LitP      {}) t = __IMPOSSIBLE__
@@ -284,9 +291,16 @@ bindAsPatterns (AsB x v a : asb) ret = do
   addLetBinding defaultArgInfo x v a $ bindAsPatterns asb ret
 
 -- | Check a LHS. Main function.
+--
+--   @checkLeftHandSide a ps a ret@ checks that user patterns @ps@ eliminate
+--   the type @a@ of the defined function, and calls continuation @ret@
+--   if successful.
+
 checkLeftHandSide
   :: (Maybe r -> Call)
      -- ^ Trace, e.g. @CheckPatternShadowing clause@
+  -> Maybe QName
+     -- ^ The name of the definition we are checking.
   -> [A.NamedArg A.Pattern]
      -- ^ The patterns.
   -> Type
@@ -303,20 +317,19 @@ checkLeftHandSide
       -> TCM a)
      -- ^ Continuation.
   -> TCM a
-checkLeftHandSide c ps a ret = do
+checkLeftHandSide c f ps a ret = do
   problem <- problemFromPats ps a
   -- Andreas, 2013-03-15 deactivating the following test allows
   -- flexible arity
   -- unless (noProblemRest problem) $ typeError $ TooManyArgumentsInLHS a
-  let (Problem _ _ gamma (ProblemRest _ b)) = problem
-      mgamma = if noProblemRest problem then Just gamma else Nothing
-      st     = LHSState problem idS [] []
+  let mgamma = if noProblemRest problem then Just $ problemTel problem else Nothing
 
   -- doing the splits:
-  LHSState (Problem ps (perm, qs) delta rest) sigma dpi asb <- checkLHS st
+  LHSState (Problem ps (perm, qs) delta rest) sigma dpi asb
+    <- checkLHS $ LHSState problem idS [] []
+
   unless (null $ restPats rest) $ typeError $ TooManyArgumentsInLHS a
 
-  -- let b' = applySubst sigma b
   let b' = restType rest
 
   noPatternMatchingOnCodata qs
@@ -332,7 +345,7 @@ checkLeftHandSide c ps a ret = do
            , text "qs    = " <+> text (show qs)
 	   ]
          ]
-  bindLHSVars ps delta $ bindAsPatterns asb $ do
+  bindLHSVars (filter (isNothing . isProjP) ps) delta $ bindAsPatterns asb $ do
     reportSDoc "tc.lhs.top" 10 $ nest 2 $ text "type  = " <+> prettyTCM b'
 
     -- Check dot patterns
@@ -352,11 +365,27 @@ checkLeftHandSide c ps a ret = do
           noShadowingOfConstructors c problem
           return $ st { lhsProblem = problem }
         else do
-        sp <- splitProblem problem
+        sp <- splitProblem f problem
         reportSDoc "tc.lhs.split" 20 $ text "splitting completed"
         case sp of
           Left NothingToSplit   -> nothingToSplitError problem
-          Left (SplitPanic err) -> __IMPOSSIBLE__
+          Left (SplitPanic err) -> do
+            reportSLn "impossible" 10 $ "checkLHS: panic: " ++ err
+            __IMPOSSIBLE__
+
+          -- Split problem rest (projection pattern)
+          Right (SplitRest projPat projType) -> do
+
+            -- Compute the new problem
+            let Problem ps1 (iperm, ip) delta (ProblemRest (p:ps2) b) = problem
+                ps'      = ps1 ++ [p]
+                rest     = ProblemRest ps2 projType
+                ip'      = ip ++ [fmap ProjP projPat]
+                problem' = Problem ps' (iperm, ip') delta rest
+            -- Jump the trampolin
+            st' <- updateProblemRest (LHSState problem' sigma dpi asb)
+            checkLHS st'
+
 
           -- Split on literal pattern
           Right (Split p0 xs (Arg _ (LitFocus lit iph hix a)) p1) -> do
@@ -651,6 +680,7 @@ noPatternMatchingOnCodata = mapM_ (check . unArg)
   where
   check (VarP {})   = return ()
   check (DotP {})   = return ()
+  check (ProjP{})   = return ()
   check (LitP {})   = return ()  -- Literals are assumed not to be coinductive.
   check (ConP q _ ps) = do
     TelV _ t <- telView' . defType <$> getConstInfo q

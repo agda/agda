@@ -112,8 +112,9 @@ compile cs = case nextSplit cs of
   where
     name (VarP x) = x
     name (DotP _) = "_"
-    name ConP{} = __IMPOSSIBLE__
-    name LitP{} = __IMPOSSIBLE__
+    name ConP{}  = __IMPOSSIBLE__
+    name LitP{}  = __IMPOSSIBLE__
+    name ProjP{} = __IMPOSSIBLE__
     getBody (_, b) = body b
     body (Bind b)   = body (absBody b)
     body (Body t)   = Just t
@@ -130,6 +131,7 @@ nextSplit ((ps, _):_) = findIndex isPat $ map unArg ps
     isPat DotP{} = False
     isPat ConP{} = True
     isPat LitP{} = True
+    isPat ProjP{} = True
 
 -- | @splitOn single n cs@ will force expansion of catch-alls
 --   if @single@.
@@ -138,9 +140,11 @@ splitOn single n cs = mconcat $ map (fmap (:[]) . splitC n) $ expandCatchAlls si
 
 splitC :: Int -> Cl -> Case Cl
 splitC n (ps, b) = case unArg p of
+  ProjP d     -> conCase d $ WithArity 0 (ps0 ++ ps1, b)
   ConP c _ qs -> conCase c $ WithArity (length qs) (ps0 ++ qs ++ ps1, b)
   LitP l      -> litCase l (ps0 ++ ps1, b)
-  _           -> catchAll (ps, b)
+  VarP{}      -> catchAll (ps, b)
+  DotP{}      -> catchAll (ps, b)
   where
     (ps0, p, ps1) = extractNthElement' n ps
 
@@ -180,8 +184,9 @@ expandCatchAlls single n cs =
       | isCatchAll (nth ps) = map (expand ps b) expansions ++ [c]
       | otherwise           = [c]
 
-    isCatchAll (Arg _ ConP{}) = False
-    isCatchAll (Arg _ LitP{}) = False
+    isCatchAll (Arg _ ConP{})  = False
+    isCatchAll (Arg _ LitP{})  = False
+    isCatchAll (Arg _ ProjP{}) = False
     isCatchAll _      = True
     nth qs = p
       where (_, p, _) = extractNthElement' n qs

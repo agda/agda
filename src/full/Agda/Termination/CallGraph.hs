@@ -1,4 +1,5 @@
-{-# LANGUAGE CPP, ImplicitParams #-}
+{-# LANGUAGE CPP, ImplicitParams, TypeSynonymInstances, FlexibleInstances,
+  GeneralizedNewtypeDeriving, DeriveFunctor #-}
 
 -- | Call graphs and related concepts, more or less as defined in
 --     \"A Predicative Analysis of Structural Recursion\" by
@@ -12,14 +13,14 @@ module Agda.Termination.CallGraph
   , increase, decrease
   , (.*.)
   , supremum, infimum
-  , decreasing, le, lt, unknown, orderMat
+  , decreasing, le, lt, unknown, orderMat, collapseO
     -- * Call matrices
   , Index
-  , CallMatrix(..)
+  , CallMatrix'(..), CallMatrix
   , (>*<)
   , callMatrixInvariant
     -- * Calls
-  , Call(..)
+  , Call'(..), Call
   , callInvariant
     -- * Call graphs
   , CallGraph
@@ -223,6 +224,10 @@ collapse :: (?cutoff :: Int) => Matrix Integer Order -> Order
 collapse m = foldl (.*.) le (Data.Array.elems $ diagonal m)
 -}
 
+collapseO :: (?cutoff :: Int) => Order -> Order
+collapseO (Mat m) = collapse m
+collapseO o       = o
+
 okM :: Matrix Integer Order -> Matrix Integer Order -> Bool
 okM m1 m2 = (rows $ size m2) == (cols $ size m1)
 
@@ -294,8 +299,10 @@ type Index = Integer
 -- | Call matrices. Note the call matrix invariant
 -- ('callMatrixInvariant').
 
-newtype CallMatrix = CallMatrix { mat :: Matrix Index Order }
-  deriving (Eq, Ord, Show)
+newtype CallMatrix' a = CallMatrix { mat :: Matrix Index a }
+  deriving (Eq, Ord, Show, Functor)
+
+type CallMatrix = CallMatrix' Order
 
 instance Arbitrary CallMatrix where
   arbitrary = do
@@ -374,12 +381,14 @@ prop_cmMul sz =
 --   The structural ordering used is defined in the paper referred to
 --   above.
 
-data Call =
+data Call' a =
   Call { source :: Index        -- ^ The function making the call.
        , target :: Index        -- ^ The function being called.
-       , cm :: CallMatrix       -- ^ The call matrix describing the call.
+       , cm :: CallMatrix' a    -- ^ The call matrix describing the call.
        }
-  deriving (Eq, Ord, Show)
+  deriving (Eq, Ord, Show, Functor)
+
+type Call = Call' Order
 
 instance Arbitrary Call where
   arbitrary = do

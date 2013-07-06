@@ -1,3 +1,4 @@
+-- {-# OPTIONS -v tc.cover.splittree:10 -v tc.cc.splittree:10 #-}
 module RecordPatternMatching where
 
 -- Sigma type.

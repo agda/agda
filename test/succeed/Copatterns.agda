@@ -32,11 +32,15 @@ fst (snd (snd (swap4 t))) = fst (snd t)
 
 -- State monad example
 
+-- The State newtype
+
 record State (S A : Set) : Set where
   constructor state
   field
     runState : S → A × S
 open State
+
+-- The Monad type class
 
 record Monad (M : Set → Set) : Set1 where
   constructor monad
@@ -44,6 +48,8 @@ record Monad (M : Set → Set) : Set1 where
     return : {A : Set}   → A → M A
     _>>=_  : {A B : Set} → M A → (A → M B) → M B
 open Monad {{...}}
+
+-- State is an instance of Monad
 
 stateMonad : {S : Set} → Monad (State S)
 runState (return {{stateMonad}} a  ) s  = a , s

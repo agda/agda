@@ -15,6 +15,8 @@ import Data.Map (Map)
 -- import qualified Data.Map as Map
 -- import qualified Data.Set as Set
 
+import Debug.Trace (trace)
+
 import Agda.Syntax.Common hiding (Arg, Dom, NamedArg)
 import qualified Agda.Syntax.Common as Common
 import Agda.Syntax.Internal
@@ -233,7 +235,8 @@ piApply :: Type -> Args -> Type
 piApply t []                      = t
 piApply (El _ (Pi  _ b)) (a:args) = absApp b (unArg a) `piApply` args
 piApply (El s (Shared p)) args    = piApply (El s $ derefPtr p) args
-piApply _ _                       = __IMPOSSIBLE__
+piApply t args                    =
+  trace ("piApply t = " ++ show t ++ "\n  args = " ++ show args) __IMPOSSIBLE__
 
 -- | @(abstract args v) args --> v[args]@.
 class Abstract t where
@@ -516,10 +519,10 @@ instance Subst Bool where
 
 instance Subst Pattern where
   applySubst rho p = case p of
+    VarP s       -> VarP s
+    LitP l       -> LitP l
     ConP c mt ps -> ConP c (applySubst rho mt) $ applySubst rho ps
     DotP t       -> DotP $ applySubst rho t
-    VarP s       -> p
-    LitP l       -> p
 
 instance Subst t => Subst (Blocked t) where
   applySubst rho b      = fmap (applySubst rho) b

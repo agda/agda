@@ -60,3 +60,13 @@ performedSimplification = local $ \ e -> e { envSimplification = YesSimplificati
 
 performedSimplification' :: Simplification -> TCM a -> TCM a
 performedSimplification' simpl = local $ \ e -> e { envSimplification = simpl `mappend` envSimplification e }
+
+-- | Reduce @Def f vs@ only if @f@ is a projection.
+onlyReduceProjections :: TCM a -> TCM a
+onlyReduceProjections = local $ \ e -> e { envAllowedReductions = [ProjectionReductions] }
+
+dontReduceProjections :: TCM a -> TCM a
+dontReduceProjections = local $ \ e -> e { envAllowedReductions = [FunctionReductions] }
+
+allowAllReductions :: TCM a -> TCM a
+allowAllReductions = local $ \ e -> e { envAllowedReductions = allReductions }

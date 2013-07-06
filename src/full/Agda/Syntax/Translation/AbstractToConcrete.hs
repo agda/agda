@@ -635,7 +635,7 @@ instance ToConcrete (Constr A.Constructor) C.Declaration where
     return $ C.TypeSig info x' t'
   toConcrete (Constr d) = head <$> toConcrete d
 
-instance ToConcrete A.Clause [C.Declaration] where
+instance ToConcrete a C.LHS => ToConcrete (A.Clause' a) [C.Declaration] where
   toConcrete (A.Clause lhs rhs wh) =
       bindToConcrete lhs $ \lhs ->
         case lhs of
@@ -781,6 +781,9 @@ noImplicitPats = filter noImplicit
 
 noImplicit (A.ImplicitP _) = False
 noImplicit _               = True
+
+instance ToConcrete A.SpineLHS C.LHS where
+  bindToConcrete = bindToConcrete . A.spineToLhs
 
 instance ToConcrete A.LHS C.LHS where
     bindToConcrete (A.LHS i lhscore wps) ret = do

@@ -1,4 +1,4 @@
--- {-# OPTIONS -v term:20 #-}
+-- {-# OPTIONS -v term:30 #-}
 module BadTermination where
 
 data N : Set where

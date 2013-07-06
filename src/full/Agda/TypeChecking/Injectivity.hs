@@ -24,6 +24,7 @@ import Agda.TypeChecking.Primitive
 import Agda.TypeChecking.MetaVars
 import {-# SOURCE #-} Agda.TypeChecking.Conversion
 import Agda.TypeChecking.Pretty
+import Agda.TypeChecking.Eliminators
 import Agda.TypeChecking.Constraints
 import Agda.TypeChecking.Polarity
 import Agda.Utils.List
@@ -115,6 +116,7 @@ checkInjectivity f cs
     pointLess [Clause{clausePats = ps}] = all (noMatch . unArg) ps
       where noMatch ConP{} = False
             noMatch LitP{} = False
+            noMatch ProjP{}= False
             noMatch VarP{} = True
             noMatch DotP{} = True
 checkInjectivity f cs = do
@@ -145,6 +147,7 @@ checkInjectivity f cs = do
     rhs (Body v)   = return $ Just v
     rhs NoBody     = return Nothing
 
+{-
 -- | Argument should be on weak head normal form.
 functionInverse :: Term -> TCM InvView
 functionInverse v = case ignoreSharing v of
@@ -156,8 +159,28 @@ functionInverse v = case ignoreSharing v of
         Inverse m     -> return $ Inv f args m
       _ -> return NoInv
   _ -> return NoInv
+-}
 
+-- | Argument should be on weak head normal form.
+functionInverse :: Term -> TCM InvView
+functionInverse v = do
+  ev <- elimView $ ignoreSharing v
+  case ev of
+    DefElim f args -> do
+      d <- theDef <$> getConstInfo f
+      case d of
+        Function{ funInv = inv } -> case inv of
+          NotInjective  -> return NoInv
+          Inverse m     -> return $ Inv f args m
+        _ -> return NoInv
+    _ -> return NoInv
+
+{-
 data InvView = Inv QName Args (Map TermHead Clause)
+             | NoInv
+-}
+
+data InvView = Inv QName [Elim] (Map TermHead Clause)
              | NoInv
 
 useInjectivity :: Comparison -> Type -> Term -> Term -> TCM ()
@@ -180,7 +203,8 @@ useInjectivity cmp a u v = do
           , nest 2 $ text "and type" <+> prettyTCM a
           ]
         pol <- getPolarity' cmp f
-        compareArgs pol a (Def f []) fArgs gArgs
+        -- compareArgs pol a (Def f []) fArgs gArgs
+        compareElims pol a (Def f []) fArgs gArgs
       | otherwise -> fallBack
     (Inv f args inv, NoInv) -> do
       a <- defType <$> getConstInfo f
@@ -202,7 +226,8 @@ useInjectivity cmp a u v = do
   where
     fallBack = addConstraint $ ValueCmp cmp a u v
 
-    invert :: Term -> QName -> Type -> Map TermHead Clause -> Args -> Maybe TermHead -> TCM ()
+--    invert :: Term -> QName -> Type -> Map TermHead Clause -> Args -> Maybe TermHead -> TCM ()
+    invert :: Term -> QName -> Type -> Map TermHead Clause -> [Elim] -> Maybe TermHead -> TCM ()
     invert _ _ a inv args Nothing  = fallBack
     invert org f ftype inv args (Just h) = case Map.lookup h inv of
       Nothing -> typeError $ UnequalTerms cmp u v a
@@ -220,7 +245,8 @@ useInjectivity cmp a u v = do
           -- and this is the order the variables occur in the patterns
           let ms' = permute (invertP $ compactP perm) ms
           let sub = parallelS (reverse ms)
-          margs <- runReaderT (evalStateT (metaArgs ps) ms') sub
+--          margs <- runReaderT (evalStateT (metaArgs ps) ms') sub
+          margs <- runReaderT (evalStateT (mapM metaElim ps) ms') sub
           reportSDoc "tc.inj.invert" 20 $ vcat
             [ text "inversion"
             , nest 2 $ vcat
@@ -236,7 +262,8 @@ useInjectivity cmp a u v = do
           -- The clause might not give as many patterns as there
           -- are arguments (point-free style definitions).
           let args' = take (length margs) args
-          compareArgs pol ftype org margs args'
+          compareElims pol ftype org margs args'
+--          compareArgs pol ftype org margs args'
 {- Andreas, 2011-05-09 allow unsolved constraints as long as progress
           unless (null cs) $ do
             reportSDoc "tc.inj.invert" 30 $
@@ -274,13 +301,13 @@ useInjectivity cmp a u v = do
       sub <- ask
       return $ applySubst sub v
 
-    metaArgs args = mapM metaArg args
-    metaArg arg = traverse metaPat arg
+    metaElim (Arg _ (ProjP p)) = return $ Proj p
+    metaElim (Arg info p)         = Apply . Arg info <$> metaPat p
 
-    metaPat (DotP v) = dotP v
-    metaPat (VarP _) = nextMeta
-    metaPat (ConP c mt args) = do
-      args <- metaArgs args
-      let con = ConHead c [] -- TODO restore fields
-      return $ Con con args
-    metaPat (LitP l) = return $ Lit l
+    metaArgs args = mapM (traverse metaPat) args
+
+    metaPat (DotP v)         = dotP v
+    metaPat (VarP _)         = nextMeta
+    metaPat (ConP c mt args) = Con (ConHead c []) <$> metaArgs args  -- TODO restore fields
+    metaPat (LitP l)         = return $ Lit l
+    metaPat ProjP{}          = __IMPOSSIBLE__
