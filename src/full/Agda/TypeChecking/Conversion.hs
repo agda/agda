@@ -518,8 +518,8 @@ compareElims pols0 a v els01 els02 = catchConstraint (ElimCmp pols0 a v els01 el
     ([]         , []         ) -> return ()
     ([]         , Proj{}:_   ) -> failure -- not impossible, see issue 821
     (Proj{}  : _, []         ) -> failure -- could be x.p =?= x for projection p
-    ([]         , Apply{} : _) -> __IMPOSSIBLE__
-    (Apply{} : _, []         ) -> __IMPOSSIBLE__
+    ([]         , Apply{} : _) -> failure -- not impossible, see issue 878
+    (Apply{} : _, []         ) -> failure
     (Apply{} : _, Proj{}  : _) -> __IMPOSSIBLE__
     (Proj{}  : _, Apply{} : _) -> __IMPOSSIBLE__
     (Apply arg1 : els1, Apply arg2 : els2) ->
@@ -599,6 +599,7 @@ compareElims pols0 a v els01 els02 = catchConstraint (ElimCmp pols0 a v els01 el
         a -> do
           reportSDoc "impossible" 10 $
             text "unexpected type when comparing apply eliminations " <+> prettyTCM a
+          reportSLn "impossible" 50 $ "raw type: " ++ show a
           __IMPOSSIBLE__
 
     (Proj f : els1, Proj f' : els2)
