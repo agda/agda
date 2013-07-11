@@ -290,6 +290,38 @@ instance Suggest String where
 instance Suggest (Abs a) where
   suggest b1 b2 = suggest (absName b1) (absName b2)
 
+
+-- | Raise 'UnequalTerms' if there is no hope that by
+--   meta solving and subsequent eta-contraction these
+--   terms could become equal.
+--   Precondition: the terms are in reduced form
+--   (with no top-level pointer) and
+--   failed to be equal in the 'compareAtom' check.
+--
+--   By eta-contraction, a lambda or a record constructor term
+--   can become anything.
+etaInequal :: Comparison -> Type -> Term -> Term -> TCM ()
+etaInequal cmp t m n = do
+  let inequal  = typeError $ UnequalTerms cmp m n t
+      dontKnow = do
+        reportSDoc "tc.conv.inequal" 20 $ hsep
+          [ text "etaInequal: postponing "
+          , prettyTCM m
+          , text " != "
+          , prettyTCM n
+          ]
+        patternViolation
+  -- if type is not blocked, then we would have tried eta already
+  flip (ifBlockedType t) (\ _ -> inequal) $ \ _ _ -> do
+    -- type is blocked
+    case (m, n) of
+      (Con{}, _) -> dontKnow
+      (_, Con{}) -> dontKnow
+      (Lam{}, _) -> dontKnow
+      (_, Lam{}) -> dontKnow
+      _          -> inequal
+
+
 -- | Syntax directed equality on atomic values
 --
 compareAtom :: Comparison -> Type -> Term -> Term -> TCM ()
@@ -440,7 +472,8 @@ compareAtom cmp t m n =
                     -- Constructors are invariant in their arguments
                     -- (could be covariant).
                     compareArgs [] a' (Con x []) xArgs yArgs
-            _ -> typeError $ UnequalTerms cmp m n t
+            _ -> etaInequal cmp t m n -- fixes issue 856 (unsound conversion error)
+--            _ -> typeError $ UnequalTerms cmp m n t
     where
         -- Andreas, 2013-05-15 due to new postponement strategy, type can now be blocked
         conType c t = ifBlocked (unEl t) (\ _ _ -> patternViolation) $ \ v ->
