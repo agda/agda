@@ -81,7 +81,7 @@ library
                     -- hashable 1.2.0.10 makes library-test 10x slower
                     -- https://github.com/tibbe/hashable/issues/57
                     hashable >= 1.1.2.3 && < 1.2,
-                    hashtables == 1.0.*,
+                    hashtables >= 1.0 && < 1.2,
                     geniplate >= 0.6.0.3 && < 0.7,
                     parallel < 3.3,
                     deepseq == 1.3.*,
