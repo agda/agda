@@ -22,9 +22,9 @@ module Agda.Syntax.Parser.Parser (
     , tests
     ) where
 
-import Control.Arrow
+-- import Control.Arrow
 import Control.Monad
-import Control.Monad.State
+-- import Control.Monad.State
 import Data.Char
 import Data.List
 import Data.Maybe
@@ -35,8 +35,8 @@ import Agda.Syntax.Parser.Monad
 import Agda.Syntax.Parser.Lexer
 import Agda.Syntax.Parser.Tokens
 import Agda.Syntax.Concrete as C
-import Agda.Syntax.Concrete.Name
-import Agda.Syntax.Concrete.Pretty
+-- import Agda.Syntax.Concrete.Name
+import Agda.Syntax.Concrete.Pretty ()
 import Agda.Syntax.Common hiding (Arg, Dom, NamedArg)
 import qualified Agda.Syntax.Common as Common
 import Agda.Syntax.Fixity
