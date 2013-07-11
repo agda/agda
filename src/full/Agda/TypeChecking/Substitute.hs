@@ -506,20 +506,20 @@ instance Subst PlusLevel where
   applySubst rho (Plus n l) = Plus n $ applySubst rho l
 
 instance Subst LevelAtom where
-  applySubst rho      (MetaLevel m vs)   = MetaLevel m    $ applySubst rho vs
-  applySubst rho      (BlockedLevel m v) = BlockedLevel m $ applySubst rho v
-  applySubst rho      (NeutralLevel v)   = UnreducedLevel $ applySubst rho v
-  applySubst rho      (UnreducedLevel v) = UnreducedLevel $ applySubst rho v
+  applySubst rho (MetaLevel m vs)   = MetaLevel m    $ applySubst rho vs
+  applySubst rho (BlockedLevel m v) = BlockedLevel m $ applySubst rho v
+  applySubst rho (NeutralLevel v)   = UnreducedLevel $ applySubst rho v
+  applySubst rho (UnreducedLevel v) = UnreducedLevel $ applySubst rho v
 
 instance Subst Bool where
   applySubst rho = id
 
 instance Subst Pattern where
   applySubst rho p = case p of
-    VarP s       -> VarP s
-    LitP l       -> LitP l
     ConP c mt ps -> ConP c (applySubst rho mt) $ applySubst rho ps
     DotP t       -> DotP $ applySubst rho t
+    VarP s       -> p
+    LitP l       -> p
 
 instance Subst t => Subst (Blocked t) where
   applySubst rho b      = fmap (applySubst rho) b
