@@ -706,7 +706,7 @@ instance PrettyTCM TypeError where
             showPat _ (I.DotP _)        = text "._"
             showPat n (I.ConP c _ args) = mpar n args $ prettyTCM c <+> fsep (map showArg args)
             showPat _ (I.LitP l)        = text (show l)
-            showPat _ I.ProjP{}         = __IMPOSSIBLE__
+            showPat _ (I.ProjP p)       = text (show p)
 
 notCmp :: Comparison -> TCM Doc
 notCmp cmp = text $ "!" ++ show cmp

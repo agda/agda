@@ -368,7 +368,9 @@ checkLeftHandSide c f ps a ret = do
         sp <- splitProblem f problem
         reportSDoc "tc.lhs.split" 20 $ text "splitting completed"
         case sp of
-          Left NothingToSplit   -> nothingToSplitError problem
+          Left NothingToSplit   -> do
+            reportSLn "tc.lhs.split" 50 $ "checkLHS: nothing to split in problem " ++ show problem
+            nothingToSplitError problem
           Left (SplitPanic err) -> do
             reportSLn "impossible" 10 $ "checkLHS: panic: " ++ err
             __IMPOSSIBLE__
@@ -378,7 +380,8 @@ checkLeftHandSide c f ps a ret = do
 
             -- Compute the new problem
             let Problem ps1 (iperm, ip) delta (ProblemRest (p:ps2) b) = problem
-                ps'      = ps1 ++ [p]
+                -- ps'      = ps1 ++ [p]
+                ps'      = ps1 -- drop the projection pattern (already splitted)
                 rest     = ProblemRest ps2 projType
                 ip'      = ip ++ [fmap ProjP projPat]
                 problem' = Problem ps' (iperm, ip') delta rest

@@ -1,3 +1,4 @@
+-- {-# OPTIONS -v impossible:100 -v tc.cover:20 #-}
 {-# OPTIONS --copatterns #-}
 module Copatterns where
 
@@ -51,12 +52,14 @@ open Monad {{...}}
 
 -- State is an instance of Monad
 
+-- TODO: this does not work with hidden argument yet
 stateMonad : {S : Set} → Monad (State S)
-runState (return {{stateMonad}} a  ) s  = a , s
-runState (_>>=_  {{stateMonad}} m k) s₀ =
+runState (return {{stateMonad {S}}} a  ) s  = a , s
+runState (_>>=_  {{stateMonad {S}}} m k) s₀ =
   let a , s₁ = runState m s₀
   in  runState (k a) s₁
 
+{- THESE LAWS ONLY HOLD EXTENSIONALLY!!
 leftId : {A B S : Set}(a : A)(k : A → State S B) → (return a >>= k) ≡ k a
 leftId a k = refl
 
@@ -66,6 +69,7 @@ rightId m = refl
 assoc : {A B C S : Set}(m : State S A)(k : A → State S B)(l : B → State S C) →
    ((m >>= k) >>= l) ≡ (m >>= λ a → k a >>= l)
 assoc m k l = refl
+-}
 
 -- multiple clauses with abstractions
 

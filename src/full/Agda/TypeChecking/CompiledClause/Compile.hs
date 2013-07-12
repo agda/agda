@@ -171,8 +171,12 @@ expandCatchAlls single n cs =
   -- we force expansion
   if single then doExpand =<< cs else
   case cs of
+{-
   _            | all (isCatchAll . nth . fst) cs -> cs
   (ps, b) : cs | not (isCatchAll (nth ps)) -> (ps, b) : expandCatchAlls False n cs
+-}
+  _            | all (isCatchAllNth . fst) cs -> cs
+  (ps, b) : cs | not (isCatchAllNth ps) -> (ps, b) : expandCatchAlls False n cs
                | otherwise -> map (expand ps b) expansions ++ (ps, b) : expandCatchAlls False n cs
   _ -> __IMPOSSIBLE__
   where
@@ -184,12 +188,21 @@ expandCatchAlls single n cs =
       | isCatchAll (nth ps) = map (expand ps b) expansions ++ [c]
       | otherwise           = [c]
 
+    isCatchAllNth ps =
+      case map unArg $ drop n ps of
+        (ConP {} : _) -> False
+        (LitP {} : _) -> False
+        (ProjP{} : _) -> False
+        (VarP{}  : _) -> True
+        (DotP{}  : _) -> True
+        []            -> True -- ?? is that right
+
     isCatchAll (Arg _ ConP{})  = False
     isCatchAll (Arg _ LitP{})  = False
     isCatchAll (Arg _ ProjP{}) = False
     isCatchAll _      = True
-    nth qs = p
-      where (_, p, _) = extractNthElement' n qs
+    nth qs = maybe __IMPOSSIBLE__ id $ mhead $ drop n qs
+      -- where (_, p, _) = extractNthElement' n qs
 
     classify (LitP l)     = Left l
     classify (ConP c _ _) = Right c
@@ -211,7 +224,9 @@ expandCatchAlls single n cs =
         LitP l -> (ps0 ++ [defaultArg $ LitP l] ++ ps1, substBody n' 0 (Lit l) b)
         _ -> __IMPOSSIBLE__
       where
-        (ps0, _, ps1) = extractNthElement' n ps
+        -- (ps0, _, ps1) = extractNthElement' n ps
+        (ps0, rest) = splitAt n ps
+        ps1         = maybe __IMPOSSIBLE__ snd $ uncons rest
 
         n' = countVars ps0
         countVars = sum . map (count . unArg)

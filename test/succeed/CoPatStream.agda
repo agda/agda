@@ -1,10 +1,14 @@
 {-# OPTIONS --copatterns #-}
+-- {-# OPTIONS --no-coverage-check #-}
+-- {-# OPTIONS -v tc.lhs.split:50 -v tc.cover:20 -v tc.cc:15 -v tc.lhs.top:10 #-}
 -- {-# OPTIONS -v term:20 #-}
 -- {-# OPTIONS --no-positivity-check #-}
 -- {-# OPTIONS -v tc.def.fun:50  #-}
 -- {-# OPTIONS -v 100  #-}
 module CoPatStream where
 
+import Common.Level
+open import Common.Prelude
 open import Common.Equality
 
 record Stream (A : Set) : Set where
@@ -27,6 +31,14 @@ repeat : {A : Set}(a : A) → Stream A
 S.head (repeat a) = a
 S.tail (repeat a) = repeat a
 
+module Cycle where
+
+  cycle : Nat -> Stream Nat
+  cycle n = cycle' n where
+    cycle' : Nat -> Stream Nat
+    S.head (cycle' n) = n
+    S.tail (cycle' zero    ) = cycle n
+    S.tail (cycle' (suc n')) = cycle' n'
 
 module CoPat where
 

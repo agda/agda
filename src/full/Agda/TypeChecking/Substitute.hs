@@ -519,10 +519,11 @@ instance Subst Bool where
 
 instance Subst Pattern where
   applySubst rho p = case p of
-    VarP s       -> VarP s
-    LitP l       -> LitP l
     ConP c mt ps -> ConP c (applySubst rho mt) $ applySubst rho ps
     DotP t       -> DotP $ applySubst rho t
+    VarP s       -> p
+    LitP l       -> p
+    ProjP _      -> p
 
 instance Subst t => Subst (Blocked t) where
   applySubst rho b      = fmap (applySubst rho) b

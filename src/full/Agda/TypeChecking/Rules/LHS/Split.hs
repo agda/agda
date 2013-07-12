@@ -15,6 +15,7 @@ import Agda.Syntax.Literal
 import Agda.Syntax.Position
 import Agda.Syntax.Internal as I
 import Agda.Syntax.Internal.Pattern
+import Agda.Syntax.Abstract (IsProjP(..))
 import qualified Agda.Syntax.Abstract as A
 import qualified Agda.Syntax.Info as A
 
@@ -32,6 +33,7 @@ import Agda.TypeChecking.Rules.LHS.Problem
 -- import Agda.TypeChecking.Rules.Term
 import Agda.TypeChecking.Monad.Builtin
 import Agda.TypeChecking.Eliminators
+import Agda.TypeChecking.EtaContract (etaContract)
 import Agda.TypeChecking.Free
 import Agda.TypeChecking.Irrelevance
 import Agda.TypeChecking.MetaVars
@@ -85,7 +87,8 @@ splitProblem ::
   -> Problem  -- ^ The current state of the lhs patterns.
   -> TCM (Either SplitError SplitProblem)
 splitProblem mf (Problem ps (perm, qs) tel pr) = do
-    reportS "tc.lhs.split" 20 $ "initiating splitting\n"
+    reportSLn "tc.lhs.split" 20 $ "initiating splitting"
+      ++ maybe "" ((" for definition " ++) . show) mf
     runErrorT $
       splitP ps (permute perm $ zip [0..] $ allHoles qs) tel
   where
@@ -93,31 +96,78 @@ splitProblem mf (Problem ps (perm, qs) tel pr) = do
     splitRest :: ProblemRest -> ErrorT SplitError TCM SplitProblem
     splitRest (ProblemRest (p : ps) b) | Just f <- mf = do
       -- let (failure :: ErrorT SplitError TCM SplitProblem) = throwError $ NothingToSplit
-      case namedArg p of
-        A.DefP _ d [] -> do -- case: projection pattern
+      lift $ reportSDoc "tc.lhs.split" 20 $ sep
+        [ text "splitting problem rest"
+        , nest 2 $ text "pattern         p =" <+> prettyA p
+        , nest 2 $ text "eliminates type b =" <+> prettyTCM b
+        ]
+      case isProjP p of
+        Just d -> do -- case: projection pattern
           isR <- lift $ isRecordType b
           case isR of
-            Just (r, vs, Record{ recFields = fs }) -- , recTel = tel})
-              | d `elem` map unArg fs -> do
---              | Just i <- findIndex ((d ==) . unArg) fs -> do
-                es <- lift $ patternsToElims perm qs
-                -- the record "self" is the definition f applied to the patterns
-                let self = defaultArg $ Def f [] `unElim` es
-                -- get the type of projection d applied to "self"
-                -- WRONG: let (dType :: Type) = snd (unDom (telToList tel !! i))
-                dType <- lift $ typeOfConst d
-                return $ SplitRest (defaultArg d) $ dType `apply` (vs ++ [self])
+            Just (r, vs, Record{ recFields = fs }) -> do
+              -- normalize projection name (could be from a module app)
+              d <- lift $ do
+                v <- stripLambdas =<< normalise (Def d [])
+                case v of
+                  Def d _ -> return d
+                  _       -> do
+                    reportSDoc "impossible" 10 $ sep
+                      [ text   "unexpected result " <+> prettyTCM v
+                      , text $ "when normalizing projection " ++ show d
+                      ]
+                    reportSDoc "impossible" 50 $ sep
+                      [ text $ "raw: " ++ show v
+                      ]
+                    __IMPOSSIBLE__
+              lift $ reportSDoc "tc.lhs.split" 20 $ sep
+                [ text $ "we are of record type r  = " ++ show r
+                , text   "applied to parameters vs = " <+> prettyTCM vs
+                , text $ "and have fields       fs = " ++ show fs
+                , text $ "original proj         d  = " ++ show d
+                ]
+              unless (d `elem` map unArg fs) $ throwError NothingToSplit
+              es <- lift $ patternsToElims perm qs
+              -- the record "self" is the definition f applied to the patterns
+              let self = defaultArg $ Def f [] `unElim` es
+              -- get the type of projection d applied to "self"
+              dType <- lift $ typeOfConst d
+              lift $ reportSDoc "tc.lhs.split" 20 $ sep
+                [ text "we are              self = " <+> prettyTCM (unArg self)
+                , text "being projected by dType = " <+> prettyTCM dType
+                ]
+              return $ SplitRest (defaultArg d) $ dType `apply` (vs ++ [self])
             _ -> throwError $ NothingToSplit
         _ -> throwError $ NothingToSplit
     splitRest _ = throwError $ NothingToSplit
 
-    -- TODO: telescope does not one-to-one correspond to patterns if we have proj. patterns
-    -- proj. patterns need to be skipped
+    -- Stripping initial lambdas from a normalized term
+    stripLambdas :: Term -> TCM Term
+    stripLambdas v = case ignoreSharing v of
+        Lam _ b -> addCtxString_ (absName b) $ stripLambdas (absBody b)
+        v       -> return v
+
+    -- | In @splitP aps iqs tel@,
+    --   @aps@ are the user patterns on which we are splitting (inPats),
+    --   @ips@ are the one-hole patterns of the current split state (outPats)
+    --   in one-to-one correspondence with the pattern variables
+    --   recorded in @tel@.
     splitP :: [A.NamedArg A.Pattern] -> [(Int, OneHolePatterns)] -> Telescope -> ErrorT SplitError TCM SplitProblem
+    -- skip projection pattern
+    splitP (p : ps) qs            tel | Just _ <- isProjP p = do
+       r <- splitP ps qs tel
+       case r of
+         SplitRest{} -> return r
+         Split (Problem ps1 qs tel pr) xs foc p2 ->
+           return $ Split (Problem (p:ps1) qs tel pr) xs foc p2
+    -- the next two cases violate the one-to-one correspondence of qs and tel
     splitP _	    []		 (ExtendTel _ _)	 = __IMPOSSIBLE__
     splitP _	    (_:_)	  EmptyTel		 = __IMPOSSIBLE__
+    -- no more patterns?  pull them from the rest
     splitP []	     _		  _			 = splitRest pr -- WAS: throwError $ NothingToSplit
+    -- patterns but no types for them?  Impossible.
     splitP ps	    []		  EmptyTel		 = __IMPOSSIBLE__
+    -- pattern with type?  Let's get to work:
     splitP (p : ps) ((i, q) : qs) tel0@(ExtendTel a tel) = do
       let tryAgain = splitP (p : ps) ((i, q) : qs) tel0
       p <- lift $ expandLitPattern p

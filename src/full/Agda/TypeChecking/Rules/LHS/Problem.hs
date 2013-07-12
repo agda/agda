@@ -73,6 +73,7 @@ data Problem' p	    = Problem { problemInPat  :: [A.NamedArg A.Pattern]
 			      , problemTel    :: Telescope
                               , problemRest   :: ProblemRest
 			      }
+  deriving Show
 
 -- | User patterns that could not be given a type yet.
 --
@@ -97,6 +98,7 @@ data ProblemRest    = ProblemRest
   { restPats :: [A.NamedArg A.Pattern]  -- ^ non-empty list of user patterns which could not yet be typed
   , restType :: Type                  -- ^ type eliminated by 'restPats'
   }
+  deriving Show
 
 data Focus	    = Focus   { focusCon      :: QName
                               , focusImplicit :: Bool -- ^ Do we come from an implicit record pattern?

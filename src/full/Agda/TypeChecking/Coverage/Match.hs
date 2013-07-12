@@ -7,13 +7,15 @@ import Control.Monad.State
 
 -- import Data.Map (Map)
 -- import qualified Data.Map as Map
+import Data.Maybe (mapMaybe)
 import Data.Monoid
 import Data.Traversable (traverse)
 -- import Data.Function
 
+import Agda.Syntax.Abstract (IsProjP(..))
 import Agda.Syntax.Common hiding (Arg, Dom, NamedArg)
 import Agda.Syntax.Internal
--- import Agda.Syntax.Internal.Pattern
+import Agda.Syntax.Internal.Pattern ()
 import Agda.Syntax.Literal
 
 import Agda.Utils.Permutation
@@ -171,9 +173,10 @@ matchPats mlit ps qs = mconcat $ properMatchesLeft :
     [ projPatternsLeft ]
   where
     projPatternsLeft =
-      case map unArg $ drop (length qs) ps of
-        (ProjP _ : _) -> BlockP
-        _             -> Yes ()
+      let psrest = map unArg $ drop (length qs) ps
+      in  if null $ mapMaybe isProjP psrest -- not $ any properlyMatching psrest
+            then Yes ()  -- no proj. patterns left
+            else BlockP  -- proj. patterns left
     properMatchesLeft =
       if any (properMatch . unArg) $ drop (length ps) qs
       then No else Yes ()

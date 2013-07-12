@@ -16,6 +16,9 @@ instance IsProjP Pattern where
 
 -- * One hole patterns
 
+-- | A @OneholePattern@ is a linear pattern context @P@ such that for
+--   any non-projection pattern @p@, inserting @p@ into the single hole @P[p]@,
+--   yields again a non-projection pattern.
 data OneHolePatterns = OHPats [Arg Pattern] (Arg OneHolePattern) [Arg Pattern]
   deriving (Show)
 data OneHolePattern  = Hole
@@ -32,6 +35,10 @@ plugHole p (OHPats ps hole qs) = ps ++ [fmap (plug p) hole] ++ qs
     plug p Hole           = p
     plug p (OHCon c mt h) = ConP c mt $ plugHole p h
 
+-- | @allHoles ps@ returns for each pattern variable @x@ in @ps@ a
+--   context @P@ such @P[x]@ is one of the patterns of @ps@.
+--   The @Ps@ are returned in the left-to-right order of the
+--   pattern variables in @ps@.
 allHoles :: [Arg Pattern] -> [OneHolePatterns]
 allHoles = map snd . allHolesWithContents
 

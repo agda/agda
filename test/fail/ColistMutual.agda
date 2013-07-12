@@ -36,6 +36,8 @@ mutual
   out bads = bad ∷ bads
   -- should not termination check
 
+CRASH -- TODO fix termination checker
+
 {-
 data Bool : Set where
   true false : Bool

@@ -123,7 +123,7 @@ coverageCheck f t cs = do
       -- construct the initial split clause
       sc           = SClause gamma (idP n) xs idS $ Just a
   reportSDoc "tc.cover.top" 10 $ vcat
-    [ text "Coverage checking"
+    [ text $ "Coverage checking " ++ show f
     , nest 2 $ vcat $ map (text . show . clausePats) cs
     ]
   -- used = actually used clauses for cover
@@ -167,30 +167,42 @@ cover f cs sc@(SClause tel perm ps _ target) = do
       -- OLD: let is = [ j | (j, c) <- zip [0..] (genericTake i cs), matchLits c ps perm ]
       reportSLn "tc.cover.cover"  10 $ "literal matches: " ++ show is
       return (SplittingDone (size tel), Set.fromList (i : is), [])
-    No       -> return (SplittingDone (size tel), Set.empty, [ps])
+    No       ->  do
+      reportSLn "tc.cover" 20 $ "pattern is not covered"
+      return (SplittingDone (size tel), Set.empty, [ps])
 
     -- case: split into projection patterns
     BlockP   -> do
+      reportSLn "tc.cover" 20 $ "blocked by projection pattern"
       -- if we want to split projections, but have no target type, we give up
       let done = return (SplittingDone (size tel), Set.empty, [ps])
       flip (maybe done) target $ \ t -> do
-        isR <- isRecordType t
+        isR <- addCtxTel tel $ isRecordType t
         case isR of
           Just (_r, vs, Record{ recFields = fs }) -> do  -- , recTel = tel }) -> do
+            reportSDoc "tc.cover" 20 $ sep
+              [ text $ "we are of record type _r = " ++ show _r
+              , text   "applied to parameters vs = " <+> (addCtxTel tel $ prettyTCM vs)
+              , text $ "and have fields       fs = " ++ show fs
+              ]
+            es <- patternsToElims perm ps
+            let self  = defaultArg $ Def f [] `unElim` es
+                pargs = vs ++ [self]
+            reportSDoc "tc.cover" 20 $ sep
+              [ text   "we are              self = " <+> (addCtxTel tel $ prettyTCM $ unArg self)
+              ]
             (projs, (trees, useds, psss)) <- mapSnd unzip3 . unzip <$> do
---              forM (zip fs $ telToList tel) $ \ (proj, dom) -> do
               forM fs $ \ proj -> do
                 -- compute the new target
                 dType <- typeOfConst $ unArg proj
-                es    <- patternsToElims perm ps
-                let self    = defaultArg $ Def f [] `unElim` es
-                    -- type of projection instantiated at self
-                    target' = Just $ dType `apply` (vs ++ [self])
+                let -- type of projection instantiated at self
+                    target' = Just $ dType `apply` pargs
                     sc' = sc { scPats   = scPats sc ++ [fmap ProjP proj]
                              , scTarget = target'
                              }
-                (unArg proj,) <$> cover f cs sc'
-            let n = length ps -- past the last argument, is pos. of proj pat.
+                (unArg proj,) <$> do cover f cs =<< fixTarget sc'
+            let -- WRONG: -- n = length ps -- past the last argument, is pos. of proj pat.
+                n = size tel -- past the last variable, is pos. of proj pat. DURING SPLITTING
                 tree = SplitAt n $ zip projs trees
             return (tree, Set.unions useds, concat psss)
           _ -> done
@@ -266,6 +278,24 @@ isDatatype ind at = do
           return (d, args, [], [conName con])
         _ -> throw NotADatatype
     _ -> throw NotADatatype
+
+-- | update the target type, add more patterns to split clause
+-- if target becomes a function type.
+fixTarget :: SplitClause -> TCM SplitClause
+fixTarget sc@SClause{ scSubst = sigma, scTarget = target } =
+  flip (maybe $ return sc) target $ \ a -> do
+    TelV tel b <- telView $ applySubst sigma a
+    let n      = size tel
+        lgamma = telToList tel
+        xs     = map (argFromDom . fmap (const $ VarP "_")) $ lgamma
+    if (n == 0) then return sc { scTarget = Just b }
+     else return $ SClause
+      { scTel    = telFromList $ telToList (scTel sc) ++ lgamma
+      , scPerm   = liftP n $ scPerm sc
+      , scPats   = scPats sc ++ xs
+      , scSubst  = liftS n $ sigma
+      , scTarget = Just b
+      }
 
 -- | @computeNeighbourhood delta1 delta2 perm d pars ixs hix hps con@
 --
@@ -524,7 +554,7 @@ split' ind sc@(SClause tel perm ps _ target) (x, mcons) = liftTCM $ runException
   ns <- concat <$> do
     forM cons $ \ con ->
       map (con,) <$> do
-        mapM fixTarget =<<
+        mapM (\sc -> lift $ fixTarget $ sc { scTarget = target }) =<<
           computeNeighbourhood delta1 n delta2 perm d pars ixs hix hps con
   case ns of
     []  -> do
@@ -562,7 +592,7 @@ split' ind sc@(SClause tel perm ps _ target) (x, mcons) = liftTCM $ runException
 
   where
     xDBLevel = dbIndexToLevel tel perm x
-
+{-
     -- update the target type, add more patterns to split clause
     -- if target becomes a function type.
     fixTarget :: SplitClause -> CoverM SplitClause
@@ -580,6 +610,7 @@ split' ind sc@(SClause tel perm ps _ target) (x, mcons) = liftTCM $ runException
           , scSubst  = liftS n $ sigma
           , scTarget = Just b
           }
+-}
 
     inContextOfT :: MonadTCM tcm => tcm a -> tcm a
     inContextOfT = addCtxTel tel . escapeContext (x + 1)

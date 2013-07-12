@@ -143,7 +143,9 @@ instantiateTel s tel = liftTCM $ do
 nothingToSplitError :: Problem -> TCM a
 nothingToSplitError (Problem ps _ tel pr) = splitError ps tel
   where
-    splitError []	EmptyTel    = __IMPOSSIBLE__
+    splitError []	EmptyTel    = do
+      if null $ restPats pr then __IMPOSSIBLE__ else do
+        typeError $ GenericError $ "Arguments left we cannot split on. TODO: better error message"
     splitError (_:_)	EmptyTel    = __IMPOSSIBLE__
     splitError []	ExtendTel{} = __IMPOSSIBLE__
     splitError (p : ps) (ExtendTel a tel)
