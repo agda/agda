@@ -6,13 +6,15 @@
 
 module Induction.Lexicographic where
 
-open import Induction
 open import Data.Product
+open import Induction
+open import Level
 
 -- The structure of lexicographic induction.
 
-Σ-Rec : ∀ {ℓ} {A : Set ℓ} {B : A → Set ℓ} →
-        RecStruct A → (∀ x → RecStruct (B x)) → RecStruct (Σ A B)
+Σ-Rec : ∀ {a b ℓ₁ ℓ₂ ℓ₃} {A : Set a} {B : A → Set b} →
+        RecStruct A (ℓ₁ ⊔ b) ℓ₂ → (∀ x → RecStruct (B x) ℓ₁ ℓ₃) →
+        RecStruct (Σ A B) _ _
 Σ-Rec RecA RecB P (x , y) =
   -- Either x is constant and y is "smaller", ...
   RecB x (λ y' → P (x , y')) y
@@ -20,16 +22,17 @@ open import Data.Product
   -- ...or x is "smaller" and y is arbitrary.
   RecA (λ x' → ∀ y' → P (x' , y')) x
 
-_⊗_ : ∀ {ℓ} {A B : Set ℓ} →
-      RecStruct A → RecStruct B → RecStruct (A × B)
+_⊗_ : ∀ {a b ℓ₁ ℓ₂ ℓ₃} {A : Set a} {B : Set b} →
+      RecStruct A (ℓ₁ ⊔ b) ℓ₂ → RecStruct B ℓ₁ ℓ₃ →
+      RecStruct (A × B) _ _
 RecA ⊗ RecB = Σ-Rec RecA (λ _ → RecB)
 
 -- Constructs a recursor builder for lexicographic induction.
 
 Σ-rec-builder :
-  ∀ {ℓ} {A : Set ℓ} {B : A → Set ℓ}
-    {RecA : RecStruct A}
-    {RecB : ∀ x → RecStruct (B x)} →
+  ∀ {a b ℓ₁ ℓ₂ ℓ₃} {A : Set a} {B : A → Set b}
+    {RecA : RecStruct A (ℓ₁ ⊔ b) ℓ₂}
+    {RecB : ∀ x → RecStruct (B x) ℓ₁ ℓ₃} →
   RecursorBuilder RecA → (∀ x → RecursorBuilder (RecB x)) →
   RecursorBuilder (Σ-Rec RecA RecB)
 Σ-rec-builder {RecA = RecA} {RecB = RecB} recA recB P f (x , y) =
@@ -49,7 +52,8 @@ RecA ⊗ RecB = Σ-Rec RecA (λ _ → RecB)
 
   p₂x = p₂ x
 
-[_⊗_] : ∀ {ℓ} {A B : Set ℓ} {RecA : RecStruct A} {RecB : RecStruct B} →
+[_⊗_] : ∀ {a b ℓ₁ ℓ₂ ℓ₃} {A : Set a} {B : Set b}
+          {RecA : RecStruct A (ℓ₁ ⊔ b) ℓ₂} {RecB : RecStruct B ℓ₁ ℓ₃} →
         RecursorBuilder RecA → RecursorBuilder RecB →
         RecursorBuilder (RecA ⊗ RecB)
 [ recA ⊗ recB ] = Σ-rec-builder recA (λ _ → recB)

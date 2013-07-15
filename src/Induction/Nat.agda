@@ -14,42 +14,43 @@ open import Data.Product
 open import Data.Unit
 open import Induction
 open import Induction.WellFounded as WF
+open import Level using (Lift)
 open import Relation.Binary.PropositionalEquality
 open import Relation.Unary
 
 ------------------------------------------------------------------------
 -- Ordinary induction
 
-Rec : RecStruct ℕ
-Rec P zero    = ⊤
-Rec P (suc n) = P n
+Rec : ∀ ℓ → RecStruct ℕ ℓ ℓ
+Rec _ P zero    = Lift ⊤
+Rec _ P (suc n) = P n
 
-rec-builder : RecursorBuilder Rec
-rec-builder P f zero    = tt
+rec-builder : ∀ {ℓ} → RecursorBuilder (Rec ℓ)
+rec-builder P f zero    = _
 rec-builder P f (suc n) = f n (rec-builder P f n)
 
-rec : Recursor Rec
+rec : ∀ {ℓ} → Recursor (Rec ℓ)
 rec = build rec-builder
 
 ------------------------------------------------------------------------
 -- Complete induction
 
-CRec : RecStruct ℕ
-CRec P zero    = ⊤
-CRec P (suc n) = P n × CRec P n
+CRec : ∀ ℓ → RecStruct ℕ ℓ ℓ
+CRec _ P zero    = Lift ⊤
+CRec _ P (suc n) = P n × CRec _ P n
 
-cRec-builder : RecursorBuilder CRec
-cRec-builder P f zero    = tt
+cRec-builder : ∀ {ℓ} → RecursorBuilder (CRec ℓ)
+cRec-builder P f zero    = _
 cRec-builder P f (suc n) = f n ih , ih
   where ih = cRec-builder P f n
 
-cRec : Recursor CRec
+cRec : ∀ {ℓ} → Recursor (CRec ℓ)
 cRec = build cRec-builder
 
 ------------------------------------------------------------------------
 -- Complete induction based on _<′_
 
-<-Rec : RecStruct ℕ
+<-Rec : ∀ {ℓ} → RecStruct ℕ ℓ ℓ
 <-Rec = WfRec _<′_
 
 mutual
@@ -62,24 +63,26 @@ mutual
   <-well-founded′ (suc n) .n ≤′-refl       = <-well-founded n
   <-well-founded′ (suc n)  m (≤′-step m<n) = <-well-founded′ n m m<n
 
-open WF.All <-well-founded public
-  renaming ( wfRec-builder to <-rec-builder
-           ; wfRec to <-rec
-           )
+module _ {ℓ} where
+  open WF.All <-well-founded ℓ public
+    renaming ( wfRec-builder to <-rec-builder
+             ; wfRec to <-rec
+             )
 
 ------------------------------------------------------------------------
 -- Complete induction based on _≺_
 
-≺-Rec : RecStruct ℕ
+≺-Rec : ∀ {ℓ} → RecStruct ℕ ℓ ℓ
 ≺-Rec = WfRec _≺_
 
 ≺-well-founded : Well-founded _≺_
 ≺-well-founded = Subrelation.well-founded ≺⇒<′ <-well-founded
 
-open WF.All ≺-well-founded public
-  renaming ( wfRec-builder to ≺-rec-builder
-           ; wfRec to ≺-rec
-           )
+module _ {ℓ} where
+  open WF.All ≺-well-founded ℓ public
+    renaming ( wfRec-builder to ≺-rec-builder
+             ; wfRec to ≺-rec
+             )
 
 ------------------------------------------------------------------------
 -- Examples

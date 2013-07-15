@@ -11,33 +11,34 @@ module Induction.WellFounded where
 open import Data.Product
 open import Function
 open import Induction
+open import Level
 open import Relation.Unary
 
 -- When using well-founded recursion you can recurse arbitrarily, as
 -- long as the arguments become smaller, and "smaller" is
 -- well-founded.
 
-WfRec : ∀ {a} {A : Set a} → Rel A a → RecStruct A
+WfRec : ∀ {a r} {A : Set a} → Rel A r → ∀ {ℓ} → RecStruct A ℓ _
 WfRec _<_ P x = ∀ y → y < x → P y
 
 -- The accessibility predicate: x is accessible if everything which is
 -- smaller than x is also accessible (inductively).
 
-data Acc {a} {A : Set a} (_<_ : Rel A a) (x : A) : Set a where
+data Acc {a ℓ} {A : Set a} (_<_ : Rel A ℓ) (x : A) : Set (a ⊔ ℓ) where
   acc : (rs : WfRec _<_ (Acc _<_) x) → Acc _<_ x
 
 -- The accessibility predicate encodes what it means to be
 -- well-founded; if all elements are accessible, then _<_ is
 -- well-founded.
 
-Well-founded : ∀ {a} {A : Set a} → Rel A a → Set a
+Well-founded : ∀ {a ℓ} {A : Set a} → Rel A ℓ → Set _
 Well-founded _<_ = ∀ x → Acc _<_ x
 
 -- Well-founded induction for the subset of accessible elements:
 
-module Some {a} {A : Set a} {_<_ : Rel A a} where
+module Some {a lt} {A : Set a} {_<_ : Rel A lt} {ℓ} where
 
-  wfRec-builder : SubsetRecursorBuilder (Acc _<_) (WfRec _<_)
+  wfRec-builder : SubsetRecursorBuilder (Acc _<_) (WfRec _<_ {ℓ = ℓ})
   wfRec-builder P f x (acc rs) = λ y y<x →
     f y (wfRec-builder P f y (rs y y<x))
 
@@ -47,10 +48,10 @@ module Some {a} {A : Set a} {_<_ : Rel A a} where
 -- Well-founded induction for all elements, assuming they are all
 -- accessible:
 
-module All {a} {A : Set a} {_<_ : Rel A a}
-           (wf : Well-founded _<_) where
+module All {a lt} {A : Set a} {_<_ : Rel A lt}
+           (wf : Well-founded _<_) ℓ where
 
-  wfRec-builder : RecursorBuilder (WfRec _<_)
+  wfRec-builder : RecursorBuilder (WfRec _<_ {ℓ = ℓ})
   wfRec-builder P f x = Some.wfRec-builder P f x (wf x)
 
   wfRec : Recursor (WfRec _<_)
@@ -61,7 +62,8 @@ module All {a} {A : Set a} {_<_ : Rel A a}
 -- "Constructing Recursion Operators in Intuitionistic Type Theory" by
 -- Lawrence C Paulson).
 
-module Subrelation {a} {A : Set a} {_<₁_ _<₂_ : Rel A a}
+module Subrelation {a ℓ₁ ℓ₂} {A : Set a}
+                   {_<₁_ : Rel A ℓ₁} {_<₂_ : Rel A ℓ₂}
                    (<₁⇒<₂ : ∀ {x y} → x <₁ y → x <₂ y) where
 
   accessible : Acc _<₂_ ⊆ Acc _<₁_
@@ -70,7 +72,7 @@ module Subrelation {a} {A : Set a} {_<₁_ _<₂_ : Rel A a}
   well-founded : Well-founded _<₂_ → Well-founded _<₁_
   well-founded wf = λ x → accessible (wf x)
 
-module Inverse-image {ℓ} {A B : Set ℓ} {_<_ : Rel B ℓ}
+module Inverse-image {a b ℓ} {A : Set a} {B : Set b} {_<_ : Rel B ℓ}
                      (f : A → B) where
 
   accessible : ∀ {x} → Acc _<_ (f x) → Acc (_<_ on f) x
@@ -79,11 +81,11 @@ module Inverse-image {ℓ} {A B : Set ℓ} {_<_ : Rel B ℓ}
   well-founded : Well-founded _<_ → Well-founded (_<_ on f)
   well-founded wf = λ x → accessible (wf (f x))
 
-module Transitive-closure {a} {A : Set a} (_<_ : Rel A a) where
+module Transitive-closure {a ℓ} {A : Set a} (_<_ : Rel A ℓ) where
 
   infix 4 _<⁺_
 
-  data _<⁺_ : Rel A a where
+  data _<⁺_ : Rel A (a ⊔ ℓ) where
     [_]   : ∀ {x y} (x<y : x < y) → x <⁺ y
     trans : ∀ {x y z} (x<y : x <⁺ y) (y<z : y <⁺ z) → x <⁺ z
 
@@ -103,11 +105,11 @@ module Transitive-closure {a} {A : Set a} (_<_ : Rel A a) where
   well-founded : Well-founded _<_ → Well-founded _<⁺_
   well-founded wf = λ x → accessible (wf x)
 
-module Lexicographic {ℓ} {A : Set ℓ} {B : A → Set ℓ}
-                     (RelA : Rel A ℓ)
-                     (RelB : ∀ x → Rel (B x) ℓ) where
+module Lexicographic {a b ℓ₁ ℓ₂} {A : Set a} {B : A → Set b}
+                     (RelA : Rel A ℓ₁)
+                     (RelB : ∀ x → Rel (B x) ℓ₂) where
 
-  data _<_ : Rel (Σ A B) ℓ where
+  data _<_ : Rel (Σ A B) (a ⊔ b ⊔ ℓ₁ ⊔ ℓ₂) where
     left  : ∀ {x₁ y₁ x₂ y₂} (x₁<x₂ : RelA   x₁ x₂) → (x₁ , y₁) < (x₂ , y₂)
     right : ∀ {x y₁ y₂}     (y₁<y₂ : RelB x y₁ y₂) → (x  , y₁) < (x  , y₂)
 
