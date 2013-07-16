@@ -270,7 +270,7 @@ module EquationalReasoning where
   sym {bijection}   = Inv.sym
 
   infix  2 _∎
-  infixr 2 _∼⟨_⟩_ _↔⟨_⟩_ _≡⟨_⟩_
+  infixr 2 _∼⟨_⟩_ _↔⟨_⟩_ _↔⟨⟩_ _≡⟨_⟩_
 
   _∼⟨_⟩_ : ∀ {k x y z} (X : Set x) {Y : Set y} {Z : Set z} →
            X ∼[ k ] Y → Y ∼[ k ] Z → X ∼[ k ] Z
@@ -281,6 +281,10 @@ module EquationalReasoning where
   _↔⟨_⟩_ : ∀ {k x y z} (X : Set x) {Y : Set y} {Z : Set z} →
            X ↔ Y → Y ∼[ k ] Z → X ∼[ k ] Z
   X ↔⟨ X↔Y ⟩ Y⇔Z = X ∼⟨ ↔⇒ X↔Y ⟩ Y⇔Z
+
+  _↔⟨⟩_ : ∀ {k x y} (X : Set x) {Y : Set y} →
+          X ∼[ k ] Y → X ∼[ k ] Y
+  X ↔⟨⟩ X⇔Y = X⇔Y
 
   _≡⟨_⟩_ : ∀ {k ℓ z} (X : Set ℓ) {Y : Set ℓ} {Z : Set z} →
            X ≡ Y → Y ∼[ k ] Z → X ∼[ k ] Z
