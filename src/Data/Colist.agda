@@ -10,7 +10,7 @@ open import Category.Monad
 open import Coinduction
 open import Data.Bool          using (Bool; true; false)
 open import Data.Empty         using (⊥)
-open import Data.Maybe         using (Maybe; nothing; just)
+open import Data.Maybe         using (Maybe; nothing; just; Is-just)
 open import Data.Nat           using (ℕ; zero; suc)
 open import Data.Conat         using (Coℕ; zero; suc)
 open import Data.List          using (List; []; _∷_)
@@ -173,6 +173,33 @@ Any-cong {P = P} xs≈ys = record
   resp∘resp (x ∷ xs≈) (.x ∷ ys≈) (here px) = P.refl
   resp∘resp (x ∷ xs≈) (.x ∷ ys≈) (there p) =
     P.cong there (resp∘resp (♭ xs≈) (♭ ys≈) p)
+
+------------------------------------------------------------------------
+-- Indices
+
+-- Converts Any proofs to indices into the colist. The index can also
+-- be seen as the size of the proof.
+
+index : ∀ {a p} {A : Set a} {P : A → Set p} {xs} → Any P xs → ℕ
+index (here px) = zero
+index (there p) = suc (index p)
+
+-- The position returned by index is guaranteed to be within bounds.
+
+lookup-index : ∀ {a p} {A : Set a} {P : A → Set p} {xs} (p : Any P xs) →
+               Is-just (lookup (index p) xs)
+lookup-index (here px) = just _
+lookup-index (there p) = lookup-index p
+
+-- Any-resp preserves the index.
+
+index-Any-resp :
+  ∀ {a p} {A : Set a} {P : A → Set p} {xs ys}
+  (xs≈ys : xs ≈ ys) (p : Any P xs) →
+  index (Any-resp xs≈ys p) ≡ index p
+index-Any-resp (x ∷ xs≈) (here px) = P.refl
+index-Any-resp (x ∷ xs≈) (there p) =
+  P.cong suc (index-Any-resp (♭ xs≈) p)
 
 ------------------------------------------------------------------------
 -- Memberships, subsets, prefixes
