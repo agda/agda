@@ -8,19 +8,21 @@ module Data.Colist where
 
 open import Category.Monad
 open import Coinduction
-open import Data.Bool          using (Bool; true; false)
-open import Data.Empty         using (⊥)
-open import Data.Maybe         using (Maybe; nothing; just; Is-just)
-open import Data.Nat           using (ℕ; zero; suc)
-open import Data.Conat         using (Coℕ; zero; suc)
-open import Data.List          using (List; []; _∷_)
-open import Data.List.NonEmpty using (List⁺; _∷_)
+open import Data.Bool using (Bool; true; false)
 open import Data.BoundedVec.Inefficient as BVec
   using (BoundedVec; []; _∷_)
+open import Data.Conat using (Coℕ; zero; suc)
+open import Data.Empty using (⊥)
+open import Data.Maybe using (Maybe; nothing; just; Is-just)
+open import Data.Nat using (ℕ; zero; suc; _≥′_; ≤′-refl; ≤′-step)
+open import Data.Nat.Properties using (s≤′s)
+open import Data.List using (List; []; _∷_)
+open import Data.List.NonEmpty using (List⁺; _∷_)
 open import Data.Product as Prod using (∃; _×_; _,_)
-open import Data.Sum using (_⊎_; inj₁; inj₂)
+open import Data.Sum as Sum using (_⊎_; inj₁; inj₂; [_,_]′)
 open import Function
-open import Function.Inverse using (_↔_)
+open import Function.Equality using (_⟨$⟩_)
+open import Function.Inverse using (_↔_; module Inverse)
 open import Level using (_⊔_)
 open import Relation.Binary
 import Relation.Binary.InducedPreorders as Ind
@@ -90,6 +92,15 @@ _++_ : ∀ {a} {A : Set a} → Colist A → Colist A → Colist A
 []       ++ ys = ys
 (x ∷ xs) ++ ys = x ∷ ♯ (♭ xs ++ ys)
 
+-- Interleaves the two colists (until the shorter one, if any, has
+-- been exhausted).
+
+infixr 5 _⋎_
+
+_⋎_ : ∀ {a} {A : Set a} → Colist A → Colist A → Colist A
+[]       ⋎ ys = ys
+(x ∷ xs) ⋎ ys = x ∷ ♯ (ys ⋎ ♭ xs)
+
 concat : ∀ {a} {A : Set a} → Colist (List⁺ A) → Colist A
 concat []                     = []
 concat ((x ∷ [])       ∷ xss) = x ∷ ♯ concat (♭ xss)
@@ -97,6 +108,65 @@ concat ((x ∷ (y ∷ xs)) ∷ xss) = x ∷ ♯ concat ((y ∷ xs) ∷ xss)
 
 [_] : ∀ {a} {A : Set a} → A → Colist A
 [ x ] = x ∷ ♯ []
+
+------------------------------------------------------------------------
+-- Any lemmas (currently just one)
+
+-- Any lemma for _⋎_. This lemma implies that every member of xs or ys
+-- is a member of xs ⋎ ys, and vice versa.
+
+Any-⋎ : ∀ {a p} {A : Set a} {P : A → Set p} xs {ys} →
+        Any P (xs ⋎ ys) ↔ (Any P xs ⊎ Any P ys)
+Any-⋎ {P = P} = λ xs → record
+  { to         = P.→-to-⟶ (to xs)
+  ; from       = P.→-to-⟶ (from xs)
+  ; inverse-of = record
+    { left-inverse-of  = from∘to xs
+    ; right-inverse-of = to∘from xs
+    }
+  }
+  where
+  to : ∀ xs {ys} → Any P (xs ⋎ ys) → Any P xs ⊎ Any P ys
+  to []       p         = inj₂ p
+  to (x ∷ xs) (here px) = inj₁ (here px)
+  to (x ∷ xs) (there p) = [ inj₂ , inj₁ ∘ there ]′ (to _ p)
+
+  mutual
+
+    from-left : ∀ {xs ys} → Any P xs → Any P (xs ⋎ ys)
+    from-left           (here px) = here px
+    from-left {ys = ys} (there p) = there (from-right ys p)
+
+    from-right : ∀ xs {ys} → Any P ys → Any P (xs ⋎ ys)
+    from-right []       p = p
+    from-right (x ∷ xs) p = there (from-left p)
+
+  from : ∀ xs {ys} → Any P xs ⊎ Any P ys → Any P (xs ⋎ ys)
+  from xs = Sum.[ from-left , from-right xs ]
+
+  from∘to : ∀ xs {ys} (p : Any P (xs ⋎ ys)) → from xs (to xs p) ≡ p
+  from∘to []                 p                          = P.refl
+  from∘to (x ∷ xs)           (here px)                  = P.refl
+  from∘to (x ∷ xs) {ys = ys} (there p)                  with to ys p | from∘to ys p
+  from∘to (x ∷ xs) {ys = ys} (there .(from-left q))     | inj₁ q | P.refl = P.refl
+  from∘to (x ∷ xs) {ys = ys} (there .(from-right ys q)) | inj₂ q | P.refl = P.refl
+
+  mutual
+
+    to∘from-left : ∀ {xs ys} (p : Any P xs) →
+                   to xs {ys = ys} (from-left p) ≡ inj₁ p
+    to∘from-left           (here px) = P.refl
+    to∘from-left {ys = ys} (there p)
+      rewrite to∘from-right ys p = P.refl
+
+    to∘from-right : ∀ xs {ys} (p : Any P ys) →
+                    to xs (from-right xs p) ≡ inj₂ p
+    to∘from-right []                 p = P.refl
+    to∘from-right (x ∷ xs) {ys = ys} p
+      rewrite to∘from-left {xs = ys} {ys = ♭ xs} p = P.refl
+
+  to∘from : ∀ xs {ys} (p : Any P xs ⊎ Any P ys) → to xs (from xs p) ≡ p
+  to∘from xs = Sum.[ to∘from-left , to∘from-right xs ]
 
 ------------------------------------------------------------------------
 -- Equality
@@ -200,6 +270,19 @@ index-Any-resp :
 index-Any-resp (x ∷ xs≈) (here px) = P.refl
 index-Any-resp (x ∷ xs≈) (there p) =
   P.cong suc (index-Any-resp (♭ xs≈) p)
+
+-- The left-to-right direction of Any-⋎ returns a proof whose size is
+-- no larger than that of the input proof.
+
+index-Any-⋎ :
+  ∀ {a p} {A : Set a} {P : A → Set p} xs {ys} (p : Any P (xs ⋎ ys)) →
+  index p ≥′ [ index , index ]′ (Inverse.to (Any-⋎ xs) ⟨$⟩ p)
+index-Any-⋎ []                 p         = ≤′-refl
+index-Any-⋎ (x ∷ xs)           (here px) = ≤′-refl
+index-Any-⋎ (x ∷ xs) {ys = ys} (there p)
+  with Inverse.to (Any-⋎ ys) ⟨$⟩ p | index-Any-⋎ ys p
+... | inj₁ q | q≤p = ≤′-step q≤p
+... | inj₂ q | q≤p = s≤′s    q≤p
 
 ------------------------------------------------------------------------
 -- Memberships, subsets, prefixes
