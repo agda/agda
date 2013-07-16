@@ -17,13 +17,14 @@ open import Data.List          using (List; []; _∷_)
 open import Data.List.NonEmpty using (List⁺; _∷_)
 open import Data.BoundedVec.Inefficient as BVec
   using (BoundedVec; []; _∷_)
-open import Data.Product using (_,_)
-open import Data.Sum     using (_⊎_; inj₁; inj₂)
+open import Data.Product as Prod using (∃; _×_; _,_)
+open import Data.Sum using (_⊎_; inj₁; inj₂)
 open import Function
+open import Function.Inverse using (_↔_)
 open import Level using (_⊔_)
 open import Relation.Binary
 import Relation.Binary.InducedPreorders as Ind
-open import Relation.Binary.PropositionalEquality using (_≡_)
+open import Relation.Binary.PropositionalEquality as P using (_≡_)
 open import Relation.Nullary
 open import Relation.Nullary.Negation
 open RawMonad (¬¬-Monad {p = Level.zero})
@@ -145,6 +146,34 @@ map-cong : ∀ {a b} {A : Set a} {B : Set b}
 map-cong f []        = []
 map-cong f (x ∷ xs≈) = f x ∷ ♯ map-cong f (♭ xs≈)
 
+-- Any respects equality.
+
+Any-resp : ∀ {a p} {A : Set a} {P : A → Set p} → Any P Respects _≈_
+Any-resp (x ∷ xs≈) (here px) = here px
+Any-resp (x ∷ xs≈) (there p) = there (Any-resp (♭ xs≈) p)
+
+-- Any P maps equal colists to isomorphic types.
+
+Any-cong : ∀ {a p} {A : Set a} {P : A → Set p} →
+           _≈_ =[ Any P ]⇒ _↔_
+Any-cong {P = P} xs≈ys = record
+  { to         = P.→-to-⟶ (Any-resp xs≈ys)
+  ; from       = P.→-to-⟶ (Any-resp (sym xs≈ys))
+  ; inverse-of = record
+    { left-inverse-of  = resp∘resp xs≈ys (sym xs≈ys)
+    ; right-inverse-of = resp∘resp (sym xs≈ys) xs≈ys
+    }
+  }
+  where
+  open Setoid (setoid _) using (sym)
+
+  resp∘resp : ∀ {xs ys}
+              (xs≈ys : xs ≈ ys) (ys≈xs : ys ≈ xs) (p : Any P xs) →
+              Any-resp ys≈xs (Any-resp xs≈ys p) ≡ p
+  resp∘resp (x ∷ xs≈) (.x ∷ ys≈) (here px) = P.refl
+  resp∘resp (x ∷ xs≈) (.x ∷ ys≈) (there p) =
+    P.cong there (resp∘resp (♭ xs≈) (♭ ys≈) p)
+
 ------------------------------------------------------------------------
 -- Memberships, subsets, prefixes
 
@@ -169,6 +198,38 @@ infix 4 _⊑_
 data _⊑_ {a} {A : Set a} : Colist A → Colist A → Set a where
   []  : ∀ {ys}                            → []     ⊑ ys
   _∷_ : ∀ x {xs ys} (p : ∞ (♭ xs ⊑ ♭ ys)) → x ∷ xs ⊑ x ∷ ys
+
+-- Any can be expressed using _∈_ (and vice versa).
+
+Any-∈ : ∀ {a p} {A : Set a} {P : A → Set p} {xs} →
+        Any P xs ↔ ∃ λ x → x ∈ xs × P x
+Any-∈ {P = P} = record
+  { to         = P.→-to-⟶ to
+  ; from       = P.→-to-⟶ (λ { (x , x∈xs , p) → from x∈xs p })
+  ; inverse-of = record
+    { left-inverse-of  = from∘to
+    ; right-inverse-of = λ { (x , x∈xs , p) → to∘from x∈xs p }
+    }
+  }
+  where
+  to : ∀ {xs} → Any P xs → ∃ λ x → x ∈ xs × P x
+  to (here  p) = _ , here P.refl , p
+  to (there p) = Prod.map id (Prod.map there id) (to p)
+
+  from : ∀ {x xs} → x ∈ xs → P x → Any P xs
+  from (here P.refl) p = here p
+  from (there x∈xs)  p = there (from x∈xs p)
+
+  to∘from : ∀ {x xs} (x∈xs : x ∈ xs) (p : P x) →
+            to (from x∈xs p) ≡ (x , x∈xs , p)
+  to∘from (here P.refl) p = P.refl
+  to∘from (there x∈xs)  p =
+    P.cong (Prod.map id (Prod.map there id)) (to∘from x∈xs p)
+
+  from∘to : ∀ {xs} (p : Any P xs) →
+            let (x , x∈xs , px) = to p in from x∈xs px ≡ p
+  from∘to (here _)  = P.refl
+  from∘to (there p) = P.cong there (from∘to p)
 
 -- Prefixes are subsets.
 
