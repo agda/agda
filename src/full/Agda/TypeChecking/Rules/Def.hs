@@ -445,11 +445,13 @@ checkClause t c@(A.Clause (A.LHS i (A.LHSHead x aps) []) rhs0 wh) =
                          pats = [A.DotP patNoRange underscore, -- rewriteToExpr,
                                  A.ConP cinfo (AmbQ [conName reflCon]) []]
                      reportSDoc "tc.rewrite.top" 25 $ vcat
-                                         [ text "from = " <+> prettyTCM rewriteFromExpr,
-                                           text "to = " <+> prettyTCM rewriteToExpr,
-                                           text "typ = " <+> prettyTCM rewriteType,
-                                           text "proof = " <+> prettyTCM proofExpr,
-                                           text "equ = " <+> prettyTCM t' ]
+                                         [ text "rewrite"
+                                         , text "  from  = " <+> prettyTCM rewriteFromExpr
+                                         , text "  to    = " <+> prettyTCM rewriteToExpr
+                                         , text "  typ   = " <+> prettyTCM rewriteType
+                                         , text "  proof = " <+> prettyTCM proofExpr
+                                         , text "  equ   = " <+> prettyTCM t'
+                                         ]
                      handleRHS newRhs
 
                 A.WithRHS aux es cs -> do

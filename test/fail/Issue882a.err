@@ -1,0 +1,8 @@
+Issue882a.agda:50,1-33
+Setω !=< Level of type Setω
+when checking that the type
+B →
+(w : _≡_ {_44} {_A_47} _x_48 _x_48) →
+_≡_ {lzero} {B → S} (unfold (λ m → _.mko m (m b) w))
+(unfold (λ m → _.mko m (m b) w))
+of the generated with function is well-formed

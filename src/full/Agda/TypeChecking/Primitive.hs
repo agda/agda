@@ -7,7 +7,6 @@
 module Agda.TypeChecking.Primitive where
 
 import Control.Monad
-import Control.Monad.Error
 import Data.Map (Map)
 import qualified Data.Map as Map
 import Data.Char
@@ -27,11 +26,15 @@ import Agda.TypeChecking.Monad.Builtin
 import Agda.TypeChecking.Reduce
 import Agda.TypeChecking.Substitute
 import Agda.TypeChecking.Errors
+import Agda.TypeChecking.Level
 import Agda.TypeChecking.Quote (quotingKit)
 import Agda.TypeChecking.Pretty ()  -- instances only
+
+{- imports needed for calling conversion checker in primTrustMe
+import Control.Monad.Error
 import {-# SOURCE #-} Agda.TypeChecking.Conversion
 import Agda.TypeChecking.Constraints
-import Agda.TypeChecking.Level
+-}
 
 import Agda.Utils.Monad
 import Agda.Utils.Pretty (pretty)
@@ -281,12 +284,25 @@ primTrustMe = do
              | otherwise = __IMPOSSIBLE__
   return $ PrimImpl t $ PrimFun __IMPOSSIBLE__ 4 $ \ts ->
       case ts of
-        [a, t, x, y] -> liftTCM $ do
+        [a, t, u, v] -> do
+            -- Andreas, 2013-07-22.
+            -- Note that we cannot call the conversion checker here,
+            -- because 'reduce' might be called in a context where
+            -- some bound variables do not have a type (just 'Prop),
+            -- and the conversion checker for eliminations does not
+            -- like this.
+            -- We can only do untyped equality, e.g., by normalisation.
+            (u', v') <- normalise (u, v)
+            if (u' == v') then redReturn (refl $ unArg u) else
+              return (NoReduction $ map notReduced [a, t, u, v])
+{- OLD:
+
+              -- BAD:
               noConstraints $
-                equalTerm (El (Type $ lvlView $ unArg a) (unArg t))
-                          (unArg x) (unArg y)
-              redReturn (refl $ unArg x)
-            `catchError` \_ -> return (NoReduction $ map notReduced [a, t, x, y])
+                equalTerm (El (Type $ lvlView $ unArg a) (unArg t)) (unArg u) (unArg v)
+              redReturn (refl $ unArg u)
+            `catchError` \_ -> return (NoReduction $ map notReduced [a, t, u, v])
+-}
         _ -> __IMPOSSIBLE__
 
 primQNameType :: TCM PrimitiveImpl

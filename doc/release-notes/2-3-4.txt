@@ -113,6 +113,30 @@ Goal and error display
 Type checking
 =============
 
+* The implementation of the primitive primTrustMe has changed.
+  It now only reduces to REFL if the two arguments x and y have
+  the same computational normal form.  Before, it reduced when
+  x and y were definitionally equal, which included type-directed
+  equality laws such as eta-equality.  Yet because reduction is
+  untyped, calling conversion from reduction lead to Agda crashes
+  [Issue 882].
+
+  The amended description of primTrustMe is (cf. release notes for 2.2.6):
+
+    primTrustMe : {A : Set} {x y : A} → x ≡ y
+
+  Here _≡_ is the builtin equality (see BUILTIN hooks for equality,
+  above).
+
+  If x and y have the same computational normal form, then
+  primTrustMe {x = x} {y = y} reduces to refl.
+
+  A note on primTrustMe's runtime behavior:
+  The MAlonzo compiler replaces all uses of primTrustMe with the
+  REFL builtin, without any check for definitional equality. Incorrect
+  uses of primTrustMe can potentially lead to segfaults or similar
+  problems of the compiled code.
+
 * A buggy facility coined "matrix-shaped orders" that supported
   uncurried functions (which take tuples of arguments instead of one
   argument after another) has been removed from the termination

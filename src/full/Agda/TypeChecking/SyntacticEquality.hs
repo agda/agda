@@ -55,7 +55,7 @@ ifEqual :: (a -> SynEqM a) -> (a -> SynEqM a)
 ifEqual cont a = ifM get (cont a) (return a)
 
 -- Since List2 is only Applicative, not a monad, I cannot
--- define a List2T monad transformer, so we do it manual:
+-- define a List2T monad transformer, so we do it manually:
 
 (<$$>) :: Functor f => (a -> b) -> f (a,a) -> f (b,b)
 f <$$> xx = (f *** f) <$> xx

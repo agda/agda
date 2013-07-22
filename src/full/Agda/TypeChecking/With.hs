@@ -38,9 +38,16 @@ import Agda.Utils.Impossible
 withFunctionType :: Telescope -> [Term] -> [Type] -> Telescope -> Type -> TCM Type
 withFunctionType delta1 vs as delta2 b = {-dontEtaContractImplicit $-} do
   (vas, b) <- addCtxTel delta1 $ do
+    reportSLn "tc.with.abstract" 20 $ "preparing for with-abstraction"
     vs <- etaContract =<< normalise vs
+    reportSDoc "tc.with.abstract" 20 $ text "  vs = " <+> prettyTCM vs
     as <- etaContract =<< normalise as
-    b  <- etaContract =<< normalise (telePi_ delta2 b)
+    reportSDoc "tc.with.abstract" 20 $ text "  as = " <+> prettyTCM as
+    reportSDoc "tc.with.abstract" 30 $ text "normalizing b = " <+> prettyTCM (telePi_ delta2 b)
+    b  <- normalise (telePi_ delta2 b)
+    reportSDoc "tc.with.abstract" 30 $ text "eta-contracting b = " <+> prettyTCM b
+    b  <- etaContract b
+    reportSDoc "tc.with.abstract" 20 $ text "  b  = " <+> prettyTCM b
     reportSDoc "tc.with.abstract" 40 $
       sep [ text "abstracting"
           , nest 2 $ vcat $

@@ -464,6 +464,7 @@ compareAtom cmp t m n =
                         , text "els1 =" <+> prettyTCM els1
                         , text "els2 =" <+> prettyTCM els2
                         ]
+                    reportSLn "tc.conv.elim" 50 $ "v (raw) = " ++ show v
                     compareElims pol a v els1 els2
 	    (Con x xArgs, Con y yArgs)
 		| x == y -> do
@@ -652,8 +653,11 @@ compareElims pols0 a v els01 els02 = catchConstraint (ElimCmp pols0 a v els01 el
             pols' <- getPolarity' cmp f
             compareElims pols' c (Def f [arg]) els1 els2
           _ -> do
-            reportSDoc "impossible" 10 $
-              text "projecting from unexpected type " <+> prettyTCM a
+            reportSDoc "impossible" 10 $ sep
+              [ text $ "projection " ++ show f
+              , text   "applied to value " <+> prettyTCM v
+              , text   "of unexpected type " <+> prettyTCM a
+              ]
             __IMPOSSIBLE__
 
 -- | "Compare" two terms in irrelevant position.  This always succeeds.
