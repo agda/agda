@@ -1,0 +1,10 @@
+WithoutK-PatternSynonyms1.agda:13,12-13
+The variables
+  x
+  x
+in the indices
+  x
+  x
+are not distinct (note that parameters count as constructor
+arguments)
+when checking that the pattern refl has type x ≡ x

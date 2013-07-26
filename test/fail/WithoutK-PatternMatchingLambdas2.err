@@ -1,4 +1,4 @@
-WithoutK12.agda:10,17-21
+WithoutK-PatternMatchingLambdas2.agda:11,20-26
 The variables
   x
   x
@@ -7,4 +7,4 @@ in the indices
   x
 are not distinct (note that parameters count as constructor
 arguments)
-when checking that the pattern refl has type x ≡ x
+when checking that the pattern refl x has type x ≡ x
