@@ -82,9 +82,9 @@ private
   Any-⋎P : ∀ {a p} {A : Set a} {P : A → Set p} xs {ys} →
            Any P ⟦ program xs ⋎ ys ⟧P ↔ (Any P xs ⊎ Any P ⟦ ys ⟧P)
   Any-⋎P {P = P} xs {ys} =
-    Any P ⟦ program xs ⋎ ys ⟧P                ↔⟨ Any-cong (⋎-homP (program xs)) ⟩
+    Any P ⟦ program xs ⋎ ys ⟧P                ↔⟨ Any-cong Inv.id (⋎-homP (program xs)) ⟩
     Any P (⟦ program xs ⟧P Colist.⋎ ⟦ ys ⟧P)  ↔⟨ Any-⋎ _ ⟩
-    (Any P ⟦ program xs ⟧P ⊎ Any P ⟦ ys ⟧P)   ↔⟨ Any-cong (⟦program⟧P _) ⊎-cong (_ ∎) ⟩
+    (Any P ⟦ program xs ⟧P ⊎ Any P ⟦ ys ⟧P)   ↔⟨ Any-cong Inv.id (⟦program⟧P _) ⊎-cong (_ ∎) ⟩
     (Any P xs ⊎ Any P ⟦ ys ⟧P)                ∎
     where open Related.EquationalReasoning
 
@@ -93,15 +93,15 @@ private
     (p : Any P ⟦ program xs ⋎ ys ⟧P) →
     index p ≥′ [ index , index ]′ (Inverse.to (Any-⋎P xs) ⟨$⟩ p)
   index-Any-⋎P xs p
-    with       Any-resp (⋎-homW (whnf (program xs)) _) p
-       | index-Any-resp (⋎-homW (whnf (program xs)) _) p
+    with       Any-resp      id  (⋎-homW (whnf (program xs)) _) p
+       | index-Any-resp {f = id} (⋎-homW (whnf (program xs)) _) p
   index-Any-⋎P xs p | q | q≡p
     with Inverse.to (Any-⋎ ⟦ program xs ⟧P) ⟨$⟩ q
        |       index-Any-⋎ ⟦ program xs ⟧P      q
   index-Any-⋎P xs p | q | q≡p | inj₂ r | r≤q rewrite q≡p = r≤q
   index-Any-⋎P xs p | q | q≡p | inj₁ r | r≤q
-    with       Any-resp (⟦program⟧P xs) r
-       | index-Any-resp (⟦program⟧P xs) r
+    with       Any-resp      id  (⟦program⟧P xs) r
+       | index-Any-resp {f = id} (⟦program⟧P xs) r
   index-Any-⋎P xs p | q | q≡p | inj₁ r | r≤q | s | s≡r
     rewrite s≡r | q≡p = r≤q
 

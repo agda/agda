@@ -22,7 +22,7 @@ open import Data.Product as Prod using (∃; _×_; _,_)
 open import Data.Sum as Sum using (_⊎_; inj₁; inj₂; [_,_]′)
 open import Function
 open import Function.Equality using (_⟨$⟩_)
-open import Function.Inverse using (_↔_; module Inverse)
+open import Function.Inverse as Inv using (_↔_; module Inverse)
 open import Level using (_⊔_)
 open import Relation.Binary
 import Relation.Binary.InducedPreorders as Ind
@@ -250,33 +250,41 @@ map-cong : ∀ {a b} {A : Set a} {B : Set b}
 map-cong f []        = []
 map-cong f (x ∷ xs≈) = f x ∷ ♯ map-cong f (♭ xs≈)
 
--- Any respects equality.
+-- Any respects pointwise implication (for the predicate) and equality
+-- (for the colist).
 
-Any-resp : ∀ {a p} {A : Set a} {P : A → Set p} → Any P Respects _≈_
-Any-resp (x ∷ xs≈) (here px) = here px
-Any-resp (x ∷ xs≈) (there p) = there (Any-resp (♭ xs≈) p)
+Any-resp :
+  ∀ {a p q} {A : Set a} {P : A → Set p} {Q : A → Set q} {xs ys} →
+  (∀ {x} → P x → Q x) → xs ≈ ys → Any P xs → Any Q ys
+Any-resp f (x ∷ xs≈) (here px) = here (f px)
+Any-resp f (x ∷ xs≈) (there p) = there (Any-resp f (♭ xs≈) p)
 
--- Any P maps equal colists to isomorphic types.
+-- Any maps pointwise isomorphic predicates and equal colists to
+-- isomorphic types.
 
-Any-cong : ∀ {a p} {A : Set a} {P : A → Set p} →
-           _≈_ =[ Any P ]⇒ _↔_
-Any-cong {P = P} xs≈ys = record
-  { to         = P.→-to-⟶ (Any-resp xs≈ys)
-  ; from       = P.→-to-⟶ (Any-resp (sym xs≈ys))
+Any-cong :
+  ∀ {a p q} {A : Set a} {P : A → Set p} {Q : A → Set q} {xs ys} →
+  (∀ {x} → P x ↔ Q x) → xs ≈ ys → Any P xs ↔ Any Q ys
+Any-cong {A = A} P↔Q xs≈ys = record
+  { to         = P.→-to-⟶ (Any-resp (_⟨$⟩_ (Inverse.to   P↔Q)) xs≈ys)
+  ; from       = P.→-to-⟶ (Any-resp (_⟨$⟩_ (Inverse.from P↔Q)) (sym xs≈ys))
   ; inverse-of = record
-    { left-inverse-of  = resp∘resp xs≈ys (sym xs≈ys)
-    ; right-inverse-of = resp∘resp (sym xs≈ys) xs≈ys
+    { left-inverse-of  = resp∘resp          P↔Q       xs≈ys (sym xs≈ys)
+    ; right-inverse-of = resp∘resp (Inv.sym P↔Q) (sym xs≈ys)     xs≈ys
     }
   }
   where
   open Setoid (setoid _) using (sym)
 
-  resp∘resp : ∀ {xs ys}
+  resp∘resp : ∀ {p q} {P : A → Set p} {Q : A → Set q} {xs ys}
+              (P↔Q : ∀ {x} → P x ↔ Q x)
               (xs≈ys : xs ≈ ys) (ys≈xs : ys ≈ xs) (p : Any P xs) →
-              Any-resp ys≈xs (Any-resp xs≈ys p) ≡ p
-  resp∘resp (x ∷ xs≈) (.x ∷ ys≈) (here px) = P.refl
-  resp∘resp (x ∷ xs≈) (.x ∷ ys≈) (there p) =
-    P.cong there (resp∘resp (♭ xs≈) (♭ ys≈) p)
+              Any-resp (_⟨$⟩_ (Inverse.from P↔Q)) ys≈xs
+                (Any-resp (_⟨$⟩_ (Inverse.to P↔Q)) xs≈ys p) ≡ p
+  resp∘resp P↔Q (x ∷ xs≈) (.x ∷ ys≈) (here px) =
+    P.cong here (Inverse.left-inverse-of P↔Q px)
+  resp∘resp P↔Q (x ∷ xs≈) (.x ∷ ys≈) (there p) =
+    P.cong there (resp∘resp P↔Q (♭ xs≈) (♭ ys≈) p)
 
 ------------------------------------------------------------------------
 -- Indices
@@ -298,9 +306,10 @@ lookup-index (there p) = lookup-index p
 -- Any-resp preserves the index.
 
 index-Any-resp :
-  ∀ {a p} {A : Set a} {P : A → Set p} {xs ys}
+  ∀ {a p q} {A : Set a} {P : A → Set p} {Q : A → Set q}
+    {f : ∀ {x} → P x → Q x} {xs ys}
   (xs≈ys : xs ≈ ys) (p : Any P xs) →
-  index (Any-resp xs≈ys p) ≡ index p
+  index (Any-resp f xs≈ys p) ≡ index p
 index-Any-resp (x ∷ xs≈) (here px) = P.refl
 index-Any-resp (x ∷ xs≈) (there p) =
   P.cong suc (index-Any-resp (♭ xs≈) p)
