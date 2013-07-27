@@ -110,7 +110,41 @@ concat ((x ∷ (y ∷ xs)) ∷ xss) = x ∷ ♯ concat ((y ∷ xs) ∷ xss)
 [ x ] = x ∷ ♯ []
 
 ------------------------------------------------------------------------
--- Any lemmas (currently just one)
+-- Any lemmas
+
+-- Any lemma for map.
+
+Any-map : ∀ {a b p} {A : Set a} {B : Set b} {P : B → Set p}
+          {f : A → B} {xs} →
+          Any P (map f xs) ↔ Any (P ∘ f) xs
+Any-map {P = P} {f} = λ {xs} → record
+  { to         = P.→-to-⟶ (to xs)
+  ; from       = P.→-to-⟶ (from xs)
+  ; inverse-of = record
+    { left-inverse-of  = from∘to xs
+    ; right-inverse-of = to∘from xs
+    }
+  }
+  where
+  to : ∀ xs → Any P (map f xs) → Any (P ∘ f) xs
+  to []       ()
+  to (x ∷ xs) (here px) = here px
+  to (x ∷ xs) (there p) = there (to (♭ xs) p)
+
+  from : ∀ xs → Any (P ∘ f) xs → Any P (map f xs)
+  from []       ()
+  from (x ∷ xs) (here px) = here px
+  from (x ∷ xs) (there p) = there (from (♭ xs) p)
+
+  from∘to : ∀ xs (p : Any P (map f xs)) → from xs (to xs p) ≡ p
+  from∘to []       ()
+  from∘to (x ∷ xs) (here px) = P.refl
+  from∘to (x ∷ xs) (there p) = P.cong there (from∘to (♭ xs) p)
+
+  to∘from : ∀ xs (p : Any (P ∘ f) xs) → to xs (from xs p) ≡ p
+  to∘from []       ()
+  to∘from (x ∷ xs) (here px) = P.refl
+  to∘from (x ∷ xs) (there p) = P.cong there (to∘from (♭ xs) p)
 
 -- Any lemma for _⋎_. This lemma implies that every member of xs or ys
 -- is a member of xs ⋎ ys, and vice versa.
