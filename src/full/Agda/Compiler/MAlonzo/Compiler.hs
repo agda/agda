@@ -236,7 +236,7 @@ checkCover q ty n cs = do
         (a, _) <- conArityAndPars c
         Just (HsDefn _ hsc) <- compiledHaskell . defCompiledRep <$> getConstInfo c
         let pat = HS.PApp (HS.UnQual $ HS.Ident hsc) $ genericReplicate a HS.PWildCard
-        return $ HS.Alt dummy pat (HS.UnGuardedAlt $ HS.Tuple []) (HS.BDecls [])
+        return $ HS.Alt dummy pat (HS.UnGuardedAlt $ HS.unit_con) (HS.BDecls [])
   cs <- mapM makeClause cs
   let rhs = case cs of
               [] -> fakeExp "()" -- There is no empty case statement in Haskell
@@ -492,7 +492,9 @@ explicitForAll :: HS.Extension
 explicitForAll =
 -- GHC 7.0.1 cannot parse the following CPP conditional
 -- error: missing binary operator before token "("
-#if MIN_VERSION_haskell_src_exts(1,12,0)
+#if MIN_VERSION_haskell_src_exts(1,14,0)
+  HS.EnableExtension HS.ExplicitForAll
+#elif MIN_VERSION_haskell_src_exts(1,12,0)
   HS.ExplicitForAll
 #else
   HS.ExplicitForall

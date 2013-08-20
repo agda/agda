@@ -66,7 +66,7 @@ library
                     -- mtl-2.1 contains a severe bug
                     mtl >= 2.0 && < 2.1 || >= 2.1.1 && < 2.2,
                     QuickCheck >= 2.3 && < 2.7,
-                    haskell-src-exts >= 1.9.6 && < 1.14,
+                    haskell-src-exts >= 1.9.6 && < 1.15,
                     containers >= 0.1 && < 0.6,
                     unordered-containers == 0.2.*,
                     pretty >= 1.0 && < 1.2,
