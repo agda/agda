@@ -27,7 +27,6 @@ import Control.Monad.Reader
 import Control.Monad.State
 import Data.List as List
 import qualified Data.Map as Map
-import qualified System.Mem as System
 
 import Agda.TypeChecking.Monad as TM
   hiding (initState, setCommandLineOptions)
@@ -704,8 +703,6 @@ cmd_load' file includes unsolvedOK cmd = do
                          }
 
     cmd ok
-
-    liftIO System.performGC
 
 -- | Available backends.
 
