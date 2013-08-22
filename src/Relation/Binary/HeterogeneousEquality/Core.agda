@@ -16,8 +16,8 @@ open import Relation.Binary.Core using (_≡_; refl)
 
 infix 4 _≅_
 
-data _≅_ {a} {A : Set a} (x : A) : ∀ {b} {B : Set b} → B → Set where
-  refl : x ≅ x
+data _≅_ {ℓ} {A : Set ℓ} (x : A) : {B : Set ℓ} → B → Set ℓ where
+   refl : x ≅ x
 
 ------------------------------------------------------------------------
 -- Conversion

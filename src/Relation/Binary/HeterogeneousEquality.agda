@@ -27,7 +27,7 @@ open Core public using (_≅_; refl)
 
 -- Nonequality.
 
-_≇_ : ∀ {a} {A : Set a} → A → ∀ {b} {B : Set b} → B → Set
+_≇_ : ∀ {ℓ} {A : Set ℓ} → A → {B : Set ℓ} → B → Set ℓ
 x ≇ y = ¬ x ≅ y
 
 ------------------------------------------------------------------------
@@ -44,11 +44,10 @@ open Core public using (≅-to-≡)
 reflexive : ∀ {a} {A : Set a} → _⇒_ {A = A} _≡_ (λ x y → x ≅ y)
 reflexive refl = refl
 
-sym : ∀ {a b} {A : Set a} {B : Set b} {x : A} {y : B} → x ≅ y → y ≅ x
+sym : ∀ {ℓ} {A B : Set ℓ} {x : A} {y : B} → x ≅ y → y ≅ x
 sym refl = refl
 
-trans : ∀ {a b c} {A : Set a} {B : Set b} {C : Set c}
-          {x : A} {y : B} {z : C} →
+trans : ∀ {ℓ} {A B C : Set ℓ} {x : A} {y : B} {z : C} →
         x ≅ y → y ≅ z → x ≅ z
 trans refl eq = eq
 
@@ -81,7 +80,7 @@ cong₂ f refl refl = refl
 resp₂ : ∀ {a ℓ} {A : Set a} (∼ : Rel A ℓ) → ∼ Respects₂ (λ x y → x ≅ y)
 resp₂ _∼_ = subst⟶resp₂ _∼_ subst
 
-proof-irrelevance : ∀ {a b} {A : Set a} {B : Set b} {x : A} {y : B}
+proof-irrelevance : ∀ {ℓ} {A B : Set ℓ} {x : A} {y : B}
                     (p q : x ≅ y) → p ≡ q
 proof-irrelevance refl refl = refl
 
@@ -170,24 +169,23 @@ module ≅-Reasoning where
   infixr 2 _≅⟨_⟩_ _≡⟨_⟩_ _≡⟨⟩_
   infix  1 begin_
 
-  data _IsRelatedTo_ {a} {A : Set a} (x : A) {b} {B : Set b} (y : B) :
-                     Set where
+  data _IsRelatedTo_ {ℓ} {A : Set ℓ} (x : A) {B : Set ℓ} (y : B) :
+                     Set ℓ where
     relTo : (x≅y : x ≅ y) → x IsRelatedTo y
 
-  begin_ : ∀ {a} {A : Set a} {x : A} {b} {B : Set b} {y : B} →
+  begin_ : ∀ {ℓ} {A : Set ℓ} {x : A} {B} {y : B} →
            x IsRelatedTo y → x ≅ y
   begin relTo x≅y = x≅y
 
-  _≅⟨_⟩_ : ∀ {a} {A : Set a} (x : A) {b} {B : Set b} {y : B}
-             {c} {C : Set c} {z : C} →
+  _≅⟨_⟩_ : ∀ {ℓ} {A : Set ℓ} (x : A) {B} {y : B} {C} {z : C} →
            x ≅ y → y IsRelatedTo z → x IsRelatedTo z
   _ ≅⟨ x≅y ⟩ relTo y≅z = relTo (trans x≅y y≅z)
 
-  _≡⟨_⟩_ : ∀ {a} {A : Set a} (x : A) {y c} {C : Set c} {z : C} →
+  _≡⟨_⟩_ : ∀ {ℓ} {A : Set ℓ} (x : A) {y C} {z : C} →
            x ≡ y → y IsRelatedTo z → x IsRelatedTo z
   _ ≡⟨ x≡y ⟩ relTo y≅z = relTo (trans (reflexive x≡y) y≅z)
 
-  _≡⟨⟩_ : ∀ {a} {A : Set a} (x : A) {b} {B : Set b} {y : B} →
+  _≡⟨⟩_ : ∀ {ℓ} {A : Set ℓ} (x : A) {B} {y : B} →
           x IsRelatedTo y → x IsRelatedTo y
   _ ≡⟨⟩ x≅y = x≅y
 

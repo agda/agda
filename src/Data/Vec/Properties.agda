@@ -215,10 +215,10 @@ sum-++-commute (x ∷ xs) {ys} = begin
 
 -- foldr is a congruence.
 
-foldr-cong : ∀ {a} {A : Set a}
-               {b₁} {B₁ : ℕ → Set b₁}
+foldr-cong : ∀ {a b} {A : Set a}
+               {B₁ : ℕ → Set b}
                {f₁ : ∀ {n} → A → B₁ n → B₁ (suc n)} {e₁}
-               {b₂} {B₂ : ℕ → Set b₂}
+               {B₂ : ℕ → Set b}
                {f₂ : ∀ {n} → A → B₂ n → B₂ (suc n)} {e₂} →
              (∀ {n x} {y₁ : B₁ n} {y₂ : B₂ n} →
                 y₁ ≅ y₂ → f₁ x y₁ ≅ f₂ x y₂) →
@@ -231,10 +231,10 @@ foldr-cong {B₁ = B₁} f₁=f₂ e₁=e₂ (x ∷ xs) =
 
 -- foldl is a congruence.
 
-foldl-cong : ∀ {a} {A : Set a}
-               {b₁} {B₁ : ℕ → Set b₁}
+foldl-cong : ∀ {a b} {A : Set a}
+               {B₁ : ℕ → Set b}
                {f₁ : ∀ {n} → B₁ n → A → B₁ (suc n)} {e₁}
-               {b₂} {B₂ : ℕ → Set b₂}
+               {B₂ : ℕ → Set b}
                {f₂ : ∀ {n} → B₂ n → A → B₂ (suc n)} {e₂} →
              (∀ {n x} {y₁ : B₁ n} {y₂ : B₂ n} →
                 y₁ ≅ y₂ → f₁ y₁ x ≅ f₂ y₂ x) →
