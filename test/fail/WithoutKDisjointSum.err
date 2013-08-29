@@ -1,0 +1,13 @@
+WithoutKDisjointSum.agda:15,1-16
+The variables
+  .A₁
+  .B₁
+which are used (perhaps as constructor parameters) in the index
+expressions
+  inr b₁
+are free in the parameters
+  {_}
+  {_}
+  inl a₁
+when checking that the clause distinct a b () has type
+{A B : Set} (a : A) (b : B) → inl a ≡ inr b → ⊥

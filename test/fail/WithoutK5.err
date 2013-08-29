@@ -1,11 +1,12 @@
 WithoutK5.agda:12,24-28
 The variables
+  A
   a
-  a
-in the indices
+which are used (perhaps as constructor parameters) in the index
+expressions
   refl
+are free in the parameters
+  {_≡_ {A} a a}
   refl
-are not distinct (note that parameters count as constructor
-arguments)
 when checking that the pattern refl has type
 _≡_ {_≡_ {A} a a} refl refl

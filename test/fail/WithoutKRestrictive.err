@@ -1,7 +1,7 @@
-Issue765.agda:63,11-15
+WithoutKRestrictive.agda:46,23-27
 The index
-  sup (inj₁ n) ⊥-elim
+  x ∷ xs
 is not a constructor (or literal) applied to variables (note that
 parameters count as constructor arguments)
 when checking that the pattern refl has type
-sup (inj₁ m) ⊥-elim ≡ sup (inj₁ n) ⊥-elim
+_≡_ {lzero} {List {lzero} A} ys (x ∷ xs)
