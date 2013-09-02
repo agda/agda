@@ -1,6 +1,6 @@
 {-# OPTIONS --copatterns --sized-types --experimental-irrelevance #-}
-{-# OPTIONS --show-implicit --show-irrelevant #-}
-{-# OPTIONS -v tc.polarity:10 -v tc.pos:15 -v tc.size.solve:100 #-}
+-- {-# OPTIONS --show-implicit --show-irrelevant #-}
+-- {-# OPTIONS -v tc.polarity:10 -v tc.pos:15 -v tc.size.solve:100 #-}
 module SizedCoinductiveRecords where
 
 open import Common.Size
