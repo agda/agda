@@ -22,26 +22,24 @@ all : $(allagda) $(alllagda)
 
 RUN_AGDA = $(AGDA_BIN) -i. -i.. --vim $(AGDA_TEST_FLAGS) -v$(V) $(shell if [ -e $*.flags ]; then cat $*.flags; fi)
 
-cleanup_Issue296							= rm -rf MAlonzo Issue296
-cleanup_Issue326							= rm -rf MAlonzo Issue326
-cleanup_Issue561							= rm -rf MAlonzo Issue561
-cleanup_UniversePolymorphicIO = rm -rf MAlonzo UniversePolymorphicIO
-cleanup_CompilingCoinduction	= rm -rf MAlonzo CompilingCoinduction
-cleanup_WErrorOverride				= rm -rf MAlonzo WErrorOverride
-
-check_CompilingCoinduction = ./checkOutput ./CompilingCoinduction a
+check_CompilingCoinduction  = ./checkOutput ./CompilingCoinduction a
 check_UniversePolymorphicIO = ./checkOutput ./UniversePolymorphicIO ok
+
+does_compile = $(shell if [ -e $1.flags ]; then grep compile $1.flags; fi)
+cleanup			 = $(if $(call does_compile,$1),rm -rf MAlonzo $1,true)
 
 %.test : %.agda
 	@echo $<
 	@$(RUN_AGDA) $<
 	@$(check_$*)
 	@$(cleanup_$*)
+	@$(call cleanup,$*)
 
 %.test : %.lagda
 	@echo $<
 	@$(RUN_AGDA) $<
 	@$(cleanup_$*)
+	@rm -rf MAlonzo $*
 
 clean :
 	-rm *~
