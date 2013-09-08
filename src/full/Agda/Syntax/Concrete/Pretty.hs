@@ -142,12 +142,15 @@ instance Pretty Expr where
             AbsurdLam _ Instance -> lambda <+> text "{{}}"
             AbsurdLam _ Hidden -> lambda <+> text "{}"
 	    ExtendedLam _ pes ->
-		lambda <+> braces' (fsep $ punctuate (text ";") (map (\(x,y,z) -> prettyClause x y z) pes))
+		lambda <+> braces' (breakBraces (fsep $ punctuate (text ";") (map (\(x,y,z) -> prettyClause x y z) pes)))
                    where prettyClause lhs rhs wh = sep [ pretty lhs
                                                        , nest 2 $ pretty' rhs
                                                        ] $$ nest 2 (pretty wh)
                          pretty' (RHS e)   = arrow <+> pretty e
                          pretty' AbsurdRHS = empty
+                         breakBraces d = case render d of
+                                           '{':_ -> text " " <> d
+                                           _     -> d
 	    Fun _ e1 e2 ->
 		sep [ pretty e1 <+> arrow
 		    , pretty e2

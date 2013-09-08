@@ -396,10 +396,14 @@ instance ToConcrete A.Expr C.Expr where
     toConcrete (A.ExtendedLam i di qname cs) =
         bracket lamBrackets $ do
           decls <- concat <$> toConcrete cs
+          let namedPat np = case getHiding np of
+                 NotHidden -> namedArg np
+                 Hidden    -> C.HiddenP noRange (unArg np)
+                 Instance  -> C.InstanceP noRange (unArg np)
               -- we know all lhs are of the form `.extlam p1 p2 ... pn`,
               -- with the name .extlam leftmost. It is our mission to remove it.
           let removeApp (C.RawAppP r (_:es)) = return $ C.RawAppP r es
-              removeApp (C.AppP (C.IdentP _) np) = return $ namedArg np
+              removeApp (C.AppP (C.IdentP _) np) = return $ namedPat np
               removeApp (C.AppP p np) = do
                 p <- removeApp p
                 return $ C.AppP p np
@@ -410,6 +414,7 @@ instance ToConcrete A.Expr C.Expr where
                 let p = lhsOriginalPattern lhs
                 lift $ reportSLn "extendedlambda" 50 $ "abstractToConcrete extended lambda pattern p = " ++ show p
                 p' <- removeApp p
+                lift $ reportSLn "extendedlambda" 50 $ "abstractToConcrete extended lambda pattern p' = " ++ show p'
                 return (lhs{ lhsOriginalPattern = p' }, rhs, wh)
               decl2clause _ = __IMPOSSIBLE__
           C.ExtendedLam (getRange i) <$> mapM decl2clause decls
