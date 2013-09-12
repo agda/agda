@@ -3,6 +3,7 @@ entrypoints Program;
 
 layout toplevel;
 layout "where";
+layout "field";
 
 Prog. Program ::= [Decl];
 
@@ -10,33 +11,46 @@ separator Decl ";";
 
 TypeSig.  Decl ::= Ident ":" Expr;
 FunDef.   Decl ::= Ident [Pattern1] "=" Expr;
-DataDecl. Decl ::= "data" Ident [Binding] ":" "Set";
-DataDef.  Decl ::= "data" Ident [Ident] "where" "{" [Constr] "}";
-RecDecl.  Decl ::= "record" Ident [Binding] ":" "Set";
-RecDef.   Decl ::= "record" Ident [Ident] ":" "Set" "where" "{" "field" "{" [Constr] "}" "}";
+Data.     Decl ::= "data" Ident Params DataBody;
+Record.   Decl ::= "record" Ident Params RecordBody;
+Open.     Decl ::= "open" Ident;
+
+NoParams.  Params ::= ;
+ParamDecl. Params ::= [Binding];
+ParamDef.  Params ::= [HiddenIdent];
+
+NotHidden. HiddenIdent ::= Ident;
+Hidden.    HiddenIdent ::= "{" Ident "}";
+separator nonempty HiddenIdent "";
+
+NoDataBody. DataBody ::= ":" "Set";
+DataBody.   DataBody ::= "where" "{" [Constr] "}";
+
+NoRecordBody. RecordBody ::= ":" "Set";
+RecordBody.   RecordBody ::= "where" "{" "constructor" Ident ";" "field" "{" [Constr] "}" "}";
 
 Constr. Constr ::= Ident ":" Expr;
 separator Constr ";";
 
-Bind. Binding ::= "(" Ident ":" Expr ")";
-separator Binding "";
+Bind.  Binding ::= "(" Ident ":" Expr ")";
+HBind. Binding ::= "{" Ident ":" Expr "}";
+separator nonempty Binding "";
 
 Lam.  Expr  ::= "\\" [Ident] "->" Expr;
-Pi.   Expr  ::= "(" Ident ":" Expr ")" "->" Expr;
+Pi.   Expr  ::= Binding "->" Expr;
 Fun.  Expr  ::= Expr1 "->" Expr;
-App.  Expr1 ::= Expr1 Expr2;
-Set.  Expr2 ::= "Set";
-Name. Expr2 ::= Ident;
-coercions Expr 2;
+Eq.   Expr1 ::= Expr2 "==" Expr2;
+App.  Expr2 ::= Expr2 Expr3;
+Set.  Expr3 ::= "Set";
+Name. Expr3 ::= Ident;
+coercions Expr 3;
 
 AppP. Pattern  ::= Pattern Pattern1;
 VarP. Pattern1 ::= Ident;
 coercions Pattern 1;
 separator Pattern1 "";
 
-separator Ident "";
-
-separator Expr ",";
+separator nonempty Ident "";
 
 comment "--";
 comment "{-" "-}";
