@@ -10,8 +10,10 @@ separator Decl ";";
 
 TypeSig.  Decl ::= Ident ":" Expr;
 FunDef.   Decl ::= Ident [Pattern1] "=" Expr;
-DataDecl. Decl ::= "data" Ident [Binding] ":" "Set" "where" "{" [Constr] "}";
-RecDecl.  Decl ::= "record" Ident [Binding] ":" "Set" "where" "{" "field" "{" [Constr] "}" "}";
+DataDecl. Decl ::= "data" Ident [Binding] ":" "Set";
+DataDef.  Decl ::= "data" Ident [Ident] "where" "{" [Constr] "}";
+RecDecl.  Decl ::= "record" Ident [Binding] ":" "Set";
+RecDef.   Decl ::= "record" Ident [Ident] ":" "Set" "where" "{" "field" "{" [Constr] "}" "}";
 
 Constr. Constr ::= Ident ":" Expr;
 separator Constr ";";
