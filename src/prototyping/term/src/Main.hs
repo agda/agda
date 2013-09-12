@@ -1,7 +1,7 @@
 
 import Syntax.Abs
 import Syntax.Par
-import Syntax.Layout
+import Syntax.BetterLayout
 import Syntax.ErrM
 import Syntax.Print
 
