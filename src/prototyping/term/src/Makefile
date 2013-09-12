@@ -7,6 +7,7 @@ ghc_flags = -fwarn-incomplete-patterns -Werror
 default : ../dist/tc
 
 $(bnfc_output) : Syntax.cf
+	-@rm $(bnfc_output)
 	@(cd ../dist; bnfc -d ../src/$<)
 
 ../dist/%.hs : ../dist/%.y
