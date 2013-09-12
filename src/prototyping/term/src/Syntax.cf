@@ -32,21 +32,26 @@ RecordBody.   RecordBody ::= "where" "{" "constructor" Ident ";" "field" "{" [Co
 Constr. Constr ::= Ident ":" Expr;
 separator Constr ";";
 
-Bind.  Binding ::= "(" Ident ":" Expr ")";
-HBind. Binding ::= "{" Ident ":" Expr "}";
+Bind.  Binding ::= "(" [Expr3] ":" Expr ")";
+HBind. Binding ::= "{" [Expr3] ":" Expr "}";
 separator nonempty Binding "";
 
 Lam.  Expr  ::= "\\" [Ident] "->" Expr;
 Pi.   Expr  ::= Binding "->" Expr;
 Fun.  Expr  ::= Expr1 "->" Expr;
+_.    Expr  ::= Expr1;
 Eq.   Expr1 ::= Expr2 "==" Expr2;
-App.  Expr2 ::= Expr2 Expr3;
+_.    Expr1 ::= Expr2;
+App.  Expr2 ::= [Expr3];
 Set.  Expr3 ::= "Set";
+_.    Expr3 ::= "(" Expr ")";
+-- Meta. Expr3 ::= "_";
 Name. Expr3 ::= Ident;
-coercions Expr 3;
+separator nonempty Expr3 "";
 
-AppP. Pattern  ::= Pattern Pattern1;
-VarP. Pattern1 ::= Ident;
+AppP.  Pattern  ::= Pattern Pattern1;
+VarP.  Pattern1 ::= Ident;
+-- WildP. Pattern1 ::= "_";
 coercions Pattern 1;
 separator Pattern1 "";
 
