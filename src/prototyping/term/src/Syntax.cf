@@ -1,0 +1,41 @@
+
+entrypoints Program;
+
+layout toplevel;
+layout "where";
+
+Prog. Program ::= [Decl];
+
+separator Decl ";";
+
+TypeSig.  Decl ::= Ident ":" Expr;
+FunDef.   Decl ::= Ident [Pattern1] "=" Expr;
+DataDecl. Decl ::= "data" Ident [Binding] ":" "Set" "where" "{" [Constr] "}";
+RecDecl.  Decl ::= "record" Ident [Binding] ":" "Set" "where" "{" "field" "{" [Constr] "}" "}";
+
+Constr. Constr ::= Ident ":" Expr;
+separator Constr ";";
+
+Bind. Binding ::= "(" Ident ":" Expr ")";
+separator Binding "";
+
+Lam.  Expr  ::= "\\" [Ident] "->" Expr;
+Pi.   Expr  ::= "(" Ident ":" Expr ")" "->" Expr;
+Fun.  Expr  ::= Expr1 "->" Expr;
+App.  Expr1 ::= Expr1 Expr2;
+Set.  Expr2 ::= "Set";
+Name. Expr2 ::= Ident;
+coercions Expr 2;
+
+AppP. Pattern  ::= Pattern Pattern1;
+VarP. Pattern1 ::= Ident;
+coercions Pattern 1;
+separator Pattern1 "";
+
+separator Ident "";
+
+separator Expr ",";
+
+comment "--";
+comment "{-" "-}";
+
