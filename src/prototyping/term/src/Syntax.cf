@@ -32,12 +32,14 @@ RecordBody.   RecordBody ::= "where" "{" "constructor" Ident ";" "field" "{" [Co
 Constr. Constr ::= Ident ":" Expr;
 separator Constr ";";
 
+Tel. Telescope ::= [Binding];
+
 Bind.  Binding ::= "(" [Expr3] ":" Expr ")";
 HBind. Binding ::= "{" [Expr3] ":" Expr "}";
 separator nonempty Binding "";
 
 Lam.  Expr  ::= "\\" [Ident] "->" Expr;
-Pi.   Expr  ::= Binding "->" Expr;
+Pi.   Expr  ::= Telescope "->" Expr;
 Fun.  Expr  ::= Expr1 "->" Expr;
 _.    Expr  ::= Expr1;
 Eq.   Expr1 ::= Expr2 "==" Expr2;

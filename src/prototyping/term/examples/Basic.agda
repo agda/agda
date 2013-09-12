@@ -16,7 +16,7 @@ record Equiv {A} R where
   constructor equiv
   field
     ref : (x : A) -> R x x
-    sym : (x : A) -> (y : A) -> R x y -> R y x
+    sym : (x : A) (y : A) -> R x y -> R y x
     trans : (x y z : A) -> R x y -> R y z -> R x z
 
 open Equiv
