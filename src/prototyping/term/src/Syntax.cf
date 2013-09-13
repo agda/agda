@@ -33,7 +33,7 @@ NoRecordBody. RecordBody ::= ":" Name;
 RecordBody.   RecordBody ::= "where" "{" "constructor" Name Fields "}";
 
 NoFields. Fields ::= ;
-Fields.   Fields ::= ";" "field" "{" [Constr] "}" "}";
+Fields.   Fields ::= ";" "field" "{" [Constr] "}";
 
 Constr. Constr ::= Name ":" Expr;
 separator Constr ";";
