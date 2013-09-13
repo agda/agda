@@ -4,16 +4,23 @@ import Syntax.Par
 import Syntax.BetterLayout
 import Syntax.ErrM
 import Syntax.Print
+import Syntax.Abstract
+import Scope.Check
 
 import System.Environment
 
 checkFile :: FilePath -> IO ()
 checkFile file = do
     s <- readFile file
-    case pProgram $ resolveLayout True $ myLexer s of
+    let tokens = resolveLayout True $ myLexer s
+    -- mapM_ print tokens
+    case pProgram tokens of
 	Bad s	-> putStrLn $ "Parse error: " ++ s
 	Ok p	-> do
-            putStrLn $ printTree p
+          -- print p
+          case scopeCheck p of
+            Left err -> print err
+            Right p  -> print p
 
 main = do
     args <- getArgs

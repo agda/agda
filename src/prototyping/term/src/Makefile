@@ -4,6 +4,8 @@ gen_hs_files = $(patsubst %,../dist/Syntax/%.hs,Par Lex Abs ErrM Layout Print)
 
 ghc_flags = -fwarn-incomplete-patterns -Werror
 
+src_files = $(shell find . -name '*.hs')
+
 default : ../dist/tc
 
 $(bnfc_output) : Syntax.cf

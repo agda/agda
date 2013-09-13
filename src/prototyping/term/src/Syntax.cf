@@ -7,57 +7,60 @@ layout "field";
 
 Prog. Program ::= [Decl];
 
+position token Name (letter (letter | digit | '-')*) ;
+
 separator Decl ";";
 
-TypeSig.  Decl ::= Ident ":" Expr;
-FunDef.   Decl ::= Ident [Pattern1] "=" Expr;
-Data.     Decl ::= "data" Ident Params DataBody;
-Record.   Decl ::= "record" Ident Params RecordBody;
-Open.     Decl ::= "open" Ident;
+TypeSig.  Decl ::= Name ":" Expr;
+FunDef.   Decl ::= Name [Pattern1] "=" Expr;
+Data.     Decl ::= "data" Name Params DataBody;
+Record.   Decl ::= "record" Name Params RecordBody;
+Open.     Decl ::= "open" Name;
 
 NoParams.  Params ::= ;
 ParamDecl. Params ::= [Binding];
-ParamDef.  Params ::= [HiddenIdent];
+ParamDef.  Params ::= [HiddenName];
 
-NotHidden. HiddenIdent ::= Ident;
-Hidden.    HiddenIdent ::= "{" Ident "}";
-separator nonempty HiddenIdent "";
+NotHidden. HiddenName ::= Name;
+Hidden.    HiddenName ::= "{" Name "}";
+separator nonempty HiddenName "";
 
-NoDataBody. DataBody ::= ":" "Set";
+NoDataBody. DataBody ::= ":" Name;
 DataBody.   DataBody ::= "where" "{" [Constr] "}";
 
-NoRecordBody. RecordBody ::= ":" "Set";
-RecordBody.   RecordBody ::= "where" "{" "constructor" Ident ";" "field" "{" [Constr] "}" "}";
+NoRecordBody. RecordBody ::= ":" Name;
+RecordBody.   RecordBody ::= "where" "{" "constructor" Name ";" "field" "{" [Constr] "}" "}";
 
-Constr. Constr ::= Ident ":" Expr;
+Constr. Constr ::= Name ":" Expr;
 separator Constr ";";
 
 Tel. Telescope ::= [Binding];
 
-Bind.  Binding ::= "(" [Expr3] ":" Expr ")";
-HBind. Binding ::= "{" [Expr3] ":" Expr "}";
+Bind.  Binding ::= "(" [Arg] ":" Expr ")";
+HBind. Binding ::= "{" [Arg] ":" Expr "}";
 separator nonempty Binding "";
 
-Lam.  Expr  ::= "\\" [Ident] "->" Expr;
+Lam.  Expr  ::= "\\" [Name] "->" Expr;
 Pi.   Expr  ::= Telescope "->" Expr;
 Fun.  Expr  ::= Expr1 "->" Expr;
 _.    Expr  ::= Expr1;
 Eq.   Expr1 ::= Expr2 "==" Expr2;
 _.    Expr1 ::= Expr2;
-App.  Expr2 ::= [Expr3];
-Set.  Expr3 ::= "Set";
+App.  Expr2 ::= [Arg];
 _.    Expr3 ::= "(" Expr ")";
--- Meta. Expr3 ::= "_";
-Name. Expr3 ::= Ident;
-separator nonempty Expr3 "";
+Id.   Expr3 ::= Name;
+
+HArg. Arg ::= "{" Expr3 "}";
+Arg.  Arg ::= Expr3;
+separator nonempty Arg "";
 
 AppP.  Pattern  ::= Pattern Pattern1;
-VarP.  Pattern1 ::= Ident;
--- WildP. Pattern1 ::= "_";
+IdP.   Pattern1 ::= Name;
+HideP. Pattern1 ::= "{" Pattern "}";
 coercions Pattern 1;
 separator Pattern1 "";
 
-separator nonempty Ident "";
+separator nonempty Name "";
 
 comment "--";
 comment "{-" "-}";
