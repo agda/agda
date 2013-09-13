@@ -75,7 +75,10 @@ fix mode f = do
   case new of
     Nothing -> return False
     Just s  -> do
-      putStrLn $ "Whitespace violation " ++ (if mode == Fix then "fixed" else "detected") ++ " in " ++ f
+      hPutStrLn stderr $
+        "Whitespace violation " ++
+        (if mode == Fix then "fixed" else "detected") ++
+        " in " ++ f ++ "."
       when (mode == Fix) $
         withFile f WriteMode $ \h -> do
           hSetEncoding h utf8
