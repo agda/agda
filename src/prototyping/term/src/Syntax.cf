@@ -5,7 +5,7 @@ layout toplevel;
 layout "where";
 layout "field";
 
-Prog. Program ::= [Decl];
+Prog. Program ::= "module" Name "where" "{" [Decl] "}";
 
 position token Name (letter (letter | digit | '-')*) ;
 
@@ -16,6 +16,7 @@ FunDef.   Decl ::= Name [Pattern1] "=" Expr;
 Data.     Decl ::= "data" Name Params DataBody;
 Record.   Decl ::= "record" Name Params RecordBody;
 Open.     Decl ::= "open" Name;
+Import.   Decl ::= "open" "import" Name;
 
 NoParams.  Params ::= ;
 ParamDecl. Params ::= [Binding];

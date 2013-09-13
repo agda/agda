@@ -1,5 +1,7 @@
 
--- module Basic where
+module Basic where
+
+open import Prelude
 
 data List (A : Set) : Set
 

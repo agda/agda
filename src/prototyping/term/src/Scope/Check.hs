@@ -151,7 +151,7 @@ checkHiding e = case e of
       return (n + length xs, C.Bind xs e : bs, stop)
 
 scopeCheck :: C.Program -> Either ScopeError [Decl]
-scopeCheck (C.Prog ds) = flip runReaderT initScope $ unCheck $ concatMapC checkDecl ds return
+scopeCheck (C.Prog _ ds) = flip runReaderT initScope $ unCheck $ concatMapC checkDecl ds return
 
 isSet :: C.Name -> Check ()
 isSet (C.Name ((l, c), "Set")) = return ()
@@ -234,6 +234,7 @@ checkDecl d ret = case d of
     h <- fst <$> resolveName x
     isDefHead h $ "Open module should be the name of a defined record: " ++ printTree x
     ret []
+  C.Import{} -> ret []
   where
     dataOrRecDecl x ps set = do
       isSet set
@@ -437,6 +438,7 @@ instance HasSrcLoc C.Decl where
     C.Record x _ _ -> srcLoc x
     C.FunDef x _ _ -> srcLoc x
     C.Open x       -> srcLoc x
+    C.Import x     -> srcLoc x
 
 instance HasSrcLoc C.Pattern where
   srcLoc p = case p of

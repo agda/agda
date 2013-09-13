@@ -13,7 +13,7 @@ import System.Environment
 checkFile :: FilePath -> IO ()
 checkFile file = do
     s <- readFile file
-    let tokens = resolveLayout True $ myLexer s
+    let tokens = resolveLayout False $ myLexer s
     -- mapM_ print tokens
     case pProgram tokens of
 	Bad s	-> putStrLn $ "Parse error: " ++ s
