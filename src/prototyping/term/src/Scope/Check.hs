@@ -87,7 +87,7 @@ mkVarInfo :: C.Name -> NameInfo
 mkVarInfo (C.Name ((l, c), s)) = VarName (mkName l c s)
 
 mkDefInfo :: C.Name -> Hiding -> NameInfo
-mkDefInfo (C.Name ((l, c), s)) = DefName (mkName l c s) 
+mkDefInfo (C.Name ((l, c), s)) = DefName (mkName l c s)
 
 mkConInfo :: C.Name -> Hiding -> NameInfo
 mkConInfo (C.Name ((l, c), s)) = ConName (mkName l c s)
@@ -387,7 +387,7 @@ checkAppHead x = do
     DefName x n  -> return (NotProj $ Def x, n)
 
 checkTel :: [C.Binding] -> CCheck [(Name, Expr)]
-checkTel = concatMapC checkBinding 
+checkTel = concatMapC checkBinding
 
 checkBinding :: C.Binding -> CCheck [(Name, Expr)]
 checkBinding b@C.HBind{} _ = scopeError b $ "Implicit binding must be on top level: " ++ printTree b
@@ -443,5 +443,4 @@ instance HasSrcLoc C.Pattern where
     C.IdP x    -> srcLoc x
     C.AppP p _ -> srcLoc p
     C.HideP p  -> srcLoc p
-
 
