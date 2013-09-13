@@ -5,6 +5,7 @@ import Syntax.BetterLayout
 import Syntax.ErrM
 import Syntax.Print
 import Syntax.Abstract
+import Syntax.Abstract.Pretty
 import Scope.Check
 
 import System.Environment
@@ -20,7 +21,7 @@ checkFile file = do
           -- print p
           case scopeCheck p of
             Left err -> print err
-            Right p  -> print p
+            Right p  -> mapM_ print p
 
 main = do
     args <- getArgs

@@ -9,16 +9,13 @@ instance Show SrcLoc where
   show (SrcLoc line col) = concat [show line, ":", show col]
 
 data Name = Name SrcLoc String
-  deriving Show
 
 data Decl = TypeSig TypeSig
           | FunDef  Name [Pattern] Expr
           | DataDef Name [Name] [TypeSig]
           | RecDef  Name [Name] Name [TypeSig]
-  deriving Show
 
 data TypeSig = Sig Name Expr
-  deriving Show
 
 data Expr = Lam Name Expr
           | Pi Name Expr Expr
@@ -27,21 +24,17 @@ data Expr = Lam Name Expr
           | App Head [Elim]
           | Set SrcLoc
           | Meta SrcLoc
-  deriving Show
 
 data Head = Var Name
           | Def Name
           | Con Name
-  deriving Show
 
 data Elim = Apply Expr
           | Proj Name
-  deriving Show
 
 data Pattern = VarP Name
              | WildP SrcLoc
              | ConP Name [Pattern]
-  deriving Show
 
 class HasSrcLoc a where
   srcLoc :: a -> SrcLoc

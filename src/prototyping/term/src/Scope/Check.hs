@@ -12,6 +12,7 @@ import Data.Map (Map)
 
 import qualified Syntax.Abs as C
 import Syntax.Abstract
+import Syntax.Abstract.Pretty
 import Syntax.Print
 
 data ScopeError = ScopeError SrcLoc String
