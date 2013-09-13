@@ -220,7 +220,7 @@ checkDecl d ret = case d of
     xs <- checkHiddenNames n xs
     let is = map mkVarInfo xs
     xs <- mapC bindName is $ return
-    mapC (checkField is) (getFields fs) $ \fs ->
+    checkFields is (getFields fs) $ \fs ->
       bindName (mkConInfo con 0) $ \con ->
         ret [RecDef x xs con fs]
   C.Data{}   -> scopeError d $ "Bad data declaration"
@@ -241,6 +241,20 @@ checkDecl d ret = case d of
       (n, a) <- checkScheme (C.Pi (C.Tel ps) (C.App [C.Arg $ C.Id set]))
       bindName (mkDefInfo x n) $ \x -> ret [TypeSig $ Sig x a]
 
+checkFields :: [NameInfo] -> [C.Constr] -> CCheck [TypeSig]
+checkFields ps fs ret = mapC bindName ps $ \_ -> do
+  fs <- mapC (checkField ps) fs return
+  mapC bindField fs ret
+  where
+    bindField :: (C.Name, Int, Expr) -> CCheck TypeSig
+    bindField (x, n, a) ret = bindName (mkProjInfo x n) $ \x -> ret (Sig x a)
+
+checkField :: [NameInfo] -> C.Constr -> CCheck (C.Name, Int, Expr)
+checkField xs (C.Constr c e) ret =
+  mapC bindName xs $ \_ -> do
+    (n, a) <- checkScheme e
+    bindName (mkVarInfo c) $ \_ -> ret (c, n, a)
+
 getFields :: C.Fields -> [C.Constr]
 getFields C.NoFields    = []
 getFields (C.Fields fs) = fs
@@ -250,12 +264,6 @@ checkConstructor xs (C.Constr c e) ret =
   mapC bindName xs $ \_ -> do
     (n, a) <- checkScheme e
     bindName (mkConInfo c n) $ \c -> ret (Sig c a)
-
-checkField :: [NameInfo] -> C.Constr -> CCheck TypeSig
-checkField xs (C.Constr c e) ret =
-  mapC bindName xs $ \_ -> do
-    (n, a) <- checkScheme e
-    bindName (mkProjInfo c n) $ \c -> ret (Sig c a)
 
 checkScheme :: C.Expr -> Check (Hiding, Expr)
 checkScheme e = do
