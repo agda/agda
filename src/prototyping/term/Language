@@ -1,0 +1,244 @@
+NOTE: This is a rough, incomplete sketch.
+
+Concrete syntax (roughly)
+=========================
+
+D ∷= data x Γ : Set
+   | data x γ where
+       ⦃c : T⦄
+   | record x Γ : Set
+   | record x γ where
+       constructor c
+       field
+         ⦃π : T⦄
+     open x
+   | x : T
+   | x ⦃p⦄ = T
+
+p ∷= x | _ | p p
+
+Γ ∷= {x : T} | (x : T)
+
+γ ∷= {x} | x
+
+T, t ∷= x | c | π | t t | λ x → t
+      | Set
+      | (x : T) → T
+      | {x : T} → T
+      | t ≡ t | refl | J | K
+      | _
+
+Implicit arguments: Only at the start of type signatures for top-level
+declarations. J takes three implicit arguments and K two.
+
+Parameter lists in definitions have to match those in declarations.
+
+Constructor names have to be distinct.
+
+Etc…
+
+Intermediate syntax
+===================
+
+t ∷= i
+   | refl
+   | λ x → t
+   | c t⃗
+   | _
+
+i ∷= Set
+   | (x : t) → t
+   | t ≡_t t | J | K
+   | h e⃗
+
+h ∷= x | f
+
+e ∷= · t | π ·
+
+Internal syntax
+===============
+
+U, u ∷= λ x → u | c u⃗
+      | Set | (x : U) → U
+      | u ≡_U u | refl | J | K
+      | h e⃗
+
+h ∷= x | f | α | b
+
+e ∷= · u
+   | π ·
+
+b ∷= C ⚷ u
+   | C ⚷ b
+
+C ∷= {c₁, …, c_n}  (n ≥ 1)
+
+c ∷= ⟨Σ⟩ Γ ⊢ A = B ⇐ Set
+   | ⟨Σ⟩ Γ ⊢ t ⇐ A
+
+p ∷= (U, u)
+   | C ⚷ eps >>= λ (U, e⃗) → (U, u)
+
+ep ∷= {Γ ⊢ · t ⇐ B}
+    | {Γ ⊢ π · ⇐ B}
+
+eps ∷= ep          >>= λ (U, e) → eps
+     | eps         >>= λ (U, e⃗) → eps
+     | {Γ ⊢ e⃗ ⇐ U} >>= λ (U, e⃗) → eps
+     | (U, e⃗)
+
+Weak head normalisation
+=======================
+
+The only interesting case:
+
+-------------
+ Σ ⊢ f e⃗ ⇓ …
+
+All other terms reduce to themselves.
+
+TODO: If we solve a constraint, then we may get β-redexes.
+
+Type checking
+=============
+
+Signature changes are propagated in the obvious way.
+
+------------------------------------ (α fresh)
+ ⟨Σ⟩ Γ ⊢ _ ⇐ A ↝ α Γ ⟨Σ, α : Γ → A⟩
+
+ Γ ⊢ i ⇒ (A, u)
+ Γ ⊢ A = B ⇐ Set ↝ ∅
+------------------------------------
+ Γ ⊢ i ⇐ B ↝ u
+
+ Γ ⊢ i ⇒ (A, u)
+ Γ ⊢ A = B ⇐ Set ↝ C ≠ ∅
+----------------------------------------
+ Γ ⊢ i ⇐ B ↝ (C ⚷ λ Γ → u) Γ
+
+ Γ ⊢ i ⇒ C ⚷ (A, u)
+--------------------------------------------------------
+ Γ ⊢ i ⇐ B ↝ (C ⚷ {{⟨Σ⟩ Γ ⊢ A = B ⇐ Set} ⚷ λ Γ → u}) Γ
+
+ Σ ⊢ A ⇓ t₁ ≡_B t₂
+ Γ ⊢ t₁ = t₂ ⇐ B ↝ ∅
+-------------------------
+ Γ ⊢ refl ⇐ A ↝ refl
+
+ Σ ⊢ A ⇓ t₁ ≡_B t₂
+ Γ ⊢ t₁ = t₂ ⇐ B ↝ C ≠ ∅
+-------------------------
+ Γ ⊢ refl ⇐ A ↝ C ⚷ refl
+
+ Σ ⊢ A ⇓ C ⚷ B
+---------------------------------------
+ Γ ⊢ refl ⇐ A ↝ C ⚷ {⟨Σ⟩ Γ ⊢ refl ⇐ B}
+
+ Σ ⊢ A ⇓ (x : A₁) → A₂
+ Γ, x : A₁ ⊢ t ⇐ A₂ ↝ u
+---------------------------
+ Γ ⊢ λ x → t ⇐ A ↝ λ x → u
+
+ Σ ⊢ A ⇓ C ⚷ B
+---------------------------------------------
+ Γ ⊢ λ x → t ⇐ A ↝ C ⚷ {⟨Σ⟩ Γ ⊢ λ x → t ⇐ B}
+
+ Σ ⊢ A ⇓ D u⃗
+ c : (x⃗ : P⃗) → Δ → D x⃗ ∈ Σ
+ Γ ⊢ t⃗ ⇐ Δ[×⃗ ≔ u⃗] ↝ v⃗
+---------------------------------
+ Γ ⊢ c t⃗ ⇐ A ↝ c v⃗
+
+ Σ ⊢ A ⇓ C ⚷ B
+-------------------------------------
+ Γ ⊢ c t⃗ ⇐ A ↝ C ⚷ {⟨Σ⟩ Γ ⊢ c t⃗ ⇐ B}
+
+ Γ ⊢ t ⇐ A ↝ u
+ Γ ⊢ t⃗ ⇐ Δ[x ≔ t] ↝ u⃗
+---------------------------
+ Γ ⊢ t t⃗ ⇐ (x : A) Δ ↝ u u⃗
+
+---------
+ Γ ⊢ ⇐ ↝
+
+Type inference
+==============
+
+----------------------
+ Γ ⊢ Set ⇒ (Set, Set)
+
+ Γ ⊢ A ⇐ Set ↝ U
+ Γ, x : U ⊢ B ⇐ Set ↝ V
+--------------------------------------
+ Γ ⊢ (x : A) → B ⇒ (Set, (x : U) → V)
+
+ Γ ⊢ A ⇐ Set ↝ U
+ Γ ⊢ t₁ ⇐ U ↝ u₁
+ Γ ⊢ t₂ ⇐ U ↝ u₂
+----------------------------------
+ Γ ⊢ t₁ ≡_A t₂ ⇒ (Set, u₁ ≡_U u₂)
+
+-------------------------------------------------------
+ Γ ⊢ J ⇒ ((A : Set) → (x : A) → (y : A) →
+          (P : (x y : A) → x ≡_A y → Set) →
+          ((x : A) → P x x refl) →
+          (eq : x ≡_A y) → P x y eq
+         , J
+         )
+
+-------------------------------------------
+ Γ ⊢ K ⇒ ((A : Set) → (x : A) →
+          (P : (x : A) → x ≡_A x → Set) →
+          ((x : A) → P x refl) →
+          (eq : x ≡_A x) → P x eq
+         , K
+         )
+
+ h : A ∈ Σ
+ Γ ⊢ e⃗ ⇐ A ↝ (B, e⃗′)
+---------------------
+ Γ ⊢ h e⃗ ⇒ (B, h e⃗′)
+
+ h : A ∈ Σ
+ Γ ⊢ e⃗ ⇐ A ↝ C ⚷ eps
+---------------------------------------------
+ Γ ⊢ h e⃗ ⇒ C ⚷ eps >>= λ (B, e⃗′) → (B, h e⃗′)
+
+ Γ ⊢ e ⇐ A₁ ⇒ (A₂, e′)
+ Γ ⊢ e⃗ ⇐ A₂ ⇒ (A₃, e⃗′)
+----------------------------
+ Γ ⊢ e e⃗ ⇐ A₁ ⇒ (A₃, e′ e⃗′)
+
+ Γ ⊢ e ⇐ A₁ ⇒ C ⚷ ep
+--------------------------------------------------
+ Γ ⊢ e e⃗ ⇐ A₁ ⇒ C ⚷ ep           >>= λ (A₂, e′) →
+                    {Γ ⊢ e⃗ ⇐ A₂} >>= λ (A₃, e⃗′) →
+                    (A₃, e′ e⃗′)
+
+ Γ ⊢ e ⇐ A₁ ⇒ (A₂, e′)
+ Γ ⊢ e⃗ ⇐ A₂ ⇒ C ⚷ eps
+---------------------------------------
+ Γ ⊢ e e⃗ ⇐ A₁ ⇒ C ⚷ eps >>= λ (A₃, e⃗′) →
+                    (A₃, e′ e⃗′)
+
+-----------------
+ Γ ⊢ ⇐ A ⇒ (A, )
+
+ Σ ⊢ A ⇓ (x : A₁) → A₂
+ Γ ⊢ t ⇐ A₁ ↝ u
+--------------------------------
+ Γ ⊢ · t ⇐ A ⇒ (A₂[x ≔ u], · u)
+
+ Σ ⊢ A ⇓ C ⚷ B
+-------------------------------------
+ Γ ⊢ · t ⇐ A ⇒ C ⚷ {⟨Σ⟩ Γ ⊢ · t ⇐ B}
+
+ Σ ⊢ A ⇓ R t⃗
+ π : (x⃗ : P⃗) → R x⃗ → B ∈ Σ
+-------------------------------
+ Γ ⊢ π · ⇐ A ⇒ (B[x⃗ ≔ t⃗], π ·)
+
+ Σ ⊢ A ⇓ C ⚷ B
+-------------------------------------
+ Γ ⊢ π · ⇐ A ⇒ C ⚷ {⟨Σ⟩ Γ ⊢ π · ⇐ B}
