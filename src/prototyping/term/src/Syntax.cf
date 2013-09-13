@@ -4,6 +4,7 @@ entrypoints Program;
 layout toplevel;
 layout "where";
 layout "field";
+layout "postulate";
 
 Prog. Program ::= "module" Name "where" "{" [Decl] "}";
 
@@ -11,12 +12,13 @@ position token Name (letter (letter | digit | '-')*) ;
 
 separator Decl ";";
 
-TypeSig.  Decl ::= Name ":" Expr;
-FunDef.   Decl ::= Name [Pattern1] "=" Expr;
-Data.     Decl ::= "data" Name Params DataBody;
-Record.   Decl ::= "record" Name Params RecordBody;
-Open.     Decl ::= "open" Name;
-Import.   Decl ::= "open" "import" Name;
+TypeSig.  Decl  ::= Name ":" Expr;
+FunDef.   Decl  ::= Name [Pattern1] "=" Expr;
+Data.     Decl  ::= "data" Name Params DataBody;
+Record.   Decl  ::= "record" Name Params RecordBody;
+Open.     Decl  ::= "open" Name;
+Import.   Decl  ::= "open" "import" Name;
+Postulate. Decl ::= "postulate" "{" [Decl] "}";
 
 NoParams.  Params ::= ;
 ParamDecl. Params ::= [Binding];

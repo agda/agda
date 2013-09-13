@@ -197,6 +197,7 @@ isParamDef (C.ParamDef xs) = Just xs
 
 checkDecl :: C.Decl -> CCheck [Decl]
 checkDecl d ret = case d of
+  C.Postulate ds -> concatMapC checkDecl ds ret
   C.TypeSig x e -> do
     (n, a) <- checkScheme e
     bindName (mkDefInfo x n) $ \x -> ret [TypeSig $ Sig x a]
@@ -445,12 +446,14 @@ instance HasSrcLoc C.Binding where
 
 instance HasSrcLoc C.Decl where
   srcLoc d = case d of
-    C.TypeSig x _  -> srcLoc x
-    C.Data x _ _   -> srcLoc x
-    C.Record x _ _ -> srcLoc x
-    C.FunDef x _ _ -> srcLoc x
-    C.Open x       -> srcLoc x
-    C.Import x     -> srcLoc x
+    C.Postulate (d:ds) -> srcLoc d
+    C.Postulate []     -> noSrcLoc
+    C.TypeSig x _      -> srcLoc x
+    C.Data x _ _       -> srcLoc x
+    C.Record x _ _     -> srcLoc x
+    C.FunDef x _ _     -> srcLoc x
+    C.Open x           -> srcLoc x
+    C.Import x         -> srcLoc x
 
 instance HasSrcLoc C.Pattern where
   srcLoc p = case p of
