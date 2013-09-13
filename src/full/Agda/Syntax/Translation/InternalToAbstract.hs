@@ -129,6 +129,9 @@ instance ReifyWhen i a => ReifyWhen (Named n i) (Named n a) where
 class Reify i a | i -> a where
     reify     ::         i -> TCM a
 
+instance Reify Name Name where
+    reify = return
+
 instance Reify Expr Expr where
     reify = return
 

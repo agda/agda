@@ -65,6 +65,9 @@ pRelevance NonStrict a =
   in  if render d == "_" then d else text ".." <> d
 -}
 
+instance (Pretty a, Pretty b) => Pretty (a, b) where
+    pretty (a, b) = parens $ pretty a <> comma <+> pretty b
+
 instance Pretty (ThingWithFixity Name) where
     pretty (ThingWithFixity n _) = pretty n
 

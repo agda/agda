@@ -64,6 +64,13 @@ data ScopeInfo = ScopeInfo
       }
   deriving (Typeable)
 
+-- | Lens for 'scopeLocals'.
+modifyScopeLocals :: (LocalVars -> LocalVars) -> ScopeInfo -> ScopeInfo
+modifyScopeLocals f sc = sc { scopeLocals = f (scopeLocals sc) }
+
+setScopeLocals :: LocalVars -> ScopeInfo -> ScopeInfo
+setScopeLocals vars = modifyScopeLocals (const vars)
+
 -- | Local variables
 type LocalVars = [(C.Name, A.Name)]
 

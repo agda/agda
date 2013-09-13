@@ -155,7 +155,7 @@ getLocalVars :: ScopeM LocalVars
 getLocalVars = scopeLocals <$> getScope
 
 setLocalVars :: LocalVars -> ScopeM ()
-setLocalVars vars = modifyScope $ \s -> s { scopeLocals = vars }
+setLocalVars vars = modifyScope $ setScopeLocals vars
 
 -- | Run a computation without changing the local variables.
 withLocalVars :: ScopeM a -> ScopeM a

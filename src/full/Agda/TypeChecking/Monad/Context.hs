@@ -3,6 +3,8 @@
 module Agda.TypeChecking.Monad.Context where
 
 import Control.Monad.Reader
+import Control.Monad.State
+
 import Data.List hiding (sort)
 import qualified Data.Map as Map
 
@@ -11,7 +13,8 @@ import Agda.Syntax.Abstract.Name
 import Agda.Syntax.Common hiding (Arg, Dom, NamedArg, ArgInfo)
 import qualified Agda.Syntax.Common as Common
 import Agda.Syntax.Internal
--- import Agda.Syntax.Scope.Base
+import Agda.Syntax.Scope.Monad (getLocalVars, setLocalVars)
+
 import Agda.TypeChecking.Monad.Base
 import Agda.TypeChecking.Substitute
 import Agda.TypeChecking.Monad.Open
@@ -53,7 +56,12 @@ inContext xs ret = do
 -- | Change to top (=empty) context.
 {-# SPECIALIZE inTopContext :: TCM a -> TCM a #-}
 inTopContext :: MonadTCM tcm => tcm a -> tcm a
-inTopContext = modifyContext $ const []
+inTopContext cont = do
+  locals <- liftTCM $ getLocalVars
+  liftTCM $ setLocalVars []
+  a <- modifyContext (const []) cont
+  liftTCM $ setLocalVars locals
+  return a
 
 -- | Delete the last @n@ bindings from the context.
 {-# SPECIALIZE escapeContext :: Int -> TCM a -> TCM a #-}

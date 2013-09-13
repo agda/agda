@@ -11,6 +11,7 @@ import Agda.Syntax.Common
 import Agda.Syntax.Internal as I
 import Agda.Syntax.Position
 import qualified Agda.Syntax.Info as Info
+-- import Agda.Syntax.Translation.InternalToAbstract (reify) -- for debug printing
 
 import Agda.TypeChecking.Monad
 -- import Agda.TypeChecking.Monad.Builtin ( primIrrAxiom )
@@ -164,6 +165,37 @@ checkRecDef i name ind con ps contel fields =
 
       -- make record parameters hidden
       ctx <- (reverse . map (setHiding Hidden) . take (size tel)) <$> getContext
+      reportSDoc "tc.rec" 80 $ sep
+        [ text "visibility-modified record telescope"
+        , nest 2 $ text "ctx =" <+> prettyTCM ctx
+        ]
+
+{- Andreas, 2013-09-13 DEBUGGING the debug printout
+      reportSDoc "tc.rec" 80 $ sep
+        [ text "current module record telescope"
+        , nest 2 $ (prettyTCM =<< getContextTelescope)
+        ]
+      reportSDoc "tc.rec" 80 $ sep
+        [ text "current module record telescope"
+        , nest 2 $ (text . show =<< getContextTelescope)
+        ]
+      reportSDoc "tc.rec" 80 $ sep
+        [ text "current module record telescope"
+        , nest 2 $ (inTopContext . prettyTCM =<< getContextTelescope)
+        ]
+      reportSDoc "tc.rec" 80 $ sep
+        [ text "current module record telescope"
+        , nest 2 $ do
+           tel <- getContextTelescope
+           text (show tel) $+$ do
+           inContext [] $ do
+             prettyTCM tel $+$ do
+               telA <- reify tel
+               text (show telA) $+$ do
+               ctx <- getContextTelescope
+               text "should be empty:" <+> prettyTCM ctx
+        ]
+-}
 
       let -- name of record module
           m    = qnameToMName name
@@ -179,7 +211,7 @@ checkRecDef i name ind con ps contel fields =
 	reportSDoc "tc.rec.def" 10 $ sep
 	  [ text "record section:"
 	  , nest 2 $ sep
-            [ prettyTCM m <+> (inContext [] . prettyTCM =<< getContextTelescope)
+            [ prettyTCM m <+> (inTopContext . prettyTCM =<< getContextTelescope)
             , fsep $ punctuate comma $ map (text . show . getName) fields
             ]
 	  ]
@@ -234,7 +266,7 @@ checkRecordProjections m r q tel ftel fs = checkProjs EmptyTel ftel fs
       reportSDoc "tc.rec.proj" 5 $ sep
 	[ text "checking projection" <+> text (show x)
 	, nest 2 $ vcat
-	  [ text "top   =" <+> (inContext [] . prettyTCM =<< getContextTelescope)
+	  [ text "top   =" <+> (inTopContext . prettyTCM =<< getContextTelescope)
           , text "tel   =" <+> prettyTCM tel
 	  , text "ftel1 =" <+> prettyTCM ftel1
 	  , text "t     =" <+> prettyTCM t
@@ -278,7 +310,7 @@ checkRecordProjections m r q tel ftel fs = checkProjs EmptyTel ftel fs
 
       reportSDoc "tc.rec.proj" 10 $ sep
 	[ text "adding projection"
-	, nest 2 $ prettyTCM projname <+> text ":" <+> inContext [] (prettyTCM finalt)
+	, nest 2 $ prettyTCM projname <+> text ":" <+> inTopContext (prettyTCM finalt)
 	]
 
       -- The body should be
@@ -330,14 +362,18 @@ checkRecordProjections m r q tel ftel fs = checkProjs EmptyTel ftel fs
                           , clauseBody  = body
                           }
 
-      reportSDoc "tc.rec.proj" 20 $ sep
+      reportSDoc "tc.rec.proj" 80 $ sep
 	[ text "adding projection"
 	, nest 2 $ prettyTCM projname <+> text (show clause)
 	]
-      reportSDoc "tc.rec.proj" 10 $ sep
+      reportSDoc "tc.rec.proj" 70 $ sep
 	[ text "adding projection"
 	, nest 2 $ prettyTCM projname <+> text (show (clausePats clause)) <+> text "=" <+>
-                     inContext [] (addCtxTel ftel (prettyTCM (clauseBody clause)))
+                     inTopContext (addCtxTel ftel (prettyTCM (clauseBody clause)))
+	]
+      reportSDoc "tc.rec.proj" 10 $ sep
+	[ text "adding projection"
+	, nest 2 $ prettyTCM (QNamed projname clause)
 	]
 
             -- Record patterns should /not/ be translated when the
