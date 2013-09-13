@@ -9,6 +9,7 @@ src_files = $(shell find . -name '*.hs')
 default : ../dist/tc
 
 $(bnfc_output) : Syntax.cf
+	-@mkdir -p ../dist
 	-@rm $(bnfc_output)
 	@(cd ../dist; bnfc -d ../src/$<)
 
