@@ -11,7 +11,7 @@ default : ../dist/tc
 $(bnfc_output) : Syntax.cf
 	-@mkdir -p ../dist
 	-@rm $(bnfc_output)
-	@(cd ../dist; bnfc -d ../src/$<)
+	@(cd ../dist && bnfc -d ../src/$<)
 
 ../dist/%.hs : ../dist/%.y
 	happy -o $@ $< -i
