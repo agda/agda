@@ -220,7 +220,7 @@ checkDecl d ret = case d of
     xs <- checkHiddenNames n xs
     let is = map mkVarInfo xs
     xs <- mapC bindName is $ return
-    mapC (checkField is) fs $ \fs ->
+    mapC (checkField is) (getFields fs) $ \fs ->
       bindName (mkConInfo con 0) $ \con ->
         ret [RecDef x xs con fs]
   C.Data{}   -> scopeError d $ "Bad data declaration"
@@ -240,6 +240,10 @@ checkDecl d ret = case d of
       isSet set
       (n, a) <- checkScheme (C.Pi (C.Tel ps) (C.App [C.Arg $ C.Id set]))
       bindName (mkDefInfo x n) $ \x -> ret [TypeSig $ Sig x a]
+
+getFields :: C.Fields -> [C.Constr]
+getFields C.NoFields    = []
+getFields (C.Fields fs) = fs
 
 checkConstructor :: [NameInfo] -> C.Constr -> CCheck TypeSig
 checkConstructor xs (C.Constr c e) ret =
