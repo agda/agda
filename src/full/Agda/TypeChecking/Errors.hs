@@ -207,6 +207,7 @@ errorString err = case err of
     ShouldBePi{}                             -> "ShouldBePi"
     ShouldBeRecordType{}                     -> "ShouldBeRecordType"
     ShouldBeRecordPattern{}                  -> "ShouldBeRecordPattern"
+    NotAProjectionPattern{}                  -> "NotAProjectionPattern"
     ShouldEndInApplicationOfTheDatatype{}    -> "ShouldEndInApplicationOfTheDatatype"
     SplitError{}                             -> "SplitError"
     TerminationCheckFailed{}                 -> "TerminationCheckFailed"
@@ -296,6 +297,8 @@ instance PrettyTCM TypeError where
 		pwords "Expected non-abstract record type, found " ++ [prettyTCM t]
 	    ShouldBeRecordPattern p -> fsep $
 		pwords "Expected record pattern" -- ", found " ++ [prettyTCM p]
+	    NotAProjectionPattern p -> fsep $
+		pwords "Not a valid projection for a copattern: " ++ [ prettyA p ]
 	    DifferentArities ->
 		fwords "The number of arguments in the defining equations differ"
 	    WrongHidingInLHS t -> do

@@ -1246,6 +1246,7 @@ data TypeError
 	    -- ^ The given type should have been a pi.
 	| ShouldBeRecordType Type
 	| ShouldBeRecordPattern Pattern
+        | NotAProjectionPattern (A.NamedArg A.Pattern)
 	| NotAProperTerm
         | SetOmegaNotValidType
         | SplitOnIrrelevant A.Pattern (Dom Type)

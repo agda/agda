@@ -102,42 +102,55 @@ splitProblem mf (Problem ps (perm, qs) tel pr) = do
         , nest 2 $ text "eliminates type b =" <+> prettyTCM b
         ]
       case isProjP p of
-        Just d -> do -- case: projection pattern
-          isR <- lift $ isRecordType b
-          case isR of
-            Just (r, vs, Record{ recFields = fs }) -> do
-              -- normalize projection name (could be from a module app)
-              d <- lift $ do
-                v <- stripLambdas =<< normalise (Def d [])
-                case v of
-                  Def d _ -> return d
-                  _       -> do
-                    reportSDoc "impossible" 10 $ sep
-                      [ text   "unexpected result " <+> prettyTCM v
-                      , text $ "when normalizing projection " ++ show d
+        Just d -> do -- case: projection pattern (d = projection name)
+          isP <- lift $ isProjection d
+          case isP of
+            Just Projection{projProper = True, projFromType = _, projIndex = n}
+              | n > 0 ->
+              -- If projIndex==0, then the projection is already applied
+              -- to the record value (like in @open R r@), and then it
+              -- is no longer a projection but a record field.
+              do
+                lift $ reportSLn "tc.lhs.split" 90 "we are a projection pattern"
+                isR <- lift $ isRecordType b
+                case isR of
+                  Just (r, vs, Record{ recFields = fs }) -> do
+                    -- normalize projection name (could be from a module app)
+                    d <- lift $ do
+                      v <- stripLambdas =<< normalise (Def d [])
+                      case v of
+                        Def d _ -> return d
+                        _       -> do
+                          reportSDoc "impossible" 10 $ sep
+                            [ text   "unexpected result " <+> prettyTCM v
+                            , text $ "when normalizing projection " ++ show d
+                            ]
+                          reportSDoc "impossible" 50 $ sep
+                            [ text $ "raw: " ++ show v
+                            ]
+                          __IMPOSSIBLE__
+                    lift $ reportSDoc "tc.lhs.split" 20 $ sep
+                      [ text $ "we are of record type r  = " ++ show r
+                      , text   "applied to parameters vs = " <+> prettyTCM vs
+                      , text $ "and have fields       fs = " ++ show fs
+                      , text $ "original proj         d  = " ++ show d
                       ]
-                    reportSDoc "impossible" 50 $ sep
-                      [ text $ "raw: " ++ show v
+                    unless (d `elem` map unArg fs) $ throwError NothingToSplit
+                    es <- lift $ patternsToElims perm qs
+                    -- the record "self" is the definition f applied to the patterns
+                    let self = defaultArg $ Def f [] `unElim` es
+                    -- get the type of projection d applied to "self"
+                    dType <- lift $ typeOfConst d
+                    lift $ reportSDoc "tc.lhs.split" 20 $ sep
+                      [ text "we are              self = " <+> prettyTCM (unArg self)
+                      , text "being projected by dType = " <+> prettyTCM dType
                       ]
-                    __IMPOSSIBLE__
-              lift $ reportSDoc "tc.lhs.split" 20 $ sep
-                [ text $ "we are of record type r  = " ++ show r
-                , text   "applied to parameters vs = " <+> prettyTCM vs
-                , text $ "and have fields       fs = " ++ show fs
-                , text $ "original proj         d  = " ++ show d
-                ]
-              unless (d `elem` map unArg fs) $ throwError NothingToSplit
-              es <- lift $ patternsToElims perm qs
-              -- the record "self" is the definition f applied to the patterns
-              let self = defaultArg $ Def f [] `unElim` es
-              -- get the type of projection d applied to "self"
-              dType <- lift $ typeOfConst d
-              lift $ reportSDoc "tc.lhs.split" 20 $ sep
-                [ text "we are              self = " <+> prettyTCM (unArg self)
-                , text "being projected by dType = " <+> prettyTCM dType
-                ]
-              return $ SplitRest (defaultArg d) $ dType `apply` (vs ++ [self])
-            _ -> throwError $ NothingToSplit
+                    return $ SplitRest (defaultArg d) $ dType `apply` (vs ++ [self])
+                  _ -> throwError $ NothingToSplit
+-- Why does lift . typeError seg-fault??
+            _ -> lift $ typeError $ NotAProjectionPattern p
+--            _ -> lift $ typeError $ GenericError $ "not a valid projection pattern"
+--            _ -> throwError $ NothingToSplit
         _ -> throwError $ NothingToSplit
     splitRest _ = throwError $ NothingToSplit
 
