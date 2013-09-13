@@ -32,3 +32,13 @@ transId : {A : Set} {x y z : A} -> x == y -> y == z -> x == z
 equivId : {A : Set} -> Equiv (\x y -> x == y)
 equivId = equiv refl symId transId
 
+record Sigma (A : Set) (B : A -> Set) : Set
+record Sigma A B where
+  constructor pair
+  field fst : A
+        snd : B fst
+
+record True : Set
+record True where
+  constructor tt
+
