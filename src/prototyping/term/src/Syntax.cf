@@ -8,7 +8,7 @@ layout "postulate";
 
 Prog. Program ::= "module" Name "where" "{" [Decl] "}";
 
-position token Name (letter (letter | digit | '-')*) ;
+position token Name ((letter | '_') (letter | digit | '-' | '\'' | '_')*) ;
 
 separator Decl ";";
 
