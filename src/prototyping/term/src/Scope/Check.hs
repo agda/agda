@@ -270,14 +270,14 @@ insertImplicit :: SrcLoc -> Hiding -> [C.Arg] -> Check [C.Expr]
 insertImplicit p 0 (C.Arg e : args)  = (e :) <$> insertImplicit (srcLoc e) 0 args
 insertImplicit p 0 (C.HArg e : _)    = scopeError e $ "Unexpected implicit application " ++ printTree e
 insertImplicit p 0 []                = return []
-insertImplicit p n (C.HArg e : args) = (e :) <$> insertImplicit (srcLoc e) n args
+insertImplicit p n (C.HArg e : args) = (e :) <$> insertImplicit (srcLoc e) (n - 1) args
 insertImplicit p n args              = (cMeta p :) <$> insertImplicit p (n - 1) args
 
 insertImplicitPatterns :: SrcLoc -> Hiding -> [C.Pattern] -> Check [C.Pattern]
 insertImplicitPatterns p 0 (C.HideP e : _)  = scopeError e $ "Unexpected implicit pattern " ++ printTree e
 insertImplicitPatterns p 0 (e : args)       = (e :) <$> insertImplicitPatterns (srcLoc e) 0 args
 insertImplicitPatterns p 0 []               = return []
-insertImplicitPatterns p n (C.HideP e : ps) = (e :) <$> insertImplicitPatterns (srcLoc e) n ps
+insertImplicitPatterns p n (C.HideP e : ps) = (e :) <$> insertImplicitPatterns (srcLoc e) (n - 1) ps
 insertImplicitPatterns p n ps               = (cWild p :) <$> insertImplicitPatterns p (n - 1) ps
 
 type PAppView = (C.Name,  [C.Pattern])
