@@ -19,5 +19,5 @@ module MX = M X
 
 postulate
   T : MX.R.S r → Set
-  y : M.R.S X r
+  y : M.R.S {A = X} r
   t : T y

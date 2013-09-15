@@ -50,6 +50,33 @@ Language
     f false false = true
     f true = true
 
+* Module parameters are now always hidden arguments in projections.
+  For instance:
+
+    module M (A : Set) where
+
+      record Prod (B : Set) : Set where
+        constructor _,_
+        field
+          fst : A
+          snd : B
+      open Prod public
+
+    open M
+
+  Now, the types of fst and snd are
+
+    fst : {A : Set}{B : Set} → Prod A B → A
+    snd : {A : Set}{B : Set} → Prod A B → B
+
+  Until 2.3.2, they were
+
+    fst : (A : Set){B : Set} → Prod A B → A
+    snd : (A : Set){B : Set} → Prod A B → B
+
+  This change is a step towards symmetry of constructors and projections.
+  (Constructors always took the module parameters as hidden arguments).
+
 * Ambiguous names in patterns are now optimistically resolved in favor
   of constructors. [Issue 822] In particular, the following succeeds now:
 

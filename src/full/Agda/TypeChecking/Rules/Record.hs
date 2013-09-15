@@ -163,13 +163,6 @@ checkRecDef i name ind con ps contel fields =
       -- ctx <- (reverse . map hideAndRelParams . take (size tel)) <$> getContext
       -}
 
-      -- make record parameters hidden
-      ctx <- (reverse . map (setHiding Hidden) . take (size tel)) <$> getContext
-      reportSDoc "tc.rec" 80 $ sep
-        [ text "visibility-modified record telescope"
-        , nest 2 $ text "ctx =" <+> prettyTCM ctx
-        ]
-
 {- Andreas, 2013-09-13 DEBUGGING the debug printout
       reportSDoc "tc.rec" 80 $ sep
         [ text "current module record telescope"
@@ -205,6 +198,13 @@ checkRecDef i name ind con ps contel fields =
 	  tel' = telFromList $ htel ++ [Dom info ("r", rect)]
           ext (Dom info (x, t)) = addCtx x (Dom info t)
 
+      -- Add the record section
+      -- make record parameters hidden
+      ctx <- (reverse . map (setHiding Hidden) . take (size tel)) <$> getContext
+      reportSDoc "tc.rec" 80 $ sep
+        [ text "visibility-modified record telescope"
+        , nest 2 $ text "ctx =" <+> prettyTCM ctx
+        ]
       escapeContext (size tel) $ flip (foldr ext) ctx $
        -- the record variable has the empty name by intention, see issue 208
        underAbstraction (Dom info rect) (Abs "" ()) $ \_ -> do
@@ -220,8 +220,13 @@ checkRecDef i name ind con ps contel fields =
           ]
 	addSection m (size tel')
 
-        -- Check the types of the fields
-        withCurrentModule m $
+      -- Check the types of the fields
+      -- Andreas, 2013-09-13 all module telescopes count as parameters to the record projections
+      -- thus, we set all context entries to @Hidden@
+      modifyContext (modifyContextEntries (setHiding Hidden)) $ do
+       underAbstraction (Dom info rect) (Abs "" ()) $ \_ -> do
+        withCurrentModule m $ do
+          tel' <- getContextTelescope
           checkRecordProjections m name conName tel' (raise 1 ftel) fields
 
       -- Andreas, 2011-05-19 here was the code "Add record constr..."
@@ -248,7 +253,8 @@ checkRecDef i name ind con ps contel fields =
 checkRecordProjections ::
   ModuleName -> QName -> QName -> Telescope -> Telescope ->
   [A.Declaration] -> TCM ()
-checkRecordProjections m r q tel ftel fs = checkProjs EmptyTel ftel fs
+checkRecordProjections m r q tel ftel fs = do
+    checkProjs EmptyTel ftel fs
   where
 
     checkProjs :: Telescope -> Telescope -> [A.Declaration] -> TCM ()

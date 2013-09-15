@@ -11,8 +11,8 @@ postulate
   i : (x : A) → I x
   r : M.R A
 
-a = M.R.a A r
+a = M.R.a {A = A} r
 
 Foo : Set₁
-Foo with i (M.R.a A r)
+Foo with i (M.R.a {A = A} r)
 Foo | _ = Set
