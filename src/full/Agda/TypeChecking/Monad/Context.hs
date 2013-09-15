@@ -3,7 +3,6 @@
 module Agda.TypeChecking.Monad.Context where
 
 import Control.Monad.Reader
-import Control.Monad.State
 
 import Data.List hiding (sort)
 import qualified Data.Map as Map
