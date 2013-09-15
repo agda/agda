@@ -273,7 +273,7 @@ checkRecordProjections m r q tel ftel fs = do
 	[ text "checking projection" <+> text (show x)
 	, nest 2 $ vcat
 	  [ text "top   =" <+> (inTopContext . prettyTCM =<< getContextTelescope)
-          , text "tel   =" <+> prettyTCM tel
+          , text "tel   =" <+> (inTopContext . prettyTCM $ tel)
 	  , text "ftel1 =" <+> prettyTCM ftel1
 	  , text "t     =" <+> prettyTCM t
 	  , text "ftel2 =" <+> addCtxTel ftel1 (underAbstraction_ ftel2 prettyTCM)
@@ -308,7 +308,8 @@ checkRecordProjections m r q tel ftel fs = do
                                  $ Abs (show $ qnameName projname) EmptyTel)
                                 (ftel2 `absApp` projcall) fs
 
-      reportSDoc "tc.rec.proj" 25 $ nest 2 $ text "finalt=" <+> prettyTCM finalt
+      reportSDoc "tc.rec.proj" 25 $ nest 2 $ text "finalt=" <+> do
+        inTopContext $ prettyTCM finalt
 
       -- Andreas, 2012-02-20 do not add irrelevant projections if
       -- disabled by --no-irrelevant-projections
