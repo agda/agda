@@ -151,7 +151,9 @@ splitProblem mf (Problem ps (perm, qs) tel pr) = do
             _ -> lift $ typeError $ NotAProjectionPattern p
 --            _ -> lift $ typeError $ GenericError $ "not a valid projection pattern"
 --            _ -> throwError $ NothingToSplit
-        _ -> throwError $ NothingToSplit
+        -- if the pattern is not a projection pattern, there were probably too many arguments
+        _ -> lift $ typeError $ CannotEliminateWithPattern p b
+    -- if there are no more patterns left in the problem rest, there is nothing to split:
     splitRest _ = throwError $ NothingToSplit
 
     -- Stripping initial lambdas from a normalized term

@@ -154,6 +154,7 @@ errorString err = case err of
     GenericDocError{}                        -> "GenericDocError"
     IFSNoCandidateInScope{}                  -> "IFSNoCandidateInScope"
     IlltypedPattern{}                        -> "IlltypedPattern"
+    CannotEliminateWithPattern{}             -> "CannotEliminateWithPattern"
     IncompletePatternMatching{}              -> "IncompletePatternMatching"
     IndexVariablesNotDistinct{}              -> "IndexVariablesNotDistinct"
     IndicesFreeInParameters{}                -> "IndicesFreeInParameters"
@@ -315,6 +316,10 @@ instance PrettyTCM TypeError where
               pwords "Failed to infer the value of dotted pattern"
             IlltypedPattern p a -> fsep $
               pwords "Type mismatch"
+            CannotEliminateWithPattern p a -> fsep $
+              pwords "Cannot eliminate type" ++ prettyTCM a :
+              pwords "with pattern" ++ prettyA p :
+              pwords "(did you supply too many arguments?)"
             TooManyArgumentsInLHS a -> fsep $
               pwords "Left hand side gives too many arguments to a function of type" ++ [prettyTCM a]
             WrongNumberOfConstructorArguments c expect given -> fsep $

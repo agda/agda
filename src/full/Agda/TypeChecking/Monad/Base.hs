@@ -1237,6 +1237,7 @@ data TypeError
           -- ^ The term does not correspond to an inductive data type.
 	| UninstantiatedDotPattern A.Expr
 	| IlltypedPattern A.Pattern Type
+	| CannotEliminateWithPattern (A.NamedArg A.Pattern) Type
 	| TooManyArgumentsInLHS Type
 	| WrongNumberOfConstructorArguments QName Nat Nat
 	| ShouldBeEmpty Type [Pattern]
