@@ -650,9 +650,9 @@ instance ToConcrete A.Clause [C.Declaration] where
 
 instance ToConcrete A.ModuleApplication C.ModuleApplication where
   toConcrete (A.SectionApp tel y es) = do
-    y  <- toConcrete y
+    y  <- toConcreteCtx FunctionCtx y
     bindToConcrete tel $ \tel -> do
-    es <- toConcrete es
+    es <- toConcreteCtx ArgumentCtx es
     let r = fuseRange y es
     return $ C.SectionApp r tel (foldl (C.App r) (C.Ident y) es)
   toConcrete (A.RecordModuleIFS rec) = do
