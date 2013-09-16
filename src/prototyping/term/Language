@@ -43,13 +43,13 @@ Intermediate syntax
 t ∷= i
    | refl
    | λ x → t
-   | c t⃗
+   | c ts
    | _
 
 i ∷= Set
    | (x : t) → t
    | t ≡_t t | J | K
-   | h e⃗
+   | h es
 
 h ∷= x | f
 
@@ -58,10 +58,10 @@ e ∷= · t | π ·
 Internal syntax
 ===============
 
-U, u ∷= λ x → u | c u⃗
+U, u ∷= λ x → u | c us
       | Set | (x : U) → U
       | u ≡_U u | refl | J | K
-      | h e⃗
+      | h es
 
 h ∷= x | f | α | b
 
@@ -77,15 +77,15 @@ c ∷= ⟨Σ⟩ Γ ⊢ A = B ⇐ Set
    | ⟨Σ⟩ Γ ⊢ t ⇐ A
 
 p ∷= (U, u)
-   | C ⚷ eps >>= λ (U, e⃗) → (U, u)
+   | C ⚷ eps >>= λ (U, es) → (U, u)
 
 ep ∷= {Γ ⊢ · t ⇐ B}
     | {Γ ⊢ π · ⇐ B}
 
 eps ∷= ep          >>= λ (U, e) → eps
-     | eps         >>= λ (U, e⃗) → eps
-     | {Γ ⊢ e⃗ ⇐ U} >>= λ (U, e⃗) → eps
-     | (U, e⃗)
+     | eps         >>= λ (U, es) → eps
+     | {Γ ⊢ es ⇐ U} >>= λ (U, es) → eps
+     | (U, es)
 
 Weak head normalisation
 =======================
@@ -93,7 +93,7 @@ Weak head normalisation
 The only interesting case:
 
 -------------
- Σ ⊢ f e⃗ ⇓ …
+ Σ ⊢ f es ⇓ …
 
 All other terms reduce to themselves.
 
@@ -144,20 +144,20 @@ Signature changes are propagated in the obvious way.
 ---------------------------------------------
  Γ ⊢ λ x → t ⇐ A ↝ C ⚷ {⟨Σ⟩ Γ ⊢ λ x → t ⇐ B}
 
- Σ ⊢ A ⇓ D u⃗
- c : (x⃗ : P⃗) → Δ → D x⃗ ∈ Σ
- Γ ⊢ t⃗ ⇐ Δ[×⃗ ≔ u⃗] ↝ v⃗
+ Σ ⊢ A ⇓ D us
+ c : (xs : Ps) → Δ → D xs ∈ Σ
+ Γ ⊢ ts ⇐ Δ[×s ≔ us] ↝ vs
 ---------------------------------
- Γ ⊢ c t⃗ ⇐ A ↝ c v⃗
+ Γ ⊢ c ts ⇐ A ↝ c vs
 
  Σ ⊢ A ⇓ C ⚷ B
 -------------------------------------
- Γ ⊢ c t⃗ ⇐ A ↝ C ⚷ {⟨Σ⟩ Γ ⊢ c t⃗ ⇐ B}
+ Γ ⊢ c ts ⇐ A ↝ C ⚷ {⟨Σ⟩ Γ ⊢ c ts ⇐ B}
 
  Γ ⊢ t ⇐ A ↝ u
- Γ ⊢ t⃗ ⇐ Δ[x ≔ t] ↝ u⃗
+ Γ ⊢ ts ⇐ Δ[x ≔ t] ↝ us
 ---------------------------
- Γ ⊢ t t⃗ ⇐ (x : A) Δ ↝ u u⃗
+ Γ ⊢ t ts ⇐ (x : A) Δ ↝ u us
 
 ---------
  Γ ⊢ ⇐ ↝
@@ -196,31 +196,31 @@ Type inference
          )
 
  h : A ∈ Σ
- Γ ⊢ e⃗ ⇐ A ↝ (B, e⃗′)
+ Γ ⊢ es ⇐ A ↝ (B, es′)
 ---------------------
- Γ ⊢ h e⃗ ⇒ (B, h e⃗′)
+ Γ ⊢ h es ⇒ (B, h es′)
 
  h : A ∈ Σ
- Γ ⊢ e⃗ ⇐ A ↝ C ⚷ eps
+ Γ ⊢ es ⇐ A ↝ C ⚷ eps
 ---------------------------------------------
- Γ ⊢ h e⃗ ⇒ C ⚷ eps >>= λ (B, e⃗′) → (B, h e⃗′)
+ Γ ⊢ h es ⇒ C ⚷ eps >>= λ (B, es′) → (B, h es′)
 
  Γ ⊢ e ⇐ A₁ ⇒ (A₂, e′)
- Γ ⊢ e⃗ ⇐ A₂ ⇒ (A₃, e⃗′)
+ Γ ⊢ es ⇐ A₂ ⇒ (A₃, es′)
 ----------------------------
- Γ ⊢ e e⃗ ⇐ A₁ ⇒ (A₃, e′ e⃗′)
+ Γ ⊢ e es ⇐ A₁ ⇒ (A₃, e′ es′)
 
  Γ ⊢ e ⇐ A₁ ⇒ C ⚷ ep
 --------------------------------------------------
- Γ ⊢ e e⃗ ⇐ A₁ ⇒ C ⚷ ep           >>= λ (A₂, e′) →
-                    {Γ ⊢ e⃗ ⇐ A₂} >>= λ (A₃, e⃗′) →
-                    (A₃, e′ e⃗′)
+ Γ ⊢ e es ⇐ A₁ ⇒ C ⚷ ep           >>= λ (A₂, e′) →
+                    {Γ ⊢ es ⇐ A₂} >>= λ (A₃, es′) →
+                    (A₃, e′ es′)
 
  Γ ⊢ e ⇐ A₁ ⇒ (A₂, e′)
- Γ ⊢ e⃗ ⇐ A₂ ⇒ C ⚷ eps
+ Γ ⊢ es ⇐ A₂ ⇒ C ⚷ eps
 ---------------------------------------
- Γ ⊢ e e⃗ ⇐ A₁ ⇒ C ⚷ eps >>= λ (A₃, e⃗′) →
-                    (A₃, e′ e⃗′)
+ Γ ⊢ e es ⇐ A₁ ⇒ C ⚷ eps >>= λ (A₃, es′) →
+                    (A₃, e′ es′)
 
 -----------------
  Γ ⊢ ⇐ A ⇒ (A, )
@@ -234,10 +234,10 @@ Type inference
 -------------------------------------
  Γ ⊢ · t ⇐ A ⇒ C ⚷ {⟨Σ⟩ Γ ⊢ · t ⇐ B}
 
- Σ ⊢ A ⇓ R t⃗
- π : (x⃗ : P⃗) → R x⃗ → B ∈ Σ
+ Σ ⊢ A ⇓ R ts
+ π : (xs : Ps) → R xs → B ∈ Σ
 -------------------------------
- Γ ⊢ π · ⇐ A ⇒ (B[x⃗ ≔ t⃗], π ·)
+ Γ ⊢ π · ⇐ A ⇒ (B[xs ≔ ts], π ·)
 
  Σ ⊢ A ⇓ C ⚷ B
 -------------------------------------
