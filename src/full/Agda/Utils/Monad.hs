@@ -30,6 +30,8 @@ import Agda.Utils.List
 #include "../undefined.h"
 import Agda.Utils.Impossible
 
+infixr 9 <.>
+
 (<.>) :: Functor m => (b -> c) -> (a -> m b) -> a -> m c
 (f <.> g) a = f <$> g a
 
