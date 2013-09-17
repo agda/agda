@@ -188,6 +188,7 @@ compareTerm' cmp a m n =
           isrec <- isEtaRecord r
           if isrec
             then do
+              reportSDoc "tc.conv.term" 30 $ prettyTCM a <+> text "is eta record type"
               m <- reduceB m
               n <- reduceB n
               case (m, n) of
