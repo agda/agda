@@ -737,10 +737,15 @@ inverseSubst args = fmap (map (mapFst unArg)) <$> loop (zip args terms)
         Arg info (Var i []) -> return $ (Arg info i, t) `cons` vars
 
         -- (i, j) := x  becomes  [i := fst x, j := snd x]
+        -- Andreas, 2013-09-17 but only if constructor is fully applied
         Arg info (Con c vs) -> do
+          let fallback
+               | irrelevantOrUnused (getRelevance info) = return vars
+               | otherwise                              = failure
           isRC <- lift $ isRecordConstructor $ conName c
           case isRC of
-            Just (_, Record{ recFields = fs }) -> do
+            Just (_, Record{ recFields = fs })
+              | length fs == length vs -> do
                 let aux (Arg _ v) (Arg info' f) =
                       (Arg (ArgInfo { argInfoColors = argInfoColors info -- TODO guilhem
                                       , argInfoHiding = min (argInfoHiding info)
@@ -752,9 +757,9 @@ inverseSubst args = fmap (map (mapFst unArg)) <$> loop (zip args terms)
                        Def f [defaultArg t])
                 res <- loop $ zipWith aux vs fs
                 return $ res `append` vars
-            Just _ ->  __IMPOSSIBLE__
-            Nothing | irrelevantOrUnused (getRelevance info) -> return vars
-                    | otherwise -> failure
+              | otherwise -> fallback
+            Just _  -> __IMPOSSIBLE__
+            Nothing -> fallback
 
         -- An irrelevant argument which is not an irrefutable pattern is dropped
         Arg info _ | irrelevantOrUnused (getRelevance info) -> return vars
