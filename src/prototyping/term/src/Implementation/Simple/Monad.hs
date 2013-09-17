@@ -287,25 +287,6 @@ instance Weaken Telescope where
     EmptyTel -> EmptyTel
     a :> b   -> weakenFromBy n k a :> weakenFromBy n k b
 
-class Substs a where
-  substs :: MonadEval m => Telescope -> [Term] -> a -> m a
-
-instance Substs Term where
-  substs _ us v = return $ substsTerm us v
-
-substsTerm :: [Term] -> Term -> Term
-substsTerm []       v = v
-substsTerm (u : us) v = subst 0 u $ substsTerm (subst 0 u us) v
-
-instance Substs Telescope where
-  substs _ us tel = return $ substsTel us tel
-
-substsTel :: [Term] -> Telescope -> Telescope
-substsTel us EmptyTel = EmptyTel
-substsTel us (a :> b) =
-  substsTerm us a :>
-  fmap (substsTel (Term (App (Var 0) []) : map weaken us)) b
-
 elim :: MonadEval m => Term -> [Elim] -> m Term
 elim v es = return $ elim' v es
 
@@ -323,7 +304,17 @@ elimV (Lam b) (Apply e : es) = elim' (absApply' b e) es
 elimV v es = error $ "Bad elim: " ++ show v ++ " " ++ show es
 
 class Subst a where
-  subst :: Int -> Term -> a -> a
+  -- | Variable zero is replaced by the /first/ element in the list.
+  substs' :: [Term] -> a -> a
+
+-- | Variable zero is replaced by the /last/ element in the list.
+substs :: (MonadEval m, Subst a) => Telescope -> [Term] -> a -> m a
+substs tel us v = return $ substs' (reverse us) v
+
+subst :: Subst a => Int -> Term -> a -> a
+subst n u = substs' (vars [0 .. n-1] ++ [u] ++ vars [n ..])
+  where
+  vars = map (\x -> Term (App (Var x) []))
 
 absApply :: (MonadEval m, Subst a) => Abs a -> Term -> m a
 absApply a t = return $ absApply' a t
@@ -332,33 +323,32 @@ absApply' :: Subst a => Abs a -> Term -> a
 absApply' (Abs _ a) t = subst 0 t a
 
 instance Subst Term where
-  subst n u (Term v) = Term (subst n u v)
+  substs' us (Term v) = Term (substs' us v)
 
 instance Subst TermView where
-  subst n u v = case v of
-    App (Var i) es
-      | i == n  -> termView $ u `elim'` es
-      | i > n   -> App (Var (i - 1)) (sub es)
-    App h es    -> App h (sub es)
-    Lam b       -> Lam $ sub b
-    Pi a b      -> Pi (sub a) (sub b)
-    Equal a x y -> Equal (sub a) (sub x) (sub y)
-    Set         -> v
+  substs' us v = case v of
+    App (Var i) es -> termView $ (us !! i) `elim'` es
+    App h es       -> App h (sub es)
+    Lam b          -> Lam $ sub b
+    Pi a b         -> Pi (sub a) (sub b)
+    Equal a x y    -> Equal (sub a) (sub x) (sub y)
+    Set            -> v
     where
       sub :: Subst a => a -> a
-      sub = subst n u
+      sub = substs' us
 
 instance Subst a => Subst [a] where
-  subst n u = map (subst n u)
+  substs' us = map (substs' us)
 
 instance Subst a => Subst (Abs a) where
-  subst n u (Abs x b) = Abs x $ subst (n + 1) (weaken u) b
+  substs' us (Abs x b) =
+    Abs x $ substs' (Term (App (Var 0) []) : map weaken us) b
 
 instance Subst Elim where
-  subst n u e = case e of
-    Apply e -> Apply (subst n u e)
+  substs' us e = case e of
+    Apply e -> Apply (substs' us e)
     Proj{}  -> e
 
 instance Subst Telescope where
-  subst n u EmptyTel = EmptyTel
-  subst n u (a :> b) = subst n u a :> subst n u b
+  substs' us EmptyTel = EmptyTel
+  substs' us (a :> b) = substs' us a :> substs' us b
