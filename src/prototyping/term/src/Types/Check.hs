@@ -4,6 +4,8 @@ module Types.Check where
 import Control.Applicative
 import Control.Monad
 import Data.Traversable hiding (mapM)
+import Data.HashSet (HashSet)
+import qualified Data.HashSet as Set
 import Data.List
 
 import IMPL.Term
@@ -350,7 +352,12 @@ metaAssign x es v = do
       inferEqual u v
     Just xs -> do
       occursCheck xs v
-      v <- lambdaAbstract xs v
+      v  <- lambdaAbstract xs v
+      ms <- metaVars v
+      when (x `Set.member` ms) $ do
+        typeError $
+          "impossible?.metaAssign: Attempt at recursive instantiation: " ++
+          show x ++ " := " ++ show v
       instantiateMeta x v
       notStuck ()
 
@@ -372,7 +379,7 @@ distinctVariables es = do
 occursCheck :: [Var] -> Term -> TC ()
 occursCheck xs v = occurs xs v
 
--- TODO: Move Occurs to Implementation.
+-- TODO: Move Occurs/MetaVars to Implementation.
 
 class Occurs a where
   occurs :: [Var] -> a -> TC ()
@@ -403,3 +410,34 @@ instance Occurs TermView where
 instance Occurs Elim where
   occurs xs (Apply v) = occurs xs v
   occurs xs Proj{}    = return ()
+
+class MetaVars a where
+  metaVars :: a -> TC (HashSet MetaVar)
+
+instance MetaVars a => MetaVars [a] where
+  metaVars xs = Set.unions <$> mapM metaVars xs
+
+instance (MetaVars a, MetaVars b) => MetaVars (a, b) where
+  metaVars (x, y) = Set.union <$> metaVars x <*> metaVars y
+
+instance MetaVars a => MetaVars (Abs a) where
+  metaVars b = metaVars (absBody b)
+
+instance MetaVars Term where
+  metaVars v = metaVars =<< view v
+
+instance MetaVars TermView where
+  metaVars v = case v of
+    App h es    -> metaVars (h, es)
+    Pi a b      -> metaVars (a, b)
+    Lam b       -> metaVars b
+    Equal a x y -> metaVars (a, (x, y))
+    Set         -> return Set.empty
+
+instance MetaVars Elim where
+  metaVars (Apply v) = metaVars v
+  metaVars Proj{}    = return Set.empty
+
+instance MetaVars Head where
+  metaVars (Meta x) = return (Set.singleton x)
+  metaVars _        = return Set.empty

@@ -1,9 +1,10 @@
-
+{-# LANGUAGE GeneralizedNewtypeDeriving #-}
 module Implementation.Simple.Term where
 
 import Types.Abs
 import Syntax.Abstract (Name)
 import Syntax.Abstract.Pretty
+import Data.Hashable
 import Text.PrettyPrint
 
 newtype Term = Term { termView :: TermView }
@@ -26,7 +27,7 @@ data Head = Var Var
   deriving (Eq)
 
 newtype MetaVar = MetaId Integer
-  deriving (Show, Eq, Ord)
+  deriving (Show, Eq, Ord, Hashable)
 
 type Field = Int
 data Elim = Apply Term
