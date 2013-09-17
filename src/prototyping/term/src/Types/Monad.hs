@@ -14,7 +14,7 @@ import IMPL.Monad
 import IMPL.Term
 import IMPL.Eval
 
-whnfView :: MonadEval m => Term -> m (Blocked TermView)
+whnfView :: Term -> TC (Blocked TermView)
 whnfView v = traverse view =<< whnf v
 
 telView :: Term -> TC (Telescope, Term)
@@ -36,7 +36,10 @@ data ProblemId a = TODO
 
 data Stuck a = NotStuck a | Stuck (ProblemId a)
 
-subProblem :: ProblemId a -> (a -> TC b) -> TC (ProblemId b)
+subProblem_ :: ProblemId a -> (a -> TC b) -> TC (ProblemId b)
+subProblem_ pid f = subProblem pid (\x -> NotStuck <$> f x)
+
+subProblem :: ProblemId a -> (a -> TC (Stuck b)) -> TC (ProblemId b)
 subProblem = error "subProblem"
 
 newProblem :: MetaVar -> TC (Stuck a) -> TC (ProblemId a)

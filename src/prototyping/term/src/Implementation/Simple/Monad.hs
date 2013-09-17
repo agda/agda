@@ -13,6 +13,7 @@ import Types.Abs
 import Types.Tel
 
 import Implementation.Simple.Term
+import Debug
 
 -- Monad ------------------------------------------------------------------
 
@@ -140,6 +141,16 @@ freshMeta a = do
   args  <- contextArgs
   return $ Term $ App (Meta x) $ map Apply args
 
+instantiateMeta :: MetaVar -> Term -> TC ()
+instantiateMeta x v = do
+  Open a <- getMetaInst x
+  modify $ \s -> s { metaStore = Map.insert x (Inst a v) (metaStore s) }
+
+getMetaInst :: MetaVar -> TC MetaInst
+getMetaInst x = do
+  Just i <- gets $ Map.lookup x . metaStore
+  return i
+
 extendContext :: Name -> Type -> (Var -> TC a) -> TC a
 extendContext x a ret = local (\env -> env { context = (x, a) : context env }) (ret 0)
 
@@ -169,12 +180,41 @@ typeOf x = defType <$> definitionOf x
     defType (Constructor _ _ tel a) = telPi tel a
     defType (Function _ a _)        = a
 
+typeOfMeta :: MetaVar -> TC Type
+typeOfMeta x = do
+  Just i <- gets $ Map.lookup x . metaStore
+  return $ case i of
+    Open a   -> a
+    Inst a _ -> a
+
+bang :: Show a => Int -> [a] -> a
+bang n xs | length xs <= n = error $ "bang " ++ show n ++ " " ++ show xs
+bang n xs = xs !! n
+
+typeOfHead :: Head -> TC Type
+typeOfHead (Var x) = asks $ weakenBy' (x + 1) . snd . bang x . context
+typeOfHead (Def x) = typeOf x
+typeOfHead (Con x) = typeOf x
+typeOfHead (Meta x) = typeOfMeta x
+
 underAbstraction :: Type -> Abs a -> (Var -> a -> TC b) -> TC b
 underAbstraction a b ret = extendContext (name $ absName b) a $ \x -> ret x (absBody b)
 
 telPi :: Telescope -> Type -> Type
 telPi EmptyTel   a = a
 telPi (a :> tel) b = Term $ Pi a $ fmap (`telPi` b) tel
+
+-- Creates a term in the same context as the original term but lambda
+-- abstracted over the given variables.q
+lambdaAbstract :: MonadEval m => [Var] -> Term -> m Term
+lambdaAbstract xs v = return $ lambda xs v
+
+lambda :: [Var] -> Term -> Term
+lambda []     v = v
+lambda (x:xs) v = Term $ Lam $ Abs "_"
+                $ weakenFromBy (x + 1) 1
+                $ subst (x + 1) (Term $ App (Var 0) [])
+                $ weaken $ lambda xs v
 
 -- DeBruijn trickery ------------------------------------------------------
 
@@ -191,10 +231,13 @@ weakenBy' = weakenFromBy 0
 class Weaken a where
   weakenFromBy :: Int -> Int -> a -> a
 
+instance Weaken Var where
+  weakenFromBy n k i | i < n     = i
+                     | otherwise = i + k
+
 instance Weaken Head where
   weakenFromBy n k h = case h of
-    Var i | i < n     -> h
-          | otherwise -> Var (i + k)
+    Var i  -> Var $ weakenFromBy n k i
     Con{}  -> h
     Def{}  -> h
     Meta{} -> h
@@ -236,17 +279,20 @@ absApply a v = return $ absApply' a v
 absApply' :: Abs Term -> Term -> Term
 absApply' (Abs _ v) u = subst 0 u v
 
-elim :: Term -> [Elim] -> Term
-elim v [] = v
-elim v es = elimV (termView v) es
+elim :: MonadEval m => Term -> [Elim] -> m Term
+elim v es = return $ elim' v es
+
+elim' :: Term -> [Elim] -> Term
+elim' v [] = v
+elim' v es = elimV (termView v) es
 
 elimV :: TermView -> [Elim] -> Term
 elimV (App (Con c) es0) (Proj i : es1)
   | i >= length es0 = error $ "Bad elim: " ++ show (App (Con c) es0) ++ " " ++ show (Proj i)
-  | otherwise       = elim v es1
+  | otherwise       = elim' v es1
   where Apply v = es0 !! i
 elimV (App h es0) es1 = Term $ App h (es0 ++ es1)
-elimV (Lam b) (Apply e : es) = elim (absApply' b e) es
+elimV (Lam b) (Apply e : es) = elim' (absApply' b e) es
 elimV v es = error $ "Bad elim: " ++ show v ++ " " ++ show es
 
 
@@ -259,7 +305,7 @@ instance Subst Term where
 instance Subst TermView where
   subst n u v = case v of
     App (Var i) es
-      | i == n  -> termView $ u `elim` es
+      | i == n  -> termView $ u `elim'` es
       | i > n   -> App (Var (i - 1)) (sub es)
     App h es    -> App h (sub es)
     Lam b       -> Lam $ sub b

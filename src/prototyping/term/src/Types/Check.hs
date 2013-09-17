@@ -2,7 +2,9 @@
 module Types.Check where
 
 import Control.Applicative
+import Control.Monad
 import Data.Traversable hiding (mapM)
+import Data.List
 
 import IMPL.Term
 import IMPL.Eval
@@ -14,10 +16,28 @@ import qualified Syntax.Abstract as A
 import Syntax.Abstract (Name)
 import Syntax.Abstract.Pretty ()
 
-import Debug.Trace
+import Debug
 
-debug :: String -> TC ()
-debug s = trace s $ return ()
+type StuckTC a = TC (Stuck a)
+
+notStuck :: a -> StuckTC a
+notStuck = return . NotStuck
+
+stuckOn :: MetaVar -> StuckTC a -> StuckTC a
+stuckOn x m = Stuck <$> newProblem x m
+
+onStuck_ :: ProblemId a -> (a -> TC b) -> StuckTC b
+onStuck_ pid f = Stuck <$> subProblem_ pid f
+
+onStuck :: ProblemId a -> (a -> StuckTC b) -> StuckTC b
+onStuck pid f = Stuck <$> subProblem pid f
+
+bindStuck :: StuckTC a -> (a -> StuckTC b) -> StuckTC b
+bindStuck m f = do
+  r <- m
+  case r of
+    NotStuck x -> f x
+    Stuck pid  -> onStuck pid f
 
 checkProgram :: [A.Decl] -> TC ()
 checkProgram = mapM_ checkDecl
@@ -136,7 +156,7 @@ check e a = atSrcLoc e $ case e of
                 x <- freshMeta a
                 subProblem pid $ \(es, b) -> do
                   v <- unview $ App (Con c) es
-                  () <$ equal a x v
+                  equal a x v
                 return x
           _ -> typeError $ "Constructor type error " ++ show e ++ " : " ++ show a
       _ -> typeError $ "Constructor type error " ++ show e ++ " : " ++ show a
@@ -150,18 +170,15 @@ check e a = atSrcLoc e $ case e of
           NotStuck () -> return v
           Stuck pid   -> do
             x <- freshMeta a
-            subProblem pid $ \_ -> () <$ equal a x v
+            subProblem pid $ \_ -> equal a x v
             return x
       Stuck pid -> do
         x <- freshMeta a
         subProblem pid $ \(v, b) -> do
-          r <- equalType a b
-          case r of
-            NotStuck () -> () <$ equal a x v
-            Stuck pid   -> () <$ subProblem pid (\_ -> () <$ equal a x v)
+          equalType a b `bindStuck` \_ -> equal a x v
         return x
 
-infer :: A.Expr -> TC (Stuck (Term, Type))
+infer :: A.Expr -> StuckTC (Term, Type)
 infer e = atSrcLoc e $ case e of
   A.Set _ -> do
     set <- unview Set
@@ -186,7 +203,7 @@ infer e = atSrcLoc e $ case e of
           return (v, b)
     case r of
       NotStuck (es, b) -> NotStuck <$> done (es, b)
-      Stuck pid        -> Stuck <$> subProblem pid done
+      Stuck pid        -> onStuck_ pid done
   _ -> typeError $ "todo infer\n  " ++ show e
 
 inferHead :: A.Head -> TC (Head, Type)
@@ -197,7 +214,7 @@ inferHead h = atSrcLoc h $ case h of
   A.Def x -> (,) (Def x) <$> typeOf x
   A.Con{} -> typeError $ "Cannot infer type of application of constructor " ++ show h
 
-checkSpine :: [A.Elim] -> Type -> TC (Stuck ([Elim], Type))
+checkSpine :: [A.Elim] -> Type -> StuckTC ([Elim], Type)
 checkSpine [] a = return $ NotStuck ([], a)
 checkSpine (e:es) a = atSrcLoc e $ case e of
   A.Proj{} -> typeError $ "todo checkSpine " ++ show (e:es) ++ " : " ++ show a
@@ -211,17 +228,124 @@ checkSpine (e:es) a = atSrcLoc e $ case e of
         let ret (es, c) = return (Apply v : es, c)
         case r of
           NotStuck res -> NotStuck <$> ret res
-          Stuck pid    -> Stuck <$> subProblem pid ret
+          Stuck pid    -> onStuck_ pid ret
       NotBlocked a -> typeError $ "Expected function type " ++ show a ++ "\n  in application of " ++ show e
-      Blocked x a -> Stuck <$> newProblem x (checkSpine (A.Apply e : es) =<< unview a)
+      Blocked x a -> stuckOn x (checkSpine (A.Apply e : es) =<< unview a)
 
-equalType :: Type -> Type -> TC (Stuck ())
+equalType :: Type -> Type -> StuckTC ()
 equalType a b = do
   set <- unview Set
   equal set a b
 
-equal :: Type -> Term -> Term -> TC (Stuck ())
-equal a x y = case a of
-  _ | x == y -> return $ NotStuck ()
-  _ -> typeError $ show x ++ " != " ++ show y ++ " : " ++ show a
+equal :: Type -> Term -> Term -> StuckTC ()
+equal = checkEqual
+
+checkEqual :: Type -> Term -> Term -> StuckTC ()
+checkEqual a u v | u == v = return (NotStuck ())
+checkEqual a u v = do
+  av <- whnfView a
+  case av of
+    Blocked x _ -> stuckOn x (equal a u v)
+    NotBlocked (Pi a b) ->
+      underAbstraction a b $ \x b -> do
+        x <- unview $ App (Var x) []
+        u <- elim u [Apply x]
+        v <- elim v [Apply x]
+        equal b u v
+    _ -> inferEqual u v
+
+inferEqual :: Term -> Term -> StuckTC ()
+inferEqual u v = do
+  uu <- whnfView u
+  vv <- whnfView v
+  case (uu, vv) of
+    (Blocked x _, _) -> stuckOn x (inferEqual u v)
+    (_, Blocked x _) -> stuckOn x (inferEqual u v)
+    (NotBlocked uu, NotBlocked vv) -> case (uu, vv) of
+      (App (Meta x) es, v) -> metaAssign x es =<< unview v
+      (u, App (Meta x) es) -> metaAssign x es =<< unview u
+      (App h1 es1, App h2 es2) | h1 == h2 -> do
+        a <- typeOfHead h1
+        equalSpine a es1 es2
+      _ -> typeError $ show uu ++ " != " ++ show vv
+
+equalSpine :: Type -> [Elim] -> [Elim] -> StuckTC ()
+equalSpine a [] [] = return $ NotStuck ()
+equalSpine a (Apply u : es1) (Apply v : es2) = do
+  av <- whnfView a
+  case av of
+    NotBlocked (Pi a b) -> do
+      r <- checkEqual a u v
+      let continue = do
+            b <- absApply b u
+            equalSpine b es1 es1
+      case r of
+        NotStuck () -> continue
+        Stuck pid   -> onStuck pid $ \_ -> continue
+    NotBlocked a -> typeError $ "impossible.equalSpine: expected function type " ++ show a
+    Blocked x _  -> stuckOn x (equalSpine a (Apply u : es1) (Apply v : es2))
+equalSpine a (Proj i : es1) (Proj j : es2) | i == j = typeError "todo: equalSpine proj"
+equalSpine a es1 es2 = typeError $ show es1 ++ " != " ++ show es2 ++ " : " ++ show a
+
+metaAssign :: MetaVar -> [Elim] -> Term -> StuckTC ()
+metaAssign x es v = do
+  mxs <- distinctVariables es
+  case mxs of
+    Nothing -> stuckOn x $ do
+      u <- unview $ App (Meta x) es
+      inferEqual u v
+    Just xs -> do
+      occursCheck xs v
+      v <- lambdaAbstract xs v
+      instantiateMeta x v
+      notStuck ()
+
+distinctVariables :: [Elim] -> TC (Maybe [Var])
+distinctVariables es = do
+  mxs <- traverse id <$> mapM isVar es
+  return $ do
+    xs <- mxs
+    unless (nub xs == xs) Nothing
+    return xs
+  where
+    isVar (Apply v) = isVarV <$> view v
+    isVar Proj{}    = return Nothing
+
+    isVarV (App (Var x) []) = Just x
+    isVarV _                = Nothing
+
+-- TODO: pruning
+occursCheck :: [Var] -> Term -> TC ()
+occursCheck xs v = occurs xs v
+
+class Occurs a where
+  occurs :: [Var] -> a -> TC ()
+
+instance Occurs a => Occurs [a] where
+  occurs xs = mapM_ (occurs xs)
+
+instance (Occurs a, Occurs b) => Occurs (a, b) where
+  occurs xs (x, y) = occurs xs x >> occurs xs y
+
+instance Occurs a => Occurs (Abs a) where
+  occurs xs b = do
+    xs <- weakenBy 1 xs
+    occurs xs (absBody b)
+
+instance Occurs Term where
+  occurs xs v = occurs xs =<< view v
+
+instance Occurs TermView where
+  occurs xs v = case v of
+    App (Var x) es | notElem x xs -> typeError "occurs check failed"
+    App h es                      -> occurs xs es
+    Pi a b                        -> occurs xs (a, b)
+    Lam b                         -> occurs xs b
+    Equal a x y                   -> occurs xs (a, (x, y))
+    Set                           -> return ()
+
+
+instance Occurs Elim where
+  occurs xs (Apply v) = occurs xs v
+  occurs xs Proj{}    = return ()
 
