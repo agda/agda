@@ -1178,9 +1178,9 @@ ways."
        (is-lone-questionmark ()
           (save-excursion
             (save-match-data
-                (backward-char 3)
+                (backward-char 2)
                 (looking-at
-                 "\\(.[{(]\\|\\(.\\|\n\\)\\s \\)[?]\\(\\s \\|[)};]\\|$\\)"))))
+                 "\\([{}();]\\|^\\|\\s \\)[?]\\([{}();]\\|$\\|\\s \\)"))))
        (make(p)  (agda2-make-goal p (point) (pop goals)))
        (inside-comment() (and stk (null     (car stk))))
        (inside-goal()    (and stk (integerp (car stk))))
