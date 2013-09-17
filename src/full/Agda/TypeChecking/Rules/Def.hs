@@ -163,7 +163,7 @@ checkFunDef' t info delayed extlam i name cs =
 
         -- Ensure that all clauses have the same number of trailing hidden patterns
         -- This is necessary since trailing implicits are no longer eagerly inserted.
-        cs <- trailingImplicits t $ map (fmap A.lhsToSpine) cs
+        cs <- trailingImplicits t $ map A.lhsToSpine cs
 
         -- Check the clauses
         let check c = do

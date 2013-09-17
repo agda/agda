@@ -240,19 +240,73 @@ data LHSCore' e
 
 type LHSCore = LHSCore' Expr
 
+-- | Convert a focused lhs to spine view and back.
+class LHSToSpine a b where
+  lhsToSpine :: a -> b
+  spineToLhs :: b -> a
+
+{-
+-- | Pattern instance.
+-- instance LHSToSpine (LHSCore' e) (A.QNamed [NamedArg (Pattern' e)]) where
+instance LHSToSpine (LHSCore' e) (A.QNamed [Common.NamedArg Expr (Pattern' e)]) where
+  lhsToSpine (LHSHead f ps) = QNamed f ps
+  lhsToSpine (LHSProj d ps1 h ps2) = (++ (p : ps2)) <$> lhsToSpine (namedArg h)
+    where p = updateNamedArg (const $ DefP patNoRange d ps1) h
+
+instance SpineToLHS (LHSCore' e) (A.QNamed [Common.NamedArg Expr (Pattern' e)]) where
+  spineToLhs (QNamed f ps) = lhsCoreAddSpine (LHSHead f []) ps
+    where
+      -- | Add applicative patterns (non-projection patterns) to the right.
+      -- lhsCoreApp :: LHSCore' e -> [NamedArg (Pattern' e)] -> LHSCore' e
+      lhsCoreApp (LHSHead f ps)        ps' = LHSHead f $ ps ++ ps'
+      lhsCoreApp (LHSProj d ps1 h ps2) ps' = LHSProj d ps1 h $ ps2 ++ ps'
+
+      -- | Add projection and applicative patterns to the right.
+      -- lhsCoreAddSpine :: LHSCore' e -> [NamedArg (Pattern' e)] -> LHSCore' e
+      lhsCoreAddSpine core ps = case ps2 of
+          []                                      -> lhsCoreApp core ps
+          (Common.Arg info (Named n (DefP i d ps0)) : ps2') ->
+             LHSProj d ps0 (Common.Arg info $ Named n $ lhsCoreApp core ps1) []
+               `lhsCoreAddSpine` ps2'
+          _ -> __IMPOSSIBLE__
+        where
+          (ps1, ps2) = break (isDefP . namedArg) ps
+          isDefP DefP{} = True
+          isDefP _      = False
+-}
+
+-- | LHS instance.
+instance LHSToSpine LHS SpineLHS where
+  lhsToSpine (LHS i core wps) = SpineLHS i f ps wps
+    where QNamed f ps = lhsCoreToSpine core
+  spineToLhs (SpineLHS i f ps wps) = LHS i (spineToLhsCore $ QNamed f ps) wps
+
+-- | Clause instance.
+instance LHSToSpine Clause SpineClause where
+  lhsToSpine = fmap lhsToSpine
+  spineToLhs = fmap spineToLhs
+
+-- | List instance (for clauses).
+instance LHSToSpine a b => LHSToSpine [a] [b] where
+  lhsToSpine = map lhsToSpine
+  spineToLhs = map spineToLhs
+
+
+{-
 -- | Convert a focused lhs to spine view.
 lhsToSpine :: LHS -> SpineLHS
 lhsToSpine (LHS i core wps) = SpineLHS i f ps wps
   where QNamed f ps = lhsCoreToSpine core
 
+-- | Convert a lhs from spine view into focused view.
+spineToLhs :: SpineLHS -> LHS
+spineToLhs (SpineLHS i f ps wps) = LHS i (spineToLhsCore $ QNamed f ps) wps
+-}
+
 lhsCoreToSpine :: LHSCore' e -> A.QNamed [NamedArg (Pattern' e)]
 lhsCoreToSpine (LHSHead f ps) = QNamed f ps
 lhsCoreToSpine (LHSProj d ps1 h ps2) = (++ (p : ps2)) <$> lhsCoreToSpine (namedArg h)
   where p = updateNamedArg (const $ DefP patNoRange d ps1) h
-
--- | Convert a lhs from spine view into focused view.
-spineToLhs :: SpineLHS -> LHS
-spineToLhs (SpineLHS i f ps wps) = LHS i (spineToLhsCore $ QNamed f ps) wps
 
 spineToLhsCore :: QNamed [NamedArg (Pattern' e)] -> LHSCore' e
 spineToLhsCore (QNamed f ps) = lhsCoreAddSpine (LHSHead f []) ps

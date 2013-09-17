@@ -783,7 +783,7 @@ noImplicit (A.ImplicitP _) = False
 noImplicit _               = True
 
 instance ToConcrete A.SpineLHS C.LHS where
-  bindToConcrete = bindToConcrete . A.spineToLhs
+  bindToConcrete lhs = bindToConcrete (A.spineToLhs lhs :: A.LHS)
 
 instance ToConcrete A.LHS C.LHS where
     bindToConcrete (A.LHS i lhscore wps) ret = do
