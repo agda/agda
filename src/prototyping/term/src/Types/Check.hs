@@ -129,7 +129,7 @@ checkPattern p a ret = case p of
             isApply Proj{}    = Nothing
         case ignoreBlocking av of
           App (Def d') es | d == d', Just vs <- mapM isApply es -> do
-            b <- substTel tel vs b
+            b <- substs tel vs b
             checkPatterns ps b $ \ps args b -> do
               v <- unview (App (Con c) $ map Apply args)
               ret (ConP c ps) v
@@ -153,7 +153,7 @@ check e a = atSrcLoc e $ case e of
             isApply Proj{}    = Nothing
         case ignoreBlocking av of
           App (Def d') els | d == d', Just vs <- mapM isApply els -> do
-            b <- substTel tel vs b
+            b <- substs tel vs b
             r <- checkSpine es b
             case r of
               NotStuck (es, _) -> unview $ App (Con c) es

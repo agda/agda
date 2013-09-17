@@ -269,17 +269,30 @@ instance Weaken Elim where
     Apply e -> Apply (weakenFromBy n k e)
     Proj{}  -> e
 
-substTel :: MonadEval m => Telescope -> [Term] -> Term -> m Term
-substTel _ us v = return $ substs us v
+class Substs a where
+  substs :: MonadEval m => Telescope -> [Term] -> a -> m a
 
-substs []       v = v
-substs (u : us) v = subst 0 u $ substs us v
+instance Substs Term where
+  substs _ us v = return $ substsTerm us v
 
 absApply :: MonadEval m => Abs Term -> Term -> m Term
 absApply a v = return $ absApply' a v
 
 absApply' :: Abs Term -> Term -> Term
 absApply' (Abs _ v) u = subst 0 u v
+
+substsTerm :: [Term] -> Term -> Term
+substsTerm []       v = v
+substsTerm (u : us) v = subst 0 u $ substsTerm us v
+
+instance Substs Telescope where
+  substs _ us tel = return $ substsTel us tel
+
+substsTel :: [Term] -> Telescope -> Telescope
+substsTel us EmptyTel = EmptyTel
+substsTel us (a :> b) =
+  substsTerm us a :>
+  fmap (substsTel (Term (App (Var 0) []) : map weaken us)) b
 
 elim :: MonadEval m => Term -> [Elim] -> m Term
 elim v es = return $ elim' v es
@@ -296,7 +309,6 @@ elimV (App (Con c) es0) (Proj i : es1)
 elimV (App h es0) es1 = Term $ App h (es0 ++ es1)
 elimV (Lam b) (Apply e : es) = elim' (absApply' b e) es
 elimV v es = error $ "Bad elim: " ++ show v ++ " " ++ show es
-
 
 class Subst a where
   subst :: Int -> Term -> a -> a
