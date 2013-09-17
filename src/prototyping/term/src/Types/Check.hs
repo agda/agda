@@ -47,8 +47,8 @@ checkDecl d = atSrcLoc d $ do
   case d of
     A.TypeSig (A.Sig x t) -> checkTypeSig x t
     A.DataDef d xs cs     -> checkData d xs cs
+    A.RecDef d xs c fs    -> checkRec d xs c fs
     A.FunDef f ps b       -> checkClause f ps b
-    _                     -> typeError $ "todo: checkDecl\n  " ++ show d
   debug $ "Checked " ++ show d
 
 checkTypeSig :: Name -> A.Expr -> TC ()
@@ -90,6 +90,37 @@ checkConstr d dvs ptel (A.Sig c e) = atSrcLoc c $ do
     dvs <- weakenBy (telSize tel) dvs
     whenStuck (equalType dvs b) $ \_ -> typeError $ show dvs ++ " != " ++ show b
   addConstructor c d ptel a
+
+checkRec :: Name -> [Name] -> Name -> [A.TypeSig] -> TC ()
+checkRec r xs c fs = do
+  a <- typeOf r
+  withPars a xs $ \ptel vs b -> do
+    set <- unview Set
+    equalType b set
+    tel <- checkFields fs
+    t <- unview (App (Def r) (map Apply vs))
+    extendContext (A.name "_") t $ \self ->
+      addProjections r ptel self t (zip (map A.typeSigName fs) [1..]) =<<
+        weakenBy 1 tel
+    addConstructor c r ptel (telPi tel t)
+
+checkFields :: [A.TypeSig] -> TC Telescope
+checkFields []               = return EmptyTel
+checkFields (A.Sig f a : fs) = atSrcLoc f $ do
+  a   <- isType a
+  tel <- extendContext f a $ \_ -> checkFields fs
+  return (a :> Abs (A.nameString f) tel)
+
+addProjections :: Name -> Telescope -> Var -> Type ->
+                  [(Name, Int)] -> Telescope -> TC ()
+addProjections r ptel self t fs tel = case (fs, tel) of
+  ([], EmptyTel)        -> return ()
+  ((f, n) : fs, a :> b) -> do
+    ta <- unview (Pi t (Abs "self" a))
+    addProjection f n r ptel ta
+    addProjections r ptel self t fs =<<
+      absApply b =<< unview (App (Var self) [Proj n])
+  (_, _) -> typeError "impossible.addProjections: lengths do not match"
 
 checkClause :: Name -> [A.Pattern] -> A.Expr -> TC ()
 checkClause f ps e = do
