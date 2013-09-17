@@ -161,6 +161,8 @@ checkPattern p a ret = case p of
         case ignoreBlocking av of
           App (Def d') es | d == d', Just vs <- mapM isApply es -> do
             b <- substs tel vs b
+            -- NOTE: The scope-checker ensures that constructors are
+            -- fully applied.
             checkPatterns ps b $ \ps args b -> do
               v <- unview (App (Con c) $ map Apply args)
               ret (ConP c ps) v

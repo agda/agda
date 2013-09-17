@@ -33,32 +33,36 @@ initScope = Scope $ Map.fromList
   , ("J",    DefName (Name noSrcLoc "J")     3)
   , ("K",    DefName (Name noSrcLoc "K")     2) ]
 
-type Hiding = Int
+type Hiding            = Int
+type NumberOfArguments = Int
 
-data NameInfo = VarName Name | DefName Name Hiding | ConName Name Hiding | ProjName Name Hiding
+data NameInfo = VarName Name
+              | DefName Name Hiding
+              | ConName Name Hiding NumberOfArguments
+              | ProjName Name Hiding
 
 infoName :: NameInfo -> Name
-infoName (VarName x)    = x
-infoName (DefName x _)  = x
-infoName (ConName x _)  = x
-infoName (ProjName x _) = x
+infoName (VarName x)     = x
+infoName (DefName x _)   = x
+infoName (ConName x _ _) = x
+infoName (ProjName x _)  = x
 
 infoStringName :: NameInfo -> String
 infoStringName i = s
   where Name _ s = infoName i
 
 infoHiding :: NameInfo -> Hiding
-infoHiding (VarName _)    = 0
-infoHiding (DefName _ n)  = n
-infoHiding (ConName _ n)  = n
-infoHiding (ProjName _ n) = n
+infoHiding (VarName _)     = 0
+infoHiding (DefName _ n)   = n
+infoHiding (ConName _ n _) = n
+infoHiding (ProjName _ n)  = n
 
 instance HasSrcLoc NameInfo where
   srcLoc i = case i of
-    VarName x    -> srcLoc x
-    DefName x _  -> srcLoc x
-    ConName x _  -> srcLoc x
-    ProjName x _ -> srcLoc x
+    VarName x     -> srcLoc x
+    DefName x _   -> srcLoc x
+    ConName x _ _ -> srcLoc x
+    ProjName x _  -> srcLoc x
 
 newtype Check a = Check { unCheck :: ReaderT Scope (Either ScopeError) a }
   deriving (Functor, Applicative, Monad, MonadReader Scope, MonadError ScopeError)
@@ -89,7 +93,7 @@ mkVarInfo (C.Name ((l, c), s)) = VarName (mkName l c s)
 mkDefInfo :: C.Name -> Hiding -> NameInfo
 mkDefInfo (C.Name ((l, c), s)) = DefName (mkName l c s)
 
-mkConInfo :: C.Name -> Hiding -> NameInfo
+mkConInfo :: C.Name -> Hiding -> NumberOfArguments -> NameInfo
 mkConInfo (C.Name ((l, c), s)) = ConName (mkName l c s)
 
 mkProjInfo :: C.Name -> Hiding -> NameInfo
@@ -105,10 +109,10 @@ resolveName' x@(C.Name ((l, c), s)) = do
   mi <- resolveName'' x
   case mi of
     Nothing -> scopeError x $ "Not in scope: " ++ printTree x
-    Just (VarName _)    -> return (VarName y)
-    Just (DefName _ n)  -> return (DefName y n)
-    Just (ConName _ n)  -> return (ConName y n)
-    Just (ProjName _ n) -> return (ProjName y n)
+    Just (VarName _)     -> return (VarName y)
+    Just (DefName _ n)   -> return (DefName y n)
+    Just (ConName _ n a) -> return (ConName y n a)
+    Just (ProjName _ n)  -> return (ProjName y n)
   where
     y = Name (SrcLoc l c) s
 
@@ -117,10 +121,11 @@ resolveName :: C.Name -> Check (Head, Hiding)
 resolveName x = do
   i <- resolveName' x
   case i of
-    VarName x   -> return (Var x, 0)
-    DefName x n -> return (Def x, n)
-    ConName x n -> return (Con x, n)
-    ProjName{}  -> scopeError x $ "Did not expect projection here: " ++ printTree x
+    VarName x     -> return (Var x, 0)
+    DefName x n   -> return (Def x, n)
+    ConName x n _ -> return (Con x, n)
+    ProjName{}    -> scopeError x $
+                       "Did not expect projection here: " ++ printTree x
 
 checkShadowing :: NameInfo -> Maybe NameInfo -> Check ()
 checkShadowing _ Nothing   = return ()
@@ -175,11 +180,12 @@ resolveDef x = do
   x      <- isDefHead h $ printTree x ++ " should be a defined name"
   return (x, n)
 
-resolveCon :: C.Name -> Check (Name, Hiding)
+resolveCon :: C.Name -> Check (Name, Hiding, NumberOfArguments)
 resolveCon x = do
-  (h, n) <- resolveName x
-  x      <- isConHead h $ printTree x ++ " should be a constructor"
-  return (x, n)
+  i <- resolveName' x
+  case i of
+    ConName c n args -> return (c, n, args)
+    _                -> scopeError x $ printTree x ++ " should be a constructor"
 
 checkHiddenNames :: Hiding -> [C.HiddenName] -> Check [C.Name]
 checkHiddenNames 0 (C.NotHidden x : xs) = (x :) <$> checkHiddenNames 0 xs
@@ -216,7 +222,8 @@ checkDecl d ret = case d of
     xs <- checkHiddenNames n xs
     let is = map mkVarInfo xs
     xs <- mapC bindName is $ return
-    mapC (checkConstructor is) cs $ \cs ->
+    let t = App (Def x) (map (\x -> Apply (App (Var x) [])) xs)
+    mapC (checkConstructor t is) cs $ \cs ->
       ret [DataDef x xs cs]
   C.Record x pars (C.RecordBody con fs) | Just xs <- isParamDef pars -> do
     (x, n) <- resolveDef x
@@ -226,7 +233,7 @@ checkDecl d ret = case d of
     let is = map mkVarInfo xs
     xs <- mapC bindName is $ return
     checkFields is (getFields fs) $ \fs ->
-      bindName (mkConInfo con 0) $ \con ->
+      bindName (mkConInfo con 0 (length fs)) $ \con ->
         ret [RecDef x xs con fs]
   C.Data{}   -> scopeError d $ "Bad data declaration"
   C.Record{} -> scopeError d $ "Bad record declaration"
@@ -264,17 +271,39 @@ getFields :: C.Fields -> [C.Constr]
 getFields C.NoFields    = []
 getFields (C.Fields fs) = fs
 
-checkConstructor :: [NameInfo] -> C.Constr -> CCheck TypeSig
-checkConstructor xs (C.Constr c e) ret =
+checkConstructor :: Expr -> [NameInfo] -> C.Constr -> CCheck TypeSig
+checkConstructor d xs (C.Constr c e) ret =
   mapC bindName xs $ \_ -> do
     (n, a) <- checkScheme e
-    bindName (mkConInfo c n) $ \c -> ret (Sig c a)
+    args   <- checkConstructorType a d (map infoName xs)
+    bindName (mkConInfo c n args) $ \c -> ret (Sig c a)
 
 checkScheme :: C.Expr -> Check (Hiding, Expr)
 checkScheme e = do
   (n, e) <- checkHiding e
   a      <- checkExpr e
   return (n, a)
+
+checkConstructorType :: Expr
+                        -- ^ The constructor's type.
+                     -> Expr
+                        -- ^ The data type applied to its parameters.
+                     -> [Name]
+                        -- ^ The parameters.
+                     -> Check NumberOfArguments
+                        -- ^ The number of constructor arguments is
+                        -- returned.
+checkConstructorType a d xs = check a
+  where
+  check (Fun _ b)  = succ <$> check b
+  check (Pi x _ b) = do
+    when (x `elem` xs) $
+      scopeError a $ "Attempt to shadow data type parameter " ++ show x
+    succ <$> check b
+  check b
+    | b == d    = return 0
+    | otherwise = scopeError a $
+                    "Not a well-formed constructor type: " ++ show a
 
 cMeta :: HasSrcLoc a => a -> C.Expr
 cMeta x = C.App [C.Arg $ C.Id $ C.Name ((l, c), "_")]
@@ -321,7 +350,8 @@ checkPattern p ret = do
     (c, ps) -> checkCon c ps ret
   where
     checkCon c ps ret = do
-      (c, n) <- resolveCon c
+      (c, n, args) <- resolveCon c
+      checkNumberOfConstructorArguments p c ps args
       ps <- insertImplicitPatterns (srcLoc c) n ps
       mapC checkPattern ps $ \ps -> ret (ConP c ps)
 
@@ -355,21 +385,40 @@ checkExpr e = case e of
               C.Arg e : es -> do
                 e <- checkExpr e
                 doProj x e =<< checkArgs e n es
-            NotProj h  -> App h <$> checkArgs z n es
+            IsCon c args -> do
+              checkNumberOfConstructorArguments e c es args
+              App (Con c) <$> checkArgs z n es
+            Other h    -> App h <$> checkArgs z n es
             HeadSet p  -> return $ Set p
             HeadMeta p -> return $ Meta p
     doProj x (App h es1) es2 = return $ App h (es1 ++ [Proj x] ++ es2)
     doProj x e _ = scopeError x $ "Cannot project " ++ show x ++ " from " ++ show e
 
+checkNumberOfConstructorArguments ::
+  HasSrcLoc e => e -> Name -> [a] -> NumberOfArguments -> Check ()
+checkNumberOfConstructorArguments loc c as args = do
+  when (nas < args) $
+    scopeError loc $ "The constructor " ++ show c ++
+                     " is applied to too few arguments."
+  when (nas > args) $
+    scopeError loc $ "The constructor " ++ show c ++
+                     " is applied to too many arguments."
+  where nas = length as
+
 checkArgs :: HasSrcLoc a => a -> Hiding -> [C.Arg] -> Check [Elim]
 checkArgs x n es = map Apply <$> (mapM checkExpr =<< insertImplicit (srcLoc x) n es)
 
-data AppHead = IsProj Name | NotProj Head | HeadSet SrcLoc | HeadMeta SrcLoc
+data AppHead = IsProj Name
+             | IsCon Name NumberOfArguments
+             | Other Head
+             | HeadSet SrcLoc
+             | HeadMeta SrcLoc
 
 instance HasSrcLoc AppHead where
   srcLoc h = case h of
     IsProj x   -> srcLoc x
-    NotProj h  -> srcLoc h
+    IsCon c _  -> srcLoc c
+    Other h    -> srcLoc h
     HeadSet p  -> p
     HeadMeta p -> p
 
@@ -399,10 +448,10 @@ checkAppHead (C.Name ((l, c), "Set")) = return (HeadSet $ SrcLoc l c, 0)
 checkAppHead x = do
   i <- resolveName' x
   case i of
-    ProjName x n -> return (IsProj x, n)
-    VarName x    -> return (NotProj $ Var x, 0)
-    ConName x n  -> return (NotProj $ Con x, n)
-    DefName x n  -> return (NotProj $ Def x, n)
+    ProjName x n  -> return (IsProj x, n)
+    VarName x     -> return (Other $ Var x, 0)
+    ConName x n a -> return (IsCon x a, n)
+    DefName x n   -> return (Other $ Def x, n)
 
 checkTel :: [C.Binding] -> CCheck [(Name, Expr)]
 checkTel = concatMapC checkBinding
@@ -464,4 +513,3 @@ instance HasSrcLoc C.Pattern where
     C.IdP x    -> srcLoc x
     C.AppP p _ -> srcLoc p
     C.HideP p  -> srcLoc p
-
