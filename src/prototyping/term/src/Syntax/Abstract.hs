@@ -39,9 +39,11 @@ data Expr = Lam Name Expr
 data Head = Var Name
           | Def Name
           | Con Name
+  deriving Eq
 
 data Elim = Apply Expr
           | Proj Name
+  deriving Eq
 
 data Pattern = VarP Name
              | WildP SrcLoc
@@ -92,3 +94,15 @@ instance HasSrcLoc Elim where
   srcLoc e = case e of
     Apply e -> srcLoc e
     Proj x  -> srcLoc x
+
+-- | Syntactic equality (ignoring source locations).
+
+instance Eq Expr where
+  Lam x e     == Lam x' e'      = x == x' && e == e'
+  Pi x a b    == Pi x' a' b'    = x == x' && a == a' && b == b'
+  Fun a b     == Fun a' b'      = a == a' && b == b'
+  Equal a x y == Equal a' x' y' = a == a' && x == x' && y == y'
+  App h es    == App h' es'     = h == h' && es == es'
+  Set _       == Set _          = True
+  Meta _      == Meta _         = True
+  _           == _              = False
