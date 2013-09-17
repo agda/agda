@@ -269,6 +269,11 @@ instance Weaken Elim where
     Apply e -> Apply (weakenFromBy n k e)
     Proj{}  -> e
 
+instance Weaken Telescope where
+  weakenFromBy n k tel = case tel of
+    EmptyTel -> EmptyTel
+    a :> b   -> weakenFromBy n k a :> weakenFromBy n k b
+
 class Substs a where
   substs :: MonadEval m => Telescope -> [Term] -> a -> m a
 
@@ -340,3 +345,7 @@ instance Subst Elim where
   subst n u e = case e of
     Apply e -> Apply (subst n u e)
     Proj{}  -> e
+
+instance Subst Telescope where
+  subst n u EmptyTel = EmptyTel
+  subst n u (a :> b) = subst n u a :> subst n u b
