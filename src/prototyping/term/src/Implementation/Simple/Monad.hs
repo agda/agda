@@ -275,12 +275,6 @@ class Substs a where
 instance Substs Term where
   substs _ us v = return $ substsTerm us v
 
-absApply :: MonadEval m => Abs Term -> Term -> m Term
-absApply a v = return $ absApply' a v
-
-absApply' :: Abs Term -> Term -> Term
-absApply' (Abs _ v) u = subst 0 u v
-
 substsTerm :: [Term] -> Term -> Term
 substsTerm []       v = v
 substsTerm (u : us) v = subst 0 u $ substsTerm us v
@@ -312,6 +306,12 @@ elimV v es = error $ "Bad elim: " ++ show v ++ " " ++ show es
 
 class Subst a where
   subst :: Int -> Term -> a -> a
+
+absApply :: (MonadEval m, Subst a) => Abs a -> Term -> m a
+absApply a t = return $ absApply' a t
+
+absApply' :: Subst a => Abs a -> Term -> a
+absApply' (Abs _ a) t = subst 0 t a
 
 instance Subst Term where
   subst n u (Term v) = Term (subst n u v)
