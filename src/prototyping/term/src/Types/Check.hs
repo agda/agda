@@ -353,4 +353,3 @@ instance Occurs TermView where
 instance Occurs Elim where
   occurs xs (Apply v) = occurs xs v
   occurs xs Proj{}    = return ()
-

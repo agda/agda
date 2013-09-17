@@ -90,4 +90,3 @@ instance HasSrcLoc Elim where
   srcLoc e = case e of
     Apply e -> srcLoc e
     Proj x  -> srcLoc x
-

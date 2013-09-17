@@ -54,4 +54,3 @@ whenStuck m h = do
 
 whenStuck_ :: TC (Stuck a) -> TC a -> TC a
 whenStuck_ m h = whenStuck m (const h)
-
