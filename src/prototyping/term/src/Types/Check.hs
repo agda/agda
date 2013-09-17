@@ -57,34 +57,39 @@ checkTypeSig x t = do
   a <- check t set
   addConstant x a
 
+withPars :: Type -> [Name]
+         -> (Telescope -> [Term] -> Type -> TC a)
+         -- ^ Note that the telescope lives in the original context,
+         -- not the extended context.
+         -> TC a
+withPars a []       ret = ret EmptyTel [] a
+withPars a (x : xs) ret = atSrcLoc x $ do
+  v <- whnfView a
+  case v of
+    NotBlocked (Pi a b) ->
+      extendContext x a       $ \x' ->
+      withPars (absBody b) xs $ \tel vs c -> do
+        v <- weakenBy (length xs) =<< unview (App (Var x') [])
+        ret (a :> Abs (A.nameString x) tel) (v : vs) c
+    _ -> typeError $ "Expected function type: " ++ show a
+
 checkData :: Name -> [Name] -> [A.TypeSig] -> TC ()
 checkData d xs cs = do
   a <- typeOf d
-  withPars a xs $ \vs b -> do
+  withPars a xs $ \tel vs b -> do
     set <- unview Set
     equalType b set
     dvs <- unview $ App (Def d) (map Apply vs)
-    mapM_ (checkConstr d dvs) cs
-  where
-    withPars a [] ret = ret [] a
-    withPars a (x : xs) ret = atSrcLoc x $ do
-      v <- whnfView a
-      case v of
-        NotBlocked (Pi a b) ->
-          extendContext x a       $ \x ->
-          withPars (absBody b) xs $ \vs c -> do
-            v <- weakenBy (length xs) =<< unview (App (Var x) [])
-            ret (v : vs) c
-        _ -> typeError $ "Expected function type: " ++ show a
+    mapM_ (checkConstr d dvs tel) cs
 
-checkConstr :: Name -> Type -> A.TypeSig -> TC ()
-checkConstr d dvs (A.Sig c e) = atSrcLoc c $ do
+checkConstr :: Name -> Type -> Telescope -> A.TypeSig -> TC ()
+checkConstr d dvs ptel (A.Sig c e) = atSrcLoc c $ do
   a        <- isType e
   (tel, b) <- telView a
   extendContextTel tel $ do
     dvs <- weakenBy (telSize tel) dvs
     whenStuck (equalType dvs b) $ \_ -> typeError $ show dvs ++ " != " ++ show b
-  addConstructor c d tel a
+  addConstructor c d ptel a
 
 checkClause :: Name -> [A.Pattern] -> A.Expr -> TC ()
 checkClause f ps e = do

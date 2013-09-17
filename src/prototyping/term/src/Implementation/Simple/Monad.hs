@@ -57,6 +57,8 @@ initState = TCState
 
 data Definition = Constant Name Type
                 | Constructor Name Name Telescope Type
+                  -- ^ Constructor name, data type name, parameter
+                  -- telescope, remaining type.
                 | Function Name Type [Clause]
 
 data MetaInst = Open Type
