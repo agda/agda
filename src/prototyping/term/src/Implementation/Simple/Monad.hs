@@ -327,7 +327,7 @@ instance Subst Term where
 
 instance Subst TermView where
   substs' us v = case v of
-    App (Var i) es -> termView $ (us !! i) `elim'` es
+    App (Var i) es -> termView $ (us !! i) `elim'` sub es
     App h es       -> App h (sub es)
     Lam b          -> Lam $ sub b
     Pi a b         -> Pi (sub a) (sub b)
