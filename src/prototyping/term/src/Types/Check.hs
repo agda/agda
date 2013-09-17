@@ -372,6 +372,8 @@ distinctVariables es = do
 occursCheck :: [Var] -> Term -> TC ()
 occursCheck xs v = occurs xs v
 
+-- TODO: Move Occurs to Implementation.
+
 class Occurs a where
   occurs :: [Var] -> a -> TC ()
 
@@ -397,7 +399,6 @@ instance Occurs TermView where
     Lam b                         -> occurs xs b
     Equal a x y                   -> occurs xs (a, (x, y))
     Set                           -> return ()
-
 
 instance Occurs Elim where
   occurs xs (Apply v) = occurs xs v
