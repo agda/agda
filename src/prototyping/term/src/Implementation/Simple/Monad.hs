@@ -63,6 +63,7 @@ data Definition = Constant Name Type
                   -- ^ Projection name, field number, record type
                   -- name, parameter telescope, remaining type.
                 | Function Name Type [Clause]
+  deriving Show
 
 data MetaInst = Open Type
               | Inst Type Term

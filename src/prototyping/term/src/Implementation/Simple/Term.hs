@@ -34,6 +34,7 @@ data Elim = Apply Term
   deriving (Eq)
 
 data Clause = Clause [Pattern] Term
+  deriving Show
 
 data Pattern = VarP
              | ConP Name [Pattern]
@@ -82,4 +83,3 @@ instance Pretty Pattern where
   prettyPrec p e = case e of
     VarP      -> text "_"
     ConP c es -> prettyApp p (pretty c) es
-
