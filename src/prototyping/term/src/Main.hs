@@ -1,4 +1,6 @@
 
+module Main where
+
 import Syntax.Abs
 import Syntax.Par
 import Syntax.BetterLayout
@@ -7,6 +9,10 @@ import Syntax.Print
 import Syntax.Abstract
 import Syntax.Abstract.Pretty
 import Scope.Check
+
+import IMPL.Term
+import Types.Monad
+import Types.Check
 
 import System.Environment
 
@@ -21,7 +27,12 @@ checkFile file = do
           -- print p
           case scopeCheck p of
             Left err -> print err
-            Right p  -> mapM_ print p
+            Right p  -> do
+              mapM_ print p
+              z <- runTC $ checkProgram p
+              case z of
+                Left err -> print err
+                Right () -> putStrLn "OK"
 
 main = do
     args <- getArgs

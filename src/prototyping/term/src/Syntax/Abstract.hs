@@ -8,7 +8,16 @@ noSrcLoc = SrcLoc 0 0
 instance Show SrcLoc where
   show (SrcLoc line col) = concat [show line, ":", show col]
 
-data Name = Name SrcLoc String
+data Name = Name { nameLoc :: SrcLoc, nameString :: String }
+
+name :: String -> Name
+name s = Name noSrcLoc s
+
+instance Eq Name where
+  Name _ x == Name _ y = x == y
+
+instance Ord Name where
+  Name _ x `compare` Name _ y = compare x y
 
 data Decl = TypeSig TypeSig
           | FunDef  Name [Pattern] Expr
@@ -76,4 +85,9 @@ instance HasSrcLoc Pattern where
     WildP p  -> p
     VarP x   -> srcLoc x
     ConP c _ -> srcLoc c
+
+instance HasSrcLoc Elim where
+  srcLoc e = case e of
+    Apply e -> srcLoc e
+    Proj x  -> srcLoc x
 

@@ -24,7 +24,12 @@ instance Show Name    where showsPrec = defaultShow
 instance Show Decl    where showsPrec = defaultShow
 instance Show TypeSig where showsPrec = defaultShow
 instance Show Expr    where showsPrec = defaultShow
+instance Show Head    where showsPrec = defaultShow
 instance Show Pattern where showsPrec = defaultShow
+
+instance Show Elim where
+  showsPrec p (Apply e) = showParen (p > 0) $ showString "$ " . shows p
+  showsPrec _ (Proj x) = showString "." . shows x
 
 instance Pretty Name where
   pretty (Name _ x) = text x
