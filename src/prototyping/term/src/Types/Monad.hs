@@ -33,8 +33,10 @@ extendContextTel (a :> tel) ret =
   extendContextTel tel ret
 
 data ProblemId a = TODO
+  deriving Show
 
 data Stuck a = NotStuck a | Stuck (ProblemId a)
+  deriving Show
 
 subProblem_ :: ProblemId a -> (a -> TC b) -> TC (ProblemId b)
 subProblem_ pid f = subProblem pid (\x -> NotStuck <$> f x)

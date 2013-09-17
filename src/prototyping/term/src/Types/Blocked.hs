@@ -9,7 +9,7 @@ import IMPL.Term
 
 data Blocked a = Blocked MetaVar a
                | NotBlocked a
-  deriving (Functor, Foldable, Traversable)
+  deriving (Show, Functor, Foldable, Traversable)
 
 ignoreBlocking :: Blocked a -> a
 ignoreBlocking (NotBlocked x) = x

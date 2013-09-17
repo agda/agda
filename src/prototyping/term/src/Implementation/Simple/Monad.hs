@@ -70,6 +70,7 @@ data ConstantKind = Postulate | Data | Record
 
 data MetaInst = Open Type
               | Inst Type Term
+  deriving Show
 
 -- Error ------------------------------------------------------------------
 
