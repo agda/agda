@@ -172,7 +172,7 @@ definitionOf x = atSrcLoc x $ do
   case Map.lookup x sig of
     Just d  -> return d
     Nothing -> typeError $ "impossible: Not in scope " ++ show x
-  
+
 typeOf :: Name -> TC Type
 typeOf x = defType <$> definitionOf x
   where

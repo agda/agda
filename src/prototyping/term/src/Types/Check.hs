@@ -129,7 +129,7 @@ checkPattern p a ret = case p of
               v <- unview (App (Con c) $ map Apply args)
               ret (ConP c ps) v
           _ -> typeError $ show c ++ " does not construct an element of " ++ show a
-        
+
       _ -> typeError $ "Should be constructor: " ++ show c
 
 isType :: A.Expr -> TC Type
