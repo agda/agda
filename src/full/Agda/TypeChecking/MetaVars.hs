@@ -645,14 +645,17 @@ assign x args v = do
         -- any more)
         let t = jMetaType $ mvJudgement mvar
 	reportSDoc "tc.meta.assign" 15 $ text "type of meta =" <+> prettyTCM t
---	reportSDoc "tc.meta.assign" 30 $ text "type of meta =" <+> text (show t)
+	reportSDoc "tc.meta.assign" 70 $ text "type of meta =" <+> text (show t)
 
-        TelV tel0 core0 <- telView t
         let n = length args
-	reportSDoc "tc.meta.assign" 30 $ text "tel0  =" <+> prettyTCM tel0
+        TelV tel' _ <- telViewUpTo n t
+	reportSDoc "tc.meta.assign" 30 $ text "tel'  =" <+> prettyTCM tel'
 	reportSDoc "tc.meta.assign" 30 $ text "#args =" <+> text (show n)
-        when (size tel0 < n) __IMPOSSIBLE__
-        let tel' = telFromList $ take n $ telToList tel0
+        -- Andreas, 2013-09-17 (AIM XVIII): if t does not provide enough
+        -- types for the arguments, it might be blocked by a meta;
+        -- then we give up. (Issue 903)
+        when (size tel' < n)
+           patternViolation -- WAS: __IMPOSSIBLE__
 
 	reportSDoc "tc.meta.assign" 10 $
 	  text "solving" <+> prettyTCM x <+> text ":=" <+> prettyTCM (abstract tel' v')
@@ -671,9 +674,10 @@ assign x args v = do
           -- non-linear lhs: we cannot solve, but prune
           killResult <- prune x args $ Set.toList fvs
           reportSDoc "tc.meta.assign" 10 $
-            text "pruning" <+> prettyTCM x <+> (text $
+            text "pruning" <+> prettyTCM x <+> do
+            text $
               if killResult `elem` [PrunedSomething,PrunedEverything] then "succeeded"
-               else "failed")
+               else "failed"
           patternViolation
 
 
