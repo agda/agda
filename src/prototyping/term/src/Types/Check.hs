@@ -250,6 +250,13 @@ infer e = atSrcLoc e $ case e of
     case r of
       NotStuck (es, b) -> NotStuck <$> done (es, b)
       Stuck pid        -> onStuck_ pid done
+  A.Equal a x y -> do
+    a   <- isType a
+    x   <- check x a
+    y   <- check y a
+    t   <- unview (Equal a x y)
+    set <- unview Set
+    notStuck (t, set)
   _ -> typeError $ "todo infer\n  " ++ show e
 
 inferHead :: A.Head -> TC (Head, Type)
