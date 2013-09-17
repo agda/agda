@@ -351,8 +351,8 @@ checkPattern p ret = do
   where
     checkCon c ps ret = do
       (c, n, args) <- resolveCon c
-      checkNumberOfConstructorArguments p c ps args
       ps <- insertImplicitPatterns (srcLoc c) n ps
+      checkNumberOfConstructorArguments p c ps args
       mapC checkPattern ps $ \ps -> ret (ConP c ps)
 
 checkExpr :: C.Expr -> Check Expr
@@ -384,15 +384,23 @@ checkExpr e = case e of
               C.HArg _ : _ -> scopeError e $ "Unexpected implicit argument to projection function: " ++ printTree e
               C.Arg e : es -> do
                 e <- checkExpr e
-                doProj x e =<< checkArgs e n es
+                doProj x e =<< checkArgs e n es (\ _ -> return ())
             IsCon c args -> do
-              checkNumberOfConstructorArguments e c es args
               App (Con c) <$> checkArgs z n es
-            Other h    -> App h <$> checkArgs z n es
+                                (\es -> checkNumberOfConstructorArguments e c es args)
+            Other h    -> App h <$> checkArgs z n es (\ _ -> return ())
             HeadSet p  -> return $ Set p
             HeadMeta p -> return $ Meta p
     doProj x (App h es1) es2 = return $ App h (es1 ++ [Proj x] ++ es2)
     doProj x e _ = scopeError x $ "Cannot project " ++ show x ++ " from " ++ show e
+
+checkArgs :: HasSrcLoc a =>
+             a -> Hiding -> [C.Arg] -> (forall b. [b] -> Check ()) ->
+             Check [Elim]
+checkArgs x n es extraCheck = do
+  es <- insertImplicit (srcLoc x) n es
+  extraCheck es
+  map Apply <$> mapM checkExpr es
 
 checkNumberOfConstructorArguments ::
   HasSrcLoc e => e -> Name -> [a] -> NumberOfArguments -> Check ()
@@ -404,9 +412,6 @@ checkNumberOfConstructorArguments loc c as args = do
     scopeError loc $ "The constructor " ++ show c ++
                      " is applied to too many arguments."
   where nas = length as
-
-checkArgs :: HasSrcLoc a => a -> Hiding -> [C.Arg] -> Check [Elim]
-checkArgs x n es = map Apply <$> (mapM checkExpr =<< insertImplicit (srcLoc x) n es)
 
 data AppHead = IsProj Name
              | IsCon Name NumberOfArguments
