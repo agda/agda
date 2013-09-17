@@ -1160,6 +1160,11 @@ whereToAbstract _ _ [] inner = do
   return (x, [])
 whereToAbstract r whname whds inner = do
   m <- maybe (nameConcrete <$> freshNoName noRange) return whname
+  m <- if (maybe False C.isNoName whname)
+       then do
+         (i :: NameId) <- fresh
+         return (C.NoName (getRange m) i)
+       else return m
   let acc = maybe PrivateAccess (const PublicAccess) whname  -- unnamed where's are private
   let tel = []
   old <- getCurrentModule
