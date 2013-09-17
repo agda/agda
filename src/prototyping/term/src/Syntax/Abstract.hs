@@ -24,7 +24,9 @@ data Decl = TypeSig TypeSig
           | DataDef Name [Name] [TypeSig]
           | RecDef  Name [Name] Name [TypeSig]
 
-data TypeSig = Sig Name Expr
+data TypeSig = Sig { typeSigName :: Name
+                   , typeSigType :: Expr
+                   }
 
 data Expr = Lam Name Expr
           | Pi Name Expr Expr
