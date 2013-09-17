@@ -290,7 +290,7 @@ instance Substs Term where
 
 substsTerm :: [Term] -> Term -> Term
 substsTerm []       v = v
-substsTerm (u : us) v = subst 0 u $ substsTerm us v
+substsTerm (u : us) v = subst 0 u $ substsTerm (subst 0 u us) v
 
 instance Substs Telescope where
   substs _ us tel = return $ substsTel us tel
