@@ -101,22 +101,26 @@ resolveName'' (C.Name ((l, c), s))
   | otherwise = asks $ Map.lookup s . inScope
 
 resolveName' :: C.Name -> Check NameInfo
-resolveName' x = do
+resolveName' x@(C.Name ((l, c), s)) = do
   mi <- resolveName'' x
   case mi of
     Nothing -> scopeError x $ "Not in scope: " ++ printTree x
-    Just i  -> return i
-
-resolveName :: C.Name -> Check (Head, Hiding)
-resolveName x@(C.Name ((l, c), s)) = do
-  i <- resolveName' x
-  case i of
-    VarName _   -> return (Var y, 0)
-    DefName _ n -> return (Def y, n)
-    ConName _ n -> return (Con y, n)
-    ProjName{}  -> scopeError x $ "Did not expect projection here: " ++ printTree x
+    Just (VarName _)    -> return (VarName y)
+    Just (DefName _ n)  -> return (DefName y n)
+    Just (ConName _ n)  -> return (ConName y n)
+    Just (ProjName _ n) -> return (ProjName y n)
   where
     y = Name (SrcLoc l c) s
+
+
+resolveName :: C.Name -> Check (Head, Hiding)
+resolveName x = do
+  i <- resolveName' x
+  case i of
+    VarName x   -> return (Var x, 0)
+    DefName x n -> return (Def x, n)
+    ConName x n -> return (Con x, n)
+    ProjName{}  -> scopeError x $ "Did not expect projection here: " ++ printTree x
 
 checkShadowing :: NameInfo -> Maybe NameInfo -> Check ()
 checkShadowing _ Nothing   = return ()
