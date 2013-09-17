@@ -303,6 +303,7 @@ inferEqual u v = do
       (App h1 es1, App h2 es2) | h1 == h2 -> do
         a <- typeOfHead h1
         equalSpine a es1 es2
+      (Set, Set) -> notStuck ()
       _ -> typeError $ show uu ++ " != " ++ show vv
 
 equalSpine :: Type -> [Elim] -> [Elim] -> StuckTC ()
