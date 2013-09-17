@@ -55,7 +55,7 @@ initState = TCState
   , metaStore = Map.empty
   }
 
-data Definition = Constant Name Type
+data Definition = Constant Name ConstantKind Type
                 | Constructor Name Name Telescope Type
                   -- ^ Constructor name, data type name, parameter
                   -- telescope, remaining type.
@@ -63,6 +63,9 @@ data Definition = Constant Name Type
                   -- ^ Projection name, field number, record type
                   -- name, parameter telescope, remaining type.
                 | Function Name Type [Clause]
+  deriving Show
+
+data ConstantKind = Postulate | Data | Record
   deriving Show
 
 data MetaInst = Open Type
@@ -106,8 +109,8 @@ unview = return . Term
 addDefinition :: Name -> Definition -> TC ()
 addDefinition x def = modify $ \s -> s { signature = Map.insert x def $ signature s }
 
-addConstant :: Name -> Type -> TC ()
-addConstant x a = addDefinition x (Constant x a)
+addConstant :: Name -> ConstantKind -> Type -> TC ()
+addConstant x k a = addDefinition x (Constant x k a)
 
 addConstructor :: Name -> Name -> Telescope -> Type -> TC ()
 addConstructor c d tel a = addDefinition c (Constructor c d tel a)
@@ -118,10 +121,11 @@ addProjection f n r tel a = addDefinition f (Projection f n r tel a)
 addClause :: Name -> [Pattern] -> Term -> TC ()
 addClause f ps v = do
   Just def <- gets $ Map.lookup f . signature
-  let ext (Constant x a)    = Function x a [c]
-      ext (Function x a cs) = Function x a (cs ++ [c])
-      ext Constructor{}     = error $ "impossible: addClause constructor"
-      ext Projection{}      = error $ "impossible: addClause projection"
+  let ext (Constant x Postulate a) = Function x a [c]
+      ext (Function x a cs)        = Function x a (cs ++ [c])
+      ext (Constant _ k _)         = error $ "impossible: addClause " ++ show k
+      ext Constructor{}            = error $ "impossible: addClause constructor"
+      ext Projection{}             = error $ "impossible: addClause projection"
   addDefinition f (ext def)
   where
     c = Clause ps v
@@ -186,7 +190,7 @@ definitionOf x = atSrcLoc x $ do
 typeOf :: Name -> TC Type
 typeOf x = defType <$> definitionOf x
   where
-    defType (Constant _ a)           = a
+    defType (Constant _ _ a)         = a
     defType (Constructor _ _ tel a)  = telPi tel a
     defType (Projection _ _ _ tel a) = telPi tel a
     defType (Function _ a _)         = a

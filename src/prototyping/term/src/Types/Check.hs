@@ -55,7 +55,7 @@ checkTypeSig :: Name -> A.Expr -> TC ()
 checkTypeSig x t = do
   set <- unview Set
   a <- check t set
-  addConstant x a
+  addConstant x Postulate a
 
 withPars :: Type -> [Name]
          -> (Telescope -> [Term] -> Type -> TC a)
@@ -76,6 +76,7 @@ withPars a (x : xs) ret = atSrcLoc x $ do
 checkData :: Name -> [Name] -> [A.TypeSig] -> TC ()
 checkData d xs cs = do
   a <- typeOf d
+  addConstant d Data a
   withPars a xs $ \tel vs b -> do
     set <- unview Set
     equalType b set
@@ -94,6 +95,7 @@ checkConstr d dvs ptel (A.Sig c e) = atSrcLoc c $ do
 checkRec :: Name -> [Name] -> Name -> [A.TypeSig] -> TC ()
 checkRec r xs c fs = do
   a <- typeOf r
+  addConstant r Record a
   withPars a xs $ \ptel vs b -> do
     set <- unview Set
     equalType b set
@@ -155,6 +157,12 @@ checkPattern p a ret = case p of
     def <- definitionOf c
     case def of
       Constructor _ d tel b -> do
+        def <- definitionOf d
+        case def of
+          Constant _ Data   _ -> return ()
+          Constant _ Record _ -> typeError $ "Pattern matching is not supported " ++
+                                             "for the record constructor " ++ show c
+          _                   -> typeError $ "impossible.checkPattern: " ++ show def
         av <- whnfView a
         let isApply (Apply v) = Just v
             isApply Proj{}    = Nothing
