@@ -430,7 +430,8 @@ instance Occurs Term where
 
 instance Occurs TermView where
   occurs xs v = case v of
-    App (Var x) es | notElem x xs -> typeError "occurs check failed"
+    App (Var x) es | notElem x xs -> typeError $ "occurs check failed: " ++
+                                                 show x ++ " not in " ++ show xs
     App h es                      -> occurs xs es
     Pi a b                        -> occurs xs (a, b)
     Lam b                         -> occurs xs b
