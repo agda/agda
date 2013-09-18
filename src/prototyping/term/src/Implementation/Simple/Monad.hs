@@ -312,13 +312,14 @@ class Subst a where
   substs' :: [Term] -> a -> a
 
 -- | Variable zero is replaced by the /last/ element in the list.
-substs :: (MonadEval m, Subst a) => Telescope -> [Term] -> a -> m a
-substs tel us v = return $ substs' (reverse us) v
+substs :: (MonadEval m, Subst a, Show a) => Telescope -> [Term] -> a -> m a
+substs tel us v =
+  return $ substs' (reverse us ++ map (Term . var) [0 ..]) v
 
 subst :: Subst a => Int -> Term -> a -> a
 subst n u = substs' (vars [0 .. n-1] ++ [u] ++ vars [n ..])
   where
-  vars = map (\x -> Term (var x))
+  vars = map (Term . var)
 
 absApply :: (MonadEval m, Subst a) => Abs a -> Term -> m a
 absApply a t = return $ absApply' a t
