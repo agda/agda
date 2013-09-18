@@ -118,6 +118,7 @@ Signature changes are propagated in the obvious way.
  Γ ⊢ i ⇐ B ↝ (C ⚷ λ Γ → u) Γ
 
  Γ ⊢ i ⇒ C ⚷ (A, u)
+ TODO: The pattern (A, u) is incorrect.
 --------------------------------------------------------
  Γ ⊢ i ⇐ B ↝ (C ⚷ {{⟨Σ⟩ Γ ⊢ A = B ⇐ Set} ⚷ λ Γ → u}) Γ
 
@@ -235,9 +236,9 @@ Type inference
  Γ ⊢ · t ⇐ A ⇒ C ⚷ {⟨Σ⟩ Γ ⊢ · t ⇐ B}
 
  Σ ⊢ A ⇓ R ts
- π : (xs : Ps) → R xs → B ∈ Σ
--------------------------------
- Γ ⊢ π · ⇐ A ⇒ (B[xs ≔ ts], π ·)
+ π : (xs : Ps) → (r : R xs) → B ∈ Σ
+-------------------------------------------
+ Γ ⊢ π · ⇐ A ⇒ (B[xs ≔ ts, r ≔ TODO], π ·)
 
  Σ ⊢ A ⇓ C ⚷ B
 -------------------------------------
