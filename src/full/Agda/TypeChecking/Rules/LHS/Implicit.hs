@@ -90,9 +90,9 @@ insertImplicitPatterns exh ps tel@(ExtendTel arg tel') = case ps of
     case i of
       Just []	-> __IMPOSSIBLE__
       Just hs	-> insertImplicitPatterns exh (implicitPs hs ++ p : ps) tel
-      Nothing   -> continue =<< expandImplicitPattern (unDom arg) p
-        where
-          continue p = (p :) <$> insertImplicitPatterns exh ps (absBody tel')
+      Nothing   -> do
+        p <- expandImplicitPattern (unDom arg) p
+        (p :) <$> insertImplicitPatterns exh ps (absBody tel')
   where
     dummy = defaultNamedArg ()
 
