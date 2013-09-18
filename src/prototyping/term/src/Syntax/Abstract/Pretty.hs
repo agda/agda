@@ -28,7 +28,7 @@ instance Show Head    where showsPrec = defaultShow
 instance Show Pattern where showsPrec = defaultShow
 
 instance Show Elim where
-  showsPrec p (Apply e) = showParen (p > 0) $ showString "$ " . shows p
+  showsPrec p (Apply e) = showParen (p > 0) $ showString "$ " . shows e
   showsPrec _ (Proj x) = showString "." . shows x
 
 instance Pretty Name where
