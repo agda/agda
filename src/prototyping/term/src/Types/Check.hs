@@ -166,8 +166,6 @@ checkPattern p a ret = case p of
                                              "for the record constructor " ++ show c
           _                   -> typeError $ "impossible.checkPattern: " ++ show def
         av <- whnfView a
-        let isApply (Apply v) = Just v
-            isApply Proj{}    = Nothing
         case ignoreBlocking av of
           App (Def d') es | d == d', Just vs <- mapM isApply es -> do
             b <- substs tel vs b
@@ -179,6 +177,10 @@ checkPattern p a ret = case p of
           _ -> typeError $ show c ++ " does not construct an element of " ++ show a
 
       _ -> typeError $ "Should be constructor: " ++ show c
+
+isApply :: Elim -> Maybe Term
+isApply (Apply v) = Just v
+isApply Proj{}    = Nothing
 
 isType :: A.Expr -> TC Type
 isType e = do
@@ -192,8 +194,6 @@ check e a = atSrcLoc e $ case e of
     case def of
       Constructor _ d tel b -> do
         av <- whnfView a
-        let isApply (Apply v) = Just v
-            isApply Proj{}    = Nothing
         case ignoreBlocking av of
           App (Def d') els | d == d', Just vs <- mapM isApply els -> do
             b <- substs tel vs b
