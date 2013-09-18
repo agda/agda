@@ -3,9 +3,12 @@
 module Implementation.Simple.Eval where
 
 import Control.Applicative
+import Control.Arrow ((***))
 import Types.Blocked
 import Implementation.Simple.Term
 import Implementation.Simple.Monad
+
+import Debug
 
 whnf :: Term -> TC (Blocked Term)
 whnf (Term v) = case v of
@@ -26,19 +29,21 @@ whnfFun v _  []                    = return $ NotBlocked v
 whnfFun v es (Clause ps body : cs) = do
   m <- match es ps body
   case m of
-    Yes body    -> whnf body
-    BlockedOn i -> return (Blocked i v)
-    No          -> whnfFun v es cs
+    BlockedOn i          -> return (Blocked i v)
+    No                   -> whnfFun v es cs
+    Yes (us, (body, es)) -> do
+      body <- substs (error "todo: telescope") us body
+      whnf (elim' body es)
 
 data Match a = Yes a
              | BlockedOn MetaVar
              | No
-  deriving Functor
+  deriving (Show, Functor)
 
-match :: [Elim] -> [Pattern] -> Term -> TC (Match Term)
-match us             []          body = return $ Yes (elim' body us)
-match (Apply u : es) (VarP : ps) body =
-  fmap (subst 0 u) <$> match es ps body
+match :: [Elim] -> [Pattern] -> Term -> TC (Match ([Term], (Term, [Elim])))
+match es             []                body = return $ Yes ([], (body, es))
+match (Apply u : es) (VarP       : ps) body = fmap ((u :) *** id) <$>
+                                                match es ps body
 match (Apply u : es) (ConP c cps : ps) body = do
   u <- whnf u
   case u of
