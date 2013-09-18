@@ -46,7 +46,8 @@ type ArgInfo    = Common.ArgInfo Color
 --   For instance, during substitution and application.
 data ConHead = ConHead
   { conName   :: QName   -- ^ The name of the constructor.
-  , conFields :: [QName] -- ^ The name of the fields.
+  , conFields :: [QName] -- ^ The name of the record fields.
+                         --   Empty list for data constructors.
   } deriving (Typeable)
 
 instance Eq ConHead where
