@@ -209,6 +209,16 @@ check e a = atSrcLoc e $ case e of
           _ -> typeError $ "Constructor type error " ++ show e ++ " : " ++ show a
       _ -> typeError $ "Constructor type error " ++ show e ++ " : " ++ show a
   A.Meta l -> freshMeta a
+  A.Lam x body -> do
+    av <- whnfView a
+    case ignoreBlocking av of
+      Pi a b ->
+        extendContext x a $ \v -> do
+          b <- absApply b =<< unview (App (Var v) [])
+          check body b
+      App (Meta i) us ->
+        typeError $ "todo check\n  " ++ show e ++ " : " ++ show a
+      a -> typeError $ "Lambda type error " ++ show e ++ " : " ++ show a
   _ -> do
     r <- infer e
     case r of
