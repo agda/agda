@@ -26,7 +26,14 @@ binAppView :: Term -> BinAppView
 binAppView t = case t of
   Var i xs   -> app (Var i) xs
   Def c xs   -> app (Def c) xs
-  Con c xs   -> app (Con c) xs
+  -- Andreas, 2013-09-17: do not eta-contract when body is (record) constructor
+  -- like in \ x -> s , x!  (See interaction/DoNotEtaContractFunIntoRecord)
+  -- (Cf. also issue 889 (fixed differently).)
+  -- At least record constructors should be fully applied where possible!
+  -- TODO: also for ordinary constructors (\ x -> suc x  vs.  suc)?
+  Con c xs
+    | null (conFields c) -> app (Con c) xs
+    | otherwise          -> noApp
   Lit _      -> noApp
   Level _    -> noApp   -- could be an application, but let's not eta contract levels
   Lam _ _    -> noApp
