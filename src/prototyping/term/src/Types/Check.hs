@@ -210,13 +210,15 @@ check e a = atSrcLoc e $ case e of
   A.Meta l -> freshMeta a
   A.Lam x body -> do
     av <- whnfView a
-    case ignoreBlocking av of
-      Pi a b ->
+    case av of
+      NotBlocked (Pi a b) ->
         extendContext x a $ \v -> do
-          b <- absApply b =<< unview (App (Var v) [])
+          b <- absApply b =<< unview (var v)
           check body b
-      App (Meta i) us ->
+      NotBlocked (App (Meta i) us) ->
         typeError $ "todo check\n  " ++ show e ++ " : " ++ show a
+      Blocked x a -> do
+        typeError $ "todo check\n  " ++ show e ++ " : (blocked) " ++ show a
       a -> typeError $ "Lambda type error " ++ show e ++ " : " ++ show a
   _ -> do
     r <- infer e
