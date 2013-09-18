@@ -197,14 +197,13 @@ check e a = atSrcLoc e $ case e of
         case ignoreBlocking av of
           App (Def d') els | d == d', Just vs <- mapM isApply els -> do
             b <- substs tel vs b
-            r <- checkSpine es b
+            h <- unview (App (Con c) [])
+            r <- checkSpine h es b
             case r of
-              NotStuck (es, _) -> unview $ App (Con c) es
-              Stuck pid        -> do
+              NotStuck (v, _) -> return v
+              Stuck pid       -> do
                 x <- freshMeta a
-                subProblem pid $ \(es, b) -> do
-                  v <- unview $ App (Con c) es
-                  equal a x v
+                subProblem pid $ \(v, _) -> equal a x v
                 return x
           _ -> typeError $ "Constructor type error " ++ show e ++ " : " ++ show a
       _ -> typeError $ "Constructor type error " ++ show e ++ " : " ++ show a
@@ -255,13 +254,11 @@ infer e = atSrcLoc e $ case e of
     return $ NotStuck (v, set)
   A.App h es -> do
     (h, a) <- inferHead h
-    r <- checkSpine es a
-    let done (es, b) = do
-          v <- unview (App h es)
-          return (v, b)
+    h'     <- unview (App h [])
+    r      <- checkSpine h' es a
     case r of
-      NotStuck (es, b) -> NotStuck <$> done (es, b)
-      Stuck pid        -> onStuck_ pid done
+      NotStuck r -> NotStuck <$> return r
+      Stuck pid  -> onStuck_ pid return
   A.Equal a x y -> do
     a   <- isType a
     x   <- check x a
@@ -279,23 +276,45 @@ inferHead h = atSrcLoc h $ case h of
   A.Def x -> (,) (Def x) <$> typeOf x
   A.Con{} -> typeError $ "Cannot infer type of application of constructor " ++ show h
 
-checkSpine :: [A.Elim] -> Type -> StuckTC ([Elim], Type)
-checkSpine [] a = return $ NotStuck ([], a)
-checkSpine (e:es) a = atSrcLoc e $ case e of
-  A.Proj{} -> typeError $ "todo checkSpine " ++ show (e:es) ++ " : " ++ show a
+checkSpine :: Term -> [A.Elim] -> Type -> StuckTC (Term, Type)
+checkSpine h []     a = return $ NotStuck (h, a)
+checkSpine h (e:es) a = atSrcLoc e $ case e of
+  A.Proj f -> do
+    def <- definitionOf f
+    case def of
+      Projection f i r tel b -> do
+        a <- whnfView a
+        case a of
+          NotBlocked (App (Def r') vs)
+            | r == r', Just vs <- mapM isApply vs -> do
+            b <- view =<< substs tel vs b
+            case b of
+              Pi _ b -> do
+                b <- absApply b h
+                h <- elim h [Proj i]
+                r <- checkSpine h es b
+                case r of
+                  NotStuck res -> NotStuck <$> return res
+                  Stuck pid    -> onStuck_ pid return
+              _ -> typeError $ "impossible.checkSpine: " ++ show b
+          NotBlocked (App (Meta i) us) ->
+            typeError $ "todo checkSpine\n  " ++ show (h, e:es, a)
+          NotBlocked a -> typeError $ show a ++ " is not a record type"
+          Blocked x a -> stuckOn x (checkSpine h (e : es) =<< unview a)
+      _ -> typeError $ "impossible.checkSpine: " ++ show def
   A.Apply e -> do
     a <- whnfView a
     case a of
       NotBlocked (Pi a b) -> do
         v <- check e a
         b <- absApply b v
-        r <- checkSpine es b
-        let ret (es, c) = return (Apply v : es, c)
+        h <- elim h [Apply v]
+        r <- checkSpine h es b
         case r of
-          NotStuck res -> NotStuck <$> ret res
-          Stuck pid    -> onStuck_ pid ret
+          NotStuck res -> NotStuck <$> return res
+          Stuck pid    -> onStuck_ pid return
       NotBlocked a -> typeError $ "Expected function type " ++ show a ++ "\n  in application of " ++ show e
-      Blocked x a -> stuckOn x (checkSpine (A.Apply e : es) =<< unview a)
+      Blocked x a -> stuckOn x (checkSpine h (A.Apply e : es) =<< unview a)
 
 equalType :: Type -> Type -> StuckTC ()
 equalType a b = do
