@@ -23,7 +23,7 @@ import Agda.Syntax.Abstract.Name
     mnameToList, qnameName, qnameModule, isInModule, nameId )
 import Agda.Syntax.Internal
   ( Name, Args, Type,
-    Clause, Pattern(VarP,DotP,LitP,ConP), Abs,
+    Clause, Pattern(VarP,DotP,LitP,ConP,ProjP), Abs,
     ClauseBody(Body,NoBody,Bind),
     Term(Var,Lam,Lit,Level,Def,Con,Pi,Sort,MetaV,DontCare,Shared),
     conName,
@@ -42,6 +42,7 @@ import Agda.TypeChecking.Monad
     dataPars, dataCons,
     conPars, conData,
     recConHead, recFields, recNamedCon,
+    typeError, TypeError(NotImplemented),
     defJSDef )
 import Agda.TypeChecking.Monad.Options ( setCommandLineOptions, commandLineOptions, reportSLn )
 import Agda.TypeChecking.Reduce ( instantiateFull, normalise )
@@ -309,6 +310,8 @@ mapping :: [Pattern] -> (Nat,Nat,[Exp])
 mapping = foldr mapping' (0,0,[])
 
 mapping' :: Pattern -> (Nat,Nat,[Exp]) -> (Nat,Nat,[Exp])
+mapping' (ProjP _)     (av,bv,es) =
+  __IMPOSSIBLE__
 mapping' (VarP _)      (av,bv,es) = (av+1, bv+1, Local (LocalId bv) : es)
 mapping' (DotP _)      (av,bv,es) = (av+1, bv+1, Local (LocalId bv) : es)
 mapping' (ConP _ _ ps) (av,bv,es) = (av',bv'+1,es') where
@@ -318,6 +321,7 @@ mapping' (LitP _)      (av,bv,es) = (av, bv+1, es)
 -- Not doing literal patterns yet
 
 pattern :: Pattern -> TCM Patt
+pattern (ProjP _)     = typeError $ NotImplemented $ "Compilation of copatterns"
 pattern (ConP q _ ps) = do
   l <- tag q
   ps <- mapM (pattern . unArg) ps

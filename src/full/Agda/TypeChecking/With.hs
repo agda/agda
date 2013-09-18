@@ -9,7 +9,6 @@ import Data.List
 
 import Agda.Syntax.Common
 import Agda.Syntax.Internal as I
-import Agda.Syntax.Abstract (LHS(..), RHS(..))
 import qualified Agda.Syntax.Abstract as A
 import Agda.Syntax.Info
 import Agda.Syntax.Position
@@ -27,6 +26,7 @@ import Agda.TypeChecking.EtaContract
 import Agda.TypeChecking.Telescope
 
 import Agda.Utils.List
+import Agda.Utils.Monad
 import Agda.Utils.Permutation
 import Agda.Utils.Size
 
@@ -60,27 +60,40 @@ withFunctionType delta1 vs as delta2 b = {-dontEtaContractImplicit $-} do
   return $ telePi_ delta1 $ foldr (uncurry piAbstractTerm) b vas
 
 -- | Compute the clauses for the with-function given the original patterns.
+{- OLD
 buildWithFunction :: QName -> Telescope -> [I.Arg Pattern] -> Permutation ->
                      Nat -> Nat -> [A.Clause] -> TCM [A.Clause]
 buildWithFunction aux gamma qs perm n1 n cs = mapM buildWithClause cs
   where
-    buildWithClause (A.Clause (LHS i (A.LHSProj{}) wps) rhs wh) =
+    buildWithClause (A.Clause (A.LHS i (A.LHSProj{}) wps) rhs wh) =
       typeError $ NotImplemented "with clauses for definitions by copatterns"
-    buildWithClause (A.Clause (LHS i (A.LHSHead _ ps) wps) rhs wh) = do
+    buildWithClause (A.Clause (A.LHS i (A.LHSHead _ ps) wps) rhs wh) = do
       let (wps0, wps1) = genericSplitAt n wps
           ps0          = map defaultNamedArg wps0
       rhs <- buildRHS rhs
       (ps1, ps2)  <- genericSplitAt n1 <$> stripWithClausePatterns gamma qs perm ps
-      let result = A.Clause (LHS i (A.LHSHead aux (ps1 ++ ps0 ++ ps2)) wps1) rhs wh
+      let result = A.Clause (A.LHS i (A.LHSHead aux (ps1 ++ ps0 ++ ps2)) wps1) rhs wh
+-}
+buildWithFunction :: QName -> Telescope -> [I.Arg Pattern] -> Permutation ->
+                     Nat -> Nat -> [A.SpineClause] -> TCM [A.SpineClause]
+buildWithFunction aux gamma qs perm n1 n cs = mapM buildWithClause cs
+  where
+    buildWithClause (A.Clause (A.SpineLHS i _ ps wps) rhs wh) = do
+      let (wps0, wps1) = genericSplitAt n wps
+          ps0          = map defaultNamedArg wps0
+      rhs <- buildRHS rhs
+      (ps1, ps2)  <- genericSplitAt n1 <$> stripWithClausePatterns gamma qs perm ps
+      let result = A.Clause (A.SpineLHS i aux (ps1 ++ ps0 ++ ps2) wps1) rhs wh
       reportSDoc "tc.with" 20 $ vcat
         [ text "buildWithClause returns" <+> prettyA result
         ]
       return result
 
-    buildRHS rhs@(RHS _)               = return rhs
-    buildRHS rhs@AbsurdRHS             = return rhs
-    buildRHS (WithRHS q es cs)         = WithRHS q es <$> mapM buildWithClause cs
-    buildRHS (RewriteRHS q eqs rhs wh) = flip (RewriteRHS q eqs) wh <$> buildRHS rhs
+    buildRHS rhs@(A.RHS _)               = return rhs
+    buildRHS rhs@A.AbsurdRHS             = return rhs
+    buildRHS (A.WithRHS q es cs)         = A.WithRHS q es <$>
+      mapM (A.spineToLhs <.> buildWithClause . A.lhsToSpine) cs
+    buildRHS (A.RewriteRHS q eqs rhs wh) = flip (A.RewriteRHS q eqs) wh <$> buildRHS rhs
 
 {-| @stripWithClausePatterns Γ qs π ps = ps'@
 
@@ -96,6 +109,8 @@ buildWithFunction aux gamma qs perm n1 n cs = mapM buildWithClause cs
 
     @ps'@ - patterns for with function (presumably of type @Δ@)
 -}
+-- TODO: this does not work for varying arity or copatterns.
+-- Need to do s.th. like in Split.hs with ProblemRest etc.
 stripWithClausePatterns :: Telescope -> [I.Arg Pattern] -> Permutation -> [A.NamedArg A.Pattern] -> TCM [A.NamedArg A.Pattern]
 stripWithClausePatterns gamma qs perm ps = do
   psi <- insertImplicitPatterns ExpandLast ps gamma
@@ -133,6 +148,7 @@ stripWithClausePatterns gamma qs perm ps = do
         , nest 2 $ text "tel0=" <+> prettyTCM tel0
         ]
       case unArg q of
+        ProjP{} -> strip tel0 ps qs
         VarP _  -> do
           ps <- underAbstraction a tel $ \tel -> strip tel ps qs
           return $ p : ps
@@ -299,6 +315,7 @@ patsToTerms perm ps = evalState (toTerms ps) xs
 
     toTerm :: Pattern -> State [Nat] DisplayTerm
     toTerm p = case p of
+      ProjP d     -> __IMPOSSIBLE__ -- TODO: convert spine to non-spine ... DDef d . defaultArg
       VarP _      -> DTerm . var <$> tick
       DotP t      -> DDot t <$ tick
       ConP c _ ps -> DCon c <$> toTerms ps

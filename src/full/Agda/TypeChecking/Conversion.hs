@@ -41,6 +41,8 @@ import Agda.TypeChecking.Irrelevance
 import Agda.TypeChecking.Eliminators
 -- import Agda.TypeChecking.UniversePolymorphism
 
+import Agda.Interaction.Options
+
 import Agda.Utils.Size
 import Agda.Utils.Monad
 import Agda.Utils.Maybe
@@ -188,6 +190,21 @@ compareTerm' cmp a m n =
           isrec <- isEtaRecord r
           if isrec
             then do
+              dontHaveCopatterns <- not . optCopatterns <$> pragmaOptions
+              let
+              -- Andreas, 2010-10-11: allowing neutrals to be blocked things does not seem
+              -- to change Agda's behavior
+              --    isNeutral Blocked{}          = False
+                  isNeutral = isNeutral' . fmap ignoreSharing
+                  isMeta    = isMeta'    . fmap ignoreSharing
+                  isNeutral' (NotBlocked Con{}) = False
+              -- Andreas, 2013-09-18: this is expensive:
+              -- should only do this when copatterns are on
+                  isNeutral' (NotBlocked Def{}) = dontHaveCopatterns -- a def by copattern can reduce if projected
+                  isNeutral' _                  = True
+                  isMeta' (NotBlocked MetaV{})  = True
+                  isMeta' _                     = False
+
               reportSDoc "tc.conv.term" 30 $ prettyTCM a <+> text "is eta record type"
               m <- reduceB m
               n <- reduceB n
@@ -214,16 +231,6 @@ compareTerm' cmp a m n =
             else compareAtom cmp a' m n
         _ -> compareAtom cmp a' m n
   where
--- Andreas, 2010-10-11: allowing neutrals to be blocked things does not seem
--- to change Agda's behavior
---    isNeutral Blocked{}          = False
-    isNeutral = isNeutral' . fmap ignoreSharing
-    isMeta    = isMeta'    . fmap ignoreSharing
-    isNeutral' (NotBlocked Con{}) = False
-    isNeutral' _                  = True
-    isMeta' (NotBlocked MetaV{})  = True
-    isMeta' _                     = False
-
     -- equality at function type (accounts for eta)
     equalFun :: Term -> Term -> Term -> TCM ()
     equalFun (Shared p) m n = equalFun (derefPtr p) m n

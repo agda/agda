@@ -282,6 +282,7 @@ clause q (i, isLast, Clause{ clausePats = ps, clauseBody = b }) =
 argpatts :: [I.Arg Pattern] -> [HS.Pat] -> TCM [HS.Pat]
 argpatts ps0 bvs = evalStateT (mapM pat' ps0) bvs
   where
+  pat   (ProjP _  ) = lift $ typeError $ NotImplemented $ "Compilation of copatterns"
   pat   (VarP _   ) = do v <- gets head; modify tail; return v
   pat   (DotP _   ) = pat (VarP dummy) -- WHY NOT: return HS.PWildCard -- SEE ABOVE
   pat   (LitP l   ) = return $ HS.PLit $ hslit l
@@ -311,6 +312,7 @@ argpatts ps0 bvs = evalStateT (mapM pat' ps0) bvs
 
   -- | Is the pattern irrefutable?
   irr :: Pattern -> TCM Bool
+  irr (ProjP {})  = __IMPOSSIBLE__
   irr (VarP {})   = return True
   irr (DotP {})   = return True
   irr (LitP {})   = return False

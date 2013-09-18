@@ -1,0 +1,8 @@
+
+Termination checking failed for the following functions:
+  weird'', repeat
+Problematic calls:
+  weird'' zero
+    (at MixingCoPatternsAndCoConstructors.agda:31,28-35)
+  tail (repeat a)
+    (at MixingCoPatternsAndCoConstructors.agda:39,31-37)

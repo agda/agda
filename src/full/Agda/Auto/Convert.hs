@@ -282,6 +282,7 @@ tomyClause cl@(I.Clause {I.clausePerm = Perm n ps, I.clausePats = pats, I.clause
            Nothing -> Nothing
 
 tomyPat p = case C.unArg p of
+ I.ProjP _ -> lift $ MB.typeError $ MB.NotImplemented $ "The Agda synthesizer (Agsy) does not support copatterns yet"
  I.VarP n -> return $ PatVar (show n)
  I.DotP _ -> return $ PatVar "_" -- because Agda includes these when referring to variables in the body
  I.ConP n _ pats -> do

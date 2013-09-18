@@ -256,6 +256,7 @@ Example:
 
 such that the arity of the clauses of @test@ is uniform.
 -}
+-- TODO: how does this work with copatterns/flex arity?
 trailingImplicits :: Type -> [A.SpineClause] -> TCM [A.SpineClause]
 trailingImplicits t []       = __IMPOSSIBLE__
 trailingImplicits t cs@(c:_) = do
@@ -672,7 +673,9 @@ checkWithFunction (WithFunction f aux gamma delta1 delta2 vs as b qs perm' perm 
     ]
 
   -- Construct the body for the with function
+  cs <- return $ map (A.lhsToSpine) cs
   cs <- buildWithFunction aux gamma qs finalPerm (size delta1) (size as) cs
+  cs <- return $ map (A.spineToLhs) cs
 
   -- Check the with function
   checkFunDef NotDelayed info aux cs

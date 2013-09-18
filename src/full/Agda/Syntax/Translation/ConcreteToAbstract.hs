@@ -35,7 +35,7 @@ import Agda.Syntax.Concrete as C hiding (topLevelModuleName)
 import Agda.Syntax.Concrete.Operators
 -- import qualified Agda.Syntax.Concrete.Copatterns as Cop -- merged into Operators
 import Agda.Syntax.Abstract as A
-import Agda.Syntax.Abstract.Copatterns
+-- import Agda.Syntax.Abstract.Copatterns  -- RETIRED
 import Agda.Syntax.Position
 import Agda.Syntax.Common hiding (Arg, Dom, NamedArg, ArgInfo)
 import qualified Agda.Syntax.Common as Common
