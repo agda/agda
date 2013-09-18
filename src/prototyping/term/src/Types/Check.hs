@@ -211,8 +211,9 @@ check e a = atSrcLoc e $ case e of
   A.Lam x body -> do
     av <- whnfView a
     case av of
-      NotBlocked (Pi a (Abs _ b)) ->
-        extendContext x a $ \_ -> check body b
+      NotBlocked (Pi a (Abs _ b)) -> do
+        body <- extendContext x a $ \_ -> check body b
+        unview (Lam (Abs (A.nameString x) body))
       NotBlocked (App (Meta i) us) ->
         typeError $ "todo check\n  " ++ show e ++ " : " ++ show a
       Blocked x a -> do
