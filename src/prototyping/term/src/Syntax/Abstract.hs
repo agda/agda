@@ -39,7 +39,8 @@ data Expr = Lam Name Expr
 data Head = Var Name
           | Def Name
           | Con Name
-  deriving Eq
+          | J SrcLoc
+          | Refl SrcLoc
 
 data Elim = Apply Expr
           | Proj Name
@@ -80,9 +81,11 @@ instance HasSrcLoc Expr where
 
 instance HasSrcLoc Head where
   srcLoc h = case h of
-    Var x -> srcLoc x
-    Def x -> srcLoc x
-    Con x -> srcLoc x
+    Var x    -> srcLoc x
+    Def x    -> srcLoc x
+    Con x    -> srcLoc x
+    J loc    -> loc
+    Refl loc -> loc
 
 instance HasSrcLoc Pattern where
   srcLoc p = case p of
@@ -106,3 +109,11 @@ instance Eq Expr where
   Set _       == Set _          = True
   Meta _      == Meta _         = True
   _           == _              = False
+
+instance Eq Head where
+  Var x  == Var x' = x == x'
+  Def f  == Def f' = f == f'
+  Con c  == Con c' = c == c'
+  J _    == J _    = True
+  Refl _ == Refl _ = True
+  _      == _      = False

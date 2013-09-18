@@ -28,9 +28,7 @@ data Scope = Scope
   }
 
 initScope :: Scope
-initScope = Scope $ Map.fromList
-  [ ("refl", DefName (Name noSrcLoc "refl")  2)
-  , ("J",    DefName (Name noSrcLoc "J")     3) ]
+initScope = Scope $ Map.fromList []
 
 type Hiding            = Int
 type NumberOfArguments = Int
@@ -79,7 +77,7 @@ concatMapC f xs ret = mapC f xs $ ret . concat
 scopeError :: HasSrcLoc i => i -> String -> Check a
 scopeError p err = throwError $ ScopeError (srcLoc p) err
 
-reservedNames = ["_", "Set"]
+reservedNames = ["_", "Set", "refl", "J"]
 
 impossible err = fail $ "impossible: " ++ err
 
@@ -447,8 +445,10 @@ appView e = case e of
     applyTo es  (NotApp e)   = scopeError e $ printTree e ++ " cannot be applied to arguments"
 
 checkAppHead :: C.Name -> Check (AppHead, Hiding)
-checkAppHead (C.Name ((l, c), "_"))   = return (HeadMeta $ SrcLoc l c, 0)
-checkAppHead (C.Name ((l, c), "Set")) = return (HeadSet $ SrcLoc l c, 0)
+checkAppHead (C.Name ((l, c), "_"))    = return (HeadMeta $ SrcLoc l c, 0)
+checkAppHead (C.Name ((l, c), "Set"))  = return (HeadSet $ SrcLoc l c, 0)
+checkAppHead (C.Name ((l, c), "J"))    = return (Other (J (SrcLoc l c)), 3)
+checkAppHead (C.Name ((l, c), "refl")) = return (Other (Refl (SrcLoc l c)), 0)
 checkAppHead x = do
   i <- resolveName' x
   case i of

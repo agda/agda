@@ -23,6 +23,8 @@ type Var = Int
 data Head = Var Var
           | Def Name
           | Con Name
+          | J
+          | Refl
           | Meta MetaVar
   deriving (Eq)
 
@@ -78,6 +80,8 @@ instance Pretty Head where
     Var i -> text $ show i
     Def f -> pretty f
     Con c -> pretty c
+    J     -> text "J"
+    Refl  -> text "refl"
     Meta m -> pretty m
 
 instance Pretty MetaVar where

@@ -96,9 +96,11 @@ instance Pretty Expr where
 
 instance Pretty Head where
   pretty h = case h of
-    Var x -> pretty x
-    Def f -> pretty f
-    Con c -> pretty c
+    Var x  -> pretty x
+    Def f  -> pretty f
+    Con c  -> pretty c
+    J _    -> text "J"
+    Refl _ -> text "refl"
 
 prettyTel :: [(Name, Expr)] -> Doc
 prettyTel bs = fsep (map pr bs)
@@ -115,4 +117,3 @@ instance Pretty Pattern where
     WildP _ -> text "_"
     VarP x  -> pretty x
     ConP c es -> prettyApp p (pretty c) es
-

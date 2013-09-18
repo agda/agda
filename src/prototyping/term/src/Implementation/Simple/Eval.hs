@@ -22,6 +22,8 @@ whnf (Term v) = case v of
     case def of
       Function _ _ cs -> whnfFun (Term v) es cs
       _               -> return $ NotBlocked (Term v)
+  App J (_ : x : _ : _ : Apply p : Apply (Term (App Refl [])) : es) ->
+    whnf $ elim' p (x : es)
   _ -> return $ NotBlocked (Term v)
 
 whnfFun :: Term -> [Elim] -> [Clause] -> TC (Blocked Term)

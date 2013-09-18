@@ -210,10 +210,32 @@ bang n xs = bang' n xs
   bang' n (x : xs) | n > 0 = bang' (n - 1) xs
   bang' _ _                = error $ "bang " ++ show n ++ " " ++ show xs
 
+typeOfJ :: TC Type
+typeOfJ = return $
+  Term $ Pi (Term Set) $ Abs "A" $
+  Term $ Pi (Term (var 0)) $ Abs "x" $
+  Term $ Pi (Term (var 1)) $ Abs "y" $
+  Term $ Pi (Term $ Pi (Term (var 2)) $ Abs "x" $
+             Term $ Pi (Term (var 3)) $ Abs "y" $
+             Term $ Pi (Term $ Equal (Term (var 4)) (Term (var 1)) (Term (var 0))) $ Abs "eq" $
+             Term Set) $ Abs "P" $
+  Term $ Pi (Term $ Pi (Term (var 3)) $ Abs "x" $
+             Term $ App (Var 1) (map (Apply . Term) [var 0, var 0, App Refl []])) $ Abs "p" $
+  Term $ Pi (Term $ Equal (Term (var 4)) (Term (var 3)) (Term (var 2))) $ Abs "eq" $
+  Term $ App (Var 2) (map (Apply . Term) [var 4, var 3, var 0])
+
+typeOfRefl :: TC Type
+typeOfRefl = return $
+  Term $ Pi (Term Set) $ Abs "A" $
+  Term $ Pi (Term (var 0)) $ Abs "x" $
+  Term $ Equal (Term (var 1)) (Term (var 0)) (Term (var 0))
+
 typeOfHead :: Head -> TC Type
-typeOfHead (Var x) = asks $ weakenBy' (x + 1) . snd . bang x . context
-typeOfHead (Def x) = typeOf x
-typeOfHead (Con x) = typeOf x
+typeOfHead (Var x)  = asks $ weakenBy' (x + 1) . snd . bang x . context
+typeOfHead (Def x)  = typeOf x
+typeOfHead (Con x)  = typeOf x
+typeOfHead J        = typeOfJ
+typeOfHead Refl     = typeOfRefl
 typeOfHead (Meta x) = typeOfMeta x
 
 underAbstraction :: Type -> Abs a -> (Var -> a -> TC b) -> TC b
@@ -259,6 +281,8 @@ instance Weaken Head where
     Var i  -> Var $ weakenFromBy n k i
     Con{}  -> h
     Def{}  -> h
+    J{}    -> h
+    Refl{} -> h
     Meta{} -> h
 
 instance Weaken Term where

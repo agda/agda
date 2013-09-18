@@ -207,6 +207,24 @@ check e a = atSrcLoc e $ case e of
                 return x
           _ -> typeError $ "Constructor type error " ++ show e ++ " : " ++ show a
       _ -> typeError $ "Constructor type error " ++ show e ++ " : " ++ show a
+  A.App (A.Refl l) es -> do
+    when (not $ null es) $
+      typeError $ "Type error: refl applied to arguments: refl " ++ show es
+    av <- whnfView a
+    case av of
+      NotBlocked (Equal b x y) -> do
+        r    <- equal b x y
+        refl <- unview (App Refl [])
+        case r of
+          NotStuck _ -> return refl
+          Stuck pid  -> do
+            z <- freshMeta a
+            subProblem pid $ \_ ->
+              -- TODO: Is it fine to assume that x is equal to y here?
+              equal a z refl
+            return z
+      _ -> typeError $ show (ignoreBlocking av) ++
+                       " is (perhaps) not an application of the equality type"
   A.Meta l -> freshMeta a
   A.Lam x body -> do
     av <- whnfView a
@@ -274,8 +292,10 @@ inferHead h = atSrcLoc h $ case h of
   A.Var x -> do
     (n, a) <- lookupVar x
     return (Var n, a)
-  A.Def x -> (,) (Def x) <$> typeOf x
-  A.Con{} -> typeError $ "Cannot infer type of application of constructor " ++ show h
+  A.Def x  -> (,) (Def x) <$> typeOf x
+  A.J{}    -> (,) J <$> typeOfJ
+  A.Con{}  -> typeError $ "Cannot infer type of application of constructor " ++ show h
+  A.Refl{} -> typeError $ "Cannot infer type of refl"
 
 checkSpine :: Term -> [A.Elim] -> Type -> StuckTC (Term, Type)
 checkSpine h []     a = return $ NotStuck (h, a)
