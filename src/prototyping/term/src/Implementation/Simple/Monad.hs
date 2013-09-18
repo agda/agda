@@ -204,8 +204,11 @@ typeOfMeta x = do
     Inst a _ -> a
 
 bang :: Show a => Int -> [a] -> a
-bang n xs | length xs <= n = error $ "bang " ++ show n ++ " " ++ show xs
-bang n xs = xs !! n
+bang n xs = bang' n xs
+  where
+  bang' 0 (x : xs)         = x
+  bang' n (x : xs) | n > 0 = bang' (n - 1) xs
+  bang' _ _                = error $ "bang " ++ show n ++ " " ++ show xs
 
 typeOfHead :: Head -> TC Type
 typeOfHead (Var x) = asks $ weakenBy' (x + 1) . snd . bang x . context
@@ -299,7 +302,7 @@ elimV :: TermView -> [Elim] -> Term
 elimV (App (Con c) es0) (Proj i : es1)
   | i >= length es0 = error $ "Bad elim: " ++ show (App (Con c) es0) ++ " " ++ show (Proj i)
   | otherwise       = elim' v es1
-  where Apply v = es0 !! i
+  where Apply v = bang i es0
 elimV (App h es0) es1 = Term $ App h (es0 ++ es1)
 elimV (Lam b) (Apply e : es) = elim' (absApply' b e) es
 elimV v es = error $ "Bad elim: " ++ show v ++ " " ++ show es
@@ -328,7 +331,7 @@ instance Subst Term where
 
 instance Subst TermView where
   substs' us v = case v of
-    App (Var i) es -> termView $ (us !! i) `elim'` sub es
+    App (Var i) es -> termView $ bang i us `elim'` sub es
     App h es       -> App h (sub es)
     Lam b          -> Lam $ sub b
     Pi a b         -> Pi (sub a) (sub b)
