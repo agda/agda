@@ -30,8 +30,7 @@ data Scope = Scope
 initScope :: Scope
 initScope = Scope $ Map.fromList
   [ ("refl", DefName (Name noSrcLoc "refl")  2)
-  , ("J",    DefName (Name noSrcLoc "J")     3)
-  , ("K",    DefName (Name noSrcLoc "K")     2) ]
+  , ("J",    DefName (Name noSrcLoc "J")     3) ]
 
 type Hiding            = Int
 type NumberOfArguments = Int
