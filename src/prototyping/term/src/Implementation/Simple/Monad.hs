@@ -146,7 +146,7 @@ contextTel = foldr ext EmptyTel . reverse <$> asks context
 contextArgs :: TC [Term]
 contextArgs = do
   n <- asks $ length . context
-  return [ Term (App (Var i) []) | i <- [n - 1, n - 2..0] ]
+  return [ Term (var i) | i <- [n - 1, n - 2..0] ]
 
 freshMeta :: Type -> TC Term
 freshMeta a = do
@@ -229,7 +229,7 @@ lambda :: [Var] -> Term -> Term
 lambda []     v = v
 lambda (x:xs) v = Term $ Lam $ Abs "_"
                 $ weakenFromBy (x + 1) 1
-                $ subst (x + 1) (Term $ App (Var 0) [])
+                $ subst (x + 1) (Term $ var 0)
                 $ weaken $ lambda xs v
 
 -- DeBruijn trickery ------------------------------------------------------
@@ -315,7 +315,7 @@ substs tel us v = return $ substs' (reverse us) v
 subst :: Subst a => Int -> Term -> a -> a
 subst n u = substs' (vars [0 .. n-1] ++ [u] ++ vars [n ..])
   where
-  vars = map (\x -> Term (App (Var x) []))
+  vars = map (\x -> Term (var x))
 
 absApply :: (MonadEval m, Subst a) => Abs a -> Term -> m a
 absApply a t = return $ absApply' a t
@@ -343,7 +343,7 @@ instance Subst a => Subst [a] where
 
 instance Subst a => Subst (Abs a) where
   substs' us (Abs x b) =
-    Abs x $ substs' (Term (App (Var 0) []) : map weaken us) b
+    Abs x $ substs' (Term (var 0) : map weaken us) b
 
 instance Subst Elim where
   substs' us e = case e of

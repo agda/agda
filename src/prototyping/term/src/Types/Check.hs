@@ -71,7 +71,7 @@ withPars a (x : xs) ret = atSrcLoc x $ do
     NotBlocked (Pi a b) ->
       extendContext x a       $ \x' ->
       withPars (absBody b) xs $ \tel vs c -> do
-        v <- weakenBy (length xs) =<< unview (App (Var x') [])
+        v <- weakenBy (length xs) =<< unview (var x')
         ret (a :> Abs (A.nameString x) tel) (v : vs) c
     _ -> typeError $ "Expected function type: " ++ show a
 
@@ -153,8 +153,8 @@ checkPatterns (p : ps) a ret = atSrcLoc p $ do
 
 checkPattern :: A.Pattern -> Type -> (Pattern -> Term -> TC a) -> TC a
 checkPattern p a ret = case p of
-  A.VarP x  -> extendContext x a            $ \v -> ret VarP =<< unview (App (Var v) [])
-  A.WildP _ -> extendContext (A.name "_") a $ \v -> ret VarP =<< unview (App (Var v) [])
+  A.VarP x  -> extendContext x a            $ \v -> ret VarP =<< unview (var v)
+  A.WildP _ -> extendContext (A.name "_") a $ \v -> ret VarP =<< unview (var v)
   A.ConP c ps -> atSrcLoc c $ do
     def <- definitionOf c
     case def of
@@ -303,7 +303,7 @@ checkEqual a u v = do
     Blocked x _ -> stuckOn x (equal a u v)
     NotBlocked (Pi a b) ->
       underAbstraction a b $ \x b -> do
-        x <- unview $ App (Var x) []
+        x <- unview $ var x
         u <- elim u [Apply x]
         v <- elim v [Apply x]
         equal b u v

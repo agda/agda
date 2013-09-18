@@ -26,6 +26,9 @@ data Head = Var Var
           | Meta MetaVar
   deriving (Eq)
 
+var :: Var -> TermView
+var x = App (Var x) []
+
 newtype MetaVar = MetaId Integer
   deriving (Show, Eq, Ord, Hashable)
 
