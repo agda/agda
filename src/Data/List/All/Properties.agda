@@ -1,7 +1,7 @@
 ------------------------------------------------------------------------
 -- The Agda standard library
 --
--- Properties relating All to various list functions
+-- Properties related to All
 ------------------------------------------------------------------------
 
 module Data.List.All.Properties where
