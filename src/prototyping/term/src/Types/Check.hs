@@ -219,9 +219,7 @@ check e a = atSrcLoc e $ case e of
           NotStuck _ -> return refl
           Stuck pid  -> do
             z <- freshMeta a
-            subProblem pid $ \_ ->
-              -- TODO: Is it fine to assume that x is equal to y here?
-              equal a z refl
+            subProblem pid $ \_ -> equal a z refl
             return z
       _ -> typeError $ show (ignoreBlocking av) ++
                        " is (perhaps) not an application of the equality type"
