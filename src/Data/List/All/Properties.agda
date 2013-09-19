@@ -8,16 +8,20 @@ module Data.List.All.Properties where
 
 open import Data.Bool
 open import Data.Bool.Properties
+open import Data.Empty
 open import Data.List as List
 import Data.List.Any as Any; open Any.Membership-≡
 open import Data.List.All as All using (All; []; _∷_)
+open import Data.List.Any using (Any; here; there)
 open import Data.Product as Prod
 open import Function
 open import Function.Equality using (_⟨$⟩_)
-open import Function.Equivalence using (module Equivalence)
+open import Function.Equivalence using (_⇔_; module Equivalence)
 open import Function.Inverse using (_↔_)
+open import Function.Surjection using (_↠_)
 open import Relation.Binary.PropositionalEquality as P using (_≡_)
-open import Relation.Unary using () renaming (_⊆_ to _⋐_)
+open import Relation.Nullary
+open import Relation.Unary using (Decidable) renaming (_⊆_ to _⋐_)
 
 -- Functions can be shifted between the predicate and the list.
 
@@ -100,3 +104,64 @@ private
     ; right-inverse-of = ++⁺∘++⁻ xs
     }
   }
+
+-- Three lemmas relating Any, All and negation.
+
+¬Any↠All¬ : ∀ {a p} {A : Set a} {P : A → Set p} {xs} →
+            ¬ Any P xs ↠ All (¬_ ∘ P) xs
+¬Any↠All¬ {P = P} = record
+  { to         = P.→-to-⟶ (to _)
+  ; surjective = record
+    { from             = P.→-to-⟶ from
+    ; right-inverse-of = to∘from
+    }
+  }
+  where
+  to : ∀ xs → ¬ Any P xs → All (¬_ ∘ P) xs
+  to []       ¬p = []
+  to (x ∷ xs) ¬p = ¬p ∘ here ∷ to xs (¬p ∘ there)
+
+  from : ∀ {xs} → All (¬_ ∘ P) xs → ¬ Any P xs
+  from []        ()
+  from (¬p ∷ _)  (here  p) = ¬p p
+  from (_  ∷ ¬p) (there p) = from ¬p p
+
+  to∘from : ∀ {xs} (¬p : All (¬_ ∘ P) xs) → to xs (from ¬p) ≡ ¬p
+  to∘from []         = P.refl
+  to∘from (¬p ∷ ¬ps) = P.cong₂ _∷_ P.refl (to∘from ¬ps)
+
+  -- If equality of functions were extensional, then the surjection
+  -- could be strengthened to a bijection.
+
+  from∘to : P.Extensionality _ _ →
+            ∀ xs → (¬p : ¬ Any P xs) → from (to xs ¬p) ≡ ¬p
+  from∘to ext []       ¬p = ext λ ()
+  from∘to ext (x ∷ xs) ¬p = ext λ
+    { (here p)  → P.refl
+    ; (there p) → P.cong (λ f → f p) $ from∘to ext xs (¬p ∘ there)
+    }
+
+Any¬→¬All : ∀ {a p} {A : Set a} {P : A → Set p} {xs} →
+            Any (¬_ ∘ P) xs → ¬ All P xs
+Any¬→¬All (here  ¬p) = ¬p           ∘ All.head
+Any¬→¬All (there ¬p) = Any¬→¬All ¬p ∘ All.tail
+
+Any¬⇔¬All : ∀ {a p} {A : Set a} {P : A → Set p} {xs} →
+            Decidable P → Any (¬_ ∘ P) xs ⇔ ¬ All P xs
+Any¬⇔¬All {P = P} dec = record
+  { to   = P.→-to-⟶ Any¬→¬All
+  ; from = P.→-to-⟶ (from _)
+  }
+  where
+  from : ∀ xs → ¬ All P xs → Any (¬_ ∘ P) xs
+  from []       ¬∀ = ⊥-elim (¬∀ [])
+  from (x ∷ xs) ¬∀ with dec x
+  ... | yes p = there (from xs (¬∀ ∘ _∷_ p))
+  ... | no ¬p = here ¬p
+
+  -- If equality of functions were extensional, then the logical
+  -- equivalence could be strengthened to a surjection.
+
+  to∘from : P.Extensionality _ _ →
+            ∀ {xs} (¬∀ : ¬ All P xs) → Any¬→¬All (from xs ¬∀) ≡ ¬∀
+  to∘from ext ¬∀ = ext (⊥-elim ∘ ¬∀)
