@@ -1,4 +1,4 @@
-{-# LANGUAGE CPP, PatternGuards, TupleSections, DoAndIfThenElse,
+{-# LANGUAGE CPP, PatternGuards, TupleSections,
              TypeSynonymInstances, FlexibleInstances #-}
 
 module Agda.TypeChecking.Reduce where
@@ -358,8 +358,8 @@ unfoldDefinition' unfoldDelayed keepGoing v0 f args =
                   reduceDefElim f es
                 _ -> return (simpl, w)
         else retSimpl $ notBlocked v
-      -- case f is not a projection:
-      else if FunctionReductions `elem` allowed then
+       -- case f is not a projection:
+       else if FunctionReductions `elem` allowed then
         -- proceed as before, without calling elimView
         reduceNormal keepGoing v0 f (map notReduced args)
                        (defDelayed info) (defNonterminating info)
