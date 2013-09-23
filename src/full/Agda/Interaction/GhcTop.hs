@@ -81,6 +81,7 @@ lispifyResponse (Resp_DisplayInfo info) = return $ case info of
     Info_GoalType s -> f (render s) "*Goal type etc.*"
     Info_ModuleContents s -> f (render s) "*Module contents*"
     Info_Context s -> f (render s) "*Context*"
+    Info_Stuff s -> f (render s) "*Stuff*"
     Info_Intro s -> f (render s) "*Intro*"
   where f content bufname = display_info' False bufname content
 lispifyResponse Resp_ClearHighlighting = return $ L [ A "agda2-highlight-clear" ]

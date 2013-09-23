@@ -8,15 +8,17 @@ import Control.Applicative
 import Control.Monad.Error
 import Control.Monad.Reader
 import Control.Monad.State
+import Control.Monad.Identity
 import qualified Data.Map as Map
 -- import Data.Map (Map)
 import Data.List
 import Data.Maybe
+import Data.Traversable hiding (mapM, forM)
 
 import qualified Agda.Syntax.Concrete as C -- ToDo: Remove with instance of ToConcrete
 import Agda.Syntax.Position
 import Agda.Syntax.Abstract as A hiding (Open)
-import Agda.Syntax.Abstract.Views (deepUnScope)
+import Agda.Syntax.Abstract.Views as A
 import Agda.Syntax.Common
 import Agda.Syntax.Info(ExprInfo(..),MetaInfo(..),emptyMetaInfo)
 import Agda.Syntax.Internal as I
@@ -35,11 +37,13 @@ import Agda.TypeChecking.MetaVars
 import Agda.TypeChecking.Reduce
 import Agda.TypeChecking.Substitute
 import Agda.TypeChecking.Telescope
+import Agda.TypeChecking.With
 -- import Agda.TypeChecking.EtaContract (etaContract)
 import Agda.TypeChecking.Coverage
 import Agda.TypeChecking.Records
 import Agda.TypeChecking.Irrelevance (wakeIrrelevantVars)
 import Agda.TypeChecking.Pretty (prettyTCM)
+import Agda.TypeChecking.Free (freeIn)
 -- UNUSED: import Agda.TypeChecking.Eliminators (unElim)
 import qualified Agda.TypeChecking.Pretty as TP
 
@@ -412,6 +416,74 @@ typesOfHiddenMetas norm = liftTCM $ do
   openAndImplicit is x (MetaVar{mvInstantiation = M.Open}) = x `notElem` is
   openAndImplicit is x (MetaVar{mvInstantiation = M.BlockedConst _}) = True
   openAndImplicit _  _ _                                    = False
+
+metaHelperType :: Rewrite -> InteractionId -> Range -> String -> TCM (OutputConstraint' Expr Expr)
+metaHelperType norm ii rng s = case words s of
+  []    -> fail "C-C C-J expects an argument of the form f e1 e2 .. en"
+  f : _ -> do
+    A.Application h args <- A.appView . getBody . deepUnScope <$> parseExprIn ii rng ("let " ++ f ++ " = _ in " ++ s)
+    withInteractionId ii $ do
+      cxtArgs  <- getContextArgs
+      -- cleanupType relies on with arguments being named 'w' so we'd better rename any actual 'w's to avoid confusion.
+      tel      <- runIdentity . onNamesTel unW <$> getContextTelescope
+      a        <- runIdentity . onNames unW . (`piApply` cxtArgs) <$> (getMetaType =<< lookupInteractionId ii)
+      (vs, as) <- unzip <$> mapM (inferExpr . namedThing . unArg) args
+      a        <- reify =<< cleanupType args =<< rewrite norm =<< withFunctionType tel vs as EmptyTel a
+      return (OfType' h a)
+  where
+    cleanupType args t = return $ evalState (renameVars $ stripUnused t) (map (namedThing . unArg) args)
+
+    getBody (A.Let _ _ e)      = e
+    getBody _                  = __IMPOSSIBLE__
+
+    stripUnused (El s v) = El s $ strip v
+    strip v = case v of
+      I.Pi a b -> case fmap stripUnused b of
+        b | absName b == "w"   -> I.Pi a b
+        NoAbs _ b              -> unEl b
+        Abs s b | 0 `freeIn` b -> I.Pi (hide a) (Abs s b)
+                | otherwise    -> subst __IMPOSSIBLE__ (unEl b)
+      _ -> v  -- todo: handle if goal type is a Pi
+
+    renameVars = onNames renameVar
+
+    onNames :: Applicative m => (String -> m String) -> Type -> m Type
+    onNames f (El s v) = El s <$> onNamesTm f v
+
+    onNamesTel :: Applicative f => (String -> f String) -> I.Telescope -> f I.Telescope
+    onNamesTel f I.EmptyTel = pure I.EmptyTel
+    onNamesTel f (I.ExtendTel a b) = I.ExtendTel <$> traverse (onNames f) a <*> onNamesAbs f onNamesTel b
+
+    onNamesTm f v = case v of
+      I.Var x args -> I.Var x <$> onNamesArgs f args
+      I.Def q args -> I.Def q <$> onNamesArgs f args
+      I.Con c args -> I.Con c <$> onNamesArgs f args
+      I.Lam i b    -> I.Lam i <$> onNamesAbs f onNamesTm b
+      I.Pi a b     -> I.Pi <$> traverse (onNames f) a <*> onNamesAbs f onNames b
+      I.DontCare v -> I.DontCare <$> onNamesTm f v
+      I.Lit{}      -> pure v
+      I.Sort{}     -> pure v
+      I.Level{}    -> pure v
+      I.MetaV{}    -> pure v
+      I.Shared{}   -> pure v
+    onNamesArgs f = traverse (traverse $ onNamesTm f)
+    onNamesAbs f nd (Abs   s x) = Abs   <$> f s <*> nd f x
+    onNamesAbs f nd (NoAbs s x) = NoAbs <$> f s <*> nd f x
+
+    unW "w" = return ".w"
+    unW s   = return s
+
+    renameVar ('.':s) = pure s
+    renameVar "w"     = betterName
+    renameVar s       = pure s
+
+    betterName = do
+      arg : args <- get
+      put args
+      return $ case arg of
+        A.Var x -> show x
+        _       -> "w"
+
 
 -- Gives a list of names and corresponding types.
 

@@ -304,6 +304,8 @@ data Interaction
 
   | Cmd_context         B.Rewrite InteractionId Range String
 
+  | Cmd_stuff           B.Rewrite InteractionId Range String
+
   | Cmd_infer           B.Rewrite InteractionId Range String
 
   | Cmd_goal_type       B.Rewrite InteractionId Range String
@@ -581,6 +583,9 @@ interpret (Cmd_auto ii rng s) = do
 interpret (Cmd_context norm ii _ _) =
   display_info . Info_Context =<< lift (prettyContext norm False ii)
 
+interpret (Cmd_stuff norm ii rng s) =
+  display_info . Info_Stuff =<< lift (doStuff norm ii rng s)
+
 interpret (Cmd_infer norm ii rng s) =
   display_info . Info_InferredType
     =<< lift (B.withInteractionId ii
@@ -754,6 +759,12 @@ prettyContext norm rev ii = B.withInteractionId ii $ do
   ns  <- mapM (showATop   . B.ofName) ctx
   let shuffle = if rev then reverse else id
   return $ align 10 $ filter (not . null. fst) $ shuffle $ zip ns (map (text ":" <+>) es)
+
+-- | Do stuff.
+
+doStuff :: B.Rewrite -> InteractionId -> Range -> String -> TCM Doc
+doStuff norm ii r s = B.withInteractionId ii $ inTopContext $
+  prettyATop =<< B.metaHelperType norm ii r s
 
 -- | Displays the current goal, the given document, and the current
 -- context.
