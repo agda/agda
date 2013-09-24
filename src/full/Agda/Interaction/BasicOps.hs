@@ -428,7 +428,9 @@ metaHelperType norm ii rng s = case words s of
       tel      <- runIdentity . onNamesTel unW <$> getContextTelescope
       a        <- runIdentity . onNames unW . (`piApply` cxtArgs) <$> (getMetaType =<< lookupInteractionId ii)
       (vs, as) <- unzip <$> mapM (inferExpr . namedThing . unArg) args
-      a        <- reify =<< cleanupType args =<< rewrite norm =<< withFunctionType tel vs as EmptyTel a
+      a        <-
+        local (\e -> e { envPrintDomainFreePi = True }) $
+        reify =<< cleanupType args =<< rewrite norm =<< withFunctionType tel vs as EmptyTel a
       return (OfType' h a)
   where
     cleanupType args t = return $ evalState (renameVars $ stripUnused t) (map (namedThing . unArg) args)

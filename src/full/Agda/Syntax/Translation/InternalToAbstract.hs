@@ -26,6 +26,7 @@ import Control.Applicative
 import Control.Arrow
 import Control.Monad.State hiding (mapM_, mapM)
 import Control.Monad.Error hiding (mapM_, mapM)
+import Control.Monad.Reader hiding (mapM_, mapM)
 
 import qualified Data.Set as Set
 import Data.Set (Set)
@@ -46,6 +47,7 @@ import Agda.Syntax.Abstract as A
 import Agda.Syntax.Internal as I
 -- import Agda.Syntax.Scope.Base
 -- import Agda.Syntax.Scope.Monad
+import qualified Agda.Utils.VarSet as VSet
 
 import Agda.TypeChecking.Monad as M hiding (MetaInfo)
 import Agda.TypeChecking.Reduce
@@ -354,11 +356,21 @@ reifyTerm expandAnonDefs v = do
       I.Lit l        -> reify l
       I.Level l      -> reify l
       I.Pi a b       -> case b of
-        NoAbs _ b -> uncurry (A.Fun $ exprInfo) <$> reify (a,b)
-        b         -> do
-          Common.Arg info a <- reify a
-          (x, b)    <- reify b
-          return $ A.Pi exprInfo [TypedBindings noRange $ Common.Arg info (TBind noRange [x] a)] b
+          NoAbs _ b -> uncurry (A.Fun $ exprInfo) <$> reify (a, b)
+          b         -> do
+            df <- domainFree a (absBody b)
+            Common.Arg info a <-
+              case df of
+                False -> reify a
+                True  -> Common.Arg <$> reify (domInfo a) <*> pure (Underscore emptyMetaInfo)
+            (x, b)    <- reify b
+            return $ A.Pi exprInfo [TypedBindings noRange $ Common.Arg info (TBind noRange [x] a)] b
+        where
+          -- We can omit the domain type if it doesn't have any free variables
+          -- and it's mentioned in the target type.
+          domainFree a b = do
+            df <- asks envPrintDomainFreePi
+            return $ and [df, freeIn 0 b, VSet.null $ allVars $ freeVars a]
       I.Sort s     -> reify s
       I.MetaV x vs -> do vs' <- reifyIArgs vs
                          x' <- reify x

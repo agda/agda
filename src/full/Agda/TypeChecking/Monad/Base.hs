@@ -1047,6 +1047,9 @@ data TCEnv =
                 -- ^ Did we encounter a simplification (proper match)
                 --   during the current reduction process?
           , envAllowedReductions :: AllowedReductions
+          , envPrintDomainFreePi :: Bool
+                -- ^ When True types will be omitted from printed pi types if they
+                --   can be inferred
 	  }
     deriving (Typeable)
 
@@ -1087,6 +1090,7 @@ initEnv = TCEnv { envContext	         = []
                 , envAppDef                 = Nothing
                 , envSimplification         = NoSimplification
                 , envAllowedReductions      = allReductions
+                , envPrintDomainFreePi      = False
 		}
 
 ---------------------------------------------------------------------------

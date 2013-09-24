@@ -156,7 +156,7 @@ instance Pretty Expr where
 		    , pretty e2
 		    ]
 	    Pi tel e ->
-		sep [ fsep (map pretty (smashTel tel) ++ [arrow])
+		sep [ pretty (Tel $ smashTel tel) <+> arrow
 		    , pretty e
 		    ]
 	    Set _   -> text "Set"
@@ -202,15 +202,30 @@ instance Pretty TypedBindings where
 	pRelevance (argInfo a) $ bracks $ pretty $ WithColors (argColors a) $ unArg a
 	where
 	    bracks = case getHiding a of
-			Hidden	    -> braces'
-			Instance    -> dbraces
-			NotHidden   -> parens
+			Hidden                       -> braces'
+			Instance                     -> dbraces
+			NotHidden | isMeta (unArg a) -> id
+                                  | otherwise        -> parens
+            isMeta (TBind _ _ (Underscore _ Nothing)) = True
+            isMeta _ = False
+
+newtype Tel = Tel Telescope
+
+instance Pretty Tel where
+    pretty (Tel tel)
+      | any isMeta tel = text "∀" <+> fsep (map pretty tel)
+      | otherwise      = fsep (map pretty tel)
+      where
+        isMeta (TypedBindings _ (Common.Arg _ (TBind _ _ (Underscore _ Nothing)))) = True
+        isMeta _ = False
 
 
 instance Pretty ColoredTypedBinding where
     pretty (WithColors cs  (TNoBind e))    =
 	    pretty e <+> pColors "" cs
                 -- (x y :{ i j } A) -> ...
+    pretty (WithColors [] (TBind _ xs (Underscore _ Nothing))) =
+        fsep (map pretty xs)
     pretty (WithColors cs (TBind _ xs e)) =
 	sep [ fsep (map pretty xs)
 	    , pColors ":" cs <+> pretty e
