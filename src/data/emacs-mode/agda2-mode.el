@@ -920,6 +920,11 @@ is inserted, and point is placed before this text."
             (goto-char (point-max))
           (goto-char (point-min)))))))
 
+(defun agda2-info-action-and-copy (name text &optional append)
+  "Same as agda2-info-action but also puts TEXT in the kill ring."
+  (kill-new text)
+  (agda2-info-action name text append))
+
 (defun agda2-show-goals()
   "Show all goals." (interactive)
   (agda2-go t t "Cmd_metas"))
