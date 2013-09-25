@@ -304,7 +304,7 @@ data Interaction
 
   | Cmd_context         B.Rewrite InteractionId Range String
 
-  | Cmd_stuff           B.Rewrite InteractionId Range String
+  | Cmd_helper_function B.Rewrite InteractionId Range String
 
   | Cmd_infer           B.Rewrite InteractionId Range String
 
@@ -583,8 +583,8 @@ interpret (Cmd_auto ii rng s) = do
 interpret (Cmd_context norm ii _ _) =
   display_info . Info_Context =<< lift (prettyContext norm False ii)
 
-interpret (Cmd_stuff norm ii rng s) =
-  display_info . Info_Stuff =<< lift (doStuff norm ii rng s)
+interpret (Cmd_helper_function norm ii rng s) =
+  display_info . Info_HelperFunction =<< lift (doStuff norm ii rng s)
 
 interpret (Cmd_infer norm ii rng s) =
   display_info . Info_InferredType

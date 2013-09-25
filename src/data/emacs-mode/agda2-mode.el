@@ -238,7 +238,7 @@ constituents.")
     (agda2-make-case                         "\C-c\C-c"           (local)        "Case")
     (agda2-goal-type                         "\C-c\C-t"           (local)        "Goal type")
     (agda2-show-context                      "\C-c\C-e"           (local)        "Context (environment)")
-    (agda2-do-stuff                          "\C-c\C-j"           (local)        "Do stuff")
+    (agda2-helper-function-type              "\C-c\C-h"           (local)        "Helper function type")
     (agda2-infer-type-maybe-toplevel         "\C-c\C-d"           (local global) "Infer (deduce) type")
     (agda2-goal-and-context                  ,(kbd "C-c C-,")     (local)        "Goal type and context")
     (agda2-goal-and-context-and-inferred     ,(kbd "C-c C-.")     (local)        "Goal type, context and inferred type")
@@ -1079,9 +1079,9 @@ top-level scope."
  nil)
 
 (agda2-maybe-normalised
- agda2-do-stuff
-  "Do stuff."
-  "Cmd_stuff"
+ agda2-helper-function-type
+  "Compute the type of a hypothetical helper function."
+  "Cmd_helper_function"
   "Expression")
 
 (defun agda2-module-contents ()

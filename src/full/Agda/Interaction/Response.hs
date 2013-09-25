@@ -67,7 +67,7 @@ data DisplayInfo
     | Info_CurrentGoal Doc
     | Info_InferredType Doc
     | Info_Context Doc
-    | Info_Stuff Doc
+    | Info_HelperFunction Doc
         deriving Show
 
 -- | Status information.
