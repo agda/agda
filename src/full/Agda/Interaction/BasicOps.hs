@@ -433,7 +433,7 @@ metaHelperType norm ii rng s = case words s of
         reify =<< cleanupType args =<< rewrite norm =<< withFunctionType tel vs as EmptyTel a
       return (OfType' h a)
   where
-    cleanupType args t = return $ evalState (renameVars $ stripUnused t) (map (namedThing . unArg) args)
+    cleanupType args t = return $ evalState (renameVars $ hiding args $ stripUnused t) args
 
     getBody (A.Let _ _ e)      = e
     getBody _                  = __IMPOSSIBLE__
@@ -448,6 +448,12 @@ metaHelperType norm ii rng s = case words s of
       _ -> v  -- todo: handle if goal type is a Pi
 
     renameVars = onNames renameVar
+
+    hiding args (El s v) = El s $ hidingTm args v
+    hidingTm (arg:args) (I.Pi a b) | absName b == "w" =
+      I.Pi (setHiding (getHiding arg) a) (hiding args <$> b)
+    hidingTm args (I.Pi a b) = I.Pi a (hiding args <$> b)
+    hidingTm _ a = a
 
     onNames :: Applicative m => (String -> m String) -> Type -> m Type
     onNames f (El s v) = El s <$> onNamesTm f v
@@ -483,8 +489,9 @@ metaHelperType norm ii rng s = case words s of
       arg : args <- get
       put args
       return $ case arg of
-        A.Var x -> show x
-        _       -> "w"
+        Arg _ (Named _ (A.Var x)) -> show x
+        Arg _ (Named (Just x) _)  -> x
+        _                         -> "w"
 
 
 -- Gives a list of names and corresponding types.
