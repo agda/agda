@@ -11,6 +11,8 @@ followed:
 
 * Update the README, if necessary.
 
+* Update the LICENSE file, if necessary.
+
 * Update the version numbers in Agda.cabal (twice) and
   src/data/emacs-mode/agda2-mode.el.
 
