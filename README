@@ -160,7 +160,8 @@ Installing the Epic backend's dependencies
 
 The Epic backend is experimental and requires that the Epic program is
 installed. You can install this program by giving the epic flag to
-cabal:
+cabal (but note that, at the time of writing, the Epic program does
+not build with certain recent versions of GHC):
 
 * When installing from Hackage:
 
@@ -204,7 +205,8 @@ Installing a suitable version of Emacs under Windows
 Note that Agda code often uses mathematical and other symbols
 available from the Unicode character set. In order to be able to
 display these characters you may want to follow the procedure below
-when installing Emacs under Windows.
+when installing Emacs under Windows. (Note: These instructions are
+possibly outdated.)
 
 1. Install NTEmacs 22.
 
