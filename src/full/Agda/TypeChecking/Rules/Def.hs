@@ -12,6 +12,7 @@ import Control.Monad.Error hiding (mapM)
 
 import Data.Function
 import Data.List hiding (sort)
+import Data.Maybe
 import Data.Traversable
 -- import Data.Set (Set)
 -- import qualified Data.Set as Set
@@ -259,6 +260,10 @@ such that the arity of the clauses of @test@ is uniform.
 -- TODO: how does this work with copatterns/flex arity?
 trailingImplicits :: Type -> [A.SpineClause] -> TCM [A.SpineClause]
 trailingImplicits t []       = __IMPOSSIBLE__
+-- Andreas, 2013-10-01: don't do anything if there are projection copatterns
+trailingImplicits t cs | hasProjP cs = return cs
+  where
+    hasProjP = any (any (isJust . A.isProjP) . A.spLhsPats . A.clauseLHS)
 trailingImplicits t cs@(c:_) = do
   pps@((ps,ips):_) <- mapM splitTrailingImplicits cs
   -- compute the trailing implicits from type t
