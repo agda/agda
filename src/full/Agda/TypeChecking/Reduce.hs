@@ -1061,11 +1061,12 @@ instance InstantiateFull CompiledClauses where
   instantiateFull (Case n bs) = Case n <$> instantiateFull bs
 
 instance InstantiateFull Clause where
-    instantiateFull (Clause r tel perm ps b) =
+    instantiateFull (Clause r tel perm ps b t) =
        Clause r <$> instantiateFull tel
        <*> return perm
        <*> instantiateFull ps
        <*> instantiateFull b
+       <*> instantiateFull t
 
 instance InstantiateFull Interface where
     instantiateFull (Interface ms mod scope inside

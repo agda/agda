@@ -127,7 +127,14 @@ checkAlias t' info delayed i name e = do
   -- Add the definition
   addConstant name $ Defn info name t [] [] (defaultDisplayForm name) 0 noCompiledRep
                    $ Function
-                      { funClauses        = [Clause (getRange i) EmptyTel (idP 0) [] $ Body v] -- trivial clause @name = v@
+                      { funClauses        = [ Clause  -- trivial clause @name = v@
+                          { clauseRange = getRange i
+                          , clauseTel   = EmptyTel
+                          , clausePerm  = idP 0
+                          , clausePats  = []
+                          , clauseBody  = Body v
+                          , clauseType  = Just t
+                          } ]
                       , funCompiled       = Done [] v
                       , funDelayed        = delayed
                       , funInv            = NotInjective
@@ -606,6 +613,7 @@ checkClause t c@(A.Clause (A.SpineLHS i x aps withPats) rhs0 wh) = do
                , clausePerm  = perm
                , clausePats  = ps
                , clauseBody  = body
+               , clauseType  = Just t'
                }
 {-
 checkClause t (A.Clause (A.LHS _ _ ps@(_ : _)) _ _) = typeError $ UnexpectedWithPatterns ps

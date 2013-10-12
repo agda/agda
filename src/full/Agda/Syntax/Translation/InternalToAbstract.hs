@@ -699,7 +699,7 @@ reifyPatterns tel perm ps = evalStateT (reifyArgs ps) 0
         where ci = flip ConPatInfo patNoRange $ maybe False fst mt
 
 instance Reify NamedClause A.Clause where
-  reify (QNamed f (I.Clause _ tel perm ps body)) = addCtxTel tel $ do
+  reify (QNamed f (I.Clause _ tel perm ps body _)) = addCtxTel tel $ do
     ps  <- reifyPatterns tel perm ps
     lhs <- liftTCM $ reifyDisplayFormP $ SpineLHS info f ps [] -- LHS info (LHSHead f ps) []
     nfv <- getDefFreeVars f

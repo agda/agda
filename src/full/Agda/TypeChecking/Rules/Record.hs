@@ -367,6 +367,7 @@ checkRecordProjections m r q tel ftel fs = do
                           , clausePerm  = idP $ size ftel
                           , clausePats  = [conp]
                           , clauseBody  = body
+                          , clauseType  = Just t
                           }
 
       reportSDoc "tc.rec.proj" 80 $ sep

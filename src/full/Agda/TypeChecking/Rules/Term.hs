@@ -275,7 +275,7 @@ checkAbsurdLambda i h e t = do
   t <- instantiateFull t
   ifBlockedType t (\ m t' -> postponeTypeCheckingProblem_ e t') $ \ t' -> do
     case ignoreSharing $ unEl t' of
-      Pi dom@(Dom info' a) _
+      Pi dom@(Dom info' a) b
         | h /= getHiding info' -> typeError $ WrongHidingInLambda t'
         | not (null $ allMetas a) ->
             postponeTypeCheckingProblem e t' $
@@ -305,6 +305,7 @@ checkAbsurdLambda i h e t = do
                     , clausePerm  = Perm 1 []  -- Perm 1 [0]
                     , clausePats  = [Arg info' $ VarP "()"]
                     , clauseBody  = Bind $ NoAbs "()" NoBody
+                    , clauseType  = Just $ absBody b
                     }
                   ]
               , funCompiled       = Fail

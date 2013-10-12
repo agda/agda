@@ -87,7 +87,7 @@ import Agda.Utils.Impossible
 -- 32-bit machines). Word64 does not have these problems.
 
 currentInterfaceVersion :: Word64
-currentInterfaceVersion = 20130918 * 10 + 0
+currentInterfaceVersion = 20131011 * 10 + 0
 
 -- | Constructor tag (maybe omitted) and argument indices.
 
@@ -980,9 +980,9 @@ instance EmbPrj Agda.Syntax.Common.IsAbstract where
                            valu _   = malformed
 
 instance EmbPrj I.Clause where
-  icode (Clause a b c d e) = icode5' a b c d e
-  value = vcase valu where valu [a, b, c, d, e] = valu5 Clause a b c d e
-                           valu _               = malformed
+  icode (Clause a b c d e f) = icode6' a b c d e f
+  value = vcase valu where valu [a, b, c, d, e, f] = valu6 Clause a b c d e f
+                           valu _                  = malformed
 
 instance EmbPrj I.ClauseBody where
   icode (Body   a) = icode1 0 a

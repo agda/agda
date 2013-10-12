@@ -642,7 +642,14 @@ frommyClause (ids, pats, mrhs) = do
                r n = I.Bind $ I.Abs "h" $ r (n - 1)
                e'' = r ({-length ids + -}nv)
            return e''
- return $ I.Clause SP.noRange tel (Perm (nv{- + length ids-}) perm) ps body
+ return $ I.Clause
+   { I.clauseRange = SP.noRange
+   , I.clauseTel   = tel
+   , I.clausePerm  = Perm (nv{- + length ids-}) perm
+   , I.clausePats  = ps
+   , I.clauseBody  = body
+   , I.clauseType  = Nothing -- TODO: compute clause type
+   }
 
 contains_constructor :: [CSPat O] -> Bool
 contains_constructor = any f

@@ -335,6 +335,7 @@ applySection new ptel old ts rd rm = do
                     , clausePerm  = idP 0
                     , clausePats  = []
                     , clauseBody  = Body $ Def x ts'
+                    , clauseType  = Just t
                     }
 
     copySec :: Args -> (ModuleName, Section) -> TCM ()

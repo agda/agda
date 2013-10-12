@@ -196,10 +196,12 @@ instance Applicative Blocked where
 --  as variables. TODO: Change this!
 data Clause = Clause
     { clauseRange     :: Range
-    , clauseTel       :: Telescope
+    , clauseTel       :: Telescope     -- ^ The types of the pattern variables.
     , clausePerm      :: Permutation
     , clausePats      :: [Arg Pattern]
     , clauseBody      :: ClauseBody
+    , clauseType      :: Maybe Type    -- ^ The type of the rhs under @clauseTel@.
+                                       --   (2013-10-12 currently only used by TermCheck.)
     }
   deriving (Typeable, Show)
 

@@ -147,9 +147,13 @@ instance Apply PrimFun where
     apply (PrimFun x ar def) args   = PrimFun x (ar - size args) $ \vs -> def (args ++ vs)
 
 instance Apply Clause where
-    apply (Clause r tel perm ps b) args =
-      Clause r (apply tel args) (apply perm args)
-             (List.drop (size args) ps) (apply b args)
+    apply (Clause r tel perm ps b t) args =
+      Clause r
+             (apply tel args)
+             (apply perm args)
+             (List.drop (size args) ps)
+             (apply b args)
+             (applySubst (parallelS (map unArg args)) t)
 
 instance Apply CompiledClauses where
   apply cc args = case cc of
@@ -303,9 +307,10 @@ instance Abstract PrimFun where
         where n = size tel
 
 instance Abstract Clause where
-  abstract tel (Clause r tel' perm ps b) =
+  abstract tel (Clause r tel' perm ps b t) =
     Clause r (abstract tel tel') (abstract tel perm)
            (telVars tel ++ ps) (abstract tel b)
+           t -- nothing to do for t, since it lives under the telescope
 
 instance Abstract CompiledClauses where
   abstract tel Fail = Fail

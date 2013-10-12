@@ -32,3 +32,17 @@ head nats = 0
 tail nats {_} = map suc nats
 -- Before this patch, Agda would insert a {_} also in the `head' clause
 -- leading to a type error.
+
+-- 2013-10-12 works now also with out manual {_} insertion
+-- (See TermCheck.introHiddenLambdas.)
+nats' : {i : Size} → Stream Nat {i}
+head nats' = 0
+tail nats' = map suc nats'
+-- Before this latest patch, the termination checker would complain
+-- since it would not see the type of the hidden {j : Size< i}
+-- which is the argument to the recursive call.
+
+-- All this would not be an issue if Agda still eagerly introduced
+-- trailing hidden arguments on the LHS, but this has other
+-- drawbacks (Q: even with varying arity?): cannot have
+-- hidden lambdas on rhs (used to name trailing hiddens in with-clauses).

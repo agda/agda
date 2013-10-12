@@ -126,6 +126,7 @@ makeCase hole rng s = withInteractionId hole $ do
       , clausePerm  = scPerm c
       , clausePats  = scPats c
       , clauseBody  = clauseBody clause
+      , clauseType  = scTarget c
       }
 
   -- Finds the new variable corresponding to an old one, if any.
@@ -137,7 +138,7 @@ makeCase hole rng s = withInteractionId hole $ do
   -- NOTE: clauseToSplitClause moved to Coverage.hs
 
 makeAbsurdClause :: QName -> SplitClause -> TCM A.Clause
-makeAbsurdClause f (SClause tel perm ps _ _) = do
+makeAbsurdClause f (SClause tel perm ps _ t) = do
   reportSDoc "interaction.case" 10 $ vcat
     [ text "Interaction.MakeCase.makeCase: split clause:"
     , nest 2 $ vcat
@@ -150,7 +151,7 @@ makeAbsurdClause f (SClause tel perm ps _ _) = do
   withCurrentModule (qnameModule f) $ do
     -- Normalise the dot patterns
     ps <- addCtxTel tel $ normalise ps
-    inContext [] $ reify $ QNamed f $ Clause noRange tel perm ps NoBody
+    inContext [] $ reify $ QNamed f $ Clause noRange tel perm ps NoBody t
 
 -- | Make a clause with a question mark as rhs.
 makeAbstractClause :: QName -> SplitClause -> TCM A.Clause

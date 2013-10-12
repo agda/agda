@@ -127,6 +127,7 @@ bindBuiltinFlat e =
                         , clausePats  = [ argN (ConP sharp Nothing [argN (VarP "x")])
                                         ]
                         , clauseBody  = Bind $ Abs "x" $ Body (var 0)
+                        , clauseType  = Just $ El (varSort 2) (var 1)
                         }
     addConstant flat $
       flatDefn { defPolarity = []

@@ -33,7 +33,7 @@ import qualified Agda.Syntax.Abstract as A
 import Agda.Syntax.Internal as I
 import qualified Agda.Syntax.Info as Info
 import Agda.Syntax.Position
-import Agda.Syntax.Common
+import Agda.Syntax.Common as Common
 import Agda.Syntax.Literal (Literal(LitString))
 -- import Agda.Syntax.Translation.InternalToAbstract
 
@@ -550,11 +550,11 @@ openClause conf perm ps body = do
 
 -- | Extract recursive calls from one clause.
 termClause :: DBPConf -> MutualNames -> QName -> Delayed -> Clause -> TCM Calls
-termClause conf names name delayed
-    (Clause { clauseTel  = tel
-            , clausePerm = perm
-            , clausePats = argPats'
-            , clauseBody = body }) = do
+termClause conf names name delayed clause = do
+  (Clause { clauseTel  = tel
+          , clausePerm = perm
+          , clausePats = argPats'
+          , clauseBody = body }) <- introHiddenLambdas clause
   reportSDoc "term.check.clause" 25 $ vcat
     [ text "termClause"
     , nest 2 $ text "tel      =" <+> prettyTCM tel
@@ -570,6 +570,48 @@ termClause conf names name delayed
        Just t -> do
           dbpats <- mapM (stripCoConstructors conf) dbpats
           termTerm conf names name delayed dbpats t
+
+-- | Rewrite a clause @f ps =tel= \ {xs} -> v@ to @f ps {xs} =(tel {xs})= v@.
+--   The pupose is to move hidden bounded size quantifications {j : Size< i}
+--   to the lhs such that the termination checker can make use of them.
+introHiddenLambdas :: Clause -> TCM Clause
+introHiddenLambdas clause@(Clause range ctel perm ps body Nothing)  = return clause
+introHiddenLambdas clause@(Clause range ctel perm ps body (Just t)) = do
+  case removeHiddenLambdas body of
+    -- nobody or no hidden lambdas
+    ([], _) -> return clause
+    -- hidden lambdas
+    (axs, body') -> do
+      -- n = number of hidden lambdas
+      let n = length axs
+      -- take n abstractions from rhs type
+      TelV ttel t' <- telViewUpTo n t
+      when (size ttel < n) __IMPOSSIBLE__
+      -- join with lhs telescope
+      let ctel' = telFromList $ telToList ctel ++ telToList ttel
+          ps'   = ps ++ map toPat axs
+          perm' = liftP n perm
+      return $ Clause range ctel' perm' ps' body' $ Just t'
+  where
+    toPat (Common.Arg (Common.ArgInfo h r c) x) =
+           Common.Arg (Common.ArgInfo h r []) (VarP x)
+    removeHiddenLambdas :: ClauseBody -> ([I.Arg String], ClauseBody)
+    removeHiddenLambdas = underBinds $ hlamsToBinds
+
+    hlamsToBinds :: Term -> ([I.Arg String], ClauseBody)
+    hlamsToBinds v =
+      case ignoreSharing v of
+        Lam info b | getHiding info == Hidden ->
+          let (xs, b') = hlamsToBinds $ unAbs b
+          in  (Arg info (absName b) : xs, Bind $ b' <$ b)
+        _ -> ([], Body v)
+    underBinds :: (Term -> ([a], ClauseBody)) -> ClauseBody -> ([a], ClauseBody)
+    underBinds k body = loop body where
+      loop (Bind b) =
+        let (res, b') = loop $ unAbs b
+        in  (res, Bind $ b' <$ b)
+      loop NoBody = ([], NoBody)
+      loop (Body v) = k v
 
 -- | Extract recursive calls from a term.
 termTerm :: DBPConf -> MutualNames -> QName -> Delayed -> [DeBruijnPat] -> Term -> TCM Calls
