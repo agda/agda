@@ -2,7 +2,7 @@
 
 module Agda.TypeChecking.Eliminators where
 
-import Control.Applicative
+-- import Control.Applicative
 -- import Control.Monad
 
 import Data.Maybe (isJust, isNothing)
@@ -54,17 +54,20 @@ elimView' conf v = do
   reportSLn "tc.conv.elim" 50 $ "v = " ++ show v
   case ignoreSharing v of
     Def f [] -> return $ DefElim f [] -- Andreas, 2013-03-05 it is not impossible that f is an unapplied projection
-    Def f vs -> do
+    Def f vs@(rv : vs') -> do
+      let defElim = DefElim f `app` vs
       proj <- isProjection f
       case proj of
         Just Projection{ projProper = proper }
           | proper || elViewProjLike conf -> do
-            case vs of
-              rv : vs' -> elim (Proj f : map Apply vs') <$> elimView (unArg rv)
-              [] -> __IMPOSSIBLE__
-                -- elimView should only be called from the conversion checker
-                -- with properly saturated applications
-        _ -> DefElim f `app` vs
+                ev <- elimView (unArg rv)
+                case ev of
+                 -- Andreas, 2013-10-14 Since the termination checker does not reduce,
+                 -- the following 2 cases are actually possible. (Issue 918)
+                  NoElim{}  -> defElim
+                  ConElim{} -> defElim
+                  _         -> return $ elim (Proj f : map Apply vs') ev
+        _ -> defElim
     Var x vs   -> VarElim x `app` vs
     Con c vs   -> return $ ConElim c vs
 --    Con c vs   -> ConElim c `app` vs
@@ -83,7 +86,7 @@ elimView' conf v = do
       elim es2 (VarElim  x es1) = VarElim  x (es1 ++ es2)
       elim es2 (DefElim  x es1) = DefElim  x (es1 ++ es2)
       elim es2 (ConElim  x es1) = __IMPOSSIBLE__
---      elim es2 (ConElim  x es1) = ConElim  x (es1 ++ es2)
+      -- elim es2 (ConElim  x es1) = ConElim  x (es1 ++ map argFromElim es2)
       elim es2 (MetaElim x es1) = MetaElim x (es1 ++ es2)
 
 
