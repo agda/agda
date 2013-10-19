@@ -22,11 +22,12 @@ import Agda.TypeChecking.Pretty
 import Agda.TypeChecking.Free hiding (Occurrence(..))
 import Agda.TypeChecking.Substitute
 -- import Agda.TypeChecking.EtaContract
-import Agda.TypeChecking.Eliminators
+-- import Agda.TypeChecking.Eliminators
 import Agda.TypeChecking.Records
 import Agda.TypeChecking.Datatypes (isDataOrRecordType)
 import {-# SOURCE #-} Agda.TypeChecking.MetaVars
 
+import Agda.Utils.List (takeMaybe)
 import Agda.Utils.Monad
 import Agda.Utils.Permutation
 import Agda.Utils.Size
@@ -205,8 +206,8 @@ instance Occurs Term where
       reportSDoc "tc.meta.occurs" 70 $
         nest 2 $ text $ show v
       case v of
-        Var i vs   -> do
-          if (i `allowedVar` xs) then Var i <$> occ (weakly ctx) vs else do
+        Var i es   -> do
+          if (i `allowedVar` xs) then Var i <$> occ (weakly ctx) es else do
             -- if the offending variable is of singleton type,
             -- eta-expand it away
             isST <- isSingletonType =<< typeOfBV i
@@ -217,17 +218,17 @@ instance Occurs Term where
               Right Nothing -> -- abort Rigid turns this error into PatternErr
                 abort (strongly ctx) $ MetaCannotDependOn m (takeRelevant xs) i
               -- is a singleton type with unique inhabitant sv
-              Right (Just sv) -> return $ sv `apply` vs
+              Right (Just sv) -> return $ sv `applyE` es
         Lam h f	    -> Lam h <$> occ (leaveTop ctx) f
         Level l     -> Level <$> occ ctx l  -- stay in Top
         Lit l	    -> return v
         DontCare v  -> DontCare <$> occurs red Irrel m (goIrrelevant xs) v
-        Def d vs    -> Def d <$> occDef d (leaveTop ctx) vs
+        Def d es    -> Def d <$> occDef d (leaveTop ctx) es
         Con c vs    -> Con c <$> occ (leaveTop ctx) vs  -- if strongly rigid, remain so
         Pi a b	    -> uncurry Pi <$> occ (leaveTop ctx) (a,b)
         Sort s	    -> Sort <$> occ (leaveTop ctx) s
         v@Shared{}  -> updateSharedTerm (occ ctx) v
-        MetaV m' vs -> do
+        MetaV m' es -> do
             -- Check for loop
             --   don't fail hard on this, since we might still be on the top-level
             --   after some killing (Issue 442)
@@ -246,7 +247,7 @@ instance Occurs Term where
             when (m == m') patternViolation
 
             -- The arguments of a meta are in a flexible position
-            (MetaV m' <$> occurs red Flex m xs vs) `catchError` \err -> do
+            (MetaV m' <$> occurs red Flex m xs es) `catchError` \err -> do
               reportSDoc "tc.meta.kill" 25 $ vcat
                 [ text $ "error during flexible occurs check, we are " ++ show ctx
                 , text $ show err
@@ -257,10 +258,11 @@ instance Occurs Term where
                 PatternErr{} | ctx /= Flex -> do
                       reportSLn "tc.meta.kill" 20 $
                         "oops, pattern violation for " ++ show m'
+                      let vs = takeMaybe isApplyElim es
                       killResult <- prune m' vs (takeRelevant xs)
                       if (killResult == PrunedEverything)
                         -- after successful pruning, restart occurs check
-                        then occurs red ctx m xs =<< instantiate (MetaV m' vs)
+                        then occurs red ctx m xs =<< instantiate (MetaV m' es)
                         else throwError err
                 _ -> throwError err
         where
@@ -377,7 +379,12 @@ instance Occurs Sort where
       Prop       -> return ()
       Inf        -> return ()
 
+instance Occurs a => Occurs (Elim' a) where
+  occurs red ctx m xs e@Proj{}  = return e
+  occurs red ctx m xs (Apply a) = Apply <$> occurs red ctx m xs a
 
+  metaOccurs m (Proj{} ) = return ()
+  metaOccurs m (Apply a) = metaOccurs m a
 
 instance (Occurs a, Subst a) => Occurs (Abs a) where
   occurs red ctx m xs b@(Abs   s x) = Abs   s <$> underAbstraction_ b (occurs red ctx m (liftUnderAbs xs))
@@ -447,11 +454,9 @@ hasBadRigid xs (DontCare v) = hasBadRigid xs v
 -- match: data, record, Pi, levels, sorts
 -- Thus, their offending rigid variables are bad.
 hasBadRigid xs v@(Def f vs) =
-  ifM (isJust <$> isDataOrRecordType f) (return $ vs `rigidVarsNotContainedIn` xs) $ do
-    elV <- elimView v
-    case elV of
-      VarElim x els -> return $ notElem x xs
-      _             -> return $ False
+  ifM (isJust <$> isDataOrRecordType f)
+    (return $ vs `rigidVarsNotContainedIn` xs)
+    (return $ False)
   -- Andreas, 2012-05-03: There is room for further improvement.
   -- We could also consider a defined f which is not blocked by a meta.
 hasBadRigid xs (Pi a b)     = return $ (a,b) `rigidVarsNotContainedIn` xs
@@ -554,7 +559,7 @@ performKill kills m a = do
   etaExpandMetaSafe m'
   let vars = reverse [ Arg info (var i) | (i, Arg info False) <- zip [0..] kills ]
       lam b a = Lam (argInfo a) (Abs "v" b)
-      u       = foldl' lam (MetaV m' vars) kills
+      u       = foldl' lam (MetaV m' $ map Apply vars) kills
 {- OLD CODE
       hs   = reverse [ argHiding a | a <- kills ]
       lam h b = Lam h (Abs "v" b)

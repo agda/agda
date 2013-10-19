@@ -1,4 +1,4 @@
-{-# LANGUAGE CPP #-}
+{-# LANGUAGE CPP, PatternGuards #-}
 
 -- | Compute eta short normal forms.
 module Agda.TypeChecking.EtaContract where
@@ -24,8 +24,8 @@ data BinAppView = App Term (Arg Term)
 
 binAppView :: Term -> BinAppView
 binAppView t = case t of
-  Var i xs   -> app (Var i) xs
-  Def c xs   -> app (Def c) xs
+  Var i xs   -> appE (Var i) xs
+  Def c xs   -> appE (Def c) xs
   -- Andreas, 2013-09-17: do not eta-contract when body is (record) constructor
   -- like in \ x -> s , x!  (See interaction/DoNotEtaContractFunIntoRecord)
   -- (Cf. also issue 889 (fixed differently).)
@@ -46,6 +46,10 @@ binAppView t = case t of
     noApp = NoApp t
     app f [] = noApp
     app f xs = App (f $ init xs) (last xs)
+    appE f [] = noApp
+    appE f xs
+      | Apply v <- last xs = App (f $ init xs) v
+      | otherwise          = noApp
 
 etaContract :: TermLike a => a -> TCM a
 etaContract = traverseTermM etaOnce

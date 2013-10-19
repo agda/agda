@@ -1,7 +1,8 @@
-{-# LANGUAGE CPP, TypeOperators, PatternGuards #-}
+{-# LANGUAGE CPP, TypeOperators, PatternGuards, FlexibleInstances, TypeSynonymInstances #-}
 module Agda.Compiler.Epic.Injection where
 
 import Control.Monad.State
+import Control.Monad.Reader
 
 -- import Data.Function
 -- import Data.Ix
@@ -152,7 +153,7 @@ isInjectiveHere nam idx clause = do
         body = remAbs $ clauseBody clause
     body' <- lift $ reduce body
     injFs <- gets (injectiveFuns . importedModules)
-    res <- (t' <: body') (M.insert nam (InjectiveFun idx
+    res <- (t' <: body') `runReaderT` (M.insert nam (InjectiveFun idx
                                                      (length (clausePats clause))) injFs)
     lift $ reportSDoc "epic.injection" 20 $ vcat
       [ text "isInjective:" <+> text (show nam)
@@ -178,8 +179,8 @@ litToCon l = case l of
     lit          -> return $ Lit lit
 
 litCon :: Literal -> Bool
-litCon (LitInt _ _) = True
-litCon _          = False
+litCon LitInt{} = True
+litCon _        = False
 
 insertAt :: (Nat,Term) -> Term -> Term
 insertAt (index, ins) =
@@ -243,38 +244,82 @@ unionConstraints (Just c : cs) = do
 -- | Are two terms injectible?
 --   Precondition: t1 is normalised, t2 is in WHNF
 -- When reducing t2, it may become a literal, which makes this not work in some cases...
-(<:) :: Term -> Term -> (QName :-> InjectiveFun) -> Compile TCM InjConstraints
-(Lit l        <:  t1)          injs | litCon l = do
-    l' <- lift $ litToCon l
-    (l' <: t1) injs
-(t1 <: Lit l)                  injs | litCon l = do
-    l' <- lift $ litToCon l
-    (t1 <: l') injs
-(t1           <: Def n2 args2) injs | Just (InjectiveFun argn arit) <- M.lookup n2 injs =
-    if genericLength args2 /= arit
-        then return Nothing
-        else do
-            arg <- lift $ reduce $ unArg $ args2 !! argn
-            (t1 <: arg) injs
--- (Var n1 []    <: Var n2 [])    nam idx = return $ if n1 == n2 then emptyC else Nothing
-(Var n1 args1 <: Var n2 args2) injs | n1 == n2 && length args1 == length args2 = do
-    args1' <- map unArg <$> mapM (lift . reduce) args1
-    args2' <- map unArg <$> mapM (lift . reduce) args2
-    unionConstraints <$> zipWithM (\a b -> (a <: b) injs) args1' args2'
-(Def q1 args1 <: Def q2 args2) injs | q1 == q2 && length args1 == length args2 = do
-    args1' <- map unArg <$> mapM (lift . reduce) args1
-    args2' <- map unArg <$> mapM (lift . reduce) args2
-    unionConstraints <$> zipWithM (\a b -> (a <: b) injs) args1' args2'
-(Con con1 args1 <: Con con2 args2) injs = do
-    let c1 = conName con1
-        c2 = conName con2
-    args1' <- map unArg <$> flip notForced args1 <$> getForcedArgs c1
-    args2' <- map unArg <$> (mapM (lift . reduce) =<< flip notForced args2 <$> getForcedArgs c2)
-    if length args1' == length args2'
-        then addConstraint c1 c2 <$> unionConstraints <$> zipWithM (\a b -> (a <: b) injs) args1' args2'
-        else return Nothing
-(_            <: _) _ = return Nothing
+class Injectible a where
+  (<:) :: a -> a -> ReaderT (QName :-> InjectiveFun) (Compile TCM) InjConstraints
 
+instance Injectible a => Injectible (I.Arg a) where
+  a1 <: a2 = unArg a1 <: unArg a2
+
+instance Injectible a => Injectible [a] where
+  l1 <: l2
+    | length l1 == length l2 = unionConstraints <$> zipWithM (<:) l1 l2
+    | otherwise              = return Nothing
+
+instance Injectible a => Injectible (Elim' a) where
+  e1 <: e2 =
+    case (e1, e2) of
+      (Proj f1 , Proj f2 ) | f1 == f2 -> return $ Just []
+      (Apply a1, Apply a2)            -> a1 <: a2
+      _                               -> return Nothing
+
+instance Injectible Term where
+  t1 <: t2 = do
+    injs <- ask
+    -- Andreas, 2013-10-18: ignoring the precondition (NF, WHNF) since I am not maintaining it
+    -- in recursive calls.
+    -- The original code did not follow this invariant in the Var-Var and Def-Def case,
+    -- thus, I am not trusting it.  Also the call site does not seem to ensure it.
+    -- It could be restored by only reducing the right argument in the Arg-instance.
+    (t1, t2) <- lift . lift . reduce $ (t1, t2)
+    case (t1, t2) of
+      (Lit l, _) | litCon l -> do
+        l' <- lift . lift $ litToCon l
+        l' <: t2
+      (_,  Lit l) | litCon l -> do
+        l' <- lift . lift $ litToCon l
+        t1 <: l'
+      (_, Def n2 es2) | Just (InjectiveFun argn arit) <- M.lookup n2 injs -> do
+        if genericLength es2 /= arit
+          then return Nothing
+          else do
+            case es2 !! argn of
+              Proj{}  -> __IMPOSSIBLE__
+              Apply a -> t1 <: unArg a
+      (Var i1 es1, Var i2 es2) | i1 == i2 -> es1 <: es2
+      (Def q1 es1, Def q2 es2) | q1 == q2 -> es1 <: es2
+      (Con con1 args1, Con con2 args2) -> do
+        let c1 = conName con1
+            c2 = conName con2
+        args1' <- flip notForced args1 <$> do lift . getForcedArgs $ c1
+        args2' <- flip notForced args2 <$> do lift . getForcedArgs $ c2
+        addConstraint c1 c2 <$> do
+          args1' <: args2'
+      _ -> return Nothing
+{-
+      (_, Def n2 args2) | Just (InjectiveFun argn arit) <- M.lookup n2 injs -> do
+        if genericLength args2 /= arit
+          then return Nothing
+          else do
+              arg <- lift . lift . reduce $ unArg $ args2 !! argn
+              t1 <: arg
+      (Var n1 args1, Var n2 args2) | n1 == n2 && length args1 == length args2 -> do
+        args1' <- map unArg <$> mapM (lift . lift . reduce) args1
+        args2' <- map unArg <$> mapM (lift . lift . reduce) args2
+        unionConstraints <$> zipWithM (\a b -> (a <: b)) args1' args2'
+      (Def q1 args1, Def q2 args2) | q1 == q2 && length args1 == length args2 -> do
+        args1' <- map unArg <$> mapM (lift . lift . reduce) args1
+        args2' <- map unArg <$> mapM (lift . lift . reduce) args2
+        unionConstraints <$> zipWithM (\a b -> (a <: b)) args1' args2'
+      (Con con1 args1, Con con2 args2) -> do
+        let c1 = conName con1
+            c2 = conName con2
+        args1' <- map unArg <$> flip notForced args1 <$> getForcedArgs c1
+        args2' <- map unArg <$> (mapM (lift . lift . reduce) =<< flip notForced args2 <$> getForcedArgs c2)
+        if length args1' == length args2'
+            then addConstraint c1 c2 <$> unionConstraints <$> zipWithM (\a b -> (a <: b)) args1' args2'
+            else return Nothing
+      _ -> return Nothing
+-}
 data TagEq
     = Same Int
     | IsTag Tag

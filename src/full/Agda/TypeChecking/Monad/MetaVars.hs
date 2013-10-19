@@ -4,6 +4,8 @@ module Agda.TypeChecking.Monad.MetaVars where
 import Control.Applicative
 import Control.Monad.State
 import Control.Monad.Reader
+
+import Data.Maybe (isJust)
 import qualified Data.Map as Map
 import qualified Data.Set as Set
 
@@ -78,12 +80,15 @@ getMetaType m = do
     IsSort{}  -> __IMPOSSIBLE__
 
 isInstantiatedMeta :: MetaId -> TCM Bool
-isInstantiatedMeta m = do
+isInstantiatedMeta m = isJust <$> isInstantiatedMeta' m
+
+isInstantiatedMeta' :: MetaId -> TCM (Maybe Term)
+isInstantiatedMeta' m = do
   mv <- lookupMeta m
   return $ case mvInstantiation mv of
-    InstV{} -> True
-    InstS{} -> True
-    _       -> False
+    InstV v -> Just v
+    InstS v -> Just v
+    _       -> Nothing
 
 -- | Create 'MetaInfo' in the current environment.
 createMetaInfo :: TCM MetaInfo

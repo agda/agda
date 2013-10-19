@@ -92,7 +92,7 @@ checkRecDef i name ind con ps contel fields =
 	_	-> typeError $ ShouldBeASort t0
       gamma <- getContextTelescope
       -- record type (name applied to parameters)
-      let rect = El s $ Def name $ teleArgs gamma
+      let rect = El s $ Def name $ map Apply $ teleArgs gamma
 
       -- Put in @rect@ as correct target of constructor type.
       -- Andreas, 2011-05-10 use telePi_ instead of telePi to preserve
@@ -120,6 +120,7 @@ checkRecDef i name ind con ps contel fields =
 
           indCo = maybe Inductive id ind -- default is 'Inductive' for backwards compatibility but should maybe be 'Coinductive'
 
+      reportSDoc "tc.rec" 30 $ text "record constructor is " <+> text (show con)
       addConstant name $ Defn defaultArgInfo name t0 [] [] (defaultDisplayForm name) 0 noCompiledRep
 		       $ Record { recPars           = 0
                                 , recClause         = Nothing
@@ -301,7 +302,8 @@ checkRecordProjections m r q tel ftel fs = do
       -- where Δ = Γ, tel is the current context
       let finalt   = telePi tel t
 	  projname = qualify m $ qnameName x
-          projcall = Def projname [defaultArg $ var 0]
+          projcall = Var 0 [Proj projname]
+--          projcall = Def projname [defaultArg $ var 0]
           rel      = argInfoRelevance i
           -- the recursive call
           recurse  = checkProjs (abstract ftel1 $ ExtendTel (Dom i t)

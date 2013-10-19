@@ -1,7 +1,7 @@
 -- | Find the places where the builtin static is used and do some normalisation
 --   there.
 
-{-# LANGUAGE CPP #-}
+{-# LANGUAGE CPP, TypeSynonymInstances, FlexibleInstances #-}
 
 module Agda.Compiler.Epic.Static where
 
@@ -11,9 +11,10 @@ import Control.Monad.State
 -- import Control.Monad.Trans
 
 import qualified Data.Map as M
+import Data.Traversable (traverse)
 
 import Agda.Syntax.Common
-import Agda.Syntax.Internal
+import Agda.Syntax.Internal as I
 
 import Agda.TypeChecking.CompiledClause
 import Agda.TypeChecking.Monad.Base
@@ -48,7 +49,7 @@ evaluateCC ccs = case ccs of
             , litBranches    = M.fromList lbrs
             , catchAllBranch = cab
             }
-    Done n t   -> Done n <$> evaluateTerm t
+    Done n t   -> Done n <$> evaluate t
     Fail       -> return Fail
 
 etaExpand :: Term -> Compile TCM Term
@@ -62,16 +63,33 @@ etaExpand def@(Def n ts) = do
     return $ foldr (\ v t -> Lam defaultArgInfo (Abs v t)) term $ replicate toEta "staticVar"
 etaExpand x = return x
 
-evaluateTerm :: Term -> Compile TCM Term
-evaluateTerm term = case term of
-    Var x as     -> Var x <$>  evaluateTerms as
-    Lam h ab     -> do
+class Evaluate a where
+  evaluate :: a -> Compile TCM a
+
+instance Evaluate a => Evaluate [a] where
+  evaluate = traverse evaluate
+
+instance Evaluate a => Evaluate (I.Arg a) where
+  evaluate = traverse evaluate
+
+instance Evaluate a => Evaluate (Abs a) where
+  evaluate = traverse evaluate  -- TODO: maintain context
+
+instance Evaluate a => Evaluate (Elim' a) where
+  evaluate = traverse evaluate
+
+instance Evaluate Term where
+  evaluate term = case term of
+    Var x es     -> Var x <$> evaluate es
+    Lam h b      -> Lam h <$> evaluate b
+{-
       ab' <- evaluateTerm (unAbs ab)
       return $ Lam h $ Abs (absName ab) ab'
+-}
     Lit l        -> return $ Lit l
-    Def n ts -> do
-        ifM (not <$> isStatic n)
-            (Def n <$> evaluateTerms ts) $ do
+    Def n es -> do
+        ifM (not <$> isStatic n) {- then -}
+            (Def n <$> evaluate es) $ {- else -} do
                 feta <- return term -- etaExpand term
                 f <- lift $ normalise feta
                 lift $ reportSDoc "epic.static" 10 $ vcat
@@ -82,19 +100,20 @@ evaluateTerm term = case term of
                     ]
                   ]
                 return f
-    Con c args   -> Con c <$> evaluateTerms args
-    Pi  arg abs  -> return $ Pi  arg abs
-    Sort s       -> return $ Sort s
-    MetaV i args -> return $ MetaV i args
-    Level l      -> return $ Level l
-    DontCare i   -> return $ DontCare i
-    Shared{}     -> updateSharedTermT evaluateTerm term
-  where
+    Con c args   -> Con c <$> evaluate args
+    Pi  arg abs  -> return term
+    Sort s       -> return term
+    MetaV i args -> return term
+    Level l      -> return term
+    DontCare i   -> return term
+    Shared{}     -> updateSharedTermT evaluate term
+    where
+{-
     evaluateTerms :: Args -> Compile TCM Args
     evaluateTerms as = forM as $ \x -> do
       y <- evaluateTerm (unArg x)
       return x { unArg = y }
-
+-}
     isStatic :: QName -> Compile TCM Bool
     isStatic q = do
       defs <- lift (gets (sigDefinitions . stImports))

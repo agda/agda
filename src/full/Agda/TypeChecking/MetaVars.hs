@@ -32,7 +32,7 @@ import Agda.TypeChecking.Records
 import Agda.TypeChecking.Pretty
 import Agda.TypeChecking.Irrelevance
 import Agda.TypeChecking.EtaContract
-import Agda.TypeChecking.Eliminators
+-- import Agda.TypeChecking.Eliminators
 import Agda.TypeChecking.SizedTypes (boundedSizeMetaHook, isSizeProblem)
 
 import Agda.TypeChecking.MetaVars.Occurs
@@ -41,7 +41,7 @@ import Agda.TypeChecking.MetaVars.Occurs
 
 import Agda.Utils.Fresh
 import Agda.Utils.List
-import Agda.Utils.Maybe
+import Agda.Utils.Maybe -- SUBSUMES  import Data.Maybe (fromMaybe)
 import Agda.Utils.Monad
 import Agda.Utils.Size
 import Agda.Utils.Tuple
@@ -138,7 +138,7 @@ newSortMetaCtx vs =
     x   <- newMeta i normalMetaPriority (idP 0) (IsSort () t)
     reportSDoc "tc.meta.new" 50 $
       text "new sort meta" <+> prettyTCM x <+> text ":" <+> prettyTCM t
-    return $ Type $ Max [Plus 0 $ MetaLevel x vs]
+    return $ Type $ Max [Plus 0 $ MetaLevel x $ map Apply vs]
 
 newTypeMeta :: Sort -> TCM Type
 newTypeMeta s = El s <$> newValueMeta RunMetaOccursCheck (sort s)
@@ -174,7 +174,7 @@ newIFSMetaCtx s t vs cands = do
     [ nest 2 $ text (show x) <+> text ":" <+> prettyTCM t
     ]
   solveConstraint_ $ FindInScope x cands
-  return (MetaV x vs)
+  return $ MetaV x $ map Apply vs
 
 
 newNamedValueMeta :: RunMetaOccursCheck -> MetaNameSuggestion -> Type -> TCM Term
@@ -215,7 +215,7 @@ newValueMetaCtx' b t vs = do
     ]
   etaExpandMetaSafe x
   -- Andreas, 2012-09-24: for Metas X : Size< u add constraint X+1 <= u
-  let u = shared $ MetaV x vs
+  let u = shared $ MetaV x $ map Apply vs
   boundedSizeMetaHook u tel a
   return u
 
@@ -290,7 +290,7 @@ blockTermOnProblem t v pid =
   -- Andreas, 2012-09-27 do not block on unsolved size constraints
   ifM (isProblemSolved pid `or2M` isSizeProblem pid) (return v) $ do
     i   <- createMetaInfo
-    vs  <- getContextArgs
+    es  <- map Apply <$> getContextArgs
     tel <- getContextTelescope
     x   <- newMeta' (BlockedConst $ abstract tel v)
                     i lowMetaPriority (idP $ size tel)
@@ -302,7 +302,7 @@ blockTermOnProblem t v pid =
       , text "     by" <+> (prettyTCM =<< getConstraintsForProblem pid) ]
     inst <- isInstantiatedMeta x
     case inst of
-      True  -> instantiate (MetaV x vs)
+      True  -> instantiate (MetaV x es)
       False -> do
         -- We don't return the blocked term instead create a fresh metavariable
         -- that we compare against the blocked term once it's unblocked. This way
@@ -311,7 +311,7 @@ blockTermOnProblem t v pid =
         v   <- newValueMeta DontRunMetaOccursCheck t
         i   <- liftTCM fresh
         -- This constraint is woken up when unblocking, so it doesn't need a problem id.
-        cmp <- buildProblemConstraint 0 (ValueCmp CmpEq t v (MetaV x vs))
+        cmp <- buildProblemConstraint 0 (ValueCmp CmpEq t v (MetaV x es))
         listenToMeta (CheckConstraint i cmp) x
         return v
 
@@ -358,9 +358,9 @@ postponeTypeCheckingProblem e t unblock = do
   -- Since this meta's solution comes from user code, we do not need
   -- to run the extended occurs check (metaOccurs) to exclude
   -- non-terminating solutions.
-  vs  <- getContextArgs
+  es  <- map Apply <$> getContextArgs
   v   <- newValueMeta DontRunMetaOccursCheck t
-  cmp <- buildProblemConstraint 0 (ValueCmp CmpEq t v (MetaV m vs))
+  cmp <- buildProblemConstraint 0 (ValueCmp CmpEq t v (MetaV m es))
   i   <- liftTCM fresh
   listenToMeta (CheckConstraint i cmp) m
   addConstraint (UnBlock m)
@@ -440,8 +440,9 @@ etaExpandMeta kinds m = whenM (isEtaExpandable m) $ do
   -- instantiated, we can continue eta-expanding m.  This is realized
   -- by adding @m@ to the listeners of @x@.
   ifBlocked (unEl b) (\ x _ -> waitFor x) $ \ t -> case ignoreSharing t of
-    lvl@(Def r ps) ->
-      ifM (isEtaRecord r) (do
+    lvl@(Def r es) ->
+      ifM (isEtaRecord r) {- then -} (do
+        let ps = fromMaybe __IMPOSSIBLE__ $ allApplyElims es
 	let expand = do
               u <- abstract tel <$> do withMetaInfo' meta $ newRecordMetaCtx r ps tel $ teleArgs tel
               inTopContext $ do
@@ -461,7 +462,7 @@ etaExpandMeta kinds m = whenM (isEtaExpandable m) $ do
              Right False -> dontExpand
              Right True  -> expand
           else dontExpand
-      ) $ ifM (andM [ return $ Levels `elem` kinds
+      ) $ {- else -} ifM (andM [ return $ Levels `elem` kinds
                       , typeInType
                       , (Just lvl ==) <$> getBuiltin' builtinLevel
                       ]) (do
@@ -469,7 +470,7 @@ etaExpandMeta kinds m = whenM (isEtaExpandable m) $ do
         -- Andreas, 2012-03-30: No need for occurrence check etc.
         -- we directly assign the solution for the meta
         noConstraints $ assignTerm m (abstract tel $ Level $ Max [])
-     ) $ dontExpand
+     ) $ {- else -} dontExpand
     _ -> dontExpand
 
 -- | Eta expand blocking metavariables of record type, and reduce the
@@ -496,10 +497,29 @@ etaExpandBlocked (Blocked m t)  = do
 --   restoration of the original constraints.
 
 assignV :: MetaId -> Args -> Term -> TCM ()
-assignV x args v = ifM (not <$> asks envAssignMetas) patternViolation $ do
+assignV x args v = assignWrapper x (map Apply args) v $ assign x args v
+{- ifM (not <$> asks envAssignMetas) patternViolation $ do
 	reportSDoc "tc.meta.assign" 10 $ do
-	  text "term" <+> prettyTCM (MetaV x args) <+> text ":=" <+> prettyTCM v
+	  text "term" <+> prettyTCM (MetaV x $ map Apply args) <+> text ":=" <+> prettyTCM v
         liftTCM $ nowSolvingConstraints (assign x args v) `finally` solveAwakeConstraints
+-}
+
+assignWrapper :: MetaId -> Elims -> Term -> TCM () -> TCM ()
+assignWrapper x es v doAssign = do
+  ifM (not <$> asks envAssignMetas) patternViolation $ do
+    reportSDoc "tc.meta.assign" 10 $ do
+      text "term" <+> prettyTCM (MetaV x es) <+> text ":=" <+> prettyTCM v
+    liftTCM $ nowSolvingConstraints doAssign `finally` solveAwakeConstraints
+
+{-
+-- | We give up if meta is applied to a projection.
+assignE :: MetaId -> Elims -> Term -> TCM ()
+assignE x es v = do
+  case allApplyElims es of
+    Just vs -> assignV x vs v
+    Nothing -> patternViolation
+-}
+
 
 -- | @assign sort? x vs v@
 assign :: MetaId -> Args -> Term -> TCM ()
@@ -748,13 +768,14 @@ inverseSubst args = fmap (map (mapFst unArg)) <$> loop (zip args terms)
               | length fs == length vs -> do
                 let aux (Arg _ v) (Arg info' f) =
                       (Arg (ArgInfo { argInfoColors = argInfoColors info -- TODO guilhem
-                                      , argInfoHiding = min (argInfoHiding info)
-                                                            (argInfoHiding info')
-                                      , argInfoRelevance = max (argInfoRelevance info)
-                                                               (argInfoRelevance info')
-                                      })
+                                    , argInfoHiding = min (argInfoHiding info)
+                                                          (argInfoHiding info')
+                                    , argInfoRelevance = max (argInfoRelevance info)
+                                                             (argInfoRelevance info')
+                                    })
                            v, -- OLD: (stripDontCare v),
-                       Def f [defaultArg t])
+                       t `applyE` [Proj f])
+--                       Def f [defaultArg t])
                 res <- loop $ zipWith aux vs fs
                 return $ res `append` vars
               | otherwise -> fallback
@@ -767,11 +788,14 @@ inverseSubst args = fmap (map (mapFst unArg)) <$> loop (zip args terms)
         -- Distinguish args that can be eliminated (Con,Lit,Lam,unsure) ==> failure
         -- from those that can only put somewhere as a whole ==> return Nothing
         Arg _ Var{}      -> return $ Nothing -- neutral
+{-
         Arg _ v@(Def{})  -> do
           elV <- lift $ elimView v
           case elV of
             VarElim{}      -> return $ Nothing -- neutral
             _              -> failure
+-}
+        Arg _ Def{}      -> failure
         Arg _ Lam{}      -> failure
         Arg _ Lit{}      -> failure
         Arg _ MetaV{}    -> failure

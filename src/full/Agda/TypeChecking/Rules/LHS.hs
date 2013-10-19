@@ -85,7 +85,8 @@ dotPatternInsts ps s as = dpi (map namedArg ps) (reverse s) as
         A.ImplicitP _ -> dpi ps s as
         -- record pattern
         A.ConP _ (A.AmbQ [c]) qs -> do
-          Def r vs   <- ignoreSharing <$> reduce (unEl $ unDom a)
+          Def r es   <- ignoreSharing <$> reduce (unEl $ unDom a)
+          let Just vs = allApplyElims es
           (ftel, us) <- etaExpandRecord r vs u
           qs <- insertImplicitPatterns ExpandLast qs ftel
           let instTel EmptyTel _                   = []
@@ -260,7 +261,8 @@ bindLHSVars (p : ps) (ExtendTel a tel) ret =
       -- OLD CODE: isReallyEmptyType $ unArg a
       bindDummy (absName tel)
     A.ConP _ (A.AmbQ [c]) qs -> do -- eta expanded record pattern
-      Def r vs <- reduce (unEl $ unDom a)
+      Def r es <- reduce (unEl $ unDom a)
+      let Just vs = allApplyElims es
       ftel     <- (`apply` vs) <$> getRecordFieldTypes r
       con      <- getConHead c
       let n   = size ftel
@@ -434,7 +436,7 @@ checkLeftHandSide c f ps a ret = do
                   )) p1
                 ) -> traceCall (CheckPattern (A.ConP (ConPatInfo impl $ PatRange r) (A.AmbQ [c]) qs)
                                              (problemTel p0)
-                                             (El Prop $ Def d $ vs ++ ws)) $ do
+                                             (El Prop $ Def d $ map Apply $ vs ++ ws)) $ do
 
             let delta1 = problemTel p0
             let typeOfSplitVar = Arg info a
@@ -474,7 +476,8 @@ checkLeftHandSide c f ps a ret = do
             -- It will end in an application of the datatype
             (gamma', ca, d', us) <- do
               TelV gamma' ca@(El _ def) <- telView a
-              let Def d' us = ignoreSharing def
+              let Def d' es = ignoreSharing def
+                  Just us   = allApplyElims es
               return (gamma', ca, d', us)
 
             -- This should be the same datatype as we split on

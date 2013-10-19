@@ -219,8 +219,10 @@ compileClauses name nargs c = do
 --   from patternmatching. Agda terms are in de Bruijn so we just check the new
 --   names in the position.
 substTerm :: [Var] -> T.Term -> Compile TCM Expr
-substTerm env term = case term of
-    T.Var ind args -> case length env <= ind of
+substTerm env term = case T.unSpine term of
+    T.Var ind es -> do
+      let args = fromMaybe __IMPOSSIBLE__ $ allApplyElims es
+      case length env <= ind of
         True  -> __IMPOSSIBLE__
         False -> apps (env !! ind) <$> mapM (substTerm env . unArg) args
     T.Lam _ (Abs _ te) -> do
@@ -231,7 +233,8 @@ substTerm env term = case term of
        Lam name <$> substTerm env te
     T.Lit l -> Lit <$> substLit l
     T.Level l -> substTerm env =<< lift (reallyUnLevelView l)
-    T.Def q args -> do
+    T.Def q es -> do
+      let args = fromMaybe __IMPOSSIBLE__ $ allApplyElims es
       let name = unqname q
       del <- getDelayed q
       def <- theDef <$> lift (getConstInfo q)

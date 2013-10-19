@@ -17,7 +17,7 @@ import Data.Traversable hiding (mapM, forM)
 
 import qualified Agda.Syntax.Concrete as C -- ToDo: Remove with instance of ToConcrete
 import Agda.Syntax.Position
-import Agda.Syntax.Abstract as A hiding (Open)
+import Agda.Syntax.Abstract as A hiding (Open, Apply)
 import Agda.Syntax.Abstract.Views as A
 import Agda.Syntax.Common
 import Agda.Syntax.Info(ExprInfo(..),MetaInfo(..),emptyMetaInfo)
@@ -364,10 +364,10 @@ getSolvedInteractionPoints = do
         let sol v = do e <- reify v; return [(i, m, ScopedExpr scope e)]
             unsol = return []
         case mvInstantiation mv of
-          InstV{}                        -> sol (MetaV m args)
-          InstS{}                        -> sol (Level $ Max [Plus 0 $ MetaLevel m args])
+          InstV{}                        -> sol (MetaV m $ map Apply args)
+          InstS{}                        -> sol (Level $ Max [Plus 0 $ MetaLevel m $ map Apply args])
           Open{}                         -> unsol
-          OpenIFS{}                         -> unsol
+          OpenIFS{}                      -> unsol
           BlockedConst{}                 -> unsol
           PostponedTypeCheckingProblem{} -> unsol
 
@@ -463,8 +463,8 @@ metaHelperType norm ii rng s = case words s of
     onNamesTel f (I.ExtendTel a b) = I.ExtendTel <$> traverse (onNames f) a <*> onNamesAbs f onNamesTel b
 
     onNamesTm f v = case v of
-      I.Var x args -> I.Var x <$> onNamesArgs f args
-      I.Def q args -> I.Def q <$> onNamesArgs f args
+      I.Var x es   -> I.Var x <$> onNamesElims f es
+      I.Def q es   -> I.Def q <$> onNamesElims f es
       I.Con c args -> I.Con c <$> onNamesArgs f args
       I.Lam i b    -> I.Lam i <$> onNamesAbs f onNamesTm b
       I.Pi a b     -> I.Pi <$> traverse (onNames f) a <*> onNamesAbs f onNames b
@@ -474,7 +474,8 @@ metaHelperType norm ii rng s = case words s of
       I.Level{}    -> pure v
       I.MetaV{}    -> pure v
       I.Shared{}   -> pure v
-    onNamesArgs f = traverse (traverse $ onNamesTm f)
+    onNamesElims f = traverse $ traverse $ onNamesTm f
+    onNamesArgs f  = traverse $ traverse $ onNamesTm f
     onNamesAbs f nd (Abs   s x) = Abs   <$> f s <*> nd f x
     onNamesAbs f nd (NoAbs s x) = NoAbs <$> f s <*> nd f x
 

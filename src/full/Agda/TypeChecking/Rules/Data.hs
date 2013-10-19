@@ -7,6 +7,7 @@ import Control.Monad
 -- import Control.Monad.Trans
 
 import Data.List (genericTake)
+import Data.Maybe (fromMaybe)
 -- import Data.Set (Set)
 import qualified Data.Set as Set
 
@@ -351,7 +352,8 @@ constructs nofPars t q = constrT 0 t
 		Pi _ (NoAbs _ b)  -> constrT n b
 		Pi a b	          -> underAbstraction a b $ constrT (n + 1)
                   -- OR: addCxtString (absName b) a $ constrT (n + 1) (absBody b)
-		Def d vs | d == q -> do
+		Def d es | d == q -> do
+                  let vs = fromMaybe __IMPOSSIBLE__ $ allApplyElims es
                   (pars, ixs) <- normalise $ splitAt nofPars vs
                   -- check that the constructor parameters are the data parameters
                   checkParams n pars

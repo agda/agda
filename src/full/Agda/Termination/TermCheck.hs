@@ -50,7 +50,7 @@ import Agda.TypeChecking.Records (isRecordConstructor, isInductiveRecord)
 -- import Agda.TypeChecking.Rules.Term (isType_)
 -- import Agda.TypeChecking.Substitute (abstract,raise)
 import Agda.TypeChecking.Telescope
-import Agda.TypeChecking.Eliminators
+-- import Agda.TypeChecking.Eliminators
 import Agda.TypeChecking.EtaContract
 import Agda.TypeChecking.Monad.Builtin
 -- import Agda.TypeChecking.Monad.Signature (isProjection, mutuallyRecursive)
@@ -455,11 +455,11 @@ termToDBP :: DBPConf -> Term -> TCM DeBruijnPat
 termToDBP conf t
   | not $ useDotPatterns conf = return $ unusedVar
   | otherwise                 = do
-    t <- stripProjections =<< constructorForm t
+    t <- stripAllProjections =<< constructorForm t
     case ignoreSharing t of
       Var i []    -> return $ VarDBP i
       Con c args  -> ConDBP (conName c) <$> mapM (termToDBP conf . unArg) args
-      Def s [arg]
+      Def s [Apply arg]
         | Just s == withSizeSuc conf -> ConDBP s . (:[]) <$> termToDBP conf (unArg arg)
       Lit l       -> return $ LitDBP l
       _   -> return unusedVar
@@ -704,7 +704,7 @@ termTerm conf names f delayed pats0 t0 = do
                               (False, _)           -> Term.unknown
 
              -- Handle guardedness preserving type constructor.
-             guardPresTyCon :: QName -> [Elim] -> (QName -> [Elim] -> TCM Calls) -> TCM Calls
+             guardPresTyCon :: QName -> Elims -> (QName -> Elims -> TCM Calls) -> TCM Calls
              guardPresTyCon g es cont
               | guardingTypeConstructors conf = do
                 def <- getConstInfo g
@@ -721,11 +721,12 @@ termTerm conf names f delayed pats0 t0 = do
               | otherwise = cont g es
 
              -- Handles function applications @g args0@.
-             function :: QName -> [I.Arg Term] -> TCM Calls
-             function g0 args0 = do
-              let gArgs = Def g0 args0
-              reportSDoc "term.function" 30 $
-                text "termination checking function call " <+> prettyTCM gArgs
+             function :: QName -> Elims -> TCM Calls
+             function g es = do
+               let gArgs = Def g es
+               reportSDoc "term.function" 30 $
+                 text "termination checking function call " <+> prettyTCM gArgs
+{-
               ev <- elimView' terminationElimViewConf gArgs -- elimView that does not reduce, and only accepts proper projections into the spine
               case ev of
                ConElim{} -> loop pats guarded $ unElimView ev
@@ -736,7 +737,7 @@ termTerm conf names f delayed pats0 t0 = do
                MetaElim x es -> mapM' (loop pats Term.unknown . unArg) $ argsFromElims es
                VarElim  x es -> mapM' (loop pats Term.unknown . unArg) $ argsFromElims es
                DefElim  g es -> guardPresTyCon g es $ \ g es -> do
-
+-}
                -- We have to reduce constructors in case they're reexported.
                let reduceCon t = case ignoreSharing t of
                       Con c vs -> (`apply` vs) <$> reduce (Con c [])  -- make sure we don't reduce the arguments
@@ -830,8 +831,8 @@ termTerm conf names f delayed pats0 t0 = do
                           ]
                 constructor c ind $ zip args (repeat True)
 
-            Def g args0 -> guardPresTyCon g (map Apply args0) $
-                \ g es -> function g $ argsFromElims es
+            Def g es -> guardPresTyCon g es function
+--                \ g es -> function g $ argsFromElims es
 {-
               | guardingTypeConstructors conf -> do
                 def <- getConstInfo g
@@ -864,7 +865,7 @@ termTerm conf names f delayed pats0 t0 = do
             Lam h (NoAbs _ t) -> loop pats guarded t
 
             -- Neutral term. Destroys guardedness.
-            Var i args -> mapM' (loop pats Term.unknown) (map unArg args)
+            Var i es -> mapM' (loop pats Term.unknown) (map unArg $ argsFromElims es)
 
             -- Dependent function space.
             Pi a (Abs x b) ->
@@ -1039,6 +1040,7 @@ isProjectionButNotCoinductive qn = do
           return projProper `and2M` isInductiveRecord projFromType
 
 
+{- RETIRED
 -- | Remove projections until a term is no longer a projection.
 --   Also, remove 'DontCare's.
 stripProjections :: Term -> TCM Term
@@ -1050,23 +1052,41 @@ stripProjections t = case ignoreSharing t of
       True | not (null ts) -> stripProjections $ unArg r
       _ -> return t
   _ -> return t
+-}
 
 -- | Remove all projections from an algebraic term (not going under binders).
+--   Also, remove 'DontCare's.
 class StripAllProjections a where
   stripAllProjections :: a -> TCM a
 
 instance StripAllProjections a => StripAllProjections (I.Arg a) where
   stripAllProjections (Arg info a) = Arg info <$> stripAllProjections a
 
-instance StripAllProjections a => StripAllProjections [a] where
+instance StripAllProjections Elims where
+  stripAllProjections es =
+    case es of
+      []             -> return []
+      (Apply a : es) -> do
+        a <- stripAllProjections a
+        (Apply a :) <$> stripAllProjections es
+      (Proj p  : es) -> do
+        es <- stripAllProjections es
+        ifM (isProjectionButNotCoinductive p) (return es) (return $ Proj p : es)
+
+instance StripAllProjections Args where
   stripAllProjections = mapM stripAllProjections
+
+-- instance StripAllProjections a => StripAllProjections [a] where
+--   stripAllProjections = mapM stripAllProjections
 
 instance StripAllProjections Term where
   stripAllProjections t = do
-    t <- stripProjections t
+    -- t <- stripProjections t
     case ignoreSharing t of
-      Con c ts -> Con c <$> stripAllProjections ts
-      Def d ts -> Def d <$> stripAllProjections ts
+      Var i es   -> Var i <$> stripAllProjections es
+      Con c ts   -> Con c <$> stripAllProjections ts
+      Def d es   -> Def d <$> stripAllProjections es
+      DontCare t -> stripAllProjections t
       _ -> return t
 
 -- | compareTerm t dbpat
@@ -1088,11 +1108,11 @@ compareTerm' _ t@Con{} (ConDBP c ps)
   | any (isSubTerm t) ps = decrease <$> offsetFromConstructor c <*> return Term.le
 compareTerm' suc (Con c ts) (ConDBP c' ps)
   | conName c == c' = compareConArgs suc ts ps
-compareTerm' suc (Def s ts) (ConDBP s' ps)
-  | s == s' && Just s == suc = compareConArgs suc ts ps
+compareTerm' suc (Def s [Apply t]) (ConDBP s' [p])
+  | s == s' && Just s == suc = compareTerm' suc (unArg t) p
 -- new cases for counting constructors / projections
 -- register also increase
-compareTerm' suc (Def s [t]) p | Just s == suc = do
+compareTerm' suc (Def s [Apply t]) p | Just s == suc = do
     -- Andreas, 2012-10-19 do not cut off here
     increase 1 <$> compareTerm' suc (unArg t) p
 compareTerm' suc (Con c []) p = return Term.le

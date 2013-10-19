@@ -100,6 +100,9 @@ instance GetDefs a => GetDefs (Maybe a) where
 instance GetDefs a => GetDefs [a] where
   getDefs = Fold.mapM_ getDefs
 
+instance GetDefs a => GetDefs (Elim' a) where
+  getDefs = Fold.mapM_ getDefs
+
 instance GetDefs c => GetDefs (ArgInfo c) where
   getDefs = Fold.mapM_ getDefs
 

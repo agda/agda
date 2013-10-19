@@ -409,16 +409,23 @@ checkClause t c@(A.Clause (A.SpineLHS i x aps withPats) rhs0 wh) = do
                         ([Hidden],         Def equality _) -> equality
                         ([],               Def equality _) -> equality
                         _                                  -> __IMPOSSIBLE__
-                     reflCon <- primRefl >>= \refl -> return $ case ignoreSharing refl of
-                         Con reflCon [] -> reflCon
+{- CLUMSY
+                     reflCon <- do
+                       refl <- ignoreSharing <$> primRefl
+                       case refl of
+                         Con reflCon [] -> return reflCon
                          _              -> __IMPOSSIBLE__
-                     (rewriteType,rewriteFrom,rewriteTo) <- case ignoreSharing $ unEl t' of
-                         Def equality' [_level,
-                                        Arg (ArgInfo Hidden Relevant _) rewriteType,
-                                        Arg (ArgInfo NotHidden Relevant _) rewriteFrom,
-                                        Arg (ArgInfo NotHidden Relevant _) rewriteTo]
-                            | equality' == equality ->
-                              return (rewriteType, rewriteFrom, rewriteTo)
+-}
+                     Con reflCon [] <- ignoreSharing <$> primRefl
+                     (rewriteType,rewriteFrom,rewriteTo) <- do
+                       case ignoreSharing $ unEl t' of
+                         Def equality'
+                           [ _level
+                           , Apply (Arg (ArgInfo Hidden    Relevant _) rewriteType)
+                           , Apply (Arg (ArgInfo NotHidden Relevant _) rewriteFrom)
+                           , Apply (Arg (ArgInfo NotHidden Relevant _) rewriteTo)
+                           ] | equality' == equality ->
+                               return (rewriteType, rewriteFrom, rewriteTo)
                          _ -> do
                           err <- text "Cannot rewrite by equation of type" <+> prettyTCM t'
                           typeError $ GenericError $ show err
@@ -503,7 +510,7 @@ checkClause t c@(A.Clause (A.SpineLHS i x aps withPats) rhs0 wh) = do
                       -- Then permute the rest and grab those needed to for the with arguments
                       (us1, us2)  = genericSplitAt (size delta1) $ permute perm' us1'
                       -- Now stuff the with arguments in between and finish with the remaining variables
-                      v    = Def aux $ us0 ++ us1 ++ (map defaultArg vs0) ++ us2
+                      v    = Def aux $ map Apply $ us0 ++ us1 ++ (map defaultArg vs0) ++ us2
 
                   -- We need Δ₁Δ₂ ⊢ t'
                   t' <- return $ renameP (reverseP perm') t'

@@ -14,6 +14,7 @@ import Control.Monad.Writer (WriterT(..), MonadWriter(..), Monoid(..))
 import Data.Map (Map)
 import qualified Data.Map as Map
 import Data.List hiding (sort)
+import Data.Maybe (fromMaybe)
 
 import Data.Typeable (Typeable)
 import Data.Foldable (Foldable)
@@ -112,6 +113,11 @@ data UnifyState = USt { uniSub	  :: Sub
 		      }
 
 emptyUState = USt Map.empty []
+
+-- | Throw-away error message.
+projectionMismatch :: QName -> QName -> Unify a
+projectionMismatch f f' = throwException $ GenericUnifyException $
+  "projections " ++ show f ++ " and " ++ show f' ++ " do not match"
 
 constructorMismatch :: Type -> Term -> Term -> Unify a
 constructorMismatch a u v = throwException $ ConstructorMismatch a u v
@@ -442,8 +448,8 @@ unifyIndices flex a us vs = liftTCM $ do
 
     unifyConArgs ::
          TelHH  -- ^ The telescope(s) of the constructor args    [length = n].
-      -> [I.Arg Term]  -- ^ the arguments of the constructor (lhs) [length = n].
-      -> [I.Arg Term]  -- ^ the arguments of the constructor (rhs) [length = n].
+      -> Args   -- ^ the arguments of the constructor (lhs) [length = n].
+      -> Args   -- ^ the arguments of the constructor (rhs) [length = n].
       -> Unify ()
     unifyConArgs _ (_ : _) [] = __IMPOSSIBLE__
     unifyConArgs _ [] (_ : _) = __IMPOSSIBLE__
@@ -479,6 +485,44 @@ unifyIndices flex a us vs = liftTCM $ do
       unifyConArgs (tel `absAppHH` uHH) us vs
 
 
+    -- | Used for arguments of a 'Def'.
+    unifyElims :: Type -> Elims -> Elims -> Unify ()
+    unifyElims _ (_ : _) [] = __IMPOSSIBLE__
+    unifyElims _ [] (_ : _) = __IMPOSSIBLE__
+    unifyElims _ [] [] = return ()
+    unifyElims _ (Proj{} : _) (Apply{} : _) = __IMPOSSIBLE__ -- Andreas, 2013-10-19
+    unifyElims _ (Apply{} : _) (Proj{} : _) = __IMPOSSIBLE__ -- being optimistic
+    unifyElims t (Proj f : es1) (Proj f' : es2)
+      | f == f' = do
+          maybe __IMPOSSIBLE__ (\ t -> unifyElims t es1 es2) =<< do
+            liftTCM $ projectType t f
+      | otherwise = projectionMismatch f f'
+    unifyElims a us0@(Apply arg@(Arg _ u) : us) vs0@(Apply (Arg _ v) : vs) = do
+      liftTCM $ reportSDoc "tc.lhs.unify" 15 $ sep
+        [ text "unifyElims"
+	, nest 2 $ parens (prettyTCM a)
+	, nest 2 $ prettyList $ map prettyTCM us0
+	, nest 2 $ prettyList $ map prettyTCM vs0
+        ]
+      a <- ureduce a  -- Q: reduce sufficient?
+      case ignoreSharing $ unEl a of
+	Pi b _  -> do
+          -- Andreas, Ulf, 2011-09-08 (AIM XVI)
+          -- in case of dependent function type, we cannot postpone
+          -- unification of u and v, otherwise us or vs might be ill-typed
+          let dep = dependent $ unEl a
+          -- skip irrelevant parts
+	  unless (isIrrelevant b) $
+            (if dep then noPostponing else id) $
+              unify (unDom b) u v
+          arg <- traverse ureduce arg
+	  unifyElims (a `piApply` [arg]) us vs
+	_	  -> __IMPOSSIBLE__
+      where dependent (Pi _ NoAbs{}) = False
+            dependent (Pi b c)       = 0 `relevantIn` absBody c
+            dependent (Shared p)     = dependent (derefPtr p)
+            dependent _              = False
+{-
     -- | Used for arguments of a 'Def', not 'Con'.
     unifyArgs :: Type -> [I.Arg Term] -> [I.Arg Term] -> Unify ()
     unifyArgs _ (_ : _) [] = __IMPOSSIBLE__
@@ -509,7 +553,7 @@ unifyIndices flex a us vs = liftTCM $ do
             dependent (Pi b c)       = 0 `relevantIn` absBody c
             dependent (Shared p)     = dependent (derefPtr p)
             dependent _              = False
-
+-}
     -- | Check using conversion check.
     recheckEqualities :: Unify ()
     recheckEqualities = do
@@ -632,7 +676,8 @@ unifyIndices flex a us vs = liftTCM $ do
                     _          -> False
               inj <- liftTCM $ optInjectiveTypeConstructors <$> pragmaOptions
               if inj && ok
-                then unifyArgs (defType def) us vs
+                then unifyElims (defType def) us vs `catchException` \ _ ->
+                       constructorMismatchHH aHH u v
                 else checkEqualityHH aHH u v
           -- Andreas, 2011-05-30: if heads disagree, abort
           -- but do not raise "mismatch" because otherwise type constructors
@@ -645,7 +690,7 @@ unifyIndices flex a us vs = liftTCM $ do
         -- We can instantiate metas if the other term is inert (constructor application)
         -- Andreas, 2011-09-13: test/succeed/IndexInference needs this feature.
         (MetaV m us, _) | homogeneous -> do
-            ok <- liftTCM $ instMeta a m us v
+            ok <- liftTCM $ instMetaE a m us v
             liftTCM $ reportSDoc "tc.lhs.unify" 40 $
               vcat [ fsep [ text "inst meta", text $ if ok then "(ok)" else "(not ok)" ]
                    , nest 2 $ sep [ prettyTCM u, text ":=", prettyTCM =<< normalise u ]
@@ -653,7 +698,7 @@ unifyIndices flex a us vs = liftTCM $ do
             if ok then unify a u v
                   else addEquality a u v
         (_, MetaV m vs) | homogeneous -> do
-            ok <- liftTCM $ instMeta a m vs u
+            ok <- liftTCM $ instMetaE a m vs u
             liftTCM $ reportSDoc "tc.lhs.unify" 40 $
               vcat [ fsep [ text "inst meta", text $ if ok then "(ok)" else "(not ok)" ]
                    , nest 2 $ sep [ prettyTCM v, text ":=", prettyTCM =<< normalise v ]
@@ -695,6 +740,13 @@ unifyIndices flex a us vs = liftTCM $ do
     -- The contexts are transient when unifying, so we should just instantiate to
     -- constructor heads and generate fresh metas for the arguments. Beware of
     -- constructors that aren't fully applied.
+    instMetaE :: Type -> MetaId -> Elims -> Term -> TCM Bool
+    instMetaE a m es v = do
+      case allApplyElims es of
+        Just us -> instMeta a m us v
+        Nothing -> return False
+
+    instMeta :: Type -> MetaId -> Args -> Term -> TCM Bool
     instMeta a m us v = do
       app <- inertApplication a v
       reportSDoc "tc.lhs.unify" 50 $
@@ -726,7 +778,7 @@ unifyIndices flex a us vs = liftTCM $ do
     inertApplication a v =
       case ignoreSharing v of
         Con c vs -> fmap (\ b -> (Con c [], b, vs)) <$> dataOrRecordType c a
-        Def d vs -> do
+        Def d es | Just vs <- allApplyElims es -> do
           def <- getConstInfo d
           let ans = Just (Def d [], defType def, vs)
           return $ case theDef def of
@@ -759,7 +811,8 @@ dataOrRecordType' c a = do
   -- The telescope ends with a datatype or a record.
   (d, args) <- do
     TelV _ (El _ def) <- telView a
-    let Def d args = ignoreSharing def
+    let Def d es = ignoreSharing def
+        args = fromMaybe __IMPOSSIBLE__ $ allApplyElims es
     return (d, args)
   def <- theDef <$> getConstInfo d
   r <- case def of

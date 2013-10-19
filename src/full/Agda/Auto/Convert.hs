@@ -103,7 +103,8 @@ tomy imi icns typs = do
                                            pars (n - 1) (I.unAbs typ)
            pars n (I.El s (I.Shared p))  = pars n (I.El s (I.derefPtr p))
            pars _ (I.El _ _) = []
-           contyp npar I.EmptyTel = I.El (I.mkType 0 {- arbitrary -}) (I.Def cn (pars (npar - 1) typ))
+           contyp npar I.EmptyTel = I.El (I.mkType 0 {- arbitrary -}) $
+                                      I.Def cn $ map I.Apply $ pars (npar - 1) typ
            contyp npar (I.ExtendTel it (I.Abs v tel)) = I.El (I.mkType 0 {- arbitrary -}) (I.Pi it (I.Abs v (contyp (npar + 1) tel)))
            contyp npar (I.ExtendTel it I.NoAbs{})     = __IMPOSSIBLE__
        contyp' <- tomyType $ contyp 0 tel
@@ -137,7 +138,7 @@ tomy imi icns typs = do
                       lift $ withMetaInfo (getMetaInfo mv) $ do
                        args <- getContextArgs
                        --sol <- norm (I.MetaV mi args)
-                       sol <- instantiate (I.MetaV mi args)
+                       sol <- instantiate $ I.MetaV mi $ map I.Apply args
                        return $ Just sol
                      _ -> return Nothing
        case msol of
@@ -349,52 +350,58 @@ tomyType :: I.Type -> TOM (MExp O)
 tomyType (I.El _ t) = tomyExp t -- sort info is thrown away
 
 tomyExp :: I.Term -> TOM (MExp O)
-tomyExp (I.Var v as) = do
- as' <- tomyExps as
- return $ NotM $ App Nothing (NotM OKVal) (Var v) as'
-tomyExp (I.Lam info b) = do
- b' <- tomyExp (I.absBody b)
- return $ NotM $ Lam (cnvh info) (Abs (Id $ I.absName b) b')
-tomyExp t@(I.Lit{}) = do
- t <- lift $ constructorForm t
- case t of
-  I.Lit{} -> throwError $ strMsg "Auto: Literals in terms are not supported"
-  _ -> tomyExp t
-tomyExp (I.Level l) = tomyExp =<< lift (reallyUnLevelView l)
-tomyExp (I.Def name as) = do
- c <- getConst False name TMAll
- as' <- tomyExps as
- return $ NotM $ App Nothing (NotM OKVal) (Const c) as'
-tomyExp (I.Con con as) = do
- let name = I.conName con
- c <- getConst True name TMAll
- as' <- tomyExps as
- def <- lift $ getConstInfo name
- cc <- lift $ liftIO $ readIORef c
- let Just npar = fst $ cdorigin cc
- return $ NotM $ App Nothing (NotM OKVal) (Const c) (foldl (\x _ -> NotM $ ALConPar x) as' [1..npar])
-tomyExp (I.Pi (C.Dom info x) b) = do
- let y    = I.absBody b
-     name = I.absName b
- x' <- tomyType x
- y' <- tomyType y
- return $ NotM $ Pi Nothing (cnvh info) (Agda.TypeChecking.Free.freeIn 0 y) x' (Abs (Id name) y')
-tomyExp (I.Sort (I.Type (I.Max [I.ClosedLevel l]))) = return $ NotM $ Sort $ Set $ fromIntegral l
-tomyExp (I.Sort _) = return $ NotM $ Sort UnknownSort
-tomyExp t@I.MetaV{} = do
- t <- lift $ instantiate t
- case t of
-  I.MetaV mid _ -> do
-   mcurmeta <- gets sCurMeta
-   case mcurmeta of
-    Nothing -> return ()
-    Just curmeta ->
-     modify (\s -> s {sMetas = (Map.adjust (\(m, x, deps) -> (m, x, mid : deps)) curmeta (fst $ sMetas s), snd $ sMetas s)})
-   m <- getMeta mid
-   return $ Meta m
-  _ -> tomyExp t
-tomyExp (I.DontCare _) = return $ NotM $ dontCare
-tomyExp (I.Shared p) = tomyExp $ I.derefPtr p
+tomyExp v0 =
+  case I.unSpine v0 of
+    I.Var v es -> do
+      let Just as = I.allApplyElims es
+      as' <- tomyExps as
+      return $ NotM $ App Nothing (NotM OKVal) (Var v) as'
+    I.Lam info b -> do
+      b' <- tomyExp (I.absBody b)
+      return $ NotM $ Lam (cnvh info) (Abs (Id $ I.absName b) b')
+    t@I.Lit{} -> do
+      t <- lift $ constructorForm t
+      case t of
+        I.Lit{} -> throwError $ strMsg "Auto: Literals in terms are not supported"
+        _       -> tomyExp t
+    I.Level l -> tomyExp =<< lift (reallyUnLevelView l)
+    I.Def name es -> do
+      let Just as = I.allApplyElims es
+      c   <- getConst False name TMAll
+      as' <- tomyExps as
+      return $ NotM $ App Nothing (NotM OKVal) (Const c) as'
+    I.Con con as -> do
+      let name = I.conName con
+      c   <- getConst True name TMAll
+      as' <- tomyExps as
+      def <- lift $ getConstInfo name
+      cc  <- lift $ liftIO $ readIORef c
+      let Just npar = fst $ cdorigin cc
+      return $ NotM $ App Nothing (NotM OKVal) (Const c) (foldl (\x _ -> NotM $ ALConPar x) as' [1..npar])
+    I.Pi (C.Dom info x) b -> do
+      let y    = I.absBody b
+          name = I.absName b
+      x' <- tomyType x
+      y' <- tomyType y
+      return $ NotM $ Pi Nothing (cnvh info) (Agda.TypeChecking.Free.freeIn 0 y) x' (Abs (Id name) y')
+    I.Sort (I.Type (I.Max [I.ClosedLevel l])) -> return $ NotM $ Sort $ Set $ fromIntegral l
+    I.Sort _ -> return $ NotM $ Sort UnknownSort
+    t@I.MetaV{} -> do
+      t <- lift $ instantiate t
+      case t of
+        I.MetaV mid _ -> do
+          mcurmeta <- gets sCurMeta
+          case mcurmeta of
+            Nothing -> return ()
+            Just curmeta ->
+              modify $ \ s -> s { sMetas = ( Map.adjust (\(m, x, deps) -> (m, x, mid : deps)) curmeta (fst $ sMetas s)
+                                           , snd $ sMetas s
+                                           ) }
+          m <- getMeta mid
+          return $ Meta m
+        _ -> tomyExp t
+    I.DontCare _ -> return $ NotM $ dontCare
+    I.Shared p -> tomyExp $ I.derefPtr p
 
 tomyExps [] = return $ NotM ALNil
 tomyExps (C.Arg info a : as) = do
@@ -411,11 +418,11 @@ fmType :: I.MetaId -> I.Type -> Bool
 fmType m (I.El _ t) = fmExp m t
 
 fmExp :: I.MetaId -> I.Term -> Bool
-fmExp m (I.Var _ as) = fmExps m as
+fmExp m (I.Var _ as) = fmExps m $ I.argsFromElims as
 fmExp m (I.Lam _ b) = fmExp m (I.unAbs b)
 fmExp m (I.Lit _) = False
 fmExp m (I.Level (I.Max as)) = any (fmLevel m) as
-fmExp m (I.Def _ as) = fmExps m as
+fmExp m (I.Def _ as) = fmExps m $ I.argsFromElims as
 fmExp m (I.Con _ as) = fmExps m as
 fmExp m (I.Pi x y)  = fmType m (C.unDom x) || fmType m (I.unAbs y)
 fmExp m (I.Sort _) = False
@@ -477,7 +484,7 @@ frommyExp (NotM e) =
 -}
        (ndrop, h) = case iscon of
                       Just n -> (n, \ q -> I.Con (I.ConHead q [])) -- TODO: restore fields
-                      Nothing -> (0, I.Def)
+                      Nothing -> (0, \ f vs -> I.Def f $ map I.Apply vs)
    frommyExps ndrop as (h name [])
   Lam hid (Abs mid t) -> do
    t' <- frommyExp t
@@ -510,6 +517,7 @@ frommyExps ndrop (NotM as) trm =
    x' <- frommyExp x
    frommyExps ndrop xs (addend (C.Arg (icnvh hid) x') trm)
 
+  -- Andreas, 2013-10-19 TODO: restore postfix projections
   ALProj eas idx hid xs -> do
    idx <- lift $ expandbind idx
    c <- case idx of
@@ -523,9 +531,9 @@ frommyExps ndrop (NotM as) trm =
   ALConPar xs | ndrop > 0 -> frommyExps (ndrop - 1) xs trm
   ALConPar _ -> __IMPOSSIBLE__
  where
-  addend x (I.Var h xs) = I.Var h (xs ++ [x])
+  addend x (I.Var h xs) = I.Var h (xs ++ [I.Apply x])
   addend x (I.Con h xs) = I.Con h (xs ++ [x])
-  addend x (I.Def h xs) = I.Def h (xs ++ [x])
+  addend x (I.Def h xs) = I.Def h (xs ++ [I.Apply x])
   addend x (I.Shared p) = addend x (I.derefPtr p)
   addend _ _ = __IMPOSSIBLE__
 
@@ -723,11 +731,11 @@ findClauseDeep m = do
                   I.Body e -> f e
     findMeta e =
      case I.ignoreSharing e of
-      I.Var _ as -> findMetas as
+      I.Var _ es -> findMetas $ I.argsFromElims es
       I.Lam _ b -> findMeta (I.absBody b)
       I.Lit{} -> False
       I.Level (I.Max as) -> any (fmLevel m) as
-      I.Def _ as -> findMetas as
+      I.Def _ es -> findMetas $ I.argsFromElims es
       I.Con _ as -> findMetas as
       I.Pi it ot -> findMetat (C.unDom it) || findMetat (I.unAbs ot)
       I.Sort{} -> False
@@ -761,18 +769,18 @@ matchType cdfv tctx ctyp ttyp = trmodps cdfv ctyp
     ft nl n c (I.El _ e1) (I.El _ e2) = f nl n c e1 e2
     f nl n c e1 e2 = case I.ignoreSharing e1 of
      I.Var v1 as1 | v1 < nl -> case e2 of
-      I.Var v2 as2 | v1 == v2 -> fs nl (n + 1) c as1 as2
+      I.Var v2 as2 | v1 == v2 -> fes nl (n + 1) c as1 as2
       _ -> Nothing
      I.Var v1 _ | v1 < nl + na -> c n -- unify vars with no args?
      I.Var v1 as1 -> case e2 of
-      I.Var v2 as2 | cdfv + na + nl - v1 == tctx + nl - v2 -> fs nl (n + 1) c as1 as2
+      I.Var v2 as2 | cdfv + na + nl - v1 == tctx + nl - v2 -> fes nl (n + 1) c as1 as2
       _ -> Nothing
      _ -> case (I.ignoreSharing e1, I.ignoreSharing e2) of
       (I.MetaV{}, _) -> c n
       (_, I.MetaV{}) -> c n
       (I.Lam hid1 b1, I.Lam hid2 b2) | hid1 == hid2 -> f (nl + 1) n c (I.absBody b1) (I.absBody b2)
       (I.Lit lit1, I.Lit lit2) | lit1 == lit2 -> c (n + 1)
-      (I.Def n1 as1, I.Def n2 as2) | n1 == n2 -> fs nl (n + 1) c as1 as2
+      (I.Def n1 as1, I.Def n2 as2) | n1 == n2 -> fes nl (n + 1) c as1 as2
       (I.Con n1 as1, I.Con n2 as2) | n1 == n2 -> fs nl (n + 1) c as1 as2
       (I.Pi (C.Dom info1 it1) ot1, I.Pi (C.Dom info2 it2) ot2) | C.argInfoHiding info1 == C.argInfoHiding info2 -> ft nl n (\n -> ft (nl + 1) n c (I.absBody ot1) (I.absBody ot2)) it1 it2
       (I.Sort{}, I.Sort{}) -> c n -- sloppy
@@ -780,4 +788,9 @@ matchType cdfv tctx ctyp ttyp = trmodps cdfv ctyp
     fs nl n c es1 es2 = case (es1, es2) of
      ([], []) -> c n
      (C.Arg info1 e1 : es1, C.Arg info2 e2 : es2) | C.argInfoHiding info1 == C.argInfoHiding info2 -> f nl n (\n -> fs nl n c es1 es2) e1 e2
+     _ -> Nothing
+    fes nl n c es1 es2 = case (es1, es2) of
+     ([], []) -> c n
+     (I.Proj f : es1, I.Proj f' : es2) | f == f' -> fes nl n c es1 es2
+     (I.Apply (C.Arg info1 e1) : es1, I.Apply (C.Arg info2 e2) : es2) | C.argInfoHiding info1 == C.argInfoHiding info2 -> f nl n (\n -> fes nl n c es1 es2) e1 e2
      _ -> Nothing

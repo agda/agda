@@ -158,6 +158,13 @@ instance SynEq a => SynEq [a] where
     | length as == length as' = unzip <$> zipWithM synEq' as as'
     | otherwise               = inequal (as, as')
 
+instance SynEq a => SynEq (Elim' a) where
+  synEq e e' =
+    case (e, e') of
+      (Proj f , Proj f' ) -> pure2 e
+      (Apply a, Apply a') -> Apply <$$> synEq a a'
+      _                   -> inequal (e, e')
+
 instance (Subst a, SynEq a) => SynEq (Abs a) where
   synEq a a' =
     case (a, a') of

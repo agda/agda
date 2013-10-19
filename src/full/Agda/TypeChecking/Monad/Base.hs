@@ -754,6 +754,9 @@ data MaybeReduced a = MaybeRed
   }
   deriving (Functor)
 
+instance IsProjElim e => IsProjElim (MaybeReduced e) where
+  isProjElim = isProjElim . ignoreReduced
+
 type MaybeReducedArgs = [MaybeReduced (Arg Term)]
 type MaybeReducedElims = [MaybeReduced Elim]
 
@@ -1413,6 +1416,8 @@ instance Exception TCErr
 
 newtype TCMT m a = TCM { unTCM :: IORef TCState -> TCEnv -> m a }
 
+-- TODO: make dedicated MonadTCEnv and MonadTCState service classes
+
 instance MonadIO m => MonadReader TCEnv (TCMT m) where
   ask = TCM $ \s e -> return e
   local f (TCM m) = TCM $ \s e -> m s (f e)
@@ -1462,6 +1467,17 @@ instance MonadIO m => MonadTCM (TCMT m) where
 
 instance (Error err, MonadTCM tcm) => MonadTCM (ErrorT err tcm) where
   liftTCM = lift . liftTCM
+
+{- The following is not possible since MonadTCM needs to be a MonadState TCState
+instance (MonadTCM tcm) => MonadTCM (StateT s tcm) where
+  liftTCM = lift . liftTCM
+
+instance (MonadTCM tcm) => MonadTCM (ReaderT r tcm) where
+  liftTCM = lift . liftTCM
+
+instance (MonadTCM tcm) => MonadTCM (WriterT w tcm) where
+  liftTCM = lift . liftTCM
+-}
 
 instance MonadTrans TCMT where
     lift m = TCM $ \_ _ -> m

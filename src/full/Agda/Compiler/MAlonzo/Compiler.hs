@@ -336,12 +336,18 @@ clausebody b0 = runReaderT (go b0) 0 where
 --   Types are extracted as @()@.
 --   @DontCare@ outside of irrelevant arguments is extracted as @error@.
 term :: Term -> ReaderT Nat TCM HS.Exp
-term tm0 = case ignoreSharing tm0 of
-  Var   i as -> do n <- ask; apps (hsVarUQ $ ihname "v" (n - i - 1)) as
+term tm0 = case unSpine $ ignoreSharing tm0 of
+  Var   i es -> do
+    let Just as = allApplyElims es
+    n <- ask
+    apps (hsVarUQ $ ihname "v" (n - i - 1)) as
   Lam   _ at -> do n <- ask; HS.Lambda dummy [HS.PVar $ ihname "v" n] <$>
                               local (1+) (term $ absBody at)
   Lit   l    -> lift $ literal l
-  Def   q as -> (`apps` as) . HS.Var =<< lift (xhqn "d" q)
+  Def   q es -> do
+    let Just as = allApplyElims es
+    q <- lift $ xhqn "d" q
+    HS.Var q `apps` as
   Con   c as -> do
     let q = conName c
     kit <- lift coinductionKit

@@ -1,4 +1,4 @@
-{-# LANGUAGE CPP #-}
+{-# LANGUAGE CPP, PatternGuards #-}
 
 {-| Utitlity functions on lists.
 -}
@@ -48,6 +48,14 @@ deal :: (a -> Either b c) -> a -> ([b],[c]) -> ([b],[c])
 deal f a ~(bs,cs) = case f a of
   Left  b -> (b:bs, cs)
   Right c -> (bs, c:cs)
+
+-- | A generalized version of @takeWhile@.
+--   (Cf. @mapMaybe@ vs. @filter@).
+takeMaybe :: (a -> Maybe b) -> [a] -> [b]
+takeMaybe p = loop
+  where
+    loop (a : as) | Just b <- p a = b : loop as
+    loop _ = []
 
 -- | Sublist relation.
 isSublistOf :: Eq a => [a] -> [a] -> Bool

@@ -201,7 +201,7 @@ reifyDisplayFormP lhs@(A.SpineLHS i x ps wps) =
   where
     okDisplayForm (DWithApp (d : ds) []) =
       okDisplayForm d && all okDisplayTerm ds
-    okDisplayForm (DTerm (I.Def f vs)) = all okArg vs
+    okDisplayForm (DTerm (I.Def f vs)) = all okElim vs
     okDisplayForm (DDef f vs) = all okDArg vs
     okDisplayForm DDot{} = False
     okDisplayForm DCon{} = False
@@ -217,6 +217,9 @@ reifyDisplayFormP lhs@(A.SpineLHS i x ps wps) =
     okDArg = okDisplayTerm . unArg
     okArg = okTerm . unArg
 
+    okElim (I.Apply a) = okArg a
+    okElim (I.Proj{})  = False
+
     okTerm (I.Var _ []) = True
     okTerm (I.Con c vs) = all okArg vs
     okTerm (I.Def x []) = show x == "_" -- Handling wildcards in display forms
@@ -225,7 +228,9 @@ reifyDisplayFormP lhs@(A.SpineLHS i x ps wps) =
     flattenWith (DWithApp (d : ds) []) = case flattenWith d of
       (f, vs, ds') -> (f, vs, ds' ++ ds)
     flattenWith (DDef f vs) = (f, vs, [])
-    flattenWith (DTerm (I.Def f vs)) = (f, map (fmap DTerm) vs, [])
+    flattenWith (DTerm (I.Def f es)) =
+      let vs = maybe __IMPOSSIBLE__ id $ mapM isApplyElim es
+      in (f, map (fmap DTerm) vs, [])
     flattenWith _ = __IMPOSSIBLE__
 
     displayLHS ps wps d = case flattenWith d of
@@ -265,9 +270,12 @@ reifyDisplayFormP lhs@(A.SpineLHS i x ps wps) =
           | n < len = return $ A.patternToExpr $ ps !! n
         termToExpr (I.Con c vs) =
           apps (A.Con (AmbQ [conName c])) =<< argsToExpr vs
-        termToExpr (I.Def f vs) =
+        termToExpr (I.Def f es) = do
+          -- TODO: really IMPOSSIBLE?
+          let vs = maybe __IMPOSSIBLE__ id $ mapM isApplyElim es
           apps (A.Def f) =<< argsToExpr vs
-        termToExpr (I.Var n vs) =
+        termToExpr (I.Var n es) = do
+          let vs = maybe __IMPOSSIBLE__ id $ mapM isApplyElim es
           uncurry apps =<< (,) <$> reify (I.var (n - len)) <*> argsToExpr vs
         termToExpr _ = return underscore
 
@@ -283,12 +291,15 @@ instance Reify Term Expr where
 
 reifyTerm :: Bool -> Term -> TCM Expr
 reifyTerm expandAnonDefs v = do
-    v <- instantiate v
+    v <- unSpine <$> instantiate v
     case v of
-      I.Var n vs   -> do
+      I.Var n es   -> do
+          let vs = fromMaybe __IMPOSSIBLE__ $ allApplyElims es
           x  <- liftTCM $ nameOfBV n `catchError` \_ -> freshName_ ("@" ++ show n)
           reifyApp (A.Var x) vs
-      I.Def x vs   -> reifyDisplayForm x vs $ reifyDef expandAnonDefs x vs
+      I.Def x es   -> do
+        let vs = fromMaybe __IMPOSSIBLE__ $ allApplyElims es
+        reifyDisplayForm x vs $ reifyDef expandAnonDefs x vs
       I.Con c vs   -> do
         let x = conName c
         isR <- isGeneratedRecordConstructor x
@@ -372,9 +383,10 @@ reifyTerm expandAnonDefs v = do
             df <- asks envPrintDomainFreePi
             return $ and [df, freeIn 0 b, VSet.null $ allVars $ freeVars a]
       I.Sort s     -> reify s
-      I.MetaV x vs -> do vs' <- reifyIArgs vs
-                         x' <- reify x
-                         apps x' vs'
+      I.MetaV x es -> do
+        let vs = fromMaybe __IMPOSSIBLE__ $ allApplyElims es
+        x' <- reify x
+        apps x' =<< reifyIArgs vs
       I.DontCare v -> A.DontCare <$> reifyTerm expandAnonDefs v
       I.Shared p   -> reifyTerm expandAnonDefs $ derefPtr p
 

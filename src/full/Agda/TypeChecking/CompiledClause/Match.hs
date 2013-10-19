@@ -10,7 +10,7 @@ import Data.List
 import Agda.Syntax.Internal
 import Agda.Syntax.Common
 import Agda.TypeChecking.CompiledClause
-import Agda.TypeChecking.Eliminators
+-- import Agda.TypeChecking.Eliminators
 import Agda.TypeChecking.Monad
 import Agda.TypeChecking.Substitute
 import Agda.TypeChecking.Reduce
@@ -32,7 +32,7 @@ matchCompiled c args = do
 
 -- | @matchCompiledE c es@ takes a function given by case tree @c@ and
 --   and a spine @es@ and tries to apply the function to @es@.
-matchCompiledE :: CompiledClauses -> MaybeReducedElims -> TCM (Reduced (Blocked [Elim]) Term)
+matchCompiledE :: CompiledClauses -> MaybeReducedElims -> TCM (Reduced (Blocked Elims) Term)
 matchCompiledE c args = match' [(c, args, id)]
 
 -- | A stack entry is a triple consisting of
@@ -40,7 +40,7 @@ matchCompiledE c args = match' [(c, args, id)]
 --   2. the current argument vector, and
 --   3. a patch function taking the current argument vector back
 --      to the original argument vector.
-type Frame = (CompiledClauses, MaybeReducedElims, [Elim] -> [Elim])
+type Frame = (CompiledClauses, MaybeReducedElims, Elims -> Elims)
 type Stack = [Frame]
 
 
@@ -62,7 +62,7 @@ type Stack = [Frame]
 
 -- TODO: literal/constructor pattern conflict (for Nat)
 
-match' :: Stack -> TCM (Reduced (Blocked [Elim]) Term)
+match' :: Stack -> TCM (Reduced (Blocked Elims) Term)
 match' ((c, es, patch) : stack) = do
   let no          es = return $ NoReduction $ NotBlocked $ patch $ map ignoreReduced es
       noBlocked x es = return $ NoReduction $ Blocked x  $ patch $ map ignoreReduced es
@@ -78,7 +78,7 @@ match' ((c, es, patch) : stack) = do
       | m < n     -> yes $ applySubst (toSubst es) $ foldr lam t (drop m xs)
       -- otherwise, just apply instantiation to body
       -- apply the result to any extra arguments
-      | otherwise -> yes $ applySubst (toSubst es0) t `unElim` map ignoreReduced es1
+      | otherwise -> yes $ applySubst (toSubst es0) t `applyE` map ignoreReduced es1
 --      | otherwise -> yes $ applySubst (toSubst args0) t `apply` map ignoreReduced args1
       where
         n              = length xs
@@ -189,6 +189,6 @@ unfoldCorecursion :: Term -> TCM (Blocked Term)
 unfoldCorecursion v = do
   v <- instantiate v
   case v of
-    Def f args -> unfoldDefinition True unfoldCorecursion (Def f []) f args
-    Shared{}   -> fmap shared <$> unfoldCorecursion (ignoreSharing v) -- don't update when unfolding corecursion!
+    Def f es -> unfoldDefinitionE True unfoldCorecursion (Def f []) f es
+    Shared{} -> fmap shared <$> unfoldCorecursion (ignoreSharing v) -- don't update when unfolding corecursion!
     _          -> reduceB v

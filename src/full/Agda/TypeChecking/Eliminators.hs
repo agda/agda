@@ -1,3 +1,6 @@
+-- RETIRED
+-- Andreas, 2013-10-18
+
 {-# LANGUAGE CPP, TypeSynonymInstances, FlexibleInstances #-}
 
 module Agda.TypeChecking.Eliminators where
@@ -98,36 +101,12 @@ unElimView v = case v of
   MetaElim x es -> unElim (MetaV x []) es
   NoElim v      -> v
 
-
--- | For producing error messages.
-unElim :: Term -> [Elim] -> Term
-unElim v [] = v
+unElim :: Term -> Elims -> Term
+unElim v []             = v
 unElim v (Apply u : es) = unElim (v `apply` [u]) es
 unElim v (Proj f : es)  = unElim (Def f [defaultArg v]) es
 
--- | Drop 'Apply' constructor.
-argFromElim :: Elim -> Arg Term
-argFromElim (Apply u) = u
-argFromElim Proj{}    = __IMPOSSIBLE__
 
-class IsProjElim e where
-  isProjElim  :: e -> Maybe QName
-  isApplyElim :: e -> Bool
-  isApplyElim = isNothing . isProjElim
-
-instance IsProjElim Elim where
-  isProjElim (Proj d) = Just d
-  isProjElim Apply{}  = Nothing
-
-instance IsProjElim e => IsProjElim (MaybeReduced e) where
-  isProjElim = isProjElim . ignoreReduced
-
--- | Discard @Proj f@ entries.
-dropProjElims :: IsProjElim e => [e] -> [e]
-dropProjElims = filter (isNothing . isProjElim)
-
-argsFromElims :: [Elim] -> Args
-argsFromElims = map argFromElim . dropProjElims
 
 -- | Take @n@ initial arguments from elimination vector.
 takeArgsFromElims :: (Functor f, IsProjElim (f Elim)) =>

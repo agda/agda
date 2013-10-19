@@ -441,6 +441,10 @@ instance ComputeOccurrences a => ComputeOccurrences (Abs a) where
   occurrences (Abs   _ b) = withExtendedOccEnv Nothing $ occurrences b
   occurrences (NoAbs _ b) = occurrences b
 
+instance ComputeOccurrences a => ComputeOccurrences (Elim' a) where
+  occurrences Proj{}    = return $ Map.empty
+  occurrences (Apply a) = occurrences a
+
 instance ComputeOccurrences a => ComputeOccurrences (I.Arg a) where
   occurrences = occurrences . unArg
 

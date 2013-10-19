@@ -211,7 +211,7 @@ library
                     Agda.TypeChecking.Datatypes
                     Agda.TypeChecking.DisplayForm
                     Agda.TypeChecking.DropArgs
-                    Agda.TypeChecking.Eliminators
+--                    Agda.TypeChecking.Eliminators -- RETIRED
                     Agda.TypeChecking.Empty
                     Agda.TypeChecking.EtaContract
                     Agda.TypeChecking.Errors

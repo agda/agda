@@ -41,7 +41,7 @@ forcedVariables t = case t of
   Con _ vs -> forcedArgs vs
   Def d vs ->
     ifM (isInj d)
-        (forcedArgs vs)
+        (forcedElims vs)
         (return [])
   Pi a (NoAbs _ b) ->
     (++) <$> forcedVariables (unEl $ unDom a)
@@ -53,6 +53,7 @@ forcedVariables t = case t of
   where
     underBinder xs = [ x - 1 | x <- xs, x /= 0 ]
     forcedArgs vs = concat <$> mapM (forcedVariables . unArg) vs
+    forcedElims es = concat <$> mapM (forcedVariables . unArg) (argsFromElims es)
     isInj d = do
       def <- getConstInfo d
       return $ case theDef def of

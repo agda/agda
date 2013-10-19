@@ -646,6 +646,13 @@ instance EmbPrj a => EmbPrj (Drop a) where
   value = vcase valu where valu [a, b] = valu2 Drop a b
                            valu _      = malformed
 
+instance EmbPrj a => EmbPrj (Elim' a) where
+  icode (Apply a) = icode1' a
+  icode (Proj  a) = icode1 0 a
+  value = vcase valu where valu [a]    = valu1 Apply a
+                           valu [0, a] = valu1 Proj a
+                           valu _      = malformed
+
 instance (EmbPrj a, EmbPrj c) => EmbPrj (Agda.Syntax.Common.Arg c a) where
   icode (Arg i e) = icode2' i e
   value = vcase valu where valu [i, e] = valu2 Arg i e

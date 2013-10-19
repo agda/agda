@@ -1,4 +1,4 @@
-{-# LANGUAGE CPP, PatternGuards, TupleSections #-}
+{-# LANGUAGE CPP, PatternGuards, TupleSections, NamedFieldPuns #-}
 
 module Agda.TypeChecking.Rules.Term where
 
@@ -322,7 +322,7 @@ checkAbsurdLambda i h e t = do
           -- Andreas 2012-01-30: since aux is lifted to toplevel
           -- it needs to be applied to the current telescope (issue 557)
           tel <- getContextTelescope
-          return $ Def aux $ teleArgs tel
+          return $ Def aux $ map Apply $ teleArgs tel
       _ -> typeError $ ShouldBePi t'
 
 -- | @checkExtendedLambda i di qname cs e t@ check pattern matching lambda.
@@ -368,7 +368,8 @@ checkRecordExpression fs e t = do
     ]
   t <- reduce t
   case ignoreSharing $ unEl t of
-    Def r vs  -> do
+    Def r es  -> do
+      let ~(Just vs) = allApplyElims es
       reportSDoc "tc.term.rec" 20 $ text $ "  r   = " ++ show r
 {-
       axs    <- getRecordFieldNames r
@@ -437,7 +438,7 @@ checkRecordExpression fs e t = do
                       , text $ "  Raw                   =  " ++ show v
                       ]
                     __IMPOSSIBLE__
-          let inferred = El s $ Def r vs
+          let inferred = El s $ Def r $ map Apply vs
           v <- checkExpr e inferred
           coerce v inferred t
           -- Andreas 2012-04-21: OLD CODE, WRONG DIRECTION, I GUESS:
@@ -858,21 +859,26 @@ inferHead e = do
       proj <- isProjection x
       case proj of
         Nothing -> do
-          (u, a) <- inferDef (\ f args -> return $ Def f args) x
+          (u, a) <- inferDef (\ f args -> return $ Def f $ map Apply args) x
           return (apply u, a)
-        Just Projection{ projIndex = n } -> do
-          cxt <- size <$> freeVarsToApply x
-          m <- getDefFreeVars x
+        Just Projection{ projIndex = n, projProper } -> do
           reportSDoc "tc.term.proj" 10 $ sep
             [ text "building projection" <+> prettyTCM x
-            , nest 2 $ parens (text "ctx =" <+> text (show cxt))
+            , nest 2 $ parens (text "ctx =" <+> (text . show =<< do
+                size <$> freeVarsToApply x))
             , nest 2 $ parens (text "n =" <+> text (show n))
-            , nest 2 $ parens (text "m =" <+> text (show m)) ]
+            , nest 2 $ parens (text "m =" <+> (text . show =<< getDefFreeVars x))
+            ]
           let is | n == 0    = __IMPOSSIBLE__
                  | otherwise = genericReplicate (n - 1) defaultArgInfo -- TODO: hiding
               names = [ s ++ [c] | s <- "" : names, c <- ['a'..'z'] ]
-              eta   = foldr (\(i, s) -> Lam i . NoAbs s) (Def x []) (zip is names)
-          (u, a) <- inferDef (\f vs -> return $ eta `apply` vs) x
+              -- Andreas, 2013-10-19
+              -- proper projections are postfix, projection-like defs are prefix
+              core | projProper = (Lam defaultArgInfo $ Abs "r" $ Var 0 [Proj x])
+                   | otherwise  = Def x []
+              -- leading lambdas are to ignore parameter applications
+              proj  = foldr (\ (i, s) -> Lam i . NoAbs s) core (zip is names)
+          (u, a) <- inferDef (\ f vs -> return $ proj `apply` vs) x
           return (apply u, a)
     (A.Con (AmbQ [c])) -> do
 
@@ -898,58 +904,6 @@ inferHead e = do
       (term, t) <- inferExpr e
       return (apply term, t)
 
-{-
--- | Infer the type of a head thing (variable, function symbol, or constructor)
-inferHead :: A.Expr -> TCM (Args -> Term, Type)
-inferHead (A.Var x) = do -- traceCall (InferVar x) $ do
-  (u, a) <- getVarInfo x
-  when (unusableRelevance $ getRelevance a) $
-    typeError $ VariableIsIrrelevant x
-  return (apply u, unDom a)
-inferHead (A.Def x) = do
-  proj <- isProjection x
-  case proj of
-    Nothing -> do
-      (u, a) <- inferDef Def x
-      return (apply u, a)
-    Just{} -> do
-      Just (r, n) <- funProjection . theDef <$> getConstInfo x
-      cxt <- size <$> freeVarsToApply x
-      m <- getDefFreeVars x
-      reportSDoc "tc.term.proj" 10 $ sep
-        [ text "building projection" <+> prettyTCM x
-        , nest 2 $ parens (text "ctx =" <+> text (show cxt))
-        , nest 2 $ parens (text "n =" <+> text (show n))
-        , nest 2 $ parens (text "m =" <+> text (show m)) ]
-      let is | n == 0    = __IMPOSSIBLE__
-             | otherwise = genericReplicate (n - 1) defaultArgInfo -- TODO: hiding
-          names = [ s ++ [c] | s <- "" : names, c <- ['a'..'z'] ]
-          eta   = foldr (\(i, s) -> Lam i . NoAbs s) (Def x []) (zip is names)
-      (u, a) <- inferDef (\f vs -> eta `apply` vs) x
-      return (apply u, a)
-inferHead (A.Con (AmbQ [c])) = do
-
-  -- Constructors are polymorphic internally so when building the constructor
-  -- term we should throw away arguments corresponding to parameters.
-
-  -- First, inferDef will try to apply the constructor to the free parameters
-  -- of the current context. We ignore that.
-  (u, a) <- inferDef (\c _ -> Con c []) c
-
-  -- Next get the number of parameters in the current context.
-  Constructor{conPars = n} <- theDef <$> (instantiateDef =<< getConstInfo c)
-
-  reportSLn "tc.term.con" 7 $ unwords [show c, "has", show n, "parameters."]
-
-  -- So when applying the constructor throw away the parameters.
-  return (apply u . genericDrop n, a)
-inferHead (A.Con _) = __IMPOSSIBLE__  -- inferHead will only be called on unambiguous constructors
-inferHead (A.QuestionMark i)  = inferMeta newQuestionMark i
-inferHead (A.Underscore i) = inferMeta (newValueMeta RunMetaOccursCheck) i
-inferHead e = do (term, t) <- inferExpr e
-                 return (apply term, t)
--}
-
 inferDef :: (QName -> Args -> TCM Term) -> QName -> TCM (Term, Type)
 inferDef mkTerm x =
     traceCall (InferDef (getRange x) x) $ do
@@ -964,13 +918,13 @@ inferDef mkTerm x =
         ]
       unless (drel `moreRelevant` rel) $ typeError $ DefinitionIsIrrelevant x
     vs <- freeVarsToApply x
-    verboseS "tc.term.def" 10 $ do
-      ds <- mapM prettyTCM vs
-      dx <- prettyTCM x
-      dt <- prettyTCM $ defType d
-      reportSLn "tc.term.def" 10 $ "inferred def " ++ unwords (show dx : map show ds) ++ " : " ++ show dt
-    (, defType d) <$> mkTerm x vs
---    return (mkTerm x vs, defType d)
+    v  <- mkTerm x vs
+    let t = defType d
+    reportSDoc "tc.term.def" 10 $ do
+      text "inferred def " <+> prettyTCM x <+> hsep (map prettyTCM vs)
+        <+> text ":" <+> prettyTCM t
+        <+> text " --> " <+> prettyTCM v
+    return (v, t)
 
 -- | Check the type of a constructor application. This is easier than
 --   a general application since the implicit arguments can be inserted
@@ -995,7 +949,8 @@ checkConstructorApplication org t c args = do
     -- as well and then check wether we deal with the same datatype
     t0 <- reduce (Def d [])
     case (ignoreSharing t0, ignoreSharing $ unEl t) of -- Only fully applied constructors get special treatment
-      (Def d0 _, Def d' vs) -> do
+      (Def d0 _, Def d' es) -> do
+       let ~(Just vs) = allApplyElims es
        reportSDoc "tc.term.con" 50 $ nest 2 $ text "d0   =" <+> prettyTCM d0
        reportSDoc "tc.term.con" 50 $ nest 2 $ text "d'   =" <+> prettyTCM d'
        reportSDoc "tc.term.con" 50 $ nest 2 $ text "vs   =" <+> prettyTCM vs
@@ -1142,7 +1097,7 @@ checkHeadApplication e t hd args = do
 
       -- The application of the fresh function to the relevant
       -- arguments.
-      e' <- Def c' <$> getContextArgs
+      e' <- Def c' . map Apply <$> getContextArgs
 
       -- Add the type signature of the fresh function to the
       -- signature.

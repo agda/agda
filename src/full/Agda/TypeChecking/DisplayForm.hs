@@ -73,6 +73,13 @@ instance Match a => Match [a] where
 instance Match a => Match (Arg a) where
   match n p v = match n (unArg p) (unArg v)
 
+instance Match a => Match (Elim' a) where
+  match n p v =
+    case (p, v) of
+      (Proj f, Proj f') | f == f' -> return $ Just []
+      (Apply a, Apply a')         -> match n a a'
+      _                           -> return Nothing
+
 instance Match Term where
   match n p v = case (ignoreSharing p, ignoreSharing v) of
     (Var 0 [], v)                  -> return $ Just [subst __IMPOSSIBLE__ v]

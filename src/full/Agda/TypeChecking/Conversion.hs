@@ -38,7 +38,7 @@ import Agda.TypeChecking.Level
 import Agda.TypeChecking.Implicit (implicitArgs)
 import Agda.TypeChecking.Irrelevance
 -- import Agda.TypeChecking.EtaContract
-import Agda.TypeChecking.Eliminators
+-- import Agda.TypeChecking.Eliminators
 -- import Agda.TypeChecking.UniversePolymorphism
 
 import Agda.Interaction.Options
@@ -60,20 +60,20 @@ mlevel = liftTCM $ (Just <$> primLevel) `catchError` \_ -> return Nothing
 
 -- | Check if to lists of arguments are the same (and all variables).
 --   Precondition: the lists have the same length.
-sameVars :: Args -> Args -> Bool
+sameVars :: Elims -> Elims -> Bool
 sameVars xs ys = and $ zipWith same xs ys
     where
-	same (Arg _ (Var n [])) (Arg _ (Var m [])) = n == m
-        same _ _                                   = False
+	same (Apply (Arg _ (Var n []))) (Apply (Arg _ (Var m []))) = n == m
+        same _ _ = False
 
 -- | @intersectVars us vs@ checks whether all relevant elements in @us@ and @vs@
 --   are variables, and if yes, returns a prune list which says @True@ for
 --   arguments which are different and can be pruned.
-intersectVars :: Args -> Args -> Maybe [Bool]
+intersectVars :: Elims -> Elims -> Maybe [Bool]
 intersectVars = zipWithM areVars where
     -- ignore irrelevant args
-    areVars u v | isIrrelevant u = Just False -- do not prune
-    areVars (Arg _ (Var n [])) (Arg _ (Var m [])) = Just $ n /= m -- prune different vars
+    areVars (Apply u) v | isIrrelevant u = Just False -- do not prune
+    areVars (Apply (Arg _ (Var n []))) (Apply (Arg _ (Var m []))) = Just $ n /= m -- prune different vars
     areVars _ _                                   = Nothing
 
 equalTerm :: Type -> Term -> Term -> TCM ()
@@ -137,12 +137,13 @@ compareTerm cmp a u v = do
     (_, MetaV y vs) -> unlessSubtyping $ assign y vs u `orelse` fallback
     _               -> fallback
   where
-    assign x us v = do
+    assign x es v = do
+      -- Andreas, 2013-10-19 can only solve if no projections
       reportSDoc "tc.conv.term.shortcut" 20 $ sep
         [ text "attempting shortcut"
-        , nest 2 $ prettyTCM (MetaV x us) <+> text ":=" <+> prettyTCM v
+        , nest 2 $ prettyTCM (MetaV x es) <+> text ":=" <+> prettyTCM v
         ]
-      ifM (isInstantiatedMeta x) patternViolation (assignV x us v)
+      ifM (isInstantiatedMeta x) patternViolation (assignE x es v $ compareTerm' CmpEq a)
       instantiate u
       -- () <- seq u' $ return ()
       reportSLn "tc.conv.term.shortcut" 50 $
@@ -163,6 +164,61 @@ unifyPointers _ _ _ action = action
 --   dirty <- gets stDirty
 --   modify $ \s -> s { stDirty = old }
 --   when (not dirty) $ forceEqualTerms u v
+
+-- | Try to assign meta.  If meta is projected, try to eta-expand
+--   and run conversion check again.
+assignE :: MetaId -> Elims -> Term -> (Term -> Term -> TCM ()) -> TCM ()
+assignE x es v equate = assignWrapper x es v $ do
+  case allApplyElims es of
+    Just vs -> assignV x vs v
+    Nothing -> do
+      reportSDoc "tc.conv.assign" 30 $ sep
+        [ text "assigning to projected meta "
+        , prettyTCM x <+> sep (map prettyTCM es) <+> text " := " <+> prettyTCM v
+        ]
+      etaExpandMeta [Records] x
+      res <- isInstantiatedMeta' x
+      case res of
+        Just u  -> do
+          reportSDoc "tc.conv.assign" 30 $ sep
+            [ text "seem like eta expansion instantiated meta "
+            , prettyTCM x <+> text " := " <+> prettyTCM u
+            ]
+          let w = u `applyE` es
+          equate w v
+        Nothing ->  do
+          reportSLn "tc.conv.assign" 30 "eta expansion did not instantiate meta"
+          patternViolation  -- nothing happened, give up
+{-
+assignE :: Type -> MetaId -> Elims -> Term -> TCM ()
+assignE t x es v = assignWrapper x es v $ do
+  case allApplyElims es of
+    Just vs -> assignV x vs v
+    Nothing -> do
+      reportSDoc "tc.conv.assign" 30 $ sep
+        [ text "assigning to projected meta "
+        , prettyTCM x <+> sep (map prettyTCM es) <+> text " := " <+> prettyTCM v
+        ]
+      etaExpandMeta [Records] x
+      res <- isInstantiatedMeta' x
+      case res of
+        Just u  -> do
+          reportSDoc "tc.conv.assign" 30 $ sep
+            [ text "seem like eta expansion instantiated meta "
+            , prettyTCM x <+> text " := " <+> prettyTCM u
+            ]
+          let w = u `applyE` es
+          compareTerm' CmpEq t w v
+        Nothing ->  do
+          reportSLn "tc.conv.assign" 30 "eta expansion did not instantiate meta"
+          patternViolation  -- nothing happened, give up
+-}
+{-
+      u <- ignoreSharing <$> do instantiate $ MetaV x []
+      case u of
+        MetaV x' [] | x == x' -> patternViolation  -- nothing happened, give up
+        _ -> compareTerm' CmpEq t (u `applyE` es) v
+-}
 
 compareTerm' :: Comparison -> Type -> Term -> Term -> TCM ()
 compareTerm' cmp a m n =
@@ -186,12 +242,12 @@ compareTerm' cmp a m n =
 -- OLD:        Pi dom _  -> equalFun (dom, a') m n
         a@Pi{}    -> equalFun a m n
         Lam _ _   -> __IMPOSSIBLE__
-        Def r ps  -> do
+        Def r es  -> do
           isrec <- isEtaRecord r
           if isrec
             then do
               dontHaveCopatterns <- not . optCopatterns <$> pragmaOptions
-              let
+              let ps = fromMaybe __IMPOSSIBLE__ $ allApplyElims es
               -- Andreas, 2010-10-11: allowing neutrals to be blocked things does not seem
               -- to change Agda's behavior
               --    isNeutral Blocked{}          = False
@@ -368,6 +424,8 @@ compareAtom cmp t m n =
                 then return ()	-- Check syntactic equality for blocked terms
                 else postpone
 
+          assign x es v = assignE x es v $ equalAtom t
+
       unifyPointers cmp (ignoreBlocking mb') (ignoreBlocking nb') $ do    -- this needs to go after eta expansion to avoid creating infinite terms
 
       reportSDoc "tc.conv.atom" 30 $
@@ -399,8 +457,8 @@ compareAtom cmp t m n =
                 let (solve1, solve2)
                       | (p1,x) > (p2,y) = (l,r)
                       | otherwise	    = (r,l)
-                      where l = assignV x xArgs n
-                            r = assignV y yArgs m
+                      where l = assign x xArgs n
+                            r = assign y yArgs m
 
                     try m h = m `catchError_` \err -> case err of
                       PatternErr s -> put s >> h
@@ -411,22 +469,31 @@ compareAtom cmp t m n =
                 try solve1 solve2
 
         -- one side a meta, the other an unblocked term
-	(NotBlocked (MetaV x xArgs), _) -> assignV x xArgs n
-	(_, NotBlocked (MetaV x xArgs)) -> assignV x xArgs m
+	(NotBlocked (MetaV x es), _) -> assign x es n
+	(_, NotBlocked (MetaV x es)) -> assign x es m
 
         (Blocked{}, Blocked{})	-> checkSyntacticEquality
         (Blocked{}, _)    -> useInjectivity cmp t m n
         (_,Blocked{})     -> useInjectivity cmp t m n
-        _ -> case (ignoreSharing m, ignoreSharing n) of
+        _ -> do
+          case (ignoreSharing m, ignoreSharing n) of
 	    (Pi{}, Pi{}) -> equalFun m n
 
 	    (Sort s1, Sort s2) -> compareSort CmpEq s1 s2
 
 	    (Lit l1, Lit l2) | l1 == l2 -> return ()
-	    (Var i iArgs, Var j jArgs) | i == j -> do
+	    (Var i es, Var i' es') | i == i' -> do
 		a <- typeOfBV i
                 -- Variables are invariant in their arguments
-		compareArgs [] a (Var i []) iArgs jArgs
+		compareElims [] a (var i) es es'
+            (Def f es, Def f' es') | f == f' -> do
+                a   <- defType <$> getConstInfo f
+                pol <- getPolarity' cmp f
+                compareElims pol a (Def f []) es es'
+            (Def f es, Def f' es') ->
+              unlessM (bothAbsurd f f') $ do
+                trySizeUniv cmp t m n f es f' es'
+{- RETIRED
             (Def{}, Def{}) -> do
               ev1 <- elimView m
               ev2 <- elimView n
@@ -455,12 +522,6 @@ compareAtom cmp t m n =
                 (DefElim x els1, DefElim y els2) ->
                   unlessM (bothAbsurd x y) $ do
                     trySizeUniv cmp t m n x els1 y els2
-{-
-                (DefElim x els1, DefElim y els2) -> do
-                   ifM (equalDef x y)
-                     (cmpElim (defType <$> getConstInfo x) (Def x []) els1 els2)
-                     (trySizeUniv cmp t m n x els1 y els2)
--}
                 (MetaElim{}, _) -> __IMPOSSIBLE__   -- projections from metas should have been eta expanded
                 (_, MetaElim{}) -> __IMPOSSIBLE__
                 _ -> typeError $ UnequalTerms cmp m n t
@@ -480,6 +541,7 @@ compareAtom cmp t m n =
                         ]
                     reportSLn "tc.conv.elim" 50 $ "v (raw) = " ++ show v
                     compareElims pol a v els1 els2
+-}
 	    (Con x xArgs, Con y yArgs)
 		| x == y -> do
                     -- Get the type of the constructor instantiated to the datatype parameters.
@@ -493,7 +555,8 @@ compareAtom cmp t m n =
         -- Andreas, 2013-05-15 due to new postponement strategy, type can now be blocked
         conType c t = ifBlocked (unEl t) (\ _ _ -> patternViolation) $ \ v ->
          case ignoreSharing v of
-          Def d args -> do
+          Def d es -> do
+            let args = fromMaybe __IMPOSSIBLE__ $ allApplyElims es
             npars <- do
               def <- theDef <$> getConstInfo d
               return $ case def of Datatype{dataPars = n} -> n
@@ -557,8 +620,8 @@ compareRelevance CmpLeq = (<=)
 --   @t@ is the type of the head @v@.
 compareElims :: [Polarity] -> Type -> Term -> [Elim] -> [Elim] -> TCM ()
 compareElims pols0 a v els01 els02 = catchConstraint (ElimCmp pols0 a v els01 els02) $ do
-  let v1 = unElim v els01
-      v2 = unElim v els02
+  let v1 = applyE v els01
+      v2 = applyE v els02
       failure = typeError $ UnequalTerms CmpEq v1 v2 a
         -- Andreas, 2013-03-15 since one of the spines is empty, @a@
         -- is the correct type here.
@@ -654,7 +717,8 @@ compareElims pols0 a v els01 els02 = catchConstraint (ElimCmp pols0 a v els01 el
       | f /= f'   -> typeError . GenericError . show =<< prettyTCM f <+> text "/=" <+> prettyTCM f'
       | otherwise -> ifBlockedType a (\ m t -> patternViolation) $ \ a -> do
         case ignoreSharing $ unEl a of
-          Def r us -> do
+          Def r es -> do
+            let us = fromMaybe __IMPOSSIBLE__ $ allApplyElims es
             let (pol, _) = nextPolarity pols0
             ft <- defType <$> getConstInfo f  -- get type of projection function
             let arg = defaultArg v  -- TODO: not necessarily relevant?
@@ -665,7 +729,7 @@ compareElims pols0 a v els01 els02 = catchConstraint (ElimCmp pols0 a v els01 el
                   Contravariant -> (CmpLeq, els2, els1)
                   Nonvariant    -> __IMPOSSIBLE__ -- the polarity should be Invariant
             pols' <- getPolarity' cmp f
-            compareElims pols' c (Def f [arg]) els1 els2
+            compareElims pols' c (v `applyE` [Proj f]) els1 els2
           _ -> do
             reportSDoc "impossible" 10 $ sep
               [ text $ "projection " ++ show f
@@ -680,10 +744,10 @@ compareElims pols0 a v els01 els02 = catchConstraint (ElimCmp pols0 a v els01 el
 --   (Certainly not the systematic solution, that'd be proof search...)
 compareIrrelevant :: Type -> Term -> Term -> TCM ()
 {- 2012-04-02 DontCare no longer present
-compareIrrelevant a (DontCare v) w = compareIrrelevant a v w
-compareIrrelevant a v (DontCare w) = compareIrrelevant a v w
+compareIrrelevant t (DontCare v) w = compareIrrelevant t v w
+compareIrrelevant t v (DontCare w) = compareIrrelevant t v w
 -}
-compareIrrelevant a v w = do
+compareIrrelevant t v w = do
   reportSDoc "tc.conv.irr" 20 $ vcat
     [ text "compareIrrelevant"
     , nest 2 $ text "v =" <+> prettyTCM v
@@ -696,7 +760,7 @@ compareIrrelevant a v w = do
   try v w $ try w v $ return ()
   where
     try (Shared p) w fallback = try (derefPtr p) w fallback
-    try (MetaV x vs) w fallback = do
+    try (MetaV x es) w fallback = do
       mv <- lookupMeta x
       let rel  = getMetaRelevance mv
           inst = case mvInstantiation mv of
@@ -707,7 +771,9 @@ compareIrrelevant a v w = do
         [ nest 2 $ text $ "rel  = " ++ show rel
         , nest 2 $ text $ "inst = " ++ show inst
         ]
-      if not (irrelevantOrUnused rel) || inst then fallback else assignV x vs w
+      if not (irrelevantOrUnused rel) || inst
+        then fallback
+        else assignE x es w $ compareIrrelevant t
         -- the value of irrelevant or unused meta does not matter
     try v w fallback = fallback
 
@@ -1032,7 +1098,9 @@ equalLevel a b = do
         meta n x as bs = do
           reportSLn "tc.meta.level" 50 $ "meta " ++ show as ++ " " ++ show bs
           bs' <- mapM (subtr n) bs
-          assignV x as $ levelTm (Max bs')
+          assignE x as (levelTm (Max bs')) $ \ a b -> do
+            lvl <- getLvl
+            equalAtom lvl a b
 
         -- Make sure to give a sensible error message
         wrap m = m `catchError` \err ->
@@ -1109,7 +1177,7 @@ equalSort s1 s2 =
 
         isInf notok ClosedLevel{} = notok
         isInf notok (Plus _ l) = case l of
-          MetaLevel x vs          -> assignV x vs (Sort Inf)
+          MetaLevel x es          -> assignE x es (Sort Inf) $ equalAtom topSort
           NeutralLevel (Shared p) -> isInf notok (Plus 0 $ NeutralLevel $ derefPtr p)
           NeutralLevel (Sort Inf) -> return ()
           _                       -> notok

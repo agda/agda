@@ -111,7 +111,7 @@ levelView a = do
             | Just s == msuc -> inc <$> view (unArg arg)
           Con z []
             | Just z == mzer -> return $ closed 0
-          Def m [arg1, arg2]
+          Def m [Apply arg1, Apply arg2]
             | Just m == mmax -> levelLub <$> view (unArg arg1) <*> view (unArg arg2)
           _                  -> mkAtom a
   v <- view a

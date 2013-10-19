@@ -68,6 +68,9 @@ instance AbstractTerm LevelAtom where
     BlockedLevel _ v -> UnreducedLevel $ abstractTerm u v -- abstracting might remove the blockage
     UnreducedLevel v -> UnreducedLevel $ abstractTerm u v
 
+instance AbstractTerm a => AbstractTerm (Elim' a) where
+  abstractTerm = fmap . abstractTerm
+
 instance AbstractTerm a => AbstractTerm (Arg a) where
   abstractTerm = fmap . abstractTerm
 

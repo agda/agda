@@ -4,6 +4,8 @@ module Agda.TypeChecking.Rules.LHS.Split where
 
 import Control.Applicative
 import Control.Monad.Error
+
+import Data.Maybe (fromMaybe)
 import Data.Monoid (mempty, mappend)
 import Data.List
 import Data.Traversable hiding (mapM, sequence)
@@ -32,7 +34,7 @@ import Agda.TypeChecking.Rules.LHS.Problem
 -- import Agda.TypeChecking.Rules.LHS.ProblemRest
 -- import Agda.TypeChecking.Rules.Term
 import Agda.TypeChecking.Monad.Builtin
-import Agda.TypeChecking.Eliminators
+-- import Agda.TypeChecking.Eliminators
 -- import Agda.TypeChecking.EtaContract (etaContract)
 import Agda.TypeChecking.Free
 import Agda.TypeChecking.Irrelevance
@@ -138,7 +140,7 @@ splitProblem mf (Problem ps (perm, qs) tel pr) = do
                     unless (d `elem` map unArg fs) $ throwError NothingToSplit
                     es <- lift $ patternsToElims perm qs
                     -- the record "self" is the definition f applied to the patterns
-                    let self = defaultArg $ Def f [] `unElim` es
+                    let self = defaultArg $ Def f [] `applyE` es
                     -- get the type of projection d applied to "self"
                     dType <- lift $ typeOfConst d
                     lift $ reportSDoc "tc.lhs.split" 20 $ sep
@@ -221,7 +223,7 @@ splitProblem mf (Problem ps (perm, qs) tel pr) = do
                     dt     <- defType <$> getConstInfo d
                     vs     <- newArgsMeta dt
                     Sort s <- ignoreSharing . unEl <$> reduce (apply dt vs)
-                    (True <$ noConstraints (equalType a' (El s $ Def d vs)))
+                    (True <$ noConstraints (equalType a' (El s $ Def d $ map Apply vs)))
                       `catchError` \_ -> return False
                   if ok then tryAgain else keepGoing
                 | otherwise = keepGoing
@@ -230,7 +232,7 @@ splitProblem mf (Problem ps (perm, qs) tel pr) = do
 	  case ignoreSharing $ unEl a' of
 
             -- Subcase: split type is a Def
-	    Def d vs	-> do
+	    Def d es	-> do
 	      def <- liftTCM $ theDef <$> getConstInfo d
               unless (defIsRecord def) $
                 -- cannot split on irrelevant or non-strict things
@@ -245,7 +247,8 @@ splitProblem mf (Problem ps (perm, qs) tel pr) = do
                         _                       -> Nothing
               case mp of
                 Nothing -> keepGoing
-                Just np ->
+                Just np -> do
+                  let vs = fromMaybe __IMPOSSIBLE__ $ allApplyElims es
 		  liftTCM $ traceCall (CheckPattern p EmptyTel (unDom a)) $ do  -- TODO: wrong telescope
                   -- Check that we construct something in the right datatype
                   c <- do
@@ -321,7 +324,8 @@ checkParsIfUnambiguous [c] d pars = do
   dc <- getConstructorData c
   a  <- reduce (Def dc [])
   case ignoreSharing a of
-    Def d0 vs -> do -- compare parameters
+    Def d0 es -> do -- compare parameters
+      let vs = fromMaybe __IMPOSSIBLE__ $ allApplyElims es
       reportSDoc "tc.lhs.split" 40 $
         vcat [ nest 2 $ text "d                   =" <+> prettyTCM d
              , nest 2 $ text "d0 (should be == d) =" <+> prettyTCM d0
@@ -351,7 +355,8 @@ wellFormedIndices t = do
          ]
 
   (pars, ixs) <- normalise =<< case ignoreSharing $ unEl t of
-    Def d args -> do
+    Def d es -> do
+      let args = fromMaybe __IMPOSSIBLE__ $ allApplyElims es
       def       <- getConstInfo d
       typedArgs <- args `withTypesFrom` defType def
 
@@ -388,7 +393,7 @@ wellFormedIndices t = do
   constructorApplication (Var x [])      _ = return (Just [x])
   constructorApplication (Lit {})        _ = return (Just [])
   constructorApplication (Shared p)      t  = constructorApplication (derefPtr p) t
-  constructorApplication (Con c conArgs) (El _ (Def d dataArgs)) = do
+  constructorApplication (Con c conArgs) (El _ (Def d es)) = do
     conDef  <- getConInfo c
     dataDef <- getConstInfo d
 
@@ -396,6 +401,7 @@ wellFormedIndices t = do
           Datatype { dataPars = n } -> n
           Record   { recPars  = n } -> n
           _                         -> __IMPOSSIBLE__
+        dataArgs = fromMaybe __IMPOSSIBLE__ $ allApplyElims es
         pars    = genericTake noPars dataArgs
         allArgs = pars ++ conArgs
 

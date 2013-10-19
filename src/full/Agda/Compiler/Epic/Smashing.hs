@@ -88,7 +88,7 @@ inferable visited dat args = do
             _   -> return Nothing
       r@Record{}   -> inferableArgs (recCon r) (recPars r)
       f@Function{} -> do
-        term <- lift $ normalise $ Def dat args
+        term <- lift $ normalise $ Def dat $ map SI.Apply args
         inferableTerm visited' term
       d -> do
         lift $ reportSLn "epic.smashing" 10 $ "  failed (inferable): " ++ (show d)
@@ -109,7 +109,7 @@ inferable visited dat args = do
     visited' = S.insert dat visited
 
 inferableTerm visited t = case t of
-    Def q as     -> inferable visited q as
+    Def q es    -> inferable visited q $ fromMaybe __IMPOSSIBLE__ $ allApplyElims es
     Pi _   b    -> (AA.Lam "_" <$>) <$> inferableTerm visited (unEl $ unAbs b)
     Sort {}     -> return . return $ AA.UNIT
     t           -> do

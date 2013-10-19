@@ -4,8 +4,10 @@ module Agda.TypeChecking.With where
 import Control.Applicative
 import Control.Monad
 import Control.Monad.State
-import qualified Data.Traversable as T (traverse)
+
 import Data.List
+import Data.Maybe (fromMaybe)
+import qualified Data.Traversable as T (traverse)
 
 import Agda.Syntax.Common
 import Agda.Syntax.Internal as I
@@ -194,7 +196,8 @@ stripWithClausePatterns gamma qs perm ps = do
             unless (elem c cs') mismatch
 
             -- The type is a datatype
-            Def d us <- ignoreSharing <$> normalise (unEl $ unDom a)
+            Def d es <- ignoreSharing <$> normalise (unEl $ unDom a)
+            let us = fromMaybe __IMPOSSIBLE__ $ allApplyElims es
 
             -- Compute the argument telescope for the constructor
 -- ALREADY normal:

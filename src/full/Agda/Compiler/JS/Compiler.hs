@@ -26,6 +26,7 @@ import Agda.Syntax.Internal
     Clause, Pattern(VarP,DotP,LitP,ConP,ProjP), Abs,
     ClauseBody(Body,NoBody,Bind),
     Term(Var,Lam,Lit,Level,Def,Con,Pi,Sort,MetaV,DontCare,Shared),
+    unSpine, allApplyElims,
     conName,
     derefPtr,
     toTopLevelModuleName, clausePats, clauseBody, arity, unEl, unAbs )
@@ -358,54 +359,58 @@ body (Bind b) = body (unAbs b)
 body (NoBody) = return Undefined
 
 term :: Term -> TCM Exp
-term (Var   i as)         = do
-  e <- return (Local (LocalId i))
-  es <- args 0 as
-  return (curriedApply e es)
-term (Lam   _ at)         = Lambda 1 <$> term (absBody at)
-term (Lit   l)            = return (literal l)
-term (Level l)            = term =<< reallyUnLevelView l
-term (Shared p)           = term $ derefPtr p
-term (Def q as) = do
-  d <- getConstInfo q
-  case theDef d of
-    -- Datatypes and records are erased
-    Datatype {} -> return (String "*")
-    Record {} -> return (String "*")
-    _ -> case defJSDef d of
-      -- Inline functions with an FFI definition
-      Just e -> do
-        es <- args (projectionArgs $ theDef d) as
-        return (curriedApply e es)
-      Nothing -> do
-        t <- normalise (defType d)
-        s <- isSingleton t
-        case s of
-          -- Inline and eta-expand singleton types
-          Just e ->
-            return (curriedLambda (arity t) e)
-          -- Everything else we leave non-inline
-          Nothing -> do
-            e <- qname q
+term v = do
+  case unSpine v of
+    (Var   i es)         -> do
+      let Just as = allApplyElims es
+      e <- return (Local (LocalId i))
+      es <- args 0 as
+      return (curriedApply e es)
+    (Lam   _ at)         -> Lambda 1 <$> term (absBody at)
+    (Lit   l)            -> return (literal l)
+    (Level l)            -> term =<< reallyUnLevelView l
+    (Shared p)           -> term $ derefPtr p
+    (Def q es)           -> do
+      let Just as = allApplyElims es
+      d <- getConstInfo q
+      case theDef d of
+        -- Datatypes and records are erased
+        Datatype {} -> return (String "*")
+        Record {} -> return (String "*")
+        _ -> case defJSDef d of
+          -- Inline functions with an FFI definition
+          Just e -> do
             es <- args (projectionArgs $ theDef d) as
             return (curriedApply e es)
-term (Con con as) = do
-  let q = conName con
-  d <- getConstInfo q
-  case defJSDef d of
-    -- Inline functions with an FFI definition
-    Just e -> do
-      es <- args 0 as
-      return (curriedApply e es)
-    -- Everything else we leave non-inline
-    Nothing -> do
-      e <- qname q
-      es <- args 0 as
-      return (curriedApply e es)
-term (Pi    _ _)          = return (String "*")
-term (Sort  _)            = return (String "*")
-term (MetaV _ _)          = return (Undefined)
-term (DontCare _)         = return (Undefined)
+          Nothing -> do
+            t <- normalise (defType d)
+            s <- isSingleton t
+            case s of
+              -- Inline and eta-expand singleton types
+              Just e ->
+                return (curriedLambda (arity t) e)
+              -- Everything else we leave non-inline
+              Nothing -> do
+                e <- qname q
+                es <- args (projectionArgs $ theDef d) as
+                return (curriedApply e es)
+    (Con con as)         -> do
+      let q = conName con
+      d <- getConstInfo q
+      case defJSDef d of
+        -- Inline functions with an FFI definition
+        Just e -> do
+          es <- args 0 as
+          return (curriedApply e es)
+        -- Everything else we leave non-inline
+        Nothing -> do
+          e <- qname q
+          es <- args 0 as
+          return (curriedApply e es)
+    (Pi    _ _)          -> return (String "*")
+    (Sort  _)            -> return (String "*")
+    (MetaV _ _)          -> return (Undefined)
+    (DontCare _)         -> return (Undefined)
 
 -- Check to see if a type is a singleton, and if so, return its only
 -- member.  Singleton types are of the form T1 -> ... -> Tn -> T where

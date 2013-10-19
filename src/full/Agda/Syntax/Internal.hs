@@ -10,7 +10,7 @@ module Agda.Syntax.Internal
     , module Agda.Utils.Pointer
     ) where
 
-import Prelude hiding (foldr)
+import Prelude hiding (foldr, mapM)
 import Control.Applicative
 import Control.Parallel
 import Data.Typeable (Typeable)
@@ -84,15 +84,15 @@ instance LensConName ConHead where
 --     every constant, even if the definition is an empty
 --     list of clauses.
 --
-data Term = Var {-# UNPACK #-} !Int Args             -- ^ @x vs@ neutral
-	  | Lam ArgInfo (Abs Term)   -- ^ Terms are beta normal. Relevance is ignored
+data Term = Var {-# UNPACK #-} !Int Elims -- ^ @x vs@ neutral
+	  | Lam ArgInfo (Abs Term)        -- ^ Terms are beta normal. Relevance is ignored
 	  | Lit Literal
-	  | Def QName Args           -- ^ @f vs@, possibly a redex
-	  | Con ConHead Args         -- ^ @c vs@
-	  | Pi (Dom Type) (Abs Type) -- ^ dependent or non-dependent function space
+	  | Def QName Elims               -- ^ @f vs@, possibly a redex
+	  | Con ConHead Args              -- ^ @c vs@
+	  | Pi (Dom Type) (Abs Type)      -- ^ dependent or non-dependent function space
 	  | Sort Sort
           | Level Level
-	  | MetaV {-# UNPACK #-} !MetaId Args
+	  | MetaV {-# UNPACK #-} !MetaId Elims
           | DontCare Term
             -- ^ Irrelevant stuff in relevant position, but created
             --   in an irrelevant context.  Basically, an internal
@@ -106,12 +106,12 @@ data Term = Var {-# UNPACK #-} !Int Args             -- ^ @x vs@ neutral
 type Args = [Arg Term]
 
 -- | Eliminations, subsuming applications and projections.
---   Used for a view which exposes the head of a neutral term.
 --
 data Elim' a = Apply (Arg a) | Proj QName -- ^ name of a record projection
-  deriving (Show, Functor, Foldable, Traversable)
+  deriving (Typeable, Show, Functor, Foldable, Traversable)
 
 type Elim = Elim' Term
+type Elims = [Elim]  -- ^ eliminations ordered left-to-right.
 
 -- | Binder.
 --   'Abs': The bound variable might appear in the body.
@@ -157,7 +157,7 @@ data PlusLevel = ClosedLevel Integer
                | Plus Integer LevelAtom
   deriving (Show, Typeable)
 
-data LevelAtom = MetaLevel MetaId Args
+data LevelAtom = MetaLevel MetaId Elims
                | BlockedLevel MetaId Term
                | NeutralLevel Term
                | UnreducedLevel Term
@@ -414,6 +414,78 @@ argName = argN . ignoreSharing . unEl
 	argN _	  = __IMPOSSIBLE__
 
 ---------------------------------------------------------------------------
+-- * Eliminations.
+---------------------------------------------------------------------------
+
+-- | Convert top-level postfix projections into prefix projections.
+unSpine :: Term -> Term
+unSpine v =
+  case hasElims v of
+    Just (h, es) -> unSpine' h [] es
+    Nothing      -> v
+  where
+    unSpine' :: (Elims -> Term) -> Elims -> Elims -> Term
+    unSpine' h res es =
+      case es of
+        []                -> v
+        e@(Apply a) : es' -> unSpine' h (e : res) es'
+        Proj f      : es' -> unSpine' (Def f) [Apply (defaultArg v)] es'
+      where v = h $ reverse res
+
+-- | A view distinguishing the neutrals @Var@, @Def@, and @MetaV@ which
+--   can be projected.
+hasElims :: Term -> Maybe (Elims -> Term, Elims)
+hasElims v =
+  case ignoreSharing v of
+    Var   i es -> Just (Var   i, es)
+    Def   f es -> Just (Def   f, es)
+    MetaV x es -> Just (MetaV x, es)
+    Con{}      -> Nothing
+    Lit{}      -> Nothing
+    Lam{}      -> Nothing
+    Pi{}       -> Nothing
+    Sort{}     -> Nothing
+    Level{}    -> Nothing
+    DontCare{} -> Nothing
+    Shared{}   -> __IMPOSSIBLE__
+
+{- PROBABLY USELESS
+getElims :: Term -> (Elims -> Term, Elims)
+getElims v = maybe default id $ hasElims v
+  where
+    default = (\ [] -> v, [])
+-}
+
+-- | Drop 'Apply' constructor. (Unsafe!)
+argFromElim :: Elim -> Arg Term
+argFromElim (Apply u) = u
+argFromElim Proj{}    = __IMPOSSIBLE__
+
+-- | Drop 'Apply' constructor. (Safe)
+isApplyElim :: Elim -> Maybe (Arg Term)
+isApplyElim (Apply u) = Just u
+isApplyElim Proj{}    = Nothing
+
+-- | Drop 'Apply' constructors. (Safe)
+allApplyElims :: Elims -> Maybe Args
+allApplyElims = mapM isApplyElim
+
+class IsProjElim e where
+  isProjElim  :: e -> Maybe QName
+
+instance IsProjElim Elim where
+  isProjElim (Proj d) = Just d
+  isProjElim Apply{}  = Nothing
+
+-- | Discard @Proj f@ entries.
+dropProjElims :: IsProjElim e => [e] -> [e]
+dropProjElims = filter (isNothing . isProjElim)
+
+-- | Discards @Proj f@ entries.
+argsFromElims :: Elims -> Args
+argsFromElims = map argFromElim . dropProjElims
+
+---------------------------------------------------------------------------
 -- * Show instances.
 ---------------------------------------------------------------------------
 
@@ -471,6 +543,10 @@ instance Sized (Tele a) where
 
 instance Sized a => Sized (Abs a) where
   size = size . unAbs
+
+instance Sized a => Sized (Elim' a) where
+  size (Apply v) = size v
+  size  Proj{}   = 1
 
 ---------------------------------------------------------------------------
 -- * KillRange instances.
@@ -531,12 +607,17 @@ instance KillRange a => KillRange (Blocked a) where
 instance KillRange a => KillRange (Abs a) where
   killRange = fmap killRange
 
+instance KillRange a => KillRange (Elim' a) where
+  killRange = fmap killRange
+
 ---------------------------------------------------------------------------
 -- * UniverseBi instances.
 ---------------------------------------------------------------------------
 
 instanceUniverseBiT' [] [t| (([Type], [Clause]), Pattern) |]
 instanceUniverseBiT' [] [t| (Args, Pattern)               |]
+instanceUniverseBiT' [] [t| (Elims, Pattern)              |] -- ?
 instanceUniverseBiT' [] [t| (([Type], [Clause]), Term)    |]
 instanceUniverseBiT' [] [t| (Args, Term)                  |]
+instanceUniverseBiT' [] [t| (Elims, Term)                 |] -- ?
 instanceUniverseBiT' [] [t| ([Term], Term)                |]

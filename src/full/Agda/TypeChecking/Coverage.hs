@@ -33,7 +33,7 @@ import Agda.TypeChecking.Coverage.Match
 import Agda.TypeChecking.Coverage.SplitTree
 
 import Agda.TypeChecking.Datatypes (getConForm)
-import Agda.TypeChecking.Eliminators (unElim)
+-- import Agda.TypeChecking.Eliminators (unElim)
 import Agda.TypeChecking.Patterns (patternsToElims)
 import Agda.TypeChecking.Pretty
 import Agda.TypeChecking.Substitute
@@ -186,7 +186,7 @@ cover f cs sc@(SClause tel perm ps _ target) = do
               , text $ "and have fields       fs = " ++ show fs
               ]
             es <- patternsToElims perm ps
-            let self  = defaultArg $ Def f [] `unElim` es
+            let self  = defaultArg $ Def f [] `applyE` es
                 pargs = vs ++ [self]
             reportSDoc "tc.cover" 20 $ sep
               [ text   "we are              self = " <+> (addCtxTel tel $ prettyTCM $ unArg self)
@@ -261,7 +261,8 @@ isDatatype ind at = do
       throw f = throwException . f =<< do liftTCM $ buildClosure t
   t' <- liftTCM $ reduce t
   case ignoreSharing $ unEl t' of
-    Def d args -> do
+    Def d es -> do
+      let ~(Just args) = allApplyElims es
       def <- liftTCM $ theDef <$> getConstInfo d
       splitOnIrrelevantDataAllowed <- liftTCM $ optExperimentalIrrelevance <$> pragmaOptions
       case def of
@@ -330,7 +331,8 @@ computeNeighbourhood delta1 n delta2 perm d pars ixs hix hps con = do
   -- Lookup the type of the constructor at the given parameters
   (gamma0, cixs) <- do
     TelV gamma0 (El _ d) <- liftTCM $ telView (ctype `piApply` pars)
-    let Def _ cixs = ignoreSharing d
+    let Def _ es = ignoreSharing d
+        Just cixs = allApplyElims es
     return (gamma0, cixs)
 
   -- Andreas, 2012-02-25 preserve name suggestion for recursive arguments

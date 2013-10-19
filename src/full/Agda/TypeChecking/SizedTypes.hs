@@ -60,11 +60,11 @@ deepSizeView v = do
   let loop v = do
       v <- reduce v
       case ignoreSharing v of
-        Def x []  | x == inf -> return $ DSizeInf
-        Def x [u] | x == suc -> sizeViewSuc_ suc <$> loop (unArg u)
-        Var i []             -> return $ DSizeVar i 0
-        MetaV x us           -> return $ DSizeMeta x us 0
-        _                    -> return $ DOtherSize v
+        Def x []        | x == inf -> return $ DSizeInf
+        Def x [Apply u] | x == suc -> sizeViewSuc_ suc <$> loop (unArg u)
+        Var i []                   -> return $ DSizeVar i 0
+        MetaV x us                 -> return $ DSizeMeta x us 0
+        _                          -> return $ DOtherSize v
   loop v
 
 sizeMaxView :: Term -> TCM SizeMaxView
@@ -75,9 +75,9 @@ sizeMaxView v = do
   let loop v = do
       v <- reduce v
       case v of
-        Def x []      | Just x == inf -> return $ [DSizeInf]
-        Def x [u]     | Just x == suc -> maxViewSuc_ (fromJust suc) <$> loop (unArg u)
-        Def x [u1,u2] | Just x == max -> maxViewMax <$> loop (unArg u1) <*> loop (unArg u2)
+        Def x []                   | Just x == inf -> return $ [DSizeInf]
+        Def x [Apply u]            | Just x == suc -> maxViewSuc_ (fromJust suc) <$> loop (unArg u)
+        Def x [Apply u1, Apply u2] | Just x == max -> maxViewMax <$> loop (unArg u1) <*> loop (unArg u2)
         Var i []                      -> return $ [DSizeVar i 0]
         MetaV x us                    -> return $ [DSizeMeta x us 0]
         _                             -> return $ [DOtherSize v]
@@ -87,7 +87,7 @@ sizeMaxView v = do
 --   Preconditions:
 --   @m = x els1@, @n = y els2@, @m@ and @n@ are not equal.
 trySizeUniv :: Comparison -> Type -> Term -> Term
-  -> QName -> [Elim] -> QName -> [Elim] -> TCM ()
+  -> QName -> Elims -> QName -> Elims -> TCM ()
 trySizeUniv cmp t m n x els1 y els2 = do
   let failure = typeError $ UnequalTerms cmp m n t
       forceInfty u = compareSizes CmpEq (unArg u) =<< primSizeInf
@@ -245,7 +245,7 @@ isBounded :: Nat -> TCM BoundedSize
 isBounded i = do
   t <- reduce =<< typeOfBV i
   case ignoreSharing $ unEl t of
-    Def x [u] -> do
+    Def x [Apply u] -> do
       sizelt <- getBuiltin' builtinSizeLt
       return $ if (Just (Def x []) == sizelt) then BoundedLt $ unArg u else BoundedNo
     _ -> return BoundedNo
@@ -425,11 +425,12 @@ sizeExpr u = do
     SizeSuc u   -> mapSnd (+1) <$> sizeExpr u
     OtherSize u -> case ignoreSharing u of
       Var i []  -> return (Rigid i, 0)  -- i is already a de Bruijn level.
-      MetaV m args | Just xs <- mapM isVar args, fastDistinct xs
+      MetaV m es | Just xs <- mapM isVar es, fastDistinct xs
                 -> return (SizeMeta m xs, 0)
       _ -> patternViolation
   where
-    isVar v = case ignoreSharing $ unArg v of
+    isVar (Proj{})  = Nothing
+    isVar (Apply v) = case ignoreSharing $ unArg v of
       Var i [] -> Just i
       _        -> Nothing
 

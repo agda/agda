@@ -38,9 +38,9 @@ isSizeTypeTest :: TCM (Type -> Maybe BoundedSize)
 isSizeTypeTest =
   flip (ifM (optSizedTypes <$> pragmaOptions)) (return $ const Nothing) $ do
     (size, sizelt) <- getBuiltinSize
-    let testType (Def d [])  | Just d == size   = Just BoundedNo
-        testType (Def d [v]) | Just d == sizelt = Just $ BoundedLt $ unArg v
-        testType _                              = Nothing
+    let testType (Def d [])        | Just d == size   = Just BoundedNo
+        testType (Def d [Apply v]) | Just d == sizelt = Just $ BoundedLt $ unArg v
+        testType _                                    = Nothing
     return $ testType . ignoreSharing . unEl
 
 getBuiltinDefName :: String -> TCM (Maybe QName)
@@ -85,7 +85,7 @@ sizeSuc n v = do
   return $ iterate (sizeSuc_ suc) v !! n
 
 sizeSuc_ :: QName -> Term -> Term
-sizeSuc_ suc v = Def suc [defaultArg v]
+sizeSuc_ suc v = Def suc [Apply $ defaultArg v]
 
 -- | Transform list of terms into a term build from binary maximum.
 sizeMax :: [Term] -> TCM Term
@@ -94,7 +94,7 @@ sizeMax vs = case vs of
   [v] -> return v
   vs  -> do
     Def max [] <- primSizeMax
-    return $ foldr1 (\ u v -> Def max $ map defaultArg [u,v]) vs
+    return $ foldr1 (\ u v -> Def max $ map (Apply . defaultArg) [u,v]) vs
 
 
 ------------------------------------------------------------------------
@@ -109,9 +109,9 @@ sizeView v = do
   Def inf [] <- ignoreSharing <$> primSizeInf
   Def suc [] <- ignoreSharing <$> primSizeSuc
   case ignoreSharing v of
-    Def x []  | x == inf -> return SizeInf
-    Def x [u] | x == suc -> return $ SizeSuc (unArg u)
-    _                    -> return $ OtherSize v
+    Def x []        | x == inf -> return SizeInf
+    Def x [Apply u] | x == suc -> return $ SizeSuc (unArg u)
+    _                          -> return $ OtherSize v
 
 type Offset = Nat
 
@@ -119,7 +119,7 @@ type Offset = Nat
 data DeepSizeView
   = DSizeInf
   | DSizeVar Nat Offset
-  | DSizeMeta MetaId Args Offset
+  | DSizeMeta MetaId Elims Offset
   | DOtherSize Term
 
 data SizeViewComparable a

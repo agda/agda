@@ -6,7 +6,7 @@ import Control.Applicative
 import Control.Monad.Error
 import Control.Monad.Reader
 import Control.Monad.State
-import Data.Map as Map
+import qualified Data.Map as Map
 import Data.List as List
 
 import Agda.Syntax.Common
@@ -82,7 +82,7 @@ initialIFSCandidates = do
                -- drop parameters if it's a projection function...
                Function{ funProjection = Just p } -> genericDrop (projIndex p - 1) args
                _                                  -> args
-          return [(Def q vs, t)]
+          return [(Def q $ map Apply vs, t)]
       where
         -- unbound constant throws an internal error
         handle (TypeError _ (Closure {clValue = InternalError _})) = return []

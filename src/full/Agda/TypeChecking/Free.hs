@@ -202,6 +202,10 @@ instance Free a => Free (Maybe a) where
 instance (Free a, Free b) => Free (a,b) where
   freeVars' conf (x,y) = freeVars' conf x `union` freeVars' conf y
 
+instance Free a => Free (Elim' a) where
+  freeVars' conf (Apply a) = freeVars' conf a
+  freeVars' conf (Proj{} ) = empty
+
 instance Free a => Free (Arg a) where
   freeVars' conf a = f $ freeVars' conf $ unArg a
     where f = case getRelevance a of

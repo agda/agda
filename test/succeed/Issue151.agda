@@ -1,5 +1,5 @@
 -- Modified: Andreas, 2011-04-11 freezing metas
- 
+
 module Issue151 where
 
 record A : Set₁ where

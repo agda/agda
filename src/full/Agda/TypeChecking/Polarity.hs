@@ -295,15 +295,14 @@ sizePolarity d pol0 = do
 checkSizeIndex :: Nat -> Nat -> Type -> TCM Bool
 checkSizeIndex np i a =
   case ignoreSharing $ unEl a of
-    Def _ args -> do
-      let excl = not $ freeIn i (pars ++ ixs)
-      s <- sizeView ix
+    Def _ es -> do
+      s <- sizeView $ unArg ix
       case s of
-        SizeSuc v | Var j [] <- ignoreSharing v
-          -> return $ and [ excl, i == j ]
+        SizeSuc v | Var j [] <- ignoreSharing v, i == j
+          -> return $ not $ freeIn i (pars ++ ixs)
         _ -> return False
       where
-        (pars, Arg _ ix : ixs) = genericSplitAt np args
+        (pars, Apply ix : ixs) = genericSplitAt np es
     _ -> __IMPOSSIBLE__
 
 -- | @polarities i a@ computes the list of polarities of de Bruijn index @i@
@@ -338,6 +337,10 @@ instance (HasPolarity a, HasPolarity b) => HasPolarity (a, b) where
 
 instance HasPolarity Type where
   polarities i (El _ v) = polarities i v
+
+instance HasPolarity a => HasPolarity (Elim' a) where
+  polarities i (Proj p)  = return []
+  polarities i (Apply a) = polarities i a
 
 instance HasPolarity Term where
   polarities i v = do

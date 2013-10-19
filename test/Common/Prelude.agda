@@ -1,6 +1,8 @@
 
 module Common.Prelude where
 
+import Common.Level
+
 postulate Char : Set
 
 {-# BUILTIN CHAR Char #-}

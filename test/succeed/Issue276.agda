@@ -1,5 +1,7 @@
 module Issue276 where
 
+import Common.Level
+
 boo : {S T : Set}(f : S -> T)(x y : S) ->
       ((P : S -> Set) -> P x -> P y) ->
        (P : T -> Set) -> P (f x) -> P (f y)

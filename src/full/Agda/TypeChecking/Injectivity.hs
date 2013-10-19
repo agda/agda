@@ -24,7 +24,7 @@ import Agda.TypeChecking.Primitive
 import Agda.TypeChecking.MetaVars
 import {-# SOURCE #-} Agda.TypeChecking.Conversion
 import Agda.TypeChecking.Pretty
-import Agda.TypeChecking.Eliminators
+-- import Agda.TypeChecking.Eliminators
 import Agda.TypeChecking.Constraints
 import Agda.TypeChecking.Polarity
 import Agda.Utils.List
@@ -44,7 +44,7 @@ reduceHead v = do -- ignoreAbstractMode $ do
   v <- constructorForm v
   reportSDoc "tc.inj.reduce" 30 $ text "reduceHead" <+> prettyTCM v
   case ignoreSharing v of
-    Def f args -> do
+    Def f es -> do
 
       abstractMode <- envAbstractMode <$> ask
       isAbstract <- treatAbstractly f
@@ -52,7 +52,8 @@ reduceHead v = do -- ignoreAbstractMode $ do
         "reduceHead: we are in " ++ show abstractMode++ "; " ++ show f ++
         " is treated " ++ if isAbstract then "abstractly" else "concretely"
 
-      let v0 = Def f []
+      let v0  = Def f []
+          red = unfoldDefinitionE False reduceHead v0 f es
       def <- theDef <$> getConstInfo f
       case def of
         -- Andreas, 2012-11-06 unfold aliases (single clause terminating functions)
@@ -62,9 +63,9 @@ reduceHead v = do -- ignoreAbstractMode $ do
         -- see test/fail/TerminationInfiniteRecord
         Function{ funClauses = [ _ ], funDelayed = NotDelayed, funTerminates = Just True } -> do
           reportSLn "tc.inj.reduce" 50 $ "reduceHead: head " ++ show f ++ " is Function"
-          unfoldDefinition False reduceHead v0 f args
-        Datatype{ dataClause = Just _ } -> unfoldDefinition False reduceHead v0 f args
-        Record{ recClause = Just _ }    -> unfoldDefinition False reduceHead v0 f args
+          red
+        Datatype{ dataClause = Just _ } -> red
+        Record{ recClause = Just _ }    -> red
         _                               -> return $ notBlocked v
     _ -> return $ notBlocked v
 
@@ -147,20 +148,20 @@ checkInjectivity f cs = do
     rhs (Body v)   = return $ Just v
     rhs NoBody     = return Nothing
 
-{-
+
 -- | Argument should be on weak head normal form.
 functionInverse :: Term -> TCM InvView
 functionInverse v = case ignoreSharing v of
-  Def f args -> do
+  Def f es -> do
     d <- theDef <$> getConstInfo f
     case d of
       Function{ funInv = inv } -> case inv of
         NotInjective  -> return NoInv
-        Inverse m     -> return $ Inv f args m
+        Inverse m     -> return $ Inv f es m
       _ -> return NoInv
   _ -> return NoInv
--}
 
+{-
 -- | Argument should be on weak head normal form.
 functionInverse :: Term -> TCM InvView
 functionInverse v = do
@@ -174,6 +175,7 @@ functionInverse v = do
           Inverse m     -> return $ Inv f args m
         _ -> return NoInv
     _ -> return NoInv
+-}
 
 {-
 data InvView = Inv QName Args (Map TermHead Clause)

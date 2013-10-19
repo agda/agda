@@ -37,24 +37,32 @@ import Agda.Utils.Impossible
 -- | Apply something to a bunch of arguments.
 --   Preserves blocking tags (application can never resolve blocking).
 class Apply t where
-    apply :: t -> Args -> t
+  apply  :: t -> Args -> t
+  applyE :: t -> Elims -> t
+
+  apply t args = applyE t $ map Apply args
+  applyE t es  = apply  t $ map argFromElim es
+    -- precondition: all @es@ are @Apply@s
 
 instance Apply Term where
-    apply m [] = m
-    apply m args@(a:args0) =
-        case m of
-            Var i args'   -> Var i (args' ++ args)
-            Def f args'   -> defApp f args' args  -- remove projection redexes
-            Con c args'   -> Con c (args' ++ args)
-            Lam _ u       -> absApp u (unArg a) `apply` args0
-            MetaV x args' -> MetaV x (args' ++ args)
-            Shared p      -> Shared $ apply p args
-            Lit{}         -> __IMPOSSIBLE__
-            Level{}       -> __IMPOSSIBLE__
-            Pi _ _        -> __IMPOSSIBLE__
-            Sort _        -> __IMPOSSIBLE__
-            DontCare mv   -> DontCare $ mv `apply` args  -- Andreas, 2011-10-02
-              -- need to go under DontCare, since "with" might resurrect irrelevant term
+  applyE m [] = m
+  applyE m es =
+    case m of
+      Var i es'   -> Var i (es' ++ es)
+      Def f es'   -> defApp f es' es  -- remove projection redexes
+      Con c args  -> conApp c args es
+      Lam _ b     ->
+        case es of
+          Apply a : es0 -> absApp b (unArg a) `applyE` es0
+          _             -> __IMPOSSIBLE__
+      MetaV x es' -> MetaV x (es' ++ es)
+      Shared p    -> Shared $ applyE p es
+      Lit{}       -> __IMPOSSIBLE__
+      Level{}     -> __IMPOSSIBLE__
+      Pi _ _      -> __IMPOSSIBLE__
+      Sort _      -> __IMPOSSIBLE__
+      DontCare mv -> DontCare $ mv `applyE` es  -- Andreas, 2011-10-02
+        -- need to go under DontCare, since "with" might resurrect irrelevant term
 
 -- | If $v$ is a record value, @canProject f v@
 --   returns its field @f@.
@@ -66,26 +74,47 @@ canProject f v =
       mhead (drop i vs)
     _ -> Nothing
 
+-- | Eliminate a constructed term.
+conApp :: ConHead -> Args -> Elims -> Term
+conApp ch                args []             = Con ch args
+conApp ch                args (Apply a : es) = conApp ch (args ++ [a]) es
+conApp ch@(ConHead c fs) args (Proj f  : es) =
+  let failure = flip trace __IMPOSSIBLE__ $
+        "conApp: constructor " ++ show c ++
+        " with fields " ++ show fs ++
+        " projected by " ++ show f
+      i = maybe failure id    $ elemIndex f fs
+      v = maybe failure unArg $ mhead $ drop i args
+  in  applyE v es
+
 -- | @defApp f us vs@ applies @Def f us@ to further arguments @vs@,
 --   eliminating top projection redexes.
 --   If @us@ is not empty, we cannot have a projection redex, since
 --   the record argument is the first one.
-defApp :: QName -> Args -> Args -> Term
-defApp f [] (a:as) | Just v <- canProject f (unArg a) = dontCare v `apply` as
+defApp :: QName -> Elims -> Elims -> Term
+defApp f [] (Apply a : es) | Just v <- canProject f (unArg a)
+  = dontCare v `applyE` es
   where
     -- protect irrelevant fields (see issue 610)
     dontCare (Common.Arg ai v) = if getRelevance ai == Irrelevant then DontCare v else v
-defApp f as bs = Def f $ as ++ bs
+defApp f es0 es = Def f $ es0 ++ es
 
 instance Apply Type where
   apply = piApply
+  -- Maybe an @applyE@ instance would be useful here as well.
+  -- A record type could be applied to a projection name
+  -- to yield the field type.
+  -- However, this works only in the monad where we can
+  -- look up the fields of a record type.
 
 instance Apply Sort where
-  apply s [] = s
-  apply s _  = __IMPOSSIBLE__
+  applyE s [] = s
+  applyE s _  = __IMPOSSIBLE__
 
 instance Apply a => Apply (Ptr a) where
-  apply p xs = fmap (`apply` xs) p
+  applyE p xs = fmap (`applyE` xs) p
+
+-- @applyE@ does not make sense for telecopes, definitions, clauses etc.
 
 instance Subst a => Apply (Tele a) where
   apply tel               []       = tel
@@ -173,22 +202,30 @@ instance Apply CompiledClauses where
       len = length args
 
 instance Apply a => Apply (WithArity a) where
-  apply (WithArity n a) args = WithArity n $ apply a args
+  apply  (WithArity n a) args = WithArity n $ apply  a args
+  applyE (WithArity n a) es   = WithArity n $ applyE a es
 
 instance Apply a => Apply (Case a) where
   apply (Branches cs ls m) args =
     Branches (apply cs args) (apply ls args) (apply m args)
+  applyE (Branches cs ls m) es =
+    Branches (applyE cs es) (applyE ls es) (applyE m es)
 
 instance Apply FunctionInverse where
   apply NotInjective  args = NotInjective
   apply (Inverse inv) args = Inverse $ apply inv args
 
 instance Apply ClauseBody where
-    apply  b                 []       = b
-    apply (Bind (Abs   _ b)) (a:args) = subst (unArg a) b `apply` args
-    apply (Bind (NoAbs _ b)) (_:args) = b `apply` args
-    apply (Body v)           args     = Body $ v `apply` args
-    apply  NoBody             _       = NoBody
+  apply  b       []       = b
+  apply (Bind b) (a:args) = absApp b (unArg a) `apply` args
+  apply (Body v) args     = Body $ v `apply` args
+  apply  NoBody   _       = NoBody
+  applyE  b       []             = b
+
+  applyE (Bind b) (Apply a : es) = absApp b (unArg a) `applyE` es
+  applyE (Bind b) (Proj{}  : es) = __IMPOSSIBLE__
+  applyE (Body v) es             = Body $ v `applyE` es
+  applyE  NoBody   _             = NoBody
 
 instance Apply DisplayTerm where
   apply (DTerm v)          args = DTerm $ apply v args
@@ -198,22 +235,28 @@ instance Apply DisplayTerm where
   apply (DWithApp v args') args = DWithApp v $ args' ++ args
 
 instance Apply t => Apply [t] where
-    apply ts args = map (`apply` args) ts
+  apply  ts args = map (`apply` args) ts
+  applyE ts es   = map (`applyE` es) ts
 
 instance Apply t => Apply (Blocked t) where
-    apply b args = fmap (`apply` args) b
+  apply  b args = fmap (`apply` args) b
+  applyE b es   = fmap (`applyE` es) b
 
 instance Apply t => Apply (Maybe t) where
-  apply x args = fmap (`apply` args) x
+  apply  x args = fmap (`apply` args) x
+  applyE x es   = fmap (`applyE` es) x
 
 instance Apply v => Apply (Map k v) where
-  apply x args = fmap (`apply` args) x
+  apply  x args = fmap (`apply` args) x
+  applyE x es   = fmap (`applyE` es) x
 
 instance (Apply a, Apply b) => Apply (a,b) where
-    apply (x,y) args = (apply x args, apply y args)
+  apply  (x,y) args = (apply  x args, apply  y args)
+  applyE (x,y) es   = (applyE x es  , applyE y es  )
 
 instance (Apply a, Apply b, Apply c) => Apply (a,b,c) where
-    apply (x,y,z) args = (apply x args, apply y args, apply z args)
+  apply  (x,y,z) args = (apply  x args, apply  y args, apply  z args)
+  applyE (x,y,z) es   = (applyE x es  , applyE y es  , applyE z es  )
 
 instance DoDrop a => Apply (Drop a) where
   apply x args = dropMore (size args) x
@@ -242,7 +285,7 @@ piApply (El s (Shared p)) args    = piApply (El s $ derefPtr p) args
 piApply t args                    =
   trace ("piApply t = " ++ show t ++ "\n  args = " ++ show args) __IMPOSSIBLE__
 
--- | @(abstract args v) args --> v[args]@.
+-- | @(abstract args v) `apply` args --> v[args]@.
 class Abstract t where
     abstract :: Telescope -> t -> t
 
@@ -480,11 +523,11 @@ instance Subst Substitution where
 instance Subst Term where
   applySubst IdS t = t
   applySubst rho t    = case t of
-    Var i vs    -> lookupS rho i `apply` applySubst rho vs
+    Var i es    -> lookupS rho i `applyE` applySubst rho es
     Lam h m     -> Lam h $ applySubst rho m
-    Def f vs    -> defApp f [] $ applySubst rho vs -- Def f $ applySubst rho vs
+    Def f es    -> defApp f [] $ applySubst rho es
     Con c vs    -> Con c $ applySubst rho vs
-    MetaV x vs  -> MetaV x $ applySubst rho vs
+    MetaV x es  -> MetaV x $ applySubst rho es
     Lit l       -> Lit l
     Level l     -> levelTm $ applySubst rho l
     Pi a b      -> uncurry Pi $ applySubst rho (a,b)
@@ -531,7 +574,7 @@ instance Subst Pattern where
     ProjP _      -> p
 
 instance Subst t => Subst (Blocked t) where
-  applySubst rho b      = fmap (applySubst rho) b
+  applySubst rho b = fmap (applySubst rho) b
 
 instance Subst DisplayForm where
   applySubst rho (Display n ps v) =
@@ -539,15 +582,15 @@ instance Subst DisplayForm where
               (applySubst (liftS n rho) v)
 
 instance Subst DisplayTerm where
-  applySubst rho      (DTerm v)        = DTerm $ applySubst rho v
-  applySubst rho      (DDot v)         = DDot  $ applySubst rho v
-  applySubst rho      (DCon c vs)      = DCon c $ applySubst rho vs
-  applySubst rho      (DDef c vs)      = DDef c $ applySubst rho vs
-  applySubst rho      (DWithApp vs ws) = uncurry DWithApp $ applySubst rho (vs, ws)
+  applySubst rho (DTerm v)        = DTerm $ applySubst rho v
+  applySubst rho (DDot v)         = DDot  $ applySubst rho v
+  applySubst rho (DCon c vs)      = DCon c $ applySubst rho vs
+  applySubst rho (DDef c vs)      = DDef c $ applySubst rho vs
+  applySubst rho (DWithApp vs ws) = uncurry DWithApp $ applySubst rho (vs, ws)
 
 instance Subst a => Subst (Tele a) where
-  applySubst rho  EmptyTel              = EmptyTel
-  applySubst rho (ExtendTel t tel)      = uncurry ExtendTel $ applySubst rho (t, tel)
+  applySubst rho  EmptyTel         = EmptyTel
+  applySubst rho (ExtendTel t tel) = uncurry ExtendTel $ applySubst rho (t, tel)
 
 instance Subst Constraint where
   applySubst rho c = case c of
@@ -872,7 +915,7 @@ levelTm l =
     Max [Plus 0 l] -> unLevelAtom l
     _              -> Level l
 
-unLevelAtom (MetaLevel x vs)   = MetaV x vs
+unLevelAtom (MetaLevel x es)   = MetaV x es
 unLevelAtom (NeutralLevel v)   = v
 unLevelAtom (UnreducedLevel v) = v
 unLevelAtom (BlockedLevel _ v) = v

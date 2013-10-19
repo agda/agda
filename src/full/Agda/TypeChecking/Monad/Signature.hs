@@ -186,9 +186,10 @@ addDisplayForms x = do
       case cs of
 	[ Clause{ clausePats = pats, clauseBody = b } ]
 	  | all (isVar . unArg) pats
-          , Just (m, Def y vs) <- strip (b `apply` vs0) -> do
-	      let ps = raise 1 (map unArg vs)
-                  df = Display 0 ps $ DTerm $ Def top args
+          , Just (m, Def y es) <- strip (b `apply` vs0)
+          , Just vs <- mapM isApplyElim es -> do
+	      let ps = raise 1 $ map unArg vs
+                  df = Display 0 ps $ DTerm $ Def top $ map Apply args
 	      reportSLn "tc.display.section" 20 $ "adding display form " ++ show y ++ " --> " ++ show top
                                                 ++ "\n  " ++ show df
 	      addDisplayForm y df
@@ -199,10 +200,10 @@ addDisplayForms x = do
 		    _:_:_ -> "many clauses"
 		    [ Clause{ clauseBody = b } ] -> case strip b of
 		      Nothing -> "bad body"
-		      Just (m, Def y vs)
+		      Just (m, Def y es)
 			| m < length args -> "too few args"
 			| m > length args -> "too many args"
-			| otherwise	  -> "args=" ++ show args ++ " vs=" ++ show vs
+			| otherwise	  -> "args=" ++ show args ++ " es=" ++ show es
 		      Just (m, v) -> "not a def body"
 	      reportSLn "tc.display.section" 30 $ "no display form from " ++ show x ++ " because " ++ reason
 	      return ()
@@ -334,7 +335,7 @@ applySection new ptel old ts rd rm = do
                     , clauseTel   = EmptyTel
                     , clausePerm  = idP 0
                     , clausePats  = []
-                    , clauseBody  = Body $ Def x ts'
+                    , clauseBody  = Body $ Def x $ map Apply ts'
                     , clauseType  = Just t
                     }
 

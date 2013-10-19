@@ -1,9 +1,10 @@
--- {-# LANGUAGE CPP #-}
+{-# LANGUAGE CPP #-}
 {-# LANGUAGE FlexibleInstances, TypeSynonymInstances #-}
 
 module Agda.TypeChecking.Quote where
 
 import Control.Applicative
+import Data.Maybe (fromMaybe)
 
 import Agda.Syntax.Position
 import Agda.Syntax.Literal
@@ -17,8 +18,8 @@ import Agda.TypeChecking.Reduce
 import Agda.TypeChecking.Pretty
 import Agda.TypeChecking.Substitute
 
--- #include "../undefined.h"
--- import Agda.Utils.Impossible
+#include "../undefined.h"
+import Agda.Utils.Impossible
 
 quotingKit :: TCM ((Term -> Term), (Type -> Term))
 quotingKit = do
@@ -79,18 +80,24 @@ quotingKit = do
       quoteDom q (Dom info t) = arg @@ quoteArgInfo info @@ q t
       quoteArg q (Arg info t) = arg @@ quoteArgInfo info @@ q t
       quoteArgs ts = list (map (quoteArg quote) ts)
-      quote (Var n ts) = var @@ Lit (LitInt noRange $ fromIntegral n) @@ quoteArgs ts
-      quote (Lam info t) = lam @@ quoteHiding (getHiding info) @@ quote (absBody t)
-      quote (Def x ts) = def @@ quoteName x @@ quoteArgs ts
-      quote (Con x ts) = con @@ quoteConName x @@ quoteArgs ts
-      quote (Pi t u) = pi @@ quoteDom quoteType t
-                          @@ quoteType (absBody u)
-      quote (Level _) = unsupported
-      quote (Lit lit) = quoteLit lit
-      quote (Sort s)  = sort @@ quoteSort s
-      quote (Shared p) = quote $ derefPtr p
-      quote MetaV{}   = unsupported
-      quote DontCare{} = unsupported -- could be exposed at some point but we have to take care
+      quote v =
+        case unSpine v of
+          (Var n es)   ->
+             let ts = fromMaybe __IMPOSSIBLE__ $ allApplyElims es
+             in  var @@ Lit (LitInt noRange $ fromIntegral n) @@ quoteArgs ts
+          (Lam info t) -> lam @@ quoteHiding (getHiding info) @@ quote (absBody t)
+          (Def x es)   ->
+             let ts = fromMaybe __IMPOSSIBLE__ $ allApplyElims es
+             in  def @@ quoteName x @@ quoteArgs ts
+          (Con x ts)   -> con @@ quoteConName x @@ quoteArgs ts
+          (Pi t u)     -> pi @@ quoteDom quoteType t
+                        @@ quoteType (absBody u)
+          (Level _)    -> unsupported
+          (Lit lit)    -> quoteLit lit
+          (Sort s)     -> sort @@ quoteSort s
+          (Shared p)   -> quote $ derefPtr p
+          MetaV{}      -> unsupported
+          DontCare{}   -> unsupported -- could be exposed at some point but we have to take care
   return (quote, quoteType)
 
 quoteName :: QName -> Term
@@ -162,6 +169,11 @@ instance Unquote a => Unquote (I.Arg a) where
           (unquoteFailed "Arg" "arity 2 and not the `arg' constructor" t)
       _ -> unquoteFailed "Arg" "not of arity 2" t
 
+-- Andreas, 2013-10-20: currently, post-fix projections are not part of the
+-- quoted syntax.
+instance Unquote a => Unquote (Elim' a) where
+  unquote t = Apply <$> unquote t
+
 instance Unquote Integer where
   unquote t = do
     t <- reduce t
@@ -218,9 +230,7 @@ instance Unquote QName where
       _                  -> unquoteFailed "QName" "not a literal qname value" t
 
 instance Unquote ConHead where
-  unquote t = do
-    x <- unquote t
-    getConHead x
+  unquote t = getConHead =<< unquote t
 
 instance Unquote a => Unquote (Abs a) where
   unquote t = do x <- freshNoName_

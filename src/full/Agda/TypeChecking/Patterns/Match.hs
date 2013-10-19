@@ -117,8 +117,8 @@ matchPattern (Arg info' (ConP c _ ps))     (Arg info v) =
         --    an axiom at this stage (if we are checking the
         --    projection functions for a record type).
         w <- case ignoreSharing <$> w of
-               NotBlocked (Def f args) ->
-                 unfoldDefinition True reduceB (Def f []) f args
+               NotBlocked (Def f es) ->
+                 unfoldDefinitionE True reduceB (Def f []) f es
                    -- reduceB is used here because some constructors
                    -- are actually definitions which need to be
                    -- unfolded (due to open public).

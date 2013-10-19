@@ -13,7 +13,7 @@ import Data.List hiding (sort)
 import Data.Maybe
 
 import Agda.Syntax.Common
-import qualified Agda.Syntax.Internal as SI
+import qualified Agda.Syntax.Internal as I
 import Agda.Syntax.Literal
 import Agda.Syntax.Position(noRange)
 import Agda.Syntax.Internal(Tele(..), Telescope, Term, Abs(..), unAbs, absName, Type, Args, QName, unEl)
@@ -103,8 +103,8 @@ insertTele x 0 ins term (ExtendTel t to) = do
       , text "term:" <+> prettyTCM term
       , text "to:"   <+> prettyTCM (unAbs to)
       ]
-    (st, arg) <- case SI.unEl . unDom $ t' of
-            SI.Def st arg -> return (st, arg)
+    (st, arg) <- case I.unEl . unDom $ t' of
+            I.Def st es -> return (st, fromMaybe __IMPOSSIBLE__ $ I.allApplyElims es)
             s          -> do
               report 10 $ vcat
                 [ text "ERROR!!!"
@@ -142,7 +142,7 @@ insertTele er n ins term (ExtendTel x xs) = do
     return (ExtendTel x $ Abs (absName xs) xs' , typ)
 
 -- TODO: restore fields in ConHead
-mkCon c n = SI.Con (SI.ConHead c []) [ defaultArg $ SI.Var (fromIntegral i) [] | i <- [n - 1, n - 2 .. 0] ]
+mkCon c n = I.Con (I.ConHead c []) [ defaultArg $ I.Var (fromIntegral i) [] | i <- [n - 1, n - 2 .. 0] ]
 
 unifyI :: Telescope -> FlexibleVars -> Type -> Args -> Args -> Compile TCM [Maybe Term]
 unifyI tele flex typ a1 a2 = lift $ addCtxTel tele $ unifyIndices_ flex typ a1 a2
@@ -190,7 +190,7 @@ forcedExpr vars tele expr = case expr of
         let n = fromMaybe __IMPOSSIBLE__ $ elemIndex x vars
         (Case v <$>) . forM brs $ \ br -> case br of
             BrInt i e -> do
-              (tele'', _) <-  insertTele __IMPOSSIBLE__ n Nothing (SI.Lit (LitChar noRange (chr i))) tele
+              (tele'', _) <-  insertTele __IMPOSSIBLE__ n Nothing (I.Lit (LitChar noRange (chr i))) tele
               BrInt i <$> forcedExpr (replaceAt n vars []) tele'' e
 
             Default e -> Default <$> rec e
@@ -207,7 +207,9 @@ forcedExpr vars tele expr = case expr of
                   else do
                     -- unify the telescope type with the return type of the constructor
                     unif <- case (unEl ntyp, unEl ctyp) of
-                        (SI.Def st a1, SI.Def st' a2) | st == st' -> do
+                        (I.Def st es1, I.Def st' es2) | st == st' -> do
+                            let a1 = fromMaybe __IMPOSSIBLE__ $ I.allApplyElims es1
+                            let a2 = fromMaybe __IMPOSSIBLE__ $ I.allApplyElims es2
                             typPars <- dataParameters st
                             setType <- getType st
                             report 10 $ vcat
@@ -222,7 +224,7 @@ forcedExpr vars tele expr = case expr of
                         _ -> __IMPOSSIBLE__
                     let
                         lower = wkS (-1) . dropS 1
-                        subT 0 tel = let ss = [fromMaybe (SI.Var n []) t
+                        subT 0 tel = let ss = [fromMaybe (I.Var n []) t
                                                 | (n , t) <- zip [0..] unif] ++#
                                               raiseS (length unif)
                                       in (applySubst ss tel, lower ss)
@@ -248,7 +250,7 @@ forcedExpr vars tele expr = case expr of
     rec = forcedExpr vars tele
 
 -- | replace the forcedVar with pattern matching from the outside.
-replaceForced :: ([Var],[Var]) -> Telescope -> [Var] -> [Maybe SI.Term] -> Expr -> Compile TCM Expr
+replaceForced :: ([Var],[Var]) -> Telescope -> [Var] -> [Maybe I.Term] -> Expr -> Compile TCM Expr
 replaceForced (vars,_) tele [] _ e = forcedExpr vars tele e
 replaceForced (vars,uvars) tele (fvar : fvars) unif e = do
     let n = fromMaybe __IMPOSSIBLE__ $ elemIndex fvar uvars
@@ -281,9 +283,9 @@ replaceForced (vars,uvars) tele (fvar : fvars) unif e = do
 -- | Given a term containg the forced var, dig out the variable by inserting
 -- the proper case-expressions.
 buildTerm :: Var -> Nat -> Term -> Compile TCM (Expr -> Expr, Var)
-buildTerm var idx (SI.Var i _) | idx == i = return (id, var)
-buildTerm var idx (SI.Con con args) = do
-    let c = SI.conName con
+buildTerm var idx (I.Var i _) | idx == i = return (id, var)
+buildTerm var idx (I.Con con args) = do
+    let c = I.conName con
     vs <- replicateM (length args) newName
     (pos , arg) <- fromMaybe __IMPOSSIBLE__ <$> findPosition idx (map (Just . unArg) args)
     (fun' , v) <- buildTerm (vs !! pos) idx arg
@@ -296,7 +298,7 @@ buildTerm _ _ _ = __IMPOSSIBLE__
 -- | Find the location where a certain Variable index is by searching the constructors
 --   aswell. i.e find a term that can be transformed into a pattern that contains the
 --   same value the index. This fails if no such term is present.
-findPosition :: Nat -> [Maybe SI.Term] -> Compile TCM (Maybe (Nat, SI.Term))
+findPosition :: Nat -> [Maybe I.Term] -> Compile TCM (Maybe (Nat, I.Term))
 findPosition var ts = (listToMaybe . catMaybes <$>) . forM (zip [0..] ts) $ \ (n, mt) -> do
     ifM (maybe (return False) pred mt)
         (return (Just (n, fromMaybe __IMPOSSIBLE__ mt)))
@@ -304,8 +306,8 @@ findPosition var ts = (listToMaybe . catMaybes <$>) . forM (zip [0..] ts) $ \ (n
   where
     pred :: Term -> Compile TCM Bool
     pred t = case t of
-      SI.Var i _ | var == i -> return True
-      SI.Con c args         -> do
-          forc <- getForcedArgs $ SI.conName c
+      I.Var i _ | var == i -> return True
+      I.Con c args         -> do
+          forc <- getForcedArgs $ I.conName c
           or <$> mapM (pred . unArg) (notForced forc args)
       _                  -> return False

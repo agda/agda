@@ -30,6 +30,7 @@ import Agda.Utils.Impossible
 data TermConfiguration = TermConf
       { tcDefinedNames	   :: [QName]
       , tcConstructorNames :: [QName]
+      , tcProjectionNames  :: [QName]
       , tcFreeVariables	   :: [Nat]
       , tcLiterals	   :: UseLiterals
       , tcFrequencies	   :: Frequencies
@@ -44,14 +45,16 @@ data TermConfiguration = TermConf
 
 data Frequencies = Freqs
       { hiddenFreqs :: HiddenFreqs
-      , nameFreqs   :: NameFreqs
+      , elimFreqs   :: ElimFreqs
       , sortFreqs   :: SortFreqs
       , termFreqs   :: TermFreqs
       }
   deriving Show
 
 data TermFreqs = TermFreqs
-      { nameFreq :: Int
+      { varFreq :: Int
+      , defFreq :: Int
+      , conFreq :: Int
       , litFreq	 :: Int
       , sortFreq :: Int
       , lamFreq	 :: Int
@@ -60,10 +63,9 @@ data TermFreqs = TermFreqs
       }
   deriving Show
 
-data NameFreqs = NameFreqs
-      { varFreq :: Int
-      , defFreq :: Int
-      , conFreq :: Int
+data ElimFreqs = ElimFreqs
+      { applyFreq :: Int
+      , projFreq  :: Int
       }
   deriving Show
 
@@ -81,8 +83,8 @@ data SortFreqs = SortFreqs
 
 defaultFrequencies :: Frequencies
 defaultFrequencies = Freqs
-      { termFreqs   = TermFreqs	  { nameFreq = 40, litFreq = 1, sortFreq = 2, lamFreq = 10, piFreq = 5, funFreq = 5 }
-      , nameFreqs   = NameFreqs	  { varFreq = 3, defFreq = 1, conFreq = 1 }
+      { termFreqs   = TermFreqs	  { varFreq = 24, defFreq = 8, conFreq = 8, litFreq = 1, sortFreq = 2, lamFreq = 10, piFreq = 5, funFreq = 5 }
+      , elimFreqs   = ElimFreqs   { applyFreq = 9, projFreq = 1 }
       , hiddenFreqs = HiddenFreqs { hiddenFreq = 1, notHiddenFreq = 5 }
       , sortFreqs   = SortFreqs	  { setFreqs = [3, 1], propFreq = 1 }
       }
@@ -128,10 +130,11 @@ extendConf conf = conf { tcFreeVariables = 0 : map (1+) (tcFreeVariables conf) }
 extendWithTelConf :: Telescope -> TermConfiguration -> TermConfiguration
 extendWithTelConf tel conf = foldr (const extendConf) conf (telToList tel)
 
-makeConfiguration :: [String] -> [String] -> [Nat] -> TermConfiguration
-makeConfiguration ds cs vs = TermConf
+makeConfiguration :: [String] -> [String] -> [String] -> [Nat] -> TermConfiguration
+makeConfiguration ds cs ps vs = TermConf
   { tcDefinedNames     = defs
   , tcConstructorNames = cons
+  , tcProjectionNames  = projs
   , tcFreeVariables    = List.sort $ List.nub vs
   , tcFrequencies      = defaultFrequencies
   , tcLiterals	       = noLiterals
@@ -139,8 +142,8 @@ makeConfiguration ds cs vs = TermConf
   , tcIsType	       = False
   }
   where
-    (defs, cons) = flip evalState 0 $
-		   (,) <$> mapM mkName ds <*> mapM mkName cs
+    (defs, cons, projs) = flip evalState 0 $ do
+      (,,) <$> mapM mkName ds <*> mapM mkName cs <*> mapM mkName ps
 
     tick     = do x <- get; put (x + 1); return x
     mkName s = do
@@ -162,6 +165,7 @@ newtype NoType  a   = NoType	{ unNoType  :: a     }
 newtype VarName	    = VarName	{ unVarName :: Nat   }
 newtype DefName	    = DefName	{ unDefName :: QName }
 newtype ConName	    = ConName	{ unConName :: ConHead }
+newtype ProjName    = ProjName  { unProjName :: QName }
 newtype SizedList a = SizedList { unSizedList :: [a] }
 
 fixSize :: TermConfiguration -> Gen a -> Gen a
@@ -200,8 +204,24 @@ instance (GenC c, GenC a) => GenC (Common.Dom c a) where
 instance GenC a => GenC (Abs a) where
   genC conf = Abs "x" <$> genC (extendConf conf)
 
+instance GenC a => GenC (Elim' a) where
+  genC conf = frequency [ (applyF, Apply <$> genC conf)
+                        , (projF, Proj . unProjName <$> genC conf) ]
+    where
+      ElimFreqs {applyFreq = applyF, projFreq = projF } =
+	elimFreqs $ tcFrequencies conf
+
+instance GenC DefName where
+  genC conf = DefName  <$> do elements $ tcDefinedNames conf
+
+instance GenC ProjName where
+  genC conf = ProjName <$> do elements $ tcProjectionNames conf
+
 genArgs :: TermConfiguration -> Gen Args
 genArgs conf = unSizedList <$> genC (isntTypeConf conf)
+
+genElims :: TermConfiguration -> Gen Elims
+genElims conf = unSizedList <$> genC (isntTypeConf conf)
 
 instance GenC Sort where
   genC conf = frequency $
@@ -249,7 +269,9 @@ instance GenC Term where
       Nothing -> sized $ \n -> genC $ fixSizeConf n conf
       Just n | n <= 0    -> genLeaf
 	     | otherwise -> frequency
-	[ (nameF, genName $ genArgs conf)
+	[ (varF, genVar $ genElims conf)
+	, (defF, genDef $ genElims conf)
+	, (conF, genCon $ genArgs conf)
 	, (litF,  Lit <$> genC conf)
 	, (sortF, Sort <$> genC conf)
 	, (lamF,  genLam)
@@ -264,15 +286,13 @@ instance GenC Term where
       useLits = map ($ tcLiterals conf) [ useLitInt, useLitFloat, useLitString, useLitChar ]
 
       varF  | null vars = 0
-	    | otherwise = freq (varFreq . nameFreqs)
+	    | otherwise = freq (varFreq . termFreqs)
       defF  | null defs = 0
-	    | otherwise = freq (defFreq . nameFreqs)
+	    | otherwise = freq (defFreq . termFreqs)
       conF  | null cons || isType = 0
-	    | otherwise	       = freq (conFreq . nameFreqs)
+	    | otherwise	          = freq (conFreq . termFreqs)
       litF  | or useLits && not isType = freq (litFreq . termFreqs)
 	    | otherwise		    = 0
-      nameF | 0 == varF + defF + conF = 0
-	    | otherwise		    = freq (nameFreq . termFreqs)
       lamF  | isType    = 0
 	    | otherwise = freq (lamFreq  . termFreqs)
       sortF = freq (sortFreq . termFreqs)
@@ -284,21 +304,18 @@ instance GenC Term where
       genPi :: Gen Term
       genPi = uncurry Pi <$> genC conf
 
-      genVar, genDef, genCon :: Gen Args -> Gen Term
+      genVar, genDef :: Gen Elims -> Gen Term
       genVar args = Var <$> elements vars <*> args
       genDef args = Def <$> elements defs <*> args
-      genCon args = Con <$> (flip ConHead [] <$> elements cons) <*> args
 
-      genName :: Gen Args -> Gen Term
-      genName args = frequency
-	[ (varF, genVar args)
-	, (defF, genDef args)
-	, (conF, genCon args)
-	]
+      genCon :: Gen Args -> Gen Term
+      genCon args = Con <$> (flip ConHead [] <$> elements cons) <*> args
 
       genLeaf :: Gen Term
       genLeaf = frequency
-	[ (nameF, genName $ return [])
+	[ (varF, genVar $ return [])
+	, (defF, genDef $ return [])
+	, (conF, genCon $ return [])
 	, (litF,  Lit  <$> genC conf)
 	, (sortF, Sort <$> genC conf)
 	]
@@ -308,11 +325,13 @@ genConf :: Gen TermConfiguration
 genConf = do
   ds <- listOf $ elements defs
   cs <- listOf $ elements cons
+  ps <- listOf $ elements projs
   vs <- listOf natural
-  return $ makeConfiguration ds cs vs
+  return $ makeConfiguration ds cs ps vs
   where
-    defs = [ [c] | c <- ['a'..'z'] ]
+    defs = [ [c] | c <- ['a'..'n'] ++ ['r'..'z'] ]
     cons = [ [c] | c <- ['A'..'Z'] ]
+    projs= [ [c] | c <- ['o'..'q'] ]
 
 instance Arbitrary TermConfiguration where
   arbitrary   = genConf
@@ -416,6 +435,11 @@ instance ShrinkC a b => ShrinkC (Blocked a) (Blocked b) where
   shrinkC conf (NotBlocked x) = NotBlocked <$> shrinkC conf x
   noShrink = fmap noShrink
 
+instance ShrinkC a b => ShrinkC (Elim' a) (Elim' b) where
+  shrinkC conf (Apply a) = Apply <$> shrinkC conf a
+  shrinkC conf (Proj  p) = []
+  noShrink = fmap noShrink
+
 -- Andreas 2010-09-21: simplify? since Sort Prop is no longer abused as DontCare
 instance ShrinkC Sort Sort where
   shrinkC conf Prop = []
@@ -440,10 +464,10 @@ instance ShrinkC Term Term where
   shrinkC conf (DontCare _)  = []
   shrinkC conf (Sort Prop) = []
   shrinkC conf t	   = filter validType $ case ignoreSharing t of
-    Var i args   -> map unArg args ++
-		    (uncurry Var <$> shrinkC conf (VarName i, NoType args))
-    Def d args   -> map unArg args ++
-		    (uncurry Def <$> shrinkC conf (DefName d, NoType args))
+    Var i es     -> map unArg (argsFromElims es) ++
+		    (uncurry Var <$> shrinkC conf (VarName i, NoType es))
+    Def d es     -> map unArg (argsFromElims es) ++
+		    (uncurry Def <$> shrinkC conf (DefName d, NoType es))
     Con c args   -> map unArg args ++
 		    (uncurry Con <$> shrinkC conf (ConName c, NoType args))
     Lit l	 -> Lit <$> shrinkC conf l
@@ -453,7 +477,8 @@ instance ShrinkC Term Term where
     Pi a b       -> unEl (unDom a) : unEl (killAbs b) :
 		    (uncurry Pi <$> shrinkC conf (a, b))
     Sort s       -> Sort <$> shrinkC conf s
-    MetaV m args -> map unArg args ++ (MetaV m <$> shrinkC conf (NoType args))
+    MetaV m es   -> map unArg (argsFromElims es) ++
+                    (MetaV m <$> shrinkC conf (NoType es))
     DontCare _   -> []
     Shared{}     -> __IMPOSSIBLE__
     where
@@ -495,6 +520,9 @@ instance KillVar Type where
 instance KillVar Telescope where
   killVar i EmptyTel	      = EmptyTel
   killVar i (ExtendTel a tel) = uncurry ExtendTel $ killVar i (a, tel)
+
+instance KillVar a => KillVar (Elim' a) where
+  killVar i = fmap (killVar i)
 
 instance KillVar a => KillVar (I.Arg a) where
   killVar i = fmap (killVar i)

@@ -10,7 +10,7 @@ import qualified Agda.Syntax.Internal as I
 
 import Agda.TypeChecking.Monad
 import Agda.TypeChecking.Datatypes
-import Agda.TypeChecking.Eliminators
+-- import Agda.TypeChecking.Eliminators
 
 import Agda.Utils.List (downFrom)
 import Agda.Utils.Monad ((<.>))

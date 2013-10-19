@@ -7,7 +7,7 @@ module Agda.Compiler.HaskellTypes where
 
 import Control.Applicative
 import Control.Monad.Error
--- import Data.Char
+import Data.Maybe (fromMaybe)
 
 import Agda.Syntax.Common
 import Agda.Syntax.Internal
@@ -102,22 +102,26 @@ haskellKind a = do
 -- special treatment of INFINITY might not be needed.
 
 haskellType :: Type -> TCM HaskellType
-haskellType = liftTCM . fromType
+haskellType t = fromType t
   where
+    err      = notAHaskellType t
     fromArgs = mapM (fromTerm . unArg)
     fromType = fromTerm . unEl
     fromTerm v = do
-      v   <- reduce v
+      v   <- unSpine <$> reduce v
       reportSLn "compile.haskell.type" 50 $ "toHaskellType " ++ show v
       kit <- liftTCM coinductionKit
-      let err = notAHaskellType (El Prop v)
       case v of
-        Var x args -> hsApp <$> getHsVar x <*> fromArgs args
-        Def d args | Just d == (nameOfInf <$> kit) ->
-          case args of
-            [a, b] -> fromTerm (unArg b)
-            _      -> err
-        Def d args -> hsApp <$> getHsType d <*> fromArgs args
+        Var x es -> do
+          let args = fromMaybe __IMPOSSIBLE__ $ allApplyElims es
+          hsApp <$> getHsVar x <*> fromArgs args
+        Def d es | Just d == (nameOfInf <$> kit) ->
+          case es of
+            [Apply a, Apply b] -> fromTerm (unArg b)
+            _                  -> err
+        Def d es -> do
+          let args = fromMaybe __IMPOSSIBLE__ $ allApplyElims es
+          hsApp <$> getHsType d <*> fromArgs args
         Pi a b ->
           if isBinderUsed b  -- Andreas, 2012-04-03.  Q: could we rely on Abs/NoAbs instead of again checking freeness of variable?
           then underAbstraction a b $ \b ->

@@ -1,9 +1,10 @@
-{-# LANGUAGE CPP, TupleSections #-}
+{-# LANGUAGE CPP, TupleSections, PatternGuards #-}
 
 module Agda.TypeChecking.Records where
 
 import Control.Applicative
 -- import Control.Arrow ((***))
+import Data.Maybe
 import Control.Monad
 import Data.List
 -- import qualified Data.Map as Map
@@ -24,7 +25,7 @@ import Agda.TypeChecking.Telescope
 -- import Agda.TypeChecking.Datatypes
 import Agda.Utils.Either
 import Agda.Utils.List
-import Agda.Utils.Maybe
+-- import Agda.Utils.Maybe
 import Agda.Utils.Monad
 import qualified Agda.Utils.HashMap as HMap
 
@@ -123,8 +124,23 @@ isRecord r = do
 isRecordType :: Type -> TCM (Maybe (QName, Args, Defn))
 isRecordType t = ifBlockedType t (\ _ _ -> return Nothing) $ \ t -> do
   case ignoreSharing $ unEl t of
-    Def r vs -> fmap (r,vs,) <$> isRecord r
+    Def r es -> do
+      let vs = fromMaybe __IMPOSSIBLE__ $ allApplyElims es
+      fmap (r,vs,) <$> isRecord r
     _        -> return Nothing
+
+-- | The analogue of 'piApply'.  If @v@ is a value of record type @T@
+--   with field @f@, then @projectType T f@ returns the type of @f v@.
+projectType :: Type -> QName -> TCM (Maybe Type)
+projectType t f = do
+  res <- isRecordType t
+  case res of
+    Nothing -> return Nothing
+    Just (_r, ps, _rdef) -> do
+      def <- getConstInfo f
+      if (isProperProjection $ theDef def)
+        then return $ Just $ defType def `apply` ps
+        else return Nothing
 
 -- | Check if a name refers to an eta expandable record.
 isEtaRecord :: QName -> TCM Bool
@@ -137,7 +153,9 @@ isInductiveRecord r = maybe False (\ d -> recInduction d == Inductive || not (re
 -- | Check if a type is an eta expandable record and return the record identifier and the parameters.
 isEtaRecordType :: Type -> TCM (Maybe (QName, Args))
 isEtaRecordType a = case ignoreSharing $ unEl a of
-  Def d ps -> ifM (isEtaRecord d) (return $ Just (d, ps)) (return Nothing)
+  Def d es -> do
+    let vs = fromMaybe __IMPOSSIBLE__ $ allApplyElims es
+    ifM (isEtaRecord d) (return $ Just (d, vs)) (return Nothing)
   _        -> return Nothing
 
 -- | Check if a name refers to a record constructor.
@@ -178,7 +196,7 @@ recursiveRecord q = modifySignature $ updateDefinition q $ updateTheDef $ update
 {-| Compute the eta expansion of a record. The first argument should be
     the name of a record type. Given
 
-    @record R : Set where x : A; y : B; .z : C@
+    @record R : Set where field x : A; y : B; .z : C@
 
     and @r : R@, @etaExpand R [] r@ is @[R.x r, R.y r, DontCare]@
 -}
@@ -190,7 +208,7 @@ etaExpandRecord r pars u = do
   case ignoreSharing u of
     Con _ args -> return (tel', args)  -- Already expanded.
     _          -> do
-      let xs' = map (fmap (\ x -> Def x [defaultArg u])) xs
+      let xs' = map (fmap (\ x -> u `applyE` [Proj x])) xs
       reportSDoc "tc.record.eta" 20 $ vcat
         [ text "eta expanding" <+> prettyTCM u <+> text ":" <+> prettyTCM r
         , nest 2 $ vcat
@@ -205,20 +223,24 @@ etaExpandRecord r pars u = do
 --   We can eta contract if all fields @f = ...@ are irrelevant
 --   or all fields @f@ are the projection @f v@ of the same value @v@,
 --   but we need at least one relevant field to find the value @v@.
+--
+--   TODO: this can be moved out of TCM (but only if ConHead
+--   stores also the Arg-decoration of the record fields.
 etaContractRecord :: QName -> ConHead -> Args -> TCM Term
 etaContractRecord r c args = do
-  Record{ recPars = npars, recFields = xs } <- getRecordDef r
+  Record{ recFields = xs } <- getRecordDef r
   let check :: I.Arg Term -> I.Arg QName -> Maybe (Maybe Term)
       check a ax = do
       -- @a@ is the constructor argument, @ax@ the corr. record field name
         -- skip irrelevant record fields by returning DontCare
-        case (getRelevance a, ignoreSharing $ unArg a) of
-          (Irrelevant, _) -> Just Nothing
+        case (getRelevance a, hasElims $ unArg a) of
+          (Irrelevant, _)   -> Just Nothing
           -- if @a@ is the record field name applied to a single argument
           -- then it passes the check
-          (_, Def f [arg]) | unArg ax == f
-                         -> Just $ Just $ unArg arg
-          _              -> Nothing
+          (_, Just (_, [])) -> Nothing  -- not a projection
+          (_, Just (h, es)) | Proj f <- last es, unArg ax == f
+                            -> Just $ Just $ h $ init es
+          _                 -> Nothing
       fallBack = return (Con c args)
   case compare (length args) (length xs) of
     LT -> fallBack       -- Not fully applied
@@ -291,14 +313,23 @@ isSingletonTypeModuloRelevance t = liftTCM $ do
 isSingletonType' :: Bool -> Type -> TCM (Either MetaId (Maybe Term))
 isSingletonType' regardIrrelevance t = do
     TelV tel t <- telView t
+    ifBlockedType t (\ m _ -> return $ Left m) $ \ t -> do
+      res <- isRecordType t
+      case res of
+        Nothing         -> return $ Right Nothing
+        Just (r, ps, _) -> do
+          emap (abstract tel) <$> isSingletonRecord' regardIrrelevance r ps
+{-
     t <- reduceB $ unEl t
     case ignoreSharing <$> t of
       Blocked m _            -> return (Left m)
       NotBlocked (MetaV m _) -> return (Left m)
-      NotBlocked (Def r ps)  ->
+      NotBlocked (Def r es)  -> do
+        let ps = fromMaybe __IMPOSSIBLE $ allApplyElims es
         ifM (isNothing <$> isRecord r) (return $ Right Nothing) $ do
           emap (abstract tel) <$> isSingletonRecord' regardIrrelevance r ps
       _ -> return (Right Nothing)
+-}
 
 -- | Auxiliary function.
 emap :: (a -> b) -> Either c (Maybe a) -> Either c (Maybe b)
