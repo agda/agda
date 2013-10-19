@@ -34,7 +34,7 @@ import Agda.TypeChecking.Coverage.SplitTree
 
 import Agda.TypeChecking.Datatypes (getConForm)
 -- import Agda.TypeChecking.Eliminators (unElim)
-import Agda.TypeChecking.Patterns (patternsToElims)
+-- import Agda.TypeChecking.Patterns (patternsToElims)
 import Agda.TypeChecking.Pretty
 import Agda.TypeChecking.Substitute
 import Agda.TypeChecking.Reduce
@@ -185,7 +185,8 @@ cover f cs sc@(SClause tel perm ps _ target) = do
               , text   "applied to parameters vs = " <+> (addCtxTel tel $ prettyTCM vs)
               , text $ "and have fields       fs = " ++ show fs
               ]
-            es <- patternsToElims perm ps
+--            es <- patternsToElims perm ps
+            let es = patternsToElims perm ps
             let self  = defaultArg $ Def f [] `applyE` es
                 pargs = vs ++ [self]
             reportSDoc "tc.cover" 20 $ sep
@@ -383,7 +384,7 @@ computeNeighbourhood delta1 n delta2 perm d pars ixs hix hps con = do
 
       -- Plug the hole with the constructor and apply ρ
       -- TODO: Is it really correct to use Nothing here?
-      let conp = ConP (conName con) Nothing $ map (fmap VarP) $ teleArgNames gamma
+      let conp = ConP con Nothing $ map (fmap VarP) $ teleArgNames gamma
           ps   = plugHole conp hps
           ps'  = applySubst rho ps      -- Δ₁ΓΔ₂' ⊢ ps'
       debugPlugged ps ps'
@@ -580,7 +581,8 @@ split' ind sc@(SClause tel perm ps _ target) (x, mcons) = liftTCM $ runException
   -- Andreas, 2012-10-10 fail if precomputed constructor set does not cover
   -- all the data type constructors
 
-    _ | Just pcons <- mcons,
+    _ | Just pcons' <- mcons,
+        let pcons = map conName pcons',
         let cons = (map fst ns),
         let diff = Set.fromList cons Set.\\ Set.fromList pcons,
         not (Set.null diff) -> do

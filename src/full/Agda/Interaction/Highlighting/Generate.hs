@@ -513,7 +513,7 @@ generateConstructorInfo modMap file kinds decl = do
     getRHS (I.Bind b)   = getRHS (I.unAbs b)
 
   getConstructorP :: I.Pattern -> [A.QName]
-  getConstructorP (I.ConP q _ _) = [q]
+  getConstructorP (I.ConP c _ _) = [I.conName c]
   getConstructorP _              = []
 
   getConstructor :: I.Term -> [A.QName]

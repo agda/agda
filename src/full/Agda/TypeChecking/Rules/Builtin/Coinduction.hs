@@ -96,7 +96,7 @@ bindBuiltinSharp e =
     addConstant sharp $
       sharpDefn { theDef = Constructor
                     { conPars   = 2
-                    , conSrcCon = ConHead sharp [] -- TODO: possibly add flat as field here
+                    , conSrcCon = ConHead sharp [] -- flat is added as field later
                     , conData   = defName infDefn
                     , conAbstr  = ConcreteDef
                     , conInd    = CoInductive
@@ -118,13 +118,14 @@ bindBuiltinFlat e =
     Def sharp _ <- ignoreSharing <$> primSharp
     kit         <- requireLevels
     Def inf _   <- ignoreSharing <$> primInf
+    let sharpCon = ConHead sharp [flat]
     let clause = Clause { clauseRange = noRange
                         , clauseTel   = ExtendTel (domH (El (mkType 0) (Def (typeName kit) [])))
                                                   (Abs "a" (ExtendTel (domH $ sort $ varSort 0)
                                                                       (Abs "A" (ExtendTel (domN (El (varSort 1) (var 0)))
                                                                                           (Abs "x" EmptyTel)))))
                         , clausePerm  = idP 1
-                        , clausePats  = [ argN (ConP sharp Nothing [argN (VarP "x")])
+                        , clausePats  = [ argN (ConP sharpCon Nothing [argN (VarP "x")])
                                         ]
                         , clauseBody  = Bind $ Abs "x" $ Body (var 0)
                         , clauseType  = Just $ El (varSort 2) (var 1)
@@ -156,6 +157,9 @@ bindBuiltinFlat e =
                    , funExtLam         = Nothing
                    }
                 }
+    -- register flat as record field for constructor sharp
+    modifySignature $ updateDefinition sharp $ updateTheDef $ \ def ->
+      def { conSrcCon = sharpCon }
     return flatE
 
 -- The coinductive primitives.

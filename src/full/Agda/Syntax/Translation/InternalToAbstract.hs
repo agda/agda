@@ -707,7 +707,7 @@ reifyPatterns tel perm ps = evalStateT (reifyArgs ps) 0
         return $ A.DotP patNoRange t'
       I.LitP l  -> return $ A.LitP l
       I.ProjP d -> return $ A.DefP patNoRange d []
-      I.ConP c mt ps -> A.ConP ci (AmbQ [c]) <$> reifyArgs ps
+      I.ConP c mt ps -> A.ConP ci (AmbQ [conName c]) <$> reifyArgs ps
         where ci = flip ConPatInfo patNoRange $ maybe False fst mt
 
 instance Reify NamedClause A.Clause where

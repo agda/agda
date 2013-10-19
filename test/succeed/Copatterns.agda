@@ -76,7 +76,6 @@ module NoInstance where
       ((m >>= k) >>= l) ≡ (m >>= λ a → (k a >>= l))
     assoc m k l = refl
 
-
   module VisibleArgument where
 
     open Monad

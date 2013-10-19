@@ -228,7 +228,7 @@ checkRecDef i name ind con ps contel fields =
        underAbstraction (Dom info rect) (Abs "" ()) $ \_ -> do
         withCurrentModule m $ do
           tel' <- getContextTelescope
-          checkRecordProjections m name conName tel' (raise 1 ftel) fields
+          checkRecordProjections m name con tel' (raise 1 ftel) fields
 
       -- Andreas, 2011-05-19 here was the code "Add record constr..."
 
@@ -243,7 +243,7 @@ checkRecDef i name ind con ps contel fields =
 
     [@r@    ]  name of the record type
 
-    [@q@    ]  name of the record constructor
+    [@con@  ]  name of the record constructor
 
     [@tel@  ]  parameters and record variable r ("self")
 
@@ -252,9 +252,9 @@ checkRecDef i name ind con ps contel fields =
     [@fs@   ]  the fields to be checked
 -}
 checkRecordProjections ::
-  ModuleName -> QName -> QName -> Telescope -> Telescope ->
+  ModuleName -> QName -> ConHead -> Telescope -> Telescope ->
   [A.Declaration] -> TCM ()
-checkRecordProjections m r q tel ftel fs = do
+checkRecordProjections m r con tel ftel fs = do
     checkProjs EmptyTel ftel fs
   where
 
@@ -355,7 +355,7 @@ checkRecordProjections m r q tel ftel fs = do
           -- (rt) which should be  R ptel
           (ptel,[rt]) = splitAt (size tel - 1) $ telToList tel
 	  conp	 = defaultArg
-		 $ ConP q (Just (False, argFromDom $ fmap snd rt))
+		 $ ConP con (Just (False, argFromDom $ fmap snd rt))
                    [ Arg info (VarP "x") | Dom info _ <- telToList ftel ]
 	  nobind 0 = id
 	  nobind n = Bind . Abs "_" . nobind (n - 1)

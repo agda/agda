@@ -108,9 +108,7 @@ patternToTerm :: Nat -> Pattern -> Term
 patternToTerm n p = case p of
     VarP v          -> var n
     DotP t          -> t
-    ConP c typ args ->
-                 let con = ConHead c [] -- TODO restore fields
-                 in  Con con $ zipWith (\ arg t -> arg {unArg = t}) args
+    ConP c typ args -> Con c $ zipWith (\ arg t -> arg {unArg = t}) args
                              $ snd
                              $ foldr (\ arg (n, ts) -> (n + nrBinds arg, patternToTerm n arg : ts))
                                      (n , [])

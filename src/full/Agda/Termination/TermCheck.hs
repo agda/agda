@@ -543,7 +543,7 @@ openClause conf perm ps body = do
 
     build :: Pattern -> StateT [Nat] TCM DeBruijnPat
     build (VarP _)        = VarDBP <$> tick
-    build (ConP con _ ps) = ConDBP con <$> mapM (build . unArg) ps
+    build (ConP con _ ps) = ConDBP (conName con) <$> mapM (build . unArg) ps
     build (DotP t)        = tick *> do lift $ termToDBP conf t
     build (LitP l)        = return $ LitDBP l
     build (ProjP d)       = return $ ProjDBP d

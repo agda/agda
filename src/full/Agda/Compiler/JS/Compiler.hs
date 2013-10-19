@@ -323,8 +323,8 @@ mapping' (LitP _)      (av,bv,es) = (av, bv+1, es)
 
 pattern :: Pattern -> TCM Patt
 pattern (ProjP _)     = typeError $ NotImplemented $ "Compilation of copatterns"
-pattern (ConP q _ ps) = do
-  l <- tag q
+pattern (ConP c _ ps) = do
+  l <- tag $ conName c
   ps <- mapM (pattern . unArg) ps
   return (Tagged l ps)
 pattern _             = return VarPatt

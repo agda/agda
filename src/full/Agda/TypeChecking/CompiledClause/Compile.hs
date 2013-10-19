@@ -141,7 +141,7 @@ splitOn single n cs = mconcat $ map (fmap (:[]) . splitC n) $ expandCatchAlls si
 splitC :: Int -> Cl -> Case Cl
 splitC n (ps, b) = case unArg p of
   ProjP d     -> conCase d $ WithArity 0 (ps0 ++ ps1, b)
-  ConP c _ qs -> conCase c $ WithArity (length qs) (ps0 ++ qs ++ ps1, b)
+  ConP c _ qs -> conCase (conName c) $ WithArity (length qs) (ps0 ++ qs ++ ps1, b)
   LitP l      -> litCase l (ps0 ++ ps1, b)
   VarP{}      -> catchAll (ps, b)
   DotP{}      -> catchAll (ps, b)
@@ -218,9 +218,8 @@ expandCatchAlls single n cs =
     expand ps b q =
       case q of
         ConP c _ qs' -> (ps0 ++ [defaultArg $ ConP c Nothing (genericReplicate m $ defaultArg $ VarP "_")] ++ ps1,
-                         substBody n' m (Con con (map var [m - 1, m - 2..0])) b)
+                         substBody n' m (Con c (map var [m - 1, m - 2..0])) b)
           where m = length qs'
-                con = ConHead c [] -- TODO: restore fields
         LitP l -> (ps0 ++ [defaultArg $ LitP l] ++ ps1, substBody n' 0 (Lit l) b)
         _ -> __IMPOSSIBLE__
       where

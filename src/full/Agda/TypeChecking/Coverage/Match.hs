@@ -70,7 +70,7 @@ match cs ps perm = foldr choice No $ zipWith matchIt [0..] cs
 --   are blocking a match.
 data MPat
   = VarMP Nat
-  | ConMP QName [Arg MPat]
+  | ConMP ConHead [Arg MPat]
   | LitMP Literal
   | WildMP       -- ^ For dot patterns that cannot be turned into patterns.
   | ProjMP QName -- ^ Projection copattern.
@@ -87,7 +87,7 @@ buildMPatterns perm ps = evalState (mapM (traverse build) ps) xs
     build (LitP l)        = return $ LitMP l
     build (ProjP dest)    = return $ ProjMP dest
 
-    buildT (Con c args)   = ConMP (conName c) <$> mapM (traverse buildT) args
+    buildT (Con c args)   = ConMP c <$> mapM (traverse buildT) args
     buildT (Var i [])     = return (VarMP i)
     buildT _              = return WildMP
 
@@ -105,7 +105,7 @@ data Match a
 -- | @Nothing@ means there is an overlapping match for this variable.
 --   @Just cons@ means that it is an non-overlapping match and
 --   @cons@ are the encountered constructors.
-type BlockingVar  = (Nat, (Maybe [QName]))
+type BlockingVar  = (Nat, (Maybe [ConHead]))
 type BlockingVars = [BlockingVar]
 
 overlapping :: BlockingVars -> BlockingVars

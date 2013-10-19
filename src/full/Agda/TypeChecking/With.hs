@@ -185,7 +185,7 @@ stripWithClausePatterns gamma qs perm ps = do
             Con c' [] <- ignoreSharing <$> (constructorForm =<< reduce (Con c []))
             c <- return $ c' `withRangeOf` c
 -}
-            c <- (`withRangeOf` c) <$> getConForm c
+            c <- (`withRangeOf` c) <$> do getConForm $ conName c
             cs' <- mapM getConForm cs'
 {- OLD
             let getCon (Con c []) = c
@@ -321,7 +321,7 @@ patsToTerms perm ps = evalState (toTerms ps) xs
       ProjP d     -> __IMPOSSIBLE__ -- TODO: convert spine to non-spine ... DDef d . defaultArg
       VarP _      -> DTerm . var <$> tick
       DotP t      -> DDot t <$ tick
-      ConP c _ ps -> DCon c <$> toTerms ps
+      ConP c _ ps -> DCon (conName c) <$> toTerms ps
       LitP l      -> return $ DTerm (Lit l)
 
 {- OLD

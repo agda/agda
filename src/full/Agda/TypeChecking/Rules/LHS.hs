@@ -563,7 +563,7 @@ checkLeftHandSide c f ps a ret = do
 
             -- Plug the hole in the out pattern with c ys
             let ysp = map (argFromDom . fmap (VarP . fst)) $ telToList gamma
-                ip  = plugHole (ConP (conName c) storedPatternType ysp) iph
+                ip  = plugHole (ConP c storedPatternType ysp) iph
                 ip0 = applySubst rho0 ip
 
             -- Δ₁Γ ⊢ sub0, we need something in Δ₁ΓΔ₂
@@ -688,8 +688,8 @@ noPatternMatchingOnCodata = mapM_ (check . unArg)
   check (DotP {})   = return ()
   check (ProjP{})   = return ()
   check (LitP {})   = return ()  -- Literals are assumed not to be coinductive.
-  check (ConP q _ ps) = do
-    TelV _ t <- telView' . defType <$> getConstInfo q
+  check (ConP con _ ps) = do
+    TelV _ t <- telView' . defType <$> do getConstInfo $ conName con
     c <- isCoinductive t
     case c of
       Nothing    -> __IMPOSSIBLE__

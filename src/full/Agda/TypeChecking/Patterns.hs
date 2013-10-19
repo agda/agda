@@ -1,3 +1,5 @@
+-- RETIRED (Andreas, 2013-10-19)
+
 -- | Pattern utils which need the TCM monad.
 module Agda.TypeChecking.Patterns where
 
@@ -28,7 +30,7 @@ patternsToElims perm ps = evalStateT (mapM build ps) xs
     build :: I.Arg Pattern -> StateT [Int] TCM Elim
     build (Arg ai (VarP _)     ) = Apply . Arg ai . var <$> tick
     build (Arg ai (ConP c _ ps)) = do
-      con <- lift $ getConHead c
+      con <- lift $ getConHead $ conName c
       Apply . Arg ai . Con con <$> mapM (argFromElim <.> build) ps
     build (Arg ai (DotP t)     ) = Apply (Arg ai t) <$ tick
     build (Arg ai (LitP l)     ) = return $ Apply $ Arg ai $ Lit l

@@ -310,6 +310,6 @@ useInjectivity cmp a u v = do
 
     metaPat (DotP v)         = dotP v
     metaPat (VarP _)         = nextMeta
-    metaPat (ConP c mt args) = Con (ConHead c []) <$> metaArgs args  -- TODO restore fields
+    metaPat (ConP c mt args) = Con c <$> metaArgs args
     metaPat (LitP l)         = return $ Lit l
     metaPat ProjP{}          = __IMPOSSIBLE__

@@ -223,7 +223,7 @@ data Pattern
   = VarP String
     -- ^ The @String@ is a name suggestion.
   | DotP Term
-  | ConP QName ConPatternInfo [Arg Pattern]
+  | ConP ConHead ConPatternInfo [Arg Pattern]
     -- ^ The @Pattern@s do not contain any projection copatterns.
   | LitP Literal
   | ProjP QName

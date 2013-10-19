@@ -286,7 +286,7 @@ argpatts ps0 bvs = evalStateT (mapM pat' ps0) bvs
   pat   (VarP _   ) = do v <- gets head; modify tail; return v
   pat   (DotP _   ) = pat (VarP dummy) -- WHY NOT: return HS.PWildCard -- SEE ABOVE
   pat   (LitP l   ) = return $ HS.PLit $ hslit l
-  pat p@(ConP q _ ps) = do
+  pat p@(ConP c _ ps) = do
     -- Note that irr is applied once for every subpattern, so in the
     -- worst case it is quadratic in the size of the pattern. I
     -- suspect that this will not be a problem in practice, though.
@@ -295,7 +295,7 @@ argpatts ps0 bvs = evalStateT (mapM pat' ps0) bvs
                 then HS.PParen . HS.PIrrPat
                 else id
     (tilde . HS.PParen) <$>
-      (HS.PApp <$> lift (conhqn q) <*> mapM pat' ps)
+      (HS.PApp <$> lift (conhqn $ conName c) <*> mapM pat' ps)
 
   {- Andreas, 2013-02-15 this triggers Issue 794,
      because it fails to count the variables bound in p,
@@ -316,8 +316,8 @@ argpatts ps0 bvs = evalStateT (mapM pat' ps0) bvs
   irr (VarP {})   = return True
   irr (DotP {})   = return True
   irr (LitP {})   = return False
-  irr (ConP q _ ps) =
-    (&&) <$> singleConstructorType q
+  irr (ConP c _ ps) =
+    (&&) <$> singleConstructorType (conName c)
          <*> (andM $ L.map irr' ps)
 
   -- | Irrelevant patterns are naturally irrefutable.

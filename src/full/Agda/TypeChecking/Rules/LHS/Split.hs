@@ -28,7 +28,7 @@ import Agda.TypeChecking.Substitute
 import Agda.TypeChecking.Constraints
 import Agda.TypeChecking.Conversion
 import Agda.TypeChecking.Datatypes
-import Agda.TypeChecking.Patterns (patternsToElims)
+-- import Agda.TypeChecking.Patterns (patternsToElims)
 import Agda.TypeChecking.Records
 import Agda.TypeChecking.Rules.LHS.Problem
 -- import Agda.TypeChecking.Rules.LHS.ProblemRest
@@ -138,7 +138,8 @@ splitProblem mf (Problem ps (perm, qs) tel pr) = do
                       , text $ "original proj         d  = " ++ show d
                       ]
                     unless (d `elem` map unArg fs) $ throwError NothingToSplit
-                    es <- lift $ patternsToElims perm qs
+--                    es <- lift $ patternsToElims perm qs
+                    let es = patternsToElims perm qs
                     -- the record "self" is the definition f applied to the patterns
                     let self = defaultArg $ Def f [] `applyE` es
                     -- get the type of projection d applied to "self"

@@ -189,36 +189,6 @@ assignE x es v equate = assignWrapper x es v $ do
         Nothing ->  do
           reportSLn "tc.conv.assign" 30 "eta expansion did not instantiate meta"
           patternViolation  -- nothing happened, give up
-{-
-assignE :: Type -> MetaId -> Elims -> Term -> TCM ()
-assignE t x es v = assignWrapper x es v $ do
-  case allApplyElims es of
-    Just vs -> assignV x vs v
-    Nothing -> do
-      reportSDoc "tc.conv.assign" 30 $ sep
-        [ text "assigning to projected meta "
-        , prettyTCM x <+> sep (map prettyTCM es) <+> text " := " <+> prettyTCM v
-        ]
-      etaExpandMeta [Records] x
-      res <- isInstantiatedMeta' x
-      case res of
-        Just u  -> do
-          reportSDoc "tc.conv.assign" 30 $ sep
-            [ text "seem like eta expansion instantiated meta "
-            , prettyTCM x <+> text " := " <+> prettyTCM u
-            ]
-          let w = u `applyE` es
-          compareTerm' CmpEq t w v
-        Nothing ->  do
-          reportSLn "tc.conv.assign" 30 "eta expansion did not instantiate meta"
-          patternViolation  -- nothing happened, give up
--}
-{-
-      u <- ignoreSharing <$> do instantiate $ MetaV x []
-      case u of
-        MetaV x' [] | x == x' -> patternViolation  -- nothing happened, give up
-        _ -> compareTerm' CmpEq t (u `applyE` es) v
--}
 
 compareTerm' :: Comparison -> Type -> Term -> Term -> TCM ()
 compareTerm' cmp a m n =
@@ -282,6 +252,12 @@ compareTerm' cmp a m n =
                   (_  , n') <- etaExpandRecord r ps $ ignoreBlocking n
                   -- No subtyping on record terms
                   c <- getRecordConstructor r
+{- We reduce later (in compareAtom)
+                  -- In the presence of copatterns, we need to reduce,
+                  -- because an added projection can trigger a rewrite rule.
+                  (m', n') <- if dontHaveCopatterns then return (m', n')
+                               else reduce (m', n')
+-}
                   compareArgs [] (telePi_ tel $ sort Prop) (Con c []) m' n'
 
             else compareAtom cmp a' m n
