@@ -107,7 +107,7 @@ splitProblem mf (Problem ps (perm, qs) tel pr) = do
         Just d -> do -- case: projection pattern (d = projection name)
           isP <- lift $ isProjection d
           case isP of
-            Just Projection{projProper = True, projFromType = _, projIndex = n}
+            Just Projection{projProper = Just d, projFromType = _, projIndex = n}
               | n > 0 ->
               -- If projIndex==0, then the projection is already applied
               -- to the record value (like in @open R r@), and then it
@@ -117,6 +117,7 @@ splitProblem mf (Problem ps (perm, qs) tel pr) = do
                 isR <- lift $ isRecordType b
                 case isR of
                   Just (r, vs, Record{ recFields = fs }) -> do
+{- NO LONGER NEEDED
                     -- normalize projection name (could be from a module app)
                     d <- lift $ do
                       v <- stripLambdas =<< normalise (Def d [])
@@ -131,6 +132,7 @@ splitProblem mf (Problem ps (perm, qs) tel pr) = do
                             [ text $ "raw: " ++ show v
                             ]
                           __IMPOSSIBLE__
+-}
                     lift $ reportSDoc "tc.lhs.split" 20 $ sep
                       [ text $ "we are of record type r  = " ++ show r
                       , text   "applied to parameters vs = " <+> prettyTCM vs

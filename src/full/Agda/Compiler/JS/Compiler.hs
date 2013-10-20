@@ -6,6 +6,7 @@ import Prelude hiding ( null, writeFile )
 import Control.Monad.Reader ( liftIO )
 -- import Control.Monad.State ( get, put )
 import Data.List ( intercalate, genericLength, partition )
+import Data.Maybe ( isJust )
 import Data.Set ( Set, null, insert, difference, delete )
 import Data.Map ( fromList, elems )
 import qualified Data.Set as Set
@@ -241,7 +242,7 @@ defn q ls t Nothing (Function { funProjection = proj, funClauses = cls }) = do
     Nothing -> case proj of
       Just Projection{ projProper, projFromType = p, projIndex = i } -> do
         -- Andreas, 2013-05-20: whether a projection is proper is now stored.
-        if projProper then
+        if isJust projProper then
           -- For projections from records we use a field lookup
             return (curriedLambda (numPars cls)
               (Lookup (Local (LocalId 0)) (last ls)))

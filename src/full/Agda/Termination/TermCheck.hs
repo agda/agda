@@ -64,7 +64,7 @@ import Agda.Interaction.Options
 
 import Agda.Utils.List
 import Agda.Utils.Size
-import Agda.Utils.Monad (mapM', forM', ifM, or2M, and2M, (<.>))
+import Agda.Utils.Monad -- (mapM', forM', ifM, or2M, and2M, (<.>))
 -- import Agda.Utils.NubList
 import Agda.Utils.Pointed
 import Agda.Utils.Permutation
@@ -1035,9 +1035,9 @@ isProjectionButNotCoinductive qn = do
     else do
       mp <- isProjection qn
       case mp of
-        Nothing -> return False
-        Just Projection{ projProper, projFromType } ->
-          return projProper `and2M` isInductiveRecord projFromType
+        Just Projection{ projProper = Just{}, projFromType }
+          -> isInductiveRecord projFromType
+        _ -> return False
 
 
 {- RETIRED

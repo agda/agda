@@ -613,23 +613,31 @@ instance NFData Occurrence
 
 -- | Additional information for projection 'Function's.
 data Projection = Projection
-  { projProper   :: Bool  -- ^ @True@ if record projection, @False@ if only projection-like.
-  , projFromType :: QName -- ^ Type projected from.  Record type if @projProper@.
-  , projIndex    :: Int   -- ^ Index of the record argument.
-                          --   Start counting with 1, because 0 means that
-                          --   it is already applied to the record.
-                          --   (Can happen in module instantiation.)
-  } deriving (Typeable, Eq, Ord, Show)
+  { projProper    :: Maybe QName
+    -- ^ @Nothing@ if only projection-like, @Just q@ if record projection,
+    --   where @q@ is the original projection name
+    --   (current name could be from module app).
+  , projFromType  :: QName
+    -- ^ Type projected from.  Record type if @projProper = Just{}@.
+  , projIndex     :: Int
+    -- ^ Index of the record argument.
+    --   Start counting with 1, because 0 means that
+    --   it is already applied to the record.
+    --   (Can happen in module instantiation.)
+  , projDropPars  :: Term
+    -- ^ Term @t@ to be be applied to record parameters and record value.
+    --   The parameters will be dropped.
+    --   In case of a proper projection, a postfix projection application
+    --   will be created: @t = \ pars r -> r .p@
+    --   In case of a projection-like function, just the function symbol
+    --   is returned as 'Def':  @t = \ pars -> f@.
+  } deriving (Typeable, Show)
 
 data Defn = Axiom
 	  | Function
             { funClauses        :: [Clause]
             , funCompiled       :: CompiledClauses
             , funInv            :: FunctionInverse
-{- MOVED to Definition
-            , funPolarity       :: [Polarity]
-            , funArgOccurrences :: [Occurrence]
--}
             , funMutual         :: [QName]
               -- ^ Mutually recursive functions, @data@s and @record@s.
             , funAbstr          :: IsAbstract
@@ -662,10 +670,6 @@ data Defn = Axiom
             , dataClause         :: (Maybe Clause) -- ^ This might be in an instantiated module.
             , dataCons           :: [QName]        -- ^ Constructor names.
             , dataSort           :: Sort
-{- MOVED
-            , dataPolarity       :: [Polarity]
-            , dataArgOccurrences :: [Occurrence]
--}
             , dataMutual         :: [QName]        -- ^ Mutually recursive functions, @data@s and @record@s.
             , dataAbstr          :: IsAbstract
             }
@@ -678,10 +682,6 @@ data Defn = Axiom
             , recConType        :: Type                 -- ^ The record constructor's type.
             , recFields         :: [Arg QName]
             , recTel            :: Telescope            -- ^ The record field telescope
-{- MOVED
-            , recPolarity       :: [Polarity]
-            , recArgOccurrences :: [Occurrence]
--}
             , recMutual         :: [QName]              -- ^ Mutually recursive functions, @data@s and @record@s.
             , recEtaEquality    :: Bool                 -- ^ Eta-expand at this record type.  @False@ for unguarded recursive records.
             , recInduction      :: Induction            -- ^ 'Inductive' or 'Coinductive'?  Matters only for recursive records.
@@ -689,11 +689,9 @@ data Defn = Axiom
             , recAbstr          :: IsAbstract
             }
 	  | Constructor
-            { conPars   :: Nat         -- nof parameters
---            , conHead   :: ConHead     -- ^ Name of constructor and fields.
+            { conPars   :: Nat         -- ^ Number of parameters.
 	    , conSrcCon :: ConHead     -- ^ Name of (original) constructor and fields. (This might be in a module instance.)
---	    , conSrcCon :: QName       -- original constructor (this might be in a module instance)
-	    , conData   :: QName       -- name of datatype or record type
+	    , conData   :: QName       -- ^ Name of datatype or record type.
 	    , conAbstr  :: IsAbstract
             , conInd    :: Induction   -- ^ Inductive or coinductive?
             }
@@ -703,8 +701,8 @@ data Defn = Axiom
             , primClauses :: [Clause]
               -- ^ 'null' for primitive functions, @not null@ for builtin functions.
             , primCompiled :: Maybe CompiledClauses
-              -- ^ 'Nothing' for primitive functions, @'Just'
-              -- something@ for builtin functions.
+              -- ^ 'Nothing' for primitive functions,
+              --   @'Just' something@ for builtin functions.
             }
             -- ^ Primitive or builtin functions.
     deriving (Typeable, Show)

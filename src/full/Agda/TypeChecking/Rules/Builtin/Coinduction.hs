@@ -22,6 +22,7 @@ import Agda.TypeChecking.Monad
 import Agda.TypeChecking.Monad.Builtin
 import Agda.TypeChecking.Primitive
 import Agda.TypeChecking.Reduce
+import Agda.TypeChecking.Substitute
 import Agda.TypeChecking.Rules.Builtin
 import Agda.TypeChecking.Rules.Term
 
@@ -113,50 +114,54 @@ bindBuiltinSharp e =
 
 bindBuiltinFlat :: A.Expr -> TCM ()
 bindBuiltinFlat e =
-  bindPostulatedName builtinFlat e $ \flat flatDefn -> do
+  bindPostulatedName builtinFlat e $ \ flat flatDefn -> do
     flatE       <- instantiateFull =<< checkExpr (A.Def flat) =<< typeOfFlat
     Def sharp _ <- ignoreSharing <$> primSharp
     kit         <- requireLevels
     Def inf _   <- ignoreSharing <$> primInf
     let sharpCon = ConHead sharp [flat]
-    let clause = Clause { clauseRange = noRange
-                        , clauseTel   = ExtendTel (domH (El (mkType 0) (Def (typeName kit) [])))
-                                                  (Abs "a" (ExtendTel (domH $ sort $ varSort 0)
-                                                                      (Abs "A" (ExtendTel (domN (El (varSort 1) (var 0)))
-                                                                                          (Abs "x" EmptyTel)))))
-                        , clausePerm  = idP 1
-                        , clausePats  = [ argN (ConP sharpCon Nothing [argN (VarP "x")])
-                                        ]
-                        , clauseBody  = Bind $ Abs "x" $ Body (var 0)
-                        , clauseType  = Just $ El (varSort 2) (var 1)
-                        }
-    addConstant flat $
-      flatDefn { defPolarity = []
-               , defArgOccurrences = [StrictPos]
-               , theDef = Function
-                   { funClauses        = [clause]
-                   , funCompiled       =
-                      let hid   = hide . defaultArg
-                          nohid = defaultArg in
-                      Case 0 (Branches (Map.singleton sharp
-                                 (WithArity 1 (Done [nohid "x"] (var 0))))
+        level    = El (mkType 0) $ Def (typeName kit) []
+        tel     :: Telescope
+        tel      = ExtendTel (domH $ level)                  $ Abs "a" $
+                   ExtendTel (domH $ sort $ varSort 0)       $ Abs "A" $
+                   ExtendTel (domN $ El (varSort 1) $ var 0) $ Abs "x" $
+                   EmptyTel
+    let clause   = Clause
+          { clauseRange = noRange
+          , clauseTel   = tel
+          , clausePerm  = idP 1
+          , clausePats  = [ argN $ ConP sharpCon Nothing [ argN $ VarP "x" ] ]
+          , clauseBody  = Bind $ Abs "x" $ Body $ var 0
+          , clauseType  = Just $ El (varSort 2) $ var 1
+          }
+        cc = Case 0 $ Branches (Map.singleton sharp
+                                 $ WithArity 1 $ Done [defaultArg "x"] $ var 0)
                                Map.empty
-                               Nothing)
-                   , funInv            = NotInjective
-{-
-                   , funPolarity       = [Invariant]
-                   , funArgOccurrences = [StrictPos] -- changing that to [Mixed] destroys monotonicity of 'Rec' in test/succeed/GuardednessPreservingTypeConstructors
--}
-                   , funMutual         = []
-                   , funAbstr          = ConcreteDef
-                   , funDelayed        = NotDelayed
-                   , funProjection     = Just $ Projection False inf 3
-                   , funStatic         = False
-                   , funCopy           = False
-                   , funTerminates     = Just True
-                   , funExtLam         = Nothing
+                               Nothing
+        projection = Projection
+          { projProper   = Nothing
+          , projFromType = inf
+          , projIndex    = 3
+          , projDropPars = teleNoAbs (take 2 $ telToList tel) $ Def flat []
+          }
+    addConstant flat $
+      flatDefn { defPolarity       = []
+               , defArgOccurrences = [StrictPos]  -- changing that to [Mixed] destroys monotonicity of 'Rec' in test/succeed/GuardednessPreservingTypeConstructors
+               , theDef = Function
+                   { funClauses    = [clause]
+                   , funCompiled   = cc
+                   , funInv        = NotInjective
+                   , funMutual     = []
+                   , funAbstr      = ConcreteDef
+                   , funDelayed    = NotDelayed
+                   , funProjection = Just projection
+                   , funStatic     = False
+                   , funCopy       = False
+                   , funTerminates = Just True
+                   , funExtLam     = Nothing
                    }
                 }
+
     -- register flat as record field for constructor sharp
     modifySignature $ updateDefinition sharp $ updateTheDef $ \ def ->
       def { conSrcCon = sharpCon }

@@ -8,6 +8,7 @@ import Control.Monad.Reader
 -- import qualified Data.Set as Set
 import Data.Map (Map)
 import qualified Data.Map as Map
+import Data.Maybe
 import Data.List
 import Data.Function
 
@@ -274,14 +275,16 @@ applySection new ptel old ts rd rm = do
 	isCon = case oldDef of
 	  Constructor{} -> True
 	  _		-> False
-{- OLD
-        getOcc d = case d of
-          Function { funArgOccurrences  = os } -> os
-          Datatype { dataArgOccurrences = os } -> os
-          Record   { recArgOccurrences  = os } -> os
-          _ -> []
-        oldOcc = getOcc oldDef
--}
+        mutual = case oldDef of { Function{funMutual = m} -> m ; _ -> [] }
+        extlam = case oldDef of { Function{funExtLam = e} -> e ; _ -> Nothing }
+        -- NB (Andreas, 2013-10-19):
+        -- If we apply the record argument, we are no longer a projection!
+        proj   = case oldDef of
+          Function{funProjection = Just p@Projection{projIndex = n}} | size ts < n
+            -> Just $ p { projIndex    = n - size ts
+                        , projDropPars = projDropPars p `apply` ts
+                        }
+          _ -> Nothing
 	def  = case oldDef of
                 Constructor{ conPars = np, conData = d } -> return $
                   oldDef { conPars = np - size ts, conData = copyName d }
@@ -300,10 +303,6 @@ applySection new ptel old ts rd rm = do
                         , funCompiled       = cc
                         , funDelayed        = NotDelayed
                         , funInv            = NotInjective
-{-
-                        , funPolarity       = []
-                        , funArgOccurrences = drop (length ts') oldOcc
--}
                         , funMutual         = mutual
                         , funAbstr          = ConcreteDef
                         , funProjection     = proj
@@ -314,28 +313,24 @@ applySection new ptel old ts rd rm = do
                         }
                   reportSLn "tc.mod.apply" 80 $ "new def for " ++ show x ++ "\n  " ++ show newDef
                   return newDef
-                  where
-                    mutual = case oldDef of
-                      Function{funMutual = m} -> m
-                      _ -> []
-                    proj = case oldDef of
-                      Function{funProjection = Just p@Projection{projIndex = n}}
-                        | size ts < n -> Just $ p { projIndex = n - size ts }
-                      _ -> Nothing
-                    extlam = case oldDef of
-                      Function{funExtLam = e} -> e
-                      _ -> Nothing
+{-
         ts' | null ts   = []
             | otherwise = case oldDef of
                 Function{funProjection = Just Projection{ projIndex = n}}
                   | n == 0       -> __IMPOSSIBLE__
                   | otherwise    -> drop (n - 1) ts
                 _ -> ts
+-}
+        head = case oldDef of
+                 Function{funProjection = Just Projection{ projDropPars = f}}
+                   -> f
+                 _ -> Def x []
 	cl = Clause { clauseRange = getRange $ defClauses d
                     , clauseTel   = EmptyTel
                     , clausePerm  = idP 0
                     , clausePats  = []
-                    , clauseBody  = Body $ Def x $ map Apply ts'
+                    , clauseBody  = Body $ head `apply` ts
+--                    , clauseBody  = Body $ Def x $ map Apply ts'
                     , clauseType  = Just t
                     }
 
@@ -690,7 +685,8 @@ isProjection_ def =
     _                                   -> Nothing
 
 isProperProjection :: Defn -> Bool
-isProperProjection = maybe False projProper . isProjection_
+isProperProjection = isJust . (projProper <=< isProjection_)
+-- isProperProjection = maybe False projProper . isProjection_
 
 -- | Number of dropped initial arguments.
 projectionArgs :: Defn -> Int

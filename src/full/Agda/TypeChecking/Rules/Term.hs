@@ -861,7 +861,9 @@ inferHead e = do
         Nothing -> do
           (u, a) <- inferDef (\ f args -> return $ Def f $ map Apply args) x
           return (apply u, a)
-        Just Projection{ projIndex = n, projProper } -> do
+        Just Projection{ projDropPars = proj } -> do
+{- MOVED to Rules/Record.hs and ProjectionLike.hs
+        Just Projection{ projIndex = n, projProper, projDropPars = proj } -> do
           reportSDoc "tc.term.proj" 10 $ sep
             [ text "building projection" <+> prettyTCM x
             , nest 2 $ parens (text "ctx =" <+> (text . show =<< do
@@ -878,6 +880,7 @@ inferHead e = do
                    | otherwise  = Def x []
               -- leading lambdas are to ignore parameter applications
               proj  = foldr (\ (i, s) -> Lam i . NoAbs s) core (zip is names)
+-}
           (u, a) <- inferDef (\ f vs -> return $ proj `apply` vs) x
           return (apply u, a)
     (A.Con (AmbQ [c])) -> do

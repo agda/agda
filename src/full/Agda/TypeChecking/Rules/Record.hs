@@ -332,10 +332,10 @@ checkRecordProjections m r con tel ftel fs = do
       -- PROBLEM: because of dropped parameters, cannot refer to t
 
       -- compute body modification for irrelevant projections
-      bodyMod <- do
-        case rel of
-          Relevant   -> return $ \ n x -> x -- no modification
-          Irrelevant -> return $ \ n x -> DontCare x
+      let bodyMod = case rel of
+            Relevant   -> id
+            Irrelevant -> DontCare
+            _          -> __IMPOSSIBLE__
 
 {- 2012-04-02: DontCare instead of irrAxiom
           Irrelevant -> do
@@ -348,7 +348,6 @@ checkRecordProjections m r con tel ftel fs = do
                                   mkArg t = Arg Hidden Relevant $ Sort Prop
                               in  apply irrAxiom [mkArg levelOfT, mkArg (unEl t), Arg NotHidden Irrelevant x]
 -}
-          _          -> __IMPOSSIBLE__
 
       let -- Andreas, 2010-09-09: comment for existing code
           -- split the telescope into parameters (ptel) and the type or the record
@@ -362,7 +361,7 @@ checkRecordProjections m r con tel ftel fs = do
 	  body	 = nobind (size ftel1)
 		 $ Bind . Abs "x"
 		 $ nobind (size ftel2)
-		 $ Body $ bodyMod (size ftel) $ Var (size ftel2) []
+		 $ Body $ bodyMod $ var (size ftel2)
           cltel  = ftel
 	  clause = Clause { clauseRange = getRange info
                           , clauseTel   = killRange cltel
@@ -371,6 +370,19 @@ checkRecordProjections m r con tel ftel fs = do
                           , clauseBody  = body
                           , clauseType  = Just t
                           }
+
+      -- Andreas, 2013-10-20
+      -- creating the projection construction function
+      let core = Lam defaultArgInfo $ Abs "r" $ bodyMod $ projcall
+          -- leading lambdas are to ignore parameter applications
+          proj = teleNoAbs ptel core
+          -- proj = foldr (\ (Dom ai (x, _)) -> Lam ai . NoAbs x) core ptel
+          projection = Projection
+            { projProper   = Just projname
+            , projFromType = r
+            , projIndex    = size ptel + 1  -- which is @size tel@
+            , projDropPars = proj
+            }
 
       reportSDoc "tc.rec.proj" 80 $ sep
 	[ text "adding projection"
@@ -404,12 +416,8 @@ checkRecordProjections m r con tel ftel fs = do
                      , funDelayed        = NotDelayed
                      , funInv            = NotInjective
                      , funAbstr          = ConcreteDef
-{-
-                     , funPolarity       = []
-                     , funArgOccurrences = [StrictPos]
--}
                      , funMutual         = []
-                     , funProjection     = Just $ Projection True r $ size ptel + 1
+                     , funProjection     = Just projection
                        -- name of the record type and
                        -- index of the record argument (in the type), start counting with 1
                      , funStatic         = False

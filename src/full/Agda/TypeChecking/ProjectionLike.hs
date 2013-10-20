@@ -44,7 +44,7 @@ makeProjection x = inContext [] $ do
     def@Function{funProjection = Nothing, funClauses = cls, funCompiled = cc0, funInv = NotInjective,
                  funMutual = [], -- Andreas, 2012-09-28: only consider non-mutual funs (or those whose recursion status has not yet been determined)
                  funAbstr = ConcreteDef} -> do
-      ps0 <- filterM validProj (candidateArgs [] (unEl $ defType defn))
+      ps0 <- filterM validProj $ candidateArgs [] $ defType defn
       reportSLn "tc.proj.like" 30 $ if null ps0 then "  no candidates found"
                                                 else "  candidates: " ++ show ps0
       unless (null ps0) $ do
@@ -52,18 +52,35 @@ makeProjection x = inContext [] $ do
       -- Issue 700: problems with recursive funs. in term.checker and reduction
       ifM recursive (reportSLn "tc.proj.like" 30 $ "recursive functions are not considered for projection-likeness") $ do
       ps <- return $ filter (checkOccurs cls . snd) ps0
-      when (not (null ps0) && null ps) $ reportSLn "tc.proj.like" 50 $ "  occurs check failed\n    clauses = " ++ show cls
+      when (not (null ps0) && null ps) $
+        reportSLn "tc.proj.like" 50 $
+          "  occurs check failed\n    clauses = " ++ show cls
       case reverse ps of
         []         -> return ()
         (d, n) : _ -> do
-          reportSLn "tc.proj.like" 10 $ show (defName defn) ++ " is projection like in argument " ++
-                                        show n ++ " for type " ++ show d
+          reportSLn "tc.proj.like" 10 $
+            show (defName defn) ++ " is projection like in argument " ++
+            show n ++ " for type " ++ show d
           let cls' = map (dropArgs n) cls
               cc   = dropArgs n cc0
           -- cc <- compileClauses (Just (x, __IMPOSSIBLE__)) cls'
-          reportSLn "tc.proj.like" 20 $ "  rewrote clauses to\n    " ++ show cc
+          reportSLn "tc.proj.like" 60 $ "  rewrote clauses to\n    " ++ show cc
+
+
+          -- Andreas, 2013-10-20 build parameter dropping function
+          let ptel = take n $ telToList $ theTel $ telView' $ defType defn
+              -- leading lambdas are to ignore parameter applications
+              proj = teleNoAbs ptel $ Def x []
+              -- proj = foldr (\ (Dom ai (y, _)) -> Lam ai . NoAbs y) (Def x []) ptel
+
+          let projection = Projection
+                { projProper   = Nothing
+                , projFromType = d
+                , projIndex    = n + 1
+                , projDropPars = proj
+                }
           let newDef = def
-                       { funProjection     = Just $ Projection False d (n + 1)
+                       { funProjection     = Just projection
                        , funClauses        = cls'
                        , funCompiled       = cc
                        , funInv            = dropArgs n $ funInv def
@@ -138,6 +155,20 @@ makeProjection x = inContext [] $ do
     -- E.g. f : {x : _}(y : _){z : _} -> D x y z -> ...
     -- will return (D,3) as a candidate (amongst maybe others).
     --
+    candidateArgs :: [Term] -> Type -> [(QName,Int)]
+    candidateArgs vs t =
+      case ignoreSharing $ unEl t of
+        Pi a b
+          | Def d es <- ignoreSharing $ unEl $ unDom a,
+            Just us  <- allApplyElims es,
+            vs == map unArg us -> (d, length vs) : candidateRec b
+          | otherwise          -> candidateRec b
+        _                      -> []
+      where
+        candidateRec NoAbs{}   = []
+        candidateRec (Abs x t) = candidateArgs (var (size vs) : vs) t
+
+{-
     candidateArgs :: [Term] -> Term -> [(QName,Int)]
     candidateArgs vs (Shared p) = candidateArgs vs $ derefPtr p
     candidateArgs vs (Pi (Dom info (El _ def)) b)
@@ -149,3 +180,4 @@ makeProjection x = inContext [] $ do
 
     candidateRec vs NoAbs{} = []
     candidateRec vs b       = candidateArgs (var (size vs) : vs) (unEl $ absBody b)
+-}

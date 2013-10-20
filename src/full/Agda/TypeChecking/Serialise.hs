@@ -87,7 +87,7 @@ import Agda.Utils.Impossible
 -- 32-bit machines). Word64 does not have these problems.
 
 currentInterfaceVersion :: Word64
-currentInterfaceVersion = 20131011 * 10 + 0
+currentInterfaceVersion = 20131020 * 10 + 0
 
 -- | Constructor tag (maybe omitted) and argument indices.
 
@@ -827,9 +827,9 @@ instance EmbPrj Definition where
                            valu _                             = malformed
 
 instance EmbPrj Projection where
-  icode (Projection a b c) = icode3' a b c
-  value = vcase valu where valu [a, b, c] = valu3 Projection a b c
-                           valu _         = malformed
+  icode (Projection a b c d) = icode4' a b c d
+  value = vcase valu where valu [a, b, c, d] = valu4 Projection a b c d
+                           valu _            = malformed
 
 instance EmbPrj HaskellRepresentation where
   icode (HsType a)   = icode1' a

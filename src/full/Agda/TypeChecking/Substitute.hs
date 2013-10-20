@@ -1,4 +1,4 @@
-{-# LANGUAGE CPP, PatternGuards,
+{-# LANGUAGE CPP, PatternGuards, TupleSections,
     TypeSynonymInstances, FlexibleInstances, OverlappingInstances,
     DeriveDataTypeable, DeriveFunctor, StandaloneDeriving #-}
 module Agda.TypeChecking.Substitute where
@@ -130,29 +130,52 @@ instance Apply [Base.Occurrence] where
 instance Apply [Polarity] where
   apply pol args = List.drop (length args) pol
 
+instance Apply Projection where
+  apply p args = p
+    { projIndex    = projIndex p - size args
+    , projDropPars = projDropPars p `apply` args
+    }
+
 instance Apply Defn where
   apply d [] = d
   apply d args = case d of
     Axiom{} -> d
     Function{ funClauses = cs, funCompiled = cc, funInv = inv
-            , funProjection = Nothing {-, funArgOccurrences = occ -} } ->
+            , funProjection = Nothing } ->
       d { funClauses    = apply cs args
         , funCompiled   = apply cc args
         , funInv        = apply inv args
---        , funArgOccurrences = List.drop (length args) occ
         }
+
     Function{ funClauses = cs, funCompiled = cc, funInv = inv
-            , funProjection = Just p@Projection{ projIndex = n } {-, funArgOccurrences = occ -} }
-      | m < n  -> d { funProjection = Just $ p { projIndex = n - m } }
-      | otherwise ->
+            , funProjection = Just p} ->
+      case p `apply` args of
+        p@Projection{ projIndex = n }
+          | n < 0     -> __IMPOSSIBLE__
+          -- case: applied only to parameters
+          | n > 0     -> d { funProjection = Just p }
+          -- case: applied also to record value
+          | otherwise ->
+              d { funClauses        = apply cs args'
+                , funCompiled       = apply cc args'
+                , funInv            = apply inv args'
+                , funProjection     = Nothing -- WAS: Just $ p { projIndex = 0 }
+                }
+              where args' = [last args]  -- the record value
+{-
+    Function{ funClauses = cs, funCompiled = cc, funInv = inv
+            , funProjection = Just p@Projection{ projIndex = n } }
+        -- case: only applying parameters
+      | size args < n -> d { funProjection = Just $ p `apply` args }
+        -- case: apply also to record value
+      | otherwise     ->
         d { funClauses        = apply cs args'
           , funCompiled       = apply cc args'
           , funInv            = apply inv args'
-          , funProjection     = Just $ p { projIndex = 0 }
---          , funArgOccurrences = List.drop 1 occ
+          , funProjection     = Just $ p { projIndex = 0 } -- Nothing ?
           }
-      where args' = [last args]
-            m = size args
+      where args' = [last args]  -- the record value
+-}
     Datatype{ dataPars = np, dataSmallPars = sps, dataNonLinPars = nlps, dataClause = cl
             {-, dataArgOccurrences = occ-} } ->
       d { dataPars = np - size args
@@ -315,30 +338,34 @@ instance Abstract [Polarity] where
   abstract tel []  = []
   abstract tel pol = replicate (size tel) Invariant ++ pol -- TODO: check polarity
 
+instance Abstract Projection where
+  abstract tel p = p
+    { projIndex    = size tel + projIndex p
+    , projDropPars = abstract tel $ projDropPars p
+    }
+
 instance Abstract Defn where
   abstract tel d = case d of
     Axiom{} -> d
     Function{ funClauses = cs, funCompiled = cc, funInv = inv
-            , funProjection = Nothing {-, funArgOccurrences = occ-} } ->
-      d { funClauses = abstract tel cs, funCompiled = abstract tel cc
-        , funInv = abstract tel inv
---        , funArgOccurrences = replicate (size tel) Mixed ++ occ -- TODO: check occurrence
+            , funProjection = Nothing  } ->
+      d { funClauses  = abstract tel cs
+        , funCompiled = abstract tel cc
+        , funInv      = abstract tel inv
         }
-    Function{ funClauses = cs, funCompiled = cc, funInv = inv
-            , funProjection = Just p@Projection{projIndex = n} {-, funArgOccurrences = occ-} } ->
-      d { funProjection = Just p{ projIndex = n + size tel } }
-    Datatype{ dataPars = np, dataSmallPars = sps, dataNonLinPars = nlps, dataClause = cl {-, dataArgOccurrences = occ-} } ->
-      d { dataPars = np + size tel
-        , dataSmallPars = abstract tel sps
+    Function{ funProjection = Just p } ->
+      d { funProjection = Just $ abstract tel p }
+    Datatype{ dataPars = np, dataSmallPars = sps, dataNonLinPars = nlps, dataClause = cl } ->
+      d { dataPars       = np + size tel
+        , dataSmallPars  = abstract tel sps
         , dataNonLinPars = abstract tel nlps
-        , dataClause = abstract tel cl
---        , dataArgOccurrences = replicate (size tel) Mixed ++ occ -- TODO: check occurrence
+        , dataClause     = abstract tel cl
         }
-    Record{ recPars = np, recConType = t, recClause = cl, recTel = tel'
-          {-, recArgOccurrences = occ-} } ->
-      d { recPars = np + size tel, recConType = abstract tel t
-        , recClause = abstract tel cl, recTel = abstract tel tel'
---        , recArgOccurrences = replicate (size tel) Mixed ++ occ -- TODO: check occurrence
+    Record{ recPars = np, recConType = t, recClause = cl, recTel = tel' } ->
+      d { recPars    = np + size tel
+        , recConType = abstract tel t
+        , recClause  = abstract tel cl
+        , recTel     = abstract tel tel'
         }
     Constructor{ conPars = np } ->
       d { conPars = np + size tel }
@@ -639,18 +666,21 @@ instance Subst ClauseBody where
   applySubst rho (Bind b) = Bind $ applySubst rho b
   applySubst _   NoBody   = NoBody
 
-data TelV a = TelV (Tele (Dom a)) a
+-- * Telescopes
+
+data TelV a = TelV { theTel :: Tele (Dom a), theCore :: a }
   deriving (Typeable, Show, Eq, Ord, Functor)
 
 type TelView = TelV Type
+type ListTel = [Dom (String, Type)]
 
-telFromList :: [Dom (String, Type)] -> Telescope
+telFromList :: ListTel -> Telescope
 telFromList = foldr (\(Common.Dom info (x, a)) -> ExtendTel (Common.Dom info a) . Abs x)
                     EmptyTel
 
-telToList :: Telescope -> [Dom (String, Type)]
+telToList :: Telescope -> ListTel
 telToList EmptyTel = []
-telToList (ExtendTel arg tel) = fmap ((,) $ absName tel) arg : telToList (absBody tel)
+telToList (ExtendTel arg tel) = fmap (absName tel,) arg : telToList (absBody tel)
 
 telView' :: Type -> TelView
 telView' t = case ignoreSharing $ unEl t of
@@ -665,17 +695,26 @@ mkPi (Common.Dom info (x, a)) b = el $ Pi (Common.Dom info a) (mkAbs x b)
   where
     el = El $ dLub (getSort a) (Abs x (getSort b)) -- dLub checks x freeIn
 
-telePi :: Telescope -> Type -> Type
-telePi  EmptyTel         t = t
-telePi (ExtendTel u tel) t = el $ Pi u (reAbs b)
-  where
-    el = El (dLub s1 s2)
-    b = fmap (flip telePi t) tel
-    s1 = getSort $ unDom u
-    s2 = fmap getSort b
+telePi' :: (Abs Type -> Abs Type) -> Telescope -> Type -> Type
+telePi' reAbs = telePi where
+  telePi EmptyTel          t = t
+  telePi (ExtendTel u tel) t = el $ Pi u $ reAbs b
+    where
+      b  = (`telePi` t) <$> tel
+      s1 = getSort $ unDom u
+      s2 = getSort <$> b
+      el = El $ dLub s1 s2
 
--- | Everything will be a pi.
+-- | Uses free variable analysis to introduce 'noAbs' bindings.
+telePi :: Telescope -> Type -> Type
+telePi = telePi' reAbs
+
+-- | Everything will be a 'Abs'.
 telePi_ :: Telescope -> Type -> Type
+telePi_ = telePi' id
+
+{- OLD
+-- | Everything will be a pi.
 telePi_  EmptyTel        t = t
 telePi_ (ExtendTel u tel) t = el $ Pi u b
   where
@@ -683,10 +722,21 @@ telePi_ (ExtendTel u tel) t = el $ Pi u b
     b  = fmap (flip telePi_ t) tel
     s1 = getSort $ unDom u
     s2 = fmap getSort b
+-}
 
 teleLam :: Telescope -> Term -> Term
 teleLam  EmptyTel	  t = t
 teleLam (ExtendTel u tel) t = Lam (domInfo u) $ flip teleLam t <$> tel
+
+-- | Performs void ('noAbs') abstraction over telescope.
+class TeleNoAbs a where
+  teleNoAbs :: a -> Term -> Term
+
+instance TeleNoAbs ListTel where
+  teleNoAbs tel t = foldr (\ (Common.Dom ai (x, _)) -> Lam ai . NoAbs x) t tel
+
+instance TeleNoAbs Telescope where
+  teleNoAbs tel = teleNoAbs $ telToList tel
 
 -- | Dependent least upper bound, to assign a level to expressions
 --   like @forall i -> Set i@.
@@ -703,7 +753,7 @@ dLub s1 b@(Abs _ s2) = case occurrence 0 $ freeVars s2 of
   StronglyRigid -> Inf
   WeaklyRigid   -> Inf
 
--- Functions on abstractions ----------------------------------------------
+-- * Functions on abstractions ----------------------------------------------
 --   and things we couldn't do before we could define 'absBody'
 
 -- | Instantiate an abstraction
