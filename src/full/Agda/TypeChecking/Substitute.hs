@@ -61,7 +61,7 @@ instance Apply Term where
       Level{}     -> __IMPOSSIBLE__
       Pi _ _      -> __IMPOSSIBLE__
       Sort _      -> __IMPOSSIBLE__
-      DontCare mv -> DontCare $ mv `applyE` es  -- Andreas, 2011-10-02
+      DontCare mv -> dontCare $ mv `applyE` es  -- Andreas, 2011-10-02
         -- need to go under DontCare, since "with" might resurrect irrelevant term
 
 -- | If $v$ is a record value, @canProject f v@
@@ -83,8 +83,8 @@ conApp ch@(ConHead c fs) args (Proj f  : es) =
         "conApp: constructor " ++ show c ++
         " with fields " ++ show fs ++
         " projected by " ++ show f
-      i = maybe failure id       $ elemIndex f fs
-      v = maybe failure dontCare $ mhead $ drop i args
+      i = maybe failure id            $ elemIndex f fs
+      v = maybe failure argToDontCare $ mhead $ drop i args
   in  applyE v es
 {-
       i = maybe failure id    $ elemIndex f $ map unArg fs
@@ -103,14 +103,13 @@ conApp ch@(ConHead c fs) args (Proj f  : es) =
 --   the record argument is the first one.
 defApp :: QName -> Elims -> Elims -> Term
 defApp f [] (Apply a : es) | Just v <- canProject f (unArg a)
-  = dontCare v `applyE` es
+  = argToDontCare v `applyE` es
 defApp f es0 es = Def f $ es0 ++ es
 
 -- protect irrelevant fields (see issue 610)
-dontCare :: Common.Arg c Term -> Term
-dontCare (Common.Arg ai v@DontCare{}) = v
-dontCare (Common.Arg ai v)
-  | Irrelevant <- getRelevance ai     = DontCare v
+argToDontCare :: Common.Arg c Term -> Term
+argToDontCare (Common.Arg ai v)
+  | Irrelevant <- getRelevance ai     = dontCare v
   | otherwise                         = v
 
 instance Apply Type where
@@ -574,7 +573,7 @@ instance Subst Term where
     Pi a b      -> uncurry Pi $ applySubst rho (a,b)
     Sort s      -> sortTm $ applySubst rho s
     Shared p    -> Shared $ applySubst rho p
-    DontCare mv -> DontCare $ applySubst rho mv
+    DontCare mv -> dontCare $ applySubst rho mv
 
 instance Subst a => Subst (Ptr a) where
   applySubst rho = fmap (applySubst rho)

@@ -279,7 +279,7 @@ isAbsurdBody (Abs "()" (Var 0 [])) = True
 isAbsurdBody _                     = False
 
 ---------------------------------------------------------------------------
--- * Smart constructors
+-- * Pointers and Sharing
 ---------------------------------------------------------------------------
 
 ignoreSharing :: Term -> Term
@@ -342,9 +342,20 @@ compressPointerChain v =
     setPointers u (p : ps) =
       setPtr u p `seq` setPointers u ps
 
+---------------------------------------------------------------------------
+-- * Smart constructors
+---------------------------------------------------------------------------
+
 -- | An unapplied variable.
 var :: Nat -> Term
 var i = Var i []
+
+-- | Add 'DontCare' is it is not already a @DontCare@.
+dontCare :: Term -> Term
+dontCare v =
+  case ignoreSharing v of
+    DontCare{} -> v
+    _          -> DontCare v
 
 -- | A dummy type.
 typeDontCare :: Type
