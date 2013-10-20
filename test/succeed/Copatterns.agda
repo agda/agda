@@ -32,6 +32,14 @@ snd (snd (snd (swap4 t))) = fst t
 fst (swap4 t)             = snd (snd (snd t))
 fst (snd (snd (swap4 t))) = fst (snd t)
 
+-- multiple clauses with abstractions
+
+fswap3 : {A B C X : Set} → (X → A) × ((X → B) × C) → (X → C) × (X → (B × A))
+fst (fswap3 t) x       = snd (snd t)
+fst (snd (fswap3 t) y) = fst (snd t) y
+snd (snd (fswap3 t) z) = fst t z
+
+
 -- State monad example
 
 -- The State newtype
@@ -148,12 +156,6 @@ module InstanceArgument where
   assoc : {A B C S : Set}(m : State S A)(k : A → State S B)(l : B → State S C) →
      ((m >>= k) >>= l) ~ (m >>= λ a → k a >>= l)
   assoc m k l = refl
-
--- multiple clauses with abstractions
-
-fswap3 : {A B C X : Set} → (X → A) × ((X → B) × C) → (X → C) × (X → (B × A))
-fst (fswap3 t) x       = snd (snd t)
-fst (snd (fswap3 t) y) = fst (snd t) y
-snd (snd (fswap3 t) z) = fst t z
-
 -}
+
+
