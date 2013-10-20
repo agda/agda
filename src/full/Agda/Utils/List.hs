@@ -4,15 +4,17 @@
 -}
 module Agda.Utils.List where
 
-import Agda.Utils.TestHelpers
-import Agda.Utils.QuickCheck
-import Agda.Utils.Tuple
-
-import Text.Show.Functions ()
+import Data.Functor ((<$>))
 import Data.Function
 import Data.List
 import Data.Maybe
 import qualified Data.Set as Set
+
+import Text.Show.Functions ()
+
+import Agda.Utils.TestHelpers
+import Agda.Utils.QuickCheck
+import Agda.Utils.Tuple
 
 #include "../undefined.h"
 import Agda.Utils.Impossible
@@ -163,6 +165,13 @@ prop_groupBy' p xs =
 
 groupOn :: Ord b => (a -> b) -> [a] -> [[a]]
 groupOn f = groupBy ((==) `on` f) . sortBy (compare `on` f)
+
+-- | @splitExactlyAt n xs = Just (ys, zs)@ iff @xs = ys ++ zs@
+--   and @genericLength ys = n@.
+splitExactlyAt :: Integral n => n -> [a] -> Maybe ([a], [a])
+splitExactlyAt 0 xs       = return ([], xs)
+splitExactlyAt n []       = Nothing
+splitExactlyAt n (x : xs) = mapFst (x :) <$> splitExactlyAt (n-1) xs
 
 -- | @'extractNthElement' n xs@ gives the @n@-th element in @xs@
 -- (counting from 0), plus the remaining elements (preserving order).

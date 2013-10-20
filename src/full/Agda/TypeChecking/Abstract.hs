@@ -1,14 +1,19 @@
 -- {-# LANGUAGE CPP #-}
-{-# LANGUAGE FlexibleInstances, TypeSynonymInstances #-}
+{-# LANGUAGE PatternGuards, FlexibleInstances, TypeSynonymInstances #-}
 
 -- | Functions for abstracting terms over other terms.
 module Agda.TypeChecking.Abstract where
 
+import Control.Monad
+import Data.Function
+
 import Agda.Syntax.Common hiding (Arg, Dom, NamedArg)
 import qualified Agda.Syntax.Common as Common
 import Agda.Syntax.Internal
+
 import Agda.TypeChecking.Substitute
-import Data.Function
+
+import Agda.Utils.List (splitExactlyAt)
 
 -- #include "../undefined.h"
 -- import Agda.Utils.Impossible
@@ -19,26 +24,54 @@ piAbstractTerm v a b = fun a (abstractTerm v b)
     fun a b = El s $ Pi (Common.Dom defaultArgInfo a) $ mkAbs "w" b
       where s = (sLub `on` getSort) a b
 
+-- | @isPrefixOf u v = Just es@ if @v == u `applyE` es@.
+class IsPrefixOf a where
+  isPrefixOf :: a -> a -> Maybe Elims
+
+instance IsPrefixOf Elims where
+  isPrefixOf us vs = do
+    (vs1, vs2) <- splitExactlyAt (length us) vs
+    guard $ us == vs1
+    return vs2
+
+instance IsPrefixOf Args where
+  isPrefixOf us vs = do
+    (vs1, vs2) <- splitExactlyAt (length us) vs
+    guard $ us == vs1
+    return $ map Apply vs2
+
+instance IsPrefixOf Term where
+  isPrefixOf u v =
+    case (ignoreSharing u, ignoreSharing v) of
+      (Var   i us, Var   j vs) | i == j  -> us `isPrefixOf` vs
+      (Def   f us, Def   g vs) | f == g  -> us `isPrefixOf` vs
+      (Con   c us, Con   d vs) | c == d  -> us `isPrefixOf` vs
+      (MetaV x us, MetaV y vs) | x == y  -> us `isPrefixOf` vs
+      _ -> guard (u == v) >> return []
+
 class AbstractTerm a where
   -- | @subst u . abstractTerm u == id@
   abstractTerm :: Term -> a -> a
 
 instance AbstractTerm Term where
-  abstractTerm u v = case v of
-    v | u == v  -> Var 0 []
-    Var i vs    -> Var (i + 1) $ absT vs
-    Lam h b     -> Lam h $ absT b
-    Def c vs    -> Def c $ absT vs
-    Con c vs    -> Con c $ absT vs
-    Pi a b      -> uncurry Pi $ absT (a, b)
-    Lit l       -> Lit l
-    Level l     -> Level $ absT l
-    Sort s      -> Sort $ absT s
-    MetaV m vs  -> MetaV m $ absT vs
-    DontCare mv -> DontCare $ absT mv
-    Shared p    -> Shared $ absT p
-    where
-      absT x = abstractTerm u x
+  abstractTerm u v | Just es <- u `isPrefixOf` v = Var 0 es
+                   | otherwise                   =
+    case v of
+-- Andreas, 2013-10-20: the original impl. works only at base types
+--    v | u == v  -> Var 0 []  -- incomplete see succeed/WithOfFunctionType
+      Var i vs    -> Var (i + 1) $ absT vs
+      Lam h b     -> Lam h $ absT b
+      Def c vs    -> Def c $ absT vs
+      Con c vs    -> Con c $ absT vs
+      Pi a b      -> uncurry Pi $ absT (a, b)
+      Lit l       -> Lit l
+      Level l     -> Level $ absT l
+      Sort s      -> Sort $ absT s
+      MetaV m vs  -> MetaV m $ absT vs
+      DontCare mv -> DontCare $ absT mv
+      Shared p    -> Shared $ absT p
+      where
+        absT x = abstractTerm u x
 
 instance AbstractTerm a => AbstractTerm (Ptr a) where
   abstractTerm u = fmap (abstractTerm u)

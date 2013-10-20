@@ -83,9 +83,19 @@ conApp ch@(ConHead c fs) args (Proj f  : es) =
         "conApp: constructor " ++ show c ++
         " with fields " ++ show fs ++
         " projected by " ++ show f
-      i = maybe failure id    $ elemIndex f fs
-      v = maybe failure unArg $ mhead $ drop i args
+      i = maybe failure id       $ elemIndex f fs
+      v = maybe failure dontCare $ mhead $ drop i args
   in  applyE v es
+{-
+      i = maybe failure id    $ elemIndex f $ map unArg fs
+      v = maybe failure unArg $ mhead $ drop i args
+      -- Andreas, 2013-10-20 see Issue543a:
+      -- protect result of irrelevant projection.
+      r = maybe __IMPOSSIBLE__ getRelevance $ mhead $ drop i fs
+      u | Irrelevant <- r = DontCare v
+        | otherwise       = v
+  in  applyE v es
+-}
 
 -- | @defApp f us vs@ applies @Def f us@ to further arguments @vs@,
 --   eliminating top projection redexes.
@@ -94,10 +104,14 @@ conApp ch@(ConHead c fs) args (Proj f  : es) =
 defApp :: QName -> Elims -> Elims -> Term
 defApp f [] (Apply a : es) | Just v <- canProject f (unArg a)
   = dontCare v `applyE` es
-  where
-    -- protect irrelevant fields (see issue 610)
-    dontCare (Common.Arg ai v) = if getRelevance ai == Irrelevant then DontCare v else v
 defApp f es0 es = Def f $ es0 ++ es
+
+-- protect irrelevant fields (see issue 610)
+dontCare :: Common.Arg c Term -> Term
+dontCare (Common.Arg ai v@DontCare{}) = v
+dontCare (Common.Arg ai v)
+  | Irrelevant <- getRelevance ai     = DontCare v
+  | otherwise                         = v
 
 instance Apply Type where
   apply = piApply

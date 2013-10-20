@@ -8,7 +8,7 @@ import Data.Foldable
 import Data.Traversable
 
 infix 2 -*-
-infix 3 /\ -- backslashes at EOL interacts badly with CPP...
+infix 3 /\ -- backslashes at EOL interact badly with CPP...
 
 -- | Bifunctoriality for pairs.
 (-*-) :: (a -> c) -> (b -> d) -> (a,b) -> (c,d)

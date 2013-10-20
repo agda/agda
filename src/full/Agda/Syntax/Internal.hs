@@ -45,9 +45,17 @@ type ArgInfo    = Common.ArgInfo Color
 --   This allows reduction of projection redexes outside of TCM.
 --   For instance, during substitution and application.
 data ConHead = ConHead
-  { conName   :: QName   -- ^ The name of the constructor.
-  , conFields :: [QName] -- ^ The name of the record fields.
-                         --   Empty list for data constructors.
+  { conName   :: QName       -- ^ The name of the constructor.
+  , conFields :: [QName]     -- ^ The name of the record fields.
+                             --   Empty list for data constructors.
+                             --   'Arg' is not needed here since it
+                             --   is stored in the constructor args.
+{-
+  , conFields :: [Arg QName] -- ^ The name of the record fields.
+                             --   Empty list for data constructors.
+                             --   'Arg' is needed for irrelevance, to
+                             --   insert 'DontCare's in short-cut reduction.
+-}
   } deriving (Typeable)
 
 instance Eq ConHead where

@@ -37,6 +37,7 @@ import Agda.TypeChecking.Monad.Builtin
 import Agda.TypeChecking.Level
 import Agda.TypeChecking.Implicit (implicitArgs)
 import Agda.TypeChecking.Irrelevance
+import Agda.TypeChecking.ProjectionLike (elimView)
 -- import Agda.TypeChecking.EtaContract
 -- import Agda.TypeChecking.Eliminators
 -- import Agda.TypeChecking.UniversePolymorphism
@@ -452,6 +453,10 @@ compareAtom cmp t m n =
         (Blocked{}, _)    -> useInjectivity cmp t m n
         (_,Blocked{})     -> useInjectivity cmp t m n
         _ -> do
+          -- Andreas, 2013-10-20 put projection-like function
+          -- into the spine, to make compareElims work.
+          m <- elimView m
+          n <- elimView n
           case (ignoreSharing m, ignoreSharing n) of
 	    (Pi{}, Pi{}) -> equalFun m n
 
@@ -529,21 +534,22 @@ compareAtom cmp t m n =
 --            _ -> typeError $ UnequalTerms cmp m n t
     where
         -- Andreas, 2013-05-15 due to new postponement strategy, type can now be blocked
-        conType c t = ifBlocked (unEl t) (\ _ _ -> patternViolation) $ \ v ->
-         case ignoreSharing v of
-          Def d es -> do
-            let args = fromMaybe __IMPOSSIBLE__ $ allApplyElims es
-            npars <- do
-              def <- theDef <$> getConstInfo d
-              return $ case def of Datatype{dataPars = n} -> n
-                                   Record{recPars = n}    -> n
-                                   _                      -> __IMPOSSIBLE__
-            a <- defType <$> getConInfo c
-            return $ piApply a (genericTake npars args)
-          v -> do reportSDoc "impossible" 10 $
-                    text "expected data/record type, found " <+> prettyTCM v
-                  __IMPOSSIBLE__
-
+        conType c t = ifBlocked (unEl t) (\ _ _ -> patternViolation) $ \ v -> do
+          let impossible = do
+                reportSDoc "impossible" 10 $
+                  text "expected data/record type, found " <+> prettyTCM v
+                __IMPOSSIBLE__
+          case ignoreSharing v of
+            Def d es -> do
+              args  <- maybe impossible return $ allApplyElims es
+              npars <- do
+                def <- theDef <$> getConstInfo d
+                case def of Datatype{dataPars = n} -> return n
+                            Record{recPars = n}    -> return n
+                            _                      -> impossible
+              a <- defType <$> getConInfo c
+              return $ piApply a (genericTake npars args)
+            _ -> impossible
         equalFun t1 t2 = case (ignoreSharing t1, ignoreSharing t2) of
 	  (Pi dom1@(Dom i1 a1@(El a1s a1t)) b1, Pi (Dom i2 a2) b2)
 	    | argInfoHiding i1 /= argInfoHiding i2 -> typeError $ UnequalHiding t1 t2

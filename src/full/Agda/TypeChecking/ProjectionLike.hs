@@ -16,6 +16,9 @@ import Agda.TypeChecking.Monad
 import Agda.TypeChecking.Free (isBinderUsed)
 import Agda.TypeChecking.Substitute
 import Agda.TypeChecking.Positivity
+import Agda.TypeChecking.Pretty
+import Agda.TypeChecking.Reduce (reduce)
+import Agda.TypeChecking.Level (unLevel)
 -- import Agda.TypeChecking.CompiledClause
 -- import Agda.TypeChecking.CompiledClause.Compile
 
@@ -29,12 +32,36 @@ import Agda.Utils.Permutation
 #include "../undefined.h"
 import Agda.Utils.Impossible
 
+-- | Turn prefix projection-like function application into postfix ones.
+--   This does just one layer, such that the top spine contains
+--   the projection-like functions as projections.
+--   Used in 'compareElims' in @TypeChecking.Conversion@.
+--   Precondition: the term is reduced (and 'unLevel'ed).
+elimView :: Term -> TCM Term
+elimView v = do
+  reportSDoc "tc.conv.elim" 30 $ text "elimView of " <+> prettyTCM v
+  reportSLn "tc.conv.elim" 50 $ "v = " ++ show v
+  case ignoreSharing v of
+    Def f (Apply (Arg _ rv) : es) -> do
+      proj <- isProjection f
+      flip (maybe (return v)) proj $ \ _ -> do
+        (`applyE` (Proj f : es)) <$> do elimView =<< unLevel =<< reduce rv
+          -- domi 2012-7-24: Add unLevel to handle neutral levels.
+          -- The problem is that reduce turns @suc (neutral)@
+          -- into @Level (Max [Plus 1 (NeutralLevel neutral)])@
+          -- which the below pattern match does not handle.
+    _ -> return v
 
 -- | Turn a definition into a projection if it looks like a projection.
 makeProjection :: QName -> TCM ()
-makeProjection x = inContext [] $ do
-  reportSLn "tc.proj.like" 30 $ "Considering " ++ show x ++ " for projection likeness"
+makeProjection x = inTopContext $ do
+  -- reportSLn "tc.proj.like" 30 $ "Considering " ++ show x ++ " for projection likeness"
   defn <- getConstInfo x
+  let t = defType defn
+  reportSDoc "tc.proj.like" 20 $ sep
+    [ text "Checking for projection likeness "
+    , prettyTCM x <+> text " : " <+> prettyTCM t
+    ]
   case theDef defn of
     -- Constructor-headed functions can't be projection-like (at the moment). The reason
     -- for this is that invoking constructor-headedness will circumvent the inference of
@@ -44,7 +71,7 @@ makeProjection x = inContext [] $ do
     def@Function{funProjection = Nothing, funClauses = cls, funCompiled = cc0, funInv = NotInjective,
                  funMutual = [], -- Andreas, 2012-09-28: only consider non-mutual funs (or those whose recursion status has not yet been determined)
                  funAbstr = ConcreteDef} -> do
-      ps0 <- filterM validProj $ candidateArgs [] $ defType defn
+      ps0 <- filterM validProj $ candidateArgs [] t
       reportSLn "tc.proj.like" 30 $ if null ps0 then "  no candidates found"
                                                 else "  candidates: " ++ show ps0
       unless (null ps0) $ do
@@ -58,17 +85,22 @@ makeProjection x = inContext [] $ do
       case reverse ps of
         []         -> return ()
         (d, n) : _ -> do
+          reportSDoc "tc.proj.like" 10 $ sep
+            [ prettyTCM x <+> text " : " <+> prettyTCM t
+            , text $ " is projection like in argument " ++ show n ++ " for type " ++ show d
+            ]
+{-
           reportSLn "tc.proj.like" 10 $
             show (defName defn) ++ " is projection like in argument " ++
             show n ++ " for type " ++ show d
+-}
           let cls' = map (dropArgs n) cls
               cc   = dropArgs n cc0
           -- cc <- compileClauses (Just (x, __IMPOSSIBLE__)) cls'
           reportSLn "tc.proj.like" 60 $ "  rewrote clauses to\n    " ++ show cc
 
-
           -- Andreas, 2013-10-20 build parameter dropping function
-          let ptel = take n $ telToList $ theTel $ telView' $ defType defn
+          let ptel = take n $ telToList $ theTel $ telView' t
               -- leading lambdas are to ignore parameter applications
               proj = teleNoAbs ptel $ Def x []
               -- proj = foldr (\ (Dom ai (y, _)) -> Lam ai . NoAbs y) (Def x []) ptel
