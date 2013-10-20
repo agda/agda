@@ -538,7 +538,14 @@ compareAtom cmp t m n =
           let impossible = do
                 reportSDoc "impossible" 10 $
                   text "expected data/record type, found " <+> prettyTCM v
-                __IMPOSSIBLE__
+                reportSLn "impossible" 70 $ "  raw = " ++ show (ignoreSharing v)
+                -- __IMPOSSIBLE__
+                -- Andreas, 2013-10-20:  in case termination checking fails
+                -- we might get some unreduced types here.
+                -- In issue 921, this happens during the final attempt
+                -- to solve left-over constraints.
+                -- Thus, instead of crashing, just give up gracefully.
+                patternViolation
           case ignoreSharing v of
             Def d es -> do
               args  <- maybe impossible return $ allApplyElims es
