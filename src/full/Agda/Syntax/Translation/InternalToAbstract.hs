@@ -192,7 +192,7 @@ reifyDisplayFormP lhs@(A.SpineLHS i x ps wps) =
              | (n, h) <- zip [0..] $ map getHiding ps
              ]
     md <- liftTCM $ displayForm x vs
-    reportSLn "syntax.reify.display" 20 $
+    reportSLn "reify.display" 20 $
       "display form of " ++ show x ++ " " ++ show ps ++ " " ++ show wps ++ ":\n  " ++ show md
     case md of
       Just d  | okDisplayForm d ->
@@ -473,7 +473,7 @@ reifyTerm expandAnonDefs v = do
                                     _                                    -> Nothing
         if df && isJust extLam
           then do
-           reportSLn "int2abs.reifyterm.def" 10 $ "reifying extended lambda with definition: x = " ++ show x
+           reportSLn "reify.def" 10 $ "reifying extended lambda with definition: x = " ++ show x
            info <- getConstInfo x
            --drop lambda lifted arguments
            cls <- mapM (reify . (QNamed x) . (dropArgs $ fromJust extLam)) $ defClauses info
@@ -523,7 +523,7 @@ stripImplicits :: [A.NamedArg A.Pattern] -> [A.Pattern] ->
 stripImplicits ps wps =
   ifM showImplicitArguments (return (ps, wps)) $ do
   let vars = dotVars (ps, wps)
-  reportSLn "syntax.reify.implicit" 30 $ unlines
+  reportSLn "reify.implicit" 30 $ unlines
     [ "stripping implicits"
     , "  ps   = " ++ show ps
     , "  wps  = " ++ show wps
@@ -532,7 +532,7 @@ stripImplicits ps wps =
   let allps       = ps ++ map defaultNamedArg wps
       sps         = foldl (.) (strip vars) (map rearrangeBinding $ Set.toList vars) $ allps
       (ps', wps') = splitAt (length sps - length wps) sps
-  reportSLn "syntax.reify.implicit" 30 $ unlines
+  reportSLn "reify.implicit" 30 $ unlines
     [ "  ps'  = " ++ show ps'
     , "  wps' = " ++ show (map namedArg wps')
     ]

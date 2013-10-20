@@ -208,7 +208,7 @@ addDisplayForms x = do
 		      Just (m, v) -> "not a def body"
 	      reportSLn "tc.display.section" 30 $ "no display form from " ++ show x ++ " because " ++ reason
 	      return ()
-    strip (Body v)   = return (0, v)
+    strip (Body v)   = return (0, unSpine v)
     strip  NoBody    = Nothing
     strip (Bind b)   = do
       (n, v) <- strip $ absBody b
