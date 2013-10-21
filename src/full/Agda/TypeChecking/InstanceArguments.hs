@@ -269,11 +269,16 @@ solveMetaIfIrrelevant x = do
   m <- lookupMeta x
   unless (isSortMeta_ m) $ do
   when (irrelevantOrUnused (getMetaRelevance m)) $ do
+    let t  = jMetaType $ mvJudgement m
+        cl = miClosRange $ mvInfo m
     reportSDoc "tc.conv.irr" 20 $ sep
       [ text "instance search for solution of irrelevant meta"
-      , prettyTCM x, colon, prettyTCM $ jMetaType $ mvJudgement m
+      , prettyTCM x, colon, prettyTCM $ t
       ]
-    flip catchError (const $ return ()) $ do
-      findInScope' x =<< initialIFSCandidates
-      -- do not add constraints!
-      return ()
+    -- Andreas, 2013-10-21 see Issue 922: we need to restore the context
+    -- of the meta, otherwise getMetaTypeInContext will go beserk.
+    enterClosure cl $ \ r -> do
+      flip catchError (const $ return ()) $ do
+        findInScope' x =<< initialIFSCandidates
+        -- do not add constraints!
+        return ()
