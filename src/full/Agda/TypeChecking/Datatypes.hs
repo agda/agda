@@ -3,10 +3,12 @@
 module Agda.TypeChecking.Datatypes where
 
 import Control.Applicative ((<$>))
--- import Data.List
+
+import Data.Maybe (fromMaybe)
 
 import Agda.Syntax.Common
 import Agda.Syntax.Internal as I
+
 import Agda.TypeChecking.Monad
 import Agda.TypeChecking.Primitive (constructorForm)
 -- import Agda.TypeChecking.Reduce
@@ -50,6 +52,25 @@ getConstructorData c = do
     Constructor{conData = d} -> return d
     _                        -> __IMPOSSIBLE__
 
+-- | @getConType c t@ computes the constructor parameters from type @t@
+--   and returns the instantiated type of constructor @c@.
+--   @Nothing@ if @t@ is not a data/record type or does not have
+--   a constructor @c@.
+--   Precondition: @t@ is reduced.
+getConType :: ConHead -> Type -> TCM (Maybe Type)
+getConType c t = do
+  case ignoreSharing $ unEl t of
+    Def d es -> do
+      def <- theDef <$> getConstInfo d
+      case def of
+        Datatype { dataPars = n, dataCons   = cs  } | conName c `elem` cs -> cont n
+        Record   { recPars  = n, recConHead = con } | c == con            -> cont n
+        _ ->  return Nothing
+      where
+        cont n = do
+          let pars = fromMaybe __IMPOSSIBLE__ $ allApplyElims $ take n es
+          Just . (`apply` pars) . defType <$> getConInfo c
+    _ -> return Nothing
 
 -- | Return the number of non-parameter arguments to a data constructor,
 --   or the field names of a record constructor.

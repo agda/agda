@@ -7,15 +7,16 @@ import Control.Monad
 import Control.Monad.Reader
 import Control.Monad.State
 import Control.Monad.Error
+
 import Data.Traversable hiding (mapM, sequence)
 import Data.List hiding (sort)
 import qualified Data.List as List
 
 import Agda.Syntax.Abstract.Views (isSet)
--- import Agda.Syntax.Literal
 import Agda.Syntax.Common
 import Agda.Syntax.Internal
 import Agda.Syntax.Translation.InternalToAbstract (reify)
+
 import Agda.TypeChecking.Monad
 import Agda.TypeChecking.CompiledClause (CompiledClauses(Fail))
 import Agda.TypeChecking.MetaVars
@@ -28,6 +29,7 @@ import Agda.TypeChecking.Constraints
 import Agda.TypeChecking.Errors
 import Agda.TypeChecking.Primitive (constructorForm)
 import Agda.TypeChecking.Free
+import Agda.TypeChecking.Datatypes (getConType)
 import Agda.TypeChecking.Records
 import Agda.TypeChecking.Pretty
 import Agda.TypeChecking.Injectivity
@@ -534,11 +536,11 @@ compareAtom cmp t m n =
 --            _ -> typeError $ UnequalTerms cmp m n t
     where
         -- Andreas, 2013-05-15 due to new postponement strategy, type can now be blocked
-        conType c t = ifBlocked (unEl t) (\ _ _ -> patternViolation) $ \ v -> do
+        conType c t = ifBlockedType t (\ _ _ -> patternViolation) $ \ t -> do
           let impossible = do
                 reportSDoc "impossible" 10 $
-                  text "expected data/record type, found " <+> prettyTCM v
-                reportSLn "impossible" 70 $ "  raw = " ++ show (ignoreSharing v)
+                  text "expected data/record type, found " <+> prettyTCM t
+                reportSLn "impossible" 70 $ "  raw = " ++ show t
                 -- __IMPOSSIBLE__
                 -- Andreas, 2013-10-20:  in case termination checking fails
                 -- we might get some unreduced types here.
@@ -546,7 +548,9 @@ compareAtom cmp t m n =
                 -- to solve left-over constraints.
                 -- Thus, instead of crashing, just give up gracefully.
                 patternViolation
-          case ignoreSharing v of
+          maybe impossible return =<< getConType c t
+{- FACTORED OUT into Datatypes.hs
+          case ignoreSharing $ unEl t of
             Def d es -> do
               args  <- maybe impossible return $ allApplyElims es
               npars <- do
@@ -557,6 +561,7 @@ compareAtom cmp t m n =
               a <- defType <$> getConInfo c
               return $ piApply a (genericTake npars args)
             _ -> impossible
+-}
         equalFun t1 t2 = case (ignoreSharing t1, ignoreSharing t2) of
 	  (Pi dom1@(Dom i1 a1@(El a1s a1t)) b1, Pi (Dom i2 a2) b2)
 	    | argInfoHiding i1 /= argInfoHiding i2 -> typeError $ UnequalHiding t1 t2
