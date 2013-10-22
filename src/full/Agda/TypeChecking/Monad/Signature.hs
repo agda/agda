@@ -276,6 +276,18 @@ applySection new ptel old ts rd rm = do
 	isCon  = case oldDef of { Constructor{} -> True ; _ -> False }
         mutual = case oldDef of { Function{funMutual = m} -> m ; _ -> [] }
         extlam = case oldDef of { Function{funExtLam = e} -> e ; _ -> Nothing }
+{- THIS BREAKS A LOT OF THINGS:
+        -- Andreas, 2013-10-21:
+        -- Even if we apply the record argument, we stay a projection.
+        -- This is because we may abstract the record argument later again.
+        -- See succeed/ProjectionNotNormalized.agda
+        proj   = case oldDef of
+          Function{funProjection = Just p@Projection{projIndex = n}}
+            -> Just $ p { projIndex    = n - size ts
+                        , projDropPars = projDropPars p `apply` ts
+                        }
+          _ -> Nothing
+-}
         -- NB (Andreas, 2013-10-19):
         -- If we apply the record argument, we are no longer a projection!
         proj   = case oldDef of
