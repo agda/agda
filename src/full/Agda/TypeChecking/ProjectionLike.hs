@@ -52,6 +52,17 @@ elimView v = do
           -- which the below pattern match does not handle.
     _ -> return v
 
+-- | Which @Def@types are eligible for the principle argument
+--   of a projection-like function?
+eligibleForProjectionLike :: QName -> TCM Bool
+eligibleForProjectionLike d = do
+  defn <- theDef <$> getConstInfo d
+  return $ case defn of
+    Datatype{} -> True
+    Record{}   -> True
+    Axiom{}    -> True
+    _          -> False
+
 -- | Turn a definition into a projection if it looks like a projection.
 makeProjection :: QName -> TCM ()
 makeProjection x = inTopContext $ do
@@ -134,13 +145,7 @@ makeProjection x = inTopContext $ do
     -- @n@th argument is injective in all args (i.d. being name of data/record/axiom).
     validProj :: (QName, Int) -> TCM Bool
     validProj (_, 0) = return False
-    validProj (d, _) = do
-      defn <- theDef <$> getConstInfo d
-      return $ case defn of
-        Datatype{} -> True
-        Record{}   -> True
-        Axiom{}    -> True
-        _          -> False
+    validProj (d, _) = eligibleForProjectionLike d
 
     recursive = do
       occs <- computeOccurrences x
