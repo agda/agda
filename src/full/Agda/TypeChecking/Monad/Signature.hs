@@ -14,7 +14,7 @@ import Data.Function
 
 import Agda.Syntax.Abstract.Name
 import Agda.Syntax.Common
-import Agda.Syntax.Internal
+import Agda.Syntax.Internal as I
 import Agda.Syntax.Position
 
 import qualified Agda.Compiler.JS.Parser as JS
@@ -665,3 +665,47 @@ isProperProjection = isJust . (projProper <=< isProjection_)
 -- | Number of dropped initial arguments.
 projectionArgs :: Defn -> Int
 projectionArgs = maybe 0 (pred . projIndex) . isProjection_
+
+-- | Apply a function @f@ to its first argument, producing the proper
+--   postfix projection if @f@ is a projection.
+applyDef :: QName -> I.Arg Term -> TCM Term
+applyDef f a = do
+  -- get the original projection, if existing
+  res <- (projProper =<<) <$> isProjection f
+  case res of
+    Nothing -> return $ Def f [Apply a]
+    Just f' -> return $ unArg a `applyE` [Proj f']
+
+-- | @getDefType f t@ computes the type of (possibly projection-(like))
+--   function @t@ whose first argument has type @t@.
+--   The `parameters' for @f@ are extracted from @t@.
+--   @Nothing@ if @f@ is projection(like) but
+--   @t@ is not a data/record/axiom type.
+--
+--   Precondition: @t@ is reduced.
+--
+--   See also: 'Agda.TypeChecking.Datatypes.getConType'
+getDefType :: QName -> Type -> TCM (Maybe Type)
+getDefType f t = do
+  def <- getConstInfo f
+  let a = defType def
+  -- if @f@ is not a projection (like) function, @a@ is the correct type
+  flip (maybe $ return $ Just a) (isProjection_ $ theDef def) $
+    \ (Projection{ projIndex = n }) -> do
+      -- otherwise, we have to instantiate @a@ to the "parameters" of @f@
+      let npars | n == 0    = __IMPOSSIBLE__
+                | otherwise = n - 1
+      -- we get the parameters from type @t@
+      case ignoreSharing $ unEl t of
+        Def d es -> do
+          -- Andreas, 2013-10-22
+          -- we need to check this @Def@ is fully reduced.
+          -- If it is stuck due to disabled reductions
+          -- (because of failed termination check),
+          -- we will produce garbage parameters.
+          flip (ifM $ eligibleForProjectionLike d) (return Nothing) $ do
+            -- now we know it is reduced, we can safely take the parameters
+            let pars = fromMaybe __IMPOSSIBLE__ $ allApplyElims $ take npars es
+            -- pars <- maybe (return Nothing) return $ allApplyElims $ take npars es
+            return $ Just $ a `apply` pars
+        _ -> return Nothing

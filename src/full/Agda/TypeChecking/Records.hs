@@ -4,12 +4,14 @@ module Agda.TypeChecking.Records where
 
 import Control.Applicative
 -- import Control.Arrow ((***))
-import Data.Maybe
 import Control.Monad
+
+import Data.Function
 import Data.List
+import Data.Maybe
 -- import qualified Data.Map as Map
 import qualified Data.Set as Set
-import Data.Function
+-- import Data.Traversable (traverse)
 
 import Agda.Syntax.Common
 import qualified Agda.Syntax.Concrete.Name as C
@@ -142,6 +144,23 @@ projectType t f = do
         then return $ Just $ defType def `apply` ps
         else return Nothing
 
+{- DEPRECATED, use Signature.getDefType instead!
+
+-- | @projectionType t f@ returns the type of projection or
+--   projection-like function @t@ applied to the parameters,
+--   which are read of @t@.
+--   It fails if @t@ is not a @Def@ applied to the parameters.
+projectionType :: Type -> QName -> TCM (Maybe Type)
+projectionType t f = do
+  t <- reduce t
+  case ignoreSharing $ unEl t of
+    Def _ es -> do
+      flip (maybe $ return Nothing) (allApplyElims es) $ \ pars -> do
+        ft <- defType <$> getConstInfo f  -- type of projection(like) function
+        return $ Just $ ft `piApply` pars
+    _ -> return Nothing
+-}
+
 -- | Check if a name refers to an eta expandable record.
 isEtaRecord :: QName -> TCM Bool
 isEtaRecord r = maybe False recEtaEquality <$> isRecord r
@@ -208,6 +227,10 @@ etaExpandRecord r pars u = do
   case ignoreSharing u of
     Con _ args -> return (tel', args)  -- Already expanded.
     _          -> do
+{- recFields are always the original projections
+      -- Andreas, 2013-10-22 call applyDef to make sure we get the original proj.
+      -- xs' <- mapM (traverse (`applyDef` defaultArg u)) xs
+-}
       let xs' = map (fmap (\ x -> u `applyE` [Proj x])) xs
       reportSDoc "tc.record.eta" 20 $ vcat
         [ text "eta expanding" <+> prettyTCM u <+> text ":" <+> prettyTCM r

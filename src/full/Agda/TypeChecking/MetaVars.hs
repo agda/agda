@@ -1,4 +1,4 @@
-{-# LANGUAGE CPP, RelaxedPolyRec, GeneralizedNewtypeDeriving #-}
+{-# LANGUAGE CPP, TupleSections, RelaxedPolyRec, GeneralizedNewtypeDeriving #-}
 
 module Agda.TypeChecking.MetaVars where
 
@@ -773,10 +773,13 @@ inverseSubst args = fmap (map (mapFst unArg)) <$> loop (zip args terms)
                                     , argInfoRelevance = max (argInfoRelevance info)
                                                              (argInfoRelevance info')
                                     })
-                           v, -- OLD: (stripDontCare v),
-                       t `applyE` [Proj f])
---                       Def f [defaultArg t])
+                           v,) -- OLD: (stripDontCare v),
+                       $ t `applyE` [Proj f]
                 res <- loop $ zipWith aux vs fs
+-- Andreas, 2013-09-22, applyDef not needed after all
+-- since f (because taken from recFields) is the original record projection.
+--                        <$> do liftTCM $ applyDef f (defaultArg t)
+--                res <- loop =<< zipWithM aux vs fs
                 return $ res `append` vars
               | otherwise -> fallback
             Just _  -> __IMPOSSIBLE__

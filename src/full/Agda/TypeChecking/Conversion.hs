@@ -689,18 +689,45 @@ compareElims pols0 a v els01 els02 = catchConstraint (ElimCmp pols0 a v els01 el
           reportSDoc "impossible" 10 $
             text "unexpected type when comparing apply eliminations " <+> prettyTCM a
           reportSLn "impossible" 50 $ "raw type: " ++ show a
-          __IMPOSSIBLE__
+          patternViolation
+          -- Andreas, 2013-10-22
+          -- in case of disabled reductions (due to failing termination check)
+          -- we might get stuck, so do not crash, but fail gently.
+          -- __IMPOSSIBLE__
 
+    -- case: f == f' are projection (like) functions
     (Proj f : els1, Proj f' : els2)
       | f /= f'   -> typeError . GenericError . show =<< prettyTCM f <+> text "/=" <+> prettyTCM f'
       | otherwise -> ifBlockedType a (\ m t -> patternViolation) $ \ a -> do
+        res <- getDefType f a -- get type of projection (like) function
+        case res of
+          Just ft -> do
+            let arg = defaultArg v  -- we could get the proper Arg deco from ft
+                c   = ft `piApply` [arg]
+            u <- applyDef f arg     -- correct both for proj.s and non proj.s
+            (cmp, els1, els2) <- return $
+              case fst $ nextPolarity pols0 of
+                Invariant     -> (CmpEq , els1, els2)
+                Covariant     -> (CmpLeq, els1, els2)
+                Contravariant -> (CmpLeq, els2, els1)
+                Nonvariant    -> __IMPOSSIBLE__ -- the polarity should be Invariant
+            pols' <- getPolarity' cmp f
+            compareElims pols' c u els1 els2
+          _ -> do
+            reportSDoc "impossible" 10 $ sep
+              [ text $ "projection " ++ show f
+              , text   "applied to value " <+> prettyTCM v
+              , text   "of unexpected type " <+> prettyTCM a
+              ]
+            patternViolation
+            -- __IMPOSSIBLE__
+{-
         case ignoreSharing $ unEl a of
-          Def r es -> do
+          Def _ es -> do
             let us = fromMaybe __IMPOSSIBLE__ $ allApplyElims es
+            ft <- defType <$> getConstInfo f  -- get type of projection(like) function
+            let c = piApply ft (us ++ [defaultArg v]) -- TODO: not necessarily relevant?
             let (pol, _) = nextPolarity pols0
-            ft <- defType <$> getConstInfo f  -- get type of projection function
-            let arg = defaultArg v  -- TODO: not necessarily relevant?
-            let c = piApply ft (us ++ [arg])
             (cmp, els1, els2) <- return $ case pol of
                   Invariant     -> (CmpEq, els1, els2)
                   Covariant     -> (CmpLeq, els1, els2)
@@ -715,6 +742,7 @@ compareElims pols0 a v els01 els02 = catchConstraint (ElimCmp pols0 a v els01 el
               , text   "of unexpected type " <+> prettyTCM a
               ]
             __IMPOSSIBLE__
+-}
 
 -- | "Compare" two terms in irrelevant position.  This always succeeds.
 --   However, we can dig for solutions of irrelevant metas in the
