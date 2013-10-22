@@ -676,12 +676,13 @@ data Defn = Axiom
 	  | Record
             { recPars           :: Nat                  -- ^ Number of parameters.
             , recClause         :: Maybe Clause
---            , recCon            :: QName                -- ^ Constructor name.
             , recConHead        :: ConHead              -- ^ Constructor name and fields.
             , recNamedCon       :: Bool
-            , recConType        :: Type                 -- ^ The record constructor's type.
+            , recConType        :: Type                 -- ^ The record constructor's type. (Includes record parameters.)
             , recFields         :: [Arg QName]
-            , recTel            :: Telescope            -- ^ The record field telescope
+            , recTel            :: Telescope            -- ^ The record field telescope. (Includes record parameters.)
+                                                        --   Note: @TelV recTel _ == telView' recConType@.
+                                                        --   Thus, @recTel@ is redundant.
             , recMutual         :: [QName]              -- ^ Mutually recursive functions, @data@s and @record@s.
             , recEtaEquality    :: Bool                 -- ^ Eta-expand at this record type.  @False@ for unguarded recursive records.
             , recInduction      :: Induction            -- ^ 'Inductive' or 'Coinductive'?  Matters only for recursive records.

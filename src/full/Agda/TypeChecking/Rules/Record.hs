@@ -50,6 +50,7 @@ import Agda.Utils.Impossible
 --     [@ps@]      Record parameters.
 --
 --     [@contel@]  Approximate type of constructor (@fields@ -> Set).
+--                 Does not include record parameters.
 --
 --     [@fields@]  List of field signatures.
 --
@@ -75,7 +76,7 @@ checkRecDef i name ind con ps contel fields =
       -- WRONG: contype <- workOnTypes $ killRange <$> (instantiateFull =<< isType_ contel)
       contype <- killRange <$> (instantiateFull =<< isType_ contel)
 
-      -- compute the field telescope
+      -- compute the field telescope (does not include record parameters)
       let TelV ftel _ = telView' contype
 
           -- A record is irrelevant if all of its fields are.
@@ -90,7 +91,7 @@ checkRecDef i name ind con ps contel fields =
       s <- case ignoreSharing $ unEl t0' of
 	Sort s	-> return s
 	_	-> typeError $ ShouldBeASort t0
-      gamma <- getContextTelescope
+      gamma <- getContextTelescope  -- the record params (incl. module params)
       -- record type (name applied to parameters)
       let rect = El s $ Def name $ map Apply $ teleArgs gamma
 
@@ -98,6 +99,7 @@ checkRecDef i name ind con ps contel fields =
       -- Andreas, 2011-05-10 use telePi_ instead of telePi to preserve
       -- even names of non-dependent fields in constructor type (Issue 322).
       let contype = telePi_ ftel (raise (size ftel) rect)
+        -- NB: contype does not contain the parameter telescope
 
       -- Obtain name of constructor (if present).
       (hasNamedCon, conName, conInfo) <- case con of
@@ -126,18 +128,14 @@ checkRecDef i name ind con ps contel fields =
                                 , recClause         = Nothing
                                 , recConHead        = con
                                 , recNamedCon       = hasNamedCon
-                                , recConType        = contype
+                                , recConType        = contype  -- addConstant adds params!
 				, recFields         = fs
-                                , recTel            = ftel
+                                , recTel            = ftel     -- addConstant adds params!
 				, recAbstr          = Info.defAbstract i
                                 , recEtaEquality    = True
                                 , recInduction      = indCo
                                 -- determined by positivity checker:
                                 , recRecursive      = False
-{-
-                                , recPolarity       = []
-                                , recArgOccurrences = []
--}
                                 , recMutual         = []
                                 }
 
