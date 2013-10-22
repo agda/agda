@@ -249,10 +249,11 @@ applySection new ptel old ts rd rm = do
     partOfOldM x = x `isSubModuleOf` old
     partOfOldD x = x `isInModule`    old
 
-    copyName x = maybe x id $ Map.lookup x rd
+    copyName x = Map.findWithDefault x x rd
 
     copyDef :: Args -> (QName, Definition) -> TCM ()
-    copyDef ts (x, d) = case Map.lookup x rd of
+    copyDef ts (x, d) =
+      case Map.lookup x rd of
 	Nothing -> return ()  -- if it's not in the renaming it was private and
 			      -- we won't need it
 	Just y	-> do
@@ -272,9 +273,7 @@ applySection new ptel old ts rd rm = do
 	-- the name is set by the addConstant function
 	nd y = Defn (defArgInfo d) y t pol occ [] (-1) noCompiledRep <$> def  -- TODO: mutual block?
         oldDef = theDef d
-	isCon = case oldDef of
-	  Constructor{} -> True
-	  _		-> False
+	isCon  = case oldDef of { Constructor{} -> True ; _ -> False }
         mutual = case oldDef of { Function{funMutual = m} -> m ; _ -> [] }
         extlam = case oldDef of { Function{funExtLam = e} -> e ; _ -> Nothing }
         -- NB (Andreas, 2013-10-19):
@@ -285,16 +284,22 @@ applySection new ptel old ts rd rm = do
                         , projDropPars = projDropPars p `apply` ts
                         }
           _ -> Nothing
+
 	def  = case oldDef of
                 Constructor{ conPars = np, conData = d } -> return $
-                  oldDef { conPars = np - size ts, conData = copyName d }
+                  oldDef { conPars = np - size ts
+                         , conData = copyName d
+                         }
                 Datatype{ dataPars = np, dataCons = cs } -> return $
-                  oldDef { dataPars = np - size ts, dataClause = Just cl, dataCons = map copyName cs
-                         {- , dataArgOccurrences = drop (length ts) oldOcc -} }
+                  oldDef { dataPars   = np - size ts
+                         , dataClause = Just cl
+                         , dataCons   = map copyName cs
+                         }
                 Record{ recPars = np, recConType = t, recTel = tel } -> return $
-                  oldDef { recPars = np - size ts, recClause = Just cl
-                         , recConType = apply t ts, recTel = apply tel ts
-                         {- , recArgOccurrences = drop (length ts) oldOcc -}
+                  oldDef { recPars    = np - size ts
+                         , recClause  = Just cl
+                         , recConType = apply t ts
+                         , recTel     = apply tel ts
                          }
 		_ -> do
                   cc <- compileClauses Nothing [cl] -- Andreas, 2012-10-07 non need for record pattern translation
@@ -440,18 +445,6 @@ getConInfo = getConstInfo . conName
 getPolarity :: QName -> TCM [Polarity]
 getPolarity q = defPolarity <$> getConstInfo q
 
-{- OLD
--- | Look up the polarity of a definition.
-getPolarity :: QName -> TCM [Polarity]
-getPolarity q = do
-  defn <- theDef <$> getConstInfo q
-  case defn of
-    Function{ funPolarity  = p } -> return p
-    Datatype{ dataPolarity = p } -> return p
-    Record{ recPolarity    = p } -> return p
-    _                            -> return []
--}
-
 -- | Look up polarity of a definition and compose with polarity
 --   represented by 'Comparison'.
 getPolarity' :: Comparison -> QName -> TCM [Polarity]
@@ -461,23 +454,6 @@ getPolarity' CmpLeq q = getPolarity q -- composition with Covariant is identity
 -- | Set the polarity of a definition.
 setPolarity :: QName -> [Polarity] -> TCM ()
 setPolarity q pol = modifySignature $ updateDefinition q $ updateDefPolarity $ const pol
-
-{- OLD
--- | Set the polarity of a definition.
-setPolarity :: QName -> [Polarity] -> TCM ()
-setPolarity q pol = do
-  modifySignature setP
-  where
-    setP sig = sig { sigDefinitions = HMap.adjust setPx q defs }
-      where
-	setPx def = def { theDef = setPd $ theDef def }
-        setPd d   = case d of
-          Function{} -> d { funPolarity  = pol }
-          Datatype{} -> d { dataPolarity = pol }
-          Record{}   -> d { recPolarity  = pol }
-          _          -> d
-	defs	  = sigDefinitions sig
--}
 
 -- | Return a finite list of argument occurrences.
 getArgOccurrences :: QName -> TCM [Occurrence]
@@ -522,20 +498,6 @@ getArgOccurrence d i = do
     _                                    -> Mixed
   where
     look i os = (os ++ repeat Mixed) !! fromIntegral i
-
-setArgOccurrences :: QName -> [Occurrence] -> TCM ()
-setArgOccurrences d os =
-  modifySignature setO
-  where
-    setO sig = sig { sigDefinitions = HMap.adjust setOx d defs }
-      where
-	setOx def = def { theDef = setOd $ theDef def }
-        setOd d   = case d of
-          Function{} -> d { funArgOccurrences  = os }
-          Datatype{} -> d { dataArgOccurrences = os }
-          Record{}   -> d { recArgOccurrences  = os }
-          _          -> d
-	defs	  = sigDefinitions sig
 -}
 
 -- | Get the mutually recursive identifiers.
