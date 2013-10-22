@@ -70,3 +70,6 @@ dontReduceProjections = local $ \ e -> e { envAllowedReductions = [FunctionReduc
 
 allowAllReductions :: TCM a -> TCM a
 allowAllReductions = local $ \ e -> e { envAllowedReductions = allReductions }
+
+ignoreSorts :: TCM a -> TCM a
+ignoreSorts = local $ \ e -> e { envIgnoreSorts = True }

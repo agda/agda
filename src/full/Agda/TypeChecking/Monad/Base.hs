@@ -1048,6 +1048,8 @@ data TCEnv =
                 -- ^ Did we encounter a simplification (proper match)
                 --   during the current reduction process?
           , envAllowedReductions :: AllowedReductions
+          , envIgnoreSorts :: Bool
+                -- ^ Should we ignore sorts when checking subtyping?
           , envPrintDomainFreePi :: Bool
                 -- ^ When True types will be omitted from printed pi types if they
                 --   can be inferred
@@ -1091,6 +1093,7 @@ initEnv = TCEnv { envContext	         = []
                 , envAppDef                 = Nothing
                 , envSimplification         = NoSimplification
                 , envAllowedReductions      = allReductions
+                , envIgnoreSorts            = False
                 , envPrintDomainFreePi      = False
 		}
 
