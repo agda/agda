@@ -432,6 +432,17 @@ argName = argN . ignoreSharing . unEl
 	argN (Pi _ b)  = "." ++ absName b
 	argN _	  = __IMPOSSIBLE__
 
+-- | Pick the better name suggestion, i.e., the one that is not just underscore.
+class Suggest a b where
+  suggest :: a -> b -> String
+
+instance Suggest String String where
+  suggest "_" y = y
+  suggest  x  _ = x
+
+instance Suggest (Abs a) (Abs b) where
+  suggest b1 b2 = suggest (absName b1) (absName b2)
+
 ---------------------------------------------------------------------------
 -- * Eliminations.
 ---------------------------------------------------------------------------

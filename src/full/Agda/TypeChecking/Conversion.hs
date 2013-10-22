@@ -322,17 +322,6 @@ compareTel t1 t2 cmp tel1 tel2 =
     bad = typeError $ UnequalTypes cmp t2 t1 -- switch t2 and t1 because of contravariance!
 --    bad = typeError $ UnequalTelescopes cmp tel1 tel2
 
--- | Pick the better name suggestion, i.e., the one that is not just underscore.
-class Suggest a where
-  suggest :: a -> a -> String
-
-instance Suggest String where
-  suggest "_" y = y
-  suggest  x  _ = x
-
-instance Suggest (Abs a) where
-  suggest b1 b2 = suggest (absName b1) (absName b2)
-
 
 -- | Raise 'UnequalTerms' if there is no hope that by
 --   meta solving and subsequent eta-contraction these
@@ -598,11 +587,6 @@ compareAtom cmp t m n =
                   if isBinderUsed b2 -- dependent function type?
                   then guardConstraint conCoDom checkDom
                   else checkDom >> solveConstraint_ conCoDom
--}
-{-
-	    where
-		suggest b1 b2 = head $
-                  [ x | x <- map absName [b1,b2], x /= "_"] ++ ["_"]
 -}
 	  _ -> __IMPOSSIBLE__
 
