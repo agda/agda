@@ -179,7 +179,7 @@ cover f cs sc@(SClause tel perm ps _ target) = do
       flip (maybe done) target $ \ t -> do
         isR <- addCtxTel tel $ isRecordType t
         case isR of
-          Just (_r, vs, Record{ recFields = fs }) -> do  -- , recTel = tel }) -> do
+          Just (_r, vs, Record{ recFields = fs }) -> do
             reportSDoc "tc.cover" 20 $ sep
               [ text $ "we are of record type _r = " ++ show _r
               , text   "applied to parameters vs = " <+> (addCtxTel tel $ prettyTCM vs)
