@@ -1,5 +1,7 @@
 module EqTest where
 
+import Common.Level
+
 data _≡_ {a : Set} (x : a) : a -> Set where
   refl : x ≡ x
 
