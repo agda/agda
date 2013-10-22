@@ -1227,7 +1227,7 @@ data TypeError
           -- parameters.
         | CantResolveOverloadedConstructorsTargetingSameDatatype QName [QName]
           -- ^ Datatype, constructors.
-        | DoesNotConstructAnElementOf QName Term -- ^ constructor, type
+        | DoesNotConstructAnElementOf QName Type -- ^ constructor, type
 	| DifferentArities
 	    -- ^ Varying number of arguments for a function.
 	| WrongHidingInLHS Type

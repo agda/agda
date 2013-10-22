@@ -133,8 +133,13 @@ data Abs a = Abs   { absName :: String, unAbs :: a }
 
 -- | Types are terms with a sort annotation.
 --
-data Type = El { getSort :: Sort, unEl :: Term }
-  deriving (Typeable, Show)
+data Type' a = El { getSort :: Sort, unEl :: a }
+  deriving (Typeable, Show, Functor, Foldable, Traversable)
+
+type Type = Type' Term
+
+-- data Type = El { getSort :: Sort, unEl :: Term }
+--   deriving (Typeable, Show)
 
 -- | Sequence of types. An argument of the first type is bound in later types
 --   and so on.

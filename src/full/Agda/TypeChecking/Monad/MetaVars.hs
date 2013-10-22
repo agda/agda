@@ -1,4 +1,4 @@
-{-# LANGUAGE CPP #-}
+{-# LANGUAGE CPP, FlexibleInstances, TypeSynonymInstances #-}
 module Agda.TypeChecking.Monad.MetaVars where
 
 import Control.Applicative

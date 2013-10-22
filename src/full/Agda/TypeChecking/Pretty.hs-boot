@@ -1,3 +1,4 @@
+{-# LANGUAGE FlexibleInstances, TypeSynonymInstances #-}
 module Agda.TypeChecking.Pretty where
 
 -- import Agda.Syntax.Common

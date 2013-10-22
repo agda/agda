@@ -1,4 +1,5 @@
-{-# LANGUAGE CPP, PatternGuards, TupleSections, NamedFieldPuns #-}
+{-# LANGUAGE CPP, PatternGuards, TupleSections, NamedFieldPuns,
+      FlexibleInstances, TypeSynonymInstances #-}
 
 module Agda.TypeChecking.Rules.Term where
 
@@ -726,22 +727,18 @@ checkApplication hd args e t = do
 
       -- Lets look at the target type at this point
       let getCon = do
-           TelV _ t1 <- telView t
+          TelV tel t1 <- telView t
+          addCtxTel tel $ do
            reportSDoc "tc.check.term.con" 40 $ nest 2 $
              text "target type: " <+> prettyTCM t1
-           ifBlocked (unEl t1) (\ m t -> return Nothing) $ \ t' ->
-             (isDataOrRecord t' >>=) $ maybe (badCon t') $ \ d ->
-                 case [ c | (d', c) <- dcs, d == d' ] of
-                      [c] -> do
-                        reportSLn "tc.check.term" 40 $ "  decided on: " ++ show c
-                        return (Just c)
-                      []  -> badCon (Def d [])
-                      cs  -> typeError $ CantResolveOverloadedConstructorsTargetingSameDatatype d $ map conName cs
-{-
-                      cs  -> typeError $ GenericError $
-                              "Can't resolve overloaded constructors targeting the same datatype (" ++ show d ++
-                              "): " ++ unwords (map show cs)
--}
+           ifBlockedType t1 (\ m t -> return Nothing) $ \ t' ->
+             (isDataOrRecord (unEl t') >>=) $ maybe (badCon t') $ \ d ->
+               case [ c | (d', c) <- dcs, d == d' ] of
+                 [c] -> do
+                   reportSLn "tc.check.term" 40 $ "  decided on: " ++ show c
+                   return $ Just c
+                 []  -> badCon $ t' $> Def d []
+                 cs  -> typeError $ CantResolveOverloadedConstructorsTargetingSameDatatype d $ map conName cs
       let unblock = isJust <$> getCon -- to unblock, call getCon later again
       mc <- getCon
       case mc of

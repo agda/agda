@@ -1,0 +1,3 @@
+BadCon.agda:13,8-9
+The constructor d does not construct an element of F x
+when checking that the expression d has type (x : D) → F x
