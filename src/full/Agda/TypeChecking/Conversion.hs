@@ -787,14 +787,13 @@ compareType :: Comparison -> Type -> Type -> TCM ()
 compareType cmp ty1@(El s1 a1) ty2@(El s2 a2) =
     verboseBracket "tc.conv.type" 20 "compareType" $
     catchConstraint (TypeCmp cmp ty1 ty2) $ do
-      reportSDoc "tc.conv.type" 50 $ vcat
+	reportSDoc "tc.conv.type" 50 $ vcat
           [ text "compareType" <+> sep [ prettyTCM ty1 <+> prettyTCM cmp
                                        , prettyTCM ty2 ]
           , hsep [ text "   sorts:", prettyTCM s1, text " and ", prettyTCM s2 ]
           ]
 -- Andreas, 2011-4-27 should not compare sorts, but currently this is needed
 -- for solving sort and level metas
-      unlessM (asks envIgnoreSorts) $ do
 	compareSort CmpEq s1 s2 `catchError` \err -> case err of
           TypeError _ e -> do
             reportSDoc "tc.conv.type" 30 $ vcat
@@ -821,8 +820,8 @@ compareType cmp ty1@(El s1 a1) ty2@(El s2 a2) =
                 -- instantiating the meta.
                 throwError err
           _             -> throwError err
-      compareTerm cmp (sort s2) a1 a2
-      return ()
+	compareTerm cmp (sort s1) a1 a2
+	return ()
 
 leqType :: Type -> Type -> TCM ()
 leqType = compareType CmpLeq
