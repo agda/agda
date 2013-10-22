@@ -162,7 +162,7 @@ coreBuiltins = map (\(x,z) -> BuiltinInfo x z)
         trec       = el primAgdaRecordDef
 
         verifyPlus plus =
-            verify ["n","m"] $ \(@@) zero suc (==) choice -> do
+            verify ["n","m"] $ \(@@) zero suc (==) (===) choice -> do
                 let m = var 0
                     n = var 1
                     x + y = plus @@ x @@ y
@@ -176,7 +176,7 @@ coreBuiltins = map (\(x,z) -> BuiltinInfo x z)
                     ]
 
         verifyMinus minus =
-            verify ["n","m"] $ \(@@) zero suc (==) choice -> do
+            verify ["n","m"] $ \(@@) zero suc (==) (===) choice -> do
                 let m = var 0
                     n = var 1
                     x - y = minus @@ x @@ y
@@ -189,7 +189,7 @@ coreBuiltins = map (\(x,z) -> BuiltinInfo x z)
 
         verifyTimes times = do
             plus <- primNatPlus
-            verify ["n","m"] $ \(@@) zero suc (==) choice -> do
+            verify ["n","m"] $ \(@@) zero suc (==) (===) choice -> do
                 let m = var 0
                     n = var 1
                     x + y = plus  @@ x @@ y
@@ -207,7 +207,7 @@ coreBuiltins = map (\(x,z) -> BuiltinInfo x z)
                     ]
 
         verifyDivSucAux dsAux =
-            verify ["k","m","n","j"] $ \(@@) zero suc (==) choice -> do
+            verify ["k","m","n","j"] $ \(@@) zero suc (==) (===) choice -> do
                 let aux k m n j = dsAux @@ k @@ m @@ n @@ j
                     k           = var 0
                     m           = var 1
@@ -219,7 +219,7 @@ coreBuiltins = map (\(x,z) -> BuiltinInfo x z)
                 aux k m (suc n) (suc j) == aux k m n j
 
         verifyModSucAux dsAux =
-            verify ["k","m","n","j"] $ \(@@) zero suc (==) choice -> do
+            verify ["k","m","n","j"] $ \(@@) zero suc (==) (===) choice -> do
                 let aux k m n j = dsAux @@ k @@ m @@ n @@ j
                     k           = var 0
                     m           = var 1
@@ -231,7 +231,7 @@ coreBuiltins = map (\(x,z) -> BuiltinInfo x z)
                 aux k m (suc n) (suc j) == aux (suc k) m n j
 
         verifyEquals eq =
-            verify ["n","m"] $ \(@@) zero suc (===) choice -> do
+            verify ["n","m"] $ \(@@) zero suc (==) (===) choice -> do
             true  <- primTrue
             false <- primFalse
             let x == y = eq @@ x @@ y
@@ -243,7 +243,7 @@ coreBuiltins = map (\(x,z) -> BuiltinInfo x z)
             (zero  == suc n) === false
 
         verifyLess leq =
-            verify ["n","m"] $ \(@@) zero suc (===) choice -> do
+            verify ["n","m"] $ \(@@) zero suc (==) (===) choice -> do
             true  <- primTrue
             false <- primFalse
             let x < y = leq @@ x @@ y
@@ -260,17 +260,22 @@ coreBuiltins = map (\(x,z) -> BuiltinInfo x z)
         verify' ::  TCM Term -> TCM Term -> TCM Term ->
                     [String] -> ( (Term -> Term -> Term) -> Term -> (Term -> Term) ->
                                 (Term -> Term -> TCM ()) ->
+                                (Term -> Term -> TCM ()) ->
                                 ([TCM ()] -> TCM ()) -> TCM a) -> TCM a
         verify' pNat pZero pSuc xs f = do
             nat  <- El (mkType 0) <$> pNat
             zero <- pZero
             s    <- pSuc
-            let x @@ y = x `apply` [defaultArg y]
-                x == y = noConstraints $ equalTerm nat x y
+            let x @@ y  = x `apply` [defaultArg y]
+                x == y  = noConstraints $ equalTerm nat x y
+                -- Andreas: 2013-10-21 I put primBool here on the inside
+                -- since some Nat-builtins do not require Bool-builtins
+                x === y = do bool <- El (mkType 0) <$> primBool
+                             noConstraints $ equalTerm bool x y
                 suc n  = s @@ n
                 choice = foldr1 (\x y -> x `catchError` \_ -> y)
             xs <- mapM freshName_ xs
-            addCtxs xs (domFromArg $ defaultArg nat) $ f (@@) zero suc (==) choice
+            addCtxs xs (domFromArg $ defaultArg nat) $ f (@@) zero suc (==) (===) choice
 
 
 inductiveCheck :: String -> Int -> Term -> TCM ()
