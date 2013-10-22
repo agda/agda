@@ -1021,7 +1021,7 @@ equalLevel a b = do
                    ]
             ]
       let a === b   = do
-            lvl <- getLvl
+            lvl <- levelType
             equalAtom lvl a b
           as =!= bs = levelTm (Max as) === levelTm (Max bs)
       as <- return $ closed0 as
@@ -1029,7 +1029,7 @@ equalLevel a b = do
       case (as, bs) of
         _ | List.sort as == List.sort bs -> ok
           | any isBlocked (as ++ bs) -> do
-              lvl <- getLvl
+              lvl <- levelType
               liftTCM $ useInjectivity CmpEq lvl (Level a) (Level b)
 
         -- closed == closed
@@ -1082,13 +1082,11 @@ equalLevel a b = do
         closed0 [] = [ClosedLevel 0]
         closed0 as = as
 
-        getLvl = El (mkType 0) <$> primLevel
-
         meta n x as bs = do
           reportSLn "tc.meta.level" 50 $ "meta " ++ show as ++ " " ++ show bs
           bs' <- mapM (subtr n) bs
           assignE x as (levelTm (Max bs')) $ \ a b -> do
-            lvl <- getLvl
+            lvl <- levelType
             equalAtom lvl a b
 
         -- Make sure to give a sensible error message

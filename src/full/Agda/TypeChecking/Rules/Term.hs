@@ -104,11 +104,12 @@ isType_ e =
       ifM (not <$> hasUniversePolymorphism)
           (typeError $ GenericError "Use --universe-polymorphism to enable level arguments to Set")
       $ do
-        lvl <- primLevel
+        lvl <- levelType
         -- allow NonStrict variables when checking level
         --   Set : (NonStrict) Level -> Set\omega
-        n   <- levelView =<< applyRelevanceToContext NonStrict
-                              (checkExpr (namedThing l) (El (mkType 0) lvl))
+        n   <- levelView =<< do
+          applyRelevanceToContext NonStrict $
+            checkExpr (namedThing l) lvl
         return $ sort (Type n)
     _ -> do
       s <- workOnTypes $ newSortMeta
@@ -590,11 +591,12 @@ checkExpr e t0 =
           ifM (not <$> hasUniversePolymorphism)
               (typeError $ GenericError "Use --universe-polymorphism to enable level arguments to Set")
           $ do
-            lvl <- primLevel
+            lvl <- levelType
             -- allow NonStrict variables when checking level
             --   Set : (NonStrict) Level -> Set\omega
-            n   <- levelView =<< applyRelevanceToContext NonStrict
-                                  (checkExpr (namedThing l) (El (mkType 0) lvl))
+            n   <- levelView =<< do
+              applyRelevanceToContext NonStrict $
+                checkExpr (namedThing l) lvl
             -- check that Set (l+1) <= t
             reportSDoc "tc.univ.poly" 10 $
               text "checking Set " <+> prettyTCM n <+>
