@@ -1239,6 +1239,12 @@ data TypeError
 	    -- ^ A function is applied to a hidden argument where a non-hidden was expected.
 	| WrongIrrelevanceInLambda Type
 	    -- ^ Expected a relevant function and found an irrelevant lambda.
+        | HidingMismatch Hiding Hiding
+            -- ^ The given hiding does not correspond to the expected hiding.
+        | RelevanceMismatch Relevance Relevance
+            -- ^ The given relevance does not correspond to the expected relevane.
+        | ColorMismatch [Color] [Color]
+            -- ^ The given color does not correspond to the expected color.
 	| NotInductive Term
           -- ^ The term does not correspond to an inductive data type.
 	| UninstantiatedDotPattern A.Expr
@@ -1256,6 +1262,8 @@ data TypeError
         | NotAProjectionPattern (A.NamedArg A.Pattern)
 	| NotAProperTerm
         | SetOmegaNotValidType
+        | InvalidType Term
+            -- ^ This term is not a type expression.
         | SplitOnIrrelevant A.Pattern (Dom Type)
         | DefinitionIsIrrelevant QName
         | VariableIsIrrelevant Name

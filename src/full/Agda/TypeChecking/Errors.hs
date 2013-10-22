@@ -181,7 +181,8 @@ errorString err = case err of
     NoSuchPrimitiveFunction{}                -> "NoSuchPrimitiveFunction"
     NotAModuleExpr{}                         -> "NotAModuleExpr"
     NotAProperTerm                           -> "NotAProperTerm"
-    SetOmegaNotValidType                     -> "SetOmegaNotValidType"
+    SetOmegaNotValidType{}                   -> "SetOmegaNotValidType"
+    InvalidType{}                            -> "InvalidType"
     NotAValidLetBinding{}                    -> "NotAValidLetBinding"
     NotAnExpression{}                        -> "NotAnExpression"
     NotImplemented{}                         -> "NotImplemented"
@@ -241,6 +242,9 @@ errorString err = case err of
     WrongHidingInLambda{}                    -> "WrongHidingInLambda"
     WrongIrrelevanceInLambda{}               -> "WrongIrrelevanceInLambda"
     WrongNumberOfConstructorArguments{}      -> "WrongNumberOfConstructorArguments"
+    HidingMismatch{}                         -> "HidingMismatch"
+    RelevanceMismatch{}                      -> "RelevanceMismatch"
+    ColorMismatch{}                          -> "ColorMismatch"
 
 instance PrettyTCM TCErr where
     prettyTCM err = case err of
@@ -310,6 +314,15 @@ instance PrettyTCM TypeError where
 		fwords "Found an irrelevant lambda where a relevant lambda was expected"
 	    WrongHidingInApplication t -> do
 		fwords "Found an implicit application where an explicit application was expected"
+            HidingMismatch h h' -> fwords $
+              "Expected " ++ verbalize (Indefinite h') ++ " argument, but found " ++
+              verbalize (Indefinite h) ++ " argument"
+            RelevanceMismatch r r' -> fwords $
+              "Expected " ++ verbalize (Indefinite r') ++ " argument, but found " ++
+              verbalize (Indefinite r) ++ " argument"
+            ColorMismatch c c' -> fsep $   -- TODO guilhem
+               pwords "Expected argument color to be" ++ [prettyTCM c'] ++
+               pwords "but found color" ++ [prettyTCM c]
             NotInductive t -> fsep $
               [prettyTCM t] ++ pwords "is not an inductive data type"
             UninstantiatedDotPattern e -> fsep $
@@ -393,6 +406,8 @@ instance PrettyTCM TypeError where
 		fwords "Found a malformed term"
 	    SetOmegaNotValidType ->
 		fwords "Setω is not a valid type"
+	    InvalidType v -> fsep $
+		[prettyTCM v] ++ pwords "is not a valid type"
             SplitOnIrrelevant p t -> fsep $
                 pwords "Cannot pattern match" ++ [prettyA p] ++
                 pwords "against irrelevant type" ++ [prettyTCM t]
@@ -815,3 +830,37 @@ instance PrettyTCM Call where
                          $ Common.Arg info $ unArg a)
 
 	    simpleDecl = D.notSoNiceDeclaration
+
+---------------------------------------------------------------------------
+-- * Natural language
+---------------------------------------------------------------------------
+
+class Verbalize a where
+  verbalize :: a -> String
+
+instance Verbalize Hiding where
+  verbalize h =
+    case h of
+      Hidden    -> "hidden"
+      NotHidden -> "visible"
+      Instance  -> "instance"
+
+instance Verbalize Relevance where
+  verbalize r =
+    case r of
+      Relevant   -> "relevant"
+      Irrelevant -> "irrelevant"
+      NonStrict  -> "shape-irrelevant"
+      Forced     -> __IMPOSSIBLE__
+      UnusedArg  -> __IMPOSSIBLE__
+
+-- | Indefinite article.
+data Indefinite a = Indefinite a
+
+instance Verbalize a => Verbalize (Indefinite a) where
+  verbalize (Indefinite a) =
+    case verbalize a of
+      "" -> ""
+      w@(c:cs) | c `elem` ['a','e','i','o'] -> "an " ++ w
+               | otherwise                  -> "a " ++ w
+      -- Aarne Ranta would whip me if he saw this.
