@@ -236,26 +236,6 @@ instance LensRelevance (ArgInfo c) where
   setRelevance h ai = ai { argInfoRelevance = h }
   mapRelevance f ai = ai { argInfoRelevance = f (argInfoRelevance ai) }
 
-{- RETIRED
-mapArgInfoHiding :: (Hiding -> Hiding) -> ArgInfo c -> ArgInfo c
-mapArgInfoHiding f info = info { argInfoHiding = f $ argInfoHiding info }
-
-setArgInfoHiding :: Hiding -> ArgInfo c -> ArgInfo c
-setArgInfoHiding = mapArgInfoHiding . const
-
-isArgInfoHidden    info = argInfoHiding info == Hidden
-isArgInfoNotHidden info = argInfoHiding info == NotHidden
-
-mapArgInfoRelevance :: (Relevance -> Relevance) -> ArgInfo c -> ArgInfo c
-mapArgInfoRelevance f info = info { argInfoRelevance = f $ argInfoRelevance info }
-
-setArgInfoRelevance :: Relevance -> ArgInfo c -> ArgInfo c
-setArgInfoRelevance = mapArgInfoRelevance . const
-
-isArgInfoRelevant   info = argInfoRelevance info == Relevant
-isArgInfoIrrelevant info = argInfoRelevance info == Irrelevant
--}
-
 mapArgInfoColors :: ([c] -> [c']) -> ArgInfo c -> ArgInfo c'
 mapArgInfoColors f info = info { argInfoColors = f $ argInfoColors info }
 
@@ -307,15 +287,6 @@ instance LensRelevance (Arg c e) where
   mapRelevance = mapArgInfo . mapRelevance
 
 {- RETIRED
-argHiding    = argInfoHiding    . argInfo
-argRelevance = argInfoRelevance . argInfo
-
-mapArgHiding :: (Hiding -> Hiding) -> Arg c a -> Arg c a
-mapArgHiding = mapArgInfo . mapArgInfoHiding
-
-setArgHiding :: Hiding -> Arg c a -> Arg c a
-setArgHiding = mapArgHiding . const
-
 hide :: Arg c a -> Arg c a
 hide = setArgHiding Hidden
 
@@ -324,12 +295,6 @@ makeInstance = setHiding Instance
 
 isHiddenArg :: Arg c a -> Bool
 isHiddenArg arg = argHiding arg /= NotHidden
-
-mapArgRelevance :: (Relevance -> Relevance) -> Arg c a -> Arg c a
-mapArgRelevance = mapArgInfo . mapArgInfoRelevance
-
-setArgRelevance :: Relevance -> Arg c a -> Arg c a
-setArgRelevance = mapArgRelevance . const
 -}
 
 mapArgInfo :: (ArgInfo c -> ArgInfo c') -> Arg c a -> Arg c' a
@@ -404,17 +369,6 @@ instance LensRelevance (Dom c e) where
 mapDomInfo :: (ArgInfo c -> ArgInfo c') -> Dom c a -> Dom c' a
 mapDomInfo f arg = arg { domInfo = f $ domInfo arg }
 
-{- RETIRED
-domHiding    = argInfoHiding    . domInfo
-domRelevance = argInfoRelevance . domInfo
-
-mapDomHiding :: (Hiding -> Hiding) -> Dom c a -> Dom c a
-mapDomHiding f = domFromArg . mapArgHiding f . argFromDom
-
-mapDomRelevance :: (Relevance -> Relevance) -> Dom c a -> Dom c a
-mapDomRelevance f = domFromArg . mapArgRelevance f . argFromDom
--}
-
 domColors    = argInfoColors    . domInfo
 
 argFromDom :: Dom c a -> Arg c a
@@ -422,6 +376,9 @@ argFromDom (Dom i a) = Arg i a
 
 domFromArg :: Arg c a -> Dom c a
 domFromArg (Arg i a) = Dom i a
+
+defaultDom :: a -> Dom c a
+defaultDom = Dom defaultArgInfo
 
 ---------------------------------------------------------------------------
 -- * Named arguments
