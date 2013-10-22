@@ -33,6 +33,7 @@ import Agda.TypeChecking.Reduce
 import Agda.TypeChecking.Pretty
 import Agda.TypeChecking.Substitute
 import Agda.TypeChecking.Free
+import Agda.TypeChecking.CheckInternal (checkType)
 -- import Agda.TypeChecking.Constraints
 -- import Agda.TypeChecking.Conversion
 -- import Agda.TypeChecking.Datatypes
@@ -51,7 +52,7 @@ import Agda.TypeChecking.SizedTypes
 import Agda.TypeChecking.CompiledClause (CompiledClauses(..))
 import Agda.TypeChecking.CompiledClause.Compile
 
-import Agda.TypeChecking.Rules.Term                ( checkExpr, inferExpr, inferExprForWith, checkDontExpandLast, checkTelescope_, isType_, convArg )
+import Agda.TypeChecking.Rules.Term                ( checkExpr, inferExpr, inferExprForWith, checkDontExpandLast, checkTelescope_, convArg )
 import Agda.TypeChecking.Rules.LHS                 ( checkLeftHandSide )
 -- import Agda.TypeChecking.Rules.LHS.Implicit        ( insertImplicitPatterns )
 import {-# SOURCE #-} Agda.TypeChecking.Rules.Decl ( checkDecls )
@@ -610,6 +611,9 @@ checkWithFunction (WithFunction f aux gamma delta1 delta2 vs as b qs perm' perm 
   candidateType <- withFunctionType delta1 vs as delta2 b
   reportSDoc "tc.with.type" 10 $ sep [ text "candidate type:", nest 2 $ prettyTCM candidateType ]
   reportSDoc "tc.with.type" 50 $ sep [ text "candidate type:", nest 2 $ text $ show candidateType ]
+
+{- OLD, going through abstract syntax
+
   absAuxType <- withShowAllArguments
                 $ disableDisplayForms
                 $ dontReifyInteractionPoints
@@ -629,6 +633,20 @@ checkWithFunction (WithFunction f aux gamma delta1 delta2 vs as b qs perm' perm 
     `catchError` \err -> case err of
       TypeError s e -> put s >> enterClosure e (traceCall (CheckWithFunctionType absAuxType) . typeError)
       _             -> throwError err
+-}
+  -- Andreas, 2013-10-21
+  -- Check generated type directly in internal syntax.
+  absAuxType <- reify candidateType
+  let auxType = candidateType
+  setCurrentRange (getRange cs)
+    (traceCall NoHighlighting $   -- To avoid flicker.
+      checkType auxType)
+    `catchError` \err -> case err of
+      TypeError s e -> do
+        put s
+        enterClosure e $ do
+          traceCall (CheckWithFunctionType absAuxType) . typeError
+      err           -> throwError err
 
   case df of
     OpenThing _ (Display n ts dt) -> reportSDoc "tc.with.top" 20 $ text "Display" <+> fsep
