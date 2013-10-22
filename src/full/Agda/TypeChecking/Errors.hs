@@ -328,7 +328,7 @@ instance PrettyTCM TypeError where
             CantResolveOverloadedConstructorsTargetingSameDatatype d cs -> fsep $
               pwords ("Can't resolve overloaded constructors targeting the same datatype (" ++ show d ++ "):") ++ map (text . show) cs
             DoesNotConstructAnElementOf c t -> fsep $
-              pwords "the constructor" ++ [prettyTCM c] ++
+              pwords "The constructor" ++ [prettyTCM c] ++
               pwords "does not construct an element of" ++ [prettyTCM t]
             ConstructorPatternInWrongDatatype c d -> fsep $
               [prettyTCM c] ++ pwords "is not a constructor of the datatype" ++ [prettyTCM d]
