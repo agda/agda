@@ -232,14 +232,16 @@ class UReduce t where
 instance UReduce Term where
   ureduce u = doEtaContractImplicit $ do
     rho <- onSub makeSubstitution
-    liftTCM $ etaContract =<< normalise (applySubst rho u)
+-- Andreas, 2013-10-24 the following call to 'normalise' is problematic
+-- (see issue 924).  Instead, we only normalize if unifyAtomHH is undecided.
+--    liftTCM $ etaContract =<< normalise (applySubst rho u)
 -- Andreas, 2011-06-22, fix related to issue 423
 -- To make eta contraction work better, I switched reduce to normalise.
 -- I hope the performance penalty is not big (since we are dealing with
 -- l.h.s. terms only).
 -- A systematic solution would make unification type-directed and
 -- eta-insensitive...
---   liftTCM $ etaContract =<< reduce (applySubst rho u)
+    liftTCM $ etaContract =<< reduce (applySubst rho u)
 
 instance UReduce Type where
   ureduce (El s t) = El s <$> ureduce t
@@ -370,7 +372,19 @@ instance SubstHH a b => SubstHH (Tele a) (Tele b) where
   trivialHH = fmap trivialHH
 
 -- | Unify indices.
-unifyIndices_ :: MonadTCM tcm => FlexibleVars -> Type -> [I.Arg Term] -> [I.Arg Term] -> tcm Substitution
+--
+--   In @unifyIndices_ flex a us vs@,
+--
+--   @a@ is the type eliminated by @us@ and @vs@
+--     (usally the type of a constructor),
+--     need not be reduced,
+--
+--   @us@ and @vs@ are the argument lists to unify,
+--
+--   @flex@ is the set of flexible (instantiable) variabes in @us@ and @vs@.
+--
+--   The result is the most general unifier of @us@ and @vs@.
+unifyIndices_ :: MonadTCM tcm => FlexibleVars -> Type -> Args -> Args -> tcm Substitution
 unifyIndices_ flex a us vs = liftTCM $ do
   r <- unifyIndices flex a us vs
   case r of
@@ -378,7 +392,7 @@ unifyIndices_ flex a us vs = liftTCM $ do
     DontKnow err  -> throwError err
     NoUnify a u v -> typeError $ UnequalTerms CmpEq u v a
 
-unifyIndices :: MonadTCM tcm => FlexibleVars -> Type -> [I.Arg Term] -> [I.Arg Term] -> tcm UnificationResult
+unifyIndices :: MonadTCM tcm => FlexibleVars -> Type -> Args -> Args -> tcm UnificationResult
 unifyIndices flex a us vs = liftTCM $ do
     a <- reduce a
     reportSDoc "tc.lhs.unify" 10 $
@@ -580,7 +594,7 @@ unifyIndices flex a us vs = liftTCM $ do
         (SizeSuc u, SizeSuc v) -> unify sz u v
         (SizeSuc u, SizeInf) -> unify sz u v
         (SizeInf, SizeSuc v) -> unify sz u v
-        _                    -> unifyAtom sz u v
+        _                    -> unifyAtomHH (Hom sz) u v checkEqualityHH
 
     -- | Possibly heterogeneous unification (but at same-shaped types).
     --   In het. situations, we only search for a mismatch!
@@ -590,11 +604,17 @@ unifyIndices flex a us vs = liftTCM $ do
         TypeHH  -- ^ one or two types, need not be in (u)reduced form
      -> Term -> Term -> Unify ()
     unifyHH aHH u v = do
+      liftTCM $ reportSDoc "tc.lhs.unify" 15 $
+	sep [ text "unifyHH"
+	    , nest 2 $ (parens $ prettyTCM u) <+> text "=?="
+	    , nest 2 $ parens $ prettyTCM v
+	    , nest 2 $ text ":" <+> prettyTCM aHH
+	    ]
       u <- liftTCM . constructorForm =<< ureduce u
       v <- liftTCM . constructorForm =<< ureduce v
       aHH <- ureduce aHH
-      liftTCM $ reportSDoc "tc.lhs.unify" 15 $
-	sep [ text "unifyHH"
+      liftTCM $ reportSDoc "tc.lhs.unify" 25 $
+	sep [ text "unifyHH (reduced)"
 	    , nest 2 $ (parens $ prettyTCM u) <+> text "=?="
 	    , nest 2 $ parens $ prettyTCM v
 	    , nest 2 $ text ":" <+> prettyTCM aHH
@@ -602,26 +622,37 @@ unifyIndices flex a us vs = liftTCM $ do
       -- obtain the (== Size) function
       isSizeName <- liftTCM isSizeNameTest
 
+      -- Andreas, 2013-10-24 (fixing issue 924)
+      -- Only if we cannot make progress, we try full normalization!
+      let tryAgain aHH u v = do
+            u <- liftTCM $ etaContract =<< normalise u
+            v <- liftTCM $ etaContract =<< normalise v
+            unifyAtomHH aHH u v $ checkEqualityHH
+
       -- check whether types have the same shape
       (aHH, sh) <- shapeViewHH aHH
       case sh of
         ElseSh  -> checkEqualityHH aHH u v -- not a type or not same types
 
         DefSh d -> if isSizeName d then unifySizes u v
-                                   else unifyAtomHH aHH u v
-        _ -> unifyAtomHH aHH u v
+                                   else unifyAtomHH aHH u v tryAgain
+        _ -> unifyAtomHH aHH u v tryAgain
 
     unifyAtomHH ::
          TypeHH -- ^ in ureduced form
-      -> Term -> Term -> Unify ()
-    unifyAtomHH aHH0 u v = do
+      -> Term
+      -> Term
+      -> (TypeHH -> Term -> Term -> Unify ())
+         -- ^ continuation in case unification was inconclusive
+      -> Unify ()
+    unifyAtomHH aHH0 u v tryAgain = do
       let (aHH, homogeneous, a) = case aHH0 of
             Hom a                -> (aHH0, True, a)
             Het a1 a2 | a1 == a2 -> (Hom a1, True, a1) -- BRITTLE: just checking syn.eq.
             _                    -> (aHH0, False, __IMPOSSIBLE__)
            -- use @a@ only if 'homogeneous' holds!
 
-          fallback = checkEqualityHH aHH u v
+          fallback = tryAgain aHH u v
 
       liftTCM $ reportSDoc "tc.lhs.unify" 15 $
 	sep [ text "unifyAtom"
@@ -635,10 +666,10 @@ unifyIndices flex a us vs = liftTCM $ do
         -- We don't want to worry about levels here.
         (Level l, _) -> do
             u <- liftTCM $ reallyUnLevelView l
-            unifyAtomHH aHH u v
+            unifyAtomHH aHH u v tryAgain
         (_, Level l) -> do
             v <- liftTCM $ reallyUnLevelView l
-            unifyAtomHH aHH u v
+            unifyAtomHH aHH u v tryAgain
 	(Var i us, Var j vs) | i == j  -> checkEqualityHH aHH u v
 -- Andreas, 2013-03-05: the following flex/flex case is an attempt at
 -- better dotting (see Issue811).  Does not work perfectly, maybe the best choice
@@ -733,9 +764,6 @@ unifyIndices flex a us vs = liftTCM $ do
 
     unify :: Type -> Term -> Term -> Unify ()
     unify a = unifyHH (Hom a)
-
-    unifyAtom :: Type -> Term -> Term -> Unify ()
-    unifyAtom a = unifyAtomHH (Hom a)
 
     -- The contexts are transient when unifying, so we should just instantiate to
     -- constructor heads and generate fresh metas for the arguments. Beware of

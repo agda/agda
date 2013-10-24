@@ -51,6 +51,7 @@ binAppView t = case t of
       | Apply v <- last xs = App (f $ init xs) v
       | otherwise          = noApp
 
+-- | Contracts all eta-redexes it sees without reducing.
 etaContract :: TermLike a => a -> TCM a
 etaContract = traverseTermM etaOnce
 
