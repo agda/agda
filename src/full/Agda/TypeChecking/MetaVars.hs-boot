@@ -1,7 +1,7 @@
 
 module Agda.TypeChecking.MetaVars where
 
-import Agda.Syntax.Internal	    ( MetaId, Term, Type, Args, Abs, Dom )
+import Agda.Syntax.Internal	    ( MetaId, Term, Type, Args, Abs, Dom, Telescope )
 import Agda.TypeChecking.Monad.Base ( TCM, RunMetaOccursCheck(..) )
 
 type Condition = Dom Type -> Abs Type -> Bool
@@ -14,3 +14,4 @@ assign 		  :: MetaId -> Args -> Term -> TCM ()
 newIFSMeta 	  :: String -> Type -> [(Term, Type)] -> TCM Term
 newValueMeta      :: RunMetaOccursCheck -> Type -> TCM Term
 newNamedValueMeta :: RunMetaOccursCheck -> String -> Type -> TCM Term
+newTelMeta        :: Telescope -> TCM Args
