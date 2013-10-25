@@ -3,7 +3,7 @@
 module Agda.TypeChecking.MetaVars where
 
 import Control.Monad.Reader
--- import Control.Monad.State
+-- import Control.Monad.Writer
 import Control.Monad.Error
 import Data.Function
 -- import Data.Typeable (Typeable)
@@ -649,11 +649,27 @@ assign x args v = do
             -- here, we cannot prune, since offending vars could be eliminated
             Left ()          -> patternViolation
 
+        -- Check linearity
         ids <- do
-          res <- runErrorT $ checkLinearity (`Set.member` fvs) ids
+          res <- runErrorT $ checkLinearity {- (`Set.member` fvs) -} ids
           case res of
+            -- case: linear
             Right ids -> return ids
+            -- case: non-linear variables that could possibly be pruned
             Left ()   -> attemptPruning x args fvs
+
+{- UNNECESSARILY COMPLICATED:
+        ids <- do
+          res <- runErrorT $ runWriterT $ checkLinearity (`Set.member` fvs) ids
+          case res of
+            -- case: linear
+            Right (ids, []) -> return ids
+            -- case: non-linear variables that could possibly be pruned
+            Right (_, xs) -> attemptPruning x args fvs -- or s.th. clever with killargs and xs
+            -- case: non-linear variable that cannot be pruned from lhs
+            --       attempt pruning of other args
+            Left ()   -> attemptPruning x args fvs
+-}
 
         -- we are linear, so we can solve!
 	reportSDoc "tc.meta.assign" 25 $
@@ -736,6 +752,50 @@ instance Error () where
   noMsg = ()
 
 -- | Turn non-det substitution into proper substitution, if possible.
+--   Otherwise, raise the error.
+checkLinearity :: SubstCand -> ErrorT () TCM SubstCand
+checkLinearity ids0 = do
+  let ids = sortBy (compare `on` fst) ids0
+  let grps = groupOn fst ids
+  concat <$> mapM makeLinear grps
+  where
+    -- | Non-determinism can be healed if type is singleton. [Issue 593]
+    --   (Same as for irrelevance.)
+    makeLinear :: SubstCand -> ErrorT () TCM SubstCand
+    makeLinear []            = __IMPOSSIBLE__
+    makeLinear grp@[_]       = return grp
+    makeLinear (p@(i,t) : _) =
+      ifM ((Right True ==) <$> do isSingletonTypeModuloRelevance =<< typeOfBV i)
+        (return [p])
+        (throwError ())
+
+{- UNNECESSARILY COMPLICATED
+-- | Turn non-det substitution into proper substitution, if possible.
+--   Writes a list of non-linear variables that need to be pruned.
+--   If a non-linear variable is @elemFVs@, hence, not prunable,
+--   the error is thrown.
+checkLinearity :: (Nat -> Bool) -> SubstCand -> ErrorT () (WriterT [Nat] TCM) SubstCand
+checkLinearity elemFVs ids0 = do
+  let ids = sortBy (compare `on` fst) ids0
+  let grps = groupOn fst ids
+  concat <$> mapM makeLinear grps
+  where
+    -- | Non-determinism can be healed if type is singleton. [Issue 593]
+    --   (Same as for irrelevance.)
+    makeLinear :: SubstCand -> ErrorT () TCM SubstCand
+    makeLinear []                = __IMPOSSIBLE__
+    makeLinear grp@[_]           = return grp
+    makeLinear grp@(p@(i,t) : _) = do
+      ifM ((Right True ==) <$> do isSingletonTypeModuloRelevance =<< typeOfBV i)
+        {- then -} (return [p])
+        {- else -} $ do
+        ifM (elemFVs i)
+          {- then -} (throwError ())          -- non-prunable non-linear var
+          {- else -} (tell [i] >> return grp) -- possibly prunable non-lin var
+-}
+
+{- BUGGY, see Issue 920
+-- | Turn non-det substitution into proper substitution, if possible.
 --   The substitution can be restricted to @elemFVs@
 checkLinearity :: (Nat -> Bool) -> SubstCand -> ErrorT () TCM SubstCand
 checkLinearity elemFVs ids0 = do
@@ -752,6 +812,7 @@ checkLinearity elemFVs ids0 = do
       ifM ((Right True ==) <$> do isSingletonTypeModuloRelevance =<< typeOfBV i)
         (return [p])
         (throwError ())
+-}
 
 -- Intermediate result in the following function
 type Res = Maybe [(I.Arg Nat, Term)]

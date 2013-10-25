@@ -13,6 +13,7 @@ import Control.Exception as E
 import Control.Monad.Error
 import Control.Monad.State
 import Control.Monad.Reader
+import Control.Monad.Writer
 import Control.Applicative
 -- import Data.Function
 import Data.Int
@@ -45,7 +46,6 @@ import {-# SOURCE #-} Agda.Interaction.Response
   (InteractionOutputCallback, defaultInteractionOutputCallback, Response)
 import Agda.Interaction.Highlighting.Precise
   (CompressedFile, HighlightingInfo)
-import Data.Monoid
 
 import qualified Agda.Compiler.JS.Syntax as JS
 
@@ -1475,14 +1475,16 @@ instance MonadIO m => MonadTCM (TCMT m) where
 instance (Error err, MonadTCM tcm) => MonadTCM (ErrorT err tcm) where
   liftTCM = lift . liftTCM
 
-{- The following is not possible since MonadTCM needs to be a MonadState TCState
+instance (Monoid w, MonadTCM tcm) => MonadTCM (WriterT w tcm) where
+  liftTCM = lift . liftTCM
+
+{- The following is not possible since MonadTCM needs to be a
+-- MonadState TCState and a MonadReader TCEnv
+
 instance (MonadTCM tcm) => MonadTCM (StateT s tcm) where
   liftTCM = lift . liftTCM
 
 instance (MonadTCM tcm) => MonadTCM (ReaderT r tcm) where
-  liftTCM = lift . liftTCM
-
-instance (MonadTCM tcm) => MonadTCM (WriterT w tcm) where
   liftTCM = lift . liftTCM
 -}
 
