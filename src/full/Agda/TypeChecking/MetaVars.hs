@@ -660,17 +660,37 @@ assign x args v = do
 	    text "preparing to instantiate: " <+> prettyTCM v
 
 	-- Rename the variables in v to make it suitable for abstraction over ids.
+        let n = length args
 	v' <- do
-	    -- Basically, if
-	    --   Γ   = a b c d e
-	    --   ids = d b e
-	    -- then
-	    --   v' = (λ a b c d e. v) _ 1 _ 2 0
-	    tel <- getContextTelescope
-	    let iargs = map (defaultArg . substitute ids) $ downFrom $ size tel
-		v'    = raise (size args) (abstract tel v) `apply` iargs
-	    -- instantiateFull v'
-            return v'
+	  -- Basically, if
+	  --   Γ   = a b c d e
+	  --   ids = d b e
+	  -- then
+	  --   v' = (λ a b c d e. v) _ 1 _ 2 0
+          --
+          -- OLD:
+	  -- tel <- getContextTelescope
+          -- let substitute :: [(Nat,Term)] -> Nat -> Term
+	  --     substitute ids i = maybe __IMPOSSIBLE__ id $ lookup i ids
+                 -- @ids@ maps lhs variables (metavar arguments) to terms
+                 -- @i@ is the variable from the context Gamma
+          -- let iargs = map (defaultArg . substitute ids) $ downFrom $ size tel
+          --     v'    = raise n (abstract tel v) `apply` iargs
+          -- return v'
+          -- NOW: Andreas, 2013-10-25 more directly, using substitutions:
+          m <- getContextSize
+          -- Convert assocList @ids@ (which is sorted) into substitution,
+          -- filling in __IMPOSSIBLE__ for the missing terms, e.g.
+          -- [(0,0),(1,2),(3,1)] --> [0, 2, __IMP__, 1, __IMP__]
+          -- ALT 1: O(m * size ids), serves as specification
+          -- let ivs = [fromMaybe __IMPOSSIBLE__ $ lookup i ids | i <- [0..m-1]]
+          -- ALT 2: O(m)
+          let assocToList i l = case l of
+                _           | i >= m -> []
+                ((j,u) : l) | i == j -> u              : assocToList (i+1) l
+                _                    -> __IMPOSSIBLE__ : assocToList (i+1) l
+              ivs = assocToList 0 ids
+          return $ applySubst (ivs ++# raiseS n)  v
 
         -- Andreas, 2011-04-18 to work with irrelevant parameters
         -- we need to construct tel' from the type of the meta variable
@@ -680,7 +700,6 @@ assign x args v = do
 	reportSDoc "tc.meta.assign" 15 $ text "type of meta =" <+> prettyTCM t
 	reportSDoc "tc.meta.assign" 70 $ text "type of meta =" <+> text (show t)
 
-        let n = length args
         TelV tel' _ <- telViewUpTo n t
 	reportSDoc "tc.meta.assign" 30 $ text "tel'  =" <+> prettyTCM tel'
 	reportSDoc "tc.meta.assign" 30 $ text "#args =" <+> text (show n)
@@ -690,19 +709,15 @@ assign x args v = do
         when (size tel' < n)
            patternViolation -- WAS: __IMPOSSIBLE__
 
-	reportSDoc "tc.meta.assign" 10 $
-	  text "solving" <+> prettyTCM x <+> text ":=" <+> prettyTCM (abstract tel' v')
-
-	-- Perform the assignment (and wake constraints). Metas
-	-- are top-level so we do the assignment at top-level.
-	inTopContext $ assignTerm x (killRange $ abstract tel' v')
-	return ()
+        -- The solution.
+        let u = killRange $ abstract tel' v'
+        -- Perform the assignment (and wake constraints).
+        -- Metas are top-level so we do the assignment at top-level.
+	inTopContext $ do
+          reportSDoc "tc.meta.assign" 10 $
+            text "solving" <+> prettyTCM x <+> text ":=" <+> prettyTCM u
+          assignTerm x u
     where
-        -- @ids@ maps lhs variables (metavar arguments) to terms
-        -- @i@ is the variable from the context Gamma
-        substitute :: [(Nat,Term)] -> Nat -> Term
-	substitute ids i = maybe __IMPOSSIBLE__ id $ lookup i ids
-
         attemptPruning x args fvs = do
           -- non-linear lhs: we cannot solve, but prune
           killResult <- prune x args $ Set.toList fvs
