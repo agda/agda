@@ -92,18 +92,6 @@ isInjective nam cls@(cl : _) = do
              then Just ((nam, InjectiveFun i total), concat cli')
              else Nothing
 
-remAbs :: ClauseBody -> Term
-remAbs b = case b of
-    Body t     -> t
-    Bind ab    -> remAbs $ absBody ab
-    NoBody     -> __IMPOSSIBLE__
-
-isNoBody :: ClauseBody -> Bool
-isNoBody b = case b of
-    Body t     -> False
-    Bind ab    -> isNoBody $ absBody ab
-    NoBody     -> True
-
 patternToTerm :: Nat -> Pattern -> Term
 patternToTerm n p = case p of
     VarP v          -> var n
@@ -143,12 +131,12 @@ isInjectiveHere :: QName  -- ^ Name of the function being tested
                 -> Int    -- ^ The current argument
                 -> Clause
                 -> Compile TCM InjConstraints
-isInjectiveHere nam idx Clause {clauseBody = body} | isNoBody body = return emptyC
-isInjectiveHere nam idx clause = do
+isInjectiveHere nam idx clause = case getBody clause of
+  Nothing -> return emptyC
+  Just body -> do
     let t    = patternToTerm idxR $ unArg $ clausePats clause !! idx
         t'   = applySubst (substForDot $ clausePats clause) t
         idxR = sum . map (nrBinds . unArg) . genericDrop (idx + 1) $ clausePats clause
-        body = remAbs $ clauseBody clause
     body' <- lift $ reduce body
     injFs <- gets (injectiveFuns . importedModules)
     res <- (t' <: body') `runReaderT` (M.insert nam (InjectiveFun idx
