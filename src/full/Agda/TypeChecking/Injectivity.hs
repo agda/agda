@@ -5,9 +5,9 @@ module Agda.TypeChecking.Injectivity where
 import Prelude hiding (mapM)
 import Control.Applicative
 -- import Control.Monad hiding (mapM)
-import Control.Monad.Error hiding (mapM)
-import Control.Monad.State hiding (mapM)
-import Control.Monad.Reader hiding (mapM)
+import Control.Monad.Error hiding (mapM, forM)
+import Control.Monad.State hiding (mapM, forM)
+import Control.Monad.Reader hiding (mapM, forM)
 import Data.Map (Map)
 import qualified Data.Map as Map
 import qualified Data.Set as Set
@@ -122,7 +122,13 @@ checkInjectivity f cs
             noMatch DotP{} = True
 checkInjectivity f cs = do
   reportSLn "tc.inj.check" 40 $ "Checking injectivity of " ++ show f
-  es <- concat <$> mapM entry cs
+  -- Extract the head symbol of the rhs of each clause (skip absurd clauses)
+  -- es <- concat <$> mapM entry cs
+  es <- catMaybes <$> do
+    forM cs $ \ c -> do
+      forM (getBody c) $ \ v -> do
+        h <- headSymbol v
+        return (h, c)
   let (hs, ps) = unzip es
   reportSLn "tc.inj.check" 40 $ "  right hand sides: " ++ show hs
   if all isJust hs && distinct hs
@@ -135,7 +141,17 @@ checkInjectivity f cs = do
             ) $ Map.toList inv
       return $ Inverse inv
     else return NotInjective
+{-
   where
+    entry c = do
+      case getBody (clauseBody c) of
+        Nothing -> return []
+        Just v  -> do
+          h <- headSymbol v
+          return [(h, c)]
+-}
+
+{- RETIRED, now using Substitute.getBody instead of rhd
     entry c = do
       mv <- rhs (clauseBody c)
       case mv of
@@ -147,7 +163,7 @@ checkInjectivity f cs = do
     rhs (Bind b)   = underAbstraction_ b rhs
     rhs (Body v)   = return $ Just v
     rhs NoBody     = return Nothing
-
+-}
 
 -- | Argument should be on weak head normal form.
 functionInverse :: Term -> TCM InvView

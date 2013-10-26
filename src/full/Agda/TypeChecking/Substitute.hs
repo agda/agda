@@ -828,6 +828,28 @@ underLambdas n cont a v = loop n a v where
     Lam h b -> Lam h $ underAbs (loop $ n-1) a b
     _       -> __IMPOSSIBLE__
 
+-- | @getBody@ returns the properly raised clause 'Body',
+--   and 'Nothing' if 'NoBody'.
+class GetBody a where
+  getBody :: a -> Maybe Term
+
+instance GetBody ClauseBody where
+  getBody = body 0
+    where
+      -- collect all shiftings and do them in the end in one go
+      body :: Int -> ClauseBody -> Maybe Term
+      body _ NoBody             = Nothing
+      body n (Body v)           = Just $ raise n v
+      body n (Bind (NoAbs _ v)) = body n v
+      body n (Bind (Abs   _ v)) = body (n + 1) v
+
+instance GetBody Clause where
+  getBody = getBody . clauseBody
+
+---------------------------------------------------------------------------
+-- * Syntactic equality and order
+---------------------------------------------------------------------------
+
 deriving instance (Subst a, Eq a) => Eq (Tele a)
 deriving instance (Subst a, Ord a) => Ord (Tele a)
 
