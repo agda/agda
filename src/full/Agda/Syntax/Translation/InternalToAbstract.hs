@@ -423,7 +423,7 @@ reifyTerm expandAnonDefs v = do
         -- check if we have an absurd lambda
         let reifyAbsurdLambda cont =
               case theDef <$> mdefn of
-                Just Function{ funCompiled = Fail,
+                Just Function{ funCompiled = Just Fail,
                   funClauses = [I.Clause { clausePats = ps }] }
                   | isAbsurdLambdaName x -> do
                     -- get hiding info from last pattern, which should be ()

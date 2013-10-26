@@ -310,7 +310,7 @@ checkAbsurdLambda i h e t = do
                     , clauseType  = Just $ absBody b
                     }
                   ]
-              , funCompiled       = Fail
+              , funCompiled       = Just Fail
               , funDelayed        = NotDelayed
               , funInv            = NotInjective
               , funAbstr          = ConcreteDef

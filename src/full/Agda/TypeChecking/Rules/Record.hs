@@ -410,7 +410,7 @@ checkRecordProjections m r con tel ftel fs = do
       escapeContext (size tel) $ do
 	addConstant projname $ Defn i projname (killRange finalt) [] [StrictPos] (defaultDisplayForm projname) 0 noCompiledRep
           $ Function { funClauses        = [clause]
-                     , funCompiled       = cc
+                     , funCompiled       = Just cc
                      , funDelayed        = NotDelayed
                      , funInv            = NotInjective
                      , funAbstr          = ConcreteDef

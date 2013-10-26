@@ -636,7 +636,10 @@ data Projection = Projection
 data Defn = Axiom
 	  | Function
             { funClauses        :: [Clause]
-            , funCompiled       :: CompiledClauses
+            , funCompiled       :: Maybe CompiledClauses
+              -- ^ 'Nothing' while function is still type-checked.
+              --   @Just cc@ after type and coverage checking and
+              --   translation to case trees.
             , funInv            :: FunctionInverse
             , funMutual         :: [QName]
               -- ^ Mutually recursive functions, @data@s and @record@s.
@@ -794,7 +797,7 @@ defClauses Defn{theDef = Record{recClause = Just c}}       = [c]
 defClauses _                                               = []
 
 defCompiled :: Definition -> Maybe CompiledClauses
-defCompiled Defn{theDef = Function{funCompiled = cc}} = Just cc
+defCompiled Defn{theDef = Function {funCompiled  = mcc}} = mcc
 defCompiled Defn{theDef = Primitive{primCompiled = mcc}} = mcc
 defCompiled _ = Nothing
 

@@ -49,7 +49,7 @@ findInjection defs = do
             f@(Function{})   -> do
                 modifyEI $ \s -> s { injectiveFuns = M.insert q inj (injectiveFuns s) }
                 let ns = replicate arity (defaultArg "")
-                return $ (,) q $ def { theDef = f { funCompiled = Done ns $
+                return $ (,) q $ def { theDef = f { funCompiled = Just $ Done ns $
                                                       var $ arity - nvar - 1 } }
             _                -> __IMPOSSIBLE__
 
@@ -69,7 +69,7 @@ replaceFunCC name cc = do
   where
     replaceDef :: Definition -> Definition
     replaceDef def = case theDef def of
-        f@(Function{}) -> def {theDef = f { funCompiled = cc } }
+        f@(Function{}) -> def {theDef = f { funCompiled = Just $ cc } }
         x                -> __IMPOSSIBLE__
 
 -- | If the pairs of constructor names have the same tags, the function is

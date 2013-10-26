@@ -1196,8 +1196,8 @@ bothAbsurd f f'
       def  <- getConstInfo f
       def' <- getConstInfo f'
       case (theDef def, theDef def') of
-        (Function{ funCompiled = Fail},
-         Function{ funCompiled = Fail}) -> return True
+        (Function{ funCompiled = Just Fail},
+         Function{ funCompiled = Just Fail}) -> return True
         _ -> return False
   | otherwise = return False
 

@@ -25,6 +25,9 @@ import Agda.Utils.Impossible
 class DropArgs a where
   dropArgs :: Int -> a -> a
 
+instance DropArgs a => DropArgs (Maybe a) where
+  dropArgs n = fmap (dropArgs n)
+
 -- | NOTE: This creates telescopes with unbound de Bruijn indices.
 instance DropArgs Telescope where
   dropArgs n tel = telFromList $ drop n $ telToList tel

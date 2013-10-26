@@ -47,8 +47,9 @@ translateDefn msharp (n, defini) =
         return . return $ Fun True n' (Just n) ("datatype: " ++ show n) vars UNIT
     f@(Function{}) -> do
         let projArgs = projectionArgs f
+            cc       = fromMaybe __IMPOSSIBLE__ $ funCompiled f
         -- let projArgs = maybe 0 (pred . projIndex) (funProjection f)
-        ccs  <- reverseCCBody projArgs <$> normaliseStatic (funCompiled f)
+        ccs  <- reverseCCBody projArgs <$> normaliseStatic cc
         let len   = (+ projArgs) . length . clausePats . head .  funClauses $ f
             toEta = arity (defType defini) - len
         -- forcing <- lift $ gets (optForcing . stPersistentOptions)

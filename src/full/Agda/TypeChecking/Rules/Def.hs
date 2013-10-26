@@ -136,7 +136,7 @@ checkAlias t' info delayed i name e = do
                           , clauseBody  = Body v
                           , clauseType  = Just t
                           } ]
-                      , funCompiled       = Done [] v
+                      , funCompiled       = Just $ Done [] v
                       , funDelayed        = delayed
                       , funInv            = NotInjective
                       , funAbstr          = Info.defAbstract i
@@ -221,7 +221,7 @@ checkFunDef' t info delayed extlam i name cs =
         addConstant name $ Defn info name t [] [] (defaultDisplayForm name) 0 noCompiledRep
                          $ Function
                             { funClauses        = cs
-                            , funCompiled       = cc
+                            , funCompiled       = Just cc
                             , funDelayed        = delayed
                             , funInv            = inv
                             , funAbstr          = Info.defAbstract i

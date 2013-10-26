@@ -317,7 +317,7 @@ applySection new ptel old ts rd rm = do
                   cc <- compileClauses Nothing [cl] -- Andreas, 2012-10-07 non need for record pattern translation
                   let newDef = Function
                         { funClauses        = [cl]
-                        , funCompiled       = cc
+                        , funCompiled       = Just $ cc
                         , funDelayed        = NotDelayed
                         , funInv            = NotInjective
                         , funMutual         = mutual
