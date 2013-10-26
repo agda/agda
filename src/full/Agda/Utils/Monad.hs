@@ -20,7 +20,7 @@ import Control.Monad.State
 -- import qualified Control.Monad.State.Strict as SS
 import Control.Monad.Writer
 import Control.Applicative
-import Data.Traversable as Trav hiding (sequence)
+import Data.Traversable as Trav hiding (for, sequence)
 import Data.Foldable as Fold
 -- import Data.Monoid
 import Data.Maybe
@@ -32,8 +32,14 @@ import Agda.Utils.Impossible
 
 infixr 9 <.>
 
+-- | Composition: pure function after monadic function.
 (<.>) :: Functor m => (b -> c) -> (a -> m b) -> a -> m c
 (f <.> g) a = f <$> g a
+
+-- | The true pure @for@ loop.
+--   'Data.Traversable.for' is a misnomer, it should be @forA@.
+for :: Functor m => m a -> (a -> b) -> m b
+for = flip fmap
 
 -- Conditionals and monads ------------------------------------------------
 

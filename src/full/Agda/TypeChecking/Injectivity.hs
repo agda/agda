@@ -13,7 +13,7 @@ import qualified Data.Map as Map
 import qualified Data.Set as Set
 import Data.Maybe
 -- import Data.List
-import Data.Traversable
+import Data.Traversable hiding (for)
 
 import Agda.Syntax.Common
 import Agda.Syntax.Internal
@@ -28,7 +28,7 @@ import Agda.TypeChecking.Pretty
 import Agda.TypeChecking.Constraints
 import Agda.TypeChecking.Polarity
 import Agda.Utils.List
--- import Agda.Utils.Monad
+import Agda.Utils.Monad (for)
 import Agda.Utils.Permutation
 
 #include "../undefined.h"
@@ -136,9 +136,9 @@ checkInjectivity f cs = do
       let inv = Map.fromList (map fromJust hs `zip` ps)
       reportSLn "tc.inj.check" 20 $ show f ++ " is injective."
       reportSDoc "tc.inj.check" 30 $ nest 2 $ vcat $
-        map (\ (h, c) -> text (show h) <+> text "-->" <+>
-                          fsep (punctuate comma $ map (text . show) $ clausePats c)
-            ) $ Map.toList inv
+        for (Map.toList inv) $ \ (h, c) ->
+          text (show h) <+> text "-->" <+>
+          fsep (punctuate comma $ map (prettyTCM . unArg) $ clausePats c)
       return $ Inverse inv
     else return NotInjective
 {-
