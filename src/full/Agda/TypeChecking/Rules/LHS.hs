@@ -149,7 +149,7 @@ isSolvedProblem :: Problem -> Bool
 isSolvedProblem problem = null (restPats $ problemRest problem) &&
     all (isSolved . snd . asView . namedArg) (problemInPat problem)
   where
-    isSolved (A.DefP _ _ []) = True  -- projection pattern
+    isSolved (A.DefP _ _ []) = False  -- projection pattern
     isSolved (A.VarP _)      = True
     isSolved (A.WildP _)     = True
     isSolved (A.ImplicitP _) = True
@@ -247,7 +247,10 @@ checkDotPattern (DPI e v (Dom info a)) =
 --   There could also be 'A.ConP's resulting from eta expanded implicit record
 --   patterns.
 bindLHSVars :: [A.NamedArg A.Pattern] -> Telescope -> TCM a -> TCM a
-bindLHSVars []       (ExtendTel _ _)   _   = __IMPOSSIBLE__
+bindLHSVars []        tel@ExtendTel{}  _   = do
+  reportSDoc "impossible" 10 $
+    text "bindLHSVars: no patterns left, but tel =" <+> prettyTCM tel
+  __IMPOSSIBLE__
 bindLHSVars (_ : _)   EmptyTel         _   = __IMPOSSIBLE__
 bindLHSVars []        EmptyTel         ret = ret
 bindLHSVars (p : ps) (ExtendTel a tel) ret =

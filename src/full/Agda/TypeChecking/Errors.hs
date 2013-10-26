@@ -13,6 +13,7 @@ import Control.Monad.Error
 
 import Data.Function
 import Data.List (nub, sortBy)
+import Data.Maybe
 import qualified Data.Map as Map (empty)
 
 -- import System.FilePath
@@ -329,10 +330,15 @@ instance PrettyTCM TypeError where
               pwords "Failed to infer the value of dotted pattern"
             IlltypedPattern p a -> fsep $
               pwords "Type mismatch"
-            CannotEliminateWithPattern p a -> fsep $
-              pwords "Cannot eliminate type" ++ prettyTCM a :
-              pwords "with pattern" ++ prettyA p :
-              pwords "(did you supply too many arguments?)"
+            CannotEliminateWithPattern p a -> do
+              let isProj = isJust (isProjP p)
+              fsep $
+                pwords "Cannot eliminate type" ++ prettyTCM a :
+                if isProj then
+                   pwords "with projection pattern" ++ [prettyA p]
+                 else
+                   pwords "with pattern" ++ prettyA p :
+                   pwords "(did you supply too many arguments?)"
             TooManyArgumentsInLHS a -> fsep $
               pwords "Left hand side gives too many arguments to a function of type" ++ [prettyTCM a]
             WrongNumberOfConstructorArguments c expect given -> fsep $

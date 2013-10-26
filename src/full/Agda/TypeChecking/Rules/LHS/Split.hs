@@ -44,6 +44,7 @@ import Agda.Utils.List
 import Agda.Utils.Monad
 import Agda.Utils.Permutation
 import Agda.Utils.Tuple
+import qualified Agda.Utils.Pretty as P
 
 #include "../../../undefined.h"
 import Agda.Utils.Impossible
@@ -91,6 +92,12 @@ splitProblem ::
 splitProblem mf (Problem ps (perm, qs) tel pr) = do
     reportSLn "tc.lhs.split" 20 $ "initiating splitting"
       ++ maybe "" ((" for definition " ++) . show) mf
+    reportSDoc "tc.lhs.split" 30 $ sep
+      [ nest 2 $ text "ps   =" <+> sep (map (P.parens <.> prettyA) ps)
+      , nest 2 $ text "qs   =" <+> sep (map (P.parens <.> prettyTCM . unArg) qs)
+      , nest 2 $ text "perm =" <+> prettyTCM perm
+      , nest 2 $ text "tel  =" <+> prettyTCM tel
+      ]
     runErrorT $
       splitP ps (permute perm $ zip [0..] $ allHoles qs) tel
   where
@@ -173,13 +180,6 @@ splitProblem mf (Problem ps (perm, qs) tel pr) = do
     --   in one-to-one correspondence with the pattern variables
     --   recorded in @tel@.
     splitP :: [A.NamedArg A.Pattern] -> [(Int, OneHolePatterns)] -> Telescope -> ErrorT SplitError TCM SplitProblem
-    -- skip projection pattern
-    splitP (p : ps) qs            tel | Just _ <- isProjP p = do
-       r <- splitP ps qs tel
-       case r of
-         SplitRest{} -> return r
-         Split (Problem ps1 qs tel pr) xs foc p2 ->
-           return $ Split (Problem (p:ps1) qs tel pr) xs foc p2
     -- the next two cases violate the one-to-one correspondence of qs and tel
     splitP _	    []		 (ExtendTel _ _)	 = __IMPOSSIBLE__
     splitP _	    (_:_)	  EmptyTel		 = __IMPOSSIBLE__
@@ -189,9 +189,18 @@ splitProblem mf (Problem ps (perm, qs) tel pr) = do
     splitP ps	    []		  EmptyTel		 = __IMPOSSIBLE__
     -- pattern with type?  Let's get to work:
     splitP (p : ps) ((i, q) : qs) tel0@(ExtendTel a tel) = do
+      liftTCM $ reportSDoc "tc.lhs.split" 30 $ sep
+        [ text "splitP looking at pattern"
+        , nest 2 $ text "p =" <+> prettyA p
+        , nest 2 $ text "a =" <+> prettyTCM a
+        ]
       let tryAgain = splitP (p : ps) ((i, q) : qs) tel0
       p <- lift $ expandLitPattern p
       case asView $ namedArg p of
+
+        -- Case: projection pattern.  That's an error.
+        (_, p') | Just{} <- isProjP p' -> do
+           typeError $ CannotEliminateWithPattern p (telePi tel0 $ restType pr)
 
         -- Case: literal pattern
 	(xs, p@(A.LitP lit))  -> do

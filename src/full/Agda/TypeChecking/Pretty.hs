@@ -19,6 +19,7 @@ import Agda.TypeChecking.Monad
 -- import Agda.TypeChecking.Eliminators
 
 import qualified Agda.Utils.Pretty as P
+import Agda.Utils.Permutation (Permutation)
 import Agda.Utils.Impossible
 
 #include "../undefined.h"
@@ -87,6 +88,7 @@ instance PrettyTCM Sort where prettyTCM x = prettyA =<< reify x
 instance PrettyTCM DisplayTerm where prettyTCM x = prettyA =<< reify x
 instance PrettyTCM NamedClause where prettyTCM x = prettyA =<< reify x
 instance PrettyTCM Level where prettyTCM x = prettyA =<< reify (Level x)
+instance PrettyTCM Permutation where prettyTCM = text . show
 
 instance PrettyTCM ClauseBody where
   prettyTCM b = do
