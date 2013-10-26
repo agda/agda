@@ -34,6 +34,10 @@ import Agda.Utils.Permutation
 #include "../undefined.h"
 import Agda.Utils.Impossible
 
+---------------------------------------------------------------------------
+-- * Application
+---------------------------------------------------------------------------
+
 -- | Apply something to a bunch of arguments.
 --   Preserves blocking tags (application can never resolve blocking).
 class Apply t where
@@ -321,6 +325,10 @@ piApply (El s (Shared p)) args    = piApply (El s $ derefPtr p) args
 piApply t args                    =
   trace ("piApply t = " ++ show t ++ "\n  args = " ++ show args) __IMPOSSIBLE__
 
+---------------------------------------------------------------------------
+-- * Abstraction
+---------------------------------------------------------------------------
+
 -- | @(abstract args v) `apply` args --> v[args]@.
 class Abstract t where
     abstract :: Telescope -> t -> t
@@ -437,6 +445,10 @@ abstractArgs args x = abstract tel x
               $ zipWith (fmap . const) names args
         names = cycle $ map (:[]) ['a'..'z']
 
+---------------------------------------------------------------------------
+-- * Explicit substitutions
+---------------------------------------------------------------------------
+
 -- | Substitutions.
 
 infixr 4 :#
@@ -532,6 +544,10 @@ lookupS rho i = case rho of
   Lift n rho | i < n     -> var i
              | otherwise -> raise n $ lookupS rho (i - n)
   EmptyS                 -> __IMPOSSIBLE__
+
+---------------------------------------------------------------------------
+-- * Substitution and raising/shifting/weakening
+---------------------------------------------------------------------------
 
 -- | Apply a substitution.
 
@@ -679,7 +695,9 @@ instance Subst ClauseBody where
   applySubst rho (Bind b) = Bind $ applySubst rho b
   applySubst _   NoBody   = NoBody
 
+---------------------------------------------------------------------------
 -- * Telescopes
+---------------------------------------------------------------------------
 
 data TelV a = TelV { theTel :: Tele (Dom a), theCore :: a }
   deriving (Typeable, Show, Eq, Ord, Functor)
@@ -766,8 +784,10 @@ dLub s1 b@(Abs _ s2) = case occurrence 0 $ freeVars s2 of
   StronglyRigid -> Inf
   WeaklyRigid   -> Inf
 
--- * Functions on abstractions ----------------------------------------------
+---------------------------------------------------------------------------
+-- * Functions on abstractions
 --   and things we couldn't do before we could define 'absBody'
+---------------------------------------------------------------------------
 
 -- | Instantiate an abstraction
 absApp :: Subst t => Abs t -> Term -> t
@@ -894,7 +914,9 @@ instance (Subst a, Ord a) => Ord (Abs a) where
   Abs   _ a `compare` Abs   _ b = a `compare` b
   a         `compare` b         = absBody a `compare` absBody b
 
--- Level stuff ------------------------------------------------------------
+---------------------------------------------------------------------------
+-- * Level stuff
+---------------------------------------------------------------------------
 
 sLub :: Sort -> Sort -> Sort
 sLub s Prop = s
@@ -983,7 +1005,9 @@ unLevelAtom (NeutralLevel v)   = v
 unLevelAtom (UnreducedLevel v) = v
 unLevelAtom (BlockedLevel _ v) = v
 
--- Boring instances ----------------------------------------------------
+---------------------------------------------------------------------------
+-- * Boring instances
+---------------------------------------------------------------------------
 
 instance Sized Substitution where
   size IdS          = 1
