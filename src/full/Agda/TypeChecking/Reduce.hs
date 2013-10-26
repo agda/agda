@@ -556,12 +556,12 @@ appDefE' v cls@(Clause {clausePats = ps} : _) es
     --   Δ ⊢ λ b : A → B
     --   Δ.A ⊢ b : B
     app :: [Elim] -> ClauseBody -> Substitution -> Term
-    app []           (Body v')    sigma = applySubst sigma v'
-    app (Proj f : es)    b        sigma = app es b sigma
+    app []               (Body v) sigma = applySubst sigma v
+    app (Proj f    : es)  b       sigma = app es b sigma
     app (Apply arg : es) (Bind b) sigma = app es (absBody b) (unArg arg :# sigma) -- CBN
-    app  _            NoBody      sigma = __IMPOSSIBLE__
-    app (_ : _)	     (Body _)     sigma = __IMPOSSIBLE__
-    app []           (Bind _)     sigma = __IMPOSSIBLE__
+    app  _                NoBody  sigma = __IMPOSSIBLE__
+    app (_ : _)	         (Body _) sigma = __IMPOSSIBLE__
+    app []               (Bind _) sigma = __IMPOSSIBLE__
 
 {- OLD version, one substitution after another
     app :: [Elim] -> ClauseBody -> Term
