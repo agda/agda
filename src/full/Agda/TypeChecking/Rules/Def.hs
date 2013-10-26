@@ -140,10 +140,6 @@ checkAlias t' info delayed i name e = do
                       , funDelayed        = delayed
                       , funInv            = NotInjective
                       , funAbstr          = Info.defAbstract i
-{-
-                      , funPolarity       = []
-                      , funArgOccurrences = []
--}
                       , funMutual         = []
                       , funProjection     = Nothing
                       , funStatic         = False
@@ -229,10 +225,6 @@ checkFunDef' t info delayed extlam i name cs =
                             , funDelayed        = delayed
                             , funInv            = inv
                             , funAbstr          = Info.defAbstract i
-{-
-                            , funPolarity       = []
-                            , funArgOccurrences = []
--}
                             , funMutual         = []
                             , funProjection     = Nothing
                             , funStatic         = False
