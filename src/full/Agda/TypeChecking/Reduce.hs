@@ -8,10 +8,10 @@ import Prelude hiding (mapM)
 import Control.Monad.Reader hiding (mapM)
 -- import Control.Monad.Error hiding (mapM)
 import Control.Applicative
+
 import Data.List as List hiding (sort)
 -- import qualified Data.Map as Map
 import Data.Map (Map)
--- import qualified Data.Set as Set
 import Data.Traversable
 import Data.Hashable
 
@@ -23,15 +23,12 @@ import Agda.Syntax.Scope.Base (Scope)
 import Agda.Syntax.Literal
 
 import Agda.TypeChecking.Monad
--- import Agda.TypeChecking.Monad.Context
 import Agda.TypeChecking.Monad.Builtin
 import Agda.TypeChecking.Substitute
--- import Agda.TypeChecking.Free
 import Agda.TypeChecking.EtaContract
 import Agda.TypeChecking.CompiledClause
 import {-# SOURCE #-} Agda.TypeChecking.Pretty
 
--- import {-# SOURCE #-} Agda.TypeChecking.Eliminators
 -- import {-# SOURCE #-} Agda.TypeChecking.Level
 import {-# SOURCE #-} Agda.TypeChecking.Patterns.Match
 import {-# SOURCE #-} Agda.TypeChecking.CompiledClause.Match
