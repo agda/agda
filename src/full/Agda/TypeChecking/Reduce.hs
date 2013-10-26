@@ -10,6 +10,7 @@ import Control.Monad.Reader hiding (mapM)
 import Control.Applicative
 
 import Data.List as List hiding (sort)
+import Data.Maybe
 -- import qualified Data.Map as Map
 import Data.Map (Map)
 import Data.Traversable
@@ -531,16 +532,13 @@ appDefE' v cls@(Clause {clausePats = ps} : _) es
             DontKnow Nothing  -> return $ NoReduction $ notBlocked $ vfull
             DontKnow (Just m) -> return $ NoReduction $ blocked m $ vfull
             Yes simpl es'
-              | hasBody body  -> return $ YesReduction simpl $
+              | isJust (getBody body)  -- clause has body?
+                              -> return $ YesReduction simpl $
                   -- TODO: let matchPatterns also return the reduced forms
                   -- of the original arguments!
                   -- Andreas, 2013-05-19 isn't this done now?
                   app es' body EmptyS
               | otherwise     -> return $ NoReduction $ notBlocked $ vfull
-
-    hasBody (Body _) = True
-    hasBody NoBody   = False
-    hasBody (Bind b) = hasBody (unAbs b)
 
     -- NEW version, building an explicit substitution from arguments
     -- and executing it using parallel substitution.
