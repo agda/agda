@@ -56,11 +56,12 @@ flexibleVarFromHiding h a = FlexibleVar h ImplicitFlex a
 instance Ord (FlexibleVar Nat) where
   (FlexibleVar h1 f1 i1) >= (FlexibleVar h2 f2 i2) =
     f1 > f2 || (f1 == f2 && (hgt h1 h2 || (h1 == h2 && i1 <= i2)))
-    where hgt x y | x == y = False
-          hgt Hidden _ = True
-          hgt _ Hidden = False
-          hgt Instance _ = True
-          hgt _ _ = False
+    where
+      hgt x y | x == y = False
+      hgt Hidden _ = True
+      hgt _ Hidden = False
+      hgt Instance _ = True
+      hgt _ _ = False
 
 -- | State of typechecking a LHS; input to 'split'.
 --   [Ulf Norell's PhD, page. 35]
@@ -68,12 +69,18 @@ instance Ord (FlexibleVar Nat) where
 --   In @Problem ps p delta@,
 --   @ps@ are the user patterns of supposed type @delta@.
 --   @p@ is the pattern resulting from the splitting.
-data Problem' p	    = Problem { problemInPat  :: [A.NamedArg A.Pattern]
-			      , problemOutPat :: p
-			      , problemTel    :: Telescope
-                              , problemRest   :: ProblemRest
-			      }
+data Problem' p = Problem
+  { problemInPat  :: [A.NamedArg A.Pattern]  -- ^ User patterns.
+  , problemOutPat :: p                       -- ^ Patterns after splitting.
+  , problemTel    :: Telescope               -- ^ Type of patterns.
+  , problemRest   :: ProblemRest             -- ^ Patterns that cannot be typed yet.
+  }
   deriving Show
+
+-- | The permutation should permute @allHoles@ of the patterns to correspond to
+--   the abstract patterns in the problem.
+type Problem	 = Problem' (Permutation, [I.Arg Pattern])
+type ProblemPart = Problem' ()
 
 -- | User patterns that could not be given a type yet.
 --
@@ -94,37 +101,36 @@ data Problem' p	    = Problem { problemInPat  :: [A.NamedArg A.Pattern]
 --   As we instantiate @b@ to @false@, the 'restType' reduces to
 --   @Nat -> Nat@ and we can move pattern @zero@ over to @problemInPat@.
 
-data ProblemRest    = ProblemRest
+data ProblemRest = ProblemRest
   { restPats :: [A.NamedArg A.Pattern]  -- ^ non-empty list of user patterns which could not yet be typed
   , restType :: Type                  -- ^ type eliminated by 'restPats'
   }
   deriving Show
 
-data Focus	    = Focus   { focusCon      :: QName
-                              , focusImplicit :: Bool -- ^ Do we come from an implicit record pattern?
-			      , focusConArgs  :: [A.NamedArg A.Pattern]
-			      , focusRange    :: Range
-			      , focusOutPat   :: OneHolePatterns
-			      , focusHoleIx   :: Int  -- ^ Index of focused variable in the out patterns.
-			      , focusDatatype :: QName
-			      , focusParams   :: [I.Arg Term]
-			      , focusIndices  :: [I.Arg Term]
-                              , focusType     :: Type -- ^ Type of variable we are splitting, kept for record patterns.
-			      }
-		    | LitFocus Literal OneHolePatterns Int Type
+data Focus
+  = Focus
+    { focusCon      :: QName
+    , focusImplicit :: Bool -- ^ Do we come from an implicit record pattern?
+    , focusConArgs  :: [A.NamedArg A.Pattern]
+    , focusRange    :: Range
+    , focusOutPat   :: OneHolePatterns
+    , focusHoleIx   :: Int  -- ^ Index of focused variable in the out patterns.
+    , focusDatatype :: QName
+    , focusParams   :: [I.Arg Term]
+    , focusIndices  :: [I.Arg Term]
+    , focusType     :: Type -- ^ Type of variable we are splitting, kept for record patterns.
+    }
+  | LitFocus Literal OneHolePatterns Int Type
 
-data SplitProblem   = Split ProblemPart [Name] (I.Arg Focus) (Abs ProblemPart)
-                      -- ^ the [Name]s give the as-bindings for the focus
-                    | SplitRest { splitProjection :: I.Arg QName, splitRestType :: Type }
-                      -- ^ Split on projection pattern.
+data SplitProblem
+  = Split ProblemPart [Name] (I.Arg Focus) (Abs ProblemPart)
+    -- ^ the [Name]s give the as-bindings for the focus
+  | SplitRest { splitProjection :: I.Arg QName, splitRestType :: Type }
+    -- ^ Split on projection pattern.
 
-data SplitError	    = NothingToSplit
-		    | SplitPanic String -- ^ __IMPOSSIBLE__, only there to make this instance of 'Error'.
-
--- | The permutation should permute @allHoles@ of the patterns to correspond to
---   the abstract patterns in the problem.
-type Problem	 = Problem' (Permutation, [I.Arg Pattern])
-type ProblemPart = Problem' ()
+data SplitError
+  = NothingToSplit
+  | SplitPanic String -- ^ __IMPOSSIBLE__, only there to make this instance of 'Error'.
 
 data DotPatternInst = DPI A.Expr Term (I.Dom Type)
 data AsBinding      = AsB Name Term Type
