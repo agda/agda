@@ -28,6 +28,10 @@ data LevelKit = LevelKit
   , zeroName :: QName
   }
 
+-- | Get the 'primLevel as a 'Term', if present.
+mlevel :: TCM (Maybe Term)
+mlevel = liftTCM $ (Just <$> primLevel) `catchError` \_ -> return Nothing
+
 -- | Get the 'primLevel' as a 'Type'.
 levelType :: TCM Type
 levelType = El (mkType 0) <$> primLevel

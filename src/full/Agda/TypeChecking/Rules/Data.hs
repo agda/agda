@@ -186,7 +186,6 @@ checkDataDef i name ps cs =
 --   @smallParams@ overapproximates the small parameters (in doubt: small).
 smallParams :: Telescope -> Sort -> TCM [Int]
 smallParams tel s = do
-  mlvl <- mlevel
   -- get the types of the parameters
   let as = map (snd . unDom) $ telToList tel
   -- get the big parameters
@@ -196,7 +195,7 @@ smallParams tel s = do
       -- In doubt (unsolvable constraints), a type is small.
       -- So, only if we have a solid error, the type is big.
       localState $ do
-        ([] <$ do equalTerm topSort (unEl a) =<< primLevel)
+        ([] <$ do equalTerm topSort (unEl a) =<< primLevel)  -- NB: if primLevel fails, the next alternative is picked
         <|> ([i] <$ (getSort a `leqSort` s))
         <|> return []
   where

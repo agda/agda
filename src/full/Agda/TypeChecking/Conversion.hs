@@ -35,7 +35,7 @@ import Agda.TypeChecking.Pretty
 import Agda.TypeChecking.Injectivity
 import Agda.TypeChecking.Polarity
 import Agda.TypeChecking.SizedTypes
-import Agda.TypeChecking.Monad.Builtin
+-- import Agda.TypeChecking.Monad.Builtin (primLevel)
 import Agda.TypeChecking.Level
 import Agda.TypeChecking.Implicit (implicitArgs)
 import Agda.TypeChecking.Irrelevance
@@ -60,8 +60,10 @@ import Agda.Utils.Impossible
 ($>) = flip (<$)
 -}
 
+{- MOVED to TypeChecking.Level
 mlevel :: TCM (Maybe Term)
 mlevel = liftTCM $ (Just <$> primLevel) `catchError` \_ -> return Nothing
+-}
 
 -- | Check if to lists of arguments are the same (and all variables).
 --   Precondition: the lists have the same length.
