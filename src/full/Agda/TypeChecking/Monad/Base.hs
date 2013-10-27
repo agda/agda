@@ -568,6 +568,20 @@ data Definition = Defn
   }
     deriving (Typeable, Show)
 
+-- | Create a definition with sensible defaults.
+defaultDefn :: ArgInfo -> QName -> Type -> Defn -> Definition
+defaultDefn info x t def = Defn
+  { defArgInfo        = info
+  , defName           = x
+  , defType           = t
+  , defPolarity       = []
+  , defArgOccurrences = []
+  , defDisplay        = defaultDisplayForm x
+  , defMutual         = 0
+  , defCompiledRep    = noCompiledRep
+  , theDef            = def
+  }
+
 type HaskellCode = String
 type HaskellType = String
 type EpicCode    = String

@@ -218,20 +218,21 @@ checkFunDef' t info delayed extlam i name cs =
               ]
 
         -- Add the definition
-        addConstant name $ Defn info name t [] [] (defaultDisplayForm name) 0 noCompiledRep
-                         $ Function
-                            { funClauses        = cs
-                            , funCompiled       = Just cc
-                            , funDelayed        = delayed
-                            , funInv            = inv
-                            , funAbstr          = Info.defAbstract i
-                            , funMutual         = []
-                            , funProjection     = Nothing
-                            , funStatic         = False
-                            , funCopy           = False
-                            , funTerminates     = Nothing
-                            , funExtLam         = extlam
-                            }
+        addConstant name $
+          defaultDefn info name t $
+             Function
+             { funClauses        = cs
+             , funCompiled       = Just cc
+             , funDelayed        = delayed
+             , funInv            = inv
+             , funAbstr          = Info.defAbstract i
+             , funMutual         = []
+             , funProjection     = Nothing
+             , funStatic         = False
+             , funCopy           = False
+             , funTerminates     = Nothing
+             , funExtLam         = extlam
+             }
 
         -- Andreas 2012-02-13: postpone polarity computation until after positivity check
         -- computePolarity name

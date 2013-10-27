@@ -123,7 +123,7 @@ checkRecDef i name ind con ps contel fields =
           indCo = maybe Inductive id ind -- default is 'Inductive' for backwards compatibility but should maybe be 'Coinductive'
 
       reportSDoc "tc.rec" 30 $ text "record constructor is " <+> text (show con)
-      addConstant name $ Defn defaultArgInfo name t0 [] [] (defaultDisplayForm name) 0 noCompiledRep
+      addConstant name $ defaultDefn defaultArgInfo name t0
 		       $ Record { recPars           = 0
                                 , recClause         = Nothing
                                 , recConHead        = con
@@ -143,7 +143,7 @@ checkRecDef i name ind con ps contel fields =
       -- Andreas, 2011-05-19 moved this here, it was below the record module
       --   creation
       addConstant conName $
-        Defn defaultArgInfo conName contype [] [] (defaultDisplayForm conName) 0 noCompiledRep $
+        defaultDefn defaultArgInfo conName contype $
              Constructor { conPars   = 0
                          , conSrcCon = con
                          , conData   = name
@@ -377,7 +377,10 @@ checkRecordProjections m r con tel ftel fs = do
           -- proj = foldr (\ (Dom ai (x, _)) -> Lam ai . NoAbs x) core ptel
           projection = Projection
             { projProper   = Just projname
+            -- name of the record type:
             , projFromType = r
+            -- index of the record argument (in the type),
+            -- start counting with 1:
             , projIndex    = size ptel + 1  -- which is @size tel@
             , projDropPars = proj
             }
@@ -408,21 +411,21 @@ checkRecordProjections m r con tel ftel fs = do
             ]
 
       escapeContext (size tel) $ do
-	addConstant projname $ Defn i projname (killRange finalt) [] [StrictPos] (defaultDisplayForm projname) 0 noCompiledRep
-          $ Function { funClauses        = [clause]
+	addConstant projname $
+          (defaultDefn i projname (killRange finalt)
+            Function { funClauses        = [clause]
                      , funCompiled       = Just cc
                      , funDelayed        = NotDelayed
                      , funInv            = NotInjective
                      , funAbstr          = ConcreteDef
                      , funMutual         = []
                      , funProjection     = Just projection
-                       -- name of the record type and
-                       -- index of the record argument (in the type), start counting with 1
                      , funStatic         = False
                      , funCopy           = False
                      , funTerminates     = Just True
                      , funExtLam         = Nothing
-                     }
+                     })
+            { defArgOccurrences = [StrictPos] }
         computePolarity projname
 
       recurse

@@ -127,7 +127,9 @@ checkDataDef i name ps cs =
                                    }
 
 	    escapeContext (size tel) $ do
-	      addConstant name ( Defn defaultArgInfo name t [] [] (defaultDisplayForm name) 0 noCompiledRep dataDef )
+	      addConstant name $
+                defaultDefn defaultArgInfo name t dataDef
+                -- polarity and argOcc.s determined by the positivity checker
 
 	    -- Check the types of the constructors
             -- collect the non-linear parameters of each constructor
@@ -236,10 +238,10 @@ checkConstructor d tel nofIxs s con@(A.Axiom i _ c e) =
 
         -- add parameters to constructor type and put into signature
         let con = ConHead c [] -- data constructors have no projectable fields
-        escapeContext (size tel)
-	    $ addConstant c
-	    $ Defn defaultArgInfo c (telePi tel t') [] [] (defaultDisplayForm c) 0 noCompiledRep
-	    $ Constructor (size tel) con d (Info.defAbstract i) Inductive
+        escapeContext (size tel) $
+          addConstant c $
+	    defaultDefn defaultArgInfo c (telePi tel t') $
+              Constructor (size tel) con d (Info.defAbstract i) Inductive
 
         return nonLinPars
   where
