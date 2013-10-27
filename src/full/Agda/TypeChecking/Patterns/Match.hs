@@ -58,8 +58,13 @@ instance Monoid (Match a) where
 --   (with all the weak head reductions performed that were necessary
 --   to come to a decision).
 matchCopatterns :: [I.Arg Pattern] -> [Elim] -> TCM (Match Elim, [Elim])
-matchCopatterns ps vs = mapFst mconcat . unzip <$>
-  zipWithM' matchCopattern ps vs
+matchCopatterns ps vs = do
+    reportSDoc "tc.match" 50 $
+      vcat [ text "matchCopatterns"
+           , nest 2 $ text "ps =" <+> fsep (punctuate comma $ map (prettyTCM . unArg) ps)
+           , nest 2 $ text "vs =" <+> fsep (punctuate comma $ map prettyTCM vs)
+           ]
+    mapFst mconcat . unzip <$> zipWithM' matchCopattern ps vs
 
 -- | Match a single copattern.
 matchCopattern :: I.Arg Pattern -> Elim -> TCM (Match Elim, Elim)
