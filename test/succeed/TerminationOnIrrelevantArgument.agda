@@ -2,7 +2,7 @@
 -- Defining a universe for dependent types
 -- where the El function only depends on the type code but not on its
 -- proof of well-formedness
-{-# OPTIONS --experimental-irrelevance #-}
+{-# OPTIONS --experimental-irrelevance --show-implicit --show-irrelevant #-}
 module TerminationOnIrrelevantArgument where
 
 data ⊥ : Set where
@@ -24,12 +24,12 @@ mutual
     Pi    : (a f : D) ->
             (A : Ty a) ->
             (F : (d : D) -> .(El a A d) -> Ty (app f d)) ->
-            Ty (pi a f) 
-  
+            Ty (pi a f)
+
 
   El : (a : D) -> .(A : Ty a) -> D -> Set
   El  empty    Empty         g = ⊥
-  El (pi a f) (Pi .a .f A F) g = (d : D) -> .(Ad : El a A d) -> 
+  El (pi a f) (Pi .a .f A F) g = (d : D) -> .(Ad : El a A d) ->
                                  El (app f d) (F d Ad) (app g d)
   El  other   ()             g
 
