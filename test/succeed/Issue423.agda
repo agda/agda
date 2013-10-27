@@ -4,6 +4,8 @@
 
 module Issue423 where
 
+-- import Common.Level
+
 ------------------------------------------------------------------------
 -- Prelude
 
@@ -82,3 +84,4 @@ fails′ τ .τ refl = Set
 -- Bug was:
 -- I find it interesting that works′ works, whereas the symmetric
 -- variant fails fails.
+
