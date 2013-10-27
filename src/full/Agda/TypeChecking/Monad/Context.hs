@@ -18,6 +18,7 @@ import Agda.TypeChecking.Monad.Base
 import Agda.TypeChecking.Substitute
 import Agda.TypeChecking.Monad.Open
 
+import Agda.Utils.List (downFrom)
 import Agda.Utils.Monad
 import Agda.Utils.Fresh
 
@@ -172,7 +173,8 @@ getContextArgs = do
 
 {-# SPECIALIZE getContextTerms :: TCM [Term] #-}
 getContextTerms :: MonadTCM tcm => tcm [Term]
-getContextTerms = map unArg <$> getContextArgs
+getContextTerms = map var . downFrom <$> getContextSize
+-- getContextTerms = map unArg <$> getContextArgs
 
 -- | Get the current context as a 'Telescope' with the specified 'Hiding'.
 {-# SPECIALIZE getContextTelescope :: TCM Telescope #-}
@@ -226,7 +228,7 @@ getVarInfo x =
 	case findIndex ((==x) . fst . unDom) ctx of
 	    Just n -> do
                 t <- typeOfBV' n
-                return (Var n [], t)
+                return (var n, t)
 	    _	    ->
 		case Map.lookup x def of
 		    Just vt -> liftTCM $ getOpen vt
