@@ -802,13 +802,13 @@ instance ToAbstract NiceDeclaration A.Declaration where
     traceCall (ScopeCheckDeclaration d) $
     case d of
 
-  -- Axiom
+  -- Axiom (actual postulate)
     C.Axiom r f p rel x t -> do
       -- check that we do not postulate in --safe mode
       clo <- commandLineOptions
       when (optSafe clo) (typeError (SafeFlagPostulate x))
       -- check the postulate
-      toAbstractNiceAxiom d
+      toAbstractNiceAxiom A.NoFunSig d
 
   -- Fields
     C.NiceField r f p a x t -> do
@@ -859,7 +859,7 @@ instance ToAbstract NiceDeclaration A.Declaration where
         t' <- toAbstract t
         return [ A.DataSig (mkDefInfo x f a ConcreteDef r) x' ls' t' ]
   -- Type signatures
-    C.FunSig r f p rel tc x t -> toAbstractNiceAxiom (C.Axiom r f p rel x t)
+    C.FunSig r f p rel tc x t -> toAbstractNiceAxiom A.FunSig (C.Axiom r f p rel x t)
   -- Function definitions
     C.FunDef r ds f a tc x cs -> do
         printLocals 10 $ "checking def " ++ show x
@@ -1035,13 +1035,13 @@ instance ToAbstract NiceDeclaration A.Declaration where
 
     where
       -- checking postulate or type sig. without checking safe flag
-      toAbstractNiceAxiom (C.Axiom r f p info x t) = do
+      toAbstractNiceAxiom funSig (C.Axiom r f p info x t) = do
         t' <- toAbstractCtx TopCtx t
         y  <- freshAbstractQName f x
         info <- toAbstract info
         bindName p DefName x y
-        return [ A.Axiom (mkDefInfo x f p ConcreteDef r) info y t' ]
-      toAbstractNiceAxiom _ = __IMPOSSIBLE__
+        return [ A.Axiom funSig (mkDefInfo x f p ConcreteDef r) info y t' ]
+      toAbstractNiceAxiom _ _ = __IMPOSSIBLE__
 
 
 data IsRecordCon = YesRec | NoRec
@@ -1073,7 +1073,7 @@ instance ToAbstract ConstrDecl A.Declaration where
     y <- bindConstructorName m x f a p record
     info <- toAbstract info
     printScope "con" 15 "bound constructor"
-    return $ A.Axiom (mkDefInfo x f p ConcreteDef r) info y t'
+    return $ A.Axiom NoFunSig (mkDefInfo x f p ConcreteDef r) info y t'
 
   toAbstract _ = __IMPOSSIBLE__    -- a constructor is always an axiom
 

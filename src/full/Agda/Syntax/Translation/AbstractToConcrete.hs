@@ -628,7 +628,7 @@ telToTypedBindingss = map lamBindingToTypedBindings where
 instance ToConcrete (Constr A.Constructor) C.Declaration where
   toConcrete (Constr (A.ScopedDecl scope [d])) =
     withScope scope $ toConcrete (Constr d)
-  toConcrete (Constr (A.Axiom i info x t)) = do
+  toConcrete (Constr (A.Axiom _ i info x t)) = do
     x' <- unsafeQNameToName <$> toConcrete x
     t' <- toConcreteCtx TopCtx t
     info <- toConcrete info
@@ -663,7 +663,7 @@ instance ToConcrete A.Declaration [C.Declaration] where
   toConcrete (ScopedDecl scope ds) =
     withScope scope (declsToConcrete ds)
 
-  toConcrete (Axiom i info x t) = do
+  toConcrete (Axiom _ i info x t) = do
     x' <- unsafeQNameToName <$> toConcrete x
     withAbstractPrivate i $
       withInfixDecl i x'  $ do

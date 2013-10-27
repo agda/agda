@@ -90,8 +90,15 @@ data Expr
 type Assign  = (C.Name, Expr)
 type Assigns = [Assign]
 
+-- | Is a type signature a `postulate' or a function signature?
+data Axiom
+  = FunSig    -- ^ A function signature.
+  | NoFunSig  -- ^ Not a function signature, i.e., a postulate (in user input)
+              --   or another (e.g. data/record) type signature (internally).
+  deriving (Typeable, Eq, Ord, Show)
+
 data Declaration
-	= Axiom      DefInfo ArgInfo QName Expr            -- ^ postulate (can be irrelevant and colored, but not hidden)
+	= Axiom      Axiom DefInfo ArgInfo QName Expr      -- ^ type signature (can be irrelevant and colored, but not hidden)
 	| Field      DefInfo QName (Arg Expr)		   -- ^ record field
 	| Primitive  DefInfo QName Expr			   -- ^ primitive function
 	| Mutual     MutualInfo [Declaration]              -- ^ a bunch of mutually recursive definitions
@@ -117,14 +124,14 @@ class GetDefInfo a where
   getDefInfo :: a -> Maybe DefInfo
 
 instance GetDefInfo Declaration where
-  getDefInfo (Axiom i _ _ _) = Just i
-  getDefInfo (Field i _ _) = Just i
-  getDefInfo (Primitive i _ _) = Just i
-  getDefInfo (ScopedDecl _ (d:_)) = getDefInfo d
-  getDefInfo (FunDef i _ _ _) = Just i
-  getDefInfo (DataSig i _ _ _) = Just i
-  getDefInfo (DataDef i _ _ _) = Just i
-  getDefInfo (RecSig i _ _ _) = Just i
+  getDefInfo (Axiom _ i _ _ _)      = Just i
+  getDefInfo (Field i _ _)          = Just i
+  getDefInfo (Primitive i _ _)      = Just i
+  getDefInfo (ScopedDecl _ (d:_))   = getDefInfo d
+  getDefInfo (FunDef i _ _ _)       = Just i
+  getDefInfo (DataSig i _ _ _)      = Just i
+  getDefInfo (DataDef i _ _ _)      = Just i
+  getDefInfo (RecSig i _ _ _)       = Just i
   getDefInfo (RecDef i _ _ _ _ _ _) = Just i
   getDefInfo _ = Nothing
 
@@ -445,7 +452,7 @@ instance HasRange Expr where
     getRange (PatternSyn x)        = getRange x
 
 instance HasRange Declaration where
-    getRange (Axiom      i _ _ _    ) = getRange i
+    getRange (Axiom    _ i _ _ _    ) = getRange i
     getRange (Field      i _ _      ) = getRange i
     getRange (Mutual     i _        ) = getRange i
     getRange (Section    i _ _ _    ) = getRange i
@@ -553,7 +560,7 @@ instance KillRange Expr where
   killRange (PatternSyn x)         = killRange1 PatternSyn x
 
 instance KillRange Declaration where
-  killRange (Axiom      i rel a b     ) = killRange4 Axiom      i rel a b
+  killRange (Axiom    p i rel a b     ) = killRange4 (Axiom p)  i rel a b
   killRange (Field      i a b         ) = killRange3 Field      i a b
   killRange (Mutual     i a           ) = killRange2 Mutual     i a
   killRange (Section    i a b c       ) = killRange4 Section    i a b c
@@ -635,7 +642,7 @@ instanceUniverseBiT' [] [t| (Declaration, ModuleInfo)     |]
 -- lambdas.
 
 allNames :: Declaration -> Seq QName
-allNames (Axiom     _ _ q _)      = Seq.singleton q
+allNames (Axiom   _ _ _ q _)      = Seq.singleton q
 allNames (Field     _   q _)      = Seq.singleton q
 allNames (Primitive _   q _)      = Seq.singleton q
 allNames (Mutual     _ defs)      = Fold.foldMap allNames defs
@@ -716,11 +723,12 @@ allNames (ScopedDecl _ decls)  = Fold.foldMap allNames decls
 
 -- | The name defined by the given axiom.
 --
--- Precondition: The declaration has to be an 'Axiom'.
+-- Precondition: The declaration has to be a (scoped) 'Axiom'.
 
 axiomName :: Declaration -> QName
-axiomName (Axiom _ _ q _) = q
-axiomName _             = __IMPOSSIBLE__
+axiomName (Axiom _ _ _ q _)    = q
+axiomName (ScopedDecl _ (d:_)) = axiomName d
+axiomName _                    = __IMPOSSIBLE__
 
 -- | Are we in an abstract block?
 --
@@ -732,7 +740,7 @@ instance AnyAbstract a => AnyAbstract [a] where
   anyAbstract = Fold.any anyAbstract
 
 instance AnyAbstract Declaration where
-  anyAbstract (Axiom i _ _ _)        = defAbstract i == AbstractDef
+  anyAbstract (Axiom _ i _ _ _)      = defAbstract i == AbstractDef
   anyAbstract (Field i _ _)          = defAbstract i == AbstractDef
   anyAbstract (Mutual     _ ds)      = anyAbstract ds
   anyAbstract (ScopedDecl _ ds)      = anyAbstract ds

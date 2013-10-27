@@ -164,8 +164,9 @@ checkDecl d = do
     unScope (A.ScopedDecl scope ds) = setScope scope >> unScope d
     unScope d = return d
 
+    -- check record or data type signature
     checkSig i x ps t = checkTypeSignature $
-      A.Axiom i defaultArgInfo x (A.Pi (Info.ExprRange (fuseRange ps t)) ps t)
+      A.Axiom A.NoFunSig i defaultArgInfo x (A.Pi (Info.ExprRange (fuseRange ps t)) ps t)
 
     check x i m = do
       reportSDoc "tc.decl" 5 $ text "Checking" <+> prettyTCM x <> text "."
@@ -250,8 +251,8 @@ checkDecl d = do
       return termErrs
 
 -- | Type check an axiom.
-checkAxiom :: Info.DefInfo -> A.ArgInfo -> QName -> A.Expr -> TCM ()
-checkAxiom i info0 x e = do
+checkAxiom :: A.Axiom -> Info.DefInfo -> A.ArgInfo -> QName -> A.Expr -> TCM ()
+checkAxiom funSig i info0 x e = do
   -- Andreas, 2012-04-18  if we are in irrelevant context, axioms is irrelevant
   -- even if not declared as such (Issue 610).
   rel <- max (getRelevance info0) <$> asks envRelevance
@@ -264,7 +265,11 @@ checkAxiom i info0 x e = do
     ]
   -- Not safe. See Issue 330
   -- t <- addForcingAnnotations t
-  addConstant x (Defn info x t [] [] (defaultDisplayForm x) 0 noCompiledRep Axiom)
+  addConstant x $
+    defaultDefn info x t $
+      case funSig of
+        A.FunSig   -> emptyFunction
+        A.NoFunSig -> Axiom    -- NB: used also for data and record type sigs
 
   -- for top-level axioms (postulates) try to solve irrelevant metas
   -- when postulate $
@@ -284,8 +289,9 @@ checkPrimitive i x e =
     noConstraints $ equalType t t'
     let s  = show $ nameConcrete $ qnameName x
     bindPrimitive s pf
-    addConstant x (Defn defaultArgInfo x t [] [] (defaultDisplayForm x) 0 noCompiledRep $
-                Primitive (Info.defAbstract i) s [] Nothing)
+    addConstant x $
+      defaultDefn defaultArgInfo x t $
+        Primitive (Info.defAbstract i) s [] Nothing
     where
 	nameString (Name _ x _ _) = show x
 
@@ -398,10 +404,10 @@ checkTypeSignature :: A.TypeSignature -> TCM ()
 checkTypeSignature (A.ScopedDecl scope ds) = do
   setScope scope
   mapM_ checkTypeSignature ds
-checkTypeSignature (A.Axiom i info x e) =
+checkTypeSignature (A.Axiom funSig i info x e) =
     case Info.defAccess i of
-	PublicAccess  -> inConcreteMode $ checkAxiom i info x e
-	PrivateAccess -> inAbstractMode $ checkAxiom i info x e
+	PublicAccess  -> inConcreteMode $ checkAxiom funSig i info x e
+	PrivateAccess -> inAbstractMode $ checkAxiom funSig i info x e
         OnlyQualified -> __IMPOSSIBLE__
 checkTypeSignature _ = __IMPOSSIBLE__	-- type signatures are always axioms
 

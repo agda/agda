@@ -786,7 +786,7 @@ instance PrettyTCM Call where
 	    fsep $ pwords "when checking the definition of" ++ [prettyTCM x]
 	CheckDataDef _ x ps cs _ ->
 	    fsep $ pwords "when checking the definition of" ++ [prettyTCM x]
-	CheckConstructor d _ _ (A.Axiom _ _ c _) _ -> fsep $
+	CheckConstructor d _ _ (A.Axiom _ _ _ c _) _ -> fsep $
 	    pwords "when checking the constructor" ++ [prettyTCM c] ++
 	    pwords "in the declaration of" ++ [prettyTCM d]
 	CheckConstructor _ _ _ _ _ -> __IMPOSSIBLE__

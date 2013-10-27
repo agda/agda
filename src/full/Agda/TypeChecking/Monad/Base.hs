@@ -725,6 +725,23 @@ data Defn = Axiom
             -- ^ Primitive or builtin functions.
     deriving (Typeable, Show)
 
+-- | A template for creating 'Function' definitions, with sensible defaults.
+emptyFunction :: Defn
+emptyFunction = Function
+  { funClauses     = []
+  , funCompiled    = Nothing
+  , funInv         = NotInjective
+  , funMutual      = []
+  , funAbstr       = ConcreteDef
+  , funDelayed     = NotDelayed
+  , funProjection  = Nothing
+  , funStatic      = False
+  , funCopy        = False
+  , funTerminates  = Nothing
+  , funExtLam      = Nothing
+  }
+
+
 recCon :: Defn -> QName
 recCon Record{ recConHead } = conName recConHead
 recCon _ = __IMPOSSIBLE__

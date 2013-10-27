@@ -385,13 +385,15 @@ nameKinds hlLevel decl = do
   defnToKind (M.Constructor { M.conInd = i }) = Constructor i
   defnToKind (M.Primitive {})                 = Primitive
 
+{- DUPLICATE of A.axiomName
   getAxiomName :: A.Declaration -> A.QName
-  getAxiomName (A.Axiom _ _ q _) = q
-  getAxiomName _                 = __IMPOSSIBLE__
+  getAxiomName (A.Axiom _ _ _ q _) = q
+  getAxiomName _                   = __IMPOSSIBLE__
+-}
 
   declToKind :: A.Declaration ->
                 HashMap A.QName NameKind -> HashMap A.QName NameKind
-  declToKind (A.Axiom _ _ q _)      = insert q Postulate
+  declToKind (A.Axiom _ _ _ q _)    = insert q Postulate
   declToKind (A.Field _ q _)        = insert q Function
     -- Note that the name q can be used both as a field name and as a
     -- projection function. Highlighting of field names is taken care
@@ -408,7 +410,7 @@ nameKinds hlLevel decl = do
   declToKind (A.DataSig _ q _ _)    = insert q Datatype
   declToKind (A.DataDef _ q _ cs)   = \m ->
                                       insert q Datatype $
-                                      foldr (\d -> insert (getAxiomName d)
+                                      foldr (\d -> insert (A.axiomName d)
                                                           (Constructor SC.Inductive))
                                             m cs
   declToKind (A.RecSig _ q _ _)     = insert q Record

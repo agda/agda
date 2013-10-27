@@ -77,7 +77,8 @@ checkDataDef i name ps cs =
 	dataDef <- bindParameters ps t $ \tel t0 -> do
 
 	    -- Parameters are always hidden in constructors
-	    let tel' = hideTel tel
+	    let tel' = hideAndRelParams <$> tel
+	    -- let tel' = hideTel tel
 
 	    -- The type we get from bindParameters is Θ -> s where Θ is the type of
 	    -- the indices. We count the number of indices and return s.
@@ -142,43 +143,39 @@ checkDataDef i name ps cs =
 	    -- Return the data definition
 	    return dataDef{ dataNonLinPars = nonLinPars }
 
-        let nofIxs = dataIxs dataDef
-            s      = dataSort dataDef
+        let s      = dataSort dataDef
+            cons   = map A.axiomName cs  -- get constructor names
 
 	-- If proof irrelevance is enabled we have to check that datatypes in
 	-- Prop contain at most one element.
 	do  proofIrr <- proofIrrelevance
 	    case (proofIrr, s, cs) of
-		(True, Prop, _:_:_) -> setCurrentRange (getRange $ map conName cs) $
-                                        typeError PropMustBeSingleton
-                  where conName (A.Axiom _ _ c _) = c
-                        conName (A.ScopedDecl _ (d:_)) = conName d
-                        conName _ = __IMPOSSIBLE__
+		(True, Prop, _:_:_) -> setCurrentRange (getRange cons) $
+                                         typeError PropMustBeSingleton
 		_		    -> return ()
 
-	-- Add the datatype to the signature with its constructors. It was previously
-	-- added without them.
-	addConstant name (Defn defaultArgInfo name t [] [] (defaultDisplayForm name) 0 noCompiledRep $
-                            dataDef { dataCons = map cname cs }
-			 )
+	-- Add the datatype to the signature with its constructors.
+        -- It was previously added without them.
+	addConstant name $
+          defaultDefn defaultArgInfo name t $
+            dataDef{ dataCons = cons }
+
         -- Andreas 2012-02-13: postpone polarity computation until after positivity check
         -- computePolarity name
     where
-	cname (A.ScopedDecl _ [d]) = cname d
-	cname (A.Axiom _ _ x _)	   = x
-	cname _			   = __IMPOSSIBLE__ -- constructors are axioms
+      -- Take a type of form @tel -> a@ and return
+      -- @size tel@ (number of data type indices) and
+      -- @a@ as a sort (either @a@ directly if it is a sort,
+      -- or a fresh sort meta set equal to a.
+      splitType :: Type -> TCM (Int, Sort)
+      splitType t = case ignoreSharing $ unEl t of
+        Pi a b -> mapFst (+ 1) <$> do addCtxString (absName b) a $ splitType (absBody b)
+        Sort s -> return (0, s)
+        _      -> do
+          s <- newSortMeta
+          equalType t (sort s)
+          return (0, s)
 
-	hideTel  EmptyTel		  = EmptyTel
-	hideTel (ExtendTel a tel) = ExtendTel (hideAndRelParams a) $ hideTel <$> tel
-
-        splitType :: Type -> TCM (Int, Sort)
-        splitType t = case ignoreSharing $ unEl t of
-          Pi a b -> ((+ 1) -*- id) <$> do addCtxString (absName b) a $ splitType (absBody b)
-          Sort s -> return (0, s)
-	  _      -> do
-            s <- newSortMeta
-            equalType t (sort s)
-            return (0, s)
 
 -- | A parameter is small if its sort fits into the data sort.
 --   @smallParams@ overapproximates the small parameters (in doubt: small).
@@ -207,7 +204,7 @@ checkConstructor :: QName -> Telescope -> Nat -> Sort
 checkConstructor d tel nofIxs s (A.ScopedDecl scope [con]) = do
   setScope scope
   checkConstructor d tel nofIxs s con
-checkConstructor d tel nofIxs s con@(A.Axiom i _ c e) =
+checkConstructor d tel nofIxs s con@(A.Axiom _ i _ c e) =
     traceCall (CheckConstructor d tel s con) $ do
 {- WRONG
       -- Andreas, 2011-04-26: the following happens to the right of ':'
