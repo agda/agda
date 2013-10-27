@@ -69,7 +69,7 @@ matchCopattern (Arg _ (ProjP p)) elim@(Proj q)
 matchCopattern (Arg _ (ProjP p)) elim@Apply{}
               = return (DontKnow Nothing, elim)
 matchCopattern _ elim@Proj{} = return (DontKnow Nothing, elim)
-matchCopattern p (Apply v) = (fmap (Apply . defaultArg) -*- Apply) <$> matchPattern p v
+matchCopattern p elim@(Apply v) = (fmap (elim $>) -*- Apply) <$> matchPattern p v
 
 matchPatterns :: [I.Arg Pattern] -> [I.Arg Term] -> TCM (Match Term, [I.Arg Term])
 matchPatterns ps vs = do
