@@ -109,22 +109,18 @@ checkDataDef i name ps cs =
               ]
 
 	    -- Change the datatype from an axiom to a datatype with no constructors.
-            let dataDef = Datatype { dataPars           = npars
-                                   , dataSmallPars      = Perm npars smallPars
-                                   , dataNonLinPars     = Drop 0 $ Perm npars []
-                                   , dataIxs            = nofIxs
-                                   , dataInduction      = Inductive
-                                   , dataClause         = Nothing
-                                   , dataCons           = []     -- Constructors are added later
-				   , dataSort           = s
-                                   , dataAbstr          = Info.defAbstract i
-{-
-                                   -- determined by the positivity checker:
-                                   , dataPolarity       = []
-                                   , dataArgOccurrences = []
--}
-                                   , dataMutual         = []
-                                   }
+            let dataDef = Datatype
+                  { dataPars       = npars
+                  , dataSmallPars  = Perm npars smallPars
+                  , dataNonLinPars = Drop 0 $ Perm npars []
+                  , dataIxs        = nofIxs
+                  , dataInduction  = Inductive
+                  , dataClause     = Nothing
+                  , dataCons       = []     -- Constructors are added later
+                  , dataSort       = s
+                  , dataAbstr      = Info.defAbstract i
+                  , dataMutual     = []
+                  }
 
 	    escapeContext (size tel) $ do
 	      addConstant name $
