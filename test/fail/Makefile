@@ -29,12 +29,10 @@ V = 0
 SHELL=bash
 
 # Getting all agda files
-# Andreas 2010-09-24 skip over annoying Impossible.agde 
-# which always changes error message because it mentions a line number in a 
-# Agda source file
-# 2010-09-25 reactivated
-excluded=TwoCompilers.agda Issue138.agda RecordInMutual.agda
-#Impossible.agda
+excluded=
+# This is a placeholder for test cases you want to skip, e.g.
+# # Andreas 2013-10-27 skip over Epic testcases
+# excluded=Issue390.agda TwoCompilers.agda
 allagda=$(filter-out $(excluded),$(shell ls *agda))
 allstems=$(patsubst %.agda,%,$(allagda))
 allout=$(patsubst %.agda,%.err,$(allagda))
