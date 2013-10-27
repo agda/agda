@@ -88,6 +88,10 @@ updateDefPolarity f def = def { defPolarity = f (defPolarity def) }
 updateDefCompiledRep :: (CompiledRepresentation -> CompiledRepresentation) -> (Definition -> Definition)
 updateDefCompiledRep f def = def { defCompiledRep = f (defCompiledRep def) }
 
+updateFunClauses :: ([Clause] -> [Clause]) -> (Defn -> Defn)
+updateFunClauses f def@Function{ funClauses = cs} = def { funClauses = f cs }
+updateFunClauses f _                              = __IMPOSSIBLE__
+
 -- | Add a constant to the signature. Lifts the definition to top level.
 addConstant :: QName -> Definition -> TCM ()
 addConstant q d = do
@@ -111,6 +115,11 @@ setTerminates q b = modifySignature $ updateDefinition q $ updateTheDef $ setT
   where
     setT def@Function{} = def { funTerminates = Just b }
     setT def            = def
+
+-- | Modify the clauses of a function.
+modifyFunClauses :: QName -> ([Clause] -> [Clause]) -> TCM ()
+modifyFunClauses q f =
+  modifySignature $ updateDefinition q $ updateTheDef $ updateFunClauses f
 
 addHaskellCode :: QName -> HaskellType -> HaskellCode -> TCM ()
 addHaskellCode q hsTy hsDef = modifySignature $ updateDefinition q $ updateDefCompiledRep $ addHs
