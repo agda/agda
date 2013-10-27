@@ -268,6 +268,28 @@ Goal and error display
 Type checking
 =============
 
+* Dependent record types and definitions by copatterns require
+  reduction with previous function clauses while checking the
+  current clause. [Issue 907]
+
+  For a simple example, consider
+
+    test : ∀ {A} → Σ Nat λ n → Vec A n
+    proj₁ test = zero
+    proj₂ test = []
+
+  For the second clause, the lhs and rhs are typed as
+
+    proj₂ test : Vec A (proj₁ test)
+    []         : Vec A zero
+
+  In order for these types to match, we have to reduce the lhs type
+  with the first function clause.
+
+  Note that termination checking comes after type checking, so be
+  careful to avoid non-termination!  Otherwise, the type checker
+  might get into an infinite loop.
+
 * The implementation of the primitive primTrustMe has changed.
   It now only reduces to REFL if the two arguments x and y have
   the same computational normal form.  Before, it reduced when

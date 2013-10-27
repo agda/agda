@@ -5,10 +5,8 @@ module Agda.TypeChecking.Rules.Def where
 import Prelude hiding (mapM)
 import Control.Arrow ((***))
 import Control.Applicative
-import Control.Monad.State hiding (mapM)
--- import Control.Monad.Reader hiding (mapM)
-import Control.Monad.Error hiding (mapM)
--- import Control.Monad hiding (mapM)
+import Control.Monad.State hiding (forM, mapM)
+import Control.Monad.Error hiding (forM, mapM)
 
 -- import Data.Function
 import Data.List hiding (sort)
@@ -176,12 +174,19 @@ checkFunDef' t info delayed extlam i name cs =
         -- cs <- trailingImplicits t cs
 
         -- Check the clauses
-        let check c = do
-              c <- applyRelevanceToContext (argInfoRelevance info) $ checkClause t c
+        cs <- traceCall NoHighlighting $ do -- To avoid flicker.
+            forM cs $ \ c -> do
+              c <- applyRelevanceToContext (argInfoRelevance info) $ do
+                checkClause t c
               solveSizeConstraints
+              -- Andreas, 2013-10-27 add clause as soon it is type-checked
+              -- TODO: instantiateFull?
+              modifyFunClauses name (++ [c])
               return c
-        cs <- traceCall NoHighlighting $  -- To avoid flicker.
-                mapM check cs
+
+        -- After checking, remove the clauses again.
+        -- (Otherwise, @checkInjectivity@ loops for issue 801).
+        modifyFunClauses name (const [])
 
         -- Check that all clauses have the same number of arguments
         -- unless (allEqual $ map npats cs) $ typeError DifferentArities
