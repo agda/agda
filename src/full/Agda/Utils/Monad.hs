@@ -9,6 +9,7 @@ module Agda.Utils.Monad
     , module Control.Monad hiding (when, unless)
 -}
     , (<$>), (<*>)
+    , (<$)
     )
     where
 
@@ -29,6 +30,11 @@ import Agda.Utils.List
 
 #include "../undefined.h"
 import Agda.Utils.Impossible
+
+infixr 4 $>
+
+($>) :: Functor f => f a -> b -> f b
+($>) = flip (<$)
 
 infixr 9 <.>
 

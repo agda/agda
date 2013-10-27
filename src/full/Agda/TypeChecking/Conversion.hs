@@ -55,8 +55,10 @@ import Agda.Utils.Maybe
 #include "../undefined.h"
 import Agda.Utils.Impossible
 
+{- MOVED to Agda.Utils.Monad
 ($>) :: Functor f => f a -> b -> f b
 ($>) = flip (<$)
+-}
 
 mlevel :: TCM (Maybe Term)
 mlevel = liftTCM $ (Just <$> primLevel) `catchError` \_ -> return Nothing

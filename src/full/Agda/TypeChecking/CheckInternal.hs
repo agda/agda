@@ -12,7 +12,7 @@ module Agda.TypeChecking.CheckInternal
   , checkInternal
   ) where
 
-import Control.Applicative
+-- import Control.Applicative
 import Control.Monad
 
 import Data.Maybe
@@ -32,6 +32,7 @@ import Agda.TypeChecking.Reduce
 import Agda.TypeChecking.Substitute
 import Agda.TypeChecking.Telescope
 
+import Agda.Utils.Monad
 import Agda.Utils.Size
 import Agda.Utils.Impossible
 #include "../undefined.h"
