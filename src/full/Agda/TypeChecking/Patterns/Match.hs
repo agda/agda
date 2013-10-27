@@ -47,7 +47,7 @@ instance Monoid (Match a) where
 -- | @matchCopatterns ps es@ matches spine @es@ against copattern spine @ps@.
 --
 --   Returns 'Yes' and a substitution for the pattern variables
---   (in form of [Elim]) if matching was successful.
+--   (in form of [Term]) if matching was successful.
 --
 --   Returns 'No' if there was a constructor or projection mismatch.
 --
@@ -57,7 +57,7 @@ instance Monoid (Match a) where
 --   In any case, also returns spine @es@ in reduced form
 --   (with all the weak head reductions performed that were necessary
 --   to come to a decision).
-matchCopatterns :: [I.Arg Pattern] -> [Elim] -> TCM (Match Elim, [Elim])
+matchCopatterns :: [I.Arg Pattern] -> [Elim] -> TCM (Match Term, [Elim])
 matchCopatterns ps vs = do
     reportSDoc "tc.match" 50 $
       vcat [ text "matchCopatterns"
@@ -67,14 +67,14 @@ matchCopatterns ps vs = do
     mapFst mconcat . unzip <$> zipWithM' matchCopattern ps vs
 
 -- | Match a single copattern.
-matchCopattern :: I.Arg Pattern -> Elim -> TCM (Match Elim, Elim)
+matchCopattern :: I.Arg Pattern -> Elim -> TCM (Match Term, Elim)
 matchCopattern (Arg _ (ProjP p)) elim@(Proj q)
   | p == q    = return (Yes YesSimplification [], elim)
   | otherwise = return (No                      , elim)
 matchCopattern (Arg _ (ProjP p)) elim@Apply{}
               = return (DontKnow Nothing, elim)
 matchCopattern _ elim@Proj{} = return (DontKnow Nothing, elim)
-matchCopattern p elim@(Apply v) = (fmap (elim $>) -*- Apply) <$> matchPattern p v
+matchCopattern p (Apply v)   = mapSnd Apply <$> matchPattern p v
 
 matchPatterns :: [I.Arg Pattern] -> [I.Arg Term] -> TCM (Match Term, [I.Arg Term])
 matchPatterns ps vs = do

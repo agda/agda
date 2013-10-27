@@ -524,12 +524,7 @@ appDefE' v cls@(Clause {clausePats = ps} : _) es
     m = genericLength es
 -}
 appDefE' :: Term -> [Clause] -> MaybeReducedElims -> TCM (Reduced (Blocked Term) Term)
-appDefE' v cls es = do
-    let (es0, es1) = splitAt n $ map ignoreReduced es
-    r <- goCls cls es0
-    case r of
-      YesReduction simpl u -> return $ YesReduction simpl $ u `applyE` es1
-      NoReduction v        -> return $ NoReduction $ (`applyE` es1) <$> v
+appDefE' v cls es = goCls cls $ map ignoreReduced es
   where
     goCls :: [Clause] -> [Elim] -> TCM (Reduced (Blocked Term) Term)
     goCls cl es = do
@@ -542,19 +537,25 @@ appDefE' v cls es = do
         -- the remaining clauses (see Issue 907).
         [] -> cantReduce es -- WAS: typeError $ IncompletePatternMatching v es
         Clause { clausePats = pats , clauseBody = body } : cls -> do
-          (m, es) <- matchCopatterns pats es
-          case m of
-            No		      -> goCls cls es
-            DontKnow Nothing  -> cantReduce es
-            DontKnow (Just m) -> return $ NoReduction $ blocked m $ v `applyE` es
-            Yes simpl es'
-              | isJust (getBody body)  -- clause has body?
-                              -> return $ YesReduction simpl $
-                  -- TODO: let matchPatterns also return the reduced forms
-                  -- of the original arguments!
-                  -- Andreas, 2013-05-19 isn't this done now?
-                  app es' body EmptyS
-              | otherwise     -> cantReduce es
+          let n = length pats
+          -- if clause is underapplied, skip to next clause
+          if length es < n then goCls cls es else do
+            let (es0, es1) = splitAt (length pats) es
+            (m, es0) <- matchCopatterns pats es0
+            es <- return $ es0 ++ es1
+            case m of
+              No		      -> goCls cls es
+              DontKnow Nothing  -> cantReduce es
+              DontKnow (Just m) -> return $ NoReduction $ blocked m $ v `applyE` es
+              Yes simpl vs -- vs is the subst. for the variables bound in body
+                | isJust (getBody body)  -- clause has body?
+                                -> return $ YesReduction simpl $
+                    -- TODO: let matchPatterns also return the reduced forms
+                    -- of the original arguments!
+                    -- Andreas, 2013-05-19 isn't this done now?
+                    app vs body EmptyS `applyE` es1
+                | otherwise     -> cantReduce es
+
 
     -- NEW version, building an explicit substitution from arguments
     -- and executing it using parallel substitution.
@@ -566,13 +567,14 @@ appDefE' v cls es = do
     --   Γ ⊢ (σ,v) : Δ.A
     --   Δ ⊢ λ b : A → B
     --   Δ.A ⊢ b : B
-    app :: [Elim] -> ClauseBody -> Substitution -> Term
-    app []               (Body v) sigma = applySubst sigma v
-    app (Proj f    : es)  b       sigma = app es b sigma
-    app (Apply arg : es) (Bind b) sigma = app es (absBody b) (unArg arg :# sigma) -- CBN
-    app  _                NoBody  sigma = __IMPOSSIBLE__
-    app (_ : _)	         (Body _) sigma = __IMPOSSIBLE__
-    app []               (Bind _) sigma = __IMPOSSIBLE__
+    app :: [Term] -> ClauseBody -> Substitution -> Term
+    app []       (Body v)           sigma = applySubst sigma v
+--    app (v : vs) (Bind b) sigma = app es (absBody b) (v :# sigma) -- CBN
+    app (v : vs) (Bind (Abs   _ b)) sigma = app vs b (v :# sigma) -- CBN
+    app (v : vs) (Bind (NoAbs _ b)) sigma = app vs b sigma
+    app  _        NoBody            sigma = __IMPOSSIBLE__
+    app (_ : _)	 (Body _)           sigma = __IMPOSSIBLE__
+    app []       (Bind _)           sigma = __IMPOSSIBLE__
 
 {- OLD version, one substitution after another
     app :: [Elim] -> ClauseBody -> Term
