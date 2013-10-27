@@ -506,9 +506,11 @@ appDefE v cc es = liftTCM $ do
 appDef' :: Term -> [Clause] -> MaybeReducedArgs -> TCM (Reduced (Blocked Term) Term)
 appDef' v cls args = appDefE' v cls $ map (fmap Apply) args
 
+{- OLD.  With varying function arity, check for underapplication is UNSOUND.
 appDefE' :: Term -> [Clause] -> MaybeReducedElims -> TCM (Reduced (Blocked Term) Term)
 appDefE' _ [] _ = {- ' -} __IMPOSSIBLE__
 appDefE' v cls@(Clause {clausePats = ps} : _) es
+    -- case underapplied: no reduction
   | m < n     = return $ NoReduction $ notBlocked $ v `applyE` map ignoreReduced es
   | otherwise = do
     let (es0, es1) = splitAt n es
@@ -520,17 +522,31 @@ appDefE' v cls@(Clause {clausePats = ps} : _) es
 
     n = genericLength ps
     m = genericLength es
-
+-}
+appDefE' :: Term -> [Clause] -> MaybeReducedElims -> TCM (Reduced (Blocked Term) Term)
+appDefE' v cls es = do
+    let (es0, es1) = splitAt n $ map ignoreReduced es
+    r <- goCls cls es0
+    case r of
+      YesReduction simpl u -> return $ YesReduction simpl $ u `applyE` es1
+      NoReduction v        -> return $ NoReduction $ (`applyE` es1) <$> v
+  where
     goCls :: [Clause] -> [Elim] -> TCM (Reduced (Blocked Term) Term)
-    goCls [] es = typeError $ IncompletePatternMatching v es
-    goCls (cl@(Clause { clausePats = pats
-                      , clauseBody = body }) : cls) es = do
-        (m, es) <- matchCopatterns pats es
-        let vfull = v `applyE` es
-        case m of
+    goCls cl es = do
+      reportSLn "tc.reduce" 95 $ "Reduce.goCls tries reduction, #clauses = " ++ show (length cl)
+      let cantReduce es = return $ NoReduction $ notBlocked $ v `applyE` es
+      case cl of
+        -- Andreas, 2013-10-26  In case of an incomplete match,
+        -- we just do not reduce.  This allows adding single function
+        -- clauses after they have been type-checked, to type-check
+        -- the remaining clauses (see Issue 907).
+        [] -> cantReduce es -- WAS: typeError $ IncompletePatternMatching v es
+        Clause { clausePats = pats , clauseBody = body } : cls -> do
+          (m, es) <- matchCopatterns pats es
+          case m of
             No		      -> goCls cls es
-            DontKnow Nothing  -> return $ NoReduction $ notBlocked $ vfull
-            DontKnow (Just m) -> return $ NoReduction $ blocked m $ vfull
+            DontKnow Nothing  -> cantReduce es
+            DontKnow (Just m) -> return $ NoReduction $ blocked m $ v `applyE` es
             Yes simpl es'
               | isJust (getBody body)  -- clause has body?
                               -> return $ YesReduction simpl $
@@ -538,7 +554,7 @@ appDefE' v cls@(Clause {clausePats = ps} : _) es
                   -- of the original arguments!
                   -- Andreas, 2013-05-19 isn't this done now?
                   app es' body EmptyS
-              | otherwise     -> return $ NoReduction $ notBlocked $ vfull
+              | otherwise     -> cantReduce es
 
     -- NEW version, building an explicit substitution from arguments
     -- and executing it using parallel substitution.
