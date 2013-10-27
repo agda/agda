@@ -679,6 +679,9 @@ termTerm conf names f delayed pats0 t0 = do
          -> Term          -- ^ Part of function body from which calls are to be extracted.
          -> TCM Calls
        loop pats guarded t = do
+         reportSDoc "term.check.term" 50 $ do
+           text "looking for calls in" <+> prettyTCM t
+
          t <- instantiate t          -- instantiate top-level MetaVar
 
              -- Handles constructor applications.
