@@ -130,6 +130,8 @@ matchPattern (Arg info' (ConP c _ ps))     (Arg info v) =
                _ -> return w
         let v = ignoreBlocking w
 	case ignoreSharing <$> w of
+
+{- Andreas, 2013-10-27 the following considered HARMFUL:
           -- Andreas, 2010-09-07 matching a record constructor against
           -- something irrelevant will just continue matching against
           -- irrelevant stuff
@@ -137,7 +139,9 @@ matchPattern (Arg info' (ConP c _ ps))     (Arg info v) =
           _  | isIrrelevant info -> do
 		(m, vs) <- matchPatterns ps $
                   repeat $ setRelevance Irrelevant $ defaultArg $ Sort Prop
+                    -- repeat looks very bad here (non-termination!)
 		return (m, Arg info $ Con c vs)
+-}
 	  NotBlocked (Con c' vs)
 	    | c == c'            -> do
 		(m, vs) <- yesSimplification <$> matchPatterns ps vs
