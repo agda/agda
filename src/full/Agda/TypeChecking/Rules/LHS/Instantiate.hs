@@ -31,14 +31,26 @@ import Agda.Utils.Impossible
 instantiateTel :: Substitution -> Telescope -> TCM (Telescope, Permutation, S.Substitution, [I.Dom Type])
 instantiateTel s tel = liftTCM $ do
 
-  tel <- normalise tel
-
   reportSDoc "tc.lhs.inst" 10 $ vcat
     [ text "instantiateTel "
-    , nest 2 $ addCtxTel tel $ fsep $ punctuate comma $ map (maybe (text "_") prettyTCM) s
+    , nest 2 $ text "s    =" <+> do
+        addCtxTel tel $
+          fsep $ punctuate comma $ map (maybe (text "_") prettyTCM) s
     , nest 2 $ text "tel  =" <+> prettyTCM tel
 --    , nest 2 $ text "tel  =" <+> text (show tel)
     ]
+
+{-
+  -- Andreas, 2013-10-27
+  -- Why is normalization necessary?  Issue 234 seems to need it.
+  -- But it is better done right before where it is needed (see below).
+
+  tel <- normalise tel
+
+  reportSDoc "tc.lhs.inst" 15 $ vcat
+    [ nest 2 $ text "tel (normalized)=" <+> prettyTCM tel
+    ]
+-}
 
   -- Shrinking permutation (removing Justs) (and its complement, and reverse)
   let n   = size s
@@ -88,23 +100,26 @@ instantiateTel s tel = liftTCM $ do
     text "tel2 =" <+> brackets (fsep $ punctuate comma $ map prettyTCM tel2)
 
   -- tel3 : [Type Γσ]Γσ
-  tel3 <- instantiateFull $ permute ps tel2
+  --
+  -- Andreas, 2013-10-27
+  -- @reorderTel@ below uses free variable analysis, so @tel3@ should be
+  -- fully instantiated and normalized. (See issue 234.)
+  tel3 <- normalise =<< do instantiateFull $ permute ps tel2
   let names3 = permute ps names1
 
   reportSDoc "tc.lhs.inst" 15 $ nest 2 $
     text "tel3 =" <+> brackets (fsep $ punctuate comma $ map prettyTCM tel3)
 
-  -- p : Permutation (Γσ -> Γσ~)
-  p <- case reorderTel tel3 of
-    Nothing -> inContext [] $ do
-      xs <- mapM freshName_ names3
-      addCtxs xs (Dom defaultArgInfo prop) $ do
+  -- Raise error if telescope cannot be ordered.
+  let failToReorder = inTopContext $ addCtxStrings_ names3 $ do
         err <- sep [ text "Recursive telescope in left hand side:"
-                   , fsep [ parens (prettyTCM x <+> text ":" <+> prettyTCM t)
-                          | (x, t) <- zip xs tel3 ]
+                   , fsep [ parens (text x <+> text ":" <+> prettyTCM t)
+                          | (x, t) <- zip names3 tel3 ]
                    ]
         typeError $ GenericError $ show err
-    Just p  -> return p
+
+  -- p : Permutation (Γσ -> Γσ~)
+  p <- maybe failToReorder return $ reorderTel tel3
 
   reportSLn "tc.lhs.inst" 10 $ "p   = " ++ show p
 

@@ -47,6 +47,9 @@ flattenTel (ExtendTel a tel) = raise (size tel + 1) a : flattenTel (absBody tel)
 
 -- | Order a flattened telescope in the correct dependeny order: Γ ->
 --   Permutation (Γ -> Γ~)
+--
+--   Since @reorderTel tel@ uses free variable analysis of type in @tel@,
+--   the telescope should be 'normalise'd.
 reorderTel :: [Dom Type] -> Maybe Permutation
 reorderTel tel = topoSort comesBefore tel'
   where

@@ -113,6 +113,10 @@ addCtxString s a m = do
 addCtxString_ :: MonadTCM tcm => String -> tcm a -> tcm a
 addCtxString_ s = addCtxString s dummyDom
 
+{-# SPECIALIZE addCtxStrings_ :: [String] -> TCM a -> TCM a #-}
+addCtxStrings_ :: MonadTCM tcm => [String] -> tcm a -> tcm a
+addCtxStrings_ = flip (foldr addCtxString_)
+
 -- | Context entries without a type have this dummy type.
 dummyDom :: Dom Type
 dummyDom = Common.Dom defaultArgInfo $ El Prop $ Sort Prop
