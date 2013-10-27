@@ -39,7 +39,7 @@ import Agda.TypeChecking.CheckInternal (checkType)
 -- import Agda.TypeChecking.Datatypes
 -- import Agda.TypeChecking.Empty
 -- import Agda.TypeChecking.MetaVars
-import Agda.TypeChecking.Rebind
+-- import Agda.TypeChecking.Rebind
 -- import Agda.TypeChecking.Primitive hiding (Nat)
 import Agda.TypeChecking.With
 import Agda.TypeChecking.Telescope
@@ -187,13 +187,13 @@ checkFunDef' t info delayed extlam i name cs =
         -- unless (allEqual $ map npats cs) $ typeError DifferentArities
         -- Andreas, 2013-03-15 disable this check to allow flexible arity (issue 727)
 
-        reportSDoc "tc.cc" 15 $ do
-          sep [ text "clauses before rebindClause"
+        reportSDoc "tc.cc" 25 $ do
+          sep [ text "clauses before injectivity test"
               , nest 2 $ prettyTCM (map (QNamed name) cs)
               ]
 
         -- Annotate the clauses with which arguments are actually used.
-        cs <- instantiateFull =<< mapM rebindClause cs
+        cs <- instantiateFull {- =<< mapM rebindClause -} cs
         -- Andreas, 2010-11-12
         -- rebindClause is the identity, and instantiateFull eta-contracts
         -- removing this eta-contraction fixes issue 361

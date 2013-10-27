@@ -255,7 +255,7 @@ library
                     Agda.TypeChecking.Primitive
                     Agda.TypeChecking.ProjectionLike
                     Agda.TypeChecking.Quote
-                    Agda.TypeChecking.Rebind
+--                    Agda.TypeChecking.Rebind -- DEAD
                     Agda.TypeChecking.RecordPatterns
                     Agda.TypeChecking.Records
                     Agda.TypeChecking.Reduce
