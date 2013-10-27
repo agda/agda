@@ -869,9 +869,11 @@ instance Normalise a => Normalise (Maybe a) where
 -- * Full instantiation
 ---------------------------------------------------------------------------
 
--- Full instantiatiation = normalisation [ instantiate / reduce ]
+-- STALE: Full instantiatiation = normalisation [ instantiate / reduce ]
 -- How can we express this? We need higher order classes!
 
+-- | @instantiateFull@ 'instantiate's metas everywhere (and recursively)
+--   but does not 'reduce'.
 class InstantiateFull t where
     instantiateFull :: t -> TCM t
 
