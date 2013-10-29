@@ -191,6 +191,11 @@ noShadowingOfConstructors mkCall problem =
   noShadowing (A.LitP      {}) t = __IMPOSSIBLE__
   noShadowing (A.PatternSynP {}) t = __IMPOSSIBLE__
   noShadowing (A.VarP x)       t = do
+    reportSDoc "tc.lhs.shadow" 30 $ vcat
+      [ text $ "checking whether pattern variable " ++ show x ++ " shadows a constructor"
+      , nest 2 $ text "type of variable =" <+> prettyTCM t
+      ]
+    reportSLn "tc.lhs.shadow" 70 $ "  t = " ++ show t
     t <- normalise t
     case t of
       Def t _ -> do
