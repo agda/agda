@@ -10,10 +10,12 @@ import Control.Applicative
 import Control.Monad hiding (mapM)
 import Control.Monad.Writer hiding (mapM)
 import Control.Monad.State hiding (mapM)
-import Data.Map (Map)
-import Data.Traversable
+
 import Data.List
+import Data.Map (Map)
 import qualified Data.Map as Map
+import Data.Maybe
+import Data.Traversable
 
 import Agda.Syntax.Common
 import Agda.Syntax.Position
@@ -384,17 +386,18 @@ copyScope new s = runStateT (copy new s) (Map.empty, Map.empty)
       where
         dequalify = A.mnameFromList . drop (size old) . A.mnameToList
 
--- | Apply an importdirective and check that all the names mentioned actually
+-- | Apply an import directive and check that all the names mentioned actually
 --   exist.
 applyImportDirectiveM :: C.QName -> ImportDirective -> Scope -> ScopeM Scope
 applyImportDirectiveM m dir scope = do
-  xs <- filterM doesntExist names
-  reportSLn "scope.import.apply" 20 $ "non existing names: " ++ show xs
-  case xs of
-    []  -> case targetNames \\ nub targetNames of
-      []  -> return $ applyImportDirective dir scope
-      dup -> typeError $ DuplicateImports m dup
-    _   -> typeError $ ModuleDoesntExport m xs
+    let xs = filter doesntExist names
+    reportSLn "scope.import.apply" 20 $ "non existing names: " ++ show xs
+    unless (null xs)  $ typeError $ ModuleDoesntExport m xs
+
+    let dup = targetNames \\ nub targetNames
+    unless (null dup) $ typeError $ DuplicateImports m dup
+    return $ applyImportDirective dir scope
+
   where
     names :: [ImportedName]
     names = map renFrom (renaming dir) ++ case usingOrHiding dir of
@@ -408,14 +411,10 @@ applyImportDirectiveM m dir scope = do
       where
         renName r = (renFrom r) { importedName = renTo r }
 
-    doesntExist (ImportedName x) =
-      case Map.lookup x (allNamesInScope scope :: ThingsInScope AbstractName) of
-        Just _  -> return False
-        Nothing -> return True
-    doesntExist (ImportedModule x) =
-      case Map.lookup x (allNamesInScope scope :: ThingsInScope AbstractModule) of
-        Just _  -> return False
-        Nothing -> return True
+    doesntExist (ImportedName   x) = isNothing $
+      Map.lookup x (allNamesInScope scope :: ThingsInScope AbstractName)
+    doesntExist (ImportedModule x) = isNothing $
+      Map.lookup x (allNamesInScope scope :: ThingsInScope AbstractModule)
 
 -- | Open a module.
 openModule_ :: C.QName -> ImportDirective -> ScopeM ()
