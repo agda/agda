@@ -670,7 +670,7 @@ checkExpr e t0 =
 
 	A.DontCare e -> -- resurrect vars
           ifM ((Irrelevant ==) <$> asks envRelevance)
-            (DontCare <$> do applyRelevanceToContext Irrelevant $ checkExpr e t)
+            (dontCare <$> do applyRelevanceToContext Irrelevant $ checkExpr e t)
             (internalError "DontCare may only appear in irrelevant contexts")
 
         e0@(A.QuoteGoal _ x e) -> do

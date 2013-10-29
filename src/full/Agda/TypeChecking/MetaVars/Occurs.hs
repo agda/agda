@@ -222,7 +222,7 @@ instance Occurs Term where
         Lam h f	    -> Lam h <$> occ (leaveTop ctx) f
         Level l     -> Level <$> occ ctx l  -- stay in Top
         Lit l	    -> return v
-        DontCare v  -> DontCare <$> occurs red Irrel m (goIrrelevant xs) v
+        DontCare v  -> dontCare <$> occurs red Irrel m (goIrrelevant xs) v
         Def d es    -> Def d <$> occDef d (leaveTop ctx) es
         Con c vs    -> Con c <$> occ (leaveTop ctx) vs  -- if strongly rigid, remain so
         Pi a b	    -> uncurry Pi <$> occ (leaveTop ctx) (a,b)

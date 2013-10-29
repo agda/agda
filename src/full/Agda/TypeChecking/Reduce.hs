@@ -642,7 +642,7 @@ instance Simplify Term where
       Lit l      -> return v
       Var i vs   -> Var i    <$> simplify vs
       Lam h v    -> Lam h    <$> simplify v
-      DontCare v -> DontCare <$> simplify v
+      DontCare v -> dontCare <$> simplify v
       Shared{}   -> updateSharedTerm simplify v
 
 simplifyBlocked :: Simplify t => Blocked t -> TCM t
@@ -926,7 +926,7 @@ instance InstantiateFull Term where
           Sort s      -> sortTm <$> instantiateFull s
           Pi a b      -> uncurry Pi <$> instantiateFull (a,b)
           Shared{}    -> updateSharedTerm instantiateFull v
-          DontCare v  -> DontCare <$> instantiateFull v
+          DontCare v  -> dontCare <$> instantiateFull v
 
 instance InstantiateFull Level where
   instantiateFull (Max as) = levelMax <$> instantiateFull as
