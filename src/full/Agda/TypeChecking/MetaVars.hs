@@ -708,28 +708,28 @@ assign x args v = do
               ivs = assocToList 0 ids
           return $ applySubst (ivs ++# raiseS n)  v
 
-        -- Andreas, 2011-04-18 to work with irrelevant parameters
-        -- we need to construct tel' from the type of the meta variable
-        -- (no longer from ids which may not be the complete variable list
-        -- any more)
-        let t = jMetaType $ mvJudgement mvar
-	reportSDoc "tc.meta.assign" 15 $ text "type of meta =" <+> prettyTCM t
-	reportSDoc "tc.meta.assign" 70 $ text "type of meta =" <+> text (show t)
-
-        TelV tel' _ <- telViewUpTo n t
-	reportSDoc "tc.meta.assign" 30 $ text "tel'  =" <+> prettyTCM tel'
-	reportSDoc "tc.meta.assign" 30 $ text "#args =" <+> text (show n)
-        -- Andreas, 2013-09-17 (AIM XVIII): if t does not provide enough
-        -- types for the arguments, it might be blocked by a meta;
-        -- then we give up. (Issue 903)
-        when (size tel' < n)
-           patternViolation -- WAS: __IMPOSSIBLE__
-
-        -- The solution.
-        let u = killRange $ abstract tel' v'
-        -- Perform the assignment (and wake constraints).
         -- Metas are top-level so we do the assignment at top-level.
 	inTopContext $ do
+          -- Andreas, 2011-04-18 to work with irrelevant parameters
+          -- we need to construct tel' from the type of the meta variable
+          -- (no longer from ids which may not be the complete variable list
+          -- any more)
+          let t = jMetaType $ mvJudgement mvar
+          reportSDoc "tc.meta.assign" 15 $ text "type of meta =" <+> prettyTCM t
+          reportSDoc "tc.meta.assign" 70 $ text "type of meta =" <+> text (show t)
+
+          TelV tel' _ <- telViewUpTo n t
+          reportSDoc "tc.meta.assign" 30 $ text "tel'  =" <+> prettyTCM tel'
+          reportSDoc "tc.meta.assign" 30 $ text "#args =" <+> text (show n)
+          -- Andreas, 2013-09-17 (AIM XVIII): if t does not provide enough
+          -- types for the arguments, it might be blocked by a meta;
+          -- then we give up. (Issue 903)
+          when (size tel' < n)
+             patternViolation -- WAS: __IMPOSSIBLE__
+
+          -- The solution.
+          let u = killRange $ abstract tel' v'
+          -- Perform the assignment (and wake constraints).
           reportSDoc "tc.meta.assign" 10 $
             text "solving" <+> prettyTCM x <+> text ":=" <+> prettyTCM u
           assignTerm x u
