@@ -25,6 +25,7 @@ module Agda.Syntax.Translation.AbstractToConcrete
 
 import Control.Applicative
 import Control.Monad.Reader
+
 -- import Data.Char
 import qualified Data.Map as Map
 -- import Data.Map (Map)
@@ -32,6 +33,7 @@ import qualified Data.Set as Set
 import Data.Set (Set)
 import Data.List as List
 -- import qualified Data.Traversable as Trav
+import Data.Tuple (swap)
 
 import Agda.Syntax.Common hiding (Arg, Dom, NamedArg)
 import qualified Agda.Syntax.Common as Common
@@ -162,18 +164,18 @@ lookupName x = do
   case lookup x $ map swap names of
       Just y  -> return y
       Nothing -> return $ nameConcrete x
-  where
-    swap (x, y) = (y, x)
 
 lookupQName :: A.QName -> AbsToCon C.QName
-lookupQName x =
-    do  scope <- asks currentScope
-        case inverseScopeLookupName x scope of
-            Just y  -> return y
-            Nothing
-              | show (qnameToConcrete x) == "_" -> return $ qnameToConcrete x
-              | otherwise -> return $ C.Qual (C.Name noRange [Id ""]) $ qnameToConcrete x
-                -- this is what happens for names that are not in scope (private names)
+lookupQName x = do
+  scope <- asks currentScope
+  case inverseScopeLookupName x scope of
+    Just y  -> return y
+    Nothing -> do
+      let y = qnameToConcrete x
+      if show y == "_"
+        then return y
+        else return $ C.Qual (C.Name noRange [Id ""]) y
+        -- this is what happens for names that are not in scope (private names)
 
 lookupModule :: A.ModuleName -> AbsToCon C.QName
 lookupModule x =
