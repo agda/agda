@@ -876,6 +876,10 @@ inverseSubst args = fmap (map (mapFst unArg)) <$> loop (zip args terms)
 
         -- An irrelevant argument which is not an irrefutable pattern is dropped
         Arg info _ | irrelevantOrUnused (getRelevance info) -> return vars
+        -- Andreas, 2013-10-29
+        -- An irrelevant part can also be marked by a DontCare
+        -- (coming from an irrelevant projection), see Issue 927:
+        Arg _ DontCare{}                                    -> return vars
 
         -- Distinguish args that can be eliminated (Con,Lit,Lam,unsure) ==> failure
         -- from those that can only put somewhere as a whole ==> return Nothing
@@ -894,7 +898,6 @@ inverseSubst args = fmap (map (mapFst unArg)) <$> loop (zip args terms)
         Arg _ Pi{}       -> return $ Nothing
         Arg _ Sort{}     -> return $ Nothing
         Arg _ Level{}    -> return $ Nothing
-        Arg _ DontCare{} -> __IMPOSSIBLE__
 
         Arg info (Shared p) -> isVarOrIrrelevant vars (Arg info $ derefPtr p, t)
 
