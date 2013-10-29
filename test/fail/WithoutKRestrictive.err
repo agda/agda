@@ -1,7 +1,0 @@
-WithoutKRestrictive.agda:46,23-27
-The index
-  x ∷ xs
-is not a constructor (or literal) applied to variables (note that
-parameters count as constructor arguments)
-when checking that the pattern refl has type
-_≡_ {lzero} {List {lzero} A} ys (x ∷ xs)
