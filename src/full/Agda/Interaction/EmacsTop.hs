@@ -18,7 +18,7 @@ import Agda.Utils.String
 
 import Agda.TypeChecking.Monad
 
-import Agda.Interaction.Response
+import Agda.Interaction.Response as R
 import Agda.Interaction.InteractionTop
 import Agda.Interaction.EmacsCommand
 import Agda.Interaction.Highlighting.Emacs
@@ -123,14 +123,14 @@ lispifyResponse (Resp_GiveAction ii s)
         Give_String str -> quote str
         Give_Paren      -> "'paren"
         Give_NoParen    -> "'no-paren"
-lispifyResponse (Resp_MakeCaseAction cs) = return
-  [ lastTag 2 $ L [ A "agda2-make-case-action", Q $ L $ map (A . quote) cs ]
-  , lastTag 3 $ L [ A "agda2-next-goal" ]
-  ]
-lispifyResponse (Resp_MakeCase cmd pcs) = return
+lispifyResponse (Resp_MakeCase variant pcs) = return
   [ lastTag 2 $ L [ A cmd, Q $ L $ map (A . quote) pcs ]
   , lastTag 3 $ L [ A "agda2-next-goal" ]
   ]
+  where
+  cmd = case variant of
+    R.Function       -> "agda2-make-case-action"
+    R.ExtendedLambda -> "agda2-make-case-action-extendlam"
 lispifyResponse (Resp_SolveAll ps) = return
   [ lastTag 2 $
       L [ A "agda2-solveAll-action", Q . L $ concatMap prn ps ]

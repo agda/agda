@@ -48,7 +48,8 @@ import Agda.Syntax.Translation.AbstractToConcrete hiding (withScope)
 import Agda.Interaction.FindFile
 import Agda.Interaction.Options
 import Agda.Interaction.MakeCase
-import Agda.Interaction.Response
+import Agda.Interaction.Response hiding (Function, ExtendedLambda)
+import qualified Agda.Interaction.Response as R
 import qualified Agda.Interaction.BasicOps as B
 -- import Agda.Interaction.Highlighting.Emacs
 -- import Agda.Interaction.Highlighting.Generate
@@ -577,7 +578,7 @@ interpret (Cmd_auto ii rng s) = do
     case msg of
      Nothing -> return ()
      Just msg -> display_info $ Info_Auto msg
-    putResponse $ Resp_MakeCaseAction cs
+    putResponse $ Resp_MakeCase R.Function cs
    Right (Right s) -> give_gen' B.refine (\_ s -> Give_String . show) ii rng s
 
 interpret (Cmd_context norm ii _ _) =
@@ -611,13 +612,13 @@ interpret (Cmd_make_case ii rng s) = do
   liftCommandMT (B.withInteractionId ii) $ do
     hidden <- lift $ showImplicitArguments
     pcs <- lift $ mapM prettyA $ List.map (extlam_dropLLifted casectxt hidden) cs
-    putResponse $ Resp_MakeCase (emacscmd casectxt) (List.map (extlam_dropName casectxt . render) pcs)
+    putResponse $ Resp_MakeCase (makeCaseVariant casectxt) (List.map (extlam_dropName casectxt . render) pcs)
   where
     render = renderStyle (style { mode = OneLineMode })
 
-    emacscmd :: CaseContext -> String
-    emacscmd FunctionDef = "agda2-make-case-action"
-    emacscmd (ExtendedLambda _ _) = "agda2-make-case-action-extendlam"
+    makeCaseVariant :: CaseContext -> MakeCaseVariant
+    makeCaseVariant FunctionDef          = R.Function
+    makeCaseVariant (ExtendedLambda _ _) = R.ExtendedLambda
 
     -- very dirty hack, string manipulation by dropping the function name
     -- and replacing " = " with " -> "

@@ -5,6 +5,7 @@
 
 module Agda.Interaction.Response
   ( Response (..)
+  , MakeCaseVariant (..)
   , DisplayInfo (..)
   , Status (..)
   , GiveResult (..)
@@ -37,14 +38,17 @@ data Response
     | Resp_JumpToError FilePath Int32
     | Resp_InteractionPoints [InteractionId]
     | Resp_GiveAction InteractionId GiveResult
-    | Resp_MakeCaseAction [String]
-    | Resp_MakeCase String [String]
+    | Resp_MakeCase MakeCaseVariant [String]
     | Resp_SolveAll [(InteractionId, Expr)]
     | Resp_DisplayInfo DisplayInfo
     | Resp_RunningInfo Int String
       -- ^ The integer is the message's debug level.
     | Resp_ClearRunningInfo
     | Resp_ClearHighlighting
+
+-- | There are two kinds of \"make case\" commands.
+
+data MakeCaseVariant = Function | ExtendedLambda
 
 -- | Info to display at the end of an interactive command
 
@@ -120,7 +124,6 @@ defaultInteractionOutputCallback r = case r of
   Resp_JumpToError {}       -> __IMPOSSIBLE__
   Resp_InteractionPoints {} -> __IMPOSSIBLE__
   Resp_GiveAction {}        -> __IMPOSSIBLE__
-  Resp_MakeCaseAction {}    -> __IMPOSSIBLE__
   Resp_MakeCase {}          -> __IMPOSSIBLE__
   Resp_SolveAll {}          -> __IMPOSSIBLE__
   Resp_DisplayInfo {}       -> __IMPOSSIBLE__
