@@ -29,6 +29,10 @@ resetState = do
 resetAllState :: TCM ()
 resetAllState = put initState
 
+---------------------------------------------------------------------------
+-- * Scope
+---------------------------------------------------------------------------
+
 -- | Set the current scope.
 setScope :: ScopeInfo -> TCM ()
 setScope scope = modify $ \s -> s { stScope = scope }
@@ -36,31 +40,6 @@ setScope scope = modify $ \s -> s { stScope = scope }
 -- | Get the current scope.
 getScope :: TCM ScopeInfo
 getScope = gets stScope
-
-getPatternSyns :: TCM PatternSynDefns
-getPatternSyns = gets stPatternSyns
-
-setPatternSyns :: PatternSynDefns -> TCM ()
-setPatternSyns m = modify $ \s -> s { stPatternSyns = m }
-
-modifyPatternSyns :: (PatternSynDefns -> PatternSynDefns) -> TCM ()
-modifyPatternSyns f = do
-  s <- getPatternSyns
-  setPatternSyns $ f s
-
-getPatternSynImports :: TCM PatternSynDefns
-getPatternSynImports = gets stPatternSynImports
-
-lookupPatternSyn :: QName -> TCM PatternSynDefn
-lookupPatternSyn x = do
-    s <- getPatternSyns
-    case Map.lookup x s of
-        Just d  -> return d
-        Nothing -> do
-            si <- getPatternSynImports
-            case Map.lookup x si of
-                Just d  -> return d
-                Nothing -> notInScope $ qnameToConcrete x
 
 -- | Modify the current scope.
 modifyScope :: (ScopeInfo -> ScopeInfo) -> TCM ()
@@ -90,6 +69,10 @@ localScope m = do
   setScope scope
   return x
 
+---------------------------------------------------------------------------
+-- * Top level module
+---------------------------------------------------------------------------
+
 -- | Set the top-level module. This affects the global module id of freshly
 --   generated names.
 
@@ -114,6 +97,10 @@ withTopLevelModule x m = do
   modify $ \s -> s { stFreshThings = (stFreshThings s) { fName = next } }
   return y
 
+---------------------------------------------------------------------------
+-- * Haskell imports
+---------------------------------------------------------------------------
+
 -- | Tell the compiler to import the given Haskell module.
 addHaskellImport :: String -> TCM ()
 addHaskellImport i =
@@ -122,3 +109,31 @@ addHaskellImport i =
 -- | Get the Haskell imports.
 getHaskellImports :: TCM (Set String)
 getHaskellImports = gets stHaskellImports
+
+---------------------------------------------------------------------------
+-- * Pattern synonyms
+---------------------------------------------------------------------------
+
+getPatternSyns :: TCM PatternSynDefns
+getPatternSyns = gets stPatternSyns
+
+setPatternSyns :: PatternSynDefns -> TCM ()
+setPatternSyns m = modifyPatternSyns (const m)
+
+-- | Lens for 'stPatternSyns'.
+modifyPatternSyns :: (PatternSynDefns -> PatternSynDefns) -> TCM ()
+modifyPatternSyns f = modify $ \s -> s { stPatternSyns = f (stPatternSyns s) }
+
+getPatternSynImports :: TCM PatternSynDefns
+getPatternSynImports = gets stPatternSynImports
+
+lookupPatternSyn :: QName -> TCM PatternSynDefn
+lookupPatternSyn x = do
+    s <- getPatternSyns
+    case Map.lookup x s of
+        Just d  -> return d
+        Nothing -> do
+            si <- getPatternSynImports
+            case Map.lookup x si of
+                Just d  -> return d
+                Nothing -> notInScope $ qnameToConcrete x
