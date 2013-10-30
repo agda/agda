@@ -101,7 +101,7 @@ library
   exposed-modules:  Agda.Main
                     Agda.ImpossibleTest
                     Agda.Interaction.BasicOps
-                    Agda.Interaction.GhcTop
+                    Agda.Interaction.EmacsTop
                     Agda.Interaction.InteractionTop
                     Agda.Compiler.CallCompiler
                     Agda.Compiler.HaskellTypes

@@ -33,7 +33,7 @@ import Agda.Syntax.Concrete.Pretty ()
 import Agda.Interaction.CommandLine.CommandLine
 import Agda.Interaction.Options
 import Agda.Interaction.Monad
-import Agda.Interaction.GhcTop (mimicGHCi)
+import Agda.Interaction.EmacsTop (mimicGHCi)
 import qualified Agda.Interaction.Imports as Imp
 import qualified Agda.Interaction.Highlighting.Dot as Dot
 import qualified Agda.Interaction.Highlighting.LaTeX as LaTeX
