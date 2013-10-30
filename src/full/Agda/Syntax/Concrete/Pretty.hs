@@ -38,6 +38,20 @@ braces' d = case render d of
 dbraces :: Doc -> Doc
 dbraces = braces . braces'
 
+-- Lays out a list of documents [d₁, d₂, …] in the following way:
+-- @
+--   { d₁
+--   ; d₂
+--   ⋮
+--   }
+-- @
+-- If the list is empty, then the notation @{}@ is used.
+
+bracesAndSemicolons :: [Doc] -> Doc
+bracesAndSemicolons []       = text "{}"
+bracesAndSemicolons (d : ds) =
+  vcat ([text "{" <+> d] ++ map (text ";" <+>) ds ++ [text "}"])
+
 arrow  = text "\x2192"
 lambda = text "\x03bb"
 underscore = text "_"
@@ -142,15 +156,12 @@ instance Pretty Expr where
             AbsurdLam _ Instance -> lambda <+> text "{{}}"
             AbsurdLam _ Hidden -> lambda <+> text "{}"
 	    ExtendedLam _ pes ->
-		lambda <+> braces' (breakBraces (fsep $ punctuate (text ";") (map (\(x,y,z) -> prettyClause x y z) pes)))
+              lambda <+> bracesAndSemicolons (map (\(x,y,z) -> prettyClause x y z) pes)
                    where prettyClause lhs rhs wh = sep [ pretty lhs
                                                        , nest 2 $ pretty' rhs
                                                        ] $$ nest 2 (pretty wh)
                          pretty' (RHS e)   = arrow <+> pretty e
                          pretty' AbsurdRHS = empty
-                         breakBraces d = case render d of
-                                           '{':_ -> text " " <> d
-                                           _     -> d
 	    Fun _ e1 e2 ->
 		sep [ pretty e1 <+> arrow
 		    , pretty e2
@@ -170,13 +181,9 @@ instance Pretty Expr where
 	    As _ x e  -> pretty x <> text "@" <> pretty e
 	    Dot _ e   -> text "." <> pretty e
 	    Absurd _  -> text "()"
-	    Rec _ xs  -> sep (
-	        [ text "record {" ] ++
-	        punctuate (text ";") (map recPr xs)) <+> text "}"
+	    Rec _ xs  -> sep [text "record", bracesAndSemicolons (map recPr xs)]
 	    RecUpdate _ e xs ->
-	            sep [ text "record" <+> pretty e <+> text "{" ]
-	        <+> sep (punctuate (text ";") (map recPr xs))
-	        <+> text "}"
+              sep [text "record" <+> pretty e, bracesAndSemicolons (map recPr xs)]
             ETel []  -> text "()"
             ETel tel -> fsep $ map pretty tel
             QuoteGoal _ x e -> sep [text "quoteGoal" <+> pretty x <+> text "in",
