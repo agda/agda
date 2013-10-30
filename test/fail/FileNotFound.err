@@ -5,5 +5,7 @@ following locations:
   ../A/B/WildGoose.lagda
   A/B/WildGoose.agda
   A/B/WildGoose.lagda
+  agda-default-include-path/A/B/WildGoose.agda
+  agda-default-include-path/A/B/WildGoose.lagda
 when scope checking the declaration
   import A.B.WildGoose

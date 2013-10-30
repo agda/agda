@@ -11,6 +11,9 @@ import System.Directory
 import System.FilePath
 -- import System.IO
 
+import Paths_Agda (getDataFileName)
+-- NB: find Paths_Agda.hs in dist/build/autogen/
+
 import Agda.Syntax.Concrete
 import {-# SOURCE #-} Agda.TypeChecking.Errors
 import Agda.TypeChecking.Monad.Base
@@ -171,13 +174,28 @@ setIncludeDirs incs relativeTo = do
       m <- moduleName' f
       return (projectRoot f m, checkModuleName m f)
 
-  Lens.putIncludeDirs $ Right $
-      map (mkAbsolute . (filePath root </>)) $
-             case incs of
-               [] -> ["."]
-               _  -> incs
+  -- Add the current dir if no include path is given
+  incs <- return $ if null incs then ["."] else incs
+  -- Make pathes absolute
+  incs <- return $  map (mkAbsolute . (filePath root </>)) incs
 
-  incs <- getIncludeDirs
+  -- Andreas, 2013-10-30  Add default include dir
+  libdir <- liftIO $ getDataFileName ("lib")
+      -- NB: This is an absolute file name, but
+      -- Agda.Utils.FilePath wants to check absoluteness anyway.
+  let primdir = mkAbsolute $ libdir </> "prim"
+      -- We add the default dir at the end, since it is then
+      -- printed last in error messages.
+      -- Might also be useful to overwrite default imports...
+  incs <- return $ incs ++ [primdir]
+  Lens.putIncludeDirs $ Right $ incs
+
+  -- Check whether the include dirs have changed.  If yes, reset state.
+  -- Andreas, 2013-10-30 comments:
+  -- The logic, namely using the include-dirs variable as a driver
+  -- for the interaction, qualifies for a code-obfuscation contest.
+  -- I guess one Boolean more in the state cost 10.000 EUR at the time
+  -- of this implementation...
   case oldIncs of
     Right incs' | incs' /= incs -> do
       ho <- getInteractionOutputCallback

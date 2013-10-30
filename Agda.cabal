@@ -43,6 +43,7 @@ data-files:         Agda.css
                     EpicInclude/stdagda.c
                     EpicInclude/stdagda.h
                     agda.sty
+                    lib/prim/Agda/Prim.agda
 
 source-repository head
   type:     darcs

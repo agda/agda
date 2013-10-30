@@ -31,8 +31,8 @@ SHELL=bash
 # Getting all agda files
 excluded=
 # This is a placeholder for test cases you want to skip, e.g.
-# # Andreas 2013-10-27 skip over Epic testcases
-# excluded=Issue390.agda TwoCompilers.agda
+# # Andreas 2013-10-27 skip over Epic testcase
+excluded=Issue390.agda
 allagda=$(filter-out $(excluded),$(shell ls *agda))
 allstems=$(patsubst %.agda,%,$(allagda))
 allout=$(patsubst %.agda,%.err,$(allagda))
@@ -52,7 +52,7 @@ $(allout) : %.err : %.agda
 	@if $(agda) -i. -i.. -v$(V) $(shell if [ -e $*.flags ]; then cat $*.flags; fi) $< > $*.tmp; \
 		then echo "Unexpected success"; rm -f $*.tmp; false; \
     else if [ -s $*.tmp ]; \
-				 then sed -E 's/[^ (]*test.fail.//g;s/[^ (]*test.Common.//g;s/:[[:digit:]]\+:$$//' $*.tmp > $@; cat $@; rm -f $*.tmp; true; \
+				 then sed -E 's/[^ (]*test.fail.//g;s/[^ (]*lib.prim/agda-default-include-path/g;s/[^ (]*test.Common.//g;s/:[[:digit:]]\+:$$//' $*.tmp > $@; cat $@; rm -f $*.tmp; true; \
 				 else rm -f $@ $*.tmp; false; \
 				 fi; \
 		fi
@@ -64,7 +64,7 @@ $(allstems) : % : %.err
 	@if $(agda) -i. -i.. -v$(V) $(shell if [ -e $*.flags ]; then cat $*.flags; fi) $*.agda \
 		 > $*.tmp.2; \
 		then echo "Unexpected success"; rm -f $*.tmp.2; false; \
-    else sed -e 's/[^ (]*test.fail.//g;s/[^ (]*test.Common.//g;s/\\/\//g;s/:[[:digit:]]\+:$$//' $*.tmp.2 > $*.tmp; \
+    else sed -e 's/[^ (]*test.fail.//g;s/[^ (]*lib.prim/agda-default-include-path/g;s/[^ (]*test.Common.//g;s/\\/\//g;s/:[[:digit:]]\+:$$//' $*.tmp.2 > $*.tmp; \
 				 echo `cat $*.err` | sed -e 's/\\/\//g' > $*.tmp.2; \
 				 echo `cat $*.tmp` > $*.tmp.3; \
 				 true; \
@@ -98,7 +98,7 @@ customised/NestedProjectRoots.err : %.err : %.agda
 	    $(AGDA_BIN) -icustomised -icustomised/Imports $*.agda) > $*.tmp; \
 		then echo "Unexpected success"; rm -f $*.tmp; false; \
     else if [ -s $*.tmp ]; \
-		then sed -e "s/[^ (]*test.fail.//g" $*.tmp > $@; cat $@; rm -f $*.tmp; true; \
+		then sed -e "s/[^ (]*test.fail.//g;s/[^ (]*lib.prim/agda-default-include-path/g" $*.tmp > $@; cat $@; rm -f $*.tmp; true; \
 		else rm -f $@ $*.tmp; false; \
 		fi; \
 	fi
@@ -110,7 +110,7 @@ customised/NestedProjectRoots : % : %.err
 	-@($(AGDA_BIN) --ignore-interfaces -icustomised -icustomised/Imports $*.agda; \
 	    $(AGDA_BIN) -icustomised/Imports customised/Imports/A.agda; \
 	    $(AGDA_BIN) -icustomised -icustomised/Imports $*.agda) \
-	    | sed -e 's/[^ (]*test.fail.//g;s/\\/\//g' \
+	    | sed -e 's/[^ (]*test.fail.//g;s/[^ (]*lib.prim/agda-default-include-path/g;s/\\/\//g' \
 	    > $*.err.tmp
 	@echo `cat $*.err.tmp` | sed -e 's/\\/\//g' > $*.err.tmp.2
 	@echo `cat $*.err` > $*.err.tmp.3
@@ -130,7 +130,7 @@ customised/FFI.err : %.err : %.agda
 	@if ($(AGDA_BIN) --compile -v0 --ignore-interfaces -icustomised $*.agda) > $*.tmp; \
 		then echo "Unexpected success"; rm -f $*.tmp; false; \
     else if [ -s $*.tmp ]; \
-		then sed -e "s/[^ (]*test.fail.//g;s/[0-9][0-9]*://g;s/scope/Skopje/g" $*.tmp > $@; cat $@; rm -f $*.tmp; true; \
+		then sed -e "s/[^ (]*test.fail.//g;s/[^ (]*lib.prim/agda-default-include-path/g;s/[0-9][0-9]*://g;s/scope/Skopje/g" $*.tmp > $@; cat $@; rm -f $*.tmp; true; \
 		else rm -f $@ $*.tmp; false; \
 		fi; \
 	fi
@@ -140,7 +140,7 @@ customised/FFI : % : %.err
 	@echo $*.agda
 	-@rm -rf customised/MAlonzo
 	-@$(AGDA_BIN) --compile -v0 --ignore-interfaces -icustomised $*.agda \
-	    | sed -e 's/[^ (]*test.fail.//g;s/\\/\//g;s/[0-9][0-9]*://g;s/scope/Skopje/g' \
+	    | sed -e 's/[^ (]*test.fail.//g;s/[^ (]*lib.prim./agda-default-include-path/g;s/\\/\//g;s/[0-9][0-9]*://g;s/scope/Skopje/g' \
 	    > $*.err.tmp
 	@echo `cat $*.err.tmp` | sed -e 's/\\/\//g' > $*.err.tmp.2
 	@echo `cat $*.err` > $*.err.tmp.3
