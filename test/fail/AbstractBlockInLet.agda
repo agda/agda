@@ -1,6 +1,6 @@
-module MutualBlockInLet where
+module AbstractBlockInLet where
 
-postulate 
+postulate
   A : Set
   a : A
 

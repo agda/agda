@@ -1,8 +1,7 @@
-
-The name of the top level module does not match the file name. The
-module MutualBlockInLet should be defined in one of the following
-files:
-  ../MutualBlockInLet.agda
-  ../MutualBlockInLet.lagda
-  MutualBlockInLet.agda
-  MutualBlockInLet.lagda
+AbstractBlockInLet.agda:7,8-10,12
+abstract not allowed in let expressions
+when scope checking
+let abstract
+      x = a
+      y = x
+in y
