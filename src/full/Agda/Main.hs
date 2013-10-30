@@ -112,7 +112,11 @@ runAgda = do
                       | otherwise = (() <$)
       interaction $ do
         hasFile <- hasInputFile
-        resetState
+        -- Andreas, 2013-10-30 The following 'resetState' kills the
+        -- verbosity options.  That does not make sense (see fail/Issue641).
+        -- 'resetState' here does not seem to serve any purpose,
+        -- thus, I am removing it.
+        -- resetState
         if not hasFile then return Nothing else do
           file    <- getInputFile
           (i, mw) <- Imp.typeCheck file
