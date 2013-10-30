@@ -92,10 +92,10 @@ instance LensConName ConHead where
 --     every constant, even if the definition is an empty
 --     list of clauses.
 --
-data Term = Var {-# UNPACK #-} !Int Elims -- ^ @x vs@ neutral
+data Term = Var {-# UNPACK #-} !Int Elims -- ^ @x es@ neutral
 	  | Lam ArgInfo (Abs Term)        -- ^ Terms are beta normal. Relevance is ignored
 	  | Lit Literal
-	  | Def QName Elims               -- ^ @f vs@, possibly a redex
+	  | Def QName Elims               -- ^ @f es@, possibly a redex
 	  | Con ConHead Args              -- ^ @c vs@
 	  | Pi (Dom Type) (Abs Type)      -- ^ dependent or non-dependent function space
 	  | Sort Sort
