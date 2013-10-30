@@ -60,9 +60,11 @@ setCommandLineOptions opts =
     Left err   -> __IMPOSSIBLE__
     Right opts -> do
       incs <- case optIncludeDirs opts of
-        Right is -> return is
-        Left  is -> do
-          setIncludeDirs is CurrentDir
+        Right absolutePathes -> return absolutePathes
+        Left  relativePathes -> do
+          -- setIncludeDirs makes pathes (relative to CurrentDir) absolute
+          -- and possible adds the current directory (if no pathes given)
+          setIncludeDirs relativePathes CurrentDir
           getIncludeDirs
       modify $ Lens.setCommandLineOptions opts{ optIncludeDirs = Right incs }
              . Lens.setPragmaOptions (optPragmaOptions opts)
