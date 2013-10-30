@@ -415,6 +415,9 @@ Emacs mode
   [TODO: As part of the release of Agda 2.3.4 the key binding page on
   the wiki should be updated.]
 
+* The last step of a command like give, refine or intro is now (in
+  certain cases) to move the cursor to the next goal (if any).
+
 LaTeX-backend
 -------------
 
