@@ -6,6 +6,7 @@ module Agda.Interaction.Options
     , OptionsPragma
     , Flag
     , Verbosity
+    , IncludeDirs
     , checkOpts
     , parseStandardOptions
     , parsePragmaOptions
@@ -51,14 +52,16 @@ deriving instance Functor ArgDescr
 
 type Verbosity = Trie String Int
 
+type IncludeDirs = Either [FilePath] [AbsolutePath]
+     -- ^ 'Left' is used temporarily, before the paths have
+     -- been made absolute. An empty 'Left' list is
+     -- interpreted as @["."]@ (see
+     -- 'Agda.TypeChecking.Monad.Options.makeIncludeDirsAbsolute').
+
 data CommandLineOptions =
     Options { optProgramName          :: String
             , optInputFile            :: Maybe FilePath
-            , optIncludeDirs          :: Either [FilePath] [AbsolutePath]
-              -- ^ 'Left' is used temporarily, before the paths have
-              -- been made absolute. An empty 'Left' list is
-              -- interpreted as @["."]@ (see
-              -- 'Agda.TypeChecking.Monad.Options.makeIncludeDirsAbsolute').
+            , optIncludeDirs          :: IncludeDirs
             , optShowVersion          :: Bool
             , optShowHelp             :: Bool
             , optInteractive          :: Bool

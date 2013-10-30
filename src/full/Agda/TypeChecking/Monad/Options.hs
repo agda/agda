@@ -18,7 +18,9 @@ import Agda.TypeChecking.Monad.State
 -- import Agda.Interaction.EmacsCommand as Emacs
 import Agda.Interaction.FindFile
 import Agda.Interaction.Options
+import qualified Agda.Interaction.Options.Lenses as Lens
 import Agda.Interaction.Response
+
 import Agda.Utils.FileName
 import Agda.Utils.Monad
 import Agda.Utils.List
@@ -46,8 +48,8 @@ setPragmaOptions opts = do
 --
 -- Relative include directories are made absolute with respect to the
 -- current working directory. If the include directories have changed
--- (and were previously @'Right' something@), then the state is reset
--- (completely) .
+-- (thus, they are 'Left' now, and were previously @'Right' something@),
+-- then the state is reset (completely, see setIncludeDirs) .
 --
 -- An empty list of relative include directories (@'Left' []@) is
 -- interpreted as @["."]@.
@@ -62,12 +64,8 @@ setCommandLineOptions opts =
         Left  is -> do
           setIncludeDirs is CurrentDir
           getIncludeDirs
-      modify $ \s ->
-        s { stPersistent = (stPersistent s) {
-              stPersistentOptions = opts { optIncludeDirs = Right incs }
-            }
-          , stPragmaOptions = optPragmaOptions opts
-          }
+      modify $ Lens.setCommandLineOptions opts{ optIncludeDirs = Right incs }
+             . Lens.setPragmaOptions (optPragmaOptions opts)
 
 -- | Returns the pragma options which are currently in effect.
 
@@ -160,8 +158,8 @@ setIncludeDirs
   -- ^ How should relative paths be interpreted?
   -> TCM ()
 setIncludeDirs incs relativeTo = do
-  opts <- commandLineOptions
-  let oldIncs = optIncludeDirs opts
+  -- save the previous include dirs
+  oldIncs <- gets Lens.getIncludeDirs
 
   (root, check) <- case relativeTo of
     CurrentDir -> do
@@ -171,19 +169,11 @@ setIncludeDirs incs relativeTo = do
       m <- moduleName' f
       return (projectRoot f m, checkModuleName m f)
 
-  let setIncs incs = modify $ \s ->
-        s { stPersistent =
-          (stPersistent s) { stPersistentOptions =
-            (stPersistentOptions $ stPersistent s)
-              { optIncludeDirs = Right incs
-            }
-          }
-        }
-
-  setIncs (map (mkAbsolute . (filePath root </>)) $
+  Lens.putIncludeDirs $ Right $
+      map (mkAbsolute . (filePath root </>)) $
              case incs of
                [] -> ["."]
-               _  -> incs)
+               _  -> incs
 
   incs <- getIncludeDirs
   case oldIncs of
@@ -191,8 +181,8 @@ setIncludeDirs incs relativeTo = do
       ho <- getInteractionOutputCallback
       resetAllState
       setInteractionOutputCallback ho
-      setIncs incs
-    _                           -> return ()
+      Lens.putIncludeDirs $ Right incs
+    _ -> return ()
 
   check
 

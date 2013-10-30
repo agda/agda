@@ -30,6 +30,16 @@ resetAllState :: TCM ()
 resetAllState = put initState
 
 ---------------------------------------------------------------------------
+-- * Lens for persistent state
+---------------------------------------------------------------------------
+
+updatePersistentState :: (PersistentTCState -> PersistentTCState) -> (TCState -> TCState)
+updatePersistentState f s = s { stPersistent = f (stPersistent s) }
+
+modifyPersistentState :: (PersistentTCState -> PersistentTCState) -> TCM ()
+modifyPersistentState = modify . updatePersistentState
+
+---------------------------------------------------------------------------
 -- * Scope
 ---------------------------------------------------------------------------
 
