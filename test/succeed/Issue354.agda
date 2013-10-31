@@ -1,5 +1,5 @@
 
-{-# OPTIONS --universe-polymorphism #-}
+-- {-# OPTIONS -v tc.conv:30 -v tc.conv.level:60 -v tc.meta.assign:15 #-}
 
 module Issue354 where
 

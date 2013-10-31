@@ -1,16 +1,8 @@
-{-# OPTIONS --universe-polymorphism #-}
+-- {-# OPTIONS -v tc.conv:30 -v tc.conv.level:60 -v tc.meta.assign:15 #-}
+
 module UniversePolymorphism where
 
-postulate
-  Level : Set
-  lzero : Level
-  lsuc  : Level → Level
-  max : Level → Level → Level
-
-{-# BUILTIN LEVEL Level #-}
-{-# BUILTIN LEVELZERO lzero #-}
-{-# BUILTIN LEVELSUC lsuc #-}
-{-# BUILTIN LEVELMAX max #-}
+open import Common.Level renaming (_⊔_ to max)
 
 data Nat : Set where
   zero : Nat
@@ -47,7 +39,7 @@ module Zip where
   app : ∀ {n m a}(As : Vec (Set a) n)(B : Set a) →
         Vec (Fun As B) m → Fun (map (flip Vec m) As) (Vec B m)
   app []       B bs = bs
-  app (A ∷ As) B fs = λ as → app As B (fs <*> as) 
+  app (A ∷ As) B fs = λ as → app As B (fs <*> as)
 
   zipWith : ∀ {n m a}(As : Vec (Set a) n)(B : Set a) →
             Fun As B → Fun (map (flip Vec m) As) (Vec B m)
