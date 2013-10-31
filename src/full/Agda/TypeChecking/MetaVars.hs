@@ -928,7 +928,7 @@ updateMeta mI v = do
 -- | Returns every meta-variable occurrence in the given type, except
 -- for those in 'Sort's.
 
-allMetas :: Type -> [MetaId]
+allMetas :: TermLike a => a -> [MetaId]
 allMetas = foldTerm metas
   where
   metas (MetaV m _) = [m]

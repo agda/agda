@@ -11,6 +11,7 @@ import Control.Monad.Error
 import Data.Traversable hiding (mapM, sequence)
 import Data.List hiding (sort)
 import qualified Data.List as List
+-- import qualified Data.Set as Set
 
 import Agda.Syntax.Abstract.Views (isSet)
 import Agda.Syntax.Common
@@ -839,7 +840,11 @@ compareType cmp ty1@(El s1 a1) ty2@(El s2 a2) =
                 -- a1 might be Set and a2 a meta of type Set, in which case we
                 -- really need the sort comparison to fail, instead of silently
                 -- instantiating the meta.
-                throwError err
+                -- Andreas, 2013-10-31 Maybe the error went away
+                -- when we compared the types.  So we try the sort comparison
+                -- again, this time not catching the error.  (see Issue 930)
+                -- throwError err
+                compareSort CmpEq s1 s2
           _             -> throwError err
 	compareTerm cmp (sort s1) a1 a2
 	return ()
@@ -1024,19 +1029,37 @@ leqLevel a b = liftTCM $ do
 
 equalLevel :: Level -> Level -> TCM ()
 equalLevel a b = do
-  a <- reduce a
-  b <- reduce b
+  -- Andreas, 2013-10-31 Use normalization to make syntactic equality stronger
+  (a, b) <- normalise (a, b)
   reportSLn "tc.conv.level" 50 $ "equalLevel (" ++ show a ++ ") (" ++ show b ++ ")"
   liftTCM $ catchConstraint (LevelCmp CmpEq a b) $
     check a b
   where
     check a@(Max as) b@(Max bs) = do
+      -- Andreas, 2013-10-31 remove common terms (that don't contain metas!!)
+      -- THAT's actually UNSOUND when metas are instantiated, because
+      --     max a b == max a c  does not imply  b == c
+      -- as <- return $ Set.fromList $ closed0 as
+      -- bs <- return $ Set.fromList $ closed0 bs
+      -- let cs = Set.filter (not . hasMeta) $ Set.intersection as bs
+      -- as <- return $ Set.toList $ as Set.\\ cs
+      -- bs <- return $ Set.toList $ bs Set.\\ cs
+      as <- return $ List.sort $ closed0 as
+      bs <- return $ List.sort $ closed0 bs
       reportSDoc "tc.conv.level" 40 $
         sep [ text "equalLevel"
             , vcat [ nest 2 $ sep [ prettyTCM a <+> text "=="
                                   , prettyTCM b
                                   ]
-                   , nest 2 $ sep [ text (show (Max as)) <+> text "=="
+                   , text "reduced"
+                   , nest 2 $ sep [ prettyTCM (Max as) <+> text "=="
+                                  , prettyTCM (Max bs)
+                                  ]
+                   ]
+            ]
+      reportSDoc "tc.conv.level" 50 $
+        sep [ text "equalLevel"
+            , vcat [ nest 2 $ sep [ text (show (Max as)) <+> text "=="
                                   , text (show (Max bs))
                                   ]
                    ]
@@ -1045,10 +1068,8 @@ equalLevel a b = do
             lvl <- levelType
             equalAtom lvl a b
           as =!= bs = levelTm (Max as) === levelTm (Max bs)
-      as <- return $ closed0 as
-      bs <- return $ closed0 bs
       case (as, bs) of
-        _ | List.sort as == List.sort bs -> ok
+        _ | as == bs -> ok
           | any isBlocked (as ++ bs) -> do
               lvl <- levelType
               liftTCM $ useInjectivity CmpEq lvl (Level a) (Level b)
@@ -1082,10 +1103,13 @@ equalLevel a b = do
         (_, [Plus n (MetaLevel x bs)]) -> meta n x bs as
 
         -- any other metas
-        _ | any isMeta (as ++ bs) -> postpone
+        -- Andreas, 2013-10-31: There could be metas in neutral levels (see Issue 930).
+        -- Should not we postpone there as well?  Yes!
+        _ | any hasMeta (as ++ bs) -> postpone
 
         -- neutral/closed == neutral/closed
-        _ | all isNeutralOrClosed (as ++ bs) ->
+        _ | all isNeutralOrClosed (as ++ bs) -> do
+          reportSLn "tc.conv.level" 60 $ "equalLevel: all are neutral or closed"
           if length as == length bs
             then zipWithM_ (\a b -> [a] =!= [b]) as bs
             else notok
@@ -1135,10 +1159,13 @@ equalLevel a b = do
         isNeutralOrClosed l = isClosed l || isNeutral l
 
         isBlocked (Plus _ BlockedLevel{}) = True
-        isBlocked _                     = False
+        isBlocked _                       = False
 
-        isMeta (Plus _ MetaLevel{}) = True
-        isMeta _                  = False
+        hasMeta ClosedLevel{}               = False
+        hasMeta (Plus _ MetaLevel{})        = True
+        hasMeta (Plus _ (BlockedLevel _ v)) = not $ null $ allMetas v
+        hasMeta (Plus _ (NeutralLevel   v)) = not $ null $ allMetas v
+        hasMeta (Plus _ (UnreducedLevel v)) = not $ null $ allMetas v
 
         isThisMeta x (Plus _ (MetaLevel y _)) = x == y
         isThisMeta _ _                      = False
