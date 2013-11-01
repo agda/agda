@@ -1,3 +1,4 @@
+-- {-# OPTIONS -v tc.conv:40 #-}
 module IndexOnBuiltin where
 
 data Nat : Set where

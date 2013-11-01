@@ -15,7 +15,7 @@ module Agda.TypeChecking.CheckInternal
 -- import Control.Applicative
 import Control.Monad
 
-import Data.Maybe
+-- import Data.Maybe
 
 import Agda.Syntax.Common
 import Agda.Syntax.Internal as I
@@ -98,18 +98,14 @@ checkInternal v t = do
     , text " : "
     , prettyTCM t
     ]
-  -- BAD: elimView crashes on unreduced terms!!
-  -- v <- elimView v  -- bring projection-like funs in post-fix form
+  v <- elimView v  -- bring projection-like funs in post-fix form
   case ignoreSharing v of
     Var i es   -> do
       a <- typeOfBV i
       checkSpine a (Var i   []) es t
-{-  DOES NOT HELP in the treatment of projection-like functions:
-
-    Def f (Apply a : es) -> checkDef' f a es t -- possibly proj.like
-    Def f es             -> checkDef  f   es t  -- not a projection-like fun
--}
-    Def f es   -> checkDef f es t
+    Def f es   -> do  -- f is not projection(-like)!
+      a <- defType <$> getConstInfo f
+      checkSpine a (Def f []) es t
     MetaV x es -> do -- we assume meta instantiations to be well-typed
       a <- metaType x
       checkSpine a (MetaV x []) es t
@@ -142,6 +138,7 @@ checkInternal v t = do
     DontCare v -> checkInternal v t
     Shared{}   -> __IMPOSSIBLE__
 
+{-  RETIRED, works also when elimView has not been called before.
 -- | Check function application.
 checkDef :: QName -> Elims -> Type -> TCM ()
 checkDef f es t = do
@@ -151,8 +148,10 @@ checkDef f es t = do
      -- because we might not be able to infer the type of its principal
      -- argument (it could be a Con)
      -- TODO: a reduce that reduces ONLY projection-like functions
-     (`checkInternal` t) =<< elimView =<< reduce (Def f es)
+--     (`checkInternal` t) =<< elimView =<< reduceProjectionLike (Def f es)
+     (`checkInternal` t) =<< elimView (Def f es)
    else checkSpine (defType def) (Def f []) es t
+-}
 
 {-
 -- | Check ordinary function application.

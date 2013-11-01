@@ -805,7 +805,7 @@ reduced b = case fmap ignoreSharing <$> b of
 
 -- | Controlling 'reduce'.
 data AllowedReduction
-  = ProjectionReductions -- ^ proper projections may be reduced
+  = ProjectionReductions -- ^ (projection and) projection-like functions may be reduced
   | FunctionReductions   -- ^ functions which are not projections may be reduced
   deriving (Show, Eq, Ord, Enum, Bounded)
 

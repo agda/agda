@@ -9,7 +9,7 @@ import qualified Data.Map as Map
 
 import Agda.Syntax.Abstract.Name
 import Agda.Syntax.Common
-import Agda.Syntax.Internal
+import Agda.Syntax.Internal as I
 -- import Agda.Syntax.Position
 
 import Agda.TypeChecking.Monad
@@ -18,12 +18,13 @@ import Agda.TypeChecking.Substitute
 import Agda.TypeChecking.Positivity
 import Agda.TypeChecking.Pretty
 import Agda.TypeChecking.Reduce (reduce)
-import Agda.TypeChecking.Level (unLevel)
+-- import Agda.TypeChecking.Level (unLevel)
 -- import Agda.TypeChecking.CompiledClause
 -- import Agda.TypeChecking.CompiledClause.Compile
 
 import Agda.TypeChecking.DropArgs
 
+import Agda.Utils.Maybe (maybeM)
 import Agda.Utils.Monad
 import Agda.Utils.Size
 import Agda.Utils.Permutation
@@ -32,25 +33,66 @@ import Agda.Utils.Permutation
 #include "../undefined.h"
 import Agda.Utils.Impossible
 
+-- | View for a @Def f (Apply a : es)@ where @isProjection f@.
+--   Used for projection-like @f@s.
+data ProjectionView = ProjectionView
+  { projViewProj  :: QName
+  , projViewSelf  :: I.Arg Term
+  , projViewSpine :: Elims
+  }
+
+-- | Semantics of 'ProjectionView'.
+unProjView :: ProjectionView -> Term
+unProjView (ProjectionView f a es) = Def f (Apply a : es)
+
+-- | Top-level 'ProjectionView' (no reduction).
+projView :: Term -> TCM (Maybe ProjectionView)
+projView v = do
+  case ignoreSharing v of
+    Def f (Apply a : es) -> (ProjectionView f a es <$) <$> isProjection f
+    _                    -> return Nothing
+
+-- | Reduce away top-level projection like functions.
+--   (Also reduces projections, but they should not be there,
+--   since Internal is in lambda- and projection-beta-normal form.)
+--
+reduceProjectionLike :: Term -> TCM Term
+reduceProjectionLike v =
+  -- Andreas, 2013-11-01 make sure we do not reduce a constructor
+  -- because that could be folded back into a literal by reduce.
+  maybeM (return v) (\ _ -> onlyReduceProjections $ reduce v) $ projView v
+                            -- ordinary reduce, only different for Def's
+
 -- | Turn prefix projection-like function application into postfix ones.
 --   This does just one layer, such that the top spine contains
 --   the projection-like functions as projections.
---   Used in 'compareElims' in @TypeChecking.Conversion@.
---   Precondition: the term is reduced (and 'unLevel'ed).
+--   Used in 'compareElims' in @TypeChecking.Conversion@
+--   and in 'Agda.TypeChecking.CheckInternal'.
+--
+--   No precondition.
+--   Preserves constructorForm, since it really does only something
+--   applications of projection-like functions.
 elimView :: Term -> TCM Term
 elimView v = do
   reportSDoc "tc.conv.elim" 30 $ text "elimView of " <+> prettyTCM v
-  reportSLn "tc.conv.elim" 50 $ "v = " ++ show v
+  reportSLn  "tc.conv.elim" 50 $ "v = " ++ show v
+  v <- reduceProjectionLike v
+  reportSDoc "tc.conv.elim" 40 $
+    text "elimView (projections reduced) of " <+> prettyTCM v
+  flip (maybeM (return v)) (projView v) $ \ (ProjectionView f a es) -> do
+        (`applyE` (Proj f : es)) <$> elimView (unArg a)
+
+{- Andreas, 2013-11-01: Use of unLevel no longer necessary, since we do not reduce!
   case ignoreSharing v of
     Def f (Apply (Arg _ rv) : es) -> do
-      proj <- isProjection f
-      flip (maybe (return v)) proj $ \ _ -> do
+      flip (maybeM (return v)) (isProjection f) $ \ _ -> do
         (`applyE` (Proj f : es)) <$> do elimView =<< unLevel =<< reduce rv
           -- domi 2012-7-24: Add unLevel to handle neutral levels.
           -- The problem is that reduce turns @suc (neutral)@
           -- into @Level (Max [Plus 1 (NeutralLevel neutral)])@
           -- which the below pattern match does not handle.
     _ -> return v
+-}
 
 -- | Which @Def@types are eligible for the principle argument
 --   of a projection-like function?

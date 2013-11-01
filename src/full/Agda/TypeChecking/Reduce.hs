@@ -339,9 +339,9 @@ unfoldDefinition' unfoldDelayed keepGoing v0 f es =
       reducePrimitive x v0 f es pf (defDelayed info) (defNonterminating info)
                       cls (defCompiled info)
     _  -> do
-{-
       allowed <- asks envAllowedReductions
-      -- case f is projection:
+{-
+      -- case f is projection-like:
       if isProperProjection def then
         if ProjectionReductions `elem` allowed then do
           -- we cannot call elimView right away, since it calls back to reduce
@@ -366,14 +366,15 @@ unfoldDefinition' unfoldDelayed keepGoing v0 f es =
        else if FunctionReductions `elem` allowed then
         -- proceed as before, without calling elimView
 -}
+      if FunctionReductions `elem` allowed ||
+         (isJust (isProjection_ def) && ProjectionReductions `elem` allowed)  -- includes projection-like
+       then
         reduceNormalE keepGoing v0 f (map notReduced es)
                        (defDelayed info) (defNonterminating info)
                        (defClauses info) (defCompiled info)
-{-
         else retSimpl $ notBlocked v
--}
-  where
 
+  where
     retSimpl v = (,v) <$> asks envSimplification
 {-
     reduceDefElim :: QName -> [Elim] -> TCM (Simplification, Blocked Term)
