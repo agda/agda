@@ -177,6 +177,18 @@ encode a = do
   where
   l h = List.map fst . List.sortBy (compare `on` snd) <$> H.toList h
 
+-- | Data.Binary.runGetState is deprecated in favour of runGetIncremental.
+--   Reimplementing it in terms of the new function. The new Decoder type contains
+--   strict byte strings so we need to be careful not to feed the entire lazy byte
+--   string to the decoder at once.
+runGetState :: B.Get a -> ByteString -> B.ByteOffset -> (a, ByteString, B.ByteOffset)
+runGetState g s n = feed (B.runGetIncremental g) (L.toChunks s)
+  where
+    feed (B.Done s n' x) ss     = (x, L.fromChunks (s : ss), n + n')
+    feed (B.Fail _ _ err) _     = error err
+    feed (B.Partial f) (s : ss) = feed (f $ Just s) ss
+    feed (B.Partial f) []       = feed (f Nothing) []
+
 -- | Decodes something. The result depends on the include path.
 --
 -- Returns 'Nothing' if the input does not start with the right magic
@@ -193,13 +205,13 @@ decode s = do
 
   (mf, r) <- liftIO $ E.handle (\(E.ErrorCall s) -> noResult s) $ do
 
-    (ver, s, _) <- return $ B.runGetState B.get s 0
+    (ver, s, _) <- return $ runGetState B.get s 0
     if ver /= currentInterfaceVersion
      then noResult "Wrong interface version."
      else do
 
       ((r, nL, sL, iL, dL), s, _) <-
-        return $ B.runGetState B.get (G.decompress s) 0
+        return $ runGetState B.get (G.decompress s) 0
       if s /= L.empty
          -- G.decompress seems to throw away garbage at the end, so
          -- the then branch is possibly dead code.
