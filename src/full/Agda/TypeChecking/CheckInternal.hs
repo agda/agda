@@ -251,7 +251,6 @@ inferSpine t self (e : es) =
     -- case: projection or projection-like
     Proj f -> do
       (a, b) <- shouldBePi =<< shouldBeProjectible t f
-      checkInternal self $ unDom a
       u <- f `applyDef` (argFromDom a $> self)
       inferSpine (b `absApp` self) u es
 
