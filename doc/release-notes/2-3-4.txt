@@ -389,6 +389,29 @@ Tools
 Emacs mode
 ----------
 
+* A new goal command "Helper Function Type" (C-c C-h) has been added.
+
+  If you write an application of an undefined function in a goal, the Helper
+  Function Type command will print the type that the function needs to have in
+  order for it to fit the goal. The type is also added to the Emacs kill-ring
+  and can be pasted into the buffer using C-y.
+
+  The application must be of the form "f args" where f is the name of the
+  helper function you want to create. The arguments can use all the normal
+  features like named implicits or instance arguments.
+
+  Example:
+
+    Here's a start on a naive reverse on vectors:
+
+      reverse : ∀ {A n} → Vec A n → Vec A n
+      reverse [] = []
+      reverse (x ∷ xs) = {!snoc (reverse xs) x!}
+
+    Calling C-c C-h in the goal prints
+
+      snoc : ∀ {A} {n} → Vec A n → A → Vec A (suc n)
+
 * Key bindings for lots of "mathematical" characters (examples: 𝐴𝑨𝒜𝓐𝔄)
   have been added to the Agda input method.
 
