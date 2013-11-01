@@ -17,3 +17,6 @@ fromMaybeM m mm = maybeM m return mm
 unzipMaybe :: Maybe (a,b) -> (Maybe a, Maybe b)
 unzipMaybe Nothing      = (Nothing, Nothing)
 unzipMaybe (Just (a,b)) = (Just a, Just b)
+
+forMaybe :: [a] -> (a -> Maybe b) -> [b]
+forMaybe = flip mapMaybe
