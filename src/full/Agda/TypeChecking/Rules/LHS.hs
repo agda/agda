@@ -196,17 +196,13 @@ noShadowingOfConstructors mkCall problem =
       , nest 2 $ text "type of variable =" <+> prettyTCM t
       ]
     reportSLn "tc.lhs.shadow" 70 $ "  t = " ++ show t
-    t <- normalise t
+    t <- reduce t
     case t of
       Def t _ -> do
         d <- theDef <$> getConstInfo t
         case d of
           Datatype { dataCons = cs } -> do
-            let ns = map (\c -> (c, A.nameConcrete $ A.qnameName c)) cs
-                match x = catMaybes $
-                            map (\(c, n) -> if A.nameConcrete x == n
-                                            then Just c else Nothing) ns
-            case match x of
+            case filter ((A.nameConcrete x ==) . A.nameConcrete . A.qnameName) cs of
               []      -> return ()
               (c : _) -> setCurrentRange (getRange x) $
                 typeError $ PatternShadowsConstructor x c
