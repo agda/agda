@@ -115,18 +115,14 @@ lispifyResponse (Resp_InteractionPoints is) = return
       L [A "agda2-goals-action", Q $ L $ map showNumIId is]
   ]
 lispifyResponse (Resp_GiveAction ii s)
-    = return [ L [ A "agda2-give-action", showNumIId ii, A s' ]
-             , lastTag 3 $ L [ A "agda2-next-goal" ]
-             ]
+    = return [ L [ A "agda2-give-action", showNumIId ii, A s' ] ]
   where
     s' = case s of
         Give_String str -> quote str
         Give_Paren      -> "'paren"
         Give_NoParen    -> "'no-paren"
 lispifyResponse (Resp_MakeCase variant pcs) = return
-  [ lastTag 2 $ L [ A cmd, Q $ L $ map (A . quote) pcs ]
-  , lastTag 3 $ L [ A "agda2-next-goal" ]
-  ]
+  [ lastTag 2 $ L [ A cmd, Q $ L $ map (A . quote) pcs ] ]
   where
   cmd = case variant of
     R.Function       -> "agda2-make-case-action"
