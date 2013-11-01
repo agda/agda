@@ -3,9 +3,9 @@
 module Agda.TypeChecking.DisplayForm where
 
 import Control.Applicative
-import Control.Monad
+-- import Control.Monad
 import Control.Monad.Error
-import Data.Traversable hiding (mapM)
+import Data.Traversable (traverse)
 
 import Agda.Syntax.Common hiding (Arg, Dom, NamedArg, ArgInfo)
 import Agda.Syntax.Internal
@@ -13,7 +13,8 @@ import Agda.TypeChecking.Monad
 import Agda.TypeChecking.Substitute
 -- import Agda.TypeChecking.Reduce
 import Agda.TypeChecking.Level
--- import Agda.Syntax.Scope.Base
+
+-- import Agda.Utils.Monad
 -- import Agda.Utils.Size
 
 #include "../undefined.h"
@@ -59,8 +60,8 @@ matchDisplayForm :: DisplayForm -> Args -> TCM (Maybe DisplayTerm)
 matchDisplayForm (Display n ps v) vs
   | length ps > length vs = return Nothing
   | otherwise             = do
-    mus <- match n ps $ raise 1 (map unArg vs0)
-    return $ fmap (\us -> applySubst (parallelS (reverse us)) v `apply` vs1) mus
+      fmap (\ us -> applySubst (parallelS $ reverse us) v `apply` vs1) <$> do
+        match n ps $ raise 1 $ map unArg vs0
   where
     (vs0, vs1) = splitAt (length ps) vs
 
