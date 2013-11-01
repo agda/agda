@@ -144,7 +144,7 @@ type RefCreateEnv blk = StateT ( ( (IORef [SubConstraints blk])), Int) IO
 
 data Pair a b = Pair a b
 
-class Refinable a blk | a -> blk where
+class Refinable a blk where
  refinements :: blk -> [blk] -> Metavar a blk -> IO [(Int, RefCreateEnv blk a)]
 
 
