@@ -1,4 +1,4 @@
-{-# LANGUAGE StandaloneDeriving, DeriveFunctor #-}
+{-# LANGUAGE StandaloneDeriving, DeriveFunctor, CPP #-}
 
 module Agda.Interaction.Options
     ( CommandLineOptions(..)
@@ -43,8 +43,11 @@ isLiterate file = ".lagda" `isSuffixOf` file
 
 -- OptDescr is a Functor --------------------------------------------------
 
+-- base-4.7 defines these
+#if __GLASGOW_HASKELL__ < 707
 deriving instance Functor OptDescr
 deriving instance Functor ArgDescr
+#endif
 
 type Verbosity = Trie String Int
 
