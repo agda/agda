@@ -19,6 +19,10 @@ import Agda.Utils.Size
 import Agda.Utils.Impossible
 #include "../undefined.h"
 
+---------------------------------------------------------------------------
+-- * Constructors
+---------------------------------------------------------------------------
+
 -- | Get true constructor with record fields.
 getConHead :: QName -> TCM ConHead
 getConHead c = conSrcCon . theDef <$> getConstInfo c
@@ -94,6 +98,9 @@ getConstructorArity c = do
         _ -> __IMPOSSIBLE__
     _ -> __IMPOSSIBLE__
 
+---------------------------------------------------------------------------
+-- * Data types
+---------------------------------------------------------------------------
 
 -- | Check if a name refers to a datatype or a record with a named constructor.
 isDatatype :: QName -> TCM Bool
