@@ -24,7 +24,6 @@ import Agda.TypeChecking.Primitive
 import {-# SOURCE #-} Agda.TypeChecking.MetaVars
 import {-# SOURCE #-} Agda.TypeChecking.Conversion
 import Agda.TypeChecking.Pretty
--- import Agda.TypeChecking.Eliminators
 import Agda.TypeChecking.Constraints
 import Agda.TypeChecking.Polarity
 import Agda.Utils.List
@@ -123,10 +122,9 @@ checkInjectivity f cs
 checkInjectivity f cs = do
   reportSLn "tc.inj.check" 40 $ "Checking injectivity of " ++ show f
   -- Extract the head symbol of the rhs of each clause (skip absurd clauses)
-  -- es <- concat <$> mapM entry cs
   es <- catMaybes <$> do
-    forM cs $ \ c -> do
-      forM (getBody c) $ \ v -> do
+    forM cs $ \ c -> do             -- produces a list ...
+      forM (getBody c) $ \ v -> do  -- ... of maybes
         h <- headSymbol v
         return (h, c)
   let (hs, ps) = unzip es
@@ -141,31 +139,8 @@ checkInjectivity f cs = do
           fsep (punctuate comma $ map (prettyTCM . unArg) $ clausePats c)
       return $ Inverse inv
     else return NotInjective
-{-
-  where
-    entry c = do
-      case getBody (clauseBody c) of
-        Nothing -> return []
-        Just v  -> do
-          h <- headSymbol v
-          return [(h, c)]
--}
 
-{- RETIRED, now using Substitute.getBody instead of rhd
-    entry c = do
-      mv <- rhs (clauseBody c)
-      case mv of
-        Nothing -> return []
-        Just v  -> do
-          h <- headSymbol v
-          return [(h, c)]
-
-    rhs (Bind b)   = underAbstraction_ b rhs
-    rhs (Body v)   = return $ Just v
-    rhs NoBody     = return Nothing
--}
-
--- | Argument should be on weak head normal form.
+-- | Argument should be in weak head normal form.
 functionInverse :: Term -> TCM InvView
 functionInverse v = case ignoreSharing v of
   Def f es -> do
@@ -174,29 +149,11 @@ functionInverse v = case ignoreSharing v of
       Function{ funInv = inv } -> case inv of
         NotInjective  -> return NoInv
         Inverse m     -> return $ Inv f es m
+          -- NB: Invertible functions are never classified as
+          --     projection-like, so this is fine, we are not
+          --     missing parameters.  (Andreas, 2013-11-01)
       _ -> return NoInv
   _ -> return NoInv
-
-{-
--- | Argument should be on weak head normal form.
-functionInverse :: Term -> TCM InvView
-functionInverse v = do
-  ev <- elimView $ ignoreSharing v
-  case ev of
-    DefElim f args -> do
-      d <- theDef <$> getConstInfo f
-      case d of
-        Function{ funInv = inv } -> case inv of
-          NotInjective  -> return NoInv
-          Inverse m     -> return $ Inv f args m
-        _ -> return NoInv
-    _ -> return NoInv
--}
-
-{-
-data InvView = Inv QName Args (Map TermHead Clause)
-             | NoInv
--}
 
 data InvView = Inv QName [Elim] (Map TermHead Clause)
              | NoInv
@@ -221,7 +178,6 @@ useInjectivity cmp a u v = do
           , nest 2 $ text "and type" <+> prettyTCM a
           ]
         pol <- getPolarity' cmp f
-        -- compareArgs pol a (Def f []) fArgs gArgs
         compareElims pol a (Def f []) fArgs gArgs
       | otherwise -> fallBack
     (Inv f args inv, NoInv) -> do
@@ -244,7 +200,6 @@ useInjectivity cmp a u v = do
   where
     fallBack = addConstraint $ ValueCmp cmp a u v
 
---    invert :: Term -> QName -> Type -> Map TermHead Clause -> Args -> Maybe TermHead -> TCM ()
     invert :: Term -> QName -> Type -> Map TermHead Clause -> [Elim] -> Maybe TermHead -> TCM ()
     invert _ _ a inv args Nothing  = fallBack
     invert org f ftype inv args (Just h) = case Map.lookup h inv of
@@ -263,7 +218,6 @@ useInjectivity cmp a u v = do
           -- and this is the order the variables occur in the patterns
           let ms' = permute (invertP $ compactP perm) ms
           let sub = parallelS (reverse ms)
---          margs <- runReaderT (evalStateT (metaArgs ps) ms') sub
           margs <- runReaderT (evalStateT (mapM metaElim ps) ms') sub
           reportSDoc "tc.inj.invert" 20 $ vcat
             [ text "inversion"
@@ -281,7 +235,6 @@ useInjectivity cmp a u v = do
           -- are arguments (point-free style definitions).
           let args' = take (length margs) args
           compareElims pol ftype org margs args'
---          compareArgs pol ftype org margs args'
 {- Andreas, 2011-05-09 allow unsolved constraints as long as progress
           unless (null cs) $ do
             reportSDoc "tc.inj.invert" 30 $

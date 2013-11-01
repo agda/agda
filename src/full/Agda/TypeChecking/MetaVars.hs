@@ -884,13 +884,6 @@ inverseSubst args = fmap (map (mapFst unArg)) <$> loop (zip args terms)
         -- Distinguish args that can be eliminated (Con,Lit,Lam,unsure) ==> failure
         -- from those that can only put somewhere as a whole ==> return Nothing
         Arg _ Var{}      -> return $ Nothing -- neutral
-{-
-        Arg _ v@(Def{})  -> do
-          elV <- lift $ elimView v
-          case elV of
-            VarElim{}      -> return $ Nothing -- neutral
-            _              -> failure
--}
         Arg _ Def{}      -> failure
         Arg _ Lam{}      -> failure
         Arg _ Lit{}      -> failure
