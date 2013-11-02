@@ -1,17 +1,6 @@
-{-# OPTIONS --universe-polymorphism --allow-unsolved-metas #-}
+{-# OPTIONS --allow-unsolved-metas #-}
 
 module Issue209 where
-
-postulate
-  Level : Set
-  zero : Level
-  suc  : Level → Level
-  _⊔_ : Level -> Level -> Level
-
-{-# BUILTIN LEVEL     Level #-}
-{-# BUILTIN LEVELZERO zero  #-}
-{-# BUILTIN LEVELSUC  suc   #-}
-{-# BUILTIN LEVELMAX _⊔_ #-}
 
 data _≡_ {a} {A : Set a} (x : A) : A → Set where
   refl : x ≡ x

@@ -4,16 +4,8 @@ module 13-implicitProofObligations where
 
 module Imports where
   module L where
-    postulate
-      Level : Set
-      zero  : Level
-      suc   : Level → Level
-      _⊔_   : Level → Level → Level
-
-    {-# BUILTIN LEVEL     Level #-}
-    {-# BUILTIN LEVELZERO zero  #-}
-    {-# BUILTIN LEVELSUC  suc   #-}
-    {-# BUILTIN LEVELMAX  _⊔_   #-}
+    open import Agda.Prim public
+      using (Level; _⊔_) renaming (lzero to zero; lsuc to suc)
 
   -- extract from Data.Unit
   record ⊤ : Set where
@@ -92,7 +84,7 @@ module Imports where
   pred zero    = zero
   pred (suc n) = n
 
-  infixl 6 _+_ 
+  infixl 6 _+_
 
   _+_ : ℕ → ℕ → ℕ
   -- zero  + n = n

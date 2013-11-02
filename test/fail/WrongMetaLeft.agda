@@ -1,7 +1,7 @@
-{-# OPTIONS --universe-polymorphism #-}
+
 module WrongMetaLeft where
 
-open import Imports.Level
+open import Common.Level
 
 postulate
   ∃₂ : ∀ {a c : Level} {A : Set a} {B : Set}

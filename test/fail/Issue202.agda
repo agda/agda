@@ -2,7 +2,7 @@
 
 module Issue202 where
 
-open import Imports.Level
+open import Common.Level
 open import Imports.Test
 
 module Test2 {ℓ : Level} (F : Foo ℓ) where

@@ -1,16 +1,8 @@
 
 module Issue512 where
 
-postulate
-  Level : Set
-
-{-# BUILTIN LEVEL Level #-}
-
-data _≡_ {a} {A : Set a} (x : A) : A → Set a where
-  refl : x ≡ x
-
-{-# BUILTIN EQUALITY _≡_ #-}
-{-# BUILTIN REFL refl #-}
+open import Common.Level
+open import Common.Equality
 
 data A : Set where
   a b : A

@@ -108,12 +108,13 @@ highlightAsTypeChecked rPre r m
 
 printHighlightingInfo :: MonadTCM tcm => HighlightingInfo -> tcm ()
 printHighlightingInfo x = do
+  modToSrc <- gets stModuleToSource
   liftTCM $ reportSLn "highlighting" 50 $
-    "Printing highlighting info:\n" ++ show x
+    "Printing highlighting info:\n" ++ show x ++ "\n" ++
+    "  modToSrc = " ++ show modToSrc
   unless (null $ ranges x) $ do
-    st <- get
     liftTCM $ appInteractionOutputCallback $
-        Resp_HighlightingInfo x (stModuleToSource st)
+        Resp_HighlightingInfo x modToSrc
 
 -- | Highlighting levels.
 

@@ -2,7 +2,7 @@
 
 module TypeConstructorsWhichPreserveGuardedness4 where
 
-open import Imports.Coinduction
+open import Common.Coinduction
 
 data Rec (A : ∞ Set) : Set where
   fold : ♭ A → Rec A

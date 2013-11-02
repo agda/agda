@@ -1,4 +1,3 @@
-{-# OPTIONS --universe-polymorphism #-}
 -- {-# OPTIONS --verbose tc.records.ifs:15 #-}
 -- {-# OPTIONS --verbose tc.constr.findInScope:15 #-}
 -- {-# OPTIONS --verbose tc.term.args.ifs:15 #-}
@@ -12,16 +11,8 @@ module 07-subclasses where
 
 module Imports where
   module L where
-    postulate
-      Level : Set
-      zero  : Level
-      suc   : Level → Level
-      _⊔_   : Level → Level → Level
-
-    {-# BUILTIN LEVEL     Level #-}
-    {-# BUILTIN LEVELZERO zero  #-}
-    {-# BUILTIN LEVELSUC  suc   #-}
-    {-# BUILTIN LEVELMAX  _⊔_   #-}
+    open import Agda.Prim public
+      using (Level; _⊔_) renaming (lzero to zero; lsuc to suc)
 
   -- extract from Function
   id : ∀ {a} {A : Set a} → A → A
@@ -38,7 +29,7 @@ module Imports where
   f ∘ g = λ x → f (g x)
 
   -- extract from Data.Bool
-  infixr 5 _∨_ 
+  infixr 5 _∨_
   data Bool : Set where
     true  : Bool
     false : Bool
@@ -168,7 +159,7 @@ module test₁ where
   test₂ = eq 5 3
   test₃ = eq true false
   test₄ : {A : Set} → {{ ordA : Ord₁ A }} → A → A → Bool
-  test₄ a b = a < b ∨ eq a b 
+  test₄ a b = a < b ∨ eq a b
     where
       eqA' : Eq _
       eqA' = eqA
@@ -184,7 +175,7 @@ module test₂ where
   test₂ = eq 5 3
   test₃ = eq true false
   test₄ : {A : Set} → {eqA : Eq A} → {{ ordA : Ord₂ eqA }} → A → A → Bool
-  test₄ {eqA = _} a b = a < b ∨ eq a b 
+  test₄ {eqA = _} a b = a < b ∨ eq a b
 
 
 module test₃ where
@@ -195,7 +186,7 @@ module test₃ where
   test₂ = eq 5 3
   test₃ = eq' true false
   test₄ : {A : Set} → {{ ordA : Ord₃ A }} → A → A → Bool
-  test₄ a b = a < b ∨ eq a b 
+  test₄ a b = a < b ∨ eq a b
 
 module test₄ where
   open Ord₄ {{...}}
@@ -205,7 +196,7 @@ module test₄ where
   test₂ = eq 5 3
   test₃ = eq' true false
   test₄ : {A : Set} → {eqA : Eq A} → {{ ordA : Ord₄ eqA }} → A → A → Bool
-  test₄ a b = a < b ∨ eq a b 
+  test₄ a b = a < b ∨ eq a b
 
 module test₄′ where
   open Ord₄ {{...}} hiding (eq)
@@ -218,5 +209,5 @@ module test₄′ where
   test₂ = eq 5 3
   test₃ = eq true false
   test₄ : {A : Set} → {eqA : Eq A} → {{ ordA : Ord₄ eqA }} → A → A → Bool
-  test₄ {eqA = _} a b = a < b ∨ eq a b 
+  test₄ {eqA = _} a b = a < b ∨ eq a b
 

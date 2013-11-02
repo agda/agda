@@ -1,9 +1,8 @@
-{-# OPTIONS --universe-polymorphism #-}
 
 -- Should give some unsolved metas
 module Issue203b where
 
-open import Imports.Level
+open import Common.Level
 
 -- Should work but give unsolved metas (type of b)
 data ↓ {a b} (A : Set a) : Set a where

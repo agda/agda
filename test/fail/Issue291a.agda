@@ -2,10 +2,8 @@
 -- {-# OPTIONS -v tc.cover:20 -v tc.lhs.unify:20 #-}
 module Issue291a where
 
-open import Imports.Coinduction
-
-data _≡_ {A : Set}(a : A) : A -> Set where
-  refl : a ≡ a
+open import Common.Coinduction
+open import Common.Equality
 
 data RUnit : Set where
   runit : ∞ RUnit -> RUnit

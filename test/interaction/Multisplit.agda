@@ -1,17 +1,6 @@
 -- {-# OPTIONS -v tc.lhs.unify.flexflex:100 -v tc.lhs.unify.assign:100 -v tc.lhs:100 #-}
 module Multisplit where
 
-postulate
-  Level : Set
-  lzero : Level
-  lsuc  : Level → Level
-  _⊔_   : Level → Level → Level
-
-{-# BUILTIN LEVEL     Level #-}
-{-# BUILTIN LEVELZERO lzero #-}
-{-# BUILTIN LEVELSUC  lsuc  #-}
-{-# BUILTIN LEVELMAX  _⊔_   #-}
-
 data Bool : Set where
   true false : Bool
 

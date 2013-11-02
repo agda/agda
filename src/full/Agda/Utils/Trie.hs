@@ -1,7 +1,8 @@
+{-# LANGUAGE PatternGuards #-}
 
 module Agda.Utils.Trie
   ( Trie
-  , empty, singleton, insert, lookupPath, union
+  , empty, singleton, insert, lookupPath, union, adjust, delete
   ) where
 
 import Control.Applicative hiding (empty)
@@ -29,6 +30,21 @@ union (Trie v ss) (Trie w ts) =
 
 insert :: Ord k => [k] -> v -> Trie k v -> Trie k v
 insert k v t = union (singleton k v) t
+
+-- | Delete value at key, but leave subtree intact.
+delete :: Ord k => [k] -> Trie k v -> Trie k v
+delete path = adjust path (const Nothing)
+
+-- | Adjust value at key, leave subtree intact.
+adjust :: Ord k => [k] -> (Maybe v -> Maybe v) -> Trie k v -> Trie k v
+adjust path f t@(Trie v ts) =
+  case path of
+    -- case: found the value we want to adjust: adjust it!
+    []                                 -> Trie (f v) ts
+    -- case: found the subtrie matching the first key: adjust recursively
+    k : ks | Just s <- Map.lookup k ts -> Trie v $ Map.insert k (adjust ks f s) ts
+    -- case: subtrie not found: leave trie untouched
+    _ -> t
 
 lookupPath :: Ord k => [k] -> Trie k v -> [v]
 lookupPath xs (Trie v cs) = case xs of

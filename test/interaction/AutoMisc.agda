@@ -1,17 +1,13 @@
-{-# OPTIONS --universe-polymorphism #-}
 
 module AutoMisc where
 
+-- include path -i.. not working
+-- open import Common.Level
+-- open import Common.Equality
+
+open import Agda.Prim
+
 -- prelude
-
-postulate
-  Level : Set
-  lzero : Level
-  lsuc  : (i : Level) → Level
-
-{-# BUILTIN LEVEL     Level #-}
-{-# BUILTIN LEVELZERO lzero  #-}
-{-# BUILTIN LEVELSUC  lsuc   #-}
 
 data _≡_ {a} {A : Set a} (x : A) : A → Set where
   refl : x ≡ x
@@ -99,7 +95,7 @@ module Drink where
 module VecMap where
 
  map : {X Y : Set} → {n : ℕ} → (X → Y) → Vec X n → Vec Y n
- map f xs = {!!} 
+ map f xs = {!!}
 
 
 module Disproving where

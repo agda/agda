@@ -1,6 +1,6 @@
 module CoinductiveBuiltinNatural where
 
-open import Imports.Coinduction
+open import Common.Coinduction
 
 data ℕ : Set where
   zero : ℕ

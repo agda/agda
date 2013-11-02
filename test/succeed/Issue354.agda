@@ -3,19 +3,10 @@
 
 module Issue354 where
 
+open import Common.Level
+
 ------------------------------------------------------------------------
 -- Preliminaries
-
-postulate
-  Level : Set
-  zero : Level
-  suc  : (i : Level) → Level
-  _⊔_ : Level → Level → Level
-
-{-# BUILTIN LEVEL     Level #-}
-{-# BUILTIN LEVELZERO zero  #-}
-{-# BUILTIN LEVELSUC  suc   #-}
-{-# BUILTIN LEVELMAX  _⊔_   #-}
 
 data _≡_ {a} {A : Set a} (x : A) : A → Set a where
   refl : x ≡ x

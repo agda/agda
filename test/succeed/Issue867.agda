@@ -35,17 +35,6 @@ data ℕ : Set where
 {-# BUILTIN SUC S #-}
 
 postulate
-  ULevel : Set
-  zero : ULevel
-  suc : ULevel → ULevel
-  max : ULevel → ULevel → ULevel
-
-{-# BUILTIN LEVEL ULevel #-}
-{-# BUILTIN LEVELZERO zero #-}
-{-# BUILTIN LEVELSUC suc #-}
-{-# BUILTIN LEVELMAX max #-}
-
-postulate
   IO : ∀ {i} → Set i → Set i
   return : ∀ {i} {A : Set i} → A → IO A
 

@@ -74,8 +74,9 @@ findFile m = do
     Right f  -> return f
 
 -- | Tries to find the source file corresponding to a given top-level
--- module name. The returned paths are absolute.
-
+--   module name. The returned paths are absolute.
+--
+--   SIDE EFFECT:  Updates 'stModuleToSource'.
 findFile' :: TopLevelModuleName -> TCM (Either FindError AbsolutePath)
 findFile' m = do
     dirs         <- getIncludeDirs

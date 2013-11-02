@@ -1,19 +1,6 @@
 {-# OPTIONS --guardedness-preserving-type-constructors #-}
 module Issue602 where
 
-infixl 6 _⊔_
-
-postulate
-  Level : Set
-  zero  : Level
-  suc   : Level → Level
-  _⊔_   : Level → Level → Level
-
-{-# BUILTIN LEVEL     Level #-}
-{-# BUILTIN LEVELZERO zero  #-}
-{-# BUILTIN LEVELSUC  suc   #-}
-{-# BUILTIN LEVELMAX  _⊔_   #-}
-
 infix 1000 ♯_
 
 postulate

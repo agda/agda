@@ -696,7 +696,7 @@ cmd_load' file includes unsolvedOK cmd = do
     -- Remove any prior syntax highlighting.
     putResponse Resp_ClearHighlighting
 
-    ok <- lift $ Imp.typeCheck f
+    ok <- lift $ Imp.typeCheckMain f
 
     -- The module type checked. If the file was not changed while the
     -- type checker was running then the interaction points and the

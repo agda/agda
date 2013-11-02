@@ -1,15 +1,6 @@
-{-# OPTIONS --universe-polymorphism #-}
-
 module Issue204.Dependency where
 
-postulate
-  Level : Set
-  zero : Level
-  suc  : Level → Level
-
-{-# BUILTIN LEVEL     Level #-}
-{-# BUILTIN LEVELZERO zero  #-}
-{-# BUILTIN LEVELSUC  suc   #-}
+open import Common.Level public renaming (lsuc to suc)
 
 record R (ℓ : Level) : Set (suc ℓ) where
 

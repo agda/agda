@@ -1,19 +1,8 @@
 -- The bug documented below was exposed by the fix to issue 274.
 
-{-# OPTIONS --universe-polymorphism #-}
-
 module Issue274 where
 
-postulate
-  Level : Set
-  zero : Level
-  suc  : Level → Level
-  _⊔_ : Level → Level → Level
-
-{-# BUILTIN LEVEL     Level #-}
-{-# BUILTIN LEVELZERO zero  #-}
-{-# BUILTIN LEVELSUC  suc   #-}
-{-# BUILTIN LEVELMAX  _⊔_   #-}
+open import Common.Level
 
 record Q a : Set (a ⊔ a) where
 

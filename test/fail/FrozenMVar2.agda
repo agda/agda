@@ -1,22 +1,11 @@
 -- Andreas, 2011-04-11 adapted from Data.Nat.Properties
 
-{-# OPTIONS --universe-polymorphism #-}
-
 module FrozenMVar2 where
 
-open import Imports.Level
+open import Common.Level
+open import Common.Equality
 
-data _≡_ {a} {A : Set a} (x : A) : A → Set a where
-  refl : x ≡ x
-
-{-# BUILTIN EQUALITY _≡_ #-}
-{-# BUILTIN REFL refl #-}
-
-cong : ∀ {a b} {A : Set a} {B : Set b}
-       (f : A → B) {x y} → x ≡ y → f x ≡ f y
-cong f refl = refl
-
-Rel : ∀ {a} → Set a → (ℓ : Level) → Set (a ⊔ suc ℓ)
+Rel : ∀ {a} → Set a → (ℓ : Level) → Set (a ⊔ lsuc ℓ)
 Rel A ℓ = A → A → Set ℓ
 
 Op₂ : ∀ {ℓ} → Set ℓ → Set ℓ

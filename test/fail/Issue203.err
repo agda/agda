@@ -1,4 +1,4 @@
-Issue203.agda:9,3-24
+Issue203.agda:8,3-24
 The type of the constructor does not fit in the sort of the
 datatype, since Set a is not less or equal than Set b
 when checking the constructor [_] in the declaration of Bad

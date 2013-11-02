@@ -1,11 +1,6 @@
 module Issue564 where
 
-postulate
-  Level : Set
-  zero  : Level
-
-{-# BUILTIN LEVEL     Level #-}
-{-# BUILTIN LEVELZERO zero  #-}
+open import Agda.Prim using (Level) renaming (lzero to zero)
 
 postulate
   A : Level → Set

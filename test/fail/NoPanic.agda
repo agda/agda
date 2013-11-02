@@ -1,15 +1,7 @@
-{-# OPTIONS --universe-polymorphism #-}
 
 module NoPanic where
 
-postulate
-  Level : Set
-  lzero : Level
-  lsuc  : Level → Level
-
-{-# BUILTIN LEVEL     Level #-}
-{-# BUILTIN LEVELZERO lzero #-}
-{-# BUILTIN LEVELSUC  lsuc  #-}
+open import Common.Level
 
 module M {A : Set} where
 

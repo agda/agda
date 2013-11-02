@@ -119,7 +119,7 @@ runAgda = do
         -- resetState
         if not hasFile then return Nothing else do
           file    <- getInputFile
-          (i, mw) <- Imp.typeCheck file
+          (i, mw) <- Imp.typeCheckMain file
 
           unsolvedOK <- optAllowUnsolved <$> pragmaOptions
 

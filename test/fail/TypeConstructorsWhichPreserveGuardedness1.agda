@@ -3,7 +3,7 @@
 
 module TypeConstructorsWhichPreserveGuardedness1 where
 
-open import Imports.Coinduction
+open import Common.Coinduction
 
 record ⊤ : Set where
 

@@ -30,6 +30,12 @@ default : $(Tests)
 
 export TMPDIR=highlighting-tmp
 
+# Filter out absolute pathes
+filter=$(sed) -e 's"$(pwdPlusDelimiter)""g' \
+              -e 's"$(pwd)""g' \
+              -e 's"$(TMPDIR).*$$""' \
+              -e 's"[^ (\"]*lib.prim"agda-default-include-path"g'
+
 run_test=if test -f $*.in; \
     then cat $*.in \
          | $(sed) "s/ioTCM/IOTCM/g" \
@@ -40,12 +46,10 @@ run_test=if test -f $*.in; \
          | $(sed) "s/goal_command \\([0-9]\+\\) (\\([^)]\+\\)) \\(\"[^\"]*\"\\)/IOTCM currentFile None Indirect (\\2 \\1 noRange \\3)/g" \
          | $(sed) "s/goal_command \\([0-9]\+\\) \\([^ ]\+\\) \\(\"[^\"]*\"\\)/IOTCM currentFile None Indirect (\\2 \\1 noRange \\3)/g" \
          | $(sed) "s/currentFile/\"$(wildcard $*.agda $*.lagda)\"/g" \
-         | agda --interaction $(RTS_$*) \
-           2>&1 | $(sed) -e 's"$(pwdPlusDelimiter)""g' \
-                         -e 's"$(pwd)""g' -e 's"$(TMPDIR).*$$""'; \
+         | agda -i . -i .. --interaction $(RTS_$*) \
+           2>&1 | $(filter) ; \
     else source ./$*.sh \
-        | $(sed) -e 's"$(pwdPlusDelimiter)""g' \
-                 -e 's"$(pwd)""g' -e 's"$(TMPDIR).*$$""'; \
+        | $(filter) ; \
     fi
 
 # Note that RTS_... variables are ignored when .sh files are used.

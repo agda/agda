@@ -1,6 +1,8 @@
 
 module Common.Prelude where
 
+{-# IMPORT Common.FFI #-}
+
 import Common.Level
 
 postulate Char : Set

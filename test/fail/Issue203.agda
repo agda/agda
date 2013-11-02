@@ -1,8 +1,7 @@
-{-# OPTIONS --universe-polymorphism #-}
 
 module Issue203 where
 
-open import Imports.Level
+open import Common.Level
 
 -- shouldn't work
 data Bad {a b} (A : Set a) : Set b where

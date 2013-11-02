@@ -1,6 +1,6 @@
 module Productivity (char : Set) where
 
-  open import Imports.Coinduction
+  open import Common.Coinduction
 
   infix  50 _⋆ _+
   infixl 40 _⊛_

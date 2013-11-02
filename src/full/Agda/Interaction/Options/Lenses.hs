@@ -25,12 +25,43 @@ class LensPragmaOptions a where
   setPragmaOptions     = mapPragmaOptions . const
   mapPragmaOptions f a = setPragmaOptions (f $ getPragmaOptions a) a
 
+instance LensPragmaOptions CommandLineOptions where
+  getPragmaOptions = optPragmaOptions
+  setPragmaOptions opts st = st { optPragmaOptions = opts }
+
 instance LensPragmaOptions TCState where
   getPragmaOptions = stPragmaOptions
   setPragmaOptions opts st = st { stPragmaOptions = opts }
 
 modifyPragmaOptions :: (PragmaOptions -> PragmaOptions) -> TCM ()
 modifyPragmaOptions = modify . mapPragmaOptions
+
+---------------------------------------------------------------------------
+-- ** Verbosity in the local pragma options
+---------------------------------------------------------------------------
+
+class LensVerbosity a where
+  getVerbosity :: a -> Verbosity
+  setVerbosity :: Verbosity -> a -> a
+  mapVerbosity :: (Verbosity -> Verbosity) -> a -> a
+
+  -- default implementations
+  setVerbosity     = mapVerbosity . const
+  mapVerbosity f a = setVerbosity (f $ getVerbosity a) a
+
+instance LensVerbosity PragmaOptions where
+  getVerbosity = optVerbose
+  setVerbosity is opts = opts { optVerbose = is }
+
+instance LensVerbosity TCState where
+  getVerbosity = getVerbosity . getPragmaOptions
+  mapVerbosity = mapPragmaOptions . mapVerbosity
+
+modifyVerbosity :: (Verbosity -> Verbosity) -> TCM ()
+modifyVerbosity = modify . mapVerbosity
+
+putVerbosity :: Verbosity -> TCM ()
+putVerbosity = modify . setVerbosity
 
 ---------------------------------------------------------------------------
 -- * Command line options
@@ -57,7 +88,41 @@ modifyCommandLineOptions :: (CommandLineOptions -> CommandLineOptions) -> TCM ()
 modifyCommandLineOptions = modify . mapCommandLineOptions
 
 ---------------------------------------------------------------------------
--- * Include directories
+-- ** Safe mode
+---------------------------------------------------------------------------
+
+type SafeMode = Bool
+
+class LensSafeMode a where
+  getSafeMode :: a -> SafeMode
+  setSafeMode :: SafeMode -> a -> a
+  mapSafeMode :: (SafeMode -> SafeMode) -> a -> a
+
+  -- default implementations
+  setSafeMode     = mapSafeMode . const
+  mapSafeMode f a = setSafeMode (f $ getSafeMode a) a
+
+instance LensSafeMode CommandLineOptions where
+  getSafeMode = optSafe
+  setSafeMode is opts = opts { optSafe = is }
+
+instance LensSafeMode PersistentTCState where
+  getSafeMode = getSafeMode . getCommandLineOptions
+  mapSafeMode = mapCommandLineOptions . mapSafeMode
+
+instance LensSafeMode TCState where
+  getSafeMode = getSafeMode . getCommandLineOptions
+  mapSafeMode = mapCommandLineOptions . mapSafeMode
+
+modifySafeMode :: (SafeMode -> SafeMode) -> TCM ()
+modifySafeMode = modify . mapSafeMode
+
+putSafeMode :: SafeMode -> TCM ()
+putSafeMode = modify . setSafeMode
+
+
+---------------------------------------------------------------------------
+-- ** Include directories
 ---------------------------------------------------------------------------
 
 class LensIncludeDirs a where
@@ -81,14 +146,44 @@ instance LensIncludeDirs TCState where
   getIncludeDirs = getIncludeDirs . getCommandLineOptions
   mapIncludeDirs = mapCommandLineOptions . mapIncludeDirs
 
-{-
-instance LensIncludeDirs TCState where
-  getIncludeDirs = getIncludeDirs . stPersistent
-  mapIncludeDirs = updatePersistentState mapIncludeDirs
--}
-
 modifyIncludeDirs :: (IncludeDirs -> IncludeDirs) -> TCM ()
 modifyIncludeDirs = modify . mapIncludeDirs
 
 putIncludeDirs :: IncludeDirs -> TCM ()
 putIncludeDirs = modify . setIncludeDirs
+
+---------------------------------------------------------------------------
+-- ** Include directories
+---------------------------------------------------------------------------
+
+type PersistentVerbosity = Verbosity
+class LensPersistentVerbosity a where
+  getPersistentVerbosity :: a -> PersistentVerbosity
+  setPersistentVerbosity :: PersistentVerbosity -> a -> a
+  mapPersistentVerbosity :: (PersistentVerbosity -> PersistentVerbosity) -> a -> a
+
+  -- default implementations
+  setPersistentVerbosity     = mapPersistentVerbosity . const
+  mapPersistentVerbosity f a = setPersistentVerbosity (f $ getPersistentVerbosity a) a
+
+instance LensPersistentVerbosity PragmaOptions where
+  getPersistentVerbosity = getVerbosity
+  setPersistentVerbosity = setVerbosity
+
+instance LensPersistentVerbosity CommandLineOptions where
+  getPersistentVerbosity = getPersistentVerbosity . getPragmaOptions
+  mapPersistentVerbosity = mapPragmaOptions . mapPersistentVerbosity
+
+instance LensPersistentVerbosity PersistentTCState where
+  getPersistentVerbosity = getPersistentVerbosity . getCommandLineOptions
+  mapPersistentVerbosity = mapCommandLineOptions . mapPersistentVerbosity
+
+instance LensPersistentVerbosity TCState where
+  getPersistentVerbosity = getPersistentVerbosity . getCommandLineOptions
+  mapPersistentVerbosity = mapCommandLineOptions . mapPersistentVerbosity
+
+modifyPersistentVerbosity :: (PersistentVerbosity -> PersistentVerbosity) -> TCM ()
+modifyPersistentVerbosity = modify . mapPersistentVerbosity
+
+putPersistentVerbosity :: PersistentVerbosity -> TCM ()
+putPersistentVerbosity = modify . setPersistentVerbosity

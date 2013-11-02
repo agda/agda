@@ -1,7 +1,7 @@
-{-# OPTIONS --universe-polymorphism #-}
+
 module Imports.Test where
 
-open import Imports.Level
+open import Common.Level
 
 record Foo (ℓ : Level) : Set ℓ where
 

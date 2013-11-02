@@ -24,7 +24,9 @@ import Data.Monoid (mempty, mappend)
 import Data.Map (Map)
 import Data.Set (Set)
 import System.Directory (doesFileExist, getModificationTime, removeFile)
--- import System.FilePath hiding (splitPath)
+import System.FilePath ((</>))
+
+import Paths_Agda (getDataFileName)
 
 -- import Agda.Syntax.Position
 import qualified Agda.Syntax.Abstract as A
@@ -49,6 +51,7 @@ import Agda.TypeChecker
 -- import Agda.Interaction.EmacsCommand
 import Agda.Interaction.FindFile
 import Agda.Interaction.Options
+import qualified Agda.Interaction.Options.Lenses as Lens
 import Agda.Interaction.Highlighting.Precise (HighlightingInfo)
 import Agda.Interaction.Highlighting.Generate
 import Agda.Interaction.Highlighting.Vim
@@ -60,6 +63,7 @@ import Agda.Utils.IO.Binary
 import Agda.Utils.Pretty
 import Agda.Utils.Fresh
 import Agda.Utils.Time
+import qualified Agda.Utils.Trie as Trie
 
 import Agda.Utils.Impossible
 #include "../undefined.h"
@@ -156,7 +160,38 @@ alreadyVisited x getIface = do
                 }
           return r
 
+-- | Type checks the main file of the interaction.
+--   This could be the file loaded in the interacting editor (emacs),
+--   or the file passed on the command line.
+--
+--   First, the primitive modules are imported.
+--   Then, 'typeCheck' is called to do the main work.
+
+typeCheckMain :: AbsolutePath -> TCM (Interface, Maybe Warnings)
+typeCheckMain f = do
+  -- liftIO $ putStrLn $ "This is typeCheckMain " ++ show f
+  -- liftIO . putStrLn . show =<< getVerbosity
+  reportSLn "import.main" 10 $ "Importing the primitive modules."
+  libpath <- liftIO $ getDataFileName "lib"
+  reportSLn "import.main" 20 $ "Library path = " ++ show libpath
+  -- To allow posulating the built-ins, check the primitive module
+  -- in unsafe mode
+  bracket_ (gets $ Lens.getSafeMode) Lens.putSafeMode $ do
+    Lens.putSafeMode False
+    -- Turn off import-chasing messages.
+    -- We have to modify the persistent verbosity setting, since
+    -- getInterface resets the current verbosity settings to the persistent ones.
+    bracket_ (gets $ Lens.getPersistentVerbosity) Lens.putPersistentVerbosity $ do
+      Lens.modifyPersistentVerbosity (Trie.delete [])  -- set root verbosity to 0
+      getInterface_ =<< do
+        moduleName $ mkAbsolute $
+          libpath </> "prim" </> "Agda" </> "Prim.agda"
+  reportSLn "import.main" 10 $ "Done importing the primitive modules."
+  typeCheck f
+
 -- | Type checks the given module (if necessary).
+--
+--   Called recursively for imported modules.
 
 typeCheck :: AbsolutePath -> TCM (Interface, Maybe Warnings)
 typeCheck f = do
@@ -173,8 +208,11 @@ typeCheck f = do
 -- encountered.
 
 getInterface :: ModuleName -> TCM (Interface, ClockTime)
-getInterface x = do
-  (i, wt) <- getInterface' (toTopLevelModuleName x) False
+getInterface = getInterface_ . toTopLevelModuleName
+
+getInterface_ :: C.TopLevelModuleName -> TCM (Interface, ClockTime)
+getInterface_ x = do
+  (i, wt) <- getInterface' x False
   case wt of
     Left  w -> typeError $ warningsToError w
     Right t -> return (i, t)
@@ -260,7 +298,7 @@ getInterface' x includeStateChanges =
                 case file of
                   Nothing -> "."
                   Just f  -> " (" ++ f ++ ")."
-        reportSLn "" 1 s
+        reportSLn "import.chase" 1 s
 
       skip file = do
         -- Examine the mtime of the interface file. If it is newer than the

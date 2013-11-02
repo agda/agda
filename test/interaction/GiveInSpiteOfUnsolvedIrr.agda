@@ -3,17 +3,6 @@
 module GiveInSpiteOfUnsolvedIrr where
 
 postulate
-  Level : Set
-  lzero : Level
-  lsuc  : (i : Level) → Level
-  _⊔_   : Level -> Level -> Level
-
-{-# BUILTIN LEVEL     Level #-}
-{-# BUILTIN LEVELZERO lzero  #-}
-{-# BUILTIN LEVELSUC  lsuc   #-}
-{-# BUILTIN LEVELMAX  _⊔_ #-}
-
-postulate
   .irrAxiom : ∀ {a}{A : Set a} → .A → A
 {-# BUILTIN IRRAXIOM irrAxiom #-}
 

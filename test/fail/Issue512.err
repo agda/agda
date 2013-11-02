@@ -1,5 +1,3 @@
-Issue512.agda:22,1-24
-No binding for builtin thing LEVELZERO, use {-# BUILTIN LEVELZERO
-name #-} to bind it to 'name'
-when checking that the clause f x y rewrite proof = ? has type
-A → A → A
+Issue512.agda:14,1-24
+Failed to infer the value of dotted pattern
+when checking that the pattern ._ has type A

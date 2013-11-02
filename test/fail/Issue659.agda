@@ -2,16 +2,7 @@
 -- {-# OPTIONS -v tc.meta:50 -v tc.conv:20 -v tc.conv.type:50 #-}
 module Issue659 where
 
-postulate
-  Level : Set
-  lzero : Level
-  lsuc  : Level → Level
-  _⊔_   : Level → Level → Level
-
-{-# BUILTIN LEVEL     Level #-}
-{-# BUILTIN LEVELZERO lzero #-}
-{-# BUILTIN LEVELSUC  lsuc  #-}
-{-# BUILTIN LEVELMAX  _⊔_   #-}
+open import Common.Level
 
 record R (ℓ : Level) : Set ℓ where
 

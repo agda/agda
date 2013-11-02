@@ -2,18 +2,8 @@
 
 module Issue293a where
 
-------------------------------------------------------------------------
-
-postulate
-  Level : Set
-  zero : Level
-  suc  : (i : Level) → Level
-  _⊔_ : Level → Level → Level
-
-{-# BUILTIN LEVEL     Level #-}
-{-# BUILTIN LEVELZERO zero  #-}
-{-# BUILTIN LEVELSUC  suc   #-}
-{-# BUILTIN LEVELMAX _⊔_ #-}
+open import Agda.Prim
+  using (Level; _⊔_) renaming (lzero to zero; lsuc to suc)
 
 ------------------------------------------------------------------------
 

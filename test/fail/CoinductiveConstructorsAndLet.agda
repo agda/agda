@@ -1,6 +1,6 @@
 module CoinductiveConstructorsAndLet where
 
-open import Imports.Coinduction
+open import Common.Coinduction
 
 data D : Set where
 
