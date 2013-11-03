@@ -1,0 +1,3 @@
+Issue933.agda:20,38-47
+RGraph.R /= RGraph.O
+when checking that the expression Γ.refl γo has type Γ.O

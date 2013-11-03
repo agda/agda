@@ -111,6 +111,11 @@ compareTerm :: Comparison -> Type -> Term -> Term -> TCM ()
   -- If one term is a meta, try to instantiate right away. This avoids unnecessary unfolding.
   -- Andreas, 2012-02-14: This is UNSOUND for subtyping!
 compareTerm cmp a u v = do
+  reportSDoc "tc.conv.term" 10 $ sep
+    [ text "compareTerm"
+    , nest 2 $ prettyTCM u <+> prettyTCM cmp <+> prettyTCM v
+    , nest 2 $ text ":" <+> prettyTCM a
+    ]
   -- Check syntactic equality first. This actually saves us quite a bit of work.
   ((u, v), equal) <- checkSyntacticEquality u v
 {- OLD CODE, traverses the *full* terms u v at each step, even if they
@@ -125,9 +130,11 @@ compareTerm cmp a u v = do
         return ()
       checkPointerEquality def = def
   checkPointerEquality $ do
-  reportSDoc "tc.conv.term" 10 $ sep [ text "compareTerm"
-                                     , nest 2 $ prettyTCM u <+> prettyTCM cmp <+> prettyTCM v
-                                     , nest 2 $ text ":" <+> prettyTCM a ]
+  reportSDoc "tc.conv.term" 15 $ sep
+    [ text "compareTerm (not syntactically equal)"
+    , nest 2 $ prettyTCM u <+> prettyTCM cmp <+> prettyTCM v
+    , nest 2 $ text ":" <+> prettyTCM a
+    ]
   let fallback = compareTerm' cmp a u v
       unlessSubtyping cont =
           if cmp == CmpEq then cont else do
