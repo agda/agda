@@ -181,7 +181,7 @@ checkFunDef' t info delayed extlam i name cs =
               solveSizeConstraints
               -- Andreas, 2013-10-27 add clause as soon it is type-checked
               -- TODO: instantiateFull?
-              modifyFunClauses name (++ [c])
+              addClauses name [c]
               return c
 
         -- After checking, remove the clauses again.

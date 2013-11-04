@@ -121,6 +121,18 @@ modifyFunClauses :: QName -> ([Clause] -> [Clause]) -> TCM ()
 modifyFunClauses q f =
   modifySignature $ updateDefinition q $ updateTheDef $ updateFunClauses f
 
+-- | Adds clauses to a definition.
+addClauses :: QName -> [Clause] -> TCM ()
+addClauses q cls = modifyFunClauses q (++ cls)
+
+{- LIFTING is actually wrong, breaks Issue937.agda
+-- | Lifts clauses to the top-level and adds them to definition.
+addClauses :: QName -> [Clause] -> TCM ()
+addClauses q cls = do
+  tel <- getContextTelescope
+  modifyFunClauses q (++ abstract tel cls)
+-}
+
 addHaskellCode :: QName -> HaskellType -> HaskellCode -> TCM ()
 addHaskellCode q hsTy hsDef = modifySignature $ updateDefinition q $ updateDefCompiledRep $ addHs
   -- TODO: sanity checking
