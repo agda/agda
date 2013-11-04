@@ -161,6 +161,7 @@ library
                     Agda.Syntax.Abstract
                     Agda.Syntax.Common
                     Agda.Syntax.Concrete.Definitions
+                    Agda.Syntax.Concrete.Generic
                     Agda.Syntax.Concrete.Name
                     Agda.Syntax.Concrete.Operators.Parser
                     Agda.Syntax.Concrete.Operators

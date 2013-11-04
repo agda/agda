@@ -1,4 +1,4 @@
-{-# LANGUAGE CPP, DeriveDataTypeable, DeriveFunctor, DeriveTraversable, DeriveFoldable #-}
+{-# LANGUAGE CPP, DeriveDataTypeable, DeriveFunctor, DeriveTraversable, DeriveFoldable, FlexibleInstances, TypeSynonymInstances #-}
 
 {-| The concrete syntax is a raw representation of the program text
     without any desugaring at all.  This is what the parser produces.
@@ -14,7 +14,8 @@ module Agda.Syntax.Concrete
       -- * Bindings
     , LamBinding(..)
     , TypedBindings(..)
-    , TypedBinding(..)
+    , TypedBinding'(..)
+    , TypedBinding
     , ColoredTypedBinding(..)
     , BoundName(..), mkBoundName_
     , Telescope -- (..)
@@ -28,7 +29,7 @@ module Agda.Syntax.Concrete
     , defaultImportDir
     , OpenShortHand(..), RewriteEqn, WithExpr
     , LHS(..), Pattern(..), LHSCore(..)
-    , RHS(..), WhereClause(..)
+    , RHS, RHS'(..), WhereClause, WhereClause'(..)
     , Pragma(..)
     , Module
     , ThingWithFixity(..)
@@ -38,15 +39,15 @@ module Agda.Syntax.Concrete
     -- * Concrete instances
     , Color
     , Arg
-    , Dom
+--    , Dom
     , NamedArg
     , ArgInfo
     )
     where
 
 import Data.Typeable (Typeable)
--- import Data.Foldable hiding (concatMap)
--- import Data.Traversable
+import Data.Foldable (Foldable)
+import Data.Traversable (Traversable)
 import Agda.Syntax.Position
 import Agda.Syntax.Common hiding (Arg, Dom, NamedArg, ArgInfo)
 import qualified Agda.Syntax.Common as Common
@@ -61,7 +62,7 @@ import Agda.Utils.Impossible
 
 type Color      = Expr
 type Arg a      = Common.Arg Color a
-type Dom a      = Common.Dom Color a
+-- type Dom a      = Common.Dom Color a
 type NamedArg a = Common.NamedArg Color a
 type ArgInfo    = Common.ArgInfo Color
 
@@ -150,10 +151,11 @@ mkBoundName_ :: Name -> BoundName
 mkBoundName_ x = BName x defaultFixity'
 
 -- | A typed binding.
-data TypedBinding
-	= TBind !Range [BoundName] Expr   -- Binding @x1,..,xn:A@
-	| TNoBind Expr		    -- No binding @A@, equivalent to @_ : A@.
-    deriving (Typeable)
+type TypedBinding = TypedBinding' Expr
+data TypedBinding' e
+    = TBind !Range [BoundName] e -- ^ Binding @x1,..,xn:A@
+    | TNoBind e                  -- ^ No binding @A@, equivalent to @_ : A@.
+  deriving (Typeable, Functor, Foldable, Traversable)
 
 -- | Color a TypeBinding. Used by Pretty.
 data ColoredTypedBinding = WithColors [Color] TypedBinding
@@ -203,12 +205,19 @@ lhsCoreToPattern (LHSProj d ps1 lhscore ps2) = OpAppP (fuseRange d ps) (unqualif
         ps = ps1 ++ p : ps2
 -}
 
-data RHS = AbsurdRHS
-	 | RHS Expr
-    deriving (Typeable)
+type RHS = RHS' Expr
+data RHS' e
+    = AbsurdRHS -- ^ No right hand side because of absurd match.
+    | RHS e
+  deriving (Typeable, Functor, Foldable, Traversable)
 
-data WhereClause = NoWhere | AnyWhere [Declaration] | SomeWhere Name [Declaration]
-  deriving (Typeable)
+
+type WhereClause = WhereClause' [Declaration]
+data WhereClause' decls
+    = NoWhere               -- ^ No @where@ clauses.
+    | AnyWhere decls        -- ^ Ordinary @where@.
+    | SomeWhere Name decls  -- ^ Named where: @module M where@.
+  deriving (Typeable, Functor, Foldable, Traversable)
 
 
 -- | The things you are allowed to say when you shuffle names between name
