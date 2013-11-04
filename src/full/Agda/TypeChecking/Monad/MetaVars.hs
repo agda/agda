@@ -26,7 +26,8 @@ import Agda.TypeChecking.Monad.Options (reportSLn)
 -- import Agda.TypeChecking.Substitute
 -- import Agda.TypeChecking.Pretty -- LEADS TO import cycle
 
--- import Agda.Utils.Monad
+import Agda.Utils.Maybe (fromMaybeM)
+import Agda.Utils.Monad ((<.>))
 import Agda.Utils.Fresh
 import Agda.Utils.Permutation
 -- import Agda.Utils.Pointer
@@ -47,11 +48,8 @@ modifyMetaStore f = modify (\ st -> st { stMetaStore = f $ stMetaStore st })
 
 -- | Lookup a meta variable
 lookupMeta :: MetaId -> TCM MetaVariable
-lookupMeta m =
-    do	mmv <- Map.lookup m <$> getMetaStore
-	case mmv of
-	    Just mv -> return mv
-	    _	    -> fail $ "no such meta variable " ++ show m
+lookupMeta m = fromMaybeM failure $ Map.lookup m <$> getMetaStore
+  where failure = fail $ "no such meta variable " ++ show m
 
 updateMetaVar :: MetaId -> (MetaVariable -> MetaVariable) -> TCM ()
 updateMetaVar m f = modifyMetaStore $ Map.adjust f m
@@ -149,7 +147,7 @@ getInteractionMetas = Map.elems <$> gets stInteractionPoints
 -- | Does the meta variable correspond to an interaction point?
 
 isInteractionMeta :: MetaId -> TCM Bool
-isInteractionMeta m = fmap (m `elem`) getInteractionMetas
+isInteractionMeta m = (m `elem`) <$> getInteractionMetas
 
 lookupInteractionId :: InteractionId -> TCM MetaId
 lookupInteractionId ii =
@@ -159,9 +157,7 @@ lookupInteractionId ii =
 	    _	    -> fail $ "no such interaction point: " ++ show ii
 
 judgementInteractionId :: InteractionId -> TCM (Judgement Type MetaId)
-judgementInteractionId ii =
-    do  mi <- lookupInteractionId ii
-        mvJudgement <$> lookupMeta mi
+judgementInteractionId = mvJudgement <.> lookupMeta <=< lookupInteractionId
 
 -- | Generate new meta variable.
 newMeta :: MetaInfo -> MetaPriority -> Permutation -> Judgement Type a -> TCM MetaId
@@ -181,19 +177,13 @@ newMeta' inst mi p perm j = do
   return x
 
 getInteractionRange :: InteractionId -> TCM Range
-getInteractionRange ii = do
-    mi <- lookupInteractionId ii
-    getMetaRange mi
+getInteractionRange = getMetaRange <=< lookupInteractionId
 
 getMetaRange :: MetaId -> TCM Range
-getMetaRange mi = getRange <$> lookupMeta mi
-
+getMetaRange = getRange <.> lookupMeta
 
 getInteractionScope :: InteractionId -> TCM ScopeInfo
-getInteractionScope ii =
-    do mi <- lookupInteractionId ii
-       mv <- lookupMeta mi
-       return $ getMetaScope mv
+getInteractionScope = getMetaScope <.> lookupMeta <=< lookupInteractionId
 
 withMetaInfo' :: MetaVariable -> TCM a -> TCM a
 withMetaInfo' mv = withMetaInfo (miClosRange $ mvInfo mv)
