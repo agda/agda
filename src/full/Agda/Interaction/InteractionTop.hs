@@ -1,4 +1,4 @@
-{-# LANGUAGE CPP, TypeSynonymInstances, FlexibleInstances,
+{-# LANGUAGE CPP, TypeSynonymInstances, FlexibleInstances, TupleSections,
              MultiParamTypeClasses, Rank2Types,
              GeneralizedNewtypeDeriving, ScopedTypeVariables #-}
 {-# OPTIONS -fno-cse #-}
@@ -8,25 +8,20 @@ module Agda.Interaction.InteractionTop
   )
   where
 
-import System.Directory
--- import qualified System.IO as IO
-import Data.Maybe
-import Data.Function
 import Control.Applicative hiding (empty)
 import qualified Control.Exception as E
-
-import Agda.Utils.Pretty
--- import Agda.Utils.String
-import Agda.Utils.FileName
-import Agda.Utils.Tuple
--- import qualified Agda.Utils.IO.UTF8 as UTF8
-
 import Control.Monad.Identity
 import Control.Monad.Error
 import Control.Monad.Reader
 import Control.Monad.State
+
+import Data.Function
 import Data.List as List
+import Data.Maybe
 import qualified Data.Map as Map
+
+import System.Directory
+-- import qualified System.IO as IO
 
 import Agda.TypeChecking.Monad as TM
   hiding (initState, setCommandLineOptions)
@@ -36,10 +31,11 @@ import Agda.TypeChecking.Errors
 import Agda.Syntax.Fixity
 import Agda.Syntax.Position
 import Agda.Syntax.Parser
-import Agda.Syntax.Concrete as SC
-import Agda.Syntax.Common as SCo
+import Agda.Syntax.Common
+import Agda.Syntax.Concrete as C
+import Agda.Syntax.Concrete.Generic as C
 import Agda.Syntax.Concrete.Pretty ()
-import Agda.Syntax.Abstract as SA
+import Agda.Syntax.Abstract as A
 import Agda.Syntax.Abstract.Pretty
 import Agda.Syntax.Translation.ConcreteToAbstract
 import Agda.Syntax.Translation.AbstractToConcrete hiding (withScope)
@@ -61,7 +57,11 @@ import qualified Agda.Compiler.MAlonzo.Compiler as MAlonzo
 import qualified Agda.Compiler.JS.Compiler as JS
 
 import qualified Agda.Auto.Auto as Auto
+
+import Agda.Utils.FileName
+-- import qualified Agda.Utils.IO.UTF8 as UTF8
 import qualified Agda.Utils.HashMap as HMap
+import Agda.Utils.Pretty
 import Agda.Utils.Time
 
 #include "../undefined.h"
@@ -145,21 +145,12 @@ liftCommandMT f m = revLift runStateT lift $ f . ($ m)
 putResponse :: Response -> CommandM ()
 putResponse = lift . appInteractionOutputCallback
 
-{- UNUSED
 
--- | Changes the 'Interaction' so that its first action is to turn off
--- all debug messages.
+-- | A Lens for 'theInteractionPoints'.
 
-makeSilent :: Interaction -> Interaction
-makeSilent i = i { command = do
-  opts <- lift commandLineOptions
-  lift $ TM.setCommandLineOptions $ opts
-    { optPragmaOptions =
-        (optPragmaOptions opts)
-          { optVerbose = Trie.singleton [] 0 }
-    }
-  command i }
--}
+modifyInteractionPoints :: ([InteractionId] -> [InteractionId]) -> CommandM ()
+modifyInteractionPoints f = modify $ \ s ->
+  s { theInteractionPoints = f (theInteractionPoints s) }
 
 
 -- | Run an 'IOTCM' value, catch the exceptions, emit output
@@ -469,7 +460,7 @@ interpret Cmd_metas = do -- CL.showMetas []
     metaId (B.JustSort i) = i
     metaId (B.Assign i e) = i
     metaId _ = __IMPOSSIBLE__
-    showA' :: B.OutputConstraint SA.Expr NamedMeta -> TCM String
+    showA' :: B.OutputConstraint A.Expr NamedMeta -> TCM String
     showA' m = do
       let i = nmid $ metaId m
       r <- getMetaRange i
@@ -540,7 +531,7 @@ interpret (Cmd_load_highlighting_info source) = do
 interpret (Cmd_give ii rng s) = give_gen ii rng s B.give $ \rng s ce ->
   case ce of
     ce | rng == noRange -> Give_String $ show ce
-    SC.Paren _ _ -> Give_Paren
+    C.Paren _ _ -> Give_Paren
     _            -> Give_NoParen
 
 interpret (Cmd_refine ii rng s) = give_gen ii rng s B.refine $ \_ s -> Give_String . show
@@ -569,7 +560,7 @@ interpret (Cmd_auto ii rng s) = do
   case res of
    Left xs -> do
     forM_ xs $ \(ii, s) -> do
-      modify $ \st -> st { theInteractionPoints = filter (/= ii) (theInteractionPoints st) }
+      modifyInteractionPoints $ filter (/= ii)
       putResponse $ Resp_GiveAction ii $ Give_String s
     case msg of
      Nothing -> interpret Cmd_metas
@@ -579,7 +570,7 @@ interpret (Cmd_auto ii rng s) = do
      Nothing -> return ()
      Just msg -> display_info $ Info_Auto msg
     putResponse $ Resp_MakeCase R.Function cs
-   Right (Right s) -> give_gen' B.refine (\_ s -> Give_String . show) ii rng s
+   Right (Right s) -> give_gen ii rng s B.refine (\_ s -> Give_String . show)
 
 interpret (Cmd_context norm ii _ _) =
   display_info . Info_Context =<< lift (prettyContext norm False ii)
@@ -628,13 +619,13 @@ interpret (Cmd_make_case ii rng s) = do
         = unwords $ map (\ y -> if y == "=" then "→" else y) $ drop 1 $ words x
 
     -- Drops pattern added to extended lambda functions when lambda lifting them
-    extlam_dropLLifted :: CaseContext -> Bool -> SA.Clause -> SA.Clause
+    extlam_dropLLifted :: CaseContext -> Bool -> A.Clause -> A.Clause
     extlam_dropLLifted FunctionDef _ x = x
-    extlam_dropLLifted (ExtendedLambda h nh) hidden (SA.Clause (SA.LHS info (SA.LHSProj{}) ps) rhs decl) = __IMPOSSIBLE__
-    extlam_dropLLifted (ExtendedLambda h nh) hidden (SA.Clause (SA.LHS info (SA.LHSHead name nps) ps) rhs decl)
+    extlam_dropLLifted (ExtendedLambda h nh) hidden (A.Clause (A.LHS info (A.LHSProj{}) ps) rhs decl) = __IMPOSSIBLE__
+    extlam_dropLLifted (ExtendedLambda h nh) hidden (A.Clause (A.LHS info (A.LHSHead name nps) ps) rhs decl)
       = let n = if hidden then h + nh else nh
         in
-         (SA.Clause (SA.LHS info (SA.LHSHead name (drop n nps)) ps) rhs decl)
+         (A.Clause (A.LHS info (A.LHSHead name (drop n nps)) ps) rhs decl)
 
 interpret (Cmd_compute ignore ii rng s) = do
   e <- lift $ B.parseExprIn ii rng s
@@ -715,28 +706,47 @@ cmd_load' file includes unsolvedOK cmd = do
 data Backend = MAlonzo | Epic | JS
     deriving (Show, Read)
 
-
-give_gen ii rng s give_ref mk_newtxt =
-  give_gen' give_ref mk_newtxt ii rng s
-
-give_gen' give_ref mk_newtxt ii rng s = do
+-- | A "give"-like action (give, refine, etc).
+--
+--   @give_gen ii rng s give_ref mk_newtxt@
+--   acts on interaction point @ii@
+--   occupying range @rng@,
+--   placing the new content given by string @s@,
+--   and replacing @ii@ by the newly created interaction points
+--   in the state.
+give_gen
+  :: InteractionId
+  -> Range
+  -> String
+  -> (InteractionId -> Maybe Range -> A.Expr -> TCM (A.Expr, [InteractionId]))
+  -> (Range -> String -> C.Expr -> GiveResult)
+  -> StateT CommandState TCM ()
+give_gen ii rng s give_ref mk_newtxt = do
+  -- save scope of the interaction point (for printing the given expr. later)
   scope     <- lift $ getInteractionScope ii
+  -- parse string and "give", obtaining an abstract expression
+  -- and newly created interaction points
   (ae, iis) <- lift $ give_ref ii Nothing =<< B.parseExprIn ii rng s
+  -- sort the new interaction points and put them into the state
+  -- in replacement of the old interaction point
   iis       <- lift $ sortInteractionPoints iis
-  modify $ \st -> st { theInteractionPoints =
-                           replace ii iis (theInteractionPoints st) }
-  putResponse . Resp_GiveAction ii . mk_newtxt rng s =<< do lift $ abstractToConcreteEnv (makeEnv scope) ae
+  modifyInteractionPoints $ replace ii iis
+  -- print abstract expr
+  ce        <- lift $ abstractToConcreteEnv (makeEnv scope) ae
+  putResponse $ Resp_GiveAction ii $ mk_newtxt rng s ce
+  -- display new goal set
   interpret Cmd_metas
   where
-  -- Substitutes xs for x in ys.
-  replace x xs ys = concatMap (\y -> if y == x then xs else [y]) ys
+    -- Substitutes xs for x in ys.
+    replace x xs ys = concatMap (\y -> if y == x then xs else [y]) ys
 
 -- | Sorts interaction points based on their ranges.
 
 sortInteractionPoints :: [InteractionId] -> TCM [InteractionId]
 sortInteractionPoints is =
-  map fst . sortBy (compare `on` snd) <$>
-    mapM (\i -> (,) i <$> getInteractionRange i) is
+  map fst . sortBy (compare `on` snd) <$> do
+    forM is $ \ i -> do
+      (i,) <$> getInteractionRange i
 
 -- | Pretty-prints the type of the meta-variable.
 
@@ -785,10 +795,9 @@ cmd_goal_type_context_and doc norm ii _ _ = do
 showModuleContents :: Range -> String -> CommandM ()
 showModuleContents rng s = do
   (modules, types) <- lift $ B.moduleContents rng s
-  types' <- lift $ mapM (\(x, t) -> do
-                    t <- prettyTCM t
-                    return (show x, text ":" <+> t))
-                 types
+  types' <- lift $ forM types $ \ (x, t) -> do
+     t <- prettyTCM t
+     return (show x, text ":" <+> t)
   display_info $ Info_ModuleContents $
     text "Modules" $$
     nest 2 (vcat $ map (text . show) modules) $$
@@ -820,10 +829,9 @@ status = do
       case t == t' of
         False -> return False
         True  ->
-          not . miWarnings . maybe __IMPOSSIBLE__ id <$>
-            (getVisitedModule =<<
-               maybe __IMPOSSIBLE__ id .
-                 Map.lookup f <$> sourceToModule)
+          not . miWarnings . fromMaybe __IMPOSSIBLE__ <$> do
+            getVisitedModule =<< do
+              Map.findWithDefault __IMPOSSIBLE__ f <$> sourceToModule
 
   return $ Status { sShowImplicitArguments = showImpl
                   , sChecked               = checked
@@ -863,127 +871,156 @@ refreshStr taken s = go nameModifiers where
 nameModifiers = "" : "'" : "''" : [show i | i <-[3..]]
 
 
-class LowerMeta a where lowerMeta :: a -> a
-instance LowerMeta SC.Expr where
+-- | Kill meta numbers and ranges from all metas (@?@ and @_@).
+lowerMeta :: (C.ExprLike a) => a -> a
+lowerMeta = C.mapExpr kill where
+  kill e =
+    case e of
+      C.QuestionMark{} -> preMeta
+      C.Underscore{}   -> preUscore
+      C.App{}          -> case appView e of
+        C.AppView (C.QuestionMark _ _) _ -> preMeta
+        C.AppView (C.Underscore   _ _) _ -> preUscore
+        _ -> e
+      C.Paren r q@(C.QuestionMark _ Nothing) -> q
+      _ -> e
+
+  preMeta   = C.QuestionMark noRange Nothing
+  preUscore = C.Underscore   noRange Nothing
+
+
+{- Andreas, 2013-11-04 replaced this boilerplate by generic boilerplate
+   see Agda.Syntax.Concrete.Generic
+
+class LowerMeta a where
+  lowerMeta :: a -> a
+
+instance LowerMeta C.Expr where
   lowerMeta = go where
     go e = case e of
-      Ident _              -> e
-      SC.Lit _             -> e
-      SC.QuestionMark _ _  -> preMeta
-      SC.Underscore _ _    -> preUscore
-      SC.App r e1 ae2      -> case appView e of
-        SC.AppView (SC.QuestionMark _ _) _ -> preMeta
-        SC.AppView (SC.Underscore   _ _) _ -> preUscore
-        _ -> SC.App r (go e1) (lowerMeta ae2)
-      SC.WithApp r e es	   -> SC.WithApp r (lowerMeta e) (lowerMeta es)
-      SC.Lam r bs e1       -> SC.Lam r (lowerMeta bs) (go e1)
-      SC.AbsurdLam r h     -> SC.AbsurdLam r h
-      SC.ExtendedLam r cs  -> SC.ExtendedLam r cs
-      SC.Fun r ae1 e2      -> SC.Fun r (lowerMeta ae1) (go e2)
-      SC.Pi tb e1          -> SC.Pi (lowerMeta tb) (go e1)
-      SC.Set _             -> e
-      SC.Prop _            -> e
-      SC.SetN _ _          -> e
-      SC.ETel tel          -> SC.ETel (lowerMeta tel)
-      SC.Let r ds e1       -> SC.Let r (lowerMeta ds) (go e1)
-      Paren r e1           -> case go e1 of
-        q@(SC.QuestionMark _ Nothing) -> q
-        e2                            -> Paren r e2
-      Absurd _          -> e
-      As r n e1         -> As r n (go e1)
-      SC.Dot r e	-> SC.Dot r (go e)
-      SC.RawApp r es	-> SC.RawApp r (lowerMeta es)
-      SC.OpApp r x es	-> SC.OpApp r x (lowerMeta es)
-      SC.Rec r fs	-> SC.Rec r (List.map (id -*- lowerMeta) fs)
-      SC.RecUpdate r e fs -> SC.RecUpdate r (lowerMeta e) (List.map (id -*- lowerMeta) fs)
-      SC.HiddenArg r e	-> SC.HiddenArg r (lowerMeta e)
-      SC.InstanceArg r e  -> SC.InstanceArg r (lowerMeta e)
-      SC.QuoteGoal r x e  -> SC.QuoteGoal r x (lowerMeta e)
-      e@SC.Quote{}      -> e
-      e@SC.QuoteTerm{}  -> e
-      e@SC.Unquote{}    -> e
-      SC.DontCare e     -> SC.DontCare (lowerMeta e)
+      Ident _            -> e
+      C.Lit _            -> e
+      C.QuestionMark _ _ -> preMeta
+      C.Underscore _ _   -> preUscore
+      C.App r e1 ae2     -> case appView e of
+        C.AppView (C.QuestionMark _ _) _ -> preMeta
+        C.AppView (C.Underscore   _ _) _ -> preUscore
+        _ -> C.App r (go e1) (lowerMeta ae2)
+      C.WithApp r e es	 -> C.WithApp r (lowerMeta e) (lowerMeta es)
+      C.Lam r bs e1      -> C.Lam r (lowerMeta bs) (go e1)
+      C.AbsurdLam r h    -> C.AbsurdLam r h
+      C.ExtendedLam r cs -> C.ExtendedLam r cs
+      C.Fun r ae1 e2     -> C.Fun r (lowerMeta ae1) (go e2)
+      C.Pi tb e1         -> C.Pi (lowerMeta tb) (go e1)
+      C.Set _            -> e
+      C.Prop _           -> e
+      C.SetN _ _         -> e
+      C.ETel tel         -> C.ETel (lowerMeta tel)
+      C.Let r ds e1      -> C.Let r (lowerMeta ds) (go e1)
+      Paren r e1         -> case go e1 of
+        q@(C.QuestionMark _ Nothing) -> q
+        e2                           -> Paren r e2
+      Absurd _           -> e
+      As r n e1          -> As r n (go e1)
+      C.Dot r e          -> C.Dot r (go e)
+      C.RawApp r es      -> C.RawApp r (lowerMeta es)
+      C.OpApp r x es     -> C.OpApp r x (lowerMeta es)
+      C.Rec r fs         -> C.Rec r (lowerMeta fs) -- (List.map (id -*- lowerMeta) fs)
+      C.RecUpdate r e fs -> C.RecUpdate r (lowerMeta e) (lowerMeta fs) -- (List.map (id -*- lowerMeta) fs)
+      C.HiddenArg r e    -> C.HiddenArg r (lowerMeta e)
+      C.InstanceArg r e  -> C.InstanceArg r (lowerMeta e)
+      C.QuoteGoal r x e  -> C.QuoteGoal r x (lowerMeta e)
+      e@C.Quote{}        -> e
+      e@C.QuoteTerm{}    -> e
+      e@C.Unquote{}      -> e
+      C.DontCare e       -> C.DontCare (lowerMeta e)
 
-instance LowerMeta (OpApp SC.Expr) where
+instance LowerMeta C.Name where
+  lowerMeta = id
+
+instance LowerMeta C.QName where
+  lowerMeta = id
+
+instance LowerMeta (OpApp C.Expr) where
   lowerMeta (Ordinary e) = Ordinary $ lowerMeta e
   lowerMeta (SyntaxBindingLambda r bs e) = SyntaxBindingLambda r (lowerMeta bs) (lowerMeta e)
 
-instance LowerMeta SC.LamBinding where
-  lowerMeta b@(SC.DomainFree _ _) = b
-  lowerMeta (SC.DomainFull tb)    = SC.DomainFull (lowerMeta tb)
+instance LowerMeta C.LamBinding where
+  lowerMeta b@(C.DomainFree _ _) = b
+  lowerMeta (C.DomainFull tb)    = C.DomainFull (lowerMeta tb)
 
-instance LowerMeta SC.TypedBindings where
-  lowerMeta (SC.TypedBindings r bs) = SC.TypedBindings r (lowerMeta bs)
+instance LowerMeta C.TypedBindings where
+  lowerMeta (C.TypedBindings r bs) = C.TypedBindings r (lowerMeta bs)
 
-instance LowerMeta SC.TypedBinding where
-  lowerMeta (SC.TBind r ns e) = SC.TBind r ns (lowerMeta e)
-  lowerMeta (SC.TNoBind e)    = SC.TNoBind (lowerMeta e)
+instance LowerMeta C.TypedBinding where
+  lowerMeta (C.TBind r ns e) = C.TBind r ns (lowerMeta e)
+  lowerMeta (C.TNoBind e)    = C.TNoBind (lowerMeta e)
 
-instance LowerMeta SC.RHS where
-    lowerMeta (SC.RHS e)    = SC.RHS (lowerMeta e)
-    lowerMeta  SC.AbsurdRHS = SC.AbsurdRHS
+instance LowerMeta C.RHS where
+    lowerMeta (C.RHS e)    = C.RHS (lowerMeta e)
+    lowerMeta  C.AbsurdRHS = C.AbsurdRHS
 
-instance LowerMeta (Maybe SC.Expr) where
+instance LowerMeta (Maybe C.Expr) where
     lowerMeta (Just e) = Just (lowerMeta e)
     lowerMeta Nothing  = Nothing
 
-instance LowerMeta SC.Declaration where
+instance LowerMeta C.Declaration where
   lowerMeta = go where
     go d = case d of
       TypeSig rel n e1              -> TypeSig rel n (lowerMeta e1)
-      SC.Field n e1                 -> SC.Field n (lowerMeta e1)
+      C.Field n e1                  -> C.Field n (lowerMeta e1)
       FunClause lhs rhs whcl        -> FunClause lhs (lowerMeta rhs) (lowerMeta whcl)
-      SC.DataSig r ind n tel e1     -> SC.DataSig r ind n
+      C.DataSig r ind n tel e1      -> C.DataSig r ind n
                                          (lowerMeta tel) (lowerMeta e1)
       Data r ind n tel e1 cs        -> Data r ind n
                                          (lowerMeta tel) (lowerMeta e1) (lowerMeta cs)
-      SC.RecordSig r n tel e1       -> SC.RecordSig r n
+      C.RecordSig r n tel e1        -> C.RecordSig r n
                                          (lowerMeta tel) (lowerMeta e1)
-      SC.Record r n ind c tel e1 cs  -> SC.Record r n ind c
+      C.Record r n ind c tel e1 cs  -> C.Record r n ind c
                                          (lowerMeta tel) (lowerMeta e1) (lowerMeta cs)
       Infix _ _                     -> d
       Syntax _ _                    -> d
-      SC.PatternSyn _ _ _ _         -> d
-      SC.Mutual r ds                -> SC.Mutual r (lowerMeta ds)
+      C.PatternSyn _ _ _ _          -> d
+      C.Mutual r ds                 -> C.Mutual r (lowerMeta ds)
       Abstract r ds                 -> Abstract r (lowerMeta ds)
       Private r ds                  -> Private r (lowerMeta ds)
       Postulate r sigs              -> Postulate r (lowerMeta sigs)
-      SC.Primitive r sigs           -> SC.Primitive r (lowerMeta sigs)
-      SC.Open _ _ _                 -> d
-      SC.Import _ _ _ _ _           -> d
-      SC.Pragma _                   -> d
+      C.Primitive r sigs            -> C.Primitive r (lowerMeta sigs)
+      C.Open _ _ _                  -> d
+      C.Import _ _ _ _ _            -> d
+      C.Pragma _                    -> d
       ModuleMacro r n modapp op dir -> ModuleMacro r n
                                          (lowerMeta modapp) op dir
-      SC.Module r qn tel ds         -> SC.Module r qn (lowerMeta tel) (lowerMeta ds)
+      C.Module r qn tel ds          -> C.Module r qn (lowerMeta tel) (lowerMeta ds)
 
-instance LowerMeta SC.ModuleApplication where
-  lowerMeta (SC.SectionApp r tel e) = SC.SectionApp r (lowerMeta tel) (lowerMeta e)
-  lowerMeta (SC.RecordModuleIFS r rec) = SC.RecordModuleIFS r rec
+instance LowerMeta C.ModuleApplication where
+  lowerMeta (C.SectionApp r tel e) = C.SectionApp r (lowerMeta tel) (lowerMeta e)
+  lowerMeta (C.RecordModuleIFS r rec) = C.RecordModuleIFS r rec
 
-instance LowerMeta SC.WhereClause where
-  lowerMeta SC.NoWhere		= SC.NoWhere
-  lowerMeta (SC.AnyWhere ds)	= SC.AnyWhere $ lowerMeta ds
-  lowerMeta (SC.SomeWhere m ds) = SC.SomeWhere m $ lowerMeta ds
+instance LowerMeta C.WhereClause where
+  lowerMeta C.NoWhere          = C.NoWhere
+  lowerMeta (C.AnyWhere ds)    = C.AnyWhere $ lowerMeta ds
+  lowerMeta (C.SomeWhere m ds) = C.SomeWhere m $ lowerMeta ds
+
+instance (LowerMeta a, LowerMeta b) => LowerMeta (a,b) where
+  lowerMeta (a, b) = (lowerMeta a, lowerMeta b)
 
 instance LowerMeta a => LowerMeta [a] where
   lowerMeta as = List.map lowerMeta as
 
-instance LowerMeta a => LowerMeta (SC.Arg a) where
+instance LowerMeta a => LowerMeta (C.Arg a) where
   lowerMeta aa = fmap lowerMeta aa
 
 instance LowerMeta a => LowerMeta (Named name a) where
   lowerMeta aa = fmap lowerMeta aa
-
-
-preMeta   = SC.QuestionMark noRange Nothing
-preUscore = SC.Underscore   noRange Nothing
+-}
 
 -- | Parses and scope checks an expression (using the \"inside scope\"
 -- as the scope), performs the given command with the expression as
 -- input, and displays the result.
 
 parseAndDoAtToplevel
-  :: (SA.Expr -> TCM SA.Expr)
+  :: (A.Expr -> TCM A.Expr)
      -- ^ The command to perform.
   -> (Doc -> DisplayInfo)
      -- ^ The name to use for the buffer displaying the output.
