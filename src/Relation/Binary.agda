@@ -215,6 +215,10 @@ record StrictPartialOrder c ℓ₁ ℓ₂ : Set (suc (c ⊔ ℓ₁ ⊔ ℓ₂)) 
 
   open IsStrictPartialOrder isStrictPartialOrder public
 
+  asymmetric : Asymmetric _<_
+  asymmetric {x} {y} =
+    trans∧irr⟶asym Eq.refl trans irrefl {x = x} {y = y}
+
 ------------------------------------------------------------------------
 -- Total orders
 
