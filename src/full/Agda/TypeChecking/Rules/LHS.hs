@@ -318,7 +318,9 @@ checkLeftHandSide
       -> S.Substitution -- σ : The patterns in form of a substitution Δ ⊢ σ : Γ
       -> [String]       -- Names for the variables in Δ, for binding the body.
       -> [I.Arg Pattern]-- The patterns in internal syntax.
-      -> Type           -- The type of the body. Is @bσ@ if @Γ@ is defined.
+      -> I.Arg Type     -- The type of the body. Is @bσ@ if @Γ@ is defined.
+                        -- 'Irrelevant' to indicate the rhs must be checked
+                        -- in irrelevant mode.
       -> Permutation    -- The permutation from pattern vars to @Δ@.
       -> TCM a)
      -- ^ Continuation.
@@ -360,7 +362,8 @@ checkLeftHandSide c f ps a ret = do
     let rho = renamingR perm -- I'm not certain about this...
         Perm n _ = perm
         xs  = [ "h" ++ show n | n <- [0..n - 1] ]
-    ret mgamma delta rho xs qs b' perm
+    applyRelevanceToContext (getRelevance b') $ do
+      ret mgamma delta rho xs qs b' perm
   where
     -- the loop: split at a variable in the problem until problem is solved
     checkLHS :: LHSState -> TCM LHSState
@@ -388,12 +391,15 @@ checkLeftHandSide c f ps a ret = do
             let Problem ps1 (iperm, ip) delta (ProblemRest (p:ps2) b) = problem
                 -- ps'      = ps1 ++ [p]
                 ps'      = ps1 -- drop the projection pattern (already splitted)
-                rest     = ProblemRest ps2 projType
+                rest     = ProblemRest ps2 (projPat $> projType)
                 ip'      = ip ++ [fmap ProjP projPat]
                 problem' = Problem ps' (iperm, ip') delta rest
             -- Jump the trampolin
             st' <- updateProblemRest (LHSState problem' sigma dpi asb)
-            checkLHS st'
+            -- If the field is irrelevant, we need to continue in irr. cxt.
+            -- (see Issue 939).
+            applyRelevanceToContext (getRelevance projPat) $ do
+              checkLHS st'
 
 
           -- Split on literal pattern

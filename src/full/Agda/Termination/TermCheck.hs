@@ -585,13 +585,13 @@ introHiddenLambdas clause@(Clause range ctel perm ps body (Just t)) = do
       -- n = number of hidden lambdas
       let n = length axs
       -- take n abstractions from rhs type
-      TelV ttel t' <- telViewUpTo n t
+      TelV ttel t' <- telViewUpTo n $ unArg t
       when (size ttel < n) __IMPOSSIBLE__
       -- join with lhs telescope
       let ctel' = telFromList $ telToList ctel ++ telToList ttel
           ps'   = ps ++ map toPat axs
           perm' = liftP n perm
-      return $ Clause range ctel' perm' ps' body' $ Just t'
+      return $ Clause range ctel' perm' ps' body' $ Just (t $> t')
   where
     toPat (Common.Arg (Common.ArgInfo h r c) x) =
            Common.Arg (Common.ArgInfo h r []) (VarP x)

@@ -97,7 +97,7 @@ checkFunDef delayed i name cs = do
 
 -- | Check a trivial definition of the form @f = e@
 checkAlias :: Type -> I.ArgInfo -> Delayed -> Info.DefInfo -> QName -> A.Expr -> TCM ()
-checkAlias t' info delayed i name e = do
+checkAlias t' ai delayed i name e = do
   reportSDoc "tc.def.alias" 10 $ text "checkAlias" <+> vcat
     [ text (show name) <+> colon  <+> prettyTCM t'
     , text (show name) <+> equals <+> prettyTCM e
@@ -105,13 +105,13 @@ checkAlias t' info delayed i name e = do
 
 {-
   -- Infer the type of the rhs
-  (v, t) <- applyRelevanceToContext (argInfoRelevance info) $
+  (v, t) <- applyRelevanceToContext (argInfoRelevance ai) $
                                     inferOrCheck e (Just t')
   -- v <- coerce v t t'
 -}
 
   -- Infer the type of the rhs
-  v <- applyRelevanceToContext (getRelevance info) $ checkDontExpandLast e t'
+  v <- applyRelevanceToContext (getRelevance ai) $ checkDontExpandLast e t'
   let t = t'
 
   reportSDoc "tc.def.alias" 20 $ text "checkAlias: finished checking"
@@ -124,7 +124,7 @@ checkAlias t' info delayed i name e = do
     -- (test/succeed/Issue655.agda)
 
   -- Add the definition
-  addConstant name $ Defn info name t [] [] (defaultDisplayForm name) 0 noCompiledRep
+  addConstant name $ Defn ai name t [] [] (defaultDisplayForm name) 0 noCompiledRep
                    $ Function
                       { funClauses        = [ Clause  -- trivial clause @name = v@
                           { clauseRange = getRange i
@@ -132,7 +132,7 @@ checkAlias t' info delayed i name e = do
                           , clausePerm  = idP 0
                           , clausePats  = []
                           , clauseBody  = Body v
-                          , clauseType  = Just t
+                          , clauseType  = Just $ Arg ai t
                           } ]
                       , funCompiled       = Just $ Done [] v
                       , funDelayed        = delayed
@@ -155,7 +155,7 @@ checkAlias t' info delayed i name e = do
 -- information about lambda lifted arguments.
 checkFunDef' :: Type -> I.ArgInfo -> Delayed -> Maybe (Int, Int) -> Info.DefInfo -> QName ->
                 [A.Clause] -> TCM ()
-checkFunDef' t info delayed extlam i name cs =
+checkFunDef' t ai delayed extlam i name cs =
 
     traceCall (CheckFunDef (getRange i) (qnameName name) cs) $ do   -- TODO!! (qnameName)
         reportSDoc "tc.def.fun" 10 $
@@ -176,7 +176,7 @@ checkFunDef' t info delayed extlam i name cs =
         -- Check the clauses
         cs <- traceCall NoHighlighting $ do -- To avoid flicker.
             forM cs $ \ c -> do
-              c <- applyRelevanceToContext (argInfoRelevance info) $ do
+              c <- applyRelevanceToContext (argInfoRelevance ai) $ do
                 checkClause t c
               solveSizeConstraints
               -- Andreas, 2013-10-27 add clause as soon it is type-checked
@@ -232,7 +232,7 @@ checkFunDef' t info delayed extlam i name cs =
 
         -- Add the definition
         addConstant name $
-          defaultDefn info name t $
+          defaultDefn ai name t $
              Function
              { funClauses        = cs
              , funCompiled       = Just cc
@@ -380,10 +380,12 @@ checkClause t c@(A.Clause (A.SpineLHS i x aps withPats) rhs0 wh) = do
     unless (null withPats) $
       typeError $ UnexpectedWithPatterns withPats
     traceCall (CheckClause t c) $ do
-    checkLeftHandSide (CheckPatternShadowing c) (Just x) aps t $ \ mgamma delta sub xs ps t' perm -> do
+    checkLeftHandSide (CheckPatternShadowing c) (Just x) aps t $ \ mgamma delta sub xs ps trhs perm -> do
+      -- Note that we might now be in irrelevant context,
+      -- in case checkLeftHandSide walked over an irrelevant projection pattern.
       let mkBody v = foldr (\x t -> Bind $ Abs x t) (Body $ applySubst sub v) xs
       -- introduce trailing implicits for checking the where decls
-      TelV htel t0 <- telViewUpTo' (-1) isHidden t'
+      TelV htel t0 <- telViewUpTo' (-1) isHidden $ unArg trhs
       let n = size htel
           aps' = map convArg aps
       (body, with) <- addCtxTel htel $ checkWhere (size delta + n) wh $ escapeContext (size htel) $ let
@@ -394,7 +396,7 @@ checkClause t c@(A.Clause (A.SpineLHS i x aps withPats) rhs0 wh) = do
                   | any (containsAbsurdPattern . namedArg) aps ->
                     typeError $ AbsurdPatternRequiresNoRHS aps'
                   | otherwise -> do
-                    v <- checkExpr e t'
+                    v <- checkExpr e $ unArg trhs
                     return (mkBody v, NoWithFunction)
                 A.AbsurdRHS
                   | any (containsAbsurdPattern . namedArg) aps
@@ -520,7 +522,7 @@ checkClause t c@(A.Clause (A.SpineLHS i x aps withPats) rhs0 wh) = do
                       v    = Def aux $ map Apply $ us0 ++ us1 ++ (map defaultArg vs0) ++ us2
 
                   -- We need Δ₁Δ₂ ⊢ t'
-                  t' <- return $ renameP (reverseP perm') t'
+                  t' <- return $ renameP (reverseP perm') $ unArg trhs
                   -- and Δ₁ ⊢ vs : as
                   (vs, as) <- do
                     let -- We know that as does not depend on Δ₂
@@ -580,7 +582,7 @@ checkClause t c@(A.Clause (A.SpineLHS i x aps withPats) rhs0 wh) = do
                , clausePerm  = perm
                , clausePats  = ps
                , clauseBody  = body
-               , clauseType  = Just t'
+               , clauseType  = Just trhs
                }
 {-
 checkClause t (A.Clause (A.LHS _ _ ps@(_ : _)) _ _) = typeError $ UnexpectedWithPatterns ps

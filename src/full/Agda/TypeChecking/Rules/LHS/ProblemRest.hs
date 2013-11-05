@@ -2,10 +2,6 @@
 
 module Agda.TypeChecking.Rules.LHS.ProblemRest where
 
--- import Control.Applicative
-
--- import Data.Monoid
-
 import Agda.Syntax.Common
 -- import Agda.Syntax.Position
 -- import Agda.Syntax.Info
@@ -23,6 +19,7 @@ import Agda.TypeChecking.Substitute
 import Agda.TypeChecking.Rules.LHS.Problem
 import Agda.TypeChecking.Rules.LHS.Implicit
 
+import Agda.Utils.Monad (($>))
 import Agda.Utils.Size
 import Agda.Utils.Permutation
 
@@ -49,9 +46,11 @@ useNamesFromPattern ps = telFromList . zipWith ren (toPats ps ++ repeat dummy) .
 noProblemRest :: Problem -> Bool
 noProblemRest (Problem _ _ _ (ProblemRest ps _)) = null ps
 
+{- UNUSED and OUTDATED
 -- | Get the type of clause.  Only valid if 'noProblemRest'.
 typeFromProblem :: Problem -> Type
 typeFromProblem (Problem _ _ _ (ProblemRest _ a)) = a
+-}
 
 -- | Construct an initial 'split' 'Problem' from user patterns.
 --   Example:
@@ -95,7 +94,7 @@ problemFromPats ps a = do
       as        = telToList gamma
       (ps1,ps2) = splitAt (size as) ps
       -- now (gamma -> b) = a and |gamma| = |ps1|
-      pr        = ProblemRest ps2 b
+      pr        = ProblemRest ps2 $ defaultArg b
 
       -- internal patterns start as all variables
   ips <- mapM (return . argFromDom . fmap (VarP . fst)) as
@@ -127,18 +126,18 @@ todoProblemRest = mempty
 updateProblemRest_ :: Problem -> TCM (Nat, Problem)
 updateProblemRest_ p@(Problem _ _ _ (ProblemRest [] _)) = return (0, p)
 updateProblemRest_ p@(Problem ps0 (perm0@(Perm n0 is0), qs0) tel0 (ProblemRest ps a)) = do
-  TelV tel' b0 <- telView a
+  TelV tel' b0 <- telView $ unArg a
   case tel' of
     EmptyTel -> return (0, p)  -- no progress
     ExtendTel{} -> do     -- a did reduce to a pi-type
       ps <- insertImplicitPatterns DontExpandLast ps tel'
       -- Issue 734: Redo the telView to preserve clause types as much as possible.
-      TelV tel b   <- telViewUpTo (length ps) a
+      TelV tel b   <- telViewUpTo (length ps) $ unArg a
       let gamma     = useNamesFromPattern ps tel
           as        = telToList gamma
           (ps1,ps2) = splitAt (size as) ps
           tel1      = telFromList $ telToList tel0 ++ as
-          pr        = ProblemRest ps2 b
+          pr        = ProblemRest ps2 (a $> b)
           qs1       = map (argFromDom . fmap (VarP . fst)) as
           n         = size as
           perm1     = liftP n perm0 -- IS: Perm (n0 + n) $ is0 ++ [n0..n0+n-1]

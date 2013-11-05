@@ -263,7 +263,7 @@ checkRecordProjections m r con tel ftel fs = do
     checkProjs ftel1 ftel2 (A.ScopedDecl scope fs' : fs) =
       setScope scope >> checkProjs ftel1 ftel2 (fs' ++ fs)
 
-    checkProjs ftel1 (ExtendTel (Dom i t) ftel2) (A.Field info x _ : fs) = do
+    checkProjs ftel1 (ExtendTel (Dom ai t) ftel2) (A.Field info x _ : fs) = do
       -- Andreas, 2012-06-07:
       -- Issue 387: It is wrong to just type check field types again
       -- because then meta variables are created again.
@@ -302,9 +302,9 @@ checkRecordProjections m r con tel ftel fs = do
 	  projname = qualify m $ qnameName x
           projcall = Var 0 [Proj projname]
 --          projcall = Def projname [defaultArg $ var 0]
-          rel      = argInfoRelevance i
+          rel      = getRelevance ai
           -- the recursive call
-          recurse  = checkProjs (abstract ftel1 $ ExtendTel (Dom i t)
+          recurse  = checkProjs (abstract ftel1 $ ExtendTel (Dom ai t)
                                  $ Abs (show $ qnameName projname) EmptyTel)
                                 (ftel2 `absApp` projcall) fs
 
@@ -366,7 +366,7 @@ checkRecordProjections m r con tel ftel fs = do
                           , clausePerm  = idP $ size ftel
                           , clausePats  = [conp]
                           , clauseBody  = body
-                          , clauseType  = Just t
+                          , clauseType  = Just $ Arg ai t
                           }
 
       -- Andreas, 2013-10-20
@@ -412,7 +412,7 @@ checkRecordProjections m r con tel ftel fs = do
 
       escapeContext (size tel) $ do
 	addConstant projname $
-          (defaultDefn i projname (killRange finalt)
+          (defaultDefn ai projname (killRange finalt)
             Function { funClauses        = [clause]
                      , funCompiled       = Just cc
                      , funDelayed        = NotDelayed

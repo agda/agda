@@ -307,7 +307,7 @@ checkAbsurdLambda i h e t = do
                     , clausePerm  = Perm 1 []  -- Perm 1 [0]
                     , clausePats  = [Arg info' $ VarP "()"]
                     , clauseBody  = Bind $ NoAbs "()" NoBody
-                    , clauseType  = Just $ absBody b
+                    , clauseType  = Just $ setRelevance rel $ defaultArg $ absBody b
                     }
                   ]
               , funCompiled       = Just Fail

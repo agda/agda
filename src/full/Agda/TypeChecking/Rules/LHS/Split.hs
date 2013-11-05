@@ -121,7 +121,7 @@ splitProblem mf (Problem ps (perm, qs) tel pr) = do
               -- is no longer a projection but a record field.
               do
                 lift $ reportSLn "tc.lhs.split" 90 "we are a projection pattern"
-                isR <- lift $ isRecordType b
+                isR <- lift $ isRecordType $ unArg b
                 case isR of
                   Just (r, vs, Record{ recFields = fs }) -> do
 {- NO LONGER NEEDED
@@ -146,7 +146,9 @@ splitProblem mf (Problem ps (perm, qs) tel pr) = do
                       , text $ "and have fields       fs = " ++ show fs
                       , text $ "original proj         d  = " ++ show d
                       ]
-                    unless (d `elem` map unArg fs) $ throwError NothingToSplit
+                    -- Get the field decoration
+                    argd <- maybe (throwError NothingToSplit) return $
+                              find ((d ==) . unArg) fs
 --                    es <- lift $ patternsToElims perm qs
                     let es = patternsToElims perm qs
                     -- the record "self" is the definition f applied to the patterns
@@ -158,14 +160,14 @@ splitProblem mf (Problem ps (perm, qs) tel pr) = do
                       [ text "we are              self = " <+> prettyTCM (unArg self)
                       , text "being projected by dType = " <+> prettyTCM dType
                       ]
-                    return $ SplitRest (defaultArg d) $ dType `apply` (vs ++ [self])
+                    return $ SplitRest argd $ dType `apply` (vs ++ [self])
                   _ -> throwError $ NothingToSplit
 -- Why does lift . typeError seg-fault??
             _ -> lift $ typeError $ NotAProjectionPattern p
 --            _ -> lift $ typeError $ GenericError $ "not a valid projection pattern"
 --            _ -> throwError $ NothingToSplit
         -- if the pattern is not a projection pattern, there were probably too many arguments
-        _ -> lift $ typeError $ CannotEliminateWithPattern p b
+        _ -> lift $ typeError $ CannotEliminateWithPattern p $ unArg b
     -- if there are no more patterns left in the problem rest, there is nothing to split:
     splitRest _ = throwError $ NothingToSplit
 
@@ -201,7 +203,7 @@ splitProblem mf (Problem ps (perm, qs) tel pr) = do
 
         -- Case: projection pattern.  That's an error.
         (_, p') | Just{} <- isProjP p' -> do
-           typeError $ CannotEliminateWithPattern p (telePi tel0 $ restType pr)
+           typeError $ CannotEliminateWithPattern p (telePi tel0 $ unArg $ restType pr)
 
         -- Case: literal pattern
 	(xs, p@(A.LitP lit))  -> do

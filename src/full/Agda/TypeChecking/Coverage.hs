@@ -12,7 +12,7 @@ import Data.Set (Set)
 import Agda.Syntax.Position
 import Agda.Syntax.Common hiding (Arg,Dom)
 import qualified Agda.Syntax.Common as C
-import Agda.Syntax.Internal
+import Agda.Syntax.Internal as I
 import Agda.Syntax.Internal.Pattern
 
 import Agda.TypeChecking.Monad.Base
@@ -61,7 +61,7 @@ data SplitClause = SClause
       , scPerm   :: Permutation    -- ^ How to get from the variables in the patterns to the telescope.
       , scPats   :: [Arg Pattern]  -- ^ The patterns leading to the currently considered branch of the split tree.
       , scSubst  :: Substitution   -- ^ Substitution from @scTel@ to old context.
-      , scTarget :: Maybe Type     -- ^ The type of the rhs.
+      , scTarget :: Maybe (I.Arg Type) -- ^ The type of the rhs.
       }
 
 -- | A @Covering@ is the result of splitting a 'SplitClause'.
@@ -82,7 +82,7 @@ clauseToSplitClause cl = SClause
   , scPerm   = clausePerm cl
   , scPats   = clausePats cl
   , scSubst  = __IMPOSSIBLE__
-  , scTarget = Nothing
+  , scTarget = clauseType cl
   }
 
 type CoverM = ExceptionT SplitError TCM
@@ -121,7 +121,7 @@ coverageCheck f t cs = do
       lgamma       = telToList gamma
       xs           = map (argFromDom . fmap (const $ VarP "_")) $ lgamma
       -- construct the initial split clause
-      sc           = SClause gamma (idP n) xs idS $ Just a
+      sc           = SClause gamma (idP n) xs idS $ Just $ defaultArg a
   reportSDoc "tc.cover.top" 10 $ vcat
     [ text $ "Coverage checking " ++ show f
     , nest 2 $ vcat $ map (text . show . clausePats) cs
@@ -177,7 +177,7 @@ cover f cs sc@(SClause tel perm ps _ target) = do
       -- if we want to split projections, but have no target type, we give up
       let done = return (SplittingDone (size tel), Set.empty, [ps])
       flip (maybe done) target $ \ t -> do
-        isR <- addCtxTel tel $ isRecordType t
+        isR <- addCtxTel tel $ isRecordType $ unArg t
         case isR of
           Just (_r, vs, Record{ recFields = fs }) -> do
             reportSDoc "tc.cover" 20 $ sep
@@ -198,7 +198,7 @@ cover f cs sc@(SClause tel perm ps _ target) = do
                 -- compute the new target
                 dType <- typeOfConst $ unArg proj
                 let -- type of projection instantiated at self
-                    target' = Just $ dType `apply` pargs
+                    target' = Just $ proj $> dType `apply` pargs
                     sc' = sc { scPats   = scPats sc ++ [fmap ProjP proj]
                              , scTarget = target'
                              }
@@ -289,19 +289,19 @@ fixTarget sc@SClause{ scSubst = sigma, scTarget = target } =
   flip (maybe $ return sc) target $ \ a -> do
     reportSDoc "tc.cover.target" 20 $
       text "target type before substitution: " <+> prettyTCM a
-    TelV tel b <- telView $ applySubst sigma a
+    TelV tel b <- telView $ applySubst sigma $ unArg a
     reportSDoc "tc.cover.target" 10 $
       text "telescope (after substitution): " <+> prettyTCM tel
     let n      = size tel
         lgamma = telToList tel
         xs     = for lgamma $ (VarP "_" <$) . argFromDom
-    if (n == 0) then return sc { scTarget = Just b }
+    if (n == 0) then return sc { scTarget = Just $ a $> b }
      else return $ SClause
       { scTel    = telFromList $ telToList (scTel sc) ++ lgamma
       , scPerm   = liftP n $ scPerm sc
       , scPats   = scPats sc ++ xs
       , scSubst  = liftS n $ sigma
-      , scTarget = Just b
+      , scTarget = Just $ a $> b
       }
 
 -- | @computeNeighbourhood delta1 delta2 perm d pars ixs hix hps con@

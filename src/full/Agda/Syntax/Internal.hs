@@ -237,8 +237,11 @@ data Clause = Clause
     , clausePerm      :: Permutation
     , clausePats      :: [Arg Pattern]
     , clauseBody      :: ClauseBody
-    , clauseType      :: Maybe Type    -- ^ The type of the rhs under @clauseTel@.
-                                       --   (2013-10-12 currently only used by TermCheck.)
+    , clauseType      :: Maybe (Arg Type)
+      -- ^ The type of the rhs under @clauseTel@.
+      --   Used, e.g., by @TermCheck@.
+      --   Can be 'Irrelevant' if we encountered an irrelevant projection
+      --   pattern on the lhs.
     }
   deriving (Typeable, Show)
 

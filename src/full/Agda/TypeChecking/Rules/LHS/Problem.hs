@@ -102,8 +102,13 @@ type ProblemPart = Problem' ()
 --   @Nat -> Nat@ and we can move pattern @zero@ over to @problemInPat@.
 
 data ProblemRest = ProblemRest
-  { restPats :: [A.NamedArg A.Pattern]  -- ^ non-empty list of user patterns which could not yet be typed
-  , restType :: Type                  -- ^ type eliminated by 'restPats'
+  { restPats :: [A.NamedArg A.Pattern]
+    -- ^ List of user patterns which could not yet be typed.
+  , restType :: I.Arg Type
+    -- ^ Type eliminated by 'restPats'.
+    --   Can be 'Irrelevant' to indicate that we came by
+    --   an irrelevant projection and, hence, the rhs must
+    --   be type-checked in irrelevant mode.
   }
   deriving Show
 
@@ -123,14 +128,19 @@ data Focus
   | LitFocus Literal OneHolePatterns Int Type
 
 data SplitProblem
+
   = Split ProblemPart [Name] (I.Arg Focus) (Abs ProblemPart)
-    -- ^ the [Name]s give the as-bindings for the focus
+    -- ^ Split on constructor pattern.
+    --   The @[Name]@s give the as-bindings for the focus.
+
   | SplitRest { splitProjection :: I.Arg QName, splitRestType :: Type }
     -- ^ Split on projection pattern.
+    --   The projection could be belonging to an irrelevant record field.
 
 data SplitError
   = NothingToSplit
-  | SplitPanic String -- ^ __IMPOSSIBLE__, only there to make this instance of 'Error'.
+  | SplitPanic String
+    -- ^ __IMPOSSIBLE__, only there to make this instance of 'Error'.
 
 data DotPatternInst = DPI A.Expr Term (I.Dom Type)
 data AsBinding      = AsB Name Term Type
@@ -178,7 +188,7 @@ instance Error SplitError where
 --   Basically, this means that the left 'ProblemRest' is discarded, so
 --   use it wisely!
 instance Monoid ProblemRest where
-  mempty = ProblemRest [] typeDontCare
+  mempty = ProblemRest [] (defaultArg typeDontCare)
   mappend pr (ProblemRest [] _) = pr
   mappend _  pr                 = pr
 
