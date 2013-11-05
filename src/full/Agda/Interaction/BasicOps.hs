@@ -76,39 +76,53 @@ parseExprIn ii rng s = do
 giveExpr :: MetaId -> Expr -> TCM Expr
 -- When translator from internal to abstract is given, this function might return
 -- the expression returned by the type checker.
-giveExpr mi e =
-    do  mv <- lookupMeta mi
-        withMetaInfo (getMetaInfo mv) $ metaTypeCheck' mi e mv
-
-  where  metaTypeCheck' mi e mv =
-            case mvJudgement mv of
-		 HasType _ t  -> do
-		    ctx <- getContextArgs
-		    let t' = t `piApply` ctx
-		    v	<- checkExpr e t'
-		    case mvInstantiation mv of
-			InstV v' -> whenM ((Irrelevant /=) <$> asks envRelevance) $
-                                      equalTerm t' v (v' `apply` ctx)
-			_	 -> updateMeta mi v
-		    reify v
-		 IsSort{} -> __IMPOSSIBLE__
+giveExpr mi e = do
+    mv <- lookupMeta mi
+    -- In the context (incl. signature) of the meta variable,
+    -- type check expression and assign meta
+    withMetaInfo (getMetaInfo mv) $ do
+      metaTypeCheck mv (mvJudgement mv)
+  where
+    metaTypeCheck mv IsSort{}      = __IMPOSSIBLE__
+    metaTypeCheck mv (HasType _ t) = do
+      reportSDoc "interaction.give" 20 $
+        TP.text "give: meta type =" TP.<+> prettyTCM t
+      -- Here, we must be in the same context where the meta was created.
+      -- Thus, we can safely apply its type to the context variables.
+      ctx <- getContextArgs
+      let t' = t `piApply` ctx
+      reportSDoc "interaction.give" 20 $
+        TP.text "give: instantiated meta type =" TP.<+> prettyTCM t'
+      v	<- checkExpr e t'
+      case mvInstantiation mv of
+          InstV v' -> unlessM ((Irrelevant ==) <$> asks envRelevance) $
+                        equalTerm t' v (v' `apply` ctx)
+          _	   -> updateMeta mi v
+      reify v
 
 give :: InteractionId -> Maybe Range -> Expr -> TCM (Expr,[InteractionId])
 give ii mr e = liftTCM $ do
-  mi <- lookupInteractionId ii
+  -- if Range is given, update the range of the interaction meta
+  mi  <- lookupInteractionId ii
+{- --OLD:
+  r   <- getInteractionRange ii
+  updateMetaVarRange mi $ fromMaybe r mr
+  -- or equally, in case mr == Nothing we just do nothing.
+-}
+  whenJust mr $ updateMetaVarRange mi
+  -- Save old set of interaction points (to compute difference to new one).
   mis <- getInteractionPoints
-  r <- getInteractionRange ii
-  updateMetaVarRange mi $ maybe r id mr
-  reportSDoc "interaction.give" 10 $
-    TP.text "giving expression" TP.<+> prettyTCM e
-  reportSDoc "interaction.give" 50 $
-    TP.text $ show $ deepUnScope e
-  giveExpr mi e `catchError` \err -> case err of
+  reportSDoc "interaction.give" 10 $ TP.text "giving expression" TP.<+> prettyTCM e
+  reportSDoc "interaction.give" 50 $ TP.text $ show $ deepUnScope e
+  -- Try to give mi := e
+  giveExpr mi e `catchError` \ err -> case err of
+    -- Turn PatternErr into proper error:
     PatternErr _ -> do
       err <- withInteractionId ii $ TP.text "Failed to give" TP.<+> prettyTCM e
       typeError $ GenericError $ show err
     _ -> throwError err
   removeInteractionPoint ii
+  -- return e and the newly generated interaction points
   mis' <- getInteractionPoints
   return (e, mis' \\ mis)
 
