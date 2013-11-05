@@ -186,8 +186,9 @@ cover f cs sc@(SClause tel perm ps _ target) = do
               , text $ "and have fields       fs = " ++ show fs
               ]
 --            es <- patternsToElims perm ps
+            fvs <- freeVarsToApply f
             let es = patternsToElims perm ps
-            let self  = defaultArg $ Def f [] `applyE` es
+            let self  = defaultArg $ Def f (map Apply fvs) `applyE` es
                 pargs = vs ++ [self]
             reportSDoc "tc.cover" 20 $ sep
               [ text   "we are              self = " <+> (addCtxTel tel $ prettyTCM $ unArg self)
@@ -286,10 +287,14 @@ isDatatype ind at = do
 fixTarget :: SplitClause -> TCM SplitClause
 fixTarget sc@SClause{ scSubst = sigma, scTarget = target } =
   flip (maybe $ return sc) target $ \ a -> do
+    reportSDoc "tc.cover.target" 20 $
+      text "target type before substitution: " <+> prettyTCM a
     TelV tel b <- telView $ applySubst sigma a
+    reportSDoc "tc.cover.target" 10 $
+      text "telescope (after substitution): " <+> prettyTCM tel
     let n      = size tel
         lgamma = telToList tel
-        xs     = map (argFromDom . fmap (const $ VarP "_")) $ lgamma
+        xs     = for lgamma $ (VarP "_" <$) . argFromDom
     if (n == 0) then return sc { scTarget = Just b }
      else return $ SClause
       { scTel    = telFromList $ telToList (scTel sc) ++ lgamma

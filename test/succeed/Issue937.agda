@@ -4,11 +4,14 @@
 
 module Issue937 where
 
+open import Common.Equality
+
 data Nat : Set where
   zero : Nat
   suc  : Nat → Nat
 
 record Σ (A : Set) (B : A → Set) : Set where
+  constructor _,_
   field
     proj₁ : A
     proj₂ : B proj₁
@@ -30,3 +33,6 @@ module _ (A : Set) where
   ex'' : Σ Nat (λ n → zero < n)
   proj₁ ex'' = suc zero
   proj₂ ex'' = s≤s z≤n
+
+test : ex'' Nat ≡ (suc zero , s≤s z≤n)
+test = refl

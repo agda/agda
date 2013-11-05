@@ -219,6 +219,9 @@ checkFunDef' t info delayed extlam i name cs =
               , nest 2 $ sep $ map (prettyTCM . QNamed name) cs
               ]
 
+        -- add clauses for the coverage checker (needs to reduce)
+        addClauses name cs
+
         -- Coverage check and compile the clauses
         cc <- compileClauses (Just (name, t)) cs
 
