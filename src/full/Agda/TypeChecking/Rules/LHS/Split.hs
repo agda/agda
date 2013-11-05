@@ -150,7 +150,8 @@ splitProblem mf (Problem ps (perm, qs) tel pr) = do
 --                    es <- lift $ patternsToElims perm qs
                     let es = patternsToElims perm qs
                     -- the record "self" is the definition f applied to the patterns
-                    let self = defaultArg $ Def f [] `applyE` es
+                    fvs <- lift $ freeVarsToApply f
+                    let self = defaultArg $ Def f (map Apply fvs) `applyE` es
                     -- get the type of projection d applied to "self"
                     dType <- lift $ typeOfConst d
                     lift $ reportSDoc "tc.lhs.split" 20 $ sep

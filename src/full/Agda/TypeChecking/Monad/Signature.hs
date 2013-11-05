@@ -10,7 +10,7 @@ import Data.Map (Map)
 import qualified Data.Map as Map
 import Data.Maybe
 import Data.List
-import Data.Function
+-- import Data.Function
 
 import Agda.Syntax.Abstract.Name
 import Agda.Syntax.Common
@@ -121,17 +121,11 @@ modifyFunClauses :: QName -> ([Clause] -> [Clause]) -> TCM ()
 modifyFunClauses q f =
   modifySignature $ updateDefinition q $ updateTheDef $ updateFunClauses f
 
--- | Adds clauses to a definition.
-addClauses :: QName -> [Clause] -> TCM ()
-addClauses q cls = modifyFunClauses q (++ cls)
-
-{- LIFTING is actually wrong, breaks Issue937.agda
 -- | Lifts clauses to the top-level and adds them to definition.
 addClauses :: QName -> [Clause] -> TCM ()
 addClauses q cls = do
   tel <- getContextTelescope
   modifyFunClauses q (++ abstract tel cls)
--}
 
 addHaskellCode :: QName -> HaskellType -> HaskellCode -> TCM ()
 addHaskellCode q hsTy hsDef = modifySignature $ updateDefinition q $ updateDefCompiledRep $ addHs
@@ -442,8 +436,7 @@ getConstInfo :: MonadTCM tcm => QName -> tcm Definition
 getConstInfo q = liftTCM $ join $ pureTCM $ \st env ->
   let defs  = sigDefinitions $ stSignature st
       idefs = sigDefinitions $ stImports st
-      smash = (++) `on` maybe [] (:[])
-  in case smash (HMap.lookup q defs) (HMap.lookup q idefs) of
+  in case catMaybes [HMap.lookup q defs, HMap.lookup q idefs] of
       []  -> fail $ "Unbound name: " ++ show q ++ " " ++ showQNameId q
       [d] -> mkAbs env d
       ds  -> fail $ "Ambiguous name: " ++ show q
@@ -649,15 +642,15 @@ treatAbstractly' q env = case envAbstractMode env of
     current = envCurrentModule env
     m	    = qnameModule q
 
--- | get type of a constant
+-- | Get type of a constant, instantiated to the current context.
 typeOfConst :: QName -> TCM Type
 typeOfConst q = defType <$> (instantiateDef =<< getConstInfo q)
 
--- | get relevance of a constant
+-- | Get relevance of a constant.
 relOfConst :: QName -> TCM Relevance
 relOfConst q = defRelevance <$> getConstInfo q
 
--- | get colors of a constant
+-- | Get colors of a constant.
 colOfConst :: QName -> TCM [Color]
 colOfConst q = defColors <$> getConstInfo q
 
