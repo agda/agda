@@ -909,6 +909,8 @@ inferHead e = do
 inferDef :: (QName -> Args -> TCM Term) -> QName -> TCM (Term, Type)
 inferDef mkTerm x =
     traceCall (InferDef (getRange x) x) $ do
+    -- getConstInfo retrieves the *absolute* (closed) type of x
+    -- instantiateDef relativizes it to the current context
     d  <- instantiateDef =<< getConstInfo x
     -- irrelevant defs are only allowed in irrelevant position
     let drel = defRelevance d
@@ -919,6 +921,8 @@ inferDef mkTerm x =
         , text "context     relevance =" <+> text (show rel)
         ]
       unless (drel `moreRelevant` rel) $ typeError $ DefinitionIsIrrelevant x
+    -- since x is considered living in the top-level, we have to
+    -- apply it to the current context
     vs <- freeVarsToApply x
     v  <- mkTerm x vs
     let t = defType d
