@@ -194,7 +194,11 @@ checkFunDef' t info delayed extlam i name cs =
 
         reportSDoc "tc.cc" 25 $ do
           sep [ text "clauses before injectivity test"
-              , nest 2 $ prettyTCM (map (QNamed name) cs)
+              , nest 2 $ prettyTCM $ map (QNamed name) cs  -- broken, reify (QNamed n cl) expect cl to live at top level
+              ]
+        reportSDoc "tc.cc" 60 $ do
+          sep [ text "raw clauses: "
+              , nest 2 $ sep $ map (text . show . QNamed name) cs
               ]
 
         -- Annotate the clauses with which arguments are actually used.
@@ -208,10 +212,11 @@ checkFunDef' t info delayed extlam i name cs =
         -- Check if the function is injective
         reportSLn "tc.inj.def" 20 $ "checkFunDef': checking injectivity..."
         inv <- checkInjectivity name cs
+        -- inv <- return NotInjective
 
         reportSDoc "tc.cc" 15 $ do
           sep [ text "clauses before compilation"
-              , nest 2 $ prettyTCM (map (QNamed name) cs)
+              , nest 2 $ sep $ map (prettyTCM . QNamed name) cs
               ]
 
         -- Coverage check and compile the clauses

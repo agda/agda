@@ -716,11 +716,11 @@ instance Reify NamedClause A.Clause where
     lhs <- liftTCM $ reifyDisplayFormP $ SpineLHS info f ps [] -- LHS info (LHSHead f ps) []
     nfv <- getDefFreeVars f
     lhs <- stripImps $ dropParams nfv lhs
-    reportSLn "reify" 60 $ "reifying NamedClause, lhs = " ++ show lhs
+    reportSLn "reify.clause" 60 $ "reifying NamedClause, lhs = " ++ show lhs
     rhs <- reify body
-    reportSLn "reify" 60 $ "reifying NamedClause, rhs = " ++ show rhs
+    reportSLn "reify.clause" 60 $ "reifying NamedClause, rhs = " ++ show rhs
     let result = A.Clause (spineToLhs lhs) rhs []
-    reportSLn "reify" 60 $ "reified NamedClause, result = " ++ show result
+    reportSLn "reify.clause" 60 $ "reified NamedClause, result = " ++ show result
     return result
     where
       info = LHSRange noRange
