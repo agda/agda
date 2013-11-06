@@ -46,6 +46,10 @@ withIncreasedModuleNestingLevel =
   local (\e -> e { envModuleNestingLevel =
                      envModuleNestingLevel e + 1 })
 
+-- | Set highlighting level
+withHighlightingLevel :: HighlightingLevel -> TCM a -> TCM a
+withHighlightingLevel h = local $ \e -> e { envHighlightingLevel = h }
+
 -- | Restore setting for 'ExpandLast' to default.
 doExpandLast :: TCM a -> TCM a
 doExpandLast = local $ \ e -> e { envExpandLast = ExpandLast }
