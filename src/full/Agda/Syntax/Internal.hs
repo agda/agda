@@ -12,6 +12,7 @@ module Agda.Syntax.Internal
 
 import Prelude hiding (foldr, mapM)
 import Control.Applicative
+import Control.Monad.Identity hiding (mapM)
 import Control.Parallel
 import Data.Typeable (Typeable)
 import Data.Foldable
@@ -148,6 +149,29 @@ data Tele a = EmptyTel
   deriving (Typeable, Show, Functor, Foldable, Traversable)
 
 type Telescope = Tele (Dom Type)
+
+mapAbsNamesM :: Applicative m => (String -> m String) -> Tele a -> m (Tele a)
+mapAbsNamesM f EmptyTel                  = pure EmptyTel
+mapAbsNamesM f (ExtendTel a (Abs x b))   = ExtendTel a <$> (Abs <$> f x <*> mapAbsNamesM f b)
+mapAbsNamesM f (ExtendTel a (NoAbs x b)) = ExtendTel a <$> (NoAbs <$> f x <*> mapAbsNamesM f b)
+  -- Ulf, 2013-11-06: Last case is really impossible but I'd rather find out we
+  --                  violated that invariant somewhere other than here.
+
+mapAbsNames :: (String -> String) -> Tele a -> Tele a
+mapAbsNames f = runIdentity . mapAbsNamesM (Identity . f)
+
+-- Ulf, 2013-11-06
+-- The record parameter is named "" inside the record module so we can avoid
+-- printing it (issue 208), but we don't want that to show up in the type of
+-- the functions in the module (issue 892). This function is used on the record
+-- module telescope before adding it to a type in
+-- TypeChecking.Monad.Signature.addConstant (to handle functions defined in
+-- record modules) and TypeChecking.Rules.Record.checkProjection (to handle
+-- record projections).
+replaceEmptyName :: String -> Tele a -> Tele a
+replaceEmptyName x = mapAbsNames repl
+  where repl "" = x
+        repl y  = y
 
 -- | Sorts.
 --

@@ -298,7 +298,7 @@ checkRecordProjections m r con tel ftel fs = do
       -- The type of the projection function should be
       --  {tel} -> (r : R Δ) -> t
       -- where Δ = Γ, tel is the current context
-      let finalt   = telePi tel t
+      let finalt   = telePi (replaceEmptyName "r" tel) t
 	  projname = qualify m $ qnameName x
           projcall = Var 0 [Proj projname]
 --          projcall = Def projname [defaultArg $ var 0]

@@ -97,7 +97,7 @@ addConstant :: QName -> Definition -> TCM ()
 addConstant q d = do
   reportSLn "tc.signature" 20 $ "adding constant " ++ show q ++ " to signature"
   tel <- getContextTelescope
-  let tel' = killRange $ case theDef d of
+  let tel' = replaceEmptyName "r" $ killRange $ case theDef d of
 	      Constructor{} -> fmap (setHiding Hidden) tel
 	      _		    -> tel
   let d' = abstract tel' $ d { defName = q }
