@@ -354,6 +354,7 @@ checkLeftHandSide c f ps a ret = do
 	   ]
          ]
   bindLHSVars (filter (isNothing . isProjP) ps) delta $ bindAsPatterns asb $ do
+    reportSDoc "tc.lhs.top" 10 $ text "bound pattern variables"
     reportSDoc "tc.lhs.top" 10 $ nest 2 $ text "type  = " <+> prettyTCM b'
 
     -- Check dot patterns

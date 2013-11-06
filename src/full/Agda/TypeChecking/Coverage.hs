@@ -196,7 +196,7 @@ cover f cs sc@(SClause tel perm ps _ target) = do
             (projs, (trees, useds, psss)) <- mapSnd unzip3 . unzip <$> do
               forM fs $ \ proj -> do
                 -- compute the new target
-                dType <- typeOfConst $ unArg proj
+                dType <- defType <$> do getConstInfo $ unArg proj -- WRONG: typeOfConst $ unArg proj
                 let -- type of projection instantiated at self
                     target' = Just $ proj $> dType `apply` pargs
                     sc' = sc { scPats   = scPats sc ++ [fmap ProjP proj]

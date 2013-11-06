@@ -155,7 +155,8 @@ splitProblem mf (Problem ps (perm, qs) tel pr) = do
                     fvs <- lift $ freeVarsToApply f
                     let self = defaultArg $ Def f (map Apply fvs) `applyE` es
                     -- get the type of projection d applied to "self"
-                    dType <- lift $ typeOfConst d
+                    dType <- lift $ defType <$> getConstInfo d  -- full type!
+                    -- dType <- lift $ typeOfConst d  -- WRONG: we apply to parameters ourselves!!
                     lift $ reportSDoc "tc.lhs.split" 20 $ sep
                       [ text "we are              self = " <+> prettyTCM (unArg self)
                       , text "being projected by dType = " <+> prettyTCM dType
