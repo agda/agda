@@ -733,7 +733,7 @@ instance PrettyTCM TypeError where
             showPat :: Integer -> I.Pattern -> TCM Doc
             showPat _ (I.VarP _)        = text "_"
             showPat _ (I.DotP _)        = text "._"
-            showPat n (I.ConP c _ args) = mpar n args $ prettyTCM c <+> fsep (map showArg args)
+            showPat n (I.ConP c _ args) = mpar n args $ prettyTCM c <+> fsep (map (showArg . fmap namedThing) args)
             showPat _ (I.LitP l)        = text (show l)
             showPat _ (I.ProjP p)       = text (show p)
 

@@ -200,8 +200,8 @@ addDisplayForms x = do
       def <- getConstInfo x
       let cs = defClauses def
       case cs of
-	[ Clause{ clausePats = pats, clauseBody = b } ]
-	  | all (isVar . unArg) pats
+	[ Clause{ namedClausePats = pats, clauseBody = b } ]
+	  | all (isVar . namedArg) pats
           , Just (m, Def y es) <- strip (b `apply` vs0)
           , Just vs <- mapM isApplyElim es -> do
 	      let ps = raise 1 $ map unArg vs
@@ -357,13 +357,12 @@ applySection new ptel old ts rd rm = do
                  Function{funProjection = Just Projection{ projDropPars = f}}
                    -> f
                  _ -> Def x []
-	cl = Clause { clauseRange = getRange $ defClauses d
-                    , clauseTel   = EmptyTel
-                    , clausePerm  = idP 0
-                    , clausePats  = []
-                    , clauseBody  = Body $ head `apply` ts
---                    , clauseBody  = Body $ Def x $ map Apply ts'
-                    , clauseType  = Just $ defaultArg t
+	cl = Clause { clauseRange     = getRange $ defClauses d
+                    , clauseTel       = EmptyTel
+                    , clausePerm      = idP 0
+                    , namedClausePats = []
+                    , clauseBody      = Body $ head `apply` ts
+                    , clauseType      = Just $ defaultArg t
                     }
 
     copySec :: Args -> (ModuleName, Section) -> TCM ()

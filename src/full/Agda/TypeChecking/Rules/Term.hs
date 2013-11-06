@@ -302,12 +302,12 @@ checkAbsurdLambda i h e t = do
             $ Function
               { funClauses        =
                   [Clause
-                    { clauseRange = getRange e
-                    , clauseTel   = EmptyTel   -- telFromList [fmap ("()",) dom]
-                    , clausePerm  = Perm 1 []  -- Perm 1 [0]
-                    , clausePats  = [Arg info' $ VarP "()"]
-                    , clauseBody  = Bind $ NoAbs "()" NoBody
-                    , clauseType  = Just $ setRelevance rel $ defaultArg $ absBody b
+                    { clauseRange     = getRange e
+                    , clauseTel       = EmptyTel   -- telFromList [fmap ("()",) dom]
+                    , clausePerm      = Perm 1 []  -- Perm 1 [0]
+                    , namedClausePats = [Arg info' $ Named (Just $ absName b) $ VarP "()"]
+                    , clauseBody      = Bind $ NoAbs "()" NoBody
+                    , clauseType      = Just $ setRelevance rel $ defaultArg $ absBody b
                     }
                   ]
               , funCompiled       = Just Fail
@@ -1401,7 +1401,7 @@ checkLetBinding b@(A.LetPatBind i p e) ret =
       ]
     checkLeftHandSide (CheckPattern p EmptyTel t) Nothing [p0] t0 $ \ mgamma delta sub xs ps t' perm -> do
       -- A single pattern in internal syntax is returned.
-      let p = case ps of [p] -> unArg p; _ -> __IMPOSSIBLE__
+      let p = case ps of [p] -> namedArg p; _ -> __IMPOSSIBLE__
       reportSDoc "tc.term.let.pattern" 20 $ nest 2 $ vcat
         [ text "p (I) =" <+> text (show p)
         , text "delta =" <+> text (show delta)

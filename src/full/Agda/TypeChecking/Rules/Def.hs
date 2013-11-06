@@ -127,12 +127,12 @@ checkAlias t' ai delayed i name e = do
   addConstant name $ Defn ai name t [] [] (defaultDisplayForm name) 0 noCompiledRep
                    $ Function
                       { funClauses        = [ Clause  -- trivial clause @name = v@
-                          { clauseRange = getRange i
-                          , clauseTel   = EmptyTel
-                          , clausePerm  = idP 0
-                          , clausePats  = []
-                          , clauseBody  = Body v
-                          , clauseType  = Just $ Arg ai t
+                          { clauseRange     = getRange i
+                          , clauseTel       = EmptyTel
+                          , clausePerm      = idP 0
+                          , namedClausePats = []
+                          , clauseBody      = Body v
+                          , clauseType      = Just $ Arg ai t
                           } ]
                       , funCompiled       = Just $ Done [] v
                       , funDelayed        = delayed
@@ -350,19 +350,19 @@ insertPatterns pats rhs = rhs
 
 data WithFunctionProblem
       = NoWithFunction
-      | WithFunction QName          -- parent function name
-                     QName          -- with function name
-                     Telescope      -- arguments to parent function
-                     Telescope      -- arguments to the with function before the with expressions
-                     Telescope      -- arguments to the with function after the with expressions
-                     [Term]         -- with expressions
-                     [Type]         -- types of the with expressions
-                     Type           -- type of the right hand side
-                     [I.Arg Pattern]-- parent patterns
-                     Permutation    -- permutation resulting from splitting the telescope into needed and unneeded vars
-                     Permutation    -- permutation reordering the variables in the parent pattern
-                     Permutation    -- final permutation (including permutation for the parent clause)
-                     [A.Clause]     -- the given clauses for the with function
+      | WithFunction QName                -- parent function name
+                     QName                -- with function name
+                     Telescope            -- arguments to parent function
+                     Telescope            -- arguments to the with function before the with expressions
+                     Telescope            -- arguments to the with function after the with expressions
+                     [Term]               -- with expressions
+                     [Type]               -- types of the with expressions
+                     Type                 -- type of the right hand side
+                     [I.NamedArg Pattern] -- parent patterns
+                     Permutation          -- permutation resulting from splitting the telescope into needed and unneeded vars
+                     Permutation          -- permutation reordering the variables in the parent pattern
+                     Permutation          -- final permutation (including permutation for the parent clause)
+                     [A.Clause]           -- the given clauses for the with function
 
 -- | Type check a function clause.
 {-
@@ -577,12 +577,12 @@ checkClause t c@(A.Clause (A.SpineLHS i x aps withPats) rhs0 wh) = do
         ]
 
       return $
-        Clause { clauseRange = getRange i
-               , clauseTel   = killRange delta
-               , clausePerm  = perm
-               , clausePats  = ps
-               , clauseBody  = body
-               , clauseType  = Just trhs
+        Clause { clauseRange     = getRange i
+               , clauseTel       = killRange delta
+               , clausePerm      = perm
+               , namedClausePats = ps
+               , clauseBody      = body
+               , clauseType      = Just trhs
                }
 {-
 checkClause t (A.Clause (A.LHS _ _ ps@(_ : _)) _ _) = typeError $ UnexpectedWithPatterns ps

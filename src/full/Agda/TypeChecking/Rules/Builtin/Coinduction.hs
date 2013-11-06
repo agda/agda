@@ -127,12 +127,12 @@ bindBuiltinFlat e =
                    ExtendTel (domN $ El (varSort 1) $ var 0) $ Abs "x" $
                    EmptyTel
     let clause   = Clause
-          { clauseRange = noRange
-          , clauseTel   = tel
-          , clausePerm  = idP 1
-          , clausePats  = [ argN $ ConP sharpCon Nothing [ argN $ VarP "x" ] ]
-          , clauseBody  = Bind $ Abs "x" $ Body $ var 0
-          , clauseType  = Just $ defaultArg $ El (varSort 2) $ var 1
+          { clauseRange     = noRange
+          , clauseTel       = tel
+          , clausePerm      = idP 1
+          , namedClausePats = [ argN $ Named Nothing $ ConP sharpCon Nothing [ argN $ Named Nothing $ VarP "x" ] ]
+          , clauseBody      = Bind $ Abs "x" $ Body $ var 0
+          , clauseType      = Just $ defaultArg $ El (varSort 2) $ var 1
           }
         cc = Case 0 $ Branches (Map.singleton sharp
                                  $ WithArity 1 $ Done [defaultArg "x"] $ var 0)

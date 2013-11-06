@@ -99,7 +99,7 @@ dotPatternInsts ps s as = dpi (map namedArg ps) (reverse s) as
 
         _           -> __IMPOSSIBLE__
 
-instantiatePattern :: Substitution -> Permutation -> [I.Arg Pattern] -> [I.Arg Pattern]
+instantiatePattern :: Substitution -> Permutation -> [I.NamedArg Pattern] -> [I.NamedArg Pattern]
 instantiatePattern sub perm ps
   | length sub /= length hps = error $ unlines [ "instantiatePattern:"
                                                , "  sub  = " ++ show sub
@@ -115,7 +115,7 @@ instantiatePattern sub perm ps
     merge Nothing   ps = ps
     merge (Just qs) ps = zipWith mergeA qs ps
       where
-        mergeA a1 a2 = a1 { unArg = mergeP (unArg a1) (unArg a2) }
+        mergeA a1 a2 = fmap (mergeP (namedArg a1) (namedArg a2) <$) a1
         mergeP (DotP s)  (DotP t)
           | s == t                    = DotP s
           | otherwise                 = __IMPOSSIBLE__
@@ -311,17 +311,17 @@ checkLeftHandSide
      -- ^ The patterns.
   -> Type
      -- ^ The expected type @a = Γ → b@.
-  -> (Maybe Telescope   -- Γ : The types of the patterns.
-                        -- 'Nothing' if more patterns than domain types in @a@.
-                        -- Used only to construct a @with@ function; see 'stripwithClausePatterns'.
-      -> Telescope      -- Δ : The types of the pattern variables.
-      -> S.Substitution -- σ : The patterns in form of a substitution Δ ⊢ σ : Γ
-      -> [String]       -- Names for the variables in Δ, for binding the body.
-      -> [I.Arg Pattern]-- The patterns in internal syntax.
-      -> I.Arg Type     -- The type of the body. Is @bσ@ if @Γ@ is defined.
-                        -- 'Irrelevant' to indicate the rhs must be checked
-                        -- in irrelevant mode.
-      -> Permutation    -- The permutation from pattern vars to @Δ@.
+  -> (Maybe Telescope         -- Γ : The types of the patterns.
+                              -- 'Nothing' if more patterns than domain types in @a@.
+                              -- Used only to construct a @with@ function; see 'stripwithClausePatterns'.
+      -> Telescope            -- Δ : The types of the pattern variables.
+      -> S.Substitution       -- σ : The patterns in form of a substitution Δ ⊢ σ : Γ
+      -> [String]             -- Names for the variables in Δ, for binding the body.
+      -> [I.NamedArg Pattern] -- The patterns in internal syntax.
+      -> I.Arg Type           -- The type of the body. Is @bσ@ if @Γ@ is defined.
+                              -- 'Irrelevant' to indicate the rhs must be checked
+                              -- in irrelevant mode.
+      -> Permutation          -- The permutation from pattern vars to @Δ@.
       -> TCM a)
      -- ^ Continuation.
   -> TCM a
@@ -393,7 +393,7 @@ checkLeftHandSide c f ps a ret = do
                 -- ps'      = ps1 ++ [p]
                 ps'      = ps1 -- drop the projection pattern (already splitted)
                 rest     = ProblemRest ps2 (projPat $> projType)
-                ip'      = ip ++ [fmap ProjP projPat]
+                ip'      = ip ++ [fmap (Named Nothing . ProjP) projPat]
                 problem' = Problem ps' (iperm, ip') delta rest
             -- Jump the trampolin
             st' <- updateProblemRest (LHSState problem' sigma dpi asb)
@@ -573,7 +573,7 @@ checkLeftHandSide c f ps a ret = do
               (return $ Nothing)
 
             -- Plug the hole in the out pattern with c ys
-            let ysp = map (argFromDom . fmap (VarP . fst)) $ telToList gamma
+            let ysp = map (argFromDom . fmap (namedVarP . fst)) $ telToList gamma
                 ip  = plugHole (ConP c storedPatternType ysp) iph
                 ip0 = applySubst rho0 ip
 
@@ -692,8 +692,8 @@ checkLeftHandSide c f ps a ret = do
 
 -- Ensures that we are not performing pattern matching on codata.
 
-noPatternMatchingOnCodata :: [I.Arg Pattern] -> TCM ()
-noPatternMatchingOnCodata = mapM_ (check . unArg)
+noPatternMatchingOnCodata :: [I.NamedArg Pattern] -> TCM ()
+noPatternMatchingOnCodata = mapM_ (check . namedArg)
   where
   check (VarP {})   = return ()
   check (DotP {})   = return ()
@@ -704,6 +704,6 @@ noPatternMatchingOnCodata = mapM_ (check . unArg)
     c <- isCoinductive t
     case c of
       Nothing    -> __IMPOSSIBLE__
-      Just False -> mapM_ (check . unArg) ps
+      Just False -> mapM_ (check . namedArg) ps
       Just True  -> typeError $
         GenericError "Pattern matching on coinductive types is not allowed"

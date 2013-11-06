@@ -222,23 +222,23 @@ nonvariantToUnusedArgInDef pol def = case def of
   _ -> def
 
 nonvariantToUnusedArgInClause :: [Polarity] -> Clause -> Clause
-nonvariantToUnusedArgInClause pol cl@Clause{clauseTel = tel, clausePerm = perm, clausePats = ps} =
+nonvariantToUnusedArgInClause pol cl@Clause{clauseTel = tel, clausePerm = perm, namedClausePats = ps} =
   let adjPat p Nonvariant
-        | properlyMatching (unArg p) = __IMPOSSIBLE__ -- if we match, we cannot be Nonvariant (sanity check)
-        | otherwise                  = mapRelevance mkUnused p
+        | properlyMatching (namedArg p) = __IMPOSSIBLE__ -- if we match, we cannot be Nonvariant (sanity check)
+        | otherwise                     = mapRelevance mkUnused p
       adjPat p _    = p
       -- change relevance of 'Nonvariant' arguments to 'UnusedArg'
       -- note that the associated patterns cannot be 'ConP' or 'LitP'
-      ps'           = zipWith adjPat ps (pol ++ repeat Invariant)
+      ps'   = zipWith adjPat ps (pol ++ repeat Invariant)
       -- get a list of 'Relevance's for the variables bound in the pattern
-      rels0         = getRelevance <$> (patternVars =<< ps')
+      rels0 = getRelevance <$> (concatMap (patternVars . fmap namedThing) ps')
       -- this is the order the variables appear in the telescope
-      rels          = permute perm rels0
+      rels  = permute perm rels0
       -- now improve 'Relevance' in 'Telescope' by pattern relevance
       updateDom UnusedArg = mapRelevance mkUnused
       updateDom r          = id
       tel' = telFromList $ zipWith updateDom rels $ telToList tel
-   in cl { clausePats = ps', clauseTel = tel'}
+   in cl { namedClausePats = ps', clauseTel = tel'}
 
 ------------------------------------------------------------------------
 -- * Sized types

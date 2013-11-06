@@ -76,7 +76,7 @@ buildWithFunction aux gamma qs perm n1 n cs = mapM buildWithClause cs
       (ps1, ps2)  <- genericSplitAt n1 <$> stripWithClausePatterns gamma qs perm ps
       let result = A.Clause (A.LHS i (A.LHSHead aux (ps1 ++ ps0 ++ ps2)) wps1) rhs wh
 -}
-buildWithFunction :: QName -> Telescope -> [I.Arg Pattern] -> Permutation ->
+buildWithFunction :: QName -> Telescope -> [I.NamedArg Pattern] -> Permutation ->
                      Nat -> Nat -> [A.SpineClause] -> TCM [A.SpineClause]
 buildWithFunction aux gamma qs perm n1 n cs = mapM buildWithClause cs
   where
@@ -113,7 +113,7 @@ buildWithFunction aux gamma qs perm n1 n cs = mapM buildWithClause cs
 -}
 -- TODO: this does not work for varying arity or copatterns.
 -- Need to do s.th. like in Split.hs with ProblemRest etc.
-stripWithClausePatterns :: Telescope -> [I.Arg Pattern] -> Permutation -> [A.NamedArg A.Pattern] -> TCM [A.NamedArg A.Pattern]
+stripWithClausePatterns :: Telescope -> [I.NamedArg Pattern] -> Permutation -> [A.NamedArg A.Pattern] -> TCM [A.NamedArg A.Pattern]
 stripWithClausePatterns gamma qs perm ps = do
   psi <- insertImplicitPatterns ExpandLast ps gamma
   unless (size psi == size gamma) $
@@ -122,7 +122,7 @@ stripWithClausePatterns gamma qs perm ps = do
     [ text "stripping patterns"
     , nest 2 $ text "gamma = " <+> prettyTCM gamma
     , nest 2 $ text "psi = " <+> fsep (punctuate comma $ map prettyA psi)
-    , nest 2 $ text "qs  = " <+> fsep (punctuate comma $ map (prettyTCM . unArg) qs)
+    , nest 2 $ text "qs  = " <+> fsep (punctuate comma $ map (prettyTCM . namedArg) qs)
     ]
   ps' <- strip gamma psi qs
   let psp = permute perm ps'
@@ -134,7 +134,7 @@ stripWithClausePatterns gamma qs perm ps = do
   where
     -- implicit args inserted at top level
     -- all three arguments should have the same size
-    strip :: Telescope -> [A.NamedArg A.Pattern] -> [I.Arg Pattern] -> TCM [A.NamedArg A.Pattern]
+    strip :: Telescope -> [A.NamedArg A.Pattern] -> [I.NamedArg Pattern] -> TCM [A.NamedArg A.Pattern]
     strip _           []      (_ : _) = __IMPOSSIBLE__
     strip _           (_ : _) []      = __IMPOSSIBLE__
     strip EmptyTel    (_ : _) _       = __IMPOSSIBLE__
@@ -146,10 +146,10 @@ stripWithClausePatterns gamma qs perm ps = do
         [ text "strip"
         , nest 2 $ text "ps0 =" <+> fsep (punctuate comma $ map prettyA ps0)
         , nest 2 $ text "exp =" <+> prettyA p
-        , nest 2 $ text "qs0 =" <+> fsep (punctuate comma $ map (prettyTCM . unArg) qs0)
+        , nest 2 $ text "qs0 =" <+> fsep (punctuate comma $ map (prettyTCM . namedArg) qs0)
         , nest 2 $ text "tel0=" <+> prettyTCM tel0
         ]
-      case unArg q of
+      case namedArg q of
         ProjP{} -> strip tel0 ps qs
         VarP _  -> do
           ps <- underAbstraction a tel $ \tel -> strip tel ps qs
@@ -240,7 +240,7 @@ stripWithClausePatterns gamma qs perm ps = do
           A.LitP lit' | lit == lit' -> strip (tel `absApp` Lit lit) ps qs
           _ -> mismatch
       where
-        mismatch = typeError $ WithClausePatternMismatch (namedArg p0) (unArg q)
+        mismatch = typeError $ WithClausePatternMismatch (namedArg p0) (namedArg q)
     -- UNREACHABLE:
     -- strip tel ps qs = error $ "huh? " ++ show (size tel) ++ " " ++ show (size ps) ++ " " ++ show (size qs)
 
@@ -249,7 +249,7 @@ stripWithClausePatterns gamma qs perm ps = do
 --   For instance, @aux a b c@ as @f (suc a) (suc b) | c@
 --
 --   @n@ is the number of with arguments.
-withDisplayForm :: QName -> QName -> Telescope -> Telescope -> Nat -> [I.Arg Pattern] -> Permutation -> Permutation -> TCM DisplayForm
+withDisplayForm :: QName -> QName -> Telescope -> Telescope -> Nat -> [I.NamedArg Pattern] -> Permutation -> Permutation -> TCM DisplayForm
 withDisplayForm f aux delta1 delta2 n qs perm@(Perm m _) lhsPerm = do
   topArgs <- raise (n + size delta1 + size delta2) <$> getContextArgs
   x <- freshNoName_
@@ -307,14 +307,14 @@ withDisplayForm f aux delta1 delta2 n qs perm@(Perm m _) lhsPerm = do
 
 -- Andreas, 2013-02-28 modeled after Coverage/Match/buildMPatterns
 -- The permutation is the one of the original clause.
-patsToTerms :: Permutation -> [I.Arg Pattern] -> [I.Arg DisplayTerm]
+patsToTerms :: Permutation -> [I.NamedArg Pattern] -> [I.Arg DisplayTerm]
 patsToTerms perm ps = evalState (toTerms ps) xs
   where
     xs   = permute (invertP perm) $ downFrom (size perm)
     tick = do x : xs <- get; put xs; return x
 
-    toTerms :: [I.Arg Pattern] -> State [Nat] [I.Arg DisplayTerm]
-    toTerms ps = mapM (T.traverse toTerm) ps
+    toTerms :: [I.NamedArg Pattern] -> State [Nat] [I.Arg DisplayTerm]
+    toTerms ps = mapM (T.traverse $ toTerm . namedThing) ps
 
     toTerm :: Pattern -> State [Nat] DisplayTerm
     toTerm p = case p of

@@ -198,20 +198,25 @@ makeProjection x = inTopContext $ do
 
     checkOccurs cls n = all (nonOccur n) cls
 
-    nonOccur n Clause{clausePerm = Perm _ p, clausePats = ps, clauseBody = b} =
+    nonOccur n cl =
       and [ take n p == [0..n - 1]
           , onlyMatch n ps  -- projection-like functions are only allowed to match on the eliminatee
                             -- otherwise we may end up projecting from constructor applications, in
                             -- which case we can't reconstruct the dropped parameters
           , checkBody n b ]
+      where
+        Perm _ p = clausePerm cl
+        ps       = namedClausePats cl
+        b        = clauseBody cl
 
-    onlyMatch n ps = all (shallowMatch . unArg) (take 1 ps1) &&
-                       noMatches (ps0 ++ drop 1 ps1)
+
+    onlyMatch n ps = all (shallowMatch . namedArg) (take 1 ps1) &&
+                     noMatches (ps0 ++ drop 1 ps1)
       where
         (ps0, ps1) = splitAt n ps
         shallowMatch (ConP _ _ ps) = noMatches ps
         shallowMatch _             = True
-        noMatches = all (noMatch . unArg)
+        noMatches = all (noMatch . namedArg)
         noMatch ConP{} = False
         noMatch LitP{} = False
         noMatch ProjP{}= False

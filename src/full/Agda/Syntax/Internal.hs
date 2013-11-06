@@ -235,7 +235,7 @@ data Clause = Clause
     { clauseRange     :: Range
     , clauseTel       :: Telescope     -- ^ The types of the pattern variables.
     , clausePerm      :: Permutation
-    , clausePats      :: [Arg Pattern]
+    , namedClausePats :: [NamedArg Pattern]
     , clauseBody      :: ClauseBody
     , clauseType      :: Maybe (Arg Type)
       -- ^ The type of the rhs under @clauseTel@.
@@ -244,6 +244,9 @@ data Clause = Clause
       --   pattern on the lhs.
     }
   deriving (Typeable, Show)
+
+clausePats :: Clause -> [Arg Pattern]
+clausePats = map (fmap namedThing) . namedClausePats
 
 data ClauseBody = Body Term
 		| Bind (Abs ClauseBody)
@@ -263,12 +266,16 @@ data Pattern
   = VarP String
     -- ^ The @String@ is a name suggestion.
   | DotP Term
-  | ConP ConHead ConPatternInfo [Arg Pattern]
+  | ConP ConHead ConPatternInfo [NamedArg Pattern]
     -- ^ The @Pattern@s do not contain any projection copatterns.
   | LitP Literal
   | ProjP QName
     -- ^ Projection copattern.  Can only appear by itself.
   deriving (Typeable, Show)
+
+namedVarP :: String -> Named String Pattern
+namedVarP "_" = Named Nothing (VarP "_")
+namedVarP x   = Named (Just x) (VarP x)
 
 -- | The @ConPatternInfo@ states whether the constructor belongs to
 --   a record type (@Just@) or data type (@Nothing@).
@@ -284,7 +291,7 @@ type ConPatternInfo = Maybe (Bool, Arg Type)
 patternVars :: Arg Pattern -> [Arg (Either String Term)]
 patternVars (Common.Arg i (VarP x)     ) = [Common.Arg i $ Left x]
 patternVars (Common.Arg i (DotP t)     ) = [Common.Arg i $ Right t]
-patternVars (Common.Arg i (ConP _ _ ps)) = List.concat $ map patternVars ps
+patternVars (Common.Arg i (ConP _ _ ps)) = List.concat $ map (patternVars . fmap namedThing) ps
 patternVars (Common.Arg i (LitP l)     ) = []
 patternVars (Common.Arg i ProjP{}      ) = []
 
@@ -294,7 +301,7 @@ properlyMatching VarP{} = False
 properlyMatching DotP{} = False
 properlyMatching LitP{} = True
 properlyMatching (ConP _ mt ps) = List.or $ isNothing mt -- not a record cons
-  : map (properlyMatching . unArg) ps  -- or one of subpatterns is a proper m
+  : map (properlyMatching . namedArg) ps  -- or one of subpatterns is a proper m
 properlyMatching ProjP{} = True
 
 ---------------------------------------------------------------------------

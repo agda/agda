@@ -88,7 +88,7 @@ findClause m = do
 makeCase :: InteractionId -> Range -> String -> TCM (CaseContext , [A.Clause])
 makeCase hole rng s = withInteractionId hole $ do
   meta <- lookupInteractionId hole
-  (casectxt, f, clause@(Clause{ clauseTel = tel, clausePerm = perm, clausePats = ps })) <- findClause meta
+  (casectxt, f, clause@(Clause{ clauseTel = tel, clausePerm = perm, namedClausePats = ps })) <- findClause meta
   reportSDoc "interaction.case" 10 $ vcat
     [ text "splitting clause:"
     , nest 2 $ vcat
@@ -121,12 +121,12 @@ makeCase hole rng s = withInteractionId hole $ do
     -- argument to split.
     splitClauseToClause :: SplitClause -> Clause
     splitClauseToClause c = Clause
-      { clauseRange = noRange
-      , clauseTel   = scTel c
-      , clausePerm  = scPerm c
-      , clausePats  = scPats c
-      , clauseBody  = clauseBody clause
-      , clauseType  = scTarget c
+      { clauseRange     = noRange
+      , clauseTel       = scTel c
+      , clausePerm      = scPerm c
+      , namedClausePats = scPats c
+      , clauseBody      = clauseBody clause
+      , clauseType      = scTarget c
       }
 
   -- Finds the new variable corresponding to an old one, if any.

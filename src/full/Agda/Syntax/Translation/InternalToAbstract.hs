@@ -423,11 +423,10 @@ reifyTerm expandAnonDefs v = do
         -- check if we have an absurd lambda
         let reifyAbsurdLambda cont =
               case theDef <$> mdefn of
-                Just Function{ funCompiled = Just Fail,
-                  funClauses = [I.Clause { clausePats = ps }] }
+                Just Function{ funCompiled = Just Fail, funClauses = [cl] }
                   | isAbsurdLambdaName x -> do
                     -- get hiding info from last pattern, which should be ()
-                    let h = getHiding $ last ps
+                    let h = getHiding $ last (clausePats cl)
                     apps (A.AbsurdLam exprInfo h) =<< reifyIArgs vs
                 _ -> cont
         reifyAbsurdLambda $ do
@@ -678,11 +677,11 @@ instance DotVars TypedBinding where
   dotVars (TBind _ _ e) = dotVars e
   dotVars (TNoBind e)   = dotVars e
 
-reifyPatterns :: I.Telescope -> Permutation -> [I.Arg I.Pattern] -> TCM [A.NamedArg A.Pattern]
+reifyPatterns :: I.Telescope -> Permutation -> [I.NamedArg I.Pattern] -> TCM [A.NamedArg A.Pattern]
 reifyPatterns tel perm ps = evalStateT (reifyArgs ps) 0
   where
-    reifyArgs :: [I.Arg I.Pattern] -> StateT Nat TCM [A.NamedArg A.Pattern]
-    reifyArgs is = map (fmap unnamed) <$> mapM reifyArg is
+    reifyArgs :: [I.NamedArg I.Pattern] -> StateT Nat TCM [A.NamedArg A.Pattern]
+    reifyArgs is = map (fmap unnamed) <$> mapM (reifyArg . fmap namedThing) is
 
     reifyArg :: I.Arg I.Pattern -> StateT Nat TCM (A.Arg A.Pattern)
     reifyArg i = traverse reifyPat (setArgColors [] i) -- TODO guilhem

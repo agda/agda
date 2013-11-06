@@ -88,7 +88,7 @@ tomy imi icns typs = do
            clauses' <- tomyClauses clauses
            let narg = case clauses of
                         [] -> 0
-                        I.Clause {I.clausePats = xs} : _ -> length xs
+                        I.Clause {I.namedClausePats = xs} : _ -> length xs
            return (Def narg clauses' Nothing Nothing, [])
      (cont, projfcns2) <- case defn of
       MB.Axiom {} -> return (Postulate, [])
@@ -275,7 +275,8 @@ tomyClauses (cl:cls) = do
   Just cl' -> cl' : cls'
   Nothing -> cls'
 
-tomyClause cl@(I.Clause {I.clausePerm = Perm n ps, I.clausePats = pats, I.clauseBody = body}) = do
+tomyClause cl@(I.Clause {I.clausePerm = Perm n ps, I.clauseBody = body}) = do
+ let pats = I.clausePats cl
  pats' <- mapM tomyPat pats
  body' <- tomyBody body
  return $ case body' of
@@ -289,7 +290,7 @@ tomyPat p = case C.unArg p of
  I.ConP con _ pats -> do
   let n = I.conName con
   c <- getConst True n TMAll
-  pats' <- mapM tomyPat pats
+  pats' <- mapM (tomyPat . fmap C.namedThing) pats
   def <- lift $ getConstInfo n
   cc <- lift $ liftIO $ readIORef c
   let Just npar = fst $ cdorigin cc
@@ -571,7 +572,7 @@ constructPats cmap mainm clause = do
       return (ns'', p' : ps')
      cnvp ns p =
       let hid = cnvh $ C.argInfo p
-      in case C.unArg p of
+      in case C.namedArg p of
        I.VarP n -> return ((hid, Id n) : ns, HI hid (CSPatVar $ length ns))
        I.ConP con _ ps -> do
         let c = I.conName con
@@ -584,7 +585,7 @@ constructPats cmap mainm clause = do
         (t2, _) <- runStateT (tomyExp t) (S {sConsts = (cmap, []), sMetas = initMapS, sEqs = initMapS, sCurMeta = Nothing, sMainMeta = mainm})
         return (ns, HI hid (CSPatExp t2))
        _ -> __IMPOSSIBLE__
- (names, pats) <- cnvps [] (I.clausePats clause)
+ (names, pats) <- cnvps [] (I.namedClausePats clause)
  return (reverse names, pats)
 
 
@@ -643,7 +644,7 @@ frommyClause (ids, pats, mrhs) = do
         return (I.DotP e')
        CSAbsurd -> __IMPOSSIBLE__ -- CSAbsurd not used
        _ -> __IMPOSSIBLE__
-      return $ C.Arg (icnvh hid) p'
+      return $ C.Arg (icnvh hid) $ C.unnamed p'   -- TODO: recover names
  ps <- cnvps 0 pats
  body <- case mrhs of
           Nothing -> return $ I.NoBody
@@ -657,7 +658,7 @@ frommyClause (ids, pats, mrhs) = do
    { I.clauseRange = SP.noRange
    , I.clauseTel   = tel
    , I.clausePerm  = Perm (nv{- + length ids-}) perm
-   , I.clausePats  = ps
+   , I.namedClausePats = ps
    , I.clauseBody  = body
    , I.clauseType  = Nothing -- TODO: compute clause type
    }

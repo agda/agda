@@ -66,7 +66,7 @@ recordPatternToProjections p =
     ConP c (Just (_, t)) ps -> do
       t <- reduce t
       fields <- getRecordTypeFields (unArg t)
-      concat <$> zipWithM comb (map proj fields) (map unArg ps)
+      concat <$> zipWithM comb (map proj fields) (map namedArg ps)
     ProjP{}            -> __IMPOSSIBLE__ -- copattern cannot appear here
   where
     proj p = (`applyE` [Proj $ unArg p])
@@ -431,7 +431,7 @@ translateRecordPatterns clause = do
   -- cs: List of changes, with types in the context of the old
   -- telescope.
 
-  (ps, s, cs) <- runRecPatM $ translatePatterns $ clausePats clause
+  (ps, s, cs) <- runRecPatM $ translatePatterns $ namedClausePats clause
 
   let -- Number of variables + dot patterns in new clause.
       noNewPatternVars = size cs
@@ -502,10 +502,10 @@ translateRecordPatterns clause = do
 
       -- New clause.
       c = clause
-            { clauseTel  = newTel
-            , clausePerm = newPerm
-            , clausePats = applySubst lhsSubst ps
-            , clauseBody = translateBody cs rhsSubst $ clauseBody clause
+            { clauseTel       = newTel
+            , clausePerm      = newPerm
+            , namedClausePats = applySubst lhsSubst ps
+            , clauseBody      = translateBody cs rhsSubst $ clauseBody clause
             }
 
   reportSDoc "tc.lhs.recpat" 10 $
@@ -658,13 +658,10 @@ translatePattern p@DotP{} = removeTree (Leaf p)
 translatePattern p@LitP{} = return (p, [], [])
 translatePattern p@ProjP{}= __IMPOSSIBLE__
 
--- | 'translatePattern' lifted to lists of arguments.
-
-translatePatterns ::
-  [I.Arg Pattern] -> RecPatM ([I.Arg Pattern], [Term], Changes)
+translatePatterns :: [I.NamedArg Pattern] -> RecPatM ([I.NamedArg Pattern], [Term], Changes)
 translatePatterns ps = do
-  (ps', ss, cs) <- unzip3 <$> mapM (translatePattern . unArg) ps
-  return (ps' `withArgsFrom` ps, concat ss, concat cs)
+  (ps', ss, cs) <- unzip3 <$> mapM (translatePattern . namedArg) ps
+  return (zipWith (\p -> fmap (p <$)) ps' ps, concat ss, concat cs)
 
 -- | Traverses a pattern and returns one of two things:
 --
@@ -685,12 +682,12 @@ recordTree ::
   RecPatM (Either (RecPatM (Pattern, [Term], Changes)) RecordTree)
 recordTree p@(ConP _ Nothing _) = return $ Left $ translatePattern p
 recordTree (ConP c ci@(Just (_, t)) ps) = do
-  rs <- mapM (recordTree . unArg) ps
+  rs <- mapM (recordTree . namedArg) ps
   case allRight rs of
     Nothing ->
       return $ Left $ do
         (ps', ss, cs) <- unzip3 <$> mapM (either id removeTree) rs
-        return (ConP c ci (ps' `withArgsFrom` ps),
+        return (ConP c ci (ps' `withNamedArgsFrom` ps),
                 concat ss, concat cs)
     Just ts -> liftTCM $ do
       t <- reduce t

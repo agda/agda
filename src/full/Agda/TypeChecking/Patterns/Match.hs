@@ -57,14 +57,14 @@ instance Monoid (Match a) where
 --   In any case, also returns spine @es@ in reduced form
 --   (with all the weak head reductions performed that were necessary
 --   to come to a decision).
-matchCopatterns :: [I.Arg Pattern] -> [Elim] -> TCM (Match Term, [Elim])
+matchCopatterns :: [I.NamedArg Pattern] -> [Elim] -> TCM (Match Term, [Elim])
 matchCopatterns ps vs = do
     reportSDoc "tc.match" 50 $
       vcat [ text "matchCopatterns"
-           , nest 2 $ text "ps =" <+> fsep (punctuate comma $ map (prettyTCM . unArg) ps)
+           , nest 2 $ text "ps =" <+> fsep (punctuate comma $ map (prettyTCM . namedArg) ps)
            , nest 2 $ text "vs =" <+> fsep (punctuate comma $ map prettyTCM vs)
            ]
-    mapFst mconcat . unzip <$> zipWithM' matchCopattern ps vs
+    mapFst mconcat . unzip <$> zipWithM' (matchCopattern . fmap namedThing) ps vs
 
 -- | Match a single copattern.
 matchCopattern :: I.Arg Pattern -> Elim -> TCM (Match Term, Elim)
@@ -76,7 +76,7 @@ matchCopattern (Arg _ (ProjP p)) elim@Apply{}
 matchCopattern _ elim@Proj{} = return (DontKnow Nothing, elim)
 matchCopattern p (Apply v)   = mapSnd Apply <$> matchPattern p v
 
-matchPatterns :: [I.Arg Pattern] -> [I.Arg Term] -> TCM (Match Term, [I.Arg Term])
+matchPatterns :: [I.NamedArg Pattern] -> [I.Arg Term] -> TCM (Match Term, [I.Arg Term])
 matchPatterns ps vs = do
     reportSDoc "tc.match" 50 $
       vcat [ text "matchPatterns"
@@ -84,7 +84,7 @@ matchPatterns ps vs = do
            , nest 2 $ text "vs =" <+> fsep (punctuate comma $ map prettyTCM vs)
            ]
 
-    (ms,vs) <- unzip <$> zipWithM' matchPattern ps vs
+    (ms,vs) <- unzip <$> zipWithM' (matchPattern . fmap namedThing) ps vs
     return (mconcat ms, vs)
 
 -- | Match a single pattern.

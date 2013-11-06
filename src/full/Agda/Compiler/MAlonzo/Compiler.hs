@@ -257,7 +257,7 @@ conArityAndPars q = do
   return (n - np, np)
 
 clause :: QName -> (Nat, Bool, Clause) -> TCM HS.Decl
-clause q (i, isLast, Clause{ clausePats = ps, clauseBody = b }) =
+clause q (i, isLast, Clause{ namedClausePats = ps, clauseBody = b }) =
   HS.FunBind . (: cont) <$> main where
   main = match <$> argpatts ps (bvars b (0::Nat)) <*> clausebody b
   cont | isLast && any isCon ps = [match (L.map HS.PVar cvs) failrhs]
@@ -274,12 +274,12 @@ clause q (i, isLast, Clause{ clausePats = ps, clauseBody = b }) =
   bvars (Bind (NoAbs _ b)) n = HS.PWildCard : bvars b n
   bvars NoBody             _ = repeat HS.PWildCard -- ?
 
-  isCon (Arg _ ConP{}) = True
-  isCon _              = False
+  isCon (Arg _ (Named _ ConP{})) = True
+  isCon _                        = False
 
 -- argpatts aps xs = hps
 -- xs is alist of haskell *variables* in form of patterns (because of wildcard)
-argpatts :: [I.Arg Pattern] -> [HS.Pat] -> TCM [HS.Pat]
+argpatts :: [I.NamedArg Pattern] -> [HS.Pat] -> TCM [HS.Pat]
 argpatts ps0 bvs = evalStateT (mapM pat' ps0) bvs
   where
   pat   (ProjP _  ) = lift $ typeError $ NotImplemented $ "Compilation of copatterns"
@@ -306,7 +306,7 @@ argpatts ps0 bvs = evalStateT (mapM pat' ps0) bvs
   -- do not match against irrelevant stuff
   pat' a | isIrrelevant a = return $ HS.PWildCard
 -}
-  pat' a = pat $ unArg a
+  pat' a = pat $ namedArg a
 
   tildesEnabled = False
 
@@ -322,7 +322,7 @@ argpatts ps0 bvs = evalStateT (mapM pat' ps0) bvs
 
   -- | Irrelevant patterns are naturally irrefutable.
   irr' a | isIrrelevant a = return $ True
-  irr' a = irr $ unArg a
+  irr' a = irr $ namedArg a
 
 clausebody :: ClauseBody -> TCM HS.Exp
 clausebody b0 = runReaderT (go b0) 0 where

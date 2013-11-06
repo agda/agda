@@ -6,5 +6,5 @@ import Agda.TypeChecking.Monad
 
 data Match a = Yes Simplification [a] | No | DontKnow (Maybe MetaId)
 
-matchPatterns   :: [Arg Pattern] -> Args  -> TCM (Match Term, Args)
-matchCopatterns :: [Arg Pattern] -> Elims -> TCM (Match Term, Elims)
+matchPatterns   :: [NamedArg Pattern] -> Args  -> TCM (Match Term, Args)
+matchCopatterns :: [NamedArg Pattern] -> Elims -> TCM (Match Term, Elims)

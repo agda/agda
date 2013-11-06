@@ -595,9 +595,8 @@ introTactic pmLambda ii = do
      `catchError` \_ -> return []
     _ -> __IMPOSSIBLE__
   where
-    conName [Arg _ (I.ConP c _ _)] = [c]
-    conName [_]                    = []
-    conName _                      = __IMPOSSIBLE__
+    conName [p] = [ c | I.ConP c _ _ <- [namedArg p] ]
+    conName _   = __IMPOSSIBLE__
 
     showTCM v = show <$> prettyTCM v
 
@@ -627,7 +626,7 @@ introTactic pmLambda ii = do
 
     introData t = do
       let tel  = telFromList [domFromArg $ defaultArg ("_", t)]
-          pat  = [defaultArg (I.VarP "c")]
+          pat  = [defaultArg $ unnamed $ I.VarP "c"]
       r <- splitLast CoInductive tel pat
       case r of
         Left err -> return []

@@ -400,7 +400,7 @@ instance Abstract PrimFun where
 instance Abstract Clause where
   abstract tel (Clause r tel' perm ps b t) =
     Clause r (abstract tel tel') (abstract tel perm)
-           (telVars tel ++ ps) (abstract tel b)
+           (namedTelVars tel ++ ps) (abstract tel b)
            t -- nothing to do for t, since it lives under the telescope
 
 instance Abstract CompiledClauses where
@@ -417,8 +417,13 @@ instance Abstract a => Abstract (Case a) where
     Branches (abstract tel cs) (abstract tel ls) (abstract tel m)
 
 telVars :: Telescope -> [Arg Pattern]
-telVars EmptyTel                            = []
-telVars (ExtendTel (Common.Dom info a) tel) = Common.Arg info (VarP $ absName tel) : telVars (unAbs tel)
+telVars = map (fmap namedThing) . namedTelVars
+
+namedTelVars :: Telescope -> [NamedArg Pattern]
+namedTelVars EmptyTel                            = []
+namedTelVars (ExtendTel (Common.Dom info a) tel) =
+  Common.Arg info (Named (Just $ absName tel) $ VarP $ absName tel) :
+  namedTelVars (unAbs tel)
 
 instance Abstract FunctionInverse where
   abstract tel NotInjective  = NotInjective
@@ -673,6 +678,9 @@ instance Subst a => Subst (Abs a) where
   applySubst rho (NoAbs x a) = NoAbs x $ applySubst rho a
 
 instance Subst a => Subst (Arg a) where
+  applySubst rho = fmap (applySubst rho)
+
+instance Subst a => Subst (Named name a) where
   applySubst rho = fmap (applySubst rho)
 
 instance Subst a => Subst (Dom a) where

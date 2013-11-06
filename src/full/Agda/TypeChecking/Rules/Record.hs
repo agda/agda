@@ -353,7 +353,7 @@ checkRecordProjections m r con tel ftel fs = do
           (ptel,[rt]) = splitAt (size tel - 1) $ telToList tel
 	  conp	 = defaultArg
 		 $ ConP con (Just (False, argFromDom $ fmap snd rt))
-                   [ Arg info (VarP "x") | Dom info _ <- telToList ftel ]
+                   [ Arg info $ unnamed $ VarP "x" | Dom info _ <- telToList ftel ]
 	  nobind 0 = id
 	  nobind n = Bind . Abs "_" . nobind (n - 1)
 	  body	 = nobind (size ftel1)
@@ -361,12 +361,12 @@ checkRecordProjections m r con tel ftel fs = do
 		 $ nobind (size ftel2)
 		 $ Body $ bodyMod $ var (size ftel2)
           cltel  = ftel
-	  clause = Clause { clauseRange = getRange info
-                          , clauseTel   = killRange cltel
-                          , clausePerm  = idP $ size ftel
-                          , clausePats  = [conp]
-                          , clauseBody  = body
-                          , clauseType  = Just $ Arg ai t
+	  clause                            = Clause { clauseRange = getRange info
+                          , clauseTel       = killRange cltel
+                          , clausePerm      = idP $ size ftel
+                          , namedClausePats = [Named Nothing <$> conp]
+                          , clauseBody      = body
+                          , clauseType      = Just $ Arg ai t
                           }
 
       -- Andreas, 2013-10-20

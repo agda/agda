@@ -57,11 +57,11 @@ import Agda.Utils.Monad
 import Agda.Utils.Impossible
 
 data SplitClause = SClause
-      { scTel    :: Telescope      -- ^ Type of variables in @scPats@.
-      , scPerm   :: Permutation    -- ^ How to get from the variables in the patterns to the telescope.
-      , scPats   :: [Arg Pattern]  -- ^ The patterns leading to the currently considered branch of the split tree.
-      , scSubst  :: Substitution   -- ^ Substitution from @scTel@ to old context.
-      , scTarget :: Maybe (I.Arg Type) -- ^ The type of the rhs.
+      { scTel    :: Telescope            -- ^ Type of variables in @scPats@.
+      , scPerm   :: Permutation          -- ^ How to get from the variables in the patterns to the telescope.
+      , scPats   :: [I.NamedArg Pattern] -- ^ The patterns leading to the currently considered branch of the split tree.
+      , scSubst  :: Substitution         -- ^ Substitution from @scTel@ to old context.
+      , scTarget :: Maybe (I.Arg Type)   -- ^ The type of the rhs.
       }
 
 -- | A @Covering@ is the result of splitting a 'SplitClause'.
@@ -80,7 +80,7 @@ clauseToSplitClause :: Clause -> SplitClause
 clauseToSplitClause cl = SClause
   { scTel    = clauseTel  cl
   , scPerm   = clausePerm cl
-  , scPats   = clausePats cl
+  , scPats   = namedClausePats cl
   , scSubst  = __IMPOSSIBLE__
   , scTarget = clauseType cl
   }
@@ -119,7 +119,7 @@ coverageCheck f t cs = do
       -- xs            = variable patterns fitting lgamma
       n            = size gamma
       lgamma       = telToList gamma
-      xs           = map (argFromDom . fmap (const $ VarP "_")) $ lgamma
+      xs           = map (argFromDom . fmap (namedVarP . fst)) $ lgamma
       -- construct the initial split clause
       sc           = SClause gamma (idP n) xs idS $ Just $ defaultArg a
   reportSDoc "tc.cover.top" 10 $ vcat
@@ -137,7 +137,7 @@ coverageCheck f t cs = do
     -- report an error if there are uncovered cases
     unless (null pss) $
         setCurrentRange (getRange cs) $
-          typeError $ CoverageFailure f pss
+          typeError $ CoverageFailure f (map (map $ fmap namedThing) pss)
   -- is = indices of unreachable clauses
   let is = Set.toList $ Set.difference (Set.fromList [0..genericLength cs - 1]) used
   -- report an error if there are unreachable clauses
@@ -151,7 +151,7 @@ coverageCheck f t cs = do
 -- | @cover f cs (SClause _ _ ps _) = return (splitTree, used, pss)@.
 --   checks that the list of clauses @cs@ covers the given split clause.
 --   Returns the @splitTree@, the @used@ clauses, and missing cases @pss@.
-cover :: QName -> [Clause] -> SplitClause -> TCM (SplitTree, Set Nat, [[Arg Pattern]])
+cover :: QName -> [Clause] -> SplitClause -> TCM (SplitTree, Set Nat, [[I.NamedArg Pattern]])
 cover f cs sc@(SClause tel perm ps _ target) = do
   reportSDoc "tc.cover.cover" 10 $ vcat
     [ text "checking coverage of pattern:"
@@ -159,11 +159,12 @@ cover f cs sc@(SClause tel perm ps _ target) = do
     , nest 2 $ text "perm =" <+> text (show perm)
     , nest 2 $ text "ps   =" <+> text (show ps)
     ]
-  case match cs ps perm of
+  let ups = map (fmap namedThing) ps
+  case match cs ups perm of
     Yes i          -> do
       reportSLn "tc.cover.cover" 10 $ "pattern covered by clause " ++ show i
       -- Check if any earlier clauses could match with appropriate literals
-      let is = [ j | (j, c) <- zip [0..i-1] cs, matchLits c ps perm ]
+      let is = [ j | (j, c) <- zip [0..i-1] cs, matchLits c ups perm ]
       -- OLD: let is = [ j | (j, c) <- zip [0..] (genericTake i cs), matchLits c ps perm ]
       reportSLn "tc.cover.cover"  10 $ "literal matches: " ++ show is
       return (SplittingDone (size tel), Set.fromList (i : is), [])
@@ -199,7 +200,7 @@ cover f cs sc@(SClause tel perm ps _ target) = do
                 dType <- defType <$> do getConstInfo $ unArg proj -- WRONG: typeOfConst $ unArg proj
                 let -- type of projection instantiated at self
                     target' = Just $ proj $> dType `apply` pargs
-                    sc' = sc { scPats   = scPats sc ++ [fmap ProjP proj]
+                    sc' = sc { scPats   = scPats sc ++ [fmap (Named Nothing . ProjP) proj]
                              , scTarget = target'
                              }
                 (unArg proj,) <$> do cover f cs =<< fixTarget sc'
@@ -294,7 +295,7 @@ fixTarget sc@SClause{ scSubst = sigma, scTarget = target } =
       text "telescope (after substitution): " <+> prettyTCM tel
     let n      = size tel
         lgamma = telToList tel
-        xs     = for lgamma $ (VarP "_" <$) . argFromDom
+        xs     = for lgamma $ (namedVarP "_" <$) . argFromDom
     if (n == 0) then return sc { scTarget = Just $ a $> b }
      else return $ SClause
       { scTel    = telFromList $ telToList (scTel sc) ++ lgamma
@@ -389,7 +390,7 @@ computeNeighbourhood delta1 n delta2 perm d pars ixs hix hps con = do
 
       -- Plug the hole with the constructor and apply ρ
       -- TODO: Is it really correct to use Nothing here?
-      let conp = ConP con Nothing $ map (fmap VarP) $ teleArgNames gamma
+      let conp = ConP con Nothing $ map (fmap namedVarP) $ teleArgNames gamma
           ps   = plugHole conp hps
           ps'  = applySubst rho ps      -- Δ₁ΓΔ₂' ⊢ ps'
       debugPlugged ps ps'
@@ -487,7 +488,7 @@ splitClauseWithAbs :: Clause -> Nat -> TCM (Either SplitError (Either SplitClaus
 splitClauseWithAbs c x = split' Inductive (clauseToSplitClause c) (x, Nothing)
 
 -- | Entry point from @TypeChecking.Empty@ and @Interaction.BasicOps@.
-splitLast :: Induction -> Telescope -> [Arg Pattern] -> TCM (Either SplitError Covering)
+splitLast :: Induction -> Telescope -> [I.NamedArg Pattern] -> TCM (Either SplitError Covering)
 splitLast ind tel ps = split ind sc (0, Nothing)
   where sc = SClause tel (idP $ size tel) ps __IMPOSSIBLE__ Nothing
 

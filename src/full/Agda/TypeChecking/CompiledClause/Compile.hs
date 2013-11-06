@@ -141,7 +141,7 @@ splitOn single n cs = mconcat $ map (fmap (:[]) . splitC n) $ expandCatchAlls si
 splitC :: Int -> Cl -> Case Cl
 splitC n (ps, b) = case unArg p of
   ProjP d     -> conCase d $ WithArity 0 (ps0 ++ ps1, b)
-  ConP c _ qs -> conCase (conName c) $ WithArity (length qs) (ps0 ++ qs ++ ps1, b)
+  ConP c _ qs -> conCase (conName c) $ WithArity (length qs) (ps0 ++ map (fmap namedThing) qs ++ ps1, b)
   LitP l      -> litCase l (ps0 ++ ps1, b)
   VarP{}      -> catchAll (ps, b)
   DotP{}      -> catchAll (ps, b)
@@ -217,7 +217,7 @@ expandCatchAlls single n cs =
 
     expand ps b q =
       case q of
-        ConP c _ qs' -> (ps0 ++ [defaultArg $ ConP c Nothing (genericReplicate m $ defaultArg $ VarP "_")] ++ ps1,
+        ConP c _ qs' -> (ps0 ++ [defaultArg $ ConP c Nothing (genericReplicate m $ defaultArg $ unnamed $ VarP "_")] ++ ps1,
                          substBody n' m (Con c (map var [m - 1, m - 2..0])) b)
           where m = length qs'
         LitP l -> (ps0 ++ [defaultArg $ LitP l] ++ ps1, substBody n' 0 (Lit l) b)
@@ -230,7 +230,7 @@ expandCatchAlls single n cs =
         n' = countVars ps0
         countVars = sum . map (count . unArg)
         count VarP{}        = 1
-        count (ConP _ _ ps) = countVars ps
+        count (ConP _ _ ps) = countVars $ map (fmap namedThing) ps
         count DotP{}        = 1   -- dot patterns are treated as variables in the clauses
         count _             = 0
 

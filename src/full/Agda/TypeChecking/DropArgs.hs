@@ -50,7 +50,7 @@ instance DropArgs Clause where
           -- Andreas, 2012-09-25: just dropping the front of telescope
           -- makes it ill-formed (unbound indices)
           -- we should let the telescope intact!?
-        , clausePats = drop n $ clausePats cl
+        , namedClausePats = drop n $ namedClausePats cl
         , clauseBody = dropArgs n $ clauseBody cl -- BUG: need to drop also from recursive calls!!
         }
 

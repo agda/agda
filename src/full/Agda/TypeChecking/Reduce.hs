@@ -537,15 +537,16 @@ appDefE' v cls es = goCls cls $ map ignoreReduced es
         -- clauses after they have been type-checked, to type-check
         -- the remaining clauses (see Issue 907).
         [] -> cantReduce es -- WAS: typeError $ IncompletePatternMatching v es
-        Clause { clausePats = pats , clauseBody = body } : cls -> do
-          let n = length pats
+        cl @ Clause { clauseBody = body } : cls -> do
+          let pats = namedClausePats cl
+              n    = length pats
           -- if clause is underapplied, skip to next clause
           if length es < n then goCls cls es else do
-            let (es0, es1) = splitAt (length pats) es
+            let (es0, es1) = splitAt n es
             (m, es0) <- matchCopatterns pats es0
             es <- return $ es0 ++ es1
             case m of
-              No		      -> goCls cls es
+              No                -> goCls cls es
               DontKnow Nothing  -> cantReduce es
               DontKnow (Just m) -> return $ NoReduction $ blocked m $ v `applyE` es
               Yes simpl vs -- vs is the subst. for the variables bound in body
@@ -688,6 +689,9 @@ instance (Subst t, Simplify t) => Simplify (Abs t) where
 instance Simplify t => Simplify (Arg t) where
     simplify = traverse simplify
 
+instance Simplify t => Simplify (Named name t) where
+    simplify = traverse simplify
+
 instance Simplify t => Simplify (Dom t) where
     simplify = traverse simplify
 
@@ -822,6 +826,9 @@ instance (Subst t, Normalise t) => Normalise (Abs t) where
 instance Normalise t => Normalise (Arg t) where
     normalise a | isIrrelevant a = return a -- Andreas, 2012-04-02: Do not normalize irrelevant terms!?
                 | otherwise                       = traverse normalise a
+
+instance Normalise t => Normalise (Named name t) where
+    normalise = traverse normalise
 
 instance Normalise t => Normalise (Dom t) where
     normalise = traverse normalise
@@ -970,6 +977,9 @@ instance (Subst t, InstantiateFull t) => InstantiateFull (Abs t) where
     instantiateFull (NoAbs x a) = NoAbs x <$> instantiateFull a
 
 instance InstantiateFull t => InstantiateFull (Arg t) where
+    instantiateFull = traverse instantiateFull
+
+instance InstantiateFull t => InstantiateFull (Named name t) where
     instantiateFull = traverse instantiateFull
 
 instance InstantiateFull t => InstantiateFull (Dom t) where

@@ -344,10 +344,10 @@ class ComputeOccurrences a where
   occurrences :: a -> OccM Occurrences
 
 instance ComputeOccurrences Clause where
-  occurrences (Clause{ clausePats = ps0, clauseBody = body }) = do
-    let ps = map unArg ps0
+  occurrences cl = do
+    let ps = map unArg $ clausePats cl
     (concatOccurs (mapMaybe matching (zip [0..] ps)) >+<) <$>
-      walk (patItems ps) body
+      walk (patItems ps) (clauseBody cl)
     where
       matching (i, p)
         | properlyMatching p = Just $ occursAs Matched $ here $ AnArg i
@@ -378,7 +378,7 @@ instance ComputeOccurrences Clause where
       nVars p = case p of
         VarP{}      -> 1
         DotP{}      -> 1
-        ConP _ _ ps -> sum $ map (nVars . unArg) ps
+        ConP _ _ ps -> sum $ map (nVars . namedArg) ps
         LitP{}      -> 0
         ProjP{}     -> 0
 
@@ -504,10 +504,10 @@ computeOccurrences q = do
 --   This is used instead of special treatment of lambdas
 --   (which was unsound: issue 121)
 etaExpandClause :: Nat -> Clause -> Clause
-etaExpandClause n c@Clause{ clausePats = ps, clauseBody = b }
+etaExpandClause n c@Clause{ namedClausePats = ps, clauseBody = b }
   | m <= 0    = c
-  | otherwise = c { clausePats = ps ++ genericReplicate m (defaultArg $ VarP "_")
-                  , clauseBody = liftBody m b
+  | otherwise = c { namedClausePats = ps ++ genericReplicate m (defaultArg $ unnamed $ VarP "_")
+                  , clauseBody      = liftBody m b
                   }
   where
     m = n - genericLength ps

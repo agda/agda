@@ -94,7 +94,7 @@ splitProblem mf (Problem ps (perm, qs) tel pr) = do
       ++ maybe "" ((" for definition " ++) . show) mf
     reportSDoc "tc.lhs.split" 30 $ sep
       [ nest 2 $ text "ps   =" <+> sep (map (P.parens <.> prettyA) ps)
-      , nest 2 $ text "qs   =" <+> sep (map (P.parens <.> prettyTCM . unArg) qs)
+      , nest 2 $ text "qs   =" <+> sep (map (P.parens <.> prettyTCM . namedArg) qs)
       , nest 2 $ text "perm =" <+> prettyTCM perm
       , nest 2 $ text "tel  =" <+> prettyTCM tel
       ]

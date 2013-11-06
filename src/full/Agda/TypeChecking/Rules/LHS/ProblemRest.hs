@@ -97,7 +97,8 @@ problemFromPats ps a = do
       pr        = ProblemRest ps2 $ defaultArg b
 
       -- internal patterns start as all variables
-  ips <- mapM (return . argFromDom . fmap (VarP . fst)) as
+      namedVar x = Named (Just x) (VarP x)
+  ips <- mapM (return . argFromDom . fmap (namedVar . fst)) as
 
       -- the initial problem for starting the splitting
   let problem  = Problem ps1 (idP $ size ps1, ips) gamma pr :: Problem
@@ -138,7 +139,7 @@ updateProblemRest_ p@(Problem ps0 (perm0@(Perm n0 is0), qs0) tel0 (ProblemRest p
           (ps1,ps2) = splitAt (size as) ps
           tel1      = telFromList $ telToList tel0 ++ as
           pr        = ProblemRest ps2 (a $> b)
-          qs1       = map (argFromDom . fmap (VarP . fst)) as
+          qs1       = map (argFromDom . fmap (namedVarP . fst)) as
           n         = size as
           perm1     = liftP n perm0 -- IS: Perm (n0 + n) $ is0 ++ [n0..n0+n-1]
       reportSDoc "tc.lhs.problem" 10 $ addCtxTel tel0 $ vcat

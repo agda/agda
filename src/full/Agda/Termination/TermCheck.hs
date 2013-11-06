@@ -543,7 +543,7 @@ openClause conf perm ps body = do
 
     build :: Pattern -> StateT [Nat] TCM DeBruijnPat
     build (VarP _)        = VarDBP <$> tick
-    build (ConP con _ ps) = ConDBP (conName con) <$> mapM (build . unArg) ps
+    build (ConP con _ ps) = ConDBP (conName con) <$> mapM (build . namedArg) ps
     build (DotP t)        = tick *> do lift $ termToDBP conf t
     build (LitP l)        = return $ LitDBP l
     build (ProjP d)       = return $ ProjDBP d
@@ -551,10 +551,10 @@ openClause conf perm ps body = do
 -- | Extract recursive calls from one clause.
 termClause :: DBPConf -> MutualNames -> QName -> Delayed -> Clause -> TCM Calls
 termClause conf names name delayed clause = do
-  (Clause { clauseTel  = tel
-          , clausePerm = perm
-          , clausePats = argPats'
-          , clauseBody = body }) <- introHiddenLambdas clause
+  cl @ Clause { clauseTel  = tel
+              , clausePerm = perm
+              , clauseBody = body } <- introHiddenLambdas clause
+  let argPats' = clausePats cl
   reportSDoc "term.check.clause" 25 $ vcat
     [ text "termClause"
     , nest 2 $ text "tel      =" <+> prettyTCM tel
@@ -594,7 +594,7 @@ introHiddenLambdas clause@(Clause range ctel perm ps body (Just t)) = do
       return $ Clause range ctel' perm' ps' body' $ Just (t $> t')
   where
     toPat (Common.Arg (Common.ArgInfo h r c) x) =
-           Common.Arg (Common.ArgInfo h r []) (VarP x)
+           Common.Arg (Common.ArgInfo h r []) $ Named (Just x) $ VarP x
     removeHiddenLambdas :: ClauseBody -> ([I.Arg String], ClauseBody)
     removeHiddenLambdas = underBinds $ hlamsToBinds
 

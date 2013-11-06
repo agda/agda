@@ -113,7 +113,7 @@ checkInjectivity f cs
     -- Is it pointless to use injectivity for this function?
     pointLess []      = True
     pointLess (_:_:_) = False
-    pointLess [Clause{clausePats = ps}] = all (noMatch . unArg) ps
+    pointLess [cl] = all (noMatch . unArg) $ clausePats cl
       where noMatch ConP{} = False
             noMatch LitP{} = False
             noMatch ProjP{}= False
@@ -204,9 +204,9 @@ useInjectivity cmp a u v = do
     invert _ _ a inv args Nothing  = fallBack
     invert org f ftype inv args (Just h) = case Map.lookup h inv of
       Nothing -> typeError $ UnequalTerms cmp u v a
-      Just (Clause{ clauseTel  = tel
-                  , clausePerm = perm
-                  , clausePats = ps }) -> do -- instArgs args ps
+      Just cl@Clause{ clauseTel  = tel
+                    , clausePerm = perm } -> do
+          let ps = clausePats cl
           -- These are what dot patterns should be instantiated at
           ms <- map unArg <$> newTelMeta tel
           reportSDoc "tc.inj.invert" 20 $ vcat
@@ -275,7 +275,7 @@ useInjectivity cmp a u v = do
     metaElim (Arg _ (ProjP p)) = return $ Proj p
     metaElim (Arg info p)         = Apply . Arg info <$> metaPat p
 
-    metaArgs args = mapM (traverse metaPat) args
+    metaArgs args = mapM (traverse $ metaPat . namedThing) args
 
     metaPat (DotP v)         = dotP v
     metaPat (VarP _)         = nextMeta

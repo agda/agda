@@ -17,7 +17,7 @@ import System.FilePath ( splitFileName, (</>) )
 import Agda.Interaction.FindFile ( findFile, findInterfaceFile )
 import Agda.Interaction.Imports ( isNewerThan )
 import Agda.Interaction.Options ( optCompileDir )
-import Agda.Syntax.Common ( Nat, Arg, unArg )
+import Agda.Syntax.Common ( Nat, Arg, unArg, namedArg )
 import Agda.Syntax.Concrete.Name ( projectRoot )
 import Agda.Syntax.Abstract.Name
   ( ModuleName(MName), QName,
@@ -317,7 +317,7 @@ mapping' (ProjP _)     (av,bv,es) =
 mapping' (VarP _)      (av,bv,es) = (av+1, bv+1, Local (LocalId bv) : es)
 mapping' (DotP _)      (av,bv,es) = (av+1, bv+1, Local (LocalId bv) : es)
 mapping' (ConP _ _ ps) (av,bv,es) = (av',bv'+1,es') where
-  (av',bv',es') = foldr mapping' (av,bv,es) (map unArg ps)
+  (av',bv',es') = foldr mapping' (av,bv,es) (map namedArg ps)
 mapping' (LitP _)      (av,bv,es) = (av, bv+1, es)
 
 -- Not doing literal patterns yet
@@ -326,7 +326,7 @@ pattern :: Pattern -> TCM Patt
 pattern (ProjP _)     = typeError $ NotImplemented $ "Compilation of copatterns"
 pattern (ConP c _ ps) = do
   l <- tag $ conName c
-  ps <- mapM (pattern . unArg) ps
+  ps <- mapM (pattern . namedArg) ps
   return (Tagged l ps)
 pattern _             = return VarPatt
 

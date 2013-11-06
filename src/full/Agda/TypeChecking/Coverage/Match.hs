@@ -82,7 +82,7 @@ buildMPatterns perm ps = evalState (mapM (traverse build) ps) xs
     tick = do x : xs <- get; put xs; return x
 
     build (VarP _)        = VarMP <$> tick
-    build (ConP con _ ps) = ConMP con <$> mapM (traverse build) ps
+    build (ConP con _ ps) = ConMP con <$> mapM (traverse build . fmap namedThing) ps
     build (DotP t)        = tick *> buildT t
     build (LitP l)        = return $ LitMP l
     build (ProjP dest)    = return $ ProjMP dest
@@ -229,7 +229,7 @@ matchPat mlit (ConP c _ ps) q = case q of
   VarMP x -> Block [(x, Just [c])]
   WildMP{} -> No -- Andreas, 2013-05-15 this was "Yes()" triggering issue 849
   ConMP c' qs
-    | c == c'   -> matchPats mlit ps qs
+    | c == c'   -> matchPats mlit (map (fmap namedThing) ps) qs
     | otherwise -> No
   LitMP _  -> __IMPOSSIBLE__
   ProjMP _ -> __IMPOSSIBLE__

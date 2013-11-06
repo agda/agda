@@ -5,6 +5,7 @@
 -}
 module Agda.Syntax.Common where
 
+import Control.Applicative
 import Data.Typeable (Typeable)
 -- import Control.Applicative
 import Data.Foldable
@@ -328,6 +329,10 @@ noColorArg h r = Arg $ ArgInfo { argInfoHiding    = h
 withArgsFrom :: [a] -> [Arg c b] -> [Arg c a]
 xs `withArgsFrom` args =
   zipWith (\x arg -> fmap (const x) arg) xs args
+
+withNamedArgsFrom :: [a] -> [NamedArg c b] -> [NamedArg c a]
+xs `withNamedArgsFrom` args =
+  zipWith (\x -> fmap (x <$)) xs args
 
 ---------------------------------------------------------------------------
 -- * Function type domain

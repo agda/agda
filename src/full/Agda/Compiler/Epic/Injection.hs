@@ -100,7 +100,7 @@ patternToTerm n p = case p of
                              $ snd
                              $ foldr (\ arg (n, ts) -> (n + nrBinds arg, patternToTerm n arg : ts))
                                      (n , [])
-                             $ map unArg args
+                             $ map namedArg args
     LitP l          -> Lit l
     ProjP d         -> Def d [] -- Andreas, 2012-10-31 that might not be enought to get a term from list of patterns (TODO)
 
@@ -108,18 +108,18 @@ nrBinds :: Num i => Pattern -> i
 nrBinds p = case p of
     VarP v          -> 1
     DotP t          -> 0
-    ConP c typ args -> sum $ map (nrBinds . unArg) args
+    ConP c typ args -> sum $ map (nrBinds . namedArg) args
     LitP l          -> 0
     ProjP{}         -> 0
 
-substForDot :: [I.Arg Pattern] -> Substitution
+substForDot :: [I.NamedArg Pattern] -> Substitution
 substForDot = makeSubst 0 0 . reverse . calcDots
   where
     makeSubst i accum [] = raiseS (i + accum)
     makeSubst i accum (True  : ps) = makeSubst i (accum +1) ps
     makeSubst i accum (False : ps) = var (i + accum) :# makeSubst (i+1) accum ps
 
-    calcDots = concatMap calcDots' . map unArg
+    calcDots = concatMap calcDots' . map namedArg
     calcDots' p = case p of
         VarP v          -> [False]
         DotP t          -> [True]
@@ -135,7 +135,7 @@ isInjectiveHere nam idx clause = case getBody clause of
   Nothing -> return emptyC
   Just body -> do
     let t    = patternToTerm idxR $ unArg $ clausePats clause !! idx
-        t'   = applySubst (substForDot $ clausePats clause) t
+        t'   = applySubst (substForDot $ namedClausePats clause) t
         idxR = sum . map (nrBinds . unArg) . genericDrop (idx + 1) $ clausePats clause
     body' <- lift $ reduce body
     injFs <- gets (injectiveFuns . importedModules)
