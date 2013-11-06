@@ -400,14 +400,14 @@ reifyTerm expandAnonDefs v = do
         r <- reduceDefCopy x vs
         case r of
           YesReduction _ v -> do
-            reportSLn "reify.anon" 20 $ unlines
+            reportSLn "reify.anon" 60 $ unlines
               [ "reduction on defined ident. in anonymous module"
               , "x = " ++ show x
               , "v = " ++ show v
               ]
             reify v
           NoReduction () -> do
-            reportSLn "reify.anon" 20 $ unlines
+            reportSLn "reify.anon" 60 $ unlines
               [ "no reduction on defined ident. in anonymous module"
               , "x  = " ++ show x
               , "vs = " ++ show vs
