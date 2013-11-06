@@ -321,13 +321,13 @@ copyScope new s = runStateT (copy new s) (Map.empty, Map.empty)
     old  = scopeName s
 
     copyM :: NameSpaceId -> ModulesInScope -> WSM ModulesInScope
-    copyM ImportedNS      ms = return ms
+    copyM ImportedNS      ms = traverse (mapM $ onMod renMod) ms
     copyM PrivateNS       _  = return Map.empty
     copyM PublicNS        ms = traverse (mapM $ onMod renMod) ms
     copyM OnlyQualifiedNS ms = traverse (mapM $ onMod renMod) ms
 
     copyD :: NameSpaceId -> NamesInScope -> WSM NamesInScope
-    copyD ImportedNS      ds = return ds
+    copyD ImportedNS      ds = traverse (mapM $ onName renName) ds
     copyD PrivateNS       _  = return Map.empty
     copyD PublicNS        ds = traverse (mapM $ onName renName) ds
     copyD OnlyQualifiedNS ds = traverse (mapM $ onName renName) ds
@@ -349,8 +349,13 @@ copyScope new s = runStateT (copy new s) (Map.empty, Map.empty)
     findName x = Map.lookup x <$> gets snd
     findMod  x = Map.lookup x <$> gets fst
 
+    isInOld qs = isPrefixOf (A.mnameToList old) qs
+
     -- Change a binding M.x -> old.M'.y to M.x -> new.M'.y
+    -- Ulf, 2013-11-06: We should run this also on the imported name space
+    -- (issue892), so make sure to only rename things with the prefix M.
     renName :: A.QName -> WSM A.QName
+    renName x | not (isInOld $ A.qnameToList x) = return x
     renName x = do
       -- Check if we've seen it already
       my <- findName x
@@ -368,6 +373,7 @@ copyScope new s = runStateT (copy new s) (Map.empty, Map.empty)
 
     -- Change a binding M.x -> old.M'.y to M.x -> new.M'.y
     renMod :: A.ModuleName -> WSM A.ModuleName
+    renMod x | not (isInOld $ A.mnameToList x) = return x
     renMod x = do
       -- Check if we've seen it already
       my <- findMod x
