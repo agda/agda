@@ -50,7 +50,7 @@ dbraces = braces . braces'
 bracesAndSemicolons :: [Doc] -> Doc
 bracesAndSemicolons []       = text "{}"
 bracesAndSemicolons (d : ds) =
-  vcat ([text "{" <+> d] ++ map (text ";" <+>) ds ++ [text "}"])
+  sep ([text "{" <+> d] ++ map (text ";" <+>) ds ++ [text "}"])
 
 arrow  = text "\x2192"
 lambda = text "\x03bb"
