@@ -30,14 +30,17 @@ import Agda.Utils.Monad
 #include "../undefined.h"
 import Agda.Utils.Impossible
 
-initialIFSCandidates :: TCM [(Term, Type)]
+-- | A candidate solution for an instance meta is a term with its type.
+type Candidates = [(Term, Type)]
+
+initialIFSCandidates :: TCM Candidates
 initialIFSCandidates = do
   cands1 <- getContextVars
   cands2 <- getScopeDefs
   return $ cands1 ++ cands2
   where
     -- get a list of variables with their type, relative to current context
-    getContextVars :: TCM [(Term, Type)]
+    getContextVars :: TCM Candidates
     getContextVars = do
       ctx <- getContext
       let vars = [ (var i, raise (i + 1) t)
@@ -53,7 +56,7 @@ initialIFSCandidates = do
                  ]
       return $ vars ++ lets
 
-    getScopeDefs :: TCM [(Term, Type)]
+    getScopeDefs :: TCM Candidates
     getScopeDefs = do
       scopeInfo <- gets stScope
       let ns = everythingInScope scopeInfo
@@ -65,7 +68,7 @@ initialIFSCandidates = do
       cands <- mapM (candidate rel) qs
       return $ concat cands
 
-    candidate :: Relevance -> QName -> TCM [(Term, Type)]
+    candidate :: Relevance -> QName -> TCM Candidates
     candidate rel q =
       -- Andreas, 2012-07-07:
       -- we try to get the info for q
@@ -87,32 +90,6 @@ initialIFSCandidates = do
         handle (TypeError _ (Closure {clValue = InternalError _})) = return []
         handle err                                                 = throwError err
 
-{- OLD CODE
-    getScopeDefs :: TCM [(Term, Type)]
-    getScopeDefs = do
-      scopeInfo <- gets stScope
-      let ns = everythingInScope scopeInfo
-      let nsList = Map.toList $ nsNames ns
-      -- all abstract names in scope are candidates
-      -- (even ones that you can't refer to unambiguously)
-      let cands2Names = nsList >>= snd
-      cands2Types <- mapM (typeOfConst . anameName) cands2Names
-      cands2Rel   <- mapM (relOfConst . anameName) cands2Names
-      cands2FV    <- mapM (constrFreeVarsToApply . anameName) cands2Names
-      rel         <- asks envRelevance
-      return $ [(Def (anameName an) vs, t) |
-                    (an, t, r, vs) <- zip4 cands2Names cands2Types cands2Rel cands2FV,
-                    r `moreRelevant` rel ]
-    constrFreeVarsToApply :: QName -> TCM Args
-    constrFreeVarsToApply n = do
-      args <- freeVarsToApply n
-      defn <- theDef <$> getConstInfo n
-      return $ case defn of
-        -- drop parameters if it's a projection function...
-        Function{ funProjection = Just (rn,i) } -> genericDrop (i - 1) args
-        _                                       -> args
--}
-
 -- | @initializeIFSMeta s t@ generates an instance meta of type @t@
 --   with suggested name @s@.
 initializeIFSMeta :: String -> Type -> TCM Term
@@ -125,7 +102,7 @@ initializeIFSMeta s t = do
 --   If successful, meta @m@ is solved with the instantiation of @v@.
 --   If unsuccessful, the constraint is regenerated, with possibly reduced
 --   candidate set.
-findInScope :: MetaId -> [(Term, Type)] -> TCM ()
+findInScope :: MetaId -> Candidates -> TCM ()
 findInScope m cands = whenJustM (findInScope' m cands) $ addConstraint . FindInScope m
 {- SAME CODE, POINTFULL
   do fisres <- findInScope' m cands
@@ -134,9 +111,9 @@ findInScope m cands = whenJustM (findInScope' m cands) $ addConstraint . FindInS
        Just cs -> addConstraint $ FindInScope m cs
 -}
 
--- Result says whether we need to add constraint, and if so, the set of
--- remaining candidates
-findInScope' :: MetaId -> [(Term, Type)] -> TCM (Maybe [(Term, Type)])
+-- | Result says whether we need to add constraint, and if so, the set of
+--   remaining candidates.
+findInScope' :: MetaId -> Candidates -> TCM (Maybe Candidates)
 findInScope' m cands = ifM (isFrozen m) (return (Just cands)) $ do
     reportSDoc "tc.constr.findInScope" 15 $ text ("findInScope 2: constraint: " ++ show m ++ "; candidates left: " ++ show (length cands))
     t <- getMetaTypeInContext m
@@ -190,12 +167,14 @@ getMetaTypeInContext m = do
 
 -- | Given a meta @m@ of type @t@ and a list of candidates @cands@,
 -- @checkCandidates m t cands@ returns a refined list of valid candidates.
-checkCandidates :: MetaId -> Type -> [(Term, Type)] -> TCM [(Term, Type)]
+checkCandidates :: MetaId -> Type -> Candidates -> TCM Candidates
 checkCandidates m t cands = localState $ disableDestructiveUpdate $ do
   -- for candidate checking, we don't take into account other IFS
   -- constrains
   dropConstraints (isIFSConstraint . clValue . theConstraint)
-  filterM (uncurry $ checkCandidateForMeta m t) cands
+  cands <- filterM (uncurry $ checkCandidateForMeta m t) cands
+  -- Drop all candidates which are equal to the first one
+  dropSameCandidates cands
   where
     checkCandidateForMeta :: MetaId -> Type -> Term -> Type -> TCM Bool
     checkCandidateForMeta m t term t' =
@@ -242,6 +221,19 @@ checkCandidates m t cands = localState $ disableDestructiveUpdate $ do
     isIFSConstraint FindInScope{} = True
     isIFSConstraint UnBlock{}     = True -- otherwise test/fail/Issue723 loops
     isIFSConstraint _             = False
+
+    -- Drop all candidates which are judgmentally equal to the first one.
+    -- This is sufficient to reduce the list to a singleton should all be equal.
+    dropSameCandidates :: Candidates -> TCM Candidates
+    dropSameCandidates cands = do
+      case cands of
+        []            -> return cands
+        c@(v,a) : vas -> (c:) <$> dropWhileM equal vas
+          where
+            equal (v',a') = dontAssignMetas $ ifNoConstraints_ (equalType a a' >> equalTerm a v v')
+                              {- then -} (return True)
+                              {- else -} (\ _ -> return False)
+                            `catchError` (\ _ -> return False)
 
 -- | To preserve the invariant that a constructor is not applied to its
 --   parameter arguments, we explicitly check whether function term
