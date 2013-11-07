@@ -61,6 +61,11 @@ getRecordDef :: QName -> TCM Defn
 getRecordDef r = maybe err return =<< isRecord r
   where err = typeError $ ShouldBeRecordType (El Prop $ Def r [])
 
+-- | Get the record name belonging to a field name.
+getRecordOfField :: QName -> TCM (Maybe QName)
+getRecordOfField d = maybe Nothing fromP <$> isProjection d
+  where fromP Projection{ projProper = mp, projFromType = r} = mp $> r
+
 -- | Get the field names of a record.
 getRecordFieldNames :: QName -> TCM [I.Arg C.Name]
 getRecordFieldNames r = recordFieldNames <$> getRecordDef r

@@ -40,7 +40,7 @@ import Agda.Termination.RecCheck
 import Agda.TypeChecking.Monad
 import Agda.TypeChecking.Pretty
 import Agda.TypeChecking.Reduce (reduce, normalise, instantiate, instantiateFull)
-import Agda.TypeChecking.Records (isRecordConstructor, isInductiveRecord)
+import Agda.TypeChecking.Records -- (isRecordConstructor, isInductiveRecord)
 import Agda.TypeChecking.Telescope
 import Agda.TypeChecking.EtaContract
 import Agda.TypeChecking.Monad.Builtin
@@ -957,10 +957,45 @@ compareElim suc e p = do
     , nest 2 $ text $ "p = " ++ show p
     ]
   case (e, p) of
-    (Proj d, ProjDBP d') | d == d' -> return Term.le
+--    (Proj d, ProjDBP d') | d == d' -> return Term.le
+    (Proj d, ProjDBP d')           -> compareProj d d'
     (Proj{}, _         )           -> return Term.unknown
     (Apply{}, ProjDBP{})           -> return Term.unknown
     (Apply arg, p)                 -> compareTerm suc (unArg arg) p
+
+-- | In dependent records, the types of later fields may depend on the
+--   values of earlier fields.  Thus when defining an inhabitant of a
+--   dependent record type such as Σ by copattern matching,
+--   a recursive call eliminated by an earlier projection (proj₁) might
+--   occur in the definition at a later projection (proj₂).
+--   Thus, earlier projections are considered "smaller" when
+--   comparing copattern spines.  This is an ok approximation
+--   of the actual dependency order.
+--   See issues 906, 942.
+compareProj :: QName -> QName -> TCM Term.Order
+compareProj d d'
+  | d == d' = return Term.le
+  | otherwise = do
+      -- different projections
+      mr  <- getRecordOfField d
+      mr' <- getRecordOfField d'
+      case (mr, mr') of
+        (Just r, Just r') | r == r' -> do
+          -- of same record
+          def <- theDef <$> getConstInfo r
+          case def of
+            Record{ recFields = fs } -> do
+              fs <- return $ map unArg fs
+              case (find (d==) fs, find (d'==) fs) of
+                (Just i, Just i')
+                  -- earlier field is smaller
+                  | i < i'    -> return Term.lt
+                  | i == i'   -> do
+                     __IMPOSSIBLE__
+                  | otherwise -> return Term.unknown
+                _ -> __IMPOSSIBLE__
+            _ -> __IMPOSSIBLE__
+        _ -> return Term.unknown
 
 -- | 'makeCM' turns the result of 'compareArgs' into a proper call matrix
 makeCM :: Index -> Index -> [[Term.Order]] -> Term.CallMatrix
