@@ -157,10 +157,12 @@ findInScope' m cands = ifM (isFrozen m) (return (Just cands)) $ do
           prettyTCM t <+> text "': '" <+> prettyTCM term <+>
           text "', of type '" <+> prettyTCM t' <+> text "'."
 
+        -- if t' takes initial hidden arguments, apply them
         ca <- liftTCM $ runErrorT $ checkArguments ExpandLast DontExpandInstanceArguments (getRange mv) [] t' t
         case ca of
           Left _ -> __IMPOSSIBLE__
           Right (args, t'') -> do
+            -- @args@ are the hidden arguments @t'@ takes, @t''@ is @t' `apply` args@
 {- TODO
         (args, t'') <- implicitArgs (...) t'
         do
@@ -180,17 +182,14 @@ findInScope' m cands = ifM (isFrozen m) (return (Just cands)) $ do
           prettyTCM (List.map fst cs)
         return (Just cs)
 
--- return the meta's type, applied to the current context
+-- | Given a meta, return the normalized type applied to the current context.
 getMetaTypeInContext :: MetaId -> TCM Type
 getMetaTypeInContext m = do
-  mv <- lookupMeta m
-  let j = mvJudgement mv
-  tj <- getMetaType m
-  ctxArgs <- getContextArgs
-  normalise $ tj `piApply` ctxArgs
+  t <- getMetaType m
+  normalise . (t `piApply`) =<< getContextArgs
 
--- returns a refined list of valid candidates and the (normalised) type of the
--- meta, applied to the context (for convenience)
+-- | Given a meta @m@ of type @t@ and a list of candidates @cands@,
+-- @checkCandidates m t cands@ returns a refined list of valid candidates.
 checkCandidates :: MetaId -> Type -> [(Term, Type)] -> TCM [(Term, Type)]
 checkCandidates m t cands = localState $ disableDestructiveUpdate $ do
   -- for candidate checking, we don't take into account other IFS
@@ -249,15 +248,25 @@ checkCandidates m t cands = localState $ disableDestructiveUpdate $ do
 --   we are applying to arguments is a unapplied constructor.
 --   In this case we drop the first 'conPars' arguments.
 --   See Issue670a.
+--   Andreas, 2013-11-07 Also do this for projections, see Issue670b.
 applyDroppingParameters :: Term -> Args -> TCM Term
-applyDroppingParameters t vs =
+applyDroppingParameters t vs = do
+  let fallback = return $ t `apply` vs
   case ignoreSharing t of
     Con c [] -> do
       def <- theDef <$> getConInfo c
       case def of
         Constructor {conPars = n} -> return $ Con c (genericDrop n vs)
         _ -> __IMPOSSIBLE__
-    _ -> return $ t `apply` vs
+    Def f [] -> do
+      mp <- isProjection f
+      case mp of
+        Just Projection{projIndex = n} -> do
+          case drop n vs of
+            []     -> return t
+            u : us -> (`apply` us) <$> applyDef f u
+        _ -> fallback
+    _ -> fallback
 
 -- | Attempt to solve irrelevant metas by instance search.
 solveIrrelevantMetas :: TCM ()
