@@ -260,13 +260,15 @@ rrrr′ (pair (suc n)) refl = _
 ------------------------------------------------------------------------
 -- lets
 
-pp : (x : X)(y : Y) → h x ≡ y → ⊤
-pp x .(let i = (λ x → x) in i (h x)) refl = _
+-- Ulf, 2013-11-07: Lets are no longer allowed in patterns.
 
-pattern llet x = x , .(let i = (λ x → x) in i (h x))
+-- pp : (x : X)(y : Y) → h x ≡ y → ⊤
+-- pp x .(let i = (λ x → x) in i (h x)) refl = _
 
-pp′ : (p : X × Y) → h (proj₁ p) ≡ proj₂ p → ⊤
-pp′ (llet x) refl = _
+-- pattern llet x = x , .(let i = (λ x → x) in i (h x))
+
+-- pp′ : (p : X × Y) → h (proj₁ p) ≡ proj₂ p → ⊤
+-- pp′ (llet x) refl = _
 
 ------------------------------------------------------------------------
 -- absurd patterns
@@ -304,10 +306,11 @@ trivf trivial refl = trivial
 ------------------------------------------------------------------------
 -- let open
 
-pattern nuts = .(let open Σ in z)
+-- Ulf, 2013-11-07: Lets are no longer allowed in patterns.
+-- pattern nuts = .(let open Σ in z)
 
-foo : (n : ℕ) -> n ≡ z -> ℕ
-foo nuts refl = nuts
+-- foo : (n : ℕ) -> n ≡ z -> ℕ
+-- foo nuts refl = nuts
 
 ------------------------------------------------------------------------
 -- pattern synonym inside unparamterised module

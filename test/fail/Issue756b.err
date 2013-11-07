@@ -1,0 +1,3 @@
+Issue756b.agda:12,7-42
+Extended lambdas are not allowed in dot patterns
+when scope checking λ { zero → zero ; (suc n) → suc n }

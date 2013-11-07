@@ -1086,6 +1086,10 @@ data TCEnv =
           , envPrintDomainFreePi :: Bool
                 -- ^ When True types will be omitted from printed pi types if they
                 --   can be inferred
+          , envInsideDotPattern :: Bool
+                -- ^ Used by the scope checker to make sure that certain forms
+                --   of expressions are not used inside dot patterns: extended
+                --   lambdas and let-expressions.
 	  }
     deriving (Typeable)
 
@@ -1127,6 +1131,7 @@ initEnv = TCEnv { envContext	         = []
                 , envSimplification         = NoSimplification
                 , envAllowedReductions      = allReductions
                 , envPrintDomainFreePi      = False
+                , envInsideDotPattern       = False
 		}
 
 ---------------------------------------------------------------------------

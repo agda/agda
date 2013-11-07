@@ -74,3 +74,10 @@ dontReduceProjections = local $ \ e -> e { envAllowedReductions = [FunctionReduc
 
 allowAllReductions :: TCM a -> TCM a
 allowAllReductions = local $ \ e -> e { envAllowedReductions = allReductions }
+
+insideDotPattern :: TCM a -> TCM a
+insideDotPattern = local $ \e -> e { envInsideDotPattern = True }
+
+isInsideDotPattern :: TCM Bool
+isInsideDotPattern = asks envInsideDotPattern
+

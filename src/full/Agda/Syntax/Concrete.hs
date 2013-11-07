@@ -69,7 +69,7 @@ type ArgInfo    = Common.ArgInfo Color
 data OpApp e
         = SyntaxBindingLambda !Range [LamBinding] e -- ^ an abstraction inside a special syntax declaration (see Issue 358 why we introduce this).
         | Ordinary e
-    deriving (Typeable, Functor)
+    deriving (Typeable, Functor, Foldable, Traversable)
 
 fromOrdinary :: e -> OpApp e -> e
 fromOrdinary d (Ordinary e) = e

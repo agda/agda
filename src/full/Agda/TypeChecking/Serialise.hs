@@ -87,7 +87,7 @@ import Agda.Utils.Impossible
 -- 32-bit machines). Word64 does not have these problems.
 
 currentInterfaceVersion :: Word64
-currentInterfaceVersion = 20131020 * 10 + 0
+currentInterfaceVersion = 20131107 * 10 + 0
 
 -- | Constructor tag (maybe omitted) and argument indices.
 
@@ -491,6 +491,7 @@ instance (EmbPrj s, EmbPrj t) => EmbPrj (Named s t) where
   value = vcase valu where valu [a, b] = valu2 Named a b
                            valu _      = malformed
 
+-- Only used for pattern synonyms
 instance EmbPrj A.Expr where
   icode (A.Var n)               = icode1 0 n
   icode (A.Def n)               = icode1 1 n
@@ -502,12 +503,12 @@ instance EmbPrj A.Expr where
   icode (A.WithApp _ a b)       = icode2 7 a b
   icode (A.Lam  _ a b)          = icode2 8 a b
   icode (A.AbsurdLam _ a)       = icode1 9 a
-  icode (A.ExtendedLam _ _ _ _) = icode0 10
+  icode (A.ExtendedLam _ _ _ _) = __IMPOSSIBLE__
   icode (A.Pi   _ a b)          = icode2 11 a b
   icode (A.Fun  _ a b)          = icode2 12 a b
   icode (A.Set  _ a)            = icode1 13 a
   icode (A.Prop _)              = icode0 14
-  icode (A.Let  _ a b)          = icode2 15 a b
+  icode (A.Let  _ _ _)          = __IMPOSSIBLE__
   icode (A.ETel a)              = icode1 16 a
   icode (A.Rec  _ a)            = icode1 17 a
   icode (A.RecUpdate _ a b)     = icode2 18 a b
@@ -531,13 +532,10 @@ instance EmbPrj A.Expr where
       valu [7, a, b]  = valu2 (A.WithApp i) a b
       valu [8, a, b]  = valu2 (A.Lam i) a b
       valu [9, a]     = valu1 (A.AbsurdLam i) a
-      valu [10]       = throwError $ NotSupported
-                            "importing pattern synonym containing extended lambda"
       valu [11, a, b] = valu2 (A.Pi i) a b
       valu [12, a, b] = valu2 (A.Fun i) a b
       valu [13, a]    = valu1 (A.Set i) a
       valu [14]       = valu0 (A.Prop i)
-      valu [15, a, b] = valu2 (A.Let i) a b
       valu [16, a]    = valu1 A.ETel a
       valu [17, a]    = valu1 (A.Rec i) a
       valu [18, a, b] = valu2 (A.RecUpdate i) a b
@@ -607,20 +605,6 @@ instance EmbPrj c => EmbPrj (Agda.Syntax.Common.ArgInfo c) where
 
   value = vcase valu where valu [h, r, cs] = valu3 ArgInfo h r cs
                            valu _          = malformed
-
-instance EmbPrj A.LetBinding where
-  icode (A.LetBind _ a b c d)  = icode4 0 a b c d
-  icode (A.LetPatBind _ a b )  = icode2 1 a b
-  icode (A.LetApply _ _ _ _ _) = icode0 2
-  icode (A.LetOpen _ _)        = icode0 2
-
-  value = vcase valu
-    where
-      valu [0, a, b, c, d] = valu4 (A.LetBind (LetRange noRange)) a b c d
-      valu [1, a, b]       = valu2 (A.LetPatBind (LetRange noRange)) a b
-      valu [2]             = throwError $ NotSupported
-                                 "importing pattern synonym containing let module"
-      valu _               = malformed
 
 instance EmbPrj NameId where
   icode (NameId a b) = icode2' a b

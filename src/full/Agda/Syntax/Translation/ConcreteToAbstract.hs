@@ -53,6 +53,7 @@ import Agda.TypeChecking.Monad.Base (TypeError(..), Call(..), typeError, notInSc
 import Agda.TypeChecking.Monad.Trace (traceCall, setCurrentRange)
 import Agda.TypeChecking.Monad.State
 import Agda.TypeChecking.Monad.Options
+import Agda.TypeChecking.Monad.Env (insideDotPattern, isInsideDotPattern)
 
 import {-# SOURCE #-} Agda.Interaction.Imports (scopeCheckImport)
 import Agda.Interaction.Options
@@ -532,8 +533,8 @@ instance ToAbstract C.Expr A.Expr where
       C.Lam r bs e -> toAbstractLam r bs e TopCtx
 
   -- Extended Lambda
-      C.ExtendedLam r cs -> do
---        m <- getCurrentModule
+      C.ExtendedLam r cs ->
+        ifM isInsideDotPattern (typeError $ GenericError "Extended lambdas are not allowed in dot patterns") $ do
         cname <- nextlamname r 0 extendlambdaname
         name  <- freshAbstractName_ cname
         reportSLn "toabstract.extendlambda" 10 $ "new extended lambda name: " ++ show name
@@ -593,6 +594,7 @@ instance ToAbstract C.Expr A.Expr where
 
   -- Let
       e0@(C.Let _ ds e) ->
+        ifM isInsideDotPattern (typeError $ GenericError $ "Let-expressions are not allowed in dot patterns") $
         localToAbstract (LetDefs ds) $ \ds' -> do
         e        <- toAbstractCtx TopCtx e
         let info = ExprRange (getRange e0)
@@ -1317,7 +1319,7 @@ instance ToAbstract (A.Pattern' C.Expr) (A.Pattern' A.Expr) where
     toAbstract (A.DefP i x as)        = A.DefP i x <$> mapM toAbstract as
     toAbstract (A.WildP i)            = return $ A.WildP i
     toAbstract (A.AsP i x p)          = A.AsP i x <$> toAbstract p
-    toAbstract (A.DotP i e)           = A.DotP i <$> toAbstract e
+    toAbstract (A.DotP i e)           = A.DotP i <$> insideDotPattern (toAbstract e)
     toAbstract (A.AbsurdP i)          = return $ A.AbsurdP i
     toAbstract (A.LitP l)             = return $ A.LitP l
     toAbstract (A.ImplicitP i)        = return $ A.ImplicitP i
