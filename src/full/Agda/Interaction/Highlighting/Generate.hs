@@ -368,23 +368,18 @@ nameKinds hlLevel decl = do
     dropPostulates k         _ = k
 
   defnToKind :: Defn -> NameKind
-  defnToKind (M.Axiom {})                     = Postulate
-  defnToKind (M.Function {})                  = Function
-  defnToKind (M.Datatype {})                  = Datatype
-  defnToKind (M.Record {})                    = Record
-  defnToKind (M.Constructor { M.conInd = i }) = Constructor i
-  defnToKind (M.Primitive {})                 = Primitive
-
-{- DUPLICATE of A.axiomName
-  getAxiomName :: A.Declaration -> A.QName
-  getAxiomName (A.Axiom _ _ _ q _) = q
-  getAxiomName _                   = __IMPOSSIBLE__
--}
+  defnToKind   M.Axiom{}                           = Postulate
+  defnToKind d@M.Function{} | isProperProjection d = Field
+                            | otherwise            = Function
+  defnToKind   M.Datatype{}                        = Datatype
+  defnToKind   M.Record{}                          = Record
+  defnToKind   M.Constructor{ M.conInd = i }       = Constructor i
+  defnToKind   M.Primitive{}                       = Primitive
 
   declToKind :: A.Declaration ->
                 HashMap A.QName NameKind -> HashMap A.QName NameKind
   declToKind (A.Axiom _ _ _ q _)    = insert q Postulate
-  declToKind (A.Field _ q _)        = insert q Function
+  declToKind (A.Field _ q _)        = insert q Field -- Function
     -- Note that the name q can be used both as a field name and as a
     -- projection function. Highlighting of field names is taken care
     -- of by "theRest" above, which does not use NameKinds.
