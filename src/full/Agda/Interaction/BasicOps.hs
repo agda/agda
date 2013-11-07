@@ -190,7 +190,7 @@ rewrite Simplified   t = {- etaContract =<< -} simplify t
 rewrite Normalised   t = {- etaContract =<< -} normalise t
 
 
-data OutputForm a b = OutputForm ProblemId (OutputConstraint a b)
+data OutputForm a b = OutputForm Range ProblemId (OutputConstraint a b)
   deriving (Functor)
 
 data OutputConstraint a b
@@ -212,7 +212,7 @@ data OutputConstraint' a b = OfType' { ofName :: b
                                      }
 
 outputFormId :: OutputForm a b -> b
-outputFormId (OutputForm _ o) = out o
+outputFormId (OutputForm _ _ o) = out o
   where
     out o = case o of
       OfType i _           -> i
@@ -232,7 +232,7 @@ outputFormId (OutputForm _ o) = out o
       FindInScopeOF _ _ _  -> __IMPOSSIBLE__
 
 instance Reify ProblemConstraint (Closure (OutputForm Expr Expr)) where
-  reify (PConstr pid cl) = enterClosure cl $ \c -> buildClosure =<< (OutputForm pid <$> reify c)
+  reify (PConstr pid cl) = enterClosure cl $ \c -> buildClosure =<< (OutputForm (getRange c) pid <$> reify c)
 
 instance Reify Constraint (OutputConstraint Expr Expr) where
     reify (ValueCmp cmp t u v)   = CmpInType cmp <$> reify t <*> reify u <*> reify v
@@ -275,8 +275,14 @@ showComparison CmpEq  = " = "
 showComparison CmpLeq = " =< "
 
 instance (Show a,Show b) => Show (OutputForm a b) where
-  show (OutputForm 0   c) = show c
-  show (OutputForm pid c) = "[" ++ show pid ++ "] " ++ show c
+  show o =
+    case o of
+      OutputForm r 0   c -> show c ++ range r
+      OutputForm r pid c -> "[" ++ show pid ++ "] " ++ show c ++ range r
+    where
+      range r | null s    = ""
+              | otherwise = " [ at " ++ s ++ " ]"
+        where s = show r
 
 instance (Show a,Show b) => Show (OutputConstraint a b) where
     show (OfType e t)           = show e ++ " : " ++ show t
@@ -298,7 +304,7 @@ instance (Show a,Show b) => Show (OutputConstraint a b) where
 
 instance (ToConcrete a c, ToConcrete b d) =>
          ToConcrete (OutputForm a b) (OutputForm c d) where
-    toConcrete (OutputForm pid c) = OutputForm pid <$> toConcrete c
+    toConcrete (OutputForm r pid c) = OutputForm r pid <$> toConcrete c
 
 instance (ToConcrete a c, ToConcrete b d) =>
          ToConcrete (OutputConstraint a b) (OutputConstraint c d) where
@@ -362,7 +368,7 @@ getConstraints = liftTCM $ do
       mv <- getMetaInfo <$> lookupMeta mi
       withMetaInfo mv $ do
         let m = QuestionMark $ emptyMetaInfo { metaNumber = Just $ fromIntegral ii }
-        abstractToConcrete_ $ OutputForm 0 $ Assign m e
+        abstractToConcrete_ $ OutputForm noRange 0 $ Assign m e
 
 getSolvedInteractionPoints :: TCM [(InteractionId, MetaId, Expr)]
 getSolvedInteractionPoints = do
