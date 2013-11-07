@@ -612,11 +612,16 @@ interpret (Cmd_make_case ii rng s) = do
     makeCaseVariant (ExtendedLambda _ _) = R.ExtendedLambda
 
     -- very dirty hack, string manipulation by dropping the function name
-    -- and replacing " = " with " -> "
+    -- and replacing the last " = " with " -> ". It's important not to replace
+    -- the equal sign in named implicit with an arrow!
     extlam_dropName :: CaseContext -> String -> String
     extlam_dropName FunctionDef x = x
     extlam_dropName (ExtendedLambda _ _) x
-        = unwords $ map (\ y -> if y == "=" then "→" else y) $ drop 1 $ words x
+        = unwords $ reverse $ replEquals $ reverse $ drop 1 $ words x
+      where
+        replEquals ("=" : ws) = "→" : ws
+        replEquals (w   : ws) = w : replEquals ws
+        replEquals []         = []
 
     -- Drops pattern added to extended lambda functions when lambda lifting them
     extlam_dropLLifted :: CaseContext -> Bool -> A.Clause -> A.Clause

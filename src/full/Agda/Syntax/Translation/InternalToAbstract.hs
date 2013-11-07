@@ -519,8 +519,8 @@ instance Reify ClauseBody RHS where
 
 stripImplicits :: [A.NamedArg A.Pattern] -> [A.Pattern] ->
                   TCM ([A.NamedArg A.Pattern], [A.Pattern])
-stripImplicits ps wps =
-  ifM showImplicitArguments (return (ps, wps)) $ do
+stripImplicits ps wps = do            -- v if show-implicit we don't need the names
+  ifM showImplicitArguments (return (map (unnamed . namedThing <$>) ps, wps)) $ do
   let vars = dotVars (ps, wps)
   reportSLn "reify.implicit" 30 $ unlines
     [ "stripping implicits"
@@ -558,25 +558,32 @@ stripImplicits ps wps =
     -- generated with function if it corresponds to a dot pattern.
     rearrangeBinding x ps = ps
 
-    strip dvs ps = stripArgs ps
+    strip dvs ps = stripArgs True ps
       where
-        stripArgs [] = []
-        stripArgs (a : as) = case getHiding a of
-          Hidden | canStrip a as -> stripArgs as
-          _                      -> stripArg a : stripArgs as
+        stripArgs _ [] = []
+        stripArgs fixedPos (a : as) =
+          case getHiding a of
+            Hidden | canStrip a as -> stripArgs False as
+            _                      -> stripName fixedPos (stripArg a) :
+                                      stripArgs True as
+
+        stripName True  = fmap (unnamed . namedThing)
+        stripName False = id
 
         canStrip a as = and
           [ varOrDot p
           , noInterestingBindings p
-          , all (flip canStrip []) $ takeWhile isHidden as
+          , all (flip canStrip []) $ takeWhile isUnnamedHidden as
           ]
           where p = namedArg a
+
+        isUnnamedHidden x = isHidden x && nameOf (unArg x) == Nothing
 
         stripArg a = fmap (fmap stripPat) a
 
         stripPat p = case p of
           A.VarP _      -> p
-          A.ConP i c ps -> A.ConP i c $ stripArgs ps
+          A.ConP i c ps -> A.ConP i c $ stripArgs True ps
           A.DefP _ _ _  -> p
           A.DotP _ e    -> p
           A.WildP _     -> p
@@ -681,10 +688,15 @@ reifyPatterns :: I.Telescope -> Permutation -> [I.NamedArg I.Pattern] -> TCM [A.
 reifyPatterns tel perm ps = evalStateT (reifyArgs ps) 0
   where
     reifyArgs :: [I.NamedArg I.Pattern] -> StateT Nat TCM [A.NamedArg A.Pattern]
-    reifyArgs is = map (fmap unnamed) <$> mapM (reifyArg . fmap namedThing) is
+    reifyArgs is = mapM reifyArg is
 
-    reifyArg :: I.Arg I.Pattern -> StateT Nat TCM (A.Arg A.Pattern)
-    reifyArg i = traverse reifyPat (setArgColors [] i) -- TODO guilhem
+    reifyArg :: I.NamedArg I.Pattern -> StateT Nat TCM (A.NamedArg A.Pattern)
+    reifyArg i = stripNameFromExplicit <$>
+                 traverse (traverse reifyPat) (setArgColors [] i) -- TODO guilhem
+
+    stripNameFromExplicit a
+      | getHiding a == NotHidden = fmap (unnamed . namedThing) a
+      | otherwise                = a
 
     tick = do i <- get; put (i + 1); return i
 
@@ -723,45 +735,11 @@ instance Reify NamedClause A.Clause where
     return result
     where
       info = LHSRange noRange
-{-
-      dropParams n (LHS i lhscore wps) =
-        LHS i (mapLHSHead (\ f ps -> LHSHead f (genericDrop n ps)) lhscore) wps
-      stripImps (LHS i lhscore wps) = do
-          (wps', lhscore) <- stripIs lhscore
-          return $ LHS i lhscore wps'
-        where stripIs (LHSHead f ps) = do
-                (ps, wps) <- stripImplicits ps wps
-                return (wps, LHSHead f ps)
-              stripIs (LHSProj d ps1 l ps2) = do
-                Common.Arg info (Named n (wps, l)) <- Trav.mapM (Trav.mapM stripIs) l
-                return (wps, LHSProj d ps1 (Common.Arg info (Named n l)) ps2)
--}
-{-
-      dropParams n (LHS i (LHSHead f ps) wps) = LHS i (LHSHead f (genericDrop n ps)) wps
-      stripImps (LHS i (LHSHead f ps) wps) = do
-        (ps, wps) <- stripImplicits ps wps
-        return $ LHS i (LHSHead f ps) wps
--}
+
       dropParams n (SpineLHS i f ps wps) = SpineLHS i f (genericDrop n ps) wps
       stripImps (SpineLHS i f ps wps) = do
         (ps, wps) <- stripImplicits ps wps
         return $ SpineLHS i f ps wps
-
-{-
-
-    -- Turn post fix projections @ps ++ DefP d []@ from internal syntax
-    -- into prefix projections @DefP d ps@.
-    postToPreProj :: [NamedArg A.Pattern] -> [NamedArg A.Pattern]
-    postToPreProj ps = case ps2 of
-        []          -> ps
-        (defp : ps) -> fmap (fmap (setDefP ps1)) defp : postToPreProj ps
-      where
-        (ps1, ps2) = break (isDefP . namedArg) ps
-        isDefP A.DefP{} = True
-        isDefP _        = False
-        setDefP ps (A.DefP i d []) = A.DefP i d ps
-        setDefP ps _               = __IMPOSSIBLE__
--}
 
 instance Reify Type Expr where
     reify (I.El _ t) = reify t
