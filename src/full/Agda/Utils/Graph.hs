@@ -42,7 +42,6 @@ import qualified Data.Maybe as Maybe
 import qualified Data.Set as Set
 import Data.Set (Set)
 
--- import qualified Agda.Utils.Map as Map
 import Agda.Utils.QuickCheck
 import Agda.Utils.SemiRing
 import Agda.Utils.TestHelpers

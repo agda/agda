@@ -4,14 +4,9 @@
 
 module Agda.Compiler.Epic.Smashing where
 
--- import Control.Arrow((&&&))
--- import Control.Monad
 import Control.Monad.State
--- import Control.Monad.Trans
 
 import Data.List
--- import qualified Data.Map as M
--- import Data.Map (Map)
 import Data.Maybe
 
 import qualified Data.Set as S
@@ -24,7 +19,6 @@ import Agda.TypeChecking.Substitute
 import Agda.TypeChecking.Telescope
 import Agda.TypeChecking.Pretty
 import Agda.TypeChecking.Reduce
--- import Agda.TypeChecking.Rules.LHS.Unify
 
 import Agda.Compiler.Epic.AuxAST as AA
 import Agda.Compiler.Epic.CompileState

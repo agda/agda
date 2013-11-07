@@ -5,7 +5,6 @@ module Agda.Utils.Maybe
     , module Data.Maybe
     ) where
 
--- import Data.Monoid
 import Data.Maybe
 
 maybeM :: Monad m => m b -> (a -> m b) -> m (Maybe a) -> m b

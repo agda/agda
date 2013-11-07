@@ -2,18 +2,14 @@
 
 module Agda.TypeChecking.Patterns.Match where
 
--- import Control.Monad
 import Data.Monoid
 import Data.Traversable
 
 import Agda.Syntax.Common
 import Agda.Syntax.Internal as I
--- import Agda.Syntax.Literal
 
--- import Agda.TypeChecking.Datatypes (getConHead)
 import Agda.TypeChecking.Reduce
 import Agda.TypeChecking.Monad
--- import Agda.TypeChecking.Monad.Builtin
 import Agda.TypeChecking.Primitive (constructorForm)
 import Agda.TypeChecking.Pretty
 

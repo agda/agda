@@ -3,25 +3,19 @@
 module Agda.TypeChecking.MetaVars where
 
 import Control.Monad.Reader
--- import Control.Monad.Writer
 import Control.Monad.Error
 import Data.Function
--- import Data.Typeable (Typeable)
 import Data.List as List hiding (sort)
--- import Data.Map (Map)
 import qualified Data.Map as Map
 
 import Agda.Syntax.Common
--- import qualified Agda.Syntax.Info as Info
 import Agda.Syntax.Internal as I
 import Agda.Syntax.Internal.Generic
 import Agda.Syntax.Position
--- import Agda.Syntax.Literal
 import qualified Agda.Syntax.Abstract as A
 
 import Agda.TypeChecking.Monad
 import Agda.TypeChecking.Monad.Builtin
--- import Agda.TypeChecking.Monad.Exception
 import Agda.TypeChecking.Reduce
 import Agda.TypeChecking.Substitute
 import Agda.TypeChecking.Telescope
@@ -32,24 +26,19 @@ import Agda.TypeChecking.Records
 import Agda.TypeChecking.Pretty
 import Agda.TypeChecking.Irrelevance
 import Agda.TypeChecking.EtaContract
--- import Agda.TypeChecking.Eliminators
 import Agda.TypeChecking.SizedTypes (boundedSizeMetaHook, isSizeProblem)
 
 import {-# SOURCE #-} Agda.TypeChecking.CheckInternal (checkInternal)
 import Agda.TypeChecking.MetaVars.Occurs
 
--- import {-# SOURCE #-} Agda.TypeChecking.Conversion -- SOURCE NECESSARY
-
 import Agda.Utils.Fresh
 import Agda.Utils.List
-import Agda.Utils.Maybe -- SUBSUMES  import Data.Maybe (fromMaybe)
+import Agda.Utils.Maybe
 import Agda.Utils.Monad
 import Agda.Utils.Size
 import Agda.Utils.Tuple
 import Agda.Utils.Permutation
 import qualified Agda.Utils.VarSet as Set
-
--- import Agda.TypeChecking.Monad.Debug
 
 #include "../undefined.h"
 import Agda.Utils.Impossible

@@ -3,18 +3,14 @@
 module Agda.TypeChecking.Rules.Record where
 
 import Control.Applicative
--- import Control.Monad.Trans
--- import Control.Monad.Reader
 
 import qualified Agda.Syntax.Abstract as A
 import Agda.Syntax.Common
 import Agda.Syntax.Internal as I
 import Agda.Syntax.Position
 import qualified Agda.Syntax.Info as Info
--- import Agda.Syntax.Translation.InternalToAbstract (reify) -- for debug printing
 
 import Agda.TypeChecking.Monad
--- import Agda.TypeChecking.Monad.Builtin ( primIrrAxiom )
 import Agda.TypeChecking.Substitute
 import Agda.TypeChecking.Telescope
 import Agda.TypeChecking.Reduce

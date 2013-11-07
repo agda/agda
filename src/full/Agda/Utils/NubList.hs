@@ -13,7 +13,6 @@ import Control.Monad
 import Data.Foldable
 import Data.List
 import Data.Monoid
--- import Data.Traversable
 
 import Agda.Utils.Pointed
 

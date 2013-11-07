@@ -28,14 +28,10 @@ import Agda.Syntax.Parser.Monad
 import Agda.Syntax.Parser.Tokens
 import Agda.Syntax.Position
 import Agda.Syntax.Literal
--- import Agda.Syntax.Concrete.Name
 
 import Agda.Utils.List
 import Agda.Utils.Tuple
 import Agda.Utils.Unicode
-
--- #include "../../undefined.h"
--- import Agda.Utils.Impossible
 
 {--------------------------------------------------------------------------
     Scan functions

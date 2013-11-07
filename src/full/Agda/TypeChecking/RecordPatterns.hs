@@ -17,8 +17,6 @@ import Control.Monad.Reader
 import Control.Monad.State
 
 import Data.List
--- import Data.Monoid
--- import Data.Map (Map)
 import qualified Data.Map as Map
 import qualified Data.Traversable as Trav
 
@@ -37,7 +35,6 @@ import Agda.TypeChecking.Telescope
 
 import Agda.Utils.Either
 import Agda.Utils.List
--- import Agda.Utils.Monad
 import qualified Agda.Utils.Map as Map
 import Agda.Utils.Maybe
 import Agda.Utils.Permutation hiding (dropFrom)

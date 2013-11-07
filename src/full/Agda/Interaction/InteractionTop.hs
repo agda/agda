@@ -21,7 +21,6 @@ import Data.Maybe
 import qualified Data.Map as Map
 
 import System.Directory
--- import qualified System.IO as IO
 
 import Agda.TypeChecking.Monad as TM
   hiding (initState, setCommandLineOptions)
@@ -40,15 +39,12 @@ import Agda.Syntax.Abstract.Pretty
 import Agda.Syntax.Translation.ConcreteToAbstract
 import Agda.Syntax.Translation.AbstractToConcrete hiding (withScope)
 
--- import Agda.Interaction.Exceptions
 import Agda.Interaction.FindFile
 import Agda.Interaction.Options
 import Agda.Interaction.MakeCase
 import Agda.Interaction.Response hiding (Function, ExtendedLambda)
 import qualified Agda.Interaction.Response as R
 import qualified Agda.Interaction.BasicOps as B
--- import Agda.Interaction.Highlighting.Emacs
--- import Agda.Interaction.Highlighting.Generate
 import Agda.Interaction.Highlighting.Precise hiding (Postulate)
 import qualified Agda.Interaction.Imports as Imp
 
@@ -59,7 +55,6 @@ import qualified Agda.Compiler.JS.Compiler as JS
 import qualified Agda.Auto.Auto as Auto
 
 import Agda.Utils.FileName
--- import qualified Agda.Utils.IO.UTF8 as UTF8
 import qualified Agda.Utils.HashMap as HMap
 import Agda.Utils.Pretty
 import Agda.Utils.Time

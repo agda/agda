@@ -3,9 +3,6 @@
 
 module Agda.Auto.SearchControl where
 
-import Agda.Utils.Impossible
-#include "../undefined.h"
-
 import Control.Monad
 import Data.IORef
 import Control.Monad.State
@@ -14,6 +11,8 @@ import Data.Maybe (mapMaybe)
 import Agda.Auto.NarrowingSearch
 import Agda.Auto.Syntax
 
+#include "../undefined.h"
+import Agda.Utils.Impossible
 
 instance Refinable (ArgList o) (RefInfo o) where
  refinements _ infos _ =

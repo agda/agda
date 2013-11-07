@@ -45,8 +45,6 @@ import Agda.Utils.TestHelpers
 import Agda.Termination.SparseMatrix as Matrix hiding (tests)
 import Agda.Termination.Semiring (HasZero(..), Semiring)
 import qualified Agda.Termination.Semiring as Semiring
--- import Data.Set (Set)
--- import qualified Data.Set as Set
 import Data.Map (Map, (!))
 import qualified Data.Map as Map
 import Data.List hiding (union, insert)

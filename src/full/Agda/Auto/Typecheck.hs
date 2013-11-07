@@ -3,9 +3,6 @@
 
 module Agda.Auto.Typecheck where
 
-import Agda.Utils.Impossible
-#include "../undefined.h"
-
 import Data.IORef
 import Control.Monad (liftM)
 
@@ -13,6 +10,8 @@ import Agda.Auto.NarrowingSearch
 import Agda.Auto.Syntax
 import Agda.Auto.SearchControl
 
+#include "../undefined.h"
+import Agda.Utils.Impossible
 
 -- ---------------------------------
 

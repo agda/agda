@@ -1,8 +1,6 @@
 
 module Agda.TypeChecking.LevelConstraints ( simplifyLevelConstraint ) where
 
--- import Data.List
-
 import Agda.Syntax.Common (Nat)
 import Agda.Syntax.Internal
 import Agda.TypeChecking.Monad.Base

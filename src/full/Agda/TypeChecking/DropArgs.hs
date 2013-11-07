@@ -2,16 +2,13 @@
 module Agda.TypeChecking.DropArgs where
 
 import Agda.Syntax.Internal
--- import Agda.Syntax.Position
 
 import Agda.TypeChecking.Monad
 import Agda.TypeChecking.Substitute
 
 import Agda.TypeChecking.CompiledClause
--- import Agda.TypeChecking.CompiledClause.Compile
 
 import Agda.Utils.Permutation
-
 
 #include "../undefined.h"
 import Agda.Utils.Impossible
@@ -79,4 +76,3 @@ instance DropArgs CompiledClauses where
     Done xs t | length xs < n -> __IMPOSSIBLE__
               | otherwise     -> Done (drop n xs) t
     Fail                      -> Fail
-

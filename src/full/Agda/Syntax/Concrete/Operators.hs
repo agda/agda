@@ -29,8 +29,6 @@ module Agda.Syntax.Concrete.Operators
 
 import Control.Applicative
 import Control.Monad
--- import Control.Monad.Trans
--- import Data.Typeable
 import Data.Traversable (traverse)
 import qualified Data.Traversable as Trav
 import qualified Data.Map as Map
@@ -54,15 +52,10 @@ import Agda.Syntax.Scope.Monad
 import Agda.TypeChecking.Monad.Base (typeError, TypeError(..), LHSOrPatSyn(..))
 import Agda.TypeChecking.Monad.State (getScope)
 import Agda.TypeChecking.Monad.Options
--- import Agda.TypeChecking.Monad.Statistics
 
 import Agda.Utils.Either
 import Agda.Utils.ReadP
--- import Agda.Utils.Monad
--- import Agda.Utils.Tuple
 import Agda.Utils.List
-
--- import Debug.Trace
 
 #include "../../undefined.h"
 import Agda.Utils.Impossible

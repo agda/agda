@@ -38,17 +38,14 @@ import Data.List
 import Data.Function
 import Data.Monoid
 import Control.Applicative ((<$>), (<*>))
--- import Control.Arrow ((&&&))
 import Control.Monad
 import Agda.Utils.QuickCheck hiding (ranges)
 import Data.Map (Map)
 import qualified Data.Map as Map
 import Data.Typeable (Typeable)
 
--- import qualified Agda.Syntax.Abstract.Name as A
 import qualified Agda.Syntax.Common as C
 import qualified Agda.Syntax.Concrete as SC
--- import qualified Agda.Syntax.Position as P
 
 import Agda.Interaction.Highlighting.Range
 

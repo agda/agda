@@ -15,10 +15,8 @@ import Prelude hiding (mapM)
 
 import Control.Applicative hiding ((<**>))
 import Control.Arrow ((***))
--- import Control.Monad.Trans (lift)
 import Control.Monad.State hiding (mapM)
 
--- import Agda.Syntax.Common hiding (Arg, Dom, NamedArg, ArgInfo)
 import qualified Agda.Syntax.Common as Common
 import Agda.Syntax.Internal
 

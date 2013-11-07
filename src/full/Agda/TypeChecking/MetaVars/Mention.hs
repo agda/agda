@@ -1,11 +1,8 @@
 {-# LANGUAGE FlexibleInstances, TypeSynonymInstances #-}
 module Agda.TypeChecking.MetaVars.Mention where
 
--- import Data.Traversable
-
 import Agda.Syntax.Common
 import Agda.Syntax.Internal as I
--- import Agda.TypeChecking.Reduce
 import Agda.TypeChecking.Monad
 
 
@@ -108,4 +105,3 @@ instance MentionsMeta Constraint where
 
 -- instance (Ord k, MentionsMeta e) => MentionsMeta (Map k e) where
 --   mentionsMeta = traverse mentionsMeta
-

@@ -57,8 +57,8 @@ import Agda.Syntax.Literal
 
 import Agda.Syntax.Concrete.Name
 
-import Agda.Utils.Impossible
 #include "../undefined.h"
+import Agda.Utils.Impossible
 
 type Color      = Expr
 type Arg a      = Common.Arg Color a

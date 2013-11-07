@@ -19,11 +19,9 @@ import qualified Agda.Syntax.Common as Common
 import qualified Agda.Syntax.Concrete.Name as C
 import Agda.Syntax.Info
 import Agda.Syntax.Position
--- import Agda.Syntax.Scope.Base
 import Agda.Syntax.Scope.Monad
 
 import Agda.TypeChecking.Monad.Base (TypeError(..), typeError)
--- import Agda.Utils.List
 import Agda.Utils.Tuple
 
 #include "../../undefined.h"

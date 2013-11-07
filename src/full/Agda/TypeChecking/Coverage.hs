@@ -33,13 +33,10 @@ import Agda.TypeChecking.Coverage.Match
 import Agda.TypeChecking.Coverage.SplitTree
 
 import Agda.TypeChecking.Datatypes (getConForm)
--- import Agda.TypeChecking.Eliminators (unElim)
--- import Agda.TypeChecking.Patterns (patternsToElims)
 import Agda.TypeChecking.Pretty
 import Agda.TypeChecking.Substitute
 import Agda.TypeChecking.Reduce
 import Agda.TypeChecking.Records (isRecordType)
--- import Agda.TypeChecking.Primitive (constructorForm)
 import Agda.TypeChecking.Telescope
 import Agda.TypeChecking.Irrelevance
 
@@ -48,9 +45,7 @@ import Agda.Interaction.Options
 import Agda.Utils.Permutation
 import Agda.Utils.Size
 import Agda.Utils.Tuple
--- import Agda.Utils.Function (rot3)
 import Agda.Utils.List
--- import Agda.Utils.Maybe
 import Agda.Utils.Monad
 
 #include "../undefined.h"

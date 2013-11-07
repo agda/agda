@@ -23,9 +23,6 @@ import Agda.Utils.VarSet (VarSet)
 import Agda.Syntax.Common hiding (Arg, Dom, NamedArg)
 import Agda.Syntax.Internal
 
--- #include "../undefined.h"
--- import Agda.Utils.Impossible
-
 -- | The distinction between rigid and strongly rigid occurrences comes from:
 --   Jason C. Reed, PhD thesis, 2009, page 96 (see also his LFMTP 2009 paper)
 --

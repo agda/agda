@@ -3,18 +3,13 @@
 module Agda.TypeChecking.Rules.LHS.ProblemRest where
 
 import Agda.Syntax.Common
--- import Agda.Syntax.Position
--- import Agda.Syntax.Info
 import Agda.Syntax.Internal as I
 import qualified Agda.Syntax.Abstract as A
 
 import Agda.TypeChecking.Monad
 import Agda.TypeChecking.Pretty
--- import Agda.TypeChecking.Reduce
 import Agda.TypeChecking.Telescope
--- import Agda.TypeChecking.Implicit
 import Agda.TypeChecking.Substitute
--- import Agda.TypeChecking.Pretty
 
 import Agda.TypeChecking.Rules.LHS.Problem
 import Agda.TypeChecking.Rules.LHS.Implicit
@@ -25,7 +20,6 @@ import Agda.Utils.Permutation
 
 #include "../../../undefined.h"
 import Agda.Utils.Impossible
-
 
 -- MOVED from LHS:
 -- | Rename the variables in a telescope using the names from a given pattern

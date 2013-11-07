@@ -16,13 +16,12 @@ import Agda.Syntax.Internal
 import Agda.TypeChecking.Monad
 import Agda.TypeChecking.Monad.Builtin
 import Agda.TypeChecking.Reduce
--- import Agda.TypeChecking.Substitute
 import Agda.TypeChecking.Pretty
 import Agda.Utils.Monad
-import Agda.Utils.Impossible
 import qualified Agda.Utils.HashMap as HMap
 
 #include "../../undefined.h"
+import Agda.Utils.Impossible
 
 {- OLD
 -- | Check that the main function has type IO a, for some a.

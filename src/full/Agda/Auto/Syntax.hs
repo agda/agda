@@ -2,12 +2,12 @@
 
 module Agda.Auto.Syntax where
 
-import Agda.Utils.Impossible
-#include "../undefined.h"
-
 import Data.IORef
 
 import Agda.Auto.NarrowingSearch
+
+#include "../undefined.h"
+import Agda.Utils.Impossible
 
 type UId o = Metavar (Exp o) (RefInfo o)
 

@@ -1,8 +1,7 @@
 {-# LANGUAGE CPP #-}
 module Agda.ImpossibleTest where
 
-import Agda.Utils.Impossible
-
 #include "undefined.h"
+import Agda.Utils.Impossible
 
 impossibleTest = __IMPOSSIBLE__

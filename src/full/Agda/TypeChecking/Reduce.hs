@@ -4,21 +4,17 @@
 module Agda.TypeChecking.Reduce where
 
 import Prelude hiding (mapM)
--- import Control.Monad.State hiding (mapM)
 import Control.Monad.Reader hiding (mapM)
--- import Control.Monad.Error hiding (mapM)
 import Control.Applicative
 
 import Data.List as List hiding (sort)
 import Data.Maybe
--- import qualified Data.Map as Map
 import Data.Map (Map)
 import Data.Traversable
 import Data.Hashable
 
 import Agda.Syntax.Position
 import Agda.Syntax.Common hiding (Arg, Dom, NamedArg, ArgInfo)
--- import qualified Agda.Syntax.Common as Common
 import Agda.Syntax.Internal
 import Agda.Syntax.Scope.Base (Scope)
 import Agda.Syntax.Literal
@@ -30,13 +26,11 @@ import Agda.TypeChecking.EtaContract
 import Agda.TypeChecking.CompiledClause
 import {-# SOURCE #-} Agda.TypeChecking.Pretty
 
--- import {-# SOURCE #-} Agda.TypeChecking.Level
 import {-# SOURCE #-} Agda.TypeChecking.Patterns.Match
 import {-# SOURCE #-} Agda.TypeChecking.CompiledClause.Match
 
 import Agda.Utils.Monad
 import Agda.Utils.HashMap (HashMap)
--- import qualified Agda.Utils.HashMap as HMap
 
 #include "../undefined.h"
 import Agda.Utils.Impossible

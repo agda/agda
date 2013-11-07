@@ -6,10 +6,8 @@ module Agda.Compiler.Epic.Interface where
 import Control.Monad
 
 import Data.Function
--- import qualified Data.Map as M
 import Data.Map(Map)
 import Data.Monoid
--- import qualified Data.Set as S
 import Data.Set(Set)
 import Data.Typeable
 

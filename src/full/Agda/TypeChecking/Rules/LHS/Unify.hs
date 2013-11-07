@@ -44,9 +44,10 @@ import Agda.Interaction.Options (optInjectiveTypeConstructors)
 
 import Agda.TypeChecking.Rules.LHS.Problem
 
+import Agda.Utils.Size
+
 #include "../../../undefined.h"
 import Agda.Utils.Impossible
-import Agda.Utils.Size
 
 newtype Unify a = U { unUnify :: ReaderT UnifyEnv (WriterT UnifyOutput (ExceptionT UnifyException (StateT UnifyState TCM))) a }
   deriving (Monad, MonadIO, Functor, Applicative, MonadException UnifyException, MonadWriter UnifyOutput)

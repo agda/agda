@@ -16,15 +16,12 @@ import {-# SOURCE #-} Agda.TypeChecking.MetaVars
 import Agda.TypeChecking.Monad
 import Agda.TypeChecking.Reduce
 import Agda.TypeChecking.Substitute
--- import Agda.TypeChecking.Telescope
 import {-# SOURCE #-} Agda.TypeChecking.InstanceArguments
 
--- import Agda.Utils.Size
 import Agda.Utils.Tuple
 
 #include "../undefined.h"
 import Agda.Utils.Impossible
-
 
 -- | @implicitArgs n expand t@ generates up to @n@ implicit arguments
 --   metas (unbounded if @n<0@), as long as @t@ is a function type

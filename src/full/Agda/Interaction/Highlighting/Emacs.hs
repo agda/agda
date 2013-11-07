@@ -11,11 +11,7 @@ import Agda.Interaction.FindFile
 import Agda.Interaction.Highlighting.Precise
 import Agda.Interaction.Highlighting.Range
 import Agda.Interaction.EmacsCommand
--- import Agda.Syntax.Abstract (QName)
 import Agda.Syntax.Common
--- import qualified Agda.Syntax.Position as P
--- import Agda.Syntax.Translation.ConcreteToAbstract (TopLevelInfo)
--- import Agda.TypeChecking.Errors (prettyError)
 import Agda.TypeChecking.Monad
   (TCM, envHighlightingMethod, HighlightingMethod(..))
 import Agda.Utils.FileName
@@ -23,20 +19,18 @@ import qualified Agda.Utils.IO.UTF8 as UTF8
 import Agda.Utils.String
 import Agda.Utils.TestHelpers
 
-import Agda.Utils.Impossible
-#include "../../undefined.h"
-
 import Control.Applicative
 import qualified Control.Exception as E
 import Control.Monad.Reader
--- import Control.Monad.Trans
 import Data.Char
--- import Data.List
 import qualified Data.Map as Map
 import Data.Maybe
 import Data.Monoid
 import qualified System.Directory as D
 import qualified System.IO as IO
+
+#include "../../undefined.h"
+import Agda.Utils.Impossible
 
 ------------------------------------------------------------------------
 -- Read/show functions

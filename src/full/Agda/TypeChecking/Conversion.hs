@@ -11,7 +11,6 @@ import Control.Monad.Error
 import Data.Traversable hiding (mapM, sequence)
 import Data.List hiding (sort)
 import qualified Data.List as List
--- import qualified Data.Set as Set
 
 import Agda.Syntax.Abstract.Views (isSet)
 import Agda.Syntax.Common
@@ -36,22 +35,16 @@ import Agda.TypeChecking.Pretty
 import Agda.TypeChecking.Injectivity
 import Agda.TypeChecking.Polarity
 import Agda.TypeChecking.SizedTypes
--- import Agda.TypeChecking.Monad.Builtin (primLevel)
 import Agda.TypeChecking.Level
 import Agda.TypeChecking.Implicit (implicitArgs)
 import Agda.TypeChecking.Irrelevance
 import Agda.TypeChecking.ProjectionLike (elimView)
--- import Agda.TypeChecking.EtaContract
--- import Agda.TypeChecking.Eliminators
--- import Agda.TypeChecking.UniversePolymorphism
 
 import Agda.Interaction.Options
 
 import Agda.Utils.Size
 import Agda.Utils.Monad
 import Agda.Utils.Maybe
-
--- import Agda.TypeChecking.Monad.Debug
 
 #include "../undefined.h"
 import Agda.Utils.Impossible

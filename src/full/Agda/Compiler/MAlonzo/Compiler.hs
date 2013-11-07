@@ -3,17 +3,14 @@
 module Agda.Compiler.MAlonzo.Compiler where
 
 import Control.Applicative
--- import Control.Monad ((<=<))
 import Control.Monad.Reader
 import Control.Monad.State
--- import Data.Char
 import Data.List as L
 import Data.Map as M
 import Data.Set as S
 import qualified Language.Haskell.Exts.Extension as HS
 import qualified Language.Haskell.Exts.Parser as HS
 import qualified Language.Haskell.Exts.Syntax as HS
--- import System.Cmd
 import System.Directory (createDirectoryIfMissing)
 import System.FilePath hiding (normalise)
 
@@ -30,9 +27,7 @@ import Agda.Syntax.Internal as I
 import Agda.Syntax.Literal
 import Agda.TypeChecking.Monad
 import Agda.TypeChecking.Monad.Builtin
--- import Agda.TypeChecking.Monad.Options
 import Agda.TypeChecking.Reduce
--- import Agda.TypeChecking.Rules.Builtin.Coinduction
 import Agda.TypeChecking.Pretty
 import Agda.TypeChecking.Substitute
 import Agda.TypeChecking.Telescope
@@ -40,10 +35,10 @@ import Agda.TypeChecking.Level (reallyUnLevelView)
 import Agda.Utils.FileName
 import Agda.Utils.Monad
 import qualified Agda.Utils.IO.UTF8 as UTF8
-import Agda.Utils.Impossible
 import qualified Agda.Utils.HashMap as HMap
 
 #include "../../undefined.h"
+import Agda.Utils.Impossible
 
 compilerMain :: Interface -> TCM ()
 compilerMain mainI =

@@ -10,7 +10,6 @@ import Control.Monad.Reader
 import Control.Monad.State
 import Control.Monad.Identity
 import qualified Data.Map as Map
--- import Data.Map (Map)
 import Data.List
 import Data.Maybe
 import Data.Traversable hiding (mapM, forM)
@@ -38,13 +37,11 @@ import Agda.TypeChecking.Reduce
 import Agda.TypeChecking.Substitute
 import Agda.TypeChecking.Telescope
 import Agda.TypeChecking.With
--- import Agda.TypeChecking.EtaContract (etaContract)
 import Agda.TypeChecking.Coverage
 import Agda.TypeChecking.Records
 import Agda.TypeChecking.Irrelevance (wakeIrrelevantVars)
 import Agda.TypeChecking.Pretty (prettyTCM)
 import Agda.TypeChecking.Free (freeIn)
--- UNUSED: import Agda.TypeChecking.Eliminators (unElim)
 import qualified Agda.TypeChecking.Pretty as TP
 
 import Agda.Utils.List

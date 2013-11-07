@@ -8,7 +8,6 @@ module Agda.Compiler.Epic.Static where
 import Control.Applicative
 import Control.Monad
 import Control.Monad.State
--- import Control.Monad.Trans
 
 import qualified Data.Map as M
 import Data.Traversable (traverse)
@@ -18,7 +17,6 @@ import Agda.Syntax.Internal as I
 
 import Agda.TypeChecking.CompiledClause
 import Agda.TypeChecking.Monad.Base
--- import Agda.TypeChecking.Monad.Builtin
 import Agda.TypeChecking.Monad.Options
 import Agda.TypeChecking.Monad.Sharing
 import Agda.TypeChecking.Reduce

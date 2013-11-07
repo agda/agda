@@ -6,25 +6,17 @@ module Agda.Compiler.Epic.Epic
   , prettyEpic
   ) where
 
--- import Control.Monad.State
-
 import Data.Char
 import Data.List
 
--- import Data.Map (Map)
--- import qualified Data.Map as M
-
 import Agda.TypeChecking.Monad
--- import Agda.TypeChecking.Pretty (prettyTCM)
--- import Agda.TypeChecking.Reduce
-
-#include "../../undefined.h"
-import Agda.Utils.Impossible
-
 
 import Agda.Compiler.Epic.AuxAST
 import Agda.Compiler.Epic.CompileState
 import Agda.Compiler.Epic.Interface
+
+#include "../../undefined.h"
+import Agda.Utils.Impossible
 
 -- * Some auxilliary pretty-printer functions
 (<+>) :: String -> String -> String

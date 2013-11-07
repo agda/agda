@@ -15,13 +15,10 @@ module Agda.Interaction.Highlighting.Generate
 
 import Agda.Interaction.FindFile
 import Agda.Interaction.Response (Response(Resp_HighlightingInfo))
--- import Agda.Interaction.Highlighting.Emacs   hiding (tests)
 import Agda.Interaction.Highlighting.Precise hiding (tests)
 import Agda.Interaction.Highlighting.Range   hiding (tests)
--- import Agda.Interaction.EmacsCommand
 import qualified Agda.TypeChecking.Errors as E
 import Agda.TypeChecking.MetaVars (isBlockedTerm)
--- import Agda.TypeChecking.Monad.Options (reportSLn, reportSDoc)
 import Agda.TypeChecking.Monad
   hiding (MetaInfo, Primitive, Constructor, Record, Function, Datatype)
 import qualified Agda.TypeChecking.Monad as M
@@ -37,8 +34,6 @@ import qualified Agda.Syntax.Literal as L
 import qualified Agda.Syntax.Parser as Pa
 import qualified Agda.Syntax.Parser.Tokens as T
 import qualified Agda.Syntax.Position as P
--- import qualified Agda.Syntax.Scope.Base as S
--- import qualified Agda.Syntax.Translation.ConcreteToAbstract as CA
 import Agda.Utils.List
 import Agda.Utils.TestHelpers
 import Agda.Utils.HashMap (HashMap)
@@ -50,23 +45,17 @@ import Control.Monad.Reader
 import Control.Applicative
 import Control.Arrow ((***))
 import Data.Monoid
--- import Data.Function
 import Data.Generics.Geniplate
 import Agda.Utils.FileName
--- import qualified Agda.Utils.IO.UTF8 as UTF8
--- import Agda.Utils.Monad
 import Data.HashSet (HashSet)
 import qualified Data.HashSet as HSet
--- import Data.Map (Map)
 import qualified Data.Map as Map
 import Data.Maybe
 import Data.List ((\\), isPrefixOf)
 import qualified Data.Foldable as Fold (toList, fold, foldMap)
--- import System.Directory
--- import System.IO
 
-import Agda.Utils.Impossible
 #include "../../undefined.h"
+import Agda.Utils.Impossible
 
 -- | @highlightAsTypeChecked rPre r m@ runs @m@ and returns its
 -- result. Some code may additionally be highlighted:

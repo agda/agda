@@ -2,7 +2,6 @@
 module Agda.TypeChecking.SizedTypes where
 
 import Control.Monad.Error
--- import Control.Monad
 
 import Data.Function
 import Data.List
@@ -27,12 +26,11 @@ import qualified Agda.Utils.Warshall as W
 import Agda.Utils.List
 import Agda.Utils.Maybe
 import Agda.Utils.Monad
-import Agda.Utils.Impossible
 import Agda.Utils.Size
 import Agda.Utils.Tuple
--- import Agda.Utils.Pretty (render)
 
 #include "../undefined.h"
+import Agda.Utils.Impossible
 
 builtinSizeHook :: String -> QName -> Term -> Type -> TCM ()
 builtinSizeHook s q e' t = do

@@ -4,7 +4,6 @@ module Agda.TypeChecking.Injectivity where
 
 import Prelude hiding (mapM)
 import Control.Applicative
--- import Control.Monad hiding (mapM)
 import Control.Monad.Error hiding (mapM, forM)
 import Control.Monad.State hiding (mapM, forM)
 import Control.Monad.Reader hiding (mapM, forM)
@@ -12,7 +11,6 @@ import Data.Map (Map)
 import qualified Data.Map as Map
 import qualified Data.Set as Set
 import Data.Maybe
--- import Data.List
 import Data.Traversable hiding (for)
 
 import Agda.Syntax.Common

@@ -27,8 +27,6 @@ import Agda.TypeChecking.Pretty
 import Agda.TypeChecking.Substitute
 import Agda.TypeChecking.Telescope
 
-import Agda.Utils.Impossible
--- import Agda.Utils.Permutation
 import Agda.Utils.Size
 import Agda.Utils.List
 import Agda.Utils.Monad
@@ -37,6 +35,7 @@ import qualified Agda.Utils.Graph as Graph
 import Agda.Utils.Graph (Graph)
 
 #include "../undefined.h"
+import Agda.Utils.Impossible
 
 -- | Check that the datatypes in the mutual block containing the given
 -- declarations are strictly positive.

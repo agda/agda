@@ -7,7 +7,6 @@ module Agda.Compiler.JS.Parser where
 -- will generate ECMAScript "1 + 2" from Agda "1 + 2".
 
 import Prelude hiding ( exp, lookup )
--- import Control.Monad.Identity ( Identity )
 import Data.List ( genericLength )
 import Data.Char ( isLetter, isAlphaNum, isDigit )
 import Data.Map ( Map, fromList, union, empty )

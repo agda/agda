@@ -3,8 +3,6 @@
     DeriveDataTypeable, DeriveFunctor, StandaloneDeriving #-}
 module Agda.TypeChecking.Substitute where
 
--- import Control.Monad.Identity
--- import Control.Monad.Reader
 import Control.Arrow ((***))
 
 import Data.Typeable (Typeable)
@@ -12,8 +10,6 @@ import Data.List hiding (sort, drop)
 import qualified Data.List as List
 import Data.Function
 import Data.Map (Map)
--- import qualified Data.Map as Map
--- import qualified Data.Set as Set
 
 import Debug.Trace (trace)
 

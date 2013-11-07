@@ -18,8 +18,6 @@ import Agda.Syntax.Common hiding (Nat)
 import Agda.Syntax.Internal as I
 import Agda.Syntax.Literal
 import Agda.Syntax.Concrete.Pretty ()
--- import Agda.Syntax.Abstract.Name
--- import qualified Agda.Syntax.Concrete.Name as C
 
 import Agda.TypeChecking.Monad
 import Agda.TypeChecking.Monad.Builtin

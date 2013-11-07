@@ -4,27 +4,22 @@
 module Agda.TypeChecking.Rules.Term where
 
 import Control.Applicative
--- import Control.Arrow ((***), (&&&))
 import Control.Monad.Trans
 import Control.Monad.Reader
 import Control.Monad.Error
 import Data.Maybe
 import Data.List hiding (sort)
 import qualified Data.Map as Map
--- import qualified Data.Set as Set
 import Data.Traversable (sequenceA)
 
 import Agda.Interaction.Options
 
 import qualified Agda.Syntax.Abstract as A
--- import Agda.Syntax.Abstract.Views (unScope)
 import qualified Agda.Syntax.Abstract.Views as A
 import qualified Agda.Syntax.Info as A
 import Agda.Syntax.Concrete.Pretty () -- only Pretty instances
 import qualified Agda.Syntax.Concrete.Name as C
 import Agda.Syntax.Common
--- import Agda.Syntax.Translation.AbstractToConcrete
--- import Agda.Syntax.Concrete.Pretty
 import Agda.Syntax.Fixity
 import Agda.Syntax.Internal as I
 import Agda.Syntax.Position
@@ -46,7 +41,6 @@ import Agda.TypeChecking.Implicit (implicitArgs)
 import Agda.TypeChecking.InstanceArguments
 import Agda.TypeChecking.Primitive
 import Agda.TypeChecking.Constraints
--- import Agda.TypeChecking.Free hiding (Occurrence(..))
 import Agda.TypeChecking.Telescope
 import Agda.TypeChecking.Datatypes
 import Agda.TypeChecking.Irrelevance
@@ -54,7 +48,6 @@ import Agda.TypeChecking.EtaContract
 import Agda.TypeChecking.Quote
 import Agda.TypeChecking.CompiledClause
 import Agda.TypeChecking.Level
--- import {-# SOURCE #-} Agda.TypeChecking.Rules.Builtin.Coinduction
 import Agda.TypeChecking.Rules.LHS (checkLeftHandSide)
 
 import Agda.Utils.Fresh

@@ -11,13 +11,13 @@ import Agda.Syntax.Internal as I
 
 import Agda.TypeChecking.Monad
 import Agda.TypeChecking.Primitive (constructorForm)
--- import Agda.TypeChecking.Reduce
 import Agda.TypeChecking.Telescope
 import Agda.TypeChecking.Substitute
 
 import Agda.Utils.Size
-import Agda.Utils.Impossible
+
 #include "../undefined.h"
+import Agda.Utils.Impossible
 
 ---------------------------------------------------------------------------
 -- * Constructors

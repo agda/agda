@@ -19,23 +19,18 @@ import Control.Monad.Error
 import Control.Monad.State
 
 import Data.List as List
--- import Data.Map (Map)
--- import qualified Data.Map as Map
 import Data.Maybe (mapMaybe)
 import Data.Monoid
--- import Data.Set (Set)
 import qualified Data.Set as Set
 import Data.Traversable (traverse)
 
 import Agda.Syntax.Abstract (IsProjP(..))
 import qualified Agda.Syntax.Abstract as A
--- import Agda.Syntax.Abstract.Pretty (prettyA)
 import Agda.Syntax.Internal as I
 import qualified Agda.Syntax.Info as Info
 import Agda.Syntax.Position
 import Agda.Syntax.Common as Common
 import Agda.Syntax.Literal (Literal(LitString))
--- import Agda.Syntax.Translation.InternalToAbstract
 
 import Agda.Termination.CallGraph   as Term
 import qualified Agda.Termination.SparseMatrix as Term
@@ -46,30 +41,21 @@ import Agda.TypeChecking.Monad
 import Agda.TypeChecking.Pretty
 import Agda.TypeChecking.Reduce (reduce, normalise, instantiate, instantiateFull)
 import Agda.TypeChecking.Records (isRecordConstructor, isInductiveRecord)
--- import Agda.TypeChecking.Rules.Builtin.Coinduction
--- import Agda.TypeChecking.Rules.Term (isType_)
--- import Agda.TypeChecking.Substitute (abstract,raise)
 import Agda.TypeChecking.Telescope
--- import Agda.TypeChecking.Eliminators
 import Agda.TypeChecking.EtaContract
 import Agda.TypeChecking.Monad.Builtin
--- import Agda.TypeChecking.Monad.Signature (isProjection, mutuallyRecursive)
 import Agda.TypeChecking.Primitive (constructorForm)
 import Agda.TypeChecking.Level (reallyUnLevelView)
 import Agda.TypeChecking.Substitute
 import Agda.TypeChecking.SizedTypes
 
--- import qualified Agda.Interaction.Highlighting.Range as R
 import Agda.Interaction.Options
 
 import Agda.Utils.List
 import Agda.Utils.Size
 import Agda.Utils.Monad -- (mapM', forM', ifM, or2M, and2M, (<.>))
--- import Agda.Utils.NubList
 import Agda.Utils.Pointed
 import Agda.Utils.Permutation
--- import Agda.Utils.Tree (Tree)
--- import qualified Agda.Utils.Tree as Tree
 
 #include "../undefined.h"
 import Agda.Utils.Impossible

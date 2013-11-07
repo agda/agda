@@ -41,7 +41,6 @@ module Agda.Termination.SparseMatrix
 import Data.Array
 import qualified Data.List as List
 import Data.Maybe
--- import Data.Monoid
 
 import Agda.Utils.Pretty hiding (isEmpty)
 import Agda.Utils.QuickCheck

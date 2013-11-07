@@ -7,15 +7,13 @@ import Agda.Syntax.Common
 import Agda.Syntax.Internal
 import Agda.TypeChecking.Monad
 import Agda.TypeChecking.Irrelevance
--- import Agda.TypeChecking.Reduce
 import Agda.TypeChecking.Substitute
 import Agda.Utils.Size
 import Agda.Utils.Monad
 import Agda.Interaction.Options
--- import Agda.TypeChecking.Monad.Options
 
-import Agda.Utils.Impossible
 #include "../undefined.h"
+import Agda.Utils.Impossible
 
 addForcingAnnotations :: Type -> TCM Type
 addForcingAnnotations t =

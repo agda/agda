@@ -7,11 +7,7 @@ import Control.Applicative
 import Data.Traversable
 import Data.Monoid
 import Data.Foldable
--- import Agda.Syntax.Common hiding (Arg, Dom, NamedArg)
 import Agda.Syntax.Internal
-
--- #include "../../undefined.h"
--- import Agda.Utils.Impossible
 
 class TermLike a where
   traverseTerm  :: (Term -> Term) -> a -> a
@@ -138,4 +134,3 @@ instance TermLike Type where
 -- | Put it in a monad to make it possible to do strictly.
 copyTerm :: (TermLike a, Applicative m, Monad m) => a -> m a
 copyTerm = traverseTermM return
-

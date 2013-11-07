@@ -3,14 +3,11 @@ module Agda.TypeChecking.ProjectionLike where
 
 import Control.Monad
 
--- import Data.Map (Map)
 import qualified Data.Map as Map
--- import Data.List
 
 import Agda.Syntax.Abstract.Name
 import Agda.Syntax.Common
 import Agda.Syntax.Internal as I
--- import Agda.Syntax.Position
 
 import Agda.TypeChecking.Monad
 import Agda.TypeChecking.Free (isBinderUsed)
@@ -18,9 +15,6 @@ import Agda.TypeChecking.Substitute
 import Agda.TypeChecking.Positivity
 import Agda.TypeChecking.Pretty
 import Agda.TypeChecking.Reduce (reduce)
--- import Agda.TypeChecking.Level (unLevel)
--- import Agda.TypeChecking.CompiledClause
--- import Agda.TypeChecking.CompiledClause.Compile
 
 import Agda.TypeChecking.DropArgs
 
@@ -28,7 +22,6 @@ import Agda.Utils.Maybe (maybeM)
 import Agda.Utils.Monad
 import Agda.Utils.Size
 import Agda.Utils.Permutation
---import Agda.Utils.Pretty
 
 #include "../undefined.h"
 import Agda.Utils.Impossible

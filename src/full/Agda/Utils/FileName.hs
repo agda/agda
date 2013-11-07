@@ -15,10 +15,7 @@ import Agda.Utils.TestHelpers
 import Agda.Utils.QuickCheck
 import Data.Function
 import Data.Typeable (Typeable)
--- import Data.List
--- import Data.Maybe
 import Control.Applicative
--- import Control.Monad
 import System.Directory
 import System.FilePath
 

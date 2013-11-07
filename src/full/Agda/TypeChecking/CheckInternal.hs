@@ -12,10 +12,7 @@ module Agda.TypeChecking.CheckInternal
   , checkInternal
   ) where
 
--- import Control.Applicative
 import Control.Monad
-
--- import Data.Maybe
 
 import Agda.Syntax.Common
 import Agda.Syntax.Internal as I
@@ -27,15 +24,15 @@ import Agda.TypeChecking.Monad
 import Agda.TypeChecking.Monad.Builtin
 import Agda.TypeChecking.Pretty
 import Agda.TypeChecking.ProjectionLike (elimView)
--- import Agda.TypeChecking.Records (projectionType)
 import Agda.TypeChecking.Reduce
 import Agda.TypeChecking.Substitute
 import Agda.TypeChecking.Telescope
 
 import Agda.Utils.Monad
 import Agda.Utils.Size
-import Agda.Utils.Impossible
+
 #include "../undefined.h"
+import Agda.Utils.Impossible
 
 -- | Entry point for e.g. checking WithFunctionType.
 checkType :: Type -> TCM ()

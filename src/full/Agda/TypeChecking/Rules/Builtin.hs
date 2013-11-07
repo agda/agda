@@ -4,7 +4,6 @@ module Agda.TypeChecking.Rules.Builtin (bindBuiltin, bindPostulatedName) where
 import Control.Applicative
 import Control.Monad
 import Control.Monad.Error
--- import Data.Maybe
 import Data.List (find)
 
 import qualified Agda.Syntax.Abstract as A
@@ -19,16 +18,15 @@ import Agda.TypeChecking.Substitute
 import Agda.TypeChecking.Primitive
 import Agda.TypeChecking.Constraints
 import Agda.TypeChecking.Reduce
--- import Agda.TypeChecking.Pretty
 import Agda.TypeChecking.Irrelevance
 import Agda.TypeChecking.SizedTypes ( builtinSizeHook )
 import Agda.TypeChecking.Rules.Term ( checkExpr , inferExpr )
 import {-# SOURCE #-} Agda.TypeChecking.Rules.Builtin.Coinduction
 
 import Agda.Utils.Size
-import Agda.Utils.Impossible
 
-#include "../..//undefined.h"
+#include "../../undefined.h"
+import Agda.Utils.Impossible
 
 ---------------------------------------------------------------------------
 -- * Checking builtin pragmas

@@ -19,8 +19,6 @@ import Control.Monad.Writer.Strict
 
 import Data.Traversable (Traversable(..), traverse)
 
--- import Data.Monoid
-
 import Agda.Utils.Tuple
 
 -- * Change monad.

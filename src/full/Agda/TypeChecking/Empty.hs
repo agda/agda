@@ -14,12 +14,6 @@ import Agda.TypeChecking.Constraints
 import Agda.TypeChecking.Reduce
 import Agda.TypeChecking.Substitute
 
--- import Agda.Utils.Permutation
--- import Agda.Utils.Size
-
--- #include "../undefined.h"
--- import Agda.Utils.Impossible
-
 {- UNUSED
 -- | Make sure that a type is empty.
 isReallyEmptyType :: Range -> Type -> TCM ()

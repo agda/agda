@@ -13,7 +13,6 @@ import qualified Data.Map as Map
 import qualified Agda.Syntax.Abstract as A
 import Agda.Syntax.Common
 import Agda.Syntax.Internal
--- import Agda.Syntax.Literal
 import Agda.Syntax.Position
 
 import Agda.TypeChecking.CompiledClause
@@ -26,10 +25,7 @@ import Agda.TypeChecking.Substitute
 import Agda.TypeChecking.Rules.Builtin
 import Agda.TypeChecking.Rules.Term
 
--- import Agda.Utils.Impossible
 import Agda.Utils.Permutation
-
--- #include "../../../undefined.h"
 
 -- | The type of @∞@.
 

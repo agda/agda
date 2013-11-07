@@ -7,7 +7,6 @@ import Control.Applicative
 import Data.Map as Map
 import Data.Traversable
 
--- import Agda.Utils.Monad
 import Agda.Utils.Tuple
 
 #include "../undefined.h"

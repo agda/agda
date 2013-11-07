@@ -11,7 +11,6 @@ module Agda.Utils.Either
   , tests
   ) where
 
--- import Control.Arrow
 import Control.Applicative
 
 import Agda.Utils.QuickCheck

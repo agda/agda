@@ -12,13 +12,10 @@ import qualified Data.Map as Map
 import Agda.Interaction.Options hiding (tests)
 
 import Agda.Syntax.Common hiding (Arg, Dom, NamedArg, ArgInfo)
--- import qualified Agda.Syntax.Common as Common
 import Agda.Syntax.Internal (Dom)
 
 import Agda.TypeChecking.Monad
 
--- #include "../undefined.h"
--- import Agda.Utils.Impossible
 import Agda.Utils.QuickCheck
 import Agda.Utils.TestHelpers
 

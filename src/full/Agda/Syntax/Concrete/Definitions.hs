@@ -19,10 +19,8 @@ import Data.Map (Map)
 import Control.Monad.Error
 import Control.Monad.State
 import Data.List as List
--- import Data.Maybe
 import Data.Traversable (traverse)
 
--- import Debug.Trace (trace)
 import Agda.Syntax.Concrete
 import Agda.Syntax.Common hiding (Arg, Dom, NamedArg, ArgInfo)
 import qualified Agda.Syntax.Common as Common
@@ -37,12 +35,6 @@ import Agda.Utils.Update
 
 #include "../../undefined.h"
 import Agda.Utils.Impossible
-
--- import Control.Applicative
--- import Control.Monad.Error
--- import Data.Char
-
--- import Debug.Trace
 
 {--------------------------------------------------------------------------
     Types

@@ -10,9 +10,9 @@ import Data.Traversable (Traversable)
 import Data.Typeable (Typeable)
 
 import Agda.Utils.Size
-import Agda.Utils.Impossible
 
 #include "../undefined.h"
+import Agda.Utils.Impossible
 
 -- | @permute [1,2,0] [x0,x1,x2] = [x1,x2,x0]@
 --

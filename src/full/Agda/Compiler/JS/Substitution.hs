@@ -1,7 +1,6 @@
 module Agda.Compiler.JS.Substitution where
 
 import Prelude hiding ( map, lookup )
--- import Data.Typeable ( Typeable )
 import Data.Map ( empty, unionWith, singleton, findWithDefault )
 import qualified Data.Map as M ( map )
 import Data.List ( genericIndex )

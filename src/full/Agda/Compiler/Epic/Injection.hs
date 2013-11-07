@@ -4,8 +4,6 @@ module Agda.Compiler.Epic.Injection where
 import Control.Monad.State
 import Control.Monad.Reader
 
--- import Data.Function
--- import Data.Ix
 import Data.List
 import Data.Map(Map)
 import qualified Data.Map as M
@@ -22,13 +20,10 @@ import Agda.TypeChecking.Monad.Builtin
 import Agda.TypeChecking.Pretty
 import Agda.TypeChecking.Reduce
 import Agda.TypeChecking.Substitute
--- import Agda.TypeChecking.Telescope
 import Agda.Utils.Monad
--- import Agda.Utils.Size
 import qualified Agda.Utils.HashMap as HM
 
 import Agda.Compiler.Epic.CompileState
--- import qualified Agda.Compiler.Epic.FromAgda as FA
 import Agda.Compiler.Epic.Interface as Interface
 
 #include "../../undefined.h"

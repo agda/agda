@@ -1,9 +1,6 @@
 {-# LANGUAGE Rank2Types, ScopedTypeVariables, CPP #-}
 module Agda.Auto.CaseSplit where
 
-import Agda.Utils.Impossible
-#include "../undefined.h"
-
 import Data.IORef
 import Data.List (findIndex, union)
 import qualified Data.IntMap as IntMap
@@ -11,9 +8,11 @@ import qualified Data.IntMap as IntMap
 import Agda.Auto.NarrowingSearch
 import Agda.Auto.Syntax
 
-
 import Agda.Auto.SearchControl
 import Agda.Auto.Typecheck
+
+#include "../undefined.h"
+import Agda.Utils.Impossible
 
 abspatvarname = "\0absurdPattern"
 

@@ -26,23 +26,18 @@ import Prelude hiding (mapM)
 import Control.Applicative
 import Control.Monad.Reader hiding (mapM)
 import Control.Monad.Error hiding (mapM)
--- import Data.Typeable
 import Data.Traversable (mapM, traverse)
 import Data.List ((\\), nub, foldl')
 import qualified Data.Map as Map
 
 import Agda.Syntax.Concrete as C hiding (topLevelModuleName)
 import Agda.Syntax.Concrete.Operators
--- import qualified Agda.Syntax.Concrete.Copatterns as Cop -- merged into Operators
 import Agda.Syntax.Abstract as A
--- import Agda.Syntax.Abstract.Copatterns  -- RETIRED
 import Agda.Syntax.Position
 import Agda.Syntax.Common hiding (Arg, Dom, NamedArg, ArgInfo)
 import qualified Agda.Syntax.Common as Common
 import Agda.Syntax.Info
 import Agda.Syntax.Concrete.Definitions as C
--- import Agda.Syntax.Concrete.Pretty
--- import Agda.Syntax.Abstract.Pretty
 import Agda.Syntax.Fixity
 import Agda.Syntax.Notation
 import Agda.Syntax.Scope.Base
@@ -59,7 +54,6 @@ import {-# SOURCE #-} Agda.Interaction.Imports (scopeCheckImport)
 import Agda.Interaction.Options
 
 import Agda.Utils.Monad
--- import Agda.Utils.Tuple
 import Agda.Utils.List
 import Agda.Utils.Fresh
 import Agda.Utils.Pretty

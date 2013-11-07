@@ -3,19 +3,15 @@
 module Agda.TypeChecking.Records where
 
 import Control.Applicative
--- import Control.Arrow ((***))
 import Control.Monad
 
 import Data.Function
 import Data.List
 import Data.Maybe
--- import qualified Data.Map as Map
 import qualified Data.Set as Set
--- import Data.Traversable (traverse)
 
 import Agda.Syntax.Common
 import qualified Agda.Syntax.Concrete.Name as C
--- import qualified Agda.Syntax.Abstract as A
 import Agda.Syntax.Abstract.Name
 import Agda.Syntax.Internal as I
 import Agda.Syntax.Position
@@ -24,10 +20,8 @@ import Agda.TypeChecking.Substitute
 import Agda.TypeChecking.Pretty
 import Agda.TypeChecking.Reduce
 import Agda.TypeChecking.Telescope
--- import Agda.TypeChecking.Datatypes
 import Agda.Utils.Either
 import Agda.Utils.List
--- import Agda.Utils.Maybe
 import Agda.Utils.Monad
 import qualified Agda.Utils.HashMap as HMap
 

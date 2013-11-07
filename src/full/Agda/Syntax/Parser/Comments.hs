@@ -21,9 +21,6 @@ import Agda.Syntax.Position
 
 import Agda.Utils.Monad
 
--- #include "../../undefined.h"
--- import Agda.Utils.Impossible
-
 -- | Should comment tokens be output?
 
 keepComments :: LexPredicate

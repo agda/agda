@@ -1,7 +1,6 @@
 {-# LANGUAGE CPP #-}
 module Agda.TypeChecking.CompiledClause.Compile where
 
--- import Control.Applicative
 import Data.Monoid
 import qualified Data.Map as Map
 import Data.List (genericReplicate, nubBy, findIndex)
@@ -18,8 +17,9 @@ import Agda.TypeChecking.Substitute
 import Agda.TypeChecking.Pretty
 
 import Agda.Utils.List
-import Agda.Utils.Impossible
+
 #include "../../undefined.h"
+import Agda.Utils.Impossible
 
 -- | Process function clauses into case tree.
 --   This involves:

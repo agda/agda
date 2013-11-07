@@ -9,8 +9,6 @@ import Control.Applicative
 import Control.Monad.Error
 import Control.Monad.State
 
--- import System.Directory
--- import System.Environment
 import System.IO
 
 import Agda.Utils.Pretty

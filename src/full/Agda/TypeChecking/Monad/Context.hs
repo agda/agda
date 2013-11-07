@@ -22,9 +22,6 @@ import Agda.Utils.List (downFrom)
 import Agda.Utils.Monad
 import Agda.Utils.Fresh
 
--- #include "../../undefined.h"
--- import Agda.Utils.Impossible
-
 -- * Modifying the context
 
 -- | Modify the 'ctxEntry' field of a 'ContextEntry'.

@@ -7,7 +7,6 @@ import Data.Map ( Map, empty, null, mapWithKey, fromListWith, unionWith )
 import Data.List ( genericLength, genericTake, intercalate )
 
 import Agda.Syntax.Common ( Nat )
-import Agda.Utils.Impossible ( Impossible(Impossible), throwImpossible )
 
 import Agda.Compiler.JS.Pretty ( Pretty, pretty, pretties )
 import Agda.Compiler.JS.Syntax
@@ -16,6 +15,7 @@ import Agda.Compiler.JS.Syntax
 import Agda.Compiler.JS.Substitution ( shiftFrom )
 
 #include "../../undefined.h"
+import Agda.Utils.Impossible ( Impossible(Impossible), throwImpossible )
 
 -- ECMAScript doesn't support pattern-mathching case, so
 -- we translate to a visitor pattern.  We use a decision-tree

@@ -13,7 +13,6 @@ import Data.Hashable
 import Data.IORef
 import Data.Traversable
 import System.IO.Unsafe
--- import Data.HashTable.IO
 import Data.Typeable
 
 data Ptr a = Ptr { ptrTag :: !Integer
@@ -74,4 +73,3 @@ instance Hashable (Ptr a) where
   hashWithSalt salt = (hashWithSalt salt) . ptrTag
 
 instance NFData (Ptr a) where
-

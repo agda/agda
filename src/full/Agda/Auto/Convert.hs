@@ -2,9 +2,6 @@
 
 module Agda.Auto.Convert where
 
-import Agda.Utils.Impossible
-#include "../undefined.h"
-
 import Control.Applicative hiding (getConst, Const(..))
 import Data.IORef
 import Data.Map (Map)
@@ -13,7 +10,6 @@ import Control.Monad.State
 import Control.Monad.Error
 
 import qualified Agda.Syntax.Internal as I
--- import qualified Agda.Syntax.Literal as I
 import qualified Agda.Syntax.Common as C
 import qualified Agda.Syntax.Abstract.Name as AN
 import qualified Agda.Syntax.Abstract as A
@@ -21,7 +17,6 @@ import qualified Agda.Syntax.Position as SP
 import qualified Agda.TypeChecking.Monad.Base as MB
 import Agda.TypeChecking.Monad.Signature (getConstInfo, getDefFreeVars, getImportedSignature)
 import Agda.Utils.Permutation (Permutation(Perm), permute, takeP)
--- import Agda.Interaction.BasicOps (rewrite, Rewrite(..))
 import Agda.TypeChecking.Level (reallyUnLevelView)
 import Agda.TypeChecking.Monad.Base (mvJudgement, mvPermutation, getMetaInfo, ctxEntry, envContext, clEnv)
 import Agda.TypeChecking.Monad.MetaVars (lookupMeta, withMetaInfo)
@@ -40,6 +35,8 @@ import Agda.Auto.Syntax
 
 import Agda.Auto.CaseSplit hiding (lift)
 
+#include "../undefined.h"
+import Agda.Utils.Impossible
 
 norm :: Normalise t => t -> MB.TCM t
 norm x = normalise x

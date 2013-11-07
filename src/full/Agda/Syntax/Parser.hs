@@ -17,7 +17,6 @@ module Agda.Syntax.Parser
 
 import Control.Exception
 import Data.List
--- import System.Directory
 
 import Agda.Syntax.Position
 import Agda.Syntax.Parser.Monad as M hiding (Parser, parseFlags)

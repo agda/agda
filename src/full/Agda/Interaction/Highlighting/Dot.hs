@@ -12,18 +12,9 @@ import Data.Monoid
 import qualified Data.Set as S
 import Data.Set (Set)
 
--- import System.Directory
--- import System.FilePath
-
--- import qualified Agda.Syntax.Concrete.Name as CN
--- import Agda.Interaction.FindFile
 import Agda.Interaction.Options
 import Agda.Syntax.Abstract
--- import Agda.Syntax.Abstract.Name
 import Agda.TypeChecking.Monad
-
--- import Agda.Utils.FileName
-
 
 #include "../../undefined.h"
 import Agda.Utils.Impossible

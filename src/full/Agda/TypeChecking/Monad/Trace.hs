@@ -2,7 +2,6 @@
 module Agda.TypeChecking.Monad.Trace where
 
 import Control.Monad.Reader
--- import Control.Monad.State
 
 import Agda.Syntax.Position
 import Agda.TypeChecking.Monad.Base

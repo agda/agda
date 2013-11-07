@@ -4,22 +4,18 @@ module Agda.TypeChecking.CompiledClause.Match where
 import Control.Applicative
 import Control.Monad.Reader (asks)
 import qualified Data.Map as Map
--- import Data.Traversable
 import Data.List
 
 import Agda.Syntax.Internal
 import Agda.Syntax.Common
 import Agda.TypeChecking.CompiledClause
--- import Agda.TypeChecking.Eliminators
 import Agda.TypeChecking.Monad
 import Agda.TypeChecking.Substitute
 import Agda.TypeChecking.Reduce
 import Agda.TypeChecking.Primitive
 
--- import Agda.Utils.List
-
-import Agda.Utils.Impossible
 #include "../../undefined.h"
+import Agda.Utils.Impossible
 
 matchCompiled :: CompiledClauses -> MaybeReducedArgs -> TCM (Reduced (Blocked Args) Term)
 matchCompiled c args = do

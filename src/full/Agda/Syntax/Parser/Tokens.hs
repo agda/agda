@@ -7,7 +7,6 @@ module Agda.Syntax.Parser.Tokens
     ) where
 
 import Agda.Syntax.Literal (Literal)
--- import Agda.Syntax.Concrete.Name (Name, QName)
 import Agda.Syntax.Position
 
 data Keyword

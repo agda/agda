@@ -1,16 +1,12 @@
 {-# LANGUAGE CPP, PatternGuards #-}
 module Agda.TypeChecking.Monad.Signature where
 
--- import Control.Arrow ((***))
 import Control.Monad.State
 import Control.Monad.Reader
--- import Data.Set (Set)
--- import qualified Data.Set as Set
 import Data.Map (Map)
 import qualified Data.Map as Map
 import Data.Maybe
 import Data.List
--- import Data.Function
 
 import Agda.Syntax.Abstract.Name
 import Agda.Syntax.Common
@@ -25,9 +21,7 @@ import Agda.TypeChecking.Monad.Options
 import Agda.TypeChecking.Monad.Env
 import Agda.TypeChecking.Monad.Mutual
 import Agda.TypeChecking.Monad.Open
--- import Agda.TypeChecking.Free (isBinderUsed)
 import Agda.TypeChecking.Substitute
--- import Agda.TypeChecking.Pretty -- leads to cyclicity
 import {-# SOURCE #-} Agda.TypeChecking.CompiledClause.Compile
 import {-# SOURCE #-} Agda.TypeChecking.Polarity
 import {-# SOURCE #-} Agda.TypeChecking.ProjectionLike

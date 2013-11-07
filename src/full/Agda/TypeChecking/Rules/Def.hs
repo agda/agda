@@ -8,23 +8,17 @@ import Control.Applicative
 import Control.Monad.State hiding (forM, mapM)
 import Control.Monad.Error hiding (forM, mapM)
 
--- import Data.Function
 import Data.List hiding (sort)
--- import Data.Maybe
 import Data.Traversable
--- import Data.Set (Set)
--- import qualified Data.Set as Set
 
 import Agda.Syntax.Common
 import Agda.Syntax.Position
 import qualified Agda.Syntax.Abstract as A
 import Agda.Syntax.Internal as I
 import qualified Agda.Syntax.Info as Info
--- import qualified Agda.Syntax.Abstract.Pretty as A
 import Agda.Syntax.Fixity
 import Agda.Syntax.Translation.InternalToAbstract
 import Agda.Syntax.Info
--- import Agda.Syntax.Scope.Base (emptyScopeInfo)
 import Agda.TypeChecking.Monad
 import Agda.TypeChecking.Monad.Builtin (primRefl, primEquality)
 import Agda.TypeChecking.Reduce
@@ -32,36 +26,19 @@ import Agda.TypeChecking.Pretty
 import Agda.TypeChecking.Substitute
 import Agda.TypeChecking.Free
 import Agda.TypeChecking.CheckInternal (checkType)
--- import Agda.TypeChecking.Constraints
--- import Agda.TypeChecking.Conversion
--- import Agda.TypeChecking.Datatypes
--- import Agda.TypeChecking.Empty
--- import Agda.TypeChecking.MetaVars
--- import Agda.TypeChecking.Rebind
--- import Agda.TypeChecking.Primitive hiding (Nat)
 import Agda.TypeChecking.With
 import Agda.TypeChecking.Telescope
--- import Agda.TypeChecking.Coverage
 import Agda.TypeChecking.Injectivity
--- import Agda.TypeChecking.Polarity
 import Agda.TypeChecking.Irrelevance
--- import Agda.TypeChecking.Implicit
 import Agda.TypeChecking.SizedTypes
 import Agda.TypeChecking.CompiledClause (CompiledClauses(..))
 import Agda.TypeChecking.CompiledClause.Compile
 
 import Agda.TypeChecking.Rules.Term                ( checkExpr, inferExpr, inferExprForWith, checkDontExpandLast, checkTelescope_, convArg )
 import Agda.TypeChecking.Rules.LHS                 ( checkLeftHandSide )
--- import Agda.TypeChecking.Rules.LHS.Implicit        ( insertImplicitPatterns )
 import {-# SOURCE #-} Agda.TypeChecking.Rules.Decl ( checkDecls )
--- import Agda.TypeChecking.Rules.Data                ( isCoinductive )
 
--- import Agda.Interaction.Options
-
--- import Agda.Utils.Tuple
 import Agda.Utils.Size
--- import Agda.Utils.Function
--- import Agda.Utils.List
 import Agda.Utils.Permutation
 import Agda.Utils.Monad
 

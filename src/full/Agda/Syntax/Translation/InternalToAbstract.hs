@@ -31,7 +31,6 @@ import Control.Monad.Reader hiding (mapM_, mapM)
 import qualified Data.Set as Set
 import Data.Set (Set)
 import qualified Data.Map as Map
--- import Data.Map (Map)
 import Data.List hiding (sort)
 import Data.Traversable as Trav
 import Data.Maybe
@@ -41,12 +40,8 @@ import Agda.Syntax.Position
 import Agda.Syntax.Common hiding (Arg, Dom, NamedArg, ArgInfo)
 import qualified Agda.Syntax.Common as Common
 import Agda.Syntax.Info as Info
--- import Agda.Syntax.Fixity
 import Agda.Syntax.Abstract as A
--- import qualified Agda.Syntax.Concrete as C
 import Agda.Syntax.Internal as I
--- import Agda.Syntax.Scope.Base
--- import Agda.Syntax.Scope.Monad
 import qualified Agda.Utils.VarSet as VSet
 
 import Agda.TypeChecking.Monad as M hiding (MetaInfo)
@@ -55,7 +50,6 @@ import {-# SOURCE #-} Agda.TypeChecking.Records
 import Agda.TypeChecking.CompiledClause (CompiledClauses(Fail))
 import Agda.TypeChecking.DisplayForm
 import Agda.TypeChecking.Level
--- import Agda.TypeChecking.Monad.Builtin
 import {-# SOURCE #-} Agda.TypeChecking.Datatypes
 import Agda.TypeChecking.Free
 import Agda.TypeChecking.Substitute

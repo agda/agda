@@ -3,7 +3,6 @@ module Agda.TypeChecking.Polarity where
 
 import Control.Applicative
 import Control.Monad.State
--- import Control.Monad.Error
 import Data.List
 import Data.Traversable (traverse)
 
@@ -12,22 +11,20 @@ import Agda.Syntax.Internal as I
 
 import Agda.TypeChecking.Monad
 import Agda.TypeChecking.Pretty
--- import Agda.TypeChecking.Positivity
 import Agda.TypeChecking.Substitute
 import Agda.TypeChecking.Telescope
 import Agda.TypeChecking.Reduce
 import Agda.TypeChecking.Free hiding (Occurrence(..))
--- import Agda.TypeChecking.Monad.Builtin
 
 import Agda.Interaction.Options
 
 import Agda.Utils.List
 import Agda.Utils.Monad
 import Agda.Utils.Permutation
-import Agda.Utils.Impossible
 import Agda.Utils.Size
 
 #include "../undefined.h"
+import Agda.Utils.Impossible
 
 ------------------------------------------------------------------------
 -- * Polarity lattice.

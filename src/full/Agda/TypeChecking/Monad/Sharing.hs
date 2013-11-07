@@ -10,9 +10,9 @@ import Agda.Syntax.Internal
 import Agda.TypeChecking.Monad.Base
 import Agda.TypeChecking.Monad.Options
 import Agda.Utils.Monad
-import Agda.Utils.Impossible
 
 #include "../../undefined.h"
+import Agda.Utils.Impossible
 
 updateSharedTerm :: MonadTCM tcm => (Term -> tcm Term) -> Term -> tcm Term
 updateSharedTerm f v =
@@ -52,4 +52,3 @@ forceEqualTerms u v =
 
 disableDestructiveUpdate :: TCM a -> TCM a
 disableDestructiveUpdate = local $ \e -> e { envAllowDestructiveUpdate = False }
-

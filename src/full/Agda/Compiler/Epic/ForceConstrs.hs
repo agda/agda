@@ -3,7 +3,6 @@
 module Agda.Compiler.Epic.ForceConstrs where
 
 import Control.Applicative
--- import Control.Monad.Trans
 
 import Agda.Compiler.Epic.AuxAST
 import Agda.Compiler.Epic.CompileState
@@ -12,7 +11,6 @@ import Agda.Compiler.Epic.Interface
 import qualified Agda.Syntax.Common   as S
 import qualified Agda.Syntax.Internal as T
 import Agda.TypeChecking.Monad (TCM)
--- import Agda.TypeChecking.Pretty
 
 #include "../../undefined.h"
 import Agda.Utils.Impossible

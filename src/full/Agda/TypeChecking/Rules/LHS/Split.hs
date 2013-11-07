@@ -28,14 +28,9 @@ import Agda.TypeChecking.Substitute
 import Agda.TypeChecking.Constraints
 import Agda.TypeChecking.Conversion
 import Agda.TypeChecking.Datatypes
--- import Agda.TypeChecking.Patterns (patternsToElims)
 import Agda.TypeChecking.Records
 import Agda.TypeChecking.Rules.LHS.Problem
--- import Agda.TypeChecking.Rules.LHS.ProblemRest
--- import Agda.TypeChecking.Rules.Term
 import Agda.TypeChecking.Monad.Builtin
--- import Agda.TypeChecking.Eliminators
--- import Agda.TypeChecking.EtaContract (etaContract)
 import Agda.TypeChecking.Free
 import Agda.TypeChecking.Irrelevance
 import Agda.TypeChecking.MetaVars

@@ -5,9 +5,6 @@
 
 module Agda.TypeChecking.Eliminators where
 
--- import Control.Applicative
--- import Control.Monad
-
 import Data.Maybe (isJust, isNothing)
 
 import Agda.Syntax.Common hiding (Arg)
@@ -20,9 +17,9 @@ import Agda.TypeChecking.Level
 import {-# SOURCE #-} Agda.TypeChecking.Pretty
 
 import Agda.Utils.Tuple
-import Agda.Utils.Impossible
 
 #include "../undefined.h"
+import Agda.Utils.Impossible
 
 -- | Weak head normal form in elimination presentation.
 data ElimView

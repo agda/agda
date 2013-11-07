@@ -3,21 +3,11 @@
 
 module Agda.Syntax.Notation where
 
--- import Control.Applicative
 import Control.Monad (when)
 import Control.Monad.Error (throwError)
 import Data.List
 import Data.Maybe
 import Data.Typeable (Typeable)
-
--- import System.FilePath
-
--- import Test.QuickCheck
-
--- import Agda.Syntax.Common
--- import Agda.Syntax.Position
--- import Agda.Utils.FileName
--- import Agda.Utils.Pretty
 
 #include "../undefined.h"
 import Agda.Utils.Impossible

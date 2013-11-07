@@ -5,12 +5,9 @@ module Agda.TypeChecking.Coverage.Match where
 import Control.Applicative
 import Control.Monad.State
 
--- import Data.Map (Map)
--- import qualified Data.Map as Map
 import Data.Maybe (mapMaybe)
 import Data.Monoid
 import Data.Traversable (traverse)
--- import Data.Function
 
 import Agda.Syntax.Abstract (IsProjP(..))
 import Agda.Syntax.Common hiding (Arg, Dom, NamedArg)

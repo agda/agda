@@ -6,7 +6,6 @@ module Agda.Interaction.Imports where
 
 import Prelude
 
--- import Control.Arrow
 import Control.Monad.Error
 import Control.Monad.Reader
 import Control.Monad.State
@@ -17,7 +16,6 @@ import qualified Data.Map as Map
 import qualified Data.List as List
 import qualified Data.Set as Set
 import qualified Data.Foldable as Fold (toList)
--- import qualified Data.ByteString.Lazy as BS
 import Data.List
 import Data.Maybe
 import Data.Monoid (mempty, mappend)
@@ -28,34 +26,27 @@ import System.FilePath ((</>))
 
 import Paths_Agda (getDataFileName)
 
--- import Agda.Syntax.Position
 import qualified Agda.Syntax.Abstract as A
 import qualified Agda.Syntax.Concrete as C
 import Agda.Syntax.Abstract.Name
 import Agda.Syntax.Parser
 import Agda.Syntax.Scope.Base
--- import Agda.Syntax.Scope.Monad
 import Agda.Syntax.Translation.ConcreteToAbstract
 import Agda.Syntax.Internal
-
--- import Agda.Termination.TermCheck
 
 import Agda.TypeChecking.Errors
 import Agda.TypeChecking.Reduce
 import Agda.TypeChecking.Monad
--- import Agda.TypeChecking.Monad.Builtin
 import Agda.TypeChecking.Serialise
 import Agda.TypeChecking.Primitive
 import Agda.TypeChecker
 
--- import Agda.Interaction.EmacsCommand
 import Agda.Interaction.FindFile
 import Agda.Interaction.Options
 import qualified Agda.Interaction.Options.Lenses as Lens
 import Agda.Interaction.Highlighting.Precise (HighlightingInfo)
 import Agda.Interaction.Highlighting.Generate
 import Agda.Interaction.Highlighting.Vim
--- import qualified Agda.Interaction.Highlighting.Range as R
 
 import Agda.Utils.FileName
 import Agda.Utils.Monad
@@ -65,8 +56,8 @@ import Agda.Utils.Fresh
 import Agda.Utils.Time
 import qualified Agda.Utils.Trie as Trie
 
-import Agda.Utils.Impossible
 #include "../undefined.h"
+import Agda.Utils.Impossible
 
 -- | Merge an interface into the current proof state.
 mergeInterface :: Interface -> TCM ()

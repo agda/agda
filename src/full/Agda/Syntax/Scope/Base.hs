@@ -20,7 +20,6 @@ import Agda.Syntax.Concrete.Name as C
 import Agda.Syntax.Concrete
   (ImportDirective(..), UsingOrHiding(..), ImportedName(..), Renaming(..))
 import qualified Agda.Utils.Map as Map
--- import Agda.Utils.Tuple
 import Agda.Utils.List
 
 #include "../../undefined.h"

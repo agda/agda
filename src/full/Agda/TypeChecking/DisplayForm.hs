@@ -3,7 +3,6 @@
 module Agda.TypeChecking.DisplayForm where
 
 import Control.Applicative
--- import Control.Monad
 import Control.Monad.Error
 import Data.Traversable (traverse)
 
@@ -11,11 +10,7 @@ import Agda.Syntax.Common hiding (Arg, Dom, NamedArg, ArgInfo)
 import Agda.Syntax.Internal
 import Agda.TypeChecking.Monad
 import Agda.TypeChecking.Substitute
--- import Agda.TypeChecking.Reduce
 import Agda.TypeChecking.Level
-
--- import Agda.Utils.Monad
--- import Agda.Utils.Size
 
 #include "../undefined.h"
 import Agda.Utils.Impossible

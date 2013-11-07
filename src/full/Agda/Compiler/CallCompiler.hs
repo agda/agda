@@ -15,8 +15,8 @@ import System.Process
 
 import Agda.TypeChecking.Monad
 
-import Agda.Utils.Impossible
 #include "../undefined.h"
+import Agda.Utils.Impossible
 
 -- | Calls a compiler:
 --

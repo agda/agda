@@ -15,13 +15,11 @@ import Agda.TypeChecking.Monad
 import Agda.TypeChecking.Monad.Builtin
 import Agda.TypeChecking.Pretty
 import Agda.TypeChecking.Reduce
--- import Agda.TypeChecking.Rules.Builtin.Coinduction
 import Agda.TypeChecking.Substitute
 import Agda.TypeChecking.Free
--- import Agda.Utils.Monad
-import Agda.Utils.Impossible
 
 #include "../undefined.h"
+import Agda.Utils.Impossible
 
 type HaskellKind = String
 

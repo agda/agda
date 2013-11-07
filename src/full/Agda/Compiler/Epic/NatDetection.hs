@@ -10,21 +10,20 @@ import Control.Monad
 import Control.Monad.State
 import Data.Function
 import Data.List
--- import qualified Data.Map as M
 import Data.Maybe
 
 import Agda.Syntax.Common
 import Agda.Syntax.Internal
 import Agda.TypeChecking.Monad
--- import Agda.TypeChecking.Substitute
 import Agda.Utils.Monad (andM)
 
 import Agda.Compiler.Epic.CompileState
 import Agda.Compiler.Epic.Interface
 
+import qualified Agda.Utils.HashMap as HM
+
 #include "../../undefined.h"
 import Agda.Utils.Impossible
-import qualified Agda.Utils.HashMap as HM
 
 -- | Get a list of all the datatypes that look like nats. The [QName] is on the
 --   form [zeroConstr, sucConstr]

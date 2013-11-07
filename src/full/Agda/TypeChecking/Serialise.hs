@@ -31,7 +31,6 @@ import Control.Monad.Reader
 import Control.Monad.State.Strict
 import Control.Monad.Error
 import Data.Array.IArray
--- import Data.Bits (shiftR)
 import Data.Word
 import Data.ByteString.Lazy as L
 import Data.Hashable
@@ -54,13 +53,11 @@ import qualified Agda.Compiler.Epic.Interface as Epic
 import Agda.Syntax.Common
 import Agda.Syntax.Concrete.Name as C
 import qualified Agda.Syntax.Abstract as A
--- import Agda.Syntax.Abstract.Name as A
 import Agda.Syntax.Info
 import Agda.Syntax.Internal as I
 import Agda.Syntax.Scope.Base
 import Agda.Syntax.Position (Position, Range, noRange)
 import qualified Agda.Syntax.Position as P
--- import Agda.Syntax.Common
 import Agda.Syntax.Fixity
 import Agda.Syntax.Notation
 import Agda.Syntax.Literal
@@ -73,8 +70,6 @@ import Agda.TypeChecking.Monad
 import Agda.TypeChecking.CompiledClause
 import Agda.TypeChecking.Pretty
 import Agda.Utils.FileName
--- import Agda.Utils.Monad
--- import Agda.Utils.Tuple
 import Agda.Utils.Permutation
 import Agda.Utils.HashMap (HashMap)
 import qualified Agda.Utils.HashMap as HMap

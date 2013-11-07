@@ -18,11 +18,6 @@ import Agda.TypeChecking.Pretty
 
 import Agda.Utils.Permutation
 
-{- UNUSED
-#include "../../../undefined.h"
-import Agda.Utils.Impossible
--}
-
 type Substitution   = [Maybe Term]
 type FlexibleVars   = [FlexibleVar Nat]
 

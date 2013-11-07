@@ -24,11 +24,10 @@ import Agda.TypeChecking.Monad (TCM, internalError, defType, theDef, getConstInf
 import qualified Agda.TypeChecking.Monad as TM
 import Agda.TypeChecking.Reduce
 
-#include "../../undefined.h"
-import Agda.Utils.Impossible
--- import Agda.Utils.Monad
 import qualified Agda.Utils.HashMap as HM
 
+#include "../../undefined.h"
+import Agda.Utils.Impossible
 
 -- | Stuff we need in our compiler
 data CompileState = CompileState

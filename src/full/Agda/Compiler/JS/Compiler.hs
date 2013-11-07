@@ -4,7 +4,6 @@ module Agda.Compiler.JS.Compiler where
 
 import Prelude hiding ( null, writeFile )
 import Control.Monad.Reader ( liftIO )
--- import Control.Monad.State ( get, put )
 import Data.List ( intercalate, genericLength, partition )
 import Data.Maybe ( isJust )
 import Data.Set ( Set, null, insert, difference, delete )
@@ -52,7 +51,6 @@ import Agda.Utils.FileName ( filePath )
 import Agda.Utils.Function ( iterate' )
 import Agda.Utils.Monad ( (<$>), (<*>), localState, ifM )
 import Agda.Utils.IO.UTF8 ( writeFile )
-import Agda.Utils.Impossible ( Impossible(Impossible), throwImpossible )
 import qualified Agda.Utils.HashMap as HMap
 import Agda.Compiler.MAlonzo.Misc ( curDefs, curIF, curMName, setInterface )
 import Agda.Compiler.MAlonzo.Primitives ( repl )
@@ -67,6 +65,7 @@ import Agda.Compiler.JS.Case ( Tag(Tag), Case(Case), Patt(VarPatt,Tagged), lambd
 import Agda.Compiler.JS.Pretty ( pretty )
 
 #include "../../undefined.h"
+import Agda.Utils.Impossible ( Impossible(Impossible), throwImpossible )
 
 --------------------------------------------------
 -- Entry point into the compiler

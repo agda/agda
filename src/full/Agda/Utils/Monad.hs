@@ -16,14 +16,11 @@ module Agda.Utils.Monad
 import Prelude		   hiding (concat)
 import Control.Monad
 import Control.Monad.Error
--- import Control.Monad.Reader
 import Control.Monad.State
--- import qualified Control.Monad.State.Strict as SS
 import Control.Monad.Writer
 import Control.Applicative
 import Data.Traversable as Trav hiding (for, sequence)
 import Data.Foldable as Fold
--- import Data.Monoid
 import Data.Maybe
 
 import Agda.Utils.List

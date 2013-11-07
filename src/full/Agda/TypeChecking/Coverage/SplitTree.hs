@@ -16,12 +16,12 @@ module Agda.TypeChecking.Coverage.SplitTree where
 import Data.Tree
 import Test.QuickCheck
 
--- import Agda.Syntax.Common
 import Agda.Syntax.Abstract.Name
 
 import Agda.Utils.Monad
-import Agda.Utils.Impossible
+
 #include "../../undefined.h"
+import Agda.Utils.Impossible
 
 type SplitTree  = SplitTree'  QName
 type SplitTrees = SplitTrees' QName

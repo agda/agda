@@ -3,7 +3,6 @@
 module Agda.TypeChecking.Rules.LHS where
 
 import Data.Maybe
--- import qualified Data.List as List
 
 import Control.Applicative
 import Control.Monad
@@ -27,10 +26,8 @@ import Agda.TypeChecking.Conversion
 import Agda.TypeChecking.Constraints
 import Agda.TypeChecking.Datatypes
 import Agda.TypeChecking.Irrelevance
--- import Agda.TypeChecking.Primitive (constructorForm)
 import {-# SOURCE #-} Agda.TypeChecking.Empty
 -- Duplicate import??
--- import Agda.TypeChecking.Telescope (renamingR, teleArgs)
 
 import {-# SOURCE #-} Agda.TypeChecking.Rules.Term (checkExpr)
 import Agda.TypeChecking.Rules.LHS.Problem
@@ -40,8 +37,6 @@ import Agda.TypeChecking.Rules.LHS.Split
 import Agda.TypeChecking.Rules.LHS.Implicit
 import Agda.TypeChecking.Rules.LHS.Instantiate
 import Agda.TypeChecking.Rules.Data
-
--- import Agda.Interaction.Highlighting.Generate
 
 import Agda.Utils.Permutation
 import Agda.Utils.Size
