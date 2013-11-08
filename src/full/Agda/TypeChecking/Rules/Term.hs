@@ -1175,43 +1175,24 @@ traceCallE call m = do
 --   TODO: doesn't do proper blocking of terms
 checkArguments :: ExpandHidden -> ExpandInstances -> Range -> [I.NamedArg A.Expr] -> Type -> Type ->
                   ErrorT Type TCM (Args, Type)
+
+-- Case: no arguments, do not insert trailing hidden arguments: We are done.
 checkArguments DontExpandLast _ _ [] t0 t1 = return ([], t0)
+
+-- Case: no arguments, but need to insert trailing hiddens.
 checkArguments exh    expandIFS r [] t0 t1 =
     traceCallE (CheckArguments r [] t0 t1) $ lift $ do
       t1' <- unEl <$> reduce t1
       implicitArgs (-1) (expand t1') t0
     where
-      expand (Pi  (Dom info _) _) Hidden = getHiding info /= Hidden
+      expand (Pi (Dom info _) _)   Hidden = getHiding info /= Hidden
       expand _                     Hidden = True
-      expand (Pi  (Dom info _) _) Instance = getHiding info /= Instance && expandIFS == ExpandInstanceArguments
+      expand (Pi (Dom info _) _) Instance = getHiding info /= Instance &&
+                                            expandIFS == ExpandInstanceArguments
       expand _                   Instance = expandIFS == ExpandInstanceArguments
       expand _                  NotHidden = False
 
-{- OLD CODE
-checkArguments exh expandIFS r [] t0 t1 =
-    traceCallE (CheckArguments r [] t0 t1) $ do
-	t0' <- lift $ reduce t0
-	t1' <- lift $ reduce t1
-	case ignoreSharing $ unEl t0' of
-	    Pi (Dom Hidden rel a) _ | notHPi Hidden $ unEl t1'  -> do
-		v  <- lift $ applyRelevanceToContext rel $ newValueMeta RunMetaOccursCheck a
-		let arg = Arg Hidden rel v
-		(vs, t0'') <- checkArguments exh expandIFS r [] (piApply t0' [arg]) t1'
-		return (arg : vs, t0'')
-	    Pi (Dom Instance rel a) _ | expandIFS == ExpandInstanceArguments &&
-                                        (notHPi Instance $ unEl t1')  -> do
-                lift $ reportSLn "tc.term.args.ifs" 15 $ "inserting implicit meta for type " ++ show a
-		v <- lift $ applyRelevanceToContext rel $ initializeIFSMeta a
-		let arg = Arg Instance rel v
-		(vs, t0'') <- checkArguments exh expandIFS r [] (piApply t0' [arg]) t1'
-		return (arg : vs, t0'')
-	    _ -> return ([], t0')
-    where
-	notHPi h (Pi  (Dom h' _ _) _) | h == h' = False
-        notHPi h (Shared p) = notHPi h $ derefPtr p
-	notHPi _ _		        = True
--}
-
+-- Case: argument given.
 checkArguments exh expandIFS r args0@(Arg info e : args) t0 t1 =
     traceCallE (CheckArguments r args0 t0 t1) $ do
       lift $ reportSDoc "tc.term.args" 30 $ sep
@@ -1223,42 +1204,35 @@ checkArguments exh expandIFS r args0@(Arg info e : args) t0 t1 =
           , text "t1    =" <+> prettyTCM t1
           ]
         ]
-      t0b <- lift $ reduceB t0
-      let isMeta t = case ignoreSharing $ unEl t of { MetaV{} -> True; _ -> False }
-      case t0b of
-        Blocked{}                   -> throwError $ ignoreBlocking t0b
-        NotBlocked t0' | isMeta t0' -> throwError $ ignoreBlocking t0b
-        NotBlocked t0' -> do
-          -- (t0', cs) <- forcePi h (name e) t0
-          e' <- return $ namedThing e
-          case ignoreSharing $ unEl t0' of
-              Pi (Dom info' a) _ |
-                getHiding info == getHiding info' && (notHidden info || sameName (nameOf e) (nameInPi $ unEl t0')) -> do
-                  u  <- lift $ applyRelevanceToContext (getRelevance info') $ checkExpr e' a
-                  let arg = Arg info' u  -- save relevance info in argument
-                  (us, t0'') <- checkArguments exh expandIFS (fuseRange r e) args (piApply t0' [arg]) t1
-                  return (arg : us, t0'')
-{- UNUSED.  2012-04-02 do not insert DontCare (is redundant anyway)
-                         where nukeIfIrrelevant arg =
-                                 if argRelevance arg == Irrelevant then
-   -- Andreas, 2011-09-09 keep irr. args. until after termination checking
-                                   arg { unArg = DontCare $ unArg arg }
-                                  else arg
--}
-              Pi (Dom info a) b | getHiding info == Instance && expandIFS == ExpandInstanceArguments ->
-                insertIFSUnderscore (getRelevance info) (absName b) a
-              Pi (Dom info a) b | isHidden info  -> insertUnderscore (getRelevance info) (absName b)
-              Pi (Dom info _) _  | notHidden info -> lift $ typeError $ WrongHidingInApplication t0'
-              _ -> lift $ typeError $ ShouldBePi t0'
+      ifBlockedType t0 (\ m t -> throwError t) $ \ t0' -> do
+        let shouldBePi = lift $ typeError $ ShouldBePi t0'
+        -- (t0', cs) <- forcePi h (name e) t0
+        e' <- return $ namedThing e
+        case ignoreSharing $ unEl t0' of
+          Pi (Dom info' a) b
+            | getHiding info == getHiding info'
+              && (notHidden info || maybe True (absName b ==) (nameOf e)) -> do
+                u <- lift $ applyRelevanceToContext (getRelevance info') $ do
+                  checkExpr e' a
+                -- save relevance info' from domain in argument
+                mapFst (Arg info' u :) <$> do
+                  checkArguments exh expandIFS (fuseRange r e) args (absApp b u) t1
+            | getHiding info' == Instance && expandIFS == ExpandInstanceArguments ->
+                insertIFSUnderscore info' a b
+            | isHidden info'  -> insertUnderscore info' (absName b)
+            | notHidden info' -> lift $ typeError $ WrongHidingInApplication t0'
+            | otherwise       -> shouldBePi
+          _ -> shouldBePi
     where
-	insertIFSUnderscore rel x a = do
-          lift $ reportSLn "tc.term.args.ifs" 15 $ "inserting implicit meta (2) for type " ++ show a
-          v <- lift $ applyRelevanceToContext rel $ initializeIFSMeta x a
-          let arg = makeInstance $ setRelevance rel $ defaultArg v
-          (vs, t0'') <- checkArguments exh expandIFS r args0 (piApply t0 [arg]) t1
-          return (arg : vs, t0'')
+	insertIFSUnderscore info' a b = do
+          lift $ reportSLn "tc.term.args.ifs" 15 $
+            "inserting implicit meta (2) for type " ++ show a
+          u <- lift $ applyRelevanceToContext (getRelevance info') $ do
+            initializeIFSMeta (absName b) a
+          mapFst (Arg info' u :) <$> do
+            checkArguments exh expandIFS r args0 (absApp b u) t1
 
-	insertUnderscore rel x = do
+	insertUnderscore info' x = do
 	  scope <- lift $ getScope
 	  let m = A.Underscore $ A.MetaInfo
 		  { A.metaRange  = r
@@ -1266,19 +1240,13 @@ checkArguments exh expandIFS r args0@(Arg info e : args) t0 t1 =
 		  , A.metaNumber = Nothing
                   , A.metaNameSuggestion = x
 		  }
-	  checkArguments exh expandIFS r (hide (setRelevance rel $ defaultArg $ unnamed m) : args0) t0 t1
+	  checkArguments exh expandIFS r (Arg info' (unnamed m) : args0) t0 t1
 
+{- UNUSED, since we disabled forcePi above
 	name (Named _ (A.Var x)) = show x
 	name (Named (Just x) _)    = x
 	name _			   = "x"
-
-	sameName Nothing _  = True
-	sameName n1	 n2 = n1 == n2
-
-	nameInPi (Pi _ b)   = Just $ absName b
-        nameInPi (Shared p) = nameInPi (derefPtr p)
-	nameInPi _          = __IMPOSSIBLE__
-
+-}
 
 -- | Check that a list of arguments fits a telescope.
 checkArguments_ :: ExpandHidden -> Range -> [I.NamedArg A.Expr] -> Telescope -> TCM Args
