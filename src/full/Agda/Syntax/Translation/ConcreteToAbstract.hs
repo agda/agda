@@ -134,10 +134,20 @@ checkPatternLinearity ps = case xs \\ nub xs of
 recordConstructorType :: [NiceDeclaration] -> C.Expr
 recordConstructorType fields = build fs
   where
+    -- drop all declarations after the last field declaration
     fs = reverse $ dropWhile notField $ reverse fields
 
     notField NiceField{} = False
     notField _           = True
+
+    -- Andreas, 2013-11-08
+    -- Turn @open public@ into just @open@, since we cannot have an
+    -- @open public@ in a @let@.  Fixes issue 532.
+    build (NiceOpen r m dir@ImportDirective{ publicOpen = True }  : fs) =
+      build (NiceOpen r m dir{ publicOpen = False } : fs)
+
+    build (NiceModuleMacro r p x modapp open dir@ImportDirective{ publicOpen = True } : fs) =
+      build (NiceModuleMacro r p x modapp open dir{ publicOpen = False } : fs)
 
     build (NiceField r f _ _ x (Common.Arg info e) : fs) =
         C.Pi [C.TypedBindings r $ Common.Arg info (C.TBind r [BName x f] e)] $ build fs
