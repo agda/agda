@@ -596,10 +596,7 @@ comp' ineq lhs@(TrBr trs1 e1) rhs@(TrBr trs2 e2) = comp ineq e1 e2
            Left _ -> return True
            Right e -> boringExp e
           ALCons{} -> return False
-
-          ALProj{} -> __IMPOSSIBLE__
-
-
+          ALProj{} -> return False
           ALConPar{} -> return False
 
        _ -> return False
