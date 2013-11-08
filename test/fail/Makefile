@@ -22,6 +22,15 @@ include $(TOP)/mk/config.mk
 # Path to Agda
 agda=$(AGDA_BIN) $(AGDA_TEST_FLAGS)
 
+# use gsed on Mac OS instead of sed
+ifeq (Darwin,$(findstring Darwin,$(shell uname)))
+sed=gsed
+else
+sed=sed
+endif
+
+clean=/bin/bash $(shell pwd)/clean.sh $(sed)
+
 # Verbosity default = 0, can be overridden
 V = 0
 
@@ -52,7 +61,7 @@ $(allout) : %.err : %.agda
 	@if $(agda) -i. -i.. -v$(V) $(shell if [ -e $*.flags ]; then cat $*.flags; fi) $< > $*.tmp; \
 		then echo "Unexpected success"; rm -f $*.tmp; false; \
     else if [ -s $*.tmp ]; \
-				 then sed -E 's/[^ (]*test.fail.//g;s/[^ (]*lib.prim/agda-default-include-path/g;s/[^ (]*test.Common.//g;s/:[[:digit:]]\+:$$//' $*.tmp > $@; cat $@; rm -f $*.tmp; true; \
+				 then cat $*.tmp | $(clean) > $@; cat $@; rm -f $*.tmp; true; \
 				 else rm -f $@ $*.tmp; false; \
 				 fi; \
 		fi
@@ -64,8 +73,8 @@ $(allstems) : % : %.err
 	@if $(agda) -i. -i.. -v$(V) $(shell if [ -e $*.flags ]; then cat $*.flags; fi) $*.agda \
 		 > $*.tmp.2; \
 		then echo "Unexpected success"; rm -f $*.tmp.2; false; \
-    else sed -e 's/[^ (]*test.fail.//g;s/[^ (]*lib.prim/agda-default-include-path/g;s/[^ (]*test.Common.//g;s/\\/\//g;s/:[[:digit:]]\+:$$//' $*.tmp.2 > $*.tmp; \
-				 echo `cat $*.err` | sed -e 's/\\/\//g' > $*.tmp.2; \
+    else cat $*.tmp.2 | $(clean) > $*.tmp; \
+				 echo `cat $*.err` > $*.tmp.2; \
 				 echo `cat $*.tmp` > $*.tmp.3; \
 				 true; \
 		fi
@@ -98,7 +107,7 @@ customised/NestedProjectRoots.err : %.err : %.agda
 	    $(AGDA_BIN) -icustomised -icustomised/Imports $*.agda) > $*.tmp; \
 		then echo "Unexpected success"; rm -f $*.tmp; false; \
     else if [ -s $*.tmp ]; \
-		then sed -e "s/[^ (]*test.fail.//g;s/[^ (]*lib.prim/agda-default-include-path/g" $*.tmp > $@; cat $@; rm -f $*.tmp; true; \
+		then cat $*.tmp | $(clean) > $@; cat $@; rm -f $*.tmp; true; \
 		else rm -f $@ $*.tmp; false; \
 		fi; \
 	fi
@@ -110,9 +119,8 @@ customised/NestedProjectRoots : % : %.err
 	-@($(AGDA_BIN) --ignore-interfaces -icustomised -icustomised/Imports $*.agda; \
 	    $(AGDA_BIN) -icustomised/Imports customised/Imports/A.agda; \
 	    $(AGDA_BIN) -icustomised -icustomised/Imports $*.agda) \
-	    | sed -e 's/[^ (]*test.fail.//g;s/[^ (]*lib.prim/agda-default-include-path/g;s/\\/\//g' \
-	    > $*.err.tmp
-	@echo `cat $*.err.tmp` | sed -e 's/\\/\//g' > $*.err.tmp.2
+	    | $(clean) > $*.err.tmp
+	@echo `cat $*.err.tmp` > $*.err.tmp.2
 	@echo `cat $*.err` > $*.err.tmp.3
 	@if cmp $*.err.tmp.2 $*.err.tmp.3; \
 		then rm -f $*.err.tmp; rm -f $*.err.tmp.2; rm -f $*.err.tmp.3; \
@@ -130,7 +138,7 @@ customised/FFI.err : %.err : %.agda
 	@if ($(AGDA_BIN) --compile -v0 --ignore-interfaces -icustomised $*.agda) > $*.tmp; \
 		then echo "Unexpected success"; rm -f $*.tmp; false; \
     else if [ -s $*.tmp ]; \
-		then sed -e "s/[^ (]*test.fail.//g;s/[^ (]*lib.prim/agda-default-include-path/g;s/[0-9][0-9]*://g;s/scope/Skopje/g" $*.tmp > $@; cat $@; rm -f $*.tmp; true; \
+		then cat $*.tmp | $(clean) > $@; cat $@; rm -f $*.tmp; true; \
 		else rm -f $@ $*.tmp; false; \
 		fi; \
 	fi
@@ -140,9 +148,8 @@ customised/FFI : % : %.err
 	@echo $*.agda
 	-@rm -rf customised/MAlonzo
 	-@$(AGDA_BIN) --compile -v0 --ignore-interfaces -icustomised $*.agda \
-	    | sed -e 's/[^ (]*test.fail.//g;s/[^ (]*lib.prim./agda-default-include-path/g;s/\\/\//g;s/[0-9][0-9]*://g;s/scope/Skopje/g' \
-	    > $*.err.tmp
-	@echo `cat $*.err.tmp` | sed -e 's/\\/\//g' > $*.err.tmp.2
+	    | $(clean) > $*.err.tmp
+	@echo `cat $*.err.tmp` > $*.err.tmp.2
 	@echo `cat $*.err` > $*.err.tmp.3
 	@if cmp $*.err.tmp.2 $*.err.tmp.3; \
 		then rm -f $*.err.tmp; rm -f $*.err.tmp.2; rm -f $*.err.tmp.3; \

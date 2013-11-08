@@ -1,12 +1,12 @@
 
 Compilation error:
 
-customised/MAlonzo/Code/FFI.hs:
-    Not in Skopje: `nothing'
+customised/MAlonzo/Code/FFI.hs:14
+    Not in scope: 'nothing'
 
-customised/MAlonzo/Code/FFI.hs:
-    Not in Skopje: `nothing'
+customised/MAlonzo/Code/FFI.hs:18
+    Not in scope: 'nothing'
 
-customised/MAlonzo/Code/FFI.hs:
-    Not in Skopje: `nothing'
+customised/MAlonzo/Code/FFI.hs:27
+    Not in scope: 'nothing'
 
