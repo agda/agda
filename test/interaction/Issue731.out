@@ -1,0 +1,12 @@
+Agda2> (agda2-status-action "")
+(agda2-info-action "*Type-checking*" "" nil)
+(agda2-highlight-clear)
+(agda2-info-action "*Type-checking*" "Checking Issue731 (Issue731.agda).\n" t)
+(agda2-info-action "*Type-checking*" "Finished Issue731.\n" t)
+(agda2-status-action "")
+(agda2-info-action "*All Goals*" "Sort _1  [ at Issue731.agda:5,15-16 ]\n_2 : Set _1  [ at Issue731.agda:5,15-16 ]\n_4 : empty → Set  [ at Issue731.agda:9,7-10 ]\n_5 : empty → Set  [ at Issue731.agda:9,7-10 ]\n" nil)
+((last . 1) . (agda2-goals-action '()))
+Agda2> (agda2-status-action "")
+(agda2-info-action "*Constraints*" "_4 := foo [blocked by problem 3]\n[3] _2 =< Set : Set _1\n_1 = (.Agda.Prim.lsuc .Agda.Prim.lzero)\n_1 = (.Agda.Prim.lsuc .Agda.Prim.lzero)\n" nil)
+((last . 1) . (agda2-goals-action '()))
+Agda2> 
