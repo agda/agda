@@ -116,12 +116,16 @@ declsForPrim = xForPrim $
       in do
         ds <- decls ["ZERO", "SUC"] to totxt from fromtxt
         let rule name = HS.Rule name HS.AlwaysActive (Just [HS.RuleVar $ HS.Ident "x"])
-            var = HS.Var . HS.UnQual . HS.Ident
+            qname = HS.UnQual . HS.Ident
+            var   = HS.Var . qname
             (%) = HS.App
         return $ [HS.RulePragmaDecl dummy
                   [ rule (to ++ "-" ++ from) (var to   % (var from % var "x")) (var "x")
                   , rule (from ++ "-" ++ to) (var from % (var to   % var "x")) (var "x")
-                  ]] ++ ds
+                  ],
+                  HS.InlineSig dummy True (HS.ActiveFrom 2) (qname to),
+                  HS.InlineSig dummy True (HS.ActiveFrom 2) (qname from)
+                  ] ++ ds
     decls cs n1 b1 n2 b2 =
       do cs' <- mapM pconName cs
          return $ zipWith (\ n -> fakeDS n . repl cs') [n1, n2] [b1, b2]
