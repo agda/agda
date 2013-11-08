@@ -340,7 +340,6 @@ library
                     -fwarn-missing-fields
                     -fwarn-missing-methods
                     -fwarn-overlapping-patterns
-                    -fwarn-unused-imports
                     -fwarn-warnings-deprecations
   -- The Cabal-generated module Paths_Agda triggers a warning under
   -- GHC 7.2.1/7.2.2 (at least when certain versions of Cabal are
