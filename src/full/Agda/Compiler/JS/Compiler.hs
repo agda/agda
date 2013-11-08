@@ -16,14 +16,14 @@ import System.FilePath ( splitFileName, (</>) )
 import Agda.Interaction.FindFile ( findFile, findInterfaceFile )
 import Agda.Interaction.Imports ( isNewerThan )
 import Agda.Interaction.Options ( optCompileDir )
-import Agda.Syntax.Common ( Nat, Arg, unArg, namedArg )
+import Agda.Syntax.Common ( Nat, unArg, namedArg )
 import Agda.Syntax.Concrete.Name ( projectRoot )
 import Agda.Syntax.Abstract.Name
   ( ModuleName(MName), QName,
     mnameToList, qnameName, qnameModule, isInModule, nameId )
 import Agda.Syntax.Internal
   ( Name, Args, Type,
-    Clause, Pattern(VarP,DotP,LitP,ConP,ProjP), Abs,
+    Clause, Pattern(VarP,DotP,LitP,ConP,ProjP),
     ClauseBody(Body,NoBody,Bind),
     Term(Var,Lam,Lit,Level,Def,Con,Pi,Sort,MetaV,DontCare,Shared),
     unSpine, allApplyElims,

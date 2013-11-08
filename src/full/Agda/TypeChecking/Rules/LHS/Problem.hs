@@ -49,7 +49,7 @@ flexibleVarFromHiding :: Hiding -> a -> FlexibleVar a
 flexibleVarFromHiding h a = FlexibleVar h ImplicitFlex a
 
 instance Ord (FlexibleVar Nat) where
-  (FlexibleVar h1 f1 i1) >= (FlexibleVar h2 f2 i2) =
+  (FlexibleVar h2 f2 i2) <= (FlexibleVar h1 f1 i1) =
     f1 > f2 || (f1 == f2 && (hgt h1 h2 || (h1 == h2 && i1 <= i2)))
     where
       hgt x y | x == y = False
