@@ -1,6 +1,6 @@
 {-# LANGUAGE CPP, MultiParamTypeClasses, FunctionalDependencies,
              UndecidableInstances, TypeSynonymInstances, FlexibleInstances,
-             ScopedTypeVariables, TupleSections
+             ScopedTypeVariables, TupleSections, FlexibleContexts
   #-}
 
 {-|
@@ -16,7 +16,6 @@
 -}
 module Agda.Syntax.Translation.InternalToAbstract
   ( Reify(..)
-  , ReifyWhen(..)
   , NamedClause
   , reifyPatterns
   ) where
@@ -99,39 +98,31 @@ exprInfo = ExprRange noRange
 underscore :: Expr
 underscore = A.Underscore $ Info.emptyMetaInfo
 
--- Conditional reification to omitt terms that are not shown --------------
+-- Conditional reification to omit terms that are not shown --------------
 
--- | @ReifyWhen@ is a auxiliary type class to reify 'Arg'.
---
---   @reifyWhen False@ should produce an 'underscore'.
---   This function serves to reify hidden/irrelevant things.
-class Reify i a => ReifyWhen i a where
-    reifyWhen :: Bool -> i -> TCM a
-    reifyWhen _ = reify
-
-instance Reify i Expr => ReifyWhen i Expr where
-  reifyWhen True  i = reify i
-  reifyWhen False t = return underscore
-
-instance ReifyWhen i a => ReifyWhen (I.Arg i) (A.Arg a) where
-  reifyWhen b i = do info <- reify $ argInfo i
-                     traverse (reifyWhen b) $ i { argInfo = info }
-
-instance ReifyWhen i a => ReifyWhen (Named n i) (Named n a) where
-  reifyWhen b = traverse (reifyWhen b)
+reifyWhenE :: Reify i Expr => Bool -> i -> TCM Expr
+reifyWhenE True  i = reify i
+reifyWhenE False t = return underscore
 
 -- Reification ------------------------------------------------------------
 
 class Reify i a | i -> a where
     reify     ::         i -> TCM a
 
+    --   @reifyWhen False@ should produce an 'underscore'.
+    --   This function serves to reify hidden/irrelevant things.
+    reifyWhen :: Bool -> i -> TCM a
+    reifyWhen _ = reify
+
 instance Reify Name Name where
     reify = return
 
 instance Reify Expr Expr where
+    reifyWhen = reifyWhenE
     reify = return
 
 instance Reify MetaId Expr where
+    reifyWhen = reifyWhenE
     reify x@(MetaId n) = liftTCM $ do
       mi  <- mvInfo <$> lookupMeta x
       let mi' = Info.MetaInfo
@@ -150,6 +141,7 @@ instance Reify MetaId Expr where
           ) (return $ A.Underscore mi')
 
 instance Reify DisplayTerm Expr where
+  reifyWhen = reifyWhenE
   reify d = case d of
     DTerm v -> reifyTerm False v
     DDot  v -> reify v
@@ -274,6 +266,7 @@ reifyDisplayFormP lhs@(A.SpineLHS i x ps wps) =
         termToExpr _ = return underscore
 
 instance Reify Literal Expr where
+  reifyWhen = reifyWhenE
   reify l@(LitInt    {}) = return (A.Lit l)
   reify l@(LitFloat  {}) = return (A.Lit l)
   reify l@(LitString {}) = return (A.Lit l)
@@ -281,6 +274,7 @@ instance Reify Literal Expr where
   reify l@(LitQName  {}) = return (A.Lit l)
 
 instance Reify Term Expr where
+  reifyWhen = reifyWhenE
   reify v = reifyTerm True v
 
 reifyTerm :: Bool -> Term -> TCM Expr
@@ -487,15 +481,19 @@ nameFirstIfHidden _         es                    = map (fmap unnamed) es
 
 instance Reify i a => Reify (Named n i) (Named n a) where
   reify = traverse reify
+  reifyWhen b = traverse (reifyWhen b)
 
 -- | Skip reification of implicit and irrelevant args if option is off.
-instance (ReifyWhen i a) => Reify (I.Arg i) (A.Arg a) where
+instance (Reify i a) => Reify (I.Arg i) (A.Arg a) where
   reify (Common.Arg info i) = liftM2 Common.Arg (reify info)
                                                 (flip reifyWhen i =<< condition)
     where condition = (return (argInfoHiding info /= Hidden) `or2M` showImplicitArguments)
               `and2M` (return (argInfoRelevance info /= Irrelevant) `or2M` showIrrelevantArguments)
+  reifyWhen b i = do info <- reify $ argInfo i
+                     traverse (reifyWhen b) $ i { argInfo = info }
 
 instance Reify Elim Expr where
+  reifyWhen = reifyWhenE
   reify e = case e of
     I.Apply v -> appl "apply" <$> reify v
     I.Proj f  -> appl "proj"  <$> reify ((defaultArg $ I.Def f []) :: I.Arg Term)
@@ -736,9 +734,11 @@ instance Reify NamedClause A.Clause where
         return $ SpineLHS i f ps wps
 
 instance Reify Type Expr where
+    reifyWhen = reifyWhenE
     reify (I.El _ t) = reify t
 
 instance Reify Sort Expr where
+    reifyWhen = reifyWhenE
     reify s =
         do  s <- instantiateFull s
             case s of
@@ -756,6 +756,7 @@ instance Reify Sort Expr where
                   return $ A.Var lub `app` e1 `app` e2
 
 instance Reify Level Expr where
+  reifyWhen = reifyWhenE
   reify l = reify =<< reallyUnLevelView l
 
 instance (Free i, Reify i a) => Reify (Abs i) (Name, a) where

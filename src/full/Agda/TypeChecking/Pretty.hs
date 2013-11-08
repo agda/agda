@@ -116,7 +116,7 @@ instance PrettyTCM a => PrettyTCM (Blocked a) where
 instance (Reify a e, ToConcrete e c, P.Pretty c) => PrettyTCM (Named String a) where
     prettyTCM x = prettyA =<< reify x
 
-instance (ReifyWhen a e, ToConcrete e c, P.Pretty c) => PrettyTCM (Arg a) where
+instance (Reify a e, ToConcrete e c, P.Pretty c) => PrettyTCM (Arg a) where
     prettyTCM x = prettyA =<< reify x
 
 instance (Reify a e, ToConcrete e c, P.Pretty c) => PrettyTCM (Dom a) where
