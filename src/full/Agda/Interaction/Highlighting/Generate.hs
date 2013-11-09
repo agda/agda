@@ -10,6 +10,8 @@ module Agda.Interaction.Highlighting.Generate
   , printUnsolvedInfo
   , printHighlightingInfo
   , highlightAsTypeChecked
+  , computeUnsolvedMetaWarnings
+  , computeUnsolvedConstraints
   , Agda.Interaction.Highlighting.Generate.tests
   ) where
 

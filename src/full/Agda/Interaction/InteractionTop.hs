@@ -19,6 +19,7 @@ import Data.Function
 import Data.List as List
 import Data.Maybe
 import qualified Data.Map as Map
+import Data.Monoid
 
 import System.Directory
 
@@ -47,6 +48,7 @@ import qualified Agda.Interaction.Response as R
 import qualified Agda.Interaction.BasicOps as B
 import Agda.Interaction.Highlighting.Precise hiding (Postulate)
 import qualified Agda.Interaction.Imports as Imp
+import Agda.Interaction.Highlighting.Generate
 
 import qualified Agda.Compiler.Epic.Compiler as Epic
 import qualified Agda.Compiler.MAlonzo.Compiler as MAlonzo
@@ -161,7 +163,7 @@ runInteraction (IOTCM current highlighting highlightingMethod cmd)
     $ do
         current <- liftIO $ absolute current
 
-        res <- (`catchError` (return . Just)) $ do
+        res <- (`catchErr` (return . Just)) $ do
 
             -- Raises an error if the given file is not the one currently
             -- loaded.
@@ -179,6 +181,14 @@ runInteraction (IOTCM current highlighting highlightingMethod cmd)
         maybe (return ()) handleErr res
 
   where
+    -- Preserves state so we can do unsolved meta highlighting
+    catchErr :: CommandM a -> (TCErr -> CommandM a) -> CommandM a
+    catchErr m h = do
+      s       <- get
+      (x, s') <- lift (runStateT m s `catchError_` \e -> runStateT (h e) s)
+      put s'
+      return x
+
     inEmacs = liftCommandMT $ withEnv $ initEnv
             { envEmacs              = True
             , envHighlightingLevel  = highlighting
@@ -195,12 +205,16 @@ runInteraction (IOTCM current highlighting highlightingMethod cmd)
     -- error. Because this function may switch the focus to another file
     -- the status information is also updated.
     handleErr e = do
+        meta    <- lift $ computeUnsolvedMetaWarnings
+        constr  <- lift $ computeUnsolvedConstraints
+        modFile <- lift $ gets stModuleToSource
+        let info = compress $ meta `mappend` constr
         s <- lift $ prettyError e
         x <- lift . gets $ optShowImplicit . stPragmaOptions
-        let
         mapM_ putResponse $
             [ Resp_DisplayInfo $ Info_Error s ] ++
             tellEmacsToJumpToError (getRange e) ++
+            [ Resp_HighlightingInfo info modFile ] ++
             [ Resp_Status $ Status { sChecked = False
                                    , sShowImplicitArguments = x
                                    } ]

@@ -8,5 +8,6 @@ Agda2> (agda2-status-action "")
 ((last . 1) . (agda2-goals-action '(0)))
 Agda2> (agda2-info-action "*Error*" "Stuck.agda:12,7-11\nI'm not sure if there should be a case for the constructor e,\nbecause I get stuck when trying to solve the following unification\nproblems (inferred index ≟ expected index):\n  j ≟ i\n  j ≟ x\nwhen checking that the expression ? has type Set₁" nil)
 ((last . 3) . (agda2-goto '("Stuck.agda" . 137)))
+(agda2-highlight-load-and-delete-action)
 (agda2-status-action "")
 Agda2> 

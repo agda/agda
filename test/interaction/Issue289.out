@@ -8,5 +8,6 @@ Agda2> (agda2-status-action "")
 ((last . 1) . (agda2-goals-action '(0)))
 Agda2> (agda2-info-action "*Error*" "Issue289.agda:9,11-16\nSince goal is solved, further case distinction is not supported;\ntry `Solve constraints' instead\nwhen checking that the expression ? has type ⊤" nil)
 ((last . 3) . (agda2-goto '("Issue289.agda" . 104)))
+(agda2-highlight-load-and-delete-action)
 (agda2-status-action "")
 Agda2> 

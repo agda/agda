@@ -8,5 +8,6 @@ Agda2> (agda2-status-action "")
 ((last . 1) . (agda2-goals-action '(0)))
 Agda2> Agda2> Agda2> (agda2-info-action "*Error*" "Issue388.agda:11,11-16\nThe variables\n  A₁\nwhich are used (perhaps as constructor parameters) in the index\nexpressions\n  d A₁\nare free in the parameters\n  D A₁\nwhen checking that the expression ? has type Set" nil)
 ((last . 3) . (agda2-goto '("Issue388.agda" . 191)))
+(agda2-highlight-load-and-delete-action)
 (agda2-status-action "")
 Agda2> 
