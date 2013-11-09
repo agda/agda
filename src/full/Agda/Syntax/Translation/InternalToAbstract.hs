@@ -33,6 +33,8 @@ import qualified Data.Map as Map
 import Data.List hiding (sort)
 import Data.Traversable as Trav
 import Data.Maybe
+import Data.Monoid
+import Data.Foldable (foldMap)
 
 import Agda.Syntax.Literal
 import Agda.Syntax.Position
@@ -509,9 +511,97 @@ instance Reify ClauseBody RHS where
   reify (Body v)   = RHS <$> reify v
   reify (Bind b)   = reify $ absBody b  -- the variables should already be bound
 
-stripImplicits :: [A.NamedArg A.Pattern] -> [A.Pattern] ->
+-- Local data types to shuffleDots
+data DotBind = BindFirstExplicit | BindFirstImplicit | AlreadyBound deriving (Show)
+data DoBind  = YesBind | NoBind | DontTouch deriving (Eq, Show)
+
+-- The Monoid instance for Data.Map doesn't require that the values are a
+-- monoid.
+newtype MonoidMap k v = MonoidMap { unMonoidMap :: Map.Map k v }
+
+instance (Ord k, Monoid v) => Monoid (MonoidMap k v) where
+  mempty = MonoidMap Map.empty
+  mappend (MonoidMap m1) (MonoidMap m2) = MonoidMap (Map.unionWith mappend m1 m2)
+
+-- | Move dots on variables so that each variable is bound at its first
+--   non-hidden occurrence (if any). If all occurrences are hidden it's bound
+--   at the first occurrence.
+shuffleDots :: ([A.NamedArg A.Pattern], [A.Pattern]) -> TCM ([A.NamedArg A.Pattern], [A.Pattern])
+shuffleDots (ps, wps) = do
+  return $ (`evalState` xs)
+         $ (`runReaderT` NotHidden)
+         $ (,) <$> redotArgs ps <*> redotPats wps
+  where
+    -- An argument is explicit if _all_ Arg's on the way are explicit. In the
+    -- map we store if _any_ of the variable occurrences were explicit.
+    implicit = All False
+    explicit = All True
+                                        -- compute binding strategy
+    xs = Map.map (\(_, h) -> if getAny h then BindFirstExplicit else BindFirstImplicit)
+       $ Map.filter (getAny . fst)      -- remove vars that don't appear dotted
+       $ unMonoidMap
+       $ argsVars explicit ps <> foldMap (patVars explicit) wps
+
+    -- Compute a map from pattern vars to (AppearsDotted, AppearsInANonHiddenPosition)
+    argsVars h  = foldMap (argVars h)
+    argVars h a = (foldMap $ foldMap $ patVars (h <> h')) a
+      where h' = if getHiding a == NotHidden then explicit else implicit
+    patVars h p = case p of
+      A.VarP x             -> MonoidMap $ Map.singleton x (Any False, Any $ getAll h)
+      A.DotP _ (A.Var x)   -> MonoidMap $ Map.singleton x (Any True,  Any $ getAll h)
+      A.DotP{}             -> mempty
+      A.ConP _ _ ps        -> argsVars h ps
+      A.DefP _ _ ps        -> argsVars h ps
+      A.PatternSynP _ _ ps -> argsVars h ps
+      A.WildP{}            -> mempty
+      A.AbsurdP{}          -> mempty
+      A.LitP{}             -> mempty
+      A.ImplicitP{}        -> mempty
+      A.AsP{}              -> __IMPOSSIBLE__
+
+    shouldBind x = do
+      xs <- get
+      h  <- ask
+      let b = case Map.lookup x xs of
+                Nothing -> DontTouch
+                Just s  -> case s of
+                  BindFirstExplicit | h == NotHidden -> YesBind
+                                    | otherwise      -> NoBind
+                  BindFirstImplicit -> YesBind  -- in this case we know h isn't NotHidden
+                  AlreadyBound -> NoBind
+      when (b == YesBind) $ put $ Map.adjust (const AlreadyBound) x xs
+      return b
+
+    redotArgs = traverse redotArg
+    redotArg a = hide $ traverse (traverse redotPat) a
+      where hide | getHiding a /= NotHidden = local (const Hidden)
+                 | otherwise                = id
+    redotPats = traverse redotPat
+    redotPat p = case p of
+      A.VarP x             -> redotVar p x
+      A.DotP _ (A.Var x)   -> redotVar p x
+      A.DotP{}             -> pure p
+      A.ConP i c ps        -> A.ConP i c <$> redotArgs ps
+      A.DefP i f ps        -> A.DefP i f <$> redotArgs ps
+      A.PatternSynP i x ps -> A.PatternSynP i x <$> redotArgs ps
+      A.WildP{}            -> pure p
+      A.AbsurdP{}          -> pure p
+      A.LitP{}             -> pure p
+      A.ImplicitP{}        -> pure p
+      A.AsP{}              -> __IMPOSSIBLE__
+
+    redotVar p x = do
+      b <- shouldBind x
+      return $ case b of
+        DontTouch -> p
+        YesBind   -> A.VarP x
+        NoBind    -> A.DotP (Info.PatRange $ getRange p) (A.Var x)
+
+-- | Removes implicit arguments that are not needed, that is, that don't bind
+--   any variables that are actually used and doesn't do pattern matching.
+stripImplicits :: ([A.NamedArg A.Pattern], [A.Pattern]) ->
                   TCM ([A.NamedArg A.Pattern], [A.Pattern])
-stripImplicits ps wps = do            -- v if show-implicit we don't need the names
+stripImplicits (ps, wps) = do          -- v if show-implicit we don't need the names
   ifM showImplicitArguments (return (map (unnamed . namedThing <$>) ps, wps)) $ do
   let vars = dotVars (ps, wps)
   reportSLn "reify.implicit" 30 $ unlines
@@ -730,7 +820,7 @@ instance Reify NamedClause A.Clause where
 
       dropParams n (SpineLHS i f ps wps) = SpineLHS i f (genericDrop n ps) wps
       stripImps (SpineLHS i f ps wps) = do
-        (ps, wps) <- stripImplicits ps wps
+        (ps, wps) <- stripImplicits =<< shuffleDots (ps, wps)
         return $ SpineLHS i f ps wps
 
 instance Reify Type Expr where

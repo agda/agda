@@ -30,6 +30,7 @@ module ParamIndex where
   -- Agda now prefers the more left variables.
 
   -- Unfortunately, this leads to bad behavior in this case:
+  -- Ulf, 2013-11-09: Now fixed.
   dot1 : ∀ {A}{x : A}(y : A) → x ≡ y → Set
   dot1 y p = {!p!}
 
@@ -46,6 +47,7 @@ module AllIndices where
   dot x y p = {!p!}
 
   -- Same problem here:
+  -- Ulf, 2013-11-09: Also fixed
   dot1 : ∀ {A}{x : A}(y : A) → x ≡ y → Set
   dot1 y p = {!p!}
 
