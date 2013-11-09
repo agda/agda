@@ -313,6 +313,7 @@ checkAbsurdLambda i h e t = do
               , funCopy           = False
               , funTerminates     = Just True
               , funExtLam         = Nothing
+              , funWith           = Nothing
               }
           -- Andreas 2012-01-30: since aux is lifted to toplevel
           -- it needs to be applied to the current telescope (issue 557)
@@ -342,7 +343,7 @@ checkExtendedLambda i di qname cs e t = do
      let argsNoParam = genericDrop freevars args -- don't count module parameters
      let (hid, notHid) = partition isHidden argsNoParam
      abstract (A.defAbstract di) $ checkFunDef' t info NotDelayed
-                                                (Just (length hid, length notHid)) di qname cs
+                                                (Just (length hid, length notHid)) Nothing di qname cs
      reduce $ (Def qname [] `apply` args)
   where
     -- Concrete definitions cannot use information about abstract things.

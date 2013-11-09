@@ -283,8 +283,9 @@ applySection new ptel old ts rd rm = do
 	nd y = Defn (defArgInfo d) y t pol occ [] (-1) noCompiledRep <$> def  -- TODO: mutual block?
         oldDef = theDef d
 	isCon  = case oldDef of { Constructor{} -> True ; _ -> False }
-        mutual = case oldDef of { Function{funMutual = m} -> m ; _ -> [] }
-        extlam = case oldDef of { Function{funExtLam = e} -> e ; _ -> Nothing }
+        mutual = case oldDef of { Function{funMutual = m} -> m              ; _ -> [] }
+        extlam = case oldDef of { Function{funExtLam = e} -> e              ; _ -> Nothing }
+        with   = case oldDef of { Function{funWith = w}   -> copyName <$> w ; _ -> Nothing }
 {- THIS BREAKS A LOT OF THINGS:
         -- Andreas, 2013-10-21:
         -- Even if we apply the record argument, we stay a projection.
@@ -336,6 +337,7 @@ applySection new ptel old ts rd rm = do
                         , funCopy           = True
                         , funTerminates     = Just True
                         , funExtLam         = extlam
+                        , funWith           = with
                         }
                   reportSLn "tc.mod.apply" 80 $ "new def for " ++ show x ++ "\n  " ++ show newDef
                   return newDef

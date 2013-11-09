@@ -420,6 +420,7 @@ checkRecordProjections m r con tel ftel fs = do
                      , funCopy           = False
                      , funTerminates     = Just True
                      , funExtLam         = Nothing
+                     , funWith           = Nothing
                      })
             { defArgOccurrences = [StrictPos] }
         computePolarity projname

@@ -65,7 +65,7 @@ checkFunDef delayed i name cs = do
               -- See issue 729.
               whenM (isFrozen x) $ unfreezeMeta x
               checkAlias t info delayed i name e
-          _ -> checkFunDef' t info delayed Nothing i name cs
+          _ -> checkFunDef' t info delayed Nothing Nothing i name cs
   where
     isMeta (MetaV x _) = Just x
     isMeta _           = Nothing
@@ -121,18 +121,23 @@ checkAlias t' ai delayed i name e = do
                       , funCopy           = False
                       , funTerminates     = Nothing
                       , funExtLam         = Nothing
+                      , funWith           = Nothing
                       }
   reportSDoc "tc.def.alias" 20 $ text "checkAlias: leaving"
 
 
--- | Type check a definition by pattern matching. The third argument
--- specifies whether the clauses are delayed or not.
--- The fourth argument specifies if if we are checking a definition
--- arising from an extended lambda or not, in which case it contains
--- information about lambda lifted arguments.
-checkFunDef' :: Type -> I.ArgInfo -> Delayed -> Maybe (Int, Int) -> Info.DefInfo -> QName ->
-                [A.Clause] -> TCM ()
-checkFunDef' t ai delayed extlam i name cs =
+-- | Type check a definition by pattern matching.
+checkFunDef' :: Type             -> -- ^ the type we expect the function to have
+                I.ArgInfo        -> -- ^ is it irrelevant (for instance)
+                Delayed          -> -- ^ are the clauses delayed (not unfolded willy-nilly)
+                Maybe (Int, Int) -> -- ^ does the definition come from an extended lambda
+                                    --   (if so, we need to know some stuff about lambda-lifted args)
+                Maybe QName      -> -- ^ is it a with function (if so, what's the name of the parent function)
+                Info.DefInfo     -> -- ^ range info
+                QName            ->  -- ^ the name of the function
+                [A.Clause]       -> -- ^ the clauses to check
+                TCM ()
+checkFunDef' t ai delayed extlam with i name cs =
 
     traceCall (CheckFunDef (getRange i) (qnameName name) cs) $ do   -- TODO!! (qnameName)
         reportSDoc "tc.def.fun" 10 $
@@ -222,6 +227,7 @@ checkFunDef' t ai delayed extlam i name cs =
              , funCopy           = False
              , funTerminates     = Nothing
              , funExtLam         = extlam
+             , funWith           = with
              }
 
         -- Andreas 2012-02-13: postpone polarity computation until after positivity check
@@ -654,7 +660,7 @@ checkWithFunction (WithFunction f aux gamma delta1 delta2 vs as b qs perm' perm 
   cs <- return $ map (A.spineToLhs) cs
 
   -- Check the with function
-  checkFunDef NotDelayed info aux cs
+  checkFunDef' auxType defaultArgInfo NotDelayed Nothing (Just f) info aux cs
 
   where
     info = Info.mkDefInfo (nameConcrete $ qnameName aux) defaultFixity' PublicAccess ConcreteDef (getRange cs)

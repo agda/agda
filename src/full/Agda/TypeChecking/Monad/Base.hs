@@ -672,6 +672,9 @@ data Defn = Axiom
             , funExtLam         :: Maybe (Int,Int)
               -- ^ Is this function generated from an extended lambda?
               --   If yes, then return the number of hidden and non-hidden lambda-lifted arguments
+            , funWith           :: Maybe QName
+              -- ^ Is this a generated with-function? If yes, then what's the
+              --   name of the parent function.
             }
 	  | Datatype
             { dataPars           :: Nat            -- ^ Number of parameters.
@@ -734,6 +737,7 @@ emptyFunction = Function
   , funCopy        = False
   , funTerminates  = Nothing
   , funExtLam      = Nothing
+  , funWith        = Nothing
   }
 
 

@@ -155,6 +155,7 @@ bindBuiltinFlat e =
                    , funCopy       = False
                    , funTerminates = Just True
                    , funExtLam     = Nothing
+                   , funWith       = Nothing
                    }
                 }
 
