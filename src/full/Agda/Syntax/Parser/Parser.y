@@ -876,9 +876,9 @@ RewriteEquations
 WhereClause :: { WhereClause }
 WhereClause
     : {- empty -}		       { NoWhere	 }
-    | 'where' Declarations	       { AnyWhere $2	 }
-    | 'module' Id 'where' Declarations { SomeWhere $2 $4 }
-    | 'module' Underscore 'where' Declarations { SomeWhere $2 $4 }
+    | 'where' Declarations0	       { AnyWhere $2	 }
+    | 'module' Id 'where' Declarations0 { SomeWhere $2 $4 }
+    | 'module' Underscore 'where' Declarations0 { SomeWhere $2 $4 }
 
 
 {--------------------------------------------------------------------------
