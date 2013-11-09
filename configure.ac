@@ -16,11 +16,11 @@ AGDA_WITH_PROG_VERSION(GHC,ghc,6.4)
 AGDA_WITH_PROG_VERSION(ALEX,alex,2.0)
 AGDA_WITH_PROG_VERSION(HAPPY,happy,1.14)
 
-# We need to know if we have ghc 6.6
-FP_COMPARE_VERSIONS($GHC_VERSION,[-ge],6.6,
-    [HAVE_GHC_6_6=Yes],[HAVE_GHC_6_6=No]
+# We need to know if we have ghc 7.7
+FP_COMPARE_VERSIONS($GHC_VERSION,[-ge],7.7,
+    [HAVE_GHC_7_7=Yes],[HAVE_GHC_7_7=No]
 )
-AC_SUBST(HAVE_GHC_6_6)
+AC_SUBST(HAVE_GHC_7_7)
 
 # Building the documentation
 AGDA_WITH_OPTIONAL_PROG_VERSION(HADDOCK,haddock,0.6,

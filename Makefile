@@ -46,6 +46,10 @@ CABAL_OPTIONS=
 #  -f old-time
 #  -f epic
 
+ifeq ($(HAVE_GHC_7_7),Yes)
+CABAL_OPTIONS+=--ghc-option=-j3
+endif
+
 install : update-cabal install-bin compile-emacs-mode setup-emacs-mode
 
 prof : install-prof-bin
@@ -275,9 +279,10 @@ veryclean :
 
 info :
 	@echo "The agda binary is at:         $(AGDA_BIN)"
-	@echo "Do we have ghc 6.4?            $(HAVE_GHC_6_4)"
+	@echo "Do we have ghc 7.7?            $(HAVE_GHC_7_7)"
 	@echo "Is this the darcs repository?  $(is_darcs_repo)"
 	@echo "Agda test flags are:           $(AGDA_TEST_FLAGS)"
+	@echo "Cabal flags are:               $(CABAL_OPTIONS)"
 
 else	# is_configured
 

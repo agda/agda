@@ -10,7 +10,7 @@ OBJEXT		= @OBJEXT@
 
 GHC		= @GHC@
 GHC_VERSION	= @GHC_VERSION@
-HAVE_GHC_6_6	= @HAVE_GHC_6_6@
+HAVE_GHC_7_7	= @HAVE_GHC_7_7@
 GHC_FLAGS	= -O -Wall -Werror \
 			-fno-warn-missing-signatures \
 			-fno-warn-name-shadowing \
