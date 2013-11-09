@@ -785,20 +785,17 @@ DomainFreeBindingAbsurd
 
 -- Import directives
 ImportDirective :: { ImportDirective }
-ImportDirective : ImportDirective1 {% verifyImportDirective $1 }
+ImportDirective : ImportDirectives {% mergeImportDirectives $1 }
 
--- Can contain public
+ImportDirectives :: { [ImportDirective] }
+ImportDirectives
+  : ImportDirective1 ImportDirectives { $1 : $2 }
+  | {- empty -}                       { [] }
+
 ImportDirective1 :: { ImportDirective }
-ImportDirective1
-    : 'public' ImportDirective2 { $2 { publicOpen = True } }
-    | ImportDirective2	        { $1 }
-
-ImportDirective2 :: { ImportDirective }
-ImportDirective2
-    : UsingOrHiding RenamingDir	{ ImportDirective (fuseRange (snd $1) (snd $2)) (fst $1) (fst $2) False }
-    | RenamingDir		{ ImportDirective (getRange (snd $1)) (Hiding []) (fst $1) False }
-    | UsingOrHiding		{ ImportDirective (getRange (snd $1)) (fst $1) [] False }
-    | {- empty -}		{ defaultImportDir }
+  : 'public'      { defaultImportDir { importDirRange = getRange $1, publicOpen = True } }
+  | UsingOrHiding { defaultImportDir { importDirRange = snd $1, usingOrHiding = fst $1 } }
+  | RenamingDir   { defaultImportDir { importDirRange = snd $1, renaming = fst $1 } }
 
 UsingOrHiding :: { (UsingOrHiding , Range) }
 UsingOrHiding
@@ -1400,6 +1397,29 @@ addType :: LamBinding -> TypedBindings
 addType (DomainFull b)	 = b
 addType (DomainFree info x) = TypedBindings r $ Common.Arg info $ TBind r [x] $ Underscore r Nothing
   where r = getRange x
+
+mergeImportDirectives :: [ImportDirective] -> Parser ImportDirective
+mergeImportDirectives is = do
+  i <- foldl merge (return defaultImportDir) is
+  verifyImportDirective i
+  where
+    merge mi i2 = do
+      i1 <- mi
+      let err = case rStart $ getRange i2 of
+            Nothing -> parseError     "Cannot mix using and hiding module directives"
+            Just p  -> parseErrorAt p "Cannot mix using and hiding module directives"
+      uh <- case (usingOrHiding i1, usingOrHiding i2) of
+            (Hiding [], u)         -> return u
+            (u, Hiding [])         -> return u
+            (Using{}, Hiding{})    -> err
+            (Hiding{}, Using{})    -> err
+            (Using xs, Using ys)   -> return $ Using (xs ++ ys)
+            (Hiding xs, Hiding ys) -> return $ Hiding (xs ++ ys)
+      return $ ImportDirective
+        { importDirRange = fuseRange i1 i2
+        , usingOrHiding  = uh
+        , renaming       = renaming i1 ++ renaming i2
+        , publicOpen     = publicOpen i1 || publicOpen i2 }
 
 -- | Check that an import directive doesn't contain repeated names
 verifyImportDirective :: ImportDirective -> Parser ImportDirective
