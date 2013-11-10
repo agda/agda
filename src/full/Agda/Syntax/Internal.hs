@@ -247,10 +247,12 @@ data Clause = Clause
 clausePats :: Clause -> [Arg Pattern]
 clausePats = map (fmap namedThing) . namedClausePats
 
-data ClauseBody = Body Term
-		| Bind (Abs ClauseBody)
-		| NoBody    -- ^ for absurd clauses.
-  deriving (Typeable, Show)
+data ClauseBodyF a = Body a
+		   | Bind (Abs (ClauseBodyF a))
+		   | NoBody    -- ^ for absurd clauses.
+  deriving (Typeable, Show, Functor, Foldable, Traversable)
+
+type ClauseBody = ClauseBodyF Term
 
 instance HasRange Clause where
   getRange = clauseRange

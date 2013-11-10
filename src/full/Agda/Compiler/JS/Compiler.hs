@@ -24,7 +24,7 @@ import Agda.Syntax.Abstract.Name
 import Agda.Syntax.Internal
   ( Name, Args, Type,
     Clause, Pattern(VarP,DotP,LitP,ConP,ProjP),
-    ClauseBody(Body,NoBody,Bind),
+    ClauseBodyF(Body,NoBody,Bind),ClauseBody,
     Term(Var,Lam,Lit,Level,Def,Con,Pi,Sort,MetaV,DontCare,Shared),
     unSpine, allApplyElims,
     conName,
