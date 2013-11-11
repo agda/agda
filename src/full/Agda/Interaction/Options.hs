@@ -45,7 +45,7 @@ isLiterate file = ".lagda" `isSuffixOf` file
 -- OptDescr is a Functor --------------------------------------------------
 
 -- base-4.7 defines these
-#if __GLASGOW_HASKELL__ < 707
+#if !(MIN_VERSION_base(4,7,0))
 deriving instance Functor OptDescr
 deriving instance Functor ArgDescr
 #endif
