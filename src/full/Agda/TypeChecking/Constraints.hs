@@ -23,6 +23,7 @@ import {-# SOURCE #-} Agda.TypeChecking.Empty
 import {-# SOURCE #-} Agda.TypeChecking.UniversePolymorphism
 
 import Agda.Utils.Fresh
+import Agda.Utils.Maybe
 import Agda.Utils.Monad
 
 #include "../undefined.h"
@@ -142,8 +143,7 @@ solveAwakeConstraints' force = do
       reportSDoc "tc.constr.solve" 10 $ hsep [ text "Solving awake constraints."
                                              , text . show . length =<< getAwakeConstraints
                                              , text "remaining." ]
-      mc <- takeAwakeConstraint
-      flip (maybe $ return ()) mc $ \c -> do
+      whenJustM takeAwakeConstraint $ \ c -> do
         withConstraint solveConstraint c
         solve
 

@@ -18,7 +18,7 @@ import Agda.TypeChecking.Reduce (reduce)
 
 import Agda.TypeChecking.DropArgs
 
-import Agda.Utils.Maybe (maybeM)
+import Agda.Utils.Maybe
 import Agda.Utils.Monad
 import Agda.Utils.Size
 import Agda.Utils.Permutation
@@ -72,7 +72,7 @@ elimView v = do
   v <- reduceProjectionLike v
   reportSDoc "tc.conv.elim" 40 $
     text "elimView (projections reduced) of " <+> prettyTCM v
-  flip (maybeM (return v)) (projView v) $ \ (ProjectionView f a es) -> do
+  caseMaybeM (projView v) (return v) $ \ (ProjectionView f a es) -> do
         (`applyE` (Proj f : es)) <$> elimView (unArg a)
 
 {- Andreas, 2013-11-01: Use of unLevel no longer necessary, since we do not reduce!

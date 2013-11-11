@@ -14,6 +14,8 @@ import Agda.TypeChecking.Substitute
 import Agda.TypeChecking.Reduce
 import Agda.TypeChecking.Primitive
 
+import Agda.Utils.Maybe
+
 #include "../../undefined.h"
 import Agda.Utils.Impossible
 
@@ -168,9 +170,8 @@ match' ((c, es, patch) : stack) = do
             NotBlocked _ -> no es'
 
 -- If we reach the empty stack, then pattern matching was incomplete
-match' [] = do
-  mf <- asks envAppDef
-  flip (maybe __IMPOSSIBLE__) mf $ \ f -> do
+match' [] = do  {- new line here since __IMPOSSIBLE__ does not like the ' in match' -}
+  caseMaybeM (asks envAppDef) __IMPOSSIBLE__ $ \ f -> do
     typeError $ GenericError $ "Incomplete pattern matching when applying " ++ show f
 
 

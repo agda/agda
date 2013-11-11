@@ -46,6 +46,7 @@ import Agda.Utils.Permutation
 import Agda.Utils.Size
 import Agda.Utils.Tuple
 import Agda.Utils.List
+import Agda.Utils.Maybe
 import Agda.Utils.Monad
 
 #include "../undefined.h"
@@ -172,7 +173,7 @@ cover f cs sc@(SClause tel perm ps _ target) = do
       reportSLn "tc.cover" 20 $ "blocked by projection pattern"
       -- if we want to split projections, but have no target type, we give up
       let done = return (SplittingDone (size tel), Set.empty, [ps])
-      flip (maybe done) target $ \ t -> do
+      caseMaybe target done $ \ t -> do
         isR <- addCtxTel tel $ isRecordType $ unArg t
         case isR of
           Just (_r, vs, Record{ recFields = fs }) -> do
@@ -282,7 +283,7 @@ isDatatype ind at = do
 -- if target becomes a function type.
 fixTarget :: SplitClause -> TCM SplitClause
 fixTarget sc@SClause{ scSubst = sigma, scTarget = target } =
-  flip (maybe $ return sc) target $ \ a -> do
+  caseMaybe target (return sc) $ \ a -> do
     reportSDoc "tc.cover.target" 20 $
       text "target type before substitution: " <+> prettyTCM a
     TelV tel b <- telView $ applySubst sigma $ unArg a
@@ -597,25 +598,6 @@ split' ind sc@(SClause tel perm ps _ target) (x, mcons) = liftTCM $ runException
 
   where
     xDBLevel = dbIndexToLevel tel perm x
-{-
-    -- update the target type, add more patterns to split clause
-    -- if target becomes a function type.
-    fixTarget :: SplitClause -> CoverM SplitClause
-    fixTarget sc@SClause{ scSubst = sigma } =
-      flip (maybe $ return sc) target $ \ a -> do
-        TelV tel b <- lift $ telView $ applySubst sigma a
-        let n      = size tel
-            lgamma = telToList tel
-            xs     = map (argFromDom . fmap (const $ VarP "_")) $ lgamma
-        if (n == 0) then return sc { scTarget = Just b }
-         else return $ SClause
-          { scTel    = telFromList $ telToList (scTel sc) ++ lgamma
-          , scPerm   = liftP n $ scPerm sc
-          , scPats   = scPats sc ++ xs
-          , scSubst  = liftS n $ sigma
-          , scTarget = Just b
-          }
--}
 
     inContextOfT :: MonadTCM tcm => tcm a -> tcm a
     inContextOfT = addCtxTel tel . escapeContext (x + 1)

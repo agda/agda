@@ -45,6 +45,7 @@ import Agda.TypeChecking.Free (freeIn)
 import qualified Agda.TypeChecking.Pretty as TP
 
 import Agda.Utils.List
+import Agda.Utils.Maybe
 import Agda.Utils.Monad
 import Agda.Utils.Pretty
 import Agda.Utils.Permutation

@@ -25,6 +25,7 @@ import {-# SOURCE #-} Agda.TypeChecking.Rules.Term (checkArguments)
 import {-# SOURCE #-} Agda.TypeChecking.MetaVars
 import {-# SOURCE #-} Agda.TypeChecking.Conversion
 
+import Agda.Utils.Maybe
 import Agda.Utils.Monad
 
 #include "../undefined.h"

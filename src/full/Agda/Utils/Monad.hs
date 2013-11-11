@@ -54,17 +54,13 @@ when_ b m = when b $ do m >> return ()
 unless_ :: Monad m => Bool -> m a -> m ()
 unless_ b m = unless b $ do m >> return ()
 
-whenJust :: Monad m => Maybe a -> (a -> m ()) -> m ()
-whenJust m k = flip (maybe $ return ()) m k
-
 whenM :: Monad m => m Bool -> m a -> m ()
 whenM c m = c >>= (`when_` m)
 
 unlessM :: Monad m => m Bool -> m a -> m ()
 unlessM c m = c >>= (`unless_` m)
 
-whenJustM :: Monad m => m (Maybe a) -> (a -> m ()) -> m ()
-whenJustM c m = c >>= (`whenJust` m)
+-- whenJust, whenJustM moved to Utils.Maybe
 
 ifM :: Monad m => m Bool -> m a -> m a -> m a
 ifM c m m' =

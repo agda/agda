@@ -21,6 +21,8 @@ import Agda.TypeChecking.Reduce
 
 import Agda.TypeChecking.Rules.LHS.Problem
 
+import Agda.Utils.Maybe
+
 #include "../../../undefined.h"
 import Agda.Utils.Impossible
 
@@ -53,8 +55,7 @@ expandImplicitPattern' a p
      -- Eta expand implicit patterns of record type (issue 473),
      -- but not instance arguments since then they won't be found
      -- by the instance search
-     res <- isEtaRecordType =<< reduce a
-     flip (maybe (return Nothing)) res $ \ (d, _) -> do
+     caseMaybeM (isEtaRecordType =<< reduce a) (return Nothing) $ \ (d, _) -> do
        -- Andreas, 2012-06-10: only expand guarded records,
        -- otherwise we might run into an infinite loop
        def <- getRecordDef d

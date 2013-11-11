@@ -29,6 +29,7 @@ import Agda.TypeChecking.Telescope
 
 import Agda.Utils.Size
 import Agda.Utils.List
+import Agda.Utils.Maybe
 import Agda.Utils.Monad
 import Agda.Utils.SemiRing
 import qualified Agda.Utils.Graph as Graph

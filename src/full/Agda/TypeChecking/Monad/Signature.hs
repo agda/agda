@@ -26,8 +26,9 @@ import {-# SOURCE #-} Agda.TypeChecking.CompiledClause.Compile
 import {-# SOURCE #-} Agda.TypeChecking.Polarity
 import {-# SOURCE #-} Agda.TypeChecking.ProjectionLike
 
-import Agda.Utils.Monad
 import Agda.Utils.Map as Map
+import Agda.Utils.Maybe
+import Agda.Utils.Monad
 import Agda.Utils.Size
 import Agda.Utils.Permutation
 import Agda.Utils.Pretty
@@ -699,7 +700,7 @@ getDefType f t = do
   def <- getConstInfo f
   let a = defType def
   -- if @f@ is not a projection (like) function, @a@ is the correct type
-  flip (maybe $ return $ Just a) (isProjection_ $ theDef def) $
+  caseMaybe (isProjection_ $ theDef def) (return $ Just a) $
     \ (Projection{ projIndex = n }) -> do
       -- otherwise, we have to instantiate @a@ to the "parameters" of @f@
       let npars | n == 0    = __IMPOSSIBLE__

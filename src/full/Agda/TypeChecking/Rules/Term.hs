@@ -59,6 +59,7 @@ import {-# SOURCE #-} Agda.TypeChecking.Empty (isEmptyType)
 import {-# SOURCE #-} Agda.TypeChecking.Rules.Decl (checkSectionApplication)
 import {-# SOURCE #-} Agda.TypeChecking.Rules.Def (checkFunDef,checkFunDef')
 
+import Agda.Utils.Maybe
 import Agda.Utils.Monad
 import Agda.Utils.Size
 
@@ -961,7 +962,7 @@ checkConstructorApplication org t c args = do
         -- from t = Def d' vs, we drop the additional parameters.
         npars  <- getNumberOfParameters d
         npars' <- getNumberOfParameters d'
-        flip (maybe fallback) (sequenceA $ List2 (npars, npars')) $ \(List2 (n,n')) -> do
+        caseMaybe (sequenceA $ List2 (npars, npars')) fallback $ \ (List2 (n,n')) -> do
         reportSDoc "tc.term.con" 50 $ nest 2 $ text $ "n    = " ++ show n
         reportSDoc "tc.term.con" 50 $ nest 2 $ text $ "n'   = " ++ show n'
         when (n > n')  -- preprocessor does not like ', so put on next line
