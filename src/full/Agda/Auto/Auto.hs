@@ -8,7 +8,7 @@ import Data.List
 import qualified Data.Map as Map
 import Data.IORef
 import qualified System.Timeout
-import Data.Maybe (catMaybes)
+import Data.Maybe (catMaybes, isNothing)
 
 import Agda.Utils.Permutation (permute, takeP)
 import Agda.TypeChecking.Monad.Base
@@ -216,26 +216,26 @@ auto ii rng argstr = liftTCM $ do
                  res <- exsearch initprop recinfo defdfv
                  iis <- getInteractionPoints
                  riis <- mapM (\ii -> lookupInteractionId ii >>= \mi -> return (mi, ii)) iis
+                 let timeoutString | isNothing res = " after timeout (" ++ show timeout ++ "s)"
+                                   | otherwise     = ""
                  if listmode then do
                    rsols <- liftM reverse $ liftIO $ readIORef sols
                    if null rsols then do
                      nsol' <- liftIO $ readIORef nsol
-                     dispmsg $ insuffsols (pick + 10 - nsol')
+                     dispmsg $ insuffsols (pick + 10 - nsol') ++ timeoutString
                     else do
                      aexprss <- mapM getsols rsols
                      cexprss <- mapM (mapM (\(mi, e) -> lookupMeta mi >>= \mv -> withMetaInfo (getMetaInfo mv) $ abstractToConcrete_ e >>= \e' -> return (mi, e'))) aexprss
                      let disp [(_, cexpr)] = show cexpr
                          disp cexprs = concat (map (\(mi, cexpr) -> case lookup mi riis of {Nothing -> show mi; Just ii -> show ii} ++ " := " ++ show cexpr ++ " ") cexprs)
                      ticks <- liftIO $ readIORef ticks
-                     dispmsg $ "Listing solution(s) " ++ show pick ++ "-" ++ show (pick + length rsols - 1) ++
-
-
+                     dispmsg $ "Listing solution(s) " ++ show pick ++ "-" ++ show (pick + length rsols - 1) ++ timeoutString ++
                                "\n" ++ unlines (map (\(x, y) -> show y ++ "  " ++ disp x) $ zip cexprss [pick..])
                   else
                    case res of
                     Nothing -> do
                      nsol' <- liftIO $ readIORef nsol
-                     dispmsg $ insuffsols (pick + 1 - nsol') ++ " at time out (" ++ show timeout ++ "s)"
+                     dispmsg $ insuffsols (pick + 1 - nsol') ++ timeoutString
                     Just depthreached -> do
                      ticks <- liftIO $ readIORef ticks
                      rsols <- liftIO $ readIORef sols

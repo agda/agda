@@ -1,0 +1,5 @@
+top_command (cmd_load currentFile [])
+goal_command 0 cmd_auto "-l -t 1"
+goal_command 0 cmd_auto "-l -t 1 -s 1"
+goal_command 1 cmd_auto "-l -t 1"
+goal_command 1 cmd_auto "-l -t 1 -s 1"
