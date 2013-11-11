@@ -581,6 +581,20 @@ instance EmbPrj A.LamBinding where
                            valu [1, a]    = valu1 A.DomainFull a
                            valu _         = malformed
 
+instance EmbPrj A.LetBinding where
+  icode (A.LetBind _ a b c d)  = icode4 0 a b c d
+  icode (A.LetPatBind _ a b )  = icode2 1 a b
+  icode (A.LetApply _ _ _ _ _) = icode0 2
+  icode (A.LetOpen _ _)        = icode0 2
+
+  value = vcase valu
+    where
+      valu [0, a, b, c, d] = valu4 (A.LetBind (LetRange noRange)) a b c d
+      valu [1, a, b]       = valu2 (A.LetPatBind (LetRange noRange)) a b
+      valu [2]             = throwError $ NotSupported
+                                 "importing pattern synonym containing let module"
+      valu _               = malformed
+
 instance EmbPrj A.TypedBindings where
   icode (A.TypedBindings a b) = icode2' a b
 
@@ -588,10 +602,12 @@ instance EmbPrj A.TypedBindings where
                            valu _      = malformed
 
 instance EmbPrj A.TypedBinding where
-  icode (A.TBind a b c) = icode3' a b c
+  icode (A.TBind a b c) = icode3 0 a b c
+  icode (A.TNoBind a)   = icode1 1 a
 
-  value = vcase valu where valu [a, b, c] = valu3 A.TBind a b c
-                           valu _         = malformed
+  value = vcase valu where valu [0, a, b, c] = valu3 A.TBind a b c
+                           valu [1, a]       = valu1 A.TNoBind a
+                           valu _            = malformed
 
 instance EmbPrj c => EmbPrj (Agda.Syntax.Common.ArgInfo c) where
   icode (ArgInfo h r cs) = icode3' h r cs

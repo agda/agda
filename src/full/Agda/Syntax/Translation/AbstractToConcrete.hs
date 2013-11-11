@@ -526,6 +526,9 @@ instance ToConcrete A.TypedBinding C.TypedBinding where
         bindToConcrete xs $ \xs -> do
         e <- toConcreteCtx TopCtx e
         ret (C.TBind r (map mkBoundName_ xs) e)
+    bindToConcrete (A.TNoBind e) ret = do
+        e <- toConcreteCtx TopCtx e
+        ret (C.TNoBind e)
 
 instance ToConcrete LetBinding [C.Declaration] where
     bindToConcrete (LetBind i info x t e) ret =

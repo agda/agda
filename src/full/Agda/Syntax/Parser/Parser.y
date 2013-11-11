@@ -632,6 +632,8 @@ TypedBindings
                                                        (makeInstance $ defaultColoredArg $2) }
     | '{' TBind '}'        { TypedBindings (getRange ($1,$2,$3))
                                            (hide $ defaultColoredArg $2) }
+    | '(' Open ')'               { tLet (getRange ($1,$3)) $2 }
+    | '(' 'let' Declarations ')' { tLet (getRange ($1,$4)) $3 }
 
 
 -- x1 .. xn : A
@@ -1413,6 +1415,10 @@ isName s (_,s')
 -- | Build a forall pi (forall x y z -> ...)
 forallPi :: [LamBinding] -> Expr -> Expr
 forallPi bs e = Pi (map addType bs) e
+
+-- | Build a telescoping let (let Ds)
+tLet :: Range -> [Declaration] -> TypedBindings
+tLet r = TypedBindings r . Common.Arg defaultArgInfo . TLet r
 
 -- | Converts lambda bindings to typed bindings.
 addType :: LamBinding -> TypedBindings

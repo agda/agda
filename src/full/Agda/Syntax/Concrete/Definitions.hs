@@ -293,6 +293,7 @@ parameters :: [LamBinding] -> Params
 parameters = List.concat . List.map numP where
   numP (DomainFree i _) = [argInfoHiding i]
   numP (DomainFull (TypedBindings _ (Common.Arg i (TBind _ xs _)))) = List.replicate (length xs) $ argInfoHiding i
+  numP (DomainFull (TypedBindings _ (Common.Arg _ (TNoBind{}))))    = __IMPOSSIBLE__
 
 {- OLD:
 
@@ -524,6 +525,7 @@ niceDeclarations ds = do
       where
         dropType (DomainFull (TypedBindings r (Common.Arg i (TBind _ xs _)))) =
           map (DomainFree i) xs
+        dropType (DomainFull (TypedBindings _ (Common.Arg _ TLet{}))) = []
         dropType b@DomainFree{} = [b]
 
     -- Translate axioms

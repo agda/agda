@@ -298,6 +298,28 @@ Language
   This change is a step towards symmetry of constructors and projections.
   (Constructors always took the module parameters as hidden arguments).
 
+* Telescoping lets: Local bindings are now accepted in telescopes
+
+  The syntax of telescopes as been extended to support 'let':
+
+    id : (let ★ = Set) (A : ★) → A → A
+    id A x = x
+
+ In particular one can now 'open' modules inside telescopes:
+
+  module Star where
+    ★ : Set₁
+    ★ = Set
+
+  module MEndo (let open Star) (A : ★) where
+    Endo : ★
+    Endo = A → A
+
+ Finally a shortcut is provided for opening modules:
+
+   module N (open Star) (A : ★) (open MEndo A) (f : Endo) where
+     ...
+
 * Ambiguous names in patterns are now optimistically resolved in favor
   of constructors. [Issue 822] In particular, the following succeeds now:
 

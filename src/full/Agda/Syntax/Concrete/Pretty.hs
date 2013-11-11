@@ -234,6 +234,9 @@ instance Pretty ColoredTypedBinding where
                 -- (x y :{ i j } A) -> ...
     pretty (WithColors [] (TBind _ xs (Underscore _ Nothing))) =
         fsep (map pretty xs)
+    pretty (WithColors [] (TLet _ ds)) =
+        text "let" <+> vcat (map pretty ds)
+    pretty (WithColors _ (TLet _ _)) = __IMPOSSIBLE__
     pretty (WithColors cs (TBind _ xs e)) =
 	sep [ fsep (map pretty xs)
 	    , pColors ":" cs <+> pretty e
@@ -248,6 +251,8 @@ instance Pretty TypedBinding where
 	sep [ fsep (map pretty xs)
 	    , text ":" <+> pretty e
 	    ]
+    pretty (TLet _ ds) =
+        text "let" <+> vcat (map pretty ds)
 
 smashTel :: Telescope -> Telescope
 smashTel (TypedBindings r (Common.Arg i  (TBind r' xs e)) :

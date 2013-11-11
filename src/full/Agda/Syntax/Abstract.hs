@@ -173,7 +173,7 @@ type Field          = TypeSignature
 -- | A lambda binding is either domain free or typed.
 data LamBinding
 	= DomainFree ArgInfo Name   -- ^ . @x@ or @{x}@ or @.x@ or @.{x}@
-	| DomainFull TypedBindings  -- ^ . @(xs:e)@ or @{xs:e}@
+	| DomainFull TypedBindings  -- ^ . @(xs:e)@ or @{xs:e}@ or @(let Ds)@
   deriving (Typeable, Show)
 
 -- | Typed bindings with hiding information.
@@ -188,6 +188,7 @@ data TypedBindings = TypedBindings Range (Arg TypedBinding)
 --   really be a problem, but it's good principle to not do extra work unless
 --   you have to.
 data TypedBinding = TBind Range [Name] Expr
+		  | TNoBind Expr
   deriving (Typeable, Show)
 
 type Telescope	= [TypedBindings]
@@ -429,6 +430,7 @@ instance HasRange TypedBindings where
 
 instance HasRange TypedBinding where
     getRange (TBind r _ _) = r
+    getRange (TNoBind e)   = getRange e
 
 instance HasRange Expr where
     getRange (Var x)		   = getRange x
@@ -534,6 +536,7 @@ instance KillRange TypedBindings where
 
 instance KillRange TypedBinding where
   killRange (TBind r xs e) = killRange3 TBind r xs e
+  killRange (TNoBind e)    = killRange1 TNoBind e
 
 instance KillRange Expr where
   killRange (Var x)                = killRange1 Var x
@@ -707,6 +710,10 @@ allNames (FunDef _ q _ cls)       = q <| Fold.foldMap allNamesC cls
 
   allNamesBinds :: TypedBindings -> Seq QName
   allNamesBinds (TypedBindings _ (Common.Arg _ (TBind _ _ e))) = allNamesE e
+  allNamesBinds (TypedBindings _ (Common.Arg _ (TNoBind e)))   = allNamesE e
+
+  allNamesLets :: [LetBinding] -> Seq QName
+  allNamesLets = Fold.foldMap allNamesLet
 
   allNamesLet :: LetBinding -> Seq QName
   allNamesLet (LetBind _ _ _ e1 e2)  = Fold.foldMap allNamesE [e1, e2]
@@ -819,7 +826,7 @@ substExpr s e = case e of
                                  (substExpr s e)
   Set  i n              -> e
   Prop i                -> e
-  Let  i ls e           -> Let i (fmap (substLetBinding s) ls)
+  Let  i ls e           -> Let i (substLetBindings s ls)
                                  (substExpr s e)
   ETel t                -> e
   Rec  i nes            -> Rec i (fmap (fmap (substExpr s)) nes)
@@ -834,11 +841,14 @@ substExpr s e = case e of
   DontCare e            -> DontCare (substExpr s e)
   PatternSyn x          -> e
 
+substLetBindings :: [(Name, Expr)] -> [LetBinding] -> [LetBinding]
+substLetBindings s = fmap (substLetBinding s)
+
 substLetBinding :: [(Name, Expr)] -> LetBinding -> LetBinding
 substLetBinding s lb = case lb of
   LetBind i r n e e' -> LetBind i r n (substExpr s e) (substExpr s e')
   LetPatBind i p e   -> LetPatBind i p (substExpr s e) -- Andreas, 2012-06-04: what about the pattern p
-  _                  -> lb
+  _                  -> lb -- Nicolas, 2013-11-11: what about "LetApply" there is experessions in there
 
 substTypedBindings :: [(Name, Expr)] -> TypedBindings -> TypedBindings
 substTypedBindings s (TypedBindings r atb) = TypedBindings r
@@ -847,3 +857,4 @@ substTypedBindings s (TypedBindings r atb) = TypedBindings r
 substTypedBinding :: [(Name, Expr)] -> TypedBinding -> TypedBinding
 substTypedBinding s tb = case tb of
   TBind r ns e -> TBind r ns $ substExpr s e
+  TNoBind e    -> TNoBind $ substExpr s e
