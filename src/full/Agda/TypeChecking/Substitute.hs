@@ -834,8 +834,12 @@ underLambdas n cont a v = loop n a v where
 
 -- | @getBody@ returns the properly raised clause 'Body',
 --   and 'Nothing' if 'NoBody'.
+--
+--   @getBodyUnraised@ just grabs the body, without raising the de Bruijn indices.
+--   This is useful if you want to consider the body in context 'clauseTel'.
 class GetBody a where
-  getBody :: a -> Maybe Term
+  getBody         :: a -> Maybe Term
+  getBodyUnraised :: a -> Maybe Term
 
 instance GetBody ClauseBody where
   getBody = body 0
@@ -847,8 +851,13 @@ instance GetBody ClauseBody where
       body n (Bind (NoAbs _ v)) = body n v
       body n (Bind (Abs   _ v)) = body (n + 1) v
 
+  getBodyUnraised NoBody   = Nothing
+  getBodyUnraised (Body v) = Just v
+  getBodyUnraised (Bind b) = getBodyUnraised $ unAbs b  -- Does not raise!
+
 instance GetBody Clause where
-  getBody = getBody . clauseBody
+  getBody         = getBody         . clauseBody
+  getBodyUnraised = getBodyUnraised . clauseBody
 
 ---------------------------------------------------------------------------
 -- * Syntactic equality and order

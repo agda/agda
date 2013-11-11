@@ -24,17 +24,27 @@
   The inlining transformation turns this into
 
 > {f ps = aj} for aj ∈ as
-> {f ps₁i qsi bi}
+> {f ps₁i qsi = bi}
 
-  The first clauses ensure that we don't forget any recursive calls in @as@.
+  The first set of clauses, called 'withExprClauses', ensure that we
+  don't forget any recursive calls in @as@.
+  The second set of clauses, henceforth called 'inlinedClauses',
+  are the surface-level clauses the user sees (and probably reasons about).
 
   The reason this works is that there is a single call site for each
   with-function.
+
+  Note that the lhss of the inlined clauses are not type-correct,
+  neither with the type of @f@ (since there are additional patterns @qsi@)
+  nor with the type of @f-aux@ (since there are the surface-level patterns
+  @ps₁i@ instead of the actual patterns @ps₂i@).
  -}
 module Agda.Termination.Inlining (inlineWithClauses, isWithFunction) where
 
 import Control.Applicative
 import Control.Monad.State
+
+import Data.Maybe (fromMaybe)
 import Data.Monoid
 import Data.Foldable (foldMap)
 import Data.Traversable (traverse)
@@ -47,6 +57,8 @@ import Agda.TypeChecking.Pretty
 import Agda.TypeChecking.Substitute
 import Agda.TypeChecking.DisplayForm
 import Agda.TypeChecking.Telescope
+
+import Agda.Utils.Maybe
 import Agda.Utils.Monad
 import Agda.Utils.Permutation
 import Agda.Utils.Size
@@ -55,56 +67,75 @@ import Agda.Utils.Impossible
 #include "../undefined.h"
 
 inlineWithClauses :: Clause -> TCM [Clause]
-inlineWithClauses cl = inTopContext $ addCtxTel (clauseTel cl) $
-  case getRHS $ clauseBody cl of
+inlineWithClauses cl = inTopContext $ do
+  -- Clauses are relative to the empty context, so we operate @inTopContext@.
+  let noInline = return [cl]
+  -- Get the clause body as-is (unraised).
+  -- The de Bruijn indices are then relative to the @clauseTel cl@.
+  case getBodyUnraised cl of
     Just (Def wf els) -> do
-      w <- isWithFunction wf
-      case w of
-        Nothing -> return [cl]
-        Just f  -> do
-          reportSDoc "term.inline" 20 $ inTopContext $ sep [text "Found with:", nest 2 $ prettyTCM $ QNamed f cl]
-          t   <- defType <$> getConstInfo wf
-          let args = allArgs els
-          cs1 <- withExprClauses cl t args
-          cs2 <- inlinedClauses f cl t wf
-          let cs = cs1 ++ cs2
-          reportSDoc "term.inline" 20 $ inTopContext $ vcat $ text "After inlining" :
-                                                              map (nest 2 . prettyTCM . QNamed f) cs
-          return cs
-    _ -> return [cl]
-  where
-    allArgs :: Elims -> Args
-    allArgs (Apply a : es) = a : allArgs es
-    allArgs (Proj{} : _)   = __IMPOSSIBLE__
-    allArgs []             = []
+      caseMaybeM (isWithFunction wf) noInline $ \ f -> do
+        -- The clause body is a with-function call @wf args@.
+        -- @f@ is the function the with-function belongs to.
+        let args = fromMaybe __IMPOSSIBLE__ . allApplyElims $ els
+        reportSDoc "term.inline" 20 $ sep
+          [ text "Found with:", nest 2 $ prettyTCM $ QNamed f cl ]
+        t   <- defType <$> getConstInfo wf
+        cs1 <- withExprClauses cl t args
+        cs2 <- inlinedClauses f cl t wf
+        let cs = cs1 ++ cs2
+        reportSDoc "term.inline" 20 $ vcat $
+          text "After inlining" : map (nest 2 . prettyTCM . QNamed f) cs
+        return cs
+    _ -> noInline
 
-    getRHS (Body v) = Just v
-    getRHS (Bind b) = getRHS $ unAbs b
-    getRHS NoBody   = Nothing
-
+-- | @withExprClauses cl t as@ generates a clause containing a fake
+--   call to with-expression @a@ for each @a@ in @as@ that is not
+--   a variable (and thus cannot contain a recursive call).
+--
+--   Andreas, 2013-11-11: I guess "not a variable" could be generalized
+--   to "not containing a call to a mutually defined function".
+--
+--   Note that the @as@ stem from the *unraised* clause body of @cl@
+--   and thus can be simply 'fmap'ped back there (under all the 'Bind'
+--   abstractions).
+--
+--   Precondition: we are 'inTopContext'.
 withExprClauses :: Clause -> Type -> Args -> TCM [Clause]
-withExprClauses cl t []     = return []
-withExprClauses cl t (a:as) =
-  case unArg a of
-    Var i [] -> rest
-    v        ->
-      (cl { clauseBody = v <$ clauseBody cl
-          , clauseType = Just $ defaultArg dom
-          } :) <$> rest
-  where
-    rest = withExprClauses cl (piApply t [a]) as
-    dom  = case unEl t of   -- The type is the generated with-function type so we know it
-      Pi a _  -> unDom a    -- doesn't contain anything funny
-      _       -> __IMPOSSIBLE__
+withExprClauses cl t args = {- addCtxTel (clauseTel cl) $ -} loop t args where
+  -- Note: for the following code, it does not matter which context we are in.
+  -- Restore the @addCtxTel (clauseTel cl)@ if that should become necessary
+  -- (like when debug printing @args@ etc).
+  loop t []     = return []
+  loop t (a:as) =
+    case unArg a of
+      Var i [] -> rest  -- TODO: smarter criterion when to skip withExprClause
+      v        ->
+        (cl { clauseBody = v <$ clauseBody cl
+            , clauseType = Just $ defaultArg dom
+            } :) <$> rest
+    where
+      rest = loop (piApply t [a]) as
+      dom  = case unEl t of   -- The type is the generated with-function type so we know it
+        Pi a _  -> unDom a    -- doesn't contain anything funny
+        _       -> __IMPOSSIBLE__
 
+-- | @inlinedClauses f cl t wf@ inlines the clauses of with-function @wf@
+--   of type @t@ into the clause @cl@.  The original function name is @f@.
+--
+--   Precondition: we are 'inTopContext'.
 inlinedClauses :: QName -> Clause -> Type -> QName -> TCM [Clause]
 inlinedClauses f cl t wf = do
+  -- @wf@ might define a with-function itself, so we first construct
+  -- the with-inlined clauses @wcs@ of @wf@ recursively.
   wcs <- concat <$> (mapM inlineWithClauses =<< defClauses <$> getConstInfo wf)
-  reportSDoc "term.inline" 30 $ inTopContext $
-                                vcat $ text "With-clauses to inline" :
+  reportSDoc "term.inline" 30 $ vcat $ text "With-clauses to inline" :
                                        map (nest 2 . prettyTCM . QNamed wf) wcs
   mapM (inline f cl t wf) wcs
 
+-- | The actual work horse.
+--   @inline f pcl t wf wcl@ inlines with-clause @wcl@ of with-function @wf@
+--   (of type @t@) into parent clause @pcl@ (original function being @f@).
 inline :: QName -> Clause -> Type -> QName -> Clause -> TCM Clause
 inline f pcl t wf wcl = inTopContext $ addCtxTel (clauseTel wcl) $ do
   -- The tricky part here is to get the variables to line up properly. The

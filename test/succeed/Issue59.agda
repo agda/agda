@@ -21,6 +21,8 @@ data Ordering : Nat → Nat → Set where
   gt : ∀ n d → Ordering (n + suc d) n
 
 -- Just make sure we didn't mess anything up when there are dot patterns.
+-- Andreas, 2013-11-11: But there are no recursive calls in the clauses
+-- with dot patterns!
 
 compare : ∀ n m → Ordering n m
 compare zero zero = eq zero
