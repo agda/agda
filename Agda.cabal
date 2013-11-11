@@ -351,6 +351,8 @@ library
                     -fwarn-wrong-do-bind
   if impl(ghc >= 7.2)
     ghc-options:    -fwarn-identities
+  if impl(ghc >= 7.6.3)
+    ghc-options:    -fwarn-pointless-pragmas
   ghc-prof-options: -auto-all
 
 executable agda

@@ -1552,7 +1552,6 @@ returnTCMT = \x -> TCM $ \_ _ -> return x
       returnTCMT = \x -> TCM $ \_ _ -> return x
   #-}
 {-# INLINE returnTCMT #-}
-{-# SPECIALIZE INLINE returnTCMT :: a -> TCM a #-}
 
 bindTCMT :: MonadIO m => TCMT m a -> (a -> TCMT m b) -> TCMT m b
 bindTCMT = \(TCM m) k -> TCM $ \r e -> m r e >>= \x -> unTCM (k x) r e
@@ -1561,7 +1560,6 @@ bindTCMT = \(TCM m) k -> TCM $ \r e -> m r e >>= \x -> unTCM (k x) r e
                    m r e >>= \x -> unTCM (k x) r e
   #-}
 {-# INLINE bindTCMT #-}
-{-# SPECIALIZE INLINE bindTCMT :: TCM a -> (a -> TCM b) -> TCM b #-}
 
 thenTCMT :: MonadIO m => TCMT m a -> TCMT m b -> TCMT m b
 thenTCMT = \(TCM m1) (TCM m2) -> TCM $ \r e -> m1 r e >> m2 r e
@@ -1569,7 +1567,6 @@ thenTCMT = \(TCM m1) (TCM m2) -> TCM $ \r e -> m1 r e >> m2 r e
       thenTCMT = \(TCM m1) (TCM m2) -> TCM $ \r e -> m1 r e >> m2 r e
   #-}
 {-# INLINE thenTCMT #-}
-{-# SPECIALIZE INLINE thenTCMT :: TCM a -> TCM b -> TCM b #-}
 
 instance MonadIO m => Functor (TCMT m) where
     fmap = fmapTCMT
@@ -1580,7 +1577,6 @@ fmapTCMT = \f (TCM m) -> TCM $ \r e -> liftM f (m r e)
       fmapTCMT = \f (TCM m) -> TCM $ \r e -> liftM f (m r e)
   #-}
 {-# INLINE fmapTCMT #-}
-{-# SPECIALIZE INLINE fmapTCMT :: (a -> b) -> TCM a -> TCM b #-}
 
 instance MonadIO m => Applicative (TCMT m) where
     pure  = returnTCMT
@@ -1592,7 +1588,6 @@ apTCMT = \(TCM mf) (TCM m) -> TCM $ \r e -> ap (mf r e) (m r e)
       apTCMT = \(TCM mf) (TCM m) -> TCM $ \r e -> ap (mf r e) (m r e)
   #-}
 {-# INLINE apTCMT #-}
-{-# SPECIALIZE INLINE apTCMT :: TCM (a -> b) -> TCM a -> TCM b #-}
 
 instance MonadIO m => MonadIO (TCMT m) where
   liftIO m = TCM $ \s e ->
