@@ -739,8 +739,8 @@ termTerm conf names f delayed pats0 t0 = do
                       _        -> return t
                es <- mapM (etaContract <=< traverse reduceCon <=< instantiateFull) es
 
-               -- If the function is a projection, then preserve guardedness
-               -- for its principal argument.
+               -- If the function is a projection but not for a coinductive record,
+               -- then preserve guardedness for its principal argument.
                isProj <- isProjectionButNotCoinductive g
                let unguards = repeat Term.unknown
                let guards = if isProj then guarded : unguards
