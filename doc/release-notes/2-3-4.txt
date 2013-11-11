@@ -386,6 +386,37 @@ Type checking
   Note that with the pragma {-# NO_TERMINATION_CHECK #-} you can make
   Agda treat any function as terminating.
 
+* Termination checking of functions defined by 'with' has been improved.
+
+  Cases which previously required --termination-depth to pass the termination
+  checker (due to use of 'with') no longer need the flag. For example
+
+    merge : List A → List A → List A
+    merge [] ys = ys
+    merge xs [] = xs
+    merge (x ∷ xs) (y ∷ ys) with x ≤ y
+    merge (x ∷ xs) (y ∷ ys)    | false = y ∷ merge (x ∷ xs) ys
+    merge (x ∷ xs) (y ∷ ys)    | true  = x ∷ merge xs (y ∷ ys)
+
+  This failed to termination check previously, since the 'with' expands to an
+  auxiliary function merge-aux:
+
+    merge-aux x y xs ys false = y ∷ merge (x ∷ xs) ys
+    merge-aux x y xs ys true  = x ∷ merge xs (y ∷ ys)
+
+  This function makes a call to merge in which the size of one of the arguments
+  is increasing. To make this pass the termination checker now inlines the
+  definition of merge-aux before checking, thus effectively termination
+  checking the original source program.
+
+  As a result of this transformation doing 'with' on a variable no longer
+  preserves termination. For instance, this does not termination check:
+
+    bad : Nat → Nat
+    bad n with n
+    ... | zero  = zero
+    ... | suc m = bad m
+
 * Implicit patterns of record type are now only eta-expanded if there
   is a record constructor. [Issues 473, 635]
 

@@ -1,0 +1,6 @@
+
+Termination checking failed for the following functions:
+  bad
+Problematic calls:
+  bad m
+    (at Issue59.agda:13,15-18)

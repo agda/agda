@@ -6,6 +6,10 @@ open import Issue778M Param
 data D : (Nat → Nat) → Set where
   d : D pred → D pred
 
+-- Ulf, 2013-11-11: With the fix to issue 59 that inlines with functions,
+-- this no longer termination checks. The problem is having a termination
+-- path going through a with-expression (the variable x in this case).
+{-# NO_TERMINATION_CHECK #-}
 test : (f : Nat → Nat) → D f → Nat
 test .pred (d x) = bla
   where bla : Nat

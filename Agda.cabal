@@ -193,6 +193,7 @@ library
                     Agda.Syntax.Translation.ConcreteToAbstract
                     Agda.Syntax.Translation.InternalToAbstract
                     Agda.Termination.CallGraph
+                    Agda.Termination.Inlining
                     Agda.Termination.Lexicographic
                     Agda.Termination.Matrix
                     Agda.Termination.RecCheck

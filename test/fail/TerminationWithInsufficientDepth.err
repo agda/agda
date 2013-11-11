@@ -1,7 +1,8 @@
 
 Termination checking failed for the following functions:
-  f
+  f, g
 Problematic calls:
-  f (suc (suc n)) | zero
+  g n zero
+    (at TerminationWithInsufficientDepth.agda:22,19-20)
   f (suc n)
-    (at TerminationWithInsufficientDepth.agda:13,11-12)
+    (at TerminationWithInsufficientDepth.agda:24,9-10)

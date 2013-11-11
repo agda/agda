@@ -19,7 +19,7 @@ import Control.Monad.Error
 import Control.Monad.State
 
 import Data.List as List
-import Data.Maybe (mapMaybe)
+import Data.Maybe (mapMaybe, isJust)
 import Data.Monoid
 import qualified Data.Set as Set
 import Data.Traversable (traverse)
@@ -36,6 +36,7 @@ import Agda.Termination.CallGraph   as Term
 import qualified Agda.Termination.SparseMatrix as Term
 import qualified Agda.Termination.Termination  as Term
 import Agda.Termination.RecCheck
+import Agda.Termination.Inlining
 
 import Agda.TypeChecking.Monad
 import Agda.TypeChecking.Pretty
@@ -536,7 +537,12 @@ openClause conf perm ps body = do
 
 -- | Extract recursive calls from one clause.
 termClause :: DBPConf -> MutualNames -> QName -> Delayed -> Clause -> TCM Calls
-termClause conf names name delayed clause = do
+termClause conf names name delayed clause =
+  ifM (isJust <$> isWithFunction name) (return mempty) $
+  mapM' (termClause' conf names name delayed) =<< inlineWithClauses clause
+
+termClause' :: DBPConf -> MutualNames -> QName -> Delayed -> Clause -> TCM Calls
+termClause' conf names name delayed clause = do
   cl @ Clause { clauseTel  = tel
               , clausePerm = perm
               , clauseBody = body } <- introHiddenLambdas clause
