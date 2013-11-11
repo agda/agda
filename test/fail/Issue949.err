@@ -1,4 +1,4 @@
 Issue949.agda:7,9-10
 Function does not accept argument {B = _}
 when checking that {B = S} are valid arguments to a function of
-type {Set} → Set
+type {A : Set} → Set

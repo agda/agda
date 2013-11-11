@@ -357,21 +357,27 @@ reifyTerm expandAnonDefs v = do
       I.Lit l        -> reify l
       I.Level l      -> reify l
       I.Pi a b       -> case b of
-          NoAbs _ b -> uncurry (A.Fun $ exprInfo) <$> reify (a, b)
-          b         -> do
-            df <- domainFree a (absBody b)
-            Common.Arg info a <-
-              case df of
-                False -> reify a
-                True  -> Common.Arg <$> reify (domInfo a) <*> pure (Underscore emptyMetaInfo)
-            (x, b)    <- reify b
-            return $ A.Pi exprInfo [TypedBindings noRange $ Common.Arg info (TBind noRange [x] a)] b
+          NoAbs _ b'
+            | notHidden a -> uncurry (A.Fun $ exprInfo) <$> reify (a, b')
+              -- Andreas, 2013-11-11 Hidden/Instance I.Pi must be A.Pi
+              -- since (a) the syntax {A} -> B or {{A}} -> B is not legal
+              -- and (b) the name of the binder might matter.
+              -- See issue 951 (a) and 952 (b).
+            | otherwise   -> mkPi b =<< reify a
+          b               -> mkPi b =<< do
+            ifM (domainFree a (absBody b))
+              {- then -} (Common.Arg <$> reify (domInfo a) <*> pure underscore)
+              {- else -} (reify a)
         where
+          mkPi b (Common.Arg info a) = do
+            (x, b) <- reify b
+            return $ A.Pi exprInfo [TypedBindings noRange $ Common.Arg info (TBind noRange [x] a)] b
           -- We can omit the domain type if it doesn't have any free variables
           -- and it's mentioned in the target type.
           domainFree a b = do
             df <- asks envPrintDomainFreePi
             return $ and [df, freeIn 0 b, VSet.null $ allVars $ freeVars a]
+
       I.Sort s     -> reify s
       I.MetaV x es -> do
         let vs = fromMaybe __IMPOSSIBLE__ $ allApplyElims es

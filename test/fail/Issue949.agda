@@ -1,3 +1,4 @@
+-- Andreas, 2013-11-11 Better error for wrongly named implicit arg.
 module Issue949 where
 
 postulate
@@ -12,8 +13,8 @@ postulate
 -- when checking that {B = S} are valid arguments to a function of
 -- type Set
 
--- New error:
+-- New error (after fixing also issue 951):
 --
 -- Function does not accept argument {B = _}
 -- when checking that {B = S} are valid arguments to a function of
--- type {Set} → Set
+-- type {A : Set} → Set

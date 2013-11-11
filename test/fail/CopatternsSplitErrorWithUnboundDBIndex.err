@@ -1,4 +1,4 @@
 CopatternsSplitErrorWithUnboundDBIndex.agda:20,1-15
 Cannot eliminate type A → A → A × A with projection pattern fst
 when checking that the clause fst test a = a has type
-{A : Set} → {Set} → A → A → A × A
+{A B : Set} → A → A → A × A

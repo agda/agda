@@ -3,4 +3,4 @@ Wrong number of arguments in with clause: given 1, expected 0
 when checking that the clause
 Foo with tt
 Foo {x = _} | tt = Set
-has type {⊤} → Set₁
+has type {x : ⊤} → Set₁
