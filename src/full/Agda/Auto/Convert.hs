@@ -16,13 +16,14 @@ import qualified Agda.Syntax.Abstract as A
 import qualified Agda.Syntax.Position as SP
 import qualified Agda.TypeChecking.Monad.Base as MB
 import Agda.TypeChecking.Monad.Signature (getConstInfo, getDefFreeVars, getImportedSignature)
-import Agda.Utils.Permutation (Permutation(Perm), permute, takeP)
+import Agda.Utils.Permutation (Permutation(Perm), permute, takeP, compactP)
 import Agda.TypeChecking.Level (reallyUnLevelView)
 import Agda.TypeChecking.Monad.Base (mvJudgement, mvPermutation, getMetaInfo, ctxEntry, envContext, clEnv)
 import Agda.TypeChecking.Monad.MetaVars (lookupMeta, withMetaInfo)
 import Agda.TypeChecking.Monad.Context (getContextArgs)
 import Agda.TypeChecking.Monad.Constraints (getAllConstraints)
-import Agda.TypeChecking.Substitute (piApply)
+import Agda.TypeChecking.Substitute (piApply, applySubst)
+import Agda.TypeChecking.Telescope (renamingR)
 import qualified Agda.TypeChecking.Substitute as I (absBody)
 import Agda.TypeChecking.Reduce (Normalise, normalise, instantiate)
 import Agda.TypeChecking.EtaContract (etaContract)
@@ -637,7 +638,7 @@ frommyClause (ids, pats, mrhs) = do
         let con = I.ConHead name [] -- TODO: restore record fields!
         return (I.ConP con Nothing ps')
        CSPatExp e -> do
-        e' <- frommyExp {- renm e -} e  -- rename disabled to match (incorrect?) Agda reification of clauses
+        e' <- frommyExp e {- renm e -} -- renaming before adding to clause below
         return (I.DotP e')
        CSAbsurd -> __IMPOSSIBLE__ -- CSAbsurd not used
        _ -> __IMPOSSIBLE__
@@ -646,17 +647,18 @@ frommyClause (ids, pats, mrhs) = do
  body <- case mrhs of
           Nothing -> return $ I.NoBody
           Just e -> do
-           e' <- frommyExp {- renm e -} e  -- rename disabled to match (incorrect?) Agda reification of clauses
+           e' <- frommyExp e {- renm e -} -- renaming before adding to clause below
            let r 0 = I.Body e'
                r n = I.Bind $ I.Abs "h" $ r (n - 1)
-               e'' = r ({-length ids + -}nv)
+               e'' = r nv
            return e''
+ let cperm =  Perm nv perm
  return $ I.Clause
    { I.clauseRange = SP.noRange
    , I.clauseTel   = tel
-   , I.clausePerm  = Perm (nv{- + length ids-}) perm
-   , I.namedClausePats = ps
-   , I.clauseBody  = body
+   , I.clausePerm  = cperm
+   , I.namedClausePats = applySubst (renamingR $ compactP cperm) ps
+   , I.clauseBody  = applySubst (renamingR cperm) <$> body
    , I.clauseType  = Nothing -- TODO: compute clause type
    }
 
@@ -703,7 +705,7 @@ freeIn = f
 
 
 negtype :: ConstRef o -> MExp o -> MExp o
-negtype ee = f 0
+negtype ee = f (0 :: Int)
  where
   mr x = let NotM x' = x in x'
   f n e = case mr e of

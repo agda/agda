@@ -213,9 +213,9 @@ reifyDisplayFormP lhs@(A.SpineLHS i x ps wps) =
     okTerm (I.Def x []) = show x == "_" -- Handling wildcards in display forms
     okTerm _            = True -- False
 
-    flattenWith (DWithApp (d : ds) []) = case flattenWith d of
-      (f, vs, ds') -> (f, vs, ds' ++ ds)
-    flattenWith (DDef f vs) = (f, vs, [])
+    flattenWith (DWithApp (d : ds) ds1) = case flattenWith d of
+      (f, vs, ds') -> (f, vs, ds' ++ ds ++ map (DTerm . unArg) ds1)
+    flattenWith (DDef f vs) = (f, vs, [])     -- .^ hacky, but we should only hit this when printing debug info
     flattenWith (DTerm (I.Def f es)) =
       let vs = maybe __IMPOSSIBLE__ id $ mapM isApplyElim es
       in (f, map (fmap DTerm) vs, [])
@@ -810,7 +810,7 @@ instance Reify NamedClause A.Clause where
     nfv <- getDefFreeVars f
     lhs <- stripImps $ dropParams nfv lhs
     reportSLn "reify.clause" 60 $ "reifying NamedClause, lhs = " ++ show lhs
-    rhs <- reify body
+    rhs <- reify $ renameP (reverseP perm) <$> body
     reportSLn "reify.clause" 60 $ "reifying NamedClause, rhs = " ++ show rhs
     let result = A.Clause (spineToLhs lhs) rhs []
     reportSLn "reify.clause" 60 $ "reified NamedClause, result = " ++ show result
