@@ -1,0 +1,4 @@
+WrongNamedArgument.agda:7,8-9
+Function does not accept argument {B = _}
+when checking that {B = Set} are valid arguments to a function of
+type {A : Set₁} → A → A

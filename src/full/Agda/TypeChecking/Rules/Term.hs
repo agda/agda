@@ -37,7 +37,7 @@ import Agda.TypeChecking.Pretty
 import Agda.TypeChecking.Records
 import Agda.TypeChecking.RecordPatterns
 import Agda.TypeChecking.Conversion
-import Agda.TypeChecking.Implicit (implicitArgs)
+import Agda.TypeChecking.Implicit
 import Agda.TypeChecking.InstanceArguments
 import Agda.TypeChecking.Primitive
 import Agda.TypeChecking.Constraints
@@ -1195,7 +1195,7 @@ checkArguments exh    expandIFS r [] t0 t1 =
       expand _                  NotHidden = False
 
 -- Case: argument given.
-checkArguments exh expandIFS r args0@(Arg info e : args) t0 t1 =
+checkArguments exh expandIFS r args0@(arg@(Arg info e) : args) t0 t1 =
     traceCallE (CheckArguments r args0 t0 t1) $ do
       lift $ reportSDoc "tc.term.args" 30 $ sep
         [ text "checkArguments"
@@ -1206,8 +1206,61 @@ checkArguments exh expandIFS r args0@(Arg info e : args) t0 t1 =
           , text "t1    =" <+> prettyTCM t1
           ]
         ]
+      -- First, insert implicit arguments, depending on current argument @arg@.
+      let hx = getHiding info  -- hiding of current argument
+          mx = nameOf e        -- name of current argument
+          -- do not insert visible arguments
+          expand NotHidden y = False
+          -- insert a hidden argument if arg is not hidden or has different name
+          -- insert an instance argument if arg is not instance  or has different name
+          expand hy        y = hy /= hx || maybe False (y /=) mx
+      (nargs, t) <- lift $ implicitNamedArgs (-1) expand t0
+      -- Separate names from args.
+      let (mxs, us) = unzip $ map (\ (Arg ai (Named mx u)) -> (mx, Arg ai u)) nargs
+          xs        = catMaybes mxs
+      -- We are done inserting implicit args.  Now, try to check @arg@.
+      ifBlockedType t (\ m t -> throwError t) $ \ t0' -> do
+
+        -- What can go wrong?
+
+        -- 1. We ran out of function types.
+        let shouldBePi
+              -- a) It is an explicit argument, but we ran out of function types.
+              | notHidden info = lift $ typeError $ ShouldBePi t0'
+              -- b) It is an implicit argument, and we did not insert any implicits.
+              --    Thus, the type was not a function type to start with.
+              | null xs        = lift $ typeError $ ShouldBePi t0'
+              -- c) We did insert implicits, but we ran out of implicit function types.
+              --    Then, we should inform the user that we did not find his one.
+              | otherwise      = lift $ typeError $ WrongNamedArgument arg
+
+        -- 2. We have a function type left, but it is the wrong one.
+        --    Our argument must be implicit, case a) is impossible.
+        --    (Otherwise we would have ran out of function types instead.)
+        let wrongPi info'
+              -- b) We have not inserted any implicits.
+              | null xs   = lift $ typeError $ WrongHidingInApplication t0'
+              -- c) We inserted implicits, but did not find his one.
+              | otherwise = lift $ typeError $ WrongNamedArgument arg
+
+        -- (t0', cs) <- forcePi h (name e) t0
+        case ignoreSharing $ unEl t0' of
+          Pi (Dom info' a) b
+            | getHiding info == getHiding info'
+              && (notHidden info || maybe True (absName b ==) (nameOf e)) -> do
+                u <- lift $ applyRelevanceToContext (getRelevance info') $ do
+                  checkExpr (namedThing e) a
+                -- save relevance info' from domain in argument
+                mapFst ((us ++) . (Arg info' u :)) <$> do
+                  checkArguments exh expandIFS (fuseRange r e) args (absApp b u) t1
+            | otherwise -> wrongPi info'
+          _ -> shouldBePi
+
+{- OLD
       ifBlockedType t0 (\ m t -> throwError t) $ \ t0' -> do
-        let shouldBePi = lift $ typeError $ ShouldBePi t0'
+        let failure | isHidden info, Just x <- nameOf e
+                                = lift $ typeError $ WrongNamedArgument arg
+                    | otherwise = lift $ typeError $ ShouldBePi t0'
         -- (t0', cs) <- forcePi h (name e) t0
         e' <- return $ namedThing e
         case ignoreSharing $ unEl t0' of
@@ -1223,8 +1276,8 @@ checkArguments exh expandIFS r args0@(Arg info e : args) t0 t1 =
                 insertIFSUnderscore info' a b
             | isHidden info'  -> insertUnderscore info' (absName b)
             | notHidden info' -> lift $ typeError $ WrongHidingInApplication t0'
-            | otherwise       -> shouldBePi
-          _ -> shouldBePi
+            | otherwise       -> failure
+          _ -> failure
     where
 	insertIFSUnderscore info' a b = do
           lift $ reportSLn "tc.term.args.ifs" 15 $
@@ -1243,6 +1296,7 @@ checkArguments exh expandIFS r args0@(Arg info e : args) t0 t1 =
                   , A.metaNameSuggestion = x
 		  }
 	  checkArguments exh expandIFS r (Arg info' (unnamed m) : args0) t0 t1
+-}
 
 {- UNUSED, since we disabled forcePi above
 	name (Named _ (A.Var x)) = show x

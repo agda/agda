@@ -236,6 +236,7 @@ errorString err = case err of
     WrongHidingInLHS{}                       -> "WrongHidingInLHS"
     WrongHidingInLambda{}                    -> "WrongHidingInLambda"
     WrongIrrelevanceInLambda{}               -> "WrongIrrelevanceInLambda"
+    WrongNamedArgument{}                     -> "WrongNamedArgument"
     WrongNumberOfConstructorArguments{}      -> "WrongNumberOfConstructorArguments"
     HidingMismatch{}                         -> "HidingMismatch"
     RelevanceMismatch{}                      -> "RelevanceMismatch"
@@ -307,6 +308,8 @@ instance PrettyTCM TypeError where
 		fwords "Found an implicit lambda where an explicit lambda was expected"
 	    WrongIrrelevanceInLambda t -> do
 		fwords "Found an irrelevant lambda where a relevant lambda was expected"
+	    WrongNamedArgument a -> fsep $
+		pwords "Function does not accept argument " ++ [prettyTCM a] -- ++ pwords " (wrong argument name)"
 	    WrongHidingInApplication t -> do
 		fwords "Found an implicit application where an explicit application was expected"
             HidingMismatch h h' -> fwords $

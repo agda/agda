@@ -1,4 +1,4 @@
-{-# LANGUAGE CPP #-}
+{-# LANGUAGE CPP, PatternGuards #-}
 
 {-| Functions for inserting implicit arguments at the right places.
 -}
@@ -27,17 +27,24 @@ import Agda.Utils.Impossible
 --   metas (unbounded if @n<0@), as long as @t@ is a function type
 --   and @expand@ holds on the hiding info of its domain.
 implicitArgs :: Int -> (Hiding -> Bool) -> Type -> TCM (Args, Type)
-implicitArgs 0 expand t0 = return ([], t0)
-implicitArgs n expand t0 = do
+implicitArgs n expand t = mapFst (map (fmap namedThing)) <$> do
+  implicitNamedArgs n (\ h x -> expand h) t
+
+-- | @implicitNamedArgs n expand t@ generates up to @n@ named implicit arguments
+--   metas (unbounded if @n<0@), as long as @t@ is a function type
+--   and @expand@ holds on the hiding and name info of its domain.
+implicitNamedArgs :: Int -> (Hiding -> String -> Bool) -> Type -> TCM (NamedArgs, Type)
+implicitNamedArgs 0 expand t0 = return ([], t0)
+implicitNamedArgs n expand t0 = do
     t0' <- reduce t0
     case ignoreSharing $ unEl t0' of
-      Pi (Dom info a) b | expand (getHiding info) -> do
+      Pi (Dom info a) b | let x = absName b, expand (getHiding info) x -> do
           when (getHiding info == Instance) $ reportSLn "tc.term.args.ifs" 15 $
-            "inserting implicit meta for type " ++ show a
+            "inserting instance meta for type " ++ show a
           v  <- applyRelevanceToContext (getRelevance info) $
-                newMeta (getHiding info) (absName b) a
-          let arg = Arg info v
-          mapFst (arg:) <$> implicitArgs (n-1) expand (absApp b v)
+                newMeta (getHiding info) x a
+          let narg = Arg info (Named (Just x) v)
+          mapFst (narg :) <$> implicitNamedArgs (n-1) expand (absApp b v)
       _ -> return ([], t0')
   where
     newMeta Hidden   = newNamedValueMeta RunMetaOccursCheck

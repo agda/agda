@@ -38,10 +38,15 @@ import Agda.Utils.List
 import Agda.Utils.Impossible
 
 type Color      = Term
+type ArgInfo    = Common.ArgInfo Color
 type Arg a      = Common.Arg Color a
 type Dom a      = Common.Dom Color a
 type NamedArg a = Common.NamedArg Color a
-type ArgInfo    = Common.ArgInfo Color
+
+-- | Type of argument lists.
+--
+type Args       = [Arg Term]
+type NamedArgs  = [NamedArg Term]
 
 -- | Store the names of the record fields in the constructor.
 --   This allows reduction of projection redexes outside of TCM.
@@ -110,10 +115,6 @@ data Term = Var {-# UNPACK #-} !Int Elims -- ^ @x es@ neutral
           | Shared !(Ptr Term)
             -- ^ Explicit sharing
   deriving (Typeable, Show)
-
--- | Type of argument lists.
---
-type Args = [Arg Term]
 
 -- | Eliminations, subsuming applications and projections.
 --

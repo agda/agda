@@ -28,7 +28,7 @@ import qualified Agda.Syntax.Common as Common
 import qualified Agda.Syntax.Concrete as C
 import qualified Agda.Syntax.Concrete.Definitions as D
 import qualified Agda.Syntax.Abstract as A
-import Agda.Syntax.Internal
+import Agda.Syntax.Internal as I
 import Agda.Syntax.Position
 import Agda.Syntax.Scope.Base
 import Agda.Utils.HashMap as HMap
@@ -1275,6 +1275,8 @@ data TypeError
 	    -- ^ Expected a non-hidden function and found a hidden lambda.
 	| WrongHidingInApplication Type
 	    -- ^ A function is applied to a hidden argument where a non-hidden was expected.
+        | WrongNamedArgument (I.NamedArg A.Expr)
+            -- ^ A function is applied to a hidden named argument it does not have.
 	| WrongIrrelevanceInLambda Type
 	    -- ^ Expected a relevant function and found an irrelevant lambda.
         | HidingMismatch Hiding Hiding
