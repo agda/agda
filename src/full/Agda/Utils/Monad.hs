@@ -186,20 +186,6 @@ readM s = case reads s of
 
 -- RETIRED STUFF ----------------------------------------------------------
 
-
-{- Andreas 2012-04-21: <.> is obsolete, it is called <=< in Control.Monad
-infixl 8 <.>
-
-(<.>) :: Monad m => (b -> m c) -> (a -> m b) -> a -> m c
-f <.> g = \x -> f =<< g x
--}
-
-{- RETIRED, Andreas, 2012-04-30.
-   For GHC >= 7, there is now Control.Monad.void.
-forgetM :: Applicative m => m a -> m ()
-forgetM m = const () <$> m
--}
-
 {- RETIRED, Andreas, 2012-04-30. Not used.
 concatMapM :: Applicative m => (a -> m [b]) -> [a] -> m [b]
 concatMapM f xs = concat <$> traverse f xs
@@ -212,21 +198,4 @@ forceM xs = do () <- length xs `seq` return ()
 
 commuteM :: (Traversable f, Applicative m) => f (m a) -> m (f a)
 commuteM = traverse id
-
--- these are just instances of traverse:
-
-fmapM :: (Traversable f, Applicative m) => (a -> m b) -> f a -> m (f b)
-fmapM f = commuteM . fmap f
-
-mapMaybeM :: Applicative m => (a -> m b) -> Maybe a -> m (Maybe b)
-mapMaybeM f = maybe (pure Nothing) (\x -> Just <$> f x)
-
--}
-
-{- UNUSED
-
--- Either -----------------------------------------------------------------
-
-liftEither :: MonadError e m => Either e a -> m a
-liftEither = either throwError return
 -}
