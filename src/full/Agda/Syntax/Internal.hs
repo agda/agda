@@ -13,6 +13,7 @@ module Agda.Syntax.Internal
 import Prelude hiding (foldr, mapM)
 import Control.Applicative
 import Control.Monad.Identity hiding (mapM)
+import Control.Monad.State hiding (mapM)
 import Control.Parallel
 import Data.Typeable (Typeable)
 import Data.Foldable
@@ -31,6 +32,7 @@ import Agda.Utils.Geniplate
 import Agda.Utils.Size
 import Agda.Utils.Permutation
 import Agda.Utils.Pointer
+import Agda.Utils.List
 
 #include "../undefined.h"
 import Agda.Utils.Impossible
@@ -246,6 +248,24 @@ data Clause = Clause
 
 clausePats :: Clause -> [Arg Pattern]
 clausePats = map (fmap namedThing) . namedClausePats
+
+-- | Translate the clause patterns to terms with free variables bound by the
+--   clause telescope.
+clauseArgs :: Clause -> Args
+clauseArgs cl = evalState (argsToTerms $ namedClausePats cl) xs
+  where
+    perm = clausePerm cl
+    xs   = permute (invertP perm) $ downFrom (size perm)
+
+    next = do x : xs <- get; put xs; return x
+
+    argsToTerms = traverse $ traverse $ patToTerm . namedThing
+    patToTerm p = case p of
+      VarP _      -> flip Var [] <$> next
+      DotP v      -> v <$ next   -- dot patterns count as variables
+      ConP c _ ps -> Con c <$> argsToTerms ps
+      LitP l      -> pure $ Lit l
+      ProjP{}     -> __IMPOSSIBLE__   -- TODO
 
 data ClauseBodyF a = Body a
 		   | Bind (Abs (ClauseBodyF a))
