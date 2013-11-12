@@ -11,8 +11,7 @@ rm -f $BASE.agdai
   while [ ! -e $BASE.agdai ]; do \
     sleep 0.1; \
   done; \
-  sleep 2; \  # On some systems time stamps may have a resolution of 1s.
-  touch $BASE.agda; \
+  rm $BASE.agdai; \
   printf "$LOAD" \
 ) > $BASE.pipe
 
