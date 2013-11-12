@@ -36,6 +36,7 @@ import Agda.TypeChecking.Irrelevance
 import Agda.TypeChecking.MetaVars
 
 import Agda.Utils.List
+import Agda.Utils.Maybe
 import Agda.Utils.Monad
 import Agda.Utils.Permutation
 import Agda.Utils.Tuple
@@ -99,71 +100,66 @@ splitProblem mf (Problem ps (perm, qs) tel pr) = do
     -- Result splitting
     splitRest :: ProblemRest -> ErrorT SplitError TCM SplitProblem
     splitRest (ProblemRest (p : ps) b) | Just f <- mf = do
-      -- let (failure :: ErrorT SplitError TCM SplitProblem) = throwError $ NothingToSplit
+      let failure   = lift $ typeError $ CannotEliminateWithPattern p $ unArg b
+          notProjP  = lift $ typeError $ NotAProjectionPattern p
+          notRecord = failure -- lift $ typeError $ ShouldBeRecordType $ unArg b
       lift $ reportSDoc "tc.lhs.split" 20 $ sep
         [ text "splitting problem rest"
         , nest 2 $ text "pattern         p =" <+> prettyA p
         , nest 2 $ text "eliminates type b =" <+> prettyTCM b
         ]
-      case isProjP p of
-        Just d -> do -- case: projection pattern (d = projection name)
-          isP <- lift $ isProjection d
-          case isP of
-            Just Projection{projProper = Just d, projFromType = _, projIndex = n}
-              | n > 0 ->
-              -- If projIndex==0, then the projection is already applied
-              -- to the record value (like in @open R r@), and then it
-              -- is no longer a projection but a record field.
-              do
-                lift $ reportSLn "tc.lhs.split" 90 "we are a projection pattern"
-                isR <- lift $ isRecordType $ unArg b
-                case isR of
-                  Just (r, vs, Record{ recFields = fs }) -> do
-{- NO LONGER NEEDED
-                    -- normalize projection name (could be from a module app)
-                    d <- lift $ do
-                      v <- stripLambdas =<< normalise (Def d [])
-                      case v of
-                        Def d _ -> return d
-                        _       -> do
-                          reportSDoc "impossible" 10 $ sep
-                            [ text   "unexpected result " <+> prettyTCM v
-                            , text $ "when normalizing projection " ++ show d
-                            ]
-                          reportSDoc "impossible" 50 $ sep
-                            [ text $ "raw: " ++ show v
-                            ]
-                          __IMPOSSIBLE__
--}
-                    lift $ reportSDoc "tc.lhs.split" 20 $ sep
-                      [ text $ "we are of record type r  = " ++ show r
-                      , text   "applied to parameters vs = " <+> prettyTCM vs
-                      , text $ "and have fields       fs = " ++ show fs
-                      , text $ "original proj         d  = " ++ show d
-                      ]
-                    -- Get the field decoration
-                    argd <- maybe (throwError NothingToSplit) return $
-                              find ((d ==) . unArg) fs
---                    es <- lift $ patternsToElims perm qs
-                    let es = patternsToElims perm qs
-                    -- the record "self" is the definition f applied to the patterns
-                    fvs <- lift $ freeVarsToApply f
-                    let self = defaultArg $ Def f (map Apply fvs) `applyE` es
-                    -- get the type of projection d applied to "self"
-                    dType <- lift $ defType <$> getConstInfo d  -- full type!
-                    -- dType <- lift $ typeOfConst d  -- WRONG: we apply to parameters ourselves!!
-                    lift $ reportSDoc "tc.lhs.split" 20 $ sep
-                      [ text "we are              self = " <+> prettyTCM (unArg self)
-                      , text "being projected by dType = " <+> prettyTCM dType
-                      ]
-                    return $ SplitRest argd $ dType `apply` (vs ++ [self])
-                  _ -> throwError $ NothingToSplit
--- Why does lift . typeError seg-fault??
-            _ -> lift $ typeError $ NotAProjectionPattern p
---            _ -> lift $ typeError $ GenericError $ "not a valid projection pattern"
---            _ -> throwError $ NothingToSplit
-        -- if the pattern is not a projection pattern, there were probably too many arguments
-        _ -> lift $ typeError $ CannotEliminateWithPattern p $ unArg b
+      -- If the pattern is not a projection pattern, that's an error.
+      -- Probably then there were too many arguments.
+      caseMaybe (isProjP p) failure $ \ d -> do
+        -- So it is a projection pattern (d = projection name), is it?
+        caseMaybeM (lift $ isProjection d) notProjP $
+          \ Projection{projProper = Just d, projFromType = _, projIndex = n} -> do
+            -- If projIndex==0, then the projection is already applied
+            -- to the record value (like in @open R r@), and then it
+            -- is no longer a projection but a record field.
+            unless (n > 0) notProjP
+            lift $ reportSLn "tc.lhs.split" 90 "we are a projection pattern"
+            -- If the target is not a record type, that's an error.
+            -- It could be a meta, but since we cannot postpone lhs checking, we crash here.
+            caseMaybeM (lift $ isRecordType $ unArg b) notRecord $
+              \ (r, vs, Record{ recFields = fs }) -> do
+                {- NO LONGER NEEDED, BUT KEEP
+                -- normalize projection name (could be from a module app)
+                d <- lift $ do
+                  v <- stripLambdas =<< normalise (Def d [])
+                  case v of
+                    Def d _ -> return d
+                    _       -> do
+                      reportSDoc "impossible" 10 $ sep
+                        [ text   "unexpected result " <+> prettyTCM v
+                        , text $ "when normalizing projection " ++ show d
+                        ]
+                      reportSDoc "impossible" 50 $ sep
+                        [ text $ "raw: " ++ show v
+                        ]
+                      __IMPOSSIBLE__
+                -}
+                lift $ reportSDoc "tc.lhs.split" 20 $ sep
+                  [ text $ "we are of record type r  = " ++ show r
+                  , text   "applied to parameters vs = " <+> prettyTCM vs
+                  , text $ "and have fields       fs = " ++ show fs
+                  , text $ "original proj         d  = " ++ show d
+                  ]
+                -- Get the field decoration.
+                -- If the projection pattern @d@ is not a field name, that's an error.
+                argd <- maybe failure return $ find ((d ==) . unArg) fs
+                let es = patternsToElims perm qs
+                -- the record "self" is the definition f applied to the patterns
+                fvs <- lift $ freeVarsToApply f
+                let self = defaultArg $ Def f (map Apply fvs) `applyE` es
+                -- get the type of projection d applied to "self"
+                dType <- lift $ defType <$> getConstInfo d  -- full type!
+                -- dType <- lift $ typeOfConst d  -- WRONG: we apply to parameters ourselves!!
+                lift $ reportSDoc "tc.lhs.split" 20 $ sep
+                  [ text "we are              self = " <+> prettyTCM (unArg self)
+                  , text "being projected by dType = " <+> prettyTCM dType
+                  ]
+                return $ SplitRest argd $ dType `apply` (vs ++ [self])
     -- if there are no more patterns left in the problem rest, there is nothing to split:
     splitRest _ = throwError $ NothingToSplit
 
@@ -183,7 +179,7 @@ splitProblem mf (Problem ps (perm, qs) tel pr) = do
     splitP _	    []		 (ExtendTel _ _)	 = __IMPOSSIBLE__
     splitP _	    (_:_)	  EmptyTel		 = __IMPOSSIBLE__
     -- no more patterns?  pull them from the rest
-    splitP []	     _		  _			 = splitRest pr -- WAS: throwError $ NothingToSplit
+    splitP []	     _		  _			 = splitRest pr
     -- patterns but no types for them?  Impossible.
     splitP ps	    []		  EmptyTel		 = __IMPOSSIBLE__
     -- pattern with type?  Let's get to work:

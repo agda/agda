@@ -1,0 +1,3 @@
+Issue950.agda:19,1-8
+Cannot eliminate type S with projection pattern x
+when checking that the clause x f = ? has type S

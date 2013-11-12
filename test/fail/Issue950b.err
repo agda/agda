@@ -1,0 +1,3 @@
+Issue950b.agda:19,1-8
+Cannot eliminate type ?0 with projection pattern x
+when checking that the clause x f = ? has type ?0
