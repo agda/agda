@@ -23,7 +23,7 @@ module Agda.Syntax.Parser.Monad
     , topContext, popContext, pushContext
     , pushCurrentContext
       -- ** Errors
-    , parseError, parseErrorAt
+    , parseError, parseErrorAt, parseError'
     , lexError
     )
     where
@@ -261,6 +261,10 @@ parseErrorAt :: Position -> String -> Parser a
 parseErrorAt p msg =
     do	setLastPos p
 	parseError msg
+
+-- | Use 'parseErrorAt' or 'parseError' as appropriate.
+parseError' :: Maybe Position -> String -> Parser a
+parseError' = maybe parseError parseErrorAt
 
 
 -- | For lexical errors we want to report the current position as the site of

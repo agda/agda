@@ -56,15 +56,15 @@ parse :: Parser a -> String -> IO a
 parse p = wrapM . return . M.parse (parseFlags p) [normal] (parser p)
 
 parseFile :: Parser a -> AbsolutePath -> IO a
-parseFile p = wrapM . M.parseFile (parseFlags p) [normal] (parser p)
+parseFile p = wrapM . M.parseFile (parseFlags p) [layout, normal] (parser p)
 
 parseLiterate :: Parser a -> String -> IO a
 parseLiterate p =
-  wrapM . return . M.parse (parseFlags p) [literate, code] (parser p)
+  wrapM . return . M.parse (parseFlags p) [literate, layout, code] (parser p)
 
 parseLiterateFile :: Parser a -> AbsolutePath -> IO a
 parseLiterateFile p =
-  wrapM . M.parseFile (parseFlags p) [literate, code] (parser p)
+  wrapM . M.parseFile (parseFlags p) [literate, layout, code] (parser p)
 
 parsePosString :: Parser a -> Position -> String -> IO a
 parsePosString p pos =

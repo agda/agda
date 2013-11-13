@@ -254,10 +254,13 @@ Token
  --------------------------------------------------------------------------}
 
 File :: { ([Pragma], [Declaration]) }
-File : File1 { $1 }
+File : vopen File1 maybe_vclose { $2 }
 
-File1 : TopLevel             { ([], $1) }
-      | TopLevelPragma File1 { let (ps,m) = $2 in ($1 : ps, m) }
+maybe_vclose : {- empty -} { () }
+             | vclose      { () }
+
+File1 : TopLevel                  { ([], $1) }
+      | TopLevelPragma semi File1 { let (ps,m) = $3 in ($1 : ps, m) }
 
 
 {--------------------------------------------------------------------------
@@ -1135,31 +1138,25 @@ ModuleApplication : ModuleName '{{' '...' DoubleCloseBrace { (\ts ->
 
 -- Module instantiation
 ModuleMacro :: { Declaration }
-ModuleMacro : 'module' Id TypedUntypedBindings '=' ModuleApplication ImportDirective
-		    {% do {ma <- $5 (map addType $3); return $ ModuleMacro (getRange ($1, $2, ma, $6)) $2 ma DontOpen $6 } }
+ModuleMacro : 'module' ModuleName TypedUntypedBindings '=' ModuleApplication ImportDirective
+		    {% do { ma <- $5 (map addType $3)
+                          ; name <- ensureUnqual $2
+                          ; return $ ModuleMacro (getRange ($1, $2, ma, $6)) name ma DontOpen $6 } }
 	    | 'open' 'module' Id TypedUntypedBindings '=' ModuleApplication ImportDirective
 		    {% do {ma <- $6 (map addType $4); return $ ModuleMacro (getRange ($1, $2, $3, ma, $7)) $3 ma DoOpen $7 } }
 
 -- Module
 Module :: { Declaration }
-Module : 'module' Id TypedUntypedBindings 'where' Declarations0
-		    { Module (getRange ($1,$2,$3,$4,$5)) (QName $2) (map addType $3) $5 }
+Module : 'module' ModuleName TypedUntypedBindings 'where' Declarations0
+		    { Module (getRange ($1,$2,$3,$4,$5)) $2 (map addType $3) $5 }
        | 'module' Underscore TypedUntypedBindings 'where' Declarations0
 		    { Module (getRange ($1,$2,$3,$4,$5)) (QName $2) (map addType $3) $5 }
 
 Underscore :: { Name }
 Underscore : '_' { noName (getRange $1) }
 
--- The top-level consist of a bunch of import and open followed by a top-level module.
 TopLevel :: { [Declaration] }
-TopLevel : TopModule       { [$1] }
---	 | Import TopLevel { $1 : $2 }
-	 | Open   TopLevel { $1 ++ $2 }
-
--- The top-level module can have a qualified name.
-TopModule :: { Declaration }
-TopModule : 'module' ModuleName TypedUntypedBindings 'where' Declarations0
-		    { Module (getRange ($1,$2,$3,$4,$5)) $2 (map addType $3) $5 }
+TopLevel : TopDeclarations { figureOutTopLevelModule $1 }
 
 Pragma :: { Declaration }
 Pragma : DeclarationPragma  { Pragma $1 }
@@ -1292,12 +1289,12 @@ RecordDeclarations :: { (Maybe Induction, Maybe Name, [Declaration]) }
 RecordDeclarations
     : vopen                                          close { (Nothing, Nothing, []) }
     | vopen RecordConstructorName                    close { (Nothing, Just $2, []) }
-    | vopen RecordConstructorName semi Declarations1 close { (Nothing, Just $2, reverse $4) }
-    | vopen                            Declarations1 close { (Nothing, Nothing, reverse $2) }
+    | vopen RecordConstructorName semi Declarations1 close { (Nothing, Just $2, $4) }
+    | vopen                            Declarations1 close { (Nothing, Nothing, $2) }
     | vopen RecordInduction                                               close { (Just $2, Nothing, []) }
     | vopen RecordInduction semi RecordConstructorName                    close { (Just $2, Just $4, []) }
-    | vopen RecordInduction semi RecordConstructorName semi Declarations1 close { (Just $2, Just $4, reverse $6) }
-    | vopen RecordInduction semi                            Declarations1 close { (Just $2, Nothing, reverse $4) }
+    | vopen RecordInduction semi RecordConstructorName semi Declarations1 close { (Just $2, Just $4, $6) }
+    | vopen RecordInduction semi                            Declarations1 close { (Just $2, Nothing, $4) }
 
 -- Declaration of record as 'inductive' or 'coinductive'.
 RecordInduction :: { Induction }
@@ -1308,7 +1305,7 @@ RecordInduction
 -- Arbitrary declarations
 Declarations :: { [Declaration] }
 Declarations
-    : vopen Declarations1 close { reverse $2 }
+    : vopen Declarations1 close { $2 }
 
 -- Arbitrary declarations
 Declarations0 :: { [Declaration] }
@@ -1318,9 +1315,13 @@ Declarations0
 
 Declarations1 :: { [Declaration] }
 Declarations1
-    : Declarations1 semi Declaration { reverse $3 ++ $1 }
-    | Declaration                    { reverse $1 }
+    : Declaration semi Declarations1 { $1 ++ $3 }
+    | Declaration                    { $1 }
 
+TopDeclarations :: { [Declaration] }
+TopDeclarations
+  : {- empty -}   { [] }
+  | Declarations1 { $1 }
 
 {
 
@@ -1350,6 +1351,19 @@ happyError = parseError "Parse error"
 {--------------------------------------------------------------------------
     Utility functions
  --------------------------------------------------------------------------}
+
+-- | Insert a top-level module if there is none.
+figureOutTopLevelModule :: [Declaration] -> [Declaration]
+figureOutTopLevelModule ds =
+  case span isAllowedBeforeModule ds of
+    (ds0, Module r m tel ds1 : ds2) -> ds0 ++ [Module r m tel $ ds1 ++ ds2]
+    (ds0, ds1)                      -> ds0 ++ [Module noRange (QName noName_) [] ds1]
+  where
+    isAllowedBeforeModule (Private _ ds) = all isAllowedBeforeModule ds
+    isAllowedBeforeModule Import{}       = True
+    isAllowedBeforeModule ModuleMacro{}  = True
+    isAllowedBeforeModule Open{}         = True
+    isAllowedBeforeModule _              = False
 
 -- | Create a name from a string.
 
@@ -1382,6 +1396,10 @@ mkQName ss = do
     xs <- mapM mkName ss
     return $ foldr Qual (QName $ last xs) (init xs)
 
+ensureUnqual :: QName -> Parser Name
+ensureUnqual (QName x) = return x
+ensureUnqual q@Qual{}  = parseError' (rStart $ getRange q) "Qualified name not allowed here"
+
 -- | Match a particular name.
 isName :: String -> (Interval, String) -> Parser ()
 isName s (_,s')
@@ -1405,9 +1423,7 @@ mergeImportDirectives is = do
   where
     merge mi i2 = do
       i1 <- mi
-      let err = case rStart $ getRange i2 of
-            Nothing -> parseError     "Cannot mix using and hiding module directives"
-            Just p  -> parseErrorAt p "Cannot mix using and hiding module directives"
+      let err = parseError' (rStart $ getRange i2) "Cannot mix using and hiding module directives"
       uh <- case (usingOrHiding i1, usingOrHiding i2) of
             (Hiding [], u)         -> return u
             (u, Hiding [])         -> return u
