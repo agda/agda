@@ -1,4 +1,4 @@
-{-# OPTIONS -v term.inline:20 #-}
+{-# OPTIONS -v term.with.inline:20 -v term.with.call:30 #-}
 
 data Nat : Set where
   zero : Nat

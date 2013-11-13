@@ -715,94 +715,105 @@ termTerm conf names f delayed pats0 t0 = do
                   _          -> cont g es
               | otherwise = cont g es
 
+             withFunction :: QName -> Elims -> TCM Calls
+             withFunction g es = do
+               v <- expandWithFunctionCall g es
+               reportSDoc "term.with.call" 30 $
+                 text "termination checking expanded with-function call:" <+> prettyTCM v
+               loop pats guarded v
+
              -- Handles function applications @g args0@.
              function :: QName -> Elims -> TCM Calls
              function g es = do
-               let gArgs = Def g es
-               reportSDoc "term.function" 30 $
-                 text "termination checking function call " <+> prettyTCM gArgs
+               isWith <- isWithFunction g
+               case isWith of
+                 Just f -> withFunction g es
+                 Nothing -> do
+                   let gArgs = Def g es
+                   reportSDoc "term.function" 30 $
+                     text "termination checking function call " <+> prettyTCM gArgs
 {-
-              ev <- elimView' terminationElimViewConf gArgs -- elimView that does not reduce, and only accepts proper projections into the spine
-              case ev of
-               ConElim{} -> loop pats guarded $ unElimView ev
-               NoElim v  -> do
-                 reportSDoc "term.elim" 10 $ text "got NoElim " <+> prettyTCM v
-                 reportSDoc "term.elim" 50 $ text $ show v
-                 loop pats guarded v
-               MetaElim x es -> mapM' (loop pats Term.unknown . unArg) $ argsFromElims es
-               VarElim  x es -> mapM' (loop pats Term.unknown . unArg) $ argsFromElims es
-               DefElim  g es -> guardPresTyCon g es $ \ g es -> do
+                  ev <- elimView' terminationElimViewConf gArgs -- elimView that does not reduce, and only accepts proper projections into the spine
+                  case ev of
+                   ConElim{} -> loop pats guarded $ unElimView ev
+                   NoElim v  -> do
+                     reportSDoc "term.elim" 10 $ text "got NoElim " <+> prettyTCM v
+                     reportSDoc "term.elim" 50 $ text $ show v
+                     loop pats guarded v
+                   MetaElim x es -> mapM' (loop pats Term.unknown . unArg) $ argsFromElims es
+                   VarElim  x es -> mapM' (loop pats Term.unknown . unArg) $ argsFromElims es
+                   DefElim  g es -> guardPresTyCon g es $ \ g es -> do
 -}
-               -- We have to reduce constructors in case they're reexported.
-               let reduceCon t = case ignoreSharing t of
-                      Con c vs -> (`apply` vs) <$> reduce (Con c [])  -- make sure we don't reduce the arguments
-                      _        -> return t
-               es <- mapM (etaContract <=< traverse reduceCon <=< instantiateFull) es
+                   -- We have to reduce constructors in case they're reexported.
+                   let reduceCon t = case ignoreSharing t of
+                          Con c vs -> (`apply` vs) <$> reduce (Con c [])  -- make sure we don't reduce the arguments
+                          _        -> return t
+                   es <- mapM (etaContract <=< traverse reduceCon <=< instantiateFull) es
 
-               -- If the function is a projection but not for a coinductive record,
-               -- then preserve guardedness for its principal argument.
-               isProj <- isProjectionButNotCoinductive g
-               let unguards = repeat Term.unknown
-               let guards = if isProj then guarded : unguards
-                                           -- proj => preserve guardedness of principal argument
-                                      else unguards -- not a proj ==> unguarded
-               -- collect calls in the arguments of this call
-               let args = map unArg $ argsFromElims es
-               calls <- mapM' (uncurry (loop pats)) (zip guards args)
+                   -- If the function is a projection but not for a coinductive record,
+                   -- then preserve guardedness for its principal argument.
+                   isProj <- isProjectionButNotCoinductive g
+                   let unguards = repeat Term.unknown
+                   let guards = if isProj then guarded : unguards
+                                               -- proj => preserve guardedness of principal argument
+                                          else unguards -- not a proj ==> unguarded
+                   -- collect calls in the arguments of this call
+                   let args = map unArg $ argsFromElims es
+                   calls <- mapM' (uncurry (loop pats)) (zip guards args)
 
-               reportSDoc "term.found.call" 20
-                       (sep [ text "found call from" <+> prettyTCM f
-                            , nest 2 $ text "to" <+> prettyTCM g
-                            ])
+                   reportSDoc "term.found.call" 20
+                           (sep [ text "found call from" <+> prettyTCM f
+                                , nest 2 $ text "to" <+> prettyTCM g
+                                ])
 
-               -- insert this call into the call list
-               case List.elemIndex g names of
+                   -- insert this call into the call list
+                   case List.elemIndex g names of
 
-                  -- call leads outside the mutual block and can be ignored
-                  Nothing   -> return calls
+                      -- call leads outside the mutual block and can be ignored
+                      Nothing   -> return calls
 
-                  -- call is to one of the mutally recursive functions
-                  Just gInd' -> do
+                      -- call is to one of the mutally recursive functions
+                      Just gInd' -> do
 
-                     (nrows, ncols, matrix) <- compareArgs (withSizeSuc conf) pats es
-                     reportSLn "term.guardedness" 20 $
-                       "composing with guardedness " ++ show guarded ++
-                       " counting as " ++ show (ifDelayed guarded)
-                     let matrix' = composeGuardedness (ifDelayed guarded) matrix
-{- OLD
-                     matrix <- compareArgs (withSizeSuc conf) pats args
-                     let (nrows, ncols, matrix') = addGuardedness
-                            (ifDelayed guarded)  -- only delayed defs can be guarded
-                            (genericLength args) -- number of rows
-                            (genericLength pats) -- number of cols
-                            matrix
--}
+                         (nrows, ncols, matrix) <- compareArgs (withSizeSuc conf) pats es
+                         reportSLn "term.guardedness" 20 $
+                           "composing with guardedness " ++ show guarded ++
+                           " counting as " ++ show (ifDelayed guarded)
+                         let matrix' = composeGuardedness (ifDelayed guarded) matrix
+    {- OLD
+                         matrix <- compareArgs (withSizeSuc conf) pats args
+                         let (nrows, ncols, matrix') = addGuardedness
+                                (ifDelayed guarded)  -- only delayed defs can be guarded
+                                (genericLength args) -- number of rows
+                                (genericLength pats) -- number of cols
+                                matrix
+    -}
 
-                     reportSDoc "term.kept.call" 5
-                       (sep [ text "kept call from" <+> prettyTCM f
-                               <+> hsep (map prettyTCM pats)
-                            , nest 2 $ text "to" <+> prettyTCM g <+>
-                                        hsep (map (parens . prettyTCM) args)
-                            , nest 2 $ text ("call matrix (with guardedness): " ++ show matrix')
-                            ])
+                         reportSDoc "term.kept.call" 5
+                           (sep [ text "kept call from" <+> prettyTCM f
+                                   <+> hsep (map prettyTCM pats)
+                                , nest 2 $ text "to" <+> prettyTCM g <+>
+                                            hsep (map (parens . prettyTCM) args)
+                                , nest 2 $ text ("call matrix (with guardedness): " ++ show matrix')
+                                ])
 
-                     -- Andreas, 2013-05-19 as pointed out by Andrea Vezzosi,
-                     -- printing the call eagerly is forbiddingly expensive.
-                     -- So we build a closure such that we can print the call
-                     -- whenever we really need to.
-                     -- This saves 30s (12%) on the std-lib!
-                     doc <- buildClosure gArgs
-                     return
-                       (Term.insert
-                         (Term.Call { Term.source = fInd
-                                    , Term.target = toInteger gInd'
-                                    , Term.cm     = makeCM ncols nrows matrix'
-                                    })
-                         (point
-                            (CallInfo { callInfoRange = getRange g
-                                      , callInfoCall  = doc
-                                      }))
-                         calls)
+                         -- Andreas, 2013-05-19 as pointed out by Andrea Vezzosi,
+                         -- printing the call eagerly is forbiddingly expensive.
+                         -- So we build a closure such that we can print the call
+                         -- whenever we really need to.
+                         -- This saves 30s (12%) on the std-lib!
+                         doc <- buildClosure gArgs
+                         return
+                           (Term.insert
+                             (Term.Call { Term.source = fInd
+                                        , Term.target = toInteger gInd'
+                                        , Term.cm     = makeCM ncols nrows matrix'
+                                        })
+                             (point
+                                (CallInfo { callInfoRange = getRange g
+                                          , callInfoCall  = doc
+                                          }))
+                             calls)
 
 
          case ignoreSharing t of

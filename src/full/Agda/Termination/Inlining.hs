@@ -1,4 +1,4 @@
-{-# LANGUAGE CPP #-}
+{-# LANGUAGE CPP, PatternGuards #-}
 -- Author:  Ulf Norell
 -- Created: 2013-11-09
 
@@ -39,7 +39,10 @@
   nor with the type of @f-aux@ (since there are the surface-level patterns
   @ps₁i@ instead of the actual patterns @ps₂i@).
  -}
-module Agda.Termination.Inlining (inlineWithClauses, isWithFunction) where
+module Agda.Termination.Inlining
+  ( inlineWithClauses
+  , isWithFunction
+  , expandWithFunctionCall ) where
 
 import Control.Applicative
 import Control.Monad.State
@@ -81,13 +84,13 @@ inlineWithClauses f cl = inTopContext $ do
         -- The clause body is a with-function call @wf args@.
         -- @f@ is the function the with-function belongs to.
         let args = fromMaybe __IMPOSSIBLE__ . allApplyElims $ els
-        reportSDoc "term.inline" 20 $ sep
+        reportSDoc "term.with.inline" 20 $ sep
           [ text "Found with:", nest 2 $ prettyTCM $ QNamed f cl ]
         t   <- defType <$> getConstInfo wf
         cs1 <- withExprClauses cl t args
         cs2 <- inlinedClauses f cl t wf
         let cs = cs1 ++ cs2
-        reportSDoc "term.inline" 20 $ vcat $
+        reportSDoc "term.with.inline" 20 $ vcat $
           text "After inlining" : map (nest 2 . prettyTCM . QNamed f) cs
         return cs
     _ -> noInline
@@ -132,7 +135,7 @@ inlinedClauses f cl t wf = do
   -- @wf@ might define a with-function itself, so we first construct
   -- the with-inlined clauses @wcs@ of @wf@ recursively.
   wcs <- concat <$> (mapM (inlineWithClauses wf) =<< defClauses <$> getConstInfo wf)
-  reportSDoc "term.inline" 30 $ vcat $ text "With-clauses to inline" :
+  reportSDoc "term.with.inline" 30 $ vcat $ text "With-clauses to inline" :
                                        map (nest 2 . prettyTCM . QNamed wf) wcs
   mapM (inline f cl t wf) wcs
 
@@ -180,12 +183,6 @@ inline f pcl t wf wcl = inTopContext $ addCtxTel (clauseTel wcl) $ do
         bind n = Bind . Abs ("h" ++ show n') . bind n'
           where n' = n - 1
 
-    dtermToTerm DWithApp{} = __IMPOSSIBLE__   -- patsToTerms doesn't generate DWithApps
-    dtermToTerm (DCon c args) = Con (ConHead c []) $ map (fmap dtermToTerm) args
-    dtermToTerm (DDef f args) = Def f $ map (Apply . fmap dtermToTerm) args
-    dtermToTerm (DDot v)      = v
-    dtermToTerm (DTerm v)     = v
-
     dispToPats :: DisplayTerm -> TCM ([NamedArg Pattern], Permutation)
     dispToPats (DWithApp (DDef _ vs : ws) zs) = do
       let us = vs ++ map defaultArg ws ++ map (fmap DTerm) zs
@@ -229,4 +226,20 @@ isWithFunction x = do
   return $ case theDef def of
     Function{ funWith = w } -> w
     _                       -> Nothing
+
+expandWithFunctionCall :: QName -> Elims -> TCM Term
+expandWithFunctionCall f es
+  | Just vs <- allApplyElims es = do
+    Just disp <- displayForm f vs
+    return $ dtermToTerm disp
+  | otherwise = __IMPOSSIBLE__
+  where
+
+dtermToTerm :: DisplayTerm -> Term
+dtermToTerm (DWithApp [] _)        = __IMPOSSIBLE__
+dtermToTerm (DWithApp (d : ds) vs) = dtermToTerm d `apply` (map (defaultArg . dtermToTerm) ds ++ vs)
+dtermToTerm (DCon c args)          = Con (ConHead c []) $ map (fmap dtermToTerm) args
+dtermToTerm (DDef f args)          = Def f $ map (Apply . fmap dtermToTerm) args
+dtermToTerm (DDot v)               = v
+dtermToTerm (DTerm v)              = v
 
