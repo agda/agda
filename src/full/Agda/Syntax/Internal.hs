@@ -578,6 +578,20 @@ dropProjElims = filter (isNothing . isProjElim)
 argsFromElims :: Elims -> Args
 argsFromElims = map argFromElim . dropProjElims
 
+{- NOTE: Elim' already contains Arg.
+
+-- | Commute functors 'Arg' and 'Elim\''.
+swapArgElim :: Common.Arg c (Elim' a) -> Elim' (Common.Arg c a)
+
+swapArgElim (Common.Arg ai (Apply a)) = Apply (Common.Arg ai a)
+swapArgElim (Common.Arg ai (Proj  d)) = Proj  d
+
+-- IMPOSSIBLE TO DEFINE
+swapElimArg :: Elim' (Common.Arg c a) -> Common.Arg c (Elim' a)
+swapElimArg (Apply (Common.Arg ai a)) = Common.Arg ai (Apply a)
+swapElimArg (Proj  d) = defaultArg (Proj  d)
+-}
+
 ---------------------------------------------------------------------------
 -- * Show instances.
 ---------------------------------------------------------------------------

@@ -42,6 +42,29 @@ instance IsProjP Pattern where
   isProjP (ProjP d) = Just d
   isProjP _         = Nothing
 
+{- NOTE: The following definition does not work, since Elim' already
+   contains Arg.  Otherwise, we could have fixed it using traverseF.
+
+patternsToElims :: Permutation -> [I.NamedArg Pattern] -> Elims
+patternsToElims perm aps = evalState (argPatsToElims aps) xs
+  where
+    xs   = permute (invertP perm) $ downFrom (size perm)
+
+    tick :: State [Int] Int
+    tick = do x : xs <- get; put xs; return x
+
+    argPatsToElims :: [I.NamedArg Pattern] -> State [Int] Elims
+    argPatsToElims = traverse $ traverse $ patToElim . namedThing
+
+    patToElim :: Pattern -> State [Int] (Elim' Term)
+    patToElim p = case p of
+      VarP _      -> Apply . flip var <$> tick
+      DotP v      -> Apply v <$ tick   -- dot patterns count as variables
+      ConP c _ ps -> Apply . Con c . map argFromElim <$> argPatsToElims ps
+      LitP l      -> pure $ Apply $ Lit l
+      ProjP d     -> pure $ Proj d
+-}
+
 patternsToElims :: Permutation -> [I.NamedArg Pattern] -> [Elim]
 patternsToElims perm ps = evalState (mapM build' ps) xs
   where
