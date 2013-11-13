@@ -6,7 +6,7 @@ module Agda.Interaction.Highlighting.Generate
   ( Level(..)
   , generateAndPrintSyntaxInfo
   , generateTokenInfo
-  , printErrorInfo
+  , printErrorInfo, errorHighlighting
   , printUnsolvedInfo
   , printHighlightingInfo
   , highlightAsTypeChecked
@@ -514,22 +514,21 @@ generateConstructorInfo modMap file kinds decl = do
 
 printErrorInfo :: TCErr -> TCM ()
 printErrorInfo e = do
-  file <- envCurrentPath <$> ask
-  let r = P.getRange e
-  case P.rStart r of
-    Just x | P.srcFile x == Just file -> do
-      s <- E.prettyError e
+  -- Erase previous highlighting.
+  printHighlightingInfo $ singletonC (rToR $ P.continuousPerLine $ P.getRange e) mempty
 
-      -- Erase previous highlighting.
-      p (P.continuousPerLine r) mempty
+  -- Print new highlighting.
+  printHighlightingInfo . compress =<< errorHighlighting e
 
-      -- Print new highlighting.
-      p r $ mempty { otherAspects = [Error]
-                   , note         = Just s
-                   }
-    _ -> internalError . ("invalid range when printing error: " ++) =<< E.prettyError e
+errorHighlighting :: TCErr -> TCM File
+errorHighlighting e = do
+  s <- E.prettyError e
+  return $ singleton (rToR r)
+         $ mempty { otherAspects = [Error]
+                  , note         = Just s
+                  }
   where
-  p r x = printHighlightingInfo $ singletonC (rToR r) x
+    r = P.getRange e
 
 -- | Generates and prints syntax highlighting information for unsolved
 -- meta-variables and certain unsolved constraints.

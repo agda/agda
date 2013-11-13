@@ -208,15 +208,15 @@ runInteraction (IOTCM current highlighting highlightingMethod cmd)
     handleErr e = do
         meta    <- lift $ computeUnsolvedMetaWarnings
         constr  <- lift $ computeUnsolvedConstraints
+        err     <- lift $ errorHighlighting e
         modFile <- lift $ gets stModuleToSource
-        let info = compress $ meta `mappend` constr
+        let info = compress $ mconcat [meta, constr, err]
         s <- lift $ prettyError e
         x <- lift . gets $ optShowImplicit . stPragmaOptions
-        let r = getRange e
         mapM_ putResponse $
             [ Resp_DisplayInfo $ Info_Error s ] ++
             tellEmacsToJumpToError (getRange e) ++
-            [ Resp_HighlightingInfo (noHighlightingInRange (H.rToR r) info) modFile ] ++
+            [ Resp_HighlightingInfo info modFile ] ++
             [ Resp_Status $ Status { sChecked = False
                                    , sShowImplicitArguments = x
                                    } ]

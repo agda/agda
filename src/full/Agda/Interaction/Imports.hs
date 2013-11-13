@@ -511,12 +511,14 @@ createInterface file mname =
       printHighlightingInfo fileTokenInfo
       mapM_ (\d -> generateAndPrintSyntaxInfo d Partial) ds
 
+    checkDecls ds
     -- Ulf, 2013-11-09: Since we're rethrowing the error, leave it up to the
     -- code that handles that error to reset the state.
-    catchError_ (checkDecls ds) $ \e -> do
-      ifTopLevelAndHighlightingLevelIs NonInteractive $
-        printErrorInfo e
-      throwError e
+    -- Ulf, 2013-11-13: Errors are now caught and highlighted in InteractionTop.
+    -- catchError_ (checkDecls ds) $ \e -> do
+    --   ifTopLevelAndHighlightingLevelIs NonInteractive $
+    --     printErrorInfo e
+    --   throwError e
 
     unfreezeMetas
 
