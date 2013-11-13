@@ -1,9 +1,12 @@
-{-# LANGUAGE FlexibleInstances #-}
+{-# LANGUAGE CPP, FlexibleInstances #-}
 
 module Agda.Syntax.Internal.Pattern where
 
 import Control.Applicative
 import Control.Monad.State
+
+import Data.Maybe (fromMaybe)
+import Data.Traversable (traverse)
 
 import Agda.Syntax.Common hiding (NamedArg)
 import Agda.Syntax.Abstract (IsProjP(..))
@@ -15,6 +18,23 @@ import Agda.Utils.Monad ((<.>))
 import Agda.Utils.Permutation
 import Agda.Utils.Size (size)
 import Agda.Utils.Tuple
+
+#include "../../undefined.h"
+import Agda.Utils.Impossible
+
+-- * Tools for clauses
+
+-- | Translate the clause patterns to terms with free variables bound by the
+--   clause telescope.
+--
+--   Precondition: no projection patterns.
+clauseArgs :: Clause -> Args
+clauseArgs cl = fromMaybe __IMPOSSIBLE__ $ allApplyElims $ clauseElims cl
+
+-- | Translate the clause patterns to an elimination spine
+--   with free variables bound by the clause telescope.
+clauseElims :: Clause -> Elims
+clauseElims cl = patternsToElims (clausePerm cl) (namedClausePats cl)
 
 -- * Tools for patterns
 

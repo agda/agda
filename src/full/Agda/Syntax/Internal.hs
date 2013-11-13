@@ -250,23 +250,24 @@ data Clause = Clause
 clausePats :: Clause -> [Arg Pattern]
 clausePats = map (fmap namedThing) . namedClausePats
 
--- | Translate the clause patterns to terms with free variables bound by the
---   clause telescope.
-clauseArgs :: Clause -> Args
-clauseArgs cl = evalState (argsToTerms $ namedClausePats cl) xs
-  where
-    perm = clausePerm cl
-    xs   = permute (invertP perm) $ downFrom (size perm)
-
-    next = do x : xs <- get; put xs; return x
-
-    argsToTerms = traverse $ traverse $ patToTerm . namedThing
-    patToTerm p = case p of
-      VarP _      -> flip Var [] <$> next
-      DotP v      -> v <$ next   -- dot patterns count as variables
-      ConP c _ ps -> Con c <$> argsToTerms ps
-      LitP l      -> pure $ Lit l
-      ProjP{}     -> __IMPOSSIBLE__   -- TODO
+-- MOVED to Agda. Syntax.Internal.Patterns
+-- -- | Translate the clause patterns to terms with free variables bound by the
+-- --   clause telescope.
+-- clauseArgs :: Clause -> Args
+-- clauseArgs cl = evalState (argsToTerms $ namedClausePats cl) xs
+--   where
+--     perm = clausePerm cl
+--     xs   = permute (invertP perm) $ downFrom (size perm)
+--
+--     next = do x : xs <- get; put xs; return x
+--
+--     argsToTerms = traverse $ traverse $ patToTerm . namedThing
+--     patToTerm p = case p of
+--       VarP _      -> flip Var [] <$> next
+--       DotP v      -> v <$ next   -- dot patterns count as variables
+--       ConP c _ ps -> Con c <$> argsToTerms ps
+--       LitP l      -> pure $ Lit l
+--       ProjP{}     -> __IMPOSSIBLE__   -- TODO
 
 data ClauseBodyF a = Body a
 		   | Bind (Abs (ClauseBodyF a))

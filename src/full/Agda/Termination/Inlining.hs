@@ -55,6 +55,7 @@ import Data.List as List
 
 import Agda.Syntax.Common hiding (NamedArg)
 import Agda.Syntax.Internal
+import Agda.Syntax.Internal.Pattern
 import Agda.TypeChecking.Monad
 import Agda.TypeChecking.Pretty
 import Agda.TypeChecking.Substitute
