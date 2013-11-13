@@ -122,12 +122,17 @@ strongly :: OccursCtx -> OccursCtx
 strongly Rigid = StronglyRigid
 strongly ctx = ctx
 
+patternViolation' :: Int -> String -> TCM a
+patternViolation' n err = do
+  reportSLn "tc.meta.occurs" n err
+  patternViolation
+
 abort :: OccursCtx -> TypeError -> TCM a
 abort Top           err = typeError err
 abort StronglyRigid err = typeError err -- here, throw an uncatchable error (unsolvable constraint)
-abort Flex  _ = patternViolation -- throws a PatternErr, which leads to delayed constraint
-abort Rigid _ = patternViolation
-abort Irrel _ = patternViolation
+abort Flex          err = patternViolation' 70 (show err) -- throws a PatternErr, which leads to delayed constraint
+abort Rigid         err = patternViolation' 70 (show err)
+abort Irrel         err = patternViolation' 70 (show err)
 
 -- | Distinguish relevant and irrelevant variables in occurs check.
 type Vars = ([Nat],[Nat])
@@ -210,7 +215,7 @@ instance Occurs Term where
             isST <- isSingletonType =<< typeOfBV i
             case isST of
               -- cannot decide, blocked by meta-var
-              Left mid -> patternViolation
+              Left mid -> patternViolation' 70 $ "Disallowed var " ++ show i ++ " not obviously singleton"
               -- not a singleton type
               Right Nothing -> -- abort Rigid turns this error into PatternErr
                 abort (strongly ctx) $ MetaCannotDependOn m (takeRelevant xs) i
@@ -241,7 +246,7 @@ instance Occurs Term where
             when (m == m') $ if ctx == Top then patternViolation else
               abort ctx $ MetaOccursInItself m'
             -}
-            when (m == m') patternViolation
+            when (m == m') $ patternViolation' 50 $ "occursCheck failed: Found " ++ show m
 
             -- The arguments of a meta are in a flexible position
             (MetaV m' <$> occurs red Flex m xs es) `catchError` \err -> do
@@ -270,6 +275,7 @@ instance Occurs Term where
             def <- theDef <$> getConstInfo d
             whenM (defNeedsChecking d) $ do
               tallyDef d
+              reportSLn "tc.meta.occurs" 30 $ "Checking for occurrences in " ++ show d
               metaOccurs m def
             if (defIsDataOrRecord def) then (occ ctx vs) else (occ (defArgs red ctx) vs)
 
@@ -286,7 +292,7 @@ instance Occurs Term where
       Pi a b     -> metaOccurs m (a,b)
       Sort s     -> metaOccurs m s
       Shared p   -> metaOccurs m $ derefPtr p
-      MetaV m' vs | m == m' -> patternViolation
+      MetaV m' vs | m == m' -> patternViolation' 50 $ "Found occurrence of " ++ show m
                   | otherwise -> metaOccurs m vs
 
 instance Occurs QName where
@@ -294,6 +300,7 @@ instance Occurs QName where
 
   metaOccurs m d = whenM (defNeedsChecking d) $ do
     tallyDef d
+    reportSLn "tc.meta.occurs" 30 $ "Checking for occurrences in " ++ show d
     metaOccurs m . theDef =<< getConstInfo d
 
 instance Occurs Defn where
