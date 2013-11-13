@@ -171,8 +171,7 @@ inline f pcl t wf wcl = inTopContext $ addCtxTel (clauseTel wcl) $ do
   where
     numVars  = size (clauseTel wcl)
 
-    getBody = getFirst . foldMap (First . Just)
-    rebindBody n b = bind n $ maybe NoBody Body $ getBody b
+    rebindBody n b = bind n $ maybe NoBody Body $ getBodyUnraised b
       where
         bind 0 = id
         bind n = Bind . Abs ("h" ++ show n') . bind n'
