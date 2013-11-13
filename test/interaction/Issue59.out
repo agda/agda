@@ -1,0 +1,11 @@
+Agda2> (agda2-status-action "")
+(agda2-info-action "*Type-checking*" "" nil)
+(agda2-highlight-clear)
+(agda2-info-action "*Type-checking*" "Checking Issue59 (Issue59.agda).\n" t)
+(agda2-verbose "Found with: f (suc n) = f (suc n) | f n\n")
+(agda2-verbose "After inlining\n  f (suc n) = f n\n  f (suc n) zero = zero\n  f (suc n) (suc m) = f n + m\n")
+(agda2-info-action "*Type-checking*" "Finished Issue59.\n" t)
+(agda2-status-action "Checked")
+(agda2-info-action "*All Goals*" "" nil)
+((last . 1) . (agda2-goals-action '()))
+Agda2> 

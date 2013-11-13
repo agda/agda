@@ -55,6 +55,7 @@ import Agda.Syntax.Internal
 import Agda.TypeChecking.Monad
 import Agda.TypeChecking.Pretty
 import Agda.TypeChecking.Substitute
+import Agda.TypeChecking.Reduce
 import Agda.TypeChecking.DisplayForm
 import Agda.TypeChecking.Telescope
 
@@ -66,15 +67,17 @@ import Agda.Utils.Size
 import Agda.Utils.Impossible
 #include "../undefined.h"
 
-inlineWithClauses :: Clause -> TCM [Clause]
-inlineWithClauses cl = inTopContext $ do
+inlineWithClauses :: QName -> Clause -> TCM [Clause]
+inlineWithClauses f cl = inTopContext $ do
   -- Clauses are relative to the empty context, so we operate @inTopContext@.
   let noInline = return [cl]
   -- Get the clause body as-is (unraised).
   -- The de Bruijn indices are then relative to the @clauseTel cl@.
-  case getBodyUnraised cl of
-    Just (Def wf els) -> do
-      caseMaybeM (isWithFunction wf) noInline $ \ f -> do
+  body <- traverse instantiate $ getBodyUnraised cl
+  case body of
+    Just (Def wf els) ->
+      caseMaybeM (isWithFunction wf) noInline $ \ f' ->
+      if f /= f' then noInline else do
         -- The clause body is a with-function call @wf args@.
         -- @f@ is the function the with-function belongs to.
         let args = fromMaybe __IMPOSSIBLE__ . allApplyElims $ els
@@ -128,7 +131,7 @@ inlinedClauses :: QName -> Clause -> Type -> QName -> TCM [Clause]
 inlinedClauses f cl t wf = do
   -- @wf@ might define a with-function itself, so we first construct
   -- the with-inlined clauses @wcs@ of @wf@ recursively.
-  wcs <- concat <$> (mapM inlineWithClauses =<< defClauses <$> getConstInfo wf)
+  wcs <- concat <$> (mapM (inlineWithClauses wf) =<< defClauses <$> getConstInfo wf)
   reportSDoc "term.inline" 30 $ vcat $ text "With-clauses to inline" :
                                        map (nest 2 . prettyTCM . QNamed wf) wcs
   mapM (inline f cl t wf) wcs

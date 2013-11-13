@@ -539,7 +539,7 @@ openClause conf perm ps body = do
 termClause :: DBPConf -> MutualNames -> QName -> Delayed -> Clause -> TCM Calls
 termClause conf names name delayed clause =
   ifM (isJust <$> isWithFunction name) (return mempty) $
-  mapM' (termClause' conf names name delayed) =<< inlineWithClauses clause
+  mapM' (termClause' conf names name delayed) =<< inlineWithClauses name clause
 
 termClause' :: DBPConf -> MutualNames -> QName -> Delayed -> Clause -> TCM Calls
 termClause' conf names name delayed clause = do
