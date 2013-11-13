@@ -57,6 +57,7 @@ import Agda.Utils.Monad
 import Agda.Utils.List
 import Agda.Utils.Fresh
 import Agda.Utils.Pretty
+import Agda.Utils.FileName
 
 #include "../../undefined.h"
 import Agda.Utils.Impossible
@@ -683,7 +684,7 @@ scopeCheckModule r x qm tel ds = do
   where
     info = ModuleInfo r noRange Nothing Nothing Nothing
 
-newtype TopLevel a = TopLevel a
+data TopLevel a = TopLevel AbsolutePath a
 
 data TopLevelInfo = TopLevelInfo
         { topLevelDecls :: [A.Declaration]
@@ -698,8 +699,12 @@ topLevelModuleName topLevel = scopeCurrent (insideScope topLevel)
 
 -- Top-level declarations are always (import|open)* module
 instance ToAbstract (TopLevel [C.Declaration]) TopLevelInfo where
-    toAbstract (TopLevel ds) = case splitAt (length ds - 1) ds of
-        (ds', [C.Module r m tel ds]) -> do
+    toAbstract (TopLevel file ds) = case splitAt (length ds - 1) ds of
+        (ds', [C.Module r m0 tel ds]) -> do
+          -- If the module name is _ compute the name from the file path
+          let m = case m0 of
+                    C.QName x | isNoName x -> C.QName $ C.Name noRange [Id $ rootName file]
+                    _                      -> m0
           setTopLevelModule m
           am           <- toAbstract (NewModuleQName m)
           ds'          <- toAbstract ds'

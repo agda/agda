@@ -502,7 +502,7 @@ createInterface file mname =
         getOptions _                      = Nothing
         options = catMaybes $ map getOptions pragmas
     mapM_ setOptionsFromPragma options
-    topLevel <- concreteToAbstract_ (TopLevel top)
+    topLevel <- concreteToAbstract_ (TopLevel file top)
 
     let ds = topLevelDecls topLevel
 

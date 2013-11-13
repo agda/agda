@@ -1,3 +1,5 @@
-ParseError.agda:1,1-1
-ParseError.agda:1,1:
-Parse error modle<ERROR> ParseError where ...
+ParseError.agda:1,1-17
+Missing type signature for left hand side modle ParseError
+when scope checking the declaration
+  modle ParseError
+    where

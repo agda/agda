@@ -135,6 +135,7 @@ data Level
 -- 'stTokens'.
 
 generateAndPrintSyntaxInfo :: A.Declaration -> Level -> TCM ()
+generateAndPrintSyntaxInfo decl _ | P.noRange == P.getRange decl = return ()
 generateAndPrintSyntaxInfo decl hlLevel = do
   file <- envCurrentPath <$> ask
 

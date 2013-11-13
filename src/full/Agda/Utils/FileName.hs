@@ -4,6 +4,7 @@
 module Agda.Utils.FileName
   ( AbsolutePath
   , filePath
+  , rootName
   , mkAbsolute
   , absolute
   , (===)
@@ -71,6 +72,10 @@ rootPath = joinDrive "C:" [pathSeparator]
 #else
 rootPath = [pathSeparator]
 #endif
+
+-- | maps "/bla/bla/bla/foo.bar.xxx" to "foo.bar"
+rootName :: AbsolutePath -> String
+rootName = dropExtension . snd . splitFileName . filePath
 
 -- | Makes the path absolute.
 --

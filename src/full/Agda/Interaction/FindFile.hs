@@ -151,7 +151,12 @@ checkModuleName name file = do
 
 moduleName' :: AbsolutePath -> TCM TopLevelModuleName
 moduleName' file = liftIO $ do
-  topLevelModuleName <$> parseFile' moduleParser file
+  name <- topLevelModuleName <$> parseFile' moduleParser file
+  case name of
+    TopLevelModuleName ["_"] -> return $ TopLevelModuleName [defaultName]
+    _                        -> return name
+  where
+    defaultName = rootName file
 
 -- | A variant of 'moduleName'' which raises an error if the file name
 -- does not match the module name.

@@ -1357,7 +1357,7 @@ figureOutTopLevelModule :: [Declaration] -> [Declaration]
 figureOutTopLevelModule ds =
   case span isAllowedBeforeModule ds of
     (ds0, Module r m tel ds1 : ds2) -> ds0 ++ [Module r m tel $ ds1 ++ ds2]
-    (ds0, ds1)                      -> ds0 ++ [Module noRange (QName noName_) [] ds1]
+    (ds0, ds1)                      -> ds0 ++ [Module (getRange ds1) (QName noName_) [] ds1]
   where
     isAllowedBeforeModule (Private _ ds) = all isAllowedBeforeModule ds
     isAllowedBeforeModule Import{}       = True
