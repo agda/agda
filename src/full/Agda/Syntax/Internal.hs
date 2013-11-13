@@ -33,6 +33,7 @@ import Agda.Utils.Size
 import Agda.Utils.Permutation
 import Agda.Utils.Pointer
 import Agda.Utils.List
+import Agda.Utils.Functor
 
 #include "../undefined.h"
 import Agda.Utils.Impossible
@@ -141,8 +142,8 @@ data Type' a = El { getSort :: Sort, unEl :: a }
 
 type Type = Type' Term
 
--- data Type = El { getSort :: Sort, unEl :: Term }
---   deriving (Typeable, Show)
+instance Decoration Type' where
+  traverseF f (El s a) = El s <$> f a
 
 -- | Sequence of types. An argument of the first type is bound in later types
 --   and so on.

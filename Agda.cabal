@@ -64,6 +64,7 @@ library
     build-depends:  Win32 >= 2.2 && < 2.4
 
   build-depends:    base >= 4.2 && < 4.8,
+                    transformers == 0.3.*,
                     -- mtl-2.1 contains a severe bug
                     mtl >= 2.0 && < 2.1 || >= 2.1.1 && < 2.2,
                     QuickCheck >= 2.3 && < 2.7,
@@ -290,6 +291,7 @@ library
                     Agda.Utils.Either
                     Agda.Utils.FileName
                     Agda.Utils.Fresh
+                    Agda.Utils.Functor
                     Agda.Utils.Function
                     Agda.Utils.Geniplate
                     Agda.Utils.Graph

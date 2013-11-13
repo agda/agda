@@ -13,6 +13,7 @@ import Data.Hashable
 import Test.QuickCheck
 
 import Agda.Syntax.Position
+import Agda.Utils.Functor
 import Agda.Utils.Size
 
 #include "../undefined.h"
@@ -252,6 +253,9 @@ data Arg c e  = Arg
   , unArg :: e
   } deriving (Typeable, Ord, Functor, Foldable, Traversable)
 
+instance Decoration (Arg c) where
+  traverseF f (Arg ai a) = Arg ai <$> f a
+
 instance HasRange a => HasRange (Arg c a) where
     getRange = getRange . unArg
 
@@ -349,6 +353,9 @@ data Dom c e = Dom
   , unDom     :: e
   } deriving (Typeable, Eq, Ord, Functor, Foldable, Traversable)
 
+instance Decoration (Dom c) where
+  traverseF f (Dom ai a) = Dom ai <$> f a
+
 instance HasRange a => HasRange (Dom c a) where
   getRange = getRange . unDom
 
@@ -398,6 +405,9 @@ unnamed = Named Nothing
 
 named :: name -> a -> Named name a
 named = Named . Just
+
+instance Decoration (Named name) where
+  traverseF f (Named n a) = Named n <$> f a
 
 instance HasRange a => HasRange (Named name a) where
     getRange = getRange . namedThing
