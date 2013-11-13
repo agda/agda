@@ -21,6 +21,7 @@ module Agda.Interaction.Highlighting.Precise
   , compressedFileInvariant
   , compress
   , decompress
+  , noHighlightingInRange
     -- ** Creation
   , singletonC
   , severalC
@@ -241,6 +242,17 @@ prop_compress f =
   &&
   decompress c == f
   where c = compress f
+
+-- | Clear any highlighting info for the given ranges. Used to make sure
+--   unsolved meta highlighting overrides error highlighting.
+noHighlightingInRange :: Ranges -> CompressedFile -> CompressedFile
+noHighlightingInRange rs (CompressedFile hs) =
+    CompressedFile $ concatMap clear hs
+  where
+    clear (r, i) =
+      case minus (Ranges [r]) rs of
+        Ranges [] -> []
+        Ranges rs -> [ (r, i) | r <- rs ]
 
 ------------------------------------------------------------------------
 -- Operations that work directly with compressed files

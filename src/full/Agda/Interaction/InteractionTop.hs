@@ -49,6 +49,7 @@ import qualified Agda.Interaction.BasicOps as B
 import Agda.Interaction.Highlighting.Precise hiding (Postulate)
 import qualified Agda.Interaction.Imports as Imp
 import Agda.Interaction.Highlighting.Generate
+import qualified Agda.Interaction.Highlighting.Range as H
 
 import qualified Agda.Compiler.Epic.Compiler as Epic
 import qualified Agda.Compiler.MAlonzo.Compiler as MAlonzo
@@ -211,10 +212,11 @@ runInteraction (IOTCM current highlighting highlightingMethod cmd)
         let info = compress $ meta `mappend` constr
         s <- lift $ prettyError e
         x <- lift . gets $ optShowImplicit . stPragmaOptions
+        let r = getRange e
         mapM_ putResponse $
             [ Resp_DisplayInfo $ Info_Error s ] ++
             tellEmacsToJumpToError (getRange e) ++
-            [ Resp_HighlightingInfo info modFile ] ++
+            [ Resp_HighlightingInfo (noHighlightingInRange (H.rToR r) info) modFile ] ++
             [ Resp_Status $ Status { sChecked = False
                                    , sShowImplicitArguments = x
                                    } ]
