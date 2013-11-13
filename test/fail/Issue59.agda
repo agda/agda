@@ -11,3 +11,8 @@ bad : Nat → Nat
 bad n with n
 ... | zero  = zero
 ... | suc m = bad m
+
+-- This shouldn't termination check.
+bad₂ : Nat → Nat
+bad₂ n with bad₂ n
+... | m = m
