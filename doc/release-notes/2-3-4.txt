@@ -227,6 +227,18 @@ Language
     Thus, comparing two neutrals currently requires comparing all
     they projections, which repeats a lot of work.
 
+* Top-level module no longer required.
+
+  The top-level module can be omitted from an Agda file. The module name is
+  then inferred from the file name by dropping the path and the .agda
+  extension. So, a module defined in /A/B/C.agda would get the name C.
+
+  You can also suppress only the module name of the top-level module by writing
+
+    module _ where
+
+  This works also for parameterised modules.
+
 * Module parameters are now always hidden arguments in projections.
   For instance:
 
