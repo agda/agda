@@ -546,11 +546,11 @@ shuffleDots (ps, wps) = do
     xs = Map.map (\(_, h) -> if getAny h then BindFirstExplicit else BindFirstImplicit)
        $ Map.filter (getAny . fst)      -- remove vars that don't appear dotted
        $ unMonoidMap
-       $ argsVars explicit ps <> foldMap (patVars explicit) wps
+       $ argsVars explicit ps `mappend` foldMap (patVars explicit) wps
 
     -- Compute a map from pattern vars to (AppearsDotted, AppearsInANonHiddenPosition)
     argsVars h  = foldMap (argVars h)
-    argVars h a = (foldMap $ foldMap $ patVars (h <> h')) a
+    argVars h a = (foldMap $ foldMap $ patVars (h `mappend` h')) a
       where h' = if getHiding a == NotHidden then explicit else implicit
     patVars h p = case p of
       A.VarP x             -> MonoidMap $ Map.singleton x (Any False, Any $ getAll h)
