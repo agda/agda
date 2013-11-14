@@ -32,7 +32,9 @@ description:
   Note that the Agda library does not follow the package versioning
   policy, because it is not intended to be used by third-party
   packages.
-tested-with:        GHC == 7.6.3
+tested-with:        GHC == 7.2.2
+                    GHC == 7.4.2
+                    GHC == 7.6.3
 extra-source-files: src/full/Agda/undefined.h
                     README
                     doc/release-notes/*.txt
