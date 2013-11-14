@@ -210,7 +210,9 @@ runInteraction (IOTCM current highlighting highlightingMethod cmd)
         constr  <- lift $ computeUnsolvedConstraints
         err     <- lift $ errorHighlighting e
         modFile <- lift $ gets stModuleToSource
-        let info = compress $ mconcat [meta, constr, err]
+        let info = compress $ mconcat
+                     -- Errors take precedence over unsolved things.
+                     [err, meta, constr]
         s <- lift $ prettyError e
         x <- lift . gets $ optShowImplicit . stPragmaOptions
         mapM_ putResponse $

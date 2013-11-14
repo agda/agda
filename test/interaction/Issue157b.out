@@ -9,6 +9,6 @@ Agda2> (agda2-status-action "")
 (agda2-highlight-add-annotations '(50 51 (postulate) nil ("Issue157b.agda" . 50)) '(54 55 (symbol) nil) '(56 57 (postulate) nil ("Issue157b.agda" . 38)) '(58 59 (symbol) nil) '(60 61 (postulate) nil ("Issue157b.agda" . 40)) '(62 63 (symbol) nil) '(64 67 (primitivetype) nil))
 (agda2-info-action "*Error*" "Issue157b.agda:7,29-30\nB !=< A of type Set\nwhen checking that the expression b has type A" nil)
 ((last . 3) . (agda2-goto '("Issue157b.agda" . 96)))
-(agda2-highlight-add-annotations '(94 96 (unsolvedmeta) nil) '(96 97 (unsolvedmeta error) "Issue157b.agda:7,29-30\nB !=< A of type Set\nwhen checking that the expression b has type A"))
+(agda2-highlight-add-annotations '(94 96 (unsolvedmeta) nil) '(96 97 (error unsolvedmeta) "Issue157b.agda:7,29-30\nB !=< A of type Set\nwhen checking that the expression b has type A"))
 (agda2-status-action "")
 Agda2> 
