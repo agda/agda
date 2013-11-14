@@ -112,8 +112,9 @@ splitProblem mf (Problem ps (perm, qs) tel pr) = do
       -- Probably then there were too many arguments.
       caseMaybe (isProjP p) failure $ \ d -> do
         -- So it is a projection pattern (d = projection name), is it?
-        caseMaybeM (lift $ isProjection d) notProjP $
-          \ Projection{projProper = Just d, projFromType = _, projIndex = n} -> do
+        caseMaybeM (lift $ isProjection d) notProjP $ \p -> case p of
+          Projection{projProper = Nothing} -> __IMPOSSIBLE__
+          Projection{projProper = Just d, projFromType = _, projIndex = n} -> do
             -- If projIndex==0, then the projection is already applied
             -- to the record value (like in @open R r@), and then it
             -- is no longer a projection but a record field.
@@ -121,8 +122,8 @@ splitProblem mf (Problem ps (perm, qs) tel pr) = do
             lift $ reportSLn "tc.lhs.split" 90 "we are a projection pattern"
             -- If the target is not a record type, that's an error.
             -- It could be a meta, but since we cannot postpone lhs checking, we crash here.
-            caseMaybeM (lift $ isRecordType $ unArg b) notRecord $
-              \ (r, vs, Record{ recFields = fs }) -> do
+            caseMaybeM (lift $ isRecordType $ unArg b) notRecord $ \(r, vs, def) -> case def of
+              Record{ recFields = fs } -> do
                 {- NO LONGER NEEDED, BUT KEEP
                 -- normalize projection name (could be from a module app)
                 d <- lift $ do
@@ -160,6 +161,7 @@ splitProblem mf (Problem ps (perm, qs) tel pr) = do
                   , text "being projected by dType = " <+> prettyTCM dType
                   ]
                 return $ SplitRest argd $ dType `apply` (vs ++ [self])
+              _ -> __IMPOSSIBLE__
     -- if there are no more patterns left in the problem rest, there is nothing to split:
     splitRest _ = throwError $ NothingToSplit
 
