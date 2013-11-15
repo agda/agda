@@ -8,7 +8,7 @@ module Level where
 
 -- Levels.
 
-open import Agda.Prim public
+open import Agda.Primitive public
   using    (Level; _⊔_)
   renaming (lzero to zero; lsuc to suc)
 
