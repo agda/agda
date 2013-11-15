@@ -174,11 +174,11 @@ typeCheckMain f = do
     -- getInterface resets the current verbosity settings to the persistent ones.
     bracket_ (gets $ Lens.getPersistentVerbosity) Lens.putPersistentVerbosity $ do
       Lens.modifyPersistentVerbosity (Trie.delete [])  -- set root verbosity to 0
-      -- We don't want to generate highlighting information for Agda.Prim.
+      -- We don't want to generate highlighting information for Agda.Primitive.
       withHighlightingLevel None $
         getInterface_ =<< do
           moduleName $ mkAbsolute $
-            libpath </> "prim" </> "Agda" </> "Prim.agda"
+            libpath </> "prim" </> "Agda" </> "Primitive.agda"
   reportSLn "import.main" 10 $ "Done importing the primitive modules."
   typeCheck f
 

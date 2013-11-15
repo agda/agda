@@ -2,7 +2,7 @@
 
 module Issue293a where
 
-open import Agda.Prim
+open import Agda.Primitive
   using (Level; _⊔_) renaming (lzero to zero; lsuc to suc)
 
 ------------------------------------------------------------------------

@@ -1,8 +1,8 @@
--- The default include path should contain Agda.Prim
+-- The default include path should contain Agda.Primitive
 
 module TestDefaultIncludePath where
 
-import Agda.Prim
+import Agda.Primitive
 
 -- That's it.
 

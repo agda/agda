@@ -21,5 +21,5 @@ message when doing C-c C-= -}
 -- Now displays correctly:
 -- _4 := foo [blocked by problem 3]
 -- [3] _2 =< Set : Set _1
--- _1 = (.Agda.Prim.lsuc .Agda.Prim.lzero)
--- _1 = (.Agda.Prim.lsuc .Agda.Prim.lzero)
+-- _1 = (.Agda.Primitive.lsuc .Agda.Primitive.lzero)
+-- _1 = (.Agda.Primitive.lsuc .Agda.Primitive.lzero)

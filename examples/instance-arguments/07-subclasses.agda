@@ -11,7 +11,7 @@ module 07-subclasses where
 
 module Imports where
   module L where
-    open import Agda.Prim public
+    open import Agda.Primitive public
       using (Level; _⊔_) renaming (lzero to zero; lsuc to suc)
 
   -- extract from Function

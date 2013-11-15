@@ -5,7 +5,7 @@ module AutoMisc where
 -- open import Common.Level
 -- open import Common.Equality
 
-open import Agda.Prim
+open import Agda.Primitive
 
 -- prelude
 

@@ -1,3 +1,3 @@
 module Common.Level where
 
-open import Agda.Prim public
+open import Agda.Primitive public

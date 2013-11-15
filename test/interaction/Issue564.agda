@@ -1,6 +1,6 @@
 module Issue564 where
 
-open import Agda.Prim using (Level) renaming (lzero to zero)
+open import Agda.Primitive using (Level) renaming (lzero to zero)
 
 postulate
   A : Level → Set

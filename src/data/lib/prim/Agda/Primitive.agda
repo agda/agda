@@ -1,6 +1,6 @@
 -- The Agda primitives (preloaded).
 
-module Agda.Prim where
+module Agda.Primitive where
 
 ------------------------------------------------------------------------
 -- Universe levels

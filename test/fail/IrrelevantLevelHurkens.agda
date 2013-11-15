@@ -4,7 +4,7 @@
 
 module IrrelevantLevelHurkens where
 
-open import Agda.Prim renaming (lzero to zero)
+open import Agda.Primitive renaming (lzero to zero)
 
 data _≡_ {a}{A : Set a}(x : A) : A → Set where
   refl : x ≡ x

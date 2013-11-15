@@ -4,5 +4,5 @@
 
 module Imports.Level where
 
-open import Agda.Prim using (Level; _⊔_) renaming (lzero to zero; lsuc to suc)
+open import Agda.Primitive using (Level; _⊔_) renaming (lzero to zero; lsuc to suc)
 

@@ -1,28 +1,28 @@
 Importing the primitive modules.
-  Getting interface for Agda.Prim
+  Getting interface for Agda.Primitive
   Check for cycle
-  Agda.Prim is not up-to-date.
-Checking Agda.Prim (agda-default-include-path/Agda/Prim.agda).
-Creating interface for Agda.Prim.
+  Agda.Primitive is not up-to-date.
+Checking Agda.Primitive (agda-default-include-path/Agda/Primitive.agda).
+Creating interface for Agda.Primitive.
   visited: 
 Building interface...
   instantiating all meta variables
   interface complete
-Writing interface file agda-default-include-path/Agda/Prim.agdai.
+Writing interface file agda-default-include-path/Agda/Primitive.agdai.
 Wrote interface file.
-Finished Agda.Prim.
-  using stored version of agda-default-include-path/Agda/Prim.agdai
+Finished Agda.Primitive.
+  using stored version of agda-default-include-path/Agda/Primitive.agdai
   imports: []
   New module. Let's check it out.
 Merging interface
-  Now we've looked at Agda.Prim
+  Now we've looked at Agda.Primitive
 Done importing the primitive modules.
   Getting interface for Issue641
   Check for cycle
   Issue641 is not up-to-date.
 Checking Issue641 (Issue641.agda).
 Creating interface for Issue641.
-  visited: Agda.Prim
+  visited: Agda.Primitive
 Issue641.agda:9,6-18
 No such module NoSuchModule
 when scope checking the declaration
