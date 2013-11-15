@@ -17,7 +17,7 @@ module Agda.Syntax.Concrete
     , TypedBinding'(..)
     , TypedBinding
     , ColoredTypedBinding(..)
-    , BoundName(..), mkBoundName_
+    , BoundName(..), mkBoundName_, mkBoundName
     , Telescope -- (..)
       -- * Declarations
     , Declaration(..)
@@ -143,12 +143,16 @@ data TypedBindings = TypedBindings !Range (Arg TypedBinding)
 
 
 data BoundName = BName { boundName   :: Name
+                       , boundLabel  :: Name    -- ^ for implicit function types the label matters and can't be alpha-renamed
                        , bnameFixity :: Fixity'
                        }
     deriving (Typeable)
 
 mkBoundName_ :: Name -> BoundName
-mkBoundName_ x = BName x defaultFixity'
+mkBoundName_ x = mkBoundName x defaultFixity'
+
+mkBoundName :: Name -> Fixity' -> BoundName
+mkBoundName x f = BName x x f
 
 -- | A typed binding.
 type TypedBinding = TypedBinding' Expr
@@ -560,7 +564,7 @@ instance KillRange AsName where
   killRange (AsName n _) = killRange1 (flip AsName noRange) n
 
 instance KillRange BoundName where
-  killRange (BName n f) = killRange2 BName n f
+  killRange (BName n l f) = killRange3 BName n l f
 
 instance KillRange Declaration where
   killRange (TypeSig i n e)         = killRange2 (TypeSig i) n e

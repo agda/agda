@@ -197,7 +197,9 @@ instance Pretty Expr where
 	  recPr (x, e) = sep [ pretty x <+> text "=" , nest 2 $ pretty e ]
 
 instance Pretty BoundName where
-  pretty = pretty . boundName
+  pretty BName{ boundName = x, boundLabel = l }
+    | x == l    = pretty x
+    | otherwise = pretty l <+> text "=" <+> pretty x
 
 instance Pretty LamBinding where
     -- TODO guilhem: colors are unused (colored syntax disallowed)

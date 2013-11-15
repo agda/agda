@@ -151,7 +151,7 @@ recordConstructorType fields = build fs
       build (NiceModuleMacro r p x modapp open dir{ publicOpen = False } : fs)
 
     build (NiceField r f _ _ x (Common.Arg info e) : fs) =
-        C.Pi [C.TypedBindings r $ Common.Arg info (C.TBind r [BName x f] e)] $ build fs
+        C.Pi [C.TypedBindings r $ Common.Arg info (C.TBind r [mkBoundName x f] e)] $ build fs
       where r = getRange x
     build (d : fs)                     = C.Let noRange [killRange $ notSoNiceDeclaration d] $
                                            build fs
@@ -308,7 +308,7 @@ instance ToAbstract (NewName C.Name) A.Name where
     return y
 
 instance ToAbstract (NewName C.BoundName) A.Name where
-  toAbstract (NewName (BName x fx)) = do
+  toAbstract (NewName BName{ boundName = x, bnameFixity = fx }) = do
     y <- freshAbstractName fx x
     bindVariable x y
     return y
@@ -744,7 +744,7 @@ instance ToAbstract LetDef [A.LetBinding] where
                       typeError $ GenericError $ "abstract not allowed in let expressions"
                     e <- letToAbstract cl
                     t <- toAbstract t
-                    x <- toAbstract (NewName $ C.BName x fx)
+                    x <- toAbstract (NewName $ mkBoundName x fx)
                     info <- toAbstract info
                     return [ A.LetBind (LetRange $ getRange d) info x t e ]
 

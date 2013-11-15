@@ -508,9 +508,19 @@ instance ToConcrete A.LamBinding C.LamBinding where
     bindToConcrete (A.DomainFull b)      ret = bindToConcrete b $ ret . C.DomainFull
 
 instance ToConcrete A.TypedBindings C.TypedBindings where
-    bindToConcrete (A.TypedBindings r bs) ret =
-        bindToConcrete bs $ \bs ->
-        ret (C.TypedBindings r bs)
+  bindToConcrete (A.TypedBindings r bs) ret =
+    bindToConcrete bs $ \cbs ->
+    ret (C.TypedBindings r $ recoverLabels bs cbs)
+    where
+      recoverLabels b cb
+        | getHiding b == NotHidden = cb   -- We don't care about labels for explicit args
+        | otherwise = recover (unArg b) <$> cb
+
+      recover (A.TBind _ xs _) (C.TBind r ys e) = C.TBind r (zipWith label xs ys) e
+      recover A.TNoBind{} b@C.TNoBind{} = b
+      recover _ _ = __IMPOSSIBLE__
+
+      label x y = y { boundLabel = nameConcrete x }
 
 instance ToConcrete A.TypedBinding C.TypedBinding where
     bindToConcrete (A.TBind r xs e) ret =
