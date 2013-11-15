@@ -108,6 +108,7 @@ data Expr
         | QuoteTerm !Range                     -- ^ ex: @quoteTerm@, should be applied to a term
         | Unquote !Range                       -- ^ ex: @unquote@, should be applied to a term of type @Term@
         | DontCare Expr                        -- ^ to print irrelevant things
+        | Equal !Range Expr Expr               -- ^ ex: @a = b@, used internally in the parser
     deriving (Typeable)
 
 
@@ -453,6 +454,7 @@ instance HasRange Expr where
             QuoteTerm r         -> r
             Unquote r           -> r
             DontCare{}          -> noRange
+            Equal r _ _         -> r
 
 -- instance HasRange Telescope where
 --     getRange (TeleBind bs) = getRange bs
@@ -620,6 +622,7 @@ instance KillRange Expr where
   killRange (QuoteTerm _)       = QuoteTerm noRange
   killRange (Unquote _)         = Unquote noRange
   killRange (DontCare e)        = killRange1 DontCare e
+  killRange (Equal _ x y)       = Equal noRange x y
 
 instance KillRange ImportDirective where
   killRange (ImportDirective _ u r p) =

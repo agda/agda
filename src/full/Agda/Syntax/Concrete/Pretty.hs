@@ -193,6 +193,7 @@ instance Pretty Expr where
 	    Unquote _ -> text "unquote"
             -- Andreas, 2011-10-03 print irrelevant things as .(e)
             DontCare e -> text "." <> parens (pretty e)
+            Equal _ a b -> pretty a <+> text "=" <+> pretty b
 	where
 	  recPr (x, e) = sep [ pretty x <+> text "=" , nest 2 $ pretty e ]
 

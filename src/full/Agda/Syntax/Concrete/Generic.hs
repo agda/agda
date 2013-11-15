@@ -123,6 +123,7 @@ instance ExprLike Expr where
      QuoteTerm{}      -> f $ e0
      Unquote{}        -> f $ e0
      DontCare e       -> f $ DontCare               $ mapE e
+     Equal{}          -> f $ e0
    where mapE e = mapExpr f e
 
 instance ExprLike a => ExprLike (OpApp a) where

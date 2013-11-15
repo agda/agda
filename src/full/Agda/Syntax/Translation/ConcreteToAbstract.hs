@@ -627,7 +627,8 @@ instance ToAbstract C.Expr A.Expr where
       C.Absurd _ -> notAnExpression e
 
   -- Impossible things
-      C.ETel _   -> __IMPOSSIBLE__
+      C.ETel _  -> __IMPOSSIBLE__
+      C.Equal{} -> typeError $ GenericError "Parse error: unexpected '='"
 
   -- Quoting
       C.QuoteGoal _ x e -> do

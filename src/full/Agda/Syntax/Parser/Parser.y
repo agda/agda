@@ -54,6 +54,10 @@ import Agda.Utils.Tuple
 %monad { Parser }
 %lexer { lexer } { TokEOF }
 
+%expect 1   -- shift/reduce for \ x y z -> foo = bar
+            -- shifting means it'll parse as \ x y z -> (foo = bar) rather than
+            -- (\ x y z -> foo) = bar
+
 -- This is a trick to get rid of shift/reduce conflicts arising because we want
 -- to parse things like "m >>= \x -> k x". See the Expr rule for more
 -- information.
@@ -498,6 +502,7 @@ Expr
   | Application3 '->' Expr              { Fun (getRange ($1,$2,$3))
                                               (RawApp (getRange $1) $1)
                                               $3 }
+  | Expr1 '=' Expr                      { Equal (getRange $2) $1 $3 }
   | Expr1 %prec LOWEST                  { $1 }
 
 -- Level 1: Application
@@ -546,9 +551,7 @@ Application3
 
 -- Level 3: Atoms
 Expr3Curly
-    : '{' Expr '}'			{ HiddenArg (getRange ($1,$2,$3)) (unnamed $2) }
-    | '{' Id '=' Expr '}'		{ HiddenArg (getRange ($1,$2,$3,$4,$5))
-                                            (named (show $2) $4) }
+    : '{' Expr '}'			{ HiddenArg (getRange ($1,$2,$3)) (maybeNamed $2) }
     | '{' '}'				{ let r = fuseRange $1 $2 in HiddenArg r $ unnamed $ Absurd r }
 
 Expr3NoCurly
@@ -563,9 +566,7 @@ Expr3NoCurly
     | 'unquote'                         { Unquote (getRange $1) }
     | setN				{ SetN (getRange (fst $1)) (snd $1) }
     | '{{' Expr DoubleCloseBrace			{ InstanceArg (getRange ($1,$2,$3))
-                                                          (unnamed $2) }
-    | '{{' Id '=' Expr DoubleCloseBrace		{ InstanceArg (getRange ($1,$2,$3,$4,$5))
-                                                          (named (show $2) $4) }
+                                                          (maybeNamed $2) }
     | '(' Expr ')'			{ Paren (getRange ($1,$2,$3)) $2 }
     | '(' ')'				{ Absurd (fuseRange $1 $2) }
     | '{{' DoubleCloseBrace             { let r = fuseRange $1 $2 in InstanceArg r $ unnamed $ Absurd r }
@@ -869,7 +870,7 @@ WithExpressions
 RewriteEquations :: { [Expr] }
 RewriteEquations
   : {- empty -}	{ [] }
-  | 'rewrite' Expr
+  | 'rewrite' Expr1
       { case $2 of { WithApp _ e es -> e : es; e -> [e] } }
 
 -- Where clauses are optional.
@@ -1541,6 +1542,22 @@ exprToName (Ident (QName x)) = return x
 exprToName e =
   let Just pos = rStart $ getRange e in
   parseErrorAt pos $ "Not a valid identifier: " ++ show e
+
+stripSingletonRawApp :: Expr -> Expr
+stripSingletonRawApp (RawApp _ [e]) = stripSingletonRawApp e
+stripSingletonRawApp e = e
+
+isEqual :: Expr -> Maybe (Expr, Expr)
+isEqual e =
+  case stripSingletonRawApp e of
+    Equal _ a b -> Just (stripSingletonRawApp a, stripSingletonRawApp b)
+    _           -> Nothing
+
+maybeNamed :: Expr -> Named String Expr
+maybeNamed e =
+  case isEqual e of
+    Just (Ident (QName x), b) -> named (show x) b
+    _                         -> unnamed e
 
 parsePanic s = parseError $ "Internal parser error: " ++ s ++ ". Please report this as a bug."
 
