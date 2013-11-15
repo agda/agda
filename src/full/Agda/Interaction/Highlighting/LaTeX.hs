@@ -89,6 +89,14 @@ isInfixOf' needle haystack = go (T.tails haystack) 0
   go ((T.stripPrefix needle -> Just suf) : xss) n = Just (T.take n haystack, suf)
   go (_                                  : xss) n = go xss (n + 1)
 
+-- Same as above, but starts searching from the back rather than the
+-- front.
+isInfixOfRev :: Text -> Text -> Maybe (Text, Text)
+isInfixOfRev needle haystack
+  = case T.reverse needle `isInfixOf'` T.reverse haystack of
+      Nothing         -> Nothing
+      Just (pre, suf) -> Just (T.reverse suf, T.reverse pre)
+
 isSpaces :: Text -> Bool
 isSpaces (T.uncons -> Nothing)     = True
 isSpaces (T.uncons -> Just (c, s)) | isSpace c = isSpaces s
@@ -129,14 +137,43 @@ nextToken' = do
           return t
 
         Just (pre, suf) -> do
-          let t'  = t { string = code }
-          let t'' = t { string = suf }
-          modify $ \s -> s { tokens = t' : t'' : tokens s }
+
+          let (textToReturn, textsToPutBack) =
+
+               -- This bit fixes issue 954.
+
+               -- Drop spaces up until and including the first trailing
+               -- newline after begin code blocks.
+               if code == beginCode && isSpaces suf
+               then case T.singleton '\n' `isInfixOf'` suf of
+                     Nothing        -> (pre, [ beginCode ])
+                     Just (_, suf') -> (pre, beginCode : if suf' == T.empty
+                                                         then []
+                                                         else T.dropWhile
+                                                              (`elem` [' ', '\t'])
+                                                              suf' : [])
+
+               -- Do the converse thing for end code blocks.
+               else if code == endCode && isSpaces pre
+                    then case T.singleton '\n' `isInfixOfRev` pre of
+                           Nothing           -> (code, [ suf ])
+                           Just (pre', suf') ->
+                             (pre' <+> T.dropWhile (`elem` [' ', '\t']) suf',
+                              [ code, suf ])
+
+              -- This case happens for example when you have two code
+              -- blocks after each other, i.e. the begin code of the
+              -- second ends up in the suffix of the first's end code.
+                    else (pre, [ code, suf ])
+
+          let tokToReturn   = t { string = textToReturn }
+          let toksToPutBack = map (\txt -> t { string = txt }) textsToPutBack
 
           unless (isSpaces pre) $ do
             moveColumn $ T.length pre
 
-          return $ t { string = pre }
+          modify $ \s -> s { tokens = toksToPutBack ++ tokens s }
+          return tokToReturn
 
 nextToken :: LaTeX Text
 nextToken = string `fmap` nextToken'
@@ -202,7 +239,7 @@ nonCode = do
   if tok == beginCode
 
      then do
-       tell tok
+       tell $ beginCode <+> nl
        resetColumn
        setInCode
        code
@@ -224,7 +261,7 @@ code = do
   let tok = string tok'
 
   when (tok == endCode) $ do
-    tell $ ptClose <+> tok
+    tell $ ptClose <+> nl <+> endCode
     unsetInCode
     nonCode
 
