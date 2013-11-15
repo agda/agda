@@ -1,6 +1,6 @@
 {-# LANGUAGE CPP, FlexibleInstances, UndecidableInstances,
              GeneralizedNewtypeDeriving, ScopedTypeVariables,
-             TypeSynonymInstances
+             TypeSynonymInstances, FlexibleInstances
   #-}
 
 {-| Primitive functions, such as addition on builtin integers.
