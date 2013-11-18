@@ -521,6 +521,9 @@ Emacs mode
   * Picks explicit occurrences over implicit ones when there is a choice of
     binding site for a variable.
 
+* Key bindings for comment-region (C-c C-;) and uncomment-region (C-c C-:)
+  have been added to the Agda major mode.
+
 * Key bindings for lots of "mathematical" characters (examples: 𝐴𝑨𝒜𝓐𝔄)
   have been added to the Agda input method.
 
