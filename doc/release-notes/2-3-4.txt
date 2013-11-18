@@ -313,6 +313,8 @@ Language
 
   * Empty where blocks are now allowed. [Issue 947]
 
+  * Empty hiding and renaming lists in module directives are now allowed.
+
   * Module directives using, hiding, renaming and public can now appear in
     arbitrary order. Multiple using/hiding/renaming directives are allowed, but
     you still cannot have both using and hiding (because that doesn't make

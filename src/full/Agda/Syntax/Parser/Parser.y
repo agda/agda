@@ -804,18 +804,21 @@ ImportDirective1 :: { ImportDirective }
 UsingOrHiding :: { (UsingOrHiding , Range) }
 UsingOrHiding
     : 'using' '(' CommaImportNames ')'   { (Using $3 , getRange ($1,$2,$3,$4)) }
-	-- only using can have an empty list
-    | 'hiding' '(' CommaImportNames1 ')' { (Hiding $3 , getRange ($1,$2,$3,$4)) }
+	-- using can have an empty list
+    | 'hiding' '(' CommaImportNames ')'  { (Hiding $3 , getRange ($1,$2,$3,$4)) }
+        -- if you want to hide nothing that's fine, isn't it?
+--    | 'hiding' '(' CommaImportNames1 ')' { (Hiding $3 , getRange ($1,$2,$3,$4)) }
 
 RenamingDir :: { ([Renaming] , Range) }
 RenamingDir
-    : 'renaming' '(' Renamings ')'	{ ($3 , getRange ($1,$2,$3,$4)) }
+    : 'renaming' '(' Renamings ')'      { ($3 , getRange ($1,$2,$3,$4)) }
+    | 'renaming' '(' ')'                { ([] , getRange ($1,$2,$3)) }
 
 -- Renamings of the form 'x to y'
 Renamings :: { [Renaming] }
 Renamings
-    : Renaming ';' Renamings	{ $1 : $3 }
-    | Renaming			{ [$1] }
+    : Renaming ';' Renamings    { $1 : $3 }
+    | Renaming                  { [$1] }
 
 Renaming :: { Renaming }
 Renaming
