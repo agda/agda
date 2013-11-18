@@ -30,7 +30,7 @@ import qualified Data.Map as Map
 import qualified Data.Set as Set
 import Data.Set (Set)
 import Data.List as List
-import Data.Tuple (swap)
+-- import Data.Tuple (swap)  -- not in base-4.2, so don't do this at home
 
 import Agda.Syntax.Common hiding (Arg, Dom, NamedArg)
 import qualified Agda.Syntax.Common as Common
@@ -158,6 +158,7 @@ lookupName x = do
   case lookup x $ map swap names of
       Just y  -> return y
       Nothing -> return $ nameConcrete x
+  where swap (x,y) = (y,x)
 
 lookupQName :: A.QName -> AbsToCon C.QName
 lookupQName x = do
