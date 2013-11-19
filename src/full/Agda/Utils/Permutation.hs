@@ -14,7 +14,13 @@ import Agda.Utils.Size
 #include "../undefined.h"
 import Agda.Utils.Impossible
 
--- | @permute [1,2,0] [x0,x1,x2] = [x1,x2,x0]@
+-- | Partial permutations. Examples:
+--
+--   @permute [1,2,0]   [x0,x1,x2] = [x1,x2,x0]@     (proper permutation).
+--
+--   @permute [1,0]     [x0,x1,x2] = [x1,x0]@        (partial permuation).
+--
+--   @permute [1,0,1,2] [x0,x1,x2] = [x1,x0,x1,x2]@  (not a permutation because not invertible).
 --
 --   Agda typing would be:
 --   @Perm : {m : Nat}(n : Nat) -> Vec (Fin n) m -> Permutation@
