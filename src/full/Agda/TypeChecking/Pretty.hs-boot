@@ -22,6 +22,7 @@ instance PrettyTCM a => PrettyTCM [a] where
 instance PrettyTCM Name where
 instance PrettyTCM QName where
 instance PrettyTCM Term where
+instance PrettyTCM Elim where
 instance PrettyTCM Type where
 instance PrettyTCM Sort where
 instance PrettyTCM DisplayTerm where

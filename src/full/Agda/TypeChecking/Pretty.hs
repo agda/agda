@@ -122,6 +122,7 @@ instance (Reify a e, ToConcrete e c, P.Pretty c) => PrettyTCM (Arg a) where
 instance (Reify a e, ToConcrete e c, P.Pretty c) => PrettyTCM (Dom a) where
     prettyTCM x = prettyA =<< reify x
 
+-- instance (Reify a e, ToConcrete e c, P.Pretty c, PrettyTCM a) => PrettyTCM (Elim' a) where
 instance PrettyTCM Elim where
   prettyTCM (Apply v) = text "$" <+> prettyTCM v
   prettyTCM (Proj f)  = text "." <> prettyTCM f

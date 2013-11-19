@@ -431,9 +431,9 @@ unfoldDefinition' unfoldDelayed keepGoing v0 f es =
             case ev of
               NoReduction v -> do
                 reportSDoc "tc.reduce" 90 $ vcat
---                  [ text "*** tried to reduce " <+> prettyTCM f
---                  , text "    es    " <+> prettyTCM (map (unArg . ignoreReduced) es)
-                  [ text "*** tried to reduce " <+> prettyTCM vfull
+                  [ text "*** tried to reduce " <+> prettyTCM f
+                  , text "    es =  " <+> sep (map (prettyTCM . ignoreReduced) es)
+--                  [ text "*** tried to reduce " <+> prettyTCM vfull
                   , text "    stuck on" <+> prettyTCM (ignoreBlocking v) ]
                 retSimpl v
               YesReduction simpl v -> performedSimplification' simpl $ do
