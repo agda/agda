@@ -6,10 +6,6 @@ import Common.Level
 open import Common.Size
 
 postulate
-  Size< : Size → Set
-{-# BUILTIN SIZELT Size< #-}
-
-postulate
   A : Set
 
 data T (i : Size) : Set where

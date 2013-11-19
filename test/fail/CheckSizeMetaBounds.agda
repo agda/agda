@@ -4,10 +4,6 @@ module CheckSizeMetaBounds where
 
 open import Common.Size
 
-postulate
-  Size< : (_ : Size) → Set
-{-# BUILTIN SIZELT Size< #-}
-
 data Nat {i : Size} : Set where
   zero : Nat
   suc  : {j : Size< i} → Nat {j} → Nat

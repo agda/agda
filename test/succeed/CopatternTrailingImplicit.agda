@@ -1,4 +1,4 @@
-{-# OPTIONS --copatterns --sized-types --experimental-irrelevance #-}
+{-# OPTIONS --copatterns --sized-types #-}
 -- Andreas, 2013-10-01 Make sure trailing implicit insertion
 -- works with copatterns
 module CopatternTrailingImplicit where
@@ -6,10 +6,6 @@ module CopatternTrailingImplicit where
 import Common.Level
 open import Common.Size
 open import Common.Prelude
-
-postulate
-  Size< : ..(_ : Size) → Set
-{-# BUILTIN SIZELT Size< #-}
 
 -- Sized streams
 

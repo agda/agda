@@ -4,9 +4,6 @@ module SizeSucMonotone where
 
 open import Common.Size
 
-postulate Size< : Size → Set
-{-# BUILTIN SIZELT Size< #-}
-
 data Bool : Set where
   true false : Bool
 
