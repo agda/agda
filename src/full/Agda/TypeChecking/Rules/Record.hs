@@ -128,7 +128,7 @@ checkRecDef i name ind con ps contel fields =
 				, recFields         = fs
                                 , recTel            = ftel     -- addConstant adds params!
 				, recAbstr          = Info.defAbstract i
-                                , recEtaEquality    = True
+                                , recEtaEquality    = indCo == Inductive
                                 , recInduction      = indCo
                                 -- determined by positivity checker:
                                 , recRecursive      = False
