@@ -201,7 +201,10 @@ cover f cs sc@(SClause tel perm ps _ target) = do
                              }
                 (unArg proj,) <$> do cover f cs =<< fixTarget sc'
             let -- WRONG: -- n = length ps -- past the last argument, is pos. of proj pat.
-                n = size tel -- past the last variable, is pos. of proj pat. DURING SPLITTING
+                -- n = size tel -- past the last variable, is pos. of proj pat. DURING SPLITTING
+                n = permRange perm -- Andreas & James, 2013-11-19 includes the dot patterns!
+                -- See test/succeed/CopatternsAndDotPatterns.agda for a case with dot patterns
+                -- and copatterns which fails for @n = size tel@ with a broken case tree.
                 tree = SplitAt n $ zip projs trees
             return (tree, Set.unions useds, concat psss)
           _ -> done
