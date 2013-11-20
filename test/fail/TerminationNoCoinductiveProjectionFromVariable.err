@@ -1,0 +1,6 @@
+
+Termination checking failed for the following functions:
+  f
+Problematic calls:
+  f (out x)
+    (at TerminationNoCoinductiveProjectionFromVariable.agda:14,11-12)

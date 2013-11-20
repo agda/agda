@@ -1,4 +1,4 @@
-{-# OPTIONS -v term:30 #-}
+-- {-# OPTIONS -v term:30 #-}
 {-# OPTIONS --copatterns #-}
 module ColistMutual where
 

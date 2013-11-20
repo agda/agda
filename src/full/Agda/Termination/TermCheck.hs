@@ -1055,9 +1055,16 @@ subPatterns p = case p of
 
 compareTerm :: (?cutoff :: Int) => Maybe QName -> Term -> DeBruijnPat -> TCM Term.Order
 compareTerm suc t p = do
+--   reportSDoc "term.compare" 25 $
+--     text " comparing term " <+> prettyTCM t <+>
+--     text " to pattern " <+> prettyTCM p
   t <- stripAllProjections t
-  compareTerm' suc t p
-
+  o <- compareTerm' suc t p
+  reportSDoc "term.compare" 25 $
+    text " comparing term " <+> prettyTCM t <+>
+    text " to pattern " <+> prettyTCM p <+>
+    text (" results in " ++ show o)
+  return o
 {-
 compareTerm t p = Term.supremum $ compareTerm' t p : map cmp (subPatterns p)
   where
@@ -1070,15 +1077,24 @@ compareTerm t p = Term.supremum $ compareTerm' t p : map cmp (subPatterns p)
 --   Andreas, 2012-06-09: the same applies to projections of recursive records.
 isProjectionButNotCoinductive :: QName -> TCM Bool
 isProjectionButNotCoinductive qn = do
-  flat <- fmap nameOfFlat <$> coinductionKit
-  if Just qn == flat
-    then return False
-    else do
-      mp <- isProjection qn
-      case mp of
-        Just Projection{ projProper = Just{}, projFromType }
-          -> isInductiveRecord projFromType
-        _ -> return False
+  b <- isProjectionButNotCoinductive' qn
+  reportSDoc "term.proj" 60 $ do
+    text "identifier" <+> prettyTCM qn <+> do
+      text $
+        if b then "is an inductive projection"
+          else "is either not a projection or coinductive"
+  return b
+  where
+    isProjectionButNotCoinductive' qn = do
+      flat <- fmap nameOfFlat <$> coinductionKit
+      if Just qn == flat
+        then return False
+        else do
+          mp <- isProjection qn
+          case mp of
+            Just Projection{ projProper = Just{}, projFromType }
+              -> isInductiveRecord projFromType
+            _ -> return False
 
 
 {- RETIRED
@@ -1095,34 +1111,38 @@ stripProjections t = case ignoreSharing t of
   _ -> return t
 -}
 
--- | Remove all projections from an algebraic term (not going under binders).
+-- | Remove all non-coinductive projections from an algebraic term
+--   (not going under binders).
 --   Also, remove 'DontCare's.
 class StripAllProjections a where
   stripAllProjections :: a -> TCM a
 
 instance StripAllProjections a => StripAllProjections (I.Arg a) where
-  stripAllProjections (Arg info a) = Arg info <$> stripAllProjections a
+  stripAllProjections = traverse stripAllProjections
+  -- stripAllProjections (Arg info a) = Arg info <$> stripAllProjections a
+
+{- DOES NOT WORK, since s.th. special is needed for Elims
+instance StripAllProjections a => StripAllProjections [a] where
+  stripAllProjections = traverse stripAllProjections
+
+instance StripAllProjections a => StripAllProjections (Elim' a) where
+-}
 
 instance StripAllProjections Elims where
   stripAllProjections es =
     case es of
       []             -> return []
       (Apply a : es) -> do
-        a <- stripAllProjections a
-        (Apply a :) <$> stripAllProjections es
+        (:) <$> (Apply <$> stripAllProjections a) <*> stripAllProjections es
       (Proj p  : es) -> do
-        es <- stripAllProjections es
-        ifM (isProjectionButNotCoinductive p) (return es) (return $ Proj p : es)
+        isP <- isProjectionButNotCoinductive p
+        (if isP then id else (Proj p :)) <$> stripAllProjections es
 
 instance StripAllProjections Args where
   stripAllProjections = mapM stripAllProjections
 
--- instance StripAllProjections a => StripAllProjections [a] where
---   stripAllProjections = mapM stripAllProjections
-
 instance StripAllProjections Term where
   stripAllProjections t = do
-    -- t <- stripProjections t
     case ignoreSharing t of
       Var i es   -> Var i <$> stripAllProjections es
       Con c ts   -> Con c <$> stripAllProjections ts
@@ -1134,7 +1154,9 @@ instance StripAllProjections Term where
 --   Precondition: top meta variable resolved
 compareTerm' :: (?cutoff :: Int) => Maybe QName -> Term -> DeBruijnPat -> TCM Term.Order
 compareTerm' suc (Shared x)   p = compareTerm' suc (derefPtr x) p
-compareTerm' suc (Var i _)    p = compareVar suc i p
+-- Andreas, 2013-11-20 do not drop projections, in any case not coinductive ones!:
+compareTerm' suc (Var i es)   p | Just{} <- allApplyElims es
+                                = compareVar suc i p
 compareTerm' suc (DontCare t) p = compareTerm' suc t p
 compareTerm' _ (Lit l)    (LitDBP l')
   | l == l'   = return Term.le
