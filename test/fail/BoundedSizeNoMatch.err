@@ -3,4 +3,4 @@ Termination checking failed for the following functions:
   T
 Problematic calls:
   T j
-    (at BoundedSizeNoMatch.agda:12,23-24)
+    (at BoundedSizeNoMatch.agda:9,23-24)

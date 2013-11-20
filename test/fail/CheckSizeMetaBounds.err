@@ -1,5 +1,5 @@
-CheckSizeMetaBounds.agda:27,1-28,30
+CheckSizeMetaBounds.agda:23,1-24,30
 Cannot solve size constraints
-_i_17 n =< _j_16 n : Size
-↑ _j_16 n =< .i : Size
+_i_16 n =< _j_15 n : Size
+↑ _j_15 n =< .i : Size
 when checking the definition of magic
