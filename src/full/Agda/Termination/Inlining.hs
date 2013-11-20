@@ -229,12 +229,11 @@ isWithFunction x = do
     _                       -> Nothing
 
 expandWithFunctionCall :: QName -> Elims -> TCM Term
-expandWithFunctionCall f es
-  | Just vs <- allApplyElims es = do
-    Just disp <- displayForm f vs
-    return $ dtermToTerm disp
-  | otherwise = __IMPOSSIBLE__
+expandWithFunctionCall f es = do
+  Just disp <- displayForm f vs
+  return $ dtermToTerm disp `applyE` es'
   where
+    (vs, es') = splitApplyElims es
 
 dtermToTerm :: DisplayTerm -> Term
 dtermToTerm (DWithApp [] _)        = __IMPOSSIBLE__

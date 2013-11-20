@@ -11,6 +11,7 @@ module Agda.Syntax.Internal
     ) where
 
 import Prelude hiding (foldr, mapM)
+import Control.Arrow ((***))
 import Control.Applicative
 import Control.Monad.Identity hiding (mapM)
 import Control.Monad.State hiding (mapM)
@@ -562,6 +563,11 @@ isApplyElim Proj{}    = Nothing
 -- | Drop 'Apply' constructors. (Safe)
 allApplyElims :: Elims -> Maybe Args
 allApplyElims = mapM isApplyElim
+
+-- | Split at first non-'Apply'
+splitApplyElims :: Elims -> (Args, Elims)
+splitApplyElims (Apply u : es) = (u :) *** id $ splitApplyElims es
+splitApplyElims es             = ([], es)
 
 class IsProjElim e where
   isProjElim  :: e -> Maybe QName
