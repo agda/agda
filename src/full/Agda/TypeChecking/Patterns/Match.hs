@@ -3,17 +3,19 @@
 module Agda.TypeChecking.Patterns.Match where
 
 import Data.Monoid
-import Data.Traversable
+import Data.Traversable (traverse)
 
 import Agda.Syntax.Common
 import Agda.Syntax.Internal as I
 
 import Agda.TypeChecking.Reduce
+import Agda.TypeChecking.Substitute
 import Agda.TypeChecking.Monad
 import Agda.TypeChecking.Primitive (constructorForm)
 import Agda.TypeChecking.Pretty
 
 import Agda.Utils.Monad
+import Agda.Utils.Size
 import Agda.Utils.Tuple
 
 #include "../../undefined.h"
@@ -110,9 +112,17 @@ matchPattern (Arg h' r' (ConP c _ ps))     (Arg h Irrelevant v) = do
 		return (m, Arg h Irrelevant $ Con c vs)
 -}
 
--- case record pattern: always succeed!
--- matchPattern (Arg _ (ConP con@(ConHead c ds) Just{} ps)) (Arg info v) =
+  -- Case record pattern: always succeed!
+  -- This case is necessary if we want to use the clauses before
+  -- record pattern translation (e.g., in type-checking definitions by copatterns).
+  (ConP con@(ConHead c ds) Just{} ps, arg@(Arg info v))
+     -- precondition: con actually comes with the record fields
+     | size ds == size ps -> mapSnd (Arg info . Con con) <$> do
+         matchPatterns ps $ for ds $ \ d -> Arg info $ v `applyE` [Proj d]
+           -- TODO: correct info for projected terms
+     | otherwise -> __IMPOSSIBLE__
 
+  -- Case data constructor pattern.
   (ConP c _ ps, Arg info v) ->
     do	w <- traverse constructorForm =<< reduceB v
         -- Unfold delayed (corecursive) definitions one step. This is
