@@ -264,6 +264,9 @@ getEqs = do
  eqs' <- r eqs
  return $ concat eqs'
 
+copatternsNotImplemented :: MB.TCM a
+copatternsNotImplemented = MB.typeError $ MB.NotImplemented $
+  "The Agda synthesizer (Agsy) does not support copatterns yet"
 
 tomyClauses [] = return []
 tomyClauses (cl:cls) = do
@@ -282,7 +285,7 @@ tomyClause cl@(I.Clause {I.clausePerm = Perm n ps, I.clauseBody = body}) = do
            Nothing -> Nothing
 
 tomyPat p = case C.unArg p of
- I.ProjP _ -> lift $ MB.typeError $ MB.NotImplemented $ "The Agda synthesizer (Agsy) does not support copatterns yet"
+ I.ProjP _ -> lift $ copatternsNotImplemented
  I.VarP n -> return $ PatVar (show n)
  I.DotP _ -> return $ PatVar "_" -- because Agda includes these when referring to variables in the body
  I.ConP con _ pats -> do
@@ -582,6 +585,7 @@ constructPats cmap mainm clause = do
        I.DotP t -> do
         (t2, _) <- runStateT (tomyExp t) (S {sConsts = (cmap, []), sMetas = initMapS, sEqs = initMapS, sCurMeta = Nothing, sMainMeta = mainm})
         return (ns, HI hid (CSPatExp t2))
+       I.ProjP{} -> copatternsNotImplemented
        _ -> __IMPOSSIBLE__
  (names, pats) <- cnvps [] (I.namedClausePats clause)
  return (reverse names, pats)
