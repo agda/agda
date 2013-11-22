@@ -60,14 +60,14 @@ matchCopatterns ps vs = do
            , nest 2 $ text "ps =" <+> fsep (punctuate comma $ map (prettyTCM . namedArg) ps)
            , nest 2 $ text "vs =" <+> fsep (punctuate comma $ map prettyTCM vs)
            ]
-    mapFst mconcat . unzip <$> zipWithM' (matchCopattern . fmap namedThing) ps vs
+    mapFst mconcat . unzip <$> zipWithM' (matchCopattern . namedArg) ps vs
 
 -- | Match a single copattern.
-matchCopattern :: I.Arg Pattern -> Elim -> TCM (Match Term, Elim)
-matchCopattern (Arg _ (ProjP p)) elim@(Proj q)
+matchCopattern :: Pattern -> Elim -> TCM (Match Term, Elim)
+matchCopattern (ProjP p) elim@(Proj q)
   | p == q    = return (Yes YesSimplification [], elim)
   | otherwise = return (No                      , elim)
-matchCopattern (Arg _ (ProjP p)) elim@Apply{}
+matchCopattern (ProjP p) elim@Apply{}
               = return (DontKnow Nothing, elim)
 matchCopattern _ elim@Proj{} = return (DontKnow Nothing, elim)
 matchCopattern p (Apply v)   = mapSnd Apply <$> matchPattern p v
@@ -80,24 +80,25 @@ matchPatterns ps vs = do
            , nest 2 $ text "vs =" <+> fsep (punctuate comma $ map prettyTCM vs)
            ]
 
-    (ms,vs) <- unzip <$> zipWithM' (matchPattern . fmap namedThing) ps vs
+    (ms,vs) <- unzip <$> zipWithM' (matchPattern . namedArg) ps vs
     return (mconcat ms, vs)
 
 -- | Match a single pattern.
-matchPattern :: I.Arg Pattern -> I.Arg Term -> TCM (Match Term, I.Arg Term)
-matchPattern (Arg _  ProjP{})  _             = __IMPOSSIBLE__
-matchPattern (Arg _  (VarP _)) arg@(Arg _ v) = return (Yes NoSimplification [v], arg)
-matchPattern (Arg _  (DotP _)) arg@(Arg _ v) = return (Yes NoSimplification [v], arg)
-matchPattern (Arg info' (LitP l)) arg@(Arg info v) = do
+matchPattern :: Pattern -> I.Arg Term -> TCM (Match Term, I.Arg Term)
+matchPattern p u = case (p, u) of
+  (ProjP{}, _            ) -> __IMPOSSIBLE__
+  (VarP _ , arg@(Arg _ v)) -> return (Yes NoSimplification [v], arg)
+  (DotP _ , arg@(Arg _ v)) -> return (Yes NoSimplification [v], arg)
+  (LitP l , arg@(Arg _ v)) -> do
     w <- reduceB v
-    let v = ignoreBlocking w
+    let arg' = arg $> ignoreBlocking w
     case ignoreSharing <$> w of
 	NotBlocked (Lit l')
-	    | l == l'          -> return (Yes YesSimplification [], Arg info v)
-	    | otherwise        -> return (No, Arg info v)
-	NotBlocked (MetaV x _) -> return (DontKnow $ Just x, Arg info v)
-	Blocked x _            -> return (DontKnow $ Just x, Arg info v)
-	_                      -> return (DontKnow Nothing, Arg info v)
+	    | l == l'          -> return (Yes YesSimplification [] , arg')
+	    | otherwise        -> return (No                       , arg')
+	NotBlocked (MetaV x _) -> return (DontKnow $ Just x        , arg')
+	Blocked x _            -> return (DontKnow $ Just x        , arg')
+	_                      -> return (DontKnow Nothing         , arg')
 
 {- Andreas, 2012-04-02 NO LONGER UP-TO-DATE
 matchPattern (Arg h' r' (ConP c _ ps))     (Arg h Irrelevant v) = do
@@ -109,7 +110,10 @@ matchPattern (Arg h' r' (ConP c _ ps))     (Arg h Irrelevant v) = do
 		return (m, Arg h Irrelevant $ Con c vs)
 -}
 
-matchPattern (Arg info' (ConP c _ ps))     (Arg info v) =
+-- case record pattern: always succeed!
+-- matchPattern (Arg _ (ConP con@(ConHead c ds) Just{} ps)) (Arg info v) =
+
+  (ConP c _ ps, Arg info v) ->
     do	w <- traverse constructorForm =<< reduceB v
         -- Unfold delayed (corecursive) definitions one step. This is
         -- only necessary if c is a coinductive constructor, but
