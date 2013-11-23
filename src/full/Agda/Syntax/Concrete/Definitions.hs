@@ -663,16 +663,19 @@ niceDeclarations ds = do
           d:_ -> throwError $ NotAllowedInMutual d
         return $ NiceMutual r (all termCheck ds) $ sigs ++ other
       where
-        notAllowedInMutual d = declKind d == OtherDecl
+        -- Andreas, 2013-11-23 allow postulates in mutual blocks
+        notAllowedInMutual Axiom{} = False
+        notAllowedInMutual d       = declKind d == OtherDecl
         -- Pull type signatures to the top
         (sigs, other) = partition isTypeSig ds
+        isTypeSig Axiom{}                     = True
         isTypeSig d | LoneSig{} <- declKind d = True
-        isTypeSig _ = False
+        isTypeSig _                           = False
 
         sigNames  = [ (k, x) | LoneSig k x <- map declKind ds ]
         defNames  = [ (k, x) | LoneDef k x <- map declKind ds ]
         -- compute the set difference with equality just on names
-        loneNames = filter (\ (_, x) -> not (List.any (\ (_, x') -> x == x') defNames)) sigNames
+        loneNames = [ (k, x) | (k, x) <- sigNames, List.all ((x /=) . snd) defNames ]
 
         -- Andreas, 2013-02-28 (issue 804):
         -- do not termination check a mutual block if any of its
