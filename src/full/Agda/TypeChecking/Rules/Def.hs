@@ -101,7 +101,7 @@ checkAlias t' ai delayed i name e = do
     -- (test/succeed/Issue655.agda)
 
   -- Add the definition
-  addConstant name $ Defn ai name t [] [] (defaultDisplayForm name) 0 noCompiledRep
+  addConstant name $ defaultDefn ai name t
                    $ Function
                       { funClauses        = [ Clause  -- trivial clause @name = v@
                           { clauseRange     = getRange i
