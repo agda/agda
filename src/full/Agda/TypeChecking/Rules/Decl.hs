@@ -66,7 +66,7 @@ checkDecls ds = do
 -- | Type check a single declaration.
 
 checkDecl :: A.Declaration -> TCM ()
-checkDecl d = do
+checkDecl d = traceCall (SetRange (getRange d)) $ do
     reportSDoc "tc.decl" 10 $ vcat
       [ text "checking declaration"
       , prettyA d

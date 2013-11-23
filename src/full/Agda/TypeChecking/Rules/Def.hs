@@ -9,6 +9,7 @@ import Control.Monad.State hiding (forM, mapM)
 import Control.Monad.Error hiding (forM, mapM)
 
 import Data.List hiding (sort)
+import Data.Maybe
 import Data.Traversable
 
 import Agda.Syntax.Common
@@ -160,7 +161,9 @@ checkFunDef' t ai delayed extlam with i name cs =
             forM cs $ \ c -> do
               c <- applyRelevanceToContext (argInfoRelevance ai) $ do
                 checkClause t c
-              solveSizeConstraints
+              -- Andreas, 2013-11-23 do not solve size constraints here yet
+              -- in case we are checking the body of an extended lambda.
+              unless (isJust extlam) $ solveSizeConstraints
               -- Andreas, 2013-10-27 add clause as soon it is type-checked
               -- TODO: instantiateFull?
               addClauses name [c]
