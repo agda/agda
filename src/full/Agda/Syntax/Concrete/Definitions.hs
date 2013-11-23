@@ -274,7 +274,11 @@ getFixity x = gets $ Map.findWithDefault defaultFixity' x . fixs
 runNice :: Nice a -> Either DeclarationException a
 runNice nice = nice `evalStateT` initNiceEnv
 
-data DeclKind = LoneSig DataRecOrFun Name | LoneDef DataRecOrFun Name | OtherDecl
+data DeclKind
+    = LoneSig DataRecOrFun Name
+    | LoneDef DataRecOrFun Name
+    | OtherDecl
+  deriving (Eq, Show)
 
 declKind (FunSig _ _ _ _ tc x _)      = LoneSig (FunName tc) x
 declKind (NiceRecSig _ _ _ x pars _)  = LoneSig (RecName $ parameters pars) x
@@ -653,12 +657,13 @@ niceDeclarations ds = do
         -- Check that there aren't any missing definitions
         checkLoneSigs loneNames
         -- Check that there are no declarations that aren't allowed in old style mutual blocks
-        case [ d | (d, OtherDecl) <- zip ds $ map declKind ds ] of
+        case filter notAllowedInMutual ds of
           []  -> return ()
           (NiceFunClause _ _ _ _ (FunClause lhs _ _)):_ -> throwError $ MissingTypeSignature lhs
           d:_ -> throwError $ NotAllowedInMutual d
         return $ NiceMutual r (all termCheck ds) $ sigs ++ other
       where
+        notAllowedInMutual d = declKind d == OtherDecl
         -- Pull type signatures to the top
         (sigs, other) = partition isTypeSig ds
         isTypeSig d | LoneSig{} <- declKind d = True
