@@ -8,3 +8,5 @@ Important changes since 2.3.2.1:
   Windows [issue 757].
 
 * Made Agda build with newer versions of some libraries.
+
+* Fixed a bug that caused ambiguous parse error messages [issue 147].

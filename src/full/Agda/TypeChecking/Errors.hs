@@ -613,9 +613,32 @@ instance PrettyTCM TypeError where
 	    NoParseForApplication es -> fsep $
 		pwords "Could not parse the application" ++ [pretty $ C.RawApp noRange es]
 	    AmbiguousParseForApplication es es' -> fsep (
-		    pwords "Don't know how to parse" ++ [pretty (C.RawApp noRange es) <> text "."] ++
+		    pwords "Don't know how to parse" ++ [pretty_es <> (text ".")] ++
 		    pwords "Could mean any one of:"
-		) $$ nest 2 (vcat $ map pretty es')
+		) $$ nest 2 (vcat $ map pretty' es')
+              where
+                pretty_es :: TCM Doc
+                pretty_es = pretty $ C.RawApp noRange es
+
+                pretty' :: C.Expr -> TCM Doc
+                pretty' e = do
+                  p1 <- pretty_es
+                  p2 <- pretty e
+                  pretty $ if show p1 == show p2 then unambiguous e else e
+
+                unambiguous :: C.Expr -> C.Expr
+                unambiguous (C.OpApp r op xs) | all isOrdinary xs
+                    = foldl (C.App r) (C.Ident op) $
+                          map (defaultArg . unnamed . fromOrdinary) xs
+                unambiguous e = e
+
+                isOrdinary :: C.OpApp e -> Bool
+                isOrdinary (C.Ordinary _) = True
+                isOrdinary _ = False
+
+                fromOrdinary :: C.OpApp e -> e
+                fromOrdinary (C.Ordinary e) = e
+                fromOrdinary _ = __IMPOSSIBLE__
             UnusedVariableInPatternSynonym -> fsep $
                 pwords "Unused variable in pattern synonym."
             PatternSynonymArityMismatch x -> fsep $
@@ -629,9 +652,31 @@ instance PrettyTCM TypeError where
 		pwords "Could not parse the pattern synonym" ++ [pretty p]
 -}
 	    AmbiguousParseForLHS lhsOrPatSyn p ps -> fsep (
-		    pwords "Don't know how to parse" ++ [pretty p <> text "."] ++
+		    pwords "Don't know how to parse" ++ [pretty_p <> text "."] ++
 		    pwords "Could mean any one of:"
-		) $$ nest 2 (vcat $ map pretty ps)
+		) $$ nest 2 (vcat $ map pretty' ps)
+              where
+                pretty_p :: TCM Doc
+                pretty_p = pretty p
+
+                pretty' :: C.Pattern -> TCM Doc
+                pretty' p' = do
+                  p1 <- pretty_p
+                  p2 <- pretty p'
+                  pretty $ if show p1 == show p2 then unambiguousP p' else p'
+
+                -- the entire pattern is shown, not just the ambiguous part,
+                -- so we need to dig in order to find the OpAppP's.
+                unambiguousP :: C.Pattern -> C.Pattern
+                unambiguousP (C.AppP x y) = C.AppP (unambiguousP x) $ (fmap.fmap) unambiguousP y
+                unambiguousP (C.HiddenP r x) = C.HiddenP r $ fmap unambiguousP x
+                unambiguousP (C.InstanceP r x) = C.InstanceP r $ fmap unambiguousP x
+                unambiguousP (C.ParenP r x) = C.ParenP r $ unambiguousP x
+                unambiguousP (C.AsP r n x) = C.AsP r n $ unambiguousP x
+                unambiguousP (C.OpAppP r op xs)
+                    = foldl C.AppP (C.IdentP op) $
+                          map (defaultArg . unnamed) xs
+                unambiguousP e = e
 {- UNUSED
 	    AmbiguousParseForPatternSynonym p ps -> fsep (
 		    pwords "Don't know how to parse" ++ [pretty p <> text "."] ++

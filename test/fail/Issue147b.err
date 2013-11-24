@@ -1,0 +1,6 @@
+Issue147b.agda:10,1-10
+Don't know how to parse bad (f x). Could mean any one of:
+  bad (f x)
+  bad (f_ x)
+when scope checking the left-hand side bad (f x) in the definition
+of bad

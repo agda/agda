@@ -1,0 +1,5 @@
+Issue147a.agda:10,9-12
+Don't know how to parse f x. Could mean any one of:
+  f x
+  f_ x
+when scope checking f x
