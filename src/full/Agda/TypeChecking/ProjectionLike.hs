@@ -109,6 +109,9 @@ makeProjection x = inTopContext $ do
     , prettyTCM x <+> text " : " <+> prettyTCM t
     ]
   case theDef defn of
+    Function{funClauses = cls}
+      | any (isNothing . getBody) cls ->
+        reportSLn "tc.proj.like" 30 $ "  projection-like functions cannot have absurd clauses"
     -- Constructor-headed functions can't be projection-like (at the moment). The reason
     -- for this is that invoking constructor-headedness will circumvent the inference of
     -- the dropped arguments.
@@ -123,9 +126,9 @@ makeProjection x = inTopContext $ do
       unless (null ps0) $ do
       -- Andreas 2012-09-26: only consider non-recursive functions for proj.like.
       -- Issue 700: problems with recursive funs. in term.checker and reduction
-      ifM recursive (reportSLn "tc.proj.like" 30 $ "recursive functions are not considered for projection-likeness") $ do
+      ifM recursive (reportSLn "tc.proj.like" 30 $ "  recursive functions are not considered for projection-likeness") $ do
       ps <- return $ filter (checkOccurs cls . snd) ps0
-      when (not (null ps0) && null ps) $
+      when (null ps) $
         reportSLn "tc.proj.like" 50 $
           "  occurs check failed\n    clauses = " ++ show cls
       case reverse ps of
@@ -217,7 +220,7 @@ makeProjection x = inTopContext $ do
         noMatch DotP{} = True
 
     checkBody 0 _          = True
-    checkBody _ NoBody     = False    -- absurd clauses are not permitted
+    checkBody _ NoBody     = __IMPOSSIBLE__ -- we check this earlier
     checkBody n (Bind b)   = not (isBinderUsed b) && checkBody (n - 1) (unAbs b)
     checkBody _ Body{}     = __IMPOSSIBLE__
 
