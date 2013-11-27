@@ -1,0 +1,41 @@
+\documentclass{article}
+
+\usepackage{agda}
+
+\begin{document}
+
+%\renewcommand{\AgdaIndent}{\;\;}
+
+\begin{code}%
+\>\AgdaKeyword{record} \AgdaRecord{Sigma} \AgdaSymbol{(}\AgdaBound{A} \AgdaSymbol{:} \AgdaPrimitiveType{Set}\AgdaSymbol{)} \AgdaSymbol{(}\AgdaBound{B} \AgdaSymbol{:} \AgdaBound{A} \AgdaSymbol{→} \AgdaPrimitiveType{Set}\AgdaSymbol{)} \AgdaSymbol{:} \AgdaPrimitiveType{Set} \AgdaKeyword{where}\<%
+\\
+\>[0]\AgdaIndent{2}{}\<[2]%
+\>[2]\AgdaKeyword{constructor} \AgdaInductiveConstructor{\_,\_}\<%
+\\
+\>[0]\AgdaIndent{2}{}\<[2]%
+\>[2]\AgdaKeyword{field}\<%
+\\
+\>[2]\AgdaIndent{4}{}\<[4]%
+\>[4]\AgdaField{proj₁} \AgdaSymbol{:} \AgdaBound{A}\<%
+\\
+\>[2]\AgdaIndent{4}{}\<[4]%
+\>[4]\AgdaField{proj₂} \AgdaSymbol{:} \AgdaBound{B} \AgdaBound{proj₁}\<%
+\\
+%
+\\
+\>\AgdaKeyword{open} \AgdaModule{Sigma} \AgdaKeyword{public}\<%
+\end{code}
+
+\begin{code}%
+\>\AgdaFunction{uncurry} \AgdaSymbol{:} \AgdaSymbol{\{}\AgdaBound{A} \AgdaSymbol{:} \AgdaPrimitiveType{Set}\AgdaSymbol{\}} \AgdaSymbol{\{}\AgdaBound{B} \AgdaSymbol{:} \AgdaBound{A} \AgdaSymbol{→} \AgdaPrimitiveType{Set}\AgdaSymbol{\}} \AgdaSymbol{\{}\AgdaBound{C} \AgdaSymbol{:} \AgdaRecord{Sigma} \AgdaBound{A} \AgdaBound{B} \AgdaSymbol{→} \AgdaPrimitiveType{Set}\AgdaSymbol{\}} \AgdaSymbol{→}\<%
+\\
+\>[4]\AgdaIndent{10}{}\<[10]%
+\>[10]\AgdaSymbol{((}\AgdaBound{x} \AgdaSymbol{:} \AgdaBound{A}\AgdaSymbol{)} \AgdaSymbol{→} \AgdaSymbol{(}\AgdaBound{y} \AgdaSymbol{:} \AgdaBound{B} \AgdaBound{x}\AgdaSymbol{)} \AgdaSymbol{→} \AgdaBound{C} \AgdaSymbol{(}\AgdaBound{x} \AgdaInductiveConstructor{,} \AgdaBound{y}\AgdaSymbol{))} \AgdaSymbol{→}\<%
+\\
+\>[4]\AgdaIndent{10}{}\<[10]%
+\>[10]\AgdaSymbol{((}\AgdaBound{p} \AgdaSymbol{:} \AgdaRecord{Sigma} \AgdaBound{A} \AgdaBound{B}\AgdaSymbol{)} \AgdaSymbol{→} \AgdaBound{C} \AgdaBound{p}\AgdaSymbol{)}\<%
+\\
+\>\AgdaFunction{uncurry} \AgdaBound{f} \AgdaSymbol{(}\AgdaBound{x} \AgdaInductiveConstructor{,} \AgdaBound{y}\AgdaSymbol{)} \AgdaSymbol{=} \AgdaBound{f} \AgdaBound{x} \AgdaBound{y}\<%
+\end{code}
+
+\end{document}

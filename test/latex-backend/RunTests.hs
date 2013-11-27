@@ -52,6 +52,20 @@ runTests = do
       putStrLn $ "Output of " ++ lagda ++ " is wrong!"
       exitFailure
 
+    -- If a .compile exists in, then run pdflatex on the produced .tex
+    -- file and make sure it succeeds compiling it.
+    let pdf = replaceExtension lagda "compile"
+    exists <- doesFileExist pdf
+
+    when exists $ do
+      setCurrentDirectory latexDir
+      exit <- rawSystem "pdflatex" [ "-interaction=batchmode" , tex ]
+
+      when (isFailure exit) $ do
+        putStrLn ""
+        putStrLn $ tex ++ " doesn't compile!"
+        exitFailure
+
   putStrLn "All tests passed."
 
 isFailure :: ExitCode -> Bool
