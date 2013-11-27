@@ -9,6 +9,7 @@ import Data.List (find)
 import qualified Agda.Syntax.Abstract as A
 import Agda.Syntax.Internal
 import Agda.Syntax.Common
+import Agda.Syntax.Position
 
 import Agda.TypeChecking.EtaContract
 import Agda.TypeChecking.Monad
@@ -317,28 +318,37 @@ bindPostulatedName builtin e m = do
   getName (A.ScopedExpr _ e) = getName e
   getName _                  = err
 
+bindBuiltinNat :: Term -> TCM ()
+bindBuiltinNat t = do
+  t' <- etaContract =<< normalise t
+  case ignoreSharing t' of
+    Def nat _ -> do
+      def <- theDef <$> getConstInfo nat
+      case def of
+        Datatype { dataCons = [c1, c2] } -> do
+          bindBuiltinName builtinNat t
+          let getArity c = arity <$> (normalise . defType =<< getConstInfo c)
+          [a1, a2] <- mapM getArity [c1, c2]
+          let (zero, suc) | a2 > a1   = (c1, c2)
+                          | otherwise = (c2, c1)
+              tnat = el primNat
+              rerange = setRange (getRange nat)
+          bindBuiltinInfo (BuiltinInfo builtinZero $ BuiltinDataCons tnat)
+                          (A.Con $ AmbQ [rerange zero])
+          bindBuiltinInfo (BuiltinInfo builtinSuc  $ BuiltinDataCons (tnat --> tnat))
+                          (A.Con $ AmbQ [rerange suc])
+        _ -> __IMPOSSIBLE__
+    _ -> __IMPOSSIBLE__
+
 bindBuiltinInfo :: BuiltinInfo -> A.Expr -> TCM ()
 bindBuiltinInfo i (A.ScopedExpr scope e) = setScope scope >> bindBuiltinInfo i e
 bindBuiltinInfo (BuiltinInfo s d) e = do
     case d of
       BuiltinData t cs -> do
-                           e' <- checkExpr e =<< t
-                           let n = length cs
-                           inductiveCheck s n e'
-                           bindBuiltinName s e'
-                           -- NAT and LEVEL must be different. (Why?)
-                           when (s `elem` [builtinNat, builtinLevel]) $ do
-                             nat   <- getBuiltin' builtinNat
-                             level <- getBuiltin' builtinLevel
-                             case (nat, level) of
-                               (Just nat, Just level) -> do
-                                  Def nat   _ <- ignoreSharing <$> normalise nat
-                                  Def level _ <- ignoreSharing <$> normalise level
-                                  when (nat == level) $ typeError $ GenericError $
-                                    builtinNat ++ " and " ++ builtinLevel ++
-                                    " have to be different types."
-                               _ -> return ()
-
+        e' <- checkExpr e =<< t
+        let n = length cs
+        inductiveCheck s n e'
+        if s == builtinNat then bindBuiltinNat e' else bindBuiltinName s e'
 
       BuiltinDataCons t -> do
 
@@ -404,6 +414,8 @@ bindBuiltin b e = do
     bind b e
     where
         bind b e
+            | b == builtinZero = typeError $ GenericError "Builtin ZERO does no longer exist. It is now bound by BUILTIN NATURAL"
+            | b == builtinSuc  = typeError $ GenericError "Builtin SUC does no longer exist. It is now bound by BUILTIN NATURAL"
             | b == builtinInf                                   = bindBuiltinInf e
             | b == builtinSharp                                 = bindBuiltinSharp e
             | b == builtinFlat                                  = bindBuiltinFlat e

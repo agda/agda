@@ -6,8 +6,6 @@ data Nat : Set where
   suc  : Nat -> Nat
 
 {-# BUILTIN NATURAL Nat #-}
-{-# BUILTIN ZERO zero #-}
-{-# BUILTIN SUC suc #-}
 
 data Fin : Nat -> Set where
   fz : {n : Nat} -> Fin (suc n)

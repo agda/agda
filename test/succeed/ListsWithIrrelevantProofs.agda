@@ -8,8 +8,6 @@ data ℕ : Set where
   suc  : ℕ → ℕ
 
 {-# BUILTIN NATURAL ℕ    #-}
-{-# BUILTIN ZERO    zero #-}
-{-# BUILTIN SUC     suc  #-}
 
 postulate 
   _≤_ : ℕ → ℕ → Set

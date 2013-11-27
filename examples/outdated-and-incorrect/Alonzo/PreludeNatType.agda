@@ -5,5 +5,3 @@ module PreludeNatType where
     suc  : Nat -> Nat
 
   {-# BUILTIN NATURAL Nat #-}
-  {-# BUILTIN SUC suc #-}
-  {-# BUILTIN ZERO zero #-}

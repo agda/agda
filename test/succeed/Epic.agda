@@ -13,8 +13,6 @@ Z * m = Z
 S n * m = m + (n * m)
 
 {-# BUILTIN NATURAL Nat #-}
-{-# BUILTIN ZERO Z #-}
-{-# BUILTIN SUC S #-}
 {-# BUILTIN NATPLUS _+_ #-}
 {-# BUILTIN NATTIMES _*_ #-}
 

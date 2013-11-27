@@ -13,8 +13,6 @@ data Nat : Set where
   suc  : Nat -> Nat
 
 {-# BUILTIN NATURAL Nat #-}
-{-# BUILTIN SUC suc #-}
-{-# BUILTIN ZERO zero #-}
 
 infix 40 _==_ _<_ _≤_ _>_ _≥_
 infixl 60 _+_ _-_

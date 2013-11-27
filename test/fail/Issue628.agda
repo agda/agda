@@ -6,8 +6,6 @@ data ℕ : Set where
   suc  : ℕ → ℕ
 
 {-# BUILTIN NATURAL ℕ #-}
-{-# BUILTIN SUC suc #-}
-{-# BUILTIN ZERO zero #-}
 
 data _≡_ {A : Set}(x : A) : A → Set where
   refl : x ≡ x

@@ -27,8 +27,6 @@ zero * _ = zero
 succ a * b = (a * b) + b
 
 {-# BUILTIN NATURAL Nat #-}
-{-# BUILTIN ZERO zero #-}
-{-# BUILTIN SUC succ #-}
 {-# BUILTIN NATPLUS _+_ #-}
 {-# BUILTIN NATTIMES _*_ #-}
 

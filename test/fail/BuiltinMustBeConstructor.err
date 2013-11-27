@@ -1,3 +1,3 @@
-BuiltinMustBeConstructor.agda:12,1-24
-suc must be a constructor in the binding to builtin SUC
-when checking the pragma BUILTIN SUC suc
+BuiltinMustBeConstructor.agda:13,1-28
+false must be a constructor in the binding to builtin FALSE
+when checking the pragma BUILTIN FALSE false

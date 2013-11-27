@@ -10,8 +10,6 @@ data ℕ : Set where
   suc  : (n : ℕ) → ℕ
 
 {-# BUILTIN NATURAL ℕ    #-}
-{-# BUILTIN ZERO    zero #-}
-{-# BUILTIN SUC     suc  #-}
 {-# IMPORT Imports.Nat #-}
 {-# COMPILED_DATA ℕ Imports.Nat.Nat Imports.Nat.Zero Imports.Nat.Suc #-}
 

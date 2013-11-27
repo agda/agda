@@ -6,8 +6,6 @@ data ℕ : Set where
   suc  : ℕ → ℕ
 
 {-# BUILTIN NATURAL ℕ    #-}
-{-# BUILTIN ZERO    zero #-}
-{-# BUILTIN SUC     suc  #-}
 
 f : ℕ → ℕ
 f 0 with zero

@@ -309,6 +309,19 @@ Language
     C : Set1
     C = B
 
+* Builtin ZERO and SUC have been merged with NATURAL.
+
+  When binding the NATURAL builtin, ZERO and SUC are bound to the appropriate
+  constructors automatically. This means that instead of writing
+
+    {-# BUILTIN NATURAL Nat #-}
+    {-# BUILTIN ZERO zero #-}
+    {-# BUILTIN SUC suc #-}
+
+  you just write
+
+    {-# BUILTIN NATURAL Nat #-}
+
 * Minor syntax changes
 
   * Empty where blocks are now allowed. [Issue 947]

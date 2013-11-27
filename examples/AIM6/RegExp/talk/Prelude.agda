@@ -51,8 +51,6 @@ zero  + n = n
 suc m + n = suc (m + n)
 
 {-# BUILTIN NATURAL ℕ    #-}
-{-# BUILTIN ZERO    zero #-}
-{-# BUILTIN SUC     suc  #-}
 {-# BUILTIN NATPLUS _+_  #-}
 
 ------------------------------------------------------------------------

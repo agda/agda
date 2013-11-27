@@ -20,6 +20,4 @@ inc = suc
 
 {-
 {-# BUILTIN NATURAL Nat #-}
-{-# BUILTIN ZERO zero #-}
-{-# BUILTIN SUC suc #-}
 -}

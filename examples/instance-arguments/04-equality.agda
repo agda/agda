@@ -61,8 +61,6 @@ data ℕ : Set where
   suc : ℕ → ℕ
 
 {-# BUILTIN NATURAL ℕ    #-}
-{-# BUILTIN ZERO    zero #-}
-{-# BUILTIN SUC     suc  #-}
 
 data Fin : ℕ → Set where
   zero : {n : ℕ} → Fin (suc n)

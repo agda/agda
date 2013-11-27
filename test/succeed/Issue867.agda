@@ -31,8 +31,6 @@ data ℕ : Set where
   S : ℕ → ℕ
 
 {-# BUILTIN NATURAL ℕ #-}
-{-# BUILTIN ZERO O #-}
-{-# BUILTIN SUC S #-}
 
 postulate
   IO : ∀ {i} → Set i → Set i

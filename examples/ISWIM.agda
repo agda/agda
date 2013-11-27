@@ -13,8 +13,6 @@ zero  + m = m
 suc n + m = suc (n + m)
 
 {-# BUILTIN NATURAL Nat  #-}
-{-# BUILTIN ZERO    zero #-}
-{-# BUILTIN SUC     suc  #-}
 {-# BUILTIN NATPLUS _+_  #-}
 
 data Bool : Set where

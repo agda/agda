@@ -36,8 +36,6 @@ nisse (suc (suc n)) = suc zero
 NatInfty = Nat {∞}
 
 {-# BUILTIN NATURAL  NatInfty  #-}
-{-# BUILTIN SUC      suc       #-}
-{-# BUILTIN ZERO     zero      #-}
 {-# BUILTIN PLUS     add       #-}
 
 -}

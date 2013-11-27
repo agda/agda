@@ -72,8 +72,6 @@ module Imports where
     suc  : (n : ℕ) → ℕ
 
   {-# BUILTIN NATURAL ℕ    #-}
-  {-# BUILTIN ZERO    zero #-}
-  {-# BUILTIN SUC     suc  #-}
 
   pred : ℕ → ℕ
   pred zero    = zero

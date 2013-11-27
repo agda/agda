@@ -9,8 +9,6 @@ data Nat : Set where
   S : Nat -> Nat
 
 {-# BUILTIN NATURAL Nat #-}
-{-# BUILTIN ZERO Z #-}
-{-# BUILTIN SUC S #-}
 {-# COMPILED_DATA Nat PrimNat.N PrimNat.Z PrimNat.S #-}
 
 infixl 30 _+_

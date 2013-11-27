@@ -17,7 +17,5 @@ zero  * m = zero
 suc n * m = m + n * m
 
 {-# BUILTIN NATURAL  Nat  #-}
-{-# BUILTIN ZERO     zero #-}
-{-# BUILTIN SUC      suc  #-}
 {-# BUILTIN NATPLUS  _+_  #-}
 {-# BUILTIN NATTIMES _*_  #-}

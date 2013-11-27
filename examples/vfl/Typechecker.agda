@@ -6,8 +6,6 @@ data Nat : Set where
   suc : Nat -> Nat
 
 {-# BUILTIN NATURAL Nat #-}
-{-# BUILTIN ZERO zero #-}
-{-# BUILTIN SUC suc #-}
 
 _+_ : Nat -> Nat -> Nat
 zero   + m = m

@@ -3,4 +3,4 @@ Termination checking failed for the following functions:
   div
 Problematic calls:
   div (m - n) n
-    (at Issue503.agda:45,43-46)
+    (at Issue503.agda:43,43-46)

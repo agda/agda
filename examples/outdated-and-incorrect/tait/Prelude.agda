@@ -29,8 +29,6 @@ zero  + m = m
 suc n + m = suc (n + m)
 
 {-# BUILTIN NATURAL Nat  #-}
-{-# BUILTIN SUC     suc  #-}
-{-# BUILTIN ZERO    zero #-}
 {-# BUILTIN NATPLUS _+_  #-}
 
 data _≤_ : Nat -> Nat -> Set where

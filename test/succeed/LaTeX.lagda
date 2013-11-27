@@ -28,8 +28,6 @@ zero             + n = n
 suc m {- ugh -}  + n = suc (m + n)
 
 {-# BUILTIN NATURAL ℕ #-}
-{-# BUILTIN ZERO zero #-}
-{-# BUILTIN SUC suc #-}
 
 alignment : (m n o p : ℕ) → ℕ
 alignment  0  1     2  3     =  4

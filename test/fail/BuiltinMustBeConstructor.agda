@@ -1,12 +1,13 @@
 
 module BuiltinMustBeConstructor where
 
-data Nat : Set where
-  zero : Nat
-  one  : Nat
+data Bool : Set where
+  true  : Bool
+  other : Bool
 
-suc : Nat -> Nat
-suc x = x
+false : Bool
+false = true
 
-{-# BUILTIN NATURAL Nat #-}
-{-# BUILTIN SUC suc #-}
+{-# BUILTIN BOOL Bool #-}
+{-# BUILTIN TRUE true #-}
+{-# BUILTIN FALSE false #-}

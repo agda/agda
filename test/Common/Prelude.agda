@@ -20,8 +20,6 @@ data Nat : Set where
   suc  : Nat → Nat
 
 {-# BUILTIN NATURAL Nat  #-}
-{-# BUILTIN SUC     suc  #-}
-{-# BUILTIN ZERO    zero #-}
 
 {-# COMPILED_DATA Nat Common.FFI.Nat Common.FFI.Zero Common.FFI.Suc #-}
 

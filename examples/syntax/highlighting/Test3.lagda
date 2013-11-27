@@ -66,8 +66,6 @@ postulate
 {-# BUILTIN FLOAT   Float  #-}
 
 {-# BUILTIN NATURAL ℕ      #-}
-{-# BUILTIN SUC     suc    #-}
-{-# BUILTIN ZERO    zero   #-}
 
 data [_] (a : Set) : Set where
   []  : [ a ]

@@ -72,8 +72,6 @@ module Alan where
     suc  : ℕ → ℕ
 
   {-# BUILTIN NATURAL ℕ #-}
-  {-# BUILTIN ZERO zero #-}
-  {-# BUILTIN SUC suc #-}
 
   data Bool : Set where
     true false : Bool

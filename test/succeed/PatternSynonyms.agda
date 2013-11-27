@@ -8,8 +8,6 @@ data ℕ : Set where
   suc  : (n : ℕ) → ℕ
 
 {-# BUILTIN NATURAL ℕ #-}
-{-# BUILTIN ZERO zero #-}
-{-# BUILTIN SUC suc #-}
 
 pattern z    = zero
 pattern sz   = suc z
