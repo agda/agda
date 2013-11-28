@@ -189,7 +189,7 @@ module Indexed where
   -- Perhaps it would be worthwhile changing the data structure so
   -- that the casts could be implemented in constant time (excluding
   -- proof manipulation). However, note that this would not change the
-  -- worst-case time complexity of the operations below (up to θ).
+  -- worst-case time complexity of the operations below (up to Θ).
 
   castˡ : ∀ {l m u h} → l <⁺ m → Tree m u h → Tree l u h
   castˡ {l} l<m (leaf m<u)         = leaf (trans⁺ l l<m m<u)
