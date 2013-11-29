@@ -508,6 +508,8 @@ etaExpandClause n c@Clause{ namedClausePats = ps, clauseBody = b }
   | m <= 0    = c
   | otherwise = c { namedClausePats = ps ++ genericReplicate m (defaultArg $ unnamed $ VarP "_")
                   , clauseBody      = liftBody m b
+                  , clauseTel       = __IMPOSSIBLE__
+                  , clausePerm      = __IMPOSSIBLE__
                   }
   where
     m = n - genericLength ps
