@@ -15,4 +15,5 @@ rm -f $BASE.agdai
   printf "$LOAD" \
 ) > $BASE.pipe
 
+sleep 0.1
 rm -f $BASE.pipe

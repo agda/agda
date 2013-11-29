@@ -48,8 +48,8 @@ run_test=if test -f $*.in; \
          | $(sed) "s/currentFile/\"$(wildcard $*.agda $*.lagda)\"/g" \
          | agda -i . -i .. --interaction $(RTS_$*) \
            2>&1 | $(filter) ; \
-    else source ./$*.sh \
-        | $(filter) ; \
+    else /bin/bash ./$*.sh > $(TMPDIR)/$*.tmp_out ; \
+         cat $(TMPDIR)/$*.tmp_out | $(filter) ; \
     fi
 
 # Note that RTS_... variables are ignored when .sh files are used.

@@ -12,8 +12,12 @@ mkfifo $BASE.pipe
 agda --interaction < $BASE.pipe 2>&1 &
 
 ( (printf "$SUCCEED" > $BASE.agda); printf "$LOAD"; \
-  sleep 1; \
+  while [ ! -e $BASE.agdai ]; do \
+    sleep 0.1; \
+  done; \
+  rm $BASE.agdai; \
   (printf "$FAIL" > $BASE.agda); printf "$LOAD" \
 ) > $BASE.pipe
 
+sleep 0.1
 rm -f $BASE.pipe
