@@ -15,7 +15,5 @@ Agda2> (agda2-status-action "")
 ((last . 3) . (agda2-goto '("Issue983-Bad.agda" . 32)))
 (agda2-highlight-load-and-delete-action)
 (agda2-status-action "")
-Agda2> (agda2-info-action "*Error*" "\nAn internal error has occurred. Please report this as a bug.\nLocation of the error:\nsrc/full/Agda/Interaction/InteractionTop.hs:852" nil)
-(agda2-highlight-load-and-delete-action)
-(agda2-status-action "")
+Agda2> (agda2-status-action "")
 Agda2> 

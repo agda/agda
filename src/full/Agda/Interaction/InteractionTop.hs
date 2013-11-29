@@ -186,7 +186,10 @@ runInteraction (IOTCM current highlighting highlightingMethod cmd)
     catchErr :: CommandM a -> (TCErr -> CommandM a) -> CommandM a
     catchErr m h = do
       s       <- get
-      (x, s') <- lift (runStateT m s `catchError_` \e -> runStateT (h e) s)
+      -- If an independent command fails we should reset theCurrentFile (Issue853).
+      let sErr | independent cmd = s { theCurrentFile = Nothing }
+               | otherwise       = s
+      (x, s') <- lift (runStateT m s `catchError_` \e -> runStateT (h e) sErr)
       put s'
       return x
 
