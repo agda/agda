@@ -502,7 +502,7 @@ Expr
   | Application3 '->' Expr              { Fun (getRange ($1,$2,$3))
                                               (RawApp (getRange $1) $1)
                                               $3 }
-  | Expr1 '=' Expr                      { Equal (getRange $2) $1 $3 }
+  | Expr1 '=' Expr                      { Equal (getRange ($1, $2, $3)) $1 $3 }
   | Expr1 %prec LOWEST                  { $1 }
 
 -- Level 1: Application
