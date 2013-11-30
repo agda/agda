@@ -59,6 +59,16 @@ Location of the error: src/full/Agda/TypeChecking/Conversion.hs:636
 NEW:
 Some vomit about Setω not equal to Level when checking well-formedness
 of with type.
+
+NEWER (2013-11-30):
+Cannot instantiate the metavariable _48 to solution m b since it
+contains the variable m which is not in scope of the metavariable
+or irrelevant in the metavariable but relevant in the solution
+when checking that the type
+B →
+(w : _x_48 ≡ _x_48) →
+unfold (λ m → _.mko m (m b) w) ≡ unfold (λ m → _.mko m (m b) w)
+of the generated with function is well-formed
 -}
 
 

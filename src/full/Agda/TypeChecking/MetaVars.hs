@@ -22,6 +22,7 @@ import Agda.TypeChecking.Telescope
 import Agda.TypeChecking.Constraints
 import Agda.TypeChecking.Errors
 import Agda.TypeChecking.Free
+import Agda.TypeChecking.Level
 import Agda.TypeChecking.Records
 import Agda.TypeChecking.Pretty
 import Agda.TypeChecking.Irrelevance
@@ -97,6 +98,7 @@ assignTerm' x t = do
     reportSLn "tc.meta.assign" 70 $ show x ++ " := " ++ show t
      -- verify (new) invariants
     whenM (not <$> asks envAssignMetas) __IMPOSSIBLE__
+
 {- TODO make double-checking work
 -- currently, it does not work since types of sort-metas are inaccurate!
 
@@ -106,6 +108,11 @@ assignTerm' x t = do
       HasType _ a -> dontAssignMetas $ checkInternal t a
       IsSort{}    -> return ()  -- skip double check since type of meta is not accurate
 -}
+    -- Andreas, 2013-10-25 double check solution before assigning
+    -- Andreas, 2013-11-30 this seems to open a can of worms...
+    -- dontAssignMetas $ do
+    --   checkInternal t . jMetaType . mvJudgement =<< lookupMeta x
+
     let i = metaInstance (killRange t)
     verboseS "profile.metas" 10 $ liftTCM $ tickMax "max-open-metas" . size =<< getOpenMetas
     modifyMetaStore $ ins x i
@@ -124,19 +131,21 @@ assignTerm' x t = do
 
 newSortMeta :: TCM Sort
 newSortMeta =
-  ifM typeInType (return $ mkType 0) $
+  ifM typeInType (return $ mkType 0) $ {- else -}
   ifM hasUniversePolymorphism (newSortMetaCtx =<< getContextArgs)
   -- else (no universe polymorphism)
-  $ do i <- createMetaInfo
-       x <- newMeta i normalMetaPriority (idP 0) (IsSort () topSort)
+  $ do i   <- createMetaInfo
+       lvl <- levelType
+       x   <- newMeta i normalMetaPriority (idP 0) $ IsSort () lvl -- WAS: topSort
        return $ Type $ Max [Plus 0 $ MetaLevel x []]
 
 newSortMetaCtx :: Args -> TCM Sort
 newSortMetaCtx vs =
-  ifM typeInType (return $ mkType 0) $ do
+  ifM typeInType (return $ mkType 0) $ {- else -} do
     i   <- createMetaInfo
     tel <- getContextTelescope
-    let t = telePi_ tel topSort
+    lvl <- levelType
+    let t = telePi_ tel lvl -- WAS: topSort
     x   <- newMeta i normalMetaPriority (idP 0) (IsSort () t)
     reportSDoc "tc.meta.new" 50 $
       text "new sort meta" <+> prettyTCM x <+> text ":" <+> prettyTCM t
