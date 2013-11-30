@@ -29,13 +29,16 @@ module Agda.Syntax.Concrete.Operators
 
 import Control.Applicative
 import Control.Monad
+
+import Data.Either (partitionEithers)
+import Data.Function
+import Data.List
 import Data.Traversable (traverse)
 import qualified Data.Traversable as Trav
+import Data.Map (Map)
 import qualified Data.Map as Map
-import qualified Data.Set as Set
 import Data.Set (Set)
-import Data.List
-import Data.Function
+import qualified Data.Set as Set
 
 import Agda.Syntax.Concrete.Pretty ()
 import Agda.Syntax.Common hiding (Arg, Dom, NamedArg)
@@ -103,9 +106,7 @@ localNames flat = do
   return $ split $ uniqBy fst $ map localOp locals ++ defs
   where
     localOp (x, y) = (QName x, A.nameFixity y)
-    split ops = ([ x | Left x <- zs], [ y | Right y <- zs ])
-        where
-            zs = concatMap opOrNot ops
+    split ops = partitionEithers $ concatMap opOrNot ops
 
     opOrNot (q, Fixity' fx syn) = Left q
                                 :  case unqualify q of
