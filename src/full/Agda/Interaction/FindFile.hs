@@ -140,7 +140,8 @@ checkModuleName name file = do
                                 ModuleNameDoesntMatchFileName name files
     Left (Ambiguous files) -> typeError $
                                 AmbiguousTopLevelModuleName name files
-    Right file' ->
+    Right file' -> do
+      file <- liftIO $ absolute (filePath file)
       if file === file' then
         return ()
        else
