@@ -707,7 +707,7 @@ instance PrettyTCM TypeError where
 
             CoverageCantSplitOn c tel cIxs gIxs
               | length cIxs /= length gIxs -> __IMPOSSIBLE__
-              | otherwise                  -> inContext [] $ addCtxTel tel $ vcat (
+              | otherwise                  -> addCtxTel tel $ vcat (
                   [ fsep $ pwords "I'm not sure if there should be a case for the constructor" ++
                            [prettyTCM c <> text ","] ++
                            pwords "because I get stuck when trying to solve the following" ++
