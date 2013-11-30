@@ -350,7 +350,7 @@ computeNeighbourhood delta1 n delta2 perm d pars ixs hix hps con = do
       gammal = map (fmap preserve) . telToList $ gamma0
       gamma  = telFromList gammal
 
-  debugInit con ctype pars ixs cixs delta1 delta2 gamma hps hix
+  debugInit con ctype d pars ixs cixs delta1 delta2 gamma hps hix
 
   -- All variables are flexible
   -- let flex = [0..size delta1 + size gamma - 1]
@@ -430,16 +430,17 @@ computeNeighbourhood delta1 n delta2 perm d pars ixs hix hps con = do
       return [SClause theta' rperm rps rsub Nothing] -- target fixed later
 
   where
-    debugInit con ctype pars ixs cixs delta1 delta2 gamma hps hix =
+    debugInit con ctype d pars ixs cixs delta1 delta2 gamma hps hix =
       liftTCM $ reportSDoc "tc.cover.split.con" 20 $ vcat
         [ text "computeNeighbourhood"
         , nest 2 $ vcat
           [ text "con    =" <+> prettyTCM con
           , text "ctype  =" <+> prettyTCM ctype
           , text "hps    =" <+> text (show hps)
+          , text "d      =" <+> prettyTCM d
           , text "pars   =" <+> prettyList (map prettyTCM pars)
-          , text "ixs    =" <+> addCtxTel (delta1 `abstract` gamma) (prettyList (map prettyTCM ixs))
-          , text "cixs   =" <+> prettyList (map prettyTCM cixs)
+          , text "ixs    =" <+> addCtxTel delta1 (prettyList (map prettyTCM ixs))
+          , text "cixs   =" <+> do addCtxTel gamma $ prettyList (map prettyTCM cixs)
           , text "delta1 =" <+> prettyTCM delta1
           , text "delta2 =" <+> prettyTCM delta2
           , text "gamma  =" <+> prettyTCM gamma
