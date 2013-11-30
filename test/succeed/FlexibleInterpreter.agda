@@ -4,7 +4,7 @@
 -- {-# OPTIONS -v tc.cover:20 #-}
 module FlexibleInterpreter where
 
-open import Common.Prelude
+open import Common.Prelude using (Nat; zero; suc)
 open import Common.MAlonzo hiding (main)
 open import Common.Equality
 

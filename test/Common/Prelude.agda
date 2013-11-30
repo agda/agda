@@ -5,6 +5,9 @@ module Common.Prelude where
 
 import Common.Level
 
+data   ⊥ : Set where
+record ⊤ : Set where
+
 postulate Char : Set
 
 {-# BUILTIN CHAR Char #-}
@@ -39,6 +42,11 @@ zero  ∸ _     = zero
 suc m ∸ suc n = m ∸ n
 
 {-# COMPILED_JS _∸_ function (x) { return function (y) { return Math.max(0,x-y); }; } #-}
+
+pred : Nat → Nat
+pred zero    = zero
+pred (suc n) = n
+
 
 data List A : Set where
   [] : List A

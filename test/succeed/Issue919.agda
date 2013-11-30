@@ -2,9 +2,6 @@ module Issue919 where
 
 open import Common.Prelude
 
-data ⊥ : Set where
-record ⊤ : Set where
-
 Zero : Nat → Set
 Zero 0 = ⊤
 Zero (suc _) = ⊥

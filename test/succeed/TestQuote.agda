@@ -10,9 +10,6 @@ _==_ : Term → Term → Bool
 def x [] == def y [] = primQNameEquality x y
 _        == _        = false
 
-data ⊥ : Set where
-record ⊤ : Set where
-
 data Thm : Set where
   triv : Thm
 
@@ -28,7 +25,7 @@ Hyp goal A with goal == `Thm
 ...        | true  = ⊤
 ...        | false = A
 
-solve : (goal : Term) → Hyp goal ⟦ goal ⟧ → ⟦ goal ⟧ 
+solve : (goal : Term) → Hyp goal ⟦ goal ⟧ → ⟦ goal ⟧
 solve goal h  with goal == `Thm
 ...      | true = triv
 ...      | false = h
