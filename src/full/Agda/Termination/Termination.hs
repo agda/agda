@@ -10,6 +10,7 @@
 module Agda.Termination.Termination
   ( terminates
   , terminatesFilter
+  , idempotent
   , Agda.Termination.Termination.tests
   ) where
 
@@ -17,6 +18,8 @@ import Agda.Termination.CallGraph
 import Agda.Termination.SparseMatrix
 
 import Agda.Utils.Either
+import Agda.Utils.List
+import Agda.Utils.Maybe
 import Agda.Utils.TestHelpers
 import Agda.Utils.QuickCheck
 
@@ -24,6 +27,7 @@ import qualified Data.Array as Array
 import Data.Set (Set)
 import qualified Data.Set as Set
 import Data.Monoid
+import Data.List (partition)
 
 -- | TODO: This comment seems to be partly out of date.
 --
@@ -60,8 +64,11 @@ terminatesFilter f cs = checkIdems $ filter f' $ toList $ complete cs
   where f' (c,m) = f (source c) && f (target c)
 
 checkIdems :: (Monoid meta, ?cutoff :: Int) => [(Call,meta)] -> Either meta ()
-checkIdems [] = Right ()
-checkIdems ((c,m):xs) = if (checkIdem c) then checkIdems xs else Left m
+checkIdems calls = caseMaybe (mhead offending) (Right ()) $ \ (c,m) -> Left m
+  where
+    (idems, other) = partition (idempotent . fst) calls
+    -- Every idempotent call must have decrease, otherwise it offends us.
+    offending = filter (not . hasDecrease . fst) idems
 
 {- Convention (see TermCheck):
    Guardedness flag is in position (0,0) of the matrix,
@@ -70,14 +77,32 @@ checkIdems ((c,m):xs) = if (checkIdem c) then checkIdems xs else Left m
  -}
 
 checkIdem :: (?cutoff :: Int) => Call -> Bool
+checkIdem c = if idempotent c then hasDecrease c else True
+{-
 checkIdem c = let
   b = target c == source c
   -- c0 = fmap collapseO c -- does not help for issue 787
-  idem = (c >*< c) == c
+  idem = (c >*< c) `notWorse` c
+  -- WAS: idem = (c >*< c) == c
   diag =  Array.elems $ diagonal (mat (cm c))
   hasDecr = any isDecr $ diag
   in
     (not b) || (not idem) || hasDecr
+-}
+
+-- | A call @c@ is idempotent if it is an endo (@'source' == 'target'@)
+--   of order 1.
+--   (Endo-calls of higher orders are e.g. argument permutations).
+--   We can test idempotency by self-composition.
+--   Self-composition @c >*< c@ should not make any parameter-argument relation
+--    worse.
+idempotent  :: (?cutoff :: Int) => Call -> Bool
+idempotent c = target c == source c
+  && (c >*< c) `notWorse` c
+
+
+hasDecrease :: (?cutoff :: Int) => Call -> Bool
+hasDecrease c = any isDecr $ Array.elems $ diagonal $ mat $ cm c
 
 -- | Matrix is decreasing if any diagonal element is decreasing.
 

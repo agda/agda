@@ -1,5 +1,5 @@
 {-# LANGUAGE CPP, ImplicitParams, TypeSynonymInstances, FlexibleInstances,
-  GeneralizedNewtypeDeriving, DeriveFunctor #-}
+  GeneralizedNewtypeDeriving, StandaloneDeriving, DeriveFunctor #-}
 
 -- | Call graphs and related concepts, more or less as defined in
 --     \"A Predicative Analysis of Structural Recursion\" by
@@ -14,6 +14,7 @@ module Agda.Termination.CallGraph
   , (.*.)
   , supremum, infimum
   , decreasing, le, lt, unknown, orderMat, collapseO
+  , NotWorse(..)
     -- * Call matrices
   , Index
   , CallMatrix'(..), CallMatrix
@@ -23,34 +24,45 @@ module Agda.Termination.CallGraph
   , Call'(..), Call
   , callInvariant
     -- * Call graphs
-  , CallGraph
+  , CallGraph(..)
   , callGraphInvariant
   , fromList
   , toList
   , empty
   , union
   , insert
-  , complete
-  -- , showBehaviour -- RETIRED
+  , complete, completionInit, completionStep
   , prettyBehaviour
     -- * Tests
   , Agda.Termination.CallGraph.tests
   ) where
 
-import Agda.Utils.QuickCheck
-import Agda.Utils.Function
-import Agda.Utils.List hiding (tests)
-import Agda.Utils.Pretty hiding (empty)
-import Agda.Utils.TestHelpers
-import Agda.Termination.SparseMatrix as Matrix hiding (tests)
-import Agda.Termination.Semiring (HasZero(..), Semiring)
-import qualified Agda.Termination.Semiring as Semiring
+import Data.Array (elems)
+import Data.Function
 import Data.Map (Map, (!))
 import qualified Data.Map as Map
 import Data.List hiding (union, insert)
 import Data.Monoid
-import Data.Array (elems)
-import Data.Function
+
+import Data.Foldable (Foldable)
+import qualified Data.Foldable as Fold
+import Data.Traversable (Traversable)
+import qualified Data.Traversable as Trav
+
+import Agda.Termination.SparseMatrix as Matrix hiding (tests)
+import Agda.Termination.Semiring (HasZero(..), Semiring)
+import qualified Agda.Termination.Semiring as Semiring
+
+import Agda.Utils.Favorites (Favorites(..))
+import qualified Agda.Utils.Favorites as Fav
+import Agda.Utils.Function
+import Agda.Utils.List hiding (tests)
+import Agda.Utils.Map
+import Agda.Utils.Maybe
+import Agda.Utils.PartialOrd
+import Agda.Utils.Pretty hiding (empty)
+import Agda.Utils.QuickCheck
+import Agda.Utils.TestHelpers
 
 #include "../undefined.h"
 import Agda.Utils.Impossible
@@ -88,6 +100,78 @@ instance Show Order where
 
 instance HasZero Order where
   zeroElement = Unknown
+
+-- | Information order: 'Unknown' is least information.
+--   The more we decrease, the more information we have.
+--
+--   When having comparable call-matrices, we keep the lesser one.
+--   Call graph completion works toward losing the good calls,
+--   tending towards Unknown (the least information).
+instance PartialOrd Order where
+  comparable o o' = case (o, o') of
+    (Unknown, Unknown) -> POEQ
+    (Unknown, _      ) -> POLT
+    (_      , Unknown) -> POGT
+    (Decr k , Decr l ) -> comparableOrd k l
+    -- Matrix-shaped orders are no longer supported
+    (Mat{}  , _      ) -> __IMPOSSIBLE__
+    (_      , Mat{}  ) -> __IMPOSSIBLE__
+
+-- | Pointwise comparison.
+--   Only matrices with the same dimension are comparable.
+instance (Ord i, PartialOrd a) => PartialOrd (Matrix i a) where
+  comparable m n
+    | size m /= size n = POAny
+    | otherwise        = Fold.fold $
+                           zipMatrices onlym onlyn both trivial m n
+    where
+      -- If an element is only in @m@, then its 'Unknown' in @n@
+      -- so it gotten better at best, in any case, not worse.
+      onlym o = POGT
+      -- If an element is only in @n@, then its 'Unknown' in @m@
+      -- so we have strictly less information.
+      onlyn o = POLT
+      both    = comparable
+      -- The zero element of the result sparse matrix is the
+      -- neutral element of the monoid.
+      trivial = (==mempty)
+
+-- | A partial order, aimed at deciding whether a call graph gets
+--   worse during the completion.
+--
+class NotWorse a where
+  notWorse :: a -> a -> Bool
+
+-- | It does not get worse then ``increase''.
+--   If we are still decreasing, it can get worse: less decreasing.
+instance NotWorse Order where
+  o       `notWorse` Unknown = True            -- we are unboundedly increasing
+  Unknown `notWorse` Decr k = k < 0            -- we are increasing
+  Decr l  `notWorse` Decr k = k < 0 || l >= k  -- we are increasing or
+                                               -- we are decreasing, but more
+  -- Matrix-shaped orders are no longer supported
+  Mat m   `notWorse` o       = __IMPOSSIBLE__
+  o       `notWorse` Mat m   = __IMPOSSIBLE__
+{-
+  Mat m   `notWorse` Mat n   = m `notWorse` n  -- matrices are compared pointwise
+  o       `notWorse` Mat n   = o `notWorse` collapse n  -- or collapsed (sound?)
+  Mat m   `notWorse` o       = collapse m `notWorse` o
+-}
+
+-- | We assume the matrices have the same dimension.
+instance (Ord i) => NotWorse (Matrix i Order) where
+  m `notWorse` n
+    | size m /= size n = __IMPOSSIBLE__
+    | otherwise        = Fold.all isTrue $
+                           zipMatrices onlym onlyn both trivial m n
+    where
+      -- If an element is only in @m@, then its 'Unknown' in @n@
+      -- so it gotten better at best, in any case, not worse.
+      onlym o = True     -- @== o `notWorse` Unknown@
+      onlyn o = Unknown `notWorse` o
+      both    = notWorse
+      isTrue  = id
+      trivial = id
 
 -- | Raw increase which does not cut off.
 increase :: Int -> Order -> Order
@@ -140,7 +224,7 @@ decreasing _ = False
 
 instance Pretty Order where
   pretty (Decr 0) = text "="
-  pretty (Decr k) = text $ show k
+  pretty (Decr k) = text $ show (0 - k)
   pretty Unknown  = text "?"
   pretty (Mat m)  = text "Mat" <+> pretty m
 
@@ -298,17 +382,16 @@ type Index = Integer
 -- ('callMatrixInvariant').
 
 newtype CallMatrix' a = CallMatrix { mat :: Matrix Index a }
-  deriving (Eq, Ord, Show, Functor)
+  deriving (Eq, Ord, Show, Functor, Foldable, Traversable, CoArbitrary, PartialOrd)
 
 type CallMatrix = CallMatrix' Order
+
+deriving instance NotWorse CallMatrix
 
 instance Arbitrary CallMatrix where
   arbitrary = do
     sz <- arbitrary
     callMatrix sz
-
-instance CoArbitrary CallMatrix where
-  coarbitrary (CallMatrix m) = coarbitrary m
 
 prop_Arbitrary_CallMatrix = callMatrixInvariant
 
@@ -356,6 +439,13 @@ prop_cmMul sz =
   forAll (callMatrix $ Size { rows = cols sz, cols = c2 }) $ \cm2 ->
     callMatrixInvariant (cm1 <*> cm2)
 
+{- UNUSED, BUT DON'T REMOVE!
+-- | Call matrix addition = minimum = pick worst information.
+addCallMatrices :: (?cutoff :: Int) => CallMatrix -> CallMatrix -> CallMatrix
+addCallMatrices cm1 cm2 = CallMatrix $
+  add (Semiring.add orderSemiring) (mat cm1) (mat cm2)
+-}
+
 ------------------------------------------------------------------------
 -- Calls
 
@@ -387,6 +477,18 @@ data Call' a =
   deriving (Eq, Ord, Show, Functor)
 
 type Call = Call' Order
+
+instance PartialOrd a => PartialOrd (Call' a) where
+  comparable (Call s t m) (Call s' t' m')
+    | s /= s'   = POAny
+    | t /= t'   = POAny
+    | otherwise = comparable m m'
+
+instance NotWorse Call where
+  c1 `notWorse` c2
+    | source c1 /= source c2 = __IMPOSSIBLE__
+    | target c1 /= target c2 = __IMPOSSIBLE__
+    | otherwise              = cm c1 `notWorse` cm c2
 
 instance Arbitrary Call where
   arbitrary = do
@@ -426,7 +528,7 @@ c1 >*< c2 =
 -- meta information for different calls can be combined when the calls
 -- are combined.
 
-newtype CallGraph meta = CallGraph { cg :: Map Call meta }
+newtype CallGraph meta = CallGraph { theCallGraph :: Map Call meta }
   deriving (Eq, Show)
 
 -- | 'CallGraph' invariant.
@@ -438,7 +540,7 @@ callGraphInvariant = all (callInvariant . fst) . toList
 -- information.
 
 toList :: CallGraph meta -> [(Call, meta)]
-toList = Map.toList . cg
+toList = Map.toList . theCallGraph
 
 -- | Converts a list of calls with associated meta information to a
 -- call graph.
@@ -455,7 +557,7 @@ empty = CallGraph Map.empty
 
 union :: Monoid meta
       => CallGraph meta -> CallGraph meta -> CallGraph meta
-union cs1 cs2 = CallGraph $ (Map.unionWith mappend `on` cg) cs1 cs2
+union cs1 cs2 = CallGraph $ (Map.unionWith mappend `on` theCallGraph) cs1 cs2
 
 -- | 'CallGraph' is a monoid under 'union'.
 
@@ -467,7 +569,7 @@ instance Monoid meta => Monoid (CallGraph meta) where
 
 insert :: Monoid meta
        => Call -> meta -> CallGraph meta -> CallGraph meta
-insert c m = CallGraph . Map.insertWith mappend c m . cg
+insert c m = CallGraph . Map.insertWith mappend c m . theCallGraph
 
 -- | Generates a call graph.
 
@@ -490,6 +592,69 @@ prop_callGraph =
   forAll (callGraph :: Gen (CallGraph [Integer])) $ \cs ->
     callGraphInvariant cs
 
+-- | Call graph representation as map from source-target node pair to edge
+
+data SourceTarget = SourceTarget { src :: Index, tgt :: Index }
+  deriving (Eq, Ord, Show)
+
+type CMSet       = Favorites CallMatrix
+type CallGraphST = Map SourceTarget CMSet
+
+-- | A set of favorites @s@ is not worse than a set of favorites @t@
+--   if for each @a `elem` s@ there a @b `elem` t@
+--   such that @a@ is not worse than @b@.
+
+instance NotWorse a => NotWorse (Favorites a) where
+  Favorites s `notWorse` Favorites t =
+    (`all` t) $ \ a ->
+    (`any` s) $ \ b -> a `notWorse` b
+
+
+-- | A call graph has not become worse
+--   if it does not connect previously unconnected nodes
+--   and each edge has not gotten worse.
+
+instance NotWorse CallGraphST where
+  g1 `notWorse` g2 = (`allWithKey` g1) $ \ k cms1 ->
+    -- We can ignore edges that are only g2 (impossible anyway).
+    -- If the edge is only present in g1, we've gotten worse.
+    caseMaybe (Map.lookup k g2) False $ \ cms2 ->
+      -- If the edge is present in both, we compare.
+      cms1 `notWorse` cms2
+
+{-
+instance NotWorse CallGraphST where
+  g1 `notWorse` g2 = allWithKey edgeNotWorse g1
+    -- we can ignore edges that are only g2 (impossible anyway)
+    where
+      edgeNotWorse :: SourceTarget -> CMSet -> Bool
+      edgeNotWorse k cms1 =
+        caseMaybe (Map.lookup k g2)
+          -- if the edge is only present in g1, we've gotten worse
+          False $
+          -- if the edge is present in both, we compare
+          (\ cms2 -> cms1 `notWorse` cms2)
+{- TRASH:
+          \ l2 -> flip all cms1 $ \ cm1 -> any (cm1 `notWorse`) (favorites l2)
+          case Fav.compareWithFavorites cm1 l2 of
+            Fav.IsDominated{}       -> True  -- no new info, it's not gotten worse
+            Fav.Dominates cms2 _rest -> all (cm1 `notWorse`) cms2
+-}
+-}
+
+-- | Convert a call graph such that all calls between nodes are grouped together.
+--
+--   TODO: store the call graph in this form from the beginning.
+
+toCallGraphST :: CallGraph meta -> CallGraphST
+toCallGraphST =
+    Map.fromListWith Fav.union . map fromCall . Map.keys . theCallGraph
+  where fromCall (Call s t m) = (SourceTarget s t, Fav.singleton m)
+
+instance NotWorse (CallGraph meta) where
+  g1 `notWorse` g2 = toCallGraphST g1 `notWorse` toCallGraphST g2
+
+
 -- | Call graph combination. (Application of '>*<' to all pairs @(c1,
 -- c2)@ for which @'source' c1 = 'target' c2@.)
 --
@@ -503,11 +668,25 @@ combine s1 s2 = fromList $
   , source c1 == target c2
   ]
 
+-- | Call graph comparison.
+--   A graph @cs'@ is ``worse'' than @cs@ if it has a new edge (call)
+--   or a call got worse, which means that one of its elements
+--   that was better or equal to 'Le' moved a step towards 'Un'.
+--
+--   A call graph is complete if combining it with itself does not make it
+--   any worse.  This is sound because of monotonicity:  By combining a graph
+--   with itself, it can only get worse, but if it does not get worse after
+--   one such step, it gets never any worse.
+
 -- | @'complete' cs@ completes the call graph @cs@. A call graph is
 -- complete if it contains all indirect calls; if @f -> g@ and @g ->
 -- h@ are present in the graph, then @f -> h@ should also be present.
 
 complete :: (?cutoff :: Int) => Monoid meta => CallGraph meta -> CallGraph meta
+complete cs = iterateUntil notWorse (completionStep cs0) cs0
+  where cs0 = completionInit cs
+
+{-
 complete cs = complete' safeCS
   where
   safeCS = ensureCompletePrecondition cs
@@ -516,7 +695,12 @@ complete cs = complete' safeCS
                | otherwise   = complete' cs'
     where
     cs' = cs `union` combine cs safeCS
-    (.==.) = ((==) `on` (Map.keys . cg))
+    (.==.) = ((==) `on` (Map.keys . theCallGraph))
+-}
+
+completionStep :: (?cutoff :: Int) => Monoid meta =>
+  CallGraph meta -> CallGraph meta -> CallGraph meta
+completionStep gOrig gThis = gThis `union` (gThis `combine` gOrig)
 
 prop_complete :: (?cutoff :: Int) => Property
 prop_complete =
@@ -526,12 +710,15 @@ prop_complete =
 -- | Returns 'True' iff the call graph is complete.
 
 isComplete :: (Ord meta, Monoid meta, ?cutoff :: Int) => CallGraph meta -> Bool
-isComplete s = all (`Map.member` cg s) combinations
+isComplete s = (s `union` (s `combine` s)) `notWorse` s
+{-
+isComplete s = all (`Map.member` theCallGraph s) combinations
   where
   calls = toList s
   combinations =
     [ c2 >*< c1 | (c1, _) <- calls, (c2, _) <- calls
                 , target c1 == source c2 ]
+-}
 
 -- | Checks whether every 'Index' used in the call graph corresponds
 -- to a fixed number of arguments (i.e. rows\/columns).
@@ -546,12 +733,13 @@ completePrecondition cs =
   size' = size . mat . cm
 
 -- | Returns a call graph padded with 'Unknown's in such a way that
--- 'completePrecondition' is satisfied.
+--   all calls between two functions have the same call matrix dimensions.
+--   The result satisfies 'completePrecondition'.
 
-ensureCompletePrecondition
+completionInit
   :: Monoid meta => CallGraph meta -> CallGraph meta
-ensureCompletePrecondition cs =
-  CallGraph $ Map.mapKeysWith mappend pad $ cg cs
+completionInit cs =
+  CallGraph $ Map.mapKeysWith mappend pad $ theCallGraph cs
   where
   -- The maximum number of arguments detected for every index.
   noArgs :: Map Index Integer
@@ -575,7 +763,7 @@ ensureCompletePrecondition cs =
 
 prop_ensureCompletePrecondition =
   forAll (callGraph :: Gen (CallGraph [Integer])) $ \cs ->
-    let cs' = ensureCompletePrecondition cs in
+    let cs' = completionInit cs in
     completePrecondition cs'
     &&
     all callInvariant (map fst $ toList cs')
