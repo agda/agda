@@ -291,6 +291,7 @@ library
                     Agda.TypeChecking.With
                     Agda.Utils.Char
                     Agda.Utils.Either
+                    Agda.Utils.Favorites
                     Agda.Utils.FileName
                     Agda.Utils.Fresh
                     Agda.Utils.Functor
