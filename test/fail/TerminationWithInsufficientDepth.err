@@ -1,8 +1,0 @@
-
-Termination checking failed for the following functions:
-  f, g
-Problematic calls:
-  g n zero
-    (at TerminationWithInsufficientDepth.agda:22,19-20)
-  f (suc n)
-    (at TerminationWithInsufficientDepth.agda:24,9-10)
