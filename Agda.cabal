@@ -306,6 +306,7 @@ library
                     Agda.Utils.Map
                     Agda.Utils.Maybe
                     Agda.Utils.Monad
+                    Agda.Utils.PartialOrd
                     Agda.Utils.Permutation
                     Agda.Utils.Pointer
                     Agda.Utils.Pointed
