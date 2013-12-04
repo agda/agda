@@ -34,10 +34,14 @@ module Agda.Termination.Matrix
 
 import Data.Array
 import Data.List as List
-import Agda.Utils.QuickCheck
-import Agda.Utils.TestHelpers
+import Data.Foldable (Foldable)
+import Data.Traversable (Traversable)
+
 import Agda.Termination.Semiring (Semiring)
 import qualified Agda.Termination.Semiring as Semiring
+
+import Agda.Utils.QuickCheck
+import Agda.Utils.TestHelpers
 
 ------------------------------------------------------------------------
 -- Basic data types
@@ -97,7 +101,7 @@ prop_Arbitrary_MIx = mIxInvariant
 -- | Type of matrices, parameterised on the type of values.
 
 newtype Matrix i b = M { unM :: Array (MIx i) b }
-  deriving (Eq, Ord, Functor)
+  deriving (Eq, Ord, Functor, Foldable, Traversable)
 
 matrixInvariant :: (Num i, Ix i) => Matrix i b -> Bool
 matrixInvariant m =
