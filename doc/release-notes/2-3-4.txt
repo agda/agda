@@ -75,6 +75,30 @@ Pragmas and Options
          d : A
          d = c
 
+* The option --termination-depth is now obsolete.
+
+  The default termination depth is now infinity instead of
+  (previously) 1.  This means that setting --termination-depth might
+  now make the termination checker *weaker* (instead of stronger).
+  However, there is no guaranteed effect of setting
+  --termination-depth any more.  The flag is only kept for debugging
+  Agda.
+
+  For example, the following code now passes the termination checker
+  (needed higher --termination-depth before):
+
+    f : Nat → Nat
+    g : Nat → Nat
+
+    f zero                = zero
+    f (suc zero)          = zero
+    f (suc (suc zero))    = zero
+    f (suc (suc (suc n))) = g n     -- decrease by 3
+
+    g n = f (suc (suc n))           -- increase by 2
+
+  [See also issue 709.]
+
 Language
 ========
 
@@ -417,8 +441,9 @@ Type checking
 
 * Termination checking of functions defined by 'with' has been improved.
 
-  Cases which previously required --termination-depth to pass the termination
-  checker (due to use of 'with') no longer need the flag. For example
+  Cases which previously required --termination-depth (now obsolete!)
+  to pass the termination checker (due to use of 'with') no longer
+  need the flag. For example
 
     merge : List A → List A → List A
     merge [] ys = ys
