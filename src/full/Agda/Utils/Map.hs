@@ -12,6 +12,9 @@ import Agda.Utils.Tuple
 #include "../undefined.h"
 import Agda.Utils.Impossible
 
+-- * Monadic map operations
+---------------------------------------------------------------------------
+
 data EitherOrBoth a b = L a | B a b | R b
 
 -- | Not very efficient (goes via a list), but it'll do.
@@ -34,6 +37,13 @@ insertWithKeyM clash k x m =
 	    z <- clash k x y
 	    return $ insert k z m
 	Nothing	-> return $ insert k x m
+
+-- * Non-monadic map operations
+---------------------------------------------------------------------------
+
+-- | Big conjunction over a map.
+allWithKey :: (k -> a -> Bool) -> Map k a -> Bool
+allWithKey f = Map.foldrWithKey (\ k a b -> f k a && b) True
 
 -- | Filter a map based on the keys.
 filterKeys :: Ord k => (k -> Bool) -> Map k a -> Map k a
