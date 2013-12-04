@@ -611,7 +611,7 @@ instance Show meta => Pretty (CallGraph meta) where
       [ ("Source:",    text $ show $ source c)
       , ("Target:",    text $ show $ target c)
       , ("Matrix:",    pretty (mat $ cm c))
-      , ("Meta info:", text $ show meta)
+      -- , ("Meta info:", text $ show meta) -- not pretty at all
       ]
 
 -- | Displays the recursion behaviour corresponding to a call graph.
