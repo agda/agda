@@ -53,17 +53,17 @@ import Data.List (partition)
 -- This criterion is strictly more liberal than searching for a
 -- lexicographic order (and easier to implement, but harder to justify).
 
-terminates :: (Monoid meta, ?cutoff :: Int) => CallGraph meta -> Either meta ()
+terminates :: (Monoid meta, ?cutoff :: CutOff) => CallGraph meta -> Either meta ()
 terminates cs = let ccs = complete cs
                 in
                   checkIdems $ toList ccs
 
-terminatesFilter :: (Monoid meta, ?cutoff :: Int) =>
+terminatesFilter :: (Monoid meta, ?cutoff :: CutOff) =>
   (Index -> Bool) -> CallGraph meta -> Either meta ()
 terminatesFilter f cs = checkIdems $ filter f' $ toList $ complete cs
   where f' (c,m) = f (source c) && f (target c)
 
-checkIdems :: (Monoid meta, ?cutoff :: Int) => [(Call,meta)] -> Either meta ()
+checkIdems :: (Monoid meta, ?cutoff :: CutOff) => [(Call,meta)] -> Either meta ()
 checkIdems calls = caseMaybe (mhead offending) (Right ()) $ \ (c,m) -> Left m
   where
     (idems, other) = partition (idempotent . fst) calls
@@ -76,7 +76,7 @@ checkIdems calls = caseMaybe (mhead offending) (Right ()) $ \ (c,m) -> Left m
    The examples below do not include the guardedness flag, though.
  -}
 
-checkIdem :: (?cutoff :: Int) => Call -> Bool
+checkIdem :: (?cutoff :: CutOff) => Call -> Bool
 checkIdem c = if idempotent c then hasDecrease c else True
 {-
 checkIdem c = let
@@ -96,12 +96,12 @@ checkIdem c = let
 --   We can test idempotency by self-composition.
 --   Self-composition @c >*< c@ should not make any parameter-argument relation
 --    worse.
-idempotent  :: (?cutoff :: Int) => Call -> Bool
+idempotent  :: (?cutoff :: CutOff) => Call -> Bool
 idempotent c = target c == source c
   && (c >*< c) `notWorse` c
 
 
-hasDecrease :: (?cutoff :: Int) => Call -> Bool
+hasDecrease :: (?cutoff :: CutOff) => Call -> Bool
 hasDecrease c = any isDecr $ Array.elems $ diagonal $ mat $ cm c
 
 -- | Matrix is decreasing if any diagonal element is decreasing.
@@ -140,7 +140,7 @@ example1 = buildCallGraph [c1, c2, c3]
             , cm = CallMatrix $ fromLists (Size 1 2) [[unknown, le]]
             }
 
-prop_terminates_example1 ::  (?cutoff :: Int) => Bool
+prop_terminates_example1 ::  (?cutoff :: CutOff) => Bool
 prop_terminates_example1 = isRight $ terminates example1
 
 -- | An example which is now handled by this algorithm: argument
@@ -159,7 +159,7 @@ example2 = buildCallGraph [c]
                                                     , [lt, unknown] ]
            }
 
-prop_terminates_example2 ::  (?cutoff :: Int) => Bool
+prop_terminates_example2 ::  (?cutoff :: CutOff) => Bool
 prop_terminates_example2 = isRight $ terminates example2
 
 -- | A related example which is anyway handled: argument swapping addition
@@ -183,7 +183,7 @@ example3 = buildCallGraph [c plus plus', c plus' plus]
                                                         , [lt, unknown] ]
                }
 
-prop_terminates_example3 ::  (?cutoff :: Int) => Bool
+prop_terminates_example3 ::  (?cutoff :: CutOff) => Bool
 prop_terminates_example3 = isRight $ terminates example3
 
 -- | A contrived example.
@@ -215,7 +215,7 @@ example4 = buildCallGraph [c1, c2, c3]
                                                      , [unknown, le] ]
             }
 
-prop_terminates_example4 ::  (?cutoff :: Int) => Bool
+prop_terminates_example4 ::  (?cutoff :: CutOff) => Bool
 prop_terminates_example4 = isLeft $ terminates example4
 
 -- | This should terminate.
@@ -246,7 +246,7 @@ example5 = buildCallGraph [c1, c2, c3, c4]
                                                      , [unknown, le] ]
             }
 
-prop_terminates_example5 ::  (?cutoff :: Int) => Bool
+prop_terminates_example5 ::  (?cutoff :: CutOff) => Bool
 prop_terminates_example5 = isRight $ terminates example5
 
 -- | Another example which should fail.
@@ -272,7 +272,7 @@ example6 = buildCallGraph [c1, c2, c3]
             , cm = CallMatrix $ fromLists (Size 1 1) [ [le] ]
             }
 
-prop_terminates_example6 ::  (?cutoff :: Int) => Bool
+prop_terminates_example6 ::  (?cutoff :: CutOff) => Bool
 prop_terminates_example6 = isLeft $ terminates example6
 
 ------------------------------------------------------------------------
@@ -287,4 +287,4 @@ tests = runTests "Agda.Termination.Termination"
   , quickCheck' prop_terminates_example5
   , quickCheck' prop_terminates_example6
   ]
-  where ?cutoff = 0 -- all these examples are with just lt,le,unknown
+  where ?cutoff = CutOff 0 -- all these examples are with just lt,le,unknown

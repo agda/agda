@@ -29,6 +29,9 @@ import Data.List		( isSuffixOf , intercalate )
 import System.Console.GetOpt	(getOpt, usageInfo, ArgOrder(ReturnInOrder)
 				, OptDescr(..), ArgDescr(..)
 				)
+
+import Agda.Termination.CallGraph ( CutOff(..) )
+
 import Agda.Utils.TestHelpers   ( runTests )
 import Agda.Utils.QuickCheck    ( quickCheck' )
 import Agda.Utils.FileName      ( AbsolutePath )
@@ -98,7 +101,8 @@ data PragmaOptions = PragmaOptions
   , optAllowUnsolved             :: Bool
   , optDisablePositivity         :: Bool
   , optTerminationCheck          :: Bool
-  , optTerminationDepth          :: Int
+  , optTerminationDepth          :: CutOff
+    -- ^ Cut off structural order comparison at some depth in termination checker?
   , optCompletenessCheck         :: Bool
   , optUniverseCheck             :: Bool
   , optSizedTypes                :: Bool
@@ -170,7 +174,7 @@ defaultPragmaOptions = PragmaOptions
   , optAllowUnsolved             = False
   , optDisablePositivity         = False
   , optTerminationCheck          = True
-  , optTerminationDepth          = 0    -- this is the cutoff value
+  , optTerminationDepth          = CutOff 0    -- this is the cutoff value
   , optCompletenessCheck         = True
   , optUniverseCheck             = True
   , optSizedTypes                = False
@@ -323,7 +327,7 @@ verboseFlag s o =
 terminationDepthFlag s o =
     do k <- readM s `catchError` \_ -> usage
        when (k < 1) $ usage -- or: turn termination checking off for 0
-       return $ o { optTerminationDepth = k-1 }
+       return $ o { optTerminationDepth = CutOff $ k-1 }
     where usage = throwError "argument to termination-depth should be >= 1"
 
 integerArgument :: String -> String -> Either String Int

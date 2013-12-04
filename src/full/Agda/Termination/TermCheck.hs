@@ -207,7 +207,7 @@ termMutual i ds = if names == [] then return mempty else
 --   @allNames@ is taken from 'Internal' syntax, it contains also
 --   the definitions created by the type checker (e.g., with-functions).
 --
-termMutual' :: (?cutoff :: Int) => DBPConf -> [QName] -> MutualNames -> TCM Result
+termMutual' :: (?cutoff :: CutOff) => DBPConf -> [QName] -> MutualNames -> TCM Result
 termMutual' conf names allNames = do
 
      -- collect all recursive calls in the block
@@ -290,7 +290,7 @@ reportCalls no calls = do
 --   @allNames@ is taken from 'Internal' syntax, it contains also
 --   the definitions created by the type checker (e.g., with-functions).
 --
-termFunction :: (?cutoff :: Int) => DBPConf -> [QName] -> MutualNames -> QName -> TCM Result
+termFunction :: (?cutoff :: CutOff) => DBPConf -> [QName] -> MutualNames -> QName -> TCM Result
 termFunction conf0 names allNames name = do
 
      let index = toInteger $ maybe __IMPOSSIBLE__ id $
@@ -673,7 +673,7 @@ termTerm conf names f delayed pats0 t0 = do
        -- so look for recursive calls also
        -- in sorts.  Ideally, Sort would not be its own datatype but just
        -- a subgrammar of Term, then we would not need this boilerplate.
-       loopSort :: (?cutoff :: Int) => [DeBruijnPat] -> Sort -> TCM Calls
+       loopSort :: (?cutoff :: CutOff) => [DeBruijnPat] -> Sort -> TCM Calls
        loopSort pats s = do
          reportSDoc "term.sort" 20 $ text "extracting calls from sort" <+> prettyTCM s
          reportSDoc "term.sort" 50 $ text ("s = " ++ show s)
@@ -694,13 +694,13 @@ termTerm conf names f delayed pats0 t0 = do
              (loopSort pats s1)
              (addCtxString x __IMPOSSIBLE__ $ loopSort (map liftDBP pats) s2)
 
-       loopType :: (?cutoff :: Int) => [DeBruijnPat] -> Order -> Type -> TCM Calls
+       loopType :: (?cutoff :: CutOff) => [DeBruijnPat] -> Order -> Type -> TCM Calls
        loopType pats guarded (El s t) = liftM2 Term.union
          (loopSort pats s)
          (loop pats guarded t)
 
        loop
-         :: (?cutoff :: Int)
+         :: (?cutoff :: CutOff)
          => [DeBruijnPat] -- ^ Parameters of calling function as patterns.
          -> Order         -- ^ Guardedness status of @Term@.
          -> Term          -- ^ Part of function body from which calls are to be extracted.
@@ -978,7 +978,7 @@ maskSizeLt dom@(Dom info a) = do
      The guardedness is the number of projection patterns in @pats@
      minus the number of projections in @ts@
  -}
-compareArgs ::  (Integral n, ?cutoff :: Int) => Maybe QName -> [DeBruijnPat] -> [Elim] -> TCM (n, n, [[Term.Order]])
+compareArgs ::  (Integral n, ?cutoff :: CutOff) => Maybe QName -> [DeBruijnPat] -> [Elim] -> TCM (n, n, [[Term.Order]])
 compareArgs suc pats es = do
   -- matrix <- forM es $ forM pats . compareTerm suc  -- UNREADABLE pointfree style
   matrix <- forM es $ \ e -> forM pats $ \ p -> compareElim suc e p
@@ -992,12 +992,12 @@ compareArgs suc pats es = do
   return $ addGuardedness guardedness (size es) (size pats) matrix
 
 -- OLD:
--- compareArgs ::  (?cutoff :: Int) => Maybe QName -> [DeBruijnPat] -> [Term] -> TCM ([[Term.Order]])
+-- compareArgs ::  (?cutoff :: CutOff) => Maybe QName -> [DeBruijnPat] -> [Term] -> TCM ([[Term.Order]])
 -- compareArgs suc pats ts = matrix <- mapM (\t -> mapM (compareTerm suc t) pats) ts
 
 -- | @compareElim suc e dbpat@
 --   Precondition: top meta variable resolved
-compareElim :: (?cutoff :: Int) => Maybe QName -> Elim -> DeBruijnPat -> TCM Term.Order
+compareElim :: (?cutoff :: CutOff) => Maybe QName -> Elim -> DeBruijnPat -> TCM Term.Order
 compareElim suc e p = do
   reportSDoc "term.compare" 30 $ sep
     [ text "compareElim"
@@ -1070,7 +1070,7 @@ addGuardedness o nrows ncols m =
    (o : genericReplicate ncols Term.unknown) : map (Term.unknown :) m)
 
 -- | Compose something with the upper-left corner of a call matrix
-composeGuardedness :: (?cutoff :: Int) => Term.Order -> [[Term.Order]] -> [[Term.Order]]
+composeGuardedness :: (?cutoff :: CutOff) => Term.Order -> [[Term.Order]] -> [[Term.Order]]
 composeGuardedness o ((corner : row) : rows) = ((o .*. corner) : row) : rows
 composeGuardedness _ _ = __IMPOSSIBLE__
 
@@ -1088,7 +1088,7 @@ subPatterns p = case p of
   LitDBP _    -> []
   ProjDBP _   -> []
 
-compareTerm :: (?cutoff :: Int) => Maybe QName -> Term -> DeBruijnPat -> TCM Term.Order
+compareTerm :: (?cutoff :: CutOff) => Maybe QName -> Term -> DeBruijnPat -> TCM Term.Order
 compareTerm suc t p = do
 --   reportSDoc "term.compare" 25 $
 --     text " comparing term " <+> prettyTCM t <+>
@@ -1187,7 +1187,7 @@ instance StripAllProjections Term where
 
 -- | compareTerm t dbpat
 --   Precondition: top meta variable resolved
-compareTerm' :: (?cutoff :: Int) => Maybe QName -> Term -> DeBruijnPat -> TCM Term.Order
+compareTerm' :: (?cutoff :: CutOff) => Maybe QName -> Term -> DeBruijnPat -> TCM Term.Order
 compareTerm' suc (Shared x)   p = compareTerm' suc (derefPtr x) p
 -- Andreas, 2013-11-20 do not drop projections, in any case not coinductive ones!:
 compareTerm' suc (Var i es)   p | Just{} <- allApplyElims es
@@ -1236,7 +1236,7 @@ isSubTerm t p = equal t p || properSubTerm t p
     properSubTerm t (ConDBP _ ps) = any (isSubTerm t) ps
     properSubTerm _ _ = False
 
-compareConArgs :: (?cutoff :: Int) => Maybe QName -> Args -> [DeBruijnPat] -> TCM Term.Order
+compareConArgs :: (?cutoff :: CutOff) => Maybe QName -> Args -> [DeBruijnPat] -> TCM Term.Order
 compareConArgs suc ts ps =
   -- we may assume |ps| >= |ts|, otherwise c ps would be of functional type
   -- which is impossible
@@ -1263,7 +1263,7 @@ compareConArgs suc ts ps =
 --               else Term.infimum (zipWith compareTerm' (map unArg ts) ps)
 -}
 
-compareVar :: (?cutoff :: Int) => Maybe QName -> Nat -> DeBruijnPat -> TCM Term.Order
+compareVar :: (?cutoff :: CutOff) => Maybe QName -> Nat -> DeBruijnPat -> TCM Term.Order
 compareVar suc i (VarDBP j)    = compareVarVar suc i j
 compareVar suc i (LitDBP _)    = return $ Term.unknown
 compareVar suc i (ProjDBP _)   = return $ Term.unknown
@@ -1272,7 +1272,7 @@ compareVar suc i (ConDBP c ps) = do
            <*> (Term.supremum <$> mapM (compareVar suc i) ps)
 
 -- | Compare two variables
-compareVarVar :: (?cutoff :: Int) => Maybe QName -> Nat -> Nat -> TCM Term.Order
+compareVarVar :: (?cutoff :: CutOff) => Maybe QName -> Nat -> Nat -> TCM Term.Order
 compareVarVar suc i j
   | i == j    = return Term.le
   | otherwise = do
