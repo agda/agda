@@ -141,6 +141,31 @@ instance PartialOrd a => PartialOrd (Pointwise [a]) where
     where unconsPointwise []       = Nothing
           unconsPointwise (x : xs) = Just (x, Pointwise xs)
 
+-- * PartialOrdering is itself partially ordered!
+
+-- | Less is ``less general'' (i.e., more precise).
+instance PartialOrd PartialOrdering where
+  -- working our way down: POAny is top
+  comparable POAny POAny = POEQ
+  comparable _    POAny  = POLT
+  -- next are the fuzzy notions POLE and POGE
+  comparable POLE POLE = POEQ
+  comparable POLE POLT = POGT
+  comparable POLE POEQ = POGT
+  comparable POGE POGE = POEQ
+  comparable POGE POGT = POGT
+  comparable POGE POEQ = POGT
+  -- lowest are the precise notions POLT POEQ POGT
+  comparable POLT POLT = POEQ
+  comparable POLT POLE = POLT
+  comparable POEQ POEQ = POEQ
+  comparable POEQ POLE = POLT
+  comparable POEQ POGE = POLT
+  comparable POGT POGT = POEQ
+  comparable POGT POGE = POLT
+  -- anything horizontal is not comparable
+  comparable _    _    = POAny
+
 -- * Properties
 
--- TODO!
+-- TODO: Quickcheck properties.
