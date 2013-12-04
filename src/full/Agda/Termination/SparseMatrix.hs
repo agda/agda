@@ -1,4 +1,4 @@
-{-# LANGUAGE CPP, DeriveFunctor #-}
+{-# LANGUAGE CPP, ScopedTypeVariables, DeriveFunctor, DeriveFoldable, DeriveTraversable #-}
 
 {- | Sparse matrices.
 
@@ -27,6 +27,7 @@ module Agda.Termination.SparseMatrix
   , square
   , isEmpty
   , isSingleton
+  , zipMatrices
   , add, intersectWith
   , mul
   , transpose
@@ -42,11 +43,16 @@ import Data.Array
 import qualified Data.List as List
 import Data.Maybe
 
+import Data.Foldable (Foldable)
+import Data.Traversable (Traversable)
+
+import Agda.Termination.Semiring (HasZero(..), Semiring)
+import qualified Agda.Termination.Semiring as Semiring
+
 import Agda.Utils.Pretty hiding (isEmpty)
 import Agda.Utils.QuickCheck
 import Agda.Utils.TestHelpers
-import Agda.Termination.Semiring (HasZero(..), Semiring)
-import qualified Agda.Termination.Semiring as Semiring
+import Agda.Utils.Tuple
 
 #include "../undefined.h"
 import Agda.Utils.Impossible
@@ -109,7 +115,7 @@ prop_Arbitrary_MIx = mIxInvariant
 -- | Type of matrices, parameterised on the type of values.
 
 data Matrix i b = M { size :: Size i, unM :: [(MIx i, b)] }
-  deriving (Eq, Ord, Functor)
+  deriving (Eq, Ord, Functor, Foldable, Traversable)
 
 matrixInvariant :: (Num i, Ix i) => Matrix i b -> Bool
 matrixInvariant m = all (\ (MIx i j, b) -> 1 <= i && i <= rows sz
@@ -282,6 +288,24 @@ transpose m = M { size = transposeSize (size m)
 prop_transpose :: TM -> Bool
 prop_transpose m = matrixInvariant m' && m == transpose m'
   where m' = transpose m
+
+-- | General pointwise combination function for sparse matrices.
+zipMatrices :: forall a b c i . (Ord i)
+  => (a -> c)       -- ^ Element only present in left matrix.
+  -> (b -> c)       -- ^ Element only present in right matrix.
+  -> (a -> b -> c)  -- ^ Element present in both matrices.
+  -> (c -> Bool)    -- ^ Result counts as zero?
+  -> Matrix i a -> Matrix i b -> Matrix i c
+zipMatrices f g h zero m1 m2 = M (supSize m1 m2) (merge (unM m1) (unM m2))
+  where
+    merge :: [(MIx i,a)] -> [(MIx i,b)] -> [(MIx i,c)]
+    merge [] m2 = filter (zero . snd) $ map (mapSnd g) m2
+    merge m1 [] = filter (zero . snd) $ map (mapSnd f) m1
+    merge m1@((i,a):m1') m2@((j,b):m2') =
+      case compare i j of
+        LT -> if zero c then r else (i,c) : r where c = f a   ; r = merge m1' m2
+        GT -> if zero c then r else (j,c) : r where c = g b   ; r = merge m1  m2'
+        EQ -> if zero c then r else (i,c) : r where c = h a b ; r = merge m1' m2'
 
 -- | @'add' (+) m1 m2@ adds @m1@ and @m2@. Uses @(+)@ to add values.
 --
