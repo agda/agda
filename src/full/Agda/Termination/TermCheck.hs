@@ -21,6 +21,7 @@ import Control.Monad.State
 import Data.List as List
 import Data.Maybe (mapMaybe, isJust)
 import Data.Monoid
+import qualified Data.Map as Map
 import qualified Data.Set as Set
 import Data.Traversable (traverse)
 
@@ -52,6 +53,7 @@ import Agda.TypeChecking.SizedTypes
 
 import Agda.Interaction.Options
 
+import Agda.Utils.Function
 import Agda.Utils.List
 import Agda.Utils.Size
 import Agda.Utils.Monad -- (mapM', forM', ifM, or2M, and2M, (<.>))
@@ -238,13 +240,46 @@ reportCalls no calls = do
    reportS "term.lex" 20 $ unlines
      [ "Calls (" ++ no ++ "dot patterns): " ++ show calls
      ]
+
+   -- Print the whole completion phase
+   verboseS "term.matrices" 40 $ do
+     let header s = unlines
+           [ replicate n '='
+           , replicate k '=' ++ s ++ replicate k' '='
+           , replicate n '='
+           ]
+           where n  = 70
+                 r  = n - length s
+                 k  = r `div` 2
+                 k' = r - k
+     let report s cs = reportSDoc "term.matrices" 40 $ vcat
+           [ text   $ header s
+           , nest 2 $ pretty cs
+           ]
+         cs0     = completionInit calls
+         step cs = do
+           let cs' = completionStep cs0 cs
+               diff = CallGraph $ theCallGraph cs' Map.\\ theCallGraph cs
+           report " New call matrices " diff
+           return cs'
+     report " Initial call matrices " cs0
+     void $ iterateUntilM notWorse step cs0
+
+   -- Print the result of completion
+   let calls' = Term.complete calls
+       (idems, others) = List.partition (Term.idempotent . fst) $
+         Term.toList calls'
    reportSDoc "term.behaviours" 20 $ vcat
      [ text $ "Recursion behaviours (" ++ no ++ "dot patterns):"
-     , nest 2 $ return $ Term.prettyBehaviour (Term.complete calls)
+     , nest 2 $ return $ Term.prettyBehaviour calls'
      ]
    reportSDoc "term.matrices" 30 $ vcat
-     [ text $ "Call matrices (" ++ no ++ "dot patterns):"
-     , nest 2 $ pretty $ Term.complete calls
+     [ text $ "Idempotent call matrices (" ++ no ++ "dot patterns):"
+     , nest 2 $ pretty $ Term.fromList idems
+     ]
+   reportSDoc "term.matrices" 30 $ vcat
+     [ text $ "Other call matrices (" ++ no ++ "dot patterns):"
+     , nest 2 $ pretty $ Term.fromList others
      ]
 
 -- | @termFunction conf names allNames name@ checks @name@ for termination.
