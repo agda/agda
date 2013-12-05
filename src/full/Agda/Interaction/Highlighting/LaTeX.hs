@@ -7,6 +7,7 @@ module Agda.Interaction.Highlighting.LaTeX
   ( generateLaTeX
   ) where
 
+import Prelude hiding (log)
 import Data.Char
 import Data.Maybe
 import Data.Function
@@ -16,6 +17,7 @@ import System.Directory
 import System.FilePath
 import Data.Text (Text)
 import qualified Data.Text          as T
+import qualified Data.Text.IO       as T
 import qualified Data.Text.Encoding as E
 import qualified Data.ByteString    as BS
 
@@ -39,11 +41,12 @@ import Agda.Utils.Impossible
 ------------------------------------------------------------------------
 -- * Datatypes.
 
--- | The @LaTeX@ monad is a combination of @ErrorT@ and @RWS@. The error
--- part is just used to keep track whether we finished or not, the
--- reader part isn't used, the writer is where the output goes and the
--- state is for keeping track of the tokens and some other useful info.
-type LaTeX = ErrorT String (RWS () Text State)
+-- | The @LaTeX@ monad is a combination of @ErrorT@, @RWST@ and
+-- @IO@. The error part is just used to keep track whether we finished
+-- or not, the reader part isn't used, the writer is where the output
+-- goes and the state is for keeping track of the tokens and some other
+-- useful info, and the I/O part is used for printing debugging info.
+type LaTeX = ErrorT String (RWST () Text State IO)
 
 data State = State
   { tokens     :: Tokens
@@ -52,21 +55,26 @@ data State = State
   , indentPrev :: Int
   , inCode     :: Bool    -- ^ Keeps track of whether we are in a code
                           -- block or not.
+  , debugs     :: [Debug] -- ^ Says what debug information should printed.
   }
 
 type Tokens = [Token]
 
 data Token = Token
-  { string   :: Text
+  { text     :: Text
   , info     :: MetaInfo
   , position :: Integer  -- ^ Is not used currently, but could
                          -- potentially be used for hyperlinks as in
                          -- the HTML output?
   }
+  deriving Show
+
+data Debug = MoveColumn | NonCode | Code | Spaces | Output
+  deriving (Eq, Show)
 
 -- | Run function for the @LaTeX@ monad.
-runLaTeX :: LaTeX a -> () -> State -> (Either String a, State, Text)
-runLaTeX = runRWS . runErrorT
+runLaTeX :: LaTeX a -> () -> State -> IO (Either String a, State, Text)
+runLaTeX = runRWST . runErrorT
 
 emptyState :: State
 emptyState = State
@@ -75,6 +83,7 @@ emptyState = State
   , indent     = 0
   , indentPrev = 0
   , inCode     = False
+  , debugs     = []
   }
 
 ------------------------------------------------------------------------
@@ -98,11 +107,10 @@ isInfixOfRev needle haystack
       Just (pre, suf) -> Just (T.reverse suf, T.reverse pre)
 
 isSpaces :: Text -> Bool
-isSpaces (T.uncons -> Nothing)     = True
-isSpaces (T.uncons -> Just (c, s)) | isSpace c = isSpaces s
-                                   | otherwise = False
+isSpaces = T.all isSpace
 
-isSpaces _                         = __IMPOSSIBLE__
+isActualSpaces :: Text -> Bool
+isActualSpaces = T.all (== ' ')
 
 -- | Yields the next token, taking special care to begin/end code
 -- blocks. Junk occuring before and after the code blocks is separated
@@ -115,8 +123,8 @@ nextToken' = do
     []     -> throwError "Done"
 
     -- Clean begin/end code block or a LaTeX comment.
-    t : ts | string t == beginCode || string t == endCode ||
-             T.singleton '%' == T.take 1 (T.stripStart (string t)) -> do
+    t : ts | text t == beginCode || text t == endCode ||
+             T.singleton '%' == T.take 1 (T.stripStart (text t)) -> do
 
       modify $ \s -> s { tokens = ts }
       return t
@@ -127,12 +135,13 @@ nextToken' = do
       inCode <- gets inCode
       let code = if inCode then endCode else beginCode
 
-      case code `isInfixOf'` string t of
+      case code `isInfixOf'` text t of
         Nothing -> do
 
           -- Spaces take care of their own column tracking.
-          unless (isSpaces (string t)) $ do
-            moveColumn $ T.length $ string t
+          unless (isSpaces (text t)) $ do
+            log MoveColumn $ text t
+            moveColumn $ T.length $ text t
 
           return t
 
@@ -147,11 +156,7 @@ nextToken' = do
                if code == beginCode && isSpaces suf
                then case T.singleton '\n' `isInfixOf'` suf of
                      Nothing        -> (pre, [ beginCode ])
-                     Just (_, suf') -> (pre, beginCode : if suf' == T.empty
-                                                         then []
-                                                         else T.dropWhile
-                                                              (`elem` [' ', '\t'])
-                                                              suf' : [])
+                     Just (_, suf') -> (pre, [ beginCode, suf' ])
 
                -- Do the converse thing for end code blocks.
                else if code == endCode && isSpaces pre
@@ -166,17 +171,18 @@ nextToken' = do
               -- second ends up in the suffix of the first's end code.
                     else (pre, [ code, suf ])
 
-          let tokToReturn   = t { string = textToReturn }
-          let toksToPutBack = map (\txt -> t { string = txt }) textsToPutBack
+          let tokToReturn   = t { text = textToReturn }
+          let toksToPutBack = map (\txt -> t { text = txt }) textsToPutBack
 
           unless (isSpaces pre) $ do
+            log MoveColumn pre
             moveColumn $ T.length pre
 
           modify $ \s -> s { tokens = toksToPutBack ++ tokens s }
           return tokToReturn
 
 nextToken :: LaTeX Text
-nextToken = string `fmap` nextToken'
+nextToken = text `fmap` nextToken'
 
 resetColumn :: LaTeX ()
 resetColumn = modify $ \s -> s { column = 0 }
@@ -184,8 +190,8 @@ resetColumn = modify $ \s -> s { column = 0 }
 moveColumn :: Int -> LaTeX ()
 moveColumn i = modify $ \s -> s { column = i + column s }
 
-moveIndent :: Int -> LaTeX ()
-moveIndent i = modify $ \s -> s { indent = i + indent s }
+setIndent :: Int -> LaTeX ()
+setIndent i = modify $ \s -> s { indent = i }
 
 resetIndent :: LaTeX ()
 resetIndent = modify $ \s -> s { indent = 0 }
@@ -201,6 +207,34 @@ setInCode = modify $ \s -> s { inCode = True }
 
 unsetInCode :: LaTeX ()
 unsetInCode = modify $ \s -> s { inCode = False }
+
+logHelper :: Debug -> Text -> [String] -> LaTeX ()
+logHelper debug text extra = do
+  debugs <- gets debugs
+  when (debug `elem` debugs) $ do
+    lift $ lift $ T.putStrLn $ T.pack (show debug ++ ": ") <+>
+      T.pack "'" <+> text <+> T.pack "' " <+>
+      if null extra
+         then T.empty
+         else T.pack "(" <+> T.pack (unwords extra) <+> T.pack ")"
+
+log :: Debug -> Text -> LaTeX ()
+log MoveColumn text = do
+  ind <- gets indent
+  logHelper MoveColumn text ["ind=", show ind]
+log Code text = do
+  ind <- gets indent
+  col <- gets column
+  logHelper Code text ["ind=", show ind, "col=", show col]
+log debug text = logHelper debug text []
+
+log' :: Debug -> String -> LaTeX ()
+log' d = log d . T.pack
+
+output :: Text -> LaTeX ()
+output text = do
+  log Output text
+  tell text
 
 ------------------------------------------------------------------------
 -- * LaTeX and polytable strings.
@@ -235,17 +269,18 @@ infixr'     = T.pack "infixr"
 nonCode :: LaTeX ()
 nonCode = do
   tok <- nextToken
+  log NonCode tok
 
   if tok == beginCode
 
      then do
-       tell $ beginCode <+> nl
+       output $ beginCode <+> nl
        resetColumn
        setInCode
        code
 
      else do
-       tell tok
+       output tok
        nonCode
 
 -- | Deals with code blocks. Every token, except spaces, is pretty
@@ -253,20 +288,26 @@ nonCode = do
 code :: LaTeX ()
 code = do
 
-  col <- gets column
-  when (col == 0) $ do
-    tell ptOpen
+  -- Get the column information before grabbing the token, since
+  -- grabbing (possibly) moves the column.
+  col  <- gets column
 
   tok' <- nextToken'
-  let tok = string tok'
+  let tok = text tok'
+  log Code tok
+
+  when (tok == T.empty) code
+
+  when (col == 0 && not (isActualSpaces tok)) $ do
+    output ptOpen
 
   when (tok == endCode) $ do
-    tell $ ptClose <+> nl <+> endCode
+    output $ ptClose <+> nl <+> endCode
     unsetInCode
     nonCode
 
   when (tok `elem` [ infixl', infix', infixr' ]) $ do
-    tell $ cmdPrefix <+> T.pack "Keyword" <+> cmdArg tok
+    output $ cmdPrefix <+> T.pack "Keyword" <+> cmdArg tok
     fixity
     code
 
@@ -275,8 +316,9 @@ code = do
     code
 
   case aspect (info tok') of
-    Nothing -> tell $ escape tok
-    Just a  -> tell $ cmdPrefix <+> T.pack (cmd a) <+> cmdArg (escape tok)
+    Nothing -> output $ escape tok
+    Just a  -> output $ cmdPrefix <+> T.pack (cmd a) <+> cmdArg (escape tok)
+
   code
 
   where
@@ -333,12 +375,12 @@ fixity = do
 
     -- Fixity level.
     (num, nls) | nls == T.empty -> do
-        tell $ cmdPrefix <+> T.pack "Number" <+> cmdArg num
+        output $ cmdPrefix <+> T.pack "Number" <+> cmdArg num
         fixity
 
     -- Operations followed by newlines.
     (ops, nls) | otherwise      -> do
-        tell $ escape ops
+        output $ escape ops
         spaces (T.group nls)
 
 
@@ -352,7 +394,7 @@ spaces ((T.uncons -> Nothing)       : ss) = __IMPOSSIBLE__
 -- Single spaces are ignored.
 spaces ((T.uncons -> Just (' ', s)) : []) | T.null s = do
   moveColumn 1
-  tell $ T.singleton ' '
+  output $ T.singleton ' '
 
 -- Multiple spaces.
 spaces (s@(T.uncons -> Just (' ', _)) : ss) = do
@@ -361,43 +403,49 @@ spaces (s@(T.uncons -> Just (' ', _)) : ss) = do
   col <- gets column
   moveColumn len
 
-  if col == 0
+  if col /= 0
+
      then do
-
-       -- FIX: What's going on here?
-       ind     <- gets indent
-       indPrev <- gets indentPrev
-
-       if ind == len
-          then do
-            tell $ ptOpen' indPrev
-          else do
-            if len < ind
-               then do
-                 resetIndent
-                 resetIndentPrev
-                 tell $ ptOpen' $ if indPrev == 0 ||
-                                         len == indPrev
-                                     then 0
-                                     else ind - indPrev - len
-               else do
-                 moveIndent $ len - ind
-                 setIndentPrev ind
-                 tell $ ptOpen' ind
-
-       tell $ cmdIndent len
-       tell $ ptClose' len <+> nl <+> ptOpen' len
-     else do
-       tell $ T.singleton ' '
+       log' Spaces "col /= 0"
+       output $ T.singleton ' '
        col <- gets column
-       tell $ ptClose' col <+> nl <+> ptOpen' col
+       output $ ptClose' col <+> nl <+> ptOpen' col
+
+     else do
+       log' Spaces "col == 0"
+       indent <- gets indent
+       indentPrev <- gets indentPrev
+
+       case compare len indent of
+
+         GT -> do
+           log' Spaces "GT"
+           setIndent len
+           setIndentPrev indent
+           output $ ptOpen' indent
+           output $ cmdIndent len
+           output $ ptClose' len <+> nl <+> ptOpen' len
+
+         EQ -> do
+           log' Spaces "EQ"
+           output $ ptOpen' indentPrev
+           output $ cmdIndent len
+           output $ ptClose' len <+> nl <+> ptOpen' len
+
+         LT -> do
+           log' Spaces "LT"
+           setIndent len
+           resetIndentPrev
+           output $ ptOpen' 0
+           output $ cmdIndent len
+           output $ ptClose' len <+> nl <+> ptOpen' len
 
   spaces ss
 
 -- Newlines.
 spaces (s@(T.uncons -> Just ('\n', _)) : ss) = do
   resetColumn
-  tell $ ptClose <+> T.replicate (T.length s) ptNL
+  output $ ptClose <+> T.replicate (T.length s) ptNL
   spaces ss
 
 -- Treat tabs as if they were spaces.
@@ -441,7 +489,7 @@ generateLaTeX mod hi = do
 
   liftIO $ do
     source <- UTF8.readTextFile (modToFile mod <.> "lagda")
-    let latex = E.encodeUtf8 $ toLaTeX source hi
+    latex <- E.encodeUtf8 `fmap` toLaTeX source hi
     BS.writeFile (dir </> modToFile mod <.> "tex") latex
 
   where
@@ -453,7 +501,7 @@ generateLaTeX mod hi = do
     go (c   : cs) = c             : go cs
 
 -- | Transforms the source code into LaTeX.
-toLaTeX :: String -> HighlightingInfo -> Text
+toLaTeX :: String -> HighlightingInfo -> IO Text
 toLaTeX source hi
 
   = processTokens
@@ -462,7 +510,7 @@ toLaTeX source hi
   -- collect the characters into a string.
   . map (\xs -> case xs of
                     (mi, (pos, _)) : _ ->
-                        Token { string   = T.pack $ map (\(_, (_, c)) -> c) xs
+                        Token { text     = T.pack $ map (\(_, (_, c)) -> c) xs
                               , info     = maybe mempty id mi
                               , position = pos
                               }
@@ -482,10 +530,9 @@ toLaTeX source hi
   where
   infoMap = toMap (decompress hi)
 
-processTokens :: Tokens -> Text
-processTokens ts =
+processTokens :: Tokens -> IO Text
+processTokens ts = do
+  (x, _, s) <- runLaTeX nonCode () (emptyState { tokens = ts })
   case x of
-    Left "Done" -> s
+    Left "Done" -> return s
     _           -> __IMPOSSIBLE__
-  where
-  (x, _, s) = runLaTeX nonCode () (emptyState { tokens = ts })

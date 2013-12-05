@@ -1,0 +1,40 @@
+\documentclass{article}
+\usepackage{agda}
+\begin{document}
+
+\begin{code}%
+\>\AgdaKeyword{record} \AgdaRecord{Sigma} \AgdaSymbol{(}\AgdaBound{A} \AgdaSymbol{:} \AgdaPrimitiveType{Set}\AgdaSymbol{)} \AgdaSymbol{(}\AgdaBound{B} \AgdaSymbol{:} \AgdaBound{A} \AgdaSymbol{→} \AgdaPrimitiveType{Set}\AgdaSymbol{)} \AgdaSymbol{:} \AgdaPrimitiveType{Set} \AgdaKeyword{where}\<%
+\\
+\>[0]\AgdaIndent{2}{}\<[2]%
+\>[2]\AgdaKeyword{constructor} \AgdaInductiveConstructor{\_,\_}\<%
+\\
+\>[0]\AgdaIndent{2}{}\<[2]%
+\>[2]\AgdaKeyword{field}\<%
+\\
+\>[2]\AgdaIndent{4}{}\<[4]%
+\>[4]\AgdaField{proj₁} \AgdaSymbol{:} \AgdaBound{A}\<%
+\\
+\>[2]\AgdaIndent{4}{}\<[4]%
+\>[4]\AgdaField{proj₂} \AgdaSymbol{:} \AgdaBound{B} \AgdaBound{proj₁}\<%
+\\
+%
+\\
+\>\AgdaKeyword{open} \AgdaModule{Sigma} \AgdaKeyword{public}\<%
+\end{code}
+
+\begin{code}%
+\>\AgdaKeyword{record} \AgdaRecord{Equiv} \AgdaSymbol{(}\AgdaBound{X} \AgdaBound{Y} \AgdaSymbol{:} \AgdaPrimitiveType{Set}\AgdaSymbol{)} \AgdaSymbol{:} \AgdaPrimitiveType{Set} \AgdaKeyword{where}\<%
+\\
+\>[0]\AgdaIndent{2}{}\<[2]%
+\>[2]\AgdaKeyword{field}\<%
+\\
+\>[2]\AgdaIndent{4}{}\<[4]%
+\>[4]\AgdaField{to} \<[10]%
+\>[10]\AgdaSymbol{:} \AgdaBound{X} \AgdaSymbol{→} \AgdaBound{Y}\<%
+\\
+\>[2]\AgdaIndent{4}{}\<[4]%
+\>[4]\AgdaField{from} \<[10]%
+\>[10]\AgdaSymbol{:} \AgdaBound{Y} \AgdaSymbol{→} \AgdaBound{X}\<%
+\end{code}
+
+\end{document}

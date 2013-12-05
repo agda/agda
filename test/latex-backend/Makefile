@@ -1,4 +1,4 @@
-all: 
+all:
 	runghc RunTests.hs runTests
 
 clean:
