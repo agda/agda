@@ -306,6 +306,9 @@ escape (T.uncons -> Just (c, s)) = T.pack (replace c) <+> escape s
     '~'  -> "\\textasciitilde"
     '^'  -> "\\textasciicircum"
     '\\' -> "\\textbackslash"
+    -- Escaping newlines seems to fix the problem caused by pattern
+    -- synonyms.
+    '\n' -> "\\<\\\\\n\\>"
     _    -> [ c ]
 escape _                         = __IMPOSSIBLE__
 

@@ -1,0 +1,26 @@
+\documentclass{article}
+\usepackage{agda}
+\begin{document}
+
+\begin{code}%
+\>\AgdaKeyword{data} \AgdaDatatype{Nat} \AgdaSymbol{:} \AgdaPrimitiveType{Set} \AgdaKeyword{where}\<%
+\\
+\>[0]\AgdaIndent{2}{}\<[2]%
+\>[2]\AgdaInductiveConstructor{zero} \AgdaSymbol{:} \AgdaDatatype{Nat}\<%
+\\
+\>[0]\AgdaIndent{2}{}\<[2]%
+\>[2]\AgdaInductiveConstructor{suc} \AgdaSymbol{:} \AgdaDatatype{Nat} \AgdaSymbol{→} \AgdaDatatype{Nat}\<%
+\\
+%
+\\
+\>\AgdaKeyword{pattern} two   \AgdaSymbol{=} suc \AgdaSymbol{(}suc zero\AgdaSymbol{)}\<%
+\\
+\>\AgdaKeyword{pattern} three \AgdaSymbol{=} suc two\<\\
+\>\AgdaKeyword{pattern} four  \AgdaSymbol{=} suc three\<\\
+\>\<\\
+\>\AgdaKeyword{pattern} five  \AgdaSymbol{=} suc four\<\\
+\>\<\\
+\>\AgdaKeyword{data} \AgdaDatatype{Bot} \AgdaSymbol{:} \AgdaPrimitiveType{Set} \AgdaKeyword{where}\<%
+\end{code}
+
+\end{document}
