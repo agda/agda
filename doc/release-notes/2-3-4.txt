@@ -7,15 +7,16 @@ Important changes since 2.3.2:
 Installation and Infrastructure
 ===============================
 
-* The include path now always contains the directory
+* The include path now contains by default the directory
 
-    $CABAL_HOME/share/Agda-$VERSION/lib/prim
+    $CABAL_HOME/share/$AGDA/lib/prim
 
-  where $VERSION is the current Agda version (2.3.4 for this release)
-  and $CABAL_HOME is cabal home directory of your system, on Linux that
-  would be $HOME/.cabal.
+  where $AGDA shall denote the sudirectory that cabal dedicated to the resources
+  of the Agda installation (that could be "Agda-2.3.4" for this release)
+  and $CABAL_HOME shall denote the cabal home directory of your system,
+  on Linux that could be $HOME/.cabal.
 
-  This directory contains a module Agda.Prim which declares the level
+  This directory contains a module Agda.Primitive which declares the level
   built-ins and their representation in Haskell when compiling with MAlonzo:
 
     infixl 6 _⊔_
