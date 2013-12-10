@@ -293,7 +293,6 @@ parameters :: [LamBinding] -> Params
 parameters = List.concat . List.map numP where
   numP (DomainFree i _) = [argInfoHiding i]
   numP (DomainFull (TypedBindings _ (Common.Arg i (TBind _ xs _)))) = List.replicate (length xs) $ argInfoHiding i
-  numP (DomainFull (TypedBindings _ (Common.Arg _ (TNoBind{}))))    = __IMPOSSIBLE__
 
 {- OLD:
 
@@ -302,7 +301,6 @@ numberOfPars :: [LamBinding] -> Params
 numberOfPars = List.sum . List.map numP where
   numP (DomainFree NotHidden _ _) = 1
   numP (DomainFull (TypedBindings _ (Arg NotHidden _ (TBind _ xs _)))) = length xs
-  numP (DomainFull (TypedBindings _ (Arg _ _ (TNoBind{})))) =  __IMPOSSIBLE__
   numP _ = 0  -- hidden / instance argument
 -- | Compute number of parameters of a data or record signature or definition.
 numberOfPars :: [LamBinding] -> Int
@@ -310,7 +308,6 @@ numberOfPars = List.sum . List.map numP where
   numP (DomainFree{}) = 1
   numP (DomainFull (TypedBindings _ arg)) = nP $ unArg arg where
     nP (TBind _ xs _) = length xs
-    nP (TNoBind _)    = __IMPOSSIBLE__
 -}
 
 niceDeclarations :: [Declaration] -> Nice [NiceDeclaration]
@@ -525,8 +522,6 @@ niceDeclarations ds = do
          [mkSig (fuseRange x t) f PublicAccess x tel t | Just t <- [mt] ] ++
          [mkDef (getRange x) f ConcreteDef x (concatMap dropType tel) ds | Just ds <- [mds] ]
       where
-        dropType (DomainFull (TypedBindings r (Common.Arg i TNoBind{}))) =
-          [DomainFree i $ mkBoundName_ $ noName r]
         dropType (DomainFull (TypedBindings r (Common.Arg i (TBind _ xs _)))) =
           map (DomainFree i) xs
         dropType b@DomainFree{} = [b]

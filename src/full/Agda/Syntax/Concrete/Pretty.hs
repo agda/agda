@@ -231,8 +231,6 @@ instance Pretty Tel where
 
 
 instance Pretty ColoredTypedBinding where
-    pretty (WithColors cs  (TNoBind e))    =
-	    pretty e <+> pColors "" cs
                 -- (x y :{ i j } A) -> ...
     pretty (WithColors [] (TBind _ xs (Underscore _ Nothing))) =
         fsep (map pretty xs)
@@ -246,7 +244,6 @@ pColors s [] = text s
 pColors s cs = text (s ++ "{") <+> fsep (map pretty cs) <+> text "}"
 
 instance Pretty TypedBinding where
-    pretty (TNoBind e) = pretty e
     pretty (TBind _ xs e) =
 	sep [ fsep (map pretty xs)
 	    , text ":" <+> pretty e

@@ -159,7 +159,6 @@ mkBoundName x f = BName x x f
 type TypedBinding = TypedBinding' Expr
 data TypedBinding' e
     = TBind !Range [BoundName] e -- ^ Binding @x1,..,xn:A@
-    | TNoBind e                  -- ^ No binding @A@, equivalent to @_ : A@.
   deriving (Typeable, Functor, Foldable, Traversable)
 
 -- | Color a TypeBinding. Used by Pretty.
@@ -468,7 +467,6 @@ instance HasRange TypedBindings where
 
 instance HasRange TypedBinding where
     getRange (TBind r _ _) = r
-    getRange (TNoBind e)   = getRange e
 
 instance HasRange LamBinding where
     getRange (DomainFree _ x) = getRange x
@@ -688,7 +686,6 @@ instance KillRange RHS where
 
 instance KillRange TypedBinding where
   killRange (TBind _ b e) = killRange2 (TBind noRange) b e
-  killRange (TNoBind e)   = killRange1 TNoBind e
 
 instance KillRange TypedBindings where
   killRange (TypedBindings _ t) = killRange1 (TypedBindings noRange) t

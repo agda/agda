@@ -259,7 +259,6 @@ generateAndPrintSyntaxInfo decl hlLevel = do
 
     getTyped :: A.TypedBinding -> File
     getTyped (A.TBind _ xs _) = mconcat $ map bound xs
-    getTyped (A.TNoBind {})   = mempty
 
     getPattern :: A.Pattern -> File
     getPattern (A.VarP x)    = bound x

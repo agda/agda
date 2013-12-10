@@ -975,7 +975,6 @@ instance LowerMeta C.TypedBindings where
 
 instance LowerMeta C.TypedBinding where
   lowerMeta (C.TBind r ns e) = C.TBind r ns (lowerMeta e)
-  lowerMeta (C.TNoBind e)    = C.TNoBind (lowerMeta e)
 
 instance LowerMeta C.RHS where
     lowerMeta (C.RHS e)    = C.RHS (lowerMeta e)

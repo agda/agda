@@ -303,7 +303,6 @@ instance Rename TypedBindings where
 
 instance Rename TypedBinding where
   rename rho (TBind r ns e) = TBind r ns (rename rho e)
-  rename rho (TNoBind    e) = TNoBind (rename rho e)
 
 instance Rename Clause where
   rename rho (Clause lhs rhs wheredecls) =

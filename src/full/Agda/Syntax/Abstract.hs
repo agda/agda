@@ -188,7 +188,6 @@ data TypedBindings = TypedBindings Range (Arg TypedBinding)
 --   really be a problem, but it's good principle to not do extra work unless
 --   you have to.
 data TypedBinding = TBind Range [Name] Expr
-		  | TNoBind Expr
   deriving (Typeable, Show)
 
 type Telescope	= [TypedBindings]
@@ -430,7 +429,6 @@ instance HasRange TypedBindings where
 
 instance HasRange TypedBinding where
     getRange (TBind r _ _) = r
-    getRange (TNoBind e)   = getRange e
 
 instance HasRange Expr where
     getRange (Var x)		   = getRange x
@@ -536,7 +534,6 @@ instance KillRange TypedBindings where
 
 instance KillRange TypedBinding where
   killRange (TBind r xs e) = killRange3 TBind r xs e
-  killRange (TNoBind e)    = killRange1 TNoBind e
 
 instance KillRange Expr where
   killRange (Var x)                = killRange1 Var x
@@ -710,7 +707,6 @@ allNames (FunDef _ q _ cls)       = q <| Fold.foldMap allNamesC cls
 
   allNamesBinds :: TypedBindings -> Seq QName
   allNamesBinds (TypedBindings _ (Common.Arg _ (TBind _ _ e))) = allNamesE e
-  allNamesBinds (TypedBindings _ (Common.Arg _ (TNoBind e)))   = allNamesE e
 
   allNamesLet :: LetBinding -> Seq QName
   allNamesLet (LetBind _ _ _ e1 e2)  = Fold.foldMap allNamesE [e1, e2]
@@ -851,4 +847,3 @@ substTypedBindings s (TypedBindings r atb) = TypedBindings r
 substTypedBinding :: [(Name, Expr)] -> TypedBinding -> TypedBinding
 substTypedBinding s tb = case tb of
   TBind r ns e -> TBind r ns $ substExpr s e
-  TNoBind e    -> TNoBind $ substExpr s e
