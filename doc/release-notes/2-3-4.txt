@@ -59,8 +59,8 @@ Installation and Infrastructure
   $HOME/.cabal/share/Agda-2.3.4 or something similar.
 
   The location of the <DATADIR> directory can be configured at
-  compile-time using Cabal flags (--datadir and --datasubdir).  The
-  location can also be set at run-time, using the Agda_datadir
+  compile-time using Cabal flags (--datadir and --datasubdir).
+  The location can also be set at run-time, using the Agda_datadir
   environment variable.
 
 
