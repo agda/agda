@@ -319,7 +319,7 @@ data ModuleApplication
     deriving (Typeable)
 
 data OpenShortHand = DoOpen | DontOpen
-    deriving (Typeable, Show)
+    deriving (Typeable, Eq, Show)
 
 -- Pragmas ----------------------------------------------------------------
 
