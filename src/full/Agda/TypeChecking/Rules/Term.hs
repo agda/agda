@@ -1462,7 +1462,7 @@ checkLetBinding (A.LetApply i x modapp rd rm) ret = do
   -- module should go with the new module.
   -- fv   <- getDefFreeVars =<< (qnameFromList . mnameToList) <$> currentModule
   fv   <- getModuleFreeVars =<< currentModule
-  n    <- size <$> getContext
+  n    <- getContextSize
   let new = n - fv
   reportSLn "tc.term.let.apply" 10 $ "Applying " ++ show modapp ++ " with " ++ show new ++ " free variables"
   reportSDoc "tc.term.let.apply" 20 $ vcat
