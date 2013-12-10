@@ -9,6 +9,16 @@ module B (a : A) where
      C : Set
 -- B.C : (a : A) → Set
 
-module M (open B a) (c : C) where
+module N = B a
+module M' (open N) (c : C) where
   postulate cc : C
 -- M.cc : (a : B.A a) → B.A a
+
+E = let open B a in C
+
+module M (open B a) (x : A) where
+  D = C
+  postulate cc : C
+-- M.cc : (a : B.A a) → B.A a
+
+

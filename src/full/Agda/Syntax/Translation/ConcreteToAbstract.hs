@@ -205,6 +205,10 @@ checkModuleApplication (C.RecordModuleIFS _ recN) m0 x dir' =
     printScope "mod.inst" 20 "copied record module"
     return ((A.RecordModuleIFS m1), renD, renM)
 
+-- | @checkModuleMacro mkApply range access concreteName modapp open dir@
+--
+--   Preserves local variables.
+
 checkModuleMacro
   :: (ModuleInfo -> ModuleName -> A.ModuleApplication -> Ren A.QName -> Ren ModuleName -> a)
   -> Range
@@ -689,21 +693,87 @@ instance ToAbstract C.TypedBinding A.TypedBinding where
     ds' <- toAbstract (LetDefs ds)
     return $ A.TLet r ds'
 
+-- | Scope check a module (top level function).
+--
+scopeCheckNiceModule
+  :: Range
+  -> Access
+  -> C.Name
+  -> C.Telescope
+  -> ScopeM [A.Declaration]
+  -> ScopeM [A.Declaration]
+scopeCheckNiceModule r p name tel checkDs
+  | any isOpenBinds tel = do
+      -- Andreas, 2013-12-10:
+      -- If the module telescope contains open statements,
+      -- add an extra anonymous module around the current one.
+      -- Otherwise, the open statements would create
+      -- identifiers in the parent scope of the current module.
+      -- But open statements in the module telescope should
+      -- only affect the current module!
+      scopeCheckNiceModule noRange p noName_ [] $
+        scopeCheckNiceModule_
+
+  | otherwise = do
+        scopeCheckNiceModule_
+  where
+    -- The actual workhorse:
+    scopeCheckNiceModule_ = do
+
+      -- Check whether we are dealing with an anonymous module.
+      -- This corresponds to a Coq/LEGO section.
+      (name, p, open) <- do
+        if C.isNoName name then do
+          (i :: NameId) <- fresh
+          return (C.NoName (getRange name) i, PrivateAccess, True)
+         else return (name, p, False)
+
+      -- Check and bind the module, using the supplied check for its contents.
+      aname <- toAbstract (NewModuleName name)
+      ds <- snd <$> do
+        scopeCheckModule r (C.QName name) aname tel checkDs
+      bindModule p name aname
+
+      -- If the module was anonymous open it public.
+      when open $
+        openModule_ (C.QName name) $
+          defaultImportDir { publicOpen = True }
+      return ds
+
+    isOpenBinds (C.TypedBindings _ tb) = isOpenBind $ unArg tb
+    isOpenBind C.TBind{}     = False
+    isOpenBind (C.TLet _ ds) = any isOpen ds
+    isOpen (C.ModuleMacro _ _ _ DoOpen _) = True
+    isOpen C.Open{}          = True
+    isOpen C.Import{}        = __IMPOSSIBLE__
+    isOpen (C.Mutual   _ ds) = any isOpen ds
+    isOpen (C.Abstract _ ds) = any isOpen ds
+    isOpen (C.Private  _ ds) = any isOpen ds
+    isOpen   _               = False
+
 -- | Returns the scope inside the checked module.
-scopeCheckModule :: Range -> C.QName -> A.ModuleName -> C.Telescope -> [C.Declaration] ->
-                    ScopeM (ScopeInfo, [A.Declaration])
-scopeCheckModule r x qm tel ds = do
+scopeCheckModule
+  :: Range
+  -> C.QName                 -- ^ The concrete name of the module.
+  -> A.ModuleName            -- ^ The abstract name of the module.
+  -> C.Telescope             -- ^ The module telescope.
+  -> ScopeM [A.Declaration]  -- ^ The code for checking the module contents.
+  -> ScopeM (ScopeInfo, [A.Declaration])
+scopeCheckModule r x qm tel checkDs = do
   printScope "module" 20 $ "checking module " ++ show x
-  res <- withCurrentModule qm $ do
-    -- pushScope m
-    -- qm <- getCurrentModule
-    printScope "module" 20 $ "inside module " ++ show x
-    withLocalVars $ do
-      tel   <- toAbstract tel
-      ds    <- (:[]) . A.Section info (qm `withRangesOfQ` x) tel <$>
-                 toAbstract ds
+  -- Andreas, 2013-12-10: Telescope does not live in the new module
+  -- but its parent, so check it before entering the new module.
+  -- This is important for Nicolas Pouillard's open parametrized modules
+  -- statements inside telescopes.
+  res <- withLocalVars $ do
+    tel <- toAbstract tel
+    withCurrentModule qm $ do
+      -- pushScope m
+      -- qm <- getCurrentModule
+      printScope "module" 20 $ "inside module " ++ show x
+      ds    <- checkDs
       scope <- getScope
-      return (scope, ds)
+      return (scope, [ A.Section info (qm `withRangesOfQ` x) tel ds ])
 
   -- Binding is done by the caller
   printScope "module" 20 $ "after module " ++ show x
@@ -735,7 +805,7 @@ instance ToAbstract (TopLevel [C.Declaration]) TopLevelInfo where
           setTopLevelModule m
           am           <- toAbstract (NewModuleQName m)
           ds'          <- toAbstract ds'
-          (scope0, ds) <- scopeCheckModule r m am tel ds
+          (scope0, ds) <- scopeCheckModule r m am tel $ toAbstract ds
           scope        <- getScope
           return $ TopLevelInfo (ds' ++ ds) scope scope0
         _ -> __IMPOSSIBLE__
@@ -956,22 +1026,9 @@ instance ToAbstract NiceDeclaration A.Declaration where
         printScope "rec" 15 "record complete"
         return [ A.RecDef (mkDefInfo x f PublicAccess a r) x' ind cm' pars contel afields ]
 
-    -- Andreas, 2012-10-30 anonymous modules are like Coq sections
-    NiceModule r p a (C.QName name) tel ds ->
-      traceCall (ScopeCheckDeclaration $ NiceModule r p a (C.QName name) tel []) $ do
-      (name, p, isSection) <- if not (C.isNoName name)
-        then return (name, p, False)
-        else do
-          (i :: NameId) <- fresh
-          return (C.NoName (getRange name) i, PrivateAccess, True)
-      aname <- toAbstract (NewModuleName name)
-      ds <- snd <$> scopeCheckModule r (C.QName name) aname tel ds
-      bindModule p name aname
-      -- if the module was anonymous open it public
-      when isSection $
-        openModule_ (C.QName name) $
-          defaultImportDir { publicOpen = True }
-      return ds
+    NiceModule r p a x@(C.QName name) tel ds ->
+      traceCall (ScopeCheckDeclaration $ NiceModule r p a x tel []) $ do
+        scopeCheckNiceModule r p name tel $ toAbstract ds
 
     NiceModule _ _ _ C.Qual{} _ _ -> __IMPOSSIBLE__
 
@@ -1201,7 +1258,7 @@ whereToAbstract r whname whds inner = do
   let tel = []
   old <- getCurrentModule
   am  <- toAbstract (NewModuleName m)
-  (scope, ds) <- scopeCheckModule r (C.QName m) am tel whds
+  (scope, ds) <- scopeCheckModule r (C.QName m) am tel $ toAbstract whds
   setScope scope
   x <- inner
   setCurrentModule old
