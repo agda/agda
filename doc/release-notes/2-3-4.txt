@@ -7,17 +7,9 @@ Important changes since 2.3.2:
 Installation and Infrastructure
 ===============================
 
-* The include path now contains by default the directory
-
-    $CABAL_HOME/share/$AGDA/lib/prim
-
-  where $AGDA shall denote the sudirectory that cabal dedicated to the resources
-  of the Agda installation (that could be "Agda-2.3.4" for this release)
-  and $CABAL_HOME shall denote the cabal home directory of your system,
-  on Linux that could be $HOME/.cabal.
-
-  This directory contains a module Agda.Primitive which declares the level
-  built-ins and their representation in Haskell when compiling with MAlonzo:
+* A new module called Agda.Primitive has been introduced. This module
+  is available to all users, even if the standard library is not used.
+  Currently the module contains level primitives:
 
     infixl 6 _⊔_
 
@@ -37,25 +29,31 @@ Installation and Infrastructure
     {-# BUILTIN LEVELSUC  lsuc   #-}
     {-# BUILTIN LEVELMAX  _⊔_    #-}
 
-  To bring these declarations into scope, use, for instance,
+  To bring these declarations into scope you can use a declaration
+  like the following one:
 
-    open import Agda.Prim public using (Level; lzero; lsuc; _⊔_)
+    open import Agda.Primitive using (Level; lzero; lsuc; _⊔_)
 
-  potentially `renaming' these identifiers according to your taste.
+  The standard library reexports these primitives (using the names
+  zero and suc instead of lzero and lsuc) from the Level module.
 
-  The recommended way is, however, to wrap references to Agda.Prim
-  into a separate module, e.g., the module `Level' of the standard
-  library.
-
-  Your existing developments using universe polymorphism might now
-  throw the error:
+  Existing developments using universe polymorphism might now trigger
+  the following error message:
 
     Duplicate binding for built-in thing LEVEL, previous binding to
-    .Agda.Prim.Level
+    .Agda.Primitive.Level
 
-  In this case, remove your own bindings of the level built-ins,
-  and refer to the pre-defined ones!
+  To fix this problem, please remove the duplicate bindings.
 
+  Technical details (perhaps relevant to those who build Agda
+  packages):
+
+  The include path now always contains a directory <DATADIR>/lib/prim,
+  and this directory is supposed to contain a subdirectory Agda
+  containing a file Primitive.agda. The location of the <DATADIR>
+  directory can be configured at compile-time using Cabal flags
+  (--datadir and --datasubdir). The location can also be set at
+  run-time, using the Agda_datadir environment variable.
 
 Pragmas and Options
 ===================
