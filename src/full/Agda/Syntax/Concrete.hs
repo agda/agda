@@ -311,8 +311,11 @@ data Declaration
 	| Pragma      Pragma
     deriving (Typeable)
 
-data ModuleApplication = SectionApp Range [TypedBindings] Expr
-                       | RecordModuleIFS Range QName
+data ModuleApplication
+  = SectionApp Range [TypedBindings] Expr
+    -- ^ @tel. M args@
+  | RecordModuleIFS Range QName
+    -- ^ @M {{...}}@
     deriving (Typeable)
 
 data OpenShortHand = DoOpen | DontOpen

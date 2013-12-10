@@ -157,27 +157,43 @@ recordConstructorType fields = build fs
                                            build fs
     build []                           = C.SetN noRange 0 -- todo: nicer
 
+
+-- | @checkModuleApplication modapp m0 x dir = return (modapp', renD, renM)@
+--
+--   @m0@ is the new (abstract) module name and
+--   @x@ its concret form (used for error messages).
+checkModuleApplication
+  :: C.ModuleApplication
+  -> ModuleName
+  -> C.Name
+  -> ImportDirective
+  -> ScopeM (A.ModuleApplication, Ren A.QName, Ren ModuleName)
+
 checkModuleApplication (C.SectionApp _ tel e) m0 x dir' =
+  -- For the following, set the current module to be m0.
   withCurrentModule m0 $ do
+    -- check that expression @e@ is of the form @m args@
     (m, args) <- case appView e of
       AppView (Ident m) args -> return (m, args)
       _                      -> notAModuleExpr e
 
+    -- scope check the telescope (introduces bindings!)
     tel' <- toAbstract tel
-    (m1,args') <- toAbstract (OldModuleName m
-                             , args
-                             )
-    s  <- getNamedScope m1
+    -- scope the old module name, the module args
+    (m1,args') <- toAbstract (OldModuleName m, args)
     -- Drop constructors (OnlyQualified) if there are arguments. The record constructor
     -- isn't properly in the record module, so copying it will lead to badness.
     let noRecConstr | null args = id
                     | otherwise = removeOnlyQualified
+    -- Copy the scope associated with m and take the parts actually imported.
     (s', (renM, renD)) <- copyScope m0 . noRecConstr =<< getNamedScope m1
     s' <- applyImportDirectiveM (C.QName x) dir' s'
+    -- Set the current scope to @s'@
     modifyCurrentScope $ const s'
     printScope "mod.inst" 20 "copied source module"
     reportSLn "scope.mod.inst" 30 $ "renamings:\n  " ++ show renD ++ "\n  " ++ show renM
     return ((A.SectionApp tel' m1 args'), renD, renM)
+
 checkModuleApplication (C.RecordModuleIFS _ recN) m0 x dir' =
   withCurrentModule m0 $ do
     m1 <- toAbstract $ OldModuleName recN
@@ -189,6 +205,15 @@ checkModuleApplication (C.RecordModuleIFS _ recN) m0 x dir' =
     printScope "mod.inst" 20 "copied record module"
     return ((A.RecordModuleIFS m1), renD, renM)
 
+checkModuleMacro
+  :: (ModuleInfo -> ModuleName -> A.ModuleApplication -> Ren A.QName -> Ren ModuleName -> a)
+  -> Range
+  -> Access
+  -> C.Name
+  -> C.ModuleApplication
+  -> OpenShortHand
+  -> ImportDirective
+  -> ScopeM [a]
 checkModuleMacro apply r p x modapp open dir = withLocalVars $ do
     notPublicWithoutOpen open dir
 
@@ -205,9 +230,8 @@ checkModuleMacro apply r p x modapp open dir = withLocalVars $ do
     (modapp', renD, renM) <- checkModuleApplication modapp m0 x dir'
     bindModule p x m0
     printScope "mod.inst.copy.after" 20 "after copying"
-    case open of
-      DoOpen   -> openModule_ (C.QName x) dir
-      DontOpen -> return ()
+    when (open == DoOpen) $
+      openModule_ (C.QName x) dir
     printScope "mod.inst" 20 $ show open
     stripNoNames
     printScope "mod.inst" 10 $ "after stripping"
@@ -232,6 +256,7 @@ notPublicWithoutOpen DontOpen dir = when (publicOpen dir) $ typeError $
 -- | Computes the range of all the \"to\" keywords used in a renaming
 -- directive.
 
+renamingRange :: ImportDirective -> Range
 renamingRange = getRange . map renToRange . renaming
 
 {--------------------------------------------------------------------------

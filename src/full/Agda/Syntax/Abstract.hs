@@ -135,8 +135,11 @@ instance GetDefInfo Declaration where
   getDefInfo (RecDef i _ _ _ _ _ _) = Just i
   getDefInfo _ = Nothing
 
-data ModuleApplication = SectionApp [TypedBindings] ModuleName [NamedArg Expr]
-                       | RecordModuleIFS ModuleName
+data ModuleApplication
+    = SectionApp Telescope ModuleName [NamedArg Expr]
+      -- ^ @tel. M args@:  applies @M@ to @args@ and abstracts @tel@.
+    | RecordModuleIFS ModuleName
+      -- ^ @M {{...}}@
   deriving (Typeable, Show)
 
 data Pragma = OptionsPragma [String]
@@ -150,10 +153,16 @@ data Pragma = OptionsPragma [String]
             | EtaPragma QName
   deriving (Typeable, Show)
 
-data LetBinding = LetBind LetInfo ArgInfo Name Expr Expr -- ^ LetBind info rel name type defn
-                | LetPatBind LetInfo Pattern Expr -- ^ irrefutable pattern binding
-                | LetApply ModuleInfo ModuleName ModuleApplication (Map QName QName) (Map ModuleName ModuleName)
-                | LetOpen ModuleInfo ModuleName     -- ^ only for highlighting and abstractToConcrete
+-- | Bindings that are valid in a @let@.
+data LetBinding
+  = LetBind LetInfo ArgInfo Name Expr Expr
+    -- ^ @LetBind info rel name type defn@
+  | LetPatBind LetInfo Pattern Expr
+    -- ^ Irrefutable pattern binding.
+  | LetApply ModuleInfo ModuleName ModuleApplication (Map QName QName) (Map ModuleName ModuleName)
+    -- ^ @LetApply mi newM (oldM args) renaming moduleRenaming@.
+  | LetOpen ModuleInfo ModuleName
+    -- ^ only for highlighting and abstractToConcrete
   deriving (Typeable, Show)
 
 -- | Only 'Axiom's.
