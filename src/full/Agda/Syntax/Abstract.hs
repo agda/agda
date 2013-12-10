@@ -184,11 +184,17 @@ data TypedBindings = TypedBindings Range (Arg TypedBinding)
 -- | A typed binding. Appears in dependent function spaces, typed lambdas, and
 --   telescopes. I might be tempting to simplify this to only bind a single
 --   name at a time. This would mean that we would have to typecheck the type
---   several times (@x,y:A@ vs. @x:A; y:A@). In most cases this wouldn't
---   really be a problem, but it's good principle to not do extra work unless
---   you have to.
-data TypedBinding = TBind Range [Name] Expr
-		  | TNoBind Expr
+--   several times (@(x y : A)@ vs. @(x : A)(y : A)@).
+--   In most cases this wouldn't really be a problem, but it's good
+--   principle to not do extra work unless you have to.
+--
+--   (Andreas, 2013-12-10: The more serious problem would that the translation
+--   from @(x y : ?)@ to @(x : ?) (y : ?)@ duplicates the hole @?@.
+data TypedBinding
+    = TBind Range [Name] Expr
+      -- ^ As in telescope @(x y z : A)@ or type @(x y z : A) -> B@.
+    | TLet Range [LetBinding]
+      -- ^
   deriving (Typeable, Show)
 
 type Telescope	= [TypedBindings]
@@ -430,7 +436,7 @@ instance HasRange TypedBindings where
 
 instance HasRange TypedBinding where
     getRange (TBind r _ _) = r
-    getRange (TNoBind e)   = getRange e
+    getRange (TLet r _)    = r
 
 instance HasRange Expr where
     getRange (Var x)		   = getRange x
@@ -536,7 +542,7 @@ instance KillRange TypedBindings where
 
 instance KillRange TypedBinding where
   killRange (TBind r xs e) = killRange3 TBind r xs e
-  killRange (TNoBind e)    = killRange1 TNoBind e
+  killRange (TLet r lbs)   = killRange2 TLet r lbs
 
 instance KillRange Expr where
   killRange (Var x)                = killRange1 Var x
@@ -710,7 +716,7 @@ allNames (FunDef _ q _ cls)       = q <| Fold.foldMap allNamesC cls
 
   allNamesBinds :: TypedBindings -> Seq QName
   allNamesBinds (TypedBindings _ (Common.Arg _ (TBind _ _ e))) = allNamesE e
-  allNamesBinds (TypedBindings _ (Common.Arg _ (TNoBind e)))   = allNamesE e
+  allNamesBinds (TypedBindings _ (Common.Arg _ (TLet _ lbs)))  = allNamesLets lbs
 
   allNamesLets :: [LetBinding] -> Seq QName
   allNamesLets = Fold.foldMap allNamesLet
@@ -857,4 +863,4 @@ substTypedBindings s (TypedBindings r atb) = TypedBindings r
 substTypedBinding :: [(Name, Expr)] -> TypedBinding -> TypedBinding
 substTypedBinding s tb = case tb of
   TBind r ns e -> TBind r ns $ substExpr s e
-  TNoBind e    -> TNoBind $ substExpr s e
+  TLet r lbs   -> TLet r $ substLetBindings s lbs

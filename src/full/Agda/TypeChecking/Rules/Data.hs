@@ -50,7 +50,7 @@ checkDataDef i name ps cs =
     traceCall (CheckDataDef (getRange i) (qnameName name) ps cs) $ do -- TODO!! (qnameName)
 	let countPars A.DomainFree{} = 1
             countPars (A.DomainFull (A.TypedBindings _ (Arg _ b))) = case b of
-              A.TNoBind{}   -> 1
+              A.TLet{}       -> 0
               A.TBind _ xs _ -> size xs
             npars = sum $ map countPars ps
 
@@ -263,9 +263,8 @@ bindParameters :: [A.LamBinding] -> Type -> (Telescope -> Type -> TCM a) -> TCM 
 bindParameters [] a ret = ret EmptyTel a
 bindParameters (A.DomainFull (A.TypedBindings _ (Arg info (A.TBind _ xs _))) : bs) a ret =
   bindParameters ([ A.DomainFree info x | x <- xs ] ++ bs) a ret
-bindParameters (A.DomainFull (A.TypedBindings _ (Arg info (A.TNoBind _))) : bs) a ret = do
-  x <- freshNoName_
-  bindParameters (A.DomainFree info x : bs) a ret
+bindParameters (A.DomainFull (A.TypedBindings _ (Arg info (A.TLet _ lbs))) : bs) a ret =
+  __IMPOSSIBLE__
 bindParameters ps0@(A.DomainFree info x : ps) (El _ (Pi arg@(Dom info' a) b)) ret
   -- Andreas, 2011-04-07 ignore relevance information in binding?!
     | argInfoHiding info /= argInfoHiding info' =

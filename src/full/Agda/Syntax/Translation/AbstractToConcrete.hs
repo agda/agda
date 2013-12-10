@@ -518,6 +518,8 @@ instance ToConcrete A.TypedBindings C.TypedBindings where
         | otherwise = recover (unArg b) <$> cb
 
       recover (A.TBind _ xs _) (C.TBind r ys e) = C.TBind r (zipWith label xs ys) e
+      recover A.TLet{}         c@C.TLet{}       = c
+      recover _ _ = __IMPOSSIBLE__
 
       label x y = y { boundLabel = nameConcrete x }
 
@@ -526,9 +528,9 @@ instance ToConcrete A.TypedBinding C.TypedBinding where
         bindToConcrete xs $ \xs -> do
         e <- toConcreteCtx TopCtx e
         ret (C.TBind r (map mkBoundName_ xs) e)
-    bindToConcrete (A.TNoBind e) ret = do
-        e <- toConcreteCtx TopCtx e
-        ret (C.TNoBind e)
+    bindToConcrete (A.TLet r lbs) ret =
+        bindToConcrete lbs $ \ds -> do
+          ret (C.TLet r (concat ds))
 
 instance ToConcrete LetBinding [C.Declaration] where
     bindToConcrete (LetBind i info x t e) ret =

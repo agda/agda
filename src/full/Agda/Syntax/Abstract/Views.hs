@@ -115,7 +115,7 @@ instance ExprLike TypedBinding where
   traverseExpr f e =
     case e of
       TBind r xs e -> TBind r xs <$> traverseExpr f e
-      TNoBind e    -> TNoBind <$> traverseExpr f e
+      TLet r ds    -> TLet r <$> traverseExpr f ds
 
 instance ExprLike LetBinding where
   traverseExpr f e = do

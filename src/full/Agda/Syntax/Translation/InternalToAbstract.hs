@@ -770,7 +770,7 @@ instance DotVars TypedBindings where
 
 instance DotVars TypedBinding where
   dotVars (TBind _ _ e) = dotVars e
-  dotVars (TNoBind e)   = dotVars e
+  dotVars (TLet _ _)    = __IMPOSSIBLE__ -- Since the internal syntax has no let bindings left
 
 reifyPatterns :: I.Telescope -> Permutation -> [I.NamedArg I.Pattern] -> TCM [A.NamedArg A.Pattern]
 reifyPatterns tel perm ps = evalStateT (reifyArgs ps) 0

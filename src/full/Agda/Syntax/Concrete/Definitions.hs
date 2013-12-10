@@ -293,7 +293,7 @@ parameters :: [LamBinding] -> Params
 parameters = List.concat . List.map numP where
   numP (DomainFree i _) = [argInfoHiding i]
   numP (DomainFull (TypedBindings _ (Common.Arg i (TBind _ xs _)))) = List.replicate (length xs) $ argInfoHiding i
-  numP (DomainFull (TypedBindings _ (Common.Arg _ (TNoBind{}))))    = __IMPOSSIBLE__
+  numP (DomainFull (TypedBindings _ (Common.Arg _ TLet{})))         = []
 
 {- OLD:
 

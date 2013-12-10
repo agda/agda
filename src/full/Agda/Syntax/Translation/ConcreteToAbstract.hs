@@ -685,9 +685,9 @@ instance ToAbstract C.TypedBinding A.TypedBinding where
     t' <- toAbstractCtx TopCtx t
     xs' <- toAbstract (map NewName xs)
     return $ A.TBind r xs' t'
-  toAbstract (C.TNoBind e) = do
-    e <- toAbstractCtx TopCtx e
-    return (A.TNoBind e)
+  toAbstract (C.TLet r ds) = do
+    ds' <- toAbstract (LetDefs ds)
+    return $ A.TLet r ds'
 
 -- | Returns the scope inside the checked module.
 scopeCheckModule :: Range -> C.QName -> A.ModuleName -> C.Telescope -> [C.Declaration] ->

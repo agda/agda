@@ -82,7 +82,7 @@ import Agda.Utils.Impossible
 -- 32-bit machines). Word64 does not have these problems.
 
 currentInterfaceVersion :: Word64
-currentInterfaceVersion = 20131210 * 10 + 0
+currentInterfaceVersion = 20131210 * 10 + 1
 
 -- | Constructor tag (maybe omitted) and argument indices.
 
@@ -603,10 +603,10 @@ instance EmbPrj A.TypedBindings where
 
 instance EmbPrj A.TypedBinding where
   icode (A.TBind a b c) = icode3 0 a b c
-  icode (A.TNoBind a)   = icode1 1 a
+  icode (A.TLet a b)    = icode2 1 a b
 
   value = vcase valu where valu [0, a, b, c] = valu3 A.TBind a b c
-                           valu [1, a]       = valu1 A.TNoBind a
+                           valu [1, a, b]    = valu2 A.TLet a b
                            valu _            = malformed
 
 instance EmbPrj c => EmbPrj (Agda.Syntax.Common.ArgInfo c) where

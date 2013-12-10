@@ -195,9 +195,8 @@ checkTypedBinding lamOrPi info (A.TBind i xs e) ret = do
         modRel _        _    = id
 	mkTel [] t     = []
 	mkTel (x:xs) t = (show $ nameConcrete x,t) : mkTel xs (raise 1 t)
-checkTypedBinding lamOrPi info (A.TNoBind e) ret = do
-    t <- isType_ e
-    ret [("_",t)]
+checkTypedBinding lamOrPi info (A.TLet _ lbs) ret = do
+    checkLetBindings lbs (ret [])
 
 ---------------------------------------------------------------------------
 -- * Lambda abstractions
@@ -205,7 +204,8 @@ checkTypedBinding lamOrPi info (A.TNoBind e) ret = do
 
 -- | Type check a lambda expression.
 checkLambda :: I.Arg A.TypedBinding -> A.Expr -> Type -> TCM Term
-checkLambda (Arg _ A.TNoBind{}) _ _ = __IMPOSSIBLE__
+checkLambda (Arg _ (A.TLet _ lbs)) body target =
+  checkLetBindings lbs (checkExpr body target)
 checkLambda (Arg info (A.TBind _ xs typ)) body target = do
   let numbinds = length xs
   TelV tel btyp <- telViewUpTo numbinds target
