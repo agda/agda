@@ -9,7 +9,8 @@ Installation and Infrastructure
 
 * A new module called Agda.Primitive has been introduced. This module
   is available to all users, even if the standard library is not used.
-  Currently the module contains level primitives:
+  Currently the module contains level primitives and their
+  representation in Haskell when compiling with MAlonzo:
 
     infixl 6 _⊔_
 
@@ -50,10 +51,18 @@ Installation and Infrastructure
 
   The include path now always contains a directory <DATADIR>/lib/prim,
   and this directory is supposed to contain a subdirectory Agda
-  containing a file Primitive.agda. The location of the <DATADIR>
-  directory can be configured at compile-time using Cabal flags
-  (--datadir and --datasubdir). The location can also be set at
-  run-time, using the Agda_datadir environment variable.
+  containing a file Primitive.agda.
+
+  The standard location of <DATADIR> is system- and
+  installation-specific.  E.g., in a cabal --user installation of
+  Agda-2.3.4 on a standard single-ghc Linux system it would be
+  $HOME/.cabal/share/Agda-2.3.4 or something similar.
+
+  The location of the <DATADIR> directory can be configured at
+  compile-time using Cabal flags (--datadir and --datasubdir).  The
+  location can also be set at run-time, using the Agda_datadir
+  environment variable.
+
 
 Pragmas and Options
 ===================
