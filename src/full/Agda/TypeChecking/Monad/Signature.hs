@@ -1,6 +1,7 @@
 {-# LANGUAGE CPP, PatternGuards #-}
 module Agda.TypeChecking.Monad.Signature where
 
+import Control.Applicative
 import Control.Monad.State
 import Control.Monad.Reader
 import Data.Map (Map)
@@ -553,7 +554,8 @@ getSecFreeVars m = do
   isig <- sigSections <$> getImportedSignature
   top <- currentModule
   case top `isSubModuleOf` m || top == m of
-    True  -> return $ maybe 0 secFreeVars $ Map.lookup m (Map.union sig isig)
+    True  -> return $ maybe 0 secFreeVars $
+               Map.lookup m sig <|> Map.lookup m isig
     False -> return 0
 
 -- | Compute the number of free variables of a module. This is the sum of
