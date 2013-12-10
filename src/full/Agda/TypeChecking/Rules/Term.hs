@@ -915,12 +915,12 @@ inferDef mkTerm x =
     -- since x is considered living in the top-level, we have to
     -- apply it to the current context
     vs <- freeVarsToApply x
-    v  <- mkTerm x vs
-    let t = defType d
     reportSDoc "tc.term.def" 10 $ do
       text "inferred def " <+> prettyTCM x <+> hsep (map prettyTCM vs)
-        <+> text ":" <+> prettyTCM t
-        <+> text " --> " <+> prettyTCM v
+    let t = defType d
+    reportSDoc "tc.term.def" 10 $ nest 2 $ text " : " <+> prettyTCM t
+    v  <- mkTerm x vs
+    reportSDoc "tc.term.def" 10 $ nest 2 $ text " --> " <+> prettyTCM v
     return (v, t)
 
 -- | Check the type of a constructor application. This is easier than
