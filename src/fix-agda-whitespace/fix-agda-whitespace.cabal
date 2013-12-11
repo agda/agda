@@ -9,4 +9,4 @@ executable fix-agda-whitespace
   main-is:          FixWhitespace.hs
   build-depends:    base >= 4.2 && < 4.7,
                     filemanip == 0.3.*,
-                    text >= 0.10 && < 0.12
+                    text >= 0.10 && < 1.1
