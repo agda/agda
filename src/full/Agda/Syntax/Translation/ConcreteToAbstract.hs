@@ -484,7 +484,7 @@ toAbstractOpArg ctx (SyntaxBindingLambda r bs e) = toAbstractLam r bs e ctx
 
 toAbstractLam :: Range -> [C.LamBinding] -> C.Expr -> Precedence -> ScopeM A.Expr
 toAbstractLam r bs e ctx = do
-        localToAbstract (map makeDomainFull bs) $ \bs ->
+        localToAbstract (map (C.DomainFull . makeDomainFull) bs) $ \bs ->
           case bs of
             b:bs' -> do
               e        <- toAbstractCtx ctx e
@@ -671,11 +671,12 @@ instance ToAbstract C.LamBinding A.LamBinding where
   toAbstract (C.DomainFree info x) = A.DomainFree <$> toAbstract info <*> toAbstract (NewName x)
   toAbstract (C.DomainFull tb)     = A.DomainFull <$> toAbstract tb
 
-makeDomainFull :: C.LamBinding -> C.LamBinding
-makeDomainFull b@C.DomainFull{} = b
+makeDomainFull :: C.LamBinding -> C.TypedBindings
+makeDomainFull (C.DomainFull b)      = b
 makeDomainFull (C.DomainFree info x) =
-  C.DomainFull $ C.TypedBindings r $ Common.Arg info $ C.TBind r [x] $ C.Underscore r Nothing
+  C.TypedBindings r $ Common.Arg info $ C.TBind r [x] $ C.Underscore r Nothing
   where r = getRange x
+
 instance ToAbstract C.TypedBindings A.TypedBindings where
   toAbstract (C.TypedBindings r bs) = A.TypedBindings r <$> toAbstract bs
 
@@ -870,22 +871,15 @@ instance ToAbstract NiceDeclaration A.Declaration where
       return [ A.Mutual (MutualInfo termCheck r) ds' ]
 
     C.NiceRecSig r f a x ls t -> withLocalVars $ do
-        let toTypeBinding :: C.LamBinding -> C.TypedBindings
-            toTypeBinding b = case makeDomainFull b of
-               C.DomainFull b -> b
-               _            -> __IMPOSSIBLE__
-        ls' <- toAbstract (map toTypeBinding ls)
+        ls' <- toAbstract (map makeDomainFull ls)
         x'  <- freshAbstractQName f x
         bindName a DefName x x'
         t' <- toAbstract t
         return [ A.RecSig (mkDefInfo x f a ConcreteDef r) x' ls' t' ]
+
     C.NiceDataSig r f a x ls t -> withLocalVars $ do
         printScope "scope.data.sig" 20 ("checking DataSig for " ++ show x)
-        let toTypeBinding :: C.LamBinding -> C.TypedBindings
-            toTypeBinding b = case makeDomainFull b of
-               C.DomainFull b -> b
-               _            -> __IMPOSSIBLE__
-        ls' <- toAbstract (map toTypeBinding ls)
+        ls' <- toAbstract (map makeDomainFull ls)
         x'  <- freshAbstractQName f x
         {- -- Andreas, 2012-01-16: remember number of parameters
         bindName a (DataName (length ls)) x x' -}
