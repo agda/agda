@@ -1,4 +1,4 @@
-{-# LANGUAGE GeneralizedNewtypeDeriving #-}
+{-# LANGUAGE GeneralizedNewtypeDeriving, DeriveTraversable #-}
 -- | Naive implementation of simple matrix library.
 
 -- Originally copied from Agda1 sources.

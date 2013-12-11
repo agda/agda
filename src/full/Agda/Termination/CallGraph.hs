@@ -1,5 +1,6 @@
 {-# LANGUAGE CPP, ImplicitParams, TypeSynonymInstances, FlexibleInstances,
-  GeneralizedNewtypeDeriving, StandaloneDeriving, DeriveFunctor #-}
+  GeneralizedNewtypeDeriving, StandaloneDeriving, DeriveFunctor,
+  DeriveFoldable, DeriveTraversable #-}
 
 -- | Call graphs and related concepts, more or less as defined in
 --     \"A Predicative Analysis of Structural Recursion\" by
