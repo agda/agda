@@ -122,13 +122,10 @@ dummyDom = Common.Dom defaultArgInfo $ El Prop $ Sort Prop
 {-# SPECIALIZE underAbstraction :: Subst a => Dom Type -> Abs a -> (a -> TCM b) -> TCM b #-}
 underAbstraction :: (Subst a, MonadTCM tcm) => Dom Type -> Abs a -> (a -> tcm b) -> tcm b
 underAbstraction _ (NoAbs _ v) k = k v
-underAbstraction t a k = do
-    xs <- map (nameConcrete . fst . unDom) <$> getContext
+underAbstraction t a           k = do
     x <- freshName_ $ realName $ absName a
-    let y = head $ filter (notTaken xs) $ iterate nextName x
-    addCtx y t $ k $ absBody a
+    addCtx x t $ k $ absBody a
   where
-    notTaken xs x = isNoName (nameConcrete x) || notElem (nameConcrete x) xs
     realName "_" = "x"
     realName s   = s
 
