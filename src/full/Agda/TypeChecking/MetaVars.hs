@@ -307,9 +307,9 @@ blockTermOnProblem t v pid =
                     i lowMetaPriority (idP $ size tel)
                     (HasType () $ telePi_ tel t)
                     -- we don't instantiate blocked terms
-    escapeContextToTopLevel $ addConstraint (Guarded (UnBlock x) pid)
+    inTopContext $ addConstraint (Guarded (UnBlock x) pid)
     reportSDoc "tc.meta.blocked" 20 $ vcat
-      [ text "blocked" <+> prettyTCM x <+> text ":=" <+> escapeContextToTopLevel (prettyTCM $ abstract tel v)
+      [ text "blocked" <+> prettyTCM x <+> text ":=" <+> inTopContext (prettyTCM $ abstract tel v)
       , text "     by" <+> (prettyTCM =<< getConstraintsForProblem pid) ]
     inst <- isInstantiatedMeta x
     case inst of

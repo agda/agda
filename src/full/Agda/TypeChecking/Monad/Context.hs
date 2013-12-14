@@ -65,11 +65,6 @@ inTopContext cont = do
 escapeContext :: MonadTCM tcm => Int -> tcm a -> tcm a
 escapeContext n = modifyContext $ drop n
 
--- | Deprecated.
-{-# SPECIALIZE escapeContextToTopLevel :: TCM a -> TCM a #-}
-escapeContextToTopLevel :: MonadTCM tcm => tcm a -> tcm a
-escapeContextToTopLevel = modifyContext $ const []
-
 -- * Adding to the context
 
 -- | @addCtx x arg cont@ add a variable to the context.
