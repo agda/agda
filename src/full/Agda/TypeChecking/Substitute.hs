@@ -703,15 +703,20 @@ instance Subst ClauseBody where
 -- * Telescopes
 ---------------------------------------------------------------------------
 
-data TelV a = TelV { theTel :: Tele (Dom a), theCore :: a }
+type TelView = TelV Type
+data TelV a  = TelV { theTel :: Tele (Dom a), theCore :: a }
   deriving (Typeable, Show, Eq, Ord, Functor)
 
-type TelView = TelV Type
-type ListTel = [Dom (String, Type)]
+type ListTel' a = [Dom (a, Type)]
+type ListTel = ListTel' String
+
+telFromList' :: (a -> String) -> ListTel' a -> Telescope
+telFromList' f = foldr extTel EmptyTel
+  where
+    extTel (Common.Dom info (x, a)) = ExtendTel (Common.Dom info a) . Abs (f x)
 
 telFromList :: ListTel -> Telescope
-telFromList = foldr (\(Common.Dom info (x, a)) -> ExtendTel (Common.Dom info a) . Abs x)
-                    EmptyTel
+telFromList = telFromList' id
 
 telToList :: Telescope -> ListTel
 telToList EmptyTel = []

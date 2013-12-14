@@ -172,12 +172,10 @@ getContextArgs = reverse . zipWith mkArg [0..] <$> getContext
 getContextTerms :: MonadTCM tcm => tcm [Term]
 getContextTerms = map var . downFrom <$> getContextSize
 
--- | Get the current context as a 'Telescope' with the specified 'Hiding'.
+-- | Get the current context as a 'Telescope'.
 {-# SPECIALIZE getContextTelescope :: TCM Telescope #-}
 getContextTelescope :: MonadTCM tcm => tcm Telescope
-getContextTelescope = foldr extTel EmptyTel . reverse <$> getContext
-  where
-    extTel (Common.Dom info (x, t)) = ExtendTel (Common.Dom info t) . Abs (show x)
+getContextTelescope = telFromList' show . reverse <$> getContext
 
 -- | Check if we are in a compatible context, i.e. an extension of the given context.
 {-# SPECIALIZE getContextId :: TCM [CtxId] #-}
