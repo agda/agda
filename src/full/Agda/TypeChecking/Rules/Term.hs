@@ -248,12 +248,13 @@ checkLambda (Arg info (A.TBind _ xs typ)) body target = do
         -- compare the argument types first, so we spawn a new problem for that
         -- check.
         (pid, argT) <- newProblem $ isTypeEqualTo typ (unDom arg)
-        v <- add x y (Dom (setRelevance r' info) argT) $ checkExpr body btyp
-        blockTermOnProblem target (Lam info $ Abs (show $ nameConcrete x) v) pid
+        v <- add y (Dom (setRelevance r' info) argT) $ checkExpr body btyp
+        blockTermOnProblem target (Lam info $ Abs (show xc) v) pid
       where
         [x] = xs
-        add x y | C.isNoName (nameConcrete x) = addCtxString y
-                | otherwise                   = addCtx x
+        xc  = nameConcrete x
+        add y | C.isNoName xc = addCtxString y
+              | otherwise     = addCtx x
     useTargetType _ _ = __IMPOSSIBLE__
 
     mkTel []       t = []
