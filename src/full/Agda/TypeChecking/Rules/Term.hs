@@ -172,10 +172,10 @@ data LamOrPi = LamNotPi | PiNotLam deriving (Eq,Show)
 --   is needed for irrelevance.
 checkTypedBindings :: LamOrPi -> A.TypedBindings -> (Telescope -> TCM a) -> TCM a
 checkTypedBindings lamOrPi (A.TypedBindings i (Arg info b)) ret =
-    checkTypedBinding lamOrPi info b $ \bs ->
-    ret $ foldr (\(x,t) -> ExtendTel (convDom $ Dom info t) . Abs x) EmptyTel bs
+    checkTypedBinding lamOrPi info b $ \ bs ->
+    ret $ telFromList bs
 
-checkTypedBinding :: LamOrPi -> A.ArgInfo -> A.TypedBinding -> ([(String,Type)] -> TCM a) -> TCM a
+checkTypedBinding :: LamOrPi -> A.ArgInfo -> A.TypedBinding -> (ListTel -> TCM a) -> TCM a
 checkTypedBinding lamOrPi info (A.TBind i xs e) ret = do
     -- Andreas, 2011-04-26 irrelevant function arguments may appear
     -- non-strictly in the codomain type
@@ -183,7 +183,7 @@ checkTypedBinding lamOrPi info (A.TBind i xs e) ret = do
     allowed <- optExperimentalIrrelevance <$> pragmaOptions
     t <- modEnv lamOrPi allowed $ isType_ e
     let info' = mapRelevance (modRel lamOrPi allowed) info
-    addCtxs xs (convDom $ Dom info' t) $ ret $ mkTel xs t
+    addCtxs xs (convDom $ Dom info' t) $ ret $ bindsToTel xs (convDom $ Dom info t)
     where
         -- if we are checking a typed lambda, we resurrect before we check the
         -- types, but do not modify the new context entries
@@ -193,8 +193,6 @@ checkTypedBinding lamOrPi info (A.TBind i xs e) ret = do
         modEnv _        _    = id
         modRel PiNotLam True = irrToNonStrict
         modRel _        _    = id
-	mkTel [] t     = []
-	mkTel (x:xs) t = (show $ nameConcrete x,t) : mkTel xs (raise 1 t)
 checkTypedBinding lamOrPi info (A.TLet _ lbs) ret = do
     checkLetBindings lbs (ret [])
 
@@ -225,7 +223,7 @@ checkLambda (Arg info (A.TBind _ xs typ)) body target = do
       -- is inconclusive we need to block the resulting term so we create a
       -- fresh problem for the check.
       t1 <- addCtxs xs argsT $ workOnTypes newTypeMeta_
-      let tel = telFromList $ mkTel xs argsT
+      let tel = telFromList $ bindsToTel xs argsT
       -- Do not coerce hidden lambdas
       if (getHiding info /= NotHidden) then do
         pid <- newProblem_ $ leqType (telePi tel t1) target
@@ -260,10 +258,6 @@ checkLambda (Arg info (A.TBind _ xs typ)) body target = do
         add y | C.isNoName xc = addCtxString y
               | otherwise     = addCtx x
     useTargetType _ _ = __IMPOSSIBLE__
-
-    mkTel []       t = []
-    mkTel (x : xs) t = ((,) s <$> t) : mkTel xs (raise 1 t)
-      where s = show $ nameConcrete x
 
 -- | @checkAbsurdLambda i h e t@ checks absurd lambda against type @t@.
 --   Precondition: @e = AbsurdLam i h@
