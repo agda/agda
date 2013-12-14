@@ -137,9 +137,9 @@ underAbstraction_ = underAbstraction dummyDom
 -- | Add a telescope to the context.
 {-# SPECIALIZE addCtxTel :: Telescope -> TCM a -> TCM a #-}
 addCtxTel :: MonadTCM tcm => Telescope -> tcm a -> tcm a
-addCtxTel EmptyTel	    ret = ret
-addCtxTel (ExtendTel t tel) ret = underAbstraction t tel $ \tel -> addCtxTel tel ret
-
+addCtxTel tel ret = loop tel where
+  loop EmptyTel          = ret
+  loop (ExtendTel t tel) = underAbstraction t tel loop
 
 -- | Add a let bound variable
 {-# SPECIALIZE addLetBinding :: ArgInfo -> Name -> Term -> Type -> TCM a -> TCM a #-}
