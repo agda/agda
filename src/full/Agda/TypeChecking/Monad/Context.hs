@@ -162,17 +162,15 @@ getContext = asks $ map ctxEntry . envContext
 getContextSize :: MonadTCM tcm => tcm Nat
 getContextSize = genericLength <$> asks envContext
 
--- | Generate [Var n - 1, .., Var 0] for all declarations in the context.
+-- | Generate @[var (n - 1), ..., var 0]@ for all declarations in the context.
 {-# SPECIALIZE getContextArgs :: TCM Args #-}
 getContextArgs :: MonadTCM tcm => tcm Args
-getContextArgs = do
-  ctx <- getContext
-  return $ reverse $ [ Common.Arg info $ var i | (Common.Dom info _, i) <- zip ctx [0..] ]
+getContextArgs = reverse . zipWith mkArg [0..] <$> getContext
+  where mkArg i (Common.Dom info _) = Common.Arg info $ var i
 
 {-# SPECIALIZE getContextTerms :: TCM [Term] #-}
 getContextTerms :: MonadTCM tcm => tcm [Term]
 getContextTerms = map var . downFrom <$> getContextSize
--- getContextTerms = map unArg <$> getContextArgs
 
 -- | Get the current context as a 'Telescope' with the specified 'Hiding'.
 {-# SPECIALIZE getContextTelescope :: TCM Telescope #-}
