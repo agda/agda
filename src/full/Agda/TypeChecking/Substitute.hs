@@ -622,6 +622,9 @@ instance Subst LevelAtom where
 instance Subst Bool where
   applySubst rho = id
 
+instance Subst Name where
+  applySubst rho = id
+
 instance Subst Pattern where
   applySubst rho p = case p of
     ConP c mt ps -> ConP c (applySubst rho mt) $ applySubst rho ps

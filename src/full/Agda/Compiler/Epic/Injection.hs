@@ -15,7 +15,7 @@ import Agda.Syntax.Common
 import Agda.Syntax.Internal as I
 import Agda.Syntax.Literal
 import Agda.TypeChecking.CompiledClause
-import Agda.TypeChecking.Monad hiding ((!!!))
+import Agda.TypeChecking.Monad
 import Agda.TypeChecking.Monad.Builtin
 import Agda.TypeChecking.Pretty
 import Agda.TypeChecking.Reduce

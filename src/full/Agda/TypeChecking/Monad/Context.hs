@@ -18,7 +18,7 @@ import Agda.TypeChecking.Monad.Base
 import Agda.TypeChecking.Substitute
 import Agda.TypeChecking.Monad.Open
 
-import Agda.Utils.List (downFrom)
+import Agda.Utils.List ((!!!), downFrom)
 import Agda.Utils.Monad
 import Agda.Utils.Fresh
 
@@ -179,12 +179,17 @@ getContextId = asks $ map ctxId . envContext
 
 -- | get type of bound variable (i.e. deBruijn index)
 --
+{-# SPECIALIZE lookupBV :: Nat -> TCM (Dom (Name, Type)) #-}
+lookupBV :: MonadTCM tcm => Nat -> tcm (Dom (Name, Type))
+lookupBV n = do
+  ctx <- getContext
+  let failure = fail $ "deBruijn index out of scope: " ++ show n ++
+                       " in context " ++ show (map (fst . unDom) ctx)
+  maybe failure (return . fmap (raise $ n + 1)) $ ctx !!! n
+
 {-# SPECIALIZE typeOfBV' :: Nat -> TCM (Dom Type) #-}
 typeOfBV' :: MonadTCM tcm => Nat -> tcm (Dom Type)
-typeOfBV' n =
-    do	ctx <- getContext
-	Common.Dom info (_,t) <- ctx !!! n
-	return $ Common.Dom info $ raise (n + 1) t
+typeOfBV' n = fmap snd <$> lookupBV n
 
 {-# SPECIALIZE typeOfBV :: Nat -> TCM Type #-}
 typeOfBV :: MonadTCM tcm => Nat -> tcm Type
@@ -192,19 +197,7 @@ typeOfBV i = unDom <$> typeOfBV' i
 
 {-# SPECIALIZE nameOfBV :: Nat -> TCM Name #-}
 nameOfBV :: MonadTCM tcm => Nat -> tcm Name
-nameOfBV n =
-    do	ctx <- getContext
-	Common.Dom _ (x,_) <- ctx !!! n
-	return x
-
--- | TODO: move(?)
-xs !!! n = xs !!!! n
-    where
-	[]     !!!! _ = do
-            ctx <- getContext
-            fail $ "deBruijn index out of scope: " ++ show n ++ " in context " ++ show (map (fst . unDom) ctx)
-	(x:_)  !!!! 0 = return x
-	(_:xs) !!!! n = xs !!!! (n - 1)
+nameOfBV n = fst . unDom <$> lookupBV n
 
 -- | Get the term corresponding to a named variable. If it is a lambda bound
 --   variable the deBruijn index is returned and if it is a let bound variable

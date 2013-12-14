@@ -2,14 +2,17 @@
 module Agda.Utils.Permutation where
 
 import Prelude hiding (drop)
+
 import Data.List hiding (drop)
 import qualified Data.List as List
+import Data.Maybe
 
 import Data.Foldable (Foldable)
 import Data.Traversable (Traversable)
 import Data.Typeable (Typeable)
 
 import Agda.Utils.Size
+import Agda.Utils.List ((!!!))
 
 #include "../undefined.h"
 import Agda.Utils.Impossible
@@ -47,11 +50,9 @@ instance Sized Permutation where
 --   Agda typing:
 --   @permute (Perm {m} n is) : Vec A m -> Vec A n@
 permute :: Permutation -> [a] -> [a]
-permute (Perm _ is) xs = map (xs !!!) is
+permute (Perm _ is) xs = map (xs !!!!) is
   where
-    []     !!! _ = __IMPOSSIBLE__
-    (x:xs) !!! 0 = x
-    (x:xs) !!! n = xs !!! (n - 1)
+    xs !!!! n = fromMaybe __IMPOSSIBLE__ (xs !!! n)
 
 idP :: Int -> Permutation
 idP n = Perm n [0..n - 1]

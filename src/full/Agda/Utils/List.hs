@@ -29,6 +29,17 @@ uncons :: [a] -> Maybe (a, [a])
 uncons []     = Nothing
 uncons (x:xs) = Just (x,xs)
 
+-- | Lookup function (safe).
+
+(!!!) :: [a] -> Int -> Maybe a
+[]     !!! _ = Nothing
+(x:xs) !!! 0 = Just x
+(x:xs) !!! n = xs !!! predecessor n
+
+predecessor n
+  | n > 0     = n - 1
+  | otherwise = __IMPOSSIBLE__
+
 -- | downFrom n = [n-1,..1,0]
 downFrom :: Integral a => a -> [a]
 downFrom n | n <= 0     = []
