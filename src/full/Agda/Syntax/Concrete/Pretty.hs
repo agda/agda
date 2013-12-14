@@ -23,6 +23,7 @@ import Agda.Utils.Impossible
 instance Show Expr	      where show = show . pretty
 instance Show Declaration     where show = show . pretty
 instance Show Pattern	      where show = show . pretty
+instance Show TypedBinding    where show = show . pretty
 instance Show TypedBindings   where show = show . pretty
 instance Show LamBinding      where show = show . pretty
 instance Show ImportDirective where show = show . pretty

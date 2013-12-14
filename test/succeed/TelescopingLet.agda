@@ -28,6 +28,32 @@ module N (open Star) (A : ★) (open MEndo A) (f : Endo) where
   f' : Endo
   f' = f
 
+-- module N can be desugared as follows:
+
+module _ where
+  open Star
+  module _ (A : ★) where
+    open MEndo A
+    module N' (f : Endo) where
+      B : ★
+      B = A
+      f' : Endo
+      f' = f
+
+-- Here are instantiations of N and its desugaring:
+
+f'1 = f'
+  where
+    postulate A : Set
+              f : A → A
+    open N A f
+
+f'2 = f'
+  where
+    postulate A : Set
+              f : A → A
+    open N' A f
+
 data ⊥ : Set where
 
 module Batch2 where
@@ -59,31 +85,3 @@ module Batch3 where
   e3 = λ (open Star) → ★
 
   -- "λ (open M es) → e" is an edge case which behaves like "let open M es in e"
-
-module Batch4 where
-  data D1 (open Star) (A : ★) : ★ where
-    c : (x : A) → D1 A
-
-  data D2 (open Star) : ★ where
-
-  data D3 (open Star) : ★₁ where
-    c : (A : ★) → D3
-
-  data D4 : (open Star) → ★ where
-
-module Batch5 where
-  data D1 (open Star) (A : ★) : ★
-
-  data D1 A where
-    c : (x : A) → D1 A
-
-  data D2 (open Star) : ★
-  data D2 where
-
-  data D3 (open Star) : ★₁
-  data D3 where
-    c : (A : ★) → D3
-
-  data D4 : (open Star) → ★
-  data D4 where
-

@@ -299,26 +299,39 @@ Language
   (Constructors always took the module parameters as hidden arguments).
 
 * Telescoping lets: Local bindings are now accepted in telescopes
+  of modules, function types, and lambda-abstractions.
 
   The syntax of telescopes as been extended to support 'let':
 
     id : (let ★ = Set) (A : ★) → A → A
     id A x = x
 
- In particular one can now 'open' modules inside telescopes:
+  In particular one can now 'open' modules inside telescopes:
 
-  module Star where
-    ★ : Set₁
-    ★ = Set
+   module Star where
+     ★ : Set₁
+     ★ = Set
 
-  module MEndo (let open Star) (A : ★) where
-    Endo : ★
-    Endo = A → A
+   module MEndo (let open Star) (A : ★) where
+     Endo : ★
+     Endo = A → A
 
- Finally a shortcut is provided for opening modules:
+  Finally a shortcut is provided for opening modules:
 
-   module N (open Star) (A : ★) (open MEndo A) (f : Endo) where
-     ...
+    module N (open Star) (A : ★) (open MEndo A) (f : Endo) where
+      ...
+
+  The semantics of the latter is
+
+    module _ where
+      open Star
+      module _ (A : ★) where
+        open MEndo A
+        module N (f : Endo) where
+          ...
+
+  The semantics of telescoping lets in function types and lambda
+  abstractions is just expanding them into ordinary lets.
 
 * Ambiguous names in patterns are now optimistically resolved in favor
   of constructors. [Issue 822] In particular, the following succeeds now:

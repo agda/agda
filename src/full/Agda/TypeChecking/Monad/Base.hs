@@ -1336,6 +1336,7 @@ data TypeError
 	| NoSuchPrimitiveFunction String
         | ShadowedModule C.Name [A.ModuleName]
 	| BuiltinInParameterisedModule String
+        | IllegalLetInTelescope C.TypedBinding
 	| NoRHSRequiresAbsurdPattern [NamedArg A.Pattern]
 	| AbsurdPatternRequiresNoRHS [NamedArg A.Pattern]
 	| TooFewFields QName [C.Name]

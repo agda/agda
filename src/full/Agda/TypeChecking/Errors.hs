@@ -150,6 +150,7 @@ errorString err = case err of
     IFSNoCandidateInScope{}                  -> "IFSNoCandidateInScope"
     IlltypedPattern{}                        -> "IlltypedPattern"
     CannotEliminateWithPattern{}             -> "CannotEliminateWithPattern"
+    IllegalLetInTelescope{}                  -> "IllegalLetInTelescope"
     IncompletePatternMatching{}              -> "IncompletePatternMatching"
     IndexVariablesNotDistinct{}              -> "IndexVariablesNotDistinct"
     IndicesFreeInParameters{}                -> "IndicesFreeInParameters"
@@ -490,6 +491,10 @@ instance PrettyTCM TypeError where
 	    BuiltinInParameterisedModule x -> fwords $
 		"The BUILTIN pragma cannot appear inside a bound context " ++
 		"(for instance, in a parameterised module or as a local declaration)"
+            IllegalLetInTelescope tb -> fsep $
+                -- pwords "The binding" ++
+                [pretty tb] ++
+                pwords " is not allowed in a telescope here."
 	    NoRHSRequiresAbsurdPattern ps -> fwords $
 		"The right-hand side can only be omitted if there " ++
 		"is an absurd pattern, () or {}, in the left-hand side."

@@ -26,6 +26,7 @@ import Prelude hiding (mapM)
 import Control.Applicative
 import Control.Monad.Reader hiding (mapM)
 import Control.Monad.Error hiding (mapM)
+import Data.Foldable (Foldable, traverse_)
 import Data.Traversable (mapM, traverse)
 import Data.List ((\\), nub, foldl')
 import qualified Data.Map as Map
@@ -50,6 +51,7 @@ import Agda.TypeChecking.Monad.State
 import Agda.TypeChecking.Monad.Options
 import Agda.TypeChecking.Monad.Env (insideDotPattern, isInsideDotPattern)
 
+-- import Agda.Interaction.Imports  -- for type-checking in ghci
 import {-# SOURCE #-} Agda.Interaction.Imports (scopeCheckImport)
 import Agda.Interaction.Options
 
@@ -703,7 +705,7 @@ scopeCheckNiceModule
   -> ScopeM [A.Declaration]
   -> ScopeM [A.Declaration]
 scopeCheckNiceModule r p name tel checkDs
-  | any isOpenBinds tel = do
+  | telHasOpenStms tel = do
       -- Andreas, 2013-12-10:
       -- If the module telescope contains open statements,
       -- add an extra anonymous module around the current one.
@@ -740,6 +742,10 @@ scopeCheckNiceModule r p name tel checkDs
           defaultImportDir { publicOpen = True }
       return ds
 
+-- | Check whether a telescope has open declarations.
+telHasOpenStms :: C.Telescope -> Bool
+telHasOpenStms = any isOpenBinds
+  where
     isOpenBinds (C.TypedBindings _ tb) = isOpenBind $ unArg tb
     isOpenBind C.TBind{}     = False
     isOpenBind (C.TLet _ ds) = any isOpen ds
@@ -750,6 +756,47 @@ scopeCheckNiceModule r p name tel checkDs
     isOpen (C.Abstract _ ds) = any isOpen ds
     isOpen (C.Private  _ ds) = any isOpen ds
     isOpen   _               = False
+
+{- UNUSED
+telHasLetStms :: C.Telescope -> Bool
+telHasLetStms = any isLetBinds
+  where
+    isLetBinds (C.TypedBindings _ tb) = isLetBind $ unArg tb
+    isLetBind C.TBind{} = False
+    isLetBind C.TLet{}  = True
+-}
+
+-- | We for now disallow let-bindings in @data@ and @record@ telescopes.
+--   This due "nested datatypes"; there is no easy interpretation of
+--   @
+--      data D (A : Set) (open M A) (b : B) : Set where
+--        c : D (A × A) b → D A b
+--   @
+--   where @B@ is brought in scope by @open M A@.
+
+class EnsureNoLetStms a where
+  ensureNoLetStms :: a -> ScopeM ()
+
+{- From ghc 7.2, there is LANGUAGE DefaultSignatures
+  default ensureNoLetStms :: Foldable t => t a -> ScopeM ()
+  ensureNoLetStms = traverse_ ensureNoLetStms
+-}
+
+instance EnsureNoLetStms C.TypedBinding where
+  ensureNoLetStms tb =
+    case tb of
+      C.TLet{}  -> typeError $ IllegalLetInTelescope tb
+      C.TBind{} -> return ()
+
+instance EnsureNoLetStms a => EnsureNoLetStms (LamBinding' a) where
+  ensureNoLetStms = traverse_ ensureNoLetStms
+
+instance EnsureNoLetStms a => EnsureNoLetStms (TypedBindings' a) where
+  ensureNoLetStms = traverse_ ensureNoLetStms
+
+instance EnsureNoLetStms a => EnsureNoLetStms [a] where
+  ensureNoLetStms = traverse_ ensureNoLetStms
+
 
 -- | Returns the scope inside the checked module.
 scopeCheckModule
@@ -943,7 +990,9 @@ instance ToAbstract NiceDeclaration A.Declaration where
       ds' <- toAbstract ds
       return [ A.Mutual (MutualInfo termCheck r) ds' ]
 
-    C.NiceRecSig r f a x ls t -> withLocalVars $ do
+    C.NiceRecSig r f a x ls t -> do
+      ensureNoLetStms ls
+      withLocalVars $ do
         ls' <- toAbstract (map makeDomainFull ls)
         x'  <- freshAbstractQName f x
         bindName a DefName x x'
@@ -952,6 +1001,7 @@ instance ToAbstract NiceDeclaration A.Declaration where
 
     C.NiceDataSig r f a x ls t -> withLocalVars $ do
         printScope "scope.data.sig" 20 ("checking DataSig for " ++ show x)
+        ensureNoLetStms ls
         ls' <- toAbstract (map makeDomainFull ls)
         x'  <- freshAbstractQName f x
         {- -- Andreas, 2012-01-16: remember number of parameters
@@ -978,6 +1028,7 @@ instance ToAbstract NiceDeclaration A.Declaration where
   -- Data definitions
     C.DataDef r f a x pars cons -> withLocalVars $ do
         printScope "scope.data.def" 20 ("checking DataDef for " ++ show x)
+        ensureNoLetStms pars
         -- Check for duplicate constructors
         do let cs   = map conName cons
                dups = nub $ cs \\ nub cs
@@ -1004,7 +1055,8 @@ instance ToAbstract NiceDeclaration A.Declaration where
         conName _ = __IMPOSSIBLE__
 
   -- Record definitions (mucho interesting)
-    C.RecDef r f a x ind cm pars fields ->
+    C.RecDef r f a x ind cm pars fields -> do
+      ensureNoLetStms pars
       withLocalVars $ do
         -- Check that the generated module doesn't clash with a previously
         -- defined module
