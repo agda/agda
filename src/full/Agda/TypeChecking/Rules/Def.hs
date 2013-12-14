@@ -35,7 +35,7 @@ import Agda.TypeChecking.SizedTypes
 import Agda.TypeChecking.CompiledClause (CompiledClauses(..))
 import Agda.TypeChecking.CompiledClause.Compile
 
-import Agda.TypeChecking.Rules.Term                ( checkExpr, inferExpr, inferExprForWith, checkDontExpandLast, checkTelescope_, convArg )
+import Agda.TypeChecking.Rules.Term                ( checkExpr, inferExpr, inferExprForWith, checkDontExpandLast, checkTelescope_, ConvColor(..) )
 import Agda.TypeChecking.Rules.LHS                 ( checkLeftHandSide )
 import {-# SOURCE #-} Agda.TypeChecking.Rules.Decl ( checkDecls )
 
@@ -373,7 +373,7 @@ checkClause t c@(A.Clause (A.SpineLHS i x aps withPats) rhs0 wh) = do
       -- introduce trailing implicits for checking the where decls
       TelV htel t0 <- telViewUpTo' (-1) isHidden $ unArg trhs
       let n = size htel
-          aps' = map convArg aps
+          aps' = convColor aps
       (body, with) <- addCtxTel htel $ checkWhere (size delta + n) wh $ escapeContext (size htel) $ let
           -- for the body, we remove the implicits again
           handleRHS rhs =

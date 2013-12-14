@@ -20,7 +20,7 @@ import Agda.TypeChecking.Irrelevance
 import Agda.TypeChecking.CompiledClause.Compile
 
 import Agda.TypeChecking.Rules.Data ( bindParameters, fitsIn )
-import Agda.TypeChecking.Rules.Term ( isType_, convArg )
+import Agda.TypeChecking.Rules.Term ( isType_, ConvColor(..) )
 import {-# SOURCE #-} Agda.TypeChecking.Rules.Decl (checkDecl)
 
 import Agda.Utils.Size
@@ -113,7 +113,7 @@ checkRecDef i name ind con ps contel fields =
 	  getName (A.ScopedDecl _ [f]) = getName f
 	  getName _		       = []
 
-          fs = concatMap (map convArg . getName) fields
+          fs = concatMap (convColor . getName) fields
           con = ConHead conName $ map unArg fs
 
           indCo = maybe Inductive id ind -- default is 'Inductive' for backwards compatibility but should maybe be 'Coinductive'

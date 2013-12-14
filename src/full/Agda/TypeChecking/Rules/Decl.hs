@@ -248,7 +248,7 @@ checkAxiom funSig i info0 x e = do
   -- Andreas, 2012-04-18  if we are in irrelevant context, axioms is irrelevant
   -- even if not declared as such (Issue 610).
   rel <- max (getRelevance info0) <$> asks envRelevance
-  let info = setRelevance rel $ convArgInfo info0
+  let info = setRelevance rel $ convColor info0
   -- rel <- ifM ((Irrelevant ==) <$> asks envRelevance) (return Irrelevant) (return rel0)
   t <- isType_ e
   reportSDoc "tc.decl.ax" 10 $ sep
@@ -459,7 +459,7 @@ checkSectionApplication' i m1 (A.SectionApp ptel m2 args) rd rm =
   tel <- lookupSection m2
   vs  <- freeVarsToApply $ qnameFromList $ mnameToList m2
   let tel' = apply tel vs
-      args'= map convArg args
+      args'= convColor args
   etaTel <- checkModuleArity m2 tel' $ args'
   let tel'' = telFromList $ take (size tel' - size etaTel) $ telToList tel'
   addCtxTel etaTel $ addSection m1 (size ptel + size etaTel)

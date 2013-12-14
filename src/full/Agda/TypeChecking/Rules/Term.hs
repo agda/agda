@@ -1,5 +1,5 @@
 {-# LANGUAGE CPP, PatternGuards, TupleSections, NamedFieldPuns,
-      FlexibleInstances, TypeSynonymInstances #-}
+      MultiParamTypeClasses, FlexibleInstances, TypeSynonymInstances #-}
 
 module Agda.TypeChecking.Rules.Term where
 
@@ -85,7 +85,7 @@ isType_ e =
     A.Fun i (Arg info t) b -> do
       a <- Dom info <$> isType_ t
       b <- isType_ b
-      return $ El (sLub (getSort $ unDom a) (getSort b)) (Pi (convDom a) (NoAbs "_" b))
+      return $ El (sLub (getSort $ unDom a) (getSort b)) (Pi (convColor a) (NoAbs "_" b))
     A.Pi _ tel e -> do
       checkTelescope_ tel $ \tel -> do
         t   <- instantiateFull =<< isType_ e
@@ -183,7 +183,7 @@ checkTypedBinding lamOrPi info (A.TBind i xs e) ret = do
     allowed <- optExperimentalIrrelevance <$> pragmaOptions
     t <- modEnv lamOrPi allowed $ isType_ e
     let info' = mapRelevance (modRel lamOrPi allowed) info
-    addCtxs xs (convDom $ Dom info' t) $ ret $ bindsToTel xs (convDom $ Dom info t)
+    addCtxs xs (convColor $ Dom info' t) $ ret $ bindsToTel xs (convColor $ Dom info t)
     where
         -- if we are checking a typed lambda, we resurrect before we check the
         -- types, but do not modify the new context entries
@@ -623,7 +623,7 @@ checkExpr e t0 =
 
         A.ExtendedLam i di qname cs -> checkExtendedLambda i di qname cs e t
 
-	A.Lam i (A.DomainFull (A.TypedBindings _ b)) e -> checkLambda (convArg b) e t
+	A.Lam i (A.DomainFull (A.TypedBindings _ b)) e -> checkLambda (convColor b) e t
 
 	A.Lam i (A.DomainFree info x) e0 -> checkExpr (A.Lam i (domainFree info x) e0) t
 
@@ -645,7 +645,7 @@ checkExpr e t0 =
 	    a' <- isType_ a
 	    b' <- isType_ b
 	    s <- reduce $ getSort a' `sLub` getSort b'
-	    coerce (Pi (convDom $ Dom info a') (NoAbs "_" b')) (sort s) t
+	    coerce (Pi (convColor $ Dom info a') (NoAbs "_" b')) (sort s) t
 	A.Set _ n    -> do
           n <- ifM typeInType (return 0) (return n)
 	  coerce (Sort $ mkType n) (sort $ mkType $ n + 1) t
@@ -732,7 +732,7 @@ checkApplication hd args e t = do
       let unblock = isJust <$> getCon -- to unblock, call getCon later again
       mc <- getCon
       case mc of
-        Just c  -> checkConstructorApplication e t c $ map convArg args
+        Just c  -> checkConstructorApplication e t c $ map convColor args
         Nothing -> postponeTypeCheckingProblem e t unblock
 
     -- Subcase: non-ambiguous constructor
@@ -740,7 +740,7 @@ checkApplication hd args e t = do
       -- augment c with record fields, but do not revert to original name
       con <- getOrigConHead c
 --      con <- setConName c . conSrcCon . theDef <$> getConstInfo c
-      checkConstructorApplication e t con $ map convArg args
+      checkConstructorApplication e t con $ map convColor args
 
     -- Subcase: pattern synonym
     (A.PatternSyn n) -> do
@@ -754,7 +754,7 @@ checkApplication hd args e t = do
       checkExpr e' t
 
     -- Subcase: defined symbol or variable.
-    _ -> checkHeadApplication e t hd $ map convArg args
+    _ -> checkHeadApplication e t hd $ map convColor args
 
 -- | Turn a domain-free binding (e.g. lambda) into a domain-full one,
 --   by inserting an underscore for the missing type.
@@ -1315,7 +1315,7 @@ inferExpr :: A.Expr -> TCM (Term, Type)
 inferExpr e = case e of
   _ | Application hd args <- appView e, defOrVar hd -> traceCall (InferExpr e) $ do
     (f, t0) <- inferHead hd
-    res <- runErrorT $ checkArguments DontExpandLast ExpandInstanceArguments (getRange hd) (map convArg args) t0 (sort Prop)
+    res <- runErrorT $ checkArguments DontExpandLast ExpandInstanceArguments (getRange hd) (map convColor args) t0 (sort Prop)
     case res of
       Right (vs, t1) -> return (f vs, t1)
       Left t1 -> fallback -- blocked on type t1
@@ -1347,7 +1347,7 @@ inferOrCheck e mt = case e of
   _ | Application hd args <- appView e, defOrVar hd -> traceCall (InferExpr e) $ do
     (f, t0) <- inferHead hd
     res <- runErrorT $ checkArguments DontExpandLast ExpandInstanceArguments
-                                      (getRange hd) (map convArg args) t0 $
+                                      (getRange hd) (map convColor args) t0 $
                                       maybe (sort Prop) id mt
     case res of
       Right (vs, t1) -> maybe (return (f vs, t1))
@@ -1396,7 +1396,7 @@ checkLetBinding b@(A.LetBind i info x t e) ret =
   traceCallCPS_ (CheckLetBinding b) ret $ \ret -> do
     t <- isType_ t
     v <- applyRelevanceToContext (getRelevance info) $ checkExpr e t
-    addLetBinding (convArgInfo info) x v t ret
+    addLetBinding (convColor info) x v t ret
 
 checkLetBinding b@(A.LetPatBind i p e) ret =
   traceCallCPS_ (CheckLetBinding b) ret $ \ret -> do
@@ -1474,11 +1474,17 @@ checkLetBinding (A.LetApply i x modapp rd rm) ret = do
 -- LetOpen is only used for highlighting and has no semantics
 checkLetBinding A.LetOpen{} ret = ret
 
-convDom :: A.Dom e -> I.Dom e
-convDom = domFromArg . convArg . argFromDom
+class ConvColor a i where
+  convColor :: a -> i
 
-convArg :: A.Arg e -> I.Arg e
-convArg = mapArgInfo convArgInfo
+instance ConvColor A.ArgInfo I.ArgInfo where
+  convColor = mapArgInfoColors $ const [] -- "TODO guilhem 5"
 
-convArgInfo :: A.ArgInfo -> I.ArgInfo
-convArgInfo = mapArgInfoColors $ const $ [] -- "TODO guilhem 5"
+instance ConvColor (A.Arg e) (I.Arg e) where
+  convColor = mapArgInfo convColor
+
+instance ConvColor (A.Dom e) (I.Dom e) where
+  convColor = mapDomInfo convColor
+
+instance ConvColor a i => ConvColor [a] [i] where
+  convColor = map convColor
