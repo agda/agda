@@ -1,4 +1,4 @@
--- {-# LANGUAGE CPP #-}
+{-# LANGUAGE TupleSections #-}
 
 module Agda.TypeChecking.Monad.Context where
 
@@ -80,7 +80,7 @@ addCtx :: MonadTCM tcm => Name -> Dom Type -> tcm a -> tcm a
 addCtx x a ret = do
   ctx <- map (nameConcrete . fst . unDom) <$> getContext
   let x' = head $ filter (notTaken ctx) $ iterate nextName x
-  ce <- mkContextEntry $ fmap ((,) x') a
+  ce <- mkContextEntry $ (x',) <$> a
   modifyContext (ce :) ret
       -- let-bindings keep track of own their context
   where
@@ -90,7 +90,7 @@ addCtx x a ret = do
 {-# SPECIALIZE addContext :: [Dom (Name, Type)] -> TCM a -> TCM a #-}
 addContext :: MonadTCM tcm => [Dom (Name, Type)] -> tcm a -> tcm a
 addContext ctx m =
-  foldr (\arg -> addCtx (fst $ unDom arg) (fmap snd arg)) m ctx
+  foldr (\arg -> addCtx (fst $ unDom arg) (snd <$> arg)) m ctx
 
 -- | add a bunch of variables with the same type to the context
 {-# SPECIALIZE addCtxs :: [Name] -> Dom Type -> TCM a -> TCM a #-}
