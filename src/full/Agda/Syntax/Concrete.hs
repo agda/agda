@@ -12,10 +12,12 @@ module Agda.Syntax.Concrete
     , module Agda.Syntax.Concrete.Name
     , appView, AppView(..)
       -- * Bindings
-    , LamBinding(..)
-    , TypedBindings(..)
-    , TypedBinding'(..)
+    , LamBinding
+    , LamBinding'(..)
+    , TypedBindings
+    , TypedBindings'(..)
     , TypedBinding
+    , TypedBinding'(..)
     , ColoredTypedBinding(..)
     , BoundName(..), mkBoundName_, mkBoundName
     , Telescope -- (..)
@@ -130,17 +132,19 @@ data Pattern
 
 
 -- | A lambda binding is either domain free or typed.
-data LamBinding
+type LamBinding = LamBinding' TypedBindings
+data LamBinding' a
 	= DomainFree ArgInfo BoundName -- ^ . @x@ or @{x}@ or @.x@ or @.{x}@ or @{.x}@
-	| DomainFull TypedBindings     -- ^ . @(xs : e)@ or @{xs : e}@
-    deriving (Typeable)
+	| DomainFull a                 -- ^ . @(xs : e)@ or @{xs : e}@
+    deriving (Typeable, Functor, Foldable, Traversable)
 
 
 -- | A sequence of typed bindings with hiding information. Appears in dependent
 --   function spaces, typed lambdas, and telescopes.
-data TypedBindings = TypedBindings !Range (Arg TypedBinding)
+type TypedBindings = TypedBindings' TypedBinding
+data TypedBindings' a = TypedBindings !Range (Arg a)
 	-- ^ . @(xs : e)@ or @{xs : e}@
-    deriving (Typeable)
+    deriving (Typeable, Functor, Foldable, Traversable)
 
 
 data BoundName = BName { boundName   :: Name
