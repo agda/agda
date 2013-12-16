@@ -722,13 +722,18 @@ telFromList :: ListTel -> Telescope
 telFromList = telFromList' id
 
 telToList :: Telescope -> ListTel
-telToList EmptyTel = []
+telToList EmptyTel            = []
 telToList (ExtendTel arg tel) = fmap (absName tel,) arg : telToList (absBody tel)
+  -- Andreas, 2013-12-14: This would work also for 'NoAbs',
+  -- since 'absBody' raises.
 
 -- | Turn a typed binding @(x1 .. xn : A)@ into a telescope.
+bindsToTel' :: (Name -> a) -> [Name] -> Dom Type -> ListTel' a
+bindsToTel' f []     t = []
+bindsToTel' f (x:xs) t = fmap (f x,) t : bindsToTel' f xs (raise 1 t)
+
 bindsToTel :: [Name] -> Dom Type -> ListTel
-bindsToTel []     t = []
-bindsToTel (x:xs) t = ((show $ nameConcrete x,) <$> t) : bindsToTel xs (raise 1 t)
+bindsToTel = bindsToTel' (show . nameConcrete)
 
 telView' :: Type -> TelView
 telView' t = case ignoreSharing $ unEl t of

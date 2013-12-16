@@ -1,4 +1,5 @@
-{-# LANGUAGE TupleSections #-}
+{-# LANGUAGE TupleSections,
+      FlexibleInstances, TypeSynonymInstances #-}
 
 module Agda.TypeChecking.Monad.Context where
 
@@ -81,11 +82,46 @@ addCtx x a ret = do
   where
     notTaken xs x = isNoName (nameConcrete x) || nameConcrete x `notElem` xs
 
+-- | Various specializations of @addCtx@.
+{-# SPECIALIZE addContext :: b -> TCM a -> TCM a #-}
+class AddContext b where
+  addContext :: MonadTCM tcm => b -> tcm a -> tcm a
+
+instance AddContext a => AddContext [a] where
+  addContext = flip (foldr addContext)
+
+instance AddContext (Name, Dom Type) where
+  addContext = uncurry addCtx
+
+instance AddContext (Dom (Name, Type)) where
+  addContext dom = addCtx (fst $ unDom dom) (snd <$> dom)
+
+instance AddContext ([Name], Dom Type) where
+  addContext (xs, dom) = addContext (bindsToTel' id xs dom)
+
+instance AddContext (String, Dom Type) where
+  addContext (s, dom) ret = do
+    x <- freshName_ s
+    addCtx x dom ret
+
+instance AddContext Name where
+  addContext x = addContext (x, dummyDom)
+
+instance AddContext String where
+  addContext s = addContext (s, dummyDom)
+
+instance AddContext Telescope where
+  addContext tel ret = loop tel where
+    loop EmptyTel          = ret
+    loop (ExtendTel t tel) = underAbstraction t tel loop
+
+{-
 -- | N-ary variant of @addCtx@.
 {-# SPECIALIZE addContext :: [Dom (Name, Type)] -> TCM a -> TCM a #-}
 addContext :: MonadTCM tcm => [Dom (Name, Type)] -> tcm a -> tcm a
 addContext ctx m =
   foldr (\arg -> addCtx (fst $ unDom arg) (snd <$> arg)) m ctx
+-}
 
 -- | add a bunch of variables with the same type to the context
 {-# SPECIALIZE addCtxs :: [Name] -> Dom Type -> TCM a -> TCM a #-}
