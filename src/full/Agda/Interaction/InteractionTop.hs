@@ -544,13 +544,8 @@ interpret (Cmd_load_highlighting_info source) = do
                 return Nothing
     mapM_ putResponse resp
 
-interpret (Cmd_give ii rng s) = give_gen ii rng s B.give $ \rng s ce ->
-  case ce of
-    ce | rng == noRange -> Give_String $ show ce
-    C.Paren _ _ -> Give_Paren
-    _            -> Give_NoParen
-
-interpret (Cmd_refine ii rng s) = give_gen ii rng s B.refine $ \_ s -> Give_String . show
+interpret (Cmd_give   ii rng s) = give_gen ii rng s B.give
+interpret (Cmd_refine ii rng s) = give_gen ii rng s B.refine
 
 interpret (Cmd_intro pmLambda ii rng _) = do
   ss <- lift $ B.introTactic pmLambda ii
@@ -586,7 +581,7 @@ interpret (Cmd_auto ii rng s) = do
      Nothing -> return ()
      Just msg -> display_info $ Info_Auto msg
     putResponse $ Resp_MakeCase R.Function cs
-   Right (Right s) -> give_gen ii rng s B.refine (\_ s -> Give_String . show)
+   Right (Right s) -> give_gen ii rng s B.refine
 
 interpret (Cmd_context norm ii _ _) =
   display_info . Info_Context =<< lift (prettyContext norm False ii)
@@ -740,9 +735,8 @@ give_gen
   -> Range
   -> String
   -> (InteractionId -> Maybe Range -> A.Expr -> TCM (A.Expr, [InteractionId]))
-  -> (Range -> String -> C.Expr -> GiveResult)
   -> StateT CommandState TCM ()
-give_gen ii rng s give_ref mk_newtxt = do
+give_gen ii rng s give_ref = do
   -- save scope of the interaction point (for printing the given expr. later)
   scope     <- lift $ getInteractionScope ii
   -- parse string and "give", obtaining an abstract expression
@@ -754,12 +748,18 @@ give_gen ii rng s give_ref mk_newtxt = do
   modifyInteractionPoints $ replace ii iis
   -- print abstract expr
   ce        <- lift $ abstractToConcreteEnv (makeEnv scope) ae
-  putResponse $ Resp_GiveAction ii $ mk_newtxt rng s ce
+  putResponse $ Resp_GiveAction ii $ mkNewTxt (null iis && rng /= noRange) ce
   -- display new goal set
   interpret Cmd_metas
   where
     -- Substitutes xs for x in ys.
-    replace x xs ys = concatMap (\y -> if y == x then xs else [y]) ys
+    replace x xs ys = concatMap (\ y -> if y == x then xs else [y]) ys
+    -- We can replace the ii by the user given input
+    -- if we did not create any new iis.
+    mkNewTxt True  C.Paren{} = Give_Paren
+    mkNewTxt True  _         = Give_NoParen
+    -- Otherwise, we replace it by the reified value Agda computed.
+    mkNewTxt False ce        = Give_String $ show ce
 
 -- | Sorts interaction points based on their ranges.
 
