@@ -1,0 +1,4 @@
+Issue998e.agda:7,3-30
+The type of the constructor does not fit in the sort of the
+datatype, since Set (lsuc ℓ) is not less or equal than Set (lsuc ℓ)
+when checking the constructor c in the declaration of D

@@ -1,4 +1,5 @@
-{-# LANGUAGE CPP #-}
+{-# LANGUAGE CPP, TupleSections,
+      FlexibleInstances, TypeSynonymInstances #-}
 module Agda.TypeChecking.Errors
     ( prettyError
     , PrettyTCM(..)
@@ -33,6 +34,7 @@ import Agda.TypeChecking.Monad.Closure
 import Agda.TypeChecking.Monad.Context
 import Agda.TypeChecking.Monad.Options
 import Agda.TypeChecking.Pretty
+import Agda.TypeChecking.Reduce (instantiate)
 
 import Agda.Utils.FileName
 import Agda.Utils.Monad
@@ -218,11 +220,11 @@ errorString err = case err of
     UnequalBecauseOfUniverseConflict{}       -> "UnequalBecauseOfUniverseConflict"
     UnequalRelevance{}                       -> "UnequalRelevance"
     UnequalHiding{}                          -> "UnequalHiding"
-    UnequalLevel{}                           -> "UnequalLevel"
+--    UnequalLevel{}                           -> "UnequalLevel" -- UNUSED
     UnequalSorts{}                           -> "UnequalSorts"
     UnequalTerms{}                           -> "UnequalTerms"
     UnequalTypes{}                           -> "UnequalTypes"
-    UnequalTelescopes{}                      -> "UnequalTelescopes"
+--    UnequalTelescopes{}                      -> "UnequalTelescopes" -- UNUSED
     UnequalColors{}                          -> "UnequalTelescopes"
     HeterogeneousEquality{}                  -> "HeterogeneousEquality"
     UnexpectedWithPatterns{}                 -> "UnexpectedWithPatterns"
@@ -421,14 +423,17 @@ instance PrettyTCM TypeError where
                 text "Variable" : prettyTCM x : pwords "is declared irrelevant, so it cannot be used here"
 	    UnequalBecauseOfUniverseConflict cmp s t -> fsep $
 		[prettyTCM s, notCmp cmp, prettyTCM t, text "because this would result in an invalid use of Setω" ]
- 	    UnequalTerms cmp s t a -> fsep $
-		[prettyTCM s, notCmp cmp, prettyTCM t] ++ pwords "of type" ++ [prettyTCM a]
-	    UnequalLevel cmp s t -> fsep $
-		[prettyTCM s, notCmp cmp, prettyTCM t]
-	    UnequalTelescopes cmp a b -> fsep $
-		[prettyTCM a, notCmp cmp, prettyTCM b]
-	    UnequalTypes cmp a b -> fsep $
-		[prettyTCM a, notCmp cmp, prettyTCM b]
+ 	    UnequalTerms cmp s t a -> do
+                (d1, d2, d) <- prettyInEqual s t
+		fsep $ [return d1, notCmp cmp, return d2] ++ pwords "of type" ++ [prettyTCM a] ++ [return d]
+-- UnequalLevel is UNUSED
+--	    UnequalLevel cmp s t -> fsep $
+--		[prettyTCM s, notCmp cmp, prettyTCM t]
+-- UnequalTelescopes is UNUSED
+--	    UnequalTelescopes cmp a b -> fsep $
+--		[prettyTCM a, notCmp cmp, prettyTCM b]
+	    UnequalTypes cmp a b -> prettyUnequal a (notCmp cmp) b
+--                fsep $ [prettyTCM a, notCmp cmp, prettyTCM b]
             UnequalColors a b -> error "TODO guilhem 4"
 	    HeterogeneousEquality u a v b -> fsep $
                 pwords "Refuse to solve heterogeneous constraint" ++
@@ -468,7 +473,7 @@ instance PrettyTCM TypeError where
 		    pwords "The metavariable" ++ [prettyTCM $ MetaV m []] ++ pwords "cannot depend on" ++ [pvar i] ++
 		    pwords "because it" ++ deps
 		where
-		    pvar i = prettyTCM $ I.Var i []
+                    pvar = prettyTCM . I.var
 		    deps = case map pvar ps of
 			[]  -> pwords "does not depend on any variables"
 			[x] -> pwords "only depends on the variable" ++ [x]
@@ -786,6 +791,42 @@ instance PrettyTCM TypeError where
 
 notCmp :: Comparison -> TCM Doc
 notCmp cmp = text $ "!" ++ show cmp
+
+-- | Print two terms that are supposedly unequal.
+--   If they print to the same identifier, add some explanation
+--   why they are different nevertheless.
+prettyInEqual :: Term -> Term -> TCM (Doc, Doc, Doc)
+prettyInEqual t1 t2 = do
+  d1 <- prettyTCM t1
+  d2 <- prettyTCM t2
+  (d1, d2,) <$> do
+     -- if printed differently, no extra explanation needed
+    if P.render d1 /= P.render d2 then return P.empty else do
+      (v1, v2) <- instantiate (t1, t2)
+      case (ignoreSharing v1, ignoreSharing v2) of
+        (I.Var{}, I.Var{}) -> __IMPOSSIBLE__  -- variable renaming is done elsewhere
+        (I.Def{}, I.Con{}) -> __IMPOSSIBLE__  -- ambiguous identifiers
+        (I.Con{}, I.Def{}) -> __IMPOSSIBLE__
+        (I.Var{}, I.Def{}) -> varDef
+        (I.Def{}, I.Var{}) -> varDef
+        (I.Var{}, I.Con{}) -> varCon
+        (I.Con{}, I.Var{}) -> varCon
+        _                  -> return P.empty
+  where
+    varDef = return $ P.parens $ P.fwords "because one is a variable and one a defined identifier"
+    varCon = return $ P.parens $ P.fwords "because one is a variable and one a constructor"
+
+class PrettyUnequal a where
+  prettyUnequal :: a -> TCM Doc -> a -> TCM Doc
+
+instance PrettyUnequal Term where
+  prettyUnequal t1 ncmp t2 = do
+    (d1, d2, d) <- prettyInEqual t1 t2
+    fsep $ return d1 : ncmp : return d2 : return d : []
+
+instance PrettyUnequal Type where
+  prettyUnequal t1 ncmp t2 = prettyUnequal (unEl t1) ncmp (unEl t2)
+
 
 instance PrettyTCM SplitError where
   prettyTCM err = case err of

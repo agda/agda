@@ -1,0 +1,4 @@
+Issue998b.agda:8,7-10
+A != A of type Set
+(because one is a variable and one a defined identifier)
+when checking that the expression d A has type D A

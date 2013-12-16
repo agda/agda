@@ -1307,10 +1307,10 @@ data TypeError
         | SplitOnIrrelevant A.Pattern (Dom Type)
         | DefinitionIsIrrelevant QName
         | VariableIsIrrelevant Name
-        | UnequalLevel Comparison Term Term
+--        | UnequalLevel Comparison Term Term  -- UNUSED
 	| UnequalTerms Comparison Term Term Type
 	| UnequalTypes Comparison Type Type
-	| UnequalTelescopes Comparison Telescope Telescope
+--	| UnequalTelescopes Comparison Telescope Telescope -- UNUSED
 	| UnequalRelevance Comparison Term Term
 	    -- ^ The two function types have different relevance.
 	| UnequalHiding Term Term
