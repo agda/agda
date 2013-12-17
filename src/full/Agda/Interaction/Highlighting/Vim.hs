@@ -32,6 +32,9 @@ escape = concatMap esc
 	esc c	| c `elem` escchars = ['\\',c]
 		| otherwise	    = [c]
 
+wordBounded :: String -> String
+wordBounded s0 = concat ["\\<", s0, "\\>"]
+
 keyword :: String -> [String] -> String
 keyword _ [] = ""
 keyword cat ws	= "syn keyword " ++ unwords (cat : ws)
@@ -39,7 +42,7 @@ keyword cat ws	= "syn keyword " ++ unwords (cat : ws)
 match :: String -> [String] -> String
 match _ [] = ""
 match cat ws	= "syn match " ++ cat ++ " \"" ++
-		    concat (List.intersperse "\\|" $ map escape ws) ++ "\""
+		    concat (List.intersperse "\\|" $ map (wordBounded . escape) ws) ++ "\""
 
 matches :: [String] -> [String] -> [String] -> [String] -> [String] -> [String] -> [String]
 matches cons icons defs idefs flds iflds =
