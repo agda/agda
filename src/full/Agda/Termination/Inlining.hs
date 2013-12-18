@@ -190,13 +190,7 @@ inline f pcl t wf wcl = inTopContext $ addCtxTel (clauseTel wcl) $ do
       (ps, (j, ren)) <- (`runStateT` (0, [])) $
                         map (fmap unnamed) <$> mapM (traverse dtermToPat) us
       let perm = Perm j (map snd $ List.sort ren)
-          qs   = applySubst (renamingR $ compactP perm) ps
-                    -- Need to substitute dot patterns in ps.
-                    -- In the dot patterns only actual variables counts as
-                    -- binding, as opposed to in the body where dot patterns
-                    -- are (unused) bindings as well. Compacting the
-                    -- permutation accounts for this.
-      return (qs, perm)
+      return (ps, perm)
     dispToPats t = __IMPOSSIBLE__
 
     bindVar i = do

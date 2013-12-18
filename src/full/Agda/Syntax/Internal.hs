@@ -233,6 +233,8 @@ instance Applicative Blocked where
 --
 --  @clauseTel ~ permute clausePerm (patternVars clausPats)@
 --
+--  Terms in dot patterns are valid in the clause telescope.
+--
 --  For the purpose of the permutation and the body dot patterns count
 --  as variables. TODO: Change this!
 data Clause = Clause
