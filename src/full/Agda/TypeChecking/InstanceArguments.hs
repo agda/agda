@@ -81,11 +81,12 @@ initialIFSCandidates = do
         if not (r `moreRelevant` rel) then return [] else do
           t   <- defType <$> instantiateDef def
           args <- freeVarsToApply q
-          let vs = case theDef def of
+          let v = case theDef def of
                -- drop parameters if it's a projection function...
-               Function{ funProjection = Just p } -> genericDrop (projIndex p - 1) args
-               _                                  -> args
-          return [(Def q $ map Apply vs, t)]
+               Function{ funProjection = Just p } -> Def q $ map Apply $ genericDrop (projIndex p - 1) args
+               Constructor{}                      -> Con (ConHead q []) []
+               _                                  -> Def q $ map Apply args
+          return [(v, t)]
       where
         -- unbound constant throws an internal error
         handle (TypeError _ (Closure {clValue = InternalError _})) = return []
