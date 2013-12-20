@@ -1108,9 +1108,9 @@ instance InstantiateFull Clause where
        <*> instantiateFull t
 
 instance InstantiateFull Interface where
-    instantiateFull (Interface ms mod scope inside
+    instantiateFull (Interface h ms mod scope inside
                                sig b hsImports highlighting pragmas patsyns) =
-	Interface ms mod scope inside
+	Interface h ms mod scope inside
 	    <$> instantiateFull sig
 	    <*> instantiateFull b
             <*> return hsImports

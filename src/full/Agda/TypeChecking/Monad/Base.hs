@@ -32,6 +32,7 @@ import Agda.Syntax.Internal as I
 import Agda.Syntax.Position
 import Agda.Syntax.Scope.Base
 import Agda.Utils.HashMap as HMap
+import Agda.Utils.Hash
 
 import Agda.TypeChecking.CompiledClause
 
@@ -243,7 +244,8 @@ type VisitedModules = Map C.TopLevelModuleName ModuleInfo
 type DecodedModules = Map C.TopLevelModuleName (Interface, ClockTime)
 
 data Interface = Interface
-	{ iImportedModules :: [ModuleName]
+	{ iHash            :: Hash
+        , iImportedModules :: [ModuleName]
         , iModuleName      :: ModuleName
 	, iScope	   :: Map ModuleName Scope
         , iInsideScope     :: ScopeInfo

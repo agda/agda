@@ -93,7 +93,7 @@ setTopLevelModule :: C.QName -> TCM ()
 setTopLevelModule x =
   modify $ \s -> s
     { stFreshThings = (stFreshThings s)
-      { fName = NameId 0 $ hash (show x)
+      { fName = NameId 0 $ hashString (show x)
       }
     }
 

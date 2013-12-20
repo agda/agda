@@ -1067,7 +1067,7 @@ Open : MaybeOpen 'import' ModuleName OpenArgs ImportDirective {%
     ; dir = $5
     ; r   = getRange (m, es, dir)
     ; mr  = getRange m
-    ; unique = hash $ show $ fmap (const (Nothing :: Maybe ())) r
+    ; unique = hashString $ show $ fmap (const (Nothing :: Maybe ())) r
          -- turn range into unique id, but delete file path
          -- which is absolute and messes up suite of failing tests
          -- (different hashs on different installations)

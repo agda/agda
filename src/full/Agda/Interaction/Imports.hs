@@ -54,6 +54,7 @@ import Agda.Utils.IO.Binary
 import Agda.Utils.Pretty
 import Agda.Utils.Fresh
 import Agda.Utils.Time
+import Agda.Utils.Hash
 import qualified Agda.Utils.Trie as Trie
 
 #include "../undefined.h"
@@ -385,10 +386,9 @@ getInterface' x includeStateChanges =
                      setVisitedModules vs
                      addImportedThings isig ibuiltin Set.empty ipatsyns
 
-                     r <- withMsgs $ createInterface file x
-
-                     mf        <- stModuleToSource <$> get
-                     ds        <- getDecodedModules
+                     r  <- withMsgs $ createInterface file x
+                     mf <- stModuleToSource <$> get
+                     ds <- getDecodedModules
                      return (r, do
                         modify $ \s -> s { stModuleToSource = mf }
                         setDecodedModules ds
@@ -544,7 +544,7 @@ createInterface file mname =
     reportSLn "scope.top" 50 $ "SCOPE " ++ show (insideScope topLevel)
 
     syntaxInfo <- stSyntaxInfo <$> get
-    i <- buildInterface topLevel syntaxInfo previousHsImports options
+    i <- buildInterface file topLevel syntaxInfo previousHsImports options
 
     -- TODO: It would be nice if unsolved things were highlighted
     -- after every mutual block.
@@ -580,7 +580,8 @@ createInterface file mname =
 -- | Builds an interface for the current module, which should already
 -- have been successfully type checked.
 
-buildInterface :: TopLevelInfo
+buildInterface :: AbsolutePath
+               -> TopLevelInfo
                   -- ^ 'TopLevelInfo' for the current module.
                -> HighlightingInfo
                   -- ^ Syntax highlighting info for the module.
@@ -590,7 +591,7 @@ buildInterface :: TopLevelInfo
                -> [OptionsPragma]
                   -- ^ Options set in @OPTIONS@ pragmas.
                -> TCM Interface
-buildInterface topLevel syntaxInfo previousHsImports pragmas = do
+buildInterface file topLevel syntaxInfo previousHsImports pragmas = do
     reportSLn "import.iface" 5 "Building interface..."
     scope'  <- getScope
     let scope = scope' { scopeCurrent = m }
@@ -599,10 +600,12 @@ buildInterface topLevel syntaxInfo previousHsImports pragmas = do
     ms      <- getImports
     hsImps  <- getHaskellImports
     patsyns <- getPatternSyns
+    h       <- liftIO $ hashFile file
     let	builtin' = Map.mapWithKey (\x b -> fmap (\pf -> (x, primFunName pf)) b) builtin
     reportSLn "import.iface" 7 "  instantiating all meta variables"
     i <- instantiateFull $ Interface
-			{ iImportedModules = Set.toList ms
+			{ iHash            = h
+                        , iImportedModules = Set.toList ms
                         , iModuleName      = m
 			, iScope	   = publicModules scope
                         , iInsideScope     = insideScope topLevel
