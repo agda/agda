@@ -3,24 +3,25 @@
     that. -}
 module Agda.Utils.Hash where
 
-import Data.Hashable
 import Data.ByteString as B
 import Data.Word
+import qualified Data.Hash as H
+import qualified Data.List as L
 
 import Agda.Utils.FileName
 
 type Hash = Word64
 
-hash64 :: ByteString -> Hash
-hash64 = fromIntegral . hash
+hashByteString :: ByteString -> Hash
+hashByteString = H.asWord64 . B.foldl' (\h b -> H.combine h (H.hashWord8 b)) (H.hashWord8 0)
 
 hashFile :: AbsolutePath -> IO Hash
 hashFile file = do
   s <- B.readFile (filePath file)
-  return $ hash64 s
+  return $ hashByteString s
 
 combineHashes :: [Hash] -> Hash
-combineHashes = fromIntegral . hash
+combineHashes hs = H.asWord64 $ L.foldl' H.combine (H.hashWord8 0) $ L.map H.hash hs
 
 -- | Hashing a module name for unique identifiers.
 hashString :: String -> Integer
