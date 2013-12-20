@@ -104,7 +104,7 @@ compileModule i = do
         Just eifs -> return eifs
         Nothing  -> do
             imports <- map miInterface . catMaybes
-                                      <$> mapM (lift . getVisitedModule . toTopLevelModuleName)
+                                      <$> mapM (lift . getVisitedModule . toTopLevelModuleName . fst)
                                                (iImportedModules i)
             (ifaces, limps) <- mapAndUnzipM compileModule imports
             let imps = S.unions limps

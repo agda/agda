@@ -55,7 +55,7 @@ dottify :: Interface -> DotM String
 dottify inter = do
     let curModule = iModuleName inter
     (name, continue) <- addModule curModule
-    importsifs <- lift $ map miInterface . catMaybes <$> mapM (getVisitedModule . toTopLevelModuleName) (iImportedModules inter)
+    importsifs <- lift $ map miInterface . catMaybes <$> mapM (getVisitedModule . toTopLevelModuleName . fst) (iImportedModules inter)
     when continue $ do
         imports    <- mapM dottify importsifs
         mapM_ (addConnection name) imports

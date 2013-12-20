@@ -244,8 +244,8 @@ type VisitedModules = Map C.TopLevelModuleName ModuleInfo
 type DecodedModules = Map C.TopLevelModuleName (Interface, ClockTime)
 
 data Interface = Interface
-	{ iHash            :: Hash
-        , iImportedModules :: [ModuleName]
+	{ iSourceHash      :: Hash    -- ^ Hash of the source code
+        , iImportedModules :: [(ModuleName, Hash)]
         , iModuleName      :: ModuleName
 	, iScope	   :: Map ModuleName Scope
         , iInsideScope     :: ScopeInfo
@@ -261,6 +261,10 @@ data Interface = Interface
         , iPatternSyns     :: A.PatternSynDefns
 	}
     deriving (Typeable, Show)
+
+-- | Combines the source hash and the (full) hashes of the imported modules.
+iFullHash :: Interface -> Hash
+iFullHash i = combineHashes $ iSourceHash i : Prelude.map snd (iImportedModules i)
 
 ---------------------------------------------------------------------------
 -- ** Closure

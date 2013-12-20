@@ -19,6 +19,9 @@ hashFile file = do
   s <- B.readFile (filePath file)
   return $ hash64 s
 
+combineHashes :: [Hash] -> Hash
+combineHashes = fromIntegral . hash
+
 -- | Hashing a module name for unique identifiers.
 hashString :: String -> Integer
 hashString = Prelude.foldr step 0

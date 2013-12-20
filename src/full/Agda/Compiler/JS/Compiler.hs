@@ -204,7 +204,7 @@ insertAfter us e (f:fs) | otherwise = f : insertAfter (delete (expName f) us) e 
 curModule :: TCM Module
 curModule = do
   m <- (jsMod <$> curMName)
-  is <- map jsMod <$> (iImportedModules <$> curIF)
+  is <- map jsMod <$> (map fst . iImportedModules <$> curIF)
   es <- mapM definition =<< (HMap.toList <$> curDefs)
   return (Module m (reorder es))
 

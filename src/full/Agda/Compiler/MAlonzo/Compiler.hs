@@ -91,7 +91,7 @@ imports = (++) <$> hsImps <*> imps where
              ((++) <$> importsForPrim <*> (L.map mazMod <$> mnames))
   decl m = HS.ImportDecl dummy m True False Nothing Nothing Nothing
   mnames = (++) <$> (S.elems <$> gets stImportedModules)
-                <*> (iImportedModules <$> curIF)
+                <*> (L.map fst . iImportedModules <$> curIF)
   uniq   = L.map head . group . L.sort
 
 --------------------------------------------------

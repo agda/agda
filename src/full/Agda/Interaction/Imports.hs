@@ -322,7 +322,7 @@ getInterface' x includeStateChanges =
 
             reportSLn "import.iface" 5 $ "  imports: " ++ show (iImportedModules i)
 
-            ts <- map snd <$> mapM getInterface (iImportedModules i)
+            ts <- map snd <$> mapM getInterface (map fst $ iImportedModules i)
 
             -- If any of the imports are newer we need to retype check
             if any (> t) ts
@@ -598,14 +598,15 @@ buildInterface file topLevel syntaxInfo previousHsImports pragmas = do
     sig     <- getSignature
     builtin <- gets stLocalBuiltins
     ms      <- getImports
+    mhs     <- mapM (\m -> (,) m <$> moduleHash m) $ Set.toList ms
     hsImps  <- getHaskellImports
     patsyns <- getPatternSyns
     h       <- liftIO $ hashFile file
     let	builtin' = Map.mapWithKey (\x b -> fmap (\pf -> (x, primFunName pf)) b) builtin
     reportSLn "import.iface" 7 "  instantiating all meta variables"
     i <- instantiateFull $ Interface
-			{ iHash            = h
-                        , iImportedModules = Set.toList ms
+			{ iSourceHash      = h
+                        , iImportedModules = mhs
                         , iModuleName      = m
 			, iScope	   = publicModules scope
                         , iInsideScope     = insideScope topLevel
@@ -620,6 +621,13 @@ buildInterface file topLevel syntaxInfo previousHsImports pragmas = do
     reportSLn "import.iface" 7 "  interface complete"
     return i
   where m = topLevelModuleName topLevel
+
+-- | TODO: more efficient?
+getInterfaceFileHash :: AbsolutePath -> TCM (Maybe Hash)
+getInterfaceFileHash ifile = fmap iFullHash <$> readInterface (filePath ifile)
+
+moduleHash :: ModuleName -> TCM Hash
+moduleHash m = iFullHash . fst <$> getInterface m
 
 -- | True if the first file is newer than the second file. If a file doesn't
 -- exist it is considered to be infinitely old.
