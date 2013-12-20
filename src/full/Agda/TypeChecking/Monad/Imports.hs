@@ -59,14 +59,14 @@ setDecodedModules :: DecodedModules -> TCM ()
 setDecodedModules ms = modify $ \s ->
   s { stPersistent = (stPersistent s) { stDecodedModules = ms } }
 
-getDecodedModule :: C.TopLevelModuleName -> TCM (Maybe (Interface, ClockTime))
+getDecodedModule :: C.TopLevelModuleName -> TCM (Maybe Interface)
 getDecodedModule x = Map.lookup x . stDecodedModules . stPersistent <$> get
 
-storeDecodedModule :: Interface -> ClockTime -> TCM ()
-storeDecodedModule i t = modify $ \s ->
+storeDecodedModule :: Interface -> TCM ()
+storeDecodedModule i = modify $ \s ->
   s { stPersistent =
         (stPersistent s) { stDecodedModules =
-          Map.insert (toTopLevelModuleName $ iModuleName i) (i, t) $
+          Map.insert (toTopLevelModuleName $ iModuleName i) i $
             (stDecodedModules $ stPersistent s)
         }
   }

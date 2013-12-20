@@ -16,10 +16,8 @@
 -- -!-!-!-!-!-!-!-!-!-!-!-!-!-!-!-!-!-!-!-!-!-!-!-!-!-!-!-!-!-!-!-!-!-!-
 
 module Agda.TypeChecking.Serialise
-  ( encode
-  , encodeFile
-  , decode
-  , decodeFile
+  ( encode, encodeFile, encodeInterface
+  , decode, decodeFile, decodeInterface, decodeHashes
   , EmbPrj
   )
   where
@@ -43,6 +41,7 @@ import Data.Set (Set)
 import qualified Data.Set as S
 import qualified Data.Binary as B
 import qualified Data.Binary.Get as B
+import qualified Data.Binary.Put as B
 import qualified Data.List as List
 import Data.Function
 import Data.Typeable
@@ -72,6 +71,7 @@ import Agda.TypeChecking.Pretty
 import Agda.Utils.FileName
 import Agda.Utils.Permutation
 import Agda.Utils.HashMap (HashMap)
+import Agda.Utils.Hash
 import qualified Agda.Utils.HashMap as HMap
 
 #include "../undefined.h"
@@ -82,7 +82,7 @@ import Agda.Utils.Impossible
 -- 32-bit machines). Word64 does not have these problems.
 
 currentInterfaceVersion :: Word64
-currentInterfaceVersion = 20131220 * 10 + 0
+currentInterfaceVersion = 20131220 * 10 + 1
 
 -- | Constructor tag (maybe omitted) and argument indices.
 
@@ -236,25 +236,34 @@ decode s = do
 
   noResult s = return (Nothing, Left $ GenericError s)
 
+encodeInterface :: Interface -> TCM ByteString
+encodeInterface i = L.append hashes <$> encode i
+  where
+    hashes :: ByteString
+    hashes = B.runPut $ B.put (iSourceHash i) >> B.put (iFullHash i)
+
 -- | Encodes something. To ensure relocatability file paths in
 -- positions are replaced with module names.
 
-encodeFile :: EmbPrj a
-           => FilePath
-              -- ^ The encoded data is written to this file.
-           -> a
-              -- ^ Something.
-           -> TCM ()
-encodeFile f x = liftIO . L.writeFile f =<< encode x
+encodeFile :: FilePath -> Interface -> TCM ()
+encodeFile f i = liftIO . L.writeFile f =<< encodeInterface i
 
 -- | Decodes something. The result depends on the include path.
 --
 -- Returns 'Nothing' if the file does not start with the right magic
 -- number or some other decoding error is encountered.
 
-decodeFile :: EmbPrj a => FilePath -> TCM (Maybe a)
-decodeFile f = decode =<< liftIO (L.readFile f)
+decodeInterface :: ByteString -> TCM (Maybe Interface)
+decodeInterface s = decode $ L.drop 16 s
 
+decodeHashes :: ByteString -> Maybe (Hash, Hash)
+decodeHashes s
+  | L.length s < 16 = Nothing
+  | otherwise       = Just $ B.runGet getH $ L.take 16 s
+  where getH = (,) <$> B.get <*> B.get
+
+decodeFile :: FilePath -> TCM (Maybe Interface)
+decodeFile f = decodeInterface =<< liftIO (L.readFile f)
 
 instance EmbPrj String where
   icode   = icodeX stringD stringC
@@ -269,8 +278,9 @@ instance EmbPrj Word64 where
     where (q, r) = quotRem i (2^32)
           int32 :: Word64 -> Int32
           int32 = fromIntegral
-  value = vcase valu where valu [a, b] = return $ 2^32 * fromIntegral a + fromIntegral b
+  value = vcase valu where valu [a, b] = return $ n * mod (fromIntegral a) n + mod (fromIntegral b) n
                            valu _      = malformed
+                           n = 2^32
 
 instance EmbPrj Int32 where
   icode i = return i

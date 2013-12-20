@@ -20,6 +20,7 @@ import Agda.Interaction.CommandLine.CommandLine
 import Agda.Interaction.Options
 import Agda.Interaction.Monad
 import Agda.Interaction.EmacsTop (mimicGHCi)
+import Agda.Interaction.Imports (MaybeWarnings(..))
 import qualified Agda.Interaction.Imports as Imp
 import qualified Agda.Interaction.Highlighting.Dot as Dot
 import qualified Agda.Interaction.Highlighting.LaTeX as LaTeX
@@ -99,15 +100,15 @@ runAgda = do
           unsolvedOK <- optAllowUnsolved <$> pragmaOptions
 
           result <- case mw of
-            Just (Warnings [] [] []) -> __IMPOSSIBLE__
-            Just (Warnings _ unsolved@(_:_) _)
+            SomeWarnings (Warnings [] [] []) -> __IMPOSSIBLE__
+            SomeWarnings (Warnings _ unsolved@(_:_) _)
               | not unsolvedOK -> typeError $ UnsolvedMetas unsolved
-            Just (Warnings _ _ unsolved@(_:_))
+            SomeWarnings (Warnings _ _ unsolved@(_:_))
               | not unsolvedOK -> typeError $ UnsolvedConstraints unsolved
-            Just (Warnings termErrs@(_:_) _ _) ->
+            SomeWarnings (Warnings termErrs@(_:_) _ _) ->
               typeError $ TerminationCheckFailed termErrs
-            Just _  -> return Nothing
-            Nothing -> return $ Just i
+            SomeWarnings _  -> return Nothing
+            NoWarnings -> return $ Just i
 
           whenM (optGenerateHTML <$> commandLineOptions) $
             generateHTML $ iModuleName i

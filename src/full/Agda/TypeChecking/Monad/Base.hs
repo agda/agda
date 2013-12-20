@@ -228,12 +228,6 @@ data ModuleInfo = ModuleInfo
   , miWarnings   :: Bool
     -- ^ 'True' if warnings were encountered when the module was type
     -- checked.
-  , miTimeStamp  :: ClockTime
-    -- ^ The modification time stamp of the interface file when the
-    -- interface was read or written. Alternatively, if warnings were
-    -- encountered (in which case there may not be any up-to-date
-    -- interface file), the time at which the interface was produced
-    -- (approximately).
   }
 
 -- Note that the use of 'C.TopLevelModuleName' here is a potential
@@ -241,7 +235,7 @@ data ModuleInfo = ModuleInfo
 -- identifiers.
 
 type VisitedModules = Map C.TopLevelModuleName ModuleInfo
-type DecodedModules = Map C.TopLevelModuleName (Interface, ClockTime)
+type DecodedModules = Map C.TopLevelModuleName Interface
 
 data Interface = Interface
 	{ iSourceHash      :: Hash    -- ^ Hash of the source code

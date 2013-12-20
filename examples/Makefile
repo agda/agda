@@ -127,8 +127,8 @@ malonzo : compiler/main.agda
 	@$(echo) "Testing the MAlonzo backend"
 	@$(agda) --ignore-interfaces --compile --compile-dir=compiler -icompiler $<
 	@./compiler/main
-        # Compilation works also if the code has already been type
-        # checked.
+				# Compilation works also if the code has already been type
+				# checked.
 	@rm -rf compiler/main compiler/MAlonzo
 	@$(agda) --compile --compile-dir=compiler -icompiler $<
 	@./compiler/main
@@ -138,8 +138,8 @@ epic : compiler/main.agda
 	@$(echo) "Testing the Epic backend"
 	@$(agda) --ignore-interfaces --epic --compile-dir=compiler -icompiler $<
 	@./compiler/main
-        # Compilation works also if the code has already been type
-        # checked.
+				# Compilation works also if the code has already been type
+				# checked.
 	@rm -rf compiler/main compiler/Epic
 	@$(agda) --epic --compile-dir=compiler -icompiler $<
 	@./compiler/main
@@ -150,13 +150,11 @@ relocatable-interfaces : relocatable/originals/*.agda
 	@$(echo) "Testing that interface files are relocatable"
 	@$(agda) --ignore-interfaces -irelocatable/originals relocatable/originals/C.agda
 	@cp -pR relocatable/originals relocatable/copies
-	@sleep 1
-	@touch relocatable/copies/B.agda
-	@sleep 2
-        # Type checking succeeds...
+	@echo "" >> relocatable/copies/B.agda
+				# Type checking succeeds...
 	@$(agda) -irelocatable/copies relocatable/copies/C.agda > relocatable/copies/output
 	@cat relocatable/copies/output
-        # ...and skips one of the modules (A).
+				# ...and skips one of the modules (A).
 	@[ `grep "^ *Skipping" relocatable/copies/output | wc -l` = 1 ]
 	@rm -rf relocatable/copies
 

@@ -61,6 +61,7 @@ import Agda.Utils.FileName
 import qualified Agda.Utils.HashMap as HMap
 import Agda.Utils.Pretty
 import Agda.Utils.Time
+import Agda.Utils.Hash
 
 #include "../undefined.h"
 import Agda.Utils.Impossible
@@ -441,13 +442,13 @@ interpret (Cmd_load m includes) =
 interpret (Cmd_compile b file includes) =
   cmd_load' file includes False $ \(i, mw) -> do
     case mw of
-      Nothing -> do
+      Imp.NoWarnings -> do
         lift $ case b of
           MAlonzo -> MAlonzo.compilerMain i
           Epic    -> Epic.compilerMain i
           JS      -> JS.compilerMain i
         display_info $ Info_CompilationOk
-      Just w ->
+      Imp.SomeWarnings w ->
         display_info $ Info_Error $ unlines
           [ "You can only compile modules without unsolved metavariables"
           , "or termination checking problems."
@@ -525,18 +526,19 @@ interpret (Cmd_load_highlighting_info source) = do
 
     resp <- lift $ liftIO . tellToUpdateHighlighting =<< do
       ex <- liftIO $ doesFileExist source
+      absSource <- liftIO $ absolute source
       case ex of
         False -> return Nothing
         True  -> do
           mmi <- (getVisitedModule =<<
-                    moduleName =<< liftIO (absolute source))
+                    moduleName absSource)
                    `catchError`
                  \_ -> return Nothing
           case mmi of
             Nothing -> return Nothing
             Just mi -> do
-              sourceT <- liftIO $ getModificationTime source
-              if sourceT <= miTimeStamp mi
+              sourceH <- liftIO $ hashFile absSource
+              if sourceH == iSourceHash (miInterface mi)
                then do
                 modFile <- gets stModuleToSource
                 return $ Just (iHighlighting $ miInterface mi, modFile)
@@ -662,7 +664,7 @@ type GoalCommand = InteractionId -> Range -> String -> Interaction
 
 cmd_load' :: FilePath -> [FilePath]
           -> Bool -- ^ Allow unsolved meta-variables?
-          -> ((Interface, Maybe Warnings) -> CommandM ())
+          -> ((Interface, Imp.MaybeWarnings) -> CommandM ())
           -> CommandM ()
 cmd_load' file includes unsolvedOK cmd = do
     f <- liftIO $ absolute file

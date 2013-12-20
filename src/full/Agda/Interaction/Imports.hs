@@ -112,9 +112,15 @@ scopeCheckImport x = do
       visited <- Map.keys <$> getVisitedModules
       reportSLn "import.scope" 10 $
         "  visited: " ++ intercalate ", " (map (render . pretty) visited)
-    i <- fst <$> getInterface x
+    i <- getInterface x
     addImport x
     return (iModuleName i `withRangesOfQ` mnameToConcrete x, iScope i)
+
+data MaybeWarnings = NoWarnings | SomeWarnings Warnings
+
+hasWarnings :: MaybeWarnings -> Bool
+hasWarnings NoWarnings     = False
+hasWarnings SomeWarnings{} = True
 
 -- | If the module has already been visited (without warnings), then
 -- its interface is returned directly. Otherwise the computation is
@@ -122,8 +128,8 @@ scopeCheckImport x = do
 -- potential later use.
 
 alreadyVisited :: C.TopLevelModuleName ->
-                  TCM (Interface, Either Warnings ClockTime) ->
-                  TCM (Interface, Either Warnings ClockTime)
+                  TCM (Interface, MaybeWarnings) ->
+                  TCM (Interface, MaybeWarnings)
 alreadyVisited x getIface = do
     mm <- getVisitedModule x
     case mm of
@@ -131,25 +137,15 @@ alreadyVisited x getIface = do
         -- imported from another module.
 	Just mi | not (miWarnings mi) -> do
           reportSLn "import.visit" 10 $ "  Already visited " ++ render (pretty x)
-          return (miInterface mi, Right $ miTimeStamp mi)
+          return (miInterface mi, NoWarnings)
 	_ -> do
           reportSLn "import.visit" 5 $ "  Getting interface for " ++ render (pretty x)
           r@(i, wt) <- getIface
           reportSLn "import.visit" 5 $ "  Now we've looked at " ++ render (pretty x)
-          case wt of
-            Left _ -> do
-              t <- liftIO getClockTime
-              visitModule $ ModuleInfo
-                { miInterface  = i
-                , miWarnings   = True
-                , miTimeStamp  = t
-                }
-            Right t ->
-              visitModule $ ModuleInfo
-                { miInterface  = i
-                , miWarnings   = False
-                , miTimeStamp  = t
-                }
+          visitModule $ ModuleInfo
+            { miInterface  = i
+            , miWarnings   = hasWarnings wt
+            }
           return r
 
 -- | Type checks the main file of the interaction.
@@ -159,7 +155,7 @@ alreadyVisited x getIface = do
 --   First, the primitive modules are imported.
 --   Then, 'typeCheck' is called to do the main work.
 
-typeCheckMain :: AbsolutePath -> TCM (Interface, Maybe Warnings)
+typeCheckMain :: AbsolutePath -> TCM (Interface, MaybeWarnings)
 typeCheckMain f = do
   -- liftIO $ putStrLn $ "This is typeCheckMain " ++ show f
   -- liftIO . putStrLn . show =<< getVerbosity
@@ -187,29 +183,25 @@ typeCheckMain f = do
 --
 --   Called recursively for imported modules.
 
-typeCheck :: AbsolutePath -> TCM (Interface, Maybe Warnings)
+typeCheck :: AbsolutePath -> TCM (Interface, MaybeWarnings)
 typeCheck f = do
   m <- moduleName f
-
-  (i, wt) <- getInterface' m True
-  return (i, case wt of
-    Left w  -> Just w
-    Right _ -> Nothing)
+  getInterface' m True
 
 -- | Tries to return the interface associated to the given module. The
 -- time stamp of the relevant interface file is also returned. May
 -- type check the module. An error is raised if a warning is
 -- encountered.
 
-getInterface :: ModuleName -> TCM (Interface, ClockTime)
+getInterface :: ModuleName -> TCM Interface
 getInterface = getInterface_ . toTopLevelModuleName
 
-getInterface_ :: C.TopLevelModuleName -> TCM (Interface, ClockTime)
+getInterface_ :: C.TopLevelModuleName -> TCM Interface
 getInterface_ x = do
   (i, wt) <- getInterface' x False
   case wt of
-    Left  w -> typeError $ warningsToError w
-    Right t -> return (i, t)
+    SomeWarnings w  -> typeError $ warningsToError w
+    NoWarnings      -> return i
 
 -- | A more precise variant of 'getInterface'. If warnings are
 -- encountered then they are returned instead of being turned into
@@ -219,7 +211,7 @@ getInterface' :: C.TopLevelModuleName
               -> Bool  -- ^ If type checking is necessary, should all
                        -- state changes inflicted by 'createInterface'
                        -- be preserved?
-              -> TCM (Interface, Either Warnings ClockTime)
+              -> TCM (Interface, MaybeWarnings)
 getInterface' x includeStateChanges =
   withIncreasedModuleNestingLevel $
   -- Preserve the pragma options unless includeStateChanges is True.
@@ -238,8 +230,13 @@ getInterface' x includeStateChanges =
       ignore <- ignoreInterfaces
       cached <- isCached file -- if it's cached ignoreInterfaces has no effect
                               -- to avoid typechecking a file more than once
-      newer  <- liftIO $ filePath (toIFile file) `isNewerThan` filePath file
-      return $ newer && (not ignore || cached)
+      sourceH <- liftIO $ hashFile file
+      ifaceH  <-
+        case cached of
+          Nothing -> fmap fst <$> getInterfaceFileHashes (filePath $ toIFile file)
+          Just i  -> return $ Just $ iSourceHash i
+      let unchanged = Just sourceH == ifaceH
+      return $ unchanged && (not ignore || isJust cached)
 
     reportSLn "import.iface" 5 $
       "  " ++ render (pretty x) ++ " is " ++
@@ -266,8 +263,8 @@ getInterface' x includeStateChanges =
 
     -- Interfaces are only stored if no warnings were encountered.
     case wt of
-      Left  w -> return ()
-      Right t -> storeDecodedModule i t
+      SomeWarnings w -> return ()
+      NoWarnings     -> storeDecodedModule i
 
     return (i, wt)
 
@@ -276,13 +273,13 @@ getInterface' x includeStateChanges =
         let ifile = filePath $ toIFile file
         exist <- liftIO $ doesFileExistCaseSensitive ifile
         if not exist
-          then return False
+          then return Nothing
           else do
-            t  <- liftIO $ getModificationTime ifile
+            h  <- fmap snd <$> getInterfaceFileHashes ifile
             mm <- getDecodedModule x
             return $ case mm of
-              Just (mi, mt) | mt >= t -> True
-              _                       -> False
+              Just mi | Just (iFullHash mi) == h -> Just mi
+              _                                  -> Nothing
 
       -- Formats the "Checking", "Finished" and "Skipping" messages.
       chaseMsg kind file = do
@@ -295,16 +292,18 @@ getInterface' x includeStateChanges =
         reportSLn "import.chase" 1 s
 
       skip file = do
-        -- Examine the mtime of the interface file. If it is newer than the
+        -- Examine the hash of the interface file. If it is different from the
         -- stored version (in stDecodedModules), or if there is no stored version,
         -- read and decode it. Otherwise use the stored version.
         let ifile = filePath $ toIFile file
-        t            <- liftIO $ getModificationTime ifile
-        mm           <- getDecodedModule x
+        h <- fmap snd <$> getInterfaceFileHashes ifile
+        mm <- getDecodedModule x
         (cached, mi) <- case mm of
-          Just (mi, mt) ->
-            if mt < t
+          Just mi ->
+            if Just (iFullHash mi) /= h
             then do dropDecodedModule x
+                    reportSLn "import.iface" 50 $ "  cached hash = " ++ show (iFullHash mi)
+                    reportSLn "import.iface" 50 $ "  stored hash = " ++ show h
                     reportSLn "import.iface" 5 $ "  file is newer, re-reading " ++ ifile
                     (,) False <$> readInterface ifile
             else do reportSLn "import.iface" 5 $ "  using stored version of " ++ ifile
@@ -322,10 +321,10 @@ getInterface' x includeStateChanges =
 
             reportSLn "import.iface" 5 $ "  imports: " ++ show (iImportedModules i)
 
-            ts <- map snd <$> mapM getInterface (map fst $ iImportedModules i)
+            hs <- map iFullHash <$> mapM getInterface (map fst $ iImportedModules i)
 
             -- If any of the imports are newer we need to retype check
-            if any (> t) ts
+            if hs /= map snd (iImportedModules i)
               then do
                 -- liftIO close	-- Close the interface file. See above.
                 typeCheck file
@@ -335,7 +334,7 @@ getInterface' x includeStateChanges =
                 -- because if the top-level file is skipped we want the
                 -- pragmas to apply to interactive commands in the UI.
                 mapM_ setOptionsFromPragma (iPragmaOptions i)
-                return (False, (i, Right t))
+                return (False, (i, NoWarnings))
 
       typeCheck file = do
           let withMsgs m = do
@@ -393,8 +392,8 @@ getInterface' x includeStateChanges =
                         modify $ \s -> s { stModuleToSource = mf }
                         setDecodedModules ds
                         case r of
-                          (i, Right t) -> storeDecodedModule i t
-                          _            -> return ()
+                          (i, NoWarnings) -> storeDecodedModule i
+                          _               -> return ()
                         )
 
             case r of
@@ -402,7 +401,7 @@ getInterface' x includeStateChanges =
                 Right (r, update) -> do
                   update
                   case r of
-                    (_, Right _) ->
+                    (_, NoWarnings) ->
                       -- We skip the file which has just been type-checked to
                       -- be able to forget some of the local state from
                       -- checking the module.
@@ -429,7 +428,7 @@ readInterface :: FilePath -> TCM (Maybe Interface)
 readInterface file = do
     -- Decode the interface file
     (s, close) <- liftIO $ readBinaryFile' file
-    do  i <- liftIO . E.evaluate =<< decode s
+    do  i <- liftIO . E.evaluate =<< decodeInterface s
 
         -- Close the file. Note
         -- ⑴ that evaluate ensures that i is evaluated to WHNF (before
@@ -455,12 +454,12 @@ readInterface file = do
 -- | Writes the given interface to the given file. Returns the file's
 -- new modification time stamp, or 'Nothing' if the write failed.
 
-writeInterface :: FilePath -> Interface -> TCM ClockTime
+writeInterface :: FilePath -> Interface -> TCM ()
 writeInterface file i = do
     reportSLn "import.iface.write" 5  $ "Writing interface file " ++ file ++ "."
     encodeFile file i
-    reportSLn "import.iface.write" 5 "Wrote interface file."
-    liftIO $ getModificationTime file
+    reportSLn "import.iface.write" 5 $ "Wrote interface file."
+    reportSLn "import.iface.write" 50 $ "  hash = " ++ show (iFullHash i) ++ ""
   `catchError` \e -> do
     reportSLn "" 1 $
       "Failed to write interface " ++ file ++ "."
@@ -478,7 +477,7 @@ writeInterface file i = do
 createInterface
   :: AbsolutePath          -- ^ The file to type check.
   -> C.TopLevelModuleName  -- ^ The expected module name.
-  -> TCM (Interface, Either Warnings ClockTime)
+  -> TCM (Interface, MaybeWarnings)
 createInterface file mname =
   local (\e -> e { envCurrentPath = file }) $ do
     modFile       <- stModuleToSource <$> get
@@ -561,10 +560,10 @@ createInterface file mname =
       -- The file was successfully type-checked (and no warnings were
       -- encountered), so the interface should be written out.
       let ifile = filePath $ toIFile file
-      t  <- writeInterface ifile i
-      return (i, Right t)
+      writeInterface ifile i
+      return (i, NoWarnings)
      else
-      return (i, Left $ Warnings termErrs unsolvedMetas unsolvedConstraints)
+      return (i, SomeWarnings $ Warnings termErrs unsolvedMetas unsolvedConstraints)
 
     -- Print stats
     stats <- Map.toList <$> getStatistics
@@ -622,12 +621,24 @@ buildInterface file topLevel syntaxInfo previousHsImports pragmas = do
     return i
   where m = topLevelModuleName topLevel
 
--- | TODO: more efficient?
-getInterfaceFileHash :: AbsolutePath -> TCM (Maybe Hash)
-getInterfaceFileHash ifile = fmap iFullHash <$> readInterface (filePath ifile)
+-- | Returns (iSourceHash, iFullHash)
+getInterfaceFileHashes :: FilePath -> TCM (Maybe (Hash, Hash))
+getInterfaceFileHashes ifile = do
+  exist <- liftIO $ doesFileExist ifile
+  if not exist then return Nothing else do
+    (s, close) <- liftIO $ readBinaryFile' ifile
+    let hs = decodeHashes s
+    liftIO $ maybe 0 (uncurry (+)) hs `seq` close
+    return hs
+
+safeReadInterface :: FilePath -> TCM (Maybe Interface)
+safeReadInterface ifile = do
+  exist <- liftIO $ doesFileExist ifile
+  if exist then readInterface ifile
+           else return Nothing
 
 moduleHash :: ModuleName -> TCM Hash
-moduleHash m = iFullHash . fst <$> getInterface m
+moduleHash m = iFullHash <$> getInterface m
 
 -- | True if the first file is newer than the second file. If a file doesn't
 -- exist it is considered to be infinitely old.
