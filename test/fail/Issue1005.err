@@ -1,0 +1,3 @@
+Issue1005.agda:8,19-20
+x != x of type X (because one has deBruijn index 2 and the other 0)
+when checking that the expression t has type T x

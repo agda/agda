@@ -804,7 +804,9 @@ prettyInEqual t1 t2 = do
     if P.render d1 /= P.render d2 then return P.empty else do
       (v1, v2) <- instantiate (t1, t2)
       case (ignoreSharing v1, ignoreSharing v2) of
-        (I.Var{}, I.Var{}) -> __IMPOSSIBLE__  -- variable renaming is done elsewhere
+        (I.Var i1 _, I.Var i2 _)
+          | i1 == i2  -> __IMPOSSIBLE__   -- if they're actually the same we would get the error on the arguments instead
+          | otherwise -> varVar i1 i2
         (I.Def{}, I.Con{}) -> __IMPOSSIBLE__  -- ambiguous identifiers
         (I.Con{}, I.Def{}) -> __IMPOSSIBLE__
         (I.Var{}, I.Def{}) -> varDef
@@ -813,8 +815,9 @@ prettyInEqual t1 t2 = do
         (I.Con{}, I.Var{}) -> varCon
         _                  -> return P.empty
   where
-    varDef = return $ P.parens $ P.fwords "because one is a variable and one a defined identifier"
-    varCon = return $ P.parens $ P.fwords "because one is a variable and one a constructor"
+    varDef     = return $ P.parens $ P.fwords "because one is a variable and one a defined identifier"
+    varCon     = return $ P.parens $ P.fwords "because one is a variable and one a constructor"
+    varVar i j = return $ P.parens $ P.fwords $ "because one has deBruijn index " ++ show i ++ " and the other " ++ show j
 
 class PrettyUnequal a where
   prettyUnequal :: a -> TCM Doc -> a -> TCM Doc
