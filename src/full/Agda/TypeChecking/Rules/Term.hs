@@ -327,8 +327,10 @@ checkExtendedLambda i di qname cs e t = do
      j   <- currentOrFreshMutualBlock
      rel <- asks envRelevance
      let info = setRelevance rel defaultArgInfo
+     -- Andreas, 2013-12-28: add extendedlambda as @Function@, not as @Axiom@;
+     -- otherwise, @addClause@ in @checkFunDef'@ fails (see issue 1009).
      addConstant qname $
-       Defn info qname t [] [] (defaultDisplayForm qname) j noCompiledRep Axiom
+       (defaultDefn info qname t emptyFunction) { defMutual = j }
      reportSDoc "tc.term.exlam" 50 $
        text "extended lambda's implementation \"" <> prettyTCM qname <>
        text "\" has type: " $$ prettyTCM t -- <+> text " where clauses: " <+> text (show cs)
