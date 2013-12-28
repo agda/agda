@@ -1,4 +1,4 @@
-{-# LANGUAGE CPP, TupleSections, RelaxedPolyRec, GeneralizedNewtypeDeriving #-}
+{-# LANGUAGE CPP, TupleSections, PatternGuards, RelaxedPolyRec, GeneralizedNewtypeDeriving #-}
 
 module Agda.TypeChecking.MetaVars where
 
@@ -532,7 +532,22 @@ assignE x es v = do
 -}
 
 
--- | @assign sort? x vs v@
+-- | Miller pattern unification:
+--
+--   @assign x vs v@ solves problem @x vs = v@ for meta @x@
+--   if @vs@ are distinct variables (linearity check)
+--   and @v@ depends only on these variables
+--   and does not contain @x@ itself (occurs check).
+--
+--   This is the basic story, but we have added some features:
+--
+--   1. Pruning.
+--   2. Benign cases of non-linearity.
+--   3. @vs@ may contain record patterns.
+--
+--   For a reference to some of these extensions, read
+--   Andreas Abel and Brigitte Pientka's TLCA 2011 paper.
+
 assign :: MetaId -> Args -> Term -> TCM ()
 assign x args v = do
 
@@ -637,15 +652,16 @@ assign x args v = do
           res <- runErrorT $ inverseSubst args
           case res of
             -- all args are variables
-            Right (Just ids) -> do
+            Right ids -> do
               reportSDoc "tc.meta.assign" 50 $
                 text "inverseSubst returns:" <+> sep (map prettyTCM ids)
               return ids
-            -- we have non-variables, but these are not eliminateable
-            Right Nothing    -> attemptPruning x args fvs
             -- we have proper values as arguments which could be cased on
             -- here, we cannot prune, since offending vars could be eliminated
-            Left ()          -> patternViolation
+            Left CantInvert  -> patternViolation
+            -- we have non-variables, but these are not eliminateable
+            Left NeutralArg  -> attemptPruning x args fvs
+            Left ProjectedVar{} -> attemptPruning x args fvs
 
         -- Check linearity
         ids <- do
@@ -813,7 +829,16 @@ checkLinearity elemFVs ids0 = do
 -}
 
 -- Intermediate result in the following function
-type Res = Maybe [(I.Arg Nat, Term)]
+type Res = [(I.Arg Nat, Term)]
+
+-- | Exceptions raised when substitution cannot be inverted.
+data InvertExcept
+  = CantInvert                -- ^ Cannot recover.
+  | NeutralArg                -- ^ A neutral arg: can't invert, but maybe prune.
+  | ProjectedVar Int [QName]  -- ^ Try to eta-expand var to remove projs.
+
+instance Error InvertExcept where
+  noMsg = CantInvert
 
 -- | Check that arguments @args@ to a metavar are in pattern fragment.
 --   Assumes all arguments already in whnf and eta-reduced.
@@ -826,22 +851,27 @@ type Res = Maybe [(I.Arg Nat, Term)]
 --   Linearity, i.e., whether the substitution is deterministic,
 --   has to be checked separately.
 --
-inverseSubst :: Args -> ErrorT () TCM (Maybe SubstCand)
-inverseSubst args = fmap (map (mapFst unArg)) <$> loop (zip args terms)
+inverseSubst :: Args -> ErrorT InvertExcept TCM SubstCand
+inverseSubst args = map (mapFst unArg) <$> loop (zip args terms)
   where
-    loop  = foldM isVarOrIrrelevant (Just [])
+    loop  = foldM isVarOrIrrelevant []
     terms = map var (downFrom (size args))
     failure = do
       lift $ reportSDoc "tc.meta.assign" 15 $ vcat
         [ text "not all arguments are variables: " <+> prettyTCM args
         , text "  aborting assignment" ]
-      throwError ()
+      throwError CantInvert
+    neutralArg = throwError NeutralArg
 
-    isVarOrIrrelevant :: Res -> (I.Arg Term, Term) -> ErrorT () TCM Res
+    isVarOrIrrelevant :: Res -> (I.Arg Term, Term) -> ErrorT InvertExcept TCM Res
     isVarOrIrrelevant vars (arg, t) =
       case ignoreSharing <$> arg of
         -- i := x
         Arg info (Var i []) -> return $ (Arg info i, t) `cons` vars
+
+        -- π i := x  try to eta-expand projection π away!
+        Arg _ (Var i es) | Just qs <- mapM isProjElim es ->
+          throwError $ ProjectedVar i qs
 
         -- (i, j) := x  becomes  [i := fst x, j := snd x]
         -- Andreas, 2013-09-17 but only if constructor is fully applied
@@ -881,31 +911,28 @@ inverseSubst args = fmap (map (mapFst unArg)) <$> loop (zip args terms)
 
         -- Distinguish args that can be eliminated (Con,Lit,Lam,unsure) ==> failure
         -- from those that can only put somewhere as a whole ==> return Nothing
-        Arg _ Var{}      -> return $ Nothing -- neutral
+        Arg _ Var{}      -> neutralArg
         Arg _ Def{}      -> failure
         Arg _ Lam{}      -> failure
         Arg _ Lit{}      -> failure
         Arg _ MetaV{}    -> failure
-        Arg _ Pi{}       -> return $ Nothing
-        Arg _ Sort{}     -> return $ Nothing
-        Arg _ Level{}    -> return $ Nothing
+        Arg _ Pi{}       -> neutralArg
+        Arg _ Sort{}     -> neutralArg
+        Arg _ Level{}    -> neutralArg
 
         Arg info (Shared p) -> isVarOrIrrelevant vars (Arg info $ derefPtr p, t)
 
     -- managing an assoc list where duplicate indizes cannot be irrelevant vars
     append :: Res -> Res -> Res
-    append Nothing    _    = Nothing
-    append (Just res) vars = foldr cons vars res
+    append res vars = foldr cons vars res
 
     -- adding an irrelevant entry only if not present
     cons :: (I.Arg Nat, Term) -> Res -> Res
-    cons a Nothing = Nothing
-    cons a@(Arg (ArgInfo _ Irrelevant _) i, t) (Just vars)    -- TODO? UnusedArg?!
-      | any ((i==) . unArg . fst) vars  = Just vars
-      | otherwise                       = Just $ a : vars
+    cons a@(Arg (ArgInfo _ Irrelevant _) i, t) vars    -- TODO? UnusedArg?!
+      | any ((i==) . unArg . fst) vars  = vars
+      | otherwise                       = a : vars
     -- adding a relevant entry:
-    cons a@(Arg info i, t) (Just vars) =
-      Just $ a :
+    cons a@(Arg info i, t) vars = a :
       -- filter out duplicate irrelevants
       filter (not . (\ a@(Arg info j, t) -> isIrrelevant info && i == j)) vars
 
