@@ -106,17 +106,14 @@ initializeIFSMeta s t = do
 --   candidate set.
 findInScope :: MetaId -> Candidates -> TCM ()
 findInScope m cands = whenJustM (findInScope' m cands) $ addConstraint . FindInScope m
-{- SAME CODE, POINTFULL
-  do fisres <- findInScope' m cands
-     case fisres of
-       Nothing -> return ()
-       Just cs -> addConstraint $ FindInScope m cs
--}
 
 -- | Result says whether we need to add constraint, and if so, the set of
 --   remaining candidates.
 findInScope' :: MetaId -> Candidates -> TCM (Maybe Candidates)
 findInScope' m cands = ifM (isFrozen m) (return (Just cands)) $ do
+    -- Andreas, 2013-12-28 issue 1003:
+    -- If instance meta is already solved, simply discard the constraint.
+    ifM (isInstantiatedMeta m) (return Nothing) $ do
     reportSDoc "tc.constr.findInScope" 15 $ text ("findInScope 2: constraint: " ++ show m ++ "; candidates left: " ++ show (length cands))
     t <- getMetaTypeInContext m
     reportSDoc "tc.constr.findInScope" 15 $ text "findInScope 3: t =" <+> prettyTCM t

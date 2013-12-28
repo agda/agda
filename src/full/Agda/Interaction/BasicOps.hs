@@ -296,7 +296,7 @@ instance (Show a,Show b) => Show (OutputConstraint a b) where
     show (Assign m e)           = show m ++ " := " ++ show e
     show (TypedAssign m e a)    = show m ++ " := " ++ show e ++ " :? " ++ show a
     show (IsEmptyType a)        = "Is empty: " ++ show a
-    show (FindInScopeOF s t cs) = "Resolve implicit argument " ++ showCand (s,t) ++ ". Candidates: [" ++
+    show (FindInScopeOF s t cs) = "Resolve instance argument " ++ showCand (s,t) ++ ". Candidates: [" ++
                                     intercalate ", " (map showCand cs) ++ "]"
       where showCand (tm,ty) = show tm ++ " : " ++ show ty
 
