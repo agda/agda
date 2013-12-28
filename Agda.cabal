@@ -288,7 +288,7 @@ library
                     Agda.TypeChecking.Telescope
                     Agda.TypeChecking.Test.Generators
                     Agda.TypeChecking.Tests
-                    Agda.TypeChecking.UniversePolymorphism
+--                    Agda.TypeChecking.UniversePolymorphism -- RETIRED
                     Agda.TypeChecking.With
                     Agda.Utils.Char
                     Agda.Utils.Either

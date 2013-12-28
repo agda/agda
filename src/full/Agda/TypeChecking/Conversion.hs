@@ -886,8 +886,12 @@ coerce v t1 t2 = blockTerm t2 $ do
     fallback = v <$ do workOnTypes $ leqType t1 t2
 
 ---------------------------------------------------------------------------
--- * Sorts
+-- * Sorts and levels
 ---------------------------------------------------------------------------
+
+compareLevel :: Comparison -> Level -> Level -> TCM ()
+compareLevel CmpLeq u v = leqLevel u v
+compareLevel CmpEq  u v = equalLevel u v
 
 compareSort :: Comparison -> Sort -> Sort -> TCM ()
 compareSort CmpEq  = equalSort

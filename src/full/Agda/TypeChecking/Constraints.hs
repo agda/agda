@@ -20,7 +20,7 @@ import {-# SOURCE #-} Agda.TypeChecking.Rules.Term (checkExpr)
 import {-# SOURCE #-} Agda.TypeChecking.Conversion
 import {-# SOURCE #-} Agda.TypeChecking.MetaVars
 import {-# SOURCE #-} Agda.TypeChecking.Empty
-import {-# SOURCE #-} Agda.TypeChecking.UniversePolymorphism
+-- import {-# SOURCE #-} Agda.TypeChecking.UniversePolymorphism -- RETIRED
 
 import Agda.Utils.Fresh
 import Agda.Utils.Maybe
