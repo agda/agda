@@ -454,9 +454,9 @@ checkRecordUpdate :: A.ExprInfo -> A.Expr -> A.Assigns -> A.Expr -> Type -> TCM 
 checkRecordUpdate ei recexpr fs e t = do
   case ignoreSharing $ unEl t of
     Def r vs  -> do
-      rec <- checkExpr recexpr t
+      v <- checkExpr recexpr t
       name <- freshNoName (getRange recexpr)
-      addLetBinding defaultArgInfo name rec t $ do
+      addLetBinding defaultArgInfo name v t $ do
         projs <- recFields <$> getRecordDef r
         axs <- getRecordFieldNames r
         scope <- getScope
