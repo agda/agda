@@ -457,6 +457,9 @@ impossibleTerm file line = Lit $ LitString noRange $ unlines
   , "Location of the error: " ++ file ++ ":" ++ show line
   ]
 
+sgTel :: Dom (String, Type) -> Telescope
+sgTel (Common.Dom ai (x, t)) = ExtendTel (Common.Dom ai t) $ Abs x EmptyTel
+
 ---------------------------------------------------------------------------
 -- * Handling blocked terms.
 ---------------------------------------------------------------------------

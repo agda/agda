@@ -2,7 +2,7 @@
 
 module Agda.TypeChecking.Records where
 
-import Control.Applicative
+-- import Control.Applicative
 import Control.Monad
 
 import Data.Function
@@ -24,6 +24,7 @@ import Agda.Utils.Either
 import Agda.Utils.List
 import Agda.Utils.Monad
 import qualified Agda.Utils.HashMap as HMap
+import Agda.Utils.Size
 
 #include "../undefined.h"
 import Agda.Utils.Impossible
@@ -211,26 +212,85 @@ recursiveRecord q = modifySignature $ updateDefinition q $ updateTheDef $ update
   where updateRecord r@Record{} = r { recRecursive = True }
         updateRecord _          = __IMPOSSIBLE__
 
-{-| Compute the eta expansion of a record. The first argument should be
-    the name of a record type. Given
+-- | @curryAt v (Γ (y : R pars) -> B) n =
+--     ( \ v -> λ Γ ys → v Γ (c ys)            {- curry   -}
+--     , \ v -> λ Γ y → v Γ (p1 y) ... (pm y)  {- uncurry -}
+--     , Γ (ys : As) → B[c ys / y]
+--     )@
+--
+--   where @n = size Γ@.
+curryAt :: Type -> Int -> TCM (Term -> Term, Term -> Term, Type)
+curryAt t n = do
+  -- first, strip the leading n domains (which remain unchanged)
+  TelV gamma core <- telViewUpTo n t
+  case ignoreSharing $ unEl core of
+    -- There should be at least one domain left
+    Pi (Dom ai a) b -> do
+      -- Eta-expand @dom@ along @qs@ into a telescope @tel@, computing a substitution.
+      -- For now, we only eta-expand once.
+      -- This might trigger another call to @etaExpandProjectedVar@ later.
+      -- A more efficient version does all the eta-expansions at once here.
+      (r, pars, def) <- fromMaybe __IMPOSSIBLE__ <$> isRecordType a
+      unless (recEtaEquality def) __IMPOSSIBLE__
+      -- TODO: compose argInfo ai with tel.
+      let tel = recTel def `apply` pars
+          m   = size tel
+          fs  = recFields def
+          ys  = zipWith (\ f i -> f $> var i) fs $ downFrom m
+          u   = Con (recConHead def) ys
+          b'  = raise m b `absApp` u
+          t'  = gamma `telePi` (tel `telePi` b')
+          gammai = map domInfo $ telToList gamma
+          xs  = reverse $ zipWith (\ ai i -> Arg ai $ var i) gammai [m..]
+          curry v = teleLam gamma $ teleLam tel $
+                      raise (n+m) v `apply` (xs ++ [Arg ai u])
+          zs  = for fs $ fmap $ \ f -> Var 0 [Proj f]
+          atel = sgTel $ Dom ai (absName b, a)
+          uncurry v = teleLam gamma $ teleLam atel $
+                        raise (n + 1) v `apply` (xs ++ zs)
+      return (curry, uncurry, t')
+    _ -> __IMPOSSIBLE__
 
-    @record R : Set where field x : A; y : B; .z : C@
+{-| @etaExpand r pars u@ computes the eta expansion of record value @u@
+    at record type @r pars@.
 
-    and @r : R@, @etaExpand R [] r@ is @[R.x r, R.y r, DontCare]@
+    The first argument @r@ should be the name of a record type. Given
+
+      @record R : Set where field x : A; y : B; .z : C@
+
+    and @r : R@,
+
+      @etaExpand R [] r = (tel, [R.x r, R.y r, R.z r])@
+
+    where @tel@ is the record telescope instantiated at the parameters @pars@.
 -}
 etaExpandRecord :: QName -> Args -> Term -> TCM (Telescope, Args)
 etaExpandRecord r pars u = do
-  Record{ recFields = xs, recTel = tel, recEtaEquality = eta } <- getRecordDef r
+  def <- getRecordDef r
+  (tel, _, args) <- etaExpandRecord_ r pars def u
+  return (tel, args)
+
+etaExpandRecord_ :: QName -> Args -> Defn -> Term -> TCM (Telescope, ConHead, Args)
+etaExpandRecord_ r pars def u = do
+  let Record{ recConHead     = con
+            , recFields      = xs
+            , recTel         = tel
+            , recEtaEquality = eta
+            } = def
+      tel' = apply tel pars
   unless eta __IMPOSSIBLE__ -- make sure we do not expand non-eta records
-  let tel' = apply tel pars
   case ignoreSharing u of
-    Con _ args -> return (tel', args)  -- Already expanded.
-    _          -> do
+    -- Already expanded.
+    Con con_ args -> do
+      when (con /= con_) __IMPOSSIBLE__
+      return (tel', con, args)
+    -- Not yet expanded.
+    _             -> do
+      let xs' = for xs $ fmap $ \ x -> u `applyE` [Proj x]
 {- recFields are always the original projections
       -- Andreas, 2013-10-22 call applyDef to make sure we get the original proj.
       -- xs' <- mapM (traverse (`applyDef` defaultArg u)) xs
 -}
-      let xs' = map (fmap (\ x -> u `applyE` [Proj x])) xs
       reportSDoc "tc.record.eta" 20 $ vcat
         [ text "eta expanding" <+> prettyTCM u <+> text ":" <+> prettyTCM r
         , nest 2 $ vcat
@@ -238,7 +298,13 @@ etaExpandRecord r pars u = do
           , text "args =" <+> prettyTCM xs'
           ]
         ]
-      return (tel', xs')
+      return (tel', con, xs')
+
+etaExpandAtRecordType :: Type -> Term -> TCM (Telescope, Term)
+etaExpandAtRecordType t u = do
+  (r, pars, def) <- fromMaybe __IMPOSSIBLE__ <$> isRecordType t
+  (tel, con, args) <- etaExpandRecord_ r pars def u
+  return (tel, Con con args)
 
 -- | The fields should be eta contracted already.
 --
