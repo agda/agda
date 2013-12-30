@@ -45,3 +45,17 @@ bla4 : (A : Set) ->
   in  (a : A)(C : .A' -> Set)(k : .(z : A') -> C z) ->
       X (squash (squash a)) C k ≡ k (squash (squash a))
 bla4 A a C k = refl
+
+-- projected bound var
+bla5 : (A : Set) (B : A -> Set) ->
+  let X : (x : A) (y : B x) -> Sigma A B
+      X = _
+  in  (z : Sigma A B) -> X (fst z) (snd z) ≡ z
+bla5 A B z = refl
+
+-- projected bound var
+bla6 : (A : Set) (B : A -> Set) ->
+  let X : A -> A
+      X = _
+  in  (z : Sigma A B) -> X (fst z) ≡ fst z
+bla6 A B z = refl

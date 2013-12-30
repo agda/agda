@@ -1,0 +1,6 @@
+Issue376Fail.agda:18,14-18
+Cannot instantiate the metavariable _7 to solution fst(z) , snd(z)
+since it contains the variable snd(z) which is not in scope of the
+metavariable or irrelevant in the metavariable but relevant in the
+solution
+when checking that the expression refl has type _7 A B (fst z) ≡ z

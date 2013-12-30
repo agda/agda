@@ -254,7 +254,10 @@ etaExpandBoundVar i = do
   -- Note @Γ₁, x:_ ⊢ Γ₂@, thus, @Γ₁, Γ' ⊢ [τ₀]Γ₂@
 
       rev   = foldl (\ l (Dom ai (n, t)) -> Dom ai (show n, t) : l) []
-      delta = telFromList $ rev gamma1 ++ telToList tel ++ rev (applySubst tau0 gamma2)
+      -- Use "f(x)" as variable name for the projection f(x).
+      s     = show x
+      tel'  = mapAbsNames (\ f -> f ++ "(" ++ s ++ ")") tel
+      delta = telFromList $ rev gamma1 ++ telToList tel' ++ rev (applySubst tau0 gamma2)
 
   return (delta, sigma, tau)
 

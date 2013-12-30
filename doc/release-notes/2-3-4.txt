@@ -421,6 +421,53 @@ Goal and error display
 Type checking
 =============
 
+
+* [ issue 376 ] Implemented expansion of bound record variables during meta assignment.
+  Now Agda can solve for metas X that are applied to projected variables, e.g.:
+
+    X (fst z) (snd z) = z
+
+    X (fst z)         = fst z
+
+  Technically, this is realized by substituting (x , y) for z with fresh
+  bound variables x and y.  Here the full code for the examples:
+
+    record Sigma (A : Set)(B : A -> Set) : Set where
+      constructor _,_
+      field
+        fst : A
+        snd : B fst
+    open Sigma
+
+    test : (A : Set) (B : A -> Set) ->
+      let X : (x : A) (y : B x) -> Sigma A B
+          X = _
+      in  (z : Sigma A B) -> X (fst z) (snd z) ≡ z
+    test A B z = refl
+
+    test' : (A : Set) (B : A -> Set) ->
+      let X : A -> A
+          X = _
+      in  (z : Sigma A B) -> X (fst z) ≡ fst z
+    test' A B z = refl
+
+  The fresh bound variables are named fst(z) and snd(z) and can appear
+  in error messages, e.g.:
+
+    fail : (A : Set) (B : A -> Set) ->
+      let X : A -> Sigma A B
+          X = _
+      in  (z : Sigma A B) -> X (fst z) ≡ z
+    fail A B z = refl
+
+  results in error:
+
+    Cannot instantiate the metavariable _7 to solution fst(z) , snd(z)
+    since it contains the variable snd(z) which is not in scope of the
+    metavariable or irrelevant in the metavariable but relevant in the
+    solution
+    when checking that the expression refl has type _7 A B (fst z) ≡ z
+
 * Dependent record types and definitions by copatterns require
   reduction with previous function clauses while checking the
   current clause. [Issue 907]

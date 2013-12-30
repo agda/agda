@@ -1,12 +1,16 @@
-{-# LANGUAGE CPP, TupleSections, PatternGuards, RelaxedPolyRec, GeneralizedNewtypeDeriving #-}
+{-# LANGUAGE CPP, TupleSections, PatternGuards, RelaxedPolyRec, GeneralizedNewtypeDeriving,
+      FlexibleInstances, TypeSynonymInstances #-}
 
 module Agda.TypeChecking.MetaVars where
 
 import Control.Monad.Reader
 import Control.Monad.Error
+
 import Data.Function
 import Data.List as List hiding (sort)
 import qualified Data.Map as Map
+import qualified Data.Foldable as Fold
+import qualified Data.Traversable as Trav
 
 import Agda.Syntax.Common
 import Agda.Syntax.Internal as I
@@ -29,7 +33,8 @@ import Agda.TypeChecking.Irrelevance
 import Agda.TypeChecking.EtaContract
 import Agda.TypeChecking.SizedTypes (boundedSizeMetaHook, isSizeProblem)
 
-import {-# SOURCE #-} Agda.TypeChecking.CheckInternal (checkInternal)
+-- import Agda.TypeChecking.CheckInternal
+-- import {-# SOURCE #-} Agda.TypeChecking.CheckInternal (checkInternal)
 import Agda.TypeChecking.MetaVars.Occurs
 
 import Agda.Utils.Fresh
@@ -125,7 +130,7 @@ assignTerm' x t = do
     inst i mv = mv { mvInstantiation = i }
 
     -- Andreas, 2013-10-25 hack to fool the unused-imports-checking-Nazi
-    phantomUseToOverruleStrictImportsChecking = checkInternal
+    -- phantomUseToOverruleStrictImportsChecking = checkInternal
 
 -- * Creating meta variables.
 
@@ -543,6 +548,7 @@ assign :: MetaId -> Args -> Term -> TCM ()
 assign x args v = do
 
         mvar <- lookupMeta x  -- information associated with meta x
+        let t = jMetaType $ mvJudgement mvar
 
         -- Andreas, 2011-05-20 TODO!
         -- full normalization  (which also happens during occurs check)
@@ -580,7 +586,16 @@ assign x args v = do
 
         -- Normalise and eta contract the arguments to the meta. These are
         -- usually small, and simplifying might let us instantiate more metas.
-        args <- etaContract =<< normalise args
+
+        -- MOVED TO expandProjectedVars:
+        -- args <- etaContract =<< normalise args
+
+        -- Also, try to expand away projected vars in meta args.
+        expandProjectedVars args v $ \ args v -> do
+
+        -- If we had the type here we could save the work we put
+        -- into expanding projected variables.
+        -- catchConstraint (ValueCmp CmpEq ? (MetaV m $ map Apply args) v) $ do
 
         -- Andreas, 2011-04-21 do the occurs check first
         -- e.g. _1 x (suc x) = suc (_2 x y)
@@ -652,7 +667,9 @@ assign x args v = do
             Left CantInvert  -> patternViolation
             -- we have non-variables, but these are not eliminateable
             Left NeutralArg  -> attemptPruning x args fvs
-            Left ProjectedVar{} -> attemptPruning x args fvs
+            -- we have a projected variable which could not be eta-expanded away:
+            -- same as neutral
+            Left (ProjectedVar i qs) -> attemptPruning x args fvs
 
         -- Check linearity
         ids <- do
@@ -719,7 +736,6 @@ assign x args v = do
           -- we need to construct tel' from the type of the meta variable
           -- (no longer from ids which may not be the complete variable list
           -- any more)
-          let t = jMetaType $ mvJudgement mvar
           reportSDoc "tc.meta.assign" 15 $ text "type of meta =" <+> prettyTCM t
           reportSDoc "tc.meta.assign" 70 $ text "type of meta =" <+> text (show t)
 
@@ -749,6 +765,97 @@ assign x args v = do
                else "failed"
           patternViolation
 
+-- | Eta-expand bound variables like @z@ in @X (fst z)@.
+expandProjectedVars :: (Normalise a, TermLike a, PrettyTCM a, NoProjectedVar a, Subst a, PrettyTCM b, Subst b) =>
+  a -> b -> (a -> b -> TCM c) -> TCM c
+expandProjectedVars args v ret = loop (args, v) where
+  loop (args, v) = do
+    args <- etaContract =<< normalise args
+    case noProjectedVar args of
+      Right ()              -> ret args v
+      Left (ProjVarExc i _) -> etaExpandProjectedVar i (args, v) $ loop
+
+-- | Eta-expand a de Bruijn index of record type in context and passed term(s).
+etaExpandProjectedVar :: (PrettyTCM a, Subst a) => Int -> a -> (a -> TCM c) -> TCM c
+etaExpandProjectedVar i v ret = do
+  caseMaybeM (etaExpandBoundVar i) (ret v) $ \ (delta, sigma, tau) -> do
+    reportSDoc "tc.meta.assign.proj" 25 $
+      text "eta-expanding var " <+> prettyTCM (var i) <+>
+      text " in terms " <+> prettyTCM v
+    inTopContext $ addContext delta $
+      ret $ applySubst tau v
+
+-- | Check whether one of the meta args is a projected var.
+class NoProjectedVar a where
+  noProjectedVar :: a -> Either ProjVarExc ()
+
+data ProjVarExc = ProjVarExc Int [QName]
+
+instance Error ProjVarExc where
+  noMsg = __IMPOSSIBLE__
+
+instance NoProjectedVar Term where
+  noProjectedVar (Var i es) | Just qs@(_:_) <- mapM isProjElim es = Left $ ProjVarExc i qs
+  noProjectedVar _ = return ()
+
+instance NoProjectedVar a => NoProjectedVar (I.Arg a) where
+  noProjectedVar = Fold.mapM_ noProjectedVar
+
+instance NoProjectedVar a => NoProjectedVar [a] where
+  noProjectedVar = Fold.mapM_ noProjectedVar
+
+
+{- UNUSED, BUT KEEP!
+-- Wrong attempt at expanding bound variables.
+-- The following code curries meta instead.
+
+-- | @etaExpandProjectedVar mvar x t n qs@
+--
+--   @mvar@ is the meta var info.
+--   @x@ is the meta variable we are trying to solve for.
+--   @t@ is its type.
+--   @n@ is the number of the meta arg we want to curry (starting at 0).
+--   @qs@ is the projection path along which we curry.
+--
+etaExpandProjectedVar :: MetaVariable -> MetaId -> Type -> Int -> [QName] -> TCM a
+etaExpandProjectedVar mvar x t n qs = inTopContext $ do
+  (_, uncurry, t') <- curryAt t n
+  let TelV tel a = telView' t'
+      perm       = idP (size tel)
+  y <- newMeta (mvInfo mvar) (mvPriority mvar) perm (HasType __IMPOSSIBLE__ t')
+  assignTerm' x (uncurry $ MetaV y [])
+  patternViolation
+-}
+
+{-
+  -- first, strip the leading n domains (which remain unchanged)
+  TelV gamma core <- telViewUpTo n t
+  case ignoreSharing $ unEl core of
+    -- There should be at least one domain left
+    Pi (Dom ai a) b -> do
+      -- Eta-expand @dom@ along @qs@ into a telescope @tel@, computing a substitution.
+      -- For now, we only eta-expand once.
+      -- This might trigger another call to @etaExpandProjectedVar@ later.
+      -- A more efficient version does all the eta-expansions at once here.
+      (r, pars, def) <- fromMaybe __IMPOSSIBLE__ <$> isRecordType a
+      unless (recEtaEquality def) __IMPOSSIBLE__
+      let tel = recTel def `apply` pars
+          m   = size tel
+          v   = Con (recConHead def) $ map var $ downFrom m
+          b'  = raise m b `absApp` v
+          fs  = recFields def
+          vs  = zipWith (\ f i -> Var i [Proj f]) fs $ downFrom m
+          -- v = c (n-1) ... 1 0
+      (tel, u) <- etaExpandAtRecordType a $ var 0
+      -- TODO: compose argInfo ai with tel.
+      -- Substitute into @b@.
+      -- Abstract over @tel@.
+      -- Abstract over @gamma@.
+      -- Create new meta.
+      -- Solve old meta, using substitution.
+      patternViolation
+    _ -> __IMPOSSIBLE__
+-}
 
 type FVs = Set.VarSet
 type SubstCand = [(Nat,Term)] -- ^ a possibly non-deterministic substitution
@@ -906,6 +1013,11 @@ inverseSubst args = map (mapFst unArg) <$> loop (zip args terms)
     cons a@(Arg info i, t) vars = a :
       -- filter out duplicate irrelevants
       filter (not . (\ a@(Arg info j, t) -> isIrrelevant info && i == j)) vars
+
+
+
+
+
 
 updateMeta :: MetaId -> Term -> TCM ()
 updateMeta mI v = do
