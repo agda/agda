@@ -189,7 +189,7 @@ assignE x es v equate = assignWrapper x es v $ do
       case res of
         Just u  -> do
           reportSDoc "tc.conv.assign" 30 $ sep
-            [ text "seem like eta expansion instantiated meta "
+            [ text "seems like eta expansion instantiated meta "
             , prettyTCM x <+> text " := " <+> prettyTCM u
             ]
           let w = u `applyE` es
