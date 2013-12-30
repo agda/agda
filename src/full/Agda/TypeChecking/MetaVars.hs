@@ -522,15 +522,6 @@ assignWrapper x es v doAssign = do
       text "term" <+> prettyTCM (MetaV x es) <+> text ":=" <+> prettyTCM v
     liftTCM $ nowSolvingConstraints doAssign `finally` solveAwakeConstraints
 
-{-
--- | We give up if meta is applied to a projection.
-assignE :: MetaId -> Elims -> Term -> TCM ()
-assignE x es v = do
-  case allApplyElims es of
-    Just vs -> assignV x vs v
-    Nothing -> patternViolation
--}
-
 
 -- | Miller pattern unification:
 --
@@ -769,7 +760,7 @@ instance Error () where
 --   Otherwise, raise the error.
 checkLinearity :: SubstCand -> ErrorT () TCM SubstCand
 checkLinearity ids0 = do
-  let ids = sortBy (compare `on` fst) ids0
+  let ids = sortBy (compare `on` fst) ids0  -- see issue 920
   let grps = groupOn fst ids
   concat <$> mapM makeLinear grps
   where
@@ -806,26 +797,6 @@ checkLinearity elemFVs ids0 = do
         ifM (elemFVs i)
           {- then -} (throwError ())          -- non-prunable non-linear var
           {- else -} (tell [i] >> return grp) -- possibly prunable non-lin var
--}
-
-{- BUGGY, see Issue 920
--- | Turn non-det substitution into proper substitution, if possible.
---   The substitution can be restricted to @elemFVs@
-checkLinearity :: (Nat -> Bool) -> SubstCand -> ErrorT () TCM SubstCand
-checkLinearity elemFVs ids0 = do
-  let ids = sortBy (compare `on` fst) $ filter (elemFVs . fst) ids0
-  let grps = groupOn fst ids
-  concat <$> mapM makeLinear grps
-  where
-    -- | Non-determinism can be healed if type is singleton. [Issue 593]
-    --   (Same as for irrelevance.)
-    makeLinear :: SubstCand -> ErrorT () TCM SubstCand
-    makeLinear []            = __IMPOSSIBLE__
-    makeLinear grp@[_]       = return grp
-    makeLinear (p@(i,t) : _) =
-      ifM ((Right True ==) <$> do isSingletonTypeModuloRelevance =<< typeOfBV i)
-        (return [p])
-        (throwError ())
 -}
 
 -- Intermediate result in the following function
