@@ -19,6 +19,15 @@ import Agda.Utils.TestHelpers
 #include "../undefined.h"
 import Agda.Utils.Impossible
 
+-- | Loop while we have an exception.
+
+whileLeft :: Monad m => (a -> Either b c) -> (a -> b -> m a) -> (a -> c -> m d) -> a -> m d
+whileLeft test left right = loop where
+  loop a =
+    case test a of
+      Left  b -> loop =<< left a b
+      Right c -> right a c
+
 -- | 'Either' is a bifunctor.
 
 mapEither :: (a -> c) -> (b -> d) -> Either a b -> Either c d
