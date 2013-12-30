@@ -212,6 +212,52 @@ recursiveRecord q = modifySignature $ updateDefinition q $ updateTheDef $ update
   where updateRecord r@Record{} = r { recRecursive = True }
         updateRecord _          = __IMPOSSIBLE__
 
+{- | @etaExpandBoundVar i = (Δ, σ, τ)@
+
+Precondition: The current context @Γ = Γ₁, x:R pars, Γ₂@ where
+  @|Γ₂| = i@ and @R@ is a eta-expandable record type
+  with constructor @c@ and fields @Γ'@.
+
+Postcondition: @Δ = Γ₁, Γ', Γ₂[c Γ']@ and @Γ ⊢ σ : Δ@ and @Δ ⊢ τ : Γ@.
+-}
+etaExpandBoundVar :: Int -> TCM (Maybe (Telescope, Substitution, Substitution))
+etaExpandBoundVar i = do
+  -- Get the context with last variable added first in list.
+  gamma <- getContext
+  -- Extract type of @i@th variable.
+  let (gamma2, dom@(Dom ai (x, a)) : gamma1) = splitAt i gamma
+  -- This must be a eta-expandable record type.
+  (r, pars, def) <- fromMaybe __IMPOSSIBLE__ <$> isRecordType a
+  if not (recEtaEquality def) then return Nothing else Just <$> do
+  -- Get the record fields @Γ₁ ⊢ tel@ (@tel = Γ'@).
+  -- TODO: compose argInfo ai with tel.
+  let tel = recTel def `apply` pars
+      m   = size tel
+      fs  = recFields def
+  -- Construct the record pattern @Γ₁, Γ' ⊢ u := c ys@.
+      ys  = zipWith (\ f i -> f $> var i) fs $ downFrom m
+      u   = Con (recConHead def) ys
+  -- @Γ₁, Γ' ⊢ τ₀ : Γ₁, x:_@
+      tau0 = u :# raiseS m
+  -- @Γ₁, Γ', Γ₂ ⊢ τ₀ : Γ₁, x:_, Γ₂@
+      tau  = liftS (size gamma2) tau0
+
+  --  Fields are in order first-first.
+      zs  = for fs $ fmap $ \ f -> Var 0 [Proj f]
+  --  We need to reverse the field sequence to build the substitution.
+  -- @Γ₁, x:_ ⊢ σ₀ : Γ₁, Γ'@
+      sigma0 = parallelS $ reverse $ map unArg zs
+  -- @Γ₁, x:_, Γ₂ ⊢ σ₀ : Γ₁, Γ', Γ₂@
+      sigma  = liftS (size gamma2) sigma0
+
+  -- Construct @Δ@ as telescope.
+  -- Note @Γ₁, x:_ ⊢ Γ₂@, thus, @Γ₁, Γ' ⊢ [τ₀]Γ₂@
+
+      rev   = foldl (\ l (Dom ai (n, t)) -> Dom ai (show n, t) : l) []
+      delta = telFromList $ rev gamma1 ++ telToList tel ++ rev (applySubst tau0 gamma2)
+
+  return (delta, sigma, tau)
+
 -- | @curryAt v (Γ (y : R pars) -> B) n =
 --     ( \ v -> λ Γ ys → v Γ (c ys)            {- curry   -}
 --     , \ v -> λ Γ y → v Γ (p1 y) ... (pm y)  {- uncurry -}
