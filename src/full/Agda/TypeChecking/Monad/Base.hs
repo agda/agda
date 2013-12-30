@@ -452,13 +452,17 @@ instance Show NamedMeta where
 
 type MetaStore = Map MetaId MetaVariable
 
+instance HasRange MetaInfo where
+  getRange = clValue . miClosRange
+
 instance HasRange MetaVariable where
     getRange m = getRange $ getMetaInfo m
 
+instance SetRange MetaInfo where
+  setRange r m = m { miClosRange = (miClosRange m) { clValue = r }}
+
 instance SetRange MetaVariable where
-  setRange r m = m { mvInfo = (mvInfo m)
-                     { miClosRange = (miClosRange (mvInfo m))
-                       { clValue = r }}}
+  setRange r m = m { mvInfo = setRange r (mvInfo m) }
 
 normalMetaPriority :: MetaPriority
 normalMetaPriority = MetaPriority 0
