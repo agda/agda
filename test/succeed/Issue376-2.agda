@@ -27,7 +27,7 @@ module example-1 where
     _≃_ : (A B : Set) → Set
 
   Σ-interchange-Type =
-    {A : Set} {B C : A → Set} {D : (a : A) → B a → C a → Set}
+    (A : Set) (B C : A → Set) (D : (a : A) → B a → C a → Set)
       → Σ (Σ A B) (λ {(a , b) → Σ (C a) (λ c → D a b c)})
       ≃ Σ (Σ A C) (λ {(a , c) → Σ (B a) (λ b → D a b c)})
 
@@ -37,4 +37,4 @@ module example-1 where
   {- Can the implicit arguments to Σ-interchange
      be inferred from the global type? -}
   Σ-interchange' : Σ-interchange-Type
-  Σ-interchange' = Σ-interchange
+  Σ-interchange' A B C D = Σ-interchange _ _ _ _

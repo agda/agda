@@ -765,20 +765,23 @@ expandProjectedVars :: (Normalise a, TermLike a, PrettyTCM a, NoProjectedVar a, 
   a -> b -> (a -> b -> TCM c) -> TCM c
 expandProjectedVars args v ret = loop (args, v) where
   loop (args, v) = do
+    reportSDoc "tc.meta.assign.proj" 40 $ text "meta args: " <+> prettyTCM args
     args <- etaContract =<< normalise args
+    reportSDoc "tc.meta.assign.proj" 40 $ text "norm args: " <+> prettyTCM args
+    let done = ret args v
     case noProjectedVar args of
-      Right ()              -> ret args v
-      Left (ProjVarExc i _) -> etaExpandProjectedVar i (args, v) $ loop
+      Right ()              -> done
+      Left (ProjVarExc i _) -> etaExpandProjectedVar i (args, v) done loop
 
 -- | Eta-expand a de Bruijn index of record type in context and passed term(s).
-etaExpandProjectedVar :: (PrettyTCM a, Subst a) => Int -> a -> (a -> TCM c) -> TCM c
-etaExpandProjectedVar i v ret = do
-  caseMaybeM (etaExpandBoundVar i) (ret v) $ \ (delta, sigma, tau) -> do
+etaExpandProjectedVar :: (PrettyTCM a, Subst a) => Int -> a -> TCM c -> (a -> TCM c) -> TCM c
+etaExpandProjectedVar i v fail succeed = do
+  caseMaybeM (etaExpandBoundVar i) fail $ \ (delta, sigma, tau) -> do
     reportSDoc "tc.meta.assign.proj" 25 $
       text "eta-expanding var " <+> prettyTCM (var i) <+>
       text " in terms " <+> prettyTCM v
     inTopContext $ addContext delta $
-      ret $ applySubst tau v
+      succeed $ applySubst tau v
 
 -- | Check whether one of the meta args is a projected var.
 class NoProjectedVar a where
