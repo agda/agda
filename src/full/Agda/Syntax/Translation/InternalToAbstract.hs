@@ -320,22 +320,24 @@ reifyTerm expandAnonDefs v = do
             -- (see for example the parameter {i} to Data.Star.Star, which is also
             -- the first argument to the cons).
             -- @data Star {i}{I : Set i} ... where cons : {i :  I} ...@
-            if (np == 0) then apps h es  -- if np==0 then n==0
-            -- WAS: if (np == 0) then apps h $ genericDrop n es
-             else do   -- get name of argument from type of constructor
-              TelV tel _ <- telView (defType ci) -- need reducing version of telView because target of constructor could be a definition expanding into a function type
-              let -- TelV tel _ = telView' (defType ci) -- WRONG, see test/suceed/NameFirstIfHidden
-                  doms       = genericDrop np $ telToList tel
-              case doms of
+            if (np == 0) then apps h es else do
+              -- Get name of first argument from type of constructor.
+              -- Here, we need the reducing version of @telView@
+              -- because target of constructor could be a definition
+              -- expanding into a function type.  See test/succeed/NameFirstIfHidden.agda.
+              TelV tel _ <- telView (defType ci)
+              case genericDrop np $ telToList tel of
                 -- Andreas, 2012-09-18
                 -- If the first regular constructor argument is hidden,
                 -- we keep the parameters to avoid confusion.
                 (Common.Dom info _ : _) | isHidden info -> do
-                  let us = genericReplicate (np - n) $ setRelevance Relevant (Common.Arg info underscore)
+                  let us = genericReplicate (np - n) $
+                             setRelevance Relevant $ Common.Arg info underscore
                   apps h $ us ++ es
                 -- otherwise, we drop all parameters
                 _ -> apps h es
 {- CODE FROM 2012-04-xx
+              let doms = genericDrop np $ telToList tel
               reportSLn "syntax.reify.con" 30 $ unlines
                 [ "calling nameFirstIfHidden"
                 , "doms = " ++ show doms
