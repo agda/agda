@@ -338,11 +338,13 @@ mergeGroups n1 n2 ts = do
     let g1s = eqGroups ts !!! n1
         g2s = eqGroups ts !!! n2
         gs  = S.union g1s g2s
-    ifM (not <$> andM [unifiable e1 e2 | e1 <- S.toList g1s, e2 <- S.toList g2s])
+        g1l = S.toList g1s
+        g2l = S.toList g2s
+    ifNotM (andM $ zipWith unifiable g1l g2l)
         (return Nothing) $
         return $ Just $ ts
             { eqGroups    = M.delete n2 $ M.insert n1 gs (eqGroups ts)
-            , constrGroup = M.fromList [(e2, Same n1) | e2 <- S.toList g2s] `M.union` constrGroup ts
+            , constrGroup = M.fromList [ (e2, Same n1) | e2 <- g2l ] `M.union` constrGroup ts
             }
 
 unifiable :: QName -> QName -> Compile TCM Bool

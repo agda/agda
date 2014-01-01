@@ -85,19 +85,17 @@ instance Evaluate Term where
       return $ Lam h $ Abs (absName ab) ab'
 -}
     Lit l        -> return $ Lit l
-    Def n es -> do
-        ifM (not <$> isStatic n) {- then -}
-            (Def n <$> evaluate es) $ {- else -} do
-                feta <- return term -- etaExpand term
-                f <- lift $ normalise feta
-                lift $ reportSDoc "epic.static" 10 $ vcat
-                  [ text "STATIC pragma fired"
-                  , nest 2 $ vcat
-                    [ text "before :" <+> prettyTCM term
-                    , text "after  :" <+> prettyTCM f
-                    ]
-                  ]
-                return f
+    Def n es     -> ifNotM (isStatic n) {- then -} (Def n <$> evaluate es) $ {- else -} do
+        feta <- return term -- etaExpand term
+        f <- lift $ normalise feta
+        lift $ reportSDoc "epic.static" 10 $ vcat
+          [ text "STATIC pragma fired"
+          , nest 2 $ vcat
+            [ text "before :" <+> prettyTCM term
+            , text "after  :" <+> prettyTCM f
+            ]
+          ]
+        return f
     Con c args   -> Con c <$> evaluate args
     Pi  arg abs  -> return term
     Sort s       -> return term

@@ -514,15 +514,10 @@ etaExpandBlocked (Blocked m t)  = do
 
 assignV :: MetaId -> Args -> Term -> TCM ()
 assignV x args v = assignWrapper x (map Apply args) v $ assign x args v
-{- ifM (not <$> asks envAssignMetas) patternViolation $ do
-	reportSDoc "tc.meta.assign" 10 $ do
-	  text "term" <+> prettyTCM (MetaV x $ map Apply args) <+> text ":=" <+> prettyTCM v
-        liftTCM $ nowSolvingConstraints (assign x args v) `finally` solveAwakeConstraints
--}
 
 assignWrapper :: MetaId -> Elims -> Term -> TCM () -> TCM ()
 assignWrapper x es v doAssign = do
-  ifM (not <$> asks envAssignMetas) patternViolation $ do
+  ifNotM (asks envAssignMetas) patternViolation $ {- else -} do
     reportSDoc "tc.meta.assign" 10 $ do
       text "term" <+> prettyTCM (MetaV x es) <+> text ":=" <+> prettyTCM v
     liftTCM $ nowSolvingConstraints doAssign `finally` solveAwakeConstraints

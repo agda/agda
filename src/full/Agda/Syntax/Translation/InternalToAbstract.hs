@@ -172,7 +172,7 @@ reifyDisplayFormP lhs@(A.LHS i (A.LHSHead x ps) wps) =
 -}
 reifyDisplayFormP :: A.SpineLHS -> TCM A.SpineLHS
 reifyDisplayFormP lhs@(A.SpineLHS i x ps wps) =
-  ifM (not <$> displayFormsEnabled) (return lhs) $ do
+  ifNotM displayFormsEnabled (return lhs) $ {- else -} do
     let vs = [ setHiding h $ defaultArg $ I.var n
              | (n, h) <- zip [0..] $ map getHiding ps
              ]

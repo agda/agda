@@ -191,8 +191,7 @@ instance Reduce Type where
 
 instance Reduce Sort where
     reduce s = {-# SCC "reduce<Sort>" #-}
-      ifM (not <$> hasUniversePolymorphism) (red s)
-      $ red =<< instantiateFull s
+      ifNotM hasUniversePolymorphism (red s) $ {- else -} red =<< instantiateFull s
       where
         red s = do
           s <- instantiate s

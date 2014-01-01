@@ -96,9 +96,9 @@ isType_ e =
       return $ sort (mkType n)
     A.App i s (Arg (ArgInfo NotHidden r cs) l)
       | A.Set _ 0 <- unScope s ->
-      ifM (not <$> hasUniversePolymorphism)
+      ifNotM hasUniversePolymorphism
           (typeError $ GenericError "Use --universe-polymorphism to enable level arguments to Set")
-      $ do
+      $ {- else -} do
         lvl <- levelType
         -- allow NonStrict variables when checking level
         --   Set : (NonStrict) Level -> Set\omega
@@ -581,9 +581,9 @@ checkExpr e t0 =
         -- check |- Set l : t  (requires universe polymorphism)
         A.App i s (Arg ai l)
           | A.Set _ 0 <- unScope s, visible ai ->
-          ifM (not <$> hasUniversePolymorphism)
+          ifNotM hasUniversePolymorphism
               (typeError $ GenericError "Use --universe-polymorphism to enable level arguments to Set")
-          $ do
+          $ {- else -} do
             lvl <- levelType
             -- allow NonStrict variables when checking level
             --   Set : (NonStrict) Level -> Set\omega
