@@ -26,6 +26,10 @@ mapSnd g ~(x,y) = (x, g y)
 (/\) :: (a -> b) -> (a -> c) -> a -> (b,c)
 (f /\ g) x = (f x, g x)
 
+-- | Swap.  (Only in Data.Tuple from base-4.3)
+swap :: (a,b) -> (b,a)
+swap ~(a,b) = (b,a)
+
 -- * Triple (stolen from Data.Tuple.HT)
 
 {-# INLINE fst3 #-}

@@ -57,10 +57,11 @@ import Agda.TypeChecking.Substitute
 import Agda.TypeChecking.Telescope
 import Agda.TypeChecking.DropArgs
 
+import Agda.Utils.Maybe
 import Agda.Utils.Monad
-import Agda.Utils.Tuple
 import Agda.Utils.Permutation
 import Agda.Utils.Size
+import Agda.Utils.Tuple
 
 #include "../../undefined.h"
 import Agda.Utils.Impossible
@@ -133,14 +134,10 @@ instance Reify MetaId Expr where
                  , metaNumber         = Just n
                  , metaNameSuggestion = miNameSuggestion mi
                  }
-      ifM shouldReifyInteractionPoints
-          (do iis <- map (snd /\ fst) . Map.assocs
-                      <$> gets stInteractionPoints
-              case lookup x iis of
-                Just ii@(InteractionId n)
-                        -> return $ A.QuestionMark $ mi' {metaNumber = Just n}
-                Nothing -> return $ A.Underscore mi'
-          ) (return $ A.Underscore mi')
+          underscore = return $ A.Underscore mi'
+      ifNotM shouldReifyInteractionPoints underscore $ {- else -}
+        caseMaybeM (isInteractionMeta x) underscore $ \ (InteractionId n) ->
+          return $ A.QuestionMark $ mi' {metaNumber = Just n}
 
 instance Reify DisplayTerm Expr where
   reifyWhen = reifyWhenE

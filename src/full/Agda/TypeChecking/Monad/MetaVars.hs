@@ -22,6 +22,7 @@ import Agda.Utils.Maybe (fromMaybeM)
 import Agda.Utils.Monad ((<.>))
 import Agda.Utils.Fresh
 import Agda.Utils.Permutation
+import Agda.Utils.Tuple
 
 #include "../../undefined.h"
 import Agda.Utils.Impossible
@@ -115,19 +116,17 @@ setMetaNameSuggestion mi s = do
 updateMetaVarRange :: MetaId -> Range -> TCM ()
 updateMetaVarRange mi r = updateMetaVar mi (setRange r)
 
-addInteractionPoint :: InteractionId -> MetaId -> TCM ()
-addInteractionPoint ii mi =
-    modify $ \s -> s { stInteractionPoints =
-			Map.insert ii mi $ stInteractionPoints s
-		     }
+-- * Query and manipulate interaction points.
 
+modifyInteractionPoints :: (InteractionPoints -> InteractionPoints) -> TCM ()
+modifyInteractionPoints f =
+  modify $ \ s -> s { stInteractionPoints = f (stInteractionPoints s) }
+
+addInteractionPoint :: InteractionId -> MetaId -> TCM ()
+addInteractionPoint ii mi = modifyInteractionPoints $ Map.insert ii mi
 
 removeInteractionPoint :: InteractionId -> TCM ()
-removeInteractionPoint ii =
-    modify $ \s -> s { stInteractionPoints =
-			Map.delete ii $ stInteractionPoints s
-		     }
-
+removeInteractionPoint ii = modifyInteractionPoints $ Map.delete ii
 
 getInteractionPoints :: TCM [InteractionId]
 getInteractionPoints = Map.keys <$> gets stInteractionPoints
@@ -137,8 +136,12 @@ getInteractionMetas = Map.elems <$> gets stInteractionPoints
 
 -- | Does the meta variable correspond to an interaction point?
 
-isInteractionMeta :: MetaId -> TCM Bool
-isInteractionMeta m = (m `elem`) <$> getInteractionMetas
+isInteractionMeta :: MetaId -> TCM (Maybe InteractionId)
+isInteractionMeta x =
+  lookup x . map swap . Map.assocs <$> gets stInteractionPoints
+
+-- isInteractionMeta :: MetaId -> TCM Bool
+-- isInteractionMeta m = (m `elem`) <$> getInteractionMetas
 
 lookupInteractionId :: InteractionId -> TCM MetaId
 lookupInteractionId ii =

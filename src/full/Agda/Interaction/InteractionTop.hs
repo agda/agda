@@ -147,8 +147,8 @@ putResponse = lift . appInteractionOutputCallback
 
 -- | A Lens for 'theInteractionPoints'.
 
-modifyInteractionPoints :: ([InteractionId] -> [InteractionId]) -> CommandM ()
-modifyInteractionPoints f = modify $ \ s ->
+modifyTheInteractionPoints :: ([InteractionId] -> [InteractionId]) -> CommandM ()
+modifyTheInteractionPoints f = modify $ \ s ->
   s { theInteractionPoints = f (theInteractionPoints s) }
 
 
@@ -573,7 +573,7 @@ interpret (Cmd_auto ii rng s) = do
   case res of
    Left xs -> do
     forM_ xs $ \(ii, s) -> do
-      modifyInteractionPoints $ filter (/= ii)
+      modifyTheInteractionPoints $ filter (/= ii)
       putResponse $ Resp_GiveAction ii $ Give_String s
     case msg of
      Nothing -> interpret Cmd_metas
@@ -747,7 +747,7 @@ give_gen ii rng s give_ref = do
   -- sort the new interaction points and put them into the state
   -- in replacement of the old interaction point
   iis       <- lift $ sortInteractionPoints iis
-  modifyInteractionPoints $ replace ii iis
+  modifyTheInteractionPoints $ replace ii iis
   -- print abstract expr
   ce        <- lift $ abstractToConcreteEnv (makeEnv scope) ae
   putResponse $ Resp_GiveAction ii $ mkNewTxt (null iis && rng /= noRange) ce

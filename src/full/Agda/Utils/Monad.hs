@@ -62,10 +62,15 @@ unlessM c m = c >>= (`unless_` m)
 
 -- whenJust, whenJustM moved to Utils.Maybe
 
+-- | Monadic if-then-else.
 ifM :: Monad m => m Bool -> m a -> m a -> m a
 ifM c m m' =
     do	b <- c
 	if b then m else m'
+
+-- | @ifNotM mc = ifM (not <$> mc)@
+ifNotM :: Monad m => m Bool -> m a -> m a -> m a
+ifNotM c = flip $ ifM c
 
 -- | Lazy monadic conjunction.
 and2M :: Monad m => m Bool -> m Bool -> m Bool

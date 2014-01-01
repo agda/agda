@@ -592,7 +592,7 @@ solveSizeConstraints = whenM haveSizedTypes $ do
             -- Andreas, 2012-09-25: do not assign interaction metas to \infty
             let isInf (W.SizeConst W.Infinite) = True
                 isInf _                        = False
-            unlessM (isInteractionMeta m `and2M` return (isInf e)) $
+            unlessM ((isJust <$> isInteractionMeta m) `and2M` return (isInf e)) $
               assignTerm m v
 
       mapM_ inst $ Map.toList sol
