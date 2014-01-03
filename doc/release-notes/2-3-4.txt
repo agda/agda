@@ -698,3 +698,37 @@ LaTeX-backend
     agda --latex -i . <file>.lagda
     cd latex
     pdflatex <file>.tex
+
+* The LaTeX-backend has been made more tool agnostic, in particular
+  XeLaTeX and LuaLaTeX should now work. Here is a small example
+  (test/latex-backend/succeed/UnicodeInput.lagda):
+
+    \documentclass{article}
+    \usepackage{agda}
+    \begin{document}
+
+    \begin{code}
+    data αβγδεζθικλμνξρστυφχψω : Set₁ where
+
+    postulate
+      →⇒⇛⇉⇄↦⇨↠⇀⇁ : Set
+    \end{code}
+
+    \[
+    ∀X [ ∅ ∉ X ⇒ ∃f:X ⟶  ⋃ X\ ∀A ∈ X (f(A) ∈ A) ]
+    \]
+    \end{document}
+
+  Compiled as follows, it should produce a nice looking PDF (tested with
+  TeX Live 2012):
+
+    agda --latex <file>.lagda
+    cd latex
+    xelatex <file>.tex (or lualatex <file>.tex)
+
+  If symbols are missing or xelatex/lualatex complains about the font
+  missing, try setting a different font using:
+
+    \setmathfont{<math-font>}
+
+  Use the fc-list tool to list available fonts.

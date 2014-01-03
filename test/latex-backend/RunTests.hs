@@ -1,6 +1,7 @@
 module RunTests where
 
 import Control.Monad
+import Data.Char
 import Data.List
 import System.Directory
 import System.Environment
@@ -52,25 +53,35 @@ runTests = do
       putStrLn $ "Output of " ++ lagda ++ " is wrong!"
       exitFailure
 
-    -- If a .compile exists in, then run pdflatex on the produced .tex
-    -- file and make sure it succeeds compiling it.
-    let pdf = replaceExtension lagda "compile"
-    exists <- doesFileExist pdf
+    -- If a .compile exists in, then compile the produced .tex file.
+    let compile = replaceExtension lagda "compile"
+    exists <- doesFileExist compile
 
     when exists $ do
+      content <- readFile compile
       setCurrentDirectory latexDir
-      exit <- rawSystem "pdflatex" [ "-interaction=batchmode" , tex ]
 
-      when (isFailure exit) $ do
-        putStrLn ""
-        putStrLn $ tex ++ " doesn't compile!"
-        exitFailure
+      let allCompilers = ["pdflatex", "xelatex", "lualatex"]
+      let compilers = maybe allCompilers id (readMaybe content)
+
+      forM_ compilers $ \compiler -> do
+        exit <- rawSystem compiler [ "-interaction=batchmode" , tex ]
+
+        when (isFailure exit) $ do
+          putStrLn ""
+          putStrLn $ tex ++ " doesn't compile with " ++ compiler ++ "!"
+          exitFailure
 
   putStrLn "All tests passed."
 
 isFailure :: ExitCode -> Bool
 isFailure (ExitFailure _) = True
 isFailure _               = False
+
+readMaybe :: Read a => String -> Maybe a
+readMaybe s = case reads s of
+                [(x, rest)] | all isSpace rest -> Just x
+                _                              -> Nothing
 
 ------------------------------------------------------------------------
 

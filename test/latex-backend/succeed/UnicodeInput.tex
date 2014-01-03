@@ -1,0 +1,19 @@
+\documentclass{article}
+\usepackage{agda}
+\begin{document}
+
+\begin{code}%
+\>\AgdaKeyword{data} \AgdaDatatype{αβγδεζθικλμνξρστυφχψω} \AgdaSymbol{:} \AgdaPrimitiveType{Set₁} \AgdaKeyword{where}\<%
+\\
+%
+\\
+\>\AgdaKeyword{postulate}\<%
+\\
+\>[0]\AgdaIndent{2}{}\<[2]%
+\>[2]\AgdaPostulate{→⇒⇛⇉⇄↦⇨↠⇀⇁} \AgdaSymbol{:} \AgdaPrimitiveType{Set}\<%
+\end{code}
+
+\[
+∀X [ ∅ ∉ X ⇒ ∃f:X ⟶  ⋃ X\ ∀A ∈ X (f(A) ∈ A) ]
+\]
+\end{document}

@@ -4,13 +4,27 @@
 
 \ProvidesPackage{agda}
 
-\usepackage{ifxetex, xcolor, polytable, ifthen}
+\usepackage{ifxetex, ifluatex, ifthen, xcolor, polytable, etoolbox}
 
-% XeLaTeX
+% http://tex.stackexchange.com/questions/47576/combining-ifxetex-and-ifluatex-with-the-logical-or-operation
+\newif\ifxetexorluatex
 \ifxetex
-    \usepackage{polyglossia}
-    \usepackage{fontspec}
-    \usepackage[]{unicode-math}
+  \xetexorluatextrue
+\else
+  \ifluatex
+    \xetexorluatextrue
+  \else
+    \xetexorluatexfalse
+  \fi
+\fi
+
+% XeLaTeX or LuaLaTeX
+\ifxetexorluatex
+    \usepackage{fontspec, unicode-math}
+    \tracinglostchars=2 % If the font is missing some symbol, then say
+                        % so in the compilation output.
+    \setmainfont[Ligatures=TeX]{TeXGyrePagella}
+    \setmathfont{Asana Math}
 
 % pdfLaTeX
 \else
@@ -50,23 +64,23 @@
 % Font styles.
 
 % Default font style.
-\newcommand{\AgdaFontStyle}[1]{\textsf{#1}}
+\newcommand{\AgdaFontStyle}[1]{\ensuremath{\mathsf{#1}}}
 
 % Keyword font style.
 \ifthenelse{\equal{\AgdaColourScheme}{bw}}{
     \newcommand{\AgdaKeywordFontStyle}[1]{\underline{#1}}
 }{
-    \newcommand{\AgdaKeywordFontStyle}[1]{\textsf{#1}}
+    \newcommand{\AgdaKeywordFontStyle}[1]{\ensuremath{\mathsf{#1}}}
 }
 
 % String font style.
-\newcommand{\AgdaStringFontStyle}[1]{\texttt{#1}}
+\newcommand{\AgdaStringFontStyle}[1]{\ensuremath{\mathtt{#1}}}
 
 % Comment font style.
-\newcommand{\AgdaCommentFontStyle}[1]{\texttt{#1}}
+\newcommand{\AgdaCommentFontStyle}[1]{\ensuremath{\mathtt{#1}}}
 
 % Bounded variables font style.
-\newcommand{\AgdaBoundFontStyle}[1]{\textit{#1}}
+\newcommand{\AgdaBoundFontStyle}[1]{\ensuremath{\mathit{#1}}}
 
 % ----------------------------------------------------------------------
 % Colours.
@@ -185,14 +199,15 @@
 \newcommand{\AgdaKeyword}     [1]
     {\AgdaKeywordFontStyle{\textcolor{AgdaKeyword}{#1}}}
 \newcommand{\AgdaString}      [1]{\AgdaStringFontStyle{\textcolor{AgdaString}{#1}}}
-\newcommand{\AgdaNumber}      [1]{\textcolor{AgdaNumber}{#1}}
-\newcommand{\AgdaSymbol}      [1]{\textcolor{AgdaSymbol}{#1}}
+\newcommand{\AgdaNumber}      [1]{\AgdaFontStyle{\textcolor{AgdaNumber}{#1}}}
+\newcommand{\AgdaSymbol}      [1]{\AgdaFontStyle{\textcolor{AgdaSymbol}{#1}}}
 \newcommand{\AgdaPrimitiveType}[1]
     {\AgdaFontStyle{\textcolor{AgdaPrimitiveType}{#1}}}
-\newcommand{\AgdaOperator}    [1]{\textcolor{AgdaOperator}{#1}}
+\newcommand{\AgdaOperator}    [1]{\AgdaFontStyle{\textcolor{AgdaOperator}{#1}}}
 
 % NameKind commands.
-\newcommand{\AgdaBound}    [1]{\AgdaBoundFontStyle{\textcolor{AgdaBound}{#1}}}
+\newcommand{\AgdaBound}[1]
+    {\AgdaBoundFontStyle{\textcolor{AgdaBound}{#1}}}
 \newcommand{\AgdaInductiveConstructor}[1]
     {\AgdaFontStyle{\textcolor{AgdaInductiveConstructor}{#1}}}
 \newcommand{\AgdaCoinductiveConstructor}[1]
@@ -240,3 +255,5 @@
 
 % Default column for polytable.
 \defaultcolumn{@{~}l@{~}}
+
+\endinput
