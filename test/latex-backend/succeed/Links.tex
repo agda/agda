@@ -1,0 +1,67 @@
+\documentclass{article}
+\usepackage{hyperref}
+\usepackage[links]{agda}
+\begin{document}
+
+\AgdaTarget{ℕ}
+\AgdaTarget{zero}
+\begin{code}%
+\>\AgdaKeyword{data} \AgdaDatatype{ℕ} \AgdaSymbol{:} \AgdaPrimitiveType{Set} \AgdaKeyword{where}\<%
+\\
+\>[0]\AgdaIndent{2}{}\<[2]%
+\>[2]\AgdaInductiveConstructor{zero} \<[8]%
+\>[8]\AgdaSymbol{:} \AgdaDatatype{ℕ}\<%
+\\
+\>[0]\AgdaIndent{2}{}\<[2]%
+\>[2]\AgdaInductiveConstructor{suc} \<[8]%
+\>[8]\AgdaSymbol{:} \AgdaDatatype{ℕ} \AgdaSymbol{→} \AgdaDatatype{ℕ}\<%
+\end{code}
+
+See next page for how to define \AgdaFunction{two} (doesn't turn into a
+link because the target hasn't been defined yet). We could do it
+manually though; \hyperlink{two}{\AgdaDatatype{two}}.
+
+\newpage
+
+\AgdaTarget{two}
+\hypertarget{two}{}
+\begin{code}%
+\>\AgdaFunction{two} \AgdaSymbol{:} \AgdaDatatype{ℕ}\<%
+\\
+\>\AgdaFunction{two} \AgdaSymbol{=} \AgdaInductiveConstructor{suc} \AgdaSymbol{(}\AgdaInductiveConstructor{suc} \AgdaInductiveConstructor{zero}\AgdaSymbol{)}\<%
+\end{code}
+
+\AgdaInductiveConstructor{zero} is of type
+\AgdaDatatype{ℕ}. \AgdaInductiveConstructor{suc} has not been defined to
+be a target so it doesn't turn into a link.
+
+\newpage
+
+Now that the target for \AgdaFunction{two} has been defined the link
+works automatically.
+
+\begin{code}%
+\>\AgdaKeyword{data} \AgdaDatatype{Bool} \AgdaSymbol{:} \AgdaPrimitiveType{Set} \AgdaKeyword{where}\<%
+\\
+\>[0]\AgdaIndent{2}{}\<[2]%
+\>[2]\AgdaInductiveConstructor{true} \AgdaInductiveConstructor{false} \AgdaSymbol{:} \AgdaDatatype{Bool}\<%
+\end{code}
+
+The AgdaTarget command takes a list as input, enabling several targets
+to be specified as follows:
+
+\AgdaTarget{if, then, else, if\_then\_else\_}
+\begin{code}%
+\>\AgdaFunction{if\_then\_else\_} \AgdaSymbol{:} \AgdaSymbol{\{}\AgdaBound{A} \AgdaSymbol{:} \AgdaPrimitiveType{Set}\AgdaSymbol{\}} \AgdaSymbol{→} \AgdaDatatype{Bool} \AgdaSymbol{→} \AgdaBound{A} \AgdaSymbol{→} \AgdaBound{A} \AgdaSymbol{→} \AgdaBound{A}\<%
+\\
+\>\AgdaFunction{if} \AgdaInductiveConstructor{true} \AgdaFunction{then} \AgdaBound{t} \AgdaFunction{else} \AgdaBound{f} \AgdaSymbol{=} \AgdaBound{t}\<%
+\\
+\>\AgdaFunction{if} \AgdaInductiveConstructor{false} \AgdaFunction{then} \AgdaBound{t} \AgdaFunction{else} \AgdaBound{f} \AgdaSymbol{=} \AgdaBound{f}\<%
+\end{code}
+
+\newpage
+
+Mixfix identifier need their underscores escaped:
+\AgdaFunction{if\_then\_else\_}.
+
+\end{document}

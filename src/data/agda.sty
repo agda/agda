@@ -58,7 +58,60 @@
 
 \DeclareOption{bw}   {\renewcommand{\AgdaColourScheme}{bw}}
 \DeclareOption{conor}{\renewcommand{\AgdaColourScheme}{conor}}
+
+% ----------------------------------------------------------------------
+% Links (only done if the option is passed and the user has loaded the
+% hyperref package).
+
+\newif\if@AgdaEnableLinks\@AgdaEnableLinksfalse
+\DeclareOption{links}{
+    \@AgdaEnableLinkstrue
+}
 \ProcessOptions\relax
+
+\if@AgdaEnableLinks
+  \@ifpackageloaded{hyperref}{
+
+    % List that holds added targets.
+    \newcommand{\AgdaList}[0]{}
+
+    \newtoggle{AgdaIsElem}
+    \newcounter{AgdaIndex}
+    \newcommand{\AgdaLookup}[3]{%
+      \togglefalse{AgdaIsElem}%
+      \setcounter{AgdaIndex}{0}%
+      \renewcommand*{\do}[1]{%
+      \ifstrequal{#1}{##1}%
+        {\toggletrue{AgdaIsElem}\listbreak}%
+        {\stepcounter{AgdaIndex}}}%
+      \dolistloop{\AgdaList}%
+      \iftoggle{AgdaIsElem}{#2}{#3}
+    }
+
+    \newcommand*{\AgdaTargetHelper}[1]{%
+      \AgdaLookup{#1}
+        {\PackageError{agda}{``#1'' used as target more than once}
+                            {Overloaded identifiers and links do not
+                             work well, consider using unique
+                             \MessageBreak identifiers instead.}
+        }
+        {\listadd{\AgdaList}{#1}
+         \hypertarget{Agda\theAgdaIndex}{}
+        }
+    }
+
+    \newcommand{\AgdaTarget}[1]{\forcsvlist{\AgdaTargetHelper}{#1}}
+
+    \newcommand{\AgdaLink}[1]{%
+      \AgdaLookup{#1}
+        {\hyperlink{Agda\theAgdaIndex}{#1}}
+        {#1}
+    }
+  }{\PackageError{agda}{Load the hyperref package before the agda package}{}}
+\fi
+
+\providecommand{\AgdaTarget}[1]{}
+\providecommand{\AgdaLink}[1]{#1}
 
 % ----------------------------------------------------------------------
 % Font styles.
@@ -209,16 +262,23 @@
 \newcommand{\AgdaBound}[1]
     {\AgdaBoundFontStyle{\textcolor{AgdaBound}{#1}}}
 \newcommand{\AgdaInductiveConstructor}[1]
-    {\AgdaFontStyle{\textcolor{AgdaInductiveConstructor}{#1}}}
+    {\AgdaFontStyle{\textcolor{AgdaInductiveConstructor}{\AgdaLink{#1}}}}
 \newcommand{\AgdaCoinductiveConstructor}[1]
-    {\AgdaFontStyle{\textcolor{AgdaCoinductiveConstructor}{#1}}}
-\newcommand{\AgdaDatatype} [1]{\AgdaFontStyle{\textcolor{AgdaDatatype}{#1}}}
-\newcommand{\AgdaField}    [1]{\AgdaFontStyle{\textcolor{AgdaField}{#1}}}
-\newcommand{\AgdaFunction} [1]{\AgdaFontStyle{\textcolor{AgdaFunction}{#1}}}
-\newcommand{\AgdaModule}   [1]{\AgdaFontStyle{\textcolor{AgdaModule}{#1}}}
-\newcommand{\AgdaPostulate}[1]{\AgdaFontStyle{\textcolor{AgdaPostulate}{#1}}}
-\newcommand{\AgdaPrimitive}[1]{\AgdaFontStyle{\textcolor{AgdaPrimitive}{#1}}}
-\newcommand{\AgdaRecord}   [1]{\AgdaFontStyle{\textcolor{AgdaRecord}{#1}}}
+    {\AgdaFontStyle{\textcolor{AgdaCoinductiveConstructor}{\AgdaLink{#1}}}}
+\newcommand{\AgdaDatatype}[1]
+    {\AgdaFontStyle{\textcolor{AgdaDatatype}{\AgdaLink{#1}}}}
+\newcommand{\AgdaField}[1]
+    {\AgdaFontStyle{\textcolor{AgdaField}{\AgdaLink{#1}}}}
+\newcommand{\AgdaFunction}[1]
+    {\AgdaFontStyle{\textcolor{AgdaFunction}{\AgdaLink{#1}}}}
+\newcommand{\AgdaModule}[1]
+    {\AgdaFontStyle{\textcolor{AgdaModule}{\AgdaLink{#1}}}}
+\newcommand{\AgdaPostulate}[1]
+    {\AgdaFontStyle{\textcolor{AgdaPostulate}{\AgdaLink{#1}}}}
+\newcommand{\AgdaPrimitive}[1]
+    {\AgdaFontStyle{\textcolor{AgdaPrimitive}{#1}}}
+\newcommand{\AgdaRecord}[1]
+    {\AgdaFontStyle{\textcolor{AgdaRecord}{\AgdaLink{#1}}}}
 
 % Other aspect commands.
 \newcommand{\AgdaDottedPattern}     [1]{\textcolor{AgdaDottedPattern}{#1}}
