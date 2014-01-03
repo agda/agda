@@ -3,7 +3,9 @@ module Agda.TypeChecking.Polarity where
 
 import Control.Applicative
 import Control.Monad.State
+
 import Data.List
+import Data.Maybe
 import Data.Traversable (traverse)
 
 import Agda.Syntax.Common
@@ -273,26 +275,42 @@ sizePolarity d pol0 = do
                         -- First constructor argument has type Size
 
                         -- check that only positive occurences in tel
-                        isPos <- underAbstraction arg tel $ \tel -> do
-                          pols <- zipWithM polarity [0..] $ map (snd . unDom) $ telToList tel
-                          return $ all (`elem` [Nonvariant, Covariant]) pols
+                        let isPos = underAbstraction arg tel $ \ tel -> do
+                              pols <- zipWithM polarity [0..] $ map (snd . unDom) $ telToList tel
+                              reportSDoc "tc.polarity.size" 25 $
+                                text $ "to pass size polarity check, the following polarities need all to be covariant: " ++ show pols
+                              return $ all (`elem` [Nonvariant, Covariant]) pols
 
                         -- check that the size argument appears in the
                         -- right spot in the target type
                         let sizeArg = size tel
-                        isLin <- checkSizeIndex np sizeArg target
+                            isLin = addContext conTel $ checkSizeIndex d np sizeArg target
 
-                        return $ isPos && isLin
+                        ok <- isPos `and2M` isLin
+                        reportSDoc "tc.polarity.size" 15 $
+                          text "constructor" <+> prettyTCM c <+>
+                          text (if ok then "passes" else "fails") <+>
+                          text "size polarity check"
+                        return ok
 
           ifM (andM $ map check cons)
               (return polCo) -- yes, we have a sized type here
               (return polIn) -- no, does not conform to the rules of sized types
     _ -> exit
 
-checkSizeIndex :: Nat -> Nat -> Type -> TCM Bool
-checkSizeIndex np i a =
+-- | @checkSizeIndex d np i a@ checks that constructor target type @a@
+--   has form @d ps (↑ i) idxs@ where @|ps| = np@.
+--
+--   Precondition: @a is reduced and of form @d ps idxs0@.
+checkSizeIndex :: QName -> Nat -> Nat -> Type -> TCM Bool
+checkSizeIndex d np i a = do
+  reportSDoc "tc.polarity.size" 15 $ withShowAllArguments $
+    text "checking that constructor target type " <+> prettyTCM a <+>
+    text "is data type " <+> prettyTCM d <+>
+    text "has size index successor of " <+> prettyTCM (var i)
   case ignoreSharing $ unEl a of
-    Def _ es -> do
+    Def d0 es -> do
+      unlessM (isJust <$> sameDef d d0) __IMPOSSIBLE__
       s <- sizeView $ unArg ix
       case s of
         SizeSuc v | Var j [] <- ignoreSharing v, i == j

@@ -398,6 +398,12 @@ canonicalName x = do
     extract (Body _)         = __IMPOSSIBLE__
     extract (Bind b)         = extract (unAbs b)
 
+sameDef :: QName -> QName -> TCM (Maybe QName)
+sameDef d1 d2 = do
+  c1 <- canonicalName d1
+  c2 <- canonicalName d2
+  if (c1 == c2) then return $ Just c1 else return Nothing
+
 -- | Can be called on either a (co)datatype, a record type or a
 --   (co)constructor.
 whatInduction :: QName -> TCM Induction
