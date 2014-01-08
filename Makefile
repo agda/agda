@@ -25,7 +25,7 @@ endif
 .PHONY : default all clean install full prof core \
 		 debug doc dist make_configure clean_test examples \
 		 test tests succeed fail interaction benchmark up-to-date-std-lib \
-		 update-cabal install-lib install-bin install-emacs-mode
+		 install-lib install-bin install-emacs-mode
 
 ## Default target #########################################################
 
@@ -50,12 +50,9 @@ ifeq ($(HAVE_GHC_7_7),Yes)
 CABAL_OPTIONS+=--ghc-option=-j3
 endif
 
-install : update-cabal install-bin compile-emacs-mode setup-emacs-mode
+install : install-bin compile-emacs-mode setup-emacs-mode
 
 prof : install-prof-bin
-
-update-cabal :
-	$(CABAL_CMD) update
 
 # Installs the Emacs mode, but does not set it up.
 install-bin :
