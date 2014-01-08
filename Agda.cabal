@@ -1,7 +1,7 @@
 name:            Agda
 version:         2.3.3
 cabal-version:   >= 1.8
-build-type:      Simple
+build-type:      Custom
 license:         OtherLicense
 license-file:    LICENSE
 author:          Ulf Norell, Nils Anders Danielsson, Andreas Abel, Makoto Takeyama, Catarina Coquand, with contributions by Stevan Andjelkovic, Marcin Benke, Jean-Philippe Bernardy, James Chapman, Dominique Devriese, Peter Divanski, Fredrik Nordvall Forsberg, Olle Fredriksson, Daniel Gustafsson, Alan Jeffrey, Fredrik Lindblad, Guilhem Moulin, Nicolas Pouillard, Andrés Sicard-Ramírez and many more.
