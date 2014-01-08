@@ -161,7 +161,7 @@ lookupName x = do
 lookupQName :: A.QName -> AbsToCon C.QName
 lookupQName x = do
   my <- inverseScopeLookupName x <$> asks currentScope
-  lift $ reportSLn "scope.inverse" 80 $
+  lift $ reportSLn "scope.inverse" 100 $
     "inverse looking up abstract name " ++ show x ++ " yields " ++ show my
   case my of
     Just y  -> return y
