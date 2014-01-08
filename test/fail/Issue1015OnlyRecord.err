@@ -1,0 +1,6 @@
+
+Termination checking failed for the following functions:
+  elim
+Problematic calls:
+  elim (f ∞)
+    (at Issue1015OnlyRecord.agda:18,18-22)
