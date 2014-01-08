@@ -115,7 +115,7 @@ findInScope' m cands = ifM (isFrozen m) (return (Just cands)) $ do
     -- If instance meta is already solved, simply discard the constraint.
     ifM (isInstantiatedMeta m) (return Nothing) $ do
     reportSDoc "tc.constr.findInScope" 15 $ text ("findInScope 2: constraint: " ++ show m ++ "; candidates left: " ++ show (length cands))
-    t <- getMetaTypeInContext m
+    t <- normalise =<< getMetaTypeInContext m
     reportSDoc "tc.constr.findInScope" 15 $ text "findInScope 3: t =" <+> prettyTCM t
     reportSLn "tc.constr.findInScope" 70 $ "findInScope 3: t: " ++ show t
     mv <- lookupMeta m
@@ -157,12 +157,6 @@ findInScope' m cands = ifM (isFrozen m) (return (Just cands)) $ do
           text ("findInScope 5: more than one candidate found: ") <+>
           prettyTCM (List.map fst cs)
         return (Just cs)
-
--- | Given a meta, return the normalized type applied to the current context.
-getMetaTypeInContext :: MetaId -> TCM Type
-getMetaTypeInContext m = do
-  t <- getMetaType m
-  normalise . (t `piApply`) =<< getContextArgs
 
 -- | Given a meta @m@ of type @t@ and a list of candidates @cands@,
 -- @checkCandidates m t cands@ returns a refined list of valid candidates.

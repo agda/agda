@@ -17,12 +17,15 @@ import Agda.TypeChecking.Monad.Base
 import Agda.TypeChecking.Monad.Trace
 import Agda.TypeChecking.Monad.Closure
 import Agda.TypeChecking.Monad.Options (reportSLn)
+import Agda.TypeChecking.Monad.Context
+import Agda.TypeChecking.Substitute
 
 import Agda.Utils.Maybe (fromMaybeM)
 import Agda.Utils.Monad ((<.>))
 import Agda.Utils.Fresh
 import Agda.Utils.Permutation
 import Agda.Utils.Tuple
+import Agda.Utils.Size
 
 #include "../../undefined.h"
 import Agda.Utils.Impossible
@@ -68,6 +71,16 @@ getMetaType m = do
   return $ case mvJudgement mv of
     HasType{ jMetaType = t } -> t
     IsSort{}  -> __IMPOSSIBLE__
+
+-- | Given a meta, return the type applied to the current context.
+getMetaTypeInContext :: MetaId -> TCM Type
+getMetaTypeInContext m = do
+  MetaVar{ mvJudgement = j, mvPermutation = p } <- lookupMeta m
+  case j of
+    HasType{ jMetaType = t } -> do
+      vs <- getContextArgs
+      return $ piApply t $ permute (takeP (size vs) p) vs
+    IsSort{}                 -> __IMPOSSIBLE__
 
 isInstantiatedMeta :: MetaId -> TCM Bool
 isInstantiatedMeta m = isJust <$> isInstantiatedMeta' m
