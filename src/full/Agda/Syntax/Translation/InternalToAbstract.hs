@@ -694,20 +694,25 @@ stripImplicits (ps, wps) = do          -- v if show-implicit we don't need the n
 --   Use it for printing l.h.sides: which of the implicit arguments
 --   have to be made explicit.
 class DotVars a where
-  dotVars :: a -> Set Name
+  dotVars  :: a -> Set Name
+  isConPat :: a -> Bool
+  isConPat _ = False
 
 instance DotVars a => DotVars (A.Arg a) where
-  dotVars a = if notVisible a then Set.empty else dotVars (unArg a)
+  dotVars a = if notVisible a && not (isConPat a)   -- Hidden constructor patterns are visible!
+              then Set.empty
+              else dotVars (unArg a)
+  isConPat = isConPat . unArg
 
 instance DotVars a => DotVars (Named s a) where
   dotVars = dotVars . namedThing
+  isConPat = isConPat . namedThing
 
 instance DotVars a => DotVars [a] where
   dotVars = Set.unions . map dotVars
 
 instance (DotVars a, DotVars b) => DotVars (a, b) where
   dotVars (x, y) = Set.union (dotVars x) (dotVars y)
-
 
 instance DotVars A.Clause where
   dotVars (A.Clause _ rhs []) = dotVars rhs
@@ -725,6 +730,9 @@ instance DotVars A.Pattern where
     A.ImplicitP _ -> Set.empty
     A.AsP _ _ p   -> dotVars p
     A.PatternSynP _ _ _ -> __IMPOSSIBLE__ -- Set.empty
+  isConPat A.ConP{} = True
+  isConPat A.LitP{} = True
+  isConPat _        = False
 
 -- | Getting all(!) variables of an expression.
 --   It should only get free ones, but it does not matter to include
