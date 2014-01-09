@@ -61,7 +61,7 @@ traceCall mkCall m = do
     CheckPattern _ _ _ _            -> True
     CheckLetBinding _ _             -> True
     InferExpr _ _                   -> True
-    CheckExpr _ _ _                 -> True
+    CheckExprCall _ _ _             -> True
     CheckDotPattern _ _ _           -> True
     CheckPatternShadowing _ _       -> True
     IsTypeCall _ _ _                -> True

@@ -350,20 +350,24 @@ unblockedTester t = do
 
 -- | Create a postponed type checking problem @e : t@ that waits for type @t@
 --   to unblock (become instantiated or its constraints resolved).
-postponeTypeCheckingProblem_ :: A.Expr -> Type -> TCM Term
-postponeTypeCheckingProblem_ e t = do
-  postponeTypeCheckingProblem e t (unblockedTester t)
+postponeTypeCheckingProblem_ :: TypeCheckingProblem -> TCM Term
+postponeTypeCheckingProblem_ p = do
+  postponeTypeCheckingProblem p (unblock p)
+  where
+    unblock (CheckExpr _ t)           = unblockedTester t
+    unblock (CheckArgs _ _ _ _ t _ _) = unblockedTester t
 
 -- | Create a postponed type checking problem @e : t@ that waits for conditon
 --   @unblock@.  A new meta is created in the current context that has as
 --   instantiation the postponed type checking problem.  An 'UnBlock' constraint
 --   is added for this meta, which links to this meta.
-postponeTypeCheckingProblem :: A.Expr -> Type -> TCM Bool -> TCM Term
-postponeTypeCheckingProblem e t unblock = do
+postponeTypeCheckingProblem :: TypeCheckingProblem -> TCM Bool -> TCM Term
+postponeTypeCheckingProblem p unblock = do
   i   <- createMetaInfo' DontRunMetaOccursCheck
   tel <- getContextTelescope
-  cl  <- buildClosure (e, t, unblock)
-  m   <- newMeta' (PostponedTypeCheckingProblem cl)
+  cl  <- buildClosure p
+  let t = problemType p
+  m   <- newMeta' (PostponedTypeCheckingProblem cl unblock)
                   i normalMetaPriority (idP (size tel))
          $ HasType () $ telePi_ tel t
 
@@ -381,6 +385,10 @@ postponeTypeCheckingProblem e t unblock = do
   listenToMeta (CheckConstraint i cmp) m
   addConstraint (UnBlock m)
   return v
+
+problemType :: TypeCheckingProblem -> Type
+problemType (CheckExpr _ t) = t
+problemType (CheckArgs _ _ _ _ _ t _) = t
 
 -- | Eta expand metavariables listening on the current meta.
 etaExpandListeners :: MetaId -> TCM ()

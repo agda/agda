@@ -188,12 +188,9 @@ instance PrettyTCM Constraint where
                 sep [ text (show m) <+> text ":="
                     , nest 2 $ prettyTCM t
                     ]
-              PostponedTypeCheckingProblem cl -> enterClosure cl $ \(e, a, _) ->
+              PostponedTypeCheckingProblem cl _ -> enterClosure cl $ \p ->
                 sep [ text (show m) <+> text ":="
-                    , nest 2 $ sep [ prettyA e <+> text ":?"
-                                   , prettyTCM a
-                                   ]
-                    ]
+                    , nest 2 $ prettyTCM p ]
               Open{}  -> __IMPOSSIBLE__
               OpenIFS{}  -> __IMPOSSIBLE__
               InstS{} -> __IMPOSSIBLE__
@@ -207,6 +204,14 @@ instance PrettyTCM Constraint where
                 ]
         IsEmpty r t ->
             sep [ text "Is empty:", nest 2 $ prettyTCM t ]
+
+instance PrettyTCM TypeCheckingProblem where
+  prettyTCM (CheckExpr e a) =
+    sep [ prettyA e <+> text ":?", prettyTCM a ]
+  prettyTCM (CheckArgs _ _ _ es t0 t1 _) =
+    sep [ parens $ text "_ :" <+> prettyTCM t0
+        , nest 2 $ prettyList $ map prettyA es
+        , nest 2 $ text ":?" <+> prettyTCM t1 ]
 
 instance PrettyTCM Literal where
   prettyTCM = text . show

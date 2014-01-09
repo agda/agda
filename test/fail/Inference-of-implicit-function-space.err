@@ -1,4 +1,4 @@
 Inference-of-implicit-function-space.agda:18,32-33
-Function does not accept argument {x = _}
+A ⇔ A should be a function type, but it isn't
 when checking that {x = x} are valid arguments to a function of
-type {y : A} → A ⇔ A
+type A ⇔ A

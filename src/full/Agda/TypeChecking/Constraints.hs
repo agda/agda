@@ -16,7 +16,7 @@ import Agda.TypeChecking.Reduce
 import Agda.TypeChecking.Substitute
 import Agda.TypeChecking.LevelConstraints
 
-import {-# SOURCE #-} Agda.TypeChecking.Rules.Term (checkExpr)
+import {-# SOURCE #-} Agda.TypeChecking.Rules.Term (checkExpr, checkArguments')
 import {-# SOURCE #-} Agda.TypeChecking.Conversion
 import {-# SOURCE #-} Agda.TypeChecking.MetaVars
 import {-# SOURCE #-} Agda.TypeChecking.Empty
@@ -175,14 +175,11 @@ solveConstraint_ (UnBlock m)                =
         reportSDoc "tc.constr.blocked" 15 $
           text ("blocked const " ++ show m ++ " :=") <+> prettyTCM t
         assignTerm m t
-      PostponedTypeCheckingProblem cl -> enterClosure cl $ \(e, t, unblock) -> do
-        b <- liftTCM unblock
-        if not b
-          then addConstraint $ UnBlock m
-          else do
-            tel <- getContextTelescope
-            v   <- liftTCM $ checkExpr e t
-            assignTerm m $ teleLam tel v
+      PostponedTypeCheckingProblem cl unblock -> enterClosure cl $ \prob -> do
+        ifNotM unblock (addConstraint $ UnBlock m) $ do
+          tel <- getContextTelescope
+          v   <- liftTCM $ checkTypeCheckingProblem prob
+          assignTerm m $ teleLam tel v
       -- Andreas, 2009-02-09, the following were IMPOSSIBLE cases
       -- somehow they pop up in the context of sized types
       --
@@ -194,3 +191,8 @@ solveConstraint_ (UnBlock m)                =
       Open -> __IMPOSSIBLE__
       OpenIFS -> __IMPOSSIBLE__
 solveConstraint_ (FindInScope m cands)      = findInScope m cands
+
+checkTypeCheckingProblem :: TypeCheckingProblem -> TCM Term
+checkTypeCheckingProblem p = case p of
+  CheckExpr e t                  -> checkExpr e t
+  CheckArgs eh ei r args t0 t1 k -> checkArguments' eh ei r args t0 t1 k

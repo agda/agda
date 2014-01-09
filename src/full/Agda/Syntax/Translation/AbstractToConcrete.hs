@@ -300,11 +300,11 @@ instance (ToConcrete a1 c1, ToConcrete a2 c2, ToConcrete a3 c3) =>
         where
             reorder (x,(y,z)) = (x,y,z)
 
-instance ToConcrete A.ArgInfo C.ArgInfo where
-  toConcrete info = do cs <- mapM toConcrete $ argInfoColors info
-                       return $ info { argInfoColors = cs }
+instance ToConcrete (Common.ArgInfo ac) C.ArgInfo where
+  toConcrete info = -- do cs <- mapM toConcrete $ argInfoColors info
+                    return $ info { argInfoColors = [] } -- TODO: zapping ignoring colours
 
-instance ToConcrete a c => ToConcrete (A.Arg a) (C.Arg c) where
+instance ToConcrete a c => ToConcrete (Common.Arg ac a) (C.Arg c) where
     toConcrete (Common.Arg info x) = liftM2 Common.Arg (toConcrete info) (f x)
       where f = case getHiding info of
                   Hidden    -> toConcreteCtx TopCtx

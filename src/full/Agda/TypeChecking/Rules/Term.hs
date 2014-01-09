@@ -264,12 +264,12 @@ checkLambda (Arg info (A.TBind _ xs typ)) body target = do
 checkAbsurdLambda :: A.ExprInfo -> Hiding -> A.Expr -> Type -> TCM Term
 checkAbsurdLambda i h e t = do
   t <- instantiateFull t
-  ifBlockedType t (\ m t' -> postponeTypeCheckingProblem_ e t') $ \ t' -> do
+  ifBlockedType t (\ m t' -> postponeTypeCheckingProblem_ $ CheckExpr e t') $ \ t' -> do
     case ignoreSharing $ unEl t' of
       Pi dom@(Dom info' a) b
         | h /= getHiding info' -> typeError $ WrongHidingInLambda t'
         | not (null $ allMetas a) ->
-            postponeTypeCheckingProblem e t' $
+            postponeTypeCheckingProblem (CheckExpr e t') $
               null . allMetas <$> instantiateFull a
         | otherwise -> blockTerm t' $ do
           isEmptyType (getRange i) a
@@ -323,7 +323,7 @@ checkExtendedLambda :: A.ExprInfo -> A.DefInfo -> QName -> [A.Clause] ->
                        A.Expr -> Type -> TCM Term
 checkExtendedLambda i di qname cs e t = do
    t <- instantiateFull t
-   ifBlockedType t (\ m t' -> postponeTypeCheckingProblem_ e t') $ \ t -> do
+   ifBlockedType t (\ m t' -> postponeTypeCheckingProblem_ $ CheckExpr e t') $ \ t -> do
      j   <- currentOrFreshMutualBlock
      rel <- asks envRelevance
      let info = setRelevance rel defaultArgInfo
@@ -444,7 +444,7 @@ checkRecordExpression fs e t = do
             [ text "Postponing type checking of"
             , nest 2 $ prettyA e <+> text ":" <+> prettyTCM t
             ]
-          postponeTypeCheckingProblem_ e t
+          postponeTypeCheckingProblem_ $ CheckExpr e t
     _         -> typeError $ ShouldBeRecordType t
 
 
@@ -467,7 +467,7 @@ checkRecordUpdate ei recexpr fs e t = do
     MetaV _ _ -> do
       inferred <- inferExpr recexpr >>= reduce . snd
       case ignoreSharing $ unEl inferred of
-        MetaV _ _ -> postponeTypeCheckingProblem_ e t
+        MetaV _ _ -> postponeTypeCheckingProblem_ $ CheckExpr e t
         _         -> do
           v <- checkExpr e inferred
           coerce v inferred t
@@ -503,30 +503,39 @@ reduceCon x = do
   return c
 -}
 
--- | @checkArguments' exph r args t0 t e k@ tries @checkArguments exph args t0 t@.
+-- | @checkArguments' exph r args t0 t k@ tries @checkArguments exph args t0 t@.
 -- If it succeeds, it continues @k@ with the returned results.  If it fails,
 -- it registers a postponed typechecking problem and returns the resulting new
 -- meta variable.
 --
 -- Checks @e := ((_ : t0) args) : t@.
 checkArguments' ::
-  ExpandHidden -> ExpandInstances -> Range -> [I.NamedArg A.Expr] -> Type -> Type -> A.Expr ->
+  ExpandHidden -> ExpandInstances -> Range -> [I.NamedArg A.Expr] -> Type -> Type ->
   (Args -> Type -> TCM Term) -> TCM Term
-checkArguments' exph expIFS r args t0 t e k = do
+checkArguments' exph expIFS r args t0 t k = do
   z <- runErrorT $ checkArguments exph expIFS r args t0 t
   case z of
     Right (vs, t1) -> k vs t1
       -- vs = evaluated args
       -- t1 = remaining type (needs to be subtype of t)
-      -- cs = new constraints
-    Left t0            -> postponeTypeCheckingProblem e t (unblockedTester t0)
-      -- if unsuccessful, postpone checking e : t until t0 unblocks
+    Left (us, es, t0) -> do
+      reportSDoc "tc.term.expr.args" 80 $
+        sep [ text "postponed checking arguments"
+            , nest 4 $ prettyList (map (prettyA . namedThing . unArg) args)
+            , nest 2 $ text "against"
+            , nest 4 $ prettyTCM t0 ] $$
+        sep [ text "progress:"
+            , nest 2 $ text "checked" <+> prettyList (map prettyTCM us)
+            , nest 2 $ text "remaining" <+> sep [ prettyList (map (prettyA . namedThing . unArg) es)
+                                                , nest 2 $ text ":" <+> prettyTCM t0 ] ]
+      postponeTypeCheckingProblem_ (CheckArgs exph expIFS r es t0 t $ \vs t -> k (us ++ vs) t)
+      -- if unsuccessful, postpone checking until t0 unblocks
 
 -- | Type check an expression.
 checkExpr :: A.Expr -> Type -> TCM Term
 checkExpr e t0 =
   verboseBracket "tc.term.expr.top" 5 "checkExpr" $
-  traceCall (CheckExpr e t0) $ localScope $ doExpandLast $ shared <$> do
+  traceCall (CheckExprCall e t0) $ localScope $ doExpandLast $ shared <$> do
     reportSDoc "tc.term.expr.top" 15 $
         text "Checking" <+> sep
 	  [ fsep [ prettyTCM e, text ":", prettyTCM t0 ]
@@ -669,7 +678,7 @@ checkExpr e t0 =
           t' <- etaContract =<< normalise t
           let metas = allMetas t'
           case metas of
-            _:_ -> postponeTypeCheckingProblem e0 t' $ andM $ map isInstantiatedMeta metas
+            _:_ -> postponeTypeCheckingProblem (CheckExpr e0 t') $ andM $ map isInstantiatedMeta metas
             []  -> do
               quoted <- quoteTerm (unEl t')
               tmType <- agdaTermType
@@ -735,7 +744,7 @@ checkApplication hd args e t = do
       mc <- getCon
       case mc of
         Just c  -> checkConstructorApplication e t c $ map convColor args
-        Nothing -> postponeTypeCheckingProblem e t unblock
+        Nothing -> postponeTypeCheckingProblem (CheckExpr e t) unblock
 
     -- Subcase: non-ambiguous constructor
     (A.Con (AmbQ [c])) -> do
@@ -979,7 +988,7 @@ checkConstructorApplication org t c args = do
             args' = dropArgs pnames args
         -- check the non-parameter arguments
         expandLast <- asks envExpandLast
-        checkArguments' expandLast ExpandInstanceArguments (getRange c) args' ctype' t org $ \us t' -> do
+        checkArguments' expandLast ExpandInstanceArguments (getRange c) args' ctype' t $ \us t' -> do
           reportSDoc "tc.term.con" 20 $ nest 2 $ vcat
             [ text "us     =" <+> prettyTCM us
             , text "t'     =" <+> prettyTCM t' ]
@@ -1057,7 +1066,7 @@ checkHeadApplication e t hd args = do
           prettyTCM c <+> text ":" <+> prettyTCM t0
         ]
       expandLast <- asks envExpandLast
-      checkArguments' expandLast ExpandInstanceArguments (getRange hd) args t0 t e $ \vs t1 -> do
+      checkArguments' expandLast ExpandInstanceArguments (getRange hd) args t0 t $ \vs t1 -> do
         TelV eTel eType <- telView t
         -- If the expected type @eType@ is a metavariable we have to make
         -- sure it's instantiated to the proper pi type
@@ -1144,13 +1153,14 @@ checkHeadApplication e t hd args = do
   defaultResult = do
     (f, t0) <- inferHead hd
     expandLast <- asks envExpandLast
-    checkArguments' expandLast ExpandInstanceArguments (getRange hd) args t0 t e $ \vs t1 -> do
+    checkArguments' expandLast ExpandInstanceArguments (getRange hd) args t0 t $ \vs t1 -> do
       coerce (f vs) t1 t
       -- -- try to remove projection redexes  -- fails succeed/Issue286
       -- v <- onlyReduceProjections $ reduce $ f vs
       -- coerce v t1 t
 
-instance Error Type where
+-- Stupid ErrorT!
+instance Error (a, b, c) where
   strMsg _ = __IMPOSSIBLE__
   noMsg = __IMPOSSIBLE__
 
@@ -1173,7 +1183,7 @@ traceCallE call m = do
 --
 --   TODO: doesn't do proper blocking of terms
 checkArguments :: ExpandHidden -> ExpandInstances -> Range -> [I.NamedArg A.Expr] -> Type -> Type ->
-                  ErrorT Type TCM (Args, Type)
+                  ErrorT (Args, [I.NamedArg A.Expr], Type) TCM (Args, Type)
 
 -- Case: no arguments, do not insert trailing hidden arguments: We are done.
 checkArguments DontExpandLast _ _ [] t0 t1 = return ([], t0)
@@ -1216,7 +1226,7 @@ checkArguments exh expandIFS r args0@(arg@(Arg info e) : args) t0 t1 =
       let (mxs, us) = unzip $ map (\ (Arg ai (Named mx u)) -> (mx, Arg ai u)) nargs
           xs        = catMaybes mxs
       -- We are done inserting implicit args.  Now, try to check @arg@.
-      ifBlockedType t (\ m t -> throwError t) $ \ t0' -> do
+      ifBlockedType t (\ m t -> throwError ([], args0, t)) $ \ t0' -> do
 
         -- What can go wrong?
 
@@ -1248,58 +1258,15 @@ checkArguments exh expandIFS r args0@(arg@(Arg info e) : args) t0 t1 =
                 u <- lift $ applyRelevanceToContext (getRelevance info') $ do
                   checkExpr (namedThing e) a
                 -- save relevance info' from domain in argument
-                mapFst ((us ++) . (Arg info' u :)) <$> do
+                addCheckedArgs us (Arg info' u) $
                   checkArguments exh expandIFS (fuseRange r e) args (absApp b u) t1
             | otherwise -> wrongPi info'
           _ -> shouldBePi
-
-{- OLD
-      ifBlockedType t0 (\ m t -> throwError t) $ \ t0' -> do
-        let failure | isHidden info, Just x <- nameOf e
-                                = lift $ typeError $ WrongNamedArgument arg
-                    | otherwise = lift $ typeError $ ShouldBePi t0'
-        -- (t0', cs) <- forcePi h (name e) t0
-        e' <- return $ namedThing e
-        case ignoreSharing $ unEl t0' of
-          Pi (Dom info' a) b
-            | getHiding info == getHiding info'
-              && (notHidden info || maybe True (absName b ==) (nameOf e)) -> do
-                u <- lift $ applyRelevanceToContext (getRelevance info') $ do
-                  checkExpr e' a
-                -- save relevance info' from domain in argument
-                mapFst (Arg info' u :) <$> do
-                  checkArguments exh expandIFS (fuseRange r e) args (absApp b u) t1
-            | getHiding info' == Instance && expandIFS == ExpandInstanceArguments ->
-                insertIFSUnderscore info' a b
-            | isHidden info'  -> insertUnderscore info' (absName b)
-            | notHidden info' -> lift $ typeError $ WrongHidingInApplication t0'
-            | otherwise       -> failure
-          _ -> failure
-    where
-	insertIFSUnderscore info' a b = do
-          lift $ reportSLn "tc.term.args.ifs" 15 $
-            "inserting implicit meta (2) for type " ++ show a
-          u <- lift $ applyRelevanceToContext (getRelevance info') $ do
-            initializeIFSMeta (absName b) a
-          mapFst (Arg info' u :) <$> do
-            checkArguments exh expandIFS r args0 (absApp b u) t1
-
-	insertUnderscore info' x = do
-	  scope <- lift $ getScope
-	  let m = A.Underscore $ A.MetaInfo
-		  { A.metaRange  = r
-		  , A.metaScope  = scope
-		  , A.metaNumber = Nothing
-                  , A.metaNameSuggestion = x
-		  }
-	  checkArguments exh expandIFS r (Arg info' (unnamed m) : args0) t0 t1
--}
-
-{- UNUSED, since we disabled forcePi above
-	name (Named _ (A.Var x)) = show x
-	name (Named (Just x) _)    = x
-	name _			   = "x"
--}
+  where
+    addCheckedArgs us u rec =
+      (mapFst ((us ++) . (u :)) <$> rec)
+        `catchError` \(vs, es, t) ->
+          throwError (us ++ u : vs, es, t)
 
 -- | Check that a list of arguments fits a telescope.
 checkArguments_ :: ExpandHidden -> Range -> [I.NamedArg A.Expr] -> Telescope -> TCM Args
@@ -1339,7 +1306,7 @@ defOrVar _     = False
 checkDontExpandLast :: A.Expr -> Type -> TCM Term
 checkDontExpandLast e t = case e of
   _ | Application hd args <- appView e,  defOrVar hd ->
-    traceCall (CheckExpr e t) $ localScope $ dontExpandLast $ shared <$> do
+    traceCall (CheckExprCall e t) $ localScope $ dontExpandLast $ shared <$> do
       checkApplication hd args e t
   _ -> checkExpr e t -- note that checkExpr always sets ExpandLast
 

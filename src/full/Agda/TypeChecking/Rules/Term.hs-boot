@@ -13,5 +13,7 @@ isType_ :: A.Expr -> TCM Type
 checkExpr :: A.Expr -> Type -> TCM Term
 
 checkArguments :: ExpandHidden -> ExpandInstances -> Range -> [NamedArg A.Expr] -> Type -> Type ->
-                  ErrorT Type TCM (Args, Type)
+                  ErrorT (Args, [NamedArg A.Expr], Type) TCM (Args, Type)
 
+checkArguments' :: ExpandHidden -> ExpandInstances -> Range -> [NamedArg A.Expr] -> Type -> Type ->
+                   (Args -> Type -> TCM Term) -> TCM Term

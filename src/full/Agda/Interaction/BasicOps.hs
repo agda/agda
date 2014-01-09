@@ -199,7 +199,7 @@ data OutputConstraint a b
                    | CmpTeles Comparison b b
       | JustSort b | CmpSorts Comparison b b
       | Guard (OutputConstraint a b) ProblemId
-      | Assign b a | TypedAssign b a a
+      | Assign b a | TypedAssign b a a | PostponedCheckArgs b [a] a a
       | IsEmptyType a | FindInScopeOF b a [(a,a)]
   deriving (Functor)
 
@@ -213,21 +213,22 @@ outputFormId :: OutputForm a b -> b
 outputFormId (OutputForm _ _ o) = out o
   where
     out o = case o of
-      OfType i _           -> i
-      CmpInType _ _ i _    -> i
-      CmpElim _ _ (i:_) _  -> i
-      CmpElim _ _ [] _     -> __IMPOSSIBLE__
-      JustType i           -> i
-      CmpLevels _ i _      -> i
-      CmpTypes _ i _       -> i
-      CmpTeles _ i _       -> i
-      JustSort i           -> i
-      CmpSorts _ i _       -> i
-      Guard o _            -> out o
-      Assign i _           -> i
-      TypedAssign i _ _    -> i
-      IsEmptyType _        -> __IMPOSSIBLE__   -- Should never be used on IsEmpty constraints
-      FindInScopeOF _ _ _  -> __IMPOSSIBLE__
+      OfType i _                 -> i
+      CmpInType _ _ i _          -> i
+      CmpElim _ _ (i:_) _        -> i
+      CmpElim _ _ [] _           -> __IMPOSSIBLE__
+      JustType i                 -> i
+      CmpLevels _ i _            -> i
+      CmpTypes _ i _             -> i
+      CmpTeles _ i _             -> i
+      JustSort i                 -> i
+      CmpSorts _ i _             -> i
+      Guard o _                  -> out o
+      Assign i _                 -> i
+      TypedAssign i _ _          -> i
+      PostponedCheckArgs i _ _ _ -> i
+      IsEmptyType _              -> __IMPOSSIBLE__   -- Should never be used on IsEmpty constraints
+      FindInScopeOF _ _ _        -> __IMPOSSIBLE__
 
 instance Reify ProblemConstraint (Closure (OutputForm Expr Expr)) where
   reify (PConstr pid cl) = enterClosure cl $ \c -> buildClosure =<< (OutputForm (getRange c) pid <$> reify c)
@@ -251,10 +252,16 @@ instance Reify Constraint (OutputConstraint Expr Expr) where
             e  <- reify t
             m' <- reify (MetaV m [])
             return $ Assign m' e
-          PostponedTypeCheckingProblem cl -> enterClosure cl $ \(e, a, _) -> do
-            a  <- reify a
-            m' <- reify (MetaV m [])
-            return $ TypedAssign m' e a
+          PostponedTypeCheckingProblem cl _ -> enterClosure cl $ \p -> case p of
+            CheckExpr e a -> do
+                a  <- reify a
+                m' <- reify (MetaV m [])
+                return $ TypedAssign m' e a
+            CheckArgs _ _ _ args t0 t1 _ -> do
+              t0 <- reify t0
+              t1 <- reify t1
+              m  <- reify (MetaV m [])
+              return $ PostponedCheckArgs m (map (namedThing . unArg) args) t0 t1
           Open{}  -> __IMPOSSIBLE__
           OpenIFS{}  -> __IMPOSSIBLE__
           InstS{} -> __IMPOSSIBLE__
@@ -295,6 +302,10 @@ instance (Show a,Show b) => Show (OutputConstraint a b) where
     show (Guard o pid)          = show o ++ " [blocked by problem " ++ show pid ++ "]"
     show (Assign m e)           = show m ++ " := " ++ show e
     show (TypedAssign m e a)    = show m ++ " := " ++ show e ++ " :? " ++ show a
+    show (PostponedCheckArgs m es t0 t1) = show m ++ " := (_ : " ++ show t0 ++ ") " ++ unwords (map (paren . show) es)
+                                                  ++ " : " ++ show t1
+      where paren s | elem ' ' s = "(" ++ s ++ ")"
+                    | otherwise  = s
     show (IsEmptyType a)        = "Is empty: " ++ show a
     show (FindInScopeOF s t cs) = "Resolve instance argument " ++ showCand (s,t) ++ ". Candidates: [" ++
                                     intercalate ", " (map showCand cs) ++ "]"
@@ -325,6 +336,8 @@ instance (ToConcrete a c, ToConcrete b d) =>
     toConcrete (Assign m e) = noTakenNames $ Assign <$> toConcrete m <*> toConcreteCtx TopCtx e
     toConcrete (TypedAssign m e a) = TypedAssign <$> toConcrete m <*> toConcreteCtx TopCtx e
                                                                   <*> toConcreteCtx TopCtx a
+    toConcrete (PostponedCheckArgs m args t0 t1) =
+      PostponedCheckArgs <$> toConcrete m <*> toConcrete args <*> toConcrete t0 <*> toConcrete t1
     toConcrete (IsEmptyType a) = IsEmptyType <$> toConcreteCtx TopCtx a
     toConcrete (FindInScopeOF s t cs) =
       FindInScopeOF <$> toConcrete s <*> toConcrete t

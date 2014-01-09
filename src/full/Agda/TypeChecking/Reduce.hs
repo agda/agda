@@ -60,12 +60,12 @@ instance Instantiate Term where
   instantiate t@(MetaV x es) = do
     mi <- mvInstantiation <$> lookupMeta x
     case mi of
-      InstV a                        -> instantiate $ a `applyE` es
-      Open                           -> return t
-      OpenIFS                        -> return t
-      BlockedConst _                 -> return t
-      PostponedTypeCheckingProblem _ -> return t
-      InstS _                        -> __IMPOSSIBLE__
+      InstV a                          -> instantiate $ a `applyE` es
+      Open                             -> return t
+      OpenIFS                          -> return t
+      BlockedConst _                   -> return t
+      PostponedTypeCheckingProblem _ _ -> return t
+      InstS _                          -> __IMPOSSIBLE__
   instantiate (Level l) = levelTm <$> instantiate l
   instantiate (Sort s) = sortTm <$> instantiate s
   instantiate v@Shared{} = updateSharedTerm instantiate v
@@ -93,12 +93,12 @@ instance Instantiate a => Instantiate (Blocked a) where
   instantiate v@(Blocked x u) = do
     mi <- mvInstantiation <$> lookupMeta x
     case mi of
-      InstV _                        -> notBlocked <$> instantiate u
-      Open                           -> return v
-      OpenIFS                        -> return v
-      BlockedConst _                 -> return v
-      PostponedTypeCheckingProblem _ -> return v
-      InstS _                        -> __IMPOSSIBLE__
+      InstV _                          -> notBlocked <$> instantiate u
+      Open                             -> return v
+      OpenIFS                          -> return v
+      BlockedConst _                   -> return v
+      PostponedTypeCheckingProblem _ _ -> return v
+      InstS _                          -> __IMPOSSIBLE__
 
 instance Instantiate Type where
     instantiate (El s t) = El <$> instantiate s <*> instantiate t

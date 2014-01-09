@@ -861,7 +861,7 @@ instance PrettyTCM Call where
 	    pwords "when checking the let binding" ++ [P.prettyA b]
 	InferExpr e _ -> fsep $
 	    pwords "when inferring the type of" ++ [prettyA e]
-	CheckExpr e t _ -> fsep $
+	CheckExprCall e t _ -> fsep $
 	    pwords "when checking that the expression"
 	    ++ [prettyA e] ++ pwords "has type" ++ [prettyTCM t]
 	IsTypeCall e s _ -> fsep $

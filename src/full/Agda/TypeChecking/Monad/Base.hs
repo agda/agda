@@ -408,8 +408,13 @@ data MetaInstantiation
 	| Open               -- ^ unsolved
 	| OpenIFS            -- ^ open, to be instantiated as "implicit from scope"
 	| BlockedConst Term  -- ^ solution blocked by unsolved constraints
-        | PostponedTypeCheckingProblem (Closure (A.Expr, Type, TCM Bool))
+        | PostponedTypeCheckingProblem (Closure TypeCheckingProblem) (TCM Bool)
     deriving (Typeable)
+
+data TypeCheckingProblem
+  = CheckExpr A.Expr Type
+  | CheckArgs ExpandHidden ExpandInstances Range [I.NamedArg A.Expr] Type Type (Args -> Type -> TCM Term)
+  deriving (Typeable)
 
 instance Show MetaInstantiation where
   show (InstV t) = "InstV (" ++ show t ++ ")"
@@ -902,7 +907,7 @@ data Call = CheckClause Type A.SpineClause (Maybe Clause)
 	  | forall a. CheckPattern A.Pattern Telescope Type (Maybe a)
 	  | CheckLetBinding A.LetBinding (Maybe ())
 	  | InferExpr A.Expr (Maybe (Term, Type))
-	  | CheckExpr A.Expr Type (Maybe Term)
+	  | CheckExprCall A.Expr Type (Maybe Term)
 	  | CheckDotPattern A.Expr Term (Maybe Constraints)
 	  | CheckPatternShadowing A.SpineClause (Maybe ())
 	  | IsTypeCall A.Expr Sort (Maybe Type)
@@ -930,7 +935,7 @@ instance HasRange Call where
     getRange (CheckClause _ c _)                   = getRange c
     getRange (CheckPattern p _ _ _)                = getRange p
     getRange (InferExpr e _)                       = getRange e
-    getRange (CheckExpr e _ _)                     = getRange e
+    getRange (CheckExprCall e _ _)                 = getRange e
     getRange (CheckLetBinding b _)                 = getRange b
     getRange (IsTypeCall e s _)                    = getRange e
     getRange (IsType_ e _)                         = getRange e
