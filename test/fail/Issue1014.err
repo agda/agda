@@ -1,0 +1,24 @@
+
+Termination checking failed for the following functions:
+  bar, bar', bar, bar, bar
+Problematic calls:
+  .Issue1014.NoWith.♯-0 A n h An
+    (at Issue1014.agda:22,28-29)
+  bar A (proj₁ (h n An)) h (proj₂ (proj₂ (h n An)))
+    (at Issue1014.agda:22,31-34)
+  .Issue1014.CorrectlyRejected.♯-1 A h n An n' n≡Sn' An'
+    (at Issue1014.agda:33,61-62)
+  bar' A h n' An'
+    (at Issue1014.agda:33,64-68)
+  .Issue1014.CorrectlyRejected.♯-2 n An n' p An'
+    (at Issue1014.agda:42,47-48)
+  bar n' An'
+    (at Issue1014.agda:42,50-53)
+  .Issue1014.WasAccepted1.♯-3 A n h An n' n≡Sn' An'
+    (at Issue1014.agda:51,61-62)
+  bar A n' h An'
+    (at Issue1014.agda:51,64-67)
+  .Issue1014.♯-4 n h An n' p An'
+    (at Issue1014.agda:64,45-46)
+  bar n' h An'
+    (at Issue1014.agda:64,48-51)

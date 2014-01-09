@@ -718,7 +718,10 @@ complete cs = complete' safeCS
 
 completionStep :: (?cutoff :: CutOff) => Monoid meta =>
   CallGraph meta -> CallGraph meta -> CallGraph meta
-completionStep gOrig gThis = gThis `union` (gThis `combine` gOrig)
+completionStep gOrig gThis = gThis `union` (gThis `combine` gThis)
+-- Andreas, 2014-01-09: The following does not iterate enough
+-- to generate the necessary idempotent matrices.  (See issue 1014.)
+-- completionStep gOrig gThis = gThis `union` (gThis `combine` gOrig)
 
 prop_complete :: (?cutoff :: CutOff) => Property
 prop_complete =
