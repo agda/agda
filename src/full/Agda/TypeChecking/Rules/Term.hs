@@ -1348,9 +1348,11 @@ inferExprForWith e = do
           return (v `apply` args, t1)
     _ -> return (v, t)
 
+-- TODO: should really use CheckInternal but doesn't quite work at the moment,
+-- since CheckInternal can't instantiate metas to sorts or to function types.
 checkTerm :: Term -> Type -> TCM Term
-checkTerm tm ty = do atm <- reify tm
-                     checkExpr atm ty
+checkTerm tm ty = do atm <- withShowAllArguments $ reify tm
+                     checkExpr (killRange atm) ty
 
 ---------------------------------------------------------------------------
 -- * Let bindings

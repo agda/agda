@@ -1,0 +1,3 @@
+Issue1012.agda:16,7-21
+.A !=< Nat of type Set
+when checking that the expression z has type Nat
