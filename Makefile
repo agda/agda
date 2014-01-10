@@ -30,7 +30,7 @@ endif
 ## Default target #########################################################
 
 ifeq ($(is_configured),Yes)
-default : compile-emacs-mode
+default : install-bin
 # tags
 else
 default : make_configure
