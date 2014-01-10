@@ -182,7 +182,7 @@ TAGS :
 
 quick : install-O0-bin quicktest
 
-test : check-whitespace succeed fail interaction examples library-test lib-succeed # epic-test compiler-test tests
+test : check-whitespace succeed fail interaction latex-test examples library-test lib-succeed # epic-test compiler-test tests
 
 quicktest : succeed fail
 
@@ -216,6 +216,12 @@ fail :
 	@echo "======================= Suite of failing tests ======================="
 	@echo "======================================================================"
 	@$(MAKE) -C test/fail
+
+latex-test :
+	@echo "======================================================================"
+	@echo "================== Suite of tests for LaTeX backend =================="
+	@echo "======================================================================"
+	@$(MAKE) -C test/latex-backend all clean
 
 std-lib :
 	darcs get --lazy --repo-name=$@ \
