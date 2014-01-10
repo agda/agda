@@ -632,7 +632,7 @@ Type checking
   2. Parameters that are linear (i.e, fail 1.) and `big', i.e.,
 
      a) levels or
-     b) type arguments of equal size (universe level) as the data type
+     b) type arguments of at least equal size (universe level) as the data type
 
      are disregarded by the analysis.
 
