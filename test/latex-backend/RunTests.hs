@@ -90,8 +90,10 @@ clean = do
 
   dir <- getCurrentDirectory
 
-  -- Remove latex directory.
-  removeDirectoryRecursive $ dir </> succeedDir </> latexDir
+  -- Remove latex directory, if it exists.
+  exists <- doesDirectoryExist $ dir </> succeedDir </> latexDir
+  when exists $
+    removeDirectoryRecursive $ dir </> succeedDir </> latexDir
 
   -- Remove interface files.
   files <- getDirectoryContents $ dir </> succeedDir
