@@ -1,7 +1,5 @@
 -- {-# OPTIONS -v interaction:50 #-}
 
-module _ where
-
 x : Set → Set
 x = {!λ x → x!}
 
@@ -10,3 +8,7 @@ x = {!λ x → x!}
 -- x = λ x₁ → x₁
 -- New, expected result:
 -- x = λ x → x
+
+-- Expected interaction test case behavior:
+--
+--   (agda2-give-action 0 'no-paren)
