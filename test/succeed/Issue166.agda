@@ -1,5 +1,5 @@
 {-# OPTIONS --sized-types #-}
-{-# OPTIONS -v tc.polarity:15 #-}
+-- {-# OPTIONS -v tc.polarity:15 #-}
 module Issue166 where
 
 postulate
