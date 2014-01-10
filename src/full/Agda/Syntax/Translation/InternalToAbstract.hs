@@ -616,7 +616,7 @@ stripImplicits (ps, wps) = do          -- v if show-implicit we don't need the n
     , "  vars = " ++ show vars
     ]
   let allps       = ps ++ map defaultNamedArg wps
-      sps         = foldl (.) (strip vars) (map rearrangeBinding $ Set.toList vars) $ allps
+      sps         = blankDots $ foldl (.) (strip Set.empty) (map rearrangeBinding $ Set.toList vars) $ allps
       (ps', wps') = splitAt (length sps - length wps) sps
   reportSLn "reify.implicit" 30 $ unlines
     [ "  ps'  = " ++ show ps'
@@ -637,6 +637,14 @@ stripImplicits (ps, wps) = do          -- v if show-implicit we don't need the n
       A.ImplicitP _ -> Set.empty
       A.AsP _ _ p   -> patVars p
       A.PatternSynP _ _ _ -> __IMPOSSIBLE__ -- Set.empty
+
+    -- Replace dot variables by ._ if they use implicitly bound variables. This
+    -- is slightly nicer than making the implicts explicit.
+    blankDots ps = (map . fmap . fmap . fmap) blank ps
+      where
+        bound = argsVars ps
+        blank e | Set.null (Set.difference (dotVars e) bound) = e
+                | otherwise = A.Underscore emptyMetaInfo
 
     -- Pick the "best" place to bind the variable. Best in this case
     -- is the left-most explicit binding site. But, of course we can't

@@ -6,6 +6,6 @@ Agda2> (agda2-status-action "")
 (agda2-status-action "")
 (agda2-info-action "*All Goals*" "?0 : Set\n" nil)
 ((last . 1) . (agda2-goals-action '(0)))
-Agda2> ((last . 2) . (agda2-make-case-action '("lemma (x₁ ∷ .(x ∷ xs)) A (there p) | there {x} {xs} p′ = ?")))
+Agda2> ((last . 2) . (agda2-make-case-action '("lemma (x₁ ∷ ._) A (there p) | there p′ = ?")))
 ((last . 1) . (agda2-goals-action '(0)))
 Agda2> Agda2> 

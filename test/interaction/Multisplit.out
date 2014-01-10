@@ -14,6 +14,6 @@ Agda2> ((last . 2) . (agda2-make-case-action '("32-cases true true true true tru
 ((last . 1) . (agda2-goals-action '(0 1 2 3 4)))
 Agda2> ((last . 2) . (agda2-make-case-action '("No-splits-after-absurd-pattern-encountered zero () j" "No-splits-after-absurd-pattern-encountered (suc n) zero zero = ?" "No-splits-after-absurd-pattern-encountered (suc n) zero (suc j) = ?" "No-splits-after-absurd-pattern-encountered (suc n) (suc i) zero = ?" "No-splits-after-absurd-pattern-encountered (suc n) (suc i) (suc j) = ?")))
 ((last . 1) . (agda2-goals-action '(0 1 2 3 4)))
-Agda2> ((last . 2) . (agda2-make-case-action '("Dotted-patterns-are-not-split zero zero = ?" "Dotted-patterns-are-not-split (suc n) zero = ?" "Dotted-patterns-are-not-split .(suc n) (suc {n} i) = ?")))
+Agda2> ((last . 2) . (agda2-make-case-action '("Dotted-patterns-are-not-split zero zero = ?" "Dotted-patterns-are-not-split (suc n) zero = ?" "Dotted-patterns-are-not-split ._ (suc i) = ?")))
 ((last . 1) . (agda2-goals-action '(0 1 2 3 4)))
 Agda2> 
