@@ -546,8 +546,8 @@ interpret (Cmd_load_highlighting_info source) = do
                 return Nothing
     mapM_ putResponse resp
 
-interpret (Cmd_give   ii rng s) = give_gen ii rng s B.give
-interpret (Cmd_refine ii rng s) = give_gen ii rng s B.refine
+interpret (Cmd_give   ii rng s) = give_gen ii rng s Give
+interpret (Cmd_refine ii rng s) = give_gen ii rng s Refine
 
 interpret (Cmd_intro pmLambda ii rng _) = do
   ss <- lift $ B.introTactic pmLambda ii
@@ -583,7 +583,7 @@ interpret (Cmd_auto ii rng s) = do
      Nothing -> return ()
      Just msg -> display_info $ Info_Auto msg
     putResponse $ Resp_MakeCase R.Function cs
-   Right (Right s) -> give_gen ii rng s B.refine
+   Right (Right s) -> give_gen ii rng s Refine
 
 interpret (Cmd_context norm ii _ _) =
   display_info . Info_Context =<< lift (prettyContext norm False ii)
@@ -724,6 +724,9 @@ cmd_load' file includes unsolvedOK cmd = do
 data Backend = MAlonzo | Epic | JS
     deriving (Show, Read)
 
+data GiveRefine = Give | Refine
+  deriving (Eq, Show)
+
 -- | A "give"-like action (give, refine, etc).
 --
 --   @give_gen ii rng s give_ref mk_newtxt@
@@ -736,9 +739,13 @@ give_gen
   :: InteractionId
   -> Range
   -> String
-  -> (InteractionId -> Maybe Range -> A.Expr -> TCM (A.Expr, [InteractionId]))
+  -> GiveRefine
   -> StateT CommandState TCM ()
-give_gen ii rng s give_ref = do
+give_gen ii rng s giveRefine = do
+  let give_ref =
+        case giveRefine of
+          Give   -> B.give
+          Refine -> B.refine
   -- save scope of the interaction point (for printing the given expr. later)
   scope     <- lift $ getInteractionScope ii
   -- parse string and "give", obtaining an abstract expression
@@ -750,7 +757,10 @@ give_gen ii rng s give_ref = do
   modifyTheInteractionPoints $ replace ii iis
   -- print abstract expr
   ce        <- lift $ abstractToConcreteEnv (makeEnv scope) ae
-  putResponse $ Resp_GiveAction ii $ mkNewTxt (null iis && rng /= noRange) ce
+  -- if the command was @Give@, use the literal user input;
+  -- also, if no interaction metas were created by @Refine@
+  let literally = (giveRefine == Give || null iis) && rng /= noRange
+  putResponse $ Resp_GiveAction ii $ mkNewTxt literally ce
   -- display new goal set
   interpret Cmd_metas
   where

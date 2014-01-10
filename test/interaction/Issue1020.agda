@@ -16,8 +16,8 @@ test = {! Σ[ x ∈ ⊤ ] ?!}
 --
 --   test = Σ ⊤ (λ x → {!!})
 --
--- i.e. Agda has translated away the syntax Σ[ x ∈ ⊤ ] {!!} for me. I would of course
--- expect
+-- i.e. Agda has translated away the syntax Σ[ x ∈ ⊤ ] {!!} for me.
+-- I would of course expect
 --
 --   test = Σ[ x ∈ ⊤ ] {!!}
 --

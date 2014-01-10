@@ -1,2 +1,2 @@
 top_command (cmd_load currentFile [])
-IOTCM currentFile None Indirect (Cmd_refine 0 (Range [Interval (Pn Nothing 20 2 7)  (Pn Nothing 27 2 14)]) "Σ[ x ∈ ⊤ ] ?")
+IOTCM currentFile None Indirect (Cmd_give 0 (Range [Interval (Pn Nothing 192 10 10) (Pn Nothing 204 10 22)]) "Σ[ x ∈ ⊤ ] ?")
