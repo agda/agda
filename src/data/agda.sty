@@ -87,27 +87,27 @@
         {\toggletrue{AgdaIsElem}\listbreak}%
         {\stepcounter{AgdaIndex}}}%
       \dolistloop{\AgdaList}%
-      \iftoggle{AgdaIsElem}{#2}{#3}
+      \iftoggle{AgdaIsElem}{#2}{#3}%
     }
 
     \newcommand*{\AgdaTargetHelper}[1]{%
-      \AgdaLookup{#1}
-        {\PackageError{agda}{``#1'' used as target more than once}
-                            {Overloaded identifiers and links do not
-                             work well, consider using unique
-                             \MessageBreak identifiers instead.}
-        }
-        {\listadd{\AgdaList}{#1}
-         \hypertarget{Agda\theAgdaIndex}{}
-        }
+      \AgdaLookup{#1}%
+        {\PackageError{agda}{``#1'' used as target more than once}%
+                            {Overloaded identifiers and links do not%
+                             work well, consider using unique%
+                             \MessageBreak identifiers instead.}%
+        }%
+        {\listadd{\AgdaList}{#1}%
+         \hypertarget{Agda\theAgdaIndex}{}%
+        }%
     }
 
     \newcommand{\AgdaTarget}[1]{\forcsvlist{\AgdaTargetHelper}{#1}}
 
     \newcommand{\AgdaLink}[1]{%
-      \AgdaLookup{#1}
-        {\hyperlink{Agda\theAgdaIndex}{#1}}
-        {#1}
+      \AgdaLookup{#1}%
+        {\hyperlink{Agda\theAgdaIndex}{#1}}%
+        {#1}%
     }
   }{\PackageError{agda}{Load the hyperref package before the agda package}{}}
 \fi
