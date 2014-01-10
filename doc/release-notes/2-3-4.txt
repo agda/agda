@@ -644,12 +644,15 @@ Emacs mode
 
       snoc : ∀ {A} {n} → Vec A n → A → Vec A (suc n)
 
-* Improvements to Make Case (C-c C-c)
+* Improvements to the "make case" command (C-c C-c)
 
   * Uses named implicit arguments to improve readability.
 
   * Picks explicit occurrences over implicit ones when there is a choice of
     binding site for a variable.
+
+  * Avoids binding variables in implicit positions by replacing dot patterns
+    that uses them by wildcards (._).
 
 * Key bindings for lots of "mathematical" characters (examples: 𝐴𝑨𝒜𝓐𝔄)
   have been added to the Agda input method.
