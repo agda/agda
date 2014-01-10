@@ -1,0 +1,13 @@
+Agda2> (agda2-status-action "")
+(agda2-info-action "*Type-checking*" "" nil)
+(agda2-highlight-clear)
+(agda2-info-action "*Type-checking*" "Checking Issue1020 (Issue1020.agda).\n" t)
+(agda2-info-action "*Type-checking*" "Finished Issue1020.\n" t)
+(agda2-status-action "")
+(agda2-info-action "*All Goals*" "?0 : Set\n" nil)
+((last . 1) . (agda2-goals-action '(0)))
+Agda2> (agda2-give-action 0 "Σ ⊤ (λ x → ?)")
+(agda2-status-action "")
+(agda2-info-action "*All Goals*" "?1 : Set\n" nil)
+((last . 1) . (agda2-goals-action '(1)))
+Agda2> 
