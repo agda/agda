@@ -26,6 +26,8 @@
     \setmainfont[Ligatures=TeX]{TeXGyrePagella}
     \setmathfont{Asana Math}
 
+    \providecommand{\DeclareUnicodeCharacter}[2]{\relax}
+
 % pdfLaTeX
 \else
     \usepackage{ucs, amsfonts, amssymb}
@@ -116,24 +118,28 @@
 % ----------------------------------------------------------------------
 % Font styles.
 
-% Default font style.
-\newcommand{\AgdaFontStyle}[1]{\ensuremath{\mathsf{#1}}}
+\ifxetexorluatex
+  \newcommand{\AgdaFontStyle}[1]{\ensuremath{\mathsf{#1}}}
+  \ifthenelse{\equal{\AgdaColourScheme}{bw}}{
+      \newcommand{\AgdaKeywordFontStyle}[1]{\underline{#1}}
+  }{
+      \newcommand{\AgdaKeywordFontStyle}[1]{\ensuremath{\mathsf{#1}}}
+  }
+  \newcommand{\AgdaStringFontStyle}[1]{\ensuremath{\mathtt{#1}}}
+  \newcommand{\AgdaCommentFontStyle}[1]{\ensuremath{\mathtt{#1}}}
+  \newcommand{\AgdaBoundFontStyle}[1]{\ensuremath{\mathit{#1}}}
 
-% Keyword font style.
-\ifthenelse{\equal{\AgdaColourScheme}{bw}}{
-    \newcommand{\AgdaKeywordFontStyle}[1]{\underline{#1}}
-}{
-    \newcommand{\AgdaKeywordFontStyle}[1]{\ensuremath{\mathsf{#1}}}
-}
-
-% String font style.
-\newcommand{\AgdaStringFontStyle}[1]{\ensuremath{\mathtt{#1}}}
-
-% Comment font style.
-\newcommand{\AgdaCommentFontStyle}[1]{\ensuremath{\mathtt{#1}}}
-
-% Bounded variables font style.
-\newcommand{\AgdaBoundFontStyle}[1]{\ensuremath{\mathit{#1}}}
+\else
+  \newcommand{\AgdaFontStyle}[1]{\textsf{#1}}
+  \ifthenelse{\equal{\AgdaColourScheme}{bw}}{
+      \newcommand{\AgdaKeywordFontStyle}[1]{\underline{#1}}
+  }{
+      \newcommand{\AgdaKeywordFontStyle}[1]{\textsf{#1}}
+  }
+  \newcommand{\AgdaStringFontStyle}[1]{\texttt{#1}}
+  \newcommand{\AgdaCommentFontStyle}[1]{\texttt{#1}}
+  \newcommand{\AgdaBoundFontStyle}[1]{\textit{#1}}
+\fi
 
 % ----------------------------------------------------------------------
 % Colours.
