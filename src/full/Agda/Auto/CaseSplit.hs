@@ -290,6 +290,12 @@ unifyexp e1 e2 = r e1 e2 (\unif -> Just unif) []
    (Lam hid1 (Abs _ b1), Lam hid2 (Abs _ b2)) | hid1 == hid2 -> r b1 b2 cont unif
    (Pi _ hid1 _ it1 (Abs _ ot1), Pi _ hid2 _ it2 (Abs _ ot2)) | hid1 == hid2 -> r it1 it2 (r ot1 ot2 cont) unif
    (Sort _, Sort _) -> cont unif -- a bit sloppy
+   (App _ _ (Var v) (NotM ALNil), App _ _ (Var u) (NotM ALNil))
+     | v == u -> cont unif
+   (App _ _ (Var v) (NotM ALNil), _)
+     | elem v (freevars e2) -> Nothing -- Occurs check
+   (_, App _ _ (Var v) (NotM ALNil))
+     | elem v (freevars e1) -> Nothing -- Occurs check
    (App _ _ (Var v) (NotM ALNil), _) ->
     case lookup v unif of
      Nothing -> cont ((v, e2) : unif)
