@@ -34,7 +34,7 @@ import Agda.Syntax.Common as Common
 import Agda.Syntax.Literal (Literal(LitString))
 
 import Agda.Termination.CallGraph   as Term
-import qualified Agda.Termination.SparseMatrix as Term
+import qualified Agda.Termination.SparseMatrix as Matrix
 import qualified Agda.Termination.Termination  as Term
 import Agda.Termination.RecCheck
 import Agda.Termination.Inlining
@@ -948,10 +948,7 @@ compareProj d d'
 -- | 'makeCM' turns the result of 'compareArgs' into a proper call matrix
 makeCM :: Index -> Index -> [[Term.Order]] -> Term.CallMatrix
 makeCM ncols nrows matrix = Term.CallMatrix $
-  Term.fromLists (Term.Size { Term.rows = nrows
-                            , Term.cols = ncols
-                            })
-                 matrix
+  Matrix.fromLists (Matrix.Size nrows ncols) matrix
 
 {- To turn off guardedness, restore this code.
 -- | 'addGuardedness' does nothing.
