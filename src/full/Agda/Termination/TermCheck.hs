@@ -19,7 +19,7 @@ import Control.Monad.Error
 import Control.Monad.State
 
 import Data.List as List
-import Data.Maybe (mapMaybe, isJust)
+import Data.Maybe (mapMaybe, isJust, fromMaybe)
 import Data.Monoid
 import qualified Data.Map as Map
 import qualified Data.Set as Set
@@ -290,7 +290,7 @@ reportCalls no calls = do
 termFunction :: (?cutoff :: CutOff) => DBPConf -> [QName] -> MutualNames -> QName -> TCM Result
 termFunction conf0 names allNames name = do
 
-     let index = toInteger $ maybe __IMPOSSIBLE__ id $
+     let index = fromMaybe __IMPOSSIBLE__ $
            List.elemIndex name allNames
 
      conf <- do
@@ -613,7 +613,7 @@ termTerm conf names f delayed pats0 t0 = do
        ifDelayed o | Term.decreasing o && delayed == NotDelayed = Term.le
                    | otherwise                                  = o
 
-       Just fInd = toInteger <$> List.elemIndex f names
+       Just fInd = List.elemIndex f names
 
        -- sorts can contain arb. terms of type Nat,
        -- so look for recursive calls also
@@ -767,7 +767,7 @@ termTerm conf names f delayed pats0 t0 = do
                          return
                            (Term.insert
                              (Term.Call { Term.source = fInd
-                                        , Term.target = toInteger gInd'
+                                        , Term.target = gInd'
                                         , Term.cm     = makeCM ncols nrows matrix'
                                         })
                              (point

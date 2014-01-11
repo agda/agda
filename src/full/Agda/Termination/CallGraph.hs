@@ -393,8 +393,11 @@ prop_orderSemiring = Semiring.semiringInvariant orderSemiring
 -- Call matrices
 
 -- | Call matrix indices.
+--
+--   Machine integer 'Int' is sufficient, since we cannot index more than
+--   we have addresses on our machine.
 
-type Index = Integer
+type Index = Int
 
 -- | Call matrices. Note the call matrix invariant
 -- ('callMatrixInvariant').
@@ -763,7 +766,7 @@ completionInit cs =
   CallGraph $ Map.mapKeysWith mappend pad $ theCallGraph cs
   where
   -- The maximum number of arguments detected for every index.
-  noArgs :: Map Index Integer
+  noArgs :: Map Index Int
   noArgs = foldr (\c m -> insert (source c) (cols' c) $
                           insert (target c) (rows' c) m)
                  Map.empty
