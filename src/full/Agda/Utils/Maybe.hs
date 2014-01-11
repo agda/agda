@@ -34,6 +34,10 @@ caseMaybe m err f = maybe err f m
 caseMaybeM :: Monad m => m (Maybe a) -> m b -> (a -> m b) -> m b
 caseMaybeM mm err f = maybeM  err f mm
 
+-- | 'caseMaybeM' with flipped branches.
+ifJustM :: Monad m => m (Maybe a) -> (a -> m b) -> m b -> m b
+ifJustM mm = flip (caseMaybeM mm)
+
 -- | A more telling name for 'Traversable.forM' for the 'Maybe' collection type.
 --   Or: 'caseMaybe' without the 'Nothing' case.
 whenJust :: Monad m => Maybe a -> (a -> m ()) -> m ()

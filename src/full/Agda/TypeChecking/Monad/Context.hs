@@ -1,5 +1,5 @@
 {-# LANGUAGE TupleSections,
-      FlexibleInstances, TypeSynonymInstances #-}
+      FlexibleInstances, TypeSynonymInstances, OverlappingInstances #-}
 
 module Agda.TypeChecking.Monad.Context where
 

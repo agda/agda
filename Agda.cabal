@@ -200,6 +200,7 @@ library
                     Agda.Termination.Inlining
                     Agda.Termination.Lexicographic
                     Agda.Termination.Matrix
+                    Agda.Termination.Monad
                     Agda.Termination.RecCheck
                     Agda.Termination.SparseMatrix
                     Agda.Termination.Semiring

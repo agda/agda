@@ -215,8 +215,8 @@ inline f pcl t wf wcl = inTopContext $ addCtxTel (clauseTel wcl) $ do
         DTerm (Con c vs) -> ConP c Nothing . map (fmap unnamed) <$> mapM (traverse (dtermToPat . DTerm)) vs
         DTerm v          -> DotP v <$ skip
 
-isWithFunction :: QName -> TCM (Maybe QName)
-isWithFunction x = do
+isWithFunction :: MonadTCM tcm => QName -> tcm (Maybe QName)
+isWithFunction x = liftTCM $ do
   def <- getConstInfo x
   return $ case theDef def of
     Function{ funWith = w } -> w

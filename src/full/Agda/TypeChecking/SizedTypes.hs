@@ -239,8 +239,8 @@ compareSizes cmp u v = do
     _ -> compareAtom cmp size u v
 -}
 
-isBounded :: Nat -> TCM BoundedSize
-isBounded i = do
+isBounded :: MonadTCM tcm => Nat -> tcm BoundedSize
+isBounded i = liftTCM $ do
   t <- reduce =<< typeOfBV i
   case ignoreSharing $ unEl t of
     Def x [Apply u] -> do
