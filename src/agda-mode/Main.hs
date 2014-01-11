@@ -165,7 +165,9 @@ askEmacs query = do
           (removeFile . fst) $ \(file, h) -> do
     hClose h
     exit <- rawSystem "emacs"
-                      [ "--eval"
+                      [ "--no-desktop", "--no-window-system", "--no-splash"
+                          -- Andreas, 2014-01-11: ^ try a leaner startup of emacs
+                      , "--eval"
                       , "(with-temp-file " ++ escape file ++ " "
                                            ++ query ++ ")"
                       , "--kill"
