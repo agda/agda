@@ -80,9 +80,6 @@ type MutualNames = [QName]
 --   Must be 'Pointed' and a 'Monoid'.
 type Result = [TerminationError]
 
--- use of a NubList did not achieve the desired effect, now unnecessary
--- type Result = NubList TerminationError
-
 -- | Termination check a single declaration.
 termDecl :: A.Declaration -> TCM Result
 termDecl d = ignoreAbstractMode $ termDecl' d
@@ -413,13 +410,6 @@ instance PrettyTCM DeBruijnPat where
 unusedVar :: DeBruijnPat
 unusedVar = LitDBP (LitString noRange "term.unused.pat.var")
 
-{- RETIRED, just use fmap
-adjIndexDBP :: (Nat -> Nat) -> DeBruijnPat -> DeBruijnPat
-adjIndexDBP f (VarDBP i)      = VarDBP (f i)
-adjIndexDBP f (ConDBP c args) = ConDBP c (map (adjIndexDBP f) args)
-adjIndexDBP f (LitDBP l)      = LitDBP l
--}
-
 {- | liftDeBruijnPat p n
 
      increases each de Bruijn index in p by n.
@@ -500,50 +490,6 @@ stripCoConstructors conf p = case p of
     case ind of
       Inductive   -> ConDBP c <$> mapM (stripCoConstructors conf) args
       CoInductive -> return unusedVar
-
-{- Andreas, 2012-09-19 BAD CODE, RETIRED
-{- | stripBind i p b = Just (i', dbp, b')
-
-  converts a pattern into a de Bruijn pattern
-
-  i  is the next free de Bruijn level before consumption of p
-  i' is the next free de Bruijn level after  consumption of p
-
-  if the clause has no body (b = NoBody), Nothing is returned
-
--}
-stripBind :: DBPConf -> Nat -> Pattern -> ClauseBody -> TCM (Maybe (Nat, DeBruijnPat, ClauseBody))
-stripBind _ _ _ NoBody            = return Nothing
-stripBind conf i (VarP x) (Bind b)   = return $ Just (i - 1, VarDBP i, absBody b)
-stripBind conf i (VarP x) (Body b)   = __IMPOSSIBLE__
-stripBind conf i (DotP t) (Bind b)   = do
-  t <- termToDBP conf t
-  return $ Just (i - 1, t, absBody b)
-stripBind conf i (DotP _) (Body b)   = __IMPOSSIBLE__
-stripBind conf i (LitP l) b          = return $ Just (i, LitDBP l, b)
-stripBind conf i (ConP c _ args) b   = do
-    r <- stripBinds conf i (map unArg args) b
-    case r of
-      Just (i', dbps, b') -> return $ Just (i', ConDBP c dbps, b')
-      _                   -> return Nothing
-
-{- | stripBinds i ps b = Just (i', dbps, b')
-
-  i  is the next free de Bruijn level before consumption of ps
-  i' is the next free de Bruijn level after  consumption of ps
--}
-stripBinds :: DBPConf -> Nat -> [Pattern] -> ClauseBody -> TCM (Maybe (Nat, [DeBruijnPat], ClauseBody))
-stripBinds use i [] b     = return $ Just (i, [], b)
-stripBinds use i (p:ps) b = do
-  r1 <- stripBind use i p b
-  case r1 of
-    Just (i1, dbp, b1) -> do
-      r2 <- stripBinds use i1 ps b1
-      case r2 of
-        Just (i2, dbps, b2) -> return $ Just (i2, dbp:dbps, b2)
-        Nothing -> return Nothing
-    Nothing -> return Nothing
--}
 
 -- | cf. 'TypeChecking.Coverage.Match.buildMPatterns'
 openClause :: DBPConf -> Permutation -> [Pattern] -> ClauseBody -> TCM ([DeBruijnPat], Maybe Term)
@@ -767,18 +713,6 @@ termTerm conf names f delayed pats0 t0 = do
                    let gArgs = Def g es
                    reportSDoc "term.function" 30 $
                      text "termination checking function call " <+> prettyTCM gArgs
-{-
-                  ev <- elimView' terminationElimViewConf gArgs -- elimView that does not reduce, and only accepts proper projections into the spine
-                  case ev of
-                   ConElim{} -> loop pats guarded $ unElimView ev
-                   NoElim v  -> do
-                     reportSDoc "term.elim" 10 $ text "got NoElim " <+> prettyTCM v
-                     reportSDoc "term.elim" 50 $ text $ show v
-                     loop pats guarded v
-                   MetaElim x es -> mapM' (loop pats Term.unknown . unArg) $ argsFromElims es
-                   VarElim  x es -> mapM' (loop pats Term.unknown . unArg) $ argsFromElims es
-                   DefElim  g es -> guardPresTyCon g es $ \ g es -> do
--}
                    -- We have to reduce constructors in case they're reexported.
                    let reduceCon t = case ignoreSharing t of
                           Con c vs -> (`apply` vs) <$> reduce (Con c [])  -- make sure we don't reduce the arguments
@@ -815,14 +749,6 @@ termTerm conf names f delayed pats0 t0 = do
                            "composing with guardedness " ++ show guarded ++
                            " counting as " ++ show (ifDelayed guarded)
                          let matrix' = composeGuardedness (ifDelayed guarded) matrix
-    {- OLD
-                         matrix <- compareArgs (withSizeSuc conf) pats args
-                         let (nrows, ncols, matrix') = addGuardedness
-                                (ifDelayed guarded)  -- only delayed defs can be guarded
-                                (genericLength args) -- number of rows
-                                (genericLength pats) -- number of cols
-                                matrix
-    -}
 
                          reportSDoc "term.kept.call" 5
                            (sep [ text "kept call from" <+> prettyTCM f
@@ -873,33 +799,7 @@ termTerm conf names f delayed pats0 t0 = do
                 constructor c ind $ zip args (repeat True)
 
             Def g es -> guardPresTyCon g es function
---                \ g es -> function g $ argsFromElims es
-{-
-              | guardingTypeConstructors conf -> do
-                def <- getConstInfo g
-                let occs = defArgOccurrences def
-                case theDef def of
-                  Datatype{} -> con occs
-                  Record{}   -> con occs
-                  _          -> fun
-              | otherwise -> fun
-              where
-              -- Data or record type constructor.
-              con occs =
-                constructor g Inductive $   -- guardedness preserving
-                  zip args0 (map preserves occs ++ repeat False)
-                where
-                preserves = (StrictPos <=)   -- everything which is at least strictly positive
-{- SPELLED OUT, this means:
-                preserves Unused   = True
-                preserves GuardPos = True
-                preserves StrictPos = True
-                preserves Mixed = False
--}
 
-              -- Call to defined function.
-              fun = function g args0
--}
             -- Abstraction. Preserves guardedness.
             Lam h (Abs x t) -> addCtxString_ x $
               loop (map liftDBP pats) guarded t
@@ -990,10 +890,6 @@ compareArgs suc pats es = do
   let guardedness = decr $ projsCaller - projsCallee
   reportSLn "term.guardedness" 30 $ "compareArgs: guardedness of call: " ++ show guardedness
   return $ addGuardedness guardedness (size es) (size pats) matrix
-
--- OLD:
--- compareArgs ::  (?cutoff :: CutOff) => Maybe QName -> [DeBruijnPat] -> [Term] -> TCM ([[Term.Order]])
--- compareArgs suc pats ts = matrix <- mapM (\t -> mapM (compareTerm suc t) pats) ts
 
 -- | @compareElim suc e dbpat@
 --   Precondition: top meta variable resolved
@@ -1131,20 +1027,6 @@ isProjectionButNotCoinductive qn = do
               -> isInductiveRecord projFromType
             _ -> return False
 
-
-{- RETIRED
--- | Remove projections until a term is no longer a projection.
---   Also, remove 'DontCare's.
-stripProjections :: Term -> TCM Term
-stripProjections t = case ignoreSharing t of
-  DontCare t -> stripProjections t
-  Def qn ts@(~(r : _)) -> do
-    isProj <- isProjectionButNotCoinductive qn
-    case isProj of
-      True | not (null ts) -> stripProjections $ unArg r
-      _ -> return t
-  _ -> return t
--}
 
 -- | Remove all non-coinductive projections from an algebraic term
 --   (not going under binders).
