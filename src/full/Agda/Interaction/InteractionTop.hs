@@ -758,16 +758,20 @@ give_gen ii rng s giveRefine = do
   -- print abstract expr
   ce        <- lift $ abstractToConcreteEnv (makeEnv scope) ae
   -- if the command was @Give@, use the literal user input;
-  -- also, if no interaction metas were created by @Refine@
-  let literally = (giveRefine == Give || null iis) && rng /= noRange
+  -- Andreas, 2014-01-15, see issue 1020:
+  -- Refine could solve a goal by introducing the sole constructor
+  -- without arguments.  Then there are no interaction metas, but
+  -- we still cannot just `give' the user string (which may be empty).
+  -- WRONG: also, if no interaction metas were created by @Refine@
+  -- WRONG: let literally = (giveRefine == Give || null iis) && rng /= noRange
+  let literally = giveRefine == Give && rng /= noRange
   putResponse $ Resp_GiveAction ii $ mkNewTxt literally ce
   -- display new goal set
   interpret Cmd_metas
   where
     -- Substitutes xs for x in ys.
     replace x xs ys = concatMap (\ y -> if y == x then xs else [y]) ys
-    -- We can replace the ii by the user given input
-    -- if we did not create any new iis.
+    -- For @Give@ we can replace the ii by the user given input.
     mkNewTxt True  C.Paren{} = Give_Paren
     mkNewTxt True  _         = Give_NoParen
     -- Otherwise, we replace it by the reified value Agda computed.
