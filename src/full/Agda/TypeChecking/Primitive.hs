@@ -72,7 +72,14 @@ newtype Str = Str { unStr :: String }
     deriving (Eq, Ord)
 
 newtype Nat = Nat { unNat :: Integer }
-    deriving (Eq, Ord, Num, Integral, Enum, Real)
+    deriving (Eq, Ord, Num, Enum, Real)
+
+-- TODO: ghc-7.7 bug: deriving Integral causes an unnecessary toInteger
+-- warning. Once 7.8 is out check if we can go back to deriving.
+instance Integral Nat where
+  toInteger = unNat
+  quotRem (Nat a) (Nat b) = (Nat q, Nat r)
+    where (q, r) = quotRem a b
 
 newtype Lvl = Lvl { unLvl :: Integer }
   deriving (Eq, Ord)
