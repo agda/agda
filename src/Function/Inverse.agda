@@ -13,7 +13,8 @@ open import Function.Equality as F
   using (_⟶_) renaming (_∘_ to _⟪∘⟫_)
 open import Function.LeftInverse as Left hiding (id; _∘_)
 open import Relation.Binary
-import Relation.Binary.PropositionalEquality as P
+open import Relation.Binary.PropositionalEquality as P using (_≗_)
+open import Relation.Unary using (Pred)
 
 -- Inverses.
 
@@ -65,10 +66,13 @@ record Inverse {f₁ f₂ t₁ t₂}
 
 -- The set of all inverses between two sets.
 
-infix 3 _↔_
+infix 3 _↔_ _↔̇_
 
 _↔_ : ∀ {f t} → Set f → Set t → Set _
 From ↔ To = Inverse (P.setoid From) (P.setoid To)
+
+_↔̇_ : ∀ {i f t} {I : Set i} → Pred I f → Pred I t → Set _
+From ↔̇ To = ∀ {i} → From i ↔ To i
 
 -- If two setoids are in bijective correspondence, then there is an
 -- inverse between them.
