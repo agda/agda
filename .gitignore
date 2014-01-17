@@ -1,0 +1,7 @@
+dist
+html
+Everything.agda
+*.agdai
+*.agda.el
+*.lagda.el
+.*.swp
