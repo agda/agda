@@ -226,11 +226,12 @@ latex-test :
 	@$(MAKE) -C test/latex-backend clean
 
 std-lib :
-	darcs get --lazy --repo-name=$@ \
-		 http://www.cse.chalmers.se/~nad/repos/lib/
+	git clone https://github.com/agda/agda-stdlib.git $@
 
 up-to-date-std-lib : std-lib
-	@(cd std-lib && darcs pull -a && make setup)
+	@(cd std-lib && \
+          git fetch && git checkout master && git merge origin/master && \
+          make setup)
 
 library-test : # up-to-date-std-lib
 	@echo "======================================================================"
