@@ -67,7 +67,7 @@ cong {C = C} {P₁ = P₁} {P₂} {xs₁} {xs₂} P₁↔P₂ xs₁≈xs₂ =
 swap : ∀ {c} {C₁ C₂ : Container c} {X Y : Set c} {P : X → Y → Set c}
          {xs : ⟦ C₁ ⟧ X} {ys : ⟦ C₂ ⟧ Y} →
        let ◈ : ∀ {C : Container c} {X} → ⟦ C ⟧ X → (X → Set c) → Set c
-           ◈ = flip ◇ in
+           ◈ = λ {_} {_} → flip ◇ in
        ◈ xs (◈ ys ∘ P) ↔ ◈ ys (◈ xs ∘ flip P)
 swap {c} {C₁} {C₂} {P = P} {xs} {ys} =
   ◇ (λ x → ◇ (P x) ys) xs                    ↔⟨ ↔∈ C₁ ⟩
@@ -251,7 +251,7 @@ linear-identity {xs = xs} m {x} =
 join↔◇ : ∀ {c} {C₁ C₂ C₃ : Container c} {X}
          P (join′ : (C₁ ⟨∘⟩ C₂) ⊸ C₃) (xss : ⟦ C₁ ⟧ (⟦ C₂ ⟧ X)) →
          let join : ∀ {X} → ⟦ C₁ ⟧ (⟦ C₂ ⟧ X) → ⟦ C₃ ⟧ X
-             join = ⟪ join′ ⟫⊸ ∘
+             join = λ {_} → ⟪ join′ ⟫⊸ ∘
                     _⟨$⟩_ (Inverse.from (Composition.correct C₁ C₂)) in
          ◇ P (join xss) ↔ ◇ (◇ P) xss
 join↔◇ {C₁ = C₁} {C₂} P join xss =
