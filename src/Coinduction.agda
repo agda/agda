@@ -24,7 +24,8 @@ postulate
 
 ------------------------------------------------------------------------
 -- Rec, a type which is analogous to the Rec type constructor used in
--- (the current version of) ΠΣ
+-- ΠΣ (see Altenkirch, Danielsson, Löh and Oury. ΠΣ: Dependent Types
+-- without the Sugar. FLOPS 2010, LNCS 6009.)
 
 data Rec {a} (A : ∞ (Set a)) : Set a where
   fold : (x : ♭ A) → Rec A
