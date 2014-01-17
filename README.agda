@@ -36,12 +36,10 @@ module README where
 
 -- Contributions to this library are welcome (but to avoid wasted work
 -- it is suggested that you discuss large changes before implementing
--- them). Please send contributions in the form of darcs patches (run
--- darcs send --output <patch file> and attach the patch file to an
--- email), and include a statement saying that you agree to release
--- your library patches under the library's licence. It is appreciated
--- if every patch contains a single, complete change, and if the
--- coding style used in the library is adhered to.
+-- them). Please send contributions in the form of git pull requests, patch
+-- bundles or ask for commmit rights to the repository.  It is appreciated if
+-- every patch contains a single, complete change, and if the coding style used
+-- in the library is adhered to.
 
 ------------------------------------------------------------------------
 -- Module hierarchy
