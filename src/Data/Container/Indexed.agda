@@ -56,7 +56,7 @@ private
 
   Eq⇒≅ : ∀ {i o c r ℓ} {I : Set i} {O : Set o}
          {C : Container I O c r} {X : Pred I ℓ} {o₁ o₂ : O}
-         {xs : ⟦ C ⟧ X o₁} {ys : ⟦ C ⟧ X o₂} → H.Extensionality _ _ →
+         {xs : ⟦ C ⟧ X o₁} {ys : ⟦ C ⟧ X o₂} → H.Extensionality r ℓ →
          Eq C X X (λ x₁ x₂ → x₁ ≅ x₂) xs ys → xs ≅ ys
   Eq⇒≅ {xs = c , k} {.c , k′} ext (refl , refl , k≈k′) =
     H.cong (_,_ c) (ext (λ _ → refl) (λ r → k≈k′ r r refl))
