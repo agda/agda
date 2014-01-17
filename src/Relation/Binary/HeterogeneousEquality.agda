@@ -72,6 +72,10 @@ cong : ∀ {a b} {A : Set a} {B : A → Set b} {x y}
        (f : (x : A) → B x) → x ≅ y → f x ≅ f y
 cong f refl = refl
 
+cong-app : ∀ {a b} {A : Set a} {B : A → Set b} {f g : (x : A) → B x} →
+           f ≅ g → (x : A) → f x ≅ g x
+cong-app refl x = refl
+
 cong₂ : ∀ {a b c} {A : Set a} {B : A → Set b} {C : ∀ x → B x → Set c}
           {x y u v}
         (f : (x : A) (y : B x) → C x y) → x ≅ y → u ≅ v → f x u ≅ f y v

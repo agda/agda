@@ -32,6 +32,10 @@ cong : ∀ {a b} {A : Set a} {B : Set b}
        (f : A → B) {x y} → x ≡ y → f x ≡ f y
 cong f refl = refl
 
+cong-app : ∀ {a b} {A : Set a} {B : A → Set b} {f g : (x : A) → B x} →
+           f ≡ g → (x : A) → f x ≡ g x
+cong-app refl x = refl
+
 cong₂ : ∀ {a b c} {A : Set a} {B : Set b} {C : Set c}
         (f : A → B → C) {x y u v} → x ≡ y → u ≡ v → f x u ≡ f y v
 cong₂ f refl refl = refl
