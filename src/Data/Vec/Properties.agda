@@ -369,3 +369,11 @@ map-[]≔ f (x ∷ xs) (suc i) = P.cong (_∷_ _) $ map-[]≔ f xs i
 []≔-lookup []       ()
 []≔-lookup (x ∷ xs) zero    = refl
 []≔-lookup (x ∷ xs) (suc i) = P.cong (_∷_ x) $ []≔-lookup xs i
+
+[]≔-++-inject+ : ∀ {a} {A : Set a} {m n x}
+                 (xs : Vec A m) (ys : Vec A n) i →
+                 (xs ++ ys) [ Fin.inject+ n i ]≔ x ≡ xs [ i ]≔ x ++ ys
+[]≔-++-inject+ []       ys ()
+[]≔-++-inject+ (x ∷ xs) ys zero    = refl
+[]≔-++-inject+ (x ∷ xs) ys (suc i) =
+  P.cong (_∷_ x) $ []≔-++-inject+ xs ys i
