@@ -29,7 +29,10 @@ import Relation.Binary.InducedPreorders as Ind
 open import Relation.Binary.PropositionalEquality as P using (_≡_)
 open import Relation.Nullary
 open import Relation.Nullary.Negation
-open RawMonad (¬¬-Monad {p = Level.zero})
+
+module ¬¬Monad {p} where
+  open RawMonad (¬¬-Monad {p}) public
+open ¬¬Monad  -- we don't want the RawMonad content to be opened publicly
 
 ------------------------------------------------------------------------
 -- The type
@@ -479,11 +482,9 @@ not-finite-is-infinite (x ∷ xs) hyp =
   x ∷ ♯ not-finite-is-infinite (♭ xs) (hyp ∘ _∷_ x)
 
 -- Colists are either finite or infinite (classically).
---
--- TODO: Make this definition universe polymorphic.
 
 finite-or-infinite :
-  {A : Set} (xs : Colist A) → ¬ ¬ (Finite xs ⊎ Infinite xs)
+  ∀ {a} {A : Set a} (xs : Colist A) → ¬ ¬ (Finite xs ⊎ Infinite xs)
 finite-or-infinite xs = helper <$> excluded-middle
   where
   helper : Dec (Finite xs) → Finite xs ⊎ Infinite xs
