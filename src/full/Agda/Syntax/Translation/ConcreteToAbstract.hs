@@ -155,7 +155,7 @@ recordConstructorType fields = build fs
     build (NiceField r f _ _ x (Common.Arg info e) : fs) =
         C.Pi [C.TypedBindings r $ Common.Arg info (C.TBind r [mkBoundName x f] e)] $ build fs
       where r = getRange x
-    build (d : fs)                     = C.Let noRange [killRange $ notSoNiceDeclaration d] $
+    build (d : fs)                     = C.Let (getRange d) [notSoNiceDeclaration d] $
                                            build fs
     build []                           = C.SetN noRange 0 -- todo: nicer
 
