@@ -7,6 +7,7 @@ import qualified Data.List as L
 import Data.Char
 import Data.Function
 import Control.Applicative
+import Numeric ( showHex )
 import System.FilePath.Find
 import System.IO
 
@@ -27,4 +28,12 @@ main = do
               L.sortBy (compare `on` snd) $
               map (\cs -> (head cs, length cs)) $
               L.group $ L.sort $ nonAsciiChars
-  mapM_ (\(c, count) -> putStrLn (c : ": " ++ show count)) table
+
+  let codePoint :: Char -> String
+      codePoint c = showHex (ord c) ""
+
+      uPlus :: Char -> String
+      uPlus c = "(U+" ++ codePoint c ++ ")"
+
+  mapM_ (\(c, count) -> putStrLn (c : " " ++ uPlus c ++ ": " ++ show count))
+        table
