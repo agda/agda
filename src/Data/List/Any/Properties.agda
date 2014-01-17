@@ -355,6 +355,9 @@ private
   ++⁻∘++⁺ (x ∷ xs) {ys} (inj₁ (there p)) rewrite ++⁻∘++⁺ xs {ys} (inj₁ p) = refl
   ++⁻∘++⁺ (x ∷ xs)      (inj₂ p)         rewrite ++⁻∘++⁺ xs      (inj₂ p) = refl
 
+++ˡ = ++⁺ˡ
+++ʳ = ++⁺ʳ
+
 ++↔ : ∀ {a p} {A : Set a} {P : A → Set p} {xs ys} →
       (Any P xs ⊎ Any P ys) ↔ Any P (xs ++ ys)
 ++↔ {P = P} {xs = xs} = record
