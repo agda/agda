@@ -19,6 +19,7 @@ import Data.Nat.Properties as Nat
 open import Data.Fin as Fin using (Fin; zero; suc; toℕ; fromℕ)
 open import Data.Fin.Props using (_+′_)
 open import Data.Empty using (⊥-elim)
+open import Data.Product using (_×_ ; _,_)
 open import Function
 open import Function.Inverse using (_↔_)
 open import Relation.Binary
@@ -49,6 +50,10 @@ module UsingVectorEquality {s₁ s₂} (S : Setoid s₁ s₂) where
 open import Relation.Binary.PropositionalEquality as P
   using (_≡_; _≢_; refl; _≗_)
 open import Relation.Binary.HeterogeneousEquality using (_≅_; refl)
+
+∷-injective : ∀ {a n} {A : Set a} {x y : A} {xs ys : Vec A n} →
+              (x ∷ xs) ≡ (y ∷ ys) → x ≡ y × xs ≡ ys
+∷-injective refl = refl , refl
 
 -- lookup is an applicative functor morphism.
 
