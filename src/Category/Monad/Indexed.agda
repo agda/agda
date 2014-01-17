@@ -14,8 +14,8 @@ open import Level
 
 record RawIMonad {i f} {I : Set i} (M : IFun I f) :
                  Set (i ⊔ suc f) where
-  infixl 1 _>>=_ _>>_
-  infixr 1 _=<<_
+  infixl 1 _>>=_ _>>_ _>=>_
+  infixr 1 _=<<_ _<=<_
 
   field
     return : ∀ {i A} → A → M i i A
@@ -26,6 +26,14 @@ record RawIMonad {i f} {I : Set i} (M : IFun I f) :
 
   _=<<_ : ∀ {i j k A B} → (A → M j k B) → M i j A → M i k B
   f =<< c = c >>= f
+
+  _>=>_ : ∀ {i j k a} {A : Set a} {B C} →
+          (A → M i j B) → (B → M j k C) → (A → M i k C)
+  f >=> g = _=<<_ g ∘ f
+
+  _<=<_ : ∀ {i j k B C a} {A : Set a} →
+          (B → M j k C) → (A → M i j B) → (A → M i k C)
+  g <=< f = f >=> g
 
   join : ∀ {i j k A} → M i j (M j k A) → M i k A
   join m = m >>= id
