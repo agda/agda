@@ -48,4 +48,11 @@ module Ex2 where
 
  boring' = λ {y} → f a {y}
 
+-- Should also work for lets
+module Ex3 where
+  postulate any : {A : Set} → A
+
+  foo : Set₁
+  foo = let yellow = any in Set
+
 -- no longer yellow...

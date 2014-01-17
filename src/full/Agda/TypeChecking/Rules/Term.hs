@@ -1180,8 +1180,6 @@ traceCallE call m = do
 --   make this happen.  Returns the evaluated arguments @vs@, the remaining
 --   type @t0'@ (which should be a subtype of @t1@) and any constraints @cs@
 --   that have to be solved for everything to be well-formed.
---
---   TODO: doesn't do proper blocking of terms
 checkArguments :: ExpandHidden -> ExpandInstances -> Range -> [I.NamedArg A.Expr] -> Type -> Type ->
                   ErrorT (Args, [I.NamedArg A.Expr], Type) TCM (Args, Type)
 
@@ -1366,7 +1364,7 @@ checkLetBinding :: A.LetBinding -> TCM a -> TCM a
 checkLetBinding b@(A.LetBind i info x t e) ret =
   traceCallCPS_ (CheckLetBinding b) ret $ \ret -> do
     t <- isType_ t
-    v <- applyRelevanceToContext (getRelevance info) $ checkExpr e t
+    v <- applyRelevanceToContext (getRelevance info) $ checkDontExpandLast e t
     addLetBinding (convColor info) x v t ret
 
 checkLetBinding b@(A.LetPatBind i p e) ret =
