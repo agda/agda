@@ -221,7 +221,9 @@ latex-test :
 	@echo "======================================================================"
 	@echo "================== Suite of tests for LaTeX backend =================="
 	@echo "======================================================================"
-	@$(MAKE) -C test/latex-backend clean all clean
+	@$(MAKE) -C test/latex-backend clean
+	@$(MAKE) -C test/latex-backend all
+	@$(MAKE) -C test/latex-backend clean
 
 std-lib :
 	darcs get --lazy --repo-name=$@ \
