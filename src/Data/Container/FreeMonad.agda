@@ -16,11 +16,24 @@ open import Data.Container.Combinator using (const; _⊎_)
 open import Data.W
 open import Category.Monad
 
-------------------------------------------------------------------------
--- The free monad construction
-
 infixl 1 _⋆C_
 infix  1 _⋆_
+
+------------------------------------------------------------------------
+
+-- The free monad construction over a container and a set is, in
+-- universal algebra terminology, also known as the term algebra over a
+-- signature (a container) and a set (of variable symbols). The return
+-- of the free monad corresponds to variables and the bind operator
+-- corresponds to (parallel) substitution.
+
+-- A useful intuition is to think of containers describing single
+-- operations and the free monad construction over a container and a set
+-- describing a tree of operations as nodes and elements of the set as
+-- leafs. If one starts at the root, then any path will pass finitely
+-- many nodes (operations described by the container) and eventually end
+-- up in a leaf (element of the set) -- hence the Kleene star notation
+-- (the type can be read as a regular expression).
 
 _⋆C_ : ∀ {c} → Container c → Set c → Container c
 C ⋆C X = const X ⊎ C
