@@ -107,6 +107,11 @@ Pragmas and Options
 
   [See also issue 709.]
 
+* New option --no-pattern-matching
+
+  Disables all forms of pattern matching (for the current file).
+  You can still import files that use pattern matching.
+
 Language
 ========
 

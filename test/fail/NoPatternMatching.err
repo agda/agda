@@ -1,0 +1,3 @@
+NoPatternMatching.agda:10,1-17
+Pattern matching is disabled
+when checking that the clause fail unit = Unit has type Unit → Set

@@ -112,7 +112,8 @@ data PragmaOptions = PragmaOptions
   , optIrrelevantProjections     :: Bool
   , optExperimentalIrrelevance   :: Bool  -- ^ irrelevant levels, irrelevant data matching
   , optWithoutK                  :: Bool
-  , optCopatterns                :: Bool  -- ^ definitions by copattern matching
+  , optCopatterns                :: Bool  -- ^ Allow definitions by copattern matching?
+  , optPatternMatching           :: Bool  -- ^ Is pattern matching allowed in the current file?
   }
   deriving Show
 
@@ -183,6 +184,7 @@ defaultPragmaOptions = PragmaOptions
   , optUniversePolymorphism      = True
   , optWithoutK                  = False
   , optCopatterns                = False
+  , optPatternMatching           = True
   }
 
 -- | The default output directory for LaTeX.
@@ -293,6 +295,7 @@ noUniversePolymorphismFlag   o = return $ o { optUniversePolymorphism      = Fal
 noForcingFlag                o = return $ o { optForcing                   = False }
 withoutKFlag                 o = return $ o { optWithoutK                  = True  }
 copatternsFlag               o = return $ o { optCopatterns                = True  }
+noPatternMatchingFlag        o = return $ o { optPatternMatching           = False }
 
 interactiveFlag  o = return $ o { optInteractive    = True
                                 , optPragmaOptions  = (optPragmaOptions o)
@@ -426,6 +429,8 @@ pragmaOptions =
                     "disable the K rule (maybe)"
     , Option []     ["copatterns"] (NoArg copatternsFlag)
                     "enable definitions by copattern matching"
+    , Option []     ["no-pattern-matching"] (NoArg noPatternMatchingFlag)
+                    "disable pattern matching completely"
     ]
 
 -- | Used for printing usage info.

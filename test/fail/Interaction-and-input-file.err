@@ -44,5 +44,6 @@ Usage: agda [OPTIONS...] [FILE]
           --experimental-irrelevance                  enable potentially unsound irrelevance features (irrelevant levels, irrelevant data matching)
           --without-K                                 disable the K rule (maybe)
           --copatterns                                enable definitions by copattern matching
+          --no-pattern-matching                       disable pattern matching completely
 
 Plugins:

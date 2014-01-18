@@ -6,6 +6,10 @@ import Data.Maybe
 
 import Control.Applicative
 import Control.Monad
+import Control.Monad.State
+
+import Agda.Interaction.Options
+import Agda.Interaction.Options.Lenses
 
 import Agda.Syntax.Internal as I
 import Agda.Syntax.Internal.Pattern
@@ -370,6 +374,8 @@ checkLeftHandSide c f ps a ret = do
           noShadowingOfConstructors c problem
           return $ st { lhsProblem = problem }
         else do
+        unlessM (optPatternMatching <$> gets getPragmaOptions) $
+          typeError $ GenericError $ "Pattern matching is disabled"
         sp <- splitProblem f problem
         reportSDoc "tc.lhs.split" 20 $ text "splitting completed"
         case sp of
