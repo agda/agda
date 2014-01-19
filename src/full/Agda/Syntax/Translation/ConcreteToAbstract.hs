@@ -894,8 +894,8 @@ instance ToAbstract LetDef [A.LetBinding] where
 
             -- irrefutable let binding, like  (x , y) = rhs
             NiceFunClause r PublicAccess ConcreteDef termCheck d@(C.FunClause (C.LHS p [] [] []) (C.RHS rhs) NoWhere) -> do
-              rhs <- toAbstract rhs
               p   <- parsePattern p
+              rhs <- toAbstract rhs
               p   <- toAbstract p
               checkPatternLinearity [p]
               p   <- toAbstract p
