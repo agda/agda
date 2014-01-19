@@ -95,7 +95,11 @@ type Node = [Int32]
 -- 'H.LinearHashTable' and the hashtables from "Data.Hashtable" are
 -- much slower.
 
+#if defined(mingw32_HOST_OS) && defined(x86_64_HOST_ARCH)
+type HashTable k v = H.CuckooHashTable k v
+#else
 type HashTable k v = H.BasicHashTable k v
+#endif
 
 -- | State of the the encoder.
 data Dict = Dict{ nodeD     :: !(HashTable Node    Int32)
