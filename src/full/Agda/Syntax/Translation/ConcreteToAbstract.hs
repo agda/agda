@@ -893,13 +893,39 @@ instance ToAbstract LetDef [A.LetBinding] where
                     return [ A.LetBind (LetRange $ getRange d) info x t e ]
 
             -- irrefutable let binding, like  (x , y) = rhs
-            NiceFunClause r PublicAccess ConcreteDef termCheck d@(C.FunClause (C.LHS p [] [] []) (C.RHS rhs) NoWhere) -> do
-              p   <- parsePattern p
-              rhs <- toAbstract rhs
-              p   <- toAbstract p
-              checkPatternLinearity [p]
-              p   <- toAbstract p
-              return [ A.LetPatBind (LetRange r) p rhs ]
+            NiceFunClause r PublicAccess ConcreteDef termCheck d@(C.FunClause lhs@(C.LHS p [] [] []) (C.RHS rhs) NoWhere) -> do
+              mp  <- setCurrentRange (getRange p) $ (Right <$> parsePattern p) `catchError` (return . Left)
+              case mp of
+                Right p -> do
+                  rhs <- toAbstract rhs
+                  p   <- toAbstract p
+                  checkPatternLinearity [p]
+                  p   <- toAbstract p
+                  return [ A.LetPatBind (LetRange r) p rhs ]
+                -- It's not a record pattern, so it should be a prefix left-hand side
+                Left err ->
+                  case definedName p of
+                    Nothing -> throwError err
+                    Just x  -> toAbstract $ LetDef $ NiceMutual r termCheck
+                      [ C.FunSig r defaultFixity' PublicAccess defaultArgInfo termCheck x (C.Underscore (getRange x) Nothing)
+                      , C.FunDef r __IMPOSSIBLE__ __IMPOSSIBLE__ ConcreteDef __IMPOSSIBLE__ __IMPOSSIBLE__
+                        [C.Clause x lhs (C.RHS rhs) NoWhere []]
+                      ]
+                  where
+                    definedName (C.IdentP (C.QName x)) = Just x
+                    definedName C.IdentP{}             = Nothing
+                    definedName (C.RawAppP _ (p : _))  = definedName p
+                    definedName (C.ParenP _ p)         = definedName p
+                    definedName C.WildP{}              = Nothing   -- for instance let _ + x = x in ... (not allowed)
+                    definedName C.AbsurdP{}            = Nothing
+                    definedName C.AsP{}                = Nothing
+                    definedName C.DotP{}               = Nothing
+                    definedName C.LitP{}               = Nothing
+                    definedName C.HiddenP{}            = __IMPOSSIBLE__
+                    definedName C.InstanceP{}          = __IMPOSSIBLE__
+                    definedName C.RawAppP{}            = __IMPOSSIBLE__
+                    definedName C.AppP{}               = __IMPOSSIBLE__
+                    definedName C.OpAppP{}             = __IMPOSSIBLE__
 
             -- You can't open public in a let
             NiceOpen r x dirs | not (C.publicOpen dirs) -> do
@@ -927,7 +953,7 @@ instance ToAbstract LetDef [A.LetBinding] where
                 localToAbstract (snd $ lhsArgs p) $ \args ->
 -}
                 (x, args) <- do
-                  res <- parseLHS top p
+                  res <- setCurrentRange (getRange p) $ parseLHS top p
                   case res of
                     C.LHSHead x args -> return (x, args)
                     C.LHSProj{} -> typeError $ GenericError $ "copatterns not allowed in let bindings"

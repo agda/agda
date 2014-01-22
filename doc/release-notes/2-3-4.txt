@@ -338,6 +338,15 @@ Language
   The semantics of telescoping lets in function types and lambda
   abstractions is just expanding them into ordinary lets.
 
+* More liberal left-hand sides in lets [Issue 1028]:
+
+    You can now write left-hand sides with arguments also for let bindings
+    without a type signature. For instance,
+
+      let f x = suc x in f zero
+
+    Let bound functions still can't do pattern matching though.
+
 * Ambiguous names in patterns are now optimistically resolved in favor
   of constructors. [Issue 822] In particular, the following succeeds now:
 
