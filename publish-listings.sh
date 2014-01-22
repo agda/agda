@@ -4,7 +4,7 @@ cd /tmp
 git clone git@github.com:agda/agda-stdlib.git
 cd agda-stdlib
 git checkout gh-pages
-git merge master -m "merge master into gh-pages"
+git merge master -m "[auto] merge master into gh-pages"
 make listings
 
 if [ "`git status --porcelain`" != "" ]; then
