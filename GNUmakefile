@@ -13,3 +13,8 @@ Everything.agda:
 .PHONY: agda-lib-ffi
 agda-lib-ffi:
 	cd ffi && cabal install
+
+.PHONY: listings
+listings:
+	$(AGDA) -i. -isrc --html README.agda
+
