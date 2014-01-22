@@ -16,5 +16,5 @@ agda-lib-ffi:
 
 .PHONY: listings
 listings: Everything.agda
-	$(AGDA) -i. -isrc --html README.agda
+	$(AGDA) -i. -isrc --html README.agda -v0
 
