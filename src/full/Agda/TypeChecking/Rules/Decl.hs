@@ -107,9 +107,11 @@ checkDecl d = traceCall (SetRange (getRange d)) $ do
                                   -- immediately after the last field. Perhaps
                                   -- they should be (unless we're in a mutual
                                   -- block).
-      A.Open _ _               -> none $ return ()
-                                  -- Open is just an artifact from the concrete
-                                  -- syntax, retained for highlighting purposes.
+      A.Open{}                 -> none $ return ()
+      A.PatternSynDef{}        -> none $ return ()
+                                  -- Open and PatternSynDef are just artifacts
+                                  -- from the concrete syntax, retained for
+                                  -- highlighting purposes.
 
     unlessM (isJust . envMutualBlock <$> ask) $ do
       termErrs <- case topLevelKind of
@@ -138,6 +140,7 @@ checkDecl d = traceCall (SetRange (getRange d)) $ do
         A.DataDef{}              -> __IMPOSSIBLE__
         A.DataSig{}              -> __IMPOSSIBLE__
         A.Open{}                 -> highlight d
+        A.PatternSynDef{}        -> highlight d
         A.Section i x tel _      -> highlight (A.Section i x tel [])
           -- Each block in the section has already been highlighted,
           -- all that remains is the module declaration.

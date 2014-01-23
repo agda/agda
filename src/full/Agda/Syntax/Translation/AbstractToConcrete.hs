@@ -752,6 +752,10 @@ instance ToConcrete A.Declaration [C.Declaration] where
     x <- toConcrete x
     return [C.Open (getRange i) x defaultImportDir]
 
+  toConcrete (A.PatternSynDef x xs p) = do
+    C.QName x <- toConcrete x
+    bindToConcrete xs $ \xs -> (:[]) . C.PatternSyn (getRange x) x xs <$> toConcrete p
+
 
 data RangeAndPragma = RangeAndPragma Range A.Pragma
 

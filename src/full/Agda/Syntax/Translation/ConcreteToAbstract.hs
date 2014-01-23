@@ -1191,13 +1191,13 @@ instance ToAbstract NiceDeclaration A.Declaration where
 
       y <- freshAbstractQName fx n
       bindName PublicAccess PatternSynName n y
-      defn <- withLocalVars $ do
-               p  <- killRange <$> (toAbstract =<< toAbstract =<< parsePatternSyn p)
-               as <- (traverse . mapM) (\a -> unVarName =<< resolveName (C.QName a)) as
-               as <- (map . fmap) unBlind <$> toAbstract ((map . fmap) Blind as)
-               return (as, p)
+      defn@(as, p) <- withLocalVars $ do
+         p  <- toAbstract =<< toAbstract =<< parsePatternSyn p
+         as <- (traverse . mapM) (unVarName <=< resolveName . C.QName) as
+         as <- (map . fmap) unBlind <$> toAbstract ((map . fmap) Blind as)
+         return (as, p)
       modifyPatternSyns (Map.insert y defn)
-      return []
+      return [A.PatternSynDef y as p]   -- only for highlighting
       where unVarName (VarName a) = return a
             unVarName _           = typeError $ UnusedVariableInPatternSynonym
 

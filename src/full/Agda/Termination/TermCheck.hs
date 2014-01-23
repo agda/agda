@@ -117,7 +117,8 @@ termDecl' d = case d of
     A.Import {}           -> return mempty
     A.Pragma {}           -> return mempty
     A.Open {}             -> return mempty
-        -- open is just an artifact from the concrete syntax
+    A.PatternSynDef {}    -> return mempty
+        -- open and pattern synonym defs are just artifacts from the concrete syntax
     A.ScopedDecl{}        -> __IMPOSSIBLE__
         -- taken care of above
     A.RecSig{}            -> return mempty

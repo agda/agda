@@ -220,6 +220,7 @@ generateAndPrintSyntaxInfo decl hlLevel = do
     , Fold.foldMap getLam         $ universeBi decl
     , Fold.foldMap getTyped       $ universeBi decl
     , Fold.foldMap getPattern     $ universeBi decl
+    , Fold.foldMap getPatSynArgs  $ universeBi decl
     , Fold.foldMap getModuleName  $ universeBi decl
     , Fold.foldMap getModuleInfo  $ universeBi decl
     ]
@@ -260,6 +261,10 @@ generateAndPrintSyntaxInfo decl hlLevel = do
     getTyped :: A.TypedBinding -> File
     getTyped (A.TBind _ xs _) = mconcat $ map bound xs
     getTyped A.TLet{}         = mempty
+
+    getPatSynArgs :: A.Declaration -> File
+    getPatSynArgs (A.PatternSynDef _ xs _) = mconcat $ map (bound . SC.unArg) xs
+    getPatSynArgs _                        = mempty
 
     getPattern :: A.Pattern -> File
     getPattern (A.VarP x)    = bound x
@@ -351,11 +356,11 @@ nameKinds hlLevel decl = do
   imported <- fix . stImports <$> get
   local    <- case hlLevel of
     Full _ -> fix . stSignature <$> get
-    _      -> return $
+    _      -> return HMap.empty
       -- Traverses the syntax tree and constructs a map from qualified
       -- names to name kinds. TODO: Handle open public.
-      foldr ($) HMap.empty $ map declToKind $ universeBi decl
-  let merged = HMap.union local imported
+  let syntax = foldr ($) HMap.empty $ map declToKind $ universeBi decl
+  let merged = HMap.unions [local, imported, syntax]
   return (\n -> HMap.lookup n merged)
   where
   fix = HMap.map (defnToKind . theDef) . sigDefinitions
@@ -394,6 +399,7 @@ nameKinds hlLevel decl = do
   declToKind (A.Pragma {})          = id
   declToKind (A.ScopedDecl {})      = id
   declToKind (A.Open {})            = id
+  declToKind (A.PatternSynDef q _ _) = insert q (Constructor SC.Inductive)
   declToKind (A.FunDef  _ q _ _)    = insert q Function
   declToKind (A.DataSig _ q _ _)    = insert q Datatype
   declToKind (A.DataDef _ q _ cs)   = \m ->

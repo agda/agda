@@ -118,6 +118,8 @@ data Declaration
         | RecDef     DefInfo QName (Maybe Induction) (Maybe QName) [LamBinding] Expr [Declaration]
             -- ^ The 'Expr' gives the constructor type telescope, @(x1 : A1)..(xn : An) -> Prop@,
             --   and the optional name is the constructor's name.
+        | PatternSynDef QName [Arg Name] Pattern
+            -- ^ Only for highlighting purposes
 	| ScopedDecl ScopeInfo [Declaration]  -- ^ scope annotation
         deriving (Typeable, Show)
 
@@ -483,6 +485,7 @@ instance HasRange Declaration where
     getRange (DataDef    i _ _ _    ) = getRange i
     getRange (RecSig     i _ _ _    ) = getRange i
     getRange (RecDef   i _ _ _ _ _ _) = getRange i
+    getRange (PatternSynDef x _ _   ) = getRange x
 
 instance HasRange (Pattern' e) where
     getRange (VarP x)	         = getRange x
@@ -592,6 +595,7 @@ instance KillRange Declaration where
   killRange (DataDef i a b c          ) = killRange4 DataDef i a b c
   killRange (RecSig  i a b c          ) = killRange4 RecSig  i a b c
   killRange (RecDef  i a b c d e f    ) = killRange7 RecDef  i a b c d e f
+  killRange (PatternSynDef x xs p     ) = killRange3 PatternSynDef x xs p
 
 instance KillRange ModuleApplication where
   killRange (SectionApp a b c  ) = killRange3 SectionApp a b c
@@ -667,6 +671,7 @@ allNames (DataDef _ q _ decls)    = q <| Fold.foldMap allNames decls
 allNames (RecSig _ q _ _)         = Seq.singleton q
 allNames (RecDef _ q _ c _ _ decls) =
   q <| foldMap Seq.singleton c >< Fold.foldMap allNames decls
+allNames (PatternSynDef q _ _)    = Seq.singleton q
 allNames (FunDef _ q _ cls)       = q <| Fold.foldMap allNamesC cls
   where
   allNamesC :: Clause -> Seq QName
