@@ -335,9 +335,12 @@ copyScope new s = runStateT (copy new s) (Map.empty, Map.empty)
       x <- f $ amodName m
       return m { amodName = x }
 
-    onName f d = do
-      x <- f $ anameName d
-      return d { anameName = x }
+    onName f d =
+      case anameKind d of
+        PatternSynName -> return d  -- Pattern synonyms are simply aliased, not renamed
+        _ -> do
+          x <- f $ anameName d
+          return d { anameName = x }
 
     addName x y = addNames (Map.singleton x y)
     addMod  x y = addMods (Map.singleton x y)

@@ -409,6 +409,8 @@ Language
 
   * Empty where blocks are now allowed. [Issue 947]
 
+  * Pattern synonyms are now allowed in parameterised modules. [Issue 941]
+
   * Empty hiding and renaming lists in module directives are now allowed.
 
   * Module directives using, hiding, renaming and public can now appear in

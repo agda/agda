@@ -1184,10 +1184,6 @@ instance ToAbstract NiceDeclaration A.Declaration where
     NicePatternSyn r fx n as p -> do
       reportSLn "scope.pat" 10 $ "found nice pattern syn: " ++ show r
 
-      isparameterised <- not . null <$> getLocalVars
-      when isparameterised $ typeError $ NotSupported
-          "pattern synonym in parameterised module"
-
       y <- freshAbstractQName fx n
       bindName PublicAccess PatternSynName n y
       defn <- withLocalVars $ do
