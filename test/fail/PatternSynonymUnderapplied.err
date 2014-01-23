@@ -1,5 +1,4 @@
 PatternSynonymUnderapplied.agda:11,3-7
 Too few arguments to pattern synonym
 PatternSynonymUnderapplied.suc'
-when scope checking the left-hand side f suc' in the definition of
-f
+when checking that the clause f suc' = zero has type Nat → Nat

@@ -1,4 +1,3 @@
 PatternSynonymOverapplied2.agda:11,4-12
 Bad arguments to pattern synonym PatternSynonymOverapplied2.suc'
-when scope checking the left-hand side f (suc' m n) in the
-definition of f
+when checking that the clause f suc' = n has type Nat → Nat

@@ -7,6 +7,7 @@ import Data.Maybe
 import Control.Applicative
 import Control.Monad
 import Control.Monad.State
+import Data.Traversable
 
 import Agda.Interaction.Options
 import Agda.Interaction.Options.Lenses
@@ -294,6 +295,30 @@ bindAsPatterns (AsB x v a : asb) ret = do
         , text "=" <+> prettyTCM v
         ]
   addLetBinding defaultArgInfo x v a $ bindAsPatterns asb ret
+
+expandPatternSynonyms :: A.Pattern -> TCM A.Pattern
+expandPatternSynonyms p =
+  case p of
+    A.VarP{}             -> pure p
+    A.WildP{}            -> pure p
+    A.DotP{}             -> pure p
+    A.ImplicitP{}        -> pure p
+    A.LitP{}             -> pure p
+    A.AbsurdP{}          -> pure p
+    A.ConP i ds as       -> A.ConP i ds <$> (traverse . traverse . traverse) expandPatternSynonyms as
+    A.DefP i q as        -> A.DefP i q <$> (traverse . traverse . traverse) expandPatternSynonyms as
+    A.AsP i x p          -> A.AsP i x <$> expandPatternSynonyms p
+    A.PatternSynP i x as ->
+      setCurrentRange (getRange i) $ do
+        p <- killRange <$> lookupPatternSyn x
+        expandPatternSynonyms =<< instPatternSyn p as
+      where
+        instPatternSyn :: A.PatternSynDefn -> [A.NamedArg A.Pattern] -> TCM A.Pattern
+        instPatternSyn (ns, p) as = do
+          case A.insertImplicitPatSynArgs (A.ImplicitP . PatRange) (getRange x) ns as of
+            Nothing       -> typeError $ GenericError $ "Bad arguments to pattern synonym " ++ show x
+            Just (_, _:_) -> typeError $ GenericError $ "Too few arguments to pattern synonym " ++ show x
+            Just (s, [])  -> return $ A.substPattern s $ setRange (getRange i) p
 
 -- | Check a LHS. Main function.
 --

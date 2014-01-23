@@ -1489,17 +1489,7 @@ instance ToAbstract (A.Pattern' C.Expr) (A.Pattern' A.Expr) where
     toAbstract (A.AbsurdP i)          = return $ A.AbsurdP i
     toAbstract (A.LitP l)             = return $ A.LitP l
     toAbstract (A.ImplicitP i)        = return $ A.ImplicitP i
-    toAbstract (A.PatternSynP i x as) = setCurrentRange (getRange i) $ do
-        p   <- lookupPatternSyn x
-        as' <- mapM toAbstract as
-        instPatternSyn p as'
-      where
-        instPatternSyn :: A.PatternSynDefn -> [A.NamedArg A.Pattern] -> ScopeM A.Pattern
-        instPatternSyn (ns, p) as = do
-          case insertImplicitPatSynArgs (A.ImplicitP . PatRange) (getRange x) ns as of
-            Nothing       -> typeError $ GenericError $ "Bad arguments to pattern synonym " ++ show x
-            Just (_, _:_) -> typeError $ GenericError $ "Too few arguments to pattern synonym " ++ show x
-            Just (s, [])  -> return $ substPattern s $ setRange (getRange i) p
+    toAbstract (A.PatternSynP i x as) = A.PatternSynP i x <$> mapM toAbstract as
 
 instance ToAbstract C.Pattern (A.Pattern' C.Expr) where
 
