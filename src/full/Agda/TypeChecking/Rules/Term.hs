@@ -759,9 +759,10 @@ checkApplication hd args e t = do
       -- Expand the pattern synonym by substituting for
       -- the arguments we have got and lambda-lifting
       -- over the ones we haven't.
-      let (zs, ns', as) = zipWithTails (\n a -> (n, namedThing (unArg a))) ns args
+                          -- TODO[ issue860 ]: deal with hiding
+      let (zs, ns', as) = zipWithTails (\n a -> (unArg n, namedThing (unArg a))) ns args
           p'            = A.patternToExpr $ setRange (getRange n) p
-          e'            = A.lambdaLiftExpr ns' (A.substExpr zs p') `A.app` as
+          e'            = A.lambdaLiftExpr (map unArg ns') (A.substExpr zs p') `A.app` as
       checkExpr e' t
 
     -- Subcase: defined symbol or variable.

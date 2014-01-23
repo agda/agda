@@ -1192,7 +1192,7 @@ instance ToAbstract NiceDeclaration A.Declaration where
                return (as', p')
       modifyPatternSyns (Map.insert y defn)
       return []
-      where unVarName (VarName a) = return a
+      where unVarName (VarName a) = return $ defaultArg a
             unVarName _           = typeError $ UnusedVariableInPatternSynonym
 
     where
@@ -1493,7 +1493,8 @@ instance ToAbstract (A.Pattern' C.Expr) (A.Pattern' A.Expr) where
             | length ns == length as = return $ substPattern s $ setRange (getRange i) p
             | otherwise              = typeError $ PatternSynonymArityMismatch x
           where
-          s = zipWith' (\n a -> (n, namedThing (unArg a))) ns as
+              -- TODO[ issue860 ]: deal with hiding here
+          s = zipWith' (\n a -> (unArg n, namedThing (unArg a))) ns as
 
 
 instance ToAbstract C.Pattern (A.Pattern' C.Expr) where

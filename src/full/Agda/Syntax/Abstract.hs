@@ -786,7 +786,7 @@ patternToExpr (LitP l)            = Lit l
 patternToExpr (ImplicitP _)       = Underscore emptyMetaInfo
 patternToExpr (PatternSynP _ _ _) = __IMPOSSIBLE__
 
-type PatternSynDefn = ([Name], Pattern)
+type PatternSynDefn = ([Arg Name], Pattern)
 type PatternSynDefns = Map QName PatternSynDefn
 
 lambdaLiftExpr :: [Name] -> Expr -> Expr
