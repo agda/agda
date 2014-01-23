@@ -45,6 +45,7 @@ import Agda.Utils.Monad
 import Agda.Utils.QuickCheck
 import Agda.Utils.TestHelpers
 import Agda.Utils.Tuple
+
 }
 
 %name tokensParser Tokens
@@ -1031,10 +1032,15 @@ Syntax : 'syntax' Id HoleNames '=' SimpleIds  {%
 
 -- Pattern synonyms.
 PatternSyn :: { Declaration }
-PatternSyn : 'pattern' SpaceIds '=' Expr {% do
-  p <- exprToPattern $4
-  return (PatternSyn (getRange ($1,$2,$3,$4)) (head $2) (tail $2) p)
+PatternSyn : 'pattern' Id PatternSynArgs '=' Expr {% do
+  p <- exprToPattern $5
+  return (PatternSyn (getRange ($1,$2,$3,$4,$5)) $2 $3 p)
   }
+
+PatternSynArgs :: { [Arg Name] }
+PatternSynArgs
+  : {- empty -} { [] }
+  | LamBinds    {% patternSynArgs $1 }
 
 SimpleIds :: { [String] }
 SimpleIds : SimpleId { [$1] }
@@ -1567,6 +1573,16 @@ maybeNamed e =
   case isEqual e of
     Just (Ident (QName x), b) -> named (show x) b
     _                         -> unnamed e
+
+patternSynArgs :: [Either Hiding LamBinding] -> Parser [Arg Name]
+patternSynArgs = mapM pSynArg
+  where
+    pSynArg Left{}                   = parseError "Absurd patterns are not allowed in pattern synonyms"
+    pSynArg (Right DomainFull{})     = parseError "Unexpected type signature in pattern synonym argument"
+    pSynArg (Right (DomainFree a x))
+      | getHiding a `notElem` [Hidden, NotHidden] = parseError $ show (getHiding a) ++ " arguments not allowed to pattern synonyms"
+      | getRelevance a /= Relevant                = parseError "Arguments to pattern synonyms must be relevant"
+      | otherwise                                 = return $ Common.Arg a (boundName x)
 
 parsePanic s = parseError $ "Internal parser error: " ++ s ++ ". Please report this as a bug."
 

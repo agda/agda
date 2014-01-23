@@ -747,23 +747,25 @@ checkApplication hd args e t = do
         Nothing -> postponeTypeCheckingProblem (CheckExpr e t) unblock
 
     -- Subcase: non-ambiguous constructor
-    (A.Con (AmbQ [c])) -> do
+    A.Con (AmbQ [c]) -> do
       -- augment c with record fields, but do not revert to original name
       con <- getOrigConHead c
 --      con <- setConName c . conSrcCon . theDef <$> getConstInfo c
       checkConstructorApplication e t con $ map convColor args
 
     -- Subcase: pattern synonym
-    (A.PatternSyn n) -> do
+    A.PatternSyn n -> do
       (ns, p) <- lookupPatternSyn n
       -- Expand the pattern synonym by substituting for
       -- the arguments we have got and lambda-lifting
       -- over the ones we haven't.
-                          -- TODO[ issue860 ]: deal with hiding
-      let (zs, ns', as) = zipWithTails (\n a -> (unArg n, namedThing (unArg a))) ns args
-          p'            = A.patternToExpr $ setRange (getRange n) p
-          e'            = A.lambdaLiftExpr (map unArg ns') (A.substExpr zs p') `A.app` as
-      checkExpr e' t
+      let meta r = A.Underscore $ A.emptyMetaInfo{ A.metaRange = r }   -- TODO: name suggestion
+      case A.insertImplicitPatSynArgs meta (getRange n) ns args of
+        Nothing      -> typeError $ GenericError $ "Bad arguments to pattern synonym " ++ show n
+        Just (s, ns) -> do
+          let p' = A.patternToExpr $ setRange (getRange n) p
+              e' = A.lambdaLiftExpr (map unArg ns) (A.substExpr s p')
+          checkExpr e' t
 
     -- Subcase: defined symbol or variable.
     _ -> checkHeadApplication e t hd $ map convColor args

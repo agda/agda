@@ -302,7 +302,7 @@ data Declaration
           -- ^ The optional name is a name for the record constructor.
 	| Infix Fixity [Name]
         | Syntax      Name Notation -- ^ notation declaration for a name
-        | PatternSyn  !Range Name [Name] Pattern
+        | PatternSyn  !Range Name [Arg Name] Pattern
 	| Mutual      !Range [Declaration]
 	| Abstract    !Range [Declaration]
 	| Private     !Range [Declaration]

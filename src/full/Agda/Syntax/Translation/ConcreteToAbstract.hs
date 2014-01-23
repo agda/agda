@@ -975,6 +975,11 @@ instance ToAbstract LetDef [A.LetBinding] where
                     i' = ExprRange (fuseRange i e)
             lambda _ _ = notAValidLetBinding d
 
+newtype Blind a = Blind { unBlind :: a }
+
+instance ToAbstract (Blind a) (Blind a) where
+  toAbstract = return
+
 -- The only reason why we return a list is that open declarations disappears.
 -- For every other declaration we get a singleton list.
 instance ToAbstract NiceDeclaration A.Declaration where
@@ -1187,12 +1192,13 @@ instance ToAbstract NiceDeclaration A.Declaration where
       y <- freshAbstractQName fx n
       bindName PublicAccess PatternSynName n y
       defn <- withLocalVars $ do
-               p'   <- killRange <$> (toAbstract =<< toAbstract =<< parsePatternSyn p)
-               as'  <- mapM (\a -> unVarName =<< resolveName (C.QName a)) as
-               return (as', p')
+               p  <- killRange <$> (toAbstract =<< toAbstract =<< parsePatternSyn p)
+               as <- (traverse . mapM) (\a -> unVarName =<< resolveName (C.QName a)) as
+               as <- (map . fmap) unBlind <$> toAbstract ((map . fmap) Blind as)
+               return (as, p)
       modifyPatternSyns (Map.insert y defn)
       return []
-      where unVarName (VarName a) = return $ defaultArg a
+      where unVarName (VarName a) = return a
             unVarName _           = typeError $ UnusedVariableInPatternSynonym
 
     where
@@ -1483,19 +1489,17 @@ instance ToAbstract (A.Pattern' C.Expr) (A.Pattern' A.Expr) where
     toAbstract (A.AbsurdP i)          = return $ A.AbsurdP i
     toAbstract (A.LitP l)             = return $ A.LitP l
     toAbstract (A.ImplicitP i)        = return $ A.ImplicitP i
-    toAbstract (A.PatternSynP i x as) = do
+    toAbstract (A.PatternSynP i x as) = setCurrentRange (getRange i) $ do
         p   <- lookupPatternSyn x
         as' <- mapM toAbstract as
         instPatternSyn p as'
       where
         instPatternSyn :: A.PatternSynDefn -> [A.NamedArg A.Pattern] -> ScopeM A.Pattern
-        instPatternSyn (ns, p) as
-            | length ns == length as = return $ substPattern s $ setRange (getRange i) p
-            | otherwise              = typeError $ PatternSynonymArityMismatch x
-          where
-              -- TODO[ issue860 ]: deal with hiding here
-          s = zipWith' (\n a -> (unArg n, namedThing (unArg a))) ns as
-
+        instPatternSyn (ns, p) as = do
+          case insertImplicitPatSynArgs (A.ImplicitP . PatRange) (getRange x) ns as of
+            Nothing       -> typeError $ GenericError $ "Bad arguments to pattern synonym " ++ show x
+            Just (_, _:_) -> typeError $ GenericError $ "Too few arguments to pattern synonym " ++ show x
+            Just (s, [])  -> return $ substPattern s $ setRange (getRange i) p
 
 instance ToAbstract C.Pattern (A.Pattern' C.Expr) where
 

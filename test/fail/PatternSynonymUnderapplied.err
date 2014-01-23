@@ -1,4 +1,5 @@
-PatternSynonymUnderapplied.agda:11,1-7
-Arity mismatch when using pattern synonym suc'
+PatternSynonymUnderapplied.agda:11,3-7
+Too few arguments to pattern synonym
+PatternSynonymUnderapplied.suc'
 when scope checking the left-hand side f suc' in the definition of
 f

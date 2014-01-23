@@ -65,7 +65,7 @@ data NiceDeclaration
         | FunDef  Range [Declaration] Fixity' IsAbstract TerminationCheck Name [Clause] -- ^ block of function clauses (we have seen the type signature before)
         | DataDef Range Fixity' IsAbstract Name [LamBinding] [NiceConstructor]
         | RecDef Range Fixity' IsAbstract Name (Maybe Induction) (Maybe (ThingWithFixity Name)) [LamBinding] [NiceDeclaration]
-        | NicePatternSyn Range Fixity' Name [Name] Pattern
+        | NicePatternSyn Range Fixity' Name [Arg Name] Pattern
     deriving (Typeable, Show)
 
 -- | Termination check? (Default = True).

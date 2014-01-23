@@ -12,6 +12,7 @@ module Agda.Syntax.Abstract
     ) where
 
 import Prelude hiding (foldl, foldr)
+import Control.Arrow ((***), first, second)
 import Control.Applicative
 import Data.Sequence (Seq, (<|), (><))
 import qualified Data.Sequence as Seq
@@ -864,3 +865,27 @@ substTypedBinding :: [(Name, Expr)] -> TypedBinding -> TypedBinding
 substTypedBinding s tb = case tb of
   TBind r ns e -> TBind r ns $ substExpr s e
   TLet r lbs   -> TLet r $ substLetBindings s lbs
+
+-- TODO: more informative failure
+insertImplicitPatSynArgs :: HasRange a => (Range -> a) -> Range -> [Arg Name] -> [NamedArg a] ->
+                            Maybe ([(Name, a)], [Arg Name])
+insertImplicitPatSynArgs wild r ns as = matchArgs r ns as
+  where
+    matchNextArg r n as@(~(a : as'))
+      | matchNext n as           = return (namedArg a, as')
+      | getHiding n == NotHidden = Nothing
+      | otherwise                = return (wild r, as)
+
+    matchNext _ [] = False
+    matchNext n (a:as) = getHiding n == getHiding a && matchName
+      where
+        x = show $ nameConcrete $ unArg n
+        matchName = maybe True (== x) (nameOf $ unArg a)
+
+    matchArgs r [] []     = return ([], [])
+    matchArgs r [] as     = Nothing
+    matchArgs r (n:ns) [] | getHiding n == NotHidden = return ([], n : ns)    -- under-applied
+    matchArgs r (n:ns) as = do
+      (p, as) <- matchNextArg r n as
+      first ((unArg n, p) :) <$> matchArgs (getRange p) ns as
+
