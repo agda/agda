@@ -12,7 +12,7 @@ open Nat.≤-Reasoning
 import Data.Nat.Properties as NP
 open import Data.Digit
 open import Data.Fin as Fin using (Fin; zero) renaming (suc to 1+_)
-open import Data.Fin.Props as FP using (_+′_)
+open import Data.Fin.Properties as FP using (_+′_)
 open import Data.List as List hiding (downFrom)
 open import Function
 open import Data.Product

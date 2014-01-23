@@ -14,7 +14,7 @@ open import Data.Vec.Equality as VecEq
   using () renaming (module PropositionalEquality to PropVecEq)
 open import Data.Fin
 open import Data.Fin.Subset
-open import Data.Fin.Subset.Props
+open import Data.Fin.Subset.Properties
 open import Data.Product as Prod
 open import Data.Empty
 open import Function

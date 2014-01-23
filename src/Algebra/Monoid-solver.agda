@@ -9,7 +9,7 @@ open import Algebra
 module Algebra.Monoid-solver {m₁ m₂} (M : Monoid m₁ m₂) where
 
 open import Data.Fin
-import Data.Fin.Props as Fin
+import Data.Fin.Properties as Fin
 open import Data.List
 open import Data.Maybe as Maybe
   using (Maybe; decToMaybe; From-just; from-just)

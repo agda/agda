@@ -10,7 +10,7 @@ open import Data.Nat as Nat
 open import Data.Nat.DivMod
 import Data.Nat.Properties as NatProp
 open import Data.Fin as Fin using (Fin; zero; suc)
-import Data.Fin.Props as FP
+import Data.Fin.Properties as FP
 open NatProp.SemiringSolver
 open import Algebra
 private

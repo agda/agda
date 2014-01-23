@@ -5,7 +5,7 @@
 -- properties (or other properties not available in Data.Fin)
 ------------------------------------------------------------------------
 
-module Data.Fin.Props where
+module Data.Fin.Properties where
 
 open import Algebra
 open import Data.Fin

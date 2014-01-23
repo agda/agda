@@ -9,7 +9,7 @@ module Induction.Nat where
 open import Function
 open import Data.Nat
 open import Data.Fin using (_≺_)
-open import Data.Fin.Props
+open import Data.Fin.Properties
 open import Data.Product
 open import Data.Unit
 open import Induction

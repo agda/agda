@@ -8,7 +8,7 @@ module Data.Nat.Coprimality where
 
 open import Data.Empty
 open import Data.Fin using (toℕ; fromℕ≤)
-open import Data.Fin.Props as FinProp
+open import Data.Fin.Properties as FinProp
 open import Data.Nat
 open import Data.Nat.Primality
 import Data.Nat.Properties as NatProp

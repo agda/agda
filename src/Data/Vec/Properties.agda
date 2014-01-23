@@ -17,7 +17,7 @@ open import Data.Nat
 open import Data.Empty using (⊥-elim)
 import Data.Nat.Properties as Nat
 open import Data.Fin as Fin using (Fin; zero; suc; toℕ; fromℕ)
-open import Data.Fin.Props using (_+′_)
+open import Data.Fin.Properties using (_+′_)
 open import Data.Empty using (⊥-elim)
 open import Data.Product using (_×_ ; _,_)
 open import Function

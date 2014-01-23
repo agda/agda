@@ -4,7 +4,7 @@
 -- Some properties about subsets
 ------------------------------------------------------------------------
 
-module Data.Fin.Subset.Props where
+module Data.Fin.Subset.Properties where
 
 open import Algebra
 import Algebra.Props.BooleanAlgebra as BoolProp

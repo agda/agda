@@ -10,7 +10,7 @@ open import Data.Nat as Nat
 open import Data.Nat.Properties
 open SemiringSolver
 open import Data.Fin as Fin using (Fin; zero; suc; toℕ; fromℕ)
-import Data.Fin.Props as Fin
+import Data.Fin.Properties as Fin
 open import Induction.Nat
 open import Relation.Nullary.Decidable
 open import Relation.Binary.PropositionalEquality
