@@ -6,10 +6,10 @@
 
 open import Algebra
 
-module Algebra.Props.AbelianGroup
+module Algebra.Properties.AbelianGroup
          {g₁ g₂} (G : AbelianGroup g₁ g₂) where
 
-import Algebra.Props.Group as GP
+import Algebra.Properties.Group as GP
 open import Data.Product
 open import Function
 import Relation.Binary.EqReasoning as EqR

@@ -6,7 +6,7 @@
 
 open import Relation.Binary
 
-module Relation.Binary.Props.TotalOrder
+module Relation.Binary.Properties.TotalOrder
          {t₁ t₂ t₃} (T : TotalOrder t₁ t₂ t₃) where
 
 open Relation.Binary.TotalOrder T

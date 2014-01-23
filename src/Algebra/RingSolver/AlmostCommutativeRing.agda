@@ -126,8 +126,8 @@ fromCommutativeRing CR = record
   }
   where
   open CommutativeRing CR
-  import Algebra.Props.Ring as R; open R ring
-  import Algebra.Props.AbelianGroup as AG; open AG +-abelianGroup
+  import Algebra.Properties.Ring as R; open R ring
+  import Algebra.Properties.AbelianGroup as AG; open AG +-abelianGroup
 
 -- Commutative semirings can be viewed as almost commutative rings by
 -- using identity as the "almost negation".

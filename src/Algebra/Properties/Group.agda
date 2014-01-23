@@ -6,7 +6,7 @@
 
 open import Algebra
 
-module Algebra.Props.Group {g₁ g₂} (G : Group g₁ g₂) where
+module Algebra.Properties.Group {g₁ g₂} (G : Group g₁ g₂) where
 
 open Group G
 import Algebra.FunctionProperties as P; open P _≈_

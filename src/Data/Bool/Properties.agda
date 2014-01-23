@@ -243,7 +243,7 @@ private
 commutativeRing-xor-∧ : CommutativeRing _ _
 commutativeRing-xor-∧ = commutativeRing
   where
-  import Algebra.Props.BooleanAlgebra as BA
+  import Algebra.Properties.BooleanAlgebra as BA
   open BA booleanAlgebra
   open XorRing _xor_ xor-is-ok
 

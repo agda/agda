@@ -6,7 +6,7 @@
 
 open import Relation.Binary
 
-module Relation.Binary.Props.Poset
+module Relation.Binary.Properties.Poset
          {p₁ p₂ p₃} (P : Poset p₁ p₂ p₃) where
 
 open Relation.Binary.Poset P hiding (trans)

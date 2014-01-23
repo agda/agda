@@ -9,7 +9,7 @@ module Data.Integer.Properties where
 open import Algebra
 import Algebra.FunctionProperties
 import Algebra.Morphism as Morphism
-import Algebra.Props.AbelianGroup
+import Algebra.Properties.AbelianGroup
 open import Algebra.Structures
 open import Data.Integer hiding (suc; _≤?_)
 import Data.Integer.Addition.Properties as Add
@@ -118,7 +118,7 @@ private
     ; comm = +-comm
     }
 
-  open Algebra.Props.AbelianGroup
+  open Algebra.Properties.AbelianGroup
          (record { isAbelianGroup = +-isAbelianGroup })
     using () renaming (⁻¹-involutive to -‿involutive)
 

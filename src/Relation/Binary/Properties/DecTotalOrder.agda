@@ -6,7 +6,7 @@
 
 open import Relation.Binary
 
-module Relation.Binary.Props.DecTotalOrder
+module Relation.Binary.Properties.DecTotalOrder
          {d₁ d₂ d₃} (DT : DecTotalOrder d₁ d₂ d₃) where
 
 open Relation.Binary.DecTotalOrder DT hiding (trans)

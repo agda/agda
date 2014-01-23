@@ -6,14 +6,14 @@
 
 open import Algebra
 
-module Algebra.Props.DistributiveLattice
+module Algebra.Properties.DistributiveLattice
          {dl₁ dl₂} (DL : DistributiveLattice dl₁ dl₂)
          where
 
 open DistributiveLattice DL
-import Algebra.Props.Lattice
+import Algebra.Properties.Lattice
 private
-  open module L = Algebra.Props.Lattice lattice public
+  open module L = Algebra.Properties.Lattice lattice public
     hiding (replace-equality)
 open import Algebra.Structures
 import Algebra.FunctionProperties as P; open P _≈_

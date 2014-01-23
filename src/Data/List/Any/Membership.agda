@@ -32,7 +32,7 @@ open import Data.Sum as Sum
 open import Relation.Binary
 open import Relation.Binary.PropositionalEquality as P
   using (_≡_; refl; _≗_)
-import Relation.Binary.Props.DecTotalOrder as DTOProps
+import Relation.Binary.Properties.DecTotalOrder as DTOProperties
 import Relation.Binary.Sigma.Pointwise as Σ
 open import Relation.Unary using (_⟨×⟩_)
 open import Relation.Nullary
@@ -221,7 +221,7 @@ finite {A = A} inj (x ∷ xs) ∈x∷xs = excluded-middle helper
 
   module DTO = DecTotalOrder Nat.decTotalOrder
   module STO = StrictTotalOrder
-                 (DTOProps.strictTotalOrder Nat.decTotalOrder)
+                 (DTOProperties.strictTotalOrder Nat.decTotalOrder)
   module CS  = CommutativeSemiring NatProp.commutativeSemiring
 
   not-x : ∀ {i} → ¬ (to ⟨$⟩ i ≡ x) → to ⟨$⟩ i ∈ xs

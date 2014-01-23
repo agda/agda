@@ -6,7 +6,7 @@
 
 open import Relation.Binary
 
-module Relation.Binary.Props.StrictPartialOrder
+module Relation.Binary.Properties.StrictPartialOrder
        {s₁ s₂ s₃} (SPO : StrictPartialOrder s₁ s₂ s₃) where
 
 open Relation.Binary.StrictPartialOrder SPO

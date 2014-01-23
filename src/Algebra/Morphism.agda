@@ -9,7 +9,7 @@ module Algebra.Morphism where
 open import Relation.Binary
 open import Algebra
 open import Algebra.FunctionProperties
-import Algebra.Props.Group as GroupP
+import Algebra.Properties.Group as GroupP
 open import Function
 open import Data.Product
 open import Level

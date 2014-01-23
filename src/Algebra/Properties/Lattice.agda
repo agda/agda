@@ -6,7 +6,7 @@
 
 open import Algebra
 
-module Algebra.Props.Lattice {l₁ l₂} (L : Lattice l₁ l₂) where
+module Algebra.Properties.Lattice {l₁ l₂} (L : Lattice l₁ l₂) where
 
 open Lattice L
 open import Algebra.Structures

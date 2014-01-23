@@ -7,8 +7,8 @@
 module Data.Fin.Subset where
 
 open import Algebra
-import Algebra.Props.BooleanAlgebra as BoolAlgProp
-import Algebra.Props.BooleanAlgebra.Expression as BAExpr
+import Algebra.Properties.BooleanAlgebra as BoolAlgProp
+import Algebra.Properties.BooleanAlgebra.Expression as BAExpr
 import Data.Bool.Properties as BoolProp
 open import Data.Fin
 open import Data.List as List using (List)

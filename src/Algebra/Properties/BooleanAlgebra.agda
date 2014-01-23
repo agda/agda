@@ -6,14 +6,14 @@
 
 open import Algebra
 
-module Algebra.Props.BooleanAlgebra
+module Algebra.Properties.BooleanAlgebra
          {b₁ b₂} (B : BooleanAlgebra b₁ b₂)
          where
 
 open BooleanAlgebra B
-import Algebra.Props.DistributiveLattice
+import Algebra.Properties.DistributiveLattice
 private
-  open module DL = Algebra.Props.DistributiveLattice
+  open module DL = Algebra.Properties.DistributiveLattice
                      distributiveLattice public
     hiding (replace-equality)
 open import Algebra.Structures

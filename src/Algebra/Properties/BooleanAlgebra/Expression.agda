@@ -6,7 +6,7 @@
 
 open import Algebra
 
-module Algebra.Props.BooleanAlgebra.Expression
+module Algebra.Properties.BooleanAlgebra.Expression
   {b} (B : BooleanAlgebra b b)
   where
 

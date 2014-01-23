@@ -6,9 +6,9 @@
 
 open import Algebra
 
-module Algebra.Props.Ring {r₁ r₂} (R : Ring r₁ r₂) where
+module Algebra.Properties.Ring {r₁ r₂} (R : Ring r₁ r₂) where
 
-import Algebra.Props.AbelianGroup as AGP
+import Algebra.Properties.AbelianGroup as AGP
 open import Data.Product
 open import Function
 import Relation.Binary.EqReasoning as EqR
