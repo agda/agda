@@ -99,3 +99,16 @@ From ⇨ To = setoid From (B.Setoid.indexedSetoid To)
     ; trans = λ f∼g g∼h x → trans (f∼g x) (g∼h x)
     }
   } where open I.Setoid To
+
+-- Parameter swapping function.
+
+flip : ∀ {a₁ a₂} {A : B.Setoid a₁ a₂}
+         {b₁ b₂} {B : B.Setoid b₁ b₂}
+         {c₁ c₂} {C : B.Setoid c₁ c₂} →
+       A ⟶ B ⇨ C → B ⟶ A ⇨ C
+flip {B = B} f = record
+  { _⟨$⟩_ = λ b → record
+    { _⟨$⟩_ = λ a → f ⟨$⟩ a ⟨$⟩ b
+    ; cong  = λ a₁≈a₂ → cong f a₁≈a₂ (B.Setoid.refl B) }
+  ; cong  = λ b₁≈b₂ a₁≈a₂ → cong f a₁≈a₂ b₁≈b₂
+  }
