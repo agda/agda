@@ -48,7 +48,7 @@ import Agda.TypeChecking.EtaContract
 import Agda.TypeChecking.Quote
 import Agda.TypeChecking.CompiledClause
 import Agda.TypeChecking.Level
-import Agda.TypeChecking.Rules.LHS (checkLeftHandSide)
+import Agda.TypeChecking.Rules.LHS (checkLeftHandSide, expandPatternSynonyms)
 
 import Agda.Utils.Fresh
 import Agda.Utils.Tuple
@@ -756,6 +756,7 @@ checkApplication hd args e t = do
     -- Subcase: pattern synonym
     A.PatternSyn n -> do
       (ns, p) <- lookupPatternSyn n
+      p <- setRange (getRange n) . killRange <$> expandPatternSynonyms p  -- expand recursive pattern synonyms
       -- Expand the pattern synonym by substituting for
       -- the arguments we have got and lambda-lifting
       -- over the ones we haven't.
@@ -763,7 +764,7 @@ checkApplication hd args e t = do
       case A.insertImplicitPatSynArgs meta (getRange n) ns args of
         Nothing      -> typeError $ GenericError $ "Bad arguments to pattern synonym " ++ show n
         Just (s, ns) -> do
-          let p' = A.patternToExpr $ setRange (getRange n) p
+          let p' = A.patternToExpr p
               e' = A.lambdaLiftExpr (map unArg ns) (A.substExpr s p')
           checkExpr e' t
 
@@ -1372,6 +1373,7 @@ checkLetBinding b@(A.LetBind i info x t e) ret =
 
 checkLetBinding b@(A.LetPatBind i p e) ret =
   traceCallCPS_ (CheckLetBinding b) ret $ \ret -> do
+    p <- expandPatternSynonyms p
     (v, t) <- inferExpr e
     let -- construct a type  t -> dummy  for use in checkLeftHandSide
         t0 = El (getSort t) $ Pi (Dom defaultArgInfo t) (NoAbs "_" typeDontCare)

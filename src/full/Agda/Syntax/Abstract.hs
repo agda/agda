@@ -527,7 +527,7 @@ instance HasRange LetBinding where
 -- setRange for patterns applies the range to the outermost pattern constructor
 instance SetRange (Pattern' a) where
     setRange r (VarP x)             = VarP (setRange r x)
-    setRange r (ConP i ns as)       = ConP (setRange r i) (AmbQ $ map (setRange r) $ unAmbQ ns) as
+    setRange r (ConP i ns as)       = ConP (setRange r i) ns as
     setRange r (DefP _ n as)        = DefP (PatRange r) (setRange r n) as
     setRange r (WildP _)            = WildP (PatRange r)
     setRange r (ImplicitP _)        = ImplicitP (PatRange r)

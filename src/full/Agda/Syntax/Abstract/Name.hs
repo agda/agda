@@ -279,7 +279,9 @@ instance KillRange QName where
                   }
 
 instance KillRange Name where
-  killRange x = x { nameConcrete = killRange $ nameConcrete x }
+  killRange x = x { nameConcrete = killRange $ nameConcrete x
+                  , nameBindingSite = noRange
+                  }
 
 instance KillRange ModuleName where
   killRange (MName xs) = MName $ killRange xs

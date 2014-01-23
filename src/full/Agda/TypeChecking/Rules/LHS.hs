@@ -311,14 +311,17 @@ expandPatternSynonyms p =
     A.PatternSynP i x as ->
       setCurrentRange (getRange i) $ do
         p <- killRange <$> lookupPatternSyn x
-        expandPatternSynonyms =<< instPatternSyn p as
+                             -- Must expand arguments before instantiating otherwise pattern
+                             -- synonyms could get into dot patterns (which is __IMPOSSIBLE__)
+        instPatternSyn p =<< (traverse . traverse . traverse) expandPatternSynonyms as
       where
         instPatternSyn :: A.PatternSynDefn -> [A.NamedArg A.Pattern] -> TCM A.Pattern
         instPatternSyn (ns, p) as = do
+          p <- expandPatternSynonyms p
           case A.insertImplicitPatSynArgs (A.ImplicitP . PatRange) (getRange x) ns as of
             Nothing       -> typeError $ GenericError $ "Bad arguments to pattern synonym " ++ show x
             Just (_, _:_) -> typeError $ GenericError $ "Too few arguments to pattern synonym " ++ show x
-            Just (s, [])  -> return $ A.substPattern s $ setRange (getRange i) p
+            Just (s, [])  -> return $ setRange (getRange i) $ A.substPattern s p
 
 -- | Check a LHS. Main function.
 --

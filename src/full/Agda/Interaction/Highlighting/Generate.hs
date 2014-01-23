@@ -220,15 +220,17 @@ generateAndPrintSyntaxInfo decl hlLevel = do
     , Fold.foldMap getLam         $ universeBi decl
     , Fold.foldMap getTyped       $ universeBi decl
     , Fold.foldMap getPattern     $ universeBi decl
+    , Fold.foldMap getExpr        $ universeBi decl
     , Fold.foldMap getPatSynArgs  $ universeBi decl
     , Fold.foldMap getModuleName  $ universeBi decl
     , Fold.foldMap getModuleInfo  $ universeBi decl
     ]
     where
-    bound n = nameToFile modMap file []
-                         (A.nameConcrete n)
+    bound n = nameToFile modMap file [] (A.nameConcrete n)
                          (\isOp -> mempty { aspect = Just $ Name (Just Bound) isOp })
                          (Just $ A.nameBindingSite n)
+    patsyn n = nameToFileA modMap file n True $ \isOp ->
+                  mempty { aspect = Just $ Name (Just $ Constructor SC.Inductive) isOp }
     field m n = nameToFile modMap file m n
                            (\isOp -> mempty { aspect = Just $ Name (Just Field) isOp })
                            Nothing
@@ -272,7 +274,12 @@ generateAndPrintSyntaxInfo decl hlLevel = do
     getPattern (A.DotP pi _) =
       singleton (rToR $ P.getRange pi)
                 (mempty { otherAspects = [DottedPattern] })
+    getPattern (A.PatternSynP _ q _) = patsyn q
     getPattern _             = mempty
+
+    getExpr :: A.Expr -> File
+    getExpr (A.PatternSyn q) = patsyn q
+    getExpr _                = mempty
 
     getFieldDecl :: A.Declaration -> File
     getFieldDecl (A.RecDef _ _ _ _ _ _ fs) = Fold.foldMap extractField fs
@@ -443,7 +450,8 @@ generateConstructorInfo modMap file kinds decl = do
       terms    = universeBi (types, clauses)
 
       -- Find all constructors in the patterns and terms.
-      constrs = concatMap getConstructorP patterns ++
+      constrs = filter ((/= P.noRange) . P.getRange) $
+                concatMap getConstructorP patterns ++
                 concatMap getConstructor  terms
 
   -- Find all constructors in right-hand sides of delayed definitions.
