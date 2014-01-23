@@ -19,7 +19,7 @@ open import Data.Nat.DivMod
 
 import Data.Fin as F
 open import Data.Fin using (Fin)
-import Data.Fin.Props as F
+import Data.Fin.Properties as F
 
 import Data.List as L
 open import Data.List using (List)
