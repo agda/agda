@@ -26,109 +26,11 @@ open import Data.Product
 open import Data.Sum
 
 ------------------------------------------------------------------------
+
+-- basic lemmas about (ℕ, +, *, 0, 1):
+open import Data.Nat.Properties.Simple
+
 -- (ℕ, +, *, 0, 1) is a commutative semiring
-
-private
-
-  +-assoc : Associative _+_
-  +-assoc zero    _ _ = refl
-  +-assoc (suc m) n o = cong suc $ +-assoc m n o
-
-  +-identity : Identity 0 _+_
-  +-identity = (λ _ → refl) , n+0≡n
-    where
-    n+0≡n : RightIdentity 0 _+_
-    n+0≡n zero    = refl
-    n+0≡n (suc n) = cong suc $ n+0≡n n
-
-  m+1+n≡1+m+n : ∀ m n → m + suc n ≡ suc (m + n)
-  m+1+n≡1+m+n zero    n = refl
-  m+1+n≡1+m+n (suc m) n = cong suc (m+1+n≡1+m+n m n)
-
-  +-comm : Commutative _+_
-  +-comm zero    n = sym $ proj₂ +-identity n
-  +-comm (suc m) n =
-    begin
-      suc m + n
-    ≡⟨ refl ⟩
-      suc (m + n)
-    ≡⟨ cong suc (+-comm m n) ⟩
-      suc (n + m)
-    ≡⟨ sym (m+1+n≡1+m+n n m) ⟩
-      n + suc m
-    ∎
-
-  m*1+n≡m+mn : ∀ m n → m * suc n ≡ m + m * n
-  m*1+n≡m+mn zero    n = refl
-  m*1+n≡m+mn (suc m) n =
-    begin
-      suc m * suc n
-    ≡⟨ refl ⟩
-      suc n + m * suc n
-    ≡⟨ cong (λ x → suc n + x) (m*1+n≡m+mn m n) ⟩
-      suc n + (m + m * n)
-    ≡⟨ refl ⟩
-      suc (n + (m + m * n))
-    ≡⟨ cong suc (sym $ +-assoc n m (m * n)) ⟩
-      suc (n + m + m * n)
-    ≡⟨ cong (λ x → suc (x + m * n)) (+-comm n m) ⟩
-      suc (m + n + m * n)
-    ≡⟨ cong suc (+-assoc m n (m * n)) ⟩
-      suc (m + (n + m * n))
-    ≡⟨ refl ⟩
-      suc m + suc m * n
-    ∎
-
-  *-zero : Zero 0 _*_
-  *-zero = (λ _ → refl) , n*0≡0
-    where
-    n*0≡0 : RightZero 0 _*_
-    n*0≡0 zero    = refl
-    n*0≡0 (suc n) = n*0≡0 n
-
-  *-comm : Commutative _*_
-  *-comm zero    n = sym $ proj₂ *-zero n
-  *-comm (suc m) n =
-    begin
-      suc m * n
-    ≡⟨ refl ⟩
-      n + m * n
-    ≡⟨ cong (λ x → n + x) (*-comm m n) ⟩
-      n + n * m
-    ≡⟨ sym (m*1+n≡m+mn n m) ⟩
-      n * suc m
-    ∎
-
-  distribʳ-*-+ : _*_ DistributesOverʳ _+_
-  distribʳ-*-+ m zero    o = refl
-  distribʳ-*-+ m (suc n) o =
-                           begin
-      (suc n + o) * m
-                           ≡⟨ refl ⟩
-      m + (n + o) * m
-                           ≡⟨ cong (_+_ m) $ distribʳ-*-+ m n o ⟩
-      m + (n * m + o * m)
-                           ≡⟨ sym $ +-assoc m (n * m) (o * m) ⟩
-      m + n * m + o * m
-                           ≡⟨ refl ⟩
-      suc n * m + o * m
-                           ∎
-
-  *-assoc : Associative _*_
-  *-assoc zero    n o = refl
-  *-assoc (suc m) n o =
-                         begin
-    (suc m * n) * o
-                         ≡⟨ refl ⟩
-    (n + m * n) * o
-                         ≡⟨ distribʳ-*-+ o n (m * n) ⟩
-    n * o + (m * n) * o
-                         ≡⟨ cong (λ x → n * o + x) $ *-assoc m n o ⟩
-    n * o + m * (n * o)
-                         ≡⟨ refl ⟩
-    suc m * (n * o)
-                         ∎
-
 isCommutativeSemiring : IsCommutativeSemiring _≡_ _+_ _*_ 0 1
 isCommutativeSemiring = record
   { +-isCommutativeMonoid = record
@@ -137,7 +39,7 @@ isCommutativeSemiring = record
       ; assoc         = +-assoc
       ; ∙-cong        = cong₂ _+_
       }
-    ; identityˡ = proj₁ +-identity
+    ; identityˡ = λ _ → refl
     ; comm      = +-comm
     }
   ; *-isCommutativeMonoid = record
@@ -146,11 +48,11 @@ isCommutativeSemiring = record
       ; assoc         = *-assoc
       ; ∙-cong        = cong₂ _*_
       }
-    ; identityˡ = proj₂ +-identity
+    ; identityˡ = +-right-identity
     ; comm      = *-comm
     }
   ; distribʳ = distribʳ-*-+
-  ; zeroˡ    = proj₁ *-zero
+  ; zeroˡ    = λ _ → refl
   }
 
 commutativeSemiring : CommutativeSemiring _ _
@@ -477,7 +379,7 @@ n∸n≡0 zero    = refl
 n∸n≡0 (suc n) = n∸n≡0 n
 
 ∸-+-assoc : ∀ m n o → (m ∸ n) ∸ o ≡ m ∸ (n + o)
-∸-+-assoc m       n       zero    = cong (_∸_ m) (sym $ proj₂ +-identity n)
+∸-+-assoc m       n       zero    = cong (_∸_ m) (sym $ +-right-identity n)
 ∸-+-assoc zero    zero    (suc o) = refl
 ∸-+-assoc zero    (suc n) (suc o) = refl
 ∸-+-assoc (suc m) zero    (suc o) = refl
@@ -486,7 +388,7 @@ n∸n≡0 (suc n) = n∸n≡0 n
 +-∸-assoc : ∀ m {n o} → o ≤ n → (m + n) ∸ o ≡ m + (n ∸ o)
 +-∸-assoc m (z≤n {n = n})             = begin m + n ∎
 +-∸-assoc m (s≤s {m = o} {n = n} o≤n) = begin
-  (m + suc n) ∸ suc o  ≡⟨ cong (λ n → n ∸ suc o) (m+1+n≡1+m+n m n) ⟩
+  (m + suc n) ∸ suc o  ≡⟨ cong (λ n → n ∸ suc o) (+-suc m n) ⟩
   suc (m + n) ∸ suc o  ≡⟨ refl ⟩
   (m + n) ∸ o          ≡⟨ +-∸-assoc m o≤n ⟩
   m + (n ∸ o)          ∎
@@ -495,7 +397,7 @@ m+n∸n≡m : ∀ m n → (m + n) ∸ n ≡ m
 m+n∸n≡m m n = begin
   (m + n) ∸ n  ≡⟨ +-∸-assoc m (≤-refl {x = n}) ⟩
   m + (n ∸ n)  ≡⟨ cong (_+_ m) (n∸n≡0 n) ⟩
-  m + 0        ≡⟨ proj₂ +-identity m ⟩
+  m + 0        ≡⟨ +-right-identity m ⟩
   m            ∎
 
 m+n∸m≡n : ∀ {m n} → m ≤ n → m + (n ∸ m) ≡ n
@@ -540,9 +442,9 @@ i∸k∸j+j∸k≡i+j∸k (suc i) j zero = begin
                        ∎
 i∸k∸j+j∸k≡i+j∸k (suc i) zero (suc k) = begin
   i ∸ k + 0
-             ≡⟨ proj₂ +-identity _ ⟩
+             ≡⟨ +-right-identity _ ⟩
   i ∸ k
-             ≡⟨ cong (λ x → x ∸ k) (sym (proj₂ +-identity _)) ⟩
+             ≡⟨ cong (λ x → x ∸ k) (sym (+-right-identity _)) ⟩
   i + 0 ∸ k
              ∎
 i∸k∸j+j∸k≡i+j∸k (suc i) (suc j) (suc k) = begin
@@ -550,7 +452,7 @@ i∸k∸j+j∸k≡i+j∸k (suc i) (suc j) (suc k) = begin
                              ≡⟨ i∸k∸j+j∸k≡i+j∸k (suc i) j k ⟩
   suc i + j ∸ k
                              ≡⟨ cong (λ x → x ∸ k)
-                                     (sym (m+1+n≡1+m+n i j)) ⟩
+                                     (sym (+-suc i j)) ⟩
   i + suc j ∸ k
                              ∎
 
