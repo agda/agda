@@ -18,11 +18,14 @@
 %
 \\
 \>[0]\AgdaIndent{2}{}\<[2]%
-\>[2]\AgdaKeyword{pattern} two   \AgdaSymbol{=} suc \AgdaSymbol{(}suc zero\AgdaSymbol{)}\<%
+\>[2]\AgdaKeyword{pattern} \AgdaInductiveConstructor{two} \<[16]%
+\>[16]\AgdaSymbol{=} \AgdaInductiveConstructor{suc} \AgdaSymbol{(}\AgdaInductiveConstructor{suc} \AgdaInductiveConstructor{zero}\AgdaSymbol{)}\<%
 \\
 \>[0]\AgdaIndent{2}{}\<[2]%
-\>[2]\AgdaKeyword{pattern} three \AgdaSymbol{=} suc two\<\\
-\>\<\\
+\>[2]\AgdaKeyword{pattern} \AgdaInductiveConstructor{three} \AgdaSymbol{=} \AgdaInductiveConstructor{suc} \AgdaInductiveConstructor{two}\<%
+\\
+%
+\\
 \>\AgdaKeyword{data} \AgdaDatatype{Bot} \AgdaSymbol{:} \AgdaPrimitiveType{Set} \AgdaKeyword{where}\<%
 \end{code}
 
