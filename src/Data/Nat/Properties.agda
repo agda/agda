@@ -28,6 +28,9 @@ open import Data.Sum
 ------------------------------------------------------------------------
 -- (ℕ, +, *, 0, 1) is a commutative semiring
 
+-- if you want to use the lemmas marked as private below then you
+-- should use Data.Nat.Properties.Simple instead
+
 private
 
   +-assoc : Associative _+_
