@@ -11,7 +11,7 @@ if [ "`git status --porcelain`" != "" ]; then
   echo "Updates:"
   git status --porcelain
   changed=`git status --porcelain | cut -c4-`
-  git add -- $changed
+  git add --all -- $changed
   git commit -m "[auto] updated html listings"
   git push
 else
