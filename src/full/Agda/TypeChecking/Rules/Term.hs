@@ -1119,7 +1119,7 @@ checkHeadApplication e t hd args = do
       rel <- asks envRelevance
       addConstant c' (Defn (setRelevance rel defaultArgInfo)
                            c' t [] [] (defaultDisplayForm c')
-                  i noCompiledRep $ Axiom)
+                  i noCompiledRep $ emptyFunction)
 
       -- Define and type check the fresh function.
       ctx <- getContext >>= mapM (\d -> flip Dom (unDom d) <$> reify (domInfo d))
