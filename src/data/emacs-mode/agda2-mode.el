@@ -712,7 +712,7 @@ An error is raised if no responses are received."
                   (or ask (string-match "\\`\\s *\\'" txt)))
              (setq txt (read-string (concat want ": ") nil nil txt t)))
             (t (setq input-from-goal t)))
-      (apply 'agda2-go t nil cmd
+      (apply 'agda2-go t t cmd
              (format "%d" g)
              (if input-from-goal (agda2-goal-Range o) "noRange")
              (agda2-string-quote txt) args))))
@@ -778,7 +778,11 @@ The variable `agda2-backend' determines which backend is used."
 
 (defun agda2-give-action (old-g paren)
   "Update the goal OLD-G with the expression in it."
-  (agda2-update old-g paren))
+  (let
+     ;; Don't run modification hooks: we don't want this to
+      ;; trigger agda2-abort-highlighting.
+      ((inhibit-modification-hooks t))
+  (agda2-update old-g paren)))
 
 (defun agda2-refine (pmlambda)
   "Refine the goal at point.

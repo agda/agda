@@ -37,6 +37,7 @@ import Agda.Syntax.Concrete.Generic as C
 import Agda.Syntax.Concrete.Pretty ()
 import Agda.Syntax.Abstract as A
 import Agda.Syntax.Abstract.Pretty
+import Agda.Syntax.Info (mkDefInfo)
 import Agda.Syntax.Translation.ConcreteToAbstract
 import Agda.Syntax.Translation.AbstractToConcrete hiding (withScope)
 
@@ -742,6 +743,8 @@ give_gen
   -> GiveRefine
   -> StateT CommandState TCM ()
 give_gen ii rng s giveRefine = do
+  Just (file, _) <- gets $ theCurrentFile
+  local (\e -> e { envCurrentPath = file }) $ do
   let give_ref =
         case giveRefine of
           Give   -> B.give
@@ -765,6 +768,11 @@ give_gen ii rng s giveRefine = do
   -- WRONG: also, if no interaction metas were created by @Refine@
   -- WRONG: let literally = (giveRefine == Give || null iis) && rng /= noRange
   let literally = giveRefine == Give && rng /= noRange
+  -- Ulf, 2014-01-24: This works for give since we're highlighting the string
+  -- that's already in the buffer. Doing it before the give action means that
+  -- the highlighting is moved together with the text when the hole goes away.
+  -- To make it work for refine we'd have to adjust the ranges.
+  when literally $ lift $ highlightExpr ae
   putResponse $ Resp_GiveAction ii $ mkNewTxt literally ce
   -- display new goal set
   interpret Cmd_metas
@@ -776,6 +784,17 @@ give_gen ii rng s giveRefine = do
     mkNewTxt True  _         = Give_NoParen
     -- Otherwise, we replace it by the reified value Agda computed.
     mkNewTxt False ce        = Give_String $ show ce
+
+highlightExpr :: A.Expr -> TCM ()
+highlightExpr e =
+  local (\e -> e { envModuleNestingLevel = 0
+                 , envHighlightingLevel  = NonInteractive
+                 , envHighlightingMethod = Direct }) $
+    generateAndPrintSyntaxInfo decl (Full [])
+  where
+    dummy = mkName_ (NameId 0 0) "dummy"
+    info  = mkDefInfo (nameConcrete dummy) defaultFixity' PublicAccess ConcreteDef (getRange e)
+    decl  = A.Axiom NoFunSig info defaultArgInfo (qnameFromList [dummy]) e
 
 -- | Sorts interaction points based on their ranges.
 
