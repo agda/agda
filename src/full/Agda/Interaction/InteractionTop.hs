@@ -556,6 +556,7 @@ interpret (Cmd_highlight ii rng s) = withCurrentFile $
     scope <- getOldInteractionScope ii
     removeOldInteractionPoint ii
     e     <- concreteToAbstract scope =<< B.parseExpr rng s
+    printHighlightingInfo =<< generateTokenInfoFromString rng s
     highlightExpr e)
   `catchError` \_ ->
     display_info $ Info_Error $ "Failed to parse expression in " ++ show ii
@@ -788,7 +789,9 @@ give_gen ii rng s giveRefine = withCurrentFile $ do
   -- that's already in the buffer. Doing it before the give action means that
   -- the highlighting is moved together with the text when the hole goes away.
   -- To make it work for refine we'd have to adjust the ranges.
-  when literally $ lift $ highlightExpr ae
+  when literally $ lift $ do
+    printHighlightingInfo =<< generateTokenInfoFromString rng s
+    highlightExpr ae
   putResponse $ Resp_GiveAction ii $ mkNewTxt literally ce
   -- display new goal set
   interpret Cmd_metas

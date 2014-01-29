@@ -5,7 +5,7 @@
 module Agda.Interaction.Highlighting.Generate
   ( Level(..)
   , generateAndPrintSyntaxInfo
-  , generateTokenInfo
+  , generateTokenInfo, generateTokenInfoFromString
   , printErrorInfo, errorHighlighting
   , printUnsolvedInfo
   , printHighlightingInfo
@@ -317,9 +317,20 @@ generateAndPrintSyntaxInfo decl hlLevel = do
 generateTokenInfo
   :: AbsolutePath          -- ^ The module to highlight.
   -> TCM CompressedFile
-generateTokenInfo file = do
-  tokens <- liftIO $ Pa.parseFile' Pa.tokensParser file
-  return $ merge $ map tokenToCFile tokens
+generateTokenInfo file =
+  liftIO $ tokenHighlighting <$> Pa.parseFile' Pa.tokensParser file
+
+-- | Same as 'generateTokenInfo' but takes a string instead of a filename.
+generateTokenInfoFromString :: P.Range -> String -> TCM CompressedFile
+generateTokenInfoFromString r _ | r == P.noRange = return mempty
+generateTokenInfoFromString r s = do
+  liftIO $ tokenHighlighting <$> Pa.parsePosString Pa.tokensParser p s
+  where
+    Just p = P.rStart r
+
+-- | Compute syntax highlighting for the given tokens.
+tokenHighlighting :: [T.Token] -> CompressedFile
+tokenHighlighting = merge . map tokenToCFile
   where
   -- Converts an aspect and a range to a file.
   aToF a r = singletonC (rToR r) (mempty { aspect = Just a })
