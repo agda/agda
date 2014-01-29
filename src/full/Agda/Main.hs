@@ -100,7 +100,9 @@ runAgda = do
           unsolvedOK <- optAllowUnsolved <$> pragmaOptions
 
           result <- case mw of
-            SomeWarnings (Warnings [] [] []) -> __IMPOSSIBLE__
+                          -- we get here if there are unfilled interaction
+                          -- points that have been solved by unification
+            SomeWarnings (Warnings [] [] []) -> return Nothing
             SomeWarnings (Warnings _ unsolved@(_:_) _)
               | not unsolvedOK -> typeError $ UnsolvedMetas unsolved
             SomeWarnings (Warnings _ _ unsolved@(_:_))

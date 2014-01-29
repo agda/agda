@@ -551,11 +551,12 @@ createInterface file mname =
     termErrs            <- Fold.toList <$> stTermErrs <$> get
     unsolvedMetas       <- List.nub <$> (mapM getMetaRange =<< getOpenMetas)
     unsolvedConstraints <- getAllConstraints
+    interactionPoints   <- getInteractionPoints
 
     ifTopLevelAndHighlightingLevelIs NonInteractive $
       printUnsolvedInfo
 
-    r <- if and [ null termErrs, null unsolvedMetas, null unsolvedConstraints ]
+    r <- if and [ null termErrs, null unsolvedMetas, null unsolvedConstraints, null interactionPoints ]
      then do
       -- The file was successfully type-checked (and no warnings were
       -- encountered), so the interface should be written out.
