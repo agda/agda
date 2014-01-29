@@ -512,7 +512,7 @@ exist, then an attempt is made to restart the process."
     (error "Another command is currently in progress
 \(if a command has been aborted you may want to restart Agda)")))
 
-(defun agda2-go (responses-expected highlight &rest args)
+(defun agda2-go (responses-expected highlight do-abort &rest args)
   "Executes commands in the Agda2 interpreter.
 Sends the list of strings ARGS to the Agda2 interpreter, waits for
 output and executes the responses, if any. If no responses are
@@ -520,7 +520,7 @@ received, and RESPONSES-EXPECTED is non-nil, then an error is
 raised. If HIGHLIGHT is non-nil, then the buffer's syntax
 highlighting may be updated."
 
-  (agda2-abort-if-in-progress)
+  (if do-abort (agda2-abort-if-in-progress))
 
   (setq agda2-in-progress             t
         agda2-highlight-in-progress   highlight
@@ -712,7 +712,7 @@ An error is raised if no responses are received."
                   (or ask (string-match "\\`\\s *\\'" txt)))
              (setq txt (read-string (concat want ": ") nil nil txt t)))
             (t (setq input-from-goal t)))
-      (apply 'agda2-go t t cmd
+      (apply 'agda2-go t t t cmd
              (format "%d" g)
              (if input-from-goal (agda2-goal-Range o) "noRange")
              (agda2-string-quote txt) args))))
@@ -734,7 +734,7 @@ An error is raised if no responses are received."
 (defun agda2-load ()
   "Load current buffer."
   (interactive)
-  (agda2-go t t "Cmd_load"
+  (agda2-go t t t "Cmd_load"
             (agda2-string-quote (buffer-file-name))
             (agda2-list-quote agda2-include-dirs)
             ))
@@ -766,7 +766,7 @@ resulting time (represented as a string)."
 
 The variable `agda2-backend' determines which backend is used."
   (interactive)
-  (agda2-go t t "Cmd_compile"
+  (agda2-go t t t "Cmd_compile"
             agda2-backend
             (agda2-string-quote (buffer-file-name))
             (agda2-list-quote agda2-include-dirs)
@@ -931,11 +931,11 @@ is inserted, and point is placed before this text."
 
 (defun agda2-show-goals()
   "Show all goals." (interactive)
-  (agda2-go t t "Cmd_metas"))
+  (agda2-go t t t "Cmd_metas"))
 
 (defun agda2-show-constraints()
   "Show constraints." (interactive)
-  (agda2-go t t "Cmd_constraints"))
+  (agda2-go t t t "Cmd_constraints"))
 
 (defun agda2-remove-annotations ()
   "Removes buffer annotations (overlays and text properties)."
@@ -1009,7 +1009,7 @@ The form of the result depends on the prefix argument:
 COMMENT is used to build the function's comments. The function
 NAME takes a prefix argument which tells whether it should
 normalise types or not when running CMD (through
-`agda2-go' t nil; the string PROMPT is used as the goal command
+`agda2-go' t nil t; the string PROMPT is used as the goal command
 prompt)."
   (let ((eval (make-symbol "eval")))
     `(defun ,name (prefix expr)
@@ -1031,7 +1031,7 @@ The form of the result depends on the prefix argument:
        (let ((,eval (cond ((equal prefix nil) "Simplified")
                           ((equal prefix '(4)) "Instantiated")
                           ("Normalised"))))
-         (agda2-go t nil
+         (agda2-go t nil t
                    (concat ,cmd " " ,eval " "
                            (agda2-string-quote expr)))))))
 
@@ -1098,7 +1098,7 @@ Along with their types."
   "Shows all the top-level names in the given module.
 Along with their types."
   (interactive "MModule name: ")
-  (agda2-go t nil
+  (agda2-go t nil t
             "Cmd_show_module_contents_toplevel"
             (agda2-string-quote module)))
 
@@ -1116,7 +1116,7 @@ a goal, the top-level scope."
 (defun agda2-solveAll ()
   "Solves all goals that are already instantiated internally."
   (interactive)
-  (agda2-go t t "Cmd_solveAll"))
+  (agda2-go t t t "Cmd_solveAll"))
 
 (defun agda2-solveAll-action (iss)
   (while iss
@@ -1149,7 +1149,7 @@ With a prefix argument \"abstract\" is ignored during the computation."
   (let ((cmd (concat "Cmd_compute_toplevel"
                      (if arg " True" " False")
                      " ")))
-    (agda2-go t nil (concat cmd (agda2-string-quote expr)))))
+    (agda2-go t nil t (concat cmd (agda2-string-quote expr)))))
 
 (defun agda2-compute-normalised-maybe-toplevel ()
   "Computes the normal form of the given expression,
@@ -1167,7 +1167,7 @@ With a prefix argument \"abstract\" is ignored during the computation."
 (defun agda2-highlight-reload nil
   "Loads precomputed syntax highlighting info for the current buffer.
 If there is any to load."
-  (agda2-go nil t
+  (agda2-go nil t t
             "Cmd_load_highlighting_info"
             (agda2-string-quote (buffer-file-name))))
 
@@ -1516,10 +1516,10 @@ invoked."
 With prefix argument, turn on display of implicit arguments if
 the argument is a positive number, otherwise turn it off."
   (interactive "P")
-  (cond ((eq arg nil)       (agda2-go t t "ToggleImplicitArgs"))
+  (cond ((eq arg nil)       (agda2-go t t t "ToggleImplicitArgs"))
         ((and (numberp arg)
-              (> arg 0))    (agda2-go t t "ShowImplicitArgs" "True"))
-        (t                  (agda2-go t t "ShowImplicitArgs" "False"))))
+              (> arg 0))    (agda2-go t t t "ShowImplicitArgs" "True"))
+        (t                  (agda2-go t t t "ShowImplicitArgs" "False"))))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;;;
