@@ -42,6 +42,8 @@ syntaxOf (Name _ xs)  = mkSyn 0 xs
 defaultFixity' = Fixity' defaultFixity defaultNotation
 
 noFixity = NonAssoc noRange (negate 666) -- ts,ts,ts, why the number of the beast?  Revelation 13, 18
+                                         -- It's not the number of the beast, it's the negation of the
+                                         -- number of the beast, which must be a divine number, right?
 
 -- | Fixity of operators.
 data Fixity = LeftAssoc  Range Integer
