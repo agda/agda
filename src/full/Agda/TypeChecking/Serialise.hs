@@ -82,7 +82,7 @@ import Agda.Utils.Impossible
 -- 32-bit machines). Word64 does not have these problems.
 
 currentInterfaceVersion :: Word64
-currentInterfaceVersion = 20140129 * 10 + 0
+currentInterfaceVersion = 20140129 * 10 + 2
 
 -- | Constructor tag (maybe omitted) and argument indices.
 
@@ -443,11 +443,13 @@ instance EmbPrj NameSpace where
                            valu _      = malformed
 
 instance EmbPrj WhyInScope where
-  icode Defined      = icode0'
-  icode (Opened a b) = icode2' a b
-  value = vcase valu where valu []     = valu0 Defined
-                           valu [a, b] = valu2 Opened a b
-                           valu _      = malformed
+  icode Defined       = icode0'
+  icode (Opened a b)  = icode2 0 a b
+  icode (Applied a b) = icode2 1 a b
+  value = vcase valu where valu []        = valu0 Defined
+                           valu [0, a, b] = valu2 Opened a b
+                           valu [1, a, b] = valu2 Applied a b
+                           valu _         = malformed
 
 instance EmbPrj AbstractName where
   icode (AbsName a b c) = icode3' a b c

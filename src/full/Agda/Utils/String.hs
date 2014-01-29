@@ -3,6 +3,7 @@ module Agda.Utils.String
   , showIndex
   , addFinalNewLine
   , indent
+  , Str(..)
   ) where
 
 import Data.List
@@ -49,3 +50,9 @@ addFinalNewLine s | last s == '\n' = s
 
 indent :: Integral i => i -> String -> String
 indent i = unlines . map (genericReplicate i ' ' ++) . lines
+
+newtype Str = Str { getStr :: String }
+
+instance Show Str where
+  show = getStr
+

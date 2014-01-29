@@ -240,6 +240,7 @@ constituents.")
     (agda2-show-context                      "\C-c\C-e"           (local)        "Context (environment)")
     (agda2-helper-function-type              "\C-c\C-h"           (local)        "Helper function type")
     (agda2-infer-type-maybe-toplevel         "\C-c\C-d"           (local global) "Infer (deduce) type")
+    (agda2-why-in-scope-maybe-toplevel       "\C-c\C-w"           (local global) "Explain why a particular name is in scope")
     (agda2-goal-and-context                  ,(kbd "C-c C-,")     (local)        "Goal type and context")
     (agda2-goal-and-context-and-inferred     ,(kbd "C-c C-.")     (local)        "Goal type, context and inferred type")
     (agda2-module-contents-maybe-toplevel    ,(kbd "C-c C-o")     (local global) "Module contents")
@@ -1063,6 +1064,25 @@ top-level scope."
   (call-interactively (if (agda2-goal-at (point))
                           'agda2-infer-type
                         'agda2-infer-type-toplevel)))
+
+(defun agda2-why-in-scope ()
+  "Explain why something is in scope in a goal."
+  (interactive)
+  (agda2-goal-cmd "Cmd_why_in_scope" "Name"))
+
+(defun agda2-why-in-scope-toplevel (name)
+  "Explain why something is in scope at the top level."
+  (interactive "MName: ")
+  (agda2-go t nil t
+            "Cmd_why_in_scope_toplevel"
+            (agda2-string-quote name)))
+
+(defun agda2-why-in-scope-maybe-toplevel ()
+  "Explains why a given name is in scope."
+  (interactive)
+  (call-interactively (if (agda2-goal-at (point))
+                          'agda2-why-in-scope
+                          'agda2-why-in-scope-toplevel)))
 
 (agda2-maybe-normalised
  agda2-goal-and-context

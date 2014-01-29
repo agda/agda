@@ -188,7 +188,7 @@ checkModuleApplication (C.SectionApp _ tel e) m0 x dir' =
     let noRecConstr | null args = id
                     | otherwise = removeOnlyQualified
     -- Copy the scope associated with m and take the parts actually imported.
-    (s', (renM, renD)) <- copyScope m0 . noRecConstr =<< getNamedScope m1
+    (s', (renM, renD)) <- copyScope m m0 . noRecConstr =<< getNamedScope m1
     s' <- applyImportDirectiveM (C.QName x) dir' s'
     -- Set the current scope to @s'@
     modifyCurrentScope $ const s'
@@ -200,7 +200,7 @@ checkModuleApplication (C.RecordModuleIFS _ recN) m0 x dir' =
   withCurrentModule m0 $ do
     m1 <- toAbstract $ OldModuleName recN
     s <- getNamedScope m1
-    (s', (renM, renD)) <- copyScope m0 s
+    (s', (renM, renD)) <- copyScope recN m0 s
     s' <- applyImportDirectiveM recN dir' s'
     modifyCurrentScope $ const s'
 

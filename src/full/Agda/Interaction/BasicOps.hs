@@ -4,6 +4,7 @@
 
 module Agda.Interaction.BasicOps where
 
+import Control.Arrow ((***), first, second)
 import Control.Applicative
 import Control.Monad.Error
 import Control.Monad.Reader
@@ -684,6 +685,16 @@ atTopLevel m = inConcreteMode $ do
                                    (map (fmap snd) $ telToList tel)) $
                 m
 
+-- | Parse a name
+parseName :: Range -> String -> TCM C.QName
+parseName r s = do
+  m <- parseExpr r s
+  case m of
+    C.Ident m              -> return m
+    C.RawApp _ [C.Ident m] -> return m
+    _                      -> typeError $
+      GenericError $ "Not an identifier: " ++ show m ++ "."
+
 -- | Returns the contents of the given module.
 
 moduleContents :: Range
@@ -694,12 +705,7 @@ moduleContents :: Range
                   -- ^ Module names, names paired up with
                   -- corresponding types.
 moduleContents rng s = do
-  m <- parseExpr rng s
-  m <- case m of
-         C.Ident m              -> return m
-         C.RawApp _ [C.Ident m] -> return m
-         _                      -> typeError $
-           GenericError $ "Not a module name: " ++ show m ++ "."
+  m <- parseName rng s
   modScope <- getNamedScope . amodName =<< resolveModule m
   let modules :: ThingsInScope AbstractModule
       modules = exportedNamesInScope modScope
@@ -712,3 +718,12 @@ moduleContents rng s = do
                 (concatMap (\(x, ns) -> map ((,) x) ns) $
                            Map.toList names)
   return (Map.keys modules, types)
+
+whyInScope :: String -> TCM (Maybe A.Name, [AbstractName], [AbstractModule])
+whyInScope s = do
+  x     <- parseName noRange s
+  scope <- getScope
+  return ( lookup x $ map (first C.QName) $ scopeLocals scope
+         , scopeLookup x scope
+         , scopeLookup x scope )
+

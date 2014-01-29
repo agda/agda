@@ -22,6 +22,7 @@ import qualified Data.Map as Map
 import Data.Monoid
 
 import System.Directory
+import System.FilePath
 
 import Agda.TypeChecking.Monad as TM
   hiding (initState, setCommandLineOptions)
@@ -40,6 +41,7 @@ import Agda.Syntax.Abstract.Pretty
 import Agda.Syntax.Info (mkDefInfo)
 import Agda.Syntax.Translation.ConcreteToAbstract
 import Agda.Syntax.Translation.AbstractToConcrete hiding (withScope)
+import Agda.Syntax.Scope.Base
 
 import Agda.Interaction.FindFile
 import Agda.Interaction.Options
@@ -63,6 +65,7 @@ import qualified Agda.Utils.HashMap as HMap
 import Agda.Utils.Pretty
 import Agda.Utils.Time
 import Agda.Utils.Hash
+import Agda.Utils.String
 
 #include "../undefined.h"
 import Agda.Utils.Impossible
@@ -341,6 +344,9 @@ data Interaction
 
   | Cmd_compute         Bool -- Ignore abstract?
                         InteractionId Range String
+
+  | Cmd_why_in_scope    InteractionId Range String
+  | Cmd_why_in_scope_toplevel String
         deriving Read
 
 data IOTCM
@@ -626,6 +632,12 @@ interpret (Cmd_goal_type_context_infer norm ii rng s) = do
 interpret (Cmd_show_module_contents ii rng s) =
   liftCommandMT (B.withInteractionId ii) $ showModuleContents rng s
 
+interpret (Cmd_why_in_scope_toplevel s) =
+  liftCommandMT B.atTopLevel $ whyInScope s
+
+interpret (Cmd_why_in_scope ii rng s) =
+  liftCommandMT (B.withInteractionId ii) $ whyInScope s
+
 interpret (Cmd_make_case ii rng s) = do
   (casectxt , cs) <- lift $ makeCase ii rng s
   liftCommandMT (B.withInteractionId ii) $ do
@@ -878,6 +890,55 @@ showModuleContents rng s = do
     nest 2 (vcat $ map (text . show) modules) $$
     text "Names" $$
     nest 2 (align 10 types')
+
+-- | Explain why something is in scope.
+
+whyInScope :: String -> CommandM ()
+whyInScope s = do
+  (v, xs, ms) <- lift $ B.whyInScope s
+  cwd <- do
+    Just (file, _) <- gets $ theCurrentFile
+    return $ takeDirectory $ filePath file
+  display_info $ Info_WhyInScope $ explanation cwd v xs ms
+  where
+    explanation _ Nothing [] [] = text (s ++ " is not in scope.")
+    explanation cwd v xs ms =
+      vcat [ text (s ++ " is in scope as")
+           , nest 2 $ vcat [variable v xs, modules ms] ]
+      where
+        mkRel = Str . makeRelative cwd . filePath
+        showRange r = show $ (fmap . fmap) mkRel r
+
+        variable Nothing xs = names xs
+        variable (Just x) xs
+          | null xs   = asVar
+          | otherwise = vcat [ sep [asVar, nest 2 $ text "shadowing"]
+                             , nest 2 $ names xs ]
+          where
+            asVar = text $ "* a variable bound at " ++ showRange (nameBindingSite x)
+        names   xs = vcat $ map pName xs
+        modules ms = vcat $ map pMod ms
+
+        pKind DefName        = text "defined name"
+        pKind ConName        = text "constructor"
+        pKind FldName        = text "record field"
+        pKind PatternSynName = text "pattern synonym"
+
+        pName a = sep [ text "* a" <+> pKind (anameKind a) <+> text (show $ anameName a)
+                      , nest 2 $ text "brought into scope by" ] $$
+                  nest 2 (pWhy (nameBindingSite $ qnameName $ anameName a) (anameLineage a))
+        pMod  a = sep [ text "* a module" <+> text (show $ amodName a)
+                      , nest 2 $ text "brought into scope by" ] $$
+                  nest 2 (pWhy (nameBindingSite $ qnameName $ mnameToQName $ amodName a) (amodLineage a))
+
+        pWhy r Defined = text "- its definition at" <+> text (showRange r)
+        pWhy r (Opened (C.QName x) w) | C.isNoName x = pWhy r w
+        pWhy r (Opened m w) =
+          text "- the opening of" <+> text (show m) <+> text "at" <+> text (showRange $ getRange m) $$
+          pWhy r w
+        pWhy r (Applied m w) =
+          text "- the application of" <+> text (show m) <+> text "at" <+> text (showRange $ getRange m) $$
+          pWhy r w
 
 -- | Sets the command line options and updates the status information.
 

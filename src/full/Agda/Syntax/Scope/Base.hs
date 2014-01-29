@@ -114,7 +114,7 @@ data KindOfName = ConName | FldName | DefName | PatternSynName
 allKindsOfNames :: [KindOfName]
 allKindsOfNames = [minBound..maxBound]
 
-data WhyInScope = Defined | Opened C.QName WhyInScope
+data WhyInScope = Defined | Opened C.QName WhyInScope | Applied C.QName WhyInScope
   deriving (Typeable)
 
 -- | Apart from the name, we also record whether it's a constructor or not and
@@ -464,12 +464,12 @@ restrictPrivate s = setNameSpace PrivateNS emptyNameSpace $ s { scopeImports = M
 removeOnlyQualified :: Scope -> Scope
 removeOnlyQualified s = setNameSpace OnlyQualifiedNS emptyNameSpace s
 
--- | Add an 'Opened' reason to why things are in the given scope.
-becauseOpened :: C.QName -> Scope -> Scope
-becauseOpened cm = mapScope_ mapName mapMod
+-- | Add an explanation to why things are in scope.
+inScopeBecause :: (WhyInScope -> WhyInScope) -> Scope -> Scope
+inScopeBecause f = mapScope_ mapName mapMod
   where
-    mapName = fmap . map $ \a -> a { anameLineage = Opened cm $ anameLineage a }
-    mapMod  = fmap . map $ \a -> a { amodLineage  = Opened cm $ amodLineage a  }
+    mapName = fmap . map $ \a -> a { anameLineage = f $ anameLineage a }
+    mapMod  = fmap . map $ \a -> a { amodLineage  = f $ amodLineage a  }
 
 -- | Get the public parts of the public modules of a scope
 publicModules :: ScopeInfo -> Map A.ModuleName Scope

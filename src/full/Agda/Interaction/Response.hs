@@ -65,6 +65,7 @@ data DisplayInfo
         -- ^ 'Info_Auto' denotes either an error or a success (when 'Resp_GiveAction' is present)
         --   TODO: split these into separate constructors
     | Info_ModuleContents Doc
+    | Info_WhyInScope Doc
     | Info_NormalForm Doc
     | Info_GoalType Doc
     | Info_CurrentGoal Doc

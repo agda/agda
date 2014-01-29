@@ -6,7 +6,7 @@ module Agda.Utils.Pretty
     ) where
 
 import Data.Function
-import Text.PrettyPrint
+import Text.PrettyPrint hiding (TextDetails(Str))
 
 instance Eq Doc where
   (==) = (==) `on` render

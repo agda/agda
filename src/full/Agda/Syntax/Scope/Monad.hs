@@ -6,6 +6,7 @@
 module Agda.Syntax.Scope.Monad where
 
 import Prelude hiding (mapM)
+import Control.Arrow ((***), first, second)
 import Control.Applicative
 import Control.Monad hiding (mapM)
 import Control.Monad.Writer hiding (mapM)
@@ -306,8 +307,8 @@ type WSM = StateT Out ScopeM
 -- | Create a new scope with the given name from an old scope. Renames
 --   public names in the old scope to match the new name and returns the
 --   renamings.
-copyScope :: A.ModuleName -> Scope -> ScopeM (Scope, (Ren A.ModuleName, Ren A.QName))
-copyScope new s = runStateT (copy new s) (Map.empty, Map.empty)
+copyScope :: C.QName -> A.ModuleName -> Scope -> ScopeM (Scope, (Ren A.ModuleName, Ren A.QName))
+copyScope cm new s = first (inScopeBecause $ Applied cm) <$> runStateT (copy new s) (Map.empty, Map.empty)
   where
     copy new s = do
       s0 <- lift $ getNamedScope new
@@ -431,7 +432,7 @@ openModule_ cm dir = do
   m <- amodName <$> resolveModule cm
   let ns = namespace current m
   s <- setScopeAccess ns <$>
-        (applyImportDirectiveM cm dir . becauseOpened cm . removeOnlyQualified . restrictPrivate =<< getNamedScope m)
+        (applyImportDirectiveM cm dir . inScopeBecause (Opened cm) . removeOnlyQualified . restrictPrivate =<< getNamedScope m)
   checkForClashes (scopeNameSpace ns s)
   modifyCurrentScope (`mergeScope` s)
   where
