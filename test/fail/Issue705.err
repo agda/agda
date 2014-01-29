@@ -2,5 +2,6 @@ Issue705.agda:8,6-7
 Ambiguous module name A. It could refer to any one of
   A.A (datatype module)
   Issue705.A
+(hint: Use C-c C-w (in Emacs) if you want to know why)
 when scope checking the declaration
   open A

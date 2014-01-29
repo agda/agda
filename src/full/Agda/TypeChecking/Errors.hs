@@ -568,11 +568,13 @@ instance PrettyTCM TypeError where
 	      [ fsep $ pwords "Ambiguous name" ++ [pretty x <> text "."] ++
 		       pwords "It could refer to any one of"
 	      , nest 2 $ vcat $ map nameWithBinding ys
+              , fwords "(hint: Use C-c C-w (in Emacs) if you want to know why)"
 	      ]
 	    AmbiguousModule x ys -> vcat
 	      [ fsep $ pwords "Ambiguous module name" ++ [pretty x <> text "."] ++
 		       pwords "It could refer to any one of"
 	      , nest 2 $ vcat $ map help ys
+              , fwords "(hint: Use C-c C-w (in Emacs) if you want to know why)"
 	      ]
               where
                 help :: ModuleName -> TCM Doc
