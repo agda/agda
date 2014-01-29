@@ -670,6 +670,38 @@ Emacs mode
 
       snoc : ∀ {A} {n} → Vec A n → A → Vec A (suc n)
 
+* A new command "Explain why a particular name is in scope" (C-c C-w) has been
+  added. [Issue207]
+
+  This command can be called from a goal or from the top-level and will as the
+  name suggests explain why a particular name is in scope.
+
+  For each definition or module that the given name can refer to a trace is
+  printed of all open statements and module applications leading back to the
+  original definition of the name.
+
+  For example, given
+
+    module A (X : Set₁) where
+      data Foo : Set where
+        mkFoo : Foo
+    module B (Y : Set₁) where
+      open A Y public
+    module C = B Set
+    open C
+
+  Calling C-c C-w on mkFoo at the top-level prints
+
+    mkFoo is in scope as
+    * a constructor Issue207.C._.Foo.mkFoo brought into scope by
+      - the opening of C at Issue207.agda:13,6-7
+      - the application of B at Issue207.agda:11,12-13
+      - the application of A at Issue207.agda:9,8-9
+      - its definition at Issue207.agda:6,5-10
+
+  This command is useful if Agda complains about an ambiguous name and you need
+  to figure out how to hide the undesired interpretations.
+
 * Improvements to the "make case" command (C-c C-c)
 
   * Uses named implicit arguments to improve readability.
