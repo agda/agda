@@ -33,21 +33,11 @@ traceCall mkCall m = do
   let call      = mkCall Nothing
       callRange = getRange call
   cl <- liftTCM $ buildClosure call
-  let trace = local $
-        (if interestingCall cl then
-           \e -> e { envCall = Just cl }
-         else
-           id) .
-        (if callRange /= noRange || isNoHighlighting call then
-           \e -> e { envHighlightingRange = callRange
-                   }
-         else
-           id) .
-        (if callRange /= noRange then
-           \e -> e { envRange = callRange
-                   }
-         else
-           id)
+  let trace = local $ foldr (.) id $
+        [ \e -> e { envCall = Just cl } | interestingCall cl ] ++
+        [ \e -> e { envHighlightingRange = callRange }
+          | callRange /= noRange || isNoHighlighting call ] ++
+        [ \e -> e { envRange = callRange } | callRange /= noRange ]
   wrap <- ifM (do l <- envHighlightingLevel <$> ask
                   return (l == Interactive && highlightCall call))
               (do oldRange <- envHighlightingRange <$> ask
