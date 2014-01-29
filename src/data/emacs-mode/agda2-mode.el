@@ -1286,7 +1286,14 @@ text properties."
              (goto-char (+ p 2)) (insert "(")))
       (multiple-value-bind (p q) (agda2-range-of-goal old-g)
         (delete-region (- q 2) q)
-        (delete-region p (+ p 2))))))
+        (delete-region p (+ p 2)))
+        ;; Update highlighting
+        (if (and (not (equal new-txt 'paren)) (not (equal new-txt 'no-paren)))
+            (apply 'agda2-go t t nil "Cmd_highlight"
+              (format "%d" old-g)
+              (agda2-mkRange p (- q 2))
+              (agda2-string-quote new-txt) nil))
+    )))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;;; Misc

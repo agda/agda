@@ -101,7 +101,7 @@ initCommandState = CommandState
 --
 --   'CommandM' is 'TCM' extended with state 'CommandState'.
 
-type CommandM a = StateT CommandState TCM a
+type CommandM = StateT CommandState TCM
 
 -- | Build an opposite action to 'lift' for state monads.
 
@@ -285,6 +285,10 @@ data Interaction
     -- to be.
   | Cmd_load_highlighting_info
                         FilePath
+
+    -- | Tells Agda to compute highlighting information for the expression just
+    --   spliced into an interaction point.
+  | Cmd_highlight InteractionId Range String
 
     ------------------------------------------------------------------------
     -- Implicit arguments
@@ -547,6 +551,15 @@ interpret (Cmd_load_highlighting_info source) = do
                 return Nothing
     mapM_ putResponse resp
 
+interpret (Cmd_highlight ii rng s) = withCurrentFile $
+  lift (do
+    scope <- getOldInteractionScope ii
+    removeOldInteractionPoint ii
+    e     <- concreteToAbstract scope =<< B.parseExpr rng s
+    highlightExpr e)
+  `catchError` \_ ->
+    display_info $ Info_Error $ "Failed to parse expression in " ++ show ii
+
 interpret (Cmd_give   ii rng s) = give_gen ii rng s Give
 interpret (Cmd_refine ii rng s) = give_gen ii rng s Refine
 
@@ -720,6 +733,11 @@ cmd_load' file includes unsolvedOK cmd = do
 
     cmd ok
 
+withCurrentFile :: CommandM a -> CommandM a
+withCurrentFile m = do
+  Just (file, _) <- gets $ theCurrentFile
+  local (\e -> e { envCurrentPath = file }) m
+
 -- | Available backends.
 
 data Backend = MAlonzo | Epic | JS
@@ -741,10 +759,8 @@ give_gen
   -> Range
   -> String
   -> GiveRefine
-  -> StateT CommandState TCM ()
-give_gen ii rng s giveRefine = do
-  Just (file, _) <- gets $ theCurrentFile
-  local (\e -> e { envCurrentPath = file }) $ do
+  -> CommandM ()
+give_gen ii rng s giveRefine = withCurrentFile $ do
   let give_ref =
         case giveRefine of
           Give   -> B.give
