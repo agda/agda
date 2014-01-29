@@ -36,7 +36,7 @@ traceCall mkCall m = do
   let trace = local $ foldr (.) id $
         [ \e -> e { envCall = Just cl } | interestingCall cl ] ++
         [ \e -> e { envHighlightingRange = callRange }
-          | callRange /= noRange || isNoHighlighting call ] ++
+          | callRange /= noRange && highlightCall call || isNoHighlighting call ] ++
         [ \e -> e { envRange = callRange } | callRange /= noRange ]
   wrap <- ifM (do l <- envHighlightingLevel <$> ask
                   return (l == Interactive && highlightCall call))
