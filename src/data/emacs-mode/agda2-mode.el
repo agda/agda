@@ -1302,9 +1302,14 @@ text properties."
 
 (defun agda2-goal-Range (o)
   "The Haskell Range of goal overlay O."
+  (agda2-mkRange (+ (overlay-start o) 2)
+                 (- (overlay-end   o) 2)))
+
+(defun agda2-mkRange (p q)
+  "The Haskell Range corresponding to two points."
   (format "(Range [Interval %s %s])"
-          (agda2-mkPos (+ (overlay-start o) 2))
-          (agda2-mkPos (- (overlay-end   o) 2))))
+          (agda2-mkPos p)
+          (agda2-mkPos q)))
 
 (defun agda2-mkPos (&optional p)
   "The Haskell Position corresponding to P or `point'."
