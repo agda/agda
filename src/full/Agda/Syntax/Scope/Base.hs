@@ -4,7 +4,7 @@
 -}
 module Agda.Syntax.Scope.Base where
 
-import Control.Arrow ((***))
+import Control.Arrow ((***), first, second)
 import Control.Applicative
 import Data.Typeable (Typeable)
 import Data.List
@@ -114,17 +114,22 @@ data KindOfName = ConName | FldName | DefName | PatternSynName
 allKindsOfNames :: [KindOfName]
 allKindsOfNames = [minBound..maxBound]
 
+data WhyInScope = Defined | Opened C.QName WhyInScope
+  deriving (Typeable)
+
 -- | Apart from the name, we also record whether it's a constructor or not and
 --   what the fixity is.
 data AbstractName = AbsName
-      { anameName   :: A.QName
-      , anameKind   :: KindOfName
+      { anameName    :: A.QName
+      , anameKind    :: KindOfName
+      , anameLineage :: WhyInScope
       }
   deriving (Typeable)
 
 -- | For modules we record the arity. I'm not sure that it's every used anywhere.
 data AbstractModule = AbsModule
       { amodName    :: A.ModuleName
+      , amodLineage :: WhyInScope
       }
   deriving (Typeable)
 
@@ -459,6 +464,13 @@ restrictPrivate s = setNameSpace PrivateNS emptyNameSpace $ s { scopeImports = M
 removeOnlyQualified :: Scope -> Scope
 removeOnlyQualified s = setNameSpace OnlyQualifiedNS emptyNameSpace s
 
+-- | Add an 'Opened' reason to why things are in the given scope.
+becauseOpened :: C.QName -> Scope -> Scope
+becauseOpened cm = mapScope_ mapName mapMod
+  where
+    mapName = fmap . map $ \a -> a { anameLineage = Opened cm $ anameLineage a }
+    mapMod  = fmap . map $ \a -> a { amodLineage  = Opened cm $ amodLineage a  }
+
 -- | Get the public parts of the public modules of a scope
 publicModules :: ScopeInfo -> Map A.ModuleName Scope
 publicModules scope = Map.filterWithKey (\m _ -> reachable m) allMods
@@ -517,7 +529,7 @@ flattenScope ms scope =
           | (x, mods) <- Map.toList (getNames s)
           , let ms' = [ ms' | m':ms' <- ms, m' == x ]
           , not $ null ms'
-          , AbsModule m <- mods ]
+          , AbsModule m _ <- mods ]
 
     moduleScope :: A.ModuleName -> Scope
     moduleScope name = case Map.lookup name (scopeModules scope) of
@@ -552,7 +564,7 @@ scopeLookup' q scope = nubBy ((==) `on` fst) $ findName q root ++ imports
     topImports :: [(a, Access)]
     topImports = case (inScopeTag :: InScopeTag a) of
       NameTag   -> []
-      ModuleTag -> map (AbsModule *** id) (imported q)
+      ModuleTag -> map (first (`AbsModule` Defined)) (imported q)
 
     imports :: [(a, Access)]
     imports = topImports ++ do

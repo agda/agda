@@ -231,9 +231,9 @@ resolveModule :: C.QName -> ScopeM AbstractModule
 resolveModule x = do
   ms <- scopeLookup x <$> getScope
   case ms of
-    [AbsModule m] -> return $ AbsModule (m `withRangesOfQ` x)
-    []            -> typeError $ NoSuchModule x
-    ms            -> typeError $ AmbiguousModule x (map amodName ms)
+    [AbsModule m why] -> return $ AbsModule (m `withRangesOfQ` x) why
+    []                -> typeError $ NoSuchModule x
+    ms                -> typeError $ AmbiguousModule x (map amodName ms)
 
 -- | Get the fixity of a name. The name is assumed to be in scope.
 getFixity :: C.QName -> ScopeM Fixity'
@@ -270,10 +270,10 @@ bindName acc kind x y = do
     VarName z          -> typeError $ ClashingDefinition (C.QName x) $ A.qualify (mnameFromList []) z
     ConstructorName [] -> __IMPOSSIBLE__
     ConstructorName ds
-      | kind == ConName && all ((==ConName) . anameKind) ds -> return [ AbsName y kind ]
+      | kind == ConName && all ((==ConName) . anameKind) ds -> return [ AbsName y kind Defined ]
       | otherwise -> typeError $ ClashingDefinition (C.QName x) $ anameName (head' ds)
     PatternSynResName n -> typeError $ ClashingDefinition (C.QName x) $ anameName n
-    UnknownName         -> return [AbsName y kind]
+    UnknownName         -> return [AbsName y kind Defined]
   modifyCurrentScope $ addNamesToScope (localNameSpace acc) x ys
   where
     head' []    = {- ' -} __IMPOSSIBLE__
@@ -282,7 +282,7 @@ bindName acc kind x y = do
 -- | Bind a module name.
 bindModule :: Access -> C.Name -> A.ModuleName -> ScopeM ()
 bindModule acc x m = modifyCurrentScope $
-  addModuleToScope (localNameSpace acc) x (AbsModule m)
+  addModuleToScope (localNameSpace acc) x (AbsModule m Defined)
 
 -- | Bind a qualified module name. Adds it to the imports field of the scope.
 bindQModule :: Access -> C.QName -> A.ModuleName -> ScopeM ()
@@ -431,7 +431,7 @@ openModule_ cm dir = do
   m <- amodName <$> resolveModule cm
   let ns = namespace current m
   s <- setScopeAccess ns <$>
-        (applyImportDirectiveM cm dir . removeOnlyQualified . restrictPrivate =<< getNamedScope m)
+        (applyImportDirectiveM cm dir . becauseOpened cm . removeOnlyQualified . restrictPrivate =<< getNamedScope m)
   checkForClashes (scopeNameSpace ns s)
   modifyCurrentScope (`mergeScope` s)
   where
