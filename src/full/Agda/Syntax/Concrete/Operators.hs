@@ -269,7 +269,7 @@ instance IsExpr Pattern where
     exprView e = case e of
         IdentP x      -> LocalV x
         AppP e1 e2    -> AppV e1 e2
-        OpAppP r d es -> OpAppV d (map Ordinary es)
+        OpAppP r d es -> OpAppV d ((map . fmap . fmap) Ordinary es)
         HiddenP _ e   -> HiddenArgV e
         InstanceP _ e -> InstanceArgV e
         ParenP _ e    -> ParenV e
@@ -278,8 +278,8 @@ instance IsExpr Pattern where
     unExprView e = case e of
         LocalV x       -> IdentP x
         AppV e1 e2     -> AppP e1 e2
-        OpAppV d es    -> let ess :: [Pattern]
-                              ess = (map (fromOrdinary __IMPOSSIBLE__) es)
+        OpAppV d es    -> let ess :: [NamedArg Pattern]
+                              ess = (map . fmap . fmap) (fromOrdinary __IMPOSSIBLE__) es
                           in OpAppP (fuseRange d es) d ess
         HiddenArgV e   -> HiddenP (getRange e) e
         InstanceArgV e -> InstanceP (getRange e) e
@@ -324,12 +324,10 @@ lhsArgs' p = case patternAppView p of
 patternAppView :: Pattern -> [NamedArg Pattern]
 patternAppView p = case p of
     AppP p arg    -> patternAppView p ++ [arg]
-    OpAppP _ x ps -> mkHead (IdentP x) : map notHidden ps
+    OpAppP _ x ps -> defaultNamedArg (IdentP x) : ps
     ParenP _ p    -> patternAppView p
     RawAppP _ _   -> __IMPOSSIBLE__
-    _             -> [ mkHead p ]
-  where mkHead    = defaultArg . unnamed
-        notHidden = defaultArg . unnamed
+    _             -> [ defaultNamedArg p ]
 
 
 ---------------------------------------------------------------------------
@@ -342,7 +340,7 @@ parsePat prs p = case p of
     AppP p (Common.Arg info q) ->
         fullParen' <$> (AppP <$> parsePat prs p <*> (Common.Arg info <$> traverse (parsePat prs) q))
     RawAppP _ ps     -> fullParen' <$> (parsePat prs =<< parse prs ps)
-    OpAppP r d ps    -> fullParen' . OpAppP r d <$> mapM (parsePat prs) ps
+    OpAppP r d ps    -> fullParen' . OpAppP r d <$> (mapM . traverse . traverse) (parsePat prs) ps
     HiddenP _ _      -> fail "bad hidden argument"
     InstanceP _ _    -> fail "bad instance argument"
     AsP r x p        -> AsP r x <$> parsePat prs p
@@ -504,8 +502,8 @@ validConPattern cons p = case appView p of
 -- | Helper function for 'parseLHS' and 'parsePattern'.
 appView :: Pattern -> [Pattern]
 appView p = case p of
-    AppP p a         -> appView p ++ [namedThing (unArg a)]
-    OpAppP _ op ps   -> IdentP op : ps
+    AppP p a         -> appView p ++ [namedArg a]
+    OpAppP _ op ps   -> IdentP op : map namedArg ps
     ParenP _ p       -> appView p
     RawAppP _ _      -> __IMPOSSIBLE__
     HiddenP _ _      -> __IMPOSSIBLE__
@@ -580,7 +578,7 @@ fullParen' e = case exprView e of
                 Hidden    -> e2
                 Instance  -> e2
                 NotHidden -> fullParen' <$> e2
-    OpAppV x es -> par $ unExprView $ OpAppV x $ map (fmap fullParen') es
+    OpAppV x es -> par $ unExprView $ OpAppV x $ (map . fmap . fmap . fmap) fullParen' es
     LamV bs e -> par $ unExprView $ LamV bs (fullParen e)
     where
         par = unExprView . ParenV

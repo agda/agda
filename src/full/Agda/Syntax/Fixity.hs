@@ -35,7 +35,7 @@ syntaxOf (Name _ [_]) = []
 syntaxOf (Name _ xs)  = mkSyn 0 xs
  where mkSyn :: Int -> [NamePart] -> Notation
        mkSyn n [] = []
-       mkSyn n (Hole:xs) = NormalHole n : mkSyn (1+n) xs
+       mkSyn n (Hole:xs) = NormalHole (defaultNamedArg n) : mkSyn (1+n) xs
        mkSyn n (Id x:xs) = IdPart x : mkSyn n xs
 
 

@@ -1519,11 +1519,11 @@ instance ToAbstract C.Pattern (A.Pattern' C.Expr) where
         ps <- toAbstract ps
         case p of
           ConP        i x as -> return $ ConP (i {patInfo = info}) x
-                                    (as ++ map (defaultArg . unnamed) ps)
+                                    (as ++ ps)
           DefP        _ x as -> return $ DefP info x
-                                    (as ++ map (defaultArg . unnamed) ps)
+                                    (as ++ ps)
           PatternSynP _ x as -> return $ PatternSynP info x
-                                    (as ++ map (defaultArg . unnamed) ps)
+                                    (as ++ ps)
           _                  -> __IMPOSSIBLE__
         where
             r    = getRange p0
@@ -1553,28 +1553,29 @@ instance ToAbstract C.Pattern (A.Pattern' C.Expr) where
 
 -- | Turn an operator application into abstract syntax. Make sure to record the
 -- right precedences for the various arguments.
-toAbstractOpApp :: C.QName -> [OpApp C.Expr] -> ScopeM A.Expr
+toAbstractOpApp :: C.QName -> [C.NamedArg (OpApp C.Expr)] -> ScopeM A.Expr
 toAbstractOpApp op es = do
     f  <- getFixity op
     let (_,_,parts) = oldToNewNotation $ (op, f)
     op <- toAbstract (OldQName op)
     foldl' app op <$> left (theFixity f) [p | p <- parts, not (isBindingHole p)] es
     where
-        app e arg = A.App (ExprRange (fuseRange e arg)) e
-                  $ Common.Arg defaultArgInfo $ unnamed arg
+        app e arg = A.App (ExprRange (fuseRange e arg)) e (setArgColors [] arg)
+
+        toAbsOpArg cxt = traverse $ traverse $ toAbstractOpArg cxt
 
         left f (IdPart _ : xs) es = inside f xs es
         left f (_ : xs) (e : es) = do
-            e  <- toAbstractOpArg (LeftOperandCtx f) e
+            e  <- toAbsOpArg (LeftOperandCtx f) e
             es <- inside f xs es
             return (e : es)
         left f (_  : _)  [] = __IMPOSSIBLE__
         left f []        _  = __IMPOSSIBLE__
 
-        inside f [x]          es       = right f x es
-        inside f (IdPart _ : xs) es       = inside f xs es
+        inside f [x]          es    = right f x es
+        inside f (IdPart _ : xs) es = inside f xs es
         inside f (_  : xs) (e : es) = do
-            e  <- toAbstractOpArg InsideOperandCtx e
+            e  <- toAbsOpArg InsideOperandCtx e
             es <- inside f xs es
             return (e : es)
         inside _ (_ : _) [] = __IMPOSSIBLE__
@@ -1582,6 +1583,6 @@ toAbstractOpApp op es = do
 
         right _ (IdPart _)  [] = return []
         right f _          [e] = do
-            e <- toAbstractOpArg (RightOperandCtx f) e
+            e <- toAbsOpArg (RightOperandCtx f) e
             return [e]
         right _ _     _  = __IMPOSSIBLE__

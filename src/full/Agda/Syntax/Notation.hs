@@ -3,11 +3,14 @@
 
 module Agda.Syntax.Notation where
 
-import Control.Monad (when)
+import Control.Applicative
+import Control.Monad
 import Control.Monad.Error (throwError)
 import Data.List
 import Data.Maybe
 import Data.Typeable (Typeable)
+
+import Agda.Syntax.Common
 
 #include "../undefined.h"
 import Agda.Utils.Impossible
@@ -24,7 +27,7 @@ import Agda.Utils.Impossible
 -- | Data type constructed in the Happy parser; converted to 'GenPart'
 -- before it leaves the Happy code.
 data HoleName = LambdaHole String String -- ^ (\x -> y) ; 1st argument is the bound name (unused for now)
-              | ExprHole String          -- ^ simple named hole
+              | ExprHole String          -- ^ simple named hole with hiding
 
 -- | Target of a hole
 holeName (LambdaHole _ n) = n
@@ -33,8 +36,8 @@ holeName (ExprHole n) = n
 type Notation = [GenPart]
 
 -- | Part of a Notation
-data GenPart = BindHole Int  -- ^ Argument is the position of the hole (with binding) where the binding should occur.
-             | NormalHole Int -- ^ Argument is where the expression should go
+data GenPart = BindHole Int                 -- ^ Argument is the position of the hole (with binding) where the binding should occur.
+             | NormalHole (NamedArg () Int) -- ^ Argument is where the expression should go
              | IdPart String
   deriving (Typeable, Show, Eq)
 
@@ -44,7 +47,7 @@ stringParts gs = [ x | IdPart x <- gs ]
 
 -- | Target argument position of a part (Nothing if it is not a hole)
 holeTarget (BindHole n) = Just n
-holeTarget (NormalHole n) = Just n
+holeTarget (NormalHole n) = Just (namedArg n)
 holeTarget (IdPart _) = Nothing
 
 -- | Is the part a hole?
@@ -59,25 +62,31 @@ isLambdaHole _ = False
 
 
 -- | From notation with names to notation with indices.
-mkNotation :: [HoleName] -> [String] -> Either String Notation
+mkNotation :: [NamedArg c HoleName] -> [String] -> Either String Notation
 mkNotation _ [] = throwError "empty notation is disallowed"
 mkNotation holes ids = do
-  xs <- mapM mkPart ids
-  when (not (isAlternating xs)) $ throwError "syntax must alternate holes and non-holes"
-  when (not (isExprLinear xs)) $ throwError "syntax must use holes exactly once"
-  when (not (isLambdaLinear xs)) $ throwError "syntax must use binding holes exactly once"
+  unless (uniqueNames holes) $ throwError "syntax must use unique argument names"
+  let xs = map mkPart ids
+  unless (isAlternating xs)  $ throwError "syntax must alternate holes and non-holes"
+  unless (isExprLinear xs)   $ throwError "syntax must use holes exactly once"
+  unless (isLambdaLinear xs) $ throwError "syntax must use binding holes exactly once"
   return xs
-    where mkPart ident =
-             case (findIndices (\x -> ident == holeName x) holes,
-                   findIndices (\x -> case x of LambdaHole ident' _ -> ident == ident';_ -> False) holes)  of
-                           ([],[x])   -> return $ BindHole x
-                           ([x], [])  -> return $ NormalHole x
-                           ([], []) -> return $ IdPart ident
-                           _ -> throwError "hole names must be unique"
+    where mkPart ident = fromMaybe (IdPart ident) $ lookup ident holeMap
 
-          isExprLinear   xs = sort [ x | NormalHole x <- xs] == [ i | (i,h) <- zip [0..] holes ]
-          isLambdaLinear xs = sort [ x | BindHole   x <- xs] == [ i | (i,h) <- zip [0..] holes, isLambdaHole h ]
+          holeMap = concat $ zipWith mkHole [0..] holes
+            where mkHole i h =
+                    case namedArg h of
+                      ExprHole x     -> [(x, normalHole)]
+                      LambdaHole x y -> [(x, BindHole i), (y, normalHole)]
+                    where normalHole = NormalHole $ setArgColors [] $ fmap (i <$) h
 
+          uniqueNames hs = nub xs == xs
+            where xs = concatMap (names . namedArg) hs
+                  names (ExprHole x)     = [x]
+                  names (LambdaHole x y) = [x, y]
+
+          isExprLinear   xs = sort [ namedArg x | NormalHole x <- xs] == [ i | (i, h) <- zip [0..] holes ]
+          isLambdaLinear xs = sort [ x          | BindHole   x <- xs] == [ i | (i, h) <- zip [0..] holes, isLambdaHole (namedArg h) ]
 
           isAlternating :: [GenPart] -> Bool
           isAlternating [] = __IMPOSSIBLE__

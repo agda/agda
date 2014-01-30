@@ -199,6 +199,9 @@ killRange7 f a = killRange6 (f $ killRange a)
 instance KillRange Range where
   killRange _ = noRange
 
+instance KillRange () where
+  killRange = id
+
 instance KillRange a => KillRange [a] where
   killRange = map killRange
 

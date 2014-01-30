@@ -1046,13 +1046,27 @@ SimpleIds :: { [String] }
 SimpleIds : SimpleId { [$1] }
           | SimpleIds SimpleId {$1 ++ [$2]}
 
-HoleNames :: { [HoleName] }
+HoleNames :: { [NamedArg HoleName] }
 HoleNames : HoleName { [$1] }
           | HoleNames HoleName {$1 ++ [$2]}
 
-HoleName :: { HoleName }
-HoleName : SimpleId { ExprHole $1}
-         | '(' '\\' SimpleId '->' SimpleId ')' { LambdaHole $3 $5 }
+HoleName :: { NamedArg HoleName }
+HoleName
+  : SimpleTopHole { defaultNamedArg $1 }
+  | '{'  SimpleHole '}'  { setHiding Hidden   $ defaultNamedArg $2 }
+  | '{{' SimpleHole '}}' { setHiding Instance $ defaultNamedArg $2 }
+  | '{'  SimpleId '=' SimpleHole '}'  { setHiding Hidden   $ defaultArg $ named $2 $4 }
+  | '{{' SimpleId '=' SimpleHole '}}' { setHiding Instance $ defaultArg $ named $2 $4 }
+
+SimpleTopHole :: { HoleName }
+SimpleTopHole
+  : SimpleId { ExprHole $1 }
+  | '(' '\\' SimpleId '->' SimpleId ')' { LambdaHole $3 $5 }
+
+SimpleHole :: { HoleName }
+SimpleHole
+  : SimpleId { ExprHole $1 }
+  | '\\' SimpleId '->' SimpleId { LambdaHole $2 $4 }
 -- Variable name hole to be implemented later.
 
 -- Discard the interval.
@@ -1541,7 +1555,6 @@ exprToPattern e =
 	HiddenArg r e		-> HiddenP r <$> T.mapM exprToPattern e
 	InstanceArg r e		-> InstanceP r <$> T.mapM exprToPattern e
 	RawApp r es		-> RawAppP r <$> mapM exprToPattern es
-	OpApp r x es		-> OpAppP r x <$> mapM opAppExprToPattern es
 	_			->
           let Just pos = rStart $ getRange e in
           parseErrorAt pos $ "Not a valid pattern: " ++ show e

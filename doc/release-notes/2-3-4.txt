@@ -403,7 +403,7 @@ Language
 
     {-# BUILTIN NATURAL Nat #-}
 
-* Pattern synonym can now have implicit arguments. [Issue 860 ]
+* Pattern synonym can now have implicit arguments. [Issue 860]
 
   For example,
 
@@ -412,6 +412,15 @@ Language
     len : ∀ {A} → List A → Nat
     len []         = 0
     len (tail= xs) = 1 + len xs
+
+* Syntax declarations can now have implicit arguments. [Issue 400]
+
+  For example
+
+    id : ∀ {a}{A : Set a} -> A -> A
+    id x = x
+
+    syntax id {A} x = x ∈ A
 
 * Minor syntax changes
 

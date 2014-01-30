@@ -864,7 +864,7 @@ instance ToConcrete A.Pattern C.Pattern where
 data Hd = HdVar A.Name | HdCon A.QName | HdDef A.QName
 
 cOpApp :: Range -> C.QName -> [C.Expr] -> C.Expr
-cOpApp r n es = C.OpApp r n (map Ordinary es)
+cOpApp r n es = C.OpApp r n (map (defaultNamedArg . Ordinary) es)
 
 tryToRecoverOpApp :: A.Expr -> AbsToCon C.Expr -> AbsToCon C.Expr
 tryToRecoverOpApp e def = recoverOpApp bracket cOpApp view e def
@@ -878,8 +878,9 @@ tryToRecoverOpApp e def = recoverOpApp bracket cOpApp view e def
       _ -> Nothing
 
 tryToRecoverOpAppP :: A.Pattern -> AbsToCon C.Pattern -> AbsToCon C.Pattern
-tryToRecoverOpAppP p def = recoverOpApp bracketP_ C.OpAppP view p def
+tryToRecoverOpAppP p def = recoverOpApp bracketP_ opApp view p def
   where
+    opApp r x ps = C.OpAppP r x (map defaultNamedArg ps)
     view p = case p of
       ConP _ (AmbQ (c:_)) ps -> Just (HdCon c, ps)
       DefP _ f            ps -> Just (HdDef f, ps)

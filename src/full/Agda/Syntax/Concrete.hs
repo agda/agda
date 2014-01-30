@@ -85,7 +85,7 @@ data Expr
 	| Underscore !Range (Maybe String)     -- ^ ex: @_@ or @_A_5@
 	| RawApp !Range [Expr]		       -- ^ before parsing operators
 	| App !Range Expr (NamedArg Expr)      -- ^ ex: @e e@, @e {e}@, or @e {x = e}@
-	| OpApp !Range QName [OpApp Expr]      -- ^ ex: @e + e@
+	| OpApp !Range QName [NamedArg (OpApp Expr)] -- ^ ex: @e + e@
         | WithApp !Range Expr [Expr]           -- ^ ex: @e | e1 | .. | en@
 	| HiddenArg !Range (Named String Expr) -- ^ ex: @{e}@ or @{x=e}@
 	| InstanceArg !Range (Named String Expr) -- ^ ex: @{{e}}@ or @{{x=e}}@
@@ -119,7 +119,7 @@ data Pattern
 	= IdentP QName                            -- ^ @c@ or @x@
 	| AppP Pattern (NamedArg Pattern)         -- ^ @p p'@ or @p {x = p'}@
 	| RawAppP !Range [Pattern]                -- ^ @p1..pn@ before parsing operators
-	| OpAppP !Range QName [Pattern]           -- ^ eg: @p => p'@ for operator @_=>_@
+	| OpAppP !Range QName [NamedArg Pattern]  -- ^ eg: @p => p'@ for operator @_=>_@
 	| HiddenP !Range (Named String Pattern)   -- ^ @{p}@ or @{x = p}@
 	| InstanceP !Range (Named String Pattern) -- ^ @{{p}}@ or @{{x = p}}@
 	| ParenP !Range Pattern                   -- ^ @(p)@
@@ -408,7 +408,7 @@ patternNames p =
     IdentP x             -> [unqualify x]
     AppP p p'            -> concatMap patternNames [p, namedArg p']
     RawAppP _ ps         -> concatMap patternNames  ps
-    OpAppP _ name ps     -> unqualify name : concatMap patternNames ps
+    OpAppP _ name ps     -> unqualify name : concatMap (patternNames . namedArg) ps
     HiddenP _ (namedPat) -> patternNames (namedThing namedPat)
     ParenP _ p           -> patternNames p
     WildP _              -> []

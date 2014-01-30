@@ -18,7 +18,7 @@ data ExprView e
     | WildV e
     | OtherV e
     | AppV e (NamedArg e)
-    | OpAppV QName [OpApp e]
+    | OpAppV QName [NamedArg (OpApp e)]
     | HiddenArgV (Named String e)
     | InstanceArgV (Named String e)
     | LamV [LamBinding] e
@@ -120,13 +120,13 @@ rebuild (name,_,syn) r es = do
   return $ unExprView $ OpAppV (setRange r name) exprs
   where filledHoles = zip es (filter isAHole syn)
         lastHole = maximum [t | Just t <- map holeTarget syn]
-        findExprFor :: Int -> ReadP a (OpApp e)
-        findExprFor n = case [e | (e,NormalHole m) <- filledHoles, m == n] of
-                          [] -> fail $ "no expression for hole " ++ show n
-                          [x] -> case [e | (e,BindHole m) <- filledHoles, m == n] of
-                                   [] -> return (Ordinary x) -- no variable to bind
+        findExprFor :: Int -> ReadP a (NamedArg (OpApp e))
+        findExprFor n = case [setArgColors [] $ fmap (e <$) m | (e, NormalHole m) <- filledHoles, namedArg m == n] of
+                          []  -> fail $ "no expression for hole " ++ show n
+                          [x] -> case [e | (e, BindHole m) <- filledHoles, m == n] of
+                                   [] -> return $ (fmap . fmap) Ordinary x -- no variable to bind
                                    vars -> do bs <- mapM rebuildBinding $ map exprView vars
-                                              return $ SyntaxBindingLambda (fuseRange bs x) bs x
+                                              return $ (fmap . fmap) (SyntaxBindingLambda (fuseRange bs x) bs) x
                           _ -> fail $ "more than one expression for hole " ++ show n
 
 rebuildBinding :: ExprView e -> ReadP a LamBinding
