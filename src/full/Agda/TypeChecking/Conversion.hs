@@ -1040,6 +1040,10 @@ equalLevel a b = do
     check a b
   where
     check a@(Max as) b@(Max bs) = do
+      -- Jesper, 2014-02-02 remove terms that certainly do not contribute
+      -- to the maximum
+      as <- return $ [ a | a <- as, not $ a `isStrictlySubsumedBy` bs ]
+      bs <- return $ [ b | b <- bs, not $ b `isStrictlySubsumedBy` as ]
       -- Andreas, 2013-10-31 remove common terms (that don't contain metas!!)
       -- THAT's actually UNSOUND when metas are instantiated, because
       --     max a b == max a c  does not imply  b == c
@@ -1173,6 +1177,14 @@ equalLevel a b = do
 
         isThisMeta x (Plus _ (MetaLevel y _)) = x == y
         isThisMeta _ _                      = False
+
+        constant (ClosedLevel n) = n
+        constant (Plus n _)      = n
+
+        (ClosedLevel m) `isStrictlySubsumedBy` [] = m == 0
+        (ClosedLevel m) `isStrictlySubsumedBy` ys = m < maximum (map constant ys)
+        (Plus m x)      `isStrictlySubsumedBy` ys = not $ null $
+          [ n | Plus n y <- ys, x == y, m < n ]
 
 
 -- | Check that the first sort equal to the second.
