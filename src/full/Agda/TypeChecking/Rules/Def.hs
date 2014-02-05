@@ -372,7 +372,7 @@ checkClause t c@(A.Clause (A.SpineLHS i x aps withPats) rhs0 wh) = do
       -- in case checkLeftHandSide walked over an irrelevant projection pattern.
       let mkBody v = foldr (\x t -> Bind $ Abs x t) (Body $ applySubst sub v) xs
       -- introduce trailing implicits for checking the where decls
-      TelV htel t0 <- telViewUpTo' (-1) isHidden $ unArg trhs
+      TelV htel t0 <- telViewUpTo' (-1) (not . visible) $ unArg trhs
       let n = size htel
           aps' = convColor aps
       (body, with) <- addCtxTel htel $ checkWhere (size delta + n) wh $ escapeContext (size htel) $ let

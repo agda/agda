@@ -18,6 +18,7 @@ import Agda.TypeChecking.Substitute
 import Agda.TypeChecking.Pretty
 import Agda.TypeChecking.Records
 import Agda.TypeChecking.Reduce
+import Agda.TypeChecking.Telescope
 
 import Agda.TypeChecking.Rules.LHS.Problem
 
@@ -74,31 +75,41 @@ implicitP = unnamed $ A.ImplicitP $ PatRange $ noRange
 
 -- | Insert implicit patterns in a list of patterns.
 insertImplicitPatterns :: ExpandHidden -> [A.NamedArg A.Pattern] -> Telescope -> TCM [A.NamedArg A.Pattern]
-insertImplicitPatterns exh            ps EmptyTel = return ps
-insertImplicitPatterns DontExpandLast [] tel      = return []
-insertImplicitPatterns exh ps tel@(ExtendTel arg tel') = case ps of
-  [] -> do
-    i <- insImp dummy tel
-    case i of
-      Just []   -> __IMPOSSIBLE__
-      Just hs	-> return $ implicitPs hs
-      Nothing	-> return []
-  p : ps -> do
-    i <- insImp p tel
-    case i of
-      Just []	-> __IMPOSSIBLE__
-      Just hs	-> insertImplicitPatterns exh (implicitPs hs ++ p : ps) tel
-      Nothing   -> do
-        p <- expandImplicitPattern (unDom arg) p
-        (p :) <$> insertImplicitPatterns exh ps (absBody tel')
+insertImplicitPatterns exh ps tel = insertImplicitPatternsT exh ps (telePi tel typeDontCare)
+
+insertImplicitPatternsT :: ExpandHidden -> [A.NamedArg A.Pattern] -> Type -> TCM [A.NamedArg A.Pattern]
+insertImplicitPatternsT DontExpandLast [] a = return []
+insertImplicitPatternsT exh            ps a = do
+  TelV tel b <- telViewUpTo' (-1) (not . visible) a
+  case ps of
+    [] -> do
+      i <- insImp dummy tel
+      case i of
+        Just [] -> __IMPOSSIBLE__
+        Just hs -> return hs
+        Nothing -> return []
+    p : ps -> do
+      i <- insImp p tel
+      case i of
+        Just [] -> __IMPOSSIBLE__
+        Just hs -> insertImplicitPatternsT exh (hs ++ p : ps) (telePi tel b)
+        Nothing -> do
+          a <- reduce a
+          case ignoreSharing $ unEl a of
+            Pi arg b -> do
+              p <- expandImplicitPattern (unDom arg) p
+              (p :) <$> insertImplicitPatternsT exh ps (absBody b)
+            _ -> return (p : ps)
   where
     dummy = defaultNamedArg ()
 
+    insImp x EmptyTel
+      | visible x = return Nothing
+      | otherwise = typeError WrongHidingInLHS
     insImp x tel = case insertImplicit x $ map (argFromDom . fmap fst) $ telToList tel of
-      BadImplicits   -> typeError $ WrongHidingInLHS (telePi tel $ sort Prop)
-      NoSuchName x   -> typeError $ WrongHidingInLHS (telePi tel $ sort Prop)
-      ImpInsert n    -> return $ Just n
+      BadImplicits   -> typeError WrongHidingInLHS
+      NoSuchName x   -> typeError WrongHidingInLHS
+      ImpInsert n    -> return $ Just (map implicitArg n)
       NoInsertNeeded -> return Nothing
 
-    implicitPs [] = []
-    implicitPs (h : hs) = (setHiding h $ defaultArg implicitP) : implicitPs hs
+    implicitArg h = setHiding h $ defaultArg implicitP

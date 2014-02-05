@@ -305,8 +305,8 @@ instance PrettyTCM TypeError where
 		pwords "Not a valid projection for a copattern: " ++ [ prettyA p ]
 	    DifferentArities ->
 		fwords "The number of arguments in the defining equations differ"
-	    WrongHidingInLHS t -> do
-		fwords "Found an implicit argument where an explicit argument was expected"
+	    WrongHidingInLHS -> do
+		fwords "Unexpected implicit argument"
 	    WrongHidingInLambda t -> do
 		fwords "Found an implicit lambda where an explicit lambda was expected"
 	    WrongIrrelevanceInLambda t -> do

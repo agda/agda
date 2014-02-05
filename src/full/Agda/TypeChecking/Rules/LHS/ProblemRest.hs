@@ -74,11 +74,10 @@ problemFromPats :: [A.NamedArg A.Pattern] -- ^ The user patterns.
   -> Type            -- ^ The type the user patterns eliminate.
   -> TCM Problem     -- ^ The initial problem constructed from the user patterns.
 problemFromPats ps a = do
-  TelV tel0' b0 <- telView a
   -- For the initial problem, do not insert trailing implicits.
   -- This has the effect of not including trailing hidden domains in the problem telescope.
   -- In all later call to insertImplicitPatterns, we can then use ExpandLast.
-  ps <- insertImplicitPatterns DontExpandLast ps tel0' :: TCM [A.NamedArg A.Pattern]
+  ps <- insertImplicitPatternsT DontExpandLast ps a
   -- unless (size tel0' >= size ps) $ typeError $ TooManyArgumentsInLHS a
 
   -- Redo the telView, in order to *not* normalize the clause type further than necessary.
