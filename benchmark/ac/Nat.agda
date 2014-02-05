@@ -28,8 +28,6 @@ zero  < suc m = true
 suc n < suc m = n < m
 
 {-# BUILTIN NATURAL Nat #-}
-{-# BUILTIN ZERO zero #-}
-{-# BUILTIN SUC suc #-}
 -- {-# BUILTIN NATPLUS _+_ #-}
 -- {-# BUILTIN NATEQUALS _==_ #-}
 -- {-# BUILTIN NATLESS _<_ #-}

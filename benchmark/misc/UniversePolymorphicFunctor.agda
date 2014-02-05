@@ -2,19 +2,7 @@
 
 module UniversePolymorphicFunctor where
 
-postulate
-  Level : Set
-  zero : Level
-  suc  : (i : Level) → Level
-  _⊔_ : Level → Level → Level
-
-{-# BUILTIN LEVEL     Level #-}
-{-# BUILTIN LEVELZERO zero  #-}
-{-# BUILTIN LEVELSUC  suc   #-}
-{-# BUILTIN LEVELMAX  _⊔_   #-}
-
-infixl 6 _⊔_
-
+open import Agda.Primitive renaming (lsuc to suc)
 
 record IsEquivalence {a ℓ} {A : Set a}
                      (_≈_ : A → A → Set ℓ) : Set (a ⊔ ℓ) where

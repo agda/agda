@@ -29,8 +29,8 @@ GooN (G [ x - S ]) T y    | no n       = GooN G T y
 
 _?-_ : (G : Cxt)(x : Nom){p : [| G Has x |]} -> K :- \ T -> GooN G T x
 (EC ?- y) {}
-(G [ x - S ]) ?- y       with nomEq x y
-(G [ x - S ]) ?- .x         | yes refl  = [ S / refl ]
+((G [ x - S ]) ?- y) {_} with nomEq x y
+((G [ x - S ]) ?- .x) {_}   | yes refl  = [ S / refl ]
 ((G [ x - S ]) ?- y) {p}    | no n      = (G ?- y) {p}
 
 topGooN : (G : Cxt)(x : Nom){p : [| G Hasn't x |]}(S : K) ->
