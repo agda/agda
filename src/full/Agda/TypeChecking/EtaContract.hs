@@ -1,7 +1,9 @@
-{-# LANGUAGE CPP, PatternGuards #-}
+{-# LANGUAGE CPP, PatternGuards, FlexibleContexts #-}
 
 -- | Compute eta short normal forms.
 module Agda.TypeChecking.EtaContract where
+
+import Control.Monad.Reader
 
 import Agda.Syntax.Common hiding (Arg, Dom, NamedArg, ArgInfo)
 import qualified Agda.Syntax.Common as Common
@@ -55,14 +57,12 @@ etaContract :: TermLike a => a -> TCM a
 etaContract = traverseTermM etaOnce
 
 etaOnce :: Term -> TCM Term
-etaOnce v = do
+etaOnce v = case v of
   -- Andreas, 2012-11-18: this call to reportSDoc seems to cost me 2%
   -- performance on the std-lib
   -- reportSDoc "tc.eta" 70 $ text "eta-contracting" <+> prettyTCM v
-  eta v
-  where
-    eta v@Shared{} = updateSharedTerm eta v
-    eta t@(Lam i (Abs _ b)) = do  -- NoAbs can't be eta'd
+  Shared{} -> __IMPOSSIBLE__ -- updateSharedTerm eta v
+  Lam i (Abs _ b) -> do  -- NoAbs can't be eta'd
       imp <- shouldEtaContractImplicit
       case binAppView b of
         App u (Common.Arg info v)
@@ -70,26 +70,27 @@ etaOnce v = do
                     && allowed imp info
                     && not (freeIn 0 u) ->
             return $ subst __IMPOSSIBLE__ u
-        _ -> return t
-      where
-        isVar0 (Shared p)               = isVar0 (derefPtr p)
-        isVar0 (Var 0 [])               = True
-        isVar0 (Level (Max [Plus 0 l])) = case l of
-          NeutralLevel v   -> isVar0 v
-          UnreducedLevel v -> isVar0 v
-          BlockedLevel{}   -> False
-          MetaLevel{}      -> False
-        isVar0 _ = False
-        allowed imp i' = getHiding i == getHiding i' && (imp || notHidden i)
+        _ -> return v
+    where
+      isVar0 (Shared p)               = isVar0 (derefPtr p)
+      isVar0 (Var 0 [])               = True
+      isVar0 (Level (Max [Plus 0 l])) = case l of
+        NeutralLevel v   -> isVar0 v
+        UnreducedLevel v -> isVar0 v
+        BlockedLevel{}   -> False
+        MetaLevel{}      -> False
+      isVar0 _ = False
+      allowed imp i' = getHiding i == getHiding i' && (imp || notHidden i)
 
-    -- Andreas, 2012-12-18:  Abstract definitions could contain
-    -- abstract records whose constructors are not in scope.
-    -- To be able to eta-contract them, we ignore abstract.
-    eta t@(Con c args) = ignoreAbstractMode $ do
+  -- Andreas, 2012-12-18:  Abstract definitions could contain
+  -- abstract records whose constructors are not in scope.
+  -- To be able to eta-contract them, we ignore abstract.
+  Con c args -> ignoreAbstractMode $ do
       -- reportSDoc "tc.eta" 20 $ text "eta-contracting record" <+> prettyTCM t
       r <- getConstructorData $ conName c -- fails in ConcreteMode if c is abstract
       ifM (isEtaRecord r)
           (do -- reportSDoc "tc.eta" 20 $ text "eta-contracting record" <+> prettyTCM t
               etaContractRecord r c args)
-          (return t)
-    eta t = return t
+          (return v)
+  v -> return v
+

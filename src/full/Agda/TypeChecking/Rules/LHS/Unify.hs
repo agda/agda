@@ -27,6 +27,7 @@ import Agda.Syntax.Position
 
 import Agda.TypeChecking.Monad
 import Agda.TypeChecking.Monad.Exception
+import Agda.TypeChecking.Monad.Builtin (constructorForm)
 import Agda.TypeChecking.Conversion -- equalTerm
 import Agda.TypeChecking.Constraints
 import Agda.TypeChecking.Level (reallyUnLevelView)
@@ -37,7 +38,6 @@ import qualified Agda.TypeChecking.Substitute as S
 import Agda.TypeChecking.Telescope
 import Agda.TypeChecking.Free
 import Agda.TypeChecking.Records
-import Agda.TypeChecking.Primitive (constructorForm)
 import Agda.TypeChecking.MetaVars (assignV, newArgsMetaCtx)
 import Agda.TypeChecking.EtaContract
 import Agda.Interaction.Options (optInjectiveTypeConstructors)

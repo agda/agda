@@ -268,6 +268,7 @@ library
                     Agda.TypeChecking.RecordPatterns
                     Agda.TypeChecking.Records
                     Agda.TypeChecking.Reduce
+                    Agda.TypeChecking.Reduce.Monad
                     Agda.TypeChecking.Rules.Builtin
                     Agda.TypeChecking.Rules.Builtin.Coinduction
                     Agda.TypeChecking.Rules.Data

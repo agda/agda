@@ -1,7 +1,8 @@
-{-# LANGUAGE CPP #-}
+{-# LANGUAGE CPP, FlexibleContexts #-}
 
 module Agda.TypeChecking.Monad.Options where
 
+import Control.Applicative
 import Control.Monad.Error
 import Control.Monad.Reader
 import Control.Monad.State
@@ -69,18 +70,19 @@ setCommandLineOptions opts =
       modify $ Lens.setCommandLineOptions opts{ optIncludeDirs = Right incs }
              . Lens.setPragmaOptions (optPragmaOptions opts)
 
--- | Returns the pragma options which are currently in effect.
+class (Functor m, Applicative m, Monad m) => HasOptions m where
+  -- | Returns the pragma options which are currently in effect.
+  pragmaOptions      :: m PragmaOptions
+  -- | Returns the command line options which are currently in effect.
+  commandLineOptions :: m CommandLineOptions
 
-pragmaOptions :: TCM PragmaOptions
-pragmaOptions = gets stPragmaOptions
+instance MonadIO m => HasOptions (TCMT m) where
+  pragmaOptions = gets stPragmaOptions
 
--- | Returns the command line options which are currently in effect.
-
-commandLineOptions :: TCM CommandLineOptions
-commandLineOptions = do
-  p  <- stPragmaOptions <$> get
-  cl <- stPersistentOptions . stPersistent <$> get
-  return $ cl { optPragmaOptions = p }
+  commandLineOptions = do
+    p  <- stPragmaOptions <$> get
+    cl <- stPersistentOptions . stPersistent <$> get
+    return $ cl { optPragmaOptions = p }
 
 setOptionsFromPragma :: OptionsPragma -> TCM ()
 setOptionsFromPragma ps = do
@@ -112,7 +114,8 @@ dontEtaContractImplicit = local $ \e -> e { envEtaContractImplicit = False }
 doEtaContractImplicit :: MonadTCM tcm => tcm a -> tcm a
 doEtaContractImplicit = local $ \e -> e { envEtaContractImplicit = True }
 
-shouldEtaContractImplicit :: TCM Bool
+{-# SPECIALIZE shouldEtaContractImplicit :: TCM Bool #-}
+shouldEtaContractImplicit :: MonadReader TCEnv m => m Bool
 shouldEtaContractImplicit = asks envEtaContractImplicit
 
 -- | Don't reify interaction points
@@ -223,7 +226,8 @@ hasInputFile = isJust <$> optInputFile <$> commandLineOptions
 proofIrrelevance :: TCM Bool
 proofIrrelevance = optProofIrrelevance <$> pragmaOptions
 
-hasUniversePolymorphism :: TCM Bool
+{-# SPECIALIZE hasUniversePolymorphism :: TCM Bool #-}
+hasUniversePolymorphism :: HasOptions m => m Bool
 hasUniversePolymorphism = optUniversePolymorphism <$> pragmaOptions
 
 showImplicitArguments :: TCM Bool
@@ -276,12 +280,14 @@ typeInType = not . optUniverseCheck <$> pragmaOptions
 --   reportSLn
 --   reportSDoc
 
-getVerbosity :: TCM (Trie String Int)
+{-# SPECIALIZE getVerbosity :: TCM (Trie String Int) #-}
+getVerbosity :: HasOptions m => m (Trie String Int)
 getVerbosity = optVerbose <$> pragmaOptions
 
 type VerboseKey = String
 
-hasVerbosity :: VerboseKey -> Int -> TCM Bool
+{-# SPECIALIZE hasVerbosity :: VerboseKey -> Int -> TCM Bool #-}
+hasVerbosity :: HasOptions m => VerboseKey -> Int -> m Bool
 hasVerbosity k n | n < 0     = __IMPOSSIBLE__
                  | otherwise = do
     t <- getVerbosity

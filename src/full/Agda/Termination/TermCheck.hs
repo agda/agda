@@ -47,7 +47,6 @@ import Agda.TypeChecking.Records -- (isRecordConstructor, isInductiveRecord)
 import Agda.TypeChecking.Telescope
 import Agda.TypeChecking.EtaContract
 import Agda.TypeChecking.Monad.Builtin
-import Agda.TypeChecking.Primitive (constructorForm)
 import Agda.TypeChecking.Level (reallyUnLevelView)
 import Agda.TypeChecking.Substitute
 import Agda.TypeChecking.SizedTypes

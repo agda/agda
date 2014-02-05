@@ -18,6 +18,7 @@ import Agda.Syntax.Internal
 import Agda.TypeChecking.Monad
 import Agda.TypeChecking.Substitute
 import Agda.TypeChecking.Reduce
+import Agda.TypeChecking.Reduce.Monad (runReduce)
 import Agda.TypeChecking.Primitive
 import {-# SOURCE #-} Agda.TypeChecking.MetaVars
 import {-# SOURCE #-} Agda.TypeChecking.Conversion
@@ -30,41 +31,6 @@ import Agda.Utils.Permutation
 
 #include "../undefined.h"
 import Agda.Utils.Impossible
-
--- | Reduce simple (single clause) definitions.
-reduceHead :: Term -> TCM (Blocked Term)
-reduceHead v = do -- ignoreAbstractMode $ do
-  -- Andreas, 2013-02-18 ignoreAbstractMode leads to information leakage
-  -- see Issue 796
-
-  -- first, possibly rewrite literal v to constructor form
-  v <- constructorForm v
-  reportSDoc "tc.inj.reduce" 30 $ text "reduceHead" <+> prettyTCM v
-  case ignoreSharing v of
-    Def f es -> do
-
-      abstractMode <- envAbstractMode <$> ask
-      isAbstract <- treatAbstractly f
-      reportSLn "tc.inj.reduce" 50 $
-        "reduceHead: we are in " ++ show abstractMode++ "; " ++ show f ++
-        " is treated " ++ if isAbstract then "abstractly" else "concretely"
-
-      let v0  = Def f []
-          red = unfoldDefinitionE False reduceHead v0 f es
-      def <- theDef <$> getConstInfo f
-      case def of
-        -- Andreas, 2012-11-06 unfold aliases (single clause terminating functions)
-        -- see test/succeed/Issue747
-        -- We restrict this to terminating functions to not make the
-        -- type checker loop here on non-terminating functions.
-        -- see test/fail/TerminationInfiniteRecord
-        Function{ funClauses = [ _ ], funDelayed = NotDelayed, funTerminates = Just True } -> do
-          reportSLn "tc.inj.reduce" 50 $ "reduceHead: head " ++ show f ++ " is Function"
-          red
-        Datatype{ dataClause = Just _ } -> red
-        Record{ recClause = Just _ }    -> red
-        _                               -> return $ notBlocked v
-    _ -> return $ notBlocked v
 
 headSymbol :: Term -> TCM (Maybe TermHead)
 headSymbol v = do -- ignoreAbstractMode $ do

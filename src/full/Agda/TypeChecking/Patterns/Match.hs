@@ -9,9 +9,9 @@ import Agda.Syntax.Common
 import Agda.Syntax.Internal as I
 
 import Agda.TypeChecking.Reduce
+import Agda.TypeChecking.Reduce.Monad
 import Agda.TypeChecking.Substitute
-import Agda.TypeChecking.Monad
-import Agda.TypeChecking.Primitive (constructorForm)
+import Agda.TypeChecking.Monad hiding (reportSDoc)
 import Agda.TypeChecking.Pretty
 
 import Agda.Utils.Monad
@@ -55,7 +55,7 @@ instance Monoid (Match a) where
 --   In any case, also returns spine @es@ in reduced form
 --   (with all the weak head reductions performed that were necessary
 --   to come to a decision).
-matchCopatterns :: [I.NamedArg Pattern] -> [Elim] -> TCM (Match Term, [Elim])
+matchCopatterns :: [I.NamedArg Pattern] -> [Elim] -> ReduceM (Match Term, [Elim])
 matchCopatterns ps vs = do
     reportSDoc "tc.match" 50 $
       vcat [ text "matchCopatterns"
@@ -65,7 +65,7 @@ matchCopatterns ps vs = do
     mapFst mconcat . unzip <$> zipWithM' (matchCopattern . namedArg) ps vs
 
 -- | Match a single copattern.
-matchCopattern :: Pattern -> Elim -> TCM (Match Term, Elim)
+matchCopattern :: Pattern -> Elim -> ReduceM (Match Term, Elim)
 matchCopattern (ProjP p) elim@(Proj q)
   | p == q    = return (Yes YesSimplification [], elim)
   | otherwise = return (No                      , elim)
@@ -74,7 +74,7 @@ matchCopattern (ProjP p) elim@Apply{}
 matchCopattern _ elim@Proj{} = return (DontKnow Nothing, elim)
 matchCopattern p (Apply v)   = mapSnd Apply <$> matchPattern p v
 
-matchPatterns :: [I.NamedArg Pattern] -> [I.Arg Term] -> TCM (Match Term, [I.Arg Term])
+matchPatterns :: [I.NamedArg Pattern] -> [I.Arg Term] -> ReduceM (Match Term, [I.Arg Term])
 matchPatterns ps vs = do
     reportSDoc "tc.match" 50 $
       vcat [ text "matchPatterns"
@@ -86,13 +86,13 @@ matchPatterns ps vs = do
     return (mconcat ms, vs)
 
 -- | Match a single pattern.
-matchPattern :: Pattern -> I.Arg Term -> TCM (Match Term, I.Arg Term)
+matchPattern :: Pattern -> I.Arg Term -> ReduceM (Match Term, I.Arg Term)
 matchPattern p u = case (p, u) of
   (ProjP{}, _            ) -> __IMPOSSIBLE__
   (VarP _ , arg@(Arg _ v)) -> return (Yes NoSimplification [v], arg)
   (DotP _ , arg@(Arg _ v)) -> return (Yes NoSimplification [v], arg)
   (LitP l , arg@(Arg _ v)) -> do
-    w <- reduceB v
+    w <- reduceB' v
     let arg' = arg $> ignoreBlocking w
     case ignoreSharing <$> w of
 	NotBlocked (Lit l')
@@ -124,7 +124,7 @@ matchPattern (Arg h' r' (ConP c _ ps))     (Arg h Irrelevant v) = do
 
   -- Case data constructor pattern.
   (ConP c _ ps, Arg info v) ->
-    do	w <- traverse constructorForm =<< reduceB v
+    do	w <- traverse constructorForm =<< reduceB' v
         -- Unfold delayed (corecursive) definitions one step. This is
         -- only necessary if c is a coinductive constructor, but
         -- 1) it does not hurt to do it all the time, and
@@ -133,7 +133,7 @@ matchPattern (Arg h' r' (ConP c _ ps))     (Arg h Irrelevant v) = do
         --    projection functions for a record type).
         w <- case ignoreSharing <$> w of
                NotBlocked (Def f es) ->
-                 unfoldDefinitionE True reduceB (Def f []) f es
+                 unfoldDefinitionE True reduceB' (Def f []) f es
                    -- reduceB is used here because some constructors
                    -- are actually definitions which need to be
                    -- unfolded (due to open public).

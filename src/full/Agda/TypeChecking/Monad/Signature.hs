@@ -1,4 +1,4 @@
-{-# LANGUAGE CPP, PatternGuards #-}
+{-# LANGUAGE CPP, PatternGuards, FlexibleContexts #-}
 module Agda.TypeChecking.Monad.Signature where
 
 import Control.Applicative
@@ -634,8 +634,8 @@ ignoreAbstractMode = local $ \e -> e { envAbstractMode = IgnoreAbstractMode,
 -- | Check whether a name might have to be treated abstractly (either if we're
 --   'inAbstractMode' or it's not a local name). Returns true for things not
 --   declared abstract as well, but for those 'makeAbstract' will have no effect.
-treatAbstractly :: QName -> TCM Bool
-treatAbstractly q = treatAbstractly' q <$> ask
+treatAbstractly :: MonadReader TCEnv m => QName -> m Bool
+treatAbstractly q = asks $ treatAbstractly' q
 
 treatAbstractly' :: QName -> TCEnv -> Bool
 treatAbstractly' q env = case envAbstractMode env of

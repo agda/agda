@@ -1,16 +1,19 @@
 
 module Agda.TypeChecking.Monad.Builtin where
 
+import Control.Applicative
 import Control.Monad.Error
 import Control.Monad.State
 
 import Data.Functor
 import qualified Data.Map as Map
 
+import Agda.Syntax.Common
 import Agda.Syntax.Position
 import Agda.Syntax.Literal
 import Agda.Syntax.Internal
 import Agda.TypeChecking.Monad.Base
+import Agda.TypeChecking.Substitute
 
 import Agda.Utils.Monad (when_)
 
@@ -71,6 +74,26 @@ getPrimitive x = do
     case builtin of
 	Just (Prim pf) -> return pf
 	_	       -> typeError $ NoSuchPrimitiveFunction x
+
+-- | Rewrite a literal to constructor form if possible.
+constructorForm :: Term -> TCM Term
+constructorForm v = constructorForm' primZero primSuc v
+
+constructorForm' :: Applicative m => m Term -> m Term -> Term -> m Term
+constructorForm' pZero pSuc v = case ignoreSharing v of
+{- 2012-04-02 changed semantics of DontCare
+-- Andreas, 2011-10-03, the following line restores IrrelevantLevel
+    DontCare v                  -> constructorForm v
+-}
+    Lit (LitInt r n)            -> cons (Lit . LitInt r) n
+--     Level (Max [])              -> primLevelZero
+--     Level (Max [ClosedLevel n]) -> cons primLevelZero primLevelSuc (Level . Max . (:[]) . ClosedLevel) n
+    _                           -> pure v
+  where
+    cons lit n
+      | n == 0    = pZero
+      | n > 0     = (`apply` [defaultArg $ lit $ n - 1]) <$> pSuc
+      | otherwise = pure v
 
 ---------------------------------------------------------------------------
 -- * The names of built-in things

@@ -27,7 +27,7 @@ import Agda.TypeChecking.Telescope (renamingR)
 import qualified Agda.TypeChecking.Substitute as I (absBody)
 import Agda.TypeChecking.Reduce (Normalise, normalise, instantiate)
 import Agda.TypeChecking.EtaContract (etaContract)
-import Agda.TypeChecking.Primitive (constructorForm)
+import Agda.TypeChecking.Monad.Builtin (constructorForm)
 import Agda.TypeChecking.Free (freeIn)
 import qualified Agda.Utils.HashMap as HMap
 

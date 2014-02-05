@@ -8,6 +8,7 @@
 module Agda.TypeChecking.Primitive where
 
 import Control.Monad
+import Control.Applicative
 import Data.Map (Map)
 import qualified Data.Map as Map
 import Data.Char
@@ -40,25 +41,6 @@ import Agda.Utils.Pretty (pretty)
 
 #include "../undefined.h"
 import Agda.Utils.Impossible
-
--- | Rewrite a literal to constructor form if possible.
-constructorForm :: Term -> TCM Term
-constructorForm v = case ignoreSharing v of
-{- 2012-04-02 changed semantics of DontCare
--- Andreas, 2011-10-03, the following line restores IrrelevantLevel
-    DontCare v                  -> constructorForm v
--}
-    Lit (LitInt r n)            -> cons primZero primSuc (Lit . LitInt r) n
---     Level (Max [])              -> primLevelZero
---     Level (Max [ClosedLevel n]) -> cons primLevelZero primLevelSuc (Level . Max . (:[]) . ClosedLevel) n
-    _                           -> return v
-  where
-    cons pZero pSuc lit n
-      | n == 0  = pZero
-      | n > 0   = do
-        s <- pSuc
-        return $ s `apply` [defaultArg $ lit $ n - 1]
-      | otherwise	= return v
 
 ---------------------------------------------------------------------------
 -- * Primitive functions

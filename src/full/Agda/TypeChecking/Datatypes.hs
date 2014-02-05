@@ -10,7 +10,7 @@ import Agda.Syntax.Common
 import Agda.Syntax.Internal as I
 
 import Agda.TypeChecking.Monad
-import Agda.TypeChecking.Primitive (constructorForm)
+import Agda.TypeChecking.Monad.Builtin (constructorForm)
 import Agda.TypeChecking.Telescope
 import Agda.TypeChecking.Substitute
 

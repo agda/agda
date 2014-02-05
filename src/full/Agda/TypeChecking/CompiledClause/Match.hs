@@ -12,14 +12,14 @@ import Agda.TypeChecking.CompiledClause
 import Agda.TypeChecking.Monad
 import Agda.TypeChecking.Substitute
 import Agda.TypeChecking.Reduce
-import Agda.TypeChecking.Primitive
+import Agda.TypeChecking.Reduce.Monad
 
 import Agda.Utils.Maybe
 
 #include "../../undefined.h"
 import Agda.Utils.Impossible
 
-matchCompiled :: CompiledClauses -> MaybeReducedArgs -> TCM (Reduced (Blocked Args) Term)
+matchCompiled :: CompiledClauses -> MaybeReducedArgs -> ReduceM (Reduced (Blocked Args) Term)
 matchCompiled c args = do
   r <- matchCompiledE c $ map (fmap Apply) args
   case r of
@@ -30,7 +30,7 @@ matchCompiled c args = do
 
 -- | @matchCompiledE c es@ takes a function given by case tree @c@ and
 --   and a spine @es@ and tries to apply the function to @es@.
-matchCompiledE :: CompiledClauses -> MaybeReducedElims -> TCM (Reduced (Blocked Elims) Term)
+matchCompiledE :: CompiledClauses -> MaybeReducedElims -> ReduceM (Reduced (Blocked Elims) Term)
 matchCompiledE c args = match' [(c, args, id)]
 
 -- | A stack entry is a triple consisting of
@@ -60,7 +60,7 @@ type Stack = [Frame]
 
 -- TODO: literal/constructor pattern conflict (for Nat)
 
-match' :: Stack -> TCM (Reduced (Blocked Elims) Term)
+match' :: Stack -> ReduceM (Reduced (Blocked Elims) Term)
 match' ((c, es, patch) : stack) = do
   let no          es = return $ NoReduction $ NotBlocked $ patch $ map ignoreReduced es
       noBlocked x es = return $ NoReduction $ Blocked x  $ patch $ map ignoreReduced es
@@ -172,20 +172,20 @@ match' ((c, es, patch) : stack) = do
 -- If we reach the empty stack, then pattern matching was incomplete
 match' [] = do  {- new line here since __IMPOSSIBLE__ does not like the ' in match' -}
   caseMaybeM (asks envAppDef) __IMPOSSIBLE__ $ \ f -> do
-    typeError $ GenericError $ "Incomplete pattern matching when applying " ++ show f
+    error $ "Incomplete pattern matching when applying " ++ show f
 
 
 -- Andreas, 2013-03-20 recursive invokations of unfoldCorecursion
 -- need also to instantiate metas, see Issue 826.
-unfoldCorecursionE :: Elim -> TCM (Blocked Elim)
+unfoldCorecursionE :: Elim -> ReduceM (Blocked Elim)
 unfoldCorecursionE e@(Proj f)           = return $ NotBlocked e
 unfoldCorecursionE (Apply (Arg info v)) = fmap (Apply . Arg info) <$>
   unfoldCorecursion v
 
-unfoldCorecursion :: Term -> TCM (Blocked Term)
+unfoldCorecursion :: Term -> ReduceM (Blocked Term)
 unfoldCorecursion v = do
-  v <- instantiate v
+  v <- instantiate' v
   case v of
     Def f es -> unfoldDefinitionE True unfoldCorecursion (Def f []) f es
     Shared{} -> fmap shared <$> unfoldCorecursion (ignoreSharing v) -- don't update when unfolding corecursion!
-    _          -> reduceB v
+    _          -> reduceB' v

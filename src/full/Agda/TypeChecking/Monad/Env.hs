@@ -1,4 +1,4 @@
-
+{-# LANGUAGE FlexibleContexts #-}
 module Agda.TypeChecking.Monad.Env where
 
 import Control.Monad.Reader
@@ -59,11 +59,16 @@ dontExpandLast = local $ \ e -> e { envExpandLast = DontExpandLast }
 
 -- | If the reduced did a proper match (constructor or literal pattern),
 --   then record this as simplification step.
-performedSimplification :: TCM a -> TCM a
+{-# SPECIALIZE performedSimplification :: TCM a -> TCM a #-}
+performedSimplification :: MonadReader TCEnv m => m a -> m a
 performedSimplification = local $ \ e -> e { envSimplification = YesSimplification }
 
-performedSimplification' :: Simplification -> TCM a -> TCM a
+{-# SPECIALIZE performedSimplification' :: Simplification -> TCM a -> TCM a #-}
+performedSimplification' :: MonadReader TCEnv m => Simplification -> m a -> m a
 performedSimplification' simpl = local $ \ e -> e { envSimplification = simpl `mappend` envSimplification e }
+
+getSimplification :: MonadReader TCEnv m => m Simplification
+getSimplification = asks envSimplification
 
 -- | Reduce @Def f vs@ only if @f@ is a projection.
 onlyReduceProjections :: TCM a -> TCM a

@@ -18,6 +18,7 @@ import Agda.Syntax.Internal
 import Agda.Syntax.Translation.InternalToAbstract (reify)
 
 import Agda.TypeChecking.Monad
+import Agda.TypeChecking.Monad.Builtin (constructorForm)
 import Agda.TypeChecking.CompiledClause (CompiledClauses(Fail))
 import Agda.TypeChecking.MetaVars
 import Agda.TypeChecking.MetaVars.Occurs (killArgs,PruneResult(..))
@@ -27,7 +28,6 @@ import Agda.TypeChecking.SyntacticEquality
 import Agda.TypeChecking.Telescope
 import Agda.TypeChecking.Constraints
 import Agda.TypeChecking.Errors
-import Agda.TypeChecking.Primitive (constructorForm)
 import Agda.TypeChecking.Free
 import Agda.TypeChecking.Datatypes (getConType)
 import Agda.TypeChecking.Records
