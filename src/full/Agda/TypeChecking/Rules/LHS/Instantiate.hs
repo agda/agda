@@ -102,7 +102,8 @@ instantiateTel s tel = liftTCM $ do
   -- Andreas, 2013-10-27
   -- @reorderTel@ below uses free variable analysis, so @tel3@ should be
   -- fully instantiated and normalized. (See issue 234.)
-  tel3 <- normalise =<< do instantiateFull $ permute ps tel2
+  -- Ulf, 2014-02-05: Only normalise if reordering fails!
+  tel3 <- instantiateFull $ permute ps tel2
   let names3 = permute ps names1
 
   reportSDoc "tc.lhs.inst" 15 $ nest 2 $
@@ -115,11 +116,17 @@ instantiateTel s tel = liftTCM $ do
                           | (x, t) <- zip names3 tel3 ]
                    ]
         typeError $ GenericError $ show err
+      tryNormalisedReorder = do
+        tel3 <- normalise tel3
+        reportSDoc "tc.lhs.inst" 30 $ text "failed to reorder unnormalised, trying again with" $$
+          nest 2 (text "norm =" <+> brackets (fsep $ punctuate comma $ map prettyTCM tel3))
+        p <- maybe failToReorder return . reorderTel =<< normalise tel3
+        return (p, tel3)
 
-  -- p : Permutation (Γσ -> Γσ~)
-  p <- maybe failToReorder return $ reorderTel tel3
+  -- p : Permutation (Γσ -> Γσ ~)
+  (p, tel3) <- maybe tryNormalisedReorder (\p -> return (p, tel3)) $ reorderTel tel3
 
-  reportSLn "tc.lhs.inst" 10 $ "p   = " ++ show p
+  reportSLn "tc.lhs.inst" 10 $ "  p   = " ++ show p
 
   -- rho' : [Term Γσ~]Γσ
   let rho' = renaming (reverseP p)

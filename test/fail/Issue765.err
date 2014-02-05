@@ -3,5 +3,4 @@ The index
   sup (inj₁ n) ⊥-elim
 is not a constructor (or literal) applied to variables (note that
 parameters count as constructor arguments)
-when checking that the pattern refl has type
-sup (inj₁ m) ⊥-elim ≡ sup (inj₁ n) ⊥-elim
+when checking that the pattern refl has type to m ≡ to n

@@ -103,6 +103,7 @@ type Sub = Map Nat Term
 data UnifyException
   = ConstructorMismatch Type Term Term
   | StronglyRigidOccurrence Type Term Term
+  | UnclearOccurrence Type Term Term
   | GenericUnifyException String
 
 instance Error UnifyException where
@@ -205,7 +206,7 @@ occursCheck i u a = do
     -- any other recursive occurrence leads to unclear situation
     _             -> do
       liftTCM $ reportSDoc "tc.lhs.unify" 20 $ prettyTCM v <+> text "occurs in" <+> prettyTCM u
-      typeError $ UnequalTerms CmpEq v u a
+      throwException $ UnclearOccurrence a v u
 
 -- | Assignment with preceding occurs check.
 (|->) :: Nat -> (Term, Type) -> Unify ()
@@ -415,7 +416,8 @@ unifyIndices flex a us vs = liftTCM $ do
       Left (ConstructorMismatch     a u v)  -> return $ NoUnify a u v
       -- Andreas 2011-04-14:
       Left (StronglyRigidOccurrence a u v)  -> return $ NoUnify a u v
-      Left (GenericUnifyException     err)  -> fail err
+      Left (UnclearOccurrence a u v)        -> typeError $ UnequalTerms CmpEq u v a
+      Left (GenericUnifyException     err)  -> typeError $ GenericError err
       Right _                               -> do
         checkEqualities $ applySubst (makeSubstitution s) eqs
         let n = maximum $ (-1) : flex'
@@ -586,6 +588,11 @@ unifyIndices flex a us vs = liftTCM $ do
       i |-> x
       recheckConstraints
 
+    maybeAssign h i x = (i |->> x) `catchException` \e ->
+      case e of
+        UnclearOccurrence{} -> h
+        _                   -> throwException e
+
     unifySizes :: Term -> Term -> Unify ()
     unifySizes u v = do
       sz <- liftTCM sizeType
@@ -654,6 +661,9 @@ unifyIndices flex a us vs = liftTCM $ do
            -- use @a@ only if 'homogeneous' holds!
 
           fallback = tryAgain aHH u v
+                   -- Try again if occurs check fails non-rigidly. It might be
+                   -- that normalising gets rid of the occurrence.
+          (|->?) = maybeAssign fallback
 
       liftTCM $ reportSDoc "tc.lhs.unify" 15 $
 	sep [ text "unifyAtom"
@@ -686,9 +696,9 @@ unifyIndices flex a us vs = liftTCM $ do
             -- We assign the "bigger" variable, where dotted, hidden, earlier is bigger
             -- (in this order, see Problem.hs).
             -- The comparison is total.
-            if fj >= fi then j |->> (u, a) else i |->> (v, a)
-	(Var i [], _) | homogeneous && flexible i -> i |->> (v, a)
-	(_, Var j []) | homogeneous && flexible j -> j |->> (u, a)
+            if fj >= fi then j |->? (u, a) else i |->? (v, a)
+	(Var i [], _) | homogeneous && flexible i -> i |->? (v, a)
+	(_, Var j []) | homogeneous && flexible j -> j |->? (u, a)
 	(Con c us, Con c' vs)
           | c == c' -> do
               r <- ureduce =<< liftTCM (dataOrRecordTypeHH c aHH)
