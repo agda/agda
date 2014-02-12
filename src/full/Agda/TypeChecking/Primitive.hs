@@ -21,26 +21,24 @@ import Agda.Syntax.Internal as I
 import Agda.Syntax.Literal
 import Agda.Syntax.Concrete.Pretty ()
 
-import Agda.TypeChecking.Monad
+import Agda.TypeChecking.Monad hiding (getConstInfo, typeOfConst)
+import qualified Agda.TypeChecking.Monad as TCM
 import Agda.TypeChecking.Monad.Builtin
 import Agda.TypeChecking.Reduce
+import Agda.TypeChecking.Reduce.Monad
 import Agda.TypeChecking.Substitute
 import Agda.TypeChecking.Errors
 import Agda.TypeChecking.Level
 import Agda.TypeChecking.Quote (quotingKit)
 import Agda.TypeChecking.Pretty ()  -- instances only
 
-{- imports needed for calling conversion checker in primTrustMe
-import Control.Monad.Error
-import {-# SOURCE #-} Agda.TypeChecking.Conversion
-import Agda.TypeChecking.Constraints
--}
-
 import Agda.Utils.Monad
 import Agda.Utils.Pretty (pretty)
+import Agda.Utils.Maybe
 
 #include "../undefined.h"
 import Agda.Utils.Impossible
+import Debug.Trace
 
 ---------------------------------------------------------------------------
 -- * Primitive functions
@@ -138,7 +136,7 @@ instance (PrimTerm a, ToTerm a) => ToTerm [a] where
 
 -- From Haskell value to Agda term
 
-type FromTermFunction a = I.Arg Term -> TCM (Reduced (MaybeReduced (I.Arg Term)) a)
+type FromTermFunction a = I.Arg Term -> ReduceM (Reduced (MaybeReduced (I.Arg Term)) a)
 
 class FromTerm a where
     fromTerm :: TCM (FromTermFunction a)
@@ -204,14 +202,11 @@ instance (ToTerm a, FromTerm a) => FromTerm [a] where
     where
       isCon (Lam _ b)  = isCon $ absBody b
       isCon (Con c _)  = return c
-      isCon (Shared p) = isCon (derefPtr p)
-      isCon v          = do
-        d <- prettyTCM v
-        typeError $ GenericError $ "expected constructor in built-in binding to " ++ show d
-                        -- TODO: check this when binding the things
+      isCon (Shared p) = __IMPOSSIBLE__ -- isCon (derefPtr p)
+      isCon v          = __IMPOSSIBLE__
 
       mkList nil cons toA fromA t = do
-        b <- reduceB t
+        b <- reduceB' t
         let t = ignoreBlocking b
         let arg = Arg (ArgInfo { argInfoHiding = getHiding t
                                , argInfoRelevance = getRelevance t
@@ -231,20 +226,20 @@ instance (ToTerm a, FromTerm a) => FromTerm [a] where
           _ -> return $ NoReduction (reduced b)
 
 -- | Conceptually: @redBind m f k = either (return . Left . f) k =<< m@
-redBind :: TCM (Reduced a a') -> (a -> b) ->
-	     (a' -> TCM (Reduced b b')) -> TCM (Reduced b b')
+redBind :: ReduceM (Reduced a a') -> (a -> b) ->
+	     (a' -> ReduceM (Reduced b b')) -> ReduceM (Reduced b b')
 redBind ma f k = do
     r <- ma
     case r of
 	NoReduction x    -> return $ NoReduction $ f x
 	YesReduction _ y -> k y
 
-redReturn :: a -> TCM (Reduced a' a)
+redReturn :: a -> ReduceM (Reduced a' a)
 redReturn = return . YesReduction NoSimplification
 
 fromReducedTerm :: (Term -> Maybe a) -> TCM (FromTermFunction a)
 fromReducedTerm f = return $ \t -> do
-    b <- reduceB t
+    b <- reduceB' t
     case f $ ignoreSharing $ unArg (ignoreBlocking b) of
 	Just x	-> return $ YesReduction NoSimplification x
 	Nothing	-> return $ NoReduction (reduced b)
@@ -280,7 +275,7 @@ primTrustMe = do
             -- and the conversion checker for eliminations does not
             -- like this.
             -- We can only do untyped equality, e.g., by normalisation.
-            (u', v') <- normalise (u, v)
+            (u', v') <- normalise' (u, v)
             if (u' == v') then redReturn (refl $ unArg u) else
               return (NoReduction $ map notReduced [a, t, u, v])
 {- OLD:
@@ -298,30 +293,36 @@ primQNameType = mkPrimFun1TCM (el primQName --> el primAgdaType) typeOfConst
 
 primQNameDefinition :: TCM PrimitiveImpl
 primQNameDefinition = do
-  let argQName qn = [defaultArg (Lit (LitQName noRange qn))]
-      app mt xs = do t <- mt
-                     return $ apply t xs
+  agdaFunDef                    <- primAgdaDefinitionFunDef
+  agdaDefinitionFunDef          <- primAgdaDefinitionFunDef
+  agdaDefinitionDataDef         <- primAgdaDefinitionDataDef
+  agdaDefinitionRecordDef       <- primAgdaDefinitionRecordDef
+  agdaDefinitionPostulate       <- primAgdaDefinitionPostulate
+  agdaDefinitionPrimitive       <- primAgdaDefinitionPrimitive
+  agdaDefinitionDataConstructor <- primAgdaDefinitionDataConstructor
 
-      con qn Function{}    = app primAgdaDefinitionFunDef    (argQName qn)
-      con qn Datatype{}    = app primAgdaDefinitionDataDef   (argQName qn)
-      con qn Record{}      = app primAgdaDefinitionRecordDef (argQName qn)
-      con _  Axiom{}       = app primAgdaDefinitionPostulate []
-      con _  Primitive{}   = app primAgdaDefinitionPrimitive []
-      con _  Constructor{} = app primAgdaDefinitionDataConstructor []
+  let argQName qn = [defaultArg (Lit (LitQName noRange qn))]
+      con qn Function{}    = apply agdaDefinitionFunDef    (argQName qn)
+      con qn Datatype{}    = apply agdaDefinitionDataDef   (argQName qn)
+      con qn Record{}      = apply agdaDefinitionRecordDef (argQName qn)
+      con _  Axiom{}       = apply agdaDefinitionPostulate []
+      con _  Primitive{}   = apply agdaDefinitionPrimitive []
+      con _  Constructor{} = apply agdaDefinitionDataConstructor []
 
   unquoteQName <- fromTerm
   t <- el primQName --> el primAgdaDefinition
   return $ PrimImpl t $ PrimFun __IMPOSSIBLE__ 1 $ \ts ->
     case ts of
-      [v] -> liftTCM $
+      [v] ->
         redBind (unquoteQName v)
             (\v' -> [v']) $ \x ->
-        redReturn =<< con x . theDef =<< getConstInfo x
+        redReturn =<< (con x . theDef <$> getConstInfo x)
       _ -> __IMPOSSIBLE__
 
 primDataConstructors :: TCM PrimitiveImpl
-primDataConstructors = mkPrimFun1TCM (el primAgdaDataDef --> el (list primQName))
-                                     (fmap (dataCons . theDef) . getConstInfo)
+primDataConstructors =
+  mkPrimFun1TCM (el primAgdaDataDef --> el (list primQName))
+                (fmap (dataCons . theDef) . getConstInfo)
 
 mkPrimLevelZero :: TCM PrimitiveImpl
 mkPrimLevelZero = do
@@ -331,26 +332,26 @@ mkPrimLevelZero = do
 mkPrimLevelSuc :: TCM PrimitiveImpl
 mkPrimLevelSuc = do
   t <- primType (id :: Lvl -> Lvl)
-  return $ PrimImpl t $ PrimFun __IMPOSSIBLE__ 1 $ \ ~[a] -> liftTCM $ do
-    l <- levelView $ unArg a
+  return $ PrimImpl t $ PrimFun __IMPOSSIBLE__ 1 $ \ ~[a] -> do
+    l <- levelView' $ unArg a
     redReturn $ Level $ levelSuc l
 
 mkPrimLevelMax :: TCM PrimitiveImpl
 mkPrimLevelMax = do
   t <- primType (max :: Op Lvl)
-  return $ PrimImpl t $ PrimFun __IMPOSSIBLE__ 2 $ \ ~[a, b] -> liftTCM $ do
-    Max as <- levelView $ unArg a
-    Max bs <- levelView $ unArg b
+  return $ PrimImpl t $ PrimFun __IMPOSSIBLE__ 2 $ \ ~[a, b] -> do
+    Max as <- levelView' $ unArg a
+    Max bs <- levelView' $ unArg b
     redReturn $ Level $ levelMax $ as ++ bs
 
-mkPrimFun1TCM :: (FromTerm a, ToTerm b) => TCM Type -> (a -> TCM b) -> TCM PrimitiveImpl
+mkPrimFun1TCM :: (FromTerm a, ToTerm b) => TCM Type -> (a -> ReduceM b) -> TCM PrimitiveImpl
 mkPrimFun1TCM mt f = do
     toA   <- fromTerm
     fromB <- toTerm
     t     <- mt
     return $ PrimImpl t $ PrimFun __IMPOSSIBLE__ 1 $ \ts ->
       case ts of
-        [v] -> liftTCM $
+        [v] ->
           redBind (toA v)
               (\v' -> [v']) $ \x ->
           redReturn . fromB =<< f x
@@ -365,7 +366,7 @@ mkPrimFun1 f = do
     t	  <- primType f
     return $ PrimImpl t $ PrimFun __IMPOSSIBLE__ 1 $ \ts ->
       case ts of
-        [v] -> liftTCM $
+        [v] ->
           redBind (toA v)
               (\v' -> [v']) $ \x ->
           redReturn $ fromB $ f x
@@ -381,7 +382,7 @@ mkPrimFun2 f = do
     t	  <- primType f
     return $ PrimImpl t $ PrimFun __IMPOSSIBLE__ 2 $ \ts ->
       case ts of
-        [v,w] -> liftTCM $
+        [v,w] ->
           redBind (toA v)
               (\v' -> [v', notReduced w]) $ \x ->
           redBind (toB w)
@@ -407,7 +408,7 @@ mkPrimFun4 f = do
       let argFrom fromX a x =
             reduced $ notBlocked $ Arg (argInfo a) (fromX x)
       in case ts of
-        [a,b,c,d] -> liftTCM $
+        [a,b,c,d] ->
           redBind (toA a)
               (\a' -> a' : map notReduced [b,c,d]) $ \x ->
           redBind (toB b)
@@ -585,7 +586,7 @@ primitiveFunctions = Map.fromList
 lookupPrimitiveFunction :: String -> TCM PrimitiveImpl
 lookupPrimitiveFunction x =
     case Map.lookup x primitiveFunctions of
-	Just p	-> liftTCM p
+	Just p	-> p
 	Nothing	-> typeError $ NoSuchPrimitiveFunction x
 
 lookupPrimitiveFunctionQ :: QName -> TCM (String, PrimitiveImpl)

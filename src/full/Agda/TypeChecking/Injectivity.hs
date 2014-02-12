@@ -18,7 +18,6 @@ import Agda.Syntax.Internal
 import Agda.TypeChecking.Monad
 import Agda.TypeChecking.Substitute
 import Agda.TypeChecking.Reduce
-import Agda.TypeChecking.Reduce.Monad (runReduce)
 import Agda.TypeChecking.Primitive
 import {-# SOURCE #-} Agda.TypeChecking.MetaVars
 import {-# SOURCE #-} Agda.TypeChecking.Conversion

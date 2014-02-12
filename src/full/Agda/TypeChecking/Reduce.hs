@@ -20,10 +20,10 @@ import Agda.Syntax.Scope.Base (Scope)
 import Agda.Syntax.Literal
 
 import Agda.TypeChecking.Monad hiding ( underAbstraction_, enterClosure, isInstantiatedMeta
-                                      , reportSDoc, reportSLn, getConstInfo, primFunImplementation
+                                      , reportSDoc, reportSLn, getConstInfo
                                       , lookupMeta )
 import qualified Agda.TypeChecking.Monad as TCM
-import Agda.TypeChecking.Monad.Builtin hiding (getPrimitive, getBuiltin', primZero, primSuc)
+import Agda.TypeChecking.Monad.Builtin hiding (getPrimitive, constructorForm)
 import Agda.TypeChecking.Substitute
 import Agda.TypeChecking.CompiledClause
 import {-# SOURCE #-} Agda.TypeChecking.Pretty
@@ -40,22 +40,22 @@ import Agda.Utils.HashMap (HashMap)
 import Agda.Utils.Impossible
 
 instantiate :: Instantiate a => a -> TCM a
-instantiate = runReduce . instantiate'
+instantiate = runReduceM . instantiate'
 
 instantiateFull :: InstantiateFull a => a -> TCM a
-instantiateFull = runReduce . instantiateFull'
+instantiateFull = runReduceM . instantiateFull'
 
 reduce :: Reduce a => a -> TCM a
-reduce = runReduce . reduce'
+reduce = runReduceM . reduce'
 
 reduceB :: Reduce a => a -> TCM (Blocked a)
-reduceB = runReduce . reduceB'
+reduceB = runReduceM . reduceB'
 
 normalise :: Normalise a => a -> TCM a
-normalise = runReduce . normalise'
+normalise = runReduceM . normalise'
 
 simplify :: Simplify a => a -> TCM a
-simplify = runReduce . simplify'
+simplify = runReduceM . simplify'
 
 -- | Instantiate something.
 --   Results in an open meta variable or a non meta.
@@ -337,7 +337,7 @@ unfoldDefinition' unfoldDelayed keepGoing v0 f es =
     Constructor{conSrcCon = c} ->
       retSimpl $ notBlocked $ Con (c `withRangeOf` f) [] `applyE` es
     Primitive{primAbstr = ConcreteDef, primName = x, primClauses = cls} -> do
-      pf <- getPrimitive x
+      pf <- fromMaybe __IMPOSSIBLE__ <$> getPrimitive' x
       reducePrimitive x v0 f es pf (defDelayed info) (defNonterminating info)
                       cls (defCompiled info)
     _  -> do
@@ -476,14 +476,14 @@ reduceDef_ info f vs = do
   if (defDelayed info == Delayed) || (defNonterminating info)
    then return $ NoReduction ()
    else do
-      ev <- runReduce $ appDef_ f v0 cls mcc args
+      ev <- runReduceM $ appDef_ f v0 cls mcc args
       case ev of
         YesReduction simpl t -> return $ YesReduction simpl t
         NoReduction args'    -> return $ NoReduction ()
 
 -- | Reduce simple (single clause) definitions.
 reduceHead :: Term -> TCM (Blocked Term)
-reduceHead = runReduce . reduceHead'
+reduceHead = runReduceM . reduceHead'
 
 reduceHead' :: Term -> ReduceM (Blocked Term)
 reduceHead' v = do -- ignoreAbstractMode $ do
@@ -491,7 +491,7 @@ reduceHead' v = do -- ignoreAbstractMode $ do
   -- see Issue 796
 
   -- first, possibly rewrite literal v to constructor form
-  v <- constructorForm' primZero primSuc v
+  v <- constructorForm v
   reportSDoc "tc.inj.reduce" 30 $ text "reduceHead" <+> prettyTCM v
   case ignoreSharing v of
     Def f es -> do

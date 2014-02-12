@@ -10,6 +10,7 @@ import Agda.Syntax.Internal
 import Agda.TypeChecking.Monad
 import Agda.TypeChecking.Substitute
 import Agda.TypeChecking.Reduce
+import Agda.TypeChecking.Reduce.Monad ()
 import Agda.TypeChecking.Monad.Builtin
 
 #include "../undefined.h"
@@ -106,11 +107,17 @@ maybePrimDef prim = liftTCM $ do
 levelView :: Term -> TCM Level
 levelView a = do
   reportSLn "tc.level.view" 50 $ "{ levelView " ++ show a
-  msuc <- maybePrimCon primLevelSuc
-  mzer <- maybePrimCon primLevelZero
-  mmax <- maybePrimDef primLevelMax
+  v <- runReduceM $ levelView' a
+  reportSLn "tc.level.view" 50 $ "  view: " ++ show v ++ "}"
+  return v
+
+levelView' :: Term -> ReduceM Level
+levelView' a = do
+  msuc <- (getCon =<<) <$> getBuiltin' builtinLevelSuc
+  mzer <- (getCon =<<) <$> getBuiltin' builtinLevelZero
+  mmax <- (getDef =<<) <$> getBuiltin' builtinLevelMax
   let view a = do
-        a <- reduce a
+        a <- reduce' a
         case ignoreSharing a of
           Level l -> return l
           Con s [arg]
@@ -121,11 +128,16 @@ levelView a = do
             | Just m == mmax -> levelLub <$> view (unArg arg1) <*> view (unArg arg2)
           _                  -> mkAtom a
   v <- view a
-  reportSLn "tc.level.view" 50 $ "  view: " ++ show v ++ "}"
   return v
   where
+    getCon (Con c []) = Just c
+    getCon _          = Nothing
+
+    getDef (Def f []) = Just f
+    getDef _          = Nothing
+
     mkAtom a = do
-      b <- reduceB a
+      b <- reduceB' a
       return $ case ignoreSharing <$> b of
         NotBlocked (MetaV m as) -> atom $ MetaLevel m as
         NotBlocked _            -> atom $ NeutralLevel (ignoreBlocking b)

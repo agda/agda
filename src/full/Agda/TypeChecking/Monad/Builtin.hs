@@ -16,6 +16,10 @@ import Agda.TypeChecking.Monad.Base
 import Agda.TypeChecking.Substitute
 
 import Agda.Utils.Monad (when_)
+import Agda.Utils.Maybe
+
+class (Functor m, Applicative m, Monad m) => HasBuiltins m where
+  getBuiltinThing :: String -> m (Maybe (Builtin PrimFun))
 
 litType :: Literal -> TCM Type
 litType l = case l of
@@ -30,9 +34,9 @@ litType l = case l of
   where
     el t = El (mkType 0) t
 
-getBuiltinThing :: String -> TCM (Maybe (Builtin PrimFun))
-getBuiltinThing b = liftM2 mplus (Map.lookup b <$> gets stLocalBuiltins)
-                    (Map.lookup b <$> gets stImportedBuiltins)
+instance MonadIO m => HasBuiltins (TCMT m) where
+  getBuiltinThing b = liftM2 mplus (Map.lookup b <$> gets stLocalBuiltins)
+                      (Map.lookup b <$> gets stImportedBuiltins)
 
 setBuiltinThings :: BuiltinThings PrimFun -> TCM ()
 setBuiltinThings b = modify $ \s -> s { stLocalBuiltins = b }
@@ -53,27 +57,26 @@ bindPrimitive b pf = do
   builtin <- gets stLocalBuiltins
   setBuiltinThings $ Map.insert b (Prim pf) builtin
 
-
 getBuiltin :: String -> TCM Term
-getBuiltin x = do
-    mt <- getBuiltin' x
-    case mt of
-        Nothing -> typeError $ NoBindingForBuiltin x
-        Just t  -> return t
+getBuiltin x =
+  fromMaybeM (typeError $ NoBindingForBuiltin x) $ getBuiltin' x
 
-getBuiltin' :: String -> TCM (Maybe Term)
+getBuiltin' :: HasBuiltins m => String -> m (Maybe Term)
 getBuiltin' x = do
     builtin <- getBuiltinThing x
     case builtin of
 	Just (Builtin t) -> return $ Just (killRange t)
 	_		 -> return Nothing
 
+getPrimitive' :: HasBuiltins m => String -> m (Maybe PrimFun)
+getPrimitive' x = (getPrim =<<) <$> getBuiltinThing x
+  where
+    getPrim (Prim pf) = return pf
+    getPrim _         = Nothing
+
 getPrimitive :: String -> TCM PrimFun
-getPrimitive x = do
-    builtin <- getBuiltinThing x
-    case builtin of
-	Just (Prim pf) -> return pf
-	_	       -> typeError $ NoSuchPrimitiveFunction x
+getPrimitive x =
+  fromMaybeM (typeError $ NoSuchPrimitiveFunction x) $ getPrimitive' x
 
 -- | Rewrite a literal to constructor form if possible.
 constructorForm :: Term -> TCM Term
@@ -107,7 +110,7 @@ primInteger, primFloat, primChar, primString, primBool, primTrue, primFalse,
     primInf, primSharp, primFlat,
     primEquality, primRefl,
     primLevel, primLevelZero, primLevelSuc, primLevelMax,
-    primIrrAxiom,
+    primIrrAxiom, primSizeMax,
     -- builtins for reflection:
     primQName, primArgInfo, primArgArgInfo, primArg, primArgArg, primAgdaTerm, primAgdaTermVar,
     primAgdaTermLam, primAgdaTermDef, primAgdaTermCon, primAgdaTermPi,

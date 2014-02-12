@@ -831,7 +831,7 @@ allReductions = [minBound..maxBound]
 data PrimFun = PrimFun
 	{ primFunName		:: QName
 	, primFunArity		:: Arity
-	, primFunImplementation :: [Arg Term] -> TCM (Reduced MaybeReducedArgs Term)
+	, primFunImplementation :: [Arg Term] -> ReduceM (Reduced MaybeReducedArgs Term)
 	}
     deriving (Typeable)
 
@@ -1473,6 +1473,14 @@ instance HasRange TCErr where
     {- getRange (AbortAssign s)   = noRange -- UNUSED -}
 
 instance Exception TCErr
+
+-----------------------------------------------------------------------------
+-- * The reduce monad
+-----------------------------------------------------------------------------
+
+-- Placeholder definition, should be a lazy reader monad.
+newtype ReduceM a = ReduceM { runReduceM :: TCM a }
+  deriving (Functor, Applicative, Monad, MonadReader TCEnv)
 
 ---------------------------------------------------------------------------
 -- * Type checking monad transformer
