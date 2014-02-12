@@ -470,8 +470,8 @@ interpret Cmd_constraints =
 
 interpret Cmd_metas = do -- CL.showMetas []
   ims <- lift $ B.typesOfVisibleMetas B.AsIs
-  -- Show unsolved implicit arguments normalised.
-  hms <- lift $ B.typesOfHiddenMetas B.Normalised
+  -- Show unsolved implicit arguments simplified.
+  hms <- lift $ B.typesOfHiddenMetas B.Simplified
   if not $ null ims && null hms
     then do
       di <- lift $ forM ims $ \i -> B.withInteractionId (B.outputFormId $ B.OutputForm noRange 0 i) (showATop i)
