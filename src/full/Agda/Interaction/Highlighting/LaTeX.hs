@@ -488,9 +488,11 @@ generateLaTeX mod hi = do
       liftIO $ copyFile styFile (dir </> defaultStyFile)
 
   liftIO $ do
-    source <- UTF8.readTextFile (modToFile mod <.> "lagda")
+    let filePath = modToFile mod
+    source <- UTF8.readTextFile (filePath <.> "lagda")
     latex <- E.encodeUtf8 `fmap` toLaTeX source hi
-    BS.writeFile (dir </> modToFile mod <.> "tex") latex
+    createDirectoryIfMissing True $ dir </> takeDirectory filePath
+    BS.writeFile (dir </> filePath <.> "tex") latex
 
   where
   modToFile :: A.ModuleName -> FilePath
