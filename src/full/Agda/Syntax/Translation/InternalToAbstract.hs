@@ -251,18 +251,18 @@ reifyDisplayFormP lhs@(A.SpineLHS i x ps wps) =
 
         -- TODO: restructure this to avoid having to repeat the code for reify
         termToExpr :: Term -> TCM A.Expr
-        termToExpr (I.Var n [])
-          | n < len = return $ A.patternToExpr $ ps !! n
-        termToExpr (I.Con c vs) =
-          apps (A.Con (AmbQ [conName c])) =<< argsToExpr vs
-        termToExpr (I.Def f es) = do
-          -- TODO: really IMPOSSIBLE?
-          let vs = maybe __IMPOSSIBLE__ id $ mapM isApplyElim es
-          apps (A.Def f) =<< argsToExpr vs
-        termToExpr (I.Var n es) = do
-          let vs = maybe __IMPOSSIBLE__ id $ mapM isApplyElim es
-          uncurry apps =<< (,) <$> reify (I.var (n - len)) <*> argsToExpr vs
-        termToExpr _ = return underscore
+        termToExpr v =
+          case unSpine v of
+            I.Var n [] | n < len -> return $ A.patternToExpr $ ps !! n
+            I.Con c vs ->
+              apps (A.Con (AmbQ [conName c])) =<< argsToExpr vs
+            I.Def f es -> do
+              let vs = maybe __IMPOSSIBLE__ id $ mapM isApplyElim es
+              apps (A.Def f) =<< argsToExpr vs
+            I.Var n es -> do
+              let vs = maybe __IMPOSSIBLE__ id $ mapM isApplyElim es
+              uncurry apps =<< (,) <$> reify (I.var (n - len)) <*> argsToExpr vs
+            _ -> return underscore
 
 instance Reify Literal Expr where
   reifyWhen = reifyWhenE
