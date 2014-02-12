@@ -1,4 +1,4 @@
-{-# LANGUAGE CPP, PatternGuards, FlexibleContexts #-}
+{-# LANGUAGE CPP, PatternGuards, FlexibleContexts, FlexibleInstances #-}
 module Agda.TypeChecking.Monad.Signature where
 
 import Control.Applicative
@@ -432,43 +432,47 @@ singleConstructorType q = do
         _                          -> __IMPOSSIBLE__
     _ -> __IMPOSSIBLE__
 
--- | Lookup the definition of a name. The result is a closed thing, all free
---   variables have been abstracted over.
+class (Functor m, Applicative m, Monad m) => HasConstInfo m where
+  -- | Lookup the definition of a name. The result is a closed thing, all free
+  --   variables have been abstracted over.
+  getConstInfo :: QName -> m Definition
+
 {-# SPECIALIZE getConstInfo :: QName -> TCM Definition #-}
-getConstInfo :: MonadTCM tcm => QName -> tcm Definition
-getConstInfo q = liftTCM $ join $ pureTCM $ \st env ->
-  let defs  = sigDefinitions $ stSignature st
-      idefs = sigDefinitions $ stImports st
-  in case catMaybes [HMap.lookup q defs, HMap.lookup q idefs] of
-      []  -> fail $ "Unbound name: " ++ show q ++ " " ++ showQNameId q
-      [d] -> mkAbs env d
-      ds  -> fail $ "Ambiguous name: " ++ show q
-  where
-    mkAbs env d
-      | treatAbstractly' q' env =
-        case makeAbstract d of
-          Just d	-> return d
-          Nothing	-> notInScope $ qnameToConcrete q
-            -- the above can happen since the scope checker is a bit sloppy with 'abstract'
-      | otherwise = return d
-      where
-        q' = case theDef d of
-          -- Hack to make abstract constructors work properly. The constructors
-          -- live in a module with the same name as the datatype, but for 'abstract'
-          -- purposes they're considered to be in the same module as the datatype.
-          Constructor{} -> dropLastModule q
-          _             -> q
 
-        dropLastModule q@QName{ qnameModule = m } =
-          q{ qnameModule = mnameFromList $ init' $ mnameToList m }
+instance HasConstInfo (TCMT IO) where
+  getConstInfo q = join $ pureTCM $ \st env ->
+    let defs  = sigDefinitions $ stSignature st
+        idefs = sigDefinitions $ stImports st
+    in case catMaybes [HMap.lookup q defs, HMap.lookup q idefs] of
+        []  -> fail $ "Unbound name: " ++ show q ++ " " ++ showQNameId q
+        [d] -> mkAbs env d
+        ds  -> fail $ "Ambiguous name: " ++ show q
+    where
+      mkAbs env d
+        | treatAbstractly' q' env =
+          case makeAbstract d of
+            Just d	-> return d
+            Nothing	-> notInScope $ qnameToConcrete q
+              -- the above can happen since the scope checker is a bit sloppy with 'abstract'
+        | otherwise = return d
+        where
+          q' = case theDef d of
+            -- Hack to make abstract constructors work properly. The constructors
+            -- live in a module with the same name as the datatype, but for 'abstract'
+            -- purposes they're considered to be in the same module as the datatype.
+            Constructor{} -> dropLastModule q
+            _             -> q
 
-        init' [] = {-'-} __IMPOSSIBLE__
-        init' xs = init xs
+          dropLastModule q@QName{ qnameModule = m } =
+            q{ qnameModule = mnameFromList $ init' $ mnameToList m }
+
+          init' [] = {-'-} __IMPOSSIBLE__
+          init' xs = init xs
 
 {-# INLINE getConInfo #-}
 {-# SPECIALIZE getConstInfo :: QName -> TCM Definition #-}
 getConInfo :: MonadTCM tcm => ConHead -> tcm Definition
-getConInfo = getConstInfo . conName
+getConInfo = liftTCM . getConstInfo . conName
 
 -- | Look up the polarity of a definition.
 getPolarity :: QName -> TCM [Polarity]
@@ -625,7 +629,7 @@ inConcreteMode :: TCM a -> TCM a
 inConcreteMode = local $ \e -> e { envAbstractMode = ConcreteMode }
 
 -- | Ignore abstract mode. All abstract definitions are transparent.
-ignoreAbstractMode :: TCM a -> TCM a
+ignoreAbstractMode :: MonadReader TCEnv m => m a -> m a
 ignoreAbstractMode = local $ \e -> e { envAbstractMode = IgnoreAbstractMode,
                                        envAllowDestructiveUpdate = False }
                                        -- Allowing destructive updates when ignoring

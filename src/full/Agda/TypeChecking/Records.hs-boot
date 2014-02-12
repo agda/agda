@@ -6,8 +6,8 @@ import Agda.Syntax.Internal
 import qualified Agda.Syntax.Concrete.Name as C
 import Agda.TypeChecking.Monad
 
-isRecord :: QName -> TCM (Maybe Defn)
-isEtaRecord :: QName -> TCM Bool
+isRecord :: HasConstInfo m => QName -> m (Maybe Defn)
+isEtaRecord :: HasConstInfo m => QName -> m Bool
 getRecordFieldNames :: QName -> TCM [Arg C.Name]
-etaContractRecord :: QName -> ConHead -> Args -> TCM Term
+etaContractRecord :: HasConstInfo m => QName -> ConHead -> Args -> m Term
 isGeneratedRecordConstructor :: QName -> TCM Bool

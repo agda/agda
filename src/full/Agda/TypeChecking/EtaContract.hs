@@ -12,6 +12,7 @@ import Agda.Syntax.Internal.Generic
 import Agda.TypeChecking.Substitute
 import Agda.TypeChecking.Free
 import Agda.TypeChecking.Monad
+import Agda.TypeChecking.Reduce.Monad ()
 import {-# SOURCE #-} Agda.TypeChecking.Records
 import {-# SOURCE #-} Agda.TypeChecking.Datatypes
 import Agda.Utils.Monad
@@ -56,7 +57,9 @@ binAppView t = case t of
 etaContract :: TermLike a => a -> TCM a
 etaContract = traverseTermM etaOnce
 
-etaOnce :: Term -> TCM Term
+{-# SPECIALIZE etaOnce :: Term -> TCM Term #-}
+{-# SPECIALIZE etaOnce :: Term -> ReduceM Term #-}
+etaOnce :: (MonadReader TCEnv m, HasConstInfo m) => Term -> m Term
 etaOnce v = case v of
   -- Andreas, 2012-11-18: this call to reportSDoc seems to cost me 2%
   -- performance on the std-lib
@@ -72,7 +75,7 @@ etaOnce v = case v of
             return $ subst __IMPOSSIBLE__ u
         _ -> return v
     where
-      isVar0 (Shared p)               = isVar0 (derefPtr p)
+      isVar0 (Shared p)               = __IMPOSSIBLE__ -- isVar0 (derefPtr p)
       isVar0 (Var 0 [])               = True
       isVar0 (Level (Max [Plus 0 l])) = case l of
         NeutralLevel v   -> isVar0 v

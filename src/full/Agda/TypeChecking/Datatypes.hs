@@ -49,7 +49,8 @@ getOrigConTerm c = flip Con [] <$> getOrigConHead c
 
 -- | Get the name of the datatype constructed by a given constructor.
 --   Precondition: The argument must refer to a constructor
-getConstructorData :: QName -> TCM QName
+{-# SPECIALIZE getConstructorData :: QName -> TCM QName #-}
+getConstructorData :: HasConstInfo m => QName -> m QName
 getConstructorData c = do
   def <- getConstInfo c
   case theDef def of

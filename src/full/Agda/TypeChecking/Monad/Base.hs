@@ -6,6 +6,7 @@
   #-}
 module Agda.TypeChecking.Monad.Base where
 
+import Control.Arrow ((***), first, second)
 import qualified Control.Concurrent as C
 import Control.DeepSeq
 import Control.Exception as E
@@ -1479,8 +1480,18 @@ instance Exception TCErr
 -----------------------------------------------------------------------------
 
 -- Placeholder definition, should be a lazy reader monad.
-newtype ReduceM a = ReduceM { runReduceM :: TCM a }
-  deriving (Functor, Applicative, Monad, MonadReader TCEnv)
+newtype ReduceM a = ReduceM { unReduceM :: Reader (TCEnv, TCState) a }
+  deriving (Functor, Applicative, Monad)
+
+runReduceM :: ReduceM a -> TCM a
+runReduceM m = do
+  e <- ask
+  s <- get
+  return $ runReader (unReduceM m) (e, s)
+
+instance MonadReader TCEnv ReduceM where
+  ask = fst <$> ReduceM ask
+  local f = ReduceM . local (first f) . unReduceM
 
 ---------------------------------------------------------------------------
 -- * Type checking monad transformer

@@ -19,6 +19,7 @@ import Agda.TypeChecking.Monad
 import Agda.TypeChecking.Substitute
 import Agda.TypeChecking.Pretty
 import Agda.TypeChecking.Reduce
+import Agda.TypeChecking.Reduce.Monad ()
 import Agda.TypeChecking.Telescope
 import Agda.Utils.Either
 import Agda.Utils.List
@@ -113,7 +114,9 @@ getRecordConstructor r = killRange <$> recConHead <$> getRecordDef r
 
 -- | Check if a name refers to a record.
 --   If yes, return record definition.
-isRecord :: QName -> TCM (Maybe Defn)
+{-# SPECIALIZE isRecord :: QName -> TCM (Maybe Defn) #-}
+{-# SPECIALIZE isRecord :: QName -> ReduceM (Maybe Defn) #-}
+isRecord :: HasConstInfo m => QName -> m (Maybe Defn)
 isRecord r = do
   def <- theDef <$> getConstInfo r
   return $ case def of
@@ -162,7 +165,9 @@ projectionType t f = do
 -}
 
 -- | Check if a name refers to an eta expandable record.
-isEtaRecord :: QName -> TCM Bool
+{-# SPECIALIZE isEtaRecord :: QName -> TCM Bool #-}
+{-# SPECIALIZE isEtaRecord :: QName -> ReduceM Bool #-}
+isEtaRecord :: HasConstInfo m => QName -> m Bool
 isEtaRecord r = maybe False recEtaEquality <$> isRecord r
 
 -- | Check if a name refers to a record which is not coinductive.  (Projections are then size-preserving)
@@ -363,9 +368,11 @@ etaExpandAtRecordType t u = do
 --
 --   TODO: this can be moved out of TCM (but only if ConHead
 --   stores also the Arg-decoration of the record fields.
-etaContractRecord :: QName -> ConHead -> Args -> TCM Term
+{-# SPECIALIZE etaContractRecord :: QName -> ConHead -> Args -> TCM Term #-}
+{-# SPECIALIZE etaContractRecord :: QName -> ConHead -> Args -> ReduceM Term #-}
+etaContractRecord :: HasConstInfo m => QName -> ConHead -> Args -> m Term
 etaContractRecord r c args = do
-  Record{ recFields = xs } <- getRecordDef r
+  Just Record{ recFields = xs } <- isRecord r
   let check :: I.Arg Term -> I.Arg QName -> Maybe (Maybe Term)
       check a ax = do
       -- @a@ is the constructor argument, @ax@ the corr. record field name
@@ -381,22 +388,13 @@ etaContractRecord r c args = do
       fallBack = return (Con c args)
   case compare (length args) (length xs) of
     LT -> fallBack       -- Not fully applied
-    GT -> do
-      reportSDoc "tc.record.eta" 15 $
-        text "record constructor is applied to too many arguments: "
-          <+> prettyTCM (Con c args)
-      __IMPOSSIBLE__ -- Too many arguments. Impossible.
+    GT -> __IMPOSSIBLE__ -- Too many arguments. Impossible.
     EQ -> do
       case zipWithM check args xs of
         Just as -> case [ a | Just a <- as ] of
           (a:as) ->
             if all (a ==) as
-              then do
-                reportSDoc "tc.record.eta" 15 $ vcat
-                  [ text "record" <+> prettyTCM (Con c args)
-                  , text "is eta-contracted to" <+> prettyTCM a
-                  ]
-                return a
+              then return a
               else fallBack
           _ -> fallBack -- just irrelevant terms
         _ -> fallBack  -- a Nothing

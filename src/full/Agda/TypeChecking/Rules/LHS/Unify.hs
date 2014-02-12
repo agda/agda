@@ -56,6 +56,9 @@ instance MonadReader TCEnv Unify where
   ask = U $ ReaderT $ \ _ -> ask
   local cont (U (ReaderT f)) = U $ ReaderT $ \ a -> local cont (f a)
 
+instance HasConstInfo Unify where
+  getConstInfo = U . lift . lift . lift . lift . getConstInfo
+
 data UnifyMayPostpone = MayPostpone | MayNotPostpone
 
 type UnifyEnv = UnifyMayPostpone
