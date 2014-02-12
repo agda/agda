@@ -89,11 +89,12 @@ inlineWithClauses f cl = inTopContext $ do
           [ text "Found with:", nest 2 $ prettyTCM $ QNamed f cl ]
         t   <- defType <$> getConstInfo wf
         cs1 <- withExprClauses cl t args
-        cs2 <- inlinedClauses f cl t wf
-        let cs = cs1 ++ cs2
         reportSDoc "term.with.inline" 20 $ vcat $
-          text "After inlining" : map (nest 2 . prettyTCM . QNamed f) cs
-        return cs
+          text "withExprClauses" : map (nest 2 . prettyTCM . QNamed f) cs1
+        cs2 <- inlinedClauses f cl t wf
+        reportSDoc "term.with.inline" 20 $ vcat $
+          text "inlinedClauses" : map (nest 2 . prettyTCM . QNamed f) cs2
+        return $ cs1 ++ cs2
     _ -> noInline
 
 -- | @withExprClauses cl t as@ generates a clause containing a fake
