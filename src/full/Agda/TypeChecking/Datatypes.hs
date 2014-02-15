@@ -64,6 +64,7 @@ getConstructorData c = do
 --   Precondition: @t@ is reduced.
 getConType :: ConHead -> Type -> TCM (Maybe Type)
 getConType c t = do
+  c <- getConHead $ conName c
   case ignoreSharing $ unEl t of
     Def d es -> do
       def <- theDef <$> getConstInfo d
