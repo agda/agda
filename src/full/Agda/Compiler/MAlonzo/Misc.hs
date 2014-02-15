@@ -3,16 +3,18 @@
 module Agda.Compiler.MAlonzo.Misc where
 
 import Control.Monad.State
-import Data.List as L
-import Data.Map as M
-import Data.Set as S
+import Data.List as List
+import Data.Map as Map
+import Data.Set as Set
 import Data.Function
 import qualified Language.Haskell.Exts.Syntax as HS
 
 import Agda.Syntax.Common
+-- import Agda.Syntax.Abstract.Name (isAnonymousModuleName)
 import Agda.Syntax.Internal
 import Agda.TypeChecking.Monad
 import Agda.TypeChecking.Monad.Builtin
+-- import Agda.TypeChecking.Pretty
 import Agda.Utils.Monad
 
 #include "../../undefined.h"
@@ -24,7 +26,7 @@ import Agda.Utils.Impossible
 
 setInterface :: Interface -> TCM ()
 setInterface i = modify $ \s -> s
-  { stImportedModules = S.empty
+  { stImportedModules = Set.empty
   , stCurrentModule   = Just $ iModuleName i
   }
 
@@ -52,7 +54,7 @@ curDefs :: TCM Definitions
 curDefs = sigDefinitions <$> curSig
 
 sigMName :: Signature -> ModuleName
-sigMName sig = case M.keys (sigSections sig) of
+sigMName sig = case Map.keys (sigSections sig) of
   []    -> __IMPOSSIBLE__
   m : _ -> m
 
@@ -87,11 +89,25 @@ tlmodOf = fmap mazMod . tlmname
 
 tlmname :: ModuleName -> TCM ModuleName
 tlmname m = do
-  ms <- sortBy (compare `on` (length . mnameToList)) .
-        L.filter (flip (isPrefixOf `on` mnameToList) m) <$>
-        L.map (iModuleName . miInterface) . M.elems <$>
-        getVisitedModules
-  return $ case ms of (m' : _) -> m'; _ -> __IMPOSSIBLE__
+  -- get the names of the visited modules
+  visited <- List.map (iModuleName . miInterface) . Map.elems <$>
+    getVisitedModules
+  -- find the module with the longest matching prefix to m
+  let ms = sortBy (compare `on` (length . mnameToList)) $
+       List.filter (\ m' -> mnameToList m' `isPrefixOf` mnameToList m) visited
+  case ms of
+    (m' : _) -> return m'
+    -- if we did not get anything, it may be because m is a section
+    -- (a module _ )
+    []       -> curMName
+{-  NOT IMPOSSIBLE!
+    _ -> do
+      reportSDoc "impossible" 10 $ sep
+        [ text $ "m = " ++ show m
+        , text $ "should be contained in the visited modules " ++ show visited
+        ]
+      __IMPOSSIBLE__
+-}
 
 -- qualify HS.Name n by the module of QName q, if necessary;
 -- accumulates the used module in stImportedModules at the same time.
