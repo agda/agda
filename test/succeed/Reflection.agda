@@ -40,15 +40,13 @@ unCheck : Term → Term
 unCheck (def x (_ ∷ _ ∷ arg _ t ∷ [])) = t
 unCheck t = unknown
 
-mutual
-  data Check {a}{A : Set a}(x : A) : Set where
-    _is_of_ : (t t′ : Term) →
-              Id (primTrustMe {x = unCheck t} {t′}
-                 )
-                 (t′ ≡ t′) refl → Check x
+data Check {a}{A : Set a}(x : A) : Set where
+  _is_of_ : (t t′ : Term) →
+            Id (primTrustMe {x = unCheck t} {t′})
+               (t′ ≡ t′) refl → Check x
 
-  `Check : QName
-  `Check = quote Check
+`Check : QName
+`Check = quote Check
 
 test₁ : Check ({A : Set} → A → A)
 test₁ = quoteGoal t in
