@@ -1,4 +1,4 @@
-{-# LANGUAGE DeriveFunctor, GeneralizedNewtypeDeriving #-}
+{-# LANGUAGE TupleSections, DeriveFunctor, GeneralizedNewtypeDeriving #-}
 
 -- | Directed graphs (can of course simulate undirected graphs).
 
@@ -290,7 +290,7 @@ instance (Ord n, SemiRing e, Arbitrary n, Arbitrary e) =>
          Arbitrary (Graph n e) where
   arbitrary = do
     nodes <- sized $ \n -> resize (isqrt n) arbitrary
-    edges <- mapM (\(n1, n2) -> (\w -> (n1, n2, w)) <$> arbitrary) =<<
+    edges <- mapM (\(n1, n2) -> (n1, n2,) <$> arbitrary) =<<
                   listOfElements ((,) <$> nodes <*> nodes)
     return (fromList edges `union` fromNodes nodes)
     where
