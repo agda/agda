@@ -28,22 +28,6 @@ import Agda.Utils.List
 #include "../undefined.h"
 import Agda.Utils.Impossible
 
-infixr 4 $>
-
-($>) :: Functor f => f a -> b -> f b
-($>) = flip (<$)
-
-infixr 9 <.>
-
--- | Composition: pure function after monadic function.
-(<.>) :: Functor m => (b -> c) -> (a -> m b) -> a -> m c
-(f <.> g) a = f <$> g a
-
--- | The true pure @for@ loop.
---   'Data.Traversable.for' is a misnomer, it should be @forA@.
-for :: Functor m => m a -> (a -> b) -> m b
-for = flip fmap
-
 -- Conditionals and monads ------------------------------------------------
 
 -- | @when_@ is just @Control.Monad.when@ with a more general type.

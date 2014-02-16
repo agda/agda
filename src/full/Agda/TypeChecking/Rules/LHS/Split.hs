@@ -35,6 +35,7 @@ import Agda.TypeChecking.Free
 import Agda.TypeChecking.Irrelevance
 import Agda.TypeChecking.MetaVars
 
+import Agda.Utils.Functor ((<.>))
 import Agda.Utils.List
 import Agda.Utils.Maybe
 import Agda.Utils.Monad

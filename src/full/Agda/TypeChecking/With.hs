@@ -26,6 +26,7 @@ import Agda.TypeChecking.Datatypes
 import Agda.TypeChecking.EtaContract
 import Agda.TypeChecking.Telescope
 
+import Agda.Utils.Functor ((<.>))
 import Agda.Utils.List
 import Agda.Utils.Monad
 import Agda.Utils.Permutation

@@ -59,6 +59,7 @@ import {-# SOURCE #-} Agda.TypeChecking.Empty (isEmptyType)
 import {-# SOURCE #-} Agda.TypeChecking.Rules.Decl (checkSectionApplication)
 import {-# SOURCE #-} Agda.TypeChecking.Rules.Def (checkFunDef,checkFunDef')
 
+import Agda.Utils.Functor (($>))
 import Agda.Utils.Maybe
 import Agda.Utils.Monad
 import Agda.Utils.Size

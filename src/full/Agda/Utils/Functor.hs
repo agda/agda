@@ -9,6 +9,22 @@ import Data.Functor.Identity
 import Data.Functor.Compose
 import Data.Functor.Constant
 
+infixr 4 $>
+
+($>) :: Functor f => f a -> b -> f b
+($>) = flip (<$)
+
+infixr 9 <.>
+
+-- | Composition: pure function after functorial (monadic) function.
+(<.>) :: Functor m => (b -> c) -> (a -> m b) -> a -> m c
+(f <.> g) a = f <$> g a
+
+-- | The true pure @for@ loop.
+--   'Data.Traversable.for' is a misnomer, it should be @forA@.
+for :: Functor m => m a -> (a -> b) -> m b
+for = flip fmap
+
 -- | A decoration is a functor that is traversable into any functor.
 --
 --   The 'Functor' superclass is given because of the limitations

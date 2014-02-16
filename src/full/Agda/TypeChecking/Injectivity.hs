@@ -25,7 +25,7 @@ import Agda.TypeChecking.Pretty
 import Agda.TypeChecking.Constraints
 import Agda.TypeChecking.Polarity
 import Agda.Utils.List
-import Agda.Utils.Monad (for)
+import Agda.Utils.Functor (for)
 import Agda.Utils.Permutation
 
 #include "../undefined.h"

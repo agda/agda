@@ -42,12 +42,13 @@ import Agda.TypeChecking.Irrelevance
 
 import Agda.Interaction.Options
 
-import Agda.Utils.Permutation
-import Agda.Utils.Size
-import Agda.Utils.Tuple
+import Agda.Utils.Functor (for, ($>))
 import Agda.Utils.List
 import Agda.Utils.Maybe
 import Agda.Utils.Monad
+import Agda.Utils.Permutation
+import Agda.Utils.Size
+import Agda.Utils.Tuple
 
 #include "../undefined.h"
 import Agda.Utils.Impossible

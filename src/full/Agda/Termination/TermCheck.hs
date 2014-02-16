@@ -54,10 +54,11 @@ import Agda.TypeChecking.SizedTypes
 import Agda.Interaction.Options
 
 import Agda.Utils.Function
+import Agda.Utils.Functor (($>), (<.>))
 import Agda.Utils.List
 import Agda.Utils.Size
 import Agda.Utils.Maybe
-import Agda.Utils.Monad -- (mapM', forM', ifM, or2M, and2M, (<.>))
+import Agda.Utils.Monad -- (mapM', forM', ifM, or2M, and2M)
 import Agda.Utils.Pointed
 import Agda.Utils.Permutation
 

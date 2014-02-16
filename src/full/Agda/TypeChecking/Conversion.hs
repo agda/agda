@@ -43,16 +43,12 @@ import Agda.TypeChecking.ProjectionLike (elimView)
 import Agda.Interaction.Options
 
 import Agda.Utils.Size
+import Agda.Utils.Functor (($>))
 import Agda.Utils.Monad
 import Agda.Utils.Maybe
 
 #include "../undefined.h"
 import Agda.Utils.Impossible
-
-{- MOVED to Agda.Utils.Monad
-($>) :: Functor f => f a -> b -> f b
-($>) = flip (<$)
--}
 
 {- MOVED to TypeChecking.Level
 mlevel :: TCM (Maybe Term)

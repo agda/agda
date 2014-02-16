@@ -14,7 +14,7 @@ import Agda.TypeChecking.Substitute
 import Agda.TypeChecking.Rules.LHS.Problem
 import Agda.TypeChecking.Rules.LHS.Implicit
 
-import Agda.Utils.Monad (($>))
+import Agda.Utils.Functor (($>))
 import Agda.Utils.Size
 import Agda.Utils.Permutation
 

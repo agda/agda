@@ -14,6 +14,7 @@ import Agda.TypeChecking.Substitute
 import Agda.TypeChecking.Monad hiding (reportSDoc)
 import Agda.TypeChecking.Pretty
 
+import Agda.Utils.Functor (for, ($>))
 import Agda.Utils.Monad
 import Agda.Utils.Size
 import Agda.Utils.Tuple

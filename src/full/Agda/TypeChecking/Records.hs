@@ -21,8 +21,10 @@ import Agda.TypeChecking.Pretty
 import Agda.TypeChecking.Reduce
 import Agda.TypeChecking.Reduce.Monad ()
 import Agda.TypeChecking.Telescope
+
 import Agda.Utils.Either
 import Agda.Utils.List
+import Agda.Utils.Functor (for, ($>))
 import Agda.Utils.Monad
 import qualified Agda.Utils.HashMap as HMap
 import Agda.Utils.Size

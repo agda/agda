@@ -28,6 +28,7 @@ import Agda.TypeChecking.Reduce
 import Agda.TypeChecking.Substitute
 import Agda.TypeChecking.Telescope
 
+import Agda.Utils.Functor (($>))
 import Agda.Utils.Monad
 import Agda.Utils.Size
 

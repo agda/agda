@@ -21,7 +21,7 @@ import Agda.TypeChecking.Monad.Context
 import Agda.TypeChecking.Substitute
 
 import Agda.Utils.Maybe (fromMaybeM)
-import Agda.Utils.Monad ((<.>))
+import Agda.Utils.Functor ((<.>))
 import Agda.Utils.Fresh
 import Agda.Utils.Permutation
 import Agda.Utils.Tuple

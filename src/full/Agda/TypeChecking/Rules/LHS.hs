@@ -43,9 +43,10 @@ import Agda.TypeChecking.Rules.LHS.Implicit
 import Agda.TypeChecking.Rules.LHS.Instantiate
 import Agda.TypeChecking.Rules.Data
 
+import Agda.Utils.Functor (($>))
+import Agda.Utils.Monad
 import Agda.Utils.Permutation
 import Agda.Utils.Size
-import Agda.Utils.Monad
 
 #include "../../undefined.h"
 import Agda.Utils.Impossible
