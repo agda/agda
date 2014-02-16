@@ -6,7 +6,7 @@
 --   To avoid name clashes, import this module qualified, as in
 --   @
 --      import Agda.Utils.Favorites (Favorites)
---      import qualified Agda.Utiles.Favorites as Fav
+--      import qualified Agda.Utils.Favorites as Fav
 --   @
 
 module Agda.Utils.Favorites where
@@ -67,10 +67,10 @@ compareWithFavorites a (Favorites as) = loop as where
     POAny -> doesnotd b $ loop bs -- don't know, compare with my other favorites
   -- add an outperformed favorite
   dominates b (Dominates bs as) = Dominates (b : bs) as
-  dominates b (IsDominated a)   = IsDominated a
+  dominates b r@IsDominated{}   = r
   -- add an uncomparable favorite
   doesnotd  b (Dominates as bs) = Dominates as (b : bs)
-  doesnotd  b (IsDominated a)   = IsDominated a
+  doesnotd  b r@IsDominated{}   = r
 
 -- | After comparing, do the actual insertion.
 insertCompared :: PartialOrd a => a -> Favorites a -> CompareResult a -> Favorites a
@@ -81,26 +81,6 @@ insertCompared _ l IsDominated{}    = l
 --   @insert a l = insertCompared a l (compareWithFavorites a l)@
 insert :: PartialOrd a => a -> Favorites a -> Favorites a
 insert a l = insertCompared a l (compareWithFavorites a l)
-
-{-
--- | Gosh, got some pretty @a@ here, compare with my current favorites!
---   Discard it if there is already one that is better or equal.
---   (Skewed conservatively: faithful to the old favorites.)
---   If there is no match for it, add it, and
---   dispose of all that are worse than @a@.
---
---   We require a partial ordering.  Less is better! (Maybe paradoxically.)
-insert :: PartialOrd a => a -> Favorites a -> Favorites a
-insert a (Favorites as) = Favorites $ loop as where
-  loop []          = [a]
-  loop as@(b : bs) = case comparable a b of
-    POLT -> loop bs      -- @a@ is a new favorite, bye-bye, @b@
-    POLE -> loop bs      -- ditto
-    POEQ -> as           -- @b@ is as least as good as @a@, bye-bye, @a@
-    POGE -> as           -- ditto
-    POGT -> as           -- ditto
-    POAny -> b : loop bs -- don't know, compare with my other favorites
--}
 
 -- | Insert all the favorites from the first list into the second.
 union :: PartialOrd a => Favorites a -> Favorites a -> Favorites a
