@@ -192,12 +192,16 @@ neighbours a g = maybe [] Map.assocs $ Map.lookup a $ unGraph g
 -- order.
 
 sccs' :: Ord n => Graph n e -> [Graph.SCC n]
-sccs' g =
-  Graph.stronglyConnComp .
-  map (\n -> (n, n, map fst $ neighbours n g)) .
-  Set.toList .
-  nodes $
-  g
+sccs' (Graph g) =
+  Graph.stronglyConnComp [ (n, n, Map.keys m) | (n, m) <- Map.assocs g ]
+
+-- sccs' :: Ord n => Graph n e -> [Graph.SCC n]
+-- sccs' g =
+--   Graph.stronglyConnComp .
+--   map (\n -> (n, n, map fst $ neighbours n g)) .
+--   Set.toList .
+--   nodes $
+--   g
 
 -- | The graph's strongly connected components, in reverse topological
 -- order.
