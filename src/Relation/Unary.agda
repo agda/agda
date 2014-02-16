@@ -107,14 +107,14 @@ module _ {a} {A : Set a} -- The universe of discourse.
 
   -- Set union.
 
-  infixl 6 _∪_
+  infixr 6 _∪_
 
   _∪_ : ∀ {ℓ₁ ℓ₂} → Pred A ℓ₁ → Pred A ℓ₂ → Pred A _
   P ∪ Q = λ x → x ∈ P ⊎ x ∈ Q
 
   -- Set intersection.
 
-  infixl 7 _∩_
+  infixr 7 _∩_
 
   _∩_ : ∀ {ℓ₁ ℓ₂} → Pred A ℓ₁ → Pred A ℓ₂ → Pred A _
   P ∩ Q = λ x → x ∈ P × x ∈ Q
