@@ -24,7 +24,7 @@ import Agda.TypeChecking.Irrelevance          as Irrel      (tests)
 import Agda.TypeChecking.Tests                as TypeChck   (tests)
 import Agda.Utils.Either	              as UtilEith   (tests)
 import Agda.Utils.FileName                    as UtilFile   (tests)
-import Agda.Utils.Graph                       as UtilGrap   (tests)
+import Agda.Utils.Graph.AdjacencyMap          as UtilGrap   (tests)
 import Agda.Utils.List                        as UtilList   (tests)
 import Agda.Utils.Warshall                    as UtilWarsh  (tests)
 

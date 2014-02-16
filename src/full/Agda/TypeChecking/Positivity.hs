@@ -32,8 +32,8 @@ import Agda.Utils.List
 import Agda.Utils.Maybe
 import Agda.Utils.Monad
 import Agda.Utils.SemiRing
-import qualified Agda.Utils.Graph as Graph
-import Agda.Utils.Graph (Graph)
+import qualified Agda.Utils.Graph.AdjacencyMap as Graph
+import Agda.Utils.Graph.AdjacencyMap (Graph)
 
 #include "../undefined.h"
 import Agda.Utils.Impossible

@@ -304,6 +304,7 @@ library
                     Agda.Utils.Function
                     Agda.Utils.Geniplate
                     Agda.Utils.Graph
+                    Agda.Utils.Graph.AdjacencyMap
                     Agda.Utils.Hash
                     Agda.Utils.HashMap
                     Agda.Utils.Impossible
