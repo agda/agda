@@ -102,7 +102,8 @@ altM1 f (a : as) = either (const $ altM1 f as) (return . Right) =<< f a
 --
 --     @mapM' f t = foldr mappend mempty <$> mapM f t@
 --
---   that collects results in right-to-left order (effects still right-to-left).
+--   that collects results in right-to-left order
+--   (effects still left-to-right).
 --   It might be preferable for right associative monoids.
 mapM' :: (Foldable t, Monad m, Monoid b) => (a -> m b) -> t a -> m b
 mapM' f = Fold.foldl (\ mb a -> liftM2 mappend mb (f a)) (return mempty)
