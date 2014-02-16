@@ -1,5 +1,9 @@
 {-# LANGUAGE DeriveFunctor, GeneralizedNewtypeDeriving #-}
 
+-- | Directed graphs (can of course simulate undirected graphs).
+
+-- used for positivity checker
+
 module Agda.Utils.Graph
   ( Graph(..)
   , invariant
@@ -39,6 +43,7 @@ import qualified Data.List as List
 import qualified Data.Map as Map
 import Data.Map (Map)
 import qualified Data.Maybe as Maybe
+import Data.Maybe (maybeToList)
 import qualified Data.Set as Set
 import Data.Set (Set)
 
@@ -46,56 +51,94 @@ import Agda.Utils.QuickCheck
 import Agda.Utils.SemiRing
 import Agda.Utils.TestHelpers
 
--- Only one edge between any two nodes.
+-- | @Graph n e@ is a directed graph with nodes in @n@ and edges in @e@.
+--
+--   Only one edge between any two nodes.
+--
+--   Represented as "adjacency list", or rather, adjacency map.
+--   This allows to get all outgoing edges for a node in @O(log n)@ time
+--   where @n@ is the number of nodes of the graph.
+--   Incoming edges can only be computed in @O(n + e)@ time where
+--   @e@ is the number of edges.
 newtype Graph n e = Graph { unGraph :: Map n (Map n e) }
   deriving (Eq, Functor, Show)
 
 -- | A structural invariant for the graphs.
-
+--
+--   The set of nodes is obtained by @Map.keys . unGraph@
+--   meaning that each node, be it only the target of an edge,
+--   must be assigned an adjacency map, albeit it could be empty.
+--
+--   See 'singleton'.
 invariant :: Ord n => Graph n e -> Bool
 invariant g = connectedNodes `Set.isSubsetOf` nodes g
   where
   connectedNodes =
     Set.fromList $ concatMap (\(a, b, _) -> [a, b]) $ edges g
 
+-- | Turn a graph into a list of edges.  @O(n + e)@
+
 edges :: Ord n => Graph n e -> [(n, n, e)]
-edges g = concatMap onNode $ Map.assocs $ unGraph g
-  where
-    onNode (from, es) = map (onNeighbour from) $ Map.assocs es
-    onNeighbour from (to, w) = (from, to, w)
+edges g = [ (from, to, w) | (from, es) <- Map.assocs (unGraph g)
+                          , (to, w)    <- Map.assocs es ]
+-- edges g = concatMap onNode $ Map.assocs $ unGraph g
+--   where
+--     onNode (from, es) = map (onNeighbour from) $ Map.assocs es
+--     onNeighbour from (to, w) = (from, to, w)
 
 -- | All edges originating in the given nodes.
+--   (I.e., all outgoing edges for the given nodes.)
+--
+--   Roughly linear in the length of the result list @O(result)@.
 
 edgesFrom :: Ord n => Graph n e -> [n] -> [(n, n, e)]
 edgesFrom (Graph g) ns =
-  concat $
-  Maybe.catMaybes $
-  map (\n1 -> fmap (\m -> map (\(n2, w) -> (n1, n2, w)) (Map.assocs m))
-                   (Map.lookup n1 g))
-      ns
+  [ (n1, n2, w) | n1 <- ns
+                , m <- maybeToList $ Map.lookup n1 g
+                , (n2, w) <- Map.assocs m
+                ]
+  -- concat $
+  -- Maybe.catMaybes $
+  -- map (\n1 -> fmap (\m -> map (\(n2, w) -> (n1, n2, w)) (Map.assocs m))
+  --                  (Map.lookup n1 g))
+  --     ns
 
--- | Returns all the nodes in the graph.
+-- | Returns all the nodes in the graph.  @O(n)@.
 
 nodes :: Ord n => Graph n e -> Set n
 nodes g = Map.keysSet (unGraph g)
 
 -- | Constructs a completely disconnected graph containing the given
--- nodes.
+--   nodes. @O(n)@.
 
 fromNodes :: Ord n => [n] -> Graph n e
 fromNodes = Graph . Map.fromList . map (\n -> (n, Map.empty))
 
 prop_nodes_fromNodes ns = nodes (fromNodes ns) == Set.fromList ns
 
+-- | Constructs a graph from a list of edges.  O(e)
+
 fromList :: (SemiRing e, Ord n) => [(n, n, e)] -> Graph n e
 fromList es = unions [ singleton a b w | (a, b, w) <- es ]
+
+-- | Empty graph (no nodes, no edges).
 
 empty :: Graph n e
 empty = Graph Map.empty
 
+-- | A graph with two nodes and a single connecting edge.
+
 singleton :: Ord n => n -> n -> e -> Graph n e
 singleton a b w =
   Graph $ Map.insert a (Map.singleton b w) $ Map.singleton b Map.empty
+
+-- | Insert an edge into the graph.
+
+-- Andreas, 2014-02-12 For my taste, this relies a bit
+-- too much on the efficieny of union.
+-- In Data.Map (hedge union) it is described as linear in g, which is
+-- probably too pessimistic.
+-- I prefer an implementation of insert in terms of Map.insertWith.
 
 insert :: (SemiRing e, Ord n) => n -> n -> e -> Graph n e -> Graph n e
 insert from to w g = union g (singleton from to w)
