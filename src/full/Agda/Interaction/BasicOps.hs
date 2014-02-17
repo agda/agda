@@ -373,7 +373,7 @@ getConstraints = liftTCM $ do
     cs <- forM cs $ \c -> do
             cl <- reify c
             enterClosure cl abstractToConcrete_
-    ss <- mapM toOutputForm =<< getSolvedInteractionPoints
+    ss <- mapM toOutputForm =<< getSolvedInteractionPoints True -- get all
     return $ ss ++ cs
   where
     toOutputForm (ii, mi, e) = do
@@ -382,8 +382,14 @@ getConstraints = liftTCM $ do
         let m = QuestionMark $ emptyMetaInfo { metaNumber = Just $ fromIntegral ii }
         abstractToConcrete_ $ OutputForm noRange 0 $ Assign m e
 
-getSolvedInteractionPoints :: TCM [(InteractionId, MetaId, Expr)]
-getSolvedInteractionPoints = do
+-- | @getSolvedInteractionPoints True@ returns all solutions,
+--   even if just solved by another, non-interaction meta.
+--
+--   @getSolvedInteractionPoints False@ only returns metas that
+--   are solved by a non-meta.
+
+getSolvedInteractionPoints :: Bool -> TCM [(InteractionId, MetaId, Expr)]
+getSolvedInteractionPoints all = do
   is <- getInteractionPoints
   concat <$> mapM solution is
   where
@@ -393,7 +399,13 @@ getSolvedInteractionPoints = do
       withMetaInfo (getMetaInfo mv) $ do
         args  <- getContextArgs
         scope <- getScope
-        let sol v = do e <- reify v; return [(i, m, ScopedExpr scope e)]
+        let sol v = do
+              -- Andreas, 2014-02-17 exclude metas solved by metas
+              v <- ignoreSharing <$> instantiate v
+              let isMeta = case v of MetaV{} -> True; _ -> False
+              if isMeta && not all then return [] else do
+                e <- reify v
+                return [(i, m, ScopedExpr scope e)]
             unsol = return []
         case mvInstantiation mv of
           InstV{}                        -> sol (MetaV m $ map Apply args)

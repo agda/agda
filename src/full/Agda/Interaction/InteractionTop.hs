@@ -499,7 +499,7 @@ interpret (Cmd_show_module_contents_toplevel s) =
   liftCommandMT B.atTopLevel $ showModuleContents noRange s
 
 interpret Cmd_solveAll = do
-  out <- lift $ mapM lowr =<< B.getSolvedInteractionPoints
+  out <- lift $ mapM lowr =<< B.getSolvedInteractionPoints False -- only solve metas which have a proper instantiation, i.e., not another meta
   putResponse $ Resp_SolveAll out
   where
       lowr (i, m, e) = do
