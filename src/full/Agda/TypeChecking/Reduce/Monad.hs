@@ -1,4 +1,4 @@
-{-# LANGUAGE GeneralizedNewtypeDeriving, TupleSections, FlexibleContexts #-}
+{-# LANGUAGE CPP, GeneralizedNewtypeDeriving, TupleSections, FlexibleContexts #-}
 module Agda.TypeChecking.Reduce.Monad
   ( constructorForm, enterClosure, underAbstraction_,
     isInstantiatedMeta, reportSDoc, reportSLn, getConstInfo,
