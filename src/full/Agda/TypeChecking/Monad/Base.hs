@@ -430,6 +430,11 @@ instance Show MetaInstantiation where
   show (BlockedConst t) = "BlockedConst (" ++ show t ++ ")"
   show (PostponedTypeCheckingProblem{}) = "PostponedTypeCheckingProblem (...)"
 
+-- | Meta variable priority:
+--   When we have an equation between meta-variables, which one
+--   should be instantiated?
+--
+--   Higher value means higher priority to be instantiated.
 newtype MetaPriority = MetaPriority Int
     deriving (Eq, Ord, Show)
 
