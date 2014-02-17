@@ -317,17 +317,27 @@ code = do
 
   case aspect (info tok') of
     Nothing -> output $ escape tok
-    Just a  -> output $ cmdPrefix <+> T.pack (cmd a) <+> cmdArg (escape tok)
+--    Just a  -> output $ cmdPrefix <+> T.pack (cmd a) <+> cmdArg (escape tok)
+--  Andreas, 2014-02-17 preliminary fix for issue 1062
+    Just a  -> case cmd a of
+      "" -> output $ escape tok
+      s  -> output $ cmdPrefix <+> T.pack s <+> cmdArg (escape tok)
 
   code
 
   where
   cmd :: Aspect -> String
-  cmd (Name mKind _) = maybe __IMPOSSIBLE__ showKind mKind
+--  cmd (Name mKind _) = maybe __IMPOSSIBLE__ showKind mKind
+--  Andreas, 2014-02-17 preliminary fix for issue 1062
+  cmd (Name mKind _) = maybe "" showKind mKind
     where
     showKind :: NameKind -> String
     showKind (Constructor Inductive)   = "InductiveConstructor"
     showKind (Constructor CoInductive) = "CoinductiveConstructor"
+    -- Andreas, 2014-02-17
+    -- It might be boring boilerplate, but please spell out the
+    -- remaining cases instead of using the brittle @show@ function.
+    -- What if a constructor in @NameKind@ gets renamed?
     showKind k                         = show k
   cmd a              = show a
 
