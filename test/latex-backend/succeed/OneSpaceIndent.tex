@@ -1,0 +1,33 @@
+\documentclass{article}
+\usepackage{agda}
+
+\begin{document}
+
+\AgdaHide{
+\begin{code}%
+\>\AgdaKeyword{module} \AgdaModule{OneSpaceIndent} \AgdaKeyword{where}\<%
+\end{code}
+}
+
+\section{Syntax}
+Text1
+
+\AgdaHide{
+\begin{code}%
+\>\AgdaKeyword{module} \AgdaModule{Defs} \AgdaKeyword{where}\<%
+\\
+%
+\\
+\> \AgdaKeyword{postulate}\<%
+\end{code}
+}
+
+Text2
+
+\begin{code}%
+\>[0]\AgdaIndent{2}{}\<[2]%
+\>[2]\AgdaPostulate{Base} \AgdaSymbol{:} \AgdaPrimitiveType{Set}\<%
+\end{code}
+
+Text3
+\end{document}

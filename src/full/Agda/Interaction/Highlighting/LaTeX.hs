@@ -403,6 +403,10 @@ spaces ((T.uncons -> Nothing)       : ss) = __IMPOSSIBLE__
 
 -- Single spaces are ignored.
 spaces ((T.uncons -> Just (' ', s)) : []) | T.null s = do
+  col <- gets column
+  when (col == 0) $ do
+    output ptOpen
+
   moveColumn 1
   output $ T.singleton ' '
 
