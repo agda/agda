@@ -256,7 +256,7 @@ withDisplayForm f aux delta1 delta2 n qs perm@(Perm m _) lhsPerm = do
 
   let tqs = patsToTerms lhsPerm qs
       top = genericLength topArgs
-      vs = map (fmap DTerm) topArgs ++ applySubst (sub ys wild) tqs
+      vs = map (fmap DTerm) topArgs ++ applySubst (sub top ys wild) tqs
       dt = DWithApp (DDef f vs : map DTerm withArgs) []
       withArgs = map var $ genericTake n $ downFrom $ size delta2 + n
 --      withArgs = reverse $ map var [size delta2..size delta2 + n - 1]
@@ -286,7 +286,7 @@ withDisplayForm f aux delta1 delta2 n qs perm@(Perm m _) lhsPerm = do
       , text "ys     =" <+> text (show ys)
       , text "raw    =" <+> text (show display)
       , text "qsToTm =" <+> prettyTCM tqs -- ctx would be permuted form of delta1 ++ delta2
-      , text "sub qs =" <+> prettyTCM (applySubst (sub ys wild) tqs)
+      , text "sub qs =" <+> prettyTCM (applySubst (sub top ys wild) tqs)
       ]
     ]
 
@@ -295,8 +295,11 @@ withDisplayForm f aux delta1 delta2 n qs perm@(Perm m _) lhsPerm = do
     -- Note: The upper bound (m - 1) was previously commented out. I
     -- restored it in order to make the substitution finite.
     -- Andreas, 2013-02-28: Who is "I"?
-    sub rho wild = parallelS $ map term [0 .. m - 1]
+    sub top rho wild = parallelS $ map term [0 .. m - 1] ++ topTerms
       where
+        -- Ulf, 2014-02-19: We need to rename the module parameters as well! (issue1035)
+        newVars  = genericLength qs
+        topTerms = [ var (i + newVars) | i <- [0..top - 1] ]
         -- thinking required.. but ignored
         -- dropping the reverse seems to work better
         -- Andreas, 2010-09-09: I DISAGREE.
