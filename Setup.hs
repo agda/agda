@@ -18,7 +18,7 @@ checkAgdaPrimitive args flags pkg info = do
       agda = buildDir info </> "agda" </> "agda" <.> exeExtension
       prim = datadir dirs </> "lib" </> "prim" </> "Agda" </> "Primitive" <.> "agda"
   putStrLn "Generating Agda library interface files..."
-  ok <- system $ "\"" ++ agda ++ "\" \"" ++ prim ++ "\" -v0"
+  ok <- rawSystem agda [prim, "-v0"]
   case ok of
     ExitSuccess   -> return ()
     ExitFailure _ -> putStrLn "WARNING: Failed to typecheck Agda.Primitive!"
