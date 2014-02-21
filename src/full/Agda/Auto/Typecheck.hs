@@ -15,6 +15,8 @@ import Agda.Utils.Impossible
 
 -- ---------------------------------
 
+-- | Typechecker drives the solution of metas.
+
 tcExp :: Bool -> Ctx o -> CExp o -> MExp o -> EE (MyPB o)
 tcExp isdep ctx typ@(TrBr typtrs ityp@(Clos _ itypexp)) trm =
   mbpcase prioTypeUnknown Nothing (hnn_checkstep ityp) $ \(hntyp, iotastepdone) ->

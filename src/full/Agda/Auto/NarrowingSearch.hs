@@ -22,26 +22,48 @@ instance Trav a blk => Trav (MM a blk) blk where
 
 data Term blk = forall a . Trav a blk => Term a
 
-data Prop blk = OK
-              | Error String
-              | forall a . AddExtraRef String (Metavar a blk) (Int, RefCreateEnv blk a)
-              | And (Maybe [Term blk]) (MetaEnv (PB blk)) (MetaEnv (PB blk))
-              | Sidecondition (MetaEnv (PB blk)) (MetaEnv (PB blk)) -- first arg is sidecondition
-              | Or Prio (MetaEnv (PB blk)) (MetaEnv (PB blk))
-              | ConnectHandle (OKHandle blk) (MetaEnv (PB blk))
+-- | Result of type-checking.
+data Prop blk
+  = OK
+    -- ^ Success.
+  | Error String
+    -- ^ Definite failure.
+  | forall a . AddExtraRef String (Metavar a blk) (Int, RefCreateEnv blk a)
+    -- ^ Experimental.
+  | And (Maybe [Term blk]) (MetaEnv (PB blk)) (MetaEnv (PB blk))
+    -- ^ Parallel conjunction of constraints.
+  | Sidecondition (MetaEnv (PB blk)) (MetaEnv (PB blk))
+    -- ^ Experimental, related to 'mcompoint'.
+    -- First arg is sidecondition.
+  | Or Prio (MetaEnv (PB blk)) (MetaEnv (PB blk))
+    -- ^ Forking proof on something that is not part of the term language.
+    --   E.g. whether a term will reduce or not.
+  | ConnectHandle (OKHandle blk) (MetaEnv (PB blk))
+    -- ^ Obsolete.
 
 data OKVal = OKVal
 type OKHandle blk = MM OKVal blk
 type OKMeta blk = Metavar OKVal blk
+
+-- | Agsy's meta variables.
+--
+--   @a@ the type of the metavariable (what it can be instantiated with).
+--   @blk@ the search control information (e.g. the scope of the meta).
+
 data Metavar a blk = Metavar
- {mbind :: IORef (Maybe a),
-  mprincipalpresent :: IORef Bool,
-  mobs :: IORef [(QPB a blk, Maybe (CTree blk))],
-  mcompoint :: IORef [SubConstraints blk],
-  mextrarefs :: IORef [(Int, RefCreateEnv blk a)]
-
-
- }
+  { mbind :: IORef (Maybe a)
+    -- ^ Maybe an instantiation (refinement).  It is usually shallow,
+    --   i.e., just one construct(or) with arguments again being metas.
+  , mprincipalpresent :: IORef Bool
+    -- ^ Does this meta block a principal constraint
+    --   (i.e., a type-checking constraint).
+  , mobs :: IORef [(QPB a blk, Maybe (CTree blk))]
+    -- ^ List of observers, i.e., constraints blocked by this meta.
+  , mcompoint :: IORef [SubConstraints blk]
+    -- ^ Used for experiments with independence of subproofs.
+  , mextrarefs :: IORef [(Int, RefCreateEnv blk a)]
+    -- ^ Experimental.
+  }
 
 hequalMetavar :: Metavar a1 blk1 -> Metavar a2 bkl2 -> Bool
 hequalMetavar m1 m2 = mprincipalpresent m1 == mprincipalpresent m2
