@@ -545,7 +545,9 @@ contextOfMeta :: InteractionId -> Rewrite -> TCM [OutputConstraint' Expr Name]
 contextOfMeta ii norm = do
   info <- getMetaInfo <$> (lookupMeta =<< lookupInteractionId ii)
   let localVars = map ctxEntry . envContext . clEnv $ info
-  withMetaInfo info $ gfilter visible <$> reifyContext localVars
+      letVars = map (\(n, OpenThing _ (tm, (Dom c ty))) -> Dom c (n, ty))
+                    $ Map.toDescList . envLetBindings . clEnv $ info
+  withMetaInfo info $ gfilter visible <$> reifyContext (letVars ++ localVars)
   where gfilter p = catMaybes . map p
         visible (OfType x y) | show x /= "_" = Just (OfType' x y)
                              | otherwise     = Nothing
