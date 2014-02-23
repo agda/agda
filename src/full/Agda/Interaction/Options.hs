@@ -30,7 +30,7 @@ import System.Console.GetOpt	(getOpt, usageInfo, ArgOrder(ReturnInOrder)
 				, OptDescr(..), ArgDescr(..)
 				)
 
-import Agda.Termination.CallGraph ( CutOff(..) )
+import Agda.Termination.Order   ( CutOff(..) )
 
 import Agda.Utils.TestHelpers   ( runTests )
 import Agda.Utils.QuickCheck    ( quickCheck' )

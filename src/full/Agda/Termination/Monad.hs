@@ -23,7 +23,7 @@ import Agda.Syntax.Internal
 import Agda.Syntax.Literal
 import Agda.Syntax.Position (noRange)
 
-import Agda.Termination.CallGraph (CutOff(..),Order,le,unknown)
+import Agda.Termination.Order (CutOff(..),Order,le,unknown)
 
 import Agda.TypeChecking.Monad
 import Agda.TypeChecking.Pretty

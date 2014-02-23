@@ -13,14 +13,8 @@ module Agda.Termination.Lexicographic
   , Agda.Termination.Lexicographic.tests
   ) where
 
-import Agda.Utils.QuickCheck
-import Agda.Termination.Matrix (Size (..))
-import qualified Agda.Termination.Matrix as M
-import Agda.Utils.Either
-import Agda.Utils.List
-import Agda.Utils.TestHelpers
-import Agda.Termination.CallGraph
 import Control.Arrow
+
 import Data.List
 import Data.Map (Map, (!))
 import qualified Data.Map as Map
@@ -28,6 +22,16 @@ import Data.Array (Array, Ix)
 import qualified Data.Array as Array
 import Data.Set (Set)
 import qualified Data.Set as Set
+
+import Agda.Termination.CallGraph
+import Agda.Termination.Matrix (Size (..))
+import qualified Agda.Termination.Matrix as M
+import Agda.Termination.Order
+
+import Agda.Utils.Either
+import Agda.Utils.List
+import Agda.Utils.QuickCheck
+import Agda.Utils.TestHelpers
 
 -- | A lexicographic ordering for the recursion behaviour of a
 -- given function is a permutation of the argument indices which can

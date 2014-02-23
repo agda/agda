@@ -34,7 +34,8 @@ import Agda.Syntax.Common as Common
 import Agda.Syntax.Literal (Literal(LitString))
 
 import Agda.Termination.Monad
-import Agda.Termination.CallGraph   as Term
+import Agda.Termination.CallGraph as Term
+import Agda.Termination.Order     as Order
 import qualified Agda.Termination.SparseMatrix as Matrix
 import qualified Agda.Termination.Termination  as Term
 import Agda.Termination.RecCheck
@@ -536,8 +537,8 @@ termClause' clause = do
   -- if we are checking a delayed definition, we treat it as if there were
   -- a guarding coconstructor (sharp)
   terModifyGuarded (const $ case delayed of
-        Delayed    -> Term.lt
-        NotDelayed -> Term.le) $ do
+        Delayed    -> Order.lt
+        NotDelayed -> Order.le) $ do
   -}
         extract v
   where
@@ -645,7 +646,7 @@ instance ExtractCalls Sort where
       Inf                        -> return Term.empty
       Type (Max [])              -> return Term.empty
       Type (Max [ClosedLevel{}]) -> return Term.empty
-      Type t                     -> terSetGuarded Term.unknown $
+      Type t                     -> terSetGuarded Order.unknown $
         extract $ Level t    -- no guarded levels
       DLub s1 s2                 -> extract (s1, s2)
 
@@ -675,8 +676,8 @@ instance ExtractCalls TerConstructor where
     loopArg (arg, preserves) = terModifyGuarded g' $ extract arg where
       g' = case (preserves, ind) of
              (True,  Inductive)   -> id
-             (True,  CoInductive) -> (Term.lt .*.)
-             (False, _)           -> const Term.unknown
+             (True,  CoInductive) -> (Order.lt .*.)
+             (False, _)           -> const Order.unknown
 -}
 
 -- | Extract recursive calls from a constructor application.
@@ -698,8 +699,8 @@ constructor c ind args = do
     loopArg (arg, preserves) = terModifyGuarded g' $ extract arg where
       g' = case (preserves, ind) of
              (True,  Inductive)   -> id
-             (True,  CoInductive) -> (Term.lt .*.)
-             (False, _)           -> const Term.unknown
+             (True,  CoInductive) -> (Order.lt .*.)
+             (False, _)           -> const Order.unknown
 
 
 
@@ -756,7 +757,7 @@ function g es = ifJustM (isWithFunction g) (\ _ -> withFunction g es)
     -- If the function is a projection but not for a coinductive record,
     -- then preserve guardedness for its principal argument.
     isProj <- isProjectionButNotCoinductive g
-    let unguards = repeat Term.unknown
+    let unguards = repeat Order.unknown
     let guards = if isProj then guarded : unguards
                                 -- proj => preserve guardedness of principal argument
                            else unguards -- not a proj ==> unguarded
@@ -783,7 +784,7 @@ function g es = ifJustM (isWithFunction g) (\ _ -> withFunction g es)
 
          (nrows, ncols, matrix) <- compareArgs es
          -- only a delayed definition can be guarded
-         let ifDelayed o | Term.decreasing o && delayed == NotDelayed = Term.le
+         let ifDelayed o | Order.decreasing o && delayed == NotDelayed = Order.le
                          | otherwise                                  = o
          liftTCM $ reportSLn "term.guardedness" 20 $
            "composing with guardedness " ++ show guarded ++
@@ -914,7 +915,7 @@ maskSizeLt dom@(Dom info a) = liftTCM $ do
      The guardedness is the number of projection patterns in @pats@
      minus the number of projections in @es@.
  -}
-compareArgs :: (Integral n) => [Elim] -> TerM (n, n, [[Term.Order]])
+compareArgs :: (Integral n) => [Elim] -> TerM (n, n, [[Order]])
 compareArgs es = do
   pats <- terGetPatterns
   -- matrix <- forM es $ forM pats . compareTerm suc  -- UNREADABLE pointfree style
@@ -934,7 +935,7 @@ compareArgs es = do
 
 -- | @compareElim e dbpat@
 
-compareElim :: Elim -> DeBruijnPat -> TerM Term.Order
+compareElim :: Elim -> DeBruijnPat -> TerM Order
 compareElim e p = do
   liftTCM $ do
     reportSDoc "term.compare" 30 $ sep
@@ -948,8 +949,8 @@ compareElim e p = do
       ]
   case (e, p) of
     (Proj d, ProjDBP d')           -> compareProj d d'
-    (Proj{}, _         )           -> return Term.unknown
-    (Apply{}, ProjDBP{})           -> return Term.unknown
+    (Proj{}, _         )           -> return Order.unknown
+    (Apply{}, ProjDBP{})           -> return Order.unknown
     (Apply arg, p)                 -> compareTerm (unArg arg) p
 
 -- | In dependent records, the types of later fields may depend on the
@@ -961,9 +962,9 @@ compareElim e p = do
 --   comparing copattern spines.  This is an ok approximation
 --   of the actual dependency order.
 --   See issues 906, 942.
-compareProj :: MonadTCM tcm => QName -> QName -> tcm Term.Order
+compareProj :: MonadTCM tcm => QName -> QName -> tcm Order
 compareProj d d'
-  | d == d' = return Term.le
+  | d == d' = return Order.le
   | otherwise = liftTCM $ do
       -- different projections
       mr  <- getRecordOfField d
@@ -978,33 +979,33 @@ compareProj d d'
               case (find (d==) fs, find (d'==) fs) of
                 (Just i, Just i')
                   -- earlier field is smaller
-                  | i < i'    -> return Term.lt
+                  | i < i'    -> return Order.lt
                   | i == i'   -> do
                      __IMPOSSIBLE__
-                  | otherwise -> return Term.unknown
+                  | otherwise -> return Order.unknown
                 _ -> __IMPOSSIBLE__
             _ -> __IMPOSSIBLE__
-        _ -> return Term.unknown
+        _ -> return Order.unknown
 
 -- | 'makeCM' turns the result of 'compareArgs' into a proper call matrix
-makeCM :: Index -> Index -> [[Term.Order]] -> Term.CallMatrix
+makeCM :: Index -> Index -> [[Order]] -> Term.CallMatrix
 makeCM ncols nrows matrix = Term.CallMatrix $
   Matrix.fromLists (Matrix.Size nrows ncols) matrix
 
 {- To turn off guardedness, restore this code.
 -- | 'addGuardedness' does nothing.
-addGuardedness :: Integral n => Order -> n -> n -> [[Term.Order]] -> (n, n, [[Term.Order]])
+addGuardedness :: Integral n => Order -> n -> n -> [[Order]] -> (n, n, [[Order]])
 addGuardedness g nrows ncols m = (nrows, ncols, m)
 -}
 
 -- | 'addGuardedness' adds guardedness flag in the upper left corner (0,0).
-addGuardedness :: Integral n => Order -> n -> n -> [[Term.Order]] -> (n, n, [[Term.Order]])
+addGuardedness :: Integral n => Order -> n -> n -> [[Order]] -> (n, n, [[Order]])
 addGuardedness o nrows ncols m =
   (nrows + 1, ncols + 1,
-   (o : genericReplicate ncols Term.unknown) : map (Term.unknown :) m)
+   (o : genericReplicate ncols Order.unknown) : map (Order.unknown :) m)
 
 -- | Compose something with the upper-left corner of a call matrix
-composeGuardedness :: (?cutoff :: CutOff) => Term.Order -> [[Term.Order]] -> [[Term.Order]]
+composeGuardedness :: (?cutoff :: CutOff) => Order -> [[Order]] -> [[Order]]
 composeGuardedness o ((corner : row) : rows) = ((o .*. corner) : row) : rows
 composeGuardedness _ _ = __IMPOSSIBLE__
 
@@ -1023,7 +1024,7 @@ subPatterns p = case p of
   LitDBP _    -> []
   ProjDBP _   -> []
 
-compareTerm :: Term -> DeBruijnPat -> TerM Term.Order
+compareTerm :: Term -> DeBruijnPat -> TerM Order
 compareTerm t p = do
 --   reportSDoc "term.compare" 25 $
 --     text " comparing term " <+> prettyTCM t <+>
@@ -1036,9 +1037,9 @@ compareTerm t p = do
     text (" results in " ++ show o)
   return o
 {-
-compareTerm t p = Term.supremum $ compareTerm' t p : map cmp (subPatterns p)
+compareTerm t p = Order.supremum $ compareTerm' t p : map cmp (subPatterns p)
   where
-    cmp p' = (Term..*.) Term.lt (compareTerm' t p')
+    cmp p' = (Order..*.) Order.lt (compareTerm' t p')
 -}
 
 -- | For termination checking purposes flat should not be considered a
@@ -1110,7 +1111,7 @@ instance StripAllProjections Term where
 --
 --   Precondition: top meta variable resolved
 
-compareTerm' :: Term -> DeBruijnPat -> TerM Term.Order
+compareTerm' :: Term -> DeBruijnPat -> TerM Order
 compareTerm' v0 p = do
   suc  <- terGetSizeSuc
   cutoff <- terGetCutOff
@@ -1127,19 +1128,19 @@ compareTerm' v0 p = do
       compareTerm' t p
 
     (Lit l, LitDBP l')
-      | l == l'     -> return Term.le
-      | otherwise   -> return Term.unknown
+      | l == l'     -> return Order.le
+      | otherwise   -> return Order.unknown
 
     (Lit l, p) -> do
       v <- liftTCM $ constructorForm v
       case ignoreSharing v of
-        Lit{}       -> return Term.unknown
+        Lit{}       -> return Order.unknown
         v           -> compareTerm' v p
 
     -- Andreas, 2011-04-19 give subterm priority over matrix order
 
     (Con{}, ConDBP c ps) | any (isSubTerm v) ps ->
-      decrease <$> offsetFromConstructor c <*> return Term.le
+      decrease <$> offsetFromConstructor c <*> return Order.le
 
     (Con c ts, ConDBP c' ps) | conName c == c'->
       compareConArgs ts ps
@@ -1153,17 +1154,17 @@ compareTerm' v0 p = do
       -- Andreas, 2012-10-19 do not cut off here
       increase 1 <$> compareTerm' (unArg t) p
 
-    (Con c [], p) -> return Term.le
+    (Con c [], p) -> return Order.le
 
     (Con c ts, p) -> do
       increase <$> offsetFromConstructor (conName c)
                <*> (infimum <$> mapM (\ t -> compareTerm' (unArg t) p) ts)
 
-    (t, p) | isSubTerm t p -> return Term.le
+    (t, p) | isSubTerm t p -> return Order.le
 
-    _ -> return Term.unknown
+    _ -> return Order.unknown
 
--- TODO: isSubTerm should compute a size difference (Term.Order)
+-- TODO: isSubTerm should compute a size difference (Order)
 isSubTerm :: Term -> DeBruijnPat -> Bool
 isSubTerm t p = equal t p || properSubTerm t p
   where
@@ -1179,18 +1180,18 @@ isSubTerm t p = equal t p || properSubTerm t p
     properSubTerm t (ConDBP _ ps) = any (isSubTerm t) ps
     properSubTerm _ _ = False
 
-compareConArgs :: Args -> [DeBruijnPat] -> TerM Term.Order
+compareConArgs :: Args -> [DeBruijnPat] -> TerM Order
 compareConArgs ts ps = do
   cutoff <- terGetCutOff
   let ?cutoff = cutoff
   -- we may assume |ps| >= |ts|, otherwise c ps would be of functional type
   -- which is impossible
   case (length ts, length ps) of
-    (0,0) -> return Term.le        -- c <= c
-    (0,1) -> return Term.unknown   -- c not<= c x
+    (0,0) -> return Order.le        -- c <= c
+    (0,1) -> return Order.unknown   -- c not<= c x
     (1,0) -> __IMPOSSIBLE__
     (1,1) -> compareTerm' (unArg (head ts)) (head ps)
-    (_,_) -> foldl (Term..*.) Term.le <$>
+    (_,_) -> foldl (Order..*.) Order.le <$>
                zipWithM compareTerm' (map unArg ts) ps
        -- corresponds to taking the size, not the height
        -- allows examples like (x, y) < (Succ x, y)
@@ -1201,30 +1202,30 @@ compareConArgs ts ps = do
         (_,_) -> do -- build "call matrix"
           m <- mapM (\t -> mapM (compareTerm' suc (unArg t)) ps) ts
           let m2 = makeCM (genericLength ps) (genericLength ts) m
-          return $ Term.orderMat (Term.mat m2)
+          return $ Order.orderMat (Order.mat m2)
 -}
 {- version which takes height
---    if null ts then Term.Le
---               else Term.infimum (zipWith compareTerm' (map unArg ts) ps)
+--    if null ts then Order.Le
+--               else Order.infimum (zipWith compareTerm' (map unArg ts) ps)
 -}
 
-compareVar :: Nat -> DeBruijnPat -> TerM Term.Order
+compareVar :: Nat -> DeBruijnPat -> TerM Order
 compareVar i (VarDBP j)    = compareVarVar i j
-compareVar i (LitDBP _)    = return $ Term.unknown
-compareVar i (ProjDBP _)   = return $ Term.unknown
+compareVar i (LitDBP _)    = return $ Order.unknown
+compareVar i (ProjDBP _)   = return $ Order.unknown
 compareVar i (ConDBP c ps) = do
   cutoff <- terGetCutOff
   let ?cutoff = cutoff
   decrease <$> offsetFromConstructor c
-           <*> (Term.supremum <$> mapM (compareVar i) ps)
+           <*> (Order.supremum <$> mapM (compareVar i) ps)
 
 -- | Compare two variables
-compareVarVar :: Nat -> Nat -> TerM Term.Order
+compareVarVar :: Nat -> Nat -> TerM Order
 compareVarVar i j
-  | i == j    = return Term.le
+  | i == j    = return Order.le
   | otherwise = do
       res <- isBounded i
       case res of
-        BoundedNo  -> return Term.unknown
+        BoundedNo  -> return Order.unknown
         BoundedLt v -> decrease 1 <$> compareTerm' v (VarDBP j)
 

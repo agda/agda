@@ -12,12 +12,13 @@ import Agda.Interaction.Highlighting.Range    as InteRang   (tests)
 import Agda.Interaction.Options               as InteOpti   (tests)
 import Agda.Syntax.Parser.Parser              as SyntPars   (tests)
 import Agda.Syntax.Position                   as SyntPosi   (tests)
-import Agda.Termination.Termination	      as TermTerm   (tests)
 import Agda.Termination.CallGraph	      as TermCall   (tests)
 import Agda.Termination.Lexicographic         as TermLex    (tests)
 import Agda.Termination.Matrix                as TermMatrix (tests)
+import Agda.Termination.Order    	      as TermOrd    (tests)
 import Agda.Termination.Semiring	      as TermRing   (tests)
 import Agda.Termination.SparseMatrix          as TermSparse (tests)
+import Agda.Termination.Termination	      as TermTerm   (tests)
 import Agda.TypeChecking.Irrelevance          as Irrel      (tests)
 import Agda.TypeChecking.Tests                as TypeChck   (tests)
 import Agda.Utils.Either	              as UtilEith   (tests)
@@ -37,12 +38,13 @@ testSuite = runTests "QuickCheck test suite:"
   , InteOpti.tests
   , SyntPars.tests
   , SyntPosi.tests
-  , TermTerm.tests
   , TermCall.tests
   , TermLex.tests
   , TermMatrix.tests
+  , TermOrd.tests
   , TermRing.tests
   , TermSparse.tests
+  , TermTerm.tests
   , TypeChck.tests
   , UtilEith.tests
   , UtilFile.tests
