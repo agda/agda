@@ -656,6 +656,11 @@ Tools
 Emacs mode
 ----------
 
+* If you switch to another frame while Agda is type-checking, it no
+  longer creates new a window in the current frame to display the Agda
+  information buffer.  It simply displays in the existing window.
+  [Issue 1061]
+
 * A new goal command "Helper Function Type" (C-c C-h) has been added.
 
   If you write an application of an undefined function in a goal, the Helper
