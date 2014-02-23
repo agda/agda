@@ -149,52 +149,52 @@ c1 >*< c2 =
 -- meta information for different calls can be combined when the calls
 -- are combined.
 
-newtype CallGraph meta = CallGraph { theCallGraph :: Map Call meta }
+newtype CallGraph cinfo = CallGraph { theCallGraph :: Map Call cinfo }
   deriving (Eq, Show)
 
 -- | 'CallGraph' invariant.
 
-callGraphInvariant :: CallGraph meta -> Bool
+callGraphInvariant :: CallGraph cinfo -> Bool
 callGraphInvariant = all (callInvariant . fst) . toList
 
 -- | Converts a call graph to a list of calls with associated meta
 -- information.
 
-toList :: CallGraph meta -> [(Call, meta)]
+toList :: CallGraph cinfo -> [(Call, cinfo)]
 toList = Map.toList . theCallGraph
 
 -- | Converts a list of calls with associated meta information to a
 -- call graph.
 
-fromList :: Monoid meta => [(Call, meta)] -> CallGraph meta
+fromList :: Monoid cinfo => [(Call, cinfo)] -> CallGraph cinfo
 fromList = CallGraph . Map.fromListWith mappend
 
 -- | Creates an empty call graph.
 
-empty :: CallGraph meta
+empty :: CallGraph cinfo
 empty = CallGraph Map.empty
 
 -- | Takes the union of two call graphs.
 
-union :: Monoid meta
-      => CallGraph meta -> CallGraph meta -> CallGraph meta
+union :: Monoid cinfo
+      => CallGraph cinfo -> CallGraph cinfo -> CallGraph cinfo
 union cs1 cs2 = CallGraph $ (Map.unionWith mappend `on` theCallGraph) cs1 cs2
 
 -- | 'CallGraph' is a monoid under 'union'.
 
-instance Monoid meta => Monoid (CallGraph meta) where
+instance Monoid cinfo => Monoid (CallGraph cinfo) where
   mempty  = empty
   mappend = union
 
 -- | Inserts a call into a call graph.
 
-insert :: Monoid meta
-       => Call -> meta -> CallGraph meta -> CallGraph meta
+insert :: Monoid cinfo
+       => Call -> cinfo -> CallGraph cinfo -> CallGraph cinfo
 insert c m = CallGraph . Map.insertWith mappend c m . theCallGraph
 
 -- | Generates a call graph.
 
-callGraph :: (Monoid meta, Arbitrary meta) => Gen (CallGraph meta)
+callGraph :: (Monoid cinfo, Arbitrary cinfo) => Gen (CallGraph cinfo)
 callGraph = do
   indices <- fmap nub arbitrary
   n <- natural
@@ -267,12 +267,12 @@ instance NotWorse CallGraphST where
 --
 --   TODO: store the call graph in this form from the beginning.
 
-toCallGraphST :: CallGraph meta -> CallGraphST
+toCallGraphST :: CallGraph cinfo -> CallGraphST
 toCallGraphST =
     Map.fromListWith Fav.union . map fromCall . Map.keys . theCallGraph
   where fromCall (Call s t m) = (SourceTarget s t, Fav.singleton m)
 
-instance NotWorse (CallGraph meta) where
+instance NotWorse (CallGraph cinfo) where
   g1 `notWorse` g2 = toCallGraphST g1 `notWorse` toCallGraphST g2
 
 
@@ -282,7 +282,7 @@ instance NotWorse (CallGraph meta) where
 -- Precondition: see 'cmMul'.
 
 combine
-  :: (Monoid meta, ?cutoff :: CutOff) => CallGraph meta -> CallGraph meta -> CallGraph meta
+  :: (Monoid cinfo, ?cutoff :: CutOff) => CallGraph cinfo -> CallGraph cinfo -> CallGraph cinfo
 combine s1 s2 = fromList $
   [ (c1 >*< c2, m1 `mappend` m2)
   | (c1, m1) <- toList s1, (c2, m2) <- toList s2
@@ -303,7 +303,7 @@ combine s1 s2 = fromList $
 -- complete if it contains all indirect calls; if @f -> g@ and @g ->
 -- h@ are present in the graph, then @f -> h@ should also be present.
 
-complete :: (?cutoff :: CutOff) => Monoid meta => CallGraph meta -> CallGraph meta
+complete :: (?cutoff :: CutOff) => Monoid cinfo => CallGraph cinfo -> CallGraph cinfo
 complete cs = iterateUntil notWorse (completionStep cs0) cs0
   where cs0 = completionInit cs
 
@@ -319,8 +319,8 @@ complete cs = complete' safeCS
     (.==.) = ((==) `on` (Map.keys . theCallGraph))
 -}
 
-completionStep :: (?cutoff :: CutOff) => Monoid meta =>
-  CallGraph meta -> CallGraph meta -> CallGraph meta
+completionStep :: (?cutoff :: CutOff) => Monoid cinfo =>
+  CallGraph cinfo -> CallGraph cinfo -> CallGraph cinfo
 completionStep gOrig gThis = gThis `union` (gThis `combine` gThis)
 -- Andreas, 2014-01-09: The following does not iterate enough
 -- to generate the necessary idempotent matrices.  (See issue 1014.)
@@ -333,7 +333,7 @@ prop_complete =
 
 -- | Returns 'True' iff the call graph is complete.
 
-isComplete :: (Ord meta, Monoid meta, ?cutoff :: CutOff) => CallGraph meta -> Bool
+isComplete :: (Ord cinfo, Monoid cinfo, ?cutoff :: CutOff) => CallGraph cinfo -> Bool
 isComplete s = (s `union` (s `combine` s)) `notWorse` s
 {-
 isComplete s = all (`Map.member` theCallGraph s) combinations
@@ -347,7 +347,7 @@ isComplete s = all (`Map.member` theCallGraph s) combinations
 -- | Checks whether every 'Index' used in the call graph corresponds
 -- to a fixed number of arguments (i.e. rows\/columns).
 
-completePrecondition :: CallGraph meta -> Bool
+completePrecondition :: CallGraph cinfo -> Bool
 completePrecondition cs =
   all (allEqual . map snd) $
   groupOn fst $
@@ -361,7 +361,7 @@ completePrecondition cs =
 --   The result satisfies 'completePrecondition'.
 
 completionInit
-  :: Monoid meta => CallGraph meta -> CallGraph meta
+  :: Monoid cinfo => CallGraph cinfo -> CallGraph cinfo
 completionInit cs =
   CallGraph $ Map.mapKeysWith mappend pad $ theCallGraph cs
   where
@@ -405,38 +405,38 @@ prop_ensureCompletePrecondition =
 -- | Displays the recursion behaviour corresponding to a call graph.
 
 {- RETIRED CODE
-showBehaviour :: Show meta => CallGraph meta -> String
+showBehaviour :: Show cinfo => CallGraph cinfo -> String
 showBehaviour = concatMap showCall . toList
   where
-  showCall (c, meta) | source c /= target c = ""
+  showCall (c, cinfo) | source c /= target c = ""
                      | otherwise            = unlines
     [ "Function:  " ++ show (source c)
     , "Behaviour: " ++ show (elems $ diagonal $ mat $ cm c)
-    , "Meta info: " ++ show meta
+    , "Meta info: " ++ show cinfo
     ]
 -}
 
-instance Show meta => Pretty (CallGraph meta) where
+instance Show cinfo => Pretty (CallGraph cinfo) where
   pretty = vcat . map prettyCall . toList
     where
-    prettyCall (c, meta) = align 20
+    prettyCall (c, cinfo) = align 20
       [ ("Source:",    text $ show $ source c)
       , ("Target:",    text $ show $ target c)
       , ("Matrix:",    pretty (mat $ cm c))
-      -- , ("Meta info:", text $ show meta) -- not pretty at all
+      -- , ("Meta info:", text $ show cinfo) -- not pretty at all
       ]
 
 -- | Displays the recursion behaviour corresponding to a call graph.
 
-prettyBehaviour :: Show meta => CallGraph meta -> Doc
+prettyBehaviour :: Show cinfo => CallGraph cinfo -> Doc
 prettyBehaviour = vcat . map prettyCall . filter (toSelf . fst) . toList
   where
   toSelf c = source c == target c
 
-  prettyCall (c, meta) = vcat $ map text
+  prettyCall (c, cinfo) = vcat $ map text
     [ "Function:  " ++ show (source c)
     , "Behaviour: " ++ show (elems $ diagonal $ mat $ cm c)
-    , "Meta info: " ++ show meta
+    , "Meta info: " ++ show cinfo
     ]
 
 ------------------------------------------------------------------------

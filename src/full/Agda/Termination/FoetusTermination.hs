@@ -13,7 +13,7 @@ module Agda.Termination.Termination
   ) where
 
 import Agda.Termination.Lexicographic
-import Agda.Termination.Utilities
+-- import Agda.Termination.Utilities
 import Agda.Termination.CallGraph
 import Agda.Termination.Matrix
 import Control.Arrow
@@ -45,9 +45,9 @@ import Data.Array (Array)
 -- Note that this function assumes that all data types are strictly
 -- positive.
 
-terminates :: (Ord meta, Monoid meta) =>
-  CallGraph meta -> Either (Map Index (Set Index, Set meta))
-                           (Map Index (LexOrder Index))
+terminates :: (Ord cinfo, Monoid cinfo) =>
+  CallGraph cinfo -> Either (Map Index (Set Index, Set cinfo))
+                            (Map Index (LexOrder Index))
 terminates cs | ok        = Right perms
               | otherwise = Left problems
   where
@@ -76,8 +76,8 @@ terminates cs | ok        = Right perms
 -- of meta information associated to the different call paths are
 -- merged using 'mappend'.
 
-recursionBehaviours :: (Ord meta, Monoid meta) =>
-     CallGraph meta -> [(Index, [(meta, Array Index Order)])]
+recursionBehaviours :: (Ord cinfo, Monoid cinfo) =>
+     CallGraph cinfo -> [(Index, [(cinfo, Array Index Order)])]
 recursionBehaviours cs = rbs'
   where
   -- Complete the call graph.

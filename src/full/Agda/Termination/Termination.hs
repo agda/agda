@@ -55,17 +55,17 @@ import Data.List (partition)
 -- This criterion is strictly more liberal than searching for a
 -- lexicographic order (and easier to implement, but harder to justify).
 
-terminates :: (Monoid meta, ?cutoff :: CutOff) => CallGraph meta -> Either meta ()
+terminates :: (Monoid cinfo, ?cutoff :: CutOff) => CallGraph cinfo -> Either cinfo ()
 terminates cs = let ccs = complete cs
                 in
                   checkIdems $ toList ccs
 
-terminatesFilter :: (Monoid meta, ?cutoff :: CutOff) =>
-  (Index -> Bool) -> CallGraph meta -> Either meta ()
+terminatesFilter :: (Monoid cinfo, ?cutoff :: CutOff) =>
+  (Index -> Bool) -> CallGraph cinfo -> Either cinfo ()
 terminatesFilter f cs = checkIdems $ filter f' $ toList $ complete cs
   where f' (c,m) = f (source c) && f (target c)
 
-checkIdems :: (Monoid meta, ?cutoff :: CutOff) => [(Call,meta)] -> Either meta ()
+checkIdems :: (Monoid cinfo, ?cutoff :: CutOff) => [(Call,cinfo)] -> Either cinfo ()
 checkIdems calls = caseMaybe (mhead offending) (Right ()) $ \ (c,m) -> Left m
   where
     (idems, other) = partition (idempotent . fst) calls
