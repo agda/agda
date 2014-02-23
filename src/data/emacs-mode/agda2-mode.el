@@ -916,11 +916,23 @@ is inserted, and point is placed before this text."
       (let (;; If there is only one window, then the info window
             ;; should be created above or below the code window, not
             ;; to the left or right.
-            (split-width-threshold nil))
-        (pop-to-buffer (current-buffer) nil 'norecord)
-        (fit-window-to-buffer
-         nil (truncate
-              (* (frame-height) agda2-information-window-max-height)))
+            (split-width-threshold nil)
+            (buf (current-buffer))
+           )
+        ;; Andreas, 2014-02-23, issue 1061
+        ;; If the buffer is already displayed in some window,
+        ;; do not display it again.  Also, do not raise its frame.
+        ;; This allows undisturbed working on something else while
+        ;; Agda is type-checking.
+        ;; The solution is to query for the window displaying the buffer
+        ;; via get-buffer-window.  Only if it return nil, we pop-to-buffer.
+        ;; Credits go to Iqbal Ansari who anwered my question on
+        ;; http://stackoverflow.com/questions/21955162/emacs-how-to-display-a-buffer-without-switching-window-and-without-raising-fram
+        (unless (get-buffer-window buf t)
+          (pop-to-buffer buf nil 'norecord)
+          (fit-window-to-buffer nil
+            (truncate
+              (* (frame-height) agda2-information-window-max-height))))
         (if append
             (goto-char (point-max))
           (goto-char (point-min)))))))
