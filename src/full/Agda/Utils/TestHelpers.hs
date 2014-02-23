@@ -24,6 +24,7 @@ module Agda.Utils.TestHelpers
   where
 
 import Control.Monad
+import Data.Functor
 
 import Agda.Utils.QuickCheck
 
@@ -92,12 +93,12 @@ rightDistributive (*) (+) = \x y z ->
 -- | Generates natural numbers.
 
 natural :: (Integral i) => Gen i
-natural = fmap (fromInteger . abs) arbitrary
+natural = fromInteger . abs <$> arbitrary
 
 -- | Generates positive numbers.
 
 positive :: (Integral i) => Gen i
-positive = fmap ((+ 1) . abs . fromInteger) arbitrary
+positive = succ <$> natural
 
 -- | Generates a list of elements picked from a given list.
 listOfElements :: [a] -> Gen [a]
@@ -116,7 +117,7 @@ elementsUnlessEmpty xs = elements xs
 
 maybeGen :: Gen a -> Gen (Maybe a)
 maybeGen gen = frequency [ (1, return Nothing)
-                         , (9, fmap Just gen)
+                         , (9, Just <$> gen)
                          ]
 
 -- | 'Coarbitrary' \"generator\" for 'Maybe'.
@@ -146,4 +147,4 @@ runTests :: String    -- ^ A label for the tests. Used for
          -> IO Bool
 runTests name tests = do
   putStrLn name
-  fmap and $ sequence tests
+  and <$> sequence tests
