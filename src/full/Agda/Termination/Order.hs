@@ -358,7 +358,7 @@ prop_orderSemiring = Semiring.semiringInvariant orderSemiring
 -- All tests
 
 tests :: IO Bool
-tests = runTests "Agda.Termination.CallGraph"
+tests = runTests "Agda.Termination.Order"
   [ quickCheck' prop_decr
   , quickCheck' prop_orderSemiring
   ]
