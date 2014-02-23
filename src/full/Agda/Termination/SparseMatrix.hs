@@ -62,7 +62,7 @@ import Agda.Utils.Impossible
 
 -- | This matrix type is used for tests.
 
-type TM = Matrix Integer Integer
+type TM = Matrix Int Int
 
 -- | Size of a matrix.
 
@@ -396,17 +396,16 @@ prop_mul sz =
       associative mult m1 m2 m3 &&
       matrixInvariant m' &&
       size m' == Size { rows = rows sz, cols = c2 }
-  where mult = mul Semiring.integerSemiring
+  where mult = mul Semiring.intSemiring
 
 -- | @'diagonal' m@ extracts the diagonal of @m@.
 --
 -- No longer precondition: @'square' m@.
 
-diagonal :: (Show i, Enum i, Num i, Ix i, HasZero b) => Matrix i b -> Array i b
+diagonal :: (Show i, Enum i, Num i, Ix i, HasZero b) => Matrix i b -> [b]
 diagonal m = -- if r /= c then __IMPOSSIBLE__ else  -- works also for non-square
-  listArray (1, n) $ blowUpSparseVec zeroElement n $
+  blowUpSparseVec zeroElement n $
     mapMaybe (\ ((MIx i j),b) -> if i==j then Just (i,b) else Nothing) $ unM m
---    map (\ ((MIx i j),b) -> (i,b)) $ filter (\ ((MIx i j),b) -> i==j) (unM m)
   where
     sz = size m
     r  = rows sz
@@ -416,7 +415,7 @@ diagonal m = -- if r /= c then __IMPOSSIBLE__ else  -- works also for non-square
 prop_diagonal =
   forAll natural $ \n ->
   forAll (matrix (Size n n) :: Gen TM) $ \m ->
-    bounds (diagonal m) == (1, n)
+    length (diagonal m) == n
 
 ------------------------------------------------------------------------
 -- Modifying matrices

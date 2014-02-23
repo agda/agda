@@ -11,7 +11,8 @@ module Agda.Termination.Order
   , (.*.)
   , supremum, infimum
   , orderSemiring
-  , decreasing, le, lt, unknown, orderMat, collapseO
+  , le, lt, unknown, orderMat, collapseO
+  , decreasing, isDecr
   , CutOff(..)
   , NotWorse(..)
   , tests
@@ -204,6 +205,11 @@ unknown = Unknown
 decreasing :: Order -> Bool
 decreasing (Decr k) | k > 0 = True
 decreasing _ = False
+
+-- | Matrix-shaped order is decreasing if any diagonal element is decreasing.
+isDecr :: Order -> Bool
+isDecr (Mat m) = any isDecr $ diagonal m
+isDecr o = decreasing o
 
 instance Pretty Order where
   pretty (Decr 0) = text "="

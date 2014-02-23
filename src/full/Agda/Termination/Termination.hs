@@ -104,13 +104,7 @@ idempotent c = target c == source c
 
 
 hasDecrease :: (?cutoff :: CutOff) => Call -> Bool
-hasDecrease c = any isDecr $ Array.elems $ diagonal $ mat $ cm c
-
--- | Matrix is decreasing if any diagonal element is decreasing.
-
-isDecr :: Order -> Bool
-isDecr (Mat m) = any isDecr $ Array.elems $ diagonal m
-isDecr o = decreasing o
+hasDecrease = any isDecr . diagonal . mat . cm
 
 ------------------------------------------------------------------------
 -- Some examples

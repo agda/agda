@@ -48,7 +48,7 @@ import Agda.Utils.TestHelpers
 
 -- | This matrix type is used for tests.
 
-type TM = Matrix Integer Integer
+type TM = Matrix Int Int
 
 -- | Size of a matrix.
 
@@ -258,7 +258,7 @@ prop_mul sz =
       associative mult m1 m2 m3 &&
       matrixInvariant m' &&
       size m' == Size { rows = rows sz, cols = c2 }
-  where mult = mul Semiring.integerSemiring
+  where mult = mul Semiring.intSemiring
 
 -- | @'diagonal' m@ extracts the diagonal of @m@.
 --
@@ -287,7 +287,7 @@ addColumn x m = fromLists sz . addCol' . toLists $ m
   sz      = (size m) { cols = cols (size m) + 1 }
   addCol' = map (++ [x])
 
-prop_addColumn :: Integer -> TM -> Bool
+prop_addColumn :: Int -> TM -> Bool
 prop_addColumn x m =
   matrixInvariant m'
   &&
@@ -304,7 +304,7 @@ addRow x m = fromLists sz . addRow' . toLists $ m
   sz      = (size m) { rows = rows (size m) + 1 }
   addRow' = (++ [genericReplicate (cols (size m)) x])
 
-prop_addRow :: Integer -> TM -> Bool
+prop_addRow :: Int -> TM -> Bool
 prop_addRow x m =
   matrixInvariant m'
   &&

@@ -7,6 +7,7 @@ module Agda.Termination.Semiring
   , Semiring(..)
   , semiringInvariant
   , integerSemiring
+  , intSemiring
   , boolSemiring
   , Agda.Termination.Semiring.tests
   ) where
@@ -76,11 +77,27 @@ instance Monoid Integer where
 instance SemiRing Integer where
   multiply = (*)
 
-
 integerSemiring :: Semiring Integer
 integerSemiring = Semiring { add = (+), mul = (*), zero = 0 } -- , one = 1 }
 
 prop_integerSemiring = semiringInvariant integerSemiring
+
+-- | The standard semiring on 'Int's.
+
+instance HasZero Int where
+  zeroElement = 0
+
+instance Monoid Int where
+  mempty = 0
+  mappend = (+)
+
+instance SemiRing Int where
+  multiply = (*)
+
+intSemiring :: Semiring Int
+intSemiring = Semiring { add = (+), mul = (*), zero = 0 } -- , one = 1 }
+
+prop_intSemiring = semiringInvariant intSemiring
 
 -- | The standard semiring on 'Bool's.
 

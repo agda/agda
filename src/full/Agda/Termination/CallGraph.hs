@@ -28,7 +28,6 @@ module Agda.Termination.CallGraph
   , Agda.Termination.CallGraph.tests
   ) where
 
-import Data.Array (elems)
 import Data.Function
 import Data.Map (Map, (!))
 import qualified Data.Map as Map
@@ -435,7 +434,7 @@ prettyBehaviour = vcat . map prettyCall . filter (toSelf . fst) . toList
 
   prettyCall (c, cinfo) = vcat $ map text
     [ "Function:  " ++ show (source c)
-    , "Behaviour: " ++ show (elems $ diagonal $ mat $ cm c)
+    , "Behaviour: " ++ show (diagonal $ mat $ cm c)
     , "Meta info: " ++ show cinfo
     ]
 
