@@ -188,8 +188,9 @@ instance Monoid cinfo => Monoid (CallGraph cinfo) where
 -- | Inserts a call into a call graph.
 
 insert :: Monoid cinfo
-       => Call -> cinfo -> CallGraph cinfo -> CallGraph cinfo
-insert c m = CallGraph . Map.insertWith mappend c m . theCallGraph
+       => Index -> Index -> CallMatrix -> cinfo
+       -> CallGraph cinfo -> CallGraph cinfo
+insert s t cm m = CallGraph . Map.insertWith mappend (Call s t cm) m . theCallGraph
 
 -- | Generates a call graph.
 

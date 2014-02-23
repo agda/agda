@@ -808,17 +808,23 @@ function g es = ifJustM (isWithFunction g) (\ _ -> withFunction g es)
          -- whenever we really need to.
          -- This saves 30s (12%) on the std-lib!
          doc <- liftTCM $ buildClosure gArgs
+{-
          let call = Term.Call
                       { Term.source = fromMaybe __IMPOSSIBLE__ $
                           List.elemIndex f names
                       , Term.target = gInd
                       , Term.cm     = makeCM ncols nrows matrix'
                       }
+         return $ Term.insert call info calls
+-}
+         let src  = fromMaybe __IMPOSSIBLE__ $ List.elemIndex f names
+             tgt  = gInd
+             cm   = makeCM ncols nrows matrix'
              info = point $ CallInfo
                       { callInfoRange = getRange g
                       , callInfoCall  = doc
                       }
-         return $ Term.insert call info calls
+         return $ Term.insert src tgt cm info calls
 
 -- | Extract recursive calls from a term.
 
