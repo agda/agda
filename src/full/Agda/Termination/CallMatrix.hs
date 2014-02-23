@@ -1,4 +1,5 @@
 {-# LANGUAGE CPP, ImplicitParams, TypeSynonymInstances, FlexibleInstances,
+  MultiParamTypeClasses,
   GeneralizedNewtypeDeriving, StandaloneDeriving, DeriveFunctor,
   DeriveFoldable, DeriveTraversable #-}
 
@@ -44,6 +45,9 @@ newtype CallMatrix' a = CallMatrix { mat :: Matrix Index a }
 type CallMatrix = CallMatrix' Order
 
 deriving instance NotWorse CallMatrix
+
+instance HasZero a => Diagonal (CallMatrix' a) a where
+  diagonal = diagonal . mat
 
 instance Arbitrary CallMatrix where
   arbitrary = callMatrix =<< arbitrary

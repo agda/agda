@@ -1,4 +1,6 @@
-{-# LANGUAGE GeneralizedNewtypeDeriving, DeriveTraversable #-}
+{-# LANGUAGE MultiParamTypeClasses, FunctionalDependencies, FlexibleInstances,
+  GeneralizedNewtypeDeriving, DeriveTraversable #-}
+
 -- | Naive implementation of simple matrix library.
 
 -- Originally copied from Agda1 sources.
@@ -24,7 +26,7 @@ module Agda.Termination.Matrix
   , isEmpty
   , add
   , mul
-  , diagonal
+  , Diagonal(..)
     -- * Modifying matrices
   , addRow
   , addColumn
@@ -264,15 +266,16 @@ prop_mul sz =
 --
 -- Precondition: @'square' m@.
 
-diagonal :: (Enum i, Num i, Ix i) => Matrix i b -> Array i b
-diagonal m = listArray (1, rows sz) [ unM m ! MIx {row = i, col = i}
-                                    | i <- [1 .. rows sz] ]
-  where sz = size m
+class Diagonal m e | m -> e where
+  diagonal :: m -> [e]
+
+instance (Enum i, Num i, Ix i) => Diagonal (Matrix i b) b where
+  diagonal m = [ unM m ! MIx {row = i, col = i} | i <- [1 .. rows $ size m] ]
 
 prop_diagonal =
   forAll natural $ \n ->
   forAll (matrix (Size n n) :: Gen TM) $ \m ->
-    bounds (diagonal m) == (1, n)
+    length (diagonal m) == n
 
 ------------------------------------------------------------------------
 -- Modifying matrices

@@ -104,7 +104,7 @@ idempotent c = target c == source c
 
 
 hasDecrease :: (?cutoff :: CutOff) => Call -> Bool
-hasDecrease = any isDecr . diagonal . mat . cm
+hasDecrease = any isDecr . diagonal
 
 ------------------------------------------------------------------------
 -- Some examples

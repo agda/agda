@@ -1,4 +1,6 @@
-{-# LANGUAGE CPP, ScopedTypeVariables, DeriveFunctor, DeriveFoldable, DeriveTraversable #-}
+{-# LANGUAGE CPP, ScopedTypeVariables,
+  MultiParamTypeClasses, FunctionalDependencies, FlexibleInstances,
+  DeriveFunctor, DeriveFoldable, DeriveTraversable #-}
 
 {- | Sparse matrices.
 
@@ -31,7 +33,7 @@ module Agda.Termination.SparseMatrix
   , add, intersectWith
   , mul
   , transpose
-  , diagonal
+  , Diagonal(..)
     -- * Modifying matrices
   , addRow
   , addColumn
@@ -400,17 +402,20 @@ prop_mul sz =
 
 -- | @'diagonal' m@ extracts the diagonal of @m@.
 --
--- No longer precondition: @'square' m@.
+--   No longer precondition: @'square' m@.
 
-diagonal :: (Show i, Enum i, Num i, Ix i, HasZero b) => Matrix i b -> [b]
-diagonal m = -- if r /= c then __IMPOSSIBLE__ else  -- works also for non-square
-  blowUpSparseVec zeroElement n $
-    mapMaybe (\ ((MIx i j),b) -> if i==j then Just (i,b) else Nothing) $ unM m
-  where
-    sz = size m
-    r  = rows sz
-    c  = cols sz
-    n  = max r c
+class Diagonal m e | m -> e where
+  diagonal :: m -> [e]
+
+instance (Show i, Enum i, Num i, Ix i, HasZero b) => Diagonal (Matrix i b) b where
+  diagonal m = -- if r /= c then __IMPOSSIBLE__ else  -- works also for non-square
+    blowUpSparseVec zeroElement n $
+      mapMaybe (\ ((MIx i j),b) -> if i==j then Just (i,b) else Nothing) $ unM m
+    where
+      sz = size m
+      r  = rows sz
+      c  = cols sz
+      n  = max r c
 
 prop_diagonal =
   forAll natural $ \n ->

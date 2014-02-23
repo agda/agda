@@ -1,4 +1,5 @@
 {-# LANGUAGE CPP, ImplicitParams, TypeSynonymInstances, FlexibleInstances,
+  MultiParamTypeClasses,
   GeneralizedNewtypeDeriving, StandaloneDeriving, DeriveFunctor,
   DeriveFoldable, DeriveTraversable #-}
 
@@ -97,6 +98,9 @@ data Call' a =
   deriving (Eq, Ord, Show, Functor)
 
 type Call = Call' Order
+
+instance HasZero a => Diagonal (Call' a) a where
+  diagonal = diagonal . cm
 
 instance PartialOrd a => PartialOrd (Call' a) where
   comparable (Call s t m) (Call s' t' m')
