@@ -14,8 +14,9 @@ module Agda.Termination.Termination
   , Agda.Termination.Termination.tests
   ) where
 
-import Agda.Termination.CallGraph
-import Agda.Termination.Order
+import Agda.Termination.CallGraph  hiding (tests)
+import Agda.Termination.CallMatrix hiding (tests)
+import Agda.Termination.Order      hiding (tests)
 import Agda.Termination.SparseMatrix
 
 import Agda.Utils.Either
