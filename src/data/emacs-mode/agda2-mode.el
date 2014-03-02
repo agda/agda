@@ -928,11 +928,13 @@ is inserted, and point is placed before this text."
         ;; via get-buffer-window.  Only if it return nil, we pop-to-buffer.
         ;; Credits go to Iqbal Ansari who anwered my question on
         ;; http://stackoverflow.com/questions/21955162/emacs-how-to-display-a-buffer-without-switching-window-and-without-raising-fram
-        (unless (get-buffer-window buf t)
+        ;; 2014-03-01 DISABLED FIX
+        ;; (unless (get-buffer-window buf t)
           (pop-to-buffer buf nil 'norecord)
           (fit-window-to-buffer nil
             (truncate
-              (* (frame-height) agda2-information-window-max-height))))
+              (* (frame-height) agda2-information-window-max-height)))
+        ;; )
         (if append
             (goto-char (point-max))
           (goto-char (point-min)))))))
