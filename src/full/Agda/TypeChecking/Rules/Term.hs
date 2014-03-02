@@ -1085,7 +1085,7 @@ checkHeadApplication e t hd args = do
           -- Andreas, 2011-05-10 report error about types rather  telescopes
           -- compareTel CmpLeq eTel fTel >> return () -- This will fail!
 
-        reportSDoc "tc.term.con" 10 $ vcat
+        reportSDoc "tc.term.con" 10 $ addCtxTel eTel $ vcat
           [ text "checking" <+>
             prettyTCM fType <+> text "?<=" <+> prettyTCM eType
           ]
