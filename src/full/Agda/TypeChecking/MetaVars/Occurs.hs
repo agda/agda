@@ -24,7 +24,7 @@ import Agda.TypeChecking.Records
 import Agda.TypeChecking.Datatypes (isDataOrRecordType)
 import {-# SOURCE #-} Agda.TypeChecking.MetaVars
 
-import Agda.Utils.List (takeMaybe)
+import Agda.Utils.List (takeWhileJust)
 import Agda.Utils.Monad
 import Agda.Utils.Permutation
 import Agda.Utils.Size
@@ -260,7 +260,7 @@ instance Occurs Term where
                 PatternErr{} | ctx /= Flex -> do
                       reportSLn "tc.meta.kill" 20 $
                         "oops, pattern violation for " ++ show m'
-                      let vs = takeMaybe isApplyElim es
+                      let vs = takeWhileJust isApplyElim es
                       killResult <- prune m' vs (takeRelevant xs)
                       if (killResult == PrunedEverything)
                         -- after successful pruning, restart occurs check

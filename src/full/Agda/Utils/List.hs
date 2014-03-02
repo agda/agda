@@ -64,8 +64,8 @@ deal f a ~(bs,cs) = case f a of
 
 -- | A generalized version of @takeWhile@.
 --   (Cf. @mapMaybe@ vs. @filter@).
-takeMaybe :: (a -> Maybe b) -> [a] -> [b]
-takeMaybe p = loop
+takeWhileJust :: (a -> Maybe b) -> [a] -> [b]
+takeWhileJust p = loop
   where
     loop (a : as) | Just b <- p a = b : loop as
     loop _ = []
