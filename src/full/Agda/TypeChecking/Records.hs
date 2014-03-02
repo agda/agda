@@ -25,6 +25,7 @@ import Agda.TypeChecking.Telescope
 import Agda.Utils.Either
 import Agda.Utils.List
 import Agda.Utils.Functor (for, ($>))
+import Agda.Utils.Maybe
 import Agda.Utils.Monad
 import qualified Agda.Utils.HashMap as HMap
 import Agda.Utils.Size
@@ -221,7 +222,7 @@ recursiveRecord q = modifySignature $ updateDefinition q $ updateTheDef $ update
 
 {- | @etaExpandBoundVar i = (Δ, σ, τ)@
 
-Precondition: The current context @Γ = Γ₁, x:R pars, Γ₂@ where
+Precondition: The current context is @Γ = Γ₁, x:R pars, Γ₂@ where
   @|Γ₂| = i@ and @R@ is a eta-expandable record type
   with constructor @c@ and fields @Γ'@.
 
@@ -234,7 +235,13 @@ etaExpandBoundVar i = do
   -- Extract type of @i@th variable.
   let (gamma2, dom@(Dom ai (x, a)) : gamma1) = splitAt i gamma
   -- This must be a eta-expandable record type.
-  (r, pars, def) <- fromMaybe __IMPOSSIBLE__ <$> isRecordType a
+  let failure = do
+        reportSDoc "tc.meta.assign.proj" 25 $
+          text "failed to eta-expand variable " <+> prettyTCM x <+>
+          text " since its type " <+> prettyTCM a <+>
+          text " is not a record type"
+        return Nothing
+  caseMaybeM (isRecordType a) failure $ \ (r, pars, def) -> do
   if not (recEtaEquality def) then return Nothing else Just <$> do
   -- Get the record fields @Γ₁ ⊢ tel@ (@tel = Γ'@).
   -- TODO: compose argInfo ai with tel.
