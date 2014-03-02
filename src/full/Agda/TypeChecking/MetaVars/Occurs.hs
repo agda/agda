@@ -174,13 +174,13 @@ occursCheck m xs v = liftTCM $ do
                , prettyTCM =<< instantiateFull v
                ]
       MetaCannotDependOn _ _ i ->
-        ifM ((&&) <$> isSortMeta m <*> (not <$> hasUniversePolymorphism))
+        ifM (isSortMeta m `and2M` (not <$> hasUniversePolymorphism))
         ( typeError . GenericError . show =<<
           fsep [ text ("Cannot instantiate the metavariable " ++ show m ++ " to")
                , prettyTCM v
                , text "since universe polymorphism is disabled"
                ]
-        )
+        ) {- else -}
         ( typeError . GenericError . show =<<
             fsep [ text ("Cannot instantiate the metavariable " ++ show m ++ " to solution")
                  , prettyTCM v
