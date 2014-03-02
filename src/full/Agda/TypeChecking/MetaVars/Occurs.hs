@@ -25,6 +25,7 @@ import Agda.TypeChecking.Datatypes (isDataOrRecordType)
 import {-# SOURCE #-} Agda.TypeChecking.MetaVars
 
 import Agda.Utils.List (takeWhileJust)
+import Agda.Utils.Maybe
 import Agda.Utils.Monad
 import Agda.Utils.Permutation
 import Agda.Utils.Size
@@ -258,14 +259,17 @@ instance Occurs Term where
                 -- On pattern violations try to remove offending
                 -- flexible occurrences (if not already in a flexible context)
                 PatternErr{} | ctx /= Flex -> do
-                      reportSLn "tc.meta.kill" 20 $
-                        "oops, pattern violation for " ++ show m'
-                      let vs = takeWhileJust isApplyElim es
-                      killResult <- prune m' vs (takeRelevant xs)
-                      if (killResult == PrunedEverything)
-                        -- after successful pruning, restart occurs check
-                        then occurs red ctx m xs =<< instantiate (MetaV m' es)
-                        else throwError err
+                  reportSLn "tc.meta.kill" 20 $
+                    "oops, pattern violation for " ++ show m'
+                  -- Andreas, 2014-03-02, see issue 1070:
+                  -- Do not prune when meta is projected!
+                  -- WAS: let vs = takeWhileJust isApplyElim es
+                  caseMaybe (allApplyElims es) (throwError err) $ \ vs -> do
+                  killResult <- prune m' vs (takeRelevant xs)
+                  if (killResult == PrunedEverything)
+                    -- after successful pruning, restart occurs check
+                    then occurs red ctx m xs =<< instantiate (MetaV m' es)
+                    else throwError err
                 _ -> throwError err
         where
           occ ctx v = occurs red ctx m xs v
