@@ -444,19 +444,6 @@ etaExpandMeta kinds m = whenM (isEtaExpandable m) $ do
   meta           <- lookupMeta m
   let HasType _ a = mvJudgement meta
   TelV tel b     <- telView a
-{- OLD CODE
-  bb             <- reduceB b  -- the target in the type @a@ of @m@
-  case ignoreSharing . unEl <$> bb of
-    -- if the target type of @m@ is a meta variable @x@ itself
-    -- (@NonBlocked (MetaV{})@),
-    -- or it is blocked by a meta-variable @x@ (@Blocked@), we cannot
-    -- eta expand now, we have to postpone this.  Once @x@ is
-    -- instantiated, we can continue eta-expanding m.  This is realized
-    -- by adding @m@ to the listeners of @x@.
-    Blocked x _               -> waitFor x
-    NotBlocked (MetaV x _)    -> waitFor x
-    NotBlocked lvl@(Def r ps) ->
--}
   -- if the target type @b@ of @m@ is a meta variable @x@ itself
   -- (@NonBlocked (MetaV{})@),
   -- or it is blocked by a meta-variable @x@ (@Blocked@), we cannot
