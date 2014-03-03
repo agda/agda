@@ -14,7 +14,6 @@ import Control.Monad.Writer (WriterT(..), MonadWriter(..), Monoid(..))
 import Data.Map (Map)
 import qualified Data.Map as Map
 import Data.List hiding (sort)
-import Data.Maybe (fromMaybe)
 
 import Data.Typeable (Typeable)
 import Data.Foldable (Foldable)
@@ -44,6 +43,7 @@ import Agda.Interaction.Options (optInjectiveTypeConstructors)
 
 import Agda.TypeChecking.Rules.LHS.Problem
 
+import Agda.Utils.Maybe
 import Agda.Utils.Size
 
 #include "../../../undefined.h"
@@ -176,6 +176,11 @@ forceHom (Hom a) = return a
 forceHom (Het a1 a2) = do
   noConstraints $ equalType a1 a2
   return a1
+
+-- | Check whether heterogeneous situation is really homogeneous.
+--   If not, return Nothing.
+makeHom :: TypeHH -> TCM (Maybe Type)
+makeHom aHH = (Just <$> forceHom aHH) `catchError` \ err -> return Nothing
 
 addEquality :: Type -> Term -> Term -> Unify ()
 addEquality a = addEqualityHH (Hom a)
@@ -638,7 +643,12 @@ unifyIndices flex a us vs = liftTCM $ do
       let tryAgain aHH u v = do
             u <- liftTCM $ etaContract =<< normalise u
             v <- liftTCM $ etaContract =<< normalise v
-            unifyAtomHH aHH u v $ checkEqualityHH
+            unifyAtomHH aHH u v $ \ aHH u v -> do
+              -- Andreas, 2014-03-03 (issue 1061)
+              -- As a last resort, normalize types to maybe get back
+              -- to the homogeneous case
+              caseMaybeM (liftTCM $ makeHom aHH) (checkEqualityHH aHH u v) $ \ a -> do
+                unifyAtomHH (Hom a) u v checkEqualityHH
 
       -- check whether types have the same shape
       (aHH, sh) <- shapeViewHH aHH
