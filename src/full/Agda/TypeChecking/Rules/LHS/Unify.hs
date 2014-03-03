@@ -645,8 +645,8 @@ unifyIndices flex a us vs = liftTCM $ do
       case sh of
         ElseSh  -> checkEqualityHH aHH u v -- not a type or not same types
 
-        DefSh d -> if isSizeName d then unifySizes u v
-                                   else unifyAtomHH aHH u v tryAgain
+        DefSh d | isSizeName d -> unifySizes u v
+
         _ -> unifyAtomHH aHH u v tryAgain
 
     unifyAtomHH ::
