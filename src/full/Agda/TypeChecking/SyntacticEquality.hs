@@ -9,7 +9,7 @@
 --   by a more efficient routine which only traverses and instantiates the terms
 --   as long as they are equal.
 
-module Agda.TypeChecking.SyntacticEquality (checkSyntacticEquality) where
+module Agda.TypeChecking.SyntacticEquality (SynEq, checkSyntacticEquality) where
 
 import Prelude hiding (mapM)
 
@@ -38,7 +38,9 @@ import Agda.Utils.Impossible
 --   only that @v,v'@ are only fully instantiated to the depth
 --   where they are equal.
 
-checkSyntacticEquality :: Term -> Term -> TCM ((Term, Term), Bool)
+{-# SPECIALIZE checkSyntacticEquality :: Term -> Term -> TCM ((Term, Term), Bool) #-}
+{-# SPECIALIZE checkSyntacticEquality :: Type -> Type -> TCM ((Type, Type), Bool) #-}
+checkSyntacticEquality :: (SynEq a) => a -> a -> TCM ((a, a), Bool)
 checkSyntacticEquality v v' = synEq v v' `runStateT` True
 
 -- | Monad for checking syntactic equality
