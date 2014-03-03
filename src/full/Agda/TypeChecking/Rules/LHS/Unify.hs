@@ -52,6 +52,13 @@ import Agda.Utils.Impossible
 newtype Unify a = U { unUnify :: ReaderT UnifyEnv (WriterT UnifyOutput (ExceptionT UnifyException (StateT UnifyState TCM))) a }
   deriving (Monad, MonadIO, Functor, Applicative, MonadException UnifyException, MonadWriter UnifyOutput)
 
+instance MonadTCM Unify where
+  liftTCM = U . lift . lift . lift . lift
+
+instance MonadState TCState Unify where
+  get = liftTCM $ get
+  put = liftTCM . put
+
 instance MonadReader TCEnv Unify where
   ask = U $ ReaderT $ \ _ -> ask
   local cont (U (ReaderT f)) = U $ ReaderT $ \ a -> local cont (f a)
@@ -130,13 +137,6 @@ constructorMismatch a u v = throwException $ ConstructorMismatch a u v
 constructorMismatchHH :: TypeHH -> Term -> Term -> Unify a
 constructorMismatchHH aHH = constructorMismatch (leftHH aHH)
   -- do not report heterogenity
-
-instance MonadState TCState Unify where
-  get = U . lift . lift . lift . lift $ get
-  put = U . lift . lift . lift . lift . put
-
-instance MonadTCM Unify where
-  liftTCM = U . lift . lift . lift . lift
 
 instance Subst Equality where
   applySubst rho (Equal a s t) =
@@ -467,9 +467,9 @@ unifyIndices flex a us vs = liftTCM $ do
       unifyConArgs tel12 vs1 vs2
 
     unifyConArgs ::
-         TelHH  -- ^ The telescope(s) of the constructor args    [length = n].
-      -> Args   -- ^ the arguments of the constructor (lhs) [length = n].
-      -> Args   -- ^ the arguments of the constructor (rhs) [length = n].
+         TelHH  -- ^ The telescope(s) of the constructor args [length = n].
+      -> Args   -- ^ the arguments of the constructor (lhs)   [length = n].
+      -> Args   -- ^ the arguments of the constructor (rhs)   [length = n].
       -> Unify ()
     unifyConArgs _ (_ : _) [] = __IMPOSSIBLE__
     unifyConArgs _ [] (_ : _) = __IMPOSSIBLE__
@@ -675,6 +675,8 @@ unifyIndices flex a us vs = liftTCM $ do
 	    , nest 2 $ prettyTCM v <> if flexibleTerm v then text " (flexible)" else empty
 	    , nest 2 $ text ":" <+> prettyTCM aHH
 	    ]
+      liftTCM $ reportSDoc "tc.lhs.unify" 60 $
+        text $ "aHH = " ++ show aHH
       case (ignoreSharing u, ignoreSharing v) of
         -- Ulf, 2011-06-19
         -- We don't want to worry about levels here.
