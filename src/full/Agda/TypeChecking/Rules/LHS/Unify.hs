@@ -19,6 +19,8 @@ import Data.Typeable (Typeable)
 import Data.Foldable (Foldable)
 import Data.Traversable (Traversable,traverse)
 
+import Agda.Interaction.Options (optInjectiveTypeConstructors)
+
 import Agda.Syntax.Common
 import Agda.Syntax.Internal as I
 import Agda.Syntax.Literal
@@ -39,9 +41,8 @@ import Agda.TypeChecking.Free
 import Agda.TypeChecking.Records
 import Agda.TypeChecking.MetaVars (assignV, newArgsMetaCtx)
 import Agda.TypeChecking.EtaContract
-import Agda.Interaction.Options (optInjectiveTypeConstructors)
-
 import Agda.TypeChecking.Rules.LHS.Problem
+-- import Agda.TypeChecking.SyntacticEquality
 
 import Agda.Utils.Maybe
 import Agda.Utils.Size
@@ -153,6 +154,16 @@ checkEqualities eqs = noConstraints $ mapM_ checkEq eqs
   where
     checkEq (Equal (Hom a) s t) = equalTerm a s t
     checkEq (Equal (Het a1 a2) s t) = typeError $ HeterogeneousEquality s a1 t a2
+    -- Andreas, 2014-03-03:  Alternatively, one could try to get back
+    -- to a homogeneous situation.  Unless there is a case where this
+    -- actually helps, I leave it deactivated.
+    -- KEEP:
+    --
+    -- checkEq (Equal (Het a1 a2) s t) = do
+    --     noConstraints $ do
+    --       equalType a1 a2
+    --       equalTerm a1 s t
+    --   `catchError` \ _ -> typeError $ HeterogeneousEquality s a1 t a2
 
 -- | Force equality now instead of postponing it using 'addEquality'.
 checkEquality :: Type -> Term -> Term -> TCM ()
@@ -259,6 +270,21 @@ instance UReduce Type where
 instance UReduce t => UReduce (HomHet t) where
   ureduce (Hom t)     = Hom <$> ureduce t
   ureduce (Het t1 t2) = Het <$> ureduce t1 <*> ureduce t2
+
+-- Andreas, 2014-03-03 A variant of ureduce that tries to get back
+-- to a homogeneous situation by checking syntactic equality.
+-- Did not solve issue 1071, so I am reverting to the old ureduce.
+-- However, KEEP THIS as an alternative to reconsider.
+-- Remember to import TypeChecking.SyntacticEquality!
+--
+-- instance (SynEq t, UReduce t) => UReduce (HomHet t) where
+--   ureduce (Hom t)     = Hom <$> ureduce t
+--   ureduce (Het t1 t2) = do
+--     t1 <- ureduce t1
+--     t2 <- ureduce t2
+--     ((t1,t2),equal) <- liftTCM $ checkSyntacticEquality t1 t2
+--     -- BRITTLE: syntactic equality only
+--     return $ if equal then Hom t1 else Het t1 t2
 
 instance UReduce t => UReduce (Maybe t) where
   ureduce Nothing = return Nothing
