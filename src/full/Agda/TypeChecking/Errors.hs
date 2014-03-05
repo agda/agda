@@ -467,8 +467,9 @@ instance PrettyTCM TypeError where
             UnexpectedWithPatterns ps -> fsep $
               pwords "Unexpected with patterns" ++ (punctuate (text " |") $ map prettyA ps)
             WithClausePatternMismatch p q -> fsep $
-              pwords "With clause pattern" ++ [prettyA p] ++
-              pwords "is not an instance of its parent pattern" -- TODO: pretty for internal patterns
+              pwords "With clause pattern " ++ [prettyA p] ++
+              pwords " is not an instance of its parent pattern " ++ [prettyTCM q]
+                 -- TODO: prettier printing for internal patterns
 	    MetaCannotDependOn m ps i -> fsep $
 		    pwords "The metavariable" ++ [prettyTCM $ MetaV m []] ++ pwords "cannot depend on" ++ [pvar i] ++
 		    pwords "because it" ++ deps
