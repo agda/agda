@@ -176,9 +176,7 @@ stripWithClausePatterns gamma qs perm ps = do
                 "also be inaccessible in the with clause, when checking the " ++
                 "pattern " ++ show d ++ ","
           where
-            ok p = do
-              ps <- strip (tel `absApp` v) ps qs
-              return $ p : ps
+            ok p = (p :) <$> strip (tel `absApp` v) ps qs
 
         ConP c ci qs' -> do
          reportSDoc "tc.with.strip" 60 $
