@@ -7,6 +7,7 @@ import Control.Applicative
 import Control.Monad.Trans
 import Control.Monad.Reader
 import Control.Monad.Error
+
 import Data.Maybe
 import Data.List hiding (sort)
 import qualified Data.Map as Map
@@ -15,7 +16,7 @@ import Data.Traversable (sequenceA)
 import Agda.Interaction.Options
 
 import qualified Agda.Syntax.Abstract as A
-import qualified Agda.Syntax.Abstract.Views as A
+import Agda.Syntax.Abstract.Views as A
 import qualified Agda.Syntax.Info as A
 import Agda.Syntax.Concrete.Pretty () -- only Pretty instances
 import qualified Agda.Syntax.Concrete.Name as C
@@ -24,7 +25,6 @@ import Agda.Syntax.Fixity
 import Agda.Syntax.Internal as I
 import Agda.Syntax.Position
 import Agda.Syntax.Literal
-import Agda.Syntax.Abstract.Views
 import Agda.Syntax.Scope.Base (emptyScopeInfo)
 import Agda.Syntax.Translation.InternalToAbstract (reify)
 
@@ -33,6 +33,7 @@ import Agda.TypeChecking.Monad.Builtin
 import Agda.TypeChecking.Substitute
 import Agda.TypeChecking.Reduce
 import Agda.TypeChecking.MetaVars
+import Agda.TypeChecking.Patterns.Abstract
 import Agda.TypeChecking.Pretty
 import Agda.TypeChecking.Records
 import Agda.TypeChecking.RecordPatterns
@@ -48,21 +49,20 @@ import Agda.TypeChecking.EtaContract
 import Agda.TypeChecking.Quote
 import Agda.TypeChecking.CompiledClause
 import Agda.TypeChecking.Level
-import Agda.TypeChecking.Rules.LHS (checkLeftHandSide, expandPatternSynonyms)
-
-import Agda.Utils.Fresh
-import Agda.Utils.Tuple
-import Agda.Utils.Permutation
-import Agda.Utils.List (zipWithTails)
+import Agda.TypeChecking.Rules.LHS (checkLeftHandSide)
 
 import {-# SOURCE #-} Agda.TypeChecking.Empty (isEmptyType)
 import {-# SOURCE #-} Agda.TypeChecking.Rules.Decl (checkSectionApplication)
 import {-# SOURCE #-} Agda.TypeChecking.Rules.Def (checkFunDef,checkFunDef')
 
+import Agda.Utils.Fresh
 import Agda.Utils.Functor (($>))
+import Agda.Utils.List (zipWithTails)
 import Agda.Utils.Maybe
 import Agda.Utils.Monad
+import Agda.Utils.Permutation
 import Agda.Utils.Size
+import Agda.Utils.Tuple
 
 #include "../../undefined.h"
 import Agda.Utils.Impossible

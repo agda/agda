@@ -22,18 +22,19 @@ import Agda.Syntax.Info
 import Agda.Syntax.Position
 
 import Agda.TypeChecking.Monad
-import Agda.TypeChecking.Pretty
-import Agda.TypeChecking.Records -- isRecord
-import Agda.TypeChecking.Reduce
-import Agda.TypeChecking.Substitute hiding (Substitution)
-import qualified Agda.TypeChecking.Substitute as S (Substitution)
-import Agda.TypeChecking.Telescope
+
 import Agda.TypeChecking.Conversion
 import Agda.TypeChecking.Constraints
 import Agda.TypeChecking.Datatypes
 import Agda.TypeChecking.Irrelevance
 import {-# SOURCE #-} Agda.TypeChecking.Empty
--- Duplicate import??
+import Agda.TypeChecking.Patterns.Abstract
+import Agda.TypeChecking.Pretty
+import Agda.TypeChecking.Records
+import Agda.TypeChecking.Reduce
+import Agda.TypeChecking.Substitute hiding (Substitution)
+import qualified Agda.TypeChecking.Substitute as S (Substitution)
+import Agda.TypeChecking.Telescope
 
 import {-# SOURCE #-} Agda.TypeChecking.Rules.Term (checkExpr)
 import Agda.TypeChecking.Rules.LHS.Problem
@@ -298,32 +299,6 @@ bindAsPatterns (AsB x v a : asb) ret = do
         ]
   addLetBinding defaultArgInfo x v a $ bindAsPatterns asb ret
 
-expandPatternSynonyms :: A.Pattern -> TCM A.Pattern
-expandPatternSynonyms p =
-  case p of
-    A.VarP{}             -> pure p
-    A.WildP{}            -> pure p
-    A.DotP{}             -> pure p
-    A.ImplicitP{}        -> pure p
-    A.LitP{}             -> pure p
-    A.AbsurdP{}          -> pure p
-    A.ConP i ds as       -> A.ConP i ds <$> (traverse . traverse . traverse) expandPatternSynonyms as
-    A.DefP i q as        -> A.DefP i q <$> (traverse . traverse . traverse) expandPatternSynonyms as
-    A.AsP i x p          -> A.AsP i x <$> expandPatternSynonyms p
-    A.PatternSynP i x as ->
-      setCurrentRange (getRange i) $ do
-        p <- killRange <$> lookupPatternSyn x
-                             -- Must expand arguments before instantiating otherwise pattern
-                             -- synonyms could get into dot patterns (which is __IMPOSSIBLE__)
-        instPatternSyn p =<< (traverse . traverse . traverse) expandPatternSynonyms as
-      where
-        instPatternSyn :: A.PatternSynDefn -> [A.NamedArg A.Pattern] -> TCM A.Pattern
-        instPatternSyn (ns, p) as = do
-          p <- expandPatternSynonyms p
-          case A.insertImplicitPatSynArgs (A.ImplicitP . PatRange) (getRange x) ns as of
-            Nothing       -> typeError $ GenericError $ "Bad arguments to pattern synonym " ++ show x
-            Just (_, _:_) -> typeError $ GenericError $ "Too few arguments to pattern synonym " ++ show x
-            Just (s, [])  -> return $ setRange (getRange i) $ A.substPattern s p
 
 -- | Check a LHS. Main function.
 --

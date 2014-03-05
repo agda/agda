@@ -23,6 +23,7 @@ import Agda.Syntax.Info
 import Agda.TypeChecking.Monad
 import Agda.TypeChecking.Monad.Builtin (primRefl, primEquality)
 import Agda.TypeChecking.Reduce
+import Agda.TypeChecking.Patterns.Abstract (expandPatternSynonyms)
 import Agda.TypeChecking.Pretty
 import Agda.TypeChecking.Substitute
 import Agda.TypeChecking.Free
@@ -36,7 +37,7 @@ import Agda.TypeChecking.CompiledClause (CompiledClauses(..))
 import Agda.TypeChecking.CompiledClause.Compile
 
 import Agda.TypeChecking.Rules.Term                ( checkExpr, inferExpr, inferExprForWith, checkDontExpandLast, checkTelescope_, ConvColor(..) )
-import Agda.TypeChecking.Rules.LHS                 ( checkLeftHandSide, expandPatternSynonyms )
+import Agda.TypeChecking.Rules.LHS                 ( checkLeftHandSide )
 import {-# SOURCE #-} Agda.TypeChecking.Rules.Decl ( checkDecls )
 
 import Agda.Utils.Size

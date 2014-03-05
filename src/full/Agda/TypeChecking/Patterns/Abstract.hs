@@ -23,7 +23,7 @@ import Agda.Syntax.Internal as I
 -- import Agda.Syntax.Abstract (IsProjP(..))
 import qualified Agda.Syntax.Abstract as A
 import Agda.Syntax.Abstract.Views
-import qualified Agda.Syntax.Info as A
+import Agda.Syntax.Info as A
 
 import Agda.TypeChecking.Monad
 -- import Agda.TypeChecking.Pretty
@@ -73,3 +73,33 @@ expandLitPattern p = traverse (traverse expand) p
       "Matching on natural number literals is done by expanding " ++
       "the literal to the corresponding constructor pattern, so " ++
       "you probably don't want to do it this way."
+
+
+-- | Expand away (deeply) all pattern synonyms in a pattern.
+--
+expandPatternSynonyms :: A.Pattern -> TCM A.Pattern
+expandPatternSynonyms p =
+  case p of
+    A.VarP{}             -> return p
+    A.WildP{}            -> return p
+    A.DotP{}             -> return p
+    A.ImplicitP{}        -> return p
+    A.LitP{}             -> return p
+    A.AbsurdP{}          -> return p
+    A.ConP i ds as       -> A.ConP i ds <$> (traverse . traverse . traverse) expandPatternSynonyms as
+    A.DefP i q as        -> A.DefP i q <$> (traverse . traverse . traverse) expandPatternSynonyms as
+    A.AsP i x p          -> A.AsP i x <$> expandPatternSynonyms p
+    A.PatternSynP i x as ->
+      setCurrentRange (getRange i) $ do
+        p <- killRange <$> lookupPatternSyn x
+                             -- Must expand arguments before instantiating otherwise pattern
+                             -- synonyms could get into dot patterns (which is __IMPOSSIBLE__)
+        instPatternSyn p =<< (traverse . traverse . traverse) expandPatternSynonyms as
+      where
+        instPatternSyn :: A.PatternSynDefn -> [A.NamedArg A.Pattern] -> TCM A.Pattern
+        instPatternSyn (ns, p) as = do
+          p <- expandPatternSynonyms p
+          case A.insertImplicitPatSynArgs (A.ImplicitP . PatRange) (getRange x) ns as of
+            Nothing       -> typeError $ GenericError $ "Bad arguments to pattern synonym " ++ show x
+            Just (_, _:_) -> typeError $ GenericError $ "Too few arguments to pattern synonym " ++ show x
+            Just (s, [])  -> return $ setRange (getRange i) $ A.substPattern s p
