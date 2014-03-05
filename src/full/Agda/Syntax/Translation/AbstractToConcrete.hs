@@ -867,13 +867,14 @@ cOpApp r n es = C.OpApp r n (map (defaultNamedArg . Ordinary) es)
 tryToRecoverOpApp :: A.Expr -> AbsToCon C.Expr -> AbsToCon C.Expr
 tryToRecoverOpApp e def = recoverOpApp bracket cOpApp view e def
   where
-    view e = case AV.appView e of
-      --NonApplication _   -> Nothing
-      Application (Var x) args -> Just (HdVar x, args)
-      Application (Def f) args -> Just (HdDef f, args)
-      Application (Con (AmbQ (c:_))) args -> Just (HdCon c, args)
-      Application (Con (AmbQ [])) args -> __IMPOSSIBLE__
-      _ -> Nothing
+    view e = do
+      let Application hd args = AV.appView e
+      case hd of
+        Var x            -> Just (HdVar x, args)
+        Def f            -> Just (HdDef f, args)
+        Con (AmbQ (c:_)) -> Just (HdCon c, args)
+        Con (AmbQ [])    -> __IMPOSSIBLE__
+        _                -> Nothing
 
 tryToRecoverOpAppP :: A.Pattern -> AbsToCon C.Pattern -> AbsToCon C.Pattern
 tryToRecoverOpAppP p def = recoverOpApp bracketP_ opApp view p def

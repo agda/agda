@@ -1,4 +1,4 @@
-{-# LANGUAGE TupleSections #-}
+{-# LANGUAGE TupleSections, PatternGuards #-}
 
 module Agda.Syntax.Abstract.Views where
 
@@ -13,21 +13,17 @@ import Agda.Syntax.Abstract
 import Agda.Syntax.Info
 
 data AppView = Application Expr [NamedArg Expr]
-	     -- NonApplication Expr
-	     --    -- ^ TODO: if we allow beta-redexes (which we currently do) there could be one here.
-             -- 2011-08-24, Dominique: removed..
 
--- note: everything is an application, possibly of itself to 0 arguments
+-- | Gather applications to expose head and spine.
+--
+--   Note: everything is an application, possibly of itself to 0 arguments
 appView :: Expr -> AppView
 appView e =
-    case e of
-      App i e1 arg        -> apply i (appView e1) arg
-      ScopedExpr _ e      -> appView e
-      _                   -> Application e []
-    where
-	apply i v arg =
-	    case v of
-		Application hd es -> Application hd $ es ++ [arg]
+  case e of
+    App i e1 arg | Application hd es <- appView e1
+                   -> Application hd $ es ++ [arg]
+    ScopedExpr _ e -> appView e
+    _              -> Application e []
 
 unAppView :: AppView -> Expr
 unAppView (Application h es) =
