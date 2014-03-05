@@ -2,7 +2,11 @@
 
 -- | Utilities for functors.
 
-module Agda.Utils.Functor where
+module Agda.Utils.Functor
+  ( module Agda.Utils.Functor
+  , (<$>) -- from Data.Functor
+  )
+  where
 
 import Data.Functor
 import Data.Functor.Identity
