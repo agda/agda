@@ -20,7 +20,7 @@ import Agda.TypeChecking.Substitute
 import Agda.TypeChecking.Reduce
 import Agda.TypeChecking.Pretty
 import Agda.TypeChecking.Rules.LHS.Implicit
-import Agda.TypeChecking.Rules.LHS.Split (expandLitPattern)
+import Agda.TypeChecking.Patterns.Abstract (expandLitPattern)
 import Agda.TypeChecking.Abstract
 import Agda.TypeChecking.Datatypes
 import Agda.TypeChecking.EtaContract

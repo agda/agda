@@ -259,6 +259,7 @@ library
                     Agda.TypeChecking.Monad.Trace
                     Agda.TypeChecking.Monad
 --                     Agda.TypeChecking.Patterns  -- RETIRED
+                    Agda.TypeChecking.Patterns.Abstract
                     Agda.TypeChecking.Patterns.Match
                     Agda.TypeChecking.Polarity
                     Agda.TypeChecking.Positivity

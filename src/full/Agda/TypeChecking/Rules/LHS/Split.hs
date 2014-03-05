@@ -23,18 +23,21 @@ import Agda.Syntax.Abstract.Views (asView)
 import qualified Agda.Syntax.Info as A
 
 import Agda.TypeChecking.Monad hiding (SplitError)
-import Agda.TypeChecking.Pretty
-import Agda.TypeChecking.Reduce
-import Agda.TypeChecking.Substitute
+import Agda.TypeChecking.Monad.Builtin
+
 import Agda.TypeChecking.Constraints
 import Agda.TypeChecking.Conversion
 import Agda.TypeChecking.Datatypes
-import Agda.TypeChecking.Records
-import Agda.TypeChecking.Rules.LHS.Problem
-import Agda.TypeChecking.Monad.Builtin
 import Agda.TypeChecking.Free
 import Agda.TypeChecking.Irrelevance
 import Agda.TypeChecking.MetaVars
+import Agda.TypeChecking.Patterns.Abstract
+import Agda.TypeChecking.Pretty
+import Agda.TypeChecking.Records
+import Agda.TypeChecking.Reduce
+import Agda.TypeChecking.Substitute
+
+import Agda.TypeChecking.Rules.LHS.Problem
 
 import Agda.Utils.Functor ((<.>))
 import Agda.Utils.List
@@ -46,30 +49,6 @@ import qualified Agda.Utils.Pretty as P
 
 #include "../../../undefined.h"
 import Agda.Utils.Impossible
-
--- | Expand literal integer pattern into suc/zero constructor patterns.
---
---   TODO: move somewhere else
-expandLitPattern :: A.NamedArg A.Pattern -> TCM (A.NamedArg A.Pattern)
-expandLitPattern p = traverse (traverse expand) p
-  where
-    expand p = case asView p of
-      (xs, A.LitP (LitInt r n))
-        | n < 0     -> __IMPOSSIBLE__
-        | n > 20    -> typeError $ GenericError $
-                        "Matching on natural number literals is done by expanding "
-                        ++ "the literal to the corresponding constructor pattern, so "
-                        ++ "you probably don't want to do it this way."
-        | otherwise -> do
-          Con z _ <- ignoreSharing <$> primZero
-          Con s _ <- ignoreSharing <$> primSuc
-          let zero  = A.ConP cinfo (A.AmbQ [setRange r $ conName z]) []
-              suc p = A.ConP cinfo (A.AmbQ [setRange r $ conName s]) [defaultNamedArg p]
-              info  = A.PatRange r
-              cinfo = A.ConPatInfo False info
-              p'    = foldr ($) zero $ genericReplicate n suc
-          return $ foldr (A.AsP info) p' xs
-      _ -> return p
 
 -- | Split a problem at the first constructor pattern which is
 --   actually of datatype type.
