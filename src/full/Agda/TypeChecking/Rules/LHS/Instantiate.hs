@@ -5,6 +5,7 @@ module Agda.TypeChecking.Rules.LHS.Instantiate where
 import Agda.Syntax.Common
 import Agda.Syntax.Internal as I
 import qualified Agda.Syntax.Abstract as A
+import Agda.Syntax.Abstract.Views ( asView )
 
 import Agda.TypeChecking.Monad
 import Agda.TypeChecking.Substitute hiding (Substitution)
@@ -14,7 +15,6 @@ import Agda.TypeChecking.Reduce
 import Agda.TypeChecking.Telescope
 
 import Agda.TypeChecking.Rules.LHS.Problem
-import Agda.TypeChecking.Rules.LHS.Split ( asView )
 
 import Agda.Utils.List
 import Agda.Utils.Permutation

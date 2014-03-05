@@ -19,6 +19,7 @@ import Agda.Syntax.Internal as I
 import Agda.Syntax.Internal.Pattern
 import Agda.Syntax.Abstract (IsProjP(..))
 import qualified Agda.Syntax.Abstract as A
+import Agda.Syntax.Abstract.Views (asView)
 import qualified Agda.Syntax.Info as A
 
 import Agda.TypeChecking.Monad hiding (SplitError)
@@ -46,12 +47,9 @@ import qualified Agda.Utils.Pretty as P
 #include "../../../undefined.h"
 import Agda.Utils.Impossible
 
--- | TODO: move to Agda.Syntax.Abstract.View
-asView :: A.Pattern -> ([Name], A.Pattern)
-asView (A.AsP _ x p) = (x :) -*- id $ asView p
-asView p	     = ([], p)
-
--- | TODO: move somewhere else
+-- | Expand literal integer pattern into suc/zero constructor patterns.
+--
+--   TODO: move somewhere else
 expandLitPattern :: A.NamedArg A.Pattern -> TCM (A.NamedArg A.Pattern)
 expandLitPattern p = traverse (traverse expand) p
   where

@@ -16,6 +16,7 @@ import Agda.Syntax.Internal as I
 import Agda.Syntax.Internal.Pattern
 import Agda.Syntax.Abstract (IsProjP(..))
 import qualified Agda.Syntax.Abstract as A
+import Agda.Syntax.Abstract.Views (asView)
 import Agda.Syntax.Common
 import Agda.Syntax.Info
 import Agda.Syntax.Position

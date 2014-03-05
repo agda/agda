@@ -3,13 +3,14 @@
 module Agda.Syntax.Abstract.Views where
 
 import Control.Applicative
+import Control.Arrow (first)
 import Control.Monad.Identity
 import Data.Traversable
 
 import Agda.Syntax.Position
 import qualified Agda.Syntax.Common as Common
 import Agda.Syntax.Common hiding (Arg, Dom, NamedArg)
-import Agda.Syntax.Abstract
+import Agda.Syntax.Abstract as A
 import Agda.Syntax.Info
 
 data AppView = Application Expr [NamedArg Expr]
@@ -28,6 +29,11 @@ appView e =
 unAppView :: AppView -> Expr
 unAppView (Application h es) =
   foldl (App (ExprRange noRange)) h es
+
+-- | Gather top-level 'AsP'atterns to expose underlying pattern.
+asView :: A.Pattern -> ([Name], A.Pattern)
+asView (A.AsP _ x p) = first (x :) $ asView p
+asView p	     = ([], p)
 
 -- | Check whether we are dealing with a universe.
 isSet :: Expr -> Bool
