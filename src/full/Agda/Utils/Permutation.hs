@@ -54,11 +54,17 @@ permute (Perm _ is) xs = map (xs !!!!) is
   where
     xs !!!! n = fromMaybe __IMPOSSIBLE__ (xs !!! n)
 
+-- | Identity permutation.
 idP :: Int -> Permutation
 idP n = Perm n [0..n - 1]
 
+-- | Restrict a permutation to work on @n@ elements, discarding picks @>=n@.
 takeP :: Int -> Permutation -> Permutation
 takeP n (Perm m xs) = Perm n $ filter (< n) xs
+
+-- | Pick the elements that are not picked by the permutation.
+droppedP :: Permutation -> Permutation
+droppedP (Perm n xs) = Perm n $ [0..n-1] \\ xs
 
 -- | @liftP k@ takes a @Perm {m} n@ to a @Perm {m+k} (n+k)@.
 --   Analogous to 'Agda.TypeChecking.Substitution.liftS',
