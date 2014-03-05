@@ -437,8 +437,12 @@ checkClause t c@(A.Clause (A.SpineLHS i x aps withPats) rhs0 wh) = do
                      let (inner, outer) -- the where clauses should go on the inner-most with
                            | null eqs  = ([], wh)
                            | otherwise = (wh, [])
+                         -- Andreas, 2014-03-05 kill range of copied patterns
+                         -- since they really do not have a source location.
                          newRhs = A.WithRHS qname [rewriteFromExpr, proofExpr]
-                                  [A.Clause (A.LHS i (A.LHSHead x aps) pats)
+                                  [A.Clause (A.LHS i (A.LHSHead x (killRange aps)) pats)
+                                    -- Note: handleRHS (A.RewriteRHS _ eqs _ _)
+                                    -- is defined by induction on eqs.
                                     (A.RewriteRHS names eqs (insertPatterns pats rhs) inner)
                                     outer]
                          pats = [A.DotP patNoRange underscore, -- rewriteToExpr,

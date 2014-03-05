@@ -12,6 +12,7 @@ import qualified Data.Traversable as T (traverse)
 import Agda.Syntax.Common
 import Agda.Syntax.Internal as I
 import qualified Agda.Syntax.Abstract as A
+import Agda.Syntax.Abstract.Views
 import Agda.Syntax.Info
 import Agda.Syntax.Position
 
@@ -132,6 +133,21 @@ stripWithClausePatterns gamma qs perm ps = do
     [ nest 2 $ text "ps' = " <+> fsep (punctuate comma $ map prettyA ps')
     , nest 2 $ text "psp = " <+> fsep (punctuate comma $ map prettyA $ psp)
     ]
+  -- Andreas, 2014-03-05 Issue 142:
+  -- In some cases, permute throws away some dot patterns of ps'
+  -- which are then never checked.
+  forM_ (permute (droppedP perm) ps') $ \ p -> traceCall (SetRange $ getRange p) $ do
+    reportSDoc "tc.with.strip" 10 $ text "warning: dropped pattern " <+> prettyA p
+    reportSDoc "tc.with.strip" 60 $ text $ show p
+    case namedArg p of
+      A.DotP info e -> case unScope e of
+        A.Underscore{} -> return ()
+        -- Dot patterns without a range are Agda-generated from a user dot pattern
+        -- so we only complain if there is a range.
+        e | getRange info /= noRange -> typeError $ GenericError $
+          "This inaccessible pattern is never checked, so only _ allowed here"
+        _ -> return ()
+      _ -> return ()
   return psp
   where
     -- implicit args inserted at top level

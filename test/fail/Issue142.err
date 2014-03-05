@@ -1,0 +1,6 @@
+Issue142.agda:15,5-9
+This inaccessible pattern is never checked, so only _ allowed here
+when checking that the clause
+.Issue142.with-10 .m (i m) with toNat m
+.Issue142.with-10 .Set (i .l) | i l = 0
+has type (n : ℕ) → Nat n → ℕ
