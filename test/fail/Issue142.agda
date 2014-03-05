@@ -13,3 +13,7 @@ fun : (n : ℕ) → ℕ
 fun n with toNat n
 fun .m | i m with toNat m
 fun .Set | i .l | i l = 0
+
+-- 'Set' is ill-typed here and should trigger an error
+
+FORCE_FAIL_HERE_UNTIL_ISSUE_142_IS_REALLY_FIXED

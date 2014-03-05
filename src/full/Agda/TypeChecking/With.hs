@@ -136,6 +136,8 @@ stripWithClausePatterns gamma qs perm ps = do
   -- Andreas, 2014-03-05 Issue 142:
   -- In some cases, permute throws away some dot patterns of ps'
   -- which are then never checked.
+  if True then return psp else do
+  -- Andreas, 2014-03-05 Disabled the fix for issue 142, the following is dead code:
   forM_ (permute (droppedP perm) ps') $ \ p -> traceCall (SetRange $ getRange p) $ do
     reportSDoc "tc.with.strip" 10 $ text "warning: dropped pattern " <+> prettyA p
     reportSDoc "tc.with.strip" 60 $ text $ show p
