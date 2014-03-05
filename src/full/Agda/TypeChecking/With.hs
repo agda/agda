@@ -20,7 +20,7 @@ import Agda.TypeChecking.Substitute
 import Agda.TypeChecking.Reduce
 import Agda.TypeChecking.Pretty
 import Agda.TypeChecking.Rules.LHS.Implicit
-import Agda.TypeChecking.Patterns.Abstract (expandLitPattern)
+import Agda.TypeChecking.Patterns.Abstract
 import Agda.TypeChecking.Abstract
 import Agda.TypeChecking.Datatypes
 import Agda.TypeChecking.EtaContract
@@ -115,6 +115,8 @@ buildWithFunction aux gamma qs perm n1 n cs = mapM buildWithClause cs
 -- Need to do s.th. like in Split.hs with ProblemRest etc.
 stripWithClausePatterns :: Telescope -> [I.NamedArg Pattern] -> Permutation -> [A.NamedArg A.Pattern] -> TCM [A.NamedArg A.Pattern]
 stripWithClausePatterns gamma qs perm ps = do
+  -- Andreas, 2014-03-05 expand away pattern synoyms (issue 1074)
+  ps <- expandPatternSynonyms ps
   psi <- insertImplicitPatterns ExpandLast ps gamma
   unless (size psi == size gamma) $
     typeError $ GenericError $ "Wrong number of arguments in with clause: given " ++ show (size psi) ++ ", expected " ++ show (size gamma)
@@ -161,6 +163,12 @@ stripWithClausePatterns gamma qs perm ps = do
           -- Andreas, 2013-03-21 in case the implicit A.pattern has already been eta-expanded
           -- we just fold it back.  This fixes issues 665 and 824.
           A.ConP ci _ _ | patImplicit ci -> ok $ updateNamedArg (const $ A.ImplicitP patNoRange) p
+
+          p@(A.PatternSynP pi' c' [ps']) -> do
+             reportSDoc "impossible" 10 $
+               text "stripWithClausePatterns: encountered pattern synonym " <+> prettyA p
+             __IMPOSSIBLE__
+
           _ -> do
             d <- prettyA p
             typeError $ GenericError $
@@ -172,7 +180,11 @@ stripWithClausePatterns gamma qs perm ps = do
               ps <- strip (tel `absApp` v) ps qs
               return $ p : ps
 
-        ConP c ci qs' -> case namedArg p of
+        ConP c ci qs' -> do
+         reportSDoc "tc.with.strip" 60 $
+           text "parent pattern is constructor " <+> prettyTCM c
+         case namedArg p of
+
           -- Andreas, 2013-03-21 if we encounter an implicit pattern in the with-clause
           -- that has been expanded in the parent clause, we expand it and restart
           A.ImplicitP _ | Just (True, _) <- ci -> do
@@ -234,10 +246,25 @@ stripWithClausePatterns gamma qs perm ps = do
 
             -- Keep going
             strip tel'' psi' (qs' ++ qs)
-          _ -> mismatch
+
+          p@(A.PatternSynP pi' c' ps') -> do
+             reportSDoc "impossible" 10 $
+               text "stripWithClausePatterns: encountered pattern synonym " <+> prettyA p
+             __IMPOSSIBLE__
+
+          p -> do
+           reportSDoc "tc.with.strip" 60 $
+             text $ "with clause pattern is  " ++ show p
+           mismatch
 
         LitP lit -> case namedArg p of
           A.LitP lit' | lit == lit' -> strip (tel `absApp` Lit lit) ps qs
+
+          p@(A.PatternSynP pi' c' [ps']) -> do
+             reportSDoc "impossible" 10 $
+               text "stripWithClausePatterns: encountered pattern synonym " <+> prettyA p
+             __IMPOSSIBLE__
+
           _ -> mismatch
       where
         mismatch = typeError $ WithClausePatternMismatch (namedArg p0) (namedArg q)
