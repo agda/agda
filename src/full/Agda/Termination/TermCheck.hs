@@ -200,6 +200,7 @@ termMutual i ds = if names == [] then return mempty else
            { terGuardingTypeConstructors = guardingTypeConstructors
            , terSizeSuc                  = suc
            , terSharp                    = sharp
+           , terCutOff                   = cutoff
            , terMutual                   = allNames
            , terUserNames                = names
            }

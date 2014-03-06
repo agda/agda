@@ -17,6 +17,8 @@ import Control.Monad.State
 
 import Data.Functor ((<$>))
 
+import Agda.Interaction.Options (defaultCutOff)
+
 import Agda.Syntax.Abstract (QName,IsProjP(..))
 import Agda.Syntax.Common   (Delayed(..))
 import Agda.Syntax.Internal
@@ -107,7 +109,7 @@ defaultTerEnv = TerEnv
   , terGuardingTypeConstructors = False
   , terSizeSuc                  = Nothing
   , terSharp                    = Nothing
-  , terCutOff                   = DontCutOff
+  , terCutOff                   = defaultCutOff
   , terUserNames                = __IMPOSSIBLE__ -- needs to be set!
   , terMutual                   = __IMPOSSIBLE__ -- needs to be set!
   , terCurrent                  = __IMPOSSIBLE__ -- needs to be set!

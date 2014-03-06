@@ -143,7 +143,7 @@ instance (Ord i) => NotWorse (Matrix i Order) where
 
 -- | Cut off structural order comparison at some depth in termination checker?
 data CutOff
-  = CutOff Int
+  = CutOff Int -- ^ @c >= 0@ means: record decrease up to including @c+1@.
   | DontCutOff
   deriving (Eq, Ord)
 
@@ -313,7 +313,7 @@ supremum = foldr maxO Unknown
 
 maxO :: (?cutoff :: CutOff) => Order -> Order -> Order
 maxO o1 o2 = case (o1,o2) of
-               (Decr k, Decr l) -> Decr (max k l) -- cut off not needed
+               (Decr k, Decr l) -> Decr (max k l) -- cut off not needed, within borders
                (Unknown,_) -> o2
                (_,Unknown) -> o1
                (Mat m1, Mat m2) -> Mat (Matrix.add maxO m1 m2)
@@ -330,7 +330,7 @@ minO :: (?cutoff :: CutOff) => Order -> Order -> Order
 minO o1 o2 = case (o1,o2) of
                (Unknown,_) -> Unknown
                (_,Unknown) -> Unknown
-               (Decr k, Decr l) -> decr (min k l)
+               (Decr k, Decr l) -> Decr (min k l) -- cut off not needed, within borders
                (Mat m1, Mat m2) -> if (size m1 == size m2) then
                                        Mat $ Matrix.intersectWith minO m1 m2
                                    else

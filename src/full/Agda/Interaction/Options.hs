@@ -14,6 +14,7 @@ module Agda.Interaction.Options
     , defaultOptions
     , defaultInteractionOptions
     , defaultVerbosity
+    , defaultCutOff
     , standardOptions_
     , unsafePragmaOptions
     , isLiterate
@@ -186,6 +187,10 @@ defaultPragmaOptions = PragmaOptions
   , optCopatterns                = False
   , optPatternMatching           = True
   }
+
+-- | The default termination depth.
+
+defaultCutOff = CutOff 0 -- minimum value
 
 -- | The default output directory for LaTeX.
 
