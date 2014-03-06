@@ -1,4 +1,5 @@
 {-# OPTIONS --termination-depth=1 #-}
+--{-# OPTIONS -v term:40 #-}
 
 module TerminationWithInsufficientDepth where
 
