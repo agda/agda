@@ -301,7 +301,7 @@ checkPragma r p =
           case theDef def of
             Axiom{} -> addHaskellType x hs
             _       -> typeError $ GenericError
-                        "COMPILED_TYPE directive only works on postulates."
+                        "COMPILED_TYPE directive only works on postulates"
         A.CompiledDataPragma x hs hcs -> do
           def <- getConstInfo x
           -- Check that the pragma appears in the same module
@@ -349,7 +349,7 @@ checkPragma r p =
               ty <- haskellType $ defType def
               reportSLn "tc.pragma.compile" 10 $ "Haskell type for " ++ show x ++ ": " ++ ty
               addHaskellCode x ty hs
-            _   -> typeError $ GenericError "COMPILED directive only works on postulates."
+            _   -> typeError $ GenericError "COMPILED directive only works on postulates"
         A.CompiledEpicPragma x ep -> do
           def <- getConstInfo x
           case theDef def of
@@ -357,7 +357,7 @@ checkPragma r p =
               --ty <- haskellType $ defType def
               --reportSLn "tc.pragma.compile" 10 $ "Haskell type for " ++ show x ++ ": " ++ ty
               addEpicCode x ep
-            _   -> typeError $ GenericError "COMPILED_EPIC directive only works on postulates."
+            _   -> typeError $ GenericError "COMPILED_EPIC directive only works on postulates"
         A.CompiledJSPragma x ep ->
           addJSCode x ep
         A.StaticPragma x -> do
@@ -488,7 +488,7 @@ checkSectionApplication' i m1 (A.RecordModuleIFS x) rd rm = do
   vs <- freeVarsToApply name
   let tel = tel' `apply` vs
   case tel of
-    EmptyTel -> typeError $ GenericError $ show name ++ " is not a parameterised section."
+    EmptyTel -> typeError $ GenericError $ show name ++ " is not a parameterised section"
     _ -> return ()
   let telInst :: Telescope
       telInst = instFinal tel
