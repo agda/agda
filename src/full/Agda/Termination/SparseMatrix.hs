@@ -301,8 +301,8 @@ zipMatrices :: forall a b c i . (Ord i)
 zipMatrices f g h zero m1 m2 = M (supSize m1 m2) (merge (unM m1) (unM m2))
   where
     merge :: [(MIx i,a)] -> [(MIx i,b)] -> [(MIx i,c)]
-    merge [] m2 = filter (zero . snd) $ map (mapSnd g) m2
-    merge m1 [] = filter (zero . snd) $ map (mapSnd f) m1
+    merge [] m2 = filter (not . zero . snd) $ map (mapSnd g) m2
+    merge m1 [] = filter (not . zero . snd) $ map (mapSnd f) m1
     merge m1@((i,a):m1') m2@((j,b):m2') =
       case compare i j of
         LT -> if zero c then r else (i,c) : r where c = f a   ; r = merge m1' m2

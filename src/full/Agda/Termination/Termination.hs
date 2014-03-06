@@ -271,6 +271,33 @@ example6 = buildCallGraph [c1, c2, c3]
 prop_terminates_example6 ::  (?cutoff :: CutOff) => Bool
 prop_terminates_example6 = isLeft $ terminates example6
 
+-- See issue 1055.
+-- (The following function was adapted from Lee, Jones, and Ben-Amram,
+-- POPL '01).
+--
+-- p : ℕ → ℕ → ℕ → ℕ
+-- p m n        (succ r) = p m r n
+-- p m (succ n) zero     = p zero n m
+-- p m zero     zero     = m
+
+example7 :: CG
+example7 = buildCallGraph [call1, call2]
+  where
+    call1 = Call 1 1 $ CallMatrix $ fromLists (Size 3 3)
+      [ [le, le, le]
+      , [un, lt, un]
+      , [le, un, un]
+      ]
+    call2 = Call 1 1 $ CallMatrix $ fromLists (Size 3 3)
+      [ [le, un, un]
+      , [un, un, lt]
+      , [un, le, un]
+      ]
+    un = unknown
+
+prop_terminates_example7 ::  (?cutoff :: CutOff) => Bool
+prop_terminates_example7 = isRight $ terminates example7
+
 ------------------------------------------------------------------------
 -- All tests
 
@@ -282,5 +309,6 @@ tests = runTests "Agda.Termination.Termination"
   , quickCheck' prop_terminates_example4
   , quickCheck' prop_terminates_example5
   , quickCheck' prop_terminates_example6
+  , quickCheck' prop_terminates_example7
   ]
   where ?cutoff = CutOff 0 -- all these examples are with just lt,le,unknown
