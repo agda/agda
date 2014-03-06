@@ -365,8 +365,8 @@ checkPragma r p =
             case theDef def of
                 Function{} -> do
                     markStatic x
-                _ -> typeError $ GenericError "STATIC directive only works on functions."
-	A.OptionsPragma _   -> __IMPOSSIBLE__	-- not allowed here
+                _ -> typeError $ GenericError "STATIC directive only works on functions"
+	A.OptionsPragma{} -> typeError $ GenericError $ "OPTIONS pragma only allowed at beginning of file, before top module declaration"
         A.EtaPragma r -> modifySignature eta
           where
             eta sig = sig { sigDefinitions = HMap.adjust setEta r defs }

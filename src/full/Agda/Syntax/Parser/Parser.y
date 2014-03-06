@@ -41,6 +41,7 @@ import Agda.Syntax.Notation
 import Agda.Syntax.Literal
 
 import Agda.Utils.Hash
+import Agda.Utils.List (spanJust)
 import Agda.Utils.Monad
 import Agda.Utils.QuickCheck
 import Agda.Utils.TestHelpers
@@ -259,14 +260,10 @@ Token
  --------------------------------------------------------------------------}
 
 File :: { ([Pragma], [Declaration]) }
-File : vopen File1 maybe_vclose { $2 }
+File : vopen TopLevel maybe_vclose { takeOptionsPragmas $2 }
 
 maybe_vclose : {- empty -} { () }
              | vclose      { () }
-
-File1 : TopLevel                  { ([], $1) }
-      | TopLevelPragma semi File1 { let (ps,m) = $3 in ($1 : ps, m) }
-
 
 {--------------------------------------------------------------------------
     Meta rules
@@ -1187,10 +1184,6 @@ TopLevel : TopDeclarations { figureOutTopLevelModule $1 }
 Pragma :: { Declaration }
 Pragma : DeclarationPragma  { Pragma $1 }
 
-TopLevelPragma :: { Pragma }
-TopLevelPragma
-  : OptionsPragma { $1 }
-
 DeclarationPragma :: { Pragma }
 DeclarationPragma
   : BuiltinPragma            { $1 }
@@ -1204,6 +1197,10 @@ DeclarationPragma
   | ImpossiblePragma         { $1 }
   | RecordEtaPragma          { $1 }
   | NoTerminationCheckPragma { $1 }
+  | OptionsPragma            { $1 }
+    -- Andreas, 2014-03-06
+    -- OPTIONS pragma not allowed everywhere, but don't give parse error.
+    -- Give better error during type checking instead.
 
 OptionsPragma :: { Pragma }
 OptionsPragma : '{-#' 'OPTIONS' PragmaStrings '#-}' { OptionsPragma (getRange ($1,$2,$4)) $3 }
@@ -1378,6 +1375,12 @@ happyError = parseError "Parse error"
     Utility functions
  --------------------------------------------------------------------------}
 
+-- | Grab leading OPTIONS pragmas.
+takeOptionsPragmas :: [Declaration] -> ([Pragma], [Declaration])
+takeOptionsPragmas = spanJust $ \ d -> case d of
+  Pragma p@OptionsPragma{} -> Just p
+  _                        -> Nothing
+
 -- | Insert a top-level module if there is none.
 figureOutTopLevelModule :: [Declaration] -> [Declaration]
 figureOutTopLevelModule ds =
@@ -1385,6 +1388,7 @@ figureOutTopLevelModule ds =
     (ds0, Module r m tel ds1 : ds2) -> ds0 ++ [Module r m tel $ ds1 ++ ds2]
     (ds0, ds1)                      -> ds0 ++ [Module (getRange ds1) (QName noName_) [] ds1]
   where
+    isAllowedBeforeModule (Pragma OptionsPragma{}) = True
     isAllowedBeforeModule (Private _ ds) = all isAllowedBeforeModule ds
     isAllowedBeforeModule Import{}       = True
     isAllowedBeforeModule ModuleMacro{}  = True
