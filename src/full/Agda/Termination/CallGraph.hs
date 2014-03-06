@@ -226,14 +226,13 @@ type CMSet       = Favorites CallMatrix
 type CallGraphST = Map SourceTarget CMSet
 
 -- | A set of favorites @s@ is not worse than a set of favorites @t@
---   if for each @a `elem` s@ there a @b `elem` t@
+--   if for each @a `elem` s@ there exists some @b `elem` t@
 --   such that @a@ is not worse than @b@.
 
 instance NotWorse a => NotWorse (Favorites a) where
   Favorites s `notWorse` Favorites t =
-    (`all` t) $ \ a ->
-    (`any` s) $ \ b -> a `notWorse` b
-
+    (`all` s) $ \ a ->
+    (`any` t) $ \ b -> a `notWorse` b
 
 -- | A call graph has not become worse
 --   if it does not connect previously unconnected nodes
