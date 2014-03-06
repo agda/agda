@@ -70,6 +70,13 @@ takeWhileJust p = loop
     loop (a : as) | Just b <- p a = b : loop as
     loop _ = []
 
+-- | A generalized version of @span@.
+spanJust :: (a -> Maybe b) -> [a] -> ([b], [a])
+spanJust p = loop
+  where
+    loop (a : as) | Just b <- p a = mapFst (b :) $ loop as
+    loop as                       = ([], as)
+
 -- | Sublist relation.
 isSublistOf :: Eq a => [a] -> [a] -> Bool
 isSublistOf []       ys = True
