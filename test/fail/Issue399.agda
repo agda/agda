@@ -8,9 +8,10 @@ data Maybe (A : Set) : Set where
   nothing : Maybe A
   just    : A → Maybe A
 
-_++_ : {A : Set} → List A → List A → List A
-[]       ++ ys = ys
-(x ∷ xs) ++ ys = x ∷ (xs ++ ys)
+-- now in Common.Prelude
+-- _++_ : {A : Set} → List A → List A → List A
+-- []       ++ ys = ys
+-- (x ∷ xs) ++ ys = x ∷ (xs ++ ys)
 
 record MyMonadPlus m : Set₁ where
    field mzero : {a : Set} → m a → List a
