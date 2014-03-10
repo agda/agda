@@ -704,6 +704,10 @@ Emacs mode
 
 * Key bindings for lots of "mathematical" characters (examples: 𝐴𝑨𝒜𝓐𝔄)
   have been added to the Agda input method.
+  Example: type \MiA\MIA\McA\MCA\MfA to get 𝐴𝑨𝒜𝓐𝔄.
+
+  Note: \McB does not exist in unicode (as well as others in that style),
+  but the \MC (bold) alphabet is complete.
 
 * Key bindings for "blackboard bold" B (𝔹) and 0-9 (𝟘-𝟡) have been added
   to the Agda input method (\bb and \b[0-9]).
