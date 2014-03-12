@@ -107,6 +107,7 @@ import Agda.Utils.Tuple
     'ETA'           { TokKeyword KwETA $$ }
     'NO_TERMINATION_CHECK' { TokKeyword KwNO_TERMINATION_CHECK $$ }
     'COMPILED'      { TokKeyword KwCOMPILED $$ }
+    'COMPILED_EXPORT'      { TokKeyword KwCOMPILED_EXPORT $$ }
     'COMPILED_DATA' { TokKeyword KwCOMPILED_DATA $$ }
     'COMPILED_TYPE' { TokKeyword KwCOMPILED_TYPE $$ }
     'COMPILED_EPIC' { TokKeyword KwCOMPILED_EPIC $$ }
@@ -208,6 +209,7 @@ Token
     | 'BUILTIN'     { TokKeyword KwBUILTIN $1 }
     | 'IMPORT'      { TokKeyword KwIMPORT $1 }
     | 'COMPILED'    { TokKeyword KwCOMPILED $1 }
+    | 'COMPILED_EXPORT'    { TokKeyword KwCOMPILED_EXPORT $1 }
     | 'COMPILED_DATA'{ TokKeyword KwCOMPILED_DATA $1 }
     | 'COMPILED_TYPE'{ TokKeyword KwCOMPILED_TYPE $1 }
     | 'COMPILED_EPIC'{ TokKeyword KwCOMPILED_EPIC $1 }
@@ -467,6 +469,10 @@ PragmaStrings :: { [String] }
 PragmaStrings
     : {- empty -}	    { [] }
     | string PragmaStrings  { snd $1 : $2 }
+
+PragmaString :: { String }
+PragmaString
+    : string { snd $1 }
 
 PragmaName :: { QName }
 PragmaName : string {% fmap QName (mkName $1) }
@@ -1188,6 +1194,7 @@ DeclarationPragma :: { Pragma }
 DeclarationPragma
   : BuiltinPragma            { $1 }
   | CompiledPragma           { $1 }
+  | CompiledExportPragma     { $1 }
   | CompiledDataPragma       { $1 }
   | CompiledTypePragma       { $1 }
   | CompiledEpicPragma       { $1 }
@@ -1214,6 +1221,11 @@ CompiledPragma :: { Pragma }
 CompiledPragma
   : '{-#' 'COMPILED' PragmaName PragmaStrings '#-}'
     { CompiledPragma (getRange ($1,$2,$3,$5)) $3 (unwords $4) }
+
+CompiledExportPragma :: { Pragma }
+CompiledExportPragma
+  : '{-#' 'COMPILED_EXPORT' PragmaName PragmaString '#-}'
+    { CompiledExportPragma (getRange ($1,$2,$3,$5)) $3 $4 }
 
 CompiledTypePragma :: { Pragma }
 CompiledTypePragma

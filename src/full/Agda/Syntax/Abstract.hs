@@ -148,6 +148,7 @@ data ModuleApplication
 data Pragma = OptionsPragma [String]
 	    | BuiltinPragma String Expr
             | CompiledPragma QName String
+            | CompiledExportPragma QName String
             | CompiledTypePragma QName String
             | CompiledDataPragma QName String [String]
             | CompiledEpicPragma QName String

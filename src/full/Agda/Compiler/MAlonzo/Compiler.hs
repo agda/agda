@@ -181,8 +181,8 @@ definition kit (Defn _         q ty _ _ _ _ compiled d) = do
 
     Axiom{} -> return $ fb axiomErr
     Primitive{ primClauses = [], primName = s } -> fb <$> primBody s
-    Primitive{ primClauses = cls } -> function cls
-    Function{ funClauses =   cls } -> function cls
+    Primitive{ primClauses = cls } -> function cls Nothing
+    Function{ funClauses =   cls } -> function cls (exportHaskell compiled)
     Datatype{ dataPars = np, dataIxs = ni, dataClause = cl, dataCons = cs }
       | Just (HsType ty) <- compiledHaskell compiled -> do
       ccs <- concat <$> mapM checkConstructorType cs
@@ -202,7 +202,10 @@ definition kit (Defn _         q ty _ _ _ _ compiled d) = do
 --         Just c  -> snd <$> condecl c
       return $ tvaldecl q Inductive noFields ar [cd] cl
   where
-  function cls = mkwhere <$> mapM (clause q) (tag 0 cls)
+  function cls (Just (HsExport t name)) =
+    (HS.TypeSig dummy [HS.Ident name] (fakeType t) :) <$>
+    mkwhere <$> mapM (clause q (Just name)) (tag 0 cls)
+  function cls Nothing = mkwhere <$> mapM (clause q Nothing) (tag 0 cls)
   tag _ []       = []
   tag i [cl]     = (i, True , cl): []
   tag i (cl:cls) = (i, False, cl): tag (i + 1) cls
@@ -251,8 +254,8 @@ conArityAndPars q = do
       n = genericLength (telToList tel)
   return (n - np, np)
 
-clause :: QName -> (Nat, Bool, Clause) -> TCM HS.Decl
-clause q (i, isLast, Clause{ namedClausePats = ps, clauseBody = b }) =
+clause :: QName -> Maybe String -> (Nat, Bool, Clause) -> TCM HS.Decl
+clause q maybeName (i, isLast, Clause{ namedClausePats = ps, clauseBody = b }) =
   HS.FunBind . (: cont) <$> main where
   main = match <$> argpatts ps (bvars b (0::Nat)) <*> clausebody b
   cont | isLast && any isCon ps = [match (L.map HS.PVar cvs) failrhs]
@@ -262,7 +265,7 @@ clause q (i, isLast, Clause{ namedClausePats = ps, clauseBody = b }) =
   crhs = hsCast$ L.foldl HS.App (hsVarUQ $ dsubname q (i + 1)) (L.map hsVarUQ cvs)
   failrhs = rtmIncompleteMatch q  -- Andreas, 2011-11-16 call to RTE instead of inlined error
 --  failrhs = rtmError $ "incomplete pattern matching: " ++ show q
-  match hps rhs = HS.Match dummy (dsubname q i) hps Nothing
+  match hps rhs = HS.Match dummy (maybe (dsubname q i) HS.Ident maybeName) hps Nothing
                            (HS.UnGuardedRhs rhs) (HS.BDecls [])
   bvars (Body _)           _ = []
   bvars (Bind (Abs _ b'))  n = HS.PVar (ihname "v" n) : bvars b' (n + 1)

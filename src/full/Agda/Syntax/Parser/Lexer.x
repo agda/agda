@@ -82,6 +82,7 @@ tokens :-
 <pragma_>   "COMPILED_DATA"        { keyword KwCOMPILED_DATA }
 <pragma_>   "COMPILED_TYPE"        { keyword KwCOMPILED_TYPE }
 <pragma_>   "COMPILED"             { keyword KwCOMPILED }
+<pragma_>   "COMPILED_EXPORT"      { keyword KwCOMPILED_EXPORT }
 <pragma_>   "COMPILED_EPIC"        { keyword KwCOMPILED_EPIC }
 <pragma_>   "COMPILED_JS"          { keyword KwCOMPILED_JS }
 <pragma_>   "STATIC"               { keyword KwSTATIC }

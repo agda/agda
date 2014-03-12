@@ -868,6 +868,12 @@ instance EmbPrj Projection where
   value = vcase valu where valu [a, b, c, d] = valu4 Projection a b c d
                            valu _            = malformed
 
+instance EmbPrj HaskellExport where
+  icode (HsExport a b) = icode2' a b
+  value = vcase valu where
+    valu [a,b] = valu2 HsExport a b
+    valu _ = malformed
+
 instance EmbPrj HaskellRepresentation where
   icode (HsType a)   = icode1' a
   icode (HsDefn a b) = icode2' a b
@@ -955,8 +961,8 @@ instance EmbPrj Occurrence where
     valu _   = malformed
 
 instance EmbPrj CompiledRepresentation where
-  icode (CompiledRep a b c) = icode3' a b c
-  value = vcase valu where valu [a, b, c] = valu3 CompiledRep a b c
+  icode (CompiledRep a b c d) = icode4' a b c d
+  value = vcase valu where valu [a, b, c, d] = valu4 CompiledRep a b c d
                            valu _         = malformed
 
 instance EmbPrj Defn where

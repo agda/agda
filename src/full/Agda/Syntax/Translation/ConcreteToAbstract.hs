@@ -1265,6 +1265,13 @@ instance ToAbstract C.Pragma [A.Pragma] where
             A.Con _ -> fail "Use COMPILED_DATA for constructors" -- TODO
             _       -> __IMPOSSIBLE__
       return [ A.CompiledPragma y hs ]
+    toAbstract (C.CompiledExportPragma _ x hs) = do
+      e <- toAbstract $ OldQName x
+      y <- case e of
+            A.Def x -> return x
+            --A.Con x -> return x
+            _       -> __IMPOSSIBLE__
+      return [ A.CompiledExportPragma y hs ]
     toAbstract (C.CompiledEpicPragma _ x ep) = do
       e <- toAbstract $ OldQName x
       y <- case e of

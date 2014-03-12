@@ -444,6 +444,8 @@ instance Pretty Pragma where
     pretty (BuiltinPragma _ b x)  = hsep [ text "BUILTIN", text b, pretty x ]
     pretty (CompiledPragma _ x hs) =
       hsep [ text "COMPILED", pretty x, text hs ]
+    pretty (CompiledExportPragma _ x hs) =
+      hsep [ text "COMPILED_EXPORT", pretty x, text hs ]
     pretty (CompiledTypePragma _ x hs) =
       hsep [ text "COMPILED_TYPE", pretty x, text hs ]
     pretty (CompiledDataPragma _ x hs hcs) =

@@ -332,6 +332,7 @@ data Pragma = OptionsPragma     !Range [String]
             | CompiledDataPragma !Range QName String [String]
             | CompiledTypePragma !Range QName String
             | CompiledPragma    !Range QName String
+            | CompiledExportPragma    !Range QName String
             | CompiledEpicPragma !Range QName String
             | CompiledJSPragma  !Range QName String
             | StaticPragma      !Range QName
@@ -530,6 +531,7 @@ instance HasRange Pragma where
     getRange (CompiledDataPragma r _ _ _) = r
     getRange (CompiledTypePragma r _ _)   = r
     getRange (CompiledPragma r _ _)       = r
+    getRange (CompiledExportPragma r _ _) = r
     getRange (CompiledEpicPragma r _ _)   = r
     getRange (CompiledJSPragma r _ _)     = r
     getRange (StaticPragma r _)           = r
@@ -675,6 +677,7 @@ instance KillRange Pragma where
   killRange (CompiledDataPragma _ q s ss) = killRange1 (\q -> CompiledDataPragma noRange q s ss) q
   killRange (CompiledTypePragma _ q s)    = killRange1 (\q -> CompiledTypePragma noRange q s) q
   killRange (CompiledPragma _ q s)        = killRange1 (\q -> CompiledPragma noRange q s) q
+  killRange (CompiledExportPragma _ q s)  = killRange1 (\q -> CompiledExportPragma noRange q s) q
   killRange (CompiledEpicPragma _ q s)    = killRange1 (\q -> CompiledEpicPragma noRange q s) q
   killRange (CompiledJSPragma _ q s)      = killRange1 (\q -> CompiledJSPragma noRange q s) q
   killRange (StaticPragma _ q)            = killRange1 (StaticPragma noRange) q

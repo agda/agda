@@ -129,6 +129,12 @@ addHaskellCode q hsTy hsDef = modifySignature $ updateDefinition q $ updateDefCo
   where
     addHs crep = crep { compiledHaskell = Just $ HsDefn hsTy hsDef }
 
+addHaskellExport :: QName -> HaskellType -> String -> TCM ()
+addHaskellExport q hsTy hsName = modifySignature $ updateDefinition q $ updateDefCompiledRep $ addHs
+  -- TODO: sanity checking
+  where
+    addHs crep = crep { exportHaskell = Just (HsExport hsTy hsName)}
+
 addHaskellType :: QName -> HaskellType -> TCM ()
 addHaskellType q hsTy = modifySignature $ updateDefinition q $ updateDefCompiledRep $ addHs
   -- TODO: sanity checking

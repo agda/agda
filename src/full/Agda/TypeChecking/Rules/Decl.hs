@@ -350,6 +350,21 @@ checkPragma r p =
               reportSLn "tc.pragma.compile" 10 $ "Haskell type for " ++ show x ++ ": " ++ ty
               addHaskellCode x ty hs
             _   -> typeError $ GenericError "COMPILED directive only works on postulates"
+        A.CompiledExportPragma x hs -> do
+          def <- getConstInfo x
+          let correct = case theDef def of
+                            -- Axiom{} -> do
+                            --   ty <- haskellType $ defType def
+                            --   reportSLn "tc.pragma.compile" 10 $ "Haskell type for " ++ show x ++ ": " ++ ty
+                            --   addHaskellCode x ty hs
+                            Function{} -> True
+                            Constructor{} -> False
+                            _   -> False
+          if not correct
+            then typeError $ GenericError "COMPILED_EXPORT directive only works on functions"
+            else do
+          ty <- haskellType $ defType def
+          addHaskellExport x ty hs
         A.CompiledEpicPragma x ep -> do
           def <- getConstInfo x
           case theDef def of

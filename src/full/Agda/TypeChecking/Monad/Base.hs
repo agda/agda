@@ -609,6 +609,8 @@ data HaskellRepresentation
       | HsType HaskellType
   deriving (Typeable, Show)
 
+data HaskellExport = HsExport HaskellType String deriving (Show, Typeable)
+
 -- | Polarity for equality and subtype checking.
 data Polarity
   = Covariant      -- ^ monotone
@@ -619,13 +621,14 @@ data Polarity
 
 data CompiledRepresentation = CompiledRep
   { compiledHaskell :: Maybe HaskellRepresentation
+  , exportHaskell   :: Maybe HaskellExport
   , compiledEpic    :: Maybe EpicCode
   , compiledJS      :: Maybe JSCode
   }
   deriving (Typeable, Show)
 
 noCompiledRep :: CompiledRepresentation
-noCompiledRep = CompiledRep Nothing Nothing Nothing
+noCompiledRep = CompiledRep Nothing Nothing Nothing Nothing
 
 -- | Subterm occurrences for positivity checking.
 --   The constructors are listed in increasing information they provide:
