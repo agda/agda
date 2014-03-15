@@ -12,7 +12,7 @@
 module Agda.Termination.CallGraph
   ( -- * Calls
     Index
-  , Call'(..), Call
+  , Call', Call, mkCall, source, target, cm
   , (>*<)
   , callInvariant
     -- * Call graphs
@@ -48,13 +48,17 @@ import qualified Agda.Termination.Semiring as Semiring
 
 import Agda.Utils.Favorites (Favorites(..))
 import qualified Agda.Utils.Favorites as Fav
+import Agda.Utils.Graph.AdjacencyMap.Unidirectional (Edge(..),Graph(..))
+import qualified Agda.Utils.Graph.AdjacencyMap.Unidirectional as Graph
+
 import Agda.Utils.Function
 import Agda.Utils.List hiding (tests)
 import Agda.Utils.Map
 import Agda.Utils.Maybe
+import Agda.Utils.Monad
 import Agda.Utils.PartialOrd
 import Agda.Utils.Pretty hiding (empty)
-import Agda.Utils.QuickCheck
+import Agda.Utils.QuickCheck hiding (label)
 import Agda.Utils.TestHelpers
 
 #include "../undefined.h"
@@ -90,12 +94,9 @@ type Index = Int
 --   The structural ordering used is defined in the paper referred to
 --   above.
 
-data Call' a =
-  Call { source :: Index        -- ^ The function making the call.
-       , target :: Index        -- ^ The function being called.
-       , cm :: CallMatrix' a    -- ^ The call matrix describing the call.
-       }
-  deriving (Eq, Ord, Show, Functor)
+type Call' a = Edge Index Index (CallMatrix' a)
+mkCall = Edge
+cm = label
 
 type Call = Call' Order
 
@@ -103,7 +104,7 @@ instance HasZero a => Diagonal (Call' a) a where
   diagonal = diagonal . cm
 
 instance PartialOrd a => PartialOrd (Call' a) where
-  comparable (Call s t m) (Call s' t' m')
+  comparable (Edge s t m) (Edge s' t' m')
     | s /= s'   = POAny
     | t /= t'   = POAny
     | otherwise = comparable m m'
@@ -113,16 +114,6 @@ instance NotWorse Call where
     | source c1 /= source c2 = __IMPOSSIBLE__
     | target c1 /= target c2 = __IMPOSSIBLE__
     | otherwise              = cm c1 `notWorse` cm c2
-
-instance Arbitrary Call where
-  arbitrary = do
-    [s, t]    <- vectorOf 2 arbitrary
-    cm        <- arbitrary
-    return (Call { source = s, target = t, cm = cm })
-
-instance CoArbitrary Call where
-  coarbitrary (Call s t cm) =
-    coarbitrary s . coarbitrary t . coarbitrary cm
 
 prop_Arbitrary_Call :: Call -> Bool
 prop_Arbitrary_Call = callInvariant
@@ -138,11 +129,7 @@ callInvariant = callMatrixInvariant . cm
 -- argument should be equal to the 'target' of the second one.
 
 (>*<) :: (?cutoff :: CutOff) => Call -> Call -> Call
-c1 >*< c2 =
-  Call { source    = source c2
-       , target    = target c1
-       , cm        = cm c1 `cmMul` cm c2
-       }
+c1 >*< c2 = Edge (source c2) (target c1) (cm c1 `cmMul` cm c2)
 
 ------------------------------------------------------------------------
 -- Call graphs
@@ -194,7 +181,7 @@ instance Monoid cinfo => Monoid (CallGraph cinfo) where
 insert :: Monoid cinfo
        => Index -> Index -> CallMatrix -> cinfo
        -> CallGraph cinfo -> CallGraph cinfo
-insert s t cm m = CallGraph . Map.insertWith mappend (Call s t cm) m . theCallGraph
+insert s t cm m = CallGraph . Map.insertWith mappend (Edge s t cm) m . theCallGraph
 
 -- | Generates a call graph.
 
@@ -211,7 +198,7 @@ callGraph = do
     [c, r] <- vectorOf 2 (choose (0, 2))     -- Not too large.
     m <- callMatrix (Size { rows = r, cols = c })
     callId <- arbitrary
-    return (Call { source = s, target = t, cm = m }, callId)
+    return (Edge s t m, callId)
 
 prop_callGraph =
   forAll (callGraph :: Gen (CallGraph [Integer])) $ \cs ->
@@ -273,7 +260,7 @@ instance NotWorse CallGraphST where
 toCallGraphST :: CallGraph cinfo -> CallGraphST
 toCallGraphST =
     Map.fromListWith Fav.union . map fromCall . Map.keys . theCallGraph
-  where fromCall (Call s t m) = (SourceTarget s t, Fav.singleton m)
+  where fromCall (Edge s t m) = (SourceTarget s t, Fav.singleton m)
 
 instance NotWorse (CallGraph cinfo) where
   g1 `notWorse` g2 = toCallGraphST g1 `notWorse` toCallGraphST g2
@@ -369,19 +356,19 @@ completionInit cs =
   CallGraph $ Map.mapKeysWith mappend pad $ theCallGraph cs
   where
   -- The maximum number of arguments detected for every index.
-  noArgs :: Map Index Int
-  noArgs = foldr (\c m -> insert (source c) (cols' c) $
+  nArgs :: Map Index Int
+  nArgs = foldr (\c m -> insert (source c) (cols' c) $
                           insert (target c) (rows' c) m)
                  Map.empty
                  (map fst $ toList cs)
     where insert = Map.insertWith max
 
-  pad c = c { cm = CallMatrix { mat = padRows $ padCols $ mat $ cm c } }
+  pad c = c { label = CallMatrix { mat = padRows $ padCols $ mat $ cm c } }
     where
-    padCols = iterate' ((noArgs ! source c) - cols' c)
+    padCols = iterate' ((nArgs ! source c) - cols' c)
                        (addColumn unknown)
 
-    padRows = iterate' ((noArgs ! target c) - rows' c)
+    padRows = iterate' ((nArgs ! target c) - rows' c)
                        (addRow unknown)
 
   cols'  = cols . size'

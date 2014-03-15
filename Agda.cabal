@@ -305,6 +305,7 @@ library
                     Agda.Utils.Geniplate
                     Agda.Utils.Graph
                     Agda.Utils.Graph.AdjacencyMap
+                    Agda.Utils.Graph.AdjacencyMap.Unidirectional
                     Agda.Utils.Hash
                     Agda.Utils.HashMap
                     Agda.Utils.Impossible

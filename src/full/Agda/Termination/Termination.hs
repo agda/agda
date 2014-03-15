@@ -125,16 +125,11 @@ example1 = buildCallGraph [c1, c2, c3]
   where
   flat = 1
   aux  = 2
-  c1 = Call { source = flat, target = aux
-            , cm = CallMatrix $ fromLists (Size 2 1) [[lt], [lt]]
-            }
-  c2 = Call { source = aux,  target = aux
-            , cm = CallMatrix $ fromLists (Size 2 2) [ [lt, unknown]
-                                                     , [unknown, le]]
-            }
-  c3 = Call { source = aux,  target = flat
-            , cm = CallMatrix $ fromLists (Size 1 2) [[unknown, le]]
-            }
+  c1 = mkCall flat aux $ CallMatrix $ fromLists (Size 2 1) [ [lt]
+                                                           , [lt]]
+  c2 = mkCall aux  aux $ CallMatrix $ fromLists (Size 2 2) [ [lt, unknown]
+                                                           , [unknown, le]]
+  c3 = mkCall aux flat $ CallMatrix $ fromLists (Size 1 2) [ [unknown, le]]
 
 prop_terminates_example1 ::  (?cutoff :: CutOff) => Bool
 prop_terminates_example1 = isRight $ terminates example1
@@ -150,10 +145,8 @@ example2 :: CG
 example2 = buildCallGraph [c]
   where
   plus = 1
-  c = Call { source = plus, target = plus
-           , cm = CallMatrix $ fromLists (Size 2 2) [ [unknown, le]
-                                                    , [lt, unknown] ]
-           }
+  c = mkCall plus plus $ CallMatrix $ fromLists (Size 2 2) [ [unknown, le]
+                                                           , [lt, unknown] ]
 
 prop_terminates_example2 ::  (?cutoff :: CutOff) => Bool
 prop_terminates_example2 = isRight $ terminates example2
@@ -174,10 +167,8 @@ example3 = buildCallGraph [c plus plus', c plus' plus]
   where
   plus  = 1
   plus' = 2
-  c f g = Call { source = f, target = g
-               , cm = CallMatrix $ fromLists (Size 2 2) [ [unknown, le]
-                                                        , [lt, unknown] ]
-               }
+  c f g = mkCall f g $ CallMatrix $ fromLists (Size 2 2) [ [unknown, le]
+                                                         , [lt, unknown] ]
 
 prop_terminates_example3 ::  (?cutoff :: CutOff) => Bool
 prop_terminates_example3 = isRight $ terminates example3
@@ -198,18 +189,12 @@ example4 = buildCallGraph [c1, c2, c3]
   where
   f = 1
   g = 2
-  c1 = Call { source = f, target = f
-            , cm = CallMatrix $ fromLists (Size 2 2) [ [le, unknown]
-                                                     , [unknown, le] ]
-            }
-  c2 = Call { source = f, target = g
-            , cm = CallMatrix $ fromLists (Size 2 2) [ [lt, unknown]
-                                                     , [unknown, le] ]
-            }
-  c3 = Call { source = g, target = f
-            , cm = CallMatrix $ fromLists (Size 2 2) [ [le, unknown]
-                                                     , [unknown, le] ]
-            }
+  c1 = mkCall f f $ CallMatrix $ fromLists (Size 2 2) [ [le, unknown]
+                                                      , [unknown, le] ]
+  c2 = mkCall f g $ CallMatrix $ fromLists (Size 2 2) [ [lt, unknown]
+                                                      , [unknown, le] ]
+  c3 = mkCall g f $ CallMatrix $ fromLists (Size 2 2) [ [le, unknown]
+                                                      , [unknown, le] ]
 
 prop_terminates_example4 ::  (?cutoff :: CutOff) => Bool
 prop_terminates_example4 = isLeft $ terminates example4
@@ -225,22 +210,14 @@ example5 = buildCallGraph [c1, c2, c3, c4]
   where
   f = 1
   g = 2
-  c1 = Call { source = f, target = g
-            , cm = CallMatrix $ fromLists (Size 2 2) [ [lt, unknown]
-                                                     , [unknown, le] ]
-            }
-  c2 = Call { source = f, target = f
-            , cm = CallMatrix $ fromLists (Size 2 2) [ [unknown, unknown]
-                                                     , [unknown, lt] ]
-            }
-  c3 = Call { source = g, target = f
-            , cm = CallMatrix $ fromLists (Size 2 2) [ [le, unknown]
-                                                     , [unknown, le] ]
-            }
-  c4 = Call { source = g, target = g
-            , cm = CallMatrix $ fromLists (Size 2 2) [ [lt, unknown]
-                                                     , [unknown, le] ]
-            }
+  c1 = mkCall f g $ CallMatrix $ fromLists (Size 2 2) [ [lt, unknown]
+                                                      , [unknown, le] ]
+  c2 = mkCall f f $ CallMatrix $ fromLists (Size 2 2) [ [unknown, unknown]
+                                                      , [unknown, lt] ]
+  c3 = mkCall g f $ CallMatrix $ fromLists (Size 2 2) [ [le, unknown]
+                                                      , [unknown, le] ]
+  c4 = mkCall g g $ CallMatrix $ fromLists (Size 2 2) [ [lt, unknown]
+                                                      , [unknown, le] ]
 
 prop_terminates_example5 ::  (?cutoff :: CutOff) => Bool
 prop_terminates_example5 = isRight $ terminates example5
@@ -258,15 +235,9 @@ example6 :: CG
 example6 = buildCallGraph [c1, c2, c3]
   where
   f = 1
-  c1 = Call { source = f, target = f
-            , cm = CallMatrix $ fromLists (Size 1 1) [ [lt] ]
-            }
-  c2 = Call { source = f, target = f
-            , cm = CallMatrix $ fromLists (Size 1 1) [ [le] ]
-            }
-  c3 = Call { source = f, target = f
-            , cm = CallMatrix $ fromLists (Size 1 1) [ [le] ]
-            }
+  c1 = mkCall f f $ CallMatrix $ fromLists (Size 1 1) [ [lt] ]
+  c2 = mkCall f f $ CallMatrix $ fromLists (Size 1 1) [ [le] ]
+  c3 = mkCall f f $ CallMatrix $ fromLists (Size 1 1) [ [le] ]
 
 prop_terminates_example6 ::  (?cutoff :: CutOff) => Bool
 prop_terminates_example6 = isLeft $ terminates example6
@@ -283,12 +254,12 @@ prop_terminates_example6 = isLeft $ terminates example6
 example7 :: CG
 example7 = buildCallGraph [call1, call2]
   where
-    call1 = Call 1 1 $ CallMatrix $ fromLists (Size 3 3)
+    call1 = mkCall 1 1 $ CallMatrix $ fromLists (Size 3 3)
       [ [le, le, le]
       , [un, lt, un]
       , [le, un, un]
       ]
-    call2 = Call 1 1 $ CallMatrix $ fromLists (Size 3 3)
+    call2 = mkCall 1 1 $ CallMatrix $ fromLists (Size 3 3)
       [ [le, un, un]
       , [un, un, lt]
       , [un, le, un]
