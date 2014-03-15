@@ -153,8 +153,8 @@ malformed :: R a
 malformed = throwError $ GenericError "Malformed input."
 
 class Typeable a => EmbPrj a where
-  icode :: a -> S Int32
-  value :: Int32 -> R a
+  icode :: a -> S Int32  -- ^ Serialization.
+  value :: Int32 -> R a  -- ^ Deserialization.
 
 -- | Encodes something. To ensure relocatability file paths in
 -- positions are replaced with module names.
