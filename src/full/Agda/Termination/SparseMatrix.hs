@@ -180,9 +180,7 @@ matrix :: (Arbitrary i, Integral i, Arbitrary b, HasZero b)
   => Size i -> Gen (Matrix i b)
 matrix sz = matrixUsingRowGen sz (\n -> vectorOf (fromIntegral n) arbitrary)
 
-prop_matrix sz = forAll (matrix sz :: Gen TM) $ \m ->
---  matrixInvariant m &&
-  size m == sz
+prop_matrix sz = forAll (matrix sz :: Gen TM) $ \ m -> size m == sz
 
 -- | Constructs a matrix from a list of (index, value)-pairs.
 

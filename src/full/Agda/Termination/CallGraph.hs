@@ -14,10 +14,8 @@ module Agda.Termination.CallGraph
     Index
   , Call', Call, mkCall, source, target, cm
   , (>*<)
-  , callInvariant
     -- * Call graphs
   , CallGraph(..)
-  , callGraphInvariant
   , fromList
   , toList
   , empty
@@ -115,21 +113,28 @@ instance NotWorse Call where
     | target c1 /= target c2 = __IMPOSSIBLE__
     | otherwise              = cm c1 `notWorse` cm c2
 
-prop_Arbitrary_Call :: Call -> Bool
-prop_Arbitrary_Call = callInvariant
-
--- | 'Call' invariant.
-
-callInvariant :: Call -> Bool
-callInvariant = callMatrixInvariant . cm
-
 -- | 'Call' combination.
 --
--- Precondition: see 'cmMul'; furthermore the 'source' of the first
--- argument should be equal to the 'target' of the second one.
+--   @f --(c2)--> g --(c1)--> h@  is combined to @f --(c1 >*< c2)--> h@
+--
+--   Note the reversed order of multiplication:
+--   The matrix @c1@ of the second call @g-->h@ in the sequence
+--   @f-->g-->h@ is multiplied with the matrix @c2@ of the first call.
+--
+--   @c1@ has dimensions @ar(h) × ar(g)@.
+--   @c2@ has dimensions @ar(g) × ar(f)@.
+--   @c1 >*< c2@ has dimensions @ar(h) × ar(f)@.
+--
+--   Precondition: see 'cmMul'; furthermore the 'source' of the first
+--   argument should be equal to the 'target' of the second one.
 
 (>*<) :: (?cutoff :: CutOff) => Call -> Call -> Call
-c1 >*< c2 = Edge (source c2) (target c1) (cm c1 `cmMul` cm c2)
+c1 >*< c2 | g == g' = Edge f h (cm c1 `cmMul` cm c2)
+  where f  = source c2
+        g  = target c2
+        g' = source c1
+        h  = target c1
+c1 >*< c2 = __IMPOSSIBLE__
 
 ------------------------------------------------------------------------
 -- Call graphs
@@ -141,11 +146,6 @@ c1 >*< c2 = Edge (source c2) (target c1) (cm c1 `cmMul` cm c2)
 
 newtype CallGraph cinfo = CallGraph { theCallGraph :: Map Call cinfo }
   deriving (Eq, Show)
-
--- | 'CallGraph' invariant.
-
-callGraphInvariant :: CallGraph cinfo -> Bool
-callGraphInvariant = all (callInvariant . fst) . toList
 
 -- | Converts a call graph to a list of calls with associated meta
 -- information.
@@ -199,10 +199,6 @@ callGraph = do
     m <- callMatrix (Size { rows = r, cols = c })
     callId <- arbitrary
     return (Edge s t m, callId)
-
-prop_callGraph =
-  forAll (callGraph :: Gen (CallGraph [Integer])) $ \cs ->
-    callGraphInvariant cs
 
 -- | Call graph representation as map from source-target node pair to edge
 
@@ -379,8 +375,8 @@ prop_ensureCompletePrecondition =
   forAll (callGraph :: Gen (CallGraph [Integer])) $ \cs ->
     let cs' = completionInit cs in
     completePrecondition cs'
-    &&
-    all callInvariant (map fst $ toList cs')
+    -- &&
+    -- all callInvariant (map fst $ toList cs')
     &&
     and [ or [ new .==. old | (old, _) <- toList cs ]
         | (new, _) <- toList cs' ]
@@ -434,9 +430,29 @@ prettyBehaviour = vcat . map prettyCall . filter (toSelf . fst) . toList
 
 tests :: IO Bool
 tests = runTests "Agda.Termination.CallGraph"
-  [ quickCheck' prop_Arbitrary_Call
-  , quickCheck' prop_callGraph
-  , quickCheck' prop_complete
+  [ quickCheck' prop_complete
   , quickCheck' prop_ensureCompletePrecondition
   ]
   where ?cutoff = DontCutOff -- CutOff 2  -- don't cut off in tests!
+
+
+{- RETIRED: NO invariant on calls
+
+prop_Arbitrary_Call :: Call -> Bool
+prop_Arbitrary_Call = callInvariant
+
+-- | 'Call' invariant.
+
+callInvariant :: Call -> Bool
+callInvariant = callMatrixInvariant . cm
+
+-- | 'CallGraph' invariant.
+
+callGraphInvariant :: CallGraph cinfo -> Bool
+callGraphInvariant = all (callInvariant . fst) . toList
+
+prop_callGraph =
+  forAll (callGraph :: Gen (CallGraph [Integer])) $ \cs ->
+    callGraphInvariant cs
+
+-}
