@@ -382,7 +382,7 @@ completeUntilWith done otimes oplus = iterateUntil done growGraph  where
 
   -- @growGraph g@ unions @g@ with @(s --> t) `compose` g@ for each
   -- edge @s --> t@ in @g@
-  growGraph g = List.foldl' union g $ for (edges g) $ \ (Edge s t e) ->
+  growGraph g = List.foldl' (unionWith oplus) g $ for (edges g) $ \ (Edge s t e) ->
     case Map.lookup t (graph g) of
       Just es -> Graph $ Map.singleton s $ Map.map (otimes e) es
       Nothing -> empty
@@ -489,14 +489,27 @@ edgeIn :: (Ord n, Arbitrary n, Arbitrary e) =>
           Graph n n e -> Gen (Edge n n e)
 edgeIn g = elementsUnlessEmpty (edges g)
 
--- | Used to test 'transitiveClosure' and 'transitiveClosure1'.
+-- | Sample graph type used to test 'transitiveClosure' and 'transitiveClosure1'.
 
-type G = Graph Int Int E
+type G = Graph N N E
 
--- | Used to test 'transitiveClosure' and 'transitiveClosure1'.
+-- | Sample node type used to test 'transitiveClosure' and 'transitiveClosure1'.
 
-newtype E = E { unE :: Bool }
+newtype N = N (Positive Int)
+  deriving (Arbitrary, Eq, Ord)
+
+n = N . Positive
+
+instance Show N where
+  show (N (Positive n)) = "n " ++ show n
+
+-- | Sample edge type used to test 'transitiveClosure' and 'transitiveClosure1'.
+
+newtype E = E Bool
   deriving (Arbitrary, Eq, Show)
+
+-- instance Show E where
+--   show = show . unE
 
 instance SemiRing E where
   oplus  (E x) (E y) = E (x || y)
