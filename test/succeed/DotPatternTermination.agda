@@ -1,6 +1,8 @@
 {-# OPTIONS --show-implicit #-}
 -- {-# OPTIONS -v tc.cover.strategy:20 -v tc.cover.precomputed:10 #-}
 -- {-# OPTIONS -v term.check.clause:25 #-}
+-- {-# OPTIONS -v term.matrices:40 #-}
+
 module DotPatternTermination where
 
 data Nat : Set where
@@ -11,15 +13,15 @@ data Nat : Set where
 module Test1 where
   data D : Nat -> Set where
     cz : D zero
-    c1 : forall {n} -> D n -> D (suc n)
-    c2 : forall {n} -> D n -> D n
+    c1 : forall n -> D n -> D (suc n)
+    c2 : forall n -> D n -> D n
 
   -- To see that this is terminating the termination checker has to look at the
   -- natural number index, which is in a dot pattern.
-  f : forall {n} -> D n -> Nat
-  f cz     = zero
-  f (c1 d) = f (c2 d)
-  f {n} (c2 .{n} d) = f {n} d
+  f : forall n -> D n -> Nat
+  f .zero    cz        = zero
+  f .(suc n) (c1  n d) = f n (c2 n d)
+  f n        (c2 .n d) = f n d
 
 -- There was a bug with dot patterns having the wrong context which manifested
 -- itself in the following example.
