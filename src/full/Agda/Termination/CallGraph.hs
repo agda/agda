@@ -121,20 +121,21 @@ instance NotWorse Call where
 --   The matrix @c1@ of the second call @g-->h@ in the sequence
 --   @f-->g-->h@ is multiplied with the matrix @c2@ of the first call.
 --
+--   Preconditions:
+--   @source c1 == target c2@
 --   @c1@ has dimensions @ar(h) × ar(g)@.
 --   @c2@ has dimensions @ar(g) × ar(f)@.
---   @c1 >*< c2@ has dimensions @ar(h) × ar(f)@.
 --
---   Precondition: see 'cmMul'; furthermore the 'source' of the first
---   argument should be equal to the 'target' of the second one.
+--   Postcondition:
+--   @c1 >*< c2@ has dimensions @ar(h) × ar(f)@.
 
-(>*<) :: (?cutoff :: CutOff) => Call -> Call -> Call
-c1 >*< c2 | g == g' = Edge f h (cm c1 `cmMul` cm c2)
-  where f  = source c2
-        g  = target c2
-        g' = source c1
-        h  = target c1
-c1 >*< c2 = __IMPOSSIBLE__
+instance CallComb Call where
+  c1 >*< c2 | g == g' = Edge f h (cm c1 >*< cm c2)
+    where f  = source c2
+          g  = target c2
+          g' = source c1
+          h  = target c1
+  c1 >*< c2 = __IMPOSSIBLE__
 
 ------------------------------------------------------------------------
 -- Call graphs
@@ -262,10 +263,10 @@ instance NotWorse (CallGraph cinfo) where
   g1 `notWorse` g2 = toCallGraphST g1 `notWorse` toCallGraphST g2
 
 
--- | Call graph combination. (Application of '>*<' to all pairs @(c1,
--- c2)@ for which @'source' c1 = 'target' c2@.)
+-- | Call graph combination.
 --
--- Precondition: see 'cmMul'.
+--   Application of '>*<' to all pairs @(c1,c2)@
+--   for which @'source' c1 = 'target' c2@.)
 
 combine
   :: (Monoid cinfo, ?cutoff :: CutOff) => CallGraph cinfo -> CallGraph cinfo -> CallGraph cinfo

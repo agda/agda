@@ -5,12 +5,13 @@
 
 module Agda.Termination.CallMatrix
   ( CallMatrix'(..), CallMatrix
-  , cmMul
   , callMatrix
+  , CallComb(..)
   , tests
   ) where
 
 import Data.List as List hiding (union, insert)
+import Data.Monoid
 import Data.Foldable (Foldable)
 import qualified Data.Foldable as Fold
 import Data.Traversable (Traversable)
@@ -80,13 +81,17 @@ deriving instance NotWorse CallMatrix
 instance HasZero a => Diagonal (CallMatrix' a) a where
   diagonal = diagonal . mat
 
+
+-- | Call matrix multiplication and call combination.
+
+class CallComb a where
+  (>*<) :: (?cutoff :: CutOff) => a -> a -> a
+
 -- | Call matrix multiplication.
 --
 -- Precondition: see 'Matrix.mul'.
-
-cmMul :: (?cutoff :: CutOff) => CallMatrix -> CallMatrix -> CallMatrix
-cm1 `cmMul` cm2 =
-  CallMatrix { mat = mul orderSemiring (mat cm1) (mat cm2) }
+instance CallComb CallMatrix where
+  CallMatrix m1 >*< CallMatrix m2 = CallMatrix $ mul orderSemiring m1 m2
 
 {- UNUSED, BUT DON'T REMOVE!
 -- | Call matrix addition = minimum = pick worst information.
@@ -153,7 +158,7 @@ tests = runTests "Agda.Termination.CallMatrix"
 --   forAll natural $ \c2 ->
 --   forAll (callMatrix sz) $ \cm1 ->
 --   forAll (callMatrix $ Size { rows = cols sz, cols = c2 }) $ \cm2 ->
---     callMatrixInvariant (cm1 `cmMul` cm2)
+--     callMatrixInvariant (cm1 >*< cm2)
 
 -- tests :: IO Bool
 -- tests = runTests "Agda.Termination.CallMatrix"
