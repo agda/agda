@@ -239,6 +239,9 @@ prop_zipWith' f =
     forAll (two $ vector n) $ \(xs, ys) ->
       zipWith' f xs ys == zipWith f xs ys
 
+{- UNUSED; a better type would be
+   zipWithTails :: (a -> b -> c) -> [a] -> [b] -> ([c], Either [a] [b])
+
 -- | Like zipWith, but returns the leftover elements of the input lists.
 zipWithTails :: (a -> b -> c) -> [a] -> [b] -> ([c], [a] , [b])
 zipWithTails f xs       []       = ([], xs, [])

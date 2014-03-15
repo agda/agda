@@ -57,7 +57,6 @@ import {-# SOURCE #-} Agda.TypeChecking.Rules.Def (checkFunDef,checkFunDef')
 
 import Agda.Utils.Fresh
 import Agda.Utils.Functor (($>))
-import Agda.Utils.List (zipWithTails)
 import Agda.Utils.Maybe
 import Agda.Utils.Monad
 import Agda.Utils.Permutation
