@@ -322,7 +322,7 @@ genConf :: Gen TermConfiguration
 genConf = do
   ds <- listOf $ elements defs
   cs <- listOf $ elements cons
-  ps <- listOf $ elements projs
+  ps <- listOf1 $ elements projs
   vs <- listOf natural
   return $ makeConfiguration ds cs ps vs
   where
