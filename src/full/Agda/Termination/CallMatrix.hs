@@ -17,6 +17,7 @@ import qualified Data.Foldable as Fold
 import Data.Traversable (Traversable)
 import qualified Data.Traversable as Trav
 
+import Agda.Termination.CutOff
 import Agda.Termination.Order hiding (tests)
 import Agda.Termination.SparseMatrix as Matrix hiding (tests)
 import Agda.Termination.Semiring (HasZero(..), Semiring)
@@ -168,5 +169,3 @@ tests = runTests "Agda.Termination.CallMatrix"
 --   , quickCheck' prop_cmMul
 --   ]
 --   where ?cutoff = DontCutOff -- CutOff 2  -- don't cut off in tests!
-
-

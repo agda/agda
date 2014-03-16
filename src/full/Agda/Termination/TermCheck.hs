@@ -33,6 +33,7 @@ import Agda.Syntax.Position
 import Agda.Syntax.Common as Common
 import Agda.Syntax.Literal (Literal(LitString))
 
+import Agda.Termination.CutOff
 import Agda.Termination.Monad
 import Agda.Termination.CallGraph as Term
 import Agda.Termination.CallMatrix

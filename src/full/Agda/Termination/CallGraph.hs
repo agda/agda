@@ -39,6 +39,7 @@ import Data.Traversable (Traversable)
 import qualified Data.Traversable as Trav
 
 import Agda.Termination.CallMatrix hiding (tests)
+import Agda.Termination.CutOff
 import Agda.Termination.Order
 import Agda.Termination.SparseMatrix as Matrix hiding (tests)
 import Agda.Termination.Semiring (HasZero(..), Semiring)

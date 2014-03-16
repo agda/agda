@@ -25,7 +25,8 @@ import Agda.Syntax.Internal
 import Agda.Syntax.Literal
 import Agda.Syntax.Position (noRange)
 
-import Agda.Termination.Order (CutOff(..),Order,le,unknown)
+import Agda.Termination.CutOff
+import Agda.Termination.Order (Order,le,unknown)
 
 import Agda.TypeChecking.Monad
 import Agda.TypeChecking.Pretty

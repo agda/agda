@@ -13,7 +13,6 @@ module Agda.Termination.Order
   , orderSemiring
   , le, lt, unknown, orderMat, collapseO
   , decreasing, isDecr
-  , CutOff(..)
   , NotWorse(..)
   , tests
   ) where
@@ -23,6 +22,7 @@ import qualified Data.Foldable as Fold
 import Data.List as List hiding (union, insert)
 import Data.Monoid
 
+import Agda.Termination.CutOff
 import Agda.Termination.SparseMatrix as Matrix hiding (tests)
 import Agda.Termination.Semiring (HasZero(..), Semiring)
 import qualified Agda.Termination.Semiring as Semiring
@@ -140,16 +140,6 @@ instance (Ord i) => NotWorse (Matrix i Order) where
       both    = notWorse
       isTrue  = id
       trivial = id
-
--- | Cut off structural order comparison at some depth in termination checker?
-data CutOff
-  = CutOff Int -- ^ @c >= 0@ means: record decrease up to including @c+1@.
-  | DontCutOff
-  deriving (Eq, Ord)
-
-instance Show CutOff where
-  show (CutOff k) = show k
-  show DontCutOff = "∞"
 
 -- | Raw increase which does not cut off.
 increase :: Int -> Order -> Order
