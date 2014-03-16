@@ -7,15 +7,22 @@ module Agda.Utils.Maybe
 
 import Data.Maybe
 
-maybeM :: Monad m => m b -> (a -> m b) -> m (Maybe a) -> m b
-maybeM n j mm = maybe n j =<< mm
-
-fromMaybeM :: Monad m => m a -> m (Maybe a) -> m a
-fromMaybeM m mm = maybeM m return mm
+-- | Unzipping a list of length <= 1.
 
 unzipMaybe :: Maybe (a,b) -> (Maybe a, Maybe b)
 unzipMaybe Nothing      = (Nothing, Nothing)
 unzipMaybe (Just (a,b)) = (Just a, Just b)
+
+-- | Filtering a singleton list.
+--
+--   @filterMaybe p a = 'listToMaybe' ('filter' p [a])@
+
+filterMaybe :: (a -> Bool) -> a -> Maybe a
+filterMaybe p a
+  | p a       = Just a
+  | otherwise = Nothing
+
+-- | Version of 'mapMaybe' with different argument ordering.
 
 forMaybe :: [a] -> (a -> Maybe b) -> [b]
 forMaybe = flip mapMaybe
@@ -28,6 +35,18 @@ forMaybe = flip mapMaybe
 --   @caseMaybe m err f = flip (maybe err) m f@
 caseMaybe :: Maybe a -> b -> (a -> b) -> b
 caseMaybe m err f = maybe err f m
+
+-- * Monads and Maybe.
+
+-- | Monadic version of 'maybe'.
+
+maybeM :: Monad m => m b -> (a -> m b) -> m (Maybe a) -> m b
+maybeM n j mm = maybe n j =<< mm
+
+-- | Monadic version of 'fromMaybe'.
+
+fromMaybeM :: Monad m => m a -> m (Maybe a) -> m a
+fromMaybeM m mm = maybeM m return mm
 
 -- | Monadic version of 'caseMaybe'.
 --   That is, 'maybeM' with a different argument ordering.
