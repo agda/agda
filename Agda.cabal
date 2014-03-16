@@ -200,8 +200,8 @@ library
                     Agda.Termination.CallMatrix
                     Agda.Termination.CutOff
                     Agda.Termination.Inlining
-                    Agda.Termination.Lexicographic
-                    Agda.Termination.Matrix
+--                    Agda.Termination.Lexicographic -- RETIRED
+--                    Agda.Termination.Matrix -- RETIRED
                     Agda.Termination.Monad
                     Agda.Termination.Order
                     Agda.Termination.RecCheck

@@ -1,3 +1,5 @@
+-- UNUSED
+
 {-# LANGUAGE MultiParamTypeClasses, FunctionalDependencies, FlexibleInstances,
   GeneralizedNewtypeDeriving, DeriveTraversable #-}
 
