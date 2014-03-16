@@ -1,4 +1,5 @@
-{-# LANGUAGE CPP, TemplateHaskell, NoImplicitPrelude, DeriveFoldable #-}
+{-# LANGUAGE CPP, TemplateHaskell, NoImplicitPrelude,
+      GeneralizedNewtypeDeriving, DeriveFoldable #-}
 
 -- | Maintaining a list of favorites of some partially ordered type.
 --   Only the best elements are kept.
@@ -17,10 +18,11 @@ import Data.Ord
 import Data.Foldable (Foldable)
 import Data.Functor
 import Data.Function
-import Data.List (all)
+import Data.List (all, (++))
 import qualified Data.List as List
 import Data.Set (Set)
 import qualified Data.Set as Set
+import Data.Tuple (uncurry)
 
 import System.IO
 import Text.Show
@@ -29,13 +31,14 @@ import Test.QuickCheck.All
 import Agda.Utils.PartialOrd hiding (tests)
 import Agda.Utils.QuickCheck
 import Agda.Utils.TestHelpers
+import Agda.Utils.Tuple
 
 #include "../undefined.h"
 import Agda.Utils.Impossible
 
 -- | A list of incomparable favorites.
 newtype Favorites a = Favorites { toList :: [a] }
-  deriving (Foldable, Show)
+  deriving (Foldable, Show, CoArbitrary)
 
 -- | Equality checking is a bit expensive, since we need to sort!
 --   Maybe use a 'Set' of favorites in the first place?
@@ -73,7 +76,7 @@ data CompareResult a
 --
 --   We require a partial ordering.  Less is better! (Maybe paradoxically.)
 compareWithFavorites :: PartialOrd a => a -> Favorites a -> CompareResult a
-compareWithFavorites a (Favorites as) = loop as where
+compareWithFavorites a favs = loop $ toList favs where
   loop []          = Dominates [] []
   loop as@(b : bs) = case comparable a b of
     POLT -> dominates b $ loop bs  -- @a@ is a new favorite, bye-bye, @b@
@@ -88,6 +91,25 @@ compareWithFavorites a (Favorites as) = loop as where
   -- add an uncomparable favorite
   doesnotd  b (Dominates as bs) = Dominates as (b : bs)
   doesnotd  b r@IsDominated{}   = r
+
+-- | Compare a new set of favorites to an old one and discard
+--   the new favorites that are dominated by the old ones
+--   and vice verse.
+--   (Skewed conservatively: faithful to the old favorites.)
+--
+--   @compareFavorites new old = (new', old')@
+compareFavorites :: PartialOrd a => Favorites a -> Favorites a ->
+                    (Favorites a, Favorites a)
+compareFavorites new old = mapFst Favorites $ loop (toList new) old where
+  loop []        old = ([], old)
+  loop (a : new) old = case compareWithFavorites a old of
+    -- Better: Discard all @old@ ones that @a@ dominates and keep @a@
+    Dominates _ old -> mapFst (a:) $ loop new (Favorites old)
+    -- Not better:  Discard @a@
+    IsDominated{}   -> loop new old
+
+unionCompared :: PartialOrd a => (Favorites a, Favorites a) -> Favorites a
+unionCompared (Favorites new, Favorites old) = Favorites $ new ++ old
 
 -- | After comparing, do the actual insertion.
 insertCompared :: PartialOrd a => a -> Favorites a -> CompareResult a -> Favorites a
@@ -135,6 +157,12 @@ prop_compareWithFavorites a@ISet{} as =
 prop_fromList_after_toList :: Favorites ISet -> Bool
 prop_fromList_after_toList as =
   fromList (toList as) == as
+
+-- | A second way to compute the 'union' is to use 'compareFavorites'.
+prop_union_union2 :: Favorites ISet -> Favorites ISet -> Bool
+prop_union_union2 as bs =
+  union as bs == union2 as bs
+    where union2 as bs = unionCompared $ compareFavorites as bs
 
 ------------------------------------------------------------------------
 -- * All tests
