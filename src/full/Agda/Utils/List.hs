@@ -29,6 +29,10 @@ uncons :: [a] -> Maybe (a, [a])
 uncons []     = Nothing
 uncons (x:xs) = Just (x,xs)
 
+-- | Maybe cons.   @mcons ma as = maybeToList ma ++ as@
+mcons :: Maybe a -> [a] -> [a]
+mcons ma as = maybe as (:as) ma
+
 -- | Lookup function (safe).
 
 (!!!) :: [a] -> Int -> Maybe a
@@ -210,7 +214,7 @@ prop_extractNthElement n xs =
     genericTake n rest ++ [elem] ++ genericDrop n rest == xs
   where (elem, rest) = extractNthElement n xs
 
--- A generalised variant of 'elemIndex'.
+-- | A generalised variant of 'elemIndex'.
 
 genericElemIndex :: (Eq a, Integral i) => a -> [a] -> Maybe i
 genericElemIndex x xs =
@@ -248,6 +252,7 @@ zipWithTails f xs       []       = ([], xs, [])
 zipWithTails f []       ys       = ([], [] , ys)
 zipWithTails f (x : xs) (y : ys) = (f x y : zs , as , bs)
   where (zs , as , bs) = zipWithTails f xs ys
+-}
 
 -- | Efficient version of nub that sorts the list first. The tag function is
 --   assumed to be cheap. If it isn't pair up the elements with their tags and
