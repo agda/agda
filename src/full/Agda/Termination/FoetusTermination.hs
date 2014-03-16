@@ -1,3 +1,5 @@
+-- RETIRED
+
 -- | Termination checker, based on
 --     \"A Predicative Analysis of Structural Recursion\" by
 --     Andreas Abel and Thorsten Altenkirch.
@@ -6,26 +8,29 @@
 -- strictly positive. Furthermore, for inductive-recursive families we
 -- may need to do something more clever.
 
-module Agda.Termination.Termination
+module Agda.Termination.FoetusTermination
   ( terminates
   , recursionBehaviours
   , Agda.Termination.Termination.tests
   ) where
 
-import Agda.Termination.Lexicographic
--- import Agda.Termination.Utilities
-import Agda.Termination.CallGraph
-import Agda.Termination.Matrix
 import Control.Arrow
-import Agda.Utils.QuickCheck
-import qualified Data.Set as Set
-import qualified Data.Array as Array
-import Data.Set (Set)
-import qualified Data.Set as Set
-import Data.Map (Map)
-import qualified Data.Map as Map
+
 import Data.Monoid
 import Data.Array (Array)
+import qualified Data.Array as Array
+import Data.Map (Map)
+import qualified Data.Map as Map
+import Data.Set (Set)
+import qualified Data.Set as Set
+
+import Agda.Termination.Lexicographic
+import Agda.Termination.CallGraph
+import Agda.Termination.CallMatrix
+import Agda.Termination.Order
+import Agda.Termination.Matrix
+
+import Agda.Utils.QuickCheck
 
 -- | @'terminates' cs@ checks if the functions represented by @cs@
 -- terminate. The call graph @cs@ should have one entry ('Call') per
