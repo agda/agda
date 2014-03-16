@@ -23,6 +23,8 @@ import Agda.Termination.SparseMatrix as Matrix hiding (tests)
 import Agda.Termination.Semiring (HasZero(..), Semiring)
 import qualified Agda.Termination.Semiring as Semiring
 
+import Agda.Utils.Favorites (Favorites)
+import qualified Agda.Utils.Favorites as Fav
 import Agda.Utils.Monad
 import Agda.Utils.PartialOrd hiding (tests)
 import Agda.Utils.QuickCheck

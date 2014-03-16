@@ -23,6 +23,7 @@ import Agda.Termination.Termination	      as TermTerm   (tests)
 import Agda.TypeChecking.Irrelevance          as Irrel      (tests)
 import Agda.TypeChecking.Tests                as TypeChck   (tests)
 import Agda.Utils.Either	              as UtilEith   (tests)
+import Agda.Utils.Favorites                   as UtilFav    (tests)
 import Agda.Utils.FileName                    as UtilFile   (tests)
 import Agda.Utils.Graph.AdjacencyMap          as UtilGrap   (tests)
 import Agda.Utils.Graph.AdjacencyMap.Unidirectional as UtilGraphUni (tests)
@@ -33,6 +34,7 @@ import Agda.Utils.Warshall                    as UtilWarsh  (tests)
 testSuite :: IO Bool
 testSuite = runTests "QuickCheck test suite:"
   [ Irrel.tests
+  , UtilFav.tests
   , UtilPOrd.tests
   , CompEnco.tests
   , InteEmac.tests

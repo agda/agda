@@ -45,7 +45,7 @@ import Agda.Termination.SparseMatrix as Matrix hiding (tests)
 import Agda.Termination.Semiring (HasZero(..), Semiring)
 import qualified Agda.Termination.Semiring as Semiring
 
-import Agda.Utils.Favorites (Favorites(..))
+import Agda.Utils.Favorites (Favorites(Favorites))
 import qualified Agda.Utils.Favorites as Fav
 import Agda.Utils.Graph.AdjacencyMap.Unidirectional (Edge(..),Graph(..))
 import qualified Agda.Utils.Graph.AdjacencyMap.Unidirectional as Graph

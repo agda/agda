@@ -1,4 +1,4 @@
-{-# LANGUAGE CPP, NoImplicitPrelude, DeriveFoldable #-}
+{-# LANGUAGE CPP, TemplateHaskell, NoImplicitPrelude, DeriveFoldable #-}
 
 -- | Maintaining a list of favorites of some partially ordered type.
 --   Only the best elements are kept.
@@ -12,22 +12,39 @@
 module Agda.Utils.Favorites where
 
 import Data.Bool
-import Data.Function
-import qualified Data.List as List
-
+import Data.Eq
+import Data.Ord
 import Data.Foldable (Foldable)
+import Data.Functor
+import Data.Function
+import Data.List (all)
+import qualified Data.List as List
+import Data.Set (Set)
+import qualified Data.Set as Set
 
-import Agda.Utils.PartialOrd
+import System.IO
+import Text.Show
+import Test.QuickCheck.All
+
+import Agda.Utils.PartialOrd hiding (tests)
+import Agda.Utils.QuickCheck
+import Agda.Utils.TestHelpers
 
 #include "../undefined.h"
 import Agda.Utils.Impossible
 
 -- | A list of incomparable favorites.
-newtype Favorites a = Favorites { favorites :: [a] }
-  deriving (Foldable)
+newtype Favorites a = Favorites { toList :: [a] }
+  deriving (Foldable, Show)
 
+-- | Equality checking is a bit expensive, since we need to sort!
+--   Maybe use a 'Set' of favorites in the first place?
+instance Ord a => Eq (Favorites a) where
+  as == bs = Set.fromList (toList as) == Set.fromList (toList bs)
+
+-- | No favories yet?
 null :: Favorites a -> Bool
-null = List.null . favorites
+null = List.null . toList
 
 -- | No favorites yet.  Poor me!
 empty :: Favorites a
@@ -85,3 +102,51 @@ insert a l = insertCompared a l (compareWithFavorites a l)
 -- | Insert all the favorites from the first list into the second.
 union :: PartialOrd a => Favorites a -> Favorites a -> Favorites a
 union (Favorites as) bs = List.foldr insert bs as
+
+-- | Construct favorites from elements of a partial order.
+--   The result depends on the order of the list if it
+--   contains equal elements, since earlier seen elements
+--   are favored over later seen equals.
+--   The first element of the list is seen first.
+fromList :: PartialOrd a => [a] -> Favorites a
+fromList = List.foldl' (flip insert) empty
+
+------------------------------------------------------------------------
+-- * Properties
+------------------------------------------------------------------------
+
+instance (PartialOrd a, Arbitrary a) => Arbitrary (Favorites a) where
+  arbitrary = fromList <$> arbitrary
+
+property_null_empty = null empty
+
+property_not_null_singleton = not . null . singleton
+
+-- Remember: less is better!
+
+prop_compareWithFavorites a@ISet{} as =
+  case compareWithFavorites a as of
+    Dominates dominated notDominated ->
+      all (related a POLT) dominated &&
+      all (related a POAny) notDominated
+    IsDominated dominator ->
+      related a POGE dominator
+
+prop_fromList_after_toList :: Favorites ISet -> Bool
+prop_fromList_after_toList as =
+  fromList (toList as) == as
+
+------------------------------------------------------------------------
+-- * All tests
+------------------------------------------------------------------------
+
+-- | All tests as collected by 'quickCheckAll'.
+--
+--   Using 'quickCheckAll' is convenient and superior to the manual
+--   enumeration of tests, since the name of the property is
+--   added automatically.
+
+tests :: IO Bool
+tests = do
+  putStrLn "Agda.Utils.Favorites"
+  $quickCheckAll

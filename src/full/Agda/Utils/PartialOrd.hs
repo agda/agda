@@ -193,7 +193,7 @@ instance PartialOrd a => PartialOrd (Pointwise [a]) where
 -- | Inclusion comparison wrapper.
 
 newtype Inclusion a = Inclusion { inclusion :: a }
-  deriving (Eq, Show, Functor)
+  deriving (Eq, Ord, Show, Functor)
 
 -- | Sublist for ordered lists.
 
@@ -255,7 +255,7 @@ instance Arbitrary PartialOrdering where
 -- | We test our properties on integer sets ordered by inclusion.
 
 newtype ISet = ISet { iset :: Inclusion (Set Int) }
-  deriving (Eq, PartialOrd, Show)
+  deriving (Eq, Ord, PartialOrd, Show)
 
 instance Arbitrary ISet where
   arbitrary = ISet . Inclusion . Set.fromList <$> arbitrary
