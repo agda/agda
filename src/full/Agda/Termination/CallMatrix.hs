@@ -31,7 +31,8 @@ import Agda.Utils.QuickCheck
 import Agda.Utils.TestHelpers
 
 ------------------------------------------------------------------------
--- Call matrices
+--  * Call matrices
+------------------------------------------------------------------------
 
 -- | Call matrix indices.
 --
@@ -91,8 +92,7 @@ class CallComb a where
   (>*<) :: (?cutoff :: CutOff) => a -> a -> a
 
 -- | Call matrix multiplication.
---
--- Precondition: see 'Matrix.mul'.
+
 instance CallComb CallMatrix where
   CallMatrix m1 >*< CallMatrix m2 = CallMatrix $ mul orderSemiring m1 m2
 
@@ -104,7 +104,52 @@ addCallMatrices cm1 cm2 = CallMatrix $
 -}
 
 ------------------------------------------------------------------------
--- CallMatrix: Generators and tests
+-- * Call matrix augmented with path information.
+------------------------------------------------------------------------
+
+-- | Call matrix augmented with path information.
+
+data CallMatrixAug cinfo = CallMatrixAug
+  { augCallMatrix :: CallMatrix -- ^ The matrix of the (composed call).
+  , augCallInfo   :: cinfo      -- ^ Meta info, like call path.
+  }
+  deriving (Eq, Show)
+
+instance Diagonal (CallMatrixAug cinfo) Order where
+  diagonal = diagonal . augCallMatrix
+
+instance PartialOrd (CallMatrixAug cinfo) where
+  comparable m m' = comparable (augCallMatrix m) (augCallMatrix m')
+
+instance NotWorse (CallMatrixAug cinfo) where
+  c1 `notWorse` c2 = augCallMatrix c1 `notWorse` augCallMatrix c2
+
+-- | Augmented call matrix multiplication.
+
+instance Monoid cinfo => CallComb (CallMatrixAug cinfo) where
+  CallMatrixAug m1 p1 >*< CallMatrixAug m2 p2 =
+    CallMatrixAug (m1 >*< m2) (p1 <> p2)
+
+
+------------------------------------------------------------------------
+-- * Sets of incomparable call matrices augmented with path information.
+------------------------------------------------------------------------
+
+newtype CMSet cinfo = CMSet { cmSet :: Favorites (CallMatrixAug cinfo) }
+  deriving (Arbitrary, CoArbitrary)
+
+-- | Call matrix set product is the Cartesian product.
+
+instance Monoid cinfo => CallComb (CMSet cinfo) where
+  CMSet as >*< CMSet bs = CMSet $ Fav.fromList $
+    [ a >*< b | a <- Fav.toList as, b <- Fav.toList bs ]
+
+
+------------------------------------------------------------------------
+-- * Generators and tests
+------------------------------------------------------------------------
+
+-- ** CallMatrix
 
 instance Arbitrary CallMatrix where
   arbitrary = callMatrix =<< arbitrary
@@ -114,8 +159,17 @@ instance Arbitrary CallMatrix where
 callMatrix :: Size Index -> Gen CallMatrix
 callMatrix sz = CallMatrix <$> matrix sz
 
+-- ** CallMatrixAug
+
+instance Arbitrary cinfo => Arbitrary (CallMatrixAug cinfo) where
+  arbitrary = CallMatrixAug <$> arbitrary <*> arbitrary
+
+instance CoArbitrary cinfo => CoArbitrary (CallMatrixAug cinfo) where
+  coarbitrary (CallMatrixAug m info) = coarbitrary m . coarbitrary info
+
 ------------------------------------------------------------------------
--- All tests
+-- * All tests
+------------------------------------------------------------------------
 
 tests :: IO Bool
 tests = runTests "Agda.Termination.CallMatrix"
