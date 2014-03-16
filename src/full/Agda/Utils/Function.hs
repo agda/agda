@@ -1,6 +1,25 @@
 
 module Agda.Utils.Function where
 
+-- | A version of the trampoline function.
+--
+--   The usual function iterates @f :: a -> Maybe a@ as long
+--   as @Just{}@ is returned, and returns the last value of @a@
+--   upon @Nothing@.
+--
+--   @usualTrampoline f = trampoline $ \ a -> maybe (False,a) (True,) (f a)@.
+trampoline :: (a -> (Bool, a)) -> a -> a
+trampoline f = loop where
+  loop a = if again then loop a' else a'
+    where (again, a') = f a
+
+-- | Monadic version of 'trampoline'.
+trampolineM :: (Monad m) => (a -> m (Bool, a)) -> a -> m a
+trampolineM f = loop where
+  loop a = do
+    (again, a') <- f a
+    if again then loop a' else return a'
+
 -- | Iteration to fixed-point.
 --
 --   @iterateUntil r f a0@ iterates endofunction @f@, starting with @a0@,
