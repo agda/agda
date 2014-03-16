@@ -9,6 +9,7 @@ module Agda.Utils.TestHelpers
   , identity
   , leftDistributive
   , rightDistributive
+  , distributive
     -- * Generators
   , natural
   , positive
@@ -86,6 +87,16 @@ rightDistributive
   -> a -> a -> a -> Bool
 rightDistributive (*) (+) = \x y z ->
   (x + y) * z == (x * z) + (y * z)
+
+-- | Does the first operator distribute over the second one?
+
+distributive
+  :: (Arbitrary a, Eq a, Show a)
+  => (a -> a -> a) -> (a -> a -> a)
+  -> a -> a -> a -> Bool
+distributive (*) (+) = \ x y z ->
+  leftDistributive (*) (+) x y z &&
+  rightDistributive (*) (+) x y z
 
 ------------------------------------------------------------------------
 -- Generators

@@ -24,7 +24,7 @@ import Agda.Termination.Semiring (HasZero(..), Semiring)
 import qualified Agda.Termination.Semiring as Semiring
 
 import Agda.Utils.Monad
-import Agda.Utils.PartialOrd
+import Agda.Utils.PartialOrd hiding (tests)
 import Agda.Utils.QuickCheck
 import Agda.Utils.TestHelpers
 

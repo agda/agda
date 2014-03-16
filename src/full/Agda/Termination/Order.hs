@@ -27,7 +27,7 @@ import Agda.Termination.SparseMatrix as Matrix hiding (tests)
 import Agda.Termination.Semiring (HasZero(..), Semiring)
 import qualified Agda.Termination.Semiring as Semiring
 
-import Agda.Utils.PartialOrd
+import Agda.Utils.PartialOrd hiding (tests)
 import Agda.Utils.Pretty hiding (empty)
 import Agda.Utils.QuickCheck
 import Agda.Utils.TestHelpers
