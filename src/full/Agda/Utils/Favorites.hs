@@ -18,6 +18,7 @@ import Data.Ord
 import Data.Foldable (Foldable)
 import Data.Functor
 import Data.Function
+import Data.Monoid
 import Data.List (all, (++))
 import qualified Data.List as List
 import Data.Set (Set)
@@ -132,6 +133,11 @@ union (Favorites as) bs = List.foldr insert bs as
 --   The first element of the list is seen first.
 fromList :: PartialOrd a => [a] -> Favorites a
 fromList = List.foldl' (flip insert) empty
+
+-- | 'Favorites' forms a 'Monoid' under 'empty' and 'union.
+instance PartialOrd a => Monoid (Favorites a) where
+  mempty  = empty
+  mappend = union
 
 ------------------------------------------------------------------------
 -- * Properties
