@@ -18,22 +18,27 @@ module Agda.Utils.Graph.AdjacencyMap.Unidirectional
   , edges
   , edgesFrom
   , edgesTo
-  , nodes
-  , filterEdges
-  , fromNodes
-  , fromList
-  , empty
-  , singleton
-  , insert
-  , removeNode
-  , removeEdge
-  , union
-  , unions
   , lookup
   , neighbours
+  , sourceNodes, targetNodes
+  , Nodes(..)
+  , computeNodes, nodes
+  , fromNodes
+  , fromList, fromListWith
+  , empty
+  , singleton
+  , insert, insertWith
+  , insertEdge, insertEdgeWith
+  , union , unionWith
+  , unions, unionsWith
+  , removeNode
+  , removeEdge
+  , filterEdges
+  , unzip
   , sccs'
   , sccs
   , acyclic
+  , composeWith
   , transitiveClosure1
   , transitiveClosure
   , findPath
@@ -44,7 +49,7 @@ module Agda.Utils.Graph.AdjacencyMap.Unidirectional
   )
   where
 
-import Prelude hiding (lookup)
+import Prelude hiding (lookup, unzip)
 
 import Control.Applicative ((<$>), (<*>))
 
@@ -219,7 +224,7 @@ singleton s t e = Graph $ Map.singleton s (Map.singleton t e)
 insert :: (Ord s, Ord t) => s -> t -> e -> Graph s t e -> Graph s t e
 insert = insertWith $ \ new old -> new
 
-insertEdge :: (SemiRing e, Ord s, Ord t) => Edge s t e -> Graph s t e -> Graph s t e
+insertEdge :: (Ord s, Ord t) => Edge s t e -> Graph s t e -> Graph s t e
 insertEdge (Edge s t e) = insert s t e
 
 -- | Insert an edge, possibly combining @old@ edge weight with @new@ weight by
@@ -304,6 +309,11 @@ removeEdge s t (Graph g) = Graph $ Map.adjust (Map.delete t) s g
 
 filterEdges :: (Ord s, Ord t) => (e -> Bool) -> Graph s t e -> Graph s t e
 filterEdges f (Graph g) = Graph $ Map.mapMaybe (discardEmpty . Map.filter f) g
+
+-- | Unzipping a graph (naive implementation using fmap).
+
+unzip :: Graph s t (e, e') -> (Graph s t e, Graph s t e')
+unzip g = (fst <$> g, snd <$> g)
 
 -- * Strongly connected components.
 
