@@ -543,10 +543,9 @@ callGHC modIsMain i = do
   opts       <- optGhcFlags <$> commandLineOptions
 
   let overridableArgs =
-        [ "-O"
-        , "-o", mdir </> show outputName
-        , "-Werror"
-        ]
+        [ "-O"] ++
+        (if modIsMain then ["-o", mdir </> show outputName] else []) ++
+        [ "-Werror"]
       otherArgs       =
         [ "-i" ++ mdir] ++
         (if modIsMain then ["-main-is", hsmod] else []) ++
