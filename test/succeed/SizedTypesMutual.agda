@@ -1,6 +1,8 @@
 {-# OPTIONS --copatterns --sized-types #-}
 
 -- {-# OPTIONS -v tc.size:60 #-}
+-- {-# OPTIONS -v term:20 -vterm.matrices:40 #-}
+
 
 module SizedTypesMutual where
 

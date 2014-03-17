@@ -35,10 +35,12 @@ import Agda.Syntax.Literal (Literal(LitString))
 
 import Agda.Termination.CutOff
 import Agda.Termination.Monad
-import Agda.Termination.CallGraph as Term
-import Agda.Termination.CallMatrix
+import Agda.Termination.CallGraph (CallGraph)
+import Agda.Termination.CallGraph as CallGraph
+import Agda.Termination.CallMatrix hiding (null)
 import Agda.Termination.Order     as Order
 import qualified Agda.Termination.SparseMatrix as Matrix
+import Agda.Termination.Termination (endos, idempotent)
 import qualified Agda.Termination.Termination  as Term
 import Agda.Termination.RecCheck
 import Agda.Termination.Inlining
@@ -56,31 +58,23 @@ import Agda.TypeChecking.SizedTypes
 
 import Agda.Interaction.Options
 
+import Agda.Utils.Either
 import Agda.Utils.Function
 import Agda.Utils.Functor (($>), (<.>))
 import Agda.Utils.List
 import Agda.Utils.Size
 import Agda.Utils.Maybe
 import Agda.Utils.Monad -- (mapM', forM', ifM, or2M, and2M)
-import Agda.Utils.Pointed
 import Agda.Utils.Permutation
+import Agda.Utils.Pointed
+import Agda.Utils.Pretty (render)
 
 #include "../undefined.h"
 import Agda.Utils.Impossible
 
+-- | Call graph with call info for composed calls.
 
--- | The call information is stored as free monoid
---   over 'CallInfo'.  As long as we never look at it,
---   only accumulate it, it does not matter whether we use
---   'Set', (nub) list, or 'Tree'.
---   Internally, due to lazyness, it is anyway a binary tree of
---   'mappend' nodes and singleton leafs.
---   Since we define no order on 'CallInfo' (expensive),
---   we cannot use a 'Set' or nub list.
---   Performance-wise, I could not see a difference between Set and list.
-
-type Calls = Term.CallGraph [CallInfo]
-
+type Calls = CallGraph CallPath
 
 -- | The result of termination checking a module.
 --   Must be 'Pointed' and a 'Monoid'.
@@ -215,7 +209,7 @@ termMutual i ds = if names == [] then return mempty else
          (runTerm tenv $ termMutual')
 
      -- record result of termination check in signature
-     let terminates = null res
+     let terminates = List.null res
      forM_ allNames $ \ q -> setTerminates q terminates
      return res
 
@@ -265,7 +259,7 @@ termMutual' = do
     Left calls -> do
       return $ point $ TerminationError
                 { termErrFunctions = names
-                , termErrCalls     = calls
+                , termErrCalls     = callInfos calls
                 }
     Right{} -> do
       liftTCM $ reportSLn "term.warn.yes" 2 $
@@ -303,31 +297,31 @@ reportCalls no calls = do
            [ text   $ header s
            , nest 2 $ pretty cs
            ]
-         cs0     = completionInit calls
+         cs0     = calls
          step cs = do
-           let cs' = completionStep cs0 cs
-               diff = CallGraph $ theCallGraph cs' Map.\\ theCallGraph cs
-           report " New call matrices " diff
-           return cs'
+           let (new, cs') = completionStep cs0 cs
+           report " New call matrices " new
+           return (not $ CallGraph.null new, cs')
      report " Initial call matrices " cs0
-     void $ iterateUntilM notWorse step cs0
+     void $ trampolineM step cs0
 
    -- Print the result of completion.
-   let calls' = Term.complete calls
-       (idems, others) = List.partition (Term.idempotent . fst) $
-         Term.toList calls'
-   reportSDoc "term.behaviours" 20 $ vcat
-     [ text $ "Recursion behaviours (" ++ no ++ "dot patterns):"
-     , nest 2 $ return $ Term.prettyBehaviour calls'
-     ]
+   let calls' = CallGraph.complete calls
+       idems = filter idempotent $ endos $ CallGraph.toList calls'
+   -- TODO
+   -- reportSDoc "term.behaviours" 20 $ vcat
+   --   [ text $ "Recursion behaviours (" ++ no ++ "dot patterns):"
+   --   , nest 2 $ return $ Term.prettyBehaviour calls'
+   --   ]
    reportSDoc "term.matrices" 30 $ vcat
      [ text $ "Idempotent call matrices (" ++ no ++ "dot patterns):"
-     , nest 2 $ pretty $ Term.fromList idems
+     , nest 2 $ vcat $ map pretty idems
      ]
-   reportSDoc "term.matrices" 30 $ vcat
-     [ text $ "Other call matrices (" ++ no ++ "dot patterns):"
-     , nest 2 $ pretty $ Term.fromList others
-     ]
+   -- reportSDoc "term.matrices" 30 $ vcat
+   --   [ text $ "Other call matrices (" ++ no ++ "dot patterns):"
+   --   , nest 2 $ pretty $ CallGraph.fromList others
+   --   ]
+   return ()
 
 -- | @termFunction name@ checks @name@ for termination.
 
@@ -359,12 +353,12 @@ termFunction name = do
     cutoff <- terGetCutOff
     let ?cutoff = cutoff
     case Term.terminatesFilter (== index) calls1 of
-      r@Right{} -> return r
+      Right () -> return $ Right ()
       Left{}    -> do
         -- Try again, but include the dot patterns this time.
         calls2 <- terSetUseDotPatterns True $ collect
         reportCalls "" calls2
-        return $ Term.terminatesFilter (== index) calls2
+        return $ mapLeft callInfos $ Term.terminatesFilter (== index) calls2
 
    names <- terGetUserNames
    case r of
@@ -373,7 +367,7 @@ termFunction name = do
          { termErrFunctions = if name `elem` names then [name] else []
          , termErrCalls     = calls
          }
-     Right{} -> do
+     Right () -> do
        liftTCM $ reportSLn "term.warn.yes" 2 $
          show (name) ++ " does termination check"
        return mempty
@@ -407,7 +401,7 @@ termDef name = terSetCurrent name $ do
     Function{ funClauses = cls, funDelayed = delayed } ->
       terSetDelayed delayed $ forM' cls $ termClause
 
-    _ -> return Term.empty
+    _ -> return CallGraph.empty
 
 
 {- Termination check clauses:
@@ -531,7 +525,7 @@ termClause' clause = do
     ps <- liftTCM $ normalise $ map unArg argPats'
     (dbpats, res) <- openClause perm ps body
     case res of
-      Nothing -> return Term.empty
+      Nothing -> return CallGraph.empty
       Just v -> do
         dbpats <- mapM stripCoConstructors dbpats
         terSetPatterns dbpats $ do
@@ -618,14 +612,14 @@ instance ExtractCalls a => ExtractCalls (I.Dom a) where
   extract = extract . unDom
 
 instance ExtractCalls a => ExtractCalls (Elim' a) where
-  extract Proj{}    = return Term.empty
+  extract Proj{}    = return CallGraph.empty
   extract (Apply a) = extract $ unArg a
 
 instance ExtractCalls a => ExtractCalls [a] where
   extract = mapM' extract
 
 instance (ExtractCalls a, ExtractCalls b) => ExtractCalls (a,b) where
-  extract (a, b) = Term.union <$> extract a <*> extract b
+  extract (a, b) = CallGraph.union <$> extract a <*> extract b
 
 -- | Sorts can contain arbitrary terms of type @Level@,
 --   so look for recursive calls also in sorts.
@@ -645,10 +639,10 @@ instance ExtractCalls Sort where
     -- However, the termination checker should only receive terms
     -- that are already fully instantiated.
     case s of
-      Prop                       -> return Term.empty
-      Inf                        -> return Term.empty
-      Type (Max [])              -> return Term.empty
-      Type (Max [ClosedLevel{}]) -> return Term.empty
+      Prop                       -> return CallGraph.empty
+      Inf                        -> return CallGraph.empty
+      Type (Max [])              -> return CallGraph.empty
+      Type (Max [ClosedLevel{}]) -> return CallGraph.empty
       Type t                     -> terSetGuarded Order.unknown $
         extract $ Level t    -- no guarded levels
       DLub s1 s2                 -> extract (s1, s2)
@@ -796,13 +790,7 @@ function g es = ifJustM (isWithFunction g) (\ _ -> withFunction g es)
          let ?cutoff = cutoff
          let matrix' = composeGuardedness (ifDelayed guarded) matrix
 
-         liftTCM $ reportSDoc "term.kept.call" 5
-           (sep [ text "kept call from" <+> prettyTCM f
-                   <+> hsep (map prettyTCM pats)
-                , nest 2 $ text "to" <+> prettyTCM g <+>
-                            hsep (map (parens . prettyTCM) args)
-                , nest 2 $ text ("call matrix (with guardedness): " ++ show matrix')
-                ])
+         gPretty <-liftTCM $ render <$> prettyTCM g
 
          -- Andreas, 2013-05-19 as pointed out by Andrea Vezzosi,
          -- printing the call eagerly is forbiddingly expensive.
@@ -811,22 +799,30 @@ function g es = ifJustM (isWithFunction g) (\ _ -> withFunction g es)
          -- This saves 30s (12%) on the std-lib!
          doc <- liftTCM $ buildClosure gArgs
 {-
-         let call = Term.Call
-                      { Term.source = fromMaybe __IMPOSSIBLE__ $
+         let call = CallGraph.Call
+                      { CallGraph.source = fromMaybe __IMPOSSIBLE__ $
                           List.elemIndex f names
-                      , Term.target = gInd
-                      , Term.cm     = makeCM ncols nrows matrix'
+                      , CallGraph.target = gInd
+                      , CallGraph.cm     = makeCM ncols nrows matrix'
                       }
-         return $ Term.insert call info calls
+         return $ CallGraph.insert call info calls
 -}
          let src  = fromMaybe __IMPOSSIBLE__ $ List.elemIndex f names
              tgt  = gInd
              cm   = makeCM ncols nrows matrix'
-             info = point $ CallInfo
-                      { callInfoRange = getRange g
-                      , callInfoCall  = doc
-                      }
-         return $ Term.insert src tgt cm info calls
+             info = CallPath [CallInfo
+                      { callInfoTarget = gPretty
+                      , callInfoRange  = getRange g
+                      , callInfoCall   = doc
+                      }]
+         liftTCM $ reportSDoc "term.kept.call" 5 $ vcat
+           [ text "kept call from" <+> prettyTCM f <+> hsep (map prettyTCM pats)
+           , nest 2 $ text "to" <+> text gPretty <+>
+                       hsep (map (parens . prettyTCM) args)
+           , nest 2 $ text "call matrix (with guardedness): "
+           , nest 2 $ pretty cm
+           ]
+         return $ CallGraph.insert src tgt cm info calls
 
 -- | Extract recursive calls from a term.
 
@@ -869,24 +865,24 @@ instance ExtractCalls Term where
       Var i es -> terUnguarded $ extract es
 
       -- Dependent function space.
-      Pi a (Abs x b) -> Term.union <$> (terUnguarded $ extract a) <*> do
+      Pi a (Abs x b) -> CallGraph.union <$> (terUnguarded $ extract a) <*> do
          a <- maskSizeLt a  -- OR: just do not add a to the context!
          terPiGuarded $ addCtxString x a $ terRaise $ extract b
 
       -- Non-dependent function space.
-      Pi a (NoAbs _ b) -> Term.union
+      Pi a (NoAbs _ b) -> CallGraph.union
          <$> terUnguarded (extract a)
          <*> terPiGuarded (extract b)
 
       -- Literal.
-      Lit l -> return Term.empty
+      Lit l -> return CallGraph.empty
 
       -- Sort.
       Sort s -> extract s
 
       -- Unsolved metas are not considered termination problems, there
       -- will be a warning for them anyway.
-      MetaV x args -> return Term.empty
+      MetaV x args -> return CallGraph.empty
 
       -- Erased and not-yet-erased proof.
       DontCare t -> extract t
@@ -997,7 +993,7 @@ compareProj d d'
         _ -> return Order.unknown
 
 -- | 'makeCM' turns the result of 'compareArgs' into a proper call matrix
-makeCM :: Index -> Index -> [[Order]] -> CallMatrix
+makeCM :: Int -> Int -> [[Order]] -> CallMatrix
 makeCM ncols nrows matrix = CallMatrix $
   Matrix.fromLists (Matrix.Size nrows ncols) matrix
 

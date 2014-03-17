@@ -442,12 +442,12 @@ prop_addRow m =
 -- * Printing
 ------------------------------------------------------------------------
 
-instance (Ord i, Integral i, Enum i, Ix i, Show i, Show b, HasZero b) => Show (Matrix i b) where
+instance (Integral i, HasZero b, Show i, Show b) => Show (Matrix i b) where
   showsPrec _ m =
     showString "Agda.Termination.SparseMatrix.fromLists " . shows (size m) .
     showString " " . shows (toLists m)
 
-instance (Show i, Integral i, Ix i, HasZero b, Pretty b) =>
+instance (Integral i, HasZero b, Pretty b) =>
          Pretty (Matrix i b) where
   pretty = vcat . map (hsep . map pretty) . toLists
 

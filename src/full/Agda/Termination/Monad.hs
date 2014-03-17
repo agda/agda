@@ -16,6 +16,7 @@ import Control.Monad.Writer
 import Control.Monad.State
 
 import Data.Functor ((<$>))
+import qualified Data.List as List
 
 import Agda.Interaction.Options (defaultCutOff)
 
@@ -32,6 +33,8 @@ import Agda.TypeChecking.Monad
 import Agda.TypeChecking.Pretty
 
 import Agda.Utils.Monad
+import Agda.Utils.Pretty (Pretty)
+import qualified Agda.Utils.Pretty as P
 
 #include "../undefined.h"
 import Agda.Utils.Impossible
@@ -272,3 +275,27 @@ unusedVar = LitDBP (LitString noRange "term.unused.pat.var")
 raiseDBP :: Int -> DeBruijnPats -> DeBruijnPats
 raiseDBP 0 = id
 raiseDBP n = map $ fmap (n +)
+
+
+-- * Call pathes
+
+-- | The call information is stored as free monoid
+--   over 'CallInfo'.  As long as we never look at it,
+--   only accumulate it, it does not matter whether we use
+--   'Set', (nub) list, or 'Tree'.
+--   Internally, due to lazyness, it is anyway a binary tree of
+--   'mappend' nodes and singleton leafs.
+--   Since we define no order on 'CallInfo' (expensive),
+--   we cannot use a 'Set' or nub list.
+--   Performance-wise, I could not see a difference between Set and list.
+
+newtype CallPath = CallPath { callInfos :: [CallInfo] }
+  deriving (Show, Monoid)
+
+-- | Only show intermediate nodes.  (Drop last 'CallInfo').
+instance Pretty CallPath where
+  pretty (CallPath cis0) = if List.null cis then P.empty else
+    P.hsep (map (\ ci -> arrow P.<+> P.pretty ci) cis) P.<+> arrow
+    where
+      cis   = init cis0
+      arrow = P.text "-->"

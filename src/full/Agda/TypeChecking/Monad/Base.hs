@@ -1222,16 +1222,20 @@ data OccPos = NonPositively | ArgumentTo Nat QName
 -- | Information about a call.
 
 data CallInfo = CallInfo
-  { callInfoRange :: Range
-    -- ^ Range of the head identifier.
+  { callInfoTarget :: String
+    -- ^ Target function name pretty-printed.
+  , callInfoRange :: Range
+    -- ^ Range of the target function.
   , callInfoCall :: Closure Term
     -- ^ To be formatted representation of the call.
   } deriving Typeable
 
 -- no Eq, Ord instances: too expensive! (see issues 851, 852)
 
--- | This 'Show' is rudimentary, but probably also unused.
-instance Show CallInfo where show = show . callInfoRange
+-- | We only 'show' the name of the callee.
+instance Show CallInfo where show = callInfoTarget
+
+instance Pretty CallInfo where pretty = text . callInfoTarget
 
 -- | Information about a mutual block which did not pass the
 -- termination checker.

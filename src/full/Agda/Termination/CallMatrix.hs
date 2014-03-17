@@ -3,12 +3,14 @@
   GeneralizedNewtypeDeriving, StandaloneDeriving, DeriveFunctor,
   DeriveFoldable, DeriveTraversable #-}
 
-module Agda.Termination.CallMatrix
-  ( CallMatrix'(..), CallMatrix
-  , callMatrix
-  , CallComb(..)
-  , tests
-  ) where
+module Agda.Termination.CallMatrix where
+
+-- module Agda.Termination.CallMatrix
+--   ( CallMatrix'(..), CallMatrix
+--   , callMatrix
+--   , CallComb(..)
+--   , tests
+--   ) where
 
 import Data.List as List hiding (union, insert)
 import Data.Monoid
@@ -18,7 +20,7 @@ import Data.Traversable (Traversable)
 import qualified Data.Traversable as Trav
 
 import Agda.Termination.CutOff
-import Agda.Termination.Order hiding (tests)
+import Agda.Termination.Order as Order hiding (tests)
 import Agda.Termination.SparseMatrix as Matrix hiding (tests)
 import Agda.Termination.Semiring (HasZero(..), Semiring)
 import qualified Agda.Termination.Semiring as Semiring
@@ -27,6 +29,7 @@ import Agda.Utils.Favorites (Favorites)
 import qualified Agda.Utils.Favorites as Fav
 import Agda.Utils.Monad
 import Agda.Utils.PartialOrd hiding (tests)
+import Agda.Utils.Pretty hiding ((<>))
 import Agda.Utils.QuickCheck
 import Agda.Utils.TestHelpers
 
@@ -34,12 +37,12 @@ import Agda.Utils.TestHelpers
 --  * Call matrices
 ------------------------------------------------------------------------
 
--- | Call matrix indices.
+-- | Call matrix indices = function argument indices.
 --
---   Machine integer 'Int' is sufficient, since we cannot index more than
---   we have addresses on our machine.
+--   Machine integer 'Int' is sufficient, since we cannot index more arguments
+--   than we have addresses on our machine.
 
-type Index = Int
+type ArgumentIndex = Int
 
 -- | Call matrices.
 --
@@ -74,8 +77,28 @@ type Index = Int
 --            = -1   n <= n     and  n < c2 n d
 --            ? -1                   d < c2 n d
 --   @
+--
+--   Here is a part of the original documentation for call matrices
+--   (kept for historical reasons):
+--
+--   This datatype encodes information about a single recursive
+--   function application. The columns of the call matrix stand for
+--   'source' function arguments (patterns). The rows of the matrix stand for
+--   'target' function arguments. Element @(i, j)@ in the matrix should
+--   be computed as follows:
+--
+--     * 'Order.lt' (less than) if the @j@-th argument to the 'target'
+--       function is structurally strictly smaller than the @i@-th
+--       pattern.
+--
+--     * 'Order.le' (less than or equal) if the @j@-th argument to the
+--       'target' function is structurally smaller than the @i@-th
+--       pattern.
+--
+--     * 'Order.unknown' otherwise.
 
-newtype CallMatrix' a = CallMatrix { mat :: Matrix Index a }
+
+newtype CallMatrix' a = CallMatrix { mat :: Matrix ArgumentIndex a }
   deriving (Eq, Ord, Show, Functor, Foldable, Traversable, CoArbitrary, PartialOrd)
 
 type CallMatrix = CallMatrix' Order
@@ -92,9 +115,22 @@ class CallComb a where
   (>*<) :: (?cutoff :: CutOff) => a -> a -> a
 
 -- | Call matrix multiplication.
+--
+--   @f --(m1)--> g --(m2)--> h@  is combined to @f --(m2 `mul` m1)--> h@
+--
+--   Note the reversed order of multiplication:
+--   The matrix @c1@ of the second call @g-->h@ in the sequence
+--   @f-->g-->h@ is multiplied with the matrix @c2@ of the first call.
+--
+--   Preconditions:
+--   @m1@ has dimensions @ar(g) × ar(f)@.
+--   @m2@ has dimensions @ar(h) × ar(g)@.
+--
+--   Postcondition:
+--   @m1 >*< m2@ has dimensions @ar(h) × ar(f)@.
 
 instance CallComb CallMatrix where
-  CallMatrix m1 >*< CallMatrix m2 = CallMatrix $ mul orderSemiring m1 m2
+  CallMatrix m1 >*< CallMatrix m2 = CallMatrix $ mul orderSemiring m2 m1
 
 {- UNUSED, BUT DON'T REMOVE!
 -- | Call matrix addition = minimum = pick worst information.
@@ -130,13 +166,17 @@ instance Monoid cinfo => CallComb (CallMatrixAug cinfo) where
   CallMatrixAug m1 p1 >*< CallMatrixAug m2 p2 =
     CallMatrixAug (m1 >*< m2) (p1 <> p2)
 
+-- | Non-augmented call matrix.
+
+noAug :: Monoid cinfo => CallMatrix -> CallMatrixAug cinfo
+noAug m = CallMatrixAug m mempty
 
 ------------------------------------------------------------------------
 -- * Sets of incomparable call matrices augmented with path information.
 ------------------------------------------------------------------------
 
 newtype CMSet cinfo = CMSet { cmSet :: Favorites (CallMatrixAug cinfo) }
-  deriving (Arbitrary, CoArbitrary)
+  deriving (Show, Arbitrary, CoArbitrary, Monoid)
 
 -- | Call matrix set product is the Cartesian product.
 
@@ -144,6 +184,50 @@ instance Monoid cinfo => CallComb (CMSet cinfo) where
   CMSet as >*< CMSet bs = CMSet $ Fav.fromList $
     [ a >*< b | a <- Fav.toList as, b <- Fav.toList bs ]
 
+-- | An empty call matrix set.
+
+empty :: CMSet cinfo
+empty = mempty
+-- empty = CMSet $ Fav.empty
+
+-- | Call matrix is empty?
+
+null ::  CMSet cinfo -> Bool
+null (CMSet as) = Fav.null as
+
+-- | A singleton call matrix set.
+
+singleton :: CallMatrixAug cinfo -> CMSet cinfo
+singleton = CMSet . Fav.singleton
+
+-- | Insert into a call matrix set.
+
+insert :: CallMatrixAug cinfo -> CMSet cinfo -> CMSet cinfo
+insert a (CMSet as) = CMSet $ Fav.insert a as
+
+-- | Union two call matrix sets.
+
+union :: CMSet cinfo -> CMSet cinfo -> CMSet cinfo
+union = mappend
+-- union (CMSet as) (CMSet bs) = CMSet $ Fav.union as bs
+
+-- | Convert into a list of augmented call matrices.
+
+toList :: CMSet cinfo -> [CallMatrixAug cinfo]
+toList (CMSet as) = Fav.toList as
+
+------------------------------------------------------------------------
+-- * Printing
+------------------------------------------------------------------------
+
+instance Pretty CallMatrix where
+  pretty (CallMatrix m) = pretty m
+
+instance Pretty cinfo => Pretty (CallMatrixAug cinfo) where
+  pretty (CallMatrixAug m cinfo) = pretty cinfo $$ pretty m
+
+instance Pretty cinfo => Pretty (CMSet cinfo) where
+  pretty ms = vcat $ map pretty $ toList ms
 
 ------------------------------------------------------------------------
 -- * Generators and tests
@@ -156,7 +240,7 @@ instance Arbitrary CallMatrix where
 
 -- | Generates a call matrix of the given size.
 
-callMatrix :: Size Index -> Gen CallMatrix
+callMatrix :: Size ArgumentIndex -> Gen CallMatrix
 callMatrix sz = CallMatrix <$> matrix sz
 
 -- ** CallMatrixAug
@@ -192,12 +276,12 @@ tests = runTests "Agda.Termination.CallMatrix"
 
 -- -- | Generates a call matrix of the given size.
 
--- callMatrix :: Size Index -> Gen CallMatrix
+-- callMatrix :: Size ArgumentIndex -> Gen CallMatrix
 -- callMatrix sz = do
 --   m <- matrixUsingRowGen sz rowGen
 --   return $ CallMatrix { mat = m }
 --   where
---   rowGen :: Index -> Gen [Order]
+--   rowGen :: ArgumentIndex -> Gen [Order]
 --   rowGen 0 = return []
 --   rowGen n = do
 --     x <- arbitrary

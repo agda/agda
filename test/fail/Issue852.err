@@ -2,8 +2,6 @@
 Termination checking failed for the following functions:
   ℓ, ℓ′
 Problematic calls:
-  ℓ
-  ℓ′
   ℓ (at Issue852.agda:9,22-23)
   ℓ′
     (at Issue852.agda:12,23-25)
