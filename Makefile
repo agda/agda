@@ -182,7 +182,7 @@ TAGS :
 
 quick : install-O0-bin quicktest
 
-test : check-whitespace succeed fail interaction latex-test examples library-test lib-succeed # epic-test compiler-test tests
+test : check-whitespace succeed fail interaction latex-test examples library-test lib-succeed compiler-test # epic-test tests
 
 quicktest : succeed fail
 
