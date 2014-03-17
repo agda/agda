@@ -625,6 +625,31 @@ Type checking
 
 Compiler backends
 =================
+* The MAlonzo compiler backend now has support for compiling modules
+  that are not full programs (i.e. don't have a main function). The
+  goal is that you can write part of a program in Agda and the rest in
+  Haskell, and invoke the Agda functions from the Haskell code. The
+  following features were added for this reason:
+  * a new command-line option --compile-no-main: the command
+      agda --compile-no-main Test.agda
+    will compile Test.agda and all its dependencies to Haskell and
+    compile the resulting Haskell files with --make, but (unlike
+    --compile) not tell GHC to treat Test.hs as the main module. This
+    type of compilation can be invoked from emacs by customizing the
+    agda2-backend variable to value MAlonzoNoMain and then calling
+    "C-c C-x C-c" as before.
+  * A new pragma COMPILED_EXPORT was added as part of the MAlonzo FFI.
+    If we have an agda file containing the following:
+       module A.B where
+
+       test : SomeType
+       test = someImplementation
+
+       {-# COMPILED_EXPORT test someHaskellId #-}
+    then test will be compiled to a Haskell function called
+    someHaskellId in module MAlonzo.Code.A.B that can be invoked from
+    other Haskell code. Its type will be translated according to the
+    normal MAlonzo rules.
 
 Tools
 =====

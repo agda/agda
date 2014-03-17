@@ -72,6 +72,7 @@ data CommandLineOptions =
             , optRunTests             :: Bool
             , optGHCiInteraction      :: Bool
             , optCompile              :: Bool
+            , optCompileNoMain        :: Bool
             , optEpicCompile          :: Bool
             , optJSCompile            :: Bool
             , optCompileDir           :: Maybe FilePath
@@ -147,6 +148,7 @@ defaultOptions =
             , optRunTests             = False
             , optGHCiInteraction      = False
             , optCompile              = False
+            , optCompileNoMain        = False
             , optEpicCompile          = False
             , optJSCompile            = False
             , optCompileDir           = Nothing
@@ -214,11 +216,11 @@ type Flag opts = opts -> Either String opts
 
 checkOpts :: Flag CommandLineOptions
 checkOpts opts
-  | not (atMostOne [optAllowUnsolved . p, optCompile]) = Left
+  | not (atMostOne [optAllowUnsolved . p, \x -> optCompile x || optCompileNoMain x]) = Left
       "Unsolved meta variables are not allowed when compiling.\n"
   | not (atMostOne [optGHCiInteraction, isJust . optInputFile]) =
       Left "Choose at most one: input file or --interaction.\n"
-  | not (atMostOne $ interactive ++ [optCompile, optEpicCompile, optJSCompile]) =
+  | not (atMostOne $ interactive ++ [\x -> optCompile x || optCompileNoMain x, optEpicCompile, optJSCompile]) =
       Left "Choose at most one: compilers/--interactive/--interaction.\n"
   | not (atMostOne $ interactive ++ [optGenerateHTML]) =
       Left "Choose at most one: --html/--interactive/--interaction.\n"
@@ -306,12 +308,13 @@ interactiveFlag  o = return $ o { optInteractive    = True
                                 , optPragmaOptions  = (optPragmaOptions o)
                                                         { optAllowUnsolved = True }
                                 }
-compileFlag      o = return $ o { optCompile    = True }
-compileEpicFlag  o = return $ o { optEpicCompile = True}
-compileJSFlag    o = return $ o { optJSCompile = True}
-compileDirFlag f o = return $ o { optCompileDir = Just f }
-ghcFlag        f o = return $ o { optGhcFlags   = optGhcFlags o  ++ [f] }  -- NOTE: Quadratic in number of flags.
-epicFlagsFlag  s o = return $ o { optEpicFlags  = optEpicFlags o ++ [s] }  -- NOTE: Quadratic in number of flags.
+compileFlag        o = return $ o { optCompile    = True }
+compileFlagNoMain  o = return $ o { optCompileNoMain = True }
+compileEpicFlag    o = return $ o { optEpicCompile = True}
+compileJSFlag      o = return $ o { optJSCompile = True}
+compileDirFlag f   o = return $ o { optCompileDir = Just f }
+ghcFlag        f   o = return $ o { optGhcFlags   = optGhcFlags o  ++ [f] }  -- NOTE: Quadratic in number of flags.
+epicFlagsFlag  s   o = return $ o { optEpicFlags  = optEpicFlags o ++ [s] }  -- NOTE: Quadratic in number of flags.
 
 htmlFlag      o = return $ o { optGenerateHTML = True }
 dependencyGraphFlag f o = return $ o { optDependencyGraph  = Just f }
@@ -353,6 +356,8 @@ standardOptions =
                     "for use with the Emacs mode"
     , Option ['c']  ["compile"] (NoArg compileFlag)
                     "compile program using the MAlonzo backend (experimental)"
+    , Option []  ["compile-no-main"] (NoArg compileFlagNoMain)
+                    "compile module and dependencies using the MAlonzo backend (experimental)"
     , Option []     ["epic"] (NoArg compileEpicFlag) "compile program using the Epic backend"
     , Option []     ["js"] (NoArg compileJSFlag) "compile program using the JS backend"
     , Option []     ["compile-dir"] (ReqArg compileDirFlag "DIR")

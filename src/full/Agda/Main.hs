@@ -65,11 +65,12 @@ runAgda = do
   where
     checkFile :: TCM ()
     checkFile = do
-      i       <- optInteractive     <$> liftTCM commandLineOptions
-      ghci    <- optGHCiInteraction <$> liftTCM commandLineOptions
-      compile <- optCompile         <$> liftTCM commandLineOptions
-      epic    <- optEpicCompile     <$> liftTCM commandLineOptions
-      js      <- optJSCompile       <$> liftTCM commandLineOptions
+      i             <- optInteractive     <$> liftTCM commandLineOptions
+      ghci          <- optGHCiInteraction <$> liftTCM commandLineOptions
+      compile       <- optCompile         <$> liftTCM commandLineOptions
+      compileNoMain <- optCompileNoMain   <$> liftTCM commandLineOptions
+      epic          <- optEpicCompile     <$> liftTCM commandLineOptions
+      js            <- optJSCompile       <$> liftTCM commandLineOptions
       when i $ liftIO $ putStr splashScreen
       let failIfNoInt (Just i) = return i
           -- The allowed combinations of command-line
@@ -80,12 +81,13 @@ runAgda = do
           failIfInt _ (Just _) = __IMPOSSIBLE__
 
           interaction :: TCM (Maybe Interface) -> TCM ()
-          interaction | i         = runIM . interactionLoop
-                      | ghci      = (failIfInt mimicGHCi =<<)
-                      | compile   = (MAlonzo.compilerMain =<<) . (failIfNoInt =<<)
-                      | epic      = (Epic.compilerMain    =<<) . (failIfNoInt =<<)
-                      | js        = (JS.compilerMain      =<<) . (failIfNoInt =<<)
-                      | otherwise = (() <$)
+          interaction | i             = runIM . interactionLoop
+                      | ghci          = (failIfInt mimicGHCi =<<)
+                      | compile       = (MAlonzo.compilerMain True =<<) . (failIfNoInt =<<)
+                      | compileNoMain = (MAlonzo.compilerMain False =<<) . (failIfNoInt =<<)
+                      | epic          = (Epic.compilerMain    =<<) . (failIfNoInt =<<)
+                      | js            = (JS.compilerMain      =<<) . (failIfNoInt =<<)
+                      | otherwise     = (() <$)
       interaction $ do
         hasFile <- hasInputFile
         -- Andreas, 2013-10-30 The following 'resetState' kills the

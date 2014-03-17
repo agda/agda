@@ -40,8 +40,8 @@ import qualified Agda.Utils.HashMap as HMap
 #include "../../undefined.h"
 import Agda.Utils.Impossible
 
-compilerMain :: Interface -> TCM ()
-compilerMain mainI =
+compilerMain :: Bool -> Interface -> TCM ()
+compilerMain modIsMain mainI =
   -- Preserve the state (the compiler modifies the state).
   localState $ do
 
@@ -60,7 +60,7 @@ compilerMain mainI =
     ignoreAbstractMode $ do
       mapM_ (compile . miInterface) =<< (M.elems <$> getVisitedModules)
       writeModule rteModule
-      callGHC mainI
+      callGHC modIsMain mainI
 
 compile :: Interface -> TCM ()
 compile i = do
@@ -530,8 +530,8 @@ outFile m = snd <$> outFile' m
 outFile_ :: TCM FilePath
 outFile_ = outFile =<< curHsMod
 
-callGHC :: Interface -> TCM ()
-callGHC i = do
+callGHC :: Bool -> Interface -> TCM ()
+callGHC modIsMain i = do
   setInterface i
   mdir          <- compileDir
   hsmod         <- prettyPrint <$> curHsMod
@@ -548,9 +548,9 @@ callGHC i = do
         , "-Werror"
         ]
       otherArgs       =
-        [ "-i" ++ mdir
-        , "-main-is", hsmod
-        , fp
+        [ "-i" ++ mdir] ++
+        (if modIsMain then ["-main-is", hsmod] else []) ++
+        [ fp
         , "--make"
         , "-fwarn-incomplete-patterns"
         , "-fno-warn-overlapping-patterns"

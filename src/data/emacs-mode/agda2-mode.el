@@ -103,6 +103,7 @@ argument, and does not need to be listed here."
   "MAlonzo"
   "The backend which is used to compile Agda programs."
   :type '(choice (const "MAlonzo")
+                 (const "MAlonzoNoMain")
                  (const "Epic")
                  (const "JS"))
   :group 'agda2)

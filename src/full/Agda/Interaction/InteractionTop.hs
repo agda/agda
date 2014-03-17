@@ -455,7 +455,8 @@ interpret (Cmd_compile b file includes) =
     case mw of
       Imp.NoWarnings -> do
         lift $ case b of
-          MAlonzo -> MAlonzo.compilerMain i
+          MAlonzo -> MAlonzo.compilerMain True i
+          MAlonzoNoMain -> MAlonzo.compilerMain False i
           Epic    -> Epic.compilerMain i
           JS      -> JS.compilerMain i
         display_info $ Info_CompilationOk
@@ -753,7 +754,9 @@ withCurrentFile m = do
 
 -- | Available backends.
 
-data Backend = MAlonzo | Epic | JS
+data Backend = MAlonzo
+             | MAlonzoNoMain
+             | Epic | JS
     deriving (Show, Read)
 
 data GiveRefine = Give | Refine
