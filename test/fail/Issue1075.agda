@@ -8,6 +8,7 @@
 -- I do not know whether it is supposed to terminate.
 
 {-# OPTIONS --no-coverage-check #-}
+{-# OPTIONS --allow-unsolved-metas #-}
 
 -- {-# OPTIONS -v term.matrices:40 #-}
 
