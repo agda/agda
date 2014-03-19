@@ -197,8 +197,17 @@ instance (Monoid a, CombineNewOld a, Ord s, Ord t) => CombineNewOld (Graph s t a
 --   Application of '>*<' to all pairs @(c1,c2)@
 --   for which @'source' c1 = 'target' c2@.)
 
-instance (Monoid cinfo, ?cutoff :: CutOff) => CombineNewOld (CallGraph cinfo) where
-  combineNewOld (CallGraph new) (CallGraph old) = CallGraph -*- CallGraph $ combineNewOld comb old
+-- GHC supports implicit-parameter constraints in instance declarations
+-- only from 7.4.  To maintain compatibility with 7.2, we skip this instance:
+-- KEEP:
+-- instance (Monoid cinfo, ?cutoff :: CutOff) => CombineNewOld (CallGraph cinfo) where
+--   combineNewOld (CallGraph new) (CallGraph old) = CallGraph -*- CallGraph $ combineNewOld comb old
+--     -- combined calls:
+--     where comb = Graph.composeWith (>*<) CMSet.union new old
+
+-- Non-overloaded version:
+combineNewOldCallGraph :: (Monoid cinfo, ?cutoff :: CutOff) => CombineNewOldT (CallGraph cinfo)
+combineNewOldCallGraph (CallGraph new) (CallGraph old) = CallGraph -*- CallGraph $ combineNewOld comb old
     -- combined calls:
     where comb = Graph.composeWith (>*<) CMSet.union new old
 
@@ -221,7 +230,7 @@ complete cs = trampoline (mapFst (not . null) . completionStep cs) cs
 
 completionStep :: (?cutoff :: CutOff) => Monoid cinfo =>
   CallGraph cinfo -> CallGraph cinfo -> (CallGraph cinfo, CallGraph cinfo)
-completionStep gOrig gThis = combineNewOld gOrig gThis
+completionStep gOrig gThis = combineNewOldCallGraph gOrig gThis
 
 -- prop_complete :: (?cutoff :: CutOff) => Property
 -- prop_complete =
