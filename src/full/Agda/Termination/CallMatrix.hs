@@ -164,7 +164,7 @@ instance NotWorse (CallMatrixAug cinfo) where
 
 instance Monoid cinfo => CallComb (CallMatrixAug cinfo) where
   CallMatrixAug m1 p1 >*< CallMatrixAug m2 p2 =
-    CallMatrixAug (m1 >*< m2) (p1 <> p2)
+    CallMatrixAug (m1 >*< m2) (mappend p1 p2)
 
 -- | Non-augmented call matrix.
 

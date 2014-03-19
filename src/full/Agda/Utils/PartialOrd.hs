@@ -205,16 +205,16 @@ instance (Ord a) => PartialOrd (Inclusion [a]) where
       merge' POAny xs ys = POAny
       merge' o     xs ys = merge o xs ys
       merge o [] [] = o
-      merge o [] ys = o <> POLT
-      merge o xs [] = o <> POGT
+      merge o [] ys = mappend o POLT
+      merge o xs [] = mappend o POGT
       merge o xs@(x:xs') ys@(y:ys') =
         case compare x y of
           -- xs has an element that ys does not have => POGT
-          LT -> merge' (o <> POGT) xs' ys
+          LT -> merge' (mappend o POGT) xs' ys
           -- equal elements can be cancelled
           EQ -> merge o xs' ys'
           -- ys has an element that xs does not have => POLT
-          GT -> merge' (o <> POLT) xs ys'
+          GT -> merge' (mappend o POLT) xs ys'
 
 -- | Sets are partially ordered by inclusion.
 
