@@ -1,4 +1,4 @@
-{-# LANGUAGE CPP #-}
+{-# LANGUAGE CPP, TupleSections #-}
 {-| This module deals with finding imported modules and loading their
     interface files.
 -}
@@ -311,12 +311,12 @@ getInterface' x includeStateChanges =
                     reportSLn "import.iface" 50 $ "  cached hash = " ++ show (iFullHash mi)
                     reportSLn "import.iface" 50 $ "  stored hash = " ++ show h
                     reportSLn "import.iface" 5 $ "  file is newer, re-reading " ++ ifile
-                    (,) False <$> readInterface ifile
+                    (False,) <$> readInterface ifile
             else do reportSLn "import.iface" 5 $ "  using stored version of " ++ ifile
                     return (True, Just mi)
           Nothing -> do
             reportSLn "import.iface" 5 $ "  no stored version, reading " ++ ifile
-            (,) False <$> readInterface ifile
+            (False,) <$> readInterface ifile
 
         -- Check that it's the right version
         case mi of
@@ -404,7 +404,7 @@ getInterface' x includeStateChanges =
                         )
 
             case r of
-                Left err               -> throwError err
+                Left err          -> throwError err
                 Right (r, update) -> do
                   update
                   case r of
@@ -522,8 +522,9 @@ createInterface file mname =
       ifTopLevelAndHighlightingLevelIs NonInteractive $ do
       -- Generate and print approximate syntax highlighting info.
       printHighlightingInfo fileTokenInfo
-      mapM_ (\d -> generateAndPrintSyntaxInfo d Partial) ds
+      mapM_ (\ d -> generateAndPrintSyntaxInfo d Partial) ds
 
+    -- Type checking.
     checkDecls ds
     -- Ulf, 2013-11-09: Since we're rethrowing the error, leave it up to the
     -- code that handles that error to reset the state.
@@ -535,7 +536,7 @@ createInterface file mname =
 
     unfreezeMetas
 
-    -- Count number of metas
+    -- Profiling: Count number of metas.
     verboseS "profile.metas" 10 $ do
       MetaId n <- fresh
       tickN "metas" (fromIntegral n)
@@ -559,6 +560,7 @@ createInterface file mname =
 
     reportSLn "scope.top" 50 $ "SCOPE " ++ show (insideScope topLevel)
 
+    -- Serialization.
     syntaxInfo <- stSyntaxInfo <$> get
     i <- billTop Bench.Serialization $ do
       buildInterface file topLevel syntaxInfo previousHsImports options
@@ -584,31 +586,32 @@ createInterface file mname =
      else
       return (i, SomeWarnings $ Warnings termErrs unsolvedMetas unsolvedConstraints)
 
-    -- Print stats
-    stats <- Map.toList <$> getStatistics
-    case stats of
-      []      -> return ()
-      _       -> reportS "profile" 1 $ unlines $
-        [ "Ticks for " ++ show (pretty mname) ] ++
-        [ "  " ++ s ++ " = " ++ show n
-        | (s, n) <- sortBy (compare `on` snd) stats ]
+    -- Profiling: Print statistics.
+    verboseS "profile" 1 $ do
+      stats <- Map.toList <$> getStatistics
+      case stats of
+        []      -> return ()
+        _       -> reportS "profile" 1 $ unlines $
+          [ "Ticks for " ++ show (pretty mname) ] ++
+          [ "  " ++ s ++ " = " ++ show n
+          | (s, n) <- sortBy (compare `on` snd) stats ]
 
     return r
 
 -- | Builds an interface for the current module, which should already
 -- have been successfully type checked.
 
-buildInterface :: AbsolutePath
-               -> TopLevelInfo
-                  -- ^ 'TopLevelInfo' for the current module.
-               -> HighlightingInfo
-                  -- ^ Syntax highlighting info for the module.
-               -> Set String
-                  -- ^ Haskell modules imported in imported modules
-                  -- (transitively).
-               -> [OptionsPragma]
-                  -- ^ Options set in @OPTIONS@ pragmas.
-               -> TCM Interface
+buildInterface
+  :: AbsolutePath
+  -> TopLevelInfo
+     -- ^ 'TopLevelInfo' for the current module.
+  -> HighlightingInfo
+     -- ^ Syntax highlighting info for the module.
+  -> Set String
+     -- ^ Haskell modules imported in imported modules (transitively).
+  -> [OptionsPragma]
+     -- ^ Options set in @OPTIONS@ pragmas.
+  -> TCM Interface
 buildInterface file topLevel syntaxInfo previousHsImports pragmas = do
     reportSLn "import.iface" 5 "Building interface..."
     scope'  <- getScope
@@ -616,26 +619,25 @@ buildInterface file topLevel syntaxInfo previousHsImports pragmas = do
     sig     <- getSignature
     builtin <- gets stLocalBuiltins
     ms      <- getImports
-    mhs     <- mapM (\m -> (,) m <$> moduleHash m) $ Set.toList ms
+    mhs     <- mapM (\ m -> (m,) <$> moduleHash m) $ Set.toList ms
     hsImps  <- getHaskellImports
     patsyns <- getPatternSyns
     h       <- liftIO $ hashFile file
-    let	builtin' = Map.mapWithKey (\x b -> fmap (\pf -> (x, primFunName pf)) b) builtin
+    let	builtin' = Map.mapWithKey (\ x b -> (x,) . primFunName <$> b) builtin
     reportSLn "import.iface" 7 "  instantiating all meta variables"
     i <- instantiateFull $ Interface
-			{ iSourceHash      = h
-                        , iImportedModules = mhs
-                        , iModuleName      = m
-			, iScope	   = publicModules scope
-                        , iInsideScope     = insideScope topLevel
-			, iSignature	   = sig
-			, iBuiltin	   = builtin'
-                        , iHaskellImports  = Set.difference hsImps
-                                                            previousHsImports
-                        , iHighlighting    = syntaxInfo
-                        , iPragmaOptions   = pragmas
-                        , iPatternSyns     = patsyns
-			}
+      { iSourceHash      = h
+      , iImportedModules = mhs
+      , iModuleName      = m
+      , iScope           = publicModules scope
+      , iInsideScope     = insideScope topLevel
+      , iSignature       = sig
+      , iBuiltin         = builtin'
+      , iHaskellImports  = hsImps `Set.difference` previousHsImports
+      , iHighlighting    = syntaxInfo
+      , iPragmaOptions   = pragmas
+      , iPatternSyns     = patsyns
+      }
     reportSLn "import.iface" 7 "  interface complete"
     return i
   where m = topLevelModuleName topLevel
