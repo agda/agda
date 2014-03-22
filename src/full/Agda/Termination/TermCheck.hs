@@ -314,8 +314,8 @@ reportCalls no calls = do
    --   , nest 2 $ return $ Term.prettyBehaviour calls'
    --   ]
    reportSDoc "term.matrices" 30 $ vcat
-     [ text $ "Idempotent call matrices (" ++ no ++ "dot patterns):"
-     , nest 2 $ vcat $ map pretty idems
+     [ text $ "Idempotent call matrices (" ++ no ++ "dot patterns):\n"
+     , nest 2 $ vcat $ punctuate (text "\n") $ map pretty idems
      ]
    -- reportSDoc "term.matrices" 30 $ vcat
    --   [ text $ "Other call matrices (" ++ no ++ "dot patterns):"

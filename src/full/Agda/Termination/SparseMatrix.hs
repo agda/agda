@@ -57,6 +57,8 @@ import Data.Maybe
 import Data.Foldable (Foldable)
 import Data.Traversable (Traversable)
 
+import qualified Text.PrettyPrint.Boxes as Boxes
+
 import Agda.Termination.Semiring (HasZero(..), Semiring)
 import qualified Agda.Termination.Semiring as Semiring
 
@@ -449,7 +451,23 @@ instance (Integral i, HasZero b, Show i, Show b) => Show (Matrix i b) where
 
 instance (Integral i, HasZero b, Pretty b) =>
          Pretty (Matrix i b) where
-  pretty = vcat . map (hsep . map pretty) . toLists
+--  pretty = vcat . map (hsep . map pretty) . toLists
+  pretty = vcat
+         . map text
+         . lines
+         . Boxes.render
+         . Boxes.hsep 1 Boxes.right
+         . map ( Boxes.vcat Boxes.right
+               . map ( Boxes.alignHoriz Boxes.right 2
+                     . Boxes.text . render . pretty
+                     )
+               )
+         . toLists
+         . transpose
+-- ADAPTED FROM:
+-- http://www.tedreed.info/programming/2012/06/02/how-to-use-textprettyprintboxes/
+-- print_table :: [[String]] -> IO ()
+-- print_table rows = printBox $ hsep 2 left (map (vcat left . map text) (transpose rows))
 
 
 

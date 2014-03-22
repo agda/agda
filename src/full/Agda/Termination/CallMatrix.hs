@@ -227,7 +227,8 @@ instance Pretty cinfo => Pretty (CallMatrixAug cinfo) where
   pretty (CallMatrixAug m cinfo) = pretty cinfo $$ pretty m
 
 instance Pretty cinfo => Pretty (CMSet cinfo) where
-  pretty ms = vcat $ map pretty $ toList ms
+  pretty = vcat . punctuate newLine . map pretty . toList
+    where newLine = text "\n"
 
 ------------------------------------------------------------------------
 -- * Generators and tests
