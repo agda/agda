@@ -11,7 +11,7 @@ import Control.Monad.State
 import Data.List
 import Data.Maybe
 import Data.Set (Set)
-import qualified Data.Set
+import qualified Data.Set as Set
 
 import Agda.Syntax.Common
 import Agda.Syntax.Internal as I
@@ -29,7 +29,7 @@ import Agda.Utils.Maybe
 import Agda.Utils.Monad
 import Agda.Utils.Permutation
 import Agda.Utils.Size
-import qualified Agda.Utils.VarSet as Set
+import qualified Agda.Utils.VarSet as VarSet
 
 #include "../../undefined.h"
 import Agda.Utils.Impossible
@@ -78,16 +78,16 @@ modifyOccursCheckDefs f = modify $ \ st ->
 initOccursCheck :: MetaVariable -> TCM ()
 initOccursCheck mv = modifyOccursCheckDefs . const =<<
   if (miMetaOccursCheck (mvInfo mv) == DontRunMetaOccursCheck)
-   then return Data.Set.empty
-   else maybe (return Data.Set.empty) lookupMutualBlock =<< asks envMutualBlock
+   then return Set.empty
+   else maybe (return Set.empty) lookupMutualBlock =<< asks envMutualBlock
 
 -- | Is a def in the list of stuff to be checked?
 defNeedsChecking :: QName -> TCM Bool
-defNeedsChecking d = Data.Set.member d <$> gets stOccursCheckDefs
+defNeedsChecking d = Set.member d <$> gets stOccursCheckDefs
 
 -- | Remove a def from the list of defs to be looked at.
 tallyDef :: QName -> TCM ()
-tallyDef d = modifyOccursCheckDefs $ \ s -> Data.Set.delete d s
+tallyDef d = modifyOccursCheckDefs $ \ s -> Set.delete d s
 
 data OccursCtx
   = Flex          -- ^ we are in arguments of a meta
@@ -483,9 +483,7 @@ hasBadRigid xs (Shared p)   = hasBadRigid xs (derefPtr p)
 -- at once, but allow early failure
 rigidVarsNotContainedIn :: Free a => a -> [Nat] -> Bool
 rigidVarsNotContainedIn v xs =
-  not $ Set.isSubsetOf
-    (rigidVars $ freeVars v)
-    (Set.fromList xs)
+  not $ rigidVars (freeVars v) `VarSet.isSubsetOf` VarSet.fromList xs
 
 
 data PruneResult
