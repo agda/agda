@@ -104,7 +104,7 @@ instance LensConName ConHead where
 data Term = Var {-# UNPACK #-} !Int Elims -- ^ @x es@ neutral
 	  | Lam ArgInfo (Abs Term)        -- ^ Terms are beta normal. Relevance is ignored
 	  | Lit Literal
-	  | Def QName Elims               -- ^ @f es@, possibly a redex
+	  | Def QName Elims               -- ^ @f es@, possibly a delta/iota-redex
 	  | Con ConHead Args              -- ^ @c vs@
 	  | Pi (Dom Type) (Abs Type)      -- ^ dependent or non-dependent function space
 	  | Sort Sort

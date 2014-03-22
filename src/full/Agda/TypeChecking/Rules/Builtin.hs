@@ -37,7 +37,7 @@ builtinPostulate :: TCM Type -> BuiltinDescriptor
 builtinPostulate = BuiltinPostulate Relevant
 
 coreBuiltins :: [BuiltinInfo]
-coreBuiltins = map (\(x,z) -> BuiltinInfo x z)
+coreBuiltins = map (\ (x, z) -> BuiltinInfo x z)
   [ (builtinList               |-> BuiltinData (tset --> tset) [builtinNil, builtinCons])
   , (builtinArg                |-> BuiltinData (tset --> tset) [builtinArgArg])
   , (builtinArgInfo            |-> BuiltinData tset [builtinArgArgInfo])

@@ -668,6 +668,7 @@ data Projection = Projection
   } deriving (Typeable, Show)
 
 data Defn = Axiom
+            -- ^ Postulate.
 	  | Function
             { funClauses        :: [Clause]
             , funCompiled       :: Maybe CompiledClauses
