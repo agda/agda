@@ -2,34 +2,57 @@
 
 module Agda.Utils.Trie
   ( Trie
-  , empty, singleton, insert, lookupPath, union, adjust, delete
+  , empty, singleton, insert, insertWith, union, unionWith, adjust, delete
+  , lookupPath
   ) where
 
 import Control.Applicative hiding (empty)
 import Control.Monad (mplus)
+
 import Data.Function
 import Data.List (nubBy, sortBy, isPrefixOf)
 import Data.Map (Map)
 import qualified Data.Map as Map
+
 import Test.QuickCheck
 
+import Agda.Utils.List (mcons)
+import Agda.Utils.Maybe
+
+-- | Finite map from @[k]@ to @v@.
 data Trie k v = Trie (Maybe v) (Map k (Trie k v))
   deriving Show
 
+-- | Empty trie.
 empty :: Trie k v
 empty = Trie Nothing Map.empty
 
+-- | Singleton trie.
 singleton :: [k] -> v -> Trie k v
 singleton []     v = Trie (Just v) Map.empty
 singleton (x:xs) v = Trie Nothing $ Map.singleton x (singleton xs v)
 
 -- | Left biased union.
+--
+--   @union = unionWith (\ new old -> new)@.
 union :: Ord k => Trie k v -> Trie k v -> Trie k v
 union (Trie v ss) (Trie w ts) =
   Trie (v `mplus` w) (Map.unionWith union ss ts)
 
+-- | Pointwise union with merge function for values.
+unionWith :: Ord k => (v -> v -> v) -> Trie k v -> Trie k v -> Trie k v
+unionWith f (Trie v ss) (Trie w ts) =
+  Trie (unionMaybeWith f v w) (Map.unionWith (unionWith f) ss ts)
+
+-- | Insert.  Overwrites existing value if present.
+--
+--   @insert = insertWith (\ new old -> new)@
 insert :: Ord k => [k] -> v -> Trie k v -> Trie k v
 insert k v t = union (singleton k v) t
+
+-- | Insert with function merging new value with old value.
+insertWith :: Ord k => (v -> v -> v) -> [k] -> v -> Trie k v -> Trie k v
+insertWith f k v t = unionWith f (singleton k v) t
 
 -- | Delete value at key, but leave subtree intact.
 delete :: Ord k => [k] -> Trie k v -> Trie k v
@@ -46,12 +69,11 @@ adjust path f t@(Trie v ts) =
     -- case: subtrie not found: leave trie untouched
     _ -> t
 
+-- | Collect all values along a given path.
 lookupPath :: Ord k => [k] -> Trie k v -> [v]
 lookupPath xs (Trie v cs) = case xs of
-    []     -> val v
-    x : xs -> val v ++ maybe [] (lookupPath xs) (Map.lookup x cs)
-  where
-    val = maybe [] (:[])
+    []     -> maybeToList v
+    x : xs -> mcons v $ maybe [] (lookupPath xs) (Map.lookup x cs)
 
 -- Tests ------------------------------------------------------------------
 
