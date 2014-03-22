@@ -1,11 +1,25 @@
 {-# LANGUAGE CPP #-}
 
+-- | Extend 'Data.Maybe' by common operations for the 'Maybe' type.
+--
+--   Note: since this module is usually imported unqualified,
+--   we do not use short names, but all names contain 'Maybe',
+--   'Just', or 'Nothing.
+
 module Agda.Utils.Maybe
     ( module Agda.Utils.Maybe
     , module Data.Maybe
     ) where
 
 import Data.Maybe
+
+-- * Collection operations.
+
+-- | @unionWith@ for collections of size <= 1.
+unionMaybeWith :: (a -> a -> a) -> Maybe a -> Maybe a -> Maybe a
+unionMaybeWith f Nothing mb      = mb
+unionMaybeWith f ma      Nothing = ma
+unionMaybeWith f (Just a) (Just b) = Just $ f a b
 
 -- | Unzipping a list of length <= 1.
 
@@ -21,6 +35,8 @@ filterMaybe :: (a -> Bool) -> a -> Maybe a
 filterMaybe p a
   | p a       = Just a
   | otherwise = Nothing
+
+-- * Conditionals and loops.
 
 -- | Version of 'mapMaybe' with different argument ordering.
 
