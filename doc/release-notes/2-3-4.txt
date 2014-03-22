@@ -525,53 +525,6 @@ Type checking
   uses of primTrustMe can potentially lead to segfaults or similar
   problems of the compiled code.
 
-* A buggy facility coined "matrix-shaped orders" that supported
-  uncurried functions (which take tuples of arguments instead of one
-  argument after another) has been removed from the termination
-  checker. [Issue 787]
-
-* Definitions which fail the termination checker are not unfolded any
-  longer to avoid loops or stack overflows in Agda.  However, the
-  termination checker for a mutual block is only invoked after
-  type-checking, so there can still be loops if you define a
-  non-terminating function.  But termination checking now happens
-  before the other supplementary checks: positivity, polarity,
-  injectivity and projection-likeness.
-  Note that with the pragma {-# NO_TERMINATION_CHECK #-} you can make
-  Agda treat any function as terminating.
-
-* Termination checking of functions defined by 'with' has been improved.
-
-  Cases which previously required --termination-depth
-  to pass the termination checker (due to use of 'with') no longer
-  need the flag. For example
-
-    merge : List A → List A → List A
-    merge [] ys = ys
-    merge xs [] = xs
-    merge (x ∷ xs) (y ∷ ys) with x ≤ y
-    merge (x ∷ xs) (y ∷ ys)    | false = y ∷ merge (x ∷ xs) ys
-    merge (x ∷ xs) (y ∷ ys)    | true  = x ∷ merge xs (y ∷ ys)
-
-  This failed to termination check previously, since the 'with' expands to an
-  auxiliary function merge-aux:
-
-    merge-aux x y xs ys false = y ∷ merge (x ∷ xs) ys
-    merge-aux x y xs ys true  = x ∷ merge xs (y ∷ ys)
-
-  This function makes a call to merge in which the size of one of the arguments
-  is increasing. To make this pass the termination checker now inlines the
-  definition of merge-aux before checking, thus effectively termination
-  checking the original source program.
-
-  As a result of this transformation doing 'with' on a variable no longer
-  preserves termination. For instance, this does not termination check:
-
-    bad : Nat → Nat
-    bad n with n
-    ... | zero  = zero
-    ... | suc m = bad m
-
 * Implicit patterns of record type are now only eta-expanded if there
   is a record constructor. [Issues 473, 635]
 
@@ -689,29 +642,91 @@ Type checking
     The parameter A is non-linear and treated as index.
 
 
+Termination checking
+====================
+
+* A buggy facility coined "matrix-shaped orders" that supported
+  uncurried functions (which take tuples of arguments instead of one
+  argument after another) has been removed from the termination
+  checker. [Issue 787]
+
+* Definitions which fail the termination checker are not unfolded any
+  longer to avoid loops or stack overflows in Agda.  However, the
+  termination checker for a mutual block is only invoked after
+  type-checking, so there can still be loops if you define a
+  non-terminating function.  But termination checking now happens
+  before the other supplementary checks: positivity, polarity,
+  injectivity and projection-likeness.
+  Note that with the pragma {-# NO_TERMINATION_CHECK #-} you can make
+  Agda treat any function as terminating.
+
+* Termination checking of functions defined by 'with' has been improved.
+
+  Cases which previously required --termination-depth
+  to pass the termination checker (due to use of 'with') no longer
+  need the flag. For example
+
+    merge : List A → List A → List A
+    merge [] ys = ys
+    merge xs [] = xs
+    merge (x ∷ xs) (y ∷ ys) with x ≤ y
+    merge (x ∷ xs) (y ∷ ys)    | false = y ∷ merge (x ∷ xs) ys
+    merge (x ∷ xs) (y ∷ ys)    | true  = x ∷ merge xs (y ∷ ys)
+
+  This failed to termination check previously, since the 'with' expands to an
+  auxiliary function merge-aux:
+
+    merge-aux x y xs ys false = y ∷ merge (x ∷ xs) ys
+    merge-aux x y xs ys true  = x ∷ merge xs (y ∷ ys)
+
+  This function makes a call to merge in which the size of one of the arguments
+  is increasing. To make this pass the termination checker now inlines the
+  definition of merge-aux before checking, thus effectively termination
+  checking the original source program.
+
+  As a result of this transformation doing 'with' on a variable no longer
+  preserves termination. For instance, this does not termination check:
+
+    bad : Nat → Nat
+    bad n with n
+    ... | zero  = zero
+    ... | suc m = bad m
+
+* The performance of the termination checker has been improved.  For
+  higher --termination-depth the improvement is significant.
+  While the default --termination-depth is still 1, checking with
+  higher --termination-depth should now be feasible.
+
 Compiler backends
 =================
+
 * The MAlonzo compiler backend now has support for compiling modules
   that are not full programs (i.e. don't have a main function). The
   goal is that you can write part of a program in Agda and the rest in
   Haskell, and invoke the Agda functions from the Haskell code. The
   following features were added for this reason:
-  * a new command-line option --compile-no-main: the command
+
+  * A new command-line option --compile-no-main: the command
+
       agda --compile-no-main Test.agda
+
     will compile Test.agda and all its dependencies to Haskell and
     compile the resulting Haskell files with --make, but (unlike
     --compile) not tell GHC to treat Test.hs as the main module. This
     type of compilation can be invoked from emacs by customizing the
     agda2-backend variable to value MAlonzoNoMain and then calling
     "C-c C-x C-c" as before.
+
   * A new pragma COMPILED_EXPORT was added as part of the MAlonzo FFI.
     If we have an agda file containing the following:
+
        module A.B where
 
        test : SomeType
        test = someImplementation
 
        {-# COMPILED_EXPORT test someHaskellId #-}
+
     then test will be compiled to a Haskell function called
     someHaskellId in module MAlonzo.Code.A.B that can be invoked from
     other Haskell code. Its type will be translated according to the

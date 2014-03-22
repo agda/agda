@@ -1,0 +1,148 @@
+
+Subject:
+Re: Termination checker to blame for bad performance [Re: [Agda] long type checking times in the development version]
+From:
+Chuangjie Xu <C.Xu.2@cs.bham.ac.uk>
+Date:
+22.03.2014 15:27
+To:
+Andreas Abel <andreas.abel@ifi.lmu.de>
+CC:
+Martin Escardo <m.escardo@cs.bham.ac.uk>
+
+Dear Andreas,
+
+Here is the result of running "time agda +RTS -s -RTS":
+
+-----------------------------------------------------------------
+
+xu@XU-PC:~/Work/TypeTopology/both/TT-eating-itself/working$ time agda +RTS
+-s -RTS Interpretation-of-TT-with-equality-mini.lagda
+Checking Interpretation-of-TT-with-equality-mini
+(/media/xu/Something/Study/TypeTopology/both/TT-eating-itself/working/Interpretation-of-TT-with-equality-mini.lagda).
+ Checking TT-with-equality-mini
+(/media/xu/Something/Study/TypeTopology/both/TT-eating-itself/working/TT-with-equality-mini.lagda).
+ Finished TT-with-equality-mini.
+ Checking Preliminaries
+(/media/xu/Something/Study/TypeTopology/both/TT-eating-itself/working/Preliminaries.lagda).
+ Finished Preliminaries.
+Finished Interpretation-of-TT-with-equality-mini.
+   2,264,910,112 bytes allocated in the heap
+     420,622,216 bytes copied during GC
+      22,483,216 bytes maximum residency (19 sample(s))
+         728,368 bytes maximum slop
+              65 MB total memory in use (0 MB lost due to fragmentation)
+
+                                    Tot time (elapsed)  Avg pause  Max
+pause
+  Gen  0      4335 colls,     0 par    0.38s    0.38s     0.0001s
+0.0012s
+  Gen  1        19 colls,     0 par    0.32s    0.32s     0.0167s
+0.0368s
+
+  INIT    time    0.00s  (  0.00s elapsed)
+  MUT     time    1.28s  (  1.29s elapsed)
+  GC      time    0.70s  (  0.70s elapsed)
+  EXIT    time    0.00s  (  0.00s elapsed)
+  Total   time    1.99s  (  1.99s elapsed)
+
+  %GC     time      35.2%  (35.1% elapsed)
+
+  Alloc rate    1,766,172,432 bytes per MUT second
+
+  Productivity  64.8% of total user, 64.7% of total elapsed
+
+
+real	0m1.996s
+user	0m1.946s
+sys	0m0.044s
+
+-----------------------------------------------------------------
+
+and the one of running "time agda --termination-depth=100 +RTS -s -RTS":
+
+-----------------------------------------------------------------
+
+xu@XU-PC:~/Work/TypeTopology/both/TT-eating-itself/working$ time agda
+--termination-depth=100 +RTS -s -RTS
+Interpretation-of-TT-with-equality-mini.lagda
+Checking Interpretation-of-TT-with-equality-mini
+(/media/xu/Something/Study/TypeTopology/both/TT-eating-itself/working/Interpretation-of-TT-with-equality-mini.lagda).
+ Checking TT-with-equality-mini
+(/media/xu/Something/Study/TypeTopology/both/TT-eating-itself/working/TT-with-equality-mini.lagda).
+ Finished TT-with-equality-mini.
+ Checking Preliminaries
+(/media/xu/Something/Study/TypeTopology/both/TT-eating-itself/working/Preliminaries.lagda).
+ Finished Preliminaries.
+Finished Interpretation-of-TT-with-equality-mini.
+   3,231,091,280 bytes allocated in the heap
+     468,666,144 bytes copied during GC
+      21,238,856 bytes maximum residency (19 sample(s))
+         598,224 bytes maximum slop
+              63 MB total memory in use (0 MB lost due to fragmentation)
+
+                                    Tot time (elapsed)  Avg pause  Max
+pause
+  Gen  0      6193 colls,     0 par    0.43s    0.43s     0.0001s
+0.0013s
+  Gen  1        19 colls,     0 par    0.35s    0.35s     0.0185s
+0.0362s
+
+  INIT    time    0.00s  (  0.00s elapsed)
+  MUT     time    1.82s  (  1.83s elapsed)
+  GC      time    0.78s  (  0.78s elapsed)
+  EXIT    time    0.00s  (  0.00s elapsed)
+  Total   time    2.61s  (  2.61s elapsed)
+
+  %GC     time      30.0%  (30.0% elapsed)
+
+  Alloc rate    1,777,233,550 bytes per MUT second
+
+  Productivity  70.0% of total user, 69.9% of total elapsed
+
+
+real	0m2.615s
+user	0m2.577s
+sys	0m0.032s
+
+-----------------------------------------------------------------
+
+Best,
+Chuangjie
+
+On Sat, 22 Mar 2014 14:44:46 +0100, Andreas Abel <andreas.abel@ifi.lmu.de>
+wrote:
+> > Dear Changjie,
+> >
+> > could you do me a favor?  Can you type-check your development twice,
+> > once with
+> >
+> >    rm *.agdai
+> >    time agda +RTS -s -RTS ...
+> >
+> > and once with
+> >
+> >    rm *.agdai
+> >    time agda --termination-depth=100 +RTS -s -RTS
+> >
+> > and send me the results?  Make sure you remove all .agdai files of your
+> > development before running each benchmark.
+> >
+> > That would be helpful in determining whether the default termination
+> > depth should be 1 or infinity.
+> >
+> > Cheers,
+> > Andreas
+> >
+> > On 21.03.2014 13:59, Chuangjie Xu wrote:
+>> >> Dear Andreas,
+>> >>
+>> >> After reinstalling GHC, I managed to install Agda from darcs today. Now
+>> >> the termination checker performs very well with our mutually recursive
+>> >> definitions. The older one took several minutes to load our files while
+>> >> this version takes less than 1 second.
+>> >>
+>> >> Many thanks,
+>> >> Chuangjie
+
+
