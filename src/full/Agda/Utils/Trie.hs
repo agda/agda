@@ -1,8 +1,9 @@
-{-# LANGUAGE PatternGuards #-}
+{-# LANGUAGE TupleSections, PatternGuards #-}
 
 module Agda.Utils.Trie
   ( Trie
   , empty, singleton, insert, insertWith, union, unionWith, adjust, delete
+  , toList, toAscList
   , lookupPath
   ) where
 
@@ -68,6 +69,18 @@ adjust path f t@(Trie v ts) =
     k : ks | Just s <- Map.lookup k ts -> Trie v $ Map.insert k (adjust ks f s) ts
     -- case: subtrie not found: leave trie untouched
     _ -> t
+
+-- | Convert to ascending list.
+toList :: Ord k => Trie k v -> [([k],v)]
+toList = toAscList
+
+-- | Convert to ascending list.
+toAscList :: Ord k => Trie k v -> [([k],v)]
+toAscList (Trie mv ts) = mcons (([],) <$> mv) $
+  [ (k:ks, v)
+  | (k,  t) <- Map.toAscList ts
+  , (ks, v) <- toAscList t
+  ]
 
 -- | Collect all values along a given path.
 lookupPath :: Ord k => [k] -> Trie k v -> [v]
