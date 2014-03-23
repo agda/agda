@@ -242,11 +242,6 @@ initNiceEnv = NiceEnv
 
 type Nice = StateT NiceEnv (Either DeclarationException)
 
-{- Andreas, 2012-04-30 MOVED to Utils.Monad
-localState :: Nice a -> Nice a
-localState m = bracket get put (const m)
--}
-
 addLoneSig :: DataRecOrFun -> Name -> Nice ()
 addLoneSig k x = modify $ \ niceEnv -> niceEnv { loneSigs = (k, x) : loneSigs niceEnv }
 
