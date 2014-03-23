@@ -343,11 +343,9 @@ getInterface' x includeStateChanges =
                 return (False, (i, NoWarnings))
 
       typeCheck file = do
-          let withMsgs m = do
-                chaseMsg "Checking" (Just $ filePath file)
-                x <- m
-                chaseMsg "Finished" Nothing
-                return x
+          let withMsgs = bracket_
+                (chaseMsg "Checking" $ Just $ filePath file)
+                (const $ chaseMsg "Finished" Nothing)
 
           -- Do the type checking.
 
