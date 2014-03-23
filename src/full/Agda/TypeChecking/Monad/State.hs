@@ -1,3 +1,4 @@
+-- | Lenses for 'TCState' and more.
 
 module Agda.TypeChecking.Monad.State where
 
@@ -21,7 +22,7 @@ import Agda.Utils.Hash
 
 resetState :: TCM ()
 resetState = do
-    pers <- stPersistent <$> get
+    pers <- gets stPersistent
     put $ initState { stPersistent = pers }
 
 -- | Resets all of the type checking state.
@@ -43,19 +44,17 @@ modifyPersistentState = modify . updatePersistentState
 -- * Scope
 ---------------------------------------------------------------------------
 
--- | Set the current scope.
-setScope :: ScopeInfo -> TCM ()
-setScope scope = modify $ \s -> s { stScope = scope }
-
 -- | Get the current scope.
 getScope :: TCM ScopeInfo
 getScope = gets stScope
 
+-- | Set the current scope.
+setScope :: ScopeInfo -> TCM ()
+setScope scope = modifyScope (const scope)
+
 -- | Modify the current scope.
 modifyScope :: (ScopeInfo -> ScopeInfo) -> TCM ()
-modifyScope f = do
-  s <- getScope
-  setScope $ f s
+modifyScope f = modify $ \ s -> s { stScope = f (stScope s) }
 
 -- | Run a computation in a local scope.
 withScope :: ScopeInfo -> TCM a -> TCM (a, ScopeInfo)
