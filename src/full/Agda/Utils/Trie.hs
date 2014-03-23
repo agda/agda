@@ -10,6 +10,9 @@ module Agda.Utils.Trie
   , lookupPath
   ) where
 
+import Prelude hiding (Maybe(..), maybe)
+import qualified Prelude as Lazy
+
 import Control.Applicative hiding (empty)
 import Control.DeepSeq
 import Control.Monad (mplus)
@@ -22,7 +25,7 @@ import qualified Data.Map.Strict as Map
 import Test.QuickCheck
 
 import Agda.Utils.List (mcons)
-import Agda.Utils.Maybe
+import Agda.Utils.Maybe.Strict
 
 -- | Finite map from @[k]@ to @v@.
 data Trie k v = Trie !(Maybe v) !(Map k (Trie k v))
@@ -43,7 +46,7 @@ singleton (x:xs) !v = Trie Nothing $ Map.singleton x (singleton xs v)
 union :: (Ord k, NFData v) => Trie k v -> Trie k v -> Trie k v
 union (Trie v ss) (Trie w ts) = new `deepseq`
   Trie new (Map.unionWith union ss ts)
-  where new = v `mplus` w
+  where new = unionMaybeWith const v w
 
 -- | Pointwise union with merge function for values.
 unionWith :: (Ord k, NFData v) => (v -> v -> v) -> Trie k v -> Trie k v -> Trie k v
@@ -61,6 +64,8 @@ insert k v t = union (singleton k v) t
 insertWith :: (Ord k, NFData v) => (v -> v -> v) -> [k] -> v -> Trie k v -> Trie k v
 insertWith f k v t = unionWith f (singleton k v) t
 
+-- insertLookupWith :: (Ord k, NFData v) => (v -> v -> v) -> [k] -> v -> Trie k v -> (Maybe v, Trie k v)
+
 -- | Delete value at key, but leave subtree intact.
 delete :: Ord k => [k] -> Trie k v -> Trie k v
 delete path = adjust path (const Nothing)
@@ -72,7 +77,7 @@ adjust path f t@(Trie v ts) =
     -- case: found the value we want to adjust: adjust it!
     []                                 -> Trie (f v) ts
     -- case: found the subtrie matching the first key: adjust recursively
-    k : ks | Just s <- Map.lookup k ts -> Trie v $ Map.insert k (adjust ks f s) ts
+    k : ks | Lazy.Just s <- Map.lookup k ts -> Trie v $ Map.insert k (adjust ks f s) ts
     -- case: subtrie not found: leave trie untouched
     _ -> t
 
@@ -82,7 +87,7 @@ toList = toAscList
 
 -- | Convert to ascending list.
 toAscList :: Ord k => Trie k v -> [([k],v)]
-toAscList (Trie mv ts) = mcons (([],) <$> mv) $
+toAscList (Trie mv ts) = maybeToList (([],) <$> mv) ++
   [ (k:ks, v)
   | (k,  t) <- Map.toAscList ts
   , (ks, v) <- toAscList t
@@ -92,7 +97,7 @@ toAscList (Trie mv ts) = mcons (([],) <$> mv) $
 lookupPath :: Ord k => [k] -> Trie k v -> [v]
 lookupPath xs (Trie v cs) = case xs of
     []     -> maybeToList v
-    x : xs -> mcons v $ maybe [] (lookupPath xs) (Map.lookup x cs)
+    x : xs -> maybeToList v ++ Lazy.maybe [] (lookupPath xs) (Map.lookup x cs)
 
 -- Tests ------------------------------------------------------------------
 

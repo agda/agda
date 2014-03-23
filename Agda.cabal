@@ -91,6 +91,7 @@ library
                     geniplate >= 0.6.0.3 && < 0.7,
                     parallel < 3.3,
                     deepseq == 1.3.*,
+                    strict >= 0.3.2 && < 0.4,
                     boxes >= 0.1.3 && < 0.2,
                     text >= 0.11 && < 1.2
 
@@ -318,6 +319,7 @@ library
                     Agda.Utils.List
                     Agda.Utils.Map
                     Agda.Utils.Maybe
+                    Agda.Utils.Maybe.Strict
                     Agda.Utils.Monad
                     Agda.Utils.PartialOrd
                     Agda.Utils.Permutation
