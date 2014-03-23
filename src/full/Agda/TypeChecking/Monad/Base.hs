@@ -212,18 +212,6 @@ instance HasFresh i FreshThings => HasFresh i TCState where
 	where
 	    (i, f) = nextFresh $ stFreshThings s
 
-getInteractionOutputCallback :: TCM InteractionOutputCallback
-getInteractionOutputCallback
-  = (stInteractionOutputCallback . stPersistent) <$> get
-
-appInteractionOutputCallback :: Response -> TCM ()
-appInteractionOutputCallback r
-  = getInteractionOutputCallback >>= \cb -> cb r
-
-setInteractionOutputCallback :: InteractionOutputCallback -> TCM ()
-setInteractionOutputCallback cb
-  = modify $ \s -> s { stPersistent = (stPersistent s) { stInteractionOutputCallback = cb } }
-
 
 ---------------------------------------------------------------------------
 -- ** Interface

@@ -8,6 +8,9 @@ import Data.Set (Set)
 import Data.Map as Map
 import qualified Data.Set as Set
 
+import {-# SOURCE #-} Agda.Interaction.Response
+  (InteractionOutputCallback, Response)
+
 import Agda.Syntax.Common
 import Agda.Syntax.Scope.Base
 import qualified Agda.Syntax.Concrete.Name as C
@@ -118,6 +121,22 @@ addHaskellImport i =
 -- | Get the Haskell imports.
 getHaskellImports :: TCM (Set String)
 getHaskellImports = gets stHaskellImports
+
+---------------------------------------------------------------------------
+-- * Interaction output callback
+---------------------------------------------------------------------------
+
+getInteractionOutputCallback :: TCM InteractionOutputCallback
+getInteractionOutputCallback
+  = gets $ stInteractionOutputCallback . stPersistent
+
+appInteractionOutputCallback :: Response -> TCM ()
+appInteractionOutputCallback r
+  = getInteractionOutputCallback >>= \ cb -> cb r
+
+setInteractionOutputCallback :: InteractionOutputCallback -> TCM ()
+setInteractionOutputCallback cb
+  = modifyPersistentState $ \ s -> s { stInteractionOutputCallback = cb }
 
 ---------------------------------------------------------------------------
 -- * Pattern synonyms
