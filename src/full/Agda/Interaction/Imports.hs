@@ -376,7 +376,10 @@ getInterface' x includeStateChanges =
             -- Every interface is treated in isolation. Note: Changes
             -- to stDecodedModules are not preserved if an error is
             -- encountered in an imported module.
-            r <- liftIO $ runTCM $
+            -- Andreas, 2014-03-23: freshTCM spawns a new TCM computation
+            -- with initial state and environment
+            -- but on the same Benchmark accounts.
+            r <- freshTCM $
                    withImportPath ms $
                    local (\e -> e { envEmacs              = emacs
                                   , envModuleNestingLevel = nesting

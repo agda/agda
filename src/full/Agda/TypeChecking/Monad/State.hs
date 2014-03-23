@@ -3,6 +3,7 @@
 module Agda.TypeChecking.Monad.State where
 
 import Control.Applicative
+import qualified Control.Exception as E
 import Control.Monad.State
 import Data.Set (Set)
 import Data.Map as Map
@@ -18,8 +19,10 @@ import Agda.Syntax.Abstract (PatternSynDefn, PatternSynDefns)
 import Agda.Syntax.Abstract.Name
 
 import Agda.TypeChecking.Monad.Base
+import Agda.TypeChecking.Monad.Base.Benchmark
 
 import Agda.Utils.Hash
+import Agda.Utils.Monad (bracket_)
 
 -- | Resets the non-persistent part of the type checking state.
 
@@ -29,9 +32,24 @@ resetState = do
     put $ initState { stPersistent = pers }
 
 -- | Resets all of the type checking state.
+--
+--   Keep only 'Benchmark' information.
 
 resetAllState :: TCM ()
-resetAllState = put initState
+resetAllState = do
+    b <- getBenchmark
+    put $ updatePersistentState (\ s -> s { stBenchmark = b }) initState
+-- resetAllState = put initState
+
+-- | Restore 'TCState' after performing subcomputation.
+--
+--   In contrast to 'Agda.Utils.Monad.localState', the 'Benchmark'
+--   info from the subcomputation is saved.
+localTCState :: TCM a -> TCM a
+localTCState = bracket_ get $ \ s -> do
+   b <- getBenchmark
+   put s
+   modifyBenchmark $ const b
 
 ---------------------------------------------------------------------------
 -- * Lens for persistent state
@@ -165,3 +183,43 @@ lookupPatternSyn x = do
             case Map.lookup x si of
                 Just d  -> return d
                 Nothing -> notInScope $ qnameToConcrete x
+
+---------------------------------------------------------------------------
+-- * Benchmark
+---------------------------------------------------------------------------
+
+-- | Lens getter for 'Benchmark' from 'TCState'.
+theBenchmark :: TCState -> Benchmark
+theBenchmark = stBenchmark . stPersistent
+
+-- | Lens map for 'Benchmark'.
+updateBenchmark :: (Benchmark -> Benchmark) -> TCState -> TCState
+updateBenchmark f = updatePersistentState $ \ s -> s { stBenchmark = f (stBenchmark s) }
+
+-- | Lens getter for 'Benchmark' from 'TCM'.
+getBenchmark :: TCM Benchmark
+getBenchmark = gets $ theBenchmark
+
+-- | Lens modify for 'Benchmark'.
+modifyBenchmark :: (Benchmark -> Benchmark) -> TCM ()
+modifyBenchmark = modify . updateBenchmark
+
+-- | Run a fresh instance of the TCM (with initial state).
+--   'Benchmark' info is preserved.
+freshTCM :: TCM a -> TCM (Either TCErr a)
+freshTCM m = do
+  -- Prepare an initial state with current benchmark info.
+  b <- getBenchmark
+  let s = updateBenchmark (const b) initState
+  -- Run subcomputation in initial state.
+  -- If we encounter an exception, we lose the state and the
+  -- benchmark info.
+  -- We could retrieve i from a type error, which carries the state,
+  -- but we do not care for benchmarking in the presence of errors.
+  r <- liftIO $ (Right <$> runTCM initEnv s m) `E.catch` (return . Left)
+  case r of
+    Left err     -> return $ Left err
+    Right (a, s) -> do
+      -- Keep only the benchmark info from the final state of the subcomp.
+      modifyBenchmark $ const $ theBenchmark s
+      return $ Right a

@@ -125,19 +125,6 @@ revLift run lift f = do
 commandMToIO :: (forall x . (CommandM a -> IO x) -> IO x) -> CommandM a
 commandMToIO ci_i = revLift runStateT lift $ \ct -> revLift runSafeTCM liftIO $ ci_i . (. ct)
 
--- | 'runSafeTCM' runs a safe 'TMC' action (a 'TCM' action which cannot fail)
-
-runSafeTCM :: TCM a -> TCState -> IO (a, TCState)
-runSafeTCM m st = do
-    x <- runTCM $ do
-        put st
-        a <- m
-        st <- get
-        return (a, st)
-    case x of
-        Right x -> return x
-        Left _  -> __IMPOSSIBLE__   -- cannot happen if 'm' is safe
-
 -- | Lift a TCM action transformer to a CommandM action transformer.
 
 liftCommandMT :: (forall a . TCM a -> TCM a) -> CommandM a -> CommandM a

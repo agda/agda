@@ -1,4 +1,7 @@
-{-# LANGUAGE TupleSections, PatternGuards #-}
+-- | Strict tries (based on 'Data.Map.Strict').
+
+{-# LANGUAGE TupleSections, PatternGuards, BangPatterns,
+  GeneralizedNewtypeDeriving #-}
 
 module Agda.Utils.Trie
   ( Trie
@@ -8,12 +11,13 @@ module Agda.Utils.Trie
   ) where
 
 import Control.Applicative hiding (empty)
+import Control.DeepSeq
 import Control.Monad (mplus)
 
 import Data.Function
 import Data.List (nubBy, sortBy, isPrefixOf)
-import Data.Map (Map)
-import qualified Data.Map as Map
+import Data.Map.Strict (Map)
+import qualified Data.Map.Strict as Map
 
 import Test.QuickCheck
 
@@ -21,7 +25,7 @@ import Agda.Utils.List (mcons)
 import Agda.Utils.Maybe
 
 -- | Finite map from @[k]@ to @v@.
-data Trie k v = Trie (Maybe v) (Map k (Trie k v))
+data Trie k v = Trie !(Maybe v) !(Map k (Trie k v))
   deriving Show
 
 -- | Empty trie.
@@ -30,29 +34,31 @@ empty = Trie Nothing Map.empty
 
 -- | Singleton trie.
 singleton :: [k] -> v -> Trie k v
-singleton []     v = Trie (Just v) Map.empty
-singleton (x:xs) v = Trie Nothing $ Map.singleton x (singleton xs v)
+singleton []     !v = Trie (Just v) Map.empty
+singleton (x:xs) !v = Trie Nothing $ Map.singleton x (singleton xs v)
 
 -- | Left biased union.
 --
 --   @union = unionWith (\ new old -> new)@.
-union :: Ord k => Trie k v -> Trie k v -> Trie k v
-union (Trie v ss) (Trie w ts) =
-  Trie (v `mplus` w) (Map.unionWith union ss ts)
+union :: (Ord k, NFData v) => Trie k v -> Trie k v -> Trie k v
+union (Trie v ss) (Trie w ts) = new `deepseq`
+  Trie new (Map.unionWith union ss ts)
+  where new = v `mplus` w
 
 -- | Pointwise union with merge function for values.
-unionWith :: Ord k => (v -> v -> v) -> Trie k v -> Trie k v -> Trie k v
-unionWith f (Trie v ss) (Trie w ts) =
-  Trie (unionMaybeWith f v w) (Map.unionWith (unionWith f) ss ts)
+unionWith :: (Ord k, NFData v) => (v -> v -> v) -> Trie k v -> Trie k v -> Trie k v
+unionWith f (Trie v ss) (Trie w ts) = new `deepseq`
+  Trie new (Map.unionWith (unionWith f) ss ts)
+  where new = unionMaybeWith f v w
 
 -- | Insert.  Overwrites existing value if present.
 --
 --   @insert = insertWith (\ new old -> new)@
-insert :: Ord k => [k] -> v -> Trie k v -> Trie k v
+insert :: (Ord k, NFData v) => [k] -> v -> Trie k v -> Trie k v
 insert k v t = union (singleton k v) t
 
 -- | Insert with function merging new value with old value.
-insertWith :: Ord k => (v -> v -> v) -> [k] -> v -> Trie k v -> Trie k v
+insertWith :: (Ord k, NFData v) => (v -> v -> v) -> [k] -> v -> Trie k v -> Trie k v
 insertWith f k v t = unionWith f (singleton k v) t
 
 -- | Delete value at key, but leave subtree intact.
@@ -91,10 +97,10 @@ lookupPath xs (Trie v cs) = case xs of
 -- Tests ------------------------------------------------------------------
 
 newtype Key = Key Int
-  deriving (Eq, Ord)
+  deriving (Eq, Ord, NFData)
 
 newtype Val = Val Int
-  deriving (Eq)
+  deriving (Eq, NFData)
 
 newtype Model = Model [([Key], Val)]
   deriving (Eq, Show)

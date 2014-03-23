@@ -172,7 +172,7 @@ optionError err = do
 -- | Main
 main :: IO ()
 main = do
-    r <- runTCM $ runAgda `catchError` \err -> do
+    r <- runTCMTop $ runAgda `catchError` \err -> do
       s <- prettyError err
       liftIO $ putStrLn s
       throwError err

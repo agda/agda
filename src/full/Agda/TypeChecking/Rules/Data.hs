@@ -183,7 +183,7 @@ smallParams tel s = do
       -- A type is small if it is not Level or its sort is <= the data sort.
       -- In doubt (unsolvable constraints), a type is small.
       -- So, only if we have a solid error, the type is big.
-      localState $ do
+      localTCState $ do
         ([] <$ do equalTerm topSort (unEl a) =<< primLevel)  -- NB: if primLevel fails, the next alternative is picked
         <|> ([i] <$ (getSort a `leqSort` s))
         <|> return []

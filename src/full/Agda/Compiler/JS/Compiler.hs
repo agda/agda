@@ -43,13 +43,14 @@ import Agda.TypeChecking.Monad
     dataPars, dataCons,
     conPars, conData,
     recConHead, recFields, recNamedCon,
+    localTCState,
     typeError, TypeError(NotImplemented),
     defJSDef )
 import Agda.TypeChecking.Monad.Options ( setCommandLineOptions, commandLineOptions, reportSLn )
 import Agda.TypeChecking.Reduce ( instantiateFull, normalise )
 import Agda.Utils.FileName ( filePath )
 import Agda.Utils.Function ( iterate' )
-import Agda.Utils.Monad ( (<$>), (<*>), localState, ifM )
+import Agda.Utils.Monad ( (<$>), (<*>), ifM )
 import Agda.Utils.IO.UTF8 ( writeFile )
 import qualified Agda.Utils.HashMap as HMap
 import Agda.Compiler.MAlonzo.Misc ( curDefs, curIF, curMName, setInterface )
@@ -74,7 +75,7 @@ import Agda.Utils.Impossible ( Impossible(Impossible), throwImpossible )
 compilerMain :: Interface -> TCM ()
 compilerMain mainI =
   -- Preserve the state (the compiler modifies the state).
-  localState $ do
+  localTCState $ do
 
     -- Compute the output directory.
     opts <- commandLineOptions

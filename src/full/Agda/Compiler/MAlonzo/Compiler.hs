@@ -43,7 +43,9 @@ import Agda.Utils.Impossible
 compilerMain :: Bool -> Interface -> TCM ()
 compilerMain modIsMain mainI =
   -- Preserve the state (the compiler modifies the state).
-  localState $ do
+  -- Andreas, 2014-03-23 But we might want to collect Benchmark info,
+  -- so use localTCState.
+  localTCState $ do
 
     -- Compute the output directory.
     opts <- commandLineOptions

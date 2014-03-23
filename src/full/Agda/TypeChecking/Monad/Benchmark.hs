@@ -12,14 +12,7 @@ import System.CPUTime
 
 import Agda.TypeChecking.Monad.Base.Benchmark
 import Agda.TypeChecking.Monad.Base
-
--- | Lens getter for 'Benchmark'.
-getBenchmark :: TCM Benchmark
-getBenchmark = gets stBenchmark
-
--- | Lens modify for 'Benchmark'.
-modifyBenchmark :: (Benchmark -> Benchmark) -> TCM ()
-modifyBenchmark f = modify $ \ s -> s { stBenchmark = f (stBenchmark s) }
+import Agda.TypeChecking.Monad.State
 
 -- | Add CPU time to specified account.
 addToAccount :: Account -> CPUTime -> TCM ()

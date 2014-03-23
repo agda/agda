@@ -161,7 +161,7 @@ findInScope' m cands = ifM (isFrozen m) (return (Just cands)) $ do
 -- | Given a meta @m@ of type @t@ and a list of candidates @cands@,
 -- @checkCandidates m t cands@ returns a refined list of valid candidates.
 checkCandidates :: MetaId -> Type -> Candidates -> TCM Candidates
-checkCandidates m t cands = localState $ disableDestructiveUpdate $ do
+checkCandidates m t cands = localTCState $ disableDestructiveUpdate $ do
   -- for candidate checking, we don't take into account other IFS
   -- constrains
   dropConstraints (isIFSConstraint . clValue . theConstraint)
@@ -180,7 +180,7 @@ checkCandidates m t cands = localState $ disableDestructiveUpdate $ do
           , text "t'   =" <+> prettyTCM t'
           , text "term =" <+> prettyTCM term
           ]
-        localState $ do
+        localTCState $ do
            -- domi: we assume that nothing below performs direct IO (except
            -- for logging and such, I guess)
           ca <- runErrorT $ checkArguments ExpandLast DontExpandInstanceArguments  noRange [] t' t

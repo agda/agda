@@ -247,6 +247,9 @@ errorString err = case err of
 
 instance PrettyTCM TCErr where
     prettyTCM err = case err of
+        -- Andreas, 2014-03-23
+        -- This use of localState seems ok since we do not collect
+        -- Benchmark info during printing errors.
 	TypeError s e -> localState $ do
 	    put s
 	    sayWhen (envRange $ clEnv e) (envCall $ clEnv e) $ prettyTCM e
