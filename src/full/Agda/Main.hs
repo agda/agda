@@ -9,10 +9,13 @@ import Control.Monad.State
 import Control.Monad.Error
 import Control.Applicative
 
+import qualified Data.List as List
 import Data.Maybe
 
 import System.Environment
 import System.Exit
+
+import qualified Text.PrettyPrint.Boxes as Boxes
 
 import Agda.Syntax.Concrete.Pretty ()
 
@@ -27,6 +30,8 @@ import qualified Agda.Interaction.Highlighting.LaTeX as LaTeX
 import Agda.Interaction.Highlighting.HTML
 
 import Agda.TypeChecking.Monad
+import Agda.TypeChecking.Monad.Benchmark (billTo, getBenchmark)
+import qualified Agda.TypeChecking.Monad.Benchmark as Bench
 import Agda.TypeChecking.Errors
 
 import Agda.Compiler.MAlonzo.Compiler as MAlonzo
@@ -34,6 +39,7 @@ import Agda.Compiler.Epic.Compiler as Epic
 import Agda.Compiler.JS.Compiler as JS
 
 import Agda.Utils.Monad
+import qualified Agda.Utils.Trie as Trie
 
 import Agda.Tests
 import Agda.Version
@@ -45,7 +51,7 @@ import Agda.Utils.Impossible
 runAgda :: TCM ()
 runAgda = do
   progName <- liftIO getProgName
-  argv   <- liftIO getArgs
+  argv     <- liftIO getArgs
   let opts = parseStandardOptions argv
   case opts of
     Left err -> liftIO $ optionError err
@@ -61,7 +67,27 @@ runAgda = do
                             -> liftIO printUsage
       | otherwise           -> do
           setCommandLineOptions opts
-          checkFile
+          -- Main function.
+          -- Bill everything to root of Benchmark trie.
+          billTo [] $ checkFile
+
+          -- Print benchmarks.
+          verboseS "profile" 7 $ do
+            (accounts, times) <- List.unzip . Trie.toList <$> getBenchmark
+            -- Generate a table.
+            let showAccount [] = "Total time"
+                showAccount ks = List.concat . List.intersperse "." . map show $ ks
+                -- First column is accounts.
+                col1 = Boxes.vcat Boxes.left $
+                       map (Boxes.text . showAccount) $
+                       accounts
+                -- Second column is times.
+                -- CPU times are in pico seconds, convert to milliseconds.
+                col2 = Boxes.vcat Boxes.right $
+                       map (Boxes.text . (++ " ms") . show . (`div` 1000000000)) $
+                       times
+                table = Boxes.hsep 1 Boxes.left [col1, col2]
+            reportSLn "profile" 7 $ Boxes.render table
   where
     checkFile :: TCM ()
     checkFile = do

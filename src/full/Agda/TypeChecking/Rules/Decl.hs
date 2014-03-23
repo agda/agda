@@ -22,6 +22,8 @@ import Agda.Syntax.Common
 import Agda.TypeChecking.Errors
 import Agda.TypeChecking.Monad
 import Agda.TypeChecking.Monad.Builtin
+import Agda.TypeChecking.Monad.Benchmark (billTop)
+import qualified Agda.TypeChecking.Monad.Benchmark as Bench
 import Agda.TypeChecking.Pretty
 import Agda.TypeChecking.Constraints
 import Agda.TypeChecking.Positivity
@@ -83,7 +85,7 @@ checkDecl d = traceCall (SetRange (getRange d)) $ do
         impossible m = m >> return __IMPOSSIBLE__
                        -- We're definitely inside a mutual block.
 
-    topLevelKind <- case d of
+    topLevelKind <- billTop Bench.Typing $ case d of
       A.Axiom{}                -> meta $ checkTypeSignature d
       A.Field{}                -> typeError FieldOutsideRecord
       A.Primitive i x e        -> meta $ checkPrimitive i x e
@@ -118,16 +120,17 @@ checkDecl d = traceCall (SetRange (getRange d)) $ do
         Nothing           -> return []
         Just mutualChecks -> do
 
-          solveSizeConstraints
-          solveIrrelevantMetas
-          wakeupConstraints_   -- solve emptyness constraints
-          freezeMetas
+          billTop Bench.Typing $ do
+            solveSizeConstraints
+            solveIrrelevantMetas
+            wakeupConstraints_   -- solve emptyness constraints
+            freezeMetas
 
           mutualChecks
 
       -- Syntax highlighting.
       let highlight d = generateAndPrintSyntaxInfo d (Full termErrs)
-      case d of
+      billTop Bench.Highlighting $ case d of
         A.Axiom{}                -> highlight d
         A.Field{}                -> __IMPOSSIBLE__
         A.Primitive{}            -> highlight d
@@ -179,59 +182,80 @@ checkDecl d = traceCall (SetRange (getRange d)) $ do
     -- block (or non-mutual record declaration). The set names
     -- contains the names defined in the mutual block.
     mutualChecks names = do
-
-      -- Termination checking.
       -- Andreas, 2013-02-27: check termination before injectivity,
       -- to avoid making the injectivity checker loop.
-      reportSLn "tc.decl" 20 $ "checkDecl: checking termination..."
-      termErrs <-
-        ifM (optTerminationCheck <$> pragmaOptions)
-          (disableDestructiveUpdate $ case d of
-             A.RecDef {} -> return []
-                            -- Record module definitions should not be
-                            -- termination-checked twice.
-             _           -> do
-               termErrs <- {- nubList <$> -} termDecl d
-               modify $ \st ->
-                 st { stTermErrs = Fold.foldl' (|>) (stTermErrs st) termErrs }
-               return termErrs)
-          (return [])
-
-      -- Positivity checking.
-      reportSLn "tc.decl" 20 $ "checkDecl: checking positivity..."
-      checkStrictlyPositive names
-
-      -- Andreas, 2012-02-13: Polarity computation uses info from
-      -- positivity check, so it needs happen after positivity
-      -- check.
-      let -- | Do we need to compute polarity information for the
-          -- definition corresponding to the given name?
-          relevant q = do
-            def <- theDef <$> getConstInfo q
-            return $ case def of
-              Function{}    -> Just q
-              Datatype{}    -> Just q
-              Record{}      -> Just q
-              Axiom{}       -> Nothing
-              Constructor{} -> Nothing
-              Primitive{}   -> Nothing
-      mapM_ computePolarity =<<
-        (catMaybes <$> mapM relevant (Set.toList names))
-
+      termErrs <- checkTermination_ d
+      checkPositivity_         names
       -- Andreas, 2012-09-11:  Injectivity check stores clauses
       -- whose 'Relevance' is affected by polarity computation,
       -- so do it here.
+      checkInjectivity_        names
+      checkProjectionLikeness_ names
+      return termErrs
 
-      let checkInj (q, def@Defn{ theDef = d@Function{ funClauses = cs, funTerminates = Just True }}) = do
-            inv <- checkInjectivity q cs
-            modifySignature $ updateDefinition q $ const $
-              def { theDef = d { funInv = inv }}
-          checkInj _ = return ()
+-- | Termination check a declaration and return a list of termination errors.
+checkTermination_ :: A.Declaration -> TCM [TerminationError]
+checkTermination_ d = billTop Bench.Termination $ do
+  reportSLn "tc.decl" 20 $ "checkDecl: checking termination..."
+  ifNotM (optTerminationCheck <$> pragmaOptions) (return []) $ {- else -} do
+    case d of
+      -- Record module definitions should not be termination-checked twice.
+      A.RecDef {} -> return []
+      _ -> disableDestructiveUpdate $ do
+        termErrs <- {- nubList <$> -} termDecl d
+        modify $ \st ->
+          st { stTermErrs = Fold.foldl' (|>) (stTermErrs st) termErrs }
+        return termErrs
 
-      namesDefs <- mapM (\ q -> (q,) <$> getConstInfo q) $ Set.toList names
-      reportSLn "tc.decl" 20 $ "checkDecl: checking injectivity..."
-      mapM_ checkInj namesDefs
+-- | Check a set of mutual names for positivity.
+checkPositivity_ :: Set QName -> TCM ()
+checkPositivity_ names = billTop Bench.Positivity $ do
+  -- Positivity checking.
+  reportSLn "tc.decl" 20 $ "checkDecl: checking positivity..."
+  checkStrictlyPositive names
 
+  -- Andreas, 2012-02-13: Polarity computation uses info from
+  -- positivity check, so it needs happen after positivity
+  -- check.
+  let -- | Do we need to compute polarity information for the
+      -- definition corresponding to the given name?
+      relevant q = do
+        def <- theDef <$> getConstInfo q
+        return $ case def of
+          Function{}    -> Just q
+          Datatype{}    -> Just q
+          Record{}      -> Just q
+          Axiom{}       -> Nothing
+          Constructor{} -> Nothing
+          Primitive{}   -> Nothing
+  mapM_ computePolarity =<< do mapMaybeM relevant $ Set.toList names
+
+-- | Check a set of mutual names for constructor-headedness.
+checkInjectivity_ :: Set QName -> TCM ()
+checkInjectivity_ names = billTop Bench.Injectivity $ do
+  reportSLn "tc.decl" 20 $ "checkDecl: checking injectivity..."
+
+  -- OLD CODE, REFACTORED using for-loop
+  -- let checkInj (q, def@Defn{ theDef = d@Function{ funClauses = cs, funTerminates = Just True }}) = do
+  --       inv <- checkInjectivity q cs
+  --       modifySignature $ updateDefinition q $ const $
+  --         def { theDef = d { funInv = inv }}
+  --     checkInj _ = return ()
+  -- namesDefs <- mapM (\ q -> (q,) <$> getConstInfo q) $ Set.toList names
+  -- mapM_ checkInj namesDefs
+
+  forM_ (Set.toList names) $ \ q -> do
+    def <- getConstInfo q
+    case theDef def of
+      d@Function{ funClauses = cs, funTerminates = Just True } -> do
+        inv <- checkInjectivity q cs
+        modifySignature $ updateDefinition q $ const $
+          def { theDef = d { funInv = inv }}
+      _ -> return ()
+
+-- | Check a set of mutual names for projection likeness.
+checkProjectionLikeness_ :: Set QName -> TCM ()
+checkProjectionLikeness_ names = billTop Bench.ProjectionLikeness $ do
       -- Non-mutual definitions can be considered for
       -- projection likeness
       reportSLn "tc.decl" 20 $ "checkDecl: checking projection-likeness..."
@@ -242,8 +266,6 @@ checkDecl d = traceCall (SetRange (getRange d)) $ do
             Function{} -> makeProjection (defName def)
             _          -> return ()
         _ -> return ()
-
-      return termErrs
 
 -- | Type check an axiom.
 checkAxiom :: A.Axiom -> Info.DefInfo -> A.ArgInfo -> QName -> A.Expr -> TCM ()

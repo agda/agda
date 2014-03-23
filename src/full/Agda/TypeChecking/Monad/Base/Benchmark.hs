@@ -1,0 +1,55 @@
+-- | Data structures for collecting CPU usage.
+
+module Agda.TypeChecking.Monad.Base.Benchmark where
+
+import Agda.Utils.Trie as Trie
+
+-- | Phases to allocate CPU time to.
+data Phase
+  = Parsing
+    -- ^ Happy parsing and operator parsing.
+  | Import
+    -- ^ Import chasing.
+  | Deserialization
+    -- ^ Reading interface files.
+  | Scoping
+    -- ^ Scope checking and translation to abstract syntax.
+  | Typing
+    -- ^ Type checking and translation to internal syntax.
+  | Termination
+    -- ^ Termination checking.
+  | Positivity
+    -- ^ Positivity checking and polarity computation.
+  | Injectivity
+    -- ^ Injectivity checking.
+  | ProjectionLikeness
+    -- ^ Checking for projection likeness.
+  | Coverage
+    -- ^ Coverage checking and compilation to case trees.
+  | Highlighting
+    -- ^ Generating highlighting info.
+  | Serialization
+    -- ^ Writing interface files.
+  deriving (Eq, Ord, Show, Enum, Bounded)
+
+-- | Account we can bill computation time to.
+type Account = [Phase]
+
+-- | We measure CPU time spent on certain tasks.
+type CPUTime = Integer
+
+-- | Benchmark structure is a trie, mapping phases (and subphases)
+--   to CPU time spent on their performance.
+type Benchmark = Trie Phase CPUTime
+
+-- | Initial benchmark structure (empty).
+empty :: Benchmark
+empty = Trie.empty
+
+-- | Add to specified CPU time account.
+addCPUTime :: Account -> CPUTime -> Benchmark -> Benchmark
+addCPUTime = Trie.insertWith (+)
+
+-- -- | Lens modifier for specific entry in benchmark structure.
+-- mapCPUTime :: [Phase] → (CPUTime -> CPUTime) -> Benchmark -> Benchmark
+-- mapCPUtime k f = inserWith

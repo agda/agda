@@ -39,6 +39,9 @@ import Agda.TypeChecking.Reduce
 import Agda.TypeChecking.Monad
 import Agda.TypeChecking.Serialise
 import Agda.TypeChecking.Primitive
+import Agda.TypeChecking.Monad.Benchmark (billTop, reimburseTop)
+import qualified Agda.TypeChecking.Monad.Benchmark as Bench
+
 import Agda.TypeChecker
 
 import Agda.Interaction.FindFile
@@ -112,7 +115,9 @@ scopeCheckImport x = do
       visited <- Map.keys <$> getVisitedModules
       reportSLn "import.scope" 10 $
         "  visited: " ++ intercalate ", " (map (render . pretty) visited)
-    i <- getInterface x
+    -- Since scopeCheckImport is called from the scope checker,
+    -- we need to reimburse her account.
+    i <- reimburseTop Bench.Scoping $ getInterface x
     addImport x
     return (iModuleName i `withRangesOfQ` mnameToConcrete x, iScope i)
 
@@ -226,7 +231,7 @@ getInterface' x includeStateChanges =
     reportSLn "import.iface" 10 $ "  Check for cycle"
     checkForImportCycle
 
-    uptodate <- do
+    uptodate <- billTop Bench.Import $ do
       ignore <- ignoreInterfaces
       cached <- isCached file -- if it's cached ignoreInterfaces has no effect
                               -- to avoid typechecking a file more than once
@@ -256,8 +261,9 @@ getInterface' x includeStateChanges =
                                  else "  New module. Let's check it out."
     unless (visited || stateChangesIncluded) $ do
       mergeInterface i
-      ifTopLevelAndHighlightingLevelIs NonInteractive $
-        highlightFromInterface i file
+      billTop Bench.Highlighting $
+        ifTopLevelAndHighlightingLevelIs NonInteractive $
+          highlightFromInterface i file
 
     modify (\s -> s { stCurrentModule = Just $ iModuleName i })
 
@@ -298,7 +304,7 @@ getInterface' x includeStateChanges =
         let ifile = filePath $ toIFile file
         h <- fmap snd <$> getInterfaceFileHashes ifile
         mm <- getDecodedModule x
-        (cached, mi) <- case mm of
+        (cached, mi) <- billTop Bench.Deserialization $ case mm of
           Just mi ->
             if Just (iFullHash mi) /= h
             then do dropDecodedModule x
@@ -481,7 +487,7 @@ createInterface
 createInterface file mname =
   local (\e -> e { envCurrentPath = file }) $ do
     modFile       <- stModuleToSource <$> get
-    fileTokenInfo <- generateTokenInfo file
+    fileTokenInfo <- billTop Bench.Highlighting $ generateTokenInfo file
     modify $ \st -> st { stTokens = fileTokenInfo }
 
     reportSLn "import.iface.create" 5 $
@@ -493,7 +499,9 @@ createInterface file mname =
 
     previousHsImports <- getHaskellImports
 
-    (pragmas, top) <- liftIO $ parseFile' moduleParser file
+    -- Parsing.
+    (pragmas, top) <- billTop Bench.Parsing $
+      liftIO $ parseFile' moduleParser file
 
     pragmas <- concat <$> concreteToAbstract_ pragmas
                -- identity for top-level pragmas at the moment
@@ -501,11 +509,16 @@ createInterface file mname =
         getOptions _                      = Nothing
         options = catMaybes $ map getOptions pragmas
     mapM_ setOptionsFromPragma options
-    topLevel <- concreteToAbstract_ (TopLevel file top)
+
+    -- Scope checking.
+    topLevel <- billTop Bench.Scoping $
+      concreteToAbstract_ (TopLevel file top)
 
     let ds = topLevelDecls topLevel
 
-    ifTopLevelAndHighlightingLevelIs NonInteractive $ do
+    -- Highlighting from scope checker.
+    billTop Bench.Highlighting $ do
+      ifTopLevelAndHighlightingLevelIs NonInteractive $ do
       -- Generate and print approximate syntax highlighting info.
       printHighlightingInfo fileTokenInfo
       mapM_ (\d -> generateAndPrintSyntaxInfo d Partial) ds
@@ -526,24 +539,28 @@ createInterface file mname =
       MetaId n <- fresh
       tickN "metas" (fromIntegral n)
 
-    -- Move any remaining token highlighting to stSyntaxInfo.
-    ifTopLevelAndHighlightingLevelIs NonInteractive $
-      printHighlightingInfo . stTokens =<< get
-    modify $ \st ->
-      st { stTokens     = mempty
-         , stSyntaxInfo = stSyntaxInfo st `mappend` stTokens st
-         }
+    -- Highlighting from type checker.
+    billTop Bench.Highlighting $ do
 
-    whenM (optGenerateVimFile <$> commandLineOptions) $
-      -- Generate Vim file.
-      withScope_ (insideScope topLevel) $ generateVimFile $ filePath file
+      -- Move any remaining token highlighting to stSyntaxInfo.
+      ifTopLevelAndHighlightingLevelIs NonInteractive $
+        printHighlightingInfo . stTokens =<< get
+      modify $ \st ->
+        st { stTokens     = mempty
+           , stSyntaxInfo = stSyntaxInfo st `mappend` stTokens st
+           }
+
+      whenM (optGenerateVimFile <$> commandLineOptions) $
+        -- Generate Vim file.
+        withScope_ (insideScope topLevel) $ generateVimFile $ filePath file
 
     setScope $ outsideScope topLevel
 
     reportSLn "scope.top" 50 $ "SCOPE " ++ show (insideScope topLevel)
 
     syntaxInfo <- stSyntaxInfo <$> get
-    i <- buildInterface file topLevel syntaxInfo previousHsImports options
+    i <- billTop Bench.Serialization $ do
+      buildInterface file topLevel syntaxInfo previousHsImports options
 
     -- TODO: It would be nice if unsolved things were highlighted
     -- after every mutual block.
@@ -557,7 +574,7 @@ createInterface file mname =
       printUnsolvedInfo
 
     r <- if and [ null termErrs, null unsolvedMetas, null unsolvedConstraints, null interactionPoints ]
-     then do
+     then billTop Bench.Serialization $ do
       -- The file was successfully type-checked (and no warnings were
       -- encountered), so the interface should be written out.
       let ifile = filePath $ toIFile file

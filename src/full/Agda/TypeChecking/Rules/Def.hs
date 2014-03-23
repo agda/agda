@@ -20,8 +20,12 @@ import qualified Agda.Syntax.Info as Info
 import Agda.Syntax.Fixity
 import Agda.Syntax.Translation.InternalToAbstract
 import Agda.Syntax.Info
+
 import Agda.TypeChecking.Monad
 import Agda.TypeChecking.Monad.Builtin (primRefl, primEquality)
+import Agda.TypeChecking.Monad.Benchmark (billTop, reimburseTop)
+import qualified Agda.TypeChecking.Monad.Benchmark as Bench
+
 import Agda.TypeChecking.Reduce
 import Agda.TypeChecking.Patterns.Abstract (expandPatternSynonyms)
 import Agda.TypeChecking.Pretty
@@ -197,7 +201,8 @@ checkFunDef' t ai delayed extlam with i name cs =
 
         -- Check if the function is injective
         reportSLn "tc.inj.def" 20 $ "checkFunDef': checking injectivity..."
-        inv <- checkInjectivity name cs
+        inv <- reimburseTop Bench.Typing $ billTop Bench.Injectivity $
+          checkInjectivity name cs
         -- inv <- return NotInjective
 
         reportSDoc "tc.cc" 15 $ do
@@ -209,7 +214,8 @@ checkFunDef' t ai delayed extlam with i name cs =
         addClauses name cs
 
         -- Coverage check and compile the clauses
-        cc <- compileClauses (Just (name, t)) cs
+        cc <- reimburseTop Bench.Typing $ billTop Bench.Coverage $
+          compileClauses (Just (name, t)) cs
 
         reportSDoc "tc.cc" 10 $ do
           sep [ text "compiled clauses of" <+> prettyTCM name

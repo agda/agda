@@ -47,6 +47,9 @@ import Agda.Interaction.Highlighting.Precise
 
 import qualified Agda.Compiler.JS.Syntax as JS
 
+import Agda.TypeChecking.Monad.Base.Benchmark (Benchmark)
+import qualified Agda.TypeChecking.Monad.Base.Benchmark as Benchmark
+
 import Agda.Utils.FileName
 import Agda.Utils.Fresh
 import Agda.Utils.Permutation
@@ -80,6 +83,8 @@ data TCState =
          , stOccursCheckDefs   :: Set QName
            -- ^ Definitions to be considered during occurs check.
            --   Initialized to the current mutual block before the check.
+           --   During occurs check, we remove definitions from this set
+           --   as soon we have checked them.
 	 , stSignature	       :: Signature
 	 , stImports	       :: Signature
 	 , stImportedModules   :: Set ModuleName
@@ -95,6 +100,9 @@ data TCState =
            -- ^ Options applying to the current file. @OPTIONS@
            -- pragmas only affect this field.
 	 , stStatistics	       :: Statistics
+           -- ^ Counters to collect various statistics about meta variables etc.
+         , stBenchmark         :: Benchmark
+           -- ^ Structure to record how much CPU time was spent on which Agda phase.
 	 , stMutualBlocks      :: Map MutualId (Set QName)
 	 , stLocalBuiltins     :: BuiltinThings PrimFun
          , stImportedBuiltins  :: BuiltinThings PrimFun
@@ -153,6 +161,7 @@ initState =
          , stPatternSynImports = Map.empty
 	 , stPragmaOptions     = defaultInteractionOptions
 	 , stStatistics	       = Map.empty
+         , stBenchmark         = Benchmark.empty
 	 , stMutualBlocks      = Map.empty
 	 , stLocalBuiltins     = Map.empty
 	 , stImportedBuiltins  = Map.empty
