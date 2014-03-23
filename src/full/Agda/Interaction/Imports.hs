@@ -525,7 +525,8 @@ createInterface file mname =
       mapM_ (\ d -> generateAndPrintSyntaxInfo d Partial) ds
 
     -- Type checking.
-    checkDecls ds
+    billTop Bench.Typing $ checkDecls ds
+
     -- Ulf, 2013-11-09: Since we're rethrowing the error, leave it up to the
     -- code that handles that error to reset the state.
     -- Ulf, 2013-11-13: Errors are now caught and highlighted in InteractionTop.

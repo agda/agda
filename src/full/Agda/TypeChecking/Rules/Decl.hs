@@ -22,7 +22,7 @@ import Agda.Syntax.Common
 import Agda.TypeChecking.Errors
 import Agda.TypeChecking.Monad
 import Agda.TypeChecking.Monad.Builtin
-import Agda.TypeChecking.Monad.Benchmark (billTop)
+import Agda.TypeChecking.Monad.Benchmark (billTop, reimburseTop)
 import qualified Agda.TypeChecking.Monad.Benchmark as Bench
 import Agda.TypeChecking.Pretty
 import Agda.TypeChecking.Constraints
@@ -85,7 +85,7 @@ checkDecl d = traceCall (SetRange (getRange d)) $ do
         impossible m = m >> return __IMPOSSIBLE__
                        -- We're definitely inside a mutual block.
 
-    topLevelKind <- billTop Bench.Typing $ case d of
+    topLevelKind <- case d of
       A.Axiom{}                -> meta $ checkTypeSignature d
       A.Field{}                -> typeError FieldOutsideRecord
       A.Primitive i x e        -> meta $ checkPrimitive i x e
@@ -120,7 +120,7 @@ checkDecl d = traceCall (SetRange (getRange d)) $ do
         Nothing           -> return []
         Just mutualChecks -> do
 
-          billTop Bench.Typing $ do
+          do
             solveSizeConstraints
             solveIrrelevantMetas
             wakeupConstraints_   -- solve emptyness constraints
@@ -130,7 +130,7 @@ checkDecl d = traceCall (SetRange (getRange d)) $ do
 
       -- Syntax highlighting.
       let highlight d = generateAndPrintSyntaxInfo d (Full termErrs)
-      billTop Bench.Highlighting $ case d of
+      reimburseTop Bench.Typing $ billTop Bench.Highlighting $ case d of
         A.Axiom{}                -> highlight d
         A.Field{}                -> __IMPOSSIBLE__
         A.Primitive{}            -> highlight d
@@ -195,7 +195,7 @@ checkDecl d = traceCall (SetRange (getRange d)) $ do
 
 -- | Termination check a declaration and return a list of termination errors.
 checkTermination_ :: A.Declaration -> TCM [TerminationError]
-checkTermination_ d = billTop Bench.Termination $ do
+checkTermination_ d = reimburseTop Bench.Typing $ billTop Bench.Termination $ do
   reportSLn "tc.decl" 20 $ "checkDecl: checking termination..."
   ifNotM (optTerminationCheck <$> pragmaOptions) (return []) $ {- else -} do
     case d of
@@ -209,7 +209,7 @@ checkTermination_ d = billTop Bench.Termination $ do
 
 -- | Check a set of mutual names for positivity.
 checkPositivity_ :: Set QName -> TCM ()
-checkPositivity_ names = billTop Bench.Positivity $ do
+checkPositivity_ names = reimburseTop Bench.Typing $ billTop Bench.Positivity $ do
   -- Positivity checking.
   reportSLn "tc.decl" 20 $ "checkDecl: checking positivity..."
   checkStrictlyPositive names
@@ -232,7 +232,7 @@ checkPositivity_ names = billTop Bench.Positivity $ do
 
 -- | Check a set of mutual names for constructor-headedness.
 checkInjectivity_ :: Set QName -> TCM ()
-checkInjectivity_ names = billTop Bench.Injectivity $ do
+checkInjectivity_ names = reimburseTop Bench.Typing $ billTop Bench.Injectivity $ do
   reportSLn "tc.decl" 20 $ "checkDecl: checking injectivity..."
 
   -- OLD CODE, REFACTORED using for-loop
@@ -255,7 +255,7 @@ checkInjectivity_ names = billTop Bench.Injectivity $ do
 
 -- | Check a set of mutual names for projection likeness.
 checkProjectionLikeness_ :: Set QName -> TCM ()
-checkProjectionLikeness_ names = billTop Bench.ProjectionLikeness $ do
+checkProjectionLikeness_ names = reimburseTop Bench.Typing $ billTop Bench.ProjectionLikeness $ do
       -- Non-mutual definitions can be considered for
       -- projection likeness
       reportSLn "tc.decl" 20 $ "checkDecl: checking projection-likeness..."
