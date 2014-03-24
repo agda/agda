@@ -3,10 +3,11 @@
 module Agda.TypeChecking.Monad.Benchmark
   ( module Agda.TypeChecking.Monad.Base.Benchmark
   , getBenchmark
-  , billTo, billTop
+  , billTo, billTop, billPureTo
   , reimburse, reimburseTop
   ) where
 
+import qualified Control.Exception as E (evaluate)
 import Control.Monad.State
 import System.CPUTime
 
@@ -22,7 +23,7 @@ addToAccount k v = modifyBenchmark $ addCPUTime k v
 billTo' :: Bool -> Account -> TCM a -> TCM a
 billTo' add k m = do
   start  <- liftIO $ getCPUTime
-  result <- m
+  result <- liftIO . E.evaluate =<< m
   stop   <- liftIO $ getCPUTime
   addToAccount k $ if add then stop - start else start - stop
   return result
@@ -34,6 +35,12 @@ billTo = billTo' True
 -- | Bill a top account.
 billTop :: Phase -> TCM a -> TCM a
 billTop k = billTo [k]
+
+-- | Bill a pure computation to a specific account.
+{-# SPECIALIZE billPureTo :: Account -> a -> TCM a #-}
+billPureTo :: MonadTCM tcm => Account -> a -> tcm a
+billPureTo k a = liftTCM $ billTo k $ return a
+-- billPureTo k a = liftTCM $ billTo k $ liftIO $ E.evaluate a
 
 -- | Reimburse a specific account for computation costs.
 reimburse :: Account -> TCM a -> TCM a
