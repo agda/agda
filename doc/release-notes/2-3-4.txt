@@ -88,6 +88,12 @@ Pragmas and Options
   Disables all forms of pattern matching (for the current file).
   You can still import files that use pattern matching.
 
+* New option -v profile:7
+
+  Prints some stats on which phases Agda spends how much time.
+  (Number might not be very reliable, due to garbage collection
+  interruptions, and maybe due to laziness of Haskell.)
+
 Language
 ========
 
