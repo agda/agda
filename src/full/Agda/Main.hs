@@ -30,7 +30,7 @@ import qualified Agda.Interaction.Highlighting.LaTeX as LaTeX
 import Agda.Interaction.Highlighting.HTML
 
 import Agda.TypeChecking.Monad
-import Agda.TypeChecking.Monad.Benchmark (billTo, getBenchmark)
+import Agda.TypeChecking.Monad.Benchmark
 import qualified Agda.TypeChecking.Monad.Benchmark as Bench
 import Agda.TypeChecking.Errors
 
@@ -72,7 +72,7 @@ runAgda = do
           billTo [] $ checkFile
 
           -- Print benchmarks.
-          verboseS "profile" 7 $ do
+          whenM benchmarking $ do
             (accounts, times) <- List.unzip . Trie.toList <$> getBenchmark
             -- Generate a table.
             let showAccount [] = "Total time"
@@ -87,7 +87,7 @@ runAgda = do
                        map (Boxes.text . (++ " ms") . show . (`div` 1000000000)) $
                        times
                 table = Boxes.hsep 1 Boxes.left [col1, col2]
-            reportSLn "profile" 7 $ Boxes.render table
+            reportBenchmarkingLn $ Boxes.render table
   where
     checkFile :: TCM ()
     checkFile = do

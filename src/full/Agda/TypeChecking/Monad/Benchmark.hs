@@ -3,6 +3,7 @@
 module Agda.TypeChecking.Monad.Benchmark
   ( module Agda.TypeChecking.Monad.Base.Benchmark
   , getBenchmark
+  , benchmarking, reportBenchmarkingLn, reportBenchmarkingDoc
   , billTo, billTop, billPureTo
   , reimburse, reimburseTop
   ) where
@@ -13,15 +14,28 @@ import System.CPUTime
 
 import Agda.TypeChecking.Monad.Base.Benchmark
 import Agda.TypeChecking.Monad.Base
+import Agda.TypeChecking.Monad.Options
 import Agda.TypeChecking.Monad.State
 
--- | Add CPU time to specified account.
-addToAccount :: Account -> CPUTime -> TCM ()
-addToAccount k v = modifyBenchmark $ addCPUTime k v
+import Agda.Utils.Monad
+import Agda.Utils.Pretty (Doc)
+
+-- | Check whether benchmarking is activated.
+{-# SPECIALIZE benchmarking :: TCM Bool #-}
+benchmarking :: MonadTCM tcm => tcm Bool
+benchmarking = liftTCM $ hasVerbosity "profile" 7
+
+-- | Report benchmarking results.
+reportBenchmarkingLn :: String -> TCM ()
+reportBenchmarkingLn = reportSLn "profile" 7
+
+-- | Report benchmarking results.
+reportBenchmarkingDoc :: TCM Doc -> TCM ()
+reportBenchmarkingDoc = reportSDoc "profile" 7
 
 -- | Bill a computation to a specific account (True) or reimburse (False).
 billTo' :: Bool -> Account -> TCM a -> TCM a
-billTo' add k m = do
+billTo' add k m = ifNotM benchmarking m {- else -} $ do
   start  <- liftIO $ getCPUTime
   result <- liftIO . E.evaluate =<< m
   stop   <- liftIO $ getCPUTime
@@ -50,3 +64,8 @@ reimburse = billTo' False
 reimburseTop :: Phase -> TCM a -> TCM a
 reimburseTop k = reimburse [k]
 
+-- * Auxiliary functions
+
+-- | Add CPU time to specified account.
+addToAccount :: Account -> CPUTime -> TCM ()
+addToAccount k v = modifyBenchmark $ addCPUTime k v
