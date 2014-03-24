@@ -758,6 +758,8 @@ function g es = ifJustM (isWithFunction g) (\ _ -> withFunction g es)
     let reduceCon t = case ignoreSharing t of
            Con c vs -> (`apply` vs) <$> reduce (Con c [])  -- make sure we don't reduce the arguments
            _        -> return t
+
+    -- Reduce constructors only when this call is actually a recursive one.
     -- es <- liftTCM $ billTo [Benchmark.Termination, Benchmark.Reduce] $ forM es $
     --         etaContract <=< traverse reduceCon <=< instantiateFull
 
@@ -790,7 +792,8 @@ function g es = ifJustM (isWithFunction g) (\ _ -> withFunction g es)
        Just gInd -> do
          delayed <- terGetDelayed
          pats    <- terGetPatterns
-         es <- liftTCM $ billTo [Benchmark.Termination, Benchmark.Reduce] $
+         -- 2014-03-25 Andreas, the costs seem small, benchmark turned off.
+         es <- liftTCM $ -- billTo [Benchmark.Termination, Benchmark.Reduce] $
            forM es $
               etaContract <=< traverse reduceCon <=< instantiateFull
 
