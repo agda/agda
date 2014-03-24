@@ -48,7 +48,7 @@ instance GetDefs Clause where
 instance GetDefs ClauseBody where
   getDefs b = case b of
     Body v -> getDefs v
-    Bind b -> getDefs $ unAbs b
+    Bind b -> getDefs b
     NoBody -> return ()
 
 instance GetDefs Term where
