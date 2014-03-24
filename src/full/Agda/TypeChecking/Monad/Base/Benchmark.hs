@@ -30,6 +30,12 @@ data Phase
     -- ^ Generating highlighting info.
   | Serialization
     -- ^ Writing interface files.
+  | Graph
+    -- ^ Subphase for 'Termination'.
+  | RecCheck
+    -- ^ Subphase for 'Termination'.
+  | Reduce
+    -- ^ Subphase for 'Termination'.
   deriving (Eq, Ord, Show, Enum, Bounded)
 
 -- | Account we can bill computation time to.

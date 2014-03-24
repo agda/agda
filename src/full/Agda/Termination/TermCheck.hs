@@ -56,6 +56,9 @@ import Agda.TypeChecking.Level (reallyUnLevelView)
 import Agda.TypeChecking.Substitute
 import Agda.TypeChecking.SizedTypes
 
+import qualified Agda.TypeChecking.Monad.Base.Benchmark as Benchmark
+import Agda.TypeChecking.Monad.Benchmark (billTo, billPureTo)
+
 import Agda.Interaction.Options
 
 import Agda.Utils.Either
@@ -166,7 +169,8 @@ termMutual i ds = if names == [] then return mempty else
   mutualBlock <- findMutualBlock (head names)
   let allNames = Set.elems mutualBlock
       -- no need to term-check if the declarations are acyclic
-      skip = not <$> recursive allNames
+      skip = not <$> do
+        billTo [Benchmark.Termination, Benchmark.RecCheck] $ recursive allNames
 
   -- Skip termination check when asked by pragma or no recursion.
   ifM (return (not (Info.mutualTermCheck i)) `or2M` skip) (do
@@ -244,13 +248,14 @@ termMutual' = do
 
   cutoff <- terGetCutOff
   let ?cutoff = cutoff
-  r <- case Term.terminates calls1 of
+  r <- billToTerGraph $ Term.terminates calls1
+  r <- case r of
          r@Right{} -> return r
          Left{}    -> do
            -- Try again, but include the dot patterns this time.
            calls2 <- terSetUseDotPatterns True $ collect
            reportCalls "" calls2
-           return $ Term.terminates calls2
+           billToTerGraph $ Term.terminates calls2
 
   -- @names@ is taken from the 'Abstract' syntax, so it contains only
   -- the names the user has declared.  This is for error reporting.
@@ -265,6 +270,8 @@ termMutual' = do
       liftTCM $ reportSLn "term.warn.yes" 2 $
         show (names) ++ " does termination check"
       return mempty
+
+billToTerGraph = billPureTo [Benchmark.Termination, Benchmark.Graph]
 
 -- | @reportCalls@ for debug printing.
 --
@@ -352,13 +359,14 @@ termFunction name = do
    r <- do
     cutoff <- terGetCutOff
     let ?cutoff = cutoff
-    case Term.terminatesFilter (== index) calls1 of
+    r <- billToTerGraph $ Term.terminatesFilter (== index) calls1
+    case r of
       Right () -> return $ Right ()
       Left{}    -> do
         -- Try again, but include the dot patterns this time.
         calls2 <- terSetUseDotPatterns True $ collect
         reportCalls "" calls2
-        return $ mapLeft callInfos $ Term.terminatesFilter (== index) calls2
+        billToTerGraph $ mapLeft callInfos $ Term.terminatesFilter (== index) calls2
 
    names <- terGetUserNames
    case r of
@@ -744,12 +752,14 @@ function g es = ifJustM (isWithFunction g) (\ _ -> withFunction g es)
     liftTCM $ reportSDoc "term.function" 30 $
       text "termination checking function call " <+> prettyTCM gArgs
 
+    -- First, look for calls in the arguments of the call gArgs.
+
     -- We have to reduce constructors in case they're reexported.
     let reduceCon t = case ignoreSharing t of
            Con c vs -> (`apply` vs) <$> reduce (Con c [])  -- make sure we don't reduce the arguments
            _        -> return t
-    es <- liftTCM $ forM es $
-            etaContract <=< traverse reduceCon <=< instantiateFull
+    -- es <- liftTCM $ billTo [Benchmark.Termination, Benchmark.Reduce] $ forM es $
+    --         etaContract <=< traverse reduceCon <=< instantiateFull
 
     -- If the function is a projection but not for a coinductive record,
     -- then preserve guardedness for its principal argument.
@@ -762,6 +772,8 @@ function g es = ifJustM (isWithFunction g) (\ _ -> withFunction g es)
     let args = map unArg $ argsFromElims es
     calls <- forM' (zip guards args) $ \ (guard, a) -> do
       terSetGuarded guard $ extract a
+
+    -- Then, consider call gArgs itself.
 
     liftTCM $ reportSDoc "term.found.call" 20 $
       sep [ text "found call from" <+> prettyTCM f
@@ -778,6 +790,11 @@ function g es = ifJustM (isWithFunction g) (\ _ -> withFunction g es)
        Just gInd -> do
          delayed <- terGetDelayed
          pats    <- terGetPatterns
+         es <- liftTCM $ billTo [Benchmark.Termination, Benchmark.Reduce] $
+           forM es $
+              etaContract <=< traverse reduceCon <=< instantiateFull
+
+         -- Compute the call matrix.
 
          (nrows, ncols, matrix) <- compareArgs es
          -- only a delayed definition can be guarded
