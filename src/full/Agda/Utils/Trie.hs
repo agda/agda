@@ -16,8 +16,13 @@ import qualified Prelude as Lazy
 import Data.Function
 import Data.Functor
 import Data.List (nubBy, sortBy, isPrefixOf)
+#if MIN_VERSION_containers(0,5,0)
 import Data.Map.Strict (Map)
 import qualified Data.Map.Strict as Map
+#else
+import Data.Map (Map)
+import qualified Data.Map as Map
+#endif
 
 import Test.QuickCheck
 
