@@ -167,7 +167,11 @@ termMutual i ds = if names == [] then return mempty else
   -- during type-checking.
   mutualBlock <- findMutualBlock (head names)
   let allNames = Set.elems mutualBlock
-      -- no need to term-check if the declarations are acyclic
+      -- Andreas, 2014-03-26
+      -- Keeping recursion check after experiments on the standard lib.
+      -- Seems still to save 1s.
+      -- skip = return False
+      -- No need to term-check if the declarations are acyclic!
       skip = not <$> do
         billTo [Benchmark.Termination, Benchmark.RecCheck] $ recursive allNames
 
@@ -815,15 +819,7 @@ function g es = ifJustM (isWithFunction g) (\ _ -> withFunction g es)
          -- whenever we really need to.
          -- This saves 30s (12%) on the std-lib!
          doc <- liftTCM $ buildClosure gArgs
-{-
-         let call = CallGraph.Call
-                      { CallGraph.source = fromMaybe __IMPOSSIBLE__ $
-                          List.elemIndex f names
-                      , CallGraph.target = gInd
-                      , CallGraph.cm     = makeCM ncols nrows matrix'
-                      }
-         return $ CallGraph.insert call info calls
--}
+
          let src  = fromMaybe __IMPOSSIBLE__ $ List.elemIndex f names
              tgt  = gInd
              cm   = makeCM ncols nrows matrix'
@@ -1252,7 +1248,9 @@ compareVar i (ConDBP c ps) = do
   decrease <$> offsetFromConstructor c
            <*> (Order.supremum <$> mapM (compareVar i) ps)
 
--- | Compare two variables
+-- | Compare two variables.
+--
+--   The first variable comes from a term, the second from a pattern.
 compareVarVar :: Nat -> Nat -> TerM Order
 compareVarVar i j
   | i == j    = return Order.le

@@ -71,7 +71,6 @@ data TerEnv = TerEnv
     -- ^ The name of the delay constructor (sharp), if any.
   , terCutOff  :: CutOff
     -- ^ Depth at which to cut off the structural order.
-    --   NOTE: No longer used, will disappear, after things have stabilized.
 
   -- Second part: accumulated info during descent into decls./term.
   , terCurrent :: QName
