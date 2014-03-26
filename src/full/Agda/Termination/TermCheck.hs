@@ -1,6 +1,6 @@
 {-# LANGUAGE CPP, PatternGuards, ImplicitParams, TupleSections, NamedFieldPuns,
              FlexibleInstances, TypeSynonymInstances,
-             DeriveFunctor #-}
+             StandaloneDeriving, GeneralizedNewtypeDeriving, DeriveFunctor #-}
 
 {- Checking for Structural recursion
    Authors: Andreas Abel, Nils Anders Danielsson, Ulf Norell,
@@ -52,7 +52,6 @@ import Agda.TypeChecking.Records -- (isRecordConstructor, isInductiveRecord)
 import Agda.TypeChecking.Telescope
 import Agda.TypeChecking.EtaContract
 import Agda.TypeChecking.Monad.Builtin
-import Agda.TypeChecking.Level (reallyUnLevelView)
 import Agda.TypeChecking.Substitute
 import Agda.TypeChecking.SizedTypes
 
@@ -641,19 +640,11 @@ instance ExtractCalls Sort where
         text "extracting calls from sort" <+> prettyTCM s
       reportSDoc "term.sort" 50 $
         text ("s = " ++ show s)
-    -- s <- instantiateFull s -- Andreas, 2012-09-05 NOT NECESSARY
-    -- instantiateFull resolves problems with reallyUnLevelView
-    -- in the absense of level built-ins.
-    -- However, the termination checker should only receive terms
-    -- that are already fully instantiated.
     case s of
-      Prop                       -> return CallGraph.empty
-      Inf                        -> return CallGraph.empty
-      Type (Max [])              -> return CallGraph.empty
-      Type (Max [ClosedLevel{}]) -> return CallGraph.empty
-      Type t                     -> terSetGuarded Order.unknown $
-        extract $ Level t    -- no guarded levels
-      DLub s1 s2                 -> extract (s1, s2)
+      Prop       -> return CallGraph.empty
+      Inf        -> return CallGraph.empty
+      Type t     -> terSetGuarded Order.unknown $ extract t  -- no guarded levels
+      DLub s1 s2 -> extract (s1, s2)
 
 -- | Extract recursive calls from a type.
 
@@ -908,14 +899,25 @@ instance ExtractCalls Term where
       DontCare t -> extract t
 
       -- Level.
-      Level l -> do
-        l <- catchError (liftTCM $ reallyUnLevelView l) $ \ err -> do
-          internalError $
-            "Termination checker: cannot view level expression, " ++
-            "probably due to missing level built-ins."
+      Level l -> -- billTo [Benchmark.Termination, Benchmark.Level] $ do
+        -- Andreas, 2014-03-26 Benchmark discontinued, < 0.3% spent on levels.
         extract l
 
       Shared{} -> __IMPOSSIBLE__
+
+-- | Extract recursive calls from level expressions.
+
+deriving instance ExtractCalls Level
+
+instance ExtractCalls PlusLevel where
+  extract (ClosedLevel n) = return $ mempty
+  extract (Plus n l)      = extract l
+
+instance ExtractCalls LevelAtom where
+  extract (MetaLevel x es)   = extract es
+  extract (BlockedLevel x t) = extract t
+  extract (NeutralLevel t)   = extract t
+  extract (UnreducedLevel t) = extract t
 
 -- | Rewrite type @tel -> Size< u@ to @tel -> Size@.
 maskSizeLt :: MonadTCM tcm => I.Dom Type -> tcm (I.Dom Type)
