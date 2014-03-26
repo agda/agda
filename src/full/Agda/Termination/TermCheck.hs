@@ -801,7 +801,10 @@ function g es = ifJustM (isWithFunction g) (\ _ -> withFunction g es)
          let ?cutoff = cutoff
          let matrix' = composeGuardedness (ifDelayed guarded) matrix
 
-         gPretty <-liftTCM $ render <$> prettyTCM g
+         -- Andreas, 2013-04-26 FORBIDDINGLY expensive!
+         -- This PrettyTCM QName cost 50% of the termination time for std-lib!!
+         -- gPretty <-liftTCM $ billTo [Benchmark.Termination, Benchmark.Level] $
+         --   render <$> prettyTCM g
 
          -- Andreas, 2013-05-19 as pointed out by Andrea Vezzosi,
          -- printing the call eagerly is forbiddingly expensive.
@@ -822,13 +825,13 @@ function g es = ifJustM (isWithFunction g) (\ _ -> withFunction g es)
              tgt  = gInd
              cm   = makeCM ncols nrows matrix'
              info = CallPath [CallInfo
-                      { callInfoTarget = gPretty
+                      { callInfoTarget = g
                       , callInfoRange  = getRange g
                       , callInfoCall   = doc
                       }]
          liftTCM $ reportSDoc "term.kept.call" 5 $ vcat
            [ text "kept call from" <+> prettyTCM f <+> hsep (map prettyTCM pats)
-           , nest 2 $ text "to" <+> text gPretty <+>
+           , nest 2 $ text "to" <+> prettyTCM g <+>
                        hsep (map (parens . prettyTCM) args)
            , nest 2 $ text "call matrix (with guardedness): "
            , nest 2 $ pretty cm

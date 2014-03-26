@@ -1221,7 +1221,7 @@ data OccPos = NonPositively | ArgumentTo Nat QName
 -- | Information about a call.
 
 data CallInfo = CallInfo
-  { callInfoTarget :: String
+  { callInfoTarget :: QName
     -- ^ Target function name pretty-printed.
   , callInfoRange :: Range
     -- ^ Range of the target function.
@@ -1232,9 +1232,9 @@ data CallInfo = CallInfo
 -- no Eq, Ord instances: too expensive! (see issues 851, 852)
 
 -- | We only 'show' the name of the callee.
-instance Show CallInfo where show = callInfoTarget
+instance Show CallInfo where show = show . callInfoTarget
 
-instance Pretty CallInfo where pretty = text . callInfoTarget
+instance Pretty CallInfo where pretty = text . show . callInfoTarget
 
 -- | Information about a mutual block which did not pass the
 -- termination checker.
