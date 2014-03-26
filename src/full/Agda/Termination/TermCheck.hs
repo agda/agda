@@ -724,7 +724,8 @@ guardPresTyCon g es cont = do
 
 withFunction :: QName -> Elims -> TerM Calls
 withFunction g es = do
-  v <- liftTCM $ expandWithFunctionCall g es
+  v <- liftTCM $ -- billTo [Benchmark.Termination, Benchmark.With] $  -- 0ms
+         expandWithFunctionCall g es
   liftTCM $ reportSDoc "term.with.call" 30 $
     text "termination checking expanded with-function call:" <+> prettyTCM v
   extract v
@@ -790,7 +791,9 @@ function g es = ifJustM (isWithFunction g) (\ _ -> withFunction g es)
 
          -- Compute the call matrix.
 
-         (nrows, ncols, matrix) <- compareArgs es
+         -- Andreas, 2014-03-26 only 6% of termination time for library test
+         -- spent on call matrix generation
+         (nrows, ncols, matrix) <- billTo [Benchmark.Termination, Benchmark.Compare] $ compareArgs es
          -- only a delayed definition can be guarded
          let ifDelayed o | Order.decreasing o && delayed == NotDelayed = Order.le
                          | otherwise                                  = o
