@@ -280,12 +280,16 @@ typeInType = not . optUniverseCheck <$> pragmaOptions
 --   reportSLn
 --   reportSDoc
 
+-- | Retrieve the current verbosity level.
 {-# SPECIALIZE getVerbosity :: TCM (Trie String Int) #-}
 getVerbosity :: HasOptions m => m (Trie String Int)
 getVerbosity = optVerbose <$> pragmaOptions
 
 type VerboseKey = String
 
+-- | Check whether a certain verbosity level is activated.
+--
+--   Precondition: The level must be non-negative.
 {-# SPECIALIZE hasVerbosity :: VerboseKey -> Int -> TCM Bool #-}
 hasVerbosity :: HasOptions m => VerboseKey -> Int -> m Bool
 hasVerbosity k n | n < 0     = __IMPOSSIBLE__
@@ -296,25 +300,36 @@ hasVerbosity k n | n < 0     = __IMPOSSIBLE__
     return (n <= m)
 
 -- | Displays a debug message in a suitable way.
-displayDebugMessage :: Int     -- The message's debug level.
-                    -> String  -- Message.
-                    -> TCM ()
-displayDebugMessage n s =
+{-# SPECIALIZE displayDebugMessage :: Int -> String -> TCM () #-}
+displayDebugMessage :: MonadTCM tcm
+  => Int     -- ^ The message's debug level.
+  -> String  -- ^ Message.
+  -> tcm ()
+displayDebugMessage n s = liftTCM $
   appInteractionOutputCallback (Resp_RunningInfo n s)
 
--- | Precondition: The level must be non-negative.
-verboseS :: VerboseKey -> Int -> TCM () -> TCM ()
-verboseS k n action = whenM (hasVerbosity k n) action
+-- | Run a computation if a certain verbosity level is activated.
+--
+--   Precondition: The level must be non-negative.
+{-# SPECIALIZE verboseS :: VerboseKey -> Int -> TCM () -> TCM () #-}
+verboseS :: MonadTCM tcm => VerboseKey -> Int -> tcm () -> tcm ()
+verboseS k n action = whenM (liftTCM $ hasVerbosity k n) action
 
-reportS :: VerboseKey -> Int -> String -> TCM ()
-reportS k n s = verboseS k n $ displayDebugMessage n s
+-- | Conditionally print debug string.
+{-# SPECIALIZE reportS :: VerboseKey -> Int -> String -> TCM () #-}
+reportS :: MonadTCM tcm => VerboseKey -> Int -> String -> tcm ()
+reportS k n s = liftTCM $ verboseS k n $ displayDebugMessage n s
 
-reportSLn :: VerboseKey -> Int -> String -> TCM ()
+-- | Conditionally println debug string.
+{-# SPECIALIZE reportSLn :: VerboseKey -> Int -> String -> TCM () #-}
+reportSLn :: MonadTCM tcm => VerboseKey -> Int -> String -> tcm ()
 reportSLn k n s = verboseS k n $
   displayDebugMessage n (s ++ "\n")
 
-reportSDoc :: VerboseKey -> Int -> TCM Doc -> TCM ()
-reportSDoc k n d = verboseS k n $ do
+-- | Conditionally render debug 'Doc' and print it.
+{-# SPECIALIZE reportSDoc :: VerboseKey -> Int -> TCM Doc -> TCM () #-}
+reportSDoc :: MonadTCM tcm => VerboseKey -> Int -> TCM Doc -> tcm ()
+reportSDoc k n d = liftTCM $ verboseS k n $ do
   displayDebugMessage n . (++ "\n") . show =<< do
     d `catchError` \ err ->
       (\ s -> (sep $ map text
@@ -323,12 +338,9 @@ reportSDoc k n d = verboseS k n $ do
                  , "failed due to error:" ]) $$
               (nest 2 $ text s)) <$> prettyError err
 
-
-verboseBracket :: VerboseKey -> Int -> String -> TCM a -> TCM a
-verboseBracket k n s m = do
-  v <- hasVerbosity k n
-  if not v then m
-           else do
-    displayDebugMessage n $ "{ " ++ s ++ "\n"
-    x <- m `finally` displayDebugMessage n "}\n"
-    return x
+-- | Print brackets around debug messages issued by a computation.
+{-# SPECIALIZE verboseBracket :: VerboseKey -> Int -> String -> TCM a -> TCM a #-}
+verboseBracket :: MonadTCM tcm => VerboseKey -> Int -> String -> TCM a -> tcm a
+verboseBracket k n s m = liftTCM $ ifNotM (hasVerbosity k n) m $ {- else -} do
+  displayDebugMessage n $ "{ " ++ s ++ "\n"
+  m `finally` displayDebugMessage n "}\n"

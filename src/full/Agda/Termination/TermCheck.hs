@@ -547,7 +547,7 @@ termClause' clause = do
         extract v
   where
     reportBody :: Term -> TerM ()
-    reportBody v = do
+    reportBody v = verboseS "term.check.clause" 6 $ do
       f       <- terGetCurrent
       delayed <- terGetDelayed
       pats    <- terGetPatterns

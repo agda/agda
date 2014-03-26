@@ -47,7 +47,8 @@ import Agda.Utils.Impossible
 -- * Top level function
 ---------------------------------------------------------------------------
 
-prettyError :: TCErr -> TCM String
+{-# SPECIALIZE prettyError :: TCErr -> TCM String #-}
+prettyError :: MonadTCM tcm => TCErr -> tcm String
 prettyError err = liftTCM $ liftM show $
     prettyTCM err
     `catchError` \err' -> text "panic: error when printing error!" $$ prettyTCM err'
