@@ -58,7 +58,12 @@ import Agda.Utils.Impossible
 --
 -- TODO: document orders which are call-matrices themselves.
 data Order
-  = Decr Int | Unknown | Mat (Matrix Int Order)
+  = Decr {-# UNPACK #-} !Int
+    -- ^ Decrease of callee argument wrt. caller parameter.
+  | Unknown
+    -- ^ No relation, infinite increase, or increase beyond termination depth.
+  | Mat {-# UNPACK #-} !(Matrix Int Order)
+    -- ^ Matrix-shaped order, currently UNUSED.
   deriving (Eq,Ord)
 
 instance Show Order where

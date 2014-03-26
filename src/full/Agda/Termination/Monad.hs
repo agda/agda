@@ -73,6 +73,7 @@ data TerEnv = TerEnv
     -- ^ Depth at which to cut off the structural order.
 
   -- Second part: accumulated info during descent into decls./term.
+
   , terCurrent :: QName
     -- ^ The name of the function we are currently checking.
   , terMutual  :: MutualNames
@@ -89,11 +90,13 @@ data TerEnv = TerEnv
     -- ^ Are we checking a delayed definition?
   , terPatterns :: [DeBruijnPat]
     -- ^ The patterns of the clause we are checking.
-  , terPatternsRaise :: Int
+  , terPatternsRaise :: !Int
     -- ^ Number of additional binders we have gone under
     --   (and consequently need to raise the patterns to compare to terms).
-  , terGuarded :: Guarded
+    --   Updated during call graph extraction, hence strict.
+  , terGuarded :: !Guarded
     -- ^ The current guardedness status.  Changes as we go deeper into the term.
+    --   Updated during call graph extraction, hence strict.
   }
 
 -- | An empty termination environment.
