@@ -34,7 +34,7 @@ reportBenchmarkingDoc :: TCM Doc -> TCM ()
 reportBenchmarkingDoc = reportSDoc "profile" 7
 
 -- | Bill a computation to a specific account (True) or reimburse (False).
-billTo' :: Bool -> Account -> TCM a -> TCM a
+billTo' :: MonadTCM tcm => Bool -> Account -> tcm a -> tcm a
 billTo' add k m = ifNotM benchmarking m {- else -} $ do
   start  <- liftIO $ getCPUTime
   result <- liftIO . E.evaluate =<< m
@@ -43,11 +43,11 @@ billTo' add k m = ifNotM benchmarking m {- else -} $ do
   return result
 
 -- | Bill a computation to a specific account.
-billTo :: Account -> TCM a -> TCM a
+billTo :: MonadTCM tcm => Account -> tcm a -> tcm a
 billTo = billTo' True
 
 -- | Bill a top account.
-billTop :: Phase -> TCM a -> TCM a
+billTop ::  MonadTCM tcm => Phase -> tcm a -> tcm a
 billTop k = billTo [k]
 
 -- | Bill a pure computation to a specific account.
@@ -57,15 +57,15 @@ billPureTo k a = liftTCM $ billTo k $ return a
 -- billPureTo k a = liftTCM $ billTo k $ liftIO $ E.evaluate a
 
 -- | Reimburse a specific account for computation costs.
-reimburse :: Account -> TCM a -> TCM a
+reimburse ::  MonadTCM tcm => Account -> tcm a -> tcm a
 reimburse = billTo' False
 
 -- | Reimburse a top account.
-reimburseTop :: Phase -> TCM a -> TCM a
+reimburseTop ::  MonadTCM tcm => Phase -> tcm a -> tcm a
 reimburseTop k = reimburse [k]
 
 -- * Auxiliary functions
 
 -- | Add CPU time to specified account.
-addToAccount :: Account -> CPUTime -> TCM ()
-addToAccount k v = modifyBenchmark $ addCPUTime k v
+addToAccount ::  MonadTCM tcm => Account -> CPUTime -> tcm ()
+addToAccount k v = liftTCM $ modifyBenchmark $ addCPUTime k v

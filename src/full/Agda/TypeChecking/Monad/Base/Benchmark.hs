@@ -36,6 +36,8 @@ data Phase
     -- ^ Subphase for 'Termination'.
   | Reduce
     -- ^ Subphase for 'Termination'.
+  | Level
+    -- ^ Subphase for 'Termination'.
   deriving (Eq, Ord, Show, Enum, Bounded)
 
 -- | Account we can bill computation time to.
