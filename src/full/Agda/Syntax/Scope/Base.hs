@@ -520,9 +520,7 @@ flattenScope ms scope =
           , AbsModule m _ <- mods ]
 
     moduleScope :: A.ModuleName -> Scope
-    moduleScope name = case Map.lookup name (scopeModules scope) of
-      Nothing -> __IMPOSSIBLE__
-      Just s  -> s
+    moduleScope m = fromMaybe __IMPOSSIBLE__ $ Map.lookup m $ scopeModules scope
 
 -- | Look up a name in the scope
 scopeLookup :: InScope a => C.QName -> ScopeInfo -> [a]
@@ -561,9 +559,7 @@ scopeLookup' q scope = nubBy ((==) `on` fst) $ findName q root ++ imports
       findName x (restrictPrivate $ moduleScope m)
 
     moduleScope :: A.ModuleName -> Scope
-    moduleScope name = case Map.lookup name (scopeModules scope) of
-      Nothing -> __IMPOSSIBLE__
-      Just s  -> s
+    moduleScope m = fromMaybe __IMPOSSIBLE__ $ Map.lookup m $ scopeModules scope
 
     lookupName :: forall a. InScope a => C.Name -> Scope -> [(a, Access)]
     lookupName x s = maybe [] id $ Map.lookup x (allNamesInScope' s)
@@ -600,9 +596,8 @@ inverseScopeLookup name scope = case name of
     current = this : scopeParents (moduleScope this)
     scopes  = [ (m, restrict m s) | (m, s) <- Map.toList (scopeModules scope) ]
 
-    moduleScope name = case Map.lookup name (scopeModules scope) of
-      Nothing -> __IMPOSSIBLE__
-      Just s  -> s
+    moduleScope :: A.ModuleName -> Scope
+    moduleScope m = fromMaybe __IMPOSSIBLE__ $ Map.lookup m $ scopeModules scope
 
     restrict m s | m `elem` current = s
                  | otherwise = restrictPrivate s
