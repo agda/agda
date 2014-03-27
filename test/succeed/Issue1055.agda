@@ -1,6 +1,6 @@
 -- 2014-04-06 Andreas, issue reported by Andres Sicard-Ramirez
 
--- {-# OPTIONS --termination-depth=1 -v term.matrices:40 #-}
+-- {-# OPTIONS --termination-depth=100 -v term.matrices:40 #-}
 
 data ℕ : Set where
   zero : ℕ
@@ -14,3 +14,4 @@ p : ℕ → ℕ → ℕ → ℕ
 p m n        (succ r) = p m r n
 p m (succ n) zero     = p zero n m
 p m zero     zero     = m
+

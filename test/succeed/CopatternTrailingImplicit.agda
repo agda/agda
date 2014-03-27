@@ -1,4 +1,5 @@
 {-# OPTIONS --copatterns --sized-types #-}
+-- {-# OPTIONS -v term:40 -v term.proj:60 --show-implicit #-}
 -- Andreas, 2013-10-01 Make sure trailing implicit insertion
 -- works with copatterns
 module CopatternTrailingImplicit where
@@ -25,11 +26,11 @@ tail (map f s) = map f (tail s)
 -- Nats defined using map
 nats : {i : Size} → Stream Nat {i}
 head nats = 0
-tail nats {_} = map suc nats
+tail nats = map suc nats
 -- Before this patch, Agda would insert a {_} also in the `head' clause
 -- leading to a type error.
 
--- 2013-10-12 works now also with out manual {_} insertion
+-- 2013-10-12 works now also without manual {_} insertion
 -- (See TermCheck.introHiddenLambdas.)
 nats' : {i : Size} → Stream Nat {i}
 head nats' = 0
@@ -42,3 +43,5 @@ tail nats' = map suc nats'
 -- trailing hidden arguments on the LHS, but this has other
 -- drawbacks (Q: even with varying arity?): cannot have
 -- hidden lambdas on rhs (used to name trailing hiddens in with-clauses).
+
+

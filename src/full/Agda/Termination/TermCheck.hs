@@ -70,6 +70,8 @@ import Agda.Utils.Monad -- (mapM', forM', ifM, or2M, and2M)
 import Agda.Utils.Permutation
 import Agda.Utils.Pointed
 import Agda.Utils.Pretty (render)
+import Agda.Utils.VarSet (VarSet)
+import qualified Agda.Utils.VarSet as VarSet
 
 #include "../undefined.h"
 import Agda.Utils.Impossible
@@ -947,8 +949,11 @@ maskSizeLt dom@(Dom info a) = liftTCM $ do
 compareArgs :: (Integral n) => [Elim] -> TerM (n, n, [[Order]])
 compareArgs es = do
   pats <- terGetPatterns
-  -- matrix <- forM es $ forM pats . compareTerm suc  -- UNREADABLE pointfree style
-  matrix <- forM es $ \ e -> forM pats $ \ p -> compareElim e p
+  -- apats <- annotatePatsWithUseSizeLt pats
+  -- reportSDoc "term.compare" 20 $
+  --   text "annotated patterns = " <+> sep (map prettyTCM apats)
+  -- matrix <- forM es $ \ e -> forM apats $ \ (b, p) -> terSetUseSizeLt b $ compareElim e p
+  matrix <- withUsableVars pats $ forM es $ \ e -> forM pats $ \ p -> compareElim e p
 
   -- Count the number of coinductive projection(pattern)s in caller and callee
   projsCaller <- genericLength <$> do
@@ -961,6 +966,20 @@ compareArgs es = do
   liftTCM $ reportSLn "term.guardedness" 30 $
     "compareArgs: guardedness of call: " ++ show guardedness
   return $ addGuardedness guardedness (size es) (size pats) matrix
+
+-- | Traverse patterns from left to right.
+--   When we come to a projection pattern,
+--   switch usage of SIZELT constraints:
+--   on, if coinductive,
+--   off, if inductive.
+--
+--   UNUSED
+annotatePatsWithUseSizeLt :: [DeBruijnPat] -> TerM [(Bool,DeBruijnPat)]
+annotatePatsWithUseSizeLt = loop where
+  loop [] = return []
+  loop (p@(ProjDBP q) : pats) = ((False,p) :) <$> do projUseSizeLt q $ loop pats
+  loop (p : pats) = (\ b ps -> (b,p) : ps) <$> terGetUseSizeLt <*> loop pats
+
 
 -- | @compareElim e dbpat@
 
@@ -1070,31 +1089,6 @@ compareTerm t p = Order.supremum $ compareTerm' t p : map cmp (subPatterns p)
   where
     cmp p' = (Order..*.) Order.lt (compareTerm' t p')
 -}
-
--- | For termination checking purposes flat should not be considered a
---   projection. That is, it flat doesn't preserve either structural order
---   or guardedness like other projections do.
---   Andreas, 2012-06-09: the same applies to projections of recursive records.
-isProjectionButNotCoinductive :: MonadTCM tcm => QName -> tcm Bool
-isProjectionButNotCoinductive qn = liftTCM $ do
-  b <- isProjectionButNotCoinductive' qn
-  reportSDoc "term.proj" 60 $ do
-    text "identifier" <+> prettyTCM qn <+> do
-      text $
-        if b then "is an inductive projection"
-          else "is either not a projection or coinductive"
-  return b
-  where
-    isProjectionButNotCoinductive' qn = do
-      flat <- fmap nameOfFlat <$> coinductionKit
-      if Just qn == flat
-        then return False
-        else do
-          mp <- isProjection qn
-          case mp of
-            Just Projection{ projProper = Just{}, projFromType }
-              -> isInductiveRecord projFromType
-            _ -> return False
 
 
 -- | Remove all non-coinductive projections from an algebraic term
@@ -1254,7 +1248,7 @@ compareVar i (ConDBP c ps) = do
 compareVarVar :: Nat -> Nat -> TerM Order
 compareVarVar i j
   | i == j    = return Order.le
-  | otherwise = do
+  | otherwise = ifNotM ((i `VarSet.member`) <$> terGetUsableVars) (return Order.unknown) $ {- else -} do
       res <- isBounded i
       case res of
         BoundedNo  -> return Order.unknown

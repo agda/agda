@@ -4,6 +4,7 @@
 open import Common.Size
 
 record R (i : Size) : Set where
+  -- Note: not coinductive
   constructor delay
   field
     force : (j : Size< i) → R j
@@ -11,6 +12,8 @@ open R
 
 inh : (i : Size) → R i
 force (inh i) j = inh j
+
+-- Should give termination error
 
 data ⊥ : Set where
 

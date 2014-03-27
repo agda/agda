@@ -30,11 +30,16 @@ import Agda.Termination.CutOff
 import Agda.Termination.Order (Order,le,unknown)
 
 import Agda.TypeChecking.Monad
+import Agda.TypeChecking.Monad.Builtin
 import Agda.TypeChecking.Pretty
+import Agda.TypeChecking.Records
 
+import Agda.Utils.Maybe
 import Agda.Utils.Monad
 import Agda.Utils.Pretty (Pretty)
 import qualified Agda.Utils.Pretty as P
+import Agda.Utils.VarSet (VarSet)
+import qualified Agda.Utils.VarSet as VarSet
 
 #include "../undefined.h"
 import Agda.Utils.Impossible
@@ -97,6 +102,13 @@ data TerEnv = TerEnv
   , terGuarded :: !Guarded
     -- ^ The current guardedness status.  Changes as we go deeper into the term.
     --   Updated during call graph extraction, hence strict.
+  , terUseSizeLt :: Bool
+    -- ^ When extracting usable size variables during construction of the call
+    --   matrix, can we take the variable for use with SIZELT constraints from the context?
+    --   Yes, if we are under an inductive constructor.
+    --   No, if we are under a record constructor.
+  , terUsableVars :: VarSet
+    -- ^ Pattern variables that can be compared to argument variables using SIZELT.
   }
 
 -- | An empty termination environment.
@@ -124,6 +136,8 @@ defaultTerEnv = TerEnv
   , terPatterns                 = __IMPOSSIBLE__ -- needs to be set!
   , terPatternsRaise            = 0
   , terGuarded                  = le -- not initially guarded
+  , terUseSizeLt                = False -- initially, not under data constructor
+  , terUsableVars               = VarSet.empty
   }
 
 -- | Termination monad service class.
@@ -237,6 +251,72 @@ terUnguarded = terSetGuarded unknown
 terPiGuarded :: TerM a -> TerM a
 terPiGuarded m = ifM terGetGuardingTypeConstructors m $ terUnguarded m
 
+-- | Lens for 'terUsableVars'.
+
+terGetUsableVars :: TerM VarSet
+terGetUsableVars = terAsks terUsableVars
+
+terModifyUsableVars :: (VarSet -> VarSet) -> TerM a -> TerM a
+terModifyUsableVars f = terLocal $ \ e -> e { terUsableVars = f $ terUsableVars e }
+
+terSetUsableVars :: VarSet -> TerM a -> TerM a
+terSetUsableVars = terModifyUsableVars . const
+
+-- | Lens for 'terUseSizeLt'.
+
+terGetUseSizeLt :: TerM Bool
+terGetUseSizeLt = terAsks terUseSizeLt
+
+terModifyUseSizeLt :: (Bool -> Bool) -> TerM a -> TerM a
+terModifyUseSizeLt f = terLocal $ \ e -> e { terUseSizeLt = f $ terUseSizeLt e }
+
+terSetUseSizeLt :: Bool -> TerM a -> TerM a
+terSetUseSizeLt = terModifyUseSizeLt . const
+
+-- | Compute usable vars from patterns and run subcomputation.
+withUsableVars :: UsableSizeVars a => a -> TerM b -> TerM b
+withUsableVars pats m = do
+  vars <- usableSizeVars pats
+  terSetUsableVars vars $ m
+
+-- | Set 'terUseSizeLt' when going under constructor @c@.
+conUseSizeLt :: QName -> TerM a -> TerM a
+conUseSizeLt c m = do
+  caseMaybeM (liftTCM $ isRecordConstructor c)
+    (terSetUseSizeLt True m)
+    (const $ terSetUseSizeLt False m)
+
+-- | Set 'terUseSizeLt' for arguments following projection @q@.
+projUseSizeLt :: QName -> TerM a -> TerM a
+projUseSizeLt q m = do
+  ifM (liftTCM $ isProjectionButNotCoinductive q)
+    (terSetUseSizeLt False m)
+    (terSetUseSizeLt True  m)
+
+-- | For termination checking purposes flat should not be considered a
+--   projection. That is, it flat doesn't preserve either structural order
+--   or guardedness like other projections do.
+--   Andreas, 2012-06-09: the same applies to projections of recursive records.
+isProjectionButNotCoinductive :: MonadTCM tcm => QName -> tcm Bool
+isProjectionButNotCoinductive qn = liftTCM $ do
+  b <- isProjectionButNotCoinductive' qn
+  reportSDoc "term.proj" 60 $ do
+    text "identifier" <+> prettyTCM qn <+> do
+      text $
+        if b then "is an inductive projection"
+          else "is either not a projection or coinductive"
+  return b
+  where
+    isProjectionButNotCoinductive' qn = do
+      flat <- fmap nameOfFlat <$> coinductionKit
+      if Just qn == flat
+        then return False
+        else do
+          mp <- isProjection qn
+          case mp of
+            Just Projection{ projProper = Just{}, projFromType = t}
+              -> isInductiveRecord t
+            _ -> return False
 
 -- * De Bruijn patterns.
 
@@ -278,6 +358,30 @@ raiseDBP :: Int -> DeBruijnPats -> DeBruijnPats
 raiseDBP 0 = id
 raiseDBP n = map $ fmap (n +)
 
+-- | Extract variables from 'DeBruijnPat's that could witness a decrease
+--   via a SIZELT constraint.
+--
+--   These variables must be under an inductive constructor (with no record
+--   constructor in the way), or after a coinductive projection (with no
+--   inductive one in the way).
+
+class UsableSizeVars a where
+  usableSizeVars :: a -> TerM VarSet
+
+instance UsableSizeVars DeBruijnPat where
+  usableSizeVars p =
+    case p of
+      VarDBP i    -> ifM terGetUseSizeLt (return $ VarSet.singleton i) (return $ mempty)
+      ConDBP c ps -> conUseSizeLt c $ usableSizeVars ps
+      LitDBP{}    -> return mempty
+      ProjDBP{}   -> return mempty
+
+instance UsableSizeVars [DeBruijnPat] where
+  usableSizeVars ps =
+    case ps of
+      []               -> return mempty
+      (ProjDBP q : ps) -> projUseSizeLt q $ usableSizeVars ps
+      (p         : ps) -> mappend <$> usableSizeVars p <*> usableSizeVars ps
 
 -- * Call pathes
 
