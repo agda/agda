@@ -183,9 +183,9 @@ bindName x ret = do
   names <- asks takenNames
   let y = nameConcrete x
   case (Set.member y names) of
-    _ | C.isNoName y -> ret y
-    True             -> bindName (nextName x) ret
-    False            ->
+    _ | isNoName y -> ret y
+    True           -> bindName (nextName x) ret
+    False          ->
         local (\e -> e { takenNames   = Set.insert y $ takenNames e
                        , currentScope = (currentScope e)
                           { scopeLocals = (y, x) : scopeLocals (currentScope e)
@@ -908,14 +908,6 @@ recoverOpApp bracket opApp view e mDefault = case view e of
         HdCon qn          -> doQNameHelper qnameName id      qn args'
     | otherwise           -> mDefault
   where
-
-  isNoName :: A.Name -> Bool
-  isNoName = C.isNoName . A.nameConcrete
-
-{- RETIRED
-  notHidden :: A.NamedArg a -> Bool
-  notHidden = notHidden . argInfo
--}
 
   doQNameHelper fixityHelper conHelper n as = do
     x <- toConcrete n

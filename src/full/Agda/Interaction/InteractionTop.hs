@@ -922,7 +922,7 @@ whyInScope s = do
                   nest 2 (pWhy (nameBindingSite $ qnameName $ mnameToQName $ amodName a) (amodLineage a))
 
         pWhy r Defined = text "- its definition at" <+> text (showRange r)
-        pWhy r (Opened (C.QName x) w) | C.isNoName x = pWhy r w
+        pWhy r (Opened (C.QName x) w) | isNoName x = pWhy r w
         pWhy r (Opened m w) =
           text "- the opening of" <+> text (show m) <+> text "at" <+> text (showRange $ getRange m) $$
           pWhy r w

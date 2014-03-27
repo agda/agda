@@ -5,7 +5,10 @@
 
 {-| Abstract names carry unique identifiers and stuff.
 -}
-module Agda.Syntax.Abstract.Name where
+module Agda.Syntax.Abstract.Name
+  ( module Agda.Syntax.Abstract.Name
+  , IsNoName(..)
+  ) where
 
 import Control.Monad.State
 
@@ -19,6 +22,7 @@ import Data.Hashable
 import Agda.Syntax.Position
 import Agda.Syntax.Common
 import Agda.Syntax.Fixity
+import Agda.Syntax.Concrete.Name (IsNoName(..))
 import qualified Agda.Syntax.Concrete.Name as C
 
 import Agda.Utils.Fresh
@@ -73,7 +77,7 @@ newtype AmbiguousQName = AmbQ { unAmbQ :: [QName] }
 -- | A module is anonymous if the qualification path ends in an underscore.
 isAnonymousModuleName :: ModuleName -> Bool
 isAnonymousModuleName (MName []) = False
-isAnonymousModuleName (MName ms) = C.isNoName $ nameConcrete $ last ms
+isAnonymousModuleName (MName ms) = isNoName $ last ms
 
 -- | Sets the ranges of the individual names in the module name to
 -- match those of the corresponding concrete names. If the concrete
@@ -239,6 +243,14 @@ instance Ord QName where
 instance Hashable QName where
   {-# INLINE hashWithSalt #-}
   hashWithSalt salt = hashWithSalt salt . qnameName
+
+------------------------------------------------------------------------
+-- * IsNoName instances (checking for "_")
+------------------------------------------------------------------------
+
+-- | An abstract name is empty if its concrete name is empty.
+instance IsNoName Name where
+  isNoName = isNoName . nameConcrete
 
 ------------------------------------------------------------------------
 -- * Show instances

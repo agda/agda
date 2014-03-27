@@ -255,8 +255,8 @@ checkLambda (Arg info (A.TBind _ xs typ)) body target = do
       where
         [x] = xs
         xc  = nameConcrete x
-        add y | C.isNoName xc = addCtxString y
-              | otherwise     = addCtx x
+        add y | isNoName xc = addCtxString y
+              | otherwise   = addCtx x
     useTargetType _ _ = __IMPOSSIBLE__
 
 -- | @checkAbsurdLambda i h e t@ checks absurd lambda against type @t@.

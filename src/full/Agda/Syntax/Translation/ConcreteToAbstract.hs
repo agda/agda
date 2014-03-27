@@ -722,7 +722,7 @@ scopeCheckNiceModule r p name tel checkDs
       -- Check whether we are dealing with an anonymous module.
       -- This corresponds to a Coq/LEGO section.
       (name, p, open) <- do
-        if C.isNoName name then do
+        if isNoName name then do
           (i :: NameId) <- fresh
           return (C.NoName (getRange name) i, PrivateAccess, True)
          else return (name, p, False)
@@ -844,7 +844,7 @@ instance ToAbstract (TopLevel [C.Declaration]) TopLevelInfo where
         (ds', [C.Module r m0 tel ds]) -> do
           -- If the module name is _ compute the name from the file path
           let m = case m0 of
-                    C.QName x | isNoName x -> C.QName $ C.Name noRange [Id $ rootName file]
+                    _ | isNoName m0 -> C.QName $ C.Name noRange [Id $ rootName file]
                     _                      -> m0
           setTopLevelModule m
           am           <- toAbstract (NewModuleQName m)
@@ -1333,7 +1333,7 @@ whereToAbstract _ _ [] inner = do
   return (x, [])
 whereToAbstract r whname whds inner = do
   m <- maybe (nameConcrete <$> freshNoName noRange) return whname
-  m <- if (maybe False C.isNoName whname)
+  m <- if (maybe False isNoName whname)
        then do
          (i :: NameId) <- fresh
          return (C.NoName (getRange m) i)
@@ -1348,7 +1348,7 @@ whereToAbstract r whname whds inner = do
   setCurrentModule old
   bindModule acc m am
   -- Issue 848: if the module was anonymous (module _ where) open it public
-  when (maybe False C.isNoName whname) $
+  when (maybe False isNoName whname) $
     openModule_ (C.QName m) $
       defaultImportDir { publicOpen = True }
   return (x, ds)

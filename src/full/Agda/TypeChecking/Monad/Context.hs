@@ -8,7 +8,6 @@ import Control.Monad.Reader
 import Data.List hiding (sort)
 import qualified Data.Map as Map
 
-import Agda.Syntax.Concrete.Name (isNoName)
 import Agda.Syntax.Abstract.Name
 import Agda.Syntax.Common hiding (Arg, Dom, NamedArg, ArgInfo)
 import qualified Agda.Syntax.Common as Common
@@ -80,7 +79,7 @@ addCtx x a ret = do
   modifyContext (ce :) ret
       -- let-bindings keep track of own their context
   where
-    notTaken xs x = isNoName (nameConcrete x) || nameConcrete x `notElem` xs
+    notTaken xs x = isNoName x || nameConcrete x `notElem` xs
 
 -- | Various specializations of @addCtx@.
 {-# SPECIALIZE addContext :: b -> TCM a -> TCM a #-}
@@ -157,8 +156,7 @@ underAbstraction t a           k = do
     x <- freshName_ $ realName $ absName a
     addCtx x t $ k $ absBody a
   where
-    realName "_" = "x"
-    realName s   = s
+    realName s = if isNoName s then "x" else s
 
 -- | Go under an abstract without worrying about the type to add to the context.
 {-# SPECIALIZE underAbstraction_ :: Subst a => Abs a -> (a -> TCM b) -> TCM b #-}

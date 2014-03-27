@@ -1,4 +1,5 @@
 {-# LANGUAGE CPP, PatternGuards,
+  FlexibleInstances, TypeSynonymInstances,
   DeriveDataTypeable #-}
 
 {-| Names in the concrete syntax are just strings (or lists of strings for
@@ -31,68 +32,20 @@ import Agda.Utils.Impossible
     Equality and ordering on @Name@s are defined to ignore range so same names
     in different locations are equal.
 -}
-data Name = Name !Range [NamePart]
-	  | NoName !Range NameId
-    deriving (Typeable)
+data Name
+  = Name !Range [NamePart]  -- ^ A (mixfix) identifier.
+  | NoName !Range NameId    -- ^ @_@.
+  deriving (Typeable)
 
-data NamePart = Hole | Id String
-    deriving (Typeable)
+-- | Mixfix identifiers are composed of words and holes,
+--   e.g. @_+_@ or @if_then_else_@ or @[_/_]@.
+data NamePart
+  = Hole       -- ^ @_@ part.
+  | Id String  -- ^ Identifier part.
+  deriving (Typeable)
 
--- | @noName_ = 'noName' 'noRange'@
-noName_ :: Name
-noName_ = noName noRange
-
--- | @noName r = 'Name' r ['Hole']@
-noName :: Range -> Name
-noName r = NoName r (NameId 0 0)
-
-isNoName :: Name -> Bool
-isNoName (NoName _ _)    = True
-isNoName (Name _ [Hole]) = True   -- TODO: Track down where these come from
-isNoName (Name _ [])     = True
-isNoName _               = False
-
--- | Is the name an operator?
-
-isOperator :: Name -> Bool
-isOperator (NoName {}) = False
-isOperator (Name _ ps) = length ps > 1
-
-nameParts :: Name -> [NamePart]
-nameParts (Name _ ps)  = ps
-nameParts (NoName _ _) = [Hole]
-
-nameStringParts :: Name -> [String]
-nameStringParts n = [ s | Id s <- nameParts n ]
-
--- | Parse a string to parts of a concrete name.
-
-stringNameParts :: String -> [NamePart]
-stringNameParts ""                              = []
-stringNameParts ('_':s)                         = Hole : stringNameParts s
-stringNameParts s | (x, s') <- break (== '_') s = Id x : stringNameParts s'
-
--- | @qualify A.B x == A.B.x@
-qualify :: QName -> Name -> QName
-qualify (QName m) x	= Qual m (QName x)
-qualify (Qual m m') x	= Qual m $ qualify m' x
-
--- | @unqualify A.B.x == x@
---
--- The range is preserved.
-unqualify :: QName -> Name
-unqualify q = unqualify' q `withRangeOf` q
-  where
-  unqualify' (QName x)  = x
-  unqualify' (Qual _ x) = unqualify' x
-
--- | @qnameParts A.B.x = [A, B, x]@
-qnameParts :: QName -> [Name]
-qnameParts (Qual x q) = x : qnameParts q
-qnameParts (QName x)  = [x]
-
--- Define equality on @Name@ to ignore range so same names in different
---     locations are equal.
+-- | Define equality on @Name@ to ignore range so same names in different
+--   locations are equal.
 --
 --   Is there a reason not to do this? -Jeff
 --
@@ -129,17 +82,79 @@ instance Ord NamePart where
 --     equality. We will have to define an equality instance to
 --     non-generative namespaces (as well as having some sort of
 --     lookup table for namespace names).
-data QName = Qual  Name QName
-           | QName Name
+data QName
+  = Qual  Name QName -- ^ @A.rest@.
+  | QName Name       -- ^ @x@.
   deriving (Typeable, Eq, Ord)
 
--- | Top-level module names.
+-- | Top-level module names.  Used in connection with the file system.
 --
--- Invariant: The list must not be empty.
+--   Invariant: The list must not be empty.
 
 newtype TopLevelModuleName
   = TopLevelModuleName { moduleNameParts :: [String] }
   deriving (Show, Eq, Ord, Typeable)
+
+------------------------------------------------------------------------
+-- * Operations on 'Name' and 'NamePart'
+------------------------------------------------------------------------
+
+nameParts :: Name -> [NamePart]
+nameParts (Name _ ps)  = ps
+nameParts (NoName _ _) = [Hole]
+
+nameStringParts :: Name -> [String]
+nameStringParts n = [ s | Id s <- nameParts n ]
+
+-- | Parse a string to parts of a concrete name.
+
+stringNameParts :: String -> [NamePart]
+stringNameParts ""                              = []
+stringNameParts ('_':s)                         = Hole : stringNameParts s
+stringNameParts s | (x, s') <- break (== '_') s = Id x : stringNameParts s'
+
+-- | Is the name an operator?
+
+isOperator :: Name -> Bool
+isOperator (NoName {}) = False
+isOperator (Name _ ps) = length ps > 1
+
+isHole :: NamePart -> Bool
+isHole Hole = True
+isHole _    = False
+
+isPrefix, isPostfix, isInfix, isNonfix :: Name -> Bool
+isPrefix  x = not (isHole (head xs)) &&      isHole (last xs)  where xs = nameParts x
+isPostfix x =      isHole (head xs)  && not (isHole (last xs)) where xs = nameParts x
+isInfix   x =      isHole (head xs)  &&      isHole (last xs)  where xs = nameParts x
+isNonfix  x = not (isHole (head xs)) && not (isHole (last xs)) where xs = nameParts x
+
+------------------------------------------------------------------------
+-- * Operations on qualified names
+------------------------------------------------------------------------
+
+-- | @qualify A.B x == A.B.x@
+qualify :: QName -> Name -> QName
+qualify (QName m) x	= Qual m (QName x)
+qualify (Qual m m') x	= Qual m $ qualify m' x
+
+-- | @unqualify A.B.x == x@
+--
+-- The range is preserved.
+unqualify :: QName -> Name
+unqualify q = unqualify' q `withRangeOf` q
+  where
+  unqualify' (QName x)  = x
+  unqualify' (Qual _ x) = unqualify' x
+
+-- | @qnameParts A.B.x = [A, B, x]@
+qnameParts :: QName -> [Name]
+qnameParts (Qual x q) = x : qnameParts q
+qnameParts (QName x)  = [x]
+
+------------------------------------------------------------------------
+-- * Operations on 'TopLevelModuleName'
+------------------------------------------------------------------------
 
 -- | Turns a qualified name into a 'TopLevelModuleName'. The qualified
 -- name is assumed to represent a top-level module name.
@@ -170,15 +185,40 @@ projectRoot file (TopLevelModuleName m) =
   takeDirectory $
   filePath file
 
-isHole :: NamePart -> Bool
-isHole Hole = True
-isHole _    = False
+------------------------------------------------------------------------
+-- * No name stuff
+------------------------------------------------------------------------
 
-isPrefix, isPostfix, isInfix, isNonfix :: Name -> Bool
-isPrefix  x = not (isHole (head xs)) &&      isHole (last xs)  where xs = nameParts x
-isPostfix x =      isHole (head xs)  && not (isHole (last xs)) where xs = nameParts x
-isInfix   x =      isHole (head xs)  &&      isHole (last xs)  where xs = nameParts x
-isNonfix  x = not (isHole (head xs)) && not (isHole (last xs)) where xs = nameParts x
+-- | @noName_ = 'noName' 'noRange'@
+noName_ :: Name
+noName_ = noName noRange
+
+-- | @noName r = 'Name' r ['Hole']@
+noName :: Range -> Name
+noName r = NoName r (NameId 0 0)
+
+-- | Check whether a name is the empty name "_".
+class IsNoName a where
+  isNoName :: a -> Bool
+
+instance IsNoName String where
+  isNoName = (== "_")
+
+instance IsNoName Name where
+  isNoName (NoName _ _)    = True
+  isNoName (Name _ [Hole]) = True   -- TODO: Track down where these come from
+  isNoName (Name _ [])     = True
+  isNoName _               = False
+
+instance IsNoName QName where
+  isNoName (QName x) = isNoName x
+  isNoName Qual{}    = False        -- M.A._ does not qualify as empty name
+
+-- no instance for TopLevelModuleName
+
+------------------------------------------------------------------------
+-- * Printing names
+------------------------------------------------------------------------
 
 instance Show Name where
     show (Name _ xs)  = concatMap show xs
@@ -195,11 +235,19 @@ instance Show QName where
 instance Pretty TopLevelModuleName where
   pretty (TopLevelModuleName ms) = text $ intercalate "." ms
 
+------------------------------------------------------------------------
+-- * QuickCheck instances
+------------------------------------------------------------------------
+
 instance Arbitrary TopLevelModuleName where
   arbitrary = TopLevelModuleName <$> listOf1 (listOf1 $ elements "AB")
 
 instance CoArbitrary TopLevelModuleName where
   coarbitrary (TopLevelModuleName m) = coarbitrary m
+
+------------------------------------------------------------------------
+-- * Range instances
+------------------------------------------------------------------------
 
 instance HasRange Name where
     getRange (Name r ps)  = r

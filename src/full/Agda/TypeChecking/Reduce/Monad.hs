@@ -13,7 +13,6 @@ import Data.Maybe
 
 import Agda.Syntax.Common (unDom)
 import Agda.Syntax.Position
-import Agda.Syntax.Concrete.Name (isNoName)
 import Agda.Syntax.Internal
 import Agda.TypeChecking.Monad hiding
   ( enterClosure, underAbstraction_, underAbstraction, addCtx, mkContextEntry,
@@ -81,15 +80,14 @@ addCtx x a ret = do
     local (\e -> e { envContext = ce : envContext e }) ret
       -- let-bindings keep track of own their context
   where
-    notTaken xs x = isNoName (nameConcrete x) || nameConcrete x `notElem` xs
+    notTaken xs x = isNoName x || nameConcrete x `notElem` xs
 
 underAbstraction :: Subst a => Dom Type -> Abs a -> (a -> ReduceM b) -> ReduceM b
 underAbstraction _ (NoAbs _ v) f = f v
 underAbstraction t a f =
   withFreshName_ (realName $ absName a) $ \x -> addCtx x t $ f (absBody a)
   where
-    realName "_" = "x"
-    realName s   = s
+    realName s = if isNoName s then "x" else s
 
 underAbstraction_ :: Subst a => Abs a -> (a -> ReduceM b) -> ReduceM b
 underAbstraction_ = underAbstraction dummyDom
@@ -103,7 +101,7 @@ isInstantiatedMeta i = do
   return $ case mvInstantiation mv of
     InstV{} -> True
     InstS{} -> True
-    _           -> False
+    _       -> False
 
 reportSDoc :: String -> Int -> TCM Doc -> ReduceM ()
 reportSDoc t n doc = return ()  -- todo
