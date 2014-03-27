@@ -615,6 +615,7 @@ buildInterface
   -> TCM Interface
 buildInterface file topLevel syntaxInfo previousHsImports pragmas = do
     reportSLn "import.iface" 5 "Building interface..."
+    let m = topLevelModuleName topLevel
     scope'  <- getScope
     let scope = scope' { scopeCurrent = m }
     sig     <- getSignature
@@ -641,7 +642,6 @@ buildInterface file topLevel syntaxInfo previousHsImports pragmas = do
       }
     reportSLn "import.iface" 7 "  interface complete"
     return i
-  where m = topLevelModuleName topLevel
 
 -- | Returns (iSourceHash, iFullHash)
 getInterfaceFileHashes :: FilePath -> TCM (Maybe (Hash, Hash))

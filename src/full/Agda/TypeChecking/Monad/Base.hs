@@ -244,23 +244,29 @@ type VisitedModules = Map C.TopLevelModuleName ModuleInfo
 type DecodedModules = Map C.TopLevelModuleName Interface
 
 data Interface = Interface
-	{ iSourceHash      :: Hash    -- ^ Hash of the source code
-        , iImportedModules :: [(ModuleName, Hash)]
-        , iModuleName      :: ModuleName
-	, iScope	   :: Map ModuleName Scope
-        , iInsideScope     :: ScopeInfo
-	, iSignature	   :: Signature
-	, iBuiltin	   :: BuiltinThings (String, QName)
-        , iHaskellImports  :: Set String
-                              -- ^ Haskell imports listed in
-                              -- (transitively) imported modules are
-                              -- not included here.
-        , iHighlighting    :: HighlightingInfo
-        , iPragmaOptions   :: [OptionsPragma]
-                              -- ^ Pragma options set in the file.
-        , iPatternSyns     :: A.PatternSynDefns
-	}
-    deriving (Typeable, Show)
+  { iSourceHash      :: Hash
+    -- ^ Hash of the source code.
+  , iImportedModules :: [(ModuleName, Hash)]
+    -- ^ Imported modules and their hashes.
+  , iModuleName      :: ModuleName
+    -- ^ Module name of this interface.
+  , iScope           :: Map ModuleName Scope
+  , iInsideScope     :: ScopeInfo
+    -- ^ Scope after we loaded this interface.
+    --   Used in 'Agda.Interaction.BasicOps.AtTopLevel'
+    --   and     'Agda.Interaction.CommandLine.CommandLine.interactionLoop'.
+  , iSignature       :: Signature
+  , iBuiltin         :: BuiltinThings (String, QName)
+  , iHaskellImports  :: Set String
+                        -- ^ Haskell imports listed in
+                        -- (transitively) imported modules are
+                        -- not included here.
+  , iHighlighting    :: HighlightingInfo
+  , iPragmaOptions   :: [OptionsPragma]
+                        -- ^ Pragma options set in the file.
+  , iPatternSyns     :: A.PatternSynDefns
+  }
+  deriving (Typeable, Show)
 
 -- | Combines the source hash and the (full) hashes of the imported modules.
 iFullHash :: Interface -> Hash
