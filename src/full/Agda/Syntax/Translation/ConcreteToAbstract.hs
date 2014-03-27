@@ -26,10 +26,12 @@ import Prelude hiding (mapM)
 import Control.Applicative
 import Control.Monad.Reader hiding (mapM)
 import Control.Monad.Error hiding (mapM)
+
 import Data.Foldable (Foldable, traverse_)
 import Data.Traversable (mapM, traverse)
 import Data.List ((\\), nub, foldl')
 import qualified Data.Map as Map
+import Data.Maybe
 
 import Agda.Syntax.Concrete as C hiding (topLevelModuleName)
 import Agda.Syntax.Concrete.Operators
@@ -55,11 +57,12 @@ import Agda.TypeChecking.Monad.Env (insideDotPattern, isInsideDotPattern)
 import {-# SOURCE #-} Agda.Interaction.Imports (scopeCheckImport)
 import Agda.Interaction.Options
 
-import Agda.Utils.Monad
-import Agda.Utils.List
-import Agda.Utils.Fresh
-import Agda.Utils.Pretty
 import Agda.Utils.FileName
+import Agda.Utils.Functor
+import Agda.Utils.Fresh
+import Agda.Utils.List
+import Agda.Utils.Monad
+import Agda.Utils.Pretty
 
 #include "../../undefined.h"
 import Agda.Utils.Impossible
@@ -469,7 +472,7 @@ toAbstractDot :: Precedence -> C.Expr -> ScopeM (A.Expr, Bool)
 toAbstractDot prec e = do
     reportSLn "scope.irrelevance" 100 $ "toAbstractDot: " ++ (render $ pretty e)
     traceCall (ScopeCheckExpr e) $ case e of
-    -- annotateExpr e = ScopedExpr <scope from Monad> e
+
       C.Dot _ e -> do
         e <- toAbstractCtx prec e
         return (e, True)
@@ -504,7 +507,6 @@ toAbstractLam r bs e ctx = do
 instance ToAbstract C.Expr A.Expr where
   toAbstract e =
     traceCall (ScopeCheckExpr e) $ annotateExpr $ case e of
-    -- annotateExpr e = ScopedExpr <scope from Monad> e
 
   -- Names
       Ident x -> toAbstract (OldQName x)
@@ -527,7 +529,7 @@ instance ToAbstract C.Expr A.Expr where
                     { metaRange  = r
                     , metaScope  = scope
                     , metaNumber = maybe Nothing __IMPOSSIBLE__ n
-                    , metaNameSuggestion = maybe "" id n
+                    , metaNameSuggestion = fromMaybe "" n
                     }
 
   -- Raw application
@@ -1308,10 +1310,11 @@ instance ToAbstract C.Pragma [A.Pragma] where
 instance ToAbstract C.Clause A.Clause where
     toAbstract (C.Clause top C.Ellipsis{} _ _ _) = fail "bad '...'" -- TODO: errors message
     toAbstract (C.Clause top lhs@(C.LHS p wps eqs with) rhs wh wcs) = withLocalVars $ do
--- WAS:     let wcs' = map (expandEllipsis p wps) wcs
       -- Andreas, 2012-02-14: need to reset local vars before checking subclauses
       vars <- getLocalVars
-      let wcs' = map (\ c -> setLocalVars vars >> do return $ expandEllipsis p wps c) wcs
+      let wcs' = for wcs $ \ c -> do
+           setLocalVars vars
+           return $ expandEllipsis p wps c
       lhs' <- toAbstract (LeftHandSide top p wps)
       printLocals 10 "after lhs:"
       let (whname, whds) = case wh of
