@@ -6,11 +6,13 @@ module Agda.Syntax.Scope.Base where
 
 import Control.Arrow ((***), first, second)
 import Control.Applicative
-import Data.Typeable (Typeable)
+
+import Data.Function
 import Data.List
 import Data.Map (Map)
 import qualified Data.Map as Map
-import Data.Function
+import Data.Maybe
+import Data.Typeable (Typeable)
 
 import Agda.Syntax.Position
 import Agda.Syntax.Common
@@ -19,6 +21,7 @@ import Agda.Syntax.Abstract.Name as A
 import Agda.Syntax.Concrete.Name as C
 import Agda.Syntax.Concrete
   (ImportDirective(..), UsingOrHiding(..), ImportedName(..), Renaming(..))
+
 import qualified Agda.Utils.Map as Map
 import Agda.Utils.List
 
@@ -50,8 +53,9 @@ nameSpaceAccess :: NameSpaceId -> Access
 nameSpaceAccess PrivateNS = PrivateAccess
 nameSpaceAccess _         = PublicAccess
 
+-- | Get a 'NameSpace' from 'Scope'.
 scopeNameSpace :: NameSpaceId -> Scope -> NameSpace
-scopeNameSpace ns s = maybe __IMPOSSIBLE__ id $ lookup ns $ scopeNameSpaces s
+scopeNameSpace ns = fromMaybe __IMPOSSIBLE__ . lookup ns . scopeNameSpaces
 
 -- | The complete information about the scope at a particular program point
 --   includes the scope stack, the local variables, and the context precedence.
@@ -63,6 +67,9 @@ data ScopeInfo = ScopeInfo
       }
   deriving (Typeable)
 
+-- | Local variables.
+type LocalVars = [(C.Name, A.Name)]
+
 -- | Lens for 'scopeLocals'.
 modifyScopeLocals :: (LocalVars -> LocalVars) -> ScopeInfo -> ScopeInfo
 modifyScopeLocals f sc = sc { scopeLocals = f (scopeLocals sc) }
@@ -70,15 +77,20 @@ modifyScopeLocals f sc = sc { scopeLocals = f (scopeLocals sc) }
 setScopeLocals :: LocalVars -> ScopeInfo -> ScopeInfo
 setScopeLocals vars = modifyScopeLocals (const vars)
 
--- | Local variables
-type LocalVars = [(C.Name, A.Name)]
+------------------------------------------------------------------------
+-- * Name spaces
+--
+-- Map concrete names to lists of abstract names.
+------------------------------------------------------------------------
 
 -- | A @NameSpace@ contains the mappings from concrete names that the user can
 --   write to the abstract fully qualified names that the type checker wants to
 --   read.
 data NameSpace = NameSpace
       { nsNames	  :: NamesInScope
+        -- ^ Maps concrete names to a list of abstract names.
       , nsModules :: ModulesInScope
+        -- ^ Maps concrete module names to a list of abstract module names.
       }
   deriving (Typeable)
 
@@ -86,20 +98,16 @@ type ThingsInScope a = Map C.Name [a]
 type NamesInScope    = ThingsInScope AbstractName
 type ModulesInScope  = ThingsInScope AbstractModule
 
+-- | Set of types consisting of exactly 'AbstractName' and 'AbstractModule'.
+--
+--   A GADT just for some dependent-types trickery.
 data InScopeTag a where
   NameTag   :: InScopeTag AbstractName
   ModuleTag :: InScopeTag AbstractModule
 
+-- | Type class for some dependent-types trickery.
 class Eq a => InScope a where
   inScopeTag :: InScopeTag a
-
-inNameSpace :: forall a. InScope a => NameSpace -> ThingsInScope a
-inNameSpace = case inScopeTag :: InScopeTag a of
-  NameTag   -> nsNames
-  ModuleTag -> nsModules
-
-instance KillRange ScopeInfo where
-  killRange m = m
 
 instance InScope AbstractName where
   inScopeTag = NameTag
@@ -107,30 +115,65 @@ instance InScope AbstractName where
 instance InScope AbstractModule where
   inScopeTag = ModuleTag
 
--- | We distinguish constructor names from other names.
-data KindOfName = ConName | FldName | DefName | PatternSynName
+-- | @inNameSpace@ selects either the name map or the module name map from
+--   a 'NameSpace'.  What is selected is determined by result type
+--   (using the dependent-type trickery).
+inNameSpace :: forall a. InScope a => NameSpace -> ThingsInScope a
+inNameSpace = case inScopeTag :: InScopeTag a of
+  NameTag   -> nsNames
+  ModuleTag -> nsModules
+
+------------------------------------------------------------------------
+-- * Decorated names
+--
+-- - What kind of name? (defined, constructor...)
+-- - Where does the name come from? (to explain to user)
+------------------------------------------------------------------------
+
+-- | For the sake of parsing left-hand sides, we distinguish
+--   constructor and record field names from defined names.
+data KindOfName
+  = ConName        -- ^ Constructor name.
+  | FldName        -- ^ Record field name.
+  | DefName        -- ^ Ordinary defined name.
+  | PatternSynName -- ^ Name of a pattern synonym.
   deriving (Eq, Show, Typeable, Enum, Bounded)
 
+-- | A list containing all name kinds.
 allKindsOfNames :: [KindOfName]
 allKindsOfNames = [minBound..maxBound]
 
-data WhyInScope = Defined | Opened C.QName WhyInScope | Applied C.QName WhyInScope
+-- | Where does a name come from?
+--
+--   This information is solely for reporting to the user,
+--   see 'Agda.Interaction.InteractionTop.whyInScope'.
+data WhyInScope
+  = Defined
+    -- ^ Defined in this module.
+  | Opened C.QName WhyInScope
+    -- ^ Imported from another module.
+  | Applied C.QName WhyInScope
+    -- ^ Imported by a module application.
   deriving (Typeable)
 
--- | Apart from the name, we also record whether it's a constructor or not and
---   what the fixity is.
+-- | A decoration of 'Agda.Syntax.Abstract.Name.QName'.
 data AbstractName = AbsName
-      { anameName    :: A.QName
-      , anameKind    :: KindOfName
-      , anameLineage :: WhyInScope
-      }
+  { anameName    :: A.QName
+    -- ^ The resolved qualified name.
+  , anameKind    :: KindOfName
+    -- ^ The kind (definition, constructor, record field etc.).
+  , anameLineage :: WhyInScope
+    -- ^ Explanation where this name came from.
+  }
   deriving (Typeable)
 
--- | For modules we record the arity. I'm not sure that it's every used anywhere.
+-- | A decoration of abstract syntax module names.
 data AbstractModule = AbsModule
-      { amodName    :: A.ModuleName
-      , amodLineage :: WhyInScope
-      }
+  { amodName    :: A.ModuleName
+    -- ^ The resolved module name.
+  , amodLineage :: WhyInScope
+    -- ^ Explanation where this name came from.
+  }
   deriving (Typeable)
 
 instance Eq AbstractName where
@@ -145,72 +188,14 @@ instance Eq AbstractModule where
 instance Ord AbstractModule where
   compare = compare `on` amodName
 
-instance Show ScopeInfo where
-  show (ScopeInfo this mods locals ctx) =
-    unlines $
-      [ "ScopeInfo"
-      , "  current = " ++ show this
-      ] ++
-      (if null locals then [] else [ "  locals  = " ++ show locals ]) ++
-      [ "  context = " ++ show ctx
-      , "  modules"
-      ] ++ map ("    "++) (relines . map show $ Map.elems mods)
-    where
-      relines = filter (not . null) . lines . unlines
-
-blockOfLines :: String -> [String] -> [String]
-blockOfLines _  [] = []
-blockOfLines hd ss = hd : map ("  "++) ss
-
-instance Show Scope where
-  show (scope @ Scope { scopeName = name, scopeParents = parents, scopeImports = imps }) =
-    unlines $
-      [ "* scope " ++ show name ] ++ ind (
-        concat [ blockOfLines (show nsid) (lines $ show $ scopeNameSpace nsid scope)
-               | nsid <- [minBound..maxBound] ]
-      ++ blockOfLines "imports"  (case Map.keys imps of
-                                    [] -> []
-                                    ks -> [ show ks ]
-                                 )
-      )
-    where ind = map ("  " ++)
-
-instance Show NameSpaceId where
-  show nsid = case nsid of
-    PublicNS        -> "public"
-    PrivateNS       -> "private"
-    ImportedNS      -> "imported"
-    OnlyQualifiedNS -> "only-qualified"
-
-instance Show NameSpace where
-  show (NameSpace names mods) =
-    unlines $
-      blockOfLines "names"   (map pr $ Map.toList names) ++
-      blockOfLines "modules" (map pr $ Map.toList mods)
-    where
-      pr :: (Show a, Show b) => (a,b) -> String
-      pr (x, y) = show x ++ " --> " ++ show y
-
-instance Show AbstractName where
-  show = show . anameName
-
-instance Show AbstractModule where
-  show = show . amodName
-
--- * Operations on names
-
-instance HasRange AbstractName where
-  getRange = getRange . anameName
-
-instance SetRange AbstractName where
-  setRange r x = x { anameName = setRange r $ anameName x }
-
 -- * Operations on name and module maps.
 
 mergeNames :: Eq a => ThingsInScope a -> ThingsInScope a -> ThingsInScope a
 mergeNames = Map.unionWith union
 
+------------------------------------------------------------------------
 -- * Operations on name spaces
+------------------------------------------------------------------------
 
 -- | The empty name space.
 emptyNameSpace :: NameSpace
@@ -245,25 +230,28 @@ mapNameSpaceM fd fm ns = do
   ms <- fm $ nsModules ns
   return $ ns { nsNames = ds, nsModules = ms }
 
+------------------------------------------------------------------------
 -- * General operations on scopes
+------------------------------------------------------------------------
 
 -- | The empty scope.
 emptyScope :: Scope
-emptyScope = Scope { scopeName	         = noModuleName
-                   , scopeParents        = []
-		   , scopeNameSpaces     = [ (nsid, emptyNameSpace) | nsid <- [minBound..maxBound] ]
-                   , scopeImports        = Map.empty
-		   , scopeDatatypeModule = False
-                   }
+emptyScope = Scope
+  { scopeName           = noModuleName
+  , scopeParents        = []
+  , scopeNameSpaces     = [ (nsid, emptyNameSpace) | nsid <- [minBound..maxBound] ]
+  , scopeImports        = Map.empty
+  , scopeDatatypeModule = False
+  }
 
 -- | The empty scope info.
 emptyScopeInfo :: ScopeInfo
 emptyScopeInfo = ScopeInfo
-		  { scopeCurrent    = noModuleName
-                  , scopeModules    = Map.singleton noModuleName emptyScope
-		  , scopeLocals	    = []
-		  , scopePrecedence = TopCtx
-		  }
+  { scopeCurrent    = noModuleName
+  , scopeModules    = Map.singleton noModuleName emptyScope
+  , scopeLocals	    = []
+  , scopePrecedence = TopCtx
+  }
 
 -- | Map functions over the names and modules in a scope.
 mapScope :: (NameSpaceId -> NamesInScope   -> NamesInScope  ) ->
@@ -673,3 +661,73 @@ inverseScopeLookupName x = inverseScopeLookup (Right x)
 -- | Takes the second component of 'inverseScopeLookup'.
 inverseScopeLookupModule :: A.ModuleName -> ScopeInfo -> Maybe C.QName
 inverseScopeLookupModule x = inverseScopeLookup (Left x)
+
+------------------------------------------------------------------------
+-- * (Debug) printing
+------------------------------------------------------------------------
+
+instance Show AbstractName where
+  show = show . anameName
+
+instance Show AbstractModule where
+  show = show . amodName
+
+instance Show NameSpaceId where
+  show nsid = case nsid of
+    PublicNS        -> "public"
+    PrivateNS       -> "private"
+    ImportedNS      -> "imported"
+    OnlyQualifiedNS -> "only-qualified"
+
+instance Show NameSpace where
+  show (NameSpace names mods) =
+    unlines $
+      blockOfLines "names"   (map pr $ Map.toList names) ++
+      blockOfLines "modules" (map pr $ Map.toList mods)
+    where
+      pr :: (Show a, Show b) => (a,b) -> String
+      pr (x, y) = show x ++ " --> " ++ show y
+
+instance Show Scope where
+  show (scope @ Scope { scopeName = name, scopeParents = parents, scopeImports = imps }) =
+    unlines $
+      [ "* scope " ++ show name ] ++ ind (
+        concat [ blockOfLines (show nsid) (lines $ show $ scopeNameSpace nsid scope)
+               | nsid <- [minBound..maxBound] ]
+      ++ blockOfLines "imports"  (case Map.keys imps of
+                                    [] -> []
+                                    ks -> [ show ks ]
+                                 )
+      )
+    where ind = map ("  " ++)
+
+-- | Add first string only if list is non-empty.
+blockOfLines :: String -> [String] -> [String]
+blockOfLines _  [] = []
+blockOfLines hd ss = hd : map ("  " ++) ss
+
+instance Show ScopeInfo where
+  show (ScopeInfo this mods locals ctx) =
+    unlines $
+      [ "ScopeInfo"
+      , "  current = " ++ show this
+      ] ++
+      (if null locals then [] else [ "  locals  = " ++ show locals ]) ++
+      [ "  context = " ++ show ctx
+      , "  modules"
+      ] ++ map ("    "++) (relines . map show $ Map.elems mods)
+    where
+      relines = filter (not . null) . lines . unlines
+
+------------------------------------------------------------------------
+-- * Boring instances
+------------------------------------------------------------------------
+
+instance KillRange ScopeInfo where
+  killRange m = m
+
+instance HasRange AbstractName where
+  getRange = getRange . anameName
+
+instance SetRange AbstractName where
+  setRange r x = x { anameName = setRange r $ anameName x }
