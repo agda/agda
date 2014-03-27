@@ -253,7 +253,8 @@ getInterface' x includeStateChanges =
     -- Ensure that the given module name matches the one in the file.
     let topLevelName = toTopLevelModuleName $ iModuleName i
     unless (topLevelName == x) $ do
-      checkModuleName topLevelName file
+      -- Andreas, 2014-03-27 This check is now done in the scope checker.
+      -- checkModuleName topLevelName file
       typeError $ OverlappingProjects file topLevelName x
 
     visited <- isVisited x
