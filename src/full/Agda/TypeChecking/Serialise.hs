@@ -1250,13 +1250,6 @@ vcase valu = \ix -> do
     -- to introduce sharing, see if we have seen a thing
     -- represented by ix before
     maybeU <- liftIO $ H.lookup memo (ix, aTyp)
-{- OLD, Andreas, 2013-06-14 I do not understand why aTyp is
-   declared inside the do, when it is return unmodified anyway
-    (aTyp, maybeU) <- liftIO $ do
-      let aTyp = typeOf (undefined :: a)
-      maybeU <- H.lookup memo (ix, aTyp)
-      return (aTyp, maybeU)
--}
     case maybeU of
       -- yes, we have seen it before, use the version from memo
       Just (U u) -> maybe malformed return (cast u)
