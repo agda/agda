@@ -248,7 +248,7 @@ getInterface' x includeStateChanges =
       (if uptodate then "" else "not ") ++ "up-to-date."
 
     (stateChangesIncluded, (i, wt)) <-
-      if uptodate then skip file else typeCheck file
+      if uptodate then skip file else typeCheckThe file
 
     -- Ensure that the given module name matches the one in the file.
     let topLevelName = toTopLevelModuleName $ iModuleName i
@@ -322,7 +322,7 @@ getInterface' x includeStateChanges =
         case mi of
           Nothing	-> do
             reportSLn "import.iface" 5 $ "  bad interface, re-type checking"
-            typeCheck file
+            typeCheckThe file
           Just i	-> do
 
             reportSLn "import.iface" 5 $ "  imports: " ++ show (iImportedModules i)
@@ -333,7 +333,7 @@ getInterface' x includeStateChanges =
             if hs /= map snd (iImportedModules i)
               then do
                 -- liftIO close	-- Close the interface file. See above.
-                typeCheck file
+                typeCheckThe file
               else do
                 unless cached $ chaseMsg "Skipping" (Just ifile)
                 -- We set the pragma options of the skipped file here,
@@ -342,7 +342,7 @@ getInterface' x includeStateChanges =
                 mapM_ setOptionsFromPragma (iPragmaOptions i)
                 return (False, (i, NoWarnings))
 
-      typeCheck file = do
+      typeCheckThe file = do
           let withMsgs = bracket_
                 (chaseMsg "Checking" $ Just $ filePath file)
                 (const $ chaseMsg "Finished" Nothing)
