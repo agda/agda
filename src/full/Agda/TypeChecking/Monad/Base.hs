@@ -15,7 +15,9 @@ import Control.Monad.State
 import Control.Monad.Reader
 import Control.Monad.Writer
 import Control.Applicative
+
 import Data.Int
+import qualified Data.List as List
 import Data.Map as Map
 import Data.Set as Set
 import Data.Sequence as Seq
@@ -262,7 +264,7 @@ data Interface = Interface
 
 -- | Combines the source hash and the (full) hashes of the imported modules.
 iFullHash :: Interface -> Hash
-iFullHash i = combineHashes $ iSourceHash i : Prelude.map snd (iImportedModules i)
+iFullHash i = combineHashes $ iSourceHash i : List.map snd (iImportedModules i)
 
 ---------------------------------------------------------------------------
 -- ** Closure
@@ -395,7 +397,7 @@ instance Ord Listener where
   EtaExpand       x   `compare` EtaExpand       y   = x `compare` y
   CheckConstraint x _ `compare` CheckConstraint y _ = x `compare` y
   EtaExpand{} `compare` CheckConstraint{} = LT
-  CheckConstraint{} `compare` EtaExpand{} = Prelude.GT
+  CheckConstraint{} `compare` EtaExpand{} = GT
 
 -- | Frozen meta variable cannot be instantiated by unification.
 --   This serves to prevent the completion of a definition by its use
