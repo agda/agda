@@ -115,12 +115,7 @@ noModuleName = mnameFromList []
 -- | The 'Range' sets the /definition site/ of the name, not the use site.
 
 mkName :: Range -> NameId -> String -> Name
-mkName r i s = Name i (C.Name noRange (parseName s)) r defaultFixity'
-  where
-    parseName ""      = []
-    parseName ('_':s) = C.Hole : parseName s
-    parseName s = case break (== '_') s of
-      (s0, s1)	-> C.Id s0 : parseName s1
+mkName r i s = Name i (C.Name noRange (C.stringNameParts s)) r defaultFixity'
 
 mkName_ :: NameId -> String -> Name
 mkName_ = mkName noRange

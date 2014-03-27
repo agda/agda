@@ -1411,17 +1411,11 @@ figureOutTopLevelModule ds =
 
 mkName :: (Interval, String) -> Parser Name
 mkName (i, s) = do
-    let xs = parts s
+    let xs = C.stringNameParts s
     mapM_ isValidId xs
     unless (alternating xs) $ fail $ "a name cannot contain two consecutive underscores"
     return $ Name (getRange i) xs
     where
-        parts :: String -> [NamePart]
-        parts ""        = []
-        parts ('_' : s) = Hole : parts s
-        parts s         = Id x : parts s'
-          where (x, s') = break (== '_') s
-
 	isValidId Hole   = return ()
 	isValidId (Id x) = case parse defaultParseFlags [0] (lexer return) x of
 	    ParseOk _ (TokId _) -> return ()

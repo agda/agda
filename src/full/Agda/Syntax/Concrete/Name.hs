@@ -1,4 +1,5 @@
-{-# LANGUAGE CPP, DeriveDataTypeable #-}
+{-# LANGUAGE CPP, PatternGuards,
+  DeriveDataTypeable #-}
 
 {-| Names in the concrete syntax are just strings (or lists of strings for
     qualified names).
@@ -63,6 +64,13 @@ nameParts (NoName _ _) = [Hole]
 
 nameStringParts :: Name -> [String]
 nameStringParts n = [ s | Id s <- nameParts n ]
+
+-- | Parse a string to parts of a concrete name.
+
+stringNameParts :: String -> [NamePart]
+stringNameParts ""                              = []
+stringNameParts ('_':s)                         = Hole : stringNameParts s
+stringNameParts s | (x, s') <- break (== '_') s = Id x : stringNameParts s'
 
 -- | @qualify A.B x == A.B.x@
 qualify :: QName -> Name -> QName
