@@ -1155,8 +1155,7 @@ instance ToAbstract NiceDeclaration A.Declaration where
         return (m, Map.delete noModuleName i)
 
       -- Merge the imported scopes with the current scopes
-      modifyScopeInfo $ \s -> s { scopeModules = Map.unionWith mergeScope
-                                                  (Map.delete m $ scopeModules s) i }
+      modifyScopes $ \ ms -> Map.unionWith mergeScope (Map.delete m ms) i
 
       -- Bind the desired module name to the right abstract name.
       case as of
