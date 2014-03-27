@@ -46,7 +46,7 @@ import Agda.Syntax.Notation
 import Agda.Syntax.Scope.Base
 import Agda.Syntax.Scope.Monad
 
-import Agda.TypeChecking.Monad.Base (TypeError(..), Call(..), typeError, notInScope,
+import Agda.TypeChecking.Monad.Base (TypeError(..), Call(..), typeError,
                                      TCErr(..), extendlambdaname)
 import Agda.TypeChecking.Monad.Trace (traceCall, setCurrentRange)
 import Agda.TypeChecking.Monad.State
@@ -84,11 +84,6 @@ printLocals :: Int -> String -> ScopeM ()
 printLocals v s = verboseS "scope.top" v $ do
   locals <- getLocalVars
   reportSLn "scope.top" v $ s ++ " " ++ show locals
-
-printScope :: String -> Int -> String -> ScopeM ()
-printScope tag v s = verboseS ("scope." ++ tag) v $ do
-  scope <- getScope
-  reportSDoc ("scope." ++ tag) v $ return $ vcat [ text s, text $ show scope ]
 
 {--------------------------------------------------------------------------
     Helpers

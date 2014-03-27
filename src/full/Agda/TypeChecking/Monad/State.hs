@@ -20,9 +20,11 @@ import Agda.Syntax.Abstract.Name
 
 import Agda.TypeChecking.Monad.Base
 import Agda.TypeChecking.Monad.Base.Benchmark
+import {-# SOURCE #-} Agda.TypeChecking.Monad.Options
 
 import Agda.Utils.Hash
 import Agda.Utils.Monad (bracket_)
+import Agda.Utils.Pretty
 
 -- | Resets the non-persistent part of the type checking state.
 
@@ -98,6 +100,18 @@ localScope m = do
   x <- m
   setScope scope
   return x
+
+-- | Scope error.
+notInScope :: C.QName -> TCM a
+notInScope x = do
+  printScope "unbound" 5 ""
+  typeError $ NotInScope [x]
+
+-- | Debug print the scope.
+printScope :: String -> Int -> String -> TCM ()
+printScope tag v s = verboseS ("scope." ++ tag) v $ do
+  scope <- getScope
+  reportSDoc ("scope." ++ tag) v $ return $ vcat [ text s, text $ show scope ]
 
 ---------------------------------------------------------------------------
 -- * Top level module
