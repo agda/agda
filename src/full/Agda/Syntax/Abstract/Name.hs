@@ -3,7 +3,7 @@
   DeriveFunctor, DeriveFoldable, DeriveTraversable,
   FlexibleContexts #-}
 
-{-| Abstract names should carry unique identifiers and stuff. Not right now though.
+{-| Abstract names carry unique identifiers and stuff.
 -}
 module Agda.Syntax.Abstract.Name where
 
@@ -70,10 +70,6 @@ newtype ModuleName = MName { mnameToList :: [Name] }
 newtype AmbiguousQName = AmbQ { unAmbQ :: [QName] }
   deriving (Typeable, HasRange, Show)
 
-instance HasRange ModuleName where
-  getRange (MName []) = noRange
-  getRange (MName xs) = getRange xs
-
 -- | A module is anonymous if the qualification path ends in an underscore.
 isAnonymousModuleName :: ModuleName -> Bool
 isAnonymousModuleName (MName []) = False
@@ -116,8 +112,7 @@ mnameFromList = MName
 noModuleName :: ModuleName
 noModuleName = mnameFromList []
 
--- | The 'Range' sets the /definition site/ of the name, not the use
--- site.
+-- | The 'Range' sets the /definition site/ of the name, not the use site.
 
 mkName :: Range -> NameId -> String -> Name
 mkName r i s = Name i (C.Name noRange (parseName s)) r defaultFixity'
@@ -224,27 +219,21 @@ nextName x = x { nameConcrete = C.Name noRange $ nextSuf ps }
 	nextStr s = case suffixView s of
 	    (s0, suf) -> addSuffix s0 (nextSuffix suf)
 
-instance Show NameId where
-  show (NameId x i) = show x ++ "@" ++ show i
+------------------------------------------------------------------------
+-- * Important instances: Eq, Ord, Hashable
+--
+--   For the identity and comparing of names, only the 'NameId' matters!
+------------------------------------------------------------------------
 
 instance Eq Name where
-  x == y  = nameId x == nameId y
+  (==) = (==) `on` nameId
 
 instance Ord Name where
-  compare x y = compare (nameId x) (nameId y)
-
-instance Show Name where
-  show x = show (nameConcrete x) -- ++ "|" ++ show (nameId x)
+  compare = compare `on` nameId
 
 instance Hashable Name where
   {-# INLINE hashWithSalt #-}
-  hashWithSalt salt = (hashWithSalt salt) . nameId
-
-instance Show QName where
-  show q = concat $ intersperse "." $ map show $ qnameToList q
-
-instance Show ModuleName where
-  show m = concat $ intersperse "." $ map show $ mnameToList m
+  hashWithSalt salt = hashWithSalt salt . nameId
 
 instance Eq QName where
   (==) = (==) `on` qnameName
@@ -254,13 +243,38 @@ instance Ord QName where
 
 instance Hashable QName where
   {-# INLINE hashWithSalt #-}
-  hashWithSalt salt = (hashWithSalt salt) . qnameName
+  hashWithSalt salt = hashWithSalt salt . qnameName
+
+------------------------------------------------------------------------
+-- * Show instances
+------------------------------------------------------------------------
+
+instance Show Name where
+  show x = show (nameConcrete x) -- ++ "|" ++ show (nameId x)
+
+instance Show ModuleName where
+  show m = concat $ intersperse "." $ map show $ mnameToList m
+
+instance Show QName where
+  show q = concat $ intersperse "." $ map show $ qnameToList q
+
+------------------------------------------------------------------------
+-- * Range instances
+------------------------------------------------------------------------
+
+-- ** HasRange
 
 instance HasRange Name where
   getRange = getRange . nameConcrete
 
+instance HasRange ModuleName where
+  getRange (MName []) = noRange
+  getRange (MName xs) = getRange xs
+
 instance HasRange QName where
   getRange q = getRange (qnameModule q, qnameName q)
+
+-- ** SetRange
 
 instance SetRange Name where
   setRange r x = x { nameConcrete = setRange r $ nameConcrete x }
@@ -273,10 +287,7 @@ instance SetRange QName where
 instance SetRange ModuleName where
   setRange r (MName ns) = MName (map (setRange r) ns)
 
-instance KillRange QName where
-  killRange q = q { qnameModule = killRange $ qnameModule q
-                  , qnameName   = killRange $ qnameName   q
-                  }
+-- ** KillRange
 
 instance KillRange Name where
   killRange x = x { nameConcrete = killRange $ nameConcrete x
@@ -286,8 +297,17 @@ instance KillRange Name where
 instance KillRange ModuleName where
   killRange (MName xs) = MName $ killRange xs
 
+instance KillRange QName where
+  killRange q = q { qnameModule = killRange $ qnameModule q
+                  , qnameName   = killRange $ qnameName   q
+                  }
+
 instance KillRange AmbiguousQName where
   killRange (AmbQ xs) = AmbQ $ killRange xs
+
+------------------------------------------------------------------------
+-- * Sized instances
+------------------------------------------------------------------------
 
 instance Sized QName where
   size = size . qnameToList

@@ -464,6 +464,9 @@ type Arity  = Nat
 data NameId = NameId Integer Integer
     deriving (Eq, Ord, Typeable)
 
+instance Show NameId where
+  show (NameId x i) = show x ++ "@" ++ show i
+
 instance Enum NameId where
   succ (NameId n m)	= NameId (n + 1) m
   pred (NameId n m)	= NameId (n - 1) m
