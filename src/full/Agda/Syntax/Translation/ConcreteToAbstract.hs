@@ -828,12 +828,8 @@ scopeCheckModule r x qm tel checkDs = do
 
 -- | Temporary data type to scope check a file.
 data TopLevel a = TopLevel
-  { topLevelSupposedModule :: C.TopLevelModuleName
-    -- ^ The supposed name of this module.
-    --   (Coming e.g. from an import statement in another file).
-  , topLevelPath           :: AbsolutePath
-    -- ^ The file path.
-    --   (E.g. computed from the supposed module name).
+  { topLevelPath           :: AbsolutePath
+    -- ^ The file path from which we loaded this module.
   , topLevelTheThing       :: a
     -- ^ The file content.
   }
@@ -851,7 +847,7 @@ topLevelModuleName topLevel = scopeCurrent (insideScope topLevel)
 
 -- Top-level declarations are always (import|open)* module
 instance ToAbstract (TopLevel [C.Declaration]) TopLevelInfo where
-    toAbstract (TopLevel supposedM file ds) =
+    toAbstract (TopLevel file ds) =
       -- A file is a bunch of preliminary decls (imports etc.)
       -- plus a single module decl.
       case splitAt (length ds - 1) ds of

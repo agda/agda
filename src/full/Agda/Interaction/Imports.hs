@@ -513,7 +513,7 @@ createInterface file mname =
 
     -- Scope checking.
     topLevel <- billTop Bench.Scoping $
-      concreteToAbstract_ (TopLevel mname file top)
+      concreteToAbstract_ (TopLevel file top)
 
     let ds = topLevelDecls topLevel
 
