@@ -53,6 +53,7 @@ import Agda.TypeChecking.Monad.State
 import Agda.TypeChecking.Monad.Options
 import Agda.TypeChecking.Monad.Env (insideDotPattern, isInsideDotPattern)
 
+import Agda.Interaction.FindFile (checkModuleName)
 -- import Agda.Interaction.Imports  -- for type-checking in ghci
 import {-# SOURCE #-} Agda.Interaction.Imports (scopeCheckImport)
 import Agda.Interaction.Options
@@ -825,7 +826,17 @@ scopeCheckModule r x qm tel checkDs = do
   where
     info = ModuleInfo r noRange Nothing Nothing Nothing
 
-data TopLevel a = TopLevel AbsolutePath a
+-- | Temporary data type to scope check a file.
+data TopLevel a = TopLevel
+  { topLevelSupposedModule :: C.TopLevelModuleName
+    -- ^ The supposed name of this module.
+    --   (Coming e.g. from an import statement in another file).
+  , topLevelPath           :: AbsolutePath
+    -- ^ The file path.
+    --   (E.g. computed from the supposed module name).
+  , topLevelTheThing       :: a
+    -- ^ The file content.
+  }
 
 data TopLevelInfo = TopLevelInfo
         { topLevelDecls :: [A.Declaration]
@@ -840,12 +851,21 @@ topLevelModuleName topLevel = scopeCurrent (insideScope topLevel)
 
 -- Top-level declarations are always (import|open)* module
 instance ToAbstract (TopLevel [C.Declaration]) TopLevelInfo where
-    toAbstract (TopLevel file ds) = case splitAt (length ds - 1) ds of
+    toAbstract (TopLevel supposedM file ds) =
+      -- A file is a bunch of preliminary decls (imports etc.)
+      -- plus a single module decl.
+      case splitAt (length ds - 1) ds of
         (ds', [C.Module r m0 tel ds]) -> do
           -- If the module name is _ compute the name from the file path
-          let m = case m0 of
-                    _ | isNoName m0 -> C.QName $ C.Name noRange [Id $ rootName file]
-                    _                      -> m0
+          m <- if isNoName m0
+                then return $ C.QName $ C.Name noRange [Id $ rootName file]
+                else do
+                -- Andreas, 2014-03-28  Issue 1078
+                -- We need to check the module name against the file name here.
+                -- Otherwise one could sneak in a lie and confuse the scope
+                -- checker.
+                  checkModuleName (C.toTopLevelModuleName m0) file
+                  return m0
           setTopLevelModule m
           am           <- toAbstract (NewModuleQName m)
           ds'          <- toAbstract ds'
