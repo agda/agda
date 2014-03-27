@@ -1,4 +1,5 @@
-{-# LANGUAGE CPP, MultiParamTypeClasses, FlexibleInstances,
+{-# LANGUAGE CPP, TupleSections,
+             MultiParamTypeClasses, FlexibleInstances,
              UndecidableInstances, DeriveFunctor
   #-}
 
@@ -679,29 +680,30 @@ introTactic pmLambda ii = do
         ]
 
 -- | Runs the given computation as if in an anonymous goal at the end
--- of the top-level module.
-
+--   of the top-level module.
+--
+--   Sets up current module, scope, and context.
 atTopLevel :: TCM a -> TCM a
 atTopLevel m = inConcreteMode $ do
-  mCurrent <- stCurrentModule <$> get
-  case mCurrent of
-    Nothing      -> typeError $
-                      GenericError "The file has not been loaded yet."
-    Just current -> do
-      r <- getVisitedModule (toTopLevelModuleName current)
-      case r of
-        Nothing -> __IMPOSSIBLE__
-        Just mi -> do
-          let scope = iInsideScope $ miInterface mi
-          tel <- lookupSection current
-          M.withCurrentModule current $
-            withScope_ scope $
-              addContext (zipWith' (fmap . (,))
-                                   (reverse $ map snd $ scopeLocals scope)
-                                   (map (fmap snd) $ telToList tel)) $
-                m
+  let err = typeError $ GenericError "The file has not been loaded yet."
+  caseMaybeM (gets stCurrentModule) err $ \ current -> do
+    caseMaybeM (getVisitedModule $ toTopLevelModuleName current) __IMPOSSIBLE__ $ \ mi -> do
+      let scope = iInsideScope $ miInterface mi
+      tel <- lookupSection current
+      -- Get the names of the local variables from @scope@
+      -- and put them into the context.
+      let names :: [A.Name]
+          names = reverse $ map snd $ scopeLocals scope
+          types :: [I.Dom I.Type]
+          types = map (snd <$>) $ telToList tel
+          gamma :: ListTel' A.Name
+          gamma = zipWith' (\ x dom -> (x,) <$> dom) names types
+      M.withCurrentModule current $
+        withScope_ scope $
+          addContext gamma $
+            m
 
--- | Parse a name
+-- | Parse a name.
 parseName :: Range -> String -> TCM C.QName
 parseName r s = do
   m <- parseExpr r s
