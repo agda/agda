@@ -42,6 +42,8 @@ data Phase
     -- ^ Subphase for 'Termination'.
   | With
     -- ^ Subphase for 'Termination'.
+  | Sort
+    -- ^ Subphase for 'Serialize'.
   deriving (Eq, Ord, Show, Enum, Bounded)
 
 -- | Account we can bill computation time to.

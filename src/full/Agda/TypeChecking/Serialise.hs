@@ -61,6 +61,9 @@ import qualified Agda.Interaction.Highlighting.Range   as HR
 import qualified Agda.Interaction.Highlighting.Precise as HP
 import Agda.Interaction.FindFile
 
+import qualified Agda.TypeChecking.Monad.Benchmark as Bench
+import Agda.TypeChecking.Monad.Benchmark (billTo)
+
 import Agda.TypeChecking.Monad
 import Agda.TypeChecking.CompiledClause
 import Agda.TypeChecking.Pretty
@@ -158,19 +161,39 @@ class Typeable a => EmbPrj a where
 encode :: EmbPrj a => a -> TCM ByteString
 encode a = do
     fileMod <- sourceToModule
-    (x, shared, total) <- liftIO $ do
-      newD@(Dict nD sD iD dD _ _ _ _ _ stats _) <- emptyDict fileMod
-      root <- runReaderT (icode a) newD
-      nL <- l nD; sL <- l sD; iL <- l iD; dL <- l dD
-      (shared, total) <- readIORef stats
-      return (B.encode currentInterfaceVersion `L.append`
-              G.compress (B.encode (root, nL, sL, iL, dL)), shared, total)
+    newD@(Dict nD sD iD dD _ _ _ _ _ stats _) <- liftIO $ emptyDict fileMod
+    root <- liftIO $ runReaderT (icode a) newD
+    nL <- benchSort $ l nD
+    sL <- benchSort $ l sD
+    iL <- benchSort $ l iD
+    dL <- benchSort $ l dD
+    (shared, total) <- liftIO $ readIORef stats
+    let x = B.encode currentInterfaceVersion `L.append`
+            G.compress (B.encode (root, nL, sL, iL, dL))
     verboseS "profile.sharing" 10 $ do
       tickN "pointers (reused)" $ fromIntegral shared
       tickN "pointers" $ fromIntegral total
     return x
   where
-  l h = List.map fst . List.sortBy (compare `on` snd) <$> H.toList h
+    l h = List.map fst . List.sortBy (compare `on` snd) <$> H.toList h
+    benchSort = billTo [Bench.Serialization, Bench.Sort] . liftIO
+
+-- encode :: EmbPrj a => a -> TCM ByteString
+-- encode a = do
+--     fileMod <- sourceToModule
+--     (x, shared, total) <- liftIO $ do
+--       newD@(Dict nD sD iD dD _ _ _ _ _ stats _) <- emptyDict fileMod
+--       root <- runReaderT (icode a) newD
+--       nL <- l nD; sL <- l sD; iL <- l iD; dL <- l dD
+--       (shared, total) <- readIORef stats
+--       return (B.encode currentInterfaceVersion `L.append`
+--               G.compress (B.encode (root, nL, sL, iL, dL)), shared, total)
+--     verboseS "profile.sharing" 10 $ do
+--       tickN "pointers (reused)" $ fromIntegral shared
+--       tickN "pointers" $ fromIntegral total
+--     return x
+--   where
+--   l h = List.map fst . List.sortBy (compare `on` snd) <$> H.toList h
 
 -- | Data.Binary.runGetState is deprecated in favour of runGetIncremental.
 --   Reimplementing it in terms of the new function. The new Decoder type contains
