@@ -91,7 +91,7 @@ warningsToError (Warnings w@(_:_) _ _) = TerminationCheckFailed w
 ---------------------------------------------------------------------------
 
 sayWhere :: HasRange a => a -> TCM Doc -> TCM Doc
-sayWhere x d = text (show $ getRange x) $$ d
+sayWhere x d = prettyTCM (getRange x) $$ d
 
 sayWhen :: Range -> Maybe (Closure Call) -> TCM Doc -> TCM Doc
 sayWhen r Nothing   m = sayWhere r m
@@ -102,7 +102,7 @@ panic s = fwords $ "Panic: " ++ s
 
 nameWithBinding :: QName -> TCM Doc
 nameWithBinding q =
-  sep [ prettyTCM q, text "bound at", text (show r) ]
+  sep [ prettyTCM q, text "bound at", prettyTCM r ]
   where
     r = nameBindingSite $ qnameName q
 
@@ -262,9 +262,10 @@ instance PrettyTCM TCErr where
 instance PrettyTCM CallInfo where
   prettyTCM c = do
     let call = prettyTCM $ callInfoCall c
-    case show $ callInfoRange c of
+        r    = callInfoRange c
+    case show r of
       "" -> call
-      r  -> call $$ nest 2 (text "(at" <+> text r <> text ")")
+      _  -> call $$ nest 2 (text "(at" <+> prettyTCM r <> text ")")
 
 instance PrettyTCM TypeError where
     prettyTCM err = do
@@ -382,7 +383,7 @@ instance PrettyTCM TypeError where
             ShadowedModule x ms@(m : _) -> fsep $
               pwords "Duplicate definition of module" ++ [prettyTCM x <> text "."] ++
               pwords "Previous definition of" ++ [help m] ++ pwords "module" ++ [prettyTCM x] ++
-              pwords "at" ++ [text $ show r]
+              pwords "at" ++ [prettyTCM r]
               where
                 help m = do
                   b <- isDatatypeModule m
@@ -516,14 +517,15 @@ instance PrettyTCM TypeError where
 		pwords "can refer to either a local module or an imported module"
 	    UnsolvedMetas rs ->
 		fsep ( pwords "Unsolved metas at the following locations:" )
-		$$ nest 2 (vcat $ map (text . show) rs)
+		$$ nest 2 (vcat $ map prettyTCM rs)
 	    UnsolvedConstraints cs ->
 		fsep ( pwords "Failed to solve the following constraints:" )
 		$$ nest 2 (vcat $ map prettyConstraint cs)
               where prettyConstraint :: ProblemConstraint -> TCM Doc
                     prettyConstraint c = f (prettyTCM c)
-                      where s   = show (getRange c)
-                            f d = if null s then d else d $$ nest 4 (text ("[ at " ++ s ++ " ]"))
+                      where
+                        r   = getRange c
+                        f d = if null (show r) then d else d $$ nest 4 (text "[ at" <+> prettyTCM r  <+> text "]")
 	    CyclicModuleDependency ms ->
 		fsep (pwords "cyclic module dependency:")
 		$$ nest 2 (vcat $ map pretty ms)
@@ -560,7 +562,7 @@ instance PrettyTCM TypeError where
 	    NotInScope xs ->
 		fsep (pwords "Not in scope:") $$ nest 2 (vcat $ map name xs)
 		where
-                  name x = fsep [ pretty x, text "at" <+> text (show $ getRange x), suggestion (show x) ]
+                  name x = fsep [ pretty x, text "at" <+> prettyTCM (getRange x), suggestion (show x) ]
                   suggestion s
                     | elem ':' s    = parens $ text "did you forget space around the ':'?"
                     | elem "->" two = parens $ text "did you forget space around the '->'?"
@@ -592,7 +594,7 @@ instance PrettyTCM TypeError where
 		) $$ nest 2 (hsep [ text "module", pretty x <> text "'", text "=", pretty x, text "e1 .. en" ])
 	    ClashingDefinition x y -> fsep $
 		pwords "Multiple definitions of" ++ [pretty x <> text "."] ++
-		pwords "Previous definition at" ++ [text $ show $ nameBindingSite $ qnameName y]
+		pwords "Previous definition at" ++ [prettyTCM $ nameBindingSite $ qnameName y]
 	    ClashingModule m1 m2 -> fsep $
 		pwords "The modules" ++ [prettyTCM m1, text "and", prettyTCM m2] ++ pwords "clash."
 	    ClashingImport x y -> fsep $
@@ -916,7 +918,7 @@ instance PrettyTCM Call where
 		   pwords "in the definition of" ++ [pretty x]
         NoHighlighting _ -> empty
 	SetRange r _ ->
-	    fsep $ pwords "when doing something at" ++ [text $ show r]
+	    fsep (pwords "when doing something at") <+> prettyTCM r
         CheckSectionApplication _ m1 modapp _ -> fsep $
           pwords "when checking the module application" ++
           [prettyA $ A.Apply info m1 modapp Map.empty Map.empty]
