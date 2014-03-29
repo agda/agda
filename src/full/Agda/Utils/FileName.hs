@@ -12,10 +12,6 @@ module Agda.Utils.FileName
   , tests
   ) where
 
-import Agda.Utils.TestHelpers
-import Agda.Utils.QuickCheck
-import Data.Function
-import Data.Typeable (Typeable)
 import Control.Applicative
 import System.Directory
 import System.FilePath
@@ -25,6 +21,14 @@ import Control.Exception (bracket)
 import System.Win32 (findFirstFile, findClose, getFindDataFileName)
 #endif
 
+import Data.ByteString.Char8 (ByteString)
+import qualified Data.ByteString.Char8 as ByteString
+import Data.Function
+import Data.Typeable (Typeable)
+
+import Agda.Utils.TestHelpers
+import Agda.Utils.QuickCheck
+
 #include "../undefined.h"
 import Agda.Utils.Impossible
 
@@ -32,9 +36,19 @@ import Agda.Utils.Impossible
 --
 -- Note that the 'Eq' and 'Ord' instances do not check if different
 -- paths point to the same files or directories.
+--
+-- Andreas, 2014-03-30:
+-- For efficiency of serialization, 'AbsolutePath' is implemented
+-- as 'ByteString' which short-cuts equality testing using
+-- pointer equality.  This saves 20% of the serialization time
+-- of the standard library!
 
-newtype AbsolutePath = AbsolutePath { filePath :: FilePath }
+newtype AbsolutePath = AbsolutePath { byteStringPath :: ByteString }
   deriving (Eq, Ord, Typeable)
+
+-- | Extract the 'AbsolutePath' to be used as 'FilePath'.
+filePath :: AbsolutePath -> FilePath
+filePath = ByteString.unpack . byteStringPath
 
 instance Show AbsolutePath where
   show = filePath
@@ -43,11 +57,12 @@ instance Show AbsolutePath where
 -- trailing path separators.
 
 absolutePathInvariant :: AbsolutePath -> Bool
-absolutePathInvariant (AbsolutePath f) =
+absolutePathInvariant x =
   isAbsolute f &&
   isValid f &&
   f == normalise f &&
   f == dropTrailingPathSeparator f
+  where f = filePath x
 
 -- | Constructs 'AbsolutePath's.
 --
@@ -56,7 +71,7 @@ absolutePathInvariant (AbsolutePath f) =
 mkAbsolute :: FilePath -> AbsolutePath
 mkAbsolute f
   | isAbsolute f =
-      AbsolutePath $ dropTrailingPathSeparator $ normalise f
+      AbsolutePath $ ByteString.pack $ dropTrailingPathSeparator $ normalise f
   | otherwise    = __IMPOSSIBLE__
 
 prop_mkAbsolute f =
