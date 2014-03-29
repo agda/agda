@@ -2,12 +2,13 @@
 module Agda.Interaction.EmacsTop
     ( mimicGHCi
     ) where
-
-import Data.List
-import Data.Maybe
 import Control.Applicative
 import Control.Monad.Error
 import Control.Monad.State
+
+import Data.Char
+import Data.List
+import Data.Maybe
 
 import System.IO
 
@@ -53,7 +54,7 @@ mimicGHCi = do
         unlessM (liftIO isEOF) $ do
             r <- liftIO getLine
             _ <- return $! length r     -- force to read the full input line
-            case dropWhile (==' ') r of
+            case dropWhile isSpace r of
                 ""  -> return ()
                 ('-':'-':_) -> return ()
                 _ -> case listToMaybe $ reads r of
