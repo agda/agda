@@ -1,4 +1,7 @@
-{-# LANGUAGE CPP, DeriveDataTypeable, DeriveFunctor, TypeSynonymInstances, FlexibleInstances, ScopedTypeVariables #-}
+{-# LANGUAGE CPP, TemplateHaskell, ScopedTypeVariables, NoMonomorphismRestriction,
+  TypeSynonymInstances, FlexibleInstances, GeneralizedNewtypeDeriving,
+  DeriveDataTypeable, DeriveFunctor, DeriveFoldable, DeriveTraversable
+ #-}
 
 {-| Position information for syntax. Crucial for giving good error messages.
 -}
@@ -46,17 +49,24 @@ module Agda.Syntax.Position
   , tests
   ) where
 
-import Data.Typeable (Typeable)
-import Data.List
-import Data.Function
-import Data.Set (Set)
-import qualified Data.Set as Set
-import Data.Int
-import Agda.Utils.QuickCheck
 import Control.Applicative
 import Control.Monad
+
+import Data.Foldable (Foldable)
+import Data.Traversable (Traversable)
+import Data.Function
+import Data.Int
+import Data.List
+import Data.Set (Set)
+import qualified Data.Set as Set
+import Data.Typeable (Typeable)
+
+import Test.QuickCheck.All
+
 import Agda.Utils.FileName hiding (tests)
+import Agda.Utils.Maybe
 import Agda.Utils.TestHelpers
+import Agda.Utils.QuickCheck
 
 #include "../undefined.h"
 import Agda.Utils.Impossible
@@ -78,18 +88,15 @@ data Position' a = Pn
   { srcFile :: a
     -- ^ File.
   , posPos  :: !Int32
-    -- ^ Position.
+    -- ^ Position, counting from 1.
   , posLine :: !Int32
     -- ^ Line number, counting from 1.
   , posCol  :: !Int32
     -- ^ Column number, counting from 1.
   }
-    deriving (Typeable, Functor)
+    deriving (Typeable, Functor, Foldable, Traversable)
 
-type SrcFile  = Maybe AbsolutePath
-type Position = Position' SrcFile
-
-positionInvariant :: Position -> Bool
+positionInvariant :: Position' a -> Bool
 positionInvariant p =
   posPos p > 0 && posLine p > 0 && posCol p > 0
 
@@ -101,22 +108,26 @@ instance Eq a => Eq (Position' a) where
 instance Ord a => Ord (Position' a) where
   compare = compare `on` importantPart
 
+type SrcFile     = Maybe AbsolutePath
+
+type Position = Position' SrcFile
+
 -- | An interval. The @iEnd@ position is not included in the interval.
 --
 -- Note the invariant which intervals have to satisfy: 'intervalInvariant'.
 data Interval' a = Interval { iStart, iEnd :: !(Position' a) }
-    deriving (Typeable, Eq, Ord, Functor)
+    deriving (Typeable, Eq, Ord, Functor, Foldable, Traversable)
 
-type Interval = Interval' SrcFile
+type Interval     = Interval' SrcFile
 
-intervalInvariant :: Interval -> Bool
+intervalInvariant :: Ord a => Interval' a -> Bool
 intervalInvariant i =
   all positionInvariant [iStart i, iEnd i] &&
   iStart i <= iEnd i
 
 -- | The length of an interval, assuming that the start and end
 -- positions are in the same file.
-iLength :: Interval -> Int32
+iLength :: Interval' a -> Int32
 iLength i = posPos (iEnd i) - posPos (iStart i)
 
 -- | A range is a list of intervals. The intervals should be
@@ -124,9 +135,9 @@ iLength i = posPos (iEnd i) - posPos (iStart i)
 --
 -- Note the invariant which ranges have to satisfy: 'rangeInvariant'.
 newtype Range' a = Range [Interval' a]
-  deriving (Typeable, Eq, Ord, Functor)
+  deriving (Typeable, Eq, Ord, Functor, Foldable, Traversable)
 
-type Range = Range' SrcFile
+type Range     = Range' SrcFile
 
 rangeInvariant :: Range -> Bool
 rangeInvariant (Range []) = True
@@ -257,34 +268,34 @@ startPos :: Maybe AbsolutePath -> Position
 startPos f = Pn { srcFile = f, posPos = 1, posLine = 1, posCol = 1 }
 
 -- | Ranges between two unknown positions
-noRange :: Range
+noRange :: Range' a
 noRange = Range []
 
 -- | Advance the position by one character.
 --   A newline character (@'\n'@) moves the position to the first
 --   character in the next line. Any other character moves the
 --   position to the next column.
-movePos :: Position -> Char -> Position
+movePos :: Position' a -> Char -> Position' a
 movePos (Pn f p l c) '\n' = Pn f (p + 1) (l + 1) 1
 movePos (Pn f p l c) _	  = Pn f (p + 1) l (c + 1)
 
 -- | Advance the position by a string.
 --
 --   > movePosByString = foldl' movePos
-movePosByString :: Position -> String -> Position
+movePosByString :: Position' a -> String -> Position' a
 movePosByString = foldl' movePos
 
 -- | Backup the position by one character.
 --
 -- Precondition: The character must not be @'\n'@.
-backupPos :: Position -> Position
+backupPos :: Position' a -> Position' a
 backupPos (Pn f p l c) = Pn f (p - 1) l (c - 1)
 
 -- | Extracts the interval corresponding to the given string, assuming
 -- that the string starts at the beginning of the given interval.
 --
 -- Precondition: The string must not be too long for the interval.
-takeI :: String -> Interval -> Interval
+takeI :: String -> Interval' a -> Interval' a
 takeI s i | genericLength s > iLength i = __IMPOSSIBLE__
           | otherwise = i { iEnd = movePosByString (iStart i) s }
 
@@ -293,12 +304,12 @@ takeI s i | genericLength s > iLength i = __IMPOSSIBLE__
 -- the interval.
 --
 -- Precondition: The string must not be too long for the interval.
-dropI :: String -> Interval -> Interval
+dropI :: String -> Interval' a -> Interval' a
 dropI s i | genericLength s > iLength i = __IMPOSSIBLE__
           | otherwise = i { iStart = movePosByString (iStart i) s }
 
 -- | Converts two positions to a range.
-posToRange :: Position -> Position -> Range
+posToRange :: Ord a => Position' a -> Position' a -> Range' a
 posToRange p1 p2 | p1 < p2   = Range [Interval p1 p2]
                  | otherwise = Range [Interval p2 p1]
 
@@ -310,13 +321,13 @@ rangeToInterval (Range is)   = Just $ Interval { iStart = iStart (head is)
                                                }
 
 -- | Returns the shortest continuous range containing the given one.
-continuous :: Range -> Range
+continuous :: Range' a -> Range' a
 continuous r = case rangeToInterval r of
   Nothing -> Range []
   Just i  -> Range [i]
 
 -- | Removes gaps between intervals on the same line.
-continuousPerLine :: Range -> Range
+continuousPerLine :: Ord a => Range' a -> Range' a
 continuousPerLine (Range [])     = Range []
 continuousPerLine (Range (i:is)) = Range $ fuse i is
   where
@@ -327,22 +338,22 @@ continuousPerLine (Range (i:is)) = Range $ fuse i is
     sameLine i j = posLine (iEnd i) == posLine (iStart j)
 
 -- | The initial position in the range, if any.
-rStart :: Range -> Maybe Position
+rStart :: Range' a -> Maybe (Position' a)
 rStart r = iStart <$> rangeToInterval r
 
 -- | The position after the final position in the range, if any.
-rEnd :: Range -> Maybe Position
+rEnd :: Range' a -> Maybe (Position' a)
 rEnd r = iEnd <$> rangeToInterval r
 
 -- | Finds the least interval which covers the arguments.
-fuseIntervals :: Interval -> Interval -> Interval
+fuseIntervals :: Ord a => Interval' a -> Interval' a -> Interval' a
 fuseIntervals x y = Interval { iStart = head ps, iEnd = last ps }
     where ps = sort [iStart x, iStart y, iEnd x, iEnd y]
 
 -- | @fuseRanges r r'@ unions the ranges @r@ and @r'@.
 --
 --   Meaning it finds the least range @r0@ that covers @r@ and @r'@.
-fuseRanges :: Range -> Range -> Range
+fuseRanges :: (Ord a) => Range' a -> Range' a -> Range' a
 fuseRanges (Range is) (Range js) = Range (helper is js)
   where
   helper []     js  = js
@@ -384,12 +395,12 @@ x `withRangeOf` y = setRange (getRange y) x
 -- end-point. This function assumes that the two end points belong to
 -- the same file. Note that the 'Arbitrary' instance for 'Position's
 -- uses a single, hard-wired file name.
-iPositions :: Interval -> Set Int32
+iPositions :: Interval' a -> Set Int32
 iPositions i = Set.fromList [posPos (iStart i) .. posPos (iEnd i)]
 
 -- | The positions corresponding to the range, including the
 -- end-points. All ranges are assumed to belong to a single file.
-rPositions :: Range -> Set Int32
+rPositions :: Range' a -> Set Int32
 rPositions (Range is) = Set.unions (map iPositions is)
 
 -- | Constructs the least interval containing all the elements in the
@@ -455,7 +466,7 @@ instance Arbitrary a => Arbitrary (Position' a) where
 
 -- | Sets the 'srcFile' components of the interval.
 
-setFile :: SrcFile -> Interval -> Interval
+setFile :: a -> Interval' a -> Interval' a
 setFile f (Interval p1 p2) =
   Interval (p1 { srcFile = f }) (p2 { srcFile = f })
 
@@ -475,7 +486,7 @@ instance (Arbitrary a, Ord a) => Arbitrary (Interval' a) where
     let [p1', p2'] = sort [p1, p2 { srcFile = srcFile p1 }]
     return (Interval p1' p2')
 
-instance Arbitrary Range where
+instance (Ord a, Arbitrary a) => Arbitrary (Range' a) where
   arbitrary = Range . fuse . sort . fixFiles <$> arbitrary
     where
     fixFiles []       = []
@@ -486,21 +497,33 @@ instance Arbitrary Range where
       | otherwise            = i1 : fuse (i2 : is)
     fuse is = is
 
+prop_positionInvariant = positionInvariant
+prop_intervalInvariant = intervalInvariant
+prop_rangeInvariant    = rangeInvariant
+
+instance Show (Position' Integer) where show = show . fmap Just
+instance Show (Interval' Integer) where show = show . fmap Just
+instance Show (Range'    Integer) where show = show . fmap Just
+
 -- | Test suite.
 tests :: IO Bool
-tests = runTests "Agda.Syntax.Position"
-  [ quickCheck' positionInvariant
-  , quickCheck' intervalInvariant
-  , quickCheck' rangeInvariant
-  , quickCheck' prop_iLength
-  , quickCheck' prop_startPos
-  , quickCheck' prop_noRange
-  , quickCheck' prop_takeI_dropI
-  , quickCheck' prop_rangeToInterval
-  , quickCheck' prop_continuous
-  , quickCheck' prop_fuseIntervals
-  , quickCheck' prop_fuseRanges
-  , quickCheck' prop_beginningOf
-  , quickCheck' prop_beginningOfFile
-  , quickCheck' prop_intervalInSameFileAs
-  ]
+tests = do
+  putStrLn "Agda.Syntax.Position"
+  $quickCheckAll
+
+-- tests = runTests "Agda.Syntax.Position"
+--   [ quickCheck' (positionInvariant :: Position -> Bool)
+--   , quickCheck' intervalInvariant
+--   , quickCheck' rangeInvariant
+--   , quickCheck' prop_iLength
+--   , quickCheck' prop_startPos
+--   , quickCheck' prop_noRange
+--   , quickCheck' prop_takeI_dropI
+--   , quickCheck' prop_rangeToInterval
+--   , quickCheck' prop_continuous
+--   , quickCheck' prop_fuseIntervals
+--   , quickCheck' prop_fuseRanges
+--   , quickCheck' prop_beginningOf
+--   , quickCheck' prop_beginningOfFile
+--   , quickCheck' prop_intervalInSameFileAs
+--   ]
