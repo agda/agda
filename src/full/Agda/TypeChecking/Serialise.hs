@@ -56,7 +56,7 @@ import qualified Agda.Syntax.Abstract as A
 import Agda.Syntax.Info
 import Agda.Syntax.Internal as I
 import Agda.Syntax.Scope.Base
-import Agda.Syntax.Position (Position, Range, noRange)
+import Agda.Syntax.Position (Position, FileId(..), Range, noRange)
 import qualified Agda.Syntax.Position as P
 import Agda.Syntax.Fixity
 import Agda.Syntax.Notation
@@ -374,6 +374,8 @@ instance EmbPrj AbsolutePath where
     case r of
       Left err -> throwError $ findErrorToTypeError m err
       Right f  -> return f
+
+deriving instance EmbPrj FileId
 
 instance EmbPrj Position where
   icode (P.Pn file pos line col) = icode4' file pos line col
@@ -1217,10 +1219,10 @@ instance EmbPrj HP.CompressedFile where
     valu _   = malformed
 
 instance EmbPrj Interface where
-  icode (Interface a b c d e f g h i j k) = icode11' a b c d e f g h i j k
+  icode (Interface a b c d e f g h i j k l) = icode12' a b c d e f g h i j k l
   value = vcase valu
     where
-      valu [a, b, c, d, e, f, g, h, i, j, k] = valu11 Interface a b c d e f g h i j k
+      valu [a, b, c, d, e, f, g, h, i, j, k, l] = valu12 Interface a b c d e f g h i j k l
       valu _                                 = malformed
 
 -- This is used for the Epic compiler backend

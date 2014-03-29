@@ -51,6 +51,8 @@ import qualified Agda.Compiler.JS.Syntax as JS
 import Agda.TypeChecking.Monad.Base.Benchmark (Benchmark)
 import qualified Agda.TypeChecking.Monad.Base.Benchmark as Benchmark
 
+import Agda.Utils.BiMap (BiMap)
+import qualified Agda.Utils.BiMap as BiMap
 import Agda.Utils.FileName
 import Agda.Utils.Fresh
 import Agda.Utils.HashMap as HMap
@@ -119,6 +121,8 @@ data TCState =
 
 data PersistentTCState = PersistentTCSt
   { stDecodedModules    :: DecodedModules
+  , stFreshFileId       :: !FileId
+  , stMapFileIdToPath   :: MapFileIdToPath
   , stPersistentOptions :: CommandLineOptions
   , stInteractionOutputCallback  :: InteractionOutputCallback
     -- ^ Callback function to call when there is a response
@@ -134,6 +138,8 @@ data PersistentTCState = PersistentTCSt
 initPersistentState :: PersistentTCState
 initPersistentState = PersistentTCSt
   { stPersistentOptions         = defaultOptions
+  , stFreshFileId               = 0
+  , stMapFileIdToPath           = BiMap.empty
   , stDecodedModules            = Map.empty
   , stInteractionOutputCallback = defaultInteractionOutputCallback
   , stBenchmark                 = Benchmark.empty
@@ -251,6 +257,10 @@ data ModuleInfo = ModuleInfo
 type VisitedModules = Map C.TopLevelModuleName ModuleInfo
 type DecodedModules = Map C.TopLevelModuleName Interface
 
+-- | Bijective map from 'FileId' to 'AbsolutePath',
+--   to replace file identifiers by pathes in 'Position'.
+type MapFileIdToPath = BiMap FileId AbsolutePath
+
 data Interface = Interface
   { iSourceHash      :: Hash
     -- ^ Hash of the source code.
@@ -258,6 +268,9 @@ data Interface = Interface
     -- ^ Imported modules and their hashes.
   , iModuleName      :: ModuleName
     -- ^ Module name of this interface.
+  , iMapFileIdToPath :: MapFileIdToPath
+    -- ^ Translation of 'FileId' to 'AbsolutePath' for modules involved
+    --   in this project (imported modules and current module).
   , iScope           :: Map ModuleName Scope
   , iInsideScope     :: ScopeInfo
     -- ^ Scope after we loaded this interface.
@@ -1249,6 +1262,10 @@ data ExpandInstances
   = ExpandInstanceArguments
   | DontExpandInstanceArguments
     deriving (Eq)
+
+---------------------------------------------------------------------------
+-- * Position and ranges
+---------------------------------------------------------------------------
 
 ---------------------------------------------------------------------------
 -- * Type checking errors

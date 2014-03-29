@@ -15,37 +15,13 @@ module Agda.Interaction.Highlighting.Generate
   , Agda.Interaction.Highlighting.Generate.tests
   ) where
 
-import Agda.Interaction.FindFile
-import Agda.Interaction.Response (Response(Resp_HighlightingInfo))
-import Agda.Interaction.Highlighting.Precise hiding (tests)
-import Agda.Interaction.Highlighting.Range   hiding (tests)
-import qualified Agda.TypeChecking.Errors as E
-import Agda.TypeChecking.MetaVars (isBlockedTerm)
-import Agda.TypeChecking.Monad
-  hiding (MetaInfo, Primitive, Constructor, Record, Function, Datatype)
-import qualified Agda.TypeChecking.Monad as M
-import Agda.TypeChecking.Pretty
-import qualified Agda.TypeChecking.Reduce as R
-import qualified Agda.Syntax.Abstract as A
-import Agda.Syntax.Common (Delayed(..))
-import qualified Agda.Syntax.Common as SC
-import qualified Agda.Syntax.Concrete as C
-import qualified Agda.Syntax.Info as SI
-import qualified Agda.Syntax.Internal as I
-import qualified Agda.Syntax.Literal as L
-import qualified Agda.Syntax.Parser as Pa
-import qualified Agda.Syntax.Parser.Tokens as T
-import qualified Agda.Syntax.Position as P
-import Agda.Utils.List
-import Agda.Utils.TestHelpers
-import Agda.Utils.HashMap (HashMap)
-import qualified Agda.Utils.HashMap as HMap
 import Control.Monad
 import Control.Monad.Trans
 import Control.Monad.State
 import Control.Monad.Reader
 import Control.Applicative
 import Control.Arrow ((***))
+
 import Data.Monoid
 import Data.Generics.Geniplate
 import Agda.Utils.FileName
@@ -55,6 +31,38 @@ import qualified Data.Map as Map
 import Data.Maybe
 import Data.List ((\\), isPrefixOf)
 import qualified Data.Foldable as Fold (toList, fold, foldMap)
+
+import Agda.Interaction.FindFile
+import Agda.Interaction.Response (Response(Resp_HighlightingInfo))
+import Agda.Interaction.Highlighting.Precise hiding (tests)
+import Agda.Interaction.Highlighting.Range   hiding (tests)
+
+import qualified Agda.TypeChecking.Errors as E
+import Agda.TypeChecking.MetaVars (isBlockedTerm)
+import Agda.TypeChecking.Monad
+  hiding (MetaInfo, Primitive, Constructor, Record, Function, Datatype)
+import qualified Agda.TypeChecking.Monad as M
+import Agda.TypeChecking.Pretty
+import qualified Agda.TypeChecking.Reduce as R
+
+import qualified Agda.Syntax.Abstract as A
+import Agda.Syntax.Common (Delayed(..))
+import qualified Agda.Syntax.Common as SC
+import qualified Agda.Syntax.Concrete as C
+import qualified Agda.Syntax.Info as SI
+import qualified Agda.Syntax.Internal as I
+import qualified Agda.Syntax.Literal as L
+import qualified Agda.Syntax.Parser as Pa
+import qualified Agda.Syntax.Parser.Tokens as T
+import Agda.Syntax.Position (FileId)
+import qualified Agda.Syntax.Position as P
+
+import Agda.Utils.BiMap (BiMap)
+import qualified Agda.Utils.BiMap as BiMap
+import Agda.Utils.List
+import Agda.Utils.TestHelpers
+import Agda.Utils.HashMap (HashMap)
+import qualified Agda.Utils.HashMap as HMap
 
 #include "../../undefined.h"
 import Agda.Utils.Impossible
@@ -137,7 +145,8 @@ data Level
 generateAndPrintSyntaxInfo :: A.Declaration -> Level -> TCM ()
 generateAndPrintSyntaxInfo decl _ | P.noRange == P.getRange decl = return ()
 generateAndPrintSyntaxInfo decl hlLevel = do
-  file <- envCurrentPath <$> ask
+  file   <- envCurrentPath <$> ask
+  fileId <- filePathToId file
 
   reportSLn "import.iface.create" 15 $
       "Generating syntax info for " ++ filePath file ++ ' ' :
@@ -147,15 +156,16 @@ generateAndPrintSyntaxInfo decl hlLevel = do
         ++ "."
 
   M.ignoreAbstractMode $ do
-    modMap <- sourceToModule
-    kinds  <- nameKinds hlLevel decl
+    modMap    <- sourceToModule
+    fileIdMap <- getMapFileIdToPath
+    kinds     <- nameKinds hlLevel decl
 
-    let nameInfo = mconcat $ map (generate modMap file kinds) names
+    let nameInfo = mconcat $ map (generate modMap fileIdMap fileId file kinds) names
 
     -- Constructors are only highlighted after type checking, since they
     -- can be overloaded.
     constructorInfo <- case hlLevel of
-      Full _ -> generateConstructorInfo modMap file kinds decl
+      Full _ -> generateConstructorInfo modMap fileIdMap fileId file kinds decl
       _      -> return mempty
 
     let (from, to) = case P.rangeToInterval (P.getRange decl) of
@@ -172,7 +182,7 @@ generateAndPrintSyntaxInfo decl hlLevel = do
     -- information is placed last since token highlighting is more
     -- crude than the others.
     let syntaxInfo = compress (mconcat [ constructorInfo
-                                       , theRest modMap file
+                                       , theRest modMap fileIdMap fileId file
                                        , nameInfo
                                        , termInfo
                                        ])
@@ -213,7 +223,7 @@ generateAndPrintSyntaxInfo decl hlLevel = do
 
   -- Bound variables, dotted patterns, record fields, module names,
   -- the "as" and "to" symbols.
-  theRest modMap file = mconcat
+  theRest modMap fileIdMap fileId file = mconcat
     [ Fold.foldMap getFieldDecl   $ universeBi decl
     , Fold.foldMap getVarAndField $ universeBi decl
     , Fold.foldMap getLet         $ universeBi decl
@@ -227,20 +237,20 @@ generateAndPrintSyntaxInfo decl hlLevel = do
     , Fold.foldMap getNamedArg    $ universeBi decl
     ]
     where
-    bound n = nameToFile modMap file [] (A.nameConcrete n)
+    bound n = nameToFile modMap fileIdMap fileId file [] (A.nameConcrete n)
                          (\isOp -> mempty { aspect = Just $ Name (Just Bound) isOp })
                          (Just $ A.nameBindingSite n)
-    patsyn n = nameToFileA modMap file n True $ \isOp ->
+    patsyn n = nameToFileA modMap fileIdMap fileId file n True $ \isOp ->
                   mempty { aspect = Just $ Name (Just $ Constructor SC.Inductive) isOp }
-    field m n = nameToFile modMap file m n
+    field m n = nameToFile modMap fileIdMap fileId file m n
                            (\isOp -> mempty { aspect = Just $ Name (Just Field) isOp })
                            Nothing
-    asName n = nameToFile modMap file []
+    asName n = nameToFile modMap fileIdMap fileId file []
                           n
                           (\isOp -> mempty { aspect = Just $ Name (Just Module) isOp })
                           Nothing
     mod isTopLevelModule n =
-      nameToFile modMap file []
+      nameToFile modMap fileIdMap fileId file []
                  (A.nameConcrete n)
                  (\isOp -> mempty { aspect = Just $ Name (Just Module) isOp })
                  (Just $ (if isTopLevelModule then P.beginningOfFile else id)
@@ -250,11 +260,6 @@ generateAndPrintSyntaxInfo decl hlLevel = do
     getVarAndField (A.Var x)    = bound x
     getVarAndField (A.Rec _ fs) = mconcat $ map (field [] . fst) fs
     getVarAndField _            = mempty
-
-    -- Ulf, 2014-04-09: It would be nicer to have it on Named RString a, but
-    -- you can't have polymorphic functions in universeBi.
-    getNamedArg :: SC.RString -> File
-    getNamedArg x = singleton (rToR $ P.getRange x) mempty{ aspect = Just $ Name (Just Argument) False }
 
     getLet :: A.LetBinding -> File
     getLet (A.LetBind _ _ x _ _) = bound x
@@ -306,7 +311,9 @@ generateAndPrintSyntaxInfo decl hlLevel = do
                   fmap P.srcFile .
                   P.rStart .
                   A.nameBindingSite) xs of
-          f : _ -> Map.lookup f modMap ==
+          -- f : _ -> Map.lookup f modMap ==
+          --          Just (C.toTopLevelModuleName $ A.mnameToConcrete m)
+          i : _ -> (BiMap.lookup i fileIdMap >>= (`Map.lookup` modMap)) ==
                    Just (C.toTopLevelModuleName $ A.mnameToConcrete m)
           []    -> False
 
@@ -323,8 +330,9 @@ generateAndPrintSyntaxInfo decl hlLevel = do
 generateTokenInfo
   :: AbsolutePath          -- ^ The module to highlight.
   -> TCM CompressedFile
-generateTokenInfo file =
-  liftIO $ tokenHighlighting <$> Pa.parseFile' Pa.tokensParser file
+generateTokenInfo file = do
+  fileId <- lookupInsertFilePath file
+  liftIO $ tokenHighlighting <$> Pa.parseFile' Pa.tokensParser (fileId, file)
 
 -- | Same as 'generateTokenInfo' but takes a string instead of a filename.
 generateTokenInfoFromString :: P.Range -> String -> TCM CompressedFile
@@ -446,11 +454,16 @@ nameKinds hlLevel decl = do
 
 generateConstructorInfo
   :: SourceToModule  -- ^ Maps source file paths to module names.
+  -> MapFileIdToPath
+  -> FileId
   -> AbsolutePath    -- ^ The module to highlight.
   -> NameKinds
   -> A.Declaration
   -> TCM File
-generateConstructorInfo modMap file kinds decl = do
+generateConstructorInfo modMap fileIdMap fileId file kinds decl = do
+  -- Andreas, 2014-03-28 TODO correct?
+  fileId <- filePathToId file
+
   -- Extract all defined names from the declaration.
   let names = Fold.toList (A.allNames decl)
 
@@ -472,10 +485,10 @@ generateConstructorInfo modMap file kinds decl = do
                 concatMap getConstructor  terms
 
   -- Find all constructors in right-hand sides of delayed definitions.
-  delayed <- evalStateT (getDelayed terms) HSet.empty
+  delayed <- evalStateT (getDelayed fileId terms) HSet.empty
 
   -- Return suitable syntax highlighting information.
-  return $ Fold.fold $ fmap (generate modMap file kinds . mkAmb)
+  return $ Fold.fold $ fmap (generate modMap fileIdMap fileId file kinds . mkAmb)
                             (delayed ++ constrs)
   where
   mkAmb q = A.AmbQ [q]
@@ -491,8 +504,8 @@ generateConstructorInfo modMap file kinds decl = do
   -- The set is used to avoid inspecting the same definition multiple
   -- times.
 
-  getDelayed :: [I.Term] -> StateT (HashSet A.QName) TCM [A.QName]
-  getDelayed ts = concat <$> mapM getT ts
+  getDelayed :: FileId -> [I.Term] -> StateT (HashSet A.QName) TCM [A.QName]
+  getDelayed fileId ts = concat <$> mapM getT ts
     where
     getT t = do
       lift $ reportSDoc "highlighting.delayed" 50 $
@@ -503,7 +516,8 @@ generateConstructorInfo modMap file kinds decl = do
         I.Def q _ | not (q `HSet.member` seen)
                       &&
                     fmap P.srcFile (P.rStart (P.getRange q)) ==
-                      Just (Just file)
+                      Just (Just fileId)
+-- WAS:                      Just (Just file)
                   -> getQ q
         _         -> return []
 
@@ -527,7 +541,7 @@ generateConstructorInfo modMap file kinds decl = do
                      lift (R.instantiateFull $ defClauses def)
 
           -- Find the constructors and continue the search.
-          (concatMap getConstructor terms ++) <$> getDelayed terms
+          (concatMap getConstructor terms ++) <$> getDelayed fileId terms
 
     getRHS (I.Body v)   = [v]
     getRHS I.NoBody     = []
@@ -604,13 +618,17 @@ computeUnsolvedConstraints = do
 
 generate :: SourceToModule
             -- ^ Maps source file paths to module names.
+         -> MapFileIdToPath
+            -- ^ Maps file ids to file paths.
+         -> FileId
+            -- ^ The id of the module to highlight.
          -> AbsolutePath
             -- ^ The module to highlight.
          -> NameKinds
          -> A.AmbiguousQName
          -> File
-generate modMap file kinds (A.AmbQ qs) =
-  mconcat $ map (\q -> nameToFileA modMap file q include m) qs
+generate modMap fileIdMap fileId file kinds (A.AmbQ qs) =
+  mconcat $ map (\q -> nameToFileA modMap fileIdMap fileId file q include m) qs
   where
     ks   = map kinds qs
     -- Ulf, 2014-06-03: [issue1064] It's better to pick the first rather
@@ -632,6 +650,10 @@ generate modMap file kinds (A.AmbQ qs) =
 
 nameToFile :: SourceToModule
               -- ^ Maps source file paths to module names.
+           -> MapFileIdToPath
+              -- ^ Maps file ids to file paths.
+           -> FileId
+              -- ^ The file id of the current module.
            -> AbsolutePath
               -- ^ The file name of the current module. Used for
               -- consistency checking.
@@ -647,19 +669,22 @@ nameToFile :: SourceToModule
               -- meta information is extended with this information,
               -- if possible.
            -> File
-nameToFile modMap file xs x m mR =
+nameToFile modMap fileIdMap fileId file xs x m mR =
   -- We don't care if we get any funny ranges.
-  if all (== Just file) fileNames then
+--  if all (== Just file) fileNames then
+  if all (== Just fileId) fileIds then
     several (map rToR rs)
             ((m $ C.isOperator x) { definitionSite = mFilePos })
    else
     mempty
   where
-  fileNames  = catMaybes $ map (fmap P.srcFile . P.rStart . P.getRange) (x : xs)
+--  fileNames  = catMaybes $ map (fmap P.srcFile . P.rStart . P.getRange) (x : xs)
+  fileIds  = catMaybes $ map (fmap P.srcFile . P.rStart . P.getRange) (x : xs)
   rs         = map P.getRange (x : xs)
   mFilePos   = do
     r <- mR
-    P.Pn { P.srcFile = Just f, P.posPos = p } <- P.rStart r
+    P.Pn { P.srcFile = Just fid, P.posPos = p } <- P.rStart r
+    f <- BiMap.lookup fid fileIdMap
     mod <- Map.lookup f modMap
     return (mod, toInteger p)
 
@@ -667,6 +692,10 @@ nameToFile modMap file xs x m mR =
 
 nameToFileA :: SourceToModule
                -- ^ Maps source file paths to module names.
+            -> MapFileIdToPath
+               -- ^ Maps file ids to file paths.
+            -> FileId
+               -- ^ The file id of the current module.
             -> AbsolutePath
                -- ^ The file name of the current module. Used for
                -- consistency checking.
@@ -678,8 +707,10 @@ nameToFileA :: SourceToModule
                -- ^ Meta information to be associated with the name.
                -- ^ The argument is 'True' iff the name is an operator.
             -> File
-nameToFileA modMap file x include m =
+nameToFileA modMap fileIdMap fileId file x include m =
   nameToFile modMap
+             fileIdMap
+             fileId
              file
              (concreteQualifier x)
              (concreteBase x)

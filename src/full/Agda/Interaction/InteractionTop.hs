@@ -170,7 +170,7 @@ runInteraction (IOTCM current highlighting highlightingMethod cmd)
             when (not (independent cmd) && Just current /= (fst <$> cf)) $
                 lift $ typeError $ GenericError "Error: First load the file."
 
-            interpret cmd
+            interpret' cmd
 
             cf <- gets theCurrentFile
             when (Just current == (fst <$> cf)) $
@@ -215,9 +215,10 @@ runInteraction (IOTCM current highlighting highlightingMethod cmd)
                      [err, meta, constr]
         s <- lift $ prettyError e
         x <- lift . gets $ optShowImplicit . stPragmaOptions
+        r <- lift $ Trav.mapM (Trav.mapM fileIdToPath) $ getRange e
         mapM_ putResponse $
             [ Resp_DisplayInfo $ Info_Error s ] ++
-            tellEmacsToJumpToError (getRange e) ++
+            tellEmacsToJumpToError r ++
             [ Resp_HighlightingInfo info modFile ] ++
             [ Resp_Status $ Status { sChecked = False
                                    , sShowImplicitArguments = x
@@ -227,6 +228,7 @@ runInteraction (IOTCM current highlighting highlightingMethod cmd)
 ----------------------------------------------------------------------------
 -- | An interactive computation.
 
+type FileInteraction = Interaction' FileRange
 type Interaction = Interaction' Range
 
 data Interaction' range
@@ -344,7 +346,14 @@ data Interaction' range
         deriving (Read, Functor, Foldable, Traversable)
 
 
-type IOTCM = IOTCM' Range
+instance ConvertFileIdToPath a b => ConvertFileIdToPath (Interaction' a) (Interaction' b) where
+  fileIdToPath = Trav.mapM fileIdToPath
+
+instance ConvertFilePathToId a b => ConvertFilePathToId (Interaction' a) (Interaction' b) where
+  filePathToId = Trav.mapM filePathToId
+
+
+type IOTCM = IOTCM' (Range' (Maybe AbsolutePath))
 data IOTCM' range
     = IOTCM
         FilePath
@@ -433,13 +442,16 @@ instance Read a => Read (Position' a) where
 -- | Can the command run even if the relevant file has not been loaded
 --   into the state?
 
-independent :: Interaction -> Bool
+independent :: Interaction' a -> Bool
 independent (Cmd_load {})    = True
 independent (Cmd_compile {}) = True
 independent (Cmd_load_highlighting_info {}) = True
 independent _                = False
 
 -- | Interpret an interaction
+
+interpret' :: FileInteraction -> CommandM ()
+interpret' a = interpret =<< do lift $ filePathToId a
 
 interpret :: Interaction -> CommandM ()
 
@@ -917,7 +929,7 @@ whyInScope s = do
       where
         prettyRange :: Range -> TCM Doc
         prettyRange r = text . show . (fmap . fmap) mkRel <$> do
-          return r
+          Trav.mapM (Trav.mapM fileIdToPath) r
         mkRel = Str . makeRelative cwd . filePath
 
         -- variable :: Maybe _ -> [_] -> TCM Doc
@@ -1087,7 +1099,7 @@ tellToUpdateHighlighting (Just (info, modFile)) =
 
 -- | Tells the Emacs mode to go to the first error position (if any).
 
-tellEmacsToJumpToError :: Range -> [Response]
+tellEmacsToJumpToError :: Range' (Maybe AbsolutePath) -> [Response]
 tellEmacsToJumpToError r =
   case rStart r of
     Nothing                                    -> []
