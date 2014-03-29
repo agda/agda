@@ -22,6 +22,7 @@ import Agda.Termination.SparseMatrix          as TermSparse (tests)
 import Agda.Termination.Termination	      as TermTerm   (tests)
 import Agda.TypeChecking.Irrelevance          as Irrel      (tests)
 import Agda.TypeChecking.Tests                as TypeChck   (tests)
+import Agda.Utils.BiMap 	              as UtilBiMap  (tests)
 import Agda.Utils.Either	              as UtilEith   (tests)
 import Agda.Utils.Favorites                   as UtilFav    (tests)
 import Agda.Utils.FileName                    as UtilFile   (tests)
@@ -53,6 +54,7 @@ testSuite = runTests "QuickCheck test suite:"
   , TermSparse.tests
   , TermTerm.tests
   , TypeChck.tests
+  , UtilBiMap.tests
   , UtilEith.tests
   , UtilFile.tests
   , UtilGrap.tests

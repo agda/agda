@@ -300,6 +300,7 @@ library
                     Agda.TypeChecking.Tests
 --                    Agda.TypeChecking.UniversePolymorphism -- RETIRED
                     Agda.TypeChecking.With
+                    Agda.Utils.BiMap
                     Agda.Utils.Char
                     Agda.Utils.Either
                     Agda.Utils.Favorites
