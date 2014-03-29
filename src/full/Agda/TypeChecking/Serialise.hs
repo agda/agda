@@ -360,7 +360,8 @@ instance EmbPrj AbsolutePath where
       Just m  -> icode m
       Nothing -> __IMPOSSIBLE__
   value m = do
-    m       <- value m
+    m :: TopLevelModuleName
+            <- value m
     mf      <- modFile  <$> get
     incs    <- includes <$> get
     (r, mf) <- liftIO $ findFile'' incs m mf
