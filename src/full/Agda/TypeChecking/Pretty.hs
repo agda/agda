@@ -1,9 +1,11 @@
-{-# LANGUAGE CPP, TypeSynonymInstances, FlexibleInstances,
-             UndecidableInstances #-}
+{-# LANGUAGE CPP, ScopedTypeVariables,
+  TypeSynonymInstances, FlexibleInstances,
+  UndecidableInstances #-}
 module Agda.TypeChecking.Pretty where
 
 import Control.Applicative hiding (empty)
 
+import Agda.Syntax.Position
 import Agda.Syntax.Common hiding (Arg, Dom, NamedArg, ArgInfo)
 import qualified Agda.Syntax.Common as Common
 import Agda.Syntax.Internal
@@ -89,6 +91,18 @@ instance PrettyTCM DisplayTerm where prettyTCM x = prettyA =<< reify x
 instance PrettyTCM NamedClause where prettyTCM x = prettyA =<< reify x
 instance PrettyTCM Level where prettyTCM x = prettyA =<< reify (Level x)
 instance PrettyTCM Permutation where prettyTCM = text . show
+
+instance PrettyTCM Position where
+  prettyTCM p = do
+    text $ show p
+
+instance PrettyTCM Interval where
+  prettyTCM i = do
+    text $ show i
+
+instance PrettyTCM Range where
+  prettyTCM r = do
+    text $ show r
 
 instance PrettyTCM ClauseBody where
   prettyTCM b = do
