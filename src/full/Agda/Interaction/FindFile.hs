@@ -147,8 +147,10 @@ checkModuleName name file = do
        else
         typeError $ ModuleDefinedInOtherFile name file file'
 
--- | Computes the module name of the top-level module in the given
--- file.
+-- | Computes the module name of the top-level module in the given file.
+--
+--   Warning! Parses the whole file to get the module name out.
+--   Use wisely!
 
 moduleName' :: AbsolutePath -> TCM TopLevelModuleName
 moduleName' file = liftIO $ do
