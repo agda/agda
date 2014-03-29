@@ -34,8 +34,6 @@ import qualified Agda.Syntax.Abstract as A
 import Agda.Syntax.Internal as I
 import Agda.Syntax.Position
 import Agda.Syntax.Scope.Base
-import Agda.Utils.HashMap as HMap
-import Agda.Utils.Hash
 
 import Agda.TypeChecking.CompiledClause
 
@@ -54,6 +52,8 @@ import qualified Agda.TypeChecking.Monad.Base.Benchmark as Benchmark
 
 import Agda.Utils.FileName
 import Agda.Utils.Fresh
+import Agda.Utils.HashMap as HMap
+import Agda.Utils.Hash
 import Agda.Utils.Permutation
 import Agda.Utils.Pretty
 import Agda.Utils.Time
@@ -128,6 +128,16 @@ data PersistentTCState = PersistentTCSt
     --   Needs to be a strict field to avoid space leaks!
   }
 
+-- | Empty persistent state.
+
+initPersistentState :: PersistentTCState
+initPersistentState = PersistentTCSt
+  { stPersistentOptions         = defaultOptions
+  , stDecodedModules            = Map.empty
+  , stInteractionOutputCallback = defaultInteractionOutputCallback
+  , stBenchmark                 = Benchmark.empty
+  }
+
 data FreshThings =
 	Fresh { fMeta	     :: MetaId
 	      , fInteraction :: InteractionId
@@ -140,41 +150,38 @@ data FreshThings =
 	      }
     deriving (Show)
 
+-- | Empty state of type checker.
+
 initState :: TCState
-initState =
-    TCSt { stFreshThings       = (Fresh 0 0 0 (NameId 0 0) 0 0 0) { fProblem = 1 }
-	 , stMetaStore	       = Map.empty
-	 , stSyntaxInfo        = mempty
-	 , stTokens            = mempty
-	 , stTermErrs          = Seq.empty
-	 , stInteractionPoints = Map.empty
-         , stOldInteractionPoints = Map.empty
-	 , stAwakeConstraints    = []
-	 , stSleepingConstraints = []
-         , stDirty               = False
-         , stOccursCheckDefs   = Set.empty
-	 , stSignature	       = emptySignature
-	 , stImports	       = emptySignature
-	 , stImportedModules   = Set.empty
-         , stModuleToSource    = Map.empty
-	 , stVisitedModules    = Map.empty
-         , stCurrentModule     = Nothing
-	 , stScope	       = emptyScopeInfo
-	 , stPatternSyns       = Map.empty
-         , stPatternSynImports = Map.empty
-	 , stPragmaOptions     = defaultInteractionOptions
-	 , stStatistics	       = Map.empty
-	 , stMutualBlocks      = Map.empty
-	 , stLocalBuiltins     = Map.empty
-	 , stImportedBuiltins  = Map.empty
-         , stHaskellImports    = Set.empty
-         , stPersistent        = PersistentTCSt
-           { stPersistentOptions = defaultOptions
-	   , stDecodedModules    = Map.empty
-           , stInteractionOutputCallback = defaultInteractionOutputCallback
-           , stBenchmark         = Benchmark.empty
-           }
-	 }
+initState = TCSt
+  { stFreshThings          = (Fresh 0 0 0 (NameId 0 0) 0 0 0) { fProblem = 1 }
+  , stMetaStore            = Map.empty
+  , stSyntaxInfo           = mempty
+  , stTokens               = mempty
+  , stTermErrs             = Seq.empty
+  , stInteractionPoints    = Map.empty
+  , stOldInteractionPoints = Map.empty
+  , stAwakeConstraints     = []
+  , stSleepingConstraints  = []
+  , stDirty                = False
+  , stOccursCheckDefs      = Set.empty
+  , stSignature            = emptySignature
+  , stImports              = emptySignature
+  , stImportedModules      = Set.empty
+  , stModuleToSource       = Map.empty
+  , stVisitedModules       = Map.empty
+  , stCurrentModule        = Nothing
+  , stScope                = emptyScopeInfo
+  , stPatternSyns          = Map.empty
+  , stPatternSynImports    = Map.empty
+  , stPragmaOptions        = defaultInteractionOptions
+  , stStatistics	   = Map.empty
+  , stMutualBlocks         = Map.empty
+  , stLocalBuiltins        = Map.empty
+  , stImportedBuiltins     = Map.empty
+  , stHaskellImports       = Set.empty
+  , stPersistent           = initPersistentState
+  }
 
 stBuiltinThings :: TCState -> BuiltinThings PrimFun
 stBuiltinThings s = stLocalBuiltins s `Map.union` stImportedBuiltins s
