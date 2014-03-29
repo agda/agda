@@ -60,10 +60,7 @@ import Agda.Utils.Impossible
 
 parseExpr :: Range -> String -> TCM C.Expr
 parseExpr rng s = liftIO $ parsePosString exprParser pos s
-  where
-  pos = case rStart rng of
-          Just pos -> pos
-          Nothing  -> startPos Nothing
+  where pos = fromMaybe (startPos Nothing) $ rStart rng
 
 parseExprIn :: InteractionId -> Range -> String -> TCM Expr
 parseExprIn ii rng s = do

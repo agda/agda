@@ -11,6 +11,7 @@ import Control.Monad.State
 
 import System.IO
 
+import Agda.Utils.Monad
 import Agda.Utils.Pretty
 import Agda.Utils.String
 
@@ -20,6 +21,7 @@ import Agda.Interaction.Response as R
 import Agda.Interaction.InteractionTop
 import Agda.Interaction.EmacsCommand
 import Agda.Interaction.Highlighting.Emacs
+
 
 ----------------------------------
 
@@ -48,8 +50,7 @@ mimicGHCi = do
     interact' :: CommandM ()
     interact' = do
         liftIO $ putStr "Agda2> "
-        b <- liftIO isEOF
-        if b then return () else do
+        unlessM (liftIO isEOF) $ do
             r <- liftIO getLine
             _ <- return $! length r     -- force to read the full input line
             case dropWhile (==' ') r of
