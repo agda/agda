@@ -1,25 +1,18 @@
 -- | Lenses for 'TCState' and more.
 
-{-# LANGUAGE CPP,
-  MultiParamTypeClasses #-}
-
 module Agda.TypeChecking.Monad.State where
 
 import Control.Applicative
 import qualified Control.Exception as E
 import Control.Monad.State
-
-import Data.Maybe
-import Data.Map as Map
 import Data.Set (Set)
+import Data.Map as Map
 import qualified Data.Set as Set
-import qualified Data.Traversable as Trav
 
 import {-# SOURCE #-} Agda.Interaction.Response
   (InteractionOutputCallback, Response)
 
 import Agda.Syntax.Common
-import Agda.Syntax.Position
 import Agda.Syntax.Scope.Base
 import qualified Agda.Syntax.Concrete.Name as C
 import Agda.Syntax.Abstract (PatternSynDefn, PatternSynDefns)
@@ -29,15 +22,9 @@ import Agda.TypeChecking.Monad.Base
 import Agda.TypeChecking.Monad.Base.Benchmark
 import {-# SOURCE #-} Agda.TypeChecking.Monad.Options
 
-import Agda.Utils.BiMap (BiMap)
-import qualified Agda.Utils.BiMap as BiMap
-import Agda.Utils.FileName
 import Agda.Utils.Hash
 import Agda.Utils.Monad (bracket_)
 import Agda.Utils.Pretty
-
-#include "../../undefined.h"
-import Agda.Utils.Impossible
 
 -- | Resets the non-persistent part of the type checking state.
 
@@ -125,89 +112,6 @@ printScope :: String -> Int -> String -> TCM ()
 printScope tag v s = verboseS ("scope." ++ tag) v $ do
   scope <- getScope
   reportSDoc ("scope." ++ tag) v $ return $ vcat [ text s, text $ show scope ]
-
----------------------------------------------------------------------------
--- * 'FileId' management
----------------------------------------------------------------------------
-
--- | Lens for 'stFreshFileId', for use only in 'freshFileId'.
-modifyFreshFileId :: (FileId -> FileId) -> TCM ()
-modifyFreshFileId f = modifyPersistentState $ \ s ->
-  s { stFreshFileId = f (stFreshFileId s) }
-
--- | Get the next available 'FileId'.
-freshFileId :: TCM FileId
-freshFileId = do
-  i <- gets $ stFreshFileId . stPersistent
-  modifyFreshFileId succ
-  return i
-
----------------------------------------------------------------------------
--- * Translation from 'FileId' to 'AbsolutePath'
----------------------------------------------------------------------------
-
--- | Lens for 'MapFileIdToPath'.
-
-getMapFileIdToPath :: TCM MapFileIdToPath
-getMapFileIdToPath = gets $ stMapFileIdToPath . stPersistent
-
-modifyMapFileIdToPath :: (MapFileIdToPath -> MapFileIdToPath) -> TCM ()
-modifyMapFileIdToPath f = modifyPersistentState $ \ s ->
-  s { stMapFileIdToPath = f (stMapFileIdToPath s) }
-
-setMapFileIdToPath :: MapFileIdToPath -> TCM ()
-setMapFileIdToPath = modifyMapFileIdToPath . const
-
--- | Convert a 'FileId' to an 'AbsolutePath'.
-class ConvertFileIdToPath a b where
-  fileIdToPath :: a -> TCM b
-
-instance ConvertFileIdToPath FileId AbsolutePath where
-  fileIdToPath fileId = do
-    fromMaybe __IMPOSSIBLE__  . BiMap.lookup fileId <$> getMapFileIdToPath
-
-instance ConvertFileIdToPath a b => ConvertFileIdToPath (Maybe a) (Maybe b) where
-  fileIdToPath = Trav.mapM fileIdToPath
-
-instance ConvertFileIdToPath a b => ConvertFileIdToPath (Position' a) (Position' b) where
-  fileIdToPath = Trav.mapM fileIdToPath
-
-instance ConvertFileIdToPath a b => ConvertFileIdToPath (Interval' a) (Interval' b) where
-  fileIdToPath = Trav.mapM fileIdToPath
-
-instance ConvertFileIdToPath a b => ConvertFileIdToPath (Range' a) (Range' b) where
-  fileIdToPath = Trav.mapM fileIdToPath
-
--- | Convert an 'AbsolutePath' to a 'FileId'.
-class ConvertFilePathToId a b where
-  filePathToId :: a -> TCM b
-
-instance ConvertFilePathToId AbsolutePath FileId where
-  filePathToId path = do
-    fromMaybe __IMPOSSIBLE__  . BiMap.invLookup path <$> getMapFileIdToPath
-
-instance ConvertFilePathToId a b => ConvertFilePathToId (Maybe a) (Maybe b) where
-  filePathToId = Trav.mapM filePathToId
-
-instance ConvertFilePathToId a b => ConvertFilePathToId (Position' a) (Position' b) where
-  filePathToId = Trav.mapM filePathToId
-
-instance ConvertFilePathToId a b => ConvertFilePathToId (Interval' a) (Interval' b) where
-  filePathToId = Trav.mapM filePathToId
-
-instance ConvertFilePathToId a b => ConvertFilePathToId (Range' a) (Range' b) where
-  filePathToId = Trav.mapM filePathToId
-
--- | Lookup 'AbsolutePath', register if not present already
-lookupInsertFilePath :: AbsolutePath -> TCM FileId
-lookupInsertFilePath path = do
-  bimap <- getMapFileIdToPath
-  case BiMap.invLookup path bimap of
-    Just i -> return i
-    Nothing -> do
-      i <- freshFileId
-      modifyMapFileIdToPath $ BiMap.insert i path
-      return i
 
 ---------------------------------------------------------------------------
 -- * Top level module

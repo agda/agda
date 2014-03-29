@@ -488,7 +488,6 @@ createInterface
   -> TCM (Interface, MaybeWarnings)
 createInterface file mname =
   local (\e -> e { envCurrentPath = file }) $ do
-    fileId        <- lookupInsertFilePath file
     modFile       <- stModuleToSource <$> get
     fileTokenInfo <- billTop Bench.Highlighting $ generateTokenInfo file
     modify $ \st -> st { stTokens = fileTokenInfo }
@@ -504,7 +503,7 @@ createInterface file mname =
 
     -- Parsing.
     (pragmas, top) <- billTop Bench.Parsing $
-      liftIO $ parseFile' moduleParser (fileId, file)
+      liftIO $ parseFile' moduleParser file
 
     pragmas <- concat <$> concreteToAbstract_ pragmas
                -- identity for top-level pragmas at the moment
@@ -630,14 +629,12 @@ buildInterface file topLevel syntaxInfo previousHsImports pragmas = do
     hsImps  <- getHaskellImports
     patsyns <- getPatternSyns
     h       <- liftIO $ hashFile file
-    fileIdMap <- getMapFileIdToPath
     let	builtin' = Map.mapWithKey (\ x b -> (x,) . primFunName <$> b) builtin
     reportSLn "import.iface" 7 "  instantiating all meta variables"
     i <- instantiateFull $ Interface
       { iSourceHash      = h
       , iImportedModules = mhs
       , iModuleName      = m
-      , iMapFileIdToPath = fileIdMap
       , iScope           = publicModules scope
       , iInsideScope     = insideScope topLevel
       , iSignature       = sig

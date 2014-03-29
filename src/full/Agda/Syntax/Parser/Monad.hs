@@ -1,4 +1,4 @@
-{-# LANGUAGE CPP, MultiParamTypeClasses, DeriveDataTypeable #-}
+{-# LANGUAGE MultiParamTypeClasses, DeriveDataTypeable #-}
 module Agda.Syntax.Parser.Monad
     ( -- * The parser monad
       Parser
@@ -30,8 +30,6 @@ module Agda.Syntax.Parser.Monad
 
 import Control.Exception
 import Data.Int
-import Data.Functor
-import qualified Data.Traversable as Trav
 import Data.Typeable
 
 import Control.Monad.State
@@ -41,12 +39,7 @@ import Control.Applicative
 import Agda.Syntax.Position
 
 import Agda.Utils.FileName
-import Agda.Utils.Maybe
-import Agda.Utils.Tuple
 import qualified Agda.Utils.IO.UTF8 as UTF8
-
-#include "../../undefined.h"
-import Agda.Utils.Impossible
 
 {--------------------------------------------------------------------------
     The parse monad
@@ -60,8 +53,7 @@ newtype Parser a = P { unP :: ParseState -> ParseResult a }
 -- | The parser state. Contains everything the parser and the lexer could ever
 --   need.
 data ParseState = PState
-    { parseFilePath :: FileIdToPath     -- ^ Current file or 'Nothing'.
-    , parsePos      :: !Position	-- ^ position at current input location
+    { parsePos	    :: !Position	-- ^ position at current input location
     , parseLastPos  :: !Position	-- ^ position of last token
     , parseInp	    :: String		-- ^ the current input
     , parsePrevChar :: !Char		-- ^ the character before the input
@@ -95,56 +87,35 @@ data ParseFlags	= ParseFlags
 
 -- | What you get if parsing fails.
 data ParseError	= ParseError
-  { errPos        :: FilePosition -- ^ Where the error occured (including file name).
-  , errFilePath   :: FileIdToPath -- ^ Current file or 'Nothing'.
-  , errInput      :: String       -- ^ The remaining input.
-  , errPrevToken  :: String       -- ^ The previous token.
-  , errMsg        :: String       -- ^ Hopefully an explanation of what happened.
-  }
-  deriving (Typeable)
+		    { errPos	    :: Position	-- ^ where the error occured
+		    , errInput	    :: String	-- ^ the remaining input
+		    , errPrevToken  :: String	-- ^ the previous token
+		    , errMsg	    :: String	-- ^ hopefully an explanation
+						--   of what happened
+		    }
+    deriving (Typeable)
 
 instance Exception ParseError
-
--- | Generate a 'ParseError' with 'AbsolutePath' instead of 'FileId'.
-mkParseError :: Position -> String -> String -> String -> Parser ParseError
-mkParseError pos input prevToken msg = do
-  filePath <- gets parseFilePath
-  -- If the position references a 'FileId', replace it by the 'AbsolutePath'.
-  pos <- Trav.forM pos $ Trav.mapM $ \ fileId -> do
-    caseMaybe filePath __IMPOSSIBLE__ $ \ (fileId0, filePath) -> do
-      unless (fileId == fileId0) __IMPOSSIBLE__
-      return filePath
-  -- Assemble the ParseError.
-  return $ ParseError
-   { errPos       = pos
-   , errFilePath  = filePath
-   , errInput     = input
-   , errPrevToken = prevToken
-   , errMsg       = msg
-   }
 
 -- | The result of parsing something.
 data ParseResult a  = ParseOk ParseState a
 		    | ParseFailed ParseError
-
--- | Abort parsing with given 'ParseError'.
-throwParseError :: ParseError -> Parser a
-throwParseError err = P $ \ s -> ParseFailed err
 
 {--------------------------------------------------------------------------
     Instances
  --------------------------------------------------------------------------}
 
 instance Monad Parser where
-    return x  = P $ \ s -> ParseOk s x
-    P m >>= f = P $ \ s -> case m s of
-				ParseFailed e -> ParseFailed e
-				ParseOk s' x  -> unP (f x) s'
-    fail msg = do
-      pos <- gets parseLastPos
-      inp <- gets parseInp
-      tok <- gets parsePrevToken
-      throwParseError =<< mkParseError pos inp tok msg
+    return x	= P $ \s -> ParseOk s x
+    P m >>= f	= P $ \s -> case m s of
+				ParseFailed e	-> ParseFailed e
+				ParseOk s' x	-> unP (f x) s'
+    fail msg	= P $ \s -> ParseFailed $
+				ParseError  { errPos	    = parseLastPos s
+					    , errInput	    = parseInp s
+					    , errPrevToken  = parsePrevToken s
+					    , errMsg	    = msg
+					    }
 
 instance Functor Parser where
     fmap = liftM
@@ -183,32 +154,30 @@ instance Show ParseError where
 -- 	    elide _ ""		    = ""
 
 instance HasRange ParseError where
-  getRange err = posToRange p p
-    where p = filePositionToPosition (errFilePath err) $ errPos err
+    getRange err = posToRange (errPos err) (errPos err)
 
 {--------------------------------------------------------------------------
     Running the parser
  --------------------------------------------------------------------------}
 
-initStatePos :: FileIdToPath -> Position -> ParseFlags -> String -> [LexState] -> ParseState
-initStatePos file pos flags inp st = PState
-  { parseFilePath  = file
-  , parsePos	   = pos
-  , parseLastPos   = pos
-  , parseInp	   = inp
-  , parsePrevChar  = '\n'
-  , parsePrevToken = ""
-  , parseLexState  = st
-  , parseLayout	   = [NoLayout]
-  , parseFlags	   = flags
-  }
+initStatePos :: Position -> ParseFlags -> String -> [LexState] -> ParseState
+initStatePos pos flags inp st =
+	PState  { parsePos	    = pos
+		, parseLastPos	    = pos
+		, parseInp	    = inp
+		, parsePrevChar	    = '\n'
+		, parsePrevToken    = ""
+		, parseLexState	    = st
+		, parseLayout	    = [NoLayout]
+		, parseFlags	    = flags
+		}
 
 -- | Constructs the initial state of the parser. The string argument
 --   is the input string, the file path is only there because it's part
 --   of a position.
-initState :: FileIdToPath -> ParseFlags -> String -> [LexState]
+initState :: Maybe AbsolutePath -> ParseFlags -> String -> [LexState]
           -> ParseState
-initState file = initStatePos file (startPos (fst <$> file))
+initState file = initStatePos (startPos file)
 
 -- | The default flags.
 defaultParseFlags :: ParseFlags
@@ -223,7 +192,7 @@ parse flags st p input = unP p (initState Nothing flags input st)
 -- | The even more general way of parsing a string.
 parsePosString :: Position -> ParseFlags -> [LexState] -> Parser a -> String ->
                   ParseResult a
-parsePosString pos flags st p input = unP p (initStatePos Nothing pos flags input st)
+parsePosString pos flags st p input = unP p (initStatePos pos flags input st)
 
 -- | The most general way of parsing a file. The "Agda.Syntax.Parser" will define
 --   more specialised functions that supply the 'ParseFlags' and the
@@ -231,11 +200,11 @@ parsePosString pos flags st p input = unP p (initStatePos Nothing pos flags inpu
 --
 --   Note that Agda source files always use the UTF-8 character
 --   encoding.
-parseFile :: ParseFlags -> [LexState] -> Parser a -> FileIdAndPath
+parseFile :: ParseFlags -> [LexState] -> Parser a -> AbsolutePath
           -> IO (ParseResult a)
-parseFile flags st p (id, file) =
+parseFile flags st p file =
     do	input <- liftIO $ UTF8.readTextFile $ filePath file
-	return $ unP p (initState (Just (id, file)) flags input st)
+	return $ unP p (initState (Just file) flags input st)
 
 {--------------------------------------------------------------------------
     Manipulating the state

@@ -22,12 +22,6 @@ module Agda.Syntax.Position
   ( -- * Positions
     Position
   , Position'(..)
-  , FilePosition
-  , FileId(..)
-  , FileIdAndPath
-  , FileIdToPath
-  , positionToFilePosition
-  , filePositionToPosition
   , positionInvariant
   , startPos
   , movePos
@@ -37,7 +31,6 @@ module Agda.Syntax.Position
     -- * Intervals
   , Interval
   , Interval'(..)
-  , FileInterval
   , intervalInvariant
   , takeI
   , dropI
@@ -45,7 +38,6 @@ module Agda.Syntax.Position
     -- * Ranges
   , Range
   , Range'(..)
-  , FileRange
   , rangeInvariant
   , rightMargin
   , noRange
@@ -131,49 +123,9 @@ instance Eq a => Eq (Position' a) where
 instance Ord a => Ord (Position' a) where
   compare = compare `on` importantPart
 
--- | In the state of Agda,
---   we maintain a bijection from file pathes of the project to 'FileId'.
---
---   We do not want filepathes in the positions directly, since this
---   has horrible impact on the performance of the serializer.
+type SrcFile     = Maybe AbsolutePath
 
-newtype FileId = FileId { fileId :: Int }
-  deriving (Eq, Ord, Typeable, Arbitrary, CoArbitrary, Num, Enum)
-
-instance Show FileId where show (FileId i) = "FileId(" ++ show i ++ ")"
-
-type SrcFile     = Maybe FileId
-type SrcFilePath = Maybe AbsolutePath
-
--- | Positions to be used in syntax trees use 'FileId'.
 type Position = Position' SrcFile
-
--- | Positions to be printed use 'AbsolutePath'.
-type FilePosition = Position' SrcFilePath
-
--- | Association fo 'FileId' to 'AbsolutePath' (in case input came from file).
-type FileIdAndPath = (FileId, AbsolutePath)
-type FileIdToPath = Maybe FileIdAndPath
-
--- | Expanding 'FileId' to 'AbsolutePath' in 'Position'.
---
---   Contains a sanity check that the stored file if
---   matches the one of the association to file path.
-positionToFilePosition :: FileIdToPath -> Position -> FilePosition
-positionToFilePosition assoc = fmap . fmap $ \ fileId ->
-  caseMaybe assoc __IMPOSSIBLE__ $ \ (fileId0, path) ->
-    if fileId == fileId0 then path else __IMPOSSIBLE__
-
--- | Casting 'AbsolutePath' back to 'FileId' in 'Position'.
---
---   Contains a sanity check that the stored file path
---   matches the one of the association to file id.
---   Since this is a string comparison, use wisely
---   (not on 100000s of positions).
-filePositionToPosition :: FileIdToPath -> FilePosition -> Position
-filePositionToPosition assoc = fmap . fmap $ \ path ->
-  caseMaybe assoc __IMPOSSIBLE__ $ \ (fileId, path0) ->
-    if path == path0 then fileId else __IMPOSSIBLE__
 
 -- | An interval. The @iEnd@ position is not included in the interval.
 --
@@ -182,7 +134,6 @@ data Interval' a = Interval { iStart, iEnd :: !(Position' a) }
     deriving (Typeable, Eq, Ord, Functor, Foldable, Traversable)
 
 type Interval     = Interval' SrcFile
-type FileInterval = Interval' SrcFilePath
 
 intervalInvariant :: Ord a => Interval' a -> Bool
 intervalInvariant i =
@@ -202,7 +153,6 @@ newtype Range' a = Range [Interval' a]
   deriving (Typeable, Eq, Ord, Functor, Foldable, Traversable)
 
 type Range     = Range' SrcFile
-type FileRange = Range' SrcFilePath
 
 rangeInvariant :: Range -> Bool
 rangeInvariant (Range []) = True
@@ -349,7 +299,7 @@ instance Show a => Show (Range' (Maybe a)) where
  --------------------------------------------------------------------------}
 
 -- | The first position in a file: position 1, line 1, column 1.
-startPos :: Maybe FileId -> Position
+startPos :: Maybe AbsolutePath -> Position
 startPos f = Pn { srcFile = f, posPos = 1, posLine = 1, posCol = 1 }
 
 -- | Ranges between two unknown positions

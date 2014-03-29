@@ -55,14 +55,14 @@ data Parser a = Parser
 parse :: Parser a -> String -> IO a
 parse p = wrapM . return . M.parse (parseFlags p) [normal] (parser p)
 
-parseFile :: Parser a -> FileIdAndPath -> IO a
+parseFile :: Parser a -> AbsolutePath -> IO a
 parseFile p = wrapM . M.parseFile (parseFlags p) [layout, normal] (parser p)
 
 parseLiterate :: Parser a -> String -> IO a
 parseLiterate p =
   wrapM . return . M.parse (parseFlags p) [literate, layout, code] (parser p)
 
-parseLiterateFile :: Parser a -> FileIdAndPath -> IO a
+parseLiterateFile :: Parser a -> AbsolutePath -> IO a
 parseLiterateFile p =
   wrapM . M.parseFile (parseFlags p) [literate, layout, code] (parser p)
 
@@ -70,12 +70,12 @@ parsePosString :: Parser a -> Position -> String -> IO a
 parsePosString p pos =
   wrapM . return . M.parsePosString pos (parseFlags p) [normal] (parser p)
 
-parseFile' :: Parser a -> FileIdAndPath -> IO a
-parseFile' p (id, file) =
+parseFile' :: Parser a -> AbsolutePath -> IO a
+parseFile' p file =
   if "lagda" `isSuffixOf` filePath file then
-    Agda.Syntax.Parser.parseLiterateFile p (id, file)
+    Agda.Syntax.Parser.parseLiterateFile p file
    else
-    Agda.Syntax.Parser.parseFile p (id, file)
+    Agda.Syntax.Parser.parseFile p file
 
 ------------------------------------------------------------------------
 -- Specific parsers

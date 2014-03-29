@@ -96,17 +96,14 @@ instance PrettyTCM Permutation where prettyTCM = text . show
 
 instance PrettyTCM Position where
   prettyTCM p = do
-    p :: FilePosition <- fileIdToPath p
     text $ show p
 
 instance PrettyTCM Interval where
   prettyTCM i = do
-    i :: FileInterval <- fileIdToPath i
     text $ show i
 
 instance PrettyTCM Range where
   prettyTCM r = do
-    r :: FileRange <- fileIdToPath r
     text $ show r
 
 instance PrettyTCM ClauseBody where

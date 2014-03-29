@@ -30,7 +30,6 @@ import System.FilePath
 import Agda.Syntax.Concrete
 import Agda.Syntax.Parser
 import Agda.TypeChecking.Monad.Base
-import Agda.TypeChecking.Monad.State
 import {-# SOURCE #-} Agda.TypeChecking.Monad.Options (getIncludeDirs)
 import Agda.Utils.FileName
 
@@ -154,13 +153,11 @@ checkModuleName name file = do
 --   Use wisely!
 
 moduleName' :: AbsolutePath -> TCM TopLevelModuleName
-moduleName' file = do
-  fileId <- lookupInsertFilePath file
-  liftIO $ do
-    name   <- topLevelModuleName <$> parseFile' moduleParser (fileId, file)
-    case name of
-      TopLevelModuleName ["_"] -> return $ TopLevelModuleName [defaultName]
-      _                        -> return name
+moduleName' file = liftIO $ do
+  name <- topLevelModuleName <$> parseFile' moduleParser file
+  case name of
+    TopLevelModuleName ["_"] -> return $ TopLevelModuleName [defaultName]
+    _                        -> return name
   where
     defaultName = rootName file
 
