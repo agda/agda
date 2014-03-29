@@ -67,6 +67,9 @@ import Agda.TypeChecking.Monad.Benchmark (billTo)
 import Agda.TypeChecking.Monad
 import Agda.TypeChecking.CompiledClause
 import Agda.TypeChecking.Pretty
+
+import Agda.Utils.BiMap (BiMap)
+import qualified Agda.Utils.BiMap as BiMap
 import Agda.Utils.FileName
 import Agda.Utils.Permutation
 import Agda.Utils.HashMap (HashMap)
@@ -386,6 +389,10 @@ instance EmbPrj a => EmbPrj [a] where
 --   value = vcase valu where valu []      = valu0 []
 --                            valu [x, xs] = valu2 (:) x xs
 --                            valu _       = malformed
+
+instance (Ord a, Ord b, EmbPrj a, EmbPrj b) => EmbPrj (BiMap a b) where
+  icode m = icode (BiMap.toList m)
+  value m = BiMap.fromList <$> value m
 
 instance (Ord a, EmbPrj a, EmbPrj b) => EmbPrj (Map a b) where
   icode m = icode (M.toList m)
