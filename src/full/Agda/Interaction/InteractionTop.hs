@@ -1,6 +1,8 @@
-{-# LANGUAGE CPP, TypeSynonymInstances, FlexibleInstances, TupleSections,
-             MultiParamTypeClasses, Rank2Types,
-             GeneralizedNewtypeDeriving, ScopedTypeVariables #-}
+{-# LANGUAGE CPP, TupleSections,
+  ScopedTypeVariables, Rank2Types,
+  MultiParamTypeClasses, TypeSynonymInstances, FlexibleInstances,
+  GeneralizedNewtypeDeriving,
+  DeriveFunctor, DeriveFoldable, DeriveTraversable #-}
 {-# OPTIONS -fno-cse #-}
 
 module Agda.Interaction.InteractionTop
@@ -15,11 +17,14 @@ import Control.Monad.Error
 import Control.Monad.Reader
 import Control.Monad.State
 
+import Data.Foldable (Foldable)
 import Data.Function
 import Data.List as List
 import Data.Maybe
 import qualified Data.Map as Map
 import Data.Monoid
+import Data.Traversable (Traversable)
+import qualified Data.Traversable as Trav
 
 import System.Directory
 import System.FilePath
@@ -222,7 +227,9 @@ runInteraction (IOTCM current highlighting highlightingMethod cmd)
 ----------------------------------------------------------------------------
 -- | An interactive computation.
 
-data Interaction
+type Interaction = Interaction' Range
+
+data Interaction' range
     -- | @cmd_load m includes@ loads the module in file @m@, using
     -- @includes@ as the include directories.
   = Cmd_load            FilePath [FilePath]
@@ -278,7 +285,7 @@ data Interaction
 
     -- | Tells Agda to compute highlighting information for the expression just
     --   spliced into an interaction point.
-  | Cmd_highlight InteractionId Range String
+  | Cmd_highlight InteractionId range String
 
     ------------------------------------------------------------------------
     -- Implicit arguments
@@ -296,47 +303,49 @@ data Interaction
     -- If the range is 'noRange', then the string comes from the
     -- minibuffer rather than the goal.
 
-  | Cmd_give            InteractionId Range String
+  | Cmd_give            InteractionId range String
 
-  | Cmd_refine          InteractionId Range String
+  | Cmd_refine          InteractionId range String
 
-  | Cmd_intro           Bool InteractionId Range String
+  | Cmd_intro           Bool InteractionId range String
 
-  | Cmd_refine_or_intro Bool InteractionId Range String
+  | Cmd_refine_or_intro Bool InteractionId range String
 
-  | Cmd_auto            InteractionId Range String
+  | Cmd_auto            InteractionId range String
 
-  | Cmd_context         B.Rewrite InteractionId Range String
+  | Cmd_context         B.Rewrite InteractionId range String
 
-  | Cmd_helper_function B.Rewrite InteractionId Range String
+  | Cmd_helper_function B.Rewrite InteractionId range String
 
-  | Cmd_infer           B.Rewrite InteractionId Range String
+  | Cmd_infer           B.Rewrite InteractionId range String
 
-  | Cmd_goal_type       B.Rewrite InteractionId Range String
+  | Cmd_goal_type       B.Rewrite InteractionId range String
 
     -- | Displays the current goal and context.
-  | Cmd_goal_type_context B.Rewrite InteractionId Range String
+  | Cmd_goal_type_context B.Rewrite InteractionId range String
 
     -- | Displays the current goal and context /and/ infers the type of an
     -- expression.
   | Cmd_goal_type_context_infer
-                        B.Rewrite InteractionId Range String
+                        B.Rewrite InteractionId range String
 
     -- | Shows all the top-level names in the given module, along with
     -- their types. Uses the scope of the given goal.
   | Cmd_show_module_contents
-                        InteractionId Range String
+                        InteractionId range String
 
-  | Cmd_make_case       InteractionId Range String
+  | Cmd_make_case       InteractionId range String
 
   | Cmd_compute         Bool -- Ignore abstract?
-                        InteractionId Range String
+                        InteractionId range String
 
-  | Cmd_why_in_scope    InteractionId Range String
+  | Cmd_why_in_scope    InteractionId range String
   | Cmd_why_in_scope_toplevel String
-        deriving Read
+        deriving (Read, Functor, Foldable, Traversable)
 
-data IOTCM
+
+type IOTCM = IOTCM' Range
+data IOTCM' range
     = IOTCM
         FilePath
          -- -^ The current file. If this file does not match
@@ -344,9 +353,9 @@ data IOTCM
          -- \"independent\", then an error is raised.
         HighlightingLevel
         HighlightingMethod
-        Interaction
+        (Interaction' range)
          -- -^ What to do
-            deriving Read
+            deriving (Read, Functor, Foldable, Traversable)
 
 ---------------------------------------------------------
 -- Read instances
@@ -396,7 +405,7 @@ instance Read InteractionId where
     readsPrec = parseToReadsPrec $
         fmap InteractionId readParse
 
-instance Read Range where
+instance Read a => Read (Range' a) where
     readsPrec = parseToReadsPrec $ do
                 exact "Range"
                 fmap Range readParse
@@ -404,7 +413,7 @@ instance Read Range where
                 exact "noRange"
                 return noRange
 
-instance Read Interval where
+instance Read a => Read (Interval' a) where
     readsPrec = parseToReadsPrec $ do
         exact "Interval"
         liftM2 Interval readParse readParse
@@ -414,7 +423,7 @@ instance Read AbsolutePath where
         exact "mkAbsolute"
         fmap mkAbsolute readParse
 
-instance Read Position where
+instance Read a => Read (Position' a) where
     readsPrec = parseToReadsPrec $ do
         exact "Pn"
         liftM4 Pn readParse readParse readParse readParse
