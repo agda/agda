@@ -32,6 +32,7 @@ import System.FilePath
 import Agda.TypeChecking.Monad as TM
   hiding (initState, setCommandLineOptions)
 import qualified Agda.TypeChecking.Monad as TM
+import qualified Agda.TypeChecking.Pretty as TCP
 import Agda.TypeChecking.Errors
 
 import Agda.Syntax.Fixity
@@ -898,45 +899,70 @@ whyInScope s = do
   cwd <- do
     Just (file, _) <- gets $ theCurrentFile
     return $ takeDirectory $ filePath file
-  display_info $ Info_WhyInScope $ explanation cwd v xs ms
+  display_info . Info_WhyInScope =<< do lift $ explanation cwd v xs ms
   where
-    explanation _ Nothing [] [] = text (s ++ " is not in scope.")
-    explanation cwd v xs ms =
-      vcat [ text (s ++ " is in scope as")
-           , nest 2 $ vcat [variable v xs, modules ms] ]
+    explanation _ Nothing [] [] = TCP.text (s ++ " is not in scope.")
+    explanation cwd v xs ms = TCP.vcat
+      [ TCP.text (s ++ " is in scope as")
+      , TCP.nest 2 $ TCP.vcat [variable v xs, modules ms]
+      ]
       where
+        prettyRange :: Range -> TCM Doc
+        prettyRange r = text . show . (fmap . fmap) mkRel <$> do
+          return r
         mkRel = Str . makeRelative cwd . filePath
-        showRange r = show $ (fmap . fmap) mkRel r
 
+        -- variable :: Maybe _ -> [_] -> TCM Doc
         variable Nothing xs = names xs
         variable (Just x) xs
           | null xs   = asVar
-          | otherwise = vcat [ sep [asVar, nest 2 $ text "shadowing"]
-                             , nest 2 $ names xs ]
+          | otherwise = TCP.vcat
+             [ TCP.sep [ asVar, TCP.nest 2 $ TCP.text "shadowing"]
+             , TCP.nest 2 $ names xs
+             ]
           where
-            asVar = text $ "* a variable bound at " ++ showRange (nameBindingSite x)
-        names   xs = vcat $ map pName xs
-        modules ms = vcat $ map pMod ms
+            asVar :: TCM Doc
+            asVar = do
+              TCP.text "* a variable bound at" TCP.<+> prettyTCM (nameBindingSite x)
+        names   xs = TCP.vcat $ map pName xs
+        modules ms = TCP.vcat $ map pMod ms
 
-        pKind DefName        = text "defined name"
-        pKind ConName        = text "constructor"
-        pKind FldName        = text "record field"
-        pKind PatternSynName = text "pattern synonym"
+        pKind DefName        = TCP.text "defined name"
+        pKind ConName        = TCP.text "constructor"
+        pKind FldName        = TCP.text "record field"
+        pKind PatternSynName = TCP.text "pattern synonym"
 
-        pName a = sep [ text "* a" <+> pKind (anameKind a) <+> text (show $ anameName a)
-                      , nest 2 $ text "brought into scope by" ] $$
-                  nest 2 (pWhy (nameBindingSite $ qnameName $ anameName a) (anameLineage a))
-        pMod  a = sep [ text "* a module" <+> text (show $ amodName a)
-                      , nest 2 $ text "brought into scope by" ] $$
-                  nest 2 (pWhy (nameBindingSite $ qnameName $ mnameToQName $ amodName a) (amodLineage a))
+        pName :: AbstractName -> TCM Doc
+        pName a = TCP.sep
+          [ TCP.text "* a"
+            TCP.<+> pKind (anameKind a)
+            TCP.<+> TCP.text (show $ anameName a)
+          , TCP.nest 2 $ TCP.text "brought into scope by"
+          ] TCP.$$
+          TCP.nest 2 (pWhy (nameBindingSite $ qnameName $ anameName a) (anameLineage a))
+        pMod :: AbstractModule -> TCM Doc
+        pMod  a = TCP.sep
+          [ TCP.text "* a module" TCP.<+> TCP.text (show $ amodName a)
+          , TCP.nest 2 $ TCP.text "brought into scope by"
+          ] TCP.$$
+          TCP.nest 2 (pWhy (nameBindingSite $ qnameName $ mnameToQName $ amodName a) (amodLineage a))
 
-        pWhy r Defined = text "- its definition at" <+> text (showRange r)
+        pWhy :: Range -> WhyInScope -> TCM Doc
+        pWhy r Defined = TCP.text "- its definition at" TCP.<+> prettyTCM r
         pWhy r (Opened (C.QName x) w) | isNoName x = pWhy r w
         pWhy r (Opened m w) =
-          text "- the opening of" <+> text (show m) <+> text "at" <+> text (showRange $ getRange m) $$
+          TCP.text "- the opening of"
+          TCP.<+> TCP.text (show m)
+          TCP.<+> TCP.text "at"
+          TCP.<+> prettyTCM (getRange m)
+          TCP.$$
           pWhy r w
         pWhy r (Applied m w) =
-          text "- the application of" <+> text (show m) <+> text "at" <+> text (showRange $ getRange m) $$
+          TCP.text "- the application of"
+          TCP.<+> TCP.text (show m)
+          TCP.<+> TCP.text "at"
+          TCP.<+> prettyTCM (getRange m)
+          TCP.$$
           pWhy r w
 
 -- | Sets the command line options and updates the status information.
