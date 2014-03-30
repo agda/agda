@@ -285,7 +285,7 @@ instance Ord i => Transpose (Matrix i b) where
 --   In @zipAssocWith fs gs f g h l l'@,
 --
 --   @fs@ is possibly more efficient version of
---   @mapMaybe (\ (i, a) -> (i,) <$> f a)@, and same for @gs@ and @g.
+--   @'mapMaybe' (\ (i, a) -> (i,) <$> f a)@, and same for @gs@ and @g@.
 
 zipAssocWith :: (Ord i)
   => ([(i,a)] -> [(i,c)]) -- ^ Only left map remaining.

@@ -119,7 +119,10 @@ data TerEnv = TerEnv
 --   of these values.
 --
 --   Values that do not have a safe default are set to
---   @__IMPOSSIBLE__@.
+--   @IMPOSSIBLE@.
+
+--   Note: Do not write @__IMPOSSIBLE__@ in the haddock comment above
+--   since it will be expanded by the CPP, leading to a haddock parse error.
 
 defaultTerEnv :: TerEnv
 defaultTerEnv = TerEnv

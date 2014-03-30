@@ -112,11 +112,11 @@ thread f (x:xs) ret =
 zipWithM' :: Monad m => (a -> b -> m c) -> [a] -> [b] -> m [c]
 zipWithM' f xs ys = sequence (zipWith' f xs ys)
 
--- | A monadic version of @mapMaybe :: (a -> Maybe b) -> [a] -> [b]@.
+-- | A monadic version of @'mapMaybe' :: (a -> Maybe b) -> [a] -> [b]@.
 mapMaybeM :: (Monad m, Functor m) => (a -> m (Maybe b)) -> [a] -> m [b]
 mapMaybeM f xs = catMaybes <$> Trav.mapM f xs
 
--- | A monadic version of @dropWhile :: (a -> Bool) -> [a] -> [a]
+-- | A monadic version of @'dropWhile' :: (a -> Bool) -> [a] -> [a]@.
 dropWhileM :: (Monad m) => (a -> m Bool) -> [a] -> m [a]
 dropWhileM p []       = return []
 dropWhileM p (x : xs) = ifM (p x) (dropWhileM p xs) (return (x : xs))

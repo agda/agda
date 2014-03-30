@@ -33,7 +33,7 @@ for = flip fmap
 --
 --   The 'Functor' superclass is given because of the limitations
 --   of the Haskell class system.
---   @traverseF actually implies functoriality.
+--   @traverseF@ actually implies functoriality.
 --
 --   Minimal complete definition: @traverseF@ or @distributeF@.
 class Functor t => Decoration t where

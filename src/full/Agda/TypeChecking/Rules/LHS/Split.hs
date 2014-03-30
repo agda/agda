@@ -356,8 +356,8 @@ wellFormedIndices t = do
       return (map fst pars, ixs)
 -}
       -- Andreas, 2013-05-30:
-      -- * treat non-linear parameters as indices
-      -- * ignore big parameters
+      -- 1. treat non-linear parameters as indices
+      -- 2. ignore big parameters
       let (noPars, smallPars, nonLinPars) = case theDef def of
             Datatype { dataPars = n, dataSmallPars = Perm _ sps, dataNonLinPars = nl }
                                       -> (n, sps, permPicks $ doDrop nl)

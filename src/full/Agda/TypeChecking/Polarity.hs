@@ -301,7 +301,7 @@ sizePolarity d pol0 = do
 -- | @checkSizeIndex d np i a@ checks that constructor target type @a@
 --   has form @d ps (↑ i) idxs@ where @|ps| = np@.
 --
---   Precondition: @a is reduced and of form @d ps idxs0@.
+--   Precondition: @a@ is reduced and of form @d ps idxs0@.
 checkSizeIndex :: QName -> Nat -> Nat -> Type -> TCM Bool
 checkSizeIndex d np i a = do
   reportSDoc "tc.polarity.size" 15 $ withShowAllArguments $

@@ -186,8 +186,8 @@ instance (Monoid a, CombineNewOld a, Ord s, Ord t) => CombineNewOld (Graph s t a
       old' = (mempty,) <$> old
       comb (new1,old1) (new2,old2)  -- TODO: ensure old1 is null
         = mapFst (new2 `mappend`) $ combineNewOld new1 old2
-        -- | old1 == mempty = mapFst (new2 `mappend`) $ combineNewOld new1 old2
-        -- | otherwise      = __IMPOSSIBLE__
+        -- -- | old1 == mempty = mapFst (new2 `mappend`) $ combineNewOld new1 old2
+        -- -- | otherwise      = __IMPOSSIBLE__
 
       -- Filter unlabelled edges from the resulting new graph.
       -- filt = Graph.filterEdges (not . CMSet.null)
