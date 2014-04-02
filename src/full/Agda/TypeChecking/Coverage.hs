@@ -8,6 +8,7 @@ import Control.Applicative
 import Data.List
 import qualified Data.Set as Set
 import Data.Set (Set)
+import qualified Data.Traversable as Trav
 
 import Agda.Syntax.Position
 import Agda.Syntax.Common hiding (Arg,Dom)
@@ -319,7 +320,18 @@ fixTarget sc@SClause{ scSubst = sigma, scTarget = target } =
 --      con      Constructor to fit into hole
 --   @
 --   @dtype == d pars ixs@
-computeNeighbourhood :: Telescope -> String -> Telescope -> Permutation -> QName -> Args -> Args -> Nat -> OneHolePatterns -> QName -> CoverM [SplitClause]
+computeNeighbourhood
+  :: Telescope                  -- ^ Telescope before split point.
+  -> String                     -- ^ Name of pattern variable at split point.
+  -> Telescope                  -- ^ Telescope after split point.
+  -> Permutation                -- ^
+  -> QName                      -- ^ Name of datatype to split at.
+  -> Args                       -- ^ Data type parameters.
+  -> Args                       -- ^ Data type indices.
+  -> Nat                        -- ^ Index of split variable.
+  -> OneHolePatterns            -- ^ Patterns with hole at split point.
+  -> QName                      -- ^ Constructor to fit into hole.
+  -> CoverM (Maybe SplitClause) -- ^ New split clause if successful.
 computeNeighbourhood delta1 n delta2 perm d pars ixs hix hps con = do
 
   -- Get the type of the datatype
@@ -369,7 +381,7 @@ computeNeighbourhood delta1 n delta2 perm d pars ixs hix hps con = do
   case r of
     NoUnify _ _ _ -> do
       debugNoUnify
-      return []
+      return Nothing
     DontKnow _    -> do
       debugCantSplit
       throwException $ CantSplit (conName con) (delta1 `abstract` gamma) conIxs givenIxs
@@ -428,7 +440,7 @@ computeNeighbourhood delta1 n delta2 perm d pars ixs hix hps con = do
 
       debugFinal theta' rperm rps
 
-      return [SClause theta' rperm rps rsub Nothing] -- target fixed later
+      return $ Just $ SClause theta' rperm rps rsub Nothing -- target fixed later
 
   where
     debugInit con ctype d pars ixs cixs delta1 delta2 gamma hps hix =
@@ -561,10 +573,10 @@ split' ind sc@(SClause tel perm ps _ target) (x, mcons) = liftTCM $ runException
     inContextOfT $ Split.wellFormedIndices (unDom t)
 
   -- Compute the neighbourhoods for the constructors
-  ns <- concat <$> do
+  ns <- catMaybes <$> do
     forM cons $ \ con ->
-      map (con,) <$> do
-        mapM (\sc -> lift $ fixTarget $ sc { scTarget = target }) =<<
+      fmap (con,) <$> do
+        Trav.mapM (\sc -> lift $ fixTarget $ sc { scTarget = target }) =<< do
           computeNeighbourhood delta1 n delta2 perm d pars ixs hix hps con
   case ns of
     []  -> do
