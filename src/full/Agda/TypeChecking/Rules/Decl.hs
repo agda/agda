@@ -541,7 +541,7 @@ checkSectionApplication' i m1 (A.SectionApp ptel m2 args) rd rm =
     , nest 2 $ text "tel  =" <+> prettyTCM tel
     , nest 2 $ text "tel' =" <+> prettyTCM tel'
     , nest 2 $ text "tel''=" <+> prettyTCM tel''
-    , nest 2 $ text "eta  =" <+> prettyTCM etaTel
+    , nest 2 $ text "eta  =" <+> escapeContext (size ptel) (addContext tel'' $ prettyTCM etaTel)
     ]
   -- Now, type check arguments.
   ts <- noConstraints $ checkArguments_ DontExpandLast (getRange i) args' tel''
@@ -560,20 +560,31 @@ checkSectionApplication' i m1 (A.SectionApp ptel m2 args) rd rm =
     ]
   args <- instantiateFull $ vs ++ ts
   applySection m1 ptel m2 args rd rm
+
 checkSectionApplication' i m1 (A.RecordModuleIFS x) rd rm = do
   let name = mnameToQName x
   tel' <- lookupSection x
   vs   <- freeVarsToApply name
   let tel = tel' `apply` vs
       args = teleArgs tel
+
       telInst :: Telescope
       telInst = instFinal tel
+
+      -- Locate last (rightmost) parameter and make it @Instance@.
       instFinal :: Telescope -> Telescope
+      -- Telescopes do not have @NoAbs@.
       instFinal (ExtendTel _ NoAbs{}) = __IMPOSSIBLE__
+      -- Found last parameter: switch it to @Instance@.
       instFinal (ExtendTel (Dom info t) (Abs n EmptyTel)) =
-          ExtendTel (Dom (setHiding Instance info) t) (Abs n EmptyTel)
-      instFinal (ExtendTel arg (Abs n tel)) = ExtendTel arg (Abs n (instFinal tel))
+                 ExtendTel (Dom ifo' t) (Abs n EmptyTel)
+        where ifo' = setHiding Instance info
+      -- Otherwise, keep searchinf for last parameter:
+      instFinal (ExtendTel arg (Abs n tel)) =
+                 ExtendTel arg (Abs n (instFinal tel))
+      -- Before instFinal is invoked, we have checked that the @tel@ is not empty.
       instFinal EmptyTel = __IMPOSSIBLE__
+
   reportSDoc "tc.section.apply" 20 $ vcat
     [ sep [ text "applySection", prettyTCM name, text "{{...}}" ]
     , nest 2 $ text "x       =" <+> prettyTCM x
@@ -581,17 +592,21 @@ checkSectionApplication' i m1 (A.RecordModuleIFS x) rd rm = do
     , nest 2 $ text "tel     =" <+> prettyTCM tel
     , nest 2 $ text "telInst =" <+> prettyTCM telInst
     , nest 2 $ text "vs      =" <+> sep (map prettyTCM vs)
-    , nest 2 $ text "args    =" <+> sep (map prettyTCM args)
+    -- , nest 2 $ text "args    =" <+> sep (map prettyTCM args)
     ]
   reportSDoc "tc.section.apply" 60 $ vcat
     [ nest 2 $ text "vs      =" <+> text (show vs)
-    , nest 2 $ text "args    =" <+> text (show args)
+    -- , nest 2 $ text "args    =" <+> text (show args)
     ]
   when (tel == EmptyTel) $
     typeError $ GenericError $ show name ++ " is not a parameterised section"
 
   addCtxTel telInst $ do
     vs <- freeVarsToApply name
+    reportSDoc "tc.section.apply" 20 $ vcat
+      [ nest 2 $ text "vs      =" <+> sep (map prettyTCM vs)
+      , nest 2 $ text "args    =" <+> sep (map (parens . prettyTCM) args)
+      ]
     reportSDoc "tc.section.apply" 60 $ vcat
       [ nest 2 $ text "vs      =" <+> text (show vs)
       , nest 2 $ text "args    =" <+> text (show args)
