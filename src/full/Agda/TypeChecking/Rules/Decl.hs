@@ -531,7 +531,9 @@ checkSectionApplication' i m1 (A.SectionApp ptel m2 args) rd rm =
   etaTel <- checkModuleArity m2 tel' args'
   -- Take the module parameters that will be instantiated by @args@.
   let tel'' = telFromList $ take (size tel' - size etaTel) $ telToList tel'
-  addCtxTel etaTel $ addSection m1 (size ptel + size etaTel)
+  -- Andreas, 2014-04-06
+  -- The following command records an ill-formed section!!
+  -- BUG: addCtxTel etaTel $ addSection m1 (size ptel + size etaTel)
   reportSDoc "tc.section.apply" 15 $ vcat
     [ text "applying section" <+> prettyTCM m2
     , nest 2 $ text "args =" <+> sep (map prettyA args)
@@ -543,6 +545,14 @@ checkSectionApplication' i m1 (A.SectionApp ptel m2 args) rd rm =
     ]
   -- Now, type check arguments.
   ts <- noConstraints $ checkArguments_ DontExpandLast (getRange i) args' tel''
+  -- Perform the application of the module parameters.
+  let aTel = tel' `apply` ts
+  reportSDoc "tc.section.apply" 15 $ vcat
+    [ nest 2 $ text "aTel =" <+> prettyTCM aTel
+    ]
+  -- Add the section with well-formed telescope.
+  addCtxTel aTel $ addSection m1 (size ptel + size aTel)
+
   reportSDoc "tc.section.apply" 20 $ vcat
     [ sep [ text "applySection", prettyTCM m1, text "=", prettyTCM m2, fsep $ map prettyTCM (vs ++ ts) ]
     , nest 2 $ text "  defs:" <+> text (show rd)
