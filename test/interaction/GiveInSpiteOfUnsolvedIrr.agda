@@ -1,4 +1,5 @@
-{-# OPTIONS -v tc.conv.irr:20 #-}
+-- {-# OPTIONS -v interaction.give:30 -v 10  #-}
+-- {-# OPTIONS -v tc.conv.irr:20 #-}
 
 module GiveInSpiteOfUnsolvedIrr where
 
