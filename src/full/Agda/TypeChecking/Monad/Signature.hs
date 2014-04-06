@@ -235,9 +235,15 @@ addDisplayForms x = do
     isVar VarP{} = True
     isVar _      = False
 
-applySection ::
-  ModuleName -> Telescope -> ModuleName -> Args ->
-  Map QName QName -> Map ModuleName ModuleName -> TCM ()
+-- | Module application (followed by module parameter abstraction).
+applySection
+  :: ModuleName                -- ^ Name of new module defined by the module macro.
+  -> Telescope                 -- ^ Parameters of new module.
+  -> ModuleName                -- ^ Name of old module applied to arguments.
+  -> Args                      -- ^ Arguments of module application.
+  -> Map QName QName           -- ^ Imported names (given as renaming).
+  -> Map ModuleName ModuleName -- ^ Imported modules (given as renaming).
+  -> TCM ()
 applySection new ptel old ts rd rm = do
   sig  <- getSignature
   isig <- getImportedSignature

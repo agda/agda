@@ -456,12 +456,24 @@ checkSection i x tel ds =
       reportSLn "tc.section.check" 10 $ "    actual tele: " ++ show dtel'
     withCurrentModule x $ checkDecls ds
 
-checkModuleArity :: ModuleName -> Telescope -> [I.NamedArg A.Expr] -> TCM Telescope
+-- | Helper for 'checkSectionApplication'.
+--
+--   Matches the arguments of the module application with the
+--   module parameters.
+--
+--   Returns the remaining module parameters as an open telescope.
+--   Warning: the returned telescope is /not/ the final result,
+--   an actual instantiation of the parameters does not occur.
+checkModuleArity
+  :: ModuleName           -- ^ Name of applied module.
+  -> Telescope            -- ^ The module parameters.
+  -> [I.NamedArg A.Expr]  -- ^ The arguments this module is applied to.
+  -> TCM Telescope        -- ^ The remaining module parameters (has free de Bruijn indices!).
 checkModuleArity m tel args = check tel args
   where
     bad = typeError $ ModuleArityMismatch m tel args
 
-    check eta []             = return eta
+    check tel []             = return tel
     check EmptyTel (_:_)     = bad
     check (ExtendTel (Dom info _) btel) args0@(Arg info' (Named name _) : args) =
       let y   = absName btel
@@ -483,17 +495,26 @@ checkModuleArity m tel args = check tel args
         (NotHidden, Hidden, _)    -> bad
         (NotHidden, Instance, _)    -> bad
 
--- | Check an application of a section.
-checkSectionApplication ::
-  Info.ModuleInfo -> ModuleName -> A.ModuleApplication ->
-  Map QName QName -> Map ModuleName ModuleName -> TCM ()
+-- | Check an application of a section (top-level function, includes @'traceCall'@).
+checkSectionApplication
+  :: Info.ModuleInfo
+  -> ModuleName                 -- ^ Name @m1@ of module defined by the module macro.
+  -> A.ModuleApplication        -- ^ The module macro @λ tel → m2 args@.
+  -> Map QName QName            -- ^ Imported names (given as renaming).
+  -> Map ModuleName ModuleName  -- ^ Imported modules (given as renaming).
+  -> TCM ()
 checkSectionApplication i m1 modapp rd rm =
   traceCall (CheckSectionApplication (getRange i) m1 modapp) $
   checkSectionApplication' i m1 modapp rd rm
 
-checkSectionApplication' ::
-  Info.ModuleInfo -> ModuleName -> A.ModuleApplication ->
-  Map QName QName -> Map ModuleName ModuleName -> TCM ()
+-- | Check an application of a section.
+checkSectionApplication'
+  :: Info.ModuleInfo
+  -> ModuleName                 -- ^ Name @m1@ of module defined by the module macro.
+  -> A.ModuleApplication        -- ^ The module macro @λ tel → m2 args@.
+  -> Map QName QName            -- ^ Imported names (given as renaming).
+  -> Map ModuleName ModuleName  -- ^ Imported modules (given as renaming).
+  -> TCM ()
 checkSectionApplication' i m1 (A.SectionApp ptel m2 args) rd rm =
   checkTelescope_ ptel $ \ptel -> do
   tel <- lookupSection m2
