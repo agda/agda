@@ -63,8 +63,15 @@ data Expr
         | Def  QName			     -- ^ Constants (i.e. axioms, functions, projections, and datatypes)
         | Con  AmbiguousQName		     -- ^ Constructors
 	| Lit Literal			     -- ^ Literals
-	| QuestionMark MetaInfo		     -- ^ meta variable for interaction
-        | Underscore   MetaInfo		     -- ^ meta variable for hidden argument (must be inferred locally)
+	| QuestionMark MetaInfo	InteractionId
+          -- ^ Meta variable for interaction.
+          --   The 'InteractionId' is usually identical with the
+          --   'metaNumber' of 'MetaInfo'.
+          --   However, if you want to print an interaction meta as
+          --   just @?@ instead of @?n@, you should set the
+          --   'metaNumber' to 'Nothing' while keeping the 'InteractionId'.
+        | Underscore   MetaInfo
+          -- ^ Meta variable for hidden argument (must be inferred locally).
         | App  ExprInfo Expr (NamedArg Expr) -- ^
 	| WithApp ExprInfo Expr [Expr]	     -- ^ with application
         | Lam  ExprInfo LamBinding Expr	     -- ^
@@ -447,7 +454,7 @@ instance HasRange Expr where
     getRange (Def x)		   = getRange x
     getRange (Con x)		   = getRange x
     getRange (Lit l)		   = getRange l
-    getRange (QuestionMark i)	   = getRange i
+    getRange (QuestionMark i _)	   = getRange i
     getRange (Underscore  i)	   = getRange i
     getRange (App i _ _)	   = getRange i
     getRange (WithApp i _ _)	   = getRange i
@@ -554,7 +561,7 @@ instance KillRange Expr where
   killRange (Def x)                = killRange1 Def x
   killRange (Con x)                = killRange1 Con x
   killRange (Lit l)                = killRange1 Lit l
-  killRange (QuestionMark i)       = killRange1 QuestionMark i
+  killRange (QuestionMark i ii)    = killRange2 QuestionMark i ii
   killRange (Underscore  i)        = killRange1 Underscore i
   killRange (App i e1 e2)          = killRange3 App i e1 e2
   killRange (WithApp i e es)       = killRange3 WithApp i e es

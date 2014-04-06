@@ -1,4 +1,4 @@
-{-# LANGUAGE CPP, FlexibleInstances, DeriveDataTypeable,
+{-# LANGUAGE CPP, FlexibleInstances, DeriveDataTypeable, GeneralizedNewtypeDeriving,
              DeriveFunctor, DeriveFoldable, DeriveTraversable #-}
 
 {-| Some common syntactic entities are defined in this module.
@@ -478,3 +478,15 @@ instance Hashable NameId where
   hashWithSalt salt (NameId n m) = hashWithSalt salt (n, m)
 
 newtype Constr a = Constr a
+
+---------------------------------------------------------------------------
+-- * Interaction meta variables
+---------------------------------------------------------------------------
+
+newtype InteractionId = InteractionId Nat
+    deriving (Eq,Ord,Num,Integral,Real,Enum)
+
+instance Show InteractionId where
+    show (InteractionId x) = "?" ++ show x
+
+instance KillRange InteractionId where killRange = id

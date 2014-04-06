@@ -782,7 +782,13 @@ give_gen ii rng s giveRefine = withCurrentFile $ do
   scope     <- lift $ getInteractionScope ii
   -- parse string and "give", obtaining an abstract expression
   -- and newly created interaction points
-  (ae, iis) <- lift $ give_ref ii Nothing =<< B.parseExprIn ii rng s
+  (ae, iis) <- lift $ do
+    mis  <- getInteractionPoints
+    reportSLn "interaction.give" 30 $ "interaction points before = " ++ show mis
+    ae   <- give_ref ii Nothing =<< B.parseExprIn ii rng s
+    mis' <- getInteractionPoints
+    reportSLn "interaction.give" 30 $ "interaction points after = " ++ show mis'
+    return (ae, mis' \\ mis)
   -- sort the new interaction points and put them into the state
   -- in replacement of the old interaction point
   iis       <- lift $ sortInteractionPoints iis

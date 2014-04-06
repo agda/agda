@@ -16,6 +16,7 @@ module Agda.Interaction.Response
 import Agda.Interaction.Highlighting.Precise
 import Agda.Interaction.FindFile (ModuleToSource)
 import Agda.TypeChecking.Monad.Base
+import Agda.Syntax.Common   (InteractionId(..))
 import Agda.Syntax.Concrete (Expr)
 import Agda.Utils.Pretty
 

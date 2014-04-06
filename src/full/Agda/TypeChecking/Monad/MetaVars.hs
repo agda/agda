@@ -5,10 +5,10 @@ import Control.Applicative
 import Control.Monad.State
 import Control.Monad.Reader
 
-import Data.Maybe (isJust)
 import qualified Data.Map as Map
 import qualified Data.Set as Set
 
+import Agda.Syntax.Common
 import Agda.Syntax.Internal
 import Agda.Syntax.Position
 import Agda.Syntax.Scope.Base
@@ -20,7 +20,7 @@ import Agda.TypeChecking.Monad.Options (reportSLn)
 import Agda.TypeChecking.Monad.Context
 import Agda.TypeChecking.Substitute
 
-import Agda.Utils.Maybe (fromMaybeM)
+import Agda.Utils.Maybe
 import Agda.Utils.Functor ((<.>))
 import Agda.Utils.Fresh
 import Agda.Utils.Permutation
@@ -135,9 +135,36 @@ modifyInteractionPoints :: (InteractionPoints -> InteractionPoints) -> TCM ()
 modifyInteractionPoints f =
   modify $ \ s -> s { stInteractionPoints = f (stInteractionPoints s) }
 
-addInteractionPoint :: InteractionId -> MetaId -> TCM ()
-addInteractionPoint ii mi = modifyInteractionPoints $ Map.insert ii mi
+-- | Register an interaction point during scope checking.
+--   If there is no interaction id yet, create one.
+registerInteractionPoint :: Range -> Maybe Nat -> TCM InteractionId
+registerInteractionPoint r maybeId = do
+  ii <- case maybeId of
+    Just i  -> return $ InteractionId i
+    Nothing -> fresh
+  m <- gets stInteractionPoints
+  let ip = InteractionPoint { ipRange = r, ipMeta = Nothing }
+  case Map.insertLookupWithKey (\ key new old -> old) ii ip m of
+    -- If the interaction point is already present, we keep the old ip.
+    -- However, it needs to be at the same range as the new one.
+    (Just ip0, _)
+       | ipRange ip /= ipRange ip0 -> __IMPOSSIBLE__
+       | otherwise                 -> return ii
+    (Nothing, m') -> do
+      modifyInteractionPoints (const m')
+      return ii
 
+-- | Hook up meta variable to interaction point.
+connectInteractionPoint :: InteractionId -> MetaId -> TCM ()
+connectInteractionPoint ii mi = do
+  m <- gets stInteractionPoints
+  let ip = InteractionPoint { ipRange = __IMPOSSIBLE__, ipMeta = Just mi }
+  -- The interaction point needs to be present already, we just set the meta.
+  case Map.insertLookupWithKey (\ key new old -> new { ipRange = ipRange old }) ii ip m of
+    (Nothing, _) -> __IMPOSSIBLE__
+    (Just _, m') -> modifyInteractionPoints $ const m'
+
+-- | Move an interaction point from the current ones to the old ones.
 removeInteractionPoint :: InteractionId -> TCM ()
 removeInteractionPoint ii = do
   scope <- getInteractionScope ii
@@ -154,23 +181,25 @@ getInteractionPoints = Map.keys <$> gets stInteractionPoints
 
 -- | Get all metas that correspond to interaction ids.
 getInteractionMetas :: TCM [MetaId]
-getInteractionMetas = Map.elems <$> gets stInteractionPoints
+getInteractionMetas = mapMaybe ipMeta . Map.elems <$> gets stInteractionPoints
 
 -- | Does the meta variable correspond to an interaction point?
 
 isInteractionMeta :: MetaId -> TCM (Maybe InteractionId)
 isInteractionMeta x =
-  lookup x . map swap . Map.assocs <$> gets stInteractionPoints
+  lookup x . mapMaybe f . Map.assocs <$> gets stInteractionPoints
+  where f (ii, InteractionPoint _ Nothing ) = Nothing
+        f (ii, InteractionPoint _ (Just x)) = Just (x, ii)
 
 -- isInteractionMeta :: MetaId -> TCM Bool
 -- isInteractionMeta m = (m `elem`) <$> getInteractionMetas
 
 lookupInteractionId :: InteractionId -> TCM MetaId
-lookupInteractionId ii =
-    do  mmi <- Map.lookup ii <$> gets stInteractionPoints
-	case mmi of
-	    Just mi -> return mi
-	    _	    -> fail $ "no such interaction point: " ++ show ii
+lookupInteractionId ii = fromMaybeM err2 $ ipMeta <$> do
+  fromMaybeM err $ Map.lookup ii <$> gets stInteractionPoints
+  where
+    err  = fail $ "no such interaction point: " ++ show ii
+    err2 = fail $ "interaction point " ++ show ii ++ " is not connected to meta var"
 
 judgementInteractionId :: InteractionId -> TCM (Judgement Type MetaId)
 judgementInteractionId = mvJudgement <.> lookupMeta <=< lookupInteractionId

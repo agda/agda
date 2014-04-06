@@ -21,7 +21,8 @@ import Agda.Syntax.Position
 import Agda.Syntax.Abstract as A hiding (Open, Apply)
 import Agda.Syntax.Abstract.Views as A
 import Agda.Syntax.Common
-import Agda.Syntax.Info(ExprInfo(..),MetaInfo(..),emptyMetaInfo)
+import Agda.Syntax.Info (ExprInfo(..),MetaInfo(..),emptyMetaInfo)
+import qualified Agda.Syntax.Info as Info
 import Agda.Syntax.Internal as I
 import Agda.Syntax.Translation.InternalToAbstract
 import Agda.Syntax.Translation.AbstractToConcrete
@@ -110,8 +111,6 @@ give ii mr e = liftTCM $ do
   -- if Range is given, update the range of the interaction meta
   mi  <- lookupInteractionId ii
   whenJust mr $ updateMetaVarRange mi
-  -- Save old set of interaction points (to compute difference to new one).
-  mis <- getInteractionPoints
   reportSDoc "interaction.give" 10 $ TP.text "giving expression" TP.<+> prettyTCM e
   reportSDoc "interaction.give" 50 $ TP.text $ show $ deepUnScope e
   -- Try to give mi := e
@@ -122,39 +121,53 @@ give ii mr e = liftTCM $ do
       typeError $ GenericError $ show err
     _ -> throwError err
   removeInteractionPoint ii
-  -- return e and the newly generated interaction points
-  mis' <- getInteractionPoints
-  return (e, mis' \\ mis)
+  return e
 
 
+-- | Try to refine hole by expression @e@.
+--
+--   This amounts to successively try to give @e@, @e ?@, @e ? ?@, ...
+--   Returns the successfully given expression.
+refine
+  :: InteractionId  -- ^ Hole.
+  -> Maybe Range
+  -> Expr           -- ^ The expression to refine the hole with.
+  -> TCM Expr       -- ^ The successfully given expression.
+refine ii mr e = do
+  mi <- lookupInteractionId ii
+  mv <- lookupMeta mi
+  let range = fromMaybe (getRange mv) mr
+      scope = M.getMetaScope mv
+  reportSDoc "interaction.refine" 10 $
+    TP.text "refining with expression" TP.<+> prettyTCM e
+  reportSDoc "interaction.refine" 50 $
+    TP.text $ show $ deepUnScope e
+  -- We try to append up to 10 meta variables
+  tryRefine 10 range scope e
+  where
+    tryRefine :: Int -> Range -> ScopeInfo -> Expr -> TCM Expr
+    tryRefine nrOfMetas r scope e = try nrOfMetas e
+      where
+        try :: Int -> Expr -> TCM Expr
+        try 0 e = throwError (strMsg "Can not refine")
+        try n e = give ii (Just r) e `catchError` (\_ -> try (n-1) =<< appMeta e)
 
-refine :: InteractionId -> Maybe Range -> Expr -> TCM (Expr,[InteractionId])
-refine ii mr e =
-    do  mi <- lookupInteractionId ii
-        mv <- lookupMeta mi
-        let range = maybe (getRange mv) id mr
-        let scope = M.getMetaScope mv
-        reportSDoc "interaction.refine" 10 $
-          TP.text "refining with expression" TP.<+> prettyTCM e
-        reportSDoc "interaction.refine" 50 $
-          TP.text $ show $ deepUnScope e
-        tryRefine 10 range scope e
-  where tryRefine :: Int -> Range -> ScopeInfo -> Expr -> TCM (Expr,[InteractionId])
-        tryRefine nrOfMetas r scope e = try nrOfMetas e
-           where try 0 e = throwError (strMsg "Can not refine")
-                 try n e = give ii (Just r) e `catchError` (\_ -> try (n-1) (appMeta e))
-                 appMeta :: Expr -> Expr
-                 appMeta e =
-                      let metaVar = QuestionMark
-				  $ Agda.Syntax.Info.MetaInfo
-				    { Agda.Syntax.Info.metaRange = rightMargin r -- Andreas, 2013-05-01 conflate range to its right margin to ensure that appended metas are last in numbering.  This fixes issue 841.
-                                    , Agda.Syntax.Info.metaScope = scope { scopePrecedence = ArgumentCtx }
-				    , metaNumber = Nothing
-                                    , metaNameSuggestion = ""
-				    }
-                      in App (ExprRange $ r) e (defaultNamedArg metaVar)
-                 --ToDo: The position of metaVar is not correct
-                 --ToDo: The fixity of metavars is not correct -- fixed? MT
+        -- Apply A.Expr to a new meta
+        appMeta :: Expr -> TCM Expr
+        appMeta e = do
+          let rng = rightMargin r -- Andreas, 2013-05-01 conflate range to its right margin to ensure that appended metas are last in numbering.  This fixes issue 841.
+          -- Make new interaction point
+          ii <- registerInteractionPoint rng Nothing
+          let info = Info.MetaInfo
+                { Info.metaRange = rng
+                , Info.metaScope = scope { scopePrecedence = ArgumentCtx }
+                , metaNumber = Nothing -- in order to print just as ?, not ?n
+                , metaNameSuggestion = ""
+                }
+              metaVar = QuestionMark info ii
+          return $ App (ExprRange r) e $ defaultNamedArg metaVar
+          --ToDo: The position of metaVar is not correct
+          --ToDo: The fixity of metavars is not correct -- fixed? MT
 
 {-| Evaluate the given expression in the current environment -}
 evalInCurrent :: Expr -> TCM Expr
@@ -373,7 +386,7 @@ getConstraints = liftTCM $ do
     toOutputForm (ii, mi, e) = do
       mv <- getMetaInfo <$> lookupMeta mi
       withMetaInfo mv $ do
-        let m = QuestionMark $ emptyMetaInfo { metaNumber = Just $ fromIntegral ii }
+        let m = QuestionMark emptyMetaInfo{ metaNumber = Just $ fromIntegral ii } ii
         abstractToConcrete_ $ OutputForm noRange 0 $ Assign m e
 
 -- | @getSolvedInteractionPoints True@ returns all solutions,

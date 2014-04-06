@@ -25,6 +25,7 @@ import Agda.Syntax.Translation.InternalToAbstract
 import Agda.Syntax.Translation.AbstractToConcrete (abstractToConcreteEnv, abstractToConcrete_, makeEnv, runAbsToCon, toConcrete)
 import Agda.Interaction.BasicOps hiding (refine)
 import Agda.TypeChecking.Reduce (normalise)
+import Agda.Syntax.Common
 import qualified Agda.Syntax.Scope.Base
 import Agda.Syntax.Scope.Monad (withCurrentModule)
 import qualified Agda.Syntax.Abstract.Name as AN
@@ -249,7 +250,7 @@ auto ii rng argstr = liftTCM $ do
                         mapM (\(mi, expr) ->
                          case lookup mi riis of
                           Nothing -> giveExpr mi expr >>= \_ -> return Nothing
-                          Just ii' -> do (ae, []) <- give ii' Nothing expr
+                          Just ii' -> do ae <- give ii' Nothing expr
                                          mv <- lookupMeta mi
                                          let scope = getMetaScope mv
                                          ce <- abstractToConcreteEnv (makeEnv scope) ae

@@ -149,10 +149,9 @@ makeAbsurdClause f (SClause tel perm ps _ t) = do
 makeAbstractClause :: QName -> SplitClause -> TCM A.Clause
 makeAbstractClause f cl = do
   A.Clause lhs _ _ <- makeAbsurdClause f cl
-  return $ mkClause lhs
-  where
-    mkClause :: A.LHS -> A.Clause
-    mkClause lhs = A.Clause lhs (A.RHS $ A.QuestionMark A.emptyMetaInfo) []
+  let ii = __IMPOSSIBLE__  -- No interaction point since we never type check this
+  let info = A.emptyMetaInfo -- metaNumber = Nothing in order to print as ?, not ?n
+  return $ A.Clause lhs (A.RHS $ A.QuestionMark info ii) []
 
 deBruijnIndex :: A.Expr -> TCM Nat
 deBruijnIndex e = do

@@ -285,14 +285,13 @@ newRecordMetaCtx r pars tel ctx = do
   con    <- getRecordConstructor r
   return $ Con con fields
 
-newQuestionMark :: Type -> TCM Term
-newQuestionMark t = do
+newQuestionMark :: InteractionId -> Type -> TCM Term
+newQuestionMark ii t = do
   -- Do not run check for recursive occurrence of meta in definitions,
   -- because we want to give the recursive solution interactively (Issue 589)
   m  <- newValueMeta' DontRunMetaOccursCheck t
   let MetaV x _ = ignoreSharing m
-  ii <- fresh
-  addInteractionPoint ii x
+  connectInteractionPoint ii x
   return m
 
 -- | Construct a blocked constant if there are constraints.

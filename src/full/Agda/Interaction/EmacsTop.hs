@@ -16,6 +16,8 @@ import Agda.Utils.Monad
 import Agda.Utils.Pretty
 import Agda.Utils.String
 
+import Agda.Syntax.Common
+
 import Agda.TypeChecking.Monad
 
 import Agda.Interaction.Response as R

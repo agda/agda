@@ -346,7 +346,7 @@ instance ToConcrete A.Expr C.Expr where
         -- variables)
     toConcrete (A.Lit l)            = return $ C.Lit l
 
-    toConcrete (A.QuestionMark i)   = return $ C.QuestionMark
+    toConcrete (A.QuestionMark i ii)= return $ C.QuestionMark
                                                 (getRange i)
                                                 (metaNumber i)
     toConcrete (A.Underscore i)     = return $

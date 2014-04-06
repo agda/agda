@@ -84,7 +84,7 @@ import Agda.Utils.Impossible
 -- 32-bit machines). Word64 does not have these problems.
 
 currentInterfaceVersion :: Word64
-currentInterfaceVersion = 20140129 * 10 + 2
+currentInterfaceVersion = 20140406 * 10 + 1
 
 -- | Constructor tag (maybe omitted) and argument indices.
 
@@ -580,7 +580,7 @@ instance EmbPrj A.Expr where
       valu [1, a]     = valu1 A.Def a
       valu [2, a]     = valu1 A.Con a
       valu [3, a]     = valu1 A.Lit a
-      valu [4]        = valu0 (A.QuestionMark emptyMetaInfo)
+      valu [4]        = valu0 (A.QuestionMark emptyMetaInfo 0)
       valu [5]        = valu0 (A.Underscore emptyMetaInfo)
       valu [6, a, b]  = valu2 (A.App i) a b
       valu [7, a, b]  = valu2 (A.WithApp i) a b

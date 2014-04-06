@@ -50,6 +50,7 @@ import Agda.TypeChecking.Monad.Base (TypeError(..), Call(..), typeError,
                                      TCErr(..), extendlambdaname)
 import Agda.TypeChecking.Monad.Trace (traceCall, setCurrentRange)
 import Agda.TypeChecking.Monad.State
+import Agda.TypeChecking.Monad.MetaVars (registerInteractionPoint)
 import Agda.TypeChecking.Monad.Options
 import Agda.TypeChecking.Monad.Env (insideDotPattern, isInsideDotPattern)
 
@@ -513,12 +514,15 @@ instance ToAbstract C.Expr A.Expr where
   -- Meta variables
       C.QuestionMark r n -> do
         scope <- getScope
-        return $ A.QuestionMark $ MetaInfo
-                    { metaRange  = r
-                    , metaScope  = scope
-                    , metaNumber = n
-                    , metaNameSuggestion = ""
-                    }
+        -- Andreas, 2014-04-06 create interaction point.
+        ii <- registerInteractionPoint r n
+        let info = MetaInfo
+             { metaRange  = r
+             , metaScope  = scope
+             , metaNumber = n
+             , metaNameSuggestion = ""
+             }
+        return $ A.QuestionMark info ii
       C.Underscore r n -> do
         scope <- getScope
         return $ A.Underscore $ MetaInfo

@@ -524,13 +524,16 @@ getMetaColors = envColors . getMetaEnv
 -- ** Interaction meta variables
 ---------------------------------------------------------------------------
 
-type InteractionPoints = Map InteractionId MetaId
+-- | Interaction points are created by the scope checker who sets the range.
+--   The meta variable is created by the type checker and then hooked up to the
+--   interaction point.
+data InteractionPoint = InteractionPoint
+  { ipRange :: Range        -- ^ The position of the interaction point.
+  , ipMeta  :: Maybe MetaId -- ^ The meta variable, if any, holding the type etc.
+  }
 
-newtype InteractionId = InteractionId Nat
-    deriving (Eq,Ord,Num,Integral,Real,Enum)
-
-instance Show InteractionId where
-    show (InteractionId x) = "?" ++ show x
+-- | Data structure managing the interaction points.
+type InteractionPoints = Map InteractionId InteractionPoint
 
 type OldInteractionPoints = Map InteractionId ScopeInfo
 
