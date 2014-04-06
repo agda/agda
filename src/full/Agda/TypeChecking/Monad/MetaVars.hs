@@ -148,9 +148,11 @@ removeOldInteractionPoint :: InteractionId -> TCM ()
 removeOldInteractionPoint ii =
   modify $ \s -> s { stOldInteractionPoints = Map.delete ii $ stOldInteractionPoints s }
 
+-- | Get a list of interaction ids.
 getInteractionPoints :: TCM [InteractionId]
 getInteractionPoints = Map.keys <$> gets stInteractionPoints
 
+-- | Get all metas that correspond to interaction ids.
 getInteractionMetas :: TCM [MetaId]
 getInteractionMetas = Map.elems <$> gets stInteractionPoints
 
