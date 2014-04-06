@@ -551,7 +551,7 @@ instance EmbPrj A.Expr where
   icode (A.Def n)               = icode1 1 n
   icode (A.Con ns)              = icode1 2 ns
   icode (A.Lit l)               = icode1 3 l
-  icode (A.QuestionMark _)      = icode0 4
+  icode (A.QuestionMark{})      = icode0 4
   icode (A.Underscore _)        = icode0 5
   icode (A.App _ a b)           = icode2 6 a b
   icode (A.WithApp _ a b)       = icode2 7 a b

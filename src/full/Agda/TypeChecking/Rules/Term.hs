@@ -575,7 +575,7 @@ checkExpr e t0 =
 		hiddenLambdaOrHole h (A.Lam _ (A.DomainFree info' _) _) | h == getHiding info'       = True
 		hiddenLambdaOrHole h (A.Lam _ (A.DomainFull (A.TypedBindings _ (Arg info' _))) _)
                   | h == getHiding info'                                                            = True
-		hiddenLambdaOrHole _ (A.QuestionMark _)				       = True
+		hiddenLambdaOrHole _ A.QuestionMark{}				       = True
 		hiddenLambdaOrHole _ _						       = False
 
                 hiddenLHS (A.Clause (A.LHS _ (A.LHSHead _ (a : _)) _) _ _) = elem (getHiding a) [Hidden, Instance]

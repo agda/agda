@@ -261,7 +261,7 @@ instance Rename Expr where
       Def f                 -> e
       Con c                 -> e
       Lit l                 -> e
-      QuestionMark i        -> e
+      QuestionMark{}        -> e
       Underscore i          -> e
       App i e es            -> App i (rename rho e) (rename rho es)
       WithApp i e es        -> WithApp i (rename rho e) (rename rho es)

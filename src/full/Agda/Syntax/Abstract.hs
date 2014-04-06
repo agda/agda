@@ -824,7 +824,7 @@ substExpr s e = case e of
   Def _                 -> e
   Con _	                -> e
   Lit _                 -> e
-  QuestionMark _        -> e
+  QuestionMark{}        -> e
   Underscore   _        -> e
   App  i e e'           -> App i (substExpr s e)
                                  (fmap (fmap (substExpr s)) e')
