@@ -126,15 +126,6 @@ give ii mr e = liftTCM $ do
   mis' <- getInteractionPoints
   return (e, mis' \\ mis)
 
--- | Add a declaration and return newly created interaction points.
---
---   UNUSED, as far as I can see (Andreas, 2014-03-23).
-addDecl :: Declaration -> TCM ([InteractionId])
-addDecl d = do
-  mis <- getInteractionPoints
-  checkDecl d
-  mis' <- getInteractionPoints
-  return (mis' \\ mis)
 
 
 refine :: InteractionId -> Maybe Range -> Expr -> TCM (Expr,[InteractionId])
