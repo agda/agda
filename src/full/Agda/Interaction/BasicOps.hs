@@ -97,15 +97,18 @@ giveExpr mi e = do
           _	   -> updateMeta mi v
       reify v
 
-give :: InteractionId -> Maybe Range -> Expr -> TCM (Expr,[InteractionId])
+-- | Try to fill hole by expression.
+--
+--   Returns the given expression unchanged
+--   (for convenient generalization to @'refine'@).
+give
+  :: InteractionId  -- ^ Hole.
+  -> Maybe Range
+  -> Expr           -- ^ The expression to give.
+  -> TCM Expr       -- ^ If successful, the very expression is returned unchanged.
 give ii mr e = liftTCM $ do
   -- if Range is given, update the range of the interaction meta
   mi  <- lookupInteractionId ii
-{- --OLD:
-  r   <- getInteractionRange ii
-  updateMetaVarRange mi $ fromMaybe r mr
-  -- or equally, in case mr == Nothing we just do nothing.
--}
   whenJust mr $ updateMetaVarRange mi
   -- Save old set of interaction points (to compute difference to new one).
   mis <- getInteractionPoints

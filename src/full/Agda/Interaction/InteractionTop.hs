@@ -789,6 +789,7 @@ give_gen ii rng s giveRefine = withCurrentFile $ do
   modifyTheInteractionPoints $ replace ii iis
   -- print abstract expr
   ce        <- lift $ abstractToConcreteEnv (makeEnv scope) ae
+  lift $ reportSLn "interaction.give" 30 $ "ce = " ++ show ce
   -- if the command was @Give@, use the literal user input;
   -- Andreas, 2014-01-15, see issue 1020:
   -- Refine could solve a goal by introducing the sole constructor
@@ -805,8 +806,10 @@ give_gen ii rng s giveRefine = withCurrentFile $ do
     printHighlightingInfo =<< generateTokenInfoFromString rng s
     highlightExpr ae
   putResponse $ Resp_GiveAction ii $ mkNewTxt literally ce
+  lift $ reportSLn "interaction.give" 30 $ "putResponse GiveAction passed"
   -- display new goal set
   interpret Cmd_metas
+  lift $ reportSLn "interaction.give" 30 $ "interpret Cmd_metas passed"
   where
     -- Substitutes xs for x in ys.
     replace x xs ys = concatMap (\ y -> if y == x then xs else [y]) ys
