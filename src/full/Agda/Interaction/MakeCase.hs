@@ -1,4 +1,4 @@
-{-# LANGUAGE CPP #-}
+{-# LANGUAGE CPP, TupleSections #-}
 
 module Agda.Interaction.MakeCase where
 
@@ -92,7 +92,7 @@ makeCase hole rng s = withInteractionId hole $ do
       ]
     ]
   vars <- mapM (\s -> deBruijnIndex =<< parseExprIn hole rng s) $ words s
-  (,) casectxt <$> split f vars clause
+  (casectxt,) <$> split f vars clause
   where
   split :: QName -> [Nat] -> Clause -> TCM [A.Clause]
   split f [] clause =
