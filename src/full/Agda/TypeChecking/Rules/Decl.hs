@@ -516,22 +516,32 @@ checkSectionApplication'
   -> Map ModuleName ModuleName  -- ^ Imported modules (given as renaming).
   -> TCM ()
 checkSectionApplication' i m1 (A.SectionApp ptel m2 args) rd rm =
-  checkTelescope_ ptel $ \ptel -> do
+  -- Type-check the LHS (ptel) of the module macro.
+  checkTelescope_ ptel $ \ ptel -> do
+  -- We are now in the context @ptel@.
+  -- Get the correct parameter telescope of @m2@.
   tel <- lookupSection m2
-  vs  <- freeVarsToApply $ qnameFromList $ mnameToList m2
-  let tel' = apply tel vs
-      args'= convColor args
-  etaTel <- checkModuleArity m2 tel' $ args'
+  vs  <- freeVarsToApply $ mnameToQName m2
+  let tel'  = apply tel vs
+      args' = convColor args
+  -- Compute the remaining parameter telescope after stripping of
+  -- the initial parameters that are determined by the @args@.
+  -- Warning: @etaTel@ is not well-formed in @ptel@, since
+  -- the actual application has not happened.
+  etaTel <- checkModuleArity m2 tel' args'
+  -- Take the module parameters that will be instantiated by @args@.
   let tel'' = telFromList $ take (size tel' - size etaTel) $ telToList tel'
   addCtxTel etaTel $ addSection m1 (size ptel + size etaTel)
   reportSDoc "tc.section.apply" 15 $ vcat
     [ text "applying section" <+> prettyTCM m2
-    , nest 2 $ text "ptel =" <+> prettyTCM ptel
+    , nest 2 $ text "args =" <+> sep (map prettyA args)
+    , nest 2 $ text "ptel =" <+> escapeContext (size ptel) (prettyTCM ptel)
     , nest 2 $ text "tel  =" <+> prettyTCM tel
     , nest 2 $ text "tel' =" <+> prettyTCM tel'
     , nest 2 $ text "tel''=" <+> prettyTCM tel''
     , nest 2 $ text "eta  =" <+> prettyTCM etaTel
     ]
+  -- Now, type check arguments.
   ts <- noConstraints $ checkArguments_ DontExpandLast (getRange i) args' tel''
   reportSDoc "tc.section.apply" 20 $ vcat
     [ sep [ text "applySection", prettyTCM m1, text "=", prettyTCM m2, fsep $ map prettyTCM (vs ++ ts) ]
@@ -543,12 +553,10 @@ checkSectionApplication' i m1 (A.SectionApp ptel m2 args) rd rm =
 checkSectionApplication' i m1 (A.RecordModuleIFS x) rd rm = do
   let name = mnameToQName x
   tel' <- lookupSection x
-  vs <- freeVarsToApply name
+  vs   <- freeVarsToApply name
   let tel = tel' `apply` vs
-  case tel of
-    EmptyTel -> typeError $ GenericError $ show name ++ " is not a parameterised section"
-    _ -> return ()
-  let telInst :: Telescope
+      args = teleArgs tel
+      telInst :: Telescope
       telInst = instFinal tel
       instFinal :: Telescope -> Telescope
       instFinal (ExtendTel _ NoAbs{}) = __IMPOSSIBLE__
@@ -556,16 +564,28 @@ checkSectionApplication' i m1 (A.RecordModuleIFS x) rd rm = do
           ExtendTel (Dom (setHiding Instance info) t) (Abs n EmptyTel)
       instFinal (ExtendTel arg (Abs n tel)) = ExtendTel arg (Abs n (instFinal tel))
       instFinal EmptyTel = __IMPOSSIBLE__
-      args = teleArgs tel
   reportSDoc "tc.section.apply" 20 $ vcat
     [ sep [ text "applySection", prettyTCM name, text "{{...}}" ]
-    , nest 2 $ text "tel:" <+> prettyTCM tel
-    , nest 2 $ text "telInst:" <+> prettyTCM telInst
-    , nest 2 $ text "args:" <+> text (show args)
+    , nest 2 $ text "x       =" <+> prettyTCM x
+    , nest 2 $ text "name    =" <+> prettyTCM name
+    , nest 2 $ text "tel     =" <+> prettyTCM tel
+    , nest 2 $ text "telInst =" <+> prettyTCM telInst
+    , nest 2 $ text "vs      =" <+> sep (map prettyTCM vs)
+    , nest 2 $ text "args    =" <+> sep (map prettyTCM args)
     ]
+  reportSDoc "tc.section.apply" 60 $ vcat
+    [ nest 2 $ text "vs      =" <+> text (show vs)
+    , nest 2 $ text "args    =" <+> text (show args)
+    ]
+  when (tel == EmptyTel) $
+    typeError $ GenericError $ show name ++ " is not a parameterised section"
 
   addCtxTel telInst $ do
     vs <- freeVarsToApply name
+    reportSDoc "tc.section.apply" 60 $ vcat
+      [ nest 2 $ text "vs      =" <+> text (show vs)
+      , nest 2 $ text "args    =" <+> text (show args)
+      ]
     applySection m1 telInst x (vs ++ args) rd rm
 
 -- | Type check an import declaration. Actually doesn't do anything, since all
