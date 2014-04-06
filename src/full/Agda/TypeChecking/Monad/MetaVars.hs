@@ -39,7 +39,7 @@ getMetaStore :: TCM MetaStore
 getMetaStore = gets stMetaStore
 
 modifyMetaStore :: (MetaStore -> MetaStore) -> TCM ()
-modifyMetaStore f = modify (\ st -> st { stMetaStore = f $ stMetaStore st })
+modifyMetaStore f = modify $ \ st -> st { stMetaStore = f (stMetaStore st) }
 
 -- | Lookup a meta variable
 lookupMeta :: MetaId -> TCM MetaVariable
@@ -50,7 +50,7 @@ updateMetaVar :: MetaId -> (MetaVariable -> MetaVariable) -> TCM ()
 updateMetaVar m f = modifyMetaStore $ Map.adjust f m
 
 getMetaPriority :: MetaId -> TCM MetaPriority
-getMetaPriority i = mvPriority <$> lookupMeta i
+getMetaPriority = mvPriority <.> lookupMeta
 
 {- UNUSED
 getMetaRelevance :: MetaId -> TCM Relevance
@@ -185,6 +185,9 @@ getInteractionMetas = mapMaybe ipMeta . Map.elems <$> gets stInteractionPoints
 
 -- | Does the meta variable correspond to an interaction point?
 
+-- | Does the meta variable correspond to an interaction point?
+--
+--   Time: @O(n)@ where @n@ is the number of interaction metas.
 isInteractionMeta :: MetaId -> TCM (Maybe InteractionId)
 isInteractionMeta x =
   lookup x . mapMaybe f . Map.assocs <$> gets stInteractionPoints
@@ -221,9 +224,11 @@ newMeta' inst mi p perm j = do
   modify $ \st -> st { stMetaStore = Map.insert x mv $ stMetaStore st }
   return x
 
+-- | Get the 'Range' for an interaction point.
 getInteractionRange :: InteractionId -> TCM Range
 getInteractionRange = getMetaRange <=< lookupInteractionId
 
+-- | Get the 'Range' for a meta variable.
 getMetaRange :: MetaId -> TCM Range
 getMetaRange = getRange <.> lookupMeta
 
@@ -286,6 +291,10 @@ getMetaListeners m = Set.toList . mvListeners <$> lookupMeta m
 clearMetaListeners :: MetaId -> TCM ()
 clearMetaListeners m =
   updateMetaVar m $ \mv -> mv { mvListeners = Set.empty }
+
+---------------------------------------------------------------------------
+-- * Freezing and unfreezing metas.
+---------------------------------------------------------------------------
 
 -- | Freeze all meta variables.
 freezeMetas :: TCM ()
