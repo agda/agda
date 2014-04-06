@@ -396,12 +396,10 @@ getConstraints = liftTCM $ do
 --   are solved by a non-meta.
 
 getSolvedInteractionPoints :: Bool -> TCM [(InteractionId, MetaId, Expr)]
-getSolvedInteractionPoints all = do
-  is <- getInteractionPoints
-  concat <$> mapM solution is
+getSolvedInteractionPoints all = concat <$> do
+  mapM solution =<< getInteractionIdsAndMetas
   where
-    solution i = do
-      m  <- lookupInteractionId i
+    solution (i, m) = do
       mv <- lookupMeta m
       withMetaInfo (getMetaInfo mv) $ do
         args  <- getContextArgs
@@ -449,14 +447,14 @@ typeOfMetaMI norm mi =
 
 
 typeOfMeta :: Rewrite -> InteractionId -> TCM (OutputConstraint Expr InteractionId)
-typeOfMeta norm ii =
-     do mi <- lookupInteractionId ii
-        out <- typeOfMetaMI norm mi
-        return $ fmap (\_ -> ii) out
+typeOfMeta norm ii = typeOfMeta' norm . (ii,) =<< lookupInteractionId ii
+
+typeOfMeta' :: Rewrite -> (InteractionId, MetaId) -> TCM (OutputConstraint Expr InteractionId)
+typeOfMeta' norm (ii, mi) = fmap (\_ -> ii) <$> typeOfMetaMI norm mi
 
 typesOfVisibleMetas :: Rewrite -> TCM [OutputConstraint Expr InteractionId]
 typesOfVisibleMetas norm =
-  liftTCM $ mapM (typeOfMeta norm) =<< getInteractionPoints
+  liftTCM $ mapM (typeOfMeta' norm) =<< getInteractionIdsAndMetas
 
 typesOfHiddenMetas :: Rewrite -> TCM [OutputConstraint Expr NamedMeta]
 typesOfHiddenMetas norm = liftTCM $ do

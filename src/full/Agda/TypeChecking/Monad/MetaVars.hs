@@ -1,4 +1,6 @@
-{-# LANGUAGE CPP, FlexibleInstances, TypeSynonymInstances #-}
+{-# LANGUAGE CPP, TupleSections,
+  FlexibleInstances, TypeSynonymInstances #-}
+
 module Agda.TypeChecking.Monad.MetaVars where
 
 import Control.Applicative
@@ -183,29 +185,30 @@ getInteractionPoints = Map.keys <$> gets stInteractionPoints
 getInteractionMetas :: TCM [MetaId]
 getInteractionMetas = mapMaybe ipMeta . Map.elems <$> gets stInteractionPoints
 
--- | Does the meta variable correspond to an interaction point?
+-- | Get all metas that correspond to interaction ids.
+getInteractionIdsAndMetas :: TCM [(InteractionId,MetaId)]
+getInteractionIdsAndMetas = mapMaybe f . Map.toList <$> gets stInteractionPoints
+  where f (ii, ip) = (ii,) <$> ipMeta ip
 
 -- | Does the meta variable correspond to an interaction point?
 --
 --   Time: @O(n)@ where @n@ is the number of interaction metas.
 isInteractionMeta :: MetaId -> TCM (Maybe InteractionId)
-isInteractionMeta x =
-  lookup x . mapMaybe f . Map.assocs <$> gets stInteractionPoints
-  where f (ii, InteractionPoint _ Nothing ) = Nothing
-        f (ii, InteractionPoint _ (Just x)) = Just (x, ii)
+isInteractionMeta x = lookup x . map swap <$> getInteractionIdsAndMetas
 
--- isInteractionMeta :: MetaId -> TCM Bool
--- isInteractionMeta m = (m `elem`) <$> getInteractionMetas
-
-lookupInteractionId :: InteractionId -> TCM MetaId
-lookupInteractionId ii = fromMaybeM err2 $ ipMeta <$> do
+-- | Get the information associated to an interaction point.
+lookupInteractionPoint :: InteractionId -> TCM InteractionPoint
+lookupInteractionPoint ii =
   fromMaybeM err $ Map.lookup ii <$> gets stInteractionPoints
   where
     err  = fail $ "no such interaction point: " ++ show ii
-    err2 = fail $ "interaction point " ++ show ii ++ " is not connected to meta var"
 
-judgementInteractionId :: InteractionId -> TCM (Judgement Type MetaId)
-judgementInteractionId = mvJudgement <.> lookupMeta <=< lookupInteractionId
+-- | Get 'MetaId' for an interaction point.
+--   Precondition: interaction point is connected.
+lookupInteractionId :: InteractionId -> TCM MetaId
+lookupInteractionId ii = fromMaybeM err2 $ ipMeta <$> lookupInteractionPoint ii
+  where
+    err2 = typeError $ GenericError $ "No type nor action available for hole " ++ show ii
 
 -- | Generate new meta variable.
 newMeta :: MetaInfo -> MetaPriority -> Permutation -> Judgement Type a -> TCM MetaId
@@ -226,7 +229,7 @@ newMeta' inst mi p perm j = do
 
 -- | Get the 'Range' for an interaction point.
 getInteractionRange :: InteractionId -> TCM Range
-getInteractionRange = getMetaRange <=< lookupInteractionId
+getInteractionRange = ipRange <.> lookupInteractionPoint
 
 -- | Get the 'Range' for a meta variable.
 getMetaRange :: MetaId -> TCM Range
