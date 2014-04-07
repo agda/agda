@@ -1095,10 +1095,11 @@ equalLevel a b = do
         -- 0 == any
         ([ClosedLevel 0], bs@(_:_:_)) -> sequence_ [ equalLevel (Max []) (Max [b]) | b <- bs ]
         (as@(_:_:_), [ClosedLevel 0]) -> sequence_ [ equalLevel (Max [a]) (Max []) | a <- as ]
-
-        -- Same meta
-        ([Plus n (MetaLevel x _)], [Plus m (MetaLevel y _)])
-          | n == m && x == y -> ok
+        -- Andreas, 2014-04-07 Why should the following be ok?
+        --   X (suc a)  could be different from  X (suc (suc a))
+        -- -- Same meta
+        -- ([Plus n (MetaLevel x _)], [Plus m (MetaLevel y _)])
+        --   | n == m && x == y -> ok
 
         -- meta == any
         ([Plus n (MetaLevel x as)], _)
