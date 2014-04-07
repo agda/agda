@@ -957,13 +957,16 @@ leqLevel a b = liftTCM $ do
             minN = minimum (ns ++ ms)
 
         -- remove subsumed
+        -- Andreas, 2014-04-07: This is ok if we do not go back to equalLevel
         (as, bs)
-          | not $ null dups -> leqView (Max $ as \\ dups) (Max bs)
+          | not $ null subsumed -> leqView (Max $ as \\ subsumed) (Max bs)
           where
-            dups = [ a | a@(Plus m l) <- as, Just n <- [findN l], m <= n ]
+            subsumed = [ a | a@(Plus m l) <- as, n <- findN l, m <= n ]
+            -- @findN a@ finds the unique(?) term @Plus n a@ in @bs@, if any.
+            -- Andreas, 2014-04-07 Why must there be a unique term?
             findN a = case [ n | Plus n b <- bs, b == a ] of
-                        [n] -> Just n
-                        _   -> Nothing
+                        [n] -> [n]
+                        _   -> []
 
         -- Andreas, 2012-10-02 raise error on unsolvable constraint
         ([ClosedLevel n], [ClosedLevel m]) -> if n <= m then ok else notok
@@ -990,6 +993,8 @@ leqLevel a b = liftTCM $ do
         -- [a] ≤ [neutral]
         ([a@(Plus n _)], [b@(Plus m NeutralLevel{})])
           | m == n -> equalLevel (Max [a]) (Max [b])
+          -- Andreas, 2014-04-07: This call to equalLevel is ok even if we removed
+          -- subsumed terms from the lhs.
 
         -- anything else
         _ -> postpone
