@@ -990,9 +990,10 @@ levelMax :: [PlusLevel] -> Level
 levelMax as0 = Max $ ns ++ List.sort bs
   where
     as = Prelude.concatMap expand as0
+    -- ns is empty or a singleton
     ns = case [ n | ClosedLevel n <- as, n > 0 ] of
       []  -> []
-      ns  -> [ ClosedLevel n | n <- [Prelude.maximum ns], n > greatestB ]
+      ns  -> [ ClosedLevel n | let n = Prelude.maximum ns, n > greatestB ]
     bs = subsume [ b | b@Plus{} <- as ]
     greatestB | null bs   = 0
               | otherwise = Prelude.maximum [ n | Plus n _ <- bs ]
