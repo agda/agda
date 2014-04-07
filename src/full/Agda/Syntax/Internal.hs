@@ -198,10 +198,12 @@ data PlusLevel = ClosedLevel Integer
                | Plus Integer LevelAtom
   deriving (Show, Typeable)
 
-data LevelAtom = MetaLevel MetaId Elims
-               | BlockedLevel MetaId Term
-               | NeutralLevel Term
-               | UnreducedLevel Term
+data LevelAtom
+  = MetaLevel MetaId Elims
+  | BlockedLevel MetaId Term
+  | NeutralLevel Term
+  | UnreducedLevel Term
+    -- ^ Introduced by 'instantiate', removed by 'reduce'.
   deriving (Show, Typeable)
 
 -- | A meta variable identifier is just a natural number.
