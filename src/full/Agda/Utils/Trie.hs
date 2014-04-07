@@ -1,6 +1,6 @@
 -- | Strict tries (based on 'Data.Map.Strict' and 'Agda.Utils.Maybe.Strict').
 
-{-# LANGUAGE TupleSections, PatternGuards, BangPatterns,
+{-# LANGUAGE CPP, TupleSections, PatternGuards, BangPatterns,
   GeneralizedNewtypeDeriving #-}
 
 module Agda.Utils.Trie
