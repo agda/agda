@@ -40,7 +40,7 @@ import Data.Function
 import Data.Monoid
 import Control.Applicative ((<$>), (<*>))
 import Control.Monad
-import Agda.Utils.QuickCheck hiding (ranges)
+import Agda.Utils.QuickCheck
 import Data.Map (Map)
 import qualified Data.Map as Map
 import Data.Typeable (Typeable)

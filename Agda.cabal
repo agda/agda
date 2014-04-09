@@ -69,7 +69,7 @@ library
                     transformers == 0.3.*,
                     -- mtl-2.1 contains a severe bug
                     mtl >= 2.1.1 && < 2.2,
-                    QuickCheck >= 2.5 && < 2.7,
+                    QuickCheck >= 2.5 && < 2.8,
                     haskell-src-exts >= 1.9.6 && < 1.15,
                     containers >= 0.1 && < 0.6,
                     unordered-containers == 0.2.*,
