@@ -33,11 +33,11 @@ import qualified Prelude             as Lazy
 import           Control.Applicative (pure, (<$>))
 import           Control.DeepSeq     (NFData (..))
 import           Data.Binary         (Binary (..))
--- #if MIN_VERSION_base(4,7,0)
--- import           Data.Data           (Data (..), Typeable)
--- #else
+#if MIN_VERSION_base(4,7,0)
+import           Data.Data           (Data (..), Typeable)
+#else
 import           Data.Data           (Data (..), Typeable1 (..))
--- #endif
+#endif
 import           Data.Monoid         (Monoid (..))
 import           Data.Foldable       (Foldable (..))
 import           Data.Traversable    (Traversable (..))
@@ -58,11 +58,11 @@ toLazy Nothing  = Lazy.Nothing
 toLazy (Just x) = Lazy.Just x
 
 deriving instance Data a => Data (Maybe a)
--- #if MIN_VERSION_base(4,7,0)
--- deriving instance Typeable Maybe
--- #else
+#if MIN_VERSION_base(4,7,0)
+deriving instance Typeable Maybe
+#else
 deriving instance Typeable1 Maybe
--- #endif
+#endif
 
 #if __GLASGOW_HASKELL__ >= 706
 deriving instance Generic  (Maybe a)
