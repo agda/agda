@@ -224,6 +224,7 @@ generateAndPrintSyntaxInfo decl hlLevel = do
     , Fold.foldMap getPatSynArgs  $ universeBi decl
     , Fold.foldMap getModuleName  $ universeBi decl
     , Fold.foldMap getModuleInfo  $ universeBi decl
+    , Fold.foldMap getNamedArg    $ universeBi decl
     ]
     where
     bound n = nameToFile modMap file [] (A.nameConcrete n)
@@ -249,6 +250,11 @@ generateAndPrintSyntaxInfo decl hlLevel = do
     getVarAndField (A.Var x)    = bound x
     getVarAndField (A.Rec _ fs) = mconcat $ map (field [] . fst) fs
     getVarAndField _            = mempty
+
+    -- Ulf, 2014-04-09: It would be nicer to have it on Named RString a, but
+    -- you can't have polymorphic functions in universeBi.
+    getNamedArg :: SC.RString -> File
+    getNamedArg x = singleton (rToR $ P.getRange x) mempty{ aspect = Just Symbol }
 
     getLet :: A.LetBinding -> File
     getLet (A.LetBind _ _ x _ _) = bound x
