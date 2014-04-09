@@ -540,7 +540,7 @@ metaHelperType norm ii rng s = case words s of
       put args
       return $ case arg of
         Arg _ (Named _ (A.Var x)) -> show x
-        Arg _ (Named (Just x) _)  -> x
+        Arg _ (Named (Just x) _)  -> rangedThing x
         _                         -> "w"
 
 

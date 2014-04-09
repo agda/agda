@@ -1027,7 +1027,7 @@ Primitive : 'primitive' TypeSignatures	{ Primitive (fuseRange $1 $2) $2 }
 Syntax :: { Declaration }
 Syntax : 'syntax' Id HoleNames '=' SimpleIds  {%
   case $2 of
-    Name _ [_] -> case mkNotation $3 $5 of
+    Name _ [_] -> case mkNotation $3 (map rangedThing $5) of
       Left err -> parseError $ "malformed syntax declaration: " ++ err
       Right n -> return $ Syntax $2 n
     _ -> parseError "syntax declarations are allowed only for simple names (without holes)"
@@ -1045,7 +1045,7 @@ PatternSynArgs
   : {- empty -} { [] }
   | LamBinds    {% patternSynArgs $1 }
 
-SimpleIds :: { [String] }
+SimpleIds :: { [RString] }
 SimpleIds : SimpleId { [$1] }
           | SimpleIds SimpleId {$1 ++ [$2]}
 
@@ -1063,18 +1063,18 @@ HoleName
 
 SimpleTopHole :: { HoleName }
 SimpleTopHole
-  : SimpleId { ExprHole $1 }
-  | '(' '\\' SimpleId '->' SimpleId ')' { LambdaHole $3 $5 }
+  : SimpleId { ExprHole (rangedThing $1) }
+  | '(' '\\' SimpleId '->' SimpleId ')' { LambdaHole (rangedThing $3) (rangedThing $5) }
 
 SimpleHole :: { HoleName }
 SimpleHole
-  : SimpleId { ExprHole $1 }
-  | '\\' SimpleId '->' SimpleId { LambdaHole $2 $4 }
+  : SimpleId { ExprHole (rangedThing $1) }
+  | '\\' SimpleId '->' SimpleId { LambdaHole (rangedThing $2) (rangedThing $4) }
 -- Variable name hole to be implemented later.
 
 -- Discard the interval.
-SimpleId :: { String }
-SimpleId : id  { snd $1 }
+SimpleId :: { RString }
+SimpleId : id  { Ranged (getRange $ fst $1) (snd $1) }
 
 MaybeOpen :: { Maybe Range }
 MaybeOpen : 'open'      { Just (getRange $1) }
@@ -1591,10 +1591,10 @@ isEqual e =
     Equal _ a b -> Just (stripSingletonRawApp a, stripSingletonRawApp b)
     _           -> Nothing
 
-maybeNamed :: Expr -> Named String Expr
+maybeNamed :: Expr -> Named RString Expr
 maybeNamed e =
   case isEqual e of
-    Just (Ident (QName x), b) -> named (show x) b
+    Just (Ident (QName x), b) -> named (Ranged (getRange x) (show x)) b
     _                         -> unnamed e
 
 patternSynArgs :: [Either Hiding LamBinding] -> Parser [Arg Name]

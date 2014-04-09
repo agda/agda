@@ -43,7 +43,7 @@ implicitNamedArgs n expand t0 = do
             "inserting instance meta for type " ++ show a
           v  <- applyRelevanceToContext (getRelevance info) $
                 newMeta (getHiding info) x a
-          let narg = Arg info (Named (Just x) v)
+          let narg = Arg info (Named (Just $ unranged x) v)
           mapFst (narg :) <$> implicitNamedArgs (n-1) expand (absApp b v)
       _ -> return ([], t0')
   where
@@ -94,7 +94,7 @@ insertImplicit a ts | notHidden a = impInsert $ nofHidden ts
 insertImplicit a ts =
   case nameOf (unArg a) of
     Nothing -> maybe BadImplicits impInsert $ upto (getHiding a) $ map getHiding ts
-    Just x  -> find [] x (getHiding a) ts
+    Just x  -> find [] (rangedThing x) (getHiding a) ts
   where
     upto h [] = Nothing
     upto h (NotHidden:_) = Nothing

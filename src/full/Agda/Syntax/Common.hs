@@ -412,18 +412,18 @@ instance Decoration (Named name) where
 instance HasRange a => HasRange (Named name a) where
     getRange = getRange . namedThing
 
-instance KillRange a => KillRange (Named name a) where
-  killRange = fmap killRange
+instance (KillRange name, KillRange a) => KillRange (Named name a) where
+  killRange (Named n a) = Named (killRange n) (killRange a)
 
 instance Sized a => Sized (Named name a) where
   size = size . namedThing
 
-instance Show a => Show (Named String a) where
+instance Show a => Show (Named RString a) where
     show (Named Nothing x)  = show x
-    show (Named (Just n) x) = n ++ " = " ++ show x
+    show (Named (Just n) x) = rangedThing n ++ " = " ++ show x
 
 -- | Only 'Hidden' arguments can have names.
-type NamedArg c a = Arg c (Named String a)
+type NamedArg c a = Arg c (Named RString a)
 
 -- | Get the content of a 'NamedArg'.
 namedArg :: NamedArg c a -> a
@@ -436,6 +436,30 @@ defaultNamedArg = defaultArg . unnamed
 --   so we give it another name here.
 updateNamedArg :: (a -> b) -> NamedArg c a -> NamedArg c b
 updateNamedArg = fmap . fmap
+
+data Ranged a = Ranged { rangeOf     :: Range
+                       , rangedThing :: a }
+  deriving (Typeable, Functor, Foldable, Traversable)
+
+unranged :: a -> Ranged a
+unranged = Ranged noRange
+
+type RString = Ranged String
+
+instance Eq a => Eq (Ranged a) where
+  Ranged _ x == Ranged _ y = x == y
+
+instance Ord a => Ord (Ranged a) where
+  compare (Ranged _ x) (Ranged _ y) = compare x y
+
+instance HasRange (Ranged a) where
+  getRange = rangeOf
+
+instance KillRange (Ranged a) where
+  killRange (Ranged _ x) = Ranged noRange x
+
+instance Decoration Ranged where
+  traverseF f (Ranged r x) = Ranged r <$> f x
 
 ---------------------------------------------------------------------------
 -- * Infixity, access, abstract, etc.

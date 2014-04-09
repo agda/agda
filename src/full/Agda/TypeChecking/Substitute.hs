@@ -418,7 +418,7 @@ telVars = map (fmap namedThing) . namedTelVars
 namedTelVars :: Telescope -> [NamedArg Pattern]
 namedTelVars EmptyTel                            = []
 namedTelVars (ExtendTel (Common.Dom info a) tel) =
-  Common.Arg info (Named (Just $ absName tel) $ VarP $ absName tel) :
+  Common.Arg info (namedVarP $ absName tel) :
   namedTelVars (unAbs tel)
 
 instance Abstract FunctionInverse where

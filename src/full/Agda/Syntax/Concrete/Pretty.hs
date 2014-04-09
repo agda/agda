@@ -476,9 +476,9 @@ instance Pretty e => Pretty (Arg e) where
                -- TODO guilhem: print colors
                pHidden (argInfo a) $ unArg a
 
-instance Pretty e => Pretty (Named String e) where
+instance Pretty e => Pretty (Named RString e) where
     pretty (Named Nothing e) = pretty e
-    pretty (Named (Just s) e) = sep [ text s <+> text "=", pretty e ]
+    pretty (Named (Just s) e) = sep [ text (rangedThing s) <+> text "=", pretty e ]
 
 instance Pretty [Pattern] where
     pretty = fsep . map pretty

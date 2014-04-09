@@ -294,7 +294,7 @@ checkAbsurdLambda i h e t = do
                     { clauseRange     = getRange e
                     , clauseTel       = EmptyTel   -- telFromList [fmap ("()",) dom]
                     , clausePerm      = Perm 1 []  -- Perm 1 [0]
-                    , namedClausePats = [Arg info' $ Named (Just $ absName b) $ VarP "()"]
+                    , namedClausePats = [Arg info' $ Named (Just $ unranged $ absName b) $ VarP "()"]
                     , clauseBody      = Bind $ NoAbs "()" NoBody
                     , clauseType      = Just $ setRelevance rel $ defaultArg $ absBody b
                     }
@@ -1019,8 +1019,10 @@ checkConstructorApplication org t c args = do
     dropArgs ps []                                     = args
     dropArgs ps args@(arg : _) | not (isHidden arg) = args
     dropArgs (p:ps) args@(arg : args')
-      | (nameOf (unArg arg)) `elem` [Nothing, Just p]  = dropArgs ps args'
-      | otherwise                                      = dropArgs ps args
+      | elem name [Nothing, Just p] = dropArgs ps args'
+      | otherwise                   = dropArgs ps args
+      where
+        name = fmap rangedThing . nameOf $ unArg arg
 
 
 {- UNUSED CODE, BUT DON'T REMOVE (2012-04-18)
@@ -1217,7 +1219,7 @@ checkArguments exh expandIFS r args0@(arg@(Arg info e) : args) t0 t1 =
         ]
       -- First, insert implicit arguments, depending on current argument @arg@.
       let hx = getHiding info  -- hiding of current argument
-          mx = nameOf e        -- name of current argument
+          mx = fmap rangedThing $ nameOf e -- name of current argument
           -- do not insert visible arguments
           expand NotHidden y = False
           -- insert a hidden argument if arg is not hidden or has different name
@@ -1256,7 +1258,7 @@ checkArguments exh expandIFS r args0@(arg@(Arg info e) : args) t0 t1 =
         case ignoreSharing $ unEl t0' of
           Pi (Dom info' a) b
             | getHiding info == getHiding info'
-              && (notHidden info || maybe True (absName b ==) (nameOf e)) -> do
+              && (notHidden info || maybe True ((absName b ==) . rangedThing) (nameOf e)) -> do
                 u <- lift $ applyRelevanceToContext (getRelevance info') $ do
                   checkExpr (namedThing e) a
                 -- save relevance info' from domain in argument

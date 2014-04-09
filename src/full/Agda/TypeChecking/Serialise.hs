@@ -545,6 +545,11 @@ instance (EmbPrj s, EmbPrj t) => EmbPrj (Named s t) where
   value = vcase valu where valu [a, b] = valu2 Named a b
                            valu _      = malformed
 
+instance EmbPrj a => EmbPrj (Ranged a) where
+  icode (Ranged r x) = icode2' r x
+  value = vcase valu where valu [r, x] = valu2 Ranged r x
+                           valu _      = malformed
+
 -- Only used for pattern synonyms
 instance EmbPrj A.Expr where
   icode (A.Var n)               = icode1 0 n

@@ -302,9 +302,9 @@ data Pattern
     -- ^ Projection copattern.  Can only appear by itself.
   deriving (Typeable, Show)
 
-namedVarP :: String -> Named String Pattern
+namedVarP :: String -> Named RString Pattern
 namedVarP "_" = Named Nothing (VarP "_")
-namedVarP x   = Named (Just x) (VarP x)
+namedVarP x   = Named (Just $ unranged x) (VarP x)
 
 -- | The @ConPatternInfo@ states whether the constructor belongs to
 --   a record type (@Just@) or data type (@Nothing@).

@@ -591,7 +591,7 @@ introHiddenLambdas clause = liftTCM $ do
           return $ Clause range ctel' perm' ps' body' $ Just (t $> t')
   where
     toPat (Common.Arg (Common.ArgInfo h r c) x) =
-           Common.Arg (Common.ArgInfo h r []) $ Named (Just x) $ VarP x
+           Common.Arg (Common.ArgInfo h r []) $ namedVarP x
     removeHiddenLambdas :: ClauseBody -> ([I.Arg String], ClauseBody)
     removeHiddenLambdas = underBinds $ hlamsToBinds
 

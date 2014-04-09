@@ -90,8 +90,7 @@ problemFromPats ps a = do
       pr        = ProblemRest ps2 $ defaultArg b
 
       -- internal patterns start as all variables
-      namedVar x = Named (Just x) (VarP x)
-  ips <- mapM (return . argFromDom . fmap (namedVar . fst)) as
+  let ips = map (argFromDom . fmap (namedVarP . fst)) as
 
       -- the initial problem for starting the splitting
   let problem  = Problem ps1 (idP $ size ps1, ips) gamma pr :: Problem

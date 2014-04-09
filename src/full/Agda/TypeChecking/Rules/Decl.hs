@@ -475,9 +475,10 @@ checkModuleArity m tel args = check tel args
 
     check tel []             = return tel
     check EmptyTel (_:_)     = bad
-    check (ExtendTel (Dom info _) btel) args0@(Arg info' (Named name _) : args) =
-      let y   = absName btel
-          tel = absBody btel in
+    check (ExtendTel (Dom info _) btel) args0@(Arg info' (Named rname _) : args) =
+      let name = fmap rangedThing rname
+          y    = absName btel
+          tel  = absBody btel in
       case (argInfoHiding info, argInfoHiding info', name) of
         (Instance, NotHidden, _) -> check tel args0
         (Instance, Hidden, _)    -> check tel args0

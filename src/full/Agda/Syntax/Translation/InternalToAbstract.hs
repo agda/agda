@@ -483,7 +483,8 @@ nameFirstIfHidden :: [I.Dom (String, t)] -> [I.Arg a] -> [I.NamedArg a]
 nameFirstIfHidden _         []                    = []
 nameFirstIfHidden []        (_ : _)               = __IMPOSSIBLE__
 nameFirstIfHidden (dom : _) (Common.Arg info e : es) | isHidden info =
-  Common.Arg info (Named (Just $ fst $ unDom dom) e) : map (fmap unnamed) es
+  Common.Arg info (Named (Just $ unranged $ fst $ unDom dom) e) :
+  map (fmap unnamed) es
 nameFirstIfHidden _         es                    = map (fmap unnamed) es
 
 instance Reify i a => Reify (Named n i) (Named n a) where
