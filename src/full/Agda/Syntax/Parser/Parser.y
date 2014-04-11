@@ -114,6 +114,7 @@ import Agda.Utils.Tuple
     'COMPILED_JS'   { TokKeyword KwCOMPILED_JS $$ }
     'STATIC'        { TokKeyword KwSTATIC $$ }
     'quoteGoal'     { TokKeyword KwQuoteGoal $$ }
+    'quoteContext'  { TokKeyword KwQuoteContext $$ }
     'quote'         { TokKeyword KwQuote $$ }
     'quoteTerm'     { TokKeyword KwQuoteTerm $$ }
     'unquote'       { TokKeyword KwUnquote $$ }
@@ -219,6 +220,7 @@ Token
     | 'ETA'           { TokKeyword KwETA $1 }
     | 'NO_TERMINATION_CHECK' { TokKeyword KwNO_TERMINATION_CHECK $1 }
     | 'quoteGoal'     { TokKeyword KwQuoteGoal $1 }
+    | 'quoteContext'     { TokKeyword KwQuoteContext $1 }
     | 'quote'         { TokKeyword KwQuote $1 }
     | 'quoteTerm'     { TokKeyword KwQuoteTerm $1 }
     | 'unquote'       { TokKeyword KwUnquote $1 }
@@ -534,6 +536,7 @@ Expr2
     | 'let' Declarations 'in' Expr { Let (getRange ($1,$2,$3,$4)) $2 $4 }
     | Expr3			   { $1 }
     | 'quoteGoal' Id 'in' Expr     { QuoteGoal (getRange ($1,$2,$3,$4)) $2 $4 }
+    | 'quoteContext' Id 'in' Expr     { QuoteContext (getRange ($1,$2,$3,$4)) $2 $4 }
 
 ExtendedOrAbsurdLam :: { Expr }
 ExtendedOrAbsurdLam

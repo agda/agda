@@ -684,7 +684,17 @@ checkExpr e t0 =
               tmType <- agdaTermType
               (v, ty) <- addLetBinding defaultArgInfo x quoted tmType (inferExpr e)
               blockTerm t' $ coerce v ty t'
-
+        e0@(A.QuoteContext _ x e) -> do
+          ctx <- getContext
+          lets <- envLetBindings <$> ask
+          thisModule <- currentModule
+          let contextNames = map (\(Dom _ (nm,_)) -> quoteName $ qualify thisModule nm) ctx
+          let letNames = map (quoteName . qualify thisModule) $ Map.keys lets
+          let names = contextNames ++ letNames
+          nameList <- buildList <*> return names
+          ctxType <- el (list primQName)
+          (v, ctxType) <- addLetBinding defaultArgInfo x nameList ctxType (inferExpr e)
+          blockTerm t $ coerce v ctxType t
         A.ETel _   -> __IMPOSSIBLE__
 
 	-- Application

@@ -573,11 +573,12 @@ instance EmbPrj A.Expr where
   icode (A.RecUpdate _ a b)     = icode2 18 a b
   icode (A.ScopedExpr a b)      = icode2 19 a b
   icode (A.QuoteGoal _ a b)     = icode2 20 a b
-  icode (A.Quote _)             = icode0 21
-  icode (A.QuoteTerm _)         = icode0 22
-  icode (A.Unquote _)           = icode0 23
-  icode (A.DontCare a)          = icode1 24 a
-  icode (A.PatternSyn a)        = icode1 25 a
+  icode (A.QuoteContext _ a b)  = icode2 21 a b
+  icode (A.Quote _)             = icode0 22
+  icode (A.QuoteTerm _)         = icode0 23
+  icode (A.Unquote _)           = icode0 24
+  icode (A.DontCare a)          = icode1 25 a
+  icode (A.PatternSyn a)        = icode1 26 a
 
   value = vcase valu
     where
@@ -600,11 +601,12 @@ instance EmbPrj A.Expr where
       valu [18, a, b] = valu2 (A.RecUpdate i) a b
       valu [19, a, b] = valu2 A.ScopedExpr a b
       valu [20, a, b] = valu2 (A.QuoteGoal i) a b
-      valu [21]       = valu0 (A.Quote i)
-      valu [22]       = valu0 (A.QuoteTerm i)
-      valu [23]       = valu0 (A.Unquote i)
-      valu [24, a]    = valu1 A.DontCare a
-      valu [25, a]    = valu1 A.PatternSyn a
+      valu [21, a, b] = valu2 (A.QuoteContext i) a b
+      valu [22]       = valu0 (A.Quote i)
+      valu [23]       = valu0 (A.QuoteTerm i)
+      valu [24]       = valu0 (A.Unquote i)
+      valu [25, a]    = valu1 A.DontCare a
+      valu [26, a]    = valu1 A.PatternSyn a
       valu _          = malformed
 
       i = ExprRange noRange

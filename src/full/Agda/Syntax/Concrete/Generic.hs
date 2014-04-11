@@ -92,38 +92,39 @@ instance (ExprLike a, ExprLike b, ExprLike c) => ExprLike (a, b, c) where
 
 instance ExprLike Expr where
   mapExpr f e0 = case e0 of
-     Ident{}          -> f $ e0
-     Lit{}            -> f $ e0
-     QuestionMark{}   -> f $ e0
-     Underscore{}     -> f $ e0
-     RawApp r es      -> f $ RawApp r               $ mapE es
-     App r e es       -> f $ App r       (mapE e)   $ mapE es
-     OpApp r q es     -> f $ OpApp r q              $ mapE es
-     WithApp r e es   -> f $ WithApp r   (mapE e)   $ mapE es
-     HiddenArg r e    -> f $ HiddenArg r            $ mapE e
-     InstanceArg r e  -> f $ InstanceArg r          $ mapE e
-     Lam r bs e       -> f $ Lam r       (mapE bs)  $ mapE e
-     AbsurdLam{}      -> f $ e0
-     ExtendedLam r cs -> f $ ExtendedLam r          $ mapE cs
-     Fun r a b        -> f $ Fun r       (mapE a)   $ mapE b
-     Pi tel e         -> f $ Pi          (mapE tel) $ mapE e
-     Set{}            -> f $ e0
-     Prop{}           -> f $ e0
-     SetN{}           -> f $ e0
-     Rec r es         -> f $ Rec r                  $ mapE es
-     RecUpdate r e es -> f $ RecUpdate r (mapE e)   $ mapE es
-     Let r ds e       -> f $ Let r       (mapE ds)  $ mapE e
-     Paren r e        -> f $ Paren r                $ mapE e
-     Absurd{}         -> f $ e0
-     As r x e         -> f $ As r x                 $ mapE e
-     Dot r e          -> f $ Dot r                  $ mapE e
-     ETel tel         -> f $ ETel                   $ mapE tel
-     QuoteGoal r x e  -> f $ QuoteGoal r x          $ mapE e
-     Quote{}          -> f $ e0
-     QuoteTerm{}      -> f $ e0
-     Unquote{}        -> f $ e0
-     DontCare e       -> f $ DontCare               $ mapE e
-     Equal{}          -> f $ e0
+     Ident{}            -> f $ e0
+     Lit{}              -> f $ e0
+     QuestionMark{}     -> f $ e0
+     Underscore{}       -> f $ e0
+     RawApp r es        -> f $ RawApp r               $ mapE es
+     App r e es         -> f $ App r       (mapE e)   $ mapE es
+     OpApp r q es       -> f $ OpApp r q              $ mapE es
+     WithApp r e es     -> f $ WithApp r   (mapE e)   $ mapE es
+     HiddenArg r e      -> f $ HiddenArg r            $ mapE e
+     InstanceArg r e    -> f $ InstanceArg r          $ mapE e
+     Lam r bs e         -> f $ Lam r       (mapE bs)  $ mapE e
+     AbsurdLam{}        -> f $ e0
+     ExtendedLam r cs   -> f $ ExtendedLam r          $ mapE cs
+     Fun r a b          -> f $ Fun r       (mapE a)   $ mapE b
+     Pi tel e           -> f $ Pi          (mapE tel) $ mapE e
+     Set{}              -> f $ e0
+     Prop{}             -> f $ e0
+     SetN{}             -> f $ e0
+     Rec r es           -> f $ Rec r                  $ mapE es
+     RecUpdate r e es   -> f $ RecUpdate r (mapE e)   $ mapE es
+     Let r ds e         -> f $ Let r       (mapE ds)  $ mapE e
+     Paren r e          -> f $ Paren r                $ mapE e
+     Absurd{}           -> f $ e0
+     As r x e           -> f $ As r x                 $ mapE e
+     Dot r e            -> f $ Dot r                  $ mapE e
+     ETel tel           -> f $ ETel                   $ mapE tel
+     QuoteGoal r x e    -> f $ QuoteGoal r x          $ mapE e
+     QuoteContext r x e -> f $ QuoteContext r x       $ mapE e
+     Quote{}            -> f $ e0
+     QuoteTerm{}        -> f $ e0
+     Unquote{}          -> f $ e0
+     DontCare e         -> f $ DontCare               $ mapE e
+     Equal{}            -> f $ e0
    where mapE e = mapExpr f e
 
 instance ExprLike a => ExprLike (OpApp a) where

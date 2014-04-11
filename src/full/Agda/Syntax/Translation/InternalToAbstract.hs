@@ -769,6 +769,7 @@ instance DotVars A.Expr where
     A.RecUpdate _ e es     -> dotVars (e, map snd es)
     A.ETel _               -> __IMPOSSIBLE__
     A.QuoteGoal {}         -> __IMPOSSIBLE__
+    A.QuoteContext {}      -> __IMPOSSIBLE__
     A.Quote {}             -> __IMPOSSIBLE__
     A.QuoteTerm {}         -> __IMPOSSIBLE__
     A.Unquote {}           -> __IMPOSSIBLE__

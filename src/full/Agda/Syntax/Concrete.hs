@@ -106,6 +106,7 @@ data Expr
 	| Dot !Range Expr		       -- ^ ex: @.p@, only in patterns
         | ETel Telescope                       -- ^ only used for printing telescopes
         | QuoteGoal !Range Name Expr           -- ^ ex: @quoteGoal x in e@
+        | QuoteContext !Range Name Expr        -- ^ ex: @quoteContext ctx in e@
         | Quote !Range                         -- ^ ex: @quote@, should be applied to a name
         | QuoteTerm !Range                     -- ^ ex: @quoteTerm@, should be applied to a term
         | Unquote !Range                       -- ^ ex: @unquote@, should be applied to a term of type @Term@
@@ -458,6 +459,7 @@ instance HasRange Expr where
 	    RecUpdate r _ _	-> r
             ETel tel            -> getRange tel
             QuoteGoal r _ _     -> r
+            QuoteContext r _ _  -> r
             Quote r             -> r
             QuoteTerm r         -> r
             Unquote r           -> r
@@ -600,38 +602,39 @@ instance KillRange Declaration where
   killRange (Pragma p)              = killRange1 Pragma p
 
 instance KillRange Expr where
-  killRange (Ident q)           = killRange1 Ident q
-  killRange (Lit l)             = killRange1 Lit l
-  killRange (QuestionMark _ n)  = QuestionMark noRange n
-  killRange (Underscore _ n)    = Underscore noRange n
-  killRange (RawApp _ e)        = killRange1 (RawApp noRange) e
-  killRange (App _ e a)         = killRange2 (App noRange) e a
-  killRange (OpApp _ n o)       = killRange2 (OpApp noRange) n o
-  killRange (WithApp _ e es)    = killRange2 (WithApp noRange) e es
-  killRange (HiddenArg _ n)     = killRange1 (HiddenArg noRange) n
-  killRange (InstanceArg _ n)   = killRange1 (InstanceArg noRange) n
-  killRange (Lam _ l e)         = killRange2 (Lam noRange) l e
-  killRange (AbsurdLam _ h)     = killRange1 (AbsurdLam noRange) h
-  killRange (ExtendedLam _ lrw) = killRange1 (ExtendedLam noRange) lrw
-  killRange (Fun _ e1 e2)       = killRange2 (Fun noRange) e1 e2
-  killRange (Pi t e)            = killRange2 Pi t e
-  killRange (Set _)             = Set noRange
-  killRange (Prop _)            = Prop noRange
-  killRange (SetN _ n)          = SetN noRange n
-  killRange (Rec _ ne)          = killRange1 (Rec noRange) ne
-  killRange (RecUpdate _ e ne)  = killRange2 (RecUpdate noRange) e ne
-  killRange (Let _ d e)         = killRange2 (Let noRange) d e
-  killRange (Paren _ e)         = killRange1 (Paren noRange) e
-  killRange (Absurd _)          = Absurd noRange
-  killRange (As _ n e)          = killRange2 (As noRange) n e
-  killRange (Dot _ e)           = killRange1 (Dot noRange) e
-  killRange (ETel t)            = killRange1 ETel t
-  killRange (QuoteGoal _ n e)   = killRange2 (QuoteGoal noRange) n e
-  killRange (Quote _)           = Quote noRange
-  killRange (QuoteTerm _)       = QuoteTerm noRange
-  killRange (Unquote _)         = Unquote noRange
-  killRange (DontCare e)        = killRange1 DontCare e
-  killRange (Equal _ x y)       = Equal noRange x y
+  killRange (Ident q)            = killRange1 Ident q
+  killRange (Lit l)              = killRange1 Lit l
+  killRange (QuestionMark _ n)   = QuestionMark noRange n
+  killRange (Underscore _ n)     = Underscore noRange n
+  killRange (RawApp _ e)         = killRange1 (RawApp noRange) e
+  killRange (App _ e a)          = killRange2 (App noRange) e a
+  killRange (OpApp _ n o)        = killRange2 (OpApp noRange) n o
+  killRange (WithApp _ e es)     = killRange2 (WithApp noRange) e es
+  killRange (HiddenArg _ n)      = killRange1 (HiddenArg noRange) n
+  killRange (InstanceArg _ n)    = killRange1 (InstanceArg noRange) n
+  killRange (Lam _ l e)          = killRange2 (Lam noRange) l e
+  killRange (AbsurdLam _ h)      = killRange1 (AbsurdLam noRange) h
+  killRange (ExtendedLam _ lrw)  = killRange1 (ExtendedLam noRange) lrw
+  killRange (Fun _ e1 e2)        = killRange2 (Fun noRange) e1 e2
+  killRange (Pi t e)             = killRange2 Pi t e
+  killRange (Set _)              = Set noRange
+  killRange (Prop _)             = Prop noRange
+  killRange (SetN _ n)           = SetN noRange n
+  killRange (Rec _ ne)           = killRange1 (Rec noRange) ne
+  killRange (RecUpdate _ e ne)   = killRange2 (RecUpdate noRange) e ne
+  killRange (Let _ d e)          = killRange2 (Let noRange) d e
+  killRange (Paren _ e)          = killRange1 (Paren noRange) e
+  killRange (Absurd _)           = Absurd noRange
+  killRange (As _ n e)           = killRange2 (As noRange) n e
+  killRange (Dot _ e)            = killRange1 (Dot noRange) e
+  killRange (ETel t)             = killRange1 ETel t
+  killRange (QuoteGoal _ n e)    = killRange2 (QuoteGoal noRange) n e
+  killRange (QuoteContext _ n e) = killRange2 (QuoteContext noRange) n e
+  killRange (Quote _)            = Quote noRange
+  killRange (QuoteTerm _)        = QuoteTerm noRange
+  killRange (Unquote _)          = Unquote noRange
+  killRange (DontCare e)         = killRange1 DontCare e
+  killRange (Equal _ x y)        = Equal noRange x y
 
 instance KillRange ImportDirective where
   killRange (ImportDirective _ u r p) =

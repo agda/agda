@@ -87,6 +87,7 @@ data Expr
 	| RecUpdate ExprInfo Expr Assigns    -- ^ record update
 	| ScopedExpr ScopeInfo Expr	     -- ^ scope annotation
         | QuoteGoal ExprInfo Name Expr       -- ^ binds @Name@ to current type in @Expr@
+        | QuoteContext ExprInfo Name Expr    -- ^ binds @Name@ to current context in @Expr@
         | Quote ExprInfo                     -- ^
         | QuoteTerm ExprInfo                 -- ^
         | Unquote ExprInfo                   -- ^ The splicing construct: unquote ...
@@ -471,6 +472,7 @@ instance HasRange Expr where
     getRange (ETel tel)            = getRange tel
     getRange (ScopedExpr _ e)	   = getRange e
     getRange (QuoteGoal _ _ e)	   = getRange e
+    getRange (QuoteContext _ _ e)  = getRange e
     getRange (Quote i)  	   = getRange i
     getRange (QuoteTerm i)  	   = getRange i
     getRange (Unquote i)  	   = getRange i
@@ -580,6 +582,7 @@ instance KillRange Expr where
   killRange (ETel tel)             = killRange1 ETel tel
   killRange (ScopedExpr s e)       = killRange1 (ScopedExpr s) e
   killRange (QuoteGoal i x e)      = killRange3 QuoteGoal i x e
+  killRange (QuoteContext i x e)   = killRange3 QuoteContext i x e
   killRange (Quote i)              = killRange1 Quote i
   killRange (QuoteTerm i)          = killRange1 QuoteTerm i
   killRange (Unquote i)            = killRange1 Unquote i
@@ -720,6 +723,7 @@ allNames (FunDef _ q _ cls)       = q <| Fold.foldMap allNamesC cls
   allNamesE (RecUpdate _ e fs)           = allNamesE e >< Fold.foldMap allNamesE (map snd fs)
   allNamesE (ScopedExpr _ e)             = allNamesE e
   allNamesE (QuoteGoal _ _ e)            = allNamesE e
+  allNamesE (QuoteContext _ _ e)         = allNamesE e
   allNamesE Quote {}                     = Seq.empty
   allNamesE QuoteTerm {}                 = Seq.empty
   allNamesE Unquote {}                   = Seq.empty
@@ -857,6 +861,7 @@ substExpr s e = case e of
   -- XXX: Do we need to do more with ScopedExprs?
   ScopedExpr si e       -> ScopedExpr si (substExpr s e)
   QuoteGoal i n e       -> QuoteGoal i n (substExpr s e)
+  QuoteContext i n e    -> QuoteContext i n (substExpr s e)
   Quote i               -> e
   QuoteTerm i           -> e
   Unquote i             -> e

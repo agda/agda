@@ -85,6 +85,7 @@ instance ExprLike Expr where
       RecUpdate ei e bs       -> f =<< RecUpdate ei <$> trav e <*> trav bs
       ScopedExpr sc e         -> f =<< ScopedExpr sc <$> trav e
       QuoteGoal ei n e        -> f =<< QuoteGoal ei n <$> trav e
+      QuoteContext ei n e     -> f =<< QuoteContext ei n <$> trav e
       Quote{}                 -> f e
       QuoteTerm{}             -> f e
       Unquote{}               -> f e
