@@ -1073,10 +1073,6 @@ equalLevel a b = do
                                   ]
                    ]
             ]
-      let a === b   = do
-            lvl <- levelType
-            equalAtom lvl a b
-          as =!= bs = levelTm (Max as) === levelTm (Max bs)
       case (as, bs) of
         _ | as == bs -> ok
           | any isBlocked (as ++ bs) -> do
@@ -1107,10 +1103,11 @@ equalLevel a b = do
         (_, [Plus n (MetaLevel x bs)])
           | any (isThisMeta x) as -> postpone
         ([Plus n (MetaLevel x as')], [Plus m (MetaLevel y bs')])
+            -- lexicographic comparison intended!
           | (n, y) < (m, x)            -> meta n x as' bs
           | otherwise                  -> meta m y bs' as
-        ([Plus n (MetaLevel x as)], _) -> meta n x as bs
-        (_, [Plus n (MetaLevel x bs)]) -> meta n x bs as
+        ([Plus n (MetaLevel x as')],_) -> meta n x as' bs
+        (_,[Plus m (MetaLevel y bs')]) -> meta m y bs' as
 
         -- any other metas
         -- Andreas, 2013-10-31: There could be metas in neutral levels (see Issue 930).
@@ -1128,6 +1125,11 @@ equalLevel a b = do
         _ -> postpone
 
       where
+        a === b   = do
+            lvl <- levelType
+            equalAtom lvl a b
+        as =!= bs = levelTm (Max as) === levelTm (Max bs)
+
         ok       = return ()
         notok    = typeError $ UnequalSorts (Type a) (Type b)
         postpone = do
@@ -1137,12 +1139,12 @@ equalLevel a b = do
         closed0 [] = [ClosedLevel 0]
         closed0 as = as
 
+        -- perform assignment (Plus n (MetaLevel x as)) := bs
         meta n x as bs = do
+          reportSLn "tc.meta.level" 30 $ "Assigning meta level"
           reportSLn "tc.meta.level" 50 $ "meta " ++ show as ++ " " ++ show bs
           bs' <- mapM (subtr n) bs
-          assignE x as (levelTm (Max bs')) $ \ a b -> do
-            lvl <- levelType
-            equalAtom lvl a b
+          assignE x as (levelTm (Max bs')) (===) -- fallback: check equality as atoms
 
         -- Make sure to give a sensible error message
         wrap m = m `catchError` \err ->
