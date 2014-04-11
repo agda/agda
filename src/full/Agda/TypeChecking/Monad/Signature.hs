@@ -67,6 +67,9 @@ withSignature sig m =
 
 -- * modifiers for parts of the signature
 
+lookupDefinition :: QName -> Signature -> Maybe Definition
+lookupDefinition q sig = HMap.lookup q $ sigDefinitions sig
+
 updateDefinition :: QName -> (Definition -> Definition) -> Signature -> Signature
 updateDefinition q f sig = sig { sigDefinitions = HMap.adjust f q (sigDefinitions sig) }
 

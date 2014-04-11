@@ -111,6 +111,9 @@ computePolarity x = do
 
   -- refine polarity again by using type information
   let t = defType def
+  -- Instantiation takes place in Rules.Decl.instantiateDefinitionType
+  -- t <- instantiateFull t -- Andreas, 2014-04-11 Issue 1099: needed for
+  --                        -- variable occurrence test in  dependentPolarity.
   reportSDoc "tc.polarity.set" 15 $ text "Refining polarity with type " <+> prettyTCM t
   pol <- enablePhantomTypes (theDef def) <$> dependentPolarity t pol1
   reportSLn "tc.polarity.set" 10 $ "Polarity of " ++ show x ++ ": " ++ show pol
@@ -173,6 +176,9 @@ dependentPolarity t pols@(p:ps) = do
       ps <- dependentPolarity c ps
       p  <- case b of
               Abs{} | p /= Invariant  ->
+                -- Andreas, 2014-04-11 see Issue 1099
+                -- Free variable analysis is not in the monad,
+                -- hence metas must have been instantiated before!
                 ifM (relevantInIgnoringNonvariant 0 c ps)
                   (return Invariant)
                   (return p)

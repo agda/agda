@@ -182,6 +182,8 @@ checkDecl d = traceCall (SetRange (getRange d)) $ do
     -- block (or non-mutual record declaration). The set names
     -- contains the names defined in the mutual block.
     mutualChecks names = do
+      -- Andreas, 2014-04-11: instantiate metas in definition types
+      mapM_ instantiateDefinitionType $ Set.toList names
       -- Andreas, 2013-02-27: check termination before injectivity,
       -- to avoid making the injectivity checker loop.
       termErrs <- checkTermination_ d
@@ -192,6 +194,37 @@ checkDecl d = traceCall (SetRange (getRange d)) $ do
       checkInjectivity_        names
       checkProjectionLikeness_ names
       return termErrs
+
+-- | Instantiate all metas in 'Definition' associated to 'QName'.
+--   Makes sense after freezing metas.
+--   Some checks, like free variable analysis, are not in 'TCM',
+--   so they will be more precise (see issue 1099) after meta instantiation.
+--
+--   Precondition: name has been added to signature already.
+instantiateDefinitionType :: QName -> TCM ()
+instantiateDefinitionType q = do
+  reportSLn "tc.decl.inst" 20 $ "instantiating type of " ++ show q
+  sig <- getSignature
+  let t = defType $ fromMaybe __IMPOSSIBLE__ $ lookupDefinition q sig
+  t <- instantiateFull t
+  modifySignature $ updateDefinition q $ \ def -> def { defType = t }
+
+-- Andreas, 2014-04-11
+-- UNUSED, costs a couple of sec on the std-lib
+-- -- | Instantiate all metas in 'Definition' associated to 'QName'.
+-- --   Makes sense after freezing metas.
+-- --   Some checks, like free variable analysis, are not in 'TCM',
+-- --   so they will be more precise (see issue 1099) after meta instantiation.
+-- --
+-- --   Precondition: name has been added to signature already.
+-- instantiateDefinition :: QName -> TCM ()
+-- instantiateDefinition q = do
+--   reportSLn "tc.decl.inst" 20 $ "instantiating " ++ show q
+--   sig <- getSignature
+--   let def = fromMaybe __IMPOSSIBLE__ $ lookupDefinition q sig
+--   def <- instantiateFull def
+--   modifySignature $ updateDefinition q $ const def
+
 
 -- | Termination check a declaration and return a list of termination errors.
 checkTermination_ :: A.Declaration -> TCM [TerminationError]
