@@ -124,12 +124,18 @@ compareTerm cmp a u v = do
     , nest 2 $ prettyTCM u <+> prettyTCM cmp <+> prettyTCM v
     , nest 2 $ text ":" <+> prettyTCM a
     ]
+  -- If we are at type Size, we cannot short-cut comparison
+  -- against metas by assignment.
+  -- Andreas, 2014-04-12: this looks incomplete.
+  -- It seems to assume we are never comparing
+  -- at function types into Size.
   let fallback = compareTerm' cmp a u v
       unlessSubtyping cont =
           if cmp == CmpEq then cont else do
+            -- Andreas, 2014-04-12 do not short cut if type is blocked.
+            ifBlockedType a (\ _ _ -> fallback) {-else-} $ \ a -> do
             -- do not short circuit size comparison!
-            isSize <- isJust <$> do isSizeTypeTest <*> reduce a
-            if isSize then fallback else cont
+            caseMaybeM (isSizeTypeTest <*> return a) cont (\ _ -> fallback)
 
       dir = fromCmp cmp
       rid = flipCmp dir     -- The reverse direction.  Bad name, I know.
