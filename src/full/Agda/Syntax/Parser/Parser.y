@@ -672,7 +672,7 @@ AbsurdLamBindings
       Right es -> return $ Right es
     }
 
--- absurd lambda is represented by Left hiding
+-- absurd lambda is represented by @Left hiding@
 LamBinds :: { [Either Hiding LamBinding] }
 LamBinds
   : DomainFreeBinding LamBinds  { map Right $1 ++ $2 }
