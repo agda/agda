@@ -69,6 +69,9 @@ isSizeNameTestRaw = do
 -- * Constructors
 ------------------------------------------------------------------------
 
+sizeType_ :: QName -> Type
+sizeType_ size = El (mkType 0) $ Def size []
+
 sizeType :: TCM Type
 sizeType = El (mkType 0) <$> primSize
 
