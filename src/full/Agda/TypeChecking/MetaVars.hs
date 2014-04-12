@@ -615,12 +615,34 @@ assign dir x args v = do
                  , text "fvars lhs (irr):" <+> sep (map (text . show) irrVL)
                  ]
 
+        -- If we are instantiating a size meta, handle error in occurs checks.
+        -- For instance, ?X :>= i can be solved by ∞ if i is not in scope of ?X.
+        handler <- if dir /= DirGeq then return Nothing else do
+          reportSDoc "tc.meta.assign.size" 30 $ do
+             text "possibly setting up handler for occurs check at type " <+> prettyTCM t
+          TelV tel core <- telView t
+          isSize <- isSizeTypeTest <*> return core
+          case isSize of
+            Nothing          -> return Nothing
+            Just BoundedLt{} -> return Nothing
+            Just BoundedNo   -> do
+              reportSLn "tc.meta.assign.size" 30 $ "handler installed"
+              return $ Just $ do
+              reportSLn "tc.meta.assign.size" 30 $ "handling illegal variable occurrence by defaulting to ∞"
+              primInf
+              -- -- Instantiate by ∞.
+              -- u <- killRange $ abstract tel <$> primInf
+              -- -- Perform the assignment (and wake constraints).
+              -- reportSDoc "tc.meta.assign" 10 $
+              --   text "solving" <+> prettyTCM x <+> text ":=" <+> prettyTCM u
+              -- assignTerm x u
+
 	-- Check that the x doesn't occur in the right hand side.
         -- Prune mvars on rhs such that they can only depend on varsL.
         -- Herein, distinguish relevant and irrelevant vars,
         -- since when abstracting irrelevant lhs vars, they may only occur
         -- irrelevantly on rhs.
-	v <- liftTCM $ occursCheck x (relVL, irrVL) v
+	v <- liftTCM $ occursCheck x (relVL, irrVL) v handler
 
 	reportSLn "tc.meta.assign" 15 "passed occursCheck"
 	verboseS "tc.meta.assign" 30 $ do
