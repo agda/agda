@@ -146,7 +146,7 @@ findInScope' m cands = ifM (isFrozen m) (return (Just cands)) $ do
             leqType t'' t
             ctxArgs <- getContextArgs
             v <- (`applyDroppingParameters` args) =<< reduce term
-            assignV m ctxArgs v
+            assignV DirEq m ctxArgs v
             reportSDoc "tc.constr.findInScope" 10 $
               text "solved by instance search:" <+> prettyTCM m
               <+> text ":=" <+> prettyTCM v
@@ -198,7 +198,7 @@ checkCandidates m t cands = localTCState $ disableDestructiveUpdate $ do
               reportSDoc "tc.constr.findInScope" 10 $
                 text "instance search: attempting" <+> prettyTCM m
                 <+> text ":=" <+> prettyTCM v
-              assign m ctxArgs v
+              assign DirEq m ctxArgs v
 --              assign m ctxArgs (term `apply` args)
               -- make a pass over constraints, to detect cases where some are made
               -- unsolvable by the assignment, but don't do this for FindInScope's

@@ -506,14 +506,14 @@ etaExpandBlocked (Blocked m t)  = do
 --   during equality checking (@compareAtom@) and leads to
 --   restoration of the original constraints.
 
-assignV :: MetaId -> Args -> Term -> TCM ()
-assignV x args v = assignWrapper x (map Apply args) v $ assign x args v
+assignV :: CompareDirection -> MetaId -> Args -> Term -> TCM ()
+assignV dir x args v = assignWrapper dir x (map Apply args) v $ assign dir x args v
 
-assignWrapper :: MetaId -> Elims -> Term -> TCM () -> TCM ()
-assignWrapper x es v doAssign = do
+assignWrapper :: CompareDirection -> MetaId -> Elims -> Term -> TCM () -> TCM ()
+assignWrapper dir x es v doAssign = do
   ifNotM (asks envAssignMetas) patternViolation $ {- else -} do
     reportSDoc "tc.meta.assign" 10 $ do
-      text "term" <+> prettyTCM (MetaV x es) <+> text ":=" <+> prettyTCM v
+      text "term" <+> prettyTCM (MetaV x es) <+> text (":" ++ show dir) <+> prettyTCM v
     liftTCM $ nowSolvingConstraints doAssign `finally` solveAwakeConstraints
 
 
@@ -533,8 +533,8 @@ assignWrapper x es v doAssign = do
 --   For a reference to some of these extensions, read
 --   Andreas Abel and Brigitte Pientka's TLCA 2011 paper.
 
-assign :: MetaId -> Args -> Term -> TCM ()
-assign x args v = do
+assign :: CompareDirection -> MetaId -> Args -> Term -> TCM ()
+assign dir x args v = do
 
         mvar <- lookupMeta x  -- information associated with meta x
         let t = jMetaType $ mvJudgement mvar
@@ -1010,13 +1010,13 @@ inverseSubst args = map (mapFst unArg) <$> loop (zip args terms)
 
 
 
-
+-- | Used in 'Agda.Interaction.BasicOps.giveExpr'.
 updateMeta :: MetaId -> Term -> TCM ()
 updateMeta mI v = do
     mv <- lookupMeta mI
     withMetaInfo' mv $ do
       args <- getContextArgs
-      noConstraints $ assignV mI args v
+      noConstraints $ assignV DirEq mI args v
 
 -- | Returns every meta-variable occurrence in the given type, except
 -- for those in 'Sort's.

@@ -130,24 +130,28 @@ compareTerm cmp a u v = do
             -- do not short circuit size comparison!
             isSize <- isJust <$> do isSizeTypeTest <*> reduce a
             if isSize then fallback else cont
+
+      dir = fromCmp cmp
+      rid = flipCmp dir     -- The reverse direction.  Bad name, I know.
   case (ignoreSharing u, ignoreSharing v) of
     (MetaV x us, MetaV y vs)
       | x /= y    -> unlessSubtyping $ solve1 `orelse` solve2 `orelse` compareTerm' cmp a u v
       | otherwise -> fallback
       where
-        (solve1, solve2) | x > y     = (assign x us v, assign y vs u)
-                         | otherwise = (assign y vs u, assign x us v)
-    (MetaV x us, _) -> unlessSubtyping $ assign x us v `orelse` fallback
-    (_, MetaV y vs) -> unlessSubtyping $ assign y vs u `orelse` fallback
+        (solve1, solve2) | x > y     = (assign dir x us v, assign rid y vs u)
+                         | otherwise = (assign rid y vs u, assign dir x us v)
+    (MetaV x us, _) -> unlessSubtyping $ assign dir x us v `orelse` fallback
+    (_, MetaV y vs) -> unlessSubtyping $ assign rid y vs u `orelse` fallback
     _               -> fallback
   where
-    assign x es v = do
+    assign dir x es v = do
       -- Andreas, 2013-10-19 can only solve if no projections
       reportSDoc "tc.conv.term.shortcut" 20 $ sep
         [ text "attempting shortcut"
         , nest 2 $ prettyTCM (MetaV x es) <+> text ":=" <+> prettyTCM v
         ]
-      ifM (isInstantiatedMeta x) patternViolation (assignE x es v $ compareTerm' CmpEq a)
+      ifM (isInstantiatedMeta x) patternViolation {-else-} $ do
+        assignE dir x es v $ compareTermDir dir a
       instantiate u
       -- () <- seq u' $ return ()
       reportSLn "tc.conv.term.shortcut" 50 $
@@ -171,14 +175,14 @@ unifyPointers _ _ _ action = action
 
 -- | Try to assign meta.  If meta is projected, try to eta-expand
 --   and run conversion check again.
-assignE :: MetaId -> Elims -> Term -> (Term -> Term -> TCM ()) -> TCM ()
-assignE x es v equate = assignWrapper x es v $ do
+assignE :: CompareDirection -> MetaId -> Elims -> Term -> (Term -> Term -> TCM ()) -> TCM ()
+assignE dir x es v comp = assignWrapper dir x es v $ do
   case allApplyElims es of
-    Just vs -> assignV x vs v
+    Just vs -> assignV dir x vs v
     Nothing -> do
       reportSDoc "tc.conv.assign" 30 $ sep
         [ text "assigning to projected meta "
-        , prettyTCM x <+> sep (map prettyTCM es) <+> text " := " <+> prettyTCM v
+        , prettyTCM x <+> sep (map prettyTCM es) <+> text (":" ++ show dir) <+> prettyTCM v
         ]
       etaExpandMeta [Records] x
       res <- isInstantiatedMeta' x
@@ -186,13 +190,16 @@ assignE x es v equate = assignWrapper x es v $ do
         Just u  -> do
           reportSDoc "tc.conv.assign" 30 $ sep
             [ text "seems like eta expansion instantiated meta "
-            , prettyTCM x <+> text " := " <+> prettyTCM u
+            , prettyTCM x <+> text  (":" ++ show dir) <+> prettyTCM u
             ]
           let w = u `applyE` es
-          equate w v
+          comp w v
         Nothing ->  do
           reportSLn "tc.conv.assign" 30 "eta expansion did not instantiate meta"
           patternViolation  -- nothing happened, give up
+
+compareTermDir :: CompareDirection -> Type -> Term -> Term -> TCM ()
+compareTermDir dir a = dirToCmp (`compareTerm'` a) dir
 
 compareTerm' :: Comparison -> Type -> Term -> Term -> TCM ()
 compareTerm' cmp a m n =
@@ -354,6 +361,8 @@ etaInequal cmp t m n = do
       (_, Lam{}) -> dontKnow
       _          -> inequal
 
+compareAtomDir :: CompareDirection -> Type -> Term -> Term -> TCM ()
+compareAtomDir dir a = dirToCmp (`compareAtom` a) dir
 
 -- | Syntax directed equality on atomic values
 --
@@ -393,7 +402,10 @@ compareAtom cmp t m n =
                 then return ()	-- Check syntactic equality for blocked terms
                 else postpone
 
-          assign x es v = assignE x es v $ equalAtom t
+          dir = fromCmp cmp
+          rid = flipCmp dir     -- The reverse direction.  Bad name, I know.
+
+          assign dir x es v = assignE dir x es v $ compareAtomDir dir t
 
       unifyPointers cmp (ignoreBlocking mb') (ignoreBlocking nb') $ do    -- this needs to go after eta expansion to avoid creating infinite terms
 
@@ -425,9 +437,9 @@ compareAtom cmp t m n =
                 -- instantiate later meta variables first
                 let (solve1, solve2)
                       | (p1,x) > (p2,y) = (l,r)
-                      | otherwise	    = (r,l)
-                      where l = assign x xArgs n
-                            r = assign y yArgs m
+                      | otherwise	= (r,l)
+                      where l = assign dir x xArgs n
+                            r = assign rid y yArgs m
 
                     try m h = m `catchError_` \err -> case err of
                       PatternErr s -> put s >> h
@@ -438,9 +450,8 @@ compareAtom cmp t m n =
                 try solve1 solve2
 
         -- one side a meta, the other an unblocked term
-	(NotBlocked (MetaV x es), _) -> assign x es n
-	(_, NotBlocked (MetaV x es)) -> assign x es m
-
+	(NotBlocked (MetaV x es), _) -> assign dir x es n
+	(_, NotBlocked (MetaV x es)) -> assign rid x es m
         (Blocked{}, Blocked{})	-> checkSyntacticEquality
         (Blocked{}, _)    -> useInjectivity cmp t m n
         (_,Blocked{})     -> useInjectivity cmp t m n
@@ -780,7 +791,7 @@ compareIrrelevant t v w = do
         ]
       if not (irrelevantOrUnused rel) || inst
         then fallback
-        else assignE x es w $ compareIrrelevant t
+        else assignE DirEq x es w $ compareIrrelevant t
         -- the value of irrelevant or unused meta does not matter
     try v w fallback = fallback
 
@@ -1144,7 +1155,7 @@ equalLevel a b = do
           reportSLn "tc.meta.level" 30 $ "Assigning meta level"
           reportSLn "tc.meta.level" 50 $ "meta " ++ show as ++ " " ++ show bs
           bs' <- mapM (subtr n) bs
-          assignE x as (levelTm (Max bs')) (===) -- fallback: check equality as atoms
+          assignE DirEq x as (levelTm (Max bs')) (===) -- fallback: check equality as atoms
 
         -- Make sure to give a sensible error message
         wrap m = m `catchError` \err ->
@@ -1232,7 +1243,7 @@ equalSort s1 s2 =
 
         isInf notok ClosedLevel{} = notok
         isInf notok (Plus _ l) = case l of
-          MetaLevel x es          -> assignE x es (Sort Inf) $ equalAtom topSort
+          MetaLevel x es          -> assignE DirEq x es (Sort Inf) $ equalAtom topSort
           NeutralLevel (Shared p) -> isInf notok (Plus 0 $ NeutralLevel $ derefPtr p)
           NeutralLevel (Sort Inf) -> return ()
           _                       -> notok

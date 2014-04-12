@@ -356,6 +356,34 @@ instance Show Comparison where
   show CmpEq  = "="
   show CmpLeq = "=<"
 
+-- | An extension of 'Comparison' to @>=@.
+data CompareDirection = DirEq | DirLeq | DirGeq
+  deriving (Eq, Typeable)
+
+instance Show CompareDirection where
+  show DirEq  = "="
+  show DirLeq = "=<"
+  show DirGeq = ">="
+
+-- | Embed 'Comparison' into 'CompareDirection'.
+fromCmp :: Comparison -> CompareDirection
+fromCmp CmpEq  = DirEq
+fromCmp CmpLeq = DirLeq
+
+-- | Flip the direction of comparison.
+flipCmp :: CompareDirection -> CompareDirection
+flipCmp DirEq  = DirEq
+flipCmp DirLeq = DirGeq
+flipCmp DirGeq = DirLeq
+
+-- | Turn a 'Comparison' function into a 'CompareDirection' function.
+--
+--   Property: @dirToCmp f (fromCmp cmp) = f cmp@
+dirToCmp :: (Comparison -> a -> a -> c) -> CompareDirection -> a -> a -> c
+dirToCmp cont DirEq  = cont CmpEq
+dirToCmp cont DirLeq = cont CmpLeq
+dirToCmp cont DirGeq = flip $ cont CmpLeq
+
 ---------------------------------------------------------------------------
 -- * Open things
 ---------------------------------------------------------------------------
