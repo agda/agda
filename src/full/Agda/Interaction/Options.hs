@@ -181,7 +181,7 @@ defaultPragmaOptions = PragmaOptions
   , optTerminationDepth          = defaultCutOff
   , optCompletenessCheck         = True
   , optUniverseCheck             = True
-  , optSizedTypes                = False
+  , optSizedTypes                = True
   , optInjectiveTypeConstructors = False
   , optGuardingTypeConstructors  = False
   , optUniversePolymorphism      = True
@@ -252,7 +252,7 @@ unsafePragmaOptions opts =
   [ "--no-termination-check"                     | not (optTerminationCheck opts)    ] ++
   [ "--no-coverage-check"                        | not (optCompletenessCheck opts)   ] ++
   [ "--type-in-type"                             | not (optUniverseCheck opts)       ] ++
-  [ "--sized-types"                              | optSizedTypes opts                ] ++
+  -- [ "--sized-types"                              | optSizedTypes opts                ] ++
   [ "--injective-type-constructors"              | optInjectiveTypeConstructors opts ] ++
   [ "--guardedness-preserving-type-constructors" | optGuardingTypeConstructors opts  ] ++
   [ "--experimental-irrelevance"                 | optExperimentalIrrelevance opts   ] ++
@@ -295,6 +295,7 @@ dontCompletenessCheckFlag    o = return $ o { optCompletenessCheck         = Fal
 dontUniverseCheckFlag        o = return $ o { optUniverseCheck             = False
                                             , optUniversePolymorphism      = False }
 sizedTypes                   o = return $ o { optSizedTypes                = True  }
+noSizedTypes                 o = return $ o { optSizedTypes                = False  }
 injectiveTypeConstructorFlag o = return $ o { optInjectiveTypeConstructors = True  }
 guardingTypeConstructorFlag  o = return $ o { optGuardingTypeConstructors  = True  }
 universePolymorphismFlag     o = return $ o { optUniversePolymorphism      = True  }
@@ -422,7 +423,9 @@ pragmaOptions =
     , Option []	    ["type-in-type"] (NoArg dontUniverseCheckFlag)
 		    "ignore universe levels (this makes Agda inconsistent)"
     , Option []     ["sized-types"] (NoArg sizedTypes)
-                    "use sized types (inconsistent with coinduction)"
+                    "use sized types (default, inconsistent with `musical' coinduction)"
+    , Option []     ["no-sized-types"] (NoArg noSizedTypes)
+                    "disable sized types"
     , Option []     ["injective-type-constructors"] (NoArg injectiveTypeConstructorFlag)
                     "enable injective type constructors (makes Agda anti-classical and possibly inconsistent)"
     , Option []     ["guardedness-preserving-type-constructors"] (NoArg guardingTypeConstructorFlag)

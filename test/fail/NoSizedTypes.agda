@@ -1,6 +1,4 @@
--- {-# OPTIONS --sized-types #-} Option obsolete since 2014-04-12.
-
-module SizedTypesLeqInfty where
+{-# OPTIONS --no-sized-types #-}
 
 postulate
   Size : Set
@@ -17,3 +15,8 @@ data Nat : {size : Size} -> Set where
 
 weak : {i : Size} -> Nat {i} -> Nat {∞}
 weak x = x
+
+-- Should give error without sized types.
+
+-- .i != ∞ of type Size
+-- when checking that the expression x has type Nat

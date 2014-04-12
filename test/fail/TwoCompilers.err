@@ -36,7 +36,8 @@ Usage: agda [OPTIONS...] [FILE]
           --termination-depth=N                       allow termination checker to count decrease/increase upto N (default N=1)
           --no-coverage-check                         do not warn about possibly incomplete pattern matches
           --type-in-type                              ignore universe levels (this makes Agda inconsistent)
-          --sized-types                               use sized types (inconsistent with coinduction)
+          --sized-types                               use sized types (default, inconsistent with 'musical' coinduction)
+          --no-sized-types                            disable sized types
           --injective-type-constructors               enable injective type constructors (makes Agda anti-classical and possibly inconsistent)
           --guardedness-preserving-type-constructors  treat type constructors as inductive constructors when checking productivity
           --no-universe-polymorphism                  disable universe polymorphism

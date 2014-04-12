@@ -94,6 +94,14 @@ Pragmas and Options
   (Number might not be very reliable, due to garbage collection
   interruptions, and maybe due to laziness of Haskell.)
 
+* New option --no-sized-types
+
+  Option --sized-types is now default.
+  --no-sized-types will turn off an extra (inexpensive) analysis on
+  data types used for subtyping of sized types.
+
+
+
 Language
 ========
 
