@@ -18,6 +18,7 @@ module Agda.Utils.Graph.AdjacencyMap.Unidirectional
   , edges
   , edgesFrom
   , edgesTo
+  , diagonal
   , lookup
   , neighbours
   , sourceNodes, targetNodes
@@ -25,6 +26,7 @@ module Agda.Utils.Graph.AdjacencyMap.Unidirectional
   , computeNodes, nodes
   , fromNodes
   , fromList, fromListWith
+  , toList
   , empty
   , singleton
   , insert, insertWith
@@ -136,6 +138,15 @@ edgesTo (Graph g) ts =
   , e <- maybeToList $ Map.lookup t m
   ]
 
+-- | Get all self-loops.
+
+diagonal :: (Ord n) => Graph n n e -> [Edge n n e]
+diagonal (Graph g) =
+  [ Edge s s e
+  | (s, m) <- Map.assocs g
+  , e      <- maybeToList $ Map.lookup s m
+  ]
+
 -- | Lookup label of an edge.
 
 lookup :: (Ord s, Ord t) => s -> t -> Graph s t e -> Maybe e
@@ -208,6 +219,11 @@ fromList = fromListWith $ \ new old -> new
 
 fromListWith :: (Ord s, Ord t) => (e -> e -> e) -> [Edge s t e] -> Graph s t e
 fromListWith f = List.foldl' (flip (insertEdgeWith f)) empty
+
+-- | Convert a graph into a list of edges. O(e)
+
+toList ::  (Ord s, Ord t) => Graph s t e -> [Edge s t e]
+toList (Graph g) = [ Edge s t a | (s,m) <- Map.assocs g, (t,a) <- Map.assocs m ]
 
 -- | Empty graph (no nodes, no edges).
 
