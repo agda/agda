@@ -1,27 +1,30 @@
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
-module Agda.Utils.Warshall where
 
-{- construct a graph from constraints
-
+{- | Construct a graph from constraints
+@
    x + n <= y   becomes   x ---(-n)---> y
    x <= n + y   becomes   x ---(+n)---> y
+@
+the default edge (= no edge) is labelled with infinity.
 
-the default edge (= no edge is) labelled with infinity
-
-building the graph involves keeping track of the node names.
+Building the graph involves keeping track of the node names.
 We do this in a finite map, assigning consecutive numbers to nodes.
 -}
+module Agda.Utils.Warshall where
 
 import Control.Applicative
 import Control.Monad.State
-import Data.Maybe -- fromJust
+
+import Data.Maybe
 import Data.Array
 import Data.List
 import Data.Map (Map)
 import qualified Data.Map as Map
+
 import Test.QuickCheck
+
+import Agda.Syntax.Common (Nat)
 import Agda.Utils.TestHelpers
-import Agda.Syntax.Common
 import Agda.Utils.SemiRing
 
 type Matrix a = Array (Int,Int) a
@@ -36,9 +39,9 @@ warshall a0 = loop r a0 where
                         | i <- [r..r'], j <- [c..c'] ])
            | otherwise = a
 
--- Warshall's algorithm on a graph represented as an adjacency list.
 type AdjList node edge = Map node [(node, edge)]
 
+-- | Warshall's algorithm on a graph represented as an adjacency list.
 warshallG :: (SemiRing edge, Ord node) => AdjList node edge -> AdjList node edge
 warshallG g = fromMatrix $ warshall m
   where
@@ -61,8 +64,7 @@ warshallG g = fromMatrix $ warshall m
                ]
       return (i, es)
 
--- edge weight in the graph, forming a semi ring
-
+-- | Edge weight in the graph, forming a semi ring.
 data Weight = Finite Int | Infinite
               deriving (Eq)
 
@@ -88,10 +90,10 @@ instance SemiRing Weight where
 
 -- constraints ---------------------------------------------------
 
--- nodes of the graph are either
--- * flexible variables (with identifiers drawn from Int),
--- * rigid variables (also identified by Ints), or
--- * constants (like 0, infinity, or anything between)
+-- | Nodes of the graph are either
+-- - flexible variables (with identifiers drawn from @Int@),
+-- - rigid variables (also identified by @Int@s), or
+-- - constants (like 0, infinity, or anything between).
 
 data Node = Rigid Rigid
           | Flex  FlexId
@@ -105,7 +107,7 @@ type NodeId  = Int
 type RigidId = Int
 type FlexId  = Int
 type Scope   = RigidId -> Bool
--- which rigid variables a flex may be instatiated to
+-- ^ Which rigid variables a flex may be instatiated to.
 
 instance Show Node where
   show (Flex  i) = "?" ++ show i
@@ -116,24 +118,24 @@ instance Show Node where
 infinite (RConst Infinite) = True
 infinite _ = False
 
--- isBelow r w r'
--- checks, if r and r' are connected by w (meaning w not infinite)
--- wether r + w <= r'
--- precondition: not the same rigid variable
+-- | @isBelow r w r'@
+--   checks, if @r@ and @r'@ are connected by @w@ (meaning @w@ not infinite),
+--   whether @r + w <= r'@.
+--   Precondition: not the same rigid variable.
 isBelow :: Rigid -> Weight -> Rigid -> Bool
 isBelow _ Infinite _ = True
 isBelow _ n (RConst Infinite) = True
--- isBelow (RConst Infinite)   n (RConst (Finite _)) = False
 isBelow (RConst (Finite i)) (Finite n) (RConst (Finite j)) = i + n <= j
 isBelow _ _ _ = False -- rigid variables are not related
 
--- a constraint is an edge in the graph
-data Constraint = NewFlex FlexId Scope
-                | Arc Node Int Node
--- Arc v1 k v2  at least one of v1,v2 is a VMeta (Flex),
---              the other a VMeta or a VGen (Rigid)
--- if k <= 0 this means  $^(-k) v1 <= v2
--- otherwise                    v1 <= $^k v3
+-- | A constraint is an edge in the graph.
+data Constraint
+  = NewFlex FlexId Scope
+  | Arc Node Int Node
+    -- ^ For @Arc v1 k v2@  at least one of @v1@ or @v2@ is a @MetaV@ (Flex),
+    --                      the other a @MetaV@ or a @Var@ (Rigid).
+    --   If @k <= 0@ this means  @suc^(-k) v1 <= v2@
+    --   otherwise               @v1 <= suc^k v3@.
 
 instance Show Constraint where
   show (NewFlex i s) = "SizeMeta(?" ++ show i ++ ")"
@@ -148,19 +150,20 @@ emptyConstraints = []
 -- graph (matrix) ------------------------------------------------
 
 data Graph = Graph
-  { flexScope :: Map FlexId Scope        -- scope for each flexible var
-  , nodeMap :: Map Node NodeId           -- node labels to node numbers
-  , intMap  :: Map NodeId Node           -- node numbers to node labels
-  , nextNode :: NodeId                   -- number of nodes (n)
-  , graph :: NodeId -> NodeId -> Weight  -- the edges (restrict to [0..n[)
+  { flexScope :: Map FlexId Scope           -- ^ Scope for each flexible var.
+  , nodeMap   :: Map Node NodeId            -- ^ Node labels to node numbers.
+  , intMap    :: Map NodeId Node            -- ^ Node numbers to node labels.
+  , nextNode  :: NodeId                     -- ^ Number of nodes @n@.
+  , graph     :: NodeId -> NodeId -> Weight -- ^ The edges (restrict to @[0..n[@).
   }
 
--- the empty graph: no nodes, edges are all undefined (infinity weight)
+-- | The empty graph: no nodes, edges are all undefined (infinity weight).
 initGraph = Graph Map.empty Map.empty Map.empty 0 (\ x y -> Infinite)
 
--- the Graph Monad, for constructing a graph iteratively
+-- | The Graph Monad, for constructing a graph iteratively.
 type GM = State Graph
 
+-- | Add a size meta node.
 addFlex :: FlexId -> Scope -> GM ()
 addFlex x scope = do
   st <- get
@@ -169,22 +172,24 @@ addFlex x scope = do
   return ()
 
 
--- i <- addNode n  returns number of node n. if not present, it is added first
+-- | Lookup identifier of a node.
+--   If not present, it is added first.
 addNode :: Node -> GM Int
 addNode n = do
   st <- get
   case Map.lookup n (nodeMap st) of
     Just i -> return i
-    Nothing -> do let i = nextNode st
-                  put $ st { nodeMap = Map.insert n i (nodeMap st)
-                           , intMap = Map.insert i n (intMap st)
-                           , nextNode = i + 1
-                           }
-                  return i
+    Nothing -> do
+      let i = nextNode st
+      put $ st { nodeMap  = Map.insert n i (nodeMap st)
+               , intMap   = Map.insert i n (intMap st)
+               , nextNode = i + 1
+               }
+      return i
 
--- addEdge n1 k n2
--- improves the weight of egde n1->n2 to be at most k
--- also adds nodes if not yet present
+-- | @addEdge n1 k n2@
+--   improves the weight of egde @n1->n2@ to be at most @k@.
+--   Also adds nodes if not yet present.
 addEdge :: Node -> Int -> Node -> GM ()
 addEdge n1 k n2 = do
   i1 <- addNode n1
@@ -207,7 +212,7 @@ mkMatrix n g = array ((0,0),(n-1,n-1))
 
 -- displaying matrices with row and column labels --------------------
 
--- a matrix with row descriptions in b and column descriptions in c
+-- | A matrix with row descriptions in @b@ and column descriptions in @c@.
 data LegendMatrix a b c = LegendMatrix
   { matrix   :: Matrix a
   , rowdescr :: Int -> b
@@ -228,22 +233,22 @@ instance (Show a, Show b, Show c) => Show (LegendMatrix a b c) where
 
 -- solving the constraints -------------------------------------------
 
--- a solution assigns to each flexible variable a size expression
--- which is either a constant or a v + n for a rigid variable v
+-- | A solution assigns to each flexible variable a size expression
+--   which is either a constant or a @v + n@ for a rigid variable @v@.
 type Solution = Map Int SizeExpr
 
 emptySolution = Map.empty
 extendSolution subst k v = Map.insert k v subst
 
-data SizeExpr = SizeVar RigidId Int   -- e.g. x + 5
-              | SizeConst Weight  -- a number or infinity
+data SizeExpr = SizeVar RigidId Int   -- ^ e.g. x + 5
+              | SizeConst Weight      -- ^ a number or infinity
 
 instance Show SizeExpr where
   show (SizeVar n 0) = show (Rigid (RVar n))
   show (SizeVar n k) = show (Rigid (RVar n)) ++ "+" ++ show k
   show (SizeConst w) = show w
 
--- sizeRigid r n  returns the size expression corresponding to r + n
+-- | @sizeRigid r n@ returns the size expression corresponding to @r + n@
 sizeRigid :: Rigid -> Int -> SizeExpr
 sizeRigid (RConst k) n = SizeConst (inc k n)
 sizeRigid (RVar i)   n = SizeVar i n
@@ -259,29 +264,18 @@ after :: Solution -> Solution -> Solution
 after psi phi = Map.map (\ e -> e `apply` phi) psi
 -}
 
-{-
-solve :: Constraints -> Maybe Solution
-solve cs = if any (\ x -> x < Finite 0) d then Nothing
-     else Map.
-   where gr = buildGraph cs
-         n  = nextNode gr
-         m  = mkMatrix n (graph gr)
-         m' = warshall m
-         d  = [ m!(i,i) | i <- [0 .. (n-1)] ]
-         ns = keys (nodeMap gr)
--}
-
 {- compute solution
 
 a solution CANNOT exist if
 
   v < v  for a rigid variable v
 
-{- Andreas, 2012-09-19 OUTDATED
-  v <= v' for rigid variables v,v'
+  -- Andreas, 2012-09-19 OUTDATED are:
 
-  x < v   for a flexible variable x and a rigid variable v
--}
+  -- v <= v' for rigid variables v,v'
+
+  -- x < v   for a flexible variable x and a rigid variable v
+
 
 thus, for each flexible x, only one of the following cases is possible
 
