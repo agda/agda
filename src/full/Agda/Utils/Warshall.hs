@@ -166,8 +166,7 @@ type GM = State Graph
 -- | Add a size meta node.
 addFlex :: FlexId -> Scope -> GM ()
 addFlex x scope = do
-  st <- get
-  put $ st { flexScope = Map.insert x scope (flexScope st) }
+  modify $ \ st -> st { flexScope = Map.insert x scope (flexScope st) }
   addNode (Flex x)
   return ()
 
