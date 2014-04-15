@@ -323,19 +323,20 @@ instance Show SizeConstraint where
 --   cf. 'Agda.TypeChecking.LevelConstraints.simplifyLevelConstraint'
 computeSizeConstraints :: [Closure Constraint] -> TCM [SizeConstraint]
 computeSizeConstraints [] = return [] -- special case to avoid maximum []
-computeSizeConstraints cs = do
-  scs <- mapM computeSizeConstraint leqs
-  return [ c | Just c <- scs ]
+computeSizeConstraints cs = catMaybes <$> mapM computeSizeConstraint leqs
   where
     -- get the constraints plus contexts they are defined in
-    unClosure cl = (envContext $ clEnv cl, clValue cl)
-    (gammas, ls) = unzip $ map unClosure cs
+    gammas       = map (envContext . clEnv) cs
+    ls           = map clValue cs
     -- compute the longest context (common water level)
-    gamma        = maximumBy (compare `on` size) gammas
-    waterLevel   = size gamma
+    -- gamma        = maximumBy (compare `on` size) gammas
+    -- waterLevel   = size gamma
+    ns           = map size gammas
+    waterLevel   = maximum ns
     -- convert deBruijn indices to deBruijn levels to
     -- enable comparing constraints under different contexts
-    leqs = zipWith raise (map ((waterLevel -) . size) gammas) ls
+    -- leqs = zipWith raise (map ((waterLevel -) . size) gammas) ls
+    leqs = zipWith raise (map (waterLevel -) ns) ls
 
 -- | Turn a constraint over de Bruijn levels into a size constraint.
 computeSizeConstraint :: Constraint -> TCM (Maybe SizeConstraint)
@@ -423,18 +424,14 @@ canonicalizeSizeConstraint c@(Leq a n b) =
          -- give up
        | otherwise -> Nothing
 
+-- | Main function.
 solveSizeConstraints :: TCM ()
 solveSizeConstraints = whenM haveSizedTypes $ do
   reportSLn "tc.size.solve" 70 $ "Considering to solve size constraints"
   cs0 <- getSizeConstraints
   cs <- computeSizeConstraints cs0
   ms <- getSizeMetas
-{- ROLLED BACK
-  cs0 <- getSizeConstraints
-  cs1 <- computeSizeConstraints cs0
-  (ms,cs2) <- getSizeMetas
-  let cs = cs2 ++ cs1
--}
+
   when (not (null cs) || not (null ms)) $ do
   reportSLn "tc.size.solve" 10 $ "Solving size constraints " ++ show cs
 
@@ -447,12 +444,6 @@ solveSizeConstraints = whenM haveSizedTypes $ do
 
       metas0 :: [(MetaId, Int)]  -- meta id + arity
       metas0 = nub $ map (mapSnd length) $ concatMap flexibleVariables cs
-
-      mkFlex (m, ar) = W.NewFlex (fromIntegral m) $ \i -> fromIntegral i < ar
-
-      mkConstr (Leq a n b)  = W.Arc (mkNode a) n (mkNode b)
-      mkNode (Rigid i)      = W.Rigid $ W.RVar i
-      mkNode (SizeMeta m _) = W.Flex $ fromIntegral m
 
       found (m, _) = elem m $ map fst metas0
 
@@ -467,6 +458,33 @@ solveSizeConstraints = whenM haveSizedTypes $ do
       -- debug print the type of all size metas
       forM_ metas $ \ (m, _) ->
           reportSDoc "tc.size.solve" 20 $ prettyTCM =<< mvJudgement <$> lookupMeta m
+
+  -- Run the solver.
+  unlessM (oldSolver metas cs) cannotSolve
+
+  -- Double-checking the solution.
+
+  -- Andreas, 2012-09-19
+  -- The returned solution might not be consistent with
+  -- the hypotheses on rigid vars (j : Size< i).
+  -- Thus, we double check that all size constraints
+  -- have been solved correctly.
+  flip catchError (const cannotSolve) $
+    noConstraints $
+      forM_ cs0 $ \ cl -> enterClosure cl solveConstraint
+
+
+-- | Old solver for size constraints using 'Agda.Utils.Warshall'.
+oldSolver
+  :: [(MetaId, Int)]   -- ^ Size metas and their arity.
+  -> [SizeConstraint]  -- ^ Size constraints (in preprocessed form).
+  -> TCM Bool          -- ^ Returns @False@ if solver fails.
+oldSolver metas cs = do
+  let cannotSolve    = return False
+      mkFlex (m, ar) = W.NewFlex (fromIntegral m) $ \ i -> fromIntegral i < ar
+      mkConstr (Leq a n b)  = W.Arc (mkNode a) n (mkNode b)
+      mkNode (Rigid i)      = W.Rigid $ W.RVar i
+      mkNode (SizeMeta m _) = W.Flex $ fromIntegral m
 
   -- run the Warshall solver
   case W.solve $ map mkFlex metas ++ map mkConstr cs of
@@ -505,12 +523,4 @@ solveSizeConstraints = whenM haveSizedTypes $ do
               assignTerm m v
 
       mapM_ inst $ Map.toList sol
-
-      -- Andreas, 2012-09-19
-      -- The returned solution might not be consistent with
-      -- the hypotheses on rigid vars (j : Size< i).
-      -- Thus, we double check that all size constraints
-      -- have been solved correctly.
-      flip catchError (const cannotSolve) $
-        noConstraints $
-          forM_ cs0 $ \ cl -> enterClosure cl solveConstraint
+      return True
