@@ -1,6 +1,10 @@
 {-# LANGUAGE CPP,
   MultiParamTypeClasses,
-  DeriveDataTypeable, DeriveGeneric,  StandaloneDeriving #-}
+  DeriveDataTypeable, StandaloneDeriving #-}
+
+#if __GLASGOW_HASKELL__ >= 706
+{-# LANGUAGE DeriveGeneric #-}
+#endif
 
 {-# OPTIONS_GHC -fno-warn-orphans #-}
 
