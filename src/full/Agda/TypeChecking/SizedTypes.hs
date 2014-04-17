@@ -247,8 +247,8 @@ getSizeConstraints = do
       sizeConstraint _ = Nothing
   mapMaybe (sizeConstraint . theConstraint) <$> getAllConstraints
 
--- | Return a list of size metas and their arity.
-getSizeMetas :: TCM [(MetaId, Int)]
+-- | Return a list of size metas and their context.
+getSizeMetas :: TCM [(MetaId, Telescope)]
 getSizeMetas = do
   test <- isSizeTypeTest
   let sizeCon m = do
@@ -259,7 +259,7 @@ getSizeMetas = do
             -- b is reduced
             case test b of
               Nothing -> return Nothing
-              Just _  -> return $ Just (m, size tel)
+              Just _  -> return $ Just (m, tel)
           _ -> return Nothing
   catMaybes <$> do mapM sizeCon =<< getOpenMetas
 
@@ -434,14 +434,17 @@ solveSizeConstraints = whenM haveSizedTypes $ do
       cannotSolve = typeError . GenericDocError =<<
         vcat (text "Cannot solve size constraints" : map prettyTCM cs0)
 
+      -- Size metas in constraints.
       metas0 :: [(MetaId, Int)]  -- meta id + arity
       metas0 = nub $ map (mapSnd length) $ concatMap flexibleVariables cs
 
-      found (m, _) = elem m $ map fst metas0
+      -- Unconstrained size metas that do not occur in constraints.
+      metas1 :: [(MetaId, Int)]
+      metas1 = forMaybe ms $ \ (m, tel) ->
+        maybe (Just (m, size tel)) (const Nothing) $
+          lookup m metas0
 
-      -- Compute unconstrained metas
-      metas1 = filter (not . found) ms
-
+      -- All size metas
       metas = metas0 ++ metas1
 
   reportSLn "tc.size.solve" 15 $ "Metas: " ++ show metas0 ++ ", " ++ show metas1
