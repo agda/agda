@@ -1,4 +1,9 @@
 {-# LANGUAGE CPP, TupleSections, DeriveFunctor #-}
+
+-- | Stuff for sized types that does not require modules
+--   'Agda.TypeChecking.Reduce' or 'Agda.TypeChecking.Constraints'
+--   (which import 'Agda.TypeChecking.Monad').
+
 module Agda.TypeChecking.Monad.SizedTypes where
 
 import Control.Applicative
@@ -12,6 +17,7 @@ import Agda.Syntax.Internal
 import Agda.TypeChecking.Monad.Base
 import Agda.TypeChecking.Monad.Options
 import Agda.TypeChecking.Monad.Builtin
+import Agda.TypeChecking.Monad.Signature
 import Agda.TypeChecking.Substitute ()
 
 import Agda.Utils.Monad
@@ -64,6 +70,34 @@ isSizeNameTestRaw :: TCM (QName -> Bool)
 isSizeNameTestRaw = do
   (size, sizelt) <- getBuiltinSize
   return $ (`elem` [size, sizelt]) . Just
+
+-- | Test whether OPTIONS --sized-types and whether
+--   the size built-ins are defined.
+haveSizedTypes :: TCM Bool
+haveSizedTypes = do
+    Def _ [] <- ignoreSharing <$> primSize
+    Def _ [] <- ignoreSharing <$> primSizeInf
+    Def _ [] <- ignoreSharing <$> primSizeSuc
+    optSizedTypes <$> pragmaOptions
+  `catchError` \_ -> return False
+
+-- | Add polarity info to a SIZE builtin.
+builtinSizeHook :: String -> QName -> Term -> Type -> TCM ()
+builtinSizeHook s q e' t = do
+  when (s `elem` [builtinSizeLt, builtinSizeSuc]) $ do
+    modifySignature $ updateDefinition q
+      $ updateDefPolarity       (const [Covariant])
+      . updateDefArgOccurrences (const [StrictPos])
+  when (s == builtinSizeMax) $ do
+    modifySignature $ updateDefinition q
+      $ updateDefPolarity       (const [Covariant, Covariant])
+      . updateDefArgOccurrences (const [StrictPos, StrictPos])
+{-
+      . updateDefType           (const tmax)
+  where
+    -- TODO: max : (i j : Size) -> Size< (suc (max i j))
+    tmax =
+-}
 
 ------------------------------------------------------------------------
 -- * Constructors

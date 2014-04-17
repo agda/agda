@@ -20,7 +20,7 @@ import Agda.TypeChecking.Primitive
 import Agda.TypeChecking.Constraints
 import Agda.TypeChecking.Reduce
 import Agda.TypeChecking.Irrelevance
-import Agda.TypeChecking.SizedTypes ( builtinSizeHook )
+import Agda.TypeChecking.Monad.SizedTypes ( builtinSizeHook )
 import Agda.TypeChecking.Rules.Term ( checkExpr , inferExpr )
 import {-# SOURCE #-} Agda.TypeChecking.Rules.Builtin.Coinduction
 

@@ -32,23 +32,71 @@ import Agda.Utils.Tuple
 #include "../undefined.h"
 import Agda.Utils.Impossible
 
--- | Add polarity info to a SIZE builtin.
-builtinSizeHook :: String -> QName -> Term -> Type -> TCM ()
-builtinSizeHook s q e' t = do
-  when (s `elem` [builtinSizeLt, builtinSizeSuc]) $ do
-    modifySignature $ updateDefinition q
-      $ updateDefPolarity       (const [Covariant])
-      . updateDefArgOccurrences (const [StrictPos])
-  when (s == builtinSizeMax) $ do
-    modifySignature $ updateDefinition q
-      $ updateDefPolarity       (const [Covariant, Covariant])
-      . updateDefArgOccurrences (const [StrictPos, StrictPos])
-{-
-      . updateDefType           (const tmax)
-  where
-    -- TODO: max : (i j : Size) -> Size< (suc (max i j))
-    tmax =
--}
+------------------------------------------------------------------------
+-- * SIZELT stuff
+------------------------------------------------------------------------
+
+-- | Check whether a variable in the context is bounded by a size expression.
+--   If @x : Size< a@, then @a@ is returned.
+isBounded :: MonadTCM tcm => Nat -> tcm BoundedSize
+isBounded i = liftTCM $ do
+  t <- reduce =<< typeOfBV i
+  case ignoreSharing $ unEl t of
+    Def x [Apply u] -> do
+      sizelt <- getBuiltin' builtinSizeLt
+      return $ if (Just (Def x []) == sizelt) then BoundedLt $ unArg u else BoundedNo
+    _ -> return BoundedNo
+
+-- | Whenever we create a bounded size meta, add a constraint
+--   expressing the bound.
+--   In @boundedSizeMetaHook v tel a@, @tel@ includes the current context.
+boundedSizeMetaHook :: Term -> Telescope -> Type -> TCM ()
+boundedSizeMetaHook v tel0 a = do
+  res <- isSizeType a
+  case res of
+    Just (BoundedLt u) -> do
+      n <- getContextSize
+      let tel | n > 0     = telFromList $ genericDrop n $ telToList tel0
+              | otherwise = tel0
+      addCtxTel tel $ do
+        v <- sizeSuc 1 $ raise (size tel) v `apply` teleArgs tel
+        -- compareSizes CmpLeq v u
+        size <- sizeType
+        addConstraint $ ValueCmp CmpLeq size v u
+    _ -> return ()
+
+-- | @trySizeUniv cmp t m n x els1 y els2@
+--   is called as a last resort when conversion checking @m `cmp` n : t@
+--   failed for definitions @m = x els1@ and @n = y els2@,
+--   where the heads @x@ and @y@ are not equal.
+--
+--   @trySizeUniv@ accounts for subtyping between SIZELT and SIZE,
+--   like @Size< i =< Size@.
+--
+--   If it does not succeed it reports failure of conversion check.
+trySizeUniv :: Comparison -> Type -> Term -> Term
+  -> QName -> Elims -> QName -> Elims -> TCM ()
+trySizeUniv cmp t m n x els1 y els2 = do
+  let failure = typeError $ UnequalTerms cmp m n t
+      forceInfty u = compareSizes CmpEq (unArg u) =<< primSizeInf
+  -- Get the SIZE built-ins.
+  (size, sizelt) <- flip catchError (const failure) $ do
+     Def size   _ <- ignoreSharing <$> primSize
+     Def sizelt _ <- ignoreSharing <$> primSizeLt
+     return (size, sizelt)
+  case (cmp, els1, els2) of
+     -- Case @Size< _ <= Size@: true.
+     (CmpLeq, [_], [])  | x == sizelt && y == size -> return ()
+     -- Case @Size< u = Size@: forces @u = ∞@.
+     (_, [Apply u], []) | x == sizelt && y == size -> forceInfty u
+     (_, [], [Apply u]) | x == size && y == sizelt -> forceInfty u
+     -- This covers all cases for SIZE and SIZELT.
+     -- The remaining case is for @x@ and @y@ which are not size built-ins.
+     _                                             -> failure
+
+------------------------------------------------------------------------
+-- * Size views that 'reduce'.
+------------------------------------------------------------------------
 
 -- | Compute the deep size view of a term.
 --   Precondition: sized types are enabled.
@@ -82,34 +130,9 @@ sizeMaxView v = do
         _                             -> return $ [DOtherSize v]
   loop v
 
--- | @trySizeUniv cmp t m n x els1 y els2@
---   is called as a last resort when conversion checking @m `cmp` n : t@
---   failed for definitions @m = x els1@ and @n = y els2@,
---   where the heads @x@ and @y@ are not equal.
---
---   @trySizeUniv@ accounts for subtyping between SIZELT and SIZE,
---   like @Size< i =< Size@.
---
---   If it does not succeed it reports failure of conversion check.
-trySizeUniv :: Comparison -> Type -> Term -> Term
-  -> QName -> Elims -> QName -> Elims -> TCM ()
-trySizeUniv cmp t m n x els1 y els2 = do
-  let failure = typeError $ UnequalTerms cmp m n t
-      forceInfty u = compareSizes CmpEq (unArg u) =<< primSizeInf
-  -- Get the SIZE built-ins.
-  (size, sizelt) <- flip catchError (const failure) $ do
-     Def size   _ <- ignoreSharing <$> primSize
-     Def sizelt _ <- ignoreSharing <$> primSizeLt
-     return (size, sizelt)
-  case (cmp, els1, els2) of
-     -- Case @Size< _ <= Size@: true.
-     (CmpLeq, [_], [])  | x == sizelt && y == size -> return ()
-     -- Case @Size< u = Size@: forces @u = ∞@.
-     (_, [Apply u], []) | x == sizelt && y == size -> forceInfty u
-     (_, [], [Apply u]) | x == size && y == sizelt -> forceInfty u
-     -- This covers all cases for SIZE and SIZELT.
-     -- The remaining case is for @x@ and @y@ which are not size built-ins.
-     _                                             -> failure
+------------------------------------------------------------------------
+-- * Size comparison that might add constraints.
+------------------------------------------------------------------------
 
 -- | Compare two sizes.
 compareSizes :: Comparison -> Term -> Term -> TCM ()
@@ -186,17 +209,6 @@ compareSizeViews cmp s1' s2' = do
       unlessM (trivial u v) $ addConstraint $ ValueCmp CmpLeq size u v
     (CmpEq, s1, s2) -> continue cmp
 
--- | Check whether a variable in the context is bounded by a size expression.
---   If @x : Size< a@, then @a@ is returned.
-isBounded :: MonadTCM tcm => Nat -> tcm BoundedSize
-isBounded i = liftTCM $ do
-  t <- reduce =<< typeOfBV i
-  case ignoreSharing $ unEl t of
-    Def x [Apply u] -> do
-      sizelt <- getBuiltin' builtinSizeLt
-      return $ if (Just (Def x []) == sizelt) then BoundedLt $ unArg u else BoundedNo
-    _ -> return BoundedNo
-
 -- | Checked whether a size constraint is trivial (like @X <= X+1@).
 trivial :: Term -> Term -> TCM Bool
 trivial u v = do
@@ -213,23 +225,9 @@ trivial u v = do
     return triv
   `catchError` \_ -> return False
 
--- | Whenever we create a bounded size meta, add a constraint
---   expressing the bound.
---   In @boundedSizeMetaHook v tel a@, @tel@ includes the current context.
-boundedSizeMetaHook :: Term -> Telescope -> Type -> TCM ()
-boundedSizeMetaHook v tel0 a = do
-  res <- isSizeType a
-  case res of
-    Just (BoundedLt u) -> do
-      n <- getContextSize
-      let tel | n > 0     = telFromList $ genericDrop n $ telToList tel0
-              | otherwise = tel0
-      addCtxTel tel $ do
-        v <- sizeSuc 1 $ raise (size tel) v `apply` teleArgs tel
-        -- compareSizes CmpLeq v u
-        size <- sizeType
-        addConstraint $ ValueCmp CmpLeq size v u
-    _ -> return ()
+------------------------------------------------------------------------
+-- * Size constraints.
+------------------------------------------------------------------------
 
 -- | Test whether a problem consists only of size constraints.
 isSizeProblem :: ProblemId -> TCM Bool
@@ -294,6 +292,10 @@ getSizeMetas = do
   (mss, css) <- unzip <$> mapM sizeCon ms
   return (concat mss, concat css)
 -}
+
+------------------------------------------------------------------------
+-- * Size constraint solving.
+------------------------------------------------------------------------
 
 -- | Atomic size expressions.
 data SizeExpr
@@ -385,16 +387,6 @@ flexibleVariables (Leq a _ b) = flex a ++ flex b
   where
     flex (Rigid _)       = []
     flex (SizeMeta m xs) = [(m, xs)]
-
--- | Test whether OPTIONS --sized-types and whether
---   the size built-ins are defined.
-haveSizedTypes :: TCM Bool
-haveSizedTypes = do
-    Def _ [] <- ignoreSharing <$> primSize
-    Def _ [] <- ignoreSharing <$> primSizeInf
-    Def _ [] <- ignoreSharing <$> primSizeSuc
-    optSizedTypes <$> pragmaOptions
-  `catchError` \_ -> return False
 
 -- | Convert size constraint into form where each meta is applied
 --   to levels @0,1,..,n-1@ where @n@ is the arity of that meta.
