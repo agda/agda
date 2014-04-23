@@ -85,7 +85,7 @@ checkDecl d = traceCall (SetRange (getRange d)) $ do
         impossible m = m >> return __IMPOSSIBLE__
                        -- We're definitely inside a mutual block.
 
-    topLevelKind <- case d of
+    finalChecks <- case d of
       A.Axiom{}                -> meta $ checkTypeSignature d
       A.Field{}                -> typeError FieldOutsideRecord
       A.Primitive i x e        -> meta $ checkPrimitive i x e
@@ -116,9 +116,9 @@ checkDecl d = traceCall (SetRange (getRange d)) $ do
                                   -- highlighting purposes.
 
     unlessM (isJust . envMutualBlock <$> ask) $ do
-      termErrs <- case topLevelKind of
-        Nothing           -> return []
-        Just mutualChecks -> do
+      termErrs <- case finalChecks of
+        Nothing     -> return []
+        Just theMutualChecks -> do
 
           do
             solveSizeConstraints
@@ -126,7 +126,7 @@ checkDecl d = traceCall (SetRange (getRange d)) $ do
             wakeupConstraints_   -- solve emptyness constraints
             freezeMetas
 
-          mutualChecks
+          theMutualChecks
 
       -- Syntax highlighting.
       let highlight d = generateAndPrintSyntaxInfo d (Full termErrs)
