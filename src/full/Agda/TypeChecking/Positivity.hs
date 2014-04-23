@@ -39,7 +39,10 @@ import Agda.Utils.Graph.AdjacencyMap (Graph)
 import Agda.Utils.Impossible
 
 -- | Check that the datatypes in the mutual block containing the given
--- declarations are strictly positive.
+--   declarations are strictly positive.
+--
+--   Also add information about positivity and recursivity of records
+--   to the signature.
 checkStrictlyPositive :: Set QName -> TCM ()
 checkStrictlyPositive qs = disableDestructiveUpdate $ do
   -- compute the occurrence graph for qs
