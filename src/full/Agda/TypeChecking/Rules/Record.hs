@@ -50,8 +50,16 @@ import Agda.Utils.Impossible
 --
 --     [@fields@]  List of field signatures.
 --
-checkRecDef :: Info.DefInfo -> QName -> Maybe Induction -> Maybe A.QName ->
-               [A.LamBinding] -> A.Expr -> [A.Field] -> TCM ()
+checkRecDef
+  :: Info.DefInfo              -- ^ Position and other info.
+  -> QName                     -- ^ Record type identifier.
+  -> Maybe (Ranged Induction)  -- ^ Optional: (co)inductive declaration.
+  -> Maybe A.QName             -- ^ Optional: constructor name.
+  -> [A.LamBinding]            -- ^ Record parameters.
+  -> A.Expr                    -- ^ Approximate type of constructor (@fields@ -> Set).
+                               --   Does not include record parameters.
+  -> [A.Field]                 -- ^ Field signatures.
+  -> TCM ()
 checkRecDef i name ind con ps contel fields =
   traceCall (CheckRecDef (getRange i) (qnameName name) ps fields) $ do
     reportSDoc "tc.rec" 10 $ vcat
