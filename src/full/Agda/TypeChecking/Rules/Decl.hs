@@ -13,30 +13,37 @@ import qualified Data.Set as Set
 import Data.Set (Set)
 import Data.Sequence ((|>))
 
+import Agda.Compiler.HaskellTypes
+
+import Agda.Interaction.Options
+import Agda.Interaction.Highlighting.Generate
+
 import qualified Agda.Syntax.Abstract as A
 import Agda.Syntax.Internal as I
 import qualified Agda.Syntax.Info as Info
 import Agda.Syntax.Position
 import Agda.Syntax.Common
 
-import Agda.TypeChecking.Errors
 import Agda.TypeChecking.Monad
 import Agda.TypeChecking.Monad.Builtin
 import Agda.TypeChecking.Monad.Benchmark (billTop, reimburseTop)
 import qualified Agda.TypeChecking.Monad.Benchmark as Bench
-import Agda.TypeChecking.Pretty
+
 import Agda.TypeChecking.Constraints
-import Agda.TypeChecking.Positivity
-import Agda.TypeChecking.Polarity
-import Agda.TypeChecking.Primitive hiding (Nat)
-import Agda.TypeChecking.ProjectionLike
 import Agda.TypeChecking.Conversion
-import Agda.TypeChecking.Substitute
-import Agda.TypeChecking.Reduce
-import Agda.TypeChecking.SizedTypes
-import Agda.TypeChecking.Telescope
+import Agda.TypeChecking.Errors
 import Agda.TypeChecking.Injectivity
 import Agda.TypeChecking.InstanceArguments (solveIrrelevantMetas)
+import Agda.TypeChecking.Positivity
+import Agda.TypeChecking.Polarity
+import Agda.TypeChecking.Pretty
+import Agda.TypeChecking.Primitive hiding (Nat)
+import Agda.TypeChecking.ProjectionLike
+import Agda.TypeChecking.Records
+import Agda.TypeChecking.Reduce
+import Agda.TypeChecking.SizedTypes
+import Agda.TypeChecking.Substitute
+import Agda.TypeChecking.Telescope
 
 import Agda.TypeChecking.Rules.Term
 import Agda.TypeChecking.Rules.Data    ( checkDataDef )
@@ -44,16 +51,12 @@ import Agda.TypeChecking.Rules.Record  ( checkRecDef )
 import Agda.TypeChecking.Rules.Def     ( checkFunDef )
 import Agda.TypeChecking.Rules.Builtin ( bindBuiltin )
 
-import Agda.Compiler.HaskellTypes
+import Agda.Termination.TermCheck
 
 import Agda.Utils.Size
+import Agda.Utils.Maybe
 import Agda.Utils.Monad
 import qualified Agda.Utils.HashMap as HMap
-
-import Agda.Interaction.Highlighting.Generate
-
-import Agda.Termination.TermCheck
-import Agda.Interaction.Options
 
 #include "../../undefined.h"
 import Agda.Utils.Impossible
@@ -81,7 +84,7 @@ checkDecl d = traceCall (SetRange (getRange d)) $ do
         -- if we're not inside a mutual block?
         none       m = m >> return Nothing
         meta       m = m >> return (Just (return []))
-        mutual     m = m >>= return . Just . mutualChecks
+        mutual  ds m = m >>= return . Just . mutualChecks ds
         impossible m = m >> return __IMPOSSIBLE__
                        -- We're definitely inside a mutual block.
 
@@ -89,7 +92,7 @@ checkDecl d = traceCall (SetRange (getRange d)) $ do
       A.Axiom{}                -> meta $ checkTypeSignature d
       A.Field{}                -> typeError FieldOutsideRecord
       A.Primitive i x e        -> meta $ checkPrimitive i x e
-      A.Mutual i ds            -> mutual $ checkMutual i ds
+      A.Mutual i ds            -> mutual ds $ checkMutual i ds
       A.Section i x tel ds     -> meta $ checkSection i x tel ds
       A.Apply i x modapp rd rm -> meta $ checkSectionApplication i x modapp rd rm
       A.Import i x             -> none $ checkImport i x
@@ -97,7 +100,7 @@ checkDecl d = traceCall (SetRange (getRange d)) $ do
       A.ScopedDecl scope ds    -> none $ setScope scope >> checkDecls ds
       A.FunDef i x delayed cs  -> impossible $ check x i $ checkFunDef delayed i x cs
       A.DataDef i x ps cs      -> impossible $ check x i $ checkDataDef i x ps cs
-      A.RecDef i x ind c ps tel cs -> mutual $ check x i $ do
+      A.RecDef i x ind c ps tel cs -> mutual [d] $ check x i $ do
                                     checkRecDef i x ind c ps tel cs
                                     return (Set.singleton x)
       A.DataSig i x ps t       -> impossible $ checkSig i x ps t
@@ -177,13 +180,14 @@ checkDecl d = traceCall (SetRange (getRange d)) $ do
     -- Some checks that should be run at the end of a mutual
     -- block (or non-mutual record declaration). The set names
     -- contains the names defined in the mutual block.
-    mutualChecks names = do
+    mutualChecks ds names = do
       -- Andreas, 2014-04-11: instantiate metas in definition types
       mapM_ instantiateDefinitionType $ Set.toList names
       -- Andreas, 2013-02-27: check termination before injectivity,
       -- to avoid making the injectivity checker loop.
       termErrs <- checkTermination_ d
       checkPositivity_         names
+      checkCoinductiveRecords  ds
       -- Andreas, 2012-09-11:  Injectivity check stores clauses
       -- whose 'Relevance' is affected by polarity computation,
       -- so do it here.
@@ -258,6 +262,16 @@ checkPositivity_ names = reimburseTop Bench.Typing $ billTop Bench.Positivity $ 
           Constructor{} -> Nothing
           Primitive{}   -> Nothing
   mapM_ computePolarity =<< do mapMaybeM relevant $ Set.toList names
+
+-- | Check that all coinductive records are actually recursive.
+--   (Otherwise, one can implement invalid recursion schemes just like
+--   for the old coinduction.)
+checkCoinductiveRecords :: [A.Declaration] -> TCM ()
+checkCoinductiveRecords ds = forM_ ds $ \ d -> case d of
+  A.RecDef _ q (Just (Ranged r CoInductive)) _ _ _ _ -> traceCall (SetRange r) $ do
+    unlessM (isRecursiveRecord q) $ typeError $ GenericError $
+      "Only recursive records can be coinductive"
+  _ -> return ()
 
 -- | Check a set of mutual names for constructor-headedness.
 checkInjectivity_ :: Set QName -> TCM ()

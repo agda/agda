@@ -220,6 +220,17 @@ recursiveRecord q = modifySignature $ updateDefinition q $ updateTheDef $ update
   where updateRecord r@Record{} = r { recRecursive = True }
         updateRecord _          = __IMPOSSIBLE__
 
+-- | Check whether record type is marked as recursive.
+--
+--   Precondition: record type identifier exists in signature.
+isRecursiveRecord :: QName -> TCM Bool
+isRecursiveRecord q = recRecursive_ . theDef . fromMaybe __IMPOSSIBLE__ . lookupDefinition q <$> getSignature
+
+-- | Version of @recRecursive@ with proper internal error.
+recRecursive_ :: Defn -> Bool
+recRecursive_ (Record { recRecursive = b }) = b
+recRecursive_ _ = __IMPOSSIBLE__
+
 {- | @etaExpandBoundVar i = (Δ, σ, τ)@
 
 Precondition: The current context is @Γ = Γ₁, x:R pars, Γ₂@ where
