@@ -6,6 +6,8 @@
 module Agda.Syntax.Concrete.Pretty where
 
 import Data.Char
+import Data.Functor
+import Data.Maybe
 
 import qualified Agda.Syntax.Common as Common
 import Agda.Syntax.Common hiding (Arg, Dom, NamedArg, ArgInfo)
@@ -380,19 +382,8 @@ instance Pretty Declaration where
 			    ]
                     pType Nothing  =
                               text "where"
-                    pInd = maybe [] (\i -> [text $ show i]) ind
-                    pCon = maybe [] (\c -> [text "constructor" <+> pretty c]) con
-{- ELIMINATED CUT-AND-PASTE CODE
-	    Record _ x con tel Nothing cs ->
-		sep [ hsep  [ text "record"
-			    , pretty x
-			    , fcat (map pretty tel)
-			    ]
-		    , nest 2 $ text "where"
-		    ] $$ nest 2 (vcat $ maybe [] (\c -> [text "constructor" <+> pretty c])
-                                              con ++
-                                        map pretty cs)
--}
+                    pInd = maybeToList $ text . show . rangedThing <$> ind
+                    pCon = maybeToList $ (text "constructor" <+>) . pretty <$> con
             Infix f xs	->
 		pretty f <+> (fsep $ punctuate comma $ map pretty xs)
             Syntax n xs -> text "syntax" <+> pretty n <+> text "..."
