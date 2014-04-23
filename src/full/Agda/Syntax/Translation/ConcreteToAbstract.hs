@@ -1130,7 +1130,8 @@ instance ToAbstract NiceDeclaration A.Declaration where
       traceCall (ScopeCheckDeclaration $ NiceModule r p a x tel []) $ do
         scopeCheckNiceModule r p name tel $ toAbstract ds
 
-    NiceModule _ _ _ C.Qual{} _ _ -> __IMPOSSIBLE__
+    NiceModule _ _ _ m@C.Qual{} _ _ ->
+      typeError $ GenericError $ "Local modules cannot have qualified names"
 
     NiceModuleMacro r p x modapp open dir ->
       checkModuleMacro Apply r p x modapp open dir
