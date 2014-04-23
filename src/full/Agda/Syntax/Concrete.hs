@@ -298,7 +298,7 @@ data Declaration
 	| DataSig     !Range Induction Name [LamBinding] Expr -- ^ lone data signature in mutual block
 	| Data        !Range Induction Name [LamBinding] (Maybe Expr) [Constructor]
 	| RecordSig   !Range Name [LamBinding] Expr -- ^ lone record signature in mutual block
-	| Record      !Range Name (Maybe Induction) (Maybe Name) [LamBinding] (Maybe Expr) [Declaration]
+	| Record      !Range Name (Maybe (Ranged Induction)) (Maybe Name) [LamBinding] (Maybe Expr) [Declaration]
           -- ^ The optional name is a name for the record constructor.
 	| Infix Fixity [Name]
         | Syntax      Name Notation -- ^ notation declaration for a name

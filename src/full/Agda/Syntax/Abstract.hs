@@ -122,7 +122,7 @@ data Declaration
         | DataDef    DefInfo QName [LamBinding] [Constructor]
             -- ^ the 'LamBinding's are 'DomainFree' and binds the parameters of the datatype.
         | RecSig     DefInfo QName Telescope Expr -- ^ lone record signature
-        | RecDef     DefInfo QName (Maybe Induction) (Maybe QName) [LamBinding] Expr [Declaration]
+        | RecDef     DefInfo QName (Maybe (Ranged Induction)) (Maybe QName) [LamBinding] Expr [Declaration]
             -- ^ The 'Expr' gives the constructor type telescope, @(x1 : A1)..(xn : An) -> Prop@,
             --   and the optional name is the constructor's name.
         | PatternSynDef QName [Arg Name] Pattern

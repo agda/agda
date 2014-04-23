@@ -1320,7 +1320,7 @@ Constructors
     | TypeSignatures { $1 }
 
 -- Record declarations, including an optional record constructor name.
-RecordDeclarations :: { (Maybe Induction, Maybe Name, [Declaration]) }
+RecordDeclarations :: { (Maybe (Ranged Induction), Maybe Name, [Declaration]) }
 RecordDeclarations
     : vopen                                          close { (Nothing, Nothing, []) }
     | vopen RecordConstructorName                    close { (Nothing, Just $2, []) }
@@ -1332,10 +1332,10 @@ RecordDeclarations
     | vopen RecordInduction semi                            Declarations1 close { (Just $2, Nothing, $4) }
 
 -- Declaration of record as 'inductive' or 'coinductive'.
-RecordInduction :: { Induction }
+RecordInduction :: { Ranged Induction }
 RecordInduction
-   : 'inductive'   { Inductive }
-   | 'coinductive' { CoInductive }
+   : 'inductive'   { Ranged (getRange $1) Inductive   }
+   | 'coinductive' { Ranged (getRange $1) CoInductive }
 
 -- Arbitrary declarations
 Declarations :: { [Declaration] }

@@ -116,7 +116,12 @@ checkRecDef i name ind con ps contel fields =
           fs = concatMap (convColor . getName) fields
           con = ConHead conName $ map unArg fs
 
-          indCo = maybe Inductive id ind -- default is 'Inductive' for backwards compatibility but should maybe be 'Coinductive'
+          -- Default is 'Inductive'.
+          -- This makes sense because all non-recursive records are "inductive",
+          -- meaning not coinductive.
+          -- Of course, one could make all *recursive* records coinductive
+          -- by default, but this would not be backwards-compatible.
+          indCo = maybe Inductive rangedThing ind
 
       reportSDoc "tc.rec" 30 $ text "record constructor is " <+> text (show con)
       addConstant name $ defaultDefn defaultArgInfo name t0
