@@ -437,14 +437,23 @@ defaultNamedArg = defaultArg . unnamed
 updateNamedArg :: (a -> b) -> NamedArg c a -> NamedArg c b
 updateNamedArg = fmap . fmap
 
-data Ranged a = Ranged { rangeOf     :: Range
-                       , rangedThing :: a }
+---------------------------------------------------------------------------
+-- * Range decoration.
+---------------------------------------------------------------------------
+
+-- | Thing with range info.
+data Ranged a = Ranged
+  { rangeOf     :: Range
+  , rangedThing :: a
+  }
   deriving (Typeable, Functor, Foldable, Traversable)
 
+-- | Thing with no range info.
 unranged :: a -> Ranged a
 unranged = Ranged noRange
 
-type RString = Ranged String
+instance Show a => Show (Ranged a) where
+  show = show . rangedThing
 
 instance Eq a => Eq (Ranged a) where
   Ranged _ x == Ranged _ y = x == y
@@ -460,6 +469,9 @@ instance KillRange (Ranged a) where
 
 instance Decoration Ranged where
   traverseF f (Ranged r x) = Ranged r <$> f x
+
+-- | String with range info.
+type RString = Ranged String
 
 ---------------------------------------------------------------------------
 -- * Infixity, access, abstract, etc.
