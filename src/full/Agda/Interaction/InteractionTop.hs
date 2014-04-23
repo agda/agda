@@ -998,10 +998,11 @@ status = do
       t' <- liftIO $ getModificationTime $ filePath f
       case t == t' of
         False -> return False
-        True  ->
-          not . miWarnings . fromMaybe __IMPOSSIBLE__ <$> do
-            getVisitedModule =<< do
-              Map.findWithDefault __IMPOSSIBLE__ f <$> sourceToModule
+        True  -> do
+          mm <- Map.lookup f <$> sourceToModule
+          case mm of
+            Nothing -> return False -- work-around for Issue1007
+            Just m  -> not . miWarnings . fromMaybe __IMPOSSIBLE__ <$> getVisitedModule m
 
   return $ Status { sShowImplicitArguments = showImpl
                   , sChecked               = checked
