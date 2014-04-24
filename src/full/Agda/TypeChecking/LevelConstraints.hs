@@ -26,7 +26,7 @@ simplifyLevelConstraint n new old =
     -- compute the common water level
     waterLevel :: Nat
     waterLevel = maximum (n:ns)
-    -- convert deBruijn indices to deBruijn levels to
+    -- raise deBruijn indices to largest context to
     -- enable comparing constraints under different contexts
     leqs = concatMap inequalities $ zipWith raise (map (waterLevel -) ns) ls
 
