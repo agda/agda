@@ -248,20 +248,23 @@ getSizeConstraints = do
   mapMaybe (sizeConstraint . theConstraint) <$> getAllConstraints
 
 -- | Return a list of size metas and their context.
-getSizeMetas :: TCM [(MetaId, Telescope)]
-getSizeMetas = do
+getSizeMetas :: Bool -> TCM [(MetaId, Type, Telescope)]
+getSizeMetas interactionMetas = do
   test <- isSizeTypeTest
-  let sizeCon m = do
+  catMaybes <$> do
+    getOpenMetas >>= do
+      mapM $ \ m -> do
+        let no = return Nothing
         mi <- lookupMeta m
         case mvJudgement mi of
           HasType _ a -> do
             TelV tel b <- telView a
             -- b is reduced
-            case test b of
-              Nothing -> return Nothing
-              Just _  -> return $ Just (m, tel)
-          _ -> return Nothing
-  catMaybes <$> do mapM sizeCon =<< getOpenMetas
+            caseMaybe (test b) no $ \ _ -> do
+              let yes = return $ Just (m, a, tel)
+              if interactionMetas then yes else do
+              ifM (isJust <$> isInteractionMeta m) no yes
+          _ -> no
 
 {- ROLLED BACK
 getSizeMetas :: TCM ([(MetaId, Int)], [SizeConstraint])
@@ -422,7 +425,7 @@ solveSizeConstraints = whenM haveSizedTypes $ do
   reportSLn "tc.size.solve" 70 $ "Considering to solve size constraints"
   cs0 <- getSizeConstraints
   cs <- computeSizeConstraints cs0
-  ms <- getSizeMetas
+  ms <- getSizeMetas True -- get all size metas, also interaction metas
 
   when (not (null cs) || not (null ms)) $ do
   reportSLn "tc.size.solve" 10 $ "Solving size constraints " ++ show cs
@@ -440,7 +443,7 @@ solveSizeConstraints = whenM haveSizedTypes $ do
 
       -- Unconstrained size metas that do not occur in constraints.
       metas1 :: [(MetaId, Int)]
-      metas1 = forMaybe ms $ \ (m, tel) ->
+      metas1 = forMaybe ms $ \ (m, _, tel) ->
         maybe (Just (m, size tel)) (const Nothing) $
           lookup m metas0
 
