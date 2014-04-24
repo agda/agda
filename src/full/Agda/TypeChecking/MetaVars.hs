@@ -7,7 +7,8 @@ import Control.Monad.Reader
 import Control.Monad.Error
 
 import Data.Function
-import Data.List as List hiding (sort)
+import Data.List hiding (sort)
+import qualified Data.List as List
 import qualified Data.Map as Map
 import qualified Data.Foldable as Fold
 import qualified Data.Traversable as Trav
@@ -686,68 +687,9 @@ assign dir x args v = do
             --       attempt pruning of other args
             Left ()   -> attemptPruning x args fvs
 -}
-
-        -- we are linear, so we can solve!
-	reportSDoc "tc.meta.assign" 25 $
-	    text "preparing to instantiate: " <+> prettyTCM v
-
-	-- Rename the variables in v to make it suitable for abstraction over ids.
-        let n = length args
-	v' <- do
-	  -- Basically, if
-	  --   Γ   = a b c d e
-	  --   ids = d b e
-	  -- then
-	  --   v' = (λ a b c d e. v) _ 1 _ 2 0
-          --
-          -- OLD:
-	  -- tel <- getContextTelescope
-          -- let substitute :: [(Nat,Term)] -> Nat -> Term
-	  --     substitute ids i = maybe __IMPOSSIBLE__ id $ lookup i ids
-                 -- @ids@ maps lhs variables (metavar arguments) to terms
-                 -- @i@ is the variable from the context Gamma
-          -- let iargs = map (defaultArg . substitute ids) $ downFrom $ size tel
-          --     v'    = raise n (abstract tel v) `apply` iargs
-          -- return v'
-          -- NOW: Andreas, 2013-10-25 more directly, using substitutions:
-          m <- getContextSize
-          -- Convert assocList @ids@ (which is sorted) into substitution,
-          -- filling in __IMPOSSIBLE__ for the missing terms, e.g.
-          -- [(0,0),(1,2),(3,1)] --> [0, 2, __IMP__, 1, __IMP__]
-          -- ALT 1: O(m * size ids), serves as specification
-          -- let ivs = [fromMaybe __IMPOSSIBLE__ $ lookup i ids | i <- [0..m-1]]
-          -- ALT 2: O(m)
-          let assocToList i l = case l of
-                _           | i >= m -> []
-                ((j,u) : l) | i == j -> u              : assocToList (i+1) l
-                _                    -> __IMPOSSIBLE__ : assocToList (i+1) l
-              ivs = assocToList 0 ids
-          return $ applySubst (ivs ++# raiseS n)  v
-
-        -- Metas are top-level so we do the assignment at top-level.
-	inTopContext $ do
-          -- Andreas, 2011-04-18 to work with irrelevant parameters
-          -- we need to construct tel' from the type of the meta variable
-          -- (no longer from ids which may not be the complete variable list
-          -- any more)
-          reportSDoc "tc.meta.assign" 15 $ text "type of meta =" <+> prettyTCM t
-          reportSDoc "tc.meta.assign" 70 $ text "type of meta =" <+> text (show t)
-
-          TelV tel' _ <- telViewUpTo n t
-          reportSDoc "tc.meta.assign" 30 $ text "tel'  =" <+> prettyTCM tel'
-          reportSDoc "tc.meta.assign" 30 $ text "#args =" <+> text (show n)
-          -- Andreas, 2013-09-17 (AIM XVIII): if t does not provide enough
-          -- types for the arguments, it might be blocked by a meta;
-          -- then we give up. (Issue 903)
-          when (size tel' < n)
-             patternViolation -- WAS: __IMPOSSIBLE__
-
-          -- The solution.
-          let u = killRange $ abstract tel' v'
-          -- Perform the assignment (and wake constraints).
-          reportSDoc "tc.meta.assign" 10 $
-            text "solving" <+> prettyTCM x <+> text ":=" <+> prettyTCM u
-          assignTerm x u
+        -- Solve.
+        m <- getContextSize
+        assignMeta' m x t (length args) ids v
     where
         attemptPruning x args fvs = do
           -- non-linear lhs: we cannot solve, but prune
@@ -758,6 +700,71 @@ assign dir x args v = do
               if killResult `elem` [PrunedSomething,PrunedEverything] then "succeeded"
                else "failed"
           patternViolation
+
+-- | @assignMeta m x t ids u@ solves @x ids = u@ for meta @x@ of type @t@,
+--   where term @u@ lives in a context of length @m@.
+--   Precondition: @ids@ is linear.
+assignMeta :: Int -> MetaId -> Type -> [Int] -> Term -> TCM ()
+assignMeta m x t ids v = do
+  let n    = length ids
+      cand = List.sort $ zip ids $ map var $ downFrom n
+  assignMeta' m x t n cand v
+
+-- | @assignMeta' m x t ids u@ solves @x = [ids]u@ for meta @x@ of type @t@,
+--   where term @u@ lives in a context of length @m@,
+--   and @ids@ is a partial substitution.
+assignMeta' :: Int -> MetaId -> Type -> Int -> SubstCand -> Term -> TCM ()
+assignMeta' m x t n ids v = do
+  -- we are linear, so we can solve!
+  reportSDoc "tc.meta.assign" 25 $
+      text "preparing to instantiate: " <+> prettyTCM v
+
+  -- Rename the variables in v to make it suitable for abstraction over ids.
+  v' <- do
+    -- Basically, if
+    --   Γ   = a b c d e
+    --   ids = d b e
+    -- then
+    --   v' = (λ a b c d e. v) _ 1 _ 2 0
+    --
+    -- Andreas, 2013-10-25 Solve using substitutions:
+    -- Convert assocList @ids@ (which is sorted) into substitution,
+    -- filling in __IMPOSSIBLE__ for the missing terms, e.g.
+    -- [(0,0),(1,2),(3,1)] --> [0, 2, __IMP__, 1, __IMP__]
+    -- ALT 1: O(m * size ids), serves as specification
+    -- let ivs = [fromMaybe __IMPOSSIBLE__ $ lookup i ids | i <- [0..m-1]]
+    -- ALT 2: O(m)
+    let assocToList i l = case l of
+          _           | i >= m -> []
+          ((j,u) : l) | i == j -> u              : assocToList (i+1) l
+          _                    -> __IMPOSSIBLE__ : assocToList (i+1) l
+        ivs = assocToList 0 ids
+    return $ applySubst (ivs ++# raiseS n)  v
+
+  -- Metas are top-level so we do the assignment at top-level.
+  inTopContext $ do
+    -- Andreas, 2011-04-18 to work with irrelevant parameters
+    -- we need to construct tel' from the type of the meta variable
+    -- (no longer from ids which may not be the complete variable list
+    -- any more)
+    reportSDoc "tc.meta.assign" 15 $ text "type of meta =" <+> prettyTCM t
+    reportSDoc "tc.meta.assign" 70 $ text "type of meta =" <+> text (show t)
+
+    TelV tel' _ <- telViewUpTo n t
+    reportSDoc "tc.meta.assign" 30 $ text "tel'  =" <+> prettyTCM tel'
+    reportSDoc "tc.meta.assign" 30 $ text "#args =" <+> text (show n)
+    -- Andreas, 2013-09-17 (AIM XVIII): if t does not provide enough
+    -- types for the arguments, it might be blocked by a meta;
+    -- then we give up. (Issue 903)
+    when (size tel' < n)
+       patternViolation -- WAS: __IMPOSSIBLE__
+
+    -- The solution.
+    let u = killRange $ abstract tel' v'
+    -- Perform the assignment (and wake constraints).
+    reportSDoc "tc.meta.assign" 10 $
+      text "solving" <+> prettyTCM x <+> text ":=" <+> prettyTCM u
+    assignTerm x u
 
 
 -- | Turn the assignment problem @_X args <= SizeLt u@ into
