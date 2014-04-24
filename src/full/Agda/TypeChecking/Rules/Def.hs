@@ -36,7 +36,7 @@ import Agda.TypeChecking.With
 import Agda.TypeChecking.Telescope
 import Agda.TypeChecking.Injectivity
 import Agda.TypeChecking.Irrelevance
-import Agda.TypeChecking.SizedTypes
+import Agda.TypeChecking.SizedTypes.Solve
 import Agda.TypeChecking.CompiledClause (CompiledClauses(..))
 import Agda.TypeChecking.CompiledClause.Compile
 
@@ -168,6 +168,9 @@ checkFunDef' t ai delayed extlam with i name cs =
                 checkClause t c
               -- Andreas, 2013-11-23 do not solve size constraints here yet
               -- in case we are checking the body of an extended lambda.
+              -- 2014-04-24: The size solver requires each clause to be
+              -- checked individually, since otherwise we get constraints
+              -- in typing contexts which are not prefixes of each other.
               unless (isJust extlam) $ solveSizeConstraints
               -- Andreas, 2013-10-27 add clause as soon it is type-checked
               -- TODO: instantiateFull?

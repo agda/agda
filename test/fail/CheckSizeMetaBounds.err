@@ -1,5 +1,4 @@
-CheckSizeMetaBounds.agda:23,1-24,30
-Cannot solve size constraints
-_i_16 n =< _j_15 n : Size
-↑ _j_15 n =< .i : Size
-when checking the definition of magic
+CheckSizeMetaBounds.agda:24,17-20
+∞ !=< .i of type Size
+when checking that (magic n) are valid arguments to a function of
+type {j : Size< .i} → Nat → Nat

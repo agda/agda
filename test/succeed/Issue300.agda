@@ -1,5 +1,5 @@
 {-# OPTIONS  --sized-types --show-implicit #-}
--- {-# OPTIONS -v tc.size.solve:20 #-}
+-- {-# OPTIONS -v tc.size.solve:60 #-}
 module Issue300 where
 
 open import Common.Size

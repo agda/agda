@@ -1,4 +1,5 @@
 {-# OPTIONS --copatterns --sized-types #-}
+-- {-# OPTIONS -v tc.size.solve:30 #-}
 -- {-# OPTIONS -v term:40 -v term.proj:60 --show-implicit #-}
 -- Andreas, 2013-10-01 Make sure trailing implicit insertion
 -- works with copatterns
@@ -20,8 +21,9 @@ open Stream
 -- Mapping over streams
 
 map : {A B : Set} (f : A → B) {i : Size} → Stream A {i} → Stream B {i}
+tail (map f {i} s) {j} = map f (tail s)
 head (map f s) = f (head s)
-tail (map f s) = map f (tail s)
+
 
 -- Nats defined using map
 nats : {i : Size} → Stream Nat {i}
@@ -43,5 +45,6 @@ tail nats' = map suc nats'
 -- trailing hidden arguments on the LHS, but this has other
 -- drawbacks (Q: even with varying arity?): cannot have
 -- hidden lambdas on rhs (used to name trailing hiddens in with-clauses).
+
 
 

@@ -41,7 +41,7 @@ import Agda.TypeChecking.Primitive hiding (Nat)
 import Agda.TypeChecking.ProjectionLike
 import Agda.TypeChecking.Records
 import Agda.TypeChecking.Reduce
-import Agda.TypeChecking.SizedTypes
+import Agda.TypeChecking.SizedTypes.Solve
 import Agda.TypeChecking.Substitute
 import Agda.TypeChecking.Telescope
 

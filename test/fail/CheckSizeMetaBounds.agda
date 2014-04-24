@@ -34,4 +34,3 @@ loop (suc {j} n) p = loop {j} (magic one) (lem one _)
 
 bot : ⊥
 bot = loop one _
-

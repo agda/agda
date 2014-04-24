@@ -1,3 +1,6 @@
-SizedTypesRigidVarClash.agda:19,9-14
-.i !=< .j of type Size
-when checking that the expression suc x has type Nat
+SizedTypesRigidVarClash.agda:19,1-14
+Cannot solve size constraints
+_size_12 .i .j x ≤ .j
+.i ≤ _size_12 .i .j x
+Reason: Inconsistent constraints
+when checking the definition of inc
