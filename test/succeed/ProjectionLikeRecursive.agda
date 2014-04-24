@@ -5,10 +5,6 @@ module ProjectionLikeRecursive where
 open import Common.Prelude
 open import Common.Equality
 
-if_then_else_ : {A : Set} → Bool → A → A → A
-if true then t else e = t
-if false then t else e = e
-
 infixr 5 _∷_ _∷′_
 
 data Vec (n : Nat) : Set where

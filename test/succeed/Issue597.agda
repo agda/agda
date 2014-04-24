@@ -1,7 +1,7 @@
 -- Qualified mixfix operators
 module Issue597 where
 
-open import Common.Prelude as Prel
+open import Common.Prelude as Prel hiding (if_then_else_)
 open import Common.Level using (lzero)
 
 lz = lzero Common.Level.⊔ lzero

@@ -67,6 +67,10 @@ _++_ : ∀ {A : Set} → List A → List A → List A
 data Bool : Set where
   true false : Bool
 
+if_then_else_ : ∀ {A : Set} → Bool → A → A → A
+if true  then t else f = t
+if false then t else f = f
+
 {-# BUILTIN BOOL  Bool  #-}
 {-# BUILTIN TRUE  true  #-}
 {-# BUILTIN FALSE false #-}
