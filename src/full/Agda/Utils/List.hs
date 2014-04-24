@@ -81,6 +81,16 @@ spanJust p = loop
     loop (a : as) | Just b <- p a = mapFst (b :) $ loop as
     loop as                       = ([], as)
 
+-- | Partition a list into 'Nothing's and 'Just's.
+--   @'mapMaybe' f = snd . partitionMaybe f@.
+partitionMaybe :: (a -> Maybe b) -> [a] -> ([a], [b])
+partitionMaybe f = loop
+  where
+    loop []       = ([], [])
+    loop (a : as) = case f a of
+      Nothing -> mapFst (a :) $ loop as
+      Just b  -> mapSnd (b :) $ loop as
+
 -- | Sublist relation.
 isSublistOf :: Eq a => [a] -> [a] -> Bool
 isSublistOf []       ys = True
