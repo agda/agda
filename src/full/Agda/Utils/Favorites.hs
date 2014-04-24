@@ -12,6 +12,8 @@
 
 module Agda.Utils.Favorites where
 
+import Control.Monad
+
 import Data.Bool
 import Data.Eq
 import Data.Ord
@@ -173,6 +175,10 @@ prop_union_union2 as bs =
 ------------------------------------------------------------------------
 -- * All tests
 ------------------------------------------------------------------------
+
+-- Template Haskell hack to make the following $quickCheckAll work
+-- under ghc-7.8.
+return [] -- KEEP!
 
 -- | All tests as collected by 'quickCheckAll'.
 --

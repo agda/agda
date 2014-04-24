@@ -344,6 +344,10 @@ prop_comparable_PartialOrdering p q =
 -- * All tests
 ------------------------------------------------------------------------
 
+-- Template Haskell hack to make the following $quickCheckAll work
+-- under ghc-7.8.
+return [] -- KEEP!
+
 -- | All tests as collected by 'quickCheckAll'.
 --
 --   Using 'quickCheckAll' is convenient and superior to the manual

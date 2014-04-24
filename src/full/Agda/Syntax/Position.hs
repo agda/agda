@@ -505,6 +505,14 @@ instance Show (Position' Integer) where show = show . fmap Just
 instance Show (Interval' Integer) where show = show . fmap Just
 instance Show (Range'    Integer) where show = show . fmap Just
 
+------------------------------------------------------------------------
+-- * All tests
+------------------------------------------------------------------------
+
+-- Template Haskell hack to make the following $quickCheckAll work
+-- under ghc-7.8.
+return [] -- KEEP!
+
 -- | Test suite.
 tests :: IO Bool
 tests = do

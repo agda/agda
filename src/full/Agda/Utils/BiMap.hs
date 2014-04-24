@@ -88,6 +88,14 @@ instance (Ord a, Ord b, Arbitrary a, Arbitrary b) => Arbitrary (BiMap a b) where
 prop_BiMap_invariant (BiMap t u) =
   Map.toAscList t == List.sort (List.map swap (Map.toList u))
 
+------------------------------------------------------------------------
+-- * All tests
+------------------------------------------------------------------------
+
+-- Template Haskell hack to make the following $quickCheckAll work
+-- under ghc-7.8.
+return [] -- KEEP!
+
 tests :: IO Bool
 tests = do
   putStrLn "Agda.Utils.BiMap"
