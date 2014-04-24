@@ -534,7 +534,8 @@ splitDbIndexToLevel sc@SClause{ scTel = tel, scPerm = perm } x =
 --   The result should be the argument (counted from left, starting with 0)
 --   to split at (dot patterns included!).
 dbIndexToLevel tel perm x = if n < 0 then __IMPOSSIBLE__ else n
-  where n = permute perm [0..] !! (size tel - x - 1)
+  where n = if k < 0 then __IMPOSSIBLE__ else permute perm [0..] !! k
+        k = size tel - x - 1
 
 split' :: Induction
           -- ^ Coinductive constructors are allowed if this argument is
