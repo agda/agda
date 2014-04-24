@@ -208,7 +208,7 @@ data LevelAtom
 
 -- | A meta variable identifier is just a natural number.
 --
-newtype MetaId = MetaId Nat
+newtype MetaId = MetaId { metaId :: Nat }
     deriving (Eq, Ord, Num, Real, Enum, Integral, Typeable)
 
 -- | Something where a meta variable may block reduction.
