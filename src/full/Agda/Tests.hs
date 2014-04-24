@@ -22,6 +22,7 @@ import Agda.Termination.SparseMatrix          as TermSparse (tests)
 import Agda.Termination.Termination	      as TermTerm   (tests)
 import Agda.TypeChecking.Irrelevance          as Irrel      (tests)
 import Agda.TypeChecking.Tests                as TypeChck   (tests)
+import Agda.TypeChecking.SizedTypes.Tests     as SizedTypes (tests)
 import Agda.Utils.BiMap 	              as UtilBiMap  (tests)
 import Agda.Utils.Cluster 	              as UtilClust  (tests)
 import Agda.Utils.Either	              as UtilEith   (tests)
@@ -36,6 +37,7 @@ import Agda.Utils.Warshall                    as UtilWarsh  (tests)
 testSuite :: IO Bool
 testSuite = runTests "QuickCheck test suite:"
   [ Irrel.tests
+  , SizedTypes.tests
   , UtilFav.tests
   , UtilPOrd.tests
   , CompEnco.tests
