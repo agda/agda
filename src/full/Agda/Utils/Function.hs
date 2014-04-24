@@ -56,5 +56,12 @@ iterate' 0 f x             = x
 iterate' n f x | n > 0     = iterate' (n - 1) f $! f x
                | otherwise = error "iterate': Negative input."
 
-rot3 :: (a -> b -> c -> d) -> b -> c -> a -> d
-rot3 f b c a = f a b c
+-- * Iteration over Booleans.
+
+-- | @applyWhen b f a@ applies @f@ to @a@ when @b@.
+applyWhen :: Bool -> (a -> a) -> a -> a
+applyWhen b f = if b then f else id
+
+-- | @applyUnless b f a@ applies @f@ to @a@ unless @b@.
+applyUnless :: Bool -> (a -> a) -> a -> a
+applyUnless b f = if b then id else f
