@@ -14,7 +14,8 @@ module Fails where
     Σ : (B : Set) (C : B → Set) → Set
 
     <_,_> : {A : Set} {B : A → Set} {C : ∀ x → B x → Set}
-          (f : (x : A) → B x) → ((x : A) → C x (f x)) →
+          (f : (x : A) → B x) →
+          (g : (x : A) → C x (f x)) →
           ((x : A) → Σ (B x) (C x))
 
   record _⟶_ (A B : Set) : Set  where
