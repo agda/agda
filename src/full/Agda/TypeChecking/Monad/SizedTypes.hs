@@ -117,7 +117,9 @@ sizeSucName = liftTCM $
   `catchError` \_ -> return Nothing
 
 sizeSuc :: Nat -> Term -> TCM Term
-sizeSuc n v = do
+sizeSuc n v | n < 0     = __IMPOSSIBLE__
+            | n == 0    = return v
+            | otherwise = do
   Def suc [] <- ignoreSharing <$> primSizeSuc
   return $ iterate (sizeSuc_ suc) v !! n
 
