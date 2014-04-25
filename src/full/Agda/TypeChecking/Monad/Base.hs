@@ -1430,6 +1430,7 @@ data TypeError
         | CoverageCantSplitOn QName Telescope Args Args
         | CoverageCantSplitIrrelevantType Type
         | CoverageCantSplitType Type
+        | WithoutKError Type Term Term
         | SplitError SplitError
     -- Positivity errors
 	| NotStrictlyPositive QName [Occ]

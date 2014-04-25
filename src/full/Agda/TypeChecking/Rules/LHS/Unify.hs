@@ -31,6 +31,7 @@ import Agda.TypeChecking.Monad.Exception
 import Agda.TypeChecking.Monad.Builtin (constructorForm)
 import Agda.TypeChecking.Conversion -- equalTerm
 import Agda.TypeChecking.Constraints
+import Agda.TypeChecking.DropArgs
 import Agda.TypeChecking.Level (reallyUnLevelView)
 import Agda.TypeChecking.Reduce
 import Agda.TypeChecking.Pretty
@@ -41,11 +42,14 @@ import Agda.TypeChecking.Free
 import Agda.TypeChecking.Records
 import Agda.TypeChecking.MetaVars (assignV, newArgsMetaCtx)
 import Agda.TypeChecking.EtaContract
+import Agda.Interaction.Options (optInjectiveTypeConstructors, optWithoutK)
+
 import Agda.TypeChecking.Rules.LHS.Problem
 -- import Agda.TypeChecking.SyntacticEquality
 
 import Agda.Utils.Maybe
 import Agda.Utils.Size
+import Agda.Utils.Monad
 
 #include "../../../undefined.h"
 import Agda.Utils.Impossible
@@ -115,6 +119,7 @@ data UnifyException
   = ConstructorMismatch Type Term Term
   | StronglyRigidOccurrence Type Term Term
   | UnclearOccurrence Type Term Term
+  | WithoutKException Type Term Term
   | GenericUnifyException String
 
 instance Error UnifyException where
@@ -176,7 +181,11 @@ checkEqualityHH :: TypeHH -> Term -> Term -> Unify ()
 checkEqualityHH (Hom a) u v = do
     ok <- liftTCM $ noConstraints (True <$ equalTerm a u v)  -- no constraints left
             `catchError` \ err -> return False
-    unless ok $ addEquality a u v
+    -- Jesper, 2013-11-21: Refuse to solve reflexive equations when --without-K is enabled
+    if ok
+      then (whenM (liftTCM $ optWithoutK <$> pragmaOptions)
+           (throwException $ WithoutKException a u v))
+      else (addEquality a u v)
 checkEqualityHH aHH@(Het a1 a2) u v = -- reportPostponing -- enter "dirty" mode
     addEqualityHH aHH u v -- postpone, enter "dirty" mode
 
@@ -290,6 +299,19 @@ instance UReduce t => UReduce (Maybe t) where
   ureduce Nothing = return Nothing
   ureduce (Just t) = Just <$> ureduce t
 
+instance (UReduce a, UReduce b) => UReduce (a, b) where
+  ureduce (a, b) = (,) <$> ureduce a <*> ureduce b
+
+instance (UReduce a, UReduce b, UReduce c) => UReduce (a, b, c) where
+  ureduce (a, b, c) = (\x y z -> (x, y, z)) <$> ureduce a <*> ureduce b <*> ureduce c
+
+instance (UReduce a) => UReduce (I.Arg a) where
+  ureduce (Arg c e) = Arg c <$> ureduce e
+
+instance (UReduce a) => UReduce [ a ] where
+  ureduce = sequence . (map ureduce)
+
+
 -- | Take a substitution σ and ensure that no variables from the domain appear
 --   in the targets. The context of the targets is not changed.
 --   TODO: can this be expressed using makeSubstitution and applySubst?
@@ -344,6 +366,7 @@ type TypeHH    = HomHet Type
 --type FunViewHH = FunV TypeHH
 type TelHH     = Tele (I.Dom TypeHH)
 type TelViewHH = TelV TypeHH
+type ArgsHH    = HomHet Args
 
 absAppHH :: SubstHH t tHH => Abs t -> TermHH -> tHH
 absAppHH (Abs   _ t) u = substHH u t
@@ -451,12 +474,15 @@ unifyIndices flex a us vs = liftTCM $ do
       -- Andreas 2011-04-14:
       Left (StronglyRigidOccurrence a u v)  -> return $ NoUnify a u v
       Left (UnclearOccurrence a u v)        -> typeError $ UnequalTerms CmpEq u v a
+      Left (WithoutKException       a u v)  -> typeError $ WithoutKError a u v
       Left (GenericUnifyException     err)  -> typeError $ GenericError err
       Right _                               -> do
         checkEqualities $ applySubst (makeSubstitution s) eqs
         let n = maximum $ (-1) : flex'
         return $ Unifies $ flattenSubstitution [ Map.lookup i s | i <- [0..n] ]
-  `catchError` \err -> return $ DontKnow err
+  `catchError` \err -> case err of
+     TypeError _ (Closure {clValue = WithoutKError{}}) -> throwError err
+     _                                                 -> return $ DontKnow err
   where
     flex'      = map flexVar flex
     flexible i = i `elem` flex'
@@ -742,10 +768,22 @@ unifyIndices flex a us vs = liftTCM $ do
 	(_, Var j []) | homogeneous && flexible j -> j |->? (u, a)
 	(Con c us, Con c' vs)
           | c == c' -> do
-              r <- ureduce =<< liftTCM (dataOrRecordTypeHH c aHH)
+              r <- liftTCM (dataOrRecordTypeHH' c aHH)
               case r of
-                Just a'HH -> unifyConstructorArgs a'HH us vs
-                Nothing   -> checkEqualityHH aHH u v
+                Just (d, bHH) -> do
+                  bHH <- ureduce bHH
+                  -- Jesper, 2014-05-03: When --without-K is enabled, we reconstruct
+                  -- datatype indices and unify them as well
+                  withoutKEnabled <- liftTCM $ optWithoutK <$> pragmaOptions
+                  when withoutKEnabled (do
+                      def   <- liftTCM $ getConstInfo d
+                      let parsHH  = fmap (\(b, pars, ixs) -> pars) bHH
+                          ixsHH   = fmap (\(b, pars, ixs) -> ixs) bHH
+                          dtypeHH = (defType def) `applyHH` parsHH
+                      unifyConstructorArgs dtypeHH (leftHH ixsHH) (rightHH ixsHH))
+                  let a'HH = fmap (\(b, pars, _) -> b `apply` pars) bHH
+                  unifyConstructorArgs a'HH us vs
+                Nothing -> checkEqualityHH aHH u v
           | otherwise -> constructorMismatchHH aHH u v
         -- Definitions are ok as long as they can't reduce (i.e. datatypes/axioms)
 	(Def d us, Def d' vs)
@@ -878,15 +916,16 @@ dataOrRecordType
   :: ConHead -- ^ Constructor name.
   -> Type  -- ^ Type of constructor application (must end in data/record).
   -> TCM (Maybe Type) -- ^ Type of constructor, applied to pars.
-dataOrRecordType c a = fmap (\ (d, b, args) -> b `apply` args) <$> dataOrRecordType' c a
+dataOrRecordType c a = fmap (\ (d, b, pars, _) -> b `apply` pars) <$> dataOrRecordType' c a
 
 dataOrRecordType' ::
      ConHead -- ^ Constructor name.
   -> Type  -- ^ Type of constructor application (must end in data/record).
-  -> TCM (Maybe (QName, Type, Args))
+  -> TCM (Maybe (QName, Type, Args, Args))
            -- ^ Name of data/record type,
-           --   type of constructor to be applied, and
-           --   data/record parameters
+           --   type of constructor to be applied,
+           --   data/record parameters, and
+           --   data indices
 dataOrRecordType' c a = do
   -- The telescope ends with a datatype or a record.
   (d, args) <- do
@@ -895,11 +934,15 @@ dataOrRecordType' c a = do
         args = fromMaybe __IMPOSSIBLE__ $ allApplyElims es
     return (d, args)
   def <- theDef <$> getConstInfo d
-  r <- case def of
-    Datatype{dataPars = n} -> Just . ((,) n) . defType <$> getConInfo c
-    Record  {recPars  = n} -> Just . ((,) n) <$> getRecordConstructorType d
-    _		           -> return Nothing
-  return $ fmap (\ (n, a') -> (d, a', genericTake n args)) r
+  case def of
+    Datatype{dataPars = n} -> do
+      a' <- defType <$> getConInfo c
+      let (pars, ixs) = genericSplitAt n args
+      return $ Just (d, a', pars, ixs)
+    Record{} -> do
+      a' <- getRecordConstructorType d
+      return $ Just (d, a', args, [])
+    _ -> return Nothing
 
 -- | Heterogeneous situation.
 --   @a1@ and @a2@ need to end in same datatype/record.
@@ -912,13 +955,34 @@ dataOrRecordTypeHH c (Het a1 a2) = do
   r1 <- dataOrRecordType' c a1
   r2 <- dataOrRecordType' c a2  -- b2 may have different parameters than b1!
   return $ case (r1, r2) of
-    (Just (d1, b1, pars1), Just (d2, b2, pars2)) | d1 == d2 -> Just $
+    (Just (d1, b1, pars1, _), Just (d2, b2, pars2, _)) | d1 == d2 -> Just $
         -- Andreas, 2011-09-15 if no parameters, we can stay homogeneous
         if null pars1 && null pars2 then Hom b1
          -- if parameters, go heterogeneous
          -- TODO: make this smarter, because parameters could be equal!
          else Het (b1 `apply` pars1) (b2 `apply` pars2)
     _ -> Nothing
+
+dataOrRecordTypeHH' ::
+     ConHead
+  -> TypeHH
+  -> TCM (Maybe (QName, HomHet (Type, Args, Args)))
+dataOrRecordTypeHH' c (Hom a) = do
+  r <- dataOrRecordType' c a
+  case r of
+    Just (d, a', pars, ixs) -> return $ Just (d, Hom (a', pars, ixs))
+    Nothing                 -> return $ Nothing
+dataOrRecordTypeHH' c (Het a1 a2) = do
+  r1 <- dataOrRecordType' c a1
+  r2 <- dataOrRecordType' c a2
+  return $ case (r1, r2) of
+    -- TODO: We should always have b1 == b2, check/force this in some way?
+    (Just (d1, b1, pars1, ixs1), Just (d2, b2, pars2, ixs2)) | d1 == d2 -> Just $
+        if null pars1 && null pars2 && null ixs1 && null ixs2
+          then (d1, Hom (b1, [], []))
+          else (d1, Het (b1, pars1, ixs1) (b2, pars2, ixs2))
+    _ -> Nothing
+
 
 -- | Return record type identifier if argument is a record type.
 isEtaRecordTypeHH :: MonadTCM tcm => TypeHH -> tcm (Maybe (QName, HomHet Args))

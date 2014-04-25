@@ -1,7 +1,9 @@
 Issue765.agda:63,11-15
-The indices
-  sup (inj₁ m) ⊥-elim
-  sup (inj₁ n) ⊥-elim
-are not constructors (or literals) applied to variables (note that
-parameters count as constructor arguments)
+Cannot eliminate reflexive equation ⊥-elim = ⊥-elim of type
+[ Position (constC ((Shape ◃ Position) ⋆ X)) , Position ]₁
+(inj₁ m) →
+μ
+((Shape (constC ((Shape ◃ Position) ⋆ X)) ⊎ Shape) ◃
+ [ Position (constC ((Shape ◃ Position) ⋆ X)) , Position ]₁)
+because K has been disabled.
 when checking that the pattern refl has type to m ≡ to n

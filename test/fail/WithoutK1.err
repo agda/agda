@@ -1,10 +1,4 @@
 WithoutK1.agda:13,7-11
-The variables
-  x
-  x
-in the indices
-  x
-  x
-are not distinct (note that parameters count as constructor
-arguments)
+Cannot eliminate reflexive equation x = x of type A because K has
+been disabled.
 when checking that the pattern refl has type x ≡ x

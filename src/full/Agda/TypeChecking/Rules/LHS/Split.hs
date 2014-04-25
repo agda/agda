@@ -277,8 +277,8 @@ splitProblem mf (Problem ps (perm, qs) tel pr) = do
                   -- but the extra check here is non-invasive to the existing code.
                   checkParsIfUnambiguous cs d pars
 
-                  whenM (optWithoutK <$> pragmaOptions) $
-                    wellFormedIndices a'
+                  --whenM (optWithoutK <$> pragmaOptions) $
+                  --  wellFormedIndices a'
 
 		  return $ Split mempty
 				 xs

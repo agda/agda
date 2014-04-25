@@ -570,8 +570,8 @@ split' ind sc@(SClause tel perm ps _ target) (x, mcons) = liftTCM $ runException
   -- cons = constructors of this datatype
   (d, pars, ixs, cons) <- inContextOfT $ isDatatype ind t
 
-  liftTCM $ whenM (optWithoutK <$> pragmaOptions) $
-    inContextOfT $ Split.wellFormedIndices (unDom t)
+  --liftTCM $ whenM (optWithoutK <$> pragmaOptions) $
+  --  inContextOfT $ Split.wellFormedIndices (unDom t)
 
   -- Compute the neighbourhoods for the constructors
   ns <- catMaybes <$> do

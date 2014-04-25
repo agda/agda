@@ -439,7 +439,7 @@ pragmaOptions =
     , Option []     ["experimental-irrelevance"] (NoArg experimentalIrrelevanceFlag)
                     "enable potentially unsound irrelevance features (irrelevant levels, irrelevant data matching)"
     , Option []     ["without-K"] (NoArg withoutKFlag)
-                    "disable the K rule (maybe)"
+                    "disable the K rule in pattern matching"
     , Option []     ["copatterns"] (NoArg copatternsFlag)
                     "enable definitions by copattern matching"
     , Option []     ["no-pattern-matching"] (NoArg noPatternMatchingFlag)

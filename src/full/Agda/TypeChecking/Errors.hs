@@ -236,6 +236,7 @@ errorString err = case err of
     UnsolvedMetas{}                          -> "UnsolvedMetas"
     UnusedVariableInPatternSynonym           -> "UnusedVariableInPatternSynonym"
     WithClausePatternMismatch{}              -> "WithClausePatternMismatch"
+    WithoutKError{}                          -> "WithoutKError"
     WrongHidingInApplication{}               -> "WrongHidingInApplication"
     WrongHidingInLHS{}                       -> "WrongHidingInLHS"
     WrongHidingInLambda{}                    -> "WrongHidingInLambda"
@@ -738,6 +739,9 @@ instance PrettyTCM TypeError where
               pwords "Cannot split on argument of non-datatype" ++ [prettyTCM a]
 
             SplitError e -> prettyTCM e
+
+            WithoutKError a u v -> fsep $
+              pwords "Cannot eliminate reflexive equation" ++ [prettyTCM u] ++ pwords "=" ++ [prettyTCM v] ++ pwords "of type" ++ [prettyTCM a] ++ pwords "because K has been disabled."
 
 	    NotStrictlyPositive d ocs -> fsep $
 		pwords "The datatype" ++ [prettyTCM d] ++ pwords "is not strictly positive, because"

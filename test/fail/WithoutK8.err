@@ -1,6 +1,0 @@
-WithoutK8.agda:20,1-7
-The index
-  M.d
-is not a constructor (or literal) applied to variables (note that
-parameters count as constructor arguments)
-when checking that the clause Foo () has type P d → Set
