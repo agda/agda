@@ -54,6 +54,9 @@ properties to add to the result."
 (defmacro agda2-let (varbind funcbind &rest body)
   "Expands to (let* VARBIND (cl-labels FUNCBIND BODY...)).
 Or possibly (let* VARBIND (labels FUNCBIND BODY...))."
+  (declare (debug ((&rest [&or symbolp (symbolp form)])
+                   (&rest (cl-defun))
+                   body)))
   `(let* ,varbind (cl-labels ,funcbind ,@body)))
 (put 'agda2-let 'lisp-indent-function 2)
 
