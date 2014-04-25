@@ -1210,14 +1210,6 @@ If there is any to load."
   "Is the current buffer a literate Agda buffer?"
   (equal (file-name-extension (buffer-name)) "lagda"))
 
-;; from http://www.emacswiki.org/emacs/ElispCookbook
-(defun string-ends-with (s ending)
-      "return non-nil if string S ends with ENDING."
-      (cond ((>= (length s) (length ending))
-             (let ((elength (length ending)))
-               (string= (substring s (- 0 elength)) ending)))
-            (t nil)))
-
 (defun agda2-goals-action (goals)
   "Annotates the goals in the current buffer with text properties.
 GOALS is a list of the buffer's goal numbers, in the order in
@@ -1233,17 +1225,16 @@ ways."
        ;; Don't run modification hooks: we don't want this function to
        ;; trigger agda2-abort-highlighting.
        (inhibit-modification-hooks t))
-      ;; Andreas, 2014-04-16 issue 1104: single line comments --
-      ;; start either at the beginning of the line or after some
-      ;; whitespace (\s-), or after the special symbols ( ) } ;
-      ;; They do not start, e.g., at the end of an identifier.
-      ((delims() (re-search-forward "[?]\\|[{][-!]\\|[-!][}]\\|^--\\||\\s -\\|[()};]--\\|\\\\begin{code}\\|\\\\end{code}" nil t))
-       (is-lone-questionmark ()
+      ((delims() (re-search-forward "[?]\\|[{][-!]\\|[-!][}]\\|--\\|\\\\begin{code}\\|\\\\end{code}" nil t))
+       (is-proper (s comment-starter)
           (save-excursion
             (save-match-data
-                (backward-char 2)
-                (looking-at
-                 "\\([{}();]\\|^\\|\\s \\)[?]\\([{}();]\\|$\\|\\s \\)"))))
+              (backward-char (length s))
+              (unless (bolp) (backward-char 1))
+              (looking-at (concat "\\([{}();]\\|^\\|\\s \\)"
+                                  (regexp-quote s)
+                                  (unless comment-starter
+                                    "\\([{}();]\\|$\\|\\s \\)"))))))
        (make(p)  (agda2-make-goal p (point) (pop goals)))
        (inside-comment() (and stk (null     (car stk))))
        (inside-goal()    (and stk (integerp (car stk))))
@@ -1260,13 +1251,12 @@ ways."
       (if literate (push 'outside stk))
       (goto-char (point-min))
       (while (and goals (safe-delims))
-        ;; since we have possibly an additional character before "--"
-        ;; we use string-ends-with instead of equal
-        (cl-labels ((c (s) (string-ends-with (match-string 0) s)))
+        (cl-labels ((c (s) (equal s (match-string 0))))
           (cond
            ((c "\\begin{code}") (when (outside-code)               (pop stk)))
            ((c "\\end{code}")   (when (not stk)                    (push 'outside stk)))
-           ((c "--")            (when (not stk)                    (end-of-line)))
+           ((c "--")            (when (and (not stk)
+                                           (is-proper "--" t))     (end-of-line)))
            ((c "{-")            (when (and (inside-code)
                                            (not (inside-goal)))    (push nil           stk)))
            ((c "-}")            (when (inside-comment)             (pop stk)))
@@ -1276,7 +1266,7 @@ ways."
                                   (setq top (pop stk))
                                   (unless stk (make top))))
            ((c "?")             (progn
-                                  (when (and (not stk) (is-lone-questionmark))
+                                  (when (and (not stk) (is-proper "?" nil))
                                     (delete-char -1)
                                     (insert "{!!}")
                                     (make (- (point) 4)))))))))))
