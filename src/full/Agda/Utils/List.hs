@@ -1,4 +1,4 @@
-{-# LANGUAGE CPP, PatternGuards #-}
+{-# LANGUAGE CPP, TemplateHaskell, PatternGuards #-}
 
 {-| Utitlity functions on lists.
 -}
@@ -11,9 +11,12 @@ import Data.Maybe
 import qualified Data.Set as Set
 
 import Text.Show.Functions ()
+import Test.QuickCheck
+import Test.QuickCheck.All
 
 import Agda.Utils.TestHelpers
-import Agda.Utils.QuickCheck
+-- import Agda.Utils.QuickCheck -- Andreas, 2014-04-27 Inconvenient
+-- because cabal-only CPP directive
 import Agda.Utils.Tuple
 
 #include "../undefined.h"
@@ -292,15 +295,22 @@ uniqBy tag =
 prop_uniqBy :: [Integer] -> Bool
 prop_uniqBy xs = sort (nub xs) == uniqBy id xs
 
+-- Hack to make $quickCheckAll work under ghc-7.8
+return []
+
 ------------------------------------------------------------------------
 -- All tests
 
 tests :: IO Bool
-tests = runTests "Agda.Utils.List"
-  [ quickCheck' prop_distinct_fastDistinct
-  , quickCheck' prop_groupBy'
-  , quickCheck' prop_extractNthElement
-  , quickCheck' prop_genericElemIndex
-  , quickCheck' prop_zipWith'
-  , quickCheck' prop_uniqBy
-  ]
+tests = do
+  putStrLn "Agda.Utils.List"
+  $quickCheckAll
+
+-- tests = runTests "Agda.Utils.List"
+--   [ quickCheck' prop_distinct_fastDistinct
+--   , quickCheck' prop_groupBy'
+--   , quickCheck' prop_extractNthElement
+--   , quickCheck' prop_genericElemIndex
+--   , quickCheck' prop_zipWith'
+--   , quickCheck' prop_uniqBy
+--   ]
