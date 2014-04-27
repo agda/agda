@@ -48,6 +48,8 @@ import Agda.Syntax.Scope.Monad
 
 import Agda.TypeChecking.Monad.Base (TypeError(..), Call(..), typeError,
                                      TCErr(..), extendlambdaname)
+import Agda.TypeChecking.Monad.Benchmark (billTo, billTop, reimburseTop)
+import qualified Agda.TypeChecking.Monad.Benchmark as Bench
 import Agda.TypeChecking.Monad.Trace (traceCall, setCurrentRange)
 import Agda.TypeChecking.Monad.State
 import Agda.TypeChecking.Monad.MetaVars (registerInteractionPoint)
@@ -534,7 +536,8 @@ instance ToAbstract C.Expr A.Expr where
 
   -- Raw application
       C.RawApp r es -> do
-        e <- parseApplication es
+        e <- reimburseTop Bench.Scoping $ billTo [Bench.Parsing, Bench.Operators] $
+          parseApplication es
         toAbstract e
 
 {- Andreas, 2010-09-06 STALE COMMENT
