@@ -1,14 +1,15 @@
 
 module Main where
 
+import Control.Applicative (Applicative(..),(<$>),(<*>))
 import Control.Monad
 import Control.Monad.Error
 import Data.Char
 import Data.List
 import qualified Data.Set as Set
 
-import Utils.ReadP
-import Utils.List
+import Agda.Utils.ReadP
+import Agda.Utils.List
 
 data Raw = Name String
 	 | RawApp [Raw]
@@ -74,10 +75,6 @@ parseRaw s = case parse p0 s of
 		    ]
 	idChar  c = not $ isSpace c || elem c "(){}"
 	idStart c = idChar c && not (isDigit c)
-
-infixl 8 <$>, <*>
-f <$> m = liftM f m
-f <*> m = ap f m
 
 -- General combinators
 recursive :: (ReadP tok a -> [ReadP tok a -> ReadP tok a]) -> ReadP tok a
@@ -293,4 +290,6 @@ arithP' = recursive $ \p ->
     where
 	f ++++ g = \p -> f p +++ g p
 
-main = print $ parseExp testP $ parseRaw "1 +0 2 +0 3"
+-- main = print $ parseExp testP $ parseRaw "1 +0 2 +0 3"
+main = print $ parseExp arithP $ parseRaw $
+  ("1" ++) $ concat $ replicate 2000 " ^ 1"

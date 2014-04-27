@@ -1,6 +1,8 @@
 
 mixfix : MixFix.hs
-	ghc -o $@ --make $< -prof -auto-all -i../../../full -odir . -hidir .
+	ghc -o $@ --make $< -i../../../full -odir . -hidir .
+# mixfix : MixFix.hs
+# 	ghc -o $@ --make $< -prof -auto-all -i../../../full -odir . -hidir .
 
 mixfix2 : MixFix2.hs
 	ghc -O -o $@ --make $< -main-is $(<:.hs=.main) -i../../../full -odir . -hidir .
