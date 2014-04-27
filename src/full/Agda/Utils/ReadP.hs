@@ -1,4 +1,4 @@
-{-# LANGUAGE MagicHash, Rank2Types #-}
+{-# LANGUAGE MagicHash, Rank2Types, DeriveFunctor #-}
 -----------------------------------------------------------------------------
 -- |
 
@@ -73,6 +73,7 @@ module Agda.Utils.ReadP
   )
  where
 
+import Control.Applicative (Applicative(..),Alternative(empty,(<|>)))
 import Control.Monad
 import GHC.Exts
 import Data.Char
@@ -89,8 +90,13 @@ data P t a
   | Fail
   | Result a (P t a)
   | Final [(a,[t])] -- invariant: list is non-empty!
+  deriving (Functor)
 
 -- Monad, MonadPlus
+
+instance Applicative (P t) where
+  pure  = return
+  (<*>) = ap
 
 instance Monad (P t) where
   return x = Result x Fail
@@ -102,6 +108,10 @@ instance Monad (P t) where
   (Final r)    >>= k = final [ys' | (x,s) <- r, ys' <- run (k x) s]
 
   fail _ = Fail
+
+instance Alternative (P t) where
+  empty = mzero
+  (<|>) = mplus
 
 instance MonadPlus (P t) where
   mzero = Fail
@@ -142,10 +152,18 @@ newtype ReadP t a = R (forall b . (a -> P t b) -> P t b)
 instance Functor (ReadP t) where
   fmap h (R f) = R (\k -> f (k . h))
 
+instance Applicative (ReadP t) where
+  pure  = return
+  (<*>) = ap
+
 instance Monad (ReadP t) where
   return x  = R (\k -> k x)
   fail _    = R (\_ -> Fail)
   R m >>= f = R (\k -> m (\a -> let R m' = f a in m' k))
+
+instance Alternative (ReadP t) where
+  empty = mzero
+  (<|>) = mplus
 
 instance MonadPlus (ReadP t) where
   mzero = pfail
