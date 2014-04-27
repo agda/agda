@@ -26,8 +26,7 @@ module Agda.Utils.TestHelpers
 
 import Control.Monad
 import Data.Functor
-
-import Agda.Utils.QuickCheck
+import Test.QuickCheck
 
 ------------------------------------------------------------------------
 -- Algebraic properties
