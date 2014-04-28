@@ -590,71 +590,93 @@ Type checking
 
   Which is a good thing!
 
-* --without-K is less restrictive. [Issue 712]
-  The handling of parameters differs from Agda 2.3.2 as follows:
-
-  1. Parameters that occur in constructor indices are classified as
-     `non-linear' and treated just as indices.
-
-  2. Parameters that are linear (i.e, fail 1.) and `big', i.e.,
-
-     a) levels or
-     b) type arguments of at least equal size (universe level) as the data type
-
-     are disregarded by the analysis.
+* Changed the semantics of --without-K. [Issue 712, Issue 865, Issue 1025]
 
   New specification of --without-K:
 
-  If the flag is activated, then Agda only accepts certain
-  case-splits. If the type of the variable to be split is D ts,
-  where D is a data (or record) type, pars stands for the small
-  parameters among ts, and ixs the indices among ts (including
-  non-linear parameters), then the following requirements must be
-  satisfied:
+  When --without-K is enabled, the unification of indices for pattern matching
+  is restricted in two ways:
 
-  * The indices ixs must be applications of constructors (or literals)
-    to distinct variables. Constructors are usually not applied to
-    parameters, but for the purposes of this check constructor
-    small parameters are treated as other arguments.  Big parameters
-    and levels are ignored.
+  1. Reflexive equations of the form x == x are no longer solved, instead Agda
+     gives an error when such an equation is encountered.
 
-  * These distinct variables must not be free in pars.
+  2. When unifying two same-headed constructor forms 'c us' and 'c vs' of type
+     'D pars ixs', the datatype indices ixs (but not the parameters) have to
+     be *self-unifiable*, i.e. unification of ixs with itself should succeed
+     positively. This is a nontrivial requirement because of point 1.
 
   Examples:
 
-  * List type.
+  * The J rule is accepted.
 
-      data List {a} (A : Set a) : Set a where
-        []  : List A
-        _∷_ : (x : A) (xs : List A) → List A
+      J : {A : Set} (P : {x y : A} → x ≡ y → Set) →
+          (∀ x → P (refl x)) →
+          ∀ {x y} (x≡y : x ≡ y) → P x≡y
+      J P p (refl x) = p x
 
-    Parameter a is considered big since it is a level.
-    A is considered big because its level (a) is not strictly below
-    the level of the data type (also a).
+    This definition is accepted since unification of x with y doesn't require
+    deletion or injectivity.
 
-  * Small parameter.
+  * The K rule is rejected.
 
-      data D {A : Set} (f : Unit → A) : A → Set where
-        d : ∀ {x} → D f x
+      K : {A : Set} (P : {x : A} → x ≡ x → Set) →
+          (∀ x → P (refl {x = x})) →
+         ∀ {x} (x≡x : x ≡ x) → P x≡x
+      K P p refl = p _
 
-    A is big, f is small.  This means that f will be considered as
-    constructor argument, just like x, (but not as index).
+    Definition is rejected with the following error:
 
-  * Equality type.
+      Cannot eliminate reflexive equation x = x of type A because K has
+      been disabled.
+      when checking that the pattern refl has type x ≡ x
 
-      data _≡_ {A : Set} (x : A) : A → Set where
-        refl : x ≡ x
+  * Symmetry of the new criterion.
 
-    Parameter A is big.  x is non-linear, because it occurs in the
-    index in constructor refl.
+      test₁ : {k l m : ℕ} → k + l ≡ m → ℕ
+      test₁ refl = zero 
 
-  * Big versus non-linear:
+      test₂ : {k l m : ℕ} → k ≡ l + m → ℕ
+      test₂ refl = zero 
 
-      data _≡_ (A : Set) : Set → Set where
-        refl : A ≡ A
+    Both versions are now accepted (previously only the first one was).
 
-    The parameter A is non-linear and treated as index.
+  * Handling of parameters.
 
+      cons-injective : {A : Set} (x y : A) → (x ∷ []) ≡ (y ∷ []) → x ≡ y
+      cons-injective x .x refl = refl
+    
+    Parameters are not unified, so they are ignored by the new criterion.
+
+  * A larger example: antisymmetry of ≤.
+
+      data _≤_ : ℕ → ℕ → Set where
+        lz : (n : ℕ) → zero ≤ n
+        ls : (m n : ℕ) → m ≤ n → suc m ≤ suc n
+
+      ≤-antisym : (m n : ℕ) → m ≤ n → n ≤ m → m ≡ n
+      ≤-antisym .zero    .zero    (lz .zero) (lz .zero)   = refl
+      ≤-antisym .(suc m) .(suc n) (ls m n p) (ls .n .m q) =
+                   cong suc (≤-antisym m n p q)
+
+  * [ Issue 1025 ]
+
+      postulate mySpace : Set
+      postulate myPoint : mySpace
+
+      data Foo : myPoint ≡ myPoint → Set where
+        foo : Foo refl
+
+      test : (i : foo ≡ foo) → i ≡ refl
+      test refl = {!!}
+
+    When applying injectivity to the equation "foo ≡ foo" of type "Foo refl",
+    it is checked that the index refl of type "myPoint ≡ myPoint" is 
+    self-unifiable. The equation "refl ≡ refl" again requires injectivity, so
+    now the index myPoint is checked for self-unifiability, hence the error:
+
+      Cannot eliminate reflexive equation myPoint = myPoint of type
+      mySpace because K has been disabled.
+      when checking that the pattern refl has type foo ≡ foo
 
 Termination checking
 ====================
