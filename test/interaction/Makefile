@@ -56,6 +56,13 @@ run_test=if test -f $*.in; \
 
 setup_Issue591     = rm -f Issue591/M.agdai
 setup_Highlighting = rm -f Highlighting/M.agdai
+setup_Auto = agda Auto/Prelude.agda
+setup_Auto-BasicLogic = $(setup_Auto)
+setup_Auto-DataConstruction = $(setup_Auto)
+setup_Auto-EqualityReasoning = $(setup_Auto)
+setup_Auto-IndexedDatatypes = $(setup_Auto)
+setup_Auto-Misc = $(setup_Auto)
+setup_Auto-Modules = $(setup_Auto)
 cleanup_Issue373   = rm -rf Issue373 MAlonzo
 RTS_Issue637       = +RTS -K1000 -RTS
 RTS_Issue639       = --safe
