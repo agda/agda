@@ -53,6 +53,8 @@ import Agda.Syntax.Scope.Base
 import Agda.Syntax.Scope.Monad
 
 import Agda.TypeChecking.Monad.Base (typeError, TypeError(..), LHSOrPatSyn(..))
+import Agda.TypeChecking.Monad.Benchmark (billSub)
+import qualified Agda.TypeChecking.Monad.Benchmark as Bench
 import Agda.TypeChecking.Monad.State (getScope)
 import Agda.TypeChecking.Monad.Options
 
@@ -540,7 +542,9 @@ parseApplication es = do
     -- Build the parser
     let ms = qualifierModules [ q | Ident q <- es ]
     flat <- flattenScope ms <$> getScope
-    p <- buildParser (getRange es) flat UseBoundNames
+    -- Andreas, 2014-04-27 Time for building the parser is negligible
+    p <- -- billSub [Bench.Parsing, Bench.Operators, Bench.BuildParser] $
+      buildParser (getRange es) flat UseBoundNames
 
     -- Parse
     case parse p es of

@@ -46,6 +46,8 @@ data Phase
     -- ^ Subphase for 'Serialize'.
   | Operators
     -- ^ Subphase for 'Parsing'.
+  | BuildParser
+    -- ^ Subphase for 'Operators'.
   deriving (Eq, Ord, Show, Enum, Bounded)
 
 -- | Account we can bill computation time to.

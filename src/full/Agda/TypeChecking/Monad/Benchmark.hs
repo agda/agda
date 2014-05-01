@@ -1,10 +1,12 @@
+{-# LANGUAGE CPP #-}
+
 -- | Measure CPU time for individual phases of the Agda pipeline.
 
 module Agda.TypeChecking.Monad.Benchmark
   ( module Agda.TypeChecking.Monad.Base.Benchmark
   , getBenchmark
   , benchmarking, reportBenchmarkingLn, reportBenchmarkingDoc
-  , billTo, billTop, billPureTo
+  , billTo, billTop, billPureTo, billSub
   , reimburse, reimburseTop
   ) where
 
@@ -19,6 +21,9 @@ import Agda.TypeChecking.Monad.State
 
 import Agda.Utils.Monad
 import Agda.Utils.Pretty (Doc)
+
+#include "../../undefined.h"
+import Agda.Utils.Impossible
 
 -- | Check whether benchmarking is activated.
 {-# SPECIALIZE benchmarking :: TCM Bool #-}
@@ -49,6 +54,11 @@ billTo = billTo' True
 -- | Bill a top account.
 billTop ::  MonadTCM tcm => Phase -> tcm a -> tcm a
 billTop k = billTo [k]
+
+-- | Bill a sub account.
+billSub ::  MonadTCM tcm => Account -> tcm a -> tcm a
+billSub [] = __IMPOSSIBLE__
+billSub k  = reimburse (init k) . billTo k
 
 -- | Bill a pure computation to a specific account.
 {-# SPECIALIZE billPureTo :: Account -> a -> TCM a #-}

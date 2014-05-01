@@ -292,4 +292,4 @@ arithP' = recursive $ \p ->
 
 -- main = print $ parseExp testP $ parseRaw "1 +0 2 +0 3"
 main = print $ parseExp arithP $ parseRaw $
-  ("1" ++) $ concat $ replicate 2000 " ^ 1"
+  ("1" ++) $ concat $ replicate 3200 " ^ 1"
