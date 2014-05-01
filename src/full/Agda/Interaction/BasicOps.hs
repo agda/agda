@@ -552,12 +552,17 @@ contextOfMeta ii norm = do
   let localVars = map ctxEntry . envContext . clEnv $ info
       letVars = map (\(n, OpenThing _ (tm, (Dom c ty))) -> Dom c (n, ty))
                     $ Map.toDescList . envLetBindings . clEnv $ info
-  withMetaInfo info $ gfilter visible <$> reifyContext (letVars ++ localVars)
+  withMetaInfo info $ gfilter visible <$> reifyContext (length letVars)
+                                                       (letVars ++ localVars)
   where gfilter p = catMaybes . map p
         visible (OfType x y) | show x /= "_" = Just (OfType' x y)
                              | otherwise     = Nothing
 	visible _	     = __IMPOSSIBLE__
-        reifyContext xs = reverse <$> zipWithM out [1..] xs
+        reifyContext skip xs =
+          reverse <$> zipWithM out
+                               -- don't escape context for letvars
+                               (replicate skip 0 ++ [1..])
+                               xs
 
         out i (Dom _ (x, t)) = escapeContext i $ do
           t' <- reify =<< rewrite norm t

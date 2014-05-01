@@ -11,3 +11,14 @@ f X = let Y : ℕ -> Set
           m : ℕ
           m = {!!}
       in {!!}
+
+-- Issue 1112: dependent let-bindings
+
+data Singleton : ℕ → Set where
+  mkSingleton : (n : ℕ) -> Singleton n 
+
+g : ℕ -> ℕ
+g x = 
+  let i = zero
+      z = mkSingleton x
+  in {!!}
