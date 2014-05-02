@@ -174,7 +174,7 @@ initialAnalysis inter = do
       _ -> return ()
 
 idPrint s m x = do
-  -- liftIO $ putStrLn s
+  lift $ reportSLn "epic.phases" 10 s
   m x
 
 -- | Perform the chain of compilation stages, from definitions to epic code
