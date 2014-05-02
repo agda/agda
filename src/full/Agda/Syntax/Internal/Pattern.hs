@@ -1,19 +1,19 @@
-{-# LANGUAGE CPP, FlexibleInstances #-}
+{-# LANGUAGE CPP, FlexibleInstances, OverlappingInstances  #-}
 
 module Agda.Syntax.Internal.Pattern where
 
 import Control.Applicative
 import Control.Monad.State
 
-import Data.Maybe (fromMaybe)
+import Data.Maybe
 import Data.Traversable (traverse)
 
-import Agda.Syntax.Common hiding (NamedArg)
+import Agda.Syntax.Common as Common hiding (NamedArg)
 import Agda.Syntax.Abstract (IsProjP(..))
 import Agda.Syntax.Internal hiding (Arg)
 import qualified Agda.Syntax.Internal as I
 
-import Agda.Utils.List (downFrom)
+import Agda.Utils.List
 import Agda.Utils.Functor ((<.>))
 import Agda.Utils.Permutation
 import Agda.Utils.Size (size)
@@ -36,11 +36,32 @@ clauseArgs cl = fromMaybe __IMPOSSIBLE__ $ allApplyElims $ clauseElims cl
 clauseElims :: Clause -> Elims
 clauseElims cl = patternsToElims (clausePerm cl) (namedClausePats cl)
 
+-- | Arity of a function, computed from clauses.
+class FunArity a where
+  funArity :: a -> Int
+
+-- | Get the number of initial 'Apply' patterns.
+instance IsProjP p => FunArity [p] where
+  funArity = length . takeWhile (isNothing . isProjP)
+
+-- | Get the number of initial 'Apply' patterns in a clause.
+instance FunArity Clause where
+  funArity = funArity . clausePats
+
+-- | Get the number of common initial 'Apply' patterns in a list of clauses.
+instance FunArity [Clause] where
+  funArity []  = 0
+  funArity cls = minimum $ map funArity cls
+
 -- * Tools for patterns
 
 instance IsProjP Pattern where
   isProjP (ProjP d) = Just d
   isProjP _         = Nothing
+
+-- Special case of Agda.Syntax.Abstract.IsProjP (Arg...)
+-- instance IsProjP (Common.Arg c Pattern) where
+--   isProjP = isProjP . unArg
 
 {- NOTE: The following definition does not work, since Elim' already
    contains Arg.  Otherwise, we could have fixed it using traverseF.

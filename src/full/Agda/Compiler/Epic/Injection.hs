@@ -1,4 +1,4 @@
-{-# LANGUAGE CPP, TypeOperators, PatternGuards, FlexibleInstances, TypeSynonymInstances #-}
+{-# LANGUAGE CPP, TypeOperators, PatternGuards, FlexibleInstances, TypeSynonymInstances, OverlappingInstances #-}
 module Agda.Compiler.Epic.Injection where
 
 import Control.Monad.State
@@ -13,6 +13,7 @@ import qualified Data.Set as S
 
 import Agda.Syntax.Common
 import Agda.Syntax.Internal as I
+import Agda.Syntax.Internal.Pattern (FunArity(..))
 import Agda.Syntax.Literal
 import Agda.TypeChecking.CompiledClause
 import Agda.TypeChecking.Monad
@@ -80,7 +81,8 @@ isInjective :: QName    -- ^ Name of the function being tested
                                   ))
 isInjective nam []  = return Nothing
 isInjective nam cls@(cl : _) = do
-    let total = genericLength . clausePats $ cl
+    lift $ reportSLn "epic.injection" 20 $ "checking isInjective " ++ show nam
+    let total = funArity cls
     (listToMaybe . catMaybes <$>) . forM [0 .. total - 1] $ \i -> do
         cli <- forM cls $ \ cl -> isInjectiveHere nam i  cl
         let cli' = catMaybes cli
