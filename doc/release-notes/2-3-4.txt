@@ -638,10 +638,10 @@ Type checking
   * Symmetry of the new criterion.
 
       test₁ : {k l m : ℕ} → k + l ≡ m → ℕ
-      test₁ refl = zero 
+      test₁ refl = zero
 
       test₂ : {k l m : ℕ} → k ≡ l + m → ℕ
-      test₂ refl = zero 
+      test₂ refl = zero
 
     Both versions are now accepted (previously only the first one was).
 
@@ -649,7 +649,7 @@ Type checking
 
       cons-injective : {A : Set} (x y : A) → (x ∷ []) ≡ (y ∷ []) → x ≡ y
       cons-injective x .x refl = refl
-    
+
     Parameters are not unified, so they are ignored by the new criterion.
 
   * A larger example: antisymmetry of ≤.
@@ -675,7 +675,7 @@ Type checking
       test refl = {!!}
 
     When applying injectivity to the equation "foo ≡ foo" of type "Foo refl",
-    it is checked that the index refl of type "myPoint ≡ myPoint" is 
+    it is checked that the index refl of type "myPoint ≡ myPoint" is
     self-unifiable. The equation "refl ≡ refl" again requires injectivity, so
     now the index myPoint is checked for self-unifiability, hence the error:
 
