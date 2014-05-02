@@ -105,6 +105,8 @@ Pragmas and Options
 Language
 ========
 
+TODO: Document quoteContext.
+
 * Experimental feature: Varying arity.
   Function clauses may now have different arity, e.g.,
 
