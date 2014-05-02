@@ -1,0 +1,5 @@
+NegativeIntegerLiteral.agda:9,5-7
+Not in scope:
+  -1
+  at NegativeIntegerLiteral.agda:9,5-7
+when scope checking -1
