@@ -414,6 +414,11 @@ Language
 
 * Minor syntax changes
 
+  * Fixities (binding strengths) can now be negative numbers as
+    well. [Issue 1109]
+
+      infix -1 _myop_
+
   * Postulates are now allowed in mutual blocks. [Issue 977]
 
   * Empty where blocks are now allowed. [Issue 947]
