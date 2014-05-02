@@ -344,7 +344,7 @@ instance ToConcrete A.Expr C.Expr where
         -- for names we have to use the name from the info, since the abstract
         -- name has been resolved to a fully qualified name (except for
         -- variables)
-    toConcrete (A.Lit l)            = return $ C.Lit $ C.Concrete l
+    toConcrete (A.Lit l)            = return $ C.Lit l
 
     toConcrete (A.QuestionMark i ii)= return $ C.QuestionMark
                                                 (getRange i)
@@ -856,7 +856,7 @@ instance ToConcrete A.Pattern C.Pattern where
       (x, p) <- toConcreteCtx ArgumentCtx (x,p)
       return $ C.AsP (getRange i) x p
     toConcrete (A.AbsurdP i) = return $ C.AbsurdP (getRange i)
-    toConcrete (A.LitP l)    = return $ C.LitP $ C.Concrete l
+    toConcrete (A.LitP l)    = return $ C.LitP l
     toConcrete (A.DotP i e)  = do
         e <- toConcreteCtx DotPatternCtx e
         return $ C.DotP (getRange i) e
