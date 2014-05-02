@@ -129,7 +129,14 @@ isInjectiveHere :: QName  -- ^ Name of the function being tested
                 -> Int    -- ^ The current argument
                 -> Clause
                 -> Compile TCM InjConstraints
-isInjectiveHere nam idx clause = case getBody clause of
+isInjectiveHere nam idx clause = do
+ lift $ reportSDoc "epic.injection" 40 $ sep
+   [ text "isInjectiveHere"
+   , prettyTCM nam
+   , text ("argumentNo=" ++ show idx)
+   -- , prettyTCM (clausePats clause)
+   ]
+ case getBody clause of
   Nothing -> return emptyC
   Just body -> do
     let t    = patternToTerm idxR $ unArg $ fromMaybe __IMPOSSIBLE__ $
@@ -137,7 +144,9 @@ isInjectiveHere nam idx clause = case getBody clause of
         t'   = applySubst (substForDot $ namedClausePats clause) t
         idxR = sum . map (nrBinds . unArg) . genericDrop (idx + 1) $ clausePats clause
     body' <- lift $ reduce body
+    lift $ reportSLn "epic.injection" 40 "reduced body"
     injFs <- gets (injectiveFuns . importedModules)
+    lift $ reportSLn "epic.injection" 40 "calculated injFs"
     res <- (t' <: body') `runReaderT` (M.insert nam (InjectiveFun idx
                                                      (length (clausePats clause))) injFs)
     lift $ reportSDoc "epic.injection" 20 $ vcat
@@ -153,6 +162,7 @@ isInjectiveHere nam idx clause = case getBody clause of
       ]
     return res
 
+-- | Turn NATURAL literal n into suc^n zero.
 litToCon :: Literal -> TCM Term
 litToCon l = case l of
     LitInt   r n | n > 0     -> do
@@ -163,9 +173,9 @@ litToCon l = case l of
 --    LitLevel _ n -> -- Does not really matter
     lit          -> return $ Lit lit
 
-litCon :: Literal -> Bool
-litCon LitInt{} = True
-litCon _        = False
+litInt :: Literal -> Bool
+litInt LitInt{} = True
+litInt _        = False
 
 insertAt :: (Nat,Term) -> Term -> Term
 insertAt (index, ins) =
@@ -173,6 +183,8 @@ insertAt (index, ins) =
 
 solve :: [QName] -> [((QName, InjectiveFun), [(QName,QName)])] -> Compile TCM [(QName, InjectiveFun)]
 solve newNames xs = do
+    lift $ reportSDoc "epic.injection" 30 $
+      sep $ text "Epic.Injection.solve" : map prettyTCM newNames
     -- Only primitive lists should be in the current module at this point,
     -- but we still want them
     conGraph <- M.union <$> gets (constrTags . curModule) <*> gets (constrTags . importedModules)
@@ -227,6 +239,8 @@ unionConstraints (Just c : cs) = do
     return (c ++ cs')
 
 -- | Are two terms injectible?
+--   Tries to find a mapping between constructors that equates the terms.
+--
 --   Precondition: t1 is normalised, t2 is in WHNF
 -- When reducing t2, it may become a literal, which makes this not work in some cases...
 class Injectible a where
@@ -255,12 +269,14 @@ instance Injectible Term where
     -- The original code did not follow this invariant in the Var-Var and Def-Def case,
     -- thus, I am not trusting it.  Also the call site does not seem to ensure it.
     -- It could be restored by only reducing the right argument in the Arg-instance.
-    (t1, t2) <- lift . lift . reduce $ (t1, t2)
+
+    -- (t1, t2) <- lift . lift . reduce $ (t1, t2)  -- NOTE: reduce *introduces* Lit! Loops!
     case (t1, t2) of
-      (Lit l, _) | litCon l -> do
+      (Lit l, Lit l') | l == l' -> return $ Just []
+      (Lit l, _) | litInt l -> do
         l' <- lift . lift $ litToCon l
         l' <: t2
-      (_,  Lit l) | litCon l -> do
+      (_,  Lit l) | litInt l -> do
         l' <- lift . lift $ litToCon l
         t1 <: l'
       (_, Def n2 es2) | Just (InjectiveFun argn arit) <- M.lookup n2 injs -> do
