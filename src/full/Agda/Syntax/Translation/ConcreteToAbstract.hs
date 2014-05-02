@@ -37,6 +37,7 @@ import Agda.Syntax.Concrete as C hiding (topLevelModuleName)
 import Agda.Syntax.Concrete.Operators
 import Agda.Syntax.Abstract as A
 import Agda.Syntax.Position
+import Agda.Syntax.Literal
 import Agda.Syntax.Common hiding (Arg, Dom, NamedArg, ArgInfo)
 import qualified Agda.Syntax.Common as Common
 import Agda.Syntax.Info
@@ -502,6 +503,11 @@ toAbstractLam r bs e ctx = do
                   mkLam b e = A.Lam (ExprRange $ fuseRange b e) b e
             [] -> __IMPOSSIBLE__
 
+-- | Check for non-negativity of integer literals,
+--   since only natural numbers are supported as of now.
+instance ToAbstract (C.Concrete Literal) Literal where
+  toAbstract (Concrete (LitInt r n)) | n < 0 = typeError $ GenericError $ "Negative integer literals not supported"
+  toAbstract (Concrete l) = return l
 
 instance ToAbstract C.Expr A.Expr where
   toAbstract e =
@@ -511,7 +517,7 @@ instance ToAbstract C.Expr A.Expr where
       Ident x -> toAbstract (OldQName x)
 
   -- Literals
-      C.Lit l -> return $ A.Lit l
+      C.Lit l -> A.Lit <$> toAbstract l
 
   -- Meta variables
       C.QuestionMark r n -> do
@@ -1568,7 +1574,7 @@ instance ToAbstract C.Pattern (A.Pattern' C.Expr) where
 
     toAbstract p@(C.WildP r)    = return $ A.WildP (PatSource r $ const p)
     toAbstract (C.ParenP _ p)   = toAbstract p
-    toAbstract (C.LitP l)       = return $ A.LitP l
+    toAbstract (C.LitP l)       = A.LitP <$> toAbstract l
     toAbstract p0@(C.AsP r x p) = typeError $ NotSupported "@-patterns"
       {- do
         x <- toAbstract (NewName x)

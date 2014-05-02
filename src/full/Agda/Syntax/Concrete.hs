@@ -1,4 +1,4 @@
-{-# LANGUAGE CPP, DeriveDataTypeable, DeriveFunctor, DeriveTraversable, DeriveFoldable, FlexibleInstances, TypeSynonymInstances #-}
+{-# LANGUAGE CPP, DeriveDataTypeable, DeriveFunctor, DeriveTraversable, DeriveFoldable, GeneralizedNewtypeDeriving, FlexibleInstances, TypeSynonymInstances #-}
 
 {-| The concrete syntax is a raw representation of the program text
     without any desugaring at all.  This is what the parser produces.
@@ -44,6 +44,7 @@ module Agda.Syntax.Concrete
 --    , Dom
     , NamedArg
     , ArgInfo
+    , Concrete(..)
     )
     where
 
@@ -58,6 +59,8 @@ import Agda.Syntax.Notation
 import Agda.Syntax.Literal
 
 import Agda.Syntax.Concrete.Name
+
+import Agda.Utils.Pretty
 
 #include "../undefined.h"
 import Agda.Utils.Impossible
@@ -77,10 +80,14 @@ fromOrdinary :: e -> OpApp e -> e
 fromOrdinary d (Ordinary e) = e
 fromOrdinary d _            = d
 
+-- | A wrapper, used for wrapping literals.
+newtype Concrete a = Concrete { concrete :: a }
+  deriving (Typeable, Eq, Ord, Show, Functor, Foldable, Traversable, HasRange, KillRange, Pretty)
+
 -- | Concrete expressions. Should represent exactly what the user wrote.
 data Expr
 	= Ident QName			       -- ^ ex: @x@
-	| Lit Literal			       -- ^ ex: @1@ or @\"foo\"@
+	| Lit (Concrete Literal)               -- ^ ex: @1@ or @\"foo\"@
 	| QuestionMark !Range (Maybe Nat)      -- ^ ex: @?@ or @{! ... !}@
 	| Underscore !Range (Maybe String)     -- ^ ex: @_@ or @_A_5@
 	| RawApp !Range [Expr]		       -- ^ before parsing operators
@@ -128,7 +135,7 @@ data Pattern
 	| AbsurdP !Range                          -- ^ @()@
 	| AsP !Range Name Pattern                 -- ^ @x\@p@ unused
 	| DotP !Range Expr                        -- ^ @.e@
-	| LitP Literal                            -- ^ @0@, @1@, etc.
+	| LitP (Concrete Literal)                 -- ^ @0@, @1@, etc.
     deriving (Typeable)
 
 
@@ -398,7 +405,7 @@ patternHead p =
     AbsurdP _            -> Nothing
     AsP _ x p            -> patternHead p
     DotP{}               -> Nothing
-    LitP (LitQName _ x)  -> Nothing -- return $ unqualify x -- does not compile
+    LitP (Concrete (LitQName _ x))  -> Nothing -- return $ unqualify x -- does not compile
     LitP _               -> Nothing
     InstanceP _ (namedPat) -> patternHead (namedThing namedPat)
 

@@ -563,7 +563,7 @@ Expr3Curly
 
 Expr3NoCurly
     : QId				{ Ident $1 }
-    | literal				{ Lit $1 }
+    | literal				{ Lit (Concrete $1) }
     | '?'				{ QuestionMark (getRange $1) Nothing }
     | '_'				{ Underscore (getRange $1) Nothing }
     | 'Prop'				{ Prop (getRange $1) }
