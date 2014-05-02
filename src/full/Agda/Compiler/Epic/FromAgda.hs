@@ -19,6 +19,7 @@ import Agda.TypeChecking.Monad
 import Agda.TypeChecking.Level (reallyUnLevelView)
 import qualified Agda.TypeChecking.Substitute as S
 import Agda.TypeChecking.Pretty
+import Agda.Utils.List
 
 import Agda.Compiler.Epic.AuxAST
 import Agda.Compiler.Epic.CompileState
@@ -182,11 +183,13 @@ compileClauses name nargs c = do
         CC.Case n nc -> case length env <= n of
            True -> __IMPOSSIBLE__
            False -> case CC.catchAllBranch nc of
-            Nothing -> Case (Var (env !! n)) <$> compileCase env omniDefault n nc
+            Nothing -> Case (Var (fromMaybe __IMPOSSIBLE__ $ env !!! n)) <$>
+                         compileCase env omniDefault n nc
             Just de -> do
                 def <- compileClauses' env omniDefault de
                 bindExpr (lazy def) $ \ var ->
-                  Case (Var (env !! n)) <$> compileCase env (Just var) n nc
+                  Case (Var (fromMaybe __IMPOSSIBLE__ $ env !!! n)) <$>
+                    compileCase env (Just var) n nc
         CC.Done _ t -> substTerm ({- reverse -} env) t
         CC.Fail     -> return IMPOSSIBLE
 
@@ -223,7 +226,8 @@ substTerm env term = case T.unSpine term of
       let args = fromMaybe __IMPOSSIBLE__ $ allApplyElims es
       case length env <= ind of
         True  -> __IMPOSSIBLE__
-        False -> apps (env !! ind) <$> mapM (substTerm env . unArg) args
+        False -> apps (fromMaybe __IMPOSSIBLE__ $ env !!! ind) <$>
+                   mapM (substTerm env . unArg) args
     T.Lam _ (Abs _ te) -> do
        name <- newName
        Lam name <$> substTerm (name : env) te

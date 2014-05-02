@@ -20,6 +20,7 @@ import Agda.TypeChecking.Monad.Builtin
 import Agda.TypeChecking.Pretty
 import Agda.TypeChecking.Reduce
 import Agda.TypeChecking.Substitute
+import Agda.Utils.List
 import Agda.Utils.Monad
 import qualified Agda.Utils.HashMap as HM
 
@@ -129,7 +130,8 @@ isInjectiveHere :: QName  -- ^ Name of the function being tested
 isInjectiveHere nam idx clause = case getBody clause of
   Nothing -> return emptyC
   Just body -> do
-    let t    = patternToTerm idxR $ unArg $ clausePats clause !! idx
+    let t    = patternToTerm idxR $ unArg $ fromMaybe __IMPOSSIBLE__ $
+                 clausePats clause !!! idx
         t'   = applySubst (substForDot $ namedClausePats clause) t
         idxR = sum . map (nrBinds . unArg) . genericDrop (idx + 1) $ clausePats clause
     body' <- lift $ reduce body
@@ -197,7 +199,7 @@ solve newNames xs = do
             _         -> __IMPOSSIBLE__
         case M.toList eqs of
             (c, Same n) : _ -> do
-                let grp = eqGroups tags !!! n
+                let grp = eqGroups tags !!!! n
                 tag <- assignConstrTag' c (S.toList grp)
                 updateTags . fromMaybe __IMPOSSIBLE__ =<< setTag n tag tags { constrGroup = eqs }
             _              -> return ()
@@ -263,9 +265,10 @@ instance Injectible Term where
         if genericLength es2 /= arit
           then return Nothing
           else do
-            case es2 !! argn of
-              Proj{}  -> __IMPOSSIBLE__
-              Apply a -> t1 <: unArg a
+            case es2 !!! argn of
+              Nothing        -> __IMPOSSIBLE__
+              Just (Proj{})  -> __IMPOSSIBLE__
+              Just (Apply a) -> t1 <: unArg a
       (Var i1 es1, Var i2 es2) | i1 == i2 -> es1 <: es2
       (Def q1 es1, Def q2 es2) | q1 == q2 -> es1 <: es2
       (Con con1 args1, Con con2 args2) -> do
@@ -319,8 +322,8 @@ initialTags setTags newNames = Tags
 
 unify :: QName -> QName -> Tags -> Compile TCM (Maybe Tags)
 unify c1 c2 ts = do
-    let g1 = constrGroup ts !!! c1
-        g2 = constrGroup ts !!! c2
+    let g1 = constrGroup ts !!!! c1
+        g2 = constrGroup ts !!!! c2
     case (g1, g2) of
         (Same n1, Same n2)   | n1 == n2 -> return $ Just ts
         (IsTag t1, IsTag t2) | t1 == t2 -> return $ Just ts
@@ -331,12 +334,12 @@ unify c1 c2 ts = do
 
 setTag :: Int -> Tag -> Tags -> Compile TCM (Maybe Tags)
 setTag gid tag ts = return $ Just $ ts
-    { constrGroup = foldr (\c -> M.insert c (IsTag tag)) (constrGroup ts) (S.toList $ eqGroups ts !!! gid)}
+    { constrGroup = foldr (\c -> M.insert c (IsTag tag)) (constrGroup ts) (S.toList $ eqGroups ts !!!! gid)}
 
 mergeGroups :: Int -> Int -> Tags -> Compile TCM (Maybe Tags)
 mergeGroups n1 n2 ts = do
-    let g1s = eqGroups ts !!! n1
-        g2s = eqGroups ts !!! n2
+    let g1s = eqGroups ts !!!! n1
+        g2s = eqGroups ts !!!! n2
         gs  = S.union g1s g2s
         g1l = S.toList g1s
         g2l = S.toList g2s
@@ -353,7 +356,7 @@ unifiable c1 c2 = do
     d2 <- getConData c2
     return $ d1 /= d2
 
-(!!!) :: Ord k => k :-> v -> k -> v
-m !!!  k = case M.lookup k m of
+(!!!!) :: Ord k => k :-> v -> k -> v
+m !!!!  k = case M.lookup k m of
     Nothing -> __IMPOSSIBLE__
     Just x  -> x

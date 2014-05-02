@@ -23,6 +23,7 @@ import qualified Agda.TypeChecking.Substitute as S
 import Agda.TypeChecking.Pretty as P
 import Agda.TypeChecking.Reduce
 import Agda.TypeChecking.Telescope
+import Agda.Utils.List
 import Agda.Utils.Monad
 import Agda.Utils.Size
 import qualified Agda.Utils.HashMap as HM
@@ -249,7 +250,7 @@ replaceForced (vars,uvars) tele (fvar : fvars) unif e = do
     let n = fromMaybe __IMPOSSIBLE__ $ elemIndex fvar uvars
     mpos <- findPosition n unif
     case mpos of
-        Nothing -> case unif !! n of
+        Nothing -> case fromMaybe __IMPOSSIBLE__ $ unif !!! n of
             Nothing | fvar `notElem` fv e ->
               replaceForced (vars, uvars) tele fvars unif e
             Nothing -> do
@@ -267,7 +268,7 @@ replaceForced (vars,uvars) tele (fvar : fvars) unif e = do
                 subst fvar v <$> replaceForced (vars, uvars)
                                                tele fvars unif (Let v te e)
         Just (pos , term) -> do
-            (build, v) <- buildTerm (uvars !! pos) n term
+            (build, v) <- buildTerm (fromMaybe __IMPOSSIBLE__ $ uvars !!! pos) n term
             build . subst fvar v <$> replaceForced (vars, uvars) tele fvars unif
                                      e
   where
@@ -281,10 +282,10 @@ buildTerm var idx (I.Con con args) = do
     let c = I.conName con
     vs <- replicateM (length args) newName
     (pos , arg) <- fromMaybe __IMPOSSIBLE__ <$> findPosition idx (map (Just . unArg) args)
-    (fun' , v) <- buildTerm (vs !! pos) idx arg
+    (fun2 , v) <- buildTerm (fromMaybe __IMPOSSIBLE__ $ vs !!! pos) idx arg
     tag <- getConstrTag c
-    let fun e = casee (Var var) [Branch tag c vs e]
-    return (fun . fun' , v)
+    let fun1 e = casee (Var var) [Branch tag c vs e]
+    return (fun1 . fun2 , v)
 buildTerm _ _ _ = __IMPOSSIBLE__
 
 
