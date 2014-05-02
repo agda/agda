@@ -40,24 +40,6 @@ recursive f = p0
 	fs = f p0
 	p0 = foldr ( $ ) p0 fs
 
--- | Variant of chainr1
-chainr1' :: ReadP t a -> ReadP t (a -> a -> ReadP t a) -> ReadP t a
-chainr1' p op = scan
-  where scan   = p >>= rest
-        rest x = do f <- op
-                    y <- scan
-                    f x y
-                 +++ return x
-
--- | Variant of chainl1
-chainl1' :: ReadP t a -> ReadP t (a -> a -> ReadP t a) -> ReadP t a
-chainl1' p op = p >>= rest
-  where rest x = do f <- op
-                    y <- p
-                    fxy <- f x y
-                    rest fxy
-                 +++ return x
-
 ----------------------------
 -- Specific combinators
 
@@ -74,12 +56,12 @@ partP ms s = do
 	    LocalV y | str == show y -> Just (getRange y)
 	    _			     -> Nothing
 
-binop :: IsExpr e => ReadP e (NewNotation,Range,[e]) -> ReadP e (e -> e -> ReadP a e)
+binop :: IsExpr e => ReadP e (NewNotation,Range,[e]) -> ReadP e (e -> e -> e)
 binop middleP = do
   (nsyn,r,es) <- middleP
   return $ \x y -> rebuild nsyn r (x : es ++ [y])
 
-preop, postop :: IsExpr e => ReadP e (NewNotation,Range,[e]) -> ReadP e (e -> ReadP a e)
+preop, postop :: IsExpr e => ReadP e (NewNotation,Range,[e]) -> ReadP e (e -> e)
 preop middleP = do
   (nsyn,r,es) <- middleP
   return $ \x -> rebuild nsyn r (es ++ [x])
@@ -87,7 +69,6 @@ preop middleP = do
 postop middleP = do
   (nsyn,r,es) <- middleP
   return $ \x -> rebuild nsyn r (x : es)
-
 
 
 -- | Parse the "operator part" of the given syntax.
@@ -113,33 +94,29 @@ opP p nsyn@(q,_,syn) = do
 
 -- | Given a name with a syntax spec, and a list of parsed expressions
 -- fitting it, rebuild the expression.
--- Note that this function must not parse any input (as guaranteed by the type)
-rebuild :: forall symbol e. IsExpr e => NewNotation -> Range -> [e] -> ReadP symbol e
-rebuild (name,_,syn) r es = do
-  exprs <- mapM findExprFor [0..lastHole]
-  return $ unExprView $ OpAppV (setRange r name) exprs
-  where filledHoles = zip es (filter isAHole syn)
-        lastHole = maximum [t | Just t <- map holeTarget syn]
-        findExprFor :: Int -> ReadP a (NamedArg (OpApp e))
-        findExprFor n = case [setArgColors [] $ fmap (e <$) m | (e, NormalHole m) <- filledHoles, namedArg m == n] of
-                          []  -> fail $ "no expression for hole " ++ show n
-                          [x] -> case [e | (e, BindHole m) <- filledHoles, m == n] of
-                                   [] -> return $ (fmap . fmap) Ordinary x -- no variable to bind
-                                   vars -> do bs <- mapM rebuildBinding $ map exprView vars
-                                              return $ (fmap . fmap) (SyntaxBindingLambda (fuseRange bs x) bs) x
-                          _ -> fail $ "more than one expression for hole " ++ show n
+rebuild :: forall e. IsExpr e => NewNotation -> Range -> [e] -> e
+rebuild (name,_,syn) r es = unExprView $ OpAppV (setRange r name) exprs
+  where
+    exprs = map findExprFor [0..lastHole]
+    filledHoles = zip es (filter isAHole syn)
+    lastHole = maximum [t | Just t <- map holeTarget syn]
+    findExprFor :: Int -> NamedArg (OpApp e)
+    findExprFor n =
+      case [setArgColors [] $ fmap (e <$) m | (e, NormalHole m) <- filledHoles, namedArg m == n] of
+        []  -> __IMPOSSIBLE__
+        [x] -> case [e | (e, BindHole m) <- filledHoles, m == n] of
+                 [] -> (fmap . fmap) Ordinary x -- no variable to bind
+                 vars ->
+                  let bs = map (rebuildBinding . exprView) vars in
+                  (fmap . fmap) (SyntaxBindingLambda (fuseRange bs x) bs) x
+        _  -> __IMPOSSIBLE__
 
-rebuildBinding :: ExprView e -> ReadP a LamBinding
+rebuildBinding :: ExprView e -> LamBinding
   -- Andreas, 2011-04-07 put just 'Relevant' here, is this correct?
-rebuildBinding (LocalV (QName name)) = return $ DomainFree defaultArgInfo $ mkBoundName_ name
+rebuildBinding (LocalV (QName name)) = DomainFree defaultArgInfo $ mkBoundName_ name
 rebuildBinding (WildV e) =
-  return $ DomainFree defaultArgInfo $ mkBoundName_ $ Name noRange [Hole]
-rebuildBinding _ = fail "variable name expected"
-
-($$$) :: (e -> ReadP a e) -> ReadP a e -> ReadP a e
-f $$$ x = do
-   x' <- x
-   f x'
+  DomainFree defaultArgInfo $ mkBoundName_ $ Name noRange [Hole]
+rebuildBinding _ = __IMPOSSIBLE__
 
 -- | Parse using the appropriate fixity, given a parser parsing the
 -- operator part, the name of the operator, and a parser of
@@ -148,27 +125,26 @@ infixP, infixrP, infixlP, postfixP, prefixP,nonfixP :: IsExpr e => ReadP e (NewN
 prefixP op p = do
     fs <- many (preop op)
     e  <- p
-    foldr (($$$)) (return e) fs
+    return $ foldr ( $ ) e fs
 
 postfixP op p = do
     e <- p
     fs <- many (postop op)
-    foldl (flip ( $$$ )) (return e) fs
+    return $ foldl (flip ( $ )) e fs
 
-infixlP op p = chainl1' p (binop op)
-infixrP op p = chainr1' p (binop op)
+infixlP op p = chainl1 p (binop op)
+infixrP op p = chainr1 p (binop op)
 infixP  op p = do
     e <- p
     restP e
     where
 	restP x = return x +++ do
 	    f <- binop op
-	    e <- p
-	    f x e
+	    f x <$> p
 
-nonfixP op p = (do
+nonfixP op p = do
   (nsyn,r,es) <- op
-  rebuild nsyn r es)
+  return $ rebuild nsyn r es
  +++ p
 
 appP :: IsExpr e => ReadP e e -> ReadP e e -> ReadP e e
