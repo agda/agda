@@ -102,8 +102,12 @@ inferable visited dat args = do
         (AA.Con tag c <$>) <$> sequence <$> forM (notForced forc $ flattenTel tel) (inferableTerm visited' . unEl . unDom)
     visited' = S.insert dat visited
 
-inferableTerm visited t = case t of
-    Def q es    -> inferable visited q $ fromMaybe __IMPOSSIBLE__ $ allApplyElims es
+inferableTerm visited t = do
+  case t of
+    Def q es    ->
+      case allApplyElims es of
+        Just vs -> inferable visited q vs
+        Nothing -> return Nothing
     Pi _   b    -> (AA.Lam "_" <$>) <$> inferableTerm visited (unEl $ unAbs b)
     Sort {}     -> return . return $ AA.UNIT
     t           -> do
