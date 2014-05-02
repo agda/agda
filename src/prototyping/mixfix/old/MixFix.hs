@@ -82,8 +82,6 @@ recursive f = p0
     where
 	fs = f p0
 	p0 = foldr ( $ ) p0 fs
-	choice' = foldr1 (++++)
-	f ++++ g = \p -> f p +++ g p
 
 -- Specific combinators
 name :: String -> P String
