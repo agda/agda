@@ -492,6 +492,9 @@ data Access = PrivateAccess | PublicAccess
 data IsAbstract = AbstractDef | ConcreteDef
     deriving (Typeable, Show, Eq, Ord)
 
+instance KillRange IsAbstract where
+  killRange = id
+
 type Nat    = Int
 type Arity  = Nat
 

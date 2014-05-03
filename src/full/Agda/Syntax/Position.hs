@@ -38,7 +38,10 @@ module Agda.Syntax.Position
   , HasRange(..)
   , SetRange(..)
   , KillRange(..)
+  , KillRangeT
   , killRange1, killRange2, killRange3, killRange4, killRange5, killRange6, killRange7
+  , killRange8, killRange9, killRange10, killRange11, killRange12, killRange13, killRange14
+  , killRange15, killRange16, killRange17, killRange18, killRange19
   , withRangeOf
   , fuseRange
   , fuseRanges
@@ -197,7 +200,9 @@ instance SetRange Range where
 
 -- | Killing the range of an object sets all range information to 'noRange'.
 class KillRange a where
-  killRange :: a -> a
+  killRange :: KillRangeT a
+
+type KillRangeT a = a -> a
 
 killRange1 f a = f (killRange a)
 killRange2 f a = killRange1 (f $ killRange a)
@@ -206,11 +211,29 @@ killRange4 f a = killRange3 (f $ killRange a)
 killRange5 f a = killRange4 (f $ killRange a)
 killRange6 f a = killRange5 (f $ killRange a)
 killRange7 f a = killRange6 (f $ killRange a)
+killRange8 f a = killRange7 (f $ killRange a)
+killRange9 f a = killRange8 (f $ killRange a)
+killRange10 f a = killRange9 (f $ killRange a)
+killRange11 f a = killRange10 (f $ killRange a)
+killRange12 f a = killRange11 (f $ killRange a)
+killRange13 f a = killRange12 (f $ killRange a)
+killRange14 f a = killRange13 (f $ killRange a)
+killRange15 f a = killRange14 (f $ killRange a)
+killRange16 f a = killRange15 (f $ killRange a)
+killRange17 f a = killRange16 (f $ killRange a)
+killRange18 f a = killRange17 (f $ killRange a)
+killRange19 f a = killRange18 (f $ killRange a)
 
 instance KillRange Range where
   killRange _ = noRange
 
 instance KillRange () where
+  killRange = id
+
+instance KillRange Bool where
+  killRange = id
+
+instance KillRange Int where
   killRange = id
 
 instance KillRange a => KillRange [a] where
