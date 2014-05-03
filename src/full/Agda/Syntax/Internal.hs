@@ -712,14 +712,26 @@ instance KillRange Sort where
     Type a     -> killRange1 Type a
     DLub s1 s2 -> killRange2 DLub s1 s2
 
-instance KillRange a => KillRange (Tele a) where
+instance KillRange Pattern where
+  killRange p =
+    case p of
+      VarP{}           -> p
+      DotP v           -> killRange1 DotP v
+      ConP con info ps -> killRange3 ConP con info ps
+      LitP l           -> killRange1 LitP l
+      ProjP q          -> killRange1 ProjP q
+
+instance KillRange Permutation where
+  killRange = id
+
+instance KillRange Clause where
+  killRange (Clause r tel perm ps body t) = killRange6 Clause r tel perm ps body t
+
+instance KillRange a => KillRange (ClauseBodyF a) where
   killRange = fmap killRange
 
-{-
--- instance KillRange Telescope where
-  killRange EmptyTel = EmptyTel
-  killRange (ExtendTel a tel) = ExtendTel (killRange a) (killRange tel) -- killRange2 ExtendTel a tel
--}
+instance KillRange a => KillRange (Tele a) where
+  killRange = fmap killRange
 
 instance KillRange a => KillRange (Blocked a) where
   killRange = fmap killRange
