@@ -106,6 +106,7 @@ import Agda.Utils.Tuple
     'IMPOSSIBLE'    { TokKeyword KwIMPOSSIBLE $$ }
     'ETA'           { TokKeyword KwETA $$ }
     'NO_TERMINATION_CHECK' { TokKeyword KwNO_TERMINATION_CHECK $$ }
+    'MEASURE'       { TokKeyword KwMEASURE $$ }
     'COMPILED'      { TokKeyword KwCOMPILED $$ }
     'COMPILED_EXPORT'      { TokKeyword KwCOMPILED_EXPORT $$ }
     'COMPILED_DATA' { TokKeyword KwCOMPILED_DATA $$ }
@@ -219,6 +220,7 @@ Token
     | 'IMPOSSIBLE'    { TokKeyword KwIMPOSSIBLE $1 }
     | 'ETA'           { TokKeyword KwETA $1 }
     | 'NO_TERMINATION_CHECK' { TokKeyword KwNO_TERMINATION_CHECK $1 }
+    | 'MEASURE'       { TokKeyword KwMEASURE $1 }
     | 'quoteGoal'     { TokKeyword KwQuoteGoal $1 }
     | 'quoteContext'     { TokKeyword KwQuoteContext $1 }
     | 'quote'         { TokKeyword KwQuote $1 }
@@ -483,8 +485,11 @@ PragmaString :: { String }
 PragmaString
     : string { snd $1 }
 
-PragmaName :: { QName }
-PragmaName : string {% fmap QName (mkName $1) }
+PragmaName :: { Name }
+PragmaName : string {% mkName $1 }
+
+PragmaQName :: { QName }
+PragmaQName : string {% fmap QName (mkName $1) }
 
 {--------------------------------------------------------------------------
     Expressions (terms and types)
@@ -1214,6 +1219,7 @@ DeclarationPragma
   | ImpossiblePragma         { $1 }
   | RecordEtaPragma          { $1 }
   | NoTerminationCheckPragma { $1 }
+  | MeasurePragma            { $1 }
   | OptionsPragma            { $1 }
     -- Andreas, 2014-03-06
     -- OPTIONS pragma not allowed everywhere, but don't give parse error.
@@ -1224,53 +1230,58 @@ OptionsPragma : '{-#' 'OPTIONS' PragmaStrings '#-}' { OptionsPragma (getRange ($
 
 BuiltinPragma :: { Pragma }
 BuiltinPragma
-    : '{-#' 'BUILTIN' string PragmaName '#-}'
+    : '{-#' 'BUILTIN' string PragmaQName '#-}'
       { BuiltinPragma (getRange ($1,$2,fst $3,$4,$5)) (snd $3) (Ident $4) }
 
 CompiledPragma :: { Pragma }
 CompiledPragma
-  : '{-#' 'COMPILED' PragmaName PragmaStrings '#-}'
+  : '{-#' 'COMPILED' PragmaQName PragmaStrings '#-}'
     { CompiledPragma (getRange ($1,$2,$3,$5)) $3 (unwords $4) }
 
 CompiledExportPragma :: { Pragma }
 CompiledExportPragma
-  : '{-#' 'COMPILED_EXPORT' PragmaName PragmaString '#-}'
+  : '{-#' 'COMPILED_EXPORT' PragmaQName PragmaString '#-}'
     { CompiledExportPragma (getRange ($1,$2,$3,$5)) $3 $4 }
 
 CompiledTypePragma :: { Pragma }
 CompiledTypePragma
-  : '{-#' 'COMPILED_TYPE' PragmaName PragmaStrings '#-}'
+  : '{-#' 'COMPILED_TYPE' PragmaQName PragmaStrings '#-}'
     { CompiledTypePragma (getRange ($1,$2,$3,$5)) $3 (unwords $4) }
 
 CompiledDataPragma :: { Pragma }
 CompiledDataPragma
-  : '{-#' 'COMPILED_DATA' PragmaName string PragmaStrings '#-}'
+  : '{-#' 'COMPILED_DATA' PragmaQName string PragmaStrings '#-}'
     { CompiledDataPragma (getRange ($1,$2,$3,fst $4,$6)) $3 (snd $4) $5 }
 
 CompiledEpicPragma :: { Pragma }
 CompiledEpicPragma
-  : '{-#' 'COMPILED_EPIC' PragmaName PragmaStrings '#-}'
+  : '{-#' 'COMPILED_EPIC' PragmaQName PragmaStrings '#-}'
     { CompiledEpicPragma (getRange ($1,$2,$3,$5)) $3 (unwords $4) }
 
 CompiledJSPragma :: { Pragma }
 CompiledJSPragma
-  : '{-#' 'COMPILED_JS' PragmaName PragmaStrings '#-}'
+  : '{-#' 'COMPILED_JS' PragmaQName PragmaStrings '#-}'
     { CompiledJSPragma (getRange ($1,$2,$3,$5)) $3 (unwords $4) }
 
 StaticPragma :: { Pragma }
 StaticPragma
-  : '{-#' 'STATIC' PragmaName '#-}'
+  : '{-#' 'STATIC' PragmaQName '#-}'
     { StaticPragma (getRange ($1,$2,$3,$4)) $3 }
 
 RecordEtaPragma :: { Pragma }
 RecordEtaPragma
-  : '{-#' 'ETA' PragmaName '#-}'
+  : '{-#' 'ETA' PragmaQName '#-}'
     { EtaPragma (getRange ($1,$2,$3,$4)) $3 }
 
 NoTerminationCheckPragma :: { Pragma }
 NoTerminationCheckPragma
   : '{-#' 'NO_TERMINATION_CHECK' '#-}'
     { NoTerminationCheckPragma (getRange ($1,$2,$3)) }
+
+MeasurePragma :: { Pragma }
+MeasurePragma
+  : '{-#' 'MEASURE' PragmaName '#-}'
+    { MeasurePragma (getRange($1,$2,$3,$4)) $3 }
 
 ImportPragma :: { Pragma }
 ImportPragma

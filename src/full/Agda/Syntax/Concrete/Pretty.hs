@@ -458,6 +458,8 @@ instance Pretty Pragma where
     pretty (EtaPragma _ x) =
       hsep $ [text "ETA", pretty x]
     pretty (NoTerminationCheckPragma _) = text "NO_TERMINATION_CHECK"
+    pretty (MeasurePragma _ x) =
+      hsep $ [text "MEASURE", pretty x]
 
 instance Pretty Fixity where
     pretty (LeftAssoc _ n)  = text "infixl" <+> text (show n)

@@ -587,7 +587,7 @@ instance ToAbstract C.Expr A.Expr where
             insertApp _ = __IMPOSSIBLE__
             insertHead (C.LHS p wps eqs with) = C.LHS (insertApp p) wps eqs with
             insertHead (C.Ellipsis r wps eqs with) = C.Ellipsis r wps eqs with
-        scdef <- toAbstract (C.FunDef r [] defaultFixity' ConcreteDef True cname
+        scdef <- toAbstract (C.FunDef r [] defaultFixity' ConcreteDef C.TerminationCheck cname
                                (map (\(lhs,rhs,wh) -> -- wh = NoWhere, see parser for more info
                                       C.Clause cname (insertHead lhs) rhs wh []) cs))
         case scdef of
@@ -931,7 +931,7 @@ instance ToAbstract LetDef [A.LetBinding] where
                 Left err ->
                   case definedName p of
                     Nothing -> throwError err
-                    Just x  -> toAbstract $ LetDef $ NiceMutual r termCheck
+                    Just x  -> toAbstract $ LetDef $ NiceMutual r (termCheck == C.TerminationCheck)
                       [ C.FunSig r defaultFixity' PublicAccess defaultArgInfo termCheck x (C.Underscore (getRange x) Nothing)
                       , C.FunDef r __IMPOSSIBLE__ __IMPOSSIBLE__ ConcreteDef __IMPOSSIBLE__ __IMPOSSIBLE__
                         [C.Clause x lhs (C.RHS rhs) NoWhere []]
@@ -1050,6 +1050,7 @@ instance ToAbstract NiceDeclaration A.Declaration where
   -- Definitions (possibly mutual)
     NiceMutual r termCheck ds -> do
       ds' <- toAbstract ds
+      -- We only termination check blocks that do not have a measure.
       return [ A.Mutual (MutualInfo termCheck r) ds' ]
 
     C.NiceRecSig r f a x ls t -> do
@@ -1339,6 +1340,7 @@ instance ToAbstract C.Pragma [A.Pragma] where
         _       -> fail "Bad ETA pragma"
     -- NO_TERMINATION_CHECK is handled by the nicifier
     toAbstract (C.NoTerminationCheckPragma _) = __IMPOSSIBLE__
+    toAbstract (C.MeasurePragma{}) = __IMPOSSIBLE__
 
 instance ToAbstract C.Clause A.Clause where
     toAbstract (C.Clause top C.Ellipsis{} _ _ _) = fail "bad '...'" -- TODO: errors message

@@ -343,6 +343,8 @@ data Pragma = OptionsPragma     !Range [String]
             | ImpossiblePragma !Range
             | EtaPragma !Range QName
             | NoTerminationCheckPragma !Range
+            | MeasurePragma !Range Name
+              -- ^ {-# MEASURE variable  #-}
     deriving (Typeable)
 
 ---------------------------------------------------------------------------
@@ -541,6 +543,7 @@ instance HasRange Pragma where
     getRange (ImpossiblePragma r)         = r
     getRange (EtaPragma r _)              = r
     getRange (NoTerminationCheckPragma r) = r
+    getRange (MeasurePragma r _)          = r
 
 instance HasRange UsingOrHiding where
     getRange (Using xs)	    = getRange xs
@@ -688,6 +691,7 @@ instance KillRange Pragma where
   killRange (ImpossiblePragma _)          = ImpossiblePragma noRange
   killRange (EtaPragma _ q)               = killRange1 (EtaPragma noRange) q
   killRange (NoTerminationCheckPragma _)  = NoTerminationCheckPragma noRange
+  killRange (MeasurePragma _ q)           = killRange1 (MeasurePragma noRange) q
 
 instance KillRange Renaming where
   killRange (Renaming i n _) = killRange2 (\i n -> Renaming i n noRange) i n
