@@ -1,4 +1,5 @@
-{-# LANGUAGE Rank2Types #-}
+{-# LANGUAGE Rank2Types, GeneralizedNewtypeDeriving #-}
+
 {-| When lexing by hands (for instance string literals) we need to do some
     looking ahead. The 'LookAhead' monad keeps track of the position we are
     currently looking at, and provides facilities to synchronise the look-ahead
@@ -17,6 +18,7 @@ module Agda.Syntax.Parser.LookAhead
     )
     where
 
+import Control.Applicative
 import Control.Monad.Reader
 import Control.Monad.State
 
@@ -34,6 +36,7 @@ newtype LookAhead a =
     LookAhead { unLookAhead :: ReaderT ErrorFunction
 				       (StateT AlexInput Parser) a
 	      }
+    deriving (Functor, Applicative)
 
 newtype ErrorFunction =
     ErrorFun { throwError :: forall a. String -> LookAhead a }
