@@ -383,8 +383,6 @@ library
     ghc-options:    -fwarn-identities
   if impl(ghc >= 7.6.3)
     ghc-options:    -fwarn-pointless-pragmas
-  if impl(ghc >= 7.8)
-    ghc-options:    -fwarn-amp -fwarn-overflowed-literals
   ghc-prof-options: -auto-all
 
 executable agda
