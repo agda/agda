@@ -30,6 +30,7 @@ import qualified Agda.Syntax.Abstract as A
 import qualified Agda.Syntax.Concrete as C
 import Agda.Syntax.Abstract.Name
 import Agda.Syntax.Parser
+import Agda.Syntax.Position
 import Agda.Syntax.Scope.Base
 import Agda.Syntax.Translation.ConcreteToAbstract
 import Agda.Syntax.Internal
@@ -37,6 +38,7 @@ import Agda.Syntax.Internal
 import Agda.TypeChecking.Errors
 import Agda.TypeChecking.Reduce
 import Agda.TypeChecking.Monad
+-- import Agda.TypeChecking.Monad.Base.KillRange  -- killRange for Signature
 import Agda.TypeChecking.Serialise
 import Agda.TypeChecking.Primitive
 import Agda.TypeChecking.Monad.Benchmark (billTop, reimburseTop)
@@ -619,6 +621,9 @@ buildInterface file topLevel syntaxInfo previousHsImports pragmas = do
     let m = topLevelModuleName topLevel
     scope'  <- getScope
     let scope = scope' { scopeCurrent = m }
+    -- Andreas, 2014-05-03: killRange did not result in significant reduction
+    -- of .agdai file size, and lost a few seconds performance on library-test.
+    -- sig     <- killRange <$> getSignature
     sig     <- getSignature
     builtin <- gets stLocalBuiltins
     ms      <- getImports
