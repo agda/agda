@@ -36,6 +36,14 @@ uncons (x:xs) = Just (x,xs)
 mcons :: Maybe a -> [a] -> [a]
 mcons ma as = maybe as (:as) ma
 
+-- | 'init' and 'last' in one go, safe.
+initLast :: [a] -> Maybe ([a],a)
+initLast [] = Nothing
+initLast as = Just $ loop as where
+  loop []       = __IMPOSSIBLE__
+  loop [a]      = ([], a)
+  loop (a : as) = mapFst (a:) $ loop as
+
 -- | Lookup function (safe).
 
 (!!!) :: [a] -> Int -> Maybe a
