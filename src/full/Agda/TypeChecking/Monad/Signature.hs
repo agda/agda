@@ -276,6 +276,14 @@ applySection new ptel old ts rd rm = do
     partOfOldM x = x `isSubModuleOf` old
     partOfOldD x = x `isInModule`    old
 
+    -- Andreas, 2013-10-29
+    -- Here, if the name x is not imported, it persists as
+    -- old, possibly out-of-scope name.
+    -- This old name may used by the case split tactic, leading to
+    -- names that cannot be printed properly.
+    -- I guess it would make sense to mark non-imported names
+    -- as such (out-of-scope) and let splitting fail if it would
+    -- produce out-of-scope constructors.
     copyName x = Map.findWithDefault x x rd
 
     copyDef :: Args -> (QName, Definition) -> TCM ()
