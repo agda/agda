@@ -60,11 +60,8 @@ checkFunDef delayed i name cs = do
         -- Get the type and relevance of the function
         t    <- typeOfConst name
         info  <- flip setRelevance defaultArgInfo <$> relOfConst name
-        case trivialClause cs of
-          -- if we have just one clause without pattern matching and
-          -- without a type signature, then infer, to allow
-          -- "aliases" for things starting with hidden abstractions
-          Just e | Just x <- isMeta (ignoreSharing $ unEl t) ->
+        case isAlias cs t of
+          Just (e, x) ->
             traceCall (CheckFunDef (getRange i) (qnameName name) cs) $ do
               -- Andreas, 2012-11-22: if the alias is in an abstract block
               -- it has been frozen.  We unfreeze it to enable type inference.
@@ -72,6 +69,16 @@ checkFunDef delayed i name cs = do
               whenM (isFrozen x) $ unfreezeMeta x
               checkAlias t info delayed i name e
           _ -> checkFunDef' t info delayed Nothing Nothing i name cs
+
+-- | A single clause without arguments and without type signature is an alias.
+isAlias :: [A.Clause] -> Type -> Maybe (A.Expr, MetaId)
+isAlias cs t =
+        case trivialClause cs of
+          -- if we have just one clause without pattern matching and
+          -- without a type signature, then infer, to allow
+          -- "aliases" for things starting with hidden abstractions
+          Just e | Just x <- isMeta (ignoreSharing $ unEl t) -> Just (e, x)
+          _ -> Nothing
   where
     isMeta (MetaV x _) = Just x
     isMeta _           = Nothing
