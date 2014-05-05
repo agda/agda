@@ -69,6 +69,8 @@ instance Monoid m => Monoid (Case m) where
              (Map.unionWith mappend ls ls')
              (mappend m m')
 
+-- * Pretty instances.
+
 instance Pretty a => Show (Case a) where
   show = show . pretty
 
