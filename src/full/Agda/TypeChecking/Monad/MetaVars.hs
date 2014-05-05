@@ -9,6 +9,8 @@ import Control.Monad.Reader
 
 import qualified Data.Map as Map
 import qualified Data.Set as Set
+import qualified Data.Foldable as Fold
+import qualified Data.Traversable as Trav
 
 import Agda.Syntax.Common
 import Agda.Syntax.Internal
@@ -335,6 +337,7 @@ instance UnFreezeMeta Term where
   unfreezeMeta (Sort s)      = unfreezeMeta s
   unfreezeMeta (Level l)     = unfreezeMeta l
   unfreezeMeta (DontCare t)  = unfreezeMeta t
+  unfreezeMeta (Lam _ v)     = unfreezeMeta v
   unfreezeMeta _             = return ()
 
 instance UnFreezeMeta Sort where
@@ -356,3 +359,6 @@ instance UnFreezeMeta LevelAtom where
 
 instance UnFreezeMeta a => UnFreezeMeta [a] where
   unfreezeMeta = mapM_ unfreezeMeta
+
+instance UnFreezeMeta a => UnFreezeMeta (Abs a) where
+  unfreezeMeta = Fold.mapM_ unfreezeMeta
