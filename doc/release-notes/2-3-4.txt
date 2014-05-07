@@ -838,6 +838,12 @@ Emacs mode
 
 * Improvements to the "make case" command (C-c C-c)
 
+  - One can now also split on hidden variables, using the name
+    (starting with .) with which they are printed.
+    Use C-c C-, to see all variables in context.
+
+  - Concerning the printing of generated clauses:
+
   * Uses named implicit arguments to improve readability.
 
   * Picks explicit occurrences over implicit ones when there is a choice of

@@ -4,7 +4,7 @@ module Agda.Interaction.MakeCase where
 
 import Prelude hiding (mapM, mapM_)
 import Control.Applicative
-import Control.Monad hiding (mapM, mapM_)
+import Control.Monad hiding (mapM, mapM_, forM)
 import Data.Maybe
 import Data.Traversable
 
@@ -25,7 +25,10 @@ import Agda.TypeChecker
 
 import Agda.Interaction.BasicOps
 
+import Agda.Utils.List
 import Agda.Utils.Monad
+import qualified Agda.Utils.Pretty as P
+import Agda.Utils.Size
 import qualified Agda.Utils.HashMap as HMap
 
 #include "../undefined.h"
@@ -77,6 +80,26 @@ findClause m = do
       MetaV m' _  -> m == m'
       _           -> False
 
+-- | Parse a variable (visible or hidden), return its de Bruijn index.
+--   Precondition: we are in the scope of the context.
+parseVariable :: String -> TCM Int
+parseVariable s = do
+  n  <- getContextSize
+  xs <- forM (downFrom n) $ \ i -> do
+    (,i) . P.render <$> prettyTCM (var i)
+  case lookup s xs of
+    Nothing -> typeError $ GenericError $ "unbound variable " ++ s
+    Just i  -> return i
+
+-- | Parse variables (visible or hidden), returning their de Bruijn indices.
+--   Used in 'makeCase'.
+parseVariables :: InteractionId -> Range -> [String] -> TCM [Int]
+parseVariables ii rng ss = do
+    mId <- lookupInteractionId ii
+    updateMetaVarRange mId rng
+    mi  <- getMetaInfo <$> lookupMeta mId
+    enterClosure mi $ \ r -> mapM parseVariable ss
+
 makeCase :: InteractionId -> Range -> String -> TCM (CaseContext , [A.Clause])
 makeCase hole rng s = withInteractionId hole $ do
   meta <- lookupInteractionId hole
@@ -91,7 +114,8 @@ makeCase hole rng s = withInteractionId hole $ do
       , text "ps      =" <+> text (show ps)
       ]
     ]
-  vars <- mapM (\s -> deBruijnIndex =<< parseExprIn hole rng s) $ words s
+  -- vars <- mapM (\s -> deBruijnIndex =<< parseExprIn hole rng s) $ words s
+  vars <- parseVariables hole rng $ words s
   (casectxt,) <$> split f vars clause
   where
   split :: QName -> [Nat] -> Clause -> TCM [A.Clause]
