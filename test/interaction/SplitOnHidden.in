@@ -2,3 +2,6 @@ top_command (cmd_load currentFile [])
 
 -- Case splitting for function with implicit argument
 goal_command 0 cmd_make_case ".N N .M"
+
+-- Provoke an error by splitting on non-existent var
+goal_command 0 cmd_make_case ".x"

@@ -80,25 +80,21 @@ findClause m = do
       MetaV m' _  -> m == m'
       _           -> False
 
--- | Parse a variable (visible or hidden), return its de Bruijn index.
---   Precondition: we are in the scope of the context.
-parseVariable :: String -> TCM Int
-parseVariable s = do
-  n  <- getContextSize
-  xs <- forM (downFrom n) $ \ i -> do
-    (,i) . P.render <$> prettyTCM (var i)
-  case lookup s xs of
-    Nothing -> typeError $ GenericError $ "unbound variable " ++ s
-    Just i  -> return i
-
 -- | Parse variables (visible or hidden), returning their de Bruijn indices.
 --   Used in 'makeCase'.
 parseVariables :: InteractionId -> Range -> [String] -> TCM [Int]
 parseVariables ii rng ss = do
-    mId <- lookupInteractionId ii
-    updateMetaVarRange mId rng
-    mi  <- getMetaInfo <$> lookupMeta mId
-    enterClosure mi $ \ r -> mapM parseVariable ss
+  mId <- lookupInteractionId ii
+  updateMetaVarRange mId rng
+  mi  <- getMetaInfo <$> lookupMeta mId
+  enterClosure mi $ \ _r -> do
+    n  <- getContextSize
+    xs <- forM (downFrom n) $ \ i -> do
+      (,i) . P.render <$> prettyTCM (var i)
+    forM ss $ \ s -> do
+      case lookup s xs of
+        Nothing -> typeError $ GenericError $ "Unbound variable " ++ s
+        Just i  -> return i
 
 makeCase :: InteractionId -> Range -> String -> TCM (CaseContext , [A.Clause])
 makeCase hole rng s = withInteractionId hole $ do
