@@ -96,6 +96,7 @@ parseVariables ii rng ss = do
         Nothing -> typeError $ GenericError $ "Unbound variable " ++ s
         Just i  -> return i
 
+-- | Entry point for case splitting tactic.
 makeCase :: InteractionId -> Range -> String -> TCM (CaseContext , [A.Clause])
 makeCase hole rng s = withInteractionId hole $ do
   meta <- lookupInteractionId hole
