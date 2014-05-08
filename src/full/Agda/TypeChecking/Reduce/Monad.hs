@@ -1,8 +1,14 @@
 {-# LANGUAGE CPP, GeneralizedNewtypeDeriving, TupleSections, FlexibleContexts #-}
 module Agda.TypeChecking.Reduce.Monad
-  ( constructorForm, enterClosure, underAbstraction_,
-    isInstantiatedMeta, reportSDoc, reportSLn, getConstInfo,
-    lookupMeta ) where
+  ( constructorForm
+  , enterClosure
+  , underAbstraction_
+  , getConstInfo
+  , isInstantiatedMeta
+  , lookupMeta
+  , reportSDoc, reportSLn
+  , traceSLn, traceSDoc
+  ) where
 
 import Control.Arrow ((***), first, second)
 import Control.Applicative
@@ -10,23 +16,26 @@ import Control.Monad.Reader
 import Control.Monad.Identity
 import qualified Data.Map as Map
 import Data.Maybe
+import Debug.Trace
+import System.IO.Unsafe
 
 import Agda.Syntax.Common (unDom)
 import Agda.Syntax.Position
 import Agda.Syntax.Internal
 import Agda.TypeChecking.Monad hiding
   ( enterClosure, underAbstraction_, underAbstraction, addCtx, mkContextEntry,
-    isInstantiatedMeta, reportSDoc, reportSLn, typeOfConst, lookupMeta, instantiateDef )
+    isInstantiatedMeta, verboseS, reportSDoc, reportSLn, typeOfConst, lookupMeta, instantiateDef )
 import Agda.TypeChecking.Monad.Builtin hiding ( constructorForm )
 import Agda.TypeChecking.Substitute
 import Agda.Interaction.Options
-import Agda.Utils.Pretty
+
 import Agda.Utils.Fresh
 import qualified Agda.Utils.HashMap as HMap
+import Agda.Utils.Monad
+import Agda.Utils.Pretty
 
 #include "../../undefined.h"
 import Agda.Utils.Impossible
-import Debug.Trace
 
 gets :: (TCState -> a) -> ReduceM a
 gets f = f . redSt <$> ReduceM ask
@@ -106,11 +115,40 @@ isInstantiatedMeta i = do
     InstS{} -> True
     _       -> False
 
-reportSDoc :: String -> Int -> TCM Doc -> ReduceM ()
-reportSDoc t n doc = return ()  -- todo
+-- | Run a computation if a certain verbosity level is activated.
+--
+--   Precondition: The level must be non-negative.
+verboseS :: VerboseKey -> Int -> ReduceM () -> ReduceM ()
+verboseS k n action = whenM (hasVerbosity k n) action
 
-reportSLn :: String -> Int -> String -> ReduceM ()
-reportSLn t n s = return ()
+reportSDoc :: VerboseKey -> Int -> TCM Doc -> ReduceM ()
+reportSDoc k n doc = return () -- Cannot implement this!
+
+reportSLn :: VerboseKey -> Int -> String -> ReduceM ()
+reportSLn k n s = return () -- Cannot implement this!
+
+-- | Apply a function if a certain verbosity level is activated.
+--
+--   Precondition: The level must be non-negative.
+{-# SPECIALIZE applyWhenVerboseS :: VerboseKey -> Int -> (ReduceM a -> ReduceM a) -> ReduceM a-> ReduceM a #-}
+applyWhenVerboseS :: HasOptions m => VerboseKey -> Int -> (m a -> m a) -> m a -> m a
+applyWhenVerboseS k n f a = ifM (hasVerbosity k n) (f a) a
+
+traceSDoc :: VerboseKey -> Int -> TCM Doc -> ReduceM a -> ReduceM a
+traceSDoc k n doc = applyWhenVerboseS k n $ \ cont -> do
+  ReduceEnv env st <- askR
+  -- return $! unsafePerformIO $ do print . fst =<< runTCM env st doc
+  trace (show $ fst $ unsafePerformIO $ runTCM env st doc) cont
+
+-- traceSDoc :: VerboseKey -> Int -> TCM Doc -> ReduceM a -> ReduceM a
+-- traceSDoc k n doc = verboseS k n $ ReduceM $ do
+--   ReduceEnv env st <- ask
+--   -- return $! unsafePerformIO $ do print . fst =<< runTCM env st doc
+--   trace (show $ fst $ unsafePerformIO $ runTCM env st doc) $ return ()
+
+{-# SPECIALIZE traceSLn :: VerboseKey -> Int -> String -> ReduceM a -> ReduceM a #-}
+traceSLn :: HasOptions m => VerboseKey -> Int -> String -> m a -> m a
+traceSLn k n s = applyWhenVerboseS k n (trace s)
 
 instance HasConstInfo ReduceM where
   getConstInfo q = ReduceM $ ReaderT $ \(ReduceEnv env st) -> Identity $
