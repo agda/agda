@@ -1,4 +1,4 @@
-{-# LANGUAGE CPP, DeriveFunctor #-}
+{-# LANGUAGE CPP, ScopedTypeVariables, DeriveFunctor #-}
 
 module Agda.TypeChecking.Patterns.Match where
 
@@ -43,6 +43,46 @@ instance Monoid (Match a) where
     -- equivalence to case-trees.
     DontKnow m `mappend` _		  = DontKnow m
 
+-- | Instead of 'zipWithM', we need to use this lazy version
+--   of combining pattern matching computations.
+
+-- Andreas, 2014-05-08, see Issue 1124:
+--
+-- Due to a bug in TypeChecking.Patterns.Match
+-- a failed match of (C n b) against (C O unit)
+-- turned into (C n unit).
+-- This was because all patterns were matched in
+-- parallel, and evaluations of successfull matches
+-- (and a record constructor like unit can always
+-- be successfully matched) were returned, leading
+-- to a reassembly of (C n b) as (C n unit) which is
+-- illtyped.
+
+-- Now patterns are matched left to right and
+-- upon failure, no further matching is performed.
+
+foldMatch
+  :: forall a b . (a -> b -> ReduceM (Match Term, b))
+  -> [a] -> [b] -> ReduceM (Match Term, [b])
+foldMatch match = loop where
+  loop :: [a] -> [b] -> ReduceM (Match Term, [b])
+  loop ps0 vs0 = do
+  case (ps0, vs0) of
+    ([], []) -> return (mempty, [])
+    (p : ps, v : vs) -> do
+      (r, v') <- match p v
+      case r of
+        No         -> return (No        , v' : vs)
+        DontKnow m -> return (DontKnow m, v' : vs)
+        Yes s us   -> do
+          (r', vs') <- loop ps vs
+          let vs1 = v' : vs'
+          case r' of
+            Yes s' us' -> return (Yes (s `mappend` s') (us ++ us'), vs1)
+            No         -> return (No                              , vs1)
+            DontKnow m -> return (DontKnow m                      , vs1)
+    _ -> __IMPOSSIBLE__
+
 -- | @matchCopatterns ps es@ matches spine @es@ against copattern spine @ps@.
 --
 --   Returns 'Yes' and a substitution for the pattern variables
@@ -63,7 +103,9 @@ matchCopatterns ps vs = do
            , nest 2 $ text "ps =" <+> fsep (punctuate comma $ map (prettyTCM . namedArg) ps)
            , nest 2 $ text "vs =" <+> fsep (punctuate comma $ map prettyTCM vs)
            ]
-    mapFst mconcat . unzip <$> zipWithM' (matchCopattern . namedArg) ps vs
+    -- Buggy, see issue 1124:
+    -- mapFst mconcat . unzip <$> zipWithM' (matchCopattern . namedArg) ps vs
+    foldMatch (matchCopattern . namedArg) ps vs
 
 -- | Match a single copattern.
 matchCopattern :: Pattern -> Elim -> ReduceM (Match Term, Elim)
@@ -82,9 +124,10 @@ matchPatterns ps vs = do
            , nest 2 $ text "ps =" <+> fsep (punctuate comma $ map (text . show) ps)
            , nest 2 $ text "vs =" <+> fsep (punctuate comma $ map prettyTCM vs)
            ]
-
-    (ms,vs) <- unzip <$> zipWithM' (matchPattern . namedArg) ps vs
-    return (mconcat ms, vs)
+    -- Buggy, see issue 1124:
+    -- (ms,vs) <- unzip <$> zipWithM' (matchPattern . namedArg) ps vs
+    -- return (mconcat ms, vs)
+    foldMatch (matchPattern . namedArg) ps vs
 
 -- | Match a single pattern.
 matchPattern :: Pattern -> I.Arg Term -> ReduceM (Match Term, I.Arg Term)
