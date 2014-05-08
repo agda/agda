@@ -143,6 +143,9 @@ instance PrettyTCM Elim where
   prettyTCM (Apply v) = text "$" <+> prettyTCM v
   prettyTCM (Proj f)  = text "." <> prettyTCM f
 
+instance PrettyTCM a => PrettyTCM (MaybeReduced a) where
+  prettyTCM = prettyTCM . ignoreReduced
+
 instance PrettyTCM A.Expr where
     prettyTCM = prettyA
 
