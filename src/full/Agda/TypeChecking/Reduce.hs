@@ -439,18 +439,16 @@ unfoldDefinition' unfoldDelayed keepGoing v0 f es =
             ev <- appDefE_ f v0 cls mcc es
             case ev of
               NoReduction v -> do
-                reportSDoc "tc.reduce'" 90 $ vcat
+                traceSDoc "tc.reduce'" 90 (vcat
                   [ text "*** tried to reduce' " <+> prettyTCM f
                   , text "    es =  " <+> sep (map (prettyTCM . ignoreReduced) es)
 --                  [ text "*** tried to reduce' " <+> prettyTCM vfull
-                  , text "    stuck on" <+> prettyTCM (ignoreBlocking v) ]
+                  , text "    stuck on" <+> prettyTCM (ignoreBlocking v) ]) $ do
                 retSimpl v
               YesReduction simpl v -> performedSimplification' simpl $ do
-                reportSDoc "tc.reduce'" 90 $ vcat
-                  [ text "*** reduced definition: " <+> prettyTCM f
-                  ]
-                reportSDoc "tc.reduce'"  95 $ text "    result" <+> prettyTCM v
-                reportSDoc "tc.reduce'" 100 $ text "    raw   " <+> text (show v)
+                traceSDoc "tc.reduce'"  90 (text "*** reduced definition: " <+> prettyTCM f) $ do
+                traceSDoc "tc.reduce'"  95 (text "    result" <+> prettyTCM v) $ do
+                traceSDoc "tc.reduce'" 100 (text "    raw   " <+> text (show v)) $ do
                 keepGoing v
       where defaultResult = retSimpl $ notBlocked $ vfull
             vfull         = v0 `applyE` map ignoreReduced es
