@@ -29,9 +29,12 @@ import Agda.Utils.Impossible
 import Debug.Trace
 
 gets :: (TCState -> a) -> ReduceM a
-gets f = f . snd <$> ReduceM ask
+gets f = f . redSt <$> ReduceM ask
 
-localR :: ((TCEnv, TCState) -> (TCEnv, TCState)) -> ReduceM a -> ReduceM a
+askR :: ReduceM ReduceEnv
+askR = ReduceM ask
+
+localR :: (ReduceEnv -> ReduceEnv) -> ReduceM a -> ReduceM a
 localR f = ReduceM . local f . unReduceM
 
 instance HasOptions ReduceM where
@@ -52,7 +55,7 @@ constructorForm v = do
   return $ fromMaybe v $ constructorForm' mz ms v
 
 enterClosure :: Closure a -> (a -> ReduceM b) -> ReduceM b
-enterClosure (Closure sig env scope x) f = localR (inEnv *** inState) (f x)
+enterClosure (Closure sig env scope x) f = localR (mapRedEnvSt inEnv inState) (f x)
   where
     inEnv   e = env { envAllowDestructiveUpdate = envAllowDestructiveUpdate e }
     inState s = s { stScope = scope }   -- TODO: use the signature here? would that fix parts of issue 118?
@@ -61,7 +64,7 @@ withFreshR :: HasFresh i FreshThings => (i -> ReduceM a) -> ReduceM a
 withFreshR f = do
   s <- gets id
   let (i, s') = nextFresh s
-  localR (second $ const s') (f i)
+  localR (mapRedSt $ const s') (f i)
 
 withFreshName :: Range -> String -> (Name -> ReduceM a) -> ReduceM a
 withFreshName r s k = withFreshR $ \i -> k (mkName r i s)
@@ -110,7 +113,7 @@ reportSLn :: String -> Int -> String -> ReduceM ()
 reportSLn t n s = return ()
 
 instance HasConstInfo ReduceM where
-  getConstInfo q = ReduceM $ ReaderT $ \(env, st) -> Identity $
+  getConstInfo q = ReduceM $ ReaderT $ \(ReduceEnv env st) -> Identity $
     let defs  = sigDefinitions $ stSignature st
         idefs = sigDefinitions $ stImports st
     in case catMaybes [HMap.lookup q defs, HMap.lookup q idefs] of

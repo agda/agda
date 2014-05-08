@@ -1540,19 +1540,34 @@ instance Exception TCErr
 -- * The reduce monad
 -----------------------------------------------------------------------------
 
--- Placeholder definition, should be a lazy reader monad.
-newtype ReduceM a = ReduceM { unReduceM :: Reader (TCEnv, TCState) a }
+-- | Environment of the reduce monad.
+data ReduceEnv = ReduceEnv
+  { redEnv :: TCEnv    -- ^ Read only access to environment.
+  , redSt  :: TCState  -- ^ Read only access to state (signature, metas...).
+  }
+
+mapRedEnv :: (TCEnv -> TCEnv) -> ReduceEnv -> ReduceEnv
+mapRedEnv f s = s { redEnv = f (redEnv s) }
+
+mapRedSt :: (TCState -> TCState) -> ReduceEnv -> ReduceEnv
+mapRedSt f s = s { redSt = f (redSt s) }
+
+mapRedEnvSt :: (TCEnv -> TCEnv) -> (TCState -> TCState) -> ReduceEnv
+            -> ReduceEnv
+mapRedEnvSt f g (ReduceEnv e s) = ReduceEnv (f e) (g s)
+
+newtype ReduceM a = ReduceM { unReduceM :: Reader ReduceEnv a }
   deriving (Functor, Applicative, Monad)
 
 runReduceM :: ReduceM a -> TCM a
 runReduceM m = do
   e <- ask
   s <- get
-  return $ runReader (unReduceM m) (e, s)
+  return $ runReader (unReduceM m) (ReduceEnv e s)
 
 instance MonadReader TCEnv ReduceM where
-  ask = fst <$> ReduceM ask
-  local f = ReduceM . local (first f) . unReduceM
+  ask = redEnv <$> ReduceM ask
+  local f = ReduceM . local (mapRedEnv f) . unReduceM
 
 ---------------------------------------------------------------------------
 -- * Type checking monad transformer
