@@ -5,14 +5,16 @@ import Control.Applicative
 import Control.Monad.Reader (asks)
 import qualified Data.Map as Map
 import Data.List
+import Debug.Trace (trace)
 
 import Agda.Syntax.Internal
 import Agda.Syntax.Common
 import Agda.TypeChecking.CompiledClause
-import Agda.TypeChecking.Monad
-import Agda.TypeChecking.Substitute
+import Agda.TypeChecking.Monad hiding (reportSDoc, reportSLn)
+import Agda.TypeChecking.Pretty
 import Agda.TypeChecking.Reduce
-import Agda.TypeChecking.Reduce.Monad
+import Agda.TypeChecking.Reduce.Monad as RedM
+import Agda.TypeChecking.Substitute
 
 import Agda.Utils.Maybe
 
@@ -62,9 +64,20 @@ type Stack = [Frame]
 
 match' :: Stack -> ReduceM (Reduced (Blocked Elims) Term)
 match' ((c, es, patch) : stack) = do
+  let debug = do
+       traceSDoc "reduce.compiled" 95 $ vcat $
+         [ text "reducing case" <+> do
+             caseMaybeM (asks envAppDef) __IMPOSSIBLE__ $ \ f -> do
+               sep $ prettyTCM f : map prettyTCM es
+         , text $ "trying clause " ++ show c
+         ]
   let no          es = return $ NoReduction $ NotBlocked $ patch $ map ignoreReduced es
       noBlocked x es = return $ NoReduction $ Blocked x  $ patch $ map ignoreReduced es
       yes t            = flip YesReduction t <$> asks envSimplification
+
+  -- traceSLn "reduce.compiled" 95 "CompiledClause.Match.match'" $ do
+  debug $ do
+
   case c of
 
     -- impossible case
