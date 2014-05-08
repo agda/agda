@@ -106,4 +106,4 @@ return [] -- KEEP!
 tests :: IO Bool
 tests = do
   putStrLn "Agda.TypeChecking.SizedTypes.Tests"
-  $forAllProperties (quickCheckWithResult stdArgs { maxSuccess = 200 })
+  $quickCheckAll
