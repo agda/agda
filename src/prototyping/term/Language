@@ -48,42 +48,50 @@ t ∷= i
 
 i ∷= Set
    | (x : t) → t
-   | t ≡_t t | J | K
+   | t ≡_t t
    | h es
 
-h ∷= x | f
+h ∷= x | f | refl | J | K
 
 e ∷= · t | π ·
 
 Internal syntax
 ===============
 
-U, u ∷= λ x → u | c us
-      | Set | (x : U) → U
-      | u ≡_U u | refl | J | K
-      | h es
+-- Σ should be defined here.
 
-h ∷= x | f | α | b
+U, u ∷= λ x → u
+      | c us
+      -- ^ A data or type constructor
+      | Set | (x : U) → U
+      | u ≡_U u | h es
+
+h ∷= x | f | α | b | refl | J | K
 
 e ∷= · u
    | π ·
 
 b ∷= C ⚷ u
-   | C ⚷ b
+p   | C ⚷ b
+   | Γ ⊢ t ⇐ A
+   -- ^ Since sometimes we want to have a type checking constraint to
+   --   reduce to the checked term afterwards
 
 C ∷= {c₁, …, c_n}  (n ≥ 1)
 
-c ∷= ⟨Σ⟩ Γ ⊢ A = B ⇐ Set
-   | ⟨Σ⟩ Γ ⊢ t ⇐ A
+-- Σ is not present in these constraints since it is global to the
+-- type checking.
+c ∷= Γ ⊢ A = B ⇐ Set
+   | Γ ⊢ t ⇐ A
 
 p ∷= (U, u)
-   | C ⚷ eps >>= λ (U, es) → (U, u)
+   | C ⚷ (eps >>= λ (U, es) → (U, u))
 
 ep ∷= {Γ ⊢ · t ⇐ B}
     | {Γ ⊢ π · ⇐ B}
 
-eps ∷= ep          >>= λ (U, e) → eps
-     | eps         >>= λ (U, es) → eps
+eps ∷= ep           >>= λ (U, e) → eps
+     | eps          >>= λ (U, es) → eps
      | {Γ ⊢ es ⇐ U} >>= λ (U, es) → eps
      | (U, es)
 
@@ -99,42 +107,37 @@ All other terms reduce to themselves.
 
 TODO: If we solve a constraint, then we may get β-redexes.
 
+Blocked term reduction
+======================
+
+∅ ⚷ u ↝ u
+
 Type checking
 =============
 
 Signature changes are propagated in the obvious way.
 
+ Σ := Σ, α : Γ → A
 ------------------------------------ (α fresh)
- ⟨Σ⟩ Γ ⊢ _ ⇐ A ↝ α Γ ⟨Σ, α : Γ → A⟩
+ Γ ⊢ _ ⇐ A ↝ α Γ
 
  Γ ⊢ i ⇒ (A, u)
- Γ ⊢ A = B ⇐ Set ↝ ∅
-------------------------------------
- Γ ⊢ i ⇐ B ↝ u
-
- Γ ⊢ i ⇒ (A, u)
- Γ ⊢ A = B ⇐ Set ↝ C ≠ ∅
+ Γ ⊢ A = B ⇐ Set ↝ C
 ----------------------------------------
  Γ ⊢ i ⇐ B ↝ (C ⚷ λ Γ → u) Γ
 
- Γ ⊢ i ⇒ C ⚷ (A, u)
- TODO: The pattern (A, u) is incorrect.
---------------------------------------------------------
- Γ ⊢ i ⇐ B ↝ (C ⚷ {{⟨Σ⟩ Γ ⊢ A = B ⇐ Set} ⚷ λ Γ → u}) Γ
+ Γ ⊢ i ⇒ C ⚷ p
+---------------------------------------------------------------------
+ Γ ⊢ i ⇐ B ↝ (C ⚷ p >>= λ (A, u) → ({Γ ⊢ A = B ⇐ Set} ⚷ λ Γ → u)) Γ
 
  Σ ⊢ A ⇓ t₁ ≡_B t₂
- Γ ⊢ t₁ = t₂ ⇐ B ↝ ∅
--------------------------
- Γ ⊢ refl ⇐ A ↝ refl
-
- Σ ⊢ A ⇓ t₁ ≡_B t₂
- Γ ⊢ t₁ = t₂ ⇐ B ↝ C ≠ ∅
+ Γ ⊢ t₁ = t₂ ⇐ B ↝ C
 -------------------------
  Γ ⊢ refl ⇐ A ↝ C ⚷ refl
 
  Σ ⊢ A ⇓ C ⚷ B
 ---------------------------------------
- Γ ⊢ refl ⇐ A ↝ C ⚷ {⟨Σ⟩ Γ ⊢ refl ⇐ B}
+ Γ ⊢ refl ⇐ A ↝ C ⚷ (Γ ⊢ refl ⇐ B)
 
  Σ ⊢ A ⇓ (x : A₁) → A₂
  Γ, x : A₁ ⊢ t ⇐ A₂ ↝ u
@@ -143,7 +146,7 @@ Signature changes are propagated in the obvious way.
 
  Σ ⊢ A ⇓ C ⚷ B
 ---------------------------------------------
- Γ ⊢ λ x → t ⇐ A ↝ C ⚷ {⟨Σ⟩ Γ ⊢ λ x → t ⇐ B}
+ Γ ⊢ λ x → t ⇐ A ↝ C ⚷ (Γ ⊢ λ x → t ⇐ B)
 
  Σ ⊢ A ⇓ D us
  c : (xs : Ps) → Δ → D xs ∈ Σ
@@ -151,17 +154,19 @@ Signature changes are propagated in the obvious way.
 ---------------------------------
  Γ ⊢ c ts ⇐ A ↝ c vs
 
+  To type check the list of arguments to the data constructor:
+
+     Γ ⊢ t ⇐ A ↝ u
+     Γ ⊢ ts ⇐ Δ[x ≔ t] ↝ us
+    ---------------------------
+     Γ ⊢ t ts ⇐ (x : A) Δ ↝ u us
+
+    ---------
+     Γ ⊢ ε ⇐ ε ↝ ε
+
  Σ ⊢ A ⇓ C ⚷ B
 -------------------------------------
- Γ ⊢ c ts ⇐ A ↝ C ⚷ {⟨Σ⟩ Γ ⊢ c ts ⇐ B}
-
- Γ ⊢ t ⇐ A ↝ u
- Γ ⊢ ts ⇐ Δ[x ≔ t] ↝ us
----------------------------
- Γ ⊢ t ts ⇐ (x : A) Δ ↝ u us
-
----------
- Γ ⊢ ⇐ ↝
+ Γ ⊢ c ts ⇐ A ↝ C ⚷ (Γ ⊢ c ts ⇐ B)
 
 Type inference
 ==============
@@ -202,44 +207,51 @@ Type inference
  Γ ⊢ h es ⇒ (B, h es′)
 
  h : A ∈ Σ
- Γ ⊢ es ⇐ A ↝ C ⚷ eps
+ Γ ⊢ es ⇐ (A, h) ↝ C ⚷ eps
 ---------------------------------------------
  Γ ⊢ h es ⇒ C ⚷ eps >>= λ (B, es′) → (B, h es′)
 
- Γ ⊢ e ⇐ A₁ ⇒ (A₂, e′)
- Γ ⊢ es ⇐ A₂ ⇒ (A₃, es′)
-----------------------------
- Γ ⊢ e es ⇐ A₁ ⇒ (A₃, e′ es′)
+  To type check list of eliminators:
 
- Γ ⊢ e ⇐ A₁ ⇒ C ⚷ ep
---------------------------------------------------
- Γ ⊢ e es ⇐ A₁ ⇒ C ⚷ ep           >>= λ (A₂, e′) →
-                    {Γ ⊢ es ⇐ A₂} >>= λ (A₃, es′) →
-                    (A₃, e′ es′)
+     Γ ⊢ e ⇐ (A₁, h) ⇒ (A₂, e′)
+     Γ ⊢ es ⇐ (A₂, h e′) ⇒ (A₃, es′)
+    ----------------------------
+     Γ ⊢ e es ⇐ (A₁, h) ⇒ (A₃, e′ es′)
 
- Γ ⊢ e ⇐ A₁ ⇒ (A₂, e′)
- Γ ⊢ es ⇐ A₂ ⇒ C ⚷ eps
----------------------------------------
- Γ ⊢ e es ⇐ A₁ ⇒ C ⚷ eps >>= λ (A₃, es′) →
-                    (A₃, e′ es′)
+     Γ ⊢ e ⇐ (A₁, h) ⇒ C ⚷ ep
+    --------------------------------------------------------------------
+     Γ ⊢ e es ⇐ (A₁, h) ⇒ C ⚷ ep                    >>= λ (A₂, e′) →
+                              {Γ ⊢ es ⇐ (A₂, h e′)} >>= λ (A₃, es′) →
+                              (A₃, e′ es′)
 
------------------
- Γ ⊢ ⇐ A ⇒ (A, )
+     Γ ⊢ e ⇐ (A₁, h) ⇒ (A₂, e′)
+     Γ ⊢ es ⇐ (A₂, h e′) ⇒ C ⚷ eps
+    ----------------------------------------------------
+     Γ ⊢ e es ⇐ (A₁, h) ⇒ C ⚷ eps >>= λ (A₃, es′) →
+                              (A₃, e′ es′)
 
- Σ ⊢ A ⇓ (x : A₁) → A₂
- Γ ⊢ t ⇐ A₁ ↝ u
---------------------------------
- Γ ⊢ · t ⇐ A ⇒ (A₂[x ≔ u], · u)
+    -----------------
+     Γ ⊢ ε ⇐ (A, h) ⇒ (A, ε)
 
- Σ ⊢ A ⇓ C ⚷ B
--------------------------------------
- Γ ⊢ · t ⇐ A ⇒ C ⚷ {⟨Σ⟩ Γ ⊢ · t ⇐ B}
+  To type check a single eliminator
 
- Σ ⊢ A ⇓ R ts
- π : (xs : Ps) → (r : R xs) → B ∈ Σ
--------------------------------------------
- Γ ⊢ π · ⇐ A ⇒ (B[xs ≔ ts, r ≔ TODO], π ·)
+     Σ ⊢ A ⇓ (x : A₁) → A₂
+     Γ ⊢ t ⇐ A₁ ↝ u
+    --------------------------------
+     Γ ⊢ · t ⇐ (A, h) ⇒ (A₂[x ≔ u], · u)
 
- Σ ⊢ A ⇓ C ⚷ B
--------------------------------------
- Γ ⊢ π · ⇐ A ⇒ C ⚷ {⟨Σ⟩ Γ ⊢ π · ⇐ B}
+     Σ ⊢ A ⇓ C ⚷ B
+    --------------------------------------------
+     Γ ⊢ · t ⇐ (A, h) ⇒ C ⚷ (Γ ⊢ · t ⇐ (B, h))
+
+        Down here you seem to have to carry around the head so that we
+        can get the final type for the record projection.
+
+     Σ ⊢ A ⇓ R ts
+     π : (xs : Ps) → (r : R xs) → B ∈ Σ
+    --------------------------------------------
+     Γ ⊢ π · ⇐ (A, h) ⇒ (B[xs ≔ ts, r ≔ h], π ·)
+
+     Σ ⊢ A ⇓ C ⚷ B
+    -------------------------------------
+     Γ ⊢ π · ⇐ (A, h) ⇒ C ⚷ (Γ ⊢ π · ⇐ (B, h))
