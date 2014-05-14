@@ -1,6 +1,6 @@
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
 {-# LANGUAGE ScopedTypeVariables #-}
-module Term.Monad.Base
+module Impl.Monad
     ( -- * Monad definition
       TC
     , runTC
@@ -17,7 +17,7 @@ module Term.Monad.Base
     , getBodyOfMetaVar
       -- ** Context handling
     , extendContext
-    , getTypeOfVar
+    , getTypeOfName
       -- ** Source location
     , atSrcLoc
     ) where
@@ -33,7 +33,10 @@ import qualified Data.Map as Map
 import Bound
 
 import           Syntax.Abstract                  (Name, SrcLoc, noSrcLoc, HasSrcLoc, srcLoc)
-import           Term.Types
+import           Term
+import           Impl.Term
+import           Impl.Definition
+import           Impl.Context
 
 ------------------------------------------------------------------------
 
@@ -51,7 +54,7 @@ tcLocal :: (TCEnv v -> TCEnv v') -> TC v' a -> TC v a
 tcLocal = error "tcLocal TODO"
 
 data TCEnv v = TCEnv
-    { _teContext       :: !(Context v)
+    { _teContext       :: !(Context Type v)
     , _teCurrentSrcLoc :: !SrcLoc
     }
 
@@ -158,10 +161,10 @@ extendContext n type_ m = tcLocal extend (m (B (named n ())))
   where
     extend env = env { _teContext = (_teContext env) :< (n, type_) }
 
-getTypeOfVar :: v -> TC v (Type v)
-getTypeOfVar v = do
+getTypeOfName :: Name -> TC v (Maybe (v, Type v))
+getTypeOfName n = do
     ctx <- asks _teContext
-    return $ contextLookup v ctx
+    return $ contextLookup n ctx
 
 atSrcLoc :: HasSrcLoc a => a -> TC v b -> TC v b
 atSrcLoc x = local $ \env -> env { _teCurrentSrcLoc = srcLoc x }

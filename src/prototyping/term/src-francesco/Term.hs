@@ -1,12 +1,70 @@
 {-# LANGUAGE DeriveFunctor  #-}
 {-# LANGUAGE DeriveFoldable #-}
 {-# LANGUAGE DeriveTraversable #-}
-{-# LANGUAGE GADTs #-}
-module Term
-    ( module Term.Types
-    , module Term.Monad
-    -- , module Term.Pretty
-    ) where
+{-# LANGUAGE FlexibleContexts #-}
+module Term where
 
-import Term.Types
-import Term.Monad
+import           Prelude.Extras                   (Eq1((==#)))
+import           Bound
+import qualified Bound.Name                       as Bound
+import           Data.Foldable                    (Foldable)
+import           Data.Traversable                 (Traversable)
+
+import           Syntax.Abstract                  (Name)
+
+-- Named
+------------------------------------------------------------------------
+
+-- | We use this type for bound variables of which we want to remember
+-- the original name.
+type Named = Bound.Name Name
+
+named :: Name -> a -> Named a
+named = Bound.Name
+
+unNamed :: Named a -> a
+unNamed (Bound.Name _ x) = x
+
+-- Terms
+------------------------------------------------------------------------
+
+-- | 'MetaVar'iables.  Globally scoped.
+newtype MetaVar = MetaVar {unMetaVar :: Int}
+    deriving (Eq, Ord, Show)
+
+-- | A 'Head' heads a neutral term -- something which can't reduce
+-- further.
+data Head v
+    = Var v
+    | Def Name
+    | Con Name
+    | J
+    | Refl
+    | Meta MetaVar
+    deriving (Eq, Ord, Functor, Foldable, Traversable)
+
+instance Eq1 Head
+
+-- | The field of a projection.  We keep the name around for nicer
+-- pretty-printing.
+newtype Field = Field (Named Int)
+    deriving (Eq, Ord)
+
+unField :: Field -> Int
+unField (Field namedI) = unNamed namedI
+
+-- | 'Elim's are applied to 'Head's.  They're either arguments applied
+-- to functions, or projections applied to records.
+data Elim term v
+    = Apply (term v)
+    | Proj Field
+    deriving (Eq, Ord, Functor, Foldable, Traversable)
+
+instance (Eq1 term) => Eq1 (Elim term) where
+    Apply t1 ==# Apply t2 = t1 ==# t2
+    Proj f1  ==# Proj f2  = f1 == f2
+    _        ==# _        = False
+
+instance Bound Elim where
+    Apply t    >>>= f = Apply (t >>= f)
+    Proj field >>>= _ = Proj field
