@@ -18,6 +18,7 @@ module Impl.Monad
       -- ** Context handling
     , extendContext
     , getTypeOfName
+    , closeClauseBody
       -- ** Source location
     , atSrcLoc
     ) where
@@ -65,7 +66,7 @@ initEnv = TCEnv
   }
 
 data TCState = TCState
-  { _tsSignature :: Map.Map Name Definition
+  { _tsSignature :: Map.Map Name TermDefinition
   , _tsMetaStore :: Map.Map MetaVar MetaInst
   }
 
@@ -96,11 +97,11 @@ typeError err = do
 -- Operations on the state
 ------------------------------------------------------------------------
 
-addDefinition :: Name -> Definition -> TC v ()
+addDefinition :: Name -> TermDefinition -> TC v ()
 addDefinition x def =
     modify $ \s -> s { _tsSignature = Map.insert x def $ _tsSignature s }
 
-getDefinition :: Name -> TC v Definition
+getDefinition :: Name -> TC v TermDefinition
 getDefinition name = atSrcLoc name $ do
   sig <- gets _tsSignature
   case Map.lookup name sig of
@@ -155,9 +156,9 @@ getMetaInst mv = do
 
 extendContext
     :: Name -> Type v
-    -> (Var (Named ()) v -> TC (Var (Named ()) v) a)
+    -> ((v -> TermVar v) -> TermVar v -> TC (TermVar v) a)
     -> TC v a
-extendContext n type_ m = tcLocal extend (m (B (named n ())))
+extendContext n type_ m = tcLocal extend (m F (B (named n ())))
   where
     extend env = env { _teContext = (_teContext env) :< (n, type_) }
 
@@ -168,3 +169,10 @@ getTypeOfName n = do
 
 atSrcLoc :: HasSrcLoc a => a -> TC v b -> TC v b
 atSrcLoc x = local $ \env -> env { _teCurrentSrcLoc = srcLoc x }
+
+closeClauseBody :: Term v -> TC v ClauseBody
+closeClauseBody t = do
+    ctx <- asks _teContext
+    return $ Scope $ liftM (toIntVar ctx) t
+  where
+    toIntVar ctx v = B $ contextElemIndex v ctx

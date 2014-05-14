@@ -4,17 +4,15 @@
 module Impl.Telescope
     ( Telescope
     , ClosedTelescope
-    , telescopeEmpty
-    , telescopeExtend
+    , instantiate
     ) where
 
 import           Control.Monad                    (liftM)
 import           Data.Foldable                    (Foldable)
 import           Data.Traversable                 (Traversable)
-import           Bound
+import           Bound                            (Bound((>>>=)), Var(B, F))
 import           Data.Void                        (Void)
 
-import           Syntax.Abstract                  (Name)
 import           Syntax.Abstract.Pretty           ()
 import           Impl.Term
 
@@ -37,26 +35,29 @@ instance Bound Telescope where
 
 type ClosedTelescope t = Telescope t Void
 
-telescopeEmpty :: t v -> Telescope t v
-telescopeEmpty t = EmptyTel t
+-- empty :: t v -> Telescope t v
+-- empty t = EmptyTel t
 
-telescopeExtend :: Monad t => t Name -> Name -> Telescope t Name -> Telescope t Name
-telescopeExtend t1 n tele = t1 :> (tele >>>= return . abstractTele)
-  where
-    abstractTele :: Name -> TermVar Name
-    abstractTele n' = if n == n' then boundTermVar n else F n'
-
-telescopeClose :: Monad t => Telescope t Name -> ClosedTelescope t
-telescopeClose tele = tele >>>= return . killNames
-  where
-    killNames n = error $ "telescopeClose: out of bound name " ++ show n
-
--- substs :: forall t0 v. Telescope t0 v -> [t0 v] -> t0 v
--- substs = undefined              -- TODO reverse here
+-- extend :: Monad t => t Name -> Name -> Telescope t Name -> Telescope t Name
+-- extend t1 n tele = t1 :> (tele >>>= return . abstractTele)
 --   where
---     go :: (t v -> t0 v) -> Telescope t v -> [t v] -> t0 v
---     go f (EmptyTel t) []           = f t
---     go _ (EmptyTel _) (_ : _)      = error "Telescope.substs: too many arguments"
---     go f (_ :> _)     []           = error "Telescope.substs: too few arguments"
---     go f (_ :> tele)  (arg : args) =
---         go undefined tele (map (abstract1 args)
+--     abstractTele :: Name -> TermVar Name
+--     abstractTele n' = if n == n' then boundTermVar n else F n'
+
+-- close :: Monad t => Telescope t Name -> ClosedTelescope t
+-- close tele = tele >>>= return . killNames
+--   where
+--     killNames n = error $ "telescopeClose: out of bound name " ++ show n
+
+instantiate :: Monad t => Telescope t v -> [t v] -> t v
+instantiate (EmptyTel t) [] =
+    t
+instantiate (EmptyTel _) (_ : _) =
+    error "Telescope.instantiate: too many args"
+instantiate (_ :> _) [] =
+    error "Telescope.instantiate: too few args"
+instantiate (_ :> tele) (arg : args) =
+    instantiate (tele >>>= substArg) args
+  where
+    substArg (B _) = arg
+    substArg (F v) = return v

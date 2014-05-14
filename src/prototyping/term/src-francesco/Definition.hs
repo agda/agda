@@ -8,6 +8,7 @@ module Definition
     ) where
 
 import           Syntax.Abstract                  (Name)
+import           Term
 
 -- Clauses
 ------------------------------------------------------------------------
@@ -24,11 +25,11 @@ data Pattern
 -- Definition
 ------------------------------------------------------------------------
 
-data Definition type_ tele field clauseBody
+data Definition type_ clauseBody tele
     = Constant Name ConstantKind type_
     | Constructor Name Name tele
     -- ^ Constructor name, data type name, parameter telescope.
-    | Projection Name field Name tele
+    | Projection Name Field Name tele
     -- ^ Projection name, field number, record type name, parameter
     -- telescope.
     | Function Name type_ [Clause clauseBody]

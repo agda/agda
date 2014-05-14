@@ -4,6 +4,7 @@ module Impl.Context
     , contextLookup
     , contextApp
     , contextPi
+    , contextElemIndex
     ) where
 
 import           Bound
@@ -47,3 +48,9 @@ contextApp t ctx0 = eliminate t $ map (Apply . return) $ reverse $ go ctx0
 contextPi :: Context Type v -> Type v -> ClosedType
 contextPi EmptyContext         t = t
 contextPi (ctx :< (_n, type_)) t = contextPi ctx (Pi type_ (toScope t))
+
+-- | Gets the index of a variable *from the left*.  0-indexed.  So the
+-- rightmost thing will have index @length 'Context' - 1@, and the leftmost
+-- thing will have index @0@.  Also returns the name at that index.
+contextElemIndex :: v -> Context t v -> Named Int
+contextElemIndex = undefined

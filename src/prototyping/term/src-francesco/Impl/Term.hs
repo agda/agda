@@ -13,6 +13,7 @@ module Impl.Term
     , ClosedType
     , TermElim
     , eliminate
+    , absApply
       -- * 'view' and 'unview'
     , TermView
     , view
@@ -22,6 +23,7 @@ module Impl.Term
 import Prelude hiding (pi, abs)
 
 import           Bound
+import           Bound.Name                       (instantiate1Name)
 import           Prelude.Extras                   (Eq1)
 import           Data.Foldable                    (Foldable)
 import           Data.Traversable                 (Traversable)
@@ -99,6 +101,9 @@ eliminate (App h es1) es2 =
     App h (es1 ++ es2)
 eliminate _ _ =
     error "Term.eliminate: Bad elimination"
+
+absApply :: TermScope Term v -> Term v -> Term v
+absApply = flip instantiate1Name
 
 -- View
 -------

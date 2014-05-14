@@ -31,3 +31,6 @@ instance (Eq1 term, Eq1 (abs term)) => Eq1 (Term abs term) where
         True
     _ ==# _ =
         False
+
+var :: v -> Term abs term v
+var v = App (Var v) []

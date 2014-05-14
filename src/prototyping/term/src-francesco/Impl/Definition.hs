@@ -1,24 +1,21 @@
 module Impl.Definition
     ( -- * 'Clause'
-      Clause
+      TermClause
     , ClauseBody
-    , Definition.Pattern(..)
       -- * 'Definition'
-    , Definition
-    , Definition.ConstantKind(..)
+    , TermDefinition
     ) where
 
 import           Bound
 import           Data.Void                        (Void)
 
-import qualified Definition
+import           Definition
 import           Term
 import           Impl.Term
 import           Impl.Telescope
 
-type Clause = Definition.Clause ClauseBody
+type TermClause = Clause ClauseBody
 
 type ClauseBody = Scope (Named Int) Term Void
 
-type Definition =
-    Definition.Definition ClosedType (ClosedTelescope Type) Field ClauseBody
+type TermDefinition = Definition ClosedType ClauseBody (ClosedTelescope Type)

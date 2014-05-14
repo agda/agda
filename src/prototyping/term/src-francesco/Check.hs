@@ -1,15 +1,19 @@
 {-# LANGUAGE RankNTypes #-}
-
+{-# LANGUAGE ScopedTypeVariables #-}
 module Check where
 
+import           Prelude                          hiding (abs)
+
 import           Data.Functor                     ((<$>))
-import           Data.Void                        (Void)
+import           Data.Void                        (Void, vacuous)
 
 import           Syntax.Abstract                  (Name)
 import qualified Syntax.Abstract                  as A
 import qualified Impl                             as I
+import qualified Impl.Telescope                   as I.Tel
 import           Term
 import           Term.View
+import           Definition
 
 whnfView :: I.Term v -> I.TC v (I.TermView v)
 whnfView = undefined
@@ -66,17 +70,131 @@ whnfView = undefined
 -- Main functions
 ------------------------------------------------------------------------
 
+-- Type checking
+----------------
+
 check :: A.Expr -> I.Type v -> I.TC v (I.Term v)
 check = undefined
 
 infer :: A.Expr -> I.TC v (I.Term v, I.Type v)
 infer = undefined
 
-inferHead :: A.Head -> I.TC v (Head v, I.Type v)
-inferHead = undefined
+-- Equality
+-----------
 
 checkEqual :: I.Type v -> I.Term v -> I.Term v -> I.TC v ()
-checkEqual ty x y = undefined
+checkEqual = undefined
+
+inferEqual :: I.Term v -> I.Term v -> I.TC v ()
+inferEqual = undefined
+
+-- Checking definitions
+------------------------------------------------------------------------
+
+checkDecl :: A.Decl -> I.TC Void ()
+checkDecl = undefined
+
+checkTypeSig :: A.TypeSig -> I.TC Void ()
+checkTypeSig (A.Sig name absType) = do
+    type_ <- isType absType
+    addConstant name Postulate type_
+
+checkData
+    :: Name
+    -- ^ Name of the tycon.
+    -> [Name]
+    -- ^ Names of parameters to the tycon.
+    -> [A.TypeSig]
+    -- ^ Types for the data constructors.
+    -> I.TC Void ()
+checkData = undefined
+
+checkRec
+    :: Name
+    -- ^ Name of the tycon.
+    -> [Name]
+    -- ^ Name of the parameters to the tycon.
+    -> Name
+    -- ^ Name of the data constructor.
+    -> [A.TypeSig]
+    -- ^ Fields of the record.
+    -> I.TC Void ()
+checkRec = undefined
+
+-- Clause
+---------
+
+checkClause :: Name -> [A.Pattern] -> A.Expr -> I.TC Void ()
+checkClause fun synPats synClauseBody = do
+    funType <- definitionType <$> I.getDefinition fun
+    checkPatterns synPats funType $ \_ pats _ clauseType -> do
+        clauseBody <- check synClauseBody clauseType
+        addClause fun pats =<< I.closeClauseBody clauseBody
+
+checkPatterns
+    :: [A.Pattern]
+    -> I.Type v
+    -- ^ Type of the clause that has the given 'A.Pattern's in front.
+    -> (forall v'. (v -> v') -> [Pattern] -> [I.Term v'] -> I.Type v' -> I.TC v' a)
+    -- ^ Handler taking a function to weaken an external variable,
+    -- list of internal patterns, a list of terms produced by them, and
+    -- the type of the clause body (scoped over the pattern variables).
+    -> I.TC v a
+checkPatterns [] type_ ret =
+    ret id [] [] type_
+checkPatterns (synPat : synPats) type0 ret = I.atSrcLoc synPat $ do
+    type_ <- whnfView type0
+    case type_ of
+      Pi domain codomain ->
+        checkPattern synPat domain $ \weaken pat patVar -> do
+          let codomain'  = fmap weaken codomain
+          let codomain'' = I.absApply codomain' patVar
+          checkPatterns synPats codomain'' $ \weaken' pats patsVars -> do
+            let patVar' = fmap weaken' patVar
+            ret (weaken' . weaken) (pat : pats) (patVar' : patsVars)
+      _ ->
+        I.typeError $ "Expected function type: " ++ error "TODO show type_"
+
+checkPattern
+    :: forall v a.
+       A.Pattern
+    -> I.Type v
+    -- ^ Type of the matched thing.
+    -> (forall v'. (v -> v') -> Pattern -> I.Term v' -> I.TC v' a)
+    -- ^ Handler taking the internal 'Pattern' and a 'I.Term'
+    -- containing the term produced by it.
+    -> I.TC v a
+checkPattern synPat type_ ret = case synPat of
+    A.VarP name ->
+      I.extendContext name type_ $ \weaken v ->
+      ret weaken VarP (I.unview (var v))
+    A.WildP _ ->
+      I.extendContext (A.name "_") type_ $ \weaken v ->
+      ret weaken VarP (I.unview (var v))
+    A.ConP dataCon synPats -> do
+      dataConDef <- I.getDefinition dataCon
+      case dataConDef of
+        Constructor _ typeCon dataConType -> do
+          typeConDef <- I.getDefinition typeCon
+          case typeConDef of
+            Constant _ Data   _ -> return ()
+            Constant _ Record _ -> I.typeError $ "Pattern matching is not supported " ++
+                                                "for the record constructor " ++ show dataCon
+            _                   -> I.typeError $ "checkPattern: impossible" ++ error "TODO show def"
+          synType <- whnfView type_
+          case synType of
+            App (Def typeCon') typeConPars0
+              | typeCon == typeCon', Just typeConPars <- mapM isApply typeConPars0 -> do
+                let dataConTypeNoPars =
+                        I.Tel.instantiate (vacuous dataConType) typeConPars
+                checkPatterns synPats dataConTypeNoPars $ \weaken pats patsVars _ -> do
+                  let t = I.unview (App (Con dataCon) $ map Apply patsVars)
+                  ret weaken (ConP dataCon pats) t
+            _ ->
+              I.typeError $ show dataCon ++
+                            " does not construct an element of " ++ error "TODO show type_"
+        _ ->
+          I.typeError $ "Should be constructor: " ++ show dataCon
 
 -- Utils
 ------------------------------------------------------------------------
@@ -86,75 +204,38 @@ equalType a b = do
   let set = I.unview Set
   checkEqual set a b
 
+isApply :: I.TermElim v -> Maybe (I.Term v)
+isApply (Apply v) = Just v
+isApply Proj{}    = Nothing
+
 isType :: A.Expr -> I.TC v (I.Type v)
 isType abs = do
     let set = I.unview Set
     check abs set
 
--- check :: A.Expr -> I.Type v -> I.TC v (I.Term v)
--- check syn type_ = atSrcLoc syn $ case syn of
---   A.App (A.Con con) args -> do
---     def <- I.definitionOf con
---     case def of
---       Constructor _ dataName tele -> do
---         typeView <- whnfView type_
---         case typeView of
---           App (Def dataName') argsTypes0
---             | dataName == dataName', Just argTypes <- mapM isApply els -> do
---               type_ <- substs tele argTypes
---               h <- unview (App (Con c) [])
---               r <- checkSpine h es b
---               case r of
---                 NotStuck (v, _) -> return v
---                 Stuck pid       -> do
---                   x <- freshMeta a
---                   subProblem pid $ \(v, _) -> equal a x v
---                   return x
---           _ -> conError
---       _ -> conError
---   where
---     conError = typeError $ "Constructor type error " ++ show e ++ " : " ++ show a
---   -- A.App (A.Refl l) es -> do
---   --   when (not $ null es) $
---   --     typeError $ "Type error: refl applied to arguments: refl " ++ show es
---   --   av <- whnfView a
---   --   case av of
---   --     NotBlocked (Equal b x y) -> do
---   --       r    <- equal b x y
---   --       refl <- unview (App Refl [])
---   --       case r of
---   --         NotStuck _ -> return refl
---   --         Stuck pid  -> do
---   --           z <- freshMeta a
---   --           subProblem pid $ \_ -> equal a z refl
---   --           return z
---   --     _ -> typeError $ show (ignoreBlocking av) ++
---   --                      " is (perhaps) not an application of the equality type"
---   -- A.Meta l -> freshMeta a
---   -- A.Lam x body -> do
---   --   av <- whnfView a
---   --   case av of
---   --     NotBlocked (Pi a (Abs _ b)) -> do
---   --       body <- extendContext x a $ \_ -> check body b
---   --       unview (Lam (Abs (A.nameString x) body))
---   --     NotBlocked (App (Meta i) us) ->
---   --       typeError $ "todo check\n  " ++ show e ++ " : " ++ show a
---   --     Blocked x a -> do
---   --       typeError $ "todo check\n  " ++ show e ++ " : (blocked) " ++ show a
---   --     a -> typeError $ "Lambda type error " ++ show e ++ " : " ++ show a
---   -- _ -> do
---   --   r <- infer e
---   --   case r of
---   --     NotStuck (v, b) -> do
---   --       r <- equalType a b
---   --       case r of
---   --         NotStuck () -> return v
---   --         Stuck pid   -> do
---   --           x <- freshMeta a
---   --           subProblem pid $ \_ -> equal a x v
---   --           return x
---   --     Stuck pid -> do
---   --       x <- freshMeta a
---   --       subProblem pid $ \(v, b) -> do
---   --         equalType a b `bindStuck` \_ -> equal a x v
---   --       return x
+definitionType :: I.TermDefinition -> I.ClosedType
+definitionType = undefined
+
+-- Monad utils
+--------------
+
+addConstant :: Name -> ConstantKind -> I.ClosedType -> I.TC v ()
+addConstant x k a = I.addDefinition x (Constant x k a)
+
+addConstructor :: Name -> Name -> I.Tel.ClosedTelescope I.Type -> I.TC v ()
+addConstructor c d tel = I.addDefinition c (Constructor c d tel)
+
+addProjection :: Name -> Field -> Name -> I.Tel.ClosedTelescope I.Type -> I.TC v ()
+addProjection f n r tel = I.addDefinition f (Projection f n r tel)
+
+addClause :: Name -> [Pattern] -> I.ClauseBody -> I.TC v ()
+addClause f ps v = do
+  def <- I.getDefinition f
+  let ext (Constant x Postulate a) = Function x a [c]
+      ext (Function x a cs)        = Function x a (cs ++ [c])
+      ext (Constant _ k _)         = error $ "Monad.addClause " ++ show k
+      ext Constructor{}            = error $ "Monad.addClause constructor"
+      ext Projection{}             = error $ "Monad.addClause projection"
+  I.addDefinition f (ext def)
+  where
+    c = Clause ps v
