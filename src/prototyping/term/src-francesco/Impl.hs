@@ -19,5 +19,4 @@ module Impl
 
 import Impl.Term
 import Impl.Definition
-import Impl.Context
 import Impl.Monad

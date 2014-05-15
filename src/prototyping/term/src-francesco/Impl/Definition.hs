@@ -12,10 +12,11 @@ import           Data.Void                        (Void)
 import           Definition
 import           Term
 import           Impl.Term
-import           Impl.Telescope
+import qualified Impl.Context                     as Ctx
 
 type TermClause = Clause ClauseBody
 
 type ClauseBody = Scope (Named Int) Term Void
 
-type TermDefinition = Definition ClosedType ClauseBody (ClosedTelescope Type)
+type TermDefinition =
+    Definition ClosedType ClauseBody (Ctx.ClosedTelescope Type)

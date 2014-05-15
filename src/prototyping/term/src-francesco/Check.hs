@@ -8,9 +8,10 @@ import           Data.Functor                     ((<$>))
 import           Data.Void                        (Void, vacuous)
 
 import           Syntax.Abstract                  (Name)
+import           Syntax.Abstract.Pretty           ()
 import qualified Syntax.Abstract                  as A
 import qualified Impl                             as I
-import qualified Impl.Telescope                   as I.Tel
+import qualified Impl.Context                     as I.Ctx
 import           Term
 import           Term.View
 import           Definition
@@ -113,26 +114,30 @@ checkData
 checkData tyCon tyConPars dataCons = do
     tyConType <- definitionType <$> I.getDefinition tyCon
     addConstant tyCon Data tyConType
-    unrollPiWithNames tyConType tyConPars $ \_weaken tyConPars' endType -> do
+    unrollPiWithNames tyConType tyConPars $ \tyConPars' endType -> do
         equalType endType (I.unview Set)
-        let appliedTyConType = I.unview $ App (Def tyCon) (map Apply tyConPars')
-        mapM_ (checkConstr tyCon appliedTyConType) dataCons
+        -- TODO maybe we should expose a 'vars' function from the Ctx
+        -- and do the application ourselves.
+        let appliedTyConType = I.Ctx.app (I.unview (App (Def tyCon) [])) tyConPars'
+        mapM_ (checkConstr tyCon tyConPars' appliedTyConType) dataCons
 
 checkConstr
     :: Name
     -- ^ Name of the tycon.
+    -> I.Ctx.ClosedContext I.Type v
+    -- ^ Context with the parameters of the tycon.
     -> I.Type v
-    -- ^ Tycon applied to the parameters, which at this point are the
-    -- only thing in context.
+    -- ^ Tycon applied to the parameters.
     -> A.TypeSig
     -- ^ Data constructor.
     -> I.TC v ()
-checkConstr tyCon appliedTyConType (A.Sig dataCon synDataConType) = I.atSrcLoc dataCon $ do
-    dataConType <- isType synDataConType
-    unrollPi dataConType $ \weaken vs endType -> do
-        let appliedTyConType' = fmap weaken appliedTyConType
-        equalType appliedTyConType' endType
-    error "TODO checkConstr"
+checkConstr tyCon tyConPars appliedTyConType (A.Sig dataCon synDataConType) =
+    I.atSrcLoc dataCon $ do
+        dataConType <- isType synDataConType
+        unrollPi dataConType $ \vs endType -> do
+            let appliedTyConType' = fmap (I.Ctx.weaken vs) appliedTyConType
+            equalType appliedTyConType' endType
+        addConstructor dataCon tyCon (I.Ctx.telescope tyConPars dataConType)
 
 -- Unrolling Pis
 ----------------
@@ -144,26 +149,25 @@ unrollPiWithNames
     -- ^ Type to unroll
     -> [Name]
     -- ^ Names to give to each parameter
-    -> (forall v'. (v -> v') -> [I.Type v'] -> I.Type v' -> I.TC v' a)
-    -- ^ Handler taking a weakening function, the list of domains
-    -- of the unrolled pis, the final codomain.
+    -> (forall v'. I.Ctx.Context v I.Type v' -> I.Type v' -> I.TC v' a)
+    -- ^ Handler taking a context with accumulated domains of the pis
+    -- and the final codomain.
     -> I.TC v a
-unrollPiWithNames type_ []             ret = ret id [] type_
+unrollPiWithNames type_ []             ret = ret I.Ctx.empty type_
 unrollPiWithNames type_ (name : names) ret = do
     synType <- whnfView type_
     case synType of
         Pi domain codomain ->
-            I.extendContext name domain $ \weaken v ->
-            unrollPiWithNames (I.absBody codomain) names $ \weaken' vs endType -> do
-                let v' = I.unview (var (weaken' v))
-                ret (weaken' . weaken) (v' : vs) endType
+            I.extendContext name domain $ \ctxV _v ->
+            unrollPiWithNames (I.absBody codomain) names $ \ctxVs endType ->
+            ret (ctxV I.Ctx.++ ctxVs) endType
         _ ->
             I.typeError $ "Expected function type: " ++ error "TODO show synType"
 
 unrollPi
     :: I.Type v
     -- ^ Type to unroll
-    -> (forall v'. (v -> v') -> [I.Type v'] -> I.Type v' -> I.TC v' a)
+    -> (forall v'. I.Ctx.Context v I.Type v' -> I.Type v' -> I.TC v' a)
     -- ^ Handler taking a weakening function, the list of domains
     -- of the unrolled pis, the final codomain.
     -> I.TC v a
@@ -171,12 +175,11 @@ unrollPi type_ ret = do
     synType <- whnfView type_
     case synType of
         Pi domain codomain ->
-            I.extendContext (I.absName codomain) domain $ \weaken v ->
-            unrollPi (I.absBody codomain) $ \weaken' vs endType -> do
-                let v' = I.unview (var (weaken' v))
-                ret (weaken' . weaken) (v' : vs) endType
+            I.extendContext (I.absName codomain) domain $ \ctxV _v ->
+            unrollPi (I.absBody codomain) $ \ctxVs endType ->
+            ret (ctxV I.Ctx.++ ctxVs) endType
         _ ->
-            ret id [] type_
+            ret I.Ctx.empty type_
 
 -- Record
 ---------
@@ -230,8 +233,7 @@ checkPatterns (synPat : synPats) type0 ret = I.atSrcLoc synPat $ do
         I.typeError $ "Expected function type: " ++ error "TODO show type_"
 
 checkPattern
-    :: forall v a.
-       A.Pattern
+    :: A.Pattern
     -> I.Type v
     -- ^ Type of the matched thing.
     -> (forall v'. (v -> v') -> Pattern -> I.Term v' -> I.TC v' a)
@@ -240,11 +242,11 @@ checkPattern
     -> I.TC v a
 checkPattern synPat type_ ret = case synPat of
     A.VarP name ->
-      I.extendContext name type_ $ \weaken v ->
-      ret weaken VarP (I.unview (var v))
+      I.extendContext name type_ $ \ctxV v ->
+      ret (I.Ctx.weaken ctxV) VarP (I.unview (var v))
     A.WildP _ ->
-      I.extendContext (A.name "_") type_ $ \weaken v ->
-      ret weaken VarP (I.unview (var v))
+      I.extendContext (A.name "_") type_ $ \ctxV v ->
+      ret (I.Ctx.weaken ctxV) VarP (I.unview (var v))
     A.ConP dataCon synPats -> do
       dataConDef <- I.getDefinition dataCon
       case dataConDef of
@@ -260,7 +262,7 @@ checkPattern synPat type_ ret = case synPat of
             App (Def typeCon') typeConPars0
               | typeCon == typeCon', Just typeConPars <- mapM isApply typeConPars0 -> do
                 let dataConTypeNoPars =
-                        I.Tel.instantiate (vacuous dataConType) typeConPars
+                        I.Ctx.instantiate (vacuous dataConType) typeConPars
                 checkPatterns synPats dataConTypeNoPars $ \weaken pats patsVars _ -> do
                   let t = I.unview (App (Con dataCon) $ map Apply patsVars)
                   ret weaken (ConP dataCon pats) t
@@ -296,10 +298,10 @@ definitionType = undefined
 addConstant :: Name -> ConstantKind -> I.ClosedType -> I.TC v ()
 addConstant x k a = I.addDefinition x (Constant x k a)
 
-addConstructor :: Name -> Name -> I.Tel.ClosedTelescope I.Type -> I.TC v ()
+addConstructor :: Name -> Name -> I.Ctx.ClosedTelescope I.Type -> I.TC v ()
 addConstructor c d tel = I.addDefinition c (Constructor c d tel)
 
-addProjection :: Name -> Field -> Name -> I.Tel.ClosedTelescope I.Type -> I.TC v ()
+addProjection :: Name -> Field -> Name -> I.Ctx.ClosedTelescope I.Type -> I.TC v ()
 addProjection f n r tel = I.addDefinition f (Projection f n r tel)
 
 addClause :: Name -> [Pattern] -> I.ClauseBody -> I.TC v ()

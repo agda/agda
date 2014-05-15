@@ -1,26 +1,41 @@
 {-# LANGUAGE GADTs #-}
+{-# LANGUAGE ExistentialQuantification #-}
+{-# LANGUAGE DeriveFunctor #-}
+{-# LANGUAGE TupleSections #-}
 module Impl.Context
-    ( Context(..)
+    ( -- * 'Context'
+      Context(..)
     , ClosedContext
+    , empty
+    , singleton
     , lookup
     , app
     , pi
     , length
     , elemIndex
-    , toTele
     , (++)
     , weaken
+
+      -- * 'Telescope'
+    , Telescope
+    , ClosedTelescope
+    , telescope
+    , instantiate
     ) where
 
 import           Prelude                          hiding (pi, length, lookup, (++))
 
-import           Bound
+import           Bound                            hiding (instantiate)
 import           Data.Void                        (Void, absurd)
 import           Control.Arrow                    ((***))
+import           Data.Foldable                    (Foldable(foldMap))
+import           Data.Traversable                 (Traversable, sequenceA)
+import           Control.Monad                    (liftM)
+import           Data.Monoid                      (mempty, (<>))
+import           Control.Applicative              ((<$>), (<*>))
 
 import           Syntax.Abstract                  (Name)
 import           Impl.Term
-import qualified Impl.Telescope                   as Tel
 import           Term
 
 -- Context
@@ -33,6 +48,12 @@ data Context v0 t v where
     (:<)  :: Context v0 t v -> (Name, t v) -> Context v0 t (TermVar v)
 
 type ClosedContext = Context Void
+
+empty :: Context v0 t v0
+empty = Empty
+
+singleton :: Name -> t v0 -> Context v0 t (TermVar v0)
+singleton name t = Empty :< (name, t)
 
 lookup :: Name -> Context v0 Type v -> Maybe (v, Type v)
 lookup n ctx0 = go ctx0
@@ -75,13 +96,6 @@ elemIndex v0 ctx0 = fmap (length ctx0 -) $ go ctx0 v0
     go (_ctx :< (n, _type)) (B _) = named n 1
     go ( ctx :< _         ) (F v) = fmap (+ 1) $ go ctx v
 
-toTele :: ClosedContext t v -> t v -> Tel.ClosedTelescope t
-toTele ctx0 t = go ctx0 (Tel.Empty t)
-  where
-    go :: ClosedContext t v -> Tel.Telescope t v -> Tel.ClosedTelescope t
-    go Empty               tel = tel
-    go (ctx :< (_, type_)) tel = go ctx (type_ Tel.:> tel)
-
 (++) :: Context v0 t v1 -> Context v1 t v2 -> Context v0 t v2
 ctx1 ++ Empty               = ctx1
 ctx1 ++ (ctx2 :< namedType) = (ctx1 ++ ctx2) :< namedType
@@ -89,3 +103,83 @@ ctx1 ++ (ctx2 :< namedType) = (ctx1 ++ ctx2) :< namedType
 weaken :: Context v0 t v -> v0 -> v
 weaken Empty      v = v
 weaken (ctx :< _) v = F (weaken ctx v)
+
+-- Telescope
+------------------------------------------------------------------------
+
+data Telescope t v0 = forall v. Telescope (Context v0 t v) (t v)
+
+type ClosedTelescope t = Telescope t Void
+
+telescope :: Context v0 t v -> t v -> Telescope t v0
+telescope = Telescope
+
+instance Functor t => Functor (Telescope t) where
+    fmap f tel = fromConcreteTele (fmap f (toConcreteTele tel))
+
+instance Foldable t => Foldable (Telescope t) where
+    foldMap f tel = foldMap f (toConcreteTele tel)
+
+instance Traversable t => Traversable (Telescope t) where
+    sequenceA = fmap fromConcreteTele . sequenceA . toConcreteTele
+
+instance Bound Telescope where
+    tel >>>= f = fromConcreteTele (toConcreteTele tel >>>= f)
+
+instantiate :: Monad t => Telescope t v0 -> [t v0] -> t v0
+instantiate = go . toConcreteTele
+  where
+    go :: Monad t => ConcreteTele t v -> [t v] -> t v
+    go (TEmpty t) []           = t
+    go (TEmpty _) (_ : _)      = error "Impl.Context.instantiate: too many arguments"
+    go (_ :> _)   []           = error "Impl.Context.instantiate: too few arguments"
+    go (_ :> tel) (arg : args) = go (tel >>>= instArg) args
+      where
+        instArg (B _) = arg
+        instArg (F v) = return v
+
+-- Concrete telescopes
+----------------------
+
+-- We use this datatype, isomorphic to 'Telescope', to easily derive
+-- instances for 'Telescope'.
+
+-- TODO define instances and functions directly avoiding traversals.
+
+data ConcreteTele t v
+    = TEmpty (t v)
+    | (Name, t v) :> ConcreteTele t (TermVar v)
+    deriving (Functor)
+
+instance Foldable t => Foldable (ConcreteTele t) where
+    foldMap f (TEmpty t)          = foldMap f t
+    foldMap f ((_, type_) :> tel) = foldMap f type_ <> foldMap extend tel
+      where
+        extend (B _) = mempty
+        extend (F v) = f v
+
+instance Traversable t => Traversable (ConcreteTele t) where
+    sequenceA (TEmpty t)          = TEmpty <$> sequenceA t
+    sequenceA ((n, type_) :> tel) =
+        (:>) <$> ((n ,) <$> sequenceA type_) <*> sequenceA (fmap sequenceA tel)
+
+instance Bound ConcreteTele where
+    (TEmpty t)          >>>= f = TEmpty (t >>= f)
+    ((n, type_) :> tel) >>>= f = (n, type_ >>= f) :> (tel >>>= extend)
+      where
+        extend (B v) = return (B v)
+        extend (F v) = liftM F (f v)
+
+toConcreteTele :: Telescope t v -> ConcreteTele t v
+toConcreteTele (Telescope ctx0 t) = go ctx0 (TEmpty t)
+  where
+    go :: Context v0 t v -> ConcreteTele t v -> ConcreteTele t v0
+    go Empty          tel = tel
+    go (ctx :< type_) tel = go ctx (type_ :> tel)
+
+fromConcreteTele :: ConcreteTele t v -> Telescope t v
+fromConcreteTele tel0 = go tel0 Empty
+  where
+    go :: ConcreteTele t v -> Context v0 t v -> Telescope t v0
+    go (TEmpty t)     ctx = Telescope ctx t
+    go (type_ :> tel) ctx = go tel (ctx :< type_)

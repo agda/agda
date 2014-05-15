@@ -38,7 +38,6 @@ import           Term
 import           Impl.Term
 import           Impl.Definition
 import qualified Impl.Context                     as Ctx
-import qualified Impl.Telescope                   as Tel
 
 ------------------------------------------------------------------------
 
@@ -157,9 +156,10 @@ getMetaInst mv = do
 
 extendContext
     :: Name -> Type v
-    -> ((v -> TermVar v) -> TermVar v -> TC (TermVar v) a)
+    -> (Ctx.Context v Type (TermVar v) -> TermVar v -> TC (TermVar v) a)
     -> TC v a
-extendContext n type_ m = tcLocal extend (m F (B (named n ())))
+extendContext n type_ m =
+    tcLocal extend (m (Ctx.singleton n type_) (B (named n ())))
   where
     extend env = env { _teContext = (_teContext env) Ctx.:< (n, type_) }
 
