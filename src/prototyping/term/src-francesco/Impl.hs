@@ -7,12 +7,13 @@ module Impl
     , ClosedType
     , eliminate
     , absApply
+    , absBody
+    , absName
       -- * 'view' and 'unview'
     , TermView
     , view
     , unview
     , module Impl.Definition
-    , module Impl.Context
     , module Impl.Monad
     ) where
 

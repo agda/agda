@@ -99,6 +99,9 @@ checkTypeSig (A.Sig name absType) = do
     type_ <- isType absType
     addConstant name Postulate type_
 
+-- Data
+-------
+
 checkData
     :: Name
     -- ^ Name of the tycon.
@@ -107,7 +110,76 @@ checkData
     -> [A.TypeSig]
     -- ^ Types for the data constructors.
     -> I.TC Void ()
-checkData = undefined
+checkData tyCon tyConPars dataCons = do
+    tyConType <- definitionType <$> I.getDefinition tyCon
+    addConstant tyCon Data tyConType
+    unrollPiWithNames tyConType tyConPars $ \_weaken tyConPars' endType -> do
+        equalType endType (I.unview Set)
+        let appliedTyConType = I.unview $ App (Def tyCon) (map Apply tyConPars')
+        mapM_ (checkConstr tyCon appliedTyConType) dataCons
+
+checkConstr
+    :: Name
+    -- ^ Name of the tycon.
+    -> I.Type v
+    -- ^ Tycon applied to the parameters, which at this point are the
+    -- only thing in context.
+    -> A.TypeSig
+    -- ^ Data constructor.
+    -> I.TC v ()
+checkConstr tyCon appliedTyConType (A.Sig dataCon synDataConType) = I.atSrcLoc dataCon $ do
+    dataConType <- isType synDataConType
+    unrollPi dataConType $ \weaken vs endType -> do
+        let appliedTyConType' = fmap weaken appliedTyConType
+        equalType appliedTyConType' endType
+    error "TODO checkConstr"
+
+-- Unrolling Pis
+----------------
+
+-- TODO remove duplication
+
+unrollPiWithNames
+    :: I.Type v
+    -- ^ Type to unroll
+    -> [Name]
+    -- ^ Names to give to each parameter
+    -> (forall v'. (v -> v') -> [I.Type v'] -> I.Type v' -> I.TC v' a)
+    -- ^ Handler taking a weakening function, the list of domains
+    -- of the unrolled pis, the final codomain.
+    -> I.TC v a
+unrollPiWithNames type_ []             ret = ret id [] type_
+unrollPiWithNames type_ (name : names) ret = do
+    synType <- whnfView type_
+    case synType of
+        Pi domain codomain ->
+            I.extendContext name domain $ \weaken v ->
+            unrollPiWithNames (I.absBody codomain) names $ \weaken' vs endType -> do
+                let v' = I.unview (var (weaken' v))
+                ret (weaken' . weaken) (v' : vs) endType
+        _ ->
+            I.typeError $ "Expected function type: " ++ error "TODO show synType"
+
+unrollPi
+    :: I.Type v
+    -- ^ Type to unroll
+    -> (forall v'. (v -> v') -> [I.Type v'] -> I.Type v' -> I.TC v' a)
+    -- ^ Handler taking a weakening function, the list of domains
+    -- of the unrolled pis, the final codomain.
+    -> I.TC v a
+unrollPi type_ ret = do
+    synType <- whnfView type_
+    case synType of
+        Pi domain codomain ->
+            I.extendContext (I.absName codomain) domain $ \weaken v ->
+            unrollPi (I.absBody codomain) $ \weaken' vs endType -> do
+                let v' = I.unview (var (weaken' v))
+                ret (weaken' . weaken) (v' : vs) endType
+        _ ->
+            ret id [] type_
+
+-- Record
+---------
 
 checkRec
     :: Name
@@ -123,6 +195,8 @@ checkRec = undefined
 
 -- Clause
 ---------
+
+-- TODO what about pattern coverage?
 
 checkClause :: Name -> [A.Pattern] -> A.Expr -> I.TC Void ()
 checkClause fun synPats synClauseBody = do
@@ -161,8 +235,8 @@ checkPattern
     -> I.Type v
     -- ^ Type of the matched thing.
     -> (forall v'. (v -> v') -> Pattern -> I.Term v' -> I.TC v' a)
-    -- ^ Handler taking the internal 'Pattern' and a 'I.Term'
-    -- containing the term produced by it.
+    -- ^ Handler taking a weakening function, the internal 'Pattern',
+    -- and a 'I.Term' containing the term produced by it.
     -> I.TC v a
 checkPattern synPat type_ ret = case synPat of
     A.VarP name ->

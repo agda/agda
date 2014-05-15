@@ -2,7 +2,7 @@
 {-# LANGUAGE DeriveFoldable #-}
 {-# LANGUAGE DeriveTraversable #-}
 module Impl.Telescope
-    ( Telescope
+    ( Telescope(..)
     , ClosedTelescope
     , instantiate
     ) where
@@ -22,12 +22,12 @@ import           Impl.Term
 -- | A 'Telescope' is a series of binding with some content at the end.
 -- Each binding ranges over the rest of the telescope.
 data Telescope t v
-    = EmptyTel (t v)
+    = Empty (t v)
     | t v :> Telescope t (TermVar v)
     deriving (Functor, Foldable, Traversable)
 
 instance Bound Telescope where
-    EmptyTel t  >>>= f = EmptyTel (t >>= f)
+    Empty t     >>>= f = Empty (t >>= f)
     (t :> tele) >>>= f = (t >>= f) :> (tele >>>= extended)
       where
         extended (B v) = return (B v)
@@ -36,7 +36,7 @@ instance Bound Telescope where
 type ClosedTelescope t = Telescope t Void
 
 -- empty :: t v -> Telescope t v
--- empty t = EmptyTel t
+-- empty t = Empty t
 
 -- extend :: Monad t => t Name -> Name -> Telescope t Name -> Telescope t Name
 -- extend t1 n tele = t1 :> (tele >>>= return . abstractTele)
@@ -50,9 +50,9 @@ type ClosedTelescope t = Telescope t Void
 --     killNames n = error $ "telescopeClose: out of bound name " ++ show n
 
 instantiate :: Monad t => Telescope t v -> [t v] -> t v
-instantiate (EmptyTel t) [] =
+instantiate (Empty t) [] =
     t
-instantiate (EmptyTel _) (_ : _) =
+instantiate (Empty _) (_ : _) =
     error "Telescope.instantiate: too many args"
 instantiate (_ :> _) [] =
     error "Telescope.instantiate: too few args"

@@ -25,13 +25,14 @@ data Pattern
 -- Definition
 ------------------------------------------------------------------------
 
-data Definition type_ clauseBody tele
+data Definition type_ clauseBody ctx
     = Constant Name ConstantKind type_
-    | Constructor Name Name tele
-    -- ^ Constructor name, data type name, parameter telescope.
-    | Projection Name Field Name tele
+    | Constructor Name Name ctx
+    -- ^ Constructor name, data type name, parameter context with
+    -- resulting type.
+    | Projection Name Field Name ctx
     -- ^ Projection name, field number, record type name, parameter
-    -- telescope.
+    -- context with resulting type.
     | Function Name type_ [Clause clauseBody]
 
 data ConstantKind = Postulate | Data | Record

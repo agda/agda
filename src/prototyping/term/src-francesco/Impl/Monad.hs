@@ -37,7 +37,8 @@ import           Syntax.Abstract                  (Name, SrcLoc, noSrcLoc, HasSr
 import           Term
 import           Impl.Term
 import           Impl.Definition
-import           Impl.Context
+import qualified Impl.Context                     as Ctx
+import qualified Impl.Telescope                   as Tel
 
 ------------------------------------------------------------------------
 
@@ -55,13 +56,13 @@ tcLocal :: (TCEnv v -> TCEnv v') -> TC v' a -> TC v a
 tcLocal = error "tcLocal TODO"
 
 data TCEnv v = TCEnv
-    { _teContext       :: !(Context Type v)
+    { _teContext       :: !(Ctx.ClosedContext Type v)
     , _teCurrentSrcLoc :: !SrcLoc
     }
 
 initEnv :: TCEnv Void
 initEnv = TCEnv
-  { _teContext       = EmptyContext
+  { _teContext       = Ctx.Empty
   , _teCurrentSrcLoc = noSrcLoc
   }
 
@@ -111,10 +112,10 @@ getDefinition name = atSrcLoc name $ do
 addFreshMetaVar :: Type v -> TC v (Term v)
 addFreshMetaVar type_ = do
     ctx <- asks _teContext
-    let mvType = contextPi ctx type_
+    let mvType = Ctx.pi ctx type_
     mv <- nextMetaVar
     modify $ \s -> s { _tsMetaStore = Map.insert mv (Open mvType) $ _tsMetaStore s }
-    return $ contextApp (App (Meta mv) []) ctx
+    return $ Ctx.app (App (Meta mv) []) ctx
   where
     nextMetaVar = do
         m <- gets $ Map.maxViewWithKey . _tsMetaStore
@@ -160,12 +161,12 @@ extendContext
     -> TC v a
 extendContext n type_ m = tcLocal extend (m F (B (named n ())))
   where
-    extend env = env { _teContext = (_teContext env) :< (n, type_) }
+    extend env = env { _teContext = (_teContext env) Ctx.:< (n, type_) }
 
 getTypeOfName :: Name -> TC v (Maybe (v, Type v))
 getTypeOfName n = do
     ctx <- asks _teContext
-    return $ contextLookup n ctx
+    return $ Ctx.lookup n ctx
 
 atSrcLoc :: HasSrcLoc a => a -> TC v b -> TC v b
 atSrcLoc x = local $ \env -> env { _teCurrentSrcLoc = srcLoc x }
@@ -175,4 +176,10 @@ closeClauseBody t = do
     ctx <- asks _teContext
     return $ Scope $ liftM (toIntVar ctx) t
   where
-    toIntVar ctx v = B $ contextElemIndex v ctx
+    toIntVar ctx v = B $ Ctx.elemIndex v ctx
+
+-- -- | Gets a telescope with all the variables in the current context.
+-- getTelescope :: Term v -> TC v (Tel.ClosedTelescope Term)
+-- getTelescope t = do
+--     ctx <- asks _teContext
+--     return $ Ctx.toTele ctx t

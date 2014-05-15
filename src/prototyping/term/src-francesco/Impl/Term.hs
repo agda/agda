@@ -14,6 +14,8 @@ module Impl.Term
     , TermElim
     , eliminate
     , absApply
+    , absBody
+    , absName
       -- * 'view' and 'unview'
     , TermView
     , view
@@ -104,6 +106,12 @@ eliminate _ _ =
 
 absApply :: TermScope Term v -> Term v -> Term v
 absApply = flip instantiate1Name
+
+absBody :: TermScope Term v -> Term (TermVar v)
+absBody = fromScope
+
+absName :: TermScope Term v -> Name
+absName = error "TODO absName"
 
 -- View
 -------
