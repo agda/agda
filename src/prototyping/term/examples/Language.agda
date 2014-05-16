@@ -190,10 +190,10 @@ eval (app'' t1 t2 eq) g = subst (\ f -> El (f g)) eq
 
 -- Abbreviations.
 
-set' : {G : _} {s : _} -> Type G (\ _ -> set)
+set' : {G : _} -> Type G (\ _ -> set)
 set' = set'' refl
 
-el' : {G : _} {s : _}
+el' : {G : _}
       (x : Term G (\ _ -> set)) ->
       Type G (\ g -> el (eval x g))
 el' x = el'' x refl
@@ -223,26 +223,26 @@ app t1 t2 = app'' t1 t2 refl
 
 -- Example.
 
-raw-category : Type empty (\ _ -> raw-categoryU)
-raw-category =
-     -- Objects.
-   sigma' set'
-     -- Morphisms.
-  (sigma' (pi' (el' (var zero)) (pi' (el' (var (suc zero))) set'))
-     -- Identity.
-  (sigma' (pi' (el' (var (suc zero)))
-               (el' (app (app (var (suc zero)) (var zero)) (var zero))))
-     -- Composition.
-     (pi' (el' (var (suc (suc zero))))                                 -- X.
-     (pi' (el' (var (suc (suc (suc zero)))))                           -- Y.
-     (pi' (el' (var (suc (suc (suc (suc zero))))))                     -- Z.
-     (pi' (el' (app (app (var (suc (suc (suc (suc zero)))))
-                         (var (suc (suc zero))))
-                    (var (suc zero))))                                 -- Hom X Y.
-     (pi' (el' (app (app (var (suc (suc (suc (suc (suc zero))))))
-                         (var (suc (suc zero))))
-                    (var (suc zero))))                                 -- Hom Y Z.
-          (el' (app (app (var (suc (suc (suc (suc (suc (suc zero)))))))
-                         (var (suc (suc (suc (suc zero))))))
-                    (var (suc (suc zero))))))                          -- Hom X Z.
-  ))))))
+-- raw-category : Type empty (\ _ -> raw-categoryU)
+-- raw-category =
+--      -- Objects.
+--    sigma' set'
+--      -- Morphisms.
+--   (sigma' (pi' (el' (var zero)) (pi' (el' (var (suc zero))) set'))
+--      -- Identity.
+--   (sigma' (pi' (el' (var (suc zero)))
+--                (el' (app (app (var (suc zero)) (var zero)) (var zero))))
+--      -- Composition.
+--      (pi' (el' (var (suc (suc zero))))                                 -- X.
+--      (pi' (el' (var (suc (suc (suc zero)))))                           -- Y.
+--      (pi' (el' (var (suc (suc (suc (suc zero))))))                     -- Z.
+--      (pi' (el' (app (app (var (suc (suc (suc (suc zero)))))
+--                          (var (suc (suc zero))))
+--                     (var (suc zero))))                                 -- Hom X Y.
+--      (pi' (el' (app (app (var (suc (suc (suc (suc (suc zero))))))
+--                          (var (suc (suc zero))))
+--                     (var (suc zero))))                                 -- Hom Y Z.
+--           (el' (app (app (var (suc (suc (suc (suc (suc (suc zero)))))))
+--                          (var (suc (suc (suc (suc zero))))))
+--                     (var (suc (suc zero))))))                          -- Hom X Z.
+--   ))))))

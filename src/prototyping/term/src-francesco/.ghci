@@ -12,3 +12,6 @@
 :set -XScopedTypeVariables
 :set -XStandaloneDeriving
 :set -XTupleSections
+:set -XMultiParamTypeClasses
+:set -XFlexibleInstances
+:set -XTypeFamilies
