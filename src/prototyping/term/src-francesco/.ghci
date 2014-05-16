@@ -1,0 +1,14 @@
+:set -i../dist
+:set -XDeriveFoldable
+:set -XDeriveFunctor
+:set -XDeriveTraversable
+:set -XExistentialQuantification
+:set -XFlexibleContexts
+:set -XGADTs
+:set -XGeneralizedNewtypeDeriving
+:set -XKindSignatures
+:set -XPatternGuards
+:set -XRankNTypes
+:set -XScopedTypeVariables
+:set -XStandaloneDeriving
+:set -XTupleSections

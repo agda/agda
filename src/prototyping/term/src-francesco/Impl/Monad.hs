@@ -1,5 +1,3 @@
-{-# LANGUAGE GeneralizedNewtypeDeriving #-}
-{-# LANGUAGE ScopedTypeVariables #-}
 module Impl.Monad
     ( -- * Monad definition
       TC
@@ -55,7 +53,7 @@ tcLocal :: (TCEnv v -> TCEnv v') -> TC v' a -> TC v a
 tcLocal = error "tcLocal TODO"
 
 data TCEnv v = TCEnv
-    { _teContext       :: !(Ctx.ClosedContext Type v)
+    { _teContext       :: !(Ctx.ClosedCtx Type v)
     , _teCurrentSrcLoc :: !SrcLoc
     }
 
@@ -156,7 +154,7 @@ getMetaInst mv = do
 
 extendContext
     :: Name -> Type v
-    -> (Ctx.Context v Type (TermVar v) -> TermVar v -> TC (TermVar v) a)
+    -> (Ctx.Ctx v Type (TermVar v) -> TermVar v -> TC (TermVar v) a)
     -> TC v a
 extendContext n type_ m =
     tcLocal extend (m (Ctx.singleton n type_) (B (named n ())))

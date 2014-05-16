@@ -1,4 +1,3 @@
-{-# LANGUAGE StandaloneDeriving #-}
 module Syntax.Abstract.Pretty () where
 
 import           Control.Arrow                    ((***))

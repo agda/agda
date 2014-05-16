@@ -1,4 +1,3 @@
-{-# LANGUAGE GeneralizedNewtypeDeriving, RankNTypes, PatternGuards #-}
 module Scope.Check
     ( scopeCheck
     , ScopeError

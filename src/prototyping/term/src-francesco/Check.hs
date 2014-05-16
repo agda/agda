@@ -12,61 +12,13 @@ import           Syntax.Abstract.Pretty           ()
 import qualified Syntax.Abstract                  as A
 import qualified Impl                             as I
 import qualified Impl.Context                     as I.Ctx
+import qualified Impl.Telescope                   as I.Tel
 import           Term
 import           Term.View
 import           Definition
 
 whnfView :: I.Term v -> I.TC v (I.TermView v)
 whnfView = undefined
-
--- type WithParsHandler = forall v.
---     I.Type v ->
---     -- The leftover from the 'I.Type' arg after the 'Names' have been
---     -- abstracted
---     [I.Term v] ->
---     -- The vars corresponding to the abstracted names.
---     I.TC v (I.Type v)
-
--- withPars :: I.ClosedType -> [Name] -> WithParsHandler
---          -> I.TC Void (I.ClosedTelescope I.Type)
--- withPars = go []
---   where
---     go :: [v] -> I.Type v -> [Name] -> WithParsHandler
---        -> I.TC v (I.Telescope I.Type Name)
---     go vars type_ []       ret = I.telescopeEmpty <$> ret type_ (map return vars)
---     go vars type_ (n : ns) ret =
---         I.telescopeExtend undefined n <$> go 
-
--- checkData
---     :: Name
---     -- ^ Name of the tycon
---     -> [Name]
---     -- ^ Name of the parameters to the tycons
---     -> [A.TypeSig]
---     -- ^ Data constructors
---     -> TC Void ()
--- checkData tyCon tyConPars absDataCons = do
---     tyConType <- getDefinition tyCon
---     addConstant tyCon Data tyConType
---     withPars tyConType tyConPars $ \tyConPars' tyConTypeEnd -> do
---         set <- I.unview Set
---         equalType tyConTypeEnd set
---         dataConTypeEnd <- unview $ App (Def tyCon) (map apply tyConPars')
---         mapM_ (checkDataCon tyCon dataConTypeEnd) absDataCons
-
--- checkDataCon
---     :: Name
---     -- ^ Name of the type constructor
---     -> Type v
---     -- ^ The type that should be found as return type of each data
---     -- constructor.
---     -> A.TypeSig
---     -- ^ The type of the data constructor
--- checkDataCon tyCon dataConTypeEnd (A.Sig dataCon absDataConType) =
---     atSrcLoc dataCon $ do
---         dataConType <- isType absDataConType
---         dataConTypeEnd <- discharge
-
 
 -- Main functions
 ------------------------------------------------------------------------
@@ -76,6 +28,18 @@ whnfView = undefined
 
 check :: A.Expr -> I.Type v -> I.TC v (I.Term v)
 check = undefined
+-- check synT type_ = I.atSrcLoc synT $ case synT of
+--   A.App (A.Con dataCon) synArgs -> do
+--     dataConDef <- getDefinition dataCon
+--     case dataConDef of
+--       Constructor _ tyCon dataConType -> do
+--         synType <- whnfView type_
+--         case synType of
+--           App (Def dataCon') args0
+--             | dataCon == dataCon', Just args <- mapM isApply args0 -> do
+--               let appliedDataConType = I.Ctx.instantiate dataConType args
+--               let h = I.unview (App (Con dataCon) [])
+--               checkSpine h synArgs
 
 infer :: A.Expr -> I.TC v (I.Term v, I.Type v)
 infer = undefined
@@ -124,8 +88,8 @@ checkData tyCon tyConPars dataCons = do
 checkConstr
     :: Name
     -- ^ Name of the tycon.
-    -> I.Ctx.ClosedContext I.Type v
-    -- ^ Context with the parameters of the tycon.
+    -> I.Ctx.ClosedCtx I.Type v
+    -- ^ Ctx with the parameters of the tycon.
     -> I.Type v
     -- ^ Tycon applied to the parameters.
     -> A.TypeSig
@@ -137,49 +101,7 @@ checkConstr tyCon tyConPars appliedTyConType (A.Sig dataCon synDataConType) =
         unrollPi dataConType $ \vs endType -> do
             let appliedTyConType' = fmap (I.Ctx.weaken vs) appliedTyConType
             equalType appliedTyConType' endType
-        addConstructor dataCon tyCon (I.Ctx.telescope tyConPars dataConType)
-
--- Unrolling Pis
-----------------
-
--- TODO remove duplication
-
-unrollPiWithNames
-    :: I.Type v
-    -- ^ Type to unroll
-    -> [Name]
-    -- ^ Names to give to each parameter
-    -> (forall v'. I.Ctx.Context v I.Type v' -> I.Type v' -> I.TC v' a)
-    -- ^ Handler taking a context with accumulated domains of the pis
-    -- and the final codomain.
-    -> I.TC v a
-unrollPiWithNames type_ []             ret = ret I.Ctx.empty type_
-unrollPiWithNames type_ (name : names) ret = do
-    synType <- whnfView type_
-    case synType of
-        Pi domain codomain ->
-            I.extendContext name domain $ \ctxV _v ->
-            unrollPiWithNames (I.absBody codomain) names $ \ctxVs endType ->
-            ret (ctxV I.Ctx.++ ctxVs) endType
-        _ ->
-            I.typeError $ "Expected function type: " ++ error "TODO show synType"
-
-unrollPi
-    :: I.Type v
-    -- ^ Type to unroll
-    -> (forall v'. I.Ctx.Context v I.Type v' -> I.Type v' -> I.TC v' a)
-    -- ^ Handler taking a weakening function, the list of domains
-    -- of the unrolled pis, the final codomain.
-    -> I.TC v a
-unrollPi type_ ret = do
-    synType <- whnfView type_
-    case synType of
-        Pi domain codomain ->
-            I.extendContext (I.absName codomain) domain $ \ctxV _v ->
-            unrollPi (I.absBody codomain) $ \ctxVs endType ->
-            ret (ctxV I.Ctx.++ ctxVs) endType
-        _ ->
-            ret I.Ctx.empty type_
+        addConstructor dataCon tyCon (I.Tel.idTel tyConPars dataConType)
 
 -- Record
 ---------
@@ -194,7 +116,52 @@ checkRec
     -> [A.TypeSig]
     -- ^ Fields of the record.
     -> I.TC Void ()
-checkRec = undefined
+checkRec tyCon tyConPars dataCon fields = do
+    tyConType <- definitionType <$> I.getDefinition tyCon
+    addConstant tyCon Record tyConType
+    unrollPiWithNames tyConType tyConPars $ \tyConPars' endType -> do
+        equalType endType (I.unview Set)
+        fieldsTel <- checkFields fields
+        let appliedTyConType =
+                I.Ctx.app (I.unview (App (Def tyCon) [])) tyConPars'
+        I.extendContext (A.name "_") appliedTyConType $ \selfCtx self -> do
+            addProjections
+                tyCon tyConPars' self (map A.typeSigName fields) $
+                (fmap (I.Ctx.weaken selfCtx) fieldsTel)
+        addConstructor dataCon tyCon (I.Tel.idTel tyConPars' appliedTyConType)
+
+checkFields
+    :: forall v.
+       [A.TypeSig]
+    -> I.TC v (I.Tel.ProxyTel I.Type v)
+checkFields = go I.Ctx.empty
+  where
+    go :: I.Ctx.Ctx v I.Type v' -> [A.TypeSig]
+       -> I.TC v' (I.Tel.ProxyTel I.Type v)
+    go ctx [] =
+        return $ I.Tel.proxyTel ctx
+    go ctx (A.Sig field synFieldType : fields) = do
+        fieldType <- isType synFieldType
+        I.extendContext field fieldType $ \_ _ ->
+            go (I.Ctx.extend ctx field fieldType) fields
+
+addProjections
+    :: Name
+    -- ^ Type constructor.
+    -> I.Ctx.ClosedCtx I.Type v
+    -- ^ A context with the parameters to the type constructor.
+    -> I.TermVar v
+    -- ^ Variable referring to the value of type record type itself,
+    -- which is the last argument of each projection ("self").  We have
+    -- a 'TermVar' here (and after) precisely because we're scoping over
+    -- the self element after the tycon parameters above.
+    -> [Name]
+    -- ^ Names of the remaining fields.
+    -> I.Tel.ProxyTel I.Type (I.TermVar v)
+    -- ^ Telescope holding the types of the next fields, scoped
+    -- over the types of the previous fields.
+    -> I.TC (I.TermVar v) ()
+addProjections = undefined
 
 -- Clause
 ---------
@@ -262,7 +229,7 @@ checkPattern synPat type_ ret = case synPat of
             App (Def typeCon') typeConPars0
               | typeCon == typeCon', Just typeConPars <- mapM isApply typeConPars0 -> do
                 let dataConTypeNoPars =
-                        I.Ctx.instantiate (vacuous dataConType) typeConPars
+                        I.Tel.unId2 $ I.Tel.instantiate (vacuous dataConType) typeConPars
                 checkPatterns synPats dataConTypeNoPars $ \weaken pats patsVars _ -> do
                   let t = I.unview (App (Con dataCon) $ map Apply patsVars)
                   ret weaken (ConP dataCon pats) t
@@ -292,16 +259,58 @@ isType abs = do
 definitionType :: I.TermDefinition -> I.ClosedType
 definitionType = undefined
 
+-- Unrolling Pis
+----------------
+
+-- TODO remove duplication
+
+unrollPiWithNames
+    :: I.Type v
+    -- ^ Type to unroll
+    -> [Name]
+    -- ^ Names to give to each parameter
+    -> (forall v'. I.Ctx.Ctx v I.Type v' -> I.Type v' -> I.TC v' a)
+    -- ^ Handler taking a context with accumulated domains of the pis
+    -- and the final codomain.
+    -> I.TC v a
+unrollPiWithNames type_ []             ret = ret I.Ctx.empty type_
+unrollPiWithNames type_ (name : names) ret = do
+    synType <- whnfView type_
+    case synType of
+        Pi domain codomain ->
+            I.extendContext name domain $ \ctxV _v ->
+            unrollPiWithNames (I.absBody codomain) names $ \ctxVs endType ->
+            ret (ctxV I.Ctx.++ ctxVs) endType
+        _ ->
+            I.typeError $ "Expected function type: " ++ error "TODO show synType"
+
+unrollPi
+    :: I.Type v
+    -- ^ Type to unroll
+    -> (forall v'. I.Ctx.Ctx v I.Type v' -> I.Type v' -> I.TC v' a)
+    -- ^ Handler taking a weakening function, the list of domains
+    -- of the unrolled pis, the final codomain.
+    -> I.TC v a
+unrollPi type_ ret = do
+    synType <- whnfView type_
+    case synType of
+        Pi domain codomain ->
+            I.extendContext (I.absName codomain) domain $ \ctxV _v ->
+            unrollPi (I.absBody codomain) $ \ctxVs endType ->
+            ret (ctxV I.Ctx.++ ctxVs) endType
+        _ ->
+            ret I.Ctx.empty type_
+
 -- Monad utils
 --------------
 
 addConstant :: Name -> ConstantKind -> I.ClosedType -> I.TC v ()
 addConstant x k a = I.addDefinition x (Constant x k a)
 
-addConstructor :: Name -> Name -> I.Ctx.ClosedTelescope I.Type -> I.TC v ()
+addConstructor :: Name -> Name -> I.Tel.ClosedIdTel I.Type -> I.TC v ()
 addConstructor c d tel = I.addDefinition c (Constructor c d tel)
 
-addProjection :: Name -> Field -> Name -> I.Ctx.ClosedTelescope I.Type -> I.TC v ()
+addProjection :: Name -> Field -> Name -> I.Tel.ClosedIdTel I.Type -> I.TC v ()
 addProjection f n r tel = I.addDefinition f (Projection f n r tel)
 
 addClause :: Name -> [Pattern] -> I.ClauseBody -> I.TC v ()

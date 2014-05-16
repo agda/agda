@@ -1,7 +1,3 @@
-{-# LANGUAGE DeriveFunctor  #-}
-{-# LANGUAGE DeriveFoldable #-}
-{-# LANGUAGE DeriveTraversable #-}
-{-# LANGUAGE GADTs #-}
 module Impl.Term
     ( -- * Base 'Term'
       TermScope

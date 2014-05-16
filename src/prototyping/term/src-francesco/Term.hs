@@ -1,7 +1,3 @@
-{-# LANGUAGE DeriveFunctor  #-}
-{-# LANGUAGE DeriveFoldable #-}
-{-# LANGUAGE DeriveTraversable #-}
-{-# LANGUAGE FlexibleContexts #-}
 module Term where
 
 import           Prelude.Extras                   (Eq1((==#)))
@@ -45,13 +41,9 @@ data Head v
 
 instance Eq1 Head
 
--- | The field of a projection.  We keep the name around for nicer
--- pretty-printing.
-newtype Field = Field (Named Int)
+-- | The field of a projection.
+newtype Field = Field {unField :: Int}
     deriving (Eq, Ord)
-
-unField :: Field -> Int
-unField (Field namedI) = unNamed namedI
 
 -- | 'Elim's are applied to 'Head's.  They're either arguments applied
 -- to functions, or projections applied to records.

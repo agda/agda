@@ -1,6 +1,7 @@
 module Impl
     ( -- * Base 'Term'
       Term
+    , TermVar
     , TermElim
     , Type
     , ClosedTerm
