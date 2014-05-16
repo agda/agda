@@ -468,28 +468,41 @@ typesOfHiddenMetas norm = liftTCM $ do
 
 metaHelperType :: Rewrite -> InteractionId -> Range -> String -> TCM (OutputConstraint' Expr Expr)
 metaHelperType norm ii rng s = case words s of
-  []    -> fail "C-C C-J expects an argument of the form f e1 e2 .. en"
+  []    -> fail "C-c C-h expects an argument of the form f e1 e2 .. en"
   f : _ -> do
     A.Application h args <- A.appView . getBody . deepUnScope <$> parseExprIn ii rng ("let " ++ f ++ " = _ in " ++ s)
     withInteractionId ii $ do
       cxtArgs  <- getContextArgs
-      -- cleanupType relies on with arguments being named 'w' so we'd better rename any actual 'w's to avoid confusion.
+      -- cleanupType relies on with arguments being named 'w',
+      -- so we'd better rename any actual 'w's to avoid confusion.
       tel      <- runIdentity . onNamesTel unW <$> getContextTelescope
       a        <- runIdentity . onNames unW . (`piApply` cxtArgs) <$> (getMetaType =<< lookupInteractionId ii)
       (vs, as) <- unzip <$> mapM (inferExpr . namedThing . unArg) args
-      a        <-
-        local (\e -> e { envPrintDomainFreePi = True }) $
-        reify =<< cleanupType args =<< rewrite norm =<< withFunctionType tel vs as EmptyTel a
+      -- Remember the arity of a
+      TelV atel _ <- telView a
+      let arity = size atel
+      a        <- local (\e -> e { envPrintDomainFreePi = True }) $ do
+        reify =<< cleanupType arity args =<< rewrite norm =<< withFunctionType tel vs as EmptyTel a
       return (OfType' h a)
   where
-    cleanupType args t = return $ evalState (renameVars $ hiding args $ stripUnused t) args
+    cleanupType arity args t = do
+      -- Get the arity of t
+      TelV ttel _ <- telView t
+      -- Compute the number or pi-types subject to stripping.
+      let n = size ttel - arity
+      -- It cannot be negative, otherwise we would have performed a
+      -- negative number of with-abstractions.
+      unless (n >= 0) __IMPOSSIBLE__
+      return $ evalState (renameVars $ hiding args $ stripUnused n t) args
 
     getBody (A.Let _ _ e)      = e
     getBody _                  = __IMPOSSIBLE__
 
-    stripUnused (El s v) = El s $ strip v
-    strip v = case v of
-      I.Pi a b -> case fmap stripUnused b of
+    -- Strip the non-dependent abstractions from the first n abstractions.
+    stripUnused n (El s v) = El s $ strip n v
+    strip 0 v = v
+    strip n v = case v of
+      I.Pi a b -> case stripUnused (n-1) <$> b of
         b | absName b == "w"   -> I.Pi a b
         NoAbs _ b              -> unEl b
         Abs s b | 0 `freeIn` b -> I.Pi (hide a) (Abs s b)
