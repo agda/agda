@@ -608,7 +608,7 @@ interpret (Cmd_context norm ii _ _) =
   display_info . Info_Context =<< lift (prettyContext norm False ii)
 
 interpret (Cmd_helper_function norm ii rng s) =
-  display_info . Info_HelperFunction =<< lift (doStuff norm ii rng s)
+  display_info . Info_HelperFunction =<< lift (cmd_helper_function norm ii rng s)
 
 interpret (Cmd_infer norm ii rng s) =
   display_info . Info_InferredType
@@ -867,10 +867,10 @@ prettyContext norm rev ii = B.withInteractionId ii $ do
   let shuffle = if rev then reverse else id
   return $ align 10 $ filter (not . null. fst) $ shuffle $ zip ns (map (text ":" <+>) es)
 
--- | Do stuff.
+-- | Create type of application of new helper function that would solve the goal.
 
-doStuff :: B.Rewrite -> InteractionId -> Range -> String -> TCM Doc
-doStuff norm ii r s = B.withInteractionId ii $ inTopContext $
+cmd_helper_function :: B.Rewrite -> InteractionId -> Range -> String -> TCM Doc
+cmd_helper_function norm ii r s = B.withInteractionId ii $ inTopContext $
   prettyATop =<< B.metaHelperType norm ii r s
 
 -- | Displays the current goal, the given document, and the current
