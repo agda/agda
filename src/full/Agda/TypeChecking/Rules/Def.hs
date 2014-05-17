@@ -452,8 +452,10 @@ checkClause t c@(A.Clause (A.SpineLHS i x aps withPats) rhs0 wh) = do
                      handleRHS newRhs
 
                 A.WithRHS aux es cs -> do
-                  reportSDoc "tc.with.top" 5 $
-                    text "TC.Rules.Def.checkclause reached A.WithRHS"
+                  reportSDoc "tc.with.top" 15 $ vcat
+                    [ text "TC.Rules.Def.checkclause reached A.WithRHS"
+                    , sep $ prettyA aux : map (parens . prettyA) es
+                    ]
                   reportSDoc "tc.with.top" 30 $
                     prettyA c
                   -- Infer the types of the with expressions
