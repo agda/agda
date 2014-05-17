@@ -415,13 +415,6 @@ checkClause t c@(A.Clause (A.SpineLHS i x aps withPats) rhs0 wh) = do
                         ([Hidden],         Def equality _) -> equality
                         ([],               Def equality _) -> equality
                         _                                  -> __IMPOSSIBLE__
-{- CLUMSY
-                     reflCon <- do
-                       refl <- ignoreSharing <$> primRefl
-                       case refl of
-                         Con reflCon [] -> return reflCon
-                         _              -> __IMPOSSIBLE__
--}
                      Con reflCon [] <- ignoreSharing <$> primRefl
                      (rewriteType,rewriteFrom,rewriteTo) <- do
                        case ignoreSharing $ unEl t' of
