@@ -1,7 +1,7 @@
 {-# LANGUAGE DeriveDataTypeable, StandaloneDeriving, FlexibleContexts, UndecidableInstances #-}
 {-| An info object contains additional information about a piece of abstract
     syntax that isn't part of the actual syntax. For instance, it might contain
-    the source code posisiton of an expression or the concrete syntax that
+    the source code position of an expression or the concrete syntax that
     an internal expression originates from.
 -}
 
@@ -17,21 +17,15 @@ import Agda.Syntax.Fixity
 import Agda.Syntax.Scope.Base (ScopeInfo, emptyScopeInfo)
 
 {--------------------------------------------------------------------------
-    No information
- --------------------------------------------------------------------------}
-
-data Info = Nope
-
-{--------------------------------------------------------------------------
     Meta information
  --------------------------------------------------------------------------}
 
-data MetaInfo =
-	MetaInfo { metaRange	:: Range
-		 , metaScope	:: ScopeInfo
-		 , metaNumber	:: Maybe Nat
-                 , metaNameSuggestion :: String
-		 }
+data MetaInfo = MetaInfo
+  { metaRange          :: Range
+  , metaScope          :: ScopeInfo
+  , metaNumber         :: Maybe Nat  -- ^ The 'MetaId', not the 'InteractionId'.
+  , metaNameSuggestion :: String
+  }
   deriving (Typeable, Show)
 
 emptyMetaInfo :: MetaInfo
