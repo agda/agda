@@ -1229,12 +1229,18 @@ ways."
        ;; trigger agda2-abort-highlighting.
        (inhibit-modification-hooks t))
       ((delims() (re-search-forward "[?]\\|[{][-!]\\|[-!][}]\\|--\\|\\\\begin{code}\\|\\\\end{code}" nil t))
+       ;; is-proper checks whether string s (e.g. "?" or "--") is proper
+       ;; i.e., is not part of an identifier.
+       ;; comment-starter is true if s starts a comment (e.g. "--")
        (is-proper (s comment-starter)
           (save-excursion
             (save-match-data
               (backward-char (length s))
-              (unless (bolp) (backward-char 1))
-              (looking-at (concat "\\([{}();]\\|^\\|\\s \\)"
+              (unless (bolp) (backward-char 1))  ;; bolp = pointer at beginning of line
+              ;; Andreas, 2014-05-17 Issue 1132
+              ;; A questionmark can also follow immediately after a .
+              ;; for instance to be a place holder for a dot pattern.
+              (looking-at (concat "\\([.{}();]\\|^\\|\\s \\)"  ;; \\s = whitespace
                                   (regexp-quote s)
                                   (unless comment-starter
                                     "\\([{}();]\\|$\\|\\s \\)"))))))
