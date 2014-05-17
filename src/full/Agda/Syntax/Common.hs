@@ -522,7 +522,7 @@ newtype Constr a = Constr a
 -- * Interaction meta variables
 ---------------------------------------------------------------------------
 
-newtype InteractionId = InteractionId Nat
+newtype InteractionId = InteractionId { interactionId :: Nat }
     deriving (Eq,Ord,Num,Integral,Real,Enum)
 
 instance Show InteractionId where

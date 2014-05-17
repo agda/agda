@@ -136,7 +136,7 @@ instance Reify MetaId Expr where
                  }
           underscore = return $ A.Underscore mi'
       ifNotM shouldReifyInteractionPoints underscore $ {- else -}
-        caseMaybeM (isInteractionMeta x) underscore $ \ ii@(InteractionId n) ->
+        caseMaybeM (isInteractionMeta x) underscore $ \ ii@InteractionId{} ->
           return $ A.QuestionMark (mi' {metaNumber = Just n}) ii
 
 instance Reify DisplayTerm Expr where

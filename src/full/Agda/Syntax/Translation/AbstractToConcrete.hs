@@ -346,12 +346,15 @@ instance ToConcrete A.Expr C.Expr where
         -- variables)
     toConcrete (A.Lit l)            = return $ C.Lit l
 
-    toConcrete (A.QuestionMark i ii)= return $ C.QuestionMark
-                                                (getRange i)
-                                                (metaNumber i)
+    -- Andreas, 2014-05-17  We print question marks with their
+    -- interaction id, in case @metaNumber /= Nothing@
+    toConcrete (A.QuestionMark i ii)= return $
+      C.QuestionMark (getRange i) $
+        interactionId ii <$ metaNumber i
+
     toConcrete (A.Underscore i)     = return $
       C.Underscore (getRange i) $
-       fmap (show . NamedMeta (metaNameSuggestion i) . MetaId) (metaNumber i)
+        show . NamedMeta (metaNameSuggestion i) . MetaId <$> metaNumber i
 
     toConcrete e@(A.App i e1 e2)    =
         tryToRecoverOpApp e
