@@ -65,7 +65,8 @@ coreBuiltins = map (\ (x, z) -> BuiltinInfo x z)
                                                [builtinRefl])
   , (builtinHiding             |-> BuiltinData tset [builtinHidden, builtinInstance, builtinVisible])
   , (builtinRelevance          |-> BuiltinData tset [builtinRelevant, builtinIrrelevant])
-  , (builtinRefl               |-> BuiltinDataCons (hPi "a" (el primLevel) $ hPi "A" (return $ sort $ varSort 0) $
+  , (builtinRefl               |-> BuiltinDataCons (hPi "a" (el primLevel) $
+                                                    hPi "A" (return $ sort $ varSort 0) $
                                                     hPi "x" (El (varSort 1) <$> varM 0) $
                                                     El (varSort 2) <$> primEquality <#> varM 2 <#> varM 1 <@> varM 0 <@> varM 0))
   , (builtinNil                |-> BuiltinDataCons (hPi "A" tset (el (list v0))))

@@ -422,9 +422,8 @@ checkClause t c@(A.Clause (A.SpineLHS i x aps withPats) rhs0 wh) = do
                           err <- text "Cannot rewrite by equation of type" <+> prettyTCM t'
                           typeError $ GenericError $ show err
 
-                     let cinfo = ConPatInfo False patNoRange
-                         metaInfo = Info.emptyMetaInfo
-                         underscore = A.Underscore metaInfo
+                     let cinfo      = ConPatInfo False patNoRange
+                         underscore = A.Underscore Info.emptyMetaInfo
 
                      [rewriteFromExpr,rewriteToExpr,rewriteTypeExpr, proofExpr] <-
                       disableDisplayForms $ withShowAllArguments $ reify
