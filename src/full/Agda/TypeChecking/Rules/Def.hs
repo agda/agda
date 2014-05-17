@@ -22,7 +22,7 @@ import Agda.Syntax.Translation.InternalToAbstract
 import Agda.Syntax.Info
 
 import Agda.TypeChecking.Monad
-import Agda.TypeChecking.Monad.Builtin (primRefl, primEquality)
+import Agda.TypeChecking.Monad.Builtin (primRefl, primEqualityName)
 import Agda.TypeChecking.Monad.Benchmark (billTop, reimburseTop)
 import qualified Agda.TypeChecking.Monad.Benchmark as Bench
 
@@ -406,15 +406,8 @@ checkClause t c@(A.Clause (A.SpineLHS i x aps withPats) rhs0 wh) = do
                 A.RewriteRHS (qname:names) (eq:eqs) rhs wh -> do
                      (proof,t) <- inferExpr eq
                      t' <- reduce =<< instantiateFull t
-                     equality <- primEquality >>= \eq ->
-                      let lamV (Lam i b)  = ((getHiding i:) *** id) $ lamV (unAbs b)
-                          lamV (Shared p) = lamV (derefPtr p)
-                          lamV v          = ([], v) in
-                      return $ case lamV eq of
-                        ([Hidden, Hidden], Def equality _) -> equality
-                        ([Hidden],         Def equality _) -> equality
-                        ([],               Def equality _) -> equality
-                        _                                  -> __IMPOSSIBLE__
+                     -- Get the names of builtins EQUALITY and REFL.
+                     equality <- primEqualityName
                      Con reflCon [] <- ignoreSharing <$> primRefl
                      (rewriteType,rewriteFrom,rewriteTo) <- do
                        case ignoreSharing $ unEl t' of

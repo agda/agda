@@ -1,3 +1,4 @@
+{-# LANGUAGE CPP #-}
 
 module Agda.TypeChecking.Monad.Builtin where
 
@@ -17,6 +18,10 @@ import Agda.TypeChecking.Substitute
 
 import Agda.Utils.Monad (when_)
 import Agda.Utils.Maybe
+import Agda.Utils.Tuple
+
+#include "../../undefined.h"
+import Agda.Utils.Impossible
 
 class (Functor m, Applicative m, Monad m) => HasBuiltins m where
   getBuiltinThing :: String -> m (Maybe (Builtin PrimFun))
@@ -289,3 +294,29 @@ coinductionKit = (do
     , nameOfFlat  = flat
     })
     `catchError` \_ -> return Nothing
+
+------------------------------------------------------------------------
+-- * Builtin equality
+------------------------------------------------------------------------
+
+-- | Get the name of the equality type.
+primEqualityName :: TCM QName
+primEqualityName = do
+  eq <- primEquality
+  -- Andreas, 2014-05-17 moved this here from TC.Rules.Def
+  -- Don't know why up to 2 hidden lambdas need to be stripped,
+  -- but I left the code in place.
+  -- Maybe it was intended that equality could be declared
+  -- in three different ways:
+  -- 1. universe and type polymorphic
+  -- 2. type polymorphic only
+  -- 3. monomorphic.
+  let lamV (Lam i b)  = mapFst (getHiding i :) $ lamV (unAbs b)
+      lamV (Shared p) = lamV (derefPtr p)
+      lamV v          = ([], v)
+  return $ case lamV eq of
+    ([Hidden, Hidden], Def equality _) -> equality
+    ([Hidden],         Def equality _) -> equality
+    ([],               Def equality _) -> equality
+    _                                  -> __IMPOSSIBLE__
+
