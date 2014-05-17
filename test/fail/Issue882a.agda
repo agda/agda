@@ -69,6 +69,10 @@ B →
 (w : _x_48 ≡ _x_48) →
 unfold (λ m → _.mko m (m b) w) ≡ unfold (λ m → _.mko m (m b) w)
 of the generated with function is well-formed
+
+NOW (2014-05-17):
+Rewriting with refl is a no-op, so no error is triggered any more.
+Just an unresolved meta now.
 -}
 
 

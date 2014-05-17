@@ -1,9 +1,3 @@
-Issue882a.agda:50,1-33
-Cannot instantiate the metavariable _48 to solution m b since it
-contains the variable m which is not in scope of the metavariable
-or irrelevant in the metavariable but relevant in the solution
-when checking that the type
-B →
-(w : _x_48 ≡ _x_48) →
-unfold (λ m → _.mko m (m b) w) ≡ unfold (λ m → _.mko m (m b) w)
-of the generated with function is well-formed
+
+Unsolved metas at the following locations:
+  Issue882a.agda:50,29-33

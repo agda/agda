@@ -16,6 +16,7 @@ import Control.Monad.Reader
 import Control.Monad.Writer
 import Control.Applicative
 
+import Data.Function
 import Data.Int
 import qualified Data.List as List
 import Data.Map as Map
@@ -559,6 +560,8 @@ data InteractionPoint = InteractionPoint
   { ipRange :: Range        -- ^ The position of the interaction point.
   , ipMeta  :: Maybe MetaId -- ^ The meta variable, if any, holding the type etc.
   }
+
+instance Eq InteractionPoint where (==) = (==) `on` ipMeta
 
 -- | Data structure managing the interaction points.
 type InteractionPoints = Map InteractionId InteractionPoint

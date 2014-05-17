@@ -8,6 +8,7 @@ import Control.Applicative
 import Control.Monad.State hiding (forM, mapM)
 import Control.Monad.Error hiding (forM, mapM)
 
+import Data.Function
 import Data.List hiding (sort)
 import Data.Maybe
 import Data.Traversable
@@ -26,6 +27,9 @@ import Agda.TypeChecking.Monad.Builtin (primRefl, primEqualityName)
 import Agda.TypeChecking.Monad.Benchmark (billTop, reimburseTop)
 import qualified Agda.TypeChecking.Monad.Benchmark as Bench
 
+import Agda.TypeChecking.Constraints
+import Agda.TypeChecking.Conversion
+import Agda.TypeChecking.MetaVars
 import Agda.TypeChecking.Reduce
 import Agda.TypeChecking.Patterns.Abstract (expandPatternSynonyms)
 import Agda.TypeChecking.Pretty
@@ -411,11 +415,52 @@ checkClause t c@(A.Clause (A.SpineLHS i x aps withPats) rhs0 wh) = do
                 A.RewriteRHS [] [] rhs [] -> handleRHS rhs
                 A.RewriteRHS [] [] _ (_:_) -> __IMPOSSIBLE__
                 A.RewriteRHS (qname:names) (eq:eqs) rhs wh -> do
+
+                     -- Action for skipping this rewrite.
+                     -- We do not want to create unsolved metas in case of
+                     -- a futile rewrite with a reflexive equation.
+                     -- Thus, we restore the state in this case,
+                     -- unless the rewrite expression contains questionmarks.
+                     st <- get
+                     let recurse = do
+                          st' <- get
+                          -- Comparing the whole stInteractionPoints maps is a bit
+                          -- wasteful, but we assume
+                          -- 1. rewriting with a reflexive equality to happen rarely,
+                          -- 2. especially with ?-holes in the rewrite expression
+                          -- 3. and a large overall number of ?s.
+                          let sameIP = (==) `on` stInteractionPoints
+                          when (sameIP st st') $ put st
+                          handleRHS $ A.RewriteRHS names eqs rhs wh
+
+                     -- Get value and type of rewrite-expression.
+
                      (proof,t) <- inferExpr eq
-                     t' <- reduce =<< instantiateFull t
+
                      -- Get the names of builtins EQUALITY and REFL.
+
                      equality <- primEqualityName
                      Con reflCon [] <- ignoreSharing <$> primRefl
+
+                     -- Andreas, 2014-05-17  Issue 1110:
+                     -- Rewriting with REFL has no effect, but gives an
+                     -- incomprehensible error message about the generated
+                     -- with clause. Thus, we rather do simply nothing if
+                     -- rewriting with REFL is attempted.
+
+                     -- OBSOLETE:
+                     -- let isRefl v = isRefl' . ignoreSharing =<< reduce v
+                     --     isRefl' (Con c _) | c == reflCon = return True
+                     --     isRefl' (Lam h t)                = isRefl $ unAbs t
+                     --     isRefl' (DontCare t)             = isRefl t
+                     --     isRefl' _                        = return False
+
+                     -- ifM (isRefl proof) recurse $ {- else -} do
+
+                     -- Check that the type is actually an equality (lhs ≡ rhs)
+                     -- and extract lhs, rhs, and their type.
+
+                     t' <- reduce =<< instantiateFull t
                      (rewriteType,rewriteFrom,rewriteTo) <- do
                        case ignoreSharing $ unEl t' of
                          Def equality'
@@ -424,17 +469,33 @@ checkClause t c@(A.Clause (A.SpineLHS i x aps withPats) rhs0 wh) = do
                            , Apply (Arg (ArgInfo NotHidden Relevant _) rewriteFrom)
                            , Apply (Arg (ArgInfo NotHidden Relevant _) rewriteTo)
                            ] | equality' == equality ->
-                               return (rewriteType, rewriteFrom, rewriteTo)
+                               return (El (getSort t') rewriteType, rewriteFrom, rewriteTo)
                          _ -> do
                           err <- text "Cannot rewrite by equation of type" <+> prettyTCM t'
                           typeError $ GenericError $ show err
 
+                     -- Andreas, 2014-05-17  Issue 1110:
+                     -- Rewriting with a reflexive equation has no effect, but gives an
+                     -- incomprehensible error message about the generated
+                     -- with clause. Thus, we rather do simply nothing if
+                     -- rewriting with @a ≡ a@ is attempted.
+
+                     let isReflexive = flip catchError (const $ return False) $ do
+                           dontAssignMetas $ do
+                           ifNoConstraints_ (equalTerm rewriteType rewriteFrom rewriteTo)
+                             {- then -} (return True)
+                             {- else -} (const $ return False)
+                     ifM isReflexive recurse $ {- else -} do
+
+                     -- Transform 'rewrite' clause into a 'with' clause,
+                     -- going back to abstract syntax.
+
                      let cinfo      = ConPatInfo False patNoRange
                          underscore = A.Underscore Info.emptyMetaInfo
 
-                     [rewriteFromExpr,rewriteToExpr,rewriteTypeExpr, proofExpr] <-
+                     (rewriteFromExpr,rewriteToExpr,rewriteTypeExpr, proofExpr) <-
                       disableDisplayForms $ withShowAllArguments $ reify
-                        [rewriteFrom,   rewriteTo,    rewriteType    , proof]
+                        (rewriteFrom,   rewriteTo,    rewriteType    , proof)
                      let (inner, outer) -- the where clauses should go on the inner-most with
                            | null eqs  = ([], wh)
                            | otherwise = (wh, [])
