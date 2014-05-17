@@ -33,14 +33,14 @@ data Pattern
 ------------------------------------------------------------------------
 
 data Definition term
-    = Constant Name ConstantKind (ClosedType term)
+    = Constant Name ConstantKind (Closed term)
     | Constructor Name Name (Tel.ClosedIdTel term)
     -- ^ Constructor name, data type name, parameter context with
     -- resulting type.
     | Projection Name Field Name (Tel.ClosedIdTel term)
     -- ^ Projection name, field number, record type name, parameter
     -- context with resulting type.
-    | Function Name (ClosedType term) [Clause term]
+    | Function Name (Closed term) [Clause term]
 
 data ConstantKind = Postulate | Data | Record
   deriving (Eq, Show)

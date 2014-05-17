@@ -6,6 +6,7 @@ module Types.Telescope
     , unTel
     , idTel
     , proxyTel
+    , substs
     , instantiate
       -- ** 'Tel' types
     , Proxy2(..)
@@ -40,14 +41,20 @@ data Tel t f v
 
 type ClosedTel t f = Tel t f Void
 
-instantiate :: (Monad f, Bound t) => Tel t f v0 -> [f v0] -> t f v0
-instantiate (Empty t)     []           = t
-instantiate (Empty _)     (_ : _)      = error "Types.Telescope.instantiate: too many arguments"
-instantiate (Cons _ _)    []           = error "Types.Telescope.instantiate: too few arguments"
-instantiate (Cons _ tel') (arg : args) = instantiate (tel' >>>= instArg) args
+substs :: (Monad f, Bound t) => Tel t f v0 -> [f v0] -> t f v0
+substs (Empty t)     []           = t
+substs (Empty _)     (_ : _)      = error "Types.Telescope.instantiate: too many arguments"
+substs (Cons _ _)    []           = error "Types.Telescope.instantiate: too few arguments"
+substs (Cons _ tel') (arg : args) = substs (tel' >>>= instArg) args
   where
     instArg (B _) = arg
     instArg (F v) = return v
+
+instantiate :: (Monad f, Bound t) => Tel t f (TermVar v) -> f v -> Tel t f v
+instantiate tel' t = tel' >>>= inst
+  where
+    inst (B _) = t
+    inst (F v) = return v
 
 -- Useful types
 ---------------

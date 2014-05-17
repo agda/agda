@@ -71,9 +71,6 @@ instance (Eq1 term, Eq1 abs) => Eq1 (TermView abs term) where
     _ ==# _ =
         False
 
--- | Type synonym useful for documentation.
-type Type t v = t v
-
 type ClosedTermView abs term = TermView abs term Void
 
 -- Named
@@ -98,5 +95,4 @@ type TermVar = Bound.Var (Named ())
 boundTermVar :: Name -> TermVar v
 boundTermVar n = B $ named n ()
 
-type ClosedTerm t = t Void
-type ClosedType t = t Void
+type Closed t = t Void
