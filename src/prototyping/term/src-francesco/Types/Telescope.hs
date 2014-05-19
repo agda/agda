@@ -19,6 +19,7 @@ module Types.Telescope
 
 import           Prelude                          hiding (pi, length, lookup, (++))
 
+import           Prelude.Extras                   (Show1(showsPrec1))
 import           Bound                            hiding (instantiate)
 import           Data.Void                        (Void)
 import           Data.Foldable                    (Foldable(foldMap))
@@ -39,10 +40,16 @@ data Tel t f v
     | Cons (Name, f v) (Tel t f (TermVar v))
     deriving (Functor)
 
+instance (Show1 (t f), Show1 f, Show v) => Show (Tel t f v) where
+    show _ = error "Tel: TODO Show instance"
+
+instance (Show1 (t f), Show1 f) => Show1 (Tel t f) where
+    showsPrec1 _ _ = error "Tel: TODO Show1 instance"
+
 type ClosedTel t f = Tel t f Void
 
-substs :: (Monad f, Bound t) => Tel t f v0 -> [f v0] -> t f v0
-substs (Empty t)     []           = t
+substs :: (Monad f) => IdTel f v0 -> [f v0] -> f v0
+substs (Empty t)     []           = unId2 t
 substs (Empty _)     (_ : _)      = error "Types.Telescope.instantiate: too many arguments"
 substs (Cons _ _)    []           = error "Types.Telescope.instantiate: too few arguments"
 substs (Cons _ tel') (arg : args) = substs (tel' >>>= instArg) args

@@ -124,7 +124,7 @@ addProjections r ptel self t fs tel = case (fs, tel) of
     addProjection f n r ptel ta
     addProjections r ptel self t fs =<<
       absApply b =<< unview (App (Var self) [Proj n])
-  (_, _) -> typeError "impossible.addProjections: lengths do not match"
+  (_, _) -> typeError "impossible.addProjections: lengths do not match",
 
 checkClause :: Name -> [A.Pattern] -> A.Expr -> TC ()
 checkClause f ps e = do

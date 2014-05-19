@@ -87,18 +87,13 @@ instance Pretty Head where
     J _    -> text "J"
     Refl _ -> text "refl"
 
-prettyApp :: Pretty a => Int -> Doc -> [a] -> Doc
-prettyApp _p h [] = h
-prettyApp  p h xs =
-  condParens (p > 3) $ h <+> fsep (map (prettyPrec 4) xs )
-
-prettyTel :: [(Name, Expr)] -> Doc
-prettyTel bs = fsep (map pr bs)
-  where
-    pr (x, e) = parens (pretty x <+> text ":" <+> pretty e)
-
 instance Pretty Pattern where
   prettyPrec p e = case e of
     WildP _ -> text "_"
     VarP x  -> pretty x
     ConP c es -> prettyApp p (pretty c) es
+
+prettyTel :: [(Name, Expr)] -> Doc
+prettyTel bs = fsep (map pr bs)
+  where
+    pr (x, e) = parens (pretty x <+> text ":" <+> pretty e)

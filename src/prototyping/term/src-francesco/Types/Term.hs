@@ -1,13 +1,19 @@
 module Types.Term where
 
+import           Prelude                          hiding (foldr)
+
 import           Bound
 import qualified Bound.Name
-import           Data.Foldable                    (Foldable)
+import           Data.Foldable                    (Foldable, foldr)
 import           Data.Traversable                 (Traversable)
-import           Prelude.Extras                   (Eq1((==#)))
+import           Prelude.Extras                   (Eq1((==#)), Show1)
 import           Data.Void                        (Void)
+import           Data.Maybe                       (fromMaybe)
 
+import qualified Text.PrettyPrint.Extended        as PP
+import qualified Syntax.Abstract                  as A
 import           Syntax.Abstract                  (Name)
+import           Syntax.Abstract.Pretty           ()
 
 -- Terms
 ------------------------------------------------------------------------
@@ -15,6 +21,9 @@ import           Syntax.Abstract                  (Name)
 -- | 'MetaVar'iables.  Globally scoped.
 newtype MetaVar = MetaVar {unMetaVar :: Int}
     deriving (Eq, Ord, Show)
+
+instance PP.Pretty MetaVar where
+    prettyPrec _ (MetaVar mv) = PP.text ("_" ++ show mv)
 
 -- | A 'Head' heads a neutral term -- something which can't reduce
 -- further.
@@ -25,7 +34,7 @@ data Head v
     | J
     | Refl
     | Meta MetaVar
-    deriving (Eq, Ord, Functor, Foldable, Traversable)
+    deriving (Show, Eq, Ord, Functor, Foldable, Traversable)
 
 instance Eq1 Head
 
@@ -33,21 +42,28 @@ instance Eq1 Head
 newtype Field = Field {unField :: Int}
     deriving (Eq, Ord)
 
+instance Show Field where
+    show (Field f) = "Field" ++ show f
+
 -- | 'Elim's are applied to 'Head's.  They're either arguments applied
 -- to functions, or projections applied to records.
 data Elim term v
     = Apply (term v)
-    | Proj Field
-    deriving (Eq, Functor, Foldable, Traversable)
+    | Proj Name Field
+    deriving (Show, Eq, Functor, Foldable, Traversable)
 
 instance (Eq1 term) => Eq1 (Elim term) where
-    Apply t1 ==# Apply t2 = t1 ==# t2
-    Proj f1  ==# Proj f2  = f1 == f2
-    _        ==# _        = False
+    Apply t1   ==# Apply t2   = t1 ==# t2
+    Proj n1 f1 ==# Proj n2 f2 = n1 == n2 && f1 == f2
+    _          ==# _          = False
 
 instance Bound Elim where
-    Apply t    >>>= f = Apply (t >>= f)
-    Proj field >>>= _ = Proj field
+    Apply t      >>>= f = Apply (t >>= f)
+    Proj n field >>>= _ = Proj n field
+
+instance (PP.Pretty (term v), Show v) => PP.Pretty (Elim term v) where
+    prettyPrec p (Apply e)  = PP.prettyPrec p e
+    prettyPrec _ (Proj n x) = PP.text $ "." ++ show n ++ "-" ++ show x
 
 data TermView abs term v
     = Lam (abs v)
@@ -55,7 +71,7 @@ data TermView abs term v
     | Equal (term v) (term v) (term v)
     | App (Head v) [Elim term v]
     | Set
-    deriving (Eq, Functor, Foldable, Traversable)
+    deriving (Show, Eq, Functor, Foldable, Traversable)
 
 instance (Eq1 term, Eq1 abs) => Eq1 (TermView abs term) where
     Lam body1 ==# Lam body2 =
@@ -96,3 +112,10 @@ boundTermVar :: Name -> TermVar v
 boundTermVar n = B $ named n ()
 
 type Closed t = t Void
+
+absName :: Foldable t => t (TermVar v) -> Name
+absName = fromMaybe (A.name "_") . foldr f Nothing
+  where
+    f _     (Just n) = Just n
+    f (B v) Nothing  = Just (Bound.Name.name v)
+    f (F _) Nothing  = Nothing

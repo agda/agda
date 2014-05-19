@@ -3,7 +3,8 @@ module Types.Context
       Ctx(..)
     , ClosedCtx
     , singleton
-    , lookup
+    , lookupName
+    , getVar
     , length
     , elemIndex
     , (++)
@@ -17,8 +18,7 @@ import           Data.Void                        (Void, absurd)
 import           Control.Arrow                    ((***))
 
 import           Syntax.Abstract                  (Name)
-import           Types.Term                       hiding (pi, app)
-import qualified Types.Term                       as Term
+import           Types.Term
 
 -- Ctx
 ------------------------------------------------------------------------
@@ -34,8 +34,8 @@ type ClosedCtx = Ctx Void
 singleton :: Name -> t v0 -> Ctx v0 t (TermVar v0)
 singleton name t = Snoc Empty (name, t)
 
-lookup :: Functor t => Name -> Ctx v0 t v -> Maybe (v, t v)
-lookup n ctx0 = go ctx0
+lookupName :: Functor t => Name -> Ctx v0 t v -> Maybe (v, t v)
+lookupName n ctx0 = go ctx0
   where
     -- Helper function so that we have the proof of equality when
     -- pattern matching the variable.
@@ -44,6 +44,14 @@ lookup n ctx0 = go ctx0
     go (Snoc ctx (n', type_)) = if n == n'
                                 then Just (boundTermVar n, fmap F type_)
                                 else fmap (F *** fmap F) (go ctx)
+
+getVar :: forall t v. Functor t => v -> ClosedCtx t v -> t v
+getVar v0 ctx0 = go ctx0 v0
+  where
+    go :: forall v. ClosedCtx t v -> v -> t v
+    go Empty                 v     = absurd v
+    go (Snoc ctx (_, type_)) (B _) = fmap F type_
+    go (Snoc ctx _)          (F v) = fmap F (go ctx v)
 
 length :: Ctx v0 t v -> Int
 length Empty        = 0

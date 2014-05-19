@@ -19,6 +19,7 @@ module Types.Monad
       -- ** Context handling
     , extendContext
     , getTypeOfName
+    , getTypeOfVar
     , closeClauseBody
 
       -- * 'Term' type
@@ -31,6 +32,7 @@ module Types.Monad
     , instantiate
     , eliminate
     , whnf
+    , weaken
 
       -- ** Utils
     , Type
@@ -43,6 +45,8 @@ module Types.Monad
     , var
     , metaVar
     , def
+    , con
+    , refl
     , whnfView
       -- ** 'Ctx' to 'Term'
     , ctxApp
@@ -63,11 +67,11 @@ import           Data.Traversable (Traversable)
 import           Control.Monad                    (guard, mzero, liftM)
 import           Control.Monad.Trans              (lift)
 import           Control.Monad.Trans.Maybe        (MaybeT, runMaybeT)
-import           Prelude.Extras                   (Eq1)
+import           Prelude.Extras                   (Eq1, Show1)
 import           Bound.Name                       (instantiateName)
 
-
 import           Syntax.Abstract                  (Name, SrcLoc, noSrcLoc, HasSrcLoc, srcLoc)
+import           Syntax.Abstract.Pretty           ()
 import           Types.Term
 import           Types.Definition
 import qualified Types.Context                    as Ctx
@@ -204,10 +208,17 @@ extendContext n type_ m =
   where
     extend env = env { _teContext = Ctx.Snoc (_teContext env) (n, type_) }
 
-getTypeOfName :: Name -> TC v (Maybe (v, Type v))
+getTypeOfName :: Name -> TC v (v, Type v)
 getTypeOfName n = do
     ctx <- asks _teContext
-    return $ Ctx.lookup n ctx
+    case Ctx.lookupName n ctx of
+      Nothing -> typeError $ "Name not in scope " ++ show n
+      Just t  -> return t
+
+getTypeOfVar :: v -> TC v (Type v)
+getTypeOfVar v = do
+    ctx <- asks _teContext
+    return $ Ctx.getVar v ctx
 
 -- TODO this looks very wrong here.  See if you can change the interface
 -- to get rid of it.
@@ -239,6 +250,10 @@ closeClauseBody t = do
 --
 --     instantiate :: TermAbs v -> t v -> t v
 --
+--     -- Method present if the abstraction supports a faster version.
+--     weaken :: t v -> TermAbs v
+--     weaken = toAbs . fmap F
+--
 -- So why are we not using this type class?  Because inference with type
 -- families gets tricky.  I might get back to it at some point.
 
@@ -249,7 +264,9 @@ closeClauseBody t = do
 
 newtype Term v =
     Term {unTerm :: TermView TermAbs Term v}
-    deriving (Eq, Functor, Foldable, Traversable, Eq1)
+    deriving (Show, Eq, Functor, Foldable, Traversable, Eq1)
+
+instance Show1 Term
 
 instance Monad Term where
     return v = Term (App (Var v) [])
@@ -270,9 +287,7 @@ instance Monad Term where
                    Meta mv -> App (Meta mv) elims'
 
 newtype TermAbs v = TermAbs {unTermAbs :: Scope (Named ()) Term v}
-    deriving (Functor, Traversable, Foldable, Eq1, Eq)
-
-
+    deriving (Functor, Traversable, Foldable, Eq1, Eq, Show, Show1)
 
 toAbs :: Term (TermVar v) -> TermAbs v
 toAbs = TermAbs . toScope
@@ -289,11 +304,14 @@ view = unTerm
 instantiate :: TermAbs v -> Term v -> Term v
 instantiate abs t = instantiate1 t (unTermAbs abs)
 
+weaken :: Term v -> TermAbs v
+weaken = TermAbs . Scope . return . F
+
 -- | Tries to apply the eliminators to the term.  Trows an error when
 -- the term and the eliminators don't match.
 eliminate :: Term v -> [Elim Term v] -> Term v
 eliminate (Term term0) elims = case (term0, elims) of
-    (App (Con _c) args, Proj field : es) ->
+    (App (Con _c) args, Proj _ field : es) ->
         if unField field >= length args
         then error "Impl.Term.eliminate: Bad elimination"
         else case (args !! unField field) of
@@ -343,10 +361,10 @@ matchClause es [] =
 matchClause (Apply arg : es) (VarP : patterns) = do
     (args, leftoverEs) <- matchClause es patterns
     return (arg : args, leftoverEs)
-matchClause (Apply arg : es) (ConP con conPatterns : patterns) = do
-    Term (App (Con con') conEs) <- lift $ whnf arg
-    guard (con == con')
-    matchClause (conEs ++ es) (conPatterns ++ patterns)
+matchClause (Apply arg : es) (ConP dataCon dataConPatterns : patterns) = do
+    Term (App (Con dataCon') dataConEs) <- lift $ whnf arg
+    guard (dataCon == dataCon')
+    matchClause (dataConEs ++ es) (dataConPatterns ++ patterns)
 matchClause _ _ =
     mzero
 
@@ -382,6 +400,12 @@ metaVar mv = unview (App (Meta mv) [])
 def :: Name -> Term v
 def f = unview (App (Def f) [])
 
+con :: Name -> Term v
+con c = unview (App (Con c) [])
+
+refl :: Term v
+refl = unview (App Refl [])
+
 whnfView :: Term v -> TC v (TermView TermAbs Term v)
 whnfView t = view <$> whnf t
 
@@ -402,3 +426,4 @@ ctxApp t ctx0 = eliminate t $ map (Apply . var) $ reverse $ go ctx0
 ctxPi :: Ctx.Ctx v0 Type v -> Type v -> Type v0
 ctxPi Ctx.Empty                  t = t
 ctxPi (Ctx.Snoc ctx (_n, type_)) t = ctxPi ctx $ pi type_ (toAbs t)
+

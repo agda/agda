@@ -42,5 +42,8 @@ data Definition term
     -- context with resulting type.
     | Function Name (Closed term) [Clause term]
 
+instance Show (Definition term) where
+    show = error "TODO Definition Show instance"
+
 data ConstantKind = Postulate | Data | Record
   deriving (Eq, Show)
