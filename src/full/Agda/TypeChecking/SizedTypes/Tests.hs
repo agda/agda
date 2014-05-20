@@ -55,8 +55,16 @@ prop_ComposeSound (l1 :: Label) l2 x y z =
 prop_ComposeComplete (l1 :: Label) l2 k z = let x = Offset k in
   eval (compose l1 l2) x z ==>
     let y = z + toWeight l2
-    in  eval l1 x y -- && eval l2 y z -- does not hold for l2 = ∞
-
+    in  eval l1 x y -- && eval l2 y z -- does not hold for l2 = \infty
+    -- Andreas, 2014-05-20, Issue 1134
+    -- If we replace the \infty with its unicode, issue 1134 is triggered:
+    -- "... GHC 7.6.3 and quickcheck 2.6.
+    -- It turns out that for some reason Gentoo eclass unsets locale
+    -- to POSIX when building haskell packages. So the issue is easy
+    -- to reproduce with `LANG=POSIX ./setup build`."
+    --
+    -- Funnily, the offending unicode symbol is in a comment.
+    -- Some issue for TemplateHaskell / QuickCheck.
 
 -- * Generic properties
 
