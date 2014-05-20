@@ -38,7 +38,7 @@ data Symbol
 	| SymOpenBrace	      | SymCloseBrace
 	| SymOpenVirtualBrace | SymCloseVirtualBrace
 	| SymOpenPragma	      | SymClosePragma | SymEllipsis | SymDotDot
---        | SymColonBrace
+        | SymEndComment -- ^ A misplaced end-comment "-}".
     deriving (Eq, Show)
 
 data Token

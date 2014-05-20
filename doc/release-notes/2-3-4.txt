@@ -416,6 +416,18 @@ TODO: Document quoteContext.
 
 * Minor syntax changes
 
+  * -} is now parsed as end-comment even if no comment was begun.
+    As a consequence, the following definition gives a parse error
+
+      f : {A- : Set} -> Set
+      f {A-} = A-
+
+    because Agda now sees ID(f) LBRACE ID(A) END-COMMENT, and no
+    longer ID(f) LBRACE ID(A-) RBRACE.
+
+    The rational is that the previous lexing was to context-sensitive,
+    attempting to comment-out f using {- and -} lead to a parse error.
+
   * Fixities (binding strengths) can now be negative numbers as
     well. [Issue 1109]
 

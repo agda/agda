@@ -98,7 +98,9 @@ tokens :-
     -- precedence, but in some states pragmas aren't valid but comments are.
 <0,code,bol_,layout_,empty_layout_,imp_dir_>
     "{-" / { not' (followedBy '#') }    { nestedComment }
-
+    -- A misplaced end-comment, like in @f {x-} = x-@ gives a parse error.
+    "-}"                                { symbol SymEndComment }
+    @ident "-}"                         { symbol SymEndComment }
 
 -- Dashes followed by a name symbol should be parsed as a name.
 <0,code,bol_,layout_,empty_layout_,imp_dir_>
