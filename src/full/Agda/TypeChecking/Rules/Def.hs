@@ -480,11 +480,9 @@ checkClause t c@(A.Clause (A.SpineLHS i x aps withPats) rhs0 wh) = do
                      -- with clause. Thus, we rather do simply nothing if
                      -- rewriting with @a ≡ a@ is attempted.
 
-                     let isReflexive = flip catchError (const $ return False) $ do
-                           dontAssignMetas $ do
-                           ifNoConstraints_ (equalTerm rewriteType rewriteFrom rewriteTo)
-                             {- then -} (return True)
-                             {- else -} (const $ return False)
+                     let isReflexive = tryConversion $ dontAssignMetas $
+                          equalTerm rewriteType rewriteFrom rewriteTo
+
                      ifM isReflexive recurse $ {- else -} do
 
                      -- Transform 'rewrite' clause into a 'with' clause,

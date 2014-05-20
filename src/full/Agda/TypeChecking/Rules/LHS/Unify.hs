@@ -179,8 +179,7 @@ checkEquality a u v = noConstraints $ equalTerm a u v
 --   so we can throw them away and flag "dirty".
 checkEqualityHH :: TypeHH -> Term -> Term -> Unify ()
 checkEqualityHH (Hom a) u v = do
-    ok <- liftTCM $ noConstraints (True <$ equalTerm a u v)  -- no constraints left
-            `catchError` \ err -> return False
+    ok <- liftTCM $ tryConversion $ equalTerm a u v  -- no constraints left
     -- Jesper, 2013-11-21: Refuse to solve reflexive equations when --without-K is enabled
     if ok
       then (whenM (liftTCM $ optWithoutK <$> pragmaOptions)

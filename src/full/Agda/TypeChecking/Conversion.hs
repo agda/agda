@@ -55,6 +55,12 @@ mlevel :: TCM (Maybe Term)
 mlevel = liftTCM $ (Just <$> primLevel) `catchError` \_ -> return Nothing
 -}
 
+-- | Try whether a computation runs without errors or new constraints.
+--   Restores state upon failure.
+tryConversion :: TCM () -> TCM Bool
+tryConversion m = (noConstraints m $> True)
+  `catchError` \ _ -> return False
+
 -- | Check if to lists of arguments are the same (and all variables).
 --   Precondition: the lists have the same length.
 sameVars :: Elims -> Elims -> Bool
