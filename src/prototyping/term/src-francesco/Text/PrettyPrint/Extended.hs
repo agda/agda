@@ -10,8 +10,6 @@ module Text.PrettyPrint.Extended
 import Text.PrettyPrint hiding (render)
 import qualified Text.PrettyPrint as PP
 
-import Syntax.Abstract (Name)
-
 class Pretty a where
   pretty     :: a -> Doc
   prettyPrec :: Int -> a -> Doc

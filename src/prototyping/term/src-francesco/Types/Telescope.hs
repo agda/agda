@@ -19,7 +19,6 @@ module Types.Telescope
 
 import           Prelude                          hiding (pi, length, lookup, (++))
 
-import           Prelude.Extras                   (Show1(showsPrec1))
 import           Bound                            hiding (instantiate)
 import           Data.Void                        (Void)
 import           Data.Foldable                    (Foldable(foldMap))

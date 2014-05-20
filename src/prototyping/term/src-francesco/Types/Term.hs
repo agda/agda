@@ -6,10 +6,11 @@ import           Bound
 import qualified Bound.Name
 import           Data.Foldable                    (Foldable, foldr)
 import           Data.Traversable                 (Traversable)
-import           Prelude.Extras                   (Eq1((==#)), Show1)
+import           Prelude.Extras                   (Eq1((==#)))
 import           Data.Void                        (Void, absurd)
 import           Data.Maybe                       (fromMaybe)
 import           Data.Monoid                      ((<>))
+import           Data.Hashable                    (Hashable)
 
 import qualified Text.PrettyPrint.Extended        as PP
 import qualified Syntax.Abstract                  as A
@@ -21,7 +22,7 @@ import           Syntax.Abstract.Pretty           ()
 
 -- | 'MetaVar'iables.  Globally scoped.
 newtype MetaVar = MetaVar {unMetaVar :: Int}
-    deriving (Eq, Ord, Show)
+    deriving (Eq, Ord, Show, Hashable)
 
 instance PP.Pretty MetaVar where
     prettyPrec _ (MetaVar mv) = PP.text ("_" ++ show mv)

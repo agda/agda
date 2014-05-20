@@ -48,10 +48,10 @@ lookupName n ctx0 = go ctx0
 getVar :: forall t v. Functor t => v -> ClosedCtx t v -> t v
 getVar v0 ctx0 = go ctx0 v0
   where
-    go :: forall v. ClosedCtx t v -> v -> t v
+    go :: forall v'. ClosedCtx t v' -> v' -> t v'
     go Empty                 v     = absurd v
-    go (Snoc ctx (_, type_)) (B _) = fmap F type_
-    go (Snoc ctx _)          (F v) = fmap F (go ctx v)
+    go (Snoc _ (_, type_)) (B _) = fmap F type_
+    go (Snoc ctx _)        (F v) = fmap F (go ctx v)
 
 length :: Ctx v0 t v -> Int
 length Empty        = 0

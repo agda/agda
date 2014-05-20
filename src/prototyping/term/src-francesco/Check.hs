@@ -1,11 +1,15 @@
 {-# LANGUAGE RankNTypes #-}
 {-# LANGUAGE ScopedTypeVariables #-}
-module Check where
+module Check (checkProgram) where
 
 import           Prelude                          hiding (abs, pi)
 
 import           Data.Functor                     ((<$>))
 import           Debug.Trace                      (trace)
+import qualified Data.HashSet                     as HS
+import           Control.Monad                    (when, guard)
+import           Data.List                        (nub)
+import           Data.Traversable                 (traverse)
 
 import           Data.Void                        (vacuous)
 import           Syntax.Abstract                  (Name)
@@ -17,7 +21,6 @@ import qualified Types.Telescope                  as Tel
 import           Types.Monad
 import           Types.Term
 import           Text.PrettyPrint.Extended        (render)
-import qualified Text.PrettyPrint.Extended        as PP
 
 -- Main functions
 ------------------------------------------------------------------------
@@ -37,8 +40,8 @@ check synT type_ = atSrcLoc synT $ case synT of
             | tyCon == tyCon', Just args <- mapM isApply args0 -> do
               let appliedDataConType = Tel.substs (vacuous dataConType) args
               fst <$> checkSpine (con dataCon) synArgs appliedDataConType
-          _ -> typeError $ "1 Constructor type error " ++ render synT ++ " : " ++ render typeView
-      _ -> typeError $ "2 Constructor type error " ++ render synT ++ " : " ++ render type_
+          _ -> typeError $ "Constructor type error " ++ render synT ++ " : " ++ render typeView
+      _ -> typeError $ "Constructor type error " ++ render synT ++ " : " ++ render type_
   A.App (A.Refl _) args@(_ : _) ->
     typeError $ "Type error: refl applied to arguments: refl " ++ render args
   A.App (A.Refl _) [] -> do
@@ -149,10 +152,10 @@ inferEqual x y = do
   xView <- whnfView x
   yView <- whnfView y
   case (xView, yView) of
-    (App (Meta _) _, _) ->
-      error "TODO inferEqual meta"
-    (_, App (Meta _) _) ->
-      error "TODO inferEqual meta"
+    (App (Meta mv) elims, t) ->
+      metaAssign mv elims (unview t)
+    (t, App (Meta mv) elims) ->
+      metaAssign mv elims (unview t)
     (App h1 elims1, App h2 elims2) | h1 == h2 -> do
       h1Type <- case h1 of
         Var v   -> getTypeOfVar v
@@ -163,7 +166,7 @@ inferEqual x y = do
         Meta mv -> vacuous <$> getTypeOfMetaVar mv
       equalSpine h1Type (unview (App h1 [])) elims1 elims2
     _ ->
-      typeError $ render xView ++ " != " ++ render yView
+      typeError $ render xView ++ "\n  !=\n" ++ render yView
 
 equalSpine
     :: (DeBruijn v, Eq v)
@@ -187,7 +190,7 @@ equalSpine type_ h (Proj proj projIx : elims1) (Proj proj' projIx' : elims2)
     (h', type') <- applyProjection proj h type_
     equalSpine type' h' elims1 elims2
 equalSpine type_ _ elims1 elims2 =
-  typeError $ render elims1 ++ " != " ++ render elims2 ++ " : " ++ render type_
+  typeError $ render elims1 ++ "\n  !=\n" ++ render elims2 ++ " : " ++ render type_
 
 applyProjection
     :: (DeBruijn v, Eq v)
@@ -220,6 +223,46 @@ applyProjection proj h type_ = do
           typeError $ render typeView ++ " is not a record type"
     _ ->
       error $ "impossible.applyProjection: " ++ render projDef
+
+-- MetaVar handling
+-------------------
+
+metaAssign :: (DeBruijn v, Eq v) => MetaVar -> [Elim Term v] -> Term v -> TC v ()
+metaAssign mv elims t =
+    case distinctVariables elims of
+        Nothing ->
+            error "TODO metaAssign stuck"
+        Just vs -> do
+            t' <- closeTerm $ lambdaAbstract vs t
+            let mvs = metaVars t'
+            when (mv `HS.member` mvs) $ do
+                error $
+                    "impossible.metaAssign: Attempt at recursive instantiation: " ++
+                    render mv ++ " := " ++ render t'
+            instantiateMetaVar mv t'
+
+distinctVariables :: (DeBruijn v, Eq v) => [Elim Term v] -> Maybe [v]
+distinctVariables elims = do
+    vs <- mapM isVar elims
+    guard (vs == nub vs)
+    return vs
+  where
+    isVar (Apply t) = case view t of
+        App (Var v) [] -> Just v
+        _              -> Nothing
+    isVar _ =
+        Nothing
+
+-- | Creates a term in the same context as the original term but lambda
+-- abstracted over the given variables.
+lambdaAbstract :: (DeBruijn v, Eq v) => [v] -> Term v -> Term v
+lambdaAbstract []       t = t
+lambdaAbstract (v : vs) t = unview $ Lam $ abstract v $ lambdaAbstract vs t
+
+closeTerm :: (DeBruijn v, Eq v) => Term v -> TC v (Closed Term)
+closeTerm = traverse close
+  where
+    close v = typeError $ "Occurs check failed, free variable " ++ render (Var v)
 
 -- Checking definitions
 ------------------------------------------------------------------------
@@ -305,7 +348,10 @@ checkRec tyCon tyConPars dataCon fields = do
             addProjections
                 tyCon tyConPars' self (map A.typeSigName fields) $
                 (fmap (Ctx.weaken selfCtx) fieldsTel)
-        addConstructor dataCon tyCon (Tel.idTel tyConPars' appliedTyConType)
+        Tel.unTel fieldsTel $ \fieldsCtx Tel.Proxy2 ->
+            addConstructor dataCon tyCon $
+            Tel.idTel tyConPars' $
+            ctxPi fieldsCtx (fmap (Ctx.weaken fieldsCtx) appliedTyConType)
 
 checkFields
     :: (DeBruijn v, Eq v) => [A.TypeSig] -> TC v (Tel.ProxyTel Type v)

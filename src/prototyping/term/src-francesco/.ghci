@@ -1,4 +1,5 @@
 :set -i../dist
+:set -Wall
 :set -XDeriveFoldable
 :set -XDeriveFunctor
 :set -XDeriveTraversable
@@ -14,4 +15,3 @@
 :set -XTupleSections
 :set -XMultiParamTypeClasses
 :set -XFlexibleInstances
-:set -XTypeFamilies

@@ -1,3 +1,4 @@
+{-# OPTIONS_GHC -w -fwarn-incomplete-patterns -Werror #-}
 module Scope.Check
     ( scopeCheck
     , ScopeError

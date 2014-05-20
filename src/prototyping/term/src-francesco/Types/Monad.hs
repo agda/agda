@@ -30,9 +30,11 @@ module Types.Monad
     , unview
     , view
     , instantiate
+    , abstract
     , eliminate
     , whnf
     , weaken
+    , metaVars
 
       -- ** Utils
     , Type
@@ -61,7 +63,9 @@ import           Control.Monad.Reader             (MonadReader, asks, local, Rea
 import           Control.Monad.Error              (MonadError, throwError, Error, strMsg, ErrorT, runErrorT)
 import           Data.Void                        (Void, vacuous)
 import qualified Data.Map as Map
-import           Bound                            hiding (instantiate)
+import           Bound                            hiding (instantiate, abstract)
+import qualified Bound
+import qualified Bound.Name
 import           Data.Foldable (Foldable)
 import           Data.Traversable (Traversable)
 import           Control.Monad                    (guard, mzero, liftM)
@@ -69,7 +73,8 @@ import           Control.Monad.Trans              (lift)
 import           Control.Monad.Trans.Maybe        (MaybeT, runMaybeT)
 import           Prelude.Extras                   (Eq1, Show1)
 import           Bound.Name                       (instantiateName)
-import           Data.Monoid                      ((<>))
+import           Data.Monoid                      ((<>), mconcat, mempty)
+import qualified Data.HashSet                     as HS
 
 import qualified Text.PrettyPrint.Extended        as PP
 import           Syntax.Abstract                  (Name, SrcLoc, noSrcLoc, HasSrcLoc, srcLoc)
@@ -129,7 +134,8 @@ instance Error TCErr where
   strMsg = TCErr noSrcLoc
 
 instance Show TCErr where
-  show (TCErr p s) = show p ++ ": " ++ s
+  show (TCErr p s) =
+    "Error at " ++ show p ++ ":\n" ++ unlines (map ("  " ++) (lines s))
 
 typeError :: String -> TC v b
 typeError err = do
@@ -251,10 +257,13 @@ closeClauseBody t = do
 --     whnf :: t v -> TC v (t v)
 --
 --     instantiate :: TermAbs v -> t v -> t v
+--     abstract    :: v -> Term v -> TermAbs v
 --
 --     -- Method present if the abstraction supports a faster version.
 --     weaken :: t v -> TermAbs v
 --     weaken = toAbs . fmap F
+--
+--     metaVars :: t v -> HashSet MetaVar
 --
 -- So why are we not using this type class?  Because inference with type
 -- families gets tricky.  I might get back to it at some point.
@@ -309,8 +318,32 @@ view = unTerm
 instantiate :: TermAbs v -> Term v -> Term v
 instantiate abs t = instantiate1 t (unTermAbs abs)
 
+abstract :: forall v. (DeBruijn v, Eq v) => v -> Term v -> TermAbs v
+abstract v = TermAbs . Bound.abstract abs
+  where
+    name = Bound.Name.name $ varIndex v
+
+    abs :: v -> Maybe (Named ())
+    abs v' = if v == v' then Just (named name ()) else Nothing
+
 weaken :: Term v -> TermAbs v
 weaken = TermAbs . Scope . return . F
+
+metaVars :: Term v -> HS.HashSet MetaVar
+metaVars (Term t) = case t of
+    Lam body           -> metaVarsAbs body
+    Pi domain codomain -> metaVars domain <> metaVarsAbs codomain
+    Equal type_ x y    -> metaVars type_ <> metaVars x <> metaVars y
+    App h elims        -> metaVarsHead h <> mconcat (map metaVarsElims elims)
+    Set                -> mempty
+  where
+    metaVarsHead (Meta mv) = HS.singleton mv
+    metaVarsHead _         = mempty
+
+    metaVarsElims (Apply t') = metaVars t'
+    metaVarsElims _          = mempty
+
+    metaVarsAbs (TermAbs (Scope t')) = metaVars t'
 
 -- | Tries to apply the eliminators to the term.  Trows an error when
 -- the term and the eliminators don't match.

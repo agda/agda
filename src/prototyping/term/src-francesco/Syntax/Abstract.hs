@@ -1,4 +1,4 @@
-
+{-# OPTIONS_GHC -w -fwarn-incomplete-patterns -Werror #-}
 module Syntax.Abstract where
 
 data SrcLoc = SrcLoc { pLine :: Int, pCol :: Int }

@@ -91,7 +91,7 @@ checkConstr d dvs ptel (A.Sig c e) = atSrcLoc c $ do
   (tel, b) <- telView a
   extendContextTel tel $ do
     dvs <- weakenBy (telSize tel) dvs
-    whenStuck (equalType dvs b) $ \_ -> typeError $ show dvs ++ " != " ++ show b
+    whenStuck (equalType dvs b) $ \_ -> typeError $ show dvs ++ "\n!=\n" ++ show b
   addConstructor c d ptel a
 
 checkRec :: Name -> [Name] -> Name -> [A.TypeSig] -> TC ()
@@ -371,7 +371,7 @@ inferEqual u v = do
         a <- typeOfHead h1
         equalSpine a es1 es2
       (Set, Set) -> notStuck ()
-      _ -> typeError $ show uu ++ " != " ++ show vv
+      _ -> typeError $ show uu ++ "\n!=\n" ++ show vv
 
 equalSpine :: Type -> [Elim] -> [Elim] -> StuckTC ()
 equalSpine a [] [] = return $ NotStuck ()
@@ -389,7 +389,7 @@ equalSpine a (Apply u : es1) (Apply v : es2) = do
     NotBlocked a -> typeError $ "impossible.equalSpine: expected function type " ++ show a
     Blocked x _  -> stuckOn x (equalSpine a (Apply u : es1) (Apply v : es2))
 equalSpine a (Proj i : es1) (Proj j : es2) | i == j = typeError "todo: equalSpine proj"
-equalSpine a es1 es2 = typeError $ show es1 ++ " != " ++ show es2 ++ " : " ++ show a
+equalSpine a es1 es2 = typeError $ show es1 ++ "\n!=\n" ++ show es2 ++ " : " ++ show a
 
 metaAssign :: MetaVar -> [Elim] -> Term -> StuckTC ()
 metaAssign x es v = do
