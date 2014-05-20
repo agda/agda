@@ -46,6 +46,7 @@ stringParts :: Notation -> [String]
 stringParts gs = [ x | IdPart x <- gs ]
 
 -- | Target argument position of a part (Nothing if it is not a hole)
+holeTarget :: GenPart -> Maybe Int
 holeTarget (BindHole n) = Just n
 holeTarget (NormalHole n) = Just (namedArg n)
 holeTarget (IdPart _) = Nothing
