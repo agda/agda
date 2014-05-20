@@ -101,7 +101,7 @@ rebuild (name,_,syn) r es = unExprView $ OpAppV (setRange r name) exprs
   where
     exprs = map findExprFor [0..lastHole]
     filledHoles = zip es (filter isAHole syn)
-    lastHole = maximum [t | Just t <- map holeTarget syn]
+    lastHole = maximum $ mapMaybe holeTarget syn
     findExprFor :: Int -> NamedArg (OpApp e)
     findExprFor n =
       case [setArgColors [] $ fmap (e <$) m | (e, NormalHole m) <- filledHoles, namedArg m == n] of
