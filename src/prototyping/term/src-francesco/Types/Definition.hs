@@ -9,11 +9,12 @@ module Types.Definition
     ) where
 
 import           Data.Void                        (Void)
-
 import           Bound
+
 import           Syntax.Abstract                  (Name)
 import           Types.Term
 import qualified Types.Telescope                  as Tel
+import qualified Text.PrettyPrint.Extended        as PP
 
 -- Clauses
 ------------------------------------------------------------------------
@@ -29,6 +30,11 @@ data Pattern
     | ConP Name [Pattern]
     deriving (Eq)
 
+instance PP.Pretty Pattern where
+  prettyPrec p e = case e of
+    VarP      -> PP.text "_"
+    ConP c es -> PP.prettyApp p (PP.pretty c) es
+
 -- Definition
 ------------------------------------------------------------------------
 
@@ -42,8 +48,8 @@ data Definition term
     -- context with resulting type.
     | Function Name (Closed term) [Clause term]
 
-instance Show (Definition term) where
-    show = error "TODO Definition Show instance"
-
 data ConstantKind = Postulate | Data | Record
   deriving (Eq, Show)
+
+instance PP.Pretty ConstantKind where
+  pretty = PP.text . show

@@ -16,6 +16,9 @@ instance Show Elim where
   showsPrec p (Apply e) = showParen (p > 0) $ showString "$ " . shows e
   showsPrec _ (Proj x) = showString "." . shows x
 
+instance Pretty Elim where
+  pretty = text . show
+
 instance Pretty Name where
   pretty (Name _ x) = text x
 

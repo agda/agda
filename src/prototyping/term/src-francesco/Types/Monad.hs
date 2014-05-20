@@ -57,7 +57,7 @@ import Prelude                                    hiding (abs, pi)
 
 import           Control.Applicative              (Applicative, (<$>))
 import           Control.Monad.State              (MonadState, gets, modify, State, evalState)
-import           Control.Monad.Reader             (MonadReader, asks, local, ReaderT, runReaderT)
+import           Control.Monad.Reader             (MonadReader, asks, local, ReaderT(ReaderT), runReaderT)
 import           Control.Monad.Error              (MonadError, throwError, Error, strMsg, ErrorT, runErrorT)
 import           Data.Void                        (Void, vacuous)
 import qualified Data.Map as Map
@@ -69,7 +69,9 @@ import           Control.Monad.Trans              (lift)
 import           Control.Monad.Trans.Maybe        (MaybeT, runMaybeT)
 import           Prelude.Extras                   (Eq1, Show1)
 import           Bound.Name                       (instantiateName)
+import           Data.Monoid                      ((<>))
 
+import qualified Text.PrettyPrint.Extended        as PP
 import           Syntax.Abstract                  (Name, SrcLoc, noSrcLoc, HasSrcLoc, srcLoc)
 import           Syntax.Abstract.Pretty           ()
 import           Types.Term
@@ -80,7 +82,7 @@ import qualified Types.Context                    as Ctx
 ------------------------------------------------------------------------
 
 newtype TC v a =
-    TV {unTC :: ReaderT (TCEnv v) (ErrorT TCErr (State TCState)) a}
+    TC {unTC :: ReaderT (TCEnv v) (ErrorT TCErr (State TCState)) a}
     deriving (Functor, Applicative, Monad, MonadReader (TCEnv v), MonadState TCState, MonadError TCErr)
 
 type ClosedTC = TC Void
@@ -92,7 +94,7 @@ runTC m = return $ flip evalState initState
                  $ unTC m
 
 tcLocal :: (TCEnv v -> TCEnv v') -> TC v' a -> TC v a
-tcLocal = error "tcLocal TODO"
+tcLocal f (TC (ReaderT m)) = TC (ReaderT (m . f))
 
 data TCEnv v = TCEnv
     { _teContext       :: !(Ctx.ClosedCtx Type v)
@@ -286,6 +288,9 @@ instance Monad Term where
                    Refl    -> App Refl      elims'
                    Meta mv -> App (Meta mv) elims'
 
+instance (DeBruijn v) => PP.Pretty (Term v) where
+    prettyPrec p (Term t) = PP.prettyPrec p t
+
 newtype TermAbs v = TermAbs {unTermAbs :: Scope (Named ()) Term v}
     deriving (Functor, Traversable, Foldable, Eq1, Eq, Show, Show1)
 
@@ -311,6 +316,8 @@ weaken = TermAbs . Scope . return . F
 -- the term and the eliminators don't match.
 eliminate :: Term v -> [Elim Term v] -> Term v
 eliminate (Term term0) elims = case (term0, elims) of
+    (t, []) ->
+        Term t
     (App (Con _c) args, Proj _ field : es) ->
         if unField field >= length args
         then error "Impl.Term.eliminate: Bad elimination"
@@ -427,3 +434,32 @@ ctxPi :: Ctx.Ctx v0 Type v -> Type v -> Type v0
 ctxPi Ctx.Empty                  t = t
 ctxPi (Ctx.Snoc ctx (_n, type_)) t = ctxPi ctx $ pi type_ (toAbs t)
 
+-- Pretty printing
+------------------
+
+instance (DeBruijn v) => PP.Pretty (TermView TermAbs Term v) where
+  prettyPrec p t = case t of
+    Set ->
+      PP.text "Set"
+    Equal a x y ->
+      PP.prettyApp p (PP.text "_==_") [a, x, y]
+    Pi a b0 ->
+      let b = fromAbs b0
+          n = absName b
+      in PP.condParens (p > 0) $
+          PP.sep [ PP.parens (PP.pretty n <> PP.text " : " <> PP.pretty a) PP.<+>
+                   PP.text "->"
+                 , PP.nest 2 $ PP.pretty b
+                 ]
+    Lam b0 ->
+      let b = fromAbs b0
+          n = absName b
+      in PP.condParens (p > 0) $
+         PP.sep [ PP.text "\\" <> PP.pretty n <> PP.text " ->"
+                , PP.nest 2 $ PP.pretty b
+                ]
+    App h es ->
+      PP.prettyApp p (PP.pretty h) es
+
+instance PP.Pretty (Definition Term) where
+  prettyPrec _ _ = PP.text "TODO pretty Definition"

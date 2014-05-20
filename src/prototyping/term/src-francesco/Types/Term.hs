@@ -7,8 +7,9 @@ import qualified Bound.Name
 import           Data.Foldable                    (Foldable, foldr)
 import           Data.Traversable                 (Traversable)
 import           Prelude.Extras                   (Eq1((==#)), Show1)
-import           Data.Void                        (Void)
+import           Data.Void                        (Void, absurd)
 import           Data.Maybe                       (fromMaybe)
+import           Data.Monoid                      ((<>))
 
 import qualified Text.PrettyPrint.Extended        as PP
 import qualified Syntax.Abstract                  as A
@@ -36,14 +37,20 @@ data Head v
     | Meta MetaVar
     deriving (Show, Eq, Ord, Functor, Foldable, Traversable)
 
+instance (DeBruijn v) => PP.Pretty (Head v) where
+    pretty (Var v) = PP.text (show ix ++ "#") <> PP.pretty name
+      where (Bound.Name.Name name ix) = varIndex v
+    pretty (Def f)   = PP.pretty f
+    pretty (Con c)   = PP.pretty c
+    pretty J         = PP.text "J"
+    pretty Refl      = PP.text "refl"
+    pretty (Meta mv) = PP.pretty mv
+
 instance Eq1 Head
 
 -- | The field of a projection.
 newtype Field = Field {unField :: Int}
-    deriving (Eq, Ord)
-
-instance Show Field where
-    show (Field f) = "Field" ++ show f
+    deriving (Eq, Ord, Show)
 
 -- | 'Elim's are applied to 'Head's.  They're either arguments applied
 -- to functions, or projections applied to records.
@@ -61,7 +68,7 @@ instance Bound Elim where
     Apply t      >>>= f = Apply (t >>= f)
     Proj n field >>>= _ = Proj n field
 
-instance (PP.Pretty (term v), Show v) => PP.Pretty (Elim term v) where
+instance (PP.Pretty (term v), DeBruijn v) => PP.Pretty (Elim term v) where
     prettyPrec p (Apply e)  = PP.prettyPrec p e
     prettyPrec _ (Proj n x) = PP.text $ "." ++ show n ++ "-" ++ show x
 
@@ -106,7 +113,7 @@ unNamed (Bound.Name.Name _ x) = x
 ------------------------------------------------------------------------
 
 -- | A 'Var' with one 'Named' free variable.
-type TermVar = Bound.Var (Named ())
+type TermVar = Var (Named ())
 
 boundTermVar :: Name -> TermVar v
 boundTermVar n = B $ named n ()
@@ -119,3 +126,18 @@ absName = fromMaybe (A.name "_") . foldr f Nothing
     f _     (Just n) = Just n
     f (B v) Nothing  = Just (Bound.Name.name v)
     f (F _) Nothing  = Nothing
+
+class DeBruijn v where
+    varIndex :: v -> Named Int
+
+instance DeBruijn Void where
+    varIndex = absurd
+
+-- This instance is used for 'ClauseBody's.
+instance DeBruijn (Var (Named Int) Void) where
+    varIndex (B n) = n
+    varIndex (F v) = absurd v
+
+instance DeBruijn v => DeBruijn (Var (Named ()) v) where
+    varIndex (B v) = Bound.Name.Name (Bound.Name.name v) 0
+    varIndex (F v) = fmap (+ 1) (varIndex v)

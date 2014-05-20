@@ -1,12 +1,14 @@
 module Text.PrettyPrint.Extended
     ( module Text.PrettyPrint
     , Pretty(..)
+    , render
     , defaultShow
     , condParens
     , prettyApp
     ) where
 
-import Text.PrettyPrint
+import Text.PrettyPrint hiding (render)
+import qualified Text.PrettyPrint as PP
 
 import Syntax.Abstract (Name)
 
@@ -28,3 +30,16 @@ prettyApp :: Pretty a => Int -> Doc -> [a] -> Doc
 prettyApp _p h [] = h
 prettyApp  p h xs =
   condParens (p > 3) $ h <+> fsep (map (prettyPrec 4) xs )
+
+render :: Pretty a => a -> String
+render = PP.render . pretty
+
+instance Pretty a => Pretty [a] where
+  pretty []       = text "[]"
+  pretty (x : xs) = text "[" <> pretty x <> go xs
+    where
+      go []       = text "]"
+      go (y : ys) = text "," <+> pretty y <> go ys
+
+instance Pretty Doc where
+  pretty = id

@@ -20,19 +20,17 @@ checkFile :: FilePath -> IO ()
 checkFile file = do
     s <- readFile file
     let tokens = resolveLayout False $ myLexer s
-    -- mapM_ print tokens
     case pProgram tokens of
 	Bad s	-> putStrLn $ "Parse error: " ++ s
 	Ok p	-> do
-          -- print p
           case scopeCheck p of
             Left err -> print err
             Right p  -> do
               mapM_ print p
-              -- z <- runTC $ checkProgram p
-              -- case z of
-              --   Left err -> print err
-              --   Right () -> putStrLn "OK"
+              z <- runTC $ checkProgram p
+              case z of
+                Left err -> print err
+                Right () -> putStrLn "OK"
 
 main = do
     args <- getArgs
