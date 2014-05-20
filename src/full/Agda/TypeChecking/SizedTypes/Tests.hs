@@ -17,7 +17,7 @@ instance Arbitrary Cmp where
 instance Arbitrary Weight where
   arbitrary = frequency
     [ (1, return Infinity)
-    , (5, Offset <$> resize 3 arbitrary)
+    , (5, Offset <$> choose (0, 200))
     ]
 
 -- instance Arbitrary Label where
