@@ -900,9 +900,36 @@ coerce v t1 t2 = blockTerm t2 $ do
   if n <= 0 then fallback else do
     ifBlockedType b2 (\ _ _ -> fallback) $ \ _ -> do
       (args, t1') <- implicitArgs n (NotHidden /=) t1
-      v `apply` args <$ do workOnTypes $ leqType t1' t2
+      coerceSize (v `apply` args) t1' t2
   where
-    fallback = v <$ do workOnTypes $ leqType t1 t2
+    fallback = coerceSize v t1 t2
+
+-- | Account for situations like @k : (Size< j) <= (Size< k + 1)@
+--
+--   Actually, the semantics is
+--   @(Size<= k) ∩ (Size< j) ⊆ rhs@
+--   which gives a disjunctive constraint.  Mmmh, looks like stuff
+--   TODO.
+--
+--   For now, we do a cheap heuristics.
+coerceSize :: Term -> Type -> Type -> TCM Term
+coerceSize v t1 t2 = workOnTypes $ do
+  let fallback = v <$ leqType t1 t2
+      succeed  = return v
+  caseMaybeM (isSizeType t1) fallback $ \ b1 -> do
+  caseMaybeM (isSizeType t2) fallback $ \ b2 -> do
+    case b2 of
+      -- @t2 = Size@.  We are done!
+      BoundedNo -> succeed
+      -- @t2 = Size< v2@
+      BoundedLt v2 -> do
+        sv2 <- sizeView v2
+        case sv2 of
+          SizeInf     -> fallback
+          OtherSize{} -> fallback  -- TODO: this is not precise
+          -- @v2 = a2 + 1@: In this case, we can try @v <= a2@
+          SizeSuc a2 -> do
+            ifM (tryConversion $ compareSizes CmpLeq v a2) succeed fallback
 
 ---------------------------------------------------------------------------
 -- * Sorts and levels
