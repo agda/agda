@@ -192,10 +192,8 @@ checkEqualityHH aHH@(Het a1 a2) u v = -- reportPostponing -- enter "dirty" mode
 -- | Check whether heterogeneous situation is really homogeneous.
 --   If not, give up.
 forceHom :: TypeHH -> TCM Type
-forceHom (Hom a) = return a
-forceHom (Het a1 a2) = do
-  noConstraints $ equalType a1 a2
-  return a1
+forceHom (Hom a)     = return a
+forceHom (Het a1 a2) = a1 <$ do noConstraints $ equalType a1 a2
 
 -- | Check whether heterogeneous situation is really homogeneous.
 --   If not, return Nothing.
