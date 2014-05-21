@@ -1,0 +1,11 @@
+Agda2> (agda2-status-action "")
+(agda2-info-action "*Type-checking*" "" nil)
+(agda2-highlight-clear)
+(agda2-info-action "*Type-checking*" "Checking Issue1138 (Issue1138.agda).\n" t)
+(agda2-info-action "*Type-checking*" "  Skipping Common.Level (/home/abel/tmp/Agda2/test/Common/Level.agdai).\n" t)
+(agda2-info-action "*Type-checking*" " Skipping Common.Equality (/home/abel/tmp/Agda2/test/Common/Equality.agdai).\n" t)
+(agda2-info-action "*Type-checking*" "Finished Issue1138.\n" t)
+(agda2-status-action "")
+(agda2-info-action "*All Goals*" "?0 : (FV M ∖ x) ⊆ dom ρ\n?1 : (FV N ∖ y) ⊆ dom ν\n?2 : FV (abs x M) ⊆ dom ρ\n?3 : FV (abs y N) ⊆ dom ν\n" nil)
+((last . 1) . (agda2-goals-action '(0 1 2 3)))
+Agda2> 

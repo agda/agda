@@ -34,6 +34,7 @@ import qualified Data.Map as Map
 import Data.Maybe
 
 import Agda.Syntax.Concrete as C hiding (topLevelModuleName)
+import Agda.Syntax.Concrete.Generic
 import Agda.Syntax.Concrete.Operators
 import Agda.Syntax.Abstract as A
 import Agda.Syntax.Position
@@ -1023,7 +1024,13 @@ instance ToAbstract NiceDeclaration A.Declaration where
   -- Fields
     C.NiceField r f p a x t -> do
       unless (p == PublicAccess) $ typeError $ GenericError "Record fields can not be private"
-      t' <- toAbstractCtx TopCtx t
+      -- Interaction points for record fields have already been introduced
+      -- when checking the type of the record constructor.
+      -- To avoid introducing interaction points (IP) twice, we turn
+      -- all question marks to underscores.  (See issue 1138.)
+      let maskIP (C.QuestionMark r _) = C.Underscore r Nothing
+          maskIP e                     = e
+      t' <- toAbstractCtx TopCtx $ mapExpr maskIP t
       y  <- freshAbstractQName f x
       irrProj <- optIrrelevantProjections <$> pragmaOptions
       unless (isIrrelevant t && not irrProj) $
@@ -1119,11 +1126,14 @@ instance ToAbstract NiceDeclaration A.Declaration where
         pars   <- toAbstract pars
         DefinedName p ax <- resolveName (C.QName x)
         let x' = anameName ax
+        -- We scope check the fields a first time when putting together
+        -- the type of the constructor.
         contel <- toAbstract $ recordConstructorType fields
         m0     <- getCurrentModule
         let m = A.qualifyM m0 $ mnameFromList $ (:[]) $ last $ qnameToList x'
         printScope "rec" 15 "before record"
         createModule False m
+        -- We scope check the fields a second time, as actual fields.
         afields <- withCurrentModule m $ do
           afields <- toAbstract fields
           printScope "rec" 15 "checked fields"
