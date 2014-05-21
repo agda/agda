@@ -22,6 +22,8 @@ else
 sed=sed
 endif
 
+clean=/bin/bash $(shell pwd)/clean.sh $(sed)
+
 AgdaFiles=$(shell ls *agda)
 OutFiles=$(patsubst %.lagda,%.out,$(patsubst %.agda,%.out,$(AgdaFiles)))
 Tests=$(patsubst %.lagda,%.cmp,$(patsubst %.agda,%.cmp,$(AgdaFiles)))
@@ -34,7 +36,8 @@ export TMPDIR=highlighting-tmp
 filter=$(sed) -e 's"$(pwdPlusDelimiter)""g' \
               -e 's"$(pwd)""g' \
               -e 's" \"$(TMPDIR).*\"""' \
-              -e 's"[^ (\"]*lib.prim"agda-default-include-path"g'
+              -e 's"[^ (\"]*lib.prim"agda-default-include-path"g' \
+     | $(clean)
 
 run_test=if test -f $*.in; \
     then cat $*.in \
