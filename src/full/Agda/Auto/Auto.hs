@@ -249,13 +249,16 @@ auto ii rng argstr = liftTCM $ do
                        giveress <-
                         mapM (\(mi, expr) ->
                          case lookup mi riis of
-                          Nothing -> giveExpr mi expr >>= \_ -> return Nothing
+                          Nothing ->
+                           catchError
+                            (giveExpr mi expr >>= \_ -> return (Nothing, Nothing))
+                            (\_ -> return (Nothing, Just ("Failed to give expr for side solution of " ++ show mi)))
                           Just ii' -> do ae <- give ii' Nothing expr
                                          mv <- lookupMeta mi
                                          let scope = getMetaScope mv
                                          ce <- abstractToConcreteEnv (makeEnv scope) ae
                                          let cmnt = if ii' == ii then agsyinfo ticks else ""
-                                         return $ Just (ii', show ce ++ cmnt)
+                                         return (Just (ii', show ce ++ cmnt), Nothing)
                          ) exprs
                        let msg = if length exprs == 1 then
                                   Nothing
@@ -264,7 +267,11 @@ auto ii rng argstr = liftTCM $ do
                                           concatMap (\(mi', _) ->
                                            if mi' == mi then "" else (" " ++ case lookup mi' riis of {Nothing -> show mi'; Just ii -> show ii})
                                           ) exprs
-                       return (Left $ catMaybes giveress, msg)
+                       let msgs = catMaybes $ msg : map snd giveress
+                           msg' = case msgs of
+                                   [] -> Nothing
+                                   _ -> Just $ unlines msgs
+                       return (Left $ catMaybes $ map fst giveress, msg')
 
             MCaseSplit -> do
              case thisdefinfo of

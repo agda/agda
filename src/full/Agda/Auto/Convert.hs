@@ -136,7 +136,7 @@ tomy imi icns typs = do
                       lift $ withMetaInfo (getMetaInfo mv) $ do
                        args <- getContextArgs
                        --sol <- norm (I.MetaV mi args)
-                       sol <- instantiate $ I.MetaV mi $ map I.Apply args
+                       sol <- instantiate $ I.MetaV mi $ map I.Apply $ permute (takeP (length args) $ mvPermutation mv) args
                        return $ Just sol
                      _ -> return Nothing
        case msol of

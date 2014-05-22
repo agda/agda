@@ -88,7 +88,7 @@ giveExpr mi e = do
       -- Here, we must be in the same context where the meta was created.
       -- Thus, we can safely apply its type to the context variables.
       ctx <- getContextArgs
-      let t' = t `piApply` ctx
+      let t' = t `piApply` permute (takeP (length ctx) $ mvPermutation mv) ctx
       reportSDoc "interaction.give" 20 $
         TP.text "give: instantiated meta type =" TP.<+> prettyTCM t'
       v	<- checkExpr e t'
