@@ -15,3 +15,5 @@
 :set -XTupleSections
 :set -XMultiParamTypeClasses
 :set -XFlexibleInstances
+:set -XTypeFamilies
+:set -XInstanceSigs

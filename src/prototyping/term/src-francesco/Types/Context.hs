@@ -18,7 +18,7 @@ import           Data.Void                        (Void, absurd)
 import           Control.Arrow                    ((***))
 
 import           Syntax.Abstract                  (Name)
-import           Types.Term
+import           Types.Var
 
 -- Ctx
 ------------------------------------------------------------------------

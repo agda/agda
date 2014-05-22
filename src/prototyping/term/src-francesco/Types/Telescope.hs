@@ -28,7 +28,7 @@ import           Data.Monoid                      (mempty, (<>))
 import           Control.Applicative              ((<$>), (<*>), pure)
 
 import           Syntax.Abstract                  (Name)
-import           Types.Term
+import           Types.Var
 import qualified Types.Context                    as Ctx
 
 -- Tel

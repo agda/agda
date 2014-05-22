@@ -1,31 +1,25 @@
+{-# OPTIONS_GHC -fno-warn-orphans #-}
 module Types.Term where
-
-import           Prelude                          hiding (foldr)
 
 import           Bound
 import qualified Bound.Name
-import           Data.Foldable                    (Foldable, foldr)
+import           Data.Foldable                    (Foldable)
 import           Data.Traversable                 (Traversable)
 import           Prelude.Extras                   (Eq1((==#)))
-import           Data.Void                        (Void, absurd)
-import           Data.Maybe                       (fromMaybe)
-import           Data.Monoid                      ((<>))
-import           Data.Hashable                    (Hashable)
+import           Data.Void                        (Void)
+import           Data.Monoid                      ((<>), mconcat, mempty)
+import qualified Data.HashSet                     as HS
+import           Control.Applicative              ((<$>))
 
 import qualified Text.PrettyPrint.Extended        as PP
-import qualified Syntax.Abstract                  as A
 import           Syntax.Abstract                  (Name)
 import           Syntax.Abstract.Pretty           ()
+import           Types.Monad.Types
+import           Types.Var
+import           Types.Definition
 
 -- Terms
 ------------------------------------------------------------------------
-
--- | 'MetaVar'iables.  Globally scoped.
-newtype MetaVar = MetaVar {unMetaVar :: Int}
-    deriving (Eq, Ord, Show, Hashable)
-
-instance PP.Pretty MetaVar where
-    prettyPrec _ (MetaVar mv) = PP.text ("_" ++ show mv)
 
 -- | A 'Head' heads a neutral term -- something which can't reduce
 -- further.
@@ -38,7 +32,7 @@ data Head v
     | Meta MetaVar
     deriving (Show, Eq, Ord, Functor, Foldable, Traversable)
 
-instance (DeBruijn v) => PP.Pretty (Head v) where
+instance (IsVar v) => PP.Pretty (Head v) where
     pretty (Var v) = PP.text (show ix ++ "#") <> PP.pretty name
       where (Bound.Name.Name name ix) = varIndex v
     pretty (Def f)   = PP.pretty f
@@ -48,10 +42,6 @@ instance (DeBruijn v) => PP.Pretty (Head v) where
     pretty (Meta mv) = PP.pretty mv
 
 instance Eq1 Head
-
--- | The field of a projection.
-newtype Field = Field {unField :: Int}
-    deriving (Eq, Ord, Show)
 
 -- | 'Elim's are applied to 'Head's.  They're either arguments applied
 -- to functions, or projections applied to records.
@@ -69,19 +59,25 @@ instance Bound Elim where
     Apply t      >>>= f = Apply (t >>= f)
     Proj n field >>>= _ = Proj n field
 
-instance (PP.Pretty (term v), DeBruijn v) => PP.Pretty (Elim term v) where
-    prettyPrec p (Apply e)  = PP.prettyPrec p e
+instance (IsTerm t, IsVar v) => PP.Pretty (Elim t v) where
+    prettyPrec p (Apply e)  = PP.prettyPrec p $ view e
     prettyPrec _ (Proj n x) = PP.text $ "." ++ show n ++ "-" ++ show x
 
-data TermView abs term v
-    = Lam (abs v)
-    | Pi (term v) (abs v)
+data TermView term v
+    = Lam (Abs term v)
+    | Pi (term v) (Abs term v)
     | Equal (term v) (term v) (term v)
     | App (Head v) [Elim term v]
     | Set
-    deriving (Show, Eq, Functor, Foldable, Traversable)
 
-instance (Eq1 term, Eq1 abs) => Eq1 (TermView abs term) where
+deriving instance (IsTerm term) => Functor (TermView term)
+deriving instance (IsTerm term) => Foldable (TermView term)
+deriving instance (IsTerm term) => Traversable (TermView term)
+
+instance (Eq v, IsTerm t) => Eq (TermView t v) where
+    t1 == t2 = t1 ==# t2
+
+instance (IsTerm term) => Eq1 (TermView term) where
     Lam body1 ==# Lam body2 =
         body1 ==# body2
     Pi domain1 codomain1 ==# Pi domain2 codomain2 =
@@ -95,50 +91,123 @@ instance (Eq1 term, Eq1 abs) => Eq1 (TermView abs term) where
     _ ==# _ =
         False
 
-type ClosedTermView abs term = TermView abs term Void
+type ClosedTermView term = TermView term Void
 
--- Named
+instance (IsTerm t, IsVar v) => PP.Pretty (TermView t v) where
+  prettyPrec p t = case t of
+    Set ->
+      PP.text "Set"
+    Equal a x y ->
+      PP.prettyApp p (PP.text "_==_") [view a, view x, view y]
+    Pi a0 b0 ->
+      let a = view a0
+          b = view $ fromAbs b0
+          n = getName b
+      in PP.condParens (p > 0) $
+          PP.sep [ PP.parens (PP.pretty n <> PP.text " : " <> PP.pretty a) PP.<+>
+                   PP.text "->"
+                 , PP.nest 2 $ PP.pretty b
+                 ]
+    Lam b0 ->
+      let b = view $ fromAbs b0
+          n = getName b
+      in PP.condParens (p > 0) $
+         PP.sep [ PP.text "\\" <> PP.pretty n <> PP.text " ->"
+                , PP.nest 2 $ PP.pretty b
+                ]
+    App h es ->
+      PP.prettyApp p (PP.pretty h) es
+
+instance (IsTerm t) => PP.Pretty (Definition t) where
+  pretty _ = PP.text "TODO Pretty Definition"
+
+-- Term typeclass
 ------------------------------------------------------------------------
 
--- | We use this type for bound variables of which we want to remember
--- the original name.
-type Named = Bound.Name.Name Name
+class ( Eq1 t,       Functor t,       Foldable t,       Traversable t, Monad t
+      , Eq1 (Abs t), Functor (Abs t), Foldable (Abs t), Traversable (Abs t)
+      ) => IsTerm t where
+    -- | The type of abstractions for this 'Term'.
+    data Abs t :: * -> *
 
-named :: Name -> a -> Named a
-named = Bound.Name.Name
+    toAbs   :: t (TermVar v) -> Abs t v
+    fromAbs :: Abs t v -> t (TermVar v)
 
-unNamed :: Named a -> a
-unNamed (Bound.Name.Name _ x) = x
+    -- Methods present in the typeclass so that the instances can
+    -- support a faster version.
 
--- TermVar
-------------------------------------------------------------------------
+    weaken :: t v -> Abs t v
+    weaken = toAbs . fmap F
 
--- | A 'Var' with one 'Named' free variable.
-type TermVar = Var (Named ())
+    instantiate :: Abs t v -> t v -> t v
+    instantiate abs' t = fromAbs abs' >>= \v -> case v of
+        B _  -> t
+        F v' -> return v'
 
-boundTermVar :: Name -> TermVar v
-boundTermVar n = B $ named n ()
+    abstract :: IsVar v => v -> t v -> Abs t v
+    abstract v t = toAbs $ fmap f t
+      where
+        f v' = if v == v' then boundTermVar (varName v) else F v'
 
-type Closed t = t Void
+    unview :: TermView t v -> t v
+    view   :: t v -> TermView t v
 
-absName :: Foldable t => t (TermVar v) -> Name
-absName = fromMaybe (A.name "_") . foldr f Nothing
-  where
-    f _     (Just n) = Just n
-    f (B v) Nothing  = Just (Bound.Name.name v)
-    f (F _) Nothing  = Nothing
+    -- | Tries to apply the eliminators to the term.  Trows an error
+    -- when the term and the eliminators don't match.
+    eliminate :: t v -> [Elim t v] -> t v
+    whnf :: t v -> TC t v (t v)
 
-class DeBruijn v where
-    varIndex :: v -> Named Int
+    metaVars :: t v -> HS.HashSet MetaVar
+    metaVars t = case view t of
+        Lam body           -> metaVars (fromAbs body)
+        Pi domain codomain -> metaVars domain <> metaVars (fromAbs codomain)
+        Equal type_ x y    -> metaVars type_ <> metaVars x <> metaVars y
+        App h elims        -> metaVarsHead h <> mconcat (map metaVarsElim elims)
+        Set                -> mempty
 
-instance DeBruijn Void where
-    varIndex = absurd
+metaVarsHead :: Head v -> HS.HashSet MetaVar
+metaVarsHead (Meta mv) = HS.singleton mv
+metaVarsHead _         = mempty
 
--- This instance is used for 'ClauseBody's.
-instance DeBruijn (Var (Named Int) Void) where
-    varIndex (B n) = n
-    varIndex (F v) = absurd v
+metaVarsElim :: IsTerm t => Elim t v -> HS.HashSet MetaVar
+metaVarsElim (Apply t)  = metaVars t
+metaVarsElim (Proj _ _) = mempty
 
-instance DeBruijn v => DeBruijn (Var (Named ()) v) where
-    varIndex (B v) = Bound.Name.Name (Bound.Name.name v) 0
-    varIndex (F v) = fmap (+ 1) (varIndex v)
+-- Term utils
+-------------
+
+lam :: IsTerm t => Abs t v -> t v
+lam body = unview $ Lam body
+
+pi :: IsTerm t => t v -> Abs t v -> t v
+pi domain codomain = unview $ Pi domain codomain
+
+equal :: IsTerm t => t v -> t v -> t v -> t v
+equal type_ x y = unview $ Equal type_ x y
+
+app :: IsTerm t => Head v -> [Elim t v] -> t v
+app h elims = unview $ App h elims
+
+set :: IsTerm t => t v
+set = unview Set
+
+var :: IsTerm t => v -> t v
+var v = unview (App (Var v) [])
+
+metaVar :: IsTerm t => MetaVar -> t v
+metaVar mv = unview (App (Meta mv) [])
+
+def :: IsTerm t => Name -> t v
+def f = unview (App (Def f) [])
+
+con :: IsTerm t => Name -> t v
+con c = unview (App (Con c) [])
+
+refl :: IsTerm t => t v
+refl = unview (App Refl [])
+
+whnfView :: IsTerm t => t v -> TC t v (TermView t v)
+whnfView t = view <$> whnf t
+
+renderView :: (IsVar v, IsTerm t) => t v -> String
+renderView = PP.render . view

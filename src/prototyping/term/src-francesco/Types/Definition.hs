@@ -12,8 +12,8 @@ import           Data.Void                        (Void)
 import           Bound
 
 import           Syntax.Abstract                  (Name)
-import           Types.Term
 import qualified Types.Telescope                  as Tel
+import           Types.Var
 import qualified Text.PrettyPrint.Extended        as PP
 
 -- Clauses

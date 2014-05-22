@@ -1,5 +1,4 @@
-{-# LANGUAGE RankNTypes #-}
-{-# LANGUAGE ScopedTypeVariables #-}
+{-# LANGUAGE UnicodeSyntax #-}
 module Check (checkProgram) where
 
 import           Prelude                          hiding (abs, pi)
@@ -10,6 +9,8 @@ import qualified Data.HashSet                     as HS
 import           Control.Monad                    (when, guard)
 import           Data.List                        (nub)
 import           Data.Traversable                 (traverse)
+import           Prelude.Extras                   ((==#))
+import           Data.Proxy                       (Proxy)
 
 import           Data.Void                        (vacuous)
 import           Syntax.Abstract                  (Name)
@@ -20,6 +21,7 @@ import qualified Types.Context                    as Ctx
 import qualified Types.Telescope                  as Tel
 import           Types.Monad
 import           Types.Term
+import           Types.Var
 import           Text.PrettyPrint.Extended        (render)
 
 -- Main functions
@@ -28,7 +30,7 @@ import           Text.PrettyPrint.Extended        (render)
 -- Type checking
 ----------------
 
-check :: (DeBruijn v, Eq v) => A.Expr -> Type v -> TC v (Term v)
+check :: (IsVar v, IsTerm t) => A.Expr -> Type t v -> TC t v (Term t v)
 check synT type_ = atSrcLoc synT $ case synT of
   A.App (A.Con dataCon) synArgs -> do
     dataConDef <- getDefinition dataCon
@@ -41,7 +43,7 @@ check synT type_ = atSrcLoc synT $ case synT of
               let appliedDataConType = Tel.substs (vacuous dataConType) args
               fst <$> checkSpine (con dataCon) synArgs appliedDataConType
           _ -> typeError $ "Constructor type error " ++ render synT ++ " : " ++ render typeView
-      _ -> typeError $ "Constructor type error " ++ render synT ++ " : " ++ render type_
+      _ -> typeError $ "Constructor type error " ++ render synT ++ " : " ++ renderView type_
   A.App (A.Refl _) args@(_ : _) ->
     typeError $ "Type error: refl applied to arguments: refl " ++ render args
   A.App (A.Refl _) [] -> do
@@ -71,8 +73,8 @@ check synT type_ = atSrcLoc synT $ case synT of
     equalType type_ type'
     return t
 
-checkSpine :: (DeBruijn v, Eq v)
-           => Term v -> [A.Elim] -> Type v -> TC v (Term v, Type v)
+checkSpine :: (IsVar v, IsTerm t)
+           => Term t v -> [A.Elim] -> Type t v -> TC t v (Term t v, Type t v)
 checkSpine h []         type_ = return (h, type_)
 checkSpine h (el : els) type_ = atSrcLoc el $ case el of
   A.Proj proj -> do
@@ -90,7 +92,7 @@ checkSpine h (el : els) type_ = atSrcLoc el $ case el of
         typeError $ "Expected function type " ++ render typeView ++
                     "\n  in application of " ++ render synArg
 
-infer :: (DeBruijn v, Eq v) => A.Expr -> TC v (Term v, Type v)
+infer :: (IsVar v, IsTerm t) => A.Expr -> TC t v (Term t v, Type t v)
 infer synT = atSrcLoc synT $ case synT of
   A.Set _ ->
     return (set, set)
@@ -113,7 +115,7 @@ infer synT = atSrcLoc synT $ case synT of
     return (equal type_ x y, set)
   _ -> error "TODO infer"
 
-inferHead :: (DeBruijn v, Eq v) => A.Head -> TC v (Head v, Type v)
+inferHead :: (IsVar v, IsTerm t) => A.Head -> TC t v (Head v, Type t v)
 inferHead synH = atSrcLoc synH $ case synH of
   A.Var name -> do
     (v, type_) <- getTypeOfName name
@@ -131,15 +133,15 @@ inferHead synH = atSrcLoc synH $ case synH of
 -- Equality
 -----------
 
-checkEqual :: (DeBruijn v, Eq v) => Type v -> Term v -> Term v -> TC v ()
-checkEqual _ x y | x == y =
+checkEqual :: (IsVar v, IsTerm t) => Type t v -> Term t v -> Term t v -> TC t v ()
+checkEqual _ x y | x ==# y =
   return ()
 checkEqual type_ x y = do
   typeView <- whnfView type_
   case typeView of
     Pi domain codomain -> do
       let codomain' = fromAbs codomain
-      extendContext (absName codomain') domain $ \v ctxV -> do
+      extendContext (getName codomain') domain $ \v ctxV -> do
         let v' = var v
         let x' = eliminate (fmap (Ctx.weaken ctxV) x) [Apply v']
         let y' = eliminate (fmap (Ctx.weaken ctxV) y) [Apply v']
@@ -147,7 +149,7 @@ checkEqual type_ x y = do
     _ ->
       inferEqual x y
 
-inferEqual :: (DeBruijn v, Eq v) => Term v -> Term v -> TC v ()
+inferEqual :: (IsVar v, IsTerm t) => Term t v -> Term t v -> TC t v ()
 inferEqual x y = do
   xView <- whnfView x
   yView <- whnfView y
@@ -169,12 +171,12 @@ inferEqual x y = do
       typeError $ render xView ++ "\n  !=\n" ++ render yView
 
 equalSpine
-    :: (DeBruijn v, Eq v)
-    => Type v
+    :: (IsVar v, IsTerm t)
+    => Type t v
     -- ^ Type of the head.
-    -> Term v
+    -> Term t v
     -- ^ Head.
-    -> [Elim Term v] -> [Elim Term v] -> TC v ()
+    -> [Elim (Term t) v] -> [Elim (Term t) v] -> TC t v ()
 equalSpine _ _ [] [] =
   return ()
 equalSpine type_ h (Apply arg1 : elims1) (Apply arg2 : elims2) = do
@@ -190,17 +192,17 @@ equalSpine type_ h (Proj proj projIx : elims1) (Proj proj' projIx' : elims2)
     (h', type') <- applyProjection proj h type_
     equalSpine type' h' elims1 elims2
 equalSpine type_ _ elims1 elims2 =
-  typeError $ render elims1 ++ "\n  !=\n" ++ render elims2 ++ " : " ++ render type_
+  typeError $ render elims1 ++ "\n  !=\n" ++ render elims2 ++ " : " ++ renderView type_
 
 applyProjection
-    :: (DeBruijn v, Eq v)
+    :: (IsVar v, IsTerm t)
     => Name
     -- ^ Name of the projection
-    -> Term v
+    -> Term t v
     -- ^ Head
-    -> Type v
+    -> Type t v
     -- ^ Type of the head
-    -> TC v (Term v, Type v)
+    -> TC t v (Term t v, Type t v)
 applyProjection proj h type_ = do
   projDef <- getDefinition proj
   case projDef of
@@ -227,7 +229,9 @@ applyProjection proj h type_ = do
 -- MetaVar handling
 -------------------
 
-metaAssign :: (DeBruijn v, Eq v) => MetaVar -> [Elim Term v] -> Term v -> TC v ()
+metaAssign
+    :: (IsVar v, IsTerm t)
+    => MetaVar -> [Elim (Term t) v] -> Term t v -> TC t v ()
 metaAssign mv elims t =
     case distinctVariables elims of
         Nothing ->
@@ -238,10 +242,10 @@ metaAssign mv elims t =
             when (mv `HS.member` mvs) $ do
                 error $
                     "impossible.metaAssign: Attempt at recursive instantiation: " ++
-                    render mv ++ " := " ++ render t'
+                    render mv ++ " := " ++ renderView t'
             instantiateMetaVar mv t'
 
-distinctVariables :: (DeBruijn v, Eq v) => [Elim Term v] -> Maybe [v]
+distinctVariables :: (IsVar v, IsTerm t) => [Elim (Term t) v] -> Maybe [v]
 distinctVariables elims = do
     vs <- mapM isVar elims
     guard (vs == nub vs)
@@ -255,11 +259,11 @@ distinctVariables elims = do
 
 -- | Creates a term in the same context as the original term but lambda
 -- abstracted over the given variables.
-lambdaAbstract :: (DeBruijn v, Eq v) => [v] -> Term v -> Term v
+lambdaAbstract :: (IsVar v, IsTerm t) => [v] -> Term t v -> Term t v
 lambdaAbstract []       t = t
 lambdaAbstract (v : vs) t = unview $ Lam $ abstract v $ lambdaAbstract vs t
 
-closeTerm :: (DeBruijn v, Eq v) => Term v -> TC v (Closed Term)
+closeTerm :: (IsVar v, IsTerm t) => Term t v -> TC t v (Closed (Term t))
 closeTerm = traverse close
   where
     close v = typeError $ "Occurs check failed, free variable " ++ render (Var v)
@@ -267,10 +271,10 @@ closeTerm = traverse close
 -- Checking definitions
 ------------------------------------------------------------------------
 
-checkProgram :: [A.Decl] -> ClosedTC ()
-checkProgram = mapM_ checkDecl
+checkProgram :: (IsTerm t) => Proxy t -> [A.Decl] -> ClosedTC t ()
+checkProgram _ = mapM_ checkDecl
 
-checkDecl :: A.Decl -> ClosedTC ()
+checkDecl :: (IsTerm t) => A.Decl -> ClosedTC t ()
 checkDecl decl = atSrcLoc decl $ do
   trace (render decl) $ return ()
   case decl of
@@ -279,7 +283,7 @@ checkDecl decl = atSrcLoc decl $ do
     A.RecDef d xs c fs -> checkRec d xs c fs
     A.FunDef f ps b    -> checkClause f ps b
 
-checkTypeSig :: A.TypeSig -> ClosedTC ()
+checkTypeSig :: (IsTerm t) => A.TypeSig -> ClosedTC t ()
 checkTypeSig (A.Sig name absType) = do
     type_ <- isType absType
     addConstant name Postulate type_
@@ -288,13 +292,14 @@ checkTypeSig (A.Sig name absType) = do
 -------
 
 checkData
-    :: Name
+    :: (IsTerm t)
+    => Name
     -- ^ Name of the tycon.
     -> [Name]
     -- ^ Names of parameters to the tycon.
     -> [A.TypeSig]
     -- ^ Types for the data constructors.
-    -> ClosedTC ()
+    -> ClosedTC t ()
 checkData tyCon tyConPars dataCons = do
     tyConType <- definitionType <$> getDefinition tyCon
     addConstant tyCon Data tyConType
@@ -306,16 +311,16 @@ checkData tyCon tyConPars dataCons = do
         mapM_ (checkConstr tyCon tyConPars' appliedTyConType) dataCons
 
 checkConstr
-    :: (DeBruijn v, Eq v)
+    :: (IsVar v, IsTerm t)
     => Name
     -- ^ Name of the tycon.
-    -> Ctx.ClosedCtx Type v
+    -> Ctx.ClosedCtx (Type t) v
     -- ^ Ctx with the parameters of the tycon.
-    -> Type v
+    -> Type t v
     -- ^ Tycon applied to the parameters.
     -> A.TypeSig
     -- ^ Data constructor.
-    -> TC v ()
+    -> TC t v ()
 checkConstr tyCon tyConPars appliedTyConType (A.Sig dataCon synDataConType) = do
     atSrcLoc dataCon $ do
         dataConType <- isType synDataConType
@@ -328,7 +333,8 @@ checkConstr tyCon tyConPars appliedTyConType (A.Sig dataCon synDataConType) = do
 ---------
 
 checkRec
-    :: Name
+    :: (IsTerm t)
+    => Name
     -- ^ Name of the tycon.
     -> [Name]
     -- ^ Name of the parameters to the tycon.
@@ -336,7 +342,7 @@ checkRec
     -- ^ Name of the data constructor.
     -> [A.TypeSig]
     -- ^ Fields of the record.
-    -> ClosedTC ()
+    -> ClosedTC t ()
 checkRec tyCon tyConPars dataCon fields = do
     tyConType <- definitionType <$> getDefinition tyCon
     addConstant tyCon Record tyConType
@@ -354,11 +360,11 @@ checkRec tyCon tyConPars dataCon fields = do
             ctxPi fieldsCtx (fmap (Ctx.weaken fieldsCtx) appliedTyConType)
 
 checkFields
-    :: (DeBruijn v, Eq v) => [A.TypeSig] -> TC v (Tel.ProxyTel Type v)
+    :: (IsVar v, IsTerm t) => [A.TypeSig] -> TC t v (Tel.ProxyTel (Type t) v)
 checkFields = go Ctx.Empty
   where
-    go :: (DeBruijn v, DeBruijn v', Eq v, Eq v')
-       => Ctx.Ctx v Type v' -> [A.TypeSig] -> TC v' (Tel.ProxyTel Type v)
+    go :: (IsVar v, IsVar v', IsTerm t)
+       => Ctx.Ctx v (Type t) v' -> [A.TypeSig] -> TC t v' (Tel.ProxyTel (Type t) v)
     go ctx [] =
         return $ Tel.proxyTel ctx
     go ctx (A.Sig field synFieldType : fields) = do
@@ -367,11 +373,10 @@ checkFields = go Ctx.Empty
             go (Ctx.Snoc ctx (field, fieldType)) fields
 
 addProjections
-    :: forall v.
-       (DeBruijn v, Eq v)
+    :: (IsVar v, IsTerm t)
     => Name
     -- ^ Type constructor.
-    -> Ctx.ClosedCtx Type v
+    -> Ctx.ClosedCtx (Type t) v
     -- ^ A context with the parameters to the type constructor.
     -> TermVar v
     -- ^ Variable referring to the value of type record type itself,
@@ -380,10 +385,10 @@ addProjections
     -- the self element after the tycon parameters above.
     -> [Name]
     -- ^ Names of the remaining fields.
-    -> Tel.ProxyTel Type (TermVar v)
+    -> Tel.ProxyTel (Type t) (TermVar v)
     -- ^ Telescope holding the types of the next fields, scoped
     -- over the types of the previous fields.
-    -> TC (TermVar v) ()
+    -> TC t (TermVar v) ()
 addProjections tyCon tyConPars self fields0 =
     go $ zip fields0 $ map Field [1..]
   where
@@ -402,7 +407,7 @@ addProjections tyCon tyConPars self fields0 =
 
 -- TODO what about pattern coverage?
 
-checkClause :: Name -> [A.Pattern] -> A.Expr -> ClosedTC ()
+checkClause :: (IsTerm t) => Name -> [A.Pattern] -> A.Expr -> ClosedTC t ()
 checkClause fun synPats synClauseBody = do
     funType <- definitionType <$> getDefinition fun
     checkPatterns synPats funType $ \_ pats _ clauseType -> do
@@ -410,15 +415,15 @@ checkClause fun synPats synClauseBody = do
         addClause fun pats =<< closeClauseBody clauseBody
 
 checkPatterns
-    :: (DeBruijn v, Eq v)
+    :: (IsVar v, IsTerm t)
     => [A.Pattern]
-    -> Type v
+    -> Type t v
     -- ^ Type of the clause that has the given 'A.Pattern's in front.
-    -> (forall v'. (DeBruijn v', Eq v') => (v -> v') -> [Pattern] -> [Term v'] -> Type v' -> TC v' a)
+    -> (∀ v'. (IsVar v') => (v -> v') -> [Pattern] -> [Term t v'] -> Type t v' -> TC t v' a)
     -- ^ Handler taking a function to weaken an external variable,
     -- list of internal patterns, a list of terms produced by them, and
     -- the type of the clause body (scoped over the pattern variables).
-    -> TC v a
+    -> TC t v a
 checkPatterns [] type_ ret =
     ret id [] [] type_
 checkPatterns (synPat : synPats) type0 ret = atSrcLoc synPat $ do
@@ -435,14 +440,14 @@ checkPatterns (synPat : synPats) type0 ret = atSrcLoc synPat $ do
         typeError $ "Expected function type: " ++ render typeView
 
 checkPattern
-    :: (DeBruijn v, Eq v)
+    :: (IsVar v, IsTerm t)
     => A.Pattern
-    -> Type v
+    -> Type t v
     -- ^ Type of the matched thing.
-    -> (forall v'. (DeBruijn v', Eq v') => (v -> v') -> Pattern -> Term v' -> TC v' a)
+    -> (∀ v'. (IsVar v') => (v -> v') -> Pattern -> Term t v' -> TC t v' a)
     -- ^ Handler taking a weakening function, the internal 'Pattern',
     -- and a 'Term' containing the term produced by it.
-    -> TC v a
+    -> TC t v a
 checkPattern synPat type_ ret = case synPat of
     A.VarP name ->
       extendContext name type_ $ \v ctxV ->
@@ -471,24 +476,24 @@ checkPattern synPat type_ ret = case synPat of
                   ret weaken_ (ConP dataCon pats) t
             _ ->
               typeError $ render dataCon ++
-                            " does not construct an element of " ++ render type_
+                          " does not construct an element of " ++ renderView type_
         _ ->
           typeError $ "Should be constructor: " ++ render dataCon
 
 -- Utils
 ------------------------------------------------------------------------
 
-equalType :: (DeBruijn v, Eq v) => Type v -> Type v -> TC v ()
+equalType :: (IsVar v, IsTerm t) => Type t v -> Type t v -> TC t v ()
 equalType a b = checkEqual set a b
 
-isApply :: (DeBruijn v, Eq v) => Elim Term v -> Maybe (Term v)
+isApply :: (IsVar v, IsTerm t) => Elim (Term t) v -> Maybe (Term t v)
 isApply (Apply v) = Just v
 isApply Proj{}    = Nothing
 
-isType :: (DeBruijn v, Eq v) => A.Expr -> TC v (Type v)
+isType :: (IsVar v, IsTerm t) => A.Expr -> TC t v (Type t v)
 isType abs = check abs set
 
-definitionType :: Definition Term -> Closed Type
+definitionType :: (IsTerm t) => Definition t -> Closed (Type t)
 definitionType (Constant _ _ type_)   = type_
 definitionType (Constructor _ _ tel)  = telPi tel
 definitionType (Projection _ _ _ tel) = telPi tel
@@ -500,15 +505,15 @@ definitionType (Function _ type_ _)   = type_
 -- TODO remove duplication
 
 unrollPiWithNames
-    :: (DeBruijn v, Eq v)
-    => Type v
+    :: (IsVar v, IsTerm t)
+    => Type t v
     -- ^ Type to unroll
     -> [Name]
     -- ^ Names to give to each parameter
-    -> (forall v'. (DeBruijn v', Eq v') => Ctx.Ctx v Type v' -> Type v' -> TC v' a)
+    -> (∀ v'. (IsVar v') => Ctx.Ctx v (Type t) v' -> Type t v' -> TC t v' a)
     -- ^ Handler taking a context with accumulated domains of the pis
     -- and the final codomain.
-    -> TC v a
+    -> TC t v a
 unrollPiWithNames type_ []             ret = ret Ctx.Empty type_
 unrollPiWithNames type_ (name : names) ret = do
     typeView <- whnfView type_
@@ -521,19 +526,19 @@ unrollPiWithNames type_ (name : names) ret = do
             typeError $ "Expected function type: " ++ render typeView
 
 unrollPi
-    :: (DeBruijn v, Eq v)
-    => Type v
+    :: (IsVar v, IsTerm t)
+    => Type t v
     -- ^ Type to unroll
-    -> (forall v'. (DeBruijn v', Eq v') => Ctx.Ctx v Type v' -> Type v' -> TC v' a)
+    -> (∀ v'. (IsVar v') => Ctx.Ctx v (Type t) v' -> Type t v' -> TC t v' a)
     -- ^ Handler taking a weakening function, the list of domains
     -- of the unrolled pis, the final codomain.
-    -> TC v a
+    -> TC t v a
 unrollPi type_ ret = do
     typeView <- whnfView type_
     case typeView of
         Pi domain codomain -> do
             let codomain' = fromAbs codomain
-            extendContext (absName codomain') domain $ \_v ctxV ->
+            extendContext (getName codomain') domain $ \_v ctxV ->
                 unrollPi codomain' $ \ctxVs endType ->
                 ret (ctxV Ctx.++ ctxVs) endType
         _ ->
@@ -542,16 +547,24 @@ unrollPi type_ ret = do
 -- Monad utils
 --------------
 
-addConstant :: (DeBruijn v, Eq v) => Name -> ConstantKind -> Closed Type -> TC v ()
+addConstant
+    :: (IsVar v, IsTerm t)
+    => Name -> ConstantKind -> Closed (Type t) -> TC t v ()
 addConstant x k a = addDefinition x (Constant x k a)
 
-addConstructor :: (DeBruijn v, Eq v) => Name -> Name -> Tel.ClosedIdTel Type -> TC v ()
+addConstructor
+    :: (IsVar v, IsTerm t)
+    => Name -> Name -> Tel.ClosedIdTel (Type t) -> TC t v ()
 addConstructor c d tel = addDefinition c (Constructor c d tel)
 
-addProjection :: (DeBruijn v, Eq v) => Name -> Field -> Name -> Tel.ClosedIdTel Type -> TC v ()
+addProjection
+    :: (IsVar v, IsTerm t)
+    => Name -> Field -> Name -> Tel.ClosedIdTel (Type t) -> TC t v ()
 addProjection f n r tel = addDefinition f (Projection f n r tel)
 
-addClause :: (DeBruijn v, Eq v) => Name -> [Pattern] -> ClauseBody Term -> TC v ()
+addClause
+    :: (IsVar v, IsTerm t)
+    => Name -> [Pattern] -> ClauseBody (Term t) -> TC t v ()
 addClause f ps v = do
   def' <- getDefinition f
   let ext (Constant x Postulate a) = Function x a [c]
@@ -566,5 +579,5 @@ addClause f ps v = do
 -- Telescope utils
 ------------------
 
-telPi :: (DeBruijn v, Eq v) => Tel.IdTel Term v -> Term v
+telPi :: (IsVar v, IsTerm t) => Tel.IdTel (Type t) v -> Type t v
 telPi tel = Tel.unTel tel $ \ctx endType -> ctxPi ctx (Tel.unId2 endType)
