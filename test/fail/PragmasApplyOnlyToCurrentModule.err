@@ -1,6 +1,6 @@
 PragmasApplyOnlyToCurrentModule.agda:5,8-30
 Termination checking failed for the following functions:
-  Foo
+  NonTerminating.Foo
 Problematic calls:
   Foo
     (at Imports/NonTerminating.agda:4,7-10)

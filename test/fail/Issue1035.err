@@ -1,6 +1,6 @@
 
 Termination checking failed for the following functions:
-  to-∈-intersection′
+  M.to-∈-intersection′
 Problematic calls:
   to-∈-intersection′ ! !
     (at Issue1035.agda:25,50-68)

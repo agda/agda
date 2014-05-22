@@ -1,6 +1,6 @@
 
 Termination checking failed for the following functions:
-  f, g, f, g
+  Depth2.f, Depth2.g, Depth3.f, Depth3.g
 Problematic calls:
   g n zero
     (at TerminationWithInsufficientDepth.agda:25,21-22)

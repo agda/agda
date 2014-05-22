@@ -268,6 +268,10 @@ instance PrettyTCM CallInfo where
       "" -> call
       _  -> call $$ nest 2 (text "(at" <+> prettyTCM r <> text ")")
 
+-- | Drops the filename component of the qualified name
+dropTopLevelModule :: QName -> QName
+dropTopLevelModule (QName (MName ns) n) = QName (MName (drop 1 ns)) n
+
 instance PrettyTCM TypeError where
     prettyTCM err = do
 	case err of
@@ -280,7 +284,7 @@ instance PrettyTCM TypeError where
 	    TerminationCheckFailed because ->
               fwords "Termination checking failed for the following functions:"
               $$ (nest 2 $
-                    fsep (punctuate comma (map (text . show . qnameName)
+                    fsep (punctuate comma (map (text . show . dropTopLevelModule)
                                                (concatMap termErrFunctions because))))
               $$ fwords "Problematic calls:"
               $$ (nest 2 $ fmap (P.vcat . nub) $

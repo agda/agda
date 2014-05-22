@@ -1,7 +1,7 @@
 
 Termination checking failed for the following functions:
-  _ctx-⇛_, _⋯_, _⇛_∣_, _⇛_, eq, Tm, weaken, _○_, pullback-var,
-  pullback, weaken-○-scope
+  _ctx-⇛_, _⋯_, xtc._⇛_∣_, xtc._⇛_, xtc.eq, Tm, weaken, _○_,
+  pullback-var, pullback, weaken-○-scope
 Problematic calls:
   weaken Δ ○ snd xtc.eq ms
     (at Issue921.agda:84,78-79)

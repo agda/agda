@@ -1,6 +1,7 @@
 
 Termination checking failed for the following functions:
-  bar, bar', bar, bar, bar
+  NoWith.bar, CorrectlyRejected.bar', CorrectlyRejected.bar,
+  WasAccepted1.bar, bar
 Problematic calls:
   .Issue1014.NoWith.♯-0 A n h An
     (at Issue1014.agda:22,28-29)
