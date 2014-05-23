@@ -49,7 +49,7 @@ run_test=if test -f $*.in; \
          | $(sed) "s/goal_command \\([0-9]\+\\) (\\([^)]\+\\)) \\(\"[^\"]*\"\\)/IOTCM currentFile None Indirect (\\2 \\1 noRange \\3)/g" \
          | $(sed) "s/goal_command \\([0-9]\+\\) \\([^ ]\+\\) \\(\"[^\"]*\"\\)/IOTCM currentFile None Indirect (\\2 \\1 noRange \\3)/g" \
          | $(sed) "s/currentFile/\"$(wildcard $*.agda $*.lagda)\"/g" \
-         | agda -i . -i .. --interaction $(RTS_$*) \
+         | agda -i . -i .. --interaction --ignore-interfaces $(RTS_$*) \
            2>&1 | $(filter) ; \
     else /bin/bash ./$*.sh > $(TMPDIR)/$*.tmp_out ; \
          cat $(TMPDIR)/$*.tmp_out | $(filter) ; \
