@@ -31,7 +31,7 @@ postulate
   transId : {A : Set} {x y z : A} -> x == y -> y == z -> x == z
 
 equivId : {A : Set} -> Equiv {A} (\x y -> x == y)
-equivId = equiv (\x -> refl) symId transId
+equivId {A} = equiv (\x -> refl) symId (\ x y z -> transId)
 
 record Sigma (A : Set) (B : A -> Set) : Set
 record Sigma A B where
