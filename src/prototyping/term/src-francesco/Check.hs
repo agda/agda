@@ -40,7 +40,7 @@ check synT type_ = atSrcLoc synT $ case synT of
           let appliedDataConType = Tel.substs (vacuous dataConType) tyConArgs
           args <- checkConArgs synArgs appliedDataConType
           return (con dataCon args)
-      _ -> typeError $ "Constructor type error " ++ render synT ++ " : " ++ render typeView
+      _ -> checkError $ ConstructorTypeError synT $ unview typeView
   A.Refl _ -> do
     typeView <- whnfView type_
     case typeView of
@@ -48,8 +48,7 @@ check synT type_ = atSrcLoc synT $ case synT of
         checkEqual type' x y
         return refl
       _ ->
-          typeError $ render typeView ++
-                      " is (perhaps) not an application of the equality type"
+          checkError $ NotEqualityType (unview typeView)
   A.Meta _ ->
     addFreshMetaVar type_
   A.Lam name synBody -> do
@@ -62,7 +61,7 @@ check synT type_ = atSrcLoc synT $ case synT of
       App (Meta _) _ ->
         error "TODO check Meta Lam"
       _ ->
-        typeError $ "Lambda type error " ++ render synT ++ " : " ++ render typeView
+        checkError $ LambdaTypeError synT (unview typeView)
   _ -> do
     (t, type') <- infer synT
     equalType type_ type'
@@ -77,8 +76,7 @@ checkConArgs (synArg : synArgs) type_ = atSrcLoc synArg $ do
       arg <- check synArg domain
       (arg :) <$> checkConArgs synArgs (instantiate codomain arg)
     _ ->
-      typeError $ "Expected function type " ++ render typeView ++
-                  "\n  in application of " ++ render synArg
+      checkError $ ExpectedFunctionType (unview typeView) (Just synArg)
 
 infer :: (IsVar v, IsTerm t) => A.Expr -> TC t v (Term t v, Type t v)
 infer synT = atSrcLoc synT $ case synT of
@@ -103,13 +101,8 @@ infer synT = atSrcLoc synT $ case synT of
     return (equal type_ x y, set)
   A.Meta _ ->
     error "TODO infer Meta"
-  A.Lam _ _ ->
-    typeError $ "Cannot infer the type of " ++ render synT
-  A.Con dataCon args ->
-    typeError $ "Cannot infer the type of data constructor " ++
-                render dataCon ++ " " ++ render args
-  A.Refl _ ->
-    typeError "Cannot infer the type of refl"
+  _ ->
+    checkError $ CannotInferTypeOf synT
 
 checkSpine :: (IsVar v, IsTerm t)
            => Term t v -> [A.Elim] -> Type t v -> TC t v (Term t v, Type t v)
@@ -127,8 +120,7 @@ checkSpine h (el : els) type_ = atSrcLoc el $ case el of
         let h' = eliminate h [Apply arg]
         checkSpine h' els codomain'
       _ ->
-        typeError $ "Expected function type " ++ render typeView ++
-                    "\n  in application of " ++ render synArg
+        checkError $ ExpectedFunctionType (unview typeView) (Just synArg)
 
 inferHead :: (IsVar v, IsTerm t) => A.Head -> TC t v (Head v, Type t v)
 inferHead synH = atSrcLoc synH $ case synH of
@@ -182,7 +174,7 @@ checkEqual type_ x y = do
         Meta mv -> vacuous <$> getTypeOfMetaVar mv
       equalSpine h1Type (unview (App h1 [])) elims1 elims2
     _ ->
-      typeError $ render xView ++ "\n  !=\n" ++ render yView
+      checkError $ TermsNotEqual (unview xView) (unview yView)
 
 equalSpine
     :: (IsVar v, IsTerm t)
@@ -206,7 +198,7 @@ equalSpine type_ h (Proj proj projIx : elims1) (Proj proj' projIx' : elims2)
     (h', type') <- applyProjection proj h type_
     equalSpine type' h' elims1 elims2
 equalSpine type_ _ elims1 elims2 =
-  typeError $ render elims1 ++ "\n  !=\n" ++ render elims2 ++ " : " ++ renderView type_
+  checkError $ SpineNotEqual type_ elims1 elims2
 
 -- | INVARIANT: the two lists are the of the same length.
 equalConArgs
@@ -257,7 +249,7 @@ applyProjection proj h type_ = do
         App (Meta _) _ ->
           error "TODO applyProjection App (Meta mv) els"
         _ ->
-          typeError $ render typeView ++ " is not a record type"
+          checkError $ ExpectingRecordType (unview typeView)
     _ ->
       error $ "impossible.applyProjection: " ++ render projDef
 
@@ -301,7 +293,7 @@ lambdaAbstract (v : vs) t = unview $ Lam $ abstract v $ lambdaAbstract vs t
 closeTerm :: (IsVar v, IsTerm t) => Term t v -> TC t v (Closed (Term t))
 closeTerm = traverse close
   where
-    close v = typeError $ "Occurs check failed, free variable " ++ render (Var v)
+    close = checkError . FreeVariableInEquatedTerm
 
 -- Checking definitions
 ------------------------------------------------------------------------
@@ -472,7 +464,7 @@ checkPatterns (synPat : synPats) type0 ret = atSrcLoc synPat $ do
             let patVar' = fmap weaken_' patVar
             ret (weaken_' . weaken_) (pat : pats) (patVar' : patsVars)
       _ ->
-        typeError $ "Expected function type: " ++ render typeView
+        checkError $ ExpectedFunctionType (unview typeView) Nothing
 
 checkPattern
     :: (IsVar v, IsTerm t)
@@ -491,29 +483,23 @@ checkPattern synPat type_ ret = case synPat of
       extendContext (A.name "_") type_ $ \v ctxV ->
       ret (Ctx.weaken ctxV) VarP (var v)
     A.ConP dataCon synPats -> do
-      dataConDef <- getDefinition dataCon
-      case dataConDef of
-        Constructor _ typeCon dataConType -> do
-          typeConDef <- getDefinition typeCon
-          case typeConDef of
-            Constant _ Data   _ -> return ()
-            Constant _ Record _ -> typeError $ "Pattern matching is not supported " ++
-                                               "for the record constructor " ++ render dataCon
-            _                   -> error $ "checkPattern: impossible" ++ render dataConDef
-          typeView <- whnfView type_
-          case typeView of
-            App (Def typeCon') typeConPars0
-              | typeCon == typeCon', Just typeConPars <- mapM isApply typeConPars0 -> do
-                let dataConTypeNoPars =
-                        Tel.substs (vacuous dataConType) typeConPars
-                checkPatterns synPats dataConTypeNoPars $ \weaken_ pats patsVars _ -> do
-                  let t = unview (Con dataCon patsVars)
-                  ret weaken_ (ConP dataCon pats) t
-            _ ->
-              typeError $ render dataCon ++
-                          " does not construct an element of " ++ renderView type_
+      (typeCon, dataConType) <- getConDefinition dataCon
+      typeConDef <- getDefinition typeCon
+      case typeConDef of
+        Constant _ Data   _ -> return ()
+        Constant _ Record _ -> checkError $ PatternMatchOnRecord synPat typeCon
+        _                   -> error $ "impossible.checkPattern" ++ render typeConDef
+      typeView <- whnfView type_
+      case typeView of
+        App (Def typeCon') typeConPars0
+          | typeCon == typeCon', Just typeConPars <- mapM isApply typeConPars0 -> do
+            let dataConTypeNoPars =
+                    Tel.substs (vacuous dataConType) typeConPars
+            checkPatterns synPats dataConTypeNoPars $ \weaken_ pats patsVars _ -> do
+              let t = unview (Con dataCon patsVars)
+              ret weaken_ (ConP dataCon pats) t
         _ ->
-          typeError $ "Should be constructor: " ++ render dataCon
+          checkError $ MismatchingPattern type_ synPat
 
 -- Utils
 ------------------------------------------------------------------------
@@ -558,7 +544,7 @@ unrollPiWithNames type_ (name : names) ret = do
             unrollPiWithNames (fromAbs codomain) names $ \ctxVs endType ->
             ret (ctxV Ctx.++ ctxVs) endType
         _ ->
-            typeError $ "Expected function type: " ++ render typeView
+            checkError $ ExpectedFunctionType (unview typeView) Nothing
 
 unrollPi
     :: (IsVar v, IsTerm t)
@@ -628,3 +614,51 @@ getConDefinition dataCon = do
 
 telPi :: (IsVar v, IsTerm t) => Tel.IdTel (Type t) v -> Type t v
 telPi tel = Tel.unTel tel $ \ctx endType -> ctxPi ctx (Tel.unId2 endType)
+
+-- Errors
+------------------------------------------------------------------------
+
+data CheckError t v
+    = ConstructorTypeError A.Expr (Type t v)
+    | LambdaTypeError A.Expr (Type t v)
+    | NotEqualityType (Type t v)
+    | ExpectedFunctionType (Type t v) (Maybe A.Expr)
+    | CannotInferTypeOf A.Expr
+    | TermsNotEqual (Term t v) (Term t v)
+    | SpineNotEqual (Type t v) [Elim t v] [Elim t v]
+    | ExpectingRecordType (Type t v)
+    | FreeVariableInEquatedTerm v
+    | PatternMatchOnRecord A.Pattern
+                           Name -- Record type constructor
+    | MismatchingPattern (Type t v) A.Pattern
+
+checkError :: (IsVar v, IsTerm t) => CheckError t v -> TC t v a
+checkError = typeError . renderError
+  where
+    renderError (ConstructorTypeError synT type_) =
+      "Constructor type error " ++ render synT ++ " : " ++ renderView type_
+    renderError (NotEqualityType type_) =
+      "Expecting an equality type: " ++ renderView type_
+    renderError (LambdaTypeError synT type_) =
+      "Lambda type error " ++ render synT ++ " : " ++ renderView type_
+    renderError (ExpectedFunctionType type_ mbArg) =
+      "Expected function type " ++ renderView type_ ++
+      (case mbArg of
+         Nothing  -> ""
+         Just arg -> "\nIn application of " ++ render arg)
+    renderError (CannotInferTypeOf synT) =
+      "Cannot infer type of " ++ render synT
+    renderError (TermsNotEqual t1 t2) =
+      renderView t1 ++ "\n  !=\n" ++ renderView t2
+    renderError (SpineNotEqual type_ es1 es2) =
+      render es1 ++ "\n  !=\n" ++ render es2 ++ "\n  :\n" ++ renderView type_
+    renderError (ExpectingRecordType type_) =
+      "Expecting record type: " ++ renderView type_
+    renderError (FreeVariableInEquatedTerm v) =
+      "Free variable in term equated to metavariable application: " ++ renderVar v
+    renderError (PatternMatchOnRecord synPat tyCon) =
+      "Cannot have pattern " ++ render synPat ++ " for record type " ++ render tyCon
+    renderError (MismatchingPattern type_ synPat) =
+      render synPat ++ " does not match an element of type " ++ renderView type_
+
+    renderVar = render . varName
