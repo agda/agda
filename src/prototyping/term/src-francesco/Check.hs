@@ -1,4 +1,3 @@
-{-# LANGUAGE UnicodeSyntax #-}
 module Check (checkProgram) where
 
 import           Prelude                          hiding (abs, pi)
@@ -6,7 +5,7 @@ import           Prelude                          hiding (abs, pi)
 import           Data.Functor                     ((<$>))
 import           Debug.Trace                      (trace)
 import qualified Data.HashSet                     as HS
-import           Control.Monad                    (when, guard)
+import           Control.Monad                    (when, guard, unless)
 import           Data.List                        (nub)
 import           Data.Traversable                 (traverse)
 import           Prelude.Extras                   ((==#))
@@ -32,21 +31,17 @@ import           Text.PrettyPrint.Extended        (render)
 
 check :: (IsVar v, IsTerm t) => A.Expr -> Type t v -> TC t v (Term t v)
 check synT type_ = atSrcLoc synT $ case synT of
-  A.App (A.Con dataCon) synArgs -> do
-    dataConDef <- getDefinition dataCon
-    case dataConDef of
-      Constructor _ tyCon dataConType -> do
-        typeView <- whnfView type_
-        case typeView of
-          App (Def tyCon') args0
-            | tyCon == tyCon', Just args <- mapM isApply args0 -> do
-              let appliedDataConType = Tel.substs (vacuous dataConType) args
-              fst <$> checkSpine (con dataCon) synArgs appliedDataConType
-          _ -> typeError $ "Constructor type error " ++ render synT ++ " : " ++ render typeView
-      _ -> typeError $ "Constructor type error " ++ render synT ++ " : " ++ renderView type_
-  A.App (A.Refl _) args@(_ : _) ->
-    typeError $ "Type error: refl applied to arguments: refl " ++ render args
-  A.App (A.Refl _) [] -> do
+  A.Con dataCon synArgs -> do
+    (tyCon, dataConType) <- getConDefinition dataCon
+    typeView <- whnfView type_
+    case typeView of
+      App (Def tyCon') tyConArgs0
+        | tyCon == tyCon', Just tyConArgs <- mapM isApply tyConArgs0 -> do
+          let appliedDataConType = Tel.substs (vacuous dataConType) tyConArgs
+          args <- checkConArgs synArgs appliedDataConType
+          return (con dataCon args)
+      _ -> typeError $ "Constructor type error " ++ render synT ++ " : " ++ render typeView
+  A.Refl _ -> do
     typeView <- whnfView type_
     case typeView of
       Equal type' x y -> do
@@ -73,24 +68,17 @@ check synT type_ = atSrcLoc synT $ case synT of
     equalType type_ type'
     return t
 
-checkSpine :: (IsVar v, IsTerm t)
-           => Term t v -> [A.Elim] -> Type t v -> TC t v (Term t v, Type t v)
-checkSpine h []         type_ = return (h, type_)
-checkSpine h (el : els) type_ = atSrcLoc el $ case el of
-  A.Proj proj -> do
-    (h', type') <- applyProjection proj h type_
-    checkSpine h' els type'
-  A.Apply synArg -> do
-    typeView <- whnfView type_
-    case typeView of
-      Pi domain codomain -> do
-        arg <- check synArg domain
-        let codomain' = instantiate codomain arg
-        let h' = eliminate h [Apply arg]
-        checkSpine h' els codomain'
-      _ ->
-        typeError $ "Expected function type " ++ render typeView ++
-                    "\n  in application of " ++ render synArg
+checkConArgs :: (IsVar v, IsTerm t) => [A.Expr] -> Type t v -> TC t v [t v]
+checkConArgs []                 _     = return []
+checkConArgs (synArg : synArgs) type_ = atSrcLoc synArg $ do
+  typeView <- whnfView type_
+  case typeView of
+    Pi domain codomain -> do
+      arg <- check synArg domain
+      (arg :) <$> checkConArgs synArgs (instantiate codomain arg)
+    _ ->
+      typeError $ "Expected function type " ++ render typeView ++
+                  "\n  in application of " ++ render synArg
 
 infer :: (IsVar v, IsTerm t) => A.Expr -> TC t v (Term t v, Type t v)
 infer synT = atSrcLoc synT $ case synT of
@@ -113,7 +101,34 @@ infer synT = atSrcLoc synT $ case synT of
     x <- check synX type_
     y <- check synY type_
     return (equal type_ x y, set)
-  _ -> error "TODO infer"
+  A.Meta _ ->
+    error "TODO infer Meta"
+  A.Lam _ _ ->
+    typeError $ "Cannot infer the type of " ++ render synT
+  A.Con dataCon args ->
+    typeError $ "Cannot infer the type of data constructor " ++
+                render dataCon ++ " " ++ render args
+  A.Refl _ ->
+    typeError "Cannot infer the type of refl"
+
+checkSpine :: (IsVar v, IsTerm t)
+           => Term t v -> [A.Elim] -> Type t v -> TC t v (Term t v, Type t v)
+checkSpine h []         type_ = return (h, type_)
+checkSpine h (el : els) type_ = atSrcLoc el $ case el of
+  A.Proj proj -> do
+    (h', type') <- applyProjection proj h type_
+    checkSpine h' els type'
+  A.Apply synArg -> do
+    typeView <- whnfView type_
+    case typeView of
+      Pi domain codomain -> do
+        arg <- check synArg domain
+        let codomain' = instantiate codomain arg
+        let h' = eliminate h [Apply arg]
+        checkSpine h' els codomain'
+      _ ->
+        typeError $ "Expected function type " ++ render typeView ++
+                    "\n  in application of " ++ render synArg
 
 inferHead :: (IsVar v, IsTerm t) => A.Head -> TC t v (Head v, Type t v)
 inferHead synH = atSrcLoc synH $ case synH of
@@ -125,10 +140,6 @@ inferHead synH = atSrcLoc synH $ case synH of
     return (Def name, vacuous type_)
   A.J{} ->
     error "TODO inferHead J"
-  A.Con{} ->
-    typeError $ "Cannot infer type of application of constructor " ++ render synH
-  A.Refl{} ->
-    typeError $ "Cannot infer type of refl"
 
 -- Equality
 -----------
@@ -138,33 +149,36 @@ checkEqual _ x y | x ==# y =
   return ()
 checkEqual type_ x y = do
   typeView <- whnfView type_
-  case typeView of
-    Pi domain codomain -> do
+  xView <- whnfView x
+  yView <- whnfView y
+  case (typeView, xView, yView) of
+    (Pi domain codomain, _, _) -> do
       let codomain' = fromAbs codomain
       extendContext (getName codomain') domain $ \v ctxV -> do
         let v' = var v
         let x' = eliminate (fmap (Ctx.weaken ctxV) x) [Apply v']
         let y' = eliminate (fmap (Ctx.weaken ctxV) y) [Apply v']
         checkEqual codomain' x' y'
-    _ ->
-      inferEqual x y
-
-inferEqual :: (IsVar v, IsTerm t) => Term t v -> Term t v -> TC t v ()
-inferEqual x y = do
-  xView <- whnfView x
-  yView <- whnfView y
-  case (xView, yView) of
-    (App (Meta mv) elims, t) ->
+    (App (Def tyCon) tyConPars0, Con dataCon dataConArgs1, Con dataCon' dataConArgs2)
+      | Just tyConPars <- mapM isApply tyConPars0
+      , dataCon == dataCon' -> do
+        (tyCon', dataConType) <- getConDefinition dataCon
+        unless (tyCon == tyCon') $ error $
+            "impossible.checkEqual: mismatching type constructors " ++
+            show tyCon ++ ", " ++ show tyCon'
+        let appliedDataConType = Tel.substs (vacuous dataConType) tyConPars
+        equalConArgs appliedDataConType dataConArgs1 dataConArgs2
+    (_, App (Meta mv) elims, t) ->
       metaAssign mv elims (unview t)
-    (t, App (Meta mv) elims) ->
+    (_, t, App (Meta mv) elims) ->
       metaAssign mv elims (unview t)
-    (App h1 elims1, App h2 elims2) | h1 == h2 -> do
+    (_, Refl, Refl) -> do
+      return ()
+    (_, App h1 elims1, App h2 elims2) | h1 == h2 -> do
       h1Type <- case h1 of
         Var v   -> getTypeOfVar v
         Def f   -> vacuous . definitionType <$> getDefinition f
-        Con c   -> vacuous . definitionType <$> getDefinition c
         J       -> error "TODO typeOfJ"
-        Refl    -> error "TODO typeOfRefl"
         Meta mv -> vacuous <$> getTypeOfMetaVar mv
       equalSpine h1Type (unview (App h1 [])) elims1 elims2
     _ ->
@@ -186,13 +200,34 @@ equalSpine type_ h (Apply arg1 : elims1) (Apply arg2 : elims2) = do
       checkEqual domain arg1 arg2
       equalSpine (instantiate codomain arg1) (eliminate h [Apply arg1]) elims1 elims2
     _ ->
-      error $ "Expected function type " ++ render typeView
+      error $ "impossible.equalSpine: Expected function type " ++ render typeView
 equalSpine type_ h (Proj proj projIx : elims1) (Proj proj' projIx' : elims2)
   | proj == proj' && projIx == projIx' = do
     (h', type') <- applyProjection proj h type_
     equalSpine type' h' elims1 elims2
 equalSpine type_ _ elims1 elims2 =
   typeError $ render elims1 ++ "\n  !=\n" ++ render elims2 ++ " : " ++ renderView type_
+
+-- | INVARIANT: the two lists are the of the same length.
+equalConArgs
+    :: (IsVar v, IsTerm t)
+    => Type t v
+    -- ^ Type of the head.
+    -> [Term t v] -> [Term t v] -> TC t v ()
+equalConArgs _ [] [] =
+  return ()
+equalConArgs type_ (arg1 : elims1) (arg2 : elims2) = do
+  typeView <- whnfView type_
+  case typeView of
+    Pi domain codomain -> do
+      checkEqual domain arg1 arg2
+      equalConArgs (instantiate codomain arg1) elims1 elims2
+    _ ->
+      error $ "impossible.equalConArgs: Expected function type " ++
+              render typeView
+equalConArgs _ elims1 elims2 =
+  error $ "impossible.equalConArgs: different number of arguments " ++
+          render (map view elims1) ++ " and " ++ render (map view elims2)
 
 applyProjection
     :: (IsVar v, IsTerm t)
@@ -400,7 +435,7 @@ addProjections tyCon tyConPars self fields0 =
             addProjection field ix tyCon (Tel.idTel tyConPars endType)
             go fields' $
                 Tel.instantiate fieldTypes' $ unview $ App (Var self) [Proj tyCon ix]
-        (_, _) -> error "addProjections: impossible: lengths do not match"
+        (_, _) -> error "impossible.addProjections: impossible: lengths do not match"
 
 -- Clause
 ---------
@@ -472,7 +507,7 @@ checkPattern synPat type_ ret = case synPat of
                 let dataConTypeNoPars =
                         Tel.substs (vacuous dataConType) typeConPars
                 checkPatterns synPats dataConTypeNoPars $ \weaken_ pats patsVars _ -> do
-                  let t = unview (App (Con dataCon) $ map Apply patsVars)
+                  let t = unview (Con dataCon patsVars)
                   ret weaken_ (ConP dataCon pats) t
             _ ->
               typeError $ render dataCon ++
@@ -486,12 +521,12 @@ checkPattern synPat type_ ret = case synPat of
 equalType :: (IsVar v, IsTerm t) => Type t v -> Type t v -> TC t v ()
 equalType a b = checkEqual set a b
 
-isApply :: (IsVar v, IsTerm t) => Elim (Term t) v -> Maybe (Term t v)
-isApply (Apply v) = Just v
-isApply Proj{}    = Nothing
-
 isType :: (IsVar v, IsTerm t) => A.Expr -> TC t v (Type t v)
 isType abs = check abs set
+
+isApply :: Elim (Term t) v -> Maybe (Term t v)
+isApply (Apply v) = Just v
+isApply Proj{}    = Nothing
 
 definitionType :: (IsTerm t) => Definition t -> Closed (Type t)
 definitionType (Constant _ _ type_)   = type_
@@ -544,8 +579,8 @@ unrollPi type_ ret = do
         _ ->
             ret Ctx.Empty type_
 
--- Monad utils
---------------
+-- Definition utils
+-------------------
 
 addConstant
     :: (IsVar v, IsTerm t)
@@ -575,6 +610,18 @@ addClause f ps v = do
   addDefinition f (ext def')
   where
     c = Clause ps v
+
+getConDefinition
+    :: (IsVar v, IsTerm t)
+    => Name -> TC t v (Name, Tel.ClosedIdTel t)
+getConDefinition dataCon = do
+  def' <- getDefinition dataCon
+  case def' of
+    Constructor _ tyCon dataConType ->
+      return (tyCon, dataConType)
+    _ ->
+      error $ "impossible.getConDefinition: non data constructor " ++
+              show dataCon
 
 -- Telescope utils
 ------------------

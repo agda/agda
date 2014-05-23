@@ -20,6 +20,8 @@ import Syntax.Abstract.Pretty ()
 
 import Debug
 
+import Debug.Trace
+
 type StuckTC a = TC (Stuck a)
 
 notStuck :: a -> StuckTC a
@@ -91,7 +93,7 @@ checkConstr d dvs ptel (A.Sig c e) = atSrcLoc c $ do
   (tel, b) <- telView a
   extendContextTel tel $ do
     dvs <- weakenBy (telSize tel) dvs
-    whenStuck (equalType dvs b) $ \_ -> typeError $ show dvs ++ "\n!=\n" ++ show b
+    whenStuck (equalType dvs b) $ \_ -> typeError $ show dvs ++ " != " ++ show b
   addConstructor c d ptel a
 
 checkRec :: Name -> [Name] -> Name -> [A.TypeSig] -> TC ()
@@ -124,7 +126,7 @@ addProjections r ptel self t fs tel = case (fs, tel) of
     addProjection f n r ptel ta
     addProjections r ptel self t fs =<<
       absApply b =<< unview (App (Var self) [Proj n])
-  (_, _) -> typeError "impossible.addProjections: lengths do not match",
+  (_, _) -> typeError "impossible.addProjections: lengths do not match"
 
 checkClause :: Name -> [A.Pattern] -> A.Expr -> TC ()
 checkClause f ps e = do
@@ -369,9 +371,13 @@ inferEqual u v = do
       (u, App (Meta x) es) -> metaAssign x es =<< unview u
       (App h1 es1, App h2 es2) | h1 == h2 -> do
         a <- typeOfHead h1
+        trace ("Type of head: " ++ show a) $ return ()
+        trace ("Head: " ++ show h1) $ return ()
+        trace ("Left spine: " ++ show es1) $ return ()
+        trace ("Right spine: " ++ show es2) $ return ()
         equalSpine a es1 es2
       (Set, Set) -> notStuck ()
-      _ -> typeError $ show uu ++ "\n!=\n" ++ show vv
+      _ -> typeError $ show uu ++ " != " ++ show vv
 
 equalSpine :: Type -> [Elim] -> [Elim] -> StuckTC ()
 equalSpine a [] [] = return $ NotStuck ()
@@ -389,7 +395,7 @@ equalSpine a (Apply u : es1) (Apply v : es2) = do
     NotBlocked a -> typeError $ "impossible.equalSpine: expected function type " ++ show a
     Blocked x _  -> stuckOn x (equalSpine a (Apply u : es1) (Apply v : es2))
 equalSpine a (Proj i : es1) (Proj j : es2) | i == j = typeError "todo: equalSpine proj"
-equalSpine a es1 es2 = typeError $ show es1 ++ "\n!=\n" ++ show es2 ++ " : " ++ show a
+equalSpine a es1 es2 = typeError $ show es1 ++ " != " ++ show es2 ++ " : " ++ show a
 
 metaAssign :: MetaVar -> [Elim] -> Term -> StuckTC ()
 metaAssign x es v = do

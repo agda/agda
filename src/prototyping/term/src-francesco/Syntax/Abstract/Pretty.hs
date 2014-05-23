@@ -82,14 +82,14 @@ instance Pretty Expr where
         buildApp h es0 (Apply e : es1) = buildApp h (es0 ++ [e]) es1
         buildApp h es0 (Proj f  : es1) = buildApp (Def f) [App h $ map Apply es0] es1
         buildApp h es []               = (h, es)
+    Refl{} -> text "refl"
+    Con c args -> prettyApp p (pretty c) args
 
 instance Pretty Head where
   pretty h = case h of
     Var x  -> pretty x
     Def f  -> pretty f
-    Con c  -> pretty c
     J _    -> text "J"
-    Refl _ -> text "refl"
 
 instance Pretty Pattern where
   prettyPrec p e = case e of

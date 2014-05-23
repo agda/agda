@@ -33,14 +33,14 @@ instance Monad LazyScope where
         Pi domain codomain -> Pi (domain >>= f) (LSAbs (unLSAbs codomain >>>= f))
         Equal type_ x y    -> Equal (type_ >>= f) (x >>= f) (y >>= f)
         Set                -> Set
+        Con n elims        -> Con n (map (>>= f) elims)
+        Refl               -> Refl
         App h elims        ->
             let elims' = map (>>>= f) elims
             in case h of
                    Var v   -> unLS $ eliminate (f v) elims'
                    Def n   -> App (Def n)   elims'
-                   Con n   -> App (Con n)   elims'
                    J       -> App J         elims'
-                   Refl    -> App Refl      elims'
                    Meta mv -> App (Meta mv) elims'
 
 instance IsTerm LazyScope where
@@ -63,12 +63,10 @@ instance IsTerm LazyScope where
     eliminate (LS term0) elims = case (term0, elims) of
         (t, []) ->
             LS t
-        (App (Con _c) args, Proj _ field : es) ->
+        (Con _c args, Proj _ field : es) ->
             if unField field >= length args
             then error "Impl.Term.eliminate: Bad elimination"
-            else case (args !! unField field) of
-                   Apply t -> eliminate t es
-                   _       -> error "Impl.Term.eliminate: Bad constructor argument"
+            else eliminate (args !! unField field) es
         (Lam body, Apply argument : es) ->
             eliminate (instantiate body argument) es
         (App h es1, es2) ->
@@ -88,7 +86,7 @@ instance IsTerm LazyScope where
             case def' of
               Function _ _ cs -> whnfFun ls es cs
               _               -> return ls
-        App J (_ : x : _ : _ : Apply p : Apply (LS (App Refl [])) : es) ->
+        App J (_ : x : _ : _ : Apply p : Apply (LS Refl) : es) ->
             whnf $ eliminate p (x : es)
         _ ->
             return ls
@@ -117,9 +115,9 @@ instance IsTerm LazyScope where
             (args, leftoverEs) <- matchClause es patterns
             return (arg : args, leftoverEs)
         matchClause (Apply arg : es) (ConP dataCon dataConPatterns : patterns) = do
-            LS (App (Con dataCon') dataConEs) <- lift $ whnf arg
+            LS (Con dataCon' dataConArgs) <- lift $ whnf arg
             guard (dataCon == dataCon')
-            matchClause (dataConEs ++ es) (dataConPatterns ++ patterns)
+            matchClause (map Apply dataConArgs ++ es) (dataConPatterns ++ patterns)
         matchClause _ _ =
             mzero
 
@@ -129,6 +127,8 @@ instance IsTerm LazyScope where
         Equal type_ x y    -> metaVars type_ <> metaVars x <> metaVars y
         App h elims        -> metaVarsHead h <> mconcat (map metaVarsElim elims)
         Set                -> mempty
+        Refl               -> mempty
+        Con _ args         -> mconcat (map metaVars args)
 
 
 

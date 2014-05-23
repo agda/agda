@@ -117,15 +117,15 @@ resolveName' x@(C.Name ((l, c), s)) = do
     y = Name (SrcLoc l c) s
 
 
-resolveName :: C.Name -> Check (Head, Hiding)
-resolveName x = do
-  i <- resolveName' x
-  case i of
-    VarName x     -> return (Var x, 0)
-    DefName x n   -> return (Def x, n)
-    ConName x n _ -> return (Con x, n)
-    ProjName{}    -> scopeError x $
-                       "Did not expect projection here: " ++ printTree x
+-- resolveName :: C.Name -> Check (Name, Hiding)
+-- resolveName x = do
+--   i <- resolveName' x
+--   case i of
+--     VarName x     -> return (x, 0)
+--     DefName x n   -> return (x, n)
+--     ConName x n _ -> return (x, n)
+--     ProjName{}    -> scopeError x $
+--                        "Did not expect projection here: " ++ printTree x
 
 checkShadowing :: NameInfo -> Maybe NameInfo -> Check ()
 checkShadowing _ Nothing   = return ()
@@ -170,15 +170,12 @@ isDefHead :: Head -> String -> Check Name
 isDefHead (Def x) _ = return x
 isDefHead h err     = scopeError h err
 
-isConHead :: Head -> String -> Check Name
-isConHead (Con x) _ = return x
-isConHead h err     = scopeError h err
-
 resolveDef :: C.Name -> Check (Name, Hiding)
 resolveDef x = do
-  (h, n) <- resolveName x
-  x      <- isDefHead h $ printTree x ++ " should be a defined name"
-  return (x, n)
+  i <- resolveName' x
+  case i of
+    DefName x n -> return (x, n)
+    _ -> scopeError x $ show x ++ " should be a defined name."
 
 resolveCon :: C.Name -> Check (Name, Hiding, NumberOfArguments)
 resolveCon x = do
@@ -243,8 +240,7 @@ checkDecl d ret = case d of
     (ps, b) <- mapC checkPattern ps $ \ps -> (,) ps <$> checkExpr b
     ret [FunDef f ps b]
   C.Open x -> do
-    h <- fst <$> resolveName x
-    isDefHead h $ "Open module should be the name of a defined record: " ++ printTree x
+    resolveDef x
     ret []
   C.Import{} -> ret []
   where
@@ -384,11 +380,15 @@ checkExpr e = case e of
               C.HArg _ : _ -> scopeError e $ "Unexpected implicit argument to projection function: " ++ printTree e
               C.Arg e : es -> do
                 e <- checkExpr e
-                doProj x e =<< checkArgs e n es (\ _ -> return ())
+                doProj x e . map Apply =<< checkArgs e n es (\ _ -> return ())
+            IsRefl p | [] <- es ->
+              return $ Refl p
+            IsRefl p ->
+              scopeError p $ "refl applied to arguments " ++ show es
             IsCon c args -> do
-              App (Con c) <$> checkArgs z n es
-                                (\es -> checkNumberOfConstructorArguments e c es args)
-            Other h    -> App h <$> checkArgs z n es (\ _ -> return ())
+              Con c <$> checkArgs z n es
+                        (\es -> checkNumberOfConstructorArguments e c es args)
+            Other h    -> App h . map Apply <$> checkArgs z n es (\ _ -> return ())
             HeadSet p  -> return $ Set p
             HeadMeta p -> return $ Meta p
     doProj x (App h es1) es2 = return $ App h (es1 ++ [Proj x] ++ es2)
@@ -396,11 +396,11 @@ checkExpr e = case e of
 
 checkArgs :: HasSrcLoc a =>
              a -> Hiding -> [C.Arg] -> (forall b. [b] -> Check ()) ->
-             Check [Elim]
+             Check [Expr]
 checkArgs x n es extraCheck = do
   es <- insertImplicit (srcLoc x) n es
   extraCheck es
-  map Apply <$> mapM checkExpr es
+  mapM checkExpr es
 
 checkNumberOfConstructorArguments ::
   HasSrcLoc e => e -> Name -> [a] -> NumberOfArguments -> Check ()
@@ -415,6 +415,7 @@ checkNumberOfConstructorArguments loc c as args = do
 
 data AppHead = IsProj Name
              | IsCon Name NumberOfArguments
+             | IsRefl SrcLoc
              | Other Head
              | HeadSet SrcLoc
              | HeadMeta SrcLoc
@@ -423,6 +424,7 @@ instance HasSrcLoc AppHead where
   srcLoc h = case h of
     IsProj x   -> srcLoc x
     IsCon c _  -> srcLoc c
+    IsRefl p   -> p
     Other h    -> srcLoc h
     HeadSet p  -> p
     HeadMeta p -> p
@@ -451,7 +453,7 @@ checkAppHead :: C.Name -> Check (AppHead, Hiding)
 checkAppHead (C.Name ((l, c), "_"))    = return (HeadMeta $ SrcLoc l c, 0)
 checkAppHead (C.Name ((l, c), "Set"))  = return (HeadSet $ SrcLoc l c, 0)
 checkAppHead (C.Name ((l, c), "J"))    = return (Other (J (SrcLoc l c)), 3)
-checkAppHead (C.Name ((l, c), "refl")) = return (Other (Refl (SrcLoc l c)), 0)
+checkAppHead (C.Name ((l, c), "refl")) = return (IsRefl (SrcLoc l c), 0)
 checkAppHead x = do
   i <- resolveName' x
   case i of

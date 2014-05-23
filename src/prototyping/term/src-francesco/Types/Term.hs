@@ -21,14 +21,16 @@ import           Types.Definition
 -- Terms
 ------------------------------------------------------------------------
 
+-- TODO Refl and Con could be factored out in 'TermView' since the type
+-- checking for them works differently from other applications, since we
+-- can infer the type of the other 'Head's.
+
 -- | A 'Head' heads a neutral term -- something which can't reduce
 -- further.
 data Head v
     = Var v
     | Def Name
-    | Con Name
     | J
-    | Refl
     | Meta MetaVar
     deriving (Show, Eq, Ord, Functor, Foldable, Traversable)
 
@@ -36,9 +38,7 @@ instance (IsVar v) => PP.Pretty (Head v) where
     pretty (Var v) = PP.text (show ix ++ "#") <> PP.pretty name
       where (Bound.Name.Name name ix) = varIndex v
     pretty (Def f)   = PP.pretty f
-    pretty (Con c)   = PP.pretty c
     pretty J         = PP.text "J"
-    pretty Refl      = PP.text "refl"
     pretty (Meta mv) = PP.pretty mv
 
 instance Eq1 Head
@@ -67,8 +67,10 @@ data TermView term v
     = Lam (Abs term v)
     | Pi (term v) (Abs term v)
     | Equal (term v) (term v) (term v)
-    | App (Head v) [Elim term v]
+    | Refl
+    | Con Name [term v]
     | Set
+    | App (Head v) [Elim term v]
 
 deriving instance (IsTerm term) => Functor (TermView term)
 deriving instance (IsTerm term) => Foldable (TermView term)
@@ -117,6 +119,10 @@ instance (IsTerm t, IsVar v) => PP.Pretty (TermView t v) where
                 ]
     App h es ->
       PP.prettyApp p (PP.pretty h) es
+    Refl ->
+      PP.text "refl"
+    Con dataCon args ->
+      PP.prettyApp p (PP.pretty dataCon) (map view args)
 
 instance (IsTerm t) => PP.Pretty (Definition t) where
   pretty _ = PP.text "TODO Pretty Definition"
@@ -164,6 +170,8 @@ class ( Eq1 t,       Functor t,       Foldable t,       Traversable t, Monad t
         Equal type_ x y    -> metaVars type_ <> metaVars x <> metaVars y
         App h elims        -> metaVarsHead h <> mconcat (map metaVarsElim elims)
         Set                -> mempty
+        Refl               -> mempty
+        Con _ elims        -> mconcat (map metaVars elims)
 
 metaVarsHead :: Head v -> HS.HashSet MetaVar
 metaVarsHead (Meta mv) = HS.singleton mv
@@ -200,11 +208,11 @@ metaVar mv = unview (App (Meta mv) [])
 def :: IsTerm t => Name -> t v
 def f = unview (App (Def f) [])
 
-con :: IsTerm t => Name -> t v
-con c = unview (App (Con c) [])
+con :: IsTerm t => Name -> [t v] -> t v
+con c args = unview (Con c args)
 
 refl :: IsTerm t => t v
-refl = unview (App Refl [])
+refl = unview Refl
 
 whnfView :: IsTerm t => t v -> TC t v (TermView t v)
 whnfView t = view <$> whnf t
