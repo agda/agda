@@ -107,7 +107,11 @@ infer synT = atSrcLoc synT $ case synT of
     type_ <- addFreshMetaVar set
     t <- addFreshMetaVar type_
     return (t, type_)
-  _ ->
+  A.Lam{} -> 
+    checkError $ CannotInferTypeOf synT
+  A.Refl{} -> 
+    checkError $ CannotInferTypeOf synT
+  A.Con{} -> 
     checkError $ CannotInferTypeOf synT
 
 checkSpine :: (IsVar v, IsTerm t)
@@ -166,6 +170,14 @@ checkEqual type_ x y = do
             show tyCon ++ ", " ++ show tyCon'
         let appliedDataConType = Tel.substs (vacuous dataConType) tyConPars
         equalConArgs appliedDataConType dataConArgs1 dataConArgs2
+    (_, Pi dom1 cod1, Pi dom2 cod2) -> do
+       checkEqual set dom1 dom2
+       let cod1' = fromAbs cod1
+       extendContext (getName cod1') dom1 $ \ _ _ -> checkEqual set cod1' (fromAbs cod2)
+    (_, Equal type1 x1 y1, Equal type2 x2 y2) -> do
+       checkEqual set type1 type2
+       checkEqual type1 x1 x2
+       checkEqual type1 y1 y2       
     (_, App (Meta mv) elims, t) ->
       metaAssign mv elims (unview t)
     (_, t, App (Meta mv) elims) ->
