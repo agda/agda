@@ -171,7 +171,7 @@ checkEqual type_ x y = do
         Var v   -> getTypeOfVar v
         Def f   -> vacuous . definitionType <$> getDefinition f
         J       -> error "TODO typeOfJ"
-        Meta mv -> vacuous <$> getTypeOfMetaVar mv
+        Meta mv -> error "impossible.checkEqual: can't decompose with metavariable heads"
       equalSpine h1Type (unview (App h1 [])) elims1 elims2
     _ ->
       checkError $ TermsNotEqual (unview xView) (unview yView)
