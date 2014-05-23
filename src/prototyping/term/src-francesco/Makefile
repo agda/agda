@@ -13,6 +13,6 @@ $(bnfc_output) : Syntax.cf
 ../dist/%.hs : ../dist/%.x
 	alex -o $@ $<
 
-../dist/tc : $(gen_hs_files)
+./dist/build/tc/tc : $(gen_hs_files)
 	cabal build
 

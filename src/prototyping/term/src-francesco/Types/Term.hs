@@ -1,7 +1,7 @@
 {-# OPTIONS_GHC -fno-warn-orphans #-}
 module Types.Term where
 
-import           Bound
+import           Bound                            hiding (instantiate)
 import qualified Bound.Name
 import           Data.Foldable                    (Foldable)
 import           Data.Traversable                 (Traversable)
@@ -139,6 +139,11 @@ class ( Eq1 t,       Functor t,       Foldable t,       Traversable t, Monad t
     toAbs   :: t (TermVar v) -> Abs t v
     fromAbs :: Abs t v -> t (TermVar v)
 
+    unview :: TermView t v -> t v
+    view   :: t v -> TermView t v
+
+    whnf :: t v -> TC t v (t v)
+
     -- Methods present in the typeclass so that the instances can
     -- support a faster version.
 
@@ -155,13 +160,22 @@ class ( Eq1 t,       Functor t,       Foldable t,       Traversable t, Monad t
       where
         f v' = if v == v' then boundTermVar (varName v) else F v'
 
-    unview :: TermView t v -> t v
-    view   :: t v -> TermView t v
-
     -- | Tries to apply the eliminators to the term.  Trows an error
     -- when the term and the eliminators don't match.
     eliminate :: t v -> [Elim t v] -> t v
-    whnf :: t v -> TC t v (t v)
+    eliminate t elims = case (view t, elims) of
+        (_, []) ->
+            t
+        (Con _c args, Proj _ field : es) ->
+            if unField field >= length args
+            then error "Types.Term.eliminate: Bad elimination"
+            else eliminate (args !! unField field) es
+        (Lam body, Apply argument : es) ->
+            eliminate (instantiate body argument) es
+        (App h es1, es2) ->
+            unview $ App h (es1 ++ es2)
+        (_, _) ->
+            error "Types.Term.eliminate: Bad elimination"
 
     metaVars :: t v -> HS.HashSet MetaVar
     metaVars t = case view t of

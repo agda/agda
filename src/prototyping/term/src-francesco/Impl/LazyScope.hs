@@ -60,20 +60,6 @@ instance IsTerm LazyScope where
     unview = LS
     view   = unLS
 
-    eliminate (LS term0) elims = case (term0, elims) of
-        (t, []) ->
-            LS t
-        (Con _c args, Proj _ field : es) ->
-            if unField field >= length args
-            then error "Impl.Term.eliminate: Bad elimination"
-            else eliminate (args !! unField field) es
-        (Lam body, Apply argument : es) ->
-            eliminate (instantiate body argument) es
-        (App h es1, es2) ->
-            LS $ App h (es1 ++ es2)
-        (_, _) ->
-            error "Impl.Term.eliminate: Bad elimination"
-
     whnf :: LazyScope v -> TC LazyScope v (LazyScope v)
     whnf ls@(LS t) = case t of
         App (Meta mv) es -> do
@@ -94,17 +80,20 @@ instance IsTerm LazyScope where
         whnfFun
             :: LazyScope v -> [Elim LazyScope v] -> [Clause LazyScope]
             -> TC LazyScope v (LazyScope v)
-        whnfFun ls' es clauses0 = case clauses0 of
-            [] ->
-                return ls'
-            (Clause patterns body : clauses) -> do
-                mbMatched <- runMaybeT $ matchClause es patterns
-                case mbMatched of
-                    Nothing ->
-                        whnfFun ls' es clauses
-                    Just (args, leftoverEs) -> do
-                        let body' = instantiateName (args !!) (vacuous body)
-                        whnf $ eliminate body' leftoverEs
+        whnfFun ls' _ [] =
+            return ls'
+        whnfFun ls' es (Clause patterns body : clauses) = do
+            mbMatched <- runMaybeT $ matchClause es patterns
+            case mbMatched of
+                Nothing ->
+                    whnfFun ls' es clauses
+                Just (args, leftoverEs) -> do
+                    let ixArg n =
+                            if n >= length args
+                            then error "Impl.LazyScope.whnf: too few arguments"
+                            else args !! n
+                    let body' = instantiateName ixArg (vacuous body)
+                    whnf $ eliminate body' leftoverEs
 
         matchClause
             :: [Elim LazyScope v] -> [Pattern]
@@ -129,8 +118,6 @@ instance IsTerm LazyScope where
         Set                -> mempty
         Refl               -> mempty
         Con _ args         -> mconcat (map metaVars args)
-
-
 
 -- TODO There seems to be a bug preventing us from deriving this.  Check
 -- with 7.8.
