@@ -58,8 +58,12 @@ check synT type_ = atSrcLoc synT $ case synT of
          body <- extendContext name domain $ \_ _ ->
            check synBody (fromAbs codomain)
          return $ lam (toAbs body)
-      App (Meta _) _ ->
-        error "TODO check Meta Lam"
+      App (Meta _) _ -> do
+        dom <- addFreshMetaVar set
+        cod <- extendContext name dom $ \ _ _ -> addFreshMetaVar set 
+        checkEqual set (unview typeView) (pi dom (toAbs cod))        
+        body <- extendContext name dom $ \ _ _ -> check synBody cod
+        return $ lam (toAbs body)
       _ ->
         checkError $ LambdaTypeError synT (unview typeView)
   _ -> do
@@ -99,8 +103,10 @@ infer synT = atSrcLoc synT $ case synT of
     x <- check synX type_
     y <- check synY type_
     return (equal type_ x y, set)
-  A.Meta _ ->
-    error "TODO infer Meta"
+  A.Meta _ -> do
+    type_ <- addFreshMetaVar set
+    t <- addFreshMetaVar type_
+    return (t, type_)
   _ ->
     checkError $ CannotInferTypeOf synT
 
@@ -171,7 +177,7 @@ checkEqual type_ x y = do
         Var v   -> getTypeOfVar v
         Def f   -> vacuous . definitionType <$> getDefinition f
         J       -> error "TODO typeOfJ"
-        Meta mv -> error "impossible.checkEqual: can't decompose with metavariable heads"
+        Meta _  -> error "impossible.checkEqual: can't decompose with metavariable heads"
       equalSpine h1Type (unview (App h1 [])) elims1 elims2
     _ ->
       checkError $ TermsNotEqual (unview xView) (unview yView)
