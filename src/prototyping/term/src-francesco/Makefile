@@ -13,6 +13,6 @@ $(bnfc_output) : Syntax.cf
 ../dist/%.hs : ../dist/%.x
 	alex -o $@ $<
 
-# ../dist/tc : Main.hs $(gen_hs_files) $(src_files)
-# 	ghc --make -o $@ $< -i../dist -hidir=../dist -odir=../dist -XCPP -DIMPL=$(implementation)
+../dist/tc : $(gen_hs_files)
+	cabal build
 

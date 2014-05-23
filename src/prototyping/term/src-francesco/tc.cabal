@@ -1,0 +1,54 @@
+name:                tc
+version:             0.1.0.0
+-- synopsis:            
+-- description:         
+-- license:             
+license-file:        LICENSE
+author:              Francesco Mazzoli
+maintainer:          f@mazzo.li
+-- copyright:           
+-- category:            
+build-type:          Simple
+-- extra-source-files:  
+cabal-version:       >= 1.10
+
+executable tc
+  main-is:             Main.hs
+  -- other-modules:       
+  -- other-extensions:    
+
+  build-depends:       base >= 4.6 && < 4.7
+                     , array >= 0.4 && < 0.5
+                     , bound >= 1.0 && < 1.1
+                     , containers >= 0.5 && < 0.6
+                     , hashable >= 1.2 && < 1.3
+                     , mtl >= 2.1 && < 2.2
+                     , prelude-extras >= 0.4 && < 0.5
+                     , pretty >= 1.1 && < 1.2
+                     , tagged >= 0.7 && < 0.8
+                     , transformers >= 0.3 && < 0.4
+                     , unordered-containers >= 0.2 && < 0.3
+                     , void >= 0.6 && < 0.7
+
+  hs-source-dirs:      ., ../dist
+  default-language:    Haskell2010
+  ghc-options:         -Wall -fprof-auto -fprof-auto-calls
+
+  extensions:          DeriveFoldable
+                     , DeriveFunctor
+                     , DeriveTraversable
+                     , ExistentialQuantification
+                     , FlexibleContexts
+                     , FlexibleInstances
+                     , GADTs
+                     , GeneralizedNewtypeDeriving
+                     , InstanceSigs
+                     , KindSignatures
+                     , MultiParamTypeClasses
+                     , PatternGuards
+                     , RankNTypes
+                     , ScopedTypeVariables
+                     , StandaloneDeriving
+                     , TupleSections
+                     , TypeFamilies
+                     , UnicodeSyntax
