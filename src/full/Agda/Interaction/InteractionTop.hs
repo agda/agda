@@ -192,8 +192,7 @@ runInteraction (IOTCM current highlighting highlightingMethod cmd)
       return x
 
     inEmacs = liftCommandMT $ withEnv $ initEnv
-            { envEmacs              = True
-            , envHighlightingLevel  = highlighting
+            { envHighlightingLevel  = highlighting
             , envHighlightingMethod = highlightingMethod
             }
 

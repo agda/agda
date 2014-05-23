@@ -366,7 +366,6 @@ getInterface' x includeStateChanges =
             return (True, r)
            else do
             ms       <- getImportPath
-            emacs    <- envEmacs <$> ask
             nesting  <- envModuleNestingLevel <$> ask
             mf       <- stModuleToSource <$> get
             vs       <- getVisitedModules
@@ -384,8 +383,7 @@ getInterface' x includeStateChanges =
             -- but on the same Benchmark accounts.
             r <- freshTCM $
                    withImportPath ms $
-                   local (\e -> e { envEmacs              = emacs
-                                  , envModuleNestingLevel = nesting
+                   local (\e -> e { envModuleNestingLevel = nesting
                                   }) $ do
                      setDecodedModules ds
                      setCommandLineOptions opts

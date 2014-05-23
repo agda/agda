@@ -1124,8 +1124,6 @@ data TCEnv =
                 --   than 'envRange'.
           , envCall  :: Maybe (Closure Call)
                 -- ^ what we're doing at the moment
-          , envEmacs :: Bool
-                -- ^ True when called from the Emacs mode.
           , envHighlightingLevel  :: HighlightingLevel
                 -- ^ Set to 'None' when imported modules are
                 --   type-checked.
@@ -1193,7 +1191,6 @@ initEnv = TCEnv { envContext	         = []
                 , envRange                  = noRange
                 , envHighlightingRange      = noRange
                 , envCall                   = Nothing
-                , envEmacs                  = False
                 , envHighlightingLevel      = None
                 , envHighlightingMethod     = Indirect
                 , envModuleNestingLevel     = -1
