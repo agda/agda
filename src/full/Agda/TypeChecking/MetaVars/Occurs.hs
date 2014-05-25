@@ -430,7 +430,8 @@ instance Occurs a => Occurs [a] where
 --   If successful, @m'@ is solved by the new, pruned meta variable and we
 --   return @True@ else @False@.
 prune :: MetaId -> Args -> [Nat] -> TCM PruneResult
-prune m' vs xs = liftTCM $ do
+prune m' vs xs = ifM (or <$> mapM (isMatchable . unArg) vs) (return PrunedNothing) $
+ liftTCM $ do
   kills <- mapM (hasBadRigid xs) $ map unArg vs
   reportSDoc "tc.meta.kill" 10 $ vcat
     [ text "attempting kills"
@@ -450,6 +451,13 @@ prune m' vs xs = liftTCM $ do
     else do
 -}
   killArgs kills m'
+
+
+isMatchable :: Term -> TCM Bool
+isMatchable (Lam _ b) = isMatchable (absBody b)
+isMatchable (Con c args) =
+  ifM (isEtaCon (conName c)) (or <$> mapM (isMatchable . unArg) args) (return True)
+isMatchable _         = return False
 
 -- | @hasBadRigid xs v = True@ iff one of the rigid variables in @v@ is not in @xs@.
 --   Actually we can only prune if a bad variable is in the head. See issue 458.

@@ -173,6 +173,13 @@ projectionType t f = do
 isEtaRecord :: HasConstInfo m => QName -> m Bool
 isEtaRecord r = maybe False recEtaEquality <$> isRecord r
 
+isEtaCon :: HasConstInfo m => QName -> m Bool
+isEtaCon c = do
+  cdef <- theDef <$> getConstInfo c
+  case cdef of
+    Constructor {conData = r} -> isEtaRecord r
+    _ -> return False
+
 -- | Check if a name refers to a record which is not coinductive.  (Projections are then size-preserving)
 isInductiveRecord :: QName -> TCM Bool
 isInductiveRecord r = maybe False (\ d -> recInduction d == Inductive || not (recRecursive d)) <$> isRecord r
