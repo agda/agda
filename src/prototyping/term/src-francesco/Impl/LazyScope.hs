@@ -8,6 +8,7 @@ import           Prelude.Extras                   (Eq1, (==#))
 import           Data.Foldable                    (Foldable, foldr)
 import           Data.Traversable                 (Traversable, sequenceA)
 import           Data.Functor                     ((<$>))
+import           Control.Monad                    (ap)
 import           Control.Monad.Trans              (lift)
 import           Control.Monad.Trans.Maybe        (MaybeT, runMaybeT)
 import           Control.Monad                    (guard, mzero)
@@ -42,6 +43,10 @@ instance Monad LazyScope where
                    Def n   -> App (Def n)   elims'
                    J       -> App J         elims'
                    Meta mv -> App (Meta mv) elims'
+
+instance Applicative LazyScope where
+    pure = return
+    (<*>) = ap
 
 instance IsTerm LazyScope where
     newtype Abs LazyScope v = LSAbs {unLSAbs :: Scope (Named ()) LazyScope v}

@@ -60,8 +60,8 @@ check synT type_ = atSrcLoc synT $ case synT of
          return $ lam (toAbs body)
       App (Meta _) _ -> do
         dom <- addFreshMetaVar set
-        cod <- extendContext name dom $ \ _ _ -> addFreshMetaVar set 
-        checkEqual set (unview typeView) (pi dom (toAbs cod))        
+        cod <- extendContext name dom $ \ _ _ -> addFreshMetaVar set
+        checkEqual set (unview typeView) (pi dom (toAbs cod))
         body <- extendContext name dom $ \ _ _ -> check synBody cod
         return $ lam (toAbs body)
       _ ->
@@ -171,7 +171,7 @@ checkEqual type_ x y = do
     (_, Equal type1 x1 y1, Equal type2 x2 y2) -> do
        checkEqual set type1 type2
        checkEqual type1 x1 x2
-       checkEqual type1 y1 y2       
+       checkEqual type1 y1 y2
     (_, App (Meta mv) elims, t) ->
       metaAssign mv elims (unview t)
     (_, t, App (Meta mv) elims) ->
@@ -218,9 +218,9 @@ equalConArgs
     => Type t v
     -- ^ Type of the head.
     -> Name -> [Term t v] -> [Term t v] -> TC t v ()
-equalConArgs type_ dataCon xs ys = do 
-  expandedCon <- unrollPi type_ $ \ ctx _ -> return $ 
-                   ctxLam ctx (unview (Con dataCon (map (\ x -> unview (App (Var x) [])) (ctxVars ctx))))
+equalConArgs type_ dataCon xs ys = do
+  expandedCon <- unrollPi type_ $ \ctx _ -> return $
+                 ctxLam ctx (con dataCon (map var (ctxVars ctx)))
   equalSpine type_ expandedCon (map Apply xs) (map Apply ys)
 
 applyProjection
