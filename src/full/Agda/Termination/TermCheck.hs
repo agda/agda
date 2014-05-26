@@ -60,6 +60,7 @@ import Agda.TypeChecking.EtaContract
 import Agda.TypeChecking.Monad.Builtin
 import Agda.TypeChecking.Substitute
 import Agda.TypeChecking.SizedTypes
+import Agda.TypeChecking.Datatypes
 
 import qualified Agda.TypeChecking.Monad.Base.Benchmark as Benchmark
 import Agda.TypeChecking.Monad.Benchmark (billTo, billPureTo)
@@ -495,6 +496,27 @@ stripCoConstructors p = do
     LitDBP{}  -> return p
     ProjDBP{} -> return p
 
+stripNonDataArgs :: [DeBruijnPat] -> TerM [DeBruijnPat]
+stripNonDataArgs ps = do
+  withoutKEnabled <- liftTCM $ optWithoutK <$> pragmaOptions
+  if withoutKEnabled
+    then do
+      f   <- terGetCurrent
+      def <- liftTCM $ getConstInfo f
+      ty  <- liftTCM $ reduce $ defType def
+      TelV tel _ <- liftTCM $ telView ty
+      let types = map (unEl . snd . unDom) $ telToList tel
+      zipWithM stripIfNotData ps types
+    else return ps
+  where
+    stripIfNotData :: DeBruijnPat -> Term -> TerM DeBruijnPat
+    stripIfNotData p ty = liftTCM $ do
+      isData <- isDataOrRecord ty
+      case isData of
+        Just _  -> return p
+        Nothing -> return unusedVar
+
+
 -- | cf. 'TypeChecking.Coverage.Match.buildMPatterns'
 openClause :: Permutation -> [Pattern] -> ClauseBody -> TerM ([DeBruijnPat], Maybe Term)
 openClause perm ps body = do
@@ -523,9 +545,13 @@ openClause perm ps body = do
 -- | Extract recursive calls from one clause.
 termClause :: Clause -> TerM Calls
 termClause clause = do
-  name <- terGetCurrent
-  ifM (isJust <$> do isWithFunction name) (return mempty) $ do
-  mapM' termClause' =<< do liftTCM $ inlineWithClauses name clause
+  withoutKEnabled <- liftTCM $ optWithoutK <$> pragmaOptions
+  if withoutKEnabled
+    then termClause' clause
+    else do
+      name <- terGetCurrent
+      ifM (isJust <$> do isWithFunction name) (return mempty) $ do
+      mapM' termClause' =<< do liftTCM $ inlineWithClauses name clause
 
 termClause' :: Clause -> TerM Calls
 termClause' clause = do
@@ -547,6 +573,7 @@ termClause' clause = do
       Nothing -> return CallGraph.empty
       Just v -> do
         dbpats <- mapM stripCoConstructors dbpats
+        dbpats <- stripNonDataArgs dbpats
         terSetPatterns dbpats $ do
         reportBody v
   {-
