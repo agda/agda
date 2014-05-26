@@ -273,11 +273,12 @@ instance (Reduce a, Reduce b,Reduce c) => Reduce (a,b,c) where
 instance Reduce Term where
   reduceB' v = {-# SCC "reduce'<Term>" #-} do
     v <- instantiate' v
+    let done = return $ notBlocked v
     case v of
 --    Andreas, 2012-11-05 not reducing meta args does not destroy anything
 --    and seems to save 2% sec on the standard library
 --      MetaV x args -> notBlocked . MetaV x <$> reduce' args
-      MetaV x es -> return $ notBlocked v
+      MetaV x es -> done
       Def f es   -> unfoldDefinitionE False reduceB' (Def f []) f es
       Con c args -> do
           -- Constructors can reduce' when they come from an
@@ -286,11 +287,11 @@ instance Reduce Term where
           traverse reduceNat v
       Sort s   -> fmap sortTm <$> reduceB' s
       Level l  -> fmap levelTm <$> reduceB' l
-      Pi _ _   -> return $ notBlocked v
-      Lit _    -> return $ notBlocked v
-      Var _ _  -> return $ notBlocked v
-      Lam _ _  -> return $ notBlocked v
-      DontCare _ -> return $ notBlocked v
+      Pi _ _   -> done
+      Lit _    -> done
+      Var _ _  -> done
+      Lam _ _  -> done
+      DontCare _ -> done
       Shared{}   -> __IMPOSSIBLE__ -- updateSharedTermF reduceB' v
     where
       -- NOTE: reduceNat can traverse the entire term.
