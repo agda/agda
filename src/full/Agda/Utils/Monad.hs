@@ -123,6 +123,10 @@ dropWhileM p (x : xs) = ifM (p x) (dropWhileM p xs) (return (x : xs))
 
 -- Error monad ------------------------------------------------------------
 
+-- | To simulate @MaybeT@ by @'ErrorT'@.
+instance Error () where
+  noMsg = ()
+
 -- | Finally for the 'Error' class. Errors in the finally part take
 -- precedence over prior errors.
 

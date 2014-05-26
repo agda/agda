@@ -900,9 +900,6 @@ etaExpandProjectedVar mvar x t n qs = inTopContext $ do
 type FVs = Set.VarSet
 type SubstCand = [(Nat,Term)] -- ^ a possibly non-deterministic substitution
 
-instance Error () where
-  noMsg = ()
-
 -- | Turn non-det substitution into proper substitution, if possible.
 --   Otherwise, raise the error.
 checkLinearity :: SubstCand -> ErrorT () TCM SubstCand
