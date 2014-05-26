@@ -103,16 +103,10 @@ infer synT = atSrcLoc synT $ case synT of
     x <- check synX type_
     y <- check synY type_
     return (equal type_ x y, set)
-  A.Meta _ -> do
+  _ -> do
     type_ <- addFreshMetaVar set
-    t <- addFreshMetaVar type_
+    t <- check synT type_
     return (t, type_)
-  A.Lam{} -> 
-    checkError $ CannotInferTypeOf synT
-  A.Refl{} -> 
-    checkError $ CannotInferTypeOf synT
-  A.Con{} -> 
-    checkError $ CannotInferTypeOf synT
 
 checkSpine :: (IsVar v, IsTerm t)
            => Term t v -> [A.Elim] -> Type t v -> TC t v (Term t v, Type t v)
