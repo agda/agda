@@ -163,7 +163,7 @@ checkEqual type_ x y = do
             "impossible.checkEqual: mismatching type constructors " ++
             show tyCon ++ ", " ++ show tyCon'
         let appliedDataConType = Tel.substs (vacuous dataConType) tyConPars
-        equalConArgs appliedDataConType dataConArgs1 dataConArgs2
+        equalConArgs appliedDataConType dataCon dataConArgs1 dataConArgs2
     (_, Pi dom1 cod1, Pi dom2 cod2) -> do
        checkEqual set dom1 dom2
        let cod1' = fromAbs cod1
@@ -217,21 +217,11 @@ equalConArgs
     :: (IsVar v, IsTerm t)
     => Type t v
     -- ^ Type of the head.
-    -> [Term t v] -> [Term t v] -> TC t v ()
-equalConArgs _ [] [] =
-  return ()
-equalConArgs type_ (arg1 : elims1) (arg2 : elims2) = do
-  typeView <- whnfView type_
-  case typeView of
-    Pi domain codomain -> do
-      checkEqual domain arg1 arg2
-      equalConArgs (instantiate codomain arg1) elims1 elims2
-    _ ->
-      error $ "impossible.equalConArgs: Expected function type " ++
-              render typeView
-equalConArgs _ elims1 elims2 =
-  error $ "impossible.equalConArgs: different number of arguments " ++
-          render (map view elims1) ++ " and " ++ render (map view elims2)
+    -> Name -> [Term t v] -> [Term t v] -> TC t v ()
+equalConArgs type_ dataCon xs ys = do 
+  expandedCon <- unrollPi type_ $ \ ctx _ -> return $ 
+                   ctxLam ctx (unview (Con dataCon (map (\ x -> unview (App (Var x) [])) (ctxVars ctx))))
+  equalSpine type_ expandedCon (map Apply xs) (map Apply ys)
 
 applyProjection
     :: (IsVar v, IsTerm t)
