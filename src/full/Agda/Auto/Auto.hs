@@ -9,6 +9,8 @@ import qualified Data.Map as Map
 import Data.IORef
 import qualified System.Timeout
 import Data.Maybe (catMaybes, isNothing)
+import Data.Tuple (swap)
+import Data.Functor
 
 import Agda.Utils.Permutation (permute, takeP)
 import Agda.TypeChecking.Monad.Base
@@ -215,8 +217,7 @@ auto ii rng argstr = liftTCM $ do
                          (Map.elems tccons)
                         ) eqcons
                  res <- exsearch initprop recinfo defdfv
-                 iis <- getInteractionPoints
-                 riis <- mapM (\ii -> lookupInteractionId ii >>= \mi -> return (mi, ii)) iis
+                 riis <- map swap <$> getInteractionIdsAndMetas
                  let timeoutString | isNothing res = " after timeout (" ++ show timeout ++ "s)"
                                    | otherwise     = ""
                  if listmode then do
