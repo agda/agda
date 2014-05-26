@@ -19,7 +19,7 @@ import System.Console.GetOpt
 
 import GHC
 import Parser as P
-import Lexer
+import Lexer as Lexer
 import DriverPipeline
 import FastString
 import DriverPhases
@@ -39,15 +39,19 @@ import Tags
 instance MonadTrans GhcT where
   lift m = GhcT $ \_ -> m
 
+#if MIN_VERSION_ghc(7,8,0)
+#else
 instance MonadIO m => MonadIO (GhcT m) where
   liftIO = lift . liftIO
 
 instance MonadIO Ghc where
   liftIO m = Ghc $ \_ -> m
+#endif
 
-#if MIN_VERSION_ghc(7,2,1)
+#if MIN_VERSION_ghc(7,8,0)
 fileLoc :: FilePath -> RealSrcLoc
-fileLoc file = mkRealSrcLoc (mkZFastString file) 1 0
+fileLoc file = mkRealSrcLoc (mkFastString file) 1 0
+#elif MIN_VERSION_ghc(7,2,1)
 #else
 fileLoc :: FilePath -> SrcLoc
 fileLoc file = mkSrcLoc (mkZFastString file) 1 0
@@ -67,7 +71,7 @@ pMod :: P (Located (HsModule RdrName))
 pMod = P.parseModule
 
 parse :: PState -> P a -> ParseResult a
-parse st p = unP p st
+parse st p = Lexer.unP p st
 
 goFile :: FilePath -> Ghc [Tag]
 goFile file = do

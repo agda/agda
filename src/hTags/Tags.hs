@@ -15,6 +15,7 @@ import OccName
 import qualified Name
 import FastString
 import Bag
+import qualified BasicTypes
 
 data Pos = Pos { line, column :: Int }
            deriving (Eq, Ord)
@@ -189,11 +190,24 @@ instance TagName name => HasTags (HsDecl name) where
 #if MIN_VERSION_ghc(7,2,1)
     VectD{}       -> []
 #endif
+#if MIN_VERSION_ghc(7,8,0)
+    RoleAnnotD{}  -> []
+#endif
+
+#if MIN_VERSION_ghc(7,8,0)
+instance TagName name => HasTags (FamilyDecl name) where
+  tags d = tagsLN (fdLName d)
+
+instance HasTags (BasicTypes.Origin) where
+  tags _ = []
+#endif
 
 instance TagName name => HasTags (TyClDecl name) where
   tags d = tagsLN (tcdLName d) ++
     case d of
-#if MIN_VERSION_ghc(7,6,0)
+#if MIN_VERSION_ghc(7,8,0)
+      DataDecl { tcdDataDefn = HsDataDefn { dd_cons = cons } }
+#elif MIN_VERSION_ghc(7,6,0)
       TyDecl { tcdTyDefn = TyData { td_cons = cons } }
 #else
       TyData { tcdCons = cons }
@@ -220,6 +234,9 @@ instance TagName name => HasTags (HsBind name) where
     PatBind  { pat_lhs   = lhs } -> tags lhs
     VarBind  { var_id    = x   } -> tagsN x
     AbsBinds { abs_binds = bs  } -> tags bs
+#if MIN_VERSION_ghc(7,8,0)
+    PatSynBind{ patsyn_id = x  } -> tagsLN x
+#endif
 
 instance TagName name => HasTags (Pat name) where
   tags p = case p of
@@ -228,11 +245,15 @@ instance TagName name => HasTags (Pat name) where
     AsPat x p              -> tags (fmap Name x, p)
     ParPat p               -> tags p
     BangPat p              -> tags p
+#if MIN_VERSION_ghc(7,8,0)
+    ListPat ps _ _         -> tags ps
+#else
     ListPat ps _           -> tags ps
+#endif
     TuplePat ps _ _        -> tags ps
     PArrPat ps _           -> tags ps
     ConPatIn _ ps          -> tags ps
-    ConPatOut _ _ _ _ ps _ -> tags ps
+    ConPatOut{ pat_args = ps } -> tags ps
     NPlusKPat x _ _ _      -> tagsLN x
     SigPatIn p _           -> tags p
     SigPatOut p _          -> tags p
@@ -246,6 +267,9 @@ instance TagName name => HasTags (Pat name) where
     WildPat{}              -> []
     ViewPat{}              -> []
     QuasiQuotePat{}        -> []
+#if MIN_VERSION_ghc(7,8,0)
+    SplicePat{}            -> []
+#endif
 
 instance (HasTags arg, HasTags rec) => HasTags (HsConDetails arg rec) where
   tags d = case d of
@@ -272,6 +296,10 @@ instance TagName name => HasTags (Sig name) where
     SpecSig{}      -> []
     SpecInstSig{}  -> []
     IdSig{}        -> []
+#if MIN_VERSION_ghc(7,8,0)
+    PatSynSig x _ _ _ _ -> tagsLN x
+    MinimalSig{}   -> []
+#endif
 
 instance TagName name => HasTags (ForeignDecl name) where
   tags d = case d of
