@@ -907,8 +907,9 @@ reduced b = case fmap ignoreSharing <$> b of
 
 -- | Controlling 'reduce'.
 data AllowedReduction
-  = ProjectionReductions -- ^ (projection and) projection-like functions may be reduced
-  | FunctionReductions   -- ^ functions which are not projections may be reduced
+  = ProjectionReductions -- ^ (Projection and) projection-like functions may be reduced.
+  | FunctionReductions   -- ^ Functions which are not projections may be reduced.
+  | LevelReductions      -- ^ Reduce @'Level'@ terms.
   deriving (Show, Eq, Ord, Enum, Bounded)
 
 type AllowedReductions = [AllowedReduction]

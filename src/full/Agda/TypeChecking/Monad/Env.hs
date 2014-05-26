@@ -75,7 +75,10 @@ onlyReduceProjections :: TCM a -> TCM a
 onlyReduceProjections = local $ \ e -> e { envAllowedReductions = [ProjectionReductions] }
 
 dontReduceProjections :: TCM a -> TCM a
-dontReduceProjections = local $ \ e -> e { envAllowedReductions = [FunctionReductions] }
+dontReduceProjections = local $ \ e -> e { envAllowedReductions = allReductions \\ [ProjectionReductions] }
+
+dontReduceLevels :: TCM a -> TCM a
+dontReduceLevels = local $ \ e -> e { envAllowedReductions = allReductions \\ [LevelReductions] }
 
 allowAllReductions :: TCM a -> TCM a
 allowAllReductions = local $ \ e -> e { envAllowedReductions = allReductions }
