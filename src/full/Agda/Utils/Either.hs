@@ -5,7 +5,8 @@
 ------------------------------------------------------------------------
 
 module Agda.Utils.Either
-  ( mapEither, mapLeft, mapRight
+  ( whileLeft, caseEitherM
+  , mapEither, mapLeft, mapRight
   , isLeft, isRight
   , allRight
   , tests
@@ -27,6 +28,11 @@ whileLeft test left right = loop where
     case test a of
       Left  b -> loop =<< left a b
       Right c -> right a c
+
+-- | Monadic version of 'either' with a different argument ordering.
+caseEitherM :: Monad m => m (Either a b) -> (a -> m c) -> (b -> m c) -> m c
+caseEitherM mm f g = either f g =<< mm
+
 
 -- | 'Either' is a bifunctor.
 
