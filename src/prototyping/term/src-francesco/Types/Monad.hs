@@ -17,6 +17,7 @@ module Types.Monad
     , getTypeOfMetaVar
     , getBodyOfMetaVar
       -- ** Context handling
+    , liftClosed
     , extendContext
     , getTypeOfName
     , getTypeOfVar
@@ -111,6 +112,9 @@ getMetaInst mv = do
 
 -- Operations on the context
 ------------------------------------------------------------------------
+
+liftClosed :: ClosedTC t a -> TC t v a
+liftClosed = tcLocal $ \env -> env{_teContext = Ctx.Empty}
 
 extendContext
     :: (IsTerm t)

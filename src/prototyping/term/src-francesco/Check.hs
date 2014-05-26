@@ -10,6 +10,7 @@ import           Data.List                        (nub)
 import           Data.Traversable                 (traverse)
 import           Prelude.Extras                   ((==#))
 import           Data.Proxy                       (Proxy)
+import           Bound                            hiding (instantiate, abstract)
 
 import           Data.Void                        (vacuous)
 import           Syntax.Abstract                  (Name)
@@ -32,7 +33,7 @@ import           Text.PrettyPrint.Extended        (render)
 check :: (IsVar v, IsTerm t) => A.Expr -> Type t v -> TC t v (Term t v)
 check synT type_ = atSrcLoc synT $ case synT of
   A.Con dataCon synArgs -> do
-    (tyCon, dataConType) <- getConDefinition dataCon
+    (tyCon, dataConType) <- getConstructorDefinition dataCon
     typeView <- whnfView type_
     case typeView of
       App (Def tyCon') tyConArgs0
@@ -158,7 +159,7 @@ checkEqual type_ x y = do
     (App (Def tyCon) tyConPars0, Con dataCon dataConArgs1, Con dataCon' dataConArgs2)
       | Just tyConPars <- mapM isApply tyConPars0
       , dataCon == dataCon' -> do
-        (tyCon', dataConType) <- getConDefinition dataCon
+        (tyCon', dataConType) <- getConstructorDefinition dataCon
         unless (tyCon == tyCon') $ error $
             "impossible.checkEqual: mismatching type constructors " ++
             show tyCon ++ ", " ++ show tyCon'
@@ -296,6 +297,47 @@ closeTerm :: (IsVar v, IsTerm t) => Term t v -> TC t v (Closed (Term t))
 closeTerm = traverse close
   where
     close = checkError . FreeVariableInEquatedTerm
+
+createPrunedMeta
+    :: (IsVar v, IsTerm t)
+    => [v]
+    -- ^ The list of allowed variables.
+    -> MetaVar
+    -- ^ The original metavariable, whose arguments we want to prune.
+    -> [Term t v]
+    -- ^ The arguments that we want to prune.
+    -> TC t v (Term t v)
+    -- ^ The term containing the new metavariable applied to the pruned
+    -- arguments
+createPrunedMeta vs0 mv mvArgs = do
+    mvType <- getTypeOfMetaVar mv
+    vacuous <$> liftClosed (createNewMeta mvType kills0 [])
+  where
+    -- This list specifies the arguments which should be killed.  Note
+    -- that if an argument is to be killed it is also guaranteed not to
+    -- appear in the type of any following arguments.
+    kills0 :: [Bool]
+    kills0 = error "TODO createPrunedMeta kills"
+
+    createNewMeta :: (IsTerm t) => Type t v -> [Bool] -> [v] -> TC t v (Term t v)
+    createNewMeta type_ [] vs = do
+      mv' <- addFreshMetaVar type_
+      return (eliminate mv' (map (Apply . var) (reverse vs)))
+    createNewMeta type_ (kill : kills) vs = do
+      typeView <- whnfView type_
+      case typeView of
+        Pi domain codomain | not kill -> do
+          let codomain' = fromAbs codomain
+          t <- extendContext (getName codomain') domain $ \v _ ->
+               createNewMeta codomain' kills (v : map F vs)
+          return (lam (toAbs t))
+        Pi domain codomain -> do
+          let codomain' =
+                instantiate codomain $
+                error "impossible.createPrunedMeta: killed argument appears later in type."
+          createNewMeta codomain' kills vs
+        _ ->
+          error "impossible.createPrunedMeta: metavar type too short."
 
 -- Checking definitions
 ------------------------------------------------------------------------
@@ -485,7 +527,7 @@ checkPattern synPat type_ ret = case synPat of
       extendContext (A.name "_") type_ $ \v ctxV ->
       ret (Ctx.weaken ctxV) VarP (var v)
     A.ConP dataCon synPats -> do
-      (typeCon, dataConType) <- getConDefinition dataCon
+      (typeCon, dataConType) <- getConstructorDefinition dataCon
       typeConDef <- getDefinition typeCon
       case typeConDef of
         Constant _ Data   _ -> return ()
@@ -599,17 +641,18 @@ addClause f ps v = do
   where
     c = Clause ps v
 
-getConDefinition
+getConstructorDefinition
     :: (IsVar v, IsTerm t)
     => Name -> TC t v (Name, Tel.ClosedIdTel t)
-getConDefinition dataCon = do
+getConstructorDefinition dataCon = do
   def' <- getDefinition dataCon
   case def' of
     Constructor _ tyCon dataConType ->
       return (tyCon, dataConType)
     _ ->
-      error $ "impossible.getConDefinition: non data constructor " ++
+      error $ "impossible.getConstructorDefinition: non data constructor " ++
               show dataCon
+
 
 -- Telescope utils
 ------------------
