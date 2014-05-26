@@ -1,0 +1,6 @@
+
+Termination checking failed for the following functions:
+  noo
+Problematic calls:
+  noo FOne iso x
+    (at TerminationAndUnivalence.agda:32,27-30)
