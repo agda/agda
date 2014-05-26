@@ -285,7 +285,10 @@ instance Reduce Term where
           v <- unfoldDefinition False reduceB' (Con c []) (conName c) args
           traverse reduceNat v
       Sort s   -> fmap sortTm <$> reduceB' s
-      Level l  -> fmap levelTm <$> reduceB' l
+      Level l  -> ifM (elem LevelReductions <$> asks envAllowedReductions)
+                    {- then -} (fmap levelTm <$> reduceB' l)
+                    {- else -} done
+      -- Level l  -> fmap levelTm <$> reduceB' l
       Pi _ _   -> done
       Lit _    -> done
       Var _ _  -> done
