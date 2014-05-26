@@ -1,4 +1,8 @@
+-- 2014-05-26 Andrea & Andreas, AIM XIX
+-- Too eager pruning
+
 module succeed.Issue1147 where
+
 open import Common.Equality
 open import Common.Product
 open import Common.Prelude
@@ -19,3 +23,15 @@ test2 = refl , refl
 
 test3 : let H : Set; H = _; M : (Bool × Bool) -> Set → Set; M = _ in {z : Set} {b : Bool} → H ≡ (M (true , b) z) × M ≡ (\ b z → if proj₁ b then A else1 z)
 test3 = refl , refl
+
+-- Also for defined functions
+
+fun : Bool → Bool
+fun true  = true
+fun false = false
+
+works4 : let H : Set; H = _; M : (Bool -> Bool) -> Set → Set; M = _ in {z : Set} → M ≡ (\ b z → if b true then A else1 z) × H ≡ (M fun z)
+works4 = refl , refl
+
+test4 : let H : Set; H = _; M : (Bool -> Bool) -> Set → Set; M = _ in {z : Set} → H ≡ (M fun z) × M ≡ (\ b z → if b true then A else1 z)
+test4 = refl , refl

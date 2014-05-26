@@ -23,7 +23,9 @@ import Agda.TypeChecking.Substitute
 import Agda.TypeChecking.Records
 import Agda.TypeChecking.Datatypes (isDataOrRecordType)
 import {-# SOURCE #-} Agda.TypeChecking.MetaVars
+-- import Agda.TypeChecking.MetaVars
 
+import Agda.Utils.Either
 import Agda.Utils.List (takeWhileJust)
 import Agda.Utils.Maybe
 import Agda.Utils.Monad
@@ -429,10 +431,15 @@ instance Occurs a => Occurs [a] where
 --   free variables are not contained in @xs@.
 --   If successful, @m'@ is solved by the new, pruned meta variable and we
 --   return @True@ else @False@.
+--
+--   Issue 1147:
+--   If any of the meta args @vs@ is matchable, e.g., is a constructor term,
+--   we cannot prune, because the offending variables could be removed by
+--   reduction for a suitable instantiation of the meta variable.
 prune :: MetaId -> Args -> [Nat] -> TCM PruneResult
-prune m' vs xs = ifM (or <$> mapM (isMatchable . unArg) vs) (return PrunedNothing) $
- liftTCM $ do
-  kills <- mapM (hasBadRigid xs) $ map unArg vs
+prune m' vs xs = do
+  caseEitherM (runErrorT $ mapM (hasBadRigid xs) $ map unArg vs)
+    (const $ return PrunedNothing) $ \ kills -> do
   reportSDoc "tc.meta.kill" 10 $ vcat
     [ text "attempting kills"
     , nest 2 $ vcat
@@ -452,19 +459,18 @@ prune m' vs xs = ifM (or <$> mapM (isMatchable . unArg) vs) (return PrunedNothin
 -}
   killArgs kills m'
 
-
-isMatchable :: Term -> TCM Bool
-isMatchable (Lam _ b) = isMatchable (absBody b)
-isMatchable (Con c args) =
-  ifM (isEtaCon (conName c)) (or <$> mapM (isMatchable . unArg) args) (return True)
-isMatchable _         = return False
-
--- | @hasBadRigid xs v = True@ iff one of the rigid variables in @v@ is not in @xs@.
+-- | @hasBadRigid xs v = Just True@ iff one of the rigid variables in @v@ is not in @xs@.
 --   Actually we can only prune if a bad variable is in the head. See issue 458.
 --   Or in a non-eliminateable position (see succeed/PruningNonMillerPattern).
-hasBadRigid :: [Nat] -> Term -> TCM Bool
+--
+--   @hasBadRigid xs v = Nothing@ means that
+--   we cannot prune at all as one of the meta args is matchable.
+--   (See issue 1147.)
+hasBadRigid :: [Nat] -> Term -> ErrorT () TCM Bool
 hasBadRigid xs t = do
-  t <- reduce t
+  -- We fail if we encounter a matchable argument.
+  let failure = throwError ()
+  t <- liftTCM $ reduce t
   case ignoreSharing t of
     (Var x _)    -> return $ notElem x xs
     (Lam _ v)    -> hasBadRigid (0 : map (+1) xs) (absBody v)
@@ -472,10 +478,8 @@ hasBadRigid xs t = do
     -- The following types of arguments cannot be eliminated by a pattern
     -- match: data, record, Pi, levels, sorts
     -- Thus, their offending rigid variables are bad.
-    v@(Def f vs) ->
-      ifM (isJust <$> isDataOrRecordType f)
-        (return $ vs `rigidVarsNotContainedIn` xs)
-        (return $ False)
+    v@(Def f es) -> ifNotM (isNeutral f es) failure $ {- else -} do
+      return $ es `rigidVarsNotContainedIn` xs
     -- Andreas, 2012-05-03: There is room for further improvement.
     -- We could also consider a defined f which is not blocked by a meta.
     (Pi a b)     -> return $ (a,b) `rigidVarsNotContainedIn` xs
@@ -485,10 +489,30 @@ hasBadRigid xs t = do
     -- offending variables under a constructor could be removed by
     -- the right instantiation of the meta variable.
     -- Thus, they are not rigid.
-    Con{}        -> return $ False
-    Lit{}        -> return $ False -- no variables in Lit
-    MetaV{}      -> return $ False -- no rigid variables under a meta
-    (Shared p)   -> hasBadRigid xs (derefPtr p)
+    (Con c args) -> do
+      ifM (liftTCM $ isEtaCon (conName c))
+        -- in case of a record con, we can in principle prune
+        -- (but not this argument; the meta could become a projection!)
+        (False <$ mapM (hasBadRigid xs . unArg) args)
+        failure
+    Lit{}        -> failure -- matchable
+    MetaV{}      -> failure -- potentially matchable
+    (Shared p)   -> __IMPOSSIBLE__
+
+-- | Check whether a term @Def f es@ is finally stuck.
+--   Currently, we give only a crude approximation.
+isNeutral :: MonadTCM tcm => QName -> Elims -> tcm Bool
+isNeutral f es = liftTCM $ do
+  let yes = return True
+  def <- getConstInfo f
+  case theDef def of
+    Axiom{}    -> yes
+    Datatype{} -> yes
+    Record{}   -> yes
+    _          -> return False
+      -- TODO: more precise analysis
+      -- We need to check whether a function is stuck on a variable
+      -- (not meta variable), but the API does not help us...
 
 -- This could be optimized, by not computing the whole variable set
 -- at once, but allow early failure
