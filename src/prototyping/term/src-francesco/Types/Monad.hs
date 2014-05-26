@@ -28,8 +28,10 @@ module Types.Monad
     , Term
     , Type
       -- ** Context operations
+    , ctxVars
     , ctxPi
     , ctxApp
+    , ctxLam
     ) where
 
 import Prelude                                    hiding (abs, pi)
@@ -144,20 +146,30 @@ closeClauseBody t = do
 -- Context
 ----------
 
--- | Applies a 'Term' to all the variables in the context.  The
--- variables are applied from left to right.
-ctxApp :: IsTerm t => Type t v -> Ctx.Ctx v0 (Type t) v -> Type t v
-ctxApp t ctx0 = eliminate t $ map (Apply . var) $ reverse $ go ctx0
+-- | Collects all the variables in the 'Ctx.Ctx'.
+ctxVars :: IsTerm t => Ctx.Ctx v0 (Type t) v -> [v]
+ctxVars = go
   where
     go :: IsTerm t => Ctx.Ctx v0 (Type t) v -> [v]
-    go Ctx.Empty                    = []
-    go (Ctx.Snoc ctx (name, _type)) = boundTermVar name : map F (go ctx)
+    go Ctx.Empty                = []
+    go (Ctx.Snoc ctx (name, _)) = boundTermVar name : map F (go ctx)
+
+-- | Applies a 'Term' to all the variables in the context.  The
+-- variables are applied from left to right.
+ctxApp :: IsTerm t => Term t v -> Ctx.Ctx v0 (Type t) v -> Term t v
+ctxApp t ctx0 = eliminate t $ map (Apply . var) $ reverse $ ctxVars ctx0
 
 -- | Creates a 'Pi' type containing all the types in the 'Ctx' and
 -- terminating with the provided 't'.
 ctxPi :: IsTerm t => Ctx.Ctx v0 (Type t) v -> Type t v -> Type t v0
 ctxPi Ctx.Empty                  t = t
 ctxPi (Ctx.Snoc ctx (_n, type_)) t = ctxPi ctx $ pi type_ (toAbs t)
+
+-- | Creates a 'Lam' term with as many arguments there are in the
+-- 'Ctx.Ctx'.
+ctxLam :: IsTerm t => Ctx.Ctx v0 (Type t) v -> Term t v -> Term t v0
+ctxLam Ctx.Empty        t = t
+ctxLam (Ctx.Snoc ctx _) t = ctxLam ctx $ lam $ toAbs t
 
 -- Pretty printing
 ------------------

@@ -17,18 +17,18 @@ executable tc
   -- other-modules:       
   -- other-extensions:    
 
-  build-depends:       base >= 4.6 && < 4.7
-                     , array >= 0.4 && < 0.5
-                     , bound >= 1.0 && < 1.1
-                     , containers >= 0.5 && < 0.6
-                     , hashable >= 1.2 && < 1.3
-                     , mtl >= 2.1 && < 2.2
-                     , prelude-extras >= 0.4 && < 0.5
-                     , pretty >= 1.1 && < 1.2
-                     , tagged >= 0.7 && < 0.8
-                     , transformers >= 0.3 && < 0.4
-                     , unordered-containers >= 0.2 && < 0.3
-                     , void >= 0.6 && < 0.7
+  build-depends:       base >= 4.6
+                     , array >= 0.4
+                     , bound >= 1.0
+                     , containers >= 0.5
+                     , hashable >= 1.2
+                     , mtl >= 2.1
+                     , prelude-extras >= 0.4
+                     , pretty >= 1.1
+                     , tagged >= 0.7
+                     , transformers >= 0.3
+                     , unordered-containers >= 0.2
+                     , void >= 0.6
 
   hs-source-dirs:      ., ../dist
   default-language:    Haskell2010
