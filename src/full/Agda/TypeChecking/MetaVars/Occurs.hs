@@ -463,29 +463,32 @@ isMatchable _         = return False
 --   Actually we can only prune if a bad variable is in the head. See issue 458.
 --   Or in a non-eliminateable position (see succeed/PruningNonMillerPattern).
 hasBadRigid :: [Nat] -> Term -> TCM Bool
-hasBadRigid xs (Var x _)    = return $ notElem x xs
-hasBadRigid xs (Lam _ v)    = hasBadRigid (0 : map (+1) xs) (absBody v)
-hasBadRigid xs (DontCare v) = hasBadRigid xs v
--- The following types of arguments cannot be eliminated by a pattern
--- match: data, record, Pi, levels, sorts
--- Thus, their offending rigid variables are bad.
-hasBadRigid xs v@(Def f vs) =
-  ifM (isJust <$> isDataOrRecordType f)
-    (return $ vs `rigidVarsNotContainedIn` xs)
-    (return $ False)
-  -- Andreas, 2012-05-03: There is room for further improvement.
-  -- We could also consider a defined f which is not blocked by a meta.
-hasBadRigid xs (Pi a b)     = return $ (a,b) `rigidVarsNotContainedIn` xs
-hasBadRigid xs (Level v)    = return $ v `rigidVarsNotContainedIn` xs
-hasBadRigid xs (Sort s)     = return $ s `rigidVarsNotContainedIn` xs
--- Since constructors can be eliminated by pattern-matching,
--- offending variables under a constructor could be removed by
--- the right instantiation of the meta variable.
--- Thus, they are not rigid.
-hasBadRigid xs Con{}        = return $ False
-hasBadRigid xs Lit{}        = return $ False -- no variables in Lit
-hasBadRigid xs MetaV{}      = return $ False -- no rigid variables under a meta
-hasBadRigid xs (Shared p)   = hasBadRigid xs (derefPtr p)
+hasBadRigid xs t = do
+  t <- reduce t
+  case ignoreSharing t of
+    (Var x _)    -> return $ notElem x xs
+    (Lam _ v)    -> hasBadRigid (0 : map (+1) xs) (absBody v)
+    (DontCare v) -> hasBadRigid xs v
+    -- The following types of arguments cannot be eliminated by a pattern
+    -- match: data, record, Pi, levels, sorts
+    -- Thus, their offending rigid variables are bad.
+    v@(Def f vs) ->
+      ifM (isJust <$> isDataOrRecordType f)
+        (return $ vs `rigidVarsNotContainedIn` xs)
+        (return $ False)
+    -- Andreas, 2012-05-03: There is room for further improvement.
+    -- We could also consider a defined f which is not blocked by a meta.
+    (Pi a b)     -> return $ (a,b) `rigidVarsNotContainedIn` xs
+    (Level v)    -> return $ v `rigidVarsNotContainedIn` xs
+    (Sort s)     -> return $ s `rigidVarsNotContainedIn` xs
+    -- Since constructors can be eliminated by pattern-matching,
+    -- offending variables under a constructor could be removed by
+    -- the right instantiation of the meta variable.
+    -- Thus, they are not rigid.
+    Con{}        -> return $ False
+    Lit{}        -> return $ False -- no variables in Lit
+    MetaV{}      -> return $ False -- no rigid variables under a meta
+    (Shared p)   -> hasBadRigid xs (derefPtr p)
 
 -- This could be optimized, by not computing the whole variable set
 -- at once, but allow early failure
