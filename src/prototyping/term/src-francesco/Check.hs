@@ -3,8 +3,11 @@ module Check (checkProgram) where
 import           Prelude                          hiding (abs, pi)
 
 import           Data.Functor                     ((<$>))
+import           Data.Foldable                    (foldMap,fold)
+import           Data.Monoid                      (Monoid(..),(<>))
 import           Debug.Trace                      (trace)
 import qualified Data.HashSet                     as HS
+import           Control.Applicative              (Applicative(..))
 import           Control.Monad                    (when, guard, unless)
 import           Data.List                        (nub)
 import           Data.Traversable                 (traverse)
@@ -303,6 +306,46 @@ metaAssign mv elims t =
                     render mv ++ " := " ++ renderView t'
             instantiateMetaVar mv t'
 
+rigidVars :: forall t v0.
+             (IsVar v0, IsTerm t)
+          => [v0]
+          -- ^ vars that count as flexible, and so also flexible contexts
+          -> Term t v0 -> TC t v0 [v0]
+rigidVars vs t = do
+  sigma <- getSignature 
+  let  
+    go :: (IsVar v)
+       => (v -> Maybe v0)
+       -> (v -> Bool)
+       -- ^ vars that count as flexible, and so also flexible contexts
+       -> Term t v -> [v0]
+    go strengthen flex t = 
+      case view (whnf sigma t) of
+        Lam body -> 
+          go (lift strengthen) (addNew flex) (fromAbs body)
+        Pi domain codomain            -> go strengthen flex domain <> go (lift strengthen) (ignoreNew flex) (fromAbs codomain)  
+        Equal type_ x y               -> foldMap (go strengthen flex) [type_, x, y]
+        App (Var v) elims | flex v    -> mempty
+                          | otherwise -> maybe mempty (:[]) (strengthen v) <> foldMap (go strengthen flex) [  t | Apply t <- elims ]
+        App (Def d) elims             -> foldMap (go strengthen flex) [ t | Apply t <- elims ]
+        App J       elims             -> foldMap (go strengthen flex) [ t | Apply t <- elims ]
+        App (Meta mv) elims           -> mempty
+        Set                           -> mempty
+        Refl                          -> mempty
+        Con _ args                    -> foldMap (go strengthen flex) args
+    
+    lift :: (v -> Maybe v0) -> TermVar v -> Maybe v0
+    lift f (B _) = Nothing
+    lift f (F v) = f v
+    
+    ignoreNew f (B _) = False
+    ignoreNew f (F v) = f v
+
+    addNew f (B _) = True
+    addNew f (F v) = f v
+      
+  return $ go Just (`elem` vs) t
+  
 distinctVariables :: (IsVar v, IsTerm t) => [Elim (Term t) v] -> Maybe [v]
 distinctVariables elims = do
     vs <- mapM isVar elims
