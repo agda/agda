@@ -12,12 +12,13 @@ module Agda.Syntax.Concrete.Definitions
 
 import Control.Arrow ((***))
 import Control.Applicative
+import Control.Monad.Error
+import Control.Monad.State
+
 import Data.Typeable (Typeable)
 import Data.Foldable hiding (concatMap, mapM_, notElem, elem, all)
 import qualified Data.Map as Map
 import Data.Map (Map)
-import Control.Monad.Error
-import Control.Monad.State
 import Data.List as List
 import Data.Traversable (traverse)
 
