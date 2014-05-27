@@ -155,6 +155,7 @@ data ModuleApplication
 
 data Pragma = OptionsPragma [String]
 	    | BuiltinPragma String Expr
+	    | RewritePragma QName
             | CompiledPragma QName String
             | CompiledExportPragma QName String
             | CompiledTypePragma QName String

@@ -21,6 +21,7 @@ data Keyword
 	| KwCOMPILED_DATA | KwCOMPILED_TYPE | KwCOMPILED | KwCOMPILED_EXPORT
         | KwCOMPILED_EPIC | KwCOMPILED_JS
 	| KwIMPORT | KwIMPOSSIBLE | KwETA | KwNO_TERMINATION_CHECK | KwMEASURE | KwSTATIC
+        | KwREWRITE
 	| KwQuoteGoal | KwQuoteContext | KwQuote | KwQuoteTerm | KwUnquote | KwSyntax
         | KwPatternSyn
     deriving (Eq, Show)

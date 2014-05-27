@@ -42,6 +42,7 @@ import Agda.TypeChecking.Primitive hiding (Nat)
 import Agda.TypeChecking.ProjectionLike
 import Agda.TypeChecking.Records
 import Agda.TypeChecking.Reduce
+import Agda.TypeChecking.Rewriting
 import Agda.TypeChecking.SizedTypes.Solve
 import Agda.TypeChecking.Substitute
 import Agda.TypeChecking.Telescope
@@ -362,6 +363,7 @@ checkPragma :: Range -> A.Pragma -> TCM ()
 checkPragma r p =
     traceCall (CheckPragma r p) $ case p of
 	A.BuiltinPragma x e -> bindBuiltin x e
+	A.RewritePragma q   -> addRewriteRule q
         A.CompiledTypePragma x hs -> do
           def <- getConstInfo x
           case theDef def of

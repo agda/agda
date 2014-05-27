@@ -79,6 +79,7 @@ tokens :-
 <pragma_>   "#-}"		   { endWith $ symbol SymClosePragma }
 <pragma_>   "OPTIONS"              { keyword KwOPTIONS }
 <pragma_>   "BUILTIN"              { keyword KwBUILTIN }
+<pragma_>   "REWRITE"              { keyword KwREWRITE }
 <pragma_>   "COMPILED_DATA"        { keyword KwCOMPILED_DATA }
 <pragma_>   "COMPILED_TYPE"        { keyword KwCOMPILED_TYPE }
 <pragma_>   "COMPILED"             { keyword KwCOMPILED }

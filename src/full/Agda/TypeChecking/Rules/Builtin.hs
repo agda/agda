@@ -23,6 +23,7 @@ import Agda.TypeChecking.Irrelevance
 import Agda.TypeChecking.Monad.SizedTypes ( builtinSizeHook )
 import Agda.TypeChecking.Rules.Term ( checkExpr , inferExpr )
 import {-# SOURCE #-} Agda.TypeChecking.Rules.Builtin.Coinduction
+import {-# SOURCE #-} Agda.TypeChecking.Rewriting
 
 import Agda.Utils.Maybe
 import Agda.Utils.Size
@@ -70,6 +71,7 @@ coreBuiltins = map (\ (x, z) -> BuiltinInfo x z)
                                                     hPi "A" (return $ sort $ varSort 0) $
                                                     hPi "x" (El (varSort 1) <$> varM 0) $
                                                     El (varSort 2) <$> primEquality <#> varM 2 <#> varM 1 <@> varM 0 <@> varM 0))
+  , (builtinRewrite           |-> BuiltinUnknown Nothing verifyBuiltinRewrite)
   , (builtinNil                |-> BuiltinDataCons (hPi "A" tset (el (list v0))))
   , (builtinCons               |-> BuiltinDataCons (hPi "A" tset (tv0 --> el (list v0) --> el (list v0))))
   , (builtinZero               |-> BuiltinDataCons tnat)

@@ -102,6 +102,7 @@ import Agda.Utils.Tuple
     'pattern'       { TokKeyword KwPatternSyn $$ }
     'OPTIONS'       { TokKeyword KwOPTIONS $$ }
     'BUILTIN'       { TokKeyword KwBUILTIN $$ }
+    'REWRITE'       { TokKeyword KwREWRITE $$ }
     'IMPORT'        { TokKeyword KwIMPORT $$ }
     'IMPOSSIBLE'    { TokKeyword KwIMPOSSIBLE $$ }
     'ETA'           { TokKeyword KwETA $$ }
@@ -209,6 +210,7 @@ Token
     | 'pattern'     { TokKeyword KwPatternSyn $1 }
     | 'OPTIONS'	    { TokKeyword KwOPTIONS $1 }
     | 'BUILTIN'     { TokKeyword KwBUILTIN $1 }
+    | 'REWRITE'     { TokKeyword KwREWRITE $1 }
     | 'IMPORT'      { TokKeyword KwIMPORT $1 }
     | 'COMPILED'    { TokKeyword KwCOMPILED $1 }
     | 'COMPILED_EXPORT'    { TokKeyword KwCOMPILED_EXPORT $1 }
@@ -1208,6 +1210,7 @@ Pragma : DeclarationPragma  { Pragma $1 }
 DeclarationPragma :: { Pragma }
 DeclarationPragma
   : BuiltinPragma            { $1 }
+  | RewritePragma            { $1 }
   | CompiledPragma           { $1 }
   | CompiledExportPragma     { $1 }
   | CompiledDataPragma       { $1 }
@@ -1232,6 +1235,13 @@ BuiltinPragma :: { Pragma }
 BuiltinPragma
     : '{-#' 'BUILTIN' string PragmaQName '#-}'
       { BuiltinPragma (getRange ($1,$2,fst $3,$4,$5)) (snd $3) (Ident $4) }
+    | '{-#' 'BUILTIN' 'REWRITE' PragmaQName '#-}'
+      { BuiltinPragma (getRange ($1,$2,$3,$4,$5)) "REWRITE" (Ident $4) }
+
+RewritePragma :: { Pragma }
+RewritePragma
+    : '{-#' 'REWRITE' PragmaQName '#-}'
+      { RewritePragma (getRange ($1,$2,$3,$4)) $3 }
 
 CompiledPragma :: { Pragma }
 CompiledPragma

@@ -1283,6 +1283,13 @@ instance ToAbstract ConstrDecl A.Declaration where
 instance ToAbstract C.Pragma [A.Pragma] where
     toAbstract (C.ImpossiblePragma _) = impossibleTest
     toAbstract (C.OptionsPragma _ opts) = return [ A.OptionsPragma opts ]
+    toAbstract (C.RewritePragma _ x) = do
+      e <- toAbstract $ OldQName x
+      case e of
+        A.Def x          -> return [ A.RewritePragma x ]
+        A.Con (AmbQ [x]) -> return [ A.RewritePragma x ]
+        A.Con x          -> fail $ "REWRITE used on ambiguous name " ++ show x
+        _       -> __IMPOSSIBLE__
     toAbstract (C.CompiledTypePragma _ x hs) = do
       e <- toAbstract $ OldQName x
       case e of

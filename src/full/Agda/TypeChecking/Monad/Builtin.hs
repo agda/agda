@@ -114,6 +114,7 @@ primInteger, primFloat, primChar, primString, primBool, primTrue, primFalse,
     primSize, primSizeLt, primSizeSuc, primSizeInf,
     primInf, primSharp, primFlat,
     primEquality, primRefl,
+    primRewrite, -- Name of rewrite relation
     primLevel, primLevelZero, primLevelSuc, primLevelMax,
     primIrrAxiom, primSizeMax,
     -- builtins for reflection:
@@ -159,6 +160,7 @@ primSharp        = getBuiltin builtinSharp
 primFlat         = getBuiltin builtinFlat
 primEquality     = getBuiltin builtinEquality
 primRefl         = getBuiltin builtinRefl
+primRewrite      = getBuiltin builtinRewrite
 primLevel        = getBuiltin builtinLevel
 primLevelZero    = getBuiltin builtinLevelZero
 primLevelSuc     = getBuiltin builtinLevelSuc
@@ -231,6 +233,7 @@ builtinSharp        = "SHARP"
 builtinFlat         = "FLAT"
 builtinEquality     = "EQUALITY"
 builtinRefl         = "REFL"
+builtinRewrite      = "REWRITE"
 builtinLevelMax     = "LEVELMAX"
 builtinLevel        = "LEVEL"
 builtinLevelZero    = "LEVELZERO"
