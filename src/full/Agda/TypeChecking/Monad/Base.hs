@@ -87,10 +87,6 @@ data TCState =
          , stTermErrs          :: Seq TerminationError
 	 , stMetaStore	       :: MetaStore
 	 , stInteractionPoints :: InteractionPoints
-         , stOldInteractionPoints :: OldInteractionPoints
-            -- ^ We remember (the scope of) old interaction points to make it
-            --   possible to parse and compute highlighting information for the
-            --   expression that it got replaced by.
 	 , stAwakeConstraints    :: Constraints
 	 , stSleepingConstraints :: Constraints
          , stDirty               :: Bool
@@ -172,7 +168,6 @@ initState = TCSt
   , stTokens               = mempty
   , stTermErrs             = Seq.empty
   , stInteractionPoints    = Map.empty
-  , stOldInteractionPoints = Map.empty
   , stAwakeConstraints     = []
   , stSleepingConstraints  = []
   , stDirty                = False
@@ -576,8 +571,6 @@ instance Eq InteractionPoint where (==) = (==) `on` ipMeta
 
 -- | Data structure managing the interaction points.
 type InteractionPoints = Map InteractionId InteractionPoint
-
-type OldInteractionPoints = Map InteractionId ScopeInfo
 
 ---------------------------------------------------------------------------
 -- ** Signature

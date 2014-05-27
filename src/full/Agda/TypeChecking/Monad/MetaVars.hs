@@ -214,11 +214,6 @@ removeInteractionPoint :: InteractionId -> TCM ()
 removeInteractionPoint ii = do
   scope <- getInteractionScope ii
   modifyInteractionPoints $ Map.delete ii
-  modify $ \s -> s { stOldInteractionPoints = Map.insert ii scope $ stOldInteractionPoints s }
-
-removeOldInteractionPoint :: InteractionId -> TCM ()
-removeOldInteractionPoint ii =
-  modify $ \s -> s { stOldInteractionPoints = Map.delete ii $ stOldInteractionPoints s }
 
 -- | Get a list of interaction ids.
 getInteractionPoints :: TCM [InteractionId]
@@ -280,13 +275,6 @@ getMetaRange = getRange <.> lookupMeta
 
 getInteractionScope :: InteractionId -> TCM ScopeInfo
 getInteractionScope = getMetaScope <.> lookupMeta <=< lookupInteractionId
-
-getOldInteractionScope :: InteractionId -> TCM ScopeInfo
-getOldInteractionScope ii = do
-  ms <- gets $ Map.lookup ii . stOldInteractionPoints
-  case ms of
-    Nothing    -> fail $ "not an old interaction point: " ++ show ii
-    Just scope -> return scope
 
 withMetaInfo' :: MetaVariable -> TCM a -> TCM a
 withMetaInfo' mv = withMetaInfo (miClosRange $ mvInfo mv)

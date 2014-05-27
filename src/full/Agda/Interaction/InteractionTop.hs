@@ -27,6 +27,7 @@ import Data.Foldable (Foldable)
 import Data.Function
 import Data.List as List
 import Data.Maybe
+import Data.Map (Map)
 import qualified Data.Map as Map
 import Data.Monoid
 import Data.Traversable (Traversable)
@@ -100,6 +101,10 @@ data CommandState = CommandState
     -- the file when it was last loaded.
   , optionsOnReload :: CommandLineOptions
     -- ^ Reset the options on each reload to these.
+  , oldInteractionScopes :: Map InteractionId ScopeInfo
+    -- ^ We remember (the scope of) old interaction points to make it
+    --   possible to parse and compute highlighting information for the
+    --   expression that it got replaced by.
   }
 
 -- | Initial auxiliary interaction state
@@ -109,6 +114,7 @@ initCommandState = CommandState
   { theInteractionPoints = []
   , theCurrentFile       = Nothing
   , optionsOnReload      = defaultOptions
+  , oldInteractionScopes = Map.empty
   }
 
 
@@ -154,6 +160,23 @@ modifyTheInteractionPoints :: ([InteractionId] -> [InteractionId]) -> CommandM (
 modifyTheInteractionPoints f = modify $ \ s ->
   s { theInteractionPoints = f (theInteractionPoints s) }
 
+
+-- | Operations for manipulating 'oldInteractionScopes'.
+
+insertOldInteractionScope :: InteractionId -> ScopeInfo -> CommandM ()
+insertOldInteractionScope ii scope =
+  modify $ \s -> s { oldInteractionScopes = Map.insert ii scope $ oldInteractionScopes s }
+
+removeOldInteractionScope :: InteractionId -> CommandM ()
+removeOldInteractionScope ii =
+  modify $ \s -> s { oldInteractionScopes = Map.delete ii $ oldInteractionScopes s }
+
+getOldInteractionScope :: InteractionId -> CommandM ScopeInfo
+getOldInteractionScope ii = do
+  ms <- gets $ Map.lookup ii . oldInteractionScopes
+  case ms of
+    Nothing    -> fail $ "not an old interaction point: " ++ show ii
+    Just scope -> return scope
 
 -- | Run an 'IOTCM' value, catch the exceptions, emit output
 --
@@ -560,10 +583,10 @@ interpret (Cmd_load_highlighting_info source) = do
                 return Nothing
     mapM_ putResponse resp
 
-interpret (Cmd_highlight ii rng s) = withCurrentFile $
+interpret (Cmd_highlight ii rng s) = withCurrentFile $ do
+  scope <- getOldInteractionScope ii
+  removeOldInteractionScope ii
   lift (do
-    scope <- getOldInteractionScope ii
-    removeOldInteractionPoint ii
     e     <- concreteToAbstract scope =<< B.parseExpr rng s
     printHighlightingInfo =<< generateTokenInfoFromString rng s
     highlightExpr e)
@@ -794,6 +817,8 @@ give_gen ii rng s giveRefine = withCurrentFile $ do
     mis' <- getInteractionPoints
     reportSLn "interaction.give" 30 $ "interaction points after = " ++ show mis'
     return (ae, mis' \\ mis)
+  -- favonia: backup the old scope for highlighting
+  when (giveRefine == Give) $ insertOldInteractionScope ii scope
   -- sort the new interaction points and put them into the state
   -- in replacement of the old interaction point
   iis       <- lift $ sortInteractionPoints iis
