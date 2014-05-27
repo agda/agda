@@ -1,5 +1,5 @@
 MetaCannotDependOn.agda:13,22-24
-Cannot instantiate the metavariable _9 to solution Vec n Nat since
+Cannot instantiate the metavariable _10 to solution Vec n Nat since
 it contains the variable n which is not in scope of the
 metavariable or irrelevant in the metavariable but relevant in the
 solution

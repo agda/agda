@@ -2,4 +2,4 @@
 Termination checking failed for the following functions:
   ℓ
 Problematic calls:
-  ℓ (at Issue256.agda:14,22-23)
+  ℓ b

@@ -47,10 +47,12 @@ import Agda.TypeChecking.CompiledClause.Compile
 import Agda.TypeChecking.Rules.Term                ( checkExpr, inferExpr, inferExprForWith, checkDontExpandLast, checkTelescope_, ConvColor(..) )
 import Agda.TypeChecking.Rules.LHS                 ( checkLeftHandSide )
 import {-# SOURCE #-} Agda.TypeChecking.Rules.Decl ( checkDecls )
+-- import Agda.TypeChecking.Rules.Decl -- To compile in ghci
 
 import Agda.Utils.Size
 import Agda.Utils.Permutation
 import Agda.Utils.Monad
+import Agda.Utils.Tuple
 
 #include "../../undefined.h"
 import Agda.Utils.Impossible
@@ -89,6 +91,32 @@ isAlias cs t =
     trivialClause [A.Clause (A.LHS i (A.LHSHead f []) []) (A.RHS e) []] = Just e
     trivialClause _ = Nothing
 
+-- | While we are assembling a definition by clauses, the last clause is @f = ?f@
+--   Get the meta @?f@ as 'Term'.
+getFunMeta :: QName -> TCM (Maybe Term)
+getFunMeta name = do
+  lastClauseBody <- clauseBody . last . funClauses . theDef <$> getConstInfo name
+  return $ loop lastClauseBody
+  -- case loop lastClauseBody of
+  --   Just res -> return res
+  --   Nothing  -> do
+  --     reportSDoc "impossible" 10 $ prettyTCM name <+> text " does not have a meta in last clause, but body " <+> prettyTCM lastClauseBody
+  --     __IMPOSSIBLE__
+  -- -- Not impossible since meta can have been eta-expanded away
+  where
+    loop :: ClauseBody -> Maybe Term
+    loop (Body v@(MetaV x _)) = return v
+    loop (Bind b)             = Lam defaultArgInfo <$> traverse loop b
+    loop _                    = Nothing
+
+-- | Set @?f = f@ (solving the constraints for @?f@).
+solveFunMeta :: QName -> Maybe Term -> TCM ()
+solveFunMeta name Nothing  = return ()
+solveFunMeta name (Just v) = do
+  t <- defType <$> getConstInfo name
+  unfreezeMeta v
+  equalTerm t (Def name []) v
+
 -- | Check a trivial definition of the form @f = e@
 checkAlias :: Type -> I.ArgInfo -> Delayed -> Info.DefInfo -> QName -> A.Expr -> TCM ()
 checkAlias t' ai delayed i name e = do
@@ -117,6 +145,8 @@ checkAlias t' ai delayed i name e = do
     -- that cannot be converted to expressions without the level built-ins
     -- (test/succeed/Issue655.agda)
 
+  funMeta <- getFunMeta name
+
   -- Add the definition
   addConstant name $ defaultDefn ai name t
                    $ Function
@@ -140,6 +170,9 @@ checkAlias t' ai delayed i name e = do
                       , funExtLam         = Nothing
                       , funWith           = Nothing
                       }
+
+  solveFunMeta name funMeta
+
   reportSDoc "tc.def.alias" 20 $ text "checkAlias: leaving"
 
 
@@ -185,8 +218,11 @@ checkFunDef' t ai delayed extlam with i name cs =
               unless (isJust extlam) $ solveSizeConstraints
               -- Andreas, 2013-10-27 add clause as soon it is type-checked
               -- TODO: instantiateFull?
-              addClauses name [c]
+              addClauseButLast name c
               return c
+
+        -- The last clause is of the form @name = ?name@.  Save the meta variable.
+        funMeta <- getFunMeta name
 
         -- After checking, remove the clauses again.
         -- (Otherwise, @checkInjectivity@ loops for issue 801).
@@ -253,6 +289,9 @@ checkFunDef' t ai delayed extlam with i name cs =
              , funExtLam         = extlam
              , funWith           = with
              }
+
+        -- Check the constraints that may have been generated for funMeta.
+        solveFunMeta name funMeta
 
         -- Andreas 2012-02-13: postpone polarity computation until after positivity check
         -- computePolarity name
@@ -719,7 +758,8 @@ checkWithFunction (WithFunction f aux gamma delta1 delta2 vs as b qs perm' perm 
       , prettyList $ map prettyTCM ts
       , prettyTCM dt
       ]
-  addConstant aux (Defn defaultArgInfo aux auxType [] [] [df] 0 noCompiledRep emptyFunction)
+  addConstant aux . Defn defaultArgInfo aux auxType [] [] [df] 0 noCompiledRep
+    =<< newEmptyFunction auxType
   -- solveSizeConstraints -- Andreas, 2012-10-16 does not seem necessary
 
   reportSDoc "tc.with.top" 10 $ sep

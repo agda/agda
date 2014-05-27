@@ -34,6 +34,7 @@ import Agda.TypeChecking.Conversion
 import Agda.TypeChecking.Errors
 import Agda.TypeChecking.Injectivity
 import Agda.TypeChecking.InstanceArguments (solveIrrelevantMetas)
+import Agda.TypeChecking.MetaVars
 import Agda.TypeChecking.Positivity
 import Agda.TypeChecking.Polarity
 import Agda.TypeChecking.Pretty
@@ -325,11 +326,11 @@ checkAxiom funSig i info0 x e = do
     ]
   -- Not safe. See Issue 330
   -- t <- addForcingAnnotations t
-  addConstant x $
-    defaultDefn info x t $
+  addConstant x .
+    defaultDefn info x t =<<
       case funSig of
-        A.FunSig   -> emptyFunction
-        A.NoFunSig -> Axiom    -- NB: used also for data and record type sigs
+        A.FunSig   -> newEmptyFunction t
+        A.NoFunSig -> return Axiom    -- NB: used also for data and record type sigs
 
   -- for top-level axioms (postulates) try to solve irrelevant metas
   -- when postulate $

@@ -330,8 +330,9 @@ checkExtendedLambda i di qname cs e t = do
      let info = setRelevance rel defaultArgInfo
      -- Andreas, 2013-12-28: add extendedlambda as @Function@, not as @Axiom@;
      -- otherwise, @addClause@ in @checkFunDef'@ fails (see issue 1009).
+     def <- newEmptyFunction t
      addConstant qname $
-       (defaultDefn info qname t emptyFunction) { defMutual = j }
+       (defaultDefn info qname t def) { defMutual = j }
      reportSDoc "tc.term.exlam" 50 $
        text "extended lambda's implementation \"" <> prettyTCM qname <>
        text "\" has type: " $$ prettyTCM t -- <+> text " where clauses: " <+> text (show cs)
@@ -1130,9 +1131,10 @@ checkHeadApplication e t hd args = do
       -- If we are in irrelevant position, add definition irrelevantly.
       -- TODO: is this sufficient?
       rel <- asks envRelevance
-      addConstant c' (Defn (setRelevance rel defaultArgInfo)
-                           c' t [] [] (defaultDisplayForm c')
-                  i noCompiledRep $ emptyFunction)
+      addConstant c' .
+        Defn (setRelevance rel defaultArgInfo) c' t [] [] (defaultDisplayForm c')
+             i noCompiledRep
+          =<< newEmptyFunction t
 
       -- Define and type check the fresh function.
       ctx <- getContext >>= mapM (\d -> flip Dom (unDom d) <$> reify (domInfo d))
