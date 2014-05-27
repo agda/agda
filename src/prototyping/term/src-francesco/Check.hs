@@ -13,7 +13,8 @@ import           Data.Traversable                 (traverse)
 import           Prelude.Extras                   ((==#))
 import           Data.Proxy                       (Proxy)
 import           Bound                            hiding (instantiate, abstract)
-import           Data.Maybe                       (maybeToList)
+import           Bound.Var                        (unvar)
+import           Data.Maybe                       (maybeToList, fromMaybe)
 
 import           Data.Void                        (vacuous)
 import           Syntax.Abstract                  (Name)
@@ -306,26 +307,66 @@ metaAssign mv elims t =
                     render mv ++ " := " ++ renderView t'
             instantiateMetaVar mv t'
 
--- Returns the pruned application 
-prune :: (IsVar v, IsTerm t) => 
-          [v] -- ^ allowed vars 
-          -> MetaVar 
-          -> [Term t v] 
-          -> TC t v (Term t v)
-prune vs m args = do
-  b <- onePMatchable args   
-  if b then giveup else do 
-    kills <- mapM toKill args
-    undefined
- where
-   giveup = return $ (app (Meta m) (map Apply args))
-   toKill arg = rigidVars [] arg >>= \ rs -> return $ not $ rs `subset` vs
-   subset xs ys = all (`elem` ys) xs -- TODO efficiency: Set?
-   
+-- | Returns the pruned application
+prune
+    :: forall t v0.
+       (IsVar v0, IsTerm t)
+    => [v0]                     -- ^ allowed vars
+    -> MetaVar
+    -> [Term t v0]              -- ^ Arguments to the metavariable
+    -> TC t v0 (Term t v0)
+prune vs mv args = do
+  argsMatchable <- mapM potentiallyMatchable args
+  if or argsMatchable
+    then giveUp
+    else do
+      kills0 <- mapM toKill args
+      mvType <- getTypeOfMetaVar mv
+      fmap vacuous $ liftClosed $ do
+        tel <- createNewMeta mvType kills0
+        return $
+          Tel.unTel tel $ \ctx (Tel.Dup _ mv') -> ctxLam ctx (ctxApp mv' ctx)
+  where
+    giveUp = return $ (app (Meta mv) (map Apply args))
+    toKill arg = rigidVars [] arg >>= \ rs -> return $ not $ rs `subset` vs
+    subset xs ys = all (`elem` ys) xs -- TODO efficiency: Set?
+
+    -- We build a telescope with only the non-killed types in.  This
+    -- way, we can analyze the dependency between arguments and avoid
+    -- killing things that later arguments depend on.
+    --
+    -- At the end of the telescope we put both the new metavariable and
+    -- the remaining type, so that this dependency check will be
+    -- performed on it as well.
+    createNewMeta :: Type t v -> [Bool] -> TC t v (Tel.DupTel t v)
+    createNewMeta type_ [] = do
+      mv' <- addFreshMetaVar type_
+      return $ Tel.Empty $ Tel.Dup type_ mv'
+    createNewMeta type_ (kill : kills) = do
+      typeView <- whnfView type_
+      case typeView of
+        Pi domain codomain -> do
+          let codomain' = fromAbs codomain
+          tel <- extendContext (getName codomain') domain $ \_ _ ->
+                 createNewMeta codomain' kills
+          let tel' = Tel.Cons (getName codomain', domain) tel
+          return $
+            if not kill
+            then tel'
+            else -- Check that the type does not appear in following
+                 -- types.  Otherwise, we can't kill this argument.
+                 fromMaybe tel' $ traverse (unvar (const Nothing) Just) tel
+        _ ->
+          error "impossible.createPrunedMeta: metavar type too short"
+
+
 -- | Collects all the rigidly occurring variables in a term.
 --
--- With "rigidly occurring" here we mean either occurring as arguments
--- of constructors or occurring as arguments of object variables that
+-- With "rigidly occurring" we mean everything which is not flexibly
+-- occurring.
+--
+-- With "flexible occurring" here we mean either occurring as an
+-- argument of a metavariable or an argument of an object variable that
 -- might be substituted with a metavariable.
 --
 -- Note that we don't specify how precise the detection of said
@@ -348,7 +389,7 @@ rigidVars vs t0 = do
     go strengthen flex t =
       case view (whnf sig t) of
         Lam body ->
-          go (lift strengthen) (addNew flex) (fromAbs body) 
+          go (lift strengthen) (addNew flex) (fromAbs body)
           -- addNew is conservative, some lambdas might not be reachable
         Pi domain codomain ->
           go strengthen flex domain <>
@@ -390,49 +431,35 @@ rigidVars vs t0 = do
 -- | Check whether a term @Def f es@ is finally stuck.
 --   Currently, we give only a crude approximation.
 isNeutral :: (IsTerm t, IsVar v) => Signature t -> Name -> [Elim (Term t) v] -> Bool
-isNeutral sig f _ = 
+isNeutral sig f _ =
   case sGetDefinition sig f of
     Constant{}    -> True
     Constructor{} -> error $ "impossible.isNeutral: constructor " ++ show f
     Projection{}  -> error $ "impossible.isNeutral: projection " ++ show f
     _             -> False
-      -- TODO: more precise analysis
-      -- We need to check whether a function is stuck on a variable
-      -- (not meta variable), but the API does not help us...
+    -- TODO: more precise analysis
+    -- We need to check whether a function is stuck on a variable
+    -- (not meta variable), but the API does not help us...
 
--- | Returns True if it might be possible to get a data constructor out of this term.
+-- | Returns True if it might be possible to get a data constructor out
+-- of this term.
 potentiallyMatchable :: (IsTerm t, IsVar v, IsVar v') => Term t v' -> TC t v Bool
 potentiallyMatchable t = do
   sig <- getSignature
   case view t of
-    Lam b -> 
-      potentiallyMatchable (fromAbs b)
-    Con dataCon args -> do 
-      b <- isRecordConstr dataCon
-      if b then onePMatchable args
-           else return True 
-    App (Def f) elims -> 
-      if isNeutral sig f elims 
+    Lam body ->
+      potentiallyMatchable (fromAbs body)
+    Con dataCon args -> do
+      isDataConRecord <- isRecordConstr dataCon
+      if isDataConRecord
+        then or <$> mapM potentiallyMatchable args
+        else return True
+    App (Def f) elims ->
+      if isNeutral sig f elims
       then return False
       else return True
     _ ->
       return False
-
-onePMatchable :: (IsTerm t, IsVar v, IsVar v') => [Term t v'] -> TC t v Bool
-onePMatchable ts = or <$> mapM potentiallyMatchable ts -- TODO efficiency: orM 
-
-
-isRecordType :: (IsTerm t, IsVar v) => Name -> TC t v Bool
-isRecordType tyCon = do
-  d <- getDefinition tyCon
-  case d of
-    Constant _ Record _ -> return True
-    _                   -> return False
-
-isRecordConstr :: (IsTerm t, IsVar v) => Name -> TC t v Bool
-isRecordConstr dataCon = do
-  (tyCon , _) <- getConstructorDefinition dataCon
-  isRecordType tyCon
 
 distinctVariables :: (IsVar v, IsTerm t) => [Elim (Term t) v] -> Maybe [v]
 distinctVariables elims = do
@@ -456,47 +483,6 @@ closeTerm :: (IsVar v, IsTerm t) => Term t v -> TC t v (Closed (Term t))
 closeTerm = traverse close
   where
     close = checkError . FreeVariableInEquatedTerm
-
-createPrunedMeta
-    :: (IsVar v, IsTerm t)
-    => [v]
-    -- ^ The list of allowed variables.
-    -> MetaVar
-    -- ^ The original metavariable, whose arguments we want to prune.
-    -> [Term t v]
-    -- ^ The arguments that we want to prune.
-    -> TC t v (Term t v)
-    -- ^ The term containing the new metavariable applied to the pruned
-    -- arguments
-createPrunedMeta _vs0 mv _mvArgs = do
-    mvType <- getTypeOfMetaVar mv
-    vacuous <$> liftClosed (createNewMeta mvType kills0 [])
-  where
-    -- This list specifies the arguments which should be killed.  Note
-    -- that if an argument is to be killed it is also guaranteed not to
-    -- appear in the type of any following arguments.
-    kills0 :: [Bool]
-    kills0 = error "TODO createPrunedMeta kills"
-
-    createNewMeta :: (IsTerm t) => Type t v -> [Bool] -> [v] -> TC t v (Term t v)
-    createNewMeta type_ [] vs = do
-      mv' <- addFreshMetaVar type_
-      return (eliminate mv' (map (Apply . var) (reverse vs)))
-    createNewMeta type_ (kill : kills) vs = do
-      typeView <- whnfView type_
-      case typeView of
-        Pi domain codomain | not kill -> do
-          let codomain' = fromAbs codomain
-          t <- extendContext (getName codomain') domain $ \v _ ->
-               createNewMeta codomain' kills (v : map F vs)
-          return (lam (toAbs t))
-        Pi _domain codomain -> do
-          let codomain' =
-                instantiate codomain $
-                error "impossible.createPrunedMeta: killed argument appears later in type."
-          createNewMeta codomain' kills vs
-        _ ->
-          error "impossible.createPrunedMeta: metavar type too short."
 
 -- Checking definitions
 ------------------------------------------------------------------------
@@ -584,7 +570,7 @@ checkRec tyCon tyConPars dataCon fields = do
             addProjections
                 tyCon tyConPars' self (map A.typeSigName fields) $
                 (fmap (Ctx.weaken selfCtx) fieldsTel)
-        Tel.unTel fieldsTel $ \fieldsCtx Tel.Proxy2 ->
+        Tel.unTel fieldsTel $ \fieldsCtx Tel.Proxy ->
             addConstructor dataCon tyCon $
             Tel.idTel tyConPars' $
             ctxPi fieldsCtx (fmap (Ctx.weaken fieldsCtx) appliedTyConType)
@@ -623,7 +609,7 @@ addProjections tyCon tyConPars self fields0 =
     go $ zip fields0 $ map Field [1..]
   where
     go fields fieldTypes = case (fields, fieldTypes) of
-        ([], Tel.Empty Tel.Proxy2) ->
+        ([], Tel.Empty Tel.Proxy) ->
             return ()
         ((field, ix) : fields', Tel.Cons (_, fieldType) fieldTypes') -> do
             let endType = pi (ctxApp (def tyCon) tyConPars) (toAbs fieldType)
@@ -812,11 +798,23 @@ getConstructorDefinition dataCon = do
       error $ "impossible.getConstructorDefinition: non data constructor " ++
               show dataCon
 
+isRecordType :: (IsTerm t, IsVar v) => Name -> TC t v Bool
+isRecordType tyCon = do
+  d <- getDefinition tyCon
+  case d of
+    Constant _ Record _ -> return True
+    _                   -> return False
+
+isRecordConstr :: (IsTerm t, IsVar v) => Name -> TC t v Bool
+isRecordConstr dataCon = do
+  (tyCon , _) <- getConstructorDefinition dataCon
+  isRecordType tyCon
+
 -- Telescope utils
 ------------------
 
 telPi :: (IsVar v, IsTerm t) => Tel.IdTel (Type t) v -> Type t v
-telPi tel = Tel.unTel tel $ \ctx endType -> ctxPi ctx (Tel.unId2 endType)
+telPi tel = Tel.unTel tel $ \ctx endType -> ctxPi ctx (Tel.unId endType)
 
 -- Whnf'ing and view'ing
 ------------------------

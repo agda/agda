@@ -9,12 +9,15 @@ module Types.Telescope
     , substs
     , instantiate
       -- ** 'Tel' types
-    , Proxy2(..)
-    , Id2(..)
+    , Proxy(..)
+    , Id(..)
+    , Dup(..)
     , ProxyTel
     , ClosedProxyTel
     , IdTel
     , ClosedIdTel
+    , DupTel
+    , ClosedDupTel
     ) where
 
 import           Prelude                          hiding (pi, length, lookup, (++))
@@ -42,7 +45,7 @@ data Tel t f v
 type ClosedTel t f = Tel t f Void
 
 substs :: (Monad f) => IdTel f v0 -> [f v0] -> f v0
-substs (Empty t)     []           = unId2 t
+substs (Empty t)     []           = unId t
 substs (Empty _)     (_ : _)      = error "Types.Telescope.instantiate: too many arguments"
 substs (Cons _ _)    []           = error "Types.Telescope.instantiate: too few arguments"
 substs (Cons _ tel') (arg : args) = substs (tel' >>>= instArg) args
@@ -59,31 +62,39 @@ instantiate tel' t = tel' >>>= inst
 -- Useful types
 ---------------
 
-data Proxy2 (f :: * -> *) v = Proxy2
+data Proxy (f :: * -> *) v = Proxy
 
-instance Functor (Proxy2 f) where
-     fmap _ Proxy2 = Proxy2
+instance Functor (Proxy f) where
+     fmap _ Proxy = Proxy
 
-instance Foldable (Proxy2 f) where
-     foldMap _ Proxy2 = mempty
+instance Foldable (Proxy f) where
+     foldMap _ Proxy = mempty
 
-instance Traversable (Proxy2 f) where
-     sequenceA Proxy2 = pure Proxy2
+instance Traversable (Proxy f) where
+     sequenceA Proxy = pure Proxy
 
-instance Bound Proxy2 where
-     Proxy2 >>>= _ = Proxy2
+instance Bound Proxy where
+     Proxy >>>= _ = Proxy
 
-newtype Id2 f v = Id2 {unId2 :: f v}
+newtype Id f v = Id {unId :: f v}
      deriving (Functor, Foldable, Traversable)
 
-instance Bound Id2 where
-     Id2 t >>>= f = Id2 (t >>= f)
+instance Bound Id where
+     Id t >>>= f = Id (t >>= f)
 
-type IdTel    = Tel Id2
-type ProxyTel = Tel Proxy2
+data Dup f v = Dup {dupFst :: f v, dupSnd :: f v}
+     deriving (Functor, Foldable, Traversable)
+
+instance Bound Dup where
+     Dup t1 t2 >>>= f = Dup (t1 >>= f) (t2 >>= f)
+
+type IdTel    = Tel Id
+type ProxyTel = Tel Proxy
+type DupTel   = Tel Dup
 
 type ClosedIdTel t    = IdTel t Void
 type ClosedProxyTel t = ProxyTel t Void
+type ClosedDupTel t   = DupTel t Void
 
 -- Instances
 ----------------------
@@ -118,10 +129,10 @@ tel ctx0 t = go ctx0 (Empty t)
     go (Ctx.Snoc ctx type_) tel' = go ctx (Cons type_ tel')
 
 idTel :: Ctx.Ctx v0 f v -> f v -> IdTel f v0
-idTel ctx t = tel ctx (Id2 t)
+idTel ctx t = tel ctx (Id t)
 
 proxyTel :: Ctx.Ctx v0 f v -> ProxyTel f v0
-proxyTel ctx = tel ctx Proxy2
+proxyTel ctx = tel ctx Proxy
 
 unTel :: forall t f v0 a.
          Tel t f v0
