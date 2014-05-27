@@ -306,6 +306,22 @@ metaAssign mv elims t =
                     render mv ++ " := " ++ renderView t'
             instantiateMetaVar mv t'
 
+-- Returns the pruned application 
+prune :: (IsVar v, IsTerm t) => 
+          [v] -- ^ allowed vars 
+          -> MetaVar 
+          -> [Term t v] 
+          -> TC t v (Term t v)
+prune vs m args = do
+  b <- onePMatchable args   
+  if b then giveup else do 
+    kills <- mapM toKill args
+    undefined
+ where
+   giveup = return $ (app (Meta m) (map Apply args))
+   toKill arg = rigidVars [] arg >>= \ rs -> return $ not $ rs `subset` vs
+   subset xs ys = all (`elem` ys) xs -- TODO efficiency: Set?
+   
 -- | Collects all the rigidly occurring variables in a term.
 --
 -- With "rigidly occurring" here we mean either occurring as arguments
@@ -332,7 +348,8 @@ rigidVars vs t0 = do
     go strengthen flex t =
       case view (whnf sig t) of
         Lam body ->
-          go (lift strengthen) (addNew flex) (fromAbs body)
+          go (lift strengthen) (addNew flex) (fromAbs body) 
+          -- addNew is conservative, some lambdas might not be reachable
         Pi domain codomain ->
           go strengthen flex domain <>
           go (lift strengthen) (ignoreNew flex) (fromAbs codomain)
@@ -343,8 +360,10 @@ rigidVars vs t0 = do
           then mempty
           else maybeToList (strengthen v) <>
                foldMap (go strengthen flex) [t' | Apply t' <- elims]
-        App (Def _) elims ->
-          foldMap (go strengthen flex) [t' | Apply t' <- elims]
+        App (Def d) elims ->
+          if isNeutral sig d elims
+          then foldMap (go strengthen flex) [t' | Apply t' <- elims]
+          else mempty
         App J elims ->
           foldMap (go strengthen flex) [t' | Apply t' <- elims]
         App (Meta _) _ ->
@@ -367,6 +386,53 @@ rigidVars vs t0 = do
     addNew f (F v) = f v
 
   return $ go Just (`elem` vs) t0
+
+-- | Check whether a term @Def f es@ is finally stuck.
+--   Currently, we give only a crude approximation.
+isNeutral :: (IsTerm t, IsVar v) => Signature t -> Name -> [Elim (Term t) v] -> Bool
+isNeutral sig f _ = 
+  case sGetDefinition sig f of
+    Constant{}    -> True
+    Constructor{} -> error $ "impossible.isNeutral: constructor " ++ show f
+    Projection{}  -> error $ "impossible.isNeutral: projection " ++ show f
+    _             -> False
+      -- TODO: more precise analysis
+      -- We need to check whether a function is stuck on a variable
+      -- (not meta variable), but the API does not help us...
+
+-- | Returns True if it might be possible to get a data constructor out of this term.
+potentiallyMatchable :: (IsTerm t, IsVar v, IsVar v') => Term t v' -> TC t v Bool
+potentiallyMatchable t = do
+  sig <- getSignature
+  case view t of
+    Lam b -> 
+      potentiallyMatchable (fromAbs b)
+    Con dataCon args -> do 
+      b <- isRecordConstr dataCon
+      if b then onePMatchable args
+           else return True 
+    App (Def f) elims -> 
+      if isNeutral sig f elims 
+      then return False
+      else return True
+    _ ->
+      return False
+
+onePMatchable :: (IsTerm t, IsVar v, IsVar v') => [Term t v'] -> TC t v Bool
+onePMatchable ts = or <$> mapM potentiallyMatchable ts -- TODO efficiency: orM 
+
+
+isRecordType :: (IsTerm t, IsVar v) => Name -> TC t v Bool
+isRecordType tyCon = do
+  d <- getDefinition tyCon
+  case d of
+    Constant _ Record _ -> return True
+    _                   -> return False
+
+isRecordConstr :: (IsTerm t, IsVar v) => Name -> TC t v Bool
+isRecordConstr dataCon = do
+  (tyCon , _) <- getConstructorDefinition dataCon
+  isRecordType tyCon
 
 distinctVariables :: (IsVar v, IsTerm t) => [Elim (Term t) v] -> Maybe [v]
 distinctVariables elims = do

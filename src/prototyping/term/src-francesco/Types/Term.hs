@@ -136,11 +136,17 @@ data Signature t = Signature
     , sMetaStore   :: Map.Map MetaVar (MetaInst t)
     }
 
-sGetDefinition :: Signature t -> Name -> Maybe (Definition t)
-sGetDefinition sig name = Map.lookup name (sDefinitions sig)
+sGetDefinition :: Signature t -> Name -> Definition t
+sGetDefinition sig name = 
+  case Map.lookup name (sDefinitions sig) of
+    Nothing -> error $ "impossible.sGetDefinition: not found " ++ show name
+    Just d -> d
 
-sGetMetaInst :: Signature t -> Name -> Maybe (MetaInst t)
-sGetMetaInst sig name = Map.lookup name (sMetaStore sig)
+sGetMetaInst :: Signature t -> MetaVar -> MetaInst t
+sGetMetaInst sig name = 
+  case Map.lookup name (sMetaStore sig) of
+    Nothing -> error $ "impossible.sGetMetaInst: not found " ++ show name
+    Just d -> d
 
 
 data MetaInst t
