@@ -363,6 +363,7 @@ library
                     Agda.Auto.SearchControl
                     Agda.Auto.CaseSplit
   other-modules:    Paths_Agda
+  -- This conditional is required by GHC <= 7.4.2.
   if true
     ghc-options:    -w
                     -fwarn-deprecated-flags
