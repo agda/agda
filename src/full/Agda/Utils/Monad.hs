@@ -2,19 +2,14 @@
 
 module Agda.Utils.Monad
     ( module Agda.Utils.Monad
-{- Andreas 2012-04-21: I'd like to reexport Control.Monad except
-   patching when and unless, but the hiding syntax is not valid yet
-   (only a proposed language extension)
-
-    , module Control.Monad hiding (when, unless)
--}
+    , module Control.Monad
     , (<$>), (<*>)
     , (<$)
     )
     where
 
 import Prelude		   hiding (concat)
-import Control.Monad
+import Control.Monad       hiding (mapM, forM)
 import Control.Monad.Error
 import Control.Monad.State
 import Control.Monad.Writer
