@@ -237,24 +237,52 @@ applyProjection proj h type_ = do
   projDef <- getDefinition proj
   case projDef of
     Projection _ projIx tyCon projType -> do
+      let h' = eliminate h [Proj proj projIx]
       typeView <- whnfView type_
-      case typeView of
+      tyConArgs <- case typeView of
         App (Def tyCon') tyConArgs0
           | tyCon == tyCon', Just tyConArgs <- mapM isApply tyConArgs0 -> do
-            let appliedProjType = view $ Tel.substs (vacuous projType) tyConArgs
-            case appliedProjType of
-              Pi _ endType -> do
-                let endType' = instantiate endType h
-                let h' = eliminate h [Proj proj projIx]
-                return (h', endType')
-              _ ->
-                error $ "impossible.applyProjection: " ++ render appliedProjType
-        App (Meta _) _ ->
-          error "TODO applyProjection App (Meta mv) els"
+            return tyConArgs
+        App (Meta mv) mvArgs -> do
+          -- If we have a meta, we instantiate making it the righ type,
+          -- and putting fresh metas as parameters.
+          liftClosed $ do
+            mvType <- getTypeOfMetaVar mv
+            mvT <- unrollPi mvType $ \ctxMvArgs _ -> do
+              Constant _ Postulate tyConType <- getDefinition tyCon
+              tyConParsTel <- unrollPi (vacuous tyConType) $ \ctx ->
+                              return . Tel.idTel ctx
+              tyConParsMvs <- createTyConParsMvs tyConParsTel
+              return $
+                ctxLam ctxMvArgs $ eliminate (def tyCon) (map Apply tyConParsMvs)
+            instantiateMetaVar mv mvT
+          -- Once instantiated, we re-evaluate the type and extract the
+          -- arguments of the type constructor.
+          typeView' <- whnfView $ unview $ App (Meta mv) mvArgs
+          case typeView' of
+            App (Def tyCon') tyConArgs0
+              | tyCon == tyCon', Just tyConArgs <- mapM isApply tyConArgs0 ->
+                return tyConArgs
+            _ ->
+              error "impossible.applyProjection: Meta doesn't reduce"
         _ ->
           checkError $ ExpectingRecordType (unview typeView)
+      let appliedProjType = view $ Tel.substs (vacuous projType) tyConArgs
+      case appliedProjType of
+        Pi _ endType ->
+          return (h', instantiate endType h)
+        _ ->
+          error $ "impossible.applyProjection: " ++ render appliedProjType
     _ ->
       error $ "impossible.applyProjection: " ++ render projDef
+  where
+    createTyConParsMvs :: (IsTerm t) => Tel.IdTel (Type t) v -> TC t v [Term t v]
+    createTyConParsMvs (Tel.Empty _) =
+      return []
+    createTyConParsMvs (Tel.Cons (name, type') tel) = do
+      mv  <- addFreshMetaVar type'
+      mvs <- extendContext name type' $ \_ _ -> createTyConParsMvs tel
+      return (mv : map (\t -> instantiate (toAbs t) mv) mvs)
 
 -- MetaVar handling
 -------------------
