@@ -18,9 +18,10 @@ import Agda.TypeChecking.Monad.Base
 import Agda.TypeChecking.Substitute
 import Agda.TypeChecking.Monad.Open
 
+import Agda.Utils.Fresh
+import Agda.Utils.Functor
 import Agda.Utils.List ((!!!), downFrom)
 import Agda.Utils.Monad
-import Agda.Utils.Fresh
 
 -- * Modifying the context
 
@@ -93,7 +94,8 @@ instance AddContext (Name, Dom Type) where
   addContext = uncurry addCtx
 
 instance AddContext (Dom (Name, Type)) where
-  addContext dom = addCtx (fst $ unDom dom) (snd <$> dom)
+  addContext = addContext . distributeF
+  -- addContext dom = addCtx (fst $ unDom dom) (snd <$> dom)
 
 instance AddContext ([Name], Dom Type) where
   addContext (xs, dom) = addContext (bindsToTel' id xs dom)
@@ -102,6 +104,10 @@ instance AddContext (String, Dom Type) where
   addContext (s, dom) ret = do
     x <- freshName_ s
     addCtx x dom ret
+
+instance AddContext (Dom (String, Type)) where
+  addContext = addContext . distributeF
+  -- addContext dom = addContext (fst $ unDom dom, snd <$> dom)
 
 instance AddContext Name where
   addContext x = addContext (x, dummyDom)
