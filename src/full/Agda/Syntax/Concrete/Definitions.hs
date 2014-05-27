@@ -627,18 +627,19 @@ niceDeclarations ds = do
         _ -> False -- trace ("couldBe not (case default)") $ False
     couldBeFunClauseOf _ _ _ = False -- trace ("couldBe not (fun default)") $ False
 
+    -- ASR (27 May 2014). Commented out unused code.
     -- @isFunClauseOf@ is for non-mutual blocks where clauses must follow the
     -- type sig immediately
-    isFunClauseOf :: Name -> Declaration -> Bool
-    isFunClauseOf x (FunClause Ellipsis{} _ _) = True
-    isFunClauseOf x (FunClause (LHS p _ _ _) _ _) =
-     -- p is the whole left hand side, excluding "with" patterns and clauses
-      case removeSingletonRawAppP p of
-        IdentP (QName q)    -> x == q  -- lhs is just an identifier
-        _                   -> True
-            -- more complicated lhss must come with type signatures, so we just assume
-            -- it's part of the current definition
-    isFunClauseOf _ _ = False
+    -- isFunClauseOf :: Name -> Declaration -> Bool
+    -- isFunClauseOf x (FunClause Ellipsis{} _ _) = True
+    -- isFunClauseOf x (FunClause (LHS p _ _ _) _ _) =
+    --  -- p is the whole left hand side, excluding "with" patterns and clauses
+    --   case removeSingletonRawAppP p of
+    --     IdentP (QName q)    -> x == q  -- lhs is just an identifier
+    --     _                   -> True
+    --         -- more complicated lhss must come with type signatures, so we just assume
+    --         -- it's part of the current definition
+    -- isFunClauseOf _ _ = False
 
     removeSingletonRawAppP :: Pattern -> Pattern
     removeSingletonRawAppP (RawAppP _ [p]) = removeSingletonRawAppP p
