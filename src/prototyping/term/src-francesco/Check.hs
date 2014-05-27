@@ -307,6 +307,46 @@ metaAssign mv elims t =
                     render mv ++ " := " ++ renderView t'
             instantiateMetaVar mv t'
 
+type ATC t a = forall v. TC t v a
+
+-- Returns the pruned term 
+pruneTerm :: (IsVar v, IsTerm t)
+          => [v] -- ^ allowed vars 
+          -> Term t v 
+          -> ATC t ()
+pruneTerm vs t = do
+  sig <- getSignature
+  case view (whnf sig t) of
+    Lam body -> do 
+      let body' = fromAbs body
+      pruneTerm (boundTermVar (getName body') : map F vs) body'
+    Pi domain codomain -> do
+      pruneTerm vs domain
+      let codomain' = fromAbs codomain          
+      pruneTerm (boundTermVar (getName codomain') : map F vs) codomain'
+    Equal type_ x y ->
+      mapM_ (pruneTerm vs) [type_, x, y]
+    App (Meta mv) elims | Just args <- mapM isApply elims ->
+      prune' vs mv args >> return ()    
+    App _ elims ->
+      mapM_ (pruneTerm vs) [t' | Apply t' <- elims]
+    Set ->
+      return ()
+    Refl ->
+      return ()
+    Con _ args ->
+      mapM_ (pruneTerm vs) args
+    
+-- | Returns the pruned application
+prune'
+    :: forall t v0.
+       (IsVar v0, IsTerm t)
+    => [v0]                     -- ^ allowed vars
+    -> MetaVar
+    -> [Term t v0]              -- ^ Arguments to the metavariable
+    -> ATC t (Term t v0)
+prune' = undefined
+
 -- | Returns the pruned application
 prune
     :: forall t v0.
@@ -377,7 +417,7 @@ rigidVars
        (IsVar v0, IsTerm t)
     => [v0]
     -- ^ vars that count as flexible, and so also flexible contexts
-    -> Term t v0 -> TC t v0 [v0]
+    -> Term t v0 -> ATC t [v0]
 rigidVars vs t0 = do
   sig <- getSignature
   let
@@ -413,7 +453,7 @@ rigidVars vs t0 = do
           mempty
         Refl ->
           mempty
-        Con _ args ->
+        Con _ args -> -- Record Constructors, wtf?
           foldMap (go strengthen flex) args
 
     lift :: (v -> Maybe v0) -> TermVar v -> Maybe v0
@@ -443,7 +483,7 @@ isNeutral sig f _ =
 
 -- | Returns True if it might be possible to get a data constructor out
 -- of this term.
-potentiallyMatchable :: (IsTerm t, IsVar v, IsVar v') => Term t v' -> TC t v Bool
+potentiallyMatchable :: (IsTerm t, IsVar v) => Term t v -> ATC t Bool
 potentiallyMatchable t = do
   sig <- getSignature
   case view t of
@@ -787,8 +827,8 @@ addClause f ps v = do
     c = Clause ps v
 
 getConstructorDefinition
-    :: (IsVar v, IsTerm t)
-    => Name -> TC t v (Name, Tel.ClosedIdTel t)
+    :: (IsTerm t)
+    => Name -> ATC t (Name, Tel.ClosedIdTel t)
 getConstructorDefinition dataCon = do
   def' <- getDefinition dataCon
   case def' of
@@ -798,14 +838,14 @@ getConstructorDefinition dataCon = do
       error $ "impossible.getConstructorDefinition: non data constructor " ++
               show dataCon
 
-isRecordType :: (IsTerm t, IsVar v) => Name -> TC t v Bool
+isRecordType :: (IsTerm t) => Name -> ATC t Bool
 isRecordType tyCon = do
   d <- getDefinition tyCon
   case d of
     Constant _ Record _ -> return True
     _                   -> return False
 
-isRecordConstr :: (IsTerm t, IsVar v) => Name -> TC t v Bool
+isRecordConstr :: (IsTerm t) => Name -> ATC t Bool
 isRecordConstr dataCon = do
   (tyCon , _) <- getConstructorDefinition dataCon
   isRecordType tyCon
