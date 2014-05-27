@@ -2,7 +2,7 @@ module Check (checkProgram) where
 
 import           Prelude                          hiding (abs, pi)
 
-import           Data.Functor                     ((<$>))
+import           Data.Functor                     ((<$>), (<$))
 import           Data.Foldable                    (foldMap)
 import           Data.Monoid                      (Monoid(..),(<>))
 import           Debug.Trace                      (trace)
@@ -14,7 +14,7 @@ import           Prelude.Extras                   ((==#))
 import           Data.Proxy                       (Proxy)
 import           Bound                            hiding (instantiate, abstract)
 import           Bound.Var                        (unvar)
-import           Data.Maybe                       (maybeToList, fromMaybe)
+import           Data.Maybe                       (maybeToList)
 
 import           Data.Void                        (vacuous)
 import           Syntax.Abstract                  (Name)
@@ -55,7 +55,7 @@ check synT type_ = atSrcLoc synT $ case synT of
       _ ->
           checkError $ NotEqualityType (unview typeView)
   A.Meta _ ->
-    addFreshMetaVar type_
+    addFreshMetaVar_ type_
   A.Lam name synBody -> do
     typeView <- whnfView type_
     case typeView of
@@ -64,8 +64,8 @@ check synT type_ = atSrcLoc synT $ case synT of
            check synBody (fromAbs codomain)
          return $ lam (toAbs body)
       App (Meta _) _ -> do
-        dom <- addFreshMetaVar set
-        cod <- extendContext name dom $ \ _ _ -> addFreshMetaVar set
+        dom <- addFreshMetaVar_ set
+        cod <- extendContext name dom $ \ _ _ -> addFreshMetaVar_ set
         checkEqual set (unview typeView) (pi dom (toAbs cod))
         body <- extendContext name dom $ \ _ _ -> check synBody cod
         return $ lam (toAbs body)
@@ -109,7 +109,7 @@ infer synT = atSrcLoc synT $ case synT of
     y <- check synY type_
     return (equal type_ x y, set)
   _ -> do
-    type_ <- addFreshMetaVar set
+    type_ <- addFreshMetaVar_ set
     t <- check synT type_
     return (t, type_)
 
@@ -284,7 +284,7 @@ applyProjection proj h type_ = do
     createTyConParsMvs (Tel.Empty _) =
       return []
     createTyConParsMvs (Tel.Cons (name, type') tel) = do
-      mv  <- addFreshMetaVar type'
+      mv  <- addFreshMetaVar_ type'
       mvs <- extendContext name type' $ \_ _ -> createTyConParsMvs tel
       return (mv : map (\t -> instantiate (toAbs t) mv) mvs)
 
@@ -299,7 +299,10 @@ metaAssign mv elims t =
         Nothing ->
             error "TODO metaAssign stuck"
         Just vs -> do
-            t' <- closeTerm $ lambdaAbstract vs t
+            -- TODO have `pruneTerm' return an evaluated term.
+            liftClosed $ pruneTerm vs t
+            sig <- getSignature
+            t' <- closeTerm $ lambdaAbstract vs $ nf sig t
             let mvs = metaVars t'
             when (mv `HS.member` mvs) $ do
                 error $
@@ -307,27 +310,26 @@ metaAssign mv elims t =
                     render mv ++ " := " ++ renderView t'
             instantiateMetaVar mv t'
 
-type ATC t a = forall v. TC t v a
-
--- Returns the pruned term 
-pruneTerm :: (IsVar v, IsTerm t)
-          => [v] -- ^ allowed vars 
-          -> Term t v 
-          -> ATC t ()
+-- Returns the pruned term
+pruneTerm
+    :: (IsVar v, IsTerm t)
+    => [v] -- ^ allowed vars
+    -> Term t v
+    -> ClosedTC t ()
 pruneTerm vs t = do
   sig <- getSignature
   case view (whnf sig t) of
-    Lam body -> do 
+    Lam body -> do
       let body' = fromAbs body
       pruneTerm (boundTermVar (getName body') : map F vs) body'
     Pi domain codomain -> do
       pruneTerm vs domain
-      let codomain' = fromAbs codomain          
+      let codomain' = fromAbs codomain
       pruneTerm (boundTermVar (getName codomain') : map F vs) codomain'
     Equal type_ x y ->
       mapM_ (pruneTerm vs) [type_, x, y]
     App (Meta mv) elims | Just args <- mapM isApply elims ->
-      prune' vs mv args >> return ()    
+      prune vs mv args >> return ()
     App _ elims ->
       mapM_ (pruneTerm vs) [t' | Apply t' <- elims]
     Set ->
@@ -336,16 +338,6 @@ pruneTerm vs t = do
       return ()
     Con _ args ->
       mapM_ (pruneTerm vs) args
-    
--- | Returns the pruned application
-prune'
-    :: forall t v0.
-       (IsVar v0, IsTerm t)
-    => [v0]                     -- ^ allowed vars
-    -> MetaVar
-    -> [Term t v0]              -- ^ Arguments to the metavariable
-    -> ATC t (Term t v0)
-prune' = undefined
 
 -- | Returns the pruned application
 prune
@@ -354,21 +346,18 @@ prune
     => [v0]                     -- ^ allowed vars
     -> MetaVar
     -> [Term t v0]              -- ^ Arguments to the metavariable
-    -> TC t v0 (Term t v0)
-prune vs mv args = do
+    -> ClosedTC t ()
+prune vs0 oldMv args = do
   argsMatchable <- mapM potentiallyMatchable args
   if or argsMatchable
-    then giveUp
+    then return ()
     else do
       kills0 <- mapM toKill args
-      mvType <- getTypeOfMetaVar mv
-      fmap vacuous $ liftClosed $ do
-        tel <- createNewMeta mvType kills0
-        return $
-          Tel.unTel tel $ \ctx (Tel.Dup _ mv') -> ctxLam ctx (ctxApp mv' ctx)
+      mvType <- getTypeOfMetaVar oldMv
+      (_, newMv, kills1) <- createNewMeta mvType kills0
+      instantiateMetaVar oldMv (createMetaLam newMv kills1)
   where
-    giveUp = return $ (app (Meta mv) (map Apply args))
-    toKill arg = rigidVars [] arg >>= \ rs -> return $ not $ rs `subset` vs
+    toKill arg = rigidVars [] arg >>= \ rs -> return $ not $ rs `subset` vs0
     subset xs ys = all (`elem` ys) xs -- TODO efficiency: Set?
 
     -- We build a telescope with only the non-killed types in.  This
@@ -378,26 +367,39 @@ prune vs mv args = do
     -- At the end of the telescope we put both the new metavariable and
     -- the remaining type, so that this dependency check will be
     -- performed on it as well.
-    createNewMeta :: Type t v -> [Bool] -> TC t v (Tel.DupTel t v)
+    createNewMeta
+      :: Type t v -> [Bool]
+      -> TC t v (Tel.IdTel (Type t) v, MetaVar, [Named Bool])
     createNewMeta type_ [] = do
-      mv' <- addFreshMetaVar type_
-      return $ Tel.Empty $ Tel.Dup type_ mv'
+      (newMv, _) <- addFreshMetaVar type_
+      return (Tel.Empty (Tel.Id type_), newMv, [])
     createNewMeta type_ (kill : kills) = do
       typeView <- whnfView type_
       case typeView of
         Pi domain codomain -> do
           let codomain' = fromAbs codomain
-          tel <- extendContext (getName codomain') domain $ \_ _ ->
-                 createNewMeta codomain' kills
-          let tel' = Tel.Cons (getName codomain', domain) tel
+          let name      = getName codomain'
+          (tel, newMv, kills') <-
+            extendContext name domain $ \_ _ -> createNewMeta codomain' kills
+          let notKilled = (Tel.Cons (name, domain) tel, newMv, named name False : kills')
           return $
             if not kill
-            then tel'
-            else -- Check that the type does not appear in following
-                 -- types.  Otherwise, we can't kill this argument.
-                 fromMaybe tel' $ traverse (unvar (const Nothing) Just) tel
+            then notKilled
+            else case traverse (unvar (const Nothing) Just) tel of
+              Nothing   -> notKilled
+              Just tel' -> (tel', newMv, named name True : kills')
         _ ->
           error "impossible.createPrunedMeta: metavar type too short"
+
+    createMetaLam :: MetaVar -> [Named Bool] -> Closed (Type t)
+    createMetaLam newMv = go []
+      where
+        go :: [v] -> [Named Bool] -> Type t v
+        go vs [] =
+          eliminate (metaVar newMv) (map (Apply . var) (reverse vs))
+        go vs (kill : kills) =
+          let vs' = (if unNamed kill then [] else [B (() <$ kill)]) ++ map F vs
+          in lam $ toAbs $ go vs' kills
 
 
 -- | Collects all the rigidly occurring variables in a term.
@@ -417,7 +419,7 @@ rigidVars
        (IsVar v0, IsTerm t)
     => [v0]
     -- ^ vars that count as flexible, and so also flexible contexts
-    -> Term t v0 -> ATC t [v0]
+    -> Term t v0 -> ClosedTC t [v0]
 rigidVars vs t0 = do
   sig <- getSignature
   let
@@ -483,7 +485,7 @@ isNeutral sig f _ =
 
 -- | Returns True if it might be possible to get a data constructor out
 -- of this term.
-potentiallyMatchable :: (IsTerm t, IsVar v) => Term t v -> ATC t Bool
+potentiallyMatchable :: (IsTerm t, IsVar v) => Term t v -> ClosedTC t Bool
 potentiallyMatchable t = do
   sig <- getSignature
   case view t of
@@ -828,7 +830,7 @@ addClause f ps v = do
 
 getConstructorDefinition
     :: (IsTerm t)
-    => Name -> ATC t (Name, Tel.ClosedIdTel t)
+    => Name -> TC t v (Name, Tel.ClosedIdTel t)
 getConstructorDefinition dataCon = do
   def' <- getDefinition dataCon
   case def' of
@@ -838,14 +840,14 @@ getConstructorDefinition dataCon = do
       error $ "impossible.getConstructorDefinition: non data constructor " ++
               show dataCon
 
-isRecordType :: (IsTerm t) => Name -> ATC t Bool
+isRecordType :: (IsTerm t) => Name -> TC t v Bool
 isRecordType tyCon = do
   d <- getDefinition tyCon
   case d of
     Constant _ Record _ -> return True
     _                   -> return False
 
-isRecordConstr :: (IsTerm t) => Name -> ATC t Bool
+isRecordConstr :: (IsTerm t) => Name -> TC t v Bool
 isRecordConstr dataCon = do
   (tyCon , _) <- getConstructorDefinition dataCon
   isRecordType tyCon

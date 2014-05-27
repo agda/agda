@@ -1,6 +1,8 @@
 {-# OPTIONS_GHC -fno-warn-orphans #-}
 module Types.Term where
 
+import           Prelude                          hiding (pi)
+
 import           Bound                            hiding (instantiate)
 import           Bound.Name                       (instantiateName)
 import qualified Bound.Name                       as Bound
@@ -240,6 +242,28 @@ class ( Eq1 t,       Functor t,       Foldable t,       Traversable t, Monad t
             matchClause (map Apply dataConArgs ++ es) (dataConPatterns ++ patterns)
         matchClause _ _ =
             mzero
+
+    nf :: Signature t -> t v -> t v
+    nf ws t = case view (whnf ws t) of
+        Lam body ->
+          lam $ nfAbs body
+        Pi domain codomain ->
+          pi (nf ws domain) (nfAbs codomain)
+        Equal type_ x y ->
+          equal (nf ws type_) (nf ws x) (nf ws y)
+        Refl ->
+          refl
+        Con dataCon args ->
+          con dataCon $ map (nf ws) args
+        Set ->
+          set
+        App h elims ->
+          app h $ map nfElim elims
+      where
+        nfAbs = toAbs . nf ws . fromAbs
+
+        nfElim (Apply t') = Apply $ nf ws t
+        nfElim (Proj n f) = Proj n f
 
     metaVars :: t v -> HS.HashSet MetaVar
     metaVars t = case view t of

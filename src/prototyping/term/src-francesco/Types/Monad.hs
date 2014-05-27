@@ -15,6 +15,7 @@ module Types.Monad
     , getDefinition
       -- ** MetaVar handling
     , addFreshMetaVar
+    , addFreshMetaVar_
     , instantiateMetaVar
     , getTypeOfMetaVar
     , getBodyOfMetaVar
@@ -35,6 +36,7 @@ module Types.Monad
 
 import Prelude                                    hiding (abs, pi)
 
+import           Data.Functor                     ((<$>))
 import           Control.Monad.State              (get, gets, modify)
 import qualified Data.Map as Map
 import           Bound                            hiding (instantiate, abstract)
@@ -120,19 +122,22 @@ getDefinition name = atSrcLoc name $ do
 -- MetaVar operations
 ------------------------------------------------------------------------
 
-addFreshMetaVar :: IsTerm t => Type t v -> TC t v (Term t v)
+addFreshMetaVar :: IsTerm t => Type t v -> TC t v (MetaVar, Term t v)
 addFreshMetaVar type_ = do
     ctx <- asks teContext
     let mvType = ctxPi ctx type_
     mv <- nextMetaVar
     modify $ \s -> s { sMetaStore = Map.insert mv (Open mvType) $ sMetaStore s }
-    return $ ctxApp (metaVar mv) ctx
+    return (mv, ctxApp (metaVar mv) ctx)
   where
     nextMetaVar = do
         m <- gets $ Map.maxViewWithKey . sMetaStore
         return $ case m of
           Nothing                  -> MetaVar 0
           Just ((MetaVar i, _), _) -> MetaVar (i + 1)
+
+addFreshMetaVar_ :: IsTerm t => Type t v -> TC t v (Term t v)
+addFreshMetaVar_ type_ = snd <$> addFreshMetaVar type_
 
 instantiateMetaVar :: IsTerm t => MetaVar -> Closed (Term t) -> TC t v ()
 instantiateMetaVar mv t = do
