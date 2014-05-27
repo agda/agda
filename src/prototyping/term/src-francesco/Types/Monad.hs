@@ -8,6 +8,8 @@ module Types.Monad
     , typeError
       -- ** Source location
     , atSrcLoc
+      -- ** Getting the 'Signature'
+    , getSignature
       -- ** Definition handling
     , addDefinition
     , getDefinition
@@ -23,11 +25,7 @@ module Types.Monad
     , getTypeOfVar
     , closeClauseBody
 
-
       -- * Utils
-      -- ** Useful synonyms
-    , Term
-    , Type
       -- ** Context operations
     , ctxVars
     , ctxPi
@@ -37,29 +35,84 @@ module Types.Monad
 
 import Prelude                                    hiding (abs, pi)
 
-import           Control.Monad.State              (gets, modify)
-import           Control.Monad.Reader             (asks)
+import           Control.Monad.State              (get, gets, modify)
 import qualified Data.Map as Map
 import           Bound                            hiding (instantiate, abstract)
+import           Control.Applicative              (Applicative)
+import           Control.Monad.State              (MonadState, State, evalState)
+import           Control.Monad.Reader             (MonadReader, asks, local, ReaderT(ReaderT), runReaderT)
+import           Control.Monad.Error              (MonadError, throwError, Error, strMsg, ErrorT, runErrorT)
+import           Data.Void                        (Void)
 
-import           Syntax.Abstract                  (Name)
+import           Syntax.Abstract                  (Name, SrcLoc, noSrcLoc, HasSrcLoc, srcLoc)
 import           Syntax.Abstract.Pretty           ()
 import           Types.Definition
 import           Types.Var
 import           Types.Term
 import qualified Types.Context                    as Ctx
-import           Types.Monad.Types
+
+-- Monad definition
+------------------------------------------------------------------------
+
+newtype TC t v a =
+    TC {unTC :: ReaderT (TCEnv t v) (ErrorT TCErr (State (Signature t))) a}
+    deriving (Functor, Applicative, Monad, MonadReader (TCEnv t v), MonadState (Signature t), MonadError TCErr)
+
+type ClosedTC t = TC t Void
+
+runTC :: ClosedTC t a -> IO (Either TCErr a)
+runTC m = return $ flip evalState initState
+                 $ runErrorT
+                 $ flip runReaderT initEnv
+                 $ unTC m
+
+tcLocal :: (TCEnv t v -> TCEnv t v') -> TC t v' a -> TC t v a
+tcLocal f (TC (ReaderT m)) = TC (ReaderT (m . f))
+
+data TCEnv t v = TCEnv
+    { teContext       :: !(Ctx.ClosedCtx t v)
+    , teCurrentSrcLoc :: !SrcLoc
+    }
+
+initEnv :: Closed (TCEnv t)
+initEnv = TCEnv
+  { teContext       = Ctx.Empty
+  , teCurrentSrcLoc = noSrcLoc
+  }
+
+initState :: Signature t
+initState = Signature
+  { sDefinitions = Map.empty
+  , sMetaStore = Map.empty
+  }
+
+data TCErr = TCErr SrcLoc String
+
+instance Error TCErr where
+  strMsg = TCErr noSrcLoc
+
+instance Show TCErr where
+  show (TCErr p s) =
+    "Error at " ++ show p ++ ":\n" ++ unlines (map ("  " ++) (lines s))
+
+typeError :: String -> TC t v b
+typeError err = do
+  loc <- asks teCurrentSrcLoc
+  throwError $ TCErr loc err
+
+atSrcLoc :: HasSrcLoc a => a -> TC t v b -> TC t v b
+atSrcLoc x = local $ \env -> env { teCurrentSrcLoc = srcLoc x }
 
 -- Definitions operations
 ------------------------------------------------------------------------
 
 addDefinition :: IsTerm t => Name -> Definition t -> TC t v ()
 addDefinition x def' =
-    modify $ \s -> s { _tsSignature = Map.insert x def' $ _tsSignature s }
+    modify $ \s -> s { sDefinitions = Map.insert x def' $ sDefinitions s }
 
 getDefinition :: IsTerm t => Name -> TC t v (Definition t)
 getDefinition name = atSrcLoc name $ do
-  sig <- gets _tsSignature
+  sig <- gets sDefinitions
   case Map.lookup name sig of
     Just def' -> return def'
     Nothing   -> typeError $ "definitionOf: Not in scope " ++ error "TODO definitionOf show name"
@@ -69,14 +122,14 @@ getDefinition name = atSrcLoc name $ do
 
 addFreshMetaVar :: IsTerm t => Type t v -> TC t v (Term t v)
 addFreshMetaVar type_ = do
-    ctx <- asks _teContext
+    ctx <- asks teContext
     let mvType = ctxPi ctx type_
     mv <- nextMetaVar
-    modify $ \s -> s { _tsMetaStore = Map.insert mv (Open mvType) $ _tsMetaStore s }
+    modify $ \s -> s { sMetaStore = Map.insert mv (Open mvType) $ sMetaStore s }
     return $ ctxApp (metaVar mv) ctx
   where
     nextMetaVar = do
-        m <- gets $ Map.maxViewWithKey . _tsMetaStore
+        m <- gets $ Map.maxViewWithKey . sMetaStore
         return $ case m of
           Nothing                  -> MetaVar 0
           Just ((MetaVar i, _), _) -> MetaVar (i + 1)
@@ -87,7 +140,7 @@ instantiateMetaVar mv t = do
   mvType <- case mvInst of
       Inst _ _    -> typeError $ "instantiateMetaVar: already instantiated."
       Open mvType -> return mvType
-  modify $ \s -> s { _tsMetaStore = Map.insert mv (Inst mvType t) (_tsMetaStore s) }
+  modify $ \s -> s { sMetaStore = Map.insert mv (Inst mvType t) (sMetaStore s) }
 
 getTypeOfMetaVar :: IsTerm t => MetaVar -> TC t v (Closed (Type t))
 getTypeOfMetaVar mv = do
@@ -105,16 +158,19 @@ getBodyOfMetaVar mv = do
 
 getMetaInst :: IsTerm t => MetaVar -> TC t v (MetaInst t)
 getMetaInst mv = do
-  mbMvInst <- gets $ Map.lookup mv . _tsMetaStore
+  mbMvInst <- gets $ Map.lookup mv . sMetaStore
   case mbMvInst of
       Nothing     -> typeError $ "getMetaInst: non-existent meta " ++ show mv
       Just mvInst -> return mvInst
+
+getSignature :: TC t v (Signature t)
+getSignature = get
 
 -- Operations on the context
 ------------------------------------------------------------------------
 
 liftClosed :: ClosedTC t a -> TC t v a
-liftClosed = tcLocal $ \env -> env{_teContext = Ctx.Empty}
+liftClosed = tcLocal $ \env -> env{teContext = Ctx.Empty}
 
 extendContext
     :: (IsTerm t)
@@ -124,25 +180,25 @@ extendContext
 extendContext n type_ m =
     tcLocal extend (m (B (named n ())) (Ctx.singleton n type_))
   where
-    extend env = env { _teContext = Ctx.Snoc (_teContext env) (n, type_) }
+    extend env = env { teContext = Ctx.Snoc (teContext env) (n, type_) }
 
 getTypeOfName :: (IsTerm t) => Name -> TC t v (v, Type t v)
 getTypeOfName n = do
-    ctx <- asks _teContext
+    ctx <- asks teContext
     case Ctx.lookupName n ctx of
       Nothing -> typeError $ "Name not in scope " ++ show n
       Just t  -> return t
 
 getTypeOfVar :: (IsTerm t) => v -> TC t v (Type t v)
 getTypeOfVar v = do
-    ctx <- asks _teContext
+    ctx <- asks teContext
     return $ Ctx.getVar v ctx
 
 -- TODO this looks very wrong here.  See if you can change the interface
 -- to get rid of it.
 closeClauseBody :: (IsTerm t) => Term t v -> TC t v (ClauseBody t)
 closeClauseBody t = do
-    ctx <- asks _teContext
+    ctx <- asks teContext
     return $ Scope $ fmap (toIntVar ctx) t
   where
     toIntVar ctx v = B $ Ctx.elemIndex v ctx

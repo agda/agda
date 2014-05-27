@@ -173,12 +173,12 @@ checkEqual type_ x y = do
        checkEqual set type1 type2
        checkEqual type1 x1 x2
        checkEqual type1 y1 y2
+    (_, Refl, Refl) -> do
+      return ()
     (_, App (Meta mv) elims, t) ->
       metaAssign mv elims (unview t)
     (_, t, App (Meta mv) elims) ->
       metaAssign mv elims (unview t)
-    (_, Refl, Refl) -> do
-      return ()
     (_, App h1 elims1, App h2 elims2) | h1 == h2 -> do
       h1Type <- case h1 of
         Var v   -> getTypeOfVar v
@@ -681,12 +681,19 @@ getConstructorDefinition dataCon = do
       error $ "impossible.getConstructorDefinition: non data constructor " ++
               show dataCon
 
-
 -- Telescope utils
 ------------------
 
 telPi :: (IsVar v, IsTerm t) => Tel.IdTel (Type t) v -> Type t v
 telPi tel = Tel.unTel tel $ \ctx endType -> ctxPi ctx (Tel.unId2 endType)
+
+-- Whnf'ing and view'ing
+------------------------
+
+whnfView :: (IsTerm t) => t v -> TC t v' (TermView t v)
+whnfView t = do
+  sig <- getSignature
+  return $ view $ whnf sig t
 
 -- Errors
 ------------------------------------------------------------------------

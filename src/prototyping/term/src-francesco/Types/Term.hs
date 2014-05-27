@@ -2,19 +2,20 @@
 module Types.Term where
 
 import           Bound                            hiding (instantiate)
-import qualified Bound.Name
+import           Bound.Name                       (instantiateName)
+import qualified Bound.Name                       as Bound
 import           Data.Foldable                    (Foldable)
 import           Data.Traversable                 (Traversable)
 import           Prelude.Extras                   (Eq1((==#)))
-import           Data.Void                        (Void)
+import           Data.Void                        (Void, vacuous)
 import           Data.Monoid                      ((<>), mconcat, mempty)
 import qualified Data.HashSet                     as HS
-import           Control.Applicative              ((<$>))
+import qualified Data.Map.Strict                  as Map
+import           Control.Monad                    (guard, mzero)
 
 import qualified Text.PrettyPrint.Extended        as PP
 import           Syntax.Abstract                  (Name)
 import           Syntax.Abstract.Pretty           ()
-import           Types.Monad.Types
 import           Types.Var
 import           Types.Definition
 
@@ -36,7 +37,7 @@ data Head v
 
 instance (IsVar v) => PP.Pretty (Head v) where
     pretty (Var v) = PP.text (show ix ++ "#") <> PP.pretty name
-      where (Bound.Name.Name name ix) = varIndex v
+      where (Bound.Name name ix) = varIndex v
     pretty (Def f)   = PP.pretty f
     pretty J         = PP.text "J"
     pretty (Meta mv) = PP.pretty mv
@@ -130,6 +131,15 @@ instance (IsTerm t) => PP.Pretty (Definition t) where
 -- Term typeclass
 ------------------------------------------------------------------------
 
+data Signature t = Signature
+    { sDefinitions :: Map.Map Name (Definition t)
+    , sMetaStore   :: Map.Map MetaVar (MetaInst t)
+    }
+
+data MetaInst t
+    = Open (Closed (Type t))
+    | Inst (Closed (Type t)) (Closed (Term t))
+
 class ( Eq1 t,       Functor t,       Foldable t,       Traversable t, Monad t
       , Eq1 (Abs t), Functor (Abs t), Foldable (Abs t), Traversable (Abs t)
       ) => IsTerm t where
@@ -141,8 +151,6 @@ class ( Eq1 t,       Functor t,       Foldable t,       Traversable t, Monad t
 
     unview :: TermView t v -> t v
     view   :: t v -> TermView t v
-
-    whnf :: t v -> TC t v (t v)
 
     -- Methods present in the typeclass so that the instances can
     -- support a faster version.
@@ -176,6 +184,49 @@ class ( Eq1 t,       Functor t,       Foldable t,       Traversable t, Monad t
             unview $ App h (es1 ++ es2)
         (_, _) ->
             error "Types.Term.eliminate: Bad elimination"
+
+    whnf :: Signature t -> t v -> t v
+    whnf ws t = case view t of
+        App (Meta mv) es ->
+            case Map.lookup mv (sMetaStore ws) of
+              Just (Inst _ t') -> whnf ws $ eliminate (vacuous t') es
+              _                -> t
+        App (Def defName) es ->
+            case Map.lookup defName (sDefinitions ws) of
+              Just (Function _ _ cs) -> whnfFun t es cs
+              _                      -> t
+        App J (_ : x : _ : _ : Apply p : Apply refl' : es) | Refl <- view refl' ->
+            whnf ws $ eliminate p (x : es)
+        _ ->
+            t
+      where
+        whnfFun :: t v -> [Elim t v] -> [Clause t] -> t v
+        whnfFun t' _ [] =
+            t'
+        whnfFun t' es (Clause patterns body : clauses) =
+            case matchClause es patterns of
+                Nothing ->
+                    whnfFun t' es clauses
+                Just (args, leftoverEs) -> do
+                    let ixArg n =
+                            if n >= length args
+                            then error "Types.Term.whnf: too few arguments"
+                            else args !! n
+                    let body' = instantiateName ixArg (vacuous body)
+                    whnf ws $ eliminate body' leftoverEs
+
+        matchClause :: [Elim t v] -> [Pattern] -> Maybe ([t v], [Elim t v])
+        matchClause es [] =
+            return ([], es)
+        matchClause (Apply arg : es) (VarP : patterns) = do
+            (args, leftoverEs) <- matchClause es patterns
+            return (arg : args, leftoverEs)
+        matchClause (Apply arg : es) (ConP dataCon dataConPatterns : patterns) = do
+            Con dataCon' dataConArgs <- Just $ view $ whnf ws arg
+            guard (dataCon == dataCon')
+            matchClause (map Apply dataConArgs ++ es) (dataConPatterns ++ patterns)
+        matchClause _ _ =
+            mzero
 
     metaVars :: t v -> HS.HashSet MetaVar
     metaVars t = case view t of
@@ -228,8 +279,11 @@ con c args = unview (Con c args)
 refl :: IsTerm t => t v
 refl = unview Refl
 
-whnfView :: IsTerm t => t v -> TC t v (TermView t v)
-whnfView t = view <$> whnf t
-
 renderView :: (IsVar v, IsTerm t) => t v -> String
 renderView = PP.render . view
+
+-- Useful type synonyms
+-----------------------
+
+type Type (t :: * -> *) = t
+type Term (t :: * -> *) = t
