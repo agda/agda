@@ -3,17 +3,17 @@ module Check (checkProgram) where
 import           Prelude                          hiding (abs, pi)
 
 import           Data.Functor                     ((<$>))
-import           Data.Foldable                    (foldMap,fold)
+import           Data.Foldable                    (foldMap)
 import           Data.Monoid                      (Monoid(..),(<>))
 import           Debug.Trace                      (trace)
 import qualified Data.HashSet                     as HS
-import           Control.Applicative              (Applicative(..))
 import           Control.Monad                    (when, guard, unless)
 import           Data.List                        (nub)
 import           Data.Traversable                 (traverse)
 import           Prelude.Extras                   ((==#))
 import           Data.Proxy                       (Proxy)
 import           Bound                            hiding (instantiate, abstract)
+import           Data.Maybe                       (maybeToList)
 
 import           Data.Void                        (vacuous)
 import           Syntax.Abstract                  (Name)
@@ -306,46 +306,68 @@ metaAssign mv elims t =
                     render mv ++ " := " ++ renderView t'
             instantiateMetaVar mv t'
 
-rigidVars :: forall t v0.
-             (IsVar v0, IsTerm t)
-          => [v0]
-          -- ^ vars that count as flexible, and so also flexible contexts
-          -> Term t v0 -> TC t v0 [v0]
-rigidVars vs t = do
-  sigma <- getSignature 
-  let  
+-- | Collects all the rigidly occurring variables in a term.
+--
+-- With "rigidly occurring" here we mean either occurring as arguments
+-- of constructors or occurring as arguments of object variables that
+-- might be substituted with a metavariable.
+--
+-- Note that we don't specify how precise the detection of said
+-- "substitutable" object variables is we might be more conservative
+-- than possible.
+rigidVars
+    :: forall t v0.
+       (IsVar v0, IsTerm t)
+    => [v0]
+    -- ^ vars that count as flexible, and so also flexible contexts
+    -> Term t v0 -> TC t v0 [v0]
+rigidVars vs t0 = do
+  sig <- getSignature
+  let
     go :: (IsVar v)
        => (v -> Maybe v0)
        -> (v -> Bool)
        -- ^ vars that count as flexible, and so also flexible contexts
        -> Term t v -> [v0]
-    go strengthen flex t = 
-      case view (whnf sigma t) of
-        Lam body -> 
+    go strengthen flex t =
+      case view (whnf sig t) of
+        Lam body ->
           go (lift strengthen) (addNew flex) (fromAbs body)
-        Pi domain codomain            -> go strengthen flex domain <> go (lift strengthen) (ignoreNew flex) (fromAbs codomain)  
-        Equal type_ x y               -> foldMap (go strengthen flex) [type_, x, y]
-        App (Var v) elims | flex v    -> mempty
-                          | otherwise -> maybe mempty (:[]) (strengthen v) <> foldMap (go strengthen flex) [  t | Apply t <- elims ]
-        App (Def d) elims             -> foldMap (go strengthen flex) [ t | Apply t <- elims ]
-        App J       elims             -> foldMap (go strengthen flex) [ t | Apply t <- elims ]
-        App (Meta mv) elims           -> mempty
-        Set                           -> mempty
-        Refl                          -> mempty
-        Con _ args                    -> foldMap (go strengthen flex) args
-    
+        Pi domain codomain ->
+          go strengthen flex domain <>
+          go (lift strengthen) (ignoreNew flex) (fromAbs codomain)
+        Equal type_ x y ->
+          foldMap (go strengthen flex) [type_, x, y]
+        App (Var v) elims ->
+          if flex v
+          then mempty
+          else maybeToList (strengthen v) <>
+               foldMap (go strengthen flex) [t' | Apply t' <- elims]
+        App (Def _) elims ->
+          foldMap (go strengthen flex) [t' | Apply t' <- elims]
+        App J elims ->
+          foldMap (go strengthen flex) [t' | Apply t' <- elims]
+        App (Meta _) _ ->
+          mempty
+        Set ->
+          mempty
+        Refl ->
+          mempty
+        Con _ args ->
+          foldMap (go strengthen flex) args
+
     lift :: (v -> Maybe v0) -> TermVar v -> Maybe v0
-    lift f (B _) = Nothing
+    lift _ (B _) = Nothing
     lift f (F v) = f v
-    
-    ignoreNew f (B _) = False
+
+    ignoreNew _ (B _) = False
     ignoreNew f (F v) = f v
 
-    addNew f (B _) = True
+    addNew _ (B _) = True
     addNew f (F v) = f v
-      
-  return $ go Just (`elem` vs) t
-  
+
+  return $ go Just (`elem` vs) t0
+
 distinctVariables :: (IsVar v, IsTerm t) => [Elim (Term t) v] -> Maybe [v]
 distinctVariables elims = do
     vs <- mapM isVar elims
@@ -380,7 +402,7 @@ createPrunedMeta
     -> TC t v (Term t v)
     -- ^ The term containing the new metavariable applied to the pruned
     -- arguments
-createPrunedMeta vs0 mv mvArgs = do
+createPrunedMeta _vs0 mv _mvArgs = do
     mvType <- getTypeOfMetaVar mv
     vacuous <$> liftClosed (createNewMeta mvType kills0 [])
   where
@@ -402,7 +424,7 @@ createPrunedMeta vs0 mv mvArgs = do
           t <- extendContext (getName codomain') domain $ \v _ ->
                createNewMeta codomain' kills (v : map F vs)
           return (lam (toAbs t))
-        Pi domain codomain -> do
+        Pi _domain codomain -> do
           let codomain' =
                 instantiate codomain $
                 error "impossible.createPrunedMeta: killed argument appears later in type."
