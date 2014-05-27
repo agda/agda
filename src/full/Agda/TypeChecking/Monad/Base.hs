@@ -1027,11 +1027,15 @@ instance HasRange Call where
 -- ** Builtin things
 ---------------------------------------------------------------------------
 
-data BuiltinDescriptor = BuiltinData (TCM Type) [String]
-                       | BuiltinDataCons (TCM Type)
-                       | BuiltinPrim String (Term -> TCM ())
-                       | BuiltinPostulate Relevance (TCM Type)
-                       | BuiltinUnknown (Maybe (TCM Type)) (Term -> TCM ())
+data BuiltinDescriptor
+  = BuiltinData (TCM Type) [String]
+  | BuiltinDataCons (TCM Type)
+  | BuiltinPrim String (Term -> TCM ())
+  | BuiltinPostulate Relevance (TCM Type)
+  | BuiltinUnknown (Maybe (TCM Type)) (Term -> Type -> TCM ())
+    -- ^ Builtin of any kind.
+    --   Type can be checked (@Just t@) or inferred (@Nothing@).
+    --   The second argument is the hook for the verification function.
 
 data BuiltinInfo =
    BuiltinInfo { builtinName :: String

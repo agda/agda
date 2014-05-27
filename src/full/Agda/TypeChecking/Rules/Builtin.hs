@@ -1,4 +1,4 @@
-{-# LANGUAGE PatternGuards, CPP #-}
+{-# LANGUAGE CPP, TupleSections, PatternGuards #-}
 module Agda.TypeChecking.Rules.Builtin (bindBuiltin, bindPostulatedName) where
 
 import Control.Applicative
@@ -24,6 +24,7 @@ import Agda.TypeChecking.Monad.SizedTypes ( builtinSizeHook )
 import Agda.TypeChecking.Rules.Term ( checkExpr , inferExpr )
 import {-# SOURCE #-} Agda.TypeChecking.Rules.Builtin.Coinduction
 
+import Agda.Utils.Maybe
 import Agda.Utils.Size
 
 #include "../../undefined.h"
@@ -403,9 +404,11 @@ bindBuiltinInfo (BuiltinInfo s d) e = do
           _ -> err
 
       BuiltinUnknown mt f -> do
-        e' <- maybe (fst <$> inferExpr e) (checkExpr e =<<) mt
-        f e'
-        bindBuiltinName s e'
+        (v, t) <- caseMaybe mt (inferExpr e) $ \ tcmt -> do
+          t <- tcmt
+          (,t) <$> checkExpr e t
+        f v t
+        bindBuiltinName s v
 
 -- | Bind a builtin thing to an expression.
 bindBuiltin :: String -> A.Expr -> TCM ()
