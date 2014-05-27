@@ -136,6 +136,13 @@ data Signature t = Signature
     , sMetaStore   :: Map.Map MetaVar (MetaInst t)
     }
 
+sGetDefinition :: Signature t -> Name -> Maybe (Definition t)
+sGetDefinition sig name = Map.lookup name (sDefinitions sig)
+
+sGetMetaInst :: Signature t -> Name -> Maybe (MetaInst t)
+sGetMetaInst sig name = Map.lookup name (sMetaStore sig)
+
+
 data MetaInst t
     = Open (Closed (Type t))
     | Inst (Closed (Type t)) (Closed (Term t))
