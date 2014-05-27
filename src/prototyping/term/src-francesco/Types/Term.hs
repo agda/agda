@@ -139,13 +139,13 @@ data Signature t = Signature
     }
 
 sGetDefinition :: Signature t -> Name -> Definition t
-sGetDefinition sig name = 
+sGetDefinition sig name =
   case Map.lookup name (sDefinitions sig) of
     Nothing -> error $ "impossible.sGetDefinition: not found " ++ show name
     Just d -> d
 
 sGetMetaInst :: Signature t -> MetaVar -> MetaInst t
-sGetMetaInst sig name = 
+sGetMetaInst sig name =
   case Map.lookup name (sMetaStore sig) of
     Nothing -> error $ "impossible.sGetMetaInst: not found " ++ show name
     Just d -> d
@@ -262,7 +262,7 @@ class ( Eq1 t,       Functor t,       Foldable t,       Traversable t, Monad t
       where
         nfAbs = toAbs . nf ws . fromAbs
 
-        nfElim (Apply t') = Apply $ nf ws t
+        nfElim (Apply t') = Apply $ nf ws t'
         nfElim (Proj n f) = Proj n f
 
     metaVars :: t v -> HS.HashSet MetaVar

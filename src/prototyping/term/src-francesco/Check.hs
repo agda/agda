@@ -304,10 +304,7 @@ metaAssign mv elims t =
             sig <- getSignature
             t' <- closeTerm $ lambdaAbstract vs $ nf sig t
             let mvs = metaVars t'
-            when (mv `HS.member` mvs) $ do
-                error $
-                    "impossible.metaAssign: Attempt at recursive instantiation: " ++
-                    render mv ++ " := " ++ renderView t'
+            when (mv `HS.member` mvs) $ checkError $ OccursCheckFailed mv $ vacuous t'
             instantiateMetaVar mv t'
 
 -- Returns the pruned term
@@ -882,6 +879,7 @@ data CheckError t v
     | PatternMatchOnRecord A.Pattern
                            Name -- Record type constructor
     | MismatchingPattern (Type t v) A.Pattern
+    | OccursCheckFailed MetaVar (Term t v)
 
 checkError :: (IsVar v, IsTerm t) => CheckError t v -> TC t v a
 checkError = typeError . renderError
@@ -911,5 +909,7 @@ checkError = typeError . renderError
       "Cannot have pattern " ++ render synPat ++ " for record type " ++ render tyCon
     renderError (MismatchingPattern type_ synPat) =
       render synPat ++ " does not match an element of type " ++ renderView type_
+    renderError (OccursCheckFailed mv t) =
+      "Attempt at recursive instantiation: " ++ render mv ++ " := " ++ renderView t
 
     renderVar = render . varName
