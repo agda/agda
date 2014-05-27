@@ -44,14 +44,16 @@ module Agda.TypeChecking.Rewriting where
 import Control.Monad
 
 import Agda.Syntax.Common
-import Agda.Syntax.Internal
+import Agda.Syntax.Internal as I
 
 import Agda.TypeChecking.Monad
+import Agda.TypeChecking.Monad.Builtin
 import Agda.TypeChecking.Conversion
 import Agda.TypeChecking.Pretty
 import Agda.TypeChecking.Substitute
 import Agda.TypeChecking.Telescope
 
+import Agda.Utils.Maybe
 import Agda.Utils.Monad
 import Agda.Utils.Size
 
@@ -68,17 +70,17 @@ verifyBuiltinRewrite v t = do
        [ prettyTCM v <+> text " does not have the right type for a rewriting relation"
        , reason
        ]
-  TelV tel core <- telView t
+  caseMaybeM (relView t)
+    (failure $ text "because it should accept at least two arguments") $
+    \ (RelView tel delta a b core) -> do
   case ignoreSharing (unEl core) of
     Sort{} -> do
       -- Check that the types of the last two arguments are equal.
-      let n                = size tel
-          (delta, lastTwo) = splitAt (n - 2) $ telToList tel
-      when (size lastTwo < 2) $
-        failure $ text "because it should accept at least two arguments"
-      let [a, b] = snd . unDom <$> lastTwo
-      unlessM (tryConversion $ inTopContext $ addContext delta $ addContext (head lastTwo) $ equalType (raise 1 a) b) $
+      unlessM (tryConversion $
+                 inTopContext $ addContext tel $ escapeContext 1 $
+                   equalType (raise 1 a) b) $
         failure $ text $ "because the types of the last two arguments are different"
+    Con{}    -> __IMPOSSIBLE__
     Level{}  -> __IMPOSSIBLE__
     Lam{}    -> __IMPOSSIBLE__
     Pi{}     -> __IMPOSSIBLE__
@@ -86,5 +88,38 @@ verifyBuiltinRewrite v t = do
     _ -> failure $ text "because its type does not end in a sort, but in "
            <+> do inTopContext $ addContext tel $ prettyTCM core
 
+-- | Deconstructing a type into @Δ → t → t' → core@.
+data RelView = RelView
+  { relViewTel   :: Telescope  -- ^ The whole telescope @Δ, t, t'@.
+  , relViewDelta :: ListTel    -- ^ @Δ@.
+  , relViewType  :: Type       -- ^ @t@.
+  , relViewType' :: Type       -- ^ @t'@.
+  , relViewCore  :: Type       -- ^ @core@.
+  }
+
+-- | Deconstructing a type into @Δ → t → t' → core@.
+--   Returns @Nothing@ if not enough argument types.
+relView :: Type -> TCM (Maybe RelView)
+relView t = do
+  TelV tel core <- telView t
+  let n                = size tel
+      (delta, lastTwo) = splitAt (n - 2) $ telToList tel
+  if size lastTwo < 2 then return Nothing else do
+  let [a, b] = snd . unDom <$> lastTwo
+  return $ Just $ RelView tel delta a b core
+
+-- | Add @q : Γ → rel us lhs rhs@ as rewrite rule.
 addRewriteRule :: QName -> TCM ()
-addRewriteRule q = return ()
+addRewriteRule q = do
+  Def rel _ <- primRewrite
+  -- We know that the type of rel is that of a relation.
+  Just (RelView _tel delta a _a' _core) <- relView =<< do
+    defType <$> getConstInfo rel
+  t <- defType <$> getConstInfo q
+  TelV tel core <- telView t
+  -- Check that type of q targets rel.
+  case ignoreSharing $ unEl core of
+    Def rel' vs@(_:_:_) | rel == rel' -> return ()
+    _ -> typeError . GenericDocError =<< sep
+           [ prettyTCM q , text " does not target rewrite relation" ]
+

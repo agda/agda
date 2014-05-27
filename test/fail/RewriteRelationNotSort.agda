@@ -2,7 +2,7 @@
 
 postulate
   A : Set
-  a : A
+  a : A → A → A
 
 {-# BUILTIN REWRITE a #-}
 
