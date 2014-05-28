@@ -452,11 +452,9 @@ rigidVars vs t0 = do
           mempty
         Refl ->
           mempty
-        Con dataCon args ->
-          if isRecordConstr sig dataCon
-          then mempty
-          -- conservative, some record constructors might not be reachable
-          else foldMap (go strengthen flex) args
+        Con _ _ ->
+          mempty
+          -- conservative, some constructors might not be reachable
 
     lift :: (v -> Maybe v0) -> TermVar v -> Maybe v0
     lift _ (B _) = Nothing
