@@ -452,8 +452,11 @@ rigidVars vs t0 = do
           mempty
         Refl ->
           mempty
-        Con _ args -> -- Record Constructors, wtf?
-          foldMap (go strengthen flex) args
+        Con dataCon args ->
+          if isRecordConstr sig dataCon
+          then mempty
+          -- conservative, some record constructors might not be reachable
+          else foldMap (go strengthen flex) args
 
     lift :: (v -> Maybe v0) -> TermVar v -> Maybe v0
     lift _ (B _) = Nothing
@@ -488,9 +491,8 @@ potentiallyMatchable t = do
   case view t of
     Lam body ->
       potentiallyMatchable (fromAbs body)
-    Con dataCon args -> do
-      isDataConRecord <- isRecordConstr dataCon
-      if isDataConRecord
+    Con dataCon args -> do 
+      if isRecordConstr sig dataCon
         then or <$> mapM potentiallyMatchable args
         else return True
     App (Def f) elims ->
@@ -837,17 +839,17 @@ getConstructorDefinition dataCon = do
       error $ "impossible.getConstructorDefinition: non data constructor " ++
               show dataCon
 
-isRecordType :: (IsTerm t) => Name -> TC t v Bool
-isRecordType tyCon = do
-  d <- getDefinition tyCon
-  case d of
-    Constant _ Record _ -> return True
-    _                   -> return False
+isRecordType :: (IsTerm t) => Signature t -> Name -> Bool
+isRecordType sig tyCon = 
+  case sGetDefinition sig tyCon of
+    Constant _ Record _ -> True
+    _                   -> False
 
-isRecordConstr :: (IsTerm t) => Name -> TC t v Bool
-isRecordConstr dataCon = do
-  (tyCon , _) <- getConstructorDefinition dataCon
-  isRecordType tyCon
+isRecordConstr :: (IsTerm t) => Signature t -> Name -> Bool
+isRecordConstr sig dataCon = 
+  case sGetDefinition sig dataCon of
+    Constructor _ tyCon _ -> isRecordType sig tyCon
+    _                     -> False
 
 -- Telescope utils
 ------------------
