@@ -374,6 +374,7 @@ library
                     -fwarn-incomplete-patterns
                     -fwarn-missing-fields
                     -fwarn-missing-methods
+                    -fwarn-monomorphism-restriction
                     -fwarn-overlapping-patterns
                     -fwarn-warnings-deprecations
   -- The Cabal-generated module Paths_Agda triggers a warning under
