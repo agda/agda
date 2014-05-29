@@ -492,7 +492,7 @@ isNeutral sig f _ =
 potentiallyMatchable :: (IsTerm t, IsVar v) => Term t v -> ClosedTC t Bool
 potentiallyMatchable t = do
   sig <- getSignature
-  case view t of
+  case view (whnf sig t) of
     Lam body ->
       potentiallyMatchable (fromAbs body)
     Con dataCon args -> do 
