@@ -44,6 +44,16 @@ instance (TermLike a, TermLike b) => TermLike (a, b) where
   traverseTermM f (x, y) = (,) <$> traverseTermM f x <*> traverseTermM f y
   foldTerm f (x, y) = foldTerm f x `mappend` foldTerm f y
 
+instance (TermLike a, TermLike b, TermLike c) => TermLike (a, b, c) where
+  traverseTerm f (x, y, z) = (traverseTerm f x, traverseTerm f y, traverseTerm f z)
+  traverseTermM f (x, y, z) = (,,) <$> traverseTermM f x <*> traverseTermM f y <*> traverseTermM f z
+  foldTerm f (x, y, z) = mconcat [foldTerm f x, foldTerm f y, foldTerm f z]
+
+instance (TermLike a, TermLike b, TermLike c, TermLike d) => TermLike (a, b, c, d) where
+  traverseTerm f (x, y, z, u) = (traverseTerm f x, traverseTerm f y, traverseTerm f z, traverseTerm f u)
+  traverseTermM f (x, y, z, u) = (,,,) <$> traverseTermM f x <*> traverseTermM f y <*> traverseTermM f z <*> traverseTermM f u
+  foldTerm f (x, y, z, u) = mconcat [foldTerm f x, foldTerm f y, foldTerm f z, foldTerm f u]
+
 instance TermLike a => TermLike (Abs a) where
   traverseTerm f = fmap (traverseTerm f)
   traverseTermM f = traverse (traverseTermM f)
