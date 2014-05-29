@@ -156,6 +156,8 @@ checkEqual type_ x y = do
   xView <- whnfView x
   yView <- whnfView y
   case (typeView, xView, yView) of
+    (_, Set, Set) -> do
+      return ()
     (Pi domain codomain, _, _) -> do
       let codomain' = fromAbs codomain
       extendContext (getName codomain') domain $ \v -> do
