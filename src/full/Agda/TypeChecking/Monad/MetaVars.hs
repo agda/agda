@@ -12,7 +12,7 @@ import qualified Data.Set as Set
 import qualified Data.Foldable as Fold
 import qualified Data.Traversable as Trav
 
-import Agda.Syntax.Common
+import Agda.Syntax.Common as Common
 import Agda.Syntax.Internal
 import Agda.Syntax.Position
 import Agda.Syntax.Scope.Base
@@ -24,9 +24,10 @@ import Agda.TypeChecking.Monad.Options (reportSLn)
 import Agda.TypeChecking.Monad.Context
 import Agda.TypeChecking.Substitute
 
-import Agda.Utils.Maybe
 import Agda.Utils.Functor ((<.>))
 import Agda.Utils.Fresh
+import Agda.Utils.Maybe
+import Agda.Utils.Monad
 import Agda.Utils.Permutation
 import Agda.Utils.Tuple
 import Agda.Utils.Size
@@ -86,8 +87,48 @@ getMetaTypeInContext m = do
       return $ piApply t $ permute (takeP (size vs) p) vs
     IsSort{}                 -> __IMPOSSIBLE__
 
-isInstantiatedMeta :: MetaId -> TCM Bool
-isInstantiatedMeta m = isJust <$> isInstantiatedMeta' m
+-- | Check whether all metas are instantiated.
+--   Precondition: argument is a meta (in some form) or a list of metas.
+class IsInstantiatedMeta a where
+  isInstantiatedMeta :: a -> TCM Bool
+
+instance IsInstantiatedMeta MetaId where
+  isInstantiatedMeta m = isJust <$> isInstantiatedMeta' m
+
+instance IsInstantiatedMeta Term where
+  isInstantiatedMeta = loop where
+   loop v =
+    case ignoreSharing v of
+      MetaV x _  -> isInstantiatedMeta x
+      DontCare v -> loop v
+      Level l    -> isInstantiatedMeta l
+      Lam _ b    -> isInstantiatedMeta b
+      Con _ vs   -> isInstantiatedMeta vs
+      _          -> __IMPOSSIBLE__
+
+instance IsInstantiatedMeta Level where
+  isInstantiatedMeta (Max ls) = isInstantiatedMeta ls
+
+instance IsInstantiatedMeta PlusLevel where
+  isInstantiatedMeta (Plus n l) | n == 0 = isInstantiatedMeta l
+  isInstantiatedMeta _ = __IMPOSSIBLE__
+
+instance IsInstantiatedMeta LevelAtom where
+  isInstantiatedMeta (MetaLevel x es) = isInstantiatedMeta x
+  isInstantiatedMeta _ = __IMPOSSIBLE__
+
+instance IsInstantiatedMeta a => IsInstantiatedMeta [a] where
+  isInstantiatedMeta = andM . map isInstantiatedMeta
+
+instance IsInstantiatedMeta a => IsInstantiatedMeta (Maybe a) where
+  isInstantiatedMeta = isInstantiatedMeta . maybeToList
+
+instance IsInstantiatedMeta a => IsInstantiatedMeta (Common.Arg c a) where
+  isInstantiatedMeta = isInstantiatedMeta . unArg
+
+-- | Does not worry about raising.
+instance IsInstantiatedMeta a => IsInstantiatedMeta (Abs a) where
+  isInstantiatedMeta = isInstantiatedMeta . unAbs
 
 isInstantiatedMeta' :: MetaId -> TCM (Maybe Term)
 isInstantiatedMeta' m = do
@@ -362,3 +403,4 @@ instance UnFreezeMeta a => UnFreezeMeta [a] where
 
 instance UnFreezeMeta a => UnFreezeMeta (Abs a) where
   unfreezeMeta = Fold.mapM_ unfreezeMeta
+
