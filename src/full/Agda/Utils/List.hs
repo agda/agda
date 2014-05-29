@@ -207,9 +207,8 @@ groupBy' p xxs@(x : xs) = grp x $ zipWith (\x y -> (p x y, y)) xxs xs
                    []            -> []
                    ((_, z) : zs) -> grp z zs
 
--- The @prop_groupBy'@ name is not accepted by @quickCheckAll@.
-prop_groupBy1 :: (Bool -> Bool -> Bool) -> [Bool] -> Property
-prop_groupBy1 p xs =
+prop_groupBy' :: (Bool -> Bool -> Bool) -> [Bool] -> Property
+prop_groupBy' p xs =
   classify (length xs - length gs >= 3) "interesting" $
     concat gs == xs
     &&
@@ -275,9 +274,8 @@ zipWith' f (x : xs) (y : ys) = f x y : zipWith' f xs ys
 zipWith' f []       (_ : _)  = {- ' -} __IMPOSSIBLE__
 zipWith' f (_ : _)  []       = {- ' -} __IMPOSSIBLE__
 
--- The @prop_zipWith'@ name is not accepted by @quickCheckAll@.
-prop_zipWith1 :: (Integer -> Integer -> Integer) -> Property
-prop_zipWith1 f =
+prop_zipWith' :: (Integer -> Integer -> Integer) -> Property
+prop_zipWith' f =
   forAll natural $ \n ->
     forAll (two $ vector n) $ \(xs, ys) ->
       zipWith' f xs ys == zipWith f xs ys
