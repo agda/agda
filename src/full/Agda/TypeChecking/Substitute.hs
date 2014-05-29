@@ -697,6 +697,12 @@ instance Subst () where
 instance (Subst a, Subst b) => Subst (a,b) where
   applySubst rho (x,y) = (applySubst rho x, applySubst rho y)
 
+instance (Subst a, Subst b, Subst c) => Subst (a,b,c) where
+  applySubst rho (x,y,z) = (applySubst rho x, applySubst rho y, applySubst rho z)
+
+instance (Subst a, Subst b, Subst c, Subst d) => Subst (a,b,c,d) where
+  applySubst rho (x,y,z,u) = (applySubst rho x, applySubst rho y, applySubst rho z, applySubst rho u)
+
 instance Subst ClauseBody where
   applySubst rho (Body t) = Body $ applySubst rho t
   applySubst rho (Bind b) = Bind $ applySubst rho b
