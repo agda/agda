@@ -42,14 +42,21 @@ instance Applicative LazyScope where
     pure = return
     (<*>) = ap
 
-instance IsTerm LazyScope where
+instance MetaVars LazyScope where
+    metaVars t = case view t of
+        Lam body           -> metaVars $ unscope $ unLSAbs $ body
+        Pi domain codomain -> metaVars domain <> metaVars (unscope (unLSAbs (codomain)))
+        Equal type_ x y    -> metaVars type_ <> metaVars x <> metaVars y
+        App h elims        -> metaVars h <> mconcat (map metaVars elims)
+        Set                -> mempty
+        Refl               -> mempty
+        Con _ args         -> mconcat (map metaVars args)
+
+instance HasAbs LazyScope where
     newtype Abs LazyScope v = LSAbs {unLSAbs :: Scope (Named ()) LazyScope v}
 
     toAbs   = LSAbs . toScope
     fromAbs = fromScope . unLSAbs
-
-    unview = LS
-    view   = unLS
 
     weaken = LSAbs . Scope .  return . F
 
@@ -59,14 +66,13 @@ instance IsTerm LazyScope where
       where
         f v' = if v == v' then Just (named (varName v) ()) else Nothing
 
-    metaVars t = case view t of
-        Lam body           -> metaVars $ unscope $ unLSAbs $ body
-        Pi domain codomain -> metaVars domain <> metaVars (unscope (unLSAbs (codomain)))
-        Equal type_ x y    -> metaVars type_ <> metaVars x <> metaVars y
-        App h elims        -> metaVarsHead h <> mconcat (map metaVarsElim elims)
-        Set                -> mempty
-        Refl               -> mempty
-        Con _ args         -> mconcat (map metaVars args)
+instance View LazyScope where
+    unview = LS
+    view   = unLS
+
+instance Whnf LazyScope
+
+instance IsTerm LazyScope
 
 -- TODO There seems to be a bug preventing us from deriving this.  Check
 -- with 7.8.

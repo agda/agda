@@ -1,5 +1,6 @@
 :set -i../dist
 :set -Wall
+:set -XDefaultSignatures
 :set -XDeriveFoldable
 :set -XDeriveFunctor
 :set -XDeriveTraversable

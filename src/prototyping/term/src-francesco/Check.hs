@@ -27,6 +27,7 @@ import           Types.Monad
 import           Types.Term
 import           Types.Var
 import           Text.PrettyPrint.Extended        (render)
+import qualified Types.Signature                  as Sig
 
 -- Main functions
 ------------------------------------------------------------------------
@@ -55,19 +56,19 @@ check synT type_ = atSrcLoc synT $ case synT of
       _ ->
           checkError $ NotEqualityType (unview typeView)
   A.Meta _ ->
-    addFreshMetaVar_ type_
+    addFreshMetaVarInCtx type_
   A.Lam name synBody -> do
     typeView <- whnfView type_
     case typeView of
       Pi domain codomain -> do
-         body <- extendContext name domain $ \_ _ ->
+         body <- extendContext name domain $ \_ ->
            check synBody (fromAbs codomain)
          return $ lam (toAbs body)
       App (Meta _) _ -> do
-        dom <- addFreshMetaVar_ set
-        cod <- extendContext name dom $ \ _ _ -> addFreshMetaVar_ set
+        dom <- addFreshMetaVarInCtx set
+        cod <- extendContext name dom $ \_ -> addFreshMetaVarInCtx set
         checkEqual set (unview typeView) (pi dom (toAbs cod))
-        body <- extendContext name dom $ \ _ _ -> check synBody cod
+        body <- extendContext name dom $ \_ -> check synBody cod
         return $ lam (toAbs body)
       _ ->
         checkError $ LambdaTypeError synT (unview typeView)
@@ -93,7 +94,7 @@ infer synT = atSrcLoc synT $ case synT of
     return (set, set)
   A.Pi name synDomain synCodomain -> do
     domain   <- isType synDomain
-    codomain <- extendContext name domain $ \_ _ -> isType synCodomain
+    codomain <- extendContext name domain $ \_ -> isType synCodomain
     return (pi domain (toAbs codomain), set)
   A.Fun synDomain synCodomain -> do
     domain   <- isType synDomain
@@ -109,7 +110,7 @@ infer synT = atSrcLoc synT $ case synT of
     y <- check synY type_
     return (equal type_ x y, set)
   _ -> do
-    type_ <- addFreshMetaVar_ set
+    type_ <- addFreshMetaVarInCtx set
     t <- check synT type_
     return (t, type_)
 
@@ -134,8 +135,10 @@ checkSpine h (el : els) type_ = atSrcLoc el $ case el of
 inferHead :: (IsVar v, IsTerm t) => A.Head -> TC t v (Head v, Type t v)
 inferHead synH = atSrcLoc synH $ case synH of
   A.Var name -> do
-    (v, type_) <- getTypeOfName name
-    return (Var v, type_)
+    mbType <- getTypeOfName name
+    case mbType of
+      Nothing         -> checkError $ NameNotInScope name
+      Just (v, type_) -> return (Var v, type_)
   A.Def name -> do
     type_ <- definitionType <$> getDefinition name
     return (Def name, vacuous type_)
@@ -155,10 +158,10 @@ checkEqual type_ x y = do
   case (typeView, xView, yView) of
     (Pi domain codomain, _, _) -> do
       let codomain' = fromAbs codomain
-      extendContext (getName codomain') domain $ \v ctxV -> do
+      extendContext (getName codomain') domain $ \v -> do
         let v' = var v
-        let x' = eliminate (fmap (Ctx.weaken ctxV) x) [Apply v']
-        let y' = eliminate (fmap (Ctx.weaken ctxV) y) [Apply v']
+        let x' = eliminate (fmap F x) [Apply v']
+        let y' = eliminate (fmap F y) [Apply v']
         checkEqual codomain' x' y'
     (App (Def tyCon) tyConPars0, Con dataCon dataConArgs1, Con dataCon' dataConArgs2)
       | Just tyConPars <- mapM isApply tyConPars0
@@ -172,7 +175,7 @@ checkEqual type_ x y = do
     (_, Pi dom1 cod1, Pi dom2 cod2) -> do
        checkEqual set dom1 dom2
        let cod1' = fromAbs cod1
-       extendContext (getName cod1') dom1 $ \ _ _ -> checkEqual set cod1' (fromAbs cod2)
+       extendContext (getName cod1') dom1 $ \_ -> checkEqual set cod1' (fromAbs cod2)
     (_, Equal type1 x1 y1, Equal type2 x2 y2) -> do
        checkEqual set type1 type2
        checkEqual type1 x1 x2
@@ -224,8 +227,8 @@ equalConArgs
     -- ^ Type of the head.
     -> Name -> [Term t v] -> [Term t v] -> TC t v ()
 equalConArgs type_ dataCon xs ys = do
-  expandedCon <- unrollPi type_ $ \ctx _ -> return $
-                 ctxLam ctx (con dataCon (map var (ctxVars ctx)))
+  expandedCon <- unrollPi type_ $ \ctx _ ->
+                 return $ ctxLam ctx $ con dataCon $ map var $ ctxVars ctx
   equalSpine type_ expandedCon (map Apply xs) (map Apply ys)
 
 applyProjection
@@ -258,7 +261,7 @@ applyProjection proj h type_ = do
                               return . Tel.idTel ctx
               tyConParsMvs <- createTyConParsMvs tyConParsTel
               return $
-                ctxLam ctxMvArgs $ eliminate (def tyCon) (map Apply tyConParsMvs)
+                ctxLam ctxMvArgs $ def tyCon $ map Apply tyConParsMvs
             instantiateMetaVar mv mvT
           -- Once instantiated, we re-evaluate the type and extract the
           -- arguments of the type constructor.
@@ -284,8 +287,8 @@ applyProjection proj h type_ = do
     createTyConParsMvs (Tel.Empty _) =
       return []
     createTyConParsMvs (Tel.Cons (name, type') tel) = do
-      mv  <- addFreshMetaVar_ type'
-      mvs <- extendContext name type' $ \_ _ -> createTyConParsMvs tel
+      mv  <- addFreshMetaVarInCtx type'
+      mvs <- extendContext name type' $ \_ -> createTyConParsMvs tel
       return (mv : map (\t -> instantiate (toAbs t) mv) mvs)
 
 -- MetaVar handling
@@ -368,7 +371,8 @@ prune vs0 oldMv args = do
       :: Type t v -> [Bool]
       -> TC t v (Tel.IdTel (Type t) v, MetaVar, [Named Bool])
     createNewMeta type_ [] = do
-      (newMv, _) <- addFreshMetaVar type_
+      ctx <- askContext
+      newMv <- addFreshMetaVar $ ctxPi ctx type_
       return (Tel.Empty (Tel.Id type_), newMv, [])
     createNewMeta type_ (kill : kills) = do
       typeView <- whnfView type_
@@ -377,7 +381,7 @@ prune vs0 oldMv args = do
           let codomain' = fromAbs codomain
           let name      = getName codomain'
           (tel, newMv, kills') <-
-            extendContext name domain $ \_ _ -> createNewMeta codomain' kills
+            extendContext name domain $ \_ -> createNewMeta codomain' kills
           let notKilled = (Tel.Cons (name, domain) tel, newMv, named name False : kills')
           return $
             if not kill
@@ -393,7 +397,7 @@ prune vs0 oldMv args = do
       where
         go :: [v] -> [Named Bool] -> Type t v
         go vs [] =
-          eliminate (metaVar newMv) (map (Apply . var) (reverse vs))
+          metaVar newMv $ map (Apply . var) (reverse vs)
         go vs (kill : kills) =
           let vs' = (if unNamed kill then [] else [B (() <$ kill)]) ++ map F vs
           in lam $ toAbs $ go vs' kills
@@ -470,9 +474,9 @@ rigidVars vs t0 = do
 
 -- | Check whether a term @Def f es@ is finally stuck.
 --   Currently, we give only a crude approximation.
-isNeutral :: (IsTerm t, IsVar v) => Signature t -> Name -> [Elim (Term t) v] -> Bool
+isNeutral :: (IsTerm t, IsVar v) => Sig.Signature t -> Name -> [Elim (Term t) v] -> Bool
 isNeutral sig f _ =
-  case sGetDefinition sig f of
+  case Sig.getDefinition sig f of
     Constant{}    -> True
     Constructor{} -> error $ "impossible.isNeutral: constructor " ++ show f
     Projection{}  -> error $ "impossible.isNeutral: projection " ++ show f
@@ -562,7 +566,7 @@ checkData tyCon tyConPars dataCons = do
         equalType endType set
         -- TODO maybe we should expose a 'vars' function from the Ctx
         -- and do the application ourselves.
-        let appliedTyConType = ctxApp (def tyCon) tyConPars'
+        let appliedTyConType = ctxApp (def tyCon []) tyConPars'
         mapM_ (checkConstr tyCon tyConPars' appliedTyConType) dataCons
 
 checkConstr
@@ -604,11 +608,11 @@ checkRec tyCon tyConPars dataCon fields = do
     unrollPiWithNames tyConType tyConPars $ \tyConPars' endType -> do
         equalType endType set
         fieldsTel <- checkFields fields
-        let appliedTyConType = ctxApp (def tyCon) tyConPars'
-        extendContext (A.name "_") appliedTyConType $ \self selfCtx -> do
+        let appliedTyConType = ctxApp (def tyCon []) tyConPars'
+        extendContext (A.name "_") appliedTyConType $ \self -> do
             addProjections
                 tyCon tyConPars' self (map A.typeSigName fields) $
-                (fmap (Ctx.weaken selfCtx) fieldsTel)
+                (fmap F fieldsTel)
         Tel.unTel fieldsTel $ \fieldsCtx Tel.Proxy ->
             addConstructor dataCon tyCon $
             Tel.idTel tyConPars' $
@@ -624,7 +628,7 @@ checkFields = go Ctx.Empty
         return $ Tel.proxyTel ctx
     go ctx (A.Sig field synFieldType : fields) = do
         fieldType <- isType synFieldType
-        extendContext field fieldType $ \_ _ ->
+        extendContext field fieldType $ \_ ->
             go (Ctx.Snoc ctx (field, fieldType)) fields
 
 addProjections
@@ -651,7 +655,7 @@ addProjections tyCon tyConPars self fields0 =
         ([], Tel.Empty Tel.Proxy) ->
             return ()
         ((field, ix) : fields', Tel.Cons (_, fieldType) fieldTypes') -> do
-            let endType = pi (ctxApp (def tyCon) tyConPars) (toAbs fieldType)
+            let endType = pi (ctxApp (def tyCon []) tyConPars) (toAbs fieldType)
             addProjection field ix tyCon (Tel.idTel tyConPars endType)
             go fields' $
                 Tel.instantiate fieldTypes' $ unview $ App (Var self) [Proj tyCon ix]
@@ -667,7 +671,10 @@ checkClause fun synPats synClauseBody = do
     funType <- definitionType <$> getDefinition fun
     checkPatterns synPats funType $ \_ pats _ clauseType -> do
         clauseBody <- check synClauseBody clauseType
-        addClause fun pats =<< closeClauseBody clauseBody
+        ctx <- askContext
+        addClause fun pats $ Scope $ fmap (toIntVar ctx) clauseBody
+  where
+    toIntVar ctx v = B $ Ctx.elemIndex v ctx
 
 checkPatterns
     :: (IsVar v, IsTerm t)
@@ -705,11 +712,11 @@ checkPattern
     -> TC t v a
 checkPattern synPat type_ ret = case synPat of
     A.VarP name ->
-      extendContext name type_ $ \v ctxV ->
-      ret (Ctx.weaken ctxV) VarP (var v)
+      extendContext name type_ $ \v ->
+      ret F VarP (var v)
     A.WildP _ ->
-      extendContext (A.name "_") type_ $ \v ctxV ->
-      ret (Ctx.weaken ctxV) VarP (var v)
+      extendContext (A.name "_") type_ $ \v ->
+      ret F VarP (var v)
     A.ConP dataCon synPats -> do
       (typeCon, dataConType) <- getConstructorDefinition dataCon
       typeConDef <- getDefinition typeCon
@@ -748,6 +755,12 @@ definitionType (Constructor _ _ tel)  = telPi tel
 definitionType (Projection _ _ _ tel) = telPi tel
 definitionType (Function _ type_ _)   = type_
 
+addFreshMetaVarInCtx :: (IsTerm t) => Type t v -> TC t v (Term t v)
+addFreshMetaVarInCtx type_ = do
+  ctx <- askContext
+  mv <- addFreshMetaVar $ ctxPi ctx type_
+  return $ ctxApp (metaVar mv []) ctx
+
 -- Unrolling Pis
 ----------------
 
@@ -768,9 +781,9 @@ unrollPiWithNames type_ (name : names) ret = do
     typeView <- whnfView type_
     case typeView of
         Pi domain codomain ->
-            extendContext name domain $ \_v ctxV ->
+            extendContext name domain $ \_v ->
             unrollPiWithNames (fromAbs codomain) names $ \ctxVs endType ->
-            ret (ctxV Ctx.++ ctxVs) endType
+            ret (Ctx.singleton name domain Ctx.++ ctxVs) endType
         _ ->
             checkError $ ExpectedFunctionType (unview typeView) Nothing
 
@@ -787,9 +800,10 @@ unrollPi type_ ret = do
     case typeView of
         Pi domain codomain -> do
             let codomain' = fromAbs codomain
-            extendContext (getName codomain') domain $ \_v ctxV ->
+            let name      = getName codomain'
+            extendContext name domain $ \_v ->
                 unrollPi codomain' $ \ctxVs endType ->
-                ret (ctxV Ctx.++ ctxVs) endType
+                ret (Ctx.singleton name domain Ctx.++ ctxVs) endType
         _ ->
             ret Ctx.Empty type_
 
@@ -837,23 +851,48 @@ getConstructorDefinition dataCon = do
       error $ "impossible.getConstructorDefinition: non data constructor " ++
               show dataCon
 
-isRecordType :: (IsTerm t) => Signature t -> Name -> Bool
+isRecordType :: (IsTerm t) => Sig.Signature t -> Name -> Bool
 isRecordType sig tyCon = 
-  case sGetDefinition sig tyCon of
+  case Sig.getDefinition sig tyCon of
     Constant _ Record _ -> True
     _                   -> False
 
-isRecordConstr :: (IsTerm t) => Signature t -> Name -> Bool
+isRecordConstr :: (IsTerm t) => Sig.Signature t -> Name -> Bool
 isRecordConstr sig dataCon = 
-  case sGetDefinition sig dataCon of
+  case Sig.getDefinition sig dataCon of
     Constructor _ tyCon _ -> isRecordType sig tyCon
     _                     -> False
 
--- Telescope utils
+-- Telescope & context utils
 ------------------
 
 telPi :: (IsVar v, IsTerm t) => Tel.IdTel (Type t) v -> Type t v
 telPi tel = Tel.unTel tel $ \ctx endType -> ctxPi ctx (Tel.unId endType)
+
+-- | Collects all the variables in the 'Ctx.Ctx'.
+ctxVars :: IsTerm t => Ctx.Ctx v0 (Type t) v -> [v]
+ctxVars = go
+  where
+    go :: IsTerm t => Ctx.Ctx v0 (Type t) v -> [v]
+    go Ctx.Empty                = []
+    go (Ctx.Snoc ctx (name, _)) = boundTermVar name : map F (go ctx)
+
+-- | Applies a 'Term' to all the variables in the context.  The
+-- variables are applied from left to right.
+ctxApp :: IsTerm t => Term t v -> Ctx.Ctx v0 (Type t) v -> Term t v
+ctxApp t ctx0 = eliminate t $ map (Apply . var) $ reverse $ ctxVars ctx0
+
+-- | Creates a 'Pi' type containing all the types in the 'Ctx' and
+-- terminating with the provided 't'.
+ctxPi :: IsTerm t => Ctx.Ctx v0 (Type t) v -> Type t v -> Type t v0
+ctxPi Ctx.Empty                  t = t
+ctxPi (Ctx.Snoc ctx (_n, type_)) t = ctxPi ctx $ pi type_ (toAbs t)
+
+-- | Creates a 'Lam' term with as many arguments there are in the
+-- 'Ctx.Ctx'.
+ctxLam :: IsTerm t => Ctx.Ctx v0 (Type t) v -> Term t v -> Term t v0
+ctxLam Ctx.Empty        t = t
+ctxLam (Ctx.Snoc ctx _) t = ctxLam ctx $ lam $ toAbs t
 
 -- Whnf'ing and view'ing
 ------------------------
@@ -880,6 +919,7 @@ data CheckError t v
                            Name -- Record type constructor
     | MismatchingPattern (Type t v) A.Pattern
     | OccursCheckFailed MetaVar (Term t v)
+    | NameNotInScope Name
 
 checkError :: (IsVar v, IsTerm t) => CheckError t v -> TC t v a
 checkError = typeError . renderError
@@ -911,5 +951,7 @@ checkError = typeError . renderError
       render synPat ++ " does not match an element of type " ++ renderView type_
     renderError (OccursCheckFailed mv t) =
       "Attempt at recursive instantiation: " ++ render mv ++ " := " ++ renderView t
+    renderError (NameNotInScope name) =
+      "Name not in scope: " ++ render name
 
     renderVar = render . varName

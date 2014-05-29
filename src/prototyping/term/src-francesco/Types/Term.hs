@@ -9,24 +9,20 @@ import qualified Bound.Name                       as Bound
 import           Data.Foldable                    (Foldable)
 import           Data.Traversable                 (Traversable)
 import           Prelude.Extras                   (Eq1((==#)))
-import           Data.Void                        (Void, vacuous)
+import           Data.Void                        (Void, vacuousM)
 import           Data.Monoid                      ((<>), mconcat, mempty)
 import qualified Data.HashSet                     as HS
-import qualified Data.Map.Strict                  as Map
-import           Control.Monad                    (guard, mzero)
+import           Control.Monad                    (guard, mzero, liftM)
 
 import qualified Text.PrettyPrint.Extended        as PP
 import           Syntax.Abstract                  (Name)
 import           Syntax.Abstract.Pretty           ()
 import           Types.Var
 import           Types.Definition
+import qualified Types.Signature                  as Sig
 
 -- Terms
 ------------------------------------------------------------------------
-
--- TODO Refl and Con could be factored out in 'TermView' since the type
--- checking for them works differently from other applications, since we
--- can infer the type of the other 'Head's.
 
 -- | A 'Head' heads a neutral term -- something which can't reduce
 -- further.
@@ -133,45 +129,38 @@ instance (IsTerm t) => PP.Pretty (Definition t) where
 -- Term typeclass
 ------------------------------------------------------------------------
 
-data Signature t = Signature
-    { sDefinitions :: Map.Map Name (Definition t)
-    , sMetaStore   :: Map.Map MetaVar (MetaInst t)
-    }
+class MetaVars t where
+    metaVars :: t v -> HS.HashSet MetaVar
 
-sGetDefinition :: Signature t -> Name -> Definition t
-sGetDefinition sig name =
-  case Map.lookup name (sDefinitions sig) of
-    Nothing -> error $ "impossible.sGetDefinition: not found " ++ show name
-    Just d -> d
+    default metaVars :: (View t, HasAbs t) => t v -> HS.HashSet MetaVar
+    metaVars t = case view t of
+        Lam body           -> metaVars (fromAbs body)
+        Pi domain codomain -> metaVars domain <> metaVars (fromAbs codomain)
+        Equal type_ x y    -> metaVars type_ <> metaVars x <> metaVars y
+        App h elims        -> metaVars h <> mconcat (map metaVars elims)
+        Set                -> mempty
+        Refl               -> mempty
+        Con _ elims        -> mconcat (map metaVars elims)
 
-sGetMetaInst :: Signature t -> MetaVar -> MetaInst t
-sGetMetaInst sig name =
-  case Map.lookup name (sMetaStore sig) of
-    Nothing -> error $ "impossible.sGetMetaInst: not found " ++ show name
-    Just d -> d
+instance MetaVars Head where
+    metaVars (Meta mv) = HS.singleton mv
+    metaVars _         = mempty
 
+instance MetaVars t => MetaVars (Elim t) where
+    metaVars (Apply t)  = metaVars t
+    metaVars (Proj _ _) = mempty
 
-data MetaInst t
-    = Open (Closed (Type t))
-    | Inst (Closed (Type t)) (Closed (Term t))
-
-class ( Eq1 t,       Functor t,       Foldable t,       Traversable t, Monad t
-      , Eq1 (Abs t), Functor (Abs t), Foldable (Abs t), Traversable (Abs t)
-      ) => IsTerm t where
-    -- | The type of abstractions for this 'Term'.
+class (Monad t) => HasAbs t where
     data Abs t :: * -> *
 
     toAbs   :: t (TermVar v) -> Abs t v
     fromAbs :: Abs t v -> t (TermVar v)
 
-    unview :: TermView t v -> t v
-    view   :: t v -> TermView t v
-
     -- Methods present in the typeclass so that the instances can
     -- support a faster version.
 
     weaken :: t v -> Abs t v
-    weaken = toAbs . fmap F
+    weaken = toAbs . liftM F
 
     instantiate :: Abs t v -> t v -> t v
     instantiate abs' t = fromAbs abs' >>= \v -> case v of
@@ -179,10 +168,15 @@ class ( Eq1 t,       Functor t,       Foldable t,       Traversable t, Monad t
         F v' -> return v'
 
     abstract :: IsVar v => v -> t v -> Abs t v
-    abstract v t = toAbs $ fmap f t
+    abstract v t = toAbs $ liftM f t
       where
         f v' = if v == v' then boundTermVar (varName v) else F v'
 
+class View t where
+    unview :: TermView t v -> t v
+    view   :: t v -> TermView t v
+
+class (HasAbs t, View t) => Whnf t where
     -- | Tries to apply the eliminators to the term.  Trows an error
     -- when the term and the eliminators don't match.
     eliminate :: t v -> [Elim t v] -> t v
@@ -200,18 +194,14 @@ class ( Eq1 t,       Functor t,       Foldable t,       Traversable t, Monad t
         (_, _) ->
             error "Types.Term.eliminate: Bad elimination"
 
-    whnf :: Signature t -> t v -> t v
-    whnf ws t = case view t of
-        App (Meta mv) es ->
-            case Map.lookup mv (sMetaStore ws) of
-              Just (Inst _ t') -> whnf ws $ eliminate (vacuous t') es
-              _                -> t
-        App (Def defName) es ->
-            case Map.lookup defName (sDefinitions ws) of
-              Just (Function _ _ cs) -> whnfFun t es cs
-              _                      -> t
+    whnf :: Sig.Signature t -> t v -> t v
+    whnf sig t = case view t of
+        App (Meta mv) es | Sig.Inst _ t' <- Sig.getMetaInst sig mv ->
+            whnf sig $ eliminate (vacuousM t') es
+        App (Def defName) es | Function _ _ cs <- Sig.getDefinition sig defName ->
+            whnfFun t es cs
         App J (_ : x : _ : _ : Apply p : Apply refl' : es) | Refl <- view refl' ->
-            whnf ws $ eliminate p (x : es)
+            whnf sig $ eliminate p (x : es)
         _ ->
             t
       where
@@ -227,8 +217,8 @@ class ( Eq1 t,       Functor t,       Foldable t,       Traversable t, Monad t
                             if n >= length args
                             then error "Types.Term.whnf: too few arguments"
                             else args !! n
-                    let body' = instantiateName ixArg (vacuous body)
-                    whnf ws $ eliminate body' leftoverEs
+                    let body' = instantiateName ixArg (vacuousM body)
+                    whnf sig $ eliminate body' leftoverEs
 
         matchClause :: [Elim t v] -> [Pattern] -> Maybe ([t v], [Elim t v])
         matchClause es [] =
@@ -237,83 +227,70 @@ class ( Eq1 t,       Functor t,       Foldable t,       Traversable t, Monad t
             (args, leftoverEs) <- matchClause es patterns
             return (arg : args, leftoverEs)
         matchClause (Apply arg : es) (ConP dataCon dataConPatterns : patterns) = do
-            Con dataCon' dataConArgs <- Just $ view $ whnf ws arg
+            Con dataCon' dataConArgs <- Just $ view $ whnf sig arg
             guard (dataCon == dataCon')
             matchClause (map Apply dataConArgs ++ es) (dataConPatterns ++ patterns)
         matchClause _ _ =
             mzero
 
-    nf :: Signature t -> t v -> t v
-    nf ws t = case view (whnf ws t) of
+    nf :: Sig.Signature t -> t v -> t v
+    nf sig t = case view (whnf sig t) of
         Lam body ->
           lam $ nfAbs body
         Pi domain codomain ->
-          pi (nf ws domain) (nfAbs codomain)
+          pi (nf sig domain) (nfAbs codomain)
         Equal type_ x y ->
-          equal (nf ws type_) (nf ws x) (nf ws y)
+          equal (nf sig type_) (nf sig x) (nf sig y)
         Refl ->
           refl
         Con dataCon args ->
-          con dataCon $ map (nf ws) args
+          con dataCon $ map (nf sig) args
         Set ->
           set
         App h elims ->
           app h $ map nfElim elims
       where
-        nfAbs = toAbs . nf ws . fromAbs
+        nfAbs = toAbs . nf sig . fromAbs
 
-        nfElim (Apply t') = Apply $ nf ws t'
+        nfElim (Apply t') = Apply $ nf sig t'
         nfElim (Proj n f) = Proj n f
 
-    metaVars :: t v -> HS.HashSet MetaVar
-    metaVars t = case view t of
-        Lam body           -> metaVars (fromAbs body)
-        Pi domain codomain -> metaVars domain <> metaVars (fromAbs codomain)
-        Equal type_ x y    -> metaVars type_ <> metaVars x <> metaVars y
-        App h elims        -> metaVarsHead h <> mconcat (map metaVarsElim elims)
-        Set                -> mempty
-        Refl               -> mempty
-        Con _ elims        -> mconcat (map metaVars elims)
-
-metaVarsHead :: Head v -> HS.HashSet MetaVar
-metaVarsHead (Meta mv) = HS.singleton mv
-metaVarsHead _         = mempty
-
-metaVarsElim :: IsTerm t => Elim t v -> HS.HashSet MetaVar
-metaVarsElim (Apply t)  = metaVars t
-metaVarsElim (Proj _ _) = mempty
+class ( Eq1 t,       Functor t,       Foldable t,       Traversable t, Monad t
+      , Eq1 (Abs t), Functor (Abs t), Foldable (Abs t), Traversable (Abs t)
+      , View t, MetaVars t, Whnf t
+      ) => IsTerm t
 
 -- Term utils
 -------------
 
-lam :: IsTerm t => Abs t v -> t v
+lam :: View t => Abs t v -> t v
 lam body = unview $ Lam body
 
-pi :: IsTerm t => t v -> Abs t v -> t v
+pi :: View t => t v -> Abs t v -> t v
 pi domain codomain = unview $ Pi domain codomain
 
-equal :: IsTerm t => t v -> t v -> t v -> t v
+equal :: View t => t v -> t v -> t v -> t v
 equal type_ x y = unview $ Equal type_ x y
 
-app :: IsTerm t => Head v -> [Elim t v] -> t v
+app :: View t => Head v -> [Elim t v] -> t v
 app h elims = unview $ App h elims
 
-set :: IsTerm t => t v
+set :: View t => t v
 set = unview Set
 
-var :: IsTerm t => v -> t v
+var :: View t => v -> t v
 var v = unview (App (Var v) [])
 
-metaVar :: IsTerm t => MetaVar -> t v
-metaVar mv = unview (App (Meta mv) [])
+metaVar :: View t => MetaVar -> [Elim t v] -> t v
+metaVar mv = unview . App (Meta mv)
 
-def :: IsTerm t => Name -> t v
-def f = unview (App (Def f) [])
+def :: View t => Name -> [Elim t v] -> t v
+def f = unview . App (Def f)
 
-con :: IsTerm t => Name -> [t v] -> t v
+con :: View t => Name -> [t v] -> t v
 con c args = unview (Con c args)
 
-refl :: IsTerm t => t v
+refl :: View t => t v
 refl = unview Refl
 
 renderView :: (IsVar v, IsTerm t) => t v -> String
