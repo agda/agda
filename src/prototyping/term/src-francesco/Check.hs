@@ -495,7 +495,7 @@ potentiallyMatchable t = do
   case view (whnf sig t) of
     Lam body ->
       potentiallyMatchable (fromAbs body)
-    Con dataCon args -> do 
+    Con dataCon args -> do
       if isRecordConstr sig dataCon
         then or <$> mapM potentiallyMatchable args
         else return True
@@ -854,13 +854,13 @@ getConstructorDefinition dataCon = do
               show dataCon
 
 isRecordType :: (IsTerm t) => Sig.Signature t -> Name -> Bool
-isRecordType sig tyCon = 
+isRecordType sig tyCon =
   case Sig.getDefinition sig tyCon of
     Constant _ Record _ -> True
     _                   -> False
 
 isRecordConstr :: (IsTerm t) => Sig.Signature t -> Name -> Bool
-isRecordConstr sig dataCon = 
+isRecordConstr sig dataCon =
   case Sig.getDefinition sig dataCon of
     Constructor _ tyCon _ -> isRecordType sig tyCon
     _                     -> False
