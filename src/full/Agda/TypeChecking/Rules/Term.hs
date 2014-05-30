@@ -30,25 +30,25 @@ import Agda.Syntax.Translation.InternalToAbstract (reify)
 
 import Agda.TypeChecking.Monad
 import Agda.TypeChecking.Monad.Builtin
-import Agda.TypeChecking.Substitute
-import Agda.TypeChecking.Reduce
+import Agda.TypeChecking.CompiledClause
+import Agda.TypeChecking.Constraints
+import Agda.TypeChecking.Conversion
+import Agda.TypeChecking.Datatypes
+import Agda.TypeChecking.EtaContract
+import Agda.TypeChecking.Implicit
+import Agda.TypeChecking.InstanceArguments
+import Agda.TypeChecking.Irrelevance
+import Agda.TypeChecking.Level
 import Agda.TypeChecking.MetaVars
 import Agda.TypeChecking.Patterns.Abstract
 import Agda.TypeChecking.Pretty
-import Agda.TypeChecking.Records
-import Agda.TypeChecking.RecordPatterns
-import Agda.TypeChecking.Conversion
-import Agda.TypeChecking.Implicit
-import Agda.TypeChecking.InstanceArguments
 import Agda.TypeChecking.Primitive
-import Agda.TypeChecking.Constraints
-import Agda.TypeChecking.Telescope
-import Agda.TypeChecking.Datatypes
-import Agda.TypeChecking.Irrelevance
-import Agda.TypeChecking.EtaContract
 import Agda.TypeChecking.Quote
-import Agda.TypeChecking.CompiledClause
-import Agda.TypeChecking.Level
+import Agda.TypeChecking.RecordPatterns
+import Agda.TypeChecking.Records
+import Agda.TypeChecking.Reduce
+import Agda.TypeChecking.Substitute
+import Agda.TypeChecking.Telescope
 import Agda.TypeChecking.Rules.LHS (checkLeftHandSide)
 
 import {-# SOURCE #-} Agda.TypeChecking.Empty (isEmptyType)
