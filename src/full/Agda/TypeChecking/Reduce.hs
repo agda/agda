@@ -181,12 +181,8 @@ ifBlocked t blocked unblocked = do
     NotBlocked _           -> unblocked (ignoreBlocking t)
 
 ifBlockedType :: MonadTCM tcm => Type -> (MetaId -> Type -> tcm a) -> (Type -> tcm a) -> tcm a
-ifBlockedType t blocked unblocked = do
-  t <- liftTCM $ reduceB t
-  case ignoreSharing . unEl <$> t of
-    Blocked m _            -> blocked m (ignoreBlocking t)
-    NotBlocked (MetaV m _) -> blocked m (ignoreBlocking t)
-    NotBlocked _           -> unblocked (ignoreBlocking t)
+ifBlockedType (El s t) blocked unblocked =
+  ifBlocked t (\ m v -> blocked m $ El s v) (\ v -> unblocked $ El s v)
 
 class Reduce t where
     reduce'  :: t -> ReduceM t
