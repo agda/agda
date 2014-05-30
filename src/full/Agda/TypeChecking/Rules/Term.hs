@@ -35,6 +35,7 @@ import Agda.TypeChecking.Constraints
 import Agda.TypeChecking.Conversion
 import Agda.TypeChecking.Datatypes
 import Agda.TypeChecking.EtaContract
+import Agda.TypeChecking.Free (isBinderUsed)
 import Agda.TypeChecking.Implicit
 import Agda.TypeChecking.InstanceArguments
 import Agda.TypeChecking.Irrelevance
@@ -1269,7 +1270,16 @@ checkArguments exh expandIFS r args0@(arg@(Arg info e) : args) t0 t1 =
           Pi (Dom info' a) b
             | getHiding info == getHiding info'
               && (notHidden info || maybe True ((absName b ==) . rangedThing) (nameOf e)) -> do
-                u <- lift $ applyRelevanceToContext (getRelevance info') $ do
+                u <- lift $ applyRelevanceToContext (getRelevance info') $
+                 -- Andreas, 2014-05-30 experiment to check non-dependent arguments
+                 -- after the spine has been processed.  Allows to propagate type info
+                 -- from ascribed type into extended-lambdas.  Would solve issue 1159.
+                 -- However, leaves unsolved type checking problems in the test suite.
+                 -- I do not know what I am doing wrong here.
+                 -- Could be extreme order-sensitivity or my abuse of the postponing
+                 -- mechanism.
+                 -- if not $ isBinderUsed b
+                 -- then postponeTypeCheckingProblem (CheckExpr (namedThing e) a) (return True) else
                   checkExpr (namedThing e) a
                 -- save relevance info' from domain in argument
                 addCheckedArgs us (Arg info' u) $
