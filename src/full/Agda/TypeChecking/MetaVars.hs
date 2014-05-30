@@ -338,15 +338,7 @@ blockTypeOnProblem (El s a) pid = El s <$> blockTermOnProblem (El Inf $ Sort s) 
 --
 --   Auxiliary function to create a postponed type checking problem.
 unblockedTester :: Type -> TCM Bool
-unblockedTester t = ifBlocked (unEl t) (\ m t -> return False) (\ t -> return True)
-{- OLD CODE
-unblockedTester t = do
-  t <- reduceB $ unEl t
-  case ignoreSharing <$> t of
-    Blocked{}          -> return False
-    NotBlocked MetaV{} -> return False
-    _                  -> return True
--}
+unblockedTester t = ifBlockedType t (\ m t -> return False) (\ t -> return True)
 
 -- | Create a postponed type checking problem @e : t@ that waits for type @t@
 --   to unblock (become instantiated or its constraints resolved).
