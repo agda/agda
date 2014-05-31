@@ -12,7 +12,7 @@ import Control.Monad
 
 import Data.Function (on)
 import Data.Functor
-import Data.List
+import Data.List as List
 import Data.Maybe
 import Data.Set (Set)
 import qualified Data.Set as Set
@@ -58,10 +58,14 @@ outgoing g s = Graph.edgesFrom g [s]
 incoming :: (Ord r, Ord f) => Graph r f a -> Node r f -> [Edge' r f a]
 incoming g t = Graph.edgesTo g [t]
 
+-- | @Set.foldl@ does not exist in legacy versions of the @containers@ package.
+setFoldl :: (b -> a -> b) -> b -> Set a -> b
+setFoldl step start = List.foldl' step start . Set.toAscList
+-- setFoldl = Set.foldl'
 
 -- | Floyd-Warshall algorithm.
 transClos :: forall n a . (Ord n, Dioid a) => Graph.Graph n n a -> Graph.Graph n n a
-transClos g = Set.foldl step g $ allNodes ns
+transClos g = setFoldl step g $ allNodes ns
   where
     ns       = computeNodes g
     srcs     = Set.toAscList $ srcNodes  ns
@@ -306,7 +310,7 @@ addEdge e@(Edge src dest l) gs =
 
 -- | Reflexive closure.  Add edges @0 -> n -> n -> oo@ for all nodes @n@.
 reflClos :: (Ord r, Ord f, Show a, Dioid a) => Set (Node r f) -> Graph r f a -> Graph r f a
-reflClos ns g = Set.foldl step g ns' where
+reflClos ns g = setFoldl step g ns' where
     -- have at least the nodes in @ns@
     ns'      = nodes g `Set.union` ns
     -- add the trivial edges for all nodes ns'
