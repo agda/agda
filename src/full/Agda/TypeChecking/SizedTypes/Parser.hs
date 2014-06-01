@@ -1,3 +1,5 @@
+-- ASR (01 June 2014): Not used yet.
+
 -- | Parser combinator parser for constraints
 
 {-# LANGUAGE NoMonomorphismRestriction,
