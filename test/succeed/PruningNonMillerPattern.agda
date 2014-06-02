@@ -71,16 +71,17 @@ test3 : let X : Nat -> Nat -> Nat
              ({x y : Nat} -> X (Y x (Sing y)) y ≡ X x x) -> C) -> C
 test3 C k = k refl refl refl
 
--- bad rigid y in head position under a lambda
-test4 : let X : Nat -> Nat -> Nat
-            X = _
-            Y : Nat → (Nat → Nat) -> Nat
-            Y = _
-        in  (C : Set) ->
-            ((∀ {x : Nat} {y : Nat → Nat} -> X x x ≡ suc (Y x (λ k → y zero))) ->
-             (∀ {x : Nat} {y : Nat → Nat} -> Y x (λ k → y zero) ≡ x)           ->
-             (∀ {x : Nat} {y : Nat } -> X (Y x (λ k → y)) y ≡ X x x) -> C) -> C
-test4 C k = k refl refl refl
+-- Does not work any longer since fix for issue 1153 (2014-06-02).
+-- -- bad rigid y in head position under a lambda
+-- test4 : let X : Nat -> Nat -> Nat
+--             X = _
+--             Y : Nat → (Nat → Nat) -> Nat
+--             Y = _
+--         in  (C : Set) ->
+--             ((∀ {x : Nat} {y : Nat → Nat} -> X x x ≡ suc (Y x (λ k → y zero))) ->
+--              (∀ {x : Nat} {y : Nat → Nat} -> Y x (λ k → y zero) ≡ x)           ->
+--              (∀ {x : Nat} {y : Nat } -> X (Y x (λ k → y)) y ≡ X x x) -> C) -> C
+-- test4 C k = k refl refl refl
 
 -- bad variable in irrelevant position
 test5 : let X : Nat -> Nat -> Nat
@@ -92,3 +93,4 @@ test5 : let X : Nat -> Nat -> Nat
              ({x y : Nat} -> Y x x ≡ x)           ->
              ({x y : Nat} -> X (Y x (suc y)) y ≡ X x x) -> C) -> C
 test5 C k = k refl refl refl
+

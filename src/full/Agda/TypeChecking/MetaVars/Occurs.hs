@@ -473,7 +473,9 @@ hasBadRigid xs t = do
   t <- liftTCM $ reduce t
   case ignoreSharing t of
     (Var x _)    -> return $ notElem x xs
-    (Lam _ v)    -> hasBadRigid (0 : map (+1) xs) (absBody v)
+    -- Issue 1153: A lambda has to be considered matchable.
+    -- (Lam _ v)    -> hasBadRigid (0 : map (+1) xs) (absBody v)
+    (Lam _ v)    -> failure
     (DontCare v) -> hasBadRigid xs v
     -- The following types of arguments cannot be eliminated by a pattern
     -- match: data, record, Pi, levels, sorts
