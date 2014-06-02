@@ -25,6 +25,13 @@ module Types.Monad
     , extendContext
     , getTypeOfName
     , getTypeOfVar
+      -- * Problem handling
+    , ProblemId
+    , Stuck(..)
+    , StuckTC
+    , newProblem
+    , bindProblem
+    , waitOnProblem
     ) where
 
 import Prelude                                    hiding (abs, pi)
@@ -108,3 +115,4 @@ getTypeOfVar :: (IsTerm t) => v -> TC t v (Type t v)
 getTypeOfVar v = do
     ctx <- askContext
     return $ Ctx.getVar v ctx
+

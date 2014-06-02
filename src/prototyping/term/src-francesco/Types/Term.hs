@@ -13,6 +13,7 @@ import           Data.Void                        (Void, vacuousM)
 import           Data.Monoid                      ((<>), mconcat, mempty)
 import qualified Data.HashSet                     as HS
 import           Control.Monad                    (guard, mzero, liftM)
+import           Data.Typeable                    (Typeable)
 
 import qualified Text.PrettyPrint.Extended        as PP
 import           Syntax.Abstract                  (Name)
@@ -258,6 +259,7 @@ class (HasAbs t, View t) => Whnf t where
 class ( Eq1 t,       Functor t,       Foldable t,       Traversable t, Monad t
       , Eq1 (Abs t), Functor (Abs t), Foldable (Abs t), Traversable (Abs t)
       , View t, MetaVars t, Whnf t
+      , Typeable t
       ) => IsTerm t
 
 -- Term utils

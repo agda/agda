@@ -3,13 +3,13 @@ module Impl.LazyScope (LazyScope) where
 import Prelude                                    hiding (pi, abs, foldr)
 
 import           Bound                            hiding (instantiate)
-import           Prelude.Extras                   (Eq1, (==#))
-import           Data.Foldable                    (Foldable, foldr)
-import           Data.Traversable                 (Traversable, sequenceA)
-import           Data.Functor                     ((<$>))
+import           Prelude.Extras                   (Eq1)
+import           Data.Foldable                    (Foldable)
+import           Data.Traversable                 (Traversable)
 import           Control.Monad                    (ap)
 import           Control.Applicative              (Applicative(pure, (<*>)))
 import           Data.Monoid                      ((<>), mempty, mconcat)
+import           Data.Typeable                    (Typeable)
 
 import           Types.Term
 import           Types.Var
@@ -18,7 +18,7 @@ import           Types.Var
 ------------------------------------------------------------------------
 
 newtype LazyScope v = LS {unLS :: TermView LazyScope v}
-    deriving (Eq, Eq1, Functor, Foldable, Traversable)
+    deriving (Eq, Eq1, Functor, Foldable, Traversable, Typeable)
 
 instance Monad LazyScope where
     return v = LS (App (Var v) [])
@@ -74,19 +74,10 @@ instance Whnf LazyScope
 
 instance IsTerm LazyScope
 
--- TODO There seems to be a bug preventing us from deriving this.  Check
--- with 7.8.
+deriving instance Eq1 (Abs LazyScope)
 
-instance Eq1 (Abs LazyScope) where
-    LSAbs s1 ==# LSAbs s2 = s1 ==# s2
+deriving instance Functor (Abs LazyScope)
 
-instance Functor (Abs LazyScope) where
-    fmap f (LSAbs s) = LSAbs $ fmap f s
+deriving instance Foldable (Abs LazyScope)
 
--- TODO instantiate all the methods
-instance Foldable (Abs LazyScope) where
-    foldr f x (LSAbs s) = foldr f x s
-
--- TODO instantiate all the methods
-instance Traversable (Abs LazyScope) where
-    sequenceA (LSAbs s) = LSAbs <$> sequenceA s
+deriving instance Traversable (Abs LazyScope)

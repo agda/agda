@@ -7,7 +7,7 @@ import           Data.Foldable                    (foldMap)
 import           Data.Monoid                      (Monoid(..),(<>))
 import           Debug.Trace                      (trace)
 import qualified Data.HashSet                     as HS
-import           Control.Monad                    (when, guard, unless)
+import           Control.Monad                    (when, guard, unless, void)
 import           Data.List                        (nub)
 import           Data.Traversable                 (traverse)
 import           Prelude.Extras                   ((==#))
@@ -15,6 +15,7 @@ import           Data.Proxy                       (Proxy)
 import           Bound                            hiding (instantiate, abstract)
 import           Bound.Var                        (unvar)
 import           Data.Maybe                       (maybeToList)
+import           Data.Typeable                    (Typeable)
 
 import           Data.Void                        (vacuous)
 import           Syntax.Abstract                  (Name)
@@ -46,15 +47,14 @@ check synT type_ = atSrcLoc synT $ case synT of
           let appliedDataConType = Tel.substs (vacuous dataConType) tyConArgs
           args <- checkConArgs synArgs appliedDataConType
           return (con dataCon args)
-      _ -> checkError $ ConstructorTypeError synT $ unview typeView
+      _ -> checkError $ ConstructorTypeError synT type_
   A.Refl _ -> do
     typeView <- whnfView type_
     case typeView of
       Equal type' x y -> do
-        checkEqual type' x y
-        return refl
+        metaVarIfStuck type_ refl $ checkEqual type' x y
       _ ->
-          checkError $ NotEqualityType (unview typeView)
+        checkError $ NotEqualityType type_
   A.Meta _ ->
     addFreshMetaVarInCtx type_
   A.Lam name synBody -> do
@@ -67,15 +67,26 @@ check synT type_ = atSrcLoc synT $ case synT of
       App (Meta _) _ -> do
         dom <- addFreshMetaVarInCtx set
         cod <- extendContext name dom $ \_ -> addFreshMetaVarInCtx set
-        checkEqual set (unview typeView) (pi dom (toAbs cod))
+        void $ checkEqual set type_ (pi dom (toAbs cod))
         body <- extendContext name dom $ \_ -> check synBody cod
         return $ lam (toAbs body)
       _ ->
-        checkError $ LambdaTypeError synT (unview typeView)
+        checkError $ LambdaTypeError synT type_
   _ -> do
-    (t, type') <- infer synT
-    equalType type_ type'
-    return t
+    stuck <- infer synT
+    case stuck of
+      NotStuck (t, type') ->
+        metaVarIfStuck type_ t $ equalType type_ type'
+      StuckOn pid -> do
+        mv <- addFreshMetaVarInCtx type_
+        void $ bindProblem pid $ \(t, type') -> do
+          stuck' <- equalType type_ type'
+          case stuck' of
+            NotStuck () ->
+              checkEqual type_ mv t
+            StuckOn pid' ->
+              StuckOn <$> waitOnProblem pid' (checkEqual type_ mv t)
+        return mv
 
 checkConArgs :: (IsVar v, IsTerm t) => [A.Expr] -> Type t v -> TC t v [t v]
 checkConArgs []                 _     = return []
@@ -86,33 +97,32 @@ checkConArgs (synArg : synArgs) type_ = atSrcLoc synArg $ do
       arg <- check synArg domain
       (arg :) <$> checkConArgs synArgs (instantiate codomain arg)
     _ ->
-      checkError $ ExpectedFunctionType (unview typeView) (Just synArg)
+      checkError $ ExpectedFunctionType type_ (Just synArg)
 
-infer :: (IsVar v, IsTerm t) => A.Expr -> TC t v (Term t v, Type t v)
+infer :: (IsVar v, IsTerm t) => A.Expr -> StuckTC t v (Term t v, Type t v)
 infer synT = atSrcLoc synT $ case synT of
   A.Set _ ->
-    return (set, set)
+    notStuck (set, set)
   A.Pi name synDomain synCodomain -> do
     domain   <- isType synDomain
     codomain <- extendContext name domain $ \_ -> isType synCodomain
-    return (pi domain (toAbs codomain), set)
+    notStuck (pi domain (toAbs codomain), set)
   A.Fun synDomain synCodomain -> do
     domain   <- isType synDomain
     codomain <- isType synCodomain
-    return (pi domain (weaken codomain), set)
+    notStuck (pi domain (weaken codomain), set)
   A.App synH elims -> do
     (h, type_) <- inferHead synH
-    (t, type') <- checkSpine (unview (App h [])) elims type_
-    return (t, type')
+    NotStuck <$> checkSpine (unview (App h [])) elims type_
   A.Equal synType synX synY -> do
     type_ <- isType synType
     x <- check synX type_
     y <- check synY type_
-    return (equal type_ x y, set)
+    notStuck (equal type_ x y, set)
   _ -> do
     type_ <- addFreshMetaVarInCtx set
     t <- check synT type_
-    return (t, type_)
+    notStuck (t, type_)
 
 checkSpine :: (IsVar v, IsTerm t)
            => Term t v -> [A.Elim] -> Type t v -> TC t v (Term t v, Type t v)
@@ -130,7 +140,7 @@ checkSpine h (el : els) type_ = atSrcLoc el $ case el of
         let h' = eliminate h [Apply arg]
         checkSpine h' els codomain'
       _ ->
-        checkError $ ExpectedFunctionType (unview typeView) (Just synArg)
+        checkError $ ExpectedFunctionType type_ (Just synArg)
 
 inferHead :: (IsVar v, IsTerm t) => A.Head -> TC t v (Head v, Type t v)
 inferHead synH = atSrcLoc synH $ case synH of
@@ -148,9 +158,9 @@ inferHead synH = atSrcLoc synH $ case synH of
 -- Equality
 -----------
 
-checkEqual :: (IsVar v, IsTerm t) => Type t v -> Term t v -> Term t v -> TC t v ()
+checkEqual :: (IsVar v, IsTerm t) => Type t v -> Term t v -> Term t v -> StuckTC t v ()
 checkEqual _ x y | x ==# y =
-  return ()
+  notStuck ()
 checkEqual type_ x y = do
   typeView <- whnfView type_
   xView <- whnfView x
@@ -160,11 +170,14 @@ checkEqual type_ x y = do
       return ()
     (Pi domain codomain, _, _) -> do
       let codomain' = fromAbs codomain
-      extendContext (getName codomain') domain $ \v -> do
+      stuck <- extendContext (getName codomain') domain $ \v -> do
         let v' = var v
         let x' = eliminate (fmap F x) [Apply v']
         let y' = eliminate (fmap F y) [Apply v']
         checkEqual codomain' x' y'
+      case stuck of
+        NotStuck () -> notStuck ()
+        StuckOn pid -> StuckOn <$> waitOnProblem pid (notStuck ())
     (App (Def tyCon) tyConPars0, Con dataCon dataConArgs1, Con dataCon' dataConArgs2)
       | Just tyConPars <- mapM isApply tyConPars0
       , dataCon == dataCon' -> do
@@ -175,19 +188,28 @@ checkEqual type_ x y = do
         let appliedDataConType = Tel.substs (vacuous dataConType) tyConPars
         equalConArgs appliedDataConType dataCon dataConArgs1 dataConArgs2
     (_, Pi dom1 cod1, Pi dom2 cod2) -> do
-       checkEqual set dom1 dom2
        let cod1' = fromAbs cod1
-       extendContext (getName cod1') dom1 $ \_ -> checkEqual set cod1' (fromAbs cod2)
-    (_, Equal type1 x1 y1, Equal type2 x2 y2) -> do
-       checkEqual set type1 type2
-       checkEqual type1 x1 x2
-       checkEqual type1 y1 y2
+       stuck <- checkEqual set dom1 dom2
+       let equalCod = checkEqual set cod1' (fromAbs cod2)
+       case stuck of
+         NotStuck () -> do
+           stuck' <- extendContext (getName cod1') dom1 $ \_ -> equalCod
+           case stuck' of
+             NotStuck () -> notStuck ()
+             StuckOn pid -> StuckOn <$> waitOnProblem pid (notStuck ())
+         StuckOn pid -> do
+           pid' <- extendContext (getName cod1') dom1 $ \_ ->
+                   waitOnProblem pid $ equalCod
+           StuckOn <$> waitOnProblem pid' (notStuck ())
+    (_, Equal type1 x1 y1, Equal type2 x2 y2) ->
+       stuckTCWaitOnProblems (checkEqual set type1 type2)
+         [checkEqual type1 x1 x2, checkEqual type1 y1 y2]
     (_, Refl, Refl) -> do
-      return ()
+      notStuck ()
     (_, App (Meta mv) elims, t) ->
-      metaAssign mv elims (unview t)
+      metaAssign type_ mv elims (unview t)
     (_, t, App (Meta mv) elims) ->
-      metaAssign mv elims (unview t)
+      metaAssign type_ mv elims (unview t)
     (_, App h1 elims1, App h2 elims2) | h1 == h2 -> do
       h1Type <- case h1 of
         Var v   -> getTypeOfVar v
@@ -196,7 +218,7 @@ checkEqual type_ x y = do
         Meta _  -> error "impossible.checkEqual: can't decompose with metavariable heads"
       equalSpine h1Type (unview (App h1 [])) elims1 elims2
     _ ->
-      checkError $ TermsNotEqual (unview xView) (unview yView)
+      checkError $ TermsNotEqual x y
 
 equalSpine
     :: (IsVar v, IsTerm t)
@@ -204,15 +226,17 @@ equalSpine
     -- ^ Type of the head.
     -> Term t v
     -- ^ Head.
-    -> [Elim (Term t) v] -> [Elim (Term t) v] -> TC t v ()
+    -> [Elim (Term t) v]
+    -> [Elim (Term t) v]
+    -> StuckTC t v ()
 equalSpine _ _ [] [] =
-  return ()
+  notStuck ()
 equalSpine type_ h (Apply arg1 : elims1) (Apply arg2 : elims2) = do
   typeView <- whnfView type_
   case typeView of
-    Pi domain codomain -> do
-      checkEqual domain arg1 arg2
-      equalSpine (instantiate codomain arg1) (eliminate h [Apply arg1]) elims1 elims2
+    Pi domain codomain ->
+      stuckTCWaitOnProblem (checkEqual domain arg1 arg2) $
+        equalSpine (instantiate codomain arg1) (eliminate h [Apply arg1]) elims1 elims2
     _ ->
       error $ "impossible.equalSpine: Expected function type " ++ render typeView
 equalSpine type_ h (Proj proj projIx : elims1) (Proj proj' projIx' : elims2)
@@ -227,7 +251,7 @@ equalConArgs
     :: (IsVar v, IsTerm t)
     => Type t v
     -- ^ Type of the head.
-    -> Name -> [Term t v] -> [Term t v] -> TC t v ()
+    -> Name -> [Term t v] -> [Term t v] -> StuckTC t v ()
 equalConArgs type_ dataCon xs ys = do
   expandedCon <- unrollPi type_ $ \ctx _ ->
                  return $ ctxLam ctx $ con dataCon $ map var $ ctxVars ctx
@@ -275,7 +299,7 @@ applyProjection proj h type_ = do
             _ ->
               error "impossible.applyProjection: Meta doesn't reduce"
         _ ->
-          checkError $ ExpectingRecordType (unview typeView)
+          checkError $ ExpectingRecordType type_
       let appliedProjType = view $ Tel.substs (vacuous projType) tyConArgs
       case appliedProjType of
         Pi _ endType ->
@@ -298,11 +322,11 @@ applyProjection proj h type_ = do
 
 metaAssign
     :: (IsVar v, IsTerm t)
-    => MetaVar -> [Elim (Term t) v] -> Term t v -> TC t v ()
-metaAssign mv elims t =
+    => Type t v -> MetaVar -> [Elim (Term t) v] -> Term t v -> StuckTC t v ()
+metaAssign type_ mv elims t =
     case distinctVariables elims of
         Nothing ->
-            error "TODO metaAssign stuck"
+            stuckOnNewProblem mv $ checkEqual type_ (metaVar mv elims) t
         Just vs -> do
             -- TODO have `pruneTerm' return an evaluated term.
             liftClosed $ pruneTerm vs t
@@ -311,6 +335,7 @@ metaAssign mv elims t =
             let mvs = metaVars t'
             when (mv `HS.member` mvs) $ checkError $ OccursCheckFailed mv $ vacuous t'
             instantiateMetaVar mv t'
+            notStuck ()
 
 -- Returns the pruned term
 pruneTerm
@@ -529,6 +554,62 @@ closeTerm = traverse close
   where
     close = checkError . FreeVariableInEquatedTerm
 
+-- Problem handling
+-------------------
+
+stuckOnNewProblem
+  :: (Typeable a, IsVar v) => MetaVar -> StuckTC t v a -> StuckTC t v a
+stuckOnNewProblem mv prob = do
+  pid <- newProblem mv prob
+  return $ StuckOn pid
+
+notStuck :: a -> StuckTC t v a
+notStuck x = return $ NotStuck x
+
+stuckWaitOnProblems
+    :: (IsTerm t, IsVar v, Typeable a, Typeable b)
+    => Stuck t v a -> [StuckTC t v b] -> StuckTC t v a
+stuckWaitOnProblems stuck fs = do
+    case stuck of
+      StuckOn pid ->
+        mapM_ (waitOnProblem pid) fs
+      NotStuck _ ->
+        sequence_ fs
+    return stuck
+
+stuckTCWaitOnProblems
+    :: (IsTerm t, IsVar v, Typeable a, Typeable b)
+    => StuckTC t v a -> [StuckTC t v b] -> StuckTC t v a
+stuckTCWaitOnProblems m fs = do
+    stuck <- m
+    stuckWaitOnProblems stuck fs
+
+stuckTCWaitOnProblem
+    :: (IsTerm t, IsVar v, Typeable a, Typeable b)
+    => StuckTC t v a -> (StuckTC t v b) -> StuckTC t v a
+stuckTCWaitOnProblem m f = stuckTCWaitOnProblems m [f]
+
+metaVarIfStuck
+    :: (IsTerm t, IsVar v)
+    => Type t v -> Term t v -> StuckTC t v ()
+    -> TC t v (Term t v)
+metaVarIfStuck type_ t m = do
+    stuck <- m
+    case stuck of
+      NotStuck () ->
+        return t
+      StuckOn pid -> do
+        mv <- addFreshMetaVarInCtx type_
+        void $ waitOnProblem pid $ checkEqual type_ mv t
+        return mv
+
+elimStuck :: StuckTC t v a -> TC t v a -> TC t v a
+elimStuck m ifStuck = do
+    stuck <- m
+    case stuck of
+      NotStuck x   -> return x
+      StuckOn _pid -> ifStuck
+
 -- Checking definitions
 ------------------------------------------------------------------------
 
@@ -565,7 +646,8 @@ checkData tyCon tyConPars dataCons = do
     tyConType <- definitionType <$> getDefinition tyCon
     addConstant tyCon Data tyConType
     unrollPiWithNames tyConType tyConPars $ \tyConPars' endType -> do
-        equalType endType set
+        elimStuck (equalType endType set) $
+          error $ "Type constructor does not return Set: " ++ show tyCon
         -- TODO maybe we should expose a 'vars' function from the Ctx
         -- and do the application ourselves.
         let appliedTyConType = ctxApp (def tyCon []) tyConPars'
@@ -587,7 +669,8 @@ checkConstr tyCon tyConPars appliedTyConType (A.Sig dataCon synDataConType) = do
         dataConType <- isType synDataConType
         unrollPi dataConType $ \vs endType -> do
             let appliedTyConType' = fmap (Ctx.weaken vs) appliedTyConType
-            equalType appliedTyConType' endType
+            elimStuck (equalType appliedTyConType' endType) $
+              checkError $ TermsNotEqual appliedTyConType' endType
         addConstructor dataCon tyCon (Tel.idTel tyConPars dataConType)
 
 -- Record
@@ -608,7 +691,7 @@ checkRec tyCon tyConPars dataCon fields = do
     tyConType <- definitionType <$> getDefinition tyCon
     addConstant tyCon Record tyConType
     unrollPiWithNames tyConType tyConPars $ \tyConPars' endType -> do
-        equalType endType set
+        void $ equalType endType set
         fieldsTel <- checkFields fields
         let appliedTyConType = ctxApp (def tyCon []) tyConPars'
         extendContext (A.name "_") appliedTyConType $ \self -> do
@@ -701,7 +784,7 @@ checkPatterns (synPat : synPats) type0 ret = atSrcLoc synPat $ do
             let patVar' = fmap weaken_' patVar
             ret (weaken_' . weaken_) (pat : pats) (patVar' : patsVars)
       _ ->
-        checkError $ ExpectedFunctionType (unview typeView) Nothing
+        checkError $ ExpectedFunctionType type0 Nothing
 
 checkPattern
     :: (IsVar v, IsTerm t)
@@ -741,7 +824,7 @@ checkPattern synPat type_ ret = case synPat of
 -- Utils
 ------------------------------------------------------------------------
 
-equalType :: (IsVar v, IsTerm t) => Type t v -> Type t v -> TC t v ()
+equalType :: (IsVar v, IsTerm t) => Type t v -> Type t v -> StuckTC t v ()
 equalType a b = checkEqual set a b
 
 isType :: (IsVar v, IsTerm t) => A.Expr -> TC t v (Type t v)
@@ -787,7 +870,7 @@ unrollPiWithNames type_ (name : names) ret = do
             unrollPiWithNames (fromAbs codomain) names $ \ctxVs endType ->
             ret (Ctx.singleton name domain Ctx.++ ctxVs) endType
         _ ->
-            checkError $ ExpectedFunctionType (unview typeView) Nothing
+            checkError $ ExpectedFunctionType type_ Nothing
 
 unrollPi
     :: (IsVar v, IsTerm t)

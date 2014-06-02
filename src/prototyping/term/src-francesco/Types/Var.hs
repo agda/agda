@@ -7,6 +7,7 @@ import qualified Bound.Name                       as Bound
 import           Data.Void                        (Void, absurd)
 import           Data.Foldable                    (Foldable, foldr)
 import           Data.Maybe                       (fromMaybe)
+import           Data.Typeable                    (Typeable)
 
 import qualified Syntax.Abstract                  as A
 import           Syntax.Abstract                  (Name)
@@ -48,7 +49,9 @@ getName = fromMaybe (A.name "_") . foldr f Nothing
 -- 'IsVar' variables
 ------------------------------------------------------------------------
 
-class Eq v => IsVar v where
+deriving instance Typeable A.Name
+
+class (Eq v, Typeable v) => IsVar v where
     varIndex :: v -> Named Int
 
 instance IsVar Void where

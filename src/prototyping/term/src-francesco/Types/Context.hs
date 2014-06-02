@@ -16,6 +16,7 @@ import           Prelude                          hiding (pi, length, lookup, (+
 import           Bound
 import           Data.Void                        (Void, absurd)
 import           Control.Arrow                    ((***))
+import           Data.Typeable                    (Typeable)
 
 import           Syntax.Abstract                  (Name)
 import           Types.Var
@@ -28,6 +29,7 @@ import           Types.Var
 data Ctx v0 t v where
     Empty :: Ctx v0 t v0
     Snoc  :: Ctx v0 t v -> (Name, t v) -> Ctx v0 t (TermVar v)
+    deriving (Typeable)
 
 type ClosedCtx = Ctx Void
 

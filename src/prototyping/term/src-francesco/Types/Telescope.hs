@@ -11,13 +11,10 @@ module Types.Telescope
       -- ** 'Tel' types
     , Proxy(..)
     , Id(..)
-    , Dup(..)
     , ProxyTel
     , ClosedProxyTel
     , IdTel
     , ClosedIdTel
-    , DupTel
-    , ClosedDupTel
     ) where
 
 import           Prelude                          hiding (pi, length, lookup, (++))
@@ -29,6 +26,7 @@ import           Data.Traversable                 (Traversable, sequenceA)
 import           Control.Monad                    (liftM)
 import           Data.Monoid                      (mempty, (<>))
 import           Control.Applicative              ((<$>), (<*>), pure)
+import           Data.Typeable                    (Typeable)
 
 import           Syntax.Abstract                  (Name)
 import           Types.Var
@@ -40,7 +38,7 @@ import qualified Types.Context                    as Ctx
 data Tel t f v
     = Empty (t f v)
     | Cons (Name, f v) (Tel t f (TermVar v))
-    deriving (Functor)
+    deriving (Functor, Typeable)
 
 type ClosedTel t f = Tel t f Void
 
@@ -82,19 +80,11 @@ newtype Id f v = Id {unId :: f v}
 instance Bound Id where
      Id t >>>= f = Id (t >>= f)
 
-data Dup f v = Dup {dupFst :: f v, dupSnd :: f v}
-     deriving (Functor, Foldable, Traversable)
-
-instance Bound Dup where
-     Dup t1 t2 >>>= f = Dup (t1 >>= f) (t2 >>= f)
-
 type IdTel    = Tel Id
 type ProxyTel = Tel Proxy
-type DupTel   = Tel Dup
 
 type ClosedIdTel t    = IdTel t Void
 type ClosedProxyTel t = ProxyTel t Void
-type ClosedDupTel t   = DupTel t Void
 
 -- Instances
 ----------------------
