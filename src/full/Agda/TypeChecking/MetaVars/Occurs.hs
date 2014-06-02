@@ -495,7 +495,7 @@ hasBadRigid xs t = do
       ifM (liftTCM $ isEtaCon (conName c))
         -- in case of a record con, we can in principle prune
         -- (but not this argument; the meta could become a projection!)
-        (False <$ mapM (hasBadRigid xs . unArg) args)
+        (and <$> mapM (hasBadRigid xs . unArg) args)  -- not andM, we need to force the exceptions!
         failure
     Lit{}        -> failure -- matchable
     MetaV{}      -> failure -- potentially matchable
