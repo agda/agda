@@ -31,7 +31,7 @@ import           Control.Monad.Trans.Reader       (asks, local, ReaderT(ReaderT)
 import           Control.Monad.Trans.Error        (throwError, Error, strMsg, ErrorT, runErrorT)
 import           Data.Void                        (Void)
 import           Control.Monad.Trans.Class        (lift)
-import qualified Data.Map                         as Map
+import qualified Data.Map.Strict                  as Map
 import qualified Data.Set                         as Set
 import           Data.Typeable                    (Typeable)
 import           Data.Maybe                       (fromMaybe)
@@ -75,7 +75,8 @@ data TCState t = TCState
     { tsSignature       :: !(Sig.Signature t)
     , tsProblems        :: !(Map.Map ProblemIdInt (Problem t))
     , tsMetaVarProblems :: !(Map.Map MetaVar (Set.Set ProblemIdInt))
-    -- ^ Problems waiting on a metavariable.
+    -- ^ Problems waiting on a metavariable.  Note that a problem might
+    -- appear as a dependency of multiple metavariables.
     , tsBoundProblems   :: !(Map.Map ProblemIdInt (Set.Set ProblemIdInt))
     -- ^ Problems bound to another problem.
     , tsWaitingProblems :: !(Map.Map ProblemIdInt (Set.Set ProblemIdInt))
@@ -167,13 +168,15 @@ insertInMapOfSets k v m =
 
 newProblem
     :: (Typeable a, Typeable v)
-    => MetaVar -> StuckTC t v a -> TC t v (ProblemId t v a)
-newProblem mv m = do
+    => Set.Set MetaVar -> StuckTC t v a -> TC t v (ProblemId t v a)
+newProblem mvs m = do
     ctx <- askContext
     let prob = Problem ctx (\() -> m)
     pid <- addNewProblem prob
     TC $ lift $ lift $ modify $ \st ->
-      st{tsMetaVarProblems = insertInMapOfSets mv pid (tsMetaVarProblems st)}
+      let metaVarProbs = Set.foldr' (\mv -> insertInMapOfSets mv pid)
+                                    (tsMetaVarProblems st) mvs
+      in st{tsMetaVarProblems = metaVarProbs}
     return $ ProblemId pid
 
 bindProblem

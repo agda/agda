@@ -30,11 +30,15 @@ module Types.Monad
     , Stuck(..)
     , StuckTC
     , newProblem
+    , newProblem_
     , bindProblem
     , waitOnProblem
     ) where
 
 import Prelude                                    hiding (abs, pi)
+
+import qualified Data.Set                         as Set
+import           Data.Typeable                    (Typeable)
 
 import           Syntax.Abstract                  (Name)
 import           Syntax.Abstract.Pretty           ()
@@ -116,3 +120,10 @@ getTypeOfVar v = do
     ctx <- askContext
     return $ Ctx.getVar v ctx
 
+-- Problem handling
+------------------------------------------------------------------------
+
+newProblem_
+    :: (Typeable a, Typeable v)
+    => MetaVar -> StuckTC t v a -> TC t v (ProblemId t v a)
+newProblem_ mv = newProblem (Set.singleton mv)

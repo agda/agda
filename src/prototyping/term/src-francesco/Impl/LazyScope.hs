@@ -75,9 +75,6 @@ instance Whnf LazyScope
 instance IsTerm LazyScope
 
 deriving instance Eq1 (Abs LazyScope)
-
 deriving instance Functor (Abs LazyScope)
-
 deriving instance Foldable (Abs LazyScope)
-
 deriving instance Traversable (Abs LazyScope)

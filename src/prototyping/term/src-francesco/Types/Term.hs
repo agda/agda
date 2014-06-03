@@ -13,6 +13,8 @@ import           Data.Monoid                      ((<>), mconcat, mempty)
 import qualified Data.HashSet                     as HS
 import           Control.Monad                    (guard, mzero, liftM)
 import           Data.Typeable                    (Typeable)
+import           Data.Functor                     ((<$>))
+import           Control.Applicative              (Applicative, pure)
 
 import qualified Text.PrettyPrint.Extended        as PP
 import           Syntax.Abstract                  (Name)
@@ -47,6 +49,10 @@ data Elim term v
     = Apply (term v)
     | Proj Name Field
     deriving (Show, Eq, Functor, Foldable, Traversable)
+
+elim :: Applicative f => (t v -> f (t' v')) -> Elim t v -> f (Elim t' v')
+elim f (Apply t)  = Apply <$> f t
+elim _ (Proj n f) = pure $ Proj n f
 
 instance (Eq1 term) => Eq1 (Elim term) where
     Apply t1   ==# Apply t2   = t1 ==# t2
@@ -259,6 +265,8 @@ class ( Eq1 t,       Functor t,       Foldable t,       Traversable t, Monad t
       , View t, MetaVars t, Whnf t
       , Typeable t
       ) => IsTerm t
+
+deriving instance Typeable Abs
 
 -- Term utils
 -------------
