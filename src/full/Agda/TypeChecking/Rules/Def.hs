@@ -749,7 +749,7 @@ checkWhere n [A.Section _ m tel ds]  ret = do
                                   -- are also parameters
     verboseS "tc.def.where" 10 $ do
       dx   <- prettyTCM m
-      dtel <- mapM prettyA tel
+      dtel <- mapM prettyAs tel
       dtel' <- prettyTCM =<< lookupSection m
       reportSLn "tc.def.where" 10 $ "checking where section " ++ show dx ++ " " ++ show dtel
       reportSLn "tc.def.where" 10 $ "        actual tele: " ++ show dtel'

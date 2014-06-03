@@ -64,7 +64,7 @@ checkRecDef i name ind con ps contel fields =
   traceCall (CheckRecDef (getRange i) (qnameName name) ps fields) $ do
     reportSDoc "tc.rec" 10 $ vcat
       [ text "checking record def" <+> prettyTCM name
-      , nest 2 $ text "ps ="     <+> prettyList (map prettyA ps)
+      , nest 2 $ text "ps ="     <+> prettyList (map prettyAs ps)
       , nest 2 $ text "contel =" <+> prettyA contel
       , nest 2 $ text "fields =" <+> prettyA (map Constr fields)
       ]

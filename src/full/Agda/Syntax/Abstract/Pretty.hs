@@ -1,4 +1,4 @@
-
+{-# LANGUAGE FlexibleContexts #-}
 module Agda.Syntax.Abstract.Pretty where
 
 import Control.Applicative
@@ -14,6 +14,9 @@ showA x = show <$> abstractToConcrete_ x
 
 prettyA :: (Pretty c, ToConcrete a c) => a -> TCM Doc
 prettyA x = pretty <$> abstractToConcrete_ x
+
+prettyAs :: (Pretty c, ToConcrete a [c]) => a -> TCM Doc
+prettyAs x = fsep . map pretty <$> abstractToConcrete_ x
 
 -- | Variant of 'showA' which does not insert outermost parentheses.
 

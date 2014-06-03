@@ -493,7 +493,7 @@ checkSection i x tel ds =
     addSection x (size tel')
     verboseS "tc.section.check" 10 $ do
       dx   <- prettyTCM x
-      dtel <- mapM prettyA tel
+      dtel <- mapM prettyAs tel
       dtel' <- prettyTCM =<< lookupSection x
       reportSLn "tc.section.check" 10 $ "checking section " ++ show dx ++ " " ++ show dtel
       reportSLn "tc.section.check" 10 $ "    actual tele: " ++ show dtel'

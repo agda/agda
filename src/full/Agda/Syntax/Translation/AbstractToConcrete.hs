@@ -30,6 +30,7 @@ import qualified Data.Map as Map
 import qualified Data.Set as Set
 import Data.Set (Set)
 import Data.List as List
+import Data.Traversable (traverse)
 
 import Agda.Syntax.Common hiding (Arg, Dom, NamedArg)
 import qualified Agda.Syntax.Common as Common
@@ -378,7 +379,7 @@ instance ToConcrete A.Expr C.Expr where
             (bs, e) ->
                 bindToConcrete (map makeDomainFree bs) $ \bs -> do
                     e  <- toConcreteCtx TopCtx e
-                    return $ C.Lam (getRange i) bs e
+                    return $ C.Lam (getRange i) (concat bs) e
         where
             lamView (A.Lam _ b@(A.DomainFree _ _) e) =
                 case lamView e of
@@ -422,7 +423,7 @@ instance ToConcrete A.Expr C.Expr where
         bracket piBrackets
         $ bindToConcrete tel $ \b' -> do
              e' <- toConcreteCtx TopCtx e
-             return $ C.Pi b' e'
+             return $ C.Pi (concat b') e'
       where
         piTel (A.Pi _ tel e) = (tel ++) -*- id $ piTel e
         piTel e              = ([], e)
@@ -468,7 +469,7 @@ instance ToConcrete A.Expr C.Expr where
         return $ C.RecUpdate (getRange i) e $ zip xs es
 
     toConcrete (A.ETel tel) = do
-      tel <- toConcrete tel
+      tel <- concat <$> toConcrete tel
       return $ C.ETel tel
 
     toConcrete (A.ScopedExpr _ e) = toConcrete e
@@ -507,23 +508,32 @@ makeDomainFree b = b
 
 -- Binder instances -------------------------------------------------------
 
-instance ToConcrete A.LamBinding C.LamBinding where
+instance ToConcrete A.LamBinding [C.LamBinding] where
     bindToConcrete (A.DomainFree info x) ret = do info <- toConcrete info
-                                                  bindToConcrete x $ ret . C.DomainFree info . mkBoundName_
-    bindToConcrete (A.DomainFull b)      ret = bindToConcrete b $ ret . C.DomainFull
+                                                  bindToConcrete x $ ret . (:[]) . C.DomainFree info . mkBoundName_
+    bindToConcrete (A.DomainFull b)      ret = bindToConcrete b $ ret . map C.DomainFull
 
-instance ToConcrete A.TypedBindings C.TypedBindings where
+instance ToConcrete A.TypedBindings [C.TypedBindings] where
   bindToConcrete (A.TypedBindings r bs) ret =
     bindToConcrete bs $ \cbs ->
-    ret (C.TypedBindings r $ recoverLabels bs cbs)
+    ret (map (C.TypedBindings r) $ recoverLabels bs cbs)
     where
+      recoverLabels :: A.Arg A.TypedBinding -> C.Arg C.TypedBinding -> [C.Arg C.TypedBinding]
       recoverLabels b cb
-        | getHiding b == NotHidden = cb   -- We don't care about labels for explicit args
-        | otherwise = recover (unArg b) <$> cb
+        | getHiding b == NotHidden = [cb]   -- We don't care about labels for explicit args
+        | otherwise = traverse (recover (unArg b)) cb
 
-      recover (A.TBind _ xs _) (C.TBind r ys e) = C.TBind r (zipWith label xs ys) e
-      recover A.TLet{}         c@C.TLet{}       = c
+      recover (A.TBind _ xs _) (C.TBind r ys e) = tbind r e (zipWith label xs ys)
+      recover A.TLet{}         c@C.TLet{}       = [c]
       recover _ _ = __IMPOSSIBLE__
+
+      tbinds r e [] = []
+      tbinds r e xs = [ C.TBind r xs e ]
+
+      tbind r e xs =
+        case span (\x -> boundLabel x == boundName x) xs of
+          (xs, x:ys) -> tbinds r e xs ++ [ C.TBind r [x] e ] ++ tbind r e ys
+          (xs, [])   -> tbinds r e xs
 
       label x y = y { boundLabel = nameConcrete x }
 
@@ -667,7 +677,7 @@ instance ToConcrete A.ModuleApplication C.ModuleApplication where
     bindToConcrete tel $ \tel -> do
     es <- toConcreteCtx ArgumentCtx es
     let r = fuseRange y es
-    return $ C.SectionApp r tel (foldl (C.App r) (C.Ident y) es)
+    return $ C.SectionApp r (concat tel) (foldl (C.App r) (C.Ident y) es)
   toConcrete (A.RecordModuleIFS recm) = do
     recm <- toConcrete recm
     return $ C.RecordModuleIFS (getRange recm) recm
@@ -707,26 +717,26 @@ instance ToConcrete A.Declaration [C.Declaration] where
     bindToConcrete bs $ \tel' -> do
       x' <- unsafeQNameToName <$> toConcrete x
       t' <- toConcreteCtx TopCtx t
-      return [ C.DataSig (getRange i) Inductive x' (map C.DomainFull tel') t' ]
+      return [ C.DataSig (getRange i) Inductive x' (map C.DomainFull $ concat tel') t' ]
 
   toConcrete (A.DataDef i x bs cs) =
     withAbstractPrivate i $
     bindToConcrete (map makeDomainFree bs) $ \tel' -> do
       (x',cs') <- (unsafeQNameToName -*- id) <$> toConcrete (x, map Constr cs)
-      return [ C.Data (getRange i) Inductive x' tel' Nothing cs' ]
+      return [ C.Data (getRange i) Inductive x' (concat tel') Nothing cs' ]
 
   toConcrete (A.RecSig i x bs t) =
     withAbstractPrivate i $
     bindToConcrete bs $ \tel' -> do
       x' <- unsafeQNameToName <$> toConcrete x
       t' <- toConcreteCtx TopCtx t
-      return [ C.RecordSig (getRange i) x' (map C.DomainFull tel') t' ]
+      return [ C.RecordSig (getRange i) x' (map C.DomainFull $ concat tel') t' ]
 
   toConcrete (A.RecDef  i x ind c bs t cs) =
     withAbstractPrivate i $
     bindToConcrete (map makeDomainFree bs) $ \tel' -> do
       (x',cs') <- (unsafeQNameToName -*- id) <$> toConcrete (x, map Constr cs)
-      return [ C.Record (getRange i) x' ind Nothing tel' Nothing cs' ]
+      return [ C.Record (getRange i) x' ind Nothing (concat tel') Nothing cs' ]
 
   toConcrete (A.Mutual i ds) = declsToConcrete ds
 
@@ -734,7 +744,7 @@ instance ToConcrete A.Declaration [C.Declaration] where
     x <- toConcrete x
     bindToConcrete tel $ \tel -> do
     ds <- declsToConcrete ds
-    return [ C.Module (getRange i) x tel ds ]
+    return [ C.Module (getRange i) x (concat tel) ds ]
 
   toConcrete (A.Apply i x modapp _ _) = do
     x  <- unsafeQNameToName <$> toConcrete x

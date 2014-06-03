@@ -39,6 +39,7 @@ colon      = return P.colon
 equals     = return P.equals
 pretty x   = return $ P.pretty x
 prettyA x  = P.prettyA x
+prettyAs x = P.prettyAs x
 text :: String -> TCM Doc
 text s	   = return $ P.text s
 pwords s   = map return $ P.pwords s
@@ -250,7 +251,7 @@ instance PrettyTCM ConHead where
 instance PrettyTCM Telescope where
   prettyTCM tel = P.fsep . map P.pretty <$> (do
       tel <- reify tel
-      runAbsToCon $ bindToConcrete tel return
+      runAbsToCon $ bindToConcrete tel (return . concat)
     )
 
 newtype PrettyContext = PrettyContext Context
