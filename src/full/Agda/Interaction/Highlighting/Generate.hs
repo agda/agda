@@ -254,7 +254,7 @@ generateAndPrintSyntaxInfo decl hlLevel = do
     -- Ulf, 2014-04-09: It would be nicer to have it on Named RString a, but
     -- you can't have polymorphic functions in universeBi.
     getNamedArg :: SC.RString -> File
-    getNamedArg x = singleton (rToR $ P.getRange x) mempty{ aspect = Just Symbol }
+    getNamedArg x = singleton (rToR $ P.getRange x) mempty{ aspect = Just $ Name (Just Argument) False }
 
     getLet :: A.LetBinding -> File
     getLet (A.LetBind _ _ x _ _) = bound x

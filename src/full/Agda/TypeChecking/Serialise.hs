@@ -1114,6 +1114,7 @@ instance EmbPrj HP.NameKind where
   icode HP.Postulate       = icode0 6
   icode HP.Primitive       = icode0 7
   icode HP.Record          = icode0 8
+  icode HP.Argument        = icode0 9
 
   value = vcase valu where
     valu []      = valu0 HP.Bound

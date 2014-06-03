@@ -76,6 +76,7 @@ data NameKind
   | Postulate
   | Primitive               -- ^ Primitive.
   | Record                  -- ^ Record type.
+  | Argument                -- ^ Named argument, like x in {x = v}
     deriving (Eq, Show, Typeable)
 
 -- | Other aspects. (These can overlap with each other and with
@@ -394,6 +395,7 @@ instance CoArbitrary NameKind where
   coarbitrary Postulate         = variant 6
   coarbitrary Primitive         = variant 7
   coarbitrary Record            = variant 8
+  coarbitrary Argument          = variant 9
 
 instance Arbitrary OtherAspect where
   arbitrary = elements [minBound .. maxBound]

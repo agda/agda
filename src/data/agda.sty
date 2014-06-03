@@ -161,6 +161,7 @@
     \definecolor{AgdaPostulate}             {HTML}{000000}
     \definecolor{AgdaPrimitive}             {HTML}{000000}
     \definecolor{AgdaRecord}                {HTML}{000000}
+    \definecolor{AgdaArgument}              {HTML}{000000}
 
     % Other aspect colours.
     \definecolor{AgdaDottedPattern}     {HTML}{000000}
@@ -196,6 +197,7 @@
     \definecolor{AgdaPostulate}             {HTML}{006400}
     \definecolor{AgdaPrimitive}             {HTML}{006400}
     \definecolor{AgdaRecord}                {HTML}{0000CD}
+    \definecolor{AgdaArgument}              {HTML}{404040}
 
     % Other aspect colours.
     \definecolor{AgdaDottedPattern}     {HTML}{000000}
@@ -230,6 +232,7 @@
     \definecolor{AgdaPostulate}             {HTML}{0000CD}
     \definecolor{AgdaPrimitive}             {HTML}{0000CD}
     \definecolor{AgdaRecord}                {HTML}{0000CD}
+    \definecolor{AgdaArgument}              {HTML}{404040}
 
     % Other aspect colours.
     \definecolor{AgdaDottedPattern}     {HTML}{000000}
@@ -278,6 +281,8 @@
     {\AgdaFontStyle{\textcolor{AgdaPrimitive}{#1}}}
 \newcommand{\AgdaRecord}[1]
     {\AgdaFontStyle{\textcolor{AgdaRecord}{\AgdaLink{#1}}}}
+\newcommand{\AgdaArgument}[1]
+    {\AgdaFontStyle{\textcolor{AgdaArgument}{\AgdaLink{#1}}}}
 
 % Other aspect commands.
 \newcommand{\AgdaDottedPattern}     [1]{\textcolor{AgdaDottedPattern}{#1}}
