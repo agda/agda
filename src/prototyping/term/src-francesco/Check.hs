@@ -744,7 +744,7 @@ addProjections tyCon tyConPars self fields0 =
             let endType = pi (ctxApp (def tyCon []) tyConPars) (toAbs fieldType)
             addProjection field ix tyCon (Tel.idTel tyConPars endType)
             go fields' $
-                Tel.instantiate fieldTypes' $ unview $ App (Var self) [Proj tyCon ix]
+                Tel.instantiate fieldTypes' $ unview $ App (Var self) [Proj field ix]
         (_, _) -> error "impossible.addProjections: impossible: lengths do not match"
 
 -- Clause
