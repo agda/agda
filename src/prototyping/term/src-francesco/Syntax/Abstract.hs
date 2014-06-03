@@ -1,6 +1,9 @@
 {-# OPTIONS_GHC -w -fwarn-incomplete-patterns -Werror #-}
 module Syntax.Abstract where
 
+import Data.String (IsString(fromString))
+import Data.Typeable (Typeable)
+
 data SrcLoc = SrcLoc { pLine :: Int, pCol :: Int }
 
 noSrcLoc = SrcLoc 0 0
@@ -9,9 +12,13 @@ instance Show SrcLoc where
   show (SrcLoc line col) = concat [show line, ":", show col]
 
 data Name = Name { nameLoc :: SrcLoc, nameString :: String }
+    deriving (Typeable)
 
 name :: String -> Name
 name s = Name noSrcLoc s
+
+instance IsString Name where
+  fromString = name
 
 instance Eq Name where
   Name _ x == Name _ y = x == y

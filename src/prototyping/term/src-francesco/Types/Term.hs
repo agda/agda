@@ -5,7 +5,6 @@ import           Prelude                          hiding (pi)
 
 import           Bound                            hiding (instantiate)
 import           Bound.Name                       (instantiateName)
-import qualified Bound.Name                       as Bound
 import           Data.Foldable                    (Foldable)
 import           Data.Traversable                 (Traversable)
 import           Prelude.Extras                   (Eq1((==#)))
@@ -35,8 +34,7 @@ data Head v
     deriving (Show, Eq, Ord, Functor, Foldable, Traversable)
 
 instance (IsVar v) => PP.Pretty (Head v) where
-    pretty (Var v) = PP.text (show ix ++ "#") <> PP.pretty name
-      where (Bound.Name name ix) = varIndex v
+    pretty (Var v)   = PP.text (show (varIndex v) ++ "#") <> PP.pretty (varName v)
     pretty (Def f)   = PP.pretty f
     pretty J         = PP.text "J"
     pretty (Meta mv) = PP.pretty mv
@@ -60,8 +58,8 @@ instance Bound Elim where
     Proj n field >>>= _ = Proj n field
 
 instance (IsTerm t, IsVar v) => PP.Pretty (Elim t v) where
-    prettyPrec p (Apply e)  = PP.prettyPrec p $ view e
-    prettyPrec _ (Proj n x) = PP.text $ "." ++ show n ++ "-" ++ show x
+    prettyPrec p (Apply e)          = PP.prettyPrec p $ view e
+    prettyPrec _ (Proj n (Field x)) = PP.text $ "." ++ show n ++ "-" ++ show x
 
 data TermView term v
     = Lam (Abs term v)
@@ -168,7 +166,7 @@ class (Monad t) => HasAbs t where
         B _  -> t
         F v' -> return v'
 
-    abstract :: IsVar v => v -> t v -> Abs t v
+    abstract :: (Eq v, VarName v) => v -> t v -> Abs t v
     abstract v t = toAbs $ liftM f t
       where
         f v' = if v == v' then boundTermVar (varName v) else F v'

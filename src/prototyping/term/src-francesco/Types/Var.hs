@@ -49,25 +49,34 @@ getName = fromMaybe (A.name "_") . foldr f Nothing
 -- 'IsVar' variables
 ------------------------------------------------------------------------
 
-deriving instance Typeable A.Name
+class VarName v where
+    varName :: v -> A.Name
 
-class (Eq v, Typeable v) => IsVar v where
-    varIndex :: v -> Named Int
+class VarIndex v where
+    varIndex :: v -> Int
 
-instance IsVar Void where
+class (Eq v, Typeable v, VarName v, VarIndex v) => IsVar v
+
+instance VarName Void where
+    varName = absurd
+
+instance VarIndex Void where
     varIndex = absurd
 
--- -- This instance is used for 'ClauseBody's.
--- instance IsVar (Var (Named Int) Void) where
---     varIndex (B n) = n
---     varIndex (F v) = absurd v
+instance IsVar Void
 
-instance IsVar v => IsVar (Var (Named ()) v) where
-    varIndex (B v) = Bound.Name (Bound.name v) 0
-    varIndex (F v) = fmap (+ 1) (varIndex v)
+instance (VarName v) => VarName (Var (Named ()) v) where
+    varName (B v) = Bound.name v
+    varName (F v) = varName v
 
-varName :: IsVar v => v -> Name
-varName = Bound.name . varIndex
+instance (VarIndex v) => VarIndex (Var (Named ()) v) where
+    varIndex (B _) = 0
+    varIndex (F v) = 1 + varIndex v
+
+instance (IsVar v) => IsVar (Var (Named ()) v) where
+
+instance VarName Name where
+    varName = id
 
 -- Record 'Field's
 ------------------------------------------------------------------------

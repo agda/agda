@@ -1,3 +1,4 @@
+{-# LANGUAGE OverloadedStrings #-}
 module Check (checkProgram) where
 
 import           Prelude                          hiding (abs, pi)
@@ -16,8 +17,8 @@ import           Bound                            hiding (instantiate, abstract)
 import           Bound.Var                        (unvar)
 import           Data.Maybe                       (maybeToList)
 import           Data.Typeable                    (Typeable)
+import           Data.Void                        (vacuous, Void)
 
-import           Data.Void                        (vacuous)
 import           Syntax.Abstract                  (Name)
 import           Syntax.Abstract.Pretty           ()
 import qualified Syntax.Abstract                  as A
@@ -153,7 +154,7 @@ inferHead synH = atSrcLoc synH $ case synH of
     type_ <- definitionType <$> getDefinition name
     return (Def name, vacuous type_)
   A.J{} ->
-    error "TODO inferHead J"
+    return (J, vacuous $ typeOfJ)
 
 -- Equality
 -----------
@@ -214,7 +215,7 @@ checkEqual type_ x y = do
       h1Type <- case h1 of
         Var v   -> getTypeOfVar v
         Def f   -> vacuous . definitionType <$> getDefinition f
-        J       -> error "TODO typeOfJ"
+        J       -> return $ vacuous typeOfJ
         Meta _  -> error "impossible.checkEqual: can't decompose with metavariable heads"
       equalSpine h1Type (unview (App h1 [])) elims1 elims2
     _ ->
@@ -986,6 +987,32 @@ whnfView :: (IsTerm t) => t v -> TC t v' (TermView t v)
 whnfView t = do
   sig <- getSignature
   return $ view $ whnf sig t
+
+-- Constants
+------------------------------------------------------------------------
+
+-- (A : Set) ->
+-- (x : A) ->
+-- (y : A) ->
+-- (P : (x : A) -> (y : A) -> (eq : _==_ A x y) -> Set) ->
+-- (p : (x : A) -> P x x refl) ->
+-- (eq : _==_ A x y) ->
+-- P x y eq
+typeOfJ :: ∀ t. (IsTerm t) => Closed (Type t)
+typeOfJ =  fmap close $
+    piN "A" set $
+    piN "x" (var "A") $
+    piN "y" (var "A") $
+    piN "P" (piN "x" (var "A") $ piN "y" (var "A") $ piN "eq" (equal (var "A") (var "x") (var "y")) set) $
+    piN "p" (piN "x" (var "A") (app (Var "P") (map Apply [var "x", var "x", refl]))) $
+    piN "eq" (equal (var "A") (var "x") (var "y")) $
+    app (Var "P") (map Apply [var "x", var "y", refl])
+  where
+    close :: Name -> Void
+    close v = error $ "impossible.typeOfJ: Free variable " ++ render v
+
+    piN :: Name -> t Name -> t Name -> t Name
+    piN x type_ t = pi type_ $ abstract x t
 
 -- Errors
 ------------------------------------------------------------------------
