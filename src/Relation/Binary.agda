@@ -263,7 +263,7 @@ record DecStrictPartialOrder c ℓ₁ ℓ₂ : Set (suc (c ⊔ ℓ₁ ⊔ ℓ₂
   module Eq where
 
     decSetoid : DecSetoid c ℓ₁
-    decSetoid = record { isDecEquivalence = DPO.Eq.isDecEquivalence }
+    decSetoid = record { isDecEquivalence = DSPO.Eq.isDecEquivalence }
 
     open DecSetoid decSetoid public
 
