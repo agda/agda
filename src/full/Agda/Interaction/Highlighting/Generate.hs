@@ -613,9 +613,15 @@ generate modMap file kinds (A.AmbQ qs) =
   mconcat $ map (\q -> nameToFileA modMap file q include m) qs
   where
     ks   = map kinds qs
-    kind = case (allEqual ks, ks) of
-             (True, Just k : _) -> Just k
-             _                  -> Nothing
+    -- Ulf, 2014-06-03: [issue1064] It's better to pick the first rather
+    -- than doing no highlighting if there's an ambiguity between an
+    -- inductive and coinductive constructor.
+    kind = case [ k | Just k <- ks ] of
+             k : _ -> Just k
+             []    -> Nothing
+    -- kind = case (allEqual ks, ks) of
+    --          (True, Just k : _) -> Just k
+    --          _                  -> Nothing
     -- Note that all names in an AmbiguousQName should have the same
     -- concrete name, so either they are all operators, or none of
     -- them are.
