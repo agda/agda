@@ -1,0 +1,2950 @@
+------------------------------------------------------------------------
+-- Release notes for Agda 2 version 2.3.2.2
+------------------------------------------------------------------------
+
+Important changes since 2.3.2.1:
+
+* Fixed a bug that sometimes made it tricky to use the Emacs mode on
+  Windows [issue 757].
+
+* Made Agda build with newer versions of some libraries.
+
+* Fixed a bug that caused ambiguous parse error messages [issue 147].
+
+------------------------------------------------------------------------
+-- Release notes for Agda 2 version 2.3.2.1
+------------------------------------------------------------------------
+
+Important changes since 2.3.2:
+
+Installation
+============
+
+* Made it possible to compile Agda with more recent versions of
+  hashable, QuickCheck and Win32.
+
+* Excluded mtl-2.1.
+
+Type checking
+=============
+
+* Fixed bug in the termination checker (issue 754).
+
+------------------------------------------------------------------------
+-- Release notes for Agda 2 version 2.3.2
+------------------------------------------------------------------------
+
+Important changes since 2.3.0:
+
+Installation
+============
+
+* The Agda-executable package has been removed.
+
+  The executable is now provided as part of the Agda package.
+
+* The Emacs mode no longer depends on haskell-mode or GHCi.
+
+* Compilation of Emacs mode Lisp files.
+
+  You can now compile the Emacs mode Lisp files by running "agda-mode
+  compile". This command is run by "make install".
+
+  Compilation can, in some cases, give a noticeable speedup.
+
+  WARNING: If you reinstall the Agda mode without recompiling the
+  Emacs Lisp files, then Emacs may continue using the old, compiled
+  files.
+
+Pragmas and Options
+===================
+
+* The --without-K check now reconstructs constructor parameters.
+
+  New specification of --without-K:
+
+  If the flag is activated, then Agda only accepts certain
+  case-splits. If the type of the variable to be split is D pars ixs,
+  where D is a data (or record) type, pars stands for the parameters,
+  and ixs the indices, then the following requirements must be
+  satisfied:
+
+  * The indices ixs must be applications of constructors (or literals)
+    to distinct variables. Constructors are usually not applied to
+    parameters, but for the purposes of this check constructor
+    parameters are treated as other arguments.
+
+  * These distinct variables must not be free in pars.
+
+* Irrelevant arguments are printed as _ by default now.  To turn on
+  printing of irrelevant arguments, use option
+
+    --show-irrelevant
+
+* New: Pragma NO_TERMINATION_CHECK to switch off termination checker
+  for individual function definitions and mutual blocks.
+
+  The pragma must precede a function definition or a mutual block.
+  Examples (see test/succeed/NoTerminationCheck.agda):
+
+  1. Skipping a single definition: before type signature.
+
+       {-# NO_TERMINATION_CHECK #-}
+       a : A
+       a = a
+
+  2. Skipping a single definition: before first clause.
+
+       b : A
+       {-# NO_TERMINATION_CHECK #-}
+       b = b
+
+  3. Skipping an old-style mutual block: Before 'mutual' keyword.
+
+       {-# NO_TERMINATION_CHECK #-}
+       mutual
+         c : A
+         c = d
+
+         d : A
+         d = c
+
+  4. Skipping a new-style mutual block: Anywhere before a type
+     signature or first function clause in the block
+
+       i : A
+       j : A
+
+       i = j
+       {-# NO_TERMINATION_CHECK #-}
+       j = i
+
+  The pragma cannot be used in --safe mode.
+
+Language
+========
+
+* Let binding record patterns
+
+    record _×_ (A B : Set) : Set where
+      constructor _,_
+      field
+        fst : A
+        snd : B
+    open _×_
+
+    let (x , (y , z)) = t
+    in  u
+
+  will now be interpreted as
+
+    let x = fst t
+        y = fst (snd t)
+        z = snd (snd t)
+    in  u
+
+  Note that the type of t needs to be inferable.  If you need to provide
+  a type signature, you can write the following:
+
+    let a : ...
+        a = t
+        (x , (y , z)) = a
+    in  u
+
+* Pattern synonyms
+
+  A pattern synonym is a declaration that can be used on the left hand
+  side (when pattern matching) as well as the right hand side (in
+  expressions). For example:
+
+  pattern z    = zero
+  pattern ss x = suc (suc x)
+
+  f : ℕ -> ℕ
+  f z       = z
+  f (suc z) = ss z
+  f (ss n)  = n
+
+  Pattern synonyms are implemented by substitution on the abstract
+  syntax, so definitions are scope-checked but not type-checked. They
+  are particularly useful for universe constructions.
+
+* Qualified mixfix operators
+
+  It is now possible to use a qualified mixfix operator by qualifying the first
+  part of the name. For instance
+
+    import Data.Nat as Nat
+    import Data.Bool as Bool
+
+    two = Bool.if true then 1 Nat.+ 1 else 0
+
+* Sections [Issue 735].  Agda now parses anonymous modules as sections:
+
+    module _ {a} (A : Set a) where
+
+      data List : Set a where
+        []  : List
+        _∷_ : (x : A) (xs : List) → List
+
+    module _ {a} {A : Set a} where
+
+      _++_ : List A → List A → List A
+      []       ++ ys = ys
+      (x ∷ xs) ++ ys = x ∷ (xs ++ ys)
+
+    test : List Nat
+    test = (5 ∷ []) ++ (3 ∷ [])
+
+  In general, now the syntax
+
+    module _ parameters where
+      declarations
+
+  is accepted and has the same effect as
+
+    private
+      module M parameters where
+        declarations
+    open M public
+
+  for a fresh name M.
+
+* Instantiating a module in an open import statement [Issue 481].  Now accepted:
+
+    open import Path.Module args [using/hiding/renaming (...)]
+
+  This only brings the imported identifiers from Path.Module into scope,
+  not the module itself!  Consequently, the following is pointless, and raises
+  an error:
+
+    import Path.Module args [using/hiding/renaming (...)]
+
+  You can give a private name M to the instantiated module via
+
+    import Path.Module args as M [using/hiding/renaming (...)]
+    open import Path.Module args as M [using/hiding/renaming (...)]
+
+  Try to avoid 'as' as part of the arguments.  'as' is not a keyword;
+  the following can be legal, although slightly obfuscated Agda code:
+
+    open import as as as as as as
+
+* Implicit module parameters can be given by name. E.g.
+
+    open M {namedArg = bla}
+
+  This feature has been introduced in Agda 2.3.0 already.
+
+* Multiple type signatures sharing a same type can now be written as a single
+  type signature.
+
+    one two : ℕ
+    one = suc zero
+    two = suc one
+
+Goal and error display
+======================
+
+* Meta-variables that were introduced by hidden argument `arg' are now
+  printed as _arg_number instead of just _number.  [Issue 526]
+
+* Agda expands identifiers in anonymous modules when printing.
+  Should make some goals nicer to read. [Issue 721]
+
+* When a module identifier is ambiguous, Agda tells you if one
+  of them is a data type module.  [Issues 318, 705]
+
+Type checking
+=============
+
+* Improved coverage checker.  The coverage checker splits on
+  arguments that have constructor or literal pattern, committing
+  to the left-most split that makes progress.
+  Consider the lookup function for vectors:
+
+    data Fin : Nat → Set where
+      zero : {n : Nat} → Fin (suc n)
+      suc  : {n : Nat} → Fin n → Fin (suc n)
+
+    data Vec (A : Set) : Nat → Set where
+      []  : Vec A zero
+      _∷_ : {n : Nat} → A → Vec A n → Vec A (suc n)
+
+    _!!_ : {A : Set}{n : Nat} → Vec A n → Fin n → A
+    (x ∷ xs) !! zero  = x
+    (x ∷ xs) !! suc i = xs !! i
+
+  In Agda up to 2.3.0, this definition is rejected unless we add
+  an absurd clause
+
+    [] !! ()
+
+  This is because the coverage checker committed on splitting
+  on the vector argument, even though this inevitably lead to
+  failed coverage, because a case for the empty vector [] is missing.
+
+  The improvement to the coverage checker consists on committing
+  only on splits that have a chance of covering, since all possible
+  constructor patterns are present.  Thus, Agda will now split
+  first on the Fin argument, since cases for both zero and suc are
+  present.  Then, it can split on the Vec argument, since the
+  empty vector is already ruled out by instantiating n to a suc _.
+
+* Instance arguments resolution will now consider candidates which
+  still expect hidden arguments. For example:
+
+    record Eq (A : Set) : Set where
+      field eq : A → A → Bool
+
+    open Eq {{...}}
+
+    eqFin : {n : ℕ} → Eq (Fin n)
+    eqFin = record { eq = primEqFin }
+
+    testFin : Bool
+    testFin = eq fin1 fin2
+
+  The type-checker will now resolve the instance argument of the eq
+  function to eqFin {_}. This is only done for hidden arguments, not
+  instance arguments, so that the instance search stays non-recursive.
+
+* Constraint solving: Upgraded Miller patterns to record patterns. [Issue 456]
+
+  Agda now solves meta-variables that are applied to record patterns.
+  A typical (but here, artificial) case is:
+
+    record Sigma (A : Set)(B : A -> Set) : Set where
+      constructor _,_
+      field
+        fst : A
+        snd : B fst
+
+    test : (A : Set)(B : A -> Set) ->
+      let X : Sigma A B -> Sigma A B
+          X = _
+      in  (x : A)(y : B x) -> X (x , y) ≡ (x , y)
+    test A B x y = refl
+
+  This yields a constraint of the form
+
+    _X A B (x , y) := t[x,y]
+
+  (with t[x,y] = (x, y)) which is not a Miller pattern.
+  However, Agda now solves this as
+
+    _X A B z := t[fst z,snd z].
+
+* Changed: solving recursive constraints.  [Issue 585]
+
+  Until 2.3.0, Agda sometimes inferred values that did not pass the
+  termination checker later, or would even make Agda loop.  To prevent this,
+  the occurs check now also looks into the definitions of the current mutual
+  block, to avoid constructing recursive solutions.  As a consequence, also
+  terminating recursive solutions are no longer found automatically.
+
+  This effects a programming pattern where the recursively computed
+  type of a recursive function is left to Agda to solve.
+
+    mutual
+
+      T : D -> Set
+      T pattern1 = _
+      T pattern2 = _
+
+      f : (d : D) -> T d
+      f pattern1 = rhs1
+      f pattern2 = rhs2
+
+  This might no longer work from now on.
+  See examples test/fail/Issue585*.agda
+
+* Less eager introduction of implicit parameters.  [Issue 679]
+
+  Until Agda 2.3.0, trailing hidden parameters were introduced eagerly
+  on the left hand side of a definition.  For instance, one could not
+  write
+
+    test : {A : Set} -> Set
+    test = \ {A} -> A
+
+  because internally, the hidden argument {A : Set} was added to the
+  left-hand side, yielding
+
+    test {_} = \ {A} -> A
+
+  which raised a type error.  Now, Agda only introduces the trailing
+  implicit parameters it has to, in order to maintain uniform function
+  arity.  For instance, in
+
+    test : Bool -> {A B C : Set} -> Set
+    test true {A}      = A
+    test false {B = B} = B
+
+  Agda will introduce parameters A and B in all clauses, but not C,
+  resulting in
+
+    test : Bool -> {A B C : Set} -> Set
+    test true  {A} {_}     = A
+    test false {_} {B = B} = B
+
+  Note that for checking where-clauses, still all hidden trailing
+  parameters are in scope.  For instance:
+
+    id : {i : Level}{A : Set i} -> A -> A
+    id = myId
+      where myId : forall {A} -> A -> A
+            myId x = x
+
+  To be able to fill in the meta variable _1 in
+
+    myId : {A : Set _1} -> A -> A
+
+  the hidden parameter {i : Level} needs to be in scope.
+
+  As a result of this more lazy introduction of implicit parameters,
+  the following code now passes.
+
+    data Unit : Set where
+      unit : Unit
+
+    T : Unit → Set
+    T unit = {u : Unit} → Unit
+
+    test : (u : Unit) → T u
+    test unit with unit
+    ... | _ = λ {v} → v
+
+  Before, Agda would eagerly introduce the hidden parameter {v} as
+  unnamed left-hand side parameter, leaving no way to refer to it.
+
+  The related issue 655 has also been addressed.  It is now possible
+  to make `synonym' definitions
+
+    name = expression
+
+  even when the type of expression begins with a hidden quantifier.
+  Simple example:
+
+    id2 = id
+
+  That resulted in unsolved metas until 2.3.0.
+
+* Agda detects unused arguments and ignores them during equality
+  checking. [Issue 691, solves also issue 44.]
+
+  Agda's polarity checker now assigns 'Nonvariant' to arguments
+  that are not actually used (except for absurd matches).  If
+  f's first argument is Nonvariant, then f x is definitionally equal
+  to f y regardless of x and y.  It is similar to irrelevance, but
+  does not require user annotation.
+
+  For instance, unused module parameters do no longer get in the way:
+
+    module M (x : Bool) where
+
+      not : Bool → Bool
+      not true  = false
+      not false = true
+
+    open M true
+    open M false renaming (not to not′)
+
+    test : (y : Bool) → not y ≡ not′ y
+    test y = refl
+
+  Matching against record or absurd patterns does not count as `use',
+  so we get some form of proof irrelevance:
+
+    data ⊥ : Set where
+    record ⊤ : Set where
+      constructor trivial
+
+    data Bool : Set where
+      true false : Bool
+
+    True : Bool → Set
+    True true  = ⊤
+    True false = ⊥
+
+    fun : (b : Bool) → True b → Bool
+    fun true  trivial = true
+    fun false ()
+
+    test : (b : Bool) → (x y : True b) → fun b x ≡ fun b y
+    test b x y = refl
+
+  More examples in test/succeed/NonvariantPolarity.agda.
+
+  Phantom arguments:  Parameters of record and data types are considered
+  `used' even if they are not actually used.  Consider:
+
+    False : Nat → Set
+    False zero    = ⊥
+    False (suc n) = False n
+
+    module Invariant where
+      record Bla (n : Nat)(p : False n) : Set where
+
+    module Nonvariant where
+      Bla : (n : Nat) → False n → Set
+      Bla n p = ⊤
+
+  Even though record `Bla' does not use its parameters n and p, they
+  are considered as used, allowing "phantom type" techniques.
+
+  In contrast, the arguments of function `Bla' are recognized as unused.
+  The following code type-checks if we open Invariant but leaves unsolved
+  metas if we open Nonvariant.
+
+    drop-suc : {n : Nat}{p : False n} → Bla (suc n) p → Bla n p
+    drop-suc _ = _
+
+    bla : (n : Nat) → {p : False n} → Bla n p → ⊥
+    bla zero {()} b
+    bla (suc n) b = bla n (drop-suc b)
+
+  If `Bla' is considered invariant, the hidden argument in the recursive
+  call can be inferred to be `p'.  If it is considered non-variant, then
+  `Bla n X = Bla n p' does not entail `X = p' and the hidden argument
+  remains unsolved.  Since `bla' does not actually use its hidden argument,
+  its value is not important and it could be searched for.
+  Unfortunately, polarity analysis of `bla' happens only after type
+  checking, thus, the information that `bla' is non-variant in `p' is
+  not available yet when meta-variables are solved.
+  (See test/fail/BrokenInferenceDueToNonvariantPolarity.agda)
+
+* Agda now expands simple definitions (one clause, terminating)
+  to check whether a function is constructor headed. [Issue 747]
+  For instance, the following now also works:
+
+    MyPair : Set -> Set -> Set
+    MyPair A B = Pair A B
+
+    Vec : Set -> Nat -> Set
+    Vec A zero    = Unit
+    Vec A (suc n) = MyPair A (Vec A n)
+
+  Here, Unit and Pair are data or record types.
+
+Compiler backends
+=================
+
+* -Werror is now overridable.
+
+  To enable compilation of Haskell modules containing warnings, the
+  -Werror flag for the MAlonzo backend has been made overridable. If,
+  for example, --ghc-flag=-Wwarn is passed when compiling, one can get
+  away with things like:
+
+    data PartialBool : Set where
+      true : PartialBool
+
+    {-# COMPILED_DATA PartialBool Bool True #-}
+
+  The default behavior remains as it used to be and rejects the above
+  program.
+
+Tools
+=====
+
+Emacs mode
+----------
+
+* Asynchronous Emacs mode.
+
+  One can now use Emacs while a buffer is type-checked. If the buffer
+  is edited while the type-checker runs, then syntax highlighting will
+  not be updated when type-checking is complete.
+
+* Interactive syntax highlighting.
+
+  The syntax highlighting is updated while a buffer is type-checked:
+
+  • At first the buffer is highlighted in a somewhat crude way
+    (without go-to-definition information for overloaded
+    constructors).
+
+  • If the highlighting level is "interactive", then the piece of code
+    that is currently being type-checked is highlighted as such. (The
+    default is "non-interactive".)
+
+  • When a mutual block has been type-checked it is highlighted
+    properly (this highlighting includes warnings for potential
+    non-termination).
+
+  The highlighting level can be controlled via the new configuration
+  variable agda2-highlight-level.
+
+* Multiple case-splits can now be performed in one go.
+
+  Consider the following example:
+
+    _==_ : Bool → Bool → Bool
+    b₁ == b₂ = {!!}
+
+  If you split on "b₁ b₂", then you get the following code:
+
+    _==_ : Bool → Bool → Bool
+    true == true = {!!}
+    true == false = {!!}
+    false == true = {!!}
+    false == false = {!!}
+
+  The order of the variables matters. Consider the following code:
+
+    lookup : ∀ {a n} {A : Set a} → Vec A n → Fin n → A
+    lookup xs i = {!!}
+
+  If you split on "xs i", then you get the following code:
+
+    lookup : ∀ {a n} {A : Set a} → Vec A n → Fin n → A
+    lookup [] ()
+    lookup (x ∷ xs) zero = {!!}
+    lookup (x ∷ xs) (suc i) = {!!}
+
+  However, if you split on "i xs", then you get the following code
+  instead:
+
+    lookup : ∀ {a n} {A : Set a} → Vec A n → Fin n → A
+    lookup (x ∷ xs) zero = ?
+    lookup (x ∷ xs) (suc i) = ?
+
+  This code is rejected by Agda 2.3.0, but accepted by 2.3.2 thanks
+  to improved coverage checking (see above).
+
+* The Emacs mode now presents information about which module is
+  currently being type-checked.
+
+* New global menu entry: Information about the character at point.
+
+  If this entry is selected, then information about the character at
+  point is displayed, including (in many cases) information about how
+  to type the character.
+
+* Commenting/uncommenting the rest of the buffer.
+
+  One can now comment or uncomment the rest of the buffer by typing
+  C-c C-x M-; or by selecting the menu entry "Comment/uncomment the
+  rest of the buffer".
+
+* The Emacs mode now uses the Agda executable instead of GHCi.
+
+  The *ghci* buffer has been renamed to *agda2*.
+
+  A new configuration variable has been introduced:
+  agda2-program-name, the name of the Agda executable (by default
+  agda).
+
+  The variable agda2-ghci-options has been replaced by
+  agda2-program-args: extra arguments given to the Agda executable (by
+  default none).
+
+  If you want to limit Agda's memory consumption you can add some
+  arguments to agda2-program-args, for instance +RTS -M1.5G -RTS.
+
+* The Emacs mode no longer depends on haskell-mode.
+
+  Users who have customised certain haskell-mode variables (such as
+  haskell-ghci-program-args) may want to update their configuration.
+
+LaTeX-backend
+-------------
+
+An experimental LaTeX-backend which does precise highlighting a la the
+HTML-backend and code alignment a la lhs2TeX has been added.
+
+Here is a sample input literate Agda file:
+
+  \documentclass{article}
+
+  \usepackage{agda}
+
+  \begin{document}
+
+  The following module declaration will be hidden in the output.
+
+  \AgdaHide{
+  \begin{code}
+  module M where
+  \end{code}
+  }
+
+  Two or more spaces can be used to make the backend align stuff.
+
+  \begin{code}
+  data ℕ : Set where
+    zero  : ℕ
+    suc   : ℕ → ℕ
+
+  _+_ : ℕ → ℕ → ℕ
+  zero   + n = n
+  suc m  + n = suc (m + n)
+  \end{code}
+
+  \end{document}
+
+To produce an output PDF issue the following commands:
+
+  agda --latex -i . <file>.lagda
+  pdflatex latex/<file>.tex
+
+Only the top-most module is processed, like with lhs2tex and unlike with
+the HTML-backend. If you want to process imported modules you have to
+call agda --latex manually on each of those modules.
+
+There are still issues related to formatting, see the bug tracker for
+more information:
+
+  https://code.google.com/p/agda/issues/detail?id=697
+
+The default agda.sty might therefore change in backwards-incompatible
+ways, as work proceeds in trying to resolve those problems.
+
+
+Implemented features:
+
+  * Two or more spaces can be used to force alignment of things, like
+    with lhs2tex. See example above.
+
+  * The highlighting information produced by the type checker is used to
+    generate the output. For example, the data declaration in the example
+    above, produces:
+
+      \AgdaKeyword{data} \AgdaDatatype{ℕ} \AgdaSymbol{:}
+          \AgdaPrimitiveType{Set} \AgdaKeyword{where}
+
+    These latex commands are defined in agda.sty (which is imported by
+    \usepackage{agda}) and cause the highlighting.
+
+  * The latex-backend checks if agda.sty is found by the latex
+    environment, if it isn't a default agda.sty is copied from Agda's
+    data-dir into the working directory (and thus made available to the
+    latex environment).
+
+    If the default agda.sty isn't satisfactory (colors, fonts, spacing,
+    etc) then the user can modify it and make put it somewhere where the
+    latex environment can find it. Hopefully most aspects should be
+    modifiable via agda.sty rather than having to tweak the
+    implementation.
+
+  * --latex-dir can be used to change the default output directory.
+
+------------------------------------------------------------------------
+-- Release notes for Agda 2 version 2.3.0
+------------------------------------------------------------------------
+
+Important changes since 2.2.10:
+
+Language
+========
+
+* New more liberal syntax for mutually recursive definitions.
+
+  It is no longer necessary to use the 'mutual' keyword to define
+  mutually recursive functions or datatypes. Instead, it is enough to
+  declare things before they are used. Instead of
+
+    mutual
+      f : A
+      f = a[f, g]
+
+      g : B[f]
+      g = b[f, g]
+
+  you can now write
+
+    f : A
+    g : B[f]
+    f = a[f, g]
+    g = b[f, g].
+
+  With the new style you have more freedom in choosing the order in
+  which things are type checked (previously type signatures were
+  always checked before definitions). Furthermore you can mix
+  arbitrary declarations, such as modules and postulates, with
+  mutually recursive definitions.
+
+  For data types and records the following new syntax is used to
+  separate the declaration from the definition:
+
+    -- Declaration.
+    data Vec (A : Set) : Nat → Set  -- Note the absence of 'where'.
+
+    -- Definition.
+    data Vec A where
+      []   : Vec A zero
+      _::_ : {n : Nat} → A → Vec A n → Vec A (suc n)
+
+    -- Declaration.
+    record Sigma (A : Set) (B : A → Set) : Set
+
+    -- Definition.
+    record Sigma A B where
+      constructor _,_
+      field fst : A
+            snd : B fst
+
+  When making separated declarations/definitions private or abstract
+  you should attach the 'private' keyword to the declaration and the
+  'abstract' keyword to the definition. For instance, a private,
+  abstract function can be defined as
+
+    private
+      f : A
+    abstract
+      f = e
+
+  Finally it may be worth noting that the old style of mutually
+  recursive definitions is still supported (it basically desugars into
+  the new style).
+
+* Pattern matching lambdas.
+
+  Anonymous pattern matching functions can be defined using the syntax
+
+    \ { p11 .. p1n -> e1 ; ... ; pm1 .. pmn -> em }
+
+  (where, as usual, \ and -> can be replaced by λ and →). Internally
+  this is translated into a function definition of the following form:
+
+    .extlam p11 .. p1n = e1
+    ...
+    .extlam pm1 .. pmn = em
+
+  This means that anonymous pattern matching functions are generative.
+  For instance, refl will not be accepted as an inhabitant of the type
+
+    (λ { true → true ; false → false }) ≡
+    (λ { true → true ; false → false }),
+
+  because this is equivalent to extlam1 ≡ extlam2 for some distinct
+  fresh names extlam1 and extlam2.
+
+  Currently the 'where' and 'with' constructions are not allowed in
+  (the top-level clauses of) anonymous pattern matching functions.
+
+  Examples:
+
+    and : Bool → Bool → Bool
+    and = λ { true x → x ; false _ → false }
+
+    xor : Bool → Bool → Bool
+    xor = λ { true  true  → false
+            ; false false → false
+            ; _     _     → true
+            }
+
+    fst : {A : Set} {B : A → Set} → Σ A B → A
+    fst = λ { (a , b) → a }
+
+    snd : {A : Set} {B : A → Set} (p : Σ A B) → B (fst p)
+    snd = λ { (a , b) → b }
+
+* Record update syntax.
+
+  Assume that we have a record type and a corresponding value:
+
+    record MyRecord : Set where
+      field
+        a b c : ℕ
+
+    old : MyRecord
+    old = record { a = 1; b = 2; c = 3 }
+
+  Then we can update (some of) the record value's fields in the
+  following way:
+
+    new : MyRecord
+    new = record old { a = 0; c = 5 }
+
+  Here new normalises to record { a = 0; b = 2; c = 5 }. Any
+  expression yielding a value of type MyRecord can be used instead of
+  old.
+
+  Record updating is not allowed to change types: the resulting value
+  must have the same type as the original one, including the record
+  parameters. Thus, the type of a record update can be inferred if the type
+  of the original record can be inferred.
+
+  The record update syntax is expanded before type checking. When the
+  expression
+
+    record old { upd-fields }
+
+  is checked against a record type R, it is expanded to
+
+    let r = old in record { new-fields },
+
+  where old is required to have type R and new-fields is defined as
+  follows: for each field x in R,
+
+    - if x = e is contained in upd-fields then x = e is included in
+      new-fields, and otherwise
+    - if x is an explicit field then x = R.x r is included in
+      new-fields, and
+    - if x is an implicit or instance field, then it is omitted from
+      new-fields.
+
+  (Instance arguments are explained below.) The reason for treating
+  implicit and instance fields specially is to allow code like the
+  following:
+
+    record R : Set where
+      field
+        {length} : ℕ
+        vec      : Vec ℕ length
+        -- More fields…
+
+    xs : R
+    xs = record { vec = 0 ∷ 1 ∷ 2 ∷ [] }
+
+    ys = record xs { vec = 0 ∷ [] }
+
+  Without the special treatment the last expression would need to
+  include a new binding for length (for instance "length = _").
+
+* Record patterns which do not contain data type patterns, but which
+  do contain dot patterns, are no longer rejected.
+
+* When the --without-K flag is used literals are now treated as
+  constructors.
+
+* Under-applied functions can now reduce.
+
+  Consider the following definition:
+
+    id : {A : Set} → A → A
+    id x = x
+
+  Previously the expression id would not reduce. This has been changed
+  so that it now reduces to λ x → x. Usually this makes little
+  difference, but it can be important in conjunction with 'with'. See
+  issue 365 for an example.
+
+* Unused AgdaLight legacy syntax (x y : A; z v : B) for telescopes has
+  been removed.
+
+Universe polymorphism
+---------------------
+
+* Universe polymorphism is now enabled by default.
+  Use --no-universe-polymorphism to disable it.
+
+* Universe levels are no longer defined as a data type.
+
+  The basic level combinators can be introduced in the following way:
+
+  postulate
+    Level : Set
+    zero  : Level
+    suc   : Level → Level
+    max   : Level → Level → Level
+
+  {-# BUILTIN LEVEL     Level #-}
+  {-# BUILTIN LEVELZERO zero  #-}
+  {-# BUILTIN LEVELSUC  suc   #-}
+  {-# BUILTIN LEVELMAX  max   #-}
+
+* The BUILTIN equality is now required to be universe-polymorphic.
+
+* trustMe is now universe-polymorphic.
+
+Meta-variables and unification
+------------------------------
+
+* Unsolved meta-variables are now frozen after every mutual block.
+  This means that they cannot be instantiated by subsequent code. For
+  instance,
+
+    one : Nat
+    one = _
+
+    bla : one ≡ suc zero
+    bla = refl
+
+  leads to an error now, whereas previously it lead to the
+  instantiation of _ with "suc zero". If you want to make use of the
+  old behaviour, put the two definitions in a mutual block.
+
+  All meta-variables are unfrozen during interactive editing, so that
+  the user can fill holes interactively. Note that type-checking of
+  interactively given terms is not perfect: Agda sometimes refuses to
+  load a file, even though no complaints were raised during the
+  interactive construction of the file. This is because certain checks
+  (for instance, positivity) are only invoked when a file is loaded.
+
+* Record types can now be inferred.
+
+  If there is a unique known record type with fields matching the
+  fields in a record expression, then the type of the expression will
+  be inferred to be the record type applied to unknown parameters.
+
+  If there is no known record type with the given fields the type
+  checker will give an error instead of producing lots of unsolved
+  meta-variables.
+
+  Note that "known record type" refers to any record type in any
+  imported module, not just types which are in scope.
+
+* The occurrence checker distinguishes rigid and strongly rigid
+  occurrences [Reed, LFMTP 2009; Abel & Pientka, TLCA 2011].
+
+  The completeness checker now accepts the following code:
+
+    h : (n : Nat) → n ≡ suc n → Nat
+    h n ()
+
+  Internally this generates a constraint _n = suc _n where the
+  meta-variable _n occurs strongly rigidly, i.e. on a constructor path
+  from the root, in its own defining term tree. This is never
+  solvable.
+
+  Weakly rigid recursive occurrences may have a solution [Jason Reed's
+  PhD thesis, page 106]:
+
+    test : (k : Nat) →
+           let X : (Nat → Nat) → Nat
+               X = _
+           in
+           (f : Nat → Nat) → X f ≡ suc (f (X (λ x → k)))
+    test k f = refl
+
+  The constraint _X k f = suc (f (_X k (λ x → k))) has the solution
+  _X k f = suc (f (suc k)), despite the recursive occurrence of _X.
+  Here _X is not strongly rigid, because it occurs under the bound
+  variable f. Previously Agda rejected this code; now it instead
+  complains about an unsolved meta-variable.
+
+* Equation constraints involving the same meta-variable in the head
+  now trigger pruning [Pientka, PhD, Sec. 3.1.2; Abel & Pientka, TLCA
+  2011]. Example:
+
+    same : let X : A → A → A → A × A
+               X = _
+           in {x y z : A} → X x y y ≡ (x , y)
+                          × X x x y ≡ X x y y
+    same = refl , refl
+
+  The second equation implies that X cannot depend on its second
+  argument. After pruning the first equation is linear and can be
+  solved.
+
+* Instance arguments.
+
+  A new type of hidden function arguments has been added: instance
+  arguments. This new feature is based on influences from Scala's
+  implicits and Agda's existing implicit arguments.
+
+  Plain implicit arguments are marked by single braces: {…}. Instance
+  arguments are instead marked by double braces: {{…}}. Example:
+
+    postulate
+      A : Set
+      B : A → Set
+      a : A
+      f : {{a : A}} → B a
+
+  Instead of the double braces you can use the symbols ⦃ and ⦄, but
+  these symbols must in many cases be surrounded by whitespace. (If
+  you are using Emacs and the Agda input method, then you can conjure
+  up the symbols by typing "\{{" and "\}}", respectively.)
+
+  Instance arguments behave as ordinary implicit arguments, except for
+  one important aspect: resolution of arguments which are not provided
+  explicitly. For instance, consider the following code:
+
+    test = f
+
+  Here Agda will notice that f's instance argument was not provided
+  explicitly, and try to infer it. All definitions in scope at f's
+  call site, as well as all variables in the context, are considered.
+  If exactly one of these names has the required type (A), then the
+  instance argument will be instantiated to this name.
+
+  This feature can be used as an alternative to Haskell type classes.
+  If we define
+
+    record Eq (A : Set) : Set where
+      field equal : A → A → Bool,
+
+  then we can define the following projection:
+
+    equal : {A : Set} {{eq : Eq A}} → A → A → Bool
+    equal {{eq}} = Eq.equal eq
+
+  Now consider the following expression:
+
+    equal false false ∨ equal 3 4
+
+  If the following Eq "instances" for Bool and ℕ are in scope, and no
+  others, then the expression is accepted:
+
+    eq-Bool : Eq Bool
+    eq-Bool = record { equal = … }
+
+    eq-ℕ : Eq ℕ
+    eq-ℕ = record { equal = … }
+
+  A shorthand notation is provided to avoid the need to define
+  projection functions manually:
+
+    module Eq-with-implicits = Eq {{...}}
+
+  This notation creates a variant of Eq's record module, where the
+  main Eq argument is an instance argument instead of an explicit one.
+  It is equivalent to the following definition:
+
+    module Eq-with-implicits {A : Set} {{eq : Eq A}} = Eq eq
+
+  Note that the short-hand notation allows you to avoid naming the
+  "-with-implicits" module:
+
+    open Eq {{...}}
+
+
+  Instance argument resolution is not recursive. As an example,
+  consider the following "parametrised instance":
+
+    eq-List : {A : Set} → Eq A → Eq (List A)
+    eq-List {A} eq = record { equal = eq-List-A }
+      where
+      eq-List-A : List A → List A → Bool
+      eq-List-A []       []       = true
+      eq-List-A (a ∷ as) (b ∷ bs) = equal a b ∧ eq-List-A as bs
+      eq-List-A _        _        = false
+
+  Assume that the only Eq instances in scope are eq-List and eq-ℕ.
+  Then the following code does not type-check:
+
+    test = equal (1 ∷ 2 ∷ []) (3 ∷ 4 ∷ [])
+
+  However, we can make the code work by constructing a suitable
+  instance manually:
+
+    test′ = equal (1 ∷ 2 ∷ []) (3 ∷ 4 ∷ [])
+      where eq-List-ℕ = eq-List eq-ℕ
+
+  By restricting the "instance search" to be non-recursive we avoid
+  introducing a new, compile-time-only evaluation model to Agda.
+
+  For more information about instance arguments, see Devriese &
+  Piessens [ICFP 2011]. Some examples are also available in the
+  examples/instance-arguments subdirectory of the Agda distribution.
+
+Irrelevance
+-----------
+
+* Dependent irrelevant function types.
+
+  Some examples illustrating the syntax of dependent irrelevant
+  function types:
+
+    .(x y : A) → B    .{x y z : A} → B
+    ∀ x .y → B        ∀ x .{y} {z} .v → B
+
+  The declaration
+
+    f : .(x : A) → B[x]
+    f x = t[x]
+
+  requires that x is irrelevant both in t[x] and in B[x]. This is
+  possible if, for instance, B[x] = B′ x, with B′ : .A → Set.
+
+  Dependent irrelevance allows us to define the eliminator for the
+  Squash type:
+
+    record Squash (A : Set) : Set where
+      constructor squash
+      field
+        .proof : A
+
+    elim-Squash : {A : Set} (P : Squash A → Set)
+                  (ih : .(a : A) → P (squash a)) →
+                  (a⁻ : Squash A) → P a⁻
+    elim-Squash P ih (squash a) = ih a
+
+  Note that this would not type-check with
+  (ih : (a : A) -> P (squash a)).
+
+* Records with only irrelevant fields.
+
+  The following now works:
+
+    record IsEquivalence {A : Set} (_≈_ : A → A → Set) : Set where
+      field
+        .refl  : Reflexive _≈_
+        .sym   : Symmetric _≈_
+        .trans : Transitive _≈_
+
+    record Setoid : Set₁ where
+      infix 4 _≈_
+      field
+        Carrier        : Set
+        _≈_            : Carrier → Carrier → Set
+        .isEquivalence : IsEquivalence _≈_
+
+      open IsEquivalence isEquivalence public
+
+  Previously Agda complained about the application
+  IsEquivalence isEquivalence, because isEquivalence is irrelevant and
+  the IsEquivalence module expected a relevant argument. Now, when
+  record modules are generated for records consisting solely of
+  irrelevant arguments, the record parameter is made irrelevant:
+
+    module IsEquivalence {A : Set} {_≈_ : A → A → Set}
+                         .(r : IsEquivalence {A = A} _≈_) where
+      …
+
+* Irrelevant things are no longer erased internally. This means that
+  they are printed as ordinary terms, not as "_" as before.
+
+* The new flag --experimental-irrelevance enables irrelevant universe
+  levels and matching on irrelevant data when only one constructor is
+  available. These features are very experimental and likely to change
+  or disappear.
+
+Reflection
+----------
+
+* The reflection API has been extended to mirror features like
+  irrelevance, instance arguments and universe polymorphism, and to
+  give (limited) access to definitions. For completeness all the
+  builtins and primitives are listed below:
+
+    -- Names.
+
+    postulate Name : Set
+
+    {-# BUILTIN QNAME Name #-}
+
+    primitive
+      -- Equality of names.
+      primQNameEquality : Name → Name → Bool
+
+    -- Is the argument visible (explicit), hidden (implicit), or an
+    -- instance argument?
+
+    data Visibility : Set where
+      visible hidden instance : Visibility
+
+    {-# BUILTIN HIDING   Visibility #-}
+    {-# BUILTIN VISIBLE  visible    #-}
+    {-# BUILTIN HIDDEN   hidden     #-}
+    {-# BUILTIN INSTANCE instance   #-}
+
+    -- Arguments can be relevant or irrelevant.
+
+    data Relevance : Set where
+      relevant irrelevant : Relevance
+
+    {-# BUILTIN RELEVANCE  Relevance  #-}
+    {-# BUILTIN RELEVANT   relevant   #-}
+    {-# BUILTIN IRRELEVANT irrelevant #-}
+
+    -- Arguments.
+
+    data Arg A : Set where
+      arg : (v : Visibility) (r : Relevance) (x : A) → Arg A
+
+    {-# BUILTIN ARG    Arg #-}
+    {-# BUILTIN ARGARG arg #-}
+
+    -- Terms.
+
+    mutual
+      data Term : Set where
+        -- Variable applied to arguments.
+        var     : (x : ℕ) (args : List (Arg Term)) → Term
+        -- Constructor applied to arguments.
+        con     : (c : Name) (args : List (Arg Term)) → Term
+        -- Identifier applied to arguments.
+        def     : (f : Name) (args : List (Arg Term)) → Term
+        -- Different kinds of λ-abstraction.
+        lam     : (v : Visibility) (t : Term) → Term
+        -- Pi-type.
+        pi      : (t₁ : Arg Type) (t₂ : Type) → Term
+        -- A sort.
+        sort    : Sort → Term
+        -- Anything else.
+        unknown : Term
+
+      data Type : Set where
+        el : (s : Sort) (t : Term) → Type
+
+      data Sort : Set where
+        -- A Set of a given (possibly neutral) level.
+        set     : (t : Term) → Sort
+        -- A Set of a given concrete level.
+        lit     : (n : ℕ) → Sort
+        -- Anything else.
+        unknown : Sort
+
+    {-# BUILTIN AGDASORT            Sort    #-}
+    {-# BUILTIN AGDATYPE            Type    #-}
+    {-# BUILTIN AGDATERM            Term    #-}
+    {-# BUILTIN AGDATERMVAR         var     #-}
+    {-# BUILTIN AGDATERMCON         con     #-}
+    {-# BUILTIN AGDATERMDEF         def     #-}
+    {-# BUILTIN AGDATERMLAM         lam     #-}
+    {-# BUILTIN AGDATERMPI          pi      #-}
+    {-# BUILTIN AGDATERMSORT        sort    #-}
+    {-# BUILTIN AGDATERMUNSUPPORTED unknown #-}
+    {-# BUILTIN AGDATYPEEL          el      #-}
+    {-# BUILTIN AGDASORTSET         set     #-}
+    {-# BUILTIN AGDASORTLIT         lit     #-}
+    {-# BUILTIN AGDASORTUNSUPPORTED unknown #-}
+
+    postulate
+      -- Function definition.
+      Function  : Set
+      -- Data type definition.
+      Data-type : Set
+      -- Record type definition.
+      Record    : Set
+
+    {-# BUILTIN AGDAFUNDEF    Function  #-}
+    {-# BUILTIN AGDADATADEF   Data-type #-}
+    {-# BUILTIN AGDARECORDDEF Record    #-}
+
+    -- Definitions.
+
+    data Definition : Set where
+      function     : Function  → Definition
+      data-type    : Data-type → Definition
+      record′      : Record    → Definition
+      constructor′ : Definition
+      axiom        : Definition
+      primitive′   : Definition
+
+    {-# BUILTIN AGDADEFINITION                Definition   #-}
+    {-# BUILTIN AGDADEFINITIONFUNDEF          function     #-}
+    {-# BUILTIN AGDADEFINITIONDATADEF         data-type    #-}
+    {-# BUILTIN AGDADEFINITIONRECORDDEF       record′      #-}
+    {-# BUILTIN AGDADEFINITIONDATACONSTRUCTOR constructor′ #-}
+    {-# BUILTIN AGDADEFINITIONPOSTULATE       axiom        #-}
+    {-# BUILTIN AGDADEFINITIONPRIMITIVE       primitive′   #-}
+
+    primitive
+      -- The type of the thing with the given name.
+      primQNameType        : Name → Type
+      -- The definition of the thing with the given name.
+      primQNameDefinition  : Name → Definition
+      -- The constructors of the given data type.
+      primDataConstructors : Data-type → List Name
+
+  As an example the expression
+
+    primQNameType (quote zero)
+
+  is definitionally equal to
+
+    el (lit 0) (def (quote ℕ) [])
+
+  (if zero is a constructor of the data type ℕ).
+
+* New keyword: unquote.
+
+  The construction "unquote t" converts a representation of an Agda term
+  to actual Agda code in the following way:
+
+  1. The argument t must have type Term (see the reflection API above).
+
+  2. The argument is normalised.
+
+  3. The entire construction is replaced by the normal form, which is
+     treated as syntax written by the user and type-checked in the
+     usual way.
+
+  Examples:
+
+    test : unquote (def (quote ℕ) []) ≡ ℕ
+    test = refl
+
+    id : (A : Set) → A → A
+    id = unquote (lam visible (lam visible (var 0 [])))
+
+    id-ok : id ≡ (λ A (x : A) → x)
+    id-ok = refl
+
+* New keyword: quoteTerm.
+
+  The construction "quoteTerm t" is similar to "quote n", but whereas
+  quote is restricted to names n, quoteTerm accepts terms t. The
+  construction is handled in the following way:
+
+  1. The type of t is inferred. The term t must be type-correct.
+
+  2. The term t is normalised.
+
+  3. The construction is replaced by the Term representation (see the
+     reflection API above) of the normal form. Any unsolved metavariables
+     in the term are represented by the "unknown" term constructor.
+
+  Examples:
+
+    test₁ : quoteTerm (λ {A : Set} (x : A) → x) ≡
+            lam hidden (lam visible (var 0 []))
+    test₁ = refl
+
+    -- Local variables are represented as de Bruijn indices.
+    test₂ : (λ {A : Set} (x : A) → quoteTerm x) ≡ (λ x → var 0 [])
+    test₂ = refl
+
+    -- Terms are normalised before being quoted.
+    test₃ : quoteTerm (0 + 0) ≡ con (quote zero) []
+    test₃ = refl
+
+Compiler backends
+=================
+
+MAlonzo
+-------
+
+* The MAlonzo backend's FFI now handles universe polymorphism in a
+  better way.
+
+  The translation of Agda types and kinds into Haskell now supports
+  universe-polymorphic postulates. The core changes are that the
+  translation of function types has been changed from
+
+    T[[ Pi (x : A) B ]] =
+      if A has a Haskell kind then
+        forall x. () -> T[[ B ]]
+      else if x in fv B then
+        undef
+      else
+        T[[ A ]] -> T[[ B ]]
+
+  into
+
+    T[[ Pi (x : A) B ]] =
+      if x in fv B then
+        forall x. T[[ A ]] -> T[[ B ]]  -- Note: T[[A]] not Unit.
+      else
+        T[[ A ]] -> T[[ B ]],
+
+  and that the translation of constants (postulates, constructors and
+  literals) has been changed from
+
+    T[[ k As ]] =
+      if COMPILED_TYPE k T then
+        T T[[ As ]]
+      else
+        undef
+
+  into
+
+    T[[ k As ]] =
+      if COMPILED_TYPE k T then
+        T T[[ As ]]
+      else if COMPILED k E then
+        ()
+      else
+        undef.
+
+  For instance, assuming a Haskell definition
+
+    type AgdaIO a b = IO b,
+
+  we can set up universe-polymorphic IO in the following way:
+
+    postulate
+      IO     : ∀ {ℓ} → Set ℓ → Set ℓ
+      return : ∀ {a} {A : Set a} → A → IO A
+      _>>=_  : ∀ {a b} {A : Set a} {B : Set b} →
+               IO A → (A → IO B) → IO B
+
+    {-# COMPILED_TYPE IO AgdaIO              #-}
+    {-# COMPILED return  (\_ _ -> return)    #-}
+    {-# COMPILED _>>=_   (\_ _ _ _ -> (>>=)) #-}
+
+  This is accepted because (assuming that the universe level type is
+  translated to the Haskell unit type "()")
+
+    (\_ _ -> return)
+      : forall a. () -> forall b. () -> b -> AgdaIO a b
+      = T [[ ∀ {a} {A : Set a} → A → IO A ]]
+
+  and
+
+    (\_ _ _ _ -> (>>=))
+      : forall a. () -> forall b. () ->
+          forall c. () -> forall d. () ->
+            AgdaIO a c -> (c -> AgdaIO b d) -> AgdaIO b d
+      = T [[ ∀ {a b} {A : Set a} {B : Set b} →
+               IO A → (A → IO B) → IO B ]].
+
+Epic
+----
+
+* New Epic backend pragma: STATIC.
+
+  In the Epic backend, functions marked with the STATIC pragma will be
+  normalised before compilation. Example usage:
+
+    {-# STATIC power #-}
+
+    power : ℕ → ℕ → ℕ
+    power 0       x = 1
+    power 1       x = x
+    power (suc n) x = power n x * x
+
+  Occurrences of "power 4 x" will be replaced by "((x * x) * x) * x".
+
+* Some new optimisations have been implemented in the Epic backend:
+
+  - Removal of unused arguments.
+
+  A worker/wrapper transformation is performed so that unused
+  arguments can be removed by Epic's inliner. For instance, the map
+  function is transformed in the following way:
+
+    map_wrap : (A B : Set) → (A → B) → List A → List B
+    map_wrap A B f xs = map_work f xs
+
+    map_work f []       = []
+    map_work f (x ∷ xs) = f x ∷ map_work f xs
+
+  If map_wrap is inlined (which it will be in any saturated call),
+  then A and B disappear in the generated code.
+
+  Unused arguments are found using abstract interpretation. The bodies
+  of all functions in a module are inspected to decide which variables
+  are used. The behaviour of postulates is approximated based on their
+  types. Consider return, for instance:
+
+    postulate return : {A : Set} → A → IO A
+
+  The first argument of return can be removed, because it is of type
+  Set and thus cannot affect the outcome of a program at runtime.
+
+  - Injection detection.
+
+  At runtime many functions may turn out to be inefficient variants of
+  the identity function. This is especially true after forcing.
+  Injection detection replaces some of these functions with more
+  efficient versions. Example:
+
+    inject : {n : ℕ} → Fin n → Fin (1 + n)
+    inject {suc n} zero    = zero
+    inject {suc n} (suc i) = suc (inject {n} i)
+
+  Forcing removes the Fin constructors' ℕ arguments, so this function
+  is an inefficient identity function that can be replaced by the
+  following one:
+
+    inject {_} x = x
+
+  To actually find this function, we make the induction hypothesis
+  that inject is an identity function in its second argument and look
+  at the branches of the function to decide if this holds.
+
+  Injection detection also works over data type barriers. Example:
+
+    forget : {A : Set} {n : ℕ} → Vec A n → List A
+    forget []       = []
+    forget (x ∷ xs) = x ∷ forget xs
+
+  Given that the constructor tags (in the compiled Epic code) for
+  Vec.[] and List.[] are the same, and that the tags for Vec._∷_ and
+  List._∷_ are also the same, this is also an identity function. We
+  can hence replace the definition with the following one:
+
+    forget {_} xs = xs
+
+  To get this to apply as often as possible, constructor tags are
+  chosen /after/ injection detection has been run, in a way to make as
+  many functions as possible injections.
+
+  Constructor tags are chosen once per source file, so it may be
+  advantageous to define conversion functions like forget in the same
+  module as one of the data types. For instance, if Vec.agda imports
+  List.agda, then the forget function should be put in Vec.agda to
+  ensure that vectors and lists get the same tags (unless some other
+  injection function, which puts different constraints on the tags, is
+  prioritised).
+
+  - Smashing.
+
+  This optimisation finds types whose values are inferable at runtime:
+
+    * A data type with only one constructor where all fields are
+      inferable is itself inferable.
+    * Set ℓ is inferable (as it has no runtime representation).
+
+  A function returning an inferable data type can be smashed, which
+  means that it is replaced by a function which simply returns the
+  inferred value.
+
+  An important example of an inferable type is the usual propositional
+  equality type (_≡_). Any function returning a propositional equality
+  can simply return the reflexivity constructor directly without
+  computing anything.
+
+  This optimisation makes more arguments unused. It also makes the
+  Epic code size smaller, which in turn speeds up compilation.
+
+JavaScript
+----------
+
+* ECMAScript compiler backend.
+
+  A new compiler backend is being implemented, targetting ECMAScript
+  (also known as JavaScript), with the goal of allowing Agda programs
+  to be run in browsers or other ECMAScript environments.
+
+  The backend is still at an experimental stage: the core language is
+  implemented, but many features are still missing.
+
+  The ECMAScript compiler can be invoked from the command line using
+  the flag --js:
+
+    agda --js --compile-dir=<DIR> <FILE>.agda
+
+  Each source <FILE>.agda is compiled into an ECMAScript target
+  <DIR>/jAgda.<TOP-LEVEL MODULE NAME>.js. The compiler can also be
+  invoked using the Emacs mode (the variable agda2-backend controls
+  which backend is used).
+
+  Note that ECMAScript is a strict rather than lazy language. Since
+  Agda programs are total, this should not impact program semantics,
+  but it may impact their space or time usage.
+
+  ECMAScript does not support algebraic datatypes or pattern-matching.
+  These features are translated to a use of the visitor pattern. For
+  instance, the standard library's List data type and null function
+  are translated into the following code:
+
+    exports["List"] = {};
+    exports["List"]["[]"] = function (x0) {
+        return x0["[]"]();
+      };
+    exports["List"]["_∷_"] = function (x0) {
+        return function (x1) {
+          return function (x2) {
+            return x2["_∷_"](x0, x1);
+          };
+        };
+      };
+
+    exports["null"] = function (x0) {
+        return function (x1) {
+          return function (x2) {
+            return x2({
+              "[]": function () {
+                return jAgda_Data_Bool["Bool"]["true"];
+              },
+              "_∷_": function (x3, x4) {
+                return jAgda_Data_Bool["Bool"]["false"];
+              }
+            });
+          };
+        };
+      };
+
+  Agda records are translated to ECMAScript objects, preserving field
+  names.
+
+  Top-level Agda modules are translated to ECMAScript modules,
+  following the common.js module specification. A top-level Agda
+  module "Foo.Bar" is translated to an ECMAScript module
+  "jAgda.Foo.Bar".
+
+  The ECMAScript compiler does not compile to Haskell, so the pragmas
+  related to the Haskell FFI (IMPORT, COMPILED_DATA and COMPILED) are
+  not used by the ECMAScript backend. Instead, there is a COMPILED_JS
+  pragma which may be applied to any declaration. For postulates,
+  primitives, functions and values, it gives the ECMAScript code to be
+  emitted by the compiler. For data types, it gives a function which
+  is applied to a value of that type, and a visitor object. For
+  instance, a binding of natural numbers to ECMAScript integers
+  (ignoring overflow errors) is:
+
+    data ℕ : Set where
+      zero : ℕ
+      suc  : ℕ → ℕ
+
+    {-# COMPILED_JS ℕ function (x,v) {
+        if (x < 1) { return v.zero(); } else { return v.suc(x-1); }
+      } #-}
+    {-# COMPILED_JS zero 0 #-}
+    {-# COMPILED_JS suc function (x) { return x+1; } #-}
+
+    _+_ : ℕ → ℕ → ℕ
+    zero  + n = n
+    suc m + n = suc (m + n)
+
+    {-# COMPILED_JS _+_ function (x) { return function (y) {
+                          return x+y; };
+      } #-}
+
+  To allow FFI code to be optimised, the ECMAScript in a COMPILED_JS
+  declaration is parsed, using a simple parser that recognises a pure
+  functional subset of ECMAScript, consisting of functions, function
+  applications, return, if-statements, if-expressions,
+  side-effect-free binary operators (no precedence, left associative),
+  side-effect-free prefix operators, objects (where all member names
+  are quoted), field accesses, and string and integer literals.
+  Modules may be imported using the require("<module-id>") syntax: any
+  impure code, or code outside the supported fragment, can be placed
+  in a module and imported.
+
+Tools
+=====
+
+* New flag --safe, which can be used to type-check untrusted code.
+
+  This flag disables postulates, primTrustMe, and "unsafe" OPTION
+  pragmas, some of which are known to make Agda inconsistent.
+
+  Rejected pragmas:
+
+    --allow-unsolved-metas
+    --experimental-irrelevance
+    --guardedness-preserving-type-construtors
+    --injective-type-constructors
+    --no-coverage-check
+    --no-positivity-check
+    --no-termination-check
+    --sized-types
+    --type-in-type
+
+  Note that, at the moment, it is not possible to define the universe
+  level or coinduction primitives when --safe is used (because they
+  must be introduced as postulates). This can be worked around by
+  type-checking trusted files in a first pass, without using --safe,
+  and then using --safe in a second pass. Modules which have already
+  been type-checked are not re-type-checked just because --safe is
+  used.
+
+* Dependency graphs.
+
+  The new flag --dependency-graph=FILE can be used to generate a DOT
+  file containing a module dependency graph. The generated file (FILE)
+  can be rendered using a tool like dot.
+
+* The --no-unreachable-check flag has been removed.
+
+* Projection functions are highlighted as functions instead of as
+  fields. Field names (in record definitions and record values) are
+  still highlighted as fields.
+
+* Support for jumping to positions mentioned in the information
+  buffer has been added.
+
+* The "make install" command no longer installs Agda globally (by
+  default).
+
+------------------------------------------------------------------------
+-- Release notes for Agda 2 version 2.2.10
+------------------------------------------------------------------------
+
+Important changes since 2.2.8:
+
+Language
+--------
+
+* New flag: --without-K.
+
+  This flag makes pattern matching more restricted. If the flag is
+  activated, then Agda only accepts certain case-splits. If the type
+  of the variable to be split is D pars ixs, where D is a data (or
+  record) type, pars stands for the parameters, and ixs the indices,
+  then the following requirements must be satisfied:
+
+  * The indices ixs must be applications of constructors to distinct
+    variables.
+
+  * These variables must not be free in pars.
+
+  The intended purpose of --without-K is to enable experiments with a
+  propositional equality without the K rule. Let us define
+  propositional equality as follows:
+
+    data _≡_ {A : Set} : A → A → Set where
+      refl : ∀ x → x ≡ x
+
+  Then the obvious implementation of the J rule is accepted:
+
+    J : {A : Set} (P : {x y : A} → x ≡ y → Set) →
+        (∀ x → P (refl x)) →
+        ∀ {x y} (x≡y : x ≡ y) → P x≡y
+    J P p (refl x) = p x
+
+  The same applies to Christine Paulin-Mohring's version of the J rule:
+
+    J′ : {A : Set} {x : A} (P : {y : A} → x ≡ y → Set) →
+         P (refl x) →
+         ∀ {y} (x≡y : x ≡ y) → P x≡y
+    J′ P p (refl x) = p
+
+  On the other hand, the obvious implementation of the K rule is not
+  accepted:
+
+    K : {A : Set} (P : {x : A} → x ≡ x → Set) →
+        (∀ x → P (refl x)) →
+        ∀ {x} (x≡x : x ≡ x) → P x≡x
+    K P p (refl x) = p x
+
+  However, we have /not/ proved that activation of --without-K ensures
+  that the K rule cannot be proved in some other way.
+
+* Irrelevant declarations.
+
+  Postulates and functions can be marked as irrelevant by prefixing
+  the name with a dot when the name is declared. Example:
+
+    postulate
+      .irrelevant : {A : Set} → .A → A
+
+  Irrelevant names may only be used in irrelevant positions or in
+  definitions of things which have been declared irrelevant.
+
+  The axiom irrelevant above can be used to define a projection from
+  an irrelevant record field:
+
+    data Subset (A : Set) (P : A → Set) : Set where
+      _#_ : (a : A) → .(P a) → Subset A P
+
+    elem : ∀ {A P} → Subset A P → A
+    elem (a # p) = a
+
+    .certificate : ∀ {A P} (x : Subset A P) → P (elem x)
+    certificate (a # p) = irrelevant p
+
+  The right-hand side of certificate is relevant, so we cannot define
+
+    certificate (a # p) = p
+
+  (because p is irrelevant). However, certificate is declared to be
+  irrelevant, so it can use the axiom irrelevant. Furthermore the
+  first argument of the axiom is irrelevant, which means that
+  irrelevant p is well-formed.
+
+  As shown above the axiom irrelevant justifies irrelevant
+  projections. Previously no projections were generated for irrelevant
+  record fields, such as the field certificate in the following
+  record type:
+
+    record Subset (A : Set) (P : A → Set) : Set where
+      constructor _#_
+      field
+        elem         : A
+        .certificate : P elem
+
+  Now projections are generated automatically for irrelevant fields
+  (unless the flag --no-irrelevant-projections is used). Note that
+  irrelevant projections are highly experimental.
+
+* Termination checker recognises projections.
+
+  Projections now preserve sizes, both in patterns and expressions.
+  Example:
+
+    record Wrap (A : Set) : Set where
+      constructor wrap
+      field
+        unwrap : A
+
+    open Wrap public
+
+    data WNat : Set where
+      zero : WNat
+      suc  : Wrap WNat → WNat
+
+    id : WNat → WNat
+    id zero    = zero
+    id (suc w) = suc (wrap (id (unwrap w)))
+
+  In the structural ordering unwrap w ≤ w. This means that
+
+    unwrap w ≤ w < suc w,
+
+  and hence the recursive call to id is accepted.
+
+  Projections also preserve guardedness.
+
+Tools
+-----
+
+* Hyperlinks for top-level module names now point to the start of the
+  module rather than to the declaration of the module name. This
+  applies both to the Emacs mode and to the output of agda --html.
+
+* Most occurrences of record field names are now highlighted as
+  "fields". Previously many occurrences were highlighted as
+  "functions".
+
+* Emacs mode: It is no longer possible to change the behaviour of the
+  TAB key by customising agda2-indentation.
+
+* Epic compiler backend.
+
+  A new compiler backend is being implemented. This backend makes use
+  of Edwin Brady's language Epic
+  (http://www.cs.st-andrews.ac.uk/~eb/epic.php) and its compiler. The
+  backend should handle most Agda code, but is still at an
+  experimental stage: more testing is needed, and some things written
+  below may not be entirely true.
+
+  The Epic compiler can be invoked from the command line using the
+  flag --epic:
+
+    agda --epic --epic-flag=<EPIC-FLAG> --compile-dir=<DIR> <FILE>.agda
+
+  The --epic-flag flag can be given multiple times; each flag is given
+  verbatim to the Epic compiler (in the given order). The resulting
+  executable is named after the main module and placed in the
+  directory specified by the --compile-dir flag (default: the project
+  root). Intermediate files are placed in a subdirectory called Epic.
+
+  The backend requires that there is a definition named main. This
+  definition should be a value of type IO Unit, but at the moment this
+  is not checked (so it is easy to produce a program which segfaults).
+  Currently the backend represents actions of type IO A as functions
+  from Unit to A, and main is applied to the unit value.
+
+  The Epic compiler compiles via C, not Haskell, so the pragmas
+  related to the Haskell FFI (IMPORT, COMPILED_DATA and COMPILED) are
+  not used by the Epic backend. Instead there is a new pragma
+  COMPILED_EPIC. This pragma is used to give Epic code for postulated
+  definitions (Epic code can in turn call C code). The form of the
+  pragma is {-# COMPILED_EPIC def code #-}, where def is the name of
+  an Agda postulate and code is some Epic code which should include
+  the function arguments, return type and function body. As an example
+  the IO monad can be defined as follows:
+
+    postulate
+      IO     : Set → Set
+      return : ∀ {A} → A → IO A
+      _>>=_  : ∀ {A B} → IO A → (A → IO B) → IO B
+
+    {-# COMPILED_EPIC return (u : Unit, a : Any) -> Any =
+                        ioreturn(a) #-}
+    {-# COMPILED_EPIC
+          _>>=_ (u1 : Unit, u2 : Unit, x : Any, f : Any) -> Any =
+            iobind(x,f) #-}
+
+  Here ioreturn and iobind are Epic functions which are defined in the
+  file AgdaPrelude.e which is always included.
+
+  By default the backend will remove so-called forced constructor
+  arguments (and case-splitting on forced variables will be
+  rewritten). This optimisation can be disabled by using the flag
+  --no-forcing.
+
+  All data types which look like unary natural numbers after forced
+  constructor arguments have been removed (i.e. types with two
+  constructors, one nullary and one with a single recursive argument)
+  will be represented as "BigInts". This applies to the standard Fin
+  type, for instance.
+
+  The backend supports Agda's primitive functions and the BUILTIN
+  pragmas. If the BUILTIN pragmas for unary natural numbers are used,
+  then some operations, like addition and multiplication, will use
+  more efficient "BigInt" operations.
+
+  If you want to make use of the Epic backend you need to install some
+  dependencies, see the README.
+
+* The Emacs mode can compile using either the MAlonzo or the Epic
+  backend. The variable agda2-backend controls which backend is used.
+
+------------------------------------------------------------------------
+-- Release notes for Agda 2 version 2.2.8
+------------------------------------------------------------------------
+
+Important changes since 2.2.6:
+
+Language
+--------
+
+* Record pattern matching.
+
+  It is now possible to pattern match on named record constructors.
+  Example:
+
+    record Σ (A : Set) (B : A → Set) : Set where
+      constructor _,_
+      field
+        proj₁ : A
+        proj₂ : B proj₁
+
+    map : {A B : Set} {P : A → Set} {Q : B → Set}
+          (f : A → B) → (∀ {x} → P x → Q (f x)) →
+          Σ A P → Σ B Q
+    map f g (x , y) = (f x , g y)
+
+  The clause above is internally translated into the following one:
+
+    map f g p = (f (Σ.proj₁ p) , g (Σ.proj₂ p))
+
+  Record patterns containing data type patterns are not translated.
+  Example:
+
+    add : ℕ × ℕ → ℕ
+    add (zero  , n) = n
+    add (suc m , n) = suc (add (m , n))
+
+  Record patterns which do not contain data type patterns, but which
+  do contain dot patterns, are currently rejected. Example:
+
+    Foo : {A : Set} (p₁ p₂ : A × A) → proj₁ p₁ ≡ proj₁ p₂ → Set₁
+    Foo (x , y) (.x , y′) refl = Set
+
+* Proof irrelevant function types.
+
+  Agda now supports irrelevant non-dependent function types:
+
+    f : .A → B
+
+  This type implies that f does not depend computationally on its
+  argument. One intended use case is data structures with embedded
+  proofs, like sorted lists:
+
+    postulate
+      _≤_ : ℕ → ℕ → Set
+      p₁  : 0 ≤ 1
+      p₂  : 0 ≤ 1
+
+    data SList (bound : ℕ) : Set where
+      []    : SList bound
+      scons : (head : ℕ) →
+              .(head ≤ bound) →
+              (tail : SList head) →
+              SList bound
+
+  The effect of the irrelevant type in the signature of scons is that
+  scons's second argument is never inspected after Agda has ensured
+  that it has the right type. It is even thrown away, leading to
+  smaller term sizes and hopefully some gain in efficiency. The
+  type-checker ignores irrelevant arguments when checking equality, so
+  two lists can be equal even if they contain different proofs:
+
+    l₁ : SList 1
+    l₁ = scons 0 p₁ []
+
+    l₂ : SList 1
+    l₂ = scons 0 p₂ []
+
+    l₁≡l₂ : l₁ ≡ l₂
+    l₁≡l₂ = refl
+
+  Irrelevant arguments can only be used in irrelevant contexts.
+  Consider the following subset type:
+
+    data Subset (A : Set) (P : A → Set) : Set where
+      _#_ : (elem : A) → .(P elem) → Subset A P
+
+  The following two uses are fine:
+
+    elimSubset : ∀ {A C : Set} {P} →
+                 Subset A P → ((a : A) → .(P a) → C) → C
+    elimSubset (a # p) k = k a p
+
+    elem : {A : Set} {P : A → Set} → Subset A P → A
+    elem (x # p) = x
+
+  However, if we try to project out the proof component, then Agda
+  complains that "variable p is declared irrelevant, so it cannot be
+  used here":
+
+    prjProof : ∀ {A P} (x : Subset A P) → P (elem x)
+    prjProof (a # p) = p
+
+  Matching against irrelevant arguments is also forbidden, except in
+  the case of irrefutable matches (record constructor patterns which
+  have been translated away). For instance, the match against the
+  pattern (p , q) here is accepted:
+
+    elim₂ : ∀ {A C : Set} {P Q : A → Set} →
+            Subset A (λ x → Σ (P x) (λ _ → Q x)) →
+            ((a : A) → .(P a) → .(Q a) → C) → C
+    elim₂ (a # (p , q)) k = k a p q
+
+  Absurd matches () are also allowed.
+
+  Note that record fields can also be irrelevant. Example:
+
+    record Subset (A : Set) (P : A → Set) : Set where
+      constructor _#_
+      field
+        elem   : A
+        .proof : P elem
+
+  Irrelevant fields are never in scope, neither inside nor outside the
+  record. This means that no record field can depend on an irrelevant
+  field, and furthermore projections are not defined for such fields.
+  Irrelevant fields can only be accessed using pattern matching, as in
+  elimSubset above.
+
+  Irrelevant function types were added very recently, and have not
+  been subjected to much experimentation yet, so do not be surprised
+  if something is changed before the next release. For instance,
+  dependent irrelevant function spaces (.(x : A) → B) might be added
+  in the future.
+
+* Mixfix binders.
+
+  It is now possible to declare user-defined syntax that binds
+  identifiers. Example:
+
+    postulate
+      State  : Set → Set → Set
+      put    : ∀ {S} → S → State S ⊤
+      get    : ∀ {S} → State S S
+      return : ∀ {A S} → A → State S A
+      bind   : ∀ {A B S} → State S B → (B → State S A) → State S A
+
+    syntax bind e₁ (λ x → e₂) = x ← e₁ , e₂
+
+    increment : State ℕ ⊤
+    increment = x ← get ,
+                put (1 + x)
+
+  The syntax declaration for bind implies that x is in scope in e₂,
+  but not in e₁.
+
+  You can give fixity declarations along with syntax declarations:
+
+    infixr 40 bind
+    syntax bind e₁ (λ x → e₂) = x ← e₁ , e₂
+
+  The fixity applies to the syntax, not the name; syntax declarations
+  are also restricted to ordinary, non-operator names. The following
+  declaration is disallowed:
+
+    syntax _==_ x y = x === y
+
+  Syntax declarations must also be linear; the following declaration
+  is disallowed:
+
+    syntax wrong x = x + x
+
+  Syntax declarations were added very recently, and have not been
+  subjected to much experimentation yet, so do not be surprised if
+  something is changed before the next release.
+
+* Prop has been removed from the language.
+
+  The experimental sort Prop has been disabled. Any program using Prop
+  should typecheck if Prop is replaced by Set₀. Note that Prop is still
+  a keyword.
+
+* Injective type constructors off by default.
+
+  Automatic injectivity of type constructors has been disabled (by
+  default). To enable it, use the flag --injective-type-constructors,
+  either on the command line or in an OPTIONS pragma. Note that this
+  flag makes Agda anti-classical and possibly inconsistent:
+
+    Agda with excluded middle is inconsistent
+    http://thread.gmane.org/gmane.comp.lang.agda/1367
+
+  See test/succeed/InjectiveTypeConstructors.agda for an example.
+
+* Termination checker can count.
+
+  There is a new flag --termination-depth=N accepting values N >= 1
+  (with N = 1 being the default) which influences the behavior of the
+  termination checker. So far, the termination checker has only
+  distinguished three cases when comparing the argument of a recursive
+  call with the formal parameter of the callee.
+
+    < : the argument is structurally smaller than the parameter
+    = : they are equal
+    ? : the argument is bigger or unrelated to the parameter
+
+  This behavior, which is still the default (N = 1), will not
+  recognise the following functions as terminating.
+
+    mutual
+
+      f : ℕ → ℕ
+      f zero          = zero
+      f (suc zero)    = zero
+      f (suc (suc n)) = aux n
+
+      aux : ℕ → ℕ
+      aux m = f (suc m)
+
+  The call graph
+
+    f --(<)--> aux --(?)--> f
+
+  yields a recursive call from f to f via aux where the relation of
+  call argument to callee parameter is computed as "unrelated"
+  (composition of < and ?).
+
+  Setting N >= 2 allows a finer analysis: n has two constructors less
+  than suc (suc n), and suc m has one more than m, so we get the call
+  graph:
+
+    f --(-2)--> aux --(+1)--> f
+
+  The indirect call f --> f is now labeled with (-1), and the
+  termination checker can recognise that the call argument is
+  decreasing on this path.
+
+  Setting the termination depth to N means that the termination
+  checker counts decrease up to N and increase up to N-1. The default,
+  N=1, means that no increase is counted, every increase turns to
+  "unrelated".
+
+  In practice, examples like the one above sometimes arise when "with"
+  is used. As an example, the program
+
+    f : ℕ → ℕ
+    f zero          = zero
+    f (suc zero)    = zero
+    f (suc (suc n)) with zero
+    ... | _ = f (suc n)
+
+  is internally represented as
+
+    mutual
+
+      f : ℕ → ℕ
+      f zero          = zero
+      f (suc zero)    = zero
+      f (suc (suc n)) = aux n zero
+
+      aux : ℕ → ℕ → ℕ
+      aux m k = f (suc m)
+
+  Thus, by default, the definition of f using "with" is not accepted
+  by the termination checker, even though it looks structural (suc n
+  is a subterm of suc suc n). Now, the termination checker is
+  satisfied if the option "--termination-depth=2" is used.
+
+  Caveats:
+
+  - This is an experimental feature, hopefully being replaced by
+    something smarter in the near future.
+
+  - Increasing the termination depth will quickly lead to very long
+    termination checking times. So, use with care. Setting termination
+    depth to 100 by habit, just to be on the safe side, is not a good
+    idea!
+
+  - Increasing termination depth only makes sense for linear data
+    types such as ℕ and Size. For other types, increase cannot be
+    recognised. For instance, consider a similar example with lists.
+
+      data List : Set where
+	nil  : List
+	cons : ℕ → List → List
+
+      mutual
+	f : List → List
+	f nil                  = nil
+	f (cons x nil)         = nil
+	f (cons x (cons y ys)) = aux y ys
+
+	aux : ℕ → List → List
+	aux z zs = f (cons z zs)
+
+    Here the termination checker compares cons z zs to z and also to
+    zs. In both cases, the result will be "unrelated", no matter how
+    high we set the termination depth. This is because when comparing
+    cons z zs to zs, for instance, z is unrelated to zs, thus,
+    cons z zs is also unrelated to zs. We cannot say it is just "one
+    larger" since z could be a very large term. Note that this points
+    to a weakness of untyped termination checking.
+
+    To regain the benefit of increased termination depth, we need to
+    index our lists by a linear type such as ℕ or Size. With
+    termination depth 2, the above example is accepted for vectors
+    instead of lists.
+
+* The codata keyword has been removed. To use coinduction, use the
+  following new builtins: INFINITY, SHARP and FLAT. Example:
+
+    {-# OPTIONS --universe-polymorphism #-}
+
+    module Coinduction where
+
+    open import Level
+
+    infix 1000 ♯_
+
+    postulate
+      ∞  : ∀ {a} (A : Set a) → Set a
+      ♯_ : ∀ {a} {A : Set a} → A → ∞ A
+      ♭  : ∀ {a} {A : Set a} → ∞ A → A
+
+    {-# BUILTIN INFINITY ∞  #-}
+    {-# BUILTIN SHARP    ♯_ #-}
+    {-# BUILTIN FLAT     ♭  #-}
+
+  Note that (non-dependent) pattern matching on SHARP is no longer
+  allowed.
+
+  Note also that strange things might happen if you try to combine the
+  pragmas above with COMPILED_TYPE, COMPILED_DATA or COMPILED pragmas,
+  or if the pragmas do not occur right after the postulates.
+
+  The compiler compiles the INFINITY builtin to nothing (more or
+  less), so that the use of coinduction does not get in the way of FFI
+  declarations:
+
+    data Colist (A : Set) : Set where
+      []  : Colist A
+      _∷_ : (x : A) (xs : ∞ (Colist A)) → Colist A
+
+    {-# COMPILED_DATA Colist [] [] (:) #-}
+
+* Infinite types.
+
+  If the new flag --guardedness-preserving-type-constructors is used,
+  then type constructors are treated as inductive constructors when we
+  check productivity (but only in parameters, and only if they are
+  used strictly positively or not at all). This makes examples such as
+  the following possible:
+
+    data Rec (A : ∞ Set) : Set where
+      fold : ♭ A → Rec A
+
+    -- Σ cannot be a record type below.
+
+    data Σ (A : Set) (B : A → Set) : Set where
+      _,_ : (x : A) → B x → Σ A B
+
+    syntax Σ A (λ x → B) = Σ[ x ∶ A ] B
+
+    -- Corecursive definition of the W-type.
+
+    W : (A : Set) → (A → Set) → Set
+    W A B = Rec (♯ (Σ[ x ∶ A ] (B x → W A B)))
+
+    syntax W A (λ x → B) = W[ x ∶ A ] B
+
+    sup : {A : Set} {B : A → Set} (x : A) (f : B x → W A B) → W A B
+    sup x f = fold (x , f)
+
+    W-rec : {A : Set} {B : A → Set}
+            (P : W A B → Set) →
+            (∀ {x} {f : B x → W A B} → (∀ y → P (f y)) → P (sup x f)) →
+            ∀ x → P x
+    W-rec P h (fold (x , f)) = h (λ y → W-rec P h (f y))
+
+    -- Induction-recursion encoded as corecursion-recursion.
+
+    data Label : Set where
+      ′0 ′1 ′2 ′σ ′π ′w : Label
+
+    mutual
+
+      U : Set
+      U = Σ Label U′
+
+      U′ : Label → Set
+      U′ ′0 = ⊤
+      U′ ′1 = ⊤
+      U′ ′2 = ⊤
+      U′ ′σ = Rec (♯ (Σ[ a ∶ U ] (El a → U)))
+      U′ ′π = Rec (♯ (Σ[ a ∶ U ] (El a → U)))
+      U′ ′w = Rec (♯ (Σ[ a ∶ U ] (El a → U)))
+
+      El : U → Set
+      El (′0 , _)            = ⊥
+      El (′1 , _)            = ⊤
+      El (′2 , _)            = Bool
+      El (′σ , fold (a , b)) = Σ[ x ∶ El a ]  El (b x)
+      El (′π , fold (a , b)) =   (x : El a) → El (b x)
+      El (′w , fold (a , b)) = W[ x ∶ El a ]  El (b x)
+
+    U-rec : (P : ∀ u → El u → Set) →
+            P (′1 , _) tt →
+            P (′2 , _) true →
+            P (′2 , _) false →
+            (∀ {a b x y} →
+             P a x → P (b x) y → P (′σ , fold (a , b)) (x , y)) →
+            (∀ {a b f} →
+             (∀ x → P (b x) (f x)) → P (′π , fold (a , b)) f) →
+            (∀ {a b x f} →
+             (∀ y → P (′w , fold (a , b)) (f y)) →
+             P (′w , fold (a , b)) (sup x f)) →
+            ∀ u (x : El u) → P u x
+    U-rec P P1 P2t P2f Pσ Pπ Pw = rec
+      where
+      rec : ∀ u (x : El u) → P u x
+      rec (′0 , _)            ()
+      rec (′1 , _)            _              = P1
+      rec (′2 , _)            true           = P2t
+      rec (′2 , _)            false          = P2f
+      rec (′σ , fold (a , b)) (x , y)        = Pσ (rec _ x) (rec _ y)
+      rec (′π , fold (a , b)) f              = Pπ (λ x → rec _ (f x))
+      rec (′w , fold (a , b)) (fold (x , f)) = Pw (λ y → rec _ (f y))
+
+  The --guardedness-preserving-type-constructors extension is based on
+  a rather operational understanding of ∞/♯_; it's not yet clear if
+  this extension is consistent.
+
+* Qualified constructors.
+
+  Constructors can now be referred to qualified by their data type.
+  For instance, given
+
+    data Nat : Set where
+      zero : Nat
+      suc  : Nat → Nat
+
+    data Fin : Nat → Set where
+      zero : ∀ {n} → Fin (suc n)
+      suc  : ∀ {n} → Fin n → Fin (suc n)
+
+  you can refer to the constructors unambiguously as Nat.zero,
+  Nat.suc, Fin.zero, and Fin.suc (Nat and Fin are modules containing
+  the respective constructors). Example:
+
+    inj : (n m : Nat) → Nat.suc n ≡ suc m → n ≡ m
+    inj .m m refl = refl
+
+  Previously you had to write something like
+
+    inj : (n m : Nat) → _≡_ {Nat} (suc n) (suc m) → n ≡ m
+
+  to make the type checker able to figure out that you wanted the
+  natural number suc in this case.
+
+* Reflection.
+
+  There are two new constructs for reflection:
+
+    - quoteGoal x in e
+
+      In e the value of x will be a representation of the goal type
+      (the type expected of the whole expression) as an element in a
+      datatype of Agda terms (see below). For instance,
+
+      example : ℕ
+      example = quoteGoal x in {! at this point x = def (quote ℕ) [] !}
+
+    - quote x : Name
+
+      If x is the name of a definition (function, datatype, record, or
+      a constructor), quote x gives you the representation of x as a
+      value in the primitive type Name (see below).
+
+  Quoted terms use the following BUILTINs and primitives (available
+  from the standard library module Reflection):
+
+    -- The type of Agda names.
+
+    postulate Name : Set
+
+    {-# BUILTIN QNAME Name #-}
+
+    primitive primQNameEquality : Name → Name → Bool
+
+    -- Arguments.
+
+    Explicit? = Bool
+
+    data Arg A : Set where
+      arg : Explicit? → A → Arg A
+
+    {-# BUILTIN ARG    Arg #-}
+    {-# BUILTIN ARGARG arg #-}
+
+    -- The type of Agda terms.
+
+    data Term : Set where
+      var     : ℕ → List (Arg Term) → Term
+      con     : Name → List (Arg Term) → Term
+      def     : Name → List (Arg Term) → Term
+      lam     : Explicit? → Term → Term
+      pi      : Arg Term → Term → Term
+      sort    : Term
+      unknown : Term
+
+    {-# BUILTIN AGDATERM            Term    #-}
+    {-# BUILTIN AGDATERMVAR         var     #-}
+    {-# BUILTIN AGDATERMCON         con     #-}
+    {-# BUILTIN AGDATERMDEF         def     #-}
+    {-# BUILTIN AGDATERMLAM         lam     #-}
+    {-# BUILTIN AGDATERMPI          pi      #-}
+    {-# BUILTIN AGDATERMSORT        sort    #-}
+    {-# BUILTIN AGDATERMUNSUPPORTED unknown #-}
+
+  Reflection may be useful when working with internal decision
+  procedures, such as the standard library's ring solver.
+
+* Minor record definition improvement.
+
+  The definition of a record type is now available when type checking
+  record module definitions. This means that you can define things
+  like the following:
+
+    record Cat : Set₁ where
+      field
+        Obj  : Set
+        _=>_ : Obj → Obj → Set
+        -- ...
+
+      -- not possible before:
+      op : Cat
+      op = record { Obj = Obj; _=>_ = λ A B → B => A }
+
+Tools
+-----
+
+* The "Goal type and context" command now shows the goal type before
+  the context, and the context is shown in reverse order. The "Goal
+  type, context and inferred type" command has been modified in a
+  similar way.
+
+* Show module contents command.
+
+  Given a module name M the Emacs mode can now display all the
+  top-level modules and names inside M, along with types for the
+  names. The command is activated using C-c C-o or the menus.
+
+* Auto command.
+
+  A command which searches for type inhabitants has been added. The
+  command is invoked by pressing C-C C-a (or using the goal menu).
+  There are several flags and parameters, e.g. '-c' which enables
+  case-splitting in the search. For further information, see the Agda
+  wiki:
+
+    http://wiki.portal.chalmers.se/agda/pmwiki.php?n=Main.Auto
+
+* HTML generation is now possible for a module with unsolved
+  meta-variables, provided that the --allow-unsolved-metas flag is
+  used.
+
+------------------------------------------------------------------------
+-- Release notes for Agda 2 version 2.2.6
+------------------------------------------------------------------------
+
+Important changes since 2.2.4:
+
+Language
+--------
+
+* Universe polymorphism (experimental extension).
+
+  To enable universe polymorphism give the flag
+  --universe-polymorphism on the command line or (recommended) as an
+  OPTIONS pragma.
+
+  When universe polymorphism is enabled Set takes an argument which is
+  the universe level. For instance, the type of universe polymorphic
+  identity is
+
+    id : {a : Level} {A : Set a} → A → A.
+
+  The type Level is isomorphic to the unary natural numbers and should be
+  specified using the BUILTINs LEVEL, LEVELZERO, and LEVELSUC:
+
+    data Level : Set where
+      zero : Level
+      suc  : Level → Level
+
+    {-# BUILTIN LEVEL     Level #-}
+    {-# BUILTIN LEVELZERO zero  #-}
+    {-# BUILTIN LEVELSUC  suc   #-}
+
+  There is an additional BUILTIN LEVELMAX for taking the maximum of two
+  levels:
+
+    max : Level → Level → Level
+    max  zero    m      = m
+    max (suc n)  zero   = suc n
+    max (suc n) (suc m) = suc (max n m)
+
+    {-# BUILTIN LEVELMAX max #-}
+
+  The non-polymorphic universe levels Set, Set₁ and so on are sugar
+  for Set zero, Set (suc zero), etc.
+
+  At present there is no automatic lifting of types from one level to
+  another. It can still be done (rather clumsily) by defining types
+  like the following one:
+
+    data Lifted {a} (A : Set a) : Set (suc a) where
+      lift : A → Lifted A
+
+  However, it is likely that automatic lifting is introduced at some
+  point in the future.
+
+* Multiple constructors, record fields, postulates or primitives can
+  be declared using a single type signature:
+
+    data Bool : Set where
+      false true : Bool
+
+    postulate
+      A B : Set
+
+* Record fields can be implicit:
+
+    record R : Set₁ where
+      field
+        {A}         : Set
+        f           : A → A
+        {B C} D {E} : Set
+        g           : B → C → E
+
+  By default implicit fields are not printed.
+
+* Record constructors can be defined:
+
+    record Σ (A : Set) (B : A → Set) : Set where
+      constructor _,_
+      field
+        proj₁ : A
+        proj₂ : B proj₁
+
+  In this example _,_ gets the type
+
+     (proj₁ : A) → B proj₁ → Σ A B.
+
+  For implicit fields the corresponding constructor arguments become
+  implicit.
+
+  Note that the constructor is defined in the /outer/ scope, so any
+  fixity declaration has to be given outside the record definition.
+  The constructor is not in scope inside the record module.
+
+  Note also that pattern matching for records has not been implemented
+  yet.
+
+* BUILTIN hooks for equality.
+
+  The data type
+
+    data _≡_ {A : Set} (x : A) : A → Set where
+      refl : x ≡ x
+
+  can be specified as the builtin equality type using the following
+  pragmas:
+
+    {-# BUILTIN EQUALITY _≡_  #-}
+    {-# BUILTIN REFL     refl #-}
+
+  The builtin equality is used for the new rewrite construct and
+  the primTrustMe primitive described below.
+
+* New rewrite construct.
+
+  If eqn : a ≡ b, where _≡_ is the builtin equality (see above) you
+  can now write
+
+    f ps rewrite eqn = rhs
+
+  instead of
+
+    f ps with a | eqn
+    ... | ._ | refl = rhs
+
+  The rewrite construct has the effect of rewriting the goal and the
+  context by the given equation (left to right).
+
+  You can rewrite using several equations (in sequence) by separating
+  them with vertical bars (|):
+
+    f ps rewrite eqn₁ | eqn₂ | … = rhs
+
+  It is also possible to add with clauses after rewriting:
+
+    f ps rewrite eqns with e
+    ... | p = rhs
+
+  Note that pattern matching happens before rewriting—if you want to
+  rewrite and then do pattern matching you can use a with after the
+  rewrite.
+
+  See test/succeed/Rewrite.agda for some examples.
+
+* A new primitive, primTrustMe, has been added:
+
+    primTrustMe : {A : Set} {x y : A} → x ≡ y
+
+  Here _≡_ is the builtin equality (see BUILTIN hooks for equality,
+  above).
+
+  If x and y are definitionally equal, then
+  primTrustMe {x = x} {y = y} reduces to refl.
+
+  Note that the compiler replaces all uses of primTrustMe with the
+  REFL builtin, without any check for definitional equality. Incorrect
+  uses of primTrustMe can potentially lead to segfaults or similar
+  problems.
+
+  For an example of the use of primTrustMe, see Data.String in version
+  0.3 of the standard library, where it is used to implement decidable
+  equality on strings using the primitive boolean equality.
+
+* Changes to the syntax and semantics of IMPORT pragmas, which are
+  used by the Haskell FFI. Such pragmas must now have the following
+  form:
+
+    {-# IMPORT <module name> #-}
+
+  These pragmas are interpreted as /qualified/ imports, so Haskell
+  names need to be given qualified (unless they come from the Haskell
+  prelude).
+
+* The horizontal tab character (U+0009) is no longer treated as white
+  space.
+
+* Line pragmas are no longer supported.
+
+* The --include-path flag can no longer be used as a pragma.
+
+* The experimental and incomplete support for proof irrelevance has
+  been disabled.
+
+Tools
+-----
+
+* New "intro" command in the Emacs mode. When there is a canonical way
+  of building something of the goal type (for instance, if the goal
+  type is a pair), the goal can be refined in this way. The command
+  works for the following goal types:
+
+    - A data type where only one of its constructors can be used to
+      construct an element of the goal type. (For instance, if the
+      goal is a non-empty vector, a "cons" will be introduced.)
+
+    - A record type. A record value will be introduced. Implicit
+      fields will not be included unless showing of implicit arguments
+      is switched on.
+
+    - A function type. A lambda binding as many variables as possible
+      will be introduced. The variable names will be chosen from the
+      goal type if its normal form is a dependent function type,
+      otherwise they will be variations on "x". Implicit lambdas will
+      only be inserted if showing of implicit arguments is switched
+      on.
+
+  This command can be invoked by using the refine command (C-c C-r)
+  when the goal is empty. (The old behaviour of the refine command in
+  this situation was to ask for an expression using the minibuffer.)
+
+* The Emacs mode displays "Checked" in the mode line if the current
+  file type checked successfully without any warnings.
+
+* If a file F is loaded, and this file defines the module M, it is an
+  error if F is not the file which defines M according to the include
+  path.
+
+  Note that the command-line tool and the Emacs mode define the
+  meaning of relative include paths differently: the command-line tool
+  interprets them relative to the current working directory, whereas
+  the Emacs mode interprets them relative to the root directory of the
+  current project. (As an example, if the module A.B.C is loaded from
+  the file <some-path>/A/B/C.agda, then the root directory is
+  <some-path>.)
+
+* It is an error if there are several files on the include path which
+  match a given module name.
+
+* Interface files are relocatable. You can move around source trees as
+  long as the include path is updated in a corresponding way. Note
+  that a module M may be re-typechecked if its time stamp is strictly
+  newer than that of the corresponding interface file (M.agdai).
+
+* Type-checking is no longer done when an up-to-date interface exists.
+  (Previously the initial module was always type-checked.)
+
+* Syntax highlighting files for Emacs (.agda.el) are no longer used.
+  The --emacs flag has been removed. (Syntax highlighting information
+  is cached in the interface files.)
+
+* The Agate and Alonzo compilers have been retired. The options
+  --agate, --alonzo and --malonzo have been removed.
+
+* The default directory for MAlonzo output is the project's root
+  directory. The --malonzo-dir flag has been renamed to --compile-dir.
+
+* Emacs mode: C-c C-x C-d no longer resets the type checking state.
+  C-c C-x C-r can be used for a more complete reset. C-c C-x C-s
+  (which used to reload the syntax highlighting information) has been
+  removed. C-c C-l can be used instead.
+
+* The Emacs mode used to define some "abbrevs", unless the user
+  explicitly turned this feature off. The new default is /not/ to add
+  any abbrevs. The old default can be obtained by customising
+  agda2-mode-abbrevs-use-defaults (a customisation buffer can be
+  obtained by typing M-x customize-group agda2 RET after an Agda file
+  has been loaded).
+
+------------------------------------------------------------------------
+-- Release notes for Agda 2 version 2.2.4
+------------------------------------------------------------------------
+
+Important changes since 2.2.2:
+
+* Change to the semantics of "open import" and "open module". The
+  declaration
+
+    open import M <using/hiding/renaming>
+
+  now translates to
+
+    import A
+    open A <using/hiding/renaming>
+
+  instead of
+
+    import A <using/hiding/renaming>
+    open A.
+
+  The same translation is used for "open module M = E …". Declarations
+  involving the keywords as or public are changed in a corresponding
+  way ("as" always goes with import, and "public" always with open).
+
+  This change means that import directives do not affect the qualified
+  names when open import/module is used. To get the old behaviour you
+  can use the expanded version above.
+
+* Names opened publicly in parameterised modules no longer inherit the
+  module parameters. Example:
+
+    module A where
+      postulate X : Set
+
+    module B (Y : Set) where
+      open A public
+
+  In Agda 2.2.2 B.X has type (Y : Set) → Set, whereas in Agda 2.2.4
+  B.X has type Set.
+
+* Previously it was not possible to export a given constructor name
+  through two different "open public" statements in the same module.
+  This is now possible.
+
+* Unicode subscript digits are now allowed for the hierarchy of
+  universes (Set₀, Set₁, …): Set₁ is equivalent to Set1.
+
+------------------------------------------------------------------------
+-- Release notes for Agda 2 version 2.2.2
+------------------------------------------------------------------------
+
+Important changes since 2.2.0:
+
+Tools
+-----
+
+* The --malonzodir option has been renamed to --malonzo-dir.
+
+* The output of agda --html is by default placed in a directory called
+  "html".
+
+Infrastructure
+--------------
+
+* The Emacs mode is included in the Agda Cabal package, and installed
+  by cabal install. The recommended way to enable the Emacs mode is to
+  include the following code in .emacs:
+
+    (load-file (let ((coding-system-for-read 'utf-8))
+                    (shell-command-to-string "agda-mode locate")))
+
+------------------------------------------------------------------------
+-- Release notes for Agda 2 version 2.2.0
+------------------------------------------------------------------------
+
+Important changes since 2.1.2 (which was released 2007-08-16):
+
+Language
+--------
+
+* Exhaustive pattern checking. Agda complains if there are missing
+  clauses in a function definition.
+
+* Coinductive types are supported. This feature is under
+  development/evaluation, and may change.
+
+  http://wiki.portal.chalmers.se/agda/agda.php?n=ReferenceManual.Codatatypes
+
+* Another experimental feature: Sized types, which can make it easier
+  to explain why your code is terminating.
+
+* Improved constraint solving for functions with constructor headed
+  right hand sides.
+
+  http://wiki.portal.chalmers.se/agda/agda.php?n=ReferenceManual.FindingTheValuesOfImplicitArguments
+
+* A simple, well-typed foreign function interface, which allows use of
+  Haskell functions in Agda code.
+
+  http://wiki.portal.chalmers.se/agda/pmwiki.php?n=Docs.FFI
+
+* The tokens forall, -> and \ can be written as ∀, → and λ.
+
+* Absurd lambdas: λ () and λ {}.
+
+  http://thread.gmane.org/gmane.comp.lang.agda/440
+
+* Record fields whose values can be inferred can be omitted.
+
+* Agda complains if it spots an unreachable clause, or if a pattern
+  variable "shadows" a hidden constructor of matching type.
+
+  http://thread.gmane.org/gmane.comp.lang.agda/720
+
+Tools
+-----
+
+* Case-split: The user interface can replace a pattern variable with
+  the corresponding constructor patterns. You get one new left-hand
+  side for every possible constructor.
+
+  http://wiki.portal.chalmers.se/agda/pmwiki.php?n=Main.QuickGuideToEditingTypeCheckingAndCompilingAgdaCode
+
+* The MAlonzo compiler.
+
+  http://wiki.portal.chalmers.se/agda/pmwiki.php?n=Docs.MAlonzo
+
+* A new Emacs input method, which contains bindings for many Unicode
+  symbols, is by default activated in the Emacs mode.
+
+  http://wiki.portal.chalmers.se/agda/pmwiki.php?n=Docs.UnicodeInput
+
+* Highlighted, hyperlinked HTML can be generated from Agda source
+  code.
+
+  http://wiki.portal.chalmers.se/agda/pmwiki.php?n=Main.HowToGenerateWebPagesFromSourceCode
+
+* The command-line interactive mode (agda -I) is no longer supported,
+  but should still work.
+
+  http://thread.gmane.org/gmane.comp.lang.agda/245
+
+* Reload times when working on large projects are now considerably
+  better.
+
+  http://thread.gmane.org/gmane.comp.lang.agda/551
+
+Libraries
+---------
+
+* A standard library is under development.
+
+  http://wiki.portal.chalmers.se/agda/pmwiki.php?n=Libraries.StandardLibrary
+
+Documentation
+-------------
+
+* The Agda wiki is better organised. It should be easier for a
+  newcomer to find relevant information now.
+
+  http://wiki.portal.chalmers.se/agda/
+
+Infrastructure
+--------------
+
+* Easy-to-install packages for Windows and Debian/Ubuntu have been
+  prepared.
+
+  http://wiki.portal.chalmers.se/agda/pmwiki.php?n=Main.Download
+
+* Agda 2.2.0 is available from Hackage.
+
+  http://hackage.haskell.org/

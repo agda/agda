@@ -37,6 +37,7 @@ tested-with:        GHC == 7.2.2
                     GHC == 7.6.3
 extra-source-files: src/full/Agda/undefined.h
                     README
+                    CHANGELOG
                     doc/release-notes/*.txt
 data-dir:           src/data
 data-files:         Agda.css
