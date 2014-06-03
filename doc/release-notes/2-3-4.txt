@@ -609,6 +609,22 @@ Type checking
 
   Which is a good thing!
 
+* Printing of named implicit function types.
+
+  When printing terms in a context with bound variables Agda renames new
+  bindings to avoid clashes with the previously bound names. For instance, if A
+  is in scope, the type (A : Set) → A is printed as (A₁ : Set) → A₁. However,
+  for implicit function types the name of the binding matters, since it can be
+  used when giving implicit arguments.
+
+  For this situation, the following new syntax has been introduced:
+  {x = y : A} → B is an implicit function type whose bound variable (in scope
+  in B) is y, but where the name of the argument is x for the purposes of
+  giving it explicitly. For instance, with A in scope, the type {A : Set} → A
+  is now printed as {A = A₁ : Set} → A₁.
+
+  This syntax is only used when printing and is currently not being parsed.
+
 * Changed the semantics of --without-K. [Issue 712, Issue 865, Issue 1025]
 
   New specification of --without-K:
