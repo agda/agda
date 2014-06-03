@@ -50,6 +50,20 @@ check synT type_ = atSrcLoc synT $ case synT of
           let appliedDataConType = Tel.substs (vacuous dataConType) tyConArgs
           args <- checkConArgs synArgs appliedDataConType
           return (con dataCon args)
+      App (Meta mv) _ -> do
+        -- TODO remove duplication between here and applyProjection
+        liftClosed $ do
+          mvType <- getTypeOfMetaVar mv
+          mvT <- unrollPi mvType $ \ctxMvArgs _ -> do
+            Constant (Data _) tyConType <- getDefinition tyCon
+            tyConParsTel <- unrollPi (vacuous tyConType) $ \ctx ->
+                            return . Tel.idTel ctx
+            tyConParsMv <- createTyConParsMvs tyConParsTel
+            return $
+              ctxLam ctxMvArgs $ def tyCon $ map Apply tyConParsMv
+          instantiateMetaVar mv mvT
+        -- TODO remove this very dangerous recursion
+        check synT type_
       _ -> checkError $ ConstructorTypeError synT type_
   A.Refl _ -> do
     typeView <- whnfView type_
@@ -99,21 +113,6 @@ check synT type_ = atSrcLoc synT $ case synT of
             StuckOn pid' ->
               StuckOn <$> waitOnProblem pid' (checkEqual type_ mv t)
         return mv
-
--- isFunctionType
---     :: (IsVar v, IsTerm t)
---     => Type t v -> StuckTC t v (Type t v, Type t (TermVar v))
--- isFunctionType (Pi dom cod) = do
---     notStuck (dom, fromAbs cod)
--- isFunctionType type_ = do
---     dom <- addFreshMetaVarInCtx set
---     cod <- extendContext name dom $ \_ -> addFreshMetaVarInCtx set
---     stuck <- checkEqual set type_ (pi dom (toAbs cod))
---     case stuck of
---       NotStuck () ->
---         notStuck (dom, cod)
---       StuckOn pid ->
---         waitOnProblem pid $ return (dom, cod)
 
 checkConArgs :: (IsVar v, IsTerm t) => [A.Expr] -> Type t v -> TC t v [t v]
 checkConArgs []                 _     = return []
@@ -355,17 +354,17 @@ applyProjection proj h type_ = do
           error $ "impossible.applyProjection: " ++ render appliedProjType
     _ ->
       error $ "impossible.applyProjection: " ++ render projDef
-  where
-    createTyConParsMvs :: (IsTerm t) => Tel.IdTel (Type t) v -> TC t v [Term t v]
-    createTyConParsMvs (Tel.Empty _) =
-      return []
-    createTyConParsMvs (Tel.Cons (name, type') tel) = do
-      mv  <- addFreshMetaVarInCtx type'
-      mvs <- extendContext name type' $ \_ -> createTyConParsMvs tel
-      return (mv : map (\t -> instantiate (toAbs t) mv) mvs)
 
 -- MetaVar handling
 -------------------
+
+createTyConParsMvs :: (IsTerm t) => Tel.IdTel (Type t) v -> TC t v [Term t v]
+createTyConParsMvs (Tel.Empty _) =
+  return []
+createTyConParsMvs (Tel.Cons (name, type') tel) = do
+  mv  <- addFreshMetaVarInCtx type'
+  mvs <- extendContext name type' $ \_ -> createTyConParsMvs tel
+  return (mv : map (\t -> instantiate (toAbs t) mv) mvs)
 
 metaAssign
     :: (IsVar v, IsTerm t)
@@ -1162,7 +1161,7 @@ checkError err = do
     renderError sig (NotEqualityType type_) =
       "Expecting an equality type: " ++ renderTerm sig type_
     renderError sig (LambdaTypeError synT type_) =
-      "Lambda type error " ++ render synT ++ " : " ++ renderTerm sig type_
+      "Lambda type error\n" ++ render synT ++ "\n  :\n" ++ renderTerm sig type_
     renderError sig (ExpectedFunctionType type_ mbArg) =
       "Expected function type " ++ renderTerm sig type_ ++
       (case mbArg of
