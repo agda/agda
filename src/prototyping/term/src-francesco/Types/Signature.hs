@@ -12,12 +12,10 @@ module Types.Signature
     ) where
 
 import qualified Data.Map                         as Map
-import qualified Data.Set                         as Set
 
 import           Syntax.Abstract                  (Name)
 import           Types.Definition
 import           Types.Var
-import qualified Types.Telescope                  as Tel
 import           Text.PrettyPrint.Extended        (render)
 
 data Signature t = Signature

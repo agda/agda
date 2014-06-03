@@ -4,24 +4,20 @@ module Types.Term where
 import           Prelude                          hiding (pi)
 
 import           Bound                            hiding (instantiate)
-import           Bound.Name                       (instantiateName)
 import           Data.Foldable                    (Foldable)
 import           Data.Traversable                 (Traversable)
 import           Prelude.Extras                   (Eq1((==#)))
-import           Data.Void                        (Void, vacuousM)
+import           Data.Void                        (Void)
 import           Data.Monoid                      ((<>), mconcat, mempty)
 import qualified Data.HashSet                     as HS
-import           Control.Monad                    (guard, mzero, liftM)
+import           Control.Monad                    (liftM)
 import           Data.Typeable                    (Typeable)
-import           Data.Functor                     ((<$>))
-import           Control.Applicative              (Applicative, pure)
 
 import qualified Text.PrettyPrint.Extended        as PP
 import           Syntax.Abstract                  (Name)
 import           Syntax.Abstract.Pretty           ()
 import           Types.Var
 import           Types.Definition
-import qualified Types.Signature                  as Sig
 
 -- Terms
 ------------------------------------------------------------------------
@@ -49,10 +45,6 @@ data Elim term v
     = Apply (term v)
     | Proj Name Field
     deriving (Show, Eq, Functor, Foldable, Traversable)
-
-elim :: Applicative f => (t v -> f (t' v')) -> Elim t v -> f (Elim t' v')
-elim f (Apply t)  = Apply <$> f t
-elim _ (Proj n f) = pure $ Proj n f
 
 instance (Eq1 term) => Eq1 (Elim term) where
     Apply t1   ==# Apply t2   = t1 ==# t2
@@ -181,89 +173,9 @@ class View t where
     unview :: TermView t v -> t v
     view   :: t v -> TermView t v
 
-class (HasAbs t, View t) => Whnf t where
-    -- | Tries to apply the eliminators to the term.  Trows an error
-    -- when the term and the eliminators don't match.
-    eliminate :: t v -> [Elim t v] -> t v
-    eliminate t elims = case (view t, elims) of
-        (_, []) ->
-            t
-        (Con _c args, Proj _ field : es) ->
-            if unField field >= length args
-            then error "Types.Term.eliminate: Bad elimination"
-            else eliminate (args !! unField field) es
-        (Lam body, Apply argument : es) ->
-            eliminate (instantiate body argument) es
-        (App h es1, es2) ->
-            unview $ App h (es1 ++ es2)
-        (_, _) ->
-            error "Types.Term.eliminate: Bad elimination"
-
-    whnf :: Sig.Signature t -> t v -> t v
-    whnf sig t = case view t of
-        App (Meta mv) es | Sig.Inst _ t' <- Sig.getMetaInst sig mv ->
-            whnf sig $ eliminate (vacuousM t') es
-        App (Def defName) es | Function _ cs <- Sig.getDefinition sig defName ->
-            whnfFun t es cs
-        App J (_ : x : _ : _ : Apply p : Apply refl' : es) | Refl <- view refl' ->
-            whnf sig $ eliminate p (x : es)
-        _ ->
-            t
-      where
-        whnfFun :: t v -> [Elim t v] -> [Clause t] -> t v
-        whnfFun t' _ [] =
-            t'
-        whnfFun t' es (Clause patterns body : clauses) =
-            case matchClause es patterns of
-                Nothing ->
-                    whnfFun t' es clauses
-                Just (args, leftoverEs) -> do
-                    let ixArg n =
-                            if n >= length args
-                            then error "Types.Term.whnf: too few arguments"
-                            else args !! n
-                    let body' = instantiateName ixArg (vacuousM body)
-                    whnf sig $ eliminate body' leftoverEs
-
-        matchClause :: [Elim t v] -> [Pattern] -> Maybe ([t v], [Elim t v])
-        matchClause es [] =
-            return ([], es)
-        matchClause (Apply arg : es) (VarP : patterns) = do
-            (args, leftoverEs) <- matchClause es patterns
-            return (arg : args, leftoverEs)
-        matchClause (Apply arg : es) (ConP dataCon dataConPatterns : patterns) = do
-            Con dataCon' dataConArgs <- Just $ view $ whnf sig arg
-            guard (dataCon == dataCon')
-            matchClause (map Apply dataConArgs ++ es) (dataConPatterns ++ patterns)
-        matchClause _ _ =
-            mzero
-
-    nf :: Sig.Signature t -> t v -> t v
-    nf sig t = case view (whnf sig t) of
-        Lam body ->
-          lam $ nfAbs body
-        Pi domain codomain ->
-          pi (nf sig domain) (nfAbs codomain)
-        Equal type_ x y ->
-          equal (nf sig type_) (nf sig x) (nf sig y)
-        Refl ->
-          refl
-        Con dataCon args ->
-          con dataCon $ map (nf sig) args
-        Set ->
-          set
-        App h elims ->
-          app h $ map nfElim elims
-      where
-        nfAbs = toAbs . nf sig . fromAbs
-
-        nfElim (Apply t') = Apply $ nf sig t'
-        nfElim (Proj n f) = Proj n f
-
-class ( Eq1 t,       Functor t,       Foldable t,       Traversable t, Monad t
+class ( Eq1 t,       Functor t,       Foldable t,       Traversable t, Monad t, Typeable t
       , Eq1 (Abs t), Functor (Abs t), Foldable (Abs t), Traversable (Abs t)
-      , View t, MetaVars t, Whnf t
-      , Typeable t
+      , View t, MetaVars t, HasAbs t
       ) => IsTerm t
 
 deriving instance Typeable Abs

@@ -32,6 +32,7 @@ import           Types.Term
 import           Types.Var
 import           Text.PrettyPrint.Extended        (render)
 import qualified Types.Signature                  as Sig
+import           Eval
 
 -- Main functions
 ------------------------------------------------------------------------
