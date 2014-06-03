@@ -1,7 +1,13 @@
-{-# LANGUAGE CPP, ScopedTypeVariables, ExistentialQuantification,
-  TypeSynonymInstances, FlexibleInstances,
-  GeneralizedNewtypeDeriving, StandaloneDeriving,
-  OverlappingInstances, IncoherentInstances #-}
+{-# LANGUAGE CPP #-}
+{-# LANGUAGE ExistentialQuantification #-}
+{-# LANGUAGE FlexibleInstances #-}
+{-# LANGUAGE GeneralizedNewtypeDeriving #-}
+{-# LANGUAGE IncoherentInstances #-}
+{-# LANGUAGE OverlappingInstances #-}
+{-# LANGUAGE ScopedTypeVariables #-}
+{-# LANGUAGE StandaloneDeriving #-}
+{-# LANGUAGE TypeSynonymInstances #-}
+
 {-# OPTIONS_GHC -O2 #-}
 
 -- | Structure-sharing serialisation of Agda interface files.
