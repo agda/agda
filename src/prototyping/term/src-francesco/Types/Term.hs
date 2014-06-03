@@ -58,8 +58,8 @@ instance Bound Elim where
     Proj n field >>>= _ = Proj n field
 
 instance (IsTerm t, IsVar v) => PP.Pretty (Elim t v) where
-    prettyPrec p (Apply e)          = PP.prettyPrec p $ view e
-    prettyPrec _ (Proj n (Field x)) = PP.text $ "." ++ show n ++ "-" ++ show x
+    prettyPrec p (Apply e)  = PP.prettyPrec p $ view e
+    prettyPrec _ (Proj n _) = PP.text $ show n
 
 data TermView term v
     = Lam (Abs term v)
@@ -197,7 +197,7 @@ class (HasAbs t, View t) => Whnf t where
     whnf sig t = case view t of
         App (Meta mv) es | Sig.Inst _ t' <- Sig.getMetaInst sig mv ->
             whnf sig $ eliminate (vacuousM t') es
-        App (Def defName) es | Function _ _ cs <- Sig.getDefinition sig defName ->
+        App (Def defName) es | Function _ cs <- Sig.getDefinition sig defName ->
             whnfFun t es cs
         App J (_ : x : _ : _ : Apply p : Apply refl' : es) | Refl <- view refl' ->
             whnf sig $ eliminate p (x : es)

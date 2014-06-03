@@ -76,7 +76,7 @@ check synT type_ = atSrcLoc synT $ case synT of
   _ -> do
     stuck <- infer synT
     case stuck of
-      NotStuck (t, type') ->
+      NotStuck (t, type') -> do
         metaVarIfStuck type_ t $ equalType type_ type'
       StuckOn pid -> do
         mv <- addFreshMetaVarInCtx type_
@@ -164,8 +164,8 @@ checkEqual _ x y | x ==# y =
   notStuck ()
 checkEqual type_ x y = do
   typeView <- whnfView type_
-  xView <- whnfView x
-  yView <- whnfView y
+  xView <- whnfView =<< etaExpandRecord typeView x
+  yView <- whnfView =<< etaExpandRecord typeView y
   case (typeView, xView, yView) of
     (_, Set, Set) -> do
       return ()
@@ -205,6 +205,8 @@ checkEqual type_ x y = do
     (_, Equal type1 x1 y1, Equal type2 x2 y2) ->
        stuckTCWaitOnProblems (checkEqual set type1 type2)
          [checkEqual type1 x1 x2, checkEqual type1 y1 y2]
+    (_, Set, Set) -> do
+      notStuck ()
     (_, Refl, Refl) -> do
       notStuck ()
     (_, App (Meta mv) elims, t) ->
@@ -218,8 +220,18 @@ checkEqual type_ x y = do
         J       -> return $ vacuous typeOfJ
         Meta _  -> error "impossible.checkEqual: can't decompose with metavariable heads"
       equalSpine h1Type (unview (App h1 [])) elims1 elims2
-    _ ->
+    _ -> do
       checkError $ TermsNotEqual x y
+  where
+    etaExpandRecord typeView t = do
+      sig <- getSignature
+      case typeView of
+        App (Def tyCon) _ | isRecordType sig tyCon -> do
+            let Constant (Record dataCon projs) _ = Sig.getDefinition sig tyCon
+            return $ def dataCon $
+              map (\(n, ix) -> Apply (eliminate t [Proj n ix])) projs
+        _ ->
+          return t
 
 equalSpine
     :: (IsVar v, IsTerm t)
@@ -244,7 +256,7 @@ equalSpine type_ h (Proj proj projIx : elims1) (Proj proj' projIx' : elims2)
   | proj == proj' && projIx == projIx' = do
     (h', type') <- applyProjection proj h type_
     equalSpine type' h' elims1 elims2
-equalSpine type_ _ elims1 elims2 =
+equalSpine type_ _ elims1 elims2 = do
   checkError $ SpineNotEqual type_ elims1 elims2
 
 -- | INVARIANT: the two lists are the of the same length.
@@ -270,7 +282,7 @@ applyProjection
 applyProjection proj h type_ = do
   projDef <- getDefinition proj
   case projDef of
-    Projection _ projIx tyCon projType -> do
+    Projection projIx tyCon projType -> do
       let h' = eliminate h [Proj proj projIx]
       typeView <- whnfView type_
       tyConArgs <- case typeView of
@@ -283,7 +295,7 @@ applyProjection proj h type_ = do
           liftClosed $ do
             mvType <- getTypeOfMetaVar mv
             mvT <- unrollPi mvType $ \ctxMvArgs _ -> do
-              Constant _ Postulate tyConType <- getDefinition tyCon
+              Constant _ tyConType <- getDefinition tyCon
               tyConParsTel <- unrollPi (vacuous tyConType) $ \ctx ->
                               return . Tel.idTel ctx
               tyConParsMvs <- createTyConParsMvs tyConParsTel
@@ -645,7 +657,7 @@ checkData
     -> ClosedTC t ()
 checkData tyCon tyConPars dataCons = do
     tyConType <- definitionType <$> getDefinition tyCon
-    addConstant tyCon Data tyConType
+    addConstant tyCon (Data []) tyConType
     unrollPiWithNames tyConType tyConPars $ \tyConPars' endType -> do
         elimStuck (equalType endType set) $
           error $ "Type constructor does not return Set: " ++ show tyCon
@@ -690,7 +702,7 @@ checkRec
     -> ClosedTC t ()
 checkRec tyCon tyConPars dataCon fields = do
     tyConType <- definitionType <$> getDefinition tyCon
-    addConstant tyCon Record tyConType
+    addConstant tyCon (Record dataCon []) tyConType
     unrollPiWithNames tyConType tyConPars $ \tyConPars' endType -> do
         void $ equalType endType set
         fieldsTel <- checkFields fields
@@ -735,7 +747,7 @@ addProjections
     -- over the types of the previous fields.
     -> TC t (TermVar v) ()
 addProjections tyCon tyConPars self fields0 =
-    go $ zip fields0 $ map Field [1..]
+    go $ zip fields0 $ map Field [0,1..]
   where
     go fields fieldTypes = case (fields, fieldTypes) of
         ([], Tel.Empty Tel.Proxy) ->
@@ -807,9 +819,9 @@ checkPattern synPat type_ ret = case synPat of
       (typeCon, dataConType) <- getConstructorDefinition dataCon
       typeConDef <- getDefinition typeCon
       case typeConDef of
-        Constant _ Data   _ -> return ()
-        Constant _ Record _ -> checkError $ PatternMatchOnRecord synPat typeCon
-        _                   -> error $ "impossible.checkPattern" ++ render typeConDef
+        Constant (Data _)     _ -> return ()
+        Constant (Record _ _) _ -> checkError $ PatternMatchOnRecord synPat typeCon
+        _                       -> error $ "impossible.checkPattern" ++ render typeConDef
       typeView <- whnfView type_
       case typeView of
         App (Def typeCon') typeConPars0
@@ -836,10 +848,10 @@ isApply (Apply v) = Just v
 isApply Proj{}    = Nothing
 
 definitionType :: (IsTerm t) => Definition t -> Closed (Type t)
-definitionType (Constant _ _ type_)   = type_
-definitionType (Constructor _ _ tel)  = telPi tel
-definitionType (Projection _ _ _ tel) = telPi tel
-definitionType (Function _ type_ _)   = type_
+definitionType (Constant _ type_)   = type_
+definitionType (Constructor _ tel)  = telPi tel
+definitionType (Projection _ _ tel) = telPi tel
+definitionType (Function type_ _)   = type_
 
 addFreshMetaVarInCtx :: (IsTerm t) => Type t v -> TC t v (Term t v)
 addFreshMetaVarInCtx type_ = do
@@ -899,28 +911,28 @@ unrollPi type_ ret = do
 addConstant
     :: (IsVar v, IsTerm t)
     => Name -> ConstantKind -> Closed (Type t) -> TC t v ()
-addConstant x k a = addDefinition x (Constant x k a)
+addConstant x k a = addDefinition x (Constant k a)
 
 addConstructor
     :: (IsVar v, IsTerm t)
     => Name -> Name -> Tel.ClosedIdTel (Type t) -> TC t v ()
-addConstructor c d tel = addDefinition c (Constructor c d tel)
+addConstructor c d tel = addDefinition c (Constructor d tel)
 
 addProjection
     :: (IsVar v, IsTerm t)
     => Name -> Field -> Name -> Tel.ClosedIdTel (Type t) -> TC t v ()
-addProjection f n r tel = addDefinition f (Projection f n r tel)
+addProjection f n r tel = addDefinition f (Projection n r tel)
 
 addClause
     :: (IsVar v, IsTerm t)
     => Name -> [Pattern] -> ClauseBody (Term t) -> TC t v ()
 addClause f ps v = do
   def' <- getDefinition f
-  let ext (Constant x Postulate a) = Function x a [c]
-      ext (Function x a cs)        = Function x a (cs ++ [c])
-      ext (Constant _ k _)         = error $ "Monad.addClause " ++ render k
-      ext Constructor{}            = error $ "Monad.addClause constructor"
-      ext Projection{}             = error $ "Monad.addClause projection"
+  let ext (Constant Postulate a) = Function a [c]
+      ext (Function a cs)        = Function a (cs ++ [c])
+      ext (Constant k _)         = error $ "Monad.addClause " ++ render k
+      ext Constructor{}          = error $ "Monad.addClause constructor"
+      ext Projection{}           = error $ "Monad.addClause projection"
   addDefinition f (ext def')
   where
     c = Clause ps v
@@ -931,7 +943,7 @@ getConstructorDefinition
 getConstructorDefinition dataCon = do
   def' <- getDefinition dataCon
   case def' of
-    Constructor _ tyCon dataConType ->
+    Constructor tyCon dataConType ->
       return (tyCon, dataConType)
     _ ->
       error $ "impossible.getConstructorDefinition: non data constructor " ++
@@ -940,14 +952,14 @@ getConstructorDefinition dataCon = do
 isRecordType :: (IsTerm t) => Sig.Signature t -> Name -> Bool
 isRecordType sig tyCon =
   case Sig.getDefinition sig tyCon of
-    Constant _ Record _ -> True
-    _                   -> False
+    Constant (Record _ _) _ -> True
+    _                       -> False
 
 isRecordConstr :: (IsTerm t) => Sig.Signature t -> Name -> Bool
 isRecordConstr sig dataCon =
   case Sig.getDefinition sig dataCon of
-    Constructor _ tyCon _ -> isRecordType sig tyCon
-    _                     -> False
+    Constructor tyCon _ -> isRecordType sig tyCon
+    _                   -> False
 
 -- Telescope & context utils
 ------------------

@@ -12,10 +12,13 @@ module Types.Signature
     ) where
 
 import qualified Data.Map                         as Map
+import qualified Data.Set                         as Set
 
 import           Syntax.Abstract                  (Name)
 import           Types.Definition
 import           Types.Var
+import qualified Types.Telescope                  as Tel
+import           Text.PrettyPrint.Extended        (render)
 
 data Signature t = Signature
     { sDefinitions :: Map.Map Name (Definition t)
@@ -32,8 +35,33 @@ getDefinition sig name =
       Just def -> def
 
 addDefinition :: Signature t -> Name -> Definition t -> Signature t
-addDefinition sig name def =
-    sig{sDefinitions = Map.insert name def (sDefinitions sig)}
+addDefinition sig name def = case def of
+    Projection projIx tyCon _ -> addProjection tyCon projIx
+    Constructor tyCon _       -> addConstructor tyCon
+    _                         -> sig'
+  where
+    sig' = sig{sDefinitions = Map.insert name def (sDefinitions sig)}
+
+    addProjection tyCon projIx = case getDefinition sig' tyCon of
+      Constant (Record dataCon projs) tyConType ->
+        let projs' = projs ++ [(name, projIx)]
+            defs   = Map.insert tyCon (Constant (Record dataCon projs') tyConType) (sDefinitions sig')
+        in sig'{sDefinitions = defs}
+      _ ->
+        error $ "impossible.addDefinition: " ++ render tyCon ++ " is not a record"
+
+    addConstructor tyCon = case getDefinition sig' tyCon of
+      Constant (Data dataCons) tyConType ->
+        let dataCons' = dataCons ++ [name]
+            defs      = Map.insert tyCon (Constant (Data dataCons') tyConType) (sDefinitions sig')
+        in sig'{sDefinitions = defs}
+      Constant (Record dataCon _) _ ->
+        if name == dataCon
+        then sig'
+        else error $ "impossible.addDefinition: mismatching constructors " ++
+                     render name ++ " and " ++ render dataCon
+      _ ->
+        error $ "impossible.addDefinition: " ++ render tyCon ++ " is not a data type"
 
 data MetaInst t
     = Open (Closed t) -- Type

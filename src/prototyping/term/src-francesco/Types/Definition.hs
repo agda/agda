@@ -39,16 +39,17 @@ instance PP.Pretty Pattern where
 ------------------------------------------------------------------------
 
 data Definition term
-    = Constant Name ConstantKind (Closed term)
-    | Constructor Name Name (Tel.ClosedIdTel term)
-    -- ^ Constructor name, data type name, parameter context with
-    -- resulting type.
-    | Projection Name Field Name (Tel.ClosedIdTel term)
-    -- ^ Projection name, field number, record type name, parameter
-    -- context with resulting type.
-    | Function Name (Closed term) [Clause term]
+    = Constant ConstantKind (Closed term)
+    | Constructor Name (Tel.ClosedIdTel term)
+    -- ^ Data type name, parameter context with resulting type.
+    | Projection Field Name (Tel.ClosedIdTel term)
+    -- ^ Field number, record type name, parameter context with resulting type.
+    | Function (Closed term) [Clause term]
 
-data ConstantKind = Postulate | Data | Record
+data ConstantKind
+    = Postulate
+    | Data [Name]                 -- Constructor list
+    | Record Name [(Name, Field)] -- Constructor and projection list
   deriving (Eq, Show)
 
 instance PP.Pretty ConstantKind where
