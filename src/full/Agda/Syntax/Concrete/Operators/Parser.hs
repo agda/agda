@@ -2,6 +2,7 @@
 
 module Agda.Syntax.Concrete.Operators.Parser where
 
+import Control.Exception (throw)
 import Data.Maybe
 
 import Agda.Syntax.Position
@@ -9,6 +10,7 @@ import Agda.Syntax.Common hiding (Arg, Dom, NamedArg)
 import Agda.Syntax.Fixity
 import Agda.Syntax.Notation
 import Agda.Syntax.Concrete
+import Agda.TypeChecking.Monad.Base (TCErr(Exception))
 import Agda.Utils.ReadP
 import Agda.Utils.Monad
 
@@ -30,6 +32,9 @@ data ExprView e
 class HasRange e => IsExpr e where
     exprView   :: e -> ExprView e
     unExprView :: ExprView e -> e
+
+instance IsExpr e => HasRange (ExprView e) where
+  getRange = getRange . unExprView
 
 ---------------------------------------------------------------------------
 -- * Parser combinators
@@ -113,12 +118,12 @@ rebuild (name,_,syn) r es = unExprView $ OpAppV (setRange r name) exprs
                   (fmap . fmap) (SyntaxBindingLambda (fuseRange bs x) bs) x
         _  -> __IMPOSSIBLE__
 
-rebuildBinding :: ExprView e -> LamBinding
+rebuildBinding :: IsExpr e => ExprView e -> LamBinding
   -- Andreas, 2011-04-07 put just 'Relevant' here, is this correct?
 rebuildBinding (LocalV (QName name)) = DomainFree defaultArgInfo $ mkBoundName_ name
 rebuildBinding (WildV e) =
   DomainFree defaultArgInfo $ mkBoundName_ $ Name noRange [Hole]
-rebuildBinding _ = __IMPOSSIBLE__
+rebuildBinding e = throw $ Exception (getRange e) "Expected variable name in binding position"
 
 -- | Parse using the appropriate fixity, given a parser parsing the
 -- operator part, the name of the operator, and a parser of
