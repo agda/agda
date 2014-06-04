@@ -836,11 +836,11 @@ checkPatterns funName (synPat : synPats) type0 ret = atSrcLoc synPat $ do
   let err = ExpectedFunctionType type0 Nothing
   stuck <- matchPi_ type0 err $ \dom cod -> fmap NotStuck $ do
     checkPattern funName synPat dom $ \weaken_ pat patVar -> do
-    let cod'  = fmap weaken_ cod
-    let cod'' = instantiate cod' patVar
-    checkPatterns funName synPats cod'' $ \weaken_' pats patsVars -> do
-      let patVar' = fmap weaken_' patVar
-      ret (weaken_' . weaken_) (pat : pats) (patVar' : patsVars)
+      let cod'  = fmap weaken_ cod
+      let cod'' = instantiate cod' patVar
+      checkPatterns funName synPats cod'' $ \weaken_' pats patsVars -> do
+        let patVar' = fmap weaken_' patVar
+        ret (weaken_' . weaken_) (pat : pats) (patVar' : patsVars)
   checkPatternStuck funName stuck
 
 checkPattern

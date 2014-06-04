@@ -34,7 +34,9 @@ executable tc
   default-language:    Haskell2010
   ghc-options:         -Wall -fprof-auto -fprof-auto-calls
 
-  extensions:          DeriveFoldable
+  default-extensions:  DefaultSignatures
+                     , DeriveDataTypeable
+                     , DeriveFoldable
                      , DeriveFunctor
                      , DeriveTraversable
                      , ExistentialQuantification
