@@ -13,6 +13,7 @@ import           Data.Typeable                    (Typeable)
 
 import           Types.Term
 import           Types.Var
+import           Eval
 
 -- Base terms
 ------------------------------------------------------------------------
@@ -69,8 +70,6 @@ instance HasAbs LazyScope where
 instance View LazyScope where
     unview = LS
     view   = unLS
-
-instance Whnf LazyScope
 
 instance IsTerm LazyScope
 

@@ -16,6 +16,7 @@ import           Data.Void                        (vacuousM)
 import           Control.Monad                    (guard, mzero, void)
 import           Control.Monad.Trans              (lift)
 import           Control.Monad.Trans.Maybe        (MaybeT, runMaybeT)
+import           Prelude.Extras                   (Eq1((==#)))
 
 import           Syntax.Abstract                  (Name)
 import           Syntax.Abstract.Pretty           ()
@@ -52,6 +53,17 @@ data Blocked t v
     --
     -- Note that it might not be the only 'MetaVar' preventing us to do
     -- so.
+    deriving (Eq)
+
+instance Eq1 t => Eq1 (Blocked t) where
+    NotBlocked t1 ==# NotBlocked t2 =
+      t1 ==# t2
+    MetaVarHead mv1 es1 ==# MetaVarHead mv2 es2 =
+      mv1 == mv2 && and (zipWith (==#) es1 es2)
+    BlockedOn mv1 n1 es1 ==# BlockedOn mv2 n2 es2 =
+      mv1 == mv2 && n1 == n2 && and (zipWith (==#) es1 es2)
+    _ ==# _ =
+      False
 
 ignoreBlocking :: (IsTerm t) => Blocked t v -> t v
 ignoreBlocking (NotBlocked t)           = t
