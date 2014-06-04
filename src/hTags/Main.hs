@@ -39,8 +39,7 @@ import Tags
 instance MonadTrans GhcT where
   lift m = GhcT $ \_ -> m
 
-#if MIN_VERSION_ghc(7,8,0)
-#else
+#if !(MIN_VERSION_ghc(7,8,0))
 instance MonadIO m => MonadIO (GhcT m) where
   liftIO = lift . liftIO
 
