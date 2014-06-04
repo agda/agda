@@ -220,6 +220,54 @@ record StrictPartialOrder c ℓ₁ ℓ₂ : Set (suc (c ⊔ ℓ₁ ⊔ ℓ₂)) 
     trans∧irr⟶asym Eq.refl trans irrefl {x = x} {y = y}
 
 ------------------------------------------------------------------------
+-- Decidable strict partial orders
+
+record IsDecStrictPartialOrder {a ℓ₁ ℓ₂} {A : Set a}
+                               (_≈_ : Rel A ℓ₁) (_<_ : Rel A ℓ₂) :
+                               Set (a ⊔ ℓ₁ ⊔ ℓ₂) where
+  infix 4 _≟_ _<?_
+  field
+    isStrictPartialOrder : IsStrictPartialOrder _≈_ _<_
+    _≟_                  : Decidable _≈_
+    _<?_                 : Decidable _<_
+
+  private
+    module SPO = IsStrictPartialOrder isStrictPartialOrder
+    open SPO public hiding (module Eq)
+
+  module Eq where
+
+    isDecEquivalence : IsDecEquivalence _≈_
+    isDecEquivalence = record
+      { isEquivalence = SPO.isEquivalence
+      ; _≟_           = _≟_
+      }
+
+    open IsDecEquivalence isDecEquivalence public
+
+record DecStrictPartialOrder c ℓ₁ ℓ₂ : Set (suc (c ⊔ ℓ₁ ⊔ ℓ₂)) where
+  infix 4 _≈_ _<_
+  field
+    Carrier                 : Set c
+    _≈_                     : Rel Carrier ℓ₁
+    _<_                     : Rel Carrier ℓ₂
+    isDecStrictPartialOrder : IsDecStrictPartialOrder _≈_ _<_
+
+  private
+    module DSPO = IsDecStrictPartialOrder isDecStrictPartialOrder
+    open DSPO public hiding (module Eq)
+
+  strictPartialOrder : StrictPartialOrder c ℓ₁ ℓ₂
+  strictPartialOrder = record { isStrictPartialOrder = isStrictPartialOrder }
+
+  module Eq where
+
+    decSetoid : DecSetoid c ℓ₁
+    decSetoid = record { isDecEquivalence = DSPO.Eq.isDecEquivalence }
+
+    open DecSetoid decSetoid public
+
+------------------------------------------------------------------------
 -- Total orders
 
 record IsTotalOrder {a ℓ₁ ℓ₂} {A : Set a}
