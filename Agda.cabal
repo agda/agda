@@ -393,7 +393,12 @@ library
   if impl(ghc >= 7.6.3)
     ghc-options:    -fwarn-pointless-pragmas
   if impl(ghc >= 7.8)
-    ghc-options:    -fwarn-amp -fwarn-overflowed-literals
+    ghc-options:    -fwarn-amp
+                    -fwarn-duplicate-constraints
+                    -fwarn-empty-enumerations
+                    -fwarn-overflowed-literals
+                    -fwarn-typed-holes
+
   ghc-prof-options: -auto-all
 
 executable agda
