@@ -197,6 +197,8 @@ checkEqual type_ x y = do
         let cod1' = fromAbs cod1
         stuck <- checkEqual set dom1 dom2
         let equalCod = checkEqual set cod1' (fromAbs cod2)
+        -- TODO use some helper function for the various `waitOnProblem'
+        -- (see above)
         case stuck of
           NotStuck () -> do
             stuck' <- extendContext (getName cod1') dom1 $ \_ -> equalCod

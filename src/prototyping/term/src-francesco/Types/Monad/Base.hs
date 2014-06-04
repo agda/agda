@@ -24,17 +24,13 @@ module Types.Monad.Base
 
 import Prelude                                    hiding (abs, pi)
 
-import           Control.Monad.State              (gets, modify)
-import           Control.Applicative              (Applicative)
-import           Control.Monad.Trans.State        (State, evalState)
-import           Control.Monad.Trans.Reader       (asks, local, ReaderT(ReaderT), runReaderT)
-import           Control.Monad.Trans.Error        (throwError, Error, strMsg, ErrorT, runErrorT)
+import           Control.Applicative              (Applicative(pure, (<*>)))
 import           Data.Void                        (Void)
-import           Control.Monad.Trans.Class        (lift)
 import qualified Data.Map.Strict                  as Map
 import qualified Data.Set                         as Set
 import           Data.Typeable                    (Typeable)
 import           Data.Maybe                       (fromMaybe)
+import           Control.Monad                    (ap)
 
 import           Syntax.Abstract                  (SrcLoc, noSrcLoc, HasSrcLoc, srcLoc)
 import           Syntax.Abstract.Pretty           ()
@@ -45,20 +41,41 @@ import           Types.Var
 -- Monad definition
 ------------------------------------------------------------------------
 
-newtype TC t v a =
-    TC {unTC :: ReaderT (TCEnv t v) (ErrorT TCErr (State (TCState t))) a}
-    deriving (Functor, Applicative, Monad)
+newtype TC t v a = TC {unTC :: (TCEnv t v, TCState t) -> TCRes t a}
+  deriving (Functor)
+
+data TCRes t a
+  = OK (TCState t) a
+  | Error TCErr
+  deriving (Functor)
+
+instance Applicative (TC t v) where
+  pure  = return
+  (<*>) = ap
+
+instance Monad (TC t v) where
+  return x = TC $ \(_, ts) -> OK ts x
+
+  TC m >>= f =
+    TC $ \s@(te, _) -> case m s of
+      OK ts x   -> unTC (f x) (te, ts)
+      Error err -> Error err
 
 type ClosedTC t = TC t Void
 
-runTC :: ClosedTC t a -> IO (Either TCErr a)
-runTC m = return $ flip evalState initState
-                 $ runErrorT
-                 $ flip runReaderT initEnv
-                 $ unTC m
+runTC :: ClosedTC t a -> IO (Either TCErr (a, TCState t))
+runTC (TC m) = return $ case m (initEnv, initState) of
+  OK ts x   -> Right (x, ts)
+  Error err -> Left err
 
-tcLocal :: (TCEnv t v -> TCEnv t v') -> TC t v' a -> TC t v a
-tcLocal f (TC (ReaderT m)) = TC (ReaderT (m . f))
+local :: (TCEnv t v -> TCEnv t v') -> TC t v' a -> TC t v a
+local f (TC m) = TC $ \(te, ts) -> m (f te, ts)
+
+modify :: (TCState t -> (TCState t, a)) -> TC t v a
+modify f = TC $ \(_, ts) -> let (ts', x) = f ts in OK ts' x
+
+modify_ :: (TCState t -> TCState t) -> TC t v ()
+modify_ f = modify $ \ts -> (f ts, ())
 
 data TCEnv t v = TCEnv
     { teContext       :: !(Ctx.ClosedCtx t v)
@@ -95,9 +112,6 @@ initState = TCState
 data TCErr
     = StrErr SrcLoc String
 
-instance Error TCErr where
-  strMsg = StrErr noSrcLoc
-
 instance Show TCErr where
   show (StrErr p s) =
     "Error at " ++ show p ++ ":\n" ++ unlines (map ("  " ++) (lines s))
@@ -106,37 +120,35 @@ instance Show TCErr where
 ------------------------------------------------------------------------
 
 typeError :: String -> TC t v b
-typeError err = do
-  loc <- TC $ asks teCurrentSrcLoc
-  TC $ lift $ throwError $ StrErr loc err
+typeError err = TC $ \(te, _) -> Error $ StrErr (teCurrentSrcLoc te) err
 
 -- SrcLoc
 ------------------------------------------------------------------------
 
 atSrcLoc :: HasSrcLoc a => a -> TC t v b -> TC t v b
-atSrcLoc x (TC m) = TC $ local (\env -> env { teCurrentSrcLoc = srcLoc x }) m
+atSrcLoc x = local $ \te -> te{teCurrentSrcLoc = srcLoc x}
 
 -- Signature
 ------------------------------------------------------------------------
 
 getSignature :: TC t v (Sig.Signature t)
-getSignature = TC $ lift $ lift $ gets tsSignature
+getSignature = modify $ \ts -> (ts, tsSignature ts)
 
 putSignature :: Sig.Signature t -> TC t v ()
-putSignature sig = TC $ lift $ lift $ modify $ \ts -> ts{tsSignature = sig}
+putSignature sig = modify_ $ \ts -> ts{tsSignature = sig}
 
 -- Context
 ------------------------------------------------------------------------
 
 askContext :: TC t v (Ctx.ClosedCtx t v)
-askContext = TC $ asks teContext
+askContext = TC $ \(te, ts) -> OK ts $ teContext te
 
 localContext
     :: (Ctx.ClosedCtx t v -> Ctx.ClosedCtx t v') -> TC t v' a -> TC t v a
-localContext f = tcLocal $ \env -> env{teContext = f (teContext env)}
+localContext f = local $ \env -> env{teContext = f (teContext env)}
 
--- Problem handling
-------------------------------------------------------------------------
+-- -- Problem handling
+-- ------------------------------------------------------------------------
 
 type ProblemIdInt = Int
 
@@ -153,13 +165,12 @@ data Stuck t v a
 type StuckTC t v a = TC t v (Stuck t v a)
 
 addNewProblem :: Problem t -> TC t v ProblemIdInt
-addNewProblem prob = do
-    probs <- TC $ lift $ lift $ gets tsProblems
-    let pid = case Map.maxViewWithKey probs of
+addNewProblem prob = modify $ \ts ->
+    let probs = tsProblems ts
+        pid = case Map.maxViewWithKey probs of
                 Nothing             -> 0
                 Just ((pid0, _), _) -> pid0 + 1
-    TC $ lift $ lift $ modify $ \ts -> ts{tsProblems = Map.insert pid prob probs}
-    return pid
+    in (ts{tsProblems = Map.insert pid prob probs}, pid)
 
 insertInMapOfSets
     :: (Ord k, Ord v) => k -> v -> Map.Map k (Set.Set v) -> Map.Map k (Set.Set v)
@@ -173,10 +184,10 @@ newProblem mvs m = do
     ctx <- askContext
     let prob = Problem ctx (\() -> m)
     pid <- addNewProblem prob
-    TC $ lift $ lift $ modify $ \st ->
+    modify_ $ \ts ->
       let metaVarProbs = Set.foldr' (\mv -> insertInMapOfSets mv pid)
-                                    (tsMetaVarProblems st) mvs
-      in st{tsMetaVarProblems = metaVarProbs}
+                                    (tsMetaVarProblems ts) mvs
+      in ts{tsMetaVarProblems = metaVarProbs}
     return $ ProblemId pid
 
 bindProblem
@@ -186,8 +197,8 @@ bindProblem (ProblemId pid0) f = do
     ctx <- askContext
     let prob = Problem ctx f
     pid <- addNewProblem prob
-    TC $ lift $ lift $ modify $ \st ->
-      st{tsBoundProblems = insertInMapOfSets pid0 pid (tsBoundProblems st)}
+    modify_ $ \ts ->
+      ts{tsBoundProblems = insertInMapOfSets pid0 pid (tsBoundProblems ts)}
     return $ ProblemId pid
 
 waitOnProblem
@@ -197,6 +208,6 @@ waitOnProblem (ProblemId pid0) m = do
     ctx <- askContext
     let prob = Problem ctx (\() -> m)
     pid <- addNewProblem prob
-    TC $ lift $ lift $ modify $ \st ->
-      st{tsBoundProblems = insertInMapOfSets pid0 pid (tsBoundProblems st)}
+    modify_ $ \ts ->
+      ts{tsBoundProblems = insertInMapOfSets pid0 pid (tsBoundProblems ts)}
     return $ ProblemId pid
