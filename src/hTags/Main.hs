@@ -51,6 +51,8 @@ instance MonadIO Ghc where
 fileLoc :: FilePath -> RealSrcLoc
 fileLoc file = mkRealSrcLoc (mkFastString file) 1 0
 #elif MIN_VERSION_ghc(7,2,1)
+fileLoc :: FilePath -> RealSrcLoc
+fileLoc file = mkRealSrcLoc (mkZFastString file) 1 0
 #else
 fileLoc :: FilePath -> SrcLoc
 fileLoc file = mkSrcLoc (mkZFastString file) 1 0
