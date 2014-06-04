@@ -20,6 +20,8 @@ import           Data.Typeable                    (Typeable)
 import           Data.Void                        (vacuous, Void, vacuousM)
 import qualified Data.Set                         as Set
 import           Control.Applicative              (Applicative(pure, (<*>)))
+import           Control.Monad.Trans              (lift)
+import           Control.Monad.Trans.Either       (EitherT(EitherT), runEitherT, left)
 
 import           Syntax.Abstract                  (Name)
 import           Syntax.Abstract.Pretty           ()
@@ -170,10 +172,10 @@ checkEqual type_ x y = do
     (t, MetaVarHead mv elims) ->
       metaAssign type_ mv elims (ignoreBlocking t)
     (BlockedOn mv _ _, _) ->
-      fmap StuckOn $ newProblem_ mv $
+      fmap StuckOn $ newProblem_ mv $ \_ ->
         checkEqual (unview typeView) (ignoreBlocking blockedX) (ignoreBlocking blockedY)
     (_, BlockedOn mv _ _) ->
-      fmap StuckOn $ newProblem_ mv $
+      fmap StuckOn $ newProblem_ mv $ \_ ->
         checkEqual (unview typeView) (ignoreBlocking blockedX) (ignoreBlocking blockedY)
     (NotBlocked x', NotBlocked y') -> case (typeView, view x', view y') of
       -- Note that here we rely on canonical terms to have canonical
@@ -336,25 +338,26 @@ metaAssign
     :: (IsVar v, IsTerm t)
     => Type t v -> MetaVar -> [Elim (Term t) v] -> Term t v -> StuckTC t v ()
 metaAssign type_ mv elims t =
-    case distinctVariables elims of
-        Nothing ->
-            StuckOn <$> newProblem_ mv (checkEqual type_ (metaVar mv elims) t)
-        Just vs -> do
-            -- TODO have `pruneTerm' return an evaluated term.
-            liftClosed $ pruneTerm vs t
-            sig <- getSignature
-            res <- closeTerm $ lambdaAbstract vs $ nf sig t
-            case res of
-              Closed t' -> do
-                let mvs = metaVars t'
-                when (mv `HS.member` mvs) $ checkError $ OccursCheckFailed mv $ vacuous t'
-                instantiateMetaVar mv t'
-                notStuck ()
-              FlexibleOn mvs -> do
-                StuckOn <$> newProblem (Set.insert mv mvs)
-                                       (checkEqual type_ (metaVar mv elims) t)
-              Rigid v ->
-                checkError $ FreeVariableInEquatedTerm mv elims t v
+  case distinctVariables elims of
+    Nothing ->
+      fmap StuckOn $ newProblem_ mv $ \mvT ->
+        checkEqual type_ (eliminate (vacuous mvT) elims) t
+    Just vs -> do
+      -- TODO have `pruneTerm' return an evaluated term.
+      liftClosed $ pruneTerm vs t
+      sig <- getSignature
+      res <- closeTerm $ lambdaAbstract vs $ nf sig t
+      case res of
+        Closed t' -> do
+          let mvs = metaVars t'
+          when (mv `HS.member` mvs) $ checkError $ OccursCheckFailed mv $ vacuous t'
+          instantiateMetaVar mv t'
+          notStuck ()
+        FlexibleOn mvs ->
+          fmap StuckOn $ newProblem (Set.insert mv mvs) $ \mvT ->
+            checkEqual type_ (eliminate (vacuous mvT) elims) t
+        Rigid v ->
+          checkError $ FreeVariableInEquatedTerm mv elims t v
 
 -- Returns the pruned term
 pruneTerm
@@ -478,11 +481,11 @@ rigidVars vs t0 = do
     go strengthen flex t =
       case whnfView sig t of
         Lam body ->
-          go (lift strengthen) (addNew flex) (fromAbs body)
+          go (lift' strengthen) (addNew flex) (fromAbs body)
           -- addNew is conservative, some lambdas might not be reachable
         Pi domain codomain ->
           go strengthen flex domain <>
-          go (lift strengthen) (ignoreNew flex) (fromAbs codomain)
+          go (lift' strengthen) (ignoreNew flex) (fromAbs codomain)
         Equal type_ x y ->
           foldMap (go strengthen flex) [type_, x, y]
         App (Var v) elims ->
@@ -506,9 +509,9 @@ rigidVars vs t0 = do
           mempty
           -- conservative, some constructors might not be reachable
 
-    lift :: (v -> Maybe v0) -> TermVar v -> Maybe v0
-    lift _ (B _) = Nothing
-    lift f (F v) = f v
+    lift' :: (v -> Maybe v0) -> TermVar v -> Maybe v0
+    lift' _ (B _) = Nothing
+    lift' f (F v) = f v
 
     ignoreNew _ (B _) = False
     ignoreNew f (F v) = f v
@@ -594,19 +597,19 @@ closeTerm
 closeTerm t0 = do
   sig <- getSignature
   let
-    lift :: (v -> Either v0 v') -> TermVar v -> Either v0 (TermVar v')
-    lift _ (B v) = Right $ B v
-    lift f (F v) = F <$> f v
+    lift' :: (v -> Either v0 v') -> TermVar v -> Either v0 (TermVar v')
+    lift' _ (B v) = Right $ B v
+    lift' f (F v) = F <$> f v
 
     go :: (IsVar v, IsTerm t) => (v -> Either v0 v') -> Term t v
        -> CloseTerm v0 (t v')
     go strengthen t = unview <$>
       case whnfView sig t of
         Lam body ->
-          (Lam . toAbs) <$> go (lift strengthen) (fromAbs body)
+          (Lam . toAbs) <$> go (lift' strengthen) (fromAbs body)
         Pi dom cod ->
           (\dom' cod' -> Pi dom' (toAbs cod'))
-            <$> go strengthen dom <*> go (lift strengthen) (fromAbs cod)
+            <$> go strengthen dom <*> go (lift' strengthen) (fromAbs cod)
         Equal type_ x y ->
           (\type' x' y' -> Equal type' x' y')
             <$> (go strengthen type_) <*> (go strengthen x) <*> (go strengthen y)
@@ -675,8 +678,24 @@ bindStuckTC m f = do
 -- Checking definitions
 ------------------------------------------------------------------------
 
-checkProgram :: (IsTerm t) => Proxy t -> [A.Decl] -> ClosedTC t ()
-checkProgram _ = mapM_ checkDecl
+checkProgram :: ∀ t. (IsTerm t) => Proxy t -> [A.Decl] -> IO (Maybe TCErr)
+checkProgram _ decls0 =
+    either Just (\() -> Nothing) <$> runEitherT (goDecls initTCState decls0)
+  where
+    goDecls :: TCState t -> [A.Decl] -> EitherT TCErr IO ()
+    goDecls ts [] = do
+      goProblems ts
+    goDecls ts (decl : decls) = do
+      ((), ts') <- EitherT $ runTC ts $ checkDecl decl
+      goDecls ts' decls
+
+    goProblems :: TCState t -> EitherT TCErr IO ()
+    goProblems ts = do
+      mbResOrErr <- lift $ solveNextProblem ts
+      case mbResOrErr of
+        Nothing          -> return ()
+        Just (Left err)  -> left err
+        Just (Right ts') -> goProblems ts'
 
 checkDecl :: (IsTerm t) => A.Decl -> ClosedTC t ()
 checkDecl decl = atSrcLoc decl $ do
@@ -1030,7 +1049,7 @@ matchTyCon tyCon t err handler = do
       -- Maybe remove and do it explicitly?
       matchTyCon tyCon (ignoreBlocking blockedT) err handler
     BlockedOn mv _ _ -> do
-      fmap StuckOn $ newProblem_ mv $
+      fmap StuckOn $ newProblem_ mv $ \_ ->
         matchTyCon tyCon (ignoreBlocking blockedT) err handler
     _ -> do
       NotStuck <$> checkError err
@@ -1059,7 +1078,7 @@ matchPi name t err handler = do
       -- Maybe remove and do it explicitly?
       matchPi name (ignoreBlocking blockedT) err handler
     BlockedOn mv _ _ -> do
-      fmap StuckOn $ newProblem_ mv $
+      fmap StuckOn $ newProblem_ mv $ \_ ->
         matchPi name (ignoreBlocking blockedT) err handler
     _ -> do
       NotStuck <$> checkError err
@@ -1096,7 +1115,7 @@ matchEqual t err handler = do
       -- Maybe remove and do it explicitly?
       matchEqual (ignoreBlocking blockedT) err handler
     BlockedOn mv _ _ ->
-      fmap StuckOn $ newProblem_ mv $
+      fmap StuckOn $ newProblem_ mv $ \_ ->
         matchEqual (ignoreBlocking blockedT) err handler
     _ -> do
       NotStuck <$> checkError err
@@ -1181,7 +1200,7 @@ checkError err = do
           Con dataCon $ map go ts
         Set ->
           Set
-        App (Meta mv) els | Sig.Inst _ t' <- Sig.getMetaInst sig mv ->
+        App (Meta mv) els | Just t' <- Sig.getMetaVarBody sig mv ->
           view $ instantiateMetaVars sig $ eliminate (vacuousM t') els
         App h els ->
           App h $ map goElim els

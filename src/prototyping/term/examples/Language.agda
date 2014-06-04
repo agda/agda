@@ -223,26 +223,26 @@ app t1 t2 = app'' t1 t2 refl
 
 -- Example.
 
--- raw-category : Type empty (\ _ -> raw-categoryU)
--- raw-category =
---      -- Objects.
---    sigma' set'
---      -- Morphisms.
---   (sigma' (pi' (el' (var zero)) (pi' (el' (var (suc zero))) set'))
---      -- Identity.
---   (sigma' (pi' (el' (var (suc zero)))
---                (el' (app (app (var (suc zero)) (var zero)) (var zero))))
---      -- Composition.
---      (pi' (el' (var (suc (suc zero))))                                 -- X.
---      (pi' (el' (var (suc (suc (suc zero)))))                           -- Y.
---      (pi' (el' (var (suc (suc (suc (suc zero))))))                     -- Z.
---      (pi' (el' (app (app (var (suc (suc (suc (suc zero)))))
---                          (var (suc (suc zero))))
---                     (var (suc zero))))                                 -- Hom X Y.
---      (pi' (el' (app (app (var (suc (suc (suc (suc (suc zero))))))
---                          (var (suc (suc zero))))
---                     (var (suc zero))))                                 -- Hom Y Z.
---           (el' (app (app (var (suc (suc (suc (suc (suc (suc zero)))))))
---                          (var (suc (suc (suc (suc zero))))))
---                     (var (suc (suc zero))))))                          -- Hom X Z.
---   ))))))
+raw-category : Type empty (\ _ -> raw-categoryU)
+raw-category =
+     -- Objects.
+   sigma' set'
+     -- Morphisms.
+  (sigma' (pi' (el' (var zero)) (pi' (el' (var (suc zero))) set'))
+     -- Identity.
+  (sigma' (pi' (el' (var (suc zero)))
+               (el' (app (app (var (suc zero)) (var zero)) (var zero))))
+     -- Composition.
+     (pi' (el' (var (suc (suc zero))))                                 -- X.
+     (pi' (el' (var (suc (suc (suc zero)))))                           -- Y.
+     (pi' (el' (var (suc (suc (suc (suc zero))))))                     -- Z.
+     (pi' (el' (app (app (var (suc (suc (suc (suc zero)))))
+                         (var (suc (suc zero))))
+                    (var (suc zero))))                                 -- Hom X Y.
+     (pi' (el' (app (app (var (suc (suc (suc (suc (suc zero))))))
+                         (var (suc (suc zero))))
+                    (var (suc zero))))                                 -- Hom Y Z.
+          (el' (app (app (var (suc (suc (suc (suc (suc (suc zero)))))))
+                         (var (suc (suc (suc (suc zero))))))
+                    (var (suc (suc zero))))))                          -- Hom X Z.
+  ))))))

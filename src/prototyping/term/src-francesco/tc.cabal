@@ -17,10 +17,11 @@ executable tc
   -- other-modules:       
   -- other-extensions:    
 
-  build-depends:       base >= 4.6
+  build-depends:       base >= 4.7
                      , array >= 0.4
                      , bound >= 1.0
                      , containers >= 0.5
+                     , either >= 4.1
                      , hashable >= 1.2
                      , mtl >= 2.1
                      , prelude-extras >= 0.4
@@ -32,7 +33,8 @@ executable tc
 
   hs-source-dirs:      ., ../dist
   default-language:    Haskell2010
-  ghc-options:         -Wall -fprof-auto -fprof-auto-calls
+  -- ghc-options:         -Wall
+  ghc-options:         -Wall -prof -fprof-auto -fprof-auto-calls
 
   default-extensions:  DefaultSignatures
                      , DeriveDataTypeable

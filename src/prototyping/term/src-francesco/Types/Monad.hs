@@ -3,6 +3,9 @@ module Types.Monad
       TC
     , ClosedTC
     , runTC
+    , TCState
+    , initTCState
+    , TCErr(..)
       -- * Operations
       -- ** Errors
     , typeError
@@ -33,6 +36,7 @@ module Types.Monad
     , newProblem_
     , bindProblem
     , waitOnProblem
+    , solveNextProblem
     ) where
 
 import Prelude                                    hiding (abs, pi)
@@ -86,16 +90,12 @@ instantiateMetaVar mv t = do
 getTypeOfMetaVar :: IsTerm t => MetaVar -> TC t v (Closed (Type t))
 getTypeOfMetaVar mv = do
   sig <- getSignature
-  return $ case Sig.getMetaInst sig mv of
-    Sig.Inst mvType _ -> mvType
-    Sig.Open mvType   -> mvType
+  return $ Sig.getMetaVarType sig mv
 
 getBodyOfMetaVar :: IsTerm t => MetaVar -> TC t v (Maybe (Closed (Term t)))
 getBodyOfMetaVar mv = do
   sig <- getSignature
-  return $ case Sig.getMetaInst sig mv of
-    Sig.Inst _ mvBody -> Just mvBody
-    Sig.Open _        -> Nothing
+  return $ Sig.getMetaVarBody sig mv
 
 -- Operations on the context
 ------------------------------------------------------------------------
@@ -124,6 +124,6 @@ getTypeOfVar v = do
 ------------------------------------------------------------------------
 
 newProblem_
-    :: (Typeable a, Typeable v)
-    => MetaVar -> StuckTC t v a -> TC t v (ProblemId t v a)
+    :: (Typeable a, Typeable v, Typeable t)
+    => MetaVar -> (Closed (Term t) -> StuckTC t v a) -> TC t v (ProblemId t v a)
 newProblem_ mv = newProblem (Set.singleton mv)

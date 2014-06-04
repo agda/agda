@@ -72,7 +72,7 @@ ignoreBlocking (BlockedOn _ funName es) = def funName es
 
 whnf :: (IsTerm t) => Sig.Signature t -> t v -> Blocked t v
 whnf sig t = case view t of
-  App (Meta mv) es | Sig.Inst _ t' <- Sig.getMetaInst sig mv ->
+  App (Meta mv) es | Just t' <- Sig.getMetaVarBody sig mv ->
     whnf sig $ eliminate (vacuousM t') es
   App (Def defName) es | Function _ cs <- Sig.getDefinition sig defName ->
     whnfFun sig defName es cs

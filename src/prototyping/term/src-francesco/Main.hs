@@ -7,11 +7,10 @@ import           Syntax.Par                       (myLexer, pProgram)
 import           Syntax.BetterLayout              (resolveLayout)
 import           Syntax.ErrM                      (Err(Bad, Ok))
 import           Scope.Check                      (scopeCheck)
-import           Types.Monad                      (runTC)
 import           Check                            (checkProgram)
 import           Data.Proxy                       (Proxy(Proxy))
 
-import           Impl.LazyScope
+import           Impl.LazySimpleScope
 
 
 checkFile :: FilePath -> IO ()
@@ -24,10 +23,10 @@ checkFile file = do
           case scopeCheck p of
             Left err -> print err
             Right p' -> do
-              z <- runTC $ checkProgram (Proxy :: Proxy LazyScope) p'
+              z <- checkProgram (Proxy :: Proxy LazySimpleScope) p'
               case z of
-                Left err -> print err
-                Right () -> putStrLn "OK"
+                Just err -> print err
+                Nothing  -> putStrLn "OK"
 
 main :: IO ()
 main = do

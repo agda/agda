@@ -27,10 +27,10 @@ checkFile file = do
             Left err -> print err
             Right p  -> do
               mapM_ print p
-              z <- runTC $ checkProgram p
+              z <- checkProgram p
               case z of
-                Left err -> print err
-                Right () -> putStrLn "OK"
+                Just err -> print err
+                Nothing  -> putStrLn "OK"
 
 main = do
     args <- getArgs
