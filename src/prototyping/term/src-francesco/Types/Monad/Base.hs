@@ -6,6 +6,8 @@ module Types.Monad.Base
     , TCErr(..)
     , initTCState
     , runTC
+    , TCReport(..)
+    , tcReport
       -- * Errors
     , typeError
       -- * Source location
@@ -127,6 +129,19 @@ data TCErr
 instance Show TCErr where
   show (StrErr p s) =
     "Error at " ++ show p ++ ":\n" ++ unlines (map ("  " ++) (lines s))
+
+data TCReport t = TCReport
+  { trSignature        :: !(Sig.Signature t)
+  , trSolvedProblems   :: !Int
+  , trUnsolvedProblems :: !Int
+  }
+
+tcReport :: TCState t -> TCReport t
+tcReport ts = TCReport
+  { trSignature        = tsSignature ts
+  , trSolvedProblems   = Map.size $ tsSolvedProblems ts
+  , trUnsolvedProblems = Map.size $ tsProblems ts
+  }
 
 -- Errors
 ------------------------------------------------------------------------

@@ -6,6 +6,8 @@ module Types.Monad
     , TCState
     , initTCState
     , TCErr(..)
+    , TCReport(..)
+    , tcReport
       -- * Operations
       -- ** Errors
     , typeError

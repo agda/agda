@@ -3,7 +3,6 @@ module Impl.LazySimpleScope (LazySimpleScope) where
 import Prelude                                    hiding (pi, abs, foldr)
 
 import           Bound.Class
-import           Bound.Var
 import           Bound.Scope.Simple               hiding (instantiate)
 import qualified Bound.Scope.Simple               as Bound
 import           Prelude.Extras                   (Eq1)

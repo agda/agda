@@ -5,6 +5,7 @@ module Types.Signature
     , getDefinition
     , addDefinition
       -- * MetaVars
+    , metaVars
     , getMetaVarType
     , getMetaVarBody
     , addFreshMetaVar
@@ -19,7 +20,7 @@ import           Syntax.Abstract                  (Name)
 import           Types.Definition
 import           Types.Var
 import           Text.PrettyPrint.Extended        (render)
-import           Types.Term
+import           Types.Term                       hiding (metaVars)
 
 data Signature t = Signature
     { sDefinitions :: Map.Map Name (Definition t)
@@ -87,6 +88,14 @@ addFreshMetaVar sig type_ =
 instantiateMetaVar :: Signature t -> MetaVar -> Closed t -> Signature t
 instantiateMetaVar sig mv term =
     sig{sMetasBodies = Map.insert mv term (sMetasBodies sig)}
+
+-- TODO these two functions below are too similar.
+
+metaVars :: Signature t -> [(MetaVar, Closed (Type t), Maybe (Closed (Term t)))]
+metaVars sig =
+  [ (mv, mvType, getMetaVarBody sig mv)
+  | (mv, mvType) <- Map.toList (sMetasTypes sig)
+  ]
 
 instantiatedMetaVars :: Signature t -> Set.Set MetaVar
 instantiatedMetaVars = Map.keysSet . sMetasBodies

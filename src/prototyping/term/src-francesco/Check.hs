@@ -4,7 +4,7 @@ module Check (checkProgram) where
 import           Prelude                          hiding (abs, pi)
 
 import           Data.Functor                     ((<$>), (<$))
-import           Data.Foldable                    (foldMap)
+import           Data.Foldable                    (foldMap, forM_)
 import           Data.Monoid                      (Monoid(..),(<>))
 import           Debug.Trace                      (trace)
 import qualified Data.HashSet                     as HS
@@ -33,6 +33,7 @@ import           Types.Monad
 import           Types.Term
 import           Types.Var
 import           Text.PrettyPrint.Extended        (render)
+import qualified Text.PrettyPrint.Extended        as PP
 import qualified Types.Signature                  as Sig
 import           Eval
 
@@ -679,11 +680,17 @@ bindStuckTC m f = do
 ------------------------------------------------------------------------
 
 checkProgram :: ∀ t. (IsTerm t) => Proxy t -> [A.Decl] -> IO (Maybe TCErr)
-checkProgram _ decls0 =
+checkProgram _ decls0 = do
+    drawLine
+    putStrLn "-- Checking declarations"
+    drawLine
     either Just (\() -> Nothing) <$> runEitherT (goDecls initTCState decls0)
   where
     goDecls :: TCState t -> [A.Decl] -> EitherT TCErr IO ()
     goDecls ts [] = do
+      lift drawLine
+      lift $ putStrLn "-- Solving problems"
+      lift drawLine
       goProblems ts
     goDecls ts (decl : decls) = do
       ((), ts') <- EitherT $ runTC ts $ checkDecl decl
@@ -693,9 +700,25 @@ checkProgram _ decls0 =
     goProblems ts = do
       mbResOrErr <- lift $ solveNextProblem ts
       case mbResOrErr of
-        Nothing          -> return ()
+        Nothing -> lift $ do
+          let tr  = tcReport ts
+          let mvs = Sig.metaVars (trSignature tr)
+          drawLine
+          putStrLn $ "-- Solved MetaVars: " ++ show (length [() | (_, _, Just _) <- mvs])
+          putStrLn "-- Unsolved MetaVars: "
+          drawLine
+          forM_ [(mv, mvType) | (mv, mvType, Nothing) <- mvs] $ \(mv, mvType) ->
+            putStrLn $ render $
+              PP.pretty mv <> PP.text " : " <> PP.nest 2 (PP.pretty (view mvType))
+          drawLine
+          putStrLn $ "-- Solved problems: " ++ show (trSolvedProblems tr)
+          putStrLn $ "-- Unsolved problems: " ++ show (trUnsolvedProblems tr)
+          drawLine
         Just (Left err)  -> left err
         Just (Right ts') -> goProblems ts'
+
+    drawLine =
+      putStrLn "------------------------------------------------------------------------"
 
 checkDecl :: (IsTerm t) => A.Decl -> ClosedTC t ()
 checkDecl decl = atSrcLoc decl $ do
