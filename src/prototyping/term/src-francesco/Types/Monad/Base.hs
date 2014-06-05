@@ -333,21 +333,22 @@ solveNextProblem ts0 = case run of
     run :: Maybe (TCState t, ClosedTC t ())
     run = do
       (SolvedProblem x, pid, Problem ctx m, ts') <- probToRun
-      trace ("Solving problem " ++ show pid) $ return ()
-      trace ("Remaining problems " ++ show (Map.size (tsProblems ts'))) $ return ()
       let n x' = do
             stuck <- m x'
             case stuck of
-              NotStuck y ->
+              NotStuck y -> do
                 -- Mark the problem as solved.
+                trace ("Solved problem " ++ show pid) $ return ()
                 modify_ $ \ts'' ->
                   ts''{ tsSolvedProblems = Map.insert pid (SolvedProblem y) (tsSolvedProblems ts'')
                       , tsProblems       = Map.delete pid (tsProblems ts'')
                       }
-              StuckOn pid' ->
+              StuckOn pid' -> do
+                trace ("Problem stuck " ++ show pid) $ return ()
                 -- If the problem is stuck, re-add it as a dependency of
                 -- what it is stuck on.
                 void $ bindProblem' (reAddProblem pid) pid' $ return . NotStuck
+      trace ("Remaining problems " ++ show (Map.size (tsProblems ts'))) $ return ()
       return $ case cast x of
         Nothing ->
           error "impossible.solveNextProblem: can't cast problem argument"

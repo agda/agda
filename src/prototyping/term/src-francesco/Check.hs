@@ -1,4 +1,4 @@
-{-# LANGUAGE OverloadedStrings #-}
+        {-# LANGUAGE OverloadedStrings #-}
 module Check (checkProgram) where
 
 import           Prelude                          hiding (abs, pi)
@@ -6,7 +6,6 @@ import           Prelude                          hiding (abs, pi)
 import           Data.Functor                     ((<$>), (<$))
 import           Data.Foldable                    (foldMap, forM_)
 import           Data.Monoid                      (Monoid(..),(<>))
-import           Debug.Trace                      (trace)
 import qualified Data.HashSet                     as HS
 import           Control.Monad                    (when, guard, void)
 import           Data.List                        (nub)
@@ -693,6 +692,7 @@ checkProgram _ decls0 = do
       lift drawLine
       goProblems ts
     goDecls ts (decl : decls) = do
+      lift $ putStrLn $ render decl
       ((), ts') <- EitherT $ runTC ts $ checkDecl decl
       goDecls ts' decls
 
@@ -722,7 +722,6 @@ checkProgram _ decls0 = do
 
 checkDecl :: (IsTerm t) => A.Decl -> ClosedTC t ()
 checkDecl decl = atSrcLoc decl $ do
-  trace (render decl) $ return ()
   case decl of
     A.TypeSig sig      -> checkTypeSig sig
     A.DataDef d xs cs  -> checkData d xs cs
@@ -1204,36 +1203,37 @@ checkError err = do
       "Got stuck on the type signature when checking clauses for function " ++ render name
 
     renderVar = render . varName
+    renderTerm sig = render . prettyTerm sig
 
-    renderTerm :: (IsVar v, IsTerm t) => Sig.Signature t -> t v -> String
-    renderTerm sig = render . view . instantiateMetaVars sig
+prettyTerm :: (IsVar v, IsTerm t) => Sig.Signature t -> t v -> PP.Doc
+prettyTerm sig = PP.pretty . view . instantiateMetaVars sig
 
-    instantiateMetaVars :: (IsVar v, IsTerm t) => Sig.Signature t -> t v -> t v
-    instantiateMetaVars sig t = unview $
-      case view t of
-        Lam abs ->
-          Lam (goAbs abs)
-        Pi dom cod ->
-          Pi (go dom) (goAbs cod)
-        Equal type_ x y ->
-          Equal (go type_) (go x) (go y)
-        Refl ->
-          Refl
-        Con dataCon ts ->
-          Con dataCon $ map go ts
-        Set ->
-          Set
-        App (Meta mv) els | Just t' <- Sig.getMetaVarBody sig mv ->
-          view $ instantiateMetaVars sig $ eliminate (vacuousM t') els
-        App h els ->
-          App h $ map goElim els
-      where
-        go = instantiateMetaVars sig
+instantiateMetaVars :: (IsVar v, IsTerm t) => Sig.Signature t -> t v -> t v
+instantiateMetaVars sig t = unview $
+  case view t of
+    Lam abs ->
+      Lam (goAbs abs)
+    Pi dom cod ->
+      Pi (go dom) (goAbs cod)
+    Equal type_ x y ->
+      Equal (go type_) (go x) (go y)
+    Refl ->
+      Refl
+    Con dataCon ts ->
+      Con dataCon $ map go ts
+    Set ->
+      Set
+    App (Meta mv) els | Just t' <- Sig.getMetaVarBody sig mv ->
+      view $ instantiateMetaVars sig $ eliminate (vacuousM t') els
+    App h els ->
+      App h $ map goElim els
+  where
+    go = instantiateMetaVars sig
 
-        goAbs = toAbs . instantiateMetaVars sig . fromAbs
+    goAbs = toAbs . instantiateMetaVars sig . fromAbs
 
-        goElim (Proj n field) = Proj n field
-        goElim (Apply t')     = Apply (go t')
+    goElim (Proj n field) = Proj n field
+    goElim (Apply t')     = Apply (go t')
 
 -- Non-monadic stuff
 ------------------------------------------------------------------------
