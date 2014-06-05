@@ -59,6 +59,8 @@ import Data.Maybe (maybeToList)
 import qualified Data.Set as Set
 import Data.Set (Set)
 
+import Agda.Utils.Function (iterateUntil)
+import Agda.Utils.Functor (for)
 import Agda.Utils.QuickCheck
 import Agda.Utils.SemiRing
 import Agda.Utils.TestHelpers
@@ -226,17 +228,26 @@ acyclic = all isAcyclic . sccs'
 
 transitiveClosure1 :: (Eq e, SemiRing e, Ord n) =>
                       Graph n e -> Graph n e
-transitiveClosure1 = loop
-  where
-  loop g | g == g'   = g
-         | otherwise = loop g'
-    where g' = growGraph g
+transitiveClosure1 = iterateUntil (==) growGraph  where
 
-  growGraph g = List.foldl' union g $ map newEdges $ edges g
-    where
-    newEdges (a, b, w) = case Map.lookup b (unGraph g) of
-      Just es -> Graph $ Map.singleton a $ Map.map (otimes w) es
+  -- @growGraph g@ unions @g@ with @(s --> t) `compose` g@ for each
+  -- edge @s --> t@ in @g@
+  growGraph g = List.foldl' union g $ for (edges g) $ \ (s, t, e) ->
+    case Map.lookup t (unGraph g) of
+      Just es -> Graph $ Map.singleton s $ Map.map (otimes e) es
       Nothing -> empty
+
+-- transitiveClosure1 = loop
+--   where
+--   loop g | g == g'   = g
+--          | otherwise = loop g'
+--     where g' = growGraph g
+
+--   growGraph g = List.foldl' union g $ map newEdges $ edges g
+--     where
+--     newEdges (a, b, w) = case Map.lookup b (unGraph g) of
+--       Just es -> Graph $ Map.singleton a $ Map.map (otimes w) es
+--       Nothing -> empty
 
 -- | Computes the transitive closure of the graph.
 --
