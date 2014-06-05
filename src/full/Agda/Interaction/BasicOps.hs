@@ -188,12 +188,12 @@ evalInMeta ii e =
 data Rewrite =  AsIs | Instantiated | HeadNormal | Simplified | Normalised
     deriving (Read)
 
---rewrite :: Rewrite -> Term -> TCM Term
-rewrite AsIs	     t = return t
-rewrite Instantiated t = return t   -- reify does instantiation
-rewrite HeadNormal   t = {- etaContract =<< -} reduce t
-rewrite Simplified   t = {- etaContract =<< -} simplify t
-rewrite Normalised   t = {- etaContract =<< -} normalise t
+--normalForm :: Rewrite -> Term -> TCM Term
+normalForm AsIs	     t = return t
+normalForm Instantiated t = return t   -- reify does instantiation
+normalForm HeadNormal   t = {- etaContract =<< -} reduce t
+normalForm Simplified   t = {- etaContract =<< -} simplify t
+normalForm Normalised   t = {- etaContract =<< -} normalise t
 
 
 data OutputForm a b = OutputForm Range ProblemId (OutputConstraint a b)
@@ -428,7 +428,7 @@ typeOfMetaMI norm mi =
    where
     rewriteJudg mv (HasType i t) = do
       ms <- getMetaNameSuggestion i
-      t <- rewrite norm t
+      t <- normalForm norm t
       vs <- getContextArgs
       let x = NamedMeta ms i
       reportSDoc "interactive.meta" 10 $ TP.vcat
@@ -482,7 +482,7 @@ metaHelperType norm ii rng s = case words s of
       TelV atel _ <- telView a
       let arity = size atel
       a        <- local (\e -> e { envPrintDomainFreePi = True }) $ do
-        reify =<< cleanupType arity args =<< rewrite norm =<< withFunctionType tel vs as EmptyTel a
+        reify =<< cleanupType arity args =<< normalForm norm =<< withFunctionType tel vs as EmptyTel a
       return (OfType' h a)
   where
     cleanupType arity args t = do
@@ -578,7 +578,7 @@ contextOfMeta ii norm = do
                                xs
 
         out i (Dom _ (x, t)) = escapeContext i $ do
-          t' <- reify =<< rewrite norm t
+          t' <- reify =<< normalForm norm t
           return $ OfType x t'
 
 
@@ -588,7 +588,7 @@ contextOfMeta ii norm = do
 typeInCurrent :: Rewrite -> Expr -> TCM Expr
 typeInCurrent norm e =
     do 	(_,t) <- wakeIrrelevantVars $ inferExpr e
-        v <- rewrite norm t
+        v <- normalForm norm t
         reify v
 
 
