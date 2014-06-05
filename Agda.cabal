@@ -399,6 +399,7 @@ library
                     -fwarn-empty-enumerations
                     -fwarn-overflowed-literals
                     -fwarn-typed-holes
+                    -fwarn-inline-rule-shadowing
 
   ghc-prof-options: -auto-all
 

@@ -1659,24 +1659,14 @@ instance MonadIO m => Monad (TCMT m) where
 
 returnTCMT :: MonadIO m => a -> TCMT m a
 returnTCMT = \x -> TCM $ \_ _ -> return x
-{-# RULES "returnTCMT"
-      returnTCMT = \x -> TCM $ \_ _ -> return x
-  #-}
 {-# INLINE returnTCMT #-}
 
 bindTCMT :: MonadIO m => TCMT m a -> (a -> TCMT m b) -> TCMT m b
 bindTCMT = \(TCM m) k -> TCM $ \r e -> m r e >>= \x -> unTCM (k x) r e
-{-# RULES "bindTCMT"
-      bindTCMT = \(TCM m) k -> TCM $ \r e ->
-                   m r e >>= \x -> unTCM (k x) r e
-  #-}
 {-# INLINE bindTCMT #-}
 
 thenTCMT :: MonadIO m => TCMT m a -> TCMT m b -> TCMT m b
 thenTCMT = \(TCM m1) (TCM m2) -> TCM $ \r e -> m1 r e >> m2 r e
-{-# RULES "thenTCMT"
-      thenTCMT = \(TCM m1) (TCM m2) -> TCM $ \r e -> m1 r e >> m2 r e
-  #-}
 {-# INLINE thenTCMT #-}
 
 instance MonadIO m => Functor (TCMT m) where
@@ -1684,9 +1674,6 @@ instance MonadIO m => Functor (TCMT m) where
 
 fmapTCMT :: MonadIO m => (a -> b) -> TCMT m a -> TCMT m b
 fmapTCMT = \f (TCM m) -> TCM $ \r e -> liftM f (m r e)
-{-# RULES "fmapTCMT"
-      fmapTCMT = \f (TCM m) -> TCM $ \r e -> liftM f (m r e)
-  #-}
 {-# INLINE fmapTCMT #-}
 
 instance MonadIO m => Applicative (TCMT m) where
@@ -1695,9 +1682,6 @@ instance MonadIO m => Applicative (TCMT m) where
 
 apTCMT :: MonadIO m => TCMT m (a -> b) -> TCMT m a -> TCMT m b
 apTCMT = \(TCM mf) (TCM m) -> TCM $ \r e -> ap (mf r e) (m r e)
-{-# RULES "apTCMT"
-      apTCMT = \(TCM mf) (TCM m) -> TCM $ \r e -> ap (mf r e) (m r e)
-  #-}
 {-# INLINE apTCMT #-}
 
 instance MonadIO m => MonadIO (TCMT m) where
