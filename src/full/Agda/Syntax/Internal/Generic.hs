@@ -14,6 +14,35 @@ class TermLike a where
   traverseTermM :: (Monad m, Applicative m) => (Term -> m Term) -> a -> m a
   foldTerm      :: Monoid m => (Term -> m) -> a -> m
 
+-- * Constants
+
+instance TermLike Bool where
+  traverseTerm  _ = id
+  traverseTermM _ = pure
+  foldTerm _      = mempty
+
+instance TermLike Int where
+  traverseTerm  _ = id
+  traverseTermM _ = pure
+  foldTerm _      = mempty
+
+instance TermLike Integer where
+  traverseTerm  _ = id
+  traverseTermM _ = pure
+  foldTerm _      = mempty
+
+instance TermLike Char where
+  traverseTerm  _ = id
+  traverseTermM _ = pure
+  foldTerm _      = mempty
+
+instance TermLike QName where
+  traverseTerm  _ = id
+  traverseTermM _ = pure
+  foldTerm _      = mempty
+
+-- * Functors
+
 instance TermLike a => TermLike (Elim' a) where
   traverseTerm  f = fmap (traverseTerm f)
   traverseTermM f = traverse (traverseTermM f)
@@ -63,6 +92,8 @@ instance TermLike a => TermLike (Ptr a) where
   traverseTerm f = fmap (traverseTerm f)
   traverseTermM f = traverse (traverseTermM f)
   foldTerm f = foldMap (foldTerm f)
+
+-- * Real terms
 
 instance TermLike Term where
   traverseTerm f t = case t of
