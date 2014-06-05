@@ -1,14 +1,22 @@
 {-# LANGUAGE TupleSections, DeriveFunctor, GeneralizedNewtypeDeriving #-}
 
 -- | Directed graphs (can of course simulate undirected graphs).
-
--- used for positivity checker
+--
+--   Represented as adjacency maps in both directions.
+--
+--   Each source node maps to a adjacency map of outgoing edges,
+--   which is a map from target nodes to edges.
+--   Symmetrically, each target node maintains a map of incoming edges.
+--
+--   This allows to get incoming and outgoing edges in O(log n) time where
+--   @n@ is the number of nodes in the graph.
 
 module Agda.Utils.Graph
   ( Graph(..)
   , invariant
   , edges
   , edgesFrom
+  , edgesTo
   , nodes
   , filterEdges
   , fromNodes
@@ -20,7 +28,7 @@ module Agda.Utils.Graph
   , removeEdge
   , union
   , unions
-  , Agda.Utils.Graph.lookup
+  , lookup
   , neighbours
   , sccs'
   , sccs
@@ -35,6 +43,8 @@ module Agda.Utils.Graph
   )
   where
 
+import Prelude hiding (lookup, transpose)
+
 import Control.Applicative ((<$>), (<*>))
 
 import Data.Function
@@ -47,134 +57,251 @@ import Data.Maybe (maybeToList)
 import qualified Data.Set as Set
 import Data.Set (Set)
 
+import qualified Agda.Utils.Graph.AdjacencyMap.Unidirectional as Uni
 import Agda.Utils.QuickCheck
 import Agda.Utils.SemiRing
 import Agda.Utils.TestHelpers
 
--- | @Graph n e@ is a directed graph with nodes in @n@ and edges in @e@.
+-- | @Graph s t e@ is a directed graph with
+--   source nodes in @s@
+--   target nodes in @t@
+--   and edges in @e@.
 --
---   Only one edge between any two nodes.
+--   Admits at most one edge between any two nodes.
+--   Several edges can be modeled by using a collection type for @e@.
 --
 --   Represented as "adjacency list", or rather, adjacency map.
---   This allows to get all outgoing edges for a node in @O(log n)@ time
---   where @n@ is the number of nodes of the graph.
---   Incoming edges can only be computed in @O(n + e)@ time where
---   @e@ is the number of edges.
-newtype Graph n e = Graph { unGraph :: Map n (Map n e) }
+--   This allows to get all outgoing and incoming edges for a node
+--   in @O(log n)@ time where @n@ is the number of nodes of the graph.
+
+data Graph s t e = Graph
+  { outgoing :: Map s (Map t e) -- ^ Forward edges.
+  , incoming :: Map t (Map s e) -- ^ Backward eges.
+  }
   deriving (Eq, Functor, Show)
 
--- | A structural invariant for the graphs.
---
---   The set of nodes is obtained by @Map.keys . unGraph@
---   meaning that each node, be it only the target of an edge,
---   must be assigned an adjacency map, albeit it could be empty.
---
---   See 'singleton'.
-invariant :: Ord n => Graph n e -> Bool
-invariant g = connectedNodes `Set.isSubsetOf` nodes g
-  where
-  connectedNodes =
-    Set.fromList $ concatMap (\(a, b, _) -> [a, b]) $ edges g
+data Edge s t e = Edge
+  { source :: s  -- ^ Outgoing node.
+  , target :: t  -- ^ Incoming node.
+  , label  :: e  -- ^ Edge label (weight).
+  } deriving (Eq, Functor, Show)
+
+-- * Edge queries
 
 -- | Turn a graph into a list of edges.  @O(n + e)@
 
-edges :: Ord n => Graph n e -> [(n, n, e)]
-edges g = [ (from, to, w) | (from, es) <- Map.assocs (unGraph g)
-                          , (to, w)    <- Map.assocs es ]
--- edges g = concatMap onNode $ Map.assocs $ unGraph g
---   where
---     onNode (from, es) = map (onNeighbour from) $ Map.assocs es
---     onNeighbour from (to, w) = (from, to, w)
+edges :: (Ord s, Ord t) => Graph s t e -> [Edge s t e]
+edges = outEdges
+
+-- | The list of edges computed from @outgoing@.
+
+outEdges :: (Ord s, Ord t) => Graph s t e -> [Edge s t e]
+outEdges = outEdges' . outgoing
+
+outEdges' :: (Ord s, Ord t) => Map s (Map t e) -> [Edge s t e]
+outEdges' g =
+  [ Edge s t e
+  | (s, tes) <- Map.assocs g
+  , (t, e)   <- Map.assocs tes
+  ]
+
+-- | The list of edges computed from @incoming@.
+
+inEdges :: (Ord s, Ord t) => Graph s t e -> [Edge s t e]
+inEdges = inEdges' . incoming
+
+inEdges' :: (Ord s, Ord t) => Graph s t e -> [Edge s t e]
+inEdges' g =
+  [ Edge s t e
+  | (t, ses) <- Map.assocs (incoming g)
+  , (s, e)   <- Map.assocs ses
+  ]
+
+-- | 'outgoing' and 'incoming' can be computed from each other by 'remap'.
+
+-- remap :: (Ord s, Ord t) => Map s (Map t e) -> Map t (Map s e)
+-- remap
+
+-- | Invariant for the graphs: @outEdges == inEdges@.
+
+invariant :: (Ord s, Ord t) => Graph s t e -> [Edge s t e]
+invariant g = Set.fromList (outEdges g) == Set.fromList (inEdges g)
 
 -- | All edges originating in the given nodes.
 --   (I.e., all outgoing edges for the given nodes.)
 --
 --   Roughly linear in the length of the result list @O(result)@.
 
-edgesFrom :: Ord n => Graph n e -> [n] -> [(n, n, e)]
-edgesFrom (Graph g) ns =
-  [ (n1, n2, w) | n1 <- ns
-                , m <- maybeToList $ Map.lookup n1 g
-                , (n2, w) <- Map.assocs m
-                ]
-  -- concat $
-  -- Maybe.catMaybes $
-  -- map (\n1 -> fmap (\m -> map (\(n2, w) -> (n1, n2, w)) (Map.assocs m))
-  --                  (Map.lookup n1 g))
-  --     ns
+edgesFrom :: (Ord s, Ord t) => Graph s t e -> [s] -> [Edge s t e]
+edgesFrom (Graph g _) ss =
+  [ Edge s t e
+  | s <- ss
+  , m <- maybeToList $ Map.lookup s g
+  , (t, e) <- Map.assocs m
+  ]
 
--- | Returns all the nodes in the graph.  @O(n)@.
+-- | All edges ending in the given nodes.
+--   (I.e., all incoming edges for the given nodes.)
+--
+--   Roughly linear in the length of the result list @O(result)@.
 
-nodes :: Ord n => Graph n e -> Set n
-nodes g = Map.keysSet (unGraph g)
+edgesTo :: (Ord s, Ord t) => Graph s t e -> [t] -> [Edge s t e]
+edgesTo (Graph _ g) ts =
+  [ Edge s t e
+  | t <- ts
+  , m <- maybeToList $ Map.lookup t g
+  , (s, e) <- Map.assocs m
+  ]
+
+-- | Lookup label of an edge.
+
+lookup :: (Ord s, Ord t) => s -> t -> Graph s t e -> Maybe e
+lookup s t (Graph o _) = Map.lookup t =<< Map.lookup s o
+
+-- | Get a list of outgoing edges with target.
+
+neighbours :: (Ord s, Ord t) => s -> Graph s t e -> [(t, e)]
+neighbours s (Graph o _) = maybe [] Map.assocs $ Map.lookup s o
+
+prop_neighbours s g =
+  neighbours s g == map (\ Edge s t e -> (t,e)) (edgesFrom g [s])
+
+-- * Node queries
+
+-- | Returns all the nodes with outgoing edges.  @O(n)@.
+
+sourceNodes :: (Ord s, Ord t) => Graph s t e -> Set s
+sourceNodes = Map.keysSet . outgoing
+
+-- | Returns all the nodes with incoming edges.  @O(n)@.
+
+targetNodes :: (Ord s, Ord t) => Graph s t e -> Set t
+targetNodes = Map.keysSet . incoming
+
+-- | For homogeneous graphs, @(s = t)@ we can compute a set
+--   of all nodes.
+--
+--   Structure @Nodes@ is for computing all nodes but also
+--   remembering which were incoming and which outgoing.
+--   This is mostly for efficiency reasons, to avoid recomputation
+--   when all three sets are needed.
+
+data Nodes n = Nodes
+  { srcNodes :: Set n
+  , tgtNodes :: Set n
+  , allNodes :: Set n
+  }
+
+computeNodes :: (Ord n) => Graph n n e -> Nodes n
+computeNodes g = Nodes srcs tgts (srcs `Set.union` tgts)
+  where srcs = sourceNodes g
+        tgts = targetNodes g
+
+-- | The set of all nodes (outgoing and incoming).
+
+nodes :: (Ord n) => Graph n n e -> Set n
+nodes = allNodes . computeNodes
+
+-- * Graph construction.
 
 -- | Constructs a completely disconnected graph containing the given
 --   nodes. @O(n)@.
 
-fromNodes :: Ord n => [n] -> Graph n e
-fromNodes = Graph . Map.fromList . map (\n -> (n, Map.empty))
+fromNodes :: Ord n => [n] -> Graph n n e
+fromNodes ns = Graph nset nset
+  where nset = Map.fromList $ map (, Map.empty) ns
 
 prop_nodes_fromNodes ns = nodes (fromNodes ns) == Set.fromList ns
 
--- | Constructs a graph from a list of edges.  O(e)
+-- | Constructs a graph from a list of edges.  O(e log n)
 
-fromList :: (SemiRing e, Ord n) => [(n, n, e)] -> Graph n e
-fromList es = unions [ singleton a b w | (a, b, w) <- es ]
+fromList :: (SemiRing e, Ord s, Ord t) => [Edge s t e] -> Graph s t e
+fromList = fromListWith oplus
+
+fromListWith :: (Ord s, Ord t) => (e -> e -> e) -> [Edge s t e] -> Graph s t e
+fromListWith f = List.foldl' (flip (insertEdgeWith f)) empty
 
 -- | Empty graph (no nodes, no edges).
 
-empty :: Graph n e
-empty = Graph Map.empty
+empty :: Graph s t e
+empty = Graph Map.empty Map.empty
 
 -- | A graph with two nodes and a single connecting edge.
 
-singleton :: Ord n => n -> n -> e -> Graph n e
-singleton a b w =
-  Graph $ Map.insert a (Map.singleton b w) $ Map.singleton b Map.empty
+singleton :: (Ord s, Ord t) => s -> t -> e -> Graph s t e
+singleton s t e = Graph o i
+  where o = Map.insert s (Map.singleton t e)
+        i = Map.insert t (Map.singleton s e)
 
 -- | Insert an edge into the graph.
 
--- Andreas, 2014-02-12 For my taste, this relies a bit
--- too much on the efficieny of union.
--- In Data.Map (hedge union) it is described as linear in g, which is
--- probably too pessimistic.
--- I prefer an implementation of insert in terms of Map.insertWith.
+insert :: (SemiRing e, Ord s, Ord t) => s -> t -> e -> Graph s t e -> Graph s t e
+insert = insertWith oplus
 
-insert :: (SemiRing e, Ord n) => n -> n -> e -> Graph n e -> Graph n e
-insert from to w g = union g (singleton from to w)
+insertEdge :: (SemiRing e, Ord s, Ord t) => Edge s t e -> Graph s t e -> Graph s t e
+insertEdge (Edge s t e) = insert s t e
 
--- | Removes the given node, and all corresponding edges, from the
--- graph.
+-- | Insert an edge, possibly combining @old@ edge weight with @new@ weight by
+--   given function @f@ into @f new old@.
+
+insertWith :: (Ord s, Ord t) => (e -> e -> e) -> s -> t -> e -> Graph s t e -> Graph s t e
+insertWith f s t e (Graph o i) = Graph (Map.alter (Just . ins) s o)
+                                       (Map.alter (Just . int) t i)
+  where ins Nothing  = Map.singleton t e
+        ins (Just m) = Map.insertWith f t e m
+        int Nothing  = Map.singleton s e
+        int (Just m) = Map.insertWith f s e m
+
+insertEdgeWith :: (Ord s, Ord t) => (e -> e -> e) -> Edge s t e -> Graph s t e -> Graph s t e
+insertEdgeWith f (Edge s t e) = insertWith f s t e
+
+-- | Left-biased union.
+
+union :: (SemiRing e, Ord n) => Graph n e -> Graph n e -> Graph n e
+union = unionWith oplus
+
+unionWith :: (Ord s, Ord t) => (e -> e -> e) -> Graph s t e -> Graph s t e -> Graph s t e
+unionWith f (Graph o1 i1) (Graph o2 i2) = Graph o i
+  where o = Map.unionWith (Map.unionWith f) o1 o2
+        i = Map.unionWith (Map.unionWith f) i1 i2
+
+unions :: (SemiRing e, Ord n) => [Graph n e] -> Graph n e
+unions = unionsWith oplus
+
+unionsWith :: (Ord s, Ord t) => (e -> e -> e) -> [Graph s t e] -> Graph s t e
+unionsWith f = List.foldl' (unionWith f) empty
+
+prop_insert ::  (SemiRing e, Ord s, Ord t) => s -> t -> e -> Graph s t e -> Bool
+prop_insert s t e g = insert s t e g == union g (singleton s t e)
+
+-- * Graph reversal
+
+-- | The opposite graph (with all edges reversed).
+
+transpose :: Graph s t e -> Graph t s e
+transpose (Graph o i) = Graph i o
+
+-- * Graph deconstruction.
+
+-- | Removes the given node, and all corresponding edges, from the graph.
 
 removeNode :: Ord n => n -> Graph n e -> Graph n e
 removeNode n (Graph g) =
   Graph $ Map.delete n $ Map.map (Map.delete n) g
 
--- | @removeEdge n1 n2 g@ removes the edge going from @n1@ to @n2@, if
--- any.
+-- | @removeEdge s t g@ removes the edge going from @s@ to @t@, if any.
 
-removeEdge :: Ord n => n -> n -> Graph n e -> Graph n e
-removeEdge n1 n2 (Graph g) =
-  Graph $ Map.adjust (Map.delete n2) n1 g
+removeEdge :: (Ord s, Ord t) => s -> t -> Graph s t e -> Graph s t e
+removeEdge s t (Graph o i) = Graph o' i'
+  where o' = Map.adjust (Map.delete t) s o
+        i' = Map.adjust (Map.delete s) t i
 
-filterEdges :: Ord n => (e -> Bool) -> Graph n e -> Graph n e
-filterEdges f (Graph g) = Graph $ Map.mapMaybe filt g
-  where filt m =
-         let m' = Map.filter f m
-         in  if Map.null m' then Nothing else Just m'
-
-union :: (SemiRing e, Ord n) => Graph n e -> Graph n e -> Graph n e
-union (Graph g1) (Graph g2) =
-  Graph $ Map.unionWith (Map.unionWith oplus) g1 g2
-
-unions :: (SemiRing e, Ord n) => [Graph n e] -> Graph n e
-unions = List.foldl' union empty
-
-lookup :: Ord n => n -> n -> Graph n e -> Maybe e
-lookup a b g = Map.lookup b =<< Map.lookup a (unGraph g)
-
-neighbours :: Ord n => n -> Graph n e -> [(n, e)]
-neighbours a g = maybe [] Map.assocs $ Map.lookup a $ unGraph g
+filterEdges :: (Ord s, Ord t) => (e -> Bool) -> Graph s t e -> Graph s t e
+filterEdges f (Graph o i) = Graph o' i'
+  where
+    o'     = Map.mapMaybe filt o
+    filt m = if Map.null m' then Nothing else Just m' where m' = Map.filter f m
+    i'     = remap o'
 
 -- | The graph's strongly connected components, in reverse topological
 -- order.
