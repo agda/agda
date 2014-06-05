@@ -251,6 +251,11 @@ generateAndPrintSyntaxInfo decl hlLevel = do
     getVarAndField (A.Rec _ fs) = mconcat $ map (field [] . fst) fs
     getVarAndField _            = mempty
 
+    -- Ulf, 2014-04-09: It would be nicer to have it on Named RString a, but
+    -- you can't have polymorphic functions in universeBi.
+    getNamedArg :: SC.RString -> File
+    getNamedArg x = singleton (rToR $ P.getRange x) mempty{ aspect = Just $ Name (Just Argument) False }
+
     getLet :: A.LetBinding -> File
     getLet (A.LetBind _ _ x _ _) = bound x
     getLet A.LetPatBind{}        = mempty
