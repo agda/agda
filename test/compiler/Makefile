@@ -15,7 +15,7 @@ time-compilation:
 		  ./Main)
 
 test-compiled-export:
-	$(agda) --compile-no-main -i. -i.. --compile-dir=ExportTestMAlonzo ExportTestAgda.agda --ghc-flag=-i.. --ghc-flag=-i../../std-lib/ffi
+	$(agda) --compile --no-main -i. -i.. --compile-dir=ExportTestMAlonzo ExportTestAgda.agda --ghc-flag=-i.. --ghc-flag=-i../../std-lib/ffi
 	runghc -iExportTestMAlonzo -i../ -i../../std-lib/ffi ExportTest.hs | grep -q "It works!"
 	rm -rf ExportTestMAlonzo
 

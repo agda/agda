@@ -216,11 +216,13 @@ type Flag opts = opts -> Either String opts
 
 checkOpts :: Flag CommandLineOptions
 checkOpts opts
-  | not (atMostOne [optAllowUnsolved . p, \x -> optCompile x || optCompileNoMain x]) = Left
+  | not (atMostOne [optAllowUnsolved . p, \x -> optCompile x]) = Left
       "Unsolved meta variables are not allowed when compiling.\n"
+  | optCompileNoMain opts && not (optCompile opts) = Left
+      "--no-main only allowed in combination with --compile.\n"
   | not (atMostOne [optGHCiInteraction, isJust . optInputFile]) =
       Left "Choose at most one: input file or --interaction.\n"
-  | not (atMostOne $ interactive ++ [\x -> optCompile x || optCompileNoMain x, optEpicCompile, optJSCompile]) =
+  | not (atMostOne $ interactive ++ [\x -> optCompile x, optEpicCompile, optJSCompile]) =
       Left "Choose at most one: compilers/--interactive/--interaction.\n"
   | not (atMostOne $ interactive ++ [optGenerateHTML]) =
       Left "Choose at most one: --html/--interactive/--interaction.\n"
@@ -357,8 +359,8 @@ standardOptions =
                     "for use with the Emacs mode"
     , Option ['c']  ["compile"] (NoArg compileFlag)
                     "compile program using the MAlonzo backend (experimental)"
-    , Option []  ["compile-no-main"] (NoArg compileFlagNoMain)
-                    "compile module and dependencies using the MAlonzo backend (experimental)"
+    , Option []     ["no-main"] (NoArg compileFlagNoMain)
+                    "when compiling using the MAlonzo backend (experimental), do not treat the requested module as the main module of a program"
     , Option []     ["epic"] (NoArg compileEpicFlag) "compile program using the Epic backend"
     , Option []     ["js"] (NoArg compileJSFlag) "compile program using the JS backend"
     , Option []     ["compile-dir"] (ReqArg compileDirFlag "DIR")
