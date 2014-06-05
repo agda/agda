@@ -1,3 +1,5 @@
+-- RETIRED, Graph libraries now under Agda.Utils.Graph.AdjacencyMap
+
 {-# LANGUAGE TupleSections, DeriveFunctor, GeneralizedNewtypeDeriving #-}
 
 -- | Directed graphs (can of course simulate undirected graphs).
