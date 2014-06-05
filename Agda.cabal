@@ -52,6 +52,11 @@ source-repository head
   type:     darcs
   location: http://code.haskell.org/Agda/
 
+source-repository this
+  type:     darcs
+  location: http://code.haskell.org/Agda/
+  tag:      2.4.0
+
 flag epic
   default: False
   manual:  True
