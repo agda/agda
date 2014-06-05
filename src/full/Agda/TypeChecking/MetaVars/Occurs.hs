@@ -159,8 +159,8 @@ class Occurs t where
 
 -- | When assigning @m xs := v@, check that @m@ does not occur in @v@
 --   and that the free variables of @v@ are contained in @xs@.
-occursCheck :: MetaId -> Vars -> Term -> Maybe (TCM Term) -> TCM Term
-occursCheck m xs v handleIllegalVar = liftTCM $ do
+occursCheck :: MetaId -> Vars -> Term -> TCM Term
+occursCheck m xs v = liftTCM $ do
   mv <- lookupMeta m
   initOccursCheck mv
       -- TODO: Can we do this in a better way?
@@ -177,9 +177,6 @@ occursCheck m xs v handleIllegalVar = liftTCM $ do
                , prettyTCM =<< instantiateFull v
                ]
       MetaCannotDependOn _ _ i ->
-        -- Andreas, 2014-04-12 Call the handler if we have one.
-        (`fromMaybe` handleIllegalVar) $
-        -- No handler?  Raise typeError.
         ifM (isSortMeta m `and2M` (not <$> hasUniversePolymorphism))
         ( typeError . GenericError . show =<<
           fsep [ text ("Cannot instantiate the metavariable " ++ show m ++ " to")
