@@ -299,25 +299,6 @@ newQuestionMark ii t = do
   connectInteractionPoint ii x
   return m
 
--- | Create a new empty function definition to be used in a mutual block.
---   It contains the sole clause @f = ?f@.
-newEmptyFunction :: Type -> TCM Defn
-newEmptyFunction t = do
-  v <- newValueMeta DontRunMetaOccursCheck t
-  -- Don't check for cycles in definitions in occurs check, rather:
-  -- Freeze the meta to prevent instantiations like @?f := f@ which
-  -- lead to infinite loop in 'reduce'.
-  case v of
-    MetaV x _ -> freezeMeta x
-    -- The meta in v might actually be eta-expanded away already, see Issue279.
-    _         -> return ()
-  let cl = Clause noRange EmptyTel (idP 0) [] (Body v) (Just $ defaultArg t)
-  return $ emptyFunction { funClauses = [cl] }
-
--- TODO: move to Monad.MetaVars
-freezeMeta :: MetaId -> TCM ()
-freezeMeta x = modifyMetaStore $ flip Map.adjust x $ \ mv -> mv { mvFrozen = Frozen }
-
 -- | Construct a blocked constant if there are constraints.
 blockTerm :: Type -> TCM Term -> TCM Term
 blockTerm t blocker = do

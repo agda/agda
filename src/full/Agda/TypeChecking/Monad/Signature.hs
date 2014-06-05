@@ -28,7 +28,6 @@ import {-# SOURCE #-} Agda.TypeChecking.CompiledClause.Compile
 import {-# SOURCE #-} Agda.TypeChecking.Polarity
 import {-# SOURCE #-} Agda.TypeChecking.ProjectionLike
 
-import Agda.Utils.List
 import Agda.Utils.Map as Map
 import Agda.Utils.Maybe
 import Agda.Utils.Monad
@@ -127,16 +126,6 @@ addClauses :: QName -> [Clause] -> TCM ()
 addClauses q cls = do
   tel <- getContextTelescope
   modifyFunClauses q (++ abstract tel cls)
-
--- | Lifts clause to the top-level and adds it in butlast position to
---   definition.
---   Precondition: the last clause is @f = ?f@.
-addClauseButLast :: QName -> Clause -> TCM ()
-addClauseButLast q cl = do
-  tel <- getContextTelescope
-  modifyFunClauses q $ \ cls ->
-    caseMaybe (initLast cls) __IMPOSSIBLE__ $ \ (init, last) ->
-      init ++ [abstract tel cl, last]
 
 addHaskellCode :: QName -> HaskellType -> HaskellCode -> TCM ()
 addHaskellCode q hsTy hsDef = modifySignature $ updateDefinition q $ updateDefCompiledRep $ addHs
