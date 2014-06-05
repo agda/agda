@@ -6,6 +6,9 @@ followed:
     darcs get http://code.haskell.org/Agda/ Agda.release
     cd Agda.release
 
+* Clone the standard library
+    git clone git@github.com:Agda/agda-stdlib std-lib
+
 * Finish the release notes in
   doc/release-notes/<version-written-with-dashes>.txt.
 
@@ -56,9 +59,9 @@ followed:
     cd ${TMPDIR:-/tmp}
     tar xzf $BASE/Agda-$VERSION.tar.gz
     cd Agda-$VERSION
-    make install CABAL_OPTIONS="--prefix=$PWD/usr"
     autoconf
     ./configure
+    make install CABAL_OPTIONS="--prefix=$PWD/usr"
     make test
     tar xzf $BASE/dist/Agda-$VERSION.tar.gz
     cd Agda-$VERSION
@@ -94,6 +97,14 @@ followed:
 
   ** If necessary, update the Standard Library page.
 
+* Release the standard library:
+
+  cd std-lib
+  git tag v$VERSION
+  git push --tags
+
+* Update the Standard Library page on the wiki.
+
 * Announce the release of the new version on the Agda mailing list.
 
 * Update the version numbers again, so that released and development
@@ -101,7 +112,7 @@ followed:
   section from the Cabal file. (This would be unnecessary if we had
   two repositories, one stable and one for development.)
 
-  Remove the release notes for the released version from doc/release-notes.
+* Remove the release notes for the released version from doc/release-notes.
 
 * Push all changes.
 
