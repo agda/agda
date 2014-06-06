@@ -9,7 +9,7 @@ Usage: agda [OPTIONS...] [FILE]
   -I      --interactive                               start in interactive mode
           --interaction                               for use with the Emacs mode
   -c      --compile                                   compile program using the MAlonzo backend (experimental)
-          --compile-no-main                           compile module and dependencies using the MAlonzo backend (experimental)
+          --no-main                                   when compiling using the MAlonzo backend (experimental), do not treat the requested module as the main module of a program
           --epic                                      compile program using the Epic backend
           --js                                        compile program using the JS backend
           --compile-dir=DIR                           directory for compiler output (default: the project root)
