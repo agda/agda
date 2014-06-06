@@ -34,10 +34,11 @@ import           Control.Applicative              (Applicative(pure, (<*>)))
 import           Data.Void                        (Void)
 import qualified Data.Map.Strict                  as Map
 import qualified Data.Set                         as Set
-import           Data.Typeable                    (Typeable, typeRep)
+import           Data.Typeable                    (Typeable)
 import           Data.Dynamic                     (Dynamic, toDyn, fromDynamic)
 import           Control.Monad                    (ap, void, msum, when, forM, guard)
 import           Data.Functor                     ((<$>), (<$))
+import           Debug.Trace                      (trace)
 
 import           Syntax.Abstract                  (SrcLoc, noSrcLoc, HasSrcLoc, srcLoc)
 import           Syntax.Abstract.Pretty           ()
@@ -45,9 +46,6 @@ import qualified Types.Context                    as Ctx
 import qualified Types.Signature                  as Sig
 import           Types.Var
 import           Types.Term
-
-import Data.Proxy (Proxy(..))
-import           Debug.Trace                      (trace)
 
 -- Monad definition
 ------------------------------------------------------------------------
@@ -103,16 +101,16 @@ initEnv = TCEnv
   }
 
 data TCState t = TCState
-    { tsSignature          :: !(Sig.Signature t)
-    , tsProblems           :: !(Map.Map ProblemIdInt (Problem t))
-    , tsSolvedProblems     :: !(Map.Map ProblemIdInt SolvedProblem)
+    { tsSignature        :: !(Sig.Signature t)
+    , tsUnsolvedProblems :: !(Map.Map ProblemIdInt (Problem t))
+    , tsSolvedProblems   :: !(Map.Map ProblemIdInt SolvedProblem)
     }
 
 initTCState :: TCState t
 initTCState = TCState
-  { tsSignature          = Sig.empty
-  , tsProblems           = Map.empty
-  , tsSolvedProblems     = Map.empty
+  { tsSignature        = Sig.empty
+  , tsUnsolvedProblems = Map.empty
+  , tsSolvedProblems   = Map.empty
   }
 
 data TCErr
@@ -132,7 +130,7 @@ tcReport :: TCState t -> TCReport t
 tcReport ts = TCReport
   { trSignature        = tsSignature ts
   , trSolvedProblems   = Map.size $ tsSolvedProblems ts
-  , trUnsolvedProblems = Map.size $ tsProblems ts
+  , trUnsolvedProblems = Map.size $ tsUnsolvedProblems ts
   }
 
 -- Errors
@@ -207,11 +205,11 @@ saveSrcLoc (Problem ctx m st) = do
 addProblem :: Problem t -> TC t v (ProblemId t v a)
 addProblem prob = do
   modify $ \ts ->
-    let probs = tsProblems ts
+    let probs = tsUnsolvedProblems ts
         pid = case Map.maxViewWithKey probs of
                 Nothing             -> 0
                 Just ((pid0, _), _) -> pid0 + 1
-    in (ts{tsProblems = Map.insert pid prob probs}, ProblemId pid)
+    in (ts{tsUnsolvedProblems = Map.insert pid prob probs}, ProblemId pid)
 
 newProblem
     :: (Typeable a, Typeable v, Typeable t)
@@ -252,7 +250,7 @@ waitOnProblem (ProblemId pid) m = do
 -- TODO improve efficiency of this.
 solveProblems :: (Typeable t) => ClosedTC t ()
 solveProblems = do
-  unsolvedProbs <- Map.toList . tsProblems <$> get
+  unsolvedProbs <- Map.toList . tsUnsolvedProblems <$> get
   progress <- fmap or $ forM unsolvedProbs $ \(pid, (Problem ctx prob state)) -> do
     mbSolved <- case state of
       BoundToMetaVars mvs -> do
@@ -285,16 +283,14 @@ solveProblems = do
       => ProblemIdInt -> SolvedProblem
       -> Ctx.ClosedCtx t v -> (a -> StuckTC t v b)
       -> ClosedTC t ()
-    solveProblem pid (SolvedProblem x) ctx (m :: a -> StuckTC t' v' b') = do
-      trace ("Type of solved: " ++ show x) $ return ()
-      trace ("Type of arg: " ++ show (typeRep (Proxy :: Proxy a))) $ return ()
+    solveProblem pid (SolvedProblem x) ctx m = do
       Just x' <- return $ fromDynamic x
-      modify_ $ \ts -> ts{tsProblems = Map.delete pid (tsProblems ts)}
+      modify_ $ \ts -> ts{tsUnsolvedProblems = Map.delete pid (tsUnsolvedProblems ts)}
       localContext (\_ -> ctx) $ do
         stuck <- m x'
         case stuck of
           NotStuck y -> do
-            trace ("=== Solved problem " ++ show pid) $ return ()
+            trace ("SOLVED problem " ++ show pid) $ return ()
             -- Mark the problem as solved.
             modify_ $ \ts ->
               ts{tsSolvedProblems = Map.insert pid (solvedProblem y) (tsSolvedProblems ts)}
