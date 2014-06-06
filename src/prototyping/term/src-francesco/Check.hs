@@ -20,7 +20,7 @@ import           Data.Void                        (vacuous, Void, vacuousM)
 import qualified Data.Set                         as Set
 import           Control.Applicative              (Applicative(pure, (<*>)))
 import           Control.Monad.Trans              (lift)
-import           Control.Monad.Trans.Either       (EitherT(EitherT), runEitherT, left)
+import           Control.Monad.Trans.Either       (EitherT(EitherT), runEitherT)
 
 import           Syntax.Abstract                  (Name)
 import           Syntax.Abstract.Pretty           ()
@@ -57,7 +57,7 @@ check synT type_ = atSrcLoc synT $ case synT of
       bindStuckTC (checkEqual type' t1 t2) $ \() ->
         notStuck refl
   A.Meta _ ->
-    addFreshMetaVarInCtx type_
+    addMetaVarInCtx type_
   A.Lam name synBody -> do
     let err = LambdaTypeError synT type_
     metaVarIfStuck type_ $ matchPi name type_ err  $ \dom cod -> do
@@ -74,11 +74,11 @@ check synT type_ = atSrcLoc synT $ case synT of
           NotStuck () -> do
             return t
           StuckOn pid -> do
-            mv <- addFreshMetaVarInCtx type_
+            mv <- addMetaVarInCtx type_
             void $ waitOnProblem pid $ checkEqual type' mv t
             return mv
       StuckOn pid -> do
-        mv <- addFreshMetaVarInCtx type_
+        mv <- addMetaVarInCtx type_
         void $ bindProblem pid $ \(t, type') -> do
           stuck' <- equalType type_ type'
           case stuck' of
@@ -121,7 +121,7 @@ infer synT = atSrcLoc synT $ case synT of
     y <- check synY type_
     notStuck (equal type_ x y, set)
   _ -> do
-    type_ <- addFreshMetaVarInCtx set
+    type_ <- addMetaVarInCtx set
     t <- check synT type_
     notStuck (t, type_)
 
@@ -320,17 +320,17 @@ applyProjection proj h type_ = do
 -- MetaVar handling
 -------------------
 
-addFreshMetaVarInCtx :: (IsTerm t) => Type t v -> TC t v (Term t v)
-addFreshMetaVarInCtx type_ = do
+addMetaVarInCtx :: (IsTerm t) => Type t v -> TC t v (Term t v)
+addMetaVarInCtx type_ = do
   ctx <- askContext
-  mv <- addFreshMetaVar $ ctxPi ctx type_
+  mv <- addMetaVar $ ctxPi ctx type_
   return $ ctxApp (metaVar mv []) ctx
 
 createTyConParsMvs :: (IsTerm t) => Tel.IdTel (Type t) v -> TC t v [Term t v]
 createTyConParsMvs (Tel.Empty _) =
   return []
 createTyConParsMvs (Tel.Cons (name, type') tel) = do
-  mv  <- addFreshMetaVarInCtx type'
+  mv  <- addMetaVarInCtx type'
   mvs <- extendContext name type' $ \_ -> createTyConParsMvs tel
   return (mv : map (\t -> instantiate (toAbs t) mv) mvs)
 
@@ -340,7 +340,7 @@ metaAssign
 metaAssign type_ mv elims t =
   case distinctVariables elims of
     Nothing ->
-      fmap StuckOn $ newProblem_ mv $ \mvT ->
+      fmap StuckOn $ newProblem_ mv $ \mvT -> do
         checkEqual type_ (eliminate (vacuous mvT) elims) t
     Just vs -> do
       -- TODO have `pruneTerm' return an evaluated term.
@@ -354,8 +354,8 @@ metaAssign type_ mv elims t =
           instantiateMetaVar mv t'
           notStuck ()
         FlexibleOn mvs ->
-          fmap StuckOn $ newProblem (Set.insert mv mvs) $ \mvT ->
-            checkEqual type_ (eliminate (vacuous mvT) elims) t
+          fmap StuckOn $ newProblem (Set.insert mv mvs) $ \_ -> do
+            checkEqual type_ (metaVar mv elims) t
         Rigid v ->
           checkError $ FreeVariableInEquatedTerm mv elims t v
 
@@ -421,7 +421,7 @@ prune vs0 oldMv args = do
       -> TC t v (Tel.IdTel (Type t) v, MetaVar, [Named Bool])
     createNewMeta type_ [] = do
       ctx <- askContext
-      newMv <- addFreshMetaVar $ ctxPi ctx type_
+      newMv <- addMetaVar $ ctxPi ctx type_
       return (Tel.Empty (Tel.Id type_), newMv, [])
     createNewMeta type_ (kill : kills) = do
       typeView <- whnfViewTC type_
@@ -651,7 +651,7 @@ metaVarIfStuck type_ m = do
       NotStuck t ->
         return t
       StuckOn pid -> do
-        mv <- addFreshMetaVarInCtx type_
+        mv <- addMetaVarInCtx type_
         void $ bindProblem pid $ checkEqual type_ mv
         return mv
 
@@ -687,35 +687,28 @@ checkProgram _ decls0 = do
   where
     goDecls :: TCState t -> [A.Decl] -> EitherT TCErr IO ()
     goDecls ts [] = do
-      lift drawLine
-      lift $ putStrLn "-- Solving problems"
-      lift drawLine
-      goProblems ts
+      ((), ts') <- EitherT $ runTC ts solveProblems
+      lift $ report ts'
     goDecls ts (decl : decls) = do
       lift $ putStrLn $ render decl
       ((), ts') <- EitherT $ runTC ts $ checkDecl decl
       goDecls ts' decls
 
-    goProblems :: TCState t -> EitherT TCErr IO ()
-    goProblems ts = do
-      mbResOrErr <- lift $ solveNextProblem ts
-      case mbResOrErr of
-        Nothing -> lift $ do
-          let tr  = tcReport ts
-          let mvs = Sig.metaVars (trSignature tr)
-          drawLine
-          putStrLn $ "-- Solved MetaVars: " ++ show (length [() | (_, _, Just _) <- mvs])
-          putStrLn "-- Unsolved MetaVars: "
-          drawLine
-          forM_ [(mv, mvType) | (mv, mvType, Nothing) <- mvs] $ \(mv, mvType) ->
-            putStrLn $ render $
-              PP.pretty mv <> PP.text " : " <> PP.nest 2 (PP.pretty (view mvType))
-          drawLine
-          putStrLn $ "-- Solved problems: " ++ show (trSolvedProblems tr)
-          putStrLn $ "-- Unsolved problems: " ++ show (trUnsolvedProblems tr)
-          drawLine
-        Just (Left err)  -> left err
-        Just (Right ts') -> goProblems ts'
+    report :: TCState t -> IO ()
+    report ts = do
+      let tr  = tcReport ts
+      let mvs = Sig.metaVars (trSignature tr)
+      drawLine
+      putStrLn $ "-- Solved MetaVars: " ++ show (length [() | (_, _, Just _) <- mvs])
+      putStrLn "-- Unsolved MetaVars: "
+      drawLine
+      forM_ [(mv, mvType) | (mv, mvType, Nothing) <- mvs] $ \(mv, mvType) ->
+        putStrLn $ render $
+          PP.pretty mv <> PP.text " : " <> PP.nest 2 (PP.pretty (view mvType))
+      drawLine
+      putStrLn $ "-- Solved problems: " ++ show (trSolvedProblems tr)
+      putStrLn $ "-- Unsolved problems: " ++ show (trUnsolvedProblems tr)
+      drawLine
 
     drawLine =
       putStrLn "------------------------------------------------------------------------"
@@ -770,7 +763,7 @@ checkConstr tyCon tyConPars appliedTyConType (A.Sig dataCon synDataConType) = do
         dataConType <- isType synDataConType
         unrollPi dataConType $ \vs endType -> do
             let appliedTyConType' = fmap (Ctx.weaken vs) appliedTyConType
-            elimStuckTC (equalType appliedTyConType' endType) $
+            elimStuckTC (equalType appliedTyConType' endType) $ do
               checkError $ TermsNotEqual appliedTyConType' endType
         addConstructor dataCon tyCon (Tel.idTel tyConPars dataConType)
 
@@ -1071,7 +1064,7 @@ matchTyCon tyCon t err handler = do
       -- Maybe remove and do it explicitly?
       matchTyCon tyCon (ignoreBlocking blockedT) err handler
     BlockedOn mv _ _ -> do
-      fmap StuckOn $ newProblem_ mv $ \_ ->
+      fmap StuckOn $ newProblem_ mv $ \_ -> do
         matchTyCon tyCon (ignoreBlocking blockedT) err handler
     _ -> do
       NotStuck <$> checkError err
@@ -1092,15 +1085,15 @@ matchPi name t err handler = do
       liftClosed $ do
         mvType <- getTypeOfMetaVar mv
         mvT <- unrollPi mvType $ \ctxMvArgs _ -> do
-          dom <- addFreshMetaVarInCtx set
-          cod <- extendContext name dom $ \_ -> addFreshMetaVarInCtx set
+          dom <- addMetaVarInCtx set
+          cod <- extendContext name dom $ \_ -> addMetaVarInCtx set
           return $ ctxLam ctxMvArgs $ pi dom $ toAbs cod
         instantiateMetaVar mv mvT
       -- TODO Dangerous recursion, relying on correct instantiation.
       -- Maybe remove and do it explicitly?
       matchPi name (ignoreBlocking blockedT) err handler
     BlockedOn mv _ _ -> do
-      fmap StuckOn $ newProblem_ mv $ \_ ->
+      fmap StuckOn $ newProblem_ mv $ \_ -> do
         matchPi name (ignoreBlocking blockedT) err handler
     _ -> do
       NotStuck <$> checkError err
@@ -1128,16 +1121,16 @@ matchEqual t err handler = do
       liftClosed $ do
         mvType <- getTypeOfMetaVar mv
         mvT <- unrollPi mvType $ \ctxMvArgs _ -> do
-          type_ <- addFreshMetaVarInCtx set
-          t1 <- addFreshMetaVarInCtx type_
-          t2 <- addFreshMetaVarInCtx type_
+          type_ <- addMetaVarInCtx set
+          t1 <- addMetaVarInCtx type_
+          t2 <- addMetaVarInCtx type_
           return $ ctxLam ctxMvArgs $ equal type_ t1 t2
         instantiateMetaVar mv mvT
       -- TODO Dangerous recursion, relying on correct instantiation.
       -- Maybe remove and do it explicitly?
       matchEqual (ignoreBlocking blockedT) err handler
     BlockedOn mv _ _ ->
-      fmap StuckOn $ newProblem_ mv $ \_ ->
+      fmap StuckOn $ newProblem_ mv $ \_ -> do
         matchEqual (ignoreBlocking blockedT) err handler
     _ -> do
       NotStuck <$> checkError err

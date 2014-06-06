@@ -8,7 +8,7 @@ module Types.Signature
     , metaVars
     , getMetaVarType
     , getMetaVarBody
-    , addFreshMetaVar
+    , addMetaVar
     , instantiateMetaVar
     , instantiatedMetaVars
     ) where
@@ -77,8 +77,8 @@ getMetaVarBody sig mv = Map.lookup mv (sMetasBodies sig)
 
 -- TODO more assertions in the two functions below.
 
-addFreshMetaVar :: Signature t -> Closed t -> (MetaVar, Signature t)
-addFreshMetaVar sig type_ =
+addMetaVar :: Signature t -> Closed t -> (MetaVar, Signature t)
+addMetaVar sig type_ =
     (mv, sig{sMetasTypes = Map.insert mv type_ (sMetasTypes sig)})
   where
     mv = case Map.maxViewWithKey (sMetasTypes sig) of

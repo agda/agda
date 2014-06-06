@@ -19,7 +19,7 @@ module Types.Monad
     , addDefinition
     , getDefinition
       -- ** MetaVar handling
-    , addFreshMetaVar
+    , addMetaVar
     , instantiateMetaVar
     , getTypeOfMetaVar
     , getBodyOfMetaVar
@@ -38,7 +38,7 @@ module Types.Monad
     , newProblem_
     , bindProblem
     , waitOnProblem
-    , solveNextProblem
+    , solveProblems
     ) where
 
 import Prelude                                    hiding (abs, pi)
@@ -78,10 +78,10 @@ getDefinition name = atSrcLoc name $ do
 -- MetaVar operations
 ------------------------------------------------------------------------
 
-addFreshMetaVar :: IsTerm t => Closed (Type t) -> TC t v MetaVar
-addFreshMetaVar type_ = do
+addMetaVar :: IsTerm t => Closed (Type t) -> TC t v MetaVar
+addMetaVar type_ = do
     sig <- getSignature
-    let (mv, sig') = Sig.addFreshMetaVar sig type_
+    let (mv, sig') = Sig.addMetaVar sig type_
     putSignature sig'
     return mv
 
