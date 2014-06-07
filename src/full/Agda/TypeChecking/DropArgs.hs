@@ -1,6 +1,5 @@
 {-# LANGUAGE CPP #-}
 {-# LANGUAGE FlexibleInstances #-}
-{-# LANGUAGE PatternGuards #-}
 {-# LANGUAGE TypeSynonymInstances #-}
 
 module Agda.TypeChecking.DropArgs where

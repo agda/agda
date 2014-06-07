@@ -1,6 +1,9 @@
 {-# LANGUAGE CPP #-}
+
+#if __GLASGOW_HASKELL__ <= 706
 {-# LANGUAGE DeriveFunctor #-}
 {-# LANGUAGE StandaloneDeriving #-}
+#endif
 
 module Agda.Interaction.Options
     ( CommandLineOptions(..)

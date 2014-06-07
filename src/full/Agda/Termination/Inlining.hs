@@ -1,5 +1,4 @@
 {-# LANGUAGE CPP #-}
-{-# LANGUAGE PatternGuards #-}
 
 -- Author:  Ulf Norell
 -- Created: 2013-11-09
