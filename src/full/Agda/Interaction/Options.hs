@@ -1,4 +1,6 @@
-{-# LANGUAGE StandaloneDeriving, DeriveFunctor, CPP #-}
+{-# LANGUAGE CPP #-}
+{-# LANGUAGE DeriveFunctor #-}
+{-# LANGUAGE StandaloneDeriving #-}
 
 module Agda.Interaction.Options
     ( CommandLineOptions(..)
