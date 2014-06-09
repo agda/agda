@@ -11,11 +11,16 @@ import Text.PrettyPrint hiding (render)
 import qualified Text.PrettyPrint as PP
 
 class Pretty a where
+  {-# MINIMAL pretty | prettyPrec #-}
+
   pretty     :: a -> Doc
   prettyPrec :: Int -> a -> Doc
 
   pretty = prettyPrec 0
   prettyPrec _ = pretty
+
+instance Pretty Int where
+  pretty = PP.text . show
 
 defaultShow :: Pretty a => Int -> a -> ShowS
 defaultShow p x = shows (prettyPrec p x)

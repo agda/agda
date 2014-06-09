@@ -46,6 +46,7 @@ import Prelude                                    hiding (abs, pi)
 import qualified Data.Set                         as Set
 import           Data.Typeable                    (Typeable)
 
+import qualified Text.PrettyPrint.Extended        as PP
 import           Syntax.Abstract                  (Name)
 import           Syntax.Abstract.Pretty           ()
 import           Types.Definition
@@ -126,6 +127,6 @@ getTypeOfVar v = do
 ------------------------------------------------------------------------
 
 newProblem_
-    :: (Typeable a, Typeable v, Typeable t)
-    => MetaVar -> (Closed (Term t) -> StuckTC t v a) -> TC t v (ProblemId t v a)
+    :: (Typeable a, Typeable v, Typeable t, PP.Pretty p)
+    => MetaVar -> p -> (Closed (Term t) -> StuckTC t v a) -> TC t v (ProblemId t v a)
 newProblem_ mv = newProblem (Set.singleton mv)

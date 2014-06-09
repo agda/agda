@@ -90,7 +90,10 @@ newtype Field = Field {unField :: Int}
 
 -- | 'MetaVar'iables.  Globally scoped.
 newtype MetaVar = MetaVar {unMetaVar :: Int}
-    deriving (Eq, Ord, Show, Hashable)
+    deriving (Eq, Ord, Hashable)
 
 instance PP.Pretty MetaVar where
-    prettyPrec _ (MetaVar mv) = PP.text ("_" ++ show mv)
+    prettyPrec _ = PP.text . show
+
+instance Show MetaVar where
+   show (MetaVar mv) = "_" ++ show mv

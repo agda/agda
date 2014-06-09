@@ -18,6 +18,7 @@ import           Data.Maybe                       (maybeToList)
 import           Data.Typeable                    (Typeable)
 import           Data.Void                        (vacuous, Void, vacuousM)
 import qualified Data.Set                         as Set
+import qualified Data.Map                         as Map
 import           Control.Applicative              (Applicative(pure, (<*>)))
 import           Control.Monad.Trans              (lift)
 import           Control.Monad.Trans.Either       (EitherT(EitherT), runEitherT)
@@ -31,7 +32,7 @@ import qualified Types.Telescope                  as Tel
 import           Types.Monad
 import           Types.Term
 import           Types.Var
-import           Text.PrettyPrint.Extended        (render)
+import           Text.PrettyPrint.Extended        (render, (<+>), ($$))
 import qualified Text.PrettyPrint.Extended        as PP
 import qualified Types.Signature                  as Sig
 import           Eval
@@ -49,12 +50,12 @@ check synT type_ = atSrcLoc synT $ case synT of
     let err = ConstructorTypeError synT type_
     metaVarIfStuck type_ $ matchTyCon tyCon type_ err $ \tyConArgs -> do
       let appliedDataConType = Tel.substs (vacuous dataConType) tyConArgs
-      bindStuckTC (checkConArgs synArgs appliedDataConType) $ \args ->
+      bindStuckTC (checkConArgs synArgs appliedDataConType) WaitingOn $ \args ->
         notStuck $ con dataCon args
   A.Refl _ -> do
     let err = NotEqualityType type_
     metaVarIfStuck type_ $ matchEqual type_ err  $ \type' t1 t2 -> do
-      bindStuckTC (checkEqual type' t1 t2) $ \() ->
+      bindStuckTC (checkEqual type' t1 t2) WaitingOn $ \() ->
         notStuck refl
   A.Meta _ ->
     addMetaVarInCtx type_
@@ -75,17 +76,17 @@ check synT type_ = atSrcLoc synT $ case synT of
             return t
           StuckOn pid -> do
             mv <- addMetaVarInCtx type_
-            void $ waitOnProblem pid $ checkEqual type' mv t
+            void $ waitOnProblemCheckEqual pid type' mv t
             return mv
       StuckOn pid -> do
         mv <- addMetaVarInCtx type_
-        void $ bindProblem pid $ \(t, type') -> do
+        void $ bindProblem pid (WaitForInfer synT type_) $ \(t, type') -> do
           stuck' <- equalType type_ type'
           case stuck' of
             NotStuck () ->
               checkEqual type_ mv t
             StuckOn pid' ->
-              StuckOn <$> waitOnProblem pid' (checkEqual type_ mv t)
+              StuckOn <$> waitOnProblemCheckEqual pid' type_ mv t
         return mv
 
 isType :: (IsVar v, IsTerm t) => A.Expr -> TC t v (Type t v)
@@ -97,7 +98,7 @@ checkConArgs (synArg : synArgs) type_ = atSrcLoc synArg $ do
   let err = ExpectedFunctionType type_ (Just synArg)
   matchPi_ type_ err $ \dom cod -> do
     arg <- check synArg dom
-    bindStuckTC (checkConArgs synArgs (instantiate cod arg)) $ \args ->
+    bindStuckTC (checkConArgs synArgs (instantiate cod arg)) WaitingOn $ \args ->
       notStuck (arg : args)
 
 infer :: (IsVar v, IsTerm t) => A.Expr -> StuckTC t v (Term t v, Type t v)
@@ -130,8 +131,8 @@ checkSpine :: (IsVar v, IsTerm t)
 checkSpine h []         type_ = notStuck (h, type_)
 checkSpine h (el : els) type_ = atSrcLoc el $ case el of
   A.Proj proj -> do
-    bindStuckTC (applyProjection proj h type_) $ \(h', type') ->
-      checkSpine h' els type'
+    bindStuckTC (applyProjection proj h type_) (\_ -> CheckSpine h (el :els) type_) $
+      \(h', type') -> checkSpine h' els type'
   A.Apply synArg -> do
     let err = ExpectedFunctionType type_ (Just synArg)
     matchPi_ type_ err $ \dom cod -> do
@@ -171,12 +172,14 @@ checkEqual type_ x y = do
       metaAssign type_ mv elims (ignoreBlocking t)
     (t, MetaVarHead mv elims) ->
       metaAssign type_ mv elims (ignoreBlocking t)
-    (BlockedOn mv _ _, _) ->
-      fmap StuckOn $ newProblem_ mv $ \_ ->
-        checkEqual (unview typeView) (ignoreBlocking blockedX) (ignoreBlocking blockedY)
-    (_, BlockedOn mv _ _) ->
-      fmap StuckOn $ newProblem_ mv $ \_ ->
-        checkEqual (unview typeView) (ignoreBlocking blockedX) (ignoreBlocking blockedY)
+    (BlockedOn mv _ _, _) -> do
+      fmap StuckOn $
+        newProblemCheckEqual_ mv (unview typeView)
+                              (ignoreBlocking blockedX) (ignoreBlocking blockedY)
+    (_, BlockedOn mv _ _) -> do
+      fmap StuckOn $
+        newProblemCheckEqual_ mv (unview typeView)
+                              (ignoreBlocking blockedX) (ignoreBlocking blockedY)
     (NotBlocked x', NotBlocked y') -> case (typeView, view x', view y') of
       -- Note that here we rely on canonical terms to have canonical
       -- types, and on the terms to be eta-expanded.
@@ -194,26 +197,26 @@ checkEqual type_ x y = do
           NotStuck () ->
             notStuck ()
           StuckOn pid ->
-            StuckOn <$> waitOnProblem pid (notStuck ())
+            StuckOn <$> waitOnProblem pid (EscapingScope pid) (notStuck ())
       (Set, Pi dom1 cod1, Pi dom2 cod2) -> do
         let cod1' = fromAbs cod1
         stuck <- checkEqual set dom1 dom2
-        let equalCod = checkEqual set cod1' (fromAbs cod2)
         -- TODO use some helper function for the various `waitOnProblem'
         -- (see above)
         case stuck of
           NotStuck () -> do
-            stuck' <- extendContext (getName cod1') dom1 $ \_ -> equalCod
+            stuck' <- extendContext (getName cod1') dom1 $ \_ ->
+              checkEqual set cod1' (fromAbs cod2)
             case stuck' of
               NotStuck () -> notStuck ()
-              StuckOn pid -> StuckOn <$> waitOnProblem pid (notStuck ())
+              StuckOn pid -> StuckOn <$> waitOnProblem pid (EscapingScope pid) (notStuck ())
           StuckOn pid -> do
             pid' <- extendContext (getName cod1') dom1 $ \_ ->
-                    waitOnProblem pid $ equalCod
-            StuckOn <$> waitOnProblem pid' (notStuck ())
+                    waitOnProblemCheckEqual pid set cod1' (fromAbs cod2)
+            StuckOn <$> waitOnProblem pid' (EscapingScope pid') (notStuck ())
       (Set, Equal type1 x1 y1, Equal type2 x2 y2) ->
-        bindStuckTC (checkEqual set type1 type2) $ \() ->
-        bindStuckTC (checkEqual type1 x1 x2) $ \() ->
+        bindStuckTC (checkEqual set type1 type2) (\_ -> CheckEqual type1 x1 x2) $ \() ->
+        bindStuckTC (checkEqual type1 x1 x2)     (\_ -> CheckEqual type1 y1 y2) $ \() ->
         checkEqual type1 y1 y2
       (_, Refl, Refl) -> do
         notStuck ()
@@ -266,18 +269,23 @@ equalSpine
     -> StuckTC t v ()
 equalSpine _ _ [] [] =
   notStuck ()
-equalSpine type_ h (Apply arg1 : elims1) (Apply arg2 : elims2) = do
-  typeView <- whnfViewTC type_
-  case typeView of
-    Pi domain codomain ->
-      bindStuckTC (checkEqual domain arg1 arg2) $ \() ->
-        equalSpine (instantiate codomain arg1) (eliminate h [Apply arg1]) elims1 elims2
+equalSpine type_ h (elim1 : elims1) (elim2 : elims2) = do
+  let desc = EqualSpine h (elim1 : elims1) (elim2 : elims2) type_
+  case (elim1, elim2) of
+    (Apply arg1, Apply arg2) -> do
+      typeView <- whnfViewTC type_
+      case typeView of
+        Pi domain codomain -> do
+          bindStuckTC (checkEqual domain arg1 arg2) (\_ -> desc) $ \() ->
+            equalSpine (instantiate codomain arg1) (eliminate h [Apply arg1]) elims1 elims2
+        _ ->
+          error $ "impossible.equalSpine: Expected function type " ++ render typeView
+    (Proj proj projIx, Proj proj' projIx')
+      | proj == proj' && projIx == projIx' ->
+        bindStuckTC (applyProjection proj h type_) (\_ -> desc) $ \(h', type') ->
+          equalSpine type' h' elims1 elims2
     _ ->
-      error $ "impossible.equalSpine: Expected function type " ++ render typeView
-equalSpine type_ h (Proj proj projIx : elims1) (Proj proj' projIx' : elims2)
-  | proj == proj' && projIx == projIx' =
-    bindStuckTC (applyProjection proj h type_) $ \(h', type') ->
-      equalSpine type' h' elims1 elims2
+      checkError $ SpineNotEqual type_ (elim1 : elims1) (elim1 : elims2)
 equalSpine type_ _ elims1 elims2 = do
   checkError $ SpineNotEqual type_ elims1 elims2
 
@@ -340,8 +348,9 @@ metaAssign
 metaAssign type_ mv elims t =
   case distinctVariables elims of
     Nothing ->
-      fmap StuckOn $ newProblem_ mv $ \mvT -> do
-        checkEqual type_ (eliminate (vacuous mvT) elims) t
+      fmap StuckOn $
+        newProblem_ mv (CheckEqual type_ (metaVar mv elims) t) $ \mvT ->
+          checkEqual type_ (eliminate (vacuous mvT) elims) t
     Just vs -> do
       -- TODO have `pruneTerm' return an evaluated term.
       liftClosed $ pruneTerm vs t
@@ -354,8 +363,8 @@ metaAssign type_ mv elims t =
           instantiateMetaVar mv t'
           notStuck ()
         FlexibleOn mvs ->
-          fmap StuckOn $ newProblem (Set.insert mv mvs) $ \_ -> do
-            checkEqual type_ (metaVar mv elims) t
+          fmap StuckOn $
+            newProblemCheckEqual (Set.insert mv mvs) type_ (metaVar mv elims) t
         Rigid v ->
           checkError $ FreeVariableInEquatedTerm mv elims t v
 
@@ -652,7 +661,7 @@ metaVarIfStuck type_ m = do
         return t
       StuckOn pid -> do
         mv <- addMetaVarInCtx type_
-        void $ bindProblem pid $ checkEqual type_ mv
+        void $ bindProblem pid (MetaVarIfStuck mv type_ pid) $ checkEqual type_ mv
         return mv
 
 elimStuckTC :: StuckTC t v a -> TC t v a -> TC t v a
@@ -663,17 +672,19 @@ elimStuckTC m ifStuck = do
       StuckOn _pid -> ifStuck
 
 bindStuck
-    :: (IsVar v, Typeable a, Typeable b)
-    => Stuck t v a -> (a -> StuckTC t v b) -> StuckTC t v b
-bindStuck (NotStuck x)  f = f x
-bindStuck (StuckOn pid) f = StuckOn <$> bindProblem pid f
+    :: (IsVar v, IsTerm t, Typeable a, Typeable b)
+    => Stuck t v a -> (ProblemId t v a -> ProblemDescription t v)
+    -> (a -> StuckTC t v b) -> StuckTC t v b
+bindStuck (NotStuck x)  _    f = f x
+bindStuck (StuckOn pid) desc f = StuckOn <$> bindProblem pid (desc pid) f
 
 bindStuckTC
-    :: (IsVar v, Typeable a, Typeable b)
-    => StuckTC t v a -> (a -> StuckTC t v b) -> StuckTC t v b
-bindStuckTC m f = do
+    :: (IsVar v, IsTerm t, Typeable a, Typeable b)
+    => StuckTC t v a -> (ProblemId t v a -> ProblemDescription t v)
+    -> (a -> StuckTC t v b) -> StuckTC t v b
+bindStuckTC m desc f = do
     stuck <- m
-    bindStuck stuck f
+    bindStuck stuck desc f
 
 -- Checking definitions
 ------------------------------------------------------------------------
@@ -687,24 +698,28 @@ checkProgram _ decls0 = do
   where
     goDecls :: TCState t -> [A.Decl] -> EitherT TCErr IO ()
     goDecls ts [] = do
-      ((), ts') <- EitherT $ runTC ts solveProblems
-      lift $ report ts'
+      lift $ report ts
     goDecls ts (decl : decls) = do
       lift $ putStrLn $ render decl
-      ((), ts') <- EitherT $ runTC ts $ checkDecl decl
+      ((), ts') <- EitherT $ runTC ts $ checkDecl decl >> solveProblems
       goDecls ts' decls
 
     report :: TCState t -> IO ()
     report ts = do
       let tr  = tcReport ts
-      let mvs = Sig.metaVars (trSignature tr)
+      let mvsTypes  = Sig.metaVarsTypes $ trSignature tr
+      let mvsBodies = Sig.metaVarsBodies $ trSignature tr
       drawLine
-      putStrLn $ "-- Solved MetaVars: " ++ show (length [() | (_, _, Just _) <- mvs])
+      putStrLn $ "-- Solved MetaVars: " ++ show (Map.size mvsTypes)
       putStrLn "-- Unsolved MetaVars: "
       drawLine
-      forM_ [(mv, mvType) | (mv, mvType, Nothing) <- mvs] $ \(mv, mvType) ->
-        putStrLn $ render $
-          PP.pretty mv <> PP.text " : " <> PP.nest 2 (PP.pretty (view mvType))
+      forM_ (Map.toList mvsTypes) $ \(mv, mvType) ->
+        case Map.lookup mv mvsBodies of
+          Nothing ->
+            putStrLn $ render $
+              PP.pretty mv <> PP.text " : " <> PP.nest 2 (PP.pretty (view mvType))
+          Just _ ->
+            return ()
       drawLine
       putStrLn $ "-- Solved problems: " ++ show (trSolvedProblems tr)
       putStrLn $ "-- Unsolved problems: " ++ show (trUnsolvedProblems tr)
@@ -1045,8 +1060,9 @@ matchTyCon
   -> StuckTC t v a
 matchTyCon tyCon t err handler = do
   blockedT <- whnfTC t
+  let t' = ignoreBlocking blockedT
   case blockedT of
-    NotBlocked t'
+    NotBlocked _
       | App (Def tyCon') tyConArgs0 <- view t'
       , tyCon == tyCon', Just tyConArgs <- mapM isApply tyConArgs0 -> do
         handler tyConArgs
@@ -1062,10 +1078,10 @@ matchTyCon tyCon t err handler = do
         instantiateMetaVar mv mvT
       -- TODO Dangerous recursion, relying on correct instantiation.
       -- Maybe remove and do it explicitly?
-      matchTyCon tyCon (ignoreBlocking blockedT) err handler
+      matchTyCon tyCon t' err handler
     BlockedOn mv _ _ -> do
-      fmap StuckOn $ newProblem_ mv $ \_ -> do
-        matchTyCon tyCon (ignoreBlocking blockedT) err handler
+      fmap StuckOn $ newProblem_ mv (MatchTyCon tyCon t') $ \_ -> do
+        matchTyCon tyCon t' err handler
     _ -> do
       NotStuck <$> checkError err
 
@@ -1078,8 +1094,9 @@ matchPi
   -> StuckTC t v a
 matchPi name t err handler = do
   blockedT <- whnfTC t
+  let t' = ignoreBlocking blockedT
   case blockedT of
-    NotBlocked t' | Pi dom cod <- view t' -> do
+    NotBlocked _ | Pi dom cod <- view t' -> do
       handler dom cod
     MetaVarHead mv _ -> do
       liftClosed $ do
@@ -1091,10 +1108,10 @@ matchPi name t err handler = do
         instantiateMetaVar mv mvT
       -- TODO Dangerous recursion, relying on correct instantiation.
       -- Maybe remove and do it explicitly?
-      matchPi name (ignoreBlocking blockedT) err handler
+      matchPi name t' err handler
     BlockedOn mv _ _ -> do
-      fmap StuckOn $ newProblem_ mv $ \_ -> do
-        matchPi name (ignoreBlocking blockedT) err handler
+      fmap StuckOn $ newProblem_ mv (MatchPi t') $ \_ -> do
+        matchPi name t' err handler
     _ -> do
       NotStuck <$> checkError err
 
@@ -1114,8 +1131,9 @@ matchEqual
   -> StuckTC t v a
 matchEqual t err handler = do
   blockedT <- whnfTC t
+  let t' = ignoreBlocking blockedT
   case blockedT of
-    NotBlocked t' | Equal type_ t1 t2 <- view t' -> do
+    NotBlocked _ | Equal type_ t1 t2 <- view t' -> do
       handler type_ t1 t2
     MetaVarHead mv _ -> do
       liftClosed $ do
@@ -1128,12 +1146,34 @@ matchEqual t err handler = do
         instantiateMetaVar mv mvT
       -- TODO Dangerous recursion, relying on correct instantiation.
       -- Maybe remove and do it explicitly?
-      matchEqual (ignoreBlocking blockedT) err handler
+      matchEqual t' err handler
     BlockedOn mv _ _ ->
-      fmap StuckOn $ newProblem_ mv $ \_ -> do
-        matchEqual (ignoreBlocking blockedT) err handler
+      fmap StuckOn $ newProblem_ mv (MatchEqual t') $ \_ -> do
+        matchEqual t' err handler
     _ -> do
       NotStuck <$> checkError err
+
+-- Problems shortcuts
+---------------------
+
+newProblemCheckEqual
+    :: (IsTerm t, IsVar v, Typeable v, Typeable t)
+    => Set.Set MetaVar -> Type t v -> Term t v -> Term t v
+    -> TC t v (ProblemId t v ())
+newProblemCheckEqual mvs type_ x y =
+    newProblem mvs (CheckEqual type_ x y) $ \_ -> checkEqual type_ x y
+
+newProblemCheckEqual_
+    :: (IsTerm t, IsVar v, Typeable v, Typeable t)
+    => MetaVar -> Type t v -> Term t v -> Term t v
+    -> TC t v (ProblemId t v ())
+newProblemCheckEqual_ mv = newProblemCheckEqual $ Set.singleton mv
+
+waitOnProblemCheckEqual
+    :: (IsTerm t, IsVar v, Typeable a, Typeable v, Typeable t)
+    => ProblemId t v' a -> Type t v -> Term t v -> Term t v -> TC t v (ProblemId t v())
+waitOnProblemCheckEqual pid type_ x y =
+    waitOnProblem pid (CheckEqual type_ x y) $ checkEqual type_ x y
 
 -- Errors
 ------------------------------------------------------------------------
@@ -1265,6 +1305,55 @@ ctxPi (Ctx.Snoc ctx (_n, type_)) t = ctxPi ctx $ pi type_ (toAbs t)
 ctxLam :: IsTerm t => Ctx.Ctx v0 (Type t) v -> Term t v -> Term t v0
 ctxLam Ctx.Empty        t = t
 ctxLam (Ctx.Snoc ctx _) t = ctxLam ctx $ lam $ toAbs t
+
+-- Types of problems
+------------------------------------------------------------------------
+
+data ProblemDescription t v
+    = CheckEqual (Type t v) (Term t v) (Term t v)
+    | WaitForInfer A.Expr (Type t v)
+    | forall a. EscapingScope (ProblemId t v a)
+    | MetaVarIfStuck (Term t v) (Type t v) (ProblemId t v (Term t v))
+    | forall a. WaitingOn (ProblemId t v a)
+    | CheckSpine (Term t v) [A.Elim] (Type t v)
+    | EqualSpine (Term t v) [Elim t v] [Elim t v] (Type t v)
+    | MatchTyCon Name (Type t v)
+    | MatchPi (Type t v)
+    | MatchEqual (Type t v)
+
+instance (IsVar v, IsTerm t) => PP.Pretty (ProblemDescription t v)  where
+    pretty desc = case desc of
+      CheckEqual type_ x y ->
+        PP.parens (prettyView x $$ PP.nest 2 "=" $$ prettyView y) <+>
+        PP.nest 2 ":" $$
+        prettyView type_
+      WaitForInfer synT type_ ->
+        "Waiting for inference of" $$ PP.nest 2 (
+          PP.pretty synT $$ PP.nest 2 ":" $$ prettyView type_)
+      EscapingScope pid ->
+        "Escaping scope" <+> PP.text (show pid)
+      MetaVarIfStuck mvT type_ pid | App (Meta mv) _ <- view mvT ->
+        "Waiting to equate placeholder" <+> PP.pretty mv <+> "of type" $$
+        PP.nest 2 (prettyView type_) $$
+        "to result of problem" <+> PP.text (show pid)
+      MetaVarIfStuck mvT _ _ ->
+        error $ "PP.Pretty ProblemDescription: got non-meta term: " ++ renderView mvT
+      WaitingOn pid ->
+        "Waiting on" <+> PP.text (show pid)
+      CheckSpine t elims type_ ->
+        "Checking spine" $$ PP.nest 2 (
+          PP.prettyApp 0 (prettyView t) elims $$ PP.nest 2 ":" $$ prettyView type_)
+      EqualSpine h elims1 elims2 type_ ->
+        "Equating spine" $$ PP.nest 2 (prettyView h) $$ PP.nest 2 (
+          PP.parens (PP.pretty elims1 $$ PP.nest 2 "=" $$ PP.pretty elims2) $$
+          PP.nest 2 ":" $$
+          prettyView type_)
+      MatchTyCon name type_ ->
+        ("Matching tycon" <+> PP.pretty name <+> "with type") $$ prettyView type_
+      MatchPi type_ ->
+        "Matching pi type" $$ prettyView type_
+      MatchEqual type_ ->
+        "Matching equal" $$ prettyView type_
 
 -- Constants
 ------------------------------------------------------------------------

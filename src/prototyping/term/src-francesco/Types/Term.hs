@@ -216,6 +216,9 @@ refl = unview Refl
 renderView :: (IsVar v, IsTerm t) => t v -> String
 renderView = PP.render . view
 
+prettyView :: (IsVar v, IsTerm t) => t v -> PP.Doc
+prettyView = PP.pretty . view
+
 -- Useful type synonyms
 -----------------------
 

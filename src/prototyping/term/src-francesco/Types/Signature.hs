@@ -5,16 +5,15 @@ module Types.Signature
     , getDefinition
     , addDefinition
       -- * MetaVars
-    , metaVars
     , getMetaVarType
     , getMetaVarBody
     , addMetaVar
     , instantiateMetaVar
-    , instantiatedMetaVars
+    , metaVarsTypes
+    , metaVarsBodies
     ) where
 
 import qualified Data.Map                         as Map
-import qualified Data.Set                         as Set
 
 import           Syntax.Abstract                  (Name)
 import           Types.Definition
@@ -89,13 +88,8 @@ instantiateMetaVar :: Signature t -> MetaVar -> Closed t -> Signature t
 instantiateMetaVar sig mv term =
     sig{sMetasBodies = Map.insert mv term (sMetasBodies sig)}
 
--- TODO these two functions below are too similar.
+metaVarsTypes :: Signature t -> Map.Map MetaVar (Closed (Type t))
+metaVarsTypes = sMetasTypes
 
-metaVars :: Signature t -> [(MetaVar, Closed (Type t), Maybe (Closed (Term t)))]
-metaVars sig =
-  [ (mv, mvType, getMetaVarBody sig mv)
-  | (mv, mvType) <- Map.toList (sMetasTypes sig)
-  ]
-
-instantiatedMetaVars :: Signature t -> Set.Set MetaVar
-instantiatedMetaVars = Map.keysSet . sMetasBodies
+metaVarsBodies :: Signature t -> Map.Map MetaVar (Closed (Term t))
+metaVarsBodies = sMetasBodies

@@ -1,3 +1,4 @@
+{-# LANGUAGE OverloadedStrings #-}
 module Types.Monad.Base
     ( -- * Monad definition
       TC
@@ -36,10 +37,11 @@ import qualified Data.Map.Strict                  as Map
 import qualified Data.Set                         as Set
 import           Data.Typeable                    (Typeable)
 import           Data.Dynamic                     (Dynamic, toDyn, fromDynamic)
-import           Control.Monad                    (ap, void, msum, when, forM, guard)
+import           Control.Monad                    (ap, void, msum, when, forM)
 import           Data.Functor                     ((<$>), (<$))
 import           Debug.Trace                      (trace)
 
+import qualified Text.PrettyPrint.Extended        as PP
 import           Syntax.Abstract                  (SrcLoc, noSrcLoc, HasSrcLoc, srcLoc)
 import           Syntax.Abstract.Pretty           ()
 import qualified Types.Context                    as Ctx
@@ -173,11 +175,13 @@ localContext f = local $ \env -> env{teContext = f (teContext env)}
 type ProblemIdInt = Int
 
 newtype ProblemId (t :: * -> *) v a = ProblemId ProblemIdInt
+  deriving (Show)
 
 data Problem t = forall a b v. (Typeable a, Typeable b, Typeable v) => Problem
-    { pContext :: !(Ctx.ClosedCtx t v)
-    , pProblem :: !(a -> StuckTC t v b)
-    , pState   :: !ProblemState
+    { pContext     :: !(Ctx.ClosedCtx t v)
+    , pProblem     :: !(a -> StuckTC t v b)
+    , pState       :: !ProblemState
+    , pDescription :: !PP.Doc
     }
 
 data ProblemState
@@ -197,13 +201,18 @@ data Stuck t v a
 
 type StuckTC t v a = TC t v (Stuck t v a)
 
+-- TODO use NFData.
+forceDoc :: PP.Doc -> PP.Doc
+forceDoc doc = length (PP.render doc) `seq` doc
+
 saveSrcLoc :: Problem t -> TC t v (Problem t)
-saveSrcLoc (Problem ctx m st) = do
+saveSrcLoc (Problem ctx m st desc) = do
   loc <- TC $ \(te, ts) -> OK ts $ teCurrentSrcLoc te
-  return $ Problem ctx (\x -> atSrcLoc loc (m x)) st
+  return $ Problem ctx (\x -> atSrcLoc loc (m x)) st desc
 
 addProblem :: Problem t -> TC t v (ProblemId t v a)
-addProblem prob = do
+addProblem prob0 = do
+  let prob = prob0{pDescription = forceDoc (pDescription prob0)}
   modify $ \ts ->
     let probs = tsUnsolvedProblems ts
         pid = case Map.maxViewWithKey probs of
@@ -212,38 +221,41 @@ addProblem prob = do
     in (ts{tsUnsolvedProblems = Map.insert pid prob probs}, ProblemId pid)
 
 newProblem
-    :: (Typeable a, Typeable v, Typeable t)
-    => Set.Set MetaVar -> (Closed (Term t) -> StuckTC t v a) -> TC t v (ProblemId t v a)
-newProblem mvs m = do
+    :: (Typeable a, Typeable v, Typeable t, PP.Pretty p)
+    => Set.Set MetaVar -> p -> (Closed (Term t) -> StuckTC t v a) -> TC t v (ProblemId t v a)
+newProblem mvs description m = do
     ctx <- askContext
     prob <- saveSrcLoc $ Problem
-      { pContext = ctx
-      , pProblem = m
-      , pState   = BoundToMetaVars mvs
+      { pContext     = ctx
+      , pProblem     = m
+      , pState       = BoundToMetaVars mvs
+      , pDescription = PP.pretty description
       }
     addProblem prob
 
 bindProblem
-    :: (Typeable a, Typeable b, Typeable v)
-    => ProblemId t v a -> (a -> StuckTC t v b) -> TC t v (ProblemId t v b)
-bindProblem (ProblemId pid) f = do
+    :: (Typeable a, Typeable b, Typeable v, PP.Pretty p)
+    => ProblemId t v a -> p -> (a -> StuckTC t v b) -> TC t v (ProblemId t v b)
+bindProblem (ProblemId pid) description f = do
     ctx <- askContext
     prob <- saveSrcLoc $ Problem
-      { pContext = ctx
-      , pProblem = f
-      , pState   = BoundToProblem pid
+      { pContext     = ctx
+      , pProblem     = f
+      , pState       = BoundToProblem pid
+      , pDescription = PP.pretty description
       }
     addProblem prob
 
 waitOnProblem
-    :: (Typeable a, Typeable b, Typeable v')
-    => ProblemId t v a -> StuckTC t v' b -> TC t v' (ProblemId t v' b)
-waitOnProblem (ProblemId pid) m = do
+    :: (Typeable a, Typeable b, Typeable v', PP.Pretty p)
+    => ProblemId t v a -> p -> StuckTC t v' b -> TC t v' (ProblemId t v' b)
+waitOnProblem (ProblemId pid) description m = do
     ctx <- askContext
     prob <- saveSrcLoc $ Problem
-      { pContext = ctx
-      , pProblem = \() -> m
-      , pState   = WaitingOnProblem pid
+      { pContext     = ctx
+      , pProblem     = \() -> m
+      , pState       = WaitingOnProblem pid
+      , pDescription = PP.pretty description
       }
     addProblem prob
 
@@ -251,51 +263,42 @@ waitOnProblem (ProblemId pid) m = do
 solveProblems :: (Typeable t) => ClosedTC t ()
 solveProblems = do
   unsolvedProbs <- Map.toList . tsUnsolvedProblems <$> get
-  progress <- fmap or $ forM unsolvedProbs $ \(pid, (Problem ctx prob state)) -> do
+  progress <- fmap or $ forM unsolvedProbs $ \(pid, (Problem ctx prob state description)) -> do
     mbSolved <- case state of
       BoundToMetaVars mvs -> do
         sig <- getSignature
-        let instantiatedMvs = Sig.instantiatedMetaVars sig
-        let mbMv = msum [ mv <$ guard (Set.member mv instantiatedMvs)
-                        | mv <- Set.toList mvs
-                        ]
-        case mbMv of
-          Nothing -> do
-            return Nothing
-          Just mv -> do
-            let Just mvBody = Sig.getMetaVarBody sig mv
-            return $ Just $ solvedProblem mvBody
+        return $ fmap solvedProblem $ msum
+          [Map.lookup mv $ Sig.metaVarsBodies sig | mv <- Set.toList mvs]
       BoundToProblem boundTo -> do
         Map.lookup boundTo . tsSolvedProblems <$> get
       WaitingOnProblem waitingOn -> do
-        mbSolved <- Map.lookup waitingOn . tsSolvedProblems <$> get
-        case mbSolved of
-          Nothing -> return Nothing
-          Just _  -> return $ Just $ solvedProblem ()
+        (solvedProblem () <$) . Map.lookup waitingOn . tsSolvedProblems <$> get
     case mbSolved of
       Nothing     -> return False
-      Just solved -> do trace ("Solving problem " ++ show pid ++ " on " ++ show state) $ return ()
-                        True <$ solveProblem pid solved ctx prob
+      Just solved -> do trace ("SOLVING problem " ++ show pid ++ " on " ++ show state) $ return ()
+                        True <$ solveProblem pid description solved ctx prob
   when progress solveProblems
   where
     solveProblem
       :: (Typeable a, Typeable b, Typeable v)
-      => ProblemIdInt -> SolvedProblem
+      => ProblemIdInt -> PP.Doc
+      -> SolvedProblem
       -> Ctx.ClosedCtx t v -> (a -> StuckTC t v b)
       -> ClosedTC t ()
-    solveProblem pid (SolvedProblem x) ctx m = do
+    solveProblem pid description (SolvedProblem x) ctx m = do
       Just x' <- return $ fromDynamic x
       modify_ $ \ts -> ts{tsUnsolvedProblems = Map.delete pid (tsUnsolvedProblems ts)}
       localContext (\_ -> ctx) $ do
         stuck <- m x'
         case stuck of
           NotStuck y -> do
-            trace ("SOLVED problem " ++ show pid) $ return ()
+            trace ("  SOLVED") $ return ()
             -- Mark the problem as solved.
             modify_ $ \ts ->
               ts{tsSolvedProblems = Map.insert pid (solvedProblem y) (tsSolvedProblems ts)}
           StuckOn (ProblemId boundTo) -> do
-            trace ("Stuck problem " ++ show pid ++ " on " ++ show pid) $ return ()
+            trace ("  STUCK on " ++ show boundTo) $ return ()
             -- If the problem is stuck, re-add it as a dependency of
             -- what it is stuck on.
-            void $ addProblem $ Problem ctx m $ BoundToProblem boundTo
+            void $ addProblem $ Problem ctx m (BoundToProblem boundTo) $
+              ("Stuck on" PP.<+> PP.pretty pid) PP.$$ PP.nest 2 (description)
