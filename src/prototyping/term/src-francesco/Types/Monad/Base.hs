@@ -227,6 +227,8 @@ addProblem prob0 = do
 newProblem
     :: (Typeable a, Typeable v, Typeable t, PP.Pretty p)
     => Set.Set MetaVar -> p -> (Closed (Term t) -> StuckTC t v a) -> TC t v (ProblemId t v a)
+newProblem mvs _ _ | Set.null mvs = do
+    error "Types.Monad.Base.newProblem: empty set of metas."
 newProblem mvs description m = do
     ctx <- askContext
     prob <- saveSrcLoc $ Problem

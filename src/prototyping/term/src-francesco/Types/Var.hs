@@ -8,6 +8,7 @@ import           Data.Void                        (Void, absurd)
 import           Data.Foldable                    (Foldable, foldr)
 import           Data.Maybe                       (fromMaybe)
 import           Data.Typeable                    (Typeable)
+import           Data.Monoid                      ((<>))
 
 import qualified Syntax.Abstract                  as A
 import           Syntax.Abstract                  (Name)
@@ -56,6 +57,9 @@ class VarIndex v where
     varIndex :: v -> Int
 
 class (Eq v, Typeable v, VarName v, VarIndex v) => IsVar v
+
+prettyVar :: (IsVar v) => v -> PP.Doc
+prettyVar v = PP.text (show (varIndex v) ++ "#") <> PP.pretty (varName v)
 
 instance VarName Void where
     varName = absurd

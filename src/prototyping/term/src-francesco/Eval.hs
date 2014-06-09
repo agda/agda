@@ -7,6 +7,7 @@ module Eval
       -- * Reducing
     , whnf
     , nf
+    , nfElim
     ) where
 
 import           Prelude                          hiding (pi)
@@ -15,8 +16,9 @@ import           Bound.Name                       (instantiateName)
 import           Data.Void                        (vacuousM)
 import           Control.Monad                    (guard, mzero, void)
 import           Control.Monad.Trans              (lift)
-import           Control.Monad.Trans.Maybe        (MaybeT, runMaybeT)
+import           Control.Monad.Trans.Maybe        (MaybeT(MaybeT), runMaybeT)
 import           Prelude.Extras                   (Eq1((==#)))
+import qualified Data.Set                         as Set
 
 import           Syntax.Abstract                  (Name)
 import           Syntax.Abstract.Pretty           ()
@@ -46,7 +48,7 @@ data Blocked t v
     = NotBlocked (t v)
     | MetaVarHead MetaVar [Elim t v]
     -- ^ The term is 'MetaVar'-headed.
-    | BlockedOn MetaVar Name [Elim t v]
+    | BlockedOn (Set.Set MetaVar) Name [Elim t v]
     -- ^ Returned when a 'MetaVar' is preventing us from reducing a
     -- definition.  The 'Name' is the name of the definition, the
     -- 'Elim's the eliminators stuck on it.
@@ -104,7 +106,7 @@ whnfFun sig funName es (Clause patterns body : clauses) =
 matchClause
   :: (IsTerm t)
   => Sig.Signature t -> [Elim t v] -> [Pattern]
-  -> MaybeT (Either MetaVar) ([t v], [Elim t v])
+  -> MaybeT (Either (Set.Set MetaVar)) ([t v], [Elim t v])
 matchClause _ es [] =
   return ([], es)
 matchClause sig (Apply arg : es) (VarP : patterns) = do
@@ -116,8 +118,10 @@ matchClause sig (Apply arg : es) (ConP dataCon dataConPatterns : patterns) = do
       -- Here we just want to see if we would make it without this
       -- blockage.  This also means that the last metavariable will
       -- block first.
-      void $ matchClause sig es patterns
-      lift $ Left mv
+      case matchClause sig es patterns of
+        MaybeT (Left mvs)      -> MaybeT $ Left $ Set.insert mv mvs
+        MaybeT (Right Nothing) -> MaybeT $ Right Nothing
+        MaybeT (Right _)       -> MaybeT $ Left $ Set.singleton mv
     NotBlocked t | Con dataCon' dataConArgs <- view t -> do
       guard (dataCon == dataCon')
       matchClause sig (map Apply dataConArgs ++ es) (dataConPatterns ++ patterns)
@@ -147,3 +151,7 @@ nf sig t = case view (ignoreBlocking (whnf sig t)) of
 
     nfElim (Apply t') = Apply $ nf sig t'
     nfElim (Proj n f) = Proj n f
+
+nfElim :: (IsTerm t) => Sig.Signature t -> Elim t v -> Elim t v
+nfElim sig (Proj ix field) = Proj ix field
+nfElim sig (Apply t)       = Apply $ nf sig t

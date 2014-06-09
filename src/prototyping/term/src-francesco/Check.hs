@@ -7,13 +7,14 @@ import           Data.Functor                     ((<$>), (<$))
 import           Data.Foldable                    (foldMap, forM_)
 import           Data.Monoid                      (Monoid(..),(<>))
 import qualified Data.HashSet                     as HS
-import           Control.Monad                    (when, guard, void)
+import           Control.Monad                    (when, void)
 import           Data.List                        (nub)
 import           Data.Traversable                 (traverse, sequenceA)
 import           Prelude.Extras                   ((==#))
 import           Data.Proxy                       (Proxy)
 import           Bound                            hiding (instantiate, abstract)
 import           Bound.Var                        (unvar)
+import qualified Bound.Name                       as Bound
 import           Data.Maybe                       (maybeToList)
 import           Data.Typeable                    (Typeable)
 import           Data.Void                        (vacuous, Void, vacuousM)
@@ -172,14 +173,14 @@ checkEqual type_ x y = do
       metaAssign type_ mv elims (ignoreBlocking t)
     (t, MetaVarHead mv elims) ->
       metaAssign type_ mv elims (ignoreBlocking t)
-    (BlockedOn mv _ _, _) -> do
+    (BlockedOn mvs _ _, _) -> do
       fmap StuckOn $
-        newProblemCheckEqual_ mv (unview typeView)
-                              (ignoreBlocking blockedX) (ignoreBlocking blockedY)
-    (_, BlockedOn mv _ _) -> do
+        newProblemCheckEqual mvs (unview typeView)
+                             (ignoreBlocking blockedX) (ignoreBlocking blockedY)
+    (_, BlockedOn mvs _ _) -> do
       fmap StuckOn $
-        newProblemCheckEqual_ mv (unview typeView)
-                              (ignoreBlocking blockedX) (ignoreBlocking blockedY)
+        newProblemCheckEqual mvs (unview typeView)
+                             (ignoreBlocking blockedX) (ignoreBlocking blockedY)
     (NotBlocked x', NotBlocked y') -> case (typeView, view x', view y') of
       -- Note that here we rely on canonical terms to have canonical
       -- types, and on the terms to be eta-expanded.
@@ -345,13 +346,23 @@ createTyConParsMvs (Tel.Cons (name, type') tel) = do
 metaAssign
     :: (IsVar v, IsTerm t)
     => Type t v -> MetaVar -> [Elim (Term t) v] -> Term t v -> StuckTC t v ()
-metaAssign type_ mv elims t =
-  case distinctVariables elims of
-    Nothing ->
-      fmap StuckOn $
-        newProblem_ mv (CheckEqual type_ (metaVar mv elims) t) $ \mvT ->
-          checkEqual type_ (eliminate (vacuous mvT) elims) t
-    Just vs -> do
+metaAssign type_ mv elims t = do
+  vsOrMvs <- checkPatternCondition elims
+  case vsOrMvs of
+    Left mvs -> do
+      -- If the pattern condition is not respected and we can't wait on
+      -- any metavariable to make progress, we try to prune the
+      -- metavariable
+      sig <- getSignature
+      let t' = nf sig t
+      vs <- liftClosed $ rigidVars t'
+      pruned <- liftClosed $ prune (`elem` vs) mv $ map (nfElim sig) elims
+      if pruned
+        then checkEqual type_ (metaVar mv elims) t
+        else fmap StuckOn $
+               newProblem (Set.insert mv mvs) (CheckEqual type_ (metaVar mv elims) t) $ \mvT ->
+                 checkEqual type_ (eliminate (vacuous mvT) elims) t
+    Right vs -> do
       -- TODO have `pruneTerm' return an evaluated term.
       liftClosed $ pruneTerm vs t
       sig <- getSignature
@@ -368,10 +379,10 @@ metaAssign type_ mv elims t =
         Rigid v ->
           checkError $ FreeVariableInEquatedTerm mv elims t v
 
--- Returns the pruned term
+-- | The term must be in normal form.
 pruneTerm
     :: (IsVar v, IsTerm t)
-    => [v] -- ^ allowed vars
+    => [v]                      -- ^ allowed vars
     -> Term t v
     -> ClosedTC t ()
 pruneTerm vs t = do
@@ -386,8 +397,8 @@ pruneTerm vs t = do
       pruneTerm (boundTermVar (getName codomain') : map F vs) codomain'
     Equal type_ x y ->
       mapM_ (pruneTerm vs) [type_, x, y]
-    App (Meta mv) elims | Just args <- mapM isApply elims ->
-      prune vs mv args >> return ()
+    App (Meta mv) elims ->
+      void (liftClosed (prune (`elem` vs) mv elims)) >> return ()
     App _ elims ->
       mapM_ (pruneTerm vs) [t' | Apply t' <- elims]
     Set ->
@@ -397,26 +408,30 @@ pruneTerm vs t = do
     Con _ args ->
       mapM_ (pruneTerm vs) args
 
--- | Returns the pruned application
+-- | Prunes a 'MetaVar' application and instantiates the new body.
+-- Returns whether some pruning was performed.
+--
+-- The term must be in normal form.
 prune
     :: forall t v0.
        (IsVar v0, IsTerm t)
-    => [v0]                     -- ^ allowed vars
+    => (v0 -> Bool)             -- ^ allowed vars
     -> MetaVar
-    -> [Term t v0]              -- ^ Arguments to the metavariable
-    -> ClosedTC t ()
-prune vs0 oldMv args = do
+    -> [Elim (Term t) v0]       -- ^ Arguments to the metavariable
+    -> ClosedTC t Bool
+prune allowedVar oldMv elims | Just args <- mapM isApply elims = do
   argsMatchable <- mapM potentiallyMatchable args
   if or argsMatchable
-    then return ()
+    then return False
     else do
       kills0 <- mapM toKill args
       mvType <- getTypeOfMetaVar oldMv
       (_, newMv, kills1) <- createNewMeta mvType kills0
-      instantiateMetaVar oldMv (createMetaLam newMv kills1)
+      if any (\(Bound.Name _ b) -> b) kills1
+        then True <$ instantiateMetaVar oldMv (createMetaLam newMv kills1)
+        else return False
   where
-    toKill arg = rigidVars [] arg >>= \ rs -> return $ not $ rs `subset` vs0
-    subset xs ys = all (`elem` ys) xs -- TODO efficiency: Set?
+    toKill arg = rigidVars arg >>= \rs -> return $ not $ all allowedVar rs
 
     -- We build a telescope with only the non-killed types in.  This
     -- way, we can analyze the dependency between arguments and avoid
@@ -459,7 +474,9 @@ prune vs0 oldMv args = do
         go vs (kill : kills) =
           let vs' = (if unNamed kill then [] else [B (() <$ kill)]) ++ map F vs
           in lam $ toAbs $ go vs' kills
-
+prune _ _ _ = do
+  -- TODO we could probably do something more.
+  return False
 
 -- | Collects all the rigidly occurring variables in a term.
 --
@@ -476,10 +493,8 @@ prune vs0 oldMv args = do
 rigidVars
     :: forall t v0.
        (IsVar v0, IsTerm t)
-    => [v0]
-    -- ^ vars that count as flexible, and so also flexible contexts
-    -> Term t v0 -> ClosedTC t [v0]
-rigidVars vs t0 = do
+    => Term t v0 -> ClosedTC t [v0]
+rigidVars t0 = do
   sig <- getSignature
   let
     go :: (IsVar v)
@@ -528,7 +543,7 @@ rigidVars vs t0 = do
     addNew _ (B _) = True
     addNew f (F v) = f v
 
-  return $ go Just (`elem` vs) t0
+  return $ go Just (const False) t0
 
 -- | Check whether a term @Def f es@ is finally stuck.
 --   Currently, we give only a crude approximation.
@@ -538,7 +553,7 @@ isNeutral sig f _ =
     Constant{}    -> True
     Constructor{} -> error $ "impossible.isNeutral: constructor " ++ show f
     Projection{}  -> error $ "impossible.isNeutral: projection " ++ show f
-    _             -> False
+    Function{}    -> True
     -- TODO: more precise analysis
     -- We need to check whether a function is stuck on a variable
     -- (not meta variable), but the API does not help us...
@@ -562,17 +577,49 @@ potentiallyMatchable t = do
     _ ->
       return False
 
-distinctVariables :: (IsVar v, IsTerm t) => [Elim (Term t) v] -> Maybe [v]
-distinctVariables elims = do
-    vs <- mapM isVar elims
-    guard (vs == nub vs)
-    return vs
+-- pruneMetaArguments
+--   :: (IsVar v, IsTerm t)
+--   => Type t v -> MetaVar -> [Elim (Term t) v]
+--   -> TC t v (MetaVar, [Elim (Term t) v])
+-- pruneMetaArguments = error "TODO pruneMetaArguments"
+
+-- | 'Left' 'Just' if the pattern condition check is blocked on a some
+-- 'MetaVar's.  The set is empty if the pattern condition is not
+-- respected and no 'MetaVar' can change that.
+--
+-- 'Right' if the pattern condition is respected, with the distinct
+-- variables.
+checkPatternCondition
+  :: (IsVar v, IsTerm t)
+  => [Elim (Term t) v] -> TC t v (Either (Set.Set MetaVar) [v])
+checkPatternCondition elims0 = do
+  mbVsOrMvs <- go elims0
+  return $ case mbVsOrMvs of
+    Right vs -> if vs == nub vs then Right vs else Left Set.empty
+    _        -> mbVsOrMvs
   where
-    isVar (Apply t) = case view t of
-        App (Var v) [] -> Just v
-        _              -> Nothing
-    isVar _ =
-        Nothing
+    go
+      :: (IsVar v, IsTerm t)
+      => [Elim (Term t) v] -> TC t v (Either (Set.Set MetaVar) [v])
+    go [] = return $ Right []
+    go (elim : elims) = do
+      elimOrMvs <- case elim of
+        Apply t -> do
+          -- TODO do we need to normalize here?
+          blockedT <- whnfTC t
+          return $ case blockedT of
+            NotBlocked t' | App (Var v) [] <- view t' -> Right v
+            MetaVarHead mv _                          -> Left $ Set.singleton mv
+            BlockedOn mvs _ _                         -> Left mvs
+            _                                         -> Left Set.empty
+        _ ->
+          return $ Left Set.empty
+      elimsOrMvs <- go elims
+      return $ case (elimOrMvs, elimsOrMvs) of
+        (Left mvs1, Left mvs2) -> Left $ mvs1 <> mvs2
+        (Left mvs, Right _)    -> Left mvs
+        (Right _, Left mvs)    -> Left mvs
+        (Right v, Right vs)    -> Right (v : vs)
 
 -- | Creates a term in the same context as the original term but lambda
 -- abstracted over the given variables.
@@ -711,6 +758,14 @@ checkProgram _ decls0 = do
       let mvsBodies = Sig.metaVarsBodies $ trSignature tr
       drawLine
       putStrLn $ "-- Solved MetaVars: " ++ show (Map.size mvsTypes)
+      drawLine
+      forM_ (Map.toList mvsTypes) $ \(mv, mvType) -> do
+        forM_ (Map.lookup mv mvsBodies) $ \mvBody -> do
+          putStrLn $ render $
+            PP.pretty mv <+> ":" <+> PP.nest 2 (PP.pretty (view mvType))
+          putStrLn $ render $
+            PP.pretty mv <+> "=" <+> PP.nest 2 (PP.pretty (view mvBody))
+      drawLine
       putStrLn "-- Unsolved MetaVars: "
       drawLine
       forM_ (Map.toList mvsTypes) $ \(mv, mvType) ->
@@ -1084,8 +1139,8 @@ matchTyCon tyCon t err handler = do
       -- TODO Dangerous recursion, relying on correct instantiation.
       -- Maybe remove and do it explicitly?
       matchTyCon tyCon t' err handler
-    BlockedOn mv _ _ -> do
-      fmap StuckOn $ newProblem_ mv (MatchTyCon tyCon t') $ \_ -> do
+    BlockedOn mvs _ _ -> do
+      fmap StuckOn $ newProblem mvs (MatchTyCon tyCon t') $ \_ -> do
         matchTyCon tyCon t' err handler
     _ -> do
       NotStuck <$> checkError err
@@ -1114,8 +1169,8 @@ matchPi name t err handler = do
       -- TODO Dangerous recursion, relying on correct instantiation.
       -- Maybe remove and do it explicitly?
       matchPi name t' err handler
-    BlockedOn mv _ _ -> do
-      fmap StuckOn $ newProblem_ mv (MatchPi t') $ \_ -> do
+    BlockedOn mvs _ _ -> do
+      fmap StuckOn $ newProblem mvs (MatchPi t') $ \_ -> do
         matchPi name t' err handler
     _ -> do
       NotStuck <$> checkError err
@@ -1152,8 +1207,8 @@ matchEqual t err handler = do
       -- TODO Dangerous recursion, relying on correct instantiation.
       -- Maybe remove and do it explicitly?
       matchEqual t' err handler
-    BlockedOn mv _ _ ->
-      fmap StuckOn $ newProblem_ mv (MatchEqual t') $ \_ -> do
+    BlockedOn mvs _ _ ->
+      fmap StuckOn $ newProblem mvs (MatchEqual t') $ \_ -> do
         matchEqual t' err handler
     _ -> do
       NotStuck <$> checkError err
@@ -1165,19 +1220,13 @@ newProblemCheckEqual
     :: (IsTerm t, IsVar v, Typeable v, Typeable t)
     => Set.Set MetaVar -> Type t v -> Term t v -> Term t v
     -> TC t v (ProblemId t v ())
-newProblemCheckEqual mvs type_ x y =
+newProblemCheckEqual mvs type_ x y = do
     newProblem mvs (CheckEqual type_ x y) $ \_ -> checkEqual type_ x y
-
-newProblemCheckEqual_
-    :: (IsTerm t, IsVar v, Typeable v, Typeable t)
-    => MetaVar -> Type t v -> Term t v -> Term t v
-    -> TC t v (ProblemId t v ())
-newProblemCheckEqual_ mv = newProblemCheckEqual $ Set.singleton mv
 
 waitOnProblemCheckEqual
     :: (IsTerm t, IsVar v, Typeable a, Typeable v, Typeable t)
     => ProblemId t v' a -> Type t v -> Term t v -> Term t v -> TC t v (ProblemId t v())
-waitOnProblemCheckEqual pid type_ x y =
+waitOnProblemCheckEqual pid type_ x y = do
     waitOnProblem pid (CheckEqual type_ x y) $ checkEqual type_ x y
 
 -- Errors
