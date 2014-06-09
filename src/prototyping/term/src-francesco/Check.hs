@@ -424,9 +424,11 @@ prune allowedVar oldMv elims | Just args <- mapM isApply elims = do
   if or argsMatchable
     then return False
     else do
+      -- TODO check that newly created meta is well-typed.
       kills0 <- mapM toKill args
-      mvType <- getTypeOfMetaVar oldMv
-      (_, newMv, kills1) <- createNewMeta mvType kills0
+      oldMvType <- getTypeOfMetaVar oldMv
+      (newMvType, kills1) <- createNewMeta oldMvType kills0
+      newMv <- addMetaVar $ telPi newMvType
       if any (\(Bound.Name _ b) -> b) kills1
         then True <$ instantiateMetaVar oldMv (createMetaLam newMv kills1)
         else return False
@@ -442,26 +444,24 @@ prune allowedVar oldMv elims | Just args <- mapM isApply elims = do
     -- performed on it as well.
     createNewMeta
       :: Type t v -> [Bool]
-      -> TC t v (Tel.IdTel (Type t) v, MetaVar, [Named Bool])
+      -> TC t v (Tel.IdTel (Type t) v, [Named Bool])
     createNewMeta type_ [] = do
-      ctx <- askContext
-      newMv <- addMetaVar $ ctxPi ctx type_
-      return (Tel.Empty (Tel.Id type_), newMv, [])
+      return (Tel.Empty (Tel.Id type_), [])
     createNewMeta type_ (kill : kills) = do
       typeView <- whnfViewTC type_
       case typeView of
         Pi domain codomain -> do
           let codomain' = fromAbs codomain
           let name      = getName codomain'
-          (tel, newMv, kills') <-
+          (tel, kills') <-
             extendContext name domain $ \_ -> createNewMeta codomain' kills
-          let notKilled = (Tel.Cons (name, domain) tel, newMv, named name False : kills')
+          let notKilled = (Tel.Cons (name, domain) tel, named name False : kills')
           return $
             if not kill
             then notKilled
             else case traverse (unvar (const Nothing) Just) tel of
               Nothing   -> notKilled
-              Just tel' -> (tel', newMv, named name True : kills')
+              Just tel' -> (tel', named name True : kills')
         _ ->
           error "impossible.createPrunedMeta: metavar type too short"
 
