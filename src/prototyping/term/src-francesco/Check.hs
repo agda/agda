@@ -721,9 +721,14 @@ checkProgram _ decls0 = do
           Just _ ->
             return ()
       drawLine
-      putStrLn $ "-- Solved problems: " ++ show (trSolvedProblems tr)
-      putStrLn $ "-- Unsolved problems: " ++ show (trUnsolvedProblems tr)
+      putStrLn $ "-- Solved problems: " ++ show (Set.size (trSolvedProblems tr))
+      putStrLn $ "-- Unsolved problems: " ++ show (Map.size (trUnsolvedProblems tr))
       drawLine
+      forM_ (Map.toList (trUnsolvedProblems tr)) $ \(pid, (probState, probDesc)) ->
+        putStrLn $ render $
+          PP.nest 2 (PP.pretty pid) $$
+          PP.nest 4 (PP.pretty probState) $$
+          PP.nest 4 probDesc
 
     drawLine =
       putStrLn "------------------------------------------------------------------------"
@@ -1324,7 +1329,7 @@ data ProblemDescription t v
 instance (IsVar v, IsTerm t) => PP.Pretty (ProblemDescription t v)  where
     pretty desc = case desc of
       CheckEqual type_ x y ->
-        PP.parens (prettyView x $$ PP.nest 2 "=" $$ prettyView y) <+>
+        prettyView x $$ PP.nest 2 "=" $$ prettyView y $$
         PP.nest 2 ":" $$
         prettyView type_
       WaitForInfer synT type_ ->
@@ -1345,7 +1350,7 @@ instance (IsVar v, IsTerm t) => PP.Pretty (ProblemDescription t v)  where
           PP.prettyApp 0 (prettyView t) elims $$ PP.nest 2 ":" $$ prettyView type_)
       EqualSpine h elims1 elims2 type_ ->
         "Equating spine" $$ PP.nest 2 (prettyView h) $$ PP.nest 2 (
-          PP.parens (PP.pretty elims1 $$ PP.nest 2 "=" $$ PP.pretty elims2) $$
+          PP.pretty elims1 $$ PP.nest 2 "=" $$ PP.pretty elims2 $$
           PP.nest 2 ":" $$
           prettyView type_)
       MatchTyCon name type_ ->

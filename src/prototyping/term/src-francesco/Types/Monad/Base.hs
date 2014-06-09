@@ -21,6 +21,8 @@ module Types.Monad.Base
     , localContext
       -- * Problem handling
     , ProblemId
+    , ProblemIdInt
+    , ProblemState
     , Stuck(..)
     , StuckTC
     , newProblem
@@ -39,7 +41,6 @@ import           Data.Typeable                    (Typeable)
 import           Data.Dynamic                     (Dynamic, toDyn, fromDynamic)
 import           Control.Monad                    (ap, void, msum, when, forM)
 import           Data.Functor                     ((<$>), (<$))
-import           Debug.Trace                      (trace)
 
 import qualified Text.PrettyPrint.Extended        as PP
 import           Syntax.Abstract                  (SrcLoc, noSrcLoc, HasSrcLoc, srcLoc)
@@ -124,15 +125,15 @@ instance Show TCErr where
 
 data TCReport t = TCReport
   { trSignature        :: !(Sig.Signature t)
-  , trSolvedProblems   :: !Int
-  , trUnsolvedProblems :: !Int
+  , trSolvedProblems   :: !(Set.Set ProblemIdInt)
+  , trUnsolvedProblems :: !(Map.Map ProblemIdInt (ProblemState, PP.Doc))
   }
 
 tcReport :: TCState t -> TCReport t
 tcReport ts = TCReport
   { trSignature        = tsSignature ts
-  , trSolvedProblems   = Map.size $ tsSolvedProblems ts
-  , trUnsolvedProblems = Map.size $ tsUnsolvedProblems ts
+  , trSolvedProblems   = Map.keysSet $ tsSolvedProblems ts
+  , trUnsolvedProblems = fmap (\p -> (pState p, pDescription p)) $ tsUnsolvedProblems ts
   }
 
 -- Errors
@@ -189,6 +190,9 @@ data ProblemState
     | WaitingOnProblem !ProblemIdInt
     | BoundToProblem   !ProblemIdInt
     deriving (Show)
+
+instance PP.Pretty ProblemState where
+  pretty = PP.text . show
 
 newtype SolvedProblem = SolvedProblem Dynamic
 
@@ -275,8 +279,7 @@ solveProblems = do
         (solvedProblem () <$) . Map.lookup waitingOn . tsSolvedProblems <$> get
     case mbSolved of
       Nothing     -> return False
-      Just solved -> do trace ("SOLVING problem " ++ show pid ++ " on " ++ show state) $ return ()
-                        True <$ solveProblem pid description solved ctx prob
+      Just solved -> do True <$ solveProblem pid description solved ctx prob
   when progress solveProblems
   where
     solveProblem
@@ -292,12 +295,10 @@ solveProblems = do
         stuck <- m x'
         case stuck of
           NotStuck y -> do
-            trace ("  SOLVED") $ return ()
             -- Mark the problem as solved.
             modify_ $ \ts ->
               ts{tsSolvedProblems = Map.insert pid (solvedProblem y) (tsSolvedProblems ts)}
           StuckOn (ProblemId boundTo) -> do
-            trace ("  STUCK on " ++ show boundTo) $ return ()
             -- If the problem is stuck, re-add it as a dependency of
             -- what it is stuck on.
             void $ addProblem $ Problem ctx m (BoundToProblem boundTo) $
