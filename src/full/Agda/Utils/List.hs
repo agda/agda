@@ -44,16 +44,12 @@ initLast as = Just $ loop as where
   loop [a]      = ([], a)
   loop (a : as) = mapFst (a:) $ loop as
 
--- | Lookup function (safe).
-
+-- | Lookup function (partially safe).
 (!!!) :: [a] -> Int -> Maybe a
-[]     !!! _ = Nothing
-(x:xs) !!! 0 = Just x
-(x:xs) !!! n = xs !!! predecessor n
-
-predecessor n
-  | n > 0     = n - 1
-  | otherwise = __IMPOSSIBLE__
+_        !!! n | n < 0 = __IMPOSSIBLE__
+[]       !!! _         = Nothing
+(x : _)  !!! 0         = Just x
+(_ : xs) !!! n         = xs !!! (n - 1)
 
 -- | downFrom n = [n-1,..1,0]
 downFrom :: Integral a => a -> [a]
