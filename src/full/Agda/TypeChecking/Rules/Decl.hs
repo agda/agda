@@ -376,20 +376,7 @@ checkPragma r p =
              unless (m == m') $ typeError $ GenericError $
               "COMPILED_DATA directives must appear in the same module " ++
               "as their corresponding datatype definition,"
-          case theDef def of
-            Datatype{dataCons = cs}
-              | length cs /= length hcs -> do
-                  let n_forms_are = case length hcs of
-                        1 -> "1 compiled form is"
-                        n -> show n ++ " compiled forms are"
-                      only | null hcs               = ""
-                           | length hcs < length cs = "only "
-                           | otherwise              = ""
-
-                  err <- fsep $ [prettyTCM x] ++ pwords ("has " ++ show (length cs) ++
-                                " constructors, but " ++ only ++ n_forms_are ++ " given [" ++ unwords hcs ++ "]")
-                  typeError $ GenericError $ show err
-              | otherwise -> do
+          let addCompiledData cs = do
                 addHaskellType x hs
                 let computeHaskellType c = do
                       def <- getConstInfo c
@@ -406,6 +393,26 @@ checkPragma r p =
                       return ty
                 hts <- mapM computeHaskellType cs
                 sequence_ $ zipWith3 addHaskellCode cs hts hcs
+          case theDef def of
+            Datatype{dataCons = cs}
+              | length cs /= length hcs -> do
+                  let n_forms_are = case length hcs of
+                        1 -> "1 compiled form is"
+                        n -> show n ++ " compiled forms are"
+                      only | null hcs               = ""
+                           | length hcs < length cs = "only "
+                           | otherwise              = ""
+
+                  err <- fsep $ [prettyTCM x] ++ pwords ("has " ++ show (length cs) ++
+                                " constructors, but " ++ only ++ n_forms_are ++ " given [" ++ unwords hcs ++ "]")
+                  typeError $ GenericError $ show err
+              | otherwise -> addCompiledData cs
+            Record{recConHead = ch}
+              | length hcs == 1 -> addCompiledData [conName ch]
+              | otherwise -> do
+                  err <- fsep $ [prettyTCM x] ++ pwords ("has 1 constructor, but " ++
+                                show (length hcs) ++ " Haskell constructors are given [" ++ unwords hcs ++ "]")
+                  typeError $ GenericError $ show err
             _ -> typeError $ GenericError "COMPILED_DATA on non datatype"
         A.CompiledPragma x hs -> do
           def <- getConstInfo x
