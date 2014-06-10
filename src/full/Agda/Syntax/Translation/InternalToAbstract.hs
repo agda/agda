@@ -659,9 +659,10 @@ stripImplicits (ps, wps) = do          -- v if show-implicit we don't need the n
         stripArgs _ [] = []
         stripArgs fixedPos (a : as) =
           case getHiding a of
-            Hidden | canStrip a as -> stripArgs False as
-            _                      -> stripName fixedPos (stripArg a) :
-                                      stripArgs True as
+            Hidden   | canStrip a as -> stripArgs False as
+            Instance | canStrip a as -> stripArgs False as
+            _                        -> stripName fixedPos (stripArg a) :
+                                        stripArgs True as
 
         stripName True  = fmap (unnamed . namedThing)
         stripName False = id
@@ -673,7 +674,7 @@ stripImplicits (ps, wps) = do          -- v if show-implicit we don't need the n
           ]
           where p = namedArg a
 
-        isUnnamedHidden x = isHidden x && nameOf (unArg x) == Nothing
+        isUnnamedHidden x = notVisible x && nameOf (unArg x) == Nothing
 
         stripArg a = fmap (fmap stripPat) a
 
