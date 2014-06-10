@@ -14,8 +14,7 @@ import           Prelude                          hiding (pi)
 
 import           Bound.Name                       (instantiateName)
 import           Data.Void                        (vacuousM)
-import           Control.Monad                    (guard, mzero, void)
-import           Control.Monad.Trans              (lift)
+import           Control.Monad                    (guard, mzero)
 import           Control.Monad.Trans.Maybe        (MaybeT(MaybeT), runMaybeT)
 import           Prelude.Extras                   (Eq1((==#)))
 import qualified Data.Set                         as Set
@@ -98,7 +97,8 @@ whnfFun sig funName es (Clause patterns body : clauses) =
       BlockedOn mv funName es
     Right Nothing ->
       whnfFun sig funName es clauses
-    Right (Just (args, leftoverEs)) -> do
+    Right (Just (args0, leftoverEs)) -> do
+      let args = reverse args0
       let ixArg n = if n >= length args
                     then error "Eval.whnf: too few arguments"
                     else args !! n
@@ -158,7 +158,7 @@ class (Bound t) => Nf t where
   nf' :: (IsTerm f) => Sig.Signature f -> t f v -> t f v
 
 instance Nf Elim where
-  nf' sig (Proj ix field) = Proj ix field
+  nf' _   (Proj ix field) = Proj ix field
   nf' sig (Apply t)       = Apply $ nf sig t
 
 instance (Nf t) => Nf (Tel.Tel t) where

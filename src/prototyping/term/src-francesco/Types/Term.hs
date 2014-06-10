@@ -101,17 +101,19 @@ instance (IsTerm t, IsVar v) => PP.Pretty (TermView t v) where
     Equal a x y ->
       PP.prettyApp p (PP.text "_==_") [view a, view x, view y]
     Pi a0 b0 ->
-      let a = view a0
-          b = view $ fromAbs b0
-          n = getName b
+      let a   = view a0
+          b   = view $ fromAbs b0
+          mbN = getName b
       in PP.condParens (p > 0) $
-          PP.sep [ PP.parens (PP.pretty n <> PP.text " : " <> PP.pretty a) PP.<+>
+          PP.sep [ (PP.parens $ case mbN of
+                      Nothing -> PP.pretty a
+                      Just n  -> PP.pretty n <> PP.text " : " <> PP.pretty a) PP.<+>
                    PP.text "->"
                  , PP.nest 2 $ PP.pretty b
                  ]
     Lam b0 ->
       let b = view $ fromAbs b0
-          n = getName b
+          n = getName_ b
       in PP.condParens (p > 0) $
          PP.sep [ PP.text "\\" <> PP.pretty n <> PP.text " ->"
                 , PP.nest 2 $ PP.pretty b
@@ -125,7 +127,7 @@ instance (IsTerm t, IsVar v) => PP.Pretty (TermView t v) where
 
 instance (IsTerm t) => PP.Pretty (Closed (Definition t)) where
   pretty (Constant Postulate type_) =
-    ":" <+> prettyView type_
+    prettyView type_
   pretty (Constant (Data dataCons) type_) =
     "data" <+> prettyView type_ <+> "where" $$
     PP.nest 2 (PP.vcat (map PP.pretty dataCons))
@@ -138,7 +140,7 @@ instance (IsTerm t) => PP.Pretty (Closed (Definition t)) where
   pretty (Projection _ tyCon type_) =
     "projection" <+> PP.pretty tyCon $$ PP.nest 2 (prettyTele type_)
   pretty (Function type_ clauses) =
-    ":" <+> prettyView type_ $$
+    prettyView type_ $$
     PP.vcat (map (\(Clause pats body) -> PP.pretty pats <+> "=" $$ PP.nest 2 (prettyView (fromScope body))) clauses)
 
 prettyTele :: (IsVar v, IsTerm t) => Tel.IdTel t v -> PP.Doc
@@ -154,7 +156,7 @@ prettyTele (Tel.Cons (n0, type0) tel0) =
       ";" <+> PP.pretty n <+> ":" <+> prettyView type_ <+> prettyTele tel
 
 instance (IsTerm t) => Show (Closed (Definition t)) where
-  show = PP.render . PP.pretty
+  show = PP.renderStyle PP.style{PP.lineLength = 200} . PP.pretty
 
 -- Term typeclass
 ------------------------------------------------------------------------

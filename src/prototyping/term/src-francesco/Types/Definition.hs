@@ -8,7 +8,6 @@ module Types.Definition
     , ConstantKind(..)
     ) where
 
-import           Data.Void                        (Void)
 import           Bound
 
 import           Syntax.Abstract                  (Name)

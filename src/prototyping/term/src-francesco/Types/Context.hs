@@ -59,15 +59,15 @@ length :: Ctx v0 t v -> Int
 length Empty        = 0
 length (Snoc ctx _) = 1 + length ctx
 
--- | Gets the index of a variable *from the left*.  0-indexed.  So the
--- rightmost thing will have index @length 'Ctx' - 1@, and the leftmost
--- thing will have index @0@.  Also returns the name at that index.
+-- | Gets the index of a variable *from the right*.  0-indexed.  So the
+-- rightmost type will have index @0@, and the leftmost type will have
+-- index @length 'Ctx' - 1@.  Also returns the name at that index.
 elemIndex :: v -> ClosedCtx t v -> Named Int
-elemIndex v0 ctx0 = fmap (length ctx0 -) $ go ctx0 v0
+elemIndex v0 ctx0 = go ctx0 v0
   where
     go :: ClosedCtx t v -> v -> Named Int
     go Empty v = absurd v
-    go (Snoc _ctx (n, _type)) (B _) = named n 1
+    go (Snoc _ctx (n, _type)) (B _) = named n 0
     go (Snoc  ctx _         ) (F v) = fmap (+ 1) $ go ctx v
 
 (++) :: Ctx v0 t v1 -> Ctx v1 t v2 -> Ctx v0 t v2
@@ -77,3 +77,4 @@ ctx1 ++ (Snoc ctx2 namedType) = Snoc (ctx1 ++ ctx2) namedType
 weaken :: Ctx v0 t v -> v0 -> v
 weaken Empty        v = v
 weaken (Snoc ctx _) v = F (weaken ctx v)
+

@@ -40,12 +40,15 @@ boundTermVar n = B $ named n ()
 
 type Closed t = t Void
 
-getName :: Foldable t => t (TermVar v) -> Name
-getName = fromMaybe (A.name "_") . foldr f Nothing
+getName :: Foldable t => t (TermVar v) -> Maybe Name
+getName = foldr f Nothing
   where
     f _     (Just n) = Just n
     f (B v) Nothing  = Just (Bound.name v)
     f (F _) Nothing  = Nothing
+
+getName_ :: Foldable t => t (TermVar v) -> Name
+getName_ = fromMaybe (A.name "_") . getName
 
 -- 'IsVar' variables
 ------------------------------------------------------------------------

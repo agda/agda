@@ -190,7 +190,7 @@ checkEqual type_ x y = do
         let cod'   = fromAbs cod
         -- This is unfortunate, we need to create a new problem only
         -- because the recursive call is in a different context.
-        stuck <- extendContext (getName body1') dom $ \_ ->
+        stuck <- extendContext (getName_ body1') dom $ \_ ->
                  checkEqual cod' body1' body2'
         -- TODO use some helper function
         case stuck of
@@ -205,13 +205,13 @@ checkEqual type_ x y = do
         -- (see above)
         case stuck of
           NotStuck () -> do
-            stuck' <- extendContext (getName cod1') dom1 $ \_ ->
+            stuck' <- extendContext (getName_ cod1') dom1 $ \_ ->
               checkEqual set cod1' (fromAbs cod2)
             case stuck' of
               NotStuck () -> notStuck ()
               StuckOn pid -> StuckOn <$> waitOnProblem pid (EscapingScope pid) (notStuck ())
           StuckOn pid -> do
-            pid' <- extendContext (getName cod1') dom1 $ \_ ->
+            pid' <- extendContext (getName_ cod1') dom1 $ \_ ->
                     waitOnProblemCheckEqual pid set cod1' (fromAbs cod2)
             StuckOn <$> waitOnProblem pid' (EscapingScope pid') (notStuck ())
       (Set, Equal type1 x1 y1, Equal type2 x2 y2) ->
@@ -246,7 +246,7 @@ checkEqual type_ x y = do
           return $ \t ->
             def dataCon $ map (\(n, ix) -> Apply (eliminate t [Proj n ix])) projs
         Pi _ codomain -> do
-          let name = getName $ fromAbs codomain
+          let name = getName_ $ fromAbs codomain
           let v    = var $ boundTermVar name
           return $ \t ->
             case view t of
@@ -389,11 +389,11 @@ pruneTerm vs t = do
   case whnfView sig t of
     Lam body -> do
       let body' = fromAbs body
-      pruneTerm (boundTermVar (getName body') : map F vs) body'
+      pruneTerm (boundTermVar (getName_ body') : map F vs) body'
     Pi domain codomain -> do
       pruneTerm vs domain
       let codomain' = fromAbs codomain
-      pruneTerm (boundTermVar (getName codomain') : map F vs) codomain'
+      pruneTerm (boundTermVar (getName_ codomain') : map F vs) codomain'
     Equal type_ x y ->
       mapM_ (pruneTerm vs) [type_, x, y]
     App (Meta mv) elims ->
@@ -432,7 +432,7 @@ prune allowedVar oldMv elims | Just args <- mapM isApply elims = do
         then True <$ instantiateMetaVar oldMv (createMetaLam newMv kills1)
         else return False
   where
-    toKill arg = rigidVars arg >>= \rs -> return $ not $ all allowedVar rs
+    toKill arg = not . all allowedVar <$> rigidVars arg
 
     -- We build a telescope with only the non-killed types in.  This
     -- way, we can analyze the dependency between arguments and avoid
@@ -451,7 +451,7 @@ prune allowedVar oldMv elims | Just args <- mapM isApply elims = do
       case typeView of
         Pi domain codomain -> do
           let codomain' = fromAbs codomain
-          let name      = getName codomain'
+          let name      = getName_ codomain'
           (tel, kills') <-
             extendContext name domain $ \_ -> createNewMeta codomain' kills
           let notKilled = (Tel.Cons (name, domain) tel, named name False : kills')
@@ -552,7 +552,7 @@ isNeutral sig f _ =
     Constant{}    -> True
     Constructor{} -> error $ "impossible.isNeutral: constructor " ++ show f
     Projection{}  -> error $ "impossible.isNeutral: projection " ++ show f
-    Function{}    -> True
+    Function{}    -> False
     -- TODO: more precise analysis
     -- We need to check whether a function is stuck on a variable
     -- (not meta variable), but the API does not help us...
@@ -1036,7 +1036,7 @@ unrollPi type_ ret = do
   case typeView of
     Pi domain codomain -> do
       let codomain' = fromAbs codomain
-      let name      = getName codomain'
+      let name      = getName_ codomain'
       extendContext name domain $ \_v ->
         unrollPi codomain' $ \ctxVs endType ->
         ret (Ctx.singleton name domain Ctx.++ ctxVs) endType
