@@ -69,7 +69,7 @@ instance VarIndex Void where
 
 instance IsVar Void
 
-instance (VarName v) => VarName (Var (Named ()) v) where
+instance (VarName v) => VarName (Var (Named a) v) where
     varName (B v) = Bound.name v
     varName (F v) = varName v
 
@@ -77,7 +77,13 @@ instance (VarIndex v) => VarIndex (Var (Named ()) v) where
     varIndex (B _) = 0
     varIndex (F v) = 1 + varIndex v
 
+instance VarIndex (Var (Named Int) Void) where
+    varIndex (B (Bound.Name _ i)) = i
+    varIndex (F v)                = absurd v
+
 instance (IsVar v) => IsVar (Var (Named ()) v) where
+
+instance IsVar (Var (Named Int) Void) where
 
 instance VarName Name where
     varName = id

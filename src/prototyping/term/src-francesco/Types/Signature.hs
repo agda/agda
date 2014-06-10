@@ -22,7 +22,7 @@ import           Text.PrettyPrint.Extended        (render)
 import           Types.Term                       hiding (metaVars)
 
 data Signature t = Signature
-    { sDefinitions :: Map.Map Name (Definition t)
+    { sDefinitions :: Map.Map Name (Closed (Definition t))
     , sMetasTypes  :: Map.Map MetaVar (Closed (Type t))
     , sMetasBodies :: Map.Map MetaVar (Closed (Term t))
     }
@@ -30,13 +30,13 @@ data Signature t = Signature
 empty :: Signature t
 empty = Signature Map.empty Map.empty Map.empty
 
-getDefinition :: Signature t -> Name -> Definition t
+getDefinition :: Signature t -> Name -> Closed (Definition t)
 getDefinition sig name =
     case Map.lookup name (sDefinitions sig) of
       Nothing   -> error $ "impossible.getDefinition: not found " ++ show name
       Just def' -> def'
 
-addDefinition :: Signature t -> Name -> Definition t -> Signature t
+addDefinition :: Signature t -> Name -> Closed (Definition t) -> Signature t
 addDefinition sig name def' = case def' of
     Projection projIx tyCon _ -> addProjection tyCon projIx
     Constructor tyCon _       -> addConstructor tyCon

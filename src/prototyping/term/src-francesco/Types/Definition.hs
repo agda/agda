@@ -19,16 +19,19 @@ import qualified Text.PrettyPrint.Extended        as PP
 -- Clauses
 ------------------------------------------------------------------------
 
-type ClauseBody term = Scope (Named Int) term Void
+type ClauseBody t v = Scope (Named Int) t v
 
 -- | One clause of a function definition.
-data Clause term = Clause [Pattern] (ClauseBody term)
+data Clause t v = Clause [Pattern] (ClauseBody t v)
     deriving (Eq)
+
+instance Bound Clause where
+  Clause pats body >>>= f = Clause pats (body >>>= f)
 
 data Pattern
     = VarP
     | ConP Name [Pattern]
-    deriving (Eq)
+    deriving (Eq, Show)
 
 instance PP.Pretty Pattern where
   prettyPrec p e = case e of
@@ -38,13 +41,19 @@ instance PP.Pretty Pattern where
 -- Definition
 ------------------------------------------------------------------------
 
-data Definition term
-    = Constant ConstantKind (Closed term)
-    | Constructor Name (Tel.ClosedIdTel term)
+data Definition t v
+    = Constant ConstantKind (t v)
+    | Constructor Name (Tel.IdTel t v)
     -- ^ Data type name, parameter context with resulting type.
-    | Projection Field Name (Tel.ClosedIdTel term)
+    | Projection Field Name (Tel.IdTel t v)
     -- ^ Field number, record type name, parameter context with resulting type.
-    | Function (Closed term) [Clause term]
+    | Function (t v) [Clause t v]
+
+instance Bound Definition where
+  Constant kind t              >>>= f = Constant kind (t >>= f)
+  Constructor tyCon type_      >>>= f = Constructor tyCon (type_ >>>= f)
+  Projection field tyCon type_ >>>= f = Projection field tyCon (type_ >>>= f)
+  Function type_ clauses       >>>= f = Function (type_ >>= f) (map (>>>= f) clauses)
 
 data ConstantKind
     = Postulate

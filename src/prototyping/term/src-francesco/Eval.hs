@@ -7,7 +7,7 @@ module Eval
       -- * Reducing
     , whnf
     , nf
-    , nfElim
+    , Nf(nf')
     ) where
 
 import           Prelude                          hiding (pi)
@@ -19,6 +19,7 @@ import           Control.Monad.Trans              (lift)
 import           Control.Monad.Trans.Maybe        (MaybeT(MaybeT), runMaybeT)
 import           Prelude.Extras                   (Eq1((==#)))
 import qualified Data.Set                         as Set
+import           Bound                            hiding (instantiate)
 
 import           Syntax.Abstract                  (Name)
 import           Syntax.Abstract.Pretty           ()
@@ -26,6 +27,7 @@ import           Types.Var
 import           Types.Definition
 import qualified Types.Signature                  as Sig
 import           Types.Term
+import qualified Types.Telescope                  as Tel
 
 -- | Tries to apply the eliminators to the term.  Trows an error
 -- when the term and the eliminators don't match.
@@ -87,7 +89,7 @@ whnf sig t = case view t of
 
 whnfFun
   :: (IsTerm t)
-  => Sig.Signature t -> Name -> [Elim t v] -> [Clause t] -> Blocked t v
+  => Sig.Signature t -> Name -> [Elim t v] -> [Closed (Clause t)] -> Blocked t v
 whnfFun _ funName es [] =
   NotBlocked $ def funName es
 whnfFun sig funName es (Clause patterns body : clauses) =
@@ -152,6 +154,28 @@ nf sig t = case view (ignoreBlocking (whnf sig t)) of
     nfElim (Apply t') = Apply $ nf sig t'
     nfElim (Proj n f) = Proj n f
 
-nfElim :: (IsTerm t) => Sig.Signature t -> Elim t v -> Elim t v
-nfElim sig (Proj ix field) = Proj ix field
-nfElim sig (Apply t)       = Apply $ nf sig t
+class (Bound t) => Nf t where
+  nf' :: (IsTerm f) => Sig.Signature f -> t f v -> t f v
+
+instance Nf Elim where
+  nf' sig (Proj ix field) = Proj ix field
+  nf' sig (Apply t)       = Apply $ nf sig t
+
+instance (Nf t) => Nf (Tel.Tel t) where
+  nf' sig (Tel.Empty t)             = Tel.Empty $ nf' sig t
+  nf' sig (Tel.Cons (n, type_) tel) = Tel.Cons (n, nf sig type_) (nf' sig tel)
+
+instance Nf Tel.Id where
+  nf' sig (Tel.Id t) = Tel.Id $ nf sig t
+
+instance Nf Tel.Proxy where
+  nf' _ Tel.Proxy = Tel.Proxy
+
+instance Nf Clause where
+  nf' sig (Clause pats body) = Clause pats $ toScope $ nf sig $ fromScope body
+
+instance Nf Definition where
+  nf' sig (Constant kind t)              = Constant kind (nf sig t)
+  nf' sig (Constructor tyCon type_)      = Constructor tyCon $ nf' sig type_
+  nf' sig (Projection field tyCon type_) = Projection field tyCon $ nf' sig type_
+  nf' sig (Function type_ clauses)       = Function (nf sig type_) (map (nf' sig) clauses)

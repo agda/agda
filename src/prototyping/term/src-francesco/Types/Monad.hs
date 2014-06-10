@@ -67,11 +67,11 @@ modifySignature f = do
 -- Definitions operations
 ------------------------------------------------------------------------
 
-addDefinition :: IsTerm t => Name -> Definition t -> TC t v ()
+addDefinition :: IsTerm t => Name -> Closed (Definition t) -> TC t v ()
 addDefinition x def' =
   modifySignature $ \sig -> Sig.addDefinition sig x def'
 
-getDefinition :: IsTerm t => Name -> TC t v (Definition t)
+getDefinition :: IsTerm t => Name -> TC t v (Closed (Definition t))
 getDefinition name = atSrcLoc name $ do
   sig <- getSignature
   return $ Sig.getDefinition sig name

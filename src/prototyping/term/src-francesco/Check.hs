@@ -11,7 +11,6 @@ import           Control.Monad                    (when, void)
 import           Data.List                        (nub)
 import           Data.Traversable                 (traverse, sequenceA)
 import           Prelude.Extras                   ((==#))
-import           Data.Proxy                       (Proxy)
 import           Bound                            hiding (instantiate, abstract)
 import           Bound.Var                        (unvar)
 import qualified Bound.Name                       as Bound
@@ -356,7 +355,7 @@ metaAssign type_ mv elims t = do
       sig <- getSignature
       let t' = nf sig t
       vs <- liftClosed $ rigidVars t'
-      pruned <- liftClosed $ prune (`elem` vs) mv $ map (nfElim sig) elims
+      pruned <- liftClosed $ prune (`elem` vs) mv $ map (nf' sig) elims
       if pruned
         then checkEqual type_ (metaVar mv elims) t
         else fmap StuckOn $
@@ -736,16 +735,18 @@ bindStuckTC m desc f = do
 -- Checking definitions
 ------------------------------------------------------------------------
 
-checkProgram :: ∀ t. (IsTerm t) => Proxy t -> [A.Decl] -> IO (Maybe TCErr)
-checkProgram _ decls0 = do
+checkProgram
+    :: ∀ t. (IsTerm t) => [A.Decl] -> IO (Either TCErr (TCState t))
+checkProgram decls0 = do
     drawLine
     putStrLn "-- Checking declarations"
     drawLine
-    either Just (\() -> Nothing) <$> runEitherT (goDecls initTCState decls0)
+    runEitherT (goDecls initTCState decls0)
   where
-    goDecls :: TCState t -> [A.Decl] -> EitherT TCErr IO ()
+    goDecls :: TCState t -> [A.Decl] -> EitherT TCErr IO (TCState t)
     goDecls ts [] = do
       lift $ report ts
+      return ts
     goDecls ts (decl : decls) = do
       lift $ putStrLn $ render decl
       ((), ts') <- EitherT $ runTC ts $ checkDecl decl >> solveProblems
@@ -1062,7 +1063,7 @@ addProjection f n r tel = addDefinition f (Projection n r tel)
 
 addClause
     :: (IsVar v, IsTerm t)
-    => Name -> [Pattern] -> ClauseBody (Term t) -> TC t v ()
+    => Name -> [Pattern] -> ClauseBody (Term t) Void -> TC t v ()
 addClause f ps v = do
   def' <- getDefinition f
   let ext (Constant Postulate a) = Function a [c]
@@ -1074,7 +1075,7 @@ addClause f ps v = do
   where
     c = Clause ps v
 
-definitionType :: (IsTerm t) => Definition t -> Closed (Type t)
+definitionType :: (IsTerm t) => Closed (Definition t) -> Closed (Type t)
 definitionType (Constant _ type_)   = type_
 definitionType (Constructor _ tel)  = telPi tel
 definitionType (Projection _ _ tel) = telPi tel
