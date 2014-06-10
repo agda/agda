@@ -122,9 +122,10 @@ haskellType t = fromType t
           hsApp <$> getHsType d <*> fromArgs args
         Pi a b ->
           if isBinderUsed b  -- Andreas, 2012-04-03.  Q: could we rely on Abs/NoAbs instead of again checking freeness of variable?
-          then underAbstraction a b $ \b ->
-            hsForall <$> getHsVar 0 <*>
-              (hsFun <$> fromType (unDom a) <*> fromType b)
+          then do
+            hsA <- fromType (unDom a)
+            underAbstraction a b $ \b ->
+              hsForall <$> getHsVar 0 <*> (hsFun hsA <$> fromType b)
           else hsFun <$> fromType (unDom a) <*> fromType (absApp b __IMPOSSIBLE__)
         Con c args -> hsApp <$> getHsType (conName c) <*> fromArgs args
         Lam{}      -> err

@@ -386,7 +386,7 @@ checkPragma r p =
                             a <- reduce a
                             case unEl a of
                               Pi a (NoAbs _ b) -> underPars (n - 1) b
-                              Pi a b  -> underAbstraction a b $ underPars (n - 1)
+                              Pi a b  -> underAbstraction a b $ \b -> hsForall <$> getHsVar 0 <*> underPars (n - 1) b
                               _       -> __IMPOSSIBLE__
                       ty <- underPars np $ defType def
                       reportSLn "tc.pragma.compile" 10 $ "Haskell type for " ++ show c ++ ": " ++ ty
