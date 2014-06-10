@@ -416,7 +416,8 @@ compressPointerChain v =
 
 -- | An unapplied variable.
 var :: Nat -> Term
-var i = Var i []
+var i | i >= 0    = Var i []
+      | otherwise = __IMPOSSIBLE__
 
 -- | Add 'DontCare' is it is not already a @DontCare@.
 dontCare :: Term -> Term
