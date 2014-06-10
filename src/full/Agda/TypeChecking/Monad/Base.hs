@@ -1244,6 +1244,7 @@ data AbstractMode
 data ExpandHidden
   = ExpandLast      -- ^ Add implicit arguments in the end until type is no longer hidden 'Pi'.
   | DontExpandLast  -- ^ Do not append implicit arguments.
+  deriving (Eq)
 
 data ExpandInstances
   = ExpandInstanceArguments

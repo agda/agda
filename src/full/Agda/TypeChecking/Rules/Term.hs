@@ -1201,7 +1201,7 @@ checkArguments :: ExpandHidden -> ExpandInstances -> Range -> [I.NamedArg A.Expr
                   ErrorT (Args, [I.NamedArg A.Expr], Type) TCM (Args, Type)
 
 -- Case: no arguments, do not insert trailing hidden arguments: We are done.
-checkArguments DontExpandLast _ _ [] t0 t1 = return ([], t0)
+checkArguments DontExpandLast DontExpandInstanceArguments _ [] t0 t1 = return ([], t0)
 
 -- Case: no arguments, but need to insert trailing hiddens.
 checkArguments exh    expandIFS r [] t0 t1 =
@@ -1209,8 +1209,9 @@ checkArguments exh    expandIFS r [] t0 t1 =
       t1' <- unEl <$> reduce t1
       implicitArgs (-1) (expand t1') t0
     where
-      expand (Pi (Dom info _) _)   Hidden = getHiding info /= Hidden
-      expand _                     Hidden = True
+      expand (Pi (Dom info _) _)   Hidden = getHiding info /= Hidden &&
+                                            exh == ExpandLast
+      expand _                     Hidden = exh == ExpandLast
       expand (Pi (Dom info _) _) Instance = getHiding info /= Instance &&
                                             expandIFS == ExpandInstanceArguments
       expand _                   Instance = expandIFS == ExpandInstanceArguments
