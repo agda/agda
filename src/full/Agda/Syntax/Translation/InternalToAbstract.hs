@@ -259,7 +259,9 @@ reifyDisplayFormP lhs@(A.SpineLHS i f ps wps) =
 
         -- TODO: restructure this to avoid having to repeat the code for reify
         termToExpr :: Term -> TCM A.Expr
-        termToExpr v =
+        termToExpr v = do
+          reportSLn "reify.display" 60 $ "termToExpr " ++ show v
+          -- After unSpine, a Proj elimination is __IMPOSSIBLE__!
           case unSpine v of
             I.Var n [] | n < len -> return $ A.patternToExpr $ ps !! n
             I.Con c vs ->
