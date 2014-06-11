@@ -17,6 +17,10 @@ import Agda.TypeChecking.Level
 #include "../undefined.h"
 import Agda.Utils.Impossible
 
+-- | Find a matching display form for @q vs@.
+--   In essence this tries to reqwrite @q vs@ with any
+--   display form @q ps --> dt@ and returns the instantiated
+--   @dt@ if successful.  First match wins.
 displayForm :: QName -> Args -> TCM (Maybe DisplayTerm)
 displayForm c vs = do
     odfs  <- defDisplay <$> getConstInfo c
@@ -65,6 +69,21 @@ matchDisplayForm (Display n ps v) vs
   where
     (vs0, vs1) = splitAt (length ps) vs
 
+-- | Class @Match@ for matching a term @p@ in the role of a pattern
+--   against a term @v@.
+--
+--   The 0th variable in @p@ plays the role
+--   of a place holder (pattern variable).  Each occurrence of
+--   @var 0@ in @p@ stands for a different pattern variable.
+--
+--   The result of matching, if successful, is a list of solutions for the
+--   pattern variables, in left-to-right order.
+--
+--   The 0th variable is in scope in the input @v@, but should not
+--   actually occur!
+--   In the output solution, the @0th@ variable is no longer in scope.
+--   (It has been substituted by __IMPOSSIBLE__ which corresponds to
+--   a raise by -1).
 class Match a where
   match :: Nat -> a -> a -> MaybeT TCM [Term]
 
