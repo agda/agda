@@ -27,7 +27,6 @@ makeOpen x = do
 makeClosed :: a -> Open a
 makeClosed = OpenThing []
 
-
 -- | Extract the value from an open term. Must be done in an extension of the
 --   context in which the term was created.
 getOpen :: Subst a => Open a -> TCM a
@@ -37,6 +36,9 @@ getOpen (OpenThing ctx x) = do
   unless (ctx `isSuffixOf` ctx') $ fail $ "thing out of context (" ++ show ctx ++ " is not a sub context of " ++ show ctx' ++ ")"
   return $ raise (genericLength ctx' - genericLength ctx) x
 
+-- | Try to use an 'Open' the current context.
+--   Returns 'Nothing' if current context is not an extension of the
+--   context in which the 'Open' was created.
 tryOpen :: Subst a => Open a -> TCM (Maybe a)
 tryOpen o =
   (Just <$> getOpen o)
