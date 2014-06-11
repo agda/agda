@@ -146,12 +146,9 @@ instance Reify DisplayTerm Expr where
     DDot  v -> reify v
     DCon c vs -> apps (A.Con (AmbQ [c])) =<< reifyIArgs vs
     DDef f vs -> apps (A.Def f) =<< reifyIArgs vs
-    DWithApp us vs -> do
-      us <- reify us
-      let wapp [e] = e
-          wapp (e : es) = A.WithApp exprInfo e es
-          wapp [] = __IMPOSSIBLE__
-      reifyApp (wapp us) vs
+    DWithApp u us vs -> do
+      (e, es) <- reify (u, us)
+      reifyApp (if null es then e else A.WithApp exprInfo e es) vs
 
 reifyDisplayForm :: QName -> I.Args -> TCM A.Expr -> TCM A.Expr
 reifyDisplayForm x vs fallback = do
@@ -184,7 +181,7 @@ reifyDisplayFormP lhs@(A.SpineLHS i x ps wps) =
         reifyDisplayFormP =<< displayLHS (map namedArg ps) wps d
       _ -> return lhs
   where
-    okDisplayForm (DWithApp (d : ds) []) =
+    okDisplayForm (DWithApp d ds []) =
       okDisplayForm d && all okDisplayTerm ds
     okDisplayForm (DTerm (I.Def f vs)) = all okElim vs
     okDisplayForm (DDef f vs) = all okDArg vs
@@ -210,7 +207,7 @@ reifyDisplayFormP lhs@(A.SpineLHS i x ps wps) =
     okTerm (I.Def x []) = show x == "_" -- Handling wildcards in display forms
     okTerm _            = True -- False
 
-    flattenWith (DWithApp (d : ds) ds1) = case flattenWith d of
+    flattenWith (DWithApp d ds ds1) = case flattenWith d of
       (f, vs, ds') -> (f, vs, ds' ++ ds ++ map (DTerm . unArg) ds1)
     flattenWith (DDef f vs) = (f, vs, [])     -- .^ hacky, but we should only hit this when printing debug info
     flattenWith (DTerm (I.Def f es)) =

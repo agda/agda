@@ -24,8 +24,9 @@ import Agda.TypeChecking.CompiledClause
 
 import Agda.Utils.List
 import Agda.Utils.Monad
-import Agda.Utils.Size
 import Agda.Utils.Permutation
+import Agda.Utils.Size
+import Agda.Utils.Tuple
 
 #include "../undefined.h"
 import Agda.Utils.Impossible
@@ -268,7 +269,7 @@ instance Apply DisplayTerm where
   apply (DDot v)           args = DDot  $ apply v args
   apply (DCon c vs)        args = DCon c $ vs ++ map (fmap DTerm) args
   apply (DDef c vs)        args = DDef c $ vs ++ map (fmap DTerm) args
-  apply (DWithApp v args') args = DWithApp v $ args' ++ args
+  apply (DWithApp v ws args') args = DWithApp v ws $ args' ++ args
 
 instance Apply t => Apply [t] where
   apply  ts args = map (`apply` args) ts
@@ -646,7 +647,7 @@ instance Subst DisplayTerm where
   applySubst rho (DDot v)         = DDot  $ applySubst rho v
   applySubst rho (DCon c vs)      = DCon c $ applySubst rho vs
   applySubst rho (DDef c vs)      = DDef c $ applySubst rho vs
-  applySubst rho (DWithApp vs ws) = uncurry DWithApp $ applySubst rho (vs, ws)
+  applySubst rho (DWithApp v vs ws) = uncurry3 DWithApp $ applySubst rho (v, vs, ws)
 
 instance Subst a => Subst (Tele a) where
   applySubst rho  EmptyTel         = EmptyTel

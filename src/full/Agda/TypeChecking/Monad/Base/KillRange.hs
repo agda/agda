@@ -77,7 +77,7 @@ instance KillRange Polarity where
 instance KillRange DisplayTerm where
   killRange dt =
     case dt of
-      DWithApp dts args -> killRange2 DWithApp dts args
+      DWithApp dt dts args -> killRange3 DWithApp dt dts args
       DCon q dts        -> killRange2 DCon q dts
       DDef q dts        -> killRange2 DDef q dts
       DDot v            -> killRange1 DDot v
