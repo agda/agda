@@ -335,14 +335,6 @@ addMetaVarInCtx type_ = do
   mv <- addMetaVar $ ctxPi ctx type_
   return $ ctxApp (metaVar mv []) ctx
 
-createTyConParsMvs :: (IsTerm t) => Tel.IdTel (Type t) v -> TC t v [Term t v]
-createTyConParsMvs (Tel.Empty _) =
-  return []
-createTyConParsMvs (Tel.Cons (name, type') tel) = do
-  mv  <- addMetaVarInCtx type'
-  mvs <- extendContext name type' $ \_ -> createTyConParsMvs tel
-  return (mv : map (\t -> instantiate (toAbs t) mv) mvs)
-
 metaAssign
     :: (IsVar v, IsTerm t)
     => Type t v -> MetaVar -> [Elim (Term t) v] -> Term t v -> StuckTC t v ()
@@ -1050,6 +1042,14 @@ matchTyCon tyCon t err handler = do
         matchTyCon tyCon t' err handler
     _ -> do
       NotStuck <$> checkError err
+
+createTyConParsMvs :: (IsTerm t) => Tel.IdTel (Type t) v -> TC t v [Term t v]
+createTyConParsMvs (Tel.Empty _) =
+  return []
+createTyConParsMvs (Tel.Cons (_, type') tel) = do
+  mv  <- addMetaVarInCtx type'
+  mvs <- createTyConParsMvs (Tel.instantiate tel mv)
+  return (mv : mvs)
 
 matchPi
   :: (IsVar v, IsTerm t, Typeable a)
