@@ -391,7 +391,7 @@ dirToCmp cont DirGeq = flip $ cont CmpLeq
 ---------------------------------------------------------------------------
 
 -- | A thing tagged with the context it came from.
-data Open a = OpenThing [CtxId] a
+data Open a = OpenThing { openThingCtxIds :: [CtxId], openThing :: a }
     deriving (Typeable, Show, Functor)
 
 ---------------------------------------------------------------------------
