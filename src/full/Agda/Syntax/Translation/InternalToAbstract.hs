@@ -203,14 +203,17 @@ reifyDisplayFormP lhs@(A.SpineLHS i x ps wps) =
     okTerm (I.Def x []) = show x == "_" -- Handling wildcards in display forms
     okTerm _            = True -- False
 
-    flattenWith (DWithApp d ds ds1) = case flattenWith d of
-      (f, vs, ds') -> (f, vs, ds' ++ ds ++ map (DTerm . unArg) ds1)
+    -- Flatten a dt into (parentName, parentArgs, withArgs).
+    flattenWith :: DisplayTerm -> (QName, [I.Arg DisplayTerm], [DisplayTerm])
+    flattenWith (DWithApp d ds1 ds2) = case flattenWith d of
+      (f, vs, ds0) -> (f, vs, ds0 ++ ds1 ++ map (DTerm . unArg) ds2)
     flattenWith (DDef f vs) = (f, vs, [])     -- .^ hacky, but we should only hit this when printing debug info
     flattenWith (DTerm (I.Def f es)) =
       let vs = maybe __IMPOSSIBLE__ id $ mapM isApplyElim es
       in (f, map (fmap DTerm) vs, [])
     flattenWith _ = __IMPOSSIBLE__
 
+    displayLHS :: [A.Pattern] -> [A.Pattern] -> DisplayTerm -> TCM A.SpineLHS
     displayLHS ps wps d = case flattenWith d of
       (f, vs, ds) -> do
         ds <- mapM termToPat ds
@@ -221,8 +224,6 @@ reifyDisplayFormP lhs@(A.SpineLHS i x ps wps) =
       where
         ci   = ConPatInfo False patNoRange
         argToPat arg = fmap unnamed <$> traverse termToPat arg
-
-        len = genericLength ps
 
         termToPat :: DisplayTerm -> TCM A.Pattern
 
@@ -239,6 +240,8 @@ reifyDisplayFormP lhs@(A.SpineLHS i x ps wps) =
 
         termToPat (DDot v)             = A.DotP patNoRange <$> termToExpr v
         termToPat v                    = A.DotP patNoRange <$> reify v -- __IMPOSSIBLE__
+
+        len = genericLength ps
 
         argsToExpr = mapM (traverse termToExpr)
 
