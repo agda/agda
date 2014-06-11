@@ -10,9 +10,13 @@ import Data.Traversable (traverse)
 
 import Agda.Syntax.Common hiding (Arg, Dom, NamedArg, ArgInfo)
 import Agda.Syntax.Internal
+
 import Agda.TypeChecking.Monad
 import Agda.TypeChecking.Substitute
 import Agda.TypeChecking.Level
+
+import Agda.Utils.List
+import Agda.Utils.Maybe
 
 #include "../undefined.h"
 import Agda.Utils.Impossible
@@ -22,40 +26,46 @@ import Agda.Utils.Impossible
 --   display form @q ps --> dt@ and returns the instantiated
 --   @dt@ if successful.  First match wins.
 displayForm :: QName -> Args -> TCM (Maybe DisplayTerm)
-displayForm c vs = do
-    odfs  <- defDisplay <$> getConstInfo c
+displayForm q vs = do
+    -- Get display forms for name q.
+    odfs  <- defDisplay <$> getConstInfo q
+    -- Display debug info about the @Open@s.
     unless (null odfs) $ verboseS "tc.display.top" 100 $ do
       n <- getContextId
-      let fvs = map (\(OpenThing n _) -> n) odfs
-      reportSLn "tc.display.top" 100 $ "displayForm: context = " ++ show n ++ ", dfs = " ++ show fvs
-    dfs	  <- do
-      xs <- mapM tryOpen odfs
-      return [ df | Just df <- xs ]
+      reportSLn "tc.display.top" 100 $
+        "displayForm: context = " ++ show n ++
+        ", dfs = " ++ show (map openThingCtxIds odfs)
+    -- Use only the display forms that can be opened in the current context.
+    dfs	  <- catMaybes <$> mapM tryOpen odfs
     scope <- getScope
+    -- Keep the display forms that match the application @c vs@.
     ms <- do
       ms <- mapM (runMaybeT . (`matchDisplayForm` vs)) dfs
       return [ m | Just m <- ms, inScope scope m ]
     -- Not safe when printing non-terminating terms.
     -- (nfdfs, us) <- normalise (dfs, vs)
     unless (null odfs) $ reportSLn "tc.display.top" 100 $ unlines
-      [ "name        : " ++ show c
+      [ "name        : " ++ show q
       , "displayForms: " ++ show dfs
       , "arguments   : " ++ show vs
       , "matches     : " ++ show ms
       , "result      : " ++ show (foldr (const . Just) Nothing ms)
       ]
-    return $ foldr (const . Just) Nothing ms
+    -- Return the first display form that matches.
+    return $ mhead ms
   `catchError` \_ -> return Nothing
+
   where
     inScope _ _ = True  -- TODO: distinguish between with display forms and other display forms
 --     inScope scope d = case hd d of
---       Just h  -> maybe False (const True) $ inverseScopeLookupName h scope
+--       Just h  -> isJust $ inverseScopeLookupName h scope
 --       Nothing -> __IMPOSSIBLE__ -- TODO: currently all display forms have heads
-    hd (DTerm (Def x _))    = Just x
-    hd (DTerm (Con x _))    = Just $ conName x
-    hd (DTerm (Shared p))   = hd (DTerm $ derefPtr p)
-    hd (DWithApp (d : _) _) = hd d
-    hd _		    = Nothing
+    -- 'hd' is only used in the commented-out code for 'inScope' above.
+    -- hd (DTerm (Def x _))    = Just x
+    -- hd (DTerm (Con x _))    = Just $ conName x
+    -- hd (DTerm (Shared p))   = hd (DTerm $ derefPtr p)
+    -- hd (DWithApp (d : _) _) = hd d
+    -- hd _		    = Nothing
 
 -- | Match a 'DisplayForm' @n |- q ps = v@ against @q vs@.
 --   Return the 'DisplayTerm' @v[us]@ if the match was successful,
