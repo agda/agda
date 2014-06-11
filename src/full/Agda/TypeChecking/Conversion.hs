@@ -470,8 +470,10 @@ compareAtom cmp t m n =
         _ -> do
           -- Andreas, 2013-10-20 put projection-like function
           -- into the spine, to make compareElims work.
-          m <- elimView m
-          n <- elimView n
+          -- 'False' means: leave (Def f []) unchanged even for
+          -- proj-like funs.
+          m <- elimView False m
+          n <- elimView False n
           case (ignoreSharing m, ignoreSharing n) of
 	    (Pi{}, Pi{}) -> equalFun m n
 

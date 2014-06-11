@@ -28,33 +28,54 @@ import Agda.Utils.Impossible
 
 -- | View for a @Def f (Apply a : es)@ where @isProjection f@.
 --   Used for projection-like @f@s.
-data ProjectionView = ProjectionView
-  { projViewProj  :: QName
-  , projViewSelf  :: I.Arg Term
-  , projViewSpine :: Elims
-  }
+data ProjectionView
+  = ProjectionView
+    { projViewProj  :: QName
+    , projViewSelf  :: I.Arg Term
+    , projViewSpine :: Elims
+    }
+    -- ^ A projection or projection-like function, applied to its
+    --   principal argument
+  | LoneProjectionLike QName I.ArgInfo
+    -- ^ Just a lone projection-like function, missing its principal
+    --   argument (from which we could infer the parameters).
+  | NoProjection Term
+    -- ^ Not a projection or projection-like thing.
 
 -- | Semantics of 'ProjectionView'.
 unProjView :: ProjectionView -> Term
-unProjView (ProjectionView f a es) = Def f (Apply a : es)
+unProjView pv =
+  case pv of
+    ProjectionView f a es   -> Def f (Apply a : es)
+    LoneProjectionLike f ai -> Def f []
+    NoProjection v          -> v
 
 -- | Top-level 'ProjectionView' (no reduction).
-projView :: Term -> TCM (Maybe ProjectionView)
+projView :: Term -> TCM ProjectionView
 projView v = do
+  let fallback = return $ NoProjection v
   case ignoreSharing v of
-    Def f (Apply a : es) -> (ProjectionView f a es <$) <$> isProjection f
-    _                    -> return Nothing
+    Def f es -> caseMaybeM (isProjection f) fallback $ \ isP -> do
+      case es of
+        []           -> return $ LoneProjectionLike f $ projArgInfo isP
+        Apply a : es -> return $ ProjectionView f a es
+        -- Since a projection is a function, it cannot be projected itself.
+        Proj{}  : _  -> __IMPOSSIBLE__
+    _ -> fallback
 
 -- | Reduce away top-level projection like functions.
 --   (Also reduces projections, but they should not be there,
 --   since Internal is in lambda- and projection-beta-normal form.)
 --
 reduceProjectionLike :: Term -> TCM Term
-reduceProjectionLike v =
+reduceProjectionLike v = do
   -- Andreas, 2013-11-01 make sure we do not reduce a constructor
   -- because that could be folded back into a literal by reduce.
-  maybeM (return v) (\ _ -> onlyReduceProjections $ reduce v) $ projView v
+  pv <- projView v
+  case pv of
+    ProjectionView{} -> onlyReduceProjections $ reduce v
                             -- ordinary reduce, only different for Def's
+    _                -> return v
 
 -- | Turn prefix projection-like function application into postfix ones.
 --   This does just one layer, such that the top spine contains
@@ -62,18 +83,27 @@ reduceProjectionLike v =
 --   Used in 'compareElims' in @TypeChecking.Conversion@
 --   and in 'Agda.TypeChecking.CheckInternal'.
 --
+--   If the 'Bool' is 'True', a lone projection like function will be
+--   turned into a lambda-abstraction, expecting the principal argument.
+--   If the 'Bool' is 'False', it will be returned unaltered.
+--
 --   No precondition.
 --   Preserves constructorForm, since it really does only something
---   applications of projection-like functions.
-elimView :: Term -> TCM Term
-elimView v = do
+--   on (applications of) projection-like functions.
+elimView :: Bool -> Term -> TCM Term
+elimView loneProjToLambda v = do
   reportSDoc "tc.conv.elim" 30 $ text "elimView of " <+> prettyTCM v
   reportSLn  "tc.conv.elim" 50 $ "v = " ++ show v
   v <- reduceProjectionLike v
   reportSDoc "tc.conv.elim" 40 $
     text "elimView (projections reduced) of " <+> prettyTCM v
-  caseMaybeM (projView v) (return v) $ \ (ProjectionView f a es) -> do
-        (`applyE` (Proj f : es)) <$> elimView (unArg a)
+  pv <- projView v
+  case pv of
+    NoProjection{}        -> return v
+    LoneProjectionLike f ai
+      | loneProjToLambda  -> return $ Lam ai $ Abs "r" $ Var 0 [Proj f]
+      | otherwise         -> return v
+    ProjectionView f a es -> (`applyE` (Proj f : es)) <$> elimView loneProjToLambda (unArg a)
 
 {- Andreas, 2013-11-01: Use of unLevel no longer necessary, since we do not reduce!
   case ignoreSharing v of
@@ -149,7 +179,7 @@ makeProjection x = inTopContext $ do
           reportSLn "tc.proj.like" 60 $ "  rewrote clauses to\n    " ++ show cc
 
           -- Andreas, 2013-10-20 build parameter dropping function
-          let ptel = take n $ telToList $ theTel $ telView' t
+          let (ptel, Dom ai _ : _) = splitAt n $ telToList $ theTel $ telView' t
               -- leading lambdas are to ignore parameter applications
               proj = teleNoAbs ptel $ Def x []
               -- proj = foldr (\ (Dom ai (y, _)) -> Lam ai . NoAbs y) (Def x []) ptel
@@ -159,6 +189,7 @@ makeProjection x = inTopContext $ do
                 , projFromType = d
                 , projIndex    = n + 1
                 , projDropPars = proj
+                , projArgInfo  = ai
                 }
           let newDef = def
                        { funProjection     = Just projection

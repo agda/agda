@@ -360,6 +360,7 @@ checkRecordProjections m r con tel ftel fs = do
           -- split the telescope into parameters (ptel) and the type or the record
           -- (rt) which should be  R ptel
           (ptel,[rt]) = splitAt (size tel - 1) $ telToList tel
+          projArgI    = domInfo rt
 	  conp	 = defaultArg
 		 $ ConP con (Just (False, argFromDom $ fmap snd rt))
                    [ Arg info $ unnamed $ VarP "x" | Dom info _ <- telToList ftel ]
@@ -380,7 +381,7 @@ checkRecordProjections m r con tel ftel fs = do
 
       -- Andreas, 2013-10-20
       -- creating the projection construction function
-      let core = Lam defaultArgInfo $ Abs "r" $ bodyMod $ projcall
+      let core = Lam projArgI $ Abs "r" $ bodyMod $ projcall
           -- leading lambdas are to ignore parameter applications
           proj = teleNoAbs ptel core
           -- proj = foldr (\ (Dom ai (x, _)) -> Lam ai . NoAbs x) core ptel
@@ -392,6 +393,7 @@ checkRecordProjections m r con tel ftel fs = do
             -- start counting with 1:
             , projIndex    = size ptel + 1  -- which is @size tel@
             , projDropPars = proj
+            , projArgInfo  = projArgI
             }
 
       reportSDoc "tc.rec.proj" 80 $ sep

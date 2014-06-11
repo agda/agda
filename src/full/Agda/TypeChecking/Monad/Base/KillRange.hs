@@ -60,7 +60,7 @@ instance KillRange TermHead where
   killRange (ConsHead q) = ConsHead $ killRange q
 
 instance KillRange Projection where
-  killRange (Projection a b c d) = killRange4 Projection a b c d
+  killRange (Projection a b c d e) = killRange4 Projection a b c d e
 
 instance KillRange Occurrence where
   killRange = id

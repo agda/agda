@@ -139,6 +139,7 @@ bindBuiltinFlat e =
           , projFromType = inf
           , projIndex    = 3
           , projDropPars = teleNoAbs (take 2 $ telToList tel) $ Def flat []
+          , projArgInfo  = defaultArgInfo
           }
     addConstant flat $
       flatDefn { defPolarity       = []

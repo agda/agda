@@ -740,6 +740,8 @@ data Projection = Projection
     --   will be created: @t = \ pars r -> r .p@
     --   In case of a projection-like function, just the function symbol
     --   is returned as 'Def':  @t = \ pars -> f@.
+  , projArgInfo   :: I.ArgInfo
+    -- ^ The info of the principal (record) argument.
   } deriving (Typeable, Show)
 
 data Defn = Axiom
