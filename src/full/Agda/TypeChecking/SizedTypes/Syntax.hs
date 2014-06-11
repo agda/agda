@@ -1,7 +1,12 @@
-{-# LANGUAGE NoMonomorphismRestriction,
-  TypeSynonymInstances, FlexibleInstances, UndecidableInstances,
-  MultiParamTypeClasses, FunctionalDependencies,
-  DeriveFunctor, DeriveFoldable, DeriveTraversable #-}
+{-# LANGUAGE DeriveFoldable #-}
+{-# LANGUAGE DeriveFunctor #-}
+{-# LANGUAGE DeriveTraversable #-}
+{-# LANGUAGE FlexibleInstances #-}
+{-# LANGUAGE FunctionalDependencies #-}
+{-# LANGUAGE MultiParamTypeClasses #-}
+{-# LANGUAGE NoMonomorphismRestriction #-}
+{-# LANGUAGE TypeSynonymInstances #-}
+{-# LANGUAGE UndecidableInstances #-}
 
 -- | Syntax of size expressions and constraints.
 

@@ -1,7 +1,9 @@
-{-# LANGUAGE CPP, TupleSections,
-             MultiParamTypeClasses, FlexibleInstances,
-             UndecidableInstances, DeriveFunctor
-  #-}
+{-# LANGUAGE CPP #-}
+{-# LANGUAGE DeriveFunctor #-}
+{-# LANGUAGE FlexibleInstances #-}
+{-# LANGUAGE MultiParamTypeClasses #-}
+{-# LANGUAGE TupleSections #-}
+{-# LANGUAGE UndecidableInstances #-}
 
 module Agda.Interaction.BasicOps where
 

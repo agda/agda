@@ -1,4 +1,7 @@
-{-# LANGUAGE MultiParamTypeClasses, FunctionalDependencies, FlexibleInstances, UndecidableInstances #-}
+{-# LANGUAGE FlexibleInstances #-}
+{-# LANGUAGE FunctionalDependencies #-}
+{-# LANGUAGE MultiParamTypeClasses #-}
+{-# LANGUAGE UndecidableInstances #-}
 
 -- | Basically a copy of the ErrorT monad transformer. It's handy to slap
 --   onto TCM and still be a MonadTCM (which isn't possible with ErrorT).

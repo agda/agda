@@ -1,7 +1,12 @@
 -- {-# OPTIONS -fwarn-unused-binds #-}
-{-# LANGUAGE CPP, PatternGuards, MultiParamTypeClasses, FunctionalDependencies,
-             TypeSynonymInstances, FlexibleInstances, UndecidableInstances
-  #-}
+
+{-# LANGUAGE CPP #-}
+{-# LANGUAGE FlexibleInstances #-}
+{-# LANGUAGE FunctionalDependencies #-}
+{-# LANGUAGE MultiParamTypeClasses #-}
+{-# LANGUAGE PatternGuards #-}
+{-# LANGUAGE TypeSynonymInstances #-}
+{-# LANGUAGE UndecidableInstances #-}
 
 {-| The translation of abstract syntax to concrete syntax has two purposes.
     First it allows us to pretty print abstract syntax values without having to
