@@ -263,7 +263,6 @@ reifyDisplayFormP lhs@(A.SpineLHS i f ps wps) =
           reportSLn "reify.display" 60 $ "termToExpr " ++ show v
           -- After unSpine, a Proj elimination is __IMPOSSIBLE__!
           case unSpine v of
-            I.Var n [] | n < len -> return $ A.patternToExpr $ ps !! n
             I.Con c vs ->
               apps (A.Con (AmbQ [conName c])) =<< argsToExpr vs
             I.Def f es -> do
@@ -271,7 +270,14 @@ reifyDisplayFormP lhs@(A.SpineLHS i f ps wps) =
               apps (A.Def f) =<< argsToExpr vs
             I.Var n es -> do
               let vs = maybe __IMPOSSIBLE__ id $ mapM isApplyElim es
-              uncurry apps =<< (,) <$> reify (I.var (n - len)) <*> argsToExpr vs
+              -- Andreas, 2014-06-11  Issue 1177
+              -- due to β-normalization in substitution,
+              -- even the pattern variables @n < len@ can be
+              -- applied to some args @vs@.
+              e <- if n < len
+                   then return $ A.patternToExpr $ ps !! n
+                   else reify (I.var (n - len))
+              apps e =<< argsToExpr vs
             _ -> return underscore
 
 instance Reify Literal Expr where
