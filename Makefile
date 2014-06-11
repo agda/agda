@@ -1,6 +1,9 @@
 # Top-level Makefile for Agda 2
 # Authors: Ulf Norell, Nils Anders Danielsson
 
+# Profiling verbosity for library-test
+PROFVERB=7
+
 SHELL=bash
 ## Includes ###############################################################
 
@@ -190,7 +193,7 @@ tests :
 	@echo "======================================================================"
 	@echo "======================== Internal test suite ========================="
 	@echo "======================================================================"
-	$(AGDA_BIN) --test
+	$(AGDA_BIN) --test +RTS -M1g
 
 succeed :
 	@echo "======================================================================"
@@ -238,12 +241,12 @@ library-test : # up-to-date-std-lib
 	@echo "========================== Standard library =========================="
 	@echo "======================================================================"
 	@(cd std-lib && \
-          time $(PWD)/$(AGDA_BIN) -i. -isrc README.agda $(AGDA_TEST_FLAGS) \
-            +RTS -s)
+          time $(PWD)/$(AGDA_BIN) -v profile:$(PROFVERB) -i. -isrc README.agda $(AGDA_TEST_FLAGS) \
+            +RTS -s -H1G -M1.5G)
 
 continue-library-test :
 	@(cd std-lib && \
-          time $(PWD)/$(AGDA_BIN) -i. -isrc README.agda +RTS -s)
+          time $(PWD)/$(AGDA_BIN) -v profile:$(PROFVERB) -i. -isrc README.agda +RTS -s -H1G -M1.5G)
 
 compiler-test : # up-to-date-std-lib
 	@echo "======================================================================"
