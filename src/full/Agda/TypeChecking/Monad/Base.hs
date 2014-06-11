@@ -596,24 +596,51 @@ data Section = Section
 emptySignature :: Signature
 emptySignature = Sig Map.empty HMap.empty
 
-data DisplayForm = Display Nat [Term] DisplayTerm
-		-- ^ The three arguments are:
-		--
-		--   * @n@: number of free variables;
-		--
-		--   * Patterns for arguments, one extra free var which
-		--     represents pattern vars. There should @n@ of them.
-		--
-		--   * Display form. @n@ free variables.
+-- | A @DisplayForm@ is in essence a rewrite rule
+--   @
+--      q ts --> dt
+--   @
+--   for a defined symbol (could be a constructor as well) @q@.
+--   The right hand side is a 'DisplayTerm' which is used to
+--   'reify' to a more readable 'Abstract.Syntax'.
+--
+--   The patterns @ts@ are just terms, but @var 0@ is interpreted
+--   as a hole.  Each occurrence of @var 0@ is a new hole (pattern var).
+--   For each *occurrence* of @var0@ the rhs @dt@ has a free variable.
+--   These are instantiated when matching a display form against a
+--   term @q vs@ succeeds.
+data DisplayForm = Display
+  { dfFreeVars :: Nat
+    -- ^ Number @n@ of free variables in 'dfRHS'.
+  , dfPats     :: [Term]
+    -- ^ Left hand side patterns, where @var 0@ stands for a pattern
+    --   variable.  There should be @n@ occurrences of @var0@ in
+    --   'dfPats'.
+  , dfRHS      :: DisplayTerm
+    -- ^ Right hand side, with @n@ free variables.
+  }
   deriving (Typeable, Show)
 
-data DisplayTerm = DWithApp [DisplayTerm] Args
-                 | DCon QName [Arg DisplayTerm]
-                 | DDef QName [Arg DisplayTerm]
-                 | DDot Term
-		 | DTerm Term
+-- | A structured presentation of a 'Term' for reification into
+--   'Abstract.Syntax'.
+data DisplayTerm
+  = DWithApp [DisplayTerm] Args
+    -- ^ @(f vs | ws) us@.
+    --   The 'head' of the list is the parent function @f@ with its args @vs@.
+    --   The 'tail' of the list are the with expressions @ws@.
+    --   The 'Args' are additional arguments @us@
+    --   (possible in case the with-application is of function type).
+  | DCon QName [Arg DisplayTerm]
+    -- ^ @c vs@.
+  | DDef QName [Arg DisplayTerm]
+    -- ^ @d vs@.
+  | DDot Term
+    -- ^ @.v@.
+  | DTerm Term
+    -- ^ @v@.
   deriving (Typeable, Show)
 
+-- | By default, we have no display form.
 defaultDisplayForm :: QName -> [Open DisplayForm]
 defaultDisplayForm c = []
 
