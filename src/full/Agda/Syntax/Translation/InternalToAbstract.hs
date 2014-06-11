@@ -164,16 +164,28 @@ reifyDisplayForm f vs fallback = do
 --
 --   Note: we are not necessarily in the empty context upon entry!
 reifyDisplayFormP :: A.SpineLHS -> TCM A.SpineLHS
-reifyDisplayFormP lhs@(A.SpineLHS i x ps wps) =
+reifyDisplayFormP lhs@(A.SpineLHS i f ps wps) =
   ifNotM displayFormsEnabled (return lhs) $ {- else -} do
-    let vs = [ setHiding h $ defaultArg $ I.var n
-             | (n, h) <- zip [0..] $ map getHiding ps
+    let vs = [ setHiding h $ defaultArg $ I.var i
+             | (i, h) <- zip [0..] $ map getHiding ps
              ]
-    md <- liftTCM $ displayForm x vs
+    -- Try to rewrite @f 0 1 2 ... |ps|-1@ to a dt.
+    -- Andreas, 2014-06-11  Issue 1177:
+    -- I thought we need to add the placeholders for ps to the context,
+    -- because otherwise displayForm will not raise the display term
+    -- and we will have variable clashes.
+    -- But apparently, it has no influence...
+    -- Ulf, can you add an explanation?
+    md <- liftTCM $ -- addContext (replicate (length ps) "x") $
+      displayForm f vs
     reportSLn "reify.display" 20 $
-      "display form of " ++ show x ++ " " ++ show ps ++ " " ++ show wps ++ ":\n  " ++ show md
+      "display form of " ++ show f ++ " " ++ show ps ++ " " ++ show wps ++ ":\n  " ++ show md
     case md of
       Just d  | okDisplayForm d ->
+        -- In the display term @d@, @var i@ should be a placeholder
+        -- for the @i@th pattern of @ps@.
+        -- Andreas, 2014-06-11:
+        -- Are we sure that @d@ did not use @var i@ otherwise?
         reifyDisplayFormP =<< displayLHS (map namedArg ps) wps d
       _ -> return lhs
   where
