@@ -150,16 +150,14 @@ instance Reify DisplayTerm Expr where
       (e, es) <- reify (u, us)
       reifyApp (if null es then e else A.WithApp exprInfo e es) vs
 
+-- | @reifyDisplayForm f vs fallback@
+--   tries to rewrite @f vs@ with a display form for @f@.
+--   If successful, reifies the resulting display term,
+--   otherwise, does @fallback@.
 reifyDisplayForm :: QName -> I.Args -> TCM A.Expr -> TCM A.Expr
-reifyDisplayForm x vs fallback = do
-  enabled <- displayFormsEnabled
-  if enabled
-    then do
-      md <- liftTCM $ displayForm x vs
-      case md of
-        Nothing -> fallback
-        Just d  -> reify d
-    else fallback
+reifyDisplayForm f vs fallback = do
+  ifNotM displayFormsEnabled fallback $ {- else -} do
+  caseMaybeM (liftTCM $ displayForm f vs) fallback reify
 
 {-
 reifyDisplayFormP :: A.LHS -> TCM A.LHS
