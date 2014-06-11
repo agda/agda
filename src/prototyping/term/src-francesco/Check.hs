@@ -339,13 +339,13 @@ metaAssign
     :: (IsVar v, IsTerm t)
     => Type t v -> MetaVar -> [Elim (Term t) v] -> Term t v -> StuckTC t v ()
 metaAssign type_ mv elims t = do
-  vsOrMvs <- checkPatternCondition elims
+  sig <- getSignature
+  let vsOrMvs = case checkPatternCondition sig elims of
+        TTOK vs        -> Right vs
+        TTFlexible mvs -> Left $ Set.insert mv mvs
+        TTFail ()      -> Left $ Set.singleton mv
   case vsOrMvs of
     Left mvs -> do
-      -- If the pattern condition is not respected and we can't wait on
-      -- any metavariable to make progress, we try to prune the
-      -- metavariable
-      sig <- getSignature
       let t' = nf sig t
       -- TODO should we really prune allowing all variables here?  Or
       -- only the rigid ones?
@@ -354,23 +354,22 @@ metaAssign type_ mv elims t = do
       if pruned
         then checkEqual type_ (metaVar mv elims) t
         else fmap StuckOn $
-               newProblem (Set.insert mv mvs) (CheckEqual type_ (metaVar mv elims) t) $ \mvT ->
+               newProblem mvs (CheckEqual type_ (metaVar mv elims) t) $ \mvT ->
                  checkEqual type_ (eliminate (vacuous mvT) elims) t
     Right vs -> do
       -- TODO have `pruneTerm' return an evaluated term.
       liftClosed $ pruneTerm (Set.fromList vs) t
-      sig <- getSignature
       res <- closeTerm $ lambdaAbstract vs $ nf sig t
       case res of
-        Closed t' -> do
+        TTOK t' -> do
           let mvs = metaVars t'
           when (mv `HS.member` mvs) $ checkError $ OccursCheckFailed mv $ vacuous t'
           instantiateMetaVar mv t'
           notStuck ()
-        FlexibleOn mvs ->
+        TTFlexible mvs ->
           fmap StuckOn $
             newProblemCheckEqual (Set.insert mv mvs) type_ (metaVar mv elims) t
-        Rigid v ->
+        TTFail v ->
           checkError $ FreeVariableInEquatedTerm mv elims t v
 
 -- | The term must be in normal form.
@@ -420,6 +419,7 @@ prune allowedVs oldMv elims | Just args <- mapM isApply elims =
       -- TODO check that newly created meta is well-typed.
       sig <- lift $ getSignature
       kills0 <- MaybeT $ return $ mapM (shouldKill sig allowedVs) args
+      guard $ or kills0
       oldMvType <- lift $ getTypeOfMetaVar oldMv
       let (newMvType, kills1) = createNewMeta sig oldMvType kills0
       guard $ any (\(Bound.Name _ b) -> b) kills1
@@ -473,22 +473,18 @@ shouldKill
   => Sig.Signature t -> Set.Set v -> Term t v -> Maybe Bool
 shouldKill sig vs t = do
   case whnfView sig t of
-    Lam _ -> do
+    Lam _ ->
       mzero
     Con dataCon args | isRecordConstr sig dataCon ->
       and <$> mapM (shouldKill sig vs) args
-    App (Def _) _ ->
-      -- TODO currently we can't really be sure if something if finally
-      -- stuck, I think.
-      checkRigidVars
+    App (Def f) _ | not (isNeutral sig f) ->
+      mzero
     Con _ _ ->
       mzero
     _ ->
-      checkRigidVars
-  where
-    checkRigidVars = return $ not (fvRigid (freeVars sig t) `Set.isSubsetOf` vs)
+      return $ not (fvRigid (freeVars sig t) `Set.isSubsetOf` vs)
 
--- | 'Left' 'Just' if the pattern condition check is blocked on a some
+-- | 'Left' if the pattern condition check is blocked on a some
 -- 'MetaVar's.  The set is empty if the pattern condition is not
 -- respected and no 'MetaVar' can change that.
 --
@@ -496,35 +492,20 @@ shouldKill sig vs t = do
 -- variables.
 checkPatternCondition
   :: (IsVar v, IsTerm t)
-  => [Elim (Term t) v] -> TC t v (Either (Set.Set MetaVar) [v])
-checkPatternCondition elims0 = do
-  mbVsOrMvs <- go elims0
-  return $ case mbVsOrMvs of
-    Right vs -> if vs == nub vs then Right vs else Left Set.empty
-    _        -> mbVsOrMvs
+  => Sig.Signature t -> [Elim (Term t) v] -> TermTraverse () [v]
+checkPatternCondition sig elims0 =
+  case traverse checkElim elims0 of
+    TTOK vs | vs /= nub vs -> TTFail ()
+    res                    -> res
   where
-    go
-      :: (IsVar v, IsTerm t)
-      => [Elim (Term t) v] -> TC t v (Either (Set.Set MetaVar) [v])
-    go [] = return $ Right []
-    go (elim : elims) = do
-      elimOrMvs <- case elim of
-        Apply t -> do
-          -- TODO do we need to normalize here?
-          blockedT <- whnfTC t
-          return $ case blockedT of
-            NotBlocked t' | App (Var v) [] <- view t' -> Right v
-            MetaVarHead mv _                          -> Left $ Set.singleton mv
-            BlockedOn mvs _ _                         -> Left mvs
-            _                                         -> Left Set.empty
-        _ ->
-          return $ Left Set.empty
-      elimsOrMvs <- go elims
-      return $ case (elimOrMvs, elimsOrMvs) of
-        (Left mvs1, Left mvs2) -> Left $ mvs1 <> mvs2
-        (Left mvs, Right _)    -> Left mvs
-        (Right _, Left mvs)    -> Left mvs
-        (Right v, Right vs)    -> Right (v : vs)
+    checkElim (Apply t) =
+      case whnf sig t of
+        NotBlocked t' | App (Var v) [] <- view t' -> pure v
+        MetaVarHead mv _                          -> TTFlexible (Set.singleton mv)
+        BlockedOn mvs _ _                         -> TTFlexible mvs
+        _                                         -> TTFail ()
+    checkElim (Proj _ _) =
+      TTFail ()
 
 -- | Creates a term in the same context as the original term but lambda
 -- abstracted over the given variables.
@@ -532,38 +513,38 @@ lambdaAbstract :: (IsVar v, IsTerm t) => [v] -> Term t v -> Term t v
 lambdaAbstract []       t = t
 lambdaAbstract (v : vs) t = unview $ Lam $ abstract v $ lambdaAbstract vs t
 
-data CloseTerm v0 a
-    = Closed a
-    | FlexibleOn (Set.Set MetaVar)
-    | Rigid v0
+data TermTraverse err a
+    = TTOK a
+    | TTFlexible (Set.Set MetaVar)
+    | TTFail err
     deriving (Functor)
 
-instance Applicative (CloseTerm v0) where
-    pure = Closed
+instance Applicative (TermTraverse err) where
+    pure = TTOK
 
-    Closed f        <*> Closed x        = Closed (f x)
-    Closed _        <*> FlexibleOn mvs  = FlexibleOn mvs
-    Closed _        <*> Rigid v         = Rigid v
-    FlexibleOn mvs  <*> Closed _        = FlexibleOn mvs
-    FlexibleOn mvs1 <*> FlexibleOn mvs2 = FlexibleOn (mvs1 <> mvs2)
-    FlexibleOn _    <*> Rigid v         = Rigid v
-    Rigid v         <*> _               = Rigid v
+    TTOK f          <*> TTOK x           = TTOK (f x)
+    TTOK _          <*> TTFlexible mvs   = TTFlexible mvs
+    TTOK _          <*> TTFail v         = TTFail v
+    TTFlexible mvs  <*> TTOK _           = TTFlexible mvs
+    TTFlexible mvs1 <*> TTFlexible mvs2  = TTFlexible (mvs1 <> mvs2)
+    TTFlexible _    <*> TTFail v         = TTFail v
+    TTFail v        <*> _                = TTFail v
 
 -- TODO improve efficiency of this traversal, we shouldn't need all
 -- those `fromAbs'.  Also in `freeVars'.
 closeTerm
     :: forall t v0.
        (IsVar v0, IsTerm t)
-    => Term t v0 -> TC t v0 (CloseTerm v0 (Closed (Term t)))
+    => Term t v0 -> TC t v0 (TermTraverse v0 (Closed (Term t)))
 closeTerm t0 = do
   sig <- getSignature
   let
-    lift' :: (v -> Either v0 v') -> TermVar v -> Either v0 (TermVar v')
+    lift' :: (v -> Either v0 v') -> (TermVar v -> Either v0 (TermVar v'))
     lift' _ (B v) = Right $ B v
     lift' f (F v) = F <$> f v
 
     go :: (IsVar v, IsTerm t) => (v -> Either v0 v') -> Term t v
-       -> CloseTerm v0 (t v')
+       -> TermTraverse v0 (t v')
     go strengthen t = unview <$>
       case whnfView sig t of
         Lam body ->
@@ -584,14 +565,14 @@ closeTerm t0 = do
           let goElim (Apply t') = Apply <$> go strengthen t'
               goElim (Proj n f) = pure $ Proj n f
 
-              resElims = sequenceA (map goElim elims)
+              resElims = traverse goElim elims
           in case (h, resElims) of
-               (Meta mv, FlexibleOn mvs)  ->
-                 FlexibleOn $ Set.insert mv mvs
-               (Meta mv, Rigid _) ->
-                 FlexibleOn $ Set.singleton mv
+               (Meta mv, TTFlexible mvs)  ->
+                 TTFlexible $ Set.insert mv mvs
+               (Meta mv, TTFail _) ->
+                 TTFlexible $ Set.singleton mv
                _ ->
-                 App <$> traverse (either Rigid pure . strengthen) h
+                 App <$> traverse (either TTFail pure . strengthen) h
                      <*> resElims
 
   return $ go Left t0
@@ -993,6 +974,19 @@ isRecordConstr sig dataCon =
     Constructor tyCon _ -> isRecordType sig tyCon
     _                   -> False
 
+-- | Check whether a term @Def f es@ could be reduced, if its arguments
+-- were different.
+isNeutral :: (IsTerm t) => Sig.Signature t -> Name -> Bool
+isNeutral sig f =
+  case Sig.getDefinition sig f of
+    Constant{}    -> False
+    Constructor{} -> error $ "impossible.Check.isNeutral: constructor " ++ show f
+    Projection{}  -> error $ "impossible.Check.isNeutral: projection " ++ show f
+    Function{}    -> True
+    -- TODO: more precise analysis
+    -- We need to check whether a function is stuck on a variable
+    -- (not meta variable), but the API does not help us...
+
 -- Whnf'ing and view'ing
 ------------------------
 
@@ -1110,8 +1104,6 @@ matchEqual t err handler = do
           t2 <- addMetaVarInCtx type_
           return $ ctxLam ctxMvArgs $ equal type_ t1 t2
         instantiateMetaVar mv mvT
-      -- TODO Dangerous recursion, relying on correct instantiation.
-      -- Maybe remove and do it explicitly?
       matchEqual t' err handler
     BlockedOn mvs _ _ ->
       fmap StuckOn $ newProblem mvs (MatchEqual t') $ \_ -> do
@@ -1339,7 +1331,7 @@ instance (IsVar v, IsTerm t) => PP.Pretty (ProblemDescription t v)  where
 -- (eq : _==_ A x y) ->
 -- P x y eq
 typeOfJ :: forall t. (IsTerm t) => Closed (Type t)
-typeOfJ =  fmap close $
+typeOfJ = fmap close $
     ("A", set) -->
     ("x", var "A") -->
     ("y", var "A") -->

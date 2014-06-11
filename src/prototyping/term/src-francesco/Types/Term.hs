@@ -156,7 +156,7 @@ prettyTele (Tel.Cons (n0, type0) tel0) =
       ";" <+> PP.pretty n <+> ":" <+> prettyView type_ <+> prettyTele tel
 
 instance (IsTerm t) => Show (Closed (Definition t)) where
-  show = PP.renderStyle PP.style{PP.lineLength = 200} . PP.pretty
+  show = PP.render . PP.pretty
 
 -- Term typeclass
 ------------------------------------------------------------------------
