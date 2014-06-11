@@ -42,6 +42,8 @@ data Phase
     -- ^ Subphase for 'Termination'.
   | With
     -- ^ Subphase for 'Termination'.
+  | ModuleName
+    -- ^ Subphase for 'Import'.
   | Sort
     -- ^ Subphase for 'Serialize'.
   | Operators

@@ -13,8 +13,6 @@ module Agda.Interaction.FindFile
   , findInterfaceFile
   , checkModuleName
   , moduleName', moduleName
-  , ModuleToSource
-  , SourceToModule, sourceToModule
   , tests
   ) where
 
@@ -30,6 +28,8 @@ import System.FilePath
 import Agda.Syntax.Concrete
 import Agda.Syntax.Parser
 import Agda.TypeChecking.Monad.Base
+import Agda.TypeChecking.Monad.Benchmark (billTo)
+import qualified Agda.TypeChecking.Monad.Benchmark as Bench
 import {-# SOURCE #-} Agda.TypeChecking.Monad.Options (getIncludeDirs)
 import Agda.Utils.FileName
 
@@ -153,7 +153,7 @@ checkModuleName name file = do
 --   Use wisely!
 
 moduleName' :: AbsolutePath -> TCM TopLevelModuleName
-moduleName' file = liftIO $ do
+moduleName' file = billTo [Bench.ModuleName] $ liftIO $ do
   name <- topLevelModuleName <$> parseFile' moduleParser file
   case name of
     TopLevelModuleName ["_"] -> return $ TopLevelModuleName [defaultName]
@@ -172,23 +172,3 @@ moduleName file = do
   m <- moduleName' file
   checkModuleName m file
   return m
-
--- | Maps top-level module names to the corresponding source file
--- names.
-
-type ModuleToSource = Map TopLevelModuleName AbsolutePath
-
--- | Maps source file names to the corresponding top-level module
--- names.
-
-type SourceToModule = Map AbsolutePath TopLevelModuleName
-
--- | Creates a 'SourceToModule' map based on 'stModuleToSource'.
-
-sourceToModule :: TCM SourceToModule
-sourceToModule =
-  Map.fromList
-     .  map (\(m, f) -> (f, m))
-     .  Map.toList
-     .  stModuleToSource
-    <$> get

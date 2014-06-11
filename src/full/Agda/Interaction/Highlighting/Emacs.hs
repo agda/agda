@@ -13,7 +13,7 @@ import Agda.Interaction.Highlighting.Range
 import Agda.Interaction.EmacsCommand
 import Agda.Syntax.Common
 import Agda.TypeChecking.Monad
-  (TCM, envHighlightingMethod, HighlightingMethod(..))
+  (TCM, envHighlightingMethod, HighlightingMethod(..), ModuleToSource)
 import Agda.Utils.FileName
 import qualified Agda.Utils.IO.UTF8 as UTF8
 import Agda.Utils.String

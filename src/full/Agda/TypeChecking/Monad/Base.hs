@@ -38,6 +38,7 @@ import Data.Foldable
 import Data.Traversable
 import Data.IORef
 
+import Agda.Syntax.Concrete (TopLevelModuleName)
 import Agda.Syntax.Common hiding (Arg, Dom, NamedArg, ArgInfo)
 import qualified Agda.Syntax.Common as Common
 import qualified Agda.Syntax.Concrete as C
@@ -50,7 +51,7 @@ import Agda.Syntax.Scope.Base
 import Agda.TypeChecking.CompiledClause
 
 import Agda.Interaction.Exceptions
-import {-# SOURCE #-} Agda.Interaction.FindFile
+-- import {-# SOURCE #-} Agda.Interaction.FindFile
 import Agda.Interaction.Options
 import {-# SOURCE #-} Agda.Interaction.Response
   (InteractionOutputCallback, defaultInteractionOutputCallback, Response)
@@ -238,6 +239,30 @@ instance HasFresh i FreshThings => HasFresh i TCState where
 	where
 	    (i, f) = nextFresh $ stFreshThings s
 
+
+---------------------------------------------------------------------------
+-- ** Managing file names
+---------------------------------------------------------------------------
+
+-- | Maps top-level module names to the corresponding source file
+-- names.
+
+type ModuleToSource = Map TopLevelModuleName AbsolutePath
+
+-- | Maps source file names to the corresponding top-level module
+-- names.
+
+type SourceToModule = Map AbsolutePath TopLevelModuleName
+
+-- | Creates a 'SourceToModule' map based on 'stModuleToSource'.
+
+sourceToModule :: TCM SourceToModule
+sourceToModule =
+  Map.fromList
+     .  List.map (\(m, f) -> (f, m))
+     .  Map.toList
+     .  stModuleToSource
+    <$> get
 
 ---------------------------------------------------------------------------
 -- ** Interface

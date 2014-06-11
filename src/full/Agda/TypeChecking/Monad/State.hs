@@ -9,7 +9,8 @@ import Data.Set (Set)
 import Data.Map as Map
 import qualified Data.Set as Set
 
-import {-# SOURCE #-} Agda.Interaction.Response
+-- import {-# SOURCE #-} Agda.Interaction.Response
+import Agda.Interaction.Response
   (InteractionOutputCallback, Response)
 
 import Agda.Syntax.Common
