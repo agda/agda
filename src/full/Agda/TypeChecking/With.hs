@@ -292,7 +292,16 @@ stripWithClausePatterns gamma qs perm ps = do
 --   For instance, @aux a b c@ as @f (suc a) (suc b) | c@
 --
 --   @n@ is the number of with arguments.
-withDisplayForm :: QName -> QName -> Telescope -> Telescope -> Nat -> [I.NamedArg Pattern] -> Permutation -> Permutation -> TCM DisplayForm
+withDisplayForm
+  :: QName       -- ^ The name of parent function.
+  -> QName       -- ^ The name of the with-function.
+  -> Telescope   -- ^ The arguments of the with function before the with exprs.
+  -> Telescope   -- ^ The arguments of the with function after the with exprs.
+  -> Nat         -- ^ The number of with expressions.
+  -> [I.NamedArg Pattern] -- ^ The parent patterns.
+  -> Permutation -- ^ Permutation to split into needed and unneeded vars.
+  -> Permutation -- ^ Permutation reordering the variables in parent patterns.
+  -> TCM DisplayForm
 withDisplayForm f aux delta1 delta2 n qs perm@(Perm m _) lhsPerm = do
   topArgs <- raise (n + size delta1 + size delta2) <$> getContextArgs
   x <- freshNoName_
