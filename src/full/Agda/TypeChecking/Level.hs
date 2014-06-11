@@ -73,8 +73,9 @@ unLevel (Level l)  = reallyUnLevelView l
 unLevel (Shared p) = unLevel (derefPtr p)
 unLevel v = return v
 
-reallyUnLevelView :: Level -> TCM Term
-reallyUnLevelView nv =
+{-# SPECIALIZE reallyUnLevelView :: Level -> TCM Term #-}
+reallyUnLevelView :: MonadTCM tcm => Level -> tcm Term
+reallyUnLevelView nv = liftTCM $ do
   case nv of
     Max []              -> primLevelZero
     Max [Plus 0 a]      -> return $ unLevelAtom a
