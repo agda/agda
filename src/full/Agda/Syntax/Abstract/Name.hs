@@ -298,7 +298,11 @@ instance SetRange ModuleName where
 
 instance KillRange Name where
   killRange x = x { nameConcrete = killRange $ nameConcrete x
-                  , nameBindingSite = noRange
+                  -- Andreas, 2014-03-30
+                  -- An experiment: what happens if we preserve
+                  -- the range of the binding site, but kill all
+                  -- other ranges before serialization?
+                  -- , nameBindingSite = noRange
                   }
 
 instance KillRange ModuleName where
