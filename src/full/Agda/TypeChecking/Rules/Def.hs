@@ -355,21 +355,24 @@ insertPatterns pats (A.WithRHS aux es cs) = A.WithRHS aux es (map insertToClause
 insertPatterns pats (A.RewriteRHS qs eqs rhs wh) = A.RewriteRHS qs eqs (insertPatterns pats rhs) wh
 insertPatterns pats rhs = rhs
 
+-- | Parameters for creating a @with@-function.
 data WithFunctionProblem
-      = NoWithFunction
-      | WithFunction QName                -- parent function name
-                     QName                -- with function name
-                     Telescope            -- arguments to parent function
-                     Telescope            -- arguments to the with function before the with expressions
-                     Telescope            -- arguments to the with function after the with expressions
-                     [Term]               -- with expressions
-                     [Type]               -- types of the with expressions
-                     Type                 -- type of the right hand side
-                     [I.NamedArg Pattern] -- parent patterns
-                     Permutation          -- permutation resulting from splitting the telescope into needed and unneeded vars
-                     Permutation          -- permutation reordering the variables in the parent pattern
-                     Permutation          -- final permutation (including permutation for the parent clause)
-                     [A.Clause]           -- the given clauses for the with function
+  = NoWithFunction
+  | WithFunction
+    { wfParentName :: QName                -- ^ parent function name
+    , wfName       :: QName                -- ^ with function name
+    , wfParentTel  :: Telescope            -- ^ arguments to parent function
+    , wfBeforeTel  :: Telescope            -- ^ arguments to the with function before the with expressions
+    , wfAfterTel   :: Telescope            -- ^ arguments to the with function after the with expressions
+    , wfExprs      :: [Term]               -- ^ with expressions
+    , wfExprTypes  :: [Type]               -- ^ types of the with expressions
+    , wfRHSType    :: Type                 -- ^ type of the right hand side
+    , wfParentPats :: [I.NamedArg Pattern] -- ^ parent patterns
+    , wfPermSplit  :: Permutation          -- ^ permutation resulting from splitting the telescope into needed and unneeded vars
+    , wfPermParent :: Permutation          -- ^ permutation reordering the variables in the parent pattern
+    , wfPermFinal  :: Permutation          -- ^ final permutation (including permutation for the parent clause)
+    , wfClauses    :: [A.Clause]           -- ^ the given clauses for the with function
+    }
 
 -- | Type check a function clause.
 {-
