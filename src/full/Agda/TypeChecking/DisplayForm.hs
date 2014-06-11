@@ -71,14 +71,14 @@ displayForm q vs = do
     -- hd (DWithApp (d : _) _) = hd d
     -- hd _		    = Nothing
 
--- | Match a 'DisplayForm' @n |- q ps = v@ against @q vs@.
+-- | Match a 'DisplayForm' @q ps = v@ against @q vs@.
 --   Return the 'DisplayTerm' @v[us]@ if the match was successful,
---   i.e., @vs / ps = Just us@
+--   i.e., @vs / ps = Just us@.
 matchDisplayForm :: DisplayForm -> Args -> MaybeT TCM DisplayTerm
-matchDisplayForm (Display n ps v) vs
+matchDisplayForm (Display _ ps v) vs
   | length ps > length vs = mzero
   | otherwise             = do
-      us <- match n ps $ raise 1 $ map unArg vs0
+      us <- match ps $ raise 1 $ map unArg vs0
       return $ applySubst (parallelS $ reverse us) v `apply` vs1
   where
     (vs0, vs1) = splitAt (length ps) vs
@@ -99,42 +99,42 @@ matchDisplayForm (Display n ps v) vs
 --   (It has been substituted by __IMPOSSIBLE__ which corresponds to
 --   a raise by -1).
 class Match a where
-  match :: Nat -> a -> a -> MaybeT TCM [Term]
+  match :: a -> a -> MaybeT TCM [Term]
 
 instance Match a => Match [a] where
-  match n xs ys = concat <$> zipWithM (match n) xs ys
+  match xs ys = concat <$> zipWithM match xs ys
 
 instance Match a => Match (Arg a) where
-  match n p v = match n (unArg p) (unArg v)
+  match p v = match (unArg p) (unArg v)
 
 instance Match a => Match (Elim' a) where
-  match n p v =
+  match p v =
     case (p, v) of
       (Proj f, Proj f') | f == f' -> return []
-      (Apply a, Apply a')         -> match n a a'
+      (Apply a, Apply a')         -> match a a'
       _                           -> mzero
 
 instance Match Term where
-  match n p v = case (ignoreSharing p, ignoreSharing v) of
+  match p v = case (ignoreSharing p, ignoreSharing v) of
     (Var 0 [], v)                  -> return [subst __IMPOSSIBLE__ v]
-    (Var i ps, Var j vs) | i == j  -> match n ps vs
-    (Def c ps, Def d vs) | c == d  -> match n ps vs
-    (Con c ps, Con d vs) | c == d  -> match n ps vs
+    (Var i ps, Var j vs) | i == j  -> match ps vs
+    (Def c ps, Def d vs) | c == d  -> match ps vs
+    (Con c ps, Con d vs) | c == d  -> match ps vs
     (Lit l, Lit l')      | l == l' -> return []
     (p, v)               | p == v  -> return []
-    (p, Level l)                   -> match n p =<< reallyUnLevelView l
-    (Sort ps, Sort pv)             -> match n ps pv
-    (p, Sort (Type v))             -> match n p =<< reallyUnLevelView v
+    (p, Level l)                   -> match p =<< reallyUnLevelView l
+    (Sort ps, Sort pv)             -> match ps pv
+    (p, Sort (Type v))             -> match p =<< reallyUnLevelView v
     _                              -> mzero
 
 instance Match Sort where
-  match n p v = case (p, v) of
-    (Type pl, Type vl) -> match n pl vl
+  match p v = case (p, v) of
+    (Type pl, Type vl) -> match pl vl
     _ | p == v -> return []
     _          -> mzero
 
 instance Match Level where
-  match n p v = do
+  match p v = do
     p <- reallyUnLevelView p
     v <- reallyUnLevelView v
-    match n p v
+    match p v
