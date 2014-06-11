@@ -53,7 +53,11 @@ displayForm q vs = do
       ]
     -- Return the first display form that matches.
     return $ mhead ms
-  `catchError` \_ -> return Nothing
+
+--  Andreas, 2014-06-11: The following error swallowing
+--  is potentially harmful, making debugging harder.
+--  I removed it, and it does not cause problems on the test suite.
+--  `catchError` \_ -> return Nothing
 
   where
     inScope _ _ = True  -- TODO: distinguish between with display forms and other display forms
