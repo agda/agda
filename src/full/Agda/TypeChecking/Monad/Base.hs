@@ -14,6 +14,7 @@ import Control.Monad.Error
 import Control.Monad.State
 import Control.Monad.Reader
 import Control.Monad.Writer
+import Control.Monad.Trans.Maybe
 import Control.Applicative
 
 import Data.Function
@@ -1625,6 +1626,9 @@ pureTCM f = TCM $ \r e -> do
 {-# RULES "liftTCM/id" liftTCM = id #-}
 instance MonadIO m => MonadTCM (TCMT m) where
     liftTCM = mapTCMT liftIO
+
+instance MonadTCM tcm => MonadTCM (MaybeT tcm) where
+  liftTCM = lift . liftTCM
 
 instance (Error err, MonadTCM tcm) => MonadTCM (ErrorT err tcm) where
   liftTCM = lift . liftTCM
