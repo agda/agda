@@ -96,7 +96,9 @@ checkInternal v t = do
     , text " : "
     , prettyTCM t
     ]
-  v <- elimView v  -- bring projection-like funs in post-fix form
+  -- Bring projection-like funs in post-fix form,
+  -- even lone ones (True).
+  v <- elimView True v
   case ignoreSharing v of
     Var i es   -> do
       a <- typeOfBV i
