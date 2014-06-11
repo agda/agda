@@ -393,7 +393,7 @@ unfoldDefinition' unfoldDelayed keepGoing v0 f es =
                   = retSimpl $ notBlocked $ v0 `applyE` es -- not fully applied
       | otherwise = {-# SCC "reducePrimitive" #-} do
           let (es1,es2) = genericSplitAt ar es
-              args1     = maybe __IMPOSSIBLE__ id $ mapM isApplyElim es1
+              args1     = fromMaybe __IMPOSSIBLE__ $ mapM isApplyElim es1
           r <- primFunImplementation pf args1
           case r of
             NoReduction args1' -> do
