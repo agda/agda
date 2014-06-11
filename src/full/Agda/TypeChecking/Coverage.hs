@@ -332,13 +332,15 @@ computeNeighbourhood
   -> OneHolePatterns            -- ^ Patterns with hole at split point.
   -> QName                      -- ^ Constructor to fit into hole.
   -> CoverM (Maybe SplitClause) -- ^ New split clause if successful.
-computeNeighbourhood delta1 n delta2 perm d pars ixs hix hps con = do
+computeNeighbourhood delta1 n delta2 perm d pars ixs hix hps c = do
 
   -- Get the type of the datatype
   dtype <- liftTCM $ (`piApply` pars) . defType <$> getConstInfo d
 
   -- Get the real constructor name
-  con <- liftTCM $ getConForm con
+  con <- liftTCM $ getConForm c
+  con <- return $ con { conName = c }  -- What if we restore the current name?
+                                       -- Andreas, 2013-11-29 changes nothing!
 {-
   con <- conSrcCon . theDef <$> getConstInfo con
   Con con [] <- liftTCM $ ignoreSharing <$> (constructorForm =<< normalise (Con con []))
