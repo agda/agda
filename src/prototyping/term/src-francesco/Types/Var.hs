@@ -59,7 +59,7 @@ class VarName v where
 class VarIndex v where
     varIndex :: v -> Int
 
-class (Eq v, Typeable v, VarName v, VarIndex v) => IsVar v
+class (Eq v, Ord v, Typeable v, VarName v, VarIndex v) => IsVar v
 
 prettyVar :: (IsVar v) => v -> PP.Doc
 prettyVar v = PP.text (show (varIndex v) ++ "#") <> PP.pretty (varName v)
@@ -110,3 +110,9 @@ instance PP.Pretty MetaVar where
 
 instance Show MetaVar where
    show (MetaVar mv) = "_" ++ show mv
+
+-- Useful type synonyms
+------------------------------------------------------------------------
+
+type Type (t :: * -> *) = t
+type Term (t :: * -> *) = t

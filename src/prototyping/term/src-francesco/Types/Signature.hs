@@ -19,7 +19,6 @@ import           Syntax.Abstract                  (Name)
 import           Types.Definition
 import           Types.Var
 import           Text.PrettyPrint.Extended        (render)
-import           Types.Term                       hiding (metaVars)
 
 data Signature t = Signature
     { sDefinitions :: Map.Map Name (Closed (Definition t))

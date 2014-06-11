@@ -9,7 +9,7 @@ import           Data.Foldable                    (Foldable)
 import           Data.Traversable                 (Traversable)
 import           Prelude.Extras                   (Eq1((==#)))
 import           Data.Void                        (Void)
-import           Data.Monoid                      ((<>), mconcat, mempty)
+import           Data.Monoid                      (Monoid(mappend, mempty), (<>), mconcat)
 import qualified Data.HashSet                     as HS
 import           Control.Monad                    (liftM)
 import           Data.Typeable                    (Typeable)
@@ -253,9 +253,3 @@ renderView = PP.render . view
 
 prettyView :: (IsVar v, IsTerm t) => t v -> PP.Doc
 prettyView = PP.pretty . view
-
--- Useful type synonyms
------------------------
-
-type Type (t :: * -> *) = t
-type Term (t :: * -> *) = t

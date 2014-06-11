@@ -1,20 +1,19 @@
-        {-# LANGUAGE OverloadedStrings #-}
+{-# LANGUAGE OverloadedStrings #-}
 module Check (checkProgram) where
 
 import           Prelude                          hiding (abs, pi)
 
 import           Data.Functor                     ((<$>), (<$))
-import           Data.Foldable                    (foldMap, forM_)
-import           Data.Monoid                      (Monoid(..),(<>))
+import           Data.Foldable                    (forM_)
+import           Data.Monoid                      ((<>))
 import qualified Data.HashSet                     as HS
-import           Control.Monad                    (when, void)
+import           Control.Monad                    (when, void, guard, mzero)
 import           Data.List                        (nub)
 import           Data.Traversable                 (traverse, sequenceA)
 import           Prelude.Extras                   ((==#))
 import           Bound                            hiding (instantiate, abstract)
 import           Bound.Var                        (unvar)
 import qualified Bound.Name                       as Bound
-import           Data.Maybe                       (maybeToList)
 import           Data.Typeable                    (Typeable)
 import           Data.Void                        (vacuous, Void, vacuousM)
 import qualified Data.Set                         as Set
@@ -22,6 +21,7 @@ import qualified Data.Map                         as Map
 import           Control.Applicative              (Applicative(pure, (<*>)))
 import           Control.Monad.Trans              (lift)
 import           Control.Monad.Trans.Either       (EitherT(EitherT), runEitherT)
+import           Control.Monad.Trans.Maybe        (MaybeT(MaybeT), runMaybeT)
 
 import           Syntax.Abstract                  (Name)
 import           Syntax.Abstract.Pretty           ()
@@ -36,6 +36,7 @@ import           Text.PrettyPrint.Extended        (render, (<+>), ($$))
 import qualified Text.PrettyPrint.Extended        as PP
 import qualified Types.Signature                  as Sig
 import           Eval
+import           FreeVars
 
 -- Main functions
 ------------------------------------------------------------------------
@@ -354,8 +355,10 @@ metaAssign type_ mv elims t = do
       -- metavariable
       sig <- getSignature
       let t' = nf sig t
-      vs <- liftClosed $ rigidVars t'
-      pruned <- liftClosed $ prune (`elem` vs) mv $ map (nf' sig) elims
+      -- TODO should we really prune allowing all variables here?  Or
+      -- only the rigid ones?
+      let fvs = fvAll $ freeVars sig t'
+      pruned <- liftClosed $ prune fvs mv $ map (nf' sig) elims
       if pruned
         then checkEqual type_ (metaVar mv elims) t
         else fmap StuckOn $
@@ -363,7 +366,7 @@ metaAssign type_ mv elims t = do
                  checkEqual type_ (eliminate (vacuous mvT) elims) t
     Right vs -> do
       -- TODO have `pruneTerm' return an evaluated term.
-      liftClosed $ pruneTerm vs t
+      liftClosed $ pruneTerm (Set.fromList vs) t
       sig <- getSignature
       res <- closeTerm $ lambdaAbstract vs $ nf sig t
       case res of
@@ -381,7 +384,7 @@ metaAssign type_ mv elims t = do
 -- | The term must be in normal form.
 pruneTerm
     :: (IsVar v, IsTerm t)
-    => [v]                      -- ^ allowed vars
+    => Set.Set v                -- ^ allowed vars
     -> Term t v
     -> ClosedTC t ()
 pruneTerm vs t = do
@@ -389,15 +392,15 @@ pruneTerm vs t = do
   case whnfView sig t of
     Lam body -> do
       let body' = fromAbs body
-      pruneTerm (boundTermVar (getName_ body') : map F vs) body'
+      pruneTerm (Set.insert (boundTermVar (getName_ body')) (Set.mapMonotonic F vs)) body'
     Pi domain codomain -> do
       pruneTerm vs domain
       let codomain' = fromAbs codomain
-      pruneTerm (boundTermVar (getName_ codomain') : map F vs) codomain'
+      pruneTerm (Set.insert (boundTermVar (getName_ codomain')) (Set.mapMonotonic F vs)) codomain'
     Equal type_ x y ->
       mapM_ (pruneTerm vs) [type_, x, y]
     App (Meta mv) elims ->
-      void (liftClosed (prune (`elem` vs) mv elims)) >> return ()
+      void (liftClosed (prune vs mv elims)) >> return ()
     App _ elims ->
       mapM_ (pruneTerm vs) [t' | Apply t' <- elims]
     Set ->
@@ -408,31 +411,28 @@ pruneTerm vs t = do
       mapM_ (pruneTerm vs) args
 
 -- | Prunes a 'MetaVar' application and instantiates the new body.
--- Returns whether some pruning was performed.
+-- Returns if some (not necessarely all) pruning was performed.
 --
 -- The term must be in normal form.
 prune
     :: forall t v0.
        (IsVar v0, IsTerm t)
-    => (v0 -> Bool)             -- ^ allowed vars
+    => Set.Set v0               -- ^ allowed vars
     -> MetaVar
     -> [Elim (Term t) v0]       -- ^ Arguments to the metavariable
     -> ClosedTC t Bool
-prune allowedVar oldMv elims | Just args <- mapM isApply elims = do
-  argsMatchable <- mapM potentiallyMatchable args
-  if or argsMatchable
-    then return False
-    else do
-      -- TODO check that newly created meta is well-typed.
-      kills0 <- mapM toKill args
-      oldMvType <- getTypeOfMetaVar oldMv
-      (newMvType, kills1) <- createNewMeta oldMvType kills0
-      newMv <- addMetaVar $ telPi newMvType
-      if any (\(Bound.Name _ b) -> b) kills1
-        then True <$ instantiateMetaVar oldMv (createMetaLam newMv kills1)
-        else return False
+prune allowedVs oldMv elims | Just args <- mapM isApply elims =
+  maybe False (\() -> True) <$> runMaybeT (go args)
   where
-    toKill arg = not . all allowedVar <$> rigidVars arg
+    go args = do
+      -- TODO check that newly created meta is well-typed.
+      sig <- lift $ getSignature
+      kills0 <- MaybeT $ return $ mapM (shouldKill sig allowedVs) args
+      oldMvType <- lift $ getTypeOfMetaVar oldMv
+      let (newMvType, kills1) = createNewMeta sig oldMvType kills0
+      guard $ any (\(Bound.Name _ b) -> b) kills1
+      newMv <- lift $ addMetaVar $ telPi newMvType
+      lift $ instantiateMetaVar oldMv (createMetaLam newMv kills1)
 
     -- We build a telescope with only the non-killed types in.  This
     -- way, we can analyze the dependency between arguments and avoid
@@ -442,145 +442,59 @@ prune allowedVar oldMv elims | Just args <- mapM isApply elims = do
     -- the remaining type, so that this dependency check will be
     -- performed on it as well.
     createNewMeta
-      :: Type t v -> [Bool]
-      -> TC t v (Tel.IdTel (Type t) v, [Named Bool])
-    createNewMeta type_ [] = do
-      return (Tel.Empty (Tel.Id type_), [])
-    createNewMeta type_ (kill : kills) = do
-      typeView <- whnfViewTC type_
-      case typeView of
-        Pi domain codomain -> do
+      :: Sig.Signature t -> Type t v -> [Bool]
+      -> (Tel.IdTel (Type t) v, [Named Bool])
+    createNewMeta _ type_ [] =
+      (Tel.Empty (Tel.Id type_), [])
+    createNewMeta sig type_ (kill : kills) =
+      case whnfView sig type_ of
+        Pi domain codomain ->
           let codomain' = fromAbs codomain
-          let name      = getName_ codomain'
-          (tel, kills') <-
-            extendContext name domain $ \_ -> createNewMeta codomain' kills
-          let notKilled = (Tel.Cons (name, domain) tel, named name False : kills')
-          return $
-            if not kill
-            then notKilled
-            else case traverse (unvar (const Nothing) Just) tel of
-              Nothing   -> notKilled
-              Just tel' -> (tel', named name True : kills')
+              name = getName_ codomain'
+              (tel, kills') = createNewMeta sig codomain' kills
+              notKilled = (Tel.Cons (name, domain) tel, named name False : kills')
+          in if not kill
+             then notKilled
+             else case traverse (unvar (const Nothing) Just) tel of
+               Nothing   -> notKilled
+               Just tel' -> (tel', named name True : kills')
         _ ->
           error "impossible.createPrunedMeta: metavar type too short"
 
     createMetaLam :: MetaVar -> [Named Bool] -> Closed (Type t)
-    createMetaLam newMv = go []
+    createMetaLam newMv = go' []
       where
-        go :: [v] -> [Named Bool] -> Type t v
-        go vs [] =
+        go' :: [v] -> [Named Bool] -> Type t v
+        go' vs [] =
           metaVar newMv $ map (Apply . var) (reverse vs)
-        go vs (kill : kills) =
+        go' vs (kill : kills) =
           let vs' = (if unNamed kill then [] else [B (() <$ kill)]) ++ map F vs
-          in lam $ toAbs $ go vs' kills
+          in lam $ toAbs $ go' vs' kills
 prune _ _ _ = do
   -- TODO we could probably do something more.
   return False
 
--- | Collects all the rigidly occurring variables in a term.
---
--- With "rigidly occurring" we mean everything which is not flexibly
--- occurring.
---
--- With "flexible occurring" here we mean either occurring as an
--- argument of a metavariable or an argument of an object variable that
--- might be substituted with a metavariable.
---
--- Note that we don't specify how precise the detection of said
--- "substitutable" object variables is we might be more conservative
--- than possible.
-rigidVars
-    :: forall t v0.
-       (IsVar v0, IsTerm t)
-    => Term t v0 -> ClosedTC t [v0]
-rigidVars t0 = do
-  sig <- getSignature
-  let
-    go :: (IsVar v)
-       => (v -> Maybe v0)
-       -> (v -> Bool)
-       -- ^ vars that count as flexible, and so also flexible contexts
-       -> Term t v -> [v0]
-    go strengthen flex t =
-      case whnfView sig t of
-        Lam body ->
-          go (lift' strengthen) (addNew flex) (fromAbs body)
-          -- addNew is conservative, some lambdas might not be reachable
-        Pi domain codomain ->
-          go strengthen flex domain <>
-          go (lift' strengthen) (ignoreNew flex) (fromAbs codomain)
-        Equal type_ x y ->
-          foldMap (go strengthen flex) [type_, x, y]
-        App (Var v) elims ->
-          if flex v
-          then mempty
-          else maybeToList (strengthen v) <>
-               foldMap (go strengthen flex) [t' | Apply t' <- elims]
-        App (Def d) elims ->
-          if isNeutral sig d elims
-          then foldMap (go strengthen flex) [t' | Apply t' <- elims]
-          else mempty
-        App J elims ->
-          foldMap (go strengthen flex) [t' | Apply t' <- elims]
-        App (Meta _) _ ->
-          mempty
-        Set ->
-          mempty
-        Refl ->
-          mempty
-        Con _ _ ->
-          mempty
-          -- conservative, some constructors might not be reachable
-
-    lift' :: (v -> Maybe v0) -> TermVar v -> Maybe v0
-    lift' _ (B _) = Nothing
-    lift' f (F v) = f v
-
-    ignoreNew _ (B _) = False
-    ignoreNew f (F v) = f v
-
-    addNew _ (B _) = True
-    addNew f (F v) = f v
-
-  return $ go Just (const False) t0
-
--- | Check whether a term @Def f es@ is finally stuck.
---   Currently, we give only a crude approximation.
-isNeutral :: (IsTerm t, IsVar v) => Sig.Signature t -> Name -> [Elim (Term t) v] -> Bool
-isNeutral sig f _ =
-  case Sig.getDefinition sig f of
-    Constant{}    -> True
-    Constructor{} -> error $ "impossible.isNeutral: constructor " ++ show f
-    Projection{}  -> error $ "impossible.isNeutral: projection " ++ show f
-    Function{}    -> False
-    -- TODO: more precise analysis
-    -- We need to check whether a function is stuck on a variable
-    -- (not meta variable), but the API does not help us...
-
--- | Returns True if it might be possible to get a data constructor out
--- of this term.
-potentiallyMatchable :: (IsTerm t, IsVar v) => Term t v -> ClosedTC t Bool
-potentiallyMatchable t = do
-  sig <- getSignature
+-- | Returns whether the term should be killed, given a set of allowed
+-- variables.
+shouldKill
+  :: (IsTerm t, IsVar v)
+  => Sig.Signature t -> Set.Set v -> Term t v -> Maybe Bool
+shouldKill sig vs t = do
   case whnfView sig t of
-    Lam body ->
-      potentiallyMatchable (fromAbs body)
-    Con dataCon args -> do
-      if isRecordConstr sig dataCon
-        then or <$> mapM potentiallyMatchable args
-        else return True
-    App (Def f) elims ->
-      if isNeutral sig f elims
-      then return False
-      else return True
+    Lam _ -> do
+      mzero
+    Con dataCon args | isRecordConstr sig dataCon ->
+      and <$> mapM (shouldKill sig vs) args
+    App (Def _) _ ->
+      -- TODO currently we can't really be sure if something if finally
+      -- stuck, I think.
+      checkRigidVars
+    Con _ _ ->
+      mzero
     _ ->
-      return False
-
--- pruneMetaArguments
---   :: (IsVar v, IsTerm t)
---   => Type t v -> MetaVar -> [Elim (Term t) v]
---   -> TC t v (MetaVar, [Elim (Term t) v])
--- pruneMetaArguments = error "TODO pruneMetaArguments"
+      checkRigidVars
+  where
+    checkRigidVars = return $ not (fvRigid (freeVars sig t) `Set.isSubsetOf` vs)
 
 -- | 'Left' 'Just' if the pattern condition check is blocked on a some
 -- 'MetaVar's.  The set is empty if the pattern condition is not
@@ -644,7 +558,7 @@ instance Applicative (CloseTerm v0) where
     Rigid v         <*> _               = Rigid v
 
 -- TODO improve efficiency of this traversal, we shouldn't need all
--- those `fromAbs'.  Also in `rigidVars'.
+-- those `fromAbs'.  Also in `freeVars'.
 closeTerm
     :: forall t v0.
        (IsVar v0, IsTerm t)
@@ -759,32 +673,26 @@ checkProgram decls0 = do
       let mvsBodies = Sig.metaVarsBodies $ trSignature tr
       drawLine
       putStrLn $ "-- Solved MetaVars: " ++ show (Map.size mvsTypes)
+      putStrLn $ "-- Unsolved MetaVars: " ++ show (Map.size mvsTypes - Map.size mvsBodies)
       drawLine
       forM_ (Map.toList mvsTypes) $ \(mv, mvType) -> do
-        forM_ (Map.lookup mv mvsBodies) $ \mvBody -> do
-          putStrLn $ render $
-            PP.pretty mv <+> ":" <+> PP.nest 2 (PP.pretty (view mvType))
-          putStrLn $ render $
-            PP.pretty mv <+> "=" <+> PP.nest 2 (PP.pretty (view mvBody))
-      drawLine
-      putStrLn "-- Unsolved MetaVars: "
-      drawLine
-      forM_ (Map.toList mvsTypes) $ \(mv, mvType) ->
-        case Map.lookup mv mvsBodies of
-          Nothing ->
-            putStrLn $ render $
-              PP.pretty mv <> PP.text " : " <> PP.nest 2 (PP.pretty (view mvType))
-          Just _ ->
-            return ()
+        putStrLn $ render $
+          PP.pretty mv <+> ":" <+> PP.nest 2 (PP.pretty (view mvType))
+        let mvBody = case Map.lookup mv mvsBodies of
+              Nothing      -> "?"
+              Just mvBody0 -> prettyView mvBody0
+        putStrLn $ render $ PP.pretty mv <+> "=" <+> PP.nest 2 mvBody
+        putStrLn ""
       drawLine
       putStrLn $ "-- Solved problems: " ++ show (Set.size (trSolvedProblems tr))
       putStrLn $ "-- Unsolved problems: " ++ show (Map.size (trUnsolvedProblems tr))
       drawLine
-      forM_ (Map.toList (trUnsolvedProblems tr)) $ \(pid, (probState, probDesc)) ->
+      forM_ (Map.toList (trUnsolvedProblems tr)) $ \(pid, (probState, probDesc)) -> do
         putStrLn $ render $
-          PP.nest 2 (PP.pretty pid) $$
-          PP.nest 4 (PP.pretty probState) $$
-          PP.nest 4 probDesc
+          PP.pretty pid $$
+          PP.nest 2 (PP.pretty probState) $$
+          PP.nest 2 probDesc
+        putStrLn ""
 
     drawLine =
       putStrLn "------------------------------------------------------------------------"
@@ -1104,9 +1012,6 @@ whnfTC t = do
 whnfViewTC :: (IsTerm t) => t v -> TC t v' (TermView t v)
 whnfViewTC t = view . ignoreBlocking <$> whnfTC t
 
-whnfView :: (IsTerm t) => Sig.Signature t -> t v -> TermView t v
-whnfView sig = view . ignoreBlocking . whnf sig
-
 -- Matching terms
 -----------------
 
@@ -1367,14 +1272,27 @@ ctxLam (Ctx.Snoc ctx _) t = ctxLam ctx $ lam $ toAbs t
 data ProblemDescription t v
     = CheckEqual (Type t v) (Term t v) (Term t v)
     | WaitForInfer A.Expr (Type t v)
-    | forall a. EscapingScope (ProblemId t v a)
+    | forall a v'. EscapingScope (ProblemId t v' a)
     | MetaVarIfStuck (Term t v) (Type t v) (ProblemId t v (Term t v))
-    | forall a. WaitingOn (ProblemId t v a)
+    | forall a v'. WaitingOn (ProblemId t v' a)
     | CheckSpine (Term t v) [A.Elim] (Type t v)
     | EqualSpine (Term t v) [Elim t v] [Elim t v] (Type t v)
     | MatchTyCon Name (Type t v)
     | MatchPi (Type t v)
     | MatchEqual (Type t v)
+
+instance Nf ProblemDescription where
+  nf' sig desc = case desc of
+    CheckEqual type_ x y -> CheckEqual (nf sig type_) (nf sig x) (nf sig y)
+    WaitForInfer synT type_ -> WaitForInfer synT (nf sig type_)
+    EscapingScope pid -> EscapingScope pid
+    MetaVarIfStuck mv type_ pid -> MetaVarIfStuck (nf sig mv) (nf sig type_) pid
+    WaitingOn pid -> WaitingOn pid
+    CheckSpine t elims type_ -> CheckSpine (nf sig t) elims (nf sig type_)
+    EqualSpine t elims1 elims2 type_ -> EqualSpine (nf sig t) (map (nf' sig) elims1) (map (nf' sig) elims2) (nf sig type_)
+    MatchTyCon tyCon type_ -> MatchTyCon tyCon (nf sig type_)
+    MatchPi type_ -> MatchPi (nf sig type_)
+    MatchEqual type_ -> MatchEqual (nf sig type_)
 
 instance (IsVar v, IsTerm t) => PP.Pretty (ProblemDescription t v)  where
     pretty desc = case desc of

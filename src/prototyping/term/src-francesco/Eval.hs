@@ -6,6 +6,7 @@ module Eval
     , ignoreBlocking
       -- * Reducing
     , whnf
+    , whnfView
     , nf
     , Nf(nf')
     ) where
@@ -132,6 +133,9 @@ matchClause sig (Apply arg : es) (ConP dataCon dataConPatterns : patterns) = do
 matchClause _ _ _ =
   mzero
 
+whnfView :: (IsTerm t) => Sig.Signature t -> t v -> TermView t v
+whnfView sig = view . ignoreBlocking . whnf sig
+
 nf :: (IsTerm t) => Sig.Signature t -> t v -> t v
 nf sig t = case view (ignoreBlocking (whnf sig t)) of
   Lam body ->
@@ -154,7 +158,7 @@ nf sig t = case view (ignoreBlocking (whnf sig t)) of
     nfElim (Apply t') = Apply $ nf sig t'
     nfElim (Proj n f) = Proj n f
 
-class (Bound t) => Nf t where
+class Nf t where
   nf' :: (IsTerm f) => Sig.Signature f -> t f v -> t f v
 
 instance Nf Elim where

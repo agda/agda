@@ -55,6 +55,7 @@ import           Types.Term
 import qualified Types.Context                    as Ctx
 import           Types.Monad.Base
 import qualified Types.Signature                  as Sig
+import           Eval
 
 -- Utilities
 ------------------------------------------------------------------------
@@ -127,6 +128,7 @@ getTypeOfVar v = do
 ------------------------------------------------------------------------
 
 newProblem_
-    :: (Typeable a, Typeable v, Typeable t, PP.Pretty p)
-    => MetaVar -> p -> (Closed (Term t) -> StuckTC t v a) -> TC t v (ProblemId t v a)
+    :: (Typeable a, IsVar v, IsTerm t, Nf p, PP.Pretty (p t v))
+    => MetaVar -> p t v -> (Closed (Term t) -> StuckTC t v a)
+    -> TC t v (ProblemId t v a)
 newProblem_ mv = newProblem (Set.singleton mv)
