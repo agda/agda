@@ -170,10 +170,19 @@ withLocalVars m = do
 -- * Names
 
 -- | Create a fresh abstract name from a concrete name.
+--
+--   This function is used when we translate a concrete name
+--   in a binder.  The 'Range' of the concrete name is
+--   saved as the 'nameBindingSite' of the abstract name.
 freshAbstractName :: Fixity' -> C.Name -> ScopeM A.Name
 freshAbstractName fx x = do
   i <- fresh
-  return $ A.Name i x (getRange x) fx
+  return $ A.Name
+    { nameId          = i
+    , nameConcrete    = x
+    , nameBindingSite = getRange x
+    , nameFixity      = fx
+    }
 
 -- | @freshAbstractName_ = freshAbstractName defaultFixity@
 freshAbstractName_ :: C.Name -> ScopeM A.Name
