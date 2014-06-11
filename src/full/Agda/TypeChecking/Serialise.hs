@@ -899,9 +899,15 @@ instance EmbPrj MutualId where
   value n = MutId `fmap` value n
 
 instance EmbPrj Definition where
-  icode (Defn rel a b c d e f g h) = icode9' rel a (P.killRange b) c d e f g h
-  value = vcase valu where valu [rel, a, b, c, d, e, f, g, h] = valu9 Defn rel a b c d e f g h
+  icode (Defn rel a b c d e f g h i) = icode10' rel a (P.killRange b) c d e f g h i
+  value = vcase valu where valu [rel, a, b, c, d, e, f, g, h, i] = valu10 Defn rel a b c d e f g h i
                            valu _                             = malformed
+
+instance EmbPrj RewriteRule where
+  icode (RewriteRule a b c d e) = icode5' a b c d e
+  value = vcase valu where valu [a, b, c, d, e] = valu5 RewriteRule a b c d e
+                           valu _               = malformed
+
 
 instance EmbPrj Projection where
   icode (Projection a b c d e) = icode5' a b c d e

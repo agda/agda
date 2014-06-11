@@ -136,7 +136,11 @@ instance Subst a => Apply (Tele a) where
   apply (ExtendTel _ tel) (t : ts) = absApp tel (unArg t) `apply` ts
 
 instance Apply Definition where
-  apply (Defn info x t pol occ df m c d) args = Defn info x (piApply t args) (apply pol args) (apply occ args) df m c (apply d args)
+  apply (Defn info x t pol occ df m c rew d) args = Defn info x (piApply t args) (apply pol args) (apply occ args) df m c (apply rew args) (apply d args)
+
+instance Apply RewriteRule where
+  apply (RewriteRule q gamma lhs rhs t) args =
+    RewriteRule q (apply gamma args) lhs rhs t
 
 instance Apply [Base.Occurrence] where
   apply occ args = List.drop (length args) occ
@@ -345,8 +349,15 @@ instance Abstract Telescope where
   abstract (ExtendTel arg tel') tel = ExtendTel arg $ fmap (`abstract` tel) tel'
 
 instance Abstract Definition where
-  abstract tel (Defn info x t pol occ df m c d) =
-    Defn info x (abstract tel t) (abstract tel pol) (abstract tel occ) df m c (abstract tel d)
+  abstract tel (Defn info x t pol occ df m c rews d) =
+    Defn info x (abstract tel t) (abstract tel pol) (abstract tel occ) df m c (abstract tel rews) (abstract tel d)
+
+-- | @tel ⊢ (Γ ⊢ lhs ↦ rhs : t)@ becomes @tel, Γ ⊢ lhs ↦ rhs : t)@
+--   we do not need to change lhs, rhs, and t since they live in Γ.
+--   See 'Abstract Clause'.
+instance Abstract RewriteRule where
+  abstract tel (RewriteRule q gamma lhs rhs t) =
+    RewriteRule q (abstract tel gamma) lhs rhs t
 
 instance Abstract [Base.Occurrence] where
   abstract tel []  = []

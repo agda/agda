@@ -1092,9 +1092,17 @@ instance InstantiateFull Char where
     instantiateFull' = return
 
 instance InstantiateFull Definition where
-    instantiateFull' (Defn rel x t pol occ df i c d) = do
-      (t, (df, d)) <- instantiateFull' (t, (df, d))
-      return $ Defn rel x t pol occ df i c d
+    instantiateFull' (Defn rel x t pol occ df i c rew d) = do
+      (t, (df, d, rew)) <- instantiateFull' (t, (df, d, rew))
+      return $ Defn rel x t pol occ df i c rew d
+
+instance InstantiateFull RewriteRule where
+  instantiateFull' (RewriteRule q gamma lhs rhs t) =
+    RewriteRule q
+      <$> instantiateFull' gamma
+      <*> instantiateFull' lhs
+      <*> instantiateFull' rhs
+      <*> instantiateFull' t
 
 instance InstantiateFull a => InstantiateFull (Open a) where
   instantiateFull' (OpenThing n a) = OpenThing n <$> instantiateFull' a

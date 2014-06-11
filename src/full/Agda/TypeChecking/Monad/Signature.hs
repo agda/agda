@@ -305,8 +305,10 @@ applySection new ptel old ts rd rm = do
 	t   = defType d `apply` ts
         pol = defPolarity d `apply` ts
         occ = defArgOccurrences d `apply` ts
+        rew = defRewriteRules d `apply` ts
 	-- the name is set by the addConstant function
-	nd y = Defn (defArgInfo d) y t pol occ [] (-1) noCompiledRep <$> def  -- TODO: mutual block?
+        nd :: QName -> TCM Definition
+	nd y = Defn (defArgInfo d) y t pol occ [] (-1) noCompiledRep rew <$> def  -- TODO: mutual block?
         oldDef = theDef d
 	isCon  = case oldDef of { Constructor{} -> True ; _ -> False }
         mutual = case oldDef of { Function{funMutual = m} -> m              ; _ -> [] }

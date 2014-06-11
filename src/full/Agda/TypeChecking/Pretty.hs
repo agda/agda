@@ -288,3 +288,12 @@ instance PrettyTCM Pattern where
         prettyTCM c <+> fsep (map (showPat . namedArg) ps) <+> text ":" <+> prettyTCM t
       showPat (LitP l)                  = text (show l)
       showPat (ProjP q)                 = text (show q)
+
+instance PrettyTCM RewriteRule where
+  prettyTCM (RewriteRule q gamma lhs rhs b) = inTopContext $ do
+    prettyTCM q     <+> text " rule " <+> do
+    prettyTCM gamma <+> text " |- "   <+> do
+    addContext gamma $ do
+    prettyTCM lhs   <+> text " --> "  <+> do
+    prettyTCM rhs   <+> text " : "    <+> do
+    prettyTCM b

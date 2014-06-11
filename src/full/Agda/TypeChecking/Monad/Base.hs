@@ -647,6 +647,19 @@ defaultDisplayForm c = []
 defRelevance = argInfoRelevance . defArgInfo
 defColors    = argInfoColors    . defArgInfo
 
+type RewriteRules = [RewriteRule]
+
+-- | Rewrite rules can be added independently from function clauses.
+data RewriteRule = RewriteRule
+  { rewName    :: QName      -- ^ Name of rewrite rule @q : Γ → lhs ≡ rhs@
+                             --   where @≡@ is the rewrite relation.
+  , rewContext :: Telescope  -- ^ @Γ@.
+  , rewLHS     :: Term       -- ^ @Γ ⊢ lhs : t@.
+  , rewRHS     :: Term       -- ^ @Γ ⊢ rhs : t@.
+  , rewType    :: Type       -- ^ @Γ ⊢ t@.
+  }
+    deriving (Typeable, Show)
+
 data Definition = Defn
   { defArgInfo        :: ArgInfo -- ^ Hiding should not be used.
   , defName           :: QName
@@ -656,6 +669,8 @@ data Definition = Defn
   , defDisplay        :: [Open DisplayForm]
   , defMutual         :: MutualId
   , defCompiledRep    :: CompiledRepresentation
+  , defRewriteRules   :: RewriteRules
+    -- ^ Rewrite rules for this symbol, (additional to function clauses).
   , theDef            :: Defn
   }
     deriving (Typeable, Show)
@@ -671,6 +686,7 @@ defaultDefn info x t def = Defn
   , defDisplay        = defaultDisplayForm x
   , defMutual         = 0
   , defCompiledRep    = noCompiledRep
+  , defRewriteRules   = []
   , theDef            = def
   }
 
