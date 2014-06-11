@@ -16,7 +16,7 @@ import System.CPUTime
 
 import Agda.TypeChecking.Monad.Base.Benchmark
 import Agda.TypeChecking.Monad.Base
-import Agda.TypeChecking.Monad.Options
+import{-# SOURCE #-} Agda.TypeChecking.Monad.Options
 import Agda.TypeChecking.Monad.State
 
 import Agda.Utils.Monad
