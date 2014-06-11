@@ -180,6 +180,3 @@ instance HasConstInfo ReduceM where
           init' [] = {-'-} __IMPOSSIBLE__
           init' xs = init xs
 
-instantiateDef :: Definition -> ReduceM Definition
-instantiateDef def = undefined
-
