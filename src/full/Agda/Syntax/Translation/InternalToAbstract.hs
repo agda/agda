@@ -159,12 +159,10 @@ reifyDisplayForm f vs fallback = do
   ifNotM displayFormsEnabled fallback $ {- else -} do
   caseMaybeM (liftTCM $ displayForm f vs) fallback reify
 
-{-
-reifyDisplayFormP :: A.LHS -> TCM A.LHS
-reifyDisplayFormP lhs@(A.LHS i A.LHSProj{} wps) =
-  typeError $ NotImplemented "reifyDisplayForm for copatterns"
-reifyDisplayFormP lhs@(A.LHS i (A.LHSHead x ps) wps) =
--}
+-- | @reifyDisplayFormP@ tries to recursively
+--   rewrite a lhs with a display form.
+--
+--   Note: we are not necessarily in the empty context upon entry!
 reifyDisplayFormP :: A.SpineLHS -> TCM A.SpineLHS
 reifyDisplayFormP lhs@(A.SpineLHS i x ps wps) =
   ifNotM displayFormsEnabled (return lhs) $ {- else -} do
