@@ -1204,6 +1204,10 @@ data TCEnv =
                 -- ^ Did we encounter a simplification (proper match)
                 --   during the current reduction process?
           , envAllowedReductions :: AllowedReductions
+          , envCompareBlocked :: Bool
+                -- ^ Can we compare blocked things during conversion?
+                --   No by default.
+                --   Yes for rewriting feature.
           , envPrintDomainFreePi :: Bool
                 -- ^ When True types will be omitted from printed pi types if they
                 --   can be inferred
@@ -1250,6 +1254,7 @@ initEnv = TCEnv { envContext	         = []
                 , envAppDef                 = Nothing
                 , envSimplification         = NoSimplification
                 , envAllowedReductions      = allReductions
+                , envCompareBlocked         = False
                 , envPrintDomainFreePi      = False
                 , envInsideDotPattern       = False
 		}

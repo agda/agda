@@ -42,10 +42,11 @@ import Agda.TypeChecking.ProjectionLike (elimView)
 
 import Agda.Interaction.Options
 
-import Agda.Utils.Size
 import Agda.Utils.Functor (($>))
 import Agda.Utils.Monad
 import Agda.Utils.Maybe
+import Agda.Utils.Size
+import Agda.Utils.Tuple
 
 #include "../undefined.h"
 import Agda.Utils.Impossible
@@ -389,8 +390,10 @@ compareAtom cmp t m n =
                                     , text ":" <+> prettyTCM t ]
       -- Andreas: what happens if I cut out the eta expansion here?
       -- Answer: Triggers issue 245, does not resolve 348
-      mb' <- etaExpandBlocked =<< reduceB m
-      nb' <- etaExpandBlocked =<< reduceB n
+      (mb',nb') <- ifM (asks envCompareBlocked) ((NotBlocked -*- NotBlocked) <$> reduce (m,n)) $ do
+        mb' <- etaExpandBlocked =<< reduceB m
+        nb' <- etaExpandBlocked =<< reduceB n
+        return (mb', nb')
 
       -- constructorForm changes literal to constructors
       -- only needed if the other side is not a literal
