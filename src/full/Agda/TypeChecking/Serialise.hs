@@ -69,7 +69,7 @@ import Agda.TypeChecking.Monad.Benchmark (billTo)
 
 import Agda.TypeChecking.Monad
 import Agda.TypeChecking.CompiledClause
-import Agda.TypeChecking.Pretty
+-- import Agda.TypeChecking.Pretty
 
 import Agda.Utils.BiMap (BiMap)
 import qualified Agda.Utils.BiMap as BiMap
@@ -255,9 +255,12 @@ decode s = do
   case r of
     Right x   -> return (Just x)
     Left  err -> do
-      reportSDoc "import.iface" 5 $
-        text "Error when decoding interface file:" $+$
-        nest 2 (prettyTCM err)
+      reportSLn "import.iface" 5 $ "Error when decoding interface file"
+      -- Andreas, 2014-06-11 deactivated debug printing
+      -- in order to get rid of dependency of Serialize on TCM.Pretty
+      -- reportSDoc "import.iface" 5 $
+      --   text "Error when decoding interface file:"
+      --   $+$ nest 2 (prettyTCM err)
       return Nothing
 
   where
