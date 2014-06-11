@@ -885,12 +885,12 @@ instance EmbPrj DisplayTerm where
   icode (DDot     a  ) = icode1 1 a
   icode (DCon     a b) = icode2 2 a b
   icode (DDef     a b) = icode2 3 a b
-  icode (DWithApp a b) = icode2 4 a b
+  icode (DWithApp a b c) = icode3 4 a b c
   value = vcase valu where valu [a]       = valu1 DTerm a
                            valu [1, a]    = valu1 DDot a
                            valu [2, a, b] = valu2 DCon a b
                            valu [3, a, b] = valu2 DDef a b
-                           valu [4, a, b] = valu2 DWithApp a b
+                           valu [4, a, b, c] = valu3 DWithApp a b c
                            valu _         = malformed
 
 instance EmbPrj MutualId where

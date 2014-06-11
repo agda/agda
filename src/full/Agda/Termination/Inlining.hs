@@ -186,7 +186,7 @@ inline f pcl t wf wcl = inTopContext $ addCtxTel (clauseTel wcl) $ do
           where n' = n - 1
 
     dispToPats :: DisplayTerm -> TCM ([NamedArg Pattern], Permutation)
-    dispToPats (DWithApp (DDef _ vs : ws) zs) = do
+    dispToPats (DWithApp (DDef _ vs) ws zs) = do
       let us = vs ++ map defaultArg ws ++ map (fmap DTerm) zs
       (ps, (j, ren)) <- (`runStateT` (0, [])) $
                         map (fmap unnamed) <$> mapM (traverse dtermToPat) us
@@ -231,8 +231,7 @@ expandWithFunctionCall f es = do
     (vs, es') = splitApplyElims es
 
 dtermToTerm :: DisplayTerm -> Term
-dtermToTerm (DWithApp [] _)        = __IMPOSSIBLE__
-dtermToTerm (DWithApp (d : ds) vs) = dtermToTerm d `apply` (map (defaultArg . dtermToTerm) ds ++ vs)
+dtermToTerm (DWithApp d ds vs)     = dtermToTerm d `apply` (map (defaultArg . dtermToTerm) ds ++ vs)
 dtermToTerm (DCon c args)          = Con (ConHead c []) $ map (fmap dtermToTerm) args
 dtermToTerm (DDef f args)          = Def f $ map (Apply . fmap dtermToTerm) args
 dtermToTerm (DDot v)               = v

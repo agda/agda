@@ -68,7 +68,7 @@ displayForm q vs = do
     -- hd (DTerm (Def x _))    = Just x
     -- hd (DTerm (Con x _))    = Just $ conName x
     -- hd (DTerm (Shared p))   = hd (DTerm $ derefPtr p)
-    -- hd (DWithApp (d : _) _) = hd d
+    -- hd (DWithApp d _ _) = hd d
     -- hd _		    = Nothing
 
 -- | Match a 'DisplayForm' @q ps = v@ against @q vs@.

@@ -624,10 +624,10 @@ data DisplayForm = Display
 -- | A structured presentation of a 'Term' for reification into
 --   'Abstract.Syntax'.
 data DisplayTerm
-  = DWithApp [DisplayTerm] Args
+  = DWithApp DisplayTerm [DisplayTerm] Args
     -- ^ @(f vs | ws) us@.
-    --   The 'head' of the list is the parent function @f@ with its args @vs@.
-    --   The 'tail' of the list are the with expressions @ws@.
+    --   The first 'DisplayTerm' is the parent function @f@ with its args @vs@.
+    --   The list of 'DisplayTerm's are the with expressions @ws@.
     --   The 'Args' are additional arguments @us@
     --   (possible in case the with-application is of function type).
   | DCon QName [Arg DisplayTerm]

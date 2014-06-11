@@ -321,7 +321,7 @@ withDisplayForm f aux delta1 delta2 n qs perm@(Perm m _) lhsPerm = do
   let tqs = patsToTerms lhsPerm qs
       vs = map (fmap DTerm) topArgs ++ applySubst (sub top ys wild) tqs
       withArgs = map var $ genericTake n $ downFrom $ size delta2 + n
-      dt = DWithApp (DDef f vs : map DTerm withArgs) []
+      dt = DWithApp (DDef f vs) (map DTerm withArgs) []
 
   -- Build the lhs of the display form.
   -- @var 0@ is the pattern variable (hole).

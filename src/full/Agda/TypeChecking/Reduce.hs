@@ -36,6 +36,9 @@ import Agda.TypeChecking.Reduce.Monad
 
 import Agda.Utils.Monad
 import Agda.Utils.HashMap (HashMap)
+import Agda.Utils.Maybe
+import Agda.Utils.Monad
+import Agda.Utils.Tuple
 
 #include "../undefined.h"
 import Agda.Utils.Impossible
@@ -1101,7 +1104,7 @@ instance InstantiateFull DisplayTerm where
   instantiateFull' (DDot  v)	   = DDot  <$> instantiateFull' v
   instantiateFull' (DCon c vs)	   = DCon c <$> instantiateFull' vs
   instantiateFull' (DDef c vs)	   = DDef c <$> instantiateFull' vs
-  instantiateFull' (DWithApp vs ws) = uncurry DWithApp <$> instantiateFull' (vs, ws)
+  instantiateFull' (DWithApp v vs ws) = uncurry3 DWithApp <$> instantiateFull' (v, vs, ws)
 
 instance InstantiateFull Defn where
     instantiateFull' d = case d of
