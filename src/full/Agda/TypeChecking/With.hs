@@ -303,22 +303,31 @@ withDisplayForm
   -> Permutation -- ^ Permutation reordering the variables in parent patterns.
   -> TCM DisplayForm
 withDisplayForm f aux delta1 delta2 n qs perm@(Perm m _) lhsPerm = do
-  topArgs <- raise (n + size delta1 + size delta2) <$> getContextArgs
+
+  -- Compute the arity of the display form.
+  let arity0 = n + size delta1 + size delta2
+  -- The currently free variables have to be added to the front.
+  topArgs <- raise arity0 <$> getContextArgs
+  let top    = genericLength topArgs
+      arity  = arity0 + top
+
+  -- Build the rhs of the display form.
   x <- freshNoName_
   let wild = Def (qualify (mnameFromList []) x) []
-
-  let tqs = patsToTerms lhsPerm qs
-      top = genericLength topArgs
-      vs = map (fmap DTerm) topArgs ++ applySubst (sub top ys wild) tqs
-      dt = DWithApp (DDef f vs : map DTerm withArgs) []
-      withArgs = map var $ genericTake n $ downFrom $ size delta2 + n
---      withArgs = reverse $ map var [size delta2..size delta2 + n - 1]
-      pats = genericReplicate (n + size delta1 + size delta2 + top) (var 0)
       -- Building the arguments to the with function
       (ys0, ys1) = splitAt (size delta1) (permute perm $ map Just [m - 1, m - 2..0])
       ys = reverse $ ys0 ++ genericReplicate n Nothing ++ ys1
 
-  let display = Display (n + size delta1 + size delta2 + top) pats dt
+  let tqs = patsToTerms lhsPerm qs
+      vs = map (fmap DTerm) topArgs ++ applySubst (sub top ys wild) tqs
+      withArgs = map var $ genericTake n $ downFrom $ size delta2 + n
+      dt = DWithApp (DDef f vs : map DTerm withArgs) []
+
+  -- Build the lhs of the display form.
+  -- @var 0@ is the pattern variable (hole).
+  let pats = genericReplicate arity (var 0)
+
+  let display = Display arity pats dt
       addFullCtx = addCtxTel delta1
                  . flip (foldr addCtxString_) (map ("w" ++) $ map show [1..n])
                  . addCtxTel delta2
