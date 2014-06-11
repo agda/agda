@@ -329,7 +329,7 @@ applyProjection proj h type_ = do
 -- MetaVar handling
 -------------------
 
-addMetaVarInCtx :: (IsTerm t) => Type t v -> TC t v (Term t v)
+addMetaVarInCtx :: (IsVar v, IsTerm t) => Type t v -> TC t v (Term t v)
 addMetaVarInCtx type_ = do
   ctx <- askContext
   mv <- addMetaVar $ ctxPi ctx type_
@@ -354,8 +354,8 @@ metaAssign type_ mv elims t = do
       if pruned
         then checkEqual type_ (metaVar mv elims) t
         else fmap StuckOn $
-               newProblem mvs (CheckEqual type_ (metaVar mv elims) t) $ \mvT ->
-                 checkEqual type_ (eliminate (vacuous mvT) elims) t
+               newProblem mvs (CheckEqual type_ (metaVar mv elims) t) $ \_ ->
+                 checkEqual type_ (metaVar mv elims) t
     Right vs -> do
       -- TODO have `pruneTerm' return an evaluated term.
       liftClosed $ pruneTerm (Set.fromList vs) t
@@ -434,7 +434,8 @@ prune allowedVs oldMv elims | Just args <- mapM isApply elims =
     -- the remaining type, so that this dependency check will be
     -- performed on it as well.
     createNewMeta
-      :: Sig.Signature t -> Type t v -> [Bool]
+      :: (IsVar v)
+      => Sig.Signature t -> Type t v -> [Bool]
       -> (Tel.IdTel (Type t) v, [Named Bool])
     createNewMeta _ type_ [] =
       (Tel.Empty (Tel.Id type_), [])
@@ -990,12 +991,12 @@ isNeutral sig f =
 -- Whnf'ing and view'ing
 ------------------------
 
-whnfTC :: (IsTerm t) => t v -> TC t v' (Blocked t v)
+whnfTC :: (IsVar v, IsTerm t) => t v -> TC t v' (Blocked t v)
 whnfTC t = do
   sig <- getSignature
   return $ whnf sig t
 
-whnfViewTC :: (IsTerm t) => t v -> TC t v' (TermView t v)
+whnfViewTC :: (IsVar v, IsTerm t) => t v -> TC t v' (TermView t v)
 whnfViewTC t = view . ignoreBlocking <$> whnfTC t
 
 -- Matching terms
@@ -1037,7 +1038,7 @@ matchTyCon tyCon t err handler = do
     _ -> do
       NotStuck <$> checkError err
 
-createTyConParsMvs :: (IsTerm t) => Tel.IdTel (Type t) v -> TC t v [Term t v]
+createTyConParsMvs :: (IsVar v, IsTerm t) => Tel.IdTel (Type t) v -> TC t v [Term t v]
 createTyConParsMvs (Tel.Empty _) =
   return []
 createTyConParsMvs (Tel.Cons (_, type') tel) = do
@@ -1243,7 +1244,7 @@ ctxVars = go
 
 -- | Applies a 'Term' to all the variables in the context.  The
 -- variables are applied from left to right.
-ctxApp :: IsTerm t => Term t v -> Ctx.Ctx v0 (Type t) v -> Term t v
+ctxApp :: (IsVar v, IsTerm t) => Term t v -> Ctx.Ctx v0 (Type t) v -> Term t v
 ctxApp t ctx0 = eliminate t $ map (Apply . var) $ reverse $ ctxVars ctx0
 
 -- | Creates a 'Pi' type containing all the types in the 'Ctx' and

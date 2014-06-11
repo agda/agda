@@ -44,7 +44,7 @@ eliminate t elims = case (view t, elims) of
     (App h es1, es2) ->
         unview $ App h (es1 ++ es2)
     (_, _) ->
-        error "Eval.eliminate: Bad elimination"
+        error $ "Eval.eliminate: Bad elimination"
 
 data Blocked t v
     = NotBlocked (t v)

@@ -29,7 +29,7 @@ executable tc
                      , tagged >= 0.7
                      , transformers >= 0.3
                      , unordered-containers >= 0.2
-                     -- , void >= 0.6
+                     , void >= 0.6
 
   hs-source-dirs:      ., ../dist
   default-language:    Haskell2010

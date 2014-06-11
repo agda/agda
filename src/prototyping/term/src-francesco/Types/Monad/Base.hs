@@ -218,14 +218,18 @@ saveSrcLoc (Problem ctx m st desc) = do
   loc <- TC $ \(te, ts) -> OK ts $ teCurrentSrcLoc te
   return $ Problem ctx (\x -> atSrcLoc loc (m x)) st desc
 
-addProblem :: Problem t -> TC t v (ProblemId t v a)
-addProblem prob = do
-  modify $ \ts ->
-    let probs = tsUnsolvedProblems ts
-        pid = case Map.maxViewWithKey probs of
-                Nothing             -> 0
-                Just ((pid0, _), _) -> pid0 + 1
-    in (ts{tsUnsolvedProblems = Map.insert pid prob probs}, ProblemId pid)
+addProblem :: ProblemIdInt -> Problem t -> TC t v (ProblemId t v a)
+addProblem pid prob = do
+  modify $ \ts -> (ts{tsUnsolvedProblems = Map.insert pid prob (tsUnsolvedProblems ts)}, ProblemId pid)
+
+addFreshProblem :: Problem t -> TC t v (ProblemId t v a)
+addFreshProblem prob = do
+  ts <- get
+  let probs = tsUnsolvedProblems ts
+  let pid = case Map.maxViewWithKey probs of
+              Nothing             -> 0
+              Just ((pid0, _), _) -> pid0 + 1
+  addProblem pid prob
 
 newProblem
     :: (Typeable a, IsVar v, IsTerm t, Nf p, PP.Pretty (p t v))
@@ -241,7 +245,7 @@ newProblem mvs desc m = do
       , pState       = BoundToMetaVars mvs
       , pDescription = desc
       }
-    addProblem prob
+    addFreshProblem prob
 
 bindProblem
     :: (Typeable a, Typeable b, IsTerm t, IsVar v, Nf p, PP.Pretty (p t v))
@@ -255,7 +259,7 @@ bindProblem (ProblemId pid) desc f = do
       , pState       = BoundToProblem pid
       , pDescription = desc
       }
-    addProblem prob
+    addFreshProblem prob
 
 waitOnProblem
     :: (Typeable a, Typeable b, IsTerm t, IsVar v', Nf p, PP.Pretty (p t v'))
@@ -269,7 +273,7 @@ waitOnProblem (ProblemId pid) desc m = do
       , pState       = WaitingOnProblem pid
       , pDescription = desc
       }
-    addProblem prob
+    addFreshProblem prob
 
 data StuckProblemDescription p (t :: * -> *) v =
   StuckProblemDescription ProblemIdInt (p t v)
@@ -322,5 +326,5 @@ solveProblems = do
           StuckOn (ProblemId boundTo) -> do
             -- If the problem is stuck, re-add it as a dependency of
             -- what it is stuck on.
-            void $ addProblem $ Problem ctx m (BoundToProblem boundTo) $
+            void $ addProblem pid $ Problem ctx m (BoundToProblem boundTo) $
               StuckProblemDescription pid desc

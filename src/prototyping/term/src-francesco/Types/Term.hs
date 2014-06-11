@@ -9,7 +9,7 @@ import           Data.Foldable                    (Foldable)
 import           Data.Traversable                 (Traversable)
 import           Prelude.Extras                   (Eq1((==#)))
 import           Data.Void                        (Void)
-import           Data.Monoid                      (Monoid(mappend, mempty), (<>), mconcat)
+import           Data.Monoid                      (mempty, (<>), mconcat)
 import qualified Data.HashSet                     as HS
 import           Control.Monad                    (liftM)
 import           Data.Typeable                    (Typeable)

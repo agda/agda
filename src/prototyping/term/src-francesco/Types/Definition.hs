@@ -3,6 +3,8 @@ module Types.Definition
       Clause(..)
     , ClauseBody
     , Pattern(..)
+    , patternBindings
+    , patternsBindings
       -- * 'Definition'
     , Definition(..)
     , ConstantKind(..)
@@ -36,6 +38,13 @@ instance PP.Pretty Pattern where
   prettyPrec p e = case e of
     VarP      -> PP.text "_"
     ConP c es -> PP.prettyApp p (PP.pretty c) es
+
+patternBindings :: Pattern -> Int
+patternBindings VarP          = 1
+patternBindings (ConP _ pats) = patternsBindings pats
+
+patternsBindings :: [Pattern] -> Int
+patternsBindings = sum . map patternBindings
 
 -- Definition
 ------------------------------------------------------------------------

@@ -4,10 +4,9 @@ module FreeVars
   , freeVars
   ) where
 
-import           Data.Monoid                      (Monoid(mappend, mempty), (<>), mconcat)
+import           Data.Monoid                      (Monoid, mappend, mempty, (<>))
 import qualified Data.Set                         as Set
 import           Bound
-import           Data.Maybe                       (maybeToList)
 import           Data.Foldable                    (foldMap)
 
 import qualified Types.Signature                  as Sig
@@ -52,7 +51,7 @@ freeVars sig = go Just
       App (Var v) elims ->
         FreeVars (maybe Set.empty Set.singleton (strengthen v)) Set.empty <>
         foldMap (go strengthen) [t | Apply t <- elims]
-      App (Meta mv) elims ->
+      App (Meta _) elims ->
         let fvs = foldMap (go strengthen) [t | Apply t <- elims]
         in FreeVars{fvRigid = Set.empty, fvFlexible = fvAll fvs}
       App (Def _) elims ->
