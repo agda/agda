@@ -173,14 +173,20 @@ checkEqual type_ x y = do
       metaAssign type_ mv elims (ignoreBlocking t)
     (t, MetaVarHead mv elims) ->
       metaAssign type_ mv elims (ignoreBlocking t)
-    (BlockedOn mvs _ _, _) -> do
-      fmap StuckOn $
-        newProblemCheckEqual mvs (unview typeView)
-                             (ignoreBlocking blockedX) (ignoreBlocking blockedY)
-    (_, BlockedOn mvs _ _) -> do
-      fmap StuckOn $
-        newProblemCheckEqual mvs (unview typeView)
-                             (ignoreBlocking blockedX) (ignoreBlocking blockedY)
+    (BlockedOn mvs1 _ _, BlockedOn mvs2 _ _) -> do
+      -- Both blocked, we give up and check only syntactic equality.
+      x' <- nfTC $ ignoreBlocking blockedX
+      y' <- nfTC $ ignoreBlocking blockedY
+      if x' ==# y'
+        then notStuck ()
+        else fmap StuckOn $
+               newProblemCheckEqual
+                 (Set.union mvs1 mvs2) (unview typeView)
+                 (ignoreBlocking blockedX) (ignoreBlocking blockedY)
+    (BlockedOn mvs f elims, t) -> do
+      checkEqualBlockedOn (unview typeView) mvs f elims (ignoreBlocking t)
+    (t, BlockedOn mvs f elims) -> do
+      checkEqualBlockedOn (unview typeView) mvs f elims (ignoreBlocking t)
     (NotBlocked x', NotBlocked y') -> case (typeView, view x', view y') of
       -- Note that here we rely on canonical terms to have canonical
       -- types, and on the terms to be eta-expanded.
@@ -230,12 +236,7 @@ checkEqual type_ x y = do
       (Set, Set, Set) -> do
         notStuck ()
       (_, App h1 elims1, App h2 elims2) | h1 == h2 -> do
-        h1Type <- case h1 of
-          Var v   -> getTypeOfVar v
-          Def f   -> vacuous . definitionType <$> getDefinition f
-          J       -> return $ vacuous typeOfJ
-          Meta _  -> error "impossible.checkEqual: can't decompose with metavariable heads"
-        equalSpine h1Type (app h1 []) elims1 elims2
+        equalSpine h1 elims1 elims2
       (_, _, _) -> do
         checkError $ TermsNotEqual x y
   where
@@ -256,10 +257,96 @@ checkEqual type_ x y = do
         _ ->
           return id
 
+equalSpine
+  :: (IsVar v, IsTerm t) => Head v -> [Elim t v] -> [Elim t v] -> StuckTC t v ()
+equalSpine h elims1 elims2 = do
+  hType <- case h of
+    Var v   -> getTypeOfVar v
+    Def f   -> vacuous . definitionType <$> getDefinition f
+    J       -> return $ vacuous typeOfJ
+    Meta mv -> vacuous <$> getTypeOfMetaVar mv
+  checkEqualSpine hType (app h []) elims1 elims2
+
+checkEqualBlockedOn
+  :: forall t v.
+     (IsVar v, IsTerm t)
+  => Type t v
+  -> Set.Set MetaVar -> Name -> [Elim t v]
+  -> Term t v
+  -> StuckTC t v ()
+checkEqualBlockedOn type_ mvs fun1 elims1 t2 = do
+  Function _ clauses <- getDefinition fun1
+  case clauses of
+    NotInjective _ -> do
+      fallback
+    Injective injClauses1 -> do
+      t2View <- whnfViewTC t2
+      case t2View of
+        App (Def fun2) elims2 | fun1 == fun2 -> do
+          equalSpine (Def fun1) elims1 elims2
+        _ -> do
+          sig <- getSignature
+          case termHead sig (unview t2View) of
+            Nothing -> do
+              fallback
+            Just tHead | Just (Clause pats _) <- lookup tHead injClauses1 -> do
+              -- Make the eliminators match the patterns
+              matchPats pats elims1
+              -- And restart
+              checkEqual type_ t1 t2
+            Just _ -> do
+              checkError $ TermsNotEqual t1 t2
+  where
+    t1 = ignoreBlocking (BlockedOn mvs fun1 elims1)
+    fallback = fmap StuckOn $ newProblemCheckEqual mvs type_ t1 t2
+
+    matchPats :: [Pattern] -> [Elim t v] -> TC t v ()
+    matchPats [] [] = do
+      return ()
+    matchPats (VarP : pats) (_ : elims) = do
+      matchPats pats elims
+    matchPats (ConP dataCon pats' : pats) (elim : elims) = do
+      matchPat dataCon pats' elim
+      matchPats pats elims
+    matchPats [] _ = do
+      -- Less patterns than arguments is fine.
+      return ()
+    matchPats _ [] = do
+      -- Less arguments than patterns is not fine -- we know that the
+      -- eliminators were blocked on the patterns.
+      error "impossible.checkEqualBlockedOn: got too few patterns."
+
+    matchPat :: Name -> [Pattern] -> Elim t v -> TC t v ()
+    matchPat dataCon pats (Apply t) | App (Meta mv) mvArgs <- view t = do
+      mvT <- liftClosed $ do
+        mvType <- getTypeOfMetaVar mv
+        mvT <- unrollPi mvType $ \ctxMvArgs endType' -> do
+          Constructor tyCon dataConTypeTel <- getDefinition dataCon
+          -- We know that the metavariable must have the right type (we
+          -- have typechecked the arguments already).
+          App (Def tyCon') tyConArgs0 <- whnfViewTC endType'
+          Just tyConArgs <- return $ mapM isApply tyConArgs0
+          True <- return $ tyCon == tyCon'
+          let dataConType = Tel.substs (vacuous dataConTypeTel) tyConArgs
+          dataConArgsTel <- unrollPi dataConType $ \ctx -> return . Tel.idTel ctx
+          dataConArgs <- createMvsPars dataConArgsTel
+          return $ ctxLam ctxMvArgs $ con dataCon $ dataConArgs
+        instantiateMetaVar mv mvT
+        return mvT
+      matchPat dataCon pats $ Apply $ eliminate (vacuous mvT) mvArgs
+    matchPat dataCon pats (Apply t)
+      | Con dataCon' dataConArgs <- view t, dataCon == dataCon' = do
+        matchPats pats (map Apply dataConArgs)
+    matchPat dataCon pats elim = do
+      -- This can't happen -- we know that the execution was blocked, or
+      -- in other words it was impeded only by metavariables.
+      error $ "impossible.matchPat: bad elim:\n" ++
+              show (ConP dataCon pats) ++ "\n" ++ render elim
+
 equalType :: (IsVar v, IsTerm t) => Type t v -> Type t v -> StuckTC t v ()
 equalType a b = checkEqual set a b
 
-equalSpine
+checkEqualSpine
     :: (IsVar v, IsTerm t)
     => Type t v
     -- ^ Type of the head.
@@ -268,9 +355,9 @@ equalSpine
     -> [Elim (Term t) v]
     -> [Elim (Term t) v]
     -> StuckTC t v ()
-equalSpine _ _ [] [] =
+checkEqualSpine _ _ [] [] =
   notStuck ()
-equalSpine type_ h (elim1 : elims1) (elim2 : elims2) = do
+checkEqualSpine type_ h (elim1 : elims1) (elim2 : elims2) = do
   let desc = EqualSpine h (elim1 : elims1) (elim2 : elims2) type_
   case (elim1, elim2) of
     (Apply arg1, Apply arg2) -> do
@@ -278,16 +365,16 @@ equalSpine type_ h (elim1 : elims1) (elim2 : elims2) = do
       case typeView of
         Pi domain codomain -> do
           bindStuckTC (checkEqual domain arg1 arg2) (\_ -> desc) $ \() ->
-            equalSpine (instantiate codomain arg1) (eliminate h [Apply arg1]) elims1 elims2
+            checkEqualSpine (instantiate codomain arg1) (eliminate h [Apply arg1]) elims1 elims2
         _ ->
-          error $ "impossible.equalSpine: Expected function type " ++ render typeView
+          error $ "impossible.checkEqualSpine: Expected function type " ++ render typeView
     (Proj proj projIx, Proj proj' projIx')
       | proj == proj' && projIx == projIx' ->
         bindStuckTC (applyProjection proj h type_) (\_ -> desc) $ \(h', type') ->
-          equalSpine type' h' elims1 elims2
+          checkEqualSpine type' h' elims1 elims2
     _ ->
       checkError $ SpineNotEqual type_ (elim1 : elims1) (elim1 : elims2)
-equalSpine type_ _ elims1 elims2 = do
+checkEqualSpine type_ _ elims1 elims2 = do
   checkError $ SpineNotEqual type_ elims1 elims2
 
 -- | INVARIANT: the two lists are the of the same length.
@@ -299,7 +386,7 @@ equalConArgs
 equalConArgs type_ dataCon xs ys = do
   expandedCon <- unrollPi type_ $ \ctx _ ->
                  return $ ctxLam ctx $ con dataCon $ map var $ ctxVars ctx
-  equalSpine type_ expandedCon (map Apply xs) (map Apply ys)
+  checkEqualSpine type_ expandedCon (map Apply xs) (map Apply ys)
 
 applyProjection
     :: (IsVar v, IsTerm t)
@@ -485,12 +572,14 @@ shouldKill sig vs t = do
     _ ->
       return $ not (fvRigid (freeVars sig t) `Set.isSubsetOf` vs)
 
--- | 'Left' if the pattern condition check is blocked on a some
+-- | 'TTFlexible' if the pattern condition check is blocked on a some
 -- 'MetaVar's.  The set is empty if the pattern condition is not
 -- respected and no 'MetaVar' can change that.
 --
--- 'Right' if the pattern condition is respected, with the distinct
+-- 'TTOK' if the pattern condition is respected, with the distinct
 -- variables.
+--
+-- 'TTFail' if the pattern condition fails.
 checkPatternCondition
   :: (IsVar v, IsTerm t)
   => Sig.Signature t -> [Elim (Term t) v] -> TermTraverse () [v]
@@ -646,7 +735,7 @@ checkProgram decls0 = do
       let mvsTypes  = Sig.metaVarsTypes $ trSignature tr
       let mvsBodies = Sig.metaVarsBodies $ trSignature tr
       drawLine
-      putStrLn $ "-- Solved MetaVars: " ++ show (Map.size mvsTypes)
+      putStrLn $ "-- Solved MetaVars: " ++ show (Map.size mvsBodies)
       putStrLn $ "-- Unsolved MetaVars: " ++ show (Map.size mvsTypes - Map.size mvsBodies)
       drawLine
       forM_ (Map.toList mvsTypes) $ \(mv, mvType) -> do
@@ -894,6 +983,8 @@ termHead sig t = case whnfView sig t of
       -- have a "postulate" keyword to avoid this.
       Constant Postulate{} _ -> Nothing
       _                      -> Nothing
+  Con f _ ->
+    Just $ DefHead f
   Pi _ _ ->
     Just $ PiHead
   _ ->
@@ -1040,6 +1131,11 @@ whnfTC t = do
 whnfViewTC :: (IsVar v, IsTerm t) => t v -> TC t v' (TermView t v)
 whnfViewTC t = view . ignoreBlocking <$> whnfTC t
 
+nfTC :: (IsVar v, IsTerm t) => t v -> TC t v' (t v)
+nfTC t = do
+  sig <- getSignature
+  return $ nf sig t
+
 -- Matching terms
 -----------------
 
@@ -1067,7 +1163,7 @@ matchTyCon tyCon t err handler = do
           Constant _ tyConType <- getDefinition tyCon
           tyConParsTel <- unrollPi (vacuous tyConType) $ \ctx ->
                           return . Tel.idTel ctx
-          tyConPars <- createTyConParsMvs tyConParsTel
+          tyConPars <- createMvsPars tyConParsTel
           return $ ctxLam ctxMvArgs $ def tyCon $ map Apply tyConPars
         instantiateMetaVar mv mvT
       -- TODO Dangerous recursion, relying on correct instantiation.
@@ -1079,12 +1175,12 @@ matchTyCon tyCon t err handler = do
     _ -> do
       NotStuck <$> checkError err
 
-createTyConParsMvs :: (IsVar v, IsTerm t) => Tel.IdTel (Type t) v -> TC t v [Term t v]
-createTyConParsMvs (Tel.Empty _) =
+createMvsPars :: (IsVar v, IsTerm t) => Tel.IdTel (Type t) v -> TC t v [Term t v]
+createMvsPars (Tel.Empty _) =
   return []
-createTyConParsMvs (Tel.Cons (_, type') tel) = do
+createMvsPars (Tel.Cons (_, type') tel) = do
   mv  <- addMetaVarInCtx type'
-  mvs <- createTyConParsMvs (Tel.instantiate tel mv)
+  mvs <- createMvsPars (Tel.instantiate tel mv)
   return (mv : mvs)
 
 matchPi

@@ -74,8 +74,10 @@ data InjectiveClauses t v
     = NotInjective [Clause t v]
     | Injective [(TermHead, Clause t v)]
 
+deriving instance (IsTerm t) => Show (Closed (InjectiveClauses t))
+
 data TermHead = PiHead | DefHead Name
-    deriving (Eq)
+    deriving (Eq, Show)
 
 ignoreInjective :: InjectiveClauses t v -> [Clause t v]
 ignoreInjective (NotInjective clauses) = clauses
@@ -105,7 +107,7 @@ instance (IsTerm t) => PP.Pretty (Closed (Definition t)) where
     "projection" <+> PP.pretty tyCon $$ PP.nest 2 (prettyTele type_)
   pretty (Function type_ clauses) =
     prettyView type_ $$
-    PP.vcat (map (\(Clause pats body) -> PP.pretty pats <+> "=" $$ PP.nest 2 (prettyView (fromScope body))) (ignoreInjective clauses))
+    PP.vcat (map PP.pretty (ignoreInjective clauses))
 
 prettyTele :: (IsVar v, IsTerm t) => Tel.IdTel t v -> PP.Doc
 prettyTele (Tel.Empty (Tel.Id t)) =
@@ -124,3 +126,10 @@ instance (IsTerm t) => Show (Closed (Definition t)) where
 
 instance PP.Pretty ConstantKind where
   pretty = PP.text . show
+
+instance (IsTerm t) => PP.Pretty (Closed (Clause t)) where
+  pretty (Clause pats body) =
+    PP.pretty pats <+> "=" $$ PP.nest 2 (prettyView (fromScope body))
+
+instance (IsTerm t) => Show (Closed (Clause t)) where
+  show = PP.render . PP.pretty
