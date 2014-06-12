@@ -130,6 +130,12 @@ useInjectivity cmp a u v = do
   uinv <- functionInverse u
   vinv <- functionInverse v
   case (uinv, vinv) of
+    -- Andreas, Francesco, 2014-06-12:
+    -- We know that one of u,v is neutral
+    -- (see calls to useInjectivity in Conversion.hs).
+    -- Otherwise, (e.g. if both were Blocked), the following case would be
+    -- unsound, since it assumes the arguments to be pointwise equal.
+    -- It would deliver non-unique solutions for metas.
     (Inv f fArgs _, Inv g gArgs _)
       | f == g    -> do
         a <- defType <$> getConstInfo f
