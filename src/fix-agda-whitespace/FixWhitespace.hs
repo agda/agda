@@ -10,7 +10,7 @@ import System.IO
 
 -- Configuration parameters.
 
-extensions = [".hs", ".hs-boot", ".x", ".y", ".el"]
+extensions = [".hs", ".hs-boot", ".lhs", ".x", ".y", ".el"]
 srcDir     = "src"
 
 -- Modes.

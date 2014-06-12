@@ -11,7 +11,7 @@ import Check
 \end{code}
 %endif
 
-Here we describe how a declaration is type-checked. 
+Here we describe how a declaration is type-checked.
 
 A declaration is either a typing declaration, an explicit definition
 or an implicit definition.  There are no data declarations, the scope checker has
@@ -50,7 +50,7 @@ checkDecl  (Def s e)    con   =
   check con1 v e
   return (upCon (evalBodyCon con1 (mconst s v) e) v con1)
 \end{code}
-\item 
+\item
 \verb|...|, a recursive definition.
 \begin{code}
 checkDecl  (DefRec s e) con   =
@@ -59,7 +59,7 @@ checkDecl  (DefRec s e) con   =
   check con v e
   return (mNewCon con1 v s e)
 \end{code}
-\item 
+\item
 \end{itemize}
 \begin{code}
 mNewCon con1 v s e =
@@ -70,7 +70,3 @@ mNewCon con1 v s e =
 
 \end{code}
 
-
-
-
-   

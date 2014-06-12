@@ -36,13 +36,13 @@ upCon u a (env,tenv)    = (u:env,a:tenv)
 uses the length of the context to quarantee that the constant is new.
 \begin{code}
 genCon                  :: Cont -> Name -> Val -> G Val
-genCon (env,_)          = gensym (length env) 
+genCon (env,_)          = gensym (length env)
 \end{code}
 \item[evalCon] evaluates an expression in a context. It just strips away the typing
 declarations.
 \begin{code}
 evalCon                 :: Cont -> Exp -> Val
-evalCon (env,_)         = eval env 
+evalCon (env,_)         = eval env
 \end{code}
 \item[lastCon] looks up the last declaration in the context.
 \begin{code}
@@ -58,9 +58,8 @@ lengthCon (env,_)       = length env
 \end{description}
 \begin{code}
 evalBodyCon             :: Cont -> Val -> Exp -> Val
--- evalBodyCon con v e 
-evalBodyCon (env,_)     = evalBody env 
+-- evalBodyCon con v e
+evalBodyCon (env,_)     = evalBody env
 -- lastCon con computes the last declaration in con
 \end{code}
-
 
