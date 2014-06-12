@@ -78,8 +78,8 @@ whnf :: (IsTerm t) => Sig.Signature t -> t v -> Blocked t v
 whnf sig t = case view t of
   App (Meta mv) es | Just t' <- Sig.getMetaVarBody sig mv ->
     whnf sig $ eliminate (vacuousM t') es
-  App (Def defName) es | Function _ _ cs <- Sig.getDefinition sig defName ->
-    whnfFun sig defName es cs
+  App (Def defName) es | Function _ cs <- Sig.getDefinition sig defName ->
+    whnfFun sig defName es $ ignoreInjective cs
   App J (_ : x : _ : _ : Apply p : Apply refl' : es) | Refl <- view refl' ->
     whnf sig $ eliminate p (x : es)
   App (Meta mv) elims ->
@@ -182,4 +182,4 @@ instance Nf Definition where
   nf' sig (Constant kind t)              = Constant kind (nf sig t)
   nf' sig (Constructor tyCon type_)      = Constructor tyCon $ nf' sig type_
   nf' sig (Projection field tyCon type_) = Projection field tyCon $ nf' sig type_
-  nf' sig (Function type_ inj clauses)   = Function (nf sig type_) inj (map (nf' sig) clauses)
+  nf' sig (Function type_ clauses)       = Function (nf sig type_) (mapInjective (nf' sig) clauses)

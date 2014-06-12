@@ -1,5 +1,4 @@
 {-# LANGUAGE OverloadedStrings #-}
-{-# OPTIONS_GHC -fno-warn-orphans #-}
 module Types.Term where
 
 import           Prelude                          hiding (pi)
@@ -14,13 +13,10 @@ import qualified Data.HashSet                     as HS
 import           Control.Monad                    (liftM)
 import           Data.Typeable                    (Typeable)
 
-import           Text.PrettyPrint.Extended        ((<+>), ($$))
 import qualified Text.PrettyPrint.Extended        as PP
 import           Syntax.Abstract                  (Name)
 import           Syntax.Abstract.Pretty           ()
 import           Types.Var
-import           Types.Definition
-import qualified Types.Telescope                  as Tel
 
 -- Terms
 ------------------------------------------------------------------------
@@ -124,39 +120,6 @@ instance (IsTerm t, IsVar v) => PP.Pretty (TermView t v) where
       PP.text "refl"
     Con dataCon args ->
       PP.prettyApp p (PP.pretty dataCon) (map view args)
-
-instance (IsTerm t) => PP.Pretty (Closed (Definition t)) where
-  pretty (Constant Postulate type_) =
-    prettyView type_
-  pretty (Constant (Data dataCons) type_) =
-    "data" <+> prettyView type_ <+> "where" $$
-    PP.nest 2 (PP.vcat (map PP.pretty dataCons))
-  pretty (Constant (Record dataCon fields) type_) =
-    "record" <+> prettyView type_ <+> "where" $$
-    PP.nest 2 ("constructor" <+> PP.pretty dataCon) $$
-    PP.nest 2 ("field" $$ PP.nest 2 (PP.vcat (map (PP.pretty . fst) fields)))
-  pretty (Constructor tyCon type_) =
-    "constructor" <+> PP.pretty tyCon $$ PP.nest 2 (prettyTele type_)
-  pretty (Projection _ tyCon type_) =
-    "projection" <+> PP.pretty tyCon $$ PP.nest 2 (prettyTele type_)
-  pretty (Function type_ _inj clauses) =
-    prettyView type_ $$
-    PP.vcat (map (\(Clause pats body) -> PP.pretty pats <+> "=" $$ PP.nest 2 (prettyView (fromScope body))) clauses)
-
-prettyTele :: (IsVar v, IsTerm t) => Tel.IdTel t v -> PP.Doc
-prettyTele (Tel.Empty (Tel.Id t)) =
-   prettyView t
-prettyTele (Tel.Cons (n0, type0) tel0) =
-  "[" <+> PP.pretty n0 <+> ":" <+> prettyView type0 PP.<> go tel0
-  where
-    go :: (IsVar v, IsTerm t) => Tel.IdTel t v -> PP.Doc
-    go (Tel.Empty (Tel.Id t)) =
-      "]" <+> prettyView t
-    go (Tel.Cons (n, type_) tel) =
-      ";" <+> PP.pretty n <+> ":" <+> prettyView type_ <+> prettyTele tel
-
-instance (IsTerm t) => Show (Closed (Definition t)) where
-  show = PP.render . PP.pretty
 
 -- Term typeclass
 ------------------------------------------------------------------------

@@ -813,8 +813,7 @@ checkFunDef fun synClauses = do
         ctx <- askContext
         return $ Clause pats $ Scope $ fmap (toIntVar ctx) clauseBody
     sig <- getSignature
-    let injectivity = clausesInjectivity sig clauses
-    addClauses fun injectivity clauses
+    addClauses fun $ checkInjectivity sig clauses
   where
     toIntVar ctx v = B $ Ctx.elemIndex v ctx
 
@@ -884,18 +883,42 @@ checkPatternStuck funName stuck =
 -- Clauses injectivity
 ----------------------
 
-clausesInjectivity :: (IsTerm t) => Sig.Signature t -> [Clause t Void] -> Injectivity
-clausesInjectivity _   []       = NotInjective -- TODO is this right?
-clausesInjectivity sig clauses0 = maybe NotInjective (\() -> Injective) $
-                                  go Set.empty clauses0
+termHead :: (IsTerm t) => Sig.Signature t -> t v -> Maybe TermHead
+termHead sig t = case whnfView sig t of
+  App (Def f) _ ->
+    case Sig.getDefinition sig f of
+      Constant Data{}      _ -> Just $ DefHead f
+      Constant Record{}    _ -> Just $ DefHead f
+      -- TODO here we can't return 'Just' because we don't know if the
+      -- postulate is going to be instantiated afterwards.  Ideally we'd
+      -- have a "postulate" keyword to avoid this.
+      Constant Postulate{} _ -> Nothing
+      _                      -> Nothing
+  Pi _ _ ->
+    Just $ PiHead
+  _ ->
+    Nothing
+
+checkInjectivity
+  :: (IsTerm t) => Sig.Signature t -> [Clause t Void] -> InjectiveClauses t Void
+checkInjectivity _ [] =
+  NotInjective []
+checkInjectivity _ [clause@(Clause pats _)] | all noMatch pats =
+  NotInjective [clause]
   where
-    go _ [] =
-      return ()
-    go dataCons (Clause _ body : clauses) = do
-      App (Def dataCon) _ <- return $ whnfView sig $ fromScope body
-      Constructor _ _ <- return $ Sig.getDefinition sig dataCon
-      guard $ not $ Set.member dataCon dataCons
-      go (Set.insert dataCon dataCons) clauses
+    noMatch ConP{} = False
+    noMatch VarP{} = True
+checkInjectivity sig clauses0 =
+  go [] clauses0
+  where
+    go injClauses [] =
+      Injective $ reverse injClauses
+    go injClauses (clause@(Clause _ body) : clauses) =
+      case termHead sig (fromScope body) of
+        Just tHead | Nothing <- lookup tHead injClauses ->
+          go ((tHead, clause) : injClauses) clauses
+        _ ->
+          NotInjective $ reverse (map snd injClauses) ++ (clause : clauses)
 
 -- Utils
 ------------------------------------------------------------------------
@@ -965,11 +988,11 @@ addProjection
 addProjection f n r tel = addDefinition f (Projection n r tel)
 
 addClauses
-    :: (IsVar v, IsTerm t) => Name -> Injectivity -> [Clause t Void] -> TC t v ()
-addClauses f inj clauses = do
+    :: (IsVar v, IsTerm t) => Name -> InjectiveClauses t Void -> TC t v ()
+addClauses f clauses = do
   def' <- getDefinition f
-  let ext (Constant Postulate a) = return $ Function a inj clauses
-      ext (Function _ _ _)       = checkError $ ClausesAlreadyAdded f
+  let ext (Constant Postulate a) = return $ Function a clauses
+      ext (Function _ _)         = checkError $ ClausesAlreadyAdded f
       ext (Constant k _)         = error $ "Monad.addClause " ++ render k
       ext Constructor{}          = error $ "Monad.addClause constructor"
       ext Projection{}           = error $ "Monad.addClause projection"
@@ -979,7 +1002,7 @@ definitionType :: (IsTerm t) => Closed (Definition t) -> Closed (Type t)
 definitionType (Constant _ type_)   = type_
 definitionType (Constructor _ tel)  = telPi tel
 definitionType (Projection _ _ tel) = telPi tel
-definitionType (Function type_ _ _) = type_
+definitionType (Function type_ _)   = type_
 
 isRecordType :: (IsTerm t) => Sig.Signature t -> Name -> Bool
 isRecordType sig tyCon =
