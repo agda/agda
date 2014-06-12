@@ -1,0 +1,8 @@
+
+Termination checking failed for the following functions:
+  loop, loop'
+Problematic calls:
+  loop' (↑ i) (Empty → Box i) (iso i) (conceal x)
+    (at HoTTCompatibleWithSizeBasedTerminationMaximeDenes.agda:44,28-33)
+  loop i x
+    (at HoTTCompatibleWithSizeBasedTerminationMaximeDenes.agda:51,29-33)
