@@ -7,7 +7,7 @@ import           Data.Functor                     ((<$>), (<$))
 import           Data.Foldable                    (forM_)
 import           Data.Monoid                      ((<>))
 import qualified Data.HashSet                     as HS
-import           Control.Monad                    (when, void, guard, mzero)
+import           Control.Monad                    (when, void, guard, mzero, forM)
 import           Data.List                        (nub)
 import           Data.Traversable                 (traverse, sequenceA)
 import           Prelude.Extras                   ((==#))
@@ -658,14 +658,15 @@ checkProgram decls0 = do
         putStrLn $ render $ PP.pretty mv <+> "=" <+> PP.nest 2 mvBody
         putStrLn ""
       drawLine
-      putStrLn $ "-- Solved problems: " ++ show (Set.size (trSolvedProblems tr))
+      putStrLn $ "-- Solved problems: " ++ show (Set.size (trSolvedProblems tr)) ++ " " ++ show (trSolvedProblems tr)
       putStrLn $ "-- Unsolved problems: " ++ show (Map.size (trUnsolvedProblems tr))
       drawLine
       forM_ (Map.toList (trUnsolvedProblems tr)) $ \(pid, (probState, probDesc)) -> do
-        putStrLn $ render $
-          PP.pretty pid $$
-          PP.nest 2 (PP.pretty probState) $$
-          PP.nest 2 probDesc
+        let desc = render $
+              PP.pretty pid $$
+              PP.nest 2 (PP.pretty probState) $$
+              PP.nest 2 probDesc
+        putStrLn desc
         putStrLn ""
 
     drawLine =
@@ -677,7 +678,7 @@ checkDecl decl = atSrcLoc decl $ do
     A.TypeSig sig      -> checkTypeSig sig
     A.DataDef d xs cs  -> checkData d xs cs
     A.RecDef d xs c fs -> checkRec d xs c fs
-    A.FunDef f ps b    -> checkClause f ps b
+    A.FunDef f clauses -> checkFunDef f clauses
 
 checkTypeSig :: (IsTerm t) => A.TypeSig -> ClosedTC t ()
 checkTypeSig (A.Sig name absType) = do
@@ -803,13 +804,15 @@ addProjections tyCon tyConPars self fields0 =
 
 -- TODO what about pattern coverage?
 
-checkClause :: (IsTerm t) => Name -> [A.Pattern] -> A.Expr -> ClosedTC t ()
-checkClause fun synPats synClauseBody = do
+checkFunDef :: (IsTerm t) => Name -> [A.Clause] -> ClosedTC t ()
+checkFunDef fun synClauses = do
     funType <- definitionType <$> getDefinition fun
-    checkPatterns fun synPats funType $ \_ pats _ clauseType -> do
+    clauses <- forM synClauses $ \(A.Clause synPats synClauseBody) -> do
+      checkPatterns fun synPats funType $ \_ pats _ clauseType -> do
         clauseBody <- check synClauseBody clauseType
         ctx <- askContext
-        addClause fun pats $ Scope $ fmap (toIntVar ctx) clauseBody
+        return $ Clause pats $ Scope $ fmap (toIntVar ctx) clauseBody
+    addClauses fun clauses
   where
     toIntVar ctx v = B $ Ctx.elemIndex v ctx
 
@@ -943,19 +946,16 @@ addProjection
     => Name -> Field -> Name -> Tel.ClosedIdTel (Type t) -> TC t v ()
 addProjection f n r tel = addDefinition f (Projection n r tel)
 
-addClause
-    :: (IsVar v, IsTerm t)
-    => Name -> [Pattern] -> ClauseBody (Term t) Void -> TC t v ()
-addClause f ps v = do
+addClauses
+    :: (IsVar v, IsTerm t) => Name -> [Clause t Void] -> TC t v ()
+addClauses f clauses = do
   def' <- getDefinition f
-  let ext (Constant Postulate a) = Function a [c]
-      ext (Function a cs)        = Function a (cs ++ [c])
+  let ext (Constant Postulate a) = return $ Function a clauses
+      ext (Function _ _)         = checkError $ ClausesAlreadyAdded f
       ext (Constant k _)         = error $ "Monad.addClause " ++ render k
       ext Constructor{}          = error $ "Monad.addClause constructor"
       ext Projection{}           = error $ "Monad.addClause projection"
-  addDefinition f (ext def')
-  where
-    c = Clause ps v
+  addDefinition f =<< ext def'
 
 definitionType :: (IsTerm t) => Closed (Definition t) -> Closed (Type t)
 definitionType (Constant _ type_)   = type_
@@ -1147,6 +1147,7 @@ data CheckError t v
     | OccursCheckFailed MetaVar (Term t v)
     | NameNotInScope Name
     | StuckTypeSignature Name
+    | ClausesAlreadyAdded Name
 
 checkError :: (IsVar v, IsTerm t) => CheckError t v -> TC t v a
 checkError err = do
@@ -1187,6 +1188,8 @@ checkError err = do
       "Name not in scope: " ++ render name
     renderError _ (StuckTypeSignature name) =
       "Got stuck on the type signature when checking clauses for function " ++ render name
+    renderError _ (ClausesAlreadyAdded fun) =
+      "Clauses already added for function " ++ render fun
 
     renderVar = render . varName
     renderTerm sig = render . prettyTerm sig

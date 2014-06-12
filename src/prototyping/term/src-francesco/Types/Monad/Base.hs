@@ -327,4 +327,4 @@ solveProblems = do
             -- If the problem is stuck, re-add it as a dependency of
             -- what it is stuck on.
             void $ addProblem pid $ Problem ctx m (BoundToProblem boundTo) $
-              StuckProblemDescription pid desc
+              StuckProblemDescription boundTo desc

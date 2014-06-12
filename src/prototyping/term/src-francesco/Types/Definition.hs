@@ -11,6 +11,7 @@ module Types.Definition
     ) where
 
 import           Bound
+import           Data.Typeable                    (Typeable)
 
 import           Syntax.Abstract                  (Name)
 import qualified Types.Telescope                  as Tel
@@ -24,7 +25,7 @@ type ClauseBody t v = Scope (Named Int) t v
 
 -- | One clause of a function definition.
 data Clause t v = Clause [Pattern] (ClauseBody t v)
-    deriving (Eq)
+    deriving (Eq, Typeable)
 
 instance Bound Clause where
   Clause pats body >>>= f = Clause pats (body >>>= f)
@@ -56,6 +57,7 @@ data Definition t v
     | Projection Field Name (Tel.IdTel t v)
     -- ^ Field number, record type name, parameter context with resulting type.
     | Function (t v) [Clause t v]
+    deriving (Typeable)
 
 instance Bound Definition where
   Constant kind t              >>>= f = Constant kind (t >>= f)
@@ -67,7 +69,7 @@ data ConstantKind
     = Postulate
     | Data [Name]                 -- Constructor list
     | Record Name [(Name, Field)] -- Constructor and projection list
-  deriving (Eq, Show)
+  deriving (Eq, Show, Typeable)
 
 instance PP.Pretty ConstantKind where
   pretty = PP.text . show

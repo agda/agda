@@ -4,7 +4,7 @@ module Scope.Check
     , ScopeError
     ) where
 
-import Control.Arrow ((***), (&&&))
+import Control.Arrow ((***), (&&&), first)
 import Control.Applicative
 import Control.Monad.Reader
 import Control.Monad.Writer
@@ -116,17 +116,6 @@ resolveName' x@(C.Name ((l, c), s)) = do
   where
     y = Name (SrcLoc l c) s
 
-
--- resolveName :: C.Name -> Check (Name, Hiding)
--- resolveName x = do
---   i <- resolveName' x
---   case i of
---     VarName x     -> return (x, 0)
---     DefName x n   -> return (x, n)
---     ConName x n _ -> return (x, n)
---     ProjName{}    -> scopeError x $
---                        "Did not expect projection here: " ++ printTree x
-
 checkShadowing :: NameInfo -> Maybe NameInfo -> Check ()
 checkShadowing _ Nothing   = return ()
 checkShadowing VarName{} _ = return ()
@@ -160,7 +149,7 @@ checkHiding e = case e of
       return (n + length xs, C.Bind xs e : bs, stop)
 
 scopeCheck :: C.Program -> Either ScopeError [Decl]
-scopeCheck (C.Prog _ ds) = flip runReaderT initScope $ unCheck $ concatMapC checkDecl ds return
+scopeCheck (C.Prog _ ds) = flip runReaderT initScope $ unCheck $ checkDecls ds
 
 isSet :: C.Name -> Check ()
 isSet (C.Name ((l, c), "Set")) = return ()
@@ -202,17 +191,20 @@ isParamDef C.NoParams      = Just []
 isParamDef C.ParamDecl{}   = Nothing
 isParamDef (C.ParamDef xs) = Just xs
 
-checkDecl :: C.Decl -> CCheck [Decl]
-checkDecl d ret = case d of
-  C.Postulate ds -> concatMapC checkDecl ds ret
-  C.TypeSig x e -> do
+checkDecls :: [C.Decl] -> Check [Decl]
+checkDecls ds0 = case ds0 of
+  [] ->
+    return []
+  C.Postulate ds1 : ds2 ->
+    checkDecls (ds1 ++ ds2)
+  C.TypeSig x e : ds -> do
     (n, a) <- checkScheme e
-    bindName (mkDefInfo x n) $ \x -> ret [TypeSig $ Sig x a]
-  C.Data x pars (C.NoDataBody set) | Just ps <- isParamDecl pars ->
-    dataOrRecDecl x ps set
-  C.Record x pars (C.NoRecordBody set) | Just ps <- isParamDecl pars ->
-    dataOrRecDecl x ps set
-  C.Data x pars (C.DataBody cs) | Just xs <- isParamDef pars -> do
+    bindName (mkDefInfo x n) $ \x -> (TypeSig (Sig x a) :) <$> checkDecls ds
+  C.Data x pars (C.NoDataBody set) : ds | Just ps <- isParamDecl pars -> do
+    dataOrRecDecl x ps set ds
+  C.Record x pars (C.NoRecordBody set) : ds | Just ps <- isParamDecl pars -> do
+    dataOrRecDecl x ps set ds
+  C.Data x pars (C.DataBody cs) : ds | Just xs <- isParamDef pars -> do
     (x, n) <- resolveDef x
     when (n > length xs) $ scopeError x $ "Too few parameters to " ++ show x ++
                                           " (implicit arguments must be explicitly bound here)"
@@ -220,9 +212,8 @@ checkDecl d ret = case d of
     let is = map mkVarInfo xs
     xs <- mapC bindName is $ return
     let t = App (Def x) (map (\x -> Apply (App (Var x) [])) xs)
-    mapC (checkConstructor t is) cs $ \cs ->
-      ret [DataDef x xs cs]
-  C.Record x pars (C.RecordBody con fs) | Just xs <- isParamDef pars -> do
+    mapC (checkConstructor t is) cs $ \cs -> (DataDef x xs cs :) <$> checkDecls ds
+  C.Record x pars (C.RecordBody con fs) : ds | Just xs <- isParamDef pars -> do
     (x, n) <- resolveDef x
     when (n > length xs) $ scopeError x $ "Too few parameters to " ++ show x ++
                                           " (implicit arguments must be explicitly bound here)"
@@ -231,23 +222,39 @@ checkDecl d ret = case d of
     xs <- mapC bindName is $ return
     checkFields is (getFields fs) $ \fs ->
       bindName (mkConInfo con 0 (length fs)) $ \con ->
-        ret [RecDef x xs con fs]
-  C.Data{}   -> scopeError d $ "Bad data declaration"
-  C.Record{} -> scopeError d $ "Bad record declaration"
-  C.FunDef f ps b -> do
+        (RecDef x xs con fs :) <$> checkDecls ds
+  (d@C.Data{} : _) ->
+    scopeError d $ "Bad data declaration"
+  (d@C.Record{} : _) ->
+    scopeError d $ "Bad record declaration"
+  C.FunDef f _ _ : _ -> do
+    let (clauses, ds) = takeFunDefs f ds0
     (f, n) <- resolveDef f
-    ps     <- insertImplicitPatterns (srcLoc f) n ps
-    (ps, b) <- mapC checkPattern ps $ \ps -> (,) ps <$> checkExpr b
-    ret [FunDef f ps b]
-  C.Open x -> do
+    clauses <- forM clauses $ \(ps, b) -> do
+      ps     <- insertImplicitPatterns (srcLoc f) n ps
+      (ps, b) <- mapC checkPattern ps $ \ps -> (,) ps <$> checkExpr b
+      return $ Clause ps b
+    (FunDef f clauses :) <$> checkDecls ds
+  C.Open x : ds -> do
     resolveDef x
-    ret []
-  C.Import{} -> ret []
+    checkDecls ds
+  C.Import{} : ds -> do
+    checkDecls ds
   where
-    dataOrRecDecl x ps set = do
+    dataOrRecDecl x ps set ds = do
       isSet set
       (n, a) <- checkScheme (C.Pi (C.Tel ps) (C.App [C.Arg $ C.Id set]))
-      bindName (mkDefInfo x n) $ \x -> ret [TypeSig $ Sig x a]
+      bindName (mkDefInfo x n) $ \x -> (TypeSig (Sig x a) :) <$> checkDecls ds
+
+    takeFunDefs :: C.Name -> [C.Decl] -> ([([C.Pattern], C.Expr)], [C.Decl])
+    takeFunDefs f [] =
+      ([], [])
+    takeFunDefs f (C.FunDef f' ps b : ds) | sameName f f' =
+      first ((ps, b) :) $ takeFunDefs f ds
+    takeFunDefs _ d =
+      ([], d)
+
+    sameName (C.Name (_, f1)) (C.Name (_, f2)) = f1 == f2
 
 checkFields :: [NameInfo] -> [C.Constr] -> CCheck [TypeSig]
 checkFields ps fs ret = mapC bindName ps $ \_ -> do

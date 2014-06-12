@@ -27,13 +27,15 @@ instance Ord Name where
   Name _ x `compare` Name _ y = compare x y
 
 data Decl = TypeSig TypeSig
-          | FunDef  Name [Pattern] Expr
+          | FunDef  Name [Clause]
           | DataDef Name [Name] [TypeSig]
           | RecDef  Name [Name] Name [TypeSig]
 
 data TypeSig = Sig { typeSigName :: Name
                    , typeSigType :: Expr
                    }
+
+data Clause = Clause [Pattern] Expr
 
 data Expr = Lam Name Expr
           | Pi Name Expr Expr
@@ -69,7 +71,7 @@ instance HasSrcLoc Name where
 instance HasSrcLoc Decl where
   srcLoc d = case d of
     TypeSig sig    -> srcLoc sig
-    FunDef x _ _   -> srcLoc x
+    FunDef x _     -> srcLoc x
     DataDef x _ _  -> srcLoc x
     RecDef x _ _ _ -> srcLoc x
 

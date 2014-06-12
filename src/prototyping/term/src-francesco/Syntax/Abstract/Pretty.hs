@@ -31,9 +31,11 @@ instance Pretty TypeSig where
 instance Pretty Decl where
   pretty d = case d of
     TypeSig sig -> pretty sig
-    FunDef f ps e ->
-      sep [ pretty f <+> fsep (map (prettyPrec 10) ps)
-          , nest 2 $ text "=" <+> pretty e ]
+    FunDef f clauses -> vcat
+      [ sep [ pretty f <+> fsep (map (prettyPrec 10) ps)
+            , nest 2 $ text "=" <+> pretty e ]
+      | Clause ps e <- clauses
+      ]
     DataDef d xs cs ->
       vcat [ text "data" <+> pretty d <+> fsep (map pretty xs) <+> text "where"
            , nest 2 $ vcat $ map pretty cs ]

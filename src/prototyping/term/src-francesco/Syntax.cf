@@ -13,12 +13,14 @@ position token Name ((letter | '_') (letter | digit | '-' | '\'' | '_')*) ;
 separator Decl ";";
 
 TypeSig.  Decl  ::= Name ":" Expr;
-FunDef.   Decl  ::= Name [Pattern1] "=" Expr;
+FunDef.   Decl  ::= Name "{" [Clause] "}";
 Data.     Decl  ::= "data" Name Params DataBody;
 Record.   Decl  ::= "record" Name Params RecordBody;
 Open.     Decl  ::= "open" Name;
 Import.   Decl  ::= "open" "import" Name;
 Postulate. Decl ::= "postulate" "{" [Decl] "}";
+
+Clause. Clause ::= [Pattern1] "=" Expr;
 
 NoParams.  Params ::= ;
 ParamDecl. Params ::= [Binding];
