@@ -288,7 +288,7 @@ checkInjectivity_ names = reimburseTop Bench.Typing $ billTop Bench.Injectivity 
   -- namesDefs <- mapM (\ q -> (q,) <$> getConstInfo q) $ Set.toList names
   -- mapM_ checkInj namesDefs
 
-  forM_ (Set.toList names) $ \ q -> do
+  Fold.forM_ names $ \ q -> do
     def <- getConstInfo q
     case theDef def of
       d@Function{ funClauses = cs, funTerminates = Just True } -> do
