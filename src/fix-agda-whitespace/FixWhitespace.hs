@@ -103,7 +103,7 @@ transform =
 
 -- | 'dropWhile' except keep the first of the dropped elements
 dropWhile1 :: (a -> Bool) -> [a] -> [a]
-dropWhile1 p [] = []
+dropWhile1 _ [] = []
 dropWhile1 p (x:xs)
   | p x       = x : dropWhile p xs
   | otherwise = x : xs
