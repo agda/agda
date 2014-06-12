@@ -19,13 +19,13 @@ import           Control.Arrow                    ((***))
 import           Data.Typeable                    (Typeable)
 
 import           Syntax.Abstract                  (Name)
-import           Types.Var
+import           Types.Term                       hiding (weaken)
 
 -- Ctx
 ------------------------------------------------------------------------
 
--- | A 'Ctx' is the same as a 'Tel', but inside out: the last
--- binding we encounter ranges over all the precedent ones.
+-- | A 'Ctx' is a backwards list of named terms, each scoped over all
+-- the previous ones.
 data Ctx v0 t v where
     Empty :: Ctx v0 t v0
     Snoc  :: Ctx v0 t v -> (Name, t v) -> Ctx v0 t (TermVar v)
@@ -74,6 +74,7 @@ elemIndex v0 ctx0 = go ctx0 v0
 ctx1 ++ Empty                 = ctx1
 ctx1 ++ (Snoc ctx2 namedType) = Snoc (ctx1 ++ ctx2) namedType
 
+-- | Takes a variable outside the 'Ctx' and brings it inside.
 weaken :: Ctx v0 t v -> v0 -> v
 weaken Empty        v = v
 weaken (Snoc ctx _) v = F (weaken ctx v)

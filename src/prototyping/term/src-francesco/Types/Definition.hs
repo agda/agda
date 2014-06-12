@@ -4,6 +4,8 @@ module Types.Definition
       Clause(..)
     , ClauseBody
     , Pattern(..)
+    , patternBindings
+    , patternsBindings
       -- * 'Definition'
     , Definition(..)
     , ConstantKind(..)
@@ -20,13 +22,15 @@ import           Control.Arrow                    (second)
 import           Syntax.Abstract                  (Name)
 import qualified Types.Telescope                  as Tel
 import           Types.Term
-import           Types.Var
 import qualified Text.PrettyPrint.Extended        as PP
 import           Text.PrettyPrint.Extended        ((<+>), ($$))
 
 -- Clauses
 ------------------------------------------------------------------------
 
+-- | A 'ClauseBody' scopes a term over a number of variables.  The
+-- lowest number refers to the rightmost variable in the patterns, the
+-- highest to the leftmost.
 type ClauseBody t v = Scope (Named Int) t v
 
 -- | One clause of a function definition.
@@ -41,41 +45,57 @@ data Pattern
     | ConP Name [Pattern]
     deriving (Eq, Show)
 
-instance PP.Pretty Pattern where
-  prettyPrec p e = case e of
-    VarP      -> PP.text "_"
-    ConP c es -> PP.prettyApp p (PP.pretty c) es
+patternBindings :: Pattern -> Int
+patternBindings VarP          = 1
+patternBindings (ConP _ pats) = patternsBindings pats
+
+patternsBindings :: [Pattern] -> Int
+patternsBindings = sum . map patternBindings
 
 -- Definition
 ------------------------------------------------------------------------
 
 data Definition t v
-    = Constant ConstantKind (t v)
-    | Constructor Name (Tel.IdTel t v)
-    -- ^ Data type name, parameter context with resulting type.
+    = Constant ConstantKind (Type t v)
+    | DataCon Name (Tel.IdTel (Type t) v)
+    -- ^ Data type name, telescope ranging over the parameters of the
+    -- type constructor ending with the type of the constructor.
     | Projection Field Name (Tel.IdTel t v)
-    -- ^ Field number, record type name, parameter context with resulting type.
-    | Function (t v) (Invertible t v)
+    -- ^ Field number, record type name, telescope ranging over the
+    -- parameters of the type constructor ending with the type of the
+    -- projection.
+    | Function (Type t v) (Invertible t v)
+    -- ^ Function type, clauses.
     deriving (Typeable)
 
 instance Bound Definition where
   Constant kind t              >>>= f = Constant kind (t >>= f)
-  Constructor tyCon type_      >>>= f = Constructor tyCon (type_ >>>= f)
+  DataCon tyCon type_          >>>= f = DataCon tyCon (type_ >>>= f)
   Projection field tyCon type_ >>>= f = Projection field tyCon (type_ >>>= f)
   Function type_ clauses       >>>= f = Function (type_ >>= f) (mapInvertible (>>>= f) clauses)
 
 data ConstantKind
-    = Postulate
-    | Data [Name]                 -- Constructor list
-    | Record Name [(Name, Field)] -- Constructor and projection list
+  = Postulate
+  -- ^ Note that 'Postulates' might not be forever, since we add clauses
+  -- when we encounter them.
+  | Data [Name]
+  -- ^ A data type, with constructors.
+  | Record Name [(Name, Field)]
+  -- ^ A record, with its constructors and projections.
   deriving (Eq, Show, Typeable)
 
+-- | A function is invertible if each of its clauses is headed by a
+-- different 'TermHead'.
 data Invertible t v
-    = NotInvertible [Clause t v]
-    | Invertible [(TermHead, Clause t v)]
-
+  = NotInvertible [Clause t v]
+  | Invertible [(TermHead, Clause t v)]
+  -- ^ Each clause is paired with a 'TermHead' that doesn't happend
+  -- anywhere else in the list.
 deriving instance (IsTerm t) => Show (Closed (Invertible t))
 
+-- | A 'TermHead' is an injective type- or data-former.
+--
+-- TODO Also include postulates when we have them to be explicit.
 data TermHead = PiHead | DefHead Name
     deriving (Eq, Show)
 
@@ -101,7 +121,7 @@ instance (IsTerm t) => PP.Pretty (Closed (Definition t)) where
     "record" <+> prettyView type_ <+> "where" $$
     PP.nest 2 ("constructor" <+> PP.pretty dataCon) $$
     PP.nest 2 ("field" $$ PP.nest 2 (PP.vcat (map (PP.pretty . fst) fields)))
-  pretty (Constructor tyCon type_) =
+  pretty (DataCon tyCon type_) =
     "constructor" <+> PP.pretty tyCon $$ PP.nest 2 (prettyTele type_)
   pretty (Projection _ tyCon type_) =
     "projection" <+> PP.pretty tyCon $$ PP.nest 2 (prettyTele type_)
@@ -133,3 +153,8 @@ instance (IsTerm t) => PP.Pretty (Closed (Clause t)) where
 
 instance (IsTerm t) => Show (Closed (Clause t)) where
   show = PP.render . PP.pretty
+
+instance PP.Pretty Pattern where
+  prettyPrec p e = case e of
+    VarP      -> PP.text "_"
+    ConP c es -> PP.prettyApp p (PP.pretty c) es

@@ -1,11 +1,13 @@
+-- | Module exporting convenience functions.
 module Types.Monad
     ( -- * Monad definition
       TC
     , ClosedTC
-    , runTC
     , TCState
-    , initTCState
     , TCErr(..)
+    , initTCState
+    , runTC
+      -- * Report
     , TCReport(..)
     , tcReport
       -- * Operations
@@ -32,6 +34,9 @@ module Types.Monad
     , getTypeOfVar
       -- * Problem handling
     , ProblemId
+    , ProblemIdInt
+    , ProblemState
+    , ProblemDescription
     , Stuck(..)
     , StuckTC
     , newProblem
@@ -39,18 +44,19 @@ module Types.Monad
     , bindProblem
     , waitOnProblem
     , solveProblems
+    , solveProblems_
     ) where
 
 import Prelude                                    hiding (abs, pi)
 
 import qualified Data.Set                         as Set
 import           Data.Typeable                    (Typeable)
+import           Control.Monad                    (void)
 
 import qualified Text.PrettyPrint.Extended        as PP
 import           Syntax.Abstract                  (Name)
 import           Syntax.Abstract.Pretty           ()
 import           Types.Definition
-import           Types.Var
 import           Types.Term
 import qualified Types.Context                    as Ctx
 import           Types.Monad.Base
@@ -129,6 +135,11 @@ getTypeOfVar v = do
 
 newProblem_
     :: (Typeable a, IsVar v, IsTerm t, Nf p, PP.Pretty (p t v))
-    => MetaVar -> p t v -> (Closed (Term t) -> StuckTC t v a)
+    => MetaVar
+    -> ProblemDescription p t v
+    -> StuckTC t v a
     -> TC t v (ProblemId t v a)
 newProblem_ mv = newProblem (Set.singleton mv)
+
+solveProblems_ :: (IsTerm t) => ClosedTC t ()
+solveProblems_ = void solveProblems

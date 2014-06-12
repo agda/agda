@@ -11,7 +11,6 @@ import           Data.Foldable                    (foldMap)
 
 import qualified Types.Signature                  as Sig
 import           Types.Term
-import           Types.Var
 import           Eval
 
 -- Free variables

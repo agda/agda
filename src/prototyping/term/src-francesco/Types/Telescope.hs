@@ -29,12 +29,15 @@ import           Control.Applicative              ((<$>), (<*>), pure)
 import           Data.Typeable                    (Typeable)
 
 import           Syntax.Abstract                  (Name)
-import           Types.Var
 import qualified Types.Context                    as Ctx
+import           Types.Term                       hiding (instantiate)
 
 -- Tel
 ------------------------------------------------------------------------
 
+-- | A 'Tel' is a list of types, each one ranging over the rest of the
+-- list, and with something of at the end -- the inverse of a 'Ctx.Ctx',
+-- plus the end element.
 data Tel t f v
     = Empty (t f v)
     | Cons (Name, f v) (Tel t f (TermVar v))
@@ -42,6 +45,9 @@ data Tel t f v
 
 type ClosedTel t f = Tel t f Void
 
+-- | Instantiates an 'IdTel' repeatedly until we get to the bottom of
+-- it.  Fails If the length of the 'Tel' and the provided list don't
+-- match.
 substs :: (Monad f) => IdTel f v0 -> [f v0] -> f v0
 substs (Empty t)     []           = unId t
 substs (Empty _)     (_ : _)      = error "Types.Telescope.instantiate: too many arguments"
@@ -51,6 +57,7 @@ substs (Cons _ tel') (arg : args) = substs (tel' >>>= instArg) args
     instArg (B _) = arg
     instArg (F v) = return v
 
+-- | Instantiates a bound variable.
 instantiate :: (Monad f, Bound t) => Tel t f (TermVar v) -> f v -> Tel t f v
 instantiate tel' t = tel' >>>= inst
   where
@@ -60,6 +67,8 @@ instantiate tel' t = tel' >>>= inst
 -- Useful types
 ---------------
 
+-- | A type with no data, useful to create 'Tel's with only types in
+-- them.
 data Proxy (f :: * -> *) v = Proxy
 
 instance Functor (Proxy f) where
@@ -74,6 +83,7 @@ instance Traversable (Proxy f) where
 instance Bound Proxy where
      Proxy >>>= _ = Proxy
 
+-- | An identity type, useful to have terms at the end of a 'Tel'.
 newtype Id f v = Id {unId :: f v}
      deriving (Functor, Foldable, Traversable)
 

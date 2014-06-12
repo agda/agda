@@ -15,15 +15,14 @@ import           Prelude                          hiding (pi)
 
 import           Bound.Name                       (instantiateName)
 import           Data.Void                        (vacuousM)
-import           Control.Monad                    (guard, mzero)
-import           Control.Monad.Trans.Maybe        (MaybeT(MaybeT), runMaybeT)
 import           Prelude.Extras                   (Eq1((==#)))
 import qualified Data.Set                         as Set
 import           Bound                            hiding (instantiate)
+import           Data.Functor                     ((<$>))
+import           Control.Applicative              ((<*>), pure)
 
 import           Syntax.Abstract                  (Name)
 import           Syntax.Abstract.Pretty           ()
-import           Types.Var
 import           Types.Definition
 import qualified Types.Signature                  as Sig
 import           Types.Term
@@ -51,12 +50,12 @@ data Blocked t v
     | MetaVarHead MetaVar [Elim t v]
     -- ^ The term is 'MetaVar'-headed.
     | BlockedOn (Set.Set MetaVar) Name [Elim t v]
-    -- ^ Returned when a 'MetaVar' is preventing us from reducing a
+    -- ^ Returned when some 'MetaVar's are preventing us from reducing a
     -- definition.  The 'Name' is the name of the definition, the
     -- 'Elim's the eliminators stuck on it.
     --
-    -- Note that it might not be the only 'MetaVar' preventing us to do
-    -- so.
+    -- Note that if anything else prevents reduction we're going to get
+    -- 'NotBlocked'.
     deriving (Eq)
 
 instance Eq1 t => Eq1 (Blocked t) where
@@ -93,12 +92,12 @@ whnfFun
 whnfFun _ funName es [] =
   NotBlocked $ def funName es
 whnfFun sig funName es (Clause patterns body : clauses) =
-  case runMaybeT (matchClause sig es patterns) of
-    Left mv ->
-      BlockedOn mv funName es
-    Right Nothing ->
+  case matchClause sig es patterns of
+    TTMetaVars mvs ->
+      BlockedOn mvs funName es
+    TTFail () ->
       whnfFun sig funName es clauses
-    Right (Just (args0, leftoverEs)) -> do
+    TTOK (args0, leftoverEs) -> do
       let args = reverse args0
       let ixArg n = if n >= length args
                     then error "Eval.whnf: too few arguments"
@@ -109,29 +108,24 @@ whnfFun sig funName es (Clause patterns body : clauses) =
 matchClause
   :: (IsTerm t)
   => Sig.Signature t -> [Elim t v] -> [Pattern]
-  -> MaybeT (Either (Set.Set MetaVar)) ([t v], [Elim t v])
+  -> TermTraverse () ([t v], [Elim t v])
 matchClause _ es [] =
-  return ([], es)
-matchClause sig (Apply arg : es) (VarP : patterns) = do
-  (args, leftoverEs) <- matchClause sig es patterns
-  return (arg : args, leftoverEs)
+  pure ([], es)
+matchClause sig (Apply arg : es) (VarP : patterns) =
+  (\(args, leftoverEs) -> (arg : args, leftoverEs)) <$>
+  matchClause sig es patterns
 matchClause sig (Apply arg : es) (ConP dataCon dataConPatterns : patterns) = do
   case whnf sig arg of
-    MetaVarHead mv _ -> do
-      -- Here we just want to see if we would make it without this
-      -- blockage.  This also means that the last metavariable will
-      -- block first.
-      case matchClause sig es patterns of
-        MaybeT (Left mvs)      -> MaybeT $ Left $ Set.insert mv mvs
-        MaybeT (Right Nothing) -> MaybeT $ Right Nothing
-        MaybeT (Right _)       -> MaybeT $ Left $ Set.singleton mv
-    NotBlocked t | Con dataCon' dataConArgs <- view t -> do
-      guard (dataCon == dataCon')
-      matchClause sig (map Apply dataConArgs ++ es) (dataConPatterns ++ patterns)
+    MetaVarHead mv _ ->
+      TTMetaVars (Set.singleton mv) <*> matchClause sig es patterns
+    NotBlocked t | Con dataCon' dataConArgs <- view t ->
+      if dataCon == dataCon'
+        then matchClause sig (map Apply dataConArgs ++ es) (dataConPatterns ++ patterns)
+        else TTFail ()
     _ ->
-      mzero
+      TTFail ()
 matchClause _ _ _ =
-  mzero
+  TTFail ()
 
 whnfView :: (IsTerm t) => Sig.Signature t -> t v -> TermView t v
 whnfView sig = view . ignoreBlocking . whnf sig
@@ -180,6 +174,6 @@ instance Nf Clause where
 
 instance Nf Definition where
   nf' sig (Constant kind t)              = Constant kind (nf sig t)
-  nf' sig (Constructor tyCon type_)      = Constructor tyCon $ nf' sig type_
+  nf' sig (DataCon tyCon type_)          = DataCon tyCon $ nf' sig type_
   nf' sig (Projection field tyCon type_) = Projection field tyCon $ nf' sig type_
   nf' sig (Function type_ clauses)       = Function (nf sig type_) (mapInvertible (nf' sig) clauses)

@@ -5,7 +5,6 @@ import           Prelude                          hiding (abs, pi)
 
 import           Data.Functor                     ((<$>), (<$))
 import           Data.Foldable                    (forM_)
-import           Data.Monoid                      ((<>))
 import qualified Data.HashSet                     as HS
 import           Control.Monad                    (when, void, guard, mzero, forM)
 import           Data.List                        (nub)
@@ -13,7 +12,6 @@ import           Data.Traversable                 (traverse, sequenceA)
 import           Prelude.Extras                   ((==#))
 import           Bound                            hiding (instantiate, abstract)
 import           Bound.Var                        (unvar)
-import qualified Bound.Name                       as Bound
 import           Data.Typeable                    (Typeable)
 import           Data.Void                        (vacuous, Void, vacuousM)
 import qualified Data.Set                         as Set
@@ -31,7 +29,6 @@ import qualified Types.Context                    as Ctx
 import qualified Types.Telescope                  as Tel
 import           Types.Monad
 import           Types.Term
-import           Types.Var
 import           Text.PrettyPrint.Extended        (render, (<+>), ($$))
 import qualified Text.PrettyPrint.Extended        as PP
 import qualified Types.Signature                  as Sig
@@ -47,8 +44,8 @@ import           FreeVars
 check :: (IsVar v, IsTerm t) => A.Expr -> Type t v -> TC t v (Term t v)
 check synT type_ = atSrcLoc synT $ case synT of
   A.Con dataCon synArgs -> do
-    Constructor tyCon dataConType <- getDefinition dataCon
-    let err = ConstructorTypeError synT type_
+    DataCon tyCon dataConType <- getDefinition dataCon
+    let err = DataConTypeError synT type_
     metaVarIfStuck type_ $ matchTyCon tyCon type_ err $ \tyConArgs -> do
       let appliedDataConType = Tel.substs (vacuous dataConType) tyConArgs
       bindStuckTC (checkConArgs synArgs appliedDataConType) WaitingOn $ \args ->
@@ -230,7 +227,7 @@ checkEqual type_ x y = do
       (App (Def _) tyConPars0, Con dataCon dataConArgs1, Con dataCon' dataConArgs2)
           | Just tyConPars <- mapM isApply tyConPars0
           , dataCon == dataCon' -> do
-            Constructor _ dataConType <- getDefinition dataCon
+            DataCon _ dataConType <- getDefinition dataCon
             let appliedDataConType = Tel.substs (vacuous dataConType) tyConPars
             equalConArgs appliedDataConType dataCon dataConArgs1 dataConArgs2
       (Set, Set, Set) -> do
@@ -321,7 +318,7 @@ checkEqualBlockedOn type_ mvs fun1 elims1 t2 = do
       mvT <- liftClosed $ do
         mvType <- getTypeOfMetaVar mv
         mvT <- unrollPi mvType $ \ctxMvArgs endType' -> do
-          Constructor tyCon dataConTypeTel <- getDefinition dataCon
+          DataCon tyCon dataConTypeTel <- getDefinition dataCon
           -- We know that the metavariable must have the right type (we
           -- have typechecked the arguments already).
           App (Def tyCon') tyConArgs0 <- whnfViewTC endType'
@@ -429,7 +426,7 @@ metaAssign type_ mv elims t = do
   sig <- getSignature
   let vsOrMvs = case checkPatternCondition sig elims of
         TTOK vs        -> Right vs
-        TTFlexible mvs -> Left $ Set.insert mv mvs
+        TTMetaVars mvs -> Left $ Set.insert mv mvs
         TTFail ()      -> Left $ Set.singleton mv
   case vsOrMvs of
     Left mvs -> do
@@ -441,7 +438,7 @@ metaAssign type_ mv elims t = do
       if pruned
         then checkEqual type_ (metaVar mv elims) t
         else fmap StuckOn $
-               newProblem mvs (CheckEqual type_ (metaVar mv elims) t) $ \_ ->
+               newProblem mvs (CheckEqual type_ (metaVar mv elims) t) $
                  checkEqual type_ (metaVar mv elims) t
     Right vs -> do
       -- TODO have `pruneTerm' return an evaluated term.
@@ -453,7 +450,7 @@ metaAssign type_ mv elims t = do
           when (mv `HS.member` mvs) $ checkError $ OccursCheckFailed mv $ vacuous t'
           instantiateMetaVar mv t'
           notStuck ()
-        TTFlexible mvs ->
+        TTMetaVars mvs ->
           fmap StuckOn $
             newProblemCheckEqual (Set.insert mv mvs) type_ (metaVar mv elims) t
         TTFail v ->
@@ -509,7 +506,7 @@ prune allowedVs oldMv elims | Just args <- mapM isApply elims =
       guard $ or kills0
       oldMvType <- lift $ getTypeOfMetaVar oldMv
       let (newMvType, kills1) = createNewMeta sig oldMvType kills0
-      guard $ any (\(Bound.Name _ b) -> b) kills1
+      guard $ any unNamed kills1
       newMv <- lift $ addMetaVar $ telPi newMvType
       lift $ instantiateMetaVar oldMv (createMetaLam newMv kills1)
 
@@ -572,7 +569,7 @@ shouldKill sig vs t = do
     _ ->
       return $ not (fvRigid (freeVars sig t) `Set.isSubsetOf` vs)
 
--- | 'TTFlexible' if the pattern condition check is blocked on a some
+-- | 'TTMetaVars' if the pattern condition check is blocked on a some
 -- 'MetaVar's.  The set is empty if the pattern condition is not
 -- respected and no 'MetaVar' can change that.
 --
@@ -591,8 +588,8 @@ checkPatternCondition sig elims0 =
     checkElim (Apply t) =
       case whnf sig t of
         NotBlocked t' | App (Var v) [] <- view t' -> pure v
-        MetaVarHead mv _                          -> TTFlexible (Set.singleton mv)
-        BlockedOn mvs _ _                         -> TTFlexible mvs
+        MetaVarHead mv _                          -> TTMetaVars (Set.singleton mv)
+        BlockedOn mvs _ _                         -> TTMetaVars mvs
         _                                         -> TTFail ()
     checkElim (Proj _ _) =
       TTFail ()
@@ -602,23 +599,6 @@ checkPatternCondition sig elims0 =
 lambdaAbstract :: (IsVar v, IsTerm t) => [v] -> Term t v -> Term t v
 lambdaAbstract []       t = t
 lambdaAbstract (v : vs) t = unview $ Lam $ abstract v $ lambdaAbstract vs t
-
-data TermTraverse err a
-    = TTOK a
-    | TTFlexible (Set.Set MetaVar)
-    | TTFail err
-    deriving (Functor)
-
-instance Applicative (TermTraverse err) where
-    pure = TTOK
-
-    TTOK f          <*> TTOK x           = TTOK (f x)
-    TTOK _          <*> TTFlexible mvs   = TTFlexible mvs
-    TTOK _          <*> TTFail v         = TTFail v
-    TTFlexible mvs  <*> TTOK _           = TTFlexible mvs
-    TTFlexible mvs1 <*> TTFlexible mvs2  = TTFlexible (mvs1 <> mvs2)
-    TTFlexible _    <*> TTFail v         = TTFail v
-    TTFail v        <*> _                = TTFail v
 
 -- TODO improve efficiency of this traversal, we shouldn't need all
 -- those `fromAbs'.  Also in `freeVars'.
@@ -656,14 +636,11 @@ closeTerm t0 = do
               goElim (Proj n f) = pure $ Proj n f
 
               resElims = traverse goElim elims
-          in case (h, resElims) of
-               (Meta mv, TTFlexible mvs)  ->
-                 TTFlexible $ Set.insert mv mvs
-               (Meta mv, TTFail _) ->
-                 TTFlexible $ Set.singleton mv
+          in case h of
+               Meta mv  ->
+                 TTMetaVars (Set.singleton mv) <*> resElims
                _ ->
-                 App <$> traverse (either TTFail pure . strengthen) h
-                     <*> resElims
+                 App <$> traverse (either TTFail pure . strengthen) h <*> resElims
 
   return $ go Left t0
 
@@ -696,14 +673,14 @@ elimStuckTC m ifStuck = do
 
 bindStuck
     :: (IsVar v, IsTerm t, Typeable a, Typeable b)
-    => Stuck t v a -> (ProblemId t v a -> ProblemDescription t v)
+    => Stuck t v a -> (ProblemId t v a -> CheckProblem t v)
     -> (a -> StuckTC t v b) -> StuckTC t v b
 bindStuck (NotStuck x)  _    f = f x
 bindStuck (StuckOn pid) desc f = StuckOn <$> bindProblem pid (desc pid) f
 
 bindStuckTC
     :: (IsVar v, IsTerm t, Typeable a, Typeable b)
-    => StuckTC t v a -> (ProblemId t v a -> ProblemDescription t v)
+    => StuckTC t v a -> (ProblemId t v a -> CheckProblem t v)
     -> (a -> StuckTC t v b) -> StuckTC t v b
 bindStuckTC m desc f = do
     stuck <- m
@@ -726,7 +703,7 @@ checkProgram decls0 = do
       return ts
     goDecls ts (decl : decls) = do
       lift $ putStrLn $ render decl
-      ((), ts') <- EitherT $ runTC ts $ checkDecl decl >> solveProblems
+      ((), ts') <- EitherT $ runTC ts $ checkDecl decl >> solveProblems_
       goDecls ts' decls
 
     report :: TCState t -> IO ()
@@ -813,7 +790,7 @@ checkConstr tyCon tyConPars appliedTyConType (A.Sig dataCon synDataConType) = do
             let appliedTyConType' = fmap (Ctx.weaken vs) appliedTyConType
             elimStuckTC (equalType appliedTyConType' endType) $ do
               checkError $ TermsNotEqual appliedTyConType' endType
-        addConstructor dataCon tyCon (Tel.idTel tyConPars dataConType)
+        addDataCon dataCon tyCon (Tel.idTel tyConPars dataConType)
 
 -- Record
 ---------
@@ -841,7 +818,7 @@ checkRec tyCon tyConPars dataCon fields = do
                 tyCon tyConPars' self (map A.typeSigName fields) $
                 (fmap F fieldsTel)
         Tel.unTel fieldsTel $ \fieldsCtx Tel.Proxy ->
-            addConstructor dataCon tyCon $
+            addDataCon dataCon tyCon $
             Tel.idTel tyConPars' $
             ctxPi fieldsCtx (fmap (Ctx.weaken fieldsCtx) appliedTyConType)
 
@@ -902,7 +879,7 @@ checkFunDef fun synClauses = do
         ctx <- askContext
         return $ Clause pats $ Scope $ fmap (toIntVar ctx) clauseBody
     sig <- getSignature
-    addClauses fun $ checkInjectivity sig clauses
+    addClauses fun $ checkInvertibility sig clauses
   where
     toIntVar ctx v = B $ Ctx.elemIndex v ctx
 
@@ -948,7 +925,7 @@ checkPattern funName synPat type_ ret = case synPat of
       extendContext (A.name "_") type_ $ \v ->
       ret F VarP (var v)
     A.ConP dataCon synPats -> do
-      Constructor typeCon dataConType <- getDefinition dataCon
+      DataCon typeCon dataConType <- getDefinition dataCon
       typeConDef <- getDefinition typeCon
       case typeConDef of
         Constant (Data _)     _ -> return ()
@@ -969,8 +946,8 @@ checkPatternStuck funName stuck =
     NotStuck x -> return x
     StuckOn _  -> checkError $ StuckTypeSignature funName
 
--- Clauses injectivity
-----------------------
+-- Clauses invertibility
+------------------------
 
 termHead :: (IsTerm t) => Sig.Signature t -> t v -> Maybe TermHead
 termHead sig t = case whnfView sig t of
@@ -990,17 +967,9 @@ termHead sig t = case whnfView sig t of
   _ ->
     Nothing
 
-checkInjectivity
+checkInvertibility
   :: (IsTerm t) => Sig.Signature t -> [Closed (Clause t)] -> Closed (Invertible t)
-checkInjectivity _ [] =
-  NotInvertible []
-checkInjectivity _ [clause@(Clause pats _)] | all noMatch pats =
-  NotInvertible [clause]
-  where
-    noMatch ConP{} = False
-    noMatch VarP{} = True
-checkInjectivity sig clauses0 =
-  go [] clauses0
+checkInvertibility sig = go []
   where
     go injClauses [] =
       Invertible $ reverse injClauses
@@ -1068,10 +1037,10 @@ addConstant
     => Name -> ConstantKind -> Closed (Type t) -> TC t v ()
 addConstant x k a = addDefinition x (Constant k a)
 
-addConstructor
+addDataCon
     :: (IsVar v, IsTerm t)
     => Name -> Name -> Tel.ClosedIdTel (Type t) -> TC t v ()
-addConstructor c d tel = addDefinition c (Constructor d tel)
+addDataCon c d tel = addDefinition c (DataCon d tel)
 
 addProjection
     :: (IsVar v, IsTerm t)
@@ -1085,13 +1054,13 @@ addClauses f clauses = do
   let ext (Constant Postulate a) = return $ Function a clauses
       ext (Function _ _)         = checkError $ ClausesAlreadyAdded f
       ext (Constant k _)         = error $ "Monad.addClause " ++ render k
-      ext Constructor{}          = error $ "Monad.addClause constructor"
+      ext DataCon{}              = error $ "Monad.addClause constructor"
       ext Projection{}           = error $ "Monad.addClause projection"
   addDefinition f =<< ext def'
 
 definitionType :: (IsTerm t) => Closed (Definition t) -> Closed (Type t)
 definitionType (Constant _ type_)   = type_
-definitionType (Constructor _ tel)  = telPi tel
+definitionType (DataCon _ tel)      = telPi tel
 definitionType (Projection _ _ tel) = telPi tel
 definitionType (Function type_ _)   = type_
 
@@ -1104,8 +1073,8 @@ isRecordType sig tyCon =
 isRecordConstr :: (IsTerm t) => Sig.Signature t -> Name -> Bool
 isRecordConstr sig dataCon =
   case Sig.getDefinition sig dataCon of
-    Constructor tyCon _ -> isRecordType sig tyCon
-    _                   -> False
+    DataCon tyCon _ -> isRecordType sig tyCon
+    _               -> False
 
 -- | Check whether a term @Def f es@ could be reduced, if its arguments
 -- were different.
@@ -1113,7 +1082,7 @@ isNeutral :: (IsTerm t) => Sig.Signature t -> Name -> Bool
 isNeutral sig f =
   case Sig.getDefinition sig f of
     Constant{}    -> False
-    Constructor{} -> error $ "impossible.Check.isNeutral: constructor " ++ show f
+    DataCon{}     -> error $ "impossible.Check.isNeutral: constructor " ++ show f
     Projection{}  -> error $ "impossible.Check.isNeutral: projection " ++ show f
     Function{}    -> True
     -- TODO: more precise analysis
@@ -1170,7 +1139,7 @@ matchTyCon tyCon t err handler = do
       -- Maybe remove and do it explicitly?
       matchTyCon tyCon t' err handler
     BlockedOn mvs _ _ -> do
-      fmap StuckOn $ newProblem mvs (MatchTyCon tyCon t') $ \_ -> do
+      fmap StuckOn $ newProblem mvs (MatchTyCon tyCon t') $ do
         matchTyCon tyCon t' err handler
     _ -> do
       NotStuck <$> checkError err
@@ -1208,7 +1177,7 @@ matchPi name t err handler = do
       -- Maybe remove and do it explicitly?
       matchPi name t' err handler
     BlockedOn mvs _ _ -> do
-      fmap StuckOn $ newProblem mvs (MatchPi t') $ \_ -> do
+      fmap StuckOn $ newProblem mvs (MatchPi t') $ do
         matchPi name t' err handler
     _ -> do
       NotStuck <$> checkError err
@@ -1244,7 +1213,7 @@ matchEqual t err handler = do
         instantiateMetaVar mv mvT
       matchEqual t' err handler
     BlockedOn mvs _ _ ->
-      fmap StuckOn $ newProblem mvs (MatchEqual t') $ \_ -> do
+      fmap StuckOn $ newProblem mvs (MatchEqual t') $ do
         matchEqual t' err handler
     _ -> do
       NotStuck <$> checkError err
@@ -1257,7 +1226,7 @@ newProblemCheckEqual
     => Set.Set MetaVar -> Type t v -> Term t v -> Term t v
     -> TC t v (ProblemId t v ())
 newProblemCheckEqual mvs type_ x y = do
-    newProblem mvs (CheckEqual type_ x y) $ \_ -> checkEqual type_ x y
+    newProblem mvs (CheckEqual type_ x y) $ checkEqual type_ x y
 
 waitOnProblemCheckEqual
     :: (IsTerm t, IsVar v, Typeable a, Typeable v, Typeable t)
@@ -1269,7 +1238,7 @@ waitOnProblemCheckEqual pid type_ x y = do
 ------------------------------------------------------------------------
 
 data CheckError t v
-    = ConstructorTypeError A.Expr (Type t v)
+    = DataConTypeError A.Expr (Type t v)
     | LambdaTypeError A.Expr (Type t v)
     | NotEqualityType (Type t v)
     | ExpectedFunctionType (Type t v) (Maybe A.Expr)
@@ -1291,8 +1260,8 @@ checkError err = do
     sig <- getSignature
     typeError $ renderError sig err
   where
-    renderError sig (ConstructorTypeError synT type_) =
-      "Constructor type error " ++ render synT ++ " : " ++ renderTerm sig type_
+    renderError sig (DataConTypeError synT type_) =
+      "DataCon type error " ++ render synT ++ " : " ++ renderTerm sig type_
     renderError sig (NotEqualityType type_) =
       "Expecting an equality type: " ++ renderTerm sig type_
     renderError sig (LambdaTypeError synT type_) =
@@ -1402,7 +1371,7 @@ ctxLam (Ctx.Snoc ctx _) t = ctxLam ctx $ lam $ toAbs t
 -- Types of problems
 ------------------------------------------------------------------------
 
-data ProblemDescription t v
+data CheckProblem t v
     = CheckEqual (Type t v) (Term t v) (Term t v)
     | WaitForInfer A.Expr (Type t v)
     | forall a v'. EscapingScope (ProblemId t v' a)
@@ -1414,7 +1383,7 @@ data ProblemDescription t v
     | MatchPi (Type t v)
     | MatchEqual (Type t v)
 
-instance Nf ProblemDescription where
+instance Nf CheckProblem where
   nf' sig desc = case desc of
     CheckEqual type_ x y -> CheckEqual (nf sig type_) (nf sig x) (nf sig y)
     WaitForInfer synT type_ -> WaitForInfer synT (nf sig type_)
@@ -1427,7 +1396,7 @@ instance Nf ProblemDescription where
     MatchPi type_ -> MatchPi (nf sig type_)
     MatchEqual type_ -> MatchEqual (nf sig type_)
 
-instance (IsVar v, IsTerm t) => PP.Pretty (ProblemDescription t v)  where
+instance (IsVar v, IsTerm t) => PP.Pretty (CheckProblem t v)  where
     pretty desc = case desc of
       CheckEqual type_ x y ->
         prettyView x $$ PP.nest 2 "=" $$ prettyView y $$
@@ -1443,7 +1412,7 @@ instance (IsVar v, IsTerm t) => PP.Pretty (ProblemDescription t v)  where
         PP.nest 2 (prettyView type_) $$
         "to result of problem" <+> PP.text (show pid)
       MetaVarIfStuck mvT _ _ ->
-        error $ "PP.Pretty ProblemDescription: got non-meta term: " ++ renderView mvT
+        error $ "PP.Pretty CheckProblem: got non-meta term: " ++ renderView mvT
       WaitingOn pid ->
         "Waiting on" <+> PP.text (show pid)
       CheckSpine t elims type_ ->
