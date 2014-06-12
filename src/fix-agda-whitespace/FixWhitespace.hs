@@ -3,32 +3,37 @@ import Data.Char as Char
 import Data.Text (Text)
 import qualified Data.Text as Text
 import qualified Data.Text.IO as Text  -- Strict IO.
+import System.Directory ( getCurrentDirectory )
 import System.Environment
 import System.Exit
 import System.FilePath.Find
   ( (||?)
   , (==?)
-  , (/=?)
-  , directory
   , extension
+  , fileName
   , find
   , FindClause
+  , RecursionPredicate
   )
 import System.IO
 
 -- Configuration parameters.
 
+extensions, excludedDirs :: [String]
 extensions   = [".el", ".hs", ".hs-boot", ".lhs", ".x", ".y"]
-srcDir       = "."
-excludedDirs = ["dist", "MAlonzo"]
+excludedDirs = ["_darcs", ".git", "dist", "MAlonzo"]
 
 -- Auxiliary functions.
 
 filesFilter :: FindClause Bool
 filesFilter = foldr1 (||?) $ map (extension ==?) extensions
 
-allowedDirs :: FindClause Bool
-allowedDirs = foldr1 (||?) $ map (directory /=?) excludedDirs
+-- ASR (12 June 2014). Adapted from the examples of fileManip 0.3.6.2.
+--
+-- A recursion control predicate that will avoid recursing into the
+-- @excludeDirs@ directories list.
+nonRCS :: RecursionPredicate
+nonRCS = (`notElem` excludedDirs) `liftM` fileName
 
 -- Modes.
 
@@ -45,7 +50,8 @@ main = do
     ["--check"] -> return Check
     _           -> hPutStr stderr usage >> exitFailure
 
-  changes <- mapM (fix mode) =<< find allowedDirs filesFilter srcDir
+  dir <- getCurrentDirectory
+  changes <- mapM (fix mode) =<< find nonRCS (extension ==? ".hs") dir
 
   when (or changes && mode == Check) exitFailure
 
@@ -60,7 +66,7 @@ usage = unlines
   , "This program should be run in the base directory."
   , ""
   , "By default the program does the following for every"
-  , list extensions ++ " file under " ++ srcDir ++ ":"
+  , list extensions ++ " file under the current directory:"
   , "* Removes trailing whitespace."
   , "* Removes trailing lines containing nothing but whitespace."
   , "* Ensures that the file ends in a newline character."
