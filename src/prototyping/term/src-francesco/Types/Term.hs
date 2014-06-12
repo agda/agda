@@ -139,7 +139,7 @@ instance (IsTerm t) => PP.Pretty (Closed (Definition t)) where
     "constructor" <+> PP.pretty tyCon $$ PP.nest 2 (prettyTele type_)
   pretty (Projection _ tyCon type_) =
     "projection" <+> PP.pretty tyCon $$ PP.nest 2 (prettyTele type_)
-  pretty (Function type_ clauses) =
+  pretty (Function type_ _inj clauses) =
     prettyView type_ $$
     PP.vcat (map (\(Clause pats body) -> PP.pretty pats <+> "=" $$ PP.nest 2 (prettyView (fromScope body))) clauses)
 

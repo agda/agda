@@ -133,11 +133,13 @@ suc x = right (pair _ (pair refl x))
 
 -- A lookup function.
 
-lookup : (G : _) (s : _) -> Var G s -> (g : Env G) -> El (s g)
+lookup : (G : Ctxt) (s : Ty G) -> Var G s -> (g : Env G) -> El (s g)
 lookup empty      _ absurd     _ = absurd _
 lookup (snoc _ _) _ (left  eq) g = subst (\ f -> El (f g)) eq (snd g)
-lookup (snoc _ _) _ (right p)  g = subst (\ f -> El (f g)) (fst (snd p))
-                                     (lookup _ _ (snd (snd p)) (fst g))
+lookup (snoc _ _) t (right p)  g =
+  subst (\ f -> El (f g)) (fst (snd p)) (lookup _ _ (snd (snd p)) (fst g))
+
+{-
 
 ------------------------------------------------------------------------
 -- A language
@@ -246,3 +248,4 @@ raw-category =
                          (var (suc (suc (suc (suc zero))))))
                     (var (suc (suc zero))))))                          -- Hom X Z.
   ))))))
+-}

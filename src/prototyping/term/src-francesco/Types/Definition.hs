@@ -3,15 +3,15 @@ module Types.Definition
       Clause(..)
     , ClauseBody
     , Pattern(..)
-    , patternBindings
-    , patternsBindings
       -- * 'Definition'
     , Definition(..)
     , ConstantKind(..)
+    , Injectivity(..)
     ) where
 
 import           Bound
 import           Data.Typeable                    (Typeable)
+import           Data.Monoid                      (Monoid, mappend, mempty)
 
 import           Syntax.Abstract                  (Name)
 import qualified Types.Telescope                  as Tel
@@ -40,13 +40,6 @@ instance PP.Pretty Pattern where
     VarP      -> PP.text "_"
     ConP c es -> PP.prettyApp p (PP.pretty c) es
 
-patternBindings :: Pattern -> Int
-patternBindings VarP          = 1
-patternBindings (ConP _ pats) = patternsBindings pats
-
-patternsBindings :: [Pattern] -> Int
-patternsBindings = sum . map patternBindings
-
 -- Definition
 ------------------------------------------------------------------------
 
@@ -56,20 +49,30 @@ data Definition t v
     -- ^ Data type name, parameter context with resulting type.
     | Projection Field Name (Tel.IdTel t v)
     -- ^ Field number, record type name, parameter context with resulting type.
-    | Function (t v) [Clause t v]
+    | Function (t v) Injectivity [Clause t v]
     deriving (Typeable)
 
 instance Bound Definition where
   Constant kind t              >>>= f = Constant kind (t >>= f)
   Constructor tyCon type_      >>>= f = Constructor tyCon (type_ >>>= f)
   Projection field tyCon type_ >>>= f = Projection field tyCon (type_ >>>= f)
-  Function type_ clauses       >>>= f = Function (type_ >>= f) (map (>>>= f) clauses)
+  Function type_ inj clauses   >>>= f = Function (type_ >>= f) inj (map (>>>= f) clauses)
 
 data ConstantKind
     = Postulate
     | Data [Name]                 -- Constructor list
     | Record Name [(Name, Field)] -- Constructor and projection list
   deriving (Eq, Show, Typeable)
+
+data Injectivity = Injective | NotInjective
+  deriving (Eq, Show, Typeable)
+
+instance Monoid Injectivity where
+  mempty = Injective
+
+  NotInjective `mappend` _            = NotInjective
+  _            `mappend` NotInjective = NotInjective
+  _            `mappend` _            = Injective
 
 instance PP.Pretty ConstantKind where
   pretty = PP.text . show

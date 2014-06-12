@@ -812,7 +812,9 @@ checkFunDef fun synClauses = do
         clauseBody <- check synClauseBody clauseType
         ctx <- askContext
         return $ Clause pats $ Scope $ fmap (toIntVar ctx) clauseBody
-    addClauses fun clauses
+    sig <- getSignature
+    let injectivity = clausesInjectivity sig clauses
+    addClauses fun injectivity clauses
   where
     toIntVar ctx v = B $ Ctx.elemIndex v ctx
 
@@ -878,6 +880,22 @@ checkPatternStuck funName stuck =
   case stuck of
     NotStuck x -> return x
     StuckOn _  -> checkError $ StuckTypeSignature funName
+
+-- Clauses injectivity
+----------------------
+
+clausesInjectivity :: (IsTerm t) => Sig.Signature t -> [Clause t Void] -> Injectivity
+clausesInjectivity _   []       = NotInjective -- TODO is this right?
+clausesInjectivity sig clauses0 = maybe NotInjective (\() -> Injective) $
+                                  go Set.empty clauses0
+  where
+    go _ [] =
+      return ()
+    go dataCons (Clause _ body : clauses) = do
+      App (Def dataCon) _ <- return $ whnfView sig $ fromScope body
+      Constructor _ _ <- return $ Sig.getDefinition sig dataCon
+      guard $ not $ Set.member dataCon dataCons
+      go (Set.insert dataCon dataCons) clauses
 
 -- Utils
 ------------------------------------------------------------------------
@@ -947,11 +965,11 @@ addProjection
 addProjection f n r tel = addDefinition f (Projection n r tel)
 
 addClauses
-    :: (IsVar v, IsTerm t) => Name -> [Clause t Void] -> TC t v ()
-addClauses f clauses = do
+    :: (IsVar v, IsTerm t) => Name -> Injectivity -> [Clause t Void] -> TC t v ()
+addClauses f inj clauses = do
   def' <- getDefinition f
-  let ext (Constant Postulate a) = return $ Function a clauses
-      ext (Function _ _)         = checkError $ ClausesAlreadyAdded f
+  let ext (Constant Postulate a) = return $ Function a inj clauses
+      ext (Function _ _ _)       = checkError $ ClausesAlreadyAdded f
       ext (Constant k _)         = error $ "Monad.addClause " ++ render k
       ext Constructor{}          = error $ "Monad.addClause constructor"
       ext Projection{}           = error $ "Monad.addClause projection"
@@ -961,7 +979,7 @@ definitionType :: (IsTerm t) => Closed (Definition t) -> Closed (Type t)
 definitionType (Constant _ type_)   = type_
 definitionType (Constructor _ tel)  = telPi tel
 definitionType (Projection _ _ tel) = telPi tel
-definitionType (Function type_ _)   = type_
+definitionType (Function type_ _ _) = type_
 
 isRecordType :: (IsTerm t) => Sig.Signature t -> Name -> Bool
 isRecordType sig tyCon =
