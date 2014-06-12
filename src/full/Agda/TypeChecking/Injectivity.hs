@@ -71,17 +71,17 @@ headSymbol v = do -- ignoreAbstractMode $ do
 
 checkInjectivity :: QName -> [Clause] -> TCM FunctionInverse
 checkInjectivity f cs
-  | pointLess cs = return NotInjective
+  | pointLess cs = do
+      reportSLn "tc.inj.check" 20 $ "Injectivity of " ++ show f ++ " would be pointless."
+      return NotInjective
   where
     -- Is it pointless to use injectivity for this function?
     pointLess []      = True
     pointLess (_:_:_) = False
-    pointLess [cl] = all (noMatch . unArg) $ clausePats cl
-      where noMatch ConP{} = False
-            noMatch LitP{} = False
-            noMatch ProjP{}= False
-            noMatch VarP{} = True
-            noMatch DotP{} = True
+    pointLess [cl] = not $ any (properlyMatching . unArg) $ clausePats cl
+        -- Andreas, 2014-06-12
+        -- If we only have record patterns, it is also pointless.
+        -- We need at least one proper match.
 checkInjectivity f cs = do
   reportSLn "tc.inj.check" 40 $ "Checking injectivity of " ++ show f
   -- Extract the head symbol of the rhs of each clause (skip absurd clauses)
