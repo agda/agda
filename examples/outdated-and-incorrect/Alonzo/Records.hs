@@ -8,7 +8,7 @@ import qualified RTP
 import qualified Nat
 import qualified Bool
 name1 = "Point"
- 
+
 data T1 a b = C1 a b
 d1 = ()
 name2 = "x"
@@ -18,7 +18,7 @@ name3 = "y"
 d3 = d3_1
   where d3_1 (Records.C1 _ v0) = cast v0
 name4 = "Point'"
- 
+
 data T4 a b = C7 a b
 d4 = ()
 name7 = "mkPoint"
@@ -50,7 +50,7 @@ name17 = "y"
 d17 = d17_1
   where d17_1 v0 = cast (Records.d3 (cast v0))
 name20 = "_==_"
- 
+
 data T20 = C23
 d20 v2 v1 = ()
 name23 = "refl"
@@ -58,14 +58,14 @@ name25 = "\951-Point"
 d25 = d25_1
   where d25_1 _ = cast Records.C23
 name27 = "True"
- 
+
 data T27 = C27
 d27 = ()
 name28 = "tt"
 d28 = d28_1
   where d28_1 = cast Records.C27
 name29 = "False"
- 
+
 data T29 = C29
 d29 = ()
 name30 = "NonZero"
@@ -111,7 +111,7 @@ d50 = d50_1
                  (cast (RTP._primIntToNat (3 :: Prelude.Int)))
                  (cast Records.C27))
 name53 = "\8707"
- 
+
 data T53 a b = C53 a b
 d53 = ()
 name56 = "witness"

@@ -6,7 +6,7 @@ module Bool where
 import RTS
 import qualified RTP
 name1 = "Bool"
- 
+
 data T1 = C2
         | C3
 d1 = ()

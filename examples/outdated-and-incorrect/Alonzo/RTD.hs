@@ -5,6 +5,6 @@ import GHC.Base
 import Data.Typeable(Typeable(..), mkTyCon, mkTyConApp)
 import Data.Dynamic(Dynamic)
 
-cast :: a -> b 
+cast :: a -> b
 cast = unsafeCoerce#
 

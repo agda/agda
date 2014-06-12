@@ -5,13 +5,30 @@ import qualified Data.Text as Text
 import qualified Data.Text.IO as Text  -- Strict IO.
 import System.Environment
 import System.Exit
-import System.FilePath.Find ( (||?), (==?), always, extension, find )
+import System.FilePath.Find
+  ( (||?)
+  , (==?)
+  , (/=?)
+  , directory
+  , extension
+  , find
+  , FindClause
+  )
 import System.IO
 
 -- Configuration parameters.
 
-extensions = [".el", ".hs", ".hs-boot", ".lhs", ".x", ".y"]
-srcDir     = "src"
+extensions   = [".el", ".hs", ".hs-boot", ".lhs", ".x", ".y"]
+srcDir       = "."
+excludedDirs = ["dist", "MAlonzo"]
+
+-- Auxiliary functions.
+
+filesFilter :: FindClause Bool
+filesFilter = foldr1 (||?) $ map (extension ==?) extensions
+
+allowedDirs :: FindClause Bool
+allowedDirs = foldr1 (||?) $ map (directory /=?) excludedDirs
 
 -- Modes.
 
@@ -28,9 +45,7 @@ main = do
     ["--check"] -> return Check
     _           -> hPutStr stderr usage >> exitFailure
 
-  changes <-
-    mapM (fix mode) =<<
-      find always (foldr1 (||?) $ map (extension ==?) extensions) srcDir
+  changes <- mapM (fix mode) =<< find allowedDirs filesFilter srcDir
 
   when (or changes && mode == Check) exitFailure
 

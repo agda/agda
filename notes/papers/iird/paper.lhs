@@ -235,7 +235,7 @@ elimination rule is equipped with two computation rules stating that
 >   css m p (elim_Even C cz css m p)
 Now it is not at all clear that the second formulation of |Even| enjoys the
 same elimination and computation rules, since the proof terms are quite
-different. 
+different.
 
 Dybjer and Setzer~\cite{dybjer:indexed-ir} show that in extensional type theory
 generalised IID can be reduced to restricted IID, and the main result of the
@@ -892,7 +892,7 @@ rgArgssubst :  (gamma : OPg I)(U : I -> Set)
 rgArgssubst (iota i) U C j < p, star > m =
   elimId i (\ k q. C k < q, star >) m j p
 
-rgArgssubst (delta A gamma)   U C j < a, b > m = 
+rgArgssubst (delta A gamma)   U C j < a, b > m =
   rgArgssubst (gamma a) U (\ i c. C i < a, c >) j b m
 
 rgArgssubst (delta H i gamma) U C j < g, b > m =

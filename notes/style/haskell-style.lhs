@@ -23,7 +23,7 @@ This is a style guide to Haskell programming.  It more or less
 reflects the predominant style in the source code of Agda.  Try to
 adhere to it if you contribute to Agda!  Agda is going be around for
 much longer (hopefully), so the code base must be readable and
-maintainable. 
+maintainable.
 
 \section{Mandatory style}
 
@@ -65,22 +65,22 @@ Uniformly indent your code.  There are two evils:
   line should usually fit within 80-100 characters.
 \end{itemize}
 Recommended indentation is \emph{2 characters}. Upto 4 characters are
-tolerated. 
+tolerated.
 
 \subsubsection{Indenting |data|}
 
 Bad:
 \begin{code}
-  data MyDataType =  MyConstructor1 
+  data MyDataType =  MyConstructor1
                   |  MyConstructor2
-                  |  MyConstructor3  
+                  |  MyConstructor3
                      deriving (Typable, Show)
 \end{code}
 Good:
 \begin{code}
-  -- | @MyDataType@ is awesome!  
+  -- | @MyDataType@ is awesome!
   data MyDataType
-    =  MyConstructor1  -- ^ Cool thing. 
+    =  MyConstructor1  -- ^ Cool thing.
     |  MyConstructor2  -- ^ Great stuff.
     |  MyConstructor3  -- ^ Terrific, or?
     deriving (Typable, Show)
@@ -89,11 +89,11 @@ Also good:
 \begin{code}
   -- | @MyDataType@ is awesome!
   data MyDataType
-      =  MyConstructor1  
-         -- ^ Cool thing. 
-      |  MyConstructor2  
+      =  MyConstructor1
+         -- ^ Cool thing.
+      |  MyConstructor2
          -- ^ Great stuff.
-      |  MyConstructor3  
+      |  MyConstructor3
          -- ^ Terrific.
     deriving (Typable, Show)
 \end{code}

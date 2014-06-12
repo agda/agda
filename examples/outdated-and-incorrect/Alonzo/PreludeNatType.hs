@@ -5,7 +5,7 @@
 module PreludeNatType where
 import RTS
 name1 = "Nat"
- 
+
 data T1 a = C2
           | C3 a
 d1 = ()
