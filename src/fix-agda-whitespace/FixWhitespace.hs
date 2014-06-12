@@ -20,6 +20,7 @@ data Mode
   | Check  -- ^ Check if there are any whitespace issues.
     deriving Eq
 
+main :: IO ()
 main = do
   args <- getArgs
   mode <- case args of
@@ -101,6 +102,7 @@ transform =
     Text.dropWhileEnd Char.isSpace
 
 -- | 'dropWhile' except keep the first of the dropped elements
+dropWhile1 :: (a -> Bool) -> [a] -> [a]
 dropWhile1 p [] = []
 dropWhile1 p (x:xs)
   | p x       = x : dropWhile p xs
