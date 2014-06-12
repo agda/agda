@@ -5,7 +5,7 @@ import qualified Data.Text as Text
 import qualified Data.Text.IO as Text  -- Strict IO.
 import System.Environment
 import System.Exit
-import System.FilePath.Find
+import System.FilePath.Find ( (||?), (==?), always, extension, find )
 import System.IO
 
 -- Configuration parameters.
