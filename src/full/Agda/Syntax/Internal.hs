@@ -329,8 +329,8 @@ properlyMatching :: Pattern -> Bool
 properlyMatching VarP{} = False
 properlyMatching DotP{} = False
 properlyMatching LitP{} = True
-properlyMatching (ConP _ mt ps) = List.or $ isNothing mt -- not a record cons
-  : map (properlyMatching . namedArg) ps  -- or one of subpatterns is a proper m
+properlyMatching (ConP _ mt ps) = isNothing mt || -- not a record cons
+  List.any (properlyMatching . namedArg) ps  -- or one of subpatterns is a proper m
 properlyMatching ProjP{} = True
 
 ---------------------------------------------------------------------------
