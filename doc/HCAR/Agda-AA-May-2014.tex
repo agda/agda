@@ -1,0 +1,46 @@
+% Agda-AA.tex
+\begin{hcarentry}[section,updated]{Agda}
+\label{agda}
+\report{Andreas Abel}%11/13
+\status{actively developed}
+\participants{Nils~Anders~Danielsson, Ulf~Norell, Makoto~Takeyama,
+Stevan~Andjelkovic, Jean-Philippe~Bernardy, James~Chapman,
+Dominique~Devriese, Peter~Divianszki,
+Fredrik~Nordvall~Forsberg, Olle~Fredriksson, Daniel~Gustafsson,
+Alan~Jeffrey, Fredrik~Lindblad, Guilhem~Moulin, Nicolas~Pouillard, Andr\'es~Sicard-Ram\'irez
+and many more}
+\makeheader
+
+Agda is a dependently typed functional programming language (developed
+using Haskell). A central feature of Agda is inductive families,
+i.e., GADTs which can be indexed by \emph{values} and not just types.
+The language also supports coinductive types, parameterized modules,
+and mixfix operators, and comes with an \emph{interactive}
+interface---the type checker can assist you in the development of your
+code.
+
+A lot of work remains in order for Agda to become a full-fledged
+programming language (good libraries, mature compilers, documentation,
+etc.), but already in its current state it can provide lots of fun as
+a platform for experiments in dependently typed programming.
+
+Since the release of Agda~2.3.2 in November 2012 the following has
+happened in the Agda project and community:
+\begin{itemize}
+\item Ulf Norell gave a keynote speech at ICFP 2013 on dependently
+  typed programming in Agda.
+\item Agda has attracted new users, the traffic on the mailing list
+  (and bug tracker) is increasing.
+\item Agda has seen several
+  enhancements in its type checker, termination checker, 
+  interactive editor, and LaTeX-backend.
+\item Copatterns are being added to Agda as a new way to define record
+  and coinductive values.
+\item Agda's pattern matching can be restricted to not use Streicher's
+  Axiom K; which makes it more compatible with Homotopy Type Theory.
+\end{itemize}
+Release of Agda~2.3.4 is planned to happen in the second quartal of 2014.
+
+\FurtherReading
+  The Agda Wiki: \url{http://wiki.portal.chalmers.se/agda/}
+\end{hcarentry}

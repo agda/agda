@@ -1,0 +1,184 @@
+\ProvidesPackage{hcar}
+
+\newif\ifhcarfinal
+\hcarfinalfalse
+\DeclareOption{final}{\hcarfinaltrue}
+\ProcessOptions
+
+\RequirePackage{keyval}
+\RequirePackage{color}
+\RequirePackage{array}
+
+\ifhcarfinal
+  \RequirePackage[T1]{fontenc}
+  \RequirePackage{lmodern}
+  \RequirePackage{tabularx}
+  \RequirePackage{booktabs}
+  \RequirePackage{framed}
+  \RequirePackage[obeyspaces,T1]{url}
+  \RequirePackage
+    [bookmarks=true,colorlinks=true,
+     urlcolor=urlcolor,
+     linkcolor=linkcolor,
+     breaklinks=true,
+     pdftitle={Haskell Communities and Activities Report}]%
+    {hyperref}
+\else
+  \RequirePackage[obeyspaces]{url}
+\fi
+\urlstyle{sf}
+
+\definecolor{urlcolor}{rgb}{0.1,0.3,0}
+\definecolor{linkcolor}{rgb}{0.3,0,0}
+\definecolor{shadecolor}{rgb}{0.9,0.95,1}%{0.98,1.0,0.95}
+\definecolor{framecolor}{gray}{0.9}
+\definecolor{oldgray}{gray}{0.7}
+
+\newcommand{\Contact}{\subsubsection*{Contact}}
+\newcommand{\FurtherReading}{\subsubsection*{Further reading}}
+\newcommand{\FuturePlans}{\subsubsection*{Future plans}}
+\newcommand{\Separate}{\smallskip\noindent}
+\newcommand{\FinalNote}{\smallskip\noindent}
+
+\newcommand{\urlpart}{\begingroup\urlstyle{sf}\Url}
+\newcommand{\email}[1]{\href{mailto:\EMailRepl{#1}{ at }}{$\langle$\urlpart{#1}$\rangle$}}
+\newcommand{\cref}[1]{($\rightarrow\,$\ref{#1})}
+
+\ifhcarfinal
+  \let\hcarshaded=\shaded
+  \let\endhcarshaded=\endshaded
+\else
+  \newsavebox{\shadedbox}
+  \newlength{\shadedboxwidth}
+  \def\hcarshaded
+    {\begingroup
+     \setlength{\shadedboxwidth}{\linewidth}%
+     \addtolength{\shadedboxwidth}{-2\fboxsep}%
+     \begin{lrbox}{\shadedbox}%
+     \begin{minipage}{\shadedboxwidth}\ignorespaces}
+  \def\endhcarshaded
+    {\end{minipage}%
+     \end{lrbox}%
+     \noindent
+     \colorbox{shadecolor}{\usebox{\shadedbox}}%
+     \endgroup}
+\fi
+
+\ifhcarfinal
+  \newenvironment{hcartabularx}
+    {\tabularx{\linewidth}{l>{\raggedleft}X}}
+    {\endtabularx}
+\else
+  \newenvironment{hcartabularx}
+    {\begin{tabular}{@{}m{.3\linewidth}@{}>{\raggedleft}p{.7\linewidth}@{}}}
+    {\end{tabular}}
+\fi
+
+\ifhcarfinal
+  \let\hcartoprule=\toprule
+  \let\hcarbottomrule=\bottomrule
+\else
+  \let\hcartoprule=\hline
+  \let\hcarbottomrule=\hline
+\fi
+
+\define@key{hcarentry}{chapter}[]{\let\level\chapter}
+\define@key{hcarentry}{section}[]{\let\level\section}
+\define@key{hcarentry}{subsection}[]{\let\level\subsection}
+\define@key{hcarentry}{subsubsection}[]{\let\level\subsubsection}
+\define@key{hcarentry}{level}{\let\level=#1}
+%\define@key{hcarentry}{label}{\def\entrylabel{\label{#1}}}
+\define@key{hcarentry}{new}[]%
+  {\let\startnew=\hcarshaded\let\stopnew=\endhcarshaded
+   \def\startupdated{\let\orig@addv\addvspace\let\addvspace\@gobble}%
+   \def\stopupdated{\let\addvspace\orig@addv}}
+\define@key{hcarentry}{old}[]{\def\normalcolor{\color{oldgray}}\color{oldgray}}%
+\define@key{hcarentry}{updated}[]%
+  {\def\startupdated
+    {\leavevmode\let\orig@addv\addvspace\let\addvspace\@gobble\hcarshaded}%
+   \def\stopupdated{\endhcarshaded\let\addvspace\orig@addv}}
+
+\def\@makeheadererror{\PackageError{hcar}{hcarentry without header}{}}
+
+\newenvironment{hcarentry}[2][]%
+{\let\level\subsection
+ \let\startupdated=\empty\let\stopupdated=\empty
+ \let\startnew=\empty\let\stopnew=\empty
+%\let\entrylabel=\empty
+ \global\let\@makeheaderwarning\@makeheadererror
+ \setkeys{hcarentry}{#1}%
+ \startnew\startupdated
+ \level{#2}%
+ % test:
+ \global\let\@currentlabel\@currentlabel
+%\stopupdated
+ \let\report@\empty
+ \let\groupleaders@\empty
+ \let\members@\empty
+ \let\contributors@\empty
+ \let\participants@\empty
+ \let\developers@\empty
+ \let\maintainer@\empty
+ \let\status@\empty
+ \let\release@\empty
+ \let\portability@\empty
+ \let\entry@\empty}%
+{\stopnew\@makeheaderwarning}%
+
+\renewcommand{\labelitemi}{$\circ$}
+\settowidth{\leftmargini}{\labelitemi}
+\addtolength{\leftmargini}{\labelsep}
+
+\newcommand*\MakeKey[2]%
+  {\expandafter\def\csname #1\endcsname##1%
+     {\expandafter\def\csname #1@\endcsname{\Key@{#2}{##1}}\ignorespaces}}
+\MakeKey{report}{Report by:}
+\MakeKey{status}{Status:}
+\MakeKey{groupleaders}{Group leaders:}
+\MakeKey{members}{Members:}
+\MakeKey{contributors}{Contributors:}
+\MakeKey{participants}{Participants:}
+\MakeKey{developers}{Developers:}
+\MakeKey{maintainer}{Maintainer:}
+\MakeKey{release}{Current release:}
+\MakeKey{portability}{Portability:}
+\MakeKey{entry}{Entry:}
+
+\newcommand\Key@[2]{#1 & #2\tabularnewline}
+
+\newcommand\makeheader
+{\smallskip
+ \begingroup
+ \sffamily
+ \small
+ \noindent
+ \let\ohrule\hrule
+ \def\hrule{\color{framecolor}\ohrule}%
+ \begin{hcartabularx}
+ \hline
+ \report@
+ \groupleaders@
+ \members@
+ \participants@
+ \developers@
+ \contributors@
+ \maintainer@
+ \status@
+ \release@
+ \portability@
+ \hcarbottomrule
+ \end{hcartabularx}
+ \endgroup
+ \stopupdated
+ \global\let\@makeheaderwarning\empty
+ \@afterindentfalse
+ \@xsect\smallskipamount}
+
+% columns/linebreaks, interchanged
+\newcommand\NCi{&\let\NX\NCii}%
+\newcommand\NCii{&\let\NX\NL}%
+\newcommand\NL{\\\let\NX\NCi}%
+\let\NX\NCi
+\newcommand\hcareditor[1]{&#1 (ed.)&\\}
+\newcommand\hcarauthor[1]{#1\NX}%
+\newcommand\hcareditors[1]{\multicolumn{3}{c}{#1 (eds.)}\\[2ex]}
