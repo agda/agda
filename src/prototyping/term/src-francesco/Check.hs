@@ -277,9 +277,9 @@ checkEqualBlockedOn
 checkEqualBlockedOn type_ mvs fun1 elims1 t2 = do
   Function _ clauses <- getDefinition fun1
   case clauses of
-    NotInjective _ -> do
+    NotInvertible _ -> do
       fallback
-    Injective injClauses1 -> do
+    Invertible injClauses1 -> do
       t2View <- whnfViewTC t2
       case t2View of
         App (Def fun2) elims2 | fun1 == fun2 -> do
@@ -991,11 +991,11 @@ termHead sig t = case whnfView sig t of
     Nothing
 
 checkInjectivity
-  :: (IsTerm t) => Sig.Signature t -> [Clause t Void] -> InjectiveClauses t Void
+  :: (IsTerm t) => Sig.Signature t -> [Closed (Clause t)] -> Closed (Invertible t)
 checkInjectivity _ [] =
-  NotInjective []
+  NotInvertible []
 checkInjectivity _ [clause@(Clause pats _)] | all noMatch pats =
-  NotInjective [clause]
+  NotInvertible [clause]
   where
     noMatch ConP{} = False
     noMatch VarP{} = True
@@ -1003,13 +1003,13 @@ checkInjectivity sig clauses0 =
   go [] clauses0
   where
     go injClauses [] =
-      Injective $ reverse injClauses
+      Invertible $ reverse injClauses
     go injClauses (clause@(Clause _ body) : clauses) =
       case termHead sig (fromScope body) of
         Just tHead | Nothing <- lookup tHead injClauses ->
           go ((tHead, clause) : injClauses) clauses
         _ ->
-          NotInjective $ reverse (map snd injClauses) ++ (clause : clauses)
+          NotInvertible $ reverse (map snd injClauses) ++ (clause : clauses)
 
 -- Utils
 ------------------------------------------------------------------------
@@ -1079,7 +1079,7 @@ addProjection
 addProjection f n r tel = addDefinition f (Projection n r tel)
 
 addClauses
-    :: (IsVar v, IsTerm t) => Name -> InjectiveClauses t Void -> TC t v ()
+    :: (IsVar v, IsTerm t) => Name -> Closed (Invertible t) -> TC t v ()
 addClauses f clauses = do
   def' <- getDefinition f
   let ext (Constant Postulate a) = return $ Function a clauses

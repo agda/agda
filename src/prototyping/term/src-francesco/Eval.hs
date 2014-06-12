@@ -79,7 +79,7 @@ whnf sig t = case view t of
   App (Meta mv) es | Just t' <- Sig.getMetaVarBody sig mv ->
     whnf sig $ eliminate (vacuousM t') es
   App (Def defName) es | Function _ cs <- Sig.getDefinition sig defName ->
-    whnfFun sig defName es $ ignoreInjective cs
+    whnfFun sig defName es $ ignoreInvertible cs
   App J (_ : x : _ : _ : Apply p : Apply refl' : es) | Refl <- view refl' ->
     whnf sig $ eliminate p (x : es)
   App (Meta mv) elims ->
@@ -182,4 +182,4 @@ instance Nf Definition where
   nf' sig (Constant kind t)              = Constant kind (nf sig t)
   nf' sig (Constructor tyCon type_)      = Constructor tyCon $ nf' sig type_
   nf' sig (Projection field tyCon type_) = Projection field tyCon $ nf' sig type_
-  nf' sig (Function type_ clauses)       = Function (nf sig type_) (mapInjective (nf' sig) clauses)
+  nf' sig (Function type_ clauses)       = Function (nf sig type_) (mapInvertible (nf' sig) clauses)

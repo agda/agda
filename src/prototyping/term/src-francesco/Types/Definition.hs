@@ -8,9 +8,9 @@ module Types.Definition
     , Definition(..)
     , ConstantKind(..)
     , TermHead(..)
-    , InjectiveClauses(..)
-    , ignoreInjective
-    , mapInjective
+    , Invertible(..)
+    , ignoreInvertible
+    , mapInvertible
     ) where
 
 import           Bound
@@ -55,14 +55,14 @@ data Definition t v
     -- ^ Data type name, parameter context with resulting type.
     | Projection Field Name (Tel.IdTel t v)
     -- ^ Field number, record type name, parameter context with resulting type.
-    | Function (t v) (InjectiveClauses t v)
+    | Function (t v) (Invertible t v)
     deriving (Typeable)
 
 instance Bound Definition where
   Constant kind t              >>>= f = Constant kind (t >>= f)
   Constructor tyCon type_      >>>= f = Constructor tyCon (type_ >>>= f)
   Projection field tyCon type_ >>>= f = Projection field tyCon (type_ >>>= f)
-  Function type_ clauses       >>>= f = Function (type_ >>= f) (mapInjective (>>>= f) clauses)
+  Function type_ clauses       >>>= f = Function (type_ >>= f) (mapInvertible (>>>= f) clauses)
 
 data ConstantKind
     = Postulate
@@ -70,23 +70,23 @@ data ConstantKind
     | Record Name [(Name, Field)] -- Constructor and projection list
   deriving (Eq, Show, Typeable)
 
-data InjectiveClauses t v
-    = NotInjective [Clause t v]
-    | Injective [(TermHead, Clause t v)]
+data Invertible t v
+    = NotInvertible [Clause t v]
+    | Invertible [(TermHead, Clause t v)]
 
-deriving instance (IsTerm t) => Show (Closed (InjectiveClauses t))
+deriving instance (IsTerm t) => Show (Closed (Invertible t))
 
 data TermHead = PiHead | DefHead Name
     deriving (Eq, Show)
 
-ignoreInjective :: InjectiveClauses t v -> [Clause t v]
-ignoreInjective (NotInjective clauses) = clauses
-ignoreInjective (Injective injClauses) = map snd injClauses
+ignoreInvertible :: Invertible t v -> [Clause t v]
+ignoreInvertible (NotInvertible clauses) = clauses
+ignoreInvertible (Invertible injClauses) = map snd injClauses
 
-mapInjective :: (Clause t v -> Clause t' v')
-             -> InjectiveClauses t v -> InjectiveClauses t' v'
-mapInjective f (NotInjective clauses) = NotInjective $ map f clauses
-mapInjective f (Injective injClauses) = Injective $ map (second f) injClauses
+mapInvertible :: (Clause t v -> Clause t' v')
+              -> Invertible t v -> Invertible t' v'
+mapInvertible f (NotInvertible clauses) = NotInvertible $ map f clauses
+mapInvertible f (Invertible injClauses) = Invertible $ map (second f) injClauses
 
 -- Pretty printing
 ------------------------------------------------------------------------
@@ -107,7 +107,7 @@ instance (IsTerm t) => PP.Pretty (Closed (Definition t)) where
     "projection" <+> PP.pretty tyCon $$ PP.nest 2 (prettyTele type_)
   pretty (Function type_ clauses) =
     prettyView type_ $$
-    PP.vcat (map PP.pretty (ignoreInjective clauses))
+    PP.vcat (map PP.pretty (ignoreInvertible clauses))
 
 prettyTele :: (IsVar v, IsTerm t) => Tel.IdTel t v -> PP.Doc
 prettyTele (Tel.Empty (Tel.Id t)) =
