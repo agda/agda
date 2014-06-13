@@ -105,7 +105,23 @@ Pragmas and Options
 Language
 ========
 
-TODO: Document quoteContext.
+* Experimental feature: quoteContext
+  
+  There is a new keyword 'quoteContext' that gives users access to the
+  list of names in the current local context. For instance:
+
+    open import Data.Nat
+    open import Data.List
+    open import Reflection
+
+    foo : ℕ → ℕ → ℕ
+    foo 0 m = 0
+    foo (suc n) m = quoteContext xs in ?
+
+  In the remaining goal, the list xs will consist of two names, n and
+  m, corresponding to the two local variables. At the moment it is not
+  possible to access let bound variables -- this feature may be added
+  in the future.
 
 * Experimental feature: Varying arity.
   Function clauses may now have different arity, e.g.,

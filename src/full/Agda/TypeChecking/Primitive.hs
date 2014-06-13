@@ -580,7 +580,8 @@ primitiveFunctions = Map.fromList
 
     -- Other stuff
     , "primTrustMe"         |-> primTrustMe
-    , "primQNameEquality"  |-> mkPrimFun2 ((==) :: Rel QName)
+    , "primQNameEquality"   |-> mkPrimFun2 ((==) :: Rel QName)
+    , "primShowQName"       |-> mkPrimFun1 (Str . show :: QName -> Str)
     ]
     where
 	(|->) = (,)
