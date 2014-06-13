@@ -308,6 +308,7 @@ guardingTypeConstructorFlag  o = return $ o { optGuardingTypeConstructors  = Tru
 universePolymorphismFlag     o = return $ o { optUniversePolymorphism      = True  }
 noUniversePolymorphismFlag   o = return $ o { optUniversePolymorphism      = False }
 noForcingFlag                o = return $ o { optForcing                   = False }
+withKFlag                    o = return $ o { optWithoutK                  = False }
 withoutKFlag                 o = return $ o { optWithoutK                  = True  }
 copatternsFlag               o = return $ o { optCopatterns                = True  }
 noPatternMatchingFlag        o = return $ o { optPatternMatching           = False }
@@ -445,6 +446,8 @@ pragmaOptions =
                     "disable projection of irrelevant record fields"
     , Option []     ["experimental-irrelevance"] (NoArg experimentalIrrelevanceFlag)
                     "enable potentially unsound irrelevance features (irrelevant levels, irrelevant data matching)"
+    , Option []     ["with-K"] (NoArg withKFlag)
+                    "enable the K rule in pattern matching"
     , Option []     ["without-K"] (NoArg withoutKFlag)
                     "disable the K rule in pattern matching"
     , Option []     ["copatterns"] (NoArg copatternsFlag)
