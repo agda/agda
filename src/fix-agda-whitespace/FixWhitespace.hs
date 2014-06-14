@@ -51,7 +51,7 @@ main = do
     _           -> hPutStr stderr usage >> exitFailure
 
   dir <- getCurrentDirectory
-  changes <- mapM (fix mode) =<< find nonRCS (extension ==? ".hs") dir
+  changes <- mapM (fix mode) =<< find nonRCS filesFilter dir
 
   when (or changes && mode == Check) exitFailure
 
