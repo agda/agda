@@ -45,10 +45,10 @@ _-⊎-_ : ∀ {a b c d} {A : Set a} {B : Set b} →
         (A → B → Set c) → (A → B → Set d) → (A → B → Set (c ⊔ d))
 f -⊎- g = f -[ _⊎_ ]- g
 
-isInj₁ : {A B : Set} → A ⊎ B → Maybe A
+isInj₁ : ∀ {a b} {A : Set a} {B : Set b} → A ⊎ B → Maybe A
 isInj₁ (inj₁ x) = just x
 isInj₁ (inj₂ y) = nothing
 
-isInj₂ : {A B : Set} → A ⊎ B → Maybe B
+isInj₂ : ∀ {a b} {A : Set a} {B : Set b} → A ⊎ B → Maybe B
 isInj₂ (inj₁ x) = nothing
 isInj₂ (inj₂ y) = just y
