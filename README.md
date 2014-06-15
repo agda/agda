@@ -3,11 +3,11 @@ Agda 2
 
 Table of contents:
 
-* [Installing Agda](#install-agda)
+* [Installing Agda](#installing-agda)
 * [Configuring the Emacs mode](#configuring-the-emacs-mode)
 * [Prerequisites](#prerequisites)
 * [Installing the Epic backend's dependencies](#installing-the-epic-backends-dependencies)
-* [Installing a suitable version of Emacs under Windows](#installing-a-suitable-version- of-emacs-under-windows)
+* [Installing a suitable version of Emacs under Windows](#installing-a-suitable-version-of-emacs-under-windows)
 
 
 Installing Agda
