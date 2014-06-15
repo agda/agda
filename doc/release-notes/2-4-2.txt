@@ -34,6 +34,11 @@ Pragmas and Options
 
   [See also issue 709.]
 
+* New option: --with-K.
+
+  This can be used to override a global --without-K in a file, by
+  adding a pragma {-# OPTIONS --with-K #-}.
+
 Language
 ========
 
