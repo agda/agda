@@ -85,51 +85,54 @@ Also sets the default value of VARIABLE to GROUP."
         (cond
          ((equal group 'conor)
           '((agda2-highlight-keyword-face
-             :underline t)
-            (agda2-highlight-string-face)
-            (agda2-highlight-number-face)
-            (agda2-highlight-symbol-face)
+             :bold t)
+            (agda2-highlight-string-face
+             :foreground "firebrick3")
+            (agda2-highlight-number-face
+             :foreground "firebrick3")
+            (agda2-highlight-symbol-face
+             :foreground "grey25")
             (agda2-highlight-primitive-type-face
-             :foreground "blue")
+             :foreground "medium blue")
             (agda2-highlight-bound-variable-face
              :foreground "purple")
             (agda2-highlight-inductive-constructor-face
-             :foreground "dark red")
+             :foreground "firebrick3")
             (agda2-highlight-coinductive-constructor-face
-             :foreground "dark red")
+             :foreground "firebrick3")
             (agda2-highlight-datatype-face
-             :foreground "blue")
+             :foreground "medium blue")
             (agda2-highlight-field-face
-             :foreground "dark red")
+             :foreground "deeppink")
             (agda2-highlight-function-face
-             :foreground "dark green")
+             :foreground "darkgreen")
             (agda2-highlight-module-face
-             :foreground "dark green")
+             :foreground "medium blue")
             (agda2-highlight-postulate-face
-             :foreground "dark green")
+             :foreground "darkgreen")
             (agda2-highlight-primitive-face
-             :foreground "dark green")
+             :foreground "darkgreen")
             (agda2-highlight-record-face
-             :foreground "blue")
+             :foreground "medium blue")
             (agda2-highlight-dotted-face)
             (agda2-highlight-error-face
-             :foreground "black"
-             :background "sandy brown")
+             :foreground "red"
+             :underline)
             (agda2-highlight-unsolved-meta-face
              :foreground "black"
-             :background "gold")
+             :background "yellow")
             (agda2-highlight-unsolved-constraint-face
              :foreground "black"
-             :background "gold")
+             :background "yellow")
             (agda2-highlight-termination-problem-face
              :foreground "black"
-             :background "red")
+             :background "light salmon")
             (agda2-highlight-incomplete-pattern-face
              :foreground "black"
              :background "purple")
             (agda2-highlight-typechecks-face
              :foreground "black"
-             :background "light steel blue")))
+             :background "light blue")))
 	 ((equal group 'default-faces)
           (list (cons 'agda2-highlight-keyword-face
 		      (agda2-highlight-face-attributes
