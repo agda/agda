@@ -1,5 +1,5 @@
 name:            Agda
-version:         2.4.0
+version:         2.4.0.1
 cabal-version:   >= 1.8
 build-type:      Custom
 license:         OtherLicense
@@ -49,13 +49,14 @@ data-files:         Agda.css
                     lib/prim/Agda/Primitive.agda
 
 source-repository head
-  type:     darcs
-  location: http://code.haskell.org/Agda/
+  type:     git
+  location: https://github.com/agda/agda.git
 
 source-repository this
-  type:     darcs
-  location: http://code.haskell.org/Agda/
-  tag:      2.4.0
+  type:     git
+  location: https://github.com/agda/agda.git
+  branch:   maint-2.4.0
+  tag:      2.4.0.1
 
 flag epic
   default: False
