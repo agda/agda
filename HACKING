@@ -1,3 +1,38 @@
+Working with Git
+
+* Maintenance branches.
+
+  For old releases (starting with 2.4.0) there are maintenance branches
+  maint-X.Y.Z. Bug fixes should be based on the appropriate maintenance branch
+  whenever possible. See below.
+
+* Branches should be used generously when fixing bugs and adding features.
+  Whenever possible bug fix branches should be based on the latest maintenance
+  branch rather than the master branch.  For instance, fixing issue 1234 would
+  work as follows:
+
+    git checkout maint-2.4.0
+    git checkout -b issue1234 # create a new branch based on maint-2.4.0
+    ... work on issue 1234 ...
+    git commit -p             # record some patches
+
+    # If you have commit rights
+    git checkout maint-2.4.0
+    git merge issue1234       # merge into maint-2.4.0
+    git push
+    git checkout master
+    git merge issue1234       # merge into master
+    git push
+    git branch -d issue1234   # delete the branch
+
+    # Otherwise, push branch to your GitHub fork of Agda and create a pull
+    # request.
+    git push -u myfork issue1234
+    Go to https://github.com/agda/agda and click the green button next to the
+    branch dropdown.
+
+  For new features replace maint-2.4.0 with master above.
+
 Some Agda Hacking Lore
 
 * Whenever you change the interface file format you should update
