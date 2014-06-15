@@ -1,104 +1,90 @@
-========================================================================
 Agda 2
-========================================================================
+======
 
 Table of contents:
 
-* Installing Agda
-* Configuring the Emacs mode
-* Prerequisites
-* Installing the Epic backend's dependencies
-* Installing a suitable version of Emacs under Windows
+* [Installing Agda](#install-agda)
+* [Configuring the Emacs mode](#configuring-the-emacs-mode)
+* [Prerequisites](#prerequisites)
+* [Installing the Epic backend's dependencies](#installing-the-epic-backends-dependencies)
+* [Installing a suitable version of Emacs under Windows](#installing-a-suitable-version- of-emacs-under-windows)
 
-------------------------------------------------------------------------
+
 Installing Agda
-------------------------------------------------------------------------
+---------------
 
-  Note that this README only discusses installation of Agda, not its
-  standard library. See the Agda Wiki for information about the
-  library.
+Note that this README only discusses installation of Agda, not its standard library. See the [Agda Wiki](http://wiki.portal.chalmers.se/agda/pmwiki.php) for information about the library.
 
 There are several ways to install Agda:
 
-* Using a binary package, prepared for your platform.
+### Install using a binary package, prepared for your platform.
 
-  Recommended if such a package exists. See the Agda Wiki.
+Recommended if such a package exists. See the [Agda Wiki](http://wiki.portal.chalmers.se/agda/pmwiki.php).
 
-* Using a released source package, available from Hackage.
+### Install using a released source package, available from Hackage.
 
-  (Note that if you want to install the development version of Agda,
-  then you should use the next method.)
+(Note that if you want to install the development version of Agda, then you should use the next method.)
 
-  Install the prerequisites mentioned below, then run the following
-  commands:
+Install the prerequisites mentioned below, then run the following commands:
 
     cabal update
     cabal install Agda
     agda-mode setup
 
-  The last command tries to set up Emacs for use with Agda. As an
-  alternative you can copy the following text to your .emacs file:
+The last command tries to set up Emacs for use with Agda. As an alternative you can copy the following text to your .emacs file:
+    
+    (load-file (let ((coding-system-for-read 'utf-8))
+                    (shell-command-to-string "agda-mode locate")))
+
+It is also possible (but not necessary) to compile the Emacs mode's files:
+
+    agda-mode compile
+
+This can, in some cases, give a noticeable speedup.
+
+  **WARNING**: If you reinstall the Agda mode without recompiling the Emacs
+  Lisp files, then Emacs may continue using the old, compiled files.
+
+### Install using the source tar balls available from the Agda Wiki, or the development version of the code available from our darcs repository.
+
+1) Install the prerequisites mentioned below.
+
+2a) Run the following commands in the top-level directory of the Agda source tree:
+  
+
+    cabal update      
+    cabal install        
+    agda-mode setup        
+
+    
+The last command tries to set up Emacs for use with Agda. As an alternative you can copy the following text to your .emacs file:
 
     (load-file (let ((coding-system-for-read 'utf-8))
                     (shell-command-to-string "agda-mode locate")))
 
-  It is also possible (but not necessary) to compile the Emacs mode's
-  files:
+If you want to have more control over where files are installed then you can give various flags to `cabal install`, see `cabal install --help`.
+
+It is also possible (but not necessary) to compile the Emacs mode's files:
 
     agda-mode compile
 
-  This can, in some cases, give a noticeable speedup.
+This can, in some cases, give a noticeable speedup.
 
-  WARNING: If you reinstall the Agda mode without recompiling the Emacs
-  Lisp files, then Emacs may continue using the old, compiled files.
+**WARNING**: If you reinstall the Agda mode without recompiling the Emacs Lisp files, then Emacs may continue using the old, compiled files.
 
-* Using the source tar balls available from the Agda Wiki, or the
-  development version of the code available from our darcs repository.
+3) Instead of following 2a you can try to install Agda (including a compiled Emacs mode) by running the following command:
 
-  1)  Install the prerequisites mentioned below.
+    make install
 
-  2a) Run the following commands in the top-level directory of the
-      Agda source tree:
 
-        cabal update
-        cabal install
-        agda-mode setup
-
-      The last command tries to set up Emacs for use with Agda. As an
-      alternative you can copy the following text to your .emacs file:
-
-        (load-file (let ((coding-system-for-read 'utf-8))
-                        (shell-command-to-string "agda-mode locate")))
-
-      If you want to have more control over where files are installed
-      then you can give various flags to cabal install, see
-      cabal install --help.
-
-      It is also possible (but not necessary) to compile the Emacs
-      mode's files:
-
-        agda-mode compile
-
-      This can, in some cases, give a noticeable speedup.
-
-      WARNING: If you reinstall the Agda mode without recompiling the
-      Emacs Lisp files, then Emacs may continue using the old,
-      compiled files.
-
-  2b) Instead of following 2a you can try to install Agda (including a
-      compiled Emacs mode) by running the following command:
-
-        make install
-
-------------------------------------------------------------------------
 Configuring the Emacs mode
-------------------------------------------------------------------------
+--------------------------
 
 If you want to you can customise the Emacs mode. Just start Emacs and
 type the following:
 
-   M-x load-library RET agda2-mode RET
-   M-x customize-group RET agda2 RET
+    M-x load-library RET agda2-mode RET
+    M-x customize-group RET agda2 RET
 
 This is useful if you want to change the Agda search path, in which
 case you should change the agda2-include-dirs variable.
@@ -108,17 +94,16 @@ to agda2-mode-hook. For instance, if you do not want to use the Agda
 input method (for writing various symbols like ∀≥ℕ→π⟦⟧) you can add
 the following to your .emacs:
 
-(add-hook 'agda2-mode-hook
-          '(lambda ()
-             ; If you do not want to use any input method:
-             (deactivate-input-method)
-             ; (In some versions of Emacs you should use
-             ; inactivate-input-method instead of
-             ; deactivate-input-method.)
+    (add-hook 'agda2-mode-hook
+              '(lambda ()
+                ; If you do not want to use any input method:
+                (deactivate-input-method)
+                ; (In some versions of Emacs you should use
+                ; inactivate-input-method instead of
+                ; deactivate-input-method.)
 
-             ; If you want to use the X input method:
-             (set-input-method "X")
-             ))
+                ; If you want to use the X input method:
+                (set-input-method "X")))
 
 Note that, on some systems, the Emacs mode changes the default font of
 the current frame in order to enable many Unicode symbols to be
@@ -126,17 +111,17 @@ displayed. This only works if the right fonts are available, though.
 If you want to turn off this feature, then you should customise the
 agda2-fontset-name variable.
 
-------------------------------------------------------------------------
+
 Prerequisites
-------------------------------------------------------------------------
+-------------
 
 You need recent versions of the following programs/libraries:
 
-   GHC:           http://www.haskell.org/ghc/
-   cabal-install: http://www.haskell.org/cabal/
-   Alex:          http://www.haskell.org/alex/
-   Happy:         http://www.haskell.org/happy/
-   GNU Emacs:     http://www.gnu.org/software/emacs/
+* GHC:           http://www.haskell.org/ghc/
+* cabal-install: http://www.haskell.org/cabal/
+* Alex:          http://www.haskell.org/alex/
+* Happy:         http://www.haskell.org/happy/
+* GNU Emacs:     http://www.gnu.org/software/emacs/
 
 You should also make sure that programs installed by cabal-install are
 on your shell's search path.
@@ -150,7 +135,7 @@ http://www.gnu.org/software/ncurses/). Your package manager may be
 able to install these files for you. For instance, on Debian or Ubuntu
 it should suffice to run
 
-  apt-get install zlib1g-dev libncurses5-dev
+    apt-get install zlib1g-dev libncurses5-dev
 
 as root to get the correct files installed.
 
@@ -163,40 +148,33 @@ installed. You can install this program by giving the epic flag to
 cabal (but note that, at the time of writing, the Epic program does
 not build with certain recent versions of GHC):
 
-* When installing from Hackage:
+### When installing from Hackage:
 
     cabal update
     cabal install Agda -fepic
     agda-mode setup
 
-* When installing using a source tar ball, following the instructions
-  in 2a) above:
+### When installing using a source tar ball, following the instructions in 2a) above:
 
     cabal update
     cabal install -fepic
     agda-mode setup
 
-* When installing using a source tar ball, following the instructions
-  in 2b) above:
+### When installing using a source tar ball, following the instructions in 2b) above:
 
     make CABAL_OPTIONS=-fepic install
 
 You can also install Epic directly:
 
-  cabal install epic
+    cabal install epic
 
 Note that Epic depends on other software:
 
-  The Boehm garbage collector:
-    http://www.hpl.hp.com/personal/Hans_Boehm/gc/
-  The GNU Multiple Precision Arithmetic Library:
-    http://gmplib.org/
-  GCC, the GNU Compiler Collection:
-    http://gcc.gnu.org/
+* The Boehm garbage collector: http://www.hpl.hp.com/personal/Hans_Boehm/gc/
+* The GNU Multiple Precision Arithmetic Library: http://gmplib.org/
+* GCC, the GNU Compiler Collection: http://gcc.gnu.org/
 
-For more information about Epic:
-
-  http://www.cs.st-andrews.ac.uk/~eb/epic.php
+For more information about Epic: http://www.cs.st-andrews.ac.uk/~eb/epic.php
 
 ------------------------------------------------------------------------
 Installing a suitable version of Emacs under Windows
@@ -208,46 +186,30 @@ display these characters you may want to follow the procedure below
 when installing Emacs under Windows. (Note: These instructions are
 possibly outdated.)
 
-1. Install NTEmacs 22.
+#### Step 1: Install NTEmacs 22.
 
-   Download from
-       http://ntemacs.sourceforge.net/
-   the self-extracting executable
-       ntemacs22-bin-20070819.exe
+Download from http://ntemacs.sourceforge.net/ the self-extracting executable `ntemacs22-bin-20070819.exe`
 
-   When executed, it asks where to extract itself.  This can be
-   anywhere you like, but here we write the top directory for ntemacs as
-       c:/pkg/ntemacs
-   in the following.
+When executed, it asks where to extract itself.  This can be anywhere you like, but here we write the top directory for ntemacs as `c:/pkg/ntemacs` in the following.
 
-   What follows is tested only on this version.  Other versions may
-   work but you have to figure out yourself how to use Unicode fonts
-   on your version.
+What follows is tested only on this version. Other versions may work but you have to figure out yourself how to use Unicode fonts on your version.
 
-2. Install ucs-fonts and mule-fonts for emacs.
+### Step 2: Install ucs-fonts and mule-fonts for emacs.
 
-   Download from
-       http://www.cl.cam.ac.uk/~mgk25/ucs-fonts.html
-   the tar file
-       http://www.cl.cam.ac.uk/~mgk25/download/ucs-fonts.tar.gz
-   Let us write the top directory of extracted files as
-       c:/pkg/ucs-fonts
-   Next we create some derived fonts.
-       cd c:/pkg/ucs-fonts/submission
-       make all-bdfs
-   This gives an error message about missing fonts, but ignore it.
+Download from http://www.cl.cam.ac.uk/~mgk25/ucs-fonts.html the tar file at http://www.cl.cam.ac.uk/~mgk25/download/ucs-fonts.tar.gz. Let us write the top directory of extracted files as `c:/pkg/ucs-fonts`
+   
+Next we create some derived fonts.
 
-   Download from
-       http://www.meadowy.org/
-   the tar file
-       http://www.meadowy.org/meadow/dists/3.00/packages/mule-fonts-1.0-4-pkg.tar.bz2
-   The untarred top directory is named "packages", but we are only
-   interested in the subdirectory "packages/fonts".  Let us assume
-   we moved this subdirectory to
-       c:/pkg/mule-fonts
+    cd c:/pkg/ucs-fonts/submission
+    make all-bdfs
+    
+This gives an error message about missing fonts, but ignore it.
 
-   Add the following to your .emacs
+Download from http://www.meadowy.org/ the tar file at http://www.meadowy.org/meadow/dists/3.00/packages/mule-fonts-1.0-4-pkg.tar.bz2. The untarred top directory is named `packages`, but we are only interested in the subdirectory `packages/fonts`.  Let us assume we moved this subdirectory to `c:/pkg/mule-fonts`.
 
+Add the following to your .emacs
+
+```
 ;;;;;;;;; start of quoted elisp code
 
 (setq bdf-directory-list
@@ -309,7 +271,7 @@ possibly outdated.)
                 ) font-encoding-alist))
 
 ;;;;;;; end of quoted elisp code
-
+```
    To test the fonts, try
 
        M-x eval-expression RET
