@@ -44,6 +44,7 @@ Usage: agda [OPTIONS...] [FILE]
           --universe-polymorphism                     enable universe polymorphism (default)
           --no-irrelevant-projections                 disable projection of irrelevant record fields
           --experimental-irrelevance                  enable potentially unsound irrelevance features (irrelevant levels, irrelevant data matching)
+          --with-K                                    enable the K rule in pattern matching
           --without-K                                 disable the K rule in pattern matching
           --copatterns                                enable definitions by copattern matching
           --no-pattern-matching                       disable pattern matching completely
