@@ -49,8 +49,8 @@ data-files:         Agda.css
                     lib/prim/Agda/Primitive.agda
 
 source-repository head
-  type:     darcs
-  location: http://code.haskell.org/Agda/
+  type:     git
+  location: https://github.com/agda/agda.git
 
 flag epic
   default: False
