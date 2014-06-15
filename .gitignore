@@ -1,0 +1,16 @@
+dist
+.*.sw[a-p]
+.sw[a-p]
+*.agdai
+.*.vim
+autom4te.cache
+config.log
+config.status
+configure
+mk/config.mk
+*.hi
+*.o
+MAlonzo
+Epic
+examples/compiler/main
+std-lib
