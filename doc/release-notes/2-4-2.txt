@@ -10,8 +10,6 @@ Installation and Infrastructure
 Pragmas and Options
 ===================
 
-* The option --compile-no-main was renamed to --compile --no-main.
-
 * The option --termination-depth is now obsolete.
 
   The default termination depth is now infinity instead of
