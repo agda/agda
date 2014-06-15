@@ -18,7 +18,7 @@ generic values.
 The set of values is defined by the following domain equation:
 \begin{displaymath}
   \Val = \lambda\ ( \Val\  \to\  \Val)
- ||\  \App\  \Hh\  \Val ^*\ ||\  \Set\ 
+ ||\  \App\  \Hh\  \Val ^*\ ||\  \Set\
  ||\  \Fun\  \Val\  (\Val\  \to \Val)
 \end{displaymath}
 This can be expressed in Haskell by the following data type:
@@ -33,7 +33,7 @@ The head of a function application is either a constant or a generic
      variable. In both cases it is represented as a name together with
      its type. A generic variable comes together with an integer to distinguish it
      from other generic variables. We use the function |typH| to
-     compute the type of a head. 
+     compute the type of a head.
 \begin{code}
 data Head =
      Gen Int Name Val           -- generic variables
@@ -60,7 +60,7 @@ mvar h  = App h []
 
 mconst      :: Name -> Val -> Val
 -- (mconst s v) creates a value from the constant s and the type value v
-mconst s v  = mvar (Const s v) 
+mconst s v  = mvar (Const s v)
 \end{code}
 The expression |apps v [v1; ...; vn]| computes the application
  |v v1 ... vn|
@@ -87,6 +87,6 @@ itCurry u  _          f  = f u
 inst :: Val -> [Val] -> Val
 inst  w          []     = w
 inst  (Fun _ f)  (u:us) = inst (f u) us
-  
+
 \end{code}
 

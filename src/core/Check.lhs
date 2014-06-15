@@ -12,13 +12,13 @@ import Cont
 
 This module contains functions to check that an expression has a given type, and to check if an expression is a type:
 \begin{itemize}
-\item 
-    |check con v e| will check if |e : v| in the 
+\item
+    |check con v e| will check if |e : v| in the
       context |con|. We will write this as \texttt{con ::- e : v}.
-      Here we assume that the context 
-      |con| and the type |v| is already type-checked. 
-\item 
-    |checkT con e| will check if |e| is a correct type in 
+      Here we assume that the context
+      |con| and the type |v| is already type-checked.
+\item
+    |checkT con e| will check if |e| is a correct type in
     the context |con|. We will write this as \texttt{con ::- e}
 
 \end{itemize}
@@ -55,7 +55,7 @@ checkT  con  (EFun a b)  =
 \item In other cases, the expression must be a set, so we check if it
   is an object in \texttt{Set}.
 \begin{code}
-checkT  con  e           = 
+checkT  con  e           =
   check con Set e
 \end{code}
 \end{itemize}
@@ -64,7 +64,7 @@ checkT  con  e           =
 When we are checking if an expression has a certain type, then we have
 always checked that the type is correct.
 \begin{code}
-check :: Cont -> Val -> Exp -> G ()  
+check :: Cont -> Val -> Exp -> G ()
 \end{code}
 In order to check \texttt{con ::- e : v} we look at the shape of |e|:
 \begin{itemize}
@@ -82,11 +82,11 @@ check  con  (Fun v f)  (ELam e)     =
   correct type. In order to do this, we are using a new checking
   function |checkI| which is defined below.
 \begin{code}
-check  con  v          (EApp n es)  = 
--- con ::- n es : v is correct if 
+check  con  v          (EApp n es)  =
+-- con ::- n es : v is correct if
 -- the arguments es fits the type of n. We compute the resulting type
 -- and check that it is equal to the type of the constant n.
- do 
+ do
   v' <- checkI con (getType n con) es
   eqT (lengthCon con) v v'
 \end{code}
@@ -110,11 +110,11 @@ check _ _ _ = fail "check"
 
 \begin{code}
 checkP  con  (Fun (App h ps) f)  (_,i,e)  =
--- checks if 
+-- checks if
 
 -- ... to be filled in later ...
 
-  do 
+  do
   v  <-  return (getVal i con)
   w  <-  return (getType i con)
   check con (itCurry (apps v ps) (inst w ps) f) e
@@ -132,7 +132,7 @@ checkI  con  (Fun a f)  (e:es)  =
   check con a e
   checkI con (f (evalCon con e)) es
 checkI  _    _          _       = fail "checkI"
- 
+
 
 \end{code}
 

@@ -25,10 +25,10 @@ _primShowBool True = "True"
 _primShowInt :: Prelude.Int -> Prelude.String
 _primShowInt = Prelude.show
 
-_primIntZero :: Prelude.Int 
+_primIntZero :: Prelude.Int
 _primIntZero = (0::Prelude.Int)
 
-_primIntOne :: Prelude.Int 
+_primIntOne :: Prelude.Int
 _primIntOne = (1::Prelude.Int)
 
 _primIntAdd :: Prelude.Int -> Prelude.Int -> Prelude.Int

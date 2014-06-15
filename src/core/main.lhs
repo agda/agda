@@ -1,5 +1,5 @@
-\documentclass{article} 
-%include polycode.fmt 
+\documentclass{article}
+%include polycode.fmt
 \framedhs
 %%include lhs2TeX.fmt
 %%include polytt.fmt
@@ -13,7 +13,7 @@
 \newcommand{\App}{\mathbf{App}}
 \newcommand{\Hh}{\mathbf{H}}
 \begin{document}
-\include{overview} 
+\include{overview}
 %include Decl.lhs
 %include Check.lhs
 %include Exp.lhs

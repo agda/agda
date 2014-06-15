@@ -19,7 +19,7 @@ value u.
 The following functions are defined:
 \begin{itemize}
 \item  |eq n u v w|   checks if \texttt{v = w : u}
-\item |eqs n u vs ws| checks if \texttt{vs = ws : u'}, 
+\item |eqs n u vs ws| checks if \texttt{vs = ws : u'},
        where \texttt{u'} is the argument types of \texttt{u}
 \item |eqT n u v| checks if \texttt{u = v} as types.
 \end{itemize}
@@ -34,18 +34,18 @@ instance  Monad G  where
     return           =  Ok
     fail             =  Fail
 \end{code}
-The convertibility functions will use a |gensym| function to generate 
-fresh generic values. The expression |gensym n s u| will generate an 
-empty application from the head built up from the (unique) index |n|, 
+The convertibility functions will use a |gensym| function to generate
+fresh generic values. The expression |gensym n s u| will generate an
+empty application from the head built up from the (unique) index |n|,
 the name |s| and the type |u|.
 \begin{code}
-gensym        :: Int -> Name -> Val -> G Val 
+gensym        :: Int -> Name -> Val -> G Val
 gensym n s u  = return (mvar (Gen n s u))
 \end{code}
 
 \subsubsection{Type convertibility}
 \begin{code}
-eqT :: Int -> Val -> Val -> G () 
+eqT :: Int -> Val -> Val -> G ()
 \end{code}
 To check if two types are convertible, we have the following cases:
 \begin{itemize}
@@ -53,13 +53,13 @@ To check if two types are convertible, we have the following cases:
 \begin{code}
 eqT  _  Set          Set          = return ()
 \end{code}
-\item Two functional types are equal if their parts are equal, so to check whether 
+\item Two functional types are equal if their parts are equal, so to check whether
 \texttt{Fun a f = Fun a' f'} we first check if \texttt{a = a'} and then check if
 \texttt{f u = f' u}, where \texttt{u} is a new generic value.
 \begin{code}
-eqT  n  (Fun a1 f1)  (Fun a2 f2)  = 
+eqT  n  (Fun a1 f1)  (Fun a2 f2)  =
   do
-  eqT n a1 a2 
+  eqT n a1 a2
   u <- gensym n "X" a1
   eqT (n+1) (f1 u) (f2 u)
 \end{code}
@@ -78,7 +78,7 @@ eq :: Int -> Val -> Val -> Val -> G ()
 \end{code}
 To check if two objects in a type are equal, we have the following cases:
 \begin{itemize}
-\item If the type is a functional type, then to check \texttt{u = v : Fun a f}, 
+\item If the type is a functional type, then to check \texttt{u = v : Fun a f},
 we check if \texttt{u w = v w : f w} for a generic value \texttt{w} of type \texttt{a}.
 \begin{code}
 eq  n       (Fun a f)  u1            u2            =
@@ -89,8 +89,8 @@ eq  n       (Fun a f)  u1            u2            =
 \item Otherwise, we must check two applications. We then check that the heads are equal
 and the arguments are equal.
 \begin{code}
-eq  n       _          (App h1 us1)  (App h2 us2)  = 
-  if eqH h1 h2  then eqs n (typH h1) us1 us2 
+eq  n       _          (App h1 us1)  (App h2 us2)  =
+  if eqH h1 h2  then eqs n (typH h1) us1 us2
                 else fail"eq"
 \end{code}
 \item In all other cases, the objects are not convertible.
@@ -103,19 +103,19 @@ eq  _       _          _             _             =  fail "eq"
 \subsubsection{Convertibility of vectors}
 
 \begin{code}
-eqs :: Int -> Val -> [Val] -> [Val] -> G ()   
+eqs :: Int -> Val -> [Val] -> [Val] -> G ()
 \end{code}
 
-The expression |eqs n u vs ws| checks if two vectors |vs| and 
-|ws| are equal and fits as arguments to the functional type |u|. We have 
+The expression |eqs n u vs ws| checks if two vectors |vs| and
+|ws| are equal and fits as arguments to the functional type |u|. We have
 the following cases:
 \begin{itemize}
 \item If the two vectors are empty, then we are done.
 \begin{code}
 eqs  n  a          []        []       = return ()
 \end{code}
-\item If the two vectors are nonempty, then to check if 
-    \texttt{u1:us1 = u2:us2 : Fun a f} we first check if \texttt{u1 = u2 : a} and 
+\item If the two vectors are nonempty, then to check if
+    \texttt{u1:us1 = u2:us2 : Fun a f} we first check if \texttt{u1 = u2 : a} and
 then check \texttt{us1 = us2 : f u1}.
 \begin{code}
 eqs  n  (Fun a f)  (u1:us1)  (u2:us2) =
@@ -127,6 +127,6 @@ eqs  n  (Fun a f)  (u1:us1)  (u2:us2) =
 
 
 \begin{code}
-eqs  _  _          _         _        = fail "eqs" 
+eqs  _  _          _         _        = fail "eqs"
 \end{code}
 \end{itemize}

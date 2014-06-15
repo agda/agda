@@ -8,7 +8,7 @@ import qualified RTP
 import qualified Nat
 import qualified Bool
 name1 = "Point'"
- 
+
 data T1 a b = C4 a b
 d1 = ()
 name4 = "mkPoint"
