@@ -15,5 +15,5 @@ test = false ≟ true
 
 test2 : ∀ {a ℓ} {A : Set a} {_≈_} → {{ide : IsDecEquivalence {a} {ℓ} {A} _≈_}} →
         Reflexive _≈_
-test2 = IsDecEquivalenceWithImplicits.refl 
+test2 = IsDecEquivalenceWithImplicits.refl
 

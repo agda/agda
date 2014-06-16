@@ -34,9 +34,9 @@ printStream Z _ = putStrLn ""
 printStream (S steps) (n :: ns) =
     printNat n ,,
     printStream steps (♭ ns)
-    
+
 main : IO Unit
-main = 
+main =
     printStream 10 twos ,,
     printStream 10 ones ,,
     printStream 10 (incr Z)

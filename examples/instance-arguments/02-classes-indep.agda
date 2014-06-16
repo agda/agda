@@ -49,10 +49,10 @@ test2 : {t : Set} → {{tM : Monoid t}} → t
 test2 = zeroT
 
 test3 : T
-test3 = zeroT 
+test3 = zeroT
 
 test4 : Bool
-test4 = zeroT 
+test4 = zeroT
 
 ⋯ : {A : Set} → {{v : A}} → A
 ⋯ {{v}} = v

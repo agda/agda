@@ -14,6 +14,6 @@ lift m f {{x}} = m {{f x}}
 monadToApplicative : ∀ {l} {M : Set l → Set l} → RawMonad M → RawApplicative M
 monadToApplicative = RawIMonad.rawIApplicative
 
-liftAToM : ∀ {l} {V : Set l} {M : Set l → Set l} → ({{appM : RawApplicative M}} → M V) → 
+liftAToM : ∀ {l} {V : Set l} {M : Set l → Set l} → ({{appM : RawApplicative M}} → M V) →
            {{monadM : RawMonad M}} → M V
 liftAToM app {{x}} = lift (λ {{appM}} → app {{appM}}) monadToApplicative {{x}}

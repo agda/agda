@@ -33,5 +33,5 @@ loop = delta (wrap _ delta)
 
 -- delta : _ -> _
 -- delta = \x -> app _ _ x x -- lam _ _ (\x -> app _ _ x x)
--- 
+--
 -- loop = app _ _ delta (wrap _ delta)

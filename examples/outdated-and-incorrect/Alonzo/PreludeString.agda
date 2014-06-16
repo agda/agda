@@ -18,7 +18,7 @@ private
       -- primStringReverse  : String -> String
       primStringToList	 : String -> List Char
       primStringFromList : List Char -> String
-      
+
 _++_     = primStringAppend
 reverseString = RTP.primStringReverse
 

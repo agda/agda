@@ -40,10 +40,10 @@ long : {G : Cxt}{C : Kind}{L : Loc}(S : Kind){T : Kind} ->
        G [ L / Head ]- T ->
        Sawn G C L T S ->
        G [ L / Term C ]- S
-long (Ty Z)   h s = h G$ (stitch s Gnil) 
-long (Pi A K) h s = Gfn A \ a -> long (K a) h (sarg s a)  
+long (Ty Z)   h s = h G$ (stitch s Gnil)
+long (Pi A K) h s = Gfn A \ a -> long (K a) h (sarg s a)
 long (S |> T) h s =
-  G\\ (long T (popH h) (scons (sawsh popH s) (long S (# top -! _) snil))) 
+  G\\ (long T (popH h) (scons (sawsh popH s) (long S (# top -! _) snil)))
 
 var : {G : Cxt}{C : Kind}(x : Nom){Gx : [| G Has x |]} ->
       G [ EL / Term C ]- (wit ((G ?- x) {Gx}))

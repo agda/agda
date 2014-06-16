@@ -1,7 +1,7 @@
 -- Andreas, 2011-05-30
 -- {-# OPTIONS -v tc.lhs.unify:50 #-}
 module Issue292 where
- 
+
 data Bool  : Set where true  false  : Bool
 data Bool2 : Set where true2 false2 : Bool2
 

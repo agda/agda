@@ -9,7 +9,7 @@
 module DontIgnoreIrrelevantVars where
 
 import Common.Level
-import Common.Irrelevance  
+import Common.Irrelevance
 
 
 record Category : Set₁ where
@@ -24,7 +24,7 @@ f ∙ g = λ x → f (g x)
 
 Exp : (I : Set) → Category
 Exp I = record { Arr = I → Category.Arr C }
-  
+
 postulate
   Functor : Category → Set
 

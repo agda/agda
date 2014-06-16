@@ -30,7 +30,7 @@ data _≤_ : ℕ → ℕ → Set where
   s≤s : {m n : ℕ} → m ≤ n → suc m ≤ suc n
 
 foo : (k l m : ℕ) → k ≡ l + m → ℕ
-foo .(l + m) l m refl = zero 
+foo .(l + m) l m refl = zero
 
 bar : (n : ℕ) → n ≤ n → ℕ
 bar .zero z≤n = zero

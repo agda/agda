@@ -434,7 +434,7 @@ module Typed where
   -- Building substitutions -------------------------------------------------
 
   liftS {_}{_}{_}{A} σ = {!!} -- extSub (upS ∘ σ) (var fzero (substCompose upS σ A))
-    -- Works with hidden args to substCompose when inlined in subst 
+    -- Works with hidden args to substCompose when inlined in subst
     -- but not here. Weird.
 
   topS : {n : Nat}{Γ : Context n} -> Sub ∅ Γ
@@ -453,7 +453,7 @@ module Typed where
   _∘_ : {n m p : Nat}{Γ : Context n}{Δ : Context m}{Θ : Context p} -> Sub Δ Θ -> Sub Γ Δ -> Sub Γ Θ
 
   substCompose : {n m p : Nat}{Γ : Context n}{Δ : Context m}{Θ : Context p}
-                 (σ : Sub Δ Θ)(δ : Sub Γ Δ)(A : Type Γ) -> 
+                 (σ : Sub Δ Θ)(δ : Sub Γ Δ)(A : Type Γ) ->
                  subst (σ ∘ δ) A == subst σ (subst δ A)
 
   _∘_ {zero} {_}{_} {ctxI nil'}      _  _                 = topS
@@ -487,7 +487,7 @@ module Typed where
   renameId = {!!}
 
   renameCompose : {n m p : Nat}{Γ : Context n}{Δ : Context m}{Θ : Context p}
-                  (σ : Ren Δ Θ)(δ : Ren Γ Δ)(A : Type Γ) -> 
+                  (σ : Ren Δ Θ)(δ : Ren Γ Δ)(A : Type Γ) ->
                   rename (σ coR δ) A == rename σ (rename δ A)
   renameCompose σ δ A = {!!}
 
@@ -496,5 +496,4 @@ module Typed where
   substCompose σ δ A = {!!}
 
   renameSubstCommute = {!!}
-
 

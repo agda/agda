@@ -21,12 +21,12 @@ module RTP where
   -- postulate primShowBool : Bool -> String
   postulate primShowInt : Int -> String
   postulate primShowChar : Char -> String
-  
+
   postulate primStringAppend : String -> String -> String
   postulate primStringReverse : String -> String
 
   -- postulate primStringToList : String -> List Char
-  -- postulate primStringFromList 
+  -- postulate primStringFromList
 
 
 -- Int stuff

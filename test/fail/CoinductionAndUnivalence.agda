@@ -21,8 +21,8 @@ data Pandora : prop where
   C : ∞ False → Pandora
 
 postulate
-  ext : (f : False → Pandora) → (g : Pandora → False) → 
-        (∀ x → f (g x) ≡ x) → (∀ y → g (f y) ≡ y) → 
+  ext : (f : False → Pandora) → (g : Pandora → False) →
+        (∀ x → f (g x) ≡ x) → (∀ y → g (f y) ≡ y) →
         False ≡ Pandora
 
 foo : False ≡ Pandora
@@ -38,7 +38,7 @@ foo = ext f g fg gf
     fg x = magic (g x)
 
     gf : ∀ y → g (f y) ≡ y
-    gf ()  
+    gf ()
 
 loop : False
 loop rewrite foo = C (♯ loop)

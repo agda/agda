@@ -90,4 +90,3 @@ id x = x
 loop : tt =⟨ id ⟩⇒* tt
 loop = bad (next refl done) refl done
 
-

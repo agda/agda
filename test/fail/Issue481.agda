@@ -6,5 +6,3 @@ as = Set
 open import Common.Issue481ParametrizedModule as as -- as clause
 open import Common.Issue481ParametrizedModule as as as -- as clause, duplicate def.
 
-
-

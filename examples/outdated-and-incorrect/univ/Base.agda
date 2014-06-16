@@ -11,14 +11,14 @@ infix 20 _*_
 data _*_ (A : Set)(B : A -> Set) : Set where
  <_,_> : (x : A) -> B x -> A * B
 
-rel : Set -> Set1 
+rel : Set -> Set1
 rel A = A -> A -> Set
 
-pred : Set -> Set1 
+pred : Set -> Set1
 pred A = A -> Set
 
 Refl : {A : Set} -> rel A -> Set
-Refl {A} R = {x : A} -> R x x 
+Refl {A} R = {x : A} -> R x x
 
 Sym : {A : Set} -> rel A -> Set
 Sym {A} R = {x y : A} -> R x y -> R y x

@@ -5,10 +5,10 @@ data _==_ {A : Set}(a : A) : A -> Set where
 
 -- Andreas, Feb/Apr 2011
 record Prod (A B : Set) : Set where
-  constructor _,_ 
+  constructor _,_
   field
     fst : A
-    snd : B 
+    snd : B
 
 open Prod public
 

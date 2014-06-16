@@ -10,7 +10,7 @@ record Unit : Set where
 data Bool : Set where
   true false : Bool
 
-T : Bool -> Set 
+T : Bool -> Set
 T true = Unit
 T false = Empty
 
@@ -34,7 +34,7 @@ open List public
 -- However, we have to be careful to preserve termination
 -- in the presence of a lie
 
-postulate 
+postulate
   lie : {b : Bool} -> T b
 
 -- if the record constructor list was counted as structural increase

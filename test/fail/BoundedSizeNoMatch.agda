@@ -13,5 +13,3 @@ T i = (j : Size< i) → T j
 -- loops : (i j : Size) → T i ≡ T j
 -- loops i j = refl
 
-
-

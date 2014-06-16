@@ -171,7 +171,7 @@ mutual
   _<<_ {Σ A₁ F₁}{Σ A₂ F₂} p (x , y) = eqΣ-inv₁ p << x , F₁=F₂ << y
     where
       F₁=F₂ : F₁ ! (eqΣ-inv₁ p << x) =S= F₂ ! x
-      F₁=F₂ = famEqCodom (eqΣ-inv₂ p) _ _ (=El=-sym (cast-id _)) 
+      F₁=F₂ = famEqCodom (eqΣ-inv₂ p) _ _ (=El=-sym (cast-id _))
 
   _>>_ : {A B : Setoid} -> Fam A -> A =S= B -> Fam B
   fam F pF >> A=B = fam G pG
@@ -190,7 +190,7 @@ mutual
       proof f x
           ≡ f (_ << y)      by pf _ _ (=El=-trans x=y (cast-id _))
           ≡ _ << f (_ << y) by cast-id _
-      qed 
+      qed
     where
       open Chain El _=El=_ (\x -> =El=-refl) (\x y z -> =El=-trans)
 
@@ -223,18 +223,18 @@ _==_ {eqf = setoid} A B = A =S= B
 _==_ {eqf = fam   } F G = F =Fam= G
 
 refl : {I : Set}{eqf : EqFam I}{i : I}{x : [ eqf ] i} -> x == x
-refl {eqf = el}     = =El=-refl 
+refl {eqf = el}     = =El=-refl
 refl {eqf = setoid} = =S=-refl
 refl {eqf = fam}    = =Fam=-refl
 
 sym : {I : Set}{eqf : EqFam I}{i j : I}{x : [ eqf ] i}{y : [ eqf ] j} -> x == y -> y == x
-sym {eqf = el}     = =El=-sym 
+sym {eqf = el}     = =El=-sym
 sym {eqf = setoid} = =S=-sym
 sym {eqf = fam}    = =Fam=-sym
 
 trans : {I : Set}{eqf : EqFam I}{i j k : I}{x : [ eqf ] i}{y : [ eqf ] j}{z : [ eqf ] k} ->
         x == y -> y == z -> x == z
-trans {eqf = el}     = =El=-trans 
+trans {eqf = el}     = =El=-trans
 trans {eqf = setoid} = =S=-trans
 trans {eqf = fam}    = =Fam=-trans
 
@@ -317,6 +317,6 @@ snd-eq : {A B : Setoid}{F : Fam A}{G : Fam B}
         {x : El (Σ A F)}{y : El (Σ B G)} -> x == y -> snd x == snd y
 snd-eq (eqInΣ _ _ y₁=y₂) = y₁=y₂
 
-η : {A : Setoid}{F : Fam A}(f : El (Π A F)){pf : (x y : El A) -> x == y -> f # x == f # y} -> 
+η : {A : Setoid}{F : Fam A}(f : El (Π A F)){pf : (x y : El A) -> x == y -> f # x == f # y} ->
     f == ƛ {F = F} (_#_ f) pf
 η (ƛ f pf) = eqInΠ refl pf

@@ -35,7 +35,7 @@ T≠F : true ≡ false → ⊥
 T≠F p = subst T p tt
 
 .irr⊥ : ⊥
-irr⊥ = T≠F irrT≡F     
+irr⊥ = T≠F irrT≡F
 
 rel⊥ : .⊥ → ⊥
 rel⊥ ()

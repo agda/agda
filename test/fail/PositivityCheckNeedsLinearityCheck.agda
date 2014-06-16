@@ -22,9 +22,3 @@ S = subst' p Set
 
 -- now S, which evaluates to Set, is in Set
 
-
-
-
-
-
-

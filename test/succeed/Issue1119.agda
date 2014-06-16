@@ -24,4 +24,3 @@ postulate
 main : IO ℕ
 main = return zero
 
-

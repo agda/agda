@@ -1,7 +1,7 @@
 -- Andreas, 2011-10-02
 module IrrelevantLet where
 
-postulate 
+postulate
   A : Set
 
 test : (.A → A) → .A → A

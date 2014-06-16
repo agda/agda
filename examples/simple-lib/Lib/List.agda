@@ -53,7 +53,7 @@ xs ! hd   = head xs
 xs ! tl n = tail xs ! n
 
 tabulate : forall {A}{P : A -> Set}{xs} -> ({x : A} -> x ∈ xs -> P x) -> All P xs
-tabulate {xs = []}      f = [] 
+tabulate {xs = []}      f = []
 tabulate {xs = x :: xs} f = f hd :: tabulate (f ∘ tl)
 
 mapAll : forall {A B}{P : A -> Set}{Q : B -> Set}{xs}(f : A -> B) ->

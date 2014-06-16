@@ -24,4 +24,3 @@ postulate
 
 test = f {?} (\x -> x) (\x -> x)
 
-

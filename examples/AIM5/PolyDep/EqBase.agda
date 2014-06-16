@@ -81,7 +81,7 @@ eqSigma (D : Datoid)(|B1 : (a : pElem D) -> Set)(|B2 : (a : pElem D) -> Set)
   : ((a : pElem D) -> Eq (B1 a) (B2 a)) ->
      Eq (Sigma pElem D B1) (Sigma pElem D B2)
   = eqSigma2 D
--- More readable but less useful definition of eqSigma : 
+-- More readable but less useful definition of eqSigma :
 
 eqSigmaLocalLet (D : Datoid)
                 (|B1 |B2 : pElem D -> Set)

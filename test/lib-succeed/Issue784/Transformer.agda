@@ -139,7 +139,7 @@ pipe {ℓ} {t-in₁} {t-out₁} {t-in₂} {t-out₂} {nr-in₁} {nr-out₁} {nr-
         w₂≋out : types w₂ ≋ t-out
         w₂≋out = ≋-trans (proj₂ w-all₂) w₁∖i₂∪o₂≋out
 
-        w =  Values ℓ ∋ v ∖∖ n-in ∪ w₂ 
+        w =  Values ℓ ∋ v ∖∖ n-in ∪ w₂
         w≋out : types w ≋ types v ∖∖ n-in ∪ t-out
         w≋out = ≋-trans (≡⇒≋ p₁) p₂ where
             p₁ : types (v ∖∖ n-in ∪ w₂) ≡ types v ∖∖ n-in ∪ types w₂

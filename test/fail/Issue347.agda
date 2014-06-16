@@ -1,5 +1,5 @@
 module Issue347 where
-import Common.Irrelevance  
+import Common.Irrelevance
 
 {- Dan Doel, 2010-10-09
 
@@ -31,5 +31,4 @@ module Bad where
   -- the meta var  ?a : Squash A  eta-expands to
   -- ?a = poof Bot ?b
   -- meta var ?b should be left over
-
 

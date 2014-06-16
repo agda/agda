@@ -14,7 +14,7 @@ mutual
 _·_ : D -> D -> D
 d unit f · x = f x
 
-ω : D 
+ω : D
 ω = d unit (\x -> x · x)
 
 Ω : D

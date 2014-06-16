@@ -19,4 +19,4 @@ postulate
 {-# COMPILED bindIO (\_ _ -> (>>=) :: IO a -> (a -> IO b) -> IO b) #-}
 {-# COMPILED returnIO (\_ -> return :: a -> IO a) #-}
 {-# COMPILED getLine getLine #-}
-  
+

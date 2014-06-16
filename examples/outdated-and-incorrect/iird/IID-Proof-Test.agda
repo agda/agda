@@ -23,7 +23,7 @@ r←→gArgs-equal :
   {I : Set}(γ : OPg I)(U : I -> Set)
   (i : I)(a : Args (ε γ i) U) ->
   _==_ {I × \i -> Args (ε γ i) U}
-  < index γ U (r→gArgs γ U i a) | 
+  < index γ U (r→gArgs γ U i a) |
     g→rArgs γ U (r→gArgs γ U i a)
   > < i | a >
 r←→gArgs-equal {I} (ι i) U j < p | ★ > = elim== i (\k q -> _==_ {I × \k -> Args (ε (ι i) k) U}
@@ -42,7 +42,7 @@ r←→gArgs-equal {I} (δ H i γ) U j < g | b > = cong f ih
 {-
 r←→gArgs-subst-identity' :
   {I  : Set}(γ : OPg I) ->
-  
+
   (\(U : I -> Set)(C  : (i : I) -> rArgs (ε γ) U i -> Set)
     (a : Args γ U)(h : C (index γ U   (r→gArgs γ U (index γ U (η γ U a)) (g→rArgs γ U (η γ U a))))
 			 (g→rArgs γ U (r→gArgs γ U (index γ U (η γ U a)) (g→rArgs γ U (η γ U a))))

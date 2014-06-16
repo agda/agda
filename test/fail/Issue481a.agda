@@ -6,5 +6,3 @@ open import Common.Issue481ParametrizedModule Set1
 --  ommon.Issue481ParametrizedModule should not be in scope
 module PM = Common.Issue481ParametrizedModule
 
-
-

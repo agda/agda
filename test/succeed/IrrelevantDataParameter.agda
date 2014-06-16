@@ -3,7 +3,7 @@
 -- {-# OPTIONS -v tc.data:20 #-}
 module IrrelevantDataParameter where
 
-postulate 
+postulate
   A : Set
 
 data K .(a : A) : Set where

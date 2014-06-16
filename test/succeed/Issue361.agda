@@ -11,7 +11,7 @@ postulate
 
 record R (a : A) : Set where
   constructor c
-  field 
+  field
     p : A
 
 beta : (x : A) -> R.p {b} (c {b} x) == x

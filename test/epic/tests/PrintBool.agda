@@ -22,13 +22,13 @@ mapM : {A B : Set} -> (A -> IO B) -> List A -> IO (List B)
 mapM f xs = sequence (map f xs)
 
 printList : List Char -> IO Unit
-printList xs = 
+printList xs =
   mapM printChar xs ,,
   printChar '\n'
 
 
 main : IO Unit
-main = 
+main =
     printChar 'a' ,,
     printList ('a' :: 'b' :: 'c' :: []) ,,
     putStrLn "printBool" ,,

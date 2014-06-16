@@ -1,4 +1,4 @@
-{-# OPTIONS  --sized-types --show-implicit #-} 
+{-# OPTIONS  --sized-types --show-implicit #-}
 
 module SizedNat where
 

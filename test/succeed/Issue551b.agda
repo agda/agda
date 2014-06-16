@@ -9,7 +9,7 @@ implicit {{a}} = a
 
 postulate
   A : Set
-  .a : A  
+  .a : A
 
 a' : Box A
 a' = [ implicit ]

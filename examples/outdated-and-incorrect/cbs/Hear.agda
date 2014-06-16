@@ -29,7 +29,7 @@ sound (g1 ||g g2)  {lift v} = rx-|| (sound g1) (sound g2)
 sound (φ /|g g)    {lift v} = rx-/| (sound g)
 sound (defg x g)   {lift v} = rx-def (sound g)
 
-uniq : {a : U}{p : Proc a}{w : LT a}{px py : Proc a} -> 
+uniq : {a : U}{p : Proc a}{w : LT a}{px py : Proc a} ->
        p -[ w ]-> px -> p -[ w ]-> py -> px == py
 uniq qtau qtau = refl
 uniq rx-o rx-o = refl

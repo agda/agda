@@ -27,4 +27,3 @@ another-short-name = {! λ { a {x} b → a } !}
 f : Set
 f =  (y : Bool) -> parameterised.Bar {Bool}(λ _ → Void) (λ { true → true ; false → false })
 
-

@@ -48,7 +48,7 @@ postulate
   A : Set a
 {- succeeds:
 trans : -- forall {a}{A : Set a}
-        forall {xs ys zs : Colist A} → 
+        forall {xs ys zs : Colist A} →
   xs ≈ ys → ys ≈ zs →  xs ≈ zs
 -}
 
@@ -58,5 +58,4 @@ trans : -- forall {a}{A : Set a}
 trans : Transitive (_≈_ {A = A})
 trans []        []         = []
 trans (x ∷ xs≈) (.x ∷ ys≈) = x ∷ ♯ trans (♭ xs≈) (♭ ys≈)
-
 

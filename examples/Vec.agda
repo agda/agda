@@ -3,8 +3,8 @@ module Vec where
   data One : Set where
     unit : One
 
-  data Nat : Set where 
-    zero : Nat 
+  data Nat : Set where
+    zero : Nat
     suc  : Nat -> Nat
 
   data _*_ (A B : Set) : Set where
@@ -110,8 +110,8 @@ module Vec where
   {- identity and composition -}
 
   idR : {n : Nat} -> n `Ren` n
-  idR = vTab (\i -> i) 
-  
+  idR = vTab (\i -> i)
+
   coR : {l m n : Nat} -> m `Ren` n -> l `Ren` m -> l `Ren` n
   coR m2n l2m = vMap (vProj m2n) l2m
 

@@ -71,6 +71,6 @@ printStream Z _ = return unit
 printStream (S steps) (n ∷ ns) =
     printNat n ,,
     printStream steps (♭ ns)
-    
+
 main : IO Unit
 main = printStream 100 twos

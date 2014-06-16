@@ -62,7 +62,7 @@ printf' (floatArg    :: fmt) < x , args > = showFloat x	 ++ printf' fmt args
 printf' (charArg     :: fmt) < c , args > = showChar c	 ++ printf' fmt args
 printf' (litChar c   :: fmt) args = fromList (c :: []) ++ printf' fmt args
 printf' (badFormat _ :: fmt) ()
-printf'  []		 unit = "" 
+printf'  []		 unit = ""
 -}
 printf : (fmt : String) -> Printf fmt -> String
 printf fmt = printf' (format fmt)
@@ -78,6 +78,6 @@ printf fmt = printf' (format fmt)
     printf'  []		 unit 	    = ""
 
 mainS : String
--- mainS = printf  "pi = %f"  < 3.14 , unit > 
-mainS = printf "Answer is %n, pi = %f %% %s" 
+-- mainS = printf  "pi = %f"  < 3.14 , unit >
+mainS = printf "Answer is %n, pi = %f %% %s"
 	< 42 , < 3.14159 , < "Alonzo" , unit > > >

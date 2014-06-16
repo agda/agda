@@ -23,8 +23,8 @@ _<_ : ℝ -> ℝ -> Bool
 a < b = primFloatLess a b
 
 data _≤_ : ℝ -> ℝ -> Set where
-   ≤_ : {x y : ℝ} -> (x < y) ≡ true -> x ≤ y 
- 
+   ≤_ : {x y : ℝ} -> (x < y) ≡ true -> x ≤ y
+
 --absolute value
 [|_|] : ℝ -> ℝ
 [| a |] with (a < 0.0)

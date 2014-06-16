@@ -16,5 +16,5 @@ data Exp where -- ? needs to report that too few parameters are given
 
 bla : {A : Set} → Exp A → Unit
 bla var = tt
-bla (app f a) = bla f 
+bla (app f a) = bla f
 

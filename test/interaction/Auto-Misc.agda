@@ -20,5 +20,3 @@ module DND where
  h1-2 = λ h → Σ-i {!!} {!!}
 -- h1-2 = λ h → Σ-i (Σ.prf h) (Σ.wit h)
 
-
-

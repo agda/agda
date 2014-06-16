@@ -21,7 +21,7 @@ data List (A : Set) : Set where
   cons : A -> List A -> List A
 
 -- When using the constructors the parameters to the datatype becomes implicit
--- arguments. In this case, the types of the constructors are : 
+-- arguments. In this case, the types of the constructors are :
 
 --  nil  : {A : Set} -> List A
 --  cons : {A : Set} -> A -> List A -> List A

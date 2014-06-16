@@ -6,7 +6,7 @@ data ⊥ : Set where
 
 postulate f : {I : ⊥} (B : _) → ⊥
 
-data A : Set where a : {x y : ⊥} → A 
+data A : Set where a : {x y : ⊥} → A
 
 test : A → Set
 test (a {x = x} {y = y}) with f {_}
