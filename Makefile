@@ -45,7 +45,7 @@ endif
 CABAL_CMD=cabal
 
 # Options used by cabal install.
-CABAL_OPTIONS=
+CABAL_OPTIONS=--builddir=dist/$(VERSION)
 #  -f old-time
 #  -f epic
 
