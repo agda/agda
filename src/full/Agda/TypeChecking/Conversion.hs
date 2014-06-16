@@ -920,21 +920,27 @@ coerce v t1 t2 = blockTerm t2 $ do
 coerceSize :: Term -> Type -> Type -> TCM Term
 coerceSize v t1 t2 = workOnTypes $ do
   let fallback = v <$ leqType t1 t2
-      succeed  = return v
   caseMaybeM (isSizeType t1) fallback $ \ b1 -> do
   caseMaybeM (isSizeType t2) fallback $ \ b2 -> do
     case b2 of
       -- @t2 = Size@.  We are done!
-      BoundedNo -> succeed
+      BoundedNo -> return v
       -- @t2 = Size< v2@
       BoundedLt v2 -> do
         sv2 <- sizeView v2
         case sv2 of
           SizeInf     -> fallback
-          OtherSize{} -> fallback  -- TODO: this is not precise
+          OtherSize{} -> do
+            -- Andreas, 2014-06-16:
+            -- Issue 1203: For now, just treat v < v2 as suc v <= v2
+            -- TODO: Need proper < comparison
+            vinc <- sizeSuc 1 v
+            compareSizes CmpLeq vinc v2
+            return v
           -- @v2 = a2 + 1@: In this case, we can try @v <= a2@
           SizeSuc a2 -> do
-            ifM (tryConversion $ compareSizes CmpLeq v a2) succeed fallback
+            compareSizes CmpLeq v a2
+            return v
 
 ---------------------------------------------------------------------------
 -- * Sorts and levels
