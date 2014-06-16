@@ -61,6 +61,21 @@ Testing and documentation
   (Due to garbage collection, these benchmarks are not 100% stable.)
   Compare this with benchmarks before the new feature/bug fix.
 
+* To avoid problems with the whitespace test failing we suggest add the
+  following lines to .git/hooks/pre-commit
+
+    echo "Starting pre-commit"
+    make check-whitespace
+    if [ $? -ne 0 ]; then
+      exit 1
+    fi
+    echo "Ending pre-commit"
+
+  You can fix the whitespace issues running
+
+    make install-fix-agda-whitespace
+    make fix-whitespace
+
 Some Agda Hacking Lore
 
 * Whenever you change the interface file format you should update
@@ -117,8 +132,3 @@ you know how to port these tips to git, update this file.
   be changed by adding the following line to _darcs/prefs/defaults:
 
     ALL test
-
-* To avoid problems with the whitespace test failing you can add the
-  following line to _darcs/prefs/defaults:
-
-    record prehook make fix-whitespace
