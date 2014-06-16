@@ -28,7 +28,7 @@ extensions =
 -- exclude this directory.
 excludedDirs :: [String]
 excludedDirs =
- ["_darcs", ".git", "dist", "MAlonzo", "LineEndings"]
+ ["_darcs", ".git", "dist", "LineEndings", "MAlonzo", "std-lib"]
 
 -- Auxiliary functions.
 
