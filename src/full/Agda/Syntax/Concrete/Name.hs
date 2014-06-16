@@ -7,6 +7,7 @@
 -}
 module Agda.Syntax.Concrete.Name where
 
+import Control.DeepSeq
 import Control.Applicative
 
 import Data.List
@@ -36,6 +37,8 @@ data Name
   = Name !Range [NamePart]  -- ^ A (mixfix) identifier.
   | NoName !Range NameId    -- ^ @_@.
   deriving (Typeable)
+
+instance NFData Name
 
 -- | Mixfix identifiers are composed of words and holes,
 --   e.g. @_+_@ or @if_then_else_@ or @[_/_]@.
