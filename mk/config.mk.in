@@ -1,5 +1,4 @@
 AGDA_TEST_FLAGS = --ignore-interfaces
-VERSION		= 2.4.1
 
 INSTALL		= @INSTALL@
 INSTALL_DATA	= @INSTALL_DATA@
