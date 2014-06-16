@@ -47,6 +47,7 @@ module Agda.Syntax.Concrete
     )
     where
 
+import Control.DeepSeq
 import Data.Typeable (Typeable)
 import Data.Foldable (Foldable)
 import Data.Traversable (Traversable)
@@ -114,6 +115,7 @@ data Expr
         | Equal !Range Expr Expr               -- ^ ex: @a = b@, used internally in the parser
     deriving (Typeable)
 
+instance NFData Expr
 
 -- | Concrete patterns. No literals in patterns at the moment.
 data Pattern
@@ -131,6 +133,7 @@ data Pattern
 	| LitP Literal                            -- ^ @0@, @1@, etc.
     deriving (Typeable)
 
+instance NFData Pattern
 
 -- | A lambda binding is either domain free or typed.
 type LamBinding = LamBinding' TypedBindings
@@ -206,6 +209,8 @@ data LHSCore
              , lhsPatsRight  :: [NamedArg Pattern]  -- ^ side patterns
              }
   deriving (Typeable)
+
+instance NFData LHSCore
 
 {- TRASH
 lhsCoreToPattern :: LHSCore -> Pattern
