@@ -353,7 +353,7 @@ instance PrettyTCM TypeError where
               pwords "Left hand side gives too many arguments to a function of type" ++ [prettyTCM a]
             WrongNumberOfConstructorArguments c expect given -> fsep $
               pwords "The constructor" ++ [prettyTCM c] ++ pwords "expects" ++
-              [text (show expect)] ++ pwords "arguments, but has been given" ++ [text (show given)]
+              [text (show expect)] ++ pwords "arguments (including hidden ones), but has been given" ++ [text (show given)] ++ pwords "(including hidden ones)"
             CantResolveOverloadedConstructorsTargetingSameDatatype d cs -> fsep $
               pwords ("Can't resolve overloaded constructors targeting the same datatype (" ++ show d ++ "):") ++ map (text . show) cs
             DoesNotConstructAnElementOf c t -> fsep $
