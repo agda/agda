@@ -27,6 +27,7 @@ module Agda.Syntax.Concrete.Operators
     , patternQNames
     ) where
 
+import Control.DeepSeq
 import Control.Applicative
 import Control.Monad
 
@@ -399,7 +400,7 @@ parseLHS' lhsOrPatSyn top p = do
     patP <- buildParser (getRange p) flat DontUseBoundNames
     let cons = getNames [ConName, PatternSynName] flat
     let flds = getNames [FldName] flat
-    case [ res | p' <- parsePat patP p
+    case [ res | p' <- force $ parsePat patP p
                , res <- validPattern (PatternCheckConfig top cons flds) p' ] of
         [(p,lhs)] -> return lhs
         []        -> typeError $ NoParseForLHS lhsOrPatSyn p
@@ -547,7 +548,7 @@ parseApplication es = do
       buildParser (getRange es) flat UseBoundNames
 
     -- Parse
-    case parse p es of
+    case force $ parse p es of
         [e] -> return e
         []  -> do
           -- When the parser fails and a name is not in scope, it is more
