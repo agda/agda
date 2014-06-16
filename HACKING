@@ -1,4 +1,4 @@
-Working with Git
+Working with Git (from 2014-06-15)
 
 * Maintenance branches.
 
@@ -33,32 +33,38 @@ Working with Git
 
   For new features replace maint-2.4.0 with master above.
 
-Some Agda Hacking Lore
+Testing and documentation
 
-* Whenever you change the interface file format you should update
-  Agda.TypeChecking.Serialise.currentInterfaceVersion.
+* When you implement a new feature it needs to be documented in
+  doc/release-notes/<next-version>.txt.
+  When you fix a bug, drop a note in CHANGELOG.
 
-* When a new feature is implemented it should be documented in
-  doc/release-notes/<next-version>.txt. It is also a good idea to add
-  test cases under test/succeed and test/fail, and maybe also
+* In both cases, you need to add regression tests
+  under test/succeed and test/fail, and maybe also
   test/interaction. When adding test cases under test/fail, remember
   to record the error messages (.err files) after running make test.
 
 * Run the test-suite, using make test (which does not work properly
   unless you run autoreconf and ./configure first).
 
-  Tests under test/fail can fail if an error message has changed. To
-  accept the new error message, touch the corresponding source file.
+* Tests under test/fail can fail if an error message has changed.
+  You will be asked whether to accept the new error message.
+  Alternatively, you can touch the corresponding source file, since,
+  when the test case changes, it is assumed that the error message
+  changes as well.
 
-* Under darcs 2.5 the --test flag is not enabled by default. This can
-  be changed by adding the following line to _darcs/prefs/defaults:
+* Make sure you do not introduce performance regression.  If you
 
-    ALL test
+    make library-test
 
-* To avoid problems with the whitespace test failing you can add the
-  following line to _darcs/prefs/defaults:
+  you get a small table with benchmarks at the end.
+  (Due to garbage collection, these benchmarks are not 100% stable.)
+  Compare this with benchmarks before the new feature/bug fix.
 
-    record prehook make fix-whitespace
+Some Agda Hacking Lore
+
+* Whenever you change the interface file format you should update
+  Agda.TypeChecking.Serialise.currentInterfaceVersion.
 
 * Use __IMPOSSIBLE__ instead of calls to error. __IMPOSSIBLE__
   generates errors of the following form:
@@ -81,3 +87,38 @@ Emacs mode
 
   If you want to include interactive highlighting directives, replace
   NonInteractive with Interactive.
+
+* The following elisp code by Nils Anders Danielsson fixes whitespace
+  issues upon save.  Add to your .emacs.
+
+  (defvar fix-whitespace-modes
+    '(text-mode agda2-mode haskell-mode emacs-lisp-mode LaTeX-mode TeX-mode)
+    "*Whitespace issues should be fixed when these modes are used.")
+
+  (add-hook 'before-save-hook
+    (lambda nil
+      (when (and (member major-mode fix-whitespace-modes)
+                 (not buffer-read-only))
+        ;; Delete trailing whitespace.
+        (delete-trailing-whitespace)
+        ;; Insert a final newline character, if necessary.
+        (save-excursion
+          (save-restriction
+            (widen)
+            (unless (equal ?\n (char-before (point-max)))
+              (goto-char (point-max))
+              (insert "\n")))))))
+
+
+TODO: The following information is outdated, referring to darcs.  If
+you know how to port these tips to git, update this file.
+
+* Under darcs 2.5 the --test flag is not enabled by default. This can
+  be changed by adding the following line to _darcs/prefs/defaults:
+
+    ALL test
+
+* To avoid problems with the whitespace test failing you can add the
+  following line to _darcs/prefs/defaults:
+
+    record prehook make fix-whitespace
