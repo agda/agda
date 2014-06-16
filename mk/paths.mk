@@ -1,5 +1,5 @@
 
-VERSION			= 2.4.0.1
+VERSION			= 2.4.0.2
 MACRO_DIR		= $(TOP)/macros
 
 SRC_DIR			= $(TOP)/src

@@ -1,5 +1,5 @@
 name:            Agda
-version:         2.4.0.1
+version:         2.4.0.2
 cabal-version:   >= 1.8
 build-type:      Custom
 license:         OtherLicense
@@ -56,7 +56,6 @@ source-repository this
   type:     git
   location: https://github.com/agda/agda.git
   branch:   maint-2.4.0
-  tag:      2.4.0.1
 
 flag epic
   default: False
@@ -389,8 +388,8 @@ library
   -- used).
   -- Issue 1103: Termination.SparseMatrix triggers a warning under GHC 7.0.4.
   -- -Werror is for developers only, who are assumed to use a recent GHC.
-  -- if impl(ghc > 7.2.2)
-  --   ghc-options:    -Werror
+  if impl(ghc > 7.2.2)
+    ghc-options:    -Werror
   if impl(ghc >= 6.12)
     ghc-options:    -fwarn-dodgy-exports
                     -fwarn-wrong-do-bind
