@@ -19,9 +19,16 @@ import System.IO
 
 -- Configuration parameters.
 
-extensions, excludedDirs :: [String]
-extensions   = [".el", ".hs", ".hs-boot", ".lhs", ".x", ".y"]
-excludedDirs = ["_darcs", ".git", "dist", "MAlonzo"]
+extensions :: [String]
+extensions =
+  [".agda", ".cabal", ".el", ".hs", ".hs-boot", ".lhs", ".md", ".x", ".y"]
+
+-- ASR (16 June 2014). In test/succeed/LineEndings/ we test that Agda
+-- can handle various kinds of whitespace (pointed out by Nils), so we
+-- exclude this directory.
+excludedDirs :: [String]
+excludedDirs =
+ ["_darcs", ".git", "dist", "MAlonzo", "LineEndings"]
 
 -- Auxiliary functions.
 
@@ -59,7 +66,7 @@ main = do
 
 usage :: String
 usage = unlines
-  [ "fix-agda-whitespace: Fixes whitespace issues for Agda sources."
+  [ "fix-agda-whitespace: Fixes whitespace issues."
   , ""
   , "Usage: fix-agda-whitespace [--check]"
   , ""

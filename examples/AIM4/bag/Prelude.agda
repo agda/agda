@@ -44,7 +44,7 @@ module Prelude where
 
 --   data Pi {a : Set} (f : a -> Set) : Set where
 --     pi : ((x : a) -> f x) -> Pi f
--- 
+--
 --   apply : {a : Set} -> {f : a -> Set} -> Pi f -> (x : a) -> f x
 --   apply (pi f) x = f x
 
@@ -92,4 +92,4 @@ module Prelude where
 
   Dec : (A : Set) -> Set
   Dec A = Either A (Not A)
- 
+

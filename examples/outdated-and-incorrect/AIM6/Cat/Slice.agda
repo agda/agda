@@ -14,7 +14,7 @@ module SliceCat (ℂ : Cat)(Γ : Category.Obj ℂ) where
   record SlObj : Set1 where
     field
       dom : Obj
-      arr : dom ─→ Γ 
+      arr : dom ─→ Γ
 
   record _Sl→_ (f f' : SlObj) : Set where
     field
@@ -28,16 +28,16 @@ module SliceCat (ℂ : Cat)(Γ : Category.Obj ℂ) where
     }
 
   _o_ : {f f' f'' : SlObj} -> f' Sl→ f'' -> f Sl→ f' -> f Sl→ f''
-  _o_ {F} {F'} {F''} F₁ F₂ = 
-    let f   = SlObj.arr F   in 
-    let f'  = SlObj.arr F'  in 
-    let f'' = SlObj.arr F'' in 
-    let h'  = _Sl→_.h F₁     in 
-    let h   = _Sl→_.h F₂     in 
+  _o_ {F} {F'} {F''} F₁ F₂ =
+    let f   = SlObj.arr F   in
+    let f'  = SlObj.arr F'  in
+    let f'' = SlObj.arr F'' in
+    let h'  = _Sl→_.h F₁     in
+    let h   = _Sl→_.h F₂     in
     record
       { h = (_Sl→_.h F₁) ∘ (_Sl→_.h F₂)
       -- Proof of f'' ∘ (h' ∘ h) == f
-      ; π = trans (trans (sym assoc) 
+      ; π = trans (trans (sym assoc)
                          (congL (_Sl→_.π F₁)))
                   (_Sl→_.π F₂)
       }
@@ -46,16 +46,16 @@ module SliceCat (ℂ : Cat)(Γ : Category.Obj ℂ) where
   SlRel f f' = (_Sl→_.h f) == (_Sl→_.h f')
 
   SlRefl : {A B : SlObj} -> Reflexive {A Sl→ B} SlRel
-  SlRefl = refl 
+  SlRefl = refl
 
   SlSym : {A B : SlObj} -> Symmetric {A Sl→ B} SlRel
-  SlSym = sym 
+  SlSym = sym
 
   SlTrans : {A B : SlObj} -> Transitive {A Sl→ B} SlRel
-  SlTrans = trans 
+  SlTrans = trans
 
   SlEq : {A B : SlObj} -> Equivalence (A Sl→ B)
-  SlEq {A} {B} = record 
+  SlEq {A} {B} = record
     { _==_  = SlRel {A} {B}
     ; refl  = \{f     : A Sl→ B} -> SlRefl  {A}{B}{f}
     ; sym   = \{f g   : A Sl→ B} -> SlSym   {A}{B}{f}{g}
@@ -86,6 +86,6 @@ module SliceCat (ℂ : Cat)(Γ : Category.Obj ℂ) where
     ; cong    = \{A B C : SlObj}{f f' : B Sl→ C}{g g' : A Sl→ B} -> SlCong {A}{B}{C}{f}{f'}{g}{g'}
     ; idLeft  = \{A B : SlObj}{f : A Sl→ B} -> SlIdLeft {A} {B} {f}
     ; idRight = \{A B : SlObj}{f : A Sl→ B} -> SlIdRight {A} {B} {f}
-    ; assoc   = \{A B C D : SlObj}{f : C Sl→ D}{g : B Sl→ C}{h : A Sl→ B} -> 
+    ; assoc   = \{A B C D : SlObj}{f : C Sl→ D}{g : B Sl→ C}{h : A Sl→ B} ->
         SlAssoc {A}{B}{C}{D}{f}{g}{h}
     }

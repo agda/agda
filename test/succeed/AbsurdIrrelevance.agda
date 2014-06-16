@@ -6,4 +6,4 @@ data Empty : Set where
 
 absurd : {A : Set} -> .Empty -> A
 absurd ()
- 
+

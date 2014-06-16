@@ -50,7 +50,7 @@ three : Nat
 three = id (suc two)
 
 -- If, for some reason, an implicit argument cannot be inferred it can be given
--- explicitly by enclosing it in curly braces : 
+-- explicitly by enclosing it in curly braces :
 
 four : Nat
 four = id {Nat} (suc three)

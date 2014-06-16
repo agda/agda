@@ -27,7 +27,7 @@ module NoWith where
   out (map {A = A}{B = B} f l) = map' f l (out l)
     where outmap : (f : A -> B)(l : CoList A)(outl : Maybe (A × CoList A)) -> Maybe (B × CoList B)
           outmap f l nothing = nothing
-          outmap f l (just (a , as)) = just (f a , map f as) 
+          outmap f l (just (a , as)) = just (f a , map f as)
 
 module With2 where
 
@@ -42,4 +42,4 @@ module NoWith2 where
   out (map {A = A}{B = B} f l) = map' f l (out l)
     where outmap : (f : A -> B)(l : CoList A)(outl : Maybe (A × CoList A)) -> Maybe (B × CoList B)
           outmap f (inn .nothing)         nothing         = nothing
-          outmap f (inn .(just (a , as))) (just (a , as)) = just (f a , map f as) 
+          outmap f (inn .(just (a , as))) (just (a , as)) = just (f a , map f as)

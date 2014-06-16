@@ -9,4 +9,3 @@ test : .(a : A) -> T a -> Set
 test a = λ (x : T a) -> A
 -- this should type check and not complain about irrelevance of a
 
-

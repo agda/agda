@@ -39,5 +39,3 @@ noo = lam (Su Ze) (lam Ze (var (Su Ze)))
 coo : Id moo noo
 coo = refl
 
-
-

@@ -14,7 +14,7 @@ postulate A B C : Set
 
 test : let X : (Prod A B -> C) -> (Prod A B -> C)
            X = _
-       in (x : Prod A B -> C) -> 
+       in (x : Prod A B -> C) ->
             X (\ z -> x (fst z , snd z)) == x
-test x = refl 
+test x = refl
 -- eta contracts unification problem to  X x = x

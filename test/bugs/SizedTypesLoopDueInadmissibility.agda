@@ -24,7 +24,7 @@ shift_case nothing = nothing
 shift_case (just zero) = nothing
 shift_case (just (suc x)) = just x
 
-shift  : {i : Size} -> (Nat -> Maybe (Nat {i ^})) -> 
+shift  : {i : Size} -> (Nat -> Maybe (Nat {i ^})) ->
                        (Nat -> Maybe (Nat {i}))
 shift f n = shift_case (f (suc n))
 

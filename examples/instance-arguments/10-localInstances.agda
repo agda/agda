@@ -17,7 +17,7 @@ length = List.length ∘ toList
 open Eq {{...}}
 
 eqℕ : Eq ℕ
-eqℕ = record { eq = λ x x' → ⌊ x ℕ≟ x' ⌋ } 
+eqℕ = record { eq = λ x x' → ⌊ x ℕ≟ x' ⌋ }
 
 eqString₁ : String → String → Bool
 eqString₁ s₁ s₂ = ⌊ s₁ ≟ s₂ ⌋

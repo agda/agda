@@ -44,7 +44,7 @@ main = let tTyp : Set
            t5 : tTyp
            t5 = ( 0 , 0 ) , 4
            pn : tTyp -> IO Unit
-           pn t = printNat (test (t , t) [ t ]) 
+           pn t = printNat (test (t , t) [ t ])
         in pn t0 ,, -- 0
            pn t1 ,, -- 3
            pn t2 ,, -- 4

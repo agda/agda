@@ -1,4 +1,4 @@
--- Andreas, 2012-01-10 
+-- Andreas, 2012-01-10
 -- {-# OPTIONS -v tc.constr.findInScope:50 #-}
 module InstanceGuessesMeta where
 
@@ -10,8 +10,8 @@ postulate
   E : Bool -> Set
   d : {x : Bool} -> D x
   f : {x : Bool}{{ dx : D x }} -> E x
-  
+
 b : E true
 b = f  -- should succeed
--- Agda is now allowed to solve hidden x in type of d by unification, 
--- when searching for inhabitant of D x 
+-- Agda is now allowed to solve hidden x in type of d by unification,
+-- when searching for inhabitant of D x

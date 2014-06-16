@@ -39,7 +39,7 @@ _∈‿⟦_⟧¿ : (xs : [ carrier ]) -> (re : RegExp) -> Maybe (xs ∈‿⟦ re
 []     ∈‿⟦ ε ⟧¿         = just matches-ε
 _ ∷ [] ∈‿⟦ • ⟧¿         = just matches-•
 x ∷ [] ∈‿⟦ sym y ⟧¿     with x ≟ y
-x ∷ [] ∈‿⟦ sym y ⟧¿     | yes eq = just (matches-sym eq) 
+x ∷ [] ∈‿⟦ sym y ⟧¿     | yes eq = just (matches-sym eq)
 x ∷ [] ∈‿⟦ sym y ⟧¿     | no _   = nothing
 xs     ∈‿⟦ re₁ ∣ re₂ ⟧¿ with xs ∈‿⟦ re₁ ⟧¿
 xs     ∈‿⟦ re₁ ∣ re₂ ⟧¿ | just m  = just (matches-∣ˡ m)

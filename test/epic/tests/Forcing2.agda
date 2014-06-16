@@ -24,8 +24,8 @@ test3 : (q : (Nat ** Nat) ** (Nat ** Nat)) -> Q q -> Nat
 test3 .((Z , Z)   , (Z , Z))   [ Z   , Z ]  = Z
 test3 .((S n , m) , (S n , m)) [ S n , m ]  = S n + m
 test3 .((Z , m)   , (Z , m))   [ Z   , m ]  = m
-main : IO Unit 
-main = 
+main : IO Unit
+main =
     printNat (test1 (5  , 8) (5  , 8)) ,,
     printNat (test2 (1 , 1) [ 1 ])     ,,
     printNat (test3 ( (3 , 4) , (3 , 4) ) [ 3 , 4 ]) ,,

@@ -19,4 +19,3 @@ module EqProof
   _by_ : {x : A}(y : A) -> x == y -> x == y
   y by eq = eq
 
-

@@ -32,7 +32,7 @@ Install the prerequisites mentioned below, then run the following commands:
     agda-mode setup
 
 The last command tries to set up Emacs for use with Agda. As an alternative you can copy the following text to your .emacs file:
-    
+
     (load-file (let ((coding-system-for-read 'utf-8))
                     (shell-command-to-string "agda-mode locate")))
 
@@ -50,13 +50,13 @@ This can, in some cases, give a noticeable speedup.
 1) Install the prerequisites mentioned below.
 
 2a) Run the following commands in the top-level directory of the Agda source tree:
-  
 
-    cabal update      
-    cabal install        
-    agda-mode setup        
 
-    
+    cabal update
+    cabal install
+    agda-mode setup
+
+
 The last command tries to set up Emacs for use with Agda. As an alternative you can copy the following text to your .emacs file:
 
     (load-file (let ((coding-system-for-read 'utf-8))
@@ -197,12 +197,12 @@ What follows is tested only on this version. Other versions may work but you hav
 ### Step 2: Install ucs-fonts and mule-fonts for emacs.
 
 Download from http://www.cl.cam.ac.uk/~mgk25/ucs-fonts.html the tar file at http://www.cl.cam.ac.uk/~mgk25/download/ucs-fonts.tar.gz. Let us write the top directory of extracted files as `c:/pkg/ucs-fonts`
-   
+
 Next we create some derived fonts.
 
     cd c:/pkg/ucs-fonts/submission
     make all-bdfs
-    
+
 This gives an error message about missing fonts, but ignore it.
 
 Download from http://www.meadowy.org/ the tar file at http://www.meadowy.org/meadow/dists/3.00/packages/mule-fonts-1.0-4-pkg.tar.bz2. The untarred top directory is named `packages`, but we are only interested in the subdirectory `packages/fonts`.  Let us assume we moved this subdirectory to `c:/pkg/mule-fonts`.

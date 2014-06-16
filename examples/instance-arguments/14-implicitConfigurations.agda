@@ -5,7 +5,7 @@ postulate
   add : ∀ {A} {{ intA : Integral A }} → A → A → A
   mul : ∀ {A} {{ intA : Integral A }} → A → A → A
   mod : ∀ {A} {{ intA : Integral A }} → A → A → A
-  
+
   N : Set
   zero one two three : N
   nInt : Integral N
@@ -31,15 +31,15 @@ withModulus modulus f = unMkM
 
 open Modulus {{...}}
 
-normalize : ∀ {s A} {{intA : Integral A}} {{mod : Modulus s A}} → 
+normalize : ∀ {s A} {{intA : Integral A}} {{mod : Modulus s A}} →
             A → M s A
 normalize a = MkM (mod modulus a)
 
-_+_ : ∀ {s A} {{intA : Integral A}} {{mod : Modulus s A}} → 
+_+_ : ∀ {s A} {{intA : Integral A}} {{mod : Modulus s A}} →
       M s A → M s A → M s A
 (MkM a) + (MkM b) = normalize (add a b)
 
-_*_ : ∀ {s A} → {{intA : Integral A}} → {{mod : Modulus s A}} → 
+_*_ : ∀ {s A} → {{intA : Integral A}} → {{mod : Modulus s A}} →
       M s A → M s A → M s A
 (MkM a) * (MkM b) = normalize (mul a b)
 
@@ -47,7 +47,7 @@ test₁ : N
 test₁ = withModulus two (let o = MkM one in (o + o)*(o + o))
 
 testExpr : ∀ {s} → {{mod : Modulus s N}} → M s N
-testExpr = let o = MkM one ; t = MkM two in 
+testExpr = let o = MkM one ; t = MkM two in
            (o + t) * t
 
 test₂ : N

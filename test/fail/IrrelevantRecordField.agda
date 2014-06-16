@@ -1,5 +1,5 @@
 module IrrelevantRecordField where
-import Common.Irrelevance  
+import Common.Irrelevance
 
 record R (A : Set) : Set where
   constructor inn

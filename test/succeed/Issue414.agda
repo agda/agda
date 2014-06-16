@@ -2,7 +2,7 @@
 
 module Issue414 where
 
-record P : Set₁ where 
+record P : Set₁ where
   field
     q : Set
 

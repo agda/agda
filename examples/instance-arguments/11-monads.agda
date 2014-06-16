@@ -25,7 +25,7 @@ open import Relation.Nullary.Decidable using (⌊_⌋)
 open import Data.List using (List; _∷_; []; [_]; null) renaming (monad to listMonad)
 --open import Data.Product
 
-module RawMonadExt {li f} {I : Set li} {M : IFun I f} (m : RawIMonad M) where 
+module RawMonadExt {li f} {I : Set li} {M : IFun I f} (m : RawIMonad M) where
   bind : ∀ {i j k A B} → M i j A → (A → M j k B) → M i k B
   bind {i} {j} {k} {A} {B} = RawIMonad._>>=_ {li} {f} {I} {M} m {i} {j} {k} {A} {B}
 
@@ -39,14 +39,14 @@ nToList (suc n) = n ∷ nToList n
 
 test′ : ℕ → (List ℕ) ⊥
 test′ k = let open RawMonad partialityMonad
-              open RawMonadExt partialityMonad 
+              open RawMonadExt partialityMonad
           in do x ← return (k ∷ k + 1 ∷ []) then
              return x
 
 test2′ : ℕ → (List ℕ) ⊥
 test2′ k =  let open RawMonad partialityMonad
-                open RawMonadExt partialityMonad 
-                open RawMonad listMonad using () renaming (_>>=_ to _l>>=_) 
+                open RawMonadExt partialityMonad
+                open RawMonad listMonad using () renaming (_>>=_ to _l>>=_)
             in do x ← return [ k ] then
                   if ⌊ k ≟ 4 ⌋ then return (x l>>= nToList) else never
 
@@ -59,11 +59,11 @@ test1 k =  do x ← return k then
 
 test2 : ℕ → (List ℕ) ⊥
 test2 k =  do x ← return [ k ] then
-           if ⌊ k ≟ 4 ⌋ then return (x >>= nToList) else never 
+           if ⌊ k ≟ 4 ⌋ then return (x >>= nToList) else never
 test' : ℕ → (List ℕ) ⊥
 test' k = do x ← return (k ∷ k + 1 ∷ []) then
           if null x then never else return (x >>= nToList)
-          
+
 test3 : List ℕ
 test3 = do x ← 1 ∷ 2 ∷ 3 ∷ [] then
         return $ x + 1

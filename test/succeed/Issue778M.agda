@@ -8,4 +8,3 @@ pred : Nat → Nat
 pred = λ { zero → zero; (suc n) → n }
   where aux = zero
 
-

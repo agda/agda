@@ -35,13 +35,13 @@ mutual -- needed to avoid freezing
 
   one : ℕ
   one = _
-  
+
   record HereditarilySingleton₂ : Set where
     field
       singleton : Unit one
-  
+
   baz : HereditarilySingleton₂
   baz = _
-  
+
   force : one ≡ suc zero
   force = refl

@@ -23,7 +23,7 @@ G→H : {I : Set}{D : I -> Set1}(γ : OPg I D)(U : I -> Set)(T : (i : I) -> U i 
            (a : Gu γ U T) ->
            Hu (ε γ) U T (Gi γ U T a)
 G→H (ι < i | e >') U T ★         = < refl | ★ >
-G→H (σ A γ)        U T < a | b > = < a | G→H (γ a) U T b > 
+G→H (σ A γ)        U T < a | b > = < a | G→H (γ a) U T b >
 G→H (δ A i γ)      U T < g | b > = < g | G→H (γ (T « i × g »)) U T b >
 
 H→G : {I : Set}{D : I -> Set1}(γ : OPg I D)(U : I -> Set)(T : (i : I) -> U i -> D i)

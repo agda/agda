@@ -18,7 +18,7 @@ infixr 30 _++_
 
 _++_ : {A : Set} -> List A -> List A -> List A
 []        ++ ys = ys
-(x :: xs) ++ ys = x :: (xs ++ ys) 
+(x :: xs) ++ ys = x :: (xs ++ ys)
 
 snoc : {A : Set} -> List A -> A -> List A
 snoc []        e = e :: []

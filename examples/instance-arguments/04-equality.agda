@@ -81,7 +81,7 @@ eqFin = record { eq = primEqFin }
 -- eqFin′ = record { eq = primEqFin }
 
 -- eqFinSpecial : {n : ℕ} → Prime n → Eq (Fin n)
--- eqFinSpecial 
+-- eqFinSpecial
 
 fin1 : Fin 3
 fin1 = zero

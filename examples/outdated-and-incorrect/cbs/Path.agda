@@ -75,7 +75,7 @@ private
       react (forward _ _) = def (bwd-edge from w)
 
   pitcher : Nat -> P
-  pitcher n = forward stop (node n) ! o 
+  pitcher n = forward stop (node n) ! o
 
   batter : Nat -> P
   batter n = > react

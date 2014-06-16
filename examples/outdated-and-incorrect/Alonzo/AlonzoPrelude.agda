@@ -1,7 +1,7 @@
 module AlonzoPrelude where
   open import RTN public
   import RTP  -- magic module - Run Time Primitives
-  
+
   Int : Set
   Int = RTP.Int
 
@@ -9,7 +9,7 @@ module AlonzoPrelude where
   Float = RTP.Float
 
   String : Set
-  String = RTP.String 
+  String = RTP.String
 
   Char : Set
   Char = RTP.Char
@@ -29,7 +29,7 @@ module AlonzoPrelude where
   elim-False : {A : Set} -> False -> A
   elim-False ()
 
-  
+
   -- _∘_ : {A,B,C:Set} -> (B -> C) -> (A -> B) -> A -> C
   -- f ∘ g = \x -> f (g x)
 
@@ -68,7 +68,7 @@ module AlonzoPrelude where
     nil  : List A
     _::_ : A -> List A -> List A
 
- 
+
   [_] : {A:Set} -> A -> List A
   [ x ] = x :: nil
 -}
@@ -76,4 +76,4 @@ module AlonzoPrelude where
 --  {-# BUILTIN STRING  String #-}
 --   {-# BUILTIN FLOAT   Float  #-}
   {-# BUILTIN CHAR    Char   #-}
-  
+

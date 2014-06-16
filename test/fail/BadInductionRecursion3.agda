@@ -20,7 +20,7 @@ mutual
 _·_ : D -> D -> D
 d (suc zero) f · x = f x
 
-ω : D 
+ω : D
 ω = d (suc zero) (\x -> x · x)
 
 Ω : D

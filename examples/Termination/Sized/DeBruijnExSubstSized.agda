@@ -12,14 +12,14 @@ open import Size
 
 open import DeBruijn
 
--- untyped de Bruijn terms 
+-- untyped de Bruijn terms
 data LamE (A : Set) : Size -> Set where
     varE  : {ι : _} -> A -> LamE A (↑ ι)
     appE  : {ι : _} -> LamE A ι -> LamE A ι -> LamE A (↑ ι)
     absE  : {ι : _} -> LamE (Maybe A) ι -> LamE A (↑ ι)
     flatE : {ι : _} -> LamE (LamE A ι) ι -> LamE A (↑ ι)
 
--- functoriality of LamE 
+-- functoriality of LamE
 lamE : {A B : Set} -> (A -> B) -> {ι : _} -> LamE A ι -> LamE B ι
 lamE f (varE a)     = varE  (f a)
 lamE f (appE t1 t2) = appE (lamE f t1) (lamE f t2)
@@ -34,7 +34,7 @@ eval (flatE r)    = subst (eval) (eval r)
 
 
 -- Theorem (naturality of eval):  eval ∘ lamE f ≡ lam f ∘ eval
-evalNAT : {A B : Set}(f : A -> B) -> {ι : _} -> (t : LamE A ι) -> 
+evalNAT : {A B : Set}(f : A -> B) -> {ι : _} -> (t : LamE A ι) ->
   eval (lamE f t) ≡ lam f (eval t)
 evalNAT f (varE a)     = ≡-refl
 evalNAT f (appE t1 t2) = begin
@@ -57,7 +57,7 @@ evalNAT f (absE r) = begin
      ≡⟨ ≡-refl ⟩
   eval (absE (lamE (fmap f) r))
      ≡⟨ ≡-refl ⟩
-  abs (eval (lamE (fmap f) r)) 
+  abs (eval (lamE (fmap f) r))
      ≡⟨ ≡-cong abs (evalNAT (fmap f) r) ⟩
   abs (lam (fmap f) (eval r))
      ≡⟨ ≡-refl ⟩

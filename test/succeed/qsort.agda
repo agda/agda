@@ -49,7 +49,7 @@ module qsort where
 
   fact : Nat -> Nat
   fact  zero    = one
-  fact (succ n) = succ n * fact n 
+  fact (succ n) = succ n * fact n
 
   _<_ : Nat -> Nat -> Bool
   zero     < zero     = false

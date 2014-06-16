@@ -96,4 +96,3 @@ module Functors where
 			      (\f -> refl)
 			      (\f g h -> trans)
 
-

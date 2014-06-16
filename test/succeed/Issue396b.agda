@@ -1,6 +1,6 @@
 module Issue396b where
 
-import Common.Irrelevance  
+import Common.Irrelevance
 
 data A : Set where
 

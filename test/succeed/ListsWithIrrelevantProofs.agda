@@ -9,18 +9,18 @@ data ℕ : Set where
 
 {-# BUILTIN NATURAL ℕ    #-}
 
-postulate 
+postulate
   _≤_ : ℕ → ℕ → Set
   p1 : 0 ≤ 1
   p2 : 0 ≤ 1
 
--- descending lists indexed by upper bound for largest element 
+-- descending lists indexed by upper bound for largest element
 
 data SList (bound : ℕ) : Set where
   []    : SList bound
   scons : (head : ℕ) →
           .(head ≤ bound) →   -- irrelevant proof, dotted non-dependent domain
-          (tail : SList head) → 
+          (tail : SList head) →
           SList bound
 
 l1 : SList 1
@@ -33,5 +33,4 @@ l2 = scons 0 p2 []
 
 l1≡l2 : l1 ≡ l2
 l1≡l2 = refl
-
 

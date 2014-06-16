@@ -45,7 +45,7 @@ r←→gArgs-subst :
 r←→gArgs-subst {I} (ι i) U C j arg m =
   elim== i (\k q -> C k (q , ★)) m j (π₀ arg)
 
-r←→gArgs-subst (σ A γ)   U C j arg m = 
+r←→gArgs-subst (σ A γ)   U C j arg m =
   r←→gArgs-subst (γ (π₀ arg)) U (\i c -> C i (π₀ arg , c)) j (π₁ arg) m
 
 r←→gArgs-subst (δ H i γ) U C j arg m =

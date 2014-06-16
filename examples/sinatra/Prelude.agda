@@ -14,7 +14,7 @@ data List (A : Set) : Set where
 
 data _∈_ {A : Set}(x : A) : List A -> Set where
   hd : forall {xs}   ->           x ∈ xs ◄ x
-  tl : forall {y xs} -> x ∈ xs -> x ∈ xs ◄ y 
+  tl : forall {y xs} -> x ∈ xs -> x ∈ xs ◄ y
 
 data Box {A : Set}(P : A -> Set) : List A -> Set where
   ⟨⟩  : Box P ε

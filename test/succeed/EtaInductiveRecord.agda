@@ -40,4 +40,3 @@ module Mutual where
   test : ∀ {A} (t : Tree A) → t ≡ tree (elem t) (subtrees t)
   test t = refl
 
-

@@ -48,7 +48,7 @@ mutual
 
   El' : S -> Set
   El' nat = Nat
-  El' (pi A F) = 
+  El' (pi A F) =
     ((x : El A) -> El (F ! x)) * \f ->
     {x y : El A}(x=y : x == y) -> f x == pFam F x=y << f y
   El' (sigma A F) =
@@ -357,7 +357,7 @@ mutual
     where
       y=x = sym x=y
       Fy=Fx = sym (
-        chain> pFam F y=x << Fx 
+        chain> pFam F y=x << Fx
            === pFam F y=x << pFam F x=y << Fy by p<< (pFam F y=x) Fx=Fy
            === refS << Fy                     by casttrans _ _ _ _
            === Fy                             by castref _ _

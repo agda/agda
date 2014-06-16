@@ -32,4 +32,3 @@ test = refl
                    × M ≡ (\ F X → F X)
 #1 = refl , refl
 
-

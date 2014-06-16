@@ -1,4 +1,4 @@
--- Andreas, 2011-10-03 
+-- Andreas, 2011-10-03
 -- allow matching on irrelevant data as long as there is at most one
 -- matching constructor
 {-# OPTIONS --experimental-irrelevance #-}

@@ -7,7 +7,7 @@ IdT = ({A : Set} -> A -> A)
 data _==_ {A : Set2}(a : A) : A -> Set where
   refl : a == a
 
--- Untyped lambda succeeds, because checking \ x -> x : X is postponed, 
+-- Untyped lambda succeeds, because checking \ x -> x : X is postponed,
 -- then the solution X = IdT is found, and upon revisiting the tc problem
 -- a hidden lambda \ {A} is inserted.
 

@@ -25,7 +25,7 @@ module SET where
     symmetricalI : ({a b : A} -> R a b -> R a b) -> Symmetrical R
   data Transitive {A : Set} (R : A -> A -> Set) : Set where
     transitiveI : ({a b c : A} -> R a b -> R b c -> R a c) -> Transitive R
-  compositionalI : 
+  compositionalI :
     {A : Set} -> (R : A -> A -> Set)
     -> ({a b c : A} -> R b c -> R a b -> R a c) -> Transitive R
   compositionalI {A} R f =
@@ -77,7 +77,7 @@ module SET where
   ----------------------------------------------------------------------------
 --  Prod : (A : Set) -> (A -> Set) -> Set
 --  Prod A B = (a : A) -> B a
---  The above is not type-correct since (a : A) -> B a is not well-formed 
+--  The above is not type-correct since (a : A) -> B a is not well-formed
 --  but the following works.
   data Prod (A : Set) (B : A -> Set) : Set where
     prodI : ((a : A) -> B a) -> Prod A B
@@ -246,7 +246,7 @@ module SET where
   -- depCur : {X : Set} -> {Y : X -> Set} -> {Z : Set} -> (f : Sum X Y -> Z)
   --         -> {x : X} -> Y x -> Z
   -- depCur {X} {Y} {Z} f = \{x} -> \y ->  f (depPair  x  y)
-  -- Error message : 
+  -- Error message :
   -- When checking that the expression \{x} -> \y -> f (depPair x y)
   -- has type Y _x -> Z
   -- found an implicit lambda where an explicit lambda was expected

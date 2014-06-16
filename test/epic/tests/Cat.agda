@@ -31,7 +31,7 @@ interpTy (TyHandle n) = Fin n
 data Purpose : Set where
   Reading : Purpose
   Writing : Purpose
-  
+
 getMode : Purpose -> String
 getMode Reading = "r"
 getMode Writing = "w"
@@ -87,7 +87,7 @@ OpenH fz p (Closed  :: as) = Bot
 OpenH (fs i) p ( a  :: as) = OpenH i p as
 
 getFile : ∀{n}{i : Fin n}{p : Purpose}{ts : FileVec n}{ope : OpenH i p ts} -> Env ts -> EpicFile
-getFile {Z} {()} env 
+getFile {Z} {()} env
 getFile {S y} {fz} (Extend (OpenFile y') y0) = y'
 getFile {S y} {fz} {ope = ()} (Extend ClosedFile y')
 getFile {S y} {fs y'} {ope = ope} (Extend res y0) = getFile {y} {y'} {ope = ope} y0
@@ -107,7 +107,7 @@ data File : ∀{n n'}  -> FileVec n -> FileVec n' -> Ty -> Set where
   IF      : ∀{a l}{ts : FileVec l}  -> Bool -> File ts ts a -> File ts ts a -> File ts ts a
   BIND    : ∀{a b l l' l''}{ts : FileVec l}{ts' : FileVec l'}{ts'' : FileVec l''}
          -> File ts ts' a -> (interpTy a -> File ts' ts'' b) -> File ts ts'' b
-  OPEN    : ∀{l}{ts : FileVec l}  
+  OPEN    : ∀{l}{ts : FileVec l}
           -> (p : Purpose) -> (fd : FilePath) -> File ts (snoc ts (Open p)) (TyHandle (S l))
   CLOSE   : ∀ {l}{ts : FileVec l} -> (i : Fin l) -> {p : OpenH i (getPurpose i ts) ts} -> File ts (ts [ i ]= Closed) TyUnit
   GETLINE : ∀ {l}{ts : FileVec l} -> (i : Fin l) -> {p : OpenH i Reading ts} -> File ts ts (TyLift String)
@@ -120,7 +120,7 @@ postulate
   fclose : EpicFile -> IO Unit
   fread  : EpicFile -> IO String
   feof   : EpicFile -> IO Bool
-  fwrite : EpicFile -> String -> IO Unit 
+  fwrite : EpicFile -> String -> IO Unit
 
 {-# COMPILED_EPIC while (add : Any, body : Any, u : Unit) -> Any = %while (add(u), body(u)) #-}
 {-# COMPILED_EPIC fopen (fp : Any, mode : Any, u : Unit) -> Ptr = foreign Ptr "fopen" (fp : String, mode : String) #-}
@@ -130,7 +130,7 @@ postulate
 {-# COMPILED_EPIC fwrite (file : Ptr, str : Any, u : Unit) -> Unit =  foreign Unit "fputs" (str : String, file : Ptr) #-}
 
 fmap : {A B : Set} -> (A -> B) -> IO A -> IO B
-fmap f io = 
+fmap f io =
   x <- io ,
   return (f x)
 
@@ -142,14 +142,14 @@ data MIO (A : Set) : Set where
 MBind : {A B : Set} -> MIO A -> (A -> MIO B) -> MIO B
 MBind (Return x) f = f x
 MBind (ABind io k) f = ABind io (λ x -> MBind (k x) f)
--- MBind (While b u) f  = 
+-- MBind (While b u) f  =
 
 mmap : {A B : Set} -> (A -> B) -> MIO A -> MIO B
 mmap f mio = MBind mio (λ x -> Return (f x))
 
 runMIO : {A : Set} -> MIO A -> IO A
 runMIO (Return x) = return x
-runMIO (ABind io f) = 
+runMIO (ABind io f) =
    x <- io ,
    runMIO (f x)
 
@@ -166,17 +166,17 @@ interp env (BIND code k) =
 interp env (OPEN p fpath) =
     ABind (fopen fpath (getMode p)) (λ fh ->
     Return (addEnd env (OpenFile fh), bound))
-interp env (CLOSE i {p = p}) = 
+interp env (CLOSE i {p = p}) =
     ABind (fclose (getFile {_} {i} {ope = p} env)) (\ _ ->
     Return (updateEnv env i ClosedFile , unit))
-interp env (GETLINE i {p = p}) = 
+interp env (GETLINE i {p = p}) =
     ABind (fread (getFile {_} {i} {ope = p} env)) (λ x -> Return (env , x))
 interp env (EOF i {p = p}) =
-    
+
     ABind (feof (getFile {_} {i} {ope = p} env)) (\ e ->
     Return (env , e))
 interp env (PUTLINE i str {p = p}) =
-      ABind (fwrite (getFile {i = i} {ope = p} env) str) (λ _ -> 
+      ABind (fwrite (getFile {i = i} {ope = p} env) str) (λ _ ->
       ABind (fwrite (getFile {i = i} {ope = p} env) "\n") (λ x ->
       Return (env , unit)))
 
@@ -196,7 +196,7 @@ infixr 0 _%%_
 cat : File [] (Closed :: []) TyUnit
 cat = (
     fz := OPEN Reading "tests/Cat.out" %
-    WHILE (b := EOF fz % RETURN (not b)) ( 
+    WHILE (b := EOF fz % RETURN (not b)) (
         str := GETLINE fz %
         ACTION (putStrLn str)
     ) %%
@@ -232,12 +232,12 @@ cat : File [] (Closed :: []) TyUnit
 cat = BIND (OPEN Reading "tests/Cat.out") cont
 
 copy : File [] (Closed :: Closed :: []) TyUnit
-copy = 
-  BIND (OPEN Reading "copy/input")  (λ _ → 
-  BIND (OPEN Writing "copy/output") (λ _ → 
-  BIND (WHILE (BIND (EOF fz) (λ b → RETURN (not b))) 
-       (BIND (GETLINE fz) (λ str → PUTLINE (fs fz) str))) (λ _ → 
-  BIND (CLOSE fz) (λ _ → 
+copy =
+  BIND (OPEN Reading "copy/input")  (λ _ →
+  BIND (OPEN Writing "copy/output") (λ _ →
+  BIND (WHILE (BIND (EOF fz) (λ b → RETURN (not b)))
+       (BIND (GETLINE fz) (λ str → PUTLINE (fs fz) str))) (λ _ →
+  BIND (CLOSE fz) (λ _ →
   CLOSE (fs fz)))))
 
 runProg : {n : Nat} -> File [] (allClosed n) TyUnit -> IO Unit

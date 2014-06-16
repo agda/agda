@@ -17,7 +17,5 @@ f1 {A} a = g a
 f2 : forall {A : Set} -> A -> A
 f2 {A} a = g a
       where g : A -> A
-            g = f2 
-
-
+            g = f2
 

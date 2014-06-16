@@ -22,7 +22,7 @@ mutual
   winst x i [ s ]     sg = G[ winsts x i s sg ]
   winst x i (fn A f)  fg = Gfn A \ a -> winst x i (f a) (fg a)
   winst x i (\\ b)    bg = G\\ (winst (pop x) (shift popH i) b bg)
-  winst x i (h $ s)   pg = wing x i h (fst pg) (winsts x i s (snd pg)) 
+  winst x i (h $ s)   pg = wing x i h (fst pg) (winsts x i s (snd pg))
 
   winsts : {G : Cxt}{C : Kind}{L : Loc}{Z : Gnd}{I : Kind}
            (x : L ! I) -> G [ L bar x / Term C ]- I ->

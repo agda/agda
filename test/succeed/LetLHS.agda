@@ -2,6 +2,6 @@
 module LetLHS where
 
 f : {A B : Set} -> A -> B -> A
-f {A}{B} = let const : A -> B -> A 
+f {A}{B} = let const : A -> B -> A
                const x y = x
            in const

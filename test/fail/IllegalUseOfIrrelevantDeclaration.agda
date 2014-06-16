@@ -2,7 +2,7 @@
 
 module IllegalUseOfIrrelevantDeclaration where
 
-import Common.Irrelevance  
+import Common.Irrelevance
 
 record Subset (A : Set) (P : A -> Set) : Set where
   constructor _#_

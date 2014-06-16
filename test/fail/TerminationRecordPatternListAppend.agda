@@ -10,7 +10,7 @@ record Unit : Set where
 data Bool : Set where
   true false : Bool
 
-T : Bool -> Set 
+T : Bool -> Set
 T true = Unit
 T false = Empty
 

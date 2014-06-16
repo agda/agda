@@ -1,8 +1,8 @@
 -- Andreas, 2011-10-02
 module NotApplyingInDontCareTriggersInternalError where
-import Common.Irrelevance  
+import Common.Irrelevance
 
-postulate 
+postulate
   Val : Set
   App : Val -> Val -> Val -> Set
 
@@ -27,7 +27,7 @@ record Those (P : Val → Set)(R : Rel)(P' : Val → Set) : Set where
   constructor those
   field
     B    : Val
-    B'   : Val 
+    B'   : Val
     PB   : P B
     PB'  : P' B'
     RBB' : R B B'
@@ -41,13 +41,13 @@ FamTrans {AA = AA} TA FF = ∀ {a1 a2 a3}(a12 : AA a1 a2)(a23 : AA a2 a3) →
   FF (TA a12 a23) b1 b3
 
 Π : (AA : Rel) → Fam AA → Rel
-Π AA FF g g' = ∀ {a a'} → .(a≼a' : AA a a') → 
+Π AA FF g g' = ∀ {a a'} → .(a≼a' : AA a a') →
   Those (App g a) (FF a≼a') (App g' a')
 
 ΠTrans : {AA : Rel}(PA : PP AA){FF : Fam AA}(TF : FamTrans {AA = AA} (trans PA) FF) →
   Transitive (Π AA FF)
-ΠTrans (pp leftRefl rightRefl trans) TF f12 f23 a≼a' with (leftRefl a≼a') 
-... | a≼a with f12 a≼a | f23 a≼a' 
+ΠTrans (pp leftRefl rightRefl trans) TF f12 f23 a≼a' with (leftRefl a≼a')
+... | a≼a with f12 a≼a | f23 a≼a'
 ΠTrans (pp leftRefl rightRefl trans) TF f12 f23 a≼a' | a≼a | those b1 b2 app1 app2 b1≼b2 | those b2' b3 app2' app3 b2'≼b3 = those b1 b3 app1 app3 ?
 
 -- This should not give the internal error:

@@ -21,7 +21,7 @@ mutual
   incF : {g : G} -> F g -> F (incG g)
   incF FB     = FA (GA FB)
   incF (FA g) = FA (incG g)
-  
+
 
 
 
@@ -29,13 +29,13 @@ mutual
   PrintF : {g : G} -> F g -> String
   PrintF FB = "FB"
   PrintF (FA g) = "(FA " +S+ PrintG g +S+ ")"
-  
+
   PrintG : G -> String
   PrintG GB     = "GB"
   PrintG (GA f) = "(GA " +S+ PrintF f +S+ ")"
-  
+
 main : IO Unit
 main =
     putStrLn (PrintF (FA (GA (FA GB)))) ,,
-    putStrLn (PrintG (incG (GA (incF FB)))) ,, -- 
+    putStrLn (PrintG (incG (GA (incF FB)))) ,, --
     return unit

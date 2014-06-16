@@ -21,5 +21,3 @@ div = RTP.primIntDiv
 mod : Int -> Int -> Int
 mod = RTP.primIntMod
 
-
-

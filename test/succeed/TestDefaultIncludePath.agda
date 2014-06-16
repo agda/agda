@@ -6,4 +6,3 @@ import Agda.Primitive
 
 -- That's it.
 
-

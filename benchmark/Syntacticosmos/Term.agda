@@ -105,7 +105,7 @@ Gnil : {G : Cxt}{C : Kind}{L : Loc}{Z : Gnd} ->
 Gnil = nil -! _
 
 _G$_ : {G : Cxt}{C : Kind}{L : Loc}{T : Kind}{Z : Gnd} ->
-        G [ L / Head ]- T  -> 
+        G [ L / Head ]- T  ->
         G [ L / Args C Z ]- T  ->
       -----------------------------
         G [ L / Term C ]- Ty Z

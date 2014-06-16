@@ -3,5 +3,5 @@
 module IrrelevantTelescope where
 
 data Wrap .(A : Set) : Set where
-  wrap : A -> Wrap A 
+  wrap : A -> Wrap A
 -- cannot use A, because it is declared irrelevant
