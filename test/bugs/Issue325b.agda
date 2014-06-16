@@ -38,7 +38,7 @@ _43 m (suc n) := suc (_43 m n)
 _43 m m       := suc m
 
 We could then try
-a) _43 x y := suc x  failing 
+a) _43 x y := suc x  failing
 b) _43 x y := suc y  succeeding
 but this only complete in the absence of recursion.
 -}

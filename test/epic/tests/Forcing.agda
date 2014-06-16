@@ -28,7 +28,7 @@ len4 (_::_ {S n} x xs) = S (S n)
 
 
 main : IO Unit
-main = 
+main =
     printNat (len  l1) ,,
     printNat (len  l2) ,,
     printNat (len  l3) ,,

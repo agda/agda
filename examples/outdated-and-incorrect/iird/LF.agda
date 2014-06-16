@@ -44,11 +44,10 @@ A * B = A × \_ -> B
 
 -- data _×'_ (A : Set)(B : A -> Set1) : Set1 where
 --   _,'_ : (a : A) -> B a -> A ×' B
--- 
+--
 -- π₀' : {A : Set}{B : A -> Set1} -> A ×' B -> A
 -- π₀' (a ,' b) = a
--- 
+--
 -- π₁' : {A : Set}{B : A -> Set1}(p : A ×' B) -> B (π₀' p)
 -- π₁' (a ,' b) = b
-
 

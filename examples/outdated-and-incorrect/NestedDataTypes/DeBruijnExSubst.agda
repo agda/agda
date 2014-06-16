@@ -9,14 +9,14 @@ open Chain
 
 open import DeBruijn
 
--- untyped de Bruijn terms 
+-- untyped de Bruijn terms
 data LamE (A : Set) : Set where
     varE  : A -> LamE A
     appE  : LamE A -> LamE A -> LamE A
     absE  : LamE (Maybe A) -> LamE A
     flatE : LamE (LamE A) -> LamE A
 
--- functoriality of LamE 
+-- functoriality of LamE
 lamE : {A B : Set} -> (A -> B) -> LamE A -> LamE B
 lamE f (varE a)     = varE (f a)
 lamE f (appE t1 t2) = appE (lamE f t1) (lamE f t2)
@@ -27,7 +27,7 @@ lamE f (flatE r)    = flatE (lamE (lamE f) r)
 eval' : {A B : Set} -> (A -> B) -> LamE A -> Lam B
 eval' f (varE a)     = var (f a)
 eval' f (appE t1 t2) = app (eval' f t1) (eval' f t2)
-eval' f (absE r)     = abs (eval' (fmap f) r) 
+eval' f (absE r)     = abs (eval' (fmap f) r)
 eval' f (flatE r)    = subst id (eval' (eval' f) r)
 
 eval : {A : Set} -> LamE A -> Lam A
@@ -40,7 +40,7 @@ eval (appE t1 t2) = app (eval t1) (eval t2)
 eval (absE r)     = abs (eval r)
 eval (flatE r)    = subst eval (eval r)
 
-evalNAT : {A B : Set}(f : A -> B) -> (t : LamE A) -> 
+evalNAT : {A B : Set}(f : A -> B) -> (t : LamE A) ->
   eval (lamE f t) ≡ lam f (eval t)
 evalNAT f (varE a)     = refl
 evalNAT f (appE t1 t2) =
@@ -64,7 +64,7 @@ evalNAT f (absE r) =
      === abs (lam (fmap f) (eval r))     by  cong abs (evalNAT (fmap f) r)
      === lam f (abs (eval r))            by  refl
      === lam f (eval (absE r))           by  refl
-evalNAT f (flatE r) = 
+evalNAT f (flatE r) =
   chain> eval (lamE f (flatE r))
      === eval (flatE (lamE (lamE f) r))
        by refl
@@ -83,7 +83,7 @@ evalNAT f (flatE r) =
 
 evalNATcor : {A : Set}(ee : LamE (LamE A)) ->
   subst id (eval (lamE eval ee)) ≡ eval (flatE ee)
-evalNATcor ee = 
+evalNATcor ee =
   chain> subst id (eval (lamE eval ee))
      === subst id (lam eval (eval ee))  by  cong (subst id) (evalNAT eval ee)
      === subst eval (eval ee)           by  substLaw1 eval id (eval ee)

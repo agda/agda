@@ -86,4 +86,3 @@ completeT (defg x g)  (tx-def s) with step g (\x -> theOracle s x)
                                     | completeT g s
 ... | ._ | isSpeak = isSpeak
 
-

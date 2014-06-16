@@ -17,7 +17,7 @@ module Introduction.Basics where
 -}
 
 -- Agda can be used as a pure logical framework. The 'postulate' declaration
--- introduces new constants : 
+-- introduces new constants :
 postulate
   N : Set     -- Set is the first universe
   z : N
@@ -62,7 +62,7 @@ odd (suc n) = even n
 
 -- Agda is a monomorphic, but dependently typed, language. This means that
 -- polymorphism is simulated by having functions take type arguments. For
--- instance, the polymorphic identity function can be represented as follows : 
+-- instance, the polymorphic identity function can be represented as follows :
 
 id : (A : Set) -> A -> A        -- the dependent function space is written (x : A) -> B
 id A x = x

@@ -5,4 +5,3 @@ data Pair (a b : Set1) : Set1 where
 data Unit : Set1 where
   unit : Unit
 
-

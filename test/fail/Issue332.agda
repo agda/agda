@@ -5,6 +5,3 @@ id x = x
 
 syntax id x = id x -- This makes parsing id x ambiguous
 
-
-
-

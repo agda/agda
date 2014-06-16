@@ -29,13 +29,13 @@ foo ()
 
   D true tt = D (id true) _
 
-true = id true is postponed, but then tt is handled of type 
+true = id true is postponed, but then tt is handled of type
 
   If (id true)...
 
 which is not a data or record type, causing the panic
 
-Solution: do not postpone but fail, since in D : (b : Bool) -> X 
+Solution: do not postpone but fail, since in D : (b : Bool) -> X
 
   X depends on b
 

@@ -17,16 +17,16 @@ postulate
   readChar : Stream -> IO Char
   strLen : String -> Nat
   charAt : (s : String) -> Nat -> Char
-  
+
 _`_`_ : {A B C : Set}(x : A)(f : A -> B -> C)(y : B) -> C
-x ` f ` y = f x y 
+x ` f ` y = f x y
 
 infixr 9 _∘_
 
 _∘_ : {A : Set}{B : A -> Set}{C : (x : A) -> B x -> Set}
       (f : {a : A}(b : B a)-> C a b)
       (g : (a : A) -> B a)(x : A) -> C x (g x)
-f ∘ g = λ x -> f (g x) 
+f ∘ g = λ x -> f (g x)
 
 infixr 1 _$_
 
@@ -42,13 +42,13 @@ f $ x = f x
 readStream : Stream -> IO (List Char)
 readStream stream =
     c <- readChar stream ,
-    if' charEq eof c 
-        then pclose stream ,, return [] 
-        else ( cs <- readStream stream 
+    if' charEq eof c
+        then pclose stream ,, return []
+        else ( cs <- readStream stream
              , return (c :: cs))
 
 system : String -> IO (List Char)
-system s = 
+system s =
     putStrLn $ "system " +S+ s ,,
     x <- popen s "r" ,
     y <- readStream x ,
@@ -88,21 +88,21 @@ mapM : {A B : Set} -> (A -> IO B) -> List A -> IO (List B)
 mapM f xs = sequence (map f xs)
 
 printList : List Char -> IO Unit
-printList xs = 
+printList xs =
   mapM printChar xs ,,
   printChar '\n'
 
 printResult : FilePath -> List Char -> List Char -> IO Unit
-printResult filename l1 l2 with l1 ` listEq charEq ` l2 
+printResult filename l1 l2 with l1 ` listEq charEq ` l2
 ... | true  = putStrLn (filename +S+ ": Success!")
 ... | false = putStrLn (filename +S+ ": Fail!") ,,
-              putStrLn "Expected:" ,, 
+              putStrLn "Expected:" ,,
               printList l2       ,,
               putStrLn "Got:"      ,,
-              printList l1       
+              printList l1
 
 compile : FilePath -> FilePath -> IO Unit
-compile dir file = 
+compile dir file =
     system $ "agda --epic --compile-dir=" +S+ dir +S+ "bin/ " +S+ dir +S+ file ,,
     return unit
 
@@ -123,7 +123,7 @@ stripFileEnding : FilePath -> FilePath
 stripFileEnding fp = fromList $ fst $ span (not ∘ charEq '.') (fromString fp)
 
 testFile : FilePath -> FilePath -> FilePath -> IO Bool
-testFile outdir agdafile outfile = 
+testFile outdir agdafile outfile =
     compile outdir (agdafile)           ,,
     out      <- system $ outdir +S+ "bin/" +S+ stripFileEnding agdafile ,
     expected <- readFile (outdir +S+ outfile)    ,
@@ -155,7 +155,7 @@ isDot '.' = true
 isDot _   = false
 
 testFiles : FilePath -> IO Bool
-testFiles dir = 
+testFiles dir =
     files <- getFiles dir ,
     putStrLn "Found the following files in the tests directory:" ,,
     mapM printList files   ,,
@@ -163,8 +163,8 @@ testFiles dir =
     return $ and res
 
 getCurrentDirectory : IO FilePath
-getCurrentDirectory = 
-   fromList <$> system "pwd" 
+getCurrentDirectory =
+   fromList <$> system "pwd"
 
 main : IO Unit
 main =
@@ -178,6 +178,6 @@ main =
     putStrLn dir ,,
     system ("rm " +S+ dir +S+ "/tests/*.agdai") ,,
     res <- testFiles (dir +S+ "/tests/") ,
-    (if res 
+    (if res
       then putStrLn "All tests succeeded! "
       else putStrLn "Not all tests succeeded ")

@@ -23,13 +23,13 @@ module Direct where
   divModˢ : (a b : Nat) -> DivMod a (suc b)
   divModˢ zero    b = dm 0 zero
   divModˢ (suc a) b with divModˢ a b
-  divModˢ (suc ._) b | dm q r with maxView r 
+  divModˢ (suc ._) b | dm q r with maxView r
   divModˢ (suc ._) b | dm q .(fromNat b) | theMax
     with toNat (fromNat b) | lem-toNat-fromNat b
   ...  | .b | refl = dm {suc b} (suc q) zero
   divModˢ (suc ._) b | dm q .(weaken i)  | notMax i
     with toNat (weaken i) | lem-toNat-weaken i
-  ...  | .(toNat i) | refl = dm q (suc i) 
+  ...  | .(toNat i) | refl = dm q (suc i)
 
   divMod : (a b : Nat){nz : NonZero b} -> DivMod a b
   divMod a zero {}
@@ -97,5 +97,4 @@ _div_ a b {nz} = getQ (divMod a b {nz})
 
 _mod_ : (a b : Nat){nz : NonZero b} -> Nat
 _mod_ a b {nz} = getR (divMod a b {nz})
-
 

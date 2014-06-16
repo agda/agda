@@ -17,7 +17,7 @@ open Fork
 
 data D : Fork -> Set where
   c : (x y : A) -> D (pair x y)
-  
+
 postulate p : Fork
 
 f : D p -> Set
@@ -40,5 +40,4 @@ postulate q : ⊤
 
 g : E q -> Set
 g e = ⊤
-
 

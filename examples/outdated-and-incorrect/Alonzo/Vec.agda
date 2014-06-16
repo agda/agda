@@ -3,8 +3,8 @@ module examples.Vec where
   data One : Set where
     unit : One
 
-  data Nat : Set where 
-    zero : Nat 
+  data Nat : Set where
+    zero : Nat
     suc  : Nat -> Nat
 
   data _*_ (A B : Set) : Set where
@@ -110,8 +110,8 @@ module examples.Vec where
   {- identity and composition -}
 
   idR : (n : Nat) -> n `Ren` n
-  idR n = vTab n (\i -> i) 
-  
+  idR n = vTab n (\i -> i)
+
   coR : (l m n : Nat) -> m `Ren` n -> l `Ren` m -> l `Ren` n
   coR l m n m2n l2m = vMap l (vProj m m2n) l2m
 

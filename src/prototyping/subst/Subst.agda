@@ -68,7 +68,7 @@ wkS : ∀ {Γ Δ} Ψ → Sub Γ Δ → Sub (Γ ++ Ψ) Δ
 wkS ε ρ = ρ
 wkS Ψ (x ∷ ρ) = (apply (wk Ψ id) x) ∷ wkS Ψ ρ
 wkS Ψ (lift Ψ₁ ρ) = wk Ψ (lift Ψ₁ ρ)
-wkS Ψ (wk Ψ₁ ρ) = cast (assoc Ψ) refl (wkS (Ψ₁ ++ Ψ) ρ) 
+wkS Ψ (wk Ψ₁ ρ) = cast (assoc Ψ) refl (wkS (Ψ₁ ++ Ψ) ρ)
 wkS Ψ id = wk Ψ id
 wkS Ψ ∅ = ∅
 

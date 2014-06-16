@@ -6,4 +6,3 @@ mutual
   B = Set
   record Foo : Set where
 
-

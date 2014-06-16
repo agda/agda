@@ -110,4 +110,3 @@ weaken-○-scope {Γ} {Δ · A} {T} ((m , t) , ts) = {!!} where
                       t
   helper3 = {!!}
 
-

@@ -72,5 +72,3 @@ NatInfty = Nat {∞}
 {-# BUILTIN NATURAL  NatInfty  #-}
 -- {-# BUILTIN NATPLUS     add       #-} -- not accepted
 
-
-

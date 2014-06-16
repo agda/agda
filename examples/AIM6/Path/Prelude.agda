@@ -73,7 +73,7 @@ data Inspect (b : Bool) : Set where
   itsTrue  : IsTrue b -> Inspect b
   itsFalse : IsFalse b -> Inspect b
 
-inspect : (b : Bool) -> Inspect b 
+inspect : (b : Bool) -> Inspect b
 inspect true  = itsTrue  _
 inspect false = itsFalse _
 

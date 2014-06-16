@@ -20,7 +20,7 @@ module POrder {A : Set}(ord : PartialOrder A) where
 
   Monotone : (A -> A) -> Set
   Monotone f = forall {x y} -> x ≤ y -> f x ≤ f y
-  
+
   Antitone : (A -> A) -> Set
   Antitone f = forall {x y} -> x ≤ y -> f y ≤ f x
 

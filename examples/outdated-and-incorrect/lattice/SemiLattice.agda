@@ -76,7 +76,7 @@ module SemiLat {A : Set}(L : SemiLattice A) where
   ⊓-monotone-R x≤y = ⊓-glb ⊓-lbL (≤-trans ⊓-lbR x≤y)
 
   ⊓-monotone-L : forall {a} -> Monotone (\x -> x ⊓ a)
-  ⊓-monotone-L {a}{x}{y} x≤y = 
+  ⊓-monotone-L {a}{x}{y} x≤y =
     trans> x ⊓ a
        -≤- a ⊓ x  by ==≤-L ⊓-commute
        -≤- a ⊓ y  by ⊓-monotone-R x≤y
@@ -93,7 +93,7 @@ module SemiLat {A : Set}(L : SemiLattice A) where
                            (≤⊓-compat (==≤-R wy) (==≤-R xz))
 
   ⊓-cong-L : forall {x y z} -> x == y -> (x ⊓ z) == (y ⊓ z)
-  ⊓-cong-L xy = ⊓-cong xy ==-refl 
+  ⊓-cong-L xy = ⊓-cong xy ==-refl
 
   ⊓-cong-R : forall {x y z} -> x == y -> (z ⊓ x) == (z ⊓ y)
   ⊓-cong-R xy = ⊓-cong ==-refl xy

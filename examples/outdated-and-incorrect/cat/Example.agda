@@ -97,4 +97,3 @@ term (obj Zero) = ?
 init : Initial (obj Zero)
 init = ?
 
-

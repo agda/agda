@@ -31,7 +31,7 @@ args = buildArgs numArgs
 {-# COMPILED_EPIC return (u1 : Unit, a : Any) -> Any = ioreturn(a) #-}
 {-# COMPILED_EPIC _>>=_ (u1 : Unit, u2 : Unit, x : Any, f : Any) -> Any = iobind(x,f) #-}
 {-# COMPILED_EPIC numArgs () -> BigInt = foreign BigInt "numArgsBig" () #-}
-{-# COMPILED_EPIC getArg  (n : BigInt) -> Any = foreign Any "getArgBig" (n : BigInt) #-} 
+{-# COMPILED_EPIC getArg  (n : BigInt) -> Any = foreign Any "getArgBig" (n : BigInt) #-}
 
 postulate
   natToString : Nat -> String

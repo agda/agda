@@ -19,7 +19,7 @@ primitive
   primStringFromList : List Char → String
   primStringEquality : String → String → Bool
 
-{-# COMPILED_EPIC nil () -> String = "" #-} 
+{-# COMPILED_EPIC nil () -> String = "" #-}
 {-# COMPILED_EPIC primStringToNat (s : String) -> BigInt = foreign BigInt "strToBigInt" (s : String) #-}
 -- {-# COMPILED_EPIC charToString (c : Int) -> String = charToString(c) #-}
 

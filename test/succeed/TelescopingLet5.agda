@@ -21,4 +21,3 @@ module M (open B a) (x : A) where
   postulate cc : C
 -- M.cc : (a : B.A a) → B.A a
 
-

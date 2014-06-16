@@ -227,7 +227,7 @@ module Nat where
     r (suc n) = r n
 
     -- reflexivity of EqNat
-    rf : (n : Nat) -> EqNat n n 
+    rf : (n : Nat) -> EqNat n n
     rf = \ x -> eqnat (r x)
 
     s : (x y : Nat) -> eqNat x y -> eqNat y x

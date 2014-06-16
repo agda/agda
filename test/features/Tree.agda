@@ -5,12 +5,12 @@ data Bool : Set where
   true false : Bool
 
 record Tree (A : Set) : Set where
-  field 
+  field
     label : A
     child : Bool -> Tree A
 open Tree
 
--- corecursive function defined by copattern matching 
+-- corecursive function defined by copattern matching
 alternate : {A : Set}(a b : A) -> Tree A
 -- deep copatterns:
 label (child (alternate a b) false)       = b
@@ -25,7 +25,7 @@ label {A = A} (alternate a b)      = a
                  a
             b        b
           a   a    a   a
-         b b b b  b b b b 
+         b b b b  b b b b
                ...
 -}
 
@@ -39,7 +39,7 @@ collect : List Bool -> {A : Set} -> Tree A -> List A
 collect []       t = []
 collect (b :: l) t = label t :: collect l (child t b)
 
-test : List Bool 
+test : List Bool
 test = collect (true :: true :: true :: []) (alternate true false)
 -- should give true :: false : true :: []
- 
+

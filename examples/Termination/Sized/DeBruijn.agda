@@ -3,14 +3,14 @@ module DeBruijn where
 open import Data.Function -- composition, identity
 open import Data.Maybe
 open import Relation.Binary.PropositionalEquality
-open ≡-Reasoning 
+open ≡-Reasoning
 
 open import Category.Functor
 
 fmap : {A B : Set} -> (A -> B) -> Maybe A -> Maybe B
 fmap = RawFunctor._<$>_ MaybeFunctor
 
--- OR: 
+-- OR:
 -- open RawFunctor MaybeFunctor using () renaming (_<$>_ to fmap)
 
 fmapExt : {A B : Set}{f g : A -> B} ->
@@ -22,24 +22,24 @@ fmapLaw1 : {A : Set}(a : Maybe A) -> fmap id a ≡ a
 fmapLaw1 nothing  = ≡-refl
 fmapLaw1 (just a) = ≡-refl
 
-fmapLaw2 : {A B C : Set}(f : B -> C)(g : A -> B) -> 
+fmapLaw2 : {A B C : Set}(f : B -> C)(g : A -> B) ->
           forall m -> fmap f (fmap g m) ≡ fmap (f ∘ g) m
 fmapLaw2 f g nothing  = ≡-refl
 fmapLaw2 f g (just a) = ≡-refl
 
--- untyped de Bruijn terms 
+-- untyped de Bruijn terms
 data Lam (A : Set) : Set where
     var : A -> Lam A
     app : Lam A -> Lam A -> Lam A
     abs : Lam (Maybe A) -> Lam A
 
--- functoriality of Lam 
+-- functoriality of Lam
 lam : {A B : Set} -> (A -> B) -> Lam A -> Lam B
 lam f (var a)     = var (f a)
 lam f (app t1 t2) = app (lam f t1) (lam f t2)
 lam f (abs r)     = abs (lam (fmap f) r)
 
-lamExt : {A B : Set}{f g : A -> B} -> 
+lamExt : {A B : Set}{f g : A -> B} ->
          (forall a -> f a ≡ g a) -> forall t -> lam f t ≡ lam g t
 lamExt f≡g (var a)   = ≡-cong var (f≡g a)
 lamExt f≡g (abs r)   = ≡-cong abs (lamExt (fmapExt f≡g) r)
@@ -66,7 +66,7 @@ lamLaw1 (abs t) = begin
   abs t
      ∎
 
-lamLaw2 : {A B C : Set}(f : B -> C)(g : A -> B) -> 
+lamLaw2 : {A B C : Set}(f : B -> C)(g : A -> B) ->
           forall t -> lam f (lam g t) ≡ lam (f ∘ g) t
 lamLaw2 f g (var a)   = ≡-refl
 lamLaw2 f g (app r s) = ≡-cong₂ app (lamLaw2 f g r) (lamLaw2 f g s)
@@ -114,12 +114,12 @@ substExt {f = f}{g = g} H (app t1 t2) = begin
      ≡⟨ ≡-cong (\ x -> app (subst g t1) x) (substExt H t2) ⟩
   app (subst g t1) (subst g t2)
      ∎
-substExt {f = f}{g = g} H (abs r) = begin 
+substExt {f = f}{g = g} H (abs r) = begin
   subst f (abs r)
      ≡⟨ ≡-refl ⟩
-  abs (subst (lift f) r)  
+  abs (subst (lift f) r)
      ≡⟨ ≡-cong abs (substExt (liftExt H) r) ⟩
-  abs (subst (lift g) r)  
+  abs (subst (lift g) r)
      ≡⟨ ≡-refl ⟩
   subst g (abs r)
      ∎
@@ -127,32 +127,32 @@ substExt {f = f}{g = g} H (abs r) = begin
 -- Lemma: lift g ∘ fmap f = lift (g ∘ f)
 liftLaw1 : {A B C : Set}(f : A -> B)(g : B -> Lam C)(t : Maybe A) ->
   lift g (fmap f t) ≡ lift (g ∘ f) t
-liftLaw1 f g nothing = begin 
-  lift g (fmap f nothing) 
+liftLaw1 f g nothing = begin
+  lift g (fmap f nothing)
      ≡⟨ ≡-refl ⟩
   lift g nothing
      ≡⟨ ≡-refl ⟩
-  var nothing   
+  var nothing
      ≡⟨ ≡-refl ⟩
   lift (g ∘ f) nothing
      ∎
-liftLaw1 f g (just a) = begin 
+liftLaw1 f g (just a) = begin
   lift g (fmap f (just a))
      ≡⟨ ≡-refl ⟩
-  lift g (just (f a)) 
+  lift g (just (f a))
      ≡⟨ ≡-refl ⟩
-  lam just (g (f a))  
+  lam just (g (f a))
      ≡⟨ ≡-refl ⟩
   lift (g ∘ f) (just a)
      ∎
 
 -- Lemma: subst g ∘ lam f t = subst (g ∘ f)
-substLaw1 : {A B C : Set}(f : A -> B)(g : B -> Lam C)(t : Lam A) -> 
+substLaw1 : {A B C : Set}(f : A -> B)(g : B -> Lam C)(t : Lam A) ->
   subst g (lam f t) ≡ subst (g ∘ f) t
 
 substLaw1 f g (var a) = ≡-refl
 
-substLaw1 f g (app t1 t2) = begin 
+substLaw1 f g (app t1 t2) = begin
   subst g (lam f (app t1 t2))
      ≡⟨ ≡-refl ⟩
   subst g (app (lam f t1) (lam f t2))
@@ -209,7 +209,7 @@ liftLaw2 f g (just a) = begin
 substLaw2 : {A B C : Set}(f : B -> C)(g : A -> Lam B)(t : Lam A) ->
   subst (lam f ∘ g) t ≡ lam f (subst g t)
 
-substLaw2 f g (var a) = ≡-refl 
+substLaw2 f g (var a) = ≡-refl
 
 substLaw2 f g (app r s) = begin
   subst (lam f ∘ g) (app r s)
@@ -231,7 +231,7 @@ substLaw2 f g (abs t) = begin
   abs (subst (lift (lam f ∘ g)) t)
      ≡⟨ ≡-cong abs (substExt (liftLaw2 f g) t) ⟩
   abs (subst (lam (fmap f) ∘ (lift g)) t)
-     ≡⟨ ≡-cong abs (substLaw2 (fmap f) (lift g) t) ⟩    
+     ≡⟨ ≡-cong abs (substLaw2 (fmap f) (lift g) t) ⟩
   abs (lam (fmap f) (subst (lift g) t))
      ≡⟨ ≡-refl ⟩
   lam f (abs (subst (lift g) t))

@@ -46,4 +46,3 @@ thm = theorem 11 \a b c d e f g h i j k ->
 
 test = prove thm
 
-

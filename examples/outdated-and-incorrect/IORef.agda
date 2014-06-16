@@ -18,7 +18,7 @@ module IORef where
 
   data Fin : Nat -> Set where
     fz : {n : Nat} -> Fin (suc n)
-    fs : {n : Nat} -> Fin n -> Fin (suc n) 
+    fs : {n : Nat} -> Fin n -> Fin (suc n)
 
   infixr 40 _::_
   infixl 20 _!_
@@ -45,7 +45,7 @@ module IORef where
   Shape : Nat -> Set
   Shape n = Vec U n -- Fin n -> U
 
-  -- Shapes can grow as you allocate new memory  
+  -- Shapes can grow as you allocate new memory
   _||_ : {n : Nat} -> Shape n -> U -> Shape (suc n)
   xs || u = u :: xs
 
@@ -57,7 +57,7 @@ module IORef where
     ε	: Heap []
     _▻_ : {n : Nat}{s : Shape n}{a : U} -> Heap s -> el a -> Heap (s || a)
 
---   Heap : {n : Nat} -> Shape n -> Set 
+--   Heap : {n : Nat} -> Shape n -> Set
 --   Heap {n} shape = (k : Fin n) -> el (shape ! k)
 
   _[_:=_] : {n : Nat}{s : Shape n} -> Heap s -> (l : Loc n) -> el (s ! l) -> Heap s
@@ -78,12 +78,12 @@ module IORef where
   -- Well-scoped, well-typed IORefs
   data IO (A : Set) : {n m : Nat} -> Shape n -> Shape m -> Set where
     Return : {n : Nat}{s : Shape n} -> A -> IO A s s
-    WriteIORef : {n m : Nat}{s : Shape n}{t : Shape m} -> 
+    WriteIORef : {n m : Nat}{s : Shape n}{t : Shape m} ->
       (loc : Loc n) -> el (s ! loc) -> IO A s t -> IO A s t
     ReadIORef : {n m : Nat}{s : Shape n}{t : Shape m} ->
       (loc : Loc n) -> (el (s ! loc) -> IO A s t) -> IO A s t
-    NewIORef : {n m : Nat}{s : Shape n}{t : Shape m}{u : U} -> 
-      el u -> IO A (s || u) t -> IO A s t 
+    NewIORef : {n m : Nat}{s : Shape n}{t : Shape m}{u : U} ->
+      el u -> IO A (s || u) t -> IO A s t
 
   -- Running IO programs
   run : {A : Set} -> {n m : Nat} -> {s : Shape n} -> {t : Shape m}

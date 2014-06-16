@@ -32,6 +32,6 @@ module Dim (I : Set) where
 
   ⟦_⟧₂ : Poly → (I → Set) → (I → Set)
   ⟦ id D ⟧₂ x i = M.Id x i
-  
+
   data μ₂ (p : Poly) (i : I) : Set where
     fix : ⟦ p ⟧₂ (μ₂ p) i -> μ₂ p i

@@ -35,7 +35,7 @@ two : Nat
 two = suc one
 
 -- When opening a module it is possible to control what names are brought into
--- scope. The open declaration supports three modifiers : 
+-- scope. The open declaration supports three modifiers :
 
 --  using (x1; ..; xn)    only bring x1 .. xn into scope
 --  renaming (x to y;..)  bring y into scope and make it refer to the name x

@@ -9,7 +9,7 @@ record _×_ (A B : Set) : Set where
   field fst : A
         snd : B
 
-postulate 
+postulate
   A : Set
   f : .A → A
 

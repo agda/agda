@@ -58,7 +58,7 @@ module Lat {A : Set}(L : Lattice A) where
   DualLattice : Lattice A
   DualLattice = record { sl = sl'; _⊔_ = _⊓_; prf = SemiLattice.prf LL.sl }
 
-module MeetJoin {A : Set}(L : Lattice A) where 
+module MeetJoin {A : Set}(L : Lattice A) where
 
   private module L = Lat L
   open L

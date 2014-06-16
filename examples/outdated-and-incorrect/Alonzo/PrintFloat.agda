@@ -30,7 +30,7 @@ data Format : Set where
   badFormat : Char -> Format
 
 data BadFormat (c:Char) : Set where
- 
+
 format' : List Char -> List Format
 format' ('%' :: 's' :: fmt) = stringArg   :: format' fmt
 format' ('%' :: 'n' :: fmt) = natArg      :: format' fmt

@@ -27,9 +27,9 @@ record Rec (t : Set) : Set₁ where
 
 open module RecWI {t : Set} {{r : Rec t}} = Rec r
 
-postulate testT₁ : Set 
+postulate testT₁ : Set
           testV₁ : testT₁
-          testT₂ : Set 
+          testT₂ : Set
           testV₂ : testT₂
 
 testRec₁ : Rec testT₁

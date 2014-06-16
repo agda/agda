@@ -16,4 +16,3 @@ mutual
   g zero = zero
   g (suc n) = suc (f n)
 
-

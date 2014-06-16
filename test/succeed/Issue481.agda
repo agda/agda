@@ -52,4 +52,3 @@ module Test2 where
   private
     open module Rec = Issue481Record
 
-

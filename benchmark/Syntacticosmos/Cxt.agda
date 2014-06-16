@@ -35,7 +35,7 @@ _?-_ : (G : Cxt)(x : Nom){p : [| G Has x |]} -> K :- \ T -> GooN G T x
 
 topGooN : (G : Cxt)(x : Nom){p : [| G Hasn't x |]}(S : K) ->
           [| GooN ((G [ x - S ]) {p}) S x |]
-topGooN G x S with nomEq x x 
+topGooN G x S with nomEq x x
 topGooN G x S | yes refl  = refl
 topGooN G x S | no n      = magic (n refl)
 

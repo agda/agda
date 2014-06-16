@@ -48,13 +48,13 @@ tail (build step s) = build step (snd (step s))
 -- build step s = mapSnd (build step) (step s)
 
 build1 : {A S : Set} → (S → A × S) -> S -> Stream A
-build1 step s = record 
+build1 step s = record
   { head = fst (step s)
   ; tail = build1 step (snd (step s))
   }
 
 build2 : {A S : Set} → (S → A × S) -> S -> Stream A
-build2 step s = record 
+build2 step s = record
   { head = fst p
   ; tail = build2 step (snd p)
   }
@@ -63,7 +63,7 @@ build2 step s = record
 
 mapSnd : {A B C : Set}(f : B → C) → A × B → A × C
 fst (mapSnd f p) = fst p
-snd (mapSnd f p) = f (snd p) 
+snd (mapSnd f p) = f (snd p)
 
 record Str (A : Set) : Set where
   field

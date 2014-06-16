@@ -1,21 +1,21 @@
 name:                tc
 version:             0.1.0.0
--- synopsis:            
--- description:         
--- license:             
+-- synopsis:
+-- description:
+-- license:
 license-file:        LICENSE
 author:              Francesco Mazzoli
 maintainer:          f@mazzo.li
--- copyright:           
--- category:            
+-- copyright:
+-- category:
 build-type:          Simple
--- extra-source-files:  
+-- extra-source-files:
 cabal-version:       >= 1.10
 
 executable tc
   main-is:             Main.hs
-  -- other-modules:       
-  -- other-extensions:    
+  -- other-modules:
+  -- other-extensions:
 
   build-depends:       base >= 4.7
                      , array >= 0.4

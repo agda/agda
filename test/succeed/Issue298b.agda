@@ -1,5 +1,5 @@
 -- Andreas, 2012-02-14. No short-circuit conversion test for sizes!
-{-# OPTIONS --sized-types --show-implicit #-} 
+{-# OPTIONS --sized-types --show-implicit #-}
 -- {-# OPTIONS -v tc.size.solve:20 -v tc.conv.size:20 -v tc.term.con:50 -v tc.term.args:50 #-}
 
 module Issue298b where

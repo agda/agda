@@ -37,4 +37,3 @@ f' _ (zero _)  = pos _
 f' _ (suc _ _) = pos _
 -}
 
-

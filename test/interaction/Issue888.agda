@@ -15,10 +15,10 @@ f X = let Y : ℕ -> Set
 -- Issue 1112: dependent let-bindings
 
 data Singleton : ℕ → Set where
-  mkSingleton : (n : ℕ) -> Singleton n 
+  mkSingleton : (n : ℕ) -> Singleton n
 
 g : ℕ -> ℕ
-g x = 
+g x =
   let i = zero
       z = mkSingleton x
   in {!!}

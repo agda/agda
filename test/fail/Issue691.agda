@@ -25,4 +25,3 @@ unsolved y =
 istrue : (unsolved false) ≡ true
 istrue = refl
 
-

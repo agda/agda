@@ -1,7 +1,7 @@
 -- Andreas, 2011-09-11
 module Issue392 where
 
-import Common.Irrelevance  
+import Common.Irrelevance
 
 -- Create an irrelevant record R1 (all fields irrelevant).
 record R1 : Set1 where
@@ -9,7 +9,7 @@ record R1 : Set1 where
     .f1 : Set
 
 {- module R1 .(r : R1) where
-     .f1 : Set -- = R1.f1 r    
+     .f1 : Set -- = R1.f1 r
 -}
 
 -- Create an irrelevant instance f2 of R1.
@@ -17,7 +17,7 @@ record R2 : Set2 where
   field
     .f2 : R1
     f3  : Set
-  
+
 -- This succeeds even though f2 is irrelevant.
   open R1 f2 public
 

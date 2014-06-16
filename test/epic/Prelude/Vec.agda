@@ -14,7 +14,7 @@ infixr 30 _++_
 
 _++_ : {A : Set}{m n : Nat} -> Vec A m -> Vec A n -> Vec A (m + n)
 []        ++ ys = ys
-(x :: xs) ++ ys = x :: (xs ++ ys) 
+(x :: xs) ++ ys = x :: (xs ++ ys)
 
 snoc : {A : Set}{n : Nat} -> Vec A n -> A -> Vec A (S n)
 snoc []        e = e :: []

@@ -46,5 +46,3 @@ tail nats' = map suc nats'
 -- drawbacks (Q: even with varying arity?): cannot have
 -- hidden lambdas on rhs (used to name trailing hiddens in with-clauses).
 
-
-

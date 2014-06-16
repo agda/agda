@@ -86,8 +86,8 @@ thick i j i≠j = thick' i j i≠j (thinView i j) where
 -- thin∘thick=id : {n : Nat}(i j : Fin (suc n))(p : i ≢ j) ->
 -- 		thin i (thick i j p) ≡ j
 -- thin∘thick=id i j p = ?
--- 
+--
 -- thick∘thin=id : {n : Nat}(i : Fin (suc n))(j : Fin n) ->
 -- 		thick i (thin i j) (sym≢ (thin-ij≠i i j)) ≡ j
 -- thick∘thin=id i j = ?
--- 
+--

@@ -57,7 +57,7 @@ subty : forall {n} -> Ty {n} -> Ty {n} -> Bool
 subty Base Base = true
 subty (Arr a b) (Arr a' b') = (subty a' a) && (subty b b')
 subty _ _ = false
- 
+
 -- the following is enough for making it termination check
 subty' : forall {n} -> Ty {n} -> Ty {n} -> Bool
 subty' Base Base = true
@@ -269,7 +269,7 @@ data List (A : Set) : Set where
 infixr 50 _::_
 
 -- butlast function
-good1 : {A : Set} -> List A -> A 
+good1 : {A : Set} -> List A -> A
 good1 (a :: []) = a
 good1 (a :: b :: bs) = good1 (b :: bs)
 
@@ -279,11 +279,11 @@ postulate
 
 
 -- a funny formulation of insert
--- insert (a :: l)  inserts a into l 
+-- insert (a :: l)  inserts a into l
 insert : {A : Set} -> List A -> List A
 insert [] = []
 insert (a :: []) = a :: []
-insert (a :: b :: bs) = a :: b :: bs ⊕        -- case a <= b 
+insert (a :: b :: bs) = a :: b :: bs ⊕        -- case a <= b
                         b :: insert (a :: bs) -- case a > b
 
 -- list flattening

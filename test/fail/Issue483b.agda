@@ -4,7 +4,7 @@ module Issue483b where
 data _≡_ {A : Set}(a : A) : A → Set where
   refl : a ≡ a
 
-postulate 
+postulate
   A : Set
   f : .A → A
 

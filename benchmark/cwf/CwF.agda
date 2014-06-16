@@ -49,7 +49,7 @@ ext A σ u = ƛ (\x -> (σ # x , u # x))
 lem-/-· : {Γ Δ Θ : Cxt}(A : Type Γ)(σ : Δ ⇒ Γ)(δ : Θ ⇒ Δ) ->
           A / σ · δ == A / σ / δ
 lem-/-· A σ δ = eqFam refl \x y x=y ->
-  !-cong-R A (sym (cast-id' _ (#-cong-R σ (#-cong-R δ (cast-id' _ (sym x=y)))))) 
+  !-cong-R A (sym (cast-id' _ (#-cong-R σ (#-cong-R δ (cast-id' _ (sym x=y))))))
 
 lem-wk-∘-ext : {Γ Δ : Cxt}(A : Type Δ)(σ : Γ ⇒ Δ)(u : Term Γ (A / σ)) ->
             wk A ∘ ext A σ u == σ

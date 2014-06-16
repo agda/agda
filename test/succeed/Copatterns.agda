@@ -158,4 +158,3 @@ module InstanceArgument where
   assoc m k l = refl
 -}
 
-

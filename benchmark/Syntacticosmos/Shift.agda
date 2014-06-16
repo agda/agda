@@ -21,7 +21,7 @@ weak : {G D : Cxt}{L M : Loc}{S : Kind} ->
        ({T : Kind} -> G [ L / Head ]- T -> D [ M / Head ]- T) ->
        {T : Kind} -> G [ L * S / Head ]- T -> D [ M * S / Head ]- T
 weak rho (` x -! p )        = popH (rho (` x -! p))
-weak rho (# top -! _ )      = # top -! _ 
+weak rho (# top -! _ )      = # top -! _
 weak rho (# (pop v) -! _ )  = popH (rho (# v -! _))
 
 shift : {G D : Cxt}{L M : Loc} ->

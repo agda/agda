@@ -6,7 +6,7 @@ data _==_ {A : Set}(a : A) : A -> Set where
   refl : a == a
 
 record Sigma (A : Set)(B : A -> Set) : Set where
-  constructor _,_ 
+  constructor _,_
   field
     fst : A
     snd : B fst
@@ -14,7 +14,7 @@ open Sigma public
 
 testProj : {A : Set}{B : A -> Set}(y z : Sigma A B) ->
   let X : Sigma A B
-      X = _ 
+      X = _
   in fst X == fst y -> snd X == snd z
 testProj y z = refl , refl
 {-  OLD BEHAVIOR: Error message about telescope comparison unreadable

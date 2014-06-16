@@ -170,5 +170,3 @@ module Process (param : Param) where
             q -! xs  !->* r ->
             p -! xs  !->* r
 
-
-

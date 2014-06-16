@@ -27,7 +27,7 @@ nomQ {Pu x} refl = refl
 nomEq : (x y : Nom) -> Decision (x eq y)
 nomEq Ze Ze = yes refl
 nomEq Ze (Su y) = no nomQ
-nomEq Ze (Pu y) = no nomQ 
+nomEq Ze (Pu y) = no nomQ
 nomEq (Su x) Ze = no nomQ
 nomEq (Su x) (Su y) with nomEq x y
 nomEq (Su x) (Su .x) | yes refl = yes refl

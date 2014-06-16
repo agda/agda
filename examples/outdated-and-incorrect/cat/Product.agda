@@ -38,5 +38,3 @@ module Sum (ℂ : Cat) = Prod (η-Cat ℂ op)
 	     ; π₁      to inr
 	     )
 
-  
-

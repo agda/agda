@@ -75,5 +75,3 @@ Rewriting with refl is a no-op, so no error is triggered any more.
 Just an unresolved meta now.
 -}
 
-
-

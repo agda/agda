@@ -3,7 +3,7 @@
 -- {-# OPTIONS -v tc.conv.atom:50 #-}
 module Issue553c where
 
-postulate 
+postulate
   A : Set
   a : A
 
@@ -28,5 +28,5 @@ test b = refl
 -- An internal error has occurred. Please report this as a bug.
 -- Location of the error: src/full/Agda/TypeChecking/Conversion.hs:335
 
--- the problem is fixed now, since f is no longer projection-like 
+-- the problem is fixed now, since f is no longer projection-like
 -- because of deep matching

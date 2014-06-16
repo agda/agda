@@ -19,7 +19,7 @@ record PackBool : Set where
 open PackBool
 
 data IrrBool : Set where
-  irr : .(b : PackBool) -> IrrBool 
+  irr : .(b : PackBool) -> IrrBool
 
 p : irr (pack true) ≡ irr (pack false)
 p = refl
@@ -33,4 +33,4 @@ unirr (irr x) = implicit
 
 q : true ≡ false
 q = cong (λ x → unpack (unirr x)) p
- 
+

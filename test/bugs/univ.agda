@@ -17,16 +17,16 @@ data N0 : Set where
 data Sigma (A:Set)(B : A -> Set) : Set where
  Pair : (x:A) -> B x -> Sigma A B
 
-rel : Set -> Set1 
+rel : Set -> Set1
 
 rel A = A -> A -> Set
 
-pred : Set -> Set1 
+pred : Set -> Set1
 
 pred A = A -> Set
 
 Refl : {A:Set} -> rel A -> Set
-Refl {A} R = {x : A} -> R x x 
+Refl {A} R = {x : A} -> R x x
 
 Sym : {A:Set} -> rel A -> Set
 Sym {A} R = {x y : A} -> R x y -> R y x
@@ -45,7 +45,7 @@ postulate
   transN : Trans _=N_
 
 
--- mutual inductive recursive definition of S and the functions _=S_, El, eq, and all the 
+-- mutual inductive recursive definition of S and the functions _=S_, El, eq, and all the
 -- proofs on these functions
 
 mutual
@@ -69,7 +69,7 @@ mutual
 
   El' : S -> Set
   El' nat = N
-  El' (pi A F pF) = 
+  El' (pi A F pF) =
    Sigma ((x : El A) -> El (F x))
          \f -> {x y : El A}(x=y : x == y) ->
                f x == pF x=y << f y
@@ -93,7 +93,7 @@ mutual
       B=A = symS A=B
 
       F=Gc : (x : El A) -> F x =S G (B=A << x)
-      F=Gc x = 
+      F=Gc x =
         transS (transS refS (symS (pF (castlem A=B (symS A=B) x))))
         (F=G (symS A=B << x))
 
@@ -144,7 +144,7 @@ mutual
       B=A = symS A=B
 
       F=Gc : (x : El A) -> F x =S G (B=A << x)
-      F=Gc x = 
+      F=Gc x =
         chain> F x
            === F (A=B << B=A << x)  by symS (pF (castlem A=B B=A x))
            === G (B=A << x)         by F=G _
@@ -270,7 +270,7 @@ mutual
             {G : El B -> S}(pG : Map (El B) _==_ S _=S_ G)
             (F=G : (x : El B) -> F (A=B << x) =S G x)
             (x : El A) -> F x =S G (symS A=B << x)
-  lemF=Gc A=B {F} pF {G} pG F=G x = 
+  lemF=Gc A=B {F} pF {G} pG F=G x =
     chain> F x
        === F (A=B << B=A << x)  by symS (pF (castlem A=B B=A x))
        === G (B=A << x)         by F=G _
@@ -318,7 +318,4 @@ mutual
     where
       g=f : (x : El A) -> g x == f x
       g=f x = sym (f=g x)
-
-
-
 

@@ -13,14 +13,14 @@ open import DeBruijn
 Size : Set
 Size = Nat
 
--- untyped de Bruijn terms 
+-- untyped de Bruijn terms
 data LamE (A : Set) : Size -> Set where
     varE  : {ι : _} -> A -> LamE A (suc ι)
     appE  : {ι : _} -> LamE A ι -> LamE A ι -> LamE A (suc ι)
     absE  : {ι : _} -> LamE (Maybe A) ι -> LamE A (suc ι)
     flatE : {ι : _} -> LamE (LamE A ι) ι -> LamE A (suc ι)
 
--- functoriality of LamE 
+-- functoriality of LamE
 lamE : {A B : Set} -> (A -> B) -> {ι : _} -> LamE A ι -> LamE B ι
 lamE f {suc ι} (varE a)     = varE  (f a)
 lamE f {suc ι} (appE t1 t2) = appE (lamE f t1) (lamE f t2)
@@ -33,7 +33,7 @@ eval {suc ι} (appE t1 t2) = app (eval t1) (eval t2)
 eval {suc ι} (absE r)     = abs (eval r)
 eval {suc ι} (flatE r)    = subst (eval) (eval r)
 
-evalNAT : {A B : Set}(f : A -> B) -> {ι : _} -> (t : LamE A ι) -> 
+evalNAT : {A B : Set}(f : A -> B) -> {ι : _} -> (t : LamE A ι) ->
   eval (lamE f t) ≡ lam f (eval t)
 evalNAT f {suc ι} (varE a)     = refl
 evalNAT f {suc ι} (appE t1 t2) =
@@ -57,7 +57,7 @@ evalNAT f {suc ι} (absE r) =
      === abs (lam (fmap f) (eval r))     by  cong abs (evalNAT (fmap f) r)
      === lam f (abs (eval r))            by  refl
      === lam f (eval (absE r))           by  refl
-evalNAT f {suc ι} (flatE r) = 
+evalNAT f {suc ι} (flatE r) =
   chain> eval (lamE f (flatE r))
      === eval (flatE (lamE (lamE f) r))
        by refl
@@ -76,7 +76,7 @@ evalNAT f {suc ι} (flatE r) =
 
 evalNATcor : {A : Set}{ι : _}(ee : LamE (LamE A ι) ι) ->
   subst id (eval (lamE eval ee)) ≡ eval (flatE ee)
-evalNATcor ee = 
+evalNATcor ee =
   chain> subst id (eval (lamE eval ee))
      === subst id (lam eval (eval ee))  by  cong (subst id) (evalNAT eval ee)
      === subst eval (eval ee)           by  substLaw1 eval id (eval ee)

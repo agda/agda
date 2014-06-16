@@ -19,9 +19,9 @@ overzeal : let X : Nat -> Nat -> Nat
                X = _
                Y : Pair Nat Nat -> Nat
                Y = _
-           in {C : Set} ->   
+           in {C : Set} ->
               (({x y : Nat}        -> X x x ≡ Y (pair x y)) ->
-               ({z : Pair Nat Nat} -> Y z ≡ fst z)          -> 
+               ({z : Pair Nat Nat} -> Y z ≡ fst z)          ->
                ({x y : Nat}        -> X x y ≡ x)            -> C) -> C
 overzeal k = k refl refl refl
 -- This should succeed.
