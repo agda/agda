@@ -172,7 +172,7 @@ installed. You can install this program by giving the epic flag to
 cabal (but note that, at the time of writing, the Epic program does
 not build with certain recent versions of GHC):
 
-### Istalling from Hackage:
+### Installing from Hackage:
 
     cabal update
     cabal install Agda -fepic
