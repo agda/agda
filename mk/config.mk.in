@@ -19,7 +19,10 @@ GHC_FLAGS	= -O -Wall -Werror \
 			-fno-warn-unused-binds \
 			-fno-warn-unused-imports \
 			-fno-warn-type-defaults \
-			-fno-warn-orphans
+			-fno-warn-orphans \
+			-pgmPcpphs \
+			-optP--cpp
+
 
 HAPPY		= @HAPPY@
 HAPPY_VERSION	= @HAPPY_VERSION@
@@ -52,4 +55,3 @@ DIFF		= @DIFF@
 
 RUNHASKELL	= @RUNHASKELL@
 HAVE_RUNHASKELL	= @HAVE_RUNHASKELL@
-

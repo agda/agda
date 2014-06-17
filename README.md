@@ -3,27 +3,72 @@ Agda 2
 
 Table of contents:
 
+* [Prerequisites](#prerequisites)
 * [Installing Agda](#installing-agda)
 * [Configuring the Emacs mode](#configuring-the-emacs-mode)
-* [Prerequisites](#prerequisites)
 * [Installing the Epic backend's dependencies](#installing-the-epic-backends-dependencies)
-* [Installing a suitable version of Emacs under Windows](#installing-a-suitable-version-of-emacs-under-windows)
+* [Installing Emacs under Windows](#installing-emacs-under-windows)
+
+Note that this README only discusses installation of Agda, not its standard
+library. See the [Agda Wiki][agdawiki] for information about the library.
+
+
+Prerequisites
+-------------
+
+You need recent versions of the following programs/libraries:
+
+* GHC:           http://www.haskell.org/ghc/
+* cabal-install: http://www.haskell.org/cabal/
+* Alex:          http://www.haskell.org/alex/
+* Happy:         http://www.haskell.org/happy/
+* cpphs:         http://projects.haskell.org/cpphs/
+* GNU Emacs:     http://www.gnu.org/software/emacs/
+
+You should also make sure that programs installed by cabal-install are
+on your shell's search path.
+
+For instructions on installing a suitable version of Emacs under
+Windows, see [below]((#installing-emacs-under-windows).
+
+Non-Windows users need to ensure that the development files for the C
+libraries zlib and ncurses are installed (see http://zlib.net and
+http://www.gnu.org/software/ncurses/). Your package manager may be
+able to install these files for you. For instance, on Debian or Ubuntu
+it should suffice to run
+
+    apt-get install zlib1g-dev libncurses5-dev
+
+as root to get the correct files installed.
+
+### Note on ghc's CPP language extension
+
+Recent versions of Clang's preprocessor don't work well with Haskell.
+In order to get some dependencies to build, you may need to set up Cabal
+to have ghc use cpphs by default. You can do this by adding
+
+    program-default-options
+      ghc-options: -pgmPcpphs -optP--cpp
+
+to your .cabal/config file. (You must be using cabal >= 1.18. Note
+that some packages may not compile with this option set.)
+
+You don't need to set this option to install *Agda* from the current
+development source; Agda.cabal now uses cpphs.
 
 
 Installing Agda
 ---------------
 
-Note that this README only discusses installation of Agda, not its standard library. See the [Agda Wiki](http://wiki.portal.chalmers.se/agda/pmwiki.php) for information about the library.
-
 There are several ways to install Agda:
 
-### Install using a binary package, prepared for your platform.
 
-Recommended if such a package exists. See the [Agda Wiki](http://wiki.portal.chalmers.se/agda/pmwiki.php).
+### Using a binary package prepared for your platform
 
-### Install using a released source package, available from Hackage.
+Recommended if such a package exists. See the [Agda Wiki][agdawiki].
 
-(Note that if you want to install the development version of Agda, then you should use the next method.)
+
+### Using a released source package from Hackage
 
 Install the prerequisites mentioned below, then run the following commands:
 
@@ -31,7 +76,8 @@ Install the prerequisites mentioned below, then run the following commands:
     cabal install Agda
     agda-mode setup
 
-The last command tries to set up Emacs for use with Agda. As an alternative you can copy the following text to your .emacs file:
+The last command tries to set up Emacs for use with Agda. As an alternative you
+can copy the following text to your .emacs file:
 
     (load-file (let ((coding-system-for-read 'utf-8))
                     (shell-command-to-string "agda-mode locate")))
@@ -42,27 +88,30 @@ It is also possible (but not necessary) to compile the Emacs mode's files:
 
 This can, in some cases, give a noticeable speedup.
 
-  **WARNING**: If you reinstall the Agda mode without recompiling the Emacs
-  Lisp files, then Emacs may continue using the old, compiled files.
+**WARNING**: If you reinstall the Agda mode without recompiling the Emacs
+Lisp files, then Emacs may continue using the old, compiled files.
 
-### Install using the source tar balls available from the Agda Wiki, or the development version of the code available from our darcs repository.
 
-1) Install the prerequisites mentioned below.
+### Using the development version of the code
 
-2a) Run the following commands in the top-level directory of the Agda source tree:
+You can obtain tarballs of the development version from the [Agda
+Wiki][agdawiki], or clone the repository.
 
+Install the prerequisites discussed in [Prerequisites](#prerequisites).
+
+Then, either:
+
+*(1a)* Run the following commands in the top-level directory of the Agda source
+tree to install Agda:
 
     cabal update
     cabal install
-    agda-mode setup
 
-
-The last command tries to set up Emacs for use with Agda. As an alternative you can copy the following text to your .emacs file:
+*(1b)* Run `agda-mode setup` to set up Emacs for use with Agda. Alternatively,
+add the following text to your .emacs file:
 
     (load-file (let ((coding-system-for-read 'utf-8))
                     (shell-command-to-string "agda-mode locate")))
-
-If you want to have more control over where files are installed then you can give various flags to `cabal install`, see `cabal install --help`.
 
 It is also possible (but not necessary) to compile the Emacs mode's files:
 
@@ -70,9 +119,11 @@ It is also possible (but not necessary) to compile the Emacs mode's files:
 
 This can, in some cases, give a noticeable speedup.
 
-**WARNING**: If you reinstall the Agda mode without recompiling the Emacs Lisp files, then Emacs may continue using the old, compiled files.
+**WARNING**: If you reinstall the Agda mode without recompiling the Emacs
+Lisp files, then Emacs may continue using the old compiled files.
 
-3) Instead of following 2a you can try to install Agda (including a compiled Emacs mode) by running the following command:
+*(2)* Or, you can try to install Agda (including a compiled Emacs mode) by
+running the following command:
 
     make install
 
@@ -112,33 +163,6 @@ If you want to turn off this feature, then you should customise the
 agda2-fontset-name variable.
 
 
-Prerequisites
--------------
-
-You need recent versions of the following programs/libraries:
-
-* GHC:           http://www.haskell.org/ghc/
-* cabal-install: http://www.haskell.org/cabal/
-* Alex:          http://www.haskell.org/alex/
-* Happy:         http://www.haskell.org/happy/
-* GNU Emacs:     http://www.gnu.org/software/emacs/
-
-You should also make sure that programs installed by cabal-install are
-on your shell's search path.
-
-For instructions on installing a suitable version of Emacs under
-Windows, see below.
-
-Non-Windows users need to ensure that the development files for the C
-libraries zlib and ncurses are installed (see http://zlib.net and
-http://www.gnu.org/software/ncurses/). Your package manager may be
-able to install these files for you. For instance, on Debian or Ubuntu
-it should suffice to run
-
-    apt-get install zlib1g-dev libncurses5-dev
-
-as root to get the correct files installed.
-
 ------------------------------------------------------------------------
 Installing the Epic backend's dependencies
 ------------------------------------------------------------------------
@@ -148,19 +172,19 @@ installed. You can install this program by giving the epic flag to
 cabal (but note that, at the time of writing, the Epic program does
 not build with certain recent versions of GHC):
 
-### When installing from Hackage:
+### Istalling from Hackage:
 
     cabal update
     cabal install Agda -fepic
     agda-mode setup
 
-### When installing using a source tar ball, following the instructions in 2a) above:
+### Installing from development sources using cabal
 
     cabal update
     cabal install -fepic
     agda-mode setup
 
-### When installing using a source tar ball, following the instructions in 2b) above:
+### Installing from development sources using make
 
     make CABAL_OPTIONS=-fepic install
 
@@ -177,105 +201,10 @@ Note that Epic depends on other software:
 For more information about Epic: http://www.cs.st-andrews.ac.uk/~eb/epic.php
 
 ------------------------------------------------------------------------
-Installing a suitable version of Emacs under Windows
+Installing Emacs under Windows
 ------------------------------------------------------------------------
 
-Note that Agda code often uses mathematical and other symbols
-available from the Unicode character set. In order to be able to
-display these characters you may want to follow the procedure below
-when installing Emacs under Windows. (Note: These instructions are
-possibly outdated.)
+A precompiled version of Emacs 24.3, with the necessary mathematical
+fonts, is available at http://homepage.cs.uiowa.edu/~astump/agda/
 
-#### Step 1: Install NTEmacs 22.
-
-Download from http://ntemacs.sourceforge.net/ the self-extracting executable `ntemacs22-bin-20070819.exe`
-
-When executed, it asks where to extract itself.  This can be anywhere you like, but here we write the top directory for ntemacs as `c:/pkg/ntemacs` in the following.
-
-What follows is tested only on this version. Other versions may work but you have to figure out yourself how to use Unicode fonts on your version.
-
-### Step 2: Install ucs-fonts and mule-fonts for emacs.
-
-Download from http://www.cl.cam.ac.uk/~mgk25/ucs-fonts.html the tar file at http://www.cl.cam.ac.uk/~mgk25/download/ucs-fonts.tar.gz. Let us write the top directory of extracted files as `c:/pkg/ucs-fonts`
-
-Next we create some derived fonts.
-
-    cd c:/pkg/ucs-fonts/submission
-    make all-bdfs
-
-This gives an error message about missing fonts, but ignore it.
-
-Download from http://www.meadowy.org/ the tar file at http://www.meadowy.org/meadow/dists/3.00/packages/mule-fonts-1.0-4-pkg.tar.bz2. The untarred top directory is named `packages`, but we are only interested in the subdirectory `packages/fonts`.  Let us assume we moved this subdirectory to `c:/pkg/mule-fonts`.
-
-Add the following to your .emacs
-
-```
-;;;;;;;;; start of quoted elisp code
-
-(setq bdf-directory-list
-      '(
-        "c:/pkg/ucs-fonts/submission"
-        "c:/pkg/mule-fonts/intlfonts"
-        "c:/pkg/mule-fonts/efonts"
-        "c:/pkg/mule-fonts/bitmap"
-        "c:/pkg/mule-fonts/CDAC"
-        "c:/pkg/mule-fonts/AkrutiFreeFonts"
-        ))
-
-(setq w32-bdf-filename-alist
-      (w32-find-bdf-fonts bdf-directory-list))
-
-(create-fontset-from-fontset-spec
-    "-*-fixed-Medium-r-Normal-*-15-*-*-*-c-*-fontset-bdf,
-    ascii:-Misc-Fixed-Medium-R-Normal--15-140-75-75-C-90-ISO8859-1,
-    latin-iso8859-2:-*-Fixed-*-r-*-*-15-*-*-*-c-*-iso8859-2,
-    latin-iso8859-3:-*-Fixed-*-r-*-*-15-*-*-*-c-*-iso8859-3,
-    latin-iso8859-4:-*-Fixed-*-r-*-*-15-*-*-*-c-*-iso8859-4,
-    cyrillic-iso8859-5:-*-Fixed-*-r-*-*-15-*-*-*-c-*-iso8859-5,
-    greek-iso8859-7:-*-Fixed-*-r-*-*-15-*-*-*-c-*-iso8859-7,
-    latin-iso8859-9:-*-Fixed-*-r-*-*-15-*-*-*-c-*-iso8859-9,
-    mule-unicode-0100-24ff:-Misc-Fixed-Medium-R-Normal--15-140-75-75-C-90-ISO10646-1,
-    mule-unicode-2500-33ff:-Misc-Fixed-Medium-R-Normal--15-140-75-75-C-90-ISO10646-1,
-    mule-unicode-e000-ffff:-Misc-Fixed-Medium-R-Normal--15-140-75-75-C-90-ISO10646-1,
-    japanese-jisx0208:-JIS-Fixed-Medium-R-Normal--16-150-75-75-C-160-JISX0208.1983-0,
-    japanese-jisx0208-1978:-Misc-Fixed-Medium-R-Normal--16-150-75-75-C-160-JISC6226.1978-0,
-    japanese-jisx0212:-Misc-Fixed-Medium-R-Normal--16-150-75-75-C-160-JISX0212.1990-0,
-    latin-jisx0201:-*-*-medium-r-normal-*-16-*-*-*-c-*-jisx0201*-*,
-    katakana-jisx0201:-Sony-Fixed-Medium-R-Normal--16-120-100-100-C-80-JISX0201.1976-0,
-    thai-tis620:-Misc-Fixed-Medium-R-Normal--24-240-72-72-C-120-TIS620.2529-1,
-    lao:-Misc-Fixed-Medium-R-Normal--24-240-72-72-C-120-MuleLao-1,
-    tibetan:-TibMdXA-fixed-medium-r-normal--16-160-72-72-m-160-MuleTibetan-0,
-    tibetan-1-column:-TibMdXA-fixed-medium-r-normal--16-160-72-72-m-80-MuleTibetan-1,
-    korean-ksc5601:-Daewoo-Mincho-Medium-R-Normal--16-120-100-100-C-160-KSC5601.1987-0,
-    chinese-gb2312:-ISAS-Fangsong ti-Medium-R-Normal--16-160-72-72-c-160-GB2312.1980-0,
-    chinese-cns11643-1:-HKU-Fixed-Medium-R-Normal--16-160-72-72-C-160-CNS11643.1992.1-0,
-    chinese-big5-1:-ETen-Fixed-Medium-R-Normal--16-150-75-75-C-160-Big5.ETen-0,
-    chinese-big5-2:-ETen-Fixed-Medium-R-Normal--16-150-75-75-C-160-Big5.ETen-0
-    " t)
-
-(setq font-encoding-alist
-      (append '(
-                ("JISX0208" (japanese-jisx0208 . 0))
-                ("JISX0212" (japanese-jisx0212 . 0))
-                ("CNS11643.1992.1-0" (chinese-cns11643-1 . 0))
-                ("GB2312" (chinese-gb2312 . 0))
-                ("KSC5601" (korean-ksc5601 . 0))
-                ("VISCII" (vietnamese-viscii-lower . 0))
-                ("MuleArabic-0" (arabic-digit . 0))
-                ("MuleArabic-1" (arabic-1-column . 0))
-                ("MuleArabic-2" (arabic-2-column . 0))
-                ("muleindian-1" (indian-1-column . 0))
-                ("muleindian-2" (indian-2-column . 0))
-                ("MuleTibetan-0" (tibetan . 0))
-                ("MuleTibetan-1" (tibetan-1-column . 0))
-                ) font-encoding-alist))
-
-;;;;;;; end of quoted elisp code
-```
-   To test the fonts, try
-
-       M-x eval-expression RET
-       (set-default-font "fontset-bdf") RET
-       M-x view-hello-file
-
-   You should see all the characters without white-boxes.
+[agdawiki]: http://wiki.portal.chalmers.se/agda/pmwiki.php
