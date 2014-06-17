@@ -107,7 +107,8 @@ library
                       directory == 1.2.*
 
   build-tools:      happy >= 1.15 && < 2,
-                    alex >= 2.3.1 && < 3.2
+                    alex >= 2.3.1 && < 3.2,
+                    cpphs >= 1.18.4
   -- LANGUAGE extension CPP is needed for cabal haddock (as of now, May 2014).
   -- However, each file should define {-# LANGUAGE CPP #-}, for the sake
   -- of ghci and make tags.
@@ -379,6 +380,8 @@ library
                     -fwarn-overlapping-patterns
                     -fwarn-unrecognised-pragmas
                     -fwarn-warnings-deprecations
+                    -pgmPcpphs
+                    -optP--cpp
   -- The Cabal-generated module Paths_Agda triggers a warning under
   -- GHC 7.2.1/7.2.2 (at least when certain versions of Cabal are
   -- used).
@@ -417,6 +420,9 @@ executable agda
     -- Agda's memory usage, so we want this functionality enabled by
     -- default.
     ghc-options:  -rtsopts
+                  -pgmPcpphs
+                  -optP--cpp
+
 
 executable agda-mode
   hs-source-dirs:   src/agda-mode
