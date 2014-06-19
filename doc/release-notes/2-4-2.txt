@@ -42,6 +42,16 @@ Pragmas and Options
 Language
 ========
 
+* You now use 'quote' in patterns.
+
+  For instance, here is a function that unquotes a (closed) natural number
+  term.
+
+    unquoteNat : Term → Maybe Nat
+    unquoteNat (con (quote Nat.zero) [])            = just zero
+    unquoteNat (con (quote Nat.suc) (arg _ n ∷ [])) = fmap suc (unquoteNat n)
+    unquoteNat _                                    = nothing
+
 Goal and error display
 ======================
 
