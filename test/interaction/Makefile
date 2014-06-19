@@ -49,7 +49,7 @@ run_test=if test -f $*.in; \
          | $(sed) "s/goal_command \\([0-9]\+\\) (\\([^)]\+\\)) \\(\"[^\"]*\"\\)/IOTCM currentFile None Indirect (\\2 \\1 noRange \\3)/g" \
          | $(sed) "s/goal_command \\([0-9]\+\\) \\([^ ]\+\\) \\(\"[^\"]*\"\\)/IOTCM currentFile None Indirect (\\2 \\1 noRange \\3)/g" \
          | $(sed) "s/currentFile/\"$(wildcard $*.agda $*.lagda)\"/g" \
-         | agda -i . -i .. --interaction --ignore-interfaces $(RTS_$*) \
+         | $(AGDA_BIN) -i . -i .. --interaction --ignore-interfaces $(RTS_$*) \
            2>&1 | $(filter) ; \
     else /bin/bash ./$*.sh > $(TMPDIR)/$*.tmp_out ; \
          cat $(TMPDIR)/$*.tmp_out | $(filter) ; \
@@ -59,7 +59,7 @@ run_test=if test -f $*.in; \
 
 setup_Issue591     = rm -f Issue591/M.agdai
 setup_Highlighting = rm -f Highlighting/M.agdai
-setup_Auto = agda Auto/Prelude.agda
+setup_Auto = $(AGDA_BIN) Auto/Prelude.agda
 setup_Auto-BasicLogic = $(setup_Auto)
 setup_Auto-DataConstruction = $(setup_Auto)
 setup_Auto-EqualityReasoning = $(setup_Auto)
