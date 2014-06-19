@@ -1,0 +1,4 @@
+Issue619.agda:16,12-16
+quote Bool.true != quote false of type Common.Reflect.QName
+when checking that the expression refl has type
+quote Bool.true ≡ quote false

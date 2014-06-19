@@ -351,6 +351,10 @@ instance ToConcrete A.Expr C.Expr where
         -- for names we have to use the name from the info, since the abstract
         -- name has been resolved to a fully qualified name (except for
         -- variables)
+    toConcrete (A.Lit (LitQName r x)) = do
+      x <- lookupQName NoAmbiguousConstructors x
+      bracket appBrackets $ return $
+        C.App r (C.Quote r) (defaultNamedArg $ C.Ident x)
     toConcrete (A.Lit l)            = return $ C.Lit l
 
     -- Andreas, 2014-05-17  We print question marks with their
