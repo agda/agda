@@ -421,9 +421,6 @@ executable agda
     -- Agda's memory usage, so we want this functionality enabled by
     -- default.
     ghc-options:  -rtsopts
-                  -pgmPcpphs
-                  -optP--cpp
-
 
 executable agda-mode
   hs-source-dirs:   src/agda-mode
