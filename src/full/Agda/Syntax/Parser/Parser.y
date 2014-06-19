@@ -1596,6 +1596,7 @@ exprToPattern e =
 	HiddenArg r e		-> HiddenP r <$> T.mapM exprToPattern e
 	InstanceArg r e		-> InstanceP r <$> T.mapM exprToPattern e
 	RawApp r es		-> RawAppP r <$> mapM exprToPattern es
+        Quote r                 -> return $ QuoteP r
 	_			->
           let Just pos = rStart $ getRange e in
           parseErrorAt pos $ "Not a valid pattern: " ++ show e

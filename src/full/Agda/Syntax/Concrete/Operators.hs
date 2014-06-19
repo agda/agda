@@ -352,6 +352,7 @@ parsePat prs p = case p of
     WildP _          -> return p
     AbsurdP _        -> return p
     LitP _           -> return p
+    QuoteP _         -> return p
     IdentP _         -> return p
 
 
@@ -496,6 +497,7 @@ validConPattern :: [QName] -> Pattern -> Bool
 validConPattern cons p = case appView p of
     [_]           -> True
     IdentP x : ps -> elem x cons && all (validConPattern cons) ps
+    [QuoteP _, _] -> True
     _             -> False
 -- Andreas, 2012-06-04: I do not know why the following line was
 -- the catch-all case.  It seems that the new catch-all works also
@@ -528,6 +530,7 @@ patternQNames p = case p of
   WildP{}          -> []
   DotP{}           -> []
   LitP{}           -> []
+  QuoteP{}         -> []
 
 -- | Return all qualifiers occuring in a list of 'QName's.
 --   Each qualifier is returned as a list of names, e.g.

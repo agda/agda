@@ -497,6 +497,7 @@ instance Pretty Pattern where
 	    DotP _ p      -> text "." <> pretty p
 	    AbsurdP _     -> text "()"
 	    LitP l        -> pretty l
+            QuoteP _      -> text "quote"
 
 prettyOpApp :: Pretty a => QName -> [a] -> [Doc]
 prettyOpApp q es = prOp ms xs es

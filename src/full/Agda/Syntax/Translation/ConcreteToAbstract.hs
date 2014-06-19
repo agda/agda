@@ -3,6 +3,7 @@
 {-# LANGUAGE FunctionalDependencies #-}
 {-# LANGUAGE MultiParamTypeClasses #-}
 {-# LANGUAGE OverlappingInstances #-}
+{-# LANGUAGE PatternGuards #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE TypeSynonymInstances #-}
 {-# LANGUAGE UndecidableInstances #-}
@@ -42,6 +43,7 @@ import Agda.Syntax.Concrete.Generic
 import Agda.Syntax.Concrete.Operators
 import Agda.Syntax.Abstract as A
 import Agda.Syntax.Position
+import Agda.Syntax.Literal
 import Agda.Syntax.Common hiding (Arg, Dom, NamedArg, ArgInfo)
 import qualified Agda.Syntax.Common as Common
 import Agda.Syntax.Info
@@ -950,6 +952,7 @@ instance ToAbstract LetDef [A.LetBinding] where
                     definedName C.AsP{}                = Nothing
                     definedName C.DotP{}               = Nothing
                     definedName C.LitP{}               = Nothing
+                    definedName C.QuoteP{}             = Nothing
                     definedName C.HiddenP{}            = __IMPOSSIBLE__
                     definedName C.InstanceP{}          = __IMPOSSIBLE__
                     definedName C.RawAppP{}            = __IMPOSSIBLE__
@@ -1557,6 +1560,20 @@ instance ToAbstract C.Pattern (A.Pattern' C.Expr) where
                                                  []
             PatternSynPatName d -> return $ PatternSynP (PatRange (getRange p))
                                                         (anameName d) []
+
+    toAbstract (AppP (QuoteP _) p)
+      | IdentP x <- namedArg p,
+        getHiding p == NotHidden = do
+      e <- toAbstract (OldQName x)
+      let quoted (A.Def x) = return x
+          quoted (A.Con (AmbQ [x])) = return x
+          quoted (A.Con (AmbQ xs))  = typeError $ GenericError $ "quote: Ambigous name: " ++ show xs
+          quoted (A.ScopedExpr _ e) = quoted e
+          quoted _                  = typeError $ GenericError $ "quote: not a defined name"
+      A.LitP . LitQName (getRange x) <$> quoted e
+
+    toAbstract (QuoteP r) =
+      typeError $ GenericError "quote must be applied to an identifier"
 
     toAbstract p0@(AppP p q) = do
         (p', q') <- toAbstract (p,q)

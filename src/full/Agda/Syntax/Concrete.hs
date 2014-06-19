@@ -120,6 +120,7 @@ instance NFData Expr
 -- | Concrete patterns. No literals in patterns at the moment.
 data Pattern
 	= IdentP QName                            -- ^ @c@ or @x@
+        | QuoteP !Range                           -- ^ @quote@
 	| AppP Pattern (NamedArg Pattern)         -- ^ @p p'@ or @p {x = p'}@
 	| RawAppP !Range [Pattern]                -- ^ @p1..pn@ before parsing operators
 	| OpAppP !Range QName [NamedArg Pattern]  -- ^ eg: @p => p'@ for operator @_=>_@
@@ -408,6 +409,7 @@ patternHead p =
     DotP{}               -> Nothing
     LitP (LitQName _ x)  -> Nothing -- return $ unqualify x -- does not compile
     LitP _               -> Nothing
+    QuoteP _             -> Nothing
     InstanceP _ (namedPat) -> patternHead (namedThing namedPat)
 
 
@@ -426,6 +428,7 @@ patternNames p =
     AsP _ x p            -> patternNames p
     DotP{}               -> []
     LitP _               -> []
+    QuoteP _             -> []
     InstanceP _ (namedPat) -> patternNames (namedThing namedPat)
 
 {--------------------------------------------------------------------------
@@ -579,6 +582,7 @@ instance HasRange Pattern where
     getRange (AsP r _ _)	= r
     getRange (AbsurdP r)	= r
     getRange (LitP l)		= getRange l
+    getRange (QuoteP r)         = r
     getRange (HiddenP r _)	= r
     getRange (InstanceP r _)	= r
     getRange (DotP r _)		= r
@@ -683,6 +687,7 @@ instance KillRange Pattern where
   killRange (AsP _ n p)     = killRange2 (AsP noRange) n p
   killRange (DotP _ e)      = killRange1 (DotP noRange) e
   killRange (LitP l)        = killRange1 LitP l
+  killRange (QuoteP _)      = QuoteP noRange
 
 instance KillRange Pragma where
   killRange (OptionsPragma _ s)           = OptionsPragma noRange s

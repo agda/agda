@@ -36,6 +36,7 @@ instance Ord Literal where
   LitFloat _ x  `compare` LitFloat _ y  = x `compare` y
   LitString _ s `compare` LitString _ t = s `compare` t
   LitChar _ c   `compare` LitChar _ d   = c `compare` d
+  LitQName _ x  `compare` LitQName _ y  = x `compare` y
   compare LitInt{}    _ = LT
   compare _ LitInt{} = GT
   compare LitFloat{}  _ = LT
