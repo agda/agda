@@ -117,7 +117,7 @@ Also sets the default value of VARIABLE to GROUP."
             (agda2-highlight-dotted-face)
             (agda2-highlight-error-face
              :foreground "red"
-             :underline)
+             :underline t)
             (agda2-highlight-unsolved-meta-face
              :foreground "black"
              :background "yellow")
