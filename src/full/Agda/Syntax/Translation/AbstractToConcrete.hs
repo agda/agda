@@ -40,6 +40,7 @@ import Data.Traversable (traverse)
 import Agda.Syntax.Common hiding (Arg, Dom, NamedArg)
 import qualified Agda.Syntax.Common as Common
 import Agda.Syntax.Position
+import Agda.Syntax.Literal
 import Agda.Syntax.Info
 import Agda.Syntax.Internal (MetaId(..))
 import Agda.Syntax.Fixity
@@ -164,9 +165,9 @@ lookupName x = do
       Just y  -> return y
       Nothing -> return $ nameConcrete x
 
-lookupQName :: A.QName -> AbsToCon C.QName
-lookupQName x = do
-  my <- inverseScopeLookupName x <$> asks currentScope
+lookupQName :: AllowAmbiguousConstructors -> A.QName -> AbsToCon C.QName
+lookupQName ambCon x = do
+  my <- inverseScopeLookupName' ambCon x <$> asks currentScope
   case my of
     Just y  -> return y
     Nothing -> do
@@ -335,7 +336,7 @@ instance ToConcrete A.Name C.Name where
   bindToConcrete x = bindName x
 
 instance ToConcrete A.QName C.QName where
-  toConcrete = lookupQName
+  toConcrete = lookupQName AllowAmbiguousConstructors
 
 instance ToConcrete A.ModuleName C.QName where
   toConcrete = lookupModule
@@ -877,6 +878,9 @@ instance ToConcrete A.Pattern C.Pattern where
       (x, p) <- toConcreteCtx ArgumentCtx (x,p)
       return $ C.AsP (getRange i) x p
     toConcrete (A.AbsurdP i) = return $ C.AbsurdP (getRange i)
+    toConcrete (A.LitP (LitQName r x)) = do
+      x <- lookupQName NoAmbiguousConstructors x
+      bracketP_ appBrackets $ return $ AppP (C.QuoteP r) (defaultNamedArg (C.IdentP x))
     toConcrete (A.LitP l)    = return $ C.LitP l
     toConcrete (A.DotP i e)  = do
         e <- toConcreteCtx DotPatternCtx e

@@ -585,10 +585,16 @@ scopeLookup' q scope = nubBy ((==) `on` fst) $ findName q root ++ imports
 
 -- * Inverse look-up
 
+data AllowAmbiguousConstructors = AllowAmbiguousConstructors | NoAmbiguousConstructors
+  deriving (Eq)
+
 -- | Find the shortest concrete name that maps (uniquely) to a given abstract
 --   name.
 inverseScopeLookup :: Either A.ModuleName A.QName -> ScopeInfo -> Maybe C.QName
-inverseScopeLookup name scope = case name of
+inverseScopeLookup = inverseScopeLookup' AllowAmbiguousConstructors
+
+inverseScopeLookup' :: AllowAmbiguousConstructors -> Either A.ModuleName A.QName -> ScopeInfo -> Maybe C.QName
+inverseScopeLookup' ambCon name scope = case name of
   Left  m -> best $ filter unambiguousModule $ findModule m
   Right q -> best $ filter unambiguousName   $ findName nameMap q
   where
@@ -616,7 +622,7 @@ inverseScopeLookup name scope = case name of
     unique (_:_:_) = False
 
     unambiguousModule q = unique (scopeLookup q scope :: [AbstractModule])
-    unambiguousName   q = unique xs || all ((ConName ==) . anameKind) xs
+    unambiguousName   q = unique xs || AllowAmbiguousConstructors == ambCon && all ((ConName ==) . anameKind) xs
       where xs = scopeLookup q scope
 
     findName :: Ord a => Map a [(A.ModuleName, C.Name)] -> a -> [C.QName]
@@ -652,6 +658,9 @@ inverseScopeLookup name scope = case name of
 -- | Takes the first component of 'inverseScopeLookup'.
 inverseScopeLookupName :: A.QName -> ScopeInfo -> Maybe C.QName
 inverseScopeLookupName x = inverseScopeLookup (Right x)
+
+inverseScopeLookupName' :: AllowAmbiguousConstructors -> A.QName -> ScopeInfo -> Maybe C.QName
+inverseScopeLookupName' ambCon x = inverseScopeLookup' ambCon (Right x)
 
 -- | Takes the second component of 'inverseScopeLookup'.
 inverseScopeLookupModule :: A.ModuleName -> ScopeInfo -> Maybe C.QName
