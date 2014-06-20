@@ -622,11 +622,6 @@ checkExpr e t0 =
                 q <- quoteTerm =<< normalise et
                 ty <- el primAgdaTerm
                 coerce q ty t
-
-	  | A.Unquote _ <- unScope q ->
-	     do e1 <- checkExpr (namedThing e) =<< el primAgdaTerm
-	        e2 <- unquote e1
-                checkTerm e2 t
         A.Quote _ -> typeError $ GenericError "quote must be applied to a defined name"
         A.QuoteTerm _ -> typeError $ GenericError "quoteTerm must be applied to a term"
         A.Unquote _ -> typeError $ GenericError "unquote must be applied to a term"
@@ -780,6 +775,16 @@ checkApplication hd args e t = do
           let p' = A.patternToExpr p
               e' = A.lambdaLiftExpr (map unArg ns) (A.substExpr s p')
           checkExpr e' t
+
+    -- Subcase: unquote
+    A.Unquote _
+      | [arg] <- args -> do
+          v <- unquote =<< checkExpr (namedArg arg) =<< el primAgdaTerm
+          checkTerm v t
+      | arg : args <- args -> do
+          v  <- unquote =<< checkExpr (namedArg arg) =<< el primAgdaTerm
+          e' <- withShowAllArguments $ reify (v :: Term)    -- TODO: use checkInternal (but see comment on checkTerm)
+          checkHeadApplication e t e' $ map convColor args
 
     -- Subcase: defined symbol or variable.
     _ -> checkHeadApplication e t hd $ map convColor args
