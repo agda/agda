@@ -81,21 +81,18 @@ followed:
 
 * Update the Agda Wiki:
 
-  ** Add page related to the release notes called
+  ** Update the Download page:
 
-     http://wiki.portal.chalmers.se/agda/pmwiki.php?n=Main.Version-X-Y-Z
+     *** Move the current version information to the old releases
+         section.
 
-  ** Add page related to the README called
-
-     http://wiki.portal.chalmers.se/agda/pmwiki.php?n=Main.README-X-Y-Z
-
-  ** Update the Download page.
-
-  ** Update the Main page.
+     *** Update the last release information.
 
   ** Update the Release Notes page (under Documentation).
 
   ** If necessary, update the Standard Library page.
+
+  ** Update the Main page.
 
 * Release the standard library:
 
