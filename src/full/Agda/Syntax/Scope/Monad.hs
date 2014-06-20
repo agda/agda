@@ -107,10 +107,7 @@ modifyScopes f = modifyScopeInfo $ \s -> s { scopeModules = f $ scopeModules s }
 
 -- | Apply a function to the given scope.
 modifyNamedScope :: A.ModuleName -> (Scope -> Scope) -> ScopeM ()
-modifyNamedScope m f = modifyScopes $ Map.mapWithKey f'
-  where
-    f' m' s | m' == m   = f s
-            | otherwise = s
+modifyNamedScope m f = modifyScopes $ Map.adjust f m
 
 -- | Apply a function to the current scope.
 modifyCurrentScope :: (Scope -> Scope) -> ScopeM ()
