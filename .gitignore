@@ -13,6 +13,7 @@ Epic
 examples/compiler/main
 MAlonzo
 mk/config.mk
+src/full/tags
 std-lib
 test/compiler/Main
 test/epic/RunTests

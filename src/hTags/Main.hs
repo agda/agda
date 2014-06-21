@@ -11,6 +11,7 @@ import Data.List
 import Data.Maybe
 import System.Environment
 import System.IO
+import qualified System.IO.Strict as Strict
 import System.Exit
 import System.FilePath
 import System.Directory
@@ -121,7 +122,7 @@ main = do
                     }
 #endif
                   }
-              mapM (\f -> liftM2 ((,,) f) (liftIO $ readFile f)
+              mapM (\f -> liftM2 ((,,) f) (liftIO $ Strict.readFile f)
                                           (goFile f)) $
                          optFiles opts
             when (optCTags opts) $

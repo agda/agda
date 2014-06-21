@@ -16,5 +16,6 @@ executable hTags
                  directory >= 1 && < 1.3,
                  process >= 1 && < 1.3,
                  containers >= 0.1 && < 0.6,
+                 strict >= 0.3 && < 0.4,
                  mtl >= 1 && < 2.2
   ghc-options:   -fwarn-incomplete-patterns
