@@ -44,13 +44,15 @@ endif
 # The cabal command.
 CABAL_CMD=cabal
 
+CABAL_OPTS=$(CABAL_OPTIONS)
+
 # Options used by cabal install.
-CABAL_OPTIONS=--builddir=dist/$(VERSION)
+CABAL_OPTS+=--builddir=dist/$(VERSION)
 #  -f old-time
 #  -f epic
 
 ifeq ($(HAVE_GHC_7_7),Yes)
-CABAL_OPTIONS+=--ghc-option=-j3
+CABAL_OPTS+=--ghc-option=-j3
 endif
 
 install : install-bin compile-emacs-mode setup-emacs-mode
@@ -59,17 +61,17 @@ prof : install-prof-bin
 
 # Installs the Emacs mode, but does not set it up.
 install-bin :
-	time $(CABAL_CMD) install --disable-library-profiling --disable-documentation $(CABAL_OPTIONS)
+	time $(CABAL_CMD) install --disable-library-profiling --disable-documentation $(CABAL_OPTS)
 
 install-O0-bin :
-	$(CABAL_CMD) install -O0 --disable-library-profiling --disable-documentation $(CABAL_OPTIONS)
+	$(CABAL_CMD) install -O0 --disable-library-profiling --disable-documentation $(CABAL_OPTS)
 
 install-O2-bin :
-	$(CABAL_CMD) install -O2 --disable-library-profiling --disable-documentation $(CABAL_OPTIONS)
+	$(CABAL_CMD) install -O2 --disable-library-profiling --disable-documentation $(CABAL_OPTS)
 
 install-prof-bin :
 	$(CABAL_CMD) install --enable-library-profiling --enable-executable-profiling \
-                             --program-suffix=_p --disable-documentation $(CABAL_OPTIONS)
+                             --program-suffix=_p --disable-documentation $(CABAL_OPTS)
 
 compile-emacs-mode : install-bin
 	agda-mode compile
@@ -288,7 +290,7 @@ info :
 	@echo "Do we have ghc 7.7?            $(HAVE_GHC_7_7)"
 	@echo "Is this the darcs repository?  $(is_darcs_repo)"
 	@echo "Agda test flags are:           $(AGDA_TEST_FLAGS)"
-	@echo "Cabal flags are:               $(CABAL_OPTIONS)"
+	@echo "Cabal flags are:               $(CABAL_OPTS)"
 
 else	# is_configured
 
@@ -313,4 +315,4 @@ check-whitespace :
 .PHONY:
 install-fix-agda-whitespace :
 	cd src/fix-agda-whitespace && \
-	$(CABAL_CMD) install $(CABAL_OPTIONS)
+	$(CABAL_CMD) install $(CABAL_OPTS)
