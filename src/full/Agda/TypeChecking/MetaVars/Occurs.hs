@@ -207,7 +207,7 @@ instance Occurs Term where
     where
       occurs' ctx v = do
       reportSDoc "tc.meta.occurs" 45 $
-        text ("occursCheck (" ++ show ctx ++ ") of ") <+> prettyTCM v
+        text ("occursCheck " ++ show m ++ " (" ++ show ctx ++ ") of ") <+> prettyTCM v
       reportSDoc "tc.meta.occurs" 70 $
         nest 2 $ text $ show v
       case v of
@@ -352,9 +352,9 @@ instance Occurs LevelAtom where
       MetaLevel m' args -> do
         MetaV m' args <- ignoreSharing <$> occurs red ctx m xs (MetaV m' args)
         return $ MetaLevel m' args
-      NeutralLevel v   -> NeutralLevel   <$> occurs red ctx m xs v
-      BlockedLevel m v -> BlockedLevel m <$> occurs red Flex m xs v
-      UnreducedLevel v -> UnreducedLevel <$> occurs red ctx m xs v
+      NeutralLevel v    -> NeutralLevel    <$> occurs red ctx m xs v
+      BlockedLevel m' v -> BlockedLevel m' <$> occurs red Flex m xs v
+      UnreducedLevel v  -> UnreducedLevel  <$> occurs red ctx m xs v
 
   metaOccurs m l = do
     l <- instantiate l
