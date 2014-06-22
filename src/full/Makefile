@@ -106,7 +106,7 @@ $(OUT_P)/%.hs : %.y
 hTags=../hTags/dist/build/hTags/hTags
 hTags_include=../../dist/$(VERSION)/build/autogen/cabal_macros.h
 
-$(hTags) :
+$(hTags) : $(wildcard ../hTags/*.hs)
 	$(MAKE) -C ../hTags
 
 # create tags for VIM
