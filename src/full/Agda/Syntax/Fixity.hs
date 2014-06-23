@@ -1,4 +1,4 @@
-{-# LANGUAGE CPP #-}
+-- {-# LANGUAGE CPP #-}
 {-# LANGUAGE DeriveDataTypeable #-}
 {-# LANGUAGE DeriveFoldable #-}
 {-# LANGUAGE DeriveFunctor #-}
