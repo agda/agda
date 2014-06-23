@@ -1,7 +1,11 @@
 -- | Finite bijections (implemented as a pair of maps).
 
-{-# LANGUAGE TemplateHaskell, TupleSections, PatternGuards, FlexibleInstances,
-  GeneralizedNewtypeDeriving, DeriveDataTypeable #-}
+{-# LANGUAGE DeriveDataTypeable #-}
+{-# LANGUAGE FlexibleInstances #-}
+{-# LANGUAGE GeneralizedNewtypeDeriving #-}
+{-# LANGUAGE PatternGuards #-}
+{-# LANGUAGE TemplateHaskell #-}
+{-# LANGUAGE TupleSections #-}
 
 module Agda.Utils.BiMap where
 
