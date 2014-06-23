@@ -1,4 +1,5 @@
-{-# LANGUAGE CPP, FlexibleContexts #-}
+{-# LANGUAGE CPP #-}
+{-# LANGUAGE FlexibleContexts #-}
 
 module Agda.TypeChecking.Monad.Options where
 

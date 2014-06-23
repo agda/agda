@@ -1,7 +1,10 @@
 ------------------------------------------------------------------------
 -- | Data type for all interactive responses
 ------------------------------------------------------------------------
-{-# LANGUAGE CPP, TypeSynonymInstances, FlexibleInstances #-}
+
+{-# LANGUAGE CPP #-}
+{-# LANGUAGE FlexibleInstances #-}
+{-# LANGUAGE TypeSynonymInstances #-}
 
 module Agda.Interaction.Response
   ( Response (..)

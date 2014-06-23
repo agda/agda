@@ -1,5 +1,8 @@
-{-# LANGUAGE CPP, FlexibleInstances, FlexibleContexts,
-             UndecidableInstances, TypeSynonymInstances #-}
+{-# LANGUAGE CPP #-}
+{-# LANGUAGE FlexibleContexts #-}
+{-# LANGUAGE FlexibleInstances #-}
+{-# LANGUAGE TypeSynonymInstances #-}
+{-# LANGUAGE UndecidableInstances #-}
 
 -- | Check that a datatype is strictly positive.
 module Agda.TypeChecking.Positivity where

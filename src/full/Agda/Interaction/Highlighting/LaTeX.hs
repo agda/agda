@@ -1,4 +1,5 @@
-{-# LANGUAGE CPP, ViewPatterns #-}
+{-# LANGUAGE CPP #-}
+{-# LANGUAGE ViewPatterns #-}
 
 -- | Function for generating highlighted and aligned LaTeX from literate
 -- Agda source.

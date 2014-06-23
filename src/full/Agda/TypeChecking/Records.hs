@@ -1,4 +1,6 @@
-{-# LANGUAGE CPP, TupleSections, PatternGuards #-}
+{-# LANGUAGE CPP #-}
+{-# LANGUAGE PatternGuards #-}
+{-# LANGUAGE TupleSections #-}
 
 module Agda.TypeChecking.Records where
 

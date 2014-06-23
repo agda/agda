@@ -1,4 +1,6 @@
-{-# LANGUAGE CPP, TupleSections #-}
+{-# LANGUAGE CPP #-}
+{-# LANGUAGE TupleSections #-}
+
 {-| This module deals with finding imported modules and loading their
     interface files.
 -}

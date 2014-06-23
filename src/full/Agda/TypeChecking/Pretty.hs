@@ -1,6 +1,9 @@
-{-# LANGUAGE CPP, ScopedTypeVariables,
-  TypeSynonymInstances, FlexibleInstances,
-  UndecidableInstances #-}
+{-# LANGUAGE CPP #-}
+{-# LANGUAGE FlexibleInstances #-}
+{-# LANGUAGE ScopedTypeVariables #-}
+{-# LANGUAGE TypeSynonymInstances #-}
+{-# LANGUAGE UndecidableInstances #-}
+
 module Agda.TypeChecking.Pretty where
 
 import Control.Applicative hiding (empty)

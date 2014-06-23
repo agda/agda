@@ -1,5 +1,10 @@
-{-# LANGUAGE CPP, FlexibleInstances, TypeSynonymInstances, MultiParamTypeClasses,
-      DeriveFunctor, GeneralizedNewtypeDeriving, StandaloneDeriving #-}
+{-# LANGUAGE CPP #-}
+{-# LANGUAGE DeriveFunctor #-}
+{-# LANGUAGE FlexibleInstances #-}
+{-# LANGUAGE GeneralizedNewtypeDeriving #-}
+{-# LANGUAGE MultiParamTypeClasses #-}
+{-# LANGUAGE StandaloneDeriving #-}
+{-# LANGUAGE TypeSynonymInstances #-}
 
 -- | The monad for the termination checker.
 --

@@ -1,4 +1,7 @@
-{-# LANGUAGE Rank2Types, ScopedTypeVariables, CPP #-}
+{-# LANGUAGE CPP #-}
+{-# LANGUAGE Rank2Types #-}
+{-# LANGUAGE ScopedTypeVariables #-}
+
 module Agda.Auto.CaseSplit where
 
 import Data.IORef

@@ -1,4 +1,6 @@
-{-# LANGUAGE CPP, PatternGuards, ScopedTypeVariables #-}
+{-# LANGUAGE CPP #-}
+{-# LANGUAGE PatternGuards #-}
+{-# LANGUAGE ScopedTypeVariables #-}
 
 module Agda.TypeChecking.Rules.LHS.Split where
 

@@ -1,4 +1,6 @@
-{-# LANGUAGE CPP, PatternGuards #-}
+{-# LANGUAGE CPP #-}
+{-# LANGUAGE PatternGuards #-}
+
 module Agda.Utils.Suffix where
 
 import Data.Char

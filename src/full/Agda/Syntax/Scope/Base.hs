@@ -1,4 +1,10 @@
-{-# LANGUAGE CPP, DeriveDataTypeable, GADTs, ScopedTypeVariables, TupleSections, RankNTypes #-}
+{-# LANGUAGE CPP #-}
+{-# LANGUAGE DeriveDataTypeable #-}
+{-# LANGUAGE GADTs #-}
+{-# LANGUAGE ScopedTypeVariables #-}
+{-# LANGUAGE RankNTypes #-}
+{-# LANGUAGE TupleSections #-}
+
 
 {-| This module defines the notion of a scope and operations on scopes.
 -}

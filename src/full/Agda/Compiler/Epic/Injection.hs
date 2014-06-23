@@ -1,4 +1,10 @@
-{-# LANGUAGE CPP, TypeOperators, PatternGuards, FlexibleInstances, TypeSynonymInstances, OverlappingInstances #-}
+{-# LANGUAGE CPP #-}
+{-# LANGUAGE FlexibleInstances #-}
+{-# LANGUAGE PatternGuards #-}
+{-# LANGUAGE TypeOperators #-}
+{-# LANGUAGE TypeSynonymInstances #-}
+{-# LANGUAGE OverlappingInstances #-}
+
 module Agda.Compiler.Epic.Injection where
 
 import Control.Monad.State

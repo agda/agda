@@ -1,4 +1,7 @@
-{-# LANGUAGE CPP, ScopedTypeVariables, FlexibleInstances #-}
+{-# LANGUAGE CPP #-}
+{-# LANGUAGE FlexibleInstances #-}
+{-# LANGUAGE ScopedTypeVariables #-}
+
 module Agda.Interaction.EmacsTop
     ( mimicGHCi
     ) where

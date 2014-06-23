@@ -1,4 +1,7 @@
-{-# LANGUAGE CPP, TupleSections, PatternGuards #-}
+{-# LANGUAGE CPP #-}
+{-# LANGUAGE PatternGuards #-}
+{-# LANGUAGE TupleSections #-}
+
 module Agda.TypeChecking.Rules.Builtin (bindBuiltin, bindPostulatedName) where
 
 import Control.Applicative

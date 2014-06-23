@@ -1,8 +1,15 @@
-{-# LANGUAGE CPP, TupleSections,
-  ScopedTypeVariables, Rank2Types,
-  MultiParamTypeClasses, TypeSynonymInstances, FlexibleInstances,
-  GeneralizedNewtypeDeriving,
-  DeriveFunctor, DeriveFoldable, DeriveTraversable #-}
+{-# LANGUAGE CPP #-}
+{-# LANGUAGE DeriveFoldable #-}
+{-# LANGUAGE DeriveFunctor #-}
+{-# LANGUAGE DeriveTraversable #-}
+{-# LANGUAGE FlexibleInstances #-}
+{-# LANGUAGE GeneralizedNewtypeDeriving #-}
+{-# LANGUAGE MultiParamTypeClasses #-}
+{-# LANGUAGE Rank2Types #-}
+{-# LANGUAGE ScopedTypeVariables #-}
+{-# LANGUAGE TupleSections #-}
+{-# LANGUAGE TypeSynonymInstances #-}
+
 {-# OPTIONS -fno-cse #-}
 
 module Agda.Interaction.InteractionTop

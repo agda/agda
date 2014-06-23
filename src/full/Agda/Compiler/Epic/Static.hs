@@ -1,7 +1,9 @@
 -- | Find the places where the builtin static is used and do some normalisation
 --   there.
 
-{-# LANGUAGE CPP, TypeSynonymInstances, FlexibleInstances #-}
+{-# LANGUAGE CPP #-}
+{-# LANGUAGE FlexibleInstances #-}
+{-# LANGUAGE TypeSynonymInstances #-}
 
 module Agda.Compiler.Epic.Static where
 

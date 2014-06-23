@@ -1,5 +1,6 @@
 -- {-# LANGUAGE CPP #-}
-{-# LANGUAGE FlexibleInstances, TypeSynonymInstances #-}
+{-# LANGUAGE FlexibleInstances #-}
+{-# LANGUAGE TypeSynonymInstances #-}
 
 -- | Computing the free variables of a term.
 module Agda.TypeChecking.Free

@@ -1,9 +1,19 @@
-{-# LANGUAGE CPP, NamedFieldPuns, ScopedTypeVariables,
-             ExistentialQuantification, FlexibleContexts, Rank2Types,
-             TypeSynonymInstances, MultiParamTypeClasses, FlexibleInstances,
-             UndecidableInstances, DeriveDataTypeable, GeneralizedNewtypeDeriving,
-             DeriveFunctor, DeriveFoldable, DeriveTraversable
-  #-}
+{-# LANGUAGE CPP #-}
+{-# LANGUAGE DeriveDataTypeable #-}
+{-# LANGUAGE DeriveFoldable #-}
+{-# LANGUAGE DeriveFunctor #-}
+{-# LANGUAGE DeriveTraversable #-}
+{-# LANGUAGE ExistentialQuantification #-}
+{-# LANGUAGE FlexibleContexts #-}
+{-# LANGUAGE FlexibleInstances #-}
+{-# LANGUAGE GeneralizedNewtypeDeriving #-}
+{-# LANGUAGE MultiParamTypeClasses #-}
+{-# LANGUAGE NamedFieldPuns #-}
+{-# LANGUAGE Rank2Types #-}
+{-# LANGUAGE ScopedTypeVariables #-}
+{-# LANGUAGE TypeSynonymInstances #-}
+{-# LANGUAGE UndecidableInstances #-}
+
 module Agda.TypeChecking.Monad.Base where
 
 import Control.Arrow ((***), first, second)

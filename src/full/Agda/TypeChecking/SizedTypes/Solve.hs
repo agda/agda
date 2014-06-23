@@ -1,8 +1,15 @@
-{-# LANGUAGE CPP, PatternGuards, TupleSections, ScopedTypeVariables,
-  FlexibleInstances, TypeSynonymInstances,
-  MultiParamTypeClasses,
-  GeneralizedNewtypeDeriving, DeriveFunctor, DeriveFoldable, DeriveTraversable,
-  StandaloneDeriving #-}
+{-# LANGUAGE CPP #-}
+{-# LANGUAGE DeriveFoldable #-}
+{-# LANGUAGE DeriveFunctor #-}
+{-# LANGUAGE DeriveTraversable #-}
+{-# LANGUAGE FlexibleInstances #-}
+{-# LANGUAGE GeneralizedNewtypeDeriving #-}
+{-# LANGUAGE PatternGuards #-}
+{-# LANGUAGE MultiParamTypeClasses #-}
+{-# LANGUAGE ScopedTypeVariables #-}
+{-# LANGUAGE StandaloneDeriving #-}
+{-# LANGUAGE TupleSections #-}
+{-# LANGUAGE TypeSynonymInstances #-}
 
 -- | Solving size constraints under hypotheses.
 --

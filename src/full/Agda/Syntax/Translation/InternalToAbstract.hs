@@ -1,7 +1,12 @@
-{-# LANGUAGE CPP, MultiParamTypeClasses, FunctionalDependencies,
-             UndecidableInstances, TypeSynonymInstances, FlexibleInstances,
-             ScopedTypeVariables, TupleSections, FlexibleContexts
-  #-}
+{-# LANGUAGE CPP #-}
+{-# LANGUAGE FlexibleContexts #-}
+{-# LANGUAGE FlexibleInstances #-}
+{-# LANGUAGE FunctionalDependencies #-}
+{-# LANGUAGE MultiParamTypeClasses #-}
+{-# LANGUAGE ScopedTypeVariables #-}
+{-# LANGUAGE TupleSections #-}
+{-# LANGUAGE TypeSynonymInstances #-}
+{-# LANGUAGE UndecidableInstances #-}
 
 {-|
     Translating from internal syntax to abstract syntax. Enables nice

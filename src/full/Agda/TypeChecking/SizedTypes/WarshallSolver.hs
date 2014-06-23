@@ -1,7 +1,14 @@
-{-# LANGUAGE CPP, TupleSections, PatternGuards, NoMonomorphismRestriction, ScopedTypeVariables,
-  TypeSynonymInstances, FlexibleInstances, DeriveFunctor,
-  MultiParamTypeClasses #-}
--- {-# LANGUAGE UndecidableInstances, OverlappingInstances #-}
+{-# LANGUAGE CPP #-}
+{-# LANGUAGE DeriveFunctor #-}
+{-# LANGUAGE FlexibleInstances #-}
+{-# LANGUAGE MultiParamTypeClasses #-}
+{-# LANGUAGE NoMonomorphismRestriction #-}
+-- {-# LANGUAGE OverlappingInstances #-}
+{-# LANGUAGE PatternGuards #-}
+{-# LANGUAGE ScopedTypeVariables #-}
+{-# LANGUAGE TupleSections #-}
+{-# LANGUAGE TypeSynonymInstances #-}
+-- {-# LANGUAGE UndecidableInstances #-}
 
 module Agda.TypeChecking.SizedTypes.WarshallSolver where
 

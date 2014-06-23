@@ -1,4 +1,13 @@
-{-# LANGUAGE CPP, TupleSections, PatternGuards, DeriveFunctor, StandaloneDeriving, ScopedTypeVariables, TypeSynonymInstances, FlexibleContexts,  FlexibleInstances #-}
+{-# LANGUAGE CPP #-}
+{-# LANGUAGE DeriveFunctor #-}
+{-# LANGUAGE FlexibleContexts #-}
+{-# LANGUAGE FlexibleInstances #-}
+{-# LANGUAGE PatternGuards #-}
+{-# LANGUAGE ScopedTypeVariables #-}
+{-# LANGUAGE StandaloneDeriving #-}
+{-# LANGUAGE TupleSections #-}
+{-# LANGUAGE TypeSynonymInstances #-}
+
 module Agda.Syntax.Abstract.Copatterns (translateCopatternClauses) where
 
 import Prelude hiding (mapM)

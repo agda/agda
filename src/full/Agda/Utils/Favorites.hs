@@ -1,5 +1,8 @@
-{-# LANGUAGE CPP, TemplateHaskell, NoImplicitPrelude,
-      GeneralizedNewtypeDeriving, DeriveFoldable #-}
+{-# LANGUAGE CPP #-}
+{-# LANGUAGE DeriveFoldable #-}
+{-# LANGUAGE GeneralizedNewtypeDeriving #-}
+{-# LANGUAGE NoImplicitPrelude #-}
+{-# LANGUAGE TemplateHaskell #-}
 
 -- | Maintaining a list of favorites of some partially ordered type.
 --   Only the best elements are kept.

@@ -1,7 +1,9 @@
-{-# LANGUAGE CPP, MultiParamTypeClasses,
-             FunctionalDependencies, UndecidableInstances,
-             TypeSynonymInstances, FlexibleInstances
-  #-}
+{-# LANGUAGE CPP #-}
+{-# LANGUAGE FlexibleInstances #-}
+{-# LANGUAGE FunctionalDependencies #-}
+{-# LANGUAGE MultiParamTypeClasses #-}
+{-# LANGUAGE TypeSynonymInstances #-}
+{-# LANGUAGE UndecidableInstances #-}
 
 module Agda.TypeChecking.Test.Generators where
 

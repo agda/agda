@@ -1,4 +1,7 @@
-{-# LANGUAGE CPP, PatternGuards, ScopedTypeVariables #-}
+{-# LANGUAGE CPP #-}
+{-# LANGUAGE PatternGuards #-}
+{-# LANGUAGE ScopedTypeVariables #-}
+
 module Agda.TypeChecking.CompiledClause.Match where
 
 import Control.Applicative

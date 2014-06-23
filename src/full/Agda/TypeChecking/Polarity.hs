@@ -1,4 +1,8 @@
-{-# LANGUAGE CPP, PatternGuards, FlexibleInstances, TypeSynonymInstances #-}
+{-# LANGUAGE CPP #-}
+{-# LANGUAGE FlexibleInstances #-}
+{-# LANGUAGE PatternGuards #-}
+{-# LANGUAGE TypeSynonymInstances #-}
+
 module Agda.TypeChecking.Polarity where
 
 import Control.Applicative
