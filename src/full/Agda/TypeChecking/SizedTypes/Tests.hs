@@ -1,4 +1,6 @@
-{-# LANGUAGE TemplateHaskell, NoMonomorphismRestriction, ScopedTypeVariables #-}
+{-# LANGUAGE NoMonomorphismRestriction #-}
+{-# LANGUAGE TemplateHaskell #-}
+{-# LANGUAGE ScopedTypeVariables #-}
 
 module Agda.TypeChecking.SizedTypes.Tests where
 

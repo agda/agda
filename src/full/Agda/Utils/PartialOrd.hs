@@ -1,5 +1,7 @@
-{-# LANGUAGE TemplateHaskell,
-      FlexibleInstances, GeneralizedNewtypeDeriving, DeriveFunctor #-}
+{-# LANGUAGE DeriveFunctor #-}
+{-# LANGUAGE FlexibleInstances #-}
+{-# LANGUAGE GeneralizedNewtypeDeriving #-}
+{-# LANGUAGE TemplateHaskell #-}
 
 module Agda.Utils.PartialOrd where
 

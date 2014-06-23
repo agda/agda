@@ -2,8 +2,10 @@
 -- Pretty-printing of Haskell modules
 ------------------------------------------------------------------------
 
-{-# LANGUAGE FlexibleContexts, FlexibleInstances,
-             MultiParamTypeClasses, TemplateHaskell #-}
+{-# LANGUAGE FlexibleContexts #-}
+{-# LANGUAGE FlexibleInstances #-}
+{-# LANGUAGE MultiParamTypeClasses #-}
+{-# LANGUAGE TemplateHaskell #-}
 
 module Agda.Compiler.MAlonzo.Pretty where
 

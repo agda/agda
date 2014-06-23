@@ -1,5 +1,7 @@
-{-# LANGUAGE ScopedTypeVariables, TupleSections, TemplateHaskell,
-  FlexibleInstances #-}
+{-# LANGUAGE FlexibleInstances #-}
+{-# LANGUAGE ScopedTypeVariables #-}
+{-# LANGUAGE TupleSections #-}
+{-# LANGUAGE TemplateHaskell #-}
 
 -- | Create clusters of non-overlapping things.
 
