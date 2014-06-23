@@ -1,4 +1,5 @@
 {-# LANGUAGE CPP #-}
+
 module Agda.TypeChecking.Forcing where
 
 import Control.Applicative

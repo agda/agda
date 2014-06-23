@@ -1,4 +1,6 @@
-{-# LANGUAGE CPP, PatternGuards, DeriveDataTypeable #-}
+{-# LANGUAGE CPP #-}
+{-# LANGUAGE DeriveDataTypeable #-}
+{-# LANGUAGE PatternGuards #-}
 
 module Agda.Syntax.Concrete.Definitions
     ( NiceDeclaration(..)

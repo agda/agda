@@ -1,4 +1,5 @@
 {-# LANGUAGE CPP #-}
+
 module Agda.TypeChecking.Monad.Sharing where
 
 import Control.Monad.Reader

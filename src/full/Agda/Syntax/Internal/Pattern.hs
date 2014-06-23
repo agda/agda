@@ -1,4 +1,6 @@
-{-# LANGUAGE CPP, FlexibleInstances, OverlappingInstances  #-}
+{-# LANGUAGE CPP #-}
+{-# LANGUAGE FlexibleInstances #-}
+{-# LANGUAGE OverlappingInstances #-}
 
 module Agda.Syntax.Internal.Pattern where
 

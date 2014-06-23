@@ -1,5 +1,6 @@
 -- | Remove forced arguments from constructors.
 {-# LANGUAGE CPP #-}
+
 module Agda.Compiler.Epic.ForceConstrs where
 
 import Control.Applicative

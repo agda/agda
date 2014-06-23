@@ -1,4 +1,5 @@
-{-# LANGUAGE CPP, TupleSections #-}
+{-# LANGUAGE CPP #-}
+{-# LANGUAGE TupleSections #-}
 
 module Agda.Interaction.MakeCase where
 

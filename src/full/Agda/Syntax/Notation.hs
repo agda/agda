@@ -1,5 +1,5 @@
-{-# LANGUAGE CPP, DeriveDataTypeable #-}
-
+{-# LANGUAGE CPP #-}
+{-# LANGUAGE DeriveDataTypeable #-}
 
 module Agda.Syntax.Notation where
 

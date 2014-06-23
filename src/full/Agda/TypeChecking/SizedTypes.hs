@@ -1,4 +1,6 @@
-{-# LANGUAGE CPP, PatternGuards #-}
+{-# LANGUAGE CPP #-}
+{-# LANGUAGE PatternGuards #-}
+
 module Agda.TypeChecking.SizedTypes where
 
 import Control.Monad.Error

@@ -1,4 +1,5 @@
 {-# LANGUAGE CPP #-}
+
 module Agda.ImpossibleTest where
 
 #include "undefined.h"

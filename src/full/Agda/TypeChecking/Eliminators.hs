@@ -1,7 +1,9 @@
 -- RETIRED
 -- Andreas, 2013-10-18
 
-{-# LANGUAGE CPP, TypeSynonymInstances, FlexibleInstances #-}
+{-# LANGUAGE CPP #-}
+{-# LANGUAGE FlexibleInstances #-}
+{-# LANGUAGE TypeSynonymInstances #-}
 
 module Agda.TypeChecking.Eliminators where
 

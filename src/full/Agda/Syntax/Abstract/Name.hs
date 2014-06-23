@@ -1,7 +1,10 @@
-{-# LANGUAGE CPP,
-  DeriveDataTypeable, GeneralizedNewtypeDeriving,
-  DeriveFunctor, DeriveFoldable, DeriveTraversable,
-  FlexibleContexts #-}
+{-# LANGUAGE CPP #-}
+{-# LANGUAGE DeriveDataTypeable #-}
+{-# LANGUAGE DeriveFoldable #-}
+{-# LANGUAGE DeriveFunctor #-}
+{-# LANGUAGE DeriveTraversable #-}
+{-# LANGUAGE FlexibleContexts #-}
+{-# LANGUAGE GeneralizedNewtypeDeriving #-}
 
 {-| Abstract names carry unique identifiers and stuff.
 -}

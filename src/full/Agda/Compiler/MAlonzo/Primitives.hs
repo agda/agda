@@ -1,4 +1,5 @@
 {-# LANGUAGE CPP #-}
+
 module Agda.Compiler.MAlonzo.Primitives where
 
 import Control.Monad.Reader

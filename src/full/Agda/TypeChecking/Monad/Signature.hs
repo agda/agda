@@ -1,4 +1,8 @@
-{-# LANGUAGE CPP, PatternGuards, FlexibleContexts, FlexibleInstances #-}
+{-# LANGUAGE CPP #-}
+{-# LANGUAGE FlexibleContexts #-}
+{-# LANGUAGE FlexibleInstances #-}
+{-# LANGUAGE PatternGuards #-}
+
 module Agda.TypeChecking.Monad.Signature where
 
 import Control.Applicative

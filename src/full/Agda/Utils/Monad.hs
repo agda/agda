@@ -1,4 +1,5 @@
-{-# LANGUAGE CPP, FlexibleContexts #-}
+{-# LANGUAGE CPP #-}
+{-# LANGUAGE FlexibleContexts #-}
 
 module Agda.Utils.Monad
     ( module Agda.Utils.Monad

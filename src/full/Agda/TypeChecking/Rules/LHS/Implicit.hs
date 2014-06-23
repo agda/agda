@@ -1,4 +1,5 @@
-{-# LANGUAGE CPP, PatternGuards #-}
+{-# LANGUAGE CPP #-}
+{-# LANGUAGE PatternGuards #-}
 
 module Agda.TypeChecking.Rules.LHS.Implicit where
 

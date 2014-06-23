@@ -1,4 +1,6 @@
-{-# LANGUAGE CPP, PatternGuards, FlexibleContexts #-}
+{-# LANGUAGE CPP #-}
+{-# LANGUAGE FlexibleContexts #-}
+{-# LANGUAGE PatternGuards #-}
 
 -- | Compute eta short normal forms.
 module Agda.TypeChecking.EtaContract where

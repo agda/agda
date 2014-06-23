@@ -1,6 +1,13 @@
-{-# LANGUAGE CPP, PatternGuards, TupleSections,
-    TypeSynonymInstances, FlexibleInstances, OverlappingInstances,
-    DeriveDataTypeable, DeriveFunctor, StandaloneDeriving #-}
+{-# LANGUAGE CPP #-}
+{-# LANGUAGE DeriveDataTypeable #-}
+{-# LANGUAGE DeriveFunctor #-}
+{-# LANGUAGE FlexibleInstances #-}
+{-# LANGUAGE PatternGuards #-}
+{-# LANGUAGE OverlappingInstances #-}
+{-# LANGUAGE StandaloneDeriving #-}
+{-# LANGUAGE TupleSections #-}
+{-# LANGUAGE TypeSynonymInstances #-}
+
 module Agda.TypeChecking.Substitute where
 
 import Control.Arrow ((***))

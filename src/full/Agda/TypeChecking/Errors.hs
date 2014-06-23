@@ -1,5 +1,8 @@
-{-# LANGUAGE CPP, TupleSections,
-      FlexibleInstances, TypeSynonymInstances #-}
+{-# LANGUAGE CPP #-}
+{-# LANGUAGE FlexibleInstances #-}
+{-# LANGUAGE TupleSections #-}
+{-# LANGUAGE TypeSynonymInstances #-}
+
 module Agda.TypeChecking.Errors
     ( prettyError
     , PrettyTCM(..)

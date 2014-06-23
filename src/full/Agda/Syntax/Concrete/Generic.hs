@@ -3,7 +3,9 @@
 --
 --   However, here we use the terminology of 'Data.Traversable'.
 
-{-# LANGUAGE CPP, FlexibleInstances, TypeSynonymInstances #-}
+{-# LANGUAGE CPP #-}
+{-# LANGUAGE FlexibleInstances #-}
+{-# LANGUAGE TypeSynonymInstances #-}
 
 module Agda.Syntax.Concrete.Generic where
 

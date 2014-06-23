@@ -1,4 +1,8 @@
-{-# LANGUAGE CPP, PatternGuards, TupleSections, FlexibleInstances, GeneralizedNewtypeDeriving #-}
+{-# LANGUAGE CPP #-}
+{-# LANGUAGE FlexibleInstances #-}
+{-# LANGUAGE GeneralizedNewtypeDeriving #-}
+{-# LANGUAGE PatternGuards #-}
+{-# LANGUAGE TupleSections #-}
 
 -- | Code which replaces pattern matching on record constructors with
 -- uses of projection functions.

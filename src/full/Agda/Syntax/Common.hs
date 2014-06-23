@@ -1,5 +1,10 @@
-{-# LANGUAGE CPP, FlexibleInstances, DeriveDataTypeable, GeneralizedNewtypeDeriving,
-             DeriveFunctor, DeriveFoldable, DeriveTraversable #-}
+{-# LANGUAGE CPP #-}
+{-# LANGUAGE DeriveDataTypeable #-}
+{-# LANGUAGE DeriveFoldable #-}
+{-# LANGUAGE DeriveFunctor #-}
+{-# LANGUAGE DeriveTraversable #-}
+{-# LANGUAGE FlexibleInstances #-}
+{-# LANGUAGE GeneralizedNewtypeDeriving #-}
 
 {-| Some common syntactic entities are defined in this module.
 -}

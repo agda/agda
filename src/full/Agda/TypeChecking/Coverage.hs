@@ -1,4 +1,7 @@
-{-# LANGUAGE CPP, PatternGuards, FlexibleContexts, TupleSections #-}
+{-# LANGUAGE CPP #-}
+{-# LANGUAGE FlexibleContexts #-}
+{-# LANGUAGE PatternGuards #-}
+{-# LANGUAGE TupleSections #-}
 
 module Agda.TypeChecking.Coverage where
 

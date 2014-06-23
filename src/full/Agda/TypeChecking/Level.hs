@@ -1,4 +1,5 @@
 {-# LANGUAGE CPP #-}
+
 module Agda.TypeChecking.Level where
 
 import Control.Monad.Error

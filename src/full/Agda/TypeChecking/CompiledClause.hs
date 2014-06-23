@@ -1,4 +1,10 @@
-{-# LANGUAGE TypeOperators, CPP, DeriveDataTypeable, DeriveFunctor, DeriveFoldable, DeriveTraversable #-}
+{-# LANGUAGE CPP #-}
+{-# LANGUAGE DeriveDataTypeable #-}
+{-# LANGUAGE DeriveFoldable #-}
+{-# LANGUAGE DeriveFunctor #-}
+{-# LANGUAGE DeriveTraversable #-}
+{-# LANGUAGE TypeOperators #-}
+
 module Agda.TypeChecking.CompiledClause where
 
 import qualified Data.Map as Map

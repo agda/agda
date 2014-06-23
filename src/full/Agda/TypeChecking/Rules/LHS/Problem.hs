@@ -1,4 +1,9 @@
-{-# LANGUAGE CPP, FlexibleInstances, DeriveFunctor, DeriveFoldable, DeriveTraversable #-}
+{-# LANGUAGE CPP #-}
+{-# LANGUAGE DeriveFoldable #-}
+{-# LANGUAGE DeriveFunctor #-}
+{-# LANGUAGE DeriveTraversable #-}
+{-# LANGUAGE FlexibleInstances #-}
+
 module Agda.TypeChecking.Rules.LHS.Problem where
 
 import Control.Monad.Error

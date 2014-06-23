@@ -1,4 +1,5 @@
 {-# LANGUAGE CPP #-}
+
 module Agda.TypeChecking.Empty where
 
 import Control.Applicative

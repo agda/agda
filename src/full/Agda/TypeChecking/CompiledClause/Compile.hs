@@ -1,4 +1,5 @@
 {-# LANGUAGE CPP #-}
+
 module Agda.TypeChecking.CompiledClause.Compile where
 
 import Data.Monoid

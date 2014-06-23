@@ -1,5 +1,10 @@
-{-# LANGUAGE CPP, PatternGuards, TupleSections,
-             TypeSynonymInstances, FlexibleInstances, FlexibleContexts #-}
+{-# LANGUAGE CPP #-}
+{-# LANGUAGE FlexibleContexts #-}
+{-# LANGUAGE FlexibleInstances #-}
+{-# LANGUAGE PatternGuards #-}
+{-# LANGUAGE TupleSections #-}
+{-# LANGUAGE TypeSynonymInstances #-}
+
 -- | A syntactic equality check that takes meta instantiations into account,
 --   but does not reduce.  It replaces
 --   @

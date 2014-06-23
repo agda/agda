@@ -1,4 +1,6 @@
-{-# LANGUAGE CPP, ScopedTypeVariables #-}
+{-# LANGUAGE CPP #-}
+{-# LANGUAGE ScopedTypeVariables #-}
+
 module Agda.Compiler.Epic.Forcing where
 
 import Control.Applicative

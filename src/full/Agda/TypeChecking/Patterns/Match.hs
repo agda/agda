@@ -1,4 +1,6 @@
-{-# LANGUAGE CPP, ScopedTypeVariables, DeriveFunctor #-}
+{-# LANGUAGE CPP #-}
+{-# LANGUAGE DeriveFunctor #-}
+{-# LANGUAGE ScopedTypeVariables #-}
 
 module Agda.TypeChecking.Patterns.Match where
 
