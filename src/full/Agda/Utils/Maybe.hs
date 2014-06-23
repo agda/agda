@@ -1,4 +1,4 @@
-{-# LANGUAGE CPP #-}
+-- {-# LANGUAGE CPP #-}
 
 -- | Extend 'Data.Maybe' by common operations for the 'Maybe' type.
 --

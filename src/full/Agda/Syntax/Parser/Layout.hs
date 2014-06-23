@@ -1,4 +1,4 @@
-{-# LANGUAGE CPP #-}
+-- {-# LANGUAGE CPP #-}
 
 {-| This module contains the lex actions that handle the layout rules. The way
     it works is that the 'Parser' monad keeps track of a stack of
