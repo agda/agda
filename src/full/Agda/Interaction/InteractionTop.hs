@@ -276,6 +276,7 @@ data Interaction' range
     -- | Shows all the top-level names in the given module, along with
     -- their types. Uses the top-level scope.
   | Cmd_show_module_contents_toplevel
+                        B.Rewrite
                         String
 
   | Cmd_solveAll
@@ -361,7 +362,7 @@ data Interaction' range
     -- | Shows all the top-level names in the given module, along with
     -- their types. Uses the scope of the given goal.
   | Cmd_show_module_contents
-                        InteractionId range String
+                        B.Rewrite InteractionId range String
 
   | Cmd_make_case       InteractionId range String
 
@@ -521,8 +522,8 @@ interpret Cmd_metas = do -- CL.showMetas []
       d <- B.withMetaId i (showATop m)
       return $ d ++ "  [ at " ++ show r ++ " ]"
 
-interpret (Cmd_show_module_contents_toplevel s) =
-  liftCommandMT B.atTopLevel $ showModuleContents noRange s
+interpret (Cmd_show_module_contents_toplevel norm s) =
+  liftCommandMT B.atTopLevel $ showModuleContents norm noRange s
 
 interpret Cmd_solveAll = do
   out <- lift $ mapM lowr =<< B.getSolvedInteractionPoints False -- only solve metas which have a proper instantiation, i.e., not another meta
@@ -655,8 +656,8 @@ interpret (Cmd_goal_type_context_infer norm ii rng s) = do
            prettyATop =<< B.typeInMeta ii norm =<< B.parseExprIn ii rng s
   cmd_goal_type_context_and (text "Have:" <+> typ) norm ii rng s
 
-interpret (Cmd_show_module_contents ii rng s) =
-  liftCommandMT (B.withInteractionId ii) $ showModuleContents rng s
+interpret (Cmd_show_module_contents norm ii rng s) =
+  liftCommandMT (B.withInteractionId ii) $ showModuleContents norm rng s
 
 interpret (Cmd_why_in_scope_toplevel s) =
   liftCommandMT B.atTopLevel $ whyInScope s
@@ -918,9 +919,9 @@ cmd_goal_type_context_and doc norm ii _ _ = do
 -- | Shows all the top-level names in the given module, along with
 -- their types.
 
-showModuleContents :: Range -> String -> CommandM ()
-showModuleContents rng s = do
-  (modules, types) <- lift $ B.moduleContents rng s
+showModuleContents :: B.Rewrite -> Range -> String -> CommandM ()
+showModuleContents norm rng s = do
+  (modules, types) <- lift $ B.moduleContents norm rng s
   types' <- lift $ forM types $ \ (x, t) -> do
      t <- prettyTCM t
      return (show x, text ":" <+> t)

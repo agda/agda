@@ -1126,19 +1126,20 @@ top-level scope."
   "Cmd_helper_function"
   "Expression")
 
-(defun agda2-module-contents ()
+(agda2-maybe-normalised
+  agda2-module-contents
   "Shows all the top-level names in the given module.
 Along with their types."
-  (interactive)
-  (agda2-goal-cmd "Cmd_show_module_contents" "Module name"))
+  "Cmd_show_module_contents"
+  "Module name")
 
-(defun agda2-module-contents-toplevel (module)
+(agda2-maybe-normalised-toplevel
+  agda2-module-contents-toplevel
   "Shows all the top-level names in the given module.
 Along with their types."
-  (interactive "MModule name: ")
-  (agda2-go t nil t
-            "Cmd_show_module_contents_toplevel"
-            (agda2-string-quote module)))
+  "Cmd_show_module_contents_toplevel"
+  "Module name"
+)
 
 (defun agda2-module-contents-maybe-toplevel ()
   "Shows all the top-level names in the given module.
