@@ -199,6 +199,10 @@ instance Pretty Expr where
             Quote _ -> text "quote"
             QuoteTerm _ -> text "quoteTerm"
 	    Unquote _ -> text "unquote"
+            Tactic _ t es ->
+              sep [ text "tactic" <+> pretty t
+                  , fsep [ text "|" <+> pretty e | e <- es ]
+                  ]
             -- Andreas, 2011-10-03 print irrelevant things as .(e)
             DontCare e -> text "." <> parens (pretty e)
             Equal _ a b -> pretty a <+> text "=" <+> pretty b

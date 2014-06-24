@@ -604,6 +604,7 @@ paren _   e@(Let _ _ _)           = return $ \p -> mparen (lamBrackets p) e
 paren _   e@(Rec _ _)             = return $ \p -> mparen (appBrackets p) e
 paren _   e@(RecUpdate _ _ _)     = return $ \p -> mparen (appBrackets p) e
 paren _   e@(WithApp _ _ _)       = return $ \p -> mparen (withAppBrackets p) e
+paren _   e@Tactic{}              = return $ \p -> mparen (withAppBrackets p) e
 paren _   e@(Ident _)             = return $ \p -> e
 paren _   e@(Lit _)               = return $ \p -> e
 paren _   e@(QuestionMark _ _)    = return $ \p -> e

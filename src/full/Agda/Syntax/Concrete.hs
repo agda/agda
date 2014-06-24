@@ -116,6 +116,7 @@ data Expr
         | QuoteContext !Range Name Expr        -- ^ ex: @quoteContext ctx in e@
         | Quote !Range                         -- ^ ex: @quote@, should be applied to a name
         | QuoteTerm !Range                     -- ^ ex: @quoteTerm@, should be applied to a term
+        | Tactic !Range Expr [Expr]            -- ^ @tactic solve | subgoal1 | .. | subgoalN@
         | Unquote !Range                       -- ^ ex: @unquote@, should be applied to a term of type @Term@
         | DontCare Expr                        -- ^ to print irrelevant things
         | Equal !Range Expr Expr               -- ^ ex: @a = b@, used internally in the parser
@@ -480,6 +481,7 @@ instance HasRange Expr where
             Quote r             -> r
             QuoteTerm r         -> r
             Unquote r           -> r
+            Tactic r _ _        -> r
             DontCare{}          -> noRange
             Equal r _ _         -> r
 
@@ -653,6 +655,7 @@ instance KillRange Expr where
   killRange (Quote _)            = Quote noRange
   killRange (QuoteTerm _)        = QuoteTerm noRange
   killRange (Unquote _)          = Unquote noRange
+  killRange (Tactic _ t es)      = killRange2 (Tactic noRange) t es
   killRange (DontCare e)         = killRange1 DontCare e
   killRange (Equal _ x y)        = Equal noRange x y
 

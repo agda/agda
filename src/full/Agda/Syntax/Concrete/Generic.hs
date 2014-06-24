@@ -122,6 +122,7 @@ instance ExprLike Expr where
      ETel tel           -> f $ ETel                   $ mapE tel
      QuoteGoal r x e    -> f $ QuoteGoal r x          $ mapE e
      QuoteContext r x e -> f $ QuoteContext r x       $ mapE e
+     Tactic r e es      -> f $ Tactic r     (mapE e)  $ mapE es
      Quote{}            -> f $ e0
      QuoteTerm{}        -> f $ e0
      Unquote{}          -> f $ e0
