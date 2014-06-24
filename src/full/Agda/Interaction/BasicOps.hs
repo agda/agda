@@ -737,14 +737,16 @@ parseName r s = do
 
 -- | Returns the contents of the given module.
 
-moduleContents :: Range
+moduleContents :: Rewrite
+                  -- ^ How should the types be presented
+               -> Range
                   -- ^ The range of the next argument.
                -> String
                   -- ^ The module name.
                -> TCM ([C.Name], [(C.Name, Type)])
                   -- ^ Module names, names paired up with
                   -- corresponding types.
-moduleContents rng s = do
+moduleContents norm rng s = do
   m <- parseName rng s
   modScope <- getNamedScope . amodName =<< resolveModule m
   let modules :: ThingsInScope AbstractModule
@@ -753,7 +755,7 @@ moduleContents rng s = do
       names = exportedNamesInScope modScope
   types <- mapM (\(x, n) -> do
                    d <- getConstInfo $ anameName n
-                   t <- defType <$> instantiateDef d
+                   t <- normalForm norm =<< (defType <$> instantiateDef d)
                    return (x, t))
                 (concatMap (\(x, ns) -> map ((,) x) ns) $
                            Map.toList names)
