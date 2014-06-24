@@ -52,6 +52,18 @@ Language
     unquoteNat (con (quote Nat.suc) (arg _ n ∷ [])) = fmap suc (unquoteNat n)
     unquoteNat _                                    = nothing
 
+* New syntactic sugar 'tactic e' and 'tactic e | e1 | .. | en'.
+
+  It desugars as follows and makes it less unwieldy to call reflection-based
+  tactics.
+
+    tactic e                --> quoteGoal g in unquote (e g)
+    tactic e | e1 | .. | en --> quoteGoal g in unquote (e g) e1 .. en
+
+  Note that in the second form the tactic function should generate a function
+  from a number of new subgoals to the original goal. The type of e should be
+  Term -> Term in both cases.
+
 Goal and error display
 ======================
 
