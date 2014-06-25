@@ -506,6 +506,7 @@ stripNonDataArgs ps = do
       ty  <- liftTCM $ reduce $ defType def
       TelV tel _ <- liftTCM $ telView ty
       let types = map (unEl . snd . unDom) $ telToList tel
+      types <- liftTCM $ mapM reduce types
       zipWithM stripIfNotData ps types
     else return ps
   where
