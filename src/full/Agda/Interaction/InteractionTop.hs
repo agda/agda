@@ -1109,7 +1109,7 @@ parseAndDoAtToplevel cmd title s = do
   let work = lift (B.atTopLevel $ prettyA =<< cmd =<< concreteToAbstract_ e)
   res <- if not doTime then work else do
       (r, time) <- measureTime work
-      return $ text ("Time: " ++ show (div time 1000000000) ++ "ms") $$ r
+      return $ text ("Time: " ++ showThousandSep (div time 1000000000) ++ "ms") $$ r
   display_info (title res)
 
 -- | Tell to highlight the code using the given highlighting

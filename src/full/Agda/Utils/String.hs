@@ -4,10 +4,12 @@ module Agda.Utils.String
   , addFinalNewLine
   , indent
   , Str(..)
+  , showThousandSep
   ) where
 
 import Data.List
 import Numeric
+import Agda.Utils.List
 
 -- | 'quote' adds double quotes around the string, replaces newline
 -- characters with @\n@, and escapes double quotes and backslashes
@@ -56,3 +58,7 @@ newtype Str = Str { getStr :: String }
 instance Show Str where
   show = getStr
 
+-- | Show a number using comma to separate powers of 1,000.
+
+showThousandSep :: Show a => a -> String
+showThousandSep = reverse . intercalate "," . chop 3 . reverse . show
