@@ -1104,9 +1104,13 @@ parseAndDoAtToplevel
      -- ^ The expression to parse.
   -> CommandM ()
 parseAndDoAtToplevel cmd title s = do
-  e <- liftIO $ parse exprParser s
-  display_info . title =<<
-    lift (B.atTopLevel $ prettyA =<< cmd =<< concreteToAbstract_ e)
+  e      <- liftIO $ parse exprParser s
+  doTime <- lift $ hasVerbosity "profile.interactive" 10
+  let work = lift (B.atTopLevel $ prettyA =<< cmd =<< concreteToAbstract_ e)
+  res <- if not doTime then work else do
+      (r, time) <- measureTime work
+      return $ text ("Time: " ++ show (div time 1000000000) ++ "ms") $$ r
+  display_info (title res)
 
 -- | Tell to highlight the code using the given highlighting
 -- info (unless it is @Nothing@).
