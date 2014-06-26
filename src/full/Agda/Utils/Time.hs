@@ -5,7 +5,11 @@
 module Agda.Utils.Time
   ( ClockTime
   , getClockTime
+  , measureTime
   ) where
+
+import Control.Monad.Trans
+import System.CPUTime
 
 #if MIN_VERSION_directory(1,1,1)
 import qualified Data.Time
@@ -31,3 +35,14 @@ getClockTime =
 #else
   System.Time.getClockTime
 #endif
+
+type Picoseconds = Integer
+
+-- | Measure the time of a computation. Returns the
+measureTime :: MonadIO m => m a -> m (a, Picoseconds)
+measureTime m = do
+  start <- liftIO $ getCPUTime
+  x     <- m
+  stop  <- liftIO $ getCPUTime
+  return (x, stop - start)
+

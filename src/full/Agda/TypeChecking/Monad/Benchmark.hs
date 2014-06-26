@@ -12,7 +12,6 @@ module Agda.TypeChecking.Monad.Benchmark
 
 import qualified Control.Exception as E (evaluate)
 import Control.Monad.State
-import System.CPUTime
 
 import Agda.TypeChecking.Monad.Base.Benchmark
 import Agda.TypeChecking.Monad.Base
@@ -21,6 +20,7 @@ import Agda.TypeChecking.Monad.State
 
 import Agda.Utils.Monad
 import Agda.Utils.Pretty (Doc)
+import Agda.Utils.Time
 
 #include "../../undefined.h"
 import Agda.Utils.Impossible
@@ -41,11 +41,9 @@ reportBenchmarkingDoc = reportSDoc "profile" 7
 -- | Bill a computation to a specific account (True) or reimburse (False).
 billTo' :: MonadTCM tcm => Bool -> Account -> tcm a -> tcm a
 billTo' add k m = ifNotM benchmarking m {- else -} $ do
-  start  <- liftIO $ getCPUTime
-  result <- liftIO . E.evaluate =<< m
-  stop   <- liftIO $ getCPUTime
-  addToAccount k $ if add then stop - start else start - stop
-  return result
+  (res, time) <- measureTime $ liftIO . E.evaluate =<< m
+  addToAccount k $ if add then time else -time
+  return res
 
 -- | Bill a computation to a specific account.
 billTo :: MonadTCM tcm => Account -> tcm a -> tcm a
