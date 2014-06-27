@@ -161,8 +161,8 @@ checkRecDef i name ind con ps contel fields =
                          }
 
       -- Check that the fields fit inside the sort
-      let dummy = var 0  -- We're only interested in the sort here
-      telePi ftel (El s dummy) `fitsIn` s
+      let dummy = Sort Prop  -- We're only interested in the sort here
+      telePi ftel (El (raise (size ftel) s) dummy) `fitsIn` s
 
       {- Andreas, 2011-04-27 WRONG because field types are checked again
          and then non-stricts should not yet be irrelevant

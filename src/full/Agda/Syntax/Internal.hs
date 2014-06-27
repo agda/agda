@@ -193,9 +193,10 @@ data Sort = Type Level
             --   it's the normal Lub
   deriving (Typeable, Show)
 
--- | A level is a maximum expression of 0..n plus expressions
+-- | A level is a maximum expression of 0..n 'PlusLevel' expressions
 --   each of which is a number or an atom plus a number.
 --
+--   The empty maximum is the canonical representation for level 0.
 newtype Level = Max [PlusLevel]
   deriving (Show, Typeable)
 
