@@ -237,7 +237,7 @@ redBind ma f k = do
 	YesReduction _ y -> k y
 
 redReturn :: a -> ReduceM (Reduced a' a)
-redReturn = return . YesReduction NoSimplification
+redReturn = return . YesReduction YesSimplification
 
 fromReducedTerm :: (Term -> Maybe a) -> TCM (FromTermFunction a)
 fromReducedTerm f = return $ \t -> do
