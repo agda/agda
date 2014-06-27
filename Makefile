@@ -52,7 +52,7 @@ CABAL_OPTS+=--builddir=dist/$(VERSION)
 #  -f epic
 
 ifeq ($(HAVE_GHC_7_7),Yes)
-CABAL_OPTS+=--ghc-option=-j3
+#CABAL_OPTS+=--ghc-option=-j3
 endif
 
 install : install-bin compile-emacs-mode setup-emacs-mode

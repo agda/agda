@@ -176,9 +176,11 @@ splitProblem mf (Problem ps (perm, qs) tel pr) = do
       case asView $ namedArg p of
 
         -- Case: projection pattern.  That's an error.
-        (_, p') | Just{} <- isProjP p' -> do
-           typeError $ CannotEliminateWithPattern p (telePi tel0 $ unArg $ restType pr)
-
+        --(_, p') | Just{} <- isProjP p' -> do
+        (_, A.DefP _ d ps) -> typeError $
+          if null ps
+          then CannotEliminateWithPattern p (telePi tel0 $ unArg $ restType pr)
+          else IllformedProjectionPattern $ namedArg p
         -- Case: literal pattern
 	(xs, p@(A.LitP lit))  -> do
           -- Note that, in the presence of --without-K, this branch is
