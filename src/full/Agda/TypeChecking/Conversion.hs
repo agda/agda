@@ -952,7 +952,7 @@ compareLevel CmpEq  u v = equalLevel u v
 
 compareSort :: Comparison -> Sort -> Sort -> TCM ()
 compareSort CmpEq  = equalSort
-compareSort CmpLeq = equalSort
+compareSort CmpLeq = leqSort
 
 -- | Check that the first sort is less or equal to the second.
 leqSort :: Sort -> Sort -> TCM ()
@@ -960,6 +960,7 @@ leqSort s1 s2 =
   ifM typeInType (return ()) $
     catchConstraint (SortCmp CmpLeq s1 s2) $
     do	(s1,s2) <- reduce (s1,s2)
+        let postpone = addConstraint (SortCmp CmpLeq s1 s2)
         reportSDoc "tc.conv.sort" 30 $
           sep [ text "leqSort"
               , nest 2 $ fsep [ prettyTCM s1 <+> text "=<"
@@ -976,8 +977,8 @@ leqSort s1 s2 =
 
             (_       , Inf     )             -> return ()
             (Inf     , _       )             -> equalSort s1 s2
-            (DLub{}  , _       )             -> equalSort s1 s2
-            (_       , DLub{}  )             -> equalSort s1 s2
+            (DLub{}  , _       )             -> postpone
+            (_       , DLub{}  )             -> postpone
     where
 	notLeq s1 s2 = typeError $ NotLeqSort s1 s2
 
