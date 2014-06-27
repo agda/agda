@@ -155,6 +155,7 @@ errorString err = case err of
     GenericDocError{}                        -> "GenericDocError"
     IFSNoCandidateInScope{}                  -> "IFSNoCandidateInScope"
     IlltypedPattern{}                        -> "IlltypedPattern"
+    IllformedProjectionPattern{}             -> "IllformedProjectionPattern"
     CannotEliminateWithPattern{}             -> "CannotEliminateWithPattern"
     IllegalLetInTelescope{}                  -> "IllegalLetInTelescope"
     IncompletePatternMatching{}              -> "IncompletePatternMatching"
@@ -343,6 +344,8 @@ instance PrettyTCM TypeError where
               pwords "Failed to infer the value of dotted pattern"
             IlltypedPattern p a -> fsep $
               pwords "Type mismatch"
+            IllformedProjectionPattern p -> fsep $
+              pwords "Ill-formed projection pattern " ++ [prettyA p]
             CannotEliminateWithPattern p a -> do
               let isProj = isJust (isProjP p)
               fsep $

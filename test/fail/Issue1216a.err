@@ -1,0 +1,5 @@
+Issue1216a.agda:12,1-30
+Cannot eliminate type Coind with pattern ind A (did you supply too
+many arguments?)
+when checking that the clause ind A (loop B) = ind (loop A) has
+type Set → Coind

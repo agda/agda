@@ -1,0 +1,4 @@
+Issue1216.agda:12,1-26
+Ill-formed projection pattern ind A
+when checking that the clause ind A loop = ind (loop A) has type
+Set → Coind
