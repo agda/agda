@@ -1258,6 +1258,7 @@ equalSort s1 s2 =
   ifM typeInType (return ()) $
     catchConstraint (SortCmp CmpEq s1 s2) $ do
         (s1,s2) <- reduce (s1,s2)
+        let postpone = addConstraint (SortCmp CmpEq s1 s2)
         reportSDoc "tc.conv.sort" 30 $
           sep [ text "equalSort"
               , vcat [ nest 2 $ fsep [ prettyTCM s1 <+> text "=="
@@ -1277,17 +1278,20 @@ equalSort s1 s2 =
             (Inf     , Inf     )             -> return ()
             (Inf     , Type (Max as@(_:_)))  -> mapM_ (isInf $ notEq s1 s2) as
             (Type (Max as@(_:_)), Inf)       -> mapM_ (isInf $ notEq s1 s2) as
+            -- Andreas, 2014-06-27:
+            -- @Type (Max [])@ (which is Set0) falls through to error.
             (Inf     , _       )             -> notEq s1 s2
             (_       , Inf     )             -> notEq s1 s2
 
+            -- Andreas, 2014-06-27:  Why are there special cases for Set0?
             (DLub s1 s2, s0@(Type (Max []))) -> do
               equalSort s1 s0
               underAbstraction_ s2 $ \s2 -> equalSort s2 s0
             (s0@(Type (Max [])), DLub s1 s2) -> do
               equalSort s0 s1
               underAbstraction_ s2 $ \s2 -> equalSort s0 s2
-            (DLub{}  , _       )             -> addConstraint (SortCmp CmpEq s1 s2)
-            (_       , DLub{}  )             -> addConstraint (SortCmp CmpEq s1 s2)
+            (DLub{}  , _       )             -> postpone
+            (_       , DLub{}  )             -> postpone
     where
 	notEq s1 s2 = typeError $ UnequalSorts s1 s2
 
