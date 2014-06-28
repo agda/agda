@@ -782,6 +782,10 @@ instance ToConcrete A.Declaration [C.Declaration] where
     C.QName x <- toConcrete x
     bindToConcrete xs $ \xs -> (:[]) . C.PatternSyn (getRange x) x xs <$> toConcrete p
 
+  toConcrete (A.UnquoteDecl i x e) = do
+    C.QName x <- toConcrete x
+    (:[]) . C.UnquoteDecl (getRange i) x <$> toConcrete e
+
 
 data RangeAndPragma = RangeAndPragma Range A.Pragma
 

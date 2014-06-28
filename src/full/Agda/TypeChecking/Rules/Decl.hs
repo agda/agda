@@ -24,6 +24,7 @@ import Agda.Syntax.Internal as I
 import qualified Agda.Syntax.Info as Info
 import Agda.Syntax.Position
 import Agda.Syntax.Common
+import Agda.Syntax.Translation.InternalToAbstract
 
 import Agda.TypeChecking.Monad
 import Agda.TypeChecking.Monad.Builtin
@@ -40,6 +41,7 @@ import Agda.TypeChecking.Polarity
 import Agda.TypeChecking.Pretty
 import Agda.TypeChecking.Primitive hiding (Nat)
 import Agda.TypeChecking.ProjectionLike
+import Agda.TypeChecking.Quote
 import Agda.TypeChecking.Records
 import Agda.TypeChecking.Reduce
 import Agda.TypeChecking.Rewriting
@@ -84,17 +86,19 @@ checkDecl d = traceCall (SetRange (getRange d)) $ do
 
     let -- What kind of final checks/computations should be performed
         -- if we're not inside a mutual block?
-        none       m = m >> return Nothing
-        meta       m = m >> return (Just (return []))
-        mutual  ds m = m >>= return . Just . mutualChecks ds
-        impossible m = m >> return __IMPOSSIBLE__
+        none        m = m >> return Nothing
+        meta        m = m >> return (Just (return []))
+        mutual i ds m = m >>= return . Just . mutualChecks i ds
+        impossible  m = m >> return __IMPOSSIBLE__
                        -- We're definitely inside a mutual block.
+
+    let mi = Info.MutualInfo True noRange
 
     finalChecks <- case d of
       A.Axiom{}                -> meta $ checkTypeSignature d
       A.Field{}                -> typeError FieldOutsideRecord
       A.Primitive i x e        -> meta $ checkPrimitive i x e
-      A.Mutual i ds            -> mutual ds $ checkMutual i ds
+      A.Mutual i ds            -> mutual i ds $ checkMutual i ds
       A.Section i x tel ds     -> meta $ checkSection i x tel ds
       A.Apply i x modapp rd rm -> meta $ checkSectionApplication i x modapp rd rm
       A.Import i x             -> none $ checkImport i x
@@ -102,7 +106,7 @@ checkDecl d = traceCall (SetRange (getRange d)) $ do
       A.ScopedDecl scope ds    -> none $ setScope scope >> checkDecls ds
       A.FunDef i x delayed cs  -> impossible $ check x i $ checkFunDef delayed i x cs
       A.DataDef i x ps cs      -> impossible $ check x i $ checkDataDef i x ps cs
-      A.RecDef i x ind c ps tel cs -> mutual [d] $ check x i $ do
+      A.RecDef i x ind c ps tel cs -> mutual mi [d] $ check x i $ do
                                     checkRecDef i x ind c ps tel cs
                                     return (Set.singleton x)
       A.DataSig i x ps t       -> impossible $ checkSig i x ps t
@@ -119,6 +123,7 @@ checkDecl d = traceCall (SetRange (getRange d)) $ do
                                   -- Open and PatternSynDef are just artifacts
                                   -- from the concrete syntax, retained for
                                   -- highlighting purposes.
+      A.UnquoteDecl i x e      -> checkUnquoteDecl i x e
 
     unlessM (isJust . envMutualBlock <$> ask) $ do
       termErrs <- caseMaybe finalChecks (return []) $ \ theMutualChecks -> do
@@ -145,6 +150,7 @@ checkDecl d = traceCall (SetRange (getRange d)) $ do
         A.DataSig{}              -> __IMPOSSIBLE__
         A.Open{}                 -> highlight d
         A.PatternSynDef{}        -> highlight d
+        A.UnquoteDecl{}          -> highlight d
         A.Section i x tel _      -> highlight (A.Section i x tel [])
           -- Each block in the section has already been highlighted,
           -- all that remains is the module declaration.
@@ -182,12 +188,14 @@ checkDecl d = traceCall (SetRange (getRange d)) $ do
     -- Some checks that should be run at the end of a mutual
     -- block (or non-mutual record declaration). The set names
     -- contains the names defined in the mutual block.
-    mutualChecks ds names = do
+    mutualChecks i ds names = do
       -- Andreas, 2014-04-11: instantiate metas in definition types
       mapM_ instantiateDefinitionType $ Set.toList names
       -- Andreas, 2013-02-27: check termination before injectivity,
       -- to avoid making the injectivity checker loop.
-      termErrs <- checkTermination_ d
+      termErrs <- case d of
+        A.UnquoteDecl{} -> checkTermination_ $ A.Mutual i ds
+        _               -> checkTermination_ d
       checkPositivity_         names
       checkCoinductiveRecords  ds
       -- Andreas, 2012-09-11:  Injectivity check stores clauses
@@ -197,12 +205,30 @@ checkDecl d = traceCall (SetRange (getRange d)) $ do
       checkProjectionLikeness_ names
       return termErrs
 
--- | Instantiate all metas in 'Definition' associated to 'QName'.
---   Makes sense after freezing metas.
---   Some checks, like free variable analysis, are not in 'TCM',
---   so they will be more precise (see issue 1099) after meta instantiation.
---
---   Precondition: name has been added to signature already.
+    checkUnquoteDecl i x e = do
+      reportSDoc "tc.decl.unquote" 20 $ text "Checking unquoteDecl" <+> prettyTCM x
+      fundef <- primAgdaFunDef
+      v      <- checkExpr e $ El (mkType 0) fundef
+      reportSDoc "tc.decl.unquote" 20 $ text "unquoteDecl: Checked term"
+      UnQFun a cs <- unquote v
+      reportSDoc "tc.decl.unquote" 20 $
+        vcat $ text "unquoteDecl: Unquoted term"
+             : [ nest 2 $ text (show c) | c <- cs ]
+      -- Add x to signature, otherwise reification gets unhappy.
+      addConstant x $ defaultDefn defaultArgInfo x a emptyFunction
+      a <- withShowAllArguments $ reify a
+      reportSDoc "tc.decl.unquote" 20 $ text "reified type:" <+> prettyA a
+      cs <- mapM (reify . QNamed x) cs
+      reportSDoc "tc.decl.unquote" 20 $ text "unquoteDecl: Reified def"
+      let ds = [ A.Axiom A.FunSig i defaultArgInfo x a   -- TODO other than defaultArg
+               , A.FunDef i x NotDelayed cs ]
+          mi = Info.MutualInfo True (getRange i)
+      xs <- checkMutual mi ds   -- TODO termination check
+      return $ Just $ mutualChecks mi ds xs
+
+-- | Instantiate all metas in 'Definition' associated to 'QName'. --   Makes sense after freezing metas.
+--   Some checks, like free variable analysis, are not in 'TCM', --   so they will be more precise (see issue 1099) after meta instantiation.
+-- --   Precondition: name has been added to signature already.
 instantiateDefinitionType :: QName -> TCM ()
 instantiateDefinitionType q = do
   reportSLn "tc.decl.inst" 20 $ "instantiating type of " ++ show q

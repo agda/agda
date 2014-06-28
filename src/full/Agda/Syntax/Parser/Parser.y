@@ -121,6 +121,7 @@ import Agda.Utils.Tuple
     'quoteTerm'     { TokKeyword KwQuoteTerm $$ }
     'tactic'        { TokKeyword KwTactic $$ }
     'unquote'       { TokKeyword KwUnquote $$ }
+    'unquoteDecl'   { TokKeyword KwUnquoteDecl $$ }
 
     setN	{ TokSetN $$ }
     tex		{ TokTeX $$ }
@@ -230,6 +231,7 @@ Token
     | 'quoteTerm'     { TokKeyword KwQuoteTerm $1 }
     | 'tactic'        { TokKeyword KwTactic $1 }
     | 'unquote'       { TokKeyword KwUnquote $1 }
+    | 'unquoteDecl'   { TokKeyword KwUnquoteDecl $1 }
 
     | setN	    { TokSetN $1 }
     | tex	    { TokTeX $1 }
@@ -938,6 +940,7 @@ Declaration
     | Pragma	    { [$1] }
     | Syntax        { [$1] }
     | PatternSyn    { [$1] }
+    | UnquoteDecl   { [$1] }
 
 
 {--------------------------------------------------------------------------
@@ -1043,6 +1046,10 @@ Postulate : 'postulate' RelTypeSignatures { Postulate (fuseRange $1 $2) $2 }
 -- Primitives. Can only contain type signatures.
 Primitive :: { Declaration }
 Primitive : 'primitive' TypeSignatures	{ Primitive (fuseRange $1 $2) $2 }
+
+-- Unquoting declarations.
+UnquoteDecl :: { Declaration }
+UnquoteDecl : 'unquoteDecl' Id '=' Expr { UnquoteDecl (fuseRange $1 $4) $2 $4 }
 
 -- Syntax declaration (To declare eg. mixfix binders)
 Syntax :: { Declaration }

@@ -139,7 +139,7 @@ coreBuiltins = map (\ (x, z) -> BuiltinInfo x z)
   , (builtinAgdaFunDef         |-> BuiltinData tset [builtinAgdaFunDefCon])
   , (builtinAgdaFunDefCon      |-> BuiltinDataCons (ttype --> tlist tclause --> tfun))
   , (builtinAgdaClause         |-> BuiltinData tset [builtinAgdaClauseCon])
-  , (builtinAgdaClauseCon      |-> BuiltinDataCons (tlist tpat --> tterm --> tclause))
+  , (builtinAgdaClauseCon      |-> BuiltinDataCons (tlist (targ tpat) --> tterm --> tclause))
   , (builtinAgdaDataDef               |-> builtinPostulate tset) -- internally this is QName
   , (builtinAgdaRecordDef             |-> builtinPostulate tset) -- internally this is QName
   , (builtinAgdaDefinition            |-> BuiltinData tset [builtinAgdaDefinitionFunDef

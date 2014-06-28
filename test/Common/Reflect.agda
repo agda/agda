@@ -111,7 +111,7 @@ data Pattern : Set where
 {-# BUILTIN AGDAPATPROJ proj #-}
 
 data Clause : Set where
-  clause : List Pattern → Term → Clause
+  clause : List (Arg Pattern) → Term → Clause
 
 {-# BUILTIN AGDACLAUSE Clause #-}
 {-# BUILTIN AGDACLAUSECON clause #-}

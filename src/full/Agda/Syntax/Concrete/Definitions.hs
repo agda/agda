@@ -70,6 +70,7 @@ data NiceDeclaration
         | DataDef Range Fixity' IsAbstract Name [LamBinding] [NiceConstructor]
         | RecDef Range Fixity' IsAbstract Name (Maybe (Ranged Induction)) (Maybe (ThingWithFixity Name)) [LamBinding] [NiceDeclaration]
         | NicePatternSyn Range Fixity' Name [Arg Name] Pattern
+        | NiceUnquoteDecl Range Fixity' Access IsAbstract TerminationCheck Name Expr
     deriving (Typeable, Show)
 
 -- | Termination check? (Default = True).
@@ -156,6 +157,7 @@ instance HasRange NiceDeclaration where
   getRange (NiceDataSig r _ _ _ _ _)       = r
   getRange (NicePatternSyn r _ _ _ _)      = r
   getRange (NiceFunClause r _ _ _ _)       = r
+  getRange (NiceUnquoteDecl r _ _ _ _ _ _) = r
 
 instance Error DeclarationException where
   noMsg  = strMsg ""
@@ -385,6 +387,7 @@ niceDeclarations ds = do
       Import{}                                     -> []
       ModuleMacro{}                                -> []
       Module{}                                     -> []
+      UnquoteDecl _ x _                            -> [x]
       Pragma{}                                     -> []
 
     inferMutualBlocks :: [NiceDeclaration] -> Nice [NiceDeclaration]
@@ -432,6 +435,9 @@ niceDeclarations ds = do
       niceTypeSig NoTerminationCheck d ds
     nice (Pragma (NoTerminationCheckPragma r) : d@FunClause{} : ds) =
       niceFunClause NoTerminationCheck d ds
+    nice (Pragma (NoTerminationCheckPragma r) : ds@(UnquoteDecl{} : _)) = do
+      NiceUnquoteDecl r f p a _ x e : ds <- nice ds
+      return $ NiceUnquoteDecl r f p a NoTerminationCheck x e : ds
 
     nice (Pragma (MeasurePragma r x) : d@TypeSig{} : ds) =
       niceTypeSig (TerminationMeasure r x) d ds
@@ -492,6 +498,10 @@ niceDeclarations ds = do
           (NicePatternSyn r fx n as p :) <$> nice ds
         Open r x is         -> (NiceOpen r x is :) <$> nice ds
         Import r x as op is -> (NiceImport r x as op is :) <$> nice ds
+
+        UnquoteDecl r x e -> do
+          fx <- getFixity x
+          (NiceUnquoteDecl r fx PublicAccess ConcreteDef TerminationCheck x e :) <$> nice ds
 
         Pragma (NoTerminationCheckPragma r) ->
           throwError $ InvalidNoTerminationCheckPragma r
@@ -732,6 +742,7 @@ niceDeclarations ds = do
         termCheck (FunSig _ _ _ _ tc _ _) = tc
         termCheck (FunDef _ _ _ _ tc _ _) = tc
         termCheck (NiceMutual _ tc _)     = if tc then TerminationCheck else NoTerminationCheck
+        termCheck (NiceUnquoteDecl _ _ _ _ tc _ _) = tc
         termCheck _                       = TerminationCheck
 
         -- A mutual block cannot have a measure,
@@ -757,6 +768,7 @@ niceDeclarations ds = do
         -- no effect on fields or primitives, the InAbstract field there is unused
         NiceField r f p _ x e            -> return $ NiceField r f p AbstractDef x e
         PrimitiveFunction r f p _ x e    -> return $ PrimitiveFunction r f p AbstractDef x e
+        NiceUnquoteDecl r f p _ t x e    -> return $ NiceUnquoteDecl r f p AbstractDef t x e
         NiceModule{}                     -> return $ d
         NiceModuleMacro{}                -> return $ d
         Axiom{}                          -> return $ d
@@ -849,6 +861,7 @@ niceDeclarations ds = do
         NiceRecSig r f p x ls t          -> (\ p -> NiceRecSig r f p x ls t) <$> setPrivate p
         NiceDataSig r f p x ls t         -> (\ p -> NiceDataSig r f p x ls t) <$> setPrivate p
         NiceFunClause r p a termCheck d  -> (\ p -> NiceFunClause r p a termCheck d) <$> setPrivate p
+        NiceUnquoteDecl r f p a t x e    -> (\ p -> NiceUnquoteDecl r f p a t x e) <$> setPrivate p
 {-
         Axiom r f _ rel x e              -> dirty $ Axiom r f PrivateAccess rel x e
         NiceField r f _ a x e            -> dirty $ NiceField r f PrivateAccess a x e
@@ -912,6 +925,7 @@ niceDeclarations ds = do
             NiceRecSig r f _ x ls t          -> NiceRecSig r f PrivateAccess x ls t
             NiceDataSig r f _ x ls t         -> NiceDataSig r f PrivateAccess x ls t
             NiceFunClause r _ a termCheck d  -> NiceFunClause r PrivateAccess a termCheck d
+            NiceUnquoteDecl r fx _ a term x d -> NiceUnquoteDecl r fx PrivateAccess a term x d
             NicePragma _ _                   -> d
             NiceOpen _ _ _                   -> d
             NiceImport _ _ _ _ _             -> d
@@ -987,6 +1001,7 @@ notSoNiceDeclaration d =
       RecDef r _ _ x i c bs ds         -> Record r x i (unThing <$> c) bs Nothing $ map notSoNiceDeclaration ds
         where unThing (ThingWithFixity c _) = c
       NicePatternSyn r _ n as p        -> PatternSyn r n as p
+      NiceUnquoteDecl r _ _ _ _ x e    -> UnquoteDecl r x e
 
 {-
 -- Andreas, 2012-03-08 the following function is only used twice,
