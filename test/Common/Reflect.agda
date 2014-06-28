@@ -101,14 +101,14 @@ data Pattern : Set where
   dot : Pattern
   var : Pattern
   lit : Literal → Pattern
-  proj : QName → Pattern
+  projP : QName → Pattern
 
 {-# BUILTIN AGDAPATTERN Pattern #-}
 {-# BUILTIN AGDAPATCON con #-}
 {-# BUILTIN AGDAPATDOT dot #-}
 {-# BUILTIN AGDAPATVAR var #-}
 {-# BUILTIN AGDAPATLIT lit #-}
-{-# BUILTIN AGDAPATPROJ proj #-}
+{-# BUILTIN AGDAPATPROJ projP #-}
 
 data Clause : Set where
   clause : List (Arg Pattern) → Term → Clause

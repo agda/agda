@@ -225,7 +225,7 @@ _`∷_ : (`x `xs : Term) → Term
 _`∷_ = con`ⁿʳ (quote _∷_) 2
 
 `var : (`n `args : Term) → Term
-`var = con`ⁿʳ (quote var) 2
+`var = con`ⁿʳ (quote Term.var) 2
 
 `lam : (`hiding `args : Term) → Term
 `lam = con`ⁿʳ (quote lam) 2

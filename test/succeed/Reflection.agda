@@ -61,9 +61,9 @@ infixr 40 _`∷_
 
 _`∷_ : Term → Term → Term
 x `∷ xs = con (quote _∷_) (argᵛʳ x ∷ argᵛʳ xs ∷ [])
-`[]     = con (quote []) []
-`true   = con (quote true) []
-`false  = con (quote false) []
+pattern `[]    = con (quote []) []
+pattern `true  = con (quote true) []
+pattern `false = con (quote false) []
 
 test₃ : Check (true ∷ false ∷ [])
 test₃ = quoteGoal t in
