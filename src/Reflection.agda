@@ -152,22 +152,46 @@ mutual
 ------------------------------------------------------------------------
 -- Definitions
 
+data Pattern : Set where
+  con  : Name → List (Arg Pattern) → Pattern
+  dot  : Pattern
+  var  : Pattern
+  lit  : Literal → Pattern
+  proj : Name → Pattern
+
+{-# BUILTIN AGDAPATTERN Pattern #-}
+{-# BUILTIN AGDAPATCON con #-}
+{-# BUILTIN AGDAPATDOT dot #-}
+{-# BUILTIN AGDAPATVAR var #-}
+{-# BUILTIN AGDAPATLIT lit #-}
+{-# BUILTIN AGDAPATPROJ proj #-}
+
+data Clause : Set where
+  clause : List (Arg Pattern) → Term → Clause
+
+{-# BUILTIN AGDACLAUSE Clause #-}
+{-# BUILTIN AGDACLAUSECON clause #-}
+
+-- Function definition.
+data FunctionDef : Set where
+  fun-def : Type → List Clause → FunctionDef
+
+{-# BUILTIN AGDAFUNDEF    FunctionDef #-}
+{-# BUILTIN AGDAFUNDEFCON fun-def     #-}
+
 postulate
-  -- Function definition.
-  Function  : Set
   -- Data type definition.
   Data-type : Set
   -- Record type definition.
   Record    : Set
 
-{-# BUILTIN AGDAFUNDEF    Function  #-}
 {-# BUILTIN AGDADATADEF   Data-type #-}
 {-# BUILTIN AGDARECORDDEF Record    #-}
 
 -- Definitions.
 
 data Definition : Set where
-  function     : Function  → Definition
+  function     : FunctionDef  → Definition
   data-type    : Data-type → Definition
   record′      : Record    → Definition
   constructor′ : Definition
@@ -236,16 +260,16 @@ private
   cons₂ : ∀ {A : Set} {x y} {xs ys : List A} → x ∷ xs ≡ y ∷ ys → xs ≡ ys
   cons₂ refl = refl
 
-  var₁ : ∀ {x x′ args args′} → var x args ≡ var x′ args′ → x ≡ x′
+  var₁ : ∀ {x x′ args args′} → Term.var x args ≡ var x′ args′ → x ≡ x′
   var₁ refl = refl
 
-  var₂ : ∀ {x x′ args args′} → var x args ≡ var x′ args′ → args ≡ args′
+  var₂ : ∀ {x x′ args args′} → Term.var x args ≡ var x′ args′ → args ≡ args′
   var₂ refl = refl
 
-  con₁ : ∀ {c c′ args args′} → con c args ≡ con c′ args′ → c ≡ c′
+  con₁ : ∀ {c c′ args args′} → Term.con c args ≡ con c′ args′ → c ≡ c′
   con₁ refl = refl
 
-  con₂ : ∀ {c c′ args args′} → con c args ≡ con c′ args′ → args ≡ args′
+  con₂ : ∀ {c c′ args args′} → Term.con c args ≡ con c′ args′ → args ≡ args′
   con₂ refl = refl
 
   def₁ : ∀ {f f′ args args′} → def f args ≡ def f′ args′ → f ≡ f′
