@@ -117,8 +117,33 @@ instance ToTerm Bool where
 	false <- primFalse
 	return $ \b -> if b then true else false
 
+instance ToTerm Term where
+    toTerm = fst <$> quotingKit
+
 instance ToTerm Type where
     toTerm = snd <$> quotingKit
+
+instance ToTerm I.ArgInfo where
+  toTerm = do
+    info <- primArgArgInfo
+    vis  <- primVisible
+    hid  <- primHidden
+    ins  <- primInstance
+    rel  <- primRelevant
+    irr  <- primIrrelevant
+    return $ \(ArgInfo h r _) ->
+      apply info $ map defaultArg
+      [ case h of
+          NotHidden -> vis
+          Hidden    -> hid
+          Instance  -> ins
+      , case r of
+          Relevant   -> rel
+          Irrelevant -> irr
+          NonStrict  -> rel
+          Forced     -> irr
+          UnusedArg  -> irr
+      ]
 
 -- | @buildList A ts@ builds a list of type @List A@. Assumes that the terms
 --   @ts@ all have type @A@.
@@ -297,21 +322,55 @@ primQNameType = mkPrimFun1TCM (el primQName --> el primAgdaType)
 
 primQNameDefinition :: TCM PrimitiveImpl
 primQNameDefinition = do
-  agdaFunDef                    <- primAgdaDefinitionFunDef
+  agdaFunDef                    <- primAgdaFunDef
+  agdaFunDefCon                 <- primAgdaFunDefCon
+  agdaClause                    <- primAgdaClause
+  agdaClauseCon                 <- primAgdaClauseCon
+  agdaPattern                   <- primAgdaPattern
+  agdaPatVar                    <- primAgdaPatVar
+  agdaPatCon                    <- primAgdaPatCon
+  agdaPatDot                    <- primAgdaPatDot
+  agdaPatLit                    <- primAgdaPatLit
+  agdaPatProj                   <- primAgdaPatProj
   agdaDefinitionFunDef          <- primAgdaDefinitionFunDef
   agdaDefinitionDataDef         <- primAgdaDefinitionDataDef
   agdaDefinitionRecordDef       <- primAgdaDefinitionRecordDef
   agdaDefinitionPostulate       <- primAgdaDefinitionPostulate
   agdaDefinitionPrimitive       <- primAgdaDefinitionPrimitive
   agdaDefinitionDataConstructor <- primAgdaDefinitionDataConstructor
+  agdaArg     <- primArgArg
+  agdaUnknown <- primAgdaTermUnsupported
+  nil         <- primNil
+  cons        <- primCons
+  qType       <- toTerm
+  qTerm       <- toTerm
+  qQName      <- toTerm
+  qArgInfo    <- toTerm
+  list        <- buildList
 
-  let argQName qn = [defaultArg (Lit (LitQName noRange qn))]
-      con qn Function{}    = apply agdaDefinitionFunDef    (argQName qn)
-      con qn Datatype{}    = apply agdaDefinitionDataDef   (argQName qn)
-      con qn Record{}      = apply agdaDefinitionRecordDef (argQName qn)
-      con _  Axiom{}       = apply agdaDefinitionPostulate []
-      con _  Primitive{}   = apply agdaDefinitionPrimitive []
-      con _  Constructor{} = apply agdaDefinitionDataConstructor []
+  let defapp f xs = apply f (map defaultArg xs)
+      qArg (Arg i x) = defapp agdaArg [qArgInfo i, x]
+      qPats ps = list $ map (qArg . fmap (qPat . namedThing)) ps
+      qPat (VarP _)      = agdaPatVar
+      qPat (DotP _)      = agdaPatDot
+      qPat (ConP c _ ps) = defapp agdaPatCon [qQName (conName c), qPats ps]
+      qPat (LitP l)      = defapp agdaPatLit [Lit l]
+      qPat (ProjP x)     = defapp agdaPatProj [qQName x]
+      qBody (Body a) = qTerm a
+      qBody (Bind b) = qBody (absBody b)
+      qBody NoBody   = agdaUnknown -- TODO
+      qClause Clause{namedClausePats = ps, clauseBody = body} =
+        defapp agdaClauseCon [qPats ps, qBody body]
+      qFunDef t cs = defapp agdaFunDefCon [qType t, list $ map qClause cs]
+      con qn def =
+        case theDef def of
+          Function{funClauses = cs}
+                        -> defapp agdaDefinitionFunDef    [qFunDef (defType def) cs]
+          Datatype{}    -> defapp agdaDefinitionDataDef   [qQName qn]
+          Record{}      -> defapp agdaDefinitionRecordDef [qQName qn]
+          Axiom{}       -> defapp agdaDefinitionPostulate []
+          Primitive{}   -> defapp agdaDefinitionPrimitive []
+          Constructor{} -> defapp agdaDefinitionDataConstructor []
 
   unquoteQName <- fromTerm
   t <- el primQName --> el primAgdaDefinition
@@ -320,7 +379,7 @@ primQNameDefinition = do
       [v] ->
         redBind (unquoteQName v)
             (\v' -> [v']) $ \x ->
-        redReturn =<< (con x . theDef <$> getConstInfo x)
+        redReturn =<< (con x <$> getConstInfo x)
       _ -> __IMPOSSIBLE__
 
 primDataConstructors :: TCM PrimitiveImpl

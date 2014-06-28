@@ -96,12 +96,36 @@ mutual
 {-# BUILTIN AGDASORTLIT         lit     #-}
 {-# BUILTIN AGDASORTUNSUPPORTED unknown #-}
 
+data Pattern : Set where
+  con : QName → List (Arg Pattern) → Pattern
+  dot : Pattern
+  var : Pattern
+  lit : Literal → Pattern
+  proj : QName → Pattern
+
+{-# BUILTIN AGDAPATTERN Pattern #-}
+{-# BUILTIN AGDAPATCON con #-}
+{-# BUILTIN AGDAPATDOT dot #-}
+{-# BUILTIN AGDAPATVAR var #-}
+{-# BUILTIN AGDAPATLIT lit #-}
+{-# BUILTIN AGDAPATPROJ proj #-}
+
+data Clause : Set where
+  clause : List Pattern → Term → Clause
+
+{-# BUILTIN AGDACLAUSE Clause #-}
+{-# BUILTIN AGDACLAUSECON clause #-}
+
+data FunDef : Set where
+  funDef : Type → List Clause → FunDef
+
+{-# BUILTIN AGDAFUNDEF    FunDef #-}
+{-# BUILTIN AGDAFUNDEFCON funDef #-}
+
 postulate
-  FunDef    : Set
   DataDef   : Set
   RecordDef : Set
 
-{-# BUILTIN AGDAFUNDEF          FunDef  #-}
 {-# BUILTIN AGDADATADEF         DataDef #-}
 {-# BUILTIN AGDARECORDDEF       RecordDef #-}
 
