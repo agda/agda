@@ -24,29 +24,35 @@ import Agda.Utils.Impossible
 
 quotingKit :: TCM ((Term -> Term), (Type -> Term))
 quotingKit = do
-  hidden <- primHidden
-  instanceH <- primInstance
-  visible <- primVisible
-  relevant <- primRelevant
-  irrelevant <- primIrrelevant
-  nil <- primNil
-  cons <- primCons
-  arg <- primArgArg
-  arginfo <- primArgArgInfo
-  var <- primAgdaTermVar
-  lam <- primAgdaTermLam
-  def <- primAgdaTermDef
-  con <- primAgdaTermCon
-  pi <- primAgdaTermPi
-  sort <- primAgdaTermSort
-  set <- primAgdaSortSet
-  setLit <- primAgdaSortLit
+  hidden          <- primHidden
+  instanceH       <- primInstance
+  visible         <- primVisible
+  relevant        <- primRelevant
+  irrelevant      <- primIrrelevant
+  nil             <- primNil
+  cons            <- primCons
+  arg             <- primArgArg
+  arginfo         <- primArgArgInfo
+  var             <- primAgdaTermVar
+  lam             <- primAgdaTermLam
+  def             <- primAgdaTermDef
+  con             <- primAgdaTermCon
+  pi              <- primAgdaTermPi
+  sort            <- primAgdaTermSort
+  lit             <- primAgdaTermLit
+  litNat          <- primAgdaLitNat
+  litFloat        <- primAgdaLitFloat
+  litChar         <- primAgdaLitChar
+  litString       <- primAgdaLitString
+  litQName        <- primAgdaLitQName
+  set             <- primAgdaSortSet
+  setLit          <- primAgdaSortLit
   unsupportedSort <- primAgdaSortUnsupported
-  sucLevel <- primLevelSuc
-  lub <- primLevelMax
-  el <- primAgdaTypeEl
-  Con z _ <- ignoreSharing <$> primZero
-  Con s _ <- ignoreSharing <$> primSuc
+  sucLevel        <- primLevelSuc
+  lub             <- primLevelMax
+  el              <- primAgdaTypeEl
+  Con z _         <- ignoreSharing <$> primZero
+  Con s _         <- ignoreSharing <$> primSuc
   unsupported <- primAgdaTermUnsupported
   let t @@ u = apply t [defaultArg u]
       quoteHiding Hidden    = hidden
@@ -61,8 +67,11 @@ quotingKit = do
       quoteArgInfo (ArgInfo h r cs) = arginfo @@ quoteHiding h
                                               @@ quoteRelevance r
                                 --              @@ quoteColors cs
-      quoteLit (LitInt   _ n)   = iterate suc zero !! fromIntegral n
-      quoteLit _                = unsupported
+      quoteLit l@LitInt{}    = lit @@ (litNat    @@ Lit l)
+      quoteLit l@LitFloat{}  = lit @@ (litFloat  @@ Lit l)
+      quoteLit l@LitChar{}   = lit @@ (litChar   @@ Lit l)
+      quoteLit l@LitString{} = lit @@ (litString @@ Lit l)
+      quoteLit l@LitQName{}  = lit @@ (litQName  @@ Lit l)
       -- We keep no ranges in the quoted term, so the equality on terms
       -- is only on the structure.
       quoteSortLevelTerm (Max [])              = setLit @@ Lit (LitInt noRange 0)

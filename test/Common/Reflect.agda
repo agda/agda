@@ -4,6 +4,9 @@ module Common.Reflect where
 open import Common.Level
 open import Common.Prelude renaming (Nat to ℕ)
 
+postulate Float : Set
+{-# BUILTIN FLOAT Float #-}
+
 postulate QName : Set
 {-# BUILTIN QNAME QName #-}
 primitive primQNameEquality : QName → QName → Bool
@@ -36,6 +39,20 @@ data Arg A : Set where
 {-# BUILTIN ARGARG     arg     #-}
 {-# BUILTIN ARGARGINFO arginfo #-}
 
+data Literal : Set where
+  nat   : ℕ → Literal
+  float : Float → Literal
+  char  : Char → Literal
+  string : String → Literal
+  qname : QName → Literal
+
+{-# BUILTIN AGDALITERAL Literal #-}
+{-# BUILTIN AGDALITNAT nat #-}
+{-# BUILTIN AGDALITFLOAT float #-}
+{-# BUILTIN AGDALITCHAR char #-}
+{-# BUILTIN AGDALITSTRING string #-}
+{-# BUILTIN AGDALITQNAME qname #-}
+
 mutual
 
   Args : Set
@@ -50,6 +67,7 @@ mutual
     lam     : Hiding → Term → Term
     pi      : Arg Type → Type → Term
     sort    : Sort → Term
+    lit     : Literal → Term
     unknown : Term
 
   Args = List (Arg Term)
@@ -71,6 +89,7 @@ mutual
 {-# BUILTIN AGDATERMLAM         lam     #-}
 {-# BUILTIN AGDATERMPI          pi      #-}
 {-# BUILTIN AGDATERMSORT        sort    #-}
+{-# BUILTIN AGDATERMLIT         lit     #-}
 {-# BUILTIN AGDATERMUNSUPPORTED unknown #-}
 {-# BUILTIN AGDATYPEEL          el      #-}
 {-# BUILTIN AGDASORTSET         set     #-}
