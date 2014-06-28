@@ -272,8 +272,13 @@ test : id ≡ (λ A (x : A) → x)
      × unquote (pi (argᵛʳ ``Set₀) ``Set₀)  ≡ (Set → Set)
      × unquoteTwice                        ≡ (λ (x : ℕ) → x)
      × unquote (k`ℕ 42)                    ≡ ℕ
+     × unquote (lit (nat 15))              ≡ 15
+     × unquote (lit (float 3.1415))        ≡ 3.1415
+     × unquote (lit (string "foo"))        ≡ "foo"
+     × unquote (lit (char 'X'))            ≡ 'X'
+     × unquote (lit (qname (quote ℕ)))      ≡ quote ℕ
      × ⊤
-test = unquote (tuple (replicate n `refl)) where n = 10
+test = unquote (tuple (replicate n `refl)) where n = 15
 
 Πⁿ : ℕ → Type → Type
 Πⁿ zero    t = t
