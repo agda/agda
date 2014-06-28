@@ -124,6 +124,12 @@ Emacs mode
               (goto-char (point-max))
               (insert "\n")))))))
 
+Cabal stuff
+
+* For running cabal repl use the following command (see
+  https://code.google.com/p/agda/issues/detail?id=1196):
+
+  cabal repl --ghc-options=-Wwarn
 
 TODO: The following information is outdated, referring to darcs.  If
 you know how to port these tips to git, update this file.
