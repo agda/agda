@@ -5,12 +5,12 @@ module README where
 --
 -- Author: Nils Anders Danielsson, with contributions from Andreas
 -- Abel, Stevan Andjelkovic, Jean-Philippe Bernardy, Peter Berry,
--- Joachim Breitner, Samuel Bronson, Daniel Brown, Liang-Ting Chen,
--- Dominique Devriese, Dan Doel, Érdi Gergő, Helmut Grohne, Simon
--- Foster, Liyang Hu, Patrik Jansson, Alan Jeffrey, Eric Mertens,
--- Darin Morrison, Guilhem Moulin, Shin-Cheng Mu, Ulf Norell, Noriyuki
--- OHKAWA, Nicolas Pouillard, Andrés Sicard-Ramírez and Noam
--- Zeilberger
+-- Joachim Breitner, Samuel Bronson, Daniel Brown, James Chapman,
+-- Liang-Ting Chen, Dominique Devriese, Dan Doel, Érdi Gergő, Helmut
+-- Grohne, Simon Foster, Liyang Hu, Patrik Jansson, Alan Jeffrey,
+-- Pepijn Kokke, Evgeny Kotelnikov, Eric Mertens, Darin Morrison,
+-- Guilhem Moulin, Shin-Cheng Mu, Ulf Norell, Noriyuki OHKAWA, Nicolas
+-- Pouillard, Andrés Sicard-Ramírez and Noam Zeilberger.
 ------------------------------------------------------------------------
 
 -- Note that the development version of the library often requires the

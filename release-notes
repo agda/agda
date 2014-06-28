@@ -1,4 +1,26 @@
 ------------------------------------------------------------------------
+Version 0.8
+------------------------------------------------------------------------
+
+Version 0.8 of the standard library has now been released, see
+http://wiki.portal.chalmers.se/agda/pmwiki.php?n=Libraries.StandardLibrary.
+
+The library has been tested using Agda version 2.4.0.
+
+Note that no guarantees are made about backwards or forwards
+compatibility, the library is still at an experimental stage.
+
+If you want to compile the library using the MAlonzo compiler, then
+you should first install some supporting Haskell code, for instance as
+follows:
+
+  cd ffi
+  cabal install
+
+Currently the library does not support the Epic or JavaScript compiler
+backends.
+
+------------------------------------------------------------------------
 Version 0.7
 ------------------------------------------------------------------------
 
