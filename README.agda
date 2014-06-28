@@ -292,7 +292,7 @@ import README.Case
 import Everything
 
 -- Note that the Everything module is generated automatically. If you
--- have downloaded the library from its darcs repository and want to
+-- have downloaded the library from its Git repository and want to
 -- type check README then you can (try to) construct Everything by
 -- running "cabal install && GenerateEverything".
 
