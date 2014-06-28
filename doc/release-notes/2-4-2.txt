@@ -64,6 +64,80 @@ Language
   from a number of new subgoals to the original goal. The type of e should be
   Term -> Term in both cases.
 
+* New reflection builtins for literals.
+
+  The Term data type AGDATERM now needs an additional constructor AGDATERMLIT
+  taking a reflected literal defined as follows (with appropriate builtin
+  bindings for the types Nat, Float, etc).
+
+    data Literal : Set where
+      nat    : Nat    → Literal
+      float  : Float  → Literal
+      char   : Char   → Literal
+      string : String → Literal
+      qname  : QName  → Literal
+
+    {-# BUILTIN AGDALITERAL   Literal #-}
+    {-# BUILTIN AGDALITNAT    nat     #-}
+    {-# BUILTIN AGDALITFLOAT  float   #-}
+    {-# BUILTIN AGDALITCHAR   char    #-}
+    {-# BUILTIN AGDALITSTRING string  #-}
+    {-# BUILTIN AGDALITQNAME  qname   #-}
+
+  When quoting (quoteGoal or quoteTerm) literals will be mapped to the
+  AGDATERMLIT constructor. Previously natural number literals were quoted
+  to suc/zero application and other literals were quoted to
+  AGDATERMUNSUPPORTED.
+
+* New reflection builtins for function definitions.
+
+  AGDAFUNDEF should now map to a data type defined as follows
+  (with {-# BUILTIN QNAME       QName   #-}
+        {-# BUILTIN ARG         Arg     #-}
+        {-# BUILTIN AGDATERM    Term    #-}
+        {-# BUILTIN AGDATYPE    Type    #-}
+        {-# BUILTIN AGDALITERAL Literal #-}).
+
+    data Pattern : Set where
+      con : QName → List (Arg Pattern) → Pattern
+      dot : Pattern
+      var : Pattern
+      lit : Literal → Pattern
+      proj : QName → Pattern
+
+    {-# BUILTIN AGDAPATTERN Pattern #-}
+    {-# BUILTIN AGDAPATCON con #-}
+    {-# BUILTIN AGDAPATDOT dot #-}
+    {-# BUILTIN AGDAPATVAR var #-}
+    {-# BUILTIN AGDAPATLIT lit #-}
+    {-# BUILTIN AGDAPATPROJ proj #-}
+
+    data Clause : Set where
+      clause : List (Arg Pattern) → Term → Clause
+
+    {-# BUILTIN AGDACLAUSE    Clause #-}
+    {-# BUILTIN AGDACLAUSECON clause #-}
+
+    data FunDef : Set where
+      funDef : Type → List Clause → FunDef
+
+    {-# BUILTIN AGDAFUNDEF    FunDef #-}
+    {-# BUILTIN AGDAFUNDEFCON funDef #-}
+
+* Unquoting declarations.
+
+  You can now define (recursive) functions by reflection using the new
+  unquoteDecl declaration
+
+    unquoteDecl x = e
+
+  Here e should have type AGDAFUNDEF and evaluate to a closed value. This value
+  is then spliced in as the definition of x. In the body e, quote x is a valid
+  QNAME which lets you splice in recursive definitions.
+  
+  Standard modifiers, such as fixity declarations, can be applied to x as
+  expected.
+
 Goal and error display
 ======================
 
