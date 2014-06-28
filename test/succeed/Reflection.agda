@@ -126,6 +126,4 @@ mutual
   test₁₃ = refl
 
 test₁₄ : Check 1
-test₁₄ = quoteGoal t in
-           t is con ( quote ℕ.suc ) (argᵛʳ (con (quote ℕ.zero) []) ∷ [])
-           of course
+test₁₄ = quoteGoal t in t is lit (nat 1) of course

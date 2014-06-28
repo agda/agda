@@ -14,28 +14,24 @@ f <$> nothing = nothing
 _==_ = primQNameEquality
 
 -- This is awkward!
-awkwardUnquoteNat : Term → Maybe Nat
-awkwardUnquoteNat (con z []) =
-  if z == quote Nat.zero
-  then just 0
+awkwardUnquoteBool : Term → Maybe Bool
+awkwardUnquoteBool (con c []) =
+  if c == quote true then just true
+  else if c == quote false then just false
   else nothing
-awkwardUnquoteNat (con s (arg _ n ∷ [])) =
-  if s == quote Nat.suc
-  then suc <$> awkwardUnquoteNat n
-  else nothing
-awkwardUnquoteNat v = nothing
+awkwardUnquoteBool v = nothing
 
-testAwkward : just 10 ≡ awkwardUnquoteNat (quoteTerm 10)
+testAwkward : just false ≡ awkwardUnquoteBool (quoteTerm false)
 testAwkward = refl
 
 -- This is nicer!
-pattern `zero  = con (quote Nat.zero) []
-pattern `suc n = con (quote Nat.suc) (arg _ n ∷ [])
+pattern `false = con (quote false) []
+pattern `true  = con (quote true) []
 
-unquoteNat : Term → Maybe Nat
-unquoteNat `zero    = just zero
-unquoteNat (`suc n) = suc <$> unquoteNat n
-unquoteNat _        = nothing
+unquoteBool : Term → Maybe Bool
+unquoteBool `false = just false
+unquoteBool `true  = just true
+unquoteBool _      = nothing
 
-test : just 10 ≡ unquoteNat (quoteTerm 10)
+test : just true ≡ unquoteBool (quoteTerm true)
 test = refl
