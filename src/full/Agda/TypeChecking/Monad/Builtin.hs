@@ -128,7 +128,9 @@ primInteger, primFloat, primChar, primString, primBool, primTrue, primFalse,
     primAgdaSort, primAgdaSortSet, primAgdaSortLit, primAgdaSortUnsupported,
     primAgdaDefinition, primAgdaDefinitionFunDef, primAgdaDefinitionDataDef, primAgdaDefinitionRecordDef,
     primAgdaDefinitionPostulate, primAgdaDefinitionPrimitive, primAgdaDefinitionDataConstructor,
-    primAgdaFunDef, primAgdaDataDef, primAgdaRecordDef
+    primAgdaFunDef, primAgdaFunDefCon, primAgdaClause, primAgdaClauseCon,
+    primAgdaPattern, primAgdaPatCon, primAgdaPatVar, primAgdaPatDot,
+    primAgdaDataDef, primAgdaRecordDef
     :: TCM Term
 primInteger      = getBuiltin builtinInteger
 primFloat        = getBuiltin builtinFloat
@@ -200,9 +202,18 @@ primAgdaLitFloat  = getBuiltin builtinAgdaLitFloat
 primAgdaLitChar   = getBuiltin builtinAgdaLitChar
 primAgdaLitString = getBuiltin builtinAgdaLitString
 primAgdaLitQName  = getBuiltin builtinAgdaLitQName
-primAgdaFunDef                    = getBuiltin builtinAgdaFunDef
-primAgdaDataDef                   = getBuiltin builtinAgdaDataDef
-primAgdaRecordDef                 = getBuiltin builtinAgdaRecordDef
+primAgdaFunDef    = getBuiltin builtinAgdaFunDef
+primAgdaFunDefCon = getBuiltin builtinAgdaFunDefCon
+primAgdaDataDef   = getBuiltin builtinAgdaDataDef
+primAgdaRecordDef = getBuiltin builtinAgdaRecordDef
+primAgdaPattern   = getBuiltin builtinAgdaPattern
+primAgdaPatCon    = getBuiltin builtinAgdaPatCon
+primAgdaPatVar    = getBuiltin builtinAgdaPatVar
+primAgdaPatDot    = getBuiltin builtinAgdaPatDot
+primAgdaPatLit    = getBuiltin builtinAgdaPatLit
+primAgdaPatProj   = getBuiltin builtinAgdaPatProj
+primAgdaClause    = getBuiltin builtinAgdaClause
+primAgdaClauseCon = getBuiltin builtinAgdaClauseCon
 primAgdaDefinitionFunDef          = getBuiltin builtinAgdaDefinitionFunDef
 primAgdaDefinitionDataDef         = getBuiltin builtinAgdaDefinitionDataDef
 primAgdaDefinitionRecordDef       = getBuiltin builtinAgdaDefinitionRecordDef
@@ -210,6 +221,7 @@ primAgdaDefinitionDataConstructor = getBuiltin builtinAgdaDefinitionDataConstruc
 primAgdaDefinitionPostulate       = getBuiltin builtinAgdaDefinitionPostulate
 primAgdaDefinitionPrimitive       = getBuiltin builtinAgdaDefinitionPrimitive
 primAgdaDefinition                = getBuiltin builtinAgdaDefinition
+
 builtinNat          = "NATURAL"
 builtinSuc          = "SUC"
 builtinZero         = "ZERO"
@@ -281,6 +293,15 @@ builtinAgdaLitChar   = "AGDALITCHAR"
 builtinAgdaLitString = "AGDALITSTRING"
 builtinAgdaLitQName  = "AGDALITQNAME"
 builtinAgdaFunDef                    = "AGDAFUNDEF"
+builtinAgdaFunDefCon                 = "AGDAFUNDEFCON"
+builtinAgdaClause                    = "AGDACLAUSE"
+builtinAgdaClauseCon                 = "AGDACLAUSECON"
+builtinAgdaPattern                   = "AGDAPATTERN"
+builtinAgdaPatVar                    = "AGDAPATVAR"
+builtinAgdaPatCon                    = "AGDAPATCON"
+builtinAgdaPatDot                    = "AGDAPATDOT"
+builtinAgdaPatLit                    = "AGDAPATLIT"
+builtinAgdaPatProj                   = "AGDAPATPROJ"
 builtinAgdaDataDef                   = "AGDADATADEF"
 builtinAgdaRecordDef                 = "AGDARECORDDEF"
 builtinAgdaDefinitionFunDef          = "AGDADEFINITIONFUNDEF"

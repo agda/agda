@@ -20,6 +20,7 @@ import Agda.TypeChecking.Pretty
 import Agda.TypeChecking.Substitute
 
 import Agda.Utils.String
+import Agda.Utils.Permutation
 
 #include "../undefined.h"
 import Agda.Utils.Impossible
@@ -338,3 +339,68 @@ instance Unquote Term where
       Con{} -> unquoteFailed "Term" "neither arity 0 nor 1 nor 2" t
       Lit{} -> unquoteFailed "Term" "unexpected literal" t
       _ -> unquoteFailed "Term" "not a constructor" t
+
+instance Unquote Pattern where
+  unquote t = do
+    t <- reduce t
+    case ignoreSharing t of
+      Con c [] -> do
+        choice
+          [ (c `isCon` primAgdaPatVar, pure (VarP "x"))
+          , (c `isCon` primAgdaPatDot, pure (DotP $ DontCare $ Lit $ LitInt noRange 0))
+          ] __IMPOSSIBLE__
+      Con c [x] -> do
+        choice
+          [ (c `isCon` primAgdaPatProj, ProjP <$> unquoteN x)
+          , (c `isCon` primAgdaPatLit,  LitP  <$> unquoteN x) ]
+          __IMPOSSIBLE__
+      Con c [x, y] -> do
+        choice
+          [ (c `isCon` primAgdaPatCon, flip ConP Nothing <$> unquoteN x <*> (map (fmap unnamed) <$> unquoteN y)) ]
+          __IMPOSSIBLE__
+      _ -> unquoteFailed "Pattern" "not a constructor" t
+
+data UnquotedFunDef = UnQFun Type [Clause]
+
+instance Unquote Clause where
+  unquote t = do
+    t <- reduce t
+    case ignoreSharing t of
+      Con c [x, y] -> do
+        choice
+          [ (c `isCon` primAgdaClauseCon, mkClause <$> unquoteN x <*> unquoteN y) ]
+          __IMPOSSIBLE__
+      _ -> unquoteFailed "Pattern" "not a constructor" t
+    where
+      mkClause :: [I.Arg Pattern] -> Term -> I.Clause
+      mkClause ps0 b =
+        Clause { clauseRange     = noRange
+               , clauseTel       = dummyTel n'
+               , clausePerm      = idP n
+               , namedClausePats = ps
+               , clauseBody      = mkBody n b
+               , clauseType      = Nothing }
+        where
+          ps = map (fmap unnamed) ps0
+          n  = vars True ps  -- with dot patterns
+          n' = vars False ps -- without dot patterns
+          dummyTel 0 = EmptyTel
+          dummyTel n = ExtendTel (defaultDom typeDontCare) (Abs "x" $ dummyTel (n - 1))
+          mkBody 0 b = Body b
+          mkBody n b = Bind $ Abs "x" $ mkBody (n - 1) b
+          vars d ps = sum $ map (vars' d . namedArg) ps
+          vars' d (ConP _ _ ps) = vars d ps
+          vars' d VarP{}      = 1
+          vars' d DotP{}      = if d then 1 else 0
+          vars' d LitP{}      = 0
+          vars' d ProjP{}     = 0
+
+instance Unquote UnquotedFunDef where
+  unquote t = do
+    t <- reduce t
+    case ignoreSharing t of
+      Con c [x, y] -> do
+        choice
+          [ (c `isCon` primAgdaFunDefCon, UnQFun <$> unquoteN x <*> unquoteN y) ]
+          __IMPOSSIBLE__
+      _ -> unquoteFailed "Pattern" "not a constructor" t

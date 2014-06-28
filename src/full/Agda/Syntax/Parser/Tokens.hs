@@ -22,7 +22,7 @@ data Keyword
         | KwCOMPILED_EPIC | KwCOMPILED_JS
 	| KwIMPORT | KwIMPOSSIBLE | KwETA | KwNO_TERMINATION_CHECK | KwMEASURE | KwSTATIC
         | KwREWRITE
-	| KwQuoteGoal | KwQuoteContext | KwQuote | KwQuoteTerm | KwUnquote | KwSyntax
+	| KwQuoteGoal | KwQuoteContext | KwQuote | KwQuoteTerm | KwUnquote | KwUnquoteDecl | KwSyntax
         | KwPatternSyn | KwTactic
     deriving (Eq, Show)
 

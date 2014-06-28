@@ -430,6 +430,8 @@ instance Pretty Declaration where
 		where
 		    as Nothing	= empty
 		    as (Just x) = text "as" <+> pretty (asName x)
+            UnquoteDecl _ x t ->
+              sep [ text "unquoteDecl" <+> pretty x <+> text "=", nest 2 $ pretty t ]
 	    Pragma pr	-> sep [ text "{-#" <+> pretty pr, text "#-}" ]
 	where
 	    namedBlock s ds =

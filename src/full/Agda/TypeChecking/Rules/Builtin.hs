@@ -51,6 +51,13 @@ coreBuiltins = map (\ (x, z) -> BuiltinInfo x z)
   , (builtinAgdaLiteral        |-> BuiltinData tset [builtinAgdaLitNat, builtinAgdaLitFloat,
                                                      builtinAgdaLitChar, builtinAgdaLitString,
                                                      builtinAgdaLitQName])
+  , (builtinAgdaPattern        |-> BuiltinData tset [builtinAgdaPatVar, builtinAgdaPatCon, builtinAgdaPatDot,
+                                                     builtinAgdaPatLit, builtinAgdaPatProj])
+  , (builtinAgdaPatVar         |-> BuiltinDataCons tpat)
+  , (builtinAgdaPatCon         |-> BuiltinDataCons (tqname --> tlist (targ tpat) --> tpat))
+  , (builtinAgdaPatDot         |-> BuiltinDataCons tpat)
+  , (builtinAgdaPatLit         |-> BuiltinDataCons (tliteral --> tpat))
+  , (builtinAgdaPatProj        |-> BuiltinDataCons (tqname --> tpat))
   , (builtinLevel              |-> builtinPostulate tset)
   , (builtinInteger            |-> builtinPostulate tset)
   , (builtinFloat              |-> builtinPostulate tset)
@@ -129,7 +136,10 @@ coreBuiltins = map (\ (x, z) -> BuiltinInfo x z)
   , (builtinLevelZero          |-> BuiltinPrim "primLevelZero" (const $ return ()))
   , (builtinLevelSuc           |-> BuiltinPrim "primLevelSuc" (const $ return ()))
   , (builtinLevelMax           |-> BuiltinPrim "primLevelMax" verifyMax)
-  , (builtinAgdaFunDef                |-> builtinPostulate tset) -- internally this is QName
+  , (builtinAgdaFunDef         |-> BuiltinData tset [builtinAgdaFunDefCon])
+  , (builtinAgdaFunDefCon      |-> BuiltinDataCons (ttype --> tlist tclause --> tfun))
+  , (builtinAgdaClause         |-> BuiltinData tset [builtinAgdaClauseCon])
+  , (builtinAgdaClauseCon      |-> BuiltinDataCons (tlist (targ tpat) --> tterm --> tclause))
   , (builtinAgdaDataDef               |-> builtinPostulate tset) -- internally this is QName
   , (builtinAgdaRecordDef             |-> builtinPostulate tset) -- internally this is QName
   , (builtinAgdaDefinition            |-> BuiltinData tset [builtinAgdaDefinitionFunDef
@@ -158,6 +168,7 @@ coreBuiltins = map (\ (x, z) -> BuiltinInfo x z)
         arg :: TCM Term -> TCM Term
         arg t = primArg <@> t
 
+        tlist x    = el $ list (fmap unEl x)
         targ x     = el (arg (fmap unEl x))
         targs      = el (list (arg primAgdaTerm))
         tterm      = el primAgdaTerm
@@ -179,6 +190,8 @@ coreBuiltins = map (\ (x, z) -> BuiltinInfo x z)
         tdtype     = el primAgdaDataDef
         trec       = el primAgdaRecordDef
         tliteral   = el primAgdaLiteral
+        tpat       = el primAgdaPattern
+        tclause    = el primAgdaClause
 
         verifyPlus plus =
             verify ["n","m"] $ \(@@) zero suc (==) (===) choice -> do
