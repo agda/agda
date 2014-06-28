@@ -48,6 +48,9 @@ coreBuiltins = map (\ (x, z) -> BuiltinInfo x z)
   , (builtinArgInfo            |-> BuiltinData tset [builtinArgArgInfo])
   , (builtinBool               |-> BuiltinData tset [builtinTrue, builtinFalse])
   , (builtinNat                |-> BuiltinData tset [builtinZero, builtinSuc])
+  , (builtinAgdaLiteral        |-> BuiltinData tset [builtinAgdaLitNat, builtinAgdaLitFloat,
+                                                     builtinAgdaLitChar, builtinAgdaLitString,
+                                                     builtinAgdaLitQName])
   , (builtinLevel              |-> builtinPostulate tset)
   , (builtinInteger            |-> builtinPostulate tset)
   , (builtinFloat              |-> builtinPostulate tset)
@@ -58,10 +61,10 @@ coreBuiltins = map (\ (x, z) -> BuiltinInfo x z)
   , (builtinAgdaSort           |-> BuiltinData tset [builtinAgdaSortSet, builtinAgdaSortLit, builtinAgdaSortUnsupported])
   , (builtinAgdaType           |-> BuiltinData tset [builtinAgdaTypeEl])
   , (builtinAgdaTerm           |-> BuiltinData tset
-                                     [builtinAgdaTermVar, builtinAgdaTermLam
-                                     ,builtinAgdaTermDef, builtinAgdaTermCon
-                                     ,builtinAgdaTermPi, builtinAgdaTermSort
-                                     ,builtinAgdaTermUnsupported])
+                                     [ builtinAgdaTermVar, builtinAgdaTermLam
+                                     , builtinAgdaTermDef, builtinAgdaTermCon
+                                     , builtinAgdaTermPi, builtinAgdaTermSort
+                                     , builtinAgdaTermLit, builtinAgdaTermUnsupported])
   , (builtinEquality           |-> BuiltinData (hPi "a" (el primLevel) $
                                                 hPi "A" (return $ sort $ varSort 0) $
                                                 (El (varSort 1) <$> varM 0) -->
@@ -90,7 +93,13 @@ coreBuiltins = map (\ (x, z) -> BuiltinInfo x z)
   , (builtinAgdaTermCon        |-> BuiltinDataCons (tqname --> targs --> tterm))
   , (builtinAgdaTermPi         |-> BuiltinDataCons (targ ttype --> ttype --> tterm))
   , (builtinAgdaTermSort       |-> BuiltinDataCons (tsort --> tterm))
+  , (builtinAgdaTermLit        |-> BuiltinDataCons (tliteral --> tterm))
   , (builtinAgdaTermUnsupported|-> BuiltinDataCons tterm)
+  , (builtinAgdaLitNat    |-> BuiltinDataCons (tnat --> tliteral))
+  , (builtinAgdaLitFloat  |-> BuiltinDataCons (tfloat --> tliteral))
+  , (builtinAgdaLitChar   |-> BuiltinDataCons (tchar --> tliteral))
+  , (builtinAgdaLitString |-> BuiltinDataCons (tstring --> tliteral))
+  , (builtinAgdaLitQName  |-> BuiltinDataCons (tqname --> tliteral))
   , (builtinHidden             |-> BuiltinDataCons thiding)
   , (builtinInstance           |-> BuiltinDataCons thiding)
   , (builtinVisible            |-> BuiltinDataCons thiding)
@@ -152,8 +161,11 @@ coreBuiltins = map (\ (x, z) -> BuiltinInfo x z)
         targ x     = el (arg (fmap unEl x))
         targs      = el (list (arg primAgdaTerm))
         tterm      = el primAgdaTerm
-        tqname     = el primQName
         tnat       = el primNat
+        tfloat     = el primFloat
+        tchar      = el primChar
+        tstring    = el primString
+        tqname     = el primQName
         tsize      = el primSize
         tbool      = el primBool
         thiding    = el primHiding
@@ -166,6 +178,7 @@ coreBuiltins = map (\ (x, z) -> BuiltinInfo x z)
         tfun       = el primAgdaFunDef
         tdtype     = el primAgdaDataDef
         trec       = el primAgdaRecordDef
+        tliteral   = el primAgdaLiteral
 
         verifyPlus plus =
             verify ["n","m"] $ \(@@) zero suc (==) (===) choice -> do

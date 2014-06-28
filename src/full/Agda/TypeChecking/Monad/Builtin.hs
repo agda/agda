@@ -120,10 +120,11 @@ primInteger, primFloat, primChar, primString, primBool, primTrue, primFalse,
     -- builtins for reflection:
     primQName, primArgInfo, primArgArgInfo, primArg, primArgArg, primAgdaTerm, primAgdaTermVar,
     primAgdaTermLam, primAgdaTermDef, primAgdaTermCon, primAgdaTermPi,
-    primAgdaTermSort, primAgdaTermUnsupported,
+    primAgdaTermSort, primAgdaTermLit, primAgdaTermUnsupported,
     primAgdaType, primAgdaTypeEl,
     primHiding, primHidden, primInstance, primVisible,
     primRelevance, primRelevant, primIrrelevant,
+    primAgdaLiteral, primAgdaLitNat, primAgdaLitFloat, primAgdaLitString, primAgdaLitChar, primAgdaLitQName,
     primAgdaSort, primAgdaSortSet, primAgdaSortLit, primAgdaSortUnsupported,
     primAgdaDefinition, primAgdaDefinitionFunDef, primAgdaDefinitionDataDef, primAgdaDefinitionRecordDef,
     primAgdaDefinitionPostulate, primAgdaDefinitionPrimitive, primAgdaDefinitionDataConstructor,
@@ -191,7 +192,14 @@ primAgdaTermDef      = getBuiltin builtinAgdaTermDef
 primAgdaTermCon      = getBuiltin builtinAgdaTermCon
 primAgdaTermPi       = getBuiltin builtinAgdaTermPi
 primAgdaTermSort     = getBuiltin builtinAgdaTermSort
+primAgdaTermLit      = getBuiltin builtinAgdaTermLit
 primAgdaTermUnsupported     = getBuiltin builtinAgdaTermUnsupported
+primAgdaLiteral   = getBuiltin builtinAgdaLiteral
+primAgdaLitNat    = getBuiltin builtinAgdaLitNat
+primAgdaLitFloat  = getBuiltin builtinAgdaLitFloat
+primAgdaLitChar   = getBuiltin builtinAgdaLitChar
+primAgdaLitString = getBuiltin builtinAgdaLitString
+primAgdaLitQName  = getBuiltin builtinAgdaLitQName
 primAgdaFunDef                    = getBuiltin builtinAgdaFunDef
 primAgdaDataDef                   = getBuiltin builtinAgdaDataDef
 primAgdaRecordDef                 = getBuiltin builtinAgdaRecordDef
@@ -264,7 +272,14 @@ builtinAgdaTermDef      = "AGDATERMDEF"
 builtinAgdaTermCon      = "AGDATERMCON"
 builtinAgdaTermPi       = "AGDATERMPI"
 builtinAgdaTermSort     = "AGDATERMSORT"
+builtinAgdaTermLit      = "AGDATERMLIT"
 builtinAgdaTermUnsupported = "AGDATERMUNSUPPORTED"
+builtinAgdaLiteral   = "AGDALITERAL"
+builtinAgdaLitNat    = "AGDALITNAT"
+builtinAgdaLitFloat  = "AGDALITFLOAT"
+builtinAgdaLitChar   = "AGDALITCHAR"
+builtinAgdaLitString = "AGDALITSTRING"
+builtinAgdaLitQName  = "AGDALITQNAME"
 builtinAgdaFunDef                    = "AGDAFUNDEF"
 builtinAgdaDataDef                   = "AGDADATADEF"
 builtinAgdaRecordDef                 = "AGDARECORDDEF"
