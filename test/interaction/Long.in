@@ -17,7 +17,7 @@ goal_command 7 (cmd_context Normalised) ""
 goal_command 7 (cmd_goal_type Normalised) ""
 goal_command 7 (cmd_goal_type_context Normalised) ""
 goal_command 7 (cmd_goal_type_context_infer Normalised) "n"
-goal_command 3 cmd_show_module_contents "D"
+goal_command 3 (cmd_show_module_contents Simplified) "D"
 goal_command 3 (cmd_intro False) ""
 goal_command 6 cmd_refine "Just"
 goal_command 8 (cmd_compute False) "s′ z"
@@ -33,6 +33,6 @@ top_command (cmd_infer_toplevel Normalised "eval throw")
 top_command (cmd_compute_toplevel False "eval throw")
 top_command (cmd_compute_toplevel True "s′ n")
 top_command (cmd_compute_toplevel True "s′ z")
-top_command (cmd_show_module_contents_toplevel "D")
+top_command (cmd_show_module_contents_toplevel Normalised "D")
 top_command (cmd_compile MAlonzo currentFile [])
 top_command (cmd_compile Epic currentFile [])
