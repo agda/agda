@@ -31,3 +31,10 @@ unquoteDecl plus =
 
 prf : plus 1 1 ≡ 2
 prf = refl
+
+magicDef : FunDef
+magicDef =
+  funDef (`el (def (quote ⊥) []) `⇒ `Nat)
+         (absurd-clause (vArg absurd ∷ []) ∷ [])
+
+unquoteDecl magic = magicDef

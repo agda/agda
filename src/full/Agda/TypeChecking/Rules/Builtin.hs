@@ -52,12 +52,13 @@ coreBuiltins = map (\ (x, z) -> BuiltinInfo x z)
                                                      builtinAgdaLitChar, builtinAgdaLitString,
                                                      builtinAgdaLitQName])
   , (builtinAgdaPattern        |-> BuiltinData tset [builtinAgdaPatVar, builtinAgdaPatCon, builtinAgdaPatDot,
-                                                     builtinAgdaPatLit, builtinAgdaPatProj])
+                                                     builtinAgdaPatLit, builtinAgdaPatProj, builtinAgdaPatAbsurd])
   , (builtinAgdaPatVar         |-> BuiltinDataCons tpat)
   , (builtinAgdaPatCon         |-> BuiltinDataCons (tqname --> tlist (targ tpat) --> tpat))
   , (builtinAgdaPatDot         |-> BuiltinDataCons tpat)
   , (builtinAgdaPatLit         |-> BuiltinDataCons (tliteral --> tpat))
   , (builtinAgdaPatProj        |-> BuiltinDataCons (tqname --> tpat))
+  , (builtinAgdaPatAbsurd      |-> BuiltinDataCons tpat)
   , (builtinLevel              |-> builtinPostulate tset)
   , (builtinInteger            |-> builtinPostulate tset)
   , (builtinFloat              |-> builtinPostulate tset)
@@ -138,8 +139,9 @@ coreBuiltins = map (\ (x, z) -> BuiltinInfo x z)
   , (builtinLevelMax           |-> BuiltinPrim "primLevelMax" verifyMax)
   , (builtinAgdaFunDef         |-> BuiltinData tset [builtinAgdaFunDefCon])
   , (builtinAgdaFunDefCon      |-> BuiltinDataCons (ttype --> tlist tclause --> tfun))
-  , (builtinAgdaClause         |-> BuiltinData tset [builtinAgdaClauseCon])
-  , (builtinAgdaClauseCon      |-> BuiltinDataCons (tlist (targ tpat) --> tterm --> tclause))
+  , (builtinAgdaClause         |-> BuiltinData tset [builtinAgdaClauseClause, builtinAgdaClauseAbsurd])
+  , (builtinAgdaClauseClause   |-> BuiltinDataCons (tlist (targ tpat) --> tterm --> tclause))
+  , (builtinAgdaClauseAbsurd   |-> BuiltinDataCons (tlist (targ tpat) --> tclause))
   , (builtinAgdaDataDef               |-> builtinPostulate tset) -- internally this is QName
   , (builtinAgdaRecordDef             |-> builtinPostulate tset) -- internally this is QName
   , (builtinAgdaDefinition            |-> BuiltinData tset [builtinAgdaDefinitionFunDef

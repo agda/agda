@@ -346,8 +346,9 @@ instance Unquote Pattern where
     case ignoreSharing t of
       Con c [] -> do
         choice
-          [ (c `isCon` primAgdaPatVar, pure (VarP "x"))
-          , (c `isCon` primAgdaPatDot, pure (DotP $ DontCare $ Lit $ LitInt noRange 0))
+          [ (c `isCon` primAgdaPatVar,    pure (VarP "x"))
+          , (c `isCon` primAgdaPatAbsurd, pure (VarP "()"))
+          , (c `isCon` primAgdaPatDot,    pure (DotP $ DontCare $ Lit $ LitInt noRange 0))
           ] __IMPOSSIBLE__
       Con c [x] -> do
         choice
@@ -366,14 +367,18 @@ instance Unquote Clause where
   unquote t = do
     t <- reduce t
     case ignoreSharing t of
+      Con c [x] -> do
+        choice
+          [ (c `isCon` primAgdaClauseAbsurd, mkClause Nothing <$> unquoteN x) ]
+          __IMPOSSIBLE__
       Con c [x, y] -> do
         choice
-          [ (c `isCon` primAgdaClauseCon, mkClause <$> unquoteN x <*> unquoteN y) ]
+          [ (c `isCon` primAgdaClauseClause, mkClause . Just <$> unquoteN y <*> unquoteN x) ]
           __IMPOSSIBLE__
       _ -> unquoteFailed "Pattern" "not a constructor" t
     where
-      mkClause :: [I.Arg Pattern] -> Term -> I.Clause
-      mkClause ps0 b =
+      mkClause :: Maybe Term -> [I.Arg Pattern] -> I.Clause
+      mkClause b ps0 =
         Clause { clauseRange     = noRange
                , clauseTel       = dummyTel n'
                , clausePerm      = idP n
@@ -386,7 +391,7 @@ instance Unquote Clause where
           n' = vars False ps -- without dot patterns
           dummyTel 0 = EmptyTel
           dummyTel n = ExtendTel (defaultDom typeDontCare) (Abs "x" $ dummyTel (n - 1))
-          mkBody 0 b = Body b
+          mkBody 0 b = maybe NoBody Body b
           mkBody n b = Bind $ Abs "x" $ mkBody (n - 1) b
           vars d ps = sum $ map (vars' d . namedArg) ps
           vars' d (ConP _ _ ps) = vars d ps

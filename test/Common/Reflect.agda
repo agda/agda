@@ -101,6 +101,7 @@ data Pattern : Set where
   dot : Pattern
   var : Pattern
   lit : Literal → Pattern
+  absurd : Pattern
   projP : QName → Pattern
 
 {-# BUILTIN AGDAPATTERN Pattern #-}
@@ -108,13 +109,16 @@ data Pattern : Set where
 {-# BUILTIN AGDAPATDOT dot #-}
 {-# BUILTIN AGDAPATVAR var #-}
 {-# BUILTIN AGDAPATLIT lit #-}
+{-# BUILTIN AGDAPATABSURD absurd #-}
 {-# BUILTIN AGDAPATPROJ projP #-}
 
 data Clause : Set where
   clause : List (Arg Pattern) → Term → Clause
+  absurd-clause : List (Arg Pattern) → Clause
 
-{-# BUILTIN AGDACLAUSE Clause #-}
-{-# BUILTIN AGDACLAUSECON clause #-}
+{-# BUILTIN AGDACLAUSE       Clause #-}
+{-# BUILTIN AGDACLAUSECLAUSE clause #-}
+{-# BUILTIN AGDACLAUSEABSURD absurd-clause #-}
 
 data FunDef : Set where
   funDef : Type → List Clause → FunDef

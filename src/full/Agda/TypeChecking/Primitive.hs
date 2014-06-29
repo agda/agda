@@ -325,13 +325,15 @@ primQNameDefinition = do
   agdaFunDef                    <- primAgdaFunDef
   agdaFunDefCon                 <- primAgdaFunDefCon
   agdaClause                    <- primAgdaClause
-  agdaClauseCon                 <- primAgdaClauseCon
+  agdaClauseClause              <- primAgdaClauseClause
+  agdaClauseAbsurd              <- primAgdaClauseAbsurd
   agdaPattern                   <- primAgdaPattern
   agdaPatVar                    <- primAgdaPatVar
   agdaPatCon                    <- primAgdaPatCon
   agdaPatDot                    <- primAgdaPatDot
   agdaPatLit                    <- primAgdaPatLit
   agdaPatProj                   <- primAgdaPatProj
+  agdaPatAbsurd                 <- primAgdaPatAbsurd
   agdaDefinitionFunDef          <- primAgdaDefinitionFunDef
   agdaDefinitionDataDef         <- primAgdaDefinitionDataDef
   agdaDefinitionRecordDef       <- primAgdaDefinitionRecordDef
@@ -351,16 +353,19 @@ primQNameDefinition = do
   let defapp f xs = apply f (map defaultArg xs)
       qArg (Arg i x) = defapp agdaArg [qArgInfo i, x]
       qPats ps = list $ map (qArg . fmap (qPat . namedThing)) ps
+      qPat (VarP "()")   = agdaPatAbsurd
       qPat (VarP _)      = agdaPatVar
       qPat (DotP _)      = agdaPatDot
       qPat (ConP c _ ps) = defapp agdaPatCon [qQName (conName c), qPats ps]
       qPat (LitP l)      = defapp agdaPatLit [Lit l]
       qPat (ProjP x)     = defapp agdaPatProj [qQName x]
-      qBody (Body a) = qTerm a
+      qBody (Body a) = Just (qTerm a)
       qBody (Bind b) = qBody (absBody b)
-      qBody NoBody   = agdaUnknown -- TODO
+      qBody NoBody   = Nothing
       qClause Clause{namedClausePats = ps, clauseBody = body} =
-        defapp agdaClauseCon [qPats ps, qBody body]
+        case qBody body of
+          Nothing -> defapp agdaClauseAbsurd [qPats ps]
+          Just b  -> defapp agdaClauseClause [qPats ps, b]
       qFunDef t cs = defapp agdaFunDefCon [qType t, list $ map qClause cs]
       con qn def =
         case theDef def of

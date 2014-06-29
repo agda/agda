@@ -128,7 +128,7 @@ primInteger, primFloat, primChar, primString, primBool, primTrue, primFalse,
     primAgdaSort, primAgdaSortSet, primAgdaSortLit, primAgdaSortUnsupported,
     primAgdaDefinition, primAgdaDefinitionFunDef, primAgdaDefinitionDataDef, primAgdaDefinitionRecordDef,
     primAgdaDefinitionPostulate, primAgdaDefinitionPrimitive, primAgdaDefinitionDataConstructor,
-    primAgdaFunDef, primAgdaFunDefCon, primAgdaClause, primAgdaClauseCon,
+    primAgdaFunDef, primAgdaFunDefCon, primAgdaClause, primAgdaClauseClause, primAgdaClauseAbsurd,
     primAgdaPattern, primAgdaPatCon, primAgdaPatVar, primAgdaPatDot,
     primAgdaDataDef, primAgdaRecordDef
     :: TCM Term
@@ -212,8 +212,10 @@ primAgdaPatVar    = getBuiltin builtinAgdaPatVar
 primAgdaPatDot    = getBuiltin builtinAgdaPatDot
 primAgdaPatLit    = getBuiltin builtinAgdaPatLit
 primAgdaPatProj   = getBuiltin builtinAgdaPatProj
+primAgdaPatAbsurd = getBuiltin builtinAgdaPatAbsurd
 primAgdaClause    = getBuiltin builtinAgdaClause
-primAgdaClauseCon = getBuiltin builtinAgdaClauseCon
+primAgdaClauseClause = getBuiltin builtinAgdaClauseClause
+primAgdaClauseAbsurd = getBuiltin builtinAgdaClauseAbsurd
 primAgdaDefinitionFunDef          = getBuiltin builtinAgdaDefinitionFunDef
 primAgdaDefinitionDataDef         = getBuiltin builtinAgdaDefinitionDataDef
 primAgdaDefinitionRecordDef       = getBuiltin builtinAgdaDefinitionRecordDef
@@ -295,13 +297,15 @@ builtinAgdaLitQName  = "AGDALITQNAME"
 builtinAgdaFunDef                    = "AGDAFUNDEF"
 builtinAgdaFunDefCon                 = "AGDAFUNDEFCON"
 builtinAgdaClause                    = "AGDACLAUSE"
-builtinAgdaClauseCon                 = "AGDACLAUSECON"
+builtinAgdaClauseClause              = "AGDACLAUSECLAUSE"
+builtinAgdaClauseAbsurd              = "AGDACLAUSEABSURD"
 builtinAgdaPattern                   = "AGDAPATTERN"
 builtinAgdaPatVar                    = "AGDAPATVAR"
 builtinAgdaPatCon                    = "AGDAPATCON"
 builtinAgdaPatDot                    = "AGDAPATDOT"
 builtinAgdaPatLit                    = "AGDAPATLIT"
 builtinAgdaPatProj                   = "AGDAPATPROJ"
+builtinAgdaPatAbsurd                 = "AGDAPATABSURD"
 builtinAgdaDataDef                   = "AGDADATADEF"
 builtinAgdaRecordDef                 = "AGDARECORDDEF"
 builtinAgdaDefinitionFunDef          = "AGDADEFINITIONFUNDEF"
