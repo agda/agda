@@ -64,7 +64,7 @@ data Term : Set where
   con     : QName → Args → Term
   def     : QName → Args → Term
   lam     : Hiding → Term → Term
-  ext-lam : List Clause → Term
+  ext-lam : List Clause → Args → Term
   pi      : Arg Type → Type → Term
   sort    : Sort → Term
   lit     : Literal → Term
