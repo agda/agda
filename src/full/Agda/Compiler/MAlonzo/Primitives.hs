@@ -196,6 +196,7 @@ primBody s = maybe unimplemented (either (hsVarUQ . HS.Ident) id <$>) $
   , "primFloatMinus"	    |-> return "((-) :: Double -> Double -> Double)"
   , "primFloatTimes"	    |-> return "((*) :: Double -> Double -> Double)"
   , "primFloatDiv"	    |-> return "((/) :: Double -> Double -> Double)"
+  , "primFloatEquality"     |-> rel "(==)" "Double"
   , "primFloatLess"         |-> rel "(<)" "Double"
   , "primRound"	            |-> return "(round :: Double -> Integer)"
   , "primFloor"	            |-> return "(floor :: Double -> Integer)"
