@@ -356,10 +356,12 @@ instance ToAbstract (NewName C.BoundName) A.Name where
 nameExpr :: AbstractName -> A.Expr
 nameExpr d = mk (anameKind d) $ anameName d
   where
-    mk DefName        = Def
-    mk FldName        = Def
-    mk ConName        = Con . AmbQ . (:[])
-    mk PatternSynName = A.PatternSyn
+    mk DefName        x = Def x
+    mk FldName        x = Def x
+    mk ConName        x = Con $ AmbQ [x]
+    mk PatternSynName x = A.PatternSyn x
+    mk QuotableName   x = A.App i (A.Quote i) (defaultNamedArg $ A.Def x)
+      where i = ExprRange (getRange x)
 
 instance ToAbstract OldQName A.Expr where
   toAbstract (OldQName x) = do
@@ -1237,8 +1239,9 @@ instance ToAbstract NiceDeclaration A.Declaration where
 
     NiceUnquoteDecl r fx p a tc x e -> do
       y <- freshAbstractQName fx x
-      bindName p DefName x y
+      bindName p QuotableName x y
       e <- toAbstract e
+      rebindName p DefName x y
       let mi = MutualInfo (tc == TerminationCheck) r
       return [A.UnquoteDecl mi (mkDefInfo x fx p a r) y e]
 

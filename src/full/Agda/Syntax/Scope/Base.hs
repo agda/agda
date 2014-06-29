@@ -143,6 +143,7 @@ data KindOfName
   | FldName        -- ^ Record field name.
   | DefName        -- ^ Ordinary defined name.
   | PatternSynName -- ^ Name of a pattern synonym.
+  | QuotableName   -- ^ A name that can only quoted.
   deriving (Eq, Show, Typeable, Enum, Bounded)
 
 -- | A list containing all name kinds.
@@ -392,6 +393,13 @@ addNamesToScope acc x ys s = mergeScope s s1
 -- | Add a name to a scope.
 addNameToScope :: NameSpaceId -> C.Name -> AbstractName -> Scope -> Scope
 addNameToScope acc x y s = addNamesToScope acc x [y] s
+
+-- | Remove a name from a scope.
+removeNameFromScope :: NameSpaceId -> C.Name -> Scope -> Scope
+removeNameFromScope ns x s = mapScope remove (const id) s
+  where
+    remove ns' | ns' /= ns = id
+               | otherwise = Map.delete x
 
 -- | Add a module to a scope.
 addModuleToScope :: NameSpaceId -> C.Name -> AbstractModule -> Scope -> Scope

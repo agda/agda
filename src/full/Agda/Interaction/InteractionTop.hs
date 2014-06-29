@@ -971,6 +971,7 @@ whyInScope s = do
         pKind ConName        = TCP.text "constructor"
         pKind FldName        = TCP.text "record field"
         pKind PatternSynName = TCP.text "pattern synonym"
+        pKind QuotableName   = TCP.text "quotable name"
 
         pName :: AbstractName -> TCM Doc
         pName a = TCP.sep

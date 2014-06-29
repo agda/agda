@@ -21,11 +21,12 @@ y = x + 4
 pattern `zero  = con (quote zero) []
 pattern `suc n = con (quote suc) (vArg n ∷ [])
 
+-- Note that in the body of the unquote, 'plus' really means 'quote plus'.
 unquoteDecl plus =
   funDef (`Nat `⇒ `Nat `⇒ `Nat)
          ( clause (vArg (con (quote zero) []) ∷ vArg var ∷ []) (var 0 [])
          ∷ clause (vArg (con (quote suc) (vArg var ∷ [])) ∷ vArg var ∷ [])
-                  (`suc (def (quote plus) (vArg (var 1 []) ∷ vArg (var 0 []) ∷ [])))
+                  (`suc (def plus (vArg (var 1 []) ∷ vArg (var 0 []) ∷ [])))
          ∷ [])
 
 prf : plus 1 1 ≡ 2

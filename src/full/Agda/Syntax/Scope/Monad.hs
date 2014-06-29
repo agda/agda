@@ -286,6 +286,15 @@ bindName acc kind x y = do
     head' []    = {- ' -} __IMPOSSIBLE__
     head' (x:_) = x
 
+-- | Rebind a name. Use with care!
+--   Ulf, 2014-06-29: Currently used to rebind the name defined by an
+--   unquoteDecl, which is a 'QuotableName' in the body, but a 'DefinedName'
+--   later on.
+rebindName :: Access -> KindOfName -> C.Name -> A.QName -> ScopeM ()
+rebindName acc kind x y = do
+  modifyCurrentScope $ removeNameFromScope (localNameSpace acc) x
+  bindName acc kind x y
+
 -- | Bind a module name.
 bindModule :: Access -> C.Name -> A.ModuleName -> ScopeM ()
 bindModule acc x m = modifyCurrentScope $

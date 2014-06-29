@@ -87,7 +87,7 @@ import Agda.Utils.Impossible
 -- 32-bit machines). Word64 does not have these problems.
 
 currentInterfaceVersion :: Word64
-currentInterfaceVersion = 20140611 * 10 + 0
+currentInterfaceVersion = 20140629 * 10 + 0
 
 -- | Constructor tag (maybe omitted) and argument indices.
 
@@ -495,14 +495,16 @@ instance EmbPrj AbstractModule where
                            valu _      = malformed
 
 instance EmbPrj KindOfName where
-  icode DefName = icode0'
-  icode ConName = icode0 1
-  icode FldName = icode0 2
+  icode DefName        = icode0'
+  icode ConName        = icode0 1
+  icode FldName        = icode0 2
   icode PatternSynName = icode0 3
+  icode QuotableName   = icode0 4
   value = vcase valu where valu []  = valu0 DefName
                            valu [1] = valu0 ConName
                            valu [2] = valu0 FldName
                            valu [3] = valu0 PatternSynName
+                           valu [4] = valu0 QuotableName
                            valu _   = malformed
 
 instance EmbPrj Agda.Syntax.Fixity.Fixity where

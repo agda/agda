@@ -132,8 +132,8 @@ Language
     unquoteDecl x = e
 
   Here e should have type AGDAFUNDEF and evaluate to a closed value. This value
-  is then spliced in as the definition of x. In the body e, quote x is a valid
-  QNAME which lets you splice in recursive definitions.
+  is then spliced in as the definition of x. In the body e, x has type QNAME
+  which lets you splice in recursive definitions.
   
   Standard modifiers, such as fixity declarations, can be applied to x as
   expected.
