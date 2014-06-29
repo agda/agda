@@ -1648,6 +1648,12 @@ runReduceM m = do
   s <- get
   return $ runReader (unReduceM m) (ReduceEnv e s)
 
+runReduceF :: (a -> ReduceM b) -> TCM (a -> b)
+runReduceF f = do
+  e <- ask
+  s <- get
+  return $ \x -> runReader (unReduceM (f x)) (ReduceEnv e s)
+
 instance MonadReader TCEnv ReduceM where
   ask = redEnv <$> ReduceM ask
   local f = ReduceM . local (mapRedEnv f) . unReduceM
