@@ -113,6 +113,8 @@ mutual
     def     : (f : Name) (args : List (Arg Term)) → Term
     -- Different kinds of λ-abstraction.
     lam     : (v : Visibility) (t : Term) → Term
+    -- Pattern matching λ-abstraction
+    pat-lam : (cs : List Clause) (args : List (Arg Term)) → Term
     -- Pi-type.
     pi      : (t₁ : Arg Type) (t₂ : Type) → Term
     -- A sort.
@@ -133,13 +135,29 @@ mutual
     -- Anything else.
     unknown : Sort
 
-{-# BUILTIN AGDASORT            Sort    #-}
-{-# BUILTIN AGDATYPE            Type    #-}
-{-# BUILTIN AGDATERM            Term    #-}
+  data Pattern : Set where
+    con  : Name → List (Arg Pattern) → Pattern
+    dot  : Pattern
+    var  : Pattern
+    lit  : Literal → Pattern
+    proj : Name → Pattern
+    absurd : Pattern
+
+  data Clause : Set where
+    clause : List (Arg Pattern) → Term → Clause
+    absurd-clause : List (Arg Pattern) → Clause
+
+{-# BUILTIN AGDASORT    Sort    #-}
+{-# BUILTIN AGDATYPE    Type    #-}
+{-# BUILTIN AGDATERM    Term    #-}
+{-# BUILTIN AGDAPATTERN Pattern #-}
+{-# BUILTIN AGDACLAUSE  Clause  #-}
+
 {-# BUILTIN AGDATERMVAR         var     #-}
 {-# BUILTIN AGDATERMCON         con     #-}
 {-# BUILTIN AGDATERMDEF         def     #-}
 {-# BUILTIN AGDATERMLAM         lam     #-}
+{-# BUILTIN AGDATERMEXTLAM      pat-lam #-}
 {-# BUILTIN AGDATERMPI          pi      #-}
 {-# BUILTIN AGDATERMSORT        sort    #-}
 {-# BUILTIN AGDATERMLIT         lit     #-}
@@ -149,18 +167,6 @@ mutual
 {-# BUILTIN AGDASORTLIT         lit     #-}
 {-# BUILTIN AGDASORTUNSUPPORTED unknown #-}
 
-------------------------------------------------------------------------
--- Definitions
-
-data Pattern : Set where
-  con  : Name → List (Arg Pattern) → Pattern
-  dot  : Pattern
-  var  : Pattern
-  lit  : Literal → Pattern
-  proj : Name → Pattern
-  absurd : Pattern
-
-{-# BUILTIN AGDAPATTERN Pattern #-}
 {-# BUILTIN AGDAPATCON con #-}
 {-# BUILTIN AGDAPATDOT dot #-}
 {-# BUILTIN AGDAPATVAR var #-}
@@ -168,13 +174,12 @@ data Pattern : Set where
 {-# BUILTIN AGDAPATPROJ proj #-}
 {-# BUILTIN AGDAPATABSURD absurd #-}
 
-data Clause : Set where
-  clause : List (Arg Pattern) → Term → Clause
-  absurd-clause : List (Arg Pattern) → Clause
-
-{-# BUILTIN AGDACLAUSE       Clause        #-}
 {-# BUILTIN AGDACLAUSECLAUSE clause        #-}
 {-# BUILTIN AGDACLAUSEABSURD absurd-clause #-}
+
+
+------------------------------------------------------------------------
+-- Definitions
 
 -- Function definition.
 data FunctionDef : Set where
@@ -288,6 +293,12 @@ private
   lam₂ : ∀ {v v′ t t′} → lam v t ≡ lam v′ t′ → t ≡ t′
   lam₂ refl = refl
 
+  pat-lam₁ : ∀ {cs cs′ args args′} → pat-lam cs args ≡ pat-lam cs′ args′ → cs ≡ cs′
+  pat-lam₁ refl = refl
+
+  pat-lam₂ : ∀ {cs cs′ args args′} → pat-lam cs args ≡ pat-lam cs′ args′ → args ≡ args′
+  pat-lam₂ refl = refl
+
   pi₁ : ∀ {t₁ t₁′ t₂ t₂′} → pi t₁ t₂ ≡ pi t₁′ t₂′ → t₁ ≡ t₁′
   pi₁ refl = refl
 
@@ -299,6 +310,18 @@ private
 
   lit₁ : ∀ {x y} → Term.lit x ≡ lit y → x ≡ y
   lit₁ refl = refl
+
+  pcon₁ : ∀ {c c′ args args′} → Pattern.con c args ≡ con c′ args′ → c ≡ c′
+  pcon₁ refl = refl
+
+  pcon₂ : ∀ {c c′ args args′} → Pattern.con c args ≡ con c′ args′ → args ≡ args′
+  pcon₂ refl = refl
+
+  plit₁ : ∀ {x y} → Pattern.lit x ≡ lit y → x ≡ y
+  plit₁ refl = refl
+
+  pproj₁ : ∀ {x y} → proj x ≡ proj y → x ≡ y
+  pproj₁ refl = refl
 
   set₁ : ∀ {x y} → set x ≡ set y → x ≡ y
   set₁ refl = refl
@@ -326,6 +349,15 @@ private
 
   name₁ : ∀ {x y} → name x ≡ name y → x ≡ y
   name₁ refl = refl
+
+  clause₁ : ∀ {ps ps′ b b′} → clause ps b ≡ clause ps′ b′ → ps ≡ ps′
+  clause₁ refl = refl
+
+  clause₂ : ∀ {ps ps′ b b′} → clause ps b ≡ clause ps′ b′ → b ≡ b′
+  clause₂ refl = refl
+
+  absurd-clause₁ : ∀ {ps ps′} → absurd-clause ps ≡ absurd-clause ps′ → ps ≡ ps′
+  absurd-clause₁ refl = refl
 
 _≟-Visibility_ : Decidable (_≡_ {A = Visibility})
 visible  ≟-Visibility visible  = yes refl
@@ -392,17 +424,81 @@ mutual
              < arg₁ , arg₂ >
              (i ≟-Arg-info i′ ×-dec a ≟-Type a′)
 
+  _≟-ArgPattern_ : Decidable (_≡_ {A = Arg Pattern})
+  arg i a ≟-ArgPattern arg i′ a′ =
+    Dec.map′ (cong₂′ arg)
+             < arg₁ , arg₂ >
+             (i ≟-Arg-info i′ ×-dec a ≟-Pattern a′)
+
   _≟-Args_ : Decidable (_≡_ {A = List (Arg Term)})
   []       ≟-Args []       = yes refl
   (x ∷ xs) ≟-Args (y ∷ ys) = Dec.map′ (cong₂′ _∷_) < cons₁ , cons₂ > (x ≟-ArgTerm y ×-dec xs ≟-Args ys)
   []       ≟-Args (_ ∷ _)  = no λ()
   (_ ∷ _)  ≟-Args []       = no λ()
 
+  _≟-Clause_ : Decidable (_≡_ {A = Clause})
+  clause ps b ≟-Clause clause ps′ b′ = Dec.map′ (cong₂′ clause) < clause₁ , clause₂ > (ps ≟-ArgPatterns ps′ ×-dec b ≟ b′)
+  absurd-clause ps ≟-Clause absurd-clause ps′ = Dec.map′ (cong absurd-clause) absurd-clause₁ (ps ≟-ArgPatterns ps′)
+  clause _ _      ≟-Clause absurd-clause _ = no λ()
+  absurd-clause _ ≟-Clause clause _ _      = no λ()
+
+  _≟-Clauses_ : Decidable (_≡_ {A = List Clause})
+  []       ≟-Clauses []       = yes refl
+  (x ∷ xs) ≟-Clauses (y ∷ ys) = Dec.map′ (cong₂′ _∷_) < cons₁ , cons₂ > (x ≟-Clause y ×-dec xs ≟-Clauses ys)
+  []       ≟-Clauses (_ ∷ _)  = no λ()
+  (_ ∷ _)  ≟-Clauses []       = no λ()
+
+  _≟-Pattern_ : Decidable (_≡_ {A = Pattern})
+  con c ps ≟-Pattern con c′ ps′ = Dec.map′ (cong₂′ con) < pcon₁ , pcon₂ > (c ≟-Name c′ ×-dec ps ≟-ArgPatterns ps′)
+  con x x₁ ≟-Pattern dot = no (λ ())
+  con x x₁ ≟-Pattern var = no (λ ())
+  con x x₁ ≟-Pattern lit x₂ = no (λ ())
+  con x x₁ ≟-Pattern proj x₂ = no (λ ())
+  con x x₁ ≟-Pattern absurd = no (λ ())
+  dot ≟-Pattern con x x₁ = no (λ ())
+  dot ≟-Pattern dot = yes refl
+  dot ≟-Pattern var = no (λ ())
+  dot ≟-Pattern lit x = no (λ ())
+  dot ≟-Pattern proj x = no (λ ())
+  dot ≟-Pattern absurd = no (λ ())
+  var ≟-Pattern con x x₁ = no (λ ())
+  var ≟-Pattern dot = no (λ ())
+  var ≟-Pattern var = yes refl
+  var ≟-Pattern lit x = no (λ ())
+  var ≟-Pattern proj x = no (λ ())
+  var ≟-Pattern absurd = no (λ ())
+  lit x ≟-Pattern con x₁ x₂ = no (λ ())
+  lit x ≟-Pattern dot = no (λ ())
+  lit x ≟-Pattern var = no (λ ())
+  lit l ≟-Pattern lit l′ = Dec.map′ (cong lit) plit₁ (l ≟-Lit l′)
+  lit x ≟-Pattern proj x₁ = no (λ ())
+  lit x ≟-Pattern absurd = no (λ ())
+  proj x ≟-Pattern con x₁ x₂ = no (λ ())
+  proj x ≟-Pattern dot = no (λ ())
+  proj x ≟-Pattern var = no (λ ())
+  proj x ≟-Pattern lit x₁ = no (λ ())
+  proj x ≟-Pattern proj x₁ = Dec.map′ (cong proj) pproj₁ (x ≟-Name x₁)
+  proj x ≟-Pattern absurd = no (λ ())
+  absurd ≟-Pattern con x x₁ = no (λ ())
+  absurd ≟-Pattern dot = no (λ ())
+  absurd ≟-Pattern var = no (λ ())
+  absurd ≟-Pattern lit x = no (λ ())
+  absurd ≟-Pattern proj x = no (λ ())
+  absurd ≟-Pattern absurd = yes refl
+
+  _≟-ArgPatterns_ : Decidable (_≡_ {A = List (Arg Pattern)})
+  []       ≟-ArgPatterns []       = yes refl
+  (x ∷ xs) ≟-ArgPatterns (y ∷ ys) = Dec.map′ (cong₂′ _∷_) < cons₁ , cons₂ > (x ≟-ArgPattern y ×-dec xs ≟-ArgPatterns ys)
+  []       ≟-ArgPatterns (_ ∷ _)  = no λ()
+  (_ ∷ _)  ≟-ArgPatterns []       = no λ()
+
   _≟_ : Decidable (_≡_ {A = Term})
   var x args ≟ var x′ args′ = Dec.map′ (cong₂′ var) < var₁ , var₂ > (x ≟-ℕ x′          ×-dec args ≟-Args args′)
   con c args ≟ con c′ args′ = Dec.map′ (cong₂′ con) < con₁ , con₂ > (c ≟-Name c′       ×-dec args ≟-Args args′)
   def f args ≟ def f′ args′ = Dec.map′ (cong₂′ def) < def₁ , def₂ > (f ≟-Name f′       ×-dec args ≟-Args args′)
   lam v t    ≟ lam v′ t′    = Dec.map′ (cong₂′ lam) < lam₁ , lam₂ > (v ≟-Visibility v′ ×-dec t ≟ t′)
+  pat-lam cs args ≟ pat-lam cs′ args′ =
+                              Dec.map′ (cong₂′ pat-lam) < pat-lam₁ , pat-lam₂ > (cs ≟-Clauses cs′ ×-dec args ≟-Args args′)
   pi t₁ t₂   ≟ pi t₁′ t₂′   = Dec.map′ (cong₂′ pi)  < pi₁  , pi₂  > (t₁ ≟-ArgType t₁′  ×-dec t₂ ≟-Type t₂′)
   sort s     ≟ sort s′      = Dec.map′ (cong sort)  sort₁           (s ≟-Sort s′)
   lit l      ≟ lit l′       = Dec.map′ (cong lit)   lit₁           (l ≟-Lit l′)
@@ -464,6 +560,22 @@ mutual
   unknown    ≟ pi t₁ t₂    = no λ()
   unknown    ≟ sort _      = no λ()
   unknown    ≟ lit _       = no λ()
+  pat-lam _ _ ≟ var x args  = no λ()
+  pat-lam _ _ ≟ con c args  = no λ()
+  pat-lam _ _ ≟ def f args  = no λ()
+  pat-lam _ _ ≟ lam v t     = no λ()
+  pat-lam _ _ ≟ pi t₁ t₂    = no λ()
+  pat-lam _ _ ≟ sort _      = no λ()
+  pat-lam _ _ ≟ lit _       = no λ()
+  pat-lam _ _ ≟ unknown     = no λ()
+  var x args  ≟ pat-lam _ _ = no λ()
+  con c args  ≟ pat-lam _ _ = no λ()
+  def f args  ≟ pat-lam _ _ = no λ()
+  lam v t     ≟ pat-lam _ _ = no λ()
+  pi t₁ t₂    ≟ pat-lam _ _ = no λ()
+  sort _      ≟ pat-lam _ _ = no λ()
+  lit _       ≟ pat-lam _ _ = no λ()
+  unknown     ≟ pat-lam _ _ = no λ()
 
   _≟-Type_ : Decidable (_≡_ {A = Type})
   el s t ≟-Type el s′ t′ = Dec.map′ (cong₂′ el) < el₁ , el₂ > (s ≟-Sort s′ ×-dec t ≟ t′)
