@@ -25,7 +25,7 @@ import Agda.Utils.Permutation
 #include "../undefined.h"
 import Agda.Utils.Impossible
 
-quotingKit :: TCM ((Term -> Term), (Type -> Term))
+quotingKit :: TCM (Term -> Term, Type -> Term, Clause -> Term)
 quotingKit = do
   hidden          <- primHidden
   instanceH       <- primInstance
@@ -48,6 +48,14 @@ quotingKit = do
   litChar         <- primAgdaLitChar
   litString       <- primAgdaLitString
   litQName        <- primAgdaLitQName
+  normalClause    <- primAgdaClauseClause
+  absurdClause    <- primAgdaClauseAbsurd
+  varP            <- primAgdaPatVar
+  conP            <- primAgdaPatCon
+  dotP            <- primAgdaPatDot
+  litP            <- primAgdaPatLit
+  projP           <- primAgdaPatProj
+  absurdP         <- primAgdaPatAbsurd
   set             <- primAgdaSortSet
   setLit          <- primAgdaSortLit
   unsupportedSort <- primAgdaSortUnsupported
@@ -56,7 +64,7 @@ quotingKit = do
   el              <- primAgdaTypeEl
   Con z _         <- ignoreSharing <$> primZero
   Con s _         <- ignoreSharing <$> primSuc
-  unsupported <- primAgdaTermUnsupported
+  unsupported     <- primAgdaTermUnsupported
   let t @@ u = apply t [defaultArg u]
       quoteHiding Hidden    = hidden
       quoteHiding Instance  = instanceH
@@ -86,6 +94,23 @@ quotingKit = do
       quoteSort Inf         = unsupportedSort
       quoteSort DLub{}      = unsupportedSort
       quoteType (El s t) = el @@ quoteSort s @@ quote t
+
+      quoteQName x = Lit $ LitQName noRange x
+      quotePats ps = list $ map (quoteArg quotePat . fmap namedThing) ps
+      quotePat (VarP "()")   = absurdP
+      quotePat (VarP _)      = varP
+      quotePat (DotP _)      = dotP
+      quotePat (ConP c _ ps) = conP @@ quoteQName (conName c) @@ quotePats ps
+      quotePat (LitP l)      = litP @@ Lit l
+      quotePat (ProjP x)     = projP @@ quoteQName x
+      quoteBody (Body a) = Just (quote a)
+      quoteBody (Bind b) = quoteBody (absBody b)
+      quoteBody NoBody   = Nothing
+      quoteClause Clause{namedClausePats = ps, clauseBody = body} =
+        case quoteBody body of
+          Nothing -> absurdClause @@ quotePats ps
+          Just b  -> normalClause @@ quotePats ps @@ b
+
       list [] = nil
       list (a : as) = cons @@ a @@ list as
       zero = con @@ quoteConName z @@ nil
@@ -111,7 +136,7 @@ quotingKit = do
           (Shared p)   -> quote $ derefPtr p
           MetaV{}      -> unsupported
           DontCare{}   -> unsupported -- could be exposed at some point but we have to take care
-  return (quote, quoteType)
+  return (quote, quoteType, quoteClause)
 
 quoteName :: QName -> Term
 quoteName x = Lit (LitQName noRange x)
@@ -120,10 +145,14 @@ quoteConName :: ConHead -> Term
 quoteConName = quoteName . conName
 
 quoteTerm :: Term -> TCM Term
-quoteTerm v = ($v) . fst <$> quotingKit
+quoteTerm v = do
+  (f, _, _) <- quotingKit
+  return (f v)
 
 quoteType :: Type -> TCM Term
-quoteType v = ($v) . snd <$> quotingKit
+quoteType v = do
+  (_, f, _) <- quotingKit
+  return (f v)
 
 agdaTermType :: TCM Type
 agdaTermType = El (mkType 0) <$> primAgdaTerm
