@@ -118,10 +118,10 @@ instance ToTerm Bool where
 	return $ \b -> if b then true else false
 
 instance ToTerm Term where
-    toTerm = do (f, _, _) <- quotingKit; return f
+    toTerm = do (f, _, _) <- quotingKit; runReduceF f
 
 instance ToTerm Type where
-    toTerm = do (_, f, _) <- quotingKit; return f
+    toTerm = do (_, f, _) <- quotingKit; runReduceF f
 
 instance ToTerm I.ArgInfo where
   toTerm = do
@@ -322,7 +322,7 @@ primQNameType = mkPrimFun1TCM (el primQName --> el primAgdaType)
 
 primQNameDefinition :: TCM PrimitiveImpl
 primQNameDefinition = do
-  (_, _, qClause) <- quotingKit
+  (_, qType, qClause) <- quotingKit
   agdaFunDef                    <- primAgdaFunDef
   agdaFunDefCon                 <- primAgdaFunDefCon
   agdaDefinitionFunDef          <- primAgdaDefinitionFunDef
@@ -331,18 +331,18 @@ primQNameDefinition = do
   agdaDefinitionPostulate       <- primAgdaDefinitionPostulate
   agdaDefinitionPrimitive       <- primAgdaDefinitionPrimitive
   agdaDefinitionDataConstructor <- primAgdaDefinitionDataConstructor
-  qType       <- toTerm
-  qQName      <- toTerm
   list        <- buildList
 
-  let defapp f xs = apply f (map defaultArg xs)
-      qFunDef t cs = defapp agdaFunDefCon [qType t, list $ map qClause cs]
-      con qn def =
+  let defapp f xs  = apply f . map defaultArg <$> sequence xs
+      qFunDef t cs = defapp agdaFunDefCon [qType t, list <$> mapM qClause cs]
+      qQName       = Lit . LitQName noRange
+      con qn = do
+        def <- getConstInfo qn
         case theDef def of
           Function{funClauses = cs}
                         -> defapp agdaDefinitionFunDef    [qFunDef (defType def) cs]
-          Datatype{}    -> defapp agdaDefinitionDataDef   [qQName qn]
-          Record{}      -> defapp agdaDefinitionRecordDef [qQName qn]
+          Datatype{}    -> defapp agdaDefinitionDataDef   [pure $ qQName qn]
+          Record{}      -> defapp agdaDefinitionRecordDef [pure $ qQName qn]
           Axiom{}       -> defapp agdaDefinitionPostulate []
           Primitive{}   -> defapp agdaDefinitionPrimitive []
           Constructor{} -> defapp agdaDefinitionDataConstructor []
@@ -354,7 +354,7 @@ primQNameDefinition = do
       [v] ->
         redBind (unquoteQName v)
             (\v' -> [v']) $ \x ->
-        redReturn =<< (con x <$> getConstInfo x)
+        redReturn =<< con x
       _ -> __IMPOSSIBLE__
 
 primDataConstructors :: TCM PrimitiveImpl

@@ -16,6 +16,7 @@ import {-# SOURCE #-} Agda.TypeChecking.Datatypes
 import Agda.TypeChecking.Monad
 import Agda.TypeChecking.Monad.Builtin
 import Agda.TypeChecking.Reduce
+import Agda.TypeChecking.Reduce.Monad
 import Agda.TypeChecking.Pretty
 import Agda.TypeChecking.Substitute
 import Agda.TypeChecking.DropArgs
@@ -27,7 +28,7 @@ import Agda.Utils.Permutation
 #include "../undefined.h"
 import Agda.Utils.Impossible
 
-quotingKit :: TCM (Term -> Term, Type -> Term, Clause -> Term)
+quotingKit :: TCM (Term -> ReduceM Term, Type -> ReduceM Term, Clause -> ReduceM Term)
 quotingKit = do
   hidden          <- primHidden
   instanceH       <- primInstance
@@ -68,85 +69,91 @@ quotingKit = do
   Con z _         <- ignoreSharing <$> primZero
   Con s _         <- ignoreSharing <$> primSuc
   unsupported     <- primAgdaTermUnsupported
-  constInfo       <- runReduceF getConstInfo
-  let t @@ u = apply t [defaultArg u]
-      quoteHiding Hidden    = hidden
-      quoteHiding Instance  = instanceH
-      quoteHiding NotHidden = visible
-      quoteRelevance Relevant   = relevant
-      quoteRelevance Irrelevant = irrelevant
-      quoteRelevance NonStrict  = relevant
-      quoteRelevance Forced     = relevant
-      quoteRelevance UnusedArg  = relevant
+
+  let (@@) :: Apply a => ReduceM a -> ReduceM Term -> ReduceM a
+      t @@ u = apply <$> t <*> ((:[]) . defaultArg <$> u)
+
+      (!@) :: Apply a => a -> ReduceM Term -> ReduceM a
+      t !@  u = pure t @@ u
+
+      (!@!) :: Apply a => a -> Term -> ReduceM a
+      t !@! u = pure t @@ pure u
+
+      quoteHiding Hidden    = pure hidden
+      quoteHiding Instance  = pure instanceH
+      quoteHiding NotHidden = pure visible
+      quoteRelevance Relevant   = pure relevant
+      quoteRelevance Irrelevant = pure irrelevant
+      quoteRelevance NonStrict  = pure relevant
+      quoteRelevance Forced     = pure relevant
+      quoteRelevance UnusedArg  = pure relevant
       quoteColors _ = nil -- TODO guilhem
-      quoteArgInfo (ArgInfo h r cs) = arginfo @@ quoteHiding h
+      quoteArgInfo (ArgInfo h r cs) = arginfo !@ quoteHiding h
                                               @@ quoteRelevance r
                                 --              @@ quoteColors cs
-      quoteLit l@LitInt{}    = lit @@ (litNat    @@ Lit l)
-      quoteLit l@LitFloat{}  = lit @@ (litFloat  @@ Lit l)
-      quoteLit l@LitChar{}   = lit @@ (litChar   @@ Lit l)
-      quoteLit l@LitString{} = lit @@ (litString @@ Lit l)
-      quoteLit l@LitQName{}  = lit @@ (litQName  @@ Lit l)
+      quoteLit l@LitInt{}    = lit !@ (litNat    !@! Lit l)
+      quoteLit l@LitFloat{}  = lit !@ (litFloat  !@! Lit l)
+      quoteLit l@LitChar{}   = lit !@ (litChar   !@! Lit l)
+      quoteLit l@LitString{} = lit !@ (litString !@! Lit l)
+      quoteLit l@LitQName{}  = lit !@ (litQName  !@! Lit l)
       -- We keep no ranges in the quoted term, so the equality on terms
       -- is only on the structure.
-      quoteSortLevelTerm (Max [])              = setLit @@ Lit (LitInt noRange 0)
-      quoteSortLevelTerm (Max [ClosedLevel n]) = setLit @@ Lit (LitInt noRange n)
-      quoteSortLevelTerm (Max [Plus 0 (NeutralLevel v)]) = set @@ quote v
-      quoteSortLevelTerm _                     = unsupported
+      quoteSortLevelTerm (Max [])              = setLit !@! Lit (LitInt noRange 0)
+      quoteSortLevelTerm (Max [ClosedLevel n]) = setLit !@! Lit (LitInt noRange n)
+      quoteSortLevelTerm (Max [Plus 0 (NeutralLevel v)]) = set !@ quote v
+      quoteSortLevelTerm _                     = pure unsupported
       quoteSort (Type t)    = quoteSortLevelTerm t
-      quoteSort Prop        = unsupportedSort
-      quoteSort Inf         = unsupportedSort
-      quoteSort DLub{}      = unsupportedSort
-      quoteType (El s t) = el @@ quoteSort s @@ quote t
+      quoteSort Prop        = pure unsupportedSort
+      quoteSort Inf         = pure unsupportedSort
+      quoteSort DLub{}      = pure unsupportedSort
+      quoteType (El s t) = el !@ quoteSort s @@ quote t
 
-      quoteQName x = Lit $ LitQName noRange x
+      quoteQName x = pure $ Lit $ LitQName noRange x
       quotePats ps = list $ map (quoteArg quotePat . fmap namedThing) ps
-      quotePat (VarP "()")   = absurdP
-      quotePat (VarP _)      = varP
-      quotePat (DotP _)      = dotP
-      quotePat (ConP c _ ps) = conP @@ quoteQName (conName c) @@ quotePats ps
-      quotePat (LitP l)      = litP @@ Lit l
-      quotePat (ProjP x)     = projP @@ quoteQName x
+      quotePat (VarP "()")   = pure absurdP
+      quotePat (VarP _)      = pure varP
+      quotePat (DotP _)      = pure dotP
+      quotePat (ConP c _ ps) = conP !@ quoteQName (conName c) @@ quotePats ps
+      quotePat (LitP l)      = litP !@! Lit l
+      quotePat (ProjP x)     = projP !@ quoteQName x
       quoteBody (Body a) = Just (quote a)
       quoteBody (Bind b) = quoteBody (absBody b)
       quoteBody NoBody   = Nothing
       quoteClause Clause{namedClausePats = ps, clauseBody = body} =
         case quoteBody body of
-          Nothing -> absurdClause @@ quotePats ps
-          Just b  -> normalClause @@ quotePats ps @@ b
+          Nothing -> absurdClause !@ quotePats ps
+          Just b  -> normalClause !@ quotePats ps @@ b
 
-      list [] = nil
-      list (a : as) = cons @@ a @@ list as
-      zero = con @@ quoteConName z @@ nil
-      suc n = con @@ quoteConName s @@ list [arg @@ quoteArgInfo defaultArgInfo @@ n]
-      quoteDom q (Dom info t) = arg @@ quoteArgInfo info @@ q t
-      quoteArg q (Arg info t) = arg @@ quoteArgInfo info @@ q t
+      list [] = pure nil
+      list (a : as) = cons !@ a @@ list as
+      quoteDom q (Dom info t) = arg !@ quoteArgInfo info @@ q t
+      quoteArg q (Arg info t) = arg !@ quoteArgInfo info @@ q t
       quoteArgs ts = list (map (quoteArg quote) ts)
       quote v =
         case unSpine v of
           (Var n es)   ->
              let ts = fromMaybe __IMPOSSIBLE__ $ allApplyElims es
-             in  var @@ Lit (LitInt noRange $ fromIntegral n) @@ quoteArgs ts
-          (Lam info t) -> lam @@ quoteHiding (getHiding info) @@ quote (absBody t)
-          (Def x es)   -> qx @@ quoteArgs ts
+             in  var !@! Lit (LitInt noRange $ fromIntegral n) @@ quoteArgs ts
+          (Lam info t) -> lam !@ quoteHiding (getHiding info) @@ quote (absBody t)
+          (Def x es)   -> do
+            d <- theDef <$> getConstInfo x
+            qx d @@ quoteArgs ts
             where
               ts = fromMaybe __IMPOSSIBLE__ $ allApplyElims es
-              qx =
-                case theDef $ constInfo x of
-                  Function{ funExtLam = Just (h, nh), funClauses = cs } ->
-                    extlam @@ list (map (quoteClause . dropArgs (h + nh)) cs)
-                  Function{ funCompiled = Just Fail, funClauses = [cl] } ->
-                    extlam @@ list [quoteClause $ dropArgs (length (clausePats cl) - 1) cl]
-                  _ -> def @@ quoteName x
-          (Con x ts)   -> con @@ quoteConName x @@ quoteArgs ts
-          (Pi t u)     -> pi @@ quoteDom quoteType t
-                        @@ quoteType (absBody u)
-          (Level _)    -> unsupported
+              qx Function{ funExtLam = Just (h, nh), funClauses = cs } =
+                    extlam !@ list (map (quoteClause . dropArgs (h + nh)) cs)
+              qx Function{ funCompiled = Just Fail, funClauses = [cl] } =
+                    extlam !@ list [quoteClause $ dropArgs (length (clausePats cl) - 1) cl]
+              qx _ = def !@! quoteName x
+          (Con x ts)   -> con !@! quoteConName x @@ quoteArgs ts
+          (Pi t u)     -> pi !@ quoteDom quoteType t
+                             @@ quoteType (absBody u)
+          (Level _)    -> pure unsupported
           (Lit lit)    -> quoteLit lit
-          (Sort s)     -> sort @@ quoteSort s
+          (Sort s)     -> sort !@ quoteSort s
           (Shared p)   -> quote $ derefPtr p
-          MetaV{}      -> unsupported
-          DontCare{}   -> unsupported -- could be exposed at some point but we have to take care
+          MetaV{}      -> pure unsupported
+          DontCare{}   -> pure unsupported -- could be exposed at some point but we have to take care
   return (quote, quoteType, quoteClause)
 
 quoteName :: QName -> Term
@@ -158,12 +165,12 @@ quoteConName = quoteName . conName
 quoteTerm :: Term -> TCM Term
 quoteTerm v = do
   (f, _, _) <- quotingKit
-  return (f v)
+  runReduceM (f v)
 
 quoteType :: Type -> TCM Term
 quoteType v = do
   (_, f, _) <- quotingKit
-  return (f v)
+  runReduceM (f v)
 
 agdaTermType :: TCM Type
 agdaTermType = El (mkType 0) <$> primAgdaTerm
