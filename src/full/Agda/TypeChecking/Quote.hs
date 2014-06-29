@@ -18,6 +18,8 @@ import Agda.TypeChecking.Monad.Builtin
 import Agda.TypeChecking.Reduce
 import Agda.TypeChecking.Pretty
 import Agda.TypeChecking.Substitute
+import Agda.TypeChecking.DropArgs
+import Agda.TypeChecking.CompiledClause
 
 import Agda.Utils.String
 import Agda.Utils.Permutation
@@ -38,6 +40,7 @@ quotingKit = do
   arginfo         <- primArgArgInfo
   var             <- primAgdaTermVar
   lam             <- primAgdaTermLam
+  extlam          <- primAgdaTermExtLam
   def             <- primAgdaTermDef
   con             <- primAgdaTermCon
   pi              <- primAgdaTermPi
@@ -65,6 +68,7 @@ quotingKit = do
   Con z _         <- ignoreSharing <$> primZero
   Con s _         <- ignoreSharing <$> primSuc
   unsupported     <- primAgdaTermUnsupported
+  constInfo       <- runReduceF getConstInfo
   let t @@ u = apply t [defaultArg u]
       quoteHiding Hidden    = hidden
       quoteHiding Instance  = instanceH
@@ -124,9 +128,16 @@ quotingKit = do
              let ts = fromMaybe __IMPOSSIBLE__ $ allApplyElims es
              in  var @@ Lit (LitInt noRange $ fromIntegral n) @@ quoteArgs ts
           (Lam info t) -> lam @@ quoteHiding (getHiding info) @@ quote (absBody t)
-          (Def x es)   ->
-             let ts = fromMaybe __IMPOSSIBLE__ $ allApplyElims es
-             in  def @@ quoteName x @@ quoteArgs ts
+          (Def x es)   -> qx @@ quoteArgs ts
+            where
+              ts = fromMaybe __IMPOSSIBLE__ $ allApplyElims es
+              qx =
+                case theDef $ constInfo x of
+                  Function{ funExtLam = Just (h, nh), funClauses = cs } ->
+                    extlam @@ list (map (quoteClause . dropArgs (h + nh)) cs)
+                  Function{ funCompiled = Just Fail, funClauses = [cl] } ->
+                    extlam @@ list [quoteClause $ dropArgs (length (clausePats cl) - 1) cl]
+                  _ -> def @@ quoteName x
           (Con x ts)   -> con @@ quoteConName x @@ quoteArgs ts
           (Pi t u)     -> pi @@ quoteDom quoteType t
                         @@ quoteType (absBody u)
