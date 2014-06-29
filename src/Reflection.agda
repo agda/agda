@@ -158,6 +158,7 @@ data Pattern : Set where
   var  : Pattern
   lit  : Literal → Pattern
   proj : Name → Pattern
+  absurd : Pattern
 
 {-# BUILTIN AGDAPATTERN Pattern #-}
 {-# BUILTIN AGDAPATCON con #-}
@@ -165,12 +166,15 @@ data Pattern : Set where
 {-# BUILTIN AGDAPATVAR var #-}
 {-# BUILTIN AGDAPATLIT lit #-}
 {-# BUILTIN AGDAPATPROJ proj #-}
+{-# BUILTIN AGDAPATABSURD absurd #-}
 
 data Clause : Set where
   clause : List (Arg Pattern) → Term → Clause
+  absurd-clause : List (Arg Pattern) → Clause
 
-{-# BUILTIN AGDACLAUSE Clause #-}
-{-# BUILTIN AGDACLAUSECON clause #-}
+{-# BUILTIN AGDACLAUSE       Clause        #-}
+{-# BUILTIN AGDACLAUSECLAUSE clause        #-}
+{-# BUILTIN AGDACLAUSEABSURD absurd-clause #-}
 
 -- Function definition.
 data FunctionDef : Set where
