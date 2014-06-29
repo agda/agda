@@ -323,9 +323,10 @@ instance Unquote Term where
 
       Con c [x] -> do
         choice
-          [ (c `isCon` primAgdaTermSort, Sort <$> unquoteN x)
-          , (c `isCon` primAgdaTermLit,  Lit <$> unquoteN x) ]
-          (unquoteFailed "Term" "arity 1 and none of Sort or Lit" t)
+          [ (c `isCon` primAgdaTermSort,   Sort <$> unquoteN x)
+          , (c `isCon` primAgdaTermLit,    Lit <$> unquoteN x)
+          , (c `isCon` primAgdaTermExtLam, typeError (NotImplemented "unquote extended lambda")) ]
+          (unquoteFailed "Term" "bad constructor" t)
 
       Con c [x,y] ->
         choice

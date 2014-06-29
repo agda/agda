@@ -119,7 +119,7 @@ primInteger, primFloat, primChar, primString, primBool, primTrue, primFalse,
     primIrrAxiom, primSizeMax,
     -- builtins for reflection:
     primQName, primArgInfo, primArgArgInfo, primArg, primArgArg, primAgdaTerm, primAgdaTermVar,
-    primAgdaTermLam, primAgdaTermDef, primAgdaTermCon, primAgdaTermPi,
+    primAgdaTermLam, primAgdaTermExtLam, primAgdaTermDef, primAgdaTermCon, primAgdaTermPi,
     primAgdaTermSort, primAgdaTermLit, primAgdaTermUnsupported,
     primAgdaType, primAgdaTypeEl,
     primHiding, primHidden, primInstance, primVisible,
@@ -190,6 +190,7 @@ primAgdaSortUnsupported = getBuiltin builtinAgdaSortUnsupported
 primAgdaTerm         = getBuiltin builtinAgdaTerm
 primAgdaTermVar      = getBuiltin builtinAgdaTermVar
 primAgdaTermLam      = getBuiltin builtinAgdaTermLam
+primAgdaTermExtLam   = getBuiltin builtinAgdaTermExtLam
 primAgdaTermDef      = getBuiltin builtinAgdaTermDef
 primAgdaTermCon      = getBuiltin builtinAgdaTermCon
 primAgdaTermPi       = getBuiltin builtinAgdaTermPi
@@ -282,6 +283,7 @@ builtinArgArg       = "ARGARG"
 builtinAgdaTerm         = "AGDATERM"
 builtinAgdaTermVar      = "AGDATERMVAR"
 builtinAgdaTermLam      = "AGDATERMLAM"
+builtinAgdaTermExtLam   = "AGDATERMEXTLAM"
 builtinAgdaTermDef      = "AGDATERMDEF"
 builtinAgdaTermCon      = "AGDATERMCON"
 builtinAgdaTermPi       = "AGDATERMPI"
