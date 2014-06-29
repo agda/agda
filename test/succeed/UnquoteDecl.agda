@@ -3,6 +3,7 @@ module UnquoteDecl where
 
 open import Common.Prelude
 open import Common.Reflect
+open import Common.Equality
 
 infixr 3 _`⇒_
 pattern vArg x = arg (arginfo visible relevant) x
@@ -26,3 +27,6 @@ unquoteDecl plus =
          ∷ clause (vArg (con (quote suc) (vArg var ∷ [])) ∷ vArg var ∷ [])
                   (`suc (def (quote plus) (vArg (var 1 []) ∷ vArg (var 0 []) ∷ [])))
          ∷ [])
+
+prf : plus 1 1 ≡ 2
+prf = refl
