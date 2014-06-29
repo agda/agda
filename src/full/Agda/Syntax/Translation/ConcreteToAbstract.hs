@@ -1239,7 +1239,8 @@ instance ToAbstract NiceDeclaration A.Declaration where
       y <- freshAbstractQName fx x
       bindName p DefName x y
       e <- toAbstract e
-      return [A.UnquoteDecl (mkDefInfo x fx p a r) y e]
+      let mi = MutualInfo (tc == TerminationCheck) r
+      return [A.UnquoteDecl mi (mkDefInfo x fx p a r) y e]
 
     NicePatternSyn r fx n as p -> do
       reportSLn "scope.pat" 10 $ "found nice pattern syn: " ++ show r

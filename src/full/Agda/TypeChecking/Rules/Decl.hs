@@ -123,7 +123,7 @@ checkDecl d = traceCall (SetRange (getRange d)) $ do
                                   -- Open and PatternSynDef are just artifacts
                                   -- from the concrete syntax, retained for
                                   -- highlighting purposes.
-      A.UnquoteDecl i x e      -> checkUnquoteDecl i x e
+      A.UnquoteDecl mi i x e   -> checkUnquoteDecl mi i x e
 
     unlessM (isJust . envMutualBlock <$> ask) $ do
       termErrs <- caseMaybe finalChecks (return []) $ \ theMutualChecks -> do
@@ -205,7 +205,7 @@ checkDecl d = traceCall (SetRange (getRange d)) $ do
       checkProjectionLikeness_ names
       return termErrs
 
-    checkUnquoteDecl i x e = do
+    checkUnquoteDecl mi i x e = do
       reportSDoc "tc.decl.unquote" 20 $ text "Checking unquoteDecl" <+> prettyTCM x
       fundef <- primAgdaFunDef
       v      <- checkExpr e $ El (mkType 0) fundef
@@ -222,8 +222,7 @@ checkDecl d = traceCall (SetRange (getRange d)) $ do
       reportSDoc "tc.decl.unquote" 20 $ text "unquoteDecl: Reified def"
       let ds = [ A.Axiom A.FunSig i defaultArgInfo x a   -- TODO other than defaultArg
                , A.FunDef i x NotDelayed cs ]
-          mi = Info.MutualInfo True (getRange i)
-      xs <- checkMutual mi ds   -- TODO termination check
+      xs <- checkMutual mi ds
       return $ Just $ mutualChecks mi ds xs
 
 -- | Instantiate all metas in 'Definition' associated to 'QName'. --   Makes sense after freezing metas.
