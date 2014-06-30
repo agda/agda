@@ -1,10 +1,12 @@
-{-# LANGUAGE FlexibleInstances, TypeSynonymInstances #-}
+{-# LANGUAGE CPP, FlexibleInstances, TypeSynonymInstances #-}
 module Agda.TypeChecking.MetaVars.Mention where
 
 import Agda.Syntax.Common
 import Agda.Syntax.Internal as I
 import Agda.TypeChecking.Monad
 
+import Agda.Utils.Impossible
+#include "../../undefined.h"
 
 class MentionsMeta t where
   mentionsMeta :: MetaId -> t -> Bool
@@ -22,6 +24,7 @@ instance MentionsMeta Term where
     DontCare v   -> False   -- we don't have to look inside don't cares when deciding to wake constraints
     MetaV y args -> x == y || mm args   -- TODO: we really only have to look one level deep at meta args
     Shared p     -> mm $ derefPtr p
+    ExtLam{}     -> __IMPOSSIBLE__
     where
       mm v = mentionsMeta x v
 

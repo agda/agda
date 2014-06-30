@@ -1030,6 +1030,7 @@ inverseSubst args = map (mapFst unArg) <$> loop (zip args terms)
         Arg _ Pi{}       -> neutralArg
         Arg _ Sort{}     -> neutralArg
         Arg _ Level{}    -> neutralArg
+        Arg _ ExtLam{}   -> __IMPOSSIBLE__
 
         Arg info (Shared p) -> isVarOrIrrelevant vars (Arg info $ derefPtr p, t)
 

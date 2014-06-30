@@ -297,6 +297,7 @@ instance Reduce Term where
       Var _ _  -> done
       Lam _ _  -> done
       DontCare _ -> done
+      ExtLam{}   -> __IMPOSSIBLE__
       Shared{}   -> __IMPOSSIBLE__ -- updateSharedTermF reduceB' v
     where
       -- NOTE: reduceNat can traverse the entire term.
@@ -690,6 +691,7 @@ instance Simplify Term where
       Var i vs   -> Var i    <$> simplify' vs
       Lam h v    -> Lam h    <$> simplify' v
       DontCare v -> dontCare <$> simplify' v
+      ExtLam{}   -> __IMPOSSIBLE__
       Shared{}   -> __IMPOSSIBLE__ -- updateSharedTerm simplify' v
 
 simplifyBlocked' :: Simplify t => Blocked t -> ReduceM t
@@ -837,6 +839,7 @@ instance Normalise Term where
 		Sort s	    -> sortTm <$> normalise' s
 		Pi a b	    -> uncurry Pi <$> normalise' (a,b)
                 Shared{}    -> __IMPOSSIBLE__ -- updateSharedTerm normalise' v
+                ExtLam{}    -> __IMPOSSIBLE__
                 DontCare _  -> return v
 
 instance Normalise Elim where
@@ -979,6 +982,7 @@ instance InstantiateFull Term where
           Sort s      -> sortTm <$> instantiateFull' s
           Pi a b      -> uncurry Pi <$> instantiateFull' (a,b)
           Shared{}    -> __IMPOSSIBLE__ -- updateSharedTerm instantiateFull' v
+          ExtLam{}    -> __IMPOSSIBLE__
           DontCare v  -> dontCare <$> instantiateFull' v
 
 instance InstantiateFull Level where

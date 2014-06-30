@@ -1,4 +1,4 @@
--- {-# LANGUAGE CPP #-}
+{-# LANGUAGE CPP #-}
 {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE PatternGuards #-}
 {-# LANGUAGE TypeSynonymInstances #-}
@@ -16,6 +16,9 @@ import Agda.Syntax.Internal
 import Agda.TypeChecking.Substitute
 
 import Agda.Utils.List (splitExactlyAt)
+import Agda.Utils.Impossible
+
+#include "../undefined.h"
 
 piAbstractTerm :: Term -> Type -> Type -> Type
 piAbstractTerm v a b = fun a (abstractTerm v b)
@@ -69,6 +72,7 @@ instance AbstractTerm Term where
       MetaV m vs  -> MetaV m $ absT vs
       DontCare mv -> DontCare $ absT mv
       Shared p    -> Shared $ absT p
+      ExtLam{}    -> __IMPOSSIBLE__
       where
         absT x = abstractTerm u x
 

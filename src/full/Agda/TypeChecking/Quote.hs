@@ -131,11 +131,11 @@ quotingKit = do
       quoteArgs ts = list (map (quoteArg quote) ts)
       quote v =
         case unSpine v of
-          (Var n es)   ->
+          Var n es   ->
              let ts = fromMaybe __IMPOSSIBLE__ $ allApplyElims es
              in  var !@! Lit (LitInt noRange $ fromIntegral n) @@ quoteArgs ts
-          (Lam info t) -> lam !@ quoteHiding (getHiding info) @@ quote (absBody t)
-          (Def x es)   -> do
+          Lam info t -> lam !@ quoteHiding (getHiding info) @@ quote (absBody t)
+          Def x es   -> do
             d <- theDef <$> getConstInfo x
             qx d @@ quoteArgs ts
             where
@@ -145,15 +145,16 @@ quotingKit = do
               qx Function{ funCompiled = Just Fail, funClauses = [cl] } =
                     extlam !@ list [quoteClause $ dropArgs (length (clausePats cl) - 1) cl]
               qx _ = def !@! quoteName x
-          (Con x ts)   -> con !@! quoteConName x @@ quoteArgs ts
-          (Pi t u)     -> pi !@ quoteDom quoteType t
+          Con x ts   -> con !@! quoteConName x @@ quoteArgs ts
+          Pi t u     -> pi !@ quoteDom quoteType t
                              @@ quoteType (absBody u)
-          (Level _)    -> pure unsupported
-          (Lit lit)    -> quoteLit lit
-          (Sort s)     -> sort !@ quoteSort s
-          (Shared p)   -> quote $ derefPtr p
-          MetaV{}      -> pure unsupported
-          DontCare{}   -> pure unsupported -- could be exposed at some point but we have to take care
+          Level _    -> pure unsupported
+          Lit lit    -> quoteLit lit
+          Sort s     -> sort !@ quoteSort s
+          Shared p   -> quote $ derefPtr p
+          MetaV{}    -> pure unsupported
+          DontCare{} -> pure unsupported -- could be exposed at some point but we have to take care
+          ExtLam{}   -> __IMPOSSIBLE__
   return (quote, quoteType, quoteClause)
 
 quoteName :: QName -> Term
@@ -371,18 +372,20 @@ instance Unquote Term where
       Con c [x] -> do
         choice
           [ (c `isCon` primAgdaTermSort,   Sort <$> unquoteN x)
-          , (c `isCon` primAgdaTermLit,    Lit <$> unquoteN x)
-          , (c `isCon` primAgdaTermExtLam, typeError (NotImplemented "unquote extended lambda")) ]
+          , (c `isCon` primAgdaTermLit,    Lit <$> unquoteN x) ]
           (unquoteFailed "Term" "bad constructor" t)
 
-      Con c [x,y] ->
+      Con c [x, y] ->
         choice
-          [(c `isCon` primAgdaTermVar, Var <$> (fromInteger <$> unquoteN x) <*> unquoteN y)
-          ,(c `isCon` primAgdaTermCon, Con <$> unquoteN x <*> unquoteN y)
-          ,(c `isCon` primAgdaTermDef, Def <$> unquoteN x <*> unquoteN y)
-          ,(c `isCon` primAgdaTermLam, Lam <$> (flip setHiding defaultArgInfo <$> unquoteN x) <*> unquoteN y)
-          ,(c `isCon` primAgdaTermPi,  Pi  <$> (domFromArg <$> unquoteN x) <*> unquoteN y)]
-          (unquoteFailed "Term" "arity 2 and none of Var, Con, Def, Lam, Pi" t)
+          [ (c `isCon` primAgdaTermVar, Var <$> (fromInteger <$> unquoteN x) <*> unquoteN y)
+          , (c `isCon` primAgdaTermCon, Con <$> unquoteN x <*> unquoteN y)
+          , (c `isCon` primAgdaTermDef, Def <$> unquoteN x <*> unquoteN y)
+          , (c `isCon` primAgdaTermLam, Lam <$> (flip setHiding defaultArgInfo <$> unquoteN x) <*> unquoteN y)
+          , (c `isCon` primAgdaTermPi,  Pi  <$> (domFromArg <$> unquoteN x) <*> unquoteN y)
+          , (c `isCon` primAgdaTermExtLam, mkExtLam <$> unquoteN x <*> unquoteN y) ]
+          (unquoteFailed "Term" "bad term constructor" t)
+        where
+          mkExtLam = ExtLam
 
       Con{} -> unquoteFailed "Term" "neither arity 0 nor 1 nor 2" t
       Lit{} -> unquoteFailed "Term" "unexpected literal" t
