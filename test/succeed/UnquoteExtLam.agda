@@ -37,6 +37,9 @@ checkMagic = magic
 
 unquoteDecl pr = prDef
 
+magic′ : {A : Set} → ⊥ → A
+magic′ = unquote (ext-lam (absurd-clause (vArg absurd ∷ []) ∷ []) [])
+
 module Pred (A : Set) where
   unquoteDecl pr′ = prDef
 

@@ -124,6 +124,14 @@ Language
     {-# BUILTIN AGDAFUNDEF    FunDef #-}
     {-# BUILTIN AGDAFUNDEFCON funDef #-}
 
+* New reflection builtins for extended (pattern-matching) lambda.
+
+  The AGDATERM data type has been augmented with a constructor
+
+    AGDATERMEXTLAM : List AGDACLAUSE → List (ARG AGDATERM) → AGDATERM
+
+  Absurd lambdas (λ ()) are quoted to extended lambdas with an absurd clause.
+
 * Unquoting declarations.
 
   You can now define (recursive) functions by reflection using the new
