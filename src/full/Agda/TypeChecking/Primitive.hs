@@ -101,7 +101,10 @@ instance PrimTerm a => PrimTerm (IO a) where
 -- From Agda term to Haskell value
 
 class ToTerm a where
-    toTerm :: TCM (a -> Term)
+    toTerm  :: TCM (a -> Term)
+    toTermR :: TCM (a -> ReduceM Term)
+
+    toTermR = (pure .) <$> toTerm
 
 instance ToTerm Integer where toTerm = return $ Lit . LitInt noRange
 instance ToTerm Nat	where toTerm = return $ Lit . LitInt noRange . unNat
@@ -118,10 +121,12 @@ instance ToTerm Bool where
 	return $ \b -> if b then true else false
 
 instance ToTerm Term where
-    toTerm = do (f, _, _) <- quotingKit; runReduceF f
+    toTerm  = do (f, _, _) <- quotingKit; runReduceF f
+    toTermR = do (f, _, _) <- quotingKit; return f
 
 instance ToTerm Type where
-    toTerm = do (_, f, _) <- quotingKit; runReduceF f
+    toTerm  = do (_, f, _) <- quotingKit; runReduceF f
+    toTermR = do (_, f, _) <- quotingKit; return f
 
 instance ToTerm I.ArgInfo where
   toTerm = do
@@ -385,14 +390,14 @@ mkPrimLevelMax = do
 mkPrimFun1TCM :: (FromTerm a, ToTerm b) => TCM Type -> (a -> ReduceM b) -> TCM PrimitiveImpl
 mkPrimFun1TCM mt f = do
     toA   <- fromTerm
-    fromB <- toTerm
+    fromB <- toTermR
     t     <- mt
     return $ PrimImpl t $ PrimFun __IMPOSSIBLE__ 1 $ \ts ->
       case ts of
         [v] ->
           redBind (toA v)
               (\v' -> [v']) $ \x ->
-          redReturn . fromB =<< f x
+          redReturn =<< fromB =<< f x
         _ -> __IMPOSSIBLE__
 
 -- Tying the knot
