@@ -229,6 +229,7 @@ noShadowingOfConstructors mkCall problem =
       Level {} -> __IMPOSSIBLE__
       Con   {} -> __IMPOSSIBLE__
       DontCare{} -> __IMPOSSIBLE__
+      ExtLam{}   -> __IMPOSSIBLE__
 
 -- | Check that a dot pattern matches it's instantiation.
 checkDotPattern :: DotPatternInst -> TCM ()
@@ -246,8 +247,8 @@ checkDotPattern (DPI e v (Dom info a)) =
     noConstraints $ equalTerm a u v
 
 -- | Bind the variables in a left hand side. Precondition: the patterns should
---   all be 'A.VarP', 'A.WildP', or 'A.ImplicitP' and the telescope should have
---   the same size as the pattern list.
+--   all be 'A.VarP', 'A.WildP', 'A.AbsurdP', or 'A.ImplicitP' and the
+--   telescope should have the same size as the pattern list.
 --   There could also be 'A.ConP's resulting from eta expanded implicit record
 --   patterns.
 bindLHSVars :: [A.NamedArg A.Pattern] -> Telescope -> TCM a -> TCM a

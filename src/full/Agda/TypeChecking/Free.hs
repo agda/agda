@@ -1,4 +1,4 @@
--- {-# LANGUAGE CPP #-}
+{-# LANGUAGE CPP #-}
 {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE TypeSynonymInstances #-}
 
@@ -23,6 +23,9 @@ import Agda.Utils.VarSet (VarSet)
 
 import Agda.Syntax.Common hiding (Arg, Dom, NamedArg)
 import Agda.Syntax.Internal
+
+import Agda.Utils.Impossible
+#include "../undefined.h"
 
 -- | The distinction between rigid and strongly rigid occurrences comes from:
 --   Jason C. Reed, PhD thesis, 2009, page 96 (see also his LFMTP 2009 paper)
@@ -162,6 +165,7 @@ instance Free Term where
     MetaV _ ts -> flexible $ freeVars' conf ts
     DontCare mt -> irrelevantly $ freeVars' conf mt
     Shared p    -> freeVars' conf (derefPtr p)
+    ExtLam{}    -> __IMPOSSIBLE__
 
 instance Free Type where
   freeVars' conf (El s t)

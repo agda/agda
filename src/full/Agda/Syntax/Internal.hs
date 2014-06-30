@@ -108,6 +108,7 @@ instance LensConName ConHead where
 --
 data Term = Var {-# UNPACK #-} !Int Elims -- ^ @x es@ neutral
 	  | Lam ArgInfo (Abs Term)        -- ^ Terms are beta normal. Relevance is ignored
+          | ExtLam [Clause] Args          -- ^ Only used by unquote --> reify. Should never appear elsewhere.
 	  | Lit Literal
 	  | Def QName Elims               -- ^ @f es@, possibly a delta/iota-redex
 	  | Con ConHead Args              -- ^ @c vs@
@@ -555,6 +556,7 @@ hasElims v =
     Sort{}     -> Nothing
     Level{}    -> Nothing
     DontCare{} -> Nothing
+    ExtLam{}   -> Nothing
     Shared{}   -> __IMPOSSIBLE__
 
 {- PROBABLY USELESS
@@ -647,6 +649,7 @@ instance Sized Term where
     Sort s      -> 1
     DontCare mv -> size mv
     Shared p    -> size (derefPtr p)
+    ExtLam{}    -> __IMPOSSIBLE__
 
 instance Sized Type where
   size = size . unEl
@@ -695,6 +698,7 @@ instance KillRange Term where
     Sort s      -> killRange1 Sort s
     DontCare mv -> killRange1 DontCare mv
     Shared p    -> Shared $ updatePtr killRange p
+    ExtLam{}    -> __IMPOSSIBLE__
 
 instance KillRange Level where
   killRange (Max as) = killRange1 Max as

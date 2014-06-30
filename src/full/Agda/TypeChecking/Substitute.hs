@@ -71,6 +71,7 @@ instance Apply Term where
       Sort _      -> __IMPOSSIBLE__
       DontCare mv -> dontCare $ mv `applyE` es  -- Andreas, 2011-10-02
         -- need to go under DontCare, since "with" might resurrect irrelevant term
+      ExtLam _ _  -> __IMPOSSIBLE__
 
 -- | If $v$ is a record value, @canProject f v@
 --   returns its field @f@.
@@ -610,6 +611,7 @@ instance Subst Term where
     Sort s      -> sortTm $ applySubst rho s
     Shared p    -> Shared $ applySubst rho p
     DontCare mv -> dontCare $ applySubst rho mv
+    ExtLam _ _  -> __IMPOSSIBLE__
 
 instance Subst a => Subst (Ptr a) where
   applySubst rho = fmap (applySubst rho)
@@ -950,6 +952,8 @@ instance Eq Term where
   _          == _            = False
 
 instance Ord Term where
+  ExtLam{}   `compare` _          = __IMPOSSIBLE__
+  _          `compare` ExtLam{}   = __IMPOSSIBLE__
   Shared a   `compare` Shared x | a == x = EQ
   Shared a   `compare` x          = compare (derefPtr a) x
   a          `compare` Shared x   = compare a (derefPtr x)

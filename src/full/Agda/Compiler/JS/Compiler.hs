@@ -26,7 +26,7 @@ import Agda.Syntax.Internal
   ( Name, Args, Type,
     Clause, Pattern(VarP,DotP,LitP,ConP,ProjP),
     ClauseBodyF(Body,NoBody,Bind),ClauseBody,
-    Term(Var,Lam,Lit,Level,Def,Con,Pi,Sort,MetaV,DontCare,Shared),
+    Term(Var,Lam,Lit,Level,Def,Con,Pi,Sort,MetaV,DontCare,Shared,ExtLam),
     unSpine, allApplyElims,
     conName,
     derefPtr,
@@ -413,6 +413,7 @@ term v = do
     (Sort  _)            -> return (String "*")
     (MetaV _ _)          -> return (Undefined)
     (DontCare _)         -> return (Undefined)
+    ExtLam{}             -> __IMPOSSIBLE__
 
 -- Check to see if a type is a singleton, and if so, return its only
 -- member.  Singleton types are of the form T1 -> ... -> Tn -> T where

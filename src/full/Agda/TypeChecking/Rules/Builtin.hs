@@ -69,7 +69,7 @@ coreBuiltins = map (\ (x, z) -> BuiltinInfo x z)
   , (builtinAgdaSort           |-> BuiltinData tset [builtinAgdaSortSet, builtinAgdaSortLit, builtinAgdaSortUnsupported])
   , (builtinAgdaType           |-> BuiltinData tset [builtinAgdaTypeEl])
   , (builtinAgdaTerm           |-> BuiltinData tset
-                                     [ builtinAgdaTermVar, builtinAgdaTermLam
+                                     [ builtinAgdaTermVar, builtinAgdaTermLam, builtinAgdaTermExtLam
                                      , builtinAgdaTermDef, builtinAgdaTermCon
                                      , builtinAgdaTermPi, builtinAgdaTermSort
                                      , builtinAgdaTermLit, builtinAgdaTermUnsupported])
@@ -97,6 +97,7 @@ coreBuiltins = map (\ (x, z) -> BuiltinInfo x z)
   , (builtinAgdaTypeEl         |-> BuiltinDataCons (tsort --> tterm --> ttype))
   , (builtinAgdaTermVar        |-> BuiltinDataCons (tnat --> targs --> tterm))
   , (builtinAgdaTermLam        |-> BuiltinDataCons (thiding --> tterm --> tterm))
+  , (builtinAgdaTermExtLam     |-> BuiltinDataCons (tlist tclause --> targs --> tterm))
   , (builtinAgdaTermDef        |-> BuiltinDataCons (tqname --> targs --> tterm))
   , (builtinAgdaTermCon        |-> BuiltinDataCons (tqname --> targs --> tterm))
   , (builtinAgdaTermPi         |-> BuiltinDataCons (targ ttype --> ttype --> tterm))

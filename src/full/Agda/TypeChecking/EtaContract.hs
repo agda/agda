@@ -45,6 +45,7 @@ binAppView t = case t of
   Sort _     -> noApp
   MetaV _ _  -> noApp
   DontCare _ -> noApp
+  ExtLam _ _ -> __IMPOSSIBLE__
   Shared p   -> binAppView (derefPtr p)  -- destroys sharing
   where
     noApp = NoApp t

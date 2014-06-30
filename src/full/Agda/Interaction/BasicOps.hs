@@ -538,6 +538,7 @@ metaHelperType norm ii rng s = case words s of
       I.Level{}    -> pure v
       I.MetaV{}    -> pure v
       I.Shared{}   -> pure v
+      I.ExtLam{}   -> __IMPOSSIBLE__
     onNamesElims f = traverse $ traverse $ onNamesTm f
     onNamesArgs f  = traverse $ traverse $ onNamesTm f
     onNamesAbs f nd (Abs   s x) = Abs   <$> f s <*> nd f x

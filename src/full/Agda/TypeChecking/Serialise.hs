@@ -797,6 +797,7 @@ instance EmbPrj I.Term where
   icode (Pi       a b) = icode2 5 a b
   icode (Sort     a  ) = icode1 7 a
   icode (MetaV    a b) = __IMPOSSIBLE__
+  icode ExtLam{}       = __IMPOSSIBLE__
   icode (DontCare a  ) = icode1 8 a
   icode (Level    a  ) = icode1 9 a
   icode (Shared p)     = do

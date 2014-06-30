@@ -235,6 +235,7 @@ instance Occurs Term where
         Pi a b	    -> uncurry Pi <$> occ (leaveTop ctx) (a,b)
         Sort s	    -> Sort <$> occ (leaveTop ctx) s
         v@Shared{}  -> updateSharedTerm (occ ctx) v
+        ExtLam{}    -> __IMPOSSIBLE__
         MetaV m' es -> do
             -- Check for loop
             --   don't fail hard on this, since we might still be on the top-level
@@ -300,6 +301,7 @@ instance Occurs Term where
       Pi a b     -> metaOccurs m (a,b)
       Sort s     -> metaOccurs m s
       Shared p   -> metaOccurs m $ derefPtr p
+      ExtLam{}   -> __IMPOSSIBLE__
       MetaV m' vs | m == m' -> patternViolation' 50 $ "Found occurrence of " ++ show m
                   | otherwise -> metaOccurs m vs
 
@@ -474,11 +476,11 @@ hasBadRigid xs t = do
   let failure = throwError ()
   t <- liftTCM $ reduce t
   case ignoreSharing t of
-    (Var x _)    -> return $ notElem x xs
+    Var x _      -> return $ notElem x xs
     -- Issue 1153: A lambda has to be considered matchable.
-    -- (Lam _ v)    -> hasBadRigid (0 : map (+1) xs) (absBody v)
-    (Lam _ v)    -> failure
-    (DontCare v) -> hasBadRigid xs v
+    -- Lam _ v    -> hasBadRigid (0 : map (+1) xs) (absBody v)
+    Lam _ v      -> failure
+    DontCare v   -> hasBadRigid xs v
     -- The following types of arguments cannot be eliminated by a pattern
     -- match: data, record, Pi, levels, sorts
     -- Thus, their offending rigid variables are bad.
@@ -486,14 +488,14 @@ hasBadRigid xs t = do
       return $ es `rigidVarsNotContainedIn` xs
     -- Andreas, 2012-05-03: There is room for further improvement.
     -- We could also consider a defined f which is not blocked by a meta.
-    (Pi a b)     -> return $ (a,b) `rigidVarsNotContainedIn` xs
-    (Level v)    -> return $ v `rigidVarsNotContainedIn` xs
-    (Sort s)     -> return $ s `rigidVarsNotContainedIn` xs
+    Pi a b       -> return $ (a,b) `rigidVarsNotContainedIn` xs
+    Level v      -> return $ v `rigidVarsNotContainedIn` xs
+    Sort s       -> return $ s `rigidVarsNotContainedIn` xs
     -- Since constructors can be eliminated by pattern-matching,
     -- offending variables under a constructor could be removed by
     -- the right instantiation of the meta variable.
     -- Thus, they are not rigid.
-    (Con c args) -> do
+    Con c args   -> do
       ifM (liftTCM $ isEtaCon (conName c))
         -- in case of a record con, we can in principle prune
         -- (but not this argument; the meta could become a projection!)
@@ -501,7 +503,8 @@ hasBadRigid xs t = do
         failure
     Lit{}        -> failure -- matchable
     MetaV{}      -> failure -- potentially matchable
-    (Shared p)   -> __IMPOSSIBLE__
+    Shared p     -> __IMPOSSIBLE__
+    ExtLam{}     -> __IMPOSSIBLE__
 
 -- | Check whether a term @Def f es@ is finally stuck.
 --   Currently, we give only a crude approximation.

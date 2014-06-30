@@ -44,6 +44,7 @@ import Data.Foldable (foldMap)
 import Agda.Syntax.Literal
 import Agda.Syntax.Position
 import Agda.Syntax.Common hiding (Arg, Dom, NamedArg, ArgInfo)
+import Agda.Syntax.Fixity
 import qualified Agda.Syntax.Common as Common
 import Agda.Syntax.Info as Info
 import Agda.Syntax.Abstract as A
@@ -182,7 +183,8 @@ reifyDisplayFormP lhs@(A.SpineLHS i f ps wps) =
     -- But apparently, it has no influence...
     -- Ulf, can you add an explanation?
     md <- liftTCM $ -- addContext (replicate (length ps) "x") $
-      displayForm f vs
+      displayForm f vs `catchError` \_ -> return Nothing
+        -- unquoted extended lambdas use fake names, so catch errors here
     reportSLn "reify.display" 20 $
       "display form of " ++ show f ++ " " ++ show ps ++ " " ++ show wps ++ ":\n  " ++ show md
     case md of
@@ -405,7 +407,9 @@ reifyTerm expandAnonDefs v = do
         apps x' =<< reifyIArgs vs
       I.DontCare v -> A.DontCare <$> reifyTerm expandAnonDefs v
       I.Shared p   -> reifyTerm expandAnonDefs $ derefPtr p
-
+      I.ExtLam cls args -> do
+        x <- freshName_ "extlam"
+        reifyExtLam (qnameFromList [x]) 0 cls (map (fmap unnamed) args)
     where
       -- Andreas, 2012-10-20  expand a copy in an anonymous module
       -- to improve error messages.
@@ -486,18 +490,22 @@ reifyTerm expandAnonDefs v = do
                       Just defn -> case theDef defn of
                                     Function{ funExtLam = Just (h, nh) } -> Just (h + nh)
                                     _                                    -> Nothing
-        if df && isJust extLam
-          then do
-           reportSLn "reify.def" 10 $ "reifying extended lambda with definition: x = " ++ show x
-           info <- getConstInfo x
-           --drop lambda lifted arguments
-           cls <- mapM (reify . (QNamed x) . (dropArgs $ fromJust extLam)) $ defClauses info
-           -- Karim: Currently Abs2Conc does not require a DefInfo thus we
-           -- use __IMPOSSIBLE__.
-           napps (A.ExtendedLam exprInfo __IMPOSSIBLE__ x cls) =<< reifyIArgs vs
-          else do
+        case extLam of
+          Just pars | df -> do
+            info <- getConstInfo x
+            reifyExtLam x pars (defClauses info) vs
+          _ -> do
            let apps = foldl' (\e a -> A.App exprInfo e (fmap unnamed a))
            napps (A.Def x `apps` pad) =<< reifyIArgs vs
+
+      reifyExtLam :: QName -> Int -> [I.Clause] -> [I.NamedArg Term] -> TCM Expr
+      reifyExtLam x n cls vs = do
+        reportSLn "reify.def" 10 $ "reifying extended lambda with definition: x = " ++ show x
+        -- drop lambda lifted arguments
+        cls <- mapM (reify . QNamed x . dropArgs n) $ cls
+        let cx    = nameConcrete $ qnameName x
+            dInfo = mkDefInfo cx defaultFixity' PublicAccess ConcreteDef (getRange x)
+        napps (A.ExtendedLam exprInfo dInfo x cls) =<< reifyIArgs vs
 
 -- | @nameFirstIfHidden n (a1->...an->{x:a}->b) ({e} es) = {x = e} es@
 nameFirstIfHidden :: [I.Dom (String, t)] -> [I.Arg a] -> [I.NamedArg a]
@@ -853,7 +861,7 @@ instance Reify NamedClause A.Clause where
   reify (QNamed f (I.Clause _ tel perm ps body _)) = addCtxTel tel $ do
     ps  <- reifyPatterns tel perm ps
     lhs <- liftTCM $ reifyDisplayFormP $ SpineLHS info f ps [] -- LHS info (LHSHead f ps) []
-    nfv <- getDefFreeVars f
+    nfv <- getDefFreeVars f `catchError` \_ -> return 0
     lhs <- stripImps $ dropParams nfv lhs
     reportSLn "reify.clause" 60 $ "reifying NamedClause, lhs = " ++ show lhs
     rhs <- reify $ renameP (reverseP perm) <$> body

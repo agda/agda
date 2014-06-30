@@ -415,6 +415,7 @@ instance ComputeOccurrences Term where
     Sort{}       -> return $ Map.empty
     DontCare _   -> return $ Map.empty -- Andreas, 2011-09-09: do we need to check for negative occurrences in irrelevant positions?
     Shared p     -> occurrences $ derefPtr p
+    ExtLam{}     -> __IMPOSSIBLE__
     where
       -- Apparently some development version of GHC chokes if the
       -- following line is replaced by vs ! i.

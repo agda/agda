@@ -53,48 +53,32 @@ data Literal : Set where
 {-# BUILTIN AGDALITSTRING string #-}
 {-# BUILTIN AGDALITQNAME qname #-}
 
-mutual
+Args : Set
 
-  Args : Set
+data Type : Set
+data Sort : Set
+data Clause : Set
 
-  data Type : Set
-  data Sort : Set
+data Term : Set where
+  var     : ℕ → Args → Term
+  con     : QName → Args → Term
+  def     : QName → Args → Term
+  lam     : Hiding → Term → Term
+  ext-lam : List Clause → Args → Term
+  pi      : Arg Type → Type → Term
+  sort    : Sort → Term
+  lit     : Literal → Term
+  unknown : Term
 
-  data Term : Set where
-    var     : ℕ → Args → Term
-    con     : QName → Args → Term
-    def     : QName → Args → Term
-    lam     : Hiding → Term → Term
-    pi      : Arg Type → Type → Term
-    sort    : Sort → Term
-    lit     : Literal → Term
-    unknown : Term
+Args = List (Arg Term)
 
-  Args = List (Arg Term)
+data Type where
+  el : Sort → Term → Type
 
-  data Type where
-    el : Sort → Term → Type
-
-  data Sort where
-    set     : Term → Sort
-    lit     : ℕ → Sort
-    unknown : Sort
-
-{-# BUILTIN AGDASORT            Sort    #-}
-{-# BUILTIN AGDATERM            Term    #-}
-{-# BUILTIN AGDATYPE            Type    #-}
-{-# BUILTIN AGDATERMVAR         var     #-}
-{-# BUILTIN AGDATERMCON         con     #-}
-{-# BUILTIN AGDATERMDEF         def     #-}
-{-# BUILTIN AGDATERMLAM         lam     #-}
-{-# BUILTIN AGDATERMPI          pi      #-}
-{-# BUILTIN AGDATERMSORT        sort    #-}
-{-# BUILTIN AGDATERMLIT         lit     #-}
-{-# BUILTIN AGDATERMUNSUPPORTED unknown #-}
-{-# BUILTIN AGDATYPEEL          el      #-}
-{-# BUILTIN AGDASORTSET         set     #-}
-{-# BUILTIN AGDASORTLIT         lit     #-}
-{-# BUILTIN AGDASORTUNSUPPORTED unknown #-}
+data Sort where
+  set     : Term → Sort
+  lit     : ℕ → Sort
+  unknown : Sort
 
 data Pattern : Set where
   con : QName → List (Arg Pattern) → Pattern
@@ -104,7 +88,31 @@ data Pattern : Set where
   absurd : Pattern
   projP : QName → Pattern
 
-{-# BUILTIN AGDAPATTERN Pattern #-}
+data Clause where
+  clause : List (Arg Pattern) → Term → Clause
+  absurd-clause : List (Arg Pattern) → Clause
+
+
+{-# BUILTIN AGDASORT            Sort    #-}
+{-# BUILTIN AGDATERM            Term    #-}
+{-# BUILTIN AGDATYPE            Type    #-}
+{-# BUILTIN AGDAPATTERN         Pattern #-}
+{-# BUILTIN AGDACLAUSE          Clause  #-}
+
+{-# BUILTIN AGDATERMVAR         var     #-}
+{-# BUILTIN AGDATERMCON         con     #-}
+{-# BUILTIN AGDATERMDEF         def     #-}
+{-# BUILTIN AGDATERMLAM         lam     #-}
+{-# BUILTIN AGDATERMEXTLAM      ext-lam #-}
+{-# BUILTIN AGDATERMPI          pi      #-}
+{-# BUILTIN AGDATERMSORT        sort    #-}
+{-# BUILTIN AGDATERMLIT         lit     #-}
+{-# BUILTIN AGDATERMUNSUPPORTED unknown #-}
+{-# BUILTIN AGDATYPEEL          el      #-}
+{-# BUILTIN AGDASORTSET         set     #-}
+{-# BUILTIN AGDASORTLIT         lit     #-}
+{-# BUILTIN AGDASORTUNSUPPORTED unknown #-}
+
 {-# BUILTIN AGDAPATCON con #-}
 {-# BUILTIN AGDAPATDOT dot #-}
 {-# BUILTIN AGDAPATVAR var #-}
@@ -112,11 +120,6 @@ data Pattern : Set where
 {-# BUILTIN AGDAPATABSURD absurd #-}
 {-# BUILTIN AGDAPATPROJ projP #-}
 
-data Clause : Set where
-  clause : List (Arg Pattern) → Term → Clause
-  absurd-clause : List (Arg Pattern) → Clause
-
-{-# BUILTIN AGDACLAUSE       Clause #-}
 {-# BUILTIN AGDACLAUSECLAUSE clause #-}
 {-# BUILTIN AGDACLAUSEABSURD absurd-clause #-}
 
@@ -152,7 +155,6 @@ data Definition : Set where
 primitive
   primQNameType         : QName → Type
   primQNameDefinition   : QName → Definition
---primFunClauses        : FunDef → List Clause
   primDataConstructors  : DataDef   → List QName
 --primRecordConstructor : RecordDef → QName
 --primRecordFields      : RecordDef → List QName

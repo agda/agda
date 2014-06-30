@@ -118,10 +118,10 @@ instance ToTerm Bool where
 	return $ \b -> if b then true else false
 
 instance ToTerm Term where
-    toTerm = fst <$> quotingKit
+    toTerm = do (f, _, _) <- quotingKit; runReduceF f
 
 instance ToTerm Type where
-    toTerm = snd <$> quotingKit
+    toTerm = do (_, f, _) <- quotingKit; runReduceF f
 
 instance ToTerm I.ArgInfo where
   toTerm = do
@@ -322,57 +322,27 @@ primQNameType = mkPrimFun1TCM (el primQName --> el primAgdaType)
 
 primQNameDefinition :: TCM PrimitiveImpl
 primQNameDefinition = do
+  (_, qType, qClause) <- quotingKit
   agdaFunDef                    <- primAgdaFunDef
   agdaFunDefCon                 <- primAgdaFunDefCon
-  agdaClause                    <- primAgdaClause
-  agdaClauseClause              <- primAgdaClauseClause
-  agdaClauseAbsurd              <- primAgdaClauseAbsurd
-  agdaPattern                   <- primAgdaPattern
-  agdaPatVar                    <- primAgdaPatVar
-  agdaPatCon                    <- primAgdaPatCon
-  agdaPatDot                    <- primAgdaPatDot
-  agdaPatLit                    <- primAgdaPatLit
-  agdaPatProj                   <- primAgdaPatProj
-  agdaPatAbsurd                 <- primAgdaPatAbsurd
   agdaDefinitionFunDef          <- primAgdaDefinitionFunDef
   agdaDefinitionDataDef         <- primAgdaDefinitionDataDef
   agdaDefinitionRecordDef       <- primAgdaDefinitionRecordDef
   agdaDefinitionPostulate       <- primAgdaDefinitionPostulate
   agdaDefinitionPrimitive       <- primAgdaDefinitionPrimitive
   agdaDefinitionDataConstructor <- primAgdaDefinitionDataConstructor
-  agdaArg     <- primArgArg
-  agdaUnknown <- primAgdaTermUnsupported
-  nil         <- primNil
-  cons        <- primCons
-  qType       <- toTerm
-  qTerm       <- toTerm
-  qQName      <- toTerm
-  qArgInfo    <- toTerm
   list        <- buildList
 
-  let defapp f xs = apply f (map defaultArg xs)
-      qArg (Arg i x) = defapp agdaArg [qArgInfo i, x]
-      qPats ps = list $ map (qArg . fmap (qPat . namedThing)) ps
-      qPat (VarP "()")   = agdaPatAbsurd
-      qPat (VarP _)      = agdaPatVar
-      qPat (DotP _)      = agdaPatDot
-      qPat (ConP c _ ps) = defapp agdaPatCon [qQName (conName c), qPats ps]
-      qPat (LitP l)      = defapp agdaPatLit [Lit l]
-      qPat (ProjP x)     = defapp agdaPatProj [qQName x]
-      qBody (Body a) = Just (qTerm a)
-      qBody (Bind b) = qBody (absBody b)
-      qBody NoBody   = Nothing
-      qClause Clause{namedClausePats = ps, clauseBody = body} =
-        case qBody body of
-          Nothing -> defapp agdaClauseAbsurd [qPats ps]
-          Just b  -> defapp agdaClauseClause [qPats ps, b]
-      qFunDef t cs = defapp agdaFunDefCon [qType t, list $ map qClause cs]
-      con qn def =
+  let defapp f xs  = apply f . map defaultArg <$> sequence xs
+      qFunDef t cs = defapp agdaFunDefCon [qType t, list <$> mapM qClause cs]
+      qQName       = Lit . LitQName noRange
+      con qn = do
+        def <- getConstInfo qn
         case theDef def of
           Function{funClauses = cs}
                         -> defapp agdaDefinitionFunDef    [qFunDef (defType def) cs]
-          Datatype{}    -> defapp agdaDefinitionDataDef   [qQName qn]
-          Record{}      -> defapp agdaDefinitionRecordDef [qQName qn]
+          Datatype{}    -> defapp agdaDefinitionDataDef   [pure $ qQName qn]
+          Record{}      -> defapp agdaDefinitionRecordDef [pure $ qQName qn]
           Axiom{}       -> defapp agdaDefinitionPostulate []
           Primitive{}   -> defapp agdaDefinitionPrimitive []
           Constructor{} -> defapp agdaDefinitionDataConstructor []
@@ -384,7 +354,7 @@ primQNameDefinition = do
       [v] ->
         redBind (unquoteQName v)
             (\v' -> [v']) $ \x ->
-        redReturn =<< (con x <$> getConstInfo x)
+        redReturn =<< con x
       _ -> __IMPOSSIBLE__
 
 primDataConstructors :: TCM PrimitiveImpl
