@@ -260,7 +260,7 @@ substTerm env term = case T.unSpine term of
     T.MetaV _ _ -> return UNIT
     T.DontCare _ -> return UNIT
     T.ExtLam{} -> __IMPOSSIBLE__
- 
+
 -- | Translate Agda literals to our AUX definition
 substLit :: TL.Literal -> Compile TCM Lit
 substLit lit = case lit of
