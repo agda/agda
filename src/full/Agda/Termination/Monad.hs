@@ -25,18 +25,20 @@ import qualified Data.List as List
 import Agda.Interaction.Options (defaultCutOff)
 
 import Agda.Syntax.Abstract (QName,IsProjP(..))
-import Agda.Syntax.Common   (Delayed(..))
+import Agda.Syntax.Common   (Delayed(..), Induction(..), Dom(..))
 import Agda.Syntax.Internal
 import Agda.Syntax.Literal
 import Agda.Syntax.Position (noRange)
 
 import Agda.Termination.CutOff
 import Agda.Termination.Order (Order,le,unknown)
+import Agda.Termination.RecCheck (anyDefs)
 
 import Agda.TypeChecking.Monad
 import Agda.TypeChecking.Monad.Builtin
 import Agda.TypeChecking.Pretty
 import Agda.TypeChecking.Records
+import Agda.TypeChecking.Substitute
 
 import Agda.Utils.Maybe
 import Agda.Utils.Monad
@@ -295,10 +297,11 @@ conUseSizeLt c m = do
 
 -- | Set 'terUseSizeLt' for arguments following projection @q@.
 projUseSizeLt :: QName -> TerM a -> TerM a
-projUseSizeLt q m = do
-  ifM (liftTCM $ isProjectionButNotCoinductive q)
-    (terSetUseSizeLt False m)
-    (terSetUseSizeLt True  m)
+projUseSizeLt q m = isCoinductiveProjection q >>= (`terSetUseSizeLt` m)
+-- projUseSizeLt q m = do
+--   ifM (liftTCM $ isProjectionButNotCoinductive q)
+--     (terSetUseSizeLt False m)
+--     (terSetUseSizeLt True  m)
 
 -- | For termination checking purposes flat should not be considered a
 --   projection. That is, it flat doesn't preserve either structural order
@@ -321,9 +324,42 @@ isProjectionButNotCoinductive qn = liftTCM $ do
         else do
           mp <- isProjection qn
           case mp of
-            Just Projection{ projProper = Just{}, projFromType = t}
+            Just Projection{ projProper = Just{}, projFromType = t }
               -> isInductiveRecord t
             _ -> return False
+
+-- | Check whether a projection belongs to a coinductive record
+--   and is actually recursive.
+--   E.g.
+--   @
+--      isCoinductiveProjection (Stream.head) = return False
+--
+--      isCoinductiveProjection (Stream.tail) = return True
+--   @
+isCoinductiveProjection :: MonadTCM tcm => QName -> tcm Bool
+isCoinductiveProjection q = liftTCM $ do
+  flat <- fmap nameOfFlat <$> coinductionKit
+  -- yes for ♭
+  if Just q == flat then return True else do
+  pdef <- getConstInfo q
+  case isProjection_ (theDef pdef) of
+    Just Projection{ projProper = Just{}, projFromType = r, projIndex = n }
+      -> caseMaybeM (isRecord r) __IMPOSSIBLE__ $ \ rdef -> do
+           -- no for inductive or non-recursive record
+           if recInduction rdef == Inductive then return False else do
+           if not (recRecursive rdef) then return False else do
+           -- TODO: the following test for recursiveness of a projection should be cached.
+           -- E.g., it could be stored in the @Projection@ component.
+           -- Now check if type of field mentions mutually recursive symbol.
+           -- Get the type of the field by dropping record parameters and record argument.
+           let TelV tel core = telView' (defType pdef)
+               tel' = drop n $ telToList tel
+           -- Check if any recursive symbols appear in the record type.
+           -- Q (2014-07-01): Should we normalize the type?
+           names <- anyDefs (r : recMutual rdef) (map (snd . unDom) tel', core)
+           return $ not $ null names
+    _ -> return False
+
 
 -- * De Bruijn patterns.
 

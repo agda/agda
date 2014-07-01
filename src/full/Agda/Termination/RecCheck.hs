@@ -7,10 +7,13 @@
      when there's no (co)recursion
 
    Original contribution by Andrea Vezzosi (sanzhiyan).
+   This implementation by Andreas.
 -}
 
 module Agda.Termination.RecCheck
-    ( recursive )
+    ( recursive
+    , anyDefs
+    )
  where
 
 import Control.Applicative
@@ -43,14 +46,19 @@ recDef names name = do
   -- Retrieve definition
   def <- getConstInfo name
   case theDef def of
-    Function{ funClauses = cls } -> do
-      -- Prepare function to lookup metas outside of TCM
-      st <- getMetaStore
-      let lookup x = case mvInstantiation <$> Map.lookup x st of
-            Just (InstV v) -> Just v
-            _              -> Nothing
-          -- we collect only those used definitions that are in @names@
-          emb d = if d `elem` names then [d] else []
-      -- get all the Defs that are in names
-      return $ getDefs' lookup emb cls
+    Function{ funClauses = cls } -> anyDefs names cls
     _ -> return []
+
+-- | @anysDef names a@ returns all definitions from @names@
+--   that are used in @a@.
+anyDefs :: GetDefs a => [QName] -> a -> TCM [QName]
+anyDefs names a = do
+  -- Prepare function to lookup metas outside of TCM
+  st <- getMetaStore
+  let lookup x = case mvInstantiation <$> Map.lookup x st of
+        Just (InstV v) -> Just v
+        _              -> Nothing
+      -- we collect only those used definitions that are in @names@
+      emb d = if d `elem` names then [d] else []
+  -- get all the Defs that are in names
+  return $ getDefs' lookup emb a
