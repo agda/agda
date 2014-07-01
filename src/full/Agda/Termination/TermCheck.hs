@@ -799,10 +799,8 @@ function g es = ifJustM (isWithFunction g) (\ _ -> withFunction g es)
     -- then preserve guardedness for its principal argument.
     isProj <- isProjectionButNotCoinductive g
     let unguards = repeat Order.unknown
-    let guards = if isProj then guarded : unguards
-                                -- proj => preserve guardedness of principal argument
-                           else unguards -- not a proj ==> unguarded
-    -- collect calls in the arguments of this call
+    let guards = applyWhen isProj (guarded :) unguards
+    -- Collect calls in the arguments of this call.
     let args = map unArg $ argsFromElims es
     calls <- forM' (zip guards args) $ \ (guard, a) -> do
       terSetGuarded guard $ extract a
@@ -1150,7 +1148,7 @@ instance StripAllProjections Elims where
         (:) <$> (Apply <$> stripAllProjections a) <*> stripAllProjections es
       (Proj p  : es) -> do
         isP <- isProjectionButNotCoinductive p
-        (if isP then id else (Proj p :)) <$> stripAllProjections es
+        applyUnless isP (Proj p :) <$> stripAllProjections es
 
 instance StripAllProjections Args where
   stripAllProjections = mapM stripAllProjections
