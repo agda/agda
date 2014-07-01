@@ -989,9 +989,11 @@ compareArgs es = do
 
   -- Count the number of coinductive projection(pattern)s in caller and callee
   projsCaller <- genericLength <$> do
-    filterM (not <.> isProjectionButNotCoinductive) $ mapMaybe isProjP pats
+    filterM isCoinductiveProjection $ mapMaybe isProjP pats
+    -- filterM (not <.> isProjectionButNotCoinductive) $ mapMaybe isProjP pats
   projsCallee <- genericLength <$> do
-    filterM (not <.> isProjectionButNotCoinductive) $ mapMaybe isProjElim es
+    filterM isCoinductiveProjection $ mapMaybe isProjElim es
+    -- filterM (not <.> isProjectionButNotCoinductive) $ mapMaybe isProjElim es
   cutoff <- terGetCutOff
   let ?cutoff = cutoff
   let guardedness = decr $ projsCaller - projsCallee
