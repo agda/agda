@@ -104,10 +104,16 @@ followed:
 
 * Announce the release of the new version on the Agda mailing list.
 
-* Update the version numbers again, so that released and development
-  versions are not confused, and remove the "this" source-repository
-  section from the Cabal file. (This would be unnecessary if we had
-  two repositories, one stable and one for development.)
+* Update the version numbers again (so that released and development
+  versions are not confused) in:
+
+  Agda.cabal (twice),
+  src/data/emacs-mode/agda2-mode.el and
+  mk/paths.mk.
+
+* Remove the "this" source-repository section from the Cabal
+  file. (This would be unnecessary if we had two repositories, one
+  stable and one for development.)
 
 * Remove the release notes for the released version from doc/release-notes.
 
