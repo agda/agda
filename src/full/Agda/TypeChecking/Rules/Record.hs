@@ -117,7 +117,7 @@ checkRecDef i name ind con ps contel fields =
       reportSDoc "tc.rec" 15 $ text "adding record type to signature"
 
       let getName :: A.Declaration -> [A.Arg QName]
-          getName (A.Field _ x arg)    = [fmap (const x) arg]
+          getName (A.Field _ x arg)    = [x <$ arg]
 	  getName (A.ScopedDecl _ [f]) = getName f
 	  getName _		       = []
 

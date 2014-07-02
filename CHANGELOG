@@ -4,9 +4,37 @@
 
 Important changes since 2.4.0.1:
 
+* The so far undocumented ETA pragma now throws an error if applied to
+  definitions that are not records.
+
+  ETA can be used to force eta-equality at recursive record types,
+  for which eta is not enabled automatically by Agda.
+  Here is such an example:
+
+    mutual
+      data Colist (A : Set) : Set where
+        [] : Colist A
+        _∷_ : A → ∞Colist A → Colist A
+
+      record ∞Colist (A : Set) : Set where
+        coinductive
+        constructor delay
+        field       force : Colist A
+
+    open ∞Colist
+
+    {-# ETA ∞Colist #-}
+
+    test : {A : Set} (x : ∞Colist A) → x ≡ delay (force x)
+    test x = refl
+
+  Note:  Unsafe use of ETA can make Agda loop, e.g. by triggering
+  infinite eta expansion!
+
 * Bugs fixed (see https://code.google.com/p/agda/issues):
   1203
   1205
+  1209
   1213
   1214
   1216
