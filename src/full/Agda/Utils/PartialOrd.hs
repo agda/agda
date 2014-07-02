@@ -6,6 +6,7 @@
 module Agda.Utils.PartialOrd where
 
 import Data.Functor
+import Data.Maybe
 import Data.Monoid
 import Data.List
 import Data.Set (Set)
@@ -174,7 +175,7 @@ instance (PartialOrd a, PartialOrd b) => PartialOrd (Either a b) where
 
 instance (PartialOrd a, PartialOrd b) => PartialOrd (a, b) where
   comparable (x1, x2) (y1, y2) =
-    comparable x1 y1 `mappend`
+    comparable x1 y1 `orPO`
     comparable x2 y2
 
 -- | Pointwise comparison wrapper.
@@ -182,15 +183,23 @@ instance (PartialOrd a, PartialOrd b) => PartialOrd (a, b) where
 newtype Pointwise a = Pointwise { pointwise :: a }
   deriving (Eq, Show, Functor)
 
--- | Lifting the pointwise ordering for tuples to lists.
+-- | The pointwise ordering for lists of the same length.
 --
---   There are other partial orderings for lists, e.g., prefix, sublist, subset.
+--   There are other partial orderings for lists,
+--   e.g., prefix, sublist, subset, lexicographic, simultaneous order.
 
 instance PartialOrd a => PartialOrd (Pointwise [a]) where
-  comparable xs ys = comparable (unconsPointwise $ pointwise xs)
-                                (unconsPointwise $ pointwise ys)
-    where unconsPointwise []       = Nothing
-          unconsPointwise (x : xs) = Just (x, Pointwise xs)
+  comparable (Pointwise xs) (Pointwise ys) = loop Nothing xs ys
+    -- We need an accumulator since @orPO@ does not have a neutral element.
+    where
+      loop mo []     []     = fromMaybe POEQ mo
+      loop _  []     ys     = POAny
+      loop _  xs     []     = POAny
+      loop mo (x:xs) (y:ys) =
+        let o = comparable x y in
+        case maybe o (orPO o) mo of
+          POAny -> POAny
+          o     -> loop (Just o) xs ys
 
 -- | Inclusion comparison wrapper.
 
