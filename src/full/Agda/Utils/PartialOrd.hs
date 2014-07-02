@@ -66,57 +66,63 @@ oppPO POGE  = POLE
 oppPO POGT  = POLT
 oppPO POAny = POAny
 
--- | What if either of two facts hold?
---   @x R y || x S y@
+-- | Combining two pieces of information (picking the least information).
+--   Used for the dominance ordering on tuples.
+--
+--   @orPO@ is associative, commutative, and idempotent.
+--   @orPO@ has dominant element @POAny@, but no neutral element.
+
 orPO :: PartialOrdering -> PartialOrdering -> PartialOrdering
 
 orPO POAny _   = POAny   -- Shortcut if no information on first.
 
-orPO POLT POLT = POLT
+orPO POLT POLT = POLT   -- idempotent
 orPO POLT POLE = POLE
 orPO POLT POEQ = POLE
 
 orPO POLE POLT = POLE
-orPO POLE POLE = POLE
+orPO POLE POLE = POLE   -- idempotent
 orPO POLE POEQ = POLE
 
 orPO POEQ POLT = POLE
 orPO POEQ POLE = POLE
-orPO POEQ POEQ = POEQ
+orPO POEQ POEQ = POEQ   -- idempotent
 orPO POEQ POGE = POGE
 orPO POEQ POGT = POGE
 
 orPO POGE POEQ = POGE
-orPO POGE POGE = POGE
+orPO POGE POGE = POGE   -- idempotent
 orPO POGE POGT = POGE
 
 orPO POGT POEQ = POGE
 orPO POGT POGE = POGE
-orPO POGT POGT = POGT
+orPO POGT POGT = POGT   -- idempotent
 
 orPO _    _    = POAny
 
 -- | Chains (transitivity) @x R y S z@.
---   Also: conjunction (trying to get the best information out).
+--
+--   @seqPO@ is associative, commutative, and idempotent.
+--   @seqPO@ has dominant element @POAny@ and neutral element (unit) @POEQ@.
 
 seqPO POAny _   = POAny  -- Shortcut if no information on first.
 seqPO POEQ p    = p      -- No need to look at second if first is neutral.
 
-seqPO POLT POLT = POLT
+seqPO POLT POLT = POLT   -- idempotent
 seqPO POLT POLE = POLT
-seqPO POLT POEQ = POLT
+seqPO POLT POEQ = POLT   -- unit
 
 seqPO POLE POLT = POLT
-seqPO POLE POLE = POLE
-seqPO POLE POEQ = POLE
+seqPO POLE POLE = POLE   -- idempotent
+seqPO POLE POEQ = POLE   -- unit
 
-seqPO POGE POEQ = POGE
-seqPO POGE POGE = POGE
+seqPO POGE POEQ = POGE   -- unit
+seqPO POGE POGE = POGE   -- idempotent
 seqPO POGE POGT = POGT
 
-seqPO POGT POEQ = POGT
+seqPO POGT POEQ = POGT   -- unit
 seqPO POGT POGE = POGT
-seqPO POGT POGT = POGT
+seqPO POGT POGT = POGT   -- idempotent
 
 seqPO _    _    = POAny
 
@@ -327,8 +333,11 @@ prop_orPO_sound p q =
 -- | 'orPO' is associative.
 prop_associative_orPO = associative orPO
 
--- | 'orPO' is communtative.
+-- | 'orPO' is commutative.
 prop_commutative_orPO = commutative orPO
+
+-- | 'orPO' is idempotent.
+prop_idempotent_orPO = idempotent orPO
 
 -- | The dominant element wrt. 'orPO' is 'POAny'.
 prop_zero_orPO = isZero POAny orPO
@@ -354,6 +363,9 @@ prop_associative_seqPO = associative seqPO
 
 -- | 'seqPO' is also commutative.
 prop_commutative_seqPO = commutative seqPO
+
+-- | 'seqPO' is idempotent.
+prop_idempotent_seqPO = idempotent seqPO
 
 -- | 'seqPO' distributes over 'orPO'.
 prop_distributive_seqPO_orPO = distributive seqPO orPO
