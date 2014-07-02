@@ -16,7 +16,7 @@ import qualified Data.Set as Set
 import Data.Map (Map)
 import qualified Data.Map as Map
 import Data.List as List
-import Data.Maybe (mapMaybe)
+import Data.Maybe (mapMaybe, fromMaybe)
 
 import Agda.Syntax.Position
 import Agda.Syntax.Common
@@ -132,7 +132,7 @@ checkStrictlyPositive qs = disableDestructiveUpdate $ do
       let nArgs = maximum $ n :
                     [ i + 1 | (ArgNode q1 i) <- Set.toList $ Graph.nodes g
                     , q1 == q ]
-          findOcc i = maybe Unused id $ Graph.lookup (ArgNode q i) (DefNode q) g
+          findOcc i = fromMaybe Unused $ Graph.lookup (ArgNode q i) (DefNode q) g
           args = map findOcc [0..nArgs - 1]
       reportSDoc "tc.pos.args" 10 $ sep
         [ text "args of" <+> prettyTCM q <+> text "="
