@@ -1,0 +1,3 @@
+EtaData.agda:8,1-17
+ETA pragma is only applicable to records
+when checking the pragma ETA Prod

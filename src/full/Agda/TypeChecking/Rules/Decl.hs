@@ -454,11 +454,14 @@ checkPragma r p =
             Function{} -> markStatic x
             _          -> typeError $ GenericError "STATIC directive only works on functions"
 	A.OptionsPragma{} -> typeError $ GenericError $ "OPTIONS pragma only allowed at beginning of file, before top module declaration"
-        A.EtaPragma r -> modifySignature $ updateDefinition r $ updateTheDef $ setEta
-            where
-                setEta d = case d of
-                  Record{}   -> d { recEtaEquality = True }
-                  _          -> d
+        A.EtaPragma r -> do
+          unlessM (isJust <$> isRecord r) $
+            typeError $ GenericError $ "ETA pragma is only applicable to records"
+          modifySignature $ updateDefinition r $ updateTheDef $ setEta
+          where
+            setEta d = case d of
+              Record{} -> d { recEtaEquality = True }
+              _        -> __IMPOSSIBLE__
 
 -- | Type check a bunch of mutual inductive recursive definitions.
 --
