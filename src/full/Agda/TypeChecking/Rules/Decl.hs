@@ -449,21 +449,16 @@ checkPragma r p =
         A.CompiledJSPragma x ep ->
           addJSCode x ep
         A.StaticPragma x -> do
-            def <- getConstInfo x
-            case theDef def of
-                Function{} -> do
-                    markStatic x
-                _ -> typeError $ GenericError "STATIC directive only works on functions"
+          def <- getConstInfo x
+          case theDef def of
+            Function{} -> markStatic x
+            _          -> typeError $ GenericError "STATIC directive only works on functions"
 	A.OptionsPragma{} -> typeError $ GenericError $ "OPTIONS pragma only allowed at beginning of file, before top module declaration"
-        A.EtaPragma r -> modifySignature eta
-          where
-            eta sig = sig { sigDefinitions = HMap.adjust setEta r defs }
-              where
-                setEta def = def { theDef = setEtad $ theDef def }
-                setEtad d   = case d of
+        A.EtaPragma r -> modifySignature $ updateDefinition r $ updateTheDef $ setEta
+            where
+                setEta d = case d of
                   Record{}   -> d { recEtaEquality = True }
                   _          -> d
-                defs	  = sigDefinitions sig
 
 -- | Type check a bunch of mutual inductive recursive definitions.
 --
