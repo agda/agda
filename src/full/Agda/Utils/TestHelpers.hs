@@ -5,6 +5,7 @@ module Agda.Utils.TestHelpers
   ( -- * Algebraic properties
     associative
   , commutative
+  , idempotent
   , isZero
   , identity
   , leftDistributive
@@ -46,6 +47,14 @@ commutative :: (Arbitrary a, Eq a, Show a)
             -> a -> a -> Bool
 commutative (+) = \x y ->
   x + y == y + x
+
+-- | Is the operator idempotent?
+
+idempotent :: (Arbitrary a, Eq a, Show a)
+            => (a -> a -> a)
+            -> a -> Bool
+idempotent (/\) = \ x ->
+  (x /\ x) == x
 
 -- | Is the element a zero for the operator?
 
