@@ -29,6 +29,31 @@ data PartialOrdering
   | POAny -- ^ No information (incomparable).
   deriving (Eq, Show, Enum, Bounded)
 
+-- | Comparing the information content of two elements of
+--   'PartialOrdering'.  More precise information is smaller.
+--
+--   Includes equality: @x `leqPO` x == True@.
+
+leqPO :: PartialOrdering -> PartialOrdering -> Bool
+
+leqPO _   POAny = True
+
+leqPO POLT POLT = True
+leqPO POLT POLE = True
+
+leqPO POLE POLE = True
+
+leqPO POEQ POLE = True
+leqPO POEQ POEQ = True
+leqPO POEQ POGE = True
+
+leqPO POGE POGE = True
+
+leqPO POGT POGT = True
+leqPO POGT POGE = True
+
+leqPO _ _ = False
+
 -- | Opposites.
 --
 --   @related a po b@ iff @related b (oppPO po) a@.
@@ -142,7 +167,15 @@ comparableOrd x y = fromOrdering $ compare x y
 --   @related a o b@ holds iff @comparable a b@ is contained in @o@.
 
 related :: PartialOrd a => a -> PartialOrdering -> a -> Bool
-related a o b = null $ toOrderings (comparable a b) \\ toOrderings o
+related a o b = comparable a b `leqPO` o
+
+-- * Totally ordered types.
+
+instance PartialOrd Int where
+  comparable = comparableOrd
+
+instance PartialOrd Integer where
+  comparable = comparableOrd
 
 -- * Generic partially ordered types.
 
@@ -281,6 +314,10 @@ prop_oppPO (ISet a) (ISet b) =
 
 -- | Auxiliary function: lists to sets = sorted duplicate-free lists.
 sortUniq = Set.toAscList . Set.fromList
+
+-- | 'leqPO' is inclusion of the associated 'Ordering' sets.
+prop_leqPO_sound p q =
+  (p `leqPO` q) == null (toOrderings p \\ toOrderings q)
 
 -- | 'orPO' amounts to the union of the associated 'Ordering' sets.
 --   Except that 'orPO POLT POGT == POAny' which should also include 'POEQ'.
