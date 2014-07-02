@@ -260,7 +260,7 @@ newtype ISet = ISet { iset :: Inclusion (Set Int) }
   deriving (Eq, Ord, PartialOrd, Show)
 
 instance Arbitrary ISet where
-  arbitrary = ISet . Inclusion . Set.fromList <$> arbitrary
+  arbitrary = ISet . Inclusion . Set.fromList <$> listOf (choose (0, 8))
 
 -- | Any two elements are 'related' in the way 'comparable' computes.
 prop_comparable_related (ISet a) (ISet b) =
