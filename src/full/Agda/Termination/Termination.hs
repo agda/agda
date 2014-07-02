@@ -25,7 +25,7 @@ import Agda.Termination.SparseMatrix
 import Agda.Utils.Either
 import Agda.Utils.List
 import Agda.Utils.Maybe
-import Agda.Utils.TestHelpers
+import Agda.Utils.TestHelpers hiding (idempotent)
 import Agda.Utils.QuickCheck
 
 import qualified Data.Array as Array

@@ -6,6 +6,7 @@
 module Agda.Utils.PartialOrd where
 
 import Data.Functor
+import Data.Maybe
 import Data.Monoid
 import Data.List
 import Data.Set (Set)
@@ -28,6 +29,31 @@ data PartialOrdering
   | POAny -- ^ No information (incomparable).
   deriving (Eq, Show, Enum, Bounded)
 
+-- | Comparing the information content of two elements of
+--   'PartialOrdering'.  More precise information is smaller.
+--
+--   Includes equality: @x `leqPO` x == True@.
+
+leqPO :: PartialOrdering -> PartialOrdering -> Bool
+
+leqPO _   POAny = True
+
+leqPO POLT POLT = True
+leqPO POLT POLE = True
+
+leqPO POLE POLE = True
+
+leqPO POEQ POLE = True
+leqPO POEQ POEQ = True
+leqPO POEQ POGE = True
+
+leqPO POGE POGE = True
+
+leqPO POGT POGT = True
+leqPO POGT POGE = True
+
+leqPO _ _ = False
+
 -- | Opposites.
 --
 --   @related a po b@ iff @related b (oppPO po) a@.
@@ -40,57 +66,63 @@ oppPO POGE  = POLE
 oppPO POGT  = POLT
 oppPO POAny = POAny
 
--- | What if either of two facts hold?
---   @x R y || x S y@
+-- | Combining two pieces of information (picking the least information).
+--   Used for the dominance ordering on tuples.
+--
+--   @orPO@ is associative, commutative, and idempotent.
+--   @orPO@ has dominant element @POAny@, but no neutral element.
+
 orPO :: PartialOrdering -> PartialOrdering -> PartialOrdering
 
 orPO POAny _   = POAny   -- Shortcut if no information on first.
 
-orPO POLT POLT = POLT
+orPO POLT POLT = POLT   -- idempotent
 orPO POLT POLE = POLE
 orPO POLT POEQ = POLE
 
 orPO POLE POLT = POLE
-orPO POLE POLE = POLE
+orPO POLE POLE = POLE   -- idempotent
 orPO POLE POEQ = POLE
 
 orPO POEQ POLT = POLE
 orPO POEQ POLE = POLE
-orPO POEQ POEQ = POEQ
+orPO POEQ POEQ = POEQ   -- idempotent
 orPO POEQ POGE = POGE
 orPO POEQ POGT = POGE
 
 orPO POGE POEQ = POGE
-orPO POGE POGE = POGE
+orPO POGE POGE = POGE   -- idempotent
 orPO POGE POGT = POGE
 
 orPO POGT POEQ = POGE
 orPO POGT POGE = POGE
-orPO POGT POGT = POGT
+orPO POGT POGT = POGT   -- idempotent
 
 orPO _    _    = POAny
 
 -- | Chains (transitivity) @x R y S z@.
---   Also: conjunction (trying to get the best information out).
+--
+--   @seqPO@ is associative, commutative, and idempotent.
+--   @seqPO@ has dominant element @POAny@ and neutral element (unit) @POEQ@.
 
 seqPO POAny _   = POAny  -- Shortcut if no information on first.
 seqPO POEQ p    = p      -- No need to look at second if first is neutral.
 
-seqPO POLT POLT = POLT
+seqPO POLT POLT = POLT   -- idempotent
 seqPO POLT POLE = POLT
-seqPO POLT POEQ = POLT
+seqPO POLT POEQ = POLT   -- unit
 
 seqPO POLE POLT = POLT
-seqPO POLE POLE = POLE
-seqPO POLE POEQ = POLE
+seqPO POLE POLE = POLE   -- idempotent
+seqPO POLE POEQ = POLE   -- unit
 
-seqPO POGE POEQ = POGE
-seqPO POGE POGE = POGE
+seqPO POGE POEQ = POGE   -- unit
+seqPO POGE POGE = POGE   -- idempotent
 seqPO POGE POGT = POGT
 
-seqPO POGT POEQ = POGT
+seqPO POGT POEQ = POGT   -- unit
 seqPO POGT POGE = POGT
-seqPO POGT POGT = POGT
+seqPO POGT POGT = POGT   -- idempotent
 
 seqPO _    _    = POAny
 
@@ -141,7 +173,15 @@ comparableOrd x y = fromOrdering $ compare x y
 --   @related a o b@ holds iff @comparable a b@ is contained in @o@.
 
 related :: PartialOrd a => a -> PartialOrdering -> a -> Bool
-related a o b = null $ toOrderings (comparable a b) \\ toOrderings o
+related a o b = comparable a b `leqPO` o
+
+-- * Totally ordered types.
+
+instance PartialOrd Int where
+  comparable = comparableOrd
+
+instance PartialOrd Integer where
+  comparable = comparableOrd
 
 -- * Generic partially ordered types.
 
@@ -174,7 +214,7 @@ instance (PartialOrd a, PartialOrd b) => PartialOrd (Either a b) where
 
 instance (PartialOrd a, PartialOrd b) => PartialOrd (a, b) where
   comparable (x1, x2) (y1, y2) =
-    comparable x1 y1 `mappend`
+    comparable x1 y1 `orPO`
     comparable x2 y2
 
 -- | Pointwise comparison wrapper.
@@ -182,15 +222,23 @@ instance (PartialOrd a, PartialOrd b) => PartialOrd (a, b) where
 newtype Pointwise a = Pointwise { pointwise :: a }
   deriving (Eq, Show, Functor)
 
--- | Lifting the pointwise ordering for tuples to lists.
+-- | The pointwise ordering for lists of the same length.
 --
---   There are other partial orderings for lists, e.g., prefix, sublist, subset.
+--   There are other partial orderings for lists,
+--   e.g., prefix, sublist, subset, lexicographic, simultaneous order.
 
 instance PartialOrd a => PartialOrd (Pointwise [a]) where
-  comparable xs ys = comparable (unconsPointwise $ pointwise xs)
-                                (unconsPointwise $ pointwise ys)
-    where unconsPointwise []       = Nothing
-          unconsPointwise (x : xs) = Just (x, Pointwise xs)
+  comparable (Pointwise xs) (Pointwise ys) = loop Nothing xs ys
+    -- We need an accumulator since @orPO@ does not have a neutral element.
+    where
+      loop mo []     []     = fromMaybe POEQ mo
+      loop _  []     ys     = POAny
+      loop _  xs     []     = POAny
+      loop mo (x:xs) (y:ys) =
+        let o = comparable x y in
+        case maybe o (orPO o) mo of
+          POAny -> POAny
+          o     -> loop (Just o) xs ys
 
 -- | Inclusion comparison wrapper.
 
@@ -273,6 +321,10 @@ prop_oppPO (ISet a) (ISet b) =
 -- | Auxiliary function: lists to sets = sorted duplicate-free lists.
 sortUniq = Set.toAscList . Set.fromList
 
+-- | 'leqPO' is inclusion of the associated 'Ordering' sets.
+prop_leqPO_sound p q =
+  (p `leqPO` q) == null (toOrderings p \\ toOrderings q)
+
 -- | 'orPO' amounts to the union of the associated 'Ordering' sets.
 --   Except that 'orPO POLT POGT == POAny' which should also include 'POEQ'.
 prop_orPO_sound p q =
@@ -281,8 +333,11 @@ prop_orPO_sound p q =
 -- | 'orPO' is associative.
 prop_associative_orPO = associative orPO
 
--- | 'orPO' is communtative.
+-- | 'orPO' is commutative.
 prop_commutative_orPO = commutative orPO
+
+-- | 'orPO' is idempotent.
+prop_idempotent_orPO = idempotent orPO
 
 -- | The dominant element wrt. 'orPO' is 'POAny'.
 prop_zero_orPO = isZero POAny orPO
@@ -308,6 +363,9 @@ prop_associative_seqPO = associative seqPO
 
 -- | 'seqPO' is also commutative.
 prop_commutative_seqPO = commutative seqPO
+
+-- | 'seqPO' is idempotent.
+prop_idempotent_seqPO = idempotent seqPO
 
 -- | 'seqPO' distributes over 'orPO'.
 prop_distributive_seqPO_orPO = distributive seqPO orPO
