@@ -4,6 +4,8 @@
 *.agdai
 *.hi
 *.o
+*~
+agda-stdlib
 autom4te.cache
 config.log
 config.status
@@ -14,6 +16,7 @@ examples/compiler/main
 MAlonzo
 mk/config.mk
 src/full/tags
+src/full/TAGS
 std-lib
 test/compiler/Main
 test/epic/RunTests
