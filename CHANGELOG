@@ -31,6 +31,12 @@ Important changes since 2.4.0.1:
   Note:  Unsafe use of ETA can make Agda loop, e.g. by triggering
   infinite eta expansion!
 
+* Functions using NO_TERMINATION_CHECK are no longer incorrectly unfolded by
+  the type checker.
+
+  If you want the type checker to not care about non-termination use
+  --no-termination-check.
+
 * Bugs fixed (see https://code.google.com/p/agda/issues):
   1203
   1205

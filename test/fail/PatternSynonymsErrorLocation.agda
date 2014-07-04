@@ -1,4 +1,5 @@
 {-# OPTIONS --type-in-type #-}
+{-# OPTIONS --no-termination-check #-}
 -- {-# OPTIONS --guardedness-preserving-type-constructors #-}
 
 module PatternSynonymsErrorLocation where
@@ -21,7 +22,6 @@ data Empty : Set where
 
 data ListTag : Set where nil cons : ListTag
 
-{-# NO_TERMINATION_CHECK #-}
 List : (A : Set) -> Set
 List A = Sigma ListTag T where
   T : ListTag -> Set
@@ -36,7 +36,6 @@ pattern _∷_ x xs = cons , x , xs
 
 data TyTag : Set where base arr : TyTag
 
-{-# NO_TERMINATION_CHECK #-}
 Ty : Set
 Ty = Sigma TyTag T where
   T : TyTag -> Set
