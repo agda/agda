@@ -185,12 +185,17 @@ termMutual i ds = if names == [] then return mempty else
       skip = not <$> do
         billTo [Benchmark.Termination, Benchmark.RecCheck] $ recursive allNames
 
-  -- Skip termination check when asked by pragma or no recursion.
-  ifM (return (not (Info.mutualTermCheck i)) `or2M` skip) (do
+  -- NO_TERMINATION_CHECK --> mark as non-terminating
+  if not $ Info.mutualTermCheck i then do
       reportSLn "term.warn.yes" 2 $ "Skipping termination check for " ++ show names
-      forM_ allNames $ \ q -> setTerminates q True -- considered terminating!
-      return mempty)
-   $ {- else -} do
+      forM_ allNames $ \ q -> setTerminates q False
+      return mempty
+  -- No need to check non-recursive functions
+    else ifM skip (do
+      reportSLn "term.warn.yes" 2 $ "Termination check not needed for " ++ show names
+      forM_ allNames $ \ q -> setTerminates q True
+      return mempty) $
+    {- else -} do
 
      -- Assemble then initial configuration of the termination environment.
 
