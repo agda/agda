@@ -46,6 +46,7 @@ mutual
             Signature
 
   record Record (Sig : Signature) : Set where
+    inductive
     constructor rec
     field fun : Record-fun Sig
 

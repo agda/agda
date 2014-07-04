@@ -3,6 +3,7 @@
 module TerminationInfiniteRecord where
 
 record Empty : Set where
+  inductive
   constructor empty
   field
     fromEmpty : Empty

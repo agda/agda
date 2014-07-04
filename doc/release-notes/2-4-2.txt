@@ -142,7 +142,7 @@ Language
   Here e should have type AGDAFUNDEF and evaluate to a closed value. This value
   is then spliced in as the definition of x. In the body e, x has type QNAME
   which lets you splice in recursive definitions.
-  
+
   Standard modifiers, such as fixity declarations, can be applied to x as
   expected.
 
@@ -151,6 +151,43 @@ Goal and error display
 
 Type checking
 =============
+
+* Recursive records need to be declared as either inductive or coinductive.
+  'inductive' is no longer default for recursive records.
+  Examples:
+
+    record _×_ (A B : Set) : Set where
+      constructor _,_
+      field
+        fst : A
+        snd : B
+
+    record Tree (A : Set) : Set where
+      inductive
+      constructor tree
+      field
+        elem     : A
+        subtrees : List (Tree A)
+
+    record Stream (A : Set) : Set where
+      coinductive
+      constructor _::_
+      field
+        head : A
+        tail : Stream A
+
+  If you are using old-style (musical) coinduction, a record may have
+  to be declared as inductive, paradoxically.
+
+    record Stream (A : Set) : Set where
+      inductive -- YES, THIS IS INTENDED !
+      constructor _∷_
+      field
+        head : A
+        tail : ∞ (Stream A)
+
+  This is because the ``coinduction'' happens in the use of `∞' and not
+  in the use of `record'.
 
 Compiler backends
 =================

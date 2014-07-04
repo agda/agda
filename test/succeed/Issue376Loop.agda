@@ -4,6 +4,7 @@
 
 -- unguarded recursive record
 record R : Set where
+  inductive
   constructor cons
   field
     r : R

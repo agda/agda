@@ -1,6 +1,7 @@
 module Issue402 where
 
 record Unit : Set where
+  inductive
   constructor inn
   field
     out : Unit

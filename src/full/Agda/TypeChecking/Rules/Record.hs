@@ -3,6 +3,7 @@
 module Agda.TypeChecking.Rules.Record where
 
 import Control.Applicative
+import Data.Maybe
 
 import qualified Agda.Syntax.Abstract as A
 import Agda.Syntax.Common
@@ -123,13 +124,7 @@ checkRecDef i name ind con ps contel fields =
 
           fs = concatMap (convColor . getName) fields
           con = ConHead conName $ map unArg fs
-
-          -- Default is 'Inductive'.
-          -- This makes sense because all non-recursive records are "inductive",
-          -- meaning not coinductive.
-          -- Of course, one could make all *recursive* records coinductive
-          -- by default, but this would not be backwards-compatible.
-          indCo = maybe Inductive rangedThing ind
+          indCo = rangedThing <$> ind
 
       reportSDoc "tc.rec" 30 $ text "record constructor is " <+> text (show con)
       addConstant name $ defaultDefn defaultArgInfo name t0
@@ -141,7 +136,7 @@ checkRecDef i name ind con ps contel fields =
 				, recFields         = fs
                                 , recTel            = ftel     -- addConstant adds params!
 				, recAbstr          = Info.defAbstract i
-                                , recEtaEquality    = indCo == Inductive
+                                , recEtaEquality    = indCo /= Just CoInductive
                                 , recInduction      = indCo
                                 -- determined by positivity checker:
                                 , recRecursive      = False
@@ -157,7 +152,7 @@ checkRecDef i name ind con ps contel fields =
                          , conSrcCon = con
                          , conData   = name
                          , conAbstr  = Info.defAbstract conInfo
-                         , conInd    = indCo
+                         , conInd    = fromMaybe Inductive indCo
                          }
 
       -- Check that the fields fit inside the sort

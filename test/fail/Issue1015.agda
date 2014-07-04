@@ -9,7 +9,7 @@ mutual
     inn : R i → D i
 
   record R (i : Size) : Set where
-    -- Note: not coinductive
+    inductive
     field
       force : (j : Size< i) → D j
 open R

@@ -346,7 +346,7 @@ isCoinductiveProjection q = liftTCM $ do
     Just Projection{ projProper = Just{}, projFromType = r, projIndex = n }
       -> caseMaybeM (isRecord r) __IMPOSSIBLE__ $ \ rdef -> do
            -- no for inductive or non-recursive record
-           if recInduction rdef == Inductive then return False else do
+           if recInduction rdef /= Just CoInductive then return False else do
            if not (recRecursive rdef) then return False else do
            -- TODO: the following test for recursiveness of a projection should be cached.
            -- E.g., it could be stored in the @Projection@ component.

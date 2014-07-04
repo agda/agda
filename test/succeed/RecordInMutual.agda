@@ -7,8 +7,10 @@ open import Common.Equality
 
 mutual
   record A : Set where
+    inductive
     field p : D
   record B : Set where
+    inductive
     field q : A
   data D : Set where
     c : B -> D

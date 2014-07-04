@@ -103,6 +103,7 @@ checkStrictlyPositive qs = disableDestructiveUpdate $ do
             , prettyTCM how
             ]
           unguardedRecord q
+          checkInduction q
         -- otherwise, if the record is recursive, mark it as well
         Nothing -> forM_ (take 1 [ how | Edge GuardPos how <- loops ]) $ \ how -> do
           reportSDoc "tc.pos.record" 5 $ sep
@@ -110,6 +111,16 @@ checkStrictlyPositive qs = disableDestructiveUpdate $ do
             , prettyTCM how
             ]
           recursiveRecord q
+          checkInduction q
+
+    checkInduction q = do
+      -- Check whether the recursive record has been declared as
+      -- 'Inductive' or 'Coinductive'.  Otherwise, error.
+      unlessM (isJust . recInduction . theDef <$> getConstInfo q) $ do
+        traceCall (SetRange $ nameBindingSite $ qnameName q) $ do
+          typeError . GenericDocError =<<
+            text "Recursive record" <+> prettyTCM q <+>
+            text "needs to be declared as either inductive or coinductive"
 
     occ (Edge o _) = o
 

@@ -3,6 +3,6 @@ Termination checking failed for the following functions:
   elim, inh
 Problematic calls:
   elim j r
-    (at Issue1015a.agda:16,18-22)
+    (at Issue1015a.agda:17,18-22)
   inh
-    (at Issue1015a.agda:30,11-14)
+    (at Issue1015a.agda:31,11-14)

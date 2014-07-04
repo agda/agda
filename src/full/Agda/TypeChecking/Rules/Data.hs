@@ -410,8 +410,8 @@ isCoinductive t = do
         Function    {} -> return Nothing
         Datatype    { dataInduction = CoInductive } -> return (Just True)
         Datatype    { dataInduction = Inductive   } -> return (Just False)
-        Record      {  recInduction = CoInductive } -> return (Just True)
-        Record      {  recInduction = Inductive   } -> return (Just False)
+        Record      {  recInduction = Just CoInductive } -> return (Just True)
+        Record      {  recInduction = _                } -> return (Just False)
         Constructor {} -> __IMPOSSIBLE__
         Primitive   {} -> __IMPOSSIBLE__
     Var   {} -> return Nothing

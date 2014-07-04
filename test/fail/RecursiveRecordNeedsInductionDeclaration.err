@@ -1,0 +1,2 @@
+RecursiveRecordNeedsInductionDeclaration.agda:4,8-9
+Recursive record R needs to be declared as either inductive or coinductive

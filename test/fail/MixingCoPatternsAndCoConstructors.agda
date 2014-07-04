@@ -44,6 +44,7 @@ module Coinduction where
   open import Common.Coinduction
 
   record Stream (A : Set) : Set where
+    inductive
     constructor _∷_
     field
       head : A

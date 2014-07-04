@@ -848,7 +848,10 @@ data Defn = Axiom
                                                         --   Thus, @recTel@ is redundant.
             , recMutual         :: [QName]              -- ^ Mutually recursive functions, @data@s and @record@s.  Does not include this record.
             , recEtaEquality    :: Bool                 -- ^ Eta-expand at this record type.  @False@ for unguarded recursive records and coinductive records.
-            , recInduction      :: Induction            -- ^ 'Inductive' or 'Coinductive'?  Matters only for recursive records.
+            , recInduction      :: Maybe Induction
+              -- ^ 'Inductive' or 'CoInductive'?  Matters only for recursive records.
+              --   'Nothing' means that the user did not specify it, which is an error
+              --   for recursive records.
             , recRecursive      :: Bool                 -- ^ Recursive record.  Implies @recEtaEquality = False@.  Projections are not size-preserving.
             , recAbstr          :: IsAbstract
             }

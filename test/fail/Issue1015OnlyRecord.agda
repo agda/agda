@@ -4,7 +4,7 @@
 open import Common.Size
 
 record R (i : Size) : Set where
-  -- Note: not coinductive
+  inductive
   constructor delay
   field
     force : (j : Size< i) → R j

@@ -3,4 +3,4 @@ Termination checking failed for the following functions:
   elimEmpty
 Problematic calls:
   elimEmpty e
-    (at TerminationInfiniteRecord.agda:11,23-32)
+    (at TerminationInfiniteRecord.agda:12,23-32)

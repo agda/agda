@@ -7,6 +7,7 @@ module Example₁ where
   module Record where
 
     record Stream : Set where
+      inductive
       constructor cons
       field
         tail : ∞ Stream

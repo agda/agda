@@ -12,6 +12,7 @@ module Nested where
     _∷_ : (x : A)(xs : List A) → List A
 
   record Tree (A : Set) : Set where
+    inductive
     constructor tree
     field
       elem     : A
@@ -31,6 +32,7 @@ module Mutual where
       _∷_ : (x : Tree A)(xs : TreeList A) → TreeList A
 
     record Tree (A : Set) : Set where
+      inductive
       constructor tree
       field
         elem     : A
