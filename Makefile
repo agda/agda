@@ -51,6 +51,8 @@ CABAL_OPTS+=--builddir=dist/$(VERSION)
 #  -f old-time
 #  -f epic
 
+CABAL_OPTS+=--program-suffix=-$(VERSION)
+
 ifeq ($(HAVE_GHC_7_7),Yes)
 CABAL_OPTS+=--ghc-option=-j3
 endif
