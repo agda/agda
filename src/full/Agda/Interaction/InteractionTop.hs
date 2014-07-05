@@ -587,12 +587,23 @@ interpret (Cmd_load_highlighting_info source) = do
 interpret (Cmd_highlight ii rng s) = withCurrentFile $ do
   scope <- getOldInteractionScope ii
   removeOldInteractionScope ii
-  lift (do
-    e     <- concreteToAbstract scope =<< B.parseExpr rng s
-    printHighlightingInfo =<< generateTokenInfoFromString rng s
-    highlightExpr e)
-  `catchError` \_ ->
-    display_info $ Info_Error $ "Failed to parse expression in " ++ show ii
+  handle $ do
+    e <- try ("Highlighting failed to parse expression in " ++ show ii) $
+           B.parseExpr rng s
+    e <- try ("Highlighting failed to scope check expression in " ++ show ii) $
+           concreteToAbstract scope e
+    lift $ printHighlightingInfo =<< generateTokenInfoFromString rng s
+    lift $ highlightExpr e
+  where
+    handle :: ErrorT String TCM () -> CommandM ()
+    handle m = do
+      res <- lift $ runErrorT m
+      case res of
+        Left s  -> display_info $ Info_Error s
+        Right _ -> return ()
+    try :: String -> TCM a -> ErrorT String TCM a
+    try err m = ErrorT $ do
+      (Right <$> m) `catchError` \ _ -> return (Left err)
 
 interpret (Cmd_give   ii rng s) = give_gen ii rng s Give
 interpret (Cmd_refine ii rng s) = give_gen ii rng s Refine
@@ -803,6 +814,7 @@ give_gen
   -> GiveRefine
   -> CommandM ()
 give_gen ii rng s giveRefine = withCurrentFile $ do
+  lift $ reportSLn "interaction.give" 20 $ "give_gen  " ++ s
   let give_ref =
         case giveRefine of
           Give   -> B.give
