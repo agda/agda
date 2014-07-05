@@ -102,11 +102,13 @@ data CommandState = CommandState
     -- the file when it was last loaded.
   , optionsOnReload :: CommandLineOptions
     -- ^ Reset the options on each reload to these.
-  , oldInteractionScopes :: Map InteractionId ScopeInfo
+  , oldInteractionScopes :: OldInteractionScopes
     -- ^ We remember (the scope of) old interaction points to make it
     --   possible to parse and compute highlighting information for the
     --   expression that it got replaced by.
   }
+
+type OldInteractionScopes = Map InteractionId ScopeInfo
 
 -- | Initial auxiliary interaction state
 
@@ -162,15 +164,20 @@ modifyTheInteractionPoints f = modify $ \ s ->
   s { theInteractionPoints = f (theInteractionPoints s) }
 
 
--- | Operations for manipulating 'oldInteractionScopes'.
+-- * Operations for manipulating 'oldInteractionScopes'.
+
+-- | A Lens for 'oldInteractionScopes'.
+modifyOldInteractionScopes :: (OldInteractionScopes -> OldInteractionScopes) -> CommandM ()
+modifyOldInteractionScopes f = modify $ \ s ->
+  s { oldInteractionScopes = f $ oldInteractionScopes s }
 
 insertOldInteractionScope :: InteractionId -> ScopeInfo -> CommandM ()
-insertOldInteractionScope ii scope =
-  modify $ \s -> s { oldInteractionScopes = Map.insert ii scope $ oldInteractionScopes s }
+insertOldInteractionScope ii scope = do
+  modifyOldInteractionScopes $ Map.insert ii scope
 
 removeOldInteractionScope :: InteractionId -> CommandM ()
-removeOldInteractionScope ii =
-  modify $ \s -> s { oldInteractionScopes = Map.delete ii $ oldInteractionScopes s }
+removeOldInteractionScope ii = do
+  modifyOldInteractionScopes $ Map.delete ii
 
 getOldInteractionScope :: InteractionId -> CommandM ScopeInfo
 getOldInteractionScope ii = do
