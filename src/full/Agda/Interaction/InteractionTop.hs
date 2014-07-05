@@ -75,11 +75,12 @@ import qualified Agda.Compiler.JS.Compiler as JS
 import qualified Agda.Auto.Auto as Auto
 
 import Agda.Utils.FileName
-import qualified Agda.Utils.HashMap as HMap
-import Agda.Utils.Pretty
-import Agda.Utils.Time
 import Agda.Utils.Hash
+import qualified Agda.Utils.HashMap as HMap
+import Agda.Utils.Monad
+import Agda.Utils.Pretty
 import Agda.Utils.String
+import Agda.Utils.Time
 
 #include "../undefined.h"
 import Agda.Utils.Impossible
@@ -173,10 +174,12 @@ modifyOldInteractionScopes f = modify $ \ s ->
 
 insertOldInteractionScope :: InteractionId -> ScopeInfo -> CommandM ()
 insertOldInteractionScope ii scope = do
+  lift $ reportSLn "interaction.scope" 20 $ "inserting old interaction scope " ++ show ii
   modifyOldInteractionScopes $ Map.insert ii scope
 
 removeOldInteractionScope :: InteractionId -> CommandM ()
 removeOldInteractionScope ii = do
+  lift $ reportSLn "interaction.scope" 20 $ "removing old interaction scope " ++ show ii
   modifyOldInteractionScopes $ Map.delete ii
 
 getOldInteractionScope :: InteractionId -> CommandM ScopeInfo
@@ -635,11 +638,23 @@ interpret (Cmd_refine_or_intro pmLambda ii r s) = interpret $
   (if null s then Cmd_intro pmLambda else Cmd_refine) ii r s
 
 interpret (Cmd_auto ii rng s) = do
+  -- Andreas, 2014-07-05 Issue 1226:
+  -- Save the state to have access to even those interaction ids
+  -- that Auto solves (since Auto gives the solution right away).
+  st <- lift $ get
   (res, msg) <- lift $ Auto.auto ii rng s
   case res of
    Left xs -> do
+    lift $ reportSLn "auto" 10 $ "Auto produced the following solutions " ++ show xs
     forM_ xs $ \(ii, s) -> do
-      modifyTheInteractionPoints $ filter (/= ii)
+      -- Andreas, 2014-07-05 Issue 1226:
+      -- For highlighting, Resp_GiveAction needs to access
+      -- the @oldInteractionScope@s of the interaction points solved by Auto.
+      -- We dig them out from the state before Auto was invoked.
+      insertOldInteractionScope ii =<< lift (localState (put st >> getInteractionScope ii))
+      -- Andreas, 2014-07-05: The following should be obsolete,
+      -- as Auto has removed the interaction points already:
+      -- modifyTheInteractionPoints $ filter (/= ii)
       putResponse $ Resp_GiveAction ii $ Give_String s
     case msg of
      Nothing -> interpret Cmd_metas
