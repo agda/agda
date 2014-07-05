@@ -74,11 +74,12 @@ import qualified Agda.Compiler.JS.Compiler as JS
 import qualified Agda.Auto.Auto as Auto
 
 import Agda.Utils.FileName
-import qualified Agda.Utils.HashMap as HMap
-import Agda.Utils.Pretty
-import Agda.Utils.Time
 import Agda.Utils.Hash
+import qualified Agda.Utils.HashMap as HMap
+import Agda.Utils.Monad
+import Agda.Utils.Pretty
 import Agda.Utils.String
+import Agda.Utils.Time
 
 #include "../undefined.h"
 import Agda.Utils.Impossible
@@ -101,11 +102,13 @@ data CommandState = CommandState
     -- the file when it was last loaded.
   , optionsOnReload :: CommandLineOptions
     -- ^ Reset the options on each reload to these.
-  , oldInteractionScopes :: Map InteractionId ScopeInfo
+  , oldInteractionScopes :: OldInteractionScopes
     -- ^ We remember (the scope of) old interaction points to make it
     --   possible to parse and compute highlighting information for the
     --   expression that it got replaced by.
   }
+
+type OldInteractionScopes = Map InteractionId ScopeInfo
 
 -- | Initial auxiliary interaction state
 
@@ -161,15 +164,22 @@ modifyTheInteractionPoints f = modify $ \ s ->
   s { theInteractionPoints = f (theInteractionPoints s) }
 
 
--- | Operations for manipulating 'oldInteractionScopes'.
+-- * Operations for manipulating 'oldInteractionScopes'.
+
+-- | A Lens for 'oldInteractionScopes'.
+modifyOldInteractionScopes :: (OldInteractionScopes -> OldInteractionScopes) -> CommandM ()
+modifyOldInteractionScopes f = modify $ \ s ->
+  s { oldInteractionScopes = f $ oldInteractionScopes s }
 
 insertOldInteractionScope :: InteractionId -> ScopeInfo -> CommandM ()
-insertOldInteractionScope ii scope =
-  modify $ \s -> s { oldInteractionScopes = Map.insert ii scope $ oldInteractionScopes s }
+insertOldInteractionScope ii scope = do
+  lift $ reportSLn "interaction.scope" 20 $ "inserting old interaction scope " ++ show ii
+  modifyOldInteractionScopes $ Map.insert ii scope
 
 removeOldInteractionScope :: InteractionId -> CommandM ()
-removeOldInteractionScope ii =
-  modify $ \s -> s { oldInteractionScopes = Map.delete ii $ oldInteractionScopes s }
+removeOldInteractionScope ii = do
+  lift $ reportSLn "interaction.scope" 20 $ "removing old interaction scope " ++ show ii
+  modifyOldInteractionScopes $ Map.delete ii
 
 getOldInteractionScope :: InteractionId -> CommandM ScopeInfo
 getOldInteractionScope ii = do
@@ -587,12 +597,23 @@ interpret (Cmd_load_highlighting_info source) = do
 interpret (Cmd_highlight ii rng s) = withCurrentFile $ do
   scope <- getOldInteractionScope ii
   removeOldInteractionScope ii
-  lift (do
-    e     <- concreteToAbstract scope =<< B.parseExpr rng s
-    printHighlightingInfo =<< generateTokenInfoFromString rng s
-    highlightExpr e)
-  `catchError` \_ ->
-    display_info $ Info_Error $ "Failed to parse expression in " ++ show ii
+  handle $ do
+    e <- try ("Highlighting failed to parse expression in " ++ show ii) $
+           B.parseExpr rng s
+    e <- try ("Highlighting failed to scope check expression in " ++ show ii) $
+           concreteToAbstract scope e
+    lift $ printHighlightingInfo =<< generateTokenInfoFromString rng s
+    lift $ highlightExpr e
+  where
+    handle :: ErrorT String TCM () -> CommandM ()
+    handle m = do
+      res <- lift $ runErrorT m
+      case res of
+        Left s  -> display_info $ Info_Error s
+        Right _ -> return ()
+    try :: String -> TCM a -> ErrorT String TCM a
+    try err m = ErrorT $ do
+      (Right <$> m) `catchError` \ _ -> return (Left err)
 
 interpret (Cmd_give   ii rng s) = give_gen ii rng s Give
 interpret (Cmd_refine ii rng s) = give_gen ii rng s Refine
@@ -617,11 +638,23 @@ interpret (Cmd_refine_or_intro pmLambda ii r s) = interpret $
   (if null s then Cmd_intro pmLambda else Cmd_refine) ii r s
 
 interpret (Cmd_auto ii rng s) = do
+  -- Andreas, 2014-07-05 Issue 1226:
+  -- Save the state to have access to even those interaction ids
+  -- that Auto solves (since Auto gives the solution right away).
+  st <- lift $ get
   (res, msg) <- lift $ Auto.auto ii rng s
   case res of
    Left xs -> do
+    lift $ reportSLn "auto" 10 $ "Auto produced the following solutions " ++ show xs
     forM_ xs $ \(ii, s) -> do
-      modifyTheInteractionPoints $ filter (/= ii)
+      -- Andreas, 2014-07-05 Issue 1226:
+      -- For highlighting, Resp_GiveAction needs to access
+      -- the @oldInteractionScope@s of the interaction points solved by Auto.
+      -- We dig them out from the state before Auto was invoked.
+      insertOldInteractionScope ii =<< lift (localState (put st >> getInteractionScope ii))
+      -- Andreas, 2014-07-05: The following should be obsolete,
+      -- as Auto has removed the interaction points already:
+      -- modifyTheInteractionPoints $ filter (/= ii)
       putResponse $ Resp_GiveAction ii $ Give_String s
     case msg of
      Nothing -> interpret Cmd_metas
@@ -803,6 +836,7 @@ give_gen
   -> GiveRefine
   -> CommandM ()
 give_gen ii rng s giveRefine = withCurrentFile $ do
+  lift $ reportSLn "interaction.give" 20 $ "give_gen  " ++ s
   let give_ref =
         case giveRefine of
           Give   -> B.give

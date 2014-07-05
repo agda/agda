@@ -1,0 +1,2 @@
+ioTCM currentFile None Direct (cmd_load currentFile [])
+ioTCM currentFile Interactive Direct (cmd_auto 0 noRange "")
