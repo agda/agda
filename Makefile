@@ -53,9 +53,13 @@ CABAL_OPTS+=--builddir=dist/$(VERSION)
 
 CABAL_OPTS+=--program-suffix=-$(VERSION)
 
-ifeq ($(HAVE_GHC_7_7),Yes)
-CABAL_OPTS+=--ghc-option=-j3
-endif
+# If you want to make use of parallel compilation with ghc>=7.8,
+# enable the flag below, or set the "jobs" field in your
+# ".cabal/config".
+#
+# ifeq ($(HAVE_GHC_7_7),Yes)
+# CABAL_OPTS+=--ghc-option=-j3
+# endif
 
 install : install-bin compile-emacs-mode setup-emacs-mode
 
