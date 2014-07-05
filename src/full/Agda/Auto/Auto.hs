@@ -58,6 +58,25 @@ getName _ = Nothing
 
 dispmsg msg = return (Left [], Just msg)
 
+-- | Entry point for Auto tactic (Agsy).
+--
+--     @auto ii rng s = return (res, mmsg)@
+--
+--   If @mmsg = Just msg@, the message @msg@ produced by Agsy should
+--   be displayed to the user.
+--
+--   The result @res@ of the Auto tactic can be one of the following three:
+--
+--   1. @Left [(ii,s)]@
+--      A list of solutions @s@ for interaction ids @ii@.
+--      In particular, @Left []@ means Agsy found no solution.
+--
+--   2. @Right (Left cs)@
+--      A list of clauses (the user allowed case-split).
+--
+--   3. @Right (Right s)@
+--      A refinement for the interaction id @ii@ in which Auto was invoked.
+
 auto :: InteractionId -> Range -> String -> TCM (Either [(InteractionId, String)] (Either [String] String), Maybe String)
 auto ii rng argstr = liftTCM $ do
          let (hints, timeout, pick, mode, hintmode) = parseargs argstr
