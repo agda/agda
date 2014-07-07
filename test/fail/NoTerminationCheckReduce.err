@@ -1,3 +1,0 @@
-NoTerminationCheckReduce.agda:16,9-13
-loop n != suc 41 of type Nat
-when checking that the expression refl has type loop n ≡ 42

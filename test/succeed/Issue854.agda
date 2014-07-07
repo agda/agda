@@ -1,4 +1,3 @@
-{-# OPTIONS --no-termination-check #-}
 -- 2013-06-15 Andreas, issue reported by Stevan Andjelkovic
 module Issue854 where
 
@@ -112,6 +111,7 @@ iter φ ⟨ s , k ⟩ = φ (s , λ p → iter φ (k p))
 AlgRec : Container → Set → Set
 AlgRec C X = ⟦ C ⟧ (μ C × X) → X
 
+{-# NO_TERMINATION_CHECK #-}
 rec : ∀ {C X} → AlgRec C X → μ C → X
 rec φ ⟨ s , k ⟩ = φ (s , λ p → (k p , rec φ (k p)))
 
