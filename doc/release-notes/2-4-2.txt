@@ -39,6 +39,12 @@ Pragmas and Options
   This can be used to override a global --without-K in a file, by
   adding a pragma {-# OPTIONS --with-K #-}.
 
+* New pragma {-# NON_TERMINATING #-}
+
+  This is a safer version of NO_TERMINATION_CHECK which doesn't treat the
+  affected functions as terminating. This means that NON_TERMINATING functions
+  do not reduce during type checking (but they do at run-time).
+
 Language
 ========
 

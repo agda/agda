@@ -91,6 +91,7 @@ tokens :-
 <pragma_>   "IMPOSSIBLE"           { keyword KwIMPOSSIBLE }
 <pragma_>   "ETA"                  { keyword KwETA }
 <pragma_>   "NO_TERMINATION_CHECK" { keyword KwNO_TERMINATION_CHECK }
+<pragma_>   "NON_TERMINATING"      { keyword KwNON_TERMINATING }
 <pragma_>   "MEASURE"              { keyword KwMEASURE }
 <pragma_>   "LINE"                 { keyword KwLINE }
 <pragma_>   . # [ $white ] +       { withInterval $ TokString }

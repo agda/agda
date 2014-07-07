@@ -254,10 +254,15 @@ combineTermChecks r tcs = loop tcs where
     case (tc, tc') of
       (TerminationCheck      , _                     ) -> return tc'
       (_                     , TerminationCheck      ) -> return tc
+      (NonTerminating        , NonTerminating        ) -> return tc
       (NoTerminationCheck    , NoTerminationCheck    ) -> return tc
       (TerminationMeasure{}  , TerminationMeasure{}  ) -> return tc
       (TerminationMeasure r _, NoTerminationCheck    ) -> failure r
       (NoTerminationCheck    , TerminationMeasure r _) -> failure r
+      (TerminationMeasure r _, NonTerminating        ) -> failure r
+      (NonTerminating        , TerminationMeasure r _) -> failure r
+      (NoTerminationCheck    , NonTerminating        ) -> failure r
+      (NonTerminating        , NoTerminationCheck    ) -> failure r
 
 type LoneSigs = [(DataRecOrFun, Name)]
 data NiceEnv = NiceEnv

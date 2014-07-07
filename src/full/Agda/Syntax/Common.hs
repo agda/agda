@@ -545,6 +545,8 @@ data TerminationCheck m
     -- ^ Run the termination checker.
   | NoTerminationCheck
     -- ^ Skip termination checking (unsafe).
+  | NonTerminating
+    -- ^ Treat as non-terminating.
   | TerminationMeasure !Range m
     -- ^ Skip termination checking but use measure instead.
     deriving (Typeable, Show, Eq)

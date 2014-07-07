@@ -472,6 +472,7 @@ instance Pretty Pragma where
       case tc of
         TerminationCheck       -> __IMPOSSIBLE__
         NoTerminationCheck     -> text "NO_TERMINATION_CHECK"
+        NonTerminating         -> text "NON_TERMINATING"
         TerminationMeasure _ x -> hsep $ [text "MEASURE", pretty x]
 
 instance Pretty Fixity where

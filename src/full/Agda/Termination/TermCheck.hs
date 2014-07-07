@@ -191,6 +191,11 @@ termMutual i ds = if names == [] then return mempty else
       reportSLn "term.warn.yes" 2 $ "Skipping termination check for " ++ show names
       forM_ allNames $ \ q -> setTerminates q True -- considered terminating!
       return mempty
+  -- NON_TERMINATING
+    else if (Info.mutualTermCheck i == NonTerminating) then do
+      reportSLn "term.warn.yes" 2 $ "Considering as non-terminating: " ++ show names
+      forM_ allNames $ \ q -> setTerminates q False
+      return mempty
   -- Trivially terminating (non-recursive)
     else ifM skip (do
       reportSLn "term.warn.yes" 2 $ "Trivially terminating: " ++ show names

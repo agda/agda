@@ -104,6 +104,7 @@ import Agda.Utils.Tuple
     'IMPOSSIBLE'    { TokKeyword KwIMPOSSIBLE $$ }
     'ETA'           { TokKeyword KwETA $$ }
     'NO_TERMINATION_CHECK' { TokKeyword KwNO_TERMINATION_CHECK $$ }
+    'NON_TERMINATING' { TokKeyword KwNON_TERMINATING $$ }
     'MEASURE'       { TokKeyword KwMEASURE $$ }
     'COMPILED'      { TokKeyword KwCOMPILED $$ }
     'COMPILED_EXPORT'      { TokKeyword KwCOMPILED_EXPORT $$ }
@@ -221,6 +222,7 @@ Token
     | 'IMPOSSIBLE'    { TokKeyword KwIMPOSSIBLE $1 }
     | 'ETA'           { TokKeyword KwETA $1 }
     | 'NO_TERMINATION_CHECK' { TokKeyword KwNO_TERMINATION_CHECK $1 }
+    | 'NON_TERMINATING' { TokKeyword KwNON_TERMINATING $1 }
     | 'MEASURE'       { TokKeyword KwMEASURE $1 }
     | 'quoteGoal'     { TokKeyword KwQuoteGoal $1 }
     | 'quoteContext'     { TokKeyword KwQuoteContext $1 }
@@ -1229,6 +1231,7 @@ DeclarationPragma
   | ImportPragma             { $1 }
   | ImpossiblePragma         { $1 }
   | RecordEtaPragma          { $1 }
+  | NonTerminatingPragma     { $1 }
   | NoTerminationCheckPragma { $1 }
   | MeasurePragma            { $1 }
   | OptionsPragma            { $1 }
@@ -1295,6 +1298,11 @@ NoTerminationCheckPragma :: { Pragma }
 NoTerminationCheckPragma
   : '{-#' 'NO_TERMINATION_CHECK' '#-}'
     { TerminationCheckPragma (getRange ($1,$2,$3)) NoTerminationCheck }
+
+NonTerminatingPragma :: { Pragma }
+NonTerminatingPragma
+  : '{-#' 'NON_TERMINATING' '#-}'
+    { TerminationCheckPragma (getRange ($1,$2,$3)) NonTerminating }
 
 MeasurePragma :: { Pragma }
 MeasurePragma
