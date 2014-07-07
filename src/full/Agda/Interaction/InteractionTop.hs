@@ -548,7 +548,8 @@ interpret (Cmd_infer_toplevel norm s) =
   parseAndDoAtToplevel (B.typeInCurrent norm) Info_InferredType s
 
 interpret (Cmd_compute_toplevel ignore s) =
-  parseAndDoAtToplevel (if ignore then ignoreAbstractMode . c
+  parseAndDoAtToplevel (allowNonTerminatingReductions .
+                        if ignore then ignoreAbstractMode . c
                                   else inConcreteMode . c)
                        Info_NormalForm
                        s

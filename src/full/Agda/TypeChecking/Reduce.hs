@@ -380,7 +380,7 @@ unfoldDefinition' unfoldDelayed keepGoing v0 f es =
          (isJust (isProjection_ def) && ProjectionReductions `elem` allowed)  -- includes projection-like
        then
         reduceNormalE keepGoing v0 f (map notReduced es)
-                       (defDelayed info) (defNonterminating info)
+                       (defDelayed info) (notElem NonTerminatingReductions allowed && defNonterminating info)
                        (defClauses info) (defCompiled info)
         else retSimpl $ notBlocked v
 

@@ -43,7 +43,8 @@ Pragmas and Options
 
   This is a safer version of NO_TERMINATION_CHECK which doesn't treat the
   affected functions as terminating. This means that NON_TERMINATING functions
-  do not reduce during type checking (but they do at run-time).
+  do not reduce during type checking. They do reduce at run-time and when
+  invoking C-c C-n at top-level (but not in a hole).
 
 Language
 ========

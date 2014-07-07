@@ -955,14 +955,17 @@ reduced b = case fmap ignoreSharing <$> b of
 
 -- | Controlling 'reduce'.
 data AllowedReduction
-  = ProjectionReductions -- ^ (Projection and) projection-like functions may be reduced.
-  | FunctionReductions   -- ^ Functions which are not projections may be reduced.
-  | LevelReductions      -- ^ Reduce @'Level'@ terms.
+  = ProjectionReductions     -- ^ (Projection and) projection-like functions may be reduced.
+  | FunctionReductions       -- ^ Functions which are not projections may be reduced.
+  | LevelReductions          -- ^ Reduce @'Level'@ terms.
+  | NonTerminatingReductions -- ^ Functions that have not passed termination checking.
   deriving (Show, Eq, Ord, Enum, Bounded)
 
 type AllowedReductions = [AllowedReduction]
 
-allReductions = [minBound..maxBound]
+-- | Not quite all reductions (skip non-terminating reductions)
+allReductions :: AllowedReductions
+allReductions = [minBound..pred maxBound]
 
 data PrimFun = PrimFun
 	{ primFunName		:: QName

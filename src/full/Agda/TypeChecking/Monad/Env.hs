@@ -83,6 +83,9 @@ dontReduceLevels = local $ \ e -> e { envAllowedReductions = allReductions \\ [L
 allowAllReductions :: TCM a -> TCM a
 allowAllReductions = local $ \ e -> e { envAllowedReductions = allReductions }
 
+allowNonTerminatingReductions :: TCM a -> TCM a
+allowNonTerminatingReductions = local $ \ e -> e { envAllowedReductions = allReductions ++ [NonTerminatingReductions] }
+
 insideDotPattern :: TCM a -> TCM a
 insideDotPattern = local $ \e -> e { envInsideDotPattern = True }
 
