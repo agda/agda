@@ -595,7 +595,7 @@ instance ToAbstract C.Expr A.Expr where
             insertApp _ = __IMPOSSIBLE__
             insertHead (C.LHS p wps eqs with) = C.LHS (insertApp p) wps eqs with
             insertHead (C.Ellipsis r wps eqs with) = C.Ellipsis r wps eqs with
-        scdef <- toAbstract (C.FunDef r [] defaultFixity' ConcreteDef C.TerminationCheck cname
+        scdef <- toAbstract (C.FunDef r [] defaultFixity' ConcreteDef TerminationCheck cname
                                (map (\(lhs,rhs,wh) -> -- wh = NoWhere, see parser for more info
                                       C.Clause cname (insertHead lhs) rhs wh []) cs))
         case scdef of
@@ -909,7 +909,7 @@ instance ToAbstract [C.Declaration] [A.Declaration] where
     ds <- ifM (optSafe <$> commandLineOptions) (mapM noNoTermCheck ds) (return ds)
     toAbstract =<< niceDecls ds
    where
-    noNoTermCheck (C.Pragma (NoTerminationCheckPragma r)) =
+    noNoTermCheck (C.Pragma (C.TerminationCheckPragma r NoTerminationCheck)) =
       typeError $ SafeFlagNoTerminationCheck
     noNoTermCheck d = return d
 
@@ -946,7 +946,7 @@ instance ToAbstract LetDef [A.LetBinding] where
                 Left err ->
                   case definedName p of
                     Nothing -> throwError err
-                    Just x  -> toAbstract $ LetDef $ NiceMutual r (termCheck == C.TerminationCheck)
+                    Just x  -> toAbstract $ LetDef $ NiceMutual r termCheck
                       [ C.FunSig r defaultFixity' PublicAccess defaultArgInfo termCheck x (C.Underscore (getRange x) Nothing)
                       , C.FunDef r __IMPOSSIBLE__ __IMPOSSIBLE__ ConcreteDef __IMPOSSIBLE__ __IMPOSSIBLE__
                         [C.Clause x lhs (C.RHS rhs) NoWhere []]
@@ -1242,7 +1242,7 @@ instance ToAbstract NiceDeclaration A.Declaration where
       bindName p QuotableName x y
       e <- toAbstract e
       rebindName p DefName x y
-      let mi = MutualInfo (tc == TerminationCheck) r
+      let mi = MutualInfo tc r
       return [A.UnquoteDecl mi (mkDefInfo x fx p a r) y e]
 
     NicePatternSyn r fx n as p -> do
@@ -1369,9 +1369,8 @@ instance ToAbstract C.Pragma [A.Pragma] where
       case e of
         A.Def x -> return [ A.EtaPragma x ]
         _       -> fail "Bad ETA pragma"
-    -- NO_TERMINATION_CHECK is handled by the nicifier
-    toAbstract (C.NoTerminationCheckPragma _) = __IMPOSSIBLE__
-    toAbstract (C.MeasurePragma{}) = __IMPOSSIBLE__
+    -- Termination checking pragmes are handled by the nicifier
+    toAbstract C.TerminationCheckPragma{} = __IMPOSSIBLE__
 
 instance ToAbstract C.Clause A.Clause where
     toAbstract (C.Clause top C.Ellipsis{} _ _ _) = fail "bad '...'" -- TODO: errors message

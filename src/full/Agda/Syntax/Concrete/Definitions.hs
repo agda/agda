@@ -10,7 +10,7 @@ module Agda.Syntax.Concrete.Definitions
     , Nice, runNice
     , niceDeclarations
     , notSoNiceDeclaration
-    , TerminationCheck(..), Measure
+    , Measure
     ) where
 
 import Control.Arrow ((***))
@@ -26,7 +26,7 @@ import Data.List as List
 import Data.Traversable (traverse)
 
 import Agda.Syntax.Concrete
-import Agda.Syntax.Common hiding (Arg, Dom, NamedArg, ArgInfo)
+import Agda.Syntax.Common hiding (Arg, Dom, NamedArg, ArgInfo, TerminationCheck())
 import qualified Agda.Syntax.Common as Common
 import Agda.Syntax.Position
 import Agda.Syntax.Fixity
@@ -54,7 +54,7 @@ data NiceDeclaration
             -- ^ Axioms and functions can be declared irrelevant. (Hiding should be NotHidden)
         | NiceField Range Fixity' Access IsAbstract Name (Arg Expr)
         | PrimitiveFunction Range Fixity' Access IsAbstract Name Expr
-        | NiceMutual Range Bool [NiceDeclaration]
+        | NiceMutual Range TerminationCheck [NiceDeclaration]
         | NiceModule Range Access IsAbstract QName Telescope [Declaration]
         | NiceModuleMacro Range Access Name ModuleApplication OpenShortHand ImportDirective
         | NiceOpen Range QName ImportDirective
@@ -73,15 +73,7 @@ data NiceDeclaration
         | NiceUnquoteDecl Range Fixity' Access IsAbstract TerminationCheck Name Expr
     deriving (Typeable, Show)
 
--- | Termination check? (Default = True).
-data TerminationCheck
-  = TerminationCheck
-    -- ^ Run the termination checker.
-  | NoTerminationCheck
-    -- ^ Skip termination checking.
-  | TerminationMeasure !Range Measure
-    -- ^ Skip termination checking but use Measure instead.
-    deriving (Typeable, Show, Eq)
+type TerminationCheck = Common.TerminationCheck Measure
 
 -- | Termination measure is, for now, a variable name.
 type Measure = Name
@@ -113,8 +105,7 @@ data DeclarationException
         | UselessPrivate Range
         | UselessAbstract Range
         | AmbiguousFunClauses LHS [Name] -- ^ in a mutual block, a clause could belong to any of the @[Name]@ type signatures
-        | InvalidNoTerminationCheckPragma Range
-        | InvalidMeasurePragma Range
+        | InvalidTerminationCheckPragma Range
         | InvalidMeasureMutual Range
           -- ^ In a mutual block, all or none need a MEASURE pragma.
           --   Range is of mutual block.
@@ -135,8 +126,7 @@ instance HasRange DeclarationException where
     getRange (DeclarationPanic _)          = noRange
     getRange (UselessPrivate r)            = r
     getRange (UselessAbstract r)           = r
-    getRange (InvalidNoTerminationCheckPragma r) = r
-    getRange (InvalidMeasurePragma r)      = r
+    getRange (InvalidTerminationCheckPragma r) = r
     getRange (InvalidMeasureMutual r)      = r
 
 instance HasRange NiceDeclaration where
@@ -192,12 +182,10 @@ instance Show DeclarationException where
     pwords "Using private here has no effect. Private applies only to declarations that introduce new identifiers into the module, like type signatures and data, record, and module declarations."
   show (UselessAbstract _)      = show $ fsep $
     pwords "Using abstract here has no effect. Abstract applies only definitions like data definitions, record type definitions and function clauses."
-  show (InvalidNoTerminationCheckPragma _) = show $ fsep $
-    pwords "The NO_TERMINATION_CHECK pragma can only preceed a mutual block or a function definition."
-  show (InvalidMeasurePragma _) = show $ fsep $
-    pwords "The MEASURE pragma can only preceed a function signature or function definition."
+  show (InvalidTerminationCheckPragma _) = show $ fsep $
+    pwords "Termination checking pragmas can only preceed a mutual block or a function definition."
   show (InvalidMeasureMutual _) = show $ fsep $
-    pwords "In a mutual block, either all or no functions must have a MEASURE pragma."
+    pwords "In a mutual block, either all functions must have the same (or no) termination checking pragma."
   show (NotAllowedInMutual nd) = show $ fsep $
     [text $ decl nd] ++ pwords "are not allowed in mutual blocks"
     where
@@ -257,21 +245,19 @@ terminationCheck _            = TerminationCheck
 -- | Check that declarations in a mutual block are consistently
 --   equipped with MEASURE pragmas, or whether there is a
 --   NO_TERMINATION_CHECK pragma.
-combineTermChecks :: [TerminationCheck] -> Nice Bool
-combineTermChecks tcs = (TerminationCheck ==) <$> loop tcs where
+combineTermChecks :: Range -> [TerminationCheck] -> Nice TerminationCheck
+combineTermChecks r tcs = loop tcs where
   loop []         = return TerminationCheck
   loop (tc : tcs) = do
-     let failure r = throwError $ InvalidMeasureMutual r
-     tc' <- loop tcs
-     case (tc, tc') of
-       (TerminationMeasure{}, TerminationMeasure{}) -> return tc
-       (TerminationMeasure r _, TerminationCheck) -> return tc
-       (TerminationCheck, TerminationMeasure r _) -> return tc'
-       (TerminationMeasure r _, NoTerminationCheck) -> failure r
-       (NoTerminationCheck, TerminationMeasure r _) -> failure r
-       (NoTerminationCheck, _)    -> return tc
-       (_, NoTerminationCheck)    -> return tc'
-       (TerminationCheck, TerminationCheck) -> return tc
+    let failure r = throwError $ InvalidMeasureMutual r
+    tc' <- loop tcs
+    case (tc, tc') of
+      (TerminationCheck      , _                     ) -> return tc'
+      (_                     , TerminationCheck      ) -> return tc
+      (NoTerminationCheck    , NoTerminationCheck    ) -> return tc
+      (TerminationMeasure{}  , TerminationMeasure{}  ) -> return tc
+      (TerminationMeasure r _, NoTerminationCheck    ) -> failure r
+      (NoTerminationCheck    , TerminationMeasure r _) -> failure r
 
 type LoneSigs = [(DataRecOrFun, Name)]
 data NiceEnv = NiceEnv
@@ -399,7 +385,7 @@ niceDeclarations ds = do
         LoneSig k x -> do
           addLoneSig k x
           (tcs, (ds0, ds1)) <- untilAllDefined [terminationCheck k] ds
-          tc <- combineTermChecks tcs
+          tc <- combineTermChecks (getRange d) tcs
 
           -- Record modules are, for performance reasons, not always
           -- placed in mutual blocks.
@@ -424,24 +410,25 @@ niceDeclarations ds = do
           where
             cons d = fmap (id *** (d :) *** id)
 
+    notMeasure TerminationMeasure{} = False
+    notMeasure _ = True
+
     nice :: [Declaration] -> Nice [NiceDeclaration]
     nice [] = return []
-    nice (Pragma (NoTerminationCheckPragma r) : ds@(Mutual{} : _)) = do
+    nice (Pragma (TerminationCheckPragma r tc) : ds@(Mutual{} : _)) | notMeasure tc = do
       ds <- nice ds
       case ds of
-        NiceMutual r _ ds' : ds -> return $ NiceMutual r False ds' : ds
+        NiceMutual r _ ds' : ds -> return $ NiceMutual r tc ds' : ds
         _ -> __IMPOSSIBLE__
-    nice (Pragma (NoTerminationCheckPragma r) : d@TypeSig{} : ds) =
-      niceTypeSig NoTerminationCheck d ds
-    nice (Pragma (NoTerminationCheckPragma r) : d@FunClause{} : ds) =
-      niceFunClause NoTerminationCheck d ds
-    nice (Pragma (NoTerminationCheckPragma r) : ds@(UnquoteDecl{} : _)) = do
+    nice (Pragma (TerminationCheckPragma r tc) : d@TypeSig{} : ds) =
+      niceTypeSig tc d ds
+    nice (Pragma (TerminationCheckPragma r tc) : d@FunClause{} : ds) | notMeasure tc =
+      niceFunClause tc d ds
+    nice (Pragma (TerminationCheckPragma r tc) : ds@(UnquoteDecl{} : _)) | notMeasure tc = do
       NiceUnquoteDecl r f p a _ x e : ds <- nice ds
-      return $ NiceUnquoteDecl r f p a NoTerminationCheck x e : ds
+      return $ NiceUnquoteDecl r f p a tc x e : ds
 
-    nice (Pragma (MeasurePragma r x) : d@TypeSig{} : ds) =
-      niceTypeSig (TerminationMeasure r x) d ds
-    nice (d@TypeSig{} : Pragma (MeasurePragma r x) : ds) =
+    nice (d@TypeSig{} : Pragma (TerminationCheckPragma r (TerminationMeasure _ x)) : ds) =
       niceTypeSig (TerminationMeasure r x) d ds
     -- nice (Pragma (MeasurePragma r x) : d@FunClause{} : ds) =
     --   niceFunClause (TerminationMeasure r x) d ds
@@ -503,10 +490,8 @@ niceDeclarations ds = do
           fx <- getFixity x
           (NiceUnquoteDecl r fx PublicAccess ConcreteDef TerminationCheck x e :) <$> nice ds
 
-        Pragma (NoTerminationCheckPragma r) ->
-          throwError $ InvalidNoTerminationCheckPragma r
-        Pragma (MeasurePragma r x) ->
-          throwError $ InvalidMeasurePragma r
+        Pragma (TerminationCheckPragma r _) ->
+          throwError $ InvalidTerminationCheckPragma r
         Pragma p            -> (NicePragma (getRange p) p :) <$> nice ds
 
     niceFunClause :: TerminationCheck -> Declaration -> [Declaration] -> Nice [NiceDeclaration]
@@ -719,7 +704,7 @@ niceDeclarations ds = do
           (NiceFunClause _ _ _ _ (FunClause lhs _ _)):_ -> throwError $ MissingTypeSignature lhs
           d:_ -> throwError $ NotAllowedInMutual d
         let tcs = map termCheck ds
-        tc <- combineTermChecks tcs
+        tc <- combineTermChecks r tcs
         return $ NiceMutual r tc $ sigs ++ other
       where
         -- Andreas, 2013-11-23 allow postulates in mutual blocks
@@ -741,7 +726,7 @@ niceDeclarations ds = do
         -- inner declarations comes with a {-# NO_TERMINATION_CHECK #-}
         termCheck (FunSig _ _ _ _ tc _ _) = tc
         termCheck (FunDef _ _ _ _ tc _ _) = tc
-        termCheck (NiceMutual _ tc _)     = if tc then TerminationCheck else NoTerminationCheck
+        termCheck (NiceMutual _ tc _)     = tc
         termCheck (NiceUnquoteDecl _ _ _ _ tc _ _) = tc
         termCheck _                       = TerminationCheck
 

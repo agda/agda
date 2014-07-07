@@ -1294,12 +1294,13 @@ RecordEtaPragma
 NoTerminationCheckPragma :: { Pragma }
 NoTerminationCheckPragma
   : '{-#' 'NO_TERMINATION_CHECK' '#-}'
-    { NoTerminationCheckPragma (getRange ($1,$2,$3)) }
+    { TerminationCheckPragma (getRange ($1,$2,$3)) NoTerminationCheck }
 
 MeasurePragma :: { Pragma }
 MeasurePragma
   : '{-#' 'MEASURE' PragmaName '#-}'
-    { MeasurePragma (getRange($1,$2,$3,$4)) $3 }
+    { let r = getRange ($1, $2, $3, $4) in
+      TerminationCheckPragma r (TerminationMeasure r $3) }
 
 ImportPragma :: { Pragma }
 ImportPragma

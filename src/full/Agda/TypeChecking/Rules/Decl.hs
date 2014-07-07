@@ -92,7 +92,7 @@ checkDecl d = traceCall (SetRange (getRange d)) $ do
         impossible  m = m >> return __IMPOSSIBLE__
                        -- We're definitely inside a mutual block.
 
-    let mi = Info.MutualInfo True noRange
+    let mi = Info.MutualInfo TerminationCheck noRange
 
     finalChecks <- case d of
       A.Axiom{}                -> meta $ checkTypeSignature d

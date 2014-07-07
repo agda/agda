@@ -157,7 +157,7 @@ instance KillRange DeclInfo where
  --------------------------------------------------------------------------}
 
 data MutualInfo =
-     MutualInfo { mutualTermCheck :: Bool  -- ^ termination check (default=True)
+     MutualInfo { mutualTermCheck :: TerminationCheck Name
 		, mutualRange     :: Range
 		}
   deriving (Typeable, Show)

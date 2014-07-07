@@ -534,3 +534,22 @@ instance Show InteractionId where
     show (InteractionId x) = "?" ++ show x
 
 instance KillRange InteractionId where killRange = id
+
+-----------------------------------------------------------------------------
+-- * Termination
+-----------------------------------------------------------------------------
+
+-- | Termination check? (Default = True).
+data TerminationCheck m
+  = TerminationCheck
+    -- ^ Run the termination checker.
+  | NoTerminationCheck
+    -- ^ Skip termination checking (unsafe).
+  | TerminationMeasure !Range m
+    -- ^ Skip termination checking but use measure instead.
+    deriving (Typeable, Show, Eq)
+
+instance KillRange m => KillRange (TerminationCheck m) where
+  killRange (TerminationMeasure _ m) = TerminationMeasure noRange (killRange m)
+  killRange t                        = t
+
