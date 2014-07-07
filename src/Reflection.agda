@@ -9,9 +9,10 @@ module Reflection where
 open import Data.Bool as Bool using (Bool); open Bool.Bool
 open import Data.List using (List); open Data.List.List
 open import Data.Nat using (ℕ) renaming (_≟_ to _≟-ℕ_)
-open import Data.Float using (Float) renaming (_≟_ to _≟f_)
-open import Data.Char using (Char) renaming (_≟_ to _≟c_)
-open import Data.String using (String) renaming (_≟_ to _≟s_)
+open import Data.Nat.Show renaming (show to showNat)
+open import Data.Float using (Float) renaming (_≟_ to _≟f_; show to showFloat)
+open import Data.Char using (Char) renaming (_≟_ to _≟c_; show to showChar)
+open import Data.String using (String) renaming (_≟_ to _≟s_; show to showString)
 open import Data.Product
 open import Function
 open import Relation.Binary
@@ -33,6 +34,11 @@ postulate Name : Set
 private
   primitive
     primQNameEquality : Name → Name → Bool
+
+    primShowQName : Name → String
+
+showName : Name → String
+showName = primShowQName
 
 -- Equality of names is decidable.
 
@@ -214,6 +220,13 @@ data Definition : Set where
 {-# BUILTIN AGDADEFINITIONDATACONSTRUCTOR constructor′ #-}
 {-# BUILTIN AGDADEFINITIONPOSTULATE       axiom        #-}
 {-# BUILTIN AGDADEFINITIONPRIMITIVE       primitive′   #-}
+
+showLiteral : Literal → String
+showLiteral (nat x)    = showNat x
+showLiteral (float x)  = showFloat x
+showLiteral (char x)   = showChar x
+showLiteral (string x) = showString x
+showLiteral (name x)   = showName x
 
 private
   primitive

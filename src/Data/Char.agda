@@ -16,22 +16,13 @@ import Relation.Binary.On as On
 open import Relation.Binary.PropositionalEquality as PropEq using (_≡_)
 open import Relation.Binary.PropositionalEquality.TrustMe
 
-------------------------------------------------------------------------
--- The type
+open import Data.String.Core using (String; primShowChar)
+import Data.Char.Core as Core
+open Core public using (Char)
+open Core
 
-postulate
-  Char : Set
-
-{-# BUILTIN CHAR Char #-}
-{-# COMPILED_TYPE Char Char #-}
-
-------------------------------------------------------------------------
--- Operations
-
-private
- primitive
-  primCharToNat    : Char → ℕ
-  primCharEquality : Char → Char → Bool
+show : Char → String
+show = primShowChar
 
 toNat : Char → ℕ
 toNat = primCharToNat
