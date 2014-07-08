@@ -857,7 +857,7 @@ give_gen ii rng s giveRefine = withCurrentFile $ do
     reportSLn "interaction.give" 30 $ "interaction points after = " ++ show mis'
     return (ae, mis' \\ mis)
   -- favonia: backup the old scope for highlighting
-  when (giveRefine == Give) $ insertOldInteractionScope ii scope
+  insertOldInteractionScope ii scope
   -- sort the new interaction points and put them into the state
   -- in replacement of the old interaction point
   iis       <- lift $ sortInteractionPoints iis
