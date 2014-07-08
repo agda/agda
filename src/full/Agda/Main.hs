@@ -36,6 +36,7 @@ import Agda.TypeChecking.Errors
 import Agda.Compiler.MAlonzo.Compiler as MAlonzo
 import Agda.Compiler.Epic.Compiler as Epic
 import Agda.Compiler.JS.Compiler as JS
+import Agda.Compiler.UHC.Compiler as UHC
 
 import Agda.Utils.Monad
 import Agda.Utils.String
@@ -97,6 +98,7 @@ runAgda = do
       compileNoMain <- optCompileNoMain   <$> liftTCM commandLineOptions
       epic          <- optEpicCompile     <$> liftTCM commandLineOptions
       js            <- optJSCompile       <$> liftTCM commandLineOptions
+      uhc           <- optUHCCompile      <$> liftTCM commandLineOptions
       when i $ liftIO $ putStr splashScreen
       let failIfNoInt (Just i) = return i
           -- The allowed combinations of command-line
@@ -114,6 +116,7 @@ runAgda = do
                       | compile       = (MAlonzo.compilerMain True =<<) . (failIfNoInt =<<)
                       | epic          = (Epic.compilerMain    =<<) . (failIfNoInt =<<)
                       | js            = (JS.compilerMain      =<<) . (failIfNoInt =<<)
+                      | uhc           = (UHC.compilerMain     =<<) . (failIfNoInt =<<)
                       | otherwise     = (() <$)
       interaction $ do
         hasFile <- hasInputFile

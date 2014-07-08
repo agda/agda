@@ -80,6 +80,7 @@ data CommandLineOptions =
             , optCompileNoMain        :: Bool
             , optEpicCompile          :: Bool
             , optJSCompile            :: Bool
+            , optUHCCompile           :: Bool
             , optCompileDir           :: Maybe FilePath
               -- ^ In the absence of a path the project root is used.
 	    , optGenerateVimFile      :: Bool
@@ -156,6 +157,7 @@ defaultOptions =
             , optCompileNoMain        = False
             , optEpicCompile          = False
             , optJSCompile            = False
+            , optUHCCompile           = False
             , optCompileDir           = Nothing
 	    , optGenerateVimFile      = False
             , optGenerateLaTeX        = False
@@ -321,6 +323,7 @@ compileFlag        o = return $ o { optCompile    = True }
 compileFlagNoMain  o = return $ o { optCompileNoMain = True }
 compileEpicFlag    o = return $ o { optEpicCompile = True}
 compileJSFlag      o = return $ o { optJSCompile = True}
+compileUHCFlag     o = return $ o { optUHCCompile = True}
 compileDirFlag f   o = return $ o { optCompileDir = Just f }
 ghcFlag        f   o = return $ o { optGhcFlags   = optGhcFlags o  ++ [f] }  -- NOTE: Quadratic in number of flags.
 epicFlagsFlag  s   o = return $ o { optEpicFlags  = optEpicFlags o ++ [s] }  -- NOTE: Quadratic in number of flags.
@@ -369,6 +372,7 @@ standardOptions =
                     "when compiling using the MAlonzo backend (experimental), do not treat the requested module as the main module of a program"
     , Option []     ["epic"] (NoArg compileEpicFlag) "compile program using the Epic backend"
     , Option []     ["js"] (NoArg compileJSFlag) "compile program using the JS backend"
+    , Option []     ["uhc"] (NoArg compileUHCFlag) "compile program using the UHC backend"
     , Option []     ["compile-dir"] (ReqArg compileDirFlag "DIR")
 		    ("directory for compiler output (default: the project root)")
     , Option []     ["ghc-flag"] (ReqArg ghcFlag "GHC-FLAG")
