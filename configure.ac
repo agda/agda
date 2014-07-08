@@ -13,7 +13,7 @@ AC_PROG_CC
 
 # Building Agda
 AGDA_WITH_PROG_VERSION(GHC,ghc,6.4)
-AGDA_WITH_PROG_VERSION(ALEX,alex,2.3.1)
+AGDA_WITH_PROG_VERSION(ALEX,alex,3.1.0)
 AGDA_WITH_PROG_VERSION(HAPPY,happy,1.19.3)
 
 # We need to know if we have ghc 7.7
