@@ -653,10 +653,13 @@ interpret (Cmd_auto ii rng s) = do
       -- the @oldInteractionScope@s of the interaction points solved by Auto.
       -- We dig them out from the state before Auto was invoked.
       insertOldInteractionScope ii =<< lift (localState (put st >> getInteractionScope ii))
-      -- Andreas, 2014-07-05: The following should be obsolete,
-      -- as Auto has removed the interaction points already:
+      -- Andreas, 2014-07-07: NOT TRUE:
+      -- -- Andreas, 2014-07-05: The following should be obsolete,
+      -- -- as Auto has removed the interaction points already:
       -- modifyTheInteractionPoints $ filter (/= ii)
       putResponse $ Resp_GiveAction ii $ Give_String s
+    -- Andreas, 2014-07-07: Remove the interaction points in one go.
+    modifyTheInteractionPoints (\\ (map fst xs))
     case msg of
      Nothing -> interpret Cmd_metas
      Just msg -> display_info $ Info_Auto msg

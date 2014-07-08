@@ -401,7 +401,7 @@ forceData d (El s0 t) = liftTCM $ do
 
 isCoinductive :: Type -> TCM (Maybe Bool)
 isCoinductive t = do
-  El s t <- normalise t
+  El s t <- reduce t
   case ignoreSharing t of
     Def q _ -> do
       def <- getConstInfo q
