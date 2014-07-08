@@ -58,10 +58,20 @@ flag epic
   description:
     Install the Epic compiler.
 
+flag uhc
+  default: False
+  manual:  True
+  description:
+    Install the UHC backend.
+
 library
   hs-source-dirs:   src/full
   if flag(epic)
     build-depends:  epic >= 0.1.13 && < 0.10
+
+  if flag(uhc)
+    build-depends:  EH99 == 1.1,
+                    uhc-util == 0.1.3.2
 
   if os(windows)
     build-depends:  Win32 >= 2.2 && < 2.4
@@ -114,6 +124,11 @@ library
   -- However, each file should define {-# LANGUAGE CPP #-}, for the sake
   -- of ghci and make tags.
   extensions:       CPP
+
+  -- required to make the code compile, as the EH library is not present when the uhc backend is disabled
+  if flag(uhc)
+    cpp-options:    -DUHC_BACKEND
+
   exposed-modules:  Agda.Main
                     Agda.ImpossibleTest
                     Agda.Interaction.BasicOps
@@ -147,6 +162,9 @@ library
                     Agda.Compiler.MAlonzo.Misc
                     Agda.Compiler.MAlonzo.Pretty
                     Agda.Compiler.MAlonzo.Primitives
+                    Agda.Compiler.UHC.Compiler
+                    Agda.Compiler.UHC.CoreSyntax
+                    Agda.Compiler.UHC.Interface
                     Agda.Interaction.CommandLine.CommandLine
                     Agda.Interaction.EmacsCommand
                     Agda.Interaction.Exceptions
@@ -362,6 +380,26 @@ library
                     Agda.Auto.Syntax
                     Agda.Auto.SearchControl
                     Agda.Auto.CaseSplit
+
+  if flag(uhc)
+    -- using exposed-modules here doesn't work for some reason. other-modules
+    -- should be fine, as we don't intend to expose the backend internals.
+    other-modules:
+                    Agda.Compiler.UHC.AuxAST
+--                    Agda.Compiler.UHC.CaseOpts
+                    Agda.Compiler.UHC.CompileState
+                    Agda.Compiler.UHC.Core
+--                    Agda.Compiler.UHC.Erasure
+                    Agda.Compiler.UHC.ForceConstrs
+                    Agda.Compiler.UHC.Forcing
+                    Agda.Compiler.UHC.FromAgda
+--                    Agda.Compiler.UHC.Injection
+--                    Agda.Compiler.UHC.NatDetection
+--                    Agda.Compiler.UHC.Primitive
+--                    Agda.Compiler.UHC.Smashing
+                    Agda.Compiler.UHC.Static
+
+
   other-modules:    Paths_Agda
   -- This conditional is required by GHC <= 7.4.2.
   if true

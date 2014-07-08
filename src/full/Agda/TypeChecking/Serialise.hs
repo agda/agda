@@ -47,6 +47,8 @@ import Data.Typeable
 import qualified Codec.Compression.GZip as G
 
 import qualified Agda.Compiler.Epic.Interface as Epic
+import qualified Agda.Compiler.UHC.CoreSyntax as CR
+import qualified UHC.Util.Serialize as UU
 
 import Agda.Syntax.Common
 import Agda.Syntax.Concrete.Name as C
@@ -109,11 +111,13 @@ type HashTable k v = H.BasicHashTable k v
 -- | State of the the encoder.
 data Dict = Dict{ nodeD     :: !(HashTable Node    Int32)
                 , stringD   :: !(HashTable String  Int32)
+                , bstringD  :: !(HashTable ByteString Int32)
                 , integerD  :: !(HashTable Integer Int32)
                 , doubleD   :: !(HashTable Double  Int32)
                 , termD     :: !(HashTable (Ptr Term) Int32)
                 , nodeC     :: !(IORef Int32)  -- counters for fresh indexes
                 , stringC   :: !(IORef Int32)
+                , bstringC  :: !(IORef Int32)
                 , integerC  :: !(IORef Int32)
                 , doubleC   :: !(IORef Int32)
                 , sharingStats :: !(IORef (Int32, Int32))
@@ -130,6 +134,7 @@ type Memo = HashTable (Int32, TypeRep) U    -- (node index, type rep)
 data St = St
   { nodeE     :: !(Array Int32 Node)
   , stringE   :: !(Array Int32 String)
+  , bstringE  :: !(Array Int32 ByteString)
   , integerE  :: !(Array Int32 Integer)
   , doubleE   :: !(Array Int32 Double)
   , nodeMemo  :: !Memo
@@ -167,15 +172,16 @@ class Typeable a => EmbPrj a where
 encode :: EmbPrj a => a -> TCM L.ByteString
 encode a = do
     fileMod <- sourceToModule
-    newD@(Dict nD sD iD dD _ _ _ _ _ stats _) <- liftIO $ emptyDict fileMod
+    newD@(Dict nD sD bD iD dD _ _ _ _ _ _ stats _) <- liftIO $ emptyDict fileMod
     root <- liftIO $ runReaderT (icode a) newD
     nL <- benchSort $ l nD
     sL <- benchSort $ l sD
+    bL <- benchSort $ l bD
     iL <- benchSort $ l iD
     dL <- benchSort $ l dD
     (shared, total) <- liftIO $ readIORef stats
     let x = B.encode currentInterfaceVersion `L.append`
-            G.compress (B.encode (root, nL, sL, iL, dL))
+            G.compress (B.encode (root, nL, sL, bL, iL, dL))
     verboseS "profile.sharing" 10 $ do
       tickN "pointers (reused)" $ fromIntegral shared
       tickN "pointers" $ fromIntegral total
@@ -234,7 +240,7 @@ decode s = do
      then noResult "Wrong interface version."
      else do
 
-      ((r, nL, sL, iL, dL), s, _) <-
+      ((r, nL, sL, bL, iL, dL), s, _) <-
         return $ runGetState B.get (G.decompress s) 0
       if s /= L.empty
          -- G.decompress seems to throw away garbage at the end, so
@@ -242,7 +248,7 @@ decode s = do
        then noResult "Garbage at end."
        else do
 
-        st <- St (ar nL) (ar sL) (ar iL) (ar dL)
+        st <- St (ar nL) (ar sL) (ar bL) (ar iL) (ar dL)
                 <$> liftIO H.new
                 <*> return mf <*> return incs
         (r, st) <- runStateT (runErrorT (value r)) st
@@ -300,6 +306,10 @@ decodeFile f = decodeInterface =<< liftIO (L.readFile f)
 instance EmbPrj String where
   icode   = icodeX stringD stringC
   value i = (! i) `fmap` gets stringE
+
+instance EmbPrj ByteString where
+  icode   = icodeX bstringD bstringC
+  value i = (! i) `fmap` gets bstringE
 
 instance EmbPrj Integer where
   icode   = icodeX integerD integerC
@@ -979,6 +989,21 @@ instance EmbPrj JS.MemberId where
   icode (JS.MemberId l) = icode l
   value n = JS.MemberId `fmap` value n
 
+instance EmbPrj CoreRepresentation where
+  icode (CrType a)     = icode1' a
+  icode (CrDefn a)     = icode1 1 a
+  icode (CrConstr a b) = icode2 2 a b
+
+  value = vcase valu where
+    valu [a]       = valu1 CrType a
+    valu [1, a]    = valu1 CrDefn a
+    valu [2, a, b] = valu2 CrConstr a b
+    valu _      = malformed
+
+instance EmbPrj CR.CoreExpr where
+  icode = icode . B.runPut . UU.serialize
+  value n = value n >>= return . (B.runGet UU.unserialize)
+
 instance EmbPrj Polarity where
   icode Covariant     = icode0'
   icode Contravariant = icode0 1
@@ -1010,8 +1035,8 @@ instance EmbPrj Occurrence where
     valu _   = malformed
 
 instance EmbPrj CompiledRepresentation where
-  icode (CompiledRep a b c d) = icode4' a b c d
-  value = vcase valu where valu [a, b, c, d] = valu4 CompiledRep a b c d
+  icode (CompiledRep a b c d e) = icode5' a b c d e
+  value = vcase valu where valu [a, b, c, d, e] = valu5 CompiledRep a b c d e
                            valu _         = malformed
 
 instance EmbPrj Defn where
@@ -1371,6 +1396,8 @@ emptyDict fileMod = Dict
   <*> H.new
   <*> H.new
   <*> H.new
+  <*> H.new
+  <*> newIORef 0
   <*> newIORef 0
   <*> newIORef 0
   <*> newIORef 0

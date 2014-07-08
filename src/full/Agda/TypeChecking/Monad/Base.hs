@@ -59,6 +59,7 @@ import Agda.Interaction.Highlighting.Precise
   (CompressedFile, HighlightingInfo)
 
 import qualified Agda.Compiler.JS.Syntax as JS
+import qualified Agda.Compiler.UHC.CoreSyntax as CR
 
 import Agda.TypeChecking.Monad.Base.Benchmark (Benchmark)
 import qualified Agda.TypeChecking.Monad.Base.Benchmark as Benchmark
@@ -728,6 +729,9 @@ type HaskellCode = String
 type HaskellType = String
 type EpicCode    = String
 type JSCode      = JS.Exp
+type CoreCode    = CR.CoreExpr
+type CoreType    = String
+type CoreConstr  = String
 
 data HaskellRepresentation
       = HsDefn HaskellType HaskellCode
@@ -735,6 +739,12 @@ data HaskellRepresentation
   deriving (Typeable, Show)
 
 data HaskellExport = HsExport HaskellType String deriving (Show, Typeable)
+
+data CoreRepresentation
+      = CrDefn CoreCode -- ^ Core code for functions.
+      | CrConstr CoreType CoreConstr -- ^ Core constructor for agda constructor.
+      | CrType CoreType -- ^ Core type for an agda type.
+    deriving (Typeable, Show)
 
 -- | Polarity for equality and subtype checking.
 data Polarity
@@ -749,11 +759,12 @@ data CompiledRepresentation = CompiledRep
   , exportHaskell   :: Maybe HaskellExport
   , compiledEpic    :: Maybe EpicCode
   , compiledJS      :: Maybe JSCode
+  , compiledCore    :: Maybe CoreRepresentation
   }
   deriving (Typeable, Show)
 
 noCompiledRep :: CompiledRepresentation
-noCompiledRep = CompiledRep Nothing Nothing Nothing Nothing
+noCompiledRep = CompiledRep Nothing Nothing Nothing Nothing Nothing
 
 -- | Subterm occurrences for positivity checking.
 --   The constructors are listed in increasing information they provide:
@@ -997,6 +1008,9 @@ defJSDef = compiledJS . defCompiledRep
 
 defEpicDef :: Definition -> Maybe EpicCode
 defEpicDef = compiledEpic . defCompiledRep
+
+defCoreDef :: Definition -> Maybe CoreRepresentation
+defCoreDef = compiledCore . defCompiledRep
 
 -- | Are the clauses of this definition delayed?
 defDelayed :: Definition -> Delayed

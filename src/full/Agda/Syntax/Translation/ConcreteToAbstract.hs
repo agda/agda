@@ -1356,6 +1356,17 @@ instance ToAbstract C.Pragma [A.Pragma] where
             A.Con x -> fail ("COMPILED_JS used on ambiguous name " ++ show x)
             _       -> __IMPOSSIBLE__
       return [ A.CompiledJSPragma y ep ]
+    toAbstract (C.CompiledCorePragma _ x cr) = do
+      e <- toAbstract $ OldQName x
+      y <- case e of
+            A.Def x -> return x
+            _       -> __IMPOSSIBLE__
+      return [ A.CompiledCorePragma y cr ]
+    toAbstract (C.CompiledCoreDataPragma _ x crd crcs) = do
+      e <- toAbstract $ OldQName x
+      case e of
+        A.Def x -> return [ A.CompiledCoreDataPragma x crd crcs ]
+        _       -> fail $ "Bad compiled type: " ++ show x  -- TODO: error message
     toAbstract (C.StaticPragma _ x) = do
         e <- toAbstract $ OldQName x
         y <- case e of
