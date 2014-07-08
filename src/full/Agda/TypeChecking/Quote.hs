@@ -399,7 +399,7 @@ instance Unquote Pattern where
         choice
           [ (c `isCon` primAgdaPatVar,    pure (VarP "x"))
           , (c `isCon` primAgdaPatAbsurd, pure (VarP "()"))
-          , (c `isCon` primAgdaPatDot,    pure (DotP $ DontCare $ Lit $ LitInt noRange 0))
+          , (c `isCon` primAgdaPatDot,    pure (DotP hackReifyToMeta))
           ] __IMPOSSIBLE__
       Con c [x] -> do
         choice

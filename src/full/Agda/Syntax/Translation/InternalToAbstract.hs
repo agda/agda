@@ -303,6 +303,7 @@ reifyTerm :: Bool -> Term -> TCM Expr
 reifyTerm expandAnonDefs v = do
     v <- unSpine <$> instantiate v
     case v of
+      _ | v == hackReifyToMeta -> return $ A.Underscore emptyMetaInfo
       I.Var n es   -> do
           let vs = fromMaybe __IMPOSSIBLE__ $ allApplyElims es
           x  <- liftTCM $ nameOfBV n `catchError` \_ -> freshName_ ("@" ++ show n)
