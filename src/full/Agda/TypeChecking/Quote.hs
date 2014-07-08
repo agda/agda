@@ -5,7 +5,10 @@
 module Agda.TypeChecking.Quote where
 
 import Control.Applicative
+import Control.Monad.State (evalState, get, put)
+import Control.Monad.Writer (execWriterT, tell)
 import Data.Maybe (fromMaybe)
+import Data.Traversable (traverse)
 
 import Agda.Syntax.Position
 import Agda.Syntax.Literal
@@ -432,7 +435,7 @@ instance Unquote Clause where
       mkClause b ps0 =
         Clause { clauseRange     = noRange
                , clauseTel       = dummyTel n'
-               , clausePerm      = idP n
+               , clausePerm      = Perm n vs
                , namedClausePats = ps
                , clauseBody      = mkBody n b
                , clauseType      = Nothing }
@@ -450,6 +453,15 @@ instance Unquote Clause where
           vars' d DotP{}      = if d then 1 else 0
           vars' d LitP{}      = 0
           vars' d ProjP{}     = 0
+
+          vs = evalState (execWriterT $ mapM_ (computePerm . namedArg) ps) 0
+          next = do n <- get; put (n + 1); return n
+
+          computePerm (ConP _ _ ps) = mapM_ (computePerm . namedArg) ps
+          computePerm VarP{}        = tell . (:[]) =<< next
+          computePerm DotP{}        = () <$ next
+          computePerm LitP{}        = return ()
+          computePerm ProjP{}       = return ()
 
 instance Unquote UnquotedFunDef where
   unquote t = do
