@@ -109,6 +109,7 @@ library
   build-tools:      happy >= 1.19.3 && < 2,
                     alex >= 3.1.0 && < 3.2,
                     cpphs >= 1.18.5 && < 1.19
+
   -- LANGUAGE extension CPP is needed for cabal haddock (as of now, May 2014).
   -- However, each file should define {-# LANGUAGE CPP #-}, for the sake
   -- of ghci and make tags.
