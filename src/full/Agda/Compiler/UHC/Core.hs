@@ -136,6 +136,7 @@ mkCTag (Tag t) qn = CTag (qnameTypeName qn) (qnameCtorName qn) t 0 0
 litToCore :: Lit -> CExpr
 -- should we put this into a let?
 litToCore (LInt i) = CExpr_App (CExpr_Var $ acoreMkRef $ hsnFromString "UHC.Base.primIntToInteger") (CBound_Bind cmetas (CExpr_Int $ fromInteger i))
+litToCore (LString s) = coreStr s
 litToCore l = error $ "Not implemented literal: " ++ show l
 
 coreImpossible :: CExpr
