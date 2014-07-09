@@ -42,10 +42,8 @@ translateDefn msharp (n, defini) =
       crRep = compiledCore $ defCompiledRep defini
   in case theDef defini of
     d@(Datatype {}) -> do -- become functions returning unit
-        -- TODO why do we need to return something at all here?
---        vars <- replicateM (dataPars d + dataIxs d) newName
---        return . return $ Fun True n' (Just n) ("datatype: " ++ show n) vars UNIT
-          return Nothing
+        vars <- replicateM (dataPars d + dataIxs d) newName
+        return . return $ Fun True n' (Just n) ("datatype: " ++ show n) vars UNIT
     f@(Function{}) -> do
         let projArgs = projectionArgs f
             cc       = fromMaybe __IMPOSSIBLE__ $ funCompiled f
@@ -70,7 +68,10 @@ translateDefn msharp (n, defini) =
         arit <- lift $ constructorArity n
         tag   <- getConstrTag n
         case crRep of
-          Just (CrConstr dt ctr) -> return <$> mkFunGen n (CoreCon dt) (const $ "constructor: " ++ show n) (unqname n) ctr arit
+          Just (CrConstr dt ctr) -> do
+                -- UHC generates a wrapper function for all datatypes, so just call that one
+                let ctorFun = (reverse $ dropWhile (/='.') $ reverse dt) ++ ctr
+                return <$> mkFunGen n (const $ App ctorFun) (const $ "constructor: " ++ show n) (unqname n) ctr arit
           Nothing                -> return <$> mkCon n tag arit
           _                      -> error "Compiled core must be def, something went wrong."
         -- Sharp has to use the primSharp function from AgdaPrelude.e
@@ -123,7 +124,6 @@ translateDefn msharp (n, defini) =
           v:vs' -> subst var v expr @@ vs'
           []    -> __IMPOSSIBLE__
       Con tag qName es -> Con tag qName (es ++ ts)
-      CoreCon dt ctor es -> CoreCon dt ctor (es ++ ts)
       App var es       -> App var (es ++ ts)
       Case expr bs     -> Case expr (map (flip appBranch vs) bs)
 --      If ea eb ec      -> If ea (eb @@ vs) (ec @@ vs)

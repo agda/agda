@@ -78,10 +78,6 @@ exprToCore (Con t qn es) = do
     es' <- mapM exprToCore es
     let ctor = CExpr_Tup $ mkCTag t qn
     return $ foldl (\x e -> CExpr_App x (CBound_Bind cmetas e)) ctor es'
-exprToCore (CoreCon dt con es) = do
-    es' <- mapM exprToCore es
-    let ctor = CExpr_Tup $ CTag (hsnFromString dt) (hsnFromString con) 0 0 0
-    return $ foldl (\x e -> CExpr_App x (CBound_Bind cmetas e)) ctor es'
 exprToCore (App fv es)   = do
     es' <- mapM exprToCore es
     let fv' = CExpr_Var (acoreMkRef $ hsnFromString fv)
@@ -125,7 +121,7 @@ branchesToCore brs = do
           isDefault _ = False
 
 qnameTypeName :: QName -> HsName
-qnameTypeName = hsnFromString . show . qnameFromList . init . qnameToList
+qnameTypeName = hsnFromString . unqname . qnameFromList . init . qnameToList
 
 qnameCtorName :: QName -> HsName
 qnameCtorName = hsnFromString . show . last . qnameToList

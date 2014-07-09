@@ -47,7 +47,6 @@ data Expr
   | Lit Lit
   | Lam Var Expr
   | Con Tag QName [Expr]
-  | CoreCon String String [Expr] -- ^ Datatype name, constructor name, arguments.
   | App Var [Expr]
   | Case Expr [Branch]
   | Let Var Expr Expr
@@ -85,7 +84,6 @@ casee x brs = Case x [br{brExpr = casingE br (brExpr br)} | br <- brs]
       Lit l -> Lit l
       Lam v e -> Lam v (rec e)
       Con t n es -> Con t n (map rec es)
-      CoreCon dt ctor es -> CoreCon dt ctor (map rec es)
       App v es   -> App v (map rec es)
       Case e brs | expr == e -> case filter (sameCon br) brs of
         []  -> Case (rec e) [b {brExpr = rec (brExpr b)} | b <- brs]
@@ -121,7 +119,6 @@ subst var var' expr = case expr of
     Lam v e    | var == v  -> Lam v e
                | otherwise -> Lam v (subst var var' e)
     Con t q es -> Con t q (map (subst var var') es)
-    CoreCon dt ctor es -> CoreCon dt ctor (map (subst var var') es)
     App v es   | var == v  -> App var' (map (subst var var') es)
                | otherwise -> App v    (map (subst var var') es)
     Case e brs -> Case (subst var var' e) (map (substBranch var var') brs)
@@ -149,7 +146,6 @@ fv = S.toList . fv'
       Lit _    -> S.empty
       Lam v e1 -> S.delete v (fv' e1)
       Con _ _ es -> S.unions (map fv' es)
-      CoreCon _ _ es -> S.unions (map fv' es)
       App v es -> S.insert v $ S.unions (map fv' es)
       Case e brs -> fv' e `S.union` S.unions (map fvBr brs)
 --      If a b c   -> S.unions (map fv' [a,b,c])

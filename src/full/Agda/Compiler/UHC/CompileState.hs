@@ -71,7 +71,8 @@ getType q = do
 
 -- | Create a name which can be used in Epic code from a QName.
 unqname :: QName -> Var
-unqname qn = show qn -- case nameId $ qnameName qn of
+unqname qn = show qn
+--case nameId $ qnameName qn of
 --    NameId name modul -> 'd' : show modul
 --                     ++ "_" ++ show name
 

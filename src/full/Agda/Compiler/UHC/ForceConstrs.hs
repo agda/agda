@@ -49,8 +49,6 @@ forceFun (Fun inline name qname comment args expr) =
             -- We only need to apply the non-forced arguments
             forcArgs <- getForcedArgs q
             return $ Con tag q $ notForced forcArgs es
-        CoreCon dt ctor es -> do
-            error "TODO what should happen here?"
         App v es     -> App v <$> mapM forceExpr es
         Case e bs    -> Case <$> forceExpr e <*> mapM forceBranch bs
         Let v e e'   -> lett v <$> forceExpr e <*> forceExpr e'

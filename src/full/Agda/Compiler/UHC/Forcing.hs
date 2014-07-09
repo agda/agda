@@ -174,7 +174,6 @@ forcedExpr vars tele expr = case expr of
     Lit _ -> return expr
     Lam x e -> Lam x <$> rec e -- necessary?
     Con t q es -> Con t q <$> mapM rec es
-    CoreCon dt ctor es -> CoreCon dt ctor <$> mapM rec es
     App v es -> App v <$> mapM rec es
 --    If a b c -> If <$> rec a <*> rec b <*> rec c
     Let v e1 e2 -> Let v <$> rec e1 <*> rec e2
