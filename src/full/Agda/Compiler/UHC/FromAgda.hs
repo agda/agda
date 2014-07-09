@@ -68,7 +68,7 @@ translateDefn msharp (n, defini) =
         arit <- lift $ constructorArity n
         tag   <- getConstrTag n
         case crRep of
-          Just (CrConstr dt ctr) -> do
+          Just (CrConstr dt (ctr, _)) -> do
                 -- UHC generates a wrapper function for all datatypes, so just call that one
                 let ctorFun = (reverse $ dropWhile (/='.') $ reverse dt) ++ ctr
                 return <$> mkFunGen n (const $ App ctorFun) (const $ "constructor: " ++ show n) (unqname n) ctr arit
@@ -221,8 +221,8 @@ compileClauses name nargs c = do
                vars <- replicateM arit newName
                cc'  <- compileClauses' (replaceAt casedvar env vars) omniDefault cc
                case (crr, theDef def) of
-                   (Just (CrConstr dt ctor), Constructor{}) -> do
-                       return $ CoreBranch dt ctor vars cc'
+                   (Just (CrConstr dt (ctor, tag)), Constructor{}) -> do
+                       return $ CoreBranch dt ctor tag vars cc'
                    _  -> do
                        tag <- getConstrTag b
                        return $ Branch tag b vars cc'

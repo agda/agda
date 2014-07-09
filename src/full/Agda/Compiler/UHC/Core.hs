@@ -110,8 +110,8 @@ branchesToCore brs = do
             let binds = [CPatFld_Fld (hsnFromString "") (CExpr_Int i) (CBind_Bind (hsnFromString v) []) [] | (i, v) <- zip [0..] vars]
             e' <- exprToCore e
             return [CAlt_Alt (CPat_Con ctag CPatRest_Empty binds) e']
-          f (CoreBranch dt ctor vars e) = do
-            let ctag = CTag (hsnFromString dt) (hsnFromString ctor) 0 0 0
+          f (CoreBranch dt ctor tag vars e) = do
+            let ctag = CTag (hsnFromString dt) (hsnFromString ctor) (fromIntegral tag) 0 0
             let binds = [CPatFld_Fld (hsnFromString "") (CExpr_Int i) (CBind_Bind (hsnFromString v) []) [] | (i, v) <- zip [0..] vars]
             e' <- exprToCore e
             return [CAlt_Alt (CPat_Con ctag CPatRest_Empty binds) e']

@@ -731,7 +731,8 @@ type EpicCode    = String
 type JSCode      = JS.Exp
 type CoreCode    = CR.CoreExpr
 type CoreType    = String
-type CoreConstr  = String
+-- | Core constructor, consisting of constructor name and tag.
+type CoreConstr  = (String, Integer)
 
 data HaskellRepresentation
       = HsDefn HaskellType HaskellCode

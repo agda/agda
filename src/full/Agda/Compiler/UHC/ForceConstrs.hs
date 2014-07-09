@@ -70,7 +70,7 @@ forceFun (Fun inline name qname comment args expr) =
                   then return e
                   else __IMPOSSIBLE__ -- If so, the removal of forced args has gone wrong
             Branch tag name vs <$> forceExpr e''
-        CoreBranch dt ctor vars e -> do
+        CoreBranch dt ctor tag vars e -> do
            {- ir <- getForcedArgs name
             let vs = notForced ir vars
                 subs = forced ir vars
@@ -78,6 +78,6 @@ forceFun (Fun inline name qname comment args expr) =
             e'' <- if all (`notElem` fv e) subs
                   then return e
                   else __IMPOSSIBLE__ -- If so, the removal of forced args has gone wrong-}
-            return $ CoreBranch dt ctor vars e --tag name vs <$> forceExpr e''
+            return $ CoreBranch dt ctor tag vars e --tag name vs <$> forceExpr e''
         BrInt i e -> BrInt i <$> forceExpr e
         Default e -> Default <$> forceExpr e

@@ -4,6 +4,7 @@ module Agda.Compiler.UHC.CoreSyntax
   ( CoreExpr,
     parseCoreExpr,
     printCoreExpr,
+    parseCoreConstr,
     ehcOpts
   )
 
@@ -14,6 +15,9 @@ where
 
 type CoreExpr = ()
 
+parseCoreConstr :: String -> Either String (String, Integer)
+parseCoreConstr = undefined
+
 parseCoreCode :: String -> Either String CoreExpr
 parseCoreCode = undefined
 
@@ -22,6 +26,8 @@ printCoreExpr = undefined
 
 #else
 
+import Data.Maybe
+import Data.List
 import EH99.Opts.Base
 
 import UHC.Util.Pretty
@@ -45,6 +51,13 @@ import EH99.Base.HsName
 type CoreExpr = CExpr
 
 ehcOpts = defaultEHCOpts { ehcOptCoreOpts = [ CoreOpt_Dump ] }
+
+-- TODO very adhoc, do proper parsing instead
+parseCoreConstr :: String -> Either String (String, Integer)
+parseCoreConstr xs@('(':xss) | last xs == ')' = Right (s1, read $ tail s2)
+  where s = init xss
+        (s1, s2) = splitAt (fromJust $ elemIndex ',' s) s
+parseCoreConstr xs = Left $ "Parse failed: " ++ xs
 
 parseCoreExpr :: String -> Either String CoreExpr
 parseCoreExpr str = case errs of

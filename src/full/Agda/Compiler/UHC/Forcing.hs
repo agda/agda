@@ -188,7 +188,7 @@ forcedExpr vars tele expr = case expr of
               BrInt i <$> forcedExpr (replaceAt n vars []) tele'' e
 
             Default e -> Default <$> rec e
-            CoreBranch dt ctor as e -> return $ CoreBranch dt ctor as e -- TODO this is not correct!
+            CoreBranch dt ctor tag as e -> return $ CoreBranch dt ctor tag as e -- TODO this might not be correct??!!?
             Branch t constr as e -> do
                 typ <- getType constr
                 forc <- getForcedArgs constr

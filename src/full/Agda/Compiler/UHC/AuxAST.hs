@@ -56,7 +56,7 @@ data Expr
 
 data Branch
   = Branch  {brTag  :: Tag, brName :: QName, brVars :: [Var], brExpr :: Expr}
-  | CoreBranch {brDt :: String, brCtor :: String, brVars :: [Var], brExpr :: Expr}
+  | CoreBranch {brDt :: String, brCtor :: String, brCrTag :: Integer, brVars :: [Var], brExpr :: Expr}
   | BrInt   {brInt  :: Int, brExpr :: Expr}
   | Default {brExpr :: Expr}
   deriving (Show, Ord, Eq)
@@ -157,6 +157,6 @@ fv = S.toList . fv'
     fvBr :: Branch -> Set Var
     fvBr b = case b of
       Branch _ _ vs e -> fv' e S.\\ S.fromList vs
-      CoreBranch _ _ vs e -> fv' e S.\\ S.fromList vs
+      CoreBranch _ _ _ vs e -> fv' e S.\\ S.fromList vs
       BrInt _ e       -> fv' e
       Default e       -> fv' e
