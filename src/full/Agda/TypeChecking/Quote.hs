@@ -7,6 +7,7 @@ module Agda.TypeChecking.Quote where
 import Control.Applicative
 import Control.Monad.State (evalState, get, put)
 import Control.Monad.Writer (execWriterT, tell)
+import Control.Monad.Error (catchError)
 import Data.Maybe (fromMaybe)
 import Data.Traversable (traverse)
 
@@ -215,8 +216,8 @@ choice ((mb, mx) : mxs) dflt = do b <- mb
 
 ensureDef :: QName -> TCM QName
 ensureDef x = do
-  i <- getConstInfo x
-  case theDef i of
+  i <- (theDef <$> getConstInfo x) `catchError` \_ -> return Axiom  -- for recursive unquoteDecl
+  case i of
     Constructor{} -> do
       def <- prettyTCM =<< primAgdaTermDef
       con <- prettyTCM =<< primAgdaTermCon
@@ -226,8 +227,8 @@ ensureDef x = do
 
 ensureCon :: QName -> TCM QName
 ensureCon x = do
-  i <- getConstInfo x
-  case theDef i of
+  i <- (theDef <$> getConstInfo x) `catchError` \_ -> return Axiom  -- for recursive unquoteDecl
+  case i of
     Constructor{} -> return x
     _ -> do
       def <- prettyTCM =<< primAgdaTermDef
