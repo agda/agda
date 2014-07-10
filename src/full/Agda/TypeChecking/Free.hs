@@ -165,7 +165,7 @@ instance Free Term where
     MetaV _ ts -> flexible $ freeVars' conf ts
     DontCare mt -> irrelevantly $ freeVars' conf mt
     Shared p    -> freeVars' conf (derefPtr p)
-    ExtLam{}    -> __IMPOSSIBLE__
+    ExtLam cs ts -> freeVars' conf (cs, ts)
 
 instance Free Type where
   freeVars' conf (El s t)
@@ -231,6 +231,9 @@ instance Free ClauseBody where
   freeVars' conf (Body t)   = freeVars' conf t
   freeVars' conf (Bind b)   = freeVars' conf b
   freeVars' conf  NoBody    = empty
+
+instance Free Clause where
+  freeVars' conf = freeVars' conf . clauseBody
 
 freeIn :: Free a => Nat -> a -> Bool
 freeIn v t = v `Set.member` allVars (freeVars t)

@@ -611,7 +611,7 @@ instance Subst Term where
     Sort s      -> sortTm $ applySubst rho s
     Shared p    -> Shared $ applySubst rho p
     DontCare mv -> dontCare $ applySubst rho mv
-    ExtLam _ _  -> __IMPOSSIBLE__
+    ExtLam cs es-> ExtLam (applySubst rho cs) (applySubst rho es)
 
 instance Subst a => Subst (Ptr a) where
   applySubst rho = fmap (applySubst rho)
@@ -728,6 +728,11 @@ instance Subst ClauseBody where
   applySubst rho (Body t) = Body $ applySubst rho t
   applySubst rho (Bind b) = Bind $ applySubst rho b
   applySubst _   NoBody   = NoBody
+
+instance Subst Clause where
+  -- NOTE: This only happens when reifying extended lambdas, in which case there are
+  -- no interesting dot patterns and we don't care about the type.
+  applySubst rho c = c { clauseBody = applySubst rho $ clauseBody c }
 
 ---------------------------------------------------------------------------
 -- * Telescopes
