@@ -369,7 +369,7 @@ instance Unquote Term where
     case ignoreSharing t of
       Con c [] ->
         choice
-          [(c `isCon` primAgdaTermUnsupported, unquoteFailed "Term" "unsupported term" t)]
+          [(c `isCon` primAgdaTermUnsupported, pure hackReifyToMeta)]
           (unquoteFailed "Term" "arity 0 and not the `unsupported' constructor" t)
 
       Con c [x] -> do
