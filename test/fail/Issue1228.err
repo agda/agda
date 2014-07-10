@@ -1,2 +1,2 @@
 Issue1228.agda:32,24-26
-Not a constructor: Issue1228.tt
+Use def instead of con for non-constructor tt
