@@ -7,6 +7,7 @@ import Control.Applicative ((<$>))
 import Data.Maybe (fromMaybe)
 
 import Agda.Syntax.Common
+import Agda.Syntax.Position
 import Agda.Syntax.Internal as I
 
 import Agda.TypeChecking.Monad
@@ -25,7 +26,11 @@ import Agda.Utils.Impossible
 
 -- | Get true constructor with record fields.
 getConHead :: QName -> TCM ConHead
-getConHead c = conSrcCon . theDef <$> getConstInfo c
+getConHead c = do
+  i <- getConstInfo c
+  case theDef i of
+    Constructor{ conSrcCon = h } -> return h
+    _ -> setCurrentRange (getRange c) $ typeError $ GenericError $ "Not a constructor: " ++ show c
 
 -- | Get true constructor as term.
 getConTerm :: QName -> TCM Term
