@@ -300,7 +300,11 @@ instance Reify Term Expr where
   reify v = reifyTerm True v
 
 reifyTerm :: Bool -> Term -> TCM Expr
-reifyTerm expandAnonDefs v = do
+reifyTerm expandAnonDefs0 v = do
+    hasDisplayForms <- displayFormsEnabled
+    -- Ulf 2014-07-10: Don't expand anonymous when display forms are disabled
+    -- (i.e. when we don't care about nice printing)
+    let expandAnonDefs = expandAnonDefs0 && hasDisplayForms
     v <- unSpine <$> instantiate v
     case v of
       _ | isHackReifyToMeta v -> return $ A.Underscore emptyMetaInfo
