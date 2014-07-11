@@ -60,7 +60,6 @@ bracesAndSemicolons (d : ds) =
 
 arrow  = text "\x2192"
 lambda = text "\x03bb"
-underscore = text "_"
 
 pHidden :: Pretty a => ArgInfo -> a -> Doc
 pHidden i = bracks h . pretty

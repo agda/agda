@@ -103,8 +103,9 @@ reifyIArgs' = mapM reifyIArg'
 exprInfo :: ExprInfo
 exprInfo = ExprRange noRange
 
-underscore :: Expr
-underscore = A.Underscore $ Info.emptyMetaInfo
+instance Underscore Expr where
+  underscore   = A.Underscore $ Info.emptyMetaInfo
+  isUnderscore = __IMPOSSIBLE__
 
 -- Conditional reification to omit terms that are not shown --------------
 
@@ -900,7 +901,7 @@ instance (Free i, Reify i a) => Reify (Abs i) (Name, a) where
 
     -- If the bound variable is free in the body, then the name "_" is
     -- replaced by "z".
-    s <- return $ if s == "_" && 0 `freeIn` v then "z" else s
+    s <- return $ if isUnderscore s && 0 `freeIn` v then "z" else s
 
     x <- freshName_ s
     e <- addCtx x dummyDom -- type doesn't matter

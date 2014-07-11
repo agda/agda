@@ -112,7 +112,7 @@ compile cs = case nextSplit cs of
     []          -> __IMPOSSIBLE__
   where
     name (VarP x) = x
-    name (DotP _) = "_"
+    name (DotP _) = underscore
     name ConP{}  = __IMPOSSIBLE__
     name LitP{}  = __IMPOSSIBLE__
     name ProjP{} = __IMPOSSIBLE__
@@ -218,7 +218,7 @@ expandCatchAlls single n cs =
 
     expand ps b q =
       case q of
-        ConP c _ qs' -> (ps0 ++ [defaultArg $ ConP c Nothing (genericReplicate m $ defaultArg $ unnamed $ VarP "_")] ++ ps1,
+        ConP c _ qs' -> (ps0 ++ [defaultArg $ ConP c Nothing (genericReplicate m $ defaultArg $ unnamed $ VarP underscore)] ++ ps1,
                          substBody n' m (Con c (map var [m - 1, m - 2..0])) b)
           where m = length qs'
         LitP l -> (ps0 ++ [defaultArg $ LitP l] ++ ps1, substBody n' 0 (Lit l) b)
@@ -240,7 +240,7 @@ expandCatchAlls single n cs =
 substBody :: Int -> Int -> Term -> ClauseBody -> ClauseBody
 substBody _ _ _ NoBody = NoBody
 substBody 0 m v b = case b of
-  Bind   b -> foldr (.) id (replicate m (Bind . Abs "_")) $ subst v (absBody $ raise m b)
+  Bind   b -> foldr (.) id (replicate m (Bind . Abs underscore)) $ subst v (absBody $ raise m b)
   _        -> __IMPOSSIBLE__
 substBody n m v b = case b of
   Bind b   -> Bind $ fmap (substBody (n - 1) m v) b

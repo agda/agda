@@ -310,8 +310,8 @@ data Pattern
   deriving (Typeable, Show)
 
 namedVarP :: String -> Named RString Pattern
-namedVarP "_" = Named Nothing (VarP "_")
-namedVarP x   = Named (Just $ unranged x) (VarP x)
+namedVarP x = Named named $ VarP x
+  where named = if isUnderscore x then Nothing else Just $ unranged x
 
 -- | The @ConPatternInfo@ states whether the constructor belongs to
 --   a record type (@Just@) or data type (@Nothing@).

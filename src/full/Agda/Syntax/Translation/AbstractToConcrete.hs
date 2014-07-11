@@ -174,7 +174,7 @@ lookupQName x = do
     Just y  -> return y
     Nothing -> do
       let y = qnameToConcrete x
-      if show y == "_"
+      if isUnderscore y
         then return y
         else return $ C.Qual (C.Name noRange [Id empty]) y
         -- this is what happens for names that are not in scope (private names)

@@ -12,6 +12,8 @@ module Agda.Syntax.Concrete.Name where
 import Control.DeepSeq
 import Control.Applicative
 
+import Data.ByteString.Char8 (ByteString)
+import qualified Data.ByteString.Char8 as ByteString
 import Data.List
 import Data.Typeable (Typeable)
 
@@ -42,11 +44,17 @@ data Name
 
 instance NFData Name
 
+instance Underscore Name where
+  underscore = NoName noRange __IMPOSSIBLE__
+  isUnderscore NoName{}        = True
+  isUnderscore (Name _ [Id x]) = isUnderscore x
+  isUnderscore _               = False
+
 -- | Mixfix identifiers are composed of words and holes,
 --   e.g. @_+_@ or @if_then_else_@ or @[_/_]@.
 data NamePart
   = Hole       -- ^ @_@ part.
-  | Id String  -- ^ Identifier part.
+  | Id ByteString  -- ^ Identifier part.
   deriving (Typeable)
 
 -- | Define equality on @Name@ to ignore range so same names in different
@@ -91,6 +99,11 @@ data QName
   = Qual  Name QName -- ^ @A.rest@.
   | QName Name       -- ^ @x@.
   deriving (Typeable, Eq, Ord)
+
+instance Underscore QName where
+  underscore = QName underscore
+  isUnderscore (QName x) = isUnderscore x
+  isUnderscore Qual{}    = False
 
 -- | Top-level module names.  Used in connection with the file system.
 --
@@ -207,7 +220,10 @@ class IsNoName a where
   isNoName :: a -> Bool
 
 instance IsNoName String where
-  isNoName = (== "_")
+  isNoName = isUnderscore
+
+instance IsNoName ByteString where
+  isNoName = isUnderscore
 
 instance IsNoName Name where
   isNoName (NoName _ _)    = True

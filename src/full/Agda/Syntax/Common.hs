@@ -11,14 +11,20 @@
 module Agda.Syntax.Common where
 
 import Control.Applicative
-import Data.Typeable (Typeable)
+
+import Data.ByteString.Char8 (ByteString)
+import qualified Data.ByteString.Char8 as ByteString
 import Data.Foldable
-import Data.Traversable
 import Data.Hashable
+import Data.Traversable
+import Data.Typeable (Typeable)
+
 import Test.QuickCheck
 
 import Agda.Syntax.Position
+
 import Agda.Utils.Functor
+import Agda.Utils.Pretty
 import Agda.Utils.Size
 
 #include "../undefined.h"
@@ -340,6 +346,24 @@ xs `withArgsFrom` args =
 withNamedArgsFrom :: [a] -> [NamedArg c b] -> [NamedArg c a]
 xs `withNamedArgsFrom` args =
   zipWith (\x -> fmap (x <$)) xs args
+
+---------------------------------------------------------------------------
+-- * Names
+---------------------------------------------------------------------------
+
+class Eq a => Underscore a where
+  underscore   :: a
+  isUnderscore :: a -> Bool
+  isUnderscore = (== underscore)
+
+instance Underscore String where
+  underscore = "_"
+
+instance Underscore ByteString where
+  underscore = ByteString.pack underscore
+
+instance Underscore Doc where
+  underscore = text underscore
 
 ---------------------------------------------------------------------------
 -- * Function type domain
