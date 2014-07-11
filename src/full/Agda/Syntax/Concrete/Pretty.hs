@@ -473,7 +473,7 @@ instance Pretty e => Pretty (Arg e) where
                -- TODO guilhem: print colors
                pHidden (argInfo a) $ unArg a
 
-instance Pretty e => Pretty (Named RString e) where
+instance Pretty e => Pretty (Named_ e) where
     pretty (Named Nothing e) = pretty e
     pretty (Named (Just s) e) = sep [ text (rangedThing s) <+> text "=", pretty e ]
 

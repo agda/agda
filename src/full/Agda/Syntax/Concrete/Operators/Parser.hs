@@ -24,8 +24,8 @@ data ExprView e
     | OtherV e
     | AppV e (NamedArg e)
     | OpAppV QName [NamedArg (OpApp e)]
-    | HiddenArgV (Named RString e)
-    | InstanceArgV (Named RString e)
+    | HiddenArgV (Named_ e)
+    | InstanceArgV (Named_ e)
     | LamV [LamBinding] e
     | ParenV e
 --    deriving (Show)

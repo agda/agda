@@ -423,11 +423,15 @@ defaultDom = Dom defaultArgInfo
 -- * Named arguments
 ---------------------------------------------------------------------------
 
+-- | Something potentially carrying a name.
 data Named name a =
     Named { nameOf     :: Maybe name
 	  , namedThing :: a
 	  }
     deriving (Eq, Ord, Typeable, Functor, Foldable, Traversable)
+
+-- | Standard naming.
+type Named_ = Named RString
 
 unnamed :: a -> Named name a
 unnamed = Named Nothing
@@ -447,12 +451,12 @@ instance (KillRange name, KillRange a) => KillRange (Named name a) where
 instance Sized a => Sized (Named name a) where
   size = size . namedThing
 
-instance Show a => Show (Named RString a) where
+instance Show a => Show (Named_ a) where
     show (Named Nothing x)  = show x
     show (Named (Just n) x) = rangedThing n ++ " = " ++ show x
 
 -- | Only 'Hidden' arguments can have names.
-type NamedArg c a = Arg c (Named RString a)
+type NamedArg c a = Arg c (Named_ a)
 
 -- | Get the content of a 'NamedArg'.
 namedArg :: NamedArg c a -> a

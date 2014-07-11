@@ -1600,7 +1600,7 @@ isEqual e =
     Equal _ a b -> Just (stripSingletonRawApp a, stripSingletonRawApp b)
     _           -> Nothing
 
-maybeNamed :: Expr -> Named RString Expr
+maybeNamed :: Expr -> Named_ Expr
 maybeNamed e =
   case isEqual e of
     Just (Ident (QName x), b) -> named (Ranged (getRange x) (show x)) b
