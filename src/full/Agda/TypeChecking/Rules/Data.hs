@@ -269,8 +269,8 @@ bindParameters ps0@(A.DomainFree info x : ps) (El _ (Pi arg@(Dom info' a) b)) re
   -- Andreas, 2011-04-07 ignore relevance information in binding?!
     | argInfoHiding info /= argInfoHiding info' =
 	__IMPOSSIBLE__
-		    ret (ExtendTel arg $ Abs (show x) tel) s
     | otherwise = addContext (x, arg) $ bindParameters ps (absBody b) $ \tel s ->
+		    ret (ExtendTel arg $ Abs (nameToArgName x) tel) s
 bindParameters bs (El s (Shared p)) ret = bindParameters bs (El s $ derefPtr p) ret
 bindParameters (b : bs) t _ = __IMPOSSIBLE__
 {- Andreas, 2012-01-17 Concrete.Definitions ensures number and hiding of parameters to be correct

@@ -201,7 +201,8 @@ instance (GenC c, GenC a) => GenC (Common.Dom c a) where
   genC conf = (\ (h, a) -> Dom (setHiding h defaultArgInfo) a) <$> genC conf
 
 instance GenC a => GenC (Abs a) where
-  genC conf = Abs "x" <$> genC (extendConf conf)
+  genC conf = Abs x <$> genC (extendConf conf)
+    where x = stringToArgName "x"
 
 instance GenC a => GenC (Elim' a) where
   genC conf = frequency [ (applyF, Apply <$> genC conf)

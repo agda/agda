@@ -5,6 +5,7 @@
 module Agda.TypeChecking.Quote where
 
 import Control.Applicative
+
 import Data.Maybe (fromMaybe)
 
 import Agda.Syntax.Position
@@ -235,8 +236,8 @@ instance Unquote ConHead where
   unquote t = getConHead =<< unquote t
 
 instance Unquote a => Unquote (Abs a) where
-  unquote t = do x <- freshNoName_
-                 Abs (show x) <$> unquote t
+  unquote t = do x <- freshNoName_ -- Andreas, 2014-07-11 This is pointless, as it does NOT generate a name suggestion.
+                 Abs (nameToArgName x) <$> unquote t
 
 instance Unquote Sort where
   unquote t = do

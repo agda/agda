@@ -287,10 +287,10 @@ etaExpandBoundVar i = do
   -- Construct @Δ@ as telescope.
   -- Note @Γ₁, x:_ ⊢ Γ₂@, thus, @Γ₁, Γ' ⊢ [τ₀]Γ₂@
 
-      rev   = foldl (\ l (Dom ai (n, t)) -> Dom ai (show n, t) : l) []
+      rev   = foldl (\ l (Dom ai (n, t)) -> Dom ai (nameToArgName n, t) : l) []
       -- Use "f(x)" as variable name for the projection f(x).
       s     = show x
-      tel'  = mapAbsNames (\ f -> f ++ "(" ++ s ++ ")") tel
+      tel'  = mapAbsNames (\ f -> stringToArgName $ argNameToString f ++ "(" ++ s ++ ")") tel
       delta = telFromList $ rev gamma1 ++ telToList tel' ++ rev (applySubst tau0 gamma2)
 
   return (delta, sigma, tau)

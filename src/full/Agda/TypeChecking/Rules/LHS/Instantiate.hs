@@ -112,7 +112,7 @@ instantiateTel s tel = liftTCM $ do
   -- Raise error if telescope cannot be ordered.
   let failToReorder = inTopContext $ addContext names3 $ do
         err <- sep [ text "Recursive telescope in left hand side:"
-                   , fsep [ parens (text x <+> text ":" <+> prettyTCM t)
+                   , fsep [ parens (text (argNameToString x) <+> text ":" <+> prettyTCM t)
                           | (x, t) <- zip names3 tel3 ]
                    ]
         typeError $ GenericError $ show err

@@ -501,7 +501,7 @@ reifyTerm expandAnonDefs v = do
            napps (A.Def x `apps` pad) =<< reifyIArgs vs
 
 -- | @nameFirstIfHidden n (a1->...an->{x:a}->b) ({e} es) = {x = e} es@
-nameFirstIfHidden :: [I.Dom (String, t)] -> [I.Arg a] -> [I.NamedArg a]
+nameFirstIfHidden :: [I.Dom (ArgName, t)] -> [I.Arg a] -> [I.NamedArg a]
 nameFirstIfHidden _         []                    = []
 nameFirstIfHidden []        (_ : _)               = __IMPOSSIBLE__
 nameFirstIfHidden (dom : _) (Common.Arg info e : es) | isHidden info =

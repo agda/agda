@@ -626,10 +626,10 @@ introHiddenLambdas clause = liftTCM $ do
   where
     toPat (Common.Arg (Common.ArgInfo h r c) x) =
            Common.Arg (Common.ArgInfo h r []) $ namedVarP x
-    removeHiddenLambdas :: ClauseBody -> ([I.Arg String], ClauseBody)
+    removeHiddenLambdas :: ClauseBody -> ([I.Arg ArgName], ClauseBody)
     removeHiddenLambdas = underBinds $ hlamsToBinds
 
-    hlamsToBinds :: Term -> ([I.Arg String], ClauseBody)
+    hlamsToBinds :: Term -> ([I.Arg ArgName], ClauseBody)
     hlamsToBinds v =
       case ignoreSharing v of
         Lam info b | getHiding info == Hidden ->

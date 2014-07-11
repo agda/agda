@@ -47,7 +47,7 @@ data CompiledClauses
     -- ^ @CoCase n bs@ matches on projections.
     --   Catch-all is not meaningful here.
 -}
-  | Done [Arg String] Term
+  | Done [Arg ArgName] Term
     -- ^ @Done xs b@ stands for the body @b@ where the @xs@ contains hiding
     --   and name suggestions for the free variables. This is needed to build
     --   lambdas on the right hand side for partial applications which can

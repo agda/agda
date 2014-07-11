@@ -134,14 +134,29 @@ data Elim' a = Apply (Arg a) | Proj QName -- ^ name of a record projection
 type Elim = Elim' Term
 type Elims = [Elim]  -- ^ eliminations ordered left-to-right.
 
+-- | Names in binders and arguments.
+type ArgName = String
+
+argNameToString :: ArgName -> String
+argNameToString = id
+
+stringToArgName :: String -> ArgName
+stringToArgName = id
+
+appendArgNames :: ArgName -> ArgName -> ArgName
+appendArgNames = (++)
+
+nameToArgName :: Name -> ArgName
+nameToArgName = stringToArgName . show
+
 -- | Binder.
 --   'Abs': The bound variable might appear in the body.
 --   'NoAbs' is pseudo-binder, it does not introduce a fresh variable,
 --      similar to the @const@ of Haskell.
-data Abs a = Abs   { absName :: String, unAbs :: a }
+data Abs a = Abs   { absName :: ArgName, unAbs :: a }
                -- ^ The body has (at least) one free variable.
                --   Danger: 'unAbs' doesn't shift variables properly
-           | NoAbs { absName :: String, unAbs :: a }
+           | NoAbs { absName :: ArgName, unAbs :: a }
   deriving (Typeable, Functor, Foldable, Traversable)
 
 -- | Types are terms with a sort annotation.
@@ -162,14 +177,14 @@ data Tele a = EmptyTel
 
 type Telescope = Tele (Dom Type)
 
-mapAbsNamesM :: Applicative m => (String -> m String) -> Tele a -> m (Tele a)
+mapAbsNamesM :: Applicative m => (ArgName -> m ArgName) -> Tele a -> m (Tele a)
 mapAbsNamesM f EmptyTel                  = pure EmptyTel
 mapAbsNamesM f (ExtendTel a (Abs x b))   = ExtendTel a <$> (Abs <$> f x <*> mapAbsNamesM f b)
 mapAbsNamesM f (ExtendTel a (NoAbs x b)) = ExtendTel a <$> (NoAbs <$> f x <*> mapAbsNamesM f b)
   -- Ulf, 2013-11-06: Last case is really impossible but I'd rather find out we
   --                  violated that invariant somewhere other than here.
 
-mapAbsNames :: (String -> String) -> Tele a -> Tele a
+mapAbsNames :: (ArgName -> ArgName) -> Tele a -> Tele a
 mapAbsNames f = runIdentity . mapAbsNamesM (Identity . f)
 
 -- Ulf, 2013-11-06
@@ -180,7 +195,7 @@ mapAbsNames f = runIdentity . mapAbsNamesM (Identity . f)
 -- TypeChecking.Monad.Signature.addConstant (to handle functions defined in
 -- record modules) and TypeChecking.Rules.Record.checkProjection (to handle
 -- record projections).
-replaceEmptyName :: AbsName -> Tele a -> Tele a
+replaceEmptyName :: ArgName -> Tele a -> Tele a
 replaceEmptyName x = mapAbsNames $ \ y -> if null y then x else y
 
 -- | Sorts.
@@ -292,6 +307,15 @@ type ClauseBody = ClauseBodyF Term
 instance HasRange Clause where
   getRange = clauseRange
 
+-- | Pattern variables.
+type PatVarName = ArgName
+
+patVarNameToString :: PatVarName -> String
+patVarNameToString = argNameToString
+
+nameToPatVarName :: Name -> PatVarName
+nameToPatVarName = nameToArgName
+
 -- | Patterns are variables, constructors, or wildcards.
 --   @QName@ is used in @ConP@ rather than @Name@ since
 --     a constructor might come from a particular namespace.
@@ -299,8 +323,8 @@ instance HasRange Clause where
 --     the arguments we are matching with) use @QName@.
 --
 data Pattern
-  = VarP String
-    -- ^ The @String@ is a name suggestion.
+  = VarP PatVarName
+    -- ^ The @PatVarName@ is a name suggestion.
   | DotP Term
   | ConP ConHead ConPatternInfo [NamedArg Pattern]
     -- ^ The @Pattern@s do not contain any projection copatterns.
@@ -309,7 +333,7 @@ data Pattern
     -- ^ Projection copattern.  Can only appear by itself.
   deriving (Typeable, Show)
 
-namedVarP :: String -> Named RString Pattern
+namedVarP :: PatVarName -> Named (Ranged PatVarName) Pattern
 namedVarP x = Named named $ VarP x
   where named = if isUnderscore x then Nothing else Just $ unranged x
 
@@ -324,7 +348,7 @@ type ConPatternInfo = Maybe (Bool, Arg Type)
 
 -- | Extract pattern variables in left-to-right order.
 --   A 'DotP' is also treated as variable (see docu for 'Clause').
-patternVars :: Arg Pattern -> [Arg (Either String Term)]
+patternVars :: Arg Pattern -> [Arg (Either PatVarName Term)]
 patternVars (Common.Arg i (VarP x)     ) = [Common.Arg i $ Left x]
 patternVars (Common.Arg i (DotP t)     ) = [Common.Arg i $ Right t]
 patternVars (Common.Arg i (ConP _ _ ps)) = List.concat $ map (patternVars . fmap namedThing) ps
@@ -347,11 +371,17 @@ properlyMatching ProjP{} = True
 -- | Absurd lambdas are internally represented as identity
 --   with variable name "()".
 absurdBody :: Abs Term
-absurdBody = Abs "()" $ Var 0 []
+absurdBody = Abs absurdPatternName $ Var 0 []
 
 isAbsurdBody :: Abs Term -> Bool
-isAbsurdBody (Abs "()" (Var 0 [])) = True
-isAbsurdBody _                     = False
+isAbsurdBody (Abs x (Var 0 [])) = isAbsurdPatternName x
+isAbsurdBody _                  = False
+
+absurdPatternName :: PatVarName
+absurdPatternName = "()"
+
+isAbsurdPatternName :: PatVarName -> Bool
+isAbsurdPatternName x = x == absurdPatternName
 
 ---------------------------------------------------------------------------
 -- * Pointers and Sharing
@@ -467,7 +497,7 @@ impossibleTerm file line = Lit $ LitString noRange $ unlines
   , "Location of the error: " ++ file ++ ":" ++ show line
   ]
 
-sgTel :: Dom (String, Type) -> Telescope
+sgTel :: Dom (ArgName, Type) -> Telescope
 sgTel (Common.Dom ai (x, t)) = ExtendTel (Common.Dom ai t) $ Abs x EmptyTel
 
 ---------------------------------------------------------------------------
@@ -508,7 +538,7 @@ arity t = case ignoreSharing $ unEl t of
 argName :: Type -> String
 argName = argN . ignoreSharing . unEl
     where
-	argN (Pi _ b)  = "." ++ absName b
+	argN (Pi _ b)  = "." ++ argNameToString (absName b)
 	argN _	  = __IMPOSSIBLE__
 
 -- | Pick the better name suggestion, i.e., the one that is not just underscore.

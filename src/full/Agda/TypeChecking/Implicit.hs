@@ -34,7 +34,7 @@ implicitArgs n expand t = mapFst (map (fmap namedThing)) <$> do
 -- | @implicitNamedArgs n expand t@ generates up to @n@ named implicit arguments
 --   metas (unbounded if @n<0@), as long as @t@ is a function type
 --   and @expand@ holds on the hiding and name info of its domain.
-implicitNamedArgs :: Int -> (Hiding -> String -> Bool) -> Type -> TCM (NamedArgs, Type)
+implicitNamedArgs :: Int -> (Hiding -> ArgName -> Bool) -> Type -> TCM (NamedArgs, Type)
 implicitNamedArgs 0 expand t0 = return ([], t0)
 implicitNamedArgs n expand t0 = do
     t0' <- reduce t0
@@ -43,7 +43,7 @@ implicitNamedArgs n expand t0 = do
           when (getHiding info == Instance) $ reportSLn "tc.term.args.ifs" 15 $
             "inserting instance meta for type " ++ show a
           v  <- applyRelevanceToContext (getRelevance info) $
-                newMeta (getHiding info) x a
+                newMeta (getHiding info) (argNameToString x) a
           let narg = Arg info (Named (Just $ unranged x) v)
           mapFst (narg :) <$> implicitNamedArgs (n-1) expand (absApp b v)
       _ -> return ([], t0')
@@ -77,7 +77,7 @@ introImplicits expand t = do
 data ImplicitInsertion
       = ImpInsert [Hiding]	  -- ^ this many implicits have to be inserted
       | BadImplicits	  -- ^ hidden argument where there should have been a non-hidden arg
-      | NoSuchName String -- ^ bad named argument
+      | NoSuchName ArgName -- ^ bad named argument
       | NoInsertNeeded
   deriving (Show)
 
@@ -86,7 +86,7 @@ impInsert [] = NoInsertNeeded
 impInsert hs = ImpInsert hs
 
 -- | The list should be non-empty.
-insertImplicit :: A.NamedArg e -> [I.Arg String] -> ImplicitInsertion
+insertImplicit :: A.NamedArg e -> [I.Arg ArgName] -> ImplicitInsertion
 insertImplicit _ [] = __IMPOSSIBLE__
 insertImplicit a ts | notHidden a = impInsert $ nofHidden ts
   where
@@ -101,6 +101,7 @@ insertImplicit a ts =
     upto h (NotHidden:_) = Nothing
     upto h (h':_) | h == h' = Just []
     upto h (h':hs) = (h':) <$> upto h hs
+    find :: [Hiding] -> ArgName -> Hiding -> [I.Arg ArgName] -> ImplicitInsertion
     find _ x _ (a@(Arg{}) : _) | notHidden a = NoSuchName x
     find hs x hidingx (a@(Arg _ y) : ts)
       | x == y && hidingx == getHiding a = impInsert $ reverse hs

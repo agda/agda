@@ -257,12 +257,11 @@ checkLambda (Arg info (A.TBind _ xs typ)) body target = do
         -- check.
         (pid, argT) <- newProblem $ isTypeEqualTo typ (unDom arg)
         v <- add y (Dom (setRelevance r' info) argT) $ checkExpr body btyp
-        blockTermOnProblem target (Lam info $ Abs (show xc) v) pid
+        blockTermOnProblem target (Lam info $ Abs (nameToArgName x) v) pid
       where
         [x] = xs
-        xc  = nameConcrete x
-        add y dom | isNoName xc = addContext (y, dom)
-                  | otherwise   = addContext (x, dom)
+        add y dom | isNoName x = addContext (y, dom)
+                  | otherwise  = addContext (x, dom)
     useTargetType _ _ = __IMPOSSIBLE__
 
 -- | @checkAbsurdLambda i h e t@ checks absurd lambda against type @t@.

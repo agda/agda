@@ -452,8 +452,8 @@ abstractArgs args x = abstract tel x
     where
         tel   = foldr (\(Common.Arg info x) -> ExtendTel (Common.Dom info $ sort Prop) . Abs x)
                       EmptyTel
-              $ zipWith (fmap . const) names args
-        names = cycle $ map (:[]) ['a'..'z']
+              $ zipWith (<$) names args
+        names = cycle $ map (stringToArgName . (:[])) ['a'..'z']
 
 ---------------------------------------------------------------------------
 -- * Explicit substitutions
@@ -726,9 +726,9 @@ data TelV a  = TelV { theTel :: Tele (Dom a), theCore :: a }
   deriving (Typeable, Show, Eq, Ord, Functor)
 
 type ListTel' a = [Dom (a, Type)]
-type ListTel = ListTel' String
+type ListTel = ListTel' ArgName
 
-telFromList' :: (a -> String) -> ListTel' a -> Telescope
+telFromList' :: (a -> ArgName) -> ListTel' a -> Telescope
 telFromList' f = foldr extTel EmptyTel
   where
     extTel (Common.Dom info (x, a)) = ExtendTel (Common.Dom info a) . Abs (f x)
@@ -748,7 +748,7 @@ bindsToTel' f []     t = []
 bindsToTel' f (x:xs) t = fmap (f x,) t : bindsToTel' f xs (raise 1 t)
 
 bindsToTel :: [Name] -> Dom Type -> ListTel
-bindsToTel = bindsToTel' (show . nameConcrete)
+bindsToTel = bindsToTel' nameToArgName
 
 telView' :: Type -> TelView
 telView' t = case ignoreSharing $ unEl t of
@@ -758,7 +758,7 @@ telView' t = case ignoreSharing $ unEl t of
     absV a x (TelV tel t) = TelV (ExtendTel a (Abs x tel)) t
 
 -- | @mkPi dom t = telePi (telFromList [dom]) t@
-mkPi :: Dom (String, Type) -> Type -> Type
+mkPi :: Dom (ArgName, Type) -> Type -> Type
 mkPi (Common.Dom info (x, a)) b = el $ Pi (Common.Dom info a) (mkAbs x b)
   where
     el = El $ dLub (getSort a) (Abs x (getSort b)) -- dLub checks x freeIn
@@ -835,7 +835,7 @@ absBody :: Subst t => Abs t -> t
 absBody (Abs   _ v) = v
 absBody (NoAbs _ v) = raise 1 v
 
-mkAbs :: (Subst a, Free a) => String -> a -> Abs a
+mkAbs :: (Subst a, Free a) => ArgName -> a -> Abs a
 mkAbs x v | 0 `freeIn` v = Abs x v
           | otherwise    = NoAbs x (raise (-1) v)
 
