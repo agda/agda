@@ -8,10 +8,11 @@ module Agda.TypeChecking.Monad.Signature where
 import Control.Applicative
 import Control.Monad.State
 import Control.Monad.Reader
+
+import Data.List
 import Data.Map (Map)
 import qualified Data.Map as Map
 import Data.Maybe
-import Data.List
 
 import Agda.Syntax.Abstract.Name
 import Agda.Syntax.Common

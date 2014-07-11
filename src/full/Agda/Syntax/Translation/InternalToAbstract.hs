@@ -32,14 +32,14 @@ import Control.Monad.State hiding (mapM_, mapM)
 import Control.Monad.Error hiding (mapM_, mapM)
 import Control.Monad.Reader hiding (mapM_, mapM)
 
-import qualified Data.Set as Set
-import Data.Set (Set)
-import qualified Data.Map as Map
+import Data.Foldable (foldMap)
 import Data.List hiding (sort)
-import Data.Traversable as Trav
+import qualified Data.Map as Map
 import Data.Maybe
 import Data.Monoid
-import Data.Foldable (foldMap)
+import Data.Set (Set)
+import qualified Data.Set as Set
+import Data.Traversable as Trav
 
 import Agda.Syntax.Literal
 import Agda.Syntax.Position

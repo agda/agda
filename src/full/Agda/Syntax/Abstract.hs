@@ -20,11 +20,12 @@ module Agda.Syntax.Abstract
 import Prelude hiding (foldl, foldr)
 import Control.Arrow ((***), first, second)
 import Control.Applicative
+
+import Data.Foldable as Fold
+import Data.Map (Map)
 import Data.Sequence (Seq, (<|), (><))
 import qualified Data.Sequence as Seq
-import Data.Foldable as Fold
 import Data.Traversable
-import Data.Map (Map)
 import Data.Typeable (Typeable)
 
 import qualified Agda.Syntax.Concrete as C

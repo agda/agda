@@ -11,9 +11,9 @@ import Control.Monad.Reader
 import Control.Monad.State
 import Control.Monad.Error
 
-import Data.Traversable hiding (mapM, sequence)
 import Data.List hiding (sort)
 import qualified Data.List as List
+import Data.Traversable hiding (mapM, sequence)
 
 import Agda.Syntax.Abstract.Views (isSet)
 import Agda.Syntax.Common
