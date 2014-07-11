@@ -5,10 +5,11 @@ module Issue899 where
 postulate
   A B : Set
   f : {{ x : A }} → B
-  a : A
+  instance a : A
 
-a' : A
-a' = a
+instance
+  a' : A
+  a' = a
 
 test : B
 test = f

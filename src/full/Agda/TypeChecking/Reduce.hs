@@ -1172,7 +1172,7 @@ instance InstantiateFull Clause where
 
 instance InstantiateFull Interface where
     instantiateFull' (Interface h ms mod scope inside
-                               sig b hsImports highlighting pragmas patsyns) =
+                               sig b hsImports highlighting pragmas patsyns instdefs) =
 	Interface h ms mod scope inside
 	    <$> instantiateFull' sig
 	    <*> instantiateFull' b
@@ -1180,6 +1180,7 @@ instance InstantiateFull Interface where
             <*> return highlighting
             <*> return pragmas
             <*> return patsyns
+            <*> return instdefs
 
 instance InstantiateFull a => InstantiateFull (Builtin a) where
     instantiateFull' (Builtin t) = Builtin <$> instantiateFull' t

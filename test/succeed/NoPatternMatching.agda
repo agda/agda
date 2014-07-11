@@ -13,6 +13,6 @@ K = const
 S = happ
 
 I : {A : Set} (x : A) → A
-I = S K K
+I {A} = S K (K {B = A})
 
 -- Mmh, pretty boring...

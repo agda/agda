@@ -31,6 +31,100 @@ Important changes since 2.4.0.1:
   Note:  Unsafe use of ETA can make Agda loop, e.g. by triggering
   infinite eta expansion!
 
+* Instance search is now more efficient and recursive (see issue 938)
+  (but without termination check yet)
+
+  A new keyword `instance' has been introduced (in the style of
+  `abstract' and  `private') which must now be used for every
+  definition/postulate that has to be taken into account during instance
+  resolution. For example:
+
+    {-# OPTIONS --copatterns #-}
+
+    record RawMonoid (A : Set) : Set where
+      field
+        nil  : A
+        _++_ : A -> A -> A
+    open RawMonoid
+
+    instance
+      rawMonoidList : {A : Set} -> RawMonoid (List A)
+      rawMonoidList = record { nil = []; _++_ = List._++_ }
+
+      -- using copatterns to define this recursive instance:
+
+      rawMonoidMaybe : {A : Set} {{m : RawMonoid A}} -> RawMonoid (Maybe A)
+      nil rawMonoidMaybe = nothing
+      _++_ rawMonoidMaybe nothing mb = mb
+      _++_ rawMonoidMaybe ma nothing = ma
+      _++_ (rawMonoidMaybe {{m}}) (just a) (just b) = just (_++_ m a b)
+
+  Moreover, each type of an instance must end in (something that reduces
+  to) a named type (e.g. a record, a datatype or a postulate). This
+  allows us to build a simple index structure
+
+    data/record name  -->  possible instances
+
+  that speeds up instance search.
+
+  Instance search takes into account all local bindings and all global
+  'instance' bindings and the search is recursive. For instance,
+  searching for
+
+    ? : RawMonoid (Maybe (List A))
+
+  will consider the candidates {rawMonoidList, rawMonoidMaybe}, fail to
+  unify the first one, succeeding with the second one
+
+    ? = rawMonoidMaybe {A = List A} {{m = ?m}} : RawMonoid (Maybe (List A))
+
+  and continue with goal
+
+    ?m : RawMonoid (List A)
+
+  This will then find
+
+    ?m = rawMonoidList {A = A}
+
+  and putting together we have the solution.
+
+  Be careful that there is no termination check for now, you can easily
+  make Agda loop by declaring the identity function as an instance. But
+  it shouldn’t be possible to make Agda loop by only declaring
+  structurally recursive instances (whatever that means).
+
+  Additionally:
+
+  * Uniqueness of instances is up to definitional equality (see issue 899)
+
+  * Instance search will not be attempted if there are unsolved metas in
+    the goal. The issue is that trying to typecheck [? ++ ?] would
+    generate a constraint of type `RawMonoid ?' to be solved by instance
+    search, but unification with `rawMonoidMaybe' will succeed and
+    generate a new constraint of type `RawMonoid ?2' to be solved by
+    instance search, and so on, so Agda would loop.
+
+    As a special case, if none of the instances declared for that type
+    is recursive, then instance search is attempted as usual even if
+    there are unsolved metas (no risk of looping here).
+
+  * Instances of the following form are allowed:
+
+        Π-level : {n : ℕ} {A : Set} {B : A → Set}
+                  {{_ : (a : A) → has-level n (B a)}}
+                  → has-level n ((a : A) → B a)
+
+      When searching recursively for an instance of type `(a : A) →
+      has-level n (B a)', a lambda will automatically be introduced and
+      instance search will search for something of type `has-level n (B
+      a)' in the context extended by `a : A'.
+
+  * There is no longer any attempt to solve irrelevant metas by instance
+    search
+
+  * Constructors of records and datatypes are automatically added to the
+    instance table
+
 * Bugs fixed (see https://code.google.com/p/agda/issues):
   1203
   1205

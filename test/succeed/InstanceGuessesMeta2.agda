@@ -24,7 +24,7 @@ postulate
   BVec : ∀ {a} → Set a → ℕ → Set a
   toList : ∀ {a}{A : Set a}{n : ℕ} → BVec A n → List A
   -- universe polymorphic instance
-  takeInstanceList : {a : Level} → takeClass (List {a = a}) BVec
+  instance takeInstanceList : {a : Level} → takeClass (List {a = a}) BVec
 
 take0 : {A : Set} → List A → BVec A zero
 take0 l = take zero l

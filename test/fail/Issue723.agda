@@ -1,7 +1,7 @@
 -- {-# OPTIONS -v tc.constr.findInScope:15 -v tc.meta.new:50 #-}
 -- Andreas, 2012-10-20 issue raised by d.starosud
 -- solved by dropping UnBlock constraints during trial candidate assignment
-module Issue723 where
+module fail.Issue723 where
 
 import Common.Level
 open import Common.Prelude using (Bool; false; zero) renaming (Nat to ℕ)
@@ -12,20 +12,21 @@ record Default {ℓ} (A : Set ℓ) : Set ℓ where
 
 open Default {{...}} using (default)
 
-defBool : Default Bool
-defBool = create false
+instance
+  defBool : Default Bool
+  defBool = create false
 
-defSet  : Default Set
-defSet  = create Bool
+  defSet  : Default Set
+  defSet  = create Bool
 
-defNat : Default ℕ
-defNat = create zero
+  defNat : Default ℕ
+  defNat = create zero
 
-defDef : Default (Default ℕ)
-defDef = create defNat
+  defDef : Default (Default ℕ)
+  defDef = create defNat
 
-defFunc : ∀ {ℓ} {A : Set ℓ} → Default (A → A)
-defFunc = create (λ x → x)
+  defFunc : ∀ {ℓ} {A : Set ℓ} → Default (A → A)
+  defFunc = create (λ x → x)
 
 -- these lines are compiled successfully
 
@@ -47,4 +48,4 @@ n = default 5
 -- that's kind of ok
 
 n₃ = (default ∶ (_ → _)) 5
--- also unsolved metas (worked before switching of the occurs-error (Issue 795))
+-- this one works again (before: also unsolved metas (worked before switching of the occurs-error (Issue 795)))

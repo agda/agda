@@ -107,6 +107,7 @@ data TCState =
 	 , stScope	       :: ScopeInfo
          , stPatternSyns       :: A.PatternSynDefns
          , stPatternSynImports :: A.PatternSynDefns
+         , stInstanceDefs      :: TempInstanceTable
 	 , stPragmaOptions     :: PragmaOptions
            -- ^ Options applying to the current file. @OPTIONS@
            -- pragmas only affect this field.
@@ -182,6 +183,7 @@ initState = TCSt
   , stScope                = emptyScopeInfo
   , stPatternSyns          = Map.empty
   , stPatternSynImports    = Map.empty
+  , stInstanceDefs         = (Map.empty , [])
   , stPragmaOptions        = defaultInteractionOptions
   , stStatistics	   = Map.empty
   , stMutualBlocks         = Map.empty
@@ -304,6 +306,7 @@ data Interface = Interface
   , iPragmaOptions   :: [OptionsPragma]
                         -- ^ Pragma options set in the file.
   , iPatternSyns     :: A.PatternSynDefns
+  , iInstanceDefs    :: InstanceTable
   }
   deriving (Typeable, Show)
 
@@ -363,7 +366,7 @@ data Constraint
   | Guarded Constraint ProblemId
   | IsEmpty Range Type
     -- ^ the range is the one of the absurd pattern
-  | FindInScope MetaId [(Term, Type)]
+  | FindInScope MetaId (Maybe [(Term, Type)])
   deriving (Typeable, Show)
 
 instance HasRange Constraint where
@@ -1104,6 +1107,24 @@ instance HasRange Call where
     getRange (CheckSectionApplication r _ _ _)     = r
     getRange (CheckIsEmpty r _ _)                  = r
     getRange (NoHighlighting _)                    = noRange
+
+---------------------------------------------------------------------------
+-- ** Instance table
+---------------------------------------------------------------------------
+
+-- | The instance table is a @Map@ associating to every name of
+--   record/data type/postulate its list of instances
+type InstanceTable = Map QName [QName]
+
+-- | When typechecking something of the following form:
+--
+--     instance
+--       x : _
+--       x = y
+--
+--   it's not yet known where to add @x@, so we add it to a list of
+--   unresolved instances and we'll deal with it later.
+type TempInstanceTable = (InstanceTable , [QName])
 
 ---------------------------------------------------------------------------
 -- ** Builtin things

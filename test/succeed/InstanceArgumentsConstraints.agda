@@ -14,11 +14,12 @@ record Class (R : Bool → Set) : Set where
 
 open Class {{...}}
 
-class1 : Class (λ _ → A1)
-class1 = record { f = λ _ → a1 }
+instance
+  class1 : Class (λ _ → A1)
+  class1 = record { f = λ _ → a1 }
 
-class2 : Class (λ _ → A2)
-class2 = record { f = λ _ → a2 }
+  class2 : Class (λ _ → A2)
+  class2 = record { f = λ _ → a2 }
 
 test : C
 test = someF (f true)

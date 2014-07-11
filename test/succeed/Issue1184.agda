@@ -6,8 +6,9 @@ postulate
   Class : Set → Set
   member : ∀ {A} {{C : Class A}} → A → A
 
-  iX : Class X
-  iT : ∀ {A} {{CA : Class A}} → Class (T A)
+  instance
+    iX : Class X
+    iT : ∀ {A} {{CA : Class A}} → Class (T A)
 
 -- Should get type Class (T X),
 -- not {{_ : Class X}} → Class (T X)

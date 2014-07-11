@@ -18,13 +18,14 @@ record Structure (Struct : Set₁)
   field
     has-struct : (X : Struct) → HasStruct (carrier X)
 
-mon-mon-struct : Structure Monoid IsMonoid Monoid.carrier
-mon-mon-struct = record
-  { has-struct = Monoid.is-mon }
+instance
+  mon-mon-struct : Structure Monoid IsMonoid Monoid.carrier
+  mon-mon-struct = record
+    { has-struct = Monoid.is-mon }
 
-mon-mon-struct' : Structure Monoid IsMonoid Monoid.carrier
-mon-mon-struct' = record
-  { has-struct = Monoid.is-mon }
+  mon-mon-struct' : Structure Monoid IsMonoid Monoid.carrier
+  mon-mon-struct' = record
+    { has-struct = Monoid.is-mon }
 
 unit : {Struct : Set₁}{C : Struct → Set}
      → ⦃ X : Struct ⦄
@@ -33,7 +34,7 @@ unit : {Struct : Set₁}{C : Struct → Set}
 unit {Struct}{C} ⦃ X ⦄ ⦃ struct ⦄ = IsMonoid.unit (Structure.has-struct struct X)
 
 f : (M : Monoid) → Monoid.carrier M
-f M = unit
+f M = unit {{struct = mon-mon-struct}}
 
 -- An internal error has occurred. Please report this as a bug.
 -- Location of the error: src/full/Agda/TypeChecking/Eliminators.hs:45

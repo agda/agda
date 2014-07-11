@@ -24,13 +24,15 @@ record CommAddable (τ : Set) : Set where
   foo : Addable τ
   comm : (a b : τ) → (a + b) ≡ (b + a)
 
-natAdd : Addable Nat
-natAdd = record {_+_ = plus}
+instance
+  natAdd : Addable Nat
+  natAdd = record {_+_ = plus}
 
 postulate commPlus : (a b : Nat) → plus a b ≡ plus b a
 
-commAdd : CommAddable Nat
-commAdd = record {foo = natAdd; comm = commPlus}
+instance
+  commAdd : CommAddable Nat
+  commAdd = record {foo = natAdd; comm = commPlus}
 
 open CommAddable {{...}}
 

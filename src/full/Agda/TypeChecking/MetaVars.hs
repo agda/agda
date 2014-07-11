@@ -172,15 +172,19 @@ newTypeMeta_  = newTypeMeta =<< (workOnTypes $ newSortMeta)
 -- newTypeMeta_  = newTypeMeta Inf
 
 -- | @newIFSMeta s t cands@ creates a new "implicit from scope" metavariable
---   of type @t@ with name suggestion @s@ and initial solution candidates @cands@.
-newIFSMeta :: MetaNameSuggestion -> Type -> [(Term, Type)] -> TCM Term
+--   of type the output type of @t@ with name suggestion @s@ and initial
+--   solution candidates @cands@. If @t@ is a function type, then insert enough
+--   lambdas in front of it.
+newIFSMeta :: MetaNameSuggestion -> Type -> Maybe [(Term, Type)] -> TCM Term
 newIFSMeta s t cands = do
-  vs  <- getContextArgs
-  tel <- getContextTelescope
-  newIFSMetaCtx s (telePi_ tel t) vs cands
+  let TelV tel t' = telView' t
+  addCtxTel tel $ do
+    vs  <- getContextArgs
+    ctx <- getContextTelescope
+    teleLam tel <$> newIFSMetaCtx s (telePi_ ctx t') vs cands
 
 -- | Create a new value meta with specific dependencies.
-newIFSMetaCtx :: MetaNameSuggestion -> Type -> Args -> [(Term, Type)] -> TCM Term
+newIFSMetaCtx :: MetaNameSuggestion -> Type -> Args -> Maybe [(Term, Type)] -> TCM Term
 newIFSMetaCtx s t vs cands = do
   reportSDoc "tc.meta.new" 50 $ fsep
     [ text "new ifs meta:"
@@ -194,7 +198,7 @@ newIFSMetaCtx s t vs cands = do
   reportSDoc "tc.meta.new" 50 $ fsep
     [ nest 2 $ text (show x) <+> text ":" <+> prettyTCM t
     ]
-  solveConstraint_ $ FindInScope x cands
+  addConstraint $ FindInScope x cands
   return $ MetaV x $ map Apply vs
 
 

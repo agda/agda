@@ -174,6 +174,7 @@ instance ExprLike Declaration where
      Mutual    r ds            -> Mutual    r                          $ mapE ds
      Abstract  r ds            -> Abstract  r                          $ mapE ds
      Private   r ds            -> Private   r                          $ mapE ds
+     InstanceB r ds            -> InstanceB r                          $ mapE ds
      Postulate r ds            -> Postulate r                          $ mapE ds
      Primitive r ds            -> Primitive r                          $ mapE ds
      Open{}                    -> e0

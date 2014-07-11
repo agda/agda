@@ -8,7 +8,7 @@ data Bool : Set where
 postulate
   D : Bool -> Set
   E : Bool -> Set
-  d : {x : Bool} -> D x
+  instance d : {x : Bool} -> D x
   f : {x : Bool}{{ dx : D x }} -> E x
 
 b : E true

@@ -36,8 +36,9 @@ eq₂ = refl
 -- Check that instance arguments are handled properly
 postulate
   T : Nat → Set
-  t0 : T 0
-  t1 : T 1
+  instance
+    t0 : T 0
+    t1 : T 1
 
 record Instance : Set where
   field

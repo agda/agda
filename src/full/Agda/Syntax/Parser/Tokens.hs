@@ -11,7 +11,7 @@ import Agda.Syntax.Position
 
 data Keyword
 	= KwLet | KwIn | KwWhere | KwData | KwCoData
-	| KwPostulate | KwMutual | KwAbstract | KwPrivate
+	| KwPostulate | KwMutual | KwAbstract | KwPrivate | KwInstance
 	| KwOpen | KwImport | KwModule | KwPrimitive
 	| KwInfix | KwInfixL | KwInfixR | KwWith | KwRewrite
 	| KwSet | KwProp | KwForall | KwRecord | KwConstructor | KwField
@@ -28,7 +28,7 @@ data Keyword
 
 layoutKeywords :: [Keyword]
 layoutKeywords =
-    [ KwLet, KwWhere, KwPostulate, KwMutual, KwAbstract, KwPrivate, KwPrimitive, KwField ]
+    [ KwLet, KwWhere, KwPostulate, KwMutual, KwAbstract, KwPrivate, KwInstance, KwPrimitive, KwField ]
 
 data Symbol
 	= SymDot | SymSemi | SymVirtualSemi | SymBar

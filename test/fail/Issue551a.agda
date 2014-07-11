@@ -9,7 +9,7 @@ implicit {{a}} = a
 
 postulate
   A : Set
-  .a : A  -- this irrelevant definition needs to be ignored by instance search
+  instance .a : A  -- this irrelevant definition needs to be ignored by instance search
 
 a' : Box A
 a' = [ implicit ]

@@ -42,19 +42,22 @@ private
   comm' (commAddable _ c) = c
 
 module CommAddableM {τ : Set} {a : ⊤} (ca : CommAddable τ) where
-  addableCA : Addable τ
-  addableCA = addableCA' ca
+  instance
+    addableCA : Addable τ
+    addableCA = addableCA' ca
 
   comm : (a b : τ) → (a + b) ≡ (b + a)
   comm = comm' ca
 
-natAdd : Addable Nat
-natAdd = addable plus
+instance
+  natAdd : Addable Nat
+  natAdd = addable plus
 
 postulate commPlus : (a b : Nat) → plus a b ≡ plus b a
 
-commNatAdd : CommAddable Nat
-commNatAdd = commAddable natAdd commPlus
+instance
+  commNatAdd : CommAddable Nat
+  commNatAdd = commAddable natAdd commPlus
 
 open CommAddableM {{...}}
 
