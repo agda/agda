@@ -4,6 +4,7 @@
 {-# LANGUAGE DeriveFunctor #-}
 {-# LANGUAGE DeriveTraversable #-}
 {-# LANGUAGE FlexibleContexts #-}
+{-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
 
 {-| Abstract names carry unique identifiers and stuff.
@@ -196,9 +197,6 @@ freshName r s = do
   i <- fresh
   return $ mkName r i s
 
-freshName_ :: (MonadState s m, HasFresh NameId s) => String -> m Name
-freshName_ = freshName noRange
-
 freshNoName :: (MonadState s m, HasFresh NameId s) => Range -> m Name
 freshNoName r =
     do	i <- fresh
@@ -206,6 +204,22 @@ freshNoName r =
 
 freshNoName_ :: (MonadState s m, HasFresh NameId s) => m Name
 freshNoName_ = freshNoName noRange
+
+-- | Create a fresh name from @a@.
+class FreshName a where
+  freshName_ :: (MonadState s m, HasFresh NameId s) => a -> m Name
+
+instance FreshName (Range, String) where
+  freshName_ = uncurry freshName
+
+instance FreshName String where
+  freshName_ = freshName noRange
+
+instance FreshName Range where
+  freshName_ = freshNoName
+
+instance FreshName () where
+  freshName_ () = freshNoName_
 
 -- | Get the next version of the concrete name. For instance, @nextName "x" = "x₁"@.
 --   The name must not be a 'NoName'.

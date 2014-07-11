@@ -110,7 +110,7 @@ checkRecDef i name ind con ps contel fields =
         Just c  -> return (True, c, i)
         Nothing -> do
           m <- killRange <$> currentModule
-          c <- qualify m <$> freshName_ "recCon-NOT-PRINTED"
+          c <- qualify m <$> freshName_ ("recCon-NOT-PRINTED" :: String)
           return (False, c, i)
 
       -- Add record type to signature.

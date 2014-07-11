@@ -884,9 +884,9 @@ instance Reify Sort Expr where
                   a <- reify a
                   return $ A.App exprInfo (A.Set exprInfo 0) (defaultNamedArg a)
                 I.Prop       -> return $ A.Prop exprInfo
-                I.Inf       -> A.Var <$> freshName_ "Setω"
+                I.Inf       -> A.Var <$> freshName_ ("Setω" :: String)
                 I.DLub s1 s2 -> do
-                  lub <- freshName_ "dLub" -- TODO: hack
+                  lub <- freshName_ ("dLub" :: String) -- TODO: hack
                   (e1,e2) <- reify (s1, I.Lam defaultArgInfo $ fmap Sort s2)
                   let app x y = A.App exprInfo x (defaultNamedArg y)
                   return $ A.Var lub `app` e1 `app` e2

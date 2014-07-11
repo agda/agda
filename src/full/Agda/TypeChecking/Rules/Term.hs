@@ -282,7 +282,7 @@ checkAbsurdLambda i h e t = do
 --          return $ Lam info' absurdBody
           -- Add helper function
           top <- currentModule
-          aux <- qualify top <$> freshName (getRange i) absurdLambdaName
+          aux <- qualify top <$> freshName_ (getRange i, absurdLambdaName)
           -- if we are in irrelevant position, the helper function
           -- is added as irrelevant
           rel <- asks envRelevance
