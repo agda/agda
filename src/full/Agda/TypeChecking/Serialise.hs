@@ -31,7 +31,7 @@ import Control.Monad.State.Strict
 import Control.Monad.Error
 import Data.Array.IArray
 import Data.Word
-import Data.ByteString.Lazy as L
+import qualified Data.ByteString.Lazy as L
 import Data.Hashable
 import qualified Data.HashTable.IO as H
 import Data.Int (Int32)
@@ -166,7 +166,7 @@ class Typeable a => EmbPrj a where
 -- | Encodes something. To ensure relocatability file paths in
 -- positions are replaced with module names.
 
-encode :: EmbPrj a => a -> TCM ByteString
+encode :: EmbPrj a => a -> TCM L.ByteString
 encode a = do
     fileMod <- sourceToModule
     newD@(Dict nD sD iD dD _ _ _ _ _ stats _) <- liftIO $ emptyDict fileMod
@@ -186,7 +186,7 @@ encode a = do
     l h = List.map fst . List.sortBy (compare `on` snd) <$> H.toList h
     benchSort = billTo [Bench.Serialization, Bench.Sort] . liftIO
 
--- encode :: EmbPrj a => a -> TCM ByteString
+-- encode :: EmbPrj a => a -> TCM L.ByteString
 -- encode a = do
 --     fileMod <- sourceToModule
 --     (x, shared, total) <- liftIO $ do
@@ -207,7 +207,7 @@ encode a = do
 --   Reimplementing it in terms of the new function. The new Decoder type contains
 --   strict byte strings so we need to be careful not to feed the entire lazy byte
 --   string to the decoder at once.
-runGetState :: B.Get a -> ByteString -> B.ByteOffset -> (a, ByteString, B.ByteOffset)
+runGetState :: B.Get a -> L.ByteString -> B.ByteOffset -> (a, L.ByteString, B.ByteOffset)
 runGetState g s n = feed (B.runGetIncremental g) (L.toChunks s)
   where
     feed (B.Done s n' x) ss     = (x, L.fromChunks (s : ss), n + n')
@@ -220,7 +220,7 @@ runGetState g s n = feed (B.runGetIncremental g) (L.toChunks s)
 -- Returns 'Nothing' if the input does not start with the right magic
 -- number or some other decoding error is encountered.
 
-decode :: EmbPrj a => ByteString -> TCM (Maybe a)
+decode :: EmbPrj a => L.ByteString -> TCM (Maybe a)
 decode s = do
   mf   <- stModuleToSource <$> get
   incs <- getIncludeDirs
@@ -270,10 +270,10 @@ decode s = do
 
   noResult s = return (Nothing, Left $ GenericError s)
 
-encodeInterface :: Interface -> TCM ByteString
+encodeInterface :: Interface -> TCM L.ByteString
 encodeInterface i = L.append hashes <$> encode i
   where
-    hashes :: ByteString
+    hashes :: L.ByteString
     hashes = B.runPut $ B.put (iSourceHash i) >> B.put (iFullHash i)
 
 -- | Encodes something. To ensure relocatability file paths in
@@ -287,10 +287,10 @@ encodeFile f i = liftIO . L.writeFile f =<< encodeInterface i
 -- Returns 'Nothing' if the file does not start with the right magic
 -- number or some other decoding error is encountered.
 
-decodeInterface :: ByteString -> TCM (Maybe Interface)
+decodeInterface :: L.ByteString -> TCM (Maybe Interface)
 decodeInterface s = decode $ L.drop 16 s
 
-decodeHashes :: ByteString -> Maybe (Hash, Hash)
+decodeHashes :: L.ByteString -> Maybe (Hash, Hash)
 decodeHashes s
   | L.length s < 16 = Nothing
   | otherwise       = Just $ B.runGet getH $ L.take 16 s
