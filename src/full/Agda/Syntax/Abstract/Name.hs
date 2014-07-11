@@ -120,13 +120,17 @@ mnameFromList = MName
 noModuleName :: ModuleName
 noModuleName = mnameFromList []
 
--- | The 'Range' sets the /definition site/ of the name, not the use site.
+-- | Make a 'Name' from some kind of string.
+class MkName a where
+  -- | The 'Range' sets the /definition site/ of the name, not the use site.
+  mkName :: Range -> NameId -> a -> Name
 
-mkName :: Range -> NameId -> String -> Name
-mkName r i s = Name i (C.Name noRange (C.stringNameParts s)) r defaultFixity'
+  mkName_ :: NameId -> a -> Name
+  mkName_ = mkName noRange
 
-mkName_ :: NameId -> String -> Name
-mkName_ = mkName noRange
+instance MkName String where
+  mkName r i s = Name i (C.Name noRange (C.stringNameParts s)) r defaultFixity'
+
 
 qnameToList :: QName -> [Name]
 qnameToList (QName m x) = mnameToList m ++ [x]
