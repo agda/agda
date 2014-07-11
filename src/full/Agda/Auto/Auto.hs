@@ -46,6 +46,7 @@ import Agda.Auto.CaseSplit
 #include "../undefined.h"
 import Agda.Utils.Impossible
 
+insertAbsurdPattern :: String -> String
 insertAbsurdPattern [] = []
 insertAbsurdPattern s@(_:_) | take (length abspatvarname) s == abspatvarname = "()" ++ drop (length abspatvarname) s
 insertAbsurdPattern (c:s) = c : insertAbsurdPattern s
