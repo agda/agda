@@ -914,7 +914,7 @@ instance ExtractCalls Term where
       -- Dependent function space.
       Pi a (Abs x b) -> CallGraph.union <$> (terUnguarded $ extract a) <*> do
          a <- maskSizeLt a  -- OR: just do not add a to the context!
-         terPiGuarded $ addCtxString x a $ terRaise $ extract b
+         terPiGuarded $ addContext (x, a) $ terRaise $ extract b
 
       -- Non-dependent function space.
       Pi a (NoAbs _ b) -> CallGraph.union

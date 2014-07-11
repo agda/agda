@@ -259,7 +259,7 @@ bindLHSVars (_ : _)   EmptyTel         _   = __IMPOSSIBLE__
 bindLHSVars []        EmptyTel         ret = ret
 bindLHSVars (p : ps) (ExtendTel a tel) ret =
   case namedArg p of
-    A.VarP x      -> addCtx x a $ bindLHSVars ps (absBody tel) ret
+    A.VarP x      -> addContext (x, a) $ bindLHSVars ps (absBody tel) ret
     A.WildP _     -> bindDummy (absName tel)
     A.ImplicitP _ -> bindDummy (absName tel)
     A.AbsurdP pi  -> do
@@ -287,7 +287,7 @@ bindLHSVars (p : ps) (ExtendTel a tel) ret =
       name s   = freshName_ ("." ++ s)
       bindDummy s = do
         x <- name s
-        addCtx x a $ bindLHSVars ps (absBody tel) ret
+        addContext (x, a) $ bindLHSVars ps (absBody tel) ret
 
 -- | Bind as patterns
 bindAsPatterns :: [AsBinding] -> TCM a -> TCM a
