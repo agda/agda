@@ -11,9 +11,10 @@ module Agda.TypeChecking.Primitive where
 
 import Control.Monad
 import Control.Applicative
+
+import Data.Char
 import Data.Map (Map)
 import qualified Data.Map as Map
-import Data.Char
 
 import Agda.Interaction.Options
 
@@ -490,10 +491,10 @@ a .--> b = do
 gpi :: I.ArgInfo -> String -> TCM Type -> TCM Type -> TCM Type
 gpi info name a b = do
   a <- a
-  x <- freshName_ name
-  b <- addCtx x (Dom info a) b
-  return $ El (getSort a `dLub` Abs name (getSort b))
-              (Pi (Dom info a) (Abs name b))
+  b <- addContext (name, Dom info a) b
+  let y = stringToArgName name
+  return $ El (getSort a `dLub` Abs y (getSort b))
+              (Pi (Dom info a) (Abs y b))
 
 hPi, nPi :: String -> TCM Type -> TCM Type -> TCM Type
 hPi = gpi $ setHiding Hidden $ defaultArgInfo

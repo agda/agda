@@ -163,7 +163,7 @@ checkDataDef i name ps cs =
       -- or a fresh sort meta set equal to a.
       splitType :: Type -> TCM (Int, Sort)
       splitType t = case ignoreSharing $ unEl t of
-        Pi a b -> mapFst (+ 1) <$> do addCtxString (absName b) a $ splitType (absBody b)
+        Pi a b -> mapFst (+ 1) <$> do addContext (absName b, a) $ splitType (absBody b)
         Sort s -> return (0, s)
         _      -> do
           s <- newSortMeta
@@ -269,8 +269,8 @@ bindParameters ps0@(A.DomainFree info x : ps) (El _ (Pi arg@(Dom info' a) b)) re
   -- Andreas, 2011-04-07 ignore relevance information in binding?!
     | argInfoHiding info /= argInfoHiding info' =
 	__IMPOSSIBLE__
-    | otherwise = addCtx x arg $ bindParameters ps (absBody b) $ \tel s ->
-		    ret (ExtendTel arg $ Abs (show x) tel) s
+    | otherwise = addContext (x, arg) $ bindParameters ps (absBody b) $ \tel s ->
+		    ret (ExtendTel arg $ Abs (nameToArgName x) tel) s
 bindParameters bs (El s (Shared p)) ret = bindParameters bs (El s $ derefPtr p) ret
 bindParameters (b : bs) t _ = __IMPOSSIBLE__
 {- Andreas, 2012-01-17 Concrete.Definitions ensures number and hiding of parameters to be correct
@@ -297,7 +297,7 @@ fitsIn t s = do
   case ignoreSharing $ unEl t of
     Pi dom b -> do
       getSort (unDom dom) `leqSort` s
-      addCtxString (absName b) dom $ fitsIn (absBody b) (raise 1 s)
+      addContext (absName b, dom) $ fitsIn (absBody b) (raise 1 s)
     _ -> return () -- getSort t `leqSort` s  -- Andreas, 2013-04-13 not necessary since constructor type ends in data type
 
 -- | Return the parameters that share variables with the indices

@@ -183,7 +183,7 @@ inline f pcl t wf wcl = inTopContext $ addCtxTel (clauseTel wcl) $ do
     rebindBody n b = bind n $ maybe NoBody Body $ getBodyUnraised b
       where
         bind 0 = id
-        bind n = Bind . Abs ("h" ++ show n') . bind n'
+        bind n = Bind . Abs (stringToArgName $ "h" ++ show n') . bind n'
           where n' = n - 1
 
     dispToPats :: DisplayTerm -> TCM ([NamedArg Pattern], Permutation)
@@ -212,7 +212,7 @@ inline f pcl t wf wcl = inTopContext $ addCtxTel (clauseTel wcl) $ do
         DDef{}           -> DotP (dtermToTerm v) <$ skip
         DDot v           -> DotP v <$ skip
         DTerm (Var i []) ->
-          ifM (bindVar i) (VarP . show <$> lift (nameOfBV i))
+          ifM (bindVar i) (VarP . nameToPatVarName <$> lift (nameOfBV i))
                           (pure $ DotP (Var i []))
         DTerm (Con c vs) -> ConP c Nothing . map (fmap unnamed) <$> mapM (traverse (dtermToPat . DTerm)) vs
         DTerm v          -> DotP v <$ skip

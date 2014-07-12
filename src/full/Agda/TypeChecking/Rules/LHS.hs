@@ -7,6 +7,7 @@ import Data.Maybe
 import Control.Applicative
 import Control.Monad
 import Control.Monad.State
+
 import Data.Traversable
 
 import Agda.Interaction.Options
@@ -260,7 +261,7 @@ bindLHSVars (_ : _)   EmptyTel         _   = __IMPOSSIBLE__
 bindLHSVars []        EmptyTel         ret = ret
 bindLHSVars (p : ps) (ExtendTel a tel) ret =
   case namedArg p of
-    A.VarP x      -> addCtx x a $ bindLHSVars ps (absBody tel) ret
+    A.VarP x      -> addContext (x, a) $ bindLHSVars ps (absBody tel) ret
     A.WildP _     -> bindDummy (absName tel)
     A.ImplicitP _ -> bindDummy (absName tel)
     A.AbsurdP pi  -> do
@@ -284,11 +285,9 @@ bindLHSVars (p : ps) (ExtendTel a tel) ret =
     A.LitP{}        -> __IMPOSSIBLE__
     A.PatternSynP{} -> __IMPOSSIBLE__
     where
-      name "_" = freshNoName_
-      name s   = freshName_ ("." ++ s)
       bindDummy s = do
-        x <- name s
-        addCtx x a $ bindLHSVars ps (absBody tel) ret
+        x <- if isUnderscore s then freshNoName_ else freshName_ ("." ++ argNameToString s)
+        addContext (x, a) $ bindLHSVars ps (absBody tel) ret
 
 -- | Bind as patterns
 bindAsPatterns :: [AsBinding] -> TCM a -> TCM a
@@ -321,7 +320,7 @@ checkLeftHandSide
                               -- Used only to construct a @with@ function; see 'stripwithClausePatterns'.
       -> Telescope            -- Δ : The types of the pattern variables.
       -> S.Substitution       -- σ : The patterns in form of a substitution Δ ⊢ σ : Γ
-      -> [String]             -- Names for the variables in Δ, for binding the body.
+      -> [ArgName]            -- Names for the variables in Δ, for binding the body.
       -> [I.NamedArg Pattern] -- The patterns in internal syntax.
       -> I.Arg Type           -- The type of the body. Is @bσ@ if @Γ@ is defined.
                               -- 'Irrelevant' to indicate the rhs must be checked
@@ -367,7 +366,7 @@ checkLeftHandSide c f ps a ret = do
 
     let rho = renamingR perm -- I'm not certain about this...
         Perm n _ = perm
-        xs  = [ "h" ++ show n | n <- [0..n - 1] ]
+        xs  = [ stringToArgName $ "h" ++ show n | n <- [0..n - 1] ]
     applyRelevanceToContext (getRelevance b') $ do
       ret mgamma delta rho xs qs b' perm
   where

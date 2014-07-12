@@ -3,6 +3,7 @@
 module Agda.TypeChecking.Telescope where
 
 import Control.Applicative
+
 import Data.List
 
 import Agda.Syntax.Common hiding (Arg, Dom, NamedArg, ArgInfo)
@@ -63,7 +64,7 @@ reorderTel_ tel = case reorderTel tel of
 
 -- | Unflatten: turns a flattened telescope into a proper telescope. Must be
 --   properly ordered.
-unflattenTel :: [String] -> [Dom Type] -> Telescope
+unflattenTel :: [ArgName] -> [Dom Type] -> Telescope
 unflattenTel []	  []	        = EmptyTel
 unflattenTel (x : xs) (a : tel) = ExtendTel a' (Abs x tel')
   where
@@ -74,10 +75,10 @@ unflattenTel [] (_ : _) = __IMPOSSIBLE__
 unflattenTel (_ : _) [] = __IMPOSSIBLE__
 
 -- | Get the suggested names from a telescope
-teleNames :: Telescope -> [String]
+teleNames :: Telescope -> [ArgName]
 teleNames = map (fst . unDom) . telToList
 
-teleArgNames :: Telescope -> [Arg String]
+teleArgNames :: Telescope -> [Arg ArgName]
 teleArgNames = map (argFromDom . fmap fst) . telToList
 
 teleArgs :: Telescope -> Args

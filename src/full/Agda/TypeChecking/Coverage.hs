@@ -8,6 +8,7 @@ module Agda.TypeChecking.Coverage where
 import Control.Monad
 import Control.Monad.Error
 import Control.Applicative
+
 import Data.List
 import qualified Data.Set as Set
 import Data.Set (Set)
@@ -325,7 +326,7 @@ fixTarget sc@SClause{ scSubst = sigma, scTarget = target } =
 --   @dtype == d pars ixs@
 computeNeighbourhood
   :: Telescope                  -- ^ Telescope before split point.
-  -> String                     -- ^ Name of pattern variable at split point.
+  -> PatVarName                 -- ^ Name of pattern variable at split point.
   -> Telescope                  -- ^ Telescope after split point.
   -> Permutation                -- ^
   -> QName                      -- ^ Name of datatype to split at.
@@ -642,7 +643,7 @@ split' ind sc@(SClause tel perm ps _ target) (x, mcons) = liftTCM $ runException
 
     debugHoleAndType delta1 delta2 s hps t =
       liftTCM $ reportSDoc "tc.cover.top" 10 $ nest 2 $ vcat $
-        [ text "p      =" <+> text s
+        [ text "p      =" <+> text (patVarNameToString s)
         , text "hps    =" <+> text (show hps)
         , text "delta1 =" <+> prettyTCM delta1
         , text "delta2 =" <+> inContextOfDelta2 (prettyTCM delta2)

@@ -94,8 +94,8 @@ data Expr
 	| App !Range Expr (NamedArg Expr)      -- ^ ex: @e e@, @e {e}@, or @e {x = e}@
 	| OpApp !Range QName [NamedArg (OpApp Expr)] -- ^ ex: @e + e@
         | WithApp !Range Expr [Expr]           -- ^ ex: @e | e1 | .. | en@
-	| HiddenArg !Range (Named RString Expr) -- ^ ex: @{e}@ or @{x=e}@
-	| InstanceArg !Range (Named RString Expr) -- ^ ex: @{{e}}@ or @{{x=e}}@
+	| HiddenArg !Range (Named_ Expr)       -- ^ ex: @{e}@ or @{x=e}@
+	| InstanceArg !Range (Named_ Expr)     -- ^ ex: @{{e}}@ or @{{x=e}}@
 	| Lam !Range [LamBinding] Expr	       -- ^ ex: @\\x {y} -> e@ or @\\(x:A){y:B} -> e@
         | AbsurdLam !Range Hiding              -- ^ ex: @\\ ()@
         | ExtendedLam !Range [(LHS,RHS,WhereClause)]       -- ^ ex: @\\ { p11 .. p1a -> e1 ; .. ; pn1 .. pnz -> en }@
@@ -131,8 +131,8 @@ data Pattern
 	| AppP Pattern (NamedArg Pattern)         -- ^ @p p'@ or @p {x = p'}@
 	| RawAppP !Range [Pattern]                -- ^ @p1..pn@ before parsing operators
 	| OpAppP !Range QName [NamedArg Pattern]  -- ^ eg: @p => p'@ for operator @_=>_@
-	| HiddenP !Range (Named RString Pattern)   -- ^ @{p}@ or @{x = p}@
-	| InstanceP !Range (Named RString Pattern) -- ^ @{{p}}@ or @{{x = p}}@
+	| HiddenP !Range (Named_ Pattern)         -- ^ @{p}@ or @{x = p}@
+	| InstanceP !Range (Named_ Pattern)       -- ^ @{{p}}@ or @{{x = p}}@
 	| ParenP !Range Pattern                   -- ^ @(p)@
 	| WildP !Range                            -- ^ @_@
 	| AbsurdP !Range                          -- ^ @()@

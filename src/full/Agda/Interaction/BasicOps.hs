@@ -13,6 +13,7 @@ import Control.Monad.Error
 import Control.Monad.Reader
 import Control.Monad.State
 import Control.Monad.Identity
+
 import qualified Data.Map as Map
 import Data.List
 import Data.Maybe
@@ -49,6 +50,7 @@ import Agda.TypeChecking.Pretty (prettyTCM)
 import Agda.TypeChecking.Free (freeIn)
 import qualified Agda.TypeChecking.Pretty as TP
 
+import Agda.Utils.Functor
 import Agda.Utils.List
 import Agda.Utils.Maybe
 import Agda.Utils.Monad
@@ -511,6 +513,7 @@ metaHelperType norm ii rng s = case words s of
                 | otherwise    -> subst __IMPOSSIBLE__ (unEl b)
       _ -> v  -- todo: handle if goal type is a Pi
 
+    -- renameVars = onNames (stringToArgName <.> renameVar . argNameToString)
     renameVars = onNames renameVar
 
     hiding args (El s v) = El s $ hidingTm args v
@@ -519,9 +522,11 @@ metaHelperType norm ii rng s = case words s of
     hidingTm args (I.Pi a b) = I.Pi a (hiding args <$> b)
     hidingTm _ a = a
 
+    -- onNames :: Applicative m => (ArgName -> m ArgName) -> Type -> m Type
     onNames :: Applicative m => (String -> m String) -> Type -> m Type
     onNames f (El s v) = El s <$> onNamesTm f v
 
+    -- onNamesTel :: Applicative f => (ArgName -> f ArgName) -> I.Telescope -> f I.Telescope
     onNamesTel :: Applicative f => (String -> f String) -> I.Telescope -> f I.Telescope
     onNamesTel f I.EmptyTel = pure I.EmptyTel
     onNamesTel f (I.ExtendTel a b) = I.ExtendTel <$> traverse (onNames f) a <*> onNamesAbs f onNamesTel b
@@ -541,8 +546,9 @@ metaHelperType norm ii rng s = case words s of
       I.ExtLam{}   -> __IMPOSSIBLE__
     onNamesElims f = traverse $ traverse $ onNamesTm f
     onNamesArgs f  = traverse $ traverse $ onNamesTm f
-    onNamesAbs f nd (Abs   s x) = Abs   <$> f s <*> nd f x
-    onNamesAbs f nd (NoAbs s x) = NoAbs <$> f s <*> nd f x
+    onNamesAbs f   = onNamesAbs' f (stringToArgName <.> f . argNameToString)
+    onNamesAbs' f f' nd (Abs   s x) = Abs   <$> f' s <*> nd f x
+    onNamesAbs' f f' nd (NoAbs s x) = NoAbs <$> f' s <*> nd f x
 
     unW "w" = return ".w"
     unW s   = return s
@@ -556,7 +562,7 @@ metaHelperType norm ii rng s = case words s of
       put args
       return $ case arg of
         Arg _ (Named _ (A.Var x)) -> show x
-        Arg _ (Named (Just x) _)  -> rangedThing x
+        Arg _ (Named (Just x) _)  -> argNameToString $ rangedThing x
         _                         -> "w"
 
 

@@ -91,7 +91,7 @@ isType_ e =
     A.Fun i (Arg info t) b -> do
       a <- Dom info <$> isType_ t
       b <- isType_ b
-      return $ El (sLub (getSort $ unDom a) (getSort b)) (Pi (convColor a) (NoAbs "_" b))
+      return $ El (sLub (getSort $ unDom a) (getSort b)) (Pi (convColor a) (NoAbs underscore b))
     A.Pi _ tel e -> do
       checkTelescope_ tel $ \tel -> do
         t   <- instantiateFull =<< isType_ e
@@ -257,12 +257,11 @@ checkLambda (Arg info (A.TBind _ xs typ)) body target = do
         -- check.
         (pid, argT) <- newProblem $ isTypeEqualTo typ (unDom arg)
         v <- add y (Dom (setRelevance r' info) argT) $ checkExpr body btyp
-        blockTermOnProblem target (Lam info $ Abs (show xc) v) pid
+        blockTermOnProblem target (Lam info $ Abs (nameToArgName x) v) pid
       where
         [x] = xs
-        xc  = nameConcrete x
-        add y | isNoName xc = addCtxString y
-              | otherwise   = addCtx x
+        add y dom | isNoName x = addContext (y, dom)
+                  | otherwise  = addContext (x, dom)
     useTargetType _ _ = __IMPOSSIBLE__
 
 -- | @checkAbsurdLambda i h e t@ checks absurd lambda against type @t@.
@@ -282,7 +281,7 @@ checkAbsurdLambda i h e t = do
 --          return $ Lam info' absurdBody
           -- Add helper function
           top <- currentModule
-          aux <- qualify top <$> freshName (getRange i) absurdLambdaName
+          aux <- qualify top <$> freshName_ (getRange i, absurdLambdaName)
           -- if we are in irrelevant position, the helper function
           -- is added as irrelevant
           rel <- asks envRelevance
@@ -657,7 +656,7 @@ checkExpr e t0 =
 	    a' <- isType_ a
 	    b' <- isType_ b
 	    s <- reduce $ getSort a' `sLub` getSort b'
-	    coerce (Pi (convColor $ Dom info a') (NoAbs "_" b')) (sort s) t
+	    coerce (Pi (convColor $ Dom info a') (NoAbs underscore b')) (sort s) t
 	A.Set _ n    -> do
           n <- ifM typeInType (return 0) (return n)
 	  coerce (Sort $ mkType n) (sort $ mkType $ n + 1) t
@@ -1411,7 +1410,7 @@ checkLetBinding b@(A.LetPatBind i p e) ret =
     p <- expandPatternSynonyms p
     (v, t) <- inferExpr e
     let -- construct a type  t -> dummy  for use in checkLeftHandSide
-        t0 = El (getSort t) $ Pi (Dom defaultArgInfo t) (NoAbs "_" typeDontCare)
+        t0 = El (getSort t) $ Pi (Dom defaultArgInfo t) (NoAbs underscore typeDontCare)
         p0 = Arg defaultArgInfo (Named Nothing p)
     reportSDoc "tc.term.let.pattern" 10 $ vcat
       [ text "let-binding pattern p at type t"

@@ -162,7 +162,7 @@ underAbstraction t a           k = do
     x <- freshName_ $ realName $ absName a
     addCtx x t $ k $ absBody a
   where
-    realName s = if isNoName s then "x" else s
+    realName s = if isNoName s then "x" else argNameToString s
 
 -- | Go under an abstract without worrying about the type to add to the context.
 {-# SPECIALIZE underAbstraction_ :: Subst a => Abs a -> (a -> TCM b) -> TCM b #-}
@@ -210,7 +210,7 @@ getContextTerms = map var . downFrom <$> getContextSize
 -- | Get the current context as a 'Telescope'.
 {-# SPECIALIZE getContextTelescope :: TCM Telescope #-}
 getContextTelescope :: MonadTCM tcm => tcm Telescope
-getContextTelescope = telFromList' show . reverse <$> getContext
+getContextTelescope = telFromList' nameToArgName . reverse <$> getContext
 
 -- | Check if we are in a compatible context, i.e. an extension of the given context.
 {-# SPECIALIZE getContextId :: TCM [CtxId] #-}

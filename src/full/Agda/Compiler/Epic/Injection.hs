@@ -24,11 +24,12 @@ import Agda.Syntax.Literal
 import Agda.TypeChecking.CompiledClause
 import Agda.TypeChecking.Monad
 import Agda.TypeChecking.Monad.Builtin
-import Agda.TypeChecking.Pretty
+import Agda.TypeChecking.Pretty hiding (empty)
 import Agda.TypeChecking.Reduce
 import Agda.TypeChecking.Substitute
 import Agda.Utils.List
 import Agda.Utils.Monad
+import Agda.Utils.Null
 import qualified Agda.Utils.HashMap as HM
 
 import Agda.Compiler.Epic.CompileState
@@ -51,7 +52,7 @@ findInjection defs = do
         Just inj@(InjectiveFun nvar arity) -> case theDef def of
             f@(Function{})   -> do
                 modifyEI $ \s -> s { injectiveFuns = M.insert q inj (injectiveFuns s) }
-                let ns = replicate arity (defaultArg "")
+                let ns = replicate arity (defaultArg empty)
                 return $ (,) q $ def { theDef = f { funCompiled = Just $ Done ns $
                                                       var $ arity - nvar - 1 } }
             _                -> __IMPOSSIBLE__

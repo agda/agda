@@ -7,6 +7,7 @@ module Agda.TypeChecking.Quote where
 import Control.Applicative
 import Control.Monad.State (evalState, get, put)
 import Control.Monad.Writer (execWriterT, tell)
+
 import Data.Maybe (fromMaybe)
 import Data.Traversable (traverse)
 
@@ -27,6 +28,8 @@ import Agda.TypeChecking.CompiledClause
 
 import Agda.Utils.String
 import Agda.Utils.Permutation
+
+import Agda.Utils.Monad
 
 #include "../undefined.h"
 import Agda.Utils.Impossible
@@ -210,8 +213,7 @@ unquoteN _ = unquoteFailedGeneric "argument. It should be `visible'"
 
 choice :: Monad m => [(m Bool, m a)] -> m a -> m a
 choice [] dflt = dflt
-choice ((mb, mx) : mxs) dflt = do b <- mb
-                                  if b then mx else choice mxs dflt
+choice ((mb, mx) : mxs) dflt = ifM mb mx $ choice mxs dflt
 
 instance Unquote I.ArgInfo where
   unquote t = do
@@ -318,8 +320,8 @@ instance Unquote ConHead where
   unquote t = getConHead =<< unquote t
 
 instance Unquote a => Unquote (Abs a) where
-  unquote t = do x <- freshNoName_
-                 Abs (show x) <$> unquote t
+  unquote t = do x <- freshNoName_ -- Andreas, 2014-07-11 This is pointless, as it does NOT generate a name suggestion.
+                 Abs (nameToArgName x) <$> unquote t
 
 instance Unquote Sort where
   unquote t = do

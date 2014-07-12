@@ -638,10 +638,10 @@ introHiddenLambdas clause = liftTCM $ do
   where
     toPat (Common.Arg (Common.ArgInfo h r c) x) =
            Common.Arg (Common.ArgInfo h r []) $ namedVarP x
-    removeHiddenLambdas :: ClauseBody -> ([I.Arg String], ClauseBody)
+    removeHiddenLambdas :: ClauseBody -> ([I.Arg ArgName], ClauseBody)
     removeHiddenLambdas = underBinds $ hlamsToBinds
 
-    hlamsToBinds :: Term -> ([I.Arg String], ClauseBody)
+    hlamsToBinds :: Term -> ([I.Arg ArgName], ClauseBody)
     hlamsToBinds v =
       case ignoreSharing v of
         Lam info b | getHiding info == Hidden ->
@@ -926,7 +926,7 @@ instance ExtractCalls Term where
       -- Dependent function space.
       Pi a (Abs x b) -> CallGraph.union <$> (terUnguarded $ extract a) <*> do
          a <- maskSizeLt a  -- OR: just do not add a to the context!
-         terPiGuarded $ addCtxString x a $ terRaise $ extract b
+         terPiGuarded $ addContext (x, a) $ terRaise $ extract b
 
       -- Non-dependent function space.
       Pi a (NoAbs _ b) -> CallGraph.union

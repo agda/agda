@@ -940,7 +940,7 @@ instance PrettyTCM Call where
             info = A.ModuleInfo noRange noRange Nothing Nothing Nothing
 
 	where
-            hPretty :: I.Arg (Named RString Expr) -> TCM Doc
+            hPretty :: I.Arg (Named_ Expr) -> TCM Doc
             hPretty a = do
                 info <- reify $ argInfo a
                 pretty =<< (abstractToConcreteCtx (hiddenArgumentCtx (getHiding a))

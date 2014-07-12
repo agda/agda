@@ -5,6 +5,7 @@ module Agda.Interaction.CommandLine.CommandLine where
 import Control.Monad.Error
 import Control.Monad.Reader
 import Control.Applicative
+
 import Data.List as List
 import Data.Maybe
 
@@ -13,6 +14,7 @@ import Agda.Interaction.Monad
 
 import qualified Agda.Syntax.Abstract as A
 import Agda.Syntax.Common
+import qualified Agda.Syntax.Internal as I
 import Agda.Syntax.Parser
 import Agda.Syntax.Position
 import Agda.Syntax.Scope.Base
@@ -263,7 +265,7 @@ showContext (meta:args) = do
 		    ["normal"] -> normalise $ raise n t
 		    _	       -> return $ raise n t
 	    d <- prettyTCM t
-	    liftIO $ print $ text x <+> text ":" <+> d
+	    liftIO $ print $ text (I.argNameToString x) <+> text ":" <+> d
 showContext _ = liftIO $ putStrLn ":Context meta"
 
 -- | The logo that prints when Agda is started in interactive mode.

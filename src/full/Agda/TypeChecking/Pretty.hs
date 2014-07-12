@@ -118,7 +118,7 @@ instance PrettyTCM ClauseBody where
       walk (Body v) = (,) [] <$> prettyTCM v
       walk (Bind b) = do
         (bs, v) <- underAbstraction_ b walk
-        return (text (absName b) : bs, v)
+        return (text (argNameToString $ absName b) : bs, v)
 
 instance (PrettyTCM a, PrettyTCM b) => PrettyTCM (Judgement a b) where
   prettyTCM (HasType a t) = prettyTCM a <+> text ":" <+> prettyTCM t
@@ -133,7 +133,7 @@ instance PrettyTCM a => PrettyTCM (Blocked a) where
   prettyTCM (Blocked x a) = text "[" <+> prettyTCM a <+> text "]" <> text (show x)
   prettyTCM (NotBlocked x) = prettyTCM x
 
-instance (Reify a e, ToConcrete e c, P.Pretty c) => PrettyTCM (Named RString a) where
+instance (Reify a e, ToConcrete e c, P.Pretty c) => PrettyTCM (Named_ a) where
     prettyTCM x = prettyA =<< reify x
 
 instance (Reify a e, ToConcrete e c, P.Pretty c) => PrettyTCM (Arg a) where
@@ -283,7 +283,7 @@ instance PrettyTCM Context where
 instance PrettyTCM Pattern where
   prettyTCM = showPat
     where
-      showPat (VarP x)                  = text x
+      showPat (VarP x)                  = text $ patVarNameToString x
       showPat (DotP t)                  = text $ ".(" ++ show t ++ ")"
       showPat (ConP c Nothing ps)       = parens $
         prettyTCM c <+> fsep (map (showPat . namedArg) ps)

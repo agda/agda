@@ -68,12 +68,12 @@ import Control.Applicative
 import Control.Monad
 
 import Data.Foldable (Foldable)
-import Data.Traversable (Traversable)
 import Data.Function
 import Data.Int
 import Data.List
 import Data.Set (Set)
 import qualified Data.Set as Set
+import Data.Traversable (Traversable)
 import Data.Typeable (Typeable)
 
 import Test.QuickCheck.All

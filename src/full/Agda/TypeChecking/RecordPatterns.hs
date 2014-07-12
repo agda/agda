@@ -231,7 +231,7 @@ replaceByProjections i projs cc =
           let (xs0,xs1,xs2)     = cutSublist i n xs
               names | null xs1  = ["r"]
                     | otherwise = map unArg xs1
-              x                 = defaultArg $ foldr1 (++) names
+              x                 = defaultArg $ foldr1 appendArgNames names
               xs'               = xs0 ++ x : xs2
               us                = map (\ p -> Var 0 [Proj p]) (reverse projs)
 --              us                = map (\ p -> Def p [defaultArg $ var 0]) (reverse projs)
@@ -572,7 +572,7 @@ data Kind = VarPat | DotPat
 -- patterns, should be removed, and a new variable, with the name @x@,
 -- inserted instead. The type of the new variable is @t@.
 
-type Changes = [Either Pattern (Kind -> Nat, String, I.Dom Type)]
+type Changes = [Either Pattern (Kind -> Nat, ArgName, I.Dom Type)]
 
 -- | Record pattern trees.
 
@@ -710,10 +710,10 @@ translateTel
   :: Changes
      -- ^ Explanation of how the telescope should be changed. Types
      -- should be in the context of the old telescope.
-  -> [(String, I.Dom Type)]
+  -> [(ArgName, I.Dom Type)]
      -- ^ Old telescope, flattened, in textual left-to-right
      -- order.
-  -> [Maybe (String, I.Dom Type)]
+  -> [Maybe (ArgName, I.Dom Type)]
      -- ^ New telescope, flattened, in textual left-to-right order.
      -- 'Nothing' is used to indicate the locations of dot patterns.
 translateTel (Left (DotP{}) : rest)   tel = Nothing : translateTel rest tel
