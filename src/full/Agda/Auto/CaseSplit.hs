@@ -17,6 +17,7 @@ import Agda.Auto.Typecheck
 #include "../undefined.h"
 import Agda.Utils.Impossible
 
+abspatvarname :: String
 abspatvarname = "\0absurdPattern"
 
 costCaseSplitVeryHigh = 10000
@@ -137,7 +138,7 @@ caseSplitSearch' branchsearch depthinterval depth recdef ctx tt pats = do
            case findperm (map snd (drophid ctx)) of
             Just perm ->
              let HI scrhid(_, scrt) = ctx !! scrut
-                 ctx1 = take scrut ctx ++ (HI scrhid (Id abspatvarname, scrt)) : drop (scrut + 1) ctx
+                 ctx1 = take scrut ctx ++ (HI scrhid (stringToMyId abspatvarname, scrt)) : drop (scrut + 1) ctx
                  (ctx', _, pats') = applyperm perm ctx1 tt ({-map (replacep scrut 1 CSAbsurd __IMPOSSIBLE__) -}pats)
              in [(ctx', pats', Nothing)]
             Nothing -> __IMPOSSIBLE__ -- no permutation found
