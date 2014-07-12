@@ -1,0 +1,2465 @@
+Measuring type-checking time of standard library
+========================================================================
+
+2010-09-21
+
+ 306,014,890,300 bytes allocated in the heap
+  17,346,349,120 bytes copied during GC
+   1,464,083,660 bytes maximum residency (50 sample(s))
+      12,714,572 bytes maximum slop
+            1499 MB total memory in use (24 MB lost due to fragmentation)
+
+  Generation 0: 390212 collections,     0 parallel, 77.29s, 101.98s elapsed
+  Generation 1:    50 collections,     0 parallel, 636.20s, 748.34s elapsed
+
+  INIT  time    0.00s  (  0.03s elapsed)
+  MUT   time  712.56s  (744.07s elapsed)
+  GC    time  713.49s  (850.33s elapsed)
+  EXIT  time    0.00s  (  0.00s elapsed)
+  Total time  1426.05s  (1594.42s elapsed)
+
+  %GC time      50.0%  (53.3% elapsed)
+
+  Alloc rate    429,456,148 bytes per MUT second
+
+  Productivity  50.0% of total user, 44.7% of total elapsed
+
+
+real	26m35.108s
+user	23m46.053s
+sys	0m20.290s
+
+========================================================================
+
+Linux agda 3.2.0-48-generic #74-Ubuntu SMP Thu Jun 6 19:43:26 UTC 2013 x86_64 x86_64 x86_64 GNU/Linux
+vendor_id	: GenuineIntel
+cpu family	: 6
+model		: 23
+model name	: Intel(R) Core(TM)2 Duo CPU     P8700  @ 2.53GHz
+stepping	: 10
+microcode	: 0xa07
+cpu MHz		: 800.000
+cache size	: 3072 KB
+abel@agda:~/Agda$ procinfo
+Memory:        Total        Used        Free     Buffers
+RAM:         4001044     2963004     1038040       36760
+Swap:       13309816      204776    13105040
+
+-- 2012-07-03 Before parallel substitution into clausebody
+
+Finished README.
+ 130,637,961,424 bytes allocated in the heap
+  33,884,918,648 bytes copied during GC
+     428,136,736 bytes maximum residency (116 sample(s))
+      13,107,944 bytes maximum slop
+            1131 MB total memory in use (0 MB lost due to fragmentation)
+
+                                    Tot time (elapsed)  Avg pause  Max pause
+  Gen  0     250680 colls,     0 par   54.42s   54.53s     0.0002s    0.0064s
+  Gen  1       116 colls,     0 par   31.07s   31.13s     0.2684s    1.0102s
+
+  INIT    time    0.00s  (  0.00s elapsed)
+  MUT     time  157.90s  (159.96s elapsed)
+  GC      time   85.50s  ( 85.66s elapsed)
+  EXIT    time    0.00s  (  0.00s elapsed)
+  Total   time  243.40s  (245.62s elapsed)
+
+  %GC     time      35.1%  (34.9% elapsed)
+
+  Alloc rate    827,344,868 bytes per MUT second
+
+  Productivity  64.9% of total user, 64.3% of total elapsed
+
+
+real	4m5.757s
+user	4m1.295s
+sys	0m2.236s
+
+===========================================================================
+
+bodrum:Agda abel$ hostinfo
+Mach kernel version:
+	 Darwin Kernel Version 10.8.0: Tue Jun  7 16:33:36 PDT 2011; root:xnu-1504.15.3~1/RELEASE_I386
+Kernel configured for up to 2 processors.
+2 processors are physically available.
+2 processors are logically available.
+Processor type: i486 (Intel 80486)
+Processors active: 0 1
+Primary memory available: 2.00 gigabytes
+Default processor set: 94 tasks, 447 threads, 2 processors
+Load average: 0.64, Mach factor: 1.35
+
+2013-05-19 after RecCheck
+
+  75,579,752,556 bytes allocated in the heap
+  16,756,050,804 bytes copied during GC
+     215,039,796 bytes maximum residency (109 sample(s))
+       2,594,336 bytes maximum slop
+             560 MB total memory in use (0 MB lost due to fragmentation)
+
+                                    Tot time (elapsed)  Avg pause  Max pause
+  Gen  0     144381 colls,     0 par   52.68s   59.11s     0.0004s    0.1718s
+  Gen  1       109 colls,     0 par   29.09s   98.23s     0.9012s    39.8655s
+
+  INIT    time    0.00s  (  0.10s elapsed)
+  MUT     time  188.68s  (206.39s elapsed)
+  GC      time   81.77s  (157.34s elapsed)
+  EXIT    time    0.00s  (  0.09s elapsed)
+  Total   time  270.46s  (363.91s elapsed)
+
+  %GC     time      30.2%  (43.2% elapsed)
+
+  Alloc rate    400,569,600 bytes per MUT second
+
+  Productivity  69.8% of total user, 51.8% of total elapsed
+
+
+real	6m4.275s
+user	4m30.457s
+sys	0m6.233s
+
+2013-05-19 Lazy printing of callInfo in termination checker.
+
+Finished README.
+  68,075,601,556 bytes allocated in the heap
+  15,854,319,308 bytes copied during GC
+     212,038,068 bytes maximum residency (108 sample(s))
+       2,746,424 bytes maximum slop
+             576 MB total memory in use (0 MB lost due to fragmentation)
+
+                                    Tot time (elapsed)  Avg pause  Max pause
+  Gen  0     130021 colls,     0 par   48.09s   49.02s     0.0004s    0.0261s
+  Gen  1       108 colls,     0 par   26.94s   28.28s     0.2619s    1.0745s
+
+  INIT    time    0.00s  (  0.00s elapsed)
+  MUT     time  165.06s  (172.83s elapsed)
+  GC      time   75.03s  ( 77.30s elapsed)
+  EXIT    time    0.00s  (  0.08s elapsed)
+  Total   time  240.09s  (250.22s elapsed)
+
+  %GC     time      31.3%  (30.9% elapsed)
+
+  Alloc rate    412,438,874 bytes per MUT second
+
+  Productivity  68.7% of total user, 66.0% of total elapsed
+
+
+real	4m10.232s
+user	4m0.093s
+sys	0m2.625s
+
+2013-05-19 After slight de-optimization of CompiledClause.Match
+
+Finished README.
+  68,104,175,060 bytes allocated in the heap
+  15,854,664,684 bytes copied during GC
+     209,297,324 bytes maximum residency (108 sample(s))
+       2,616,740 bytes maximum slop
+             571 MB total memory in use (0 MB lost due to fragmentation)
+
+                                    Tot time (elapsed)  Avg pause  Max pause
+  Gen  0     130074 colls,     0 par   48.91s   49.87s     0.0004s    0.0112s
+  Gen  1       108 colls,     0 par   27.19s   28.30s     0.2621s    0.9740s
+
+  INIT    time    0.00s  (  0.00s elapsed)
+  MUT     time  165.43s  (172.18s elapsed)
+  GC      time   76.10s  ( 78.17s elapsed)
+  EXIT    time    0.00s  (  0.08s elapsed)
+  Total   time  241.54s  (250.44s elapsed)
+
+  %GC     time      31.5%  (31.2% elapsed)
+
+  Alloc rate    411,668,523 bytes per MUT second
+
+  Productivity  68.5% of total user, 66.1% of total elapsed
+
+
+real	4m10.484s
+user	4m1.541s
+sys	0m2.634s
+
+Finished README.
+  68,104,175,380 bytes allocated in the heap
+  15,915,415,568 bytes copied during GC
+     198,896,912 bytes maximum residency (108 sample(s))
+       2,596,308 bytes maximum slop
+             553 MB total memory in use (0 MB lost due to fragmentation)
+
+                                    Tot time (elapsed)  Avg pause  Max pause
+  Gen  0     130074 colls,     0 par   48.71s   49.68s     0.0004s    0.0129s
+  Gen  1       108 colls,     0 par   27.45s   28.65s     0.2653s    0.9398s
+
+  INIT    time    0.00s  (  0.00s elapsed)
+  MUT     time  165.32s  (168.53s elapsed)
+  GC      time   76.16s  ( 78.33s elapsed)
+  EXIT    time    0.00s  (  0.08s elapsed)
+  Total   time  241.48s  (246.94s elapsed)
+
+  %GC     time      31.5%  (31.7% elapsed)
+
+  Alloc rate    411,949,745 bytes per MUT second
+
+  Productivity  68.5% of total user, 66.9% of total elapsed
+
+
+real	4m6.978s
+user	4m1.485s
+sys	0m2.605s
+
+
+2013-05-19 After slight optimization of pushes in CompiledClause.Match
+
+Finished README.
+  68,112,580,876 bytes allocated in the heap
+  15,920,140,440 bytes copied during GC
+     215,269,448 bytes maximum residency (107 sample(s))
+       2,656,360 bytes maximum slop
+             559 MB total memory in use (0 MB lost due to fragmentation)
+
+                                    Tot time (elapsed)  Avg pause  Max pause
+  Gen  0     130097 colls,     0 par   48.19s   49.28s     0.0004s    0.0377s
+  Gen  1       107 colls,     0 par   27.34s   28.51s     0.2664s    0.9359s
+
+  INIT    time    0.00s  (  0.00s elapsed)
+  MUT     time  165.63s  (171.94s elapsed)
+  GC      time   75.53s  ( 77.78s elapsed)
+  EXIT    time    0.00s  (  0.08s elapsed)
+  Total   time  241.17s  (249.80s elapsed)
+
+  %GC     time      31.3%  (31.1% elapsed)
+
+  Alloc rate    411,228,296 bytes per MUT second
+
+  Productivity  68.7% of total user, 66.3% of total elapsed
+
+real	4m9.827s
+user	4m1.167s
+sys	0m2.694s
+
+-- 2013-05-20 After collecting callInfos in a list (instead of Set)
+
+Finished README.
+  68,102,263,108 bytes allocated in the heap
+  15,988,910,928 bytes copied during GC
+     227,494,048 bytes maximum residency (109 sample(s))
+       3,045,404 bytes maximum slop
+             587 MB total memory in use (0 MB lost due to fragmentation)
+
+                                    Tot time (elapsed)  Avg pause  Max pause
+  Gen  0     130075 colls,     0 par   48.09s   49.07s     0.0004s    0.0222s
+  Gen  1       109 colls,     0 par   27.44s   31.56s     0.2896s    2.9997s
+
+  INIT    time    0.00s  (  0.00s elapsed)
+  MUT     time  165.16s  (172.37s elapsed)
+  GC      time   75.53s  ( 80.64s elapsed)
+  EXIT    time    0.00s  (  0.08s elapsed)
+  Total   time  240.70s  (253.09s elapsed)
+
+  %GC     time      31.4%  (31.9% elapsed)
+
+  Alloc rate    412,335,427 bytes per MUT second
+
+  Productivity  68.6% of total user, 65.3% of total elapsed
+
+
+real	4m13.147s
+user	4m0.699s
+sys	0m2.716s
+Finished README.
+  68,270,983,432 bytes allocated in the heap
+  15,871,009,488 bytes copied during GC
+     196,568,668 bytes maximum residency (107 sample(s))
+       2,769,564 bytes maximum slop
+             526 MB total memory in use (0 MB lost due to fragmentation)
+
+                                    Tot time (elapsed)  Avg pause  Max pause
+  Gen  0     130398 colls,     0 par   48.12s   48.90s     0.0004s    0.0335s
+  Gen  1       107 colls,     0 par   26.87s   28.12s     0.2628s    1.0491s
+
+  INIT    time    0.00s  (  0.00s elapsed)
+  MUT     time  165.14s  (170.30s elapsed)
+  GC      time   74.99s  ( 77.01s elapsed)
+  EXIT    time    0.00s  (  0.07s elapsed)
+  Total   time  240.14s  (247.39s elapsed)
+
+  %GC     time      31.2%  (31.1% elapsed)
+
+  Alloc rate    413,405,449 bytes per MUT second
+
+  Productivity  68.8% of total user, 66.8% of total elapsed
+
+
+real	4m7.445s
+user	4m0.136s
+sys	0m2.577s
+
+
+2013-05-22  After switching matcher to Elim
+
+Finished README.
+  69,157,095,040 bytes allocated in the heap
+  15,994,690,448 bytes copied during GC
+     197,749,912 bytes maximum residency (109 sample(s))
+       3,021,992 bytes maximum slop
+             528 MB total memory in use (0 MB lost due to fragmentation)
+
+                                    Tot time (elapsed)  Avg pause  Max pause
+  Gen  0     132084 colls,     0 par   48.35s   49.07s     0.0004s    0.1426s
+  Gen  1       109 colls,     0 par   27.08s   28.73s     0.2636s    1.3616s
+
+  INIT    time    0.00s  (  0.00s elapsed)
+  MUT     time  168.05s  (174.37s elapsed)
+  GC      time   75.43s  ( 77.80s elapsed)
+  EXIT    time    0.00s  (  0.07s elapsed)
+  Total   time  243.49s  (252.24s elapsed)
+
+  %GC     time      31.0%  (30.8% elapsed)
+
+  Alloc rate    411,516,871 bytes per MUT second
+
+  Productivity  69.0% of total user, 66.6% of total elapsed
+
+
+real	4m12.313s
+user	4m3.492s
+sys	0m2.567s
+
+
+-- After distinguishing projections in the reduction engine.
+
+Finished README.
+  69,814,903,748 bytes allocated in the heap
+  15,990,476,820 bytes copied during GC
+     192,471,484 bytes maximum residency (108 sample(s))
+       2,741,844 bytes maximum slop
+             526 MB total memory in use (0 MB lost due to fragmentation)
+
+                                    Tot time (elapsed)  Avg pause  Max pause
+  Gen  0     133343 colls,     0 par   49.19s   50.84s     0.0004s    0.0164s
+  Gen  1       108 colls,     0 par   27.40s   31.78s     0.2942s    2.6347s
+
+  INIT    time    0.00s  (  0.00s elapsed)
+  MUT     time  169.75s  (180.07s elapsed)
+  GC      time   76.59s  ( 82.62s elapsed)
+  EXIT    time    0.00s  (  0.07s elapsed)
+  Total   time  246.35s  (262.76s elapsed)
+
+  %GC     time      31.1%  (31.4% elapsed)
+
+  Alloc rate    411,277,281 bytes per MUT second
+
+  Productivity  68.9% of total user, 64.6% of total elapsed
+
+
+real	4m22.790s
+user	4m6.347s
+sys	0m3.042s
+
+
+----------------------------------------------------------------------
+
+2012-10-04 NO COVERAGE CHECK
+
+Finished README.
+  78,037,786,900 bytes allocated in the heap
+  16,984,306,616 bytes copied during GC
+     190,683,928 bytes maximum residency (109 sample(s))
+       3,265,464 bytes maximum slop
+             519 MB total memory in use (0 MB lost due to fragmentation)
+
+  Generation 0: 148331 collections,     0 parallel, 44.58s, 45.86s elapsed
+  Generation 1:   109 collections,     0 parallel, 27.06s, 45.29s elapsed
+
+  INIT  time    0.00s  (  0.01s elapsed)
+  MUT   time  177.28s  (184.03s elapsed)
+  GC    time   71.64s  ( 91.15s elapsed)
+  EXIT  time    0.00s  (  0.00s elapsed)
+  Total time  248.92s  (275.18s elapsed)
+
+  %GC time      28.8%  (33.1% elapsed)
+
+  Alloc rate    440,200,955 bytes per MUT second
+
+  Productivity  71.2% of total user, 64.4% of total elapsed
+
+
+real	4m35.293s
+user	4m8.918s
+sys	0m4.334s
+
+Finished README.
+  80,247,949,720 bytes allocated in the heap
+  17,059,672,804 bytes copied during GC
+     204,750,068 bytes maximum residency (108 sample(s))
+       2,615,112 bytes maximum slop
+             563 MB total memory in use (0 MB lost due to fragmentation)
+
+  Generation 0: 152544 collections,     0 parallel, 44.45s, 45.74s elapsed
+  Generation 1:   108 collections,     0 parallel, 26.10s, 32.46s elapsed
+
+  INIT  time    0.00s  (  0.00s elapsed)
+  MUT   time  180.51s  (184.48s elapsed)
+  GC    time   70.55s  ( 78.20s elapsed)
+  EXIT  time    0.00s  (  0.00s elapsed)
+  Total time  251.07s  (262.68s elapsed)
+
+  %GC time      28.1%  (29.8% elapsed)
+
+  Alloc rate    444,553,407 bytes per MUT second
+
+  Productivity  71.9% of total user, 68.7% of total elapsed
+
+
+real	4m22.780s
+user	4m11.066s
+sys	0m4.140s
+
+========================================================================
+
+2013-10-12 Before big Elims refactoring
+
+Finished README.
+ 143,958,275,608 bytes allocated in the heap
+  37,124,554,568 bytes copied during GC
+     438,285,912 bytes maximum residency (119 sample(s))
+      11,712,840 bytes maximum slop
+            1228 MB total memory in use (0 MB lost due to fragmentation)
+
+                                    Tot time (elapsed)  Avg pause  Max pause
+  Gen  0     276184 colls,     0 par   68.18s   68.41s     0.0002s    0.0054s
+  Gen  1       119 colls,     0 par   36.53s   36.73s     0.3086s    1.1208s
+
+  INIT    time    0.00s  (  0.00s elapsed)
+  MUT     time  183.17s  (183.97s elapsed)
+  GC      time  104.71s  (105.14s elapsed)
+  EXIT    time    0.11s  (  0.12s elapsed)
+  Total   time  288.00s  (289.23s elapsed)
+
+  %GC     time      36.4%  (36.4% elapsed)
+
+  Alloc rate    785,910,943 bytes per MUT second
+
+  Productivity  63.6% of total user, 63.4% of total elapsed
+
+
+real	4m49.238s
+user	4m45.546s
+sys	0m2.476s
+
+
+2013-10-12 After big Elims refactoring
+
+Finished README.
+ 140,427,398,528 bytes allocated in the heap
+  38,031,973,704 bytes copied during GC
+     477,121,784 bytes maximum residency (123 sample(s))
+      13,519,312 bytes maximum slop
+            1252 MB total memory in use (0 MB lost due to fragmentation)
+
+                                    Tot time (elapsed)  Avg pause  Max pause
+  Gen  0     269329 colls,     0 par   67.81s   68.34s     0.0003s    0.0081s
+  Gen  1       123 colls,     0 par   37.01s   37.37s     0.3038s    1.2344s
+
+  INIT    time    0.00s  (  0.00s elapsed)
+  MUT     time  183.32s  (186.20s elapsed)
+  GC      time  104.82s  (105.71s elapsed)
+  EXIT    time    0.10s  (  0.11s elapsed)
+  Total   time  288.25s  (292.03s elapsed)
+
+  %GC     time      36.4%  (36.2% elapsed)
+
+  Alloc rate    766,013,316 bytes per MUT second
+
+  Productivity  63.6% of total user, 62.8% of total elapsed
+
+
+real	4m52.038s
+user	4m45.862s
+sys	0m2.412s
+
+
+
+
+
+
+
+Dell
+===========================================================================
+
+2013-10-29  After big elims refactoring & internal with-type checking.
+
+Finished README.
+ 136,216,001,296 bytes allocated in the heap
+  36,913,612,016 bytes copied during GC
+     443,512,744 bytes maximum residency (122 sample(s))
+      12,358,224 bytes maximum slop
+            1204 MB total memory in use (0 MB lost due to fragmentation)
+
+                                    Tot time (elapsed)  Avg pause  Max pause
+  Gen  0     261258 colls,     0 par   59.37s   59.48s     0.0002s    0.0057s
+  Gen  1       122 colls,     0 par   33.92s   34.00s     0.2787s    1.0220s
+
+  INIT    time    0.00s  (  0.00s elapsed)
+  MUT     time  161.52s  (164.03s elapsed)
+  GC      time   93.29s  ( 93.48s elapsed)
+  EXIT    time    0.16s  (  0.17s elapsed)
+  Total   time  254.97s  (257.68s elapsed)
+
+  %GC     time      36.6%  (36.3% elapsed)
+
+  Alloc rate    843,329,035 bytes per MUT second
+
+  Productivity  63.4% of total user, 62.7% of total elapsed
+
+
+real	4m17.703s
+user	4m12.820s
+sys	0m2.172s
+
+---------------------------------------------------------------------------
+
+2013-09-18 with copatterns in internal syntax
+
+Finished README.
+ 130,053,317,416 bytes allocated in the heap
+  33,621,753,864 bytes copied during GC
+     406,414,400 bytes maximum residency (117 sample(s))
+      11,609,064 bytes maximum slop
+            1137 MB total memory in use (0 MB lost due to fragmentation)
+
+                                    Tot time (elapsed)  Avg pause  Max pause
+  Gen  0     249559 colls,     0 par   61.93s   62.37s     0.0002s    0.0207s
+  Gen  1       117 colls,     0 par   32.54s   32.95s     0.2816s    1.0906s
+
+  INIT    time    0.00s  (  0.00s elapsed)
+  MUT     time  176.64s  (179.62s elapsed)
+  GC      time   94.47s  ( 95.32s elapsed)
+  EXIT    time    0.00s  (  0.00s elapsed)
+  Total   time  271.11s  (274.94s elapsed)
+
+  %GC     time      34.8%  (34.7% elapsed)
+
+  Alloc rate    736,259,306 bytes per MUT second
+
+  Productivity  65.2% of total user, 64.2% of total elapsed
+
+---------------------------------------------------------------------------
+
+2013-06-15 on 64bit Linux
+
+AFTER projection-shortcut
+
+Finished README.
+ 132,988,745,160 bytes allocated in the heap
+  35,174,174,456 bytes copied during GC
+     429,758,624 bytes maximum residency (117 sample(s))
+      12,817,040 bytes maximum slop
+            1143 MB total memory in use (0 MB lost due to fragmentation)
+
+                                    Tot time (elapsed)  Avg pause  Max pause
+  Gen  0     255131 colls,     0 par   55.38s   55.46s     0.0002s    0.0074s
+  Gen  1       117 colls,     0 par   31.72s   32.03s     0.2738s    1.0241s
+
+  INIT    time    0.00s  (  0.00s elapsed)
+  MUT     time  150.17s  (150.51s elapsed)
+  GC      time   87.10s  ( 87.49s elapsed)
+  EXIT    time    0.00s  (  0.00s elapsed)
+  Total   time  237.27s  (238.01s elapsed)
+
+  %GC     time      36.7%  (36.8% elapsed)
+
+  Alloc rate    885,573,554 bytes per MUT second
+
+  Productivity  63.3% of total user, 63.1% of total elapsed
+
+
+real	3m58.117s
+user	3m55.391s
+sys	0m1.996s
+
+Finished README.
+ 132,987,924,232 bytes allocated in the heap
+  35,182,173,632 bytes copied during GC
+     430,702,512 bytes maximum residency (117 sample(s))
+      12,730,336 bytes maximum slop
+            1137 MB total memory in use (0 MB lost due to fragmentation)
+
+                                    Tot time (elapsed)  Avg pause  Max pause
+  Gen  0     255130 colls,     0 par   54.53s   54.60s     0.0002s    0.0052s
+  Gen  1       117 colls,     0 par   31.28s   31.35s     0.2679s    1.0141s
+
+  INIT    time    0.00s  (  0.00s elapsed)
+  MUT     time  148.40s  (148.64s elapsed)
+  GC      time   85.82s  ( 85.95s elapsed)
+  EXIT    time    0.00s  (  0.00s elapsed)
+  Total   time  234.21s  (234.59s elapsed)
+
+  %GC     time      36.6%  (36.6% elapsed)
+
+  Alloc rate    896,151,147 bytes per MUT second
+
+  Productivity  63.4% of total user, 63.3% of total elapsed
+
+
+real	3m54.702s
+user	3m52.543s
+sys	0m1.792s
+
+Finished README.
+ 132,987,923,024 bytes allocated in the heap
+  35,191,095,408 bytes copied during GC
+     388,889,688 bytes maximum residency (117 sample(s))
+      10,510,504 bytes maximum slop
+            1081 MB total memory in use (0 MB lost due to fragmentation)
+
+                                    Tot time (elapsed)  Avg pause  Max pause
+  Gen  0     255130 colls,     0 par   54.77s   54.84s     0.0002s    0.0123s
+  Gen  1       117 colls,     0 par   31.44s   31.49s     0.2691s    0.9095s
+
+  INIT    time    0.00s  (  0.00s elapsed)
+  MUT     time  148.96s  (149.20s elapsed)
+  GC      time   86.21s  ( 86.33s elapsed)
+  EXIT    time    0.00s  (  0.00s elapsed)
+  Total   time  235.17s  (235.53s elapsed)
+
+  %GC     time      36.7%  (36.7% elapsed)
+
+  Alloc rate    892,756,844 bytes per MUT second
+
+  Productivity  63.3% of total user, 63.2% of total elapsed
+
+
+real	3m55.632s
+user	3m53.275s
+sys	0m2.004s
+
+
+
+
+BEFORE
+
+Finished README.
+ 134,909,722,296 bytes allocated in the heap
+  35,070,686,432 bytes copied during GC
+     425,329,288 bytes maximum residency (118 sample(s))
+      11,060,336 bytes maximum slop
+            1173 MB total memory in use (0 MB lost due to fragmentation)
+
+                                    Tot time (elapsed)  Avg pause  Max pause
+  Gen  0     258867 colls,     0 par   54.69s   54.80s     0.0002s    0.0091s
+  Gen  1       118 colls,     0 par   30.79s   30.92s     0.2620s    0.9669s
+
+  INIT    time    0.00s  (  0.00s elapsed)
+  MUT     time  156.70s  (159.68s elapsed)
+  GC      time   85.49s  ( 85.71s elapsed)
+  EXIT    time    0.00s  (  0.00s elapsed)
+  Total   time  242.19s  (245.39s elapsed)
+
+  %GC     time      35.3%  (34.9% elapsed)
+
+  Alloc rate    860,928,970 bytes per MUT second
+
+  Productivity  64.7% of total user, 63.9% of total elapsed
+
+
+real	4m5.500s
+user	4m0.279s
+sys	0m2.028s
+
+Finished README.
+ 134,909,722,296 bytes allocated in the heap
+  35,070,561,616 bytes copied during GC
+     425,249,304 bytes maximum residency (118 sample(s))
+      11,056,328 bytes maximum slop
+            1172 MB total memory in use (0 MB lost due to fragmentation)
+
+                                    Tot time (elapsed)  Avg pause  Max pause
+  Gen  0     258867 colls,     0 par   53.88s   53.95s     0.0002s    0.0084s
+  Gen  1       118 colls,     0 par   30.74s   30.80s     0.2610s    0.9587s
+
+  INIT    time    0.00s  (  0.00s elapsed)
+  MUT     time  154.45s  (154.71s elapsed)
+  GC      time   84.61s  ( 84.75s elapsed)
+  EXIT    time    0.00s  (  0.00s elapsed)
+  Total   time  239.07s  (239.46s elapsed)
+
+  %GC     time      35.4%  (35.4% elapsed)
+
+  Alloc rate    873,475,835 bytes per MUT second
+
+  Productivity  64.6% of total user, 64.5% of total elapsed
+
+
+real	3m59.566s
+user	3m46.690s
+sys	0m12.493s
+
+Finished README.
+ 134,909,722,296 bytes allocated in the heap
+  35,070,573,616 bytes copied during GC
+     425,329,288 bytes maximum residency (118 sample(s))
+      11,060,336 bytes maximum slop
+            1172 MB total memory in use (0 MB lost due to fragmentation)
+
+                                    Tot time (elapsed)  Avg pause  Max pause
+  Gen  0     258867 colls,     0 par   53.96s   54.02s     0.0002s    0.0049s
+  Gen  1       118 colls,     0 par   30.54s   30.59s     0.2592s    0.9685s
+
+  INIT    time    0.00s  (  0.00s elapsed)
+  MUT     time  154.51s  (154.71s elapsed)
+  GC      time   84.50s  ( 84.61s elapsed)
+  EXIT    time    0.00s  (  0.00s elapsed)
+  Total   time  239.00s  (239.32s elapsed)
+
+  %GC     time      35.4%  (35.4% elapsed)
+
+  Alloc rate    873,154,268 bytes per MUT second
+
+  Productivity  64.6% of total user, 64.6% of total elapsed
+
+
+real	3m59.428s
+user	3m57.203s
+sys	0m1.920s
+
+---------------------------------------------------------------------------
+
+2012-10-19 after some refactoring in Termination checker
+
+Finished README.
+ 121,959,633,896 bytes allocated in the heap
+  32,558,017,400 bytes copied during GC
+     425,995,760 bytes maximum residency (115 sample(s))
+      11,374,400 bytes maximum slop
+            1171 MB total memory in use (0 MB lost due to fragmentation)
+
+                                    Tot time (elapsed)  Avg pause  Max pause
+  Gen  0     234031 colls,     0 par   49.44s   49.48s     0.0002s    0.0040s
+  Gen  1       115 colls,     0 par   28.13s   28.17s     0.2450s    0.9735s
+
+  INIT    time    0.00s  (  0.00s elapsed)
+  MUT     time  136.74s  (136.94s elapsed)
+  GC      time   77.57s  ( 77.66s elapsed)
+  EXIT    time    0.00s  (  0.00s elapsed)
+  Total   time  214.31s  (214.59s elapsed)
+
+  %GC     time      36.2%  (36.2% elapsed)
+
+  Alloc rate    891,883,628 bytes per MUT second
+
+  Productivity  63.8% of total user, 63.7% of total elapsed
+
+
+real	3m34.684s
+user	3m32.753s
+sys	0m1.612s
+
+---------------------------------------------------------------------------
+
+2012-10-19 before refactoring in Termination checker
+
+Finished README.
+ 121,815,567,840 bytes allocated in the heap
+  32,445,394,648 bytes copied during GC
+     424,453,984 bytes maximum residency (115 sample(s))
+      11,429,312 bytes maximum slop
+            1167 MB total memory in use (0 MB lost due to fragmentation)
+
+                                    Tot time (elapsed)  Avg pause  Max pause
+  Gen  0     233753 colls,     0 par   50.86s   51.02s     0.0002s    0.0157s
+  Gen  1       115 colls,     0 par   28.55s   29.18s     0.2537s    0.9547s
+
+  INIT    time    0.00s  (  0.02s elapsed)
+  MUT     time  141.19s  (145.10s elapsed)
+  GC      time   79.41s  ( 80.19s elapsed)
+  EXIT    time    0.00s  (  0.00s elapsed)
+  Total   time  220.61s  (225.31s elapsed)
+
+  %GC     time      36.0%  (35.6% elapsed)
+
+  Alloc rate    862,751,248 bytes per MUT second
+
+  Productivity  64.0% of total user, 62.7% of total elapsed
+
+
+real	3m45.487s
+user	3m38.674s
+sys	0m1.984s
+
+---------------------------------------------------------------------------
+
+2012-10-11  before Q-combinators
+
+Finished README.
+ 124,694,669,672 bytes allocated in the heap
+  32,858,769,616 bytes copied during GC
+     393,808,808 bytes maximum residency (116 sample(s))
+      11,293,480 bytes maximum slop
+            1096 MB total memory in use (0 MB lost due to fragmentation)
+
+                                    Tot time (elapsed)  Avg pause  Max pause
+  Gen  0     239318 colls,     0 par   50.15s   50.23s     0.0002s    0.0058s
+  Gen  1       116 colls,     0 par   29.04s   29.11s     0.2509s    0.8877s
+
+  INIT    time    0.00s  (  0.00s elapsed)
+  MUT     time  146.12s  (147.23s elapsed)
+  GC      time   79.19s  ( 79.33s elapsed)
+  EXIT    time    0.00s  (  0.00s elapsed)
+  Total   time  225.32s  (226.56s elapsed)
+
+  %GC     time      35.1%  (35.0% elapsed)
+
+  Alloc rate    853,361,479 bytes per MUT second
+
+  Productivity  64.9% of total user, 64.5% of total elapsed
+
+
+real	3m46.682s
+user	3m43.762s
+sys	0m1.620s
+
+2012-10-11 after Q-combinators
+
+Finished README.
+ 167,955,189,616 bytes allocated in the heap
+  34,462,143,544 bytes copied during GC
+     436,298,656 bytes maximum residency (117 sample(s))
+      12,326,752 bytes maximum slop
+            1128 MB total memory in use (0 MB lost due to fragmentation)
+
+                                    Tot time (elapsed)  Avg pause  Max pause
+  Gen  0     323215 colls,     0 par   54.37s   54.40s     0.0002s    0.0042s
+  Gen  1       117 colls,     0 par   30.38s   30.43s     0.2601s    1.0572s
+
+  INIT    time    0.00s  (  0.00s elapsed)
+  MUT     time  160.82s  (161.01s elapsed)
+  GC      time   84.76s  ( 84.83s elapsed)
+  EXIT    time    0.00s  (  0.00s elapsed)
+  Total   time  245.58s  (245.84s elapsed)
+
+  %GC     time      34.5%  (34.5% elapsed)
+
+  Alloc rate    1,044,367,122 bytes per MUT second
+
+  Productivity  65.5% of total user, 65.4% of total elapsed
+
+
+real	4m5.949s
+user	4m3.855s
+sys	0m1.788s
+
+-- after sharing for Level and Sort
+
+Finished README.
+ 137,866,022,280 bytes allocated in the heap
+  39,203,587,128 bytes copied during GC
+     467,675,112 bytes maximum residency (115 sample(s))
+      11,606,400 bytes maximum slop
+            1272 MB total memory in use (0 MB lost due to fragmentation)
+
+                                    Tot time (elapsed)  Avg pause  Max pause
+  Gen  0     264616 colls,     0 par   58.28s   58.33s     0.0002s    0.0041s
+  Gen  1       115 colls,     0 par   30.84s   30.89s     0.2686s    1.0803s
+
+  INIT    time    0.00s  (  0.00s elapsed)
+  MUT     time  152.62s  (152.85s elapsed)
+  GC      time   89.12s  ( 89.22s elapsed)
+  EXIT    time    0.00s  (  0.00s elapsed)
+  Total   time  241.74s  (242.07s elapsed)
+
+  %GC     time      36.9%  (36.9% elapsed)
+
+  Alloc rate    903,303,234 bytes per MUT second
+
+  Productivity  63.1% of total user, 63.1% of total elapsed
+
+
+real	4m2.185s
+user	3m59.791s
+sys	0m2.024s
+
+-- after sharing for Type
+
+Finished README.
+ 137,749,742,112 bytes allocated in the heap
+  39,262,668,112 bytes copied during GC
+     392,507,192 bytes maximum residency (117 sample(s))
+      13,044,776 bytes maximum slop
+            1061 MB total memory in use (0 MB lost due to fragmentation)
+
+                                    Tot time (elapsed)  Avg pause  Max pause
+  Gen  0     264398 colls,     0 par   57.97s   58.02s     0.0002s    0.0035s
+  Gen  1       117 colls,     0 par   30.96s   31.01s     0.2650s    0.9263s
+
+  INIT    time    0.00s  (  0.00s elapsed)
+  MUT     time  152.62s  (152.81s elapsed)
+  GC      time   88.93s  ( 89.03s elapsed)
+  EXIT    time    0.00s  (  0.00s elapsed)
+  Total   time  241.55s  (241.84s elapsed)
+
+  %GC     time      36.8%  (36.8% elapsed)
+
+  Alloc rate    902,563,883 bytes per MUT second
+
+  Productivity  63.2% of total user, 63.1% of total elapsed
+
+
+real	4m1.950s
+user	3m59.791s
+sys	0m1.824s
+
+-- after disabling Q-combinators (replacing by mock impl.)
+
+Finished README.
+ 128,043,597,248 bytes allocated in the heap
+  33,158,554,856 bytes copied during GC
+     397,245,144 bytes maximum residency (116 sample(s))
+      10,316,488 bytes maximum slop
+            1105 MB total memory in use (0 MB lost due to fragmentation)
+
+                                    Tot time (elapsed)  Avg pause  Max pause
+  Gen  0     245725 colls,     0 par   50.90s   51.00s     0.0002s    0.0092s
+  Gen  1       116 colls,     0 par   29.58s   29.63s     0.2554s    0.9142s
+
+  INIT    time    0.00s  (  0.00s elapsed)
+  MUT     time  145.96s  (146.82s elapsed)
+  GC      time   80.48s  ( 80.63s elapsed)
+  EXIT    time    0.00s  (  0.00s elapsed)
+  Total   time  226.45s  (227.45s elapsed)
+
+  %GC     time      35.5%  (35.4% elapsed)
+
+  Alloc rate    877,216,735 bytes per MUT second
+
+  Productivity  64.5% of total user, 64.2% of total elapsed
+
+
+real	3m47.577s
+user	3m44.774s
+sys	0m1.744s
+
+
+===========================================================================
+  MacBook
+===========================================================================
+
+2012-11-05 on ghc 7.6; after not reducing meta var args
+
+Finished README.
+  59,509,181,224 bytes allocated in the heap
+  14,495,673,316 bytes copied during GC
+     195,961,356 bytes maximum residency (105 sample(s))
+       2,530,548 bytes maximum slop
+             546 MB total memory in use (0 MB lost due to fragmentation)
+
+                                    Tot time (elapsed)  Avg pause  Max pause
+  Gen  0     113647 colls,     0 par   43.12s   44.25s     0.0004s    0.0388s
+  Gen  1       105 colls,     0 par   24.28s   28.45s     0.2710s    2.8860s
+
+  INIT    time    0.00s  (  0.00s elapsed)
+  MUT     time  142.56s  (145.47s elapsed)
+  GC      time   67.41s  ( 72.70s elapsed)
+  EXIT    time    0.00s  (  0.08s elapsed)
+  Total   time  209.97s  (218.25s elapsed)
+
+  %GC     time      32.1%  (33.3% elapsed)
+
+  Alloc rate    417,442,876 bytes per MUT second
+
+  Productivity  67.9% of total user, 65.3% of total elapsed
+
+
+real	3m38.275s
+user	3m29.967s
+sys	0m2.872s
+
+  59,509,174,888 bytes allocated in the heap
+  14,421,736,476 bytes copied during GC
+     212,352,780 bytes maximum residency (102 sample(s))
+       2,448,736 bytes maximum slop
+             545 MB total memory in use (0 MB lost due to fragmentation)
+
+                                    Tot time (elapsed)  Avg pause  Max pause
+  Gen  0     113649 colls,     0 par   43.25s   43.96s     0.0004s    0.0135s
+  Gen  1       102 colls,     0 par   24.30s   25.12s     0.2463s    0.9028s
+
+  INIT    time    0.00s  (  0.00s elapsed)
+  MUT     time  142.11s  (144.55s elapsed)
+  GC      time   67.55s  ( 69.08s elapsed)
+  EXIT    time    0.00s  (  0.08s elapsed)
+  Total   time  209.66s  (213.71s elapsed)
+
+  %GC     time      32.2%  (32.3% elapsed)
+
+  Alloc rate    418,755,431 bytes per MUT second
+
+  Productivity  67.8% of total user, 66.5% of total elapsed
+
+
+real	3m33.900s
+user	3m29.659s
+sys	0m2.151s
+
+Finished README.
+  59,509,174,888 bytes allocated in the heap
+  14,421,441,332 bytes copied during GC
+     212,352,792 bytes maximum residency (102 sample(s))
+       2,446,640 bytes maximum slop
+             545 MB total memory in use (0 MB lost due to fragmentation)
+
+                                    Tot time (elapsed)  Avg pause  Max pause
+  Gen  0     113649 colls,     0 par   44.61s   47.15s     0.0004s    0.0076s
+  Gen  1       102 colls,     0 par   24.72s   27.81s     0.2726s    1.8119s
+
+  INIT    time    0.00s  (  0.00s elapsed)
+  MUT     time  145.57s  (155.68s elapsed)
+  GC      time   69.33s  ( 74.96s elapsed)
+  EXIT    time    0.00s  (  0.09s elapsed)
+  Total   time  214.90s  (230.72s elapsed)
+
+  %GC     time      32.3%  (32.5% elapsed)
+
+  Alloc rate    408,792,540 bytes per MUT second
+
+  Productivity  67.7% of total user, 63.1% of total elapsed
+
+
+real	3m50.990s
+user	3m34.905s
+sys	0m2.824s
+
+-- before ------------------------------------------------------------
+
+Finished README.
+  59,879,530,172 bytes allocated in the heap
+  14,509,855,452 bytes copied during GC
+     196,475,072 bytes maximum residency (104 sample(s))
+       2,583,308 bytes maximum slop
+             547 MB total memory in use (0 MB lost due to fragmentation)
+
+                                    Tot time (elapsed)  Avg pause  Max pause
+  Gen  0     114354 colls,     0 par   46.99s   49.03s     0.0004s    0.0131s
+  Gen  1       104 colls,     0 par   25.66s   27.80s     0.2673s    1.2198s
+
+  INIT    time    0.00s  (  0.00s elapsed)
+  MUT     time  146.43s  (153.83s elapsed)
+  GC      time   72.64s  ( 76.84s elapsed)
+  EXIT    time    0.00s  (  0.08s elapsed)
+  Total   time  219.08s  (230.77s elapsed)
+
+  %GC     time      33.2%  (33.3% elapsed)
+
+  Alloc rate    408,924,357 bytes per MUT second
+
+  Productivity  66.8% of total user, 63.5% of total elapsed
+
+
+real	3m51.019s
+user	3m39.078s
+sys	0m3.259s
+
+Finished README.
+  59,879,529,056 bytes allocated in the heap
+  14,510,928,208 bytes copied during GC
+     196,475,048 bytes maximum residency (104 sample(s))
+       2,584,048 bytes maximum slop
+             547 MB total memory in use (0 MB lost due to fragmentation)
+
+                                    Tot time (elapsed)  Avg pause  Max pause
+  Gen  0     114354 colls,     0 par   46.82s   48.84s     0.0004s    0.0546s
+  Gen  1       104 colls,     0 par   25.70s   33.63s     0.3234s    5.0270s
+
+  INIT    time    0.00s  (  0.00s elapsed)
+  MUT     time  145.85s  (157.93s elapsed)
+  GC      time   72.52s  ( 82.47s elapsed)
+  EXIT    time    0.00s  (  0.08s elapsed)
+  Total   time  218.37s  (240.48s elapsed)
+
+  %GC     time      33.2%  (34.3% elapsed)
+
+  Alloc rate    410,563,952 bytes per MUT second
+
+  Productivity  66.8% of total user, 60.6% of total elapsed
+
+
+real	4m0.535s
+user	3m38.368s
+sys	0m3.182s
+
+---------------------------------------------------------------------------
+
+2012-09-28  before optimizing makeProjection (check for rec. occurrence)
+
+Finished README.
+  80,721,605,252 bytes allocated in the heap
+  17,090,526,016 bytes copied during GC
+     196,887,864 bytes maximum residency (109 sample(s))
+       2,629,552 bytes maximum slop
+             542 MB total memory in use (0 MB lost due to fragmentation)
+
+  Generation 0: 153448 collections,     0 parallel, 44.98s, 45.94s elapsed
+  Generation 1:   109 collections,     0 parallel, 25.82s, 32.12s elapsed
+
+  INIT  time    0.00s  (  0.00s elapsed)
+  MUT   time  182.49s  (189.00s elapsed)
+  GC    time   70.80s  ( 78.07s elapsed)
+  EXIT  time    0.00s  (  0.00s elapsed)
+  Total time  253.29s  (267.07s elapsed)
+
+  %GC time      28.0%  (29.2% elapsed)
+
+  Alloc rate    442,322,078 bytes per MUT second
+
+  Productivity  72.0% of total user, 68.3% of total elapsed
+
+
+real	4m27.153s
+user	4m13.292s
+sys	0m3.450s
+
+-- after optimizing makeProjection
+
+Finished README.
+  80,249,881,712 bytes allocated in the heap
+  17,097,089,648 bytes copied during GC
+     209,054,360 bytes maximum residency (107 sample(s))
+       2,853,036 bytes maximum slop
+             567 MB total memory in use (0 MB lost due to fragmentation)
+
+  Generation 0: 152548 collections,     0 parallel, 44.26s, 44.98s elapsed
+  Generation 1:   107 collections,     0 parallel, 25.97s, 30.17s elapsed
+
+  INIT  time    0.00s  (  0.00s elapsed)
+  MUT   time  178.72s  (181.52s elapsed)
+  GC    time   70.23s  ( 75.15s elapsed)
+  EXIT  time    0.00s  (  0.00s elapsed)
+  Total time  248.95s  (256.67s elapsed)
+
+  %GC time      28.2%  (29.3% elapsed)
+
+  Alloc rate    449,024,097 bytes per MUT second
+
+  Productivity  71.8% of total user, 69.6% of total elapsed
+
+
+real	4m16.767s
+user	4m8.953s
+sys	0m3.051s
+
+-- further tiny optimization (no noticeable difference)
+
+Finished README.
+  80,247,735,324 bytes allocated in the heap
+  17,108,704,696 bytes copied during GC
+     214,395,356 bytes maximum residency (108 sample(s))
+       2,824,328 bytes maximum slop
+             560 MB total memory in use (0 MB lost due to fragmentation)
+
+  Generation 0: 152543 collections,     0 parallel, 44.35s, 45.02s elapsed
+  Generation 1:   108 collections,     0 parallel, 25.86s, 26.68s elapsed
+
+  INIT  time    0.00s  (  0.00s elapsed)
+  MUT   time  179.28s  (181.47s elapsed)
+  GC    time   70.21s  ( 71.69s elapsed)
+  EXIT  time    0.00s  (  0.00s elapsed)
+  Total time  249.50s  (253.16s elapsed)
+
+  %GC time      28.1%  (28.3% elapsed)
+
+  Alloc rate    447,599,035 bytes per MUT second
+
+  Productivity  71.9% of total user, 70.8% of total elapsed
+
+
+real	4m13.258s
+user	4m9.498s
+sys	0m2.921s
+
+========================================================================
+
+2013-06-15 on 64bit Linux
+
+AFTER projection-shortcut
+
+Finished README.
+ 132,988,745,160 bytes allocated in the heap
+  35,174,174,456 bytes copied during GC
+     429,758,624 bytes maximum residency (117 sample(s))
+      12,817,040 bytes maximum slop
+            1143 MB total memory in use (0 MB lost due to fragmentation)
+
+                                    Tot time (elapsed)  Avg pause  Max pause
+  Gen  0     255131 colls,     0 par   55.38s   55.46s     0.0002s    0.0074s
+  Gen  1       117 colls,     0 par   31.72s   32.03s     0.2738s    1.0241s
+
+  INIT    time    0.00s  (  0.00s elapsed)
+  MUT     time  150.17s  (150.51s elapsed)
+  GC      time   87.10s  ( 87.49s elapsed)
+  EXIT    time    0.00s  (  0.00s elapsed)
+  Total   time  237.27s  (238.01s elapsed)
+
+  %GC     time      36.7%  (36.8% elapsed)
+
+  Alloc rate    885,573,554 bytes per MUT second
+
+  Productivity  63.3% of total user, 63.1% of total elapsed
+
+
+real	3m58.117s
+user	3m55.391s
+sys	0m1.996s
+
+Finished README.
+ 132,987,924,232 bytes allocated in the heap
+  35,182,173,632 bytes copied during GC
+     430,702,512 bytes maximum residency (117 sample(s))
+      12,730,336 bytes maximum slop
+            1137 MB total memory in use (0 MB lost due to fragmentation)
+
+                                    Tot time (elapsed)  Avg pause  Max pause
+  Gen  0     255130 colls,     0 par   54.53s   54.60s     0.0002s    0.0052s
+  Gen  1       117 colls,     0 par   31.28s   31.35s     0.2679s    1.0141s
+
+  INIT    time    0.00s  (  0.00s elapsed)
+  MUT     time  148.40s  (148.64s elapsed)
+  GC      time   85.82s  ( 85.95s elapsed)
+  EXIT    time    0.00s  (  0.00s elapsed)
+  Total   time  234.21s  (234.59s elapsed)
+
+  %GC     time      36.6%  (36.6% elapsed)
+
+  Alloc rate    896,151,147 bytes per MUT second
+
+  Productivity  63.4% of total user, 63.3% of total elapsed
+
+
+real	3m54.702s
+user	3m52.543s
+sys	0m1.792s
+
+Finished README.
+ 132,987,923,024 bytes allocated in the heap
+  35,191,095,408 bytes copied during GC
+     388,889,688 bytes maximum residency (117 sample(s))
+      10,510,504 bytes maximum slop
+            1081 MB total memory in use (0 MB lost due to fragmentation)
+
+                                    Tot time (elapsed)  Avg pause  Max pause
+  Gen  0     255130 colls,     0 par   54.77s   54.84s     0.0002s    0.0123s
+  Gen  1       117 colls,     0 par   31.44s   31.49s     0.2691s    0.9095s
+
+  INIT    time    0.00s  (  0.00s elapsed)
+  MUT     time  148.96s  (149.20s elapsed)
+  GC      time   86.21s  ( 86.33s elapsed)
+  EXIT    time    0.00s  (  0.00s elapsed)
+  Total   time  235.17s  (235.53s elapsed)
+
+  %GC     time      36.7%  (36.7% elapsed)
+
+  Alloc rate    892,756,844 bytes per MUT second
+
+  Productivity  63.3% of total user, 63.2% of total elapsed
+
+
+real	3m55.632s
+user	3m53.275s
+sys	0m2.004s
+
+
+
+
+BEFORE
+
+Finished README.
+ 134,909,722,296 bytes allocated in the heap
+  35,070,686,432 bytes copied during GC
+     425,329,288 bytes maximum residency (118 sample(s))
+      11,060,336 bytes maximum slop
+            1173 MB total memory in use (0 MB lost due to fragmentation)
+
+                                    Tot time (elapsed)  Avg pause  Max pause
+  Gen  0     258867 colls,     0 par   54.69s   54.80s     0.0002s    0.0091s
+  Gen  1       118 colls,     0 par   30.79s   30.92s     0.2620s    0.9669s
+
+  INIT    time    0.00s  (  0.00s elapsed)
+  MUT     time  156.70s  (159.68s elapsed)
+  GC      time   85.49s  ( 85.71s elapsed)
+  EXIT    time    0.00s  (  0.00s elapsed)
+  Total   time  242.19s  (245.39s elapsed)
+
+  %GC     time      35.3%  (34.9% elapsed)
+
+  Alloc rate    860,928,970 bytes per MUT second
+
+  Productivity  64.7% of total user, 63.9% of total elapsed
+
+
+real	4m5.500s
+user	4m0.279s
+sys	0m2.028s
+
+Finished README.
+ 134,909,722,296 bytes allocated in the heap
+  35,070,561,616 bytes copied during GC
+     425,249,304 bytes maximum residency (118 sample(s))
+      11,056,328 bytes maximum slop
+            1172 MB total memory in use (0 MB lost due to fragmentation)
+
+                                    Tot time (elapsed)  Avg pause  Max pause
+  Gen  0     258867 colls,     0 par   53.88s   53.95s     0.0002s    0.0084s
+  Gen  1       118 colls,     0 par   30.74s   30.80s     0.2610s    0.9587s
+
+  INIT    time    0.00s  (  0.00s elapsed)
+  MUT     time  154.45s  (154.71s elapsed)
+  GC      time   84.61s  ( 84.75s elapsed)
+  EXIT    time    0.00s  (  0.00s elapsed)
+  Total   time  239.07s  (239.46s elapsed)
+
+  %GC     time      35.4%  (35.4% elapsed)
+
+  Alloc rate    873,475,835 bytes per MUT second
+
+  Productivity  64.6% of total user, 64.5% of total elapsed
+
+
+real	3m59.566s
+user	3m46.690s
+sys	0m12.493s
+
+Finished README.
+ 134,909,722,296 bytes allocated in the heap
+  35,070,573,616 bytes copied during GC
+     425,329,288 bytes maximum residency (118 sample(s))
+      11,060,336 bytes maximum slop
+            1172 MB total memory in use (0 MB lost due to fragmentation)
+
+                                    Tot time (elapsed)  Avg pause  Max pause
+  Gen  0     258867 colls,     0 par   53.96s   54.02s     0.0002s    0.0049s
+  Gen  1       118 colls,     0 par   30.54s   30.59s     0.2592s    0.9685s
+
+  INIT    time    0.00s  (  0.00s elapsed)
+  MUT     time  154.51s  (154.71s elapsed)
+  GC      time   84.50s  ( 84.61s elapsed)
+  EXIT    time    0.00s  (  0.00s elapsed)
+  Total   time  239.00s  (239.32s elapsed)
+
+  %GC     time      35.4%  (35.4% elapsed)
+
+  Alloc rate    873,154,268 bytes per MUT second
+
+  Productivity  64.6% of total user, 64.6% of total elapsed
+
+
+real	3m59.428s
+user	3m57.203s
+sys	0m1.920s
+
+
+
+2013-03-23 Benchmark facility
+
+Finished README.
+Total time         251099 ms
+Parsing              2296 ms
+Import               4588 ms
+Deserialization        48 ms
+Scoping             21561 ms
+Typing             399617 ms
+Termination          9228 ms
+Positivity           4420 ms
+Injectivity           560 ms
+ProjectionLikeness    108 ms
+Coverage             1776 ms
+Highlighting         5516 ms
+Serialization      145509 ms
+
+ 138,059,997,864 bytes allocated in the heap
+  16,552,778,160 bytes copied during GC
+     398,039,296 bytes maximum residency (42 sample(s))
+       5,607,064 bytes maximum slop
+            1161 MB total memory in use (0 MB lost due to fragmentation)
+
+                                    Tot time (elapsed)  Avg pause  Max pause
+  Gen  0      1539 colls,     0 par   46.08s   46.19s     0.0300s    0.3859s
+  Gen  1        42 colls,     0 par   14.64s   14.70s     0.3499s    0.8874s
+
+  INIT    time    0.00s  (  0.00s elapsed)
+  MUT     time  190.36s  (191.33s elapsed)
+  GC      time   60.72s  ( 60.89s elapsed)
+  EXIT    time    0.03s  (  0.03s elapsed)
+  Total   time  251.13s  (252.25s elapsed)
+
+  %GC     time      24.2%  (24.1% elapsed)
+
+  Alloc rate    725,244,231 bytes per MUT second
+
+  Productivity  75.8% of total user, 75.5% of total elapsed
+
+
+real	4m12.375s
+user	4m9.632s
+sys	0m1.620s
+
+Finished README.
+Total time         254387 ms
+Parsing              1504 ms
+Import               4704 ms
+Deserialization        24 ms
+Scoping             22953 ms
+Typing              53143 ms
+Termination          9356 ms
+Positivity           4252 ms
+Injectivity           608 ms
+ProjectionLikeness    132 ms
+Coverage             1780 ms
+Highlighting         5672 ms
+Serialization      146953 ms
+
+ 138,019,481,984 bytes allocated in the heap
+  16,547,405,232 bytes copied during GC
+     398,005,544 bytes maximum residency (42 sample(s))
+       5,647,360 bytes maximum slop
+            1161 MB total memory in use (0 MB lost due to fragmentation)
+
+                                    Tot time (elapsed)  Avg pause  Max pause
+  Gen  0      1543 colls,     0 par   46.39s   46.56s     0.0302s 0.4004s
+  Gen  1        42 colls,     0 par   14.98s   15.04s     0.3582s 0.8879s
+
+  INIT    time    0.00s  (  0.00s elapsed)
+  MUT     time  193.00s  (193.74s elapsed)
+  GC      time   61.38s  ( 61.61s elapsed)
+  EXIT    time    0.03s  (  0.03s elapsed)
+  Total   time  254.41s  (255.39s elapsed)
+
+  %GC     time      24.1%  (24.1% elapsed)
+
+  Alloc rate    715,141,070 bytes per MUT second
+
+  Productivity  75.9% of total user, 75.6% of total elapsed
+
+
+real    4m15.498s
+user    4m11.532s
+sys    0m2.996s
+
+
+
+2014-03-25  Introducing some strictness in billTo
+
+Finished README.
+Total time           263108 ms
+Parsing                1528 ms
+Import                 3976 ms
+Deserialization          16 ms
+Scoping               22681 ms
+Typing                53623 ms
+Termination            9804 ms
+Termination.Graph       204 ms
+Termination.RecCheck   2444 ms
+Termination.Reduce       64 ms
+Positivity             4592 ms
+Injectivity             640 ms
+ProjectionLikeness      152 ms
+Coverage               1772 ms
+Highlighting           6012 ms
+Serialization        154949 ms
+
+ 137,157,635,640 bytes allocated in the heap
+  15,996,149,208 bytes copied during GC
+     490,945,992 bytes maximum residency (42 sample(s))
+       7,079,880 bytes maximum slop
+            1171 MB total memory in use (0 MB lost due to fragmentation)
+
+                                    Tot time (elapsed)  Avg pause  Max pause
+  Gen  0      1512 colls,     0 par   48.53s   48.66s     0.0322s    0.4164s
+  Gen  1        42 colls,     0 par   17.26s   19.10s     0.4547s    2.5897s
+
+  INIT    time    0.00s  (  0.08s elapsed)
+  MUT     time  197.31s  (202.32s elapsed)
+  GC      time   65.78s  ( 67.76s elapsed)
+  EXIT    time    0.03s  (  0.03s elapsed)
+  Total   time  263.14s  (270.19s elapsed)
+
+  %GC     time      25.0%  (25.1% elapsed)
+
+  Alloc rate    695,123,329 bytes per MUT second
+
+  Productivity  75.0% of total user, 73.0% of total elapsed
+
+
+real	4m30.546s
+user	4m20.856s
+sys	0m2.440s
+
+
+Finished README.
+Total time           263288 ms
+Parsing                1588 ms
+Import                 3844 ms
+Deserialization          52 ms
+Scoping               22821 ms
+Typing                53651 ms
+Termination            9856 ms
+Termination.Graph       208 ms
+Termination.RecCheck   2420 ms
+Termination.Reduce       56 ms
+Positivity             4416 ms
+Injectivity             656 ms
+ProjectionLikeness      124 ms
+Coverage               1828 ms
+Highlighting           6076 ms
+Serialization        155185 ms
+
+ 137,154,612,136 bytes allocated in the heap
+  15,994,583,888 bytes copied during GC
+     490,945,664 bytes maximum residency (42 sample(s))
+       7,088,584 bytes maximum slop
+            1179 MB total memory in use (8 MB lost due to fragmentation)
+
+                                    Tot time (elapsed)  Avg pause  Max pause
+  Gen  0      1512 colls,     0 par   48.10s   48.30s     0.0319s    0.4073s
+  Gen  1        42 colls,     0 par   17.17s   17.25s     0.4107s    2.7086s
+
+  INIT    time    0.00s  (  0.00s elapsed)
+  MUT     time  198.00s  (198.61s elapsed)
+  GC      time   65.27s  ( 65.55s elapsed)
+  EXIT    time    0.03s  (  0.03s elapsed)
+  Total   time  263.31s  (264.19s elapsed)
+
+  %GC     time      24.8%  (24.8% elapsed)
+
+  Alloc rate    692,686,792 bytes per MUT second
+
+  Productivity  75.2% of total user, 75.0% of total elapsed
+
+
+real	4m24.350s
+user	4m17.988s
+sys	0m5.488s
+
+
+
+-- 2014-03-26 before ExtractCalls for Level
+
+
+Finished README.
+Total time           248087 ms
+Parsing                1532 ms
+Import                 3976 ms
+Deserialization          48 ms
+Scoping               22465 ms
+Typing                52075 ms
+Termination            7876 ms
+Termination.Graph       200 ms
+Termination.RecCheck   1932 ms
+Termination.Level        52 ms
+Positivity             3912 ms
+Injectivity             600 ms
+ProjectionLikeness      124 ms
+Coverage               1700 ms
+Highlighting           5580 ms
+Serialization        144605 ms
+
+ 137,194,284,352 bytes allocated in the heap
+  16,545,914,496 bytes copied during GC
+     398,693,144 bytes maximum residency (43 sample(s))
+       5,675,176 bytes maximum slop
+            1169 MB total memory in use (0 MB lost due to fragmentation)
+
+                                    Tot time (elapsed)  Avg pause  Max pause
+  Gen  0      1566 colls,     0 par   45.29s   45.40s     0.0290s    0.3915s
+  Gen  1        43 colls,     0 par   14.54s   14.57s     0.3387s    0.8458s
+
+  INIT    time    0.00s  (  0.00s elapsed)
+  MUT     time  188.25s  (192.34s elapsed)
+  GC      time   59.83s  ( 59.97s elapsed)
+  EXIT    time    0.03s  (  0.03s elapsed)
+  Total   time  248.11s  (252.34s elapsed)
+
+  %GC     time      24.1%  (23.8% elapsed)
+
+  Alloc rate    728,801,450 bytes per MUT second
+
+  Productivity  75.9% of total user, 74.6% of total elapsed
+
+
+real	4m12.456s
+user	4m6.387s
+sys	0m1.848s
+
+
+-- 2014-03-26 after ExtractCalls for Level
+
+Finished README.
+Total time           246411 ms
+Parsing                1556 ms
+Import                 3948 ms
+Deserialization          16 ms
+Scoping               22637 ms
+Typing                51807 ms
+Termination            7764 ms
+Termination.Graph       208 ms
+Termination.RecCheck   1880 ms
+Termination.Level        20 ms
+Positivity             3744 ms
+Injectivity             564 ms
+ProjectionLikeness      120 ms
+Coverage               1848 ms
+Highlighting           5836 ms
+Serialization        142900 ms
+
+ 137,191,518,344 bytes allocated in the heap
+  16,546,478,920 bytes copied during GC
+     398,694,392 bytes maximum residency (43 sample(s))
+       5,636,896 bytes maximum slop
+            1169 MB total memory in use (0 MB lost due to fragmentation)
+
+                                    Tot time (elapsed)  Avg pause  Max pause
+  Gen  0      1565 colls,     0 par   45.33s   45.42s     0.0290s    0.3917s
+  Gen  1        43 colls,     0 par   14.61s   14.64s     0.3405s    0.8372s
+
+  INIT    time    0.00s  (  0.00s elapsed)
+  MUT     time  186.45s  (187.16s elapsed)
+  GC      time   59.94s  ( 60.06s elapsed)
+  EXIT    time    0.03s  (  0.03s elapsed)
+  Total   time  246.43s  (247.25s elapsed)
+
+  %GC     time      24.3%  (24.3% elapsed)
+
+  Alloc rate    735,802,724 bytes per MUT second
+
+  Productivity  75.7% of total user, 75.4% of total elapsed
+
+
+real	4m7.381s
+user	4m5.219s
+sys	0m1.344s
+
+
+-- 2014-03-26 Termination.Order.Decr strict
+
+Finished README.
+Total time           247827 ms
+Parsing                1432 ms
+Import                 3820 ms
+Deserialization          24 ms
+Scoping               22353 ms
+Typing                51875 ms
+Termination            7740 ms
+Termination.Graph       200 ms
+Termination.RecCheck   1836 ms
+Positivity             3912 ms
+Injectivity             560 ms
+ProjectionLikeness      104 ms
+Coverage               1792 ms
+Highlighting           5668 ms
+Serialization        144757 ms
+
+ 137,145,130,336 bytes allocated in the heap
+  16,545,617,504 bytes copied during GC
+     398,689,192 bytes maximum residency (43 sample(s))
+       5,650,752 bytes maximum slop
+            1169 MB total memory in use (0 MB lost due to fragmentation)
+
+                                    Tot time (elapsed)  Avg pause  Max pause
+  Gen  0      1568 colls,     0 par   45.39s   45.50s     0.0290s    0.3973s
+  Gen  1        43 colls,     0 par   14.80s   14.83s     0.3448s    0.8503s
+
+  INIT    time    0.00s  (  0.00s elapsed)
+  MUT     time  187.62s  (188.07s elapsed)
+  GC      time   60.19s  ( 60.32s elapsed)
+  EXIT    time    0.03s  (  0.03s elapsed)
+  Total   time  247.85s  (248.43s elapsed)
+
+  %GC     time      24.3%  (24.3% elapsed)
+
+  Alloc rate    730,974,405 bytes per MUT second
+
+  Productivity  75.7% of total user, 75.5% of total elapsed
+
+
+real	4m8.563s
+user	4m6.639s
+sys	0m1.340s
+
+-- 2014-03-26 after discovering that prettyTCM g takes 50% of all termination time
+
+Finished README.
+Total time           243983 ms
+Parsing                1476 ms
+Import                 4624 ms
+Deserialization          44 ms
+Scoping               22457 ms
+Typing                50871 ms
+Termination            3264 ms
+Termination.Graph       176 ms
+Termination.RecCheck   1768 ms
+Termination.Compare     548 ms
+Positivity             3800 ms
+Injectivity             656 ms
+ProjectionLikeness      132 ms
+Coverage               2024 ms
+Highlighting           5692 ms
+Serialization        144725 ms
+
+ 134,339,588,640 bytes allocated in the heap
+  16,557,849,448 bytes copied during GC
+     398,704,568 bytes maximum residency (43 sample(s))
+       5,595,760 bytes maximum slop
+            1149 MB total memory in use (0 MB lost due to fragmentation)
+
+                                    Tot time (elapsed)  Avg pause  Max pause
+  Gen  0      1547 colls,     0 par   45.49s   45.57s     0.0295s    0.3847s
+  Gen  1        43 colls,     0 par   14.54s   14.56s     0.3386s    0.8324s
+
+  INIT    time    0.00s  (  0.00s elapsed)
+  MUT     time  183.94s  (184.90s elapsed)
+  GC      time   60.02s  ( 60.13s elapsed)
+  EXIT    time    0.03s  (  0.03s elapsed)
+  Total   time  244.01s  (245.06s elapsed)
+
+  %GC     time      24.6%  (24.5% elapsed)
+
+  Alloc rate    730,328,148 bytes per MUT second
+
+  Productivity  75.4% of total user, 75.1% of total elapsed
+
+
+real	4m5.195s
+user	4m2.719s
+sys	0m1.424s
+
+-- After removing RecCheck
+
+Finished README.
+Total time          245271 ms
+Parsing               1552 ms
+Import                4668 ms
+Deserialization         40 ms
+Scoping              22497 ms
+Typing               49891 ms
+Termination           4844 ms
+Termination.Graph      256 ms
+Termination.Compare    888 ms
+Positivity            4832 ms
+Injectivity            628 ms
+ProjectionLikeness     124 ms
+Coverage              1744 ms
+Highlighting          5520 ms
+Serialization       145605 ms
+
+ 135,818,330,608 bytes allocated in the heap
+  16,468,596,584 bytes copied during GC
+     426,919,256 bytes maximum residency (43 sample(s))
+       5,709,968 bytes maximum slop
+            1176 MB total memory in use (0 MB lost due to fragmentation)
+
+                                    Tot time (elapsed)  Avg pause  Max pause
+  Gen  0      1502 colls,     0 par   44.97s   45.05s     0.0300s    0.3834s
+  Gen  1        43 colls,     0 par   14.72s   14.75s     0.3429s    0.8974s
+
+  INIT    time    0.00s  (  0.00s elapsed)
+  MUT     time  185.57s  (185.95s elapsed)
+  GC      time   59.69s  ( 59.80s elapsed)
+  EXIT    time    0.03s  (  0.03s elapsed)
+  Total   time  245.29s  (245.78s elapsed)
+
+  %GC     time      24.3%  (24.3% elapsed)
+
+  Alloc rate    731,909,667 bytes per MUT second
+
+  Productivity  75.7% of total user, 75.5% of total elapsed
+
+
+real	4m5.918s
+user	4m1.731s
+sys	0m3.700s
+Finished README.
+Total time          243775 ms
+Parsing               2236 ms
+Import                4664 ms
+Deserialization         24 ms
+Scoping              22137 ms
+Typing               50595 ms
+Termination           4460 ms
+Termination.Graph      288 ms
+Termination.Compare    808 ms
+Positivity            4696 ms
+Injectivity            648 ms
+ProjectionLikeness     128 ms
+Coverage              1712 ms
+Highlighting          5824 ms
+Serialization       143376 ms
+
+ 135,835,176,176 bytes allocated in the heap
+  16,490,714,152 bytes copied during GC
+     426,014,240 bytes maximum residency (43 sample(s))
+       5,722,440 bytes maximum slop
+            1176 MB total memory in use (0 MB lost due to fragmentation)
+
+                                    Tot time (elapsed)  Avg pause  Max pause
+  Gen  0      1519 colls,     0 par   44.65s   44.75s     0.0295s    0.3811s
+  Gen  1        43 colls,     0 par   14.68s   14.70s     0.3419s    0.8981s
+
+  INIT    time    0.00s  (  0.00s elapsed)
+  MUT     time  184.43s  (184.78s elapsed)
+  GC      time   59.33s  ( 59.45s elapsed)
+  EXIT    time    0.03s  (  0.03s elapsed)
+  Total   time  243.80s  (244.27s elapsed)
+
+  %GC     time      24.3%  (24.3% elapsed)
+
+  Alloc rate    736,509,487 bytes per MUT second
+
+  Productivity  75.7% of total user, 75.5% of total elapsed
+
+
+real	4m4.401s
+user	4m2.587s
+sys	0m1.352s
+
+--- putting RecCheck back in
+
+Finished README.
+Total time           245663 ms
+Parsing                1560 ms
+Import                 4660 ms
+Deserialization          44 ms
+Scoping               22669 ms
+Typing                52183 ms
+Termination            3184 ms
+Termination.Graph       176 ms
+Termination.RecCheck   1672 ms
+Termination.Compare     580 ms
+Positivity             3840 ms
+Injectivity             588 ms
+ProjectionLikeness      136 ms
+Coverage               2072 ms
+Highlighting           5792 ms
+Serialization        145669 ms
+
+ 134,321,914,096 bytes allocated in the heap
+  16,557,652,048 bytes copied during GC
+     398,706,344 bytes maximum residency (43 sample(s))
+       5,600,760 bytes maximum slop
+            1149 MB total memory in use (0 MB lost due to fragmentation)
+
+                                    Tot time (elapsed)  Avg pause  Max pause
+  Gen  0      1547 colls,     0 par   45.80s   45.98s     0.0297s    0.3851s
+  Gen  1        43 colls,     0 par   14.86s   14.90s     0.3464s    0.8987s
+
+  INIT    time    0.00s  (  0.00s elapsed)
+  MUT     time  184.99s  (185.78s elapsed)
+  GC      time   60.66s  ( 60.88s elapsed)
+  EXIT    time    0.03s  (  0.03s elapsed)
+  Total   time  245.69s  (246.70s elapsed)
+
+  %GC     time      24.7%  (24.7% elapsed)
+
+  Alloc rate    726,093,554 bytes per MUT second
+
+  Productivity  75.3% of total user, 75.0% of total elapsed
+
+
+real	4m6.831s
+user	4m4.203s
+sys	0m1.616s
+
+
+------------------------------------------------------------------------
+-- With long path name
+
+  Checking Universe (/home/abel/tmp/Agda2/stdlib-alkdsjfhalksdhfalksdjhfaklsdjhfaklsjdhfaklsdjhfaksjdhfaksjdhfaskjdfhaksdjhfaksdhfalskjdhfaiweuhrowiefosidjaflsdjfaalsdjflskdjflsjdflsjkdflskdjflskdjflskdjflskdjflsdkjflskdjflskdjfsldkjfslkdjflskdjflskdjflskdjfs/src/Universe.agda).
+  Finished Universe.
+ Finished Everything.
+Finished README.
+Total time           353206 ms
+Parsing                1576 ms
+Import                 4204 ms
+Deserialization          24 ms
+Scoping               22521 ms
+Typing                50455 ms
+Termination            3312 ms
+Termination.Graph       208 ms
+Termination.RecCheck   1860 ms
+Termination.Compare     340 ms
+Positivity             4248 ms
+Injectivity             608 ms
+ProjectionLikeness      144 ms
+Coverage               1836 ms
+Highlighting           6564 ms
+Serialization        253635 ms
+Serialization.Sort      896 ms
+
+ 133,586,214,616 bytes allocated in the heap
+  16,520,741,584 bytes copied during GC
+     399,520,016 bytes maximum residency (44 sample(s))
+       5,143,488 bytes maximum slop
+            1152 MB total memory in use (0 MB lost due to fragmentation)
+
+                                    Tot time (elapsed)  Avg pause  Max pause
+  Gen  0      1502 colls,     0 par   45.88s   45.97s     0.0306s    0.3860s
+  Gen  1        44 colls,     0 par   14.69s   14.96s     0.3399s    0.8766s
+
+  INIT    time    0.00s  (  0.02s elapsed)
+  MUT     time  292.62s  (293.38s elapsed)
+  GC      time   60.56s  ( 60.93s elapsed)
+  EXIT    time    0.03s  (  0.03s elapsed)
+  Total   time  353.23s  (354.37s elapsed)
+
+  %GC     time      17.1%  (17.2% elapsed)
+
+  Alloc rate    456,513,019 bytes per MUT second
+
+  Productivity  82.9% of total user, 82.6% of total elapsed
+
+
+real	5m54.583s
+user	5m51.534s
+sys	0m1.864s
+
+
+------------------------------------------------------------------------
+-- With name 200 characters shorter, we save 100s on the serialization!
+
+  Checking Universe (/home/abel/tmp/Agda2/agda-stdlib/src/Universe.agda).
+  Finished Universe.
+ Finished Everything.
+Finished README.
+Total time           245771 ms
+Parsing                1492 ms
+Import                 4056 ms
+Deserialization          36 ms
+Scoping               21973 ms
+Typing                49727 ms
+Termination            3164 ms
+Termination.Graph       188 ms
+Termination.RecCheck   1800 ms
+Termination.Compare     380 ms
+Positivity             4376 ms
+Injectivity             616 ms
+ProjectionLikeness      144 ms
+Coverage               2084 ms
+Highlighting           5632 ms
+Serialization        149369 ms
+Serialization.Sort     1660 ms
+
+ 133,064,819,520 bytes allocated in the heap
+  16,531,909,328 bytes copied during GC
+     428,286,528 bytes maximum residency (43 sample(s))
+       5,227,824 bytes maximum slop
+            1180 MB total memory in use (0 MB lost due to fragmentation)
+
+                                    Tot time (elapsed)  Avg pause  Max pause
+  Gen  0      1512 colls,     0 par   46.41s   46.54s     0.0308s    0.4521s
+  Gen  1        43 colls,     0 par   14.93s   14.96s     0.3480s    0.8854s
+
+  INIT    time    0.00s  (  0.00s elapsed)
+  MUT     time  184.42s  (185.24s elapsed)
+  GC      time   61.33s  ( 61.50s elapsed)
+  EXIT    time    0.03s  (  0.03s elapsed)
+  Total   time  245.79s  (246.78s elapsed)
+
+  %GC     time      25.0%  (24.9% elapsed)
+
+  Alloc rate    721,524,696 bytes per MUT second
+
+  Productivity  75.0% of total user, 74.7% of total elapsed
+
+
+real	4m6.929s
+user	4m3.339s
+sys	0m2.608s
+
+------------------------------------------------------------------------
+-- 2014-03-29 After introducing FileId instead of AbsolutePath
+
+  Checking Universe (/home/abel/tmp/Agda2/agda-stdlib/src/Universe.agda).
+  Finished Universe.
+ Finished Everything.
+Finished README.
+Total time           213677 ms
+Parsing                1424 ms
+Import                 3832 ms
+Deserialization          36 ms
+Scoping               21893 ms
+Typing                50927 ms
+Termination            3168 ms
+Termination.Graph       168 ms
+Termination.RecCheck   1660 ms
+Termination.Compare     372 ms
+Positivity             4276 ms
+Injectivity             720 ms
+ProjectionLikeness      164 ms
+Coverage               1808 ms
+Highlighting           5416 ms
+Serialization        115539 ms
+Serialization.Sort      892 ms
+
+ 130,026,213,488 bytes allocated in the heap
+  16,523,023,112 bytes copied during GC
+     400,507,568 bytes maximum residency (43 sample(s))
+       5,147,064 bytes maximum slop
+            1170 MB total memory in use (0 MB lost due to fragmentation)
+
+                                    Tot time (elapsed)  Avg pause  Max pause
+  Gen  0      1508 colls,     0 par   46.01s   46.19s     0.0306s    0.3979s
+  Gen  1        43 colls,     0 par   15.06s   15.13s     0.3519s    0.8771s
+
+  INIT    time    0.00s  (  0.00s elapsed)
+  MUT     time  152.59s  (156.66s elapsed)
+  GC      time   61.07s  ( 61.32s elapsed)
+  EXIT    time    0.03s  (  0.03s elapsed)
+  Total   time  213.70s  (218.03s elapsed)
+
+  %GC     time      28.6%  (28.1% elapsed)
+
+  Alloc rate    852,103,849 bytes per MUT second
+
+  Productivity  71.4% of total user, 70.0% of total elapsed
+
+
+real	3m38.163s
+user	3m29.789s
+sys	0m4.056s
+
+  Checking Universe (/home/abel/tmp/Agda2/agda-stdlib/src/Universe.agda).
+  Finished Universe.
+ Finished Everything.
+Finished README.
+Total time           212693 ms
+Parsing                1464 ms
+Import                 3864 ms
+Deserialization          20 ms
+Scoping               21777 ms
+Typing                50887 ms
+Termination            3036 ms
+Termination.Graph       148 ms
+Termination.RecCheck   1556 ms
+Termination.Compare     420 ms
+Positivity             4296 ms
+Injectivity             584 ms
+ProjectionLikeness      160 ms
+Coverage               1912 ms
+Highlighting           5424 ms
+Serialization        114959 ms
+Serialization.Sort      884 ms
+
+ 130,026,790,480 bytes allocated in the heap
+  16,522,181,320 bytes copied during GC
+     400,505,984 bytes maximum residency (43 sample(s))
+       5,166,856 bytes maximum slop
+            1170 MB total memory in use (0 MB lost due to fragmentation)
+
+                                    Tot time (elapsed)  Avg pause  Max pause
+  Gen  0      1507 colls,     0 par   45.79s   45.93s     0.0305s    0.3922s
+  Gen  1        43 colls,     0 par   14.86s   14.90s     0.3465s    0.8798s
+
+  INIT    time    0.00s  (  0.00s elapsed)
+  MUT     time  152.04s  (152.60s elapsed)
+  GC      time   60.65s  ( 60.83s elapsed)
+  EXIT    time    0.03s  (  0.03s elapsed)
+  Total   time  212.72s  (213.46s elapsed)
+
+  %GC     time      28.5%  (28.5% elapsed)
+
+  Alloc rate    855,239,706 bytes per MUT second
+
+  Productivity  71.5% of total user, 71.2% of total elapsed
+
+
+real	3m33.604s
+user	3m30.645s
+sys	0m2.220s
+
+  Checking Universe (/home/abel/tmp/Agda2/agda-stdlib/src/Universe.agda).
+  Finished Universe.
+ Finished Everything.
+Finished README.
+Total time           220841 ms
+Parsing                1488 ms
+Import                 4088 ms
+Deserialization          48 ms
+Scoping               21817 ms
+Typing                49995 ms
+Termination            2992 ms
+Termination.Graph       168 ms
+Termination.RecCheck   1824 ms
+Termination.Compare     240 ms
+Positivity             4476 ms
+Injectivity             648 ms
+ProjectionLikeness      172 ms
+Coverage               1780 ms
+Highlighting           5512 ms
+Serialization        124823 ms
+Serialization.Sort     1688 ms
+
+ 132,677,752,384 bytes allocated in the heap
+  16,528,069,248 bytes copied during GC
+     428,825,752 bytes maximum residency (43 sample(s))
+       5,265,552 bytes maximum slop
+            1181 MB total memory in use (0 MB lost due to fragmentation)
+
+                                    Tot time (elapsed)  Avg pause  Max pause
+  Gen  0      1528 colls,     0 par   46.51s   46.78s     0.0306s    0.3989s
+  Gen  1        43 colls,     0 par   15.27s   15.31s     0.3560s    0.9005s
+
+  INIT    time    0.00s  (  0.00s elapsed)
+  MUT     time  159.06s  (165.56s elapsed)
+  GC      time   61.78s  ( 62.09s elapsed)
+  EXIT    time    0.03s  (  0.03s elapsed)
+  Total   time  220.87s  (227.69s elapsed)
+
+  %GC     time      28.0%  (27.3% elapsed)
+
+  Alloc rate    834,160,036 bytes per MUT second
+
+  Productivity  72.0% of total user, 69.9% of total elapsed
+
+
+real	3m47.836s
+user	3m38.266s
+sys	0m2.744s
+
+------------------------------------------------------------------------
+-- With long path name after fix of AbsolutePath to ByteString
+
+  Checking Universe (/home/abel/tmp/Agda2/stdlib-alkdsjfhalksdhfalksdjhfaklsdjhfaklsjdhfaklsdjhfaksjdhfaksjdhfaskjdfhaksdjhfaksdhfalskjdhfaiweuhrowiefosidjaflsdjfaalsdjflskdjflsjdflsjkdflskdjflskdjflskdjflskdjflsdkjflskdjflskdjfsldkjfslkdjflskdjflskdjflskdjfs/src/Universe.agda).
+  Finished Universe.
+ Finished Everything.
+Finished README.
+Total time           222153 ms
+Parsing                1464 ms
+Import                 4228 ms
+Deserialization          36 ms
+Scoping               22601 ms
+Typing                49139 ms
+Termination            3040 ms
+Termination.Graph       168 ms
+Termination.RecCheck   1816 ms
+Termination.Compare     264 ms
+Positivity             4460 ms
+Injectivity             624 ms
+ProjectionLikeness      136 ms
+Coverage               1956 ms
+Highlighting           5840 ms
+Serialization        125359 ms
+Serialization.Sort     1688 ms
+
+ 133,264,012,992 bytes allocated in the heap
+  16,515,962,536 bytes copied during GC
+     428,766,200 bytes maximum residency (44 sample(s))
+       5,300,328 bytes maximum slop
+            1179 MB total memory in use (0 MB lost due to fragmentation)
+
+                                    Tot time (elapsed)  Avg pause  Max pause
+  Gen  0      1537 colls,     0 par   46.28s   46.51s     0.0303s    0.4520s
+  Gen  1        44 colls,     0 par   15.25s   15.30s     0.3478s    0.9122s
+
+  INIT    time    0.00s  (  0.00s elapsed)
+  MUT     time  160.61s  (166.87s elapsed)
+  GC      time   61.53s  ( 61.81s elapsed)
+  EXIT    time    0.03s  (  0.03s elapsed)
+  Total   time  222.17s  (228.73s elapsed)
+
+  %GC     time      27.7%  (27.0% elapsed)
+
+  Alloc rate    829,753,070 bytes per MUT second
+
+  Productivity  72.3% of total user, 70.2% of total elapsed
+
+
+real	3m48.878s
+user	3m38.730s
+sys	0m3.600s
+
+
+===========================================================================
+2014-04-11  After instantiateFull on Definition before positivity check
+
+Finished README.
+Total time           227230 ms
+Parsing                1420 ms
+Import                 4412 ms
+Deserialization          28 ms
+Scoping               21489 ms
+Typing                52759 ms
+Termination            3584 ms
+Termination.Graph       192 ms
+Termination.RecCheck   2092 ms
+Termination.Compare     284 ms
+Positivity             4448 ms
+Injectivity             624 ms
+ProjectionLikeness      160 ms
+Coverage               1620 ms
+Highlighting           6024 ms
+Serialization        127403 ms
+Serialization.Sort      904 ms
+
+ 136,924,304,304 bytes allocated in the heap
+  16,568,772,328 bytes copied during GC
+     495,581,048 bytes maximum residency (43 sample(s))
+       6,235,136 bytes maximum slop
+            1187 MB total memory in use (0 MB lost due to fragmentation)
+
+                                    Tot time (elapsed)  Avg pause  Max pause
+  Gen  0      1515 colls,     0 par   47.40s   47.49s     0.0313s    0.4077s
+  Gen  1        43 colls,     0 par   17.01s   17.04s     0.3964s    2.4627s
+
+  INIT    time    0.00s  (  0.00s elapsed)
+  MUT     time  162.81s  (163.19s elapsed)
+  GC      time   64.41s  ( 64.53s elapsed)
+  EXIT    time    0.03s  (  0.03s elapsed)
+  Total   time  227.26s  (227.76s elapsed)
+
+  %GC     time      28.3%  (28.3% elapsed)
+
+  Alloc rate    841,009,590 bytes per MUT second
+
+  Productivity  71.7% of total user, 71.5% of total elapsed
+
+
+real	3m47.920s
+user	3m45.870s
+sys	0m1.540s
+
+------------------------------------------------------------------------
+-- Only instantiating the type of definition is cheaper, but still noticeable
+
+Finished README.
+Total time           223001 ms
+Parsing                2280 ms
+Import                 4544 ms
+Deserialization          40 ms
+Scoping               21673 ms
+Typing                49563 ms
+Termination            3332 ms
+Termination.Graph       212 ms
+Termination.RecCheck   1916 ms
+Termination.Compare     228 ms
+Positivity             4332 ms
+Injectivity             632 ms
+ProjectionLikeness      160 ms
+Coverage               1696 ms
+Highlighting           5320 ms
+Serialization        126419 ms
+Serialization.Sort      892 ms
+
+ 136,044,962,088 bytes allocated in the heap
+  16,623,561,536 bytes copied during GC
+     403,880,936 bytes maximum residency (43 sample(s))
+       5,203,312 bytes maximum slop
+            1168 MB total memory in use (0 MB lost due to fragmentation)
+
+                                    Tot time (elapsed)  Avg pause  Max pause
+  Gen  0      1525 colls,     0 par   46.15s   46.25s     0.0303s    0.3887s
+  Gen  1        43 colls,     0 par   14.93s   14.95s     0.3477s    0.8693s
+
+  INIT    time    0.00s  (  0.00s elapsed)
+  MUT     time  161.92s  (162.25s elapsed)
+  GC      time   61.08s  ( 61.20s elapsed)
+  EXIT    time    0.03s  (  0.03s elapsed)
+  Total   time  223.03s  (223.50s elapsed)
+
+  %GC     time      27.4%  (27.4% elapsed)
+
+  Alloc rate    840,219,420 bytes per MUT second
+
+  Productivity  72.6% of total user, 72.5% of total elapsed
+
+
+real	3m43.618s
+user	3m41.702s
+sys	0m1.452s
+
+Finished README.
+Total time           221633 ms
+Parsing                1416 ms
+Import                 3844 ms
+Deserialization          36 ms
+Scoping               22133 ms
+Typing                49567 ms
+Termination            3044 ms
+Termination.Graph       208 ms
+Termination.RecCheck   1788 ms
+Termination.Compare     328 ms
+Positivity             4368 ms
+Injectivity             644 ms
+ProjectionLikeness      140 ms
+Coverage               1584 ms
+Highlighting           5460 ms
+Serialization        126447 ms
+Serialization.Sort      872 ms
+
+ 136,054,048,576 bytes allocated in the heap
+  16,651,306,312 bytes copied during GC
+     403,880,776 bytes maximum residency (43 sample(s))
+       5,204,248 bytes maximum slop
+            1168 MB total memory in use (0 MB lost due to fragmentation)
+
+                                    Tot time (elapsed)  Avg pause  Max pause
+  Gen  0      1510 colls,     0 par   45.62s   45.71s     0.0303s    0.3919s
+  Gen  1        43 colls,     0 par   14.92s   14.94s     0.3475s    0.9009s
+
+  INIT    time    0.00s  (  0.00s elapsed)
+  MUT     time  161.09s  (161.98s elapsed)
+  GC      time   60.54s  ( 60.65s elapsed)
+  EXIT    time    0.03s  (  0.03s elapsed)
+  Total   time  221.66s  (222.67s elapsed)
+
+  %GC     time      27.3%  (27.2% elapsed)
+
+  Alloc rate    844,606,506 bytes per MUT second
+
+  Productivity  72.7% of total user, 72.4% of total elapsed
+
+
+real	3m42.787s
+user	3m40.450s
+sys	0m1.328s
+
+---------------------------------------------------------------------------
+-- Trying: instantiateFull only in Polarity
+
+Finished README.
+Total time           223425 ms
+Parsing                1404 ms
+Import                 4256 ms
+Deserialization          44 ms
+Scoping               21209 ms
+Typing                51463 ms
+Termination            3772 ms
+Termination.Graph       216 ms
+Termination.RecCheck   1868 ms
+Termination.Compare     280 ms
+Positivity             4160 ms
+Injectivity             608 ms
+ProjectionLikeness      188 ms
+Coverage               1792 ms
+Highlighting           5776 ms
+Serialization        125499 ms
+Serialization.Sort      872 ms
+
+ 136,688,456,168 bytes allocated in the heap
+  16,477,877,600 bytes copied during GC
+     493,230,872 bytes maximum residency (43 sample(s))
+       6,203,928 bytes maximum slop
+            1183 MB total memory in use (0 MB lost due to fragmentation)
+
+                                    Tot time (elapsed)  Avg pause  Max pause
+  Gen  0      1515 colls,     0 par   45.74s   45.83s     0.0302s    0.4169s
+  Gen  1        43 colls,     0 par   16.73s   16.75s     0.3896s    2.4386s
+
+  INIT    time    0.00s  (  0.00s elapsed)
+  MUT     time  160.94s  (162.44s elapsed)
+  GC      time   62.47s  ( 62.58s elapsed)
+  EXIT    time    0.03s  (  0.03s elapsed)
+  Total   time  223.45s  (225.05s elapsed)
+
+  %GC     time      28.0%  (27.8% elapsed)
+
+  Alloc rate    849,295,199 bytes per MUT second
+
+  Productivity  72.0% of total user, 71.5% of total elapsed
+
+
+real	3m45.172s
+user	3m41.814s
+sys	0m1.756s
+
+Finished README.
+Total time           224726 ms
+Parsing                1412 ms
+Import                 4324 ms
+Deserialization          36 ms
+Scoping               21425 ms
+Typing                51635 ms
+Termination            3916 ms
+Termination.Graph       192 ms
+Termination.RecCheck   2696 ms
+Termination.Compare     232 ms
+Positivity             4212 ms
+Injectivity             600 ms
+ProjectionLikeness      156 ms
+Coverage               1924 ms
+Highlighting           5828 ms
+Serialization        126075 ms
+Serialization.Sort      812 ms
+
+ 136,698,575,640 bytes allocated in the heap
+  16,478,298,080 bytes copied during GC
+     493,232,264 bytes maximum residency (43 sample(s))
+       6,204,712 bytes maximum slop
+            1183 MB total memory in use (0 MB lost due to fragmentation)
+
+                                    Tot time (elapsed)  Avg pause  Max pause
+  Gen  0      1515 colls,     0 par   45.97s   46.04s     0.0304s    0.4158s
+  Gen  1        43 colls,     0 par   16.74s   16.78s     0.3902s    2.4438s
+
+  INIT    time    0.00s  (  0.00s elapsed)
+  MUT     time  162.00s  (162.28s elapsed)
+  GC      time   62.71s  ( 62.82s elapsed)
+  EXIT    time    0.03s  (  0.03s elapsed)
+  Total   time  224.75s  (225.14s elapsed)
+
+  %GC     time      27.9%  (27.9% elapsed)
+
+  Alloc rate    843,816,730 bytes per MUT second
+
+  Productivity  72.1% of total user, 72.0% of total elapsed
+
+
+real	3m45.256s
+user	3m43.586s
+sys	0m1.280s
+
+========================================================================
+2014-07-12  Try: Data.Text for names
+
+Finished README.
+Total time           223417 ms
+Parsing                1836 ms
+Parsing.Operators      9856 ms
+Import                 4104 ms
+Deserialization          28 ms
+Scoping                8668 ms
+Typing                50403 ms
+Termination            3268 ms
+Termination.Graph       172 ms
+Termination.RecCheck   1824 ms
+Termination.Compare     284 ms
+Positivity             4456 ms
+Injectivity             716 ms
+ProjectionLikeness      152 ms
+Coverage               1668 ms
+Highlighting           4924 ms
+Serialization        130248 ms
+Serialization.Sort      900 ms
+ModuleName               24 ms
+
+ 138,974,834,800 bytes allocated in the heap
+  16,604,694,896 bytes copied during GC
+     401,008,464 bytes maximum residency (43 sample(s))
+       5,281,432 bytes maximum slop
+            1176 MB total memory in use (0 MB lost due to fragmentation)
+
+                                    Tot time (elapsed)  Avg pause  Max pause
+  Gen  0      1569 colls,     0 par   46.97s   47.64s     0.0304s    0.3948s
+  Gen  1        43 colls,     0 par   14.77s   14.88s     0.3461s    0.8923s
+
+  INIT    time    0.00s  (  0.00s elapsed)
+  MUT     time  158.89s  (161.28s elapsed)
+  GC      time   61.74s  ( 62.52s elapsed)
+  EXIT    time    0.03s  (  0.03s elapsed)
+  Total   time  220.67s  (223.84s elapsed)
+
+  %GC     time      28.0%  (27.9% elapsed)
+
+  Alloc rate    874,661,055 bytes per MUT second
+
+  Productivity  72.0% of total user, 71.0% of total elapsed
+
+
+real	3m44.031s
+user	3m40.674s
+sys	0m2.928s
