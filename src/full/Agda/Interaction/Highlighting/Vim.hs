@@ -17,9 +17,6 @@ import Agda.TypeChecking.Monad
 import qualified Agda.Utils.IO.UTF8 as UTF8
 import Agda.Utils.Tuple
 
--- defined in Data.Function
--- on f g x y = f (g x) (g y)
-
 vimFile :: FilePath -> FilePath
 vimFile file =
     case splitFileName file of
