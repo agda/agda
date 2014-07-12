@@ -4,6 +4,8 @@
 *.agdai
 *.hi
 *.o
+*.tmp
+*.tmp.*
 *~
 agda-stdlib
 autom4te.cache
