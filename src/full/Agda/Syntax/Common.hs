@@ -453,7 +453,7 @@ instance Sized a => Sized (Named name a) where
 
 instance Show a => Show (Named_ a) where
     show (Named Nothing x)  = show x
-    show (Named (Just n) x) = rangedThing n ++ " = " ++ show x
+    show (Named (Just n) x) = rawNameToString (rangedThing n) ++ " = " ++ show x
 
 -- | Only 'Hidden' arguments can have names.
 type NamedArg c a = Arg c (Named_ a)
@@ -503,8 +503,21 @@ instance KillRange (Ranged a) where
 instance Decoration Ranged where
   traverseF f (Ranged r x) = Ranged r <$> f x
 
+---------------------------------------------------------------------------
+-- * Raw names (before parsing into name parts).
+---------------------------------------------------------------------------
+
+-- | A @RawName@ is some sort of string.
+type RawName = String
+
+rawNameToString :: RawName -> String
+rawNameToString = id
+
+stringToRawName :: String -> RawName
+stringToRawName = id
+
 -- | String with range info.
-type RString = Ranged String
+type RString = Ranged RawName
 
 ---------------------------------------------------------------------------
 -- * Infixity, access, abstract, etc.

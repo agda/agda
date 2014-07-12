@@ -11,6 +11,7 @@ import qualified Data.Map as Map
 import System.FilePath
 
 import Agda.Syntax.Scope.Base
+import Agda.Syntax.Common
 import Agda.Syntax.Concrete.Name as CName
 
 import Agda.TypeChecking.Monad
@@ -78,7 +79,7 @@ toVim ns = unlines $ matches mcons micons mdefs midefs mflds miflds
 
 	parts (NoName _ _) = []
 	parts (Name _ [_]) = []
-	parts (Name _ ps)  = [ x | Id x <- ps ]
+	parts (Name _ ps)  = [ rawNameToString x | Id x <- ps ]
 
 generateVimFile :: FilePath -> TCM ()
 generateVimFile file = do

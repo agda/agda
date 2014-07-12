@@ -54,7 +54,7 @@ instance Underscore Name where
 --   e.g. @_+_@ or @if_then_else_@ or @[_/_]@.
 data NamePart
   = Hole       -- ^ @_@ part.
-  | Id ByteString  -- ^ Identifier part.
+  | Id RawName  -- ^ Identifier part.
   deriving (Typeable)
 
 -- | Define equality on @Name@ to ignore range so same names in different
@@ -117,11 +117,14 @@ newtype TopLevelModuleName
 -- * Operations on 'Name' and 'NamePart'
 ------------------------------------------------------------------------
 
+nameToRawName :: Name -> RawName
+nameToRawName = show
+
 nameParts :: Name -> [NamePart]
 nameParts (Name _ ps)  = ps
 nameParts (NoName _ _) = [Hole]
 
-nameStringParts :: Name -> [String]
+nameStringParts :: Name -> [RawName]
 nameStringParts n = [ s | Id s <- nameParts n ]
 
 -- | Parse a string to parts of a concrete name.
@@ -129,7 +132,7 @@ nameStringParts n = [ s | Id s <- nameParts n ]
 stringNameParts :: String -> [NamePart]
 stringNameParts ""                              = []
 stringNameParts ('_':s)                         = Hole : stringNameParts s
-stringNameParts s | (x, s') <- break (== '_') s = Id x : stringNameParts s'
+stringNameParts s | (x, s') <- break (== '_') s = Id (stringToRawName x) : stringNameParts s'
 
 -- | Is the name an operator?
 
@@ -247,7 +250,7 @@ instance Show Name where
 
 instance Show NamePart where
     show Hole   = "_"
-    show (Id s) = s
+    show (Id s) = rawNameToString s
 
 instance Show QName where
     show (Qual m x) = show m ++ "." ++ show x

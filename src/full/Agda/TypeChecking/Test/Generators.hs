@@ -129,7 +129,7 @@ extendConf conf = conf { tcFreeVariables = 0 : map (1+) (tcFreeVariables conf) }
 extendWithTelConf :: Telescope -> TermConfiguration -> TermConfiguration
 extendWithTelConf tel conf = foldr (const extendConf) conf (telToList tel)
 
-makeConfiguration :: [String] -> [String] -> [String] -> [Nat] -> TermConfiguration
+makeConfiguration :: [RawName] -> [RawName] -> [RawName] -> [Nat] -> TermConfiguration
 makeConfiguration ds cs ps vs = TermConf
   { tcDefinedNames     = defs
   , tcConstructorNames = cons
@@ -329,9 +329,9 @@ genConf = do
   vs <- listOf natural
   return $ makeConfiguration ds cs ps vs
   where
-    defs = [ [c] | c <- ['a'..'n'] ++ ['r'..'z'] ]
-    cons = [ [c] | c <- ['A'..'Z'] ]
-    projs= [ [c] | c <- ['o'..'q'] ]
+    defs = [ stringToRawName [c] | c <- ['a'..'n'] ++ ['r'..'z'] ]
+    cons = [ stringToRawName [c] | c <- ['A'..'Z'] ]
+    projs= [ stringToRawName [c] | c <- ['o'..'q'] ]
 
 instance Arbitrary TermConfiguration where
   arbitrary   = genConf

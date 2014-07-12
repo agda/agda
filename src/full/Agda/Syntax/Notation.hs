@@ -6,6 +6,7 @@ module Agda.Syntax.Notation where
 import Control.Applicative
 import Control.Monad
 import Control.Monad.Error (throwError)
+
 import Data.List
 import Data.Maybe
 import Data.Typeable (Typeable)
@@ -26,8 +27,8 @@ import Agda.Utils.Impossible
 
 -- | Data type constructed in the Happy parser; converted to 'GenPart'
 -- before it leaves the Happy code.
-data HoleName = LambdaHole String String -- ^ (\x -> y) ; 1st argument is the bound name (unused for now)
-              | ExprHole String          -- ^ simple named hole with hiding
+data HoleName = LambdaHole RawName RawName -- ^ (\x -> y) ; 1st argument is the bound name (unused for now)
+              | ExprHole RawName           -- ^ simple named hole with hiding
 
 -- | Target of a hole
 holeName (LambdaHole _ n) = n
@@ -38,11 +39,11 @@ type Notation = [GenPart]
 -- | Part of a Notation
 data GenPart = BindHole Int                 -- ^ Argument is the position of the hole (with binding) where the binding should occur.
              | NormalHole (NamedArg () Int) -- ^ Argument is where the expression should go
-             | IdPart String
+             | IdPart RawName
   deriving (Typeable, Show, Eq)
 
 -- | Get a flat list of identifier parts of a notation.
-stringParts :: Notation -> [String]
+stringParts :: Notation -> [RawName]
 stringParts gs = [ x | IdPart x <- gs ]
 
 -- | Target argument position of a part (Nothing if it is not a hole)
@@ -63,7 +64,7 @@ isLambdaHole _ = False
 
 
 -- | From notation with names to notation with indices.
-mkNotation :: [NamedArg c HoleName] -> [String] -> Either String Notation
+mkNotation :: [NamedArg c HoleName] -> [RawName] -> Either String Notation
 mkNotation _ [] = throwError "empty notation is disallowed"
 mkNotation holes ids = do
   unless (uniqueNames holes) $ throwError "syntax must use unique argument names"

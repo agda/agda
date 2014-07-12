@@ -882,7 +882,7 @@ instance ToConcrete A.Pattern C.Pattern where
         e <- toConcreteCtx DotPatternCtx e
         return $ C.DotP (getRange i) e
     -- just for debugging purposes (shouldn't show up in practise)
-    toConcrete (A.ImplicitP i) = return $ C.IdentP (C.QName $ C.Name noRange [C.Id "(implicit)"])
+    toConcrete (A.ImplicitP i) = return $ C.IdentP (C.QName $ C.Name noRange [C.Id $ stringToRawName "(implicit)"])
     toConcrete (A.PatternSynP i n _) = IdentP <$> toConcrete n
 
 
