@@ -28,13 +28,15 @@ module Agda.Syntax.Translation.AbstractToConcrete
     , noTakenNames
     ) where
 
-import Control.Applicative
+import Prelude hiding (null)
+
+import Control.Applicative hiding (empty)
 import Control.Monad.Reader
 
+import Data.List as List hiding (null)
 import qualified Data.Map as Map
 import qualified Data.Set as Set
 import Data.Set (Set)
-import Data.List as List
 import Data.Traversable (traverse)
 
 import Agda.Syntax.Common hiding (Arg, Dom, NamedArg)
@@ -53,6 +55,7 @@ import Agda.TypeChecking.Monad.Base  (TCM, NamedMeta(..))
 import Agda.TypeChecking.Monad.Options
 
 import Agda.Utils.Monad hiding (bracket)
+import Agda.Utils.Null
 import Agda.Utils.Tuple
 
 #include "../../undefined.h"
@@ -173,7 +176,7 @@ lookupQName x = do
       let y = qnameToConcrete x
       if show y == "_"
         then return y
-        else return $ C.Qual (C.Name noRange [Id ""]) y
+        else return $ C.Qual (C.Name noRange [Id empty]) y
         -- this is what happens for names that are not in scope (private names)
 
 lookupModule :: A.ModuleName -> AbsToCon C.QName
@@ -940,7 +943,7 @@ recoverOpApp bracket opApp view e mDefault = case view e of
   doQName _ n es
     | length xs == 1        = mDefault
     | length es /= numHoles = mDefault
-    | List.null es          = mDefault
+    | null es               = mDefault
     where
       xs       = C.nameParts $ C.unqualify n
       numHoles = length (filter (== Hole) xs)

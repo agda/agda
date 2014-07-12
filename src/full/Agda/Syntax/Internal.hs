@@ -15,18 +15,20 @@ module Agda.Syntax.Internal
     , module Agda.Utils.Pointer
     ) where
 
-import Prelude hiding (foldr, mapM)
+import Prelude hiding (foldr, mapM, null)
+
 import Control.Arrow ((***))
 import Control.Applicative
 import Control.Monad.Identity hiding (mapM)
 import Control.Monad.State hiding (mapM)
 import Control.Parallel
-import Data.Typeable (Typeable)
+
 import Data.Foldable
-import Data.Traversable
 import Data.Function
-import Data.Maybe
 import qualified Data.List as List
+import Data.Maybe
+import Data.Traversable
+import Data.Typeable (Typeable)
 
 import Agda.Syntax.Position
 import Agda.Syntax.Common hiding (Arg, Dom, NamedArg, ArgInfo)
@@ -34,12 +36,13 @@ import qualified Agda.Syntax.Common as Common
 import Agda.Syntax.Literal
 import Agda.Syntax.Abstract.Name
 
+import Agda.Utils.Functor
 import Agda.Utils.Geniplate
-import Agda.Utils.Size
+import Agda.Utils.List
+import Agda.Utils.Null
 import Agda.Utils.Permutation
 import Agda.Utils.Pointer
-import Agda.Utils.List
-import Agda.Utils.Functor
+import Agda.Utils.Size
 
 #include "../undefined.h"
 import Agda.Utils.Impossible
@@ -177,10 +180,8 @@ mapAbsNames f = runIdentity . mapAbsNamesM (Identity . f)
 -- TypeChecking.Monad.Signature.addConstant (to handle functions defined in
 -- record modules) and TypeChecking.Rules.Record.checkProjection (to handle
 -- record projections).
-replaceEmptyName :: String -> Tele a -> Tele a
-replaceEmptyName x = mapAbsNames repl
-  where repl "" = x
-        repl y  = y
+replaceEmptyName :: AbsName -> Tele a -> Tele a
+replaceEmptyName x = mapAbsNames $ \ y -> if null y then x else y
 
 -- | Sorts.
 --
