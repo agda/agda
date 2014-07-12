@@ -68,8 +68,12 @@ module Imports where
          (f : A → B) {x y} → x ≡ y → f x ≡ f y
   cong f refl = refl
 
-  _≢_ : ∀ {a} {A : Set a} → A → A → Set a
-  x ≢ y = ¬ x ≡ y
+  _≢′_ : ∀ {a} {A : Set a} → A → A → Set a
+  x ≢′ y = ¬ x ≡ y
+
+  -- wrapper to be able to use instance search
+  data _≢_ {a} {A : Set a} (x y : A) : Set a where
+    not-equal : x ≢′ y → x ≢ y
 
   -- extract from Data.Nat
   data ℕ : Set where
@@ -159,8 +163,8 @@ fromWitnessFalse {Q = no ¬p} ¬P = tt
 ⋯ {{v}} = v
 
 _divMod′_ : (dividend divisor : ℕ) {{ ≢0 : divisor ≢ 0 }} → ℕ × ℕ
-_divMod′_ a d {{_}} with _divMod_ a d { fromWitnessFalse ⋯ }
-._ divMod′ d | (result q r) = q , toℕ r
+_divMod′_ a d {{not-equal p}} with _divMod_ a d { fromWitnessFalse p }
+_divMod′_ ._ d {{not-equal p}} | (result q r) = q , toℕ r
 
 _div′_ : (dividend divisor : ℕ) {{ ≢0 : divisor ≢ 0 }} → ℕ
 _div′_ a b {{_}} with a divMod′ b
@@ -174,5 +178,7 @@ a div′ b | (q , _) = q
 
 test3 = 5 div 2
 test4 = 5 div′ 2
-  where nz : 2 ≢ 0
-        nz ()
+  where
+    instance
+      nz : 2 ≢ 0
+      nz = not-equal λ()

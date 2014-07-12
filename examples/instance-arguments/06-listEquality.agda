@@ -31,21 +31,22 @@ not false = true
 record Eq (A : Set) : Set where
   field eq : A → A → Bool
 
-listEq : {A : Set} → Eq A → Eq (List A)
-listEq {A} eqA = record { eq = eq' } where
-  eq' : List A → List A → Bool
-  eq' [] [] = true
-  eq' (a ∷ as) (b ∷ bs) = and (Eq.eq eqA a b) (eq' as bs)
-  eq' _ _ = false
+instance
+  listEq : {A : Set} {{EqA : Eq A}} → Eq (List A)
+  listEq {A} {{eqA}} = record { eq = eq' } where
+    eq' : List A → List A → Bool
+    eq' [] [] = true
+    eq' (a ∷ as) (b ∷ bs) = and (Eq.eq eqA a b) (eq' as bs)
+    eq' _ _ = false
 
 primEqBool : Bool → Bool → Bool
 primEqBool true = id
 primEqBool false = not
 
-eqBool : Eq Bool
-eqBool = record { eq = primEqBool }
+instance
+  eqBool : Eq Bool
+  eqBool = record { eq = primEqBool }
 
 open Eq {{...}}
 
 test = eq (true ∷ false ∷ true ∷ []) (true ∷ false ∷ [])
-  where listBoolEq = listEq eqBool

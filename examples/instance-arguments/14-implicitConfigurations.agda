@@ -8,7 +8,7 @@ postulate
 
   N : Set
   zero one two three : N
-  nInt : Integral N
+  instance nInt : Integral N
 
 private postulate Token : Set
 

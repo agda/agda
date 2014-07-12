@@ -41,9 +41,9 @@ primEqBool false = not
 record Eq (A : Set) : Set where
   field eq : A → A → Bool
 
-
-eqBool : Eq Bool
-eqBool = record { eq = primEqBool }
+instance
+  eqBool : Eq Bool
+  eqBool = record { eq = primEqBool }
 
 open Eq {{...}}
 
@@ -74,8 +74,9 @@ primEqFin zero (suc y) = false
 primEqFin (suc y) zero = false
 primEqFin (suc x) (suc y) = primEqFin x y
 
-eqFin : {n : ℕ} → Eq (Fin n)
-eqFin = record { eq = primEqFin }
+instance
+  eqFin : {n : ℕ} → Eq (Fin n)
+  eqFin = record { eq = primEqFin }
 
 -- eqFin′ : Eq (Fin 3)
 -- eqFin′ = record { eq = primEqFin }
