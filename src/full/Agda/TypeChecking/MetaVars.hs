@@ -736,7 +736,7 @@ attemptInertRHSImprovement m args v = do
               Just args -> return args
       case ignoreSharing v of
         Var x elims -> (, Var x . map Apply,) <$> typeOfBV x <*> toArgs elims
-        Con c args  -> (, Con c, args)        <$> defType <$> getConstInfo (conName c)
+        Con c args  -> notInert -- constructors are inert, but not needed for instance search
         Def f elims -> do
           def <- getConstInfo f
           let good = (defType def, Def f . map Apply,) <$> toArgs elims
