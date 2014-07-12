@@ -649,47 +649,38 @@ assign dir x args v = do
           text "fvars rhs:" <+> sep (map (text . show) $ Set.toList fvs)
 
 	-- Check that the arguments are variables
-	ids <- do
+	mids <- do
           res <- runErrorT $ inverseSubst args
           case res of
             -- all args are variables
             Right ids -> do
               reportSDoc "tc.meta.assign" 50 $
                 text "inverseSubst returns:" <+> sep (map prettyTCM ids)
-              return ids
+              return $ Just ids
             -- we have proper values as arguments which could be cased on
             -- here, we cannot prune, since offending vars could be eliminated
-            Left CantInvert  -> patternViolation
+            Left CantInvert  -> return Nothing
             -- we have non-variables, but these are not eliminateable
-            Left NeutralArg  -> attemptPruning x args fvs
+            Left NeutralArg  -> Just <$> attemptPruning x args fvs
             -- we have a projected variable which could not be eta-expanded away:
             -- same as neutral
-            Left (ProjectedVar i qs) -> attemptPruning x args fvs
+            Left (ProjectedVar i qs) -> Just <$> attemptPruning x args fvs
 
-        -- Check linearity
-        ids <- do
-          res <- runErrorT $ checkLinearity {- (`Set.member` fvs) -} ids
-          case res of
-            -- case: linear
-            Right ids -> return ids
-            -- case: non-linear variables that could possibly be pruned
-            Left ()   -> attemptPruning x args fvs
+        case mids of
+          Nothing  -> attemptInertRHSImprovement x args v
+          Just ids -> do
+            -- Check linearity
+            ids <- do
+              res <- runErrorT $ checkLinearity {- (`Set.member` fvs) -} ids
+              case res of
+                -- case: linear
+                Right ids -> return ids
+                -- case: non-linear variables that could possibly be pruned
+                Left ()   -> attemptPruning x args fvs
 
-{- UNNECESSARILY COMPLICATED:
-        ids <- do
-          res <- runErrorT $ runWriterT $ checkLinearity (`Set.member` fvs) ids
-          case res of
-            -- case: linear
-            Right (ids, []) -> return ids
-            -- case: non-linear variables that could possibly be pruned
-            Right (_, xs) -> attemptPruning x args fvs -- or s.th. clever with killargs and xs
-            -- case: non-linear variable that cannot be pruned from lhs
-            --       attempt pruning of other args
-            Left ()   -> attemptPruning x args fvs
--}
-        -- Solve.
-        m <- getContextSize
-        assignMeta' m x t (length args) ids v
+            -- Solve.
+            m <- getContextSize
+            assignMeta' m x t (length args) ids v
     where
         attemptPruning x args fvs = do
           -- non-linear lhs: we cannot solve, but prune
@@ -700,6 +691,101 @@ assign dir x args v = do
               if killResult `elem` [PrunedSomething,PrunedEverything] then "succeeded"
                else "failed"
           patternViolation
+
+-- | When faced with @_X us == D vs@ for an inert D we can solve this by
+--   @_X xs := D _Ys@ with new constraints @_Yi us == vi@. This is important
+--   for instance arguments, where knowing the head D might enable progress.
+attemptInertRHSImprovement :: MetaId -> Args -> Term -> TCM ()
+attemptInertRHSImprovement m args v = do
+  reportSDoc "tc.meta.inert" 30 $ vcat
+    [ text "attempting inert rhs improvement"
+    , nest 2 $ sep [ prettyTCM (MetaV m $ map Apply args) <+> text "=="
+                   , prettyTCM v ] ]
+  (a, mkRHS, rhsArgs) <- ensureInert v
+  -- all arguments must be neutral (and not have the same head as the rhs)
+  mapM_ (ensureNeutral (mkRHS []) . unArg) args
+  tel <- theTel <$> (telView =<< getMetaType m)
+  metas <- newArgsMetaCtx a tel args
+  let ms = [ case unArg meta of
+               MetaV m _ -> m <$ meta
+               _         -> __IMPOSSIBLE__
+           | meta <- metas ]
+      varArgs  = map Apply $ reverse $ zipWith (\i a -> var i <$ a) [0..] (reverse args)
+      metaArgs = [ (`MetaV` varArgs) <$> m | m <- ms ]
+      sol      = foldr (\a -> Lam (argInfo a) . Abs "x") (mkRHS metaArgs) args
+  reportSDoc "tc.meta.inert" 30 $ nest 2 $ vcat
+    [ text "a       =" <+> prettyTCM a
+    , text "tel     =" <+> prettyTCM tel
+    , text "rhsArgs =" <+> prettyList (map prettyTCM rhsArgs)
+    , text "metas   =" <+> prettyList (map prettyTCM metas)
+    , text "sol     =" <+> prettyTCM sol
+    ]
+  assignTerm m sol
+  patternViolation  -- to trigger recomparison
+  where
+    ensureInert :: Term -> TCM (Type, Args -> Term, Args)
+    ensureInert v = do
+      let notInert = do
+            reportSDoc "tc.meta.inert" 30 $ nest 2 $ text "not inert:" <+> prettyTCM v
+            patternViolation
+          toArgs elims =
+            case allApplyElims elims of
+              Nothing -> do
+                reportSDoc "tc.meta.inert" 30 $ nest 2 $ text "can't do projections from inert"
+                patternViolation
+              Just args -> return args
+      case ignoreSharing v of
+        Var x elims -> (, Var x . map Apply,) <$> typeOfBV x <*> toArgs elims
+        Con c args  -> (, Con c, args)        <$> defType <$> getConstInfo (conName c)
+        Def f elims -> do
+          def <- getConstInfo f
+          let good = (defType def, Def f . map Apply,) <$> toArgs elims
+          case theDef def of
+            Axiom{}       -> good
+            Datatype{}    -> good
+            Record{}      -> good
+            Function{}    -> notInert
+            Primitive{}   -> notInert
+            Constructor{} -> __IMPOSSIBLE__
+
+        Pi{}       -> notInert -- this is actually inert but improving doesn't buy us anything for Pi
+        Lam{}      -> notInert
+        Sort{}     -> notInert
+        Lit{}      -> notInert
+        Level{}    -> notInert
+        MetaV{}    -> notInert
+        DontCare{} -> notInert
+        ExtLam{}   -> __IMPOSSIBLE__
+        Shared{}   -> __IMPOSSIBLE__
+
+    ensureNeutral :: Term -> Term -> TCM ()
+    ensureNeutral rhs v = do
+      b <- reduceB v
+      let notNeutral v = do
+            reportSDoc "tc.meta.inert" 30 $ nest 2 $ text "not neutral:" <+> prettyTCM v
+            patternViolation
+          checkRHS arg
+            | arg == rhs = do
+              reportSDoc "tc.meta.inert" 30 $ nest 2 $ text "argument shares head with RHS:" <+> prettyTCM arg
+              patternViolation
+            | otherwise  = return ()
+      case fmap ignoreSharing b of
+        Blocked{}    -> notNeutral v
+        NotBlocked v ->
+          case v of
+            Var x _    -> checkRHS (Var x [])
+            Def f _    -> checkRHS (Def f [])
+            Pi{}       -> return ()
+            Sort{}     -> return ()
+            Level{}    -> return ()
+            Lit{}      -> notNeutral v
+            DontCare{} -> notNeutral v
+            MetaV{}    -> notNeutral v
+            Con{}      -> notNeutral v
+            Lam{}      -> notNeutral v
+            ExtLam{}   -> __IMPOSSIBLE__
+            Shared{}   -> __IMPOSSIBLE__
+
 
 -- | @assignMeta m x t ids u@ solves @x ids = u@ for meta @x@ of type @t@,
 --   where term @u@ lives in a context of length @m@.
