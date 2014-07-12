@@ -301,8 +301,7 @@ auto ii rng argstr = liftTCM $ do
 
 
                  (ids, pats) <- constructPats cmap mi clause
-                 let pids = concat $ map (\(_, x) -> " " ++ case x of {Id s -> s; NoId -> "noid"}) ids
-                     ctx = map (\((hid, id), t) -> HI hid (id, t)) (zip ids mylocalVars)
+                 let ctx = map (\((hid, id), t) -> HI hid (id, t)) (zip ids mylocalVars)
                  ticks <- liftIO $ newIORef 0
                  let [rectyp'] = mymrectyp
                  defdfv <- getdfv mi def
