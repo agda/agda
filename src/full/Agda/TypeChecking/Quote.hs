@@ -19,6 +19,8 @@ import Agda.TypeChecking.Reduce
 import Agda.TypeChecking.Pretty
 import Agda.TypeChecking.Substitute
 
+import Agda.Utils.Monad
+
 #include "../undefined.h"
 import Agda.Utils.Impossible
 
@@ -147,8 +149,7 @@ unquoteN _ = unquoteFailedGeneric "argument. It should be `visible'"
 
 choice :: Monad m => [(m Bool, m a)] -> m a -> m a
 choice [] dflt = dflt
-choice ((mb, mx) : mxs) dflt = do b <- mb
-                                  if b then mx else choice mxs dflt
+choice ((mb, mx) : mxs) dflt = ifM mb mx $ choice mxs dflt
 
 instance Unquote I.ArgInfo where
   unquote t = do
