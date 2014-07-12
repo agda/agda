@@ -704,20 +704,18 @@ attemptInertRHSImprovement m args v = do
   (a, mkRHS, rhsArgs) <- ensureInert v
   -- all arguments must be neutral (and not have the same head as the rhs)
   mapM_ (ensureNeutral (mkRHS []) . unArg) args
-  tel <- theTel <$> (telView =<< getMetaType m)
-  metas <- newArgsMetaCtx a tel args
-  let ms = [ case unArg meta of
-               MetaV m _ -> m <$ meta
-               _         -> __IMPOSSIBLE__
-           | meta <- metas ]
-      varArgs  = map Apply $ reverse $ zipWith (\i a -> var i <$ a) [0..] (reverse args)
-      metaArgs = [ (`MetaV` varArgs) <$> m | m <- ms ]
+  tel      <- theTel <$> (telView =<< getMetaType m)
+  when (length args < size tel) $ do
+    reportSDoc "tc.meta.inert" 30 $ text "not fully applied"
+    patternViolation
+  metaArgs <- inTopContext $ addCtxTel tel $ newArgsMeta a
+  let varArgs  = map Apply $ reverse $ zipWith (\i a -> var i <$ a) [0..] (reverse args)
       sol      = foldr (\a -> Lam (argInfo a) . Abs "x") (mkRHS metaArgs) args
   reportSDoc "tc.meta.inert" 30 $ nest 2 $ vcat
     [ text "a       =" <+> prettyTCM a
     , text "tel     =" <+> prettyTCM tel
     , text "rhsArgs =" <+> prettyList (map prettyTCM rhsArgs)
-    , text "metas   =" <+> prettyList (map prettyTCM metas)
+    , text "metas   =" <+> prettyList (map prettyTCM metaArgs)
     , text "sol     =" <+> prettyTCM sol
     ]
   assignTerm m sol
@@ -736,7 +734,7 @@ attemptInertRHSImprovement m args v = do
               Just args -> return args
       case ignoreSharing v of
         Var x elims -> (, Var x . map Apply,) <$> typeOfBV x <*> toArgs elims
-        Con c args  -> notInert -- constructors are inert, but not needed for instance search
+        Con c args  -> notInert -- (, Con c, args)        <$> defType <$> getConstInfo (conName c)
         Def f elims -> do
           def <- getConstInfo f
           let good = (defType def, Def f . map Apply,) <$> toArgs elims
