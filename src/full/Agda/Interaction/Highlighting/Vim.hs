@@ -3,11 +3,12 @@
 module Agda.Interaction.Highlighting.Vim where
 
 import Control.Monad.Trans
-import Data.Function ( on )
-import System.FilePath
 
+import Data.Function ( on )
 import qualified Data.List as List
 import qualified Data.Map as Map
+
+import System.FilePath
 
 import Agda.Syntax.Scope.Base
 import Agda.Syntax.Concrete.Name as CName
