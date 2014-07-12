@@ -784,6 +784,7 @@ checkApplication hd args e t = do
     A.Unquote _
       | [arg] <- args -> do
           v <- unquote =<< checkExpr (namedArg arg) =<< el primAgdaTerm
+          reportSDoc "tc.term.unquote" 20 $ text "unquoted:" <+> prettyTCM v
           checkTerm v t
       | arg : args <- args -> do
           v  <- unquote =<< checkExpr (namedArg arg) =<< el primAgdaTerm
@@ -1387,7 +1388,7 @@ inferExprForWith e = do
 -- TODO: should really use CheckInternal but doesn't quite work at the moment,
 -- since CheckInternal can't instantiate metas to sorts or to function types.
 checkTerm :: Term -> Type -> TCM Term
-checkTerm tm ty = do atm <- withShowAllArguments $ reify tm
+checkTerm tm ty = do atm <- disableDisplayForms $ withShowAllArguments $ reify tm
                      checkExpr (killRange atm) ty
 
 ---------------------------------------------------------------------------

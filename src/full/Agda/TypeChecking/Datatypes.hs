@@ -7,6 +7,7 @@ import Control.Applicative ((<$>))
 import Data.Maybe (fromMaybe)
 
 import Agda.Syntax.Common
+import Agda.Syntax.Position
 import Agda.Syntax.Internal as I
 
 import Agda.TypeChecking.Monad
