@@ -34,10 +34,14 @@ data OutputTypeName =
 getOutputTypeName :: Type -> TCM OutputTypeName
 getOutputTypeName t = do
   TelV tel t' <- telView t
-  case unEl t' of
-    Def n _ -> return $ OutputTypeName n
-    MetaV _ _ -> return OutputTypeNameNotYetKnown
-    _ -> return NoOutputTypeName
+  bt' <- reduceB (unEl t')
+  case bt' of
+    Blocked{}    -> return OutputTypeNameNotYetKnown
+    NotBlocked v ->
+      case v of
+        Def n _   -> return $ OutputTypeName n
+        MetaV _ _ -> return OutputTypeNameNotYetKnown
+        _         -> return NoOutputTypeName
 
 -- | The permutation should permute the corresponding telescope. (left-to-right list)
 renameP :: Subst t => Permutation -> t -> t
