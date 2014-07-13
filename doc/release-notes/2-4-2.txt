@@ -91,17 +91,6 @@ Language
 
   * Uniqueness of instances is up to definitional equality (see issue 899)
 
-  * Instance search will not be attempted if there are unsolved metas in
-    the goal. The issue is that trying to typecheck [? ++ ?] would
-    generate a constraint of type `RawMonoid ?' to be solved by instance
-    search, but unification with `rawMonoidMaybe' will succeed and
-    generate a new constraint of type `RawMonoid ?2' to be solved by
-    instance search, and so on, so Agda would loop.
-
-    As a special case, if none of the instances declared for that type
-    is recursive, then instance search is attempted as usual even if
-    there are unsolved metas (no risk of looping here).
-
   * Instances of the following form are allowed:
 
         Π-level : {n : ℕ} {A : Set} {B : A → Set}
