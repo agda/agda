@@ -25,3 +25,12 @@ postulate
 -- This allows instance search to pick the right instance.
 rz : State Nat Nat
 rz = return zero
+
+postulate
+  StateT : (S : Set) (M : Set → Set) (A : Set) → Set
+
+  instance
+    MonadStateT : ∀ {S M} {{MonM : Monad M}} → Monad (StateT S M)
+
+rzt : ∀ {M} {{Mon : Monad M}} → StateT Nat M Nat
+rzt = return zero

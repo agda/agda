@@ -131,12 +131,16 @@ findInScope' m cands = ifM (isFrozen m) (return (Just cands)) $ do
     reportSDoc "tc.constr.findInScope" 15 $ text "findInScope 3: t =" <+> prettyTCM t
     reportSLn "tc.constr.findInScope" 70 $ "findInScope 3: t: " ++ show t
     mv <- lookupMeta m
-    -- Don't do anything if there are unsolved metas in the type, or else it could loop
-    allMetasAreSolved <- isInstantiatedMeta (allMetas t)
-    -- But if there are no recursive instances, it's still safe to perform instance search
+    -- If there are recursive instances, it's not safe to instantiate
+    -- metavariables in the goal, so we freeze them before checking candidates.
     let isRec = foldl (\ b (_, t) -> b || (isRecursive $ unEl t)) False cands
-    cands <- if allMetasAreSolved || not isRec then checkCandidates m t cands else return cands
+        shouldFreeze m = not <$> isFrozen m
+    metas <- if not isRec then return []
+             else filterM shouldFreeze (allMetas t)
+    mapM_ (`updateMetaVar` \mv -> mv { mvFrozen = Frozen }) metas
+    cands <- checkCandidates m t cands
     reportSLn "tc.constr.findInScope" 15 $ "findInScope 4: cands left: " ++ show (length cands)
+    unfreezeMeta metas
     case cands of
 
       [] -> do
