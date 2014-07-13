@@ -667,7 +667,7 @@ assign dir x args v = do
             Left (ProjectedVar i qs) -> Just <$> attemptPruning x args fvs
 
         case mids of
-          Nothing  -> attemptInertRHSImprovement x args v
+          Nothing  -> patternViolation -- Ulf 2014-07-13: actually not needed after all: attemptInertRHSImprovement x args v
           Just ids -> do
             -- Check linearity
             ids <- do
