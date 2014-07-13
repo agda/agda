@@ -701,27 +701,37 @@ attemptInertRHSImprovement m args v = do
     [ text "attempting inert rhs improvement"
     , nest 2 $ sep [ prettyTCM (MetaV m $ map Apply args) <+> text "=="
                    , prettyTCM v ] ]
-  (a, mkRHS, rhsArgs) <- ensureInert v
-  -- all arguments must be neutral (and not have the same head as the rhs)
+  -- Check that the right-hand side has the form D vs, for some inert constant D.
+  -- Returns the type of D and a function to build an application of D.
+  (a, mkRHS) <- ensureInert v
+  -- Check that all arguments to the meta are neutral and does not have head D.
+  -- If there are non-neutral arguments there could be solutions to the meta
+  -- that computes over these arguments. If D is an argument to the meta we get
+  -- multiple solutions (for instance: _M Nat == Nat can be solved by both
+  -- _M := \ x -> x and _M := \ x -> Nat).
   mapM_ (ensureNeutral (mkRHS []) . unArg) args
-  tel      <- theTel <$> (telView =<< getMetaType m)
+  tel <- theTel <$> (telView =<< getMetaType m)
+  -- When attempting shortcut meta solutions, metas aren't necessarily fully
+  -- eta expanded. If this is the case we skip inert improvement.
   when (length args < size tel) $ do
     reportSDoc "tc.meta.inert" 30 $ text "not fully applied"
     patternViolation
+  -- Solve the meta with _M := \ xs -> D (_Y1 xs) .. (_Yn xs), for fresh metas
+  -- _Yi.
   metaArgs <- inTopContext $ addCtxTel tel $ newArgsMeta a
   let varArgs  = map Apply $ reverse $ zipWith (\i a -> var i <$ a) [0..] (reverse args)
       sol      = foldr (\a -> Lam (argInfo a) . Abs "x") (mkRHS metaArgs) args
   reportSDoc "tc.meta.inert" 30 $ nest 2 $ vcat
     [ text "a       =" <+> prettyTCM a
     , text "tel     =" <+> prettyTCM tel
-    , text "rhsArgs =" <+> prettyList (map prettyTCM rhsArgs)
     , text "metas   =" <+> prettyList (map prettyTCM metaArgs)
     , text "sol     =" <+> prettyTCM sol
     ]
   assignTerm m sol
-  patternViolation  -- to trigger recomparison
+  patternViolation  -- throwing a pattern violation here lets the constraint
+                    -- machinery worry about restarting the comparison.
   where
-    ensureInert :: Term -> TCM (Type, Args -> Term, Args)
+    ensureInert :: Term -> TCM (Type, Args -> Term)
     ensureInert v = do
       let notInert = do
             reportSDoc "tc.meta.inert" 30 $ nest 2 $ text "not inert:" <+> prettyTCM v
@@ -733,11 +743,11 @@ attemptInertRHSImprovement m args v = do
                 patternViolation
               Just args -> return args
       case ignoreSharing v of
-        Var x elims -> (, Var x . map Apply,) <$> typeOfBV x <*> toArgs elims
-        Con c args  -> notInert -- (, Con c, args)        <$> defType <$> getConstInfo (conName c)
+        Var x elims -> (, Var x . map Apply) <$> typeOfBV x
+        Con c args  -> notInert -- (, Con c) <$> defType <$> getConstInfo (conName c)
         Def f elims -> do
           def <- getConstInfo f
-          let good = (defType def, Def f . map Apply,) <$> toArgs elims
+          let good = return (defType def, Def f . map Apply)
           case theDef def of
             Axiom{}       -> good
             Datatype{}    -> good
