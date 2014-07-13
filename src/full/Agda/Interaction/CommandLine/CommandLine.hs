@@ -23,7 +23,7 @@ import Agda.Syntax.Abstract.Pretty
 
 import Text.PrettyPrint
 
-import Agda.TypeChecker
+import Agda.TheTypeChecker
 import Agda.TypeChecking.Constraints
 import Agda.TypeChecking.Monad
 import Agda.TypeChecking.Reduce

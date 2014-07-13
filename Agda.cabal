@@ -217,7 +217,7 @@ library
                     Agda.Termination.TermCheck
                     Agda.Termination.Termination
                     Agda.Tests
-                    Agda.TypeChecker
+                    Agda.TheTypeChecker
                     Agda.TypeChecking.Abstract
                     Agda.TypeChecking.CheckInternal
                     Agda.TypeChecking.CompiledClause

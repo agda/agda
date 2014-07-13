@@ -22,7 +22,7 @@ import Agda.TypeChecking.Pretty
 import Agda.TypeChecking.Reduce
 import Agda.TypeChecking.Substitute
 import Agda.TypeChecking.Irrelevance
-import Agda.TypeChecker
+import Agda.TheTypeChecker
 
 import Agda.Interaction.BasicOps
 
