@@ -46,7 +46,7 @@ import Agda.TypeChecking.Primitive
 import Agda.TypeChecking.Monad.Benchmark (billTop, reimburseTop)
 import qualified Agda.TypeChecking.Monad.Benchmark as Bench
 
-import Agda.TypeChecker
+import Agda.TheTypeChecker
 
 import Agda.Interaction.FindFile
 import Agda.Interaction.Options

@@ -35,7 +35,7 @@ import Agda.Syntax.Scope.Monad
 import Agda.Syntax.Fixity(Precedence(..))
 import Agda.Syntax.Parser
 
-import Agda.TypeChecker
+import Agda.TheTypeChecker
 import Agda.TypeChecking.Conversion
 import Agda.TypeChecking.Monad as M hiding (MetaInfo)
 import Agda.TypeChecking.MetaVars

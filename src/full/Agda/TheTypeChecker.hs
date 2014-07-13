@@ -1,5 +1,5 @@
 
-module Agda.TypeChecker
+module Agda.TheTypeChecker
   ( checkDecls, checkDecl
   , inferExpr, checkExpr
   ) where
