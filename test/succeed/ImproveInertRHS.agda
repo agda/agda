@@ -9,7 +9,8 @@ data Id (A : Set) : Set where
 data Monad (M : Set → Set) : Set where
 
 postulate
-  return : {M : Set → Set} {{Mon : Monad M}} {A : Set} → A → M A
+  return : ∀ {M} {{Mon : Monad M}} {A} → A → M A
+  _>>=_  : ∀ {M} {{Mon : Monad M}} {A B} → M A → (A → M B) → M B
   State : (S A : Set) → Set
 
   instance
@@ -32,5 +33,17 @@ postulate
   instance
     MonadStateT : ∀ {S M} {{MonM : Monad M}} → Monad (StateT S M)
 
-rzt : ∀ {M} {{Mon : Monad M}} → StateT Nat M Nat
-rzt = return zero
+stateT₁ : ∀ {M} {{Mon : Monad M}} → StateT Nat M Nat
+stateT₁ = return zero
+
+stateT₂ : ∀ {M} {{Mon : Monad M}} → StateT Nat M Nat
+stateT₂ = return zero >>= λ n → return (suc n)
+
+postulate
+  _<$_ : ∀ {A B M} {{Mon : Monad M}} → A → M B → M A
+
+record ⊤ : Set where
+  constructor tt
+
+foo : Id ⊤
+foo = _ <$ return zero

@@ -133,10 +133,15 @@ findInScope' m cands = ifM (isFrozen m) (return (Just cands)) $ do
     mv <- lookupMeta m
     -- If there are recursive instances, it's not safe to instantiate
     -- metavariables in the goal, so we freeze them before checking candidates.
+    -- Metas that are rigidly constrained need not be frozen.
     let isRec = foldl (\ b (_, t) -> b || (isRecursive $ unEl t)) False cands
-        shouldFreeze m = not <$> isFrozen m
+        shouldFreeze rigid m
+          | elem m rigid = return False
+          | otherwise    = not <$> isFrozen m
     metas <- if not isRec then return []
-             else filterM shouldFreeze (allMetas t)
+             else do
+                rigid <- rigidlyConstrainedMetas
+                filterM (shouldFreeze rigid) (allMetas t)
     mapM_ (`updateMetaVar` \mv -> mv { mvFrozen = Frozen }) metas
     cands <- checkCandidates m t cands
     reportSLn "tc.constr.findInScope" 15 $ "findInScope 4: cands left: " ++ show (length cands)
@@ -181,6 +186,44 @@ findInScope' m cands = ifM (isFrozen m) (return (Just cands)) $ do
       isRecursive :: Term -> Bool
       isRecursive (Pi (Dom info _) t) = getHiding info == Instance || isRecursive (unEl $ unAbs t)
       isRecursive _ = False
+
+-- | A meta _M is rigidly constrained if there is a constraint _M us == D vs,
+-- for inert D. Such metas can safely be instantiated by recursive instance
+-- search, since the constraint limits the solution space.
+rigidlyConstrainedMetas :: TCM [MetaId]
+rigidlyConstrainedMetas = do
+  cs <- (++) <$> gets stSleepingConstraints <*> gets stAwakeConstraints
+  concat <$> mapM rigidMetas cs
+  where
+    isRigid v =
+      case v of
+        Def f _ -> return True
+          -- def <- getConstInfo f
+          -- case theDef def of
+          --   Record{}   -> return True
+          --   Datatype{} -> return True
+          --   Axiom{}    -> return True
+          --   _
+        Con{} -> return True
+        Lit{} -> return True
+        Var{} -> return True
+        _ -> return False
+    rigidMetas c =
+      case clValue $ theConstraint c of
+        ValueCmp _ _ u v ->
+          case (u, v) of
+            (MetaV m _, _) -> ifM (isRigid v) (return [m]) (return [])
+            (_, MetaV m _) -> ifM (isRigid u) (return [m]) (return [])
+            _              -> return []
+        ElimCmp{}     -> return []
+        TypeCmp{}     -> return []
+        TelCmp{}      -> return []
+        SortCmp{}     -> return []
+        LevelCmp{}    -> return []
+        UnBlock{}     -> return []
+        Guarded{}     -> return []  -- don't look inside Guarded, since the inner constraint might not fire
+        IsEmpty{}     -> return []
+        FindInScope{} -> return []
 
 -- | Given a meta @m@ of type @t@ and a list of candidates @cands@,
 -- @checkCandidates m t cands@ returns a refined list of valid candidates.
