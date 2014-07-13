@@ -111,7 +111,7 @@ checkRecDef i name ind con ps contel fields =
         Just c  -> return (True, c, i)
         Nothing -> do
           m <- killRange <$> currentModule
-          c <- qualify m <$> freshName_ "recCon-NOT-PRINTED"
+          c <- qualify m <$> freshName_ ("recCon-NOT-PRINTED" :: String)
           return (False, c, i)
 
       -- Add record type to signature.
@@ -312,7 +312,7 @@ checkRecordProjections m r con tel ftel fs = do
           rel      = getRelevance ai
           -- the recursive call
           recurse  = checkProjs (abstract ftel1 $ ExtendTel (Dom ai t)
-                                 $ Abs (show $ qnameName projname) EmptyTel)
+                                 $ Abs (nameToArgName $ qnameName projname) EmptyTel)
                                 (ftel2 `absApp` projcall) fs
 
       reportSDoc "tc.rec.proj" 25 $ nest 2 $ text "finalt=" <+> do

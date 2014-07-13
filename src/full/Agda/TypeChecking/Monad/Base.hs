@@ -1893,5 +1893,5 @@ absurdLambdaName = ".absurdlambda"
 
 -- | Check whether we have an definition from an absurd lambda.
 isAbsurdLambdaName :: QName -> Bool
-isAbsurdLambdaName (QName _ Name{nameConcrete = C.Name _ [C.Id ".absurdlambda"]}) = True
+isAbsurdLambdaName (QName _ x) | show x == absurdLambdaName = True
 isAbsurdLambdaName _ = False

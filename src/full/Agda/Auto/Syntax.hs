@@ -73,6 +73,9 @@ data FMode = Hidden
 data MId = Id String
          | NoId
 
+stringToMyId :: String -> MId
+stringToMyId = Id
+
 -- | Abstraction with maybe a name.
 --
 --   Different from Agda, where there is also info

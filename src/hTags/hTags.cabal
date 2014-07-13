@@ -3,7 +3,7 @@ version: 0.1.2
 cabal-version: >= 1.2 && < 2
 author: Ulf Norell, Nils Anders Danielsson, Andreas Abel
 build-type: Simple
-tested-with: GHC == 7.8.2
+tested-with: GHC == 7.8.3
 
 executable hTags
   main-is:       Main.hs

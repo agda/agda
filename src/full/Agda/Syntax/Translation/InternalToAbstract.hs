@@ -32,14 +32,14 @@ import Control.Monad.State hiding (mapM_, mapM)
 import Control.Monad.Error hiding (mapM_, mapM)
 import Control.Monad.Reader hiding (mapM_, mapM)
 
-import qualified Data.Set as Set
-import Data.Set (Set)
-import qualified Data.Map as Map
+import Data.Foldable (foldMap)
 import Data.List hiding (sort)
-import Data.Traversable as Trav
+import qualified Data.Map as Map
 import Data.Maybe
 import Data.Monoid
-import Data.Foldable (foldMap)
+import Data.Set (Set)
+import qualified Data.Set as Set
+import Data.Traversable as Trav
 
 import Agda.Syntax.Literal
 import Agda.Syntax.Position
@@ -104,8 +104,9 @@ reifyIArgs' = mapM reifyIArg'
 exprInfo :: ExprInfo
 exprInfo = ExprRange noRange
 
-underscore :: Expr
-underscore = A.Underscore $ Info.emptyMetaInfo
+instance Underscore Expr where
+  underscore   = A.Underscore $ Info.emptyMetaInfo
+  isUnderscore = __IMPOSSIBLE__
 
 -- Conditional reification to omit terms that are not shown --------------
 
@@ -513,7 +514,7 @@ reifyTerm expandAnonDefs0 v = do
         napps (A.ExtendedLam exprInfo dInfo x cls) =<< reifyIArgs vs
 
 -- | @nameFirstIfHidden n (a1->...an->{x:a}->b) ({e} es) = {x = e} es@
-nameFirstIfHidden :: [I.Dom (String, t)] -> [I.Arg a] -> [I.NamedArg a]
+nameFirstIfHidden :: [I.Dom (ArgName, t)] -> [I.Arg a] -> [I.NamedArg a]
 nameFirstIfHidden _         []                    = []
 nameFirstIfHidden []        (_ : _)               = __IMPOSSIBLE__
 nameFirstIfHidden (dom : _) (Common.Arg info e : es) | isHidden info =
@@ -897,9 +898,9 @@ instance Reify Sort Expr where
                   a <- reify a
                   return $ A.App exprInfo (A.Set exprInfo 0) (defaultNamedArg a)
                 I.Prop       -> return $ A.Prop exprInfo
-                I.Inf       -> A.Var <$> freshName_ "Setω"
+                I.Inf       -> A.Var <$> freshName_ ("Setω" :: String)
                 I.DLub s1 s2 -> do
-                  lub <- freshName_ "dLub" -- TODO: hack
+                  lub <- freshName_ ("dLub" :: String) -- TODO: hack
                   (e1,e2) <- reify (s1, I.Lam defaultArgInfo $ fmap Sort s2)
                   let app x y = A.App exprInfo x (defaultNamedArg y)
                   return $ A.Var lub `app` e1 `app` e2
@@ -914,7 +915,7 @@ instance (Free i, Reify i a) => Reify (Abs i) (Name, a) where
 
     -- If the bound variable is free in the body, then the name "_" is
     -- replaced by "z".
-    s <- return $ if s == "_" && 0 `freeIn` v then "z" else s
+    s <- return $ if isUnderscore s && 0 `freeIn` v then "z" else s
 
     x <- freshName_ s
     e <- addCtx x dummyDom -- type doesn't matter

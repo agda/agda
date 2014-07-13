@@ -33,6 +33,31 @@ Working with Git (from 2014-06-15)
 
   For new features replace maint-2.4.0 with master above.
 
+  The above procedure has the drawback that with each checkout, many
+  source files are touched and recompilation is slow.  Here is an
+  alternative workflow, if you have commit rights and two local
+  repositories, one on master and one on maint-2.4.0 (both up-to-date).
+
+    maint-2.4.0$  git checkout -b issue1234
+    maint-2.4.0$  git commit ...
+    maint-2.4.0$  git checkout maint-2.4.0
+    maint-2.4.0$  git merge issue1234
+    maint-2.4.0$  make install-bin test
+    maint-2.4.0$  git push
+
+    # Now fast-forward maint-2.4.0 branch without checking it out.
+    # Merge it into master (assuming maint-2.4.0 is a `subset' of master).
+
+    master$       git fetch maint-2.4.0:maint-2.4.0
+    master$       git merge maint-2.4.0
+    master$       make install-bin test
+    master$       git push
+
+    # Fast-forward master
+
+    maint-2.4.0$  git fetch master:master
+
+
 Testing and documentation
 
 * When you implement a new feature it needs to be documented in

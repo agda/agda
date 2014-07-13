@@ -28,7 +28,7 @@ useNamesFromPattern :: [A.NamedArg A.Pattern] -> Telescope -> Telescope
 useNamesFromPattern ps = telFromList . zipWith ren (toPats ps ++ repeat dummy) . telToList
   where
     dummy = A.WildP __IMPOSSIBLE__
-    ren (A.VarP x) (Dom info (_, a))  | notHidden info = Dom info (show x, a)
+    ren (A.VarP x) (Dom info (_, a)) | notHidden info = Dom info (nameToArgName x, a)
     ren A.AbsurdP{} (Dom info (_, a)) | notHidden info = Dom info ("()", a)
     -- Andreas, 2013-03-13: inserted the following line in the hope to fix issue 819
     -- but it does not do the job, instead, it puts a lot of "_"s

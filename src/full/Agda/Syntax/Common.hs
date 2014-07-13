@@ -11,14 +11,20 @@
 module Agda.Syntax.Common where
 
 import Control.Applicative
-import Data.Typeable (Typeable)
+
+import Data.ByteString.Char8 (ByteString)
+import qualified Data.ByteString.Char8 as ByteString
 import Data.Foldable
-import Data.Traversable
 import Data.Hashable
+import Data.Traversable
+import Data.Typeable (Typeable)
+
 import Test.QuickCheck
 
 import Agda.Syntax.Position
+
 import Agda.Utils.Functor
+import Agda.Utils.Pretty
 import Agda.Utils.Size
 
 #include "../undefined.h"
@@ -342,6 +348,24 @@ xs `withNamedArgsFrom` args =
   zipWith (\x -> fmap (x <$)) xs args
 
 ---------------------------------------------------------------------------
+-- * Names
+---------------------------------------------------------------------------
+
+class Eq a => Underscore a where
+  underscore   :: a
+  isUnderscore :: a -> Bool
+  isUnderscore = (== underscore)
+
+instance Underscore String where
+  underscore = "_"
+
+instance Underscore ByteString where
+  underscore = ByteString.pack underscore
+
+instance Underscore Doc where
+  underscore = text underscore
+
+---------------------------------------------------------------------------
 -- * Function type domain
 ---------------------------------------------------------------------------
 
@@ -399,11 +423,15 @@ defaultDom = Dom defaultArgInfo
 -- * Named arguments
 ---------------------------------------------------------------------------
 
+-- | Something potentially carrying a name.
 data Named name a =
     Named { nameOf     :: Maybe name
 	  , namedThing :: a
 	  }
     deriving (Eq, Ord, Typeable, Functor, Foldable, Traversable)
+
+-- | Standard naming.
+type Named_ = Named RString
 
 unnamed :: a -> Named name a
 unnamed = Named Nothing
@@ -423,12 +451,12 @@ instance (KillRange name, KillRange a) => KillRange (Named name a) where
 instance Sized a => Sized (Named name a) where
   size = size . namedThing
 
-instance Show a => Show (Named RString a) where
+instance Show a => Show (Named_ a) where
     show (Named Nothing x)  = show x
-    show (Named (Just n) x) = rangedThing n ++ " = " ++ show x
+    show (Named (Just n) x) = rawNameToString (rangedThing n) ++ " = " ++ show x
 
 -- | Only 'Hidden' arguments can have names.
-type NamedArg c a = Arg c (Named RString a)
+type NamedArg c a = Arg c (Named_ a)
 
 -- | Get the content of a 'NamedArg'.
 namedArg :: NamedArg c a -> a
@@ -475,8 +503,21 @@ instance KillRange (Ranged a) where
 instance Decoration Ranged where
   traverseF f (Ranged r x) = Ranged r <$> f x
 
+---------------------------------------------------------------------------
+-- * Raw names (before parsing into name parts).
+---------------------------------------------------------------------------
+
+-- | A @RawName@ is some sort of string.
+type RawName = String
+
+rawNameToString :: RawName -> String
+rawNameToString = id
+
+stringToRawName :: String -> RawName
+stringToRawName = id
+
 -- | String with range info.
-type RString = Ranged String
+type RString = Ranged RawName
 
 ---------------------------------------------------------------------------
 -- * Infixity, access, abstract, etc.

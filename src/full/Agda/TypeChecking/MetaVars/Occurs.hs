@@ -585,7 +585,7 @@ killArgs kills m = do
 --   Invariant: @k'i == True@ iff @ki == True@ and pruning the @i@th argument from
 --   type @b@ is possible without creating unbound variables.
 --   @t'@ is type @t@ after pruning all @k'i==True@.
-killedType :: [(I.Dom (String, Type), Bool)] -> Type -> ([I.Arg Bool], Type)
+killedType :: [(I.Dom (ArgName, Type), Bool)] -> Type -> ([I.Arg Bool], Type)
 killedType [] b = ([], b)
 killedType ((arg@(Dom info _), kill) : kills) b
   | dontKill  = (Arg info False : args, mkPi arg b') -- OLD: telePi (telFromList [arg]) b')

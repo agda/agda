@@ -12,6 +12,8 @@ module Agda.Syntax.Concrete.Name where
 import Control.DeepSeq
 import Control.Applicative
 
+import Data.ByteString.Char8 (ByteString)
+import qualified Data.ByteString.Char8 as ByteString
 import Data.List
 import Data.Typeable (Typeable)
 
@@ -42,11 +44,17 @@ data Name
 
 instance NFData Name
 
+instance Underscore Name where
+  underscore = NoName noRange __IMPOSSIBLE__
+  isUnderscore NoName{}        = True
+  isUnderscore (Name _ [Id x]) = isUnderscore x
+  isUnderscore _               = False
+
 -- | Mixfix identifiers are composed of words and holes,
 --   e.g. @_+_@ or @if_then_else_@ or @[_/_]@.
 data NamePart
   = Hole       -- ^ @_@ part.
-  | Id String  -- ^ Identifier part.
+  | Id RawName  -- ^ Identifier part.
   deriving (Typeable)
 
 -- | Define equality on @Name@ to ignore range so same names in different
@@ -92,6 +100,11 @@ data QName
   | QName Name       -- ^ @x@.
   deriving (Typeable, Eq, Ord)
 
+instance Underscore QName where
+  underscore = QName underscore
+  isUnderscore (QName x) = isUnderscore x
+  isUnderscore Qual{}    = False
+
 -- | Top-level module names.  Used in connection with the file system.
 --
 --   Invariant: The list must not be empty.
@@ -104,11 +117,14 @@ newtype TopLevelModuleName
 -- * Operations on 'Name' and 'NamePart'
 ------------------------------------------------------------------------
 
+nameToRawName :: Name -> RawName
+nameToRawName = show
+
 nameParts :: Name -> [NamePart]
 nameParts (Name _ ps)  = ps
 nameParts (NoName _ _) = [Hole]
 
-nameStringParts :: Name -> [String]
+nameStringParts :: Name -> [RawName]
 nameStringParts n = [ s | Id s <- nameParts n ]
 
 -- | Parse a string to parts of a concrete name.
@@ -116,7 +132,7 @@ nameStringParts n = [ s | Id s <- nameParts n ]
 stringNameParts :: String -> [NamePart]
 stringNameParts ""                              = []
 stringNameParts ('_':s)                         = Hole : stringNameParts s
-stringNameParts s | (x, s') <- break (== '_') s = Id x : stringNameParts s'
+stringNameParts s | (x, s') <- break (== '_') s = Id (stringToRawName x) : stringNameParts s'
 
 -- | Is the name an operator?
 
@@ -207,7 +223,10 @@ class IsNoName a where
   isNoName :: a -> Bool
 
 instance IsNoName String where
-  isNoName = (== "_")
+  isNoName = isUnderscore
+
+instance IsNoName ByteString where
+  isNoName = isUnderscore
 
 instance IsNoName Name where
   isNoName (NoName _ _)    = True
@@ -231,7 +250,7 @@ instance Show Name where
 
 instance Show NamePart where
     show Hole   = "_"
-    show (Id s) = s
+    show (Id s) = rawNameToString s
 
 instance Show QName where
     show (Qual m x) = show m ++ "." ++ show x

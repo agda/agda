@@ -17,8 +17,10 @@ import Control.Arrow ((***), first, second)
 import Control.Applicative
 import Control.Monad.Reader
 import Control.Monad.Identity
+
 import qualified Data.Map as Map
 import Data.Maybe
+
 import Debug.Trace
 import System.IO.Unsafe
 
@@ -78,10 +80,10 @@ withFreshR f = do
   let (i, s') = nextFresh s
   localR (mapRedSt $ const s') (f i)
 
-withFreshName :: Range -> String -> (Name -> ReduceM a) -> ReduceM a
+withFreshName :: Range -> ArgName -> (Name -> ReduceM a) -> ReduceM a
 withFreshName r s k = withFreshR $ \i -> k (mkName r i s)
 
-withFreshName_ :: String -> (Name -> ReduceM a) -> ReduceM a
+withFreshName_ :: ArgName -> (Name -> ReduceM a) -> ReduceM a
 withFreshName_ = withFreshName noRange
 
 mkContextEntry :: Dom (Name, Type) -> (ContextEntry -> ReduceM a) -> ReduceM a

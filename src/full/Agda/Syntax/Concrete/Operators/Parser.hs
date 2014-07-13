@@ -4,6 +4,7 @@
 module Agda.Syntax.Concrete.Operators.Parser where
 
 import Control.Exception (throw)
+
 import Data.Maybe
 
 import Agda.Syntax.Position
@@ -24,8 +25,8 @@ data ExprView e
     | OtherV e
     | AppV e (NamedArg e)
     | OpAppV QName [NamedArg (OpApp e)]
-    | HiddenArgV (Named RString e)
-    | InstanceArgV (Named RString e)
+    | HiddenArgV (Named_ e)
+    | InstanceArgV (Named_ e)
     | LamV [LamBinding] e
     | ParenV e
 --    deriving (Show)
@@ -52,7 +53,7 @@ recursive f = p0
 -- Specific combinators
 
 -- | Parse a specific identifier as a NamePart
-partP :: IsExpr e => [Name] -> String -> ReadP e Range
+partP :: IsExpr e => [Name] -> RawName -> ReadP e Range
 partP ms s = do
     tok <- get
     case isLocal tok of

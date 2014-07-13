@@ -11,9 +11,9 @@ import Control.Monad.Reader
 import Control.Monad.State
 import Control.Monad.Error
 
-import Data.Traversable hiding (mapM, sequence)
 import Data.List hiding (sort)
 import qualified Data.List as List
+import Data.Traversable hiding (mapM, sequence)
 
 import Agda.Syntax.Abstract.Views (isSet)
 import Agda.Syntax.Common
@@ -296,7 +296,7 @@ compareTerm' cmp a m n =
     equalFun (Pi dom@(Dom info _) b) m n = do
         -- name <- freshName_ $ properName $ absName b
         name <- freshName_ $ suggest (absName b) "x"
-        addCtx name dom $ compareTerm cmp (absBody b) m' n'
+        addContext (name, dom) $ compareTerm cmp (absBody b) m' n'
       where
         (m',n') = raise 1 (m,n) `apply` [Arg info $ var 0]
 {-
@@ -329,7 +329,7 @@ compareTel t1 t2 cmp tel1 tel2 =
           dom <- if dependent
                  then Dom i1 <$> blockTypeOnProblem a1 pid
                  else return dom1
-          addCtx name dom $ compareTel t1 t2 cmp (absBody tel1) (absBody tel2)
+          addContext (name, dom) $ compareTel t1 t2 cmp (absBody tel1) (absBody tel2)
           stealConstraints pid
 
 {- OLD, before 2013-05-15
@@ -603,7 +603,7 @@ compareAtom cmp t m n =
                        -- then Dom i1 . El a1s <$> blockTermOnProblem (El Inf $ Sort a1s) a1t pid
                        else return dom1
                 name <- freshName_ (suggest b1 b2)
-                addCtx name dom $ compareType cmp (absBody b1) (absBody b2)
+                addContext (name, dom) $ compareType cmp (absBody b1) (absBody b2)
                 stealConstraints pid
                 -- Andreas, 2013-05-15 Now, comparison of codomains is not
                 -- blocked any more by getting stuck on domains.

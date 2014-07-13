@@ -524,7 +524,7 @@ computeOccurrences q = do
 etaExpandClause :: Nat -> Clause -> Clause
 etaExpandClause n c@Clause{ namedClausePats = ps, clauseBody = b }
   | m <= 0    = c
-  | otherwise = c { namedClausePats = ps ++ genericReplicate m (defaultArg $ unnamed $ VarP "_")
+  | otherwise = c { namedClausePats = ps ++ genericReplicate m (defaultArg $ unnamed $ VarP underscore)
                   , clauseBody      = liftBody m b
                   , clauseTel       = __IMPOSSIBLE__
                   , clausePerm      = __IMPOSSIBLE__
@@ -533,7 +533,7 @@ etaExpandClause n c@Clause{ namedClausePats = ps, clauseBody = b }
     m = n - genericLength ps
 
     bind 0 = id
-    bind n = Bind . Abs "_" . bind (n - 1)
+    bind n = Bind . Abs underscore . bind (n - 1)
 
     vars = map (defaultArg . var) $ downFrom m
 --    vars = reverse [ defaultArg $ var i | i <- [0..m - 1] ]

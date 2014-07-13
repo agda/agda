@@ -148,7 +148,7 @@ splitProblem mf (Problem ps (perm, qs) tel pr) = do
     -- Stripping initial lambdas from a normalized term
     stripLambdas :: Term -> TCM Term
     stripLambdas v = case ignoreSharing v of
-        Lam _ b -> addCtxString_ (absName b) $ stripLambdas (absBody b)
+        Lam _ b -> addContext (absName b) $ stripLambdas (absBody b)
         v       -> return v
 
     -- | In @splitP aps iqs tel@,

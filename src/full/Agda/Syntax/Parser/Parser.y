@@ -20,7 +20,9 @@ module Agda.Syntax.Parser.Parser (
     ) where
 
 import Control.Monad
+
 import Data.Char
+import Data.Functor
 import Data.List
 import Data.Maybe
 import qualified Data.Traversable as T
@@ -1106,7 +1108,7 @@ SimpleHole
 
 -- Discard the interval.
 SimpleId :: { RString }
-SimpleId : id  { Ranged (getRange $ fst $1) (snd $1) }
+SimpleId : id  { Ranged (getRange $ fst $1) (stringToRawName $ snd $1) }
 
 MaybeOpen :: { Maybe Range }
 MaybeOpen : 'open'      { Just (getRange $1) }
@@ -1122,12 +1124,12 @@ Open : MaybeOpen 'import' ModuleName OpenArgs ImportDirective {%
     ; dir = $5
     ; r   = getRange (m, es, dir)
     ; mr  = getRange m
-    ; unique = hashString $ show $ fmap (const (Nothing :: Maybe ())) r
+    ; unique = hashString $ show $ (Nothing :: Maybe ()) <$ r
          -- turn range into unique id, but delete file path
          -- which is absolute and messes up suite of failing tests
          -- (different hashs on different installations)
          -- TODO: Don't use (insecure) hashes in this way.
-    ; fresh = Name mr [ Id $ ".#" ++ show m ++ "-" ++ show unique ]
+    ; fresh = Name mr [ Id $ stringToRawName $ ".#" ++ show m ++ "-" ++ show unique ]
     ; impStm asR = Import mr m (Just (AsName fresh asR)) DontOpen defaultImportDir
     ; appStm m' es =
         let r = getRange (m, es) in
@@ -1141,7 +1143,7 @@ Open : MaybeOpen 'import' ModuleName OpenArgs ImportDirective {%
     ; parseAsClause = case last2Args of
       { [ Ident (QName (Name asR [Id x]))
         , Ident (QName m')
-        ] | x == "as" -> Just (asR, m')
+        ] | rawNameToString x == "as" -> Just (asR, m')
       ; _ -> Nothing
       }
     } in
@@ -1459,7 +1461,9 @@ mkName (i, s) = do
     return $ Name (getRange i) xs
     where
 	isValidId Hole   = return ()
-	isValidId (Id x) = case parse defaultParseFlags [0] (lexer return) x of
+	isValidId (Id y) = do
+          let x = rawNameToString y
+          case parse defaultParseFlags [0] (lexer return) x of
 	    ParseOk _ (TokId _) -> return ()
 	    _			-> fail $ "in the name " ++ s ++ ", the part " ++ x ++ " is not valid"
 
@@ -1634,10 +1638,10 @@ isEqual e =
     Equal _ a b -> Just (stripSingletonRawApp a, stripSingletonRawApp b)
     _           -> Nothing
 
-maybeNamed :: Expr -> Named RString Expr
+maybeNamed :: Expr -> Named_ Expr
 maybeNamed e =
   case isEqual e of
-    Just (Ident (QName x), b) -> named (Ranged (getRange x) (show x)) b
+    Just (Ident (QName x), b) -> named (Ranged (getRange x) (nameToRawName x)) b
     _                         -> unnamed e
 
 patternSynArgs :: [Either Hiding LamBinding] -> Parser [Arg Name]

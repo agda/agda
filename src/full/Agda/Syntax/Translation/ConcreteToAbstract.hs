@@ -606,7 +606,7 @@ instance ToAbstract C.Expr A.Expr where
           where
             nextlamname :: Range -> Int -> String -> ScopeM C.Name
             nextlamname r i s = do
-              let cname_pre = C.Name r [Id $ s ++ show i]
+              let cname_pre = C.Name r [Id $ stringToRawName $ s ++ show i]
               rn <- resolveName (C.QName cname_pre)
               case rn of
                 UnknownName -> return $ cname_pre
@@ -881,7 +881,7 @@ instance ToAbstract (TopLevel [C.Declaration]) TopLevelInfo where
         (ds', [C.Module r m0 tel ds]) -> do
           -- If the module name is _ compute the name from the file path
           m <- if isNoName m0
-                then return $ C.QName $ C.Name noRange [Id $ rootName file]
+                then return $ C.QName $ C.Name noRange [Id $ stringToRawName $ rootName file]
                 else do
                 -- Andreas, 2014-03-28  Issue 1078
                 -- We need to check the module name against the file name here.

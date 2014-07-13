@@ -2412,3 +2412,54 @@ Serialization.Sort      812 ms
 real	3m45.256s
 user	3m43.586s
 sys	0m1.280s
+
+========================================================================
+2014-07-12  Try: Data.Text for names
+
+Finished README.
+Total time           223417 ms
+Parsing                1836 ms
+Parsing.Operators      9856 ms
+Import                 4104 ms
+Deserialization          28 ms
+Scoping                8668 ms
+Typing                50403 ms
+Termination            3268 ms
+Termination.Graph       172 ms
+Termination.RecCheck   1824 ms
+Termination.Compare     284 ms
+Positivity             4456 ms
+Injectivity             716 ms
+ProjectionLikeness      152 ms
+Coverage               1668 ms
+Highlighting           4924 ms
+Serialization        130248 ms
+Serialization.Sort      900 ms
+ModuleName               24 ms
+
+ 138,974,834,800 bytes allocated in the heap
+  16,604,694,896 bytes copied during GC
+     401,008,464 bytes maximum residency (43 sample(s))
+       5,281,432 bytes maximum slop
+            1176 MB total memory in use (0 MB lost due to fragmentation)
+
+                                    Tot time (elapsed)  Avg pause  Max pause
+  Gen  0      1569 colls,     0 par   46.97s   47.64s     0.0304s    0.3948s
+  Gen  1        43 colls,     0 par   14.77s   14.88s     0.3461s    0.8923s
+
+  INIT    time    0.00s  (  0.00s elapsed)
+  MUT     time  158.89s  (161.28s elapsed)
+  GC      time   61.74s  ( 62.52s elapsed)
+  EXIT    time    0.03s  (  0.03s elapsed)
+  Total   time  220.67s  (223.84s elapsed)
+
+  %GC     time      28.0%  (27.9% elapsed)
+
+  Alloc rate    874,661,055 bytes per MUT second
+
+  Productivity  72.0% of total user, 71.0% of total elapsed
+
+
+real	3m44.031s
+user	3m40.674s
+sys	0m2.928s

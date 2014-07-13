@@ -10,7 +10,6 @@ module Agda.TypeChecking.Test.Generators where
 import Control.Applicative
 import Control.Monad.State
 import qualified Data.List as List (sort, nub)
-import Agda.Utils.QuickCheck hiding (Args)
 
 import Agda.Syntax.Position
 import Agda.Syntax.Common as Common
@@ -18,8 +17,11 @@ import Agda.Syntax.Literal
 import Agda.Syntax.Fixity
 import Agda.Syntax.Internal as I
 import qualified Agda.Syntax.Concrete.Name as C
+
 import Agda.TypeChecking.Free
 import Agda.TypeChecking.Substitute
+
+import Agda.Utils.QuickCheck hiding (Args)
 import Agda.Utils.TestHelpers
 import qualified Agda.Utils.VarSet as Set
 
@@ -129,7 +131,7 @@ extendConf conf = conf { tcFreeVariables = 0 : map (1+) (tcFreeVariables conf) }
 extendWithTelConf :: Telescope -> TermConfiguration -> TermConfiguration
 extendWithTelConf tel conf = foldr (const extendConf) conf (telToList tel)
 
-makeConfiguration :: [String] -> [String] -> [String] -> [Nat] -> TermConfiguration
+makeConfiguration :: [RawName] -> [RawName] -> [RawName] -> [Nat] -> TermConfiguration
 makeConfiguration ds cs ps vs = TermConf
   { tcDefinedNames     = defs
   , tcConstructorNames = cons
@@ -201,7 +203,8 @@ instance (GenC c, GenC a) => GenC (Common.Dom c a) where
   genC conf = (\ (h, a) -> Dom (setHiding h defaultArgInfo) a) <$> genC conf
 
 instance GenC a => GenC (Abs a) where
-  genC conf = Abs "x" <$> genC (extendConf conf)
+  genC conf = Abs x <$> genC (extendConf conf)
+    where x = stringToArgName "x"
 
 instance GenC a => GenC (Elim' a) where
   genC conf = frequency [ (applyF, Apply <$> genC conf)
@@ -328,9 +331,9 @@ genConf = do
   vs <- listOf natural
   return $ makeConfiguration ds cs ps vs
   where
-    defs = [ [c] | c <- ['a'..'n'] ++ ['r'..'z'] ]
-    cons = [ [c] | c <- ['A'..'Z'] ]
-    projs= [ [c] | c <- ['o'..'q'] ]
+    defs = [ stringToRawName [c] | c <- ['a'..'n'] ++ ['r'..'z'] ]
+    cons = [ stringToRawName [c] | c <- ['A'..'Z'] ]
+    projs= [ stringToRawName [c] | c <- ['o'..'q'] ]
 
 instance Arbitrary TermConfiguration where
   arbitrary   = genConf

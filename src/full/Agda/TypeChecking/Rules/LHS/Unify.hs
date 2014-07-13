@@ -1062,7 +1062,7 @@ telViewUpToHH n t = do
   (t, sh) <- shapeViewHH =<< liftTCM (traverse reduce t)
   case sh of
     PiSh a b  -> absV a (absName b) <$> telViewUpToHH (n-1) (absBody b)
-    FunSh a b -> absV a "_" <$> telViewUpToHH (n-1) (raise 1 b)
+    FunSh a b -> absV a underscore <$> telViewUpToHH (n-1) (raise 1 b)
     _         -> return $ TelV EmptyTel t
   where
     absV a x (TelV tel t) = TelV (ExtendTel a (Abs x tel)) t

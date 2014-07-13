@@ -64,7 +64,7 @@ checkType' t = do
     Pi a b -> do
       s1 <- checkType' $ unDom a
       s2 <- (b $>) <$> do
-        addCtxString (absName b) a $ do
+        addContext (absName b, a) $ do
           checkType' $ absBody b
       return $ dLub s1 s2
     Sort s -> do
@@ -124,13 +124,13 @@ checkInternal v t = do
     Lam ai vb  -> do
       (a, b) <- shouldBePi t
       checkArgInfo ai $ domInfo a
-      addCtxString (suggest vb b) a $ do
+      addContext (suggest vb b, a) $ do
         checkInternal (absBody vb) (absBody b)
     Pi a b     -> do
       s <- shouldBeSort t
       let st = sort s
       checkInternal (unEl $ unDom a) st
-      addCtxString (absName b) a $ do
+      addContext (absName b, a) $ do
         checkInternal (unEl $ absBody b) $ raise 1 st
     Sort s     -> do
       checkSort s  -- this ensures @s /= Inf@
@@ -293,7 +293,7 @@ checkSort s =
       -- we cannot have Setω on the lhs of the colon
     DLub a b -> do
       checkSort a
-      addCtxString (absName b) (defaultDom (sort a)) $ do
+      addContext (absName b, defaultDom (sort a) :: I.Dom Type) $ do
         checkSort (absBody b)
 
 -- | Check if level is well-formed.
