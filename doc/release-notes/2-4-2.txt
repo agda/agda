@@ -119,6 +119,9 @@ Language
     unquoteNat (con (quote Nat.suc) (arg _ n ∷ [])) = fmap suc (unquoteNat n)
     unquoteNat _                                    = nothing
 
+* The builtin constructors AGDATERMUNSUPPORTED and AGDASORTUNSUPPORTED are now
+  translated to meta variables when unquoting.
+
 * New syntactic sugar 'tactic e' and 'tactic e | e1 | .. | en'.
 
   It desugars as follows and makes it less unwieldy to call reflection-based
