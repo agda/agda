@@ -18,6 +18,7 @@ import Agda.TypeChecking.Monad
 import Agda.TypeChecking.Reduce
 import Agda.TypeChecking.Substitute
 import {-# SOURCE #-} Agda.TypeChecking.InstanceArguments
+import Agda.TypeChecking.Pretty
 
 import Agda.Utils.Tuple
 
@@ -40,8 +41,8 @@ implicitNamedArgs n expand t0 = do
     t0' <- reduce t0
     case ignoreSharing $ unEl t0' of
       Pi (Dom info a) b | let x = absName b, expand (getHiding info) x -> do
-          when (getHiding info == Instance) $ reportSLn "tc.term.args.ifs" 15 $
-            "inserting instance meta for type " ++ show a
+          when (getHiding info == Instance) $ reportSDoc "tc.term.args.ifs" 15 $
+            text "inserting instance meta for type" <+> prettyTCM a
           v  <- applyRelevanceToContext (getRelevance info) $
                 newMeta (getHiding info) (argNameToString x) a
           let narg = Arg info (Named (Just $ unranged x) v)
