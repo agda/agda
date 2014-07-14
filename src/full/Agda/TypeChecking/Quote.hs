@@ -352,8 +352,8 @@ instance Unquote Sort where
     case ignoreSharing t of
       Con c [] -> do
         choice
-          [(c `isCon` primAgdaSortUnsupported, unquoteFailed "Sort" "unsupported sort" t)]
-          (unquoteFailed "Sort" "arity 0 and not the `unsupported' constructor" t)
+          [(c `isCon` primAgdaSortUnsupported, pure $ Type $ Max [Plus 0 $ UnreducedLevel $ hackReifyToMeta])]
+          __IMPOSSIBLE__
       Con c [u] -> do
         choice
           [(c `isCon` primAgdaSortSet, Type <$> unquoteN u)
