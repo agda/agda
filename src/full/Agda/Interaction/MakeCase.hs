@@ -120,7 +120,7 @@ makeCase hole rng s = withInteractionId hole $ do
   split f [] clause =
     (:[]) <$> makeAbstractClause f (clauseToSplitClause clause)
   split f (var : vars) clause = do
-    z <- splitClauseWithAbs clause var
+    z <- splitClauseWithAbsurd clause var
     case z of
       Left err          -> typeError $ SplitError err
       Right (Left cl)   -> (:[]) <$> makeAbsurdClause f cl

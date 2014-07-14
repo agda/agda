@@ -502,9 +502,8 @@ computeNeighbourhood delta1 n delta2 perm d pars ixs hix hps c = do
         ]
 
 -- | Entry point from @Interaction.MakeCase@.
---   @Abs@ is for absurd clause.
-splitClauseWithAbs :: Clause -> Nat -> TCM (Either SplitError (Either SplitClause Covering))
-splitClauseWithAbs c x = split' Inductive (clauseToSplitClause c) (BlockingVar x Nothing)
+splitClauseWithAbsurd :: Clause -> Nat -> TCM (Either SplitError (Either SplitClause Covering))
+splitClauseWithAbsurd c x = split' Inductive (clauseToSplitClause c) (BlockingVar x Nothing)
 
 -- | Entry point from @TypeChecking.Empty@ and @Interaction.BasicOps@.
 splitLast :: Induction -> Telescope -> [I.NamedArg Pattern] -> TCM (Either SplitError Covering)
