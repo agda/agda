@@ -7,6 +7,7 @@ module Agda.TypeChecking.Coverage.Match where
 import Control.Applicative
 import Control.Monad.State
 
+import qualified Data.List as List
 import Data.Maybe (mapMaybe)
 import Data.Monoid
 import Data.Traversable (traverse)
@@ -68,7 +69,7 @@ match cs ps perm = foldr choice No $ zipWith matchIt [0..] cs
 --   against a clause. In particular we want to keep track of which variables
 --   are blocking a match.
 data MPat
-  = VarMP Nat
+  = VarMP Nat    -- ^ De Bruijn index (usually, rightmost variable in patterns is 0).
   | ConMP ConHead [Arg MPat]
   | LitMP Literal
   | WildMP       -- ^ For dot patterns that cannot be turned into patterns.
@@ -101,22 +102,37 @@ data Match a
   | BlockP               -- ^ Could match if split on possible projections is performed.
   deriving (Functor)
 
--- | @Nothing@ means there is an overlapping match for this variable.
---   @Just cons@ means that it is an non-overlapping match and
---   @cons@ are the encountered constructors.
-type BlockingVar  = (Nat, (Maybe [ConHead]))
+-- | Variable blocking a match.
+data BlockingVar  = BlockingVar
+  { blockingVarNo   :: Nat
+    -- ^ De Bruijn index of variable blocking the match.
+  , blockingVarCons :: Maybe [ConHead]
+    -- ^ @Nothing@ means there is an overlapping match for this variable.
+    --   This happens if one clause has a constructor pattern at this position,
+    --   and another a variable.  It is also used for "just variable".
+    --
+    --   @Just cons@ means that it is an non-overlapping match and
+    --   @cons@ are the encountered constructors.
+  } deriving (Show)
 type BlockingVars = [BlockingVar]
 
+mapBlockingVarCons :: (Maybe [ConHead] -> Maybe [ConHead]) -> BlockingVar -> BlockingVar
+mapBlockingVarCons f b = b { blockingVarCons = f (blockingVarCons b) }
+
+clearBlockingVarCons :: BlockingVar -> BlockingVar
+clearBlockingVarCons = mapBlockingVarCons $ const Nothing
+
 overlapping :: BlockingVars -> BlockingVars
-overlapping = map $ \ (x, _) -> (x, Nothing)
+overlapping = map clearBlockingVarCons
 
 -- | Left dominant merge of blocking vars.
 zipBlockingVars :: BlockingVars -> BlockingVars -> BlockingVars
 zipBlockingVars xs ys = map upd xs
   where
-    upd (x, Just cons) | Just (Just cons') <- lookup x ys =
-     (x, Just $ cons ++ cons')
-    upd (x, _) = (x, Nothing)
+    upd (BlockingVar x (Just cons))
+      | Just (BlockingVar _ (Just cons')) <- List.find ((x ==) . blockingVarNo) ys
+                          = BlockingVar x (Just $ cons ++ cons')
+    upd (BlockingVar x _) = BlockingVar x Nothing
 
 -- | @choice m m'@ combines the match results @m@ of a function clause
 --   with the (already combined) match results $m'$ of the later clauses.
@@ -225,7 +241,7 @@ matchPat _    (ProjP d) (ProjMP d') = if d == d' then Yes () else No
 matchPat _    (ProjP d) _ = __IMPOSSIBLE__
 -- matchPat mlit (ConP c (Just _) ps) q | recordPattern ps = Yes ()  -- Andreas, 2012-07-25 record patterns always match!
 matchPat mlit (ConP c _ ps) q = case q of
-  VarMP x -> Block [(x, Just [c])]
+  VarMP x -> Block [BlockingVar x (Just [c])]
   WildMP{} -> No -- Andreas, 2013-05-15 this was "Yes()" triggering issue 849
   ConMP c' qs
     | c == c'   -> matchPats mlit (map (fmap namedThing) ps) qs

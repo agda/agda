@@ -120,16 +120,15 @@ makeCase hole rng s = withInteractionId hole $ do
   split f [] clause =
     (:[]) <$> makeAbstractClause f (clauseToSplitClause clause)
   split f (var : vars) clause = do
-    z <- splitClauseWithAbs clause var
+    z <- splitClauseWithAbsurd clause var
     case z of
       Left err          -> typeError $ SplitError err
       Right (Left cl)   -> (:[]) <$> makeAbsurdClause f cl
       Right (Right cov)
         | null vars -> mapM (makeAbstractClause f) $ splitClauses cov
         | otherwise -> concat <$> do
-            mapM (\cl -> split f (mapMaybe (newVar cl) vars)
-                                 (splitClauseToClause cl))
-                 $ splitClauses cov
+            forM (splitClauses cov) $ \ cl ->
+              split f (mapMaybe (newVar cl) vars) $ splitClauseToClause cl
     where
     -- Note that the body of the created clause is the body of the
     -- argument to split.
@@ -145,8 +144,8 @@ makeCase hole rng s = withInteractionId hole $ do
 
   -- Finds the new variable corresponding to an old one, if any.
   newVar :: SplitClause -> Nat -> Maybe Nat
-  newVar c x = case ignoreSharing $ applySubst (scSubst c) (Var x []) of
-    Var x [] -> Just x
+  newVar c x = case ignoreSharing $ applySubst (scSubst c) (var x) of
+    Var y [] -> Just y
     _        -> Nothing
 
   -- NOTE: clauseToSplitClause moved to Coverage.hs
