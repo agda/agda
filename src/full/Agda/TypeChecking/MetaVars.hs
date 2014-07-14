@@ -181,7 +181,7 @@ newIFSMeta s t cands = do
   addCtxTel tel $ do
     vs  <- getContextArgs
     ctx <- getContextTelescope
-    teleLam tel <$> newIFSMetaCtx s (telePi_ ctx t') vs cands
+    teleLam tel <$> newIFSMetaCtx s (telePi_ ctx t') vs (raise (size tel) cands)
 
 -- | Create a new value meta with specific dependencies.
 newIFSMetaCtx :: MetaNameSuggestion -> Type -> Args -> Maybe [(Term, Type)] -> TCM Term
