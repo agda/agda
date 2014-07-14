@@ -788,7 +788,7 @@ checkApplication hd args e t = do
           checkTerm v t
       | arg : args <- args -> do
           v  <- unquote =<< checkExpr (namedArg arg) =<< el primAgdaTerm
-          e' <- withShowAllArguments $ reify (v :: Term)    -- TODO: use checkInternal (but see comment on checkTerm)
+          e' <- disableDisplayForms $ withShowAllArguments $ reify (v :: Term)    -- TODO: use checkInternal (but see comment on checkTerm)
           checkHeadApplication e t e' $ map convColor args
 
     -- Subcase: defined symbol or variable.
