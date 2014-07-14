@@ -33,25 +33,24 @@ Language
   definition/postulate that has to be taken into account during instance
   resolution. For example:
 
-    {-# OPTIONS --copatterns #-}
-
     record RawMonoid (A : Set) : Set where
       field
         nil  : A
         _++_ : A -> A -> A
-    open RawMonoid
+
+    open RawMonoid {{...}}
 
     instance
       rawMonoidList : {A : Set} -> RawMonoid (List A)
       rawMonoidList = record { nil = []; _++_ = List._++_ }
 
-      -- using copatterns to define this recursive instance:
-
       rawMonoidMaybe : {A : Set} {{m : RawMonoid A}} -> RawMonoid (Maybe A)
-      nil rawMonoidMaybe = nothing
-      _++_ rawMonoidMaybe nothing mb = mb
-      _++_ rawMonoidMaybe ma nothing = ma
-      _++_ (rawMonoidMaybe {{m}}) (just a) (just b) = just (_++_ m a b)
+      rawMonoidMaybe {A} = record { nil = nothing ; _++_ = catMaybe }
+        where
+          catMaybe : Maybe A -> Maybe A -> Maybe A
+          catMaybe nothing mb = mb
+          catMaybe ma nothing = ma
+          catMaybe (just a) (just b) = just (a ++ b)
 
   Moreover, each type of an instance must end in (something that reduces
   to) a named type (e.g. a record, a datatype or a postulate). This
@@ -93,14 +92,16 @@ Language
 
   * Instances of the following form are allowed:
 
-        Π-level : {n : ℕ} {A : Set} {B : A → Set}
-                  {{_ : (a : A) → has-level n (B a)}}
-                  → has-level n ((a : A) → B a)
+        EqSigma : {A : Set} {B : A → Set} {{EqA : Eq A}}
+                  {{EqB : {a : A} → Eq (B a)}}
+                  → Eq (Σ A B)
 
-      When searching recursively for an instance of type `(a : A) →
-      has-level n (B a)', a lambda will automatically be introduced and
-      instance search will search for something of type `has-level n (B
-      a)' in the context extended by `a : A'.
+      When searching recursively for an instance of type
+      `{a : A} → Eq (B a)', a lambda will automatically be introduced and
+      instance search will search for something of type `Eq (B a)' in
+      the context extended by `a : A'. When searching for an instance, the
+      `a' argument does not have to be implicit, but in the definition of
+      EqSigma, instance search will only be able to use EqB if `a' is implicit.
 
   * There is no longer any attempt to solve irrelevant metas by instance
     search
