@@ -96,8 +96,9 @@ primEqBool : Bool → Bool → Bool
 primEqBool true = id
 primEqBool false = not
 
-eqBool : Eq Bool
-eqBool = record { eq = primEqBool }
+instance
+  eqBool : Eq Bool
+  eqBool = record { eq = primEqBool }
 
 primEqNat : ℕ → ℕ → Bool
 primEqNat a b = ⌊ a ≟ b ⌋
@@ -115,17 +116,19 @@ record Ord₁ (A : Set) : Set where
   field _<_ : A → A → Bool
         eqA : Eq A
 
-ord₁Nat : Ord₁ ℕ
-ord₁Nat = record { _<_ = primLtNat; eqA = eqNat }
-  where eqNat : Eq ℕ
-        eqNat = record { eq = primEqNat }
+instance
+  ord₁Nat : Ord₁ ℕ
+  ord₁Nat = record { _<_ = primLtNat; eqA = eqNat }
+    where eqNat : Eq ℕ
+          eqNat = record { eq = primEqNat }
 
 
 record Ord₂ {A : Set} (eqA : Eq A) : Set where
   field _<_ : A → A → Bool
 
-ord₂Nat : Ord₂ (record { eq = primEqNat })
-ord₂Nat = record { _<_ = primLtNat }
+instance
+  ord₂Nat : Ord₂ (record { eq = primEqNat })
+  ord₂Nat = record { _<_ = primLtNat }
 
 
 record Ord₃ (A : Set) : Set where
@@ -133,25 +136,28 @@ record Ord₃ (A : Set) : Set where
         eqA : Eq A
   open Eq eqA public
 
-ord₃Nat : Ord₃ ℕ
-ord₃Nat = record { _<_ = primLtNat; eqA = eqNat }
-  where eqNat : Eq ℕ
-        eqNat = record { eq = primEqNat }
+instance
+  ord₃Nat : Ord₃ ℕ
+  ord₃Nat = record { _<_ = primLtNat; eqA = eqNat }
+    where eqNat : Eq ℕ
+          eqNat = record { eq = primEqNat }
 
-record Ord₄ {A : Set} (eqA : Eq A) : Set where
+record Ord₄ {A : Set} {{eqA : Eq A}} : Set where
   field _<_ : A → A → Bool
   open Eq eqA public
 
-ord₄Nat : Ord₄ (record { eq = primEqNat })
-ord₄Nat = record { _<_ = primLtNat }
+instance
+  ord₄Nat : Ord₄ {{record { eq = primEqNat }}}
+  ord₄Nat = record { _<_ = primLtNat }
 
 
 module test₁ where
   open Ord₁ {{...}}
   open Eq {{...}}
 
-  eqNat : Eq _
-  eqNat = eqA
+  instance
+    eqNat : Eq _
+    eqNat = eqA
 
   test₁ = 5 < 3
   test₂ = eq 5 3
@@ -159,8 +165,9 @@ module test₁ where
   test₄ : {A : Set} → {{ ordA : Ord₁ A }} → A → A → Bool
   test₄ a b = a < b ∨ eq a b
     where
-      eqA' : Eq _
-      eqA' = eqA
+      instance
+        eqA' : Eq _
+        eqA' = eqA
 
 module test₂ where
   open Ord₂ {{...}}
@@ -193,7 +200,7 @@ module test₄ where
   test₁ = 5 < 3
   test₂ = eq 5 3
   test₃ = eq' true false
-  test₄ : {A : Set} → {eqA : Eq A} → {{ ordA : Ord₄ eqA }} → A → A → Bool
+  test₄ : {A : Set} → {{eqA : Eq A}} → {{ ordA : Ord₄ }} → A → A → Bool
   test₄ a b = a < b ∨ eq a b
 
 module test₄′ where
@@ -206,6 +213,6 @@ module test₄′ where
   test₁ = 5 < 3
   test₂ = eq 5 3
   test₃ = eq true false
-  test₄ : {A : Set} → {eqA : Eq A} → {{ ordA : Ord₄ eqA }} → A → A → Bool
-  test₄ {eqA = _} a b = a < b ∨ eq a b
+  test₄ : {A : Set} → {{ eqA : Eq A }} → {{ ordA : Ord₄ }} → A → A → Bool
+  test₄ a b = a < b ∨ eq a b
 

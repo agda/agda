@@ -8,13 +8,13 @@ implicit : {A : Set}{{a : A}} -> A
 implicit {{a}} = a
 
 postulate
-  A : Set
-  .a : A
+  A B : Set
+  instance a : A
 
 a' : Box A
 a' = [ implicit ]
 -- this should succeed
 
-f : {X : Set} → Box X → Box (Box X)
-f [ x ] = [ [ implicit ] ]
+f : Box B → Box (Box B)
+f [ x ] = [ [ x ] ]
 -- this as well

@@ -13,11 +13,12 @@ record T (n : ℕ) : Set where
   field
     nextPrime : ℕ
 
-T₁ : T (suc zero)
-T₁ = record { nextPrime = suc (suc zero) }
+instance
+  T₁ : T (suc zero)
+  T₁ = record { nextPrime = suc (suc zero) }
 
-T₂ : T (suc (suc zero))
-T₂ = record { nextPrime = suc (suc (suc zero)) }
+  T₂ : T (suc (suc zero))
+  T₂ = record { nextPrime = suc (suc (suc zero)) }
 
 data Param : ℕ → Set where
   param : ∀ n → Param (suc n)

@@ -94,6 +94,7 @@ import Agda.Utils.Tuple
     'mutual'        { TokKeyword KwMutual $$ }
     'abstract'      { TokKeyword KwAbstract $$ }
     'private'       { TokKeyword KwPrivate $$ }
+    'instance'      { TokKeyword KwInstance $$ }
     'Prop'          { TokKeyword KwProp $$ }
     'Set'           { TokKeyword KwSet $$ }
     'forall'        { TokKeyword KwForall $$ }
@@ -205,6 +206,7 @@ Token
     | 'mutual'	    { TokKeyword KwMutual $1 }
     | 'abstract'    { TokKeyword KwAbstract $1 }
     | 'private'	    { TokKeyword KwPrivate $1 }
+    | 'instance'	{ TokKeyword KwInstance $1 }
     | 'Prop'	    { TokKeyword KwProp $1 }
     | 'Set'	    { TokKeyword KwSet $1 }
     | 'forall'	    { TokKeyword KwForall $1 }
@@ -932,6 +934,7 @@ Declaration
     | Mutual	    { [$1] }
     | Abstract	    { [$1] }
     | Private	    { [$1] }
+    | Instance	    { [$1] }
     | Postulate	    { [$1] }
     | Primitive	    { [$1] }
     | Open	    {  $1  }
@@ -952,9 +955,6 @@ Declaration
 -- one bound name.
 TypeSigs :: { [Declaration] }
 TypeSigs : SpaceIds ':' Expr { map (flip (TypeSig defaultArgInfo) $3) $1 }
-
-RelTypeSigs :: { [Declaration] }
-RelTypeSigs : MaybeDottedIds ':' Expr { map (\ (Common.Arg info x) -> TypeSig info x $3) $1 }
 
 -- A variant of TypeSigs where any sub-sequence of names can be marked
 -- as hidden or irrelevant using braces and dots:
@@ -1040,9 +1040,14 @@ Private :: { Declaration }
 Private : 'private' Declarations	{ Private (fuseRange $1 $2) $2 }
 
 
--- Postulates. Can only contain type signatures. TODO: relax this.
+-- Instance declarations.
+Instance :: { Declaration }
+Instance : 'instance' Declarations  { InstanceB (fuseRange $1 $2) $2 }
+
+
+-- Postulates.
 Postulate :: { Declaration }
-Postulate : 'postulate' RelTypeSignatures { Postulate (fuseRange $1 $2) $2 }
+Postulate : 'postulate' Declarations { Postulate (fuseRange $1 $2) $2 }
 
 -- Primitives. Can only contain type signatures.
 Primitive :: { Declaration }
@@ -1339,17 +1344,6 @@ TypeSignatures1 :: { [TypeSignature] }
 TypeSignatures1
     : TypeSignatures1 semi TypeSigs { reverse $3 ++ $1 }
     | TypeSigs                      { reverse $1 }
-
--- A variant of TypeSignatures which allows the irrelevance annotation (dot).
-RelTypeSignatures :: { [TypeSignature] }
-RelTypeSignatures
-    : vopen RelTypeSignatures1 close   { reverse $2 }
-
--- Inside the layout block.
-RelTypeSignatures1 :: { [TypeSignature] }
-RelTypeSignatures1
-    : RelTypeSignatures1 semi RelTypeSigs { reverse $3 ++ $1 }
-    | RelTypeSigs                         { reverse $1 }
 
 -- A variant of TypeSignatures which uses ArgTypeSigs instead of
 -- TypeSigs.

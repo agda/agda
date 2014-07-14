@@ -31,14 +31,16 @@ or true _ = true
 or _ true = true
 or false false = false
 
-aT : Monoid T
-aT = record { zeroT = tt; plusT = λ _ _ → tt }
+instance
+  aT : Monoid T
+  aT = record { zeroT = tt; plusT = λ _ _ → tt }
 
 testMonoid : {t : Set} → {{tM : Monoid t}} → t → t
 testMonoid {{tM}} t = let open Monoid tM in plusT t zeroT
 
-aBool : Monoid Bool
-aBool = record { zeroT = false; plusT = or }
+instance
+  aBool : Monoid Bool
+  aBool = record { zeroT = false; plusT = or }
 
 test : Bool
 test = testMonoid false

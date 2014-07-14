@@ -1,0 +1,4 @@
+Issue1003.agda:10,38-44
+Instance search can only be used to find elements in a named type
+when checking that y are valid arguments to a function of type
+{{T : Set}} → T → Set

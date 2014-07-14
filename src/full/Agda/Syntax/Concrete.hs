@@ -31,6 +31,7 @@ module Agda.Syntax.Concrete
     , Declaration(..)
     , ModuleApplication(..)
     , TypeSignature
+    , TypeSignatureOrInstanceBlock
     , Constructor
     , ImportDirective(..), UsingOrHiding(..), ImportedName(..)
     , Renaming(..), AsName(..)
@@ -297,6 +298,9 @@ data AsName = AsName { asName  :: Name
 -- | Just type signatures.
 type TypeSignature   = Declaration
 
+-- | Just type signatures or instance blocks.
+type TypeSignatureOrInstanceBlock   = Declaration
+
 -- | A data constructor declaration is just a type signature.
 type Constructor = TypeSignature
 
@@ -320,7 +324,8 @@ data Declaration
 	| Mutual      !Range [Declaration]
 	| Abstract    !Range [Declaration]
 	| Private     !Range [Declaration]
-	| Postulate   !Range [TypeSignature]
+	| InstanceB   !Range [Declaration]
+	| Postulate   !Range [TypeSignatureOrInstanceBlock]
 	| Primitive   !Range [TypeSignature]
 	| Open        !Range QName ImportDirective
 	| Import      !Range QName (Maybe AsName) OpenShortHand ImportDirective
@@ -524,6 +529,7 @@ instance HasRange Declaration where
     getRange (Open r _ _)	       = r
     getRange (ModuleMacro r _ _ _ _)   = r
     getRange (Import r _ _ _ _)	       = r
+    getRange (InstanceB r _)	       = r
     getRange (Private r _)	       = r
     getRange (Postulate r _)	       = r
     getRange (Primitive r _)	       = r
@@ -614,6 +620,7 @@ instance KillRange Declaration where
   killRange (Mutual _ d)            = killRange1 (Mutual noRange) d
   killRange (Abstract _ d)          = killRange1 (Abstract noRange) d
   killRange (Private _ d)           = killRange1 (Private noRange) d
+  killRange (InstanceB _ d)         = killRange1 (InstanceB noRange) d
   killRange (Postulate _ t)         = killRange1 (Postulate noRange) t
   killRange (Primitive _ t)         = killRange1 (Primitive noRange) t
   killRange (Open _ q i)            = killRange2 (Open noRange) q i

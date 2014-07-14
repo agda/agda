@@ -230,6 +230,9 @@ checkConstructor d tel nofIxs s con@(A.Axiom _ i _ c e) =
 	    defaultDefn defaultArgInfo c (telePi tel t') $
               Constructor (size tel) con d (Info.defAbstract i) Inductive
 
+        -- declare the constructor as eligible for instance search
+        addNamedInstance c d
+
         return nonLinPars
   where
     debugEnter c e =

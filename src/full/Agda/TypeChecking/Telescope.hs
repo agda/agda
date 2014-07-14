@@ -3,7 +3,7 @@
 module Agda.TypeChecking.Telescope where
 
 import Control.Applicative
-
+import Control.Monad (forM_, unless)
 import Data.List
 
 import Agda.Syntax.Common hiding (Arg, Dom, NamedArg, ArgInfo)
@@ -24,6 +24,24 @@ import qualified Agda.Utils.VarSet as Set
 
 #include "../undefined.h"
 import Agda.Utils.Impossible
+
+data OutputTypeName =
+    OutputTypeName QName
+  | OutputTypeNameNotYetKnown
+  | NoOutputTypeName
+
+-- | Strips all Pi's and return the head definition, if possible
+getOutputTypeName :: Type -> TCM OutputTypeName
+getOutputTypeName t = do
+  TelV tel t' <- telView t
+  bt' <- reduceB (unEl t')
+  case bt' of
+    Blocked{}    -> return OutputTypeNameNotYetKnown
+    NotBlocked v ->
+      case v of
+        Def n _   -> return $ OutputTypeName n
+        MetaV _ _ -> return OutputTypeNameNotYetKnown
+        _         -> return NoOutputTypeName
 
 -- | The permutation should permute the corresponding telescope. (left-to-right list)
 renameP :: Subst t => Permutation -> t -> t
@@ -154,3 +172,30 @@ piApplyM t (arg : args) = do
   case ignoreSharing $ unEl t of
     Pi  _ b -> absApp b (unArg arg) `piApplyM` args
     _       -> __IMPOSSIBLE__
+
+---------------------------------------------------------------------------
+-- * Instance definitions
+---------------------------------------------------------------------------
+
+addTypedInstance :: QName -> Type -> TCM ()
+addTypedInstance x t = do
+  n <- getOutputTypeName t
+  case n of
+    OutputTypeName n -> addNamedInstance x n
+    OutputTypeNameNotYetKnown -> addUnknownInstance x
+    NoOutputTypeName -> typeError $ GenericError $ "Terms marked as eligible for instance search should end with a name"
+
+resolveUnknownInstanceDefs :: TCM ()
+resolveUnknownInstanceDefs = do
+  anonInstanceDefs <- getAnonInstanceDefs
+  clearAnonInstanceDefs
+  forM_ anonInstanceDefs (\n -> do t <- typeOfConst n; addTypedInstance n t)
+
+-- | Try to solve the instance definitions whose type is not yet known, report
+--   an error if it doesn't work and return the instance table otherwise.
+getInstanceDefs :: TCM InstanceTable
+getInstanceDefs = do
+  resolveUnknownInstanceDefs
+  insts <- getAllInstanceDefs
+  unless (null $ snd insts) (typeError $ GenericError $ "There are instances whose type is still unsolved")
+  return (fst insts)

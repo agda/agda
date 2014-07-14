@@ -35,7 +35,6 @@ import Agda.TypeChecking.Constraints
 import Agda.TypeChecking.Conversion
 import Agda.TypeChecking.Errors
 import Agda.TypeChecking.Injectivity
-import Agda.TypeChecking.InstanceArguments (solveIrrelevantMetas)
 import Agda.TypeChecking.Positivity
 import Agda.TypeChecking.Polarity
 import Agda.TypeChecking.Pretty
@@ -128,7 +127,6 @@ checkDecl d = traceCall (SetRange (getRange d)) $ do
     unlessM (isJust . envMutualBlock <$> ask) $ do
       termErrs <- caseMaybe finalChecks (return []) $ \ theMutualChecks -> do
         solveSizeConstraints
-        solveIrrelevantMetas
         wakeupConstraints_   -- solve emptyness constraints
         freezeMetas
 
@@ -358,9 +356,9 @@ checkAxiom funSig i info0 x e = do
         A.FunSig   -> emptyFunction
         A.NoFunSig -> Axiom    -- NB: used also for data and record type sigs
 
-  -- for top-level axioms (postulates) try to solve irrelevant metas
-  -- when postulate $
-  maybe solveIrrelevantMetas (const $ return ()) =<< asks envMutualBlock
+  -- Add the definition to the instance table, if needed
+  when (Info.defInstance i == InstanceDef) $ do
+    addTypedInstance x t
 
   traceCall (IsType_ e) $ solveSizeConstraints  -- need Range for error message
 

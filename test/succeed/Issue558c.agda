@@ -17,8 +17,9 @@ test : {{v : V}} → ⊤
 test {{v}} = tt
 
 module test {t : ⊤} {d : D t} where
-  inst : V
-  inst = aV tt
+  instance
+    inst : V
+    inst = aV tt
 
   someT : ⊤
   someT = test

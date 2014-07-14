@@ -925,9 +925,11 @@ instance ToAbstract LetDefs [A.LetBinding] where
 instance ToAbstract LetDef [A.LetBinding] where
     toAbstract (LetDef d) =
         case d of
-            NiceMutual _ _ d@[C.FunSig _ fx _ info _ x t, C.FunDef _ _ _ abstract _ _ [cl]] ->
+            NiceMutual _ _ d@[C.FunSig _ fx _ instanc info _ x t, C.FunDef _ _ _ abstract _ _ [cl]] ->
                 do  when (abstract == AbstractDef) $ do
                       typeError $ GenericError $ "abstract not allowed in let expressions"
+                    when (instanc == InstanceDef) $ do
+                      typeError $ GenericError $ "Using instance is useless here, let expressions are always eligible for instance search."
                     e <- letToAbstract cl
                     t <- toAbstract t
                     x <- toAbstract (NewName $ mkBoundName x fx)
@@ -949,7 +951,7 @@ instance ToAbstract LetDef [A.LetBinding] where
                   case definedName p of
                     Nothing -> throwError err
                     Just x  -> toAbstract $ LetDef $ NiceMutual r termCheck
-                      [ C.FunSig r defaultFixity' PublicAccess defaultArgInfo termCheck x (C.Underscore (getRange x) Nothing)
+                      [ C.FunSig r defaultFixity' PublicAccess NotInstanceDef defaultArgInfo termCheck x (C.Underscore (getRange x) Nothing)
                       , C.FunDef r __IMPOSSIBLE__ __IMPOSSIBLE__ ConcreteDef __IMPOSSIBLE__ __IMPOSSIBLE__
                         [C.Clause x lhs (C.RHS rhs) NoWhere []]
                       ]
@@ -1032,7 +1034,7 @@ instance ToAbstract NiceDeclaration A.Declaration where
     case d of
 
   -- Axiom (actual postulate)
-    C.Axiom r f p rel x t -> do
+    C.Axiom r f p i rel x t -> do
       -- check that we do not postulate in --safe mode
       clo <- commandLineOptions
       when (optSafe clo) (typeError (SafeFlagPostulate x))
@@ -1091,7 +1093,7 @@ instance ToAbstract NiceDeclaration A.Declaration where
         t' <- toAbstract t
         return [ A.DataSig (mkDefInfo x f a ConcreteDef r) x' ls' t' ]
   -- Type signatures
-    C.FunSig r f p rel tc x t -> toAbstractNiceAxiom A.FunSig (C.Axiom r f p rel x t)
+    C.FunSig r f p i rel tc x t -> toAbstractNiceAxiom A.FunSig (C.Axiom r f p i rel x t)
   -- Function definitions
     C.FunDef r ds f a tc x cs -> do
         printLocals 10 $ "checking def " ++ show x
@@ -1132,7 +1134,7 @@ instance ToAbstract NiceDeclaration A.Declaration where
         printScope "data" 20 $ "Checked data " ++ show x
         return [ A.DataDef (mkDefInfo x f PublicAccess a r) x' pars cons ]
       where
-        conName (C.Axiom _ _ _ _ c _) = c
+        conName (C.Axiom _ _ _ _ _ c _) = c
         conName _ = __IMPOSSIBLE__
 
   -- Record definitions (mucho interesting)
@@ -1264,12 +1266,12 @@ instance ToAbstract NiceDeclaration A.Declaration where
 
     where
       -- checking postulate or type sig. without checking safe flag
-      toAbstractNiceAxiom funSig (C.Axiom r f p info x t) = do
+      toAbstractNiceAxiom funSig (C.Axiom r f p i info x t) = do
         t' <- toAbstractCtx TopCtx t
         y  <- freshAbstractQName f x
         info <- toAbstract info
         bindName p DefName x y
-        return [ A.Axiom funSig (mkDefInfo x f p ConcreteDef r) info y t' ]
+        return [ A.Axiom funSig (mkDefInfoInstance x f p ConcreteDef i r) info y t' ]
       toAbstractNiceAxiom _ _ = __IMPOSSIBLE__
 
 
@@ -1295,14 +1297,14 @@ bindConstructorName m x f a p record = do
             _                -> PublicAccess
 
 instance ToAbstract ConstrDecl A.Declaration where
-  toAbstract (ConstrDecl record m a p (C.Axiom r f _ info x t)) = do -- rel==Relevant
+  toAbstract (ConstrDecl record m a p (C.Axiom r f _ i info x t)) = do -- rel==Relevant
     t' <- toAbstractCtx TopCtx t
     -- The abstract name is the qualified one
     -- Bind it twice, once unqualified and once qualified
     y <- bindConstructorName m x f a p record
     info <- toAbstract info
     printScope "con" 15 "bound constructor"
-    return $ A.Axiom NoFunSig (mkDefInfo x f p ConcreteDef r) info y t'
+    return $ A.Axiom NoFunSig (mkDefInfoInstance x f p ConcreteDef i r) info y t'
 
   toAbstract _ = __IMPOSSIBLE__    -- a constructor is always an axiom
 

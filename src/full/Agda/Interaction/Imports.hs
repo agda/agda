@@ -42,6 +42,7 @@ import Agda.TypeChecking.Reduce
 import Agda.TypeChecking.Monad
 -- import Agda.TypeChecking.Monad.Base.KillRange  -- killRange for Signature
 import Agda.TypeChecking.Serialise
+import Agda.TypeChecking.Telescope
 import Agda.TypeChecking.Primitive
 import Agda.TypeChecking.Monad.Benchmark (billTop, reimburseTop)
 import qualified Agda.TypeChecking.Monad.Benchmark as Bench
@@ -88,7 +89,7 @@ mergeInterface i = do
             Just b1 = Map.lookup b bs
             Just b2 = Map.lookup b bi
     mapM_ check (map fst $ Map.toList $ Map.intersection bs bi)
-    addImportedThings sig bi (iHaskellImports i) (iPatternSyns i)
+    addImportedThings sig bi (iHaskellImports i) (iPatternSyns i) (iInstanceDefs i)
     reportSLn "import.iface.merge" 20 $
       "  Rebinding primitives " ++ show prim
     prim <- Map.fromList <$> mapM rebind prim
@@ -100,13 +101,14 @@ mergeInterface i = do
 	    return (x, Prim $ pf { primFunName = q })
 
 addImportedThings ::
-  Signature -> BuiltinThings PrimFun -> Set String -> A.PatternSynDefns -> TCM ()
-addImportedThings isig ibuiltin hsImports patsyns =
+  Signature -> BuiltinThings PrimFun -> Set String -> A.PatternSynDefns -> InstanceTable -> TCM ()
+addImportedThings isig ibuiltin hsImports patsyns instdefs =
   modify $ \st -> st
     { stImports          = unionSignatures [stImports st, isig]
     , stImportedBuiltins = Map.union (stImportedBuiltins st) ibuiltin
     , stHaskellImports   = Set.union (stHaskellImports st) hsImports
     , stPatternSynImports = Map.union (stPatternSynImports st) patsyns
+    , stInstanceDefs     = (Map.unionWith List.union (fst (stInstanceDefs st)) instdefs, snd (stInstanceDefs st))
     }
 
 -- | Scope checks the given module. A proper version of the module
@@ -361,7 +363,8 @@ getInterface' x includeStateChanges =
             -- things.
             sig <- getSignature
             patsyns <- getPatternSyns
-            addImportedThings sig Map.empty Set.empty patsyns
+            instdefs <- getInstanceDefs
+            addImportedThings sig Map.empty Set.empty patsyns instdefs
             setSignature emptySignature
             setPatternSyns Map.empty
 
@@ -376,6 +379,7 @@ getInterface' x includeStateChanges =
             isig     <- getImportedSignature
             ibuiltin <- gets stImportedBuiltins
             ipatsyns <- getPatternSynImports
+            instdefs <- getInstanceDefs
             ho       <- getInteractionOutputCallback
             -- Every interface is treated in isolation. Note: Changes
             -- to stDecodedModules are not preserved if an error is
@@ -393,7 +397,7 @@ getInterface' x includeStateChanges =
                      modify $ \s -> s { stModuleToSource     = mf
                                       }
                      setVisitedModules vs
-                     addImportedThings isig ibuiltin Set.empty ipatsyns
+                     addImportedThings isig ibuiltin Set.empty ipatsyns instdefs
 
                      r  <- withMsgs $ createInterface file x
                      mf <- stModuleToSource <$> get
@@ -630,6 +634,7 @@ buildInterface file topLevel syntaxInfo previousHsImports pragmas = do
     mhs     <- mapM (\ m -> (m,) <$> moduleHash m) $ Set.toList ms
     hsImps  <- getHaskellImports
     patsyns <- getPatternSyns
+    instdefs<- getInstanceDefs
     h       <- liftIO $ hashFile file
     let	builtin' = Map.mapWithKey (\ x b -> (x,) . primFunName <$> b) builtin
     reportSLn "import.iface" 7 "  instantiating all meta variables"
@@ -645,6 +650,7 @@ buildInterface file topLevel syntaxInfo previousHsImports pragmas = do
       , iHighlighting    = syntaxInfo
       , iPragmaOptions   = pragmas
       , iPatternSyns     = patsyns
+      , iInstanceDefs    = instdefs
       }
     reportSLn "import.iface" 7 "  interface complete"
     return i

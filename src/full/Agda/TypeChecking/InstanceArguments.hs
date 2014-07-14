@@ -19,6 +19,7 @@ import Agda.TypeChecking.Monad
 import Agda.TypeChecking.Pretty
 import Agda.TypeChecking.Substitute
 import Agda.TypeChecking.Reduce
+import Agda.TypeChecking.Telescope
 
 import {-# SOURCE #-} Agda.TypeChecking.Constraints
 import {-# SOURCE #-} Agda.TypeChecking.Rules.Term (checkArguments)
@@ -34,11 +35,16 @@ import Agda.Utils.Impossible
 -- | A candidate solution for an instance meta is a term with its type.
 type Candidates = [(Term, Type)]
 
-initialIFSCandidates :: TCM Candidates
-initialIFSCandidates = do
+initialIFSCandidates :: Type -> TCM (Maybe Candidates)
+initialIFSCandidates t = do
   cands1 <- getContextVars
-  cands2 <- getScopeDefs
-  return $ cands1 ++ cands2
+  otn <- getOutputTypeName t
+  case otn of
+    NoOutputTypeName -> typeError $ GenericError $ "Instance search can only be used to find elements in a named type"
+    OutputTypeNameNotYetKnown -> return Nothing
+    OutputTypeName n -> do
+      cands2 <- getScopeDefs n
+      return $ Just $ cands1 ++ cands2
   where
     -- get a list of variables with their type, relative to current context
     getContextVars :: TCM Candidates
@@ -57,14 +63,10 @@ initialIFSCandidates = do
                  ]
       return $ vars ++ lets
 
-    getScopeDefs :: TCM Candidates
-    getScopeDefs = do
-      scopeInfo <- gets stScope
-      let ns = everythingInScope scopeInfo
-      let nsList = Map.toList $ nsNames ns
-      -- all abstract names in scope are candidates
-      -- (even ones that you can't refer to unambiguously)
-      let qs = List.map anameName $ snd =<< nsList
+    getScopeDefs :: QName -> TCM Candidates
+    getScopeDefs n = do
+      instanceDefs <- getInstanceDefs
+      let qs = caseMaybe (Map.lookup n instanceDefs) [] (\l -> l)
       rel   <- asks envRelevance
       cands <- mapM (candidate rel) qs
       return $ concat cands
@@ -96,7 +98,7 @@ initialIFSCandidates = do
 --   with suggested name @s@.
 initializeIFSMeta :: String -> Type -> TCM Term
 initializeIFSMeta s t = do
-  cands <- initialIFSCandidates
+  cands <- initialIFSCandidates t
   newIFSMeta s t cands
 
 -- | @findInScope m (v,a)s@ tries to instantiate on of the types @a@s
@@ -104,8 +106,18 @@ initializeIFSMeta s t = do
 --   If successful, meta @m@ is solved with the instantiation of @v@.
 --   If unsuccessful, the constraint is regenerated, with possibly reduced
 --   candidate set.
-findInScope :: MetaId -> Candidates -> TCM ()
-findInScope m cands = whenJustM (findInScope' m cands) $ addConstraint . FindInScope m
+--   The list of candidates is equal to @Nothing@ when the type of the meta
+--   wasn't known when the constraint was generated. In that case, try to find
+--   its type again.
+findInScope :: MetaId -> Maybe Candidates -> TCM ()
+findInScope m Nothing = do
+  reportSLn "tc.constr.findInScope" 20 $ "The type of the FindInScope constraint isn't known, trying to find it again."
+  t <- getMetaType m
+  cands <- initialIFSCandidates t
+  case cands of
+    Nothing -> addConstraint $ FindInScope m Nothing
+    Just c -> findInScope m cands
+findInScope m (Just cands) = whenJustM (findInScope' m cands) $ addConstraint . FindInScope m . Just
 
 -- | Result says whether we need to add constraint, and if so, the set of
 --   remaining candidates.
@@ -119,8 +131,21 @@ findInScope' m cands = ifM (isFrozen m) (return (Just cands)) $ do
     reportSDoc "tc.constr.findInScope" 15 $ text "findInScope 3: t =" <+> prettyTCM t
     reportSLn "tc.constr.findInScope" 70 $ "findInScope 3: t: " ++ show t
     mv <- lookupMeta m
+    -- If there are recursive instances, it's not safe to instantiate
+    -- metavariables in the goal, so we freeze them before checking candidates.
+    -- Metas that are rigidly constrained need not be frozen.
+    let isRec = foldl (\ b (_, t) -> b || (isRecursive $ unEl t)) False cands
+        shouldFreeze rigid m
+          | elem m rigid = return False
+          | otherwise    = not <$> isFrozen m
+    metas <- if not isRec then return []
+             else do
+                rigid <- rigidlyConstrainedMetas
+                filterM (shouldFreeze rigid) (allMetas t)
+    mapM_ (`updateMetaVar` \mv -> mv { mvFrozen = Frozen }) metas
     cands <- checkCandidates m t cands
     reportSLn "tc.constr.findInScope" 15 $ "findInScope 4: cands left: " ++ show (length cands)
+    unfreezeMeta metas
     case cands of
 
       [] -> do
@@ -134,7 +159,7 @@ findInScope' m cands = ifM (isFrozen m) (return (Just cands)) $ do
           text "', of type '" <+> prettyTCM t' <+> text "'."
 
         -- if t' takes initial hidden arguments, apply them
-        ca <- liftTCM $ runErrorT $ checkArguments ExpandLast DontExpandInstanceArguments (getRange mv) [] t' t
+        ca <- liftTCM $ runErrorT $ checkArguments ExpandLast ExpandInstanceArguments (getRange mv) [] t' t
         case ca of
           Left _ -> __IMPOSSIBLE__
           Right (args, t'') -> do
@@ -157,13 +182,55 @@ findInScope' m cands = ifM (isFrozen m) (return (Just cands)) $ do
           text ("findInScope 5: more than one candidate found: ") <+>
           prettyTCM (List.map fst cs)
         return (Just cs)
+    where
+      isRecursive :: Term -> Bool
+      isRecursive (Pi (Dom info _) t) = getHiding info == Instance || isRecursive (unEl $ unAbs t)
+      isRecursive _ = False
+
+-- | A meta _M is rigidly constrained if there is a constraint _M us == D vs,
+-- for inert D. Such metas can safely be instantiated by recursive instance
+-- search, since the constraint limits the solution space.
+rigidlyConstrainedMetas :: TCM [MetaId]
+rigidlyConstrainedMetas = do
+  cs <- (++) <$> gets stSleepingConstraints <*> gets stAwakeConstraints
+  concat <$> mapM rigidMetas cs
+  where
+    isRigid v =
+      case v of
+        Def f _ -> return True
+          -- def <- getConstInfo f
+          -- case theDef def of
+          --   Record{}   -> return True
+          --   Datatype{} -> return True
+          --   Axiom{}    -> return True
+          --   _
+        Con{} -> return True
+        Lit{} -> return True
+        Var{} -> return True
+        _ -> return False
+    rigidMetas c =
+      case clValue $ theConstraint c of
+        ValueCmp _ _ u v ->
+          case (u, v) of
+            (MetaV m _, _) -> ifM (isRigid v) (return [m]) (return [])
+            (_, MetaV m _) -> ifM (isRigid u) (return [m]) (return [])
+            _              -> return []
+        ElimCmp{}     -> return []
+        TypeCmp{}     -> return []
+        TelCmp{}      -> return []
+        SortCmp{}     -> return []
+        LevelCmp{}    -> return []
+        UnBlock{}     -> return []
+        Guarded{}     -> return []  -- don't look inside Guarded, since the inner constraint might not fire
+        IsEmpty{}     -> return []
+        FindInScope{} -> return []
 
 -- | Given a meta @m@ of type @t@ and a list of candidates @cands@,
 -- @checkCandidates m t cands@ returns a refined list of valid candidates.
 checkCandidates :: MetaId -> Type -> Candidates -> TCM Candidates
 checkCandidates m t cands = localTCState $ disableDestructiveUpdate $ do
   -- for candidate checking, we don't take into account other IFS
-  -- constrains
+  -- constraints
   dropConstraints (isIFSConstraint . clValue . theConstraint)
   cands <- filterM (uncurry $ checkCandidateForMeta m t) cands
   -- Drop all candidates which are equal to the first one
@@ -183,7 +250,7 @@ checkCandidates m t cands = localTCState $ disableDestructiveUpdate $ do
         localTCState $ do
            -- domi: we assume that nothing below performs direct IO (except
            -- for logging and such, I guess)
-          ca <- runErrorT $ checkArguments ExpandLast DontExpandInstanceArguments  noRange [] t' t
+          ca <- runErrorT $ checkArguments ExpandLast ExpandInstanceArguments noRange [] t' t
           case ca of
             Left _ -> return False
             Right (args, t'') -> do
@@ -252,26 +319,3 @@ applyDroppingParameters t vs = do
             u : us -> (`apply` us) <$> applyDef f u
         _ -> fallback
     _ -> fallback
-
--- | Attempt to solve irrelevant metas by instance search.
-solveIrrelevantMetas :: TCM ()
-solveIrrelevantMetas = mapM_ solveMetaIfIrrelevant =<< getOpenMetas
-
-solveMetaIfIrrelevant :: MetaId -> TCM ()
-solveMetaIfIrrelevant x = do
-  m <- lookupMeta x
-  unless (isSortMeta_ m) $ do
-  when (irrelevantOrUnused (getMetaRelevance m)) $ do
-    let t  = jMetaType $ mvJudgement m
-        cl = miClosRange $ mvInfo m
-    reportSDoc "tc.conv.irr" 20 $ sep
-      [ text "instance search for solution of irrelevant meta"
-      , prettyTCM x, colon, prettyTCM $ t
-      ]
-    -- Andreas, 2013-10-21 see Issue 922: we need to restore the context
-    -- of the meta, otherwise getMetaTypeInContext will go beserk.
-    enterClosure cl $ \ r -> do
-      flip catchError (const $ return ()) $ do
-        findInScope' x =<< initialIFSCandidates
-        -- do not add constraints!
-        return ()

@@ -541,6 +541,10 @@ data IsAbstract = AbstractDef | ConcreteDef
 instance KillRange IsAbstract where
   killRange = id
 
+-- | Is this definition eligible for instance search?
+data IsInstance = InstanceDef | NotInstanceDef
+    deriving (Typeable, Show, Eq, Ord)
+
 type Nat    = Int
 type Arity  = Nat
 

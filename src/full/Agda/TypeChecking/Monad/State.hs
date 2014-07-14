@@ -238,3 +238,26 @@ freshTCM m = do
       -- Keep only the benchmark info from the final state of the subcomp.
       modifyBenchmark $ const $ theBenchmark s
       return $ Right a
+
+---------------------------------------------------------------------------
+-- * Instance definitions
+---------------------------------------------------------------------------
+
+getAllInstanceDefs :: TCM TempInstanceTable
+getAllInstanceDefs = gets stInstanceDefs
+
+getAnonInstanceDefs :: TCM [QName]
+getAnonInstanceDefs = snd <$> getAllInstanceDefs
+
+clearAnonInstanceDefs :: TCM ()
+clearAnonInstanceDefs = modify $ (\st -> st {stInstanceDefs = (fst (stInstanceDefs st) , [])})
+
+addUnknownInstance :: QName -> TCM ()
+addUnknownInstance x = do
+  reportSLn "tc.decl.instance" 10 $ ("adding definition " ++ show x ++ " to the instance table (the type is not yet known)")
+  modify $ \s -> s { stInstanceDefs = (fst (stInstanceDefs s) , x : snd (stInstanceDefs s))}
+
+addNamedInstance :: QName -> QName -> TCM ()
+addNamedInstance x n = do
+  reportSLn "tc.decl.instance" 10 $ ("adding definition " ++ show x ++ " to instance table for " ++ show n)
+  modify $ \s -> s { stInstanceDefs = (Map.insertWith (++) n [x] (fst (stInstanceDefs s)) , snd (stInstanceDefs s))}

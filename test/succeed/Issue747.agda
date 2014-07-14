@@ -24,7 +24,7 @@ is-hlevel (S n) A = (x y : A) → is-hlevel n (x ≡ y)
 
 postulate
   t : ℕ → Set → Set
-  t-is-hlevel : {n : ℕ} {A : Set} → is-hlevel n (t n A)
+  instance t-is-hlevel : {n : ℕ} {A : Set} → is-hlevel n (t n A)
   A : Set
   f : (n : ℕ) (B : Set) ⦃ x : is-hlevel n B ⦄ → Set
 

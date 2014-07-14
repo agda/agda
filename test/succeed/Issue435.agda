@@ -31,8 +31,8 @@ explicit = expl (λ ())
 implicit : T
 implicit = impl (λ {})
 
-instance : T
-instance = inst (λ {{ }})
+instanc : T
+instanc = inst (λ {{ }})
 
 explicit-match : T
 explicit-match = expl (λ { () })

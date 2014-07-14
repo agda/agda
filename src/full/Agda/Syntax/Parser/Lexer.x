@@ -158,6 +158,7 @@ tokens :-
 <0,code> mutual		{ keyword KwMutual }
 <0,code> abstract	{ keyword KwAbstract }
 <0,code> private	{ keyword KwPrivate }
+<0,code> instance	{ keyword KwInstance }
 <0,code> Set		{ keyword KwSet }
 <0,code> Prop		{ keyword KwProp }
 <0,code> forall		{ keyword KwForall }

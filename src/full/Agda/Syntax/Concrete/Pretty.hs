@@ -402,6 +402,7 @@ instance Pretty Declaration where
 	    Mutual _ ds	    -> namedBlock "mutual" ds
 	    Abstract _ ds   -> namedBlock "abstract" ds
 	    Private _ ds    -> namedBlock "private" ds
+	    InstanceB _ ds  -> namedBlock "instance" ds
 	    Postulate _ ds  -> namedBlock "postulate" ds
 	    Primitive _ ds  -> namedBlock "primitive" ds
 	    Module _ x tel ds ->

@@ -10,4 +10,5 @@ typeof {{T}} x = T
 test : {A : Set} {B : Set} (y : A) → typeof y
 test y = y
 
--- Should solve the instance argument, no constraint should remain.
+-- The instance argument should not be found by unification, use
+-- implicit arguments for that

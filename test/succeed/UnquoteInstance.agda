@@ -17,19 +17,20 @@ module M {a} {A : Set a} {{EqA : Eq A}} where
 
 open Eq {{...}}
 
-EqNat : Eq Nat
-EqNat = record { _==_ = eqNat }
-  where
-    eqNat : ∀ x y → Dec (x ≡ y)
-    eqNat zero zero = yes refl
-    eqNat zero (suc y) = no
-    eqNat (suc x) zero = no
-    eqNat (suc x) (suc y) with eqNat x y
-    eqNat (suc x) (suc .x) | yes refl = yes refl
-    ... | no     = no
+instance
+  EqNat : Eq Nat
+  EqNat = record { _==_ = eqNat }
+    where
+      eqNat : ∀ x y → Dec (x ≡ y)
+      eqNat zero zero = yes refl
+      eqNat zero (suc y) = no
+      eqNat (suc x) zero = no
+      eqNat (suc x) (suc y) with eqNat x y
+      eqNat (suc x) (suc .x) | yes refl = yes refl
+      ... | no     = no
 
 pattern vArg a = arg (arginfo visible relevant) a
-pattern iArg a = arg (arginfo instance relevant) a
+pattern iArg a = arg (arginfo inst relevant) a
 
 id : {A : Set} → A → A
 id x = x
