@@ -242,7 +242,7 @@ cover f cs sc@(SClause tel perm ps _ target) = do
           return (tree, Set.unions useds, concat psss)
 
 splitStrategy :: BlockingVars -> Telescope -> TCM BlockingVars
-splitStrategy bs tel = return $ updateLast (mapSnd (const Nothing)) xs
+splitStrategy bs tel = return $ updateLast clearBlockingVarCons xs
   -- Make sure we do not insists on precomputed coverage when
   -- we make our last try to split.
   -- Otherwise, we will not get a nice error message.
@@ -504,11 +504,11 @@ computeNeighbourhood delta1 n delta2 perm d pars ixs hix hps c = do
 -- | Entry point from @Interaction.MakeCase@.
 --   @Abs@ is for absurd clause.
 splitClauseWithAbs :: Clause -> Nat -> TCM (Either SplitError (Either SplitClause Covering))
-splitClauseWithAbs c x = split' Inductive (clauseToSplitClause c) (x, Nothing)
+splitClauseWithAbs c x = split' Inductive (clauseToSplitClause c) (BlockingVar x Nothing)
 
 -- | Entry point from @TypeChecking.Empty@ and @Interaction.BasicOps@.
 splitLast :: Induction -> Telescope -> [I.NamedArg Pattern] -> TCM (Either SplitError Covering)
-splitLast ind tel ps = split ind sc (0, Nothing)
+splitLast ind tel ps = split ind sc (BlockingVar 0 Nothing)
   where sc = SClause tel (idP $ size tel) ps __IMPOSSIBLE__ Nothing
 
 -- | @split _ Δ π ps x@. FIXME: Δ ⊢ ps, x ∈ Δ (deBruijn index)
@@ -534,7 +534,7 @@ blendInAbsurdClause n = either (const $ Covering n []) id
 
 splitDbIndexToLevel :: SplitClause -> BlockingVar -> Nat
 splitDbIndexToLevel sc@SClause{ scTel = tel, scPerm = perm } x =
-  dbIndexToLevel tel perm $ fst x
+  dbIndexToLevel tel perm $ blockingVarNo x
 
 -- | Convert a de Bruijn index relative to a telescope to a de Buijn level.
 --   The result should be the argument (counted from left, starting with 0)
@@ -549,7 +549,7 @@ split' :: Induction
        -> SplitClause
        -> BlockingVar
        -> TCM (Either SplitError (Either SplitClause Covering))
-split' ind sc@(SClause tel perm ps _ target) (x, mcons) = liftTCM $ runExceptionT $ do
+split' ind sc@(SClause tel perm ps _ target) (BlockingVar x mcons) = liftTCM $ runExceptionT $ do
 
   debugInit tel perm x ps
 
