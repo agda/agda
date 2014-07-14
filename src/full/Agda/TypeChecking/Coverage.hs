@@ -7,7 +7,7 @@ module Agda.TypeChecking.Coverage where
 
 import Control.Monad
 import Control.Monad.Error
-import Control.Applicative
+import Control.Applicative hiding (empty)
 
 import Data.List
 import qualified Data.Set as Set
@@ -179,41 +179,47 @@ cover f cs sc@(SClause tel perm ps _ target) = do
       reportSLn "tc.cover" 20 $ "blocked by projection pattern"
       -- if we want to split projections, but have no target type, we give up
       let done = return (SplittingDone (size tel), Set.empty, [ps])
-      caseMaybe target done $ \ t -> do
-        isR <- addCtxTel tel $ isRecordType $ unArg t
-        case isR of
-          Just (_r, vs, Record{ recFields = fs }) -> do
-            reportSDoc "tc.cover" 20 $ sep
-              [ text $ "we are of record type _r = " ++ show _r
-              , text   "applied to parameters vs = " <+> (addCtxTel tel $ prettyTCM vs)
-              , text $ "and have fields       fs = " ++ show fs
-              ]
---            es <- patternsToElims perm ps
-            fvs <- freeVarsToApply f
-            let es = patternsToElims perm ps
-            let self  = defaultArg $ Def f (map Apply fvs) `applyE` es
-                pargs = vs ++ [self]
-            reportSDoc "tc.cover" 20 $ sep
-              [ text   "we are              self = " <+> (addCtxTel tel $ prettyTCM $ unArg self)
-              ]
-            (projs, (trees, useds, psss)) <- mapSnd unzip3 . unzip <$> do
-              forM fs $ \ proj -> do
-                -- compute the new target
-                dType <- defType <$> do getConstInfo $ unArg proj -- WRONG: typeOfConst $ unArg proj
-                let -- type of projection instantiated at self
-                    target' = Just $ proj $> dType `apply` pargs
-                    sc' = sc { scPats   = scPats sc ++ [fmap (Named Nothing . ProjP) proj]
-                             , scTarget = target'
-                             }
-                (unArg proj,) <$> do cover f cs =<< fixTarget sc'
-            let -- WRONG: -- n = length ps -- past the last argument, is pos. of proj pat.
-                -- n = size tel -- past the last variable, is pos. of proj pat. DURING SPLITTING
-                n = permRange perm -- Andreas & James, 2013-11-19 includes the dot patterns!
-                -- See test/succeed/CopatternsAndDotPatterns.agda for a case with dot patterns
-                -- and copatterns which fails for @n = size tel@ with a broken case tree.
-                tree = SplitAt n $ zip projs trees
-            return (tree, Set.unions useds, concat psss)
-          _ -> done
+      caseMaybeM (splitResult f sc) done $ \ (Covering n scs) -> do
+        (projs, (trees, useds, psss)) <- mapSnd unzip3 . unzip <$> do
+          forM scs $ \ (proj, sc') -> (proj,) <$> do cover f cs =<< fixTarget sc'
+          -- OR: mapM (traverseF $ cover f cs <=< fixTarget) scs
+        let tree = SplitAt n $ zip projs trees
+        return (tree, Set.unions useds, concat psss)
+
+      -- caseMaybe target done $ \ t -> do
+      --   isR <- addCtxTel tel $ isRecordType $ unArg t
+      --   case isR of
+      --     Just (_r, vs, Record{ recFields = fs }) -> do
+      --       reportSDoc "tc.cover" 20 $ sep
+      --         [ text $ "we are of record type _r = " ++ show _r
+      --         , text   "applied to parameters vs = " <+> (addCtxTel tel $ prettyTCM vs)
+      --         , text $ "and have fields       fs = " ++ show fs
+      --         ]
+      --       fvs <- freeVarsToApply f
+      --       let es = patternsToElims perm ps
+      --       let self  = defaultArg $ Def f (map Apply fvs) `applyE` es
+      --           pargs = vs ++ [self]
+      --       reportSDoc "tc.cover" 20 $ sep
+      --         [ text   "we are              self = " <+> (addCtxTel tel $ prettyTCM $ unArg self)
+      --         ]
+      --       (projs, (trees, useds, psss)) <- mapSnd unzip3 . unzip <$> do
+      --         forM fs $ \ proj -> do
+      --           -- compute the new target
+      --           dType <- defType <$> do getConstInfo $ unArg proj -- WRONG: typeOfConst $ unArg proj
+      --           let -- type of projection instantiated at self
+      --               target' = Just $ proj $> dType `apply` pargs
+      --               sc' = sc { scPats   = scPats sc ++ [fmap (Named Nothing . ProjP) proj]
+      --                        , scTarget = target'
+      --                        }
+      --           (unArg proj,) <$> do cover f cs =<< fixTarget sc'
+      --       let -- WRONG: -- n = length ps -- past the last argument, is pos. of proj pat.
+      --           -- n = size tel -- past the last variable, is pos. of proj pat. DURING SPLITTING
+      --           n = permRange perm -- Andreas & James, 2013-11-19 includes the dot patterns!
+      --           -- See test/succeed/CopatternsAndDotPatterns.agda for a case with dot patterns
+      --           -- and copatterns which fails for @n = size tel@ with a broken case tree.
+      --           tree = SplitAt n $ zip projs trees
+      --       return (tree, Set.unions useds, concat psss)
+      --     _ -> done
 
     -- case: split on variable
     Block bs -> do
@@ -665,3 +671,51 @@ split' ind sc@(SClause tel perm ps _ target) (BlockingVar x mcons) = liftTCM $ r
         , text "delta2 =" <+> inContextOfDelta2 (prettyTCM delta2)
         , text "t      =" <+> inContextOfT (prettyTCM t)
         ]
+
+-- | @splitResult f sc = return res@
+--
+--   If the target type of @sc@ is a record type, a covering set of
+--   split clauses is returned (@sc@ extended by all valid projection patterns),
+--   otherwise @res == Nothing@.
+--   Note that the empty set of split clauses is returned if the record has no fields.
+splitResult :: QName -> SplitClause -> TCM (Maybe Covering)
+splitResult f sc@(SClause tel perm ps _ target) = do
+  reportSDoc "tc.cover.split" 10 $ vcat
+    [ text "splitting result:"
+    , nest 2 $ text "f      =" <+> text (show f)
+    , nest 2 $ text "target =" <+> (addContext tel $ maybe empty prettyTCM target)
+    ]
+  -- if we want to split projections, but have no target type, we give up
+  let done = return Nothing
+  caseMaybe target done $ \ t -> do
+    isR <- addCtxTel tel $ isRecordType $ unArg t
+    case isR of
+      Just (_r, vs, Record{ recFields = fs }) -> do
+        reportSDoc "tc.cover" 20 $ sep
+          [ text $ "we are of record type _r = " ++ show _r
+          , text   "applied to parameters vs = " <+> (addCtxTel tel $ prettyTCM vs)
+          , text $ "and have fields       fs = " ++ show fs
+          ]
+        fvs <- freeVarsToApply f
+        let es = patternsToElims perm ps
+        let self  = defaultArg $ Def f (map Apply fvs) `applyE` es
+            pargs = vs ++ [self]
+        reportSDoc "tc.cover" 20 $ sep
+          [ text   "we are              self = " <+> (addCtxTel tel $ prettyTCM $ unArg self)
+          ]
+        let -- WRONG: -- n = length ps -- past the last argument, is pos. of proj pat.
+            -- n = size tel -- past the last variable, is pos. of proj pat. DURING SPLITTING
+            n = permRange perm -- Andreas & James, 2013-11-19 includes the dot patterns!
+            -- See test/succeed/CopatternsAndDotPatterns.agda for a case with dot patterns
+            -- and copatterns which fails for @n = size tel@ with a broken case tree.
+        Just . Covering n <$> do
+          forM fs $ \ proj -> do
+            -- compute the new target
+            dType <- defType <$> do getConstInfo $ unArg proj -- WRONG: typeOfConst $ unArg proj
+            let -- type of projection instantiated at self
+                target' = Just $ proj $> dType `apply` pargs
+                sc' = sc { scPats   = scPats sc ++ [fmap (Named Nothing . ProjP) proj]
+                         , scTarget = target'
+                         }
+            return (unArg proj, sc')
+      _ -> done
