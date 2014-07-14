@@ -511,7 +511,18 @@ splitLast :: Induction -> Telescope -> [I.NamedArg Pattern] -> TCM (Either Split
 splitLast ind tel ps = split ind sc (BlockingVar 0 Nothing)
   where sc = SClause tel (idP $ size tel) ps __IMPOSSIBLE__ Nothing
 
--- | @split _ Δ π ps x@. FIXME: Δ ⊢ ps, x ∈ Δ (deBruijn index)
+-- | @split ind splitClause x = return res@
+--   splits @splitClause@ at pattern var @x@ (de Bruijn index).
+--
+--   Possible results @res@ are:
+--
+--   1. @Left err@:
+--      Splitting failed.
+--
+--   2. @Right covering@:
+--      A covering set of split clauses, one for each valid constructor.
+--      This could be the empty set (denoting an absurd clause).
+
 split :: Induction
          -- ^ Coinductive constructors are allowed if this argument is
          -- 'CoInductive'.
@@ -519,22 +530,14 @@ split :: Induction
       -> BlockingVar
       -> TCM (Either SplitError Covering)
 split ind sc x = fmap (blendInAbsurdClause (splitDbIndexToLevel sc x)) <$>
-   split' ind sc x
-{- OLD
-split ind sc@SClause{ scTel = tel, scPerm = perm, scPats = ps } x =
-  r <- split' ind sc x
-  return $ case r of
-    Left err        -> Left err
-    Right (Left _)  -> Right $ Covering (dbIndexToLevel tel perm $ fst x) []
-    Right (Right c) -> Right c
--}
+    split' ind sc x
+  where
+    blendInAbsurdClause :: Nat -> Either SplitClause Covering -> Covering
+    blendInAbsurdClause n = either (const $ Covering n []) id
 
-blendInAbsurdClause :: Nat -> Either SplitClause Covering -> Covering
-blendInAbsurdClause n = either (const $ Covering n []) id
-
-splitDbIndexToLevel :: SplitClause -> BlockingVar -> Nat
-splitDbIndexToLevel sc@SClause{ scTel = tel, scPerm = perm } x =
-  dbIndexToLevel tel perm $ blockingVarNo x
+    splitDbIndexToLevel :: SplitClause -> BlockingVar -> Nat
+    splitDbIndexToLevel sc@SClause{ scTel = tel, scPerm = perm } x =
+      dbIndexToLevel tel perm $ blockingVarNo x
 
 -- | Convert a de Bruijn index relative to a telescope to a de Buijn level.
 --   The result should be the argument (counted from left, starting with 0)
@@ -542,6 +545,20 @@ splitDbIndexToLevel sc@SClause{ scTel = tel, scPerm = perm } x =
 dbIndexToLevel tel perm x = if n < 0 then __IMPOSSIBLE__ else n
   where n = if k < 0 then __IMPOSSIBLE__ else permute perm [0..] !! k
         k = size tel - x - 1
+
+-- | @split' ind splitClause x = return res@
+--   splits @splitClause@ at pattern var @x@ (de Bruijn index).
+--
+--   Possible results @res@ are:
+--
+--   1. @Left err@:
+--      Splitting failed.
+--
+--   2. @Right (Left splitClause')@:
+--      Absurd clause (type of @x@ has 0 valid constructors).
+--
+--   3. @Right (Right covering)@:
+--      A covering set of split clauses, one for each valid constructor.
 
 split' :: Induction
           -- ^ Coinductive constructors are allowed if this argument is
