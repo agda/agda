@@ -42,12 +42,6 @@ useNamesFromPattern ps = telFromList . zipWith ren (toPats ps ++ repeat dummy) .
 noProblemRest :: Problem -> Bool
 noProblemRest (Problem _ _ _ (ProblemRest ps _)) = null ps
 
-{- UNUSED and OUTDATED
--- | Get the type of clause.  Only valid if 'noProblemRest'.
-typeFromProblem :: Problem -> Type
-typeFromProblem (Problem _ _ _ (ProblemRest _ a)) = a
--}
-
 -- | Construct an initial 'split' 'Problem' from user patterns.
 --   Example:
 --   @
@@ -110,11 +104,6 @@ problemFromPats ps a = do
            ]
          ]
   return problem
-
-{-
-todoProblemRest :: ProblemRest
-todoProblemRest = mempty
--}
 
 -- | Try to move patterns from the problem rest into the problem.
 --   Possible if type of problem rest has been updated to a function type.
