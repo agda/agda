@@ -116,7 +116,7 @@ makeCase hole rng s = withInteractionId hole $ do
   let vars = words s
   if null vars then do
     -- split result
-    res <- splitResult f (clauseToSplitClause clause)
+    res <- splitResult f =<< fixTarget (clauseToSplitClause clause)
     case res of
       Nothing  -> typeError $ GenericError $ "Cannot split on result here"
       Just cov -> (casectxt,) <$> do mapM (makeAbstractClause f) $ splitClauses cov
