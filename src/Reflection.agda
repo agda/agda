@@ -56,12 +56,12 @@ s₁ ≟-Name s₂ with s₁ == s₂
 -- instance argument?
 
 data Visibility : Set where
-  visible hidden instance : Visibility
+  visible hidden instance′ : Visibility
 
 {-# BUILTIN HIDING   Visibility #-}
 {-# BUILTIN VISIBLE  visible    #-}
 {-# BUILTIN HIDDEN   hidden     #-}
-{-# BUILTIN INSTANCE instance   #-}
+{-# BUILTIN INSTANCE instance′   #-}
 
 -- Arguments can be relevant or irrelevant.
 
@@ -362,13 +362,13 @@ private
 _≟-Visibility_ : Decidable (_≡_ {A = Visibility})
 visible  ≟-Visibility visible  = yes refl
 hidden   ≟-Visibility hidden   = yes refl
-instance ≟-Visibility instance = yes refl
+instance′ ≟-Visibility instance′ = yes refl
 visible  ≟-Visibility hidden   = no λ()
-visible  ≟-Visibility instance = no λ()
+visible  ≟-Visibility instance′ = no λ()
 hidden   ≟-Visibility visible  = no λ()
-hidden   ≟-Visibility instance = no λ()
-instance ≟-Visibility visible  = no λ()
-instance ≟-Visibility hidden   = no λ()
+hidden   ≟-Visibility instance′ = no λ()
+instance′ ≟-Visibility visible  = no λ()
+instance′ ≟-Visibility hidden   = no λ()
 
 _≟-Relevance_ : Decidable (_≡_ {A = Relevance})
 relevant   ≟-Relevance relevant   = yes refl
