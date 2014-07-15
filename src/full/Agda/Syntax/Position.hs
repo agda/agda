@@ -491,8 +491,8 @@ prop_beginningOfFile r = rangeInvariant (beginningOfFile r)
 
 instance Arbitrary a => Arbitrary (Position' a) where
   arbitrary = do
-    srcFile                    <- arbitrary
-    NonZero (NonNegative pos') <- arbitrary
+    srcFile       <- arbitrary
+    Positive pos' <- arbitrary
     let pos  = fromInteger pos'
         line = pred pos `div` 10 + 1
         col  = pred pos `mod` 10 + 1

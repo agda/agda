@@ -694,7 +694,7 @@ prop_interAssocWith_correct xs ys =
 -- | Matrix multiplication is well-defined and associative.
 
 prop_mul sz =
-  divPropSize 2 $
+  mapSize (`div` 2) $
   forAll (two natural) $ \(c2, c3) ->
   forAll (matrix sz :: Gen TM) $ \m1 ->
   forAll (matrix (Size { rows = cols sz, cols = c2 })) $ \m2 ->
