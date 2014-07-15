@@ -61,7 +61,7 @@ data Visibility : Set where
 {-# BUILTIN HIDING   Visibility #-}
 {-# BUILTIN VISIBLE  visible    #-}
 {-# BUILTIN HIDDEN   hidden     #-}
-{-# BUILTIN INSTANCE instance′   #-}
+{-# BUILTIN INSTANCE instance′  #-}
 
 -- Arguments can be relevant or irrelevant.
 
@@ -182,7 +182,6 @@ mutual
 
 {-# BUILTIN AGDACLAUSECLAUSE clause        #-}
 {-# BUILTIN AGDACLAUSEABSURD absurd-clause #-}
-
 
 ------------------------------------------------------------------------
 -- Definitions
@@ -366,15 +365,15 @@ private
   absurd-clause₁ refl = refl
 
 _≟-Visibility_ : Decidable (_≡_ {A = Visibility})
-visible  ≟-Visibility visible  = yes refl
-hidden   ≟-Visibility hidden   = yes refl
+visible   ≟-Visibility visible   = yes refl
+hidden    ≟-Visibility hidden    = yes refl
 instance′ ≟-Visibility instance′ = yes refl
-visible  ≟-Visibility hidden   = no λ()
-visible  ≟-Visibility instance′ = no λ()
-hidden   ≟-Visibility visible  = no λ()
-hidden   ≟-Visibility instance′ = no λ()
-instance′ ≟-Visibility visible  = no λ()
-instance′ ≟-Visibility hidden   = no λ()
+visible   ≟-Visibility hidden    = no λ()
+visible   ≟-Visibility instance′ = no λ()
+hidden    ≟-Visibility visible   = no λ()
+hidden    ≟-Visibility instance′ = no λ()
+instance′ ≟-Visibility visible   = no λ()
+instance′ ≟-Visibility hidden    = no λ()
 
 _≟-Relevance_ : Decidable (_≡_ {A = Relevance})
 relevant   ≟-Relevance relevant   = yes refl
