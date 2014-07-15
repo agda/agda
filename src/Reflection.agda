@@ -77,6 +77,12 @@ data Relevance : Set where
 data Arg-info : Set where
   arg-info : (v : Visibility) (r : Relevance) → Arg-info
 
+visibility : Arg-info → Visibility
+visibility (arg-info v _) = v
+
+relevance : Arg-info → Relevance
+relevance (arg-info _ r) = r
+
 data Arg (A : Set) : Set where
   arg : (i : Arg-info) (x : A) → Arg A
 
