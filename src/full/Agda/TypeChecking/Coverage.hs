@@ -15,6 +15,7 @@ import Data.Set (Set)
 import qualified Data.Traversable as Trav
 
 import Agda.Syntax.Position
+import qualified Agda.Syntax.Common as Common
 import Agda.Syntax.Common hiding (Arg,Dom)
 import qualified Agda.Syntax.Common as C
 import Agda.Syntax.Internal as I
@@ -306,7 +307,7 @@ fixTarget sc@SClause{ scSubst = sigma, scTarget = target } =
       text "telescope (after substitution): " <+> prettyTCM tel
     let n      = size tel
         lgamma = telToList tel
-        xs     = for lgamma $ (namedVarP "_" <$) . argFromDom
+        xs     = for lgamma $ \ (Common.Dom ai (x, _)) -> Common.Arg ai $ namedVarP "_"
     if (n == 0) then return sc { scTarget = Just $ a $> b }
      else return $ SClause
       { scTel    = telFromList $ telToList (scTel sc) ++ lgamma
