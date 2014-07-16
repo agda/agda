@@ -7,7 +7,7 @@ module Agda.TypeChecking.Coverage where
 
 import Control.Monad
 import Control.Monad.Error
-import Control.Applicative
+import Control.Applicative hiding (empty)
 
 import Data.List
 import qualified Data.Set as Set
@@ -15,6 +15,7 @@ import Data.Set (Set)
 import qualified Data.Traversable as Trav
 
 import Agda.Syntax.Position
+import qualified Agda.Syntax.Common as Common
 import Agda.Syntax.Common hiding (Arg,Dom)
 import qualified Agda.Syntax.Common as C
 import Agda.Syntax.Internal as I
@@ -179,41 +180,47 @@ cover f cs sc@(SClause tel perm ps _ target) = do
       reportSLn "tc.cover" 20 $ "blocked by projection pattern"
       -- if we want to split projections, but have no target type, we give up
       let done = return (SplittingDone (size tel), Set.empty, [ps])
-      caseMaybe target done $ \ t -> do
-        isR <- addCtxTel tel $ isRecordType $ unArg t
-        case isR of
-          Just (_r, vs, Record{ recFields = fs }) -> do
-            reportSDoc "tc.cover" 20 $ sep
-              [ text $ "we are of record type _r = " ++ show _r
-              , text   "applied to parameters vs = " <+> (addCtxTel tel $ prettyTCM vs)
-              , text $ "and have fields       fs = " ++ show fs
-              ]
---            es <- patternsToElims perm ps
-            fvs <- freeVarsToApply f
-            let es = patternsToElims perm ps
-            let self  = defaultArg $ Def f (map Apply fvs) `applyE` es
-                pargs = vs ++ [self]
-            reportSDoc "tc.cover" 20 $ sep
-              [ text   "we are              self = " <+> (addCtxTel tel $ prettyTCM $ unArg self)
-              ]
-            (projs, (trees, useds, psss)) <- mapSnd unzip3 . unzip <$> do
-              forM fs $ \ proj -> do
-                -- compute the new target
-                dType <- defType <$> do getConstInfo $ unArg proj -- WRONG: typeOfConst $ unArg proj
-                let -- type of projection instantiated at self
-                    target' = Just $ proj $> dType `apply` pargs
-                    sc' = sc { scPats   = scPats sc ++ [fmap (Named Nothing . ProjP) proj]
-                             , scTarget = target'
-                             }
-                (unArg proj,) <$> do cover f cs =<< fixTarget sc'
-            let -- WRONG: -- n = length ps -- past the last argument, is pos. of proj pat.
-                -- n = size tel -- past the last variable, is pos. of proj pat. DURING SPLITTING
-                n = permRange perm -- Andreas & James, 2013-11-19 includes the dot patterns!
-                -- See test/succeed/CopatternsAndDotPatterns.agda for a case with dot patterns
-                -- and copatterns which fails for @n = size tel@ with a broken case tree.
-                tree = SplitAt n $ zip projs trees
-            return (tree, Set.unions useds, concat psss)
-          _ -> done
+      caseMaybeM (splitResult f sc) done $ \ (Covering n scs) -> do
+        (projs, (trees, useds, psss)) <- mapSnd unzip3 . unzip <$> do
+          forM scs $ \ (proj, sc') -> (proj,) <$> do cover f cs =<< fixTarget sc'
+          -- OR: mapM (traverseF $ cover f cs <=< fixTarget) scs
+        let tree = SplitAt n $ zip projs trees
+        return (tree, Set.unions useds, concat psss)
+
+      -- caseMaybe target done $ \ t -> do
+      --   isR <- addCtxTel tel $ isRecordType $ unArg t
+      --   case isR of
+      --     Just (_r, vs, Record{ recFields = fs }) -> do
+      --       reportSDoc "tc.cover" 20 $ sep
+      --         [ text $ "we are of record type _r = " ++ show _r
+      --         , text   "applied to parameters vs = " <+> (addCtxTel tel $ prettyTCM vs)
+      --         , text $ "and have fields       fs = " ++ show fs
+      --         ]
+      --       fvs <- freeVarsToApply f
+      --       let es = patternsToElims perm ps
+      --       let self  = defaultArg $ Def f (map Apply fvs) `applyE` es
+      --           pargs = vs ++ [self]
+      --       reportSDoc "tc.cover" 20 $ sep
+      --         [ text   "we are              self = " <+> (addCtxTel tel $ prettyTCM $ unArg self)
+      --         ]
+      --       (projs, (trees, useds, psss)) <- mapSnd unzip3 . unzip <$> do
+      --         forM fs $ \ proj -> do
+      --           -- compute the new target
+      --           dType <- defType <$> do getConstInfo $ unArg proj -- WRONG: typeOfConst $ unArg proj
+      --           let -- type of projection instantiated at self
+      --               target' = Just $ proj $> dType `apply` pargs
+      --               sc' = sc { scPats   = scPats sc ++ [fmap (Named Nothing . ProjP) proj]
+      --                        , scTarget = target'
+      --                        }
+      --           (unArg proj,) <$> do cover f cs =<< fixTarget sc'
+      --       let -- WRONG: -- n = length ps -- past the last argument, is pos. of proj pat.
+      --           -- n = size tel -- past the last variable, is pos. of proj pat. DURING SPLITTING
+      --           n = permRange perm -- Andreas & James, 2013-11-19 includes the dot patterns!
+      --           -- See test/succeed/CopatternsAndDotPatterns.agda for a case with dot patterns
+      --           -- and copatterns which fails for @n = size tel@ with a broken case tree.
+      --           tree = SplitAt n $ zip projs trees
+      --       return (tree, Set.unions useds, concat psss)
+      --     _ -> done
 
     -- case: split on variable
     Block bs -> do
@@ -242,7 +249,7 @@ cover f cs sc@(SClause tel perm ps _ target) = do
           return (tree, Set.unions useds, concat psss)
 
 splitStrategy :: BlockingVars -> Telescope -> TCM BlockingVars
-splitStrategy bs tel = return $ updateLast (mapSnd (const Nothing)) xs
+splitStrategy bs tel = return $ updateLast clearBlockingVarCons xs
   -- Make sure we do not insists on precomputed coverage when
   -- we make our last try to split.
   -- Otherwise, we will not get a nice error message.
@@ -300,7 +307,7 @@ fixTarget sc@SClause{ scSubst = sigma, scTarget = target } =
       text "telescope (after substitution): " <+> prettyTCM tel
     let n      = size tel
         lgamma = telToList tel
-        xs     = for lgamma $ (namedVarP "_" <$) . argFromDom
+        xs     = for lgamma $ \ (Common.Dom ai (x, _)) -> Common.Arg ai $ namedVarP "_"
     if (n == 0) then return sc { scTarget = Just $ a $> b }
      else return $ SClause
       { scTel    = telFromList $ telToList (scTel sc) ++ lgamma
@@ -502,16 +509,26 @@ computeNeighbourhood delta1 n delta2 perm d pars ixs hix hps c = do
         ]
 
 -- | Entry point from @Interaction.MakeCase@.
---   @Abs@ is for absurd clause.
-splitClauseWithAbs :: Clause -> Nat -> TCM (Either SplitError (Either SplitClause Covering))
-splitClauseWithAbs c x = split' Inductive (clauseToSplitClause c) (x, Nothing)
+splitClauseWithAbsurd :: Clause -> Nat -> TCM (Either SplitError (Either SplitClause Covering))
+splitClauseWithAbsurd c x = split' Inductive (clauseToSplitClause c) (BlockingVar x Nothing)
 
 -- | Entry point from @TypeChecking.Empty@ and @Interaction.BasicOps@.
 splitLast :: Induction -> Telescope -> [I.NamedArg Pattern] -> TCM (Either SplitError Covering)
-splitLast ind tel ps = split ind sc (0, Nothing)
+splitLast ind tel ps = split ind sc (BlockingVar 0 Nothing)
   where sc = SClause tel (idP $ size tel) ps __IMPOSSIBLE__ Nothing
 
--- | @split _ Δ π ps x@. FIXME: Δ ⊢ ps, x ∈ Δ (deBruijn index)
+-- | @split ind splitClause x = return res@
+--   splits @splitClause@ at pattern var @x@ (de Bruijn index).
+--
+--   Possible results @res@ are:
+--
+--   1. @Left err@:
+--      Splitting failed.
+--
+--   2. @Right covering@:
+--      A covering set of split clauses, one for each valid constructor.
+--      This could be the empty set (denoting an absurd clause).
+
 split :: Induction
          -- ^ Coinductive constructors are allowed if this argument is
          -- 'CoInductive'.
@@ -519,22 +536,14 @@ split :: Induction
       -> BlockingVar
       -> TCM (Either SplitError Covering)
 split ind sc x = fmap (blendInAbsurdClause (splitDbIndexToLevel sc x)) <$>
-   split' ind sc x
-{- OLD
-split ind sc@SClause{ scTel = tel, scPerm = perm, scPats = ps } x =
-  r <- split' ind sc x
-  return $ case r of
-    Left err        -> Left err
-    Right (Left _)  -> Right $ Covering (dbIndexToLevel tel perm $ fst x) []
-    Right (Right c) -> Right c
--}
+    split' ind sc x
+  where
+    blendInAbsurdClause :: Nat -> Either SplitClause Covering -> Covering
+    blendInAbsurdClause n = either (const $ Covering n []) id
 
-blendInAbsurdClause :: Nat -> Either SplitClause Covering -> Covering
-blendInAbsurdClause n = either (const $ Covering n []) id
-
-splitDbIndexToLevel :: SplitClause -> BlockingVar -> Nat
-splitDbIndexToLevel sc@SClause{ scTel = tel, scPerm = perm } x =
-  dbIndexToLevel tel perm $ fst x
+    splitDbIndexToLevel :: SplitClause -> BlockingVar -> Nat
+    splitDbIndexToLevel sc@SClause{ scTel = tel, scPerm = perm } x =
+      dbIndexToLevel tel perm $ blockingVarNo x
 
 -- | Convert a de Bruijn index relative to a telescope to a de Buijn level.
 --   The result should be the argument (counted from left, starting with 0)
@@ -543,13 +552,27 @@ dbIndexToLevel tel perm x = if n < 0 then __IMPOSSIBLE__ else n
   where n = if k < 0 then __IMPOSSIBLE__ else permute perm [0..] !! k
         k = size tel - x - 1
 
+-- | @split' ind splitClause x = return res@
+--   splits @splitClause@ at pattern var @x@ (de Bruijn index).
+--
+--   Possible results @res@ are:
+--
+--   1. @Left err@:
+--      Splitting failed.
+--
+--   2. @Right (Left splitClause')@:
+--      Absurd clause (type of @x@ has 0 valid constructors).
+--
+--   3. @Right (Right covering)@:
+--      A covering set of split clauses, one for each valid constructor.
+
 split' :: Induction
           -- ^ Coinductive constructors are allowed if this argument is
           -- 'CoInductive'.
        -> SplitClause
        -> BlockingVar
        -> TCM (Either SplitError (Either SplitClause Covering))
-split' ind sc@(SClause tel perm ps _ target) (x, mcons) = liftTCM $ runExceptionT $ do
+split' ind sc@(SClause tel perm ps _ target) (BlockingVar x mcons) = liftTCM $ runExceptionT $ do
 
   debugInit tel perm x ps
 
@@ -649,3 +672,51 @@ split' ind sc@(SClause tel perm ps _ target) (x, mcons) = liftTCM $ runException
         , text "delta2 =" <+> inContextOfDelta2 (prettyTCM delta2)
         , text "t      =" <+> inContextOfT (prettyTCM t)
         ]
+
+-- | @splitResult f sc = return res@
+--
+--   If the target type of @sc@ is a record type, a covering set of
+--   split clauses is returned (@sc@ extended by all valid projection patterns),
+--   otherwise @res == Nothing@.
+--   Note that the empty set of split clauses is returned if the record has no fields.
+splitResult :: QName -> SplitClause -> TCM (Maybe Covering)
+splitResult f sc@(SClause tel perm ps _ target) = do
+  reportSDoc "tc.cover.split" 10 $ vcat
+    [ text "splitting result:"
+    , nest 2 $ text "f      =" <+> text (show f)
+    , nest 2 $ text "target =" <+> (addContext tel $ maybe empty prettyTCM target)
+    ]
+  -- if we want to split projections, but have no target type, we give up
+  let done = return Nothing
+  caseMaybe target done $ \ t -> do
+    isR <- addCtxTel tel $ isRecordType $ unArg t
+    case isR of
+      Just (_r, vs, Record{ recFields = fs }) -> do
+        reportSDoc "tc.cover" 20 $ sep
+          [ text $ "we are of record type _r = " ++ show _r
+          , text   "applied to parameters vs = " <+> (addCtxTel tel $ prettyTCM vs)
+          , text $ "and have fields       fs = " ++ show fs
+          ]
+        fvs <- freeVarsToApply f
+        let es = patternsToElims perm ps
+        let self  = defaultArg $ Def f (map Apply fvs) `applyE` es
+            pargs = vs ++ [self]
+        reportSDoc "tc.cover" 20 $ sep
+          [ text   "we are              self = " <+> (addCtxTel tel $ prettyTCM $ unArg self)
+          ]
+        let -- WRONG: -- n = length ps -- past the last argument, is pos. of proj pat.
+            -- n = size tel -- past the last variable, is pos. of proj pat. DURING SPLITTING
+            n = permRange perm -- Andreas & James, 2013-11-19 includes the dot patterns!
+            -- See test/succeed/CopatternsAndDotPatterns.agda for a case with dot patterns
+            -- and copatterns which fails for @n = size tel@ with a broken case tree.
+        Just . Covering n <$> do
+          forM fs $ \ proj -> do
+            -- compute the new target
+            dType <- defType <$> do getConstInfo $ unArg proj -- WRONG: typeOfConst $ unArg proj
+            let -- type of projection instantiated at self
+                target' = Just $ proj $> dType `apply` pargs
+                sc' = sc { scPats   = scPats sc ++ [fmap (Named Nothing . ProjP) proj]
+                         , scTarget = target'
+                         }
+            return (unArg proj, sc')
+      _ -> done

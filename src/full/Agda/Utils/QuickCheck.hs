@@ -15,7 +15,3 @@ quickCheck' p = fmap isSuccess $ quickCheckResult p
 
 quickCheckWith' :: Testable prop => Args -> prop -> IO Bool
 quickCheckWith' args p = fmap isSuccess $ quickCheckWithResult args p
-
-divPropSize :: Int -> Property -> Property
-divPropSize k (MkProperty prop) =
-  MkProperty $ sized $ \n -> resize (n `div` k) prop

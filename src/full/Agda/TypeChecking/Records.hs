@@ -132,12 +132,20 @@ isRecord r = do
 --   Succeeds only if type is not blocked by a meta var.
 --   If yes, return its name, parameters, and definition.
 isRecordType :: Type -> TCM (Maybe (QName, Args, Defn))
-isRecordType t = ifBlockedType t (\ _ _ -> return Nothing) $ \ t -> do
+isRecordType t = either (const Nothing) Just <$> tryRecordType t
+
+-- | Reduce a type and check whether it is a record type.
+--   Succeeds only if type is not blocked by a meta var.
+--   If yes, return its name, parameters, and definition.
+--   If no, return the reduced type (unless it is blocked).
+tryRecordType :: Type -> TCM (Either (Maybe Type) (QName, Args, Defn))
+tryRecordType t = ifBlockedType t (\ _ _ -> return $ Left Nothing) $ \ t -> do
+  let no = return $ Left $ Just t
   case ignoreSharing $ unEl t of
     Def r es -> do
       let vs = fromMaybe __IMPOSSIBLE__ $ allApplyElims es
-      fmap (r,vs,) <$> isRecord r
-    _        -> return Nothing
+      caseMaybeM (isRecord r) no $ \ def -> return $ Right (r,vs,def)
+    _ -> no
 
 -- | The analogue of 'piApply'.  If @v@ is a value of record type @T@
 --   with field @f@, then @projectType T f@ returns the type of @f v@.
