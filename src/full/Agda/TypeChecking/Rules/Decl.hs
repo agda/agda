@@ -215,11 +215,11 @@ checkDecl d = traceCall (SetRange (getRange d)) $ do
       -- Add x to signature, otherwise reification gets unhappy.
       addConstant x $ defaultDefn defaultArgInfo x a emptyFunction
       a <- disableDisplayForms $ withShowAllArguments $ reify a
-      reportSDoc "tc.decl.unquote" 20 $ text "reified type:" <+> prettyA a
-      cs <- mapM (disableDisplayForms . withShowAllArguments . reify . QNamed x) cs
       reportSDoc "tc.decl.unquote" 10 $
         vcat [ text "unquoteDecl" <+> prettyTCM x <+> text "-->"
-             , nest 2 $ vcat $ map prettyA cs ]
+             , prettyTCM x <+> text ":" <+> prettyA a ]
+      cs <- mapM (disableDisplayForms . withShowAllArguments . reify . QNamed x) cs
+      reportSDoc "tc.decl.unquote" 10 $ vcat $ map prettyA cs
       let ds = [ A.Axiom A.FunSig i defaultArgInfo x a   -- TODO other than defaultArg
                , A.FunDef i x NotDelayed cs ]
       xs <- checkMutual mi ds
