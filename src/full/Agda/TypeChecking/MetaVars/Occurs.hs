@@ -543,7 +543,8 @@ killArgs kills _
   | not (or kills) = return NothingToPrune  -- nothing to kill
 killArgs kills m = do
   mv <- lookupMeta m
-  if mvFrozen mv == Frozen then return PrunedNothing else do
+  allowAssign <- asks envAssignMetas
+  if mvFrozen mv == Frozen || not allowAssign then return PrunedNothing else do
 {- Andreas 2011-04-26, allow pruning in MetaS
   case mvJudgement mv of
     IsSort _    -> return False
