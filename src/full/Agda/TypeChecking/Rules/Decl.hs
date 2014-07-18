@@ -204,22 +204,22 @@ checkDecl d = traceCall (SetRange (getRange d)) $ do
       return termErrs
 
     checkUnquoteDecl mi i x e = do
-      reportSDoc "tc.decl.unquote" 20 $ text "Checking unquoteDecl" <+> prettyTCM x
+      reportSDoc "tc.unquote.decl" 20 $ text "Checking unquoteDecl" <+> prettyTCM x
       fundef <- primAgdaFunDef
       v      <- checkExpr e $ El (mkType 0) fundef
-      reportSDoc "tc.decl.unquote" 20 $ text "unquoteDecl: Checked term"
+      reportSDoc "tc.unquote.decl" 20 $ text "unquoteDecl: Checked term"
       UnQFun a cs <- unquote v
-      reportSDoc "tc.decl.unquote" 20 $
+      reportSDoc "tc.unquote.decl" 20 $
         vcat $ text "unquoteDecl: Unquoted term"
              : [ nest 2 $ text (show c) | c <- cs ]
       -- Add x to signature, otherwise reification gets unhappy.
       addConstant x $ defaultDefn defaultArgInfo x a emptyFunction
       a <- disableDisplayForms $ withShowAllArguments $ reify a
-      reportSDoc "tc.decl.unquote" 10 $
+      reportSDoc "tc.unquote.decl" 10 $
         vcat [ text "unquoteDecl" <+> prettyTCM x <+> text "-->"
              , prettyTCM x <+> text ":" <+> prettyA a ]
       cs <- mapM (disableDisplayForms . withShowAllArguments . reify . QNamed x) cs
-      reportSDoc "tc.decl.unquote" 10 $ vcat $ map prettyA cs
+      reportSDoc "tc.unquote.decl" 10 $ vcat $ map prettyA cs
       let ds = [ A.Axiom A.FunSig i defaultArgInfo x a   -- TODO other than defaultArg
                , A.FunDef i x NotDelayed cs ]
       xs <- checkMutual mi ds
