@@ -16,6 +16,7 @@ import Agda.Syntax.Position
 import Agda.Syntax.Literal
 import Agda.Syntax.Internal as I
 import Agda.Syntax.Common
+import Agda.Syntax.Translation.InternalToAbstract
 
 import {-# SOURCE #-} Agda.TypeChecking.Datatypes
 import Agda.TypeChecking.Monad
@@ -497,3 +498,7 @@ instance Unquote UnquotedFunDef where
           [ (c `isCon` primAgdaFunDefCon, UnQFun <$> unquoteN x <*> unquoteN y) ]
           __IMPOSSIBLE__
       _ -> unquoteFailed "Pattern" "not a constructor" t
+
+reifyUnquoted :: Reify a e => a -> TCM e
+reifyUnquoted = disableDisplayForms . withShowAllArguments . reify
+

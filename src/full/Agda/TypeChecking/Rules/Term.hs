@@ -791,7 +791,7 @@ checkApplication hd args e t = do
       where
         unquoteTerm qv = do
           v <- unquote =<< checkExpr qv =<< el primAgdaTerm
-          e <- disableDisplayForms $ withShowAllArguments $ reify (v :: Term)
+          e <- reifyUnquoted (v :: Term)
           reportSDoc "tc.unquote.term" 10 $
             vcat [ text "unquote" <+> prettyTCM qv
                  , nest 2 $ text "-->" <+> prettyA e ]
