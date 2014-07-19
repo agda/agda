@@ -500,5 +500,5 @@ instance Unquote UnquotedFunDef where
       _ -> unquoteFailed "Pattern" "not a constructor" t
 
 reifyUnquoted :: Reify a e => a -> TCM e
-reifyUnquoted = disableDisplayForms . withShowAllArguments . reify
+reifyUnquoted = nowReifyingUnquoted . disableDisplayForms . withShowAllArguments . reify
 

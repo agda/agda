@@ -1271,6 +1271,10 @@ data TCEnv =
                 -- ^ Used by the scope checker to make sure that certain forms
                 --   of expressions are not used inside dot patterns: extended
                 --   lambdas and let-expressions.
+          , envReifyUnquoted :: Bool
+                -- ^ The rules for translating internal to abstract syntax are
+                --   slightly different when the internal term comes from an
+                --   unquote.
 	  }
     deriving (Typeable)
 
@@ -1313,6 +1317,7 @@ initEnv = TCEnv { envContext	         = []
                 , envCompareBlocked         = False
                 , envPrintDomainFreePi      = False
                 , envInsideDotPattern       = False
+                , envReifyUnquoted          = False
 		}
 
 ---------------------------------------------------------------------------
