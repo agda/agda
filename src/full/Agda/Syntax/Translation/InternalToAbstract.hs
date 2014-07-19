@@ -349,7 +349,10 @@ reifyTerm expandAnonDefs0 v = do
             -- (see for example the parameter {i} to Data.Star.Star, which is also
             -- the first argument to the cons).
             -- @data Star {i}{I : Set i} ... where cons : {i :  I} ...@
-            if (np == 0) then apps h es else do
+            -- Ulf, 2014-07-19: Don't do any of this if we're reifying an
+            -- unquoted term (issue 1237).
+            unquote <- isReifyingUnquoted
+            if np == 0 || unquote then apps h es else do
               -- Get name of first argument from type of constructor.
               -- Here, we need the reducing version of @telView@
               -- because target of constructor could be a definition
