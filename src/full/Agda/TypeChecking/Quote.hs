@@ -1,6 +1,7 @@
 {-# LANGUAGE CPP #-}
 {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE TypeSynonymInstances #-}
+{-# LANGUAGE PatternGuards #-}
 
 module Agda.TypeChecking.Quote where
 
@@ -11,6 +12,7 @@ import Control.Monad.Error (catchError)
 
 import Data.Maybe (fromMaybe)
 import Data.Traversable (traverse)
+import Data.Char
 
 import Agda.Syntax.Position
 import Agda.Syntax.Literal
@@ -27,6 +29,7 @@ import Agda.TypeChecking.Pretty
 import Agda.TypeChecking.Substitute
 import Agda.TypeChecking.DropArgs
 import Agda.TypeChecking.CompiledClause
+import Agda.TypeChecking.Free
 
 import Agda.Utils.String
 import Agda.Utils.Permutation
@@ -239,6 +242,15 @@ ensureCon x = do
       f   <- prettyTCM x
       setCurrentRange (getRange x) $ typeError $ GenericError $ "Use " ++ show def ++ " instead of " ++ show con ++ " for non-constructor " ++ show f
 
+pickName :: Type -> String
+pickName a =
+  case unEl a of
+    Pi{}   -> "f"
+    Sort{} -> "A"
+    Def d _ | c:_ <- show (qnameName d),
+              isAlpha c -> [toLower c]
+    _    -> "_"
+
 instance Unquote I.ArgInfo where
   unquote t = do
     t <- reduce t
@@ -344,8 +356,7 @@ instance Unquote ConHead where
   unquote t = getConHead =<< ensureCon =<< unquote t
 
 instance Unquote a => Unquote (Abs a) where
-  unquote t = do x <- freshNoName_ -- Andreas, 2014-07-11 This is pointless, as it does NOT generate a name suggestion.
-                 Abs (nameToArgName x) <$> unquote t
+  unquote t = Abs "_" <$> unquote t
 
 instance Unquote Sort where
   unquote t = do
@@ -410,11 +421,15 @@ instance Unquote Term where
           , (c `isCon` primAgdaTermCon, Con <$> unquoteN x <*> unquoteN y)
           , (c `isCon` primAgdaTermDef, Def <$> (ensureDef =<< unquoteN x) <*> unquoteN y)
           , (c `isCon` primAgdaTermLam, Lam <$> (flip setHiding defaultArgInfo <$> unquoteN x) <*> unquoteN y)
-          , (c `isCon` primAgdaTermPi,  Pi  <$> (domFromArg <$> unquoteN x) <*> unquoteN y)
+          , (c `isCon` primAgdaTermPi,  mkPi <$> (domFromArg <$> unquoteN x) <*> unquoteN y)
           , (c `isCon` primAgdaTermExtLam, mkExtLam <$> unquoteN x <*> unquoteN y) ]
           (unquoteFailed "Term" "bad term constructor" t)
         where
           mkExtLam = ExtLam
+          mkPi a (Abs _ b) = Pi a (Abs x b)
+            where x | 0 `freeIn` b = pickName (unDom a)
+                    | otherwise    = "_"
+          mkPi _ NoAbs{} = __IMPOSSIBLE__
 
       Con{} -> unquoteFailed "Term" "neither arity 0 nor 1 nor 2" t
       Lit{} -> unquoteFailed "Term" "unexpected literal" t
