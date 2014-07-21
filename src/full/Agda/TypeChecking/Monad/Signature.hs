@@ -305,6 +305,11 @@ applySection new ptel old ts rd rm = do
           -- Andreas, 2012-10-20 and if we are not an anonymous module
 	  -- unless (isAnonymousModuleName new || isCon || size ptel > 0) $ do
 -}
+          -- Issue1238: the copied def should be an 'instance' if the original
+          -- def is one. Skip constructors since the original constructor will
+          -- still work as an instance.
+          unless isCon $ flip (maybe (return ())) inst $ \c -> addNamedInstance y c
+
 	  unless (isCon || size ptel > 0) $ do
 	    addDisplayForms y
       where
