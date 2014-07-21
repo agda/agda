@@ -87,7 +87,7 @@ import Agda.Utils.Impossible
 -- 32-bit machines). Word64 does not have these problems.
 
 currentInterfaceVersion :: Word64
-currentInterfaceVersion = 20140707 * 10 + 0
+currentInterfaceVersion = 20140721 * 10 + 0
 
 -- | Constructor tag (maybe omitted) and argument indices.
 
@@ -902,8 +902,8 @@ instance EmbPrj MutualId where
   value n = MutId `fmap` value n
 
 instance EmbPrj Definition where
-  icode (Defn rel a b c d e f g h i) = icode10' rel a (P.killRange b) c d e f g h i
-  value = vcase valu where valu [rel, a, b, c, d, e, f, g, h, i] = valu10 Defn rel a b c d e f g h i
+  icode (Defn rel a b c d e f g h i j) = icode11' rel a (P.killRange b) c d e f g h i j
+  value = vcase valu where valu [rel, a, b, c, d, e, f, g, h, i, j] = valu11 Defn rel a b c d e f g h i j
                            valu _                             = malformed
 
 instance EmbPrj RewriteRule where

@@ -24,6 +24,7 @@ import Agda.TypeChecking.Monad.Base.Benchmark
 import {-# SOURCE #-} Agda.TypeChecking.Monad.Options
 
 import Agda.Utils.Hash
+import qualified Agda.Utils.HashMap as HMap
 import Agda.Utils.Monad (bracket_)
 import Agda.Utils.Pretty
 
@@ -260,4 +261,8 @@ addUnknownInstance x = do
 addNamedInstance :: QName -> QName -> TCM ()
 addNamedInstance x n = do
   reportSLn "tc.decl.instance" 10 $ ("adding definition " ++ show x ++ " to instance table for " ++ show n)
-  modify $ \s -> s { stInstanceDefs = (Map.insertWith (++) n [x] (fst (stInstanceDefs s)) , snd (stInstanceDefs s))}
+  modify $ \s -> s { stInstanceDefs = (Map.insertWith (++) n [x] (fst (stInstanceDefs s)) , snd (stInstanceDefs s))
+                   , stSignature = let sig = stSignature s
+                                       def = sigDefinitions sig
+                                   in sig { sigDefinitions = HMap.adjust (\d -> d { defInstance = Just n }) x def }
+                   }

@@ -29,8 +29,8 @@ instance KillRange Section where
   killRange (Section tel freeVars) = killRange2 Section tel freeVars
 
 instance KillRange Definition where
-  killRange (Defn ai name t pols occs displ mut compiled rew def) =
-    killRange10 Defn ai name t pols occs displ mut compiled rew def
+  killRange (Defn ai name t pols occs displ mut compiled rew inst def) =
+    killRange11 Defn ai name t pols occs displ mut compiled rew inst def
     -- TODO clarify: Keep the range in the defName field?
 
 instance KillRange RewriteRule where

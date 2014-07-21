@@ -112,7 +112,8 @@ addConstant q d = do
   i <- currentOrFreshMutualBlock
   setMutualBlock i q
   where
-    new +++ old = new { defDisplay = defDisplay new ++ defDisplay old }
+    new +++ old = new { defDisplay = defDisplay new ++ defDisplay old
+                      , defInstance = defInstance new `mplus` defInstance old }
 
 -- | Set termination info of a defined function symbol.
 setTerminates :: QName -> Bool -> TCM ()
@@ -311,9 +312,10 @@ applySection new ptel old ts rd rm = do
         pol = defPolarity d `apply` ts
         occ = defArgOccurrences d `apply` ts
         rew = defRewriteRules d `apply` ts
+        inst = defInstance d
 	-- the name is set by the addConstant function
         nd :: QName -> TCM Definition
-	nd y = Defn (defArgInfo d) y t pol occ [] (-1) noCompiledRep rew <$> def  -- TODO: mutual block?
+	nd y = Defn (defArgInfo d) y t pol occ [] (-1) noCompiledRep rew inst <$> def  -- TODO: mutual block?
         oldDef = theDef d
 	isCon  = case oldDef of { Constructor{} -> True ; _ -> False }
         mutual = case oldDef of { Function{funMutual = m} -> m              ; _ -> [] }
