@@ -15,8 +15,8 @@ module M (A : Set) where
 data Bool : Set where
   false true : Bool
 
-open M
+open M Bool
 
 -- Bug: M.CD is not considered in instance search
-x : D Bool
-x = f (d false)
+x : D
+x = f (M.d false)
