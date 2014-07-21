@@ -42,9 +42,8 @@ private
   comm' (commAddable _ c) = c
 
 module CommAddableM {τ : Set} {a : ⊤} (ca : CommAddable τ) where
-  instance
-    addableCA : Addable τ
-    addableCA = addableCA' ca
+  -- exporting this causes a conflict with explicitly defined instances
+  private instance addableCA = addableCA' ca
 
   comm : (a b : τ) → (a + b) ≡ (b + a)
   comm = comm' ca
