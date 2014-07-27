@@ -54,6 +54,8 @@ mutual
   Record-fun ∅             = ⊤
   Record-fun (Sig , ℓ ∶ A) = Σ (Record Sig) A
 
+{-# ETA Record #-}
+
 _∈_ : String → Signature → Set
 ℓ ∈ ∅              = ⊥
 ℓ ∈ (Sig , ℓ′ ∶ A) with primStringEquality ℓ ℓ′

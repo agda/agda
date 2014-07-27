@@ -452,22 +452,27 @@ isSingletonRecordModuloRelevance r ps = mapRight isJust <$> isSingletonRecord' T
 --   contains garbage.
 isSingletonRecord' :: Bool -> QName -> Args -> TCM (Either MetaId (Maybe Term))
 isSingletonRecord' regardIrrelevance r ps = do
+  reportSLn "tc.meta.eta" 30 $ "Is " ++ show r ++ " a singleton record type?"
   def <- getRecordDef r
   emap (Con $ recConHead def) <$> check (recTel def `apply` ps)
   where
   check :: Telescope -> TCM (Either MetaId (Maybe [I.Arg Term]))
-  check EmptyTel            = return $ Right $ Just []
-  check (ExtendTel dom tel)
-        | isIrrelevant dom && regardIrrelevance =
-    underAbstraction dom tel $ \ tel ->
-      emap (Arg (domInfo dom) garbage :) <$> check tel
-  check (ExtendTel dom tel) = do
-    isSing <- isSingletonType' regardIrrelevance $ unDom dom
-    case isSing of
-      Left mid       -> return $ Left mid
-      Right Nothing  -> return $ Right Nothing
-      Right (Just v) -> underAbstraction dom tel $ \ tel ->
-        emap (Arg (domInfo dom) v :) <$> check tel
+  check tel = do
+    reportSDoc "tc.meta.eta" 30 $
+      text "isSingletonRecord' checking telescope " <+> prettyTCM tel
+    case tel of
+      EmptyTel -> return $ Right $ Just []
+      ExtendTel dom tel
+        | isIrrelevant dom && regardIrrelevance -> do
+          underAbstraction dom tel $ \ tel ->
+            emap (Arg (domInfo dom) garbage :) <$> check tel
+        | otherwise -> do
+          isSing <- isSingletonType' regardIrrelevance $ unDom dom
+          case isSing of
+            Left mid       -> return $ Left mid
+            Right Nothing  -> return $ Right Nothing
+            Right (Just v) -> underAbstraction dom tel $ \ tel ->
+              emap (Arg (domInfo dom) v :) <$> check tel
   garbage :: Term
   garbage = Sort Prop
 
@@ -488,20 +493,9 @@ isSingletonType' regardIrrelevance t = do
     ifBlockedType t (\ m _ -> return $ Left m) $ \ t -> do
       res <- isRecordType t
       case res of
-        Nothing         -> return $ Right Nothing
-        Just (r, ps, _) -> do
+        Just (r, ps, def) | recEtaEquality def -> do
           emap (abstract tel) <$> isSingletonRecord' regardIrrelevance r ps
-{-
-    t <- reduceB $ unEl t
-    case ignoreSharing <$> t of
-      Blocked m _            -> return (Left m)
-      NotBlocked (MetaV m _) -> return (Left m)
-      NotBlocked (Def r es)  -> do
-        let ps = fromMaybe __IMPOSSIBLE $ allApplyElims es
-        ifM (isNothing <$> isRecord r) (return $ Right Nothing) $ do
-          emap (abstract tel) <$> isSingletonRecord' regardIrrelevance r ps
-      _ -> return (Right Nothing)
--}
+        _ -> return $ Right Nothing
 
 -- | Auxiliary function.
 emap :: (a -> b) -> Either c (Maybe a) -> Either c (Maybe b)
