@@ -493,9 +493,9 @@ isSingletonType' regardIrrelevance t = do
     ifBlockedType t (\ m _ -> return $ Left m) $ \ t -> do
       res <- isRecordType t
       case res of
-        Nothing         -> return $ Right Nothing
-        Just (r, ps, _) -> do
+        Just (r, ps, def) | recEtaEquality def -> do
           emap (abstract tel) <$> isSingletonRecord' regardIrrelevance r ps
+        _ -> return $ Right Nothing
 
 -- | Auxiliary function.
 emap :: (a -> b) -> Either c (Maybe a) -> Either c (Maybe b)
