@@ -48,10 +48,6 @@ cluster' acs = runEquivM id const $ do
   -- Return the values of the map
   return $ Map.elems m
 
--- | Forgotten 'Functor' instance in package 'equivalence'.
-instance Monad m => Functor (EquivT s x y m) where
-  fmap f x = x >>= return . f
-
 ------------------------------------------------------------------------
 -- * Properties
 ------------------------------------------------------------------------
