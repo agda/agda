@@ -496,17 +496,6 @@ isSingletonType' regardIrrelevance t = do
         Nothing         -> return $ Right Nothing
         Just (r, ps, _) -> do
           emap (abstract tel) <$> isSingletonRecord' regardIrrelevance r ps
-{-
-    t <- reduceB $ unEl t
-    case ignoreSharing <$> t of
-      Blocked m _            -> return (Left m)
-      NotBlocked (MetaV m _) -> return (Left m)
-      NotBlocked (Def r es)  -> do
-        let ps = fromMaybe __IMPOSSIBLE $ allApplyElims es
-        ifM (isNothing <$> isRecord r) (return $ Right Nothing) $ do
-          emap (abstract tel) <$> isSingletonRecord' regardIrrelevance r ps
-      _ -> return (Right Nothing)
--}
 
 -- | Auxiliary function.
 emap :: (a -> b) -> Either c (Maybe a) -> Either c (Maybe b)
