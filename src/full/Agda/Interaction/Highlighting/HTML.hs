@@ -11,7 +11,6 @@ import Control.Applicative
 import Control.Monad
 import Control.Monad.Trans
 import Control.Monad.State.Class
-import Control.Arrow ((***))
 
 import Data.Function
 import Data.Monoid
@@ -39,6 +38,7 @@ import qualified Agda.TypeChecking.Monad as TCM
 import Agda.Utils.FileName (filePath)
 import qualified Agda.Utils.IO.UTF8 as UTF8
 import Agda.Utils.Pretty
+import Agda.Utils.Tuple
 
 #include "../../undefined.h"
 import Agda.Utils.Impossible
@@ -77,7 +77,7 @@ generateHTML mod = do
       -- Pull highlighting info from the state and generate all the
       -- web pages.
       mapM_ (\(m, h) -> generatePage dir m h) =<<
-        map (id *** TCM.iHighlighting . TCM.miInterface) .
+        map (mapSnd $ TCM.iHighlighting . TCM.miInterface) .
           Map.toList <$> TCM.getVisitedModules
 
 -- | Converts module names to the corresponding HTML file names.
