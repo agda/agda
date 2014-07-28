@@ -142,7 +142,7 @@ runAgda = do
             NoWarnings -> return $ Just i
 
           whenM (optGenerateHTML <$> commandLineOptions) $
-            generateHTML $ iModuleName i
+            generateHTML
 
           whenM (isJust . optDependencyGraph <$> commandLineOptions) $
             Dot.generateDot $ i

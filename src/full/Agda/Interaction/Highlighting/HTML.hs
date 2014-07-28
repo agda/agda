@@ -48,14 +48,14 @@ import Agda.Utils.Impossible
 defaultCSSFile :: FilePath
 defaultCSSFile = "Agda.css"
 
--- | Generates HTML files from all the sources which the given module
--- depends on (including the module itself).
+-- | Generates HTML files from all the sources which have been
+--   visited during the type checking phase.
 --
--- This function should only be called after type checking has
--- completed successfully.
+--   This function should only be called after type checking has
+--   completed successfully.
 
-generateHTML :: A.ModuleName -> TCM ()
-generateHTML mod = do
+generateHTML :: TCM ()
+generateHTML = do
       options <- TCM.commandLineOptions
 
       -- There is a default directory given by 'defaultHTMLDir'
