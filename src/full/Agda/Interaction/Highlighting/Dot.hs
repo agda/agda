@@ -70,8 +70,12 @@ dottify :: Interface -> DotM ModuleId
 dottify inter = do
     let curModule = iModuleName inter
     (name, continue) <- addModule curModule
-    importsifs <- lift $ map miInterface . catMaybes <$> mapM (getVisitedModule . toTopLevelModuleName . fst) (iImportedModules inter)
+    -- If we have not visited this interface yet,
+    -- process its imports recursively and
+    -- add them as connections to the graph.
     when continue $ do
+        importsifs <- lift $ map miInterface . catMaybes <$>
+          mapM (getVisitedModule . toTopLevelModuleName . fst) (iImportedModules inter)
         imports    <- mapM dottify importsifs
         mapM_ (addConnection name) imports
     return name
