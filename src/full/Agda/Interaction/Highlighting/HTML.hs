@@ -12,24 +12,30 @@ import Control.Monad
 import Control.Monad.Trans
 import Control.Monad.State.Class
 import Control.Arrow ((***))
-import System.FilePath
-import System.Directory
-import Text.XHtml.Strict
+
 import Data.Function
 import Data.Monoid
 import Data.Maybe
 import qualified Data.Map  as Map
 import qualified Data.List as List
 
+import System.FilePath
+import System.Directory
+
+import Text.XHtml.Strict
+
 import Paths_Agda
 
 import Agda.Interaction.Highlighting.Precise
-import Agda.TypeChecking.Monad (TCM)
-import qualified Agda.TypeChecking.Monad as TCM
+import Agda.Interaction.Options
+
 import qualified Agda.Syntax.Abstract as A
 import qualified Agda.Syntax.Concrete as C
 import Agda.Syntax.Common
-import Agda.Interaction.Options
+
+import Agda.TypeChecking.Monad (TCM)
+import qualified Agda.TypeChecking.Monad as TCM
+
 import Agda.Utils.FileName (filePath)
 import qualified Agda.Utils.IO.UTF8 as UTF8
 import Agda.Utils.Pretty
