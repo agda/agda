@@ -11,28 +11,34 @@ import Control.Applicative
 import Control.Monad
 import Control.Monad.Trans
 import Control.Monad.State.Class
-import Control.Arrow ((***))
-import System.FilePath
-import System.Directory
-import Text.XHtml.Strict
+
 import Data.Function
 import Data.Monoid
 import Data.Maybe
 import qualified Data.Map  as Map
 import qualified Data.List as List
 
+import System.FilePath
+import System.Directory
+
+import Text.XHtml.Strict
+
 import Paths_Agda
 
 import Agda.Interaction.Highlighting.Precise
-import Agda.TypeChecking.Monad (TCM)
-import qualified Agda.TypeChecking.Monad as TCM
+import Agda.Interaction.Options
+
 import qualified Agda.Syntax.Abstract as A
 import qualified Agda.Syntax.Concrete as C
 import Agda.Syntax.Common
-import Agda.Interaction.Options
+
+import Agda.TypeChecking.Monad (TCM)
+import qualified Agda.TypeChecking.Monad as TCM
+
 import Agda.Utils.FileName (filePath)
 import qualified Agda.Utils.IO.UTF8 as UTF8
 import Agda.Utils.Pretty
+import Agda.Utils.Tuple
 
 #include "../../undefined.h"
 import Agda.Utils.Impossible
@@ -42,14 +48,14 @@ import Agda.Utils.Impossible
 defaultCSSFile :: FilePath
 defaultCSSFile = "Agda.css"
 
--- | Generates HTML files from all the sources which the given module
--- depends on (including the module itself).
+-- | Generates HTML files from all the sources which have been
+--   visited during the type checking phase.
 --
--- This function should only be called after type checking has
--- completed successfully.
+--   This function should only be called after type checking has
+--   completed successfully.
 
-generateHTML :: A.ModuleName -> TCM ()
-generateHTML mod = do
+generateHTML :: TCM ()
+generateHTML = do
       options <- TCM.commandLineOptions
 
       -- There is a default directory given by 'defaultHTMLDir'
@@ -71,7 +77,7 @@ generateHTML mod = do
       -- Pull highlighting info from the state and generate all the
       -- web pages.
       mapM_ (\(m, h) -> generatePage dir m h) =<<
-        map (id *** TCM.iHighlighting . TCM.miInterface) .
+        map (mapSnd $ TCM.iHighlighting . TCM.miInterface) .
           Map.toList <$> TCM.getVisitedModules
 
 -- | Converts module names to the corresponding HTML file names.
