@@ -4,6 +4,27 @@
 
 Important changes since 2.4.0.1:
 
+* New feature: Interactively split result.
+
+  Make case (C-c C-c) with no variables given tries to split on the
+  result to introduce projection patterns.  The hole needs to be of
+  record type, of course.
+
+    test : {A B : Set} (a : A) (b : B) → A × B
+    test a b = ?
+
+  Result-splitting ? will produce the new clauses:
+
+    proj₁ (test a b) = ?
+    proj₂ (test a b) = ?
+
+  If hole is of function type ending in a record type, the necessary
+  pattern variables will be introduced before the split.  Thus, the
+  same result can be obtained by starting from:
+
+    test : {A B : Set} (a : A) (b : B) → A × B
+    test = ?
+
 * The so far undocumented ETA pragma now throws an error if applied to
   definitions that are not records.
 
