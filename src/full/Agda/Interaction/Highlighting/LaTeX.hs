@@ -28,13 +28,16 @@ import qualified Data.Map  as Map
 import Paths_Agda
 
 import Agda.Syntax.Common
-import qualified Agda.Syntax.Abstract as A
+import Agda.Syntax.Concrete (TopLevelModuleName, moduleNameParts)
+import qualified Agda.Interaction.FindFile as Find
 import Agda.Interaction.Highlighting.Precise
 import Agda.TypeChecking.Monad (TCM)
 import qualified Agda.TypeChecking.Monad as TCM
 import Agda.Interaction.Options
 import Agda.Compiler.CallCompiler
 import qualified Agda.Utils.IO.UTF8 as UTF8
+import Agda.Utils.FileName (filePath)
+import Agda.Utils.Pretty (pretty, render)
 
 #include "../../undefined.h"
 import Agda.Utils.Impossible
@@ -474,7 +477,7 @@ spaces (_                              : ss) = __IMPOSSIBLE__
 defaultStyFile = "agda.sty"
 
 -- | The only exported function. It's (only) called in @Main.hs@.
-generateLaTeX :: A.ModuleName -> HighlightingInfo -> TCM ()
+generateLaTeX :: TopLevelModuleName -> HighlightingInfo -> TCM ()
 generateLaTeX mod hi = do
 
   options <- TCM.commandLineOptions
@@ -502,20 +505,18 @@ generateLaTeX mod hi = do
       styFile <- getDataFileName defaultStyFile
       liftIO $ copyFile styFile (dir </> defaultStyFile)
 
+  let outPath = modToFile mod
+  inAbsPath <- liftM filePath (Find.findFile mod)
+
   liftIO $ do
-    let filePath = modToFile mod
-    source <- UTF8.readTextFile (filePath <.> "lagda")
+    source <- UTF8.readTextFile inAbsPath
     latex <- E.encodeUtf8 `fmap` toLaTeX source hi
-    createDirectoryIfMissing True $ dir </> takeDirectory filePath
-    BS.writeFile (dir </> filePath <.> "tex") latex
+    createDirectoryIfMissing True $ dir </> takeDirectory outPath
+    BS.writeFile (dir </> outPath) latex
 
   where
-  modToFile :: A.ModuleName -> FilePath
-  modToFile mod = go $ show mod
-    where
-    go []         = []
-    go ('.' : cs) = pathSeparator : go cs
-    go (c   : cs) = c             : go cs
+    modToFile :: TopLevelModuleName -> FilePath
+    modToFile m = List.intercalate [pathSeparator] (moduleNameParts m) <.> "tex"
 
 -- | Transforms the source code into LaTeX.
 toLaTeX :: String -> HighlightingInfo -> IO Text

@@ -17,6 +17,7 @@ import System.Exit
 import qualified Text.PrettyPrint.Boxes as Boxes
 
 import Agda.Syntax.Concrete.Pretty ()
+import Agda.Syntax.Abstract.Name (toTopLevelModuleName)
 
 import Agda.Interaction.CommandLine.CommandLine
 import Agda.Interaction.Options
@@ -148,7 +149,7 @@ runAgda = do
             Dot.generateDot $ i
 
           whenM (optGenerateLaTeX <$> commandLineOptions) $
-            LaTeX.generateLaTeX (iModuleName i) (iHighlighting i)
+            LaTeX.generateLaTeX (toTopLevelModuleName $ iModuleName i) (iHighlighting i)
 
           return result
 
