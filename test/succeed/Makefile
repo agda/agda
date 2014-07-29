@@ -30,7 +30,11 @@ check_Issue481 = diff Issue481.dot.orig Issue481.dot
 cleanup_Issue481 = rm Issue481.dot
 
 does_compile = $(shell if [ -e $1.flags ]; then grep compile $1.flags; fi)
-cleanup			 = $(if $(call does_compile,$1),rm -rf MAlonzo $1,true)
+cleanup	     = $(if $(call does_compile,$1),rm -rf MAlonzo $1,true)
+
+Issue1241.test : Issue1241.lagda
+	@echo $<
+	@$(AGDA_BIN) $(AGDA_TEST_FLAGS) -v$(V) --latex -i Issue1241 Issue1241/TheTest.lagda
 
 %.test : %.agda
 	@echo $<
