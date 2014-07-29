@@ -6,10 +6,6 @@ module SizedCoinductiveRecords where
 
 open import Common.Size
 
-postulate
-  Size< : ..(_ : Size) → Set
-{-# BUILTIN SIZELT Size< #-}
-
 {- THIS WOULD BE A BETTER TYPING FOR sizeSuc, but it requires builtin Size<
 sizeSuc : (i : Size) → Size< (↑ (↑ i))
 sizeSuc i = ↑ i
@@ -121,7 +117,7 @@ A i = Nat {i} → Nat
 {-# NO_TERMINATION_CHECK #-}
 fix : (f : (i : Size) → ((j : Size< i) → A j) → A i) → (i : Size) → A i
 fix f i zero        = zero
-fix f i (suc {j} n) = f i (fix f) (suc n)
+fix f i (suc {j} n) = f i (λ j → fix f j) (suc n)
 
 -- forever : {i : Size} → ({j : Size< i} → Nat {i} → Nat {j}) → Nat {i} → ⊥
 -- forever {i} f n = forever f (f {{!!}} n)
@@ -170,8 +166,6 @@ module Graph (I : Set)(adj : I → List I) where
       nodes : {j : Size< i} → List (Span {j})
   open Span
 
-  {-# NO_TERMINATION_CHECK #-}
   tree : {i : Size} → I → Span {i}
   root  (tree root) = root
   nodes (tree root) = map (tree) (adj root)
-  -- nodes (tree root) = λ {j} → map (tree {j}) (adj root)
