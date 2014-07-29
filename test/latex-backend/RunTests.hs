@@ -3,6 +3,7 @@ module RunTests where
 import Control.Monad
 import Data.Char
 import Data.List
+import Data.Maybe
 import System.Directory
 import System.Environment
 import System.Exit
@@ -62,7 +63,7 @@ runTests = do
       setCurrentDirectory latexDir
 
       let allCompilers = ["pdflatex", "xelatex", "lualatex"]
-      let compilers = maybe allCompilers id (readMaybe content)
+      let compilers = fromMaybe allCompilers (readMaybe content)
 
       forM_ compilers $ \compiler -> do
         exit <- rawSystem compiler [ "-interaction=batchmode" , tex ]
@@ -79,9 +80,10 @@ isFailure (ExitFailure _) = True
 isFailure _               = False
 
 readMaybe :: Read a => String -> Maybe a
-readMaybe s = case reads s of
-                [(x, rest)] | all isSpace rest -> Just x
-                _                              -> Nothing
+readMaybe s =
+  case reads s of
+    [(x, rest)] | all isSpace rest -> Just x
+    _                              -> Nothing
 
 ------------------------------------------------------------------------
 
