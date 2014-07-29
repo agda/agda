@@ -56,6 +56,7 @@ source-repository this
   type:     git
   location: https://github.com/agda/agda.git
   branch:   maint-2.4.0
+  tag:      2.4.0.2
 
 flag epic
   default: False
