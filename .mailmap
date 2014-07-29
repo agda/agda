@@ -15,8 +15,10 @@
 
 Adam Gundry <adam.gundry@strath.ac.uk>
 Alan Jeffrey <ajeffrey@bell-labs.com> ajeffrey
+Alexandre Buisse <buisse@cs.chalmers.se>
 Andreas Abel <andreas.abel@ifi.lmu.de> andreas.abel
 Andreas Abel <andreas.abel@ifi.lmu.de> abel <abel@cs.chalmers.se>
+Andrea Vezzosi <sanzhiyan@gmail.com>
 Andrés Sicard-Ramírez <asr@eafit.edu.co> andres.sicard.ramirez
 Andrés Sicard-Ramírez <asr@eafit.edu.co> andres.sicard.ramirez <andres.sicard.ramirez@gmail.com>
 Andrés Sicard-Ramírez <asr@eafit.edu.co> andres.sicard <andres.sicard@gmail.com>
@@ -27,26 +29,32 @@ Darin Morrison <dwm@cs.nott.ac.uk> dwm
 Darin Morrison <dwm@cs.nott.ac.uk> darinmorrison <darinmorrison@gmail.com>
 Dominique Devriese <dominique.devriese@cs.kuleuven.be> dominique.devriese <dominique.devriese@gmail.com>
 Dominique Devriese <dominique.devriese@cs.kuleuven.be> dominique.devriese
+Fabien Renaud <fabienr@chalmers.se>
 Fredrik Lindblad <frelindb@chalmers.se> frelindb <frelindb@gmail.com>
 Fredrik Lindblad <frelindb@chalmers.se> frelindb
 Fredrik Nordvall Forsberg <csfnf@swansea.ac.uk> fredrik.nordvall-forsberg <fredrik.nordvall-forsberg@strath.ac.uk>
 Fredrik Nordvall Forsberg <csfnf@swansea.ac.uk> csfnf <csfnf@swansea.ac.uk>
 Guillaume Brunerie <guillaume.brunerie@gmail.com>
+James Burton <j.burton@brighton.ac.uk>
 James Chapman <james@cs.ioc.ee> james
 Jean-Philippe Bernardy <jeanphilippe.bernardy@gmail.com> jeanphilippe.bernardy
 Jesper Cockx <jesper.cockx@cs.kuleuven.be>
+Karl Mehltretter <mehltret@cip.ifi.lmu.de>
 Kuen-Bang Hou (Favonia) <favonia@gmail.com>
 Lennart Augustsson <lennart@augustsson.net>
 Makoto Takeyama <makoto.takeyama@aist.go.jp> makoto.takeyama
 Marcin Benke <marcin.benke@gmail.com> marcin.benke
-<nils.anders.danielsson@gmail.com> <nad@cs.chalmers.se>
+Nils Anders Danielsson <nils.anders.danielsson@gmail.com> <nad@cs.chalmers.se>
+Noam Zeilberger <noam.zeilberger@gmail.com>
 Nobuo Yamashita <nobuo-yamashita@aist.go.jp> nobuo-yamashita
 Olle Fredriksson <fredriksson.olle@gmail.com> fredriksson.olle
 Patrick Palka <patrick@parcs.ath.cx>
 Patrik Jansson <patrikj@chalmers.se> patrikj
 Péter Divianszki <divipp@gmail.com> divipp
 Samuel Gélineau <gelisam@gmail.com>
+Shin-Cheng Mu <scm@iis.sinica.edu.tw>
 Stefan Monnier <monnier@iro.umontreal.ca> monnier
+Steven Keuchel <steven.keuchel@gmail.com>
 Thomas Anberree <thomas.anberree@nottingham.edu.cn>
 Thorsten Altenkirch <txa@cs.nott.ac.uk>
 Ulf Norell <ulfn@chalmers.se> ulfn <ulfn@cs.chalmers.se>
