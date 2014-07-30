@@ -10,4 +10,3 @@ test a b = {!!}
 testFun : {A B : Set} (a : A) (b : B) → A × B
 testFun = {!!}
 
-
