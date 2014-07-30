@@ -5,9 +5,9 @@ data Nat : Set where
    Succ : Nat -> Nat
 
 boom : Nat -> Nat
-boom (n@(Succ _)) = Zero
+boom n@(Succ _) = Zero
 
 -- EXPECTED:
 -- Not supported: @-patterns
--- when scope checking the left-hand side boom (n@(Succ _)) in the
+-- when scope checking the left-hand side boom n@(Succ _) in the
 -- definition of boom
