@@ -102,7 +102,7 @@ followed:
 
 * Update the version numbers in:
 
-  Agda.cabal (twice),
+  Agda.cabal (thrice),
   src/data/emacs-mode/agda2-mode.el, and
   mk/paths.mk.
 
@@ -121,7 +121,7 @@ followed:
 * Restore version numbers in 'master'
   (possibly by just resolving the merge conflicts).
 
-    Agda.cabal (twice),
+    Agda.cabal (thrice),
     src/data/emacs-mode/agda2-mode.el, and
     mk/paths.mk.
 
