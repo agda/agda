@@ -363,15 +363,15 @@ instance EmbPrj Bool where
 
 instance EmbPrj AbsolutePath where
   icode file = do
-    mm <- M.lookup file . fileMod <$> ask
+    mm <- Map.lookup file <$> asks fileMod
     case mm of
       Just m  -> icode m
       Nothing -> __IMPOSSIBLE__
   value m = do
     m :: TopLevelModuleName
             <- value m
-    mf      <- modFile  <$> get
-    incs    <- includes <$> get
+    mf      <- gets modFile
+    incs    <- gets includes
     (r, mf) <- liftIO $ findFile'' incs m mf
     modify $ \s -> s { modFile = mf }
     case r of
