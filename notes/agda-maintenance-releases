@@ -1,5 +1,10 @@
 2014-07-29, adapted from agda-releases
 
+[NOTE: The standard library does not have to be released with
+maintenance releases of Agda.  Instructions concerning the standard
+library are outdated.  Skip the steps talking about tagging or
+releasing the standard library.]
+
 When releasing a bugfix version of Agda, the following procedure can be
 followed:
 
