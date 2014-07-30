@@ -526,7 +526,7 @@ patternQNames p = case p of
   InstanceP _ p    -> patternQNames (namedThing p)
   OpAppP r d ps    -> __IMPOSSIBLE__
   AppP{}           -> __IMPOSSIBLE__
-  AsP{}            -> __IMPOSSIBLE__
+  AsP r x p        -> patternQNames p
   AbsurdP{}        -> []
   WildP{}          -> []
   DotP{}           -> []
