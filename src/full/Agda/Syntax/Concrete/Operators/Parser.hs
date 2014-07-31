@@ -42,13 +42,6 @@ instance IsExpr e => HasRange (ExprView e) where
 -- * Parser combinators
 ---------------------------------------------------------------------------
 
--- | Combining a hierarchy of parsers.
-recursive :: (ReadP tok a -> [ReadP tok a -> ReadP tok a]) -> ReadP tok a
-recursive f = p0
-    where
-	fs = f p0
-	p0 = foldr ( $ ) p0 fs
-
 ----------------------------
 -- Specific combinators
 
@@ -156,15 +149,9 @@ nonfixP op p = do
   return $ rebuild nsyn r es
  +++ p
 
-appP :: IsExpr e => ReadP e e -> ReadP e e -> ReadP e e
-appP top p = do
-    h  <- p
-    es <- many (nothidden +++ hidden +++ instanceH)
-    return $ foldl app h es
+argsP :: IsExpr e => ReadP e e -> ReadP e [NamedArg e]
+argsP p = many (nothidden +++ hidden +++ instanceH)
     where
-
-	app e arg = unExprView $ AppV e arg
-
 	isHidden (HiddenArgV _) = True
 	isHidden _	        = False
 
@@ -185,6 +172,14 @@ appP top p = do
 	hidden = do
 	    HiddenArgV e <- exprView <$> satisfy (isHidden . exprView)
 	    return $ hide $ defaultArg e
+
+appP :: IsExpr e => ReadP e e -> ReadP e [NamedArg e] -> ReadP e e
+appP p pa = do
+    h  <- p
+    es <- pa
+    return $ foldl app h es
+    where
+	app e = unExprView . AppV e
 
 atomP :: IsExpr e => (QName -> Bool) -> ReadP e e
 atomP p = do
