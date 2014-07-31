@@ -216,6 +216,17 @@ Language
   Standard modifiers, such as fixity declarations, can be applied to x as
   expected.
 
+* Module applicants can now be operator applications. Example:
+
+    postulate
+      [_] : A -> B
+
+    module M (b : B) where
+
+    module N (a : A) = M [ a ]
+
+  [See Issue 1245.]
+
 Goal and error display
 ======================
 

@@ -184,14 +184,11 @@ checkModuleApplication (C.SectionApp _ tel e) m0 x dir' =
   -- For the following, set the current module to be m0.
   withCurrentModule m0 $ do
     -- check that expression @e@ is of the form @m args@
-    (m, args) <- case appView e of
-      AppView (Ident m) args -> return (m, args)
-      _                      -> notAModuleExpr e
-
+    (m, args) <- parseModuleApplication e
     -- scope check the telescope (introduces bindings!)
     tel' <- toAbstract tel
     -- scope the old module name, the module args
-    (m1,args') <- toAbstract (OldModuleName m, args)
+    (m1, args') <- toAbstract (OldModuleName m, args)
     -- Drop constructors (OnlyQualified) if there are arguments. The record constructor
     -- isn't properly in the record module, so copying it will lead to badness.
     let noRecConstr | null args = id

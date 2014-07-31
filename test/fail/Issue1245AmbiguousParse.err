@@ -1,0 +1,6 @@
+Issue1245AmbiguousParse.agda:10,1-35
+Don't know how to parse M * a * a * a *. Could mean any one of:
+  ((M (* a *)) a) (* a *)
+  M (* ((a (* a *)) a) *)
+when scope checking the declaration
+  module N (a : A) = M * a * a * a *
