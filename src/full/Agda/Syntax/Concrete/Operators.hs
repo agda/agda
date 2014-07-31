@@ -609,7 +609,7 @@ parseRawModuleApplication es = do
         [as] -> return (m, as)
         [] -> do
           inScope <- partsInScope flat
-          case [ x | Ident x <- es, not (Set.member x inScope) ] of
+          case [ x | Ident x <- es_args, not (Set.member x inScope) ] of
               [] -> typeError $ NoParseForApplication es
               xs -> typeError $ NotInScope xs
 
