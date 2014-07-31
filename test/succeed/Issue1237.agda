@@ -13,5 +13,5 @@ term = con (quote d) (hArg (def (quote Nat) []) âˆ· vArg (con (quote zero) []) â
 
 -- There was a bug where extra implicit arguments were inserted for the parameters, resulting in
 -- the unquoted value 'd {_} {Nat} zero' instead of 'd {Nat} zero'.
-value : D Nat zero 
+value : D Nat zero
 value = unquote term
