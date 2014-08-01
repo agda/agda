@@ -240,9 +240,7 @@ std-lib :
 	git clone https://github.com/agda/agda-stdlib.git $@
 
 up-to-date-std-lib : std-lib
-	@(cd std-lib && \
-          git fetch && git checkout master && git merge origin/master && \
-          make setup)
+	@(cd std-lib && git checkout tags/v0.8 && make setup)
 
 library-test : # up-to-date-std-lib
 	@echo "======================================================================"
