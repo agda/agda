@@ -28,6 +28,7 @@ import Agda.Interaction.InteractionTop
 import Agda.Interaction.EmacsCommand
 import Agda.Interaction.Highlighting.Emacs
 
+import Agda.Version
 
 ----------------------------------
 
@@ -95,6 +96,7 @@ lispifyResponse (Resp_DisplayInfo info) = return $ case info of
                                  ]
                              ]
     Info_Intro s -> f (render s) "*Intro*"
+    Info_Version -> f ("Agda version " ++ version) "*Agda Version*"
   where f content bufname = [ display_info' False bufname content ]
 lispifyResponse Resp_ClearHighlighting = return [ L [ A "agda2-highlight-clear" ] ]
 lispifyResponse Resp_ClearRunningInfo = return [ clearRunningInfo ]
