@@ -279,5 +279,8 @@ Tools
 Emacs mode
 ----------
 
+* A new menu option "Display" can be used to display the version of
+  the running Agda process.
+
 LaTeX-backend
 -------------

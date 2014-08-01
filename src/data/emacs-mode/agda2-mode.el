@@ -251,6 +251,7 @@ constituents.")
     (agda2-compute-normalised-maybe-toplevel "\C-c\C-n"           (local global) "Evaluate term to normal form")
     (describe-char                           nil                  (global)       "Information about the character at point")
     (agda2-comment-dwim-rest-of-buffer       ,(kbd "C-c C-x M-;") (global)       "Comment/uncomment the rest of the buffer")
+    (agda2-display-program-version           nil                  (global)       "Version")
     (eri-indent                  ,(kbd "TAB"))
     (eri-indent-reverse          [S-iso-lefttab])
     (eri-indent-reverse          [S-lefttab])
@@ -1199,6 +1200,11 @@ With a prefix argument \"abstract\" is ignored during the computation."
   (if (agda2-goal-at (point))
       (call-interactively 'agda2-compute-normalised)
     (call-interactively 'agda2-compute-normalised-toplevel)))
+
+(defun agda2-display-program-version ()
+  "Display version of Agda"
+  (interactive)
+  (agda2-go nil nil t "Cmd_show_version"))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;;;
