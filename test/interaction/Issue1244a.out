@@ -1,0 +1,11 @@
+Agda2> (agda2-status-action "")
+(agda2-info-action "*Type-checking*" "" nil)
+(agda2-highlight-clear)
+(agda2-info-action "*Type-checking*" "Checking Issue1244a (Issue1244a.agda).\n" t)
+(agda2-info-action "*Error*" "Issue1244a.agda:7,9-10\nNot in scope:\n  b\n  at Issue1244a.agda:7,9-10\nwhen scope checking b" nil)
+((last . 3) . (agda2-goto '("Issue1244a.agda" . 182)))
+(agda2-highlight-load-and-delete-action)
+(agda2-status-action "")
+Agda2> (agda2-status-action "")
+(agda2-info-action "*Agda Version*" "Agda version 2.4.1" nil)
+Agda2> 
