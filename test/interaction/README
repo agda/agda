@@ -1,19 +1,26 @@
 Test framework for interactions
 -------------------------------
 
-- 'make interaction' runs the interaction tests (also part of 'make test')
-- Most tests consist of an agda file SomeTest.agda and an interaction
+- 'make interaction' runs the interaction tests (also part of 'make test').
+
+- Most tests consist of an Agda file SomeTest.agda and an interaction
   script SomeTest.in. The interaction script contains interactions (as
-  commands to the Agda2 interpreter) that should be performed on the Agda
+  commands to the Agda interpreter) that should be performed on the Agda
   file.
+
 - A simple example:
     top_command    (cmd_load currentFile [])
     goal_command 0 (cmd_goal_type_context Normalised) ""
     goal_command 0 cmd_give "s z"
     goal_command 0 cmd_give "Nothing"
+
   The variable currentFile is bound to the current file name.
-- Two macros are available for convenience: currentFile, top_command and goal_command.
+
+- Two macros are available for convenience: currentFile, top_command
+  and goal_command.
+
   "currentFile" is replaced by the current file path by sed in the Makefile.
+
           top_command <command>
   is replaced by
           ioTCM currentFile None <command>
@@ -21,6 +28,7 @@ Test framework for interactions
           goal_command <i> <goalcommand> <s>
   is the same as
           ioTCM currentFile None <goalcommand> <i> noRange <s>
+
 - The output from each test is recorded in SomeTest.out and compared
   against for each run of the test.
 
