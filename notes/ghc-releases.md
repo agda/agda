@@ -17,7 +17,8 @@ maintenance branch is maint-2.4.0.
 * Run the test-suite, using `make test` (which does not work properly
   unless you run `autoreconf` and `./configure` first).
 
-* Ensure that cabal haddock works:
+* Ensure that cabal haddock works (requires at least cabal-install
+  version 1.20.0.3 using version 1.20.0.2 of the Cabal library):
 
   `cabal configure && cabal haddock`
 
@@ -61,7 +62,8 @@ maintenance branch is maint-2.4.0.
 
 * Run the test-suite, using `make test`.
 
-* Ensure that cabal haddock works:
+* Ensure that cabal haddock works (requires at least cabal-install
+  version 1.20.0.3 using version 1.20.0.2 of the Cabal library):
 
   `cabal configure && cabal haddock`
 
