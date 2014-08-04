@@ -114,10 +114,6 @@ library
   build-tools:      happy >= 1.19.3 && < 2,
                     alex >= 3.1.0 && < 3.2
 
-  -- LANGUAGE extension CPP is needed for cabal haddock (as of now, May 2014).
-  -- However, each file should define {-# LANGUAGE CPP #-}, for the sake
-  -- of ghci and make tags.
-  extensions:       CPP
   exposed-modules:  Agda.Main
                     Agda.ImpossibleTest
                     Agda.Interaction.BasicOps
