@@ -15,8 +15,8 @@ run_agda = $(agda) -v0 --vim $(AGDA_TEST_FLAGS)
 test_files = AIM5/Hedberg/SET.agda \
              AIM5/yoshiki/SET.agda \
              Binary.agda \
-             DTP08/ulf/Talk.agda \
              DTP08/conor/Talk.agda \
+             DTP08/ulf/Talk.agda \
              instance-arguments/01-arguments.agda \
              instance-arguments/02-classes-indep.agda \
              instance-arguments/04-equality.agda \
@@ -27,7 +27,8 @@ test_files = AIM5/Hedberg/SET.agda \
              instance-arguments/14-implicitConfigurations.agda \
              ISWIM.agda \
              Lookup.agda \
-             Monad.agda Miller/Pat.agda \
+             Miller/Pat.agda \
+             Monad.agda  \
              ParenDepTac.agda \
              Setoid.agda \
              SimpleTypes.agda \
