@@ -1,5 +1,4 @@
-{-# OPTIONS --no-positivity-check
-  #-}
+-- {-# OPTIONS --no-positivity-check #-}
 {-
 
   Data, Deliberately
@@ -37,6 +36,9 @@ map (rec i C) f (a , b) = f a , map C f b
 
 -- Tying the recursive knot. The positivity checker won't spot that
 -- ⟦ C ⟧ X i is strictly positive i X, so we've switched it off.
+
+-- ASR (08 August 2014): It's not necessary disable the strictly
+-- positive checher.
 data μ {I : Set}(C : Code I) : I -> Set where
   <_> : forall {i} -> ⟦ C ⟧ (μ C) i -> μ C i
 
@@ -95,6 +97,11 @@ forget' φ (rec j C) (a , b) = φ a , forget' φ C b
 -- The termination checker runs into the same problem as the positivity
 -- checker--it can't tell that forget' φ C x is only applying φ to
 -- things smaller than x.
+
+-- ASR (08 August 2014): Added the {-# NO_TERMINATION_CHECK #-}
+-- pragma.
+
+{-# NO_TERMINATION_CHECK #-}
 forget : {I : Set}{J : I -> Set}{C : Code I}{i : I}{j : J i}
          (ΔC : Orn J C) -> μ (orn ΔC) (i , j) -> μ C i
 forget ΔC < x > = < forget' (forget ΔC) ΔC x >
@@ -104,6 +111,11 @@ Alg : {I : Set} -> Code I -> (I -> Set) -> Set
 Alg C X = forall i -> ⟦ C ⟧ X i -> X i
 
 -- We can fold by an algebra.
+
+-- ASR (08 August 2014): Added the {-# NO_TERMINATION_CHECK #-}
+-- pragma.
+
+{-# NO_TERMINATION_CHECK #-}
 fold : {I : Set}{X : I -> Set}{C : Code I} ->
        Alg C X -> {i : I} -> μ C i -> X i
 fold {C = C} φ < x > = φ _ (map C (fold φ) x)
@@ -134,6 +146,10 @@ thm' (rec i C) {i = i0}{j = j0} φ F ψ ih (j , x , c)
   with F (ψ x) | ih x | thm' C (\i b -> φ i (j , b)) F ψ ih c
 ... | .j | refl | rest = rest
 
+-- ASR (08 August 2014): Added the {-# NO_TERMINATION_CHECK #-}
+-- pragma.
+
+{-# NO_TERMINATION_CHECK #-}
 thm : {I : Set}{J : I -> Set}(C : Code I){i : I}{j : J i}(φ : Alg C J) ->
       (x : μ (orn (decorate C φ)) (i , j)) ->
       fold φ (forget (decorate C φ) x) == j
