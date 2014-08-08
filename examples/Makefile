@@ -16,6 +16,7 @@ test_files = AIM5/Hedberg/SET.agda \
              AIM5/yoshiki/SET.agda \
              Binary.agda \
              DTP08/ulf/Talk.agda \
+             DTP08/conor/Talk.agda \
              instance-arguments/01-arguments.agda \
              instance-arguments/02-classes-indep.agda \
              instance-arguments/04-equality.agda \
