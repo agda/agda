@@ -1,5 +1,5 @@
 ------------------------------------------------------------------------
--- Release notes for Agda 2 version 2.4.2
+-- Release notes for Agda version 2.4.2
 ------------------------------------------------------------------------
 
 TODO: Replace X with the appropriate value.
