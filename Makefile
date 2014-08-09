@@ -206,7 +206,7 @@ TAGS :
 quick : install-O0-bin quicktest
 
 .PHONY : test
-test : check-whitespace succeed fail interaction latex-test examples library-test lib-succeed compiler-test epic-test tests
+test : check-whitespace succeed fail interaction latex-test examples library-test lib-succeed compiler-test epic-test api tests
 
 .PHONY : quicktest
 quicktest : succeed fail
