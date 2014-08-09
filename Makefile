@@ -301,6 +301,13 @@ epic-test :
 	@echo "======================================================================"
 	@$(MAKE) -C test/epic
 
+.PHONY : api
+api :
+	@echo "======================================================================"
+	@echo "======== Successfull tests using Agda as an Haskell library =========="
+	@echo "======================================================================"
+	@$(MAKE) -C test/$@
+
 .PHONY : benchmark
 benchmark :
 	@$(MAKE) -C benchmark
