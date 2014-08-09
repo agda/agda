@@ -118,6 +118,9 @@ followed:
 
 * Remove the release notes for the released version from doc/release-notes.
 
+* Update the Agda version in the files test/interaction/Issue1244a.out
+  and test/interaction/Issue1244b.out.
+
 * Push all changes.
 
     darcs push
