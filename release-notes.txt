@@ -1,5 +1,5 @@
 ------------------------------------------------------------------------
--- Release notes for Agda standard library version X.Y
+-- Release notes for Agda standard library version 0.9
 ------------------------------------------------------------------------
 
 The library has been tested using Agda version A.B.C.
@@ -18,6 +18,13 @@ Currently the library does not support the Epic or JavaScript compiler
 backends.
 
 Important changes since 0.8:
+
+* Reflection API
+
+  Agda A.B.C added support for literals, function definitions, pattern
+  matching lambdas and absurd clause/patterns (see Agda A.B.C release
+  notes). The new supported entities were added to the Reflection.agda
+  module.
 
 ------------------------------------------------------------------------
 Version 0.8
