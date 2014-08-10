@@ -6,10 +6,10 @@ TODO: Replace X with the appropriate value.
 
 Important changes since 2.4.0.X:
 
-Installation and Infrastructure
+Installation and infrastructure
 ===============================
 
-Pragmas and Options
+Pragmas and options
 ===================
 
 * New option: --with-K.

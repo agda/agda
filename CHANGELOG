@@ -98,7 +98,7 @@ Important changes since 2.4.0:
 
 Important changes since 2.3.2.2:
 
-Installation and Infrastructure
+Installation and infrastructure
 ===============================
 
 * A new module called Agda.Primitive has been introduced. This module
@@ -157,8 +157,7 @@ Installation and Infrastructure
   The location can also be set at run-time, using the Agda_datadir
   environment variable.
 
-
-Pragmas and Options
+Pragmas and options
 ===================
 
 * Pragma NO_TERMINATION_CHECK placed within a mutual block is now
@@ -193,8 +192,6 @@ Pragmas and Options
   Option --sized-types is now default.
   --no-sized-types will turn off an extra (inexpensive) analysis on
   data types used for subtyping of sized types.
-
-
 
 Language
 ========
@@ -574,7 +571,6 @@ Goal and error display
 
 Type checking
 =============
-
 
 * [ issue 376 ] Implemented expansion of bound record variables during meta assignment.
   Now Agda can solve for metas X that are applied to projected variables, e.g.:
@@ -1208,7 +1204,7 @@ Installation
   Emacs Lisp files, then Emacs may continue using the old, compiled
   files.
 
-Pragmas and Options
+Pragmas and options
 ===================
 
 * The --without-K check now reconstructs constructor parameters.
@@ -2253,7 +2249,6 @@ Meta-variables and unification
   "-with-implicits" module:
 
     open Eq {{...}}
-
 
   Instance argument resolution is not recursive. As an example,
   consider the following "parametrised instance":
