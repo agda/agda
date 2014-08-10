@@ -6,44 +6,271 @@ TODO: Replace X with the appropriate value.
 
 Important changes since 2.4.0.X:
 
-Installation and Infrastructure
+Installation and infrastructure
 ===============================
 
-Pragmas and Options
+Pragmas and options
 ===================
 
-* The option --termination-depth is now obsolete.
+* New option: --with-K.
 
-  The default termination depth is now infinity instead of
-  (previously) 1.  This means that setting --termination-depth might
-  now make the termination checker *weaker* (instead of stronger).
-  However, there is no guaranteed effect of setting
-  --termination-depth any more.  The flag is only kept for debugging
-  Agda.
+  This can be used to override a global --without-K in a file, by
+  adding a pragma {-# OPTIONS --with-K #-}.
 
-  For example, the following code now passes the termination checker
-  (needed higher --termination-depth before):
+* New pragma {-# NON_TERMINATING #-}
 
-    f : Nat → Nat
-    g : Nat → Nat
-
-    f zero                = zero
-    f (suc zero)          = zero
-    f (suc (suc zero))    = zero
-    f (suc (suc (suc n))) = g n     -- decrease by 3
-
-    g n = f (suc (suc n))           -- increase by 2
-
-  [See also issue 709.]
+  This is a safer version of NO_TERMINATION_CHECK which doesn't treat the
+  affected functions as terminating. This means that NON_TERMINATING functions
+  do not reduce during type checking. They do reduce at run-time and when
+  invoking C-c C-n at top-level (but not in a hole).
 
 Language
 ========
+
+* Instance search is now more efficient and recursive (see issue 938)
+  (but without termination check yet)
+
+  A new keyword `instance' has been introduced (in the style of
+  `abstract' and  `private') which must now be used for every
+  definition/postulate that has to be taken into account during instance
+  resolution. For example:
+
+    record RawMonoid (A : Set) : Set where
+      field
+        nil  : A
+        _++_ : A -> A -> A
+
+    open RawMonoid {{...}}
+
+    instance
+      rawMonoidList : {A : Set} -> RawMonoid (List A)
+      rawMonoidList = record { nil = []; _++_ = List._++_ }
+
+      rawMonoidMaybe : {A : Set} {{m : RawMonoid A}} -> RawMonoid (Maybe A)
+      rawMonoidMaybe {A} = record { nil = nothing ; _++_ = catMaybe }
+        where
+          catMaybe : Maybe A -> Maybe A -> Maybe A
+          catMaybe nothing mb = mb
+          catMaybe ma nothing = ma
+          catMaybe (just a) (just b) = just (a ++ b)
+
+  Moreover, each type of an instance must end in (something that reduces
+  to) a named type (e.g. a record, a datatype or a postulate). This
+  allows us to build a simple index structure
+
+    data/record name  -->  possible instances
+
+  that speeds up instance search.
+
+  Instance search takes into account all local bindings and all global
+  'instance' bindings and the search is recursive. For instance,
+  searching for
+
+    ? : RawMonoid (Maybe (List A))
+
+  will consider the candidates {rawMonoidList, rawMonoidMaybe}, fail to
+  unify the first one, succeeding with the second one
+
+    ? = rawMonoidMaybe {A = List A} {{m = ?m}} : RawMonoid (Maybe (List A))
+
+  and continue with goal
+
+    ?m : RawMonoid (List A)
+
+  This will then find
+
+    ?m = rawMonoidList {A = A}
+
+  and putting together we have the solution.
+
+  Be careful that there is no termination check for now, you can easily
+  make Agda loop by declaring the identity function as an instance. But
+  it shouldn’t be possible to make Agda loop by only declaring
+  structurally recursive instances (whatever that means).
+
+  Additionally:
+
+  * Uniqueness of instances is up to definitional equality (see issue 899)
+
+  * Instances of the following form are allowed:
+
+        EqSigma : {A : Set} {B : A → Set} {{EqA : Eq A}}
+                  {{EqB : {a : A} → Eq (B a)}}
+                  → Eq (Σ A B)
+
+      When searching recursively for an instance of type
+      `{a : A} → Eq (B a)', a lambda will automatically be introduced and
+      instance search will search for something of type `Eq (B a)' in
+      the context extended by `a : A'. When searching for an instance, the
+      `a' argument does not have to be implicit, but in the definition of
+      EqSigma, instance search will only be able to use EqB if `a' is implicit.
+
+  * There is no longer any attempt to solve irrelevant metas by instance
+    search
+
+  * Constructors of records and datatypes are automatically added to the
+    instance table
+
+* You can now use 'quote' in patterns.
+
+  For instance, here is a function that unquotes a (closed) natural number
+  term.
+
+    unquoteNat : Term → Maybe Nat
+    unquoteNat (con (quote Nat.zero) [])            = just zero
+    unquoteNat (con (quote Nat.suc) (arg _ n ∷ [])) = fmap suc (unquoteNat n)
+    unquoteNat _                                    = nothing
+
+* The builtin constructors AGDATERMUNSUPPORTED and AGDASORTUNSUPPORTED are now
+  translated to meta variables when unquoting.
+
+* New syntactic sugar 'tactic e' and 'tactic e | e1 | .. | en'.
+
+  It desugars as follows and makes it less unwieldy to call reflection-based
+  tactics.
+
+    tactic e                --> quoteGoal g in unquote (e g)
+    tactic e | e1 | .. | en --> quoteGoal g in unquote (e g) e1 .. en
+
+  Note that in the second form the tactic function should generate a function
+  from a number of new subgoals to the original goal. The type of e should be
+  Term -> Term in both cases.
+
+* New reflection builtins for literals.
+
+  The Term data type AGDATERM now needs an additional constructor AGDATERMLIT
+  taking a reflected literal defined as follows (with appropriate builtin
+  bindings for the types Nat, Float, etc).
+
+    data Literal : Set where
+      nat    : Nat    → Literal
+      float  : Float  → Literal
+      char   : Char   → Literal
+      string : String → Literal
+      qname  : QName  → Literal
+
+    {-# BUILTIN AGDALITERAL   Literal #-}
+    {-# BUILTIN AGDALITNAT    nat     #-}
+    {-# BUILTIN AGDALITFLOAT  float   #-}
+    {-# BUILTIN AGDALITCHAR   char    #-}
+    {-# BUILTIN AGDALITSTRING string  #-}
+    {-# BUILTIN AGDALITQNAME  qname   #-}
+
+  When quoting (quoteGoal or quoteTerm) literals will be mapped to the
+  AGDATERMLIT constructor. Previously natural number literals were quoted
+  to suc/zero application and other literals were quoted to
+  AGDATERMUNSUPPORTED.
+
+* New reflection builtins for function definitions.
+
+  AGDAFUNDEF should now map to a data type defined as follows
+  (with {-# BUILTIN QNAME       QName   #-}
+        {-# BUILTIN ARG         Arg     #-}
+        {-# BUILTIN AGDATERM    Term    #-}
+        {-# BUILTIN AGDATYPE    Type    #-}
+        {-# BUILTIN AGDALITERAL Literal #-}).
+
+    data Pattern : Set where
+      con : QName → List (Arg Pattern) → Pattern
+      dot : Pattern
+      var : Pattern
+      lit : Literal → Pattern
+      proj : QName → Pattern
+
+    {-# BUILTIN AGDAPATTERN Pattern #-}
+    {-# BUILTIN AGDAPATCON con #-}
+    {-# BUILTIN AGDAPATDOT dot #-}
+    {-# BUILTIN AGDAPATVAR var #-}
+    {-# BUILTIN AGDAPATLIT lit #-}
+    {-# BUILTIN AGDAPATPROJ proj #-}
+
+    data Clause : Set where
+      clause : List (Arg Pattern) → Term → Clause
+
+    {-# BUILTIN AGDACLAUSE    Clause #-}
+    {-# BUILTIN AGDACLAUSECON clause #-}
+
+    data FunDef : Set where
+      funDef : Type → List Clause → FunDef
+
+    {-# BUILTIN AGDAFUNDEF    FunDef #-}
+    {-# BUILTIN AGDAFUNDEFCON funDef #-}
+
+* New reflection builtins for extended (pattern-matching) lambda.
+
+  The AGDATERM data type has been augmented with a constructor
+
+    AGDATERMEXTLAM : List AGDACLAUSE → List (ARG AGDATERM) → AGDATERM
+
+  Absurd lambdas (λ ()) are quoted to extended lambdas with an absurd clause.
+
+* Unquoting declarations.
+
+  You can now define (recursive) functions by reflection using the new
+  unquoteDecl declaration
+
+    unquoteDecl x = e
+
+  Here e should have type AGDAFUNDEF and evaluate to a closed value. This value
+  is then spliced in as the definition of x. In the body e, x has type QNAME
+  which lets you splice in recursive definitions.
+
+  Standard modifiers, such as fixity declarations, can be applied to x as
+  expected.
+
+* Module applicants can now be operator applications. Example:
+
+    postulate
+      [_] : A -> B
+
+    module M (b : B) where
+
+    module N (a : A) = M [ a ]
+
+  [See Issue 1245.]
 
 Goal and error display
 ======================
 
 Type checking
 =============
+
+* Recursive records need to be declared as either inductive or coinductive.
+  'inductive' is no longer default for recursive records.
+  Examples:
+
+    record _×_ (A B : Set) : Set where
+      constructor _,_
+      field
+        fst : A
+        snd : B
+
+    record Tree (A : Set) : Set where
+      inductive
+      constructor tree
+      field
+        elem     : A
+        subtrees : List (Tree A)
+
+    record Stream (A : Set) : Set where
+      coinductive
+      constructor _::_
+      field
+        head : A
+        tail : Stream A
+
+  If you are using old-style (musical) coinduction, a record may have
+  to be declared as inductive, paradoxically.
+
+    record Stream (A : Set) : Set where
+      inductive -- YES, THIS IS INTENDED !
+      constructor _∷_
+      field
+        head : A
+        tail : ∞ (Stream A)
+
+  This is because the ``coinduction'' happens in the use of `∞' and not
+  in the use of `record'.
 
 Compiler backends
 =================
@@ -53,6 +280,9 @@ Tools
 
 Emacs mode
 ----------
+
+* A new menu option "Display" can be used to display the version of
+  the running Agda process.
 
 LaTeX-backend
 -------------
