@@ -6,7 +6,7 @@ include $(TOP)/mk/config.mk
 # Path to Agda
 agda=$(AGDA_BIN) $(AGDA_TEST_FLAGS)
 
-all: test-compiled-export # time-compilation 
+all: test-compiled-export test-Issue1252 # time-compilation 
 
 
 time-compilation:
@@ -19,4 +19,5 @@ test-compiled-export:
 	runghc -iExportTestMAlonzo -i../ -i../../std-lib/ffi ExportTest.hs | grep -q "It works!"
 	rm -rf ExportTestMAlonzo
 
-
+test-Issue1252:
+	$(agda) --compile --no-main Issue1252.agda
