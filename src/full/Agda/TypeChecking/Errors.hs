@@ -40,6 +40,7 @@ import Agda.TypeChecking.Pretty
 import Agda.TypeChecking.Reduce (instantiate)
 
 import Agda.Utils.FileName
+import Agda.Utils.Function
 import Agda.Utils.Monad
 import qualified Agda.Utils.Pretty as P
 
@@ -52,15 +53,17 @@ import Agda.Utils.Impossible
 
 {-# SPECIALIZE prettyError :: TCErr -> TCM String #-}
 prettyError :: MonadTCM tcm => TCErr -> tcm String
-prettyError err = liftTCM $ liftM show $
-    prettyTCM err
-    `catchError` \err' -> text "panic: error when printing error!" $$ prettyTCM err'
-    `catchError` \err'' -> text "much panic: error when printing error from printing error!" $$ prettyTCM err''
-    `catchError` \err''' -> fsep (
+prettyError err = liftTCM $ show <$> prettyError' err []
+  where
+  prettyError' :: TCErr -> [TCErr] -> TCM Doc
+  prettyError' err errs
+    | length errs > 3 = fsep (
 	pwords "total panic: error when printing error from printing error from printing error." ++
-	pwords "I give up! Approximations of errors:" )
-	$$ vcat (map (text . tcErrString) [err,err',err'',err'''])
-
+	pwords "I give up! Approximations of errors (original error last):" )
+	$$ vcat (map (text . tcErrString) errs)
+    | otherwise = applyUnless (null errs) (text "panic: error when printing error!" $$) $ do
+        (prettyTCM err $$ vcat (map (text . ("when printing error " ++) . tcErrString) errs))
+        `catchError` \ err' -> prettyError' err' (err:errs)
 ---------------------------------------------------------------------------
 -- * Warnings
 ---------------------------------------------------------------------------
