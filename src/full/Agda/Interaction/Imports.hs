@@ -211,7 +211,7 @@ getInterface_ :: C.TopLevelModuleName -> TCM Interface
 getInterface_ x = do
   (i, wt) <- getInterface' x False
   case wt of
-    SomeWarnings w  -> typeError $ warningsToError w
+    SomeWarnings w  -> warningsToError w
     NoWarnings      -> return i
 
 -- | A more precise variant of 'getInterface'. If warnings are
@@ -371,8 +371,10 @@ getInterface' x includeStateChanges =
             return (True, r)
            else do
             ms       <- getImportPath
-            nesting  <- envModuleNestingLevel <$> ask
-            mf       <- stModuleToSource <$> get
+            nesting  <- asks envModuleNestingLevel
+            range    <- asks envRange
+            call     <- asks envCall
+            mf       <- gets stModuleToSource
             vs       <- getVisitedModules
             ds       <- getDecodedModules
             opts     <- stPersistentOptions . stPersistent <$> get
@@ -390,6 +392,12 @@ getInterface' x includeStateChanges =
             r <- freshTCM $
                    withImportPath ms $
                    local (\e -> e { envModuleNestingLevel = nesting
+                                    -- Andreas, 2014-08-18:
+                                    -- Preserve the range of import statement
+                                    -- for reporting termination errors in
+                                    -- imported modules:
+                                  , envRange              = range
+                                  , envCall               = call
                                   }) $ do
                      setDecodedModules ds
                      setCommandLineOptions opts
@@ -591,8 +599,10 @@ createInterface file mname =
       let ifile = filePath $ toIFile file
       writeInterface ifile i
       return (i, NoWarnings)
-     else
-      return (i, SomeWarnings $ Warnings termErrs unsolvedMetas unsolvedConstraints)
+     else do
+      termErr <- if null termErrs then return Nothing else Just <$> do
+        typeError_ $ TerminationCheckFailed termErrs
+      return (i, SomeWarnings $ Warnings termErr unsolvedMetas unsolvedConstraints)
 
     -- Profiling: Print statistics.
     verboseS "profile" 1 $ do

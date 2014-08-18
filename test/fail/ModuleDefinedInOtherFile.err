@@ -1,5 +1,7 @@
-
-You tried to load Imports/B.agda
-which defines the module Imports.A. However, according to the
-include path this module should be defined in
+ModuleDefinedInOtherFile.agda:4,8-17
+You tried to load Imports/B.agda which
+defines the module Imports.A. However, according to the include
+path this module should be defined in
 Imports/A.agda.
+when scope checking the declaration
+  import Imports.B

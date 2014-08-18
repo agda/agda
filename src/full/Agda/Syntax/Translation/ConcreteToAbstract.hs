@@ -1189,7 +1189,7 @@ instance ToAbstract NiceDeclaration A.Declaration where
       ps <- toAbstract p
       return $ map (A.Pragma r) ps
 
-    NiceImport r x as open dir -> do
+    NiceImport r x as open dir -> traceCall (SetRange r) $ do
       notPublicWithoutOpen open dir
 
       -- First scope check the imported module and return its name and
