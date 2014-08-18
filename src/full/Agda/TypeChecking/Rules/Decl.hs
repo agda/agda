@@ -120,6 +120,7 @@ checkDecl d = traceCall (SetRange (getRange d)) $ do
                                   -- highlighting purposes.
 
     unlessM (isJust . envMutualBlock <$> ask) $ do
+      -- The termination errors are not returned, but used for highlighting.
       termErrs <- caseMaybe finalChecks (return []) $ \ theMutualChecks -> do
         solveSizeConstraints
         solveIrrelevantMetas
