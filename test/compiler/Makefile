@@ -6,7 +6,7 @@ include $(TOP)/mk/config.mk
 # Path to Agda
 agda=$(AGDA_BIN) $(AGDA_TEST_FLAGS)
 
-all: test-compiled-export test-Issue1252 # time-compilation 
+all: test-compiled-export test-Issue1252 test-ExportAndUse # time-compilation 
 
 
 time-compilation:
@@ -21,3 +21,6 @@ test-compiled-export:
 
 test-Issue1252:
 	$(agda) --compile --no-main Issue1252.agda
+
+test-ExportAndUse:
+	$(agda) --compile --no-main ExportAndUse.agda
