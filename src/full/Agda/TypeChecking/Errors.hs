@@ -11,6 +11,8 @@ module Agda.TypeChecking.Errors
     , warningsToError
     ) where
 
+import Prelude hiding (null)
+
 import Control.Monad.State
 import Control.Monad.Error
 
@@ -42,6 +44,7 @@ import Agda.TypeChecking.Reduce (instantiate)
 import Agda.Utils.FileName
 import Agda.Utils.Function
 import Agda.Utils.Monad
+import Agda.Utils.Null hiding (empty)
 import qualified Agda.Utils.Pretty as P
 
 #include "../undefined.h"
@@ -96,7 +99,8 @@ warningsToError (Warnings (Just w) _ _)  = throwError w
 ---------------------------------------------------------------------------
 
 sayWhere :: HasRange a => a -> TCM Doc -> TCM Doc
-sayWhere x d = prettyTCM (getRange x) $$ d
+sayWhere x d = applyUnless (null r) (prettyTCM r $$) d
+  where r = getRange x
 
 sayWhen :: Range -> Maybe (Closure Call) -> TCM Doc -> TCM Doc
 sayWhen r Nothing   m = sayWhere r m
