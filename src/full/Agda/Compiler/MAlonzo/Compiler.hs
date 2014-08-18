@@ -208,8 +208,8 @@ definition kit Defn{defName = q, defType = ty, defCompiledRep = compiled, theDef
   function cls (Just (HsExport t name)) =
     do ccls <- functionStdName cls
        let tsig = HS.TypeSig dummy [HS.Ident name] (fakeType t)
-           def = HS.FunBind [HS.Match dummy (HS.Ident name) [] Nothing (HS.UnGuardedRhs (hsVarUQ $ dsubname q 0)) (HS.BDecls ccls)]
-       return [tsig,def]
+           def = HS.FunBind [HS.Match dummy (HS.Ident name) [] Nothing (HS.UnGuardedRhs (hsVarUQ $ dsubname q 0)) (HS.BDecls [])]
+       return ([tsig,def] ++ ccls)
   function cls Nothing = functionStdName cls
   functionStdName cls = mkwhere <$> mapM (clause q Nothing) (tag 0 cls)
   tag _ []       = []
