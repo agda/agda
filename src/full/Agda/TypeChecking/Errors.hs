@@ -73,7 +73,7 @@ prettyError err = liftTCM $ show <$> prettyError' err []
 -- Invariant: The fields are never empty at the same time.
 
 data Warnings = Warnings
-  { terminationProblems   :: [TerminationError]
+  { terminationProblems   :: Maybe TCErr
     -- ^ Termination checking problems are not reported if
     -- 'optTerminationCheck' is 'False'.
   , unsolvedMetaVariables :: [Range]
@@ -84,13 +84,12 @@ data Warnings = Warnings
   }
 
 -- | Turns warnings into an error. Even if several errors are possible
--- only one is raised.
-
-warningsToError :: Warnings -> TypeError
-warningsToError (Warnings [] [] [])    = __IMPOSSIBLE__
-warningsToError (Warnings _ w@(_:_) _) = UnsolvedMetas w
-warningsToError (Warnings _ _ w@(_:_)) = UnsolvedConstraints w
-warningsToError (Warnings w@(_:_) _ _) = TerminationCheckFailed w
+--   only one is raised.
+warningsToError :: Warnings -> TCM a
+warningsToError (Warnings Nothing [] []) = __IMPOSSIBLE__
+warningsToError (Warnings _ w@(_:_) _)   = typeError $ UnsolvedMetas w
+warningsToError (Warnings _ _ w@(_:_))   = typeError $ UnsolvedConstraints w
+warningsToError (Warnings (Just w) _ _)  = throwError w
 
 ---------------------------------------------------------------------------
 -- * Helpers

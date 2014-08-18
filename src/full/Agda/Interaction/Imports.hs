@@ -209,7 +209,7 @@ getInterface_ :: C.TopLevelModuleName -> TCM Interface
 getInterface_ x = do
   (i, wt) <- getInterface' x False
   case wt of
-    SomeWarnings w  -> typeError $ warningsToError w
+    SomeWarnings w  -> warningsToError w
     NoWarnings      -> return i
 
 -- | A more precise variant of 'getInterface'. If warnings are
@@ -587,8 +587,10 @@ createInterface file mname =
       let ifile = filePath $ toIFile file
       writeInterface ifile i
       return (i, NoWarnings)
-     else
-      return (i, SomeWarnings $ Warnings termErrs unsolvedMetas unsolvedConstraints)
+     else do
+      termErr <- if null termErrs then return Nothing else Just <$> do
+        typeError_ $ TerminationCheckFailed termErrs
+      return (i, SomeWarnings $ Warnings termErr unsolvedMetas unsolvedConstraints)
 
     -- Profiling: Print statistics.
     verboseS "profile" 1 $ do
