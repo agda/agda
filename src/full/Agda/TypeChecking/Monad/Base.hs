@@ -1774,11 +1774,13 @@ patternViolation = do
 internalError :: MonadTCM tcm => String -> tcm a
 internalError s = typeError $ InternalError s
 
+{-# SPECIALIZE typeError :: TypeError -> TCM a #-}
 typeError :: MonadTCM tcm => TypeError -> tcm a
-typeError err = liftTCM $ do
-    cl <- buildClosure err
-    s  <- get
-    throwError $ TypeError s cl
+typeError err = liftTCM $ throwError =<< typeError_ err
+
+{-# SPECIALIZE typeError_ :: TypeError -> TCM TCErr #-}
+typeError_ :: MonadTCM tcm => TypeError -> tcm TCErr
+typeError_ err = liftTCM $ TypeError <$> get <*> buildClosure err
 
 -- | Running the type checking monad (most general form).
 {-# SPECIALIZE runTCM :: TCEnv -> TCState -> TCM a -> IO (a, TCState) #-}
