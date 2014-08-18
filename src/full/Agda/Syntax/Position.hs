@@ -64,13 +64,15 @@ module Agda.Syntax.Position
   , tests
   ) where
 
+import Prelude hiding (null)
+
 import Control.Applicative
 import Control.Monad
 
 import Data.Foldable (Foldable)
 import Data.Function
 import Data.Int
-import Data.List
+import Data.List hiding (null)
 import Data.Set (Set)
 import qualified Data.Set as Set
 import Data.Traversable (Traversable)
@@ -80,6 +82,7 @@ import Test.QuickCheck.All
 
 import Agda.Utils.FileName hiding (tests)
 import Agda.Utils.Maybe
+import Agda.Utils.Null
 import Agda.Utils.TestHelpers
 import Agda.Utils.QuickCheck
 
@@ -150,7 +153,7 @@ iLength i = posPos (iEnd i) - posPos (iStart i)
 --
 -- Note the invariant which ranges have to satisfy: 'rangeInvariant'.
 newtype Range' a = Range [Interval' a]
-  deriving (Typeable, Eq, Ord, Functor, Foldable, Traversable)
+  deriving (Typeable, Eq, Ord, Functor, Foldable, Traversable, Null)
 
 type Range     = Range' SrcFile
 
