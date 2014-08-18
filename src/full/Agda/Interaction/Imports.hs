@@ -368,8 +368,10 @@ getInterface' x includeStateChanges =
             return (True, r)
            else do
             ms       <- getImportPath
-            nesting  <- envModuleNestingLevel <$> ask
-            mf       <- stModuleToSource <$> get
+            nesting  <- asks envModuleNestingLevel
+            range    <- asks envRange
+            call     <- asks envCall
+            mf       <- gets stModuleToSource
             vs       <- getVisitedModules
             ds       <- getDecodedModules
             opts     <- stPersistentOptions . stPersistent <$> get
@@ -386,6 +388,12 @@ getInterface' x includeStateChanges =
             r <- freshTCM $
                    withImportPath ms $
                    local (\e -> e { envModuleNestingLevel = nesting
+                                    -- Andreas, 2014-08-18:
+                                    -- Preserve the range of import statement
+                                    -- for reporting termination errors in
+                                    -- imported modules:
+                                  , envRange              = range
+                                  , envCall               = call
                                   }) $ do
                      setDecodedModules ds
                      setCommandLineOptions opts
