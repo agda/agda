@@ -44,6 +44,7 @@ Working with Git (from 2014-06-15)
     maint-2.4.0$  git merge issue1234
     maint-2.4.0$  make install-bin test
     maint-2.4.0$  git push
+    maint-2.4.0$  git branch -d issue1234
 
     # Now fast-forward maint-2.4.0 branch without checking it out.
     # Merge it into master (assuming maint-2.4.0 is a `subset' of master).
