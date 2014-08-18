@@ -1,0 +1,4 @@
+panic: error when printing error!
+Issue1251/NonTerminating.agda:6,1-8,20
+Panic: Unbound name: Common.Prelude.Nat.zero [0,1,6,7]@76032943
+when printing error Issue1251.agda:1,13-37 TerminationCheckFailed
