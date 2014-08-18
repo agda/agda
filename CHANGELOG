@@ -895,7 +895,7 @@ Compiler backends
     "C-c C-x C-c" as before.
 
   * A new pragma COMPILED_EXPORT was added as part of the MAlonzo FFI.
-    If we have an agda file containing the following:
+    If we have an Agda file containing the following:
 
        module A.B where
 

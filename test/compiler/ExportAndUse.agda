@@ -11,6 +11,5 @@ foo false = true
 
 {-# COMPILED_EXPORT foo foohs #-}
 
-
 test : Bool
 test = foo true
