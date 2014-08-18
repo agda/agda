@@ -136,7 +136,8 @@ bltQual b s = do
   Def q _ <- ignoreSharing <$> getBuiltin b
   xqual q (HS.Ident s)
 
--- sub-naming for cascaded definitions for concsecutive clauses
+-- Sub-naming for cascaded definitions for consecutive clauses.
+dsubname :: QName -> Nat -> HS.Name
 dsubname q i | i == 0    = unqhname "d"                     q
              | otherwise = unqhname ("d_" ++ show i ++ "_") q
 
@@ -157,7 +158,9 @@ mazerror msg = error $ mazstr ++ ": " ++ msg
 mazCoerce = HS.Var $ HS.Qual mazRTE $ HS.Ident "mazCoerce"
 
 -- Andreas, 2011-11-16: error incomplete match now RTE-call
+mazIncompleteMatch :: HS.Exp
 mazIncompleteMatch = HS.Var $ HS.Qual mazRTE $ HS.Ident "mazIncompleteMatch"
+
 rtmIncompleteMatch :: QName -> HS.Exp
 rtmIncompleteMatch q = mazIncompleteMatch `HS.App` hsVarUQ (unqhname "name" q)
 
