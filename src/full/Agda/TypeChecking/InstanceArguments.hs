@@ -87,7 +87,7 @@ initialIFSCandidates t = do
           args <- freeVarsToApply q
           let v = case theDef def of
                -- drop parameters if it's a projection function...
-               Function{ funProjection = Just p } -> Def q $ map Apply $ genericDrop (projIndex p - 1) args
+               Function{ funProjection = Just p } -> projDropPars p `apply` args
                Constructor{}                      -> Con (ConHead q []) []
                _                                  -> Def q $ map Apply args
           return [(v, t)]
