@@ -12,11 +12,12 @@ bibtool=bibtool -- 'preserve.key.case = ON' \
 	  -- 'delete.field = { dvi }' \
 	  -- 'delete.field = { postscript }' \
 	  -- 'delete.field = { pdf }' \
-	  -- 'delete.field = { url }' 
+	  -- 'delete.field = { url }'
 catcfg=sed -e "s/%.*//g" <
 
 latex=latex
 pdflatex=pdflatex
+lhs2tex=lhs2TeX --verbatim-comments
 
 .PHONY : default debugMake
 
@@ -34,7 +35,7 @@ default : haskell-style.pdf
 # 	touch $@;
 
 # # then, run bibtex
-# haskell-style.bbl : haskell-style_aux auto-haskell-style.bib 
+# haskell-style.bbl : haskell-style_aux auto-haskell-style.bib
 # 	-bibtex haskell-style;
 
 # # finally, finish by running latex twice again
@@ -71,13 +72,13 @@ default : haskell-style.pdf
 	lhs2TeX --agda $< > $@
 
 %.tex : %.lhs
-	lhs2TeX --verbatim-comments $< > $@
+	$(lhs2tex) $< > $@
 
-% : %.pdf 
+% : %.pdf
 	cp -p $? $(destdir)/;
 	touch $@;
 
-%.dvi : %.tex 
+%.dvi : %.tex
 	$(latex) $<;
 	-bibtex $*;
 	$(latex) $<;
@@ -92,5 +93,8 @@ default : haskell-style.pdf
 
 %.gz : %
 	cat $< | gzip > $@
+
+clean :
+	-rm *.aux *.log *.out *.ptb haskell-style.tex haskell-style.pdf
 
 #EOF
