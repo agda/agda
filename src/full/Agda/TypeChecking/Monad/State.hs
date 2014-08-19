@@ -1,3 +1,5 @@
+{-# LANGUAGE CPP #-}
+
 -- | Lenses for 'TCState' and more.
 
 module Agda.TypeChecking.Monad.State where
@@ -18,6 +20,7 @@ import Agda.Syntax.Scope.Base
 import qualified Agda.Syntax.Concrete.Name as C
 import Agda.Syntax.Abstract (PatternSynDefn, PatternSynDefns)
 import Agda.Syntax.Abstract.Name
+import Agda.Syntax.Internal
 
 import Agda.TypeChecking.Monad.Base
 import Agda.TypeChecking.Monad.Base.Benchmark
@@ -26,6 +29,10 @@ import {-# SOURCE #-} Agda.TypeChecking.Monad.Options
 import Agda.Utils.Hash
 import Agda.Utils.Monad (bracket_)
 import Agda.Utils.Pretty
+import Agda.Utils.Tuple
+
+#include "../../undefined.h"
+import Agda.Utils.Impossible
 
 -- | Resets the non-persistent part of the type checking state.
 
@@ -113,6 +120,66 @@ printScope :: String -> Int -> String -> TCM ()
 printScope tag v s = verboseS ("scope." ++ tag) v $ do
   scope <- getScope
   reportSDoc ("scope." ++ tag) v $ return $ vcat [ text s, text $ show scope ]
+
+---------------------------------------------------------------------------
+-- * Signature
+---------------------------------------------------------------------------
+
+-- ** Lens for 'stSignature' and 'stImports'
+
+modifySignature :: (Signature -> Signature) -> TCM ()
+modifySignature f = modify $ \s -> s { stSignature = f $ stSignature s }
+
+modifyImportedSignature :: (Signature -> Signature) -> TCM ()
+modifyImportedSignature f = modify $ \s -> s { stImports = f $ stImports s }
+
+getSignature :: TCM Signature
+getSignature = gets stSignature
+
+getImportedSignature :: TCM Signature
+getImportedSignature = gets stImports
+
+setSignature :: Signature -> TCM ()
+setSignature sig = modifySignature $ const sig
+
+setImportedSignature :: Signature -> TCM ()
+setImportedSignature sig = modify $ \s -> s { stImports = sig }
+
+-- | Run some computation in a different signature, restore original signature.
+withSignature :: Signature -> TCM a -> TCM a
+withSignature sig m = do
+  sig0 <- getSignature
+  setSignature sig
+  r <- m
+  setSignature sig0
+  return r
+
+-- ** Modifiers for parts of the signature
+
+lookupDefinition :: QName -> Signature -> Maybe Definition
+lookupDefinition q sig = HMap.lookup q $ sigDefinitions sig
+
+updateDefinition :: QName -> (Definition -> Definition) -> Signature -> Signature
+updateDefinition q f sig = sig { sigDefinitions = HMap.adjust f q (sigDefinitions sig) }
+
+updateTheDef :: (Defn -> Defn) -> (Definition -> Definition)
+updateTheDef f def = def { theDef = f (theDef def) }
+
+updateDefType :: (Type -> Type) -> (Definition -> Definition)
+updateDefType f def = def { defType = f (defType def) }
+
+updateDefArgOccurrences :: ([Occurrence] -> [Occurrence]) -> (Definition -> Definition)
+updateDefArgOccurrences f def = def { defArgOccurrences = f (defArgOccurrences def) }
+
+updateDefPolarity :: ([Polarity] -> [Polarity]) -> (Definition -> Definition)
+updateDefPolarity f def = def { defPolarity = f (defPolarity def) }
+
+updateDefCompiledRep :: (CompiledRepresentation -> CompiledRepresentation) -> (Definition -> Definition)
+updateDefCompiledRep f def = def { defCompiledRep = f (defCompiledRep def) }
+
+updateFunClauses :: ([Clause] -> [Clause]) -> (Defn -> Defn)
+updateFunClauses f def@Function{ funClauses = cs} = def { funClauses = f cs }
+updateFunClauses f _                              = __IMPOSSIBLE__
 
 ---------------------------------------------------------------------------
 -- * Top level module
