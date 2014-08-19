@@ -125,6 +125,7 @@ checkDecl d = traceCall (SetRange (getRange d)) $ do
       A.UnquoteDecl mi i x e   -> checkUnquoteDecl mi i x e
 
     unlessM (isJust . envMutualBlock <$> ask) $ do
+      -- The termination errors are not returned, but used for highlighting.
       termErrs <- caseMaybe finalChecks (return []) $ \ theMutualChecks -> do
         solveSizeConstraints
         wakeupConstraints_   -- solve emptyness constraints

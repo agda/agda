@@ -1,8 +1,42 @@
 ------------------------------------------------------------------------
+-- Release notes for Agda 2 version 2.4.0.3
+------------------------------------------------------------------------
+
+Important changes since 2.4.0.2:
+
+* Bugs fixed (see https://code.google.com/p/agda/issues):
+  1236
+
+------------------------------------------------------------------------
 -- Release notes for Agda 2 version 2.4.0.2
 ------------------------------------------------------------------------
 
 Important changes since 2.4.0.1:
+
+* The Agda input mode now supports alphabetical super and subscripts,
+  in addition to the numerical ones that were already present.
+  [Issue 1240]
+
+* New feature: Interactively split result.
+
+  Make case (C-c C-c) with no variables given tries to split on the
+  result to introduce projection patterns.  The hole needs to be of
+  record type, of course.
+
+    test : {A B : Set} (a : A) (b : B) → A × B
+    test a b = ?
+
+  Result-splitting ? will produce the new clauses:
+
+    proj₁ (test a b) = ?
+    proj₂ (test a b) = ?
+
+  If hole is of function type ending in a record type, the necessary
+  pattern variables will be introduced before the split.  Thus, the
+  same result can be obtained by starting from:
+
+    test : {A B : Set} (a : A) (b : B) → A × B
+    test = ?
 
 * The so far undocumented ETA pragma now throws an error if applied to
   definitions that are not records.
@@ -38,6 +72,13 @@ Important changes since 2.4.0.1:
   1213
   1214
   1216
+  1225
+  1226
+  1231
+  1233
+  1239
+  1241
+  1243
 
 ------------------------------------------------------------------------
 -- Release notes for Agda 2 version 2.4.0.1
@@ -55,9 +96,9 @@ Important changes since 2.4.0:
 -- Release notes for Agda 2 version 2.4.0
 ------------------------------------------------------------------------
 
-Important changes since 2.3.2:
+Important changes since 2.3.2.2:
 
-Installation and Infrastructure
+Installation and infrastructure
 ===============================
 
 * A new module called Agda.Primitive has been introduced. This module
@@ -116,8 +157,7 @@ Installation and Infrastructure
   The location can also be set at run-time, using the Agda_datadir
   environment variable.
 
-
-Pragmas and Options
+Pragmas and options
 ===================
 
 * Pragma NO_TERMINATION_CHECK placed within a mutual block is now
@@ -152,8 +192,6 @@ Pragmas and Options
   Option --sized-types is now default.
   --no-sized-types will turn off an extra (inexpensive) analysis on
   data types used for subtyping of sized types.
-
-
 
 Language
 ========
@@ -534,7 +572,6 @@ Goal and error display
 Type checking
 =============
 
-
 * [ issue 376 ] Implemented expansion of bound record variables during meta assignment.
   Now Agda can solve for metas X that are applied to projected variables, e.g.:
 
@@ -858,7 +895,7 @@ Compiler backends
     "C-c C-x C-c" as before.
 
   * A new pragma COMPILED_EXPORT was added as part of the MAlonzo FFI.
-    If we have an agda file containing the following:
+    If we have an Agda file containing the following:
 
        module A.B where
 
@@ -1167,7 +1204,7 @@ Installation
   Emacs Lisp files, then Emacs may continue using the old, compiled
   files.
 
-Pragmas and Options
+Pragmas and options
 ===================
 
 * The --without-K check now reconstructs constructor parameters.
@@ -2212,7 +2249,6 @@ Meta-variables and unification
   "-with-implicits" module:
 
     open Eq {{...}}
-
 
   Instance argument resolution is not recursive. As an example,
   consider the following "parametrised instance":

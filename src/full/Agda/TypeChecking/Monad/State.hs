@@ -1,3 +1,5 @@
+{-# LANGUAGE CPP #-}
+
 -- | Lenses for 'TCState' and more.
 
 module Agda.TypeChecking.Monad.State where
@@ -18,6 +20,7 @@ import Agda.Syntax.Scope.Base
 import qualified Agda.Syntax.Concrete.Name as C
 import Agda.Syntax.Abstract (PatternSynDefn, PatternSynDefns)
 import Agda.Syntax.Abstract.Name
+import Agda.Syntax.Internal
 
 import Agda.TypeChecking.Monad.Base
 import Agda.TypeChecking.Monad.Base.Benchmark
@@ -27,6 +30,10 @@ import Agda.Utils.Hash
 import qualified Agda.Utils.HashMap as HMap
 import Agda.Utils.Monad (bracket_)
 import Agda.Utils.Pretty
+import Agda.Utils.Tuple
+
+#include "../../undefined.h"
+import Agda.Utils.Impossible
 
 -- | Resets the non-persistent part of the type checking state.
 
@@ -114,6 +121,66 @@ printScope :: String -> Int -> String -> TCM ()
 printScope tag v s = verboseS ("scope." ++ tag) v $ do
   scope <- getScope
   reportSDoc ("scope." ++ tag) v $ return $ vcat [ text s, text $ show scope ]
+
+---------------------------------------------------------------------------
+-- * Signature
+---------------------------------------------------------------------------
+
+-- ** Lens for 'stSignature' and 'stImports'
+
+modifySignature :: (Signature -> Signature) -> TCM ()
+modifySignature f = modify $ \s -> s { stSignature = f $ stSignature s }
+
+modifyImportedSignature :: (Signature -> Signature) -> TCM ()
+modifyImportedSignature f = modify $ \s -> s { stImports = f $ stImports s }
+
+getSignature :: TCM Signature
+getSignature = gets stSignature
+
+getImportedSignature :: TCM Signature
+getImportedSignature = gets stImports
+
+setSignature :: Signature -> TCM ()
+setSignature sig = modifySignature $ const sig
+
+setImportedSignature :: Signature -> TCM ()
+setImportedSignature sig = modify $ \s -> s { stImports = sig }
+
+-- | Run some computation in a different signature, restore original signature.
+withSignature :: Signature -> TCM a -> TCM a
+withSignature sig m = do
+  sig0 <- getSignature
+  setSignature sig
+  r <- m
+  setSignature sig0
+  return r
+
+-- ** Modifiers for parts of the signature
+
+lookupDefinition :: QName -> Signature -> Maybe Definition
+lookupDefinition q sig = HMap.lookup q $ sigDefinitions sig
+
+updateDefinition :: QName -> (Definition -> Definition) -> Signature -> Signature
+updateDefinition q f sig = sig { sigDefinitions = HMap.adjust f q (sigDefinitions sig) }
+
+updateTheDef :: (Defn -> Defn) -> (Definition -> Definition)
+updateTheDef f def = def { theDef = f (theDef def) }
+
+updateDefType :: (Type -> Type) -> (Definition -> Definition)
+updateDefType f def = def { defType = f (defType def) }
+
+updateDefArgOccurrences :: ([Occurrence] -> [Occurrence]) -> (Definition -> Definition)
+updateDefArgOccurrences f def = def { defArgOccurrences = f (defArgOccurrences def) }
+
+updateDefPolarity :: ([Polarity] -> [Polarity]) -> (Definition -> Definition)
+updateDefPolarity f def = def { defPolarity = f (defPolarity def) }
+
+updateDefCompiledRep :: (CompiledRepresentation -> CompiledRepresentation) -> (Definition -> Definition)
+updateDefCompiledRep f def = def { defCompiledRep = f (defCompiledRep def) }
+
+updateFunClauses :: ([Clause] -> [Clause]) -> (Defn -> Defn)
+updateFunClauses f def@Function{ funClauses = cs} = def { funClauses = f cs }
+updateFunClauses f _                              = __IMPOSSIBLE__
 
 ---------------------------------------------------------------------------
 -- * Top level module
@@ -244,25 +311,37 @@ freshTCM m = do
 -- * Instance definitions
 ---------------------------------------------------------------------------
 
+-- | Lens for 'stInstanceDefs'.
+updateInstanceDefs :: (TempInstanceTable -> TempInstanceTable) -> (TCState -> TCState)
+updateInstanceDefs f s = s { stInstanceDefs = f $ stInstanceDefs s }
+
+modifyInstanceDefs :: (TempInstanceTable -> TempInstanceTable) -> TCM ()
+modifyInstanceDefs = modify . updateInstanceDefs
+
 getAllInstanceDefs :: TCM TempInstanceTable
 getAllInstanceDefs = gets stInstanceDefs
 
 getAnonInstanceDefs :: TCM [QName]
 getAnonInstanceDefs = snd <$> getAllInstanceDefs
 
+-- | Remove all instances whose type is still unresolved.
 clearAnonInstanceDefs :: TCM ()
-clearAnonInstanceDefs = modify $ (\st -> st {stInstanceDefs = (fst (stInstanceDefs st) , [])})
+clearAnonInstanceDefs = modifyInstanceDefs $ mapSnd $ const []
 
+-- | Add an instance whose type is still unresolved.
 addUnknownInstance :: QName -> TCM ()
 addUnknownInstance x = do
-  reportSLn "tc.decl.instance" 10 $ ("adding definition " ++ show x ++ " to the instance table (the type is not yet known)")
-  modify $ \s -> s { stInstanceDefs = (fst (stInstanceDefs s) , x : snd (stInstanceDefs s))}
+  reportSLn "tc.decl.instance" 10 $ "adding definition " ++ show x ++ " to the instance table (the type is not yet known)"
+  modifyInstanceDefs $ mapSnd (x:)
 
-addNamedInstance :: QName -> QName -> TCM ()
+-- | Add instance to some ``class''.
+addNamedInstance
+  :: QName  -- ^ Name of the instance.
+  -> QName  -- ^ Name of the class.
+  -> TCM ()
 addNamedInstance x n = do
   reportSLn "tc.decl.instance" 10 $ ("adding definition " ++ show x ++ " to instance table for " ++ show n)
-  modify $ \s -> s { stInstanceDefs = (Map.insertWith (++) n [x] (fst (stInstanceDefs s)) , snd (stInstanceDefs s))
-                   , stSignature = let sig = stSignature s
-                                       def = sigDefinitions sig
-                                   in sig { sigDefinitions = HMap.adjust (\d -> d { defInstance = Just n }) x def }
-                   }
+  -- Mark x as instance for n.
+  modifySignature $ updateDefinition x $ \ d -> d { defInstance = Just n }
+  -- Add x to n's instances.
+  modifyInstanceDefs $ mapFst $ Map.insertWith (++) n [x]

@@ -95,8 +95,8 @@ data Expr
 	| ScopedExpr ScopeInfo Expr	     -- ^ scope annotation
         | QuoteGoal ExprInfo Name Expr       -- ^ binds @Name@ to current type in @Expr@
         | QuoteContext ExprInfo Name Expr    -- ^ binds @Name@ to current context in @Expr@
-        | Quote ExprInfo                     -- ^
-        | QuoteTerm ExprInfo                 -- ^
+        | Quote ExprInfo                     -- ^ Quote an identifier 'QName'.
+        | QuoteTerm ExprInfo                 -- ^ Quote a term.
         | Unquote ExprInfo                   -- ^ The splicing construct: unquote ...
         | DontCare Expr                      -- ^ for printing DontCare from Syntax.Internal
         | PatternSyn QName

@@ -1,4 +1,5 @@
 {-# LANGUAGE CPP #-}
+{-# LANGUAGE DoAndIfThenElse #-}
 {-# LANGUAGE TupleSections #-}
 
 module Agda.Interaction.MakeCase where
@@ -112,9 +113,17 @@ makeCase hole rng s = withInteractionId hole $ do
       , text "ps      =" <+> text (show ps)
       ]
     ]
-  -- vars <- mapM (\s -> deBruijnIndex =<< parseExprIn hole rng s) $ words s
-  vars <- parseVariables hole rng $ words s
-  (casectxt,) <$> split f vars clause
+  let vars = words s
+  if null vars then do
+    -- split result
+    res <- splitResult f =<< fixTarget (clauseToSplitClause clause)
+    case res of
+      Nothing  -> typeError $ GenericError $ "Cannot split on result here"
+      Just cov -> (casectxt,) <$> do mapM (makeAbstractClause f) $ splitClauses cov
+  else do
+    -- split on variables
+    vars <- parseVariables hole rng vars
+    (casectxt,) <$> split f vars clause
   where
   split :: QName -> [Nat] -> Clause -> TCM [A.Clause]
   split f [] clause =

@@ -17,6 +17,7 @@ import System.Exit
 import qualified Text.PrettyPrint.Boxes as Boxes
 
 import Agda.Syntax.Concrete.Pretty ()
+import Agda.Syntax.Abstract.Name (toTopLevelModuleName)
 
 import Agda.Interaction.CommandLine.CommandLine
 import Agda.Interaction.Options
@@ -134,15 +135,17 @@ runAgda = do
           result <- case mw of
                           -- we get here if there are unfilled interaction
                           -- points that have been solved by unification
-            SomeWarnings (Warnings [] [] []) -> return Nothing
-            SomeWarnings (Warnings _ unsolved@(_:_) _)
-              | not unsolvedOK -> typeError $ UnsolvedMetas unsolved
-            SomeWarnings (Warnings _ _ unsolved@(_:_))
-              | not unsolvedOK -> typeError $ UnsolvedConstraints unsolved
-            SomeWarnings (Warnings termErrs@(_:_) _ _) ->
-              typeError $ TerminationCheckFailed termErrs
-            SomeWarnings _  -> return Nothing
-            NoWarnings -> return $ Just i
+            SomeWarnings (Warnings Nothing [] []) -> return Nothing
+            -- Unsolved metas.
+            SomeWarnings (Warnings _ w@(_:_) _)
+              | not unsolvedOK                    -> typeError $ UnsolvedMetas w
+            -- Unsolved constraints.
+            SomeWarnings (Warnings _ _ w@(_:_))
+              | not unsolvedOK                    -> typeError $ UnsolvedConstraints w
+            -- Termination errors.
+            SomeWarnings (Warnings (Just w) _ _)  -> throwError w
+            SomeWarnings _                        -> return Nothing
+            NoWarnings                            -> return $ Just i
 
           whenM (optGenerateHTML <$> commandLineOptions) $
             generateHTML
@@ -151,7 +154,7 @@ runAgda = do
             Dot.generateDot $ i
 
           whenM (optGenerateLaTeX <$> commandLineOptions) $
-            LaTeX.generateLaTeX (iModuleName i) (iHighlighting i)
+            LaTeX.generateLaTeX (toTopLevelModuleName $ iModuleName i) (iHighlighting i)
 
           return result
 

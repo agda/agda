@@ -1,0 +1,4 @@
+Issue1236.agda:8,1-16
+Not supported: @-patterns
+when scope checking the left-hand side boom n@(Succ _) in the
+definition of boom

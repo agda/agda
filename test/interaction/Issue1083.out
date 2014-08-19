@@ -10,7 +10,7 @@ Agda2> (agda2-give-action 1 "true")
 (agda2-status-action "")
 (agda2-info-action "*All Goals*" "_x_9 : Bool  [ at Issue1083.agda:16,13-14 ]\n_11 : Bool → Bool  [ at Issue1083.agda:16,13-19 ]\n" nil)
 ((last . 1) . (agda2-goals-action '(0)))
-Agda2> (agda2-info-action "*Error*" "\nNo type nor action available for hole ?0" nil)
+Agda2> (agda2-info-action "*Error*" "No type nor action available for hole ?0" nil)
 (agda2-highlight-load-and-delete-action)
 (agda2-status-action "")
 Agda2> 

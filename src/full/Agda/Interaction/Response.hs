@@ -75,6 +75,7 @@ data DisplayInfo
     | Info_InferredType Doc
     | Info_Context Doc
     | Info_HelperFunction Doc
+    | Info_Version
         deriving Show
 
 -- | Status information.

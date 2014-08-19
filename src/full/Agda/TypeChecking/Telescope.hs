@@ -25,23 +25,31 @@ import qualified Agda.Utils.VarSet as Set
 #include "../undefined.h"
 import Agda.Utils.Impossible
 
-data OutputTypeName =
-    OutputTypeName QName
+data OutputTypeName
+  = OutputTypeName QName
   | OutputTypeNameNotYetKnown
   | NoOutputTypeName
 
--- | Strips all Pi's and return the head definition, if possible
+-- | Strips all Pi's and return the head definition name, if possible.
 getOutputTypeName :: Type -> TCM OutputTypeName
 getOutputTypeName t = do
   TelV tel t' <- telView t
-  bt' <- reduceB (unEl t')
-  case bt' of
-    Blocked{}    -> return OutputTypeNameNotYetKnown
-    NotBlocked v ->
-      case v of
-        Def n _   -> return $ OutputTypeName n
-        MetaV _ _ -> return OutputTypeNameNotYetKnown
-        _         -> return NoOutputTypeName
+  ifBlocked (unEl t') (\ _ _ -> return OutputTypeNameNotYetKnown) $ \ v ->
+    case ignoreSharing v of
+      -- Possible base types:
+      Def n _  -> return $ OutputTypeName n
+      Sort{}   -> return NoOutputTypeName
+      Var{}    -> return NoOutputTypeName
+      -- Not base types:
+      Con{}    -> __IMPOSSIBLE__
+      ExtLam{} -> __IMPOSSIBLE__
+      Lam{}    -> __IMPOSSIBLE__
+      Lit{}    -> __IMPOSSIBLE__
+      Level{}  -> __IMPOSSIBLE__
+      MetaV{}  -> __IMPOSSIBLE__
+      Pi{}     -> __IMPOSSIBLE__
+      Shared{} -> __IMPOSSIBLE__
+      DontCare{} -> __IMPOSSIBLE__
 
 -- | The permutation should permute the corresponding telescope. (left-to-right list)
 renameP :: Subst t => Permutation -> t -> t
@@ -189,7 +197,7 @@ resolveUnknownInstanceDefs :: TCM ()
 resolveUnknownInstanceDefs = do
   anonInstanceDefs <- getAnonInstanceDefs
   clearAnonInstanceDefs
-  forM_ anonInstanceDefs (\n -> do t <- typeOfConst n; addTypedInstance n t)
+  forM_ anonInstanceDefs $ \ n -> addTypedInstance n =<< typeOfConst n
 
 -- | Try to solve the instance definitions whose type is not yet known, report
 --   an error if it doesn't work and return the instance table otherwise.
@@ -197,5 +205,6 @@ getInstanceDefs :: TCM InstanceTable
 getInstanceDefs = do
   resolveUnknownInstanceDefs
   insts <- getAllInstanceDefs
-  unless (null $ snd insts) (typeError $ GenericError $ "There are instances whose type is still unsolved")
-  return (fst insts)
+  unless (null $ snd insts) $
+    typeError $ GenericError $ "There are instances whose type is still unsolved"
+  return $ fst insts

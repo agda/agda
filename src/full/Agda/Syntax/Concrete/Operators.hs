@@ -11,6 +11,7 @@
 -}
 module Agda.Syntax.Concrete.Operators
     ( parseApplication
+    , parseModuleApplication
     , parseLHS
     , parsePattern
     , parsePatternSyn
@@ -20,7 +21,7 @@ module Agda.Syntax.Concrete.Operators
     , validConPattern
     , patternAppView
     , fullParen
-    , buildParser
+    , buildParsers, buildParser
     , parsePat
     , getDefinedNames
     , UseBoundNames(..)
@@ -173,8 +174,27 @@ notationNames (q, _, ps) = zipWith ($) (requal : repeat QName) [Name noRange [Id
     ms       = init (qnameParts q)
     requal x = foldr Qual (QName x) ms
 
+-- | Data structure filled in by @buildParsers@.
+--   The top-level parser @pTop@ is of primary interest,
+--   but @pArgs@ is used to convert module application
+--   from concrete to abstract syntax.
+data Parsers e = Parsers
+  { pTop    :: ReadP e e  -- this was returned by @buildParser@
+  , pApp    :: ReadP e e
+  , pArgs   :: ReadP e [NamedArg e]
+  , pNonfix :: ReadP e e
+  , pAtom   :: ReadP e e
+  }
+
+-- | For backwards compatibility.
+--   Returns the @pTop@ from @buildParsers@.
 buildParser :: forall e. IsExpr e => Range -> FlatScope -> UseBoundNames -> ScopeM (ReadP e e)
 buildParser r flat use = do
+    p <- buildParsers r flat use
+    return $ pTop p
+
+buildParsers :: forall e. IsExpr e => Range -> FlatScope -> UseBoundNames -> ScopeM (Parsers e)
+buildParsers r flat use = do
     (names, ops) <- localNames flat
     let cons = getDefinedNames [ConName, PatternSynName] flat
     reportSLn "scope.operators" 50 $ unlines
@@ -192,12 +212,16 @@ buildParser r flat use = do
                        DontUseBoundNames -> not (Set.member x conparts) || Set.member x connames
         -- If string is a part of notation, it cannot be used as an identifier,
         -- unless it is also used as an identifier. See issue 307.
-    return $ -- traceShow ops $
-           recursive $ \p -> -- p is a parser for an arbitrary expression
-        concatMap (mkP p) (order fix) -- for infix operators (with outer "holes")
-        ++ [ appP p ] -- parser for simple applications
-        ++ map (nonfixP . opP p) non -- for things with no outer "holes"
-        ++ [ const $ atomP isAtom ]
+
+    let chain = foldr ( $ )
+
+    return $ Data.Function.fix $ \p -> Parsers
+        { pTop    = chain (pApp p) (concatMap (mkP (pTop p)) (order fix))
+        , pApp    = appP (pNonfix p) (pArgs p)
+        , pArgs   = argsP (pNonfix p)
+        , pNonfix = chain (pAtom p) (map (nonfixP . opP (pTop p)) non)
+        , pAtom   = atomP isAtom
+        }
     where
         level :: NewNotation -> Integer
         level (_name, fixity, _syn) = fixityLevel fixity
@@ -241,6 +265,7 @@ buildParser r flat use = do
                     case filter g ops of
                         []  -> []
                         ops -> [ f $ choice $ map (opP p0) ops ]
+
 
 ---------------------------------------------------------------------------
 -- * Expression instances
@@ -399,7 +424,8 @@ parseLHS' :: LHSOrPatSyn -> Maybe Name -> Pattern -> ScopeM ParseLHS
 parseLHS' lhsOrPatSyn top p = do
     let ms = qualifierModules $ patternQNames p
     flat <- flattenScope ms <$> getScope
-    patP <- buildParser (getRange p) flat DontUseBoundNames
+    parsers <- buildParsers (getRange p) flat DontUseBoundNames
+    let patP = pTop parsers
     let cons = getNames [ConName, PatternSynName] flat
     let flds = getNames [FldName] flat
     case [ res | p' <- force $ parsePat patP p
@@ -526,7 +552,7 @@ patternQNames p = case p of
   InstanceP _ p    -> patternQNames (namedThing p)
   OpAppP r d ps    -> __IMPOSSIBLE__
   AppP{}           -> __IMPOSSIBLE__
-  AsP{}            -> __IMPOSSIBLE__
+  AsP r x p        -> patternQNames p
   AbsurdP{}        -> []
   WildP{}          -> []
   DotP{}           -> []
@@ -549,20 +575,59 @@ parseApplication es = do
     flat <- flattenScope ms <$> getScope
     -- Andreas, 2014-04-27 Time for building the parser is negligible
     p <- -- billSub [Bench.Parsing, Bench.Operators, Bench.BuildParser] $
-      buildParser (getRange es) flat UseBoundNames
+      buildParsers (getRange es) flat UseBoundNames
 
     -- Parse
-    case force $ parse p es of
+    case force $ parse (pTop p) es of
         [e] -> return e
-        []  -> do
+        [] -> do
           -- When the parser fails and a name is not in scope, it is more
           -- useful to say that to the user rather than just "failed".
           inScope <- partsInScope flat
           case [ x | Ident x <- es, not (Set.member x inScope) ] of
-               []  -> typeError $ NoParseForApplication es
-               xs  -> typeError $ NotInScope xs
+              [] -> typeError $ NoParseForApplication es
+              xs -> typeError $ NotInScope xs
 
         es' -> typeError $ AmbiguousParseForApplication es $ map fullParen es'
+
+parseModuleIdentifier :: Expr -> ScopeM QName
+parseModuleIdentifier (Ident m) = return m
+parseModuleIdentifier e = typeError $ NotAModuleExpr e
+
+parseRawModuleApplication :: [Expr] -> ScopeM (QName, [NamedArg Expr])
+parseRawModuleApplication es = do
+    let e : es_args = es
+    m <- parseModuleIdentifier e
+
+    -- Build the arguments parser
+    let ms = qualifierModules [ q | Ident q <- es_args ]
+    flat <- flattenScope ms <$> getScope
+    p <- buildParsers (getRange es_args) flat UseBoundNames
+
+    -- Parse
+    case {-force $-} parse (pArgs p) es_args of -- TODO: not sure about forcing
+        [as] -> return (m, as)
+        [] -> do
+          inScope <- partsInScope flat
+          case [ x | Ident x <- es_args, not (Set.member x inScope) ] of
+              [] -> typeError $ NoParseForApplication es
+              xs -> typeError $ NotInScope xs
+
+        ass -> do
+          let f = fullParen . foldl (App noRange) (Ident m)
+          typeError $ AmbiguousParseForApplication es
+                    $ map f ass
+
+-- | Parse an expression into a module application
+--   (an identifier plus a list of arguments).
+parseModuleApplication :: Expr -> ScopeM (QName, [NamedArg Expr])
+parseModuleApplication (RawApp _ es) = parseRawModuleApplication es
+parseModuleApplication (App r e1 e2) = do -- TODO: do we need this case?
+    (m, args) <- parseModuleApplication e1
+    return (m, args ++ [e2])
+parseModuleApplication e = do
+    m <- parseModuleIdentifier e
+    return (m, [])
 
 ---------------------------------------------------------------------------
 -- * Inserting parenthesis

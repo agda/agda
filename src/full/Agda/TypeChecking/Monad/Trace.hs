@@ -1,14 +1,19 @@
 
 module Agda.TypeChecking.Monad.Trace where
 
-import Control.Monad.Reader
+import Prelude hiding (null)
 
-import Agda.Syntax.Position
-import Agda.TypeChecking.Monad.Base
-import Agda.Utils.Monad
+import Control.Monad.Reader
 
 import {-# SOURCE #-} Agda.Interaction.Highlighting.Generate
   (highlightAsTypeChecked)
+
+import Agda.Syntax.Position
+import Agda.TypeChecking.Monad.Base
+
+import Agda.Utils.Function
+import Agda.Utils.Monad
+import Agda.Utils.Null
 
 ---------------------------------------------------------------------------
 -- * Trace
@@ -91,9 +96,7 @@ traceCallCPS_ mkCall ret cc =
     traceCallCPS mkCall (const ret) (\k -> cc $ k ())
 
 getCurrentRange :: TCM Range
-getCurrentRange = envRange <$> ask
+getCurrentRange = asks envRange
 
 setCurrentRange :: Range -> TCM a -> TCM a
-setCurrentRange r
-  | r == noRange = id
-  | otherwise    = traceCall (SetRange r)
+setCurrentRange r = applyUnless (null r) $ traceCall $ SetRange r

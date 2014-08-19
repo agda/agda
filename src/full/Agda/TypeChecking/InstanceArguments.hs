@@ -33,8 +33,12 @@ import Agda.Utils.Monad
 import Agda.Utils.Impossible
 
 -- | A candidate solution for an instance meta is a term with its type.
-type Candidates = [(Term, Type)]
+type Candidate  = (Term, Type)
+type Candidates = [Candidate]
 
+-- | Compute a list of instance candidates.
+--   'Nothing' if type is a meta, error if type is not eligible
+--   for instance search.
 initialIFSCandidates :: Type -> TCM (Maybe Candidates)
 initialIFSCandidates t = do
   cands1 <- getContextVars
@@ -66,12 +70,11 @@ initialIFSCandidates t = do
     getScopeDefs :: QName -> TCM Candidates
     getScopeDefs n = do
       instanceDefs <- getInstanceDefs
-      let qs = caseMaybe (Map.lookup n instanceDefs) [] (\l -> l)
-      rel   <- asks envRelevance
-      cands <- mapM (candidate rel) qs
-      return $ concat cands
+      rel          <- asks envRelevance
+      let qs = fromMaybe [] $ Map.lookup n instanceDefs
+      catMaybes <$> mapM (candidate rel) qs
 
-    candidate :: Relevance -> QName -> TCM Candidates
+    candidate :: Relevance -> QName -> TCM (Maybe Candidate)
     candidate rel q =
       -- Andreas, 2012-07-07:
       -- we try to get the info for q
@@ -80,18 +83,21 @@ initialIFSCandidates t = do
       flip catchError handle $ do
         def <- getConstInfo q
         let r = defRelevance def
-        if not (r `moreRelevant` rel) then return [] else do
+        if not (r `moreRelevant` rel) then return Nothing else do
           t   <- defType <$> instantiateDef def
           args <- freeVarsToApply q
           let v = case theDef def of
                -- drop parameters if it's a projection function...
-               Function{ funProjection = Just p } -> Def q $ map Apply $ genericDrop (projIndex p - 1) args
-               Constructor{}                      -> Con (ConHead q []) []
+               Function{ funProjection = Just p } -> projDropPars p `apply` args
+               -- Andreas, 2014-08-19: constructors cannot be declared as
+               -- instances (at least as of now).
+               -- I do not understand why the Constructor case is not impossible.
+               Constructor{ conSrcCon = c }       -> Con c []
                _                                  -> Def q $ map Apply args
-          return [(v, t)]
+          return $ Just (v, t)
       where
         -- unbound constant throws an internal error
-        handle (TypeError _ (Closure {clValue = InternalError _})) = return []
+        handle (TypeError _ (Closure {clValue = InternalError _})) = return Nothing
         handle err                                                 = throwError err
 
 -- | @initializeIFSMeta s t@ generates an instance meta of type @t@
@@ -116,7 +122,7 @@ findInScope m Nothing = do
   cands <- initialIFSCandidates t
   case cands of
     Nothing -> addConstraint $ FindInScope m Nothing
-    Just c -> findInScope m cands
+    Just {} -> findInScope m cands
 findInScope m (Just cands) = whenJustM (findInScope' m cands) $ addConstraint . FindInScope m . Just
 
 -- | Result says whether we need to add constraint, and if so, the set of
@@ -126,7 +132,8 @@ findInScope' m cands = ifM (isFrozen m) (return (Just cands)) $ do
     -- Andreas, 2013-12-28 issue 1003:
     -- If instance meta is already solved, simply discard the constraint.
     ifM (isInstantiatedMeta m) (return Nothing) $ do
-    reportSDoc "tc.constr.findInScope" 15 $ text ("findInScope 2: constraint: " ++ show m ++ "; candidates left: " ++ show (length cands))
+    reportSLn "tc.constr.findInScope" 15 $
+      "findInScope 2: constraint: " ++ show m ++ "; candidates left: " ++ show (length cands)
     t <- normalise =<< getMetaTypeInContext m
     reportSDoc "tc.constr.findInScope" 15 $ text "findInScope 3: t =" <+> prettyTCM t
     reportSLn "tc.constr.findInScope" 70 $ "findInScope 3: t: " ++ show t
@@ -134,29 +141,32 @@ findInScope' m cands = ifM (isFrozen m) (return (Just cands)) $ do
     -- If there are recursive instances, it's not safe to instantiate
     -- metavariables in the goal, so we freeze them before checking candidates.
     -- Metas that are rigidly constrained need not be frozen.
-    let isRec = foldl (\ b (_, t) -> b || (isRecursive $ unEl t)) False cands
-        shouldFreeze rigid m
+    isRec <- orM $ map (isRecursive . unEl . snd) cands
+    let shouldFreeze rigid m
           | elem m rigid = return False
           | otherwise    = not <$> isFrozen m
-    metas <- if not isRec then return []
-             else do
-                rigid <- rigidlyConstrainedMetas
-                filterM (shouldFreeze rigid) (allMetas t)
-    mapM_ (`updateMetaVar` \mv -> mv { mvFrozen = Frozen }) metas
+    metas <- if not isRec then return [] else do
+      rigid <- rigidlyConstrainedMetas
+      filterM (shouldFreeze rigid) (allMetas t)
+    forM_ metas $ \ m -> updateMetaVar m $ \ mv -> mv { mvFrozen = Frozen }
     cands <- checkCandidates m t cands
-    reportSLn "tc.constr.findInScope" 15 $ "findInScope 4: cands left: " ++ show (length cands)
+    reportSLn "tc.constr.findInScope" 15 $
+      "findInScope 4: cands left: " ++ show (length cands)
     unfreezeMeta metas
     case cands of
 
       [] -> do
-        reportSDoc "tc.constr.findInScope" 15 $ text "findInScope 5: not a single candidate found..."
+        reportSDoc "tc.constr.findInScope" 15 $
+          text "findInScope 5: not a single candidate found..."
         typeError $ IFSNoCandidateInScope t
 
       [(term, t')] -> do
-        reportSDoc "tc.constr.findInScope" 15 $ text (
-          "findInScope 5: one candidate found for type '") <+>
-          prettyTCM t <+> text "': '" <+> prettyTCM term <+>
-          text "', of type '" <+> prettyTCM t' <+> text "'."
+        reportSDoc "tc.constr.findInScope" 15 $ vcat
+          [ text "findInScope 5: found one candidate"
+          , nest 2 $ prettyTCM term
+          , text "of type " <+> prettyTCM t'
+          , text "for type" <+> prettyTCM t
+          ]
 
         -- if t' takes initial hidden arguments, apply them
         ca <- liftTCM $ runErrorT $ checkArguments ExpandLast ExpandInstanceArguments (getRange mv) [] t' t
@@ -172,9 +182,10 @@ findInScope' m cands = ifM (isFrozen m) (return (Just cands)) $ do
             ctxArgs <- getContextArgs
             v <- (`applyDroppingParameters` args) =<< reduce term
             assignV DirEq m ctxArgs v
-            reportSDoc "tc.constr.findInScope" 10 $
-              text "solved by instance search:" <+> prettyTCM m
-              <+> text ":=" <+> prettyTCM v
+            reportSDoc "tc.constr.findInScope" 10 $ vcat
+              [ text "solved by instance search:"
+              , prettyTCM m <+> text ":=" <+> prettyTCM v
+              ]
             return Nothing
 
       cs -> do
@@ -183,9 +194,15 @@ findInScope' m cands = ifM (isFrozen m) (return (Just cands)) $ do
           prettyTCM (List.map fst cs)
         return (Just cs)
     where
-      isRecursive :: Term -> Bool
-      isRecursive (Pi (Dom info _) t) = getHiding info == Instance || isRecursive (unEl $ unAbs t)
-      isRecursive _ = False
+      -- | Check whether a type is a function type with an instance domain.
+      isRecursive :: Term -> TCM Bool
+      isRecursive v = do
+        v <- reduce v
+        case ignoreSharing v of
+          Pi (Dom info _) t ->
+            if getHiding info == Instance then return True else
+              isRecursive $ unEl $ unAbs t
+          _ -> return False
 
 -- | A meta _M is rigidly constrained if there is a constraint _M us == D vs,
 -- for inert D. Such metas can safely be instantiated by recursive instance
@@ -193,7 +210,7 @@ findInScope' m cands = ifM (isFrozen m) (return (Just cands)) $ do
 rigidlyConstrainedMetas :: TCM [MetaId]
 rigidlyConstrainedMetas = do
   cs <- (++) <$> gets stSleepingConstraints <*> gets stAwakeConstraints
-  concat <$> mapM rigidMetas cs
+  catMaybes <$> mapM rigidMetas cs
   where
     isRigid v =
       case v of
@@ -212,18 +229,18 @@ rigidlyConstrainedMetas = do
       case clValue $ theConstraint c of
         ValueCmp _ _ u v ->
           case (u, v) of
-            (MetaV m _, _) -> ifM (isRigid v) (return [m]) (return [])
-            (_, MetaV m _) -> ifM (isRigid u) (return [m]) (return [])
-            _              -> return []
-        ElimCmp{}     -> return []
-        TypeCmp{}     -> return []
-        TelCmp{}      -> return []
-        SortCmp{}     -> return []
-        LevelCmp{}    -> return []
-        UnBlock{}     -> return []
-        Guarded{}     -> return []  -- don't look inside Guarded, since the inner constraint might not fire
-        IsEmpty{}     -> return []
-        FindInScope{} -> return []
+            (MetaV m _, _) -> ifM (isRigid v) (return $ Just m) (return Nothing)
+            (_, MetaV m _) -> ifM (isRigid u) (return $ Just m) (return Nothing)
+            _              -> return Nothing
+        ElimCmp{}     -> return Nothing
+        TypeCmp{}     -> return Nothing
+        TelCmp{}      -> return Nothing
+        SortCmp{}     -> return Nothing
+        LevelCmp{}    -> return Nothing
+        UnBlock{}     -> return Nothing
+        Guarded{}     -> return Nothing  -- don't look inside Guarded, since the inner constraint might not fire
+        IsEmpty{}     -> return Nothing
+        FindInScope{} -> return Nothing
 
 -- | Given a meta @m@ of type @t@ and a list of candidates @cands@,
 -- @checkCandidates m t cands@ returns a refined list of valid candidates.
@@ -262,9 +279,10 @@ checkCandidates m t cands = localTCState $ disableDestructiveUpdate $ do
               --tel <- getContextTelescope
               ctxArgs <- getContextArgs
               v <- (`applyDroppingParameters` args) =<< reduce term
-              reportSDoc "tc.constr.findInScope" 10 $
-                text "instance search: attempting" <+> prettyTCM m
-                <+> text ":=" <+> prettyTCM v
+              reportSDoc "tc.constr.findInScope" 15 $ vcat
+                [ text "instance search: attempting"
+                , nest 2 $ prettyTCM m <+> text ":=" <+> prettyTCM v
+                ]
               assign DirEq m ctxArgs v
 --              assign m ctxArgs (term `apply` args)
               -- make a pass over constraints, to detect cases where some are made
@@ -275,7 +293,8 @@ checkCandidates m t cands = localTCState $ disableDestructiveUpdate $ do
               return True
       where
         handle err = do
-          reportSDoc "tc.constr.findInScope" 50 $ text "assignment failed:" <+> prettyTCM err
+          reportSDoc "tc.constr.findInScope" 50 $
+            text "assignment failed:" <+> prettyTCM err
           return False
     isIFSConstraint :: Constraint -> Bool
     isIFSConstraint FindInScope{} = True

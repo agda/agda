@@ -10,22 +10,34 @@ agda = $(AGDA_BIN)
 
 run_agda = $(agda) -v0 --vim $(AGDA_TEST_FLAGS)
 
-test_files = Vec.agda Lookup.agda Binary.agda Setoid.agda \
-			 TT.agda ISWIM.agda ParenDepTac.agda \
-			 AIM5/Hedberg/SET.agda AIM5/yoshiki/SET.agda \
-			 SimpleTypes.agda Monad.agda Miller/Pat.agda \
-       syntax/Literate.lagda Termination/StreamEating.agda \
-	instance-arguments/01-arguments.agda \
-	instance-arguments/02-classes-indep.agda \
-	instance-arguments/04-equality.agda \
-	instance-arguments/06-listEquality.agda \
-	instance-arguments/07-subclasses.agda \
-	instance-arguments/08-higherOrder.agda \
-	instance-arguments/13-implicitProofObligations.agda \
-	instance-arguments/14-implicitConfigurations.agda
 # the other instance-arguments examples use the standard library,
 # seemingly no way to include it during test run...
-tests	   = $(patsubst %,%.test,$(test_files))
+test_files = AIM5/Hedberg/SET.agda \
+             AIM5/yoshiki/SET.agda \
+             Binary.agda \
+             DTP08/conor/Talk.agda \
+             DTP08/ulf/Talk.agda \
+             instance-arguments/01-arguments.agda \
+             instance-arguments/02-classes-indep.agda \
+             instance-arguments/04-equality.agda \
+             instance-arguments/06-listEquality.agda \
+             instance-arguments/07-subclasses.agda \
+             instance-arguments/08-higherOrder.agda \
+             instance-arguments/13-implicitProofObligations.agda \
+             instance-arguments/14-implicitConfigurations.agda \
+             ISWIM.agda \
+             Lookup.agda \
+             Miller/Pat.agda \
+             Monad.agda  \
+             ParenDepTac.agda \
+             Setoid.agda \
+             SimpleTypes.agda \
+             syntax/Literate.lagda \
+             Termination/StreamEating.agda \
+             TT.agda \
+             Vec.agda
+
+tests = $(patsubst %,%.test,$(test_files))
 
 echo = $(shell which echo)
 ifeq ("$(echo)","")

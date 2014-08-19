@@ -1,0 +1,52 @@
+-- Template for the release notes.
+
+------------------------------------------------------------------------
+-- Release notes for Agda version X.Y.Z
+------------------------------------------------------------------------
+
+Important changes since A.B.C:
+
+Bugs fixed
+==========
+
+Compiler backends
+=================
+
+Epic
+----
+
+JavaScript
+----------
+
+MAlonzo
+-------
+
+Documentation
+=============
+
+Goal and error display
+======================
+
+Installation and infrastructure
+===============================
+
+Language
+========
+
+Pragmas and options
+===================
+
+Termination checking
+====================
+
+Type checking
+=============
+
+Tools
+=====
+
+Emacs mode
+----------
+
+LaTeX-backend
+-------------

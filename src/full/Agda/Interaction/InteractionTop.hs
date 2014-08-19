@@ -381,6 +381,8 @@ data Interaction' range
 
   | Cmd_why_in_scope    InteractionId range String
   | Cmd_why_in_scope_toplevel String
+    -- | Displays version of the running Agda
+  | Cmd_show_version
         deriving (Read, Functor, Foldable, Traversable)
 
 
@@ -474,10 +476,11 @@ instance Read a => Read (Position' a) where
 --   into the state?
 
 independent :: Interaction -> Bool
-independent (Cmd_load {})    = True
-independent (Cmd_compile {}) = True
+independent (Cmd_load {})                   = True
+independent (Cmd_compile {})                = True
 independent (Cmd_load_highlighting_info {}) = True
-independent _                = False
+independent Cmd_show_version                = True
+independent _                               = False
 
 -- | Interpret an interaction
 
@@ -743,6 +746,8 @@ interpret (Cmd_compute ignore ii rng s) = do
          v <- if ignore then ignoreAbstractMode c else c
          prettyATop v
   display_info $ Info_NormalForm d
+
+interpret Cmd_show_version = display_info Info_Version
 
 type GoalCommand = InteractionId -> Range -> String -> Interaction
 

@@ -1,4 +1,4 @@
-{-# LANGUAGE CPP #-}
+{-# LANGUAGE CPP           #-}
 {-# LANGUAGE PatternGuards #-}
 
 module Agda.Compiler.MAlonzo.Compiler where
@@ -205,21 +205,40 @@ definition kit Defn{defName = q, defType = ty, defCompiledRep = compiled, theDef
 --         Just c  -> snd <$> condecl c
       return $ tvaldecl q Inductive noFields ar [cd] cl
   where
+  function :: [Clause] -> Maybe HaskellExport -> TCM [HS.Decl]
   function cls (Just (HsExport t name)) =
-    (HS.TypeSig dummy [HS.Ident name] (fakeType t) :) <$>
-    mkwhere <$> mapM (clause q (Just name)) (tag 0 cls)
-  function cls Nothing = mkwhere <$> mapM (clause q Nothing) (tag 0 cls)
+    do ccls <- functionStdName cls
+       let tsig :: HS.Decl
+           tsig = HS.TypeSig dummy [HS.Ident name] (fakeType t)
+
+           def :: HS.Decl
+           def = HS.FunBind [HS.Match dummy (HS.Ident name) [] Nothing (HS.UnGuardedRhs (hsVarUQ $ dsubname q 0)) (HS.BDecls [])]
+       return ([tsig,def] ++ ccls)
+  function cls Nothing = functionStdName cls
+
+  functionStdName :: [Clause] -> TCM [HS.Decl]
+  functionStdName cls = mkwhere <$> mapM (clause q Nothing) (tag 0 cls)
+
+  tag :: Nat -> [Clause] -> [(Nat, Bool, Clause)]
   tag _ []       = []
-  tag i [cl]     = (i, True , cl): []
-  tag i (cl:cls) = (i, False, cl): tag (i + 1) cls
+  tag i [cl]     = (i, True , cl) : []
+  tag i (cl:cls) = (i, False, cl) : tag (i + 1) cls
+
+  mkwhere :: [HS.Decl] -> [HS.Decl]
   mkwhere (HS.FunBind [m0, HS.Match _     dn ps mt rhs (HS.BDecls [])] :
            fbs@(_:_)) =
           [HS.FunBind [m0, HS.Match dummy dn ps mt rhs (HS.BDecls fbs)]]
   mkwhere fbs = fbs
+
+  fbWithType :: HaskellType -> HS.Exp -> [HS.Decl]
   fbWithType ty e =
     [ HS.TypeSig dummy [unqhname "d" q] $ fakeType ty ] ++ fb e
+
+  fb :: HS.Exp -> [HS.Decl]
   fb e  = [HS.FunBind [HS.Match dummy (unqhname "d" q) [] Nothing
                                 (HS.UnGuardedRhs $ e) (HS.BDecls [])]]
+
+  axiomErr :: HS.Exp
   axiomErr = rtmError $ "postulate evaluated: " ++ show q
 
 checkConstructorType :: QName -> TCM [HS.Decl]

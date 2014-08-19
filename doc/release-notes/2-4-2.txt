@@ -1,13 +1,15 @@
 ------------------------------------------------------------------------
--- Release notes for Agda 2 version 2.4.2
+-- Release notes for Agda version 2.4.2
 ------------------------------------------------------------------------
 
-Important changes since 2.4.0:
+TODO: Replace X with the appropriate value.
 
-Installation and Infrastructure
+Important changes since 2.4.0.X:
+
+Installation and infrastructure
 ===============================
 
-Pragmas and Options
+Pragmas and options
 ===================
 
 * New option: --with-K.
@@ -216,6 +218,17 @@ Language
   Standard modifiers, such as fixity declarations, can be applied to x as
   expected.
 
+* Module applicants can now be operator applications. Example:
+
+    postulate
+      [_] : A -> B
+
+    module M (b : B) where
+
+    module N (a : A) = M [ a ]
+
+  [See Issue 1245.]
+
 Goal and error display
 ======================
 
@@ -267,6 +280,9 @@ Tools
 
 Emacs mode
 ----------
+
+* A new menu option "Display" can be used to display the version of
+  the running Agda process.
 
 LaTeX-backend
 -------------

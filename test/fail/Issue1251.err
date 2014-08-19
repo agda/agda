@@ -1,0 +1,8 @@
+Issue1251.agda:1,13-37
+Termination checking failed for the following functions:
+  NonTerminating.bla
+Problematic calls:
+  bla zero
+    (at Issue1251/NonTerminating.agda:7,15-18)
+when scope checking the declaration
+  open import Issue1251.NonTerminating

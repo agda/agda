@@ -58,7 +58,7 @@ Agda TODO: add missing haddock comments.
 Uniformly indent your code.  There are two evils:
 \begin{itemize}
 \item Too little indentation:  This makes it too hard for the human
-  reader to see the structure.  \textbf{1 space identation is too
+  reader to see the structure.  \textbf{1 space indentation is too
     little!}
 \item Too much indentation.  You might not care if you have a 27 inch
   display and a line length of 256 characters.  However, we care!  A
@@ -67,7 +67,7 @@ Uniformly indent your code.  There are two evils:
 Recommended indentation is \emph{2 characters}. Upto 4 characters are
 tolerated.
 
-\subsubsection{Indenting |data|}
+\subsubsection{Indenting and haddocking |data|}
 
 Bad:
 \begin{code}
@@ -105,6 +105,91 @@ Also good:
 \begin{code}
 \end{code}
 }
+
+\section{Module structure}
+
+A module consists of the following parts, in the following order:
+\begin{itemize}
+\item GHC language extensions, one per line, in alphabetical
+  order.  Use only language extensions supported by ghc 6.12 and
+  later.
+\item A haddock module comment.
+\item The module, possibly with export list.
+\item Imports.  First the external imports, then the \verb+Agda.*+
+  modules.
+  \begin{itemize}
+  \item |Data.Map| is imported qualified as |Map|, |Data.Set| as
+    |Set|.
+  \item The qualifiers for Agda modules are, if used:
+     |A| for |Agda.Syntax.Abstract|,
+     |C| for |Agda.Syntax.Concrete|,
+     |Common| for |Agda.Syntax.Common|,
+     |I| for |Agda.Syntax.Internal|,
+     |TCM| for |Agda.TypeChecking.Monad|.
+  \end{itemize}
+\end{itemize}
+
+
+\begin{code}
+{-# LANGUAGE CPP #-}
+{-# LANGUAGE FlexibleInstances #-}
+{-# LANGUAGE TupleSections #-}
+
+-- | A longer comment explaining this modules intention.
+--
+--   This module intents to explain the Agda module structure.
+--   Bla bla...
+
+module Agda.Module.Structure where
+
+import Control.Monad.Error
+import Control.Monad.State
+import Control.Bla
+
+import Data.Function
+import Data.Map (Map)
+import qualified Data.Map as Map
+import Data.Set (Set)
+import qualified Data.Set as Set
+import Data.Bla
+
+import Agda.Interaction.Bla
+
+import Agda.Syntax.Abstract as A
+import Agda.Syntax.Common as Common
+import Agda.Syntax.Concrete as C
+import Agda.Syntax.Internal as I
+import Agda.Syntax.Bla
+
+import Agda.TypeChecking.Monad as TCM
+import Agda.TypeChecking.Monad.Bla
+import Agda.TypeChecking.Positivity
+import Agda.TypeChecking.Bla
+
+import Agda.Termination.Bla
+
+import Agda.Utils.Maybe
+import Agda.Utils.Bla
+
+#include "../undefined.h"
+import Agda.Utils.Impossible
+
+---------------------------------------------------------------------------
+-- * Group 1
+---------------------------------------------------------------------------
+
+... definitions ...
+
+---------------------------------------------------------------------------
+-- * Group 2
+---------------------------------------------------------------------------
+
+... definitions ...
+
+...
+
+\end{code}
+
 
 
 \end{document}
