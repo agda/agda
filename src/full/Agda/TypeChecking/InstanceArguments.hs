@@ -137,8 +137,8 @@ findInScope' m cands = ifM (isFrozen m) (return (Just cands)) $ do
     -- If there are recursive instances, it's not safe to instantiate
     -- metavariables in the goal, so we freeze them before checking candidates.
     -- Metas that are rigidly constrained need not be frozen.
-    let isRec = foldl (\ b (_, t) -> b || (isRecursive $ unEl t)) False cands
-        shouldFreeze rigid m
+    isRec <- orM $ map (isRecursive . unEl . snd) cands
+    let shouldFreeze rigid m
           | elem m rigid = return False
           | otherwise    = not <$> isFrozen m
     metas <- if not isRec then return [] else do
@@ -190,9 +190,15 @@ findInScope' m cands = ifM (isFrozen m) (return (Just cands)) $ do
           prettyTCM (List.map fst cs)
         return (Just cs)
     where
-      isRecursive :: Term -> Bool
-      isRecursive (Pi (Dom info _) t) = getHiding info == Instance || isRecursive (unEl $ unAbs t)
-      isRecursive _ = False
+      -- | Check whether a type is a function type with an instance domain.
+      isRecursive :: Term -> TCM Bool
+      isRecursive v = do
+        v <- reduce v
+        case ignoreSharing v of
+          Pi (Dom info _) t ->
+            if getHiding info == Instance then return True else
+              isRecursive $ unEl $ unAbs t
+          _ -> return False
 
 -- | A meta _M is rigidly constrained if there is a constraint _M us == D vs,
 -- for inert D. Such metas can safely be instantiated by recursive instance
