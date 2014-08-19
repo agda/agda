@@ -89,7 +89,10 @@ initialIFSCandidates t = do
           let v = case theDef def of
                -- drop parameters if it's a projection function...
                Function{ funProjection = Just p } -> projDropPars p `apply` args
-               Constructor{}                      -> Con (ConHead q []) []
+               -- Andreas, 2014-08-19: constructors cannot be declared as
+               -- instances (at least as of now).
+               -- I do not understand why the Constructor case is not impossible.
+               Constructor{ conSrcCon = c }       -> Con c []
                _                                  -> Def q $ map Apply args
           return $ Just (v, t)
       where
