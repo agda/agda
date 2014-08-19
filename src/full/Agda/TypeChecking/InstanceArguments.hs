@@ -33,7 +33,8 @@ import Agda.Utils.Monad
 import Agda.Utils.Impossible
 
 -- | A candidate solution for an instance meta is a term with its type.
-type Candidates = [(Term, Type)]
+type Candidate  = (Term, Type)
+type Candidates = [Candidate]
 
 -- | Compute a list of instance candidates.
 --   'Nothing' if type is a meta, error if type is not eligible
@@ -71,9 +72,9 @@ initialIFSCandidates t = do
       instanceDefs <- getInstanceDefs
       rel          <- asks envRelevance
       let qs = fromMaybe [] $ Map.lookup n instanceDefs
-      concat <$> mapM (candidate rel) qs
+      catMaybes <$> mapM (candidate rel) qs
 
-    candidate :: Relevance -> QName -> TCM Candidates
+    candidate :: Relevance -> QName -> TCM (Maybe Candidate)
     candidate rel q =
       -- Andreas, 2012-07-07:
       -- we try to get the info for q
@@ -82,7 +83,7 @@ initialIFSCandidates t = do
       flip catchError handle $ do
         def <- getConstInfo q
         let r = defRelevance def
-        if not (r `moreRelevant` rel) then return [] else do
+        if not (r `moreRelevant` rel) then return Nothing else do
           t   <- defType <$> instantiateDef def
           args <- freeVarsToApply q
           let v = case theDef def of
@@ -90,10 +91,10 @@ initialIFSCandidates t = do
                Function{ funProjection = Just p } -> projDropPars p `apply` args
                Constructor{}                      -> Con (ConHead q []) []
                _                                  -> Def q $ map Apply args
-          return [(v, t)]
+          return $ Just (v, t)
       where
         -- unbound constant throws an internal error
-        handle (TypeError _ (Closure {clValue = InternalError _})) = return []
+        handle (TypeError _ (Closure {clValue = InternalError _})) = return Nothing
         handle err                                                 = throwError err
 
 -- | @initializeIFSMeta s t@ generates an instance meta of type @t@
@@ -206,7 +207,7 @@ findInScope' m cands = ifM (isFrozen m) (return (Just cands)) $ do
 rigidlyConstrainedMetas :: TCM [MetaId]
 rigidlyConstrainedMetas = do
   cs <- (++) <$> gets stSleepingConstraints <*> gets stAwakeConstraints
-  concat <$> mapM rigidMetas cs
+  catMaybes <$> mapM rigidMetas cs
   where
     isRigid v =
       case v of
@@ -225,18 +226,18 @@ rigidlyConstrainedMetas = do
       case clValue $ theConstraint c of
         ValueCmp _ _ u v ->
           case (u, v) of
-            (MetaV m _, _) -> ifM (isRigid v) (return [m]) (return [])
-            (_, MetaV m _) -> ifM (isRigid u) (return [m]) (return [])
-            _              -> return []
-        ElimCmp{}     -> return []
-        TypeCmp{}     -> return []
-        TelCmp{}      -> return []
-        SortCmp{}     -> return []
-        LevelCmp{}    -> return []
-        UnBlock{}     -> return []
-        Guarded{}     -> return []  -- don't look inside Guarded, since the inner constraint might not fire
-        IsEmpty{}     -> return []
-        FindInScope{} -> return []
+            (MetaV m _, _) -> ifM (isRigid v) (return $ Just m) (return Nothing)
+            (_, MetaV m _) -> ifM (isRigid u) (return $ Just m) (return Nothing)
+            _              -> return Nothing
+        ElimCmp{}     -> return Nothing
+        TypeCmp{}     -> return Nothing
+        TelCmp{}      -> return Nothing
+        SortCmp{}     -> return Nothing
+        LevelCmp{}    -> return Nothing
+        UnBlock{}     -> return Nothing
+        Guarded{}     -> return Nothing  -- don't look inside Guarded, since the inner constraint might not fire
+        IsEmpty{}     -> return Nothing
+        FindInScope{} -> return Nothing
 
 -- | Given a meta @m@ of type @t@ and a list of candidates @cands@,
 -- @checkCandidates m t cands@ returns a refined list of valid candidates.
