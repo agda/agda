@@ -126,7 +126,8 @@ findInScope' m cands = ifM (isFrozen m) (return (Just cands)) $ do
     -- Andreas, 2013-12-28 issue 1003:
     -- If instance meta is already solved, simply discard the constraint.
     ifM (isInstantiatedMeta m) (return Nothing) $ do
-    reportSDoc "tc.constr.findInScope" 15 $ text ("findInScope 2: constraint: " ++ show m ++ "; candidates left: " ++ show (length cands))
+    reportSLn "tc.constr.findInScope" 15 $
+      "findInScope 2: constraint: " ++ show m ++ "; candidates left: " ++ show (length cands)
     t <- normalise =<< getMetaTypeInContext m
     reportSDoc "tc.constr.findInScope" 15 $ text "findInScope 3: t =" <+> prettyTCM t
     reportSLn "tc.constr.findInScope" 70 $ "findInScope 3: t: " ++ show t
@@ -144,19 +145,23 @@ findInScope' m cands = ifM (isFrozen m) (return (Just cands)) $ do
                 filterM (shouldFreeze rigid) (allMetas t)
     mapM_ (`updateMetaVar` \mv -> mv { mvFrozen = Frozen }) metas
     cands <- checkCandidates m t cands
-    reportSLn "tc.constr.findInScope" 15 $ "findInScope 4: cands left: " ++ show (length cands)
+    reportSLn "tc.constr.findInScope" 15 $
+      "findInScope 4: cands left: " ++ show (length cands)
     unfreezeMeta metas
     case cands of
 
       [] -> do
-        reportSDoc "tc.constr.findInScope" 15 $ text "findInScope 5: not a single candidate found..."
+        reportSDoc "tc.constr.findInScope" 15 $
+          text "findInScope 5: not a single candidate found..."
         typeError $ IFSNoCandidateInScope t
 
       [(term, t')] -> do
-        reportSDoc "tc.constr.findInScope" 15 $ text (
-          "findInScope 5: one candidate found for type '") <+>
-          prettyTCM t <+> text "': '" <+> prettyTCM term <+>
-          text "', of type '" <+> prettyTCM t' <+> text "'."
+        reportSDoc "tc.constr.findInScope" 15 $ vcat
+          [ text "findInScope 5: found one candidate"
+          , nest 2 $ prettyTCM term
+          , text "of type " <+> prettyTCM t'
+          , text "for type" <+> prettyTCM t
+          ]
 
         -- if t' takes initial hidden arguments, apply them
         ca <- liftTCM $ runErrorT $ checkArguments ExpandLast ExpandInstanceArguments (getRange mv) [] t' t
@@ -172,9 +177,10 @@ findInScope' m cands = ifM (isFrozen m) (return (Just cands)) $ do
             ctxArgs <- getContextArgs
             v <- (`applyDroppingParameters` args) =<< reduce term
             assignV DirEq m ctxArgs v
-            reportSDoc "tc.constr.findInScope" 10 $
-              text "solved by instance search:" <+> prettyTCM m
-              <+> text ":=" <+> prettyTCM v
+            reportSDoc "tc.constr.findInScope" 10 $ vcat
+              [ text "solved by instance search:"
+              , prettyTCM m <+> text ":=" <+> prettyTCM v
+              ]
             return Nothing
 
       cs -> do
@@ -262,9 +268,10 @@ checkCandidates m t cands = localTCState $ disableDestructiveUpdate $ do
               --tel <- getContextTelescope
               ctxArgs <- getContextArgs
               v <- (`applyDroppingParameters` args) =<< reduce term
-              reportSDoc "tc.constr.findInScope" 10 $
-                text "instance search: attempting" <+> prettyTCM m
-                <+> text ":=" <+> prettyTCM v
+              reportSDoc "tc.constr.findInScope" 15 $ vcat
+                [ text "instance search: attempting"
+                , nest 2 $ prettyTCM m <+> text ":=" <+> prettyTCM v
+                ]
               assign DirEq m ctxArgs v
 --              assign m ctxArgs (term `apply` args)
               -- make a pass over constraints, to detect cases where some are made
@@ -275,7 +282,8 @@ checkCandidates m t cands = localTCState $ disableDestructiveUpdate $ do
               return True
       where
         handle err = do
-          reportSDoc "tc.constr.findInScope" 50 $ text "assignment failed:" <+> prettyTCM err
+          reportSDoc "tc.constr.findInScope" 50 $
+            text "assignment failed:" <+> prettyTCM err
           return False
     isIFSConstraint :: Constraint -> Bool
     isIFSConstraint FindInScope{} = True
