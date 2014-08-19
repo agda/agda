@@ -40,7 +40,7 @@ necessary.
 
 \subsection{Haddock comments}
 
-Provide haddock comments to at least
+Provide Haddock comments to at least
 
 \begin{itemize}
 \item top-level functions,
@@ -51,7 +51,7 @@ Provide haddock comments to at least
 
 TODO: examples.
 
-Agda TODO: add missing haddock comments.
+Agda TODO: add missing Haddock comments.
 
 \subsection{Indentation}
 
@@ -111,7 +111,7 @@ Also good:
 A module consists of the following parts, in the following order:
 \begin{itemize}
 \item GHC language extensions, one per line, in alphabetical
-  order.  Use only language extensions supported by ghc 6.12 and
+  order.  Use only language extensions supported by GHC 6.12 and
   later.
 \item A haddock module comment.
 \item The module, possibly with export list.
@@ -131,9 +131,9 @@ A module consists of the following parts, in the following order:
 
 
 \begin{code}
-{-# LANGUAGE CPP #-}
+{-# LANGUAGE CPP               #-}
 {-# LANGUAGE FlexibleInstances #-}
-{-# LANGUAGE TupleSections #-}
+{-# LANGUAGE TupleSections     #-}
 
 -- | A longer comment explaining this modules intention.
 --
