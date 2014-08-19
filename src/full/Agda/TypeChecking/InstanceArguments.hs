@@ -35,6 +35,9 @@ import Agda.Utils.Impossible
 -- | A candidate solution for an instance meta is a term with its type.
 type Candidates = [(Term, Type)]
 
+-- | Compute a list of instance candidates.
+--   'Nothing' if type is a meta, error if type is not eligible
+--   for instance search.
 initialIFSCandidates :: Type -> TCM (Maybe Candidates)
 initialIFSCandidates t = do
   cands1 <- getContextVars
@@ -66,10 +69,9 @@ initialIFSCandidates t = do
     getScopeDefs :: QName -> TCM Candidates
     getScopeDefs n = do
       instanceDefs <- getInstanceDefs
-      let qs = caseMaybe (Map.lookup n instanceDefs) [] (\l -> l)
-      rel   <- asks envRelevance
-      cands <- mapM (candidate rel) qs
-      return $ concat cands
+      rel          <- asks envRelevance
+      let qs = fromMaybe [] $ Map.lookup n instanceDefs
+      concat <$> mapM (candidate rel) qs
 
     candidate :: Relevance -> QName -> TCM Candidates
     candidate rel q =
@@ -116,7 +118,7 @@ findInScope m Nothing = do
   cands <- initialIFSCandidates t
   case cands of
     Nothing -> addConstraint $ FindInScope m Nothing
-    Just c -> findInScope m cands
+    Just {} -> findInScope m cands
 findInScope m (Just cands) = whenJustM (findInScope' m cands) $ addConstraint . FindInScope m . Just
 
 -- | Result says whether we need to add constraint, and if so, the set of
@@ -139,11 +141,10 @@ findInScope' m cands = ifM (isFrozen m) (return (Just cands)) $ do
         shouldFreeze rigid m
           | elem m rigid = return False
           | otherwise    = not <$> isFrozen m
-    metas <- if not isRec then return []
-             else do
-                rigid <- rigidlyConstrainedMetas
-                filterM (shouldFreeze rigid) (allMetas t)
-    mapM_ (`updateMetaVar` \mv -> mv { mvFrozen = Frozen }) metas
+    metas <- if not isRec then return [] else do
+      rigid <- rigidlyConstrainedMetas
+      filterM (shouldFreeze rigid) (allMetas t)
+    forM_ metas $ \ m -> updateMetaVar m $ \ mv -> mv { mvFrozen = Frozen }
     cands <- checkCandidates m t cands
     reportSLn "tc.constr.findInScope" 15 $
       "findInScope 4: cands left: " ++ show (length cands)
