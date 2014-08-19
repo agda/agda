@@ -197,7 +197,7 @@ resolveUnknownInstanceDefs :: TCM ()
 resolveUnknownInstanceDefs = do
   anonInstanceDefs <- getAnonInstanceDefs
   clearAnonInstanceDefs
-  forM_ anonInstanceDefs (\n -> do t <- typeOfConst n; addTypedInstance n t)
+  forM_ anonInstanceDefs $ \ n -> addTypedInstance n =<< typeOfConst n
 
 -- | Try to solve the instance definitions whose type is not yet known, report
 --   an error if it doesn't work and return the instance table otherwise.
@@ -205,5 +205,6 @@ getInstanceDefs :: TCM InstanceTable
 getInstanceDefs = do
   resolveUnknownInstanceDefs
   insts <- getAllInstanceDefs
-  unless (null $ snd insts) (typeError $ GenericError $ "There are instances whose type is still unsolved")
-  return (fst insts)
+  unless (null $ snd insts) $
+    typeError $ GenericError $ "There are instances whose type is still unsolved"
+  return $ fst insts
