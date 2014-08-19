@@ -27,6 +27,7 @@ import Agda.TypeChecking.Monad.Base.Benchmark
 import {-# SOURCE #-} Agda.TypeChecking.Monad.Options
 
 import Agda.Utils.Hash
+import qualified Agda.Utils.HashMap as HMap
 import Agda.Utils.Monad (bracket_)
 import Agda.Utils.Pretty
 import Agda.Utils.Tuple
