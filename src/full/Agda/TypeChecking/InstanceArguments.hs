@@ -92,6 +92,7 @@ initialIFSCandidates t = do
                -- Andreas, 2014-08-19: constructors cannot be declared as
                -- instances (at least as of now).
                -- I do not understand why the Constructor case is not impossible.
+               -- Ulf, 2014-08-20: constructors are always instances.
                Constructor{ conSrcCon = c }       -> Con c []
                _                                  -> Def q $ map Apply args
           return $ Just (v, t)
