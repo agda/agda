@@ -171,30 +171,34 @@ Language
         {-# BUILTIN AGDALITERAL Literal #-}).
 
     data Pattern : Set where
-      con : QName → List (Arg Pattern) → Pattern
-      dot : Pattern
-      var : Pattern
-      lit : Literal → Pattern
-      proj : QName → Pattern
+      con    : QName → List (Arg Pattern) → Pattern
+      dot    : Pattern
+      var    : Pattern
+      lit    : Literal → Pattern
+      absurd : Pattern
+      proj   : QName → Pattern
 
-    {-# BUILTIN AGDAPATTERN Pattern #-}
-    {-# BUILTIN AGDAPATCON con #-}
-    {-# BUILTIN AGDAPATDOT dot #-}
-    {-# BUILTIN AGDAPATVAR var #-}
-    {-# BUILTIN AGDAPATLIT lit #-}
-    {-# BUILTIN AGDAPATPROJ proj #-}
+    {-# BUILTIN AGDAPATTERN   Pattern #-}
+    {-# BUILTIN AGDAPATCON    con #-}
+    {-# BUILTIN AGDAPATDOT    dot #-}
+    {-# BUILTIN AGDAPATVAR    var #-}
+    {-# BUILTIN AGDAPATLIT    lit #-}
+    {-# BUILTIN AGDAPATPROJ   proj #-}
+    {-# BUILTIN AGDAPATABSURD absurd #-}
 
     data Clause : Set where
-      clause : List (Arg Pattern) → Term → Clause
+      clause        : List (Arg Pattern) → Term → Clause
+      absurd-clause : List (Arg Pattern) → Clause
 
-    {-# BUILTIN AGDACLAUSE    Clause #-}
-    {-# BUILTIN AGDACLAUSECON clause #-}
+    {-# BUILTIN AGDACLAUSE       Clause #-}
+    {-# BUILTIN AGDACLAUSECLAUSE clause #-}
+    {-# BUILTIN AGDACLAUSEABSURD absurd-clause #-}
 
     data FunDef : Set where
-      funDef : Type → List Clause → FunDef
+      fun-def : Type → List Clause → FunDef
 
     {-# BUILTIN AGDAFUNDEF    FunDef #-}
-    {-# BUILTIN AGDAFUNDEFCON funDef #-}
+    {-# BUILTIN AGDAFUNDEFCON fun-def #-}
 
 * New reflection builtins for extended (pattern-matching) lambda.
 
