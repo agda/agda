@@ -175,29 +175,29 @@ Language
       dot    : Pattern
       var    : Pattern
       lit    : Literal → Pattern
-      absurd : Pattern
       proj   : QName → Pattern
+      absurd : Pattern
 
     {-# BUILTIN AGDAPATTERN   Pattern #-}
-    {-# BUILTIN AGDAPATCON    con #-}
-    {-# BUILTIN AGDAPATDOT    dot #-}
-    {-# BUILTIN AGDAPATVAR    var #-}
-    {-# BUILTIN AGDAPATLIT    lit #-}
-    {-# BUILTIN AGDAPATPROJ   proj #-}
-    {-# BUILTIN AGDAPATABSURD absurd #-}
+    {-# BUILTIN AGDAPATCON    con     #-}
+    {-# BUILTIN AGDAPATDOT    dot     #-}
+    {-# BUILTIN AGDAPATVAR    var     #-}
+    {-# BUILTIN AGDAPATLIT    lit     #-}
+    {-# BUILTIN AGDAPATPROJ   proj    #-}
+    {-# BUILTIN AGDAPATABSURD absurd  #-}
 
     data Clause : Set where
       clause        : List (Arg Pattern) → Term → Clause
       absurd-clause : List (Arg Pattern) → Clause
 
-    {-# BUILTIN AGDACLAUSE       Clause #-}
-    {-# BUILTIN AGDACLAUSECLAUSE clause #-}
+    {-# BUILTIN AGDACLAUSE       Clause        #-}
+    {-# BUILTIN AGDACLAUSECLAUSE clause        #-}
     {-# BUILTIN AGDACLAUSEABSURD absurd-clause #-}
 
     data FunDef : Set where
       fun-def : Type → List Clause → FunDef
 
-    {-# BUILTIN AGDAFUNDEF    FunDef #-}
+    {-# BUILTIN AGDAFUNDEF    FunDef  #-}
     {-# BUILTIN AGDAFUNDEFCON fun-def #-}
 
 * New reflection builtins for extended (pattern-matching) lambda.
