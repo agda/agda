@@ -101,11 +101,11 @@ data Literal : Set where
   name   : Name → Literal
 
 {-# BUILTIN AGDALITERAL   Literal #-}
-{-# BUILTIN AGDALITNAT    nat #-}
-{-# BUILTIN AGDALITFLOAT  float #-}
-{-# BUILTIN AGDALITCHAR   char #-}
-{-# BUILTIN AGDALITSTRING string #-}
-{-# BUILTIN AGDALITQNAME  name #-}
+{-# BUILTIN AGDALITNAT    nat     #-}
+{-# BUILTIN AGDALITFLOAT  float   #-}
+{-# BUILTIN AGDALITCHAR   char    #-}
+{-# BUILTIN AGDALITSTRING string  #-}
+{-# BUILTIN AGDALITQNAME  name    #-}
 
 -- Terms.
 
@@ -119,7 +119,7 @@ mutual
     def     : (f : Name) (args : List (Arg Term)) → Term
     -- Different kinds of λ-abstraction.
     lam     : (v : Visibility) (t : Term) → Term
-    -- Pattern matching λ-abstraction
+    -- Pattern matching λ-abstraction.
     pat-lam : (cs : List Clause) (args : List (Arg Term)) → Term
     -- Pi-type.
     pi      : (t₁ : Arg Type) (t₂ : Type) → Term
@@ -142,15 +142,15 @@ mutual
     unknown : Sort
 
   data Pattern : Set where
-    con  : Name → List (Arg Pattern) → Pattern
-    dot  : Pattern
-    var  : Pattern
-    lit  : Literal → Pattern
-    proj : Name → Pattern
+    con    : Name → List (Arg Pattern) → Pattern
+    dot    : Pattern
+    var    : Pattern
+    lit    : Literal → Pattern
+    proj   : Name → Pattern
     absurd : Pattern
 
   data Clause : Set where
-    clause : List (Arg Pattern) → Term → Clause
+    clause        : List (Arg Pattern) → Term → Clause
     absurd-clause : List (Arg Pattern) → Clause
 
 {-# BUILTIN AGDASORT    Sort    #-}
@@ -173,11 +173,11 @@ mutual
 {-# BUILTIN AGDASORTLIT         lit     #-}
 {-# BUILTIN AGDASORTUNSUPPORTED unknown #-}
 
-{-# BUILTIN AGDAPATCON con #-}
-{-# BUILTIN AGDAPATDOT dot #-}
-{-# BUILTIN AGDAPATVAR var #-}
-{-# BUILTIN AGDAPATLIT lit #-}
-{-# BUILTIN AGDAPATPROJ proj #-}
+{-# BUILTIN AGDAPATCON    con    #-}
+{-# BUILTIN AGDAPATDOT    dot    #-}
+{-# BUILTIN AGDAPATVAR    var    #-}
+{-# BUILTIN AGDAPATLIT    lit    #-}
+{-# BUILTIN AGDAPATPROJ   proj   #-}
 {-# BUILTIN AGDAPATABSURD absurd #-}
 
 {-# BUILTIN AGDACLAUSECLAUSE clause        #-}
