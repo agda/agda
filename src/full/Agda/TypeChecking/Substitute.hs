@@ -865,14 +865,14 @@ underLambdas n cont a v = loop n a v where
     Lam h b -> Lam h $ underAbs (loop $ n-1) a b
     _       -> __IMPOSSIBLE__
 
--- | @getBody@ returns the properly raised clause 'Body',
---   and 'Nothing' if 'NoBody'.
---
---   @getBodyUnraised@ just grabs the body, without raising the de Bruijn indices.
---   This is useful if you want to consider the body in context 'clauseTel'.
+-- | Methods to retrieve the 'clauseBody'.
 class GetBody a where
   getBody         :: a -> Maybe Term
+  -- ^ Returns the properly raised clause 'Body',
+  --   and 'Nothing' if 'NoBody'.
   getBodyUnraised :: a -> Maybe Term
+  -- ^ Just grabs the body, without raising the de Bruijn indices.
+  --   This is useful if you want to consider the body in context 'clauseTel'.
 
 instance GetBody ClauseBody where
   getBody = body 0
