@@ -40,14 +40,6 @@ compileClauses mt cs = do
     Nothing -> return $ compile cls
     Just (q, t)  -> do
       splitTree <- coverageCheck q t cs
-  {-
-      splitTree <- translateSplitTree splitTree
-      reportSDoc "tc.cc.splittree" 10 $ vcat
-        [ text "translated split tree for" <+> prettyTCM q
-        , text $ show splitTree
-        ]
-  -}
-      -- cs <- mapM translateRecordPatterns cs
 
       reportSDoc "tc.cc" 30 $ sep $ do
         (text "clauses patterns  before compilation") : do
@@ -55,7 +47,7 @@ compileClauses mt cs = do
       reportSDoc "tc.cc" 50 $ do
         sep [ text "clauses before compilation"
             , (nest 2 . text . show) cs
-            ] -- ++ map (nest 2 . text . show) cs
+            ]
       let cc = compileWithSplitTree splitTree cls
       reportSDoc "tc.cc" 12 $ sep
         [ text "compiled clauses (still containing record splits)"
@@ -128,7 +120,6 @@ compile cs = case nextSplit cs of
 nextSplit :: Cls -> Maybe Int
 nextSplit []          = __IMPOSSIBLE__
 nextSplit ((ps, _):_) = findIndex isPat $ map unArg ps
-  -- OLD, IDENTICAL: mhead [ n | (a, n) <- zip ps [0..], isPat (unArg a) ]
   where
     isPat VarP{} = False
     isPat DotP{} = False
@@ -174,10 +165,6 @@ expandCatchAlls single n cs =
   -- we force expansion
   if single then doExpand =<< cs else
   case cs of
-{-
-  _            | all (isCatchAll . nth . fst) cs -> cs
-  (ps, b) : cs | not (isCatchAll (nth ps)) -> (ps, b) : expandCatchAlls False n cs
--}
   _            | all (isCatchAllNth . fst) cs -> cs
   (ps, b) : cs | not (isCatchAllNth ps) -> (ps, b) : expandCatchAlls False n cs
                | otherwise -> map (expand ps b) expansions ++ (ps, b) : expandCatchAlls False n cs
@@ -205,7 +192,6 @@ expandCatchAlls single n cs =
     isCatchAll (Arg _ ProjP{}) = False
     isCatchAll _      = True
     nth qs = fromMaybe __IMPOSSIBLE__ $ mhead $ drop n qs
-      -- where (_, p, _) = extractNthElement' n qs
 
     classify (LitP l)     = Left l
     classify (ConP c _ _) = Right c
@@ -230,7 +216,6 @@ expandCatchAlls single n cs =
         LitP l -> (ps0 ++ [defaultArg $ LitP l] ++ ps1, substBody n' 0 (Lit l) b)
         _ -> __IMPOSSIBLE__
       where
-        -- (ps0, _, ps1) = extractNthElement' n ps
         (ps0, rest) = splitAt n ps
         ps1         = maybe __IMPOSSIBLE__ snd $ uncons rest
 
