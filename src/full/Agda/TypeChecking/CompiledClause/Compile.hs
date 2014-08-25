@@ -119,13 +119,15 @@ compile cs = case nextSplit cs of
 --   This the number of the first pattern that does a match in the first clause.
 nextSplit :: Cls -> Maybe Int
 nextSplit []          = __IMPOSSIBLE__
-nextSplit ((ps, _):_) = findIndex isPat $ map unArg ps
-  where
-    isPat VarP{} = False
-    isPat DotP{} = False
-    isPat ConP{} = True
-    isPat LitP{} = True
-    isPat ProjP{} = True
+nextSplit ((ps, _):_) = findIndex (not . isVar . unArg) ps
+
+-- | Is this a variable pattern?
+isVar :: Pattern -> Bool
+isVar VarP{}  = True
+isVar DotP{}  = True
+isVar ConP{}  = False
+isVar LitP{}  = False
+isVar ProjP{} = False
 
 -- | @splitOn single n cs@ will force expansion of catch-alls
 --   if @single@.
@@ -175,22 +177,12 @@ expandCatchAlls single n cs =
     -- The @expansions@ are collected from all the clauses @cs@ then.
     -- Note: @expansions@ could be empty, so we keep the orignal clause.
     doExpand c@(ps, b)
-      | isCatchAll (nth ps) = map (expand ps b) expansions ++ [c]
-      | otherwise           = [c]
+      | isVar $ unArg $ nth ps = map (expand ps b) expansions ++ [c]
+      | otherwise              = [c]
 
-    isCatchAllNth ps =
-      case map unArg $ drop n ps of
-        (ConP {} : _) -> False
-        (LitP {} : _) -> False
-        (ProjP{} : _) -> False
-        (VarP{}  : _) -> True
-        (DotP{}  : _) -> True
-        []            -> True -- ?? is that right
+    -- True if nth pattern is variable or there are less than n patterns.
+    isCatchAllNth ps = all (isVar . unArg) $ take 1 $ drop n ps
 
-    isCatchAll (Arg _ ConP{})  = False
-    isCatchAll (Arg _ LitP{})  = False
-    isCatchAll (Arg _ ProjP{}) = False
-    isCatchAll _      = True
     nth qs = fromMaybe __IMPOSSIBLE__ $ mhead $ drop n qs
 
     classify (LitP l)     = Left l
@@ -200,9 +192,9 @@ expandCatchAlls single n cs =
     -- All non-catch-all patterns following this one (at position n).
     -- These are the cases the wildcard needs to be expanded into.
     expansions = nubBy ((==) `on` classify)
-               . map unArg
-               . filter (not . isCatchAll)
-               . map (nth . fst) $ cs
+               . filter (not . isVar)
+               . map (unArg . nth . fst)
+               $ cs
 
     expand ps b q =
       case q of
