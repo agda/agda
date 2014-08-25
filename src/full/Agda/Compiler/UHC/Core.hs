@@ -7,6 +7,8 @@ module Agda.Compiler.UHC.Core
 --  ) where
   ( toCore
   , coreError
+  , linkWithPrelude
+  , linkWithPrelude1
   ) where
 
 import Data.Char
@@ -15,26 +17,64 @@ import qualified Data.Map as M
 
 import Agda.TypeChecking.Monad
 import Agda.Syntax.Abstract.Name
+import Control.Monad.IO.Class
 import Control.Monad.Trans.Class (lift)
 
 import Agda.Compiler.UHC.AuxAST
 import Agda.Compiler.UHC.CompileState
 import Agda.Compiler.UHC.Interface
 
+import EH99.Opts
 import EH99.Core
 import EH99.AbstractCore
 import EH99.Base.HsName
 import EH99.Base.Common
+import EH99.Core.Parser
+import UHC.Util.ParseUtils
+import UHC.Util.ScanUtils
+import EH99.Scanner.Common
 
+import Agda.Compiler.UHC.CoreSyntax
 -- #include "../../undefined.h"
 --import Agda.Utils.Impossible
 
+linkWithPrelude :: String -> CModule -> Compile TCM CModule
+linkWithPrelude fPre modMain = do
+  modPre <- liftIO $ parsePrelude fPre
+  return $ linkWithPrelude1 modPre modMain
+  where parsePrelude f = do
+    		cs <- readFile f
+        	let tokens = scan scanOpts (initPos cs) cs
+	        let (res, errs) = parseToResMsgs pCModule tokens
+		case errs of
+		    [] -> return $ res
+		    _  -> error $ "Parsing core prelude failed:\n" ++ (intercalate "\n" $ map show errs)
+        scanOpts = coreScanOpts ehcOpts
 
+
+linkWithPrelude1 :: CModule -> CModule -> CModule
+linkWithPrelude1 (CModule_Mod preNm preMetaDecl preLets) (CModule_Mod mainNm mainMetaDecl mainLets) =
+  CModule_Mod mainNm (preMetaDecl ++ mainMetaDecl) (insertNewMain preLets)
+  where insertNewMain :: CExpr -> CExpr
+	insertNewMain (CExpr_Let categ bnds expr) = case getMainBind [] bnds of
+		(Just [])	-> mainLets
+		(Just othrBnds) -> CExpr_Let categ othrBnds mainLets
+		(Nothing)	-> CExpr_Let categ bnds (insertNewMain expr)
+	insertNewMain ex = error "TODO"
+	getMainBind :: [CBind] -> [CBind] -> Maybe [CBind]
+	getMainBind ac ((CBind_Bind nm asps):bs) | show nm == "main" = Just $ ac ++ bs
+	getMainBind ac (b:bs) = getMainBind (b:ac) bs
+	getMainBind ac [] = Nothing
+		
 
 toCore :: String -> [Fun] -> Compile TCM CModule
 toCore mod funs = do
   binds <- mapM funToBind funs
-  let lets = CExpr_Let CBindCateg_Rec binds (CExpr_Int 0)
+  let mainEhc = CExpr_Let CBindCateg_Plain [
+	CBind_Bind (hsnFromString "main") [
+		CBound_Bind cmetas (CExpr_App (CExpr_Var $ acoreMkRef $ hsnFromString "UHC.Run.ehcRunMain") (CBound_Bind cmetas (CExpr_Var $ acoreMkRef $ hsnFromString (mod ++ ".main"))))]
+	] (CExpr_Var (acoreMkRef $ hsnFromString "main"))
+  let lets = CExpr_Let CBindCateg_Rec binds mainEhc
 
   constrs <- getsEI constrTags
   cMetaDeclL <- buildCMetaDeclL constrs
