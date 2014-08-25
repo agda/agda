@@ -97,7 +97,11 @@ data TCState =
            --   During occurs check, we remove definitions from this set
            --   as soon we have checked them.
 	 , stSignature	       :: Signature
+           -- ^ Declared identifiers of the current file.
+           --   These will be serialized after successful type checking.
 	 , stImports	       :: Signature
+           -- ^ Imported declared identifiers.
+           --   Those most not be serialized!
 	 , stImportedModules   :: Set ModuleName
          , stModuleToSource    :: ModuleToSource
 	 , stVisitedModules    :: VisitedModules
@@ -106,7 +110,9 @@ data TCState =
            -- checked.
 	 , stScope	       :: ScopeInfo
          , stPatternSyns       :: A.PatternSynDefns
+           -- ^ Pattern synonyms of the current file.  Serialized.
          , stPatternSynImports :: A.PatternSynDefns
+           -- ^ Imported pattern synonyms.  Must not be serialized!
 	 , stPragmaOptions     :: PragmaOptions
            -- ^ Options applying to the current file. @OPTIONS@
            -- pragmas only affect this field.
