@@ -98,7 +98,7 @@ compileWithSplitTree t cs = case t of
 compile :: Cls -> CompiledClauses
 compile cs = case nextSplit cs of
   Just n  -> Case n $ fmap compile $ splitOn False n cs
-  Nothing -> case map getBody cs of
+  Nothing -> case map (getBody . snd) cs of
     -- It's possible to get more than one clause here due to
     -- catch-all expansion.
     Just t : _  -> Done (map (fmap name) $ fst $ head cs) (shared t)
@@ -110,10 +110,6 @@ compile cs = case nextSplit cs of
     name ConP{}  = __IMPOSSIBLE__
     name LitP{}  = __IMPOSSIBLE__
     name ProjP{} = __IMPOSSIBLE__
-    getBody (_, b) = body b
-    body (Bind b)   = body (absBody b)
-    body (Body t)   = Just t
-    body NoBody     = Nothing
 
 -- | Get the index of the next argument we need to split on.
 --   This the number of the first pattern that does a match in the first clause.
