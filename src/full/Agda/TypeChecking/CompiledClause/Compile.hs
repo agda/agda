@@ -202,7 +202,7 @@ expandCatchAlls single n cs =
                          substBody n' m (Con c conArgs) b)
           where
             m        = length qs'
-            -- replace all subpatterns by _
+            -- replace all direct subpatterns of q by _
             conPArgs = map (fmap ($> VarP underscore)) qs'
             conArgs  = zipWith (\ q n -> q $> var n) qs' $ downFrom m
         LitP l -> (ps0 ++ [defaultArg $ LitP l] ++ ps1, substBody n' 0 (Lit l) b)
