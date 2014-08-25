@@ -1,4 +1,5 @@
 
+AGDA_BIN=$1
 top=Issue983
 bad=Issue983-Bad
 lib=Issue983-Lib
@@ -12,7 +13,7 @@ mkfifo $pipe
 # write to it.
 sleep 2 > $pipe &
 
-agda --interaction < $pipe 2>&1 &
+$AGDA_BIN --interaction < $pipe 2>&1 &
 
 function cmd {
   echo "IOTCM \"$2.agda\" None Indirect (Cmd_$1 \"$2.agda\" $3)" > $pipe
