@@ -17,6 +17,7 @@ import Agda.TypeChecking.RecordPatterns
 import Agda.TypeChecking.Substitute
 import Agda.TypeChecking.Pretty
 
+import Agda.Utils.Functor
 import Agda.Utils.List
 
 #include "../../undefined.h"
@@ -218,9 +219,13 @@ expandCatchAlls single n cs =
 
     expand ps b q =
       case q of
-        ConP c _ qs' -> (ps0 ++ [defaultArg $ ConP c Nothing (genericReplicate m $ defaultArg $ unnamed $ VarP underscore)] ++ ps1,
-                         substBody n' m (Con c (map var [m - 1, m - 2..0])) b)
-          where m = length qs'
+        ConP c mt qs' -> (ps0 ++ [defaultArg $ ConP c mt conPArgs] ++ ps1,
+                         substBody n' m (Con c conArgs) b)
+          where
+            m        = length qs'
+            -- replace all subpatterns by _
+            conPArgs = map (fmap ($> VarP underscore)) qs'
+            conArgs  = zipWith (\ q n -> q $> var n) qs' $ downFrom m
         LitP l -> (ps0 ++ [defaultArg $ LitP l] ++ ps1, substBody n' 0 (Lit l) b)
         _ -> __IMPOSSIBLE__
       where
@@ -234,8 +239,6 @@ expandCatchAlls single n cs =
         count (ConP _ _ ps) = countVars $ map (fmap namedThing) ps
         count DotP{}        = 1   -- dot patterns are treated as variables in the clauses
         count _             = 0
-
-        var x = defaultArg $ Var x []
 
 substBody :: Int -> Int -> Term -> ClauseBody -> ClauseBody
 substBody _ _ _ NoBody = NoBody
