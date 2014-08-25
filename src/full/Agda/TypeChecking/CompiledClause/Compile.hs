@@ -2,6 +2,7 @@
 
 module Agda.TypeChecking.CompiledClause.Compile where
 
+import Data.Maybe
 import Data.Monoid
 import qualified Data.Map as Map
 import Data.List (genericReplicate, nubBy, findIndex)
@@ -17,6 +18,7 @@ import Agda.TypeChecking.RecordPatterns
 import Agda.TypeChecking.Substitute
 import Agda.TypeChecking.Pretty
 
+import Agda.Utils.Functor
 import Agda.Utils.List
 
 #include "../../undefined.h"
@@ -38,14 +40,6 @@ compileClauses mt cs = do
     Nothing -> return $ compile cls
     Just (q, t)  -> do
       splitTree <- coverageCheck q t cs
-  {-
-      splitTree <- translateSplitTree splitTree
-      reportSDoc "tc.cc.splittree" 10 $ vcat
-        [ text "translated split tree for" <+> prettyTCM q
-        , text $ show splitTree
-        ]
-  -}
-      -- cs <- mapM translateRecordPatterns cs
 
       reportSDoc "tc.cc" 30 $ sep $ do
         (text "clauses patterns  before compilation") : do
@@ -53,7 +47,7 @@ compileClauses mt cs = do
       reportSDoc "tc.cc" 50 $ do
         sep [ text "clauses before compilation"
             , (nest 2 . text . show) cs
-            ] -- ++ map (nest 2 . text . show) cs
+            ]
       let cc = compileWithSplitTree splitTree cls
       reportSDoc "tc.cc" 12 $ sep
         [ text "compiled clauses (still containing record splits)"
@@ -125,14 +119,15 @@ compile cs = case nextSplit cs of
 --   This the number of the first pattern that does a match in the first clause.
 nextSplit :: Cls -> Maybe Int
 nextSplit []          = __IMPOSSIBLE__
-nextSplit ((ps, _):_) = findIndex isPat $ map unArg ps
-  -- OLD, IDENTICAL: mhead [ n | (a, n) <- zip ps [0..], isPat (unArg a) ]
-  where
-    isPat VarP{} = False
-    isPat DotP{} = False
-    isPat ConP{} = True
-    isPat LitP{} = True
-    isPat ProjP{} = True
+nextSplit ((ps, _):_) = findIndex (not . isVar . unArg) ps
+
+-- | Is this a variable pattern?
+isVar :: Pattern -> Bool
+isVar VarP{}  = True
+isVar DotP{}  = True
+isVar ConP{}  = False
+isVar LitP{}  = False
+isVar ProjP{} = False
 
 -- | @splitOn single n cs@ will force expansion of catch-alls
 --   if @single@.
@@ -172,10 +167,6 @@ expandCatchAlls single n cs =
   -- we force expansion
   if single then doExpand =<< cs else
   case cs of
-{-
-  _            | all (isCatchAll . nth . fst) cs -> cs
-  (ps, b) : cs | not (isCatchAll (nth ps)) -> (ps, b) : expandCatchAlls False n cs
--}
   _            | all (isCatchAllNth . fst) cs -> cs
   (ps, b) : cs | not (isCatchAllNth ps) -> (ps, b) : expandCatchAlls False n cs
                | otherwise -> map (expand ps b) expansions ++ (ps, b) : expandCatchAlls False n cs
@@ -186,24 +177,13 @@ expandCatchAlls single n cs =
     -- The @expansions@ are collected from all the clauses @cs@ then.
     -- Note: @expansions@ could be empty, so we keep the orignal clause.
     doExpand c@(ps, b)
-      | isCatchAll (nth ps) = map (expand ps b) expansions ++ [c]
-      | otherwise           = [c]
+      | isVar $ unArg $ nth ps = map (expand ps b) expansions ++ [c]
+      | otherwise              = [c]
 
-    isCatchAllNth ps =
-      case map unArg $ drop n ps of
-        (ConP {} : _) -> False
-        (LitP {} : _) -> False
-        (ProjP{} : _) -> False
-        (VarP{}  : _) -> True
-        (DotP{}  : _) -> True
-        []            -> True -- ?? is that right
+    -- True if nth pattern is variable or there are less than n patterns.
+    isCatchAllNth ps = all (isVar . unArg) $ take 1 $ drop n ps
 
-    isCatchAll (Arg _ ConP{})  = False
-    isCatchAll (Arg _ LitP{})  = False
-    isCatchAll (Arg _ ProjP{}) = False
-    isCatchAll _      = True
-    nth qs = maybe __IMPOSSIBLE__ id $ mhead $ drop n qs
-      -- where (_, p, _) = extractNthElement' n qs
+    nth qs = fromMaybe __IMPOSSIBLE__ $ mhead $ drop n qs
 
     classify (LitP l)     = Left l
     classify (ConP c _ _) = Right c
@@ -212,19 +192,22 @@ expandCatchAlls single n cs =
     -- All non-catch-all patterns following this one (at position n).
     -- These are the cases the wildcard needs to be expanded into.
     expansions = nubBy ((==) `on` classify)
-               . map unArg
-               . filter (not . isCatchAll)
-               . map (nth . fst) $ cs
+               . filter (not . isVar)
+               . map (unArg . nth . fst)
+               $ cs
 
     expand ps b q =
       case q of
-        ConP c _ qs' -> (ps0 ++ [defaultArg $ ConP c Nothing (genericReplicate m $ defaultArg $ unnamed $ VarP underscore)] ++ ps1,
-                         substBody n' m (Con c (map var [m - 1, m - 2..0])) b)
-          where m = length qs'
+        ConP c mt qs' -> (ps0 ++ [defaultArg $ ConP c mt conPArgs] ++ ps1,
+                         substBody n' m (Con c conArgs) b)
+          where
+            m        = length qs'
+            -- replace all direct subpatterns of q by _
+            conPArgs = map (fmap ($> VarP underscore)) qs'
+            conArgs  = zipWith (\ q n -> q $> var n) qs' $ downFrom m
         LitP l -> (ps0 ++ [defaultArg $ LitP l] ++ ps1, substBody n' 0 (Lit l) b)
         _ -> __IMPOSSIBLE__
       where
-        -- (ps0, _, ps1) = extractNthElement' n ps
         (ps0, rest) = splitAt n ps
         ps1         = maybe __IMPOSSIBLE__ snd $ uncons rest
 
@@ -234,8 +217,6 @@ expandCatchAlls single n cs =
         count (ConP _ _ ps) = countVars $ map (fmap namedThing) ps
         count DotP{}        = 1   -- dot patterns are treated as variables in the clauses
         count _             = 0
-
-        var x = defaultArg $ Var x []
 
 substBody :: Int -> Int -> Term -> ClauseBody -> ClauseBody
 substBody _ _ _ NoBody = NoBody
