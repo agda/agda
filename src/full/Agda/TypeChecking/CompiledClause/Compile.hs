@@ -98,7 +98,7 @@ compileWithSplitTree t cs = case t of
 compile :: Cls -> CompiledClauses
 compile cs = case nextSplit cs of
   Just n  -> Case n $ fmap compile $ splitOn False n cs
-  Nothing -> case map getBody cs of
+  Nothing -> case map (getBody . snd) cs of
     -- It's possible to get more than one clause here due to
     -- catch-all expansion.
     Just t : _  -> Done (map (fmap name) $ fst $ head cs) (shared t)
@@ -110,10 +110,6 @@ compile cs = case nextSplit cs of
     name ConP{}  = __IMPOSSIBLE__
     name LitP{}  = __IMPOSSIBLE__
     name ProjP{} = __IMPOSSIBLE__
-    getBody (_, b) = body b
-    body (Bind b)   = body (absBody b)
-    body (Body t)   = Just t
-    body NoBody     = Nothing
 
 -- | Get the index of the next argument we need to split on.
 --   This the number of the first pattern that does a match in the first clause.
@@ -191,21 +187,21 @@ expandCatchAlls single n cs =
 
     -- All non-catch-all patterns following this one (at position n).
     -- These are the cases the wildcard needs to be expanded into.
-    expansions = nubBy ((==) `on` classify)
-               . filter (not . isVar)
-               . map (unArg . nth . fst)
+    expansions = nubBy ((==) `on` (classify . unArg))
+               . filter (not . isVar . unArg)
+               . map (nth . fst)
                $ cs
 
     expand ps b q =
-      case q of
-        ConP c mt qs' -> (ps0 ++ [defaultArg $ ConP c mt conPArgs] ++ ps1,
+      case unArg q of
+        ConP c mt qs' -> (ps0 ++ [q $> ConP c mt conPArgs] ++ ps1,
                          substBody n' m (Con c conArgs) b)
           where
             m        = length qs'
             -- replace all direct subpatterns of q by _
             conPArgs = map (fmap ($> VarP underscore)) qs'
             conArgs  = zipWith (\ q n -> q $> var n) qs' $ downFrom m
-        LitP l -> (ps0 ++ [defaultArg $ LitP l] ++ ps1, substBody n' 0 (Lit l) b)
+        LitP l -> (ps0 ++ [q $> LitP l] ++ ps1, substBody n' 0 (Lit l) b)
         _ -> __IMPOSSIBLE__
       where
         (ps0, rest) = splitAt n ps
