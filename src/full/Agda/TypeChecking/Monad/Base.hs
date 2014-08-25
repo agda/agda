@@ -306,7 +306,6 @@ data Interface = Interface
   , iPragmaOptions   :: [OptionsPragma]
                         -- ^ Pragma options set in the file.
   , iPatternSyns     :: A.PatternSynDefns
-  , iInstanceDefs    :: InstanceTable
   }
   deriving (Typeable, Show)
 

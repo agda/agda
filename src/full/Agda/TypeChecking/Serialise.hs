@@ -87,7 +87,7 @@ import Agda.Utils.Impossible
 -- 32-bit machines). Word64 does not have these problems.
 
 currentInterfaceVersion :: Word64
-currentInterfaceVersion = 20140721 * 10 + 0
+currentInterfaceVersion = 20140825 * 10 + 0
 
 -- | Constructor tag (maybe omitted) and argument indices.
 
@@ -1227,11 +1227,11 @@ instance EmbPrj HP.CompressedFile where
     valu _   = malformed
 
 instance EmbPrj Interface where
-  icode (Interface a b c d e f g h i j k l) = icode12' a b c d e f g h i j k l
+  icode (Interface a b c d e f g h i j k) = icode11' a b c d e f g h i j k
   value = vcase valu
     where
-      valu [a, b, c, d, e, f, g, h, i, j, k, l] = valu12 Interface a b c d e f g h i j k l
-      valu _                                    = malformed
+      valu [a, b, c, d, e, f, g, h, i, j, k] = valu11 Interface a b c d e f g h i j k
+      valu _                                 = malformed
 
 -- This is used for the Epic compiler backend
 instance EmbPrj Epic.EInterface where

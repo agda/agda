@@ -4,6 +4,7 @@
 
 module Agda.TypeChecking.Monad.State where
 
+import Control.Arrow ((***), first, second)
 import Control.Applicative
 import qualified Control.Exception as E
 import Control.Monad.State
@@ -310,6 +311,13 @@ freshTCM m = do
 ---------------------------------------------------------------------------
 -- * Instance definitions
 ---------------------------------------------------------------------------
+
+-- | Look through the signature and reconstruct the instance table.
+addSignatureInstances :: Signature -> TCM ()
+addSignatureInstances sig = do
+  let itable = Map.fromListWith (++)
+               [ (c, [i]) | (i, Defn{ defInstance = Just c }) <- HMap.toList $ sigDefinitions sig ]
+  modifyInstanceDefs $ first $ Map.unionWith (++) itable
 
 -- | Lens for 'stInstanceDefs'.
 updateInstanceDefs :: (TempInstanceTable -> TempInstanceTable) -> (TCState -> TCState)
