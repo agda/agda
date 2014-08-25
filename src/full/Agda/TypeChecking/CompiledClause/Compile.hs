@@ -2,6 +2,7 @@
 
 module Agda.TypeChecking.CompiledClause.Compile where
 
+import Data.Maybe
 import Data.Monoid
 import qualified Data.Map as Map
 import Data.List (genericReplicate, nubBy, findIndex)
@@ -203,7 +204,7 @@ expandCatchAlls single n cs =
     isCatchAll (Arg _ LitP{})  = False
     isCatchAll (Arg _ ProjP{}) = False
     isCatchAll _      = True
-    nth qs = maybe __IMPOSSIBLE__ id $ mhead $ drop n qs
+    nth qs = fromMaybe __IMPOSSIBLE__ $ mhead $ drop n qs
       -- where (_, p, _) = extractNthElement' n qs
 
     classify (LitP l)     = Left l
