@@ -187,21 +187,21 @@ expandCatchAlls single n cs =
 
     -- All non-catch-all patterns following this one (at position n).
     -- These are the cases the wildcard needs to be expanded into.
-    expansions = nubBy ((==) `on` classify)
-               . filter (not . isVar)
-               . map (unArg . nth . fst)
+    expansions = nubBy ((==) `on` (classify . unArg))
+               . filter (not . isVar . unArg)
+               . map (nth . fst)
                $ cs
 
     expand ps b q =
-      case q of
-        ConP c mt qs' -> (ps0 ++ [defaultArg $ ConP c mt conPArgs] ++ ps1,
+      case unArg q of
+        ConP c mt qs' -> (ps0 ++ [q $> ConP c mt conPArgs] ++ ps1,
                          substBody n' m (Con c conArgs) b)
           where
             m        = length qs'
             -- replace all direct subpatterns of q by _
             conPArgs = map (fmap ($> VarP underscore)) qs'
             conArgs  = zipWith (\ q n -> q $> var n) qs' $ downFrom m
-        LitP l -> (ps0 ++ [defaultArg $ LitP l] ++ ps1, substBody n' 0 (Lit l) b)
+        LitP l -> (ps0 ++ [q $> LitP l] ++ ps1, substBody n' 0 (Lit l) b)
         _ -> __IMPOSSIBLE__
       where
         (ps0, rest) = splitAt n ps
