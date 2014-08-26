@@ -144,3 +144,20 @@ nowSolvingConstraints = local $ \e -> e { envSolvingConstraints = True }
 
 isSolvingConstraints :: TCM Bool
 isSolvingConstraints = asks envSolvingConstraints
+
+---------------------------------------------------------------------------
+-- * Lenses
+---------------------------------------------------------------------------
+
+mapAwakeConstraints :: (Constraints -> Constraints) -> TCState -> TCState
+mapAwakeConstraints f s = s { stAwakeConstraints = f (stAwakeConstraints s) }
+
+mapSleepingConstraints :: (Constraints -> Constraints) -> TCState -> TCState
+mapSleepingConstraints f s = s { stSleepingConstraints = f (stSleepingConstraints s) }
+
+modifyAwakeConstraints  :: (Constraints -> Constraints) -> TCM ()
+modifyAwakeConstraints = modify . mapAwakeConstraints
+
+modifySleepingConstraints  :: (Constraints -> Constraints) -> TCM ()
+modifySleepingConstraints = modify . mapSleepingConstraints
+
