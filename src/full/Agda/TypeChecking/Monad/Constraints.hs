@@ -39,10 +39,11 @@ stealConstraints pid = do
 solvingProblem :: ProblemId -> TCM a -> TCM a
 solvingProblem pid m = verboseBracket "tc.constr.solve" 50 ("working on problem " ++ show pid) $ do
   x <- local (\e -> e { envActiveProblems = pid : envActiveProblems e }) m
-  ifM (isProblemSolved pid) (do
+  ifNotM (isProblemSolved pid)
+    (reportSLn "tc.constr.solve" 50 $ "problem " ++ show pid ++ " was not solved.")
+    $ {- else -} do
       reportSLn "tc.constr.solve" 50 $ "problem " ++ show pid ++ " was solved!"
       wakeConstraints (blockedOn pid . clValue . theConstraint)
-    ) (reportSLn "tc.constr.solve" 50 $ "problem " ++ show pid ++ " was not solved.")
   return x
   where
     blockedOn pid (Guarded _ pid') = pid == pid'
