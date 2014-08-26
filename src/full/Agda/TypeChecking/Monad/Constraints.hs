@@ -6,11 +6,15 @@ import Control.Arrow ((&&&))
 import Control.Applicative
 import Control.Monad.State
 import Control.Monad.Reader
+
 import Data.List as List
+import Data.Maybe
 
 import Agda.TypeChecking.Monad.Base
 import Agda.TypeChecking.Monad.Closure
 import Agda.TypeChecking.Monad.Options
+
+import Agda.Utils.List
 import Agda.Utils.Monad
 
 #include "../../undefined.h"
@@ -18,10 +22,7 @@ import Agda.Utils.Impossible
 
 -- | Get the current problem
 currentProblem :: TCM ProblemId
-currentProblem = asks $ head' . envActiveProblems
-  where
-    head' []    = {- ' -} __IMPOSSIBLE__
-    head' (x:_) = x
+currentProblem = fromMaybe __IMPOSSIBLE__ . mhead <$> asks envActiveProblems
 
 -- | Steal all constraints belonging to the given problem and add them to the current problem.
 stealConstraints :: ProblemId -> TCM ()
