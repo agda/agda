@@ -84,15 +84,17 @@ reallyUnLevelView nv = liftTCM $ do
       zer <- primLevelZero
       suc <- primLevelSuc
       return $ unPlusV zer (\n -> suc `apply` [defaultArg n]) a
-    Max as -> do
-      LevelKit{ lvlZero = zer, lvlSuc = suc, lvlMax = max } <- requireLevels
-      return $ case map (unPlusV zer suc) as of
-        [a] -> a
-        []  -> __IMPOSSIBLE__
-        as  -> foldr1 max as
-  where
-    unPlusV zer suc (ClosedLevel n) = foldr (.) id (genericReplicate n suc) zer
-    unPlusV _   suc (Plus n a)      = foldr (.) id (genericReplicate n suc) (unLevelAtom a)
+    _ -> (`unlevelWithKit` nv) <$> requireLevels
+
+unlevelWithKit :: LevelKit -> Level -> Term
+unlevelWithKit LevelKit{ lvlZero = zer, lvlSuc = suc, lvlMax = max } (Max as) =
+  case map (unPlusV zer suc) as of
+    [a] -> a
+    []  -> zer
+    as  -> foldr1 max as
+
+unPlusV zer suc (ClosedLevel n) = foldr (.) id (genericReplicate n suc) zer
+unPlusV _   suc (Plus n a)      = foldr (.) id (genericReplicate n suc) (unLevelAtom a)
 
 maybePrimCon :: TCM Term -> TCM (Maybe ConHead)
 maybePrimCon prim = liftTCM $ do

@@ -30,6 +30,7 @@ import Agda.TypeChecking.Substitute
 import Agda.TypeChecking.DropArgs
 import Agda.TypeChecking.CompiledClause
 import Agda.TypeChecking.Free
+import Agda.TypeChecking.Level
 
 import Agda.Utils.String
 import Agda.Utils.Permutation
@@ -76,6 +77,7 @@ quotingKit = do
   unsupportedSort <- primAgdaSortUnsupported
   sucLevel        <- primLevelSuc
   lub             <- primLevelMax
+  lkit            <- requireLevels
   el              <- primAgdaTypeEl
   Con z _         <- ignoreSharing <$> primZero
   Con s _         <- ignoreSharing <$> primSuc
@@ -111,8 +113,7 @@ quotingKit = do
       -- is only on the structure.
       quoteSortLevelTerm (Max [])              = setLit !@! Lit (LitInt noRange 0)
       quoteSortLevelTerm (Max [ClosedLevel n]) = setLit !@! Lit (LitInt noRange n)
-      quoteSortLevelTerm (Max [Plus 0 (NeutralLevel v)]) = set !@ quote v
-      quoteSortLevelTerm _                     = pure unsupportedSort
+      quoteSortLevelTerm l = set !@ quote (unlevelWithKit lkit l)
       quoteSort (Type t)    = quoteSortLevelTerm t
       quoteSort Prop        = pure unsupportedSort
       quoteSort Inf         = pure unsupportedSort
