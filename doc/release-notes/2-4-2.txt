@@ -222,6 +222,11 @@ Language
   Standard modifiers, such as fixity declarations, can be applied to x as
   expected.
 
+* Quoted levels
+
+  Universe levels are now quoted properly instead of being quoted to
+  AGDASORTUNSUPPORTED. Setω  still gets an unsupported sort, however.
+
 * Module applicants can now be operator applications. Example:
 
     postulate
