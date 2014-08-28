@@ -238,6 +238,22 @@ Language
 
   [See Issue 1245.]
 
+* Minor change in module application semantics. [Issue 892]
+
+  Previously re-exported functions were not redefined when instantiating a
+  module. For instance
+
+    module A where f = ...
+    module B (X : Set) where
+      open A public
+    module C = B Nat
+
+  In this example C.f would be an alias for A.f, so if both A and C were opened
+  f would not be ambiguous. However, this behaviour is not correct when A and B
+  share some module parameters (issue 892). To fix this C now defines its own
+  copy of f (which evaluates to A.f), which means that opening A and C results
+  in an ambiguous f.
+
 Goal and error display
 ======================
 
