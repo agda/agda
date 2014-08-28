@@ -77,7 +77,7 @@ record IsGroup {a ℓ} {A : Set a} (≈ : Rel A ℓ)
 
   open IsMonoid isMonoid public
 
-  _-_ : Op₂ A
+  _-_ : FunctionProperties.Op₂ A
   x - y = x ∙ (y ⁻¹)
 
 record IsAbelianGroup
