@@ -456,7 +456,7 @@ termDef name = terSetCurrent name $ do
 setMasks :: Type -> TerM a -> TerM a
 setMasks t cont = do
   TelV tel core <- liftTCM $ telView t
-  ds <- mapM (liftTCM . isJust <.> isDataOrRecord . unEl . snd . unDom) $ telToList tel
+  ds <- liftTCM $ mapM ((isJust <.> isDataOrRecord) <=< (reduce . unEl . snd . unDom)) $ telToList tel
   d  <- liftTCM . isJust <.> isDataOrRecord . unEl $ t
   terSetMaskArgs (ds ++ repeat False) $ terSetMaskResult d $ cont
 
