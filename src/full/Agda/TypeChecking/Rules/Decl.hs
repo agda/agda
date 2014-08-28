@@ -525,12 +525,12 @@ checkSection :: Info.ModuleInfo -> ModuleName -> A.Telescope -> [A.Declaration] 
 checkSection i x tel ds =
   checkTelescope_ tel $ \tel' -> do
     addSection x (size tel')
-    verboseS "tc.section.check" 10 $ do
+    verboseS "tc.mod.check" 10 $ do
       dx   <- prettyTCM x
       dtel <- mapM prettyAs tel
       dtel' <- prettyTCM =<< lookupSection x
-      reportSLn "tc.section.check" 10 $ "checking section " ++ show dx ++ " " ++ show dtel
-      reportSLn "tc.section.check" 10 $ "    actual tele: " ++ show dtel'
+      reportSLn "tc.mod.check" 10 $ "checking section " ++ show dx ++ " " ++ show dtel
+      reportSLn "tc.mod.check" 10 $ "    actual tele: " ++ show dtel'
     withCurrentModule x $ checkDecls ds
 
 -- | Helper for 'checkSectionApplication'.
@@ -576,10 +576,10 @@ checkModuleArity m tel args = check tel args
 -- | Check an application of a section (top-level function, includes @'traceCall'@).
 checkSectionApplication
   :: Info.ModuleInfo
-  -> ModuleName                 -- ^ Name @m1@ of module defined by the module macro.
-  -> A.ModuleApplication        -- ^ The module macro @λ tel → m2 args@.
-  -> Map QName QName            -- ^ Imported names (given as renaming).
-  -> Map ModuleName ModuleName  -- ^ Imported modules (given as renaming).
+  -> ModuleName          -- ^ Name @m1@ of module defined by the module macro.
+  -> A.ModuleApplication -- ^ The module macro @λ tel → m2 args@.
+  -> A.Ren QName         -- ^ Imported names (given as renaming).
+  -> A.Ren ModuleName    -- ^ Imported modules (given as renaming).
   -> TCM ()
 checkSectionApplication i m1 modapp rd rm =
   traceCall (CheckSectionApplication (getRange i) m1 modapp) $
@@ -588,12 +588,19 @@ checkSectionApplication i m1 modapp rd rm =
 -- | Check an application of a section.
 checkSectionApplication'
   :: Info.ModuleInfo
-  -> ModuleName                 -- ^ Name @m1@ of module defined by the module macro.
-  -> A.ModuleApplication        -- ^ The module macro @λ tel → m2 args@.
-  -> Map QName QName            -- ^ Imported names (given as renaming).
-  -> Map ModuleName ModuleName  -- ^ Imported modules (given as renaming).
+  -> ModuleName          -- ^ Name @m1@ of module defined by the module macro.
+  -> A.ModuleApplication -- ^ The module macro @λ tel → m2 args@.
+  -> A.Ren QName         -- ^ Imported names (given as renaming).
+  -> A.Ren ModuleName    -- ^ Imported modules (given as renaming).
   -> TCM ()
-checkSectionApplication' i m1 (A.SectionApp ptel m2 args) rd rm =
+checkSectionApplication' i m1 (A.SectionApp ptel m2 args) rd rm = do
+  -- Module applications can appear in lets, in which case we treat
+  -- lambda-bound variables as additional parameters to the module.
+  extraParams <- do
+    mfv <- getModuleFreeVars =<< currentModule
+    fv  <- size <$> getContextTelescope
+    return (fv - mfv)
+  when (extraParams > 0) $ reportSLn "tc.mod.apply" 30 $ "Extra parameters to " ++ show m1 ++ ": " ++ show extraParams
   -- Type-check the LHS (ptel) of the module macro.
   checkTelescope_ ptel $ \ ptel -> do
   -- We are now in the context @ptel@.
@@ -609,7 +616,7 @@ checkSectionApplication' i m1 (A.SectionApp ptel m2 args) rd rm =
   etaTel <- checkModuleArity m2 tel' args'
   -- Take the module parameters that will be instantiated by @args@.
   let tel'' = telFromList $ take (size tel' - size etaTel) $ telToList tel'
-  reportSDoc "tc.section.apply" 15 $ vcat
+  reportSDoc "tc.mod.apply" 15 $ vcat
     [ text "applying section" <+> prettyTCM m2
     , nest 2 $ text "args =" <+> sep (map prettyA args)
     , nest 2 $ text "ptel =" <+> escapeContext (size ptel) (prettyTCM ptel)
@@ -622,14 +629,14 @@ checkSectionApplication' i m1 (A.SectionApp ptel m2 args) rd rm =
   ts <- noConstraints $ checkArguments_ DontExpandLast (getRange i) args' tel''
   -- Perform the application of the module parameters.
   let aTel = tel' `apply` ts
-  reportSDoc "tc.section.apply" 15 $ vcat
+  reportSDoc "tc.mod.apply" 15 $ vcat
     [ nest 2 $ text "aTel =" <+> prettyTCM aTel
     ]
   -- Andreas, 2014-04-06, Issue 1094:
   -- Add the section with well-formed telescope.
-  addCtxTel aTel $ addSection m1 (size ptel + size aTel)
+  addCtxTel aTel $ addSection m1 (size ptel + size aTel + extraParams)
 
-  reportSDoc "tc.section.apply" 20 $ vcat
+  reportSDoc "tc.mod.apply" 20 $ vcat
     [ sep [ text "applySection", prettyTCM m1, text "=", prettyTCM m2, fsep $ map prettyTCM (vs ++ ts) ]
     , nest 2 $ text "  defs:" <+> text (show rd)
     , nest 2 $ text "  mods:" <+> text (show rm)
@@ -661,7 +668,7 @@ checkSectionApplication' i m1 (A.RecordModuleIFS x) rd rm = do
       -- Before instFinal is invoked, we have checked that the @tel@ is not empty.
       instFinal EmptyTel = __IMPOSSIBLE__
 
-  reportSDoc "tc.section.apply" 20 $ vcat
+  reportSDoc "tc.mod.apply" 20 $ vcat
     [ sep [ text "applySection", prettyTCM name, text "{{...}}" ]
     , nest 2 $ text "x       =" <+> prettyTCM x
     , nest 2 $ text "name    =" <+> prettyTCM name
@@ -670,7 +677,7 @@ checkSectionApplication' i m1 (A.RecordModuleIFS x) rd rm = do
     , nest 2 $ text "vs      =" <+> sep (map prettyTCM vs)
     -- , nest 2 $ text "args    =" <+> sep (map prettyTCM args)
     ]
-  reportSDoc "tc.section.apply" 60 $ vcat
+  reportSDoc "tc.mod.apply" 60 $ vcat
     [ nest 2 $ text "vs      =" <+> text (show vs)
     -- , nest 2 $ text "args    =" <+> text (show args)
     ]
@@ -679,11 +686,11 @@ checkSectionApplication' i m1 (A.RecordModuleIFS x) rd rm = do
 
   addCtxTel telInst $ do
     vs <- freeVarsToApply name
-    reportSDoc "tc.section.apply" 20 $ vcat
+    reportSDoc "tc.mod.apply" 20 $ vcat
       [ nest 2 $ text "vs      =" <+> sep (map prettyTCM vs)
       , nest 2 $ text "args    =" <+> sep (map (parens . prettyTCM) args)
       ]
-    reportSDoc "tc.section.apply" 60 $ vcat
+    reportSDoc "tc.mod.apply" 60 $ vcat
       [ nest 2 $ text "vs      =" <+> text (show vs)
       , nest 2 $ text "args    =" <+> text (show args)
       ]

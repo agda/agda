@@ -43,6 +43,7 @@ import Agda.Utils.Null
 import Agda.Utils.Permutation
 import Agda.Utils.Pointer
 import Agda.Utils.Size
+import Agda.Utils.Pretty
 
 #include "../undefined.h"
 import Agda.Utils.Impossible
@@ -802,3 +803,96 @@ instanceUniverseBiT' [] [t| (([Type], [Clause]), Term)    |]
 instanceUniverseBiT' [] [t| (Args, Term)                  |]
 instanceUniverseBiT' [] [t| (Elims, Term)                 |] -- ?
 instanceUniverseBiT' [] [t| ([Term], Term)                |]
+
+-----------------------------------------------------------------------------
+-- * Simple pretty printing
+-----------------------------------------------------------------------------
+
+showTerm :: Term -> String
+showTerm = show . pretty
+
+instance Pretty Term where
+  prettyPrec p v =
+    case ignoreSharing v of
+      Var x els -> text ("@" ++ show x) `pApp` els
+      Lam _ b   ->
+        mparens (p > 0) $
+        sep [ text ("λ " ++ show (absName b) ++ " ->")
+            , nest 2 $ pretty (unAbs b) ]
+      Lit l                -> pretty l
+      Def q els            -> text (show q) `pApp` els
+      Con (ConHead c _) vs -> text (show c) `pApp` map Apply vs
+      Pi a (NoAbs _ b)     -> mparens (p > 0) $
+        sep [ prettyPrec 1 (unDom a) <+> text "->"
+            , nest 2 $ pretty b ]
+      Pi a b               -> mparens (p > 0) $
+        sep [ pDom (domInfo a) (text (absName b) <+> text ":" <+> pretty (unDom a)) <+> text "->"
+            , nest 2 $ pretty (unAbs b) ]
+      Sort s      -> pretty s
+      Level l     -> pretty l
+      MetaV x els -> text (show x) `pApp` els
+      DontCare v  -> pretty v
+      Shared{}    -> __IMPOSSIBLE__
+      ExtLam{}    -> __IMPOSSIBLE__
+    where
+      pApp d els = mparens (not (null els) && p > 9) $
+                   d <+> fsep (map (prettyPrec 10) els)
+
+      pDom i =
+        case getHiding i of
+          NotHidden -> parens
+          Hidden    -> braces
+          Instance  -> braces . braces
+
+instance Pretty Level where
+  prettyPrec p (Max as) =
+    case as of
+      []  -> prettyPrec p (ClosedLevel 0)
+      [a] -> prettyPrec p a
+      _   -> mparens (p > 9) $ List.foldr1 (\a b -> text "lub" <+> a <+> b) $ map (prettyPrec 10) as
+
+instance Pretty PlusLevel where
+  prettyPrec p l =
+    case l of
+      ClosedLevel n -> sucs p n $ \_ -> text "lzero"
+      Plus n a      -> sucs p n $ \p -> prettyPrec p a
+    where
+      sucs p 0 d = d p
+      sucs p n d = mparens (p > 9) $ text "lsuc" <+> sucs 10 (n - 1) d
+
+instance Pretty LevelAtom where
+  prettyPrec p a =
+    case a of
+      MetaLevel x els  -> prettyPrec p (MetaV x els)
+      BlockedLevel _ v -> prettyPrec p v
+      NeutralLevel v   -> prettyPrec p v
+      UnreducedLevel v -> prettyPrec p v
+
+instance Pretty Sort where
+  prettyPrec p s =
+    case s of
+      Type (Max []) -> text "Set"
+      Type (Max [ClosedLevel n]) -> text $ "Set" ++ show n
+      Type l -> mparens (p > 9) $ text "Set" <+> prettyPrec 10 l
+      Prop -> text "Prop"
+      Inf -> text "Setω"
+      DLub s b -> mparens (p > 9) $
+        text "dlub" <+> prettyPrec 10 s
+                    <+> parens (sep [ text ("λ " ++ show (absName b) ++ " ->")
+                                    , nest 2 $ pretty (unAbs b) ])
+
+instance Pretty Type where
+  prettyPrec p (El _ a) = prettyPrec p a
+
+instance Pretty Elim where
+  prettyPrec p (Apply v) = prettyPrec p v
+  prettyPrec _ (Proj x)  = text ("." ++ show x)
+
+instance Pretty a => Pretty (Arg a) where
+  prettyPrec p a =
+    ($ unArg a) $
+    case getHiding a of
+      NotHidden -> prettyPrec p
+      Hidden    -> braces . pretty
+      Instance  -> braces . braces . pretty
+
