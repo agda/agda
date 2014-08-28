@@ -77,6 +77,8 @@ data TerEnv = TerEnv
   , terGuardingTypeConstructors :: Bool
     -- ^ Do we assume that record and data type constructors
     --   preserve guardedness?
+  , terInlineWithFunctions :: Bool
+    -- ^ Do we inline with functions to enhance termination checking of with?
   , terSizeSuc :: Maybe QName
     -- ^ The name of size successor, if any.
   , terSharp   :: Maybe QName
@@ -135,6 +137,7 @@ defaultTerEnv :: TerEnv
 defaultTerEnv = TerEnv
   { terUseDotPatterns           = False -- must be False initially!
   , terGuardingTypeConstructors = False
+  , terInlineWithFunctions      = True
   , terSizeSuc                  = Nothing
   , terSharp                    = Nothing
   , terCutOff                   = defaultCutOff
@@ -196,6 +199,9 @@ instance MonadError TCErr TerM where
 
 terGetGuardingTypeConstructors :: TerM Bool
 terGetGuardingTypeConstructors = terAsks terGuardingTypeConstructors
+
+terGetInlineWithFunctions :: TerM Bool
+terGetInlineWithFunctions = terAsks terInlineWithFunctions
 
 terGetUseDotPatterns :: TerM Bool
 terGetUseDotPatterns = terAsks terUseDotPatterns
