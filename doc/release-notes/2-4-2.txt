@@ -28,7 +28,7 @@ Language
 ========
 
 * Instance search is now more efficient and recursive (see issue 938)
-  (but without termination check yet)
+  (but without termination check yet).
 
   A new keyword `instance' has been introduced (in the style of
   `abstract' and  `private') which must now be used for every
@@ -90,7 +90,7 @@ Language
 
   Additionally:
 
-  * Uniqueness of instances is up to definitional equality (see issue 899)
+  * Uniqueness of instances is up to definitional equality (see issue 899).
 
   * Instances of the following form are allowed:
 
@@ -98,18 +98,18 @@ Language
                   {{EqB : {a : A} → Eq (B a)}}
                   → Eq (Σ A B)
 
-      When searching recursively for an instance of type
-      `{a : A} → Eq (B a)', a lambda will automatically be introduced and
-      instance search will search for something of type `Eq (B a)' in
-      the context extended by `a : A'. When searching for an instance, the
-      `a' argument does not have to be implicit, but in the definition of
-      EqSigma, instance search will only be able to use EqB if `a' is implicit.
+    When searching recursively for an instance of type
+    `{a : A} → Eq (B a)', a lambda will automatically be introduced and
+    instance search will search for something of type `Eq (B a)' in
+    the context extended by `a : A'. When searching for an instance, the
+    `a' argument does not have to be implicit, but in the definition of
+    EqSigma, instance search will only be able to use EqB if `a' is implicit.
 
   * There is no longer any attempt to solve irrelevant metas by instance
-    search
+    search.
 
   * Constructors of records and datatypes are automatically added to the
-    instance table
+    instance table.
 
 * You can now use 'quote' in patterns.
 
