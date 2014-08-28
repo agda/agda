@@ -219,8 +219,13 @@ termMutual i ds = if names == [] then return mempty else
      guardingTypeConstructors <-
        optGuardingTypeConstructors <$> pragmaOptions
 
+     -- Andreas, 2014-08-28
+     -- We do not inline with functions if --without-K.
+     inlineWithFunctions <- not . optWithoutK <$> pragmaOptions
+
      let tenv = defaultTerEnv
            { terGuardingTypeConstructors = guardingTypeConstructors
+           , terInlineWithFunctions      = inlineWithFunctions
            , terSizeSuc                  = suc
            , terSharp                    = sharp
            , terCutOff                   = cutoff
@@ -423,11 +428,21 @@ termDef name = terSetCurrent name $ do
 
   -- Retrieve definition
   def <- liftTCM $ getConstInfo name
+  let t = defType def
 
   liftTCM $ reportSDoc "term.def.fun" 5 $
     sep [ text "termination checking body of" <+> prettyTCM name
-        , nest 2 $ text ":" <+> (prettyTCM $ defType def)
+        , nest 2 $ text ":" <+> prettyTCM t
         ]
+
+  -- If --without-K, we disregard all arguments (and result)
+  -- which are not of data or record type.
+
+  withoutKEnabled <- liftTCM $ optWithoutK <$> pragmaOptions
+  applyWhen withoutKEnabled (setMasks t) $ do
+
+  -- If the result should be disregarded, set all calls to unguarded.
+  applyUnlessM terGetMaskResult terUnguarded $ do
 
   case theDef def of
     Function{ funClauses = cls, funDelayed = delayed } ->
@@ -435,6 +450,15 @@ termDef name = terSetCurrent name $ do
 
     _ -> return CallGraph.empty
 
+-- | Mask arguments and result for termination checking
+--   according to type of function.
+--   Only arguments of data/record type are counted in.
+setMasks :: Type -> TerM a -> TerM a
+setMasks t cont = do
+  TelV tel core <- liftTCM $ telView t
+  ds <- mapM (liftTCM . isJust <.> isDataOrRecord . unEl . snd . unDom) $ telToList tel
+  d  <- liftTCM . isJust <.> isDataOrRecord . unEl $ t
+  terSetMaskArgs (ds ++ repeat False) $ terSetMaskResult d $ cont
 
 {- Termination check clauses:
 
@@ -508,27 +532,10 @@ stripCoConstructors p = do
     LitDBP{}  -> return p
     ProjDBP{} -> return p
 
-stripNonDataArgs :: [DeBruijnPat] -> TerM [DeBruijnPat]
-stripNonDataArgs ps = do
-  withoutKEnabled <- liftTCM $ optWithoutK <$> pragmaOptions
-  if withoutKEnabled
-    then do
-      f   <- terGetCurrent
-      def <- liftTCM $ getConstInfo f
-      ty  <- liftTCM $ reduce $ defType def
-      TelV tel _ <- liftTCM $ telView ty
-      let types = map (unEl . snd . unDom) $ telToList tel
-      types <- liftTCM $ mapM reduce types
-      zipWithM stripIfNotData ps types
-    else return ps
-  where
-    stripIfNotData :: DeBruijnPat -> Term -> TerM DeBruijnPat
-    stripIfNotData p ty = liftTCM $ do
-      isData <- isDataOrRecord ty
-      case isData of
-        Just _  -> return p
-        Nothing -> return unusedVar
-
+-- | Masks all non-data/record type patterns if --without-K.
+maskNonDataArgs :: [DeBruijnPat] -> TerM [DeBruijnPat]
+maskNonDataArgs ps = do
+  zipWith (\ p d -> if d then p else unusedVar) ps <$> terGetMaskArgs
 
 -- | cf. 'TypeChecking.Coverage.Match.buildMPatterns'
 openClause :: Permutation -> [Pattern] -> ClauseBody -> TerM ([DeBruijnPat], Maybe Term)
@@ -558,10 +565,7 @@ openClause perm ps body = do
 -- | Extract recursive calls from one clause.
 termClause :: Clause -> TerM Calls
 termClause clause = do
-  withoutKEnabled <- liftTCM $ optWithoutK <$> pragmaOptions
-  if withoutKEnabled
-    then termClause' clause
-    else do
+  ifNotM (terGetInlineWithFunctions) (termClause' clause) $ {- else -} do
       name <- terGetCurrent
       ifM (isJust <$> do isWithFunction name) (return mempty) $ do
       mapM' termClause' =<< do liftTCM $ inlineWithClauses name clause
@@ -586,7 +590,7 @@ termClause' clause = do
       Nothing -> return CallGraph.empty
       Just v -> do
         dbpats <- mapM stripCoConstructors dbpats
-        dbpats <- stripNonDataArgs dbpats
+        dbpats <- maskNonDataArgs dbpats
         terSetPatterns dbpats $ do
         reportBody v
   {-
@@ -695,7 +699,7 @@ instance ExtractCalls Sort where
     case s of
       Prop       -> return CallGraph.empty
       Inf        -> return CallGraph.empty
-      Type t     -> terSetGuarded Order.unknown $ extract t  -- no guarded levels
+      Type t     -> terUnguarded $ extract t  -- no guarded levels
       DLub s1 s2 -> extract (s1, s2)
 
 -- | Extract recursive calls from a type.
@@ -785,7 +789,7 @@ withFunction g es = do
 -- | Handles function applications @g es@.
 
 function :: QName -> Elims -> TerM Calls
-function g es = ifJustM (isWithFunction g) (\ _ -> withFunction g es)
+function g es = ifM (terGetInlineWithFunctions `and2M` do isJust <$> isWithFunction g) (withFunction g es)
   $ {-else, no with function-} do
 
     f       <- terGetCurrent
@@ -875,8 +879,8 @@ function g es = ifJustM (isWithFunction g) (\ _ -> withFunction g es)
                       , callInfoCall   = doc
                       }]
          liftTCM $ reportSDoc "term.kept.call" 5 $ vcat
-           [ text "kept call from" <+> prettyTCM f <+> hsep (map prettyTCM pats)
-           , nest 2 $ text "to" <+> prettyTCM g <+>
+           [ text "kept call from" <+> text (show f) <+> hsep (map prettyTCM pats)
+           , nest 2 $ text "to" <+> text (show g) <+>
                        hsep (map (parens . prettyTCM) args)
            , nest 2 $ text "call matrix (with guardedness): "
            , nest 2 $ pretty cm
@@ -1300,4 +1304,3 @@ compareVarVar i j
       case res of
         BoundedNo  -> return Order.unknown
         BoundedLt v -> decrease 1 <$> compareTerm' v (VarDBP j)
-

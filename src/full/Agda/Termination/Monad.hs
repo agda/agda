@@ -76,6 +76,8 @@ data TerEnv = TerEnv
   , terGuardingTypeConstructors :: Bool
     -- ^ Do we assume that record and data type constructors
     --   preserve guardedness?
+  , terInlineWithFunctions :: Bool
+    -- ^ Do we inline with functions to enhance termination checking of with?
   , terSizeSuc :: Maybe QName
     -- ^ The name of size successor, if any.
   , terSharp   :: Maybe QName
@@ -99,6 +101,10 @@ data TerEnv = TerEnv
     --   Only the constructors of 'Target' are considered guarding.
   , terDelayed :: Delayed
     -- ^ Are we checking a delayed definition?
+  , terMaskArgs :: [Bool]
+    -- ^ Only consider the 'True' arguments for establishing termination.
+  , terMaskResult :: Bool
+    -- ^ Only consider guardedness if 'True'.
   , terPatterns :: [DeBruijnPat]
     -- ^ The patterns of the clause we are checking.
   , terPatternsRaise :: !Int
@@ -134,6 +140,7 @@ defaultTerEnv :: TerEnv
 defaultTerEnv = TerEnv
   { terUseDotPatterns           = False -- must be False initially!
   , terGuardingTypeConstructors = False
+  , terInlineWithFunctions      = True
   , terSizeSuc                  = Nothing
   , terSharp                    = Nothing
   , terCutOff                   = defaultCutOff
@@ -142,6 +149,8 @@ defaultTerEnv = TerEnv
   , terCurrent                  = __IMPOSSIBLE__ -- needs to be set!
   , terTarget                   = Nothing
   , terDelayed                  = NotDelayed
+  , terMaskArgs                 = repeat True    -- use all arguments
+  , terMaskResult               = True           -- use result
   , terPatterns                 = __IMPOSSIBLE__ -- needs to be set!
   , terPatternsRaise            = 0
   , terGuarded                  = le -- not initially guarded
@@ -196,6 +205,9 @@ instance MonadError TCErr TerM where
 terGetGuardingTypeConstructors :: TerM Bool
 terGetGuardingTypeConstructors = terAsks terGuardingTypeConstructors
 
+terGetInlineWithFunctions :: TerM Bool
+terGetInlineWithFunctions = terAsks terInlineWithFunctions
+
 terGetUseDotPatterns :: TerM Bool
 terGetUseDotPatterns = terAsks terUseDotPatterns
 
@@ -234,6 +246,18 @@ terGetDelayed = terAsks terDelayed
 
 terSetDelayed :: Delayed -> TerM a -> TerM a
 terSetDelayed b = terLocal $ \ e -> e { terDelayed = b }
+
+terGetMaskArgs :: TerM [Bool]
+terGetMaskArgs = terAsks terMaskArgs
+
+terSetMaskArgs :: [Bool] -> TerM a -> TerM a
+terSetMaskArgs b = terLocal $ \ e -> e { terMaskArgs = b }
+
+terGetMaskResult :: TerM Bool
+terGetMaskResult = terAsks terMaskResult
+
+terSetMaskResult :: Bool -> TerM a -> TerM a
+terSetMaskResult b = terLocal $ \ e -> e { terMaskResult = b }
 
 terGetPatterns :: TerM DeBruijnPats
 terGetPatterns = raiseDBP <$> terAsks terPatternsRaise <*> terAsks terPatterns
