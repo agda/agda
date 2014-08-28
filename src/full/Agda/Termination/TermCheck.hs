@@ -688,7 +688,7 @@ instance ExtractCalls Sort where
     case s of
       Prop       -> return CallGraph.empty
       Inf        -> return CallGraph.empty
-      Type t     -> terSetGuarded Order.unknown $ extract t  -- no guarded levels
+      Type t     -> terUnguarded $ extract t  -- no guarded levels
       DLub s1 s2 -> extract (s1, s2)
 
 -- | Extract recursive calls from a type.
