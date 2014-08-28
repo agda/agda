@@ -208,8 +208,13 @@ termMutual i ds = if names == [] then return mempty else
      guardingTypeConstructors <-
        optGuardingTypeConstructors <$> pragmaOptions
 
+     -- Andreas, 2014-08-28
+     -- We do not inline with functions if --without-K.
+     inlineWithFunctions <- not . optWithoutK <$> pragmaOptions
+
      let tenv = defaultTerEnv
            { terGuardingTypeConstructors = guardingTypeConstructors
+           , terInlineWithFunctions      = inlineWithFunctions
            , terSizeSuc                  = suc
            , terSharp                    = sharp
            , terCutOff                   = cutoff
@@ -546,10 +551,7 @@ openClause perm ps body = do
 -- | Extract recursive calls from one clause.
 termClause :: Clause -> TerM Calls
 termClause clause = do
-  withoutKEnabled <- liftTCM $ optWithoutK <$> pragmaOptions
-  if withoutKEnabled
-    then termClause' clause
-    else do
+  ifNotM (terGetInlineWithFunctions) (termClause' clause) $ {- else -} do
       name <- terGetCurrent
       ifM (isJust <$> do isWithFunction name) (return mempty) $ do
       mapM' termClause' =<< do liftTCM $ inlineWithClauses name clause
@@ -773,7 +775,7 @@ withFunction g es = do
 -- | Handles function applications @g es@.
 
 function :: QName -> Elims -> TerM Calls
-function g es = ifJustM (isWithFunction g) (\ _ -> withFunction g es)
+function g es = ifM (terGetInlineWithFunctions `and2M` do isJust <$> isWithFunction g) (withFunction g es)
   $ {-else, no with function-} do
 
     f       <- terGetCurrent
