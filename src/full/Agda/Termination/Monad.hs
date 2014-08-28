@@ -102,6 +102,10 @@ data TerEnv = TerEnv
     --   Only the constructors of 'Target' are considered guarding.
   , terDelayed :: Delayed
     -- ^ Are we checking a delayed definition?
+  , terMaskArgs :: [Bool]
+    -- ^ Only consider the 'True' arguments for establishing termination.
+  , terMaskResult :: Bool
+    -- ^ Only consider guardedness if 'True'.
   , terPatterns :: [DeBruijnPat]
     -- ^ The patterns of the clause we are checking.
   , terPatternsRaise :: !Int
@@ -146,6 +150,8 @@ defaultTerEnv = TerEnv
   , terCurrent                  = __IMPOSSIBLE__ -- needs to be set!
   , terTarget                   = Nothing
   , terDelayed                  = NotDelayed
+  , terMaskArgs                 = repeat True    -- use all arguments
+  , terMaskResult               = True           -- use result
   , terPatterns                 = __IMPOSSIBLE__ -- needs to be set!
   , terPatternsRaise            = 0
   , terGuarded                  = le -- not initially guarded
@@ -241,6 +247,18 @@ terGetDelayed = terAsks terDelayed
 
 terSetDelayed :: Delayed -> TerM a -> TerM a
 terSetDelayed b = terLocal $ \ e -> e { terDelayed = b }
+
+terGetMaskArgs :: TerM [Bool]
+terGetMaskArgs = terAsks terMaskArgs
+
+terSetMaskArgs :: [Bool] -> TerM a -> TerM a
+terSetMaskArgs b = terLocal $ \ e -> e { terMaskArgs = b }
+
+terGetMaskResult :: TerM Bool
+terGetMaskResult = terAsks terMaskResult
+
+terSetMaskResult :: Bool -> TerM a -> TerM a
+terSetMaskResult b = terLocal $ \ e -> e { terMaskResult = b }
 
 terGetPatterns :: TerM DeBruijnPats
 terGetPatterns = raiseDBP <$> terAsks terPatternsRaise <*> terAsks terPatterns
