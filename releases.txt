@@ -1,0 +1,38 @@
+When releasing a new version of Agda standard library, the following
+procedure can be followed:
+
+* Update README.agda:
+
+  ** Replace 'development version' by 'version X.Y' in the title.
+
+  ** After the list of authors, replace
+
+     -- The development version of the library often requires the latest
+     -- development version of Agda.
+
+     by
+
+     -- This version of the library has been tested using Agda A.B.C.
+
+* Update the lib.cabal version to X.Y.
+
+* Ensure that the library type-checks using Agda A.B.C:
+
+  make test
+
+* Finish the release notes in the release-notes.txt file.
+
+* Update the copyright year range in the LICENSE file, if necessary.
+
+* Tag and push version X.Y (do not forget to record the changes above
+  first):
+
+  git tag -a vX.Y -m "Agda standard library vX.Y"
+  git push --tags
+
+* Update the standard library page on the Agda wiki.
+
+* Removed release-specific information from README.agda and push the
+  changes.
+
+* Announce the release of the new version on the Agda mailing list.
