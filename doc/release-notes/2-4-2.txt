@@ -2,9 +2,7 @@
 -- Release notes for Agda version 2.4.2
 ------------------------------------------------------------------------
 
-TODO: Replace X with the appropriate value.
-
-Important changes since 2.4.0.X:
+Important changes since 2.4.0.2:
 
 Installation and infrastructure
 ===============================
