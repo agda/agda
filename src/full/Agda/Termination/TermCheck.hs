@@ -868,8 +868,8 @@ function g es = ifM (terGetInlineWithFunctions `and2M` do isJust <$> isWithFunct
                       , callInfoCall   = doc
                       }]
          liftTCM $ reportSDoc "term.kept.call" 5 $ vcat
-           [ text "kept call from" <+> prettyTCM f <+> hsep (map prettyTCM pats)
-           , nest 2 $ text "to" <+> prettyTCM g <+>
+           [ text "kept call from" <+> text (show f) <+> hsep (map prettyTCM pats)
+           , nest 2 $ text "to" <+> text (show g) <+>
                        hsep (map (parens . prettyTCM) args)
            , nest 2 $ text "call matrix (with guardedness): "
            , nest 2 $ pretty cm
