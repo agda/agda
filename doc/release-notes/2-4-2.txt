@@ -295,3 +295,39 @@ Emacs mode
 
 LaTeX-backend
 -------------
+
+* New experimental option ``references'' has been added. When specified,
+  i.e.:
+
+      \usepackage[references]{agda}
+
+  a new command called \AgdaRef is provided, which lets you reference
+  previously typeset commands, e.g.:
+
+      Let us postulate \AgdaRef{apa}.
+
+      \begin{code}
+      postulate
+        apa : Set
+      \end{code}
+
+  Above ``apa'' will be typeset (highlighted) the same in the text as in
+  the code, provided that the LaTeX output is post-processed using
+  src/data/postprocess-latex.pl, e.g.:
+
+    cp $(dirname $(dirname $(agda-mode locate)))/postprocess-latex.pl .
+    agda -i. --latex Example.lagda
+    cd latex/
+    perl ../postprocess-latex.pl Example.tex > Example.processed
+    mv Example.processed Example.tex
+    xelatex Example.tex
+
+  Mix-fix and unicode should work as expected (unicode requires
+  XeLaTeX/LuaLaTeX), but there are limitations:
+
+    + Overloading identifiers should be avoided, if multiples exist
+      \AgdaRef will typeset according to the first it finds.
+
+    + Only the current module is used, should you need to reference
+      identifiers in other modules then you need to specify which other
+      module manually, i.e. \AgdaRef[module]{identifier}.

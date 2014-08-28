@@ -4,7 +4,7 @@
 
 \ProvidesPackage{agda}
 
-\RequirePackage{ifxetex, ifluatex, ifthen, xcolor, polytable, etoolbox}
+\RequirePackage{ifxetex, ifluatex, xifthen, xcolor, polytable, etoolbox}
 
 % http://tex.stackexchange.com/questions/47576/combining-ifxetex-and-ifluatex-with-the-logical-or-operation
 \newif\ifxetexorluatex
@@ -47,22 +47,47 @@
 \fi
 
 % ----------------------------------------------------------------------
+% Options
+
+\DeclareOption{bw}   {\newcommand{\AgdaColourScheme}{bw}}
+\DeclareOption{conor}{\newcommand{\AgdaColourScheme}{conor}}
+
+\newif\if@AgdaEnableReferences\@AgdaEnableReferencesfalse
+\DeclareOption{references}{
+  \@AgdaEnableReferencestrue
+}
+
+\newif\if@AgdaEnableLinks\@AgdaEnableLinksfalse
+\DeclareOption{links}{
+  \@AgdaEnableLinkstrue
+}
+
+\ProcessOptions\relax
+
+% ----------------------------------------------------------------------
 % Colour schemes.
 
-\newcommand{\AgdaColourScheme}{standard}
+\providecommand{\AgdaColourScheme}{standard}
 
-\DeclareOption{bw}   {\renewcommand{\AgdaColourScheme}{bw}}
-\DeclareOption{conor}{\renewcommand{\AgdaColourScheme}{conor}}
+% ----------------------------------------------------------------------
+% References to code (needs additional post-processing of tex files to
+% work, see wiki for details).
+
+\if@AgdaEnableReferences
+  \RequirePackage{catchfilebetweentags, xstring}
+  \newcommand{\AgdaRef}[2][]{%
+    \StrSubstitute{#2}{\_}{AgdaUnderscore}[\tmp]%
+    \ifthenelse{\isempty{#1}}%
+               {\ExecuteMetaData{AgdaTag-\tmp}}%
+               {\ExecuteMetaData{#1}{AgdaTag-\tmp}}
+  }
+\fi
+
+\providecommand{\AgdaRef}[2][]{#2}
 
 % ----------------------------------------------------------------------
 % Links (only done if the option is passed and the user has loaded the
 % hyperref package).
-
-\newif\if@AgdaEnableLinks\@AgdaEnableLinksfalse
-\DeclareOption{links}{
-    \@AgdaEnableLinkstrue
-}
-\ProcessOptions\relax
 
 \if@AgdaEnableLinks
   \@ifpackageloaded{hyperref}{

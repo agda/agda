@@ -46,6 +46,7 @@ data-files:         Agda.css
                     EpicInclude/stdagda.c
                     EpicInclude/stdagda.h
                     agda.sty
+                    postprocess-latex.pl
                     lib/prim/Agda/Primitive.agda
 
 source-repository head
