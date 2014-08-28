@@ -833,6 +833,7 @@ instance Pretty Term where
       MetaV x els -> text (show x) `pApp` els
       DontCare v  -> pretty v
       Shared{}    -> __IMPOSSIBLE__
+      ExtLam{}    -> __IMPOSSIBLE__
     where
       pApp d els = mparens (not (null els) && p > 9) $
                    d <+> fsep (map (prettyPrec 10) els)

@@ -113,13 +113,15 @@ data Axiom
               --   or another (e.g. data/record) type signature (internally).
   deriving (Typeable, Eq, Ord, Show)
 
+type Ren a = Map a a
+
 data Declaration
 	= Axiom      Axiom DefInfo ArgInfo QName Expr      -- ^ type signature (can be irrelevant and colored, but not hidden)
 	| Field      DefInfo QName (Arg Expr)		   -- ^ record field
 	| Primitive  DefInfo QName Expr			   -- ^ primitive function
 	| Mutual     MutualInfo [Declaration]              -- ^ a bunch of mutually recursive definitions
 	| Section    ModuleInfo ModuleName [TypedBindings] [Declaration]
-	| Apply	     ModuleInfo ModuleName ModuleApplication (Map QName QName) (Map ModuleName ModuleName)
+	| Apply	     ModuleInfo ModuleName ModuleApplication (Ren QName) (Ren ModuleName)
 	| Import     ModuleInfo ModuleName
 	| Pragma     Range	Pragma
         | Open       ModuleInfo ModuleName
@@ -180,7 +182,7 @@ data LetBinding
     -- ^ @LetBind info rel name type defn@
   | LetPatBind LetInfo Pattern Expr
     -- ^ Irrefutable pattern binding.
-  | LetApply ModuleInfo ModuleName ModuleApplication (Map QName QName) (Map ModuleName ModuleName)
+  | LetApply ModuleInfo ModuleName ModuleApplication (Ren QName) (Ren ModuleName)
     -- ^ @LetApply mi newM (oldM args) renaming moduleRenaming@.
   | LetOpen ModuleInfo ModuleName
     -- ^ only for highlighting and abstractToConcrete

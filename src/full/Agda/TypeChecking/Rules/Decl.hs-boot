@@ -3,11 +3,11 @@ module Agda.TypeChecking.Rules.Decl where
 
 import Data.Map           (Map)
 import Agda.Syntax.Info        (ModuleInfo)
-import Agda.Syntax.Abstract    (QName, Declaration, ModuleName, ModuleApplication)
+import Agda.Syntax.Abstract    (QName, Declaration, ModuleName, ModuleApplication, Ren)
 import Agda.TypeChecking.Monad (TCM)
 
 checkDecls :: [Declaration] -> TCM ()
 checkDecl  :: Declaration -> TCM ()
 checkSectionApplication ::
   ModuleInfo -> ModuleName -> ModuleApplication ->
-  Map QName QName -> Map ModuleName ModuleName -> TCM ()
+  Ren QName -> Ren ModuleName -> TCM ()
