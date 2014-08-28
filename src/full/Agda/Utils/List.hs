@@ -316,16 +316,16 @@ commonPrefix (x:xs) (y:ys)
 prop_commonPrefix :: [Integer] -> [Integer] -> [Integer] -> Bool
 prop_commonPrefix xs ys zs =
   and [ isPrefixOf zs zs'
-      , isPrefixOf zs' xs
-      , isPrefixOf zs' ys ]
+      , isPrefixOf zs' (zs ++ xs)
+      , isPrefixOf zs' (zs ++ ys) ]
   where
     zs' = commonPrefix (zs ++ xs) (zs ++ ys)
 
 prop_commonSuffix :: [Integer] -> [Integer] -> [Integer] -> Bool
 prop_commonSuffix xs ys zs =
   and [ isSuffixOf zs zs'
-      , isSuffixOf zs' xs
-      , isSuffixOf zs' ys ]
+      , isSuffixOf zs' (xs ++ zs)
+      , isSuffixOf zs' (ys ++ zs) ]
   where
     zs' = commonSuffix (xs ++ zs) (ys ++ zs)
 
