@@ -35,6 +35,10 @@ procedure can be followed:
 
   git push --follow-tags
 
-* Update the standard library page on the Agda wiki.
+* Update the standard library page on the Agda wiki:
+
+  ** News section on the main page.
+
+  ** The standard library page.
 
 * Announce the release of the new version on the Agda mailing list.
