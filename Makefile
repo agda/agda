@@ -45,6 +45,8 @@ CABAL_OPTS+=--builddir=dist/$(VERSION)
 #  -f old-time
 #  -f epic
 
+# CABAL_OPTS+=--program-suffix=-$(VERSION)
+
 # If you want to make use of parallel compilation with ghc>=7.8,
 # enable the flag below, or set the "jobs" field in your
 # ".cabal/config".
