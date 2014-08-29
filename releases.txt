@@ -31,9 +31,9 @@ procedure can be followed:
 * Removed release-specific information from README.agda (do not forget
   to record the changes).
 
-* Push all the changes and the new tag:
+* Push all the changes and the new tag (requires Git >= 1.8.3):
 
-  git push --tags
+  git push --follow-tags
 
 * Update the standard library page on the Agda wiki.
 
