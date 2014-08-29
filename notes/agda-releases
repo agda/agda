@@ -7,7 +7,11 @@ followed:
     cd Agda.release
 
 * Clone the standard library
+
     git clone git@github.com:Agda/agda-stdlib std-lib
+    cd std-lib
+    make Everything.agda
+    cd ..
 
 * Finish the release notes in
   doc/release-notes/<version-written-with-dashes>.txt.
@@ -45,6 +49,9 @@ followed:
       emacs --batch -L . -f batch-byte-compile *.el; \
       rm -f *.elc)
 
+* Run make test (and accept the updates the Agda version in the files
+  test/interaction/Issue1244a.out and test/interaction/Issue1244b.out).
+
 * Tag and build source distributions. (Do not forget to commit the
   changes above first.)
 
@@ -53,28 +60,28 @@ followed:
     cabal configure && cabal sdist && cabal check
     cabal install
 
-* Ensure that all the packages build properly.
+* Ensure that the package builds properly (with multiple versions of ghc if
+  possible).
 
     BASE=`pwd`
     cd ${TMPDIR:-/tmp}
     tar xzf $BASE/dist/Agda-$VERSION.tar.gz
     cd Agda-$VERSION
-    autoconf
-    ./configure
-    make install CABAL_OPTIONS="--prefix=$PWD/usr"
-    make test
-    cd ..
+    cabal configure
+    cabal install
+    cd $BASE
 
   Do not forget to test the Emacs mode.
-
-* Create a maintenance branch
-
-    git branch maint-$VERSION
 
 * Upload the Cabal package using cabal upload.
 
     cd $BASE
     cabal upload dist/Agda-$VERSION.tar.gz
+
+* Push the release to github
+
+  git push
+  git push --tags
 
 * Update the Agda Wiki:
 
@@ -87,42 +94,51 @@ followed:
 
   ** Update the Release Notes page (under Documentation).
 
-  ** If necessary, update the Standard Library page.
-
   ** Update the Main page.
 
 * Announce the release of the new version on the Agda mailing list.
-
-* Update the version numbers again (so that released and development
-  versions are not confused) in:
-
-    Agda.cabal (twice),
-    src/data/emacs-mode/agda2-mode.el and
-    mk/paths.mk.
-
-  And in the maintenance branch (to $VERSION.1).
-
-    git checkout maint-$VERSION
-    ... update versions ...
-    git commit -p
-    git checkout master
 
 * Remove the "this" source-repository section from the Cabal
   file. (This would be unnecessary if we had two repositories, one
   stable and one for development.)
 
-* Remove the release notes for the released version from doc/release-notes.
+  Turn -Werror back on.
 
-* Update the Agda version in the files test/interaction/Issue1244a.out
-  and test/interaction/Issue1244b.out.
+* Create a maintenance branch
 
-* Push all changes.
+    git checkout -b maint-$VERSION
 
-    git push
-    git push --tags
+* Update the version numbers in the maintenance branch to $VERSION.1.
 
-    git checkout maint-$VERSION
-    git push -u origin maint-$VERSION
+    Agda.cabal (twice)
+    src/data/emacs-mode/agda2-mode.el
+    mk/paths.mk
+    test/interaction/Issue1244a.out
+    test/interaction/Issue1244b.out
+
+* Add program suffix option to Makefile on maintenance branch
+    CABAL_OPTS+=--program-suffix=-$(VERSION)
+
+* Merge maint-2.4.2. Comment the CABAL_OPTS line in
+  the Makefile.
 
     git checkout master
+    git merge maint-2.4.2
+
+* Update the version numbers in master.
+
+    Agda.cabal (twice)
+    src/data/emacs-mode/agda2-mode.el
+    mk/paths.mk
+    test/interaction/Issue1244a.out
+    test/interaction/Issue1244b.out
+
+* Remove the release notes for the released version from doc/release-notes and
+  create a template for the next version.
+
+* Push all changes
+
+    git push
+    git checkout maint-$VERSION
+    git push -u origin maint-$VERSION
 
