@@ -32,18 +32,13 @@ data IO {a} (A : Set a) : Set (suc a) where
   _>>=_  : {B : Set a} (m : ∞ (IO B)) (f : (x : B) → ∞ (IO A)) → IO A
   _>>_   : {B : Set a} (m₁ : ∞ (IO B)) (m₂ : ∞ (IO A)) → IO A
 
--- The use of abstract ensures that the run function will not be
--- unfolded infinitely by the type checker.
+{-# NON_TERMINATING #-}
 
-abstract
-
-  {-# NO_TERMINATION_CHECK #-}
-
-  run : ∀ {a} {A : Set a} → IO A → Prim.IO A
-  run (lift m)   = m
-  run (return x) = Prim.return x
-  run (m  >>= f) = Prim._>>=_ (run (♭ m )) λ x → run (♭ (f x))
-  run (m₁ >> m₂) = Prim._>>=_ (run (♭ m₁)) λ _ → run (♭ m₂)
+run : ∀ {a} {A : Set a} → IO A → Prim.IO A
+run (lift m)   = m
+run (return x) = Prim.return x
+run (m  >>= f) = Prim._>>=_ (run (♭ m )) λ x → run (♭ (f x))
+run (m₁ >> m₂) = Prim._>>=_ (run (♭ m₁)) λ _ → run (♭ m₂)
 
 ------------------------------------------------------------------------
 -- Utilities
