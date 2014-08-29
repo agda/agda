@@ -1,7 +1,7 @@
 module README where
 
 ------------------------------------------------------------------------
--- The Agda standard library, version 0.8.1
+-- The Agda standard library, development version
 --
 -- Author: Nils Anders Danielsson, with contributions from Andreas
 -- Abel, Stevan Andjelkovic, Jean-Philippe Bernardy, Peter Berry,
@@ -13,7 +13,8 @@ module README where
 -- Pouillard, Andrés Sicard-Ramírez and Noam Zeilberger.
 ------------------------------------------------------------------------
 
--- This version of the library has been tested using Agda 2.4.2.
+-- The development version of the library often requires the latest
+-- development version of Agda.
 
 -- Note that no guarantees are currently made about forwards or
 -- backwards compatibility, the library is still at an experimental
