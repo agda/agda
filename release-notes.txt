@@ -1,8 +1,8 @@
 ------------------------------------------------------------------------
--- Release notes for Agda standard library version 0.9
+-- Release notes for Agda standard library version 0.8.1
 ------------------------------------------------------------------------
 
-The library has been tested using Agda version A.B.C.
+The library has been tested using Agda version 2.4.2.
 
 Note that no guarantees are made about backwards or forwards
 compatibility, the library is still at an experimental stage.
@@ -21,10 +21,17 @@ Important changes since 0.8:
 
 * Reflection API
 
-  Agda A.B.C added support for literals, function definitions, pattern
+  Agda 2.4.2 added support for literals, function definitions, pattern
   matching lambdas and absurd clause/patterns (see Agda A.B.C release
   notes). The new supported entities were added to the Reflection.agda
   module.
+
+* Modules renamed
+
+  Foo.Props.Bar -> Foo.Properties.Bar
+
+  The current compatibility modules Foo.Props.Bar will be removed in
+  the next release.
 
 ------------------------------------------------------------------------
 Version 0.8
