@@ -26,6 +26,13 @@ Important changes since 0.8:
   notes). The new supported entities were added to the Reflection.agda
   module.
 
+* Modules renamed
+
+  Foo.Props.Bar -> Foo.Properties.Bar
+
+  The current compatibility modules Foo.Props.Bar will be removed in
+  the next release.
+
 ------------------------------------------------------------------------
 Version 0.8
 ------------------------------------------------------------------------
