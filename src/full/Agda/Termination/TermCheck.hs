@@ -455,9 +455,12 @@ termDef name = terSetCurrent name $ do
 --   Only arguments of data/record type are counted in.
 setMasks :: Type -> TerM a -> TerM a
 setMasks t cont = do
-  TelV tel core <- liftTCM $ telView t
-  ds <- liftTCM $ mapM ((isJust <.> isDataOrRecord) <=< (reduce . unEl . snd . unDom)) $ telToList tel
-  d  <- liftTCM . isJust <.> isDataOrRecord . unEl $ t
+  (ds, d) <- liftTCM $ do
+    TelV tel core <- telView t
+    ds <- mapM ((isJust <.> isDataOrRecord) <=< (reduce . unEl . snd . unDom)) $ telToList tel
+    d  <- isJust <.> isDataOrRecord . unEl $ core
+    reportSLn "term.mask" 20 $ "result type is not data or record type, ignoring guardedness for --without-K"
+    return (ds, d)
   terSetMaskArgs (ds ++ repeat False) $ terSetMaskResult d $ cont
 
 {- Termination check clauses:
