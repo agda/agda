@@ -28,6 +28,7 @@ import Agda.Syntax.Concrete.Name as C
 import Agda.Syntax.Concrete
   (ImportDirective(..), UsingOrHiding(..), ImportedName(..), Renaming(..))
 
+import qualified Agda.Utils.AssocList as AssocList
 import Agda.Utils.Functor
 import Agda.Utils.List
 import qualified Agda.Utils.Map as Map
@@ -277,8 +278,7 @@ emptyScopeInfo = ScopeInfo
 mapScope :: (NameSpaceId -> NamesInScope   -> NamesInScope  ) ->
 	    (NameSpaceId -> ModulesInScope -> ModulesInScope) ->
 	    Scope -> Scope
-mapScope fd fm =
-  updateScopeNameSpaces $ map $ \ (nsid, ns) -> (nsid, mapNS nsid ns)
+mapScope fd fm = updateScopeNameSpaces $ AssocList.mapWithKey mapNS
   where
     mapNS acc = mapNameSpace (fd acc) (fm acc)
 
@@ -293,8 +293,7 @@ mapScopeM :: (Functor m, Monad m) =>
   (NameSpaceId -> NamesInScope   -> m NamesInScope  ) ->
   (NameSpaceId -> ModulesInScope -> m ModulesInScope) ->
   Scope -> m Scope
-mapScopeM fd fm = updateScopeNameSpacesM $ mapM $ \ (nsid, ns) -> do
-  (nsid,) <$> mapNS nsid ns
+mapScopeM fd fm = updateScopeNameSpacesM $ AssocList.mapWithKeyM mapNS
   where
     mapNS acc = mapNameSpaceM (fd acc) (fm acc)
 
@@ -376,7 +375,7 @@ mergeScopes ss = foldr1 mergeScope ss
 -- | Move all names in a scope to the given name space (except never move from
 --   Imported to Public).
 setScopeAccess :: NameSpaceId -> Scope -> Scope
-setScopeAccess a s = (`updateScopeNameSpaces` s) $ map $ \ (nsid, _) -> (nsid, ns nsid)
+setScopeAccess a s = (`updateScopeNameSpaces` s) $ AssocList.mapWithKey $ const . ns
   where
     zero  = emptyNameSpace
     one   = allThingsInScope s
@@ -391,8 +390,7 @@ setScopeAccess a s = (`updateScopeNameSpaces` s) $ map $ \ (nsid, _) -> (nsid, n
 
 -- | Update a particular name space.
 setNameSpace :: NameSpaceId -> NameSpace -> Scope -> Scope
-setNameSpace nsid ns = updateScopeNameSpaces $ map $ \ (nsid', ns') ->
-  (nsid', if nsid == nsid' then ns else ns')
+setNameSpace nsid ns = updateScopeNameSpaces $ AssocList.update nsid ns
 
 -- | Add names to a scope.
 addNamesToScope :: NameSpaceId -> C.Name -> [AbstractName] -> Scope -> Scope

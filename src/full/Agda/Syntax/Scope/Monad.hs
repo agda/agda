@@ -30,6 +30,7 @@ import Agda.TypeChecking.Monad.Base
 import Agda.TypeChecking.Monad.State
 import Agda.TypeChecking.Monad.Options
 
+import qualified Agda.Utils.AssocList as AssocList
 import Agda.Utils.Fresh
 import Agda.Utils.Function
 import Agda.Utils.List
@@ -127,7 +128,7 @@ modifyCurrentScopeM f = getCurrentModule >>= (`modifyNamedScopeM` f)
 -- | Apply a function to the public or private name space.
 modifyCurrentNameSpace :: NameSpaceId -> (NameSpace -> NameSpace) -> ScopeM ()
 modifyCurrentNameSpace acc f = modifyCurrentScope $ updateScopeNameSpaces $
-  map $ \ (nsid, ns) -> (nsid, applyWhen (nsid == acc) f ns)
+  AssocList.updateAt acc f
 
 setContextPrecedence :: Precedence -> ScopeM ()
 setContextPrecedence p = modifyScopeInfo $ \s -> s { scopePrecedence = p }
