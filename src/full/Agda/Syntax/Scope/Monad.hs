@@ -30,11 +30,12 @@ import Agda.TypeChecking.Monad.Base
 import Agda.TypeChecking.Monad.State
 import Agda.TypeChecking.Monad.Options
 
-import Agda.Utils.Tuple
 import Agda.Utils.Fresh
-import Agda.Utils.Size
 import Agda.Utils.Function
 import Agda.Utils.List
+import Agda.Utils.Null (unlessNull)
+import Agda.Utils.Size
+import Agda.Utils.Tuple
 
 #include "../../undefined.h"
 import Agda.Utils.Impossible
@@ -446,26 +447,26 @@ openModule_ cm dir = do
 
     -- Only checks for clashes that would lead to the same
     -- name being exported twice from the module.
-    checkForClashes new
-      | not (publicOpen dir) = return ()
-      | otherwise = do
+    checkForClashes new = when (publicOpen dir) $ do
 
         old <- allThingsInScope . restrictPrivate <$> (getNamedScope =<< getCurrentModule)
 
         let defClashes = Map.toList $ Map.intersectionWith (,) (nsNames new) (nsNames old)
             modClashes = Map.toList $ Map.intersectionWith (,) (nsModules new) (nsModules old)
 
+            -- No ambiguity if concrete identifier is mapped to
+            -- single, identical abstract identifiers.
             realClash (_, ([x],[y])) = x /= y
             realClash _              = True
 
+            -- No ambiguity if concrete identifier is only mapped to
+            -- constructor names.
             defClash (_, (qs0, qs1)) =
               any ((/= ConName) . anameKind) (qs0 ++ qs1)
 
-            (f & g) x = f x && g x
+        -- We report the first clashing exported identifier.
+        unlessNull (filter (\ x -> realClash x && defClash x) defClashes) $
+          \ ((x, (_, q:_)) : _) -> typeError $ ClashingDefinition (C.QName x) (anameName q)
 
-        case filter (realClash & defClash) defClashes of
-          (x, (_, q:_)):_ -> typeError $ ClashingDefinition (C.QName x) (anameName q)
-          _               -> return ()
-        case filter realClash modClashes of
-          (_, (m0:_, m1:_)):_ -> typeError $ ClashingModule (amodName m0) (amodName m1)
-          _                   -> return ()
+        unlessNull (filter realClash modClashes) $ \ ((_, (m0:_, m1:_)) : _) ->
+          typeError $ ClashingModule (amodName m0) (amodName m1)
