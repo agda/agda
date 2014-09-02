@@ -109,23 +109,19 @@ modifyScopes f = modifyScopeInfo $ \s -> s { scopeModules = f $ scopeModules s }
 modifyNamedScope :: A.ModuleName -> (Scope -> Scope) -> ScopeM ()
 modifyNamedScope m f = modifyScopes $ Map.adjust f m
 
--- | Apply a function to the current scope.
-modifyCurrentScope :: (Scope -> Scope) -> ScopeM ()
-modifyCurrentScope f = do
-  m <- getCurrentModule
-  modifyNamedScope m f
+setNamedScope :: A.ModuleName -> Scope -> ScopeM ()
+setNamedScope m s = modifyNamedScope m $ const s
 
 -- | Apply a monadic function to the top scope.
 modifyNamedScopeM :: A.ModuleName -> (Scope -> ScopeM Scope) -> ScopeM ()
-modifyNamedScopeM m f = do
-  s  <- getNamedScope m
-  s' <- f s
-  modifyNamedScope m (const s')
+modifyNamedScopeM m f = setNamedScope m =<< f =<< getNamedScope m
+
+-- | Apply a function to the current scope.
+modifyCurrentScope :: (Scope -> Scope) -> ScopeM ()
+modifyCurrentScope f = getCurrentModule >>= (`modifyNamedScope` f)
 
 modifyCurrentScopeM :: (Scope -> ScopeM Scope) -> ScopeM ()
-modifyCurrentScopeM f = do
-  m <- getCurrentModule
-  modifyNamedScopeM m f
+modifyCurrentScopeM f = getCurrentModule >>= (`modifyNamedScopeM` f)
 
 -- | Apply a function to the public or private name space.
 modifyCurrentNameSpace :: NameSpaceId -> (NameSpace -> NameSpace) -> ScopeM ()
