@@ -12,7 +12,7 @@ import Control.Monad hiding (mapM)
 import Control.Monad.Writer hiding (mapM)
 import Control.Monad.State hiding (mapM)
 
-import Data.List
+import Data.List as List
 import Data.Map (Map)
 import qualified Data.Map as Map
 import Data.Maybe
@@ -443,6 +443,14 @@ openModule_ cm dir = do
   let ns = scopeNameSpace acc s
   checkForClashes ns
   modifyCurrentScope (`mergeScope` s)
+  -- Andreas, issue 1266: it seems that what is missing here is to
+  -- remove the locals shadowed by imported definitions.
+  verboseS "scope.locals" 10 $ do
+    locals <- map fst <$> getLocalVars
+    let newdefs = Map.keys $ nsNames ns
+        shadowed = List.intersect locals newdefs
+    reportSLn "scope.locals" 10 $ "opening module shadows the following locals vars: " ++ show shadowed
+  modifyLocalVars $ filter $ \ (c,_) -> not $ Map.member c $ nsNames ns
   where
     namespace m0 m1
       | not (publicOpen dir)  = PrivateNS
