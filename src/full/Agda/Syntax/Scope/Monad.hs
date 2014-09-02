@@ -147,8 +147,11 @@ withContextPrecedence p m = do
 getLocalVars :: ScopeM LocalVars
 getLocalVars = scopeLocals <$> getScope
 
+modifyLocalVars :: (LocalVars -> LocalVars) -> ScopeM ()
+modifyLocalVars = modifyScope . updateScopeLocals
+
 setLocalVars :: LocalVars -> ScopeM ()
-setLocalVars vars = modifyScope $ setScopeLocals vars
+setLocalVars vars = modifyLocalVars $ const vars
 
 -- | Run a computation without changing the local variables.
 withLocalVars :: ScopeM a -> ScopeM a
@@ -303,11 +306,9 @@ bindQModule acc q m = modifyCurrentScope $ \s ->
 
 -- | Clear the scope of any no names.
 stripNoNames :: ScopeM ()
-stripNoNames = modifyScopes $ Map.map strip
+stripNoNames = modifyScopes $ Map.map $ mapScope_ stripN stripN
   where
-    strip     = mapScope (\_ -> stripN) (\_ -> stripN)
-    stripN m  = Map.filterWithKey (const . notNoName) m
-    notNoName = not . isNoName
+    stripN = Map.filterWithKey $ const . not . isNoName
 
 type Out = (A.Ren A.ModuleName, A.Ren A.QName)
 type WSM = StateT Out ScopeM
