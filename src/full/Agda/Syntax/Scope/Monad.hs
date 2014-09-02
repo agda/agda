@@ -436,10 +436,12 @@ openModule_ :: C.QName -> ImportDirective -> ScopeM ()
 openModule_ cm dir = do
   current <- getCurrentModule
   m <- amodName <$> resolveModule cm
-  let ns = namespace current m
-  s <- setScopeAccess ns <$>
+  let acc = namespace current m
+  -- Get the scope exported by module to be opened.
+  s <- setScopeAccess acc <$>
         (applyImportDirectiveM cm dir . inScopeBecause (Opened cm) . removeOnlyQualified . restrictPrivate =<< getNamedScope m)
-  checkForClashes (scopeNameSpace ns s)
+  let ns = scopeNameSpace acc s
+  checkForClashes ns
   modifyCurrentScope (`mergeScope` s)
   where
     namespace m0 m1
