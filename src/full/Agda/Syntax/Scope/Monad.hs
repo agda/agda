@@ -99,9 +99,7 @@ createModule b m = do
 
 -- | Apply a function to the scope info.
 modifyScopeInfo :: (ScopeInfo -> ScopeInfo) -> ScopeM ()
-modifyScopeInfo f = do
-  scope <- getScope
-  setScope $ f scope
+modifyScopeInfo = modifyScope
 
 -- | Apply a function to the scope map.
 modifyScopes :: (Map A.ModuleName Scope -> Map A.ModuleName Scope) -> ScopeM ()
