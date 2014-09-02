@@ -90,11 +90,11 @@ data ScopeInfo = ScopeInfo
 type LocalVars = [(C.Name, A.Name)]
 
 -- | Lens for 'scopeLocals'.
-modifyScopeLocals :: (LocalVars -> LocalVars) -> ScopeInfo -> ScopeInfo
-modifyScopeLocals f sc = sc { scopeLocals = f (scopeLocals sc) }
+updateScopeLocals :: (LocalVars -> LocalVars) -> ScopeInfo -> ScopeInfo
+updateScopeLocals f sc = sc { scopeLocals = f (scopeLocals sc) }
 
 setScopeLocals :: LocalVars -> ScopeInfo -> ScopeInfo
-setScopeLocals vars = modifyScopeLocals (const vars)
+setScopeLocals vars = updateScopeLocals (const vars)
 
 ------------------------------------------------------------------------
 -- * Name spaces
