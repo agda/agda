@@ -974,7 +974,6 @@ instance ToAbstract LetDef [A.LetBinding] where
             -- You can't open public in a let
             NiceOpen r x dirs | not (C.publicOpen dirs) -> do
               m       <- toAbstract (OldModuleName x)
-              n       <- length . scopeLocals <$> getScope
               openModule_ x dirs
               return [A.LetOpen (ModuleInfo
                                    { minfoRange  = r
