@@ -33,6 +33,7 @@ import Agda.TypeChecking.Monad.Options
 import Agda.Utils.Tuple
 import Agda.Utils.Fresh
 import Agda.Utils.Size
+import Agda.Utils.Function
 import Agda.Utils.List
 
 #include "../../undefined.h"
@@ -130,12 +131,8 @@ modifyCurrentScopeM f = do
 
 -- | Apply a function to the public or private name space.
 modifyCurrentNameSpace :: NameSpaceId -> (NameSpace -> NameSpace) -> ScopeM ()
-modifyCurrentNameSpace acc f = modifyCurrentScope action
-  where
-    action s = s { scopeNameSpaces = [ (nsid, f' nsid ns) | (nsid, ns) <- scopeNameSpaces s ] }
-
-    f' a | a == acc  = f
-         | otherwise = id
+modifyCurrentNameSpace acc f = modifyCurrentScope $ updateScopeNameSpaces $
+  map $ \ (nsid, ns) -> (nsid, applyWhen (nsid == acc) f ns)
 
 setContextPrecedence :: Precedence -> ScopeM ()
 setContextPrecedence p = modifyScopeInfo $ \s -> s { scopePrecedence = p }
