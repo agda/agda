@@ -12,9 +12,10 @@ module Agda.Syntax.Scope.Base where
 
 import Control.Arrow ((***), first, second)
 import Control.Applicative
+import Control.DeepSeq
 
 import Data.Function
-import Data.List
+import Data.List as List
 import Data.Map (Map)
 import qualified Data.Map as Map
 import Data.Maybe
@@ -28,6 +29,7 @@ import Agda.Syntax.Concrete.Name as C
 import Agda.Syntax.Concrete
   (ImportDirective(..), UsingOrHiding(..), ImportedName(..), Renaming(..))
 
+import Agda.Utils.AssocList (AssocList)
 import qualified Agda.Utils.AssocList as AssocList
 import Agda.Utils.Functor
 import Agda.Utils.List
@@ -88,7 +90,46 @@ data ScopeInfo = ScopeInfo
   deriving (Typeable)
 
 -- | Local variables.
-type LocalVars = [(C.Name, A.Name)]
+type LocalVars = AssocList C.Name LocalVar
+
+-- | A local variable can be shadowed by an import.
+--   In case of reference to a shadowed variable, we want to report
+--   a scope error.
+data LocalVar
+  = LocalVar    { localVar :: A.Name }
+    -- ^ Unique ID of local variable.
+  | ShadowedVar { localVar :: A.Name, localShadowedBy :: [AbstractName] }
+    -- ^ This local variable is shadowed by one or more imports.
+    --   (List not empty).
+  deriving (Typeable)
+
+instance NFData LocalVar
+
+instance Eq LocalVar where
+  (==) = (==) `on` localVar
+
+instance Ord LocalVar where
+  compare = compare `on` localVar
+
+-- | We show shadowed variables as prefixed by a ".", as not in scope.
+instance Show LocalVar where
+  show (LocalVar    x)    = show x
+  show (ShadowedVar x xs) = "." ++ show x
+
+-- | Shadow a local name by a non-empty list of imports.
+shadowLocal :: [AbstractName] -> LocalVar -> LocalVar
+shadowLocal [] _ = __IMPOSSIBLE__
+shadowLocal ys (LocalVar    x   ) = ShadowedVar x ys
+shadowLocal ys (ShadowedVar x zs) = ShadowedVar x (ys ++ zs)
+
+-- | Project name of unshadowed local variable.
+notShadowedLocal :: LocalVar -> Maybe A.Name
+notShadowedLocal (LocalVar x) = Just x
+notShadowedLocal ShadowedVar{} = Nothing
+
+-- | Get all locals that are not shadowed.
+notShadowedLocals :: LocalVars -> AssocList C.Name A.Name
+notShadowedLocals = mapMaybe $ \ (c,x) -> (c,) <$> notShadowedLocal x
 
 -- | Lens for 'scopeLocals'.
 updateScopeLocals :: (LocalVars -> LocalVars) -> ScopeInfo -> ScopeInfo

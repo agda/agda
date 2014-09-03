@@ -558,6 +558,13 @@ instance EmbPrj a => EmbPrj (Ranged a) where
   value = vcase valu where valu [r, x] = valu2 Ranged r x
                            valu _      = malformed
 
+instance EmbPrj LocalVar where
+  icode (LocalVar a)      = icode1' a
+  icode (ShadowedVar a b) = icode2' a b
+  value = vcase valu where valu [a]    = valu1 LocalVar a
+                           valu [a, b] = valu2 ShadowedVar a b
+                           valu _      = malformed
+
 -- Only used for pattern synonyms
 instance EmbPrj A.Expr where
   icode (A.Var n)               = icode1 0 n

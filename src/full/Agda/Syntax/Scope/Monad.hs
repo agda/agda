@@ -212,9 +212,13 @@ resolveName = resolveName' allKindsOfNames
 resolveName' :: [KindOfName] -> C.QName -> ScopeM ResolvedName
 resolveName' kinds x = do
   scope <- getScope
-  let vars = map (C.QName -*- id) $ scopeLocals scope
+  let vars = AssocList.mapKeysMonotonic C.QName $ scopeLocals scope
   case lookup x vars of
-    Just y  -> return $ VarName $ y { nameConcrete = unqualify x }
+    -- Case: we have a local variable x.
+    Just (LocalVar y)  -> return $ VarName $ y { nameConcrete = unqualify x }
+    -- Case: ... but is shadowed by some imports.
+    Just (ShadowedVar y ys) -> typeError $ AmbiguousName x $ A.qualify_ y : map anameName ys
+    -- Case: we do not have a local variable x.
     Nothing -> case filter ((`elem` kinds) . anameKind . fst) $ scopeLookup' x scope of
       [] -> return UnknownName
       ds | all ((==ConName) . anameKind . fst) ds ->
@@ -260,9 +264,7 @@ getFixity x = do
 
 -- | Bind a variable. The abstract name is supplied as the second argument.
 bindVariable :: C.Name -> A.Name -> ScopeM ()
-bindVariable x y = do
-  scope <- getScope
-  setScope scope { scopeLocals = (x, y) : scopeLocals scope }
+bindVariable x y = modifyScope $ updateScopeLocals $ AssocList.insert x $ LocalVar y
 
 -- | Bind a defined name. Must not shadow anything.
 bindName :: Access -> KindOfName -> C.Name -> A.QName -> ScopeM ()
@@ -443,14 +445,16 @@ openModule_ cm dir = do
   let ns = scopeNameSpace acc s
   checkForClashes ns
   modifyCurrentScope (`mergeScope` s)
-  -- Andreas, issue 1266: it seems that what is missing here is to
-  -- remove the locals shadowed by imported definitions.
   verboseS "scope.locals" 10 $ do
-    locals <- map fst <$> getLocalVars
+    locals <- mapMaybe (\ (c,x) -> c <$ notShadowedLocal x) <$> getLocalVars
     let newdefs = Map.keys $ nsNames ns
         shadowed = List.intersect locals newdefs
     reportSLn "scope.locals" 10 $ "opening module shadows the following locals vars: " ++ show shadowed
-  modifyLocalVars $ filter $ \ (c,_) -> not $ Map.member c $ nsNames ns
+  -- Andreas, 2014-09-03, issue 1266: shadow local variables by imported defs.
+  modifyLocalVars $ AssocList.mapWithKey $ \ c x ->
+    case Map.lookup c $ nsNames ns of
+      Nothing -> x
+      Just ys -> shadowLocal ys x
   where
     namespace m0 m1
       | not (publicOpen dir)  = PrivateNS
