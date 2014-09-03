@@ -242,14 +242,13 @@ zipNameSpace fd fm ns1 ns2 =
       }
 
 -- | Map monadic function over a namespace.
-mapNameSpaceM :: Monad m =>
+mapNameSpaceM :: Applicative m =>
   (NamesInScope   -> m NamesInScope  ) ->
   (ModulesInScope -> m ModulesInScope) ->
   NameSpace -> m NameSpace
-mapNameSpaceM fd fm ns = do
-  ds <- fd $ nsNames ns
-  ms <- fm $ nsModules ns
-  return $ ns { nsNames = ds, nsModules = ms }
+mapNameSpaceM fd fm ns = update ns <$> fd (nsNames ns) <*> fm (nsModules ns)
+  where
+    update ns ds ms = ns { nsNames = ds, nsModules = ms }
 
 ------------------------------------------------------------------------
 -- * General operations on scopes
@@ -289,7 +288,7 @@ mapScope_ :: (NamesInScope   -> NamesInScope  ) ->
 mapScope_ fd fm = mapScope (const fd) (const fm)
 
 -- | Map monadic functions over the names and modules in a scope.
-mapScopeM :: (Functor m, Monad m) =>
+mapScopeM :: (Functor m, Applicative m) =>
   (NameSpaceId -> NamesInScope   -> m NamesInScope  ) ->
   (NameSpaceId -> ModulesInScope -> m ModulesInScope) ->
   Scope -> m Scope
@@ -299,7 +298,7 @@ mapScopeM fd fm = updateScopeNameSpacesM $ AssocList.mapWithKeyM mapNS
 
 -- | Same as 'mapScopeM' but applies the same function to both the public and
 --   private name spaces.
-mapScopeM_ :: (Functor m, Monad m) =>
+mapScopeM_ :: (Functor m, Applicative m) =>
   (NamesInScope   -> m NamesInScope  ) ->
   (ModulesInScope -> m ModulesInScope) ->
   Scope -> m Scope

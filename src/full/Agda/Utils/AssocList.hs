@@ -7,6 +7,8 @@ module Agda.Utils.AssocList where
 
 import Prelude hiding (lookup)
 
+import Control.Applicative
+
 import Data.Functor
 import qualified Data.List as List
 
@@ -59,11 +61,15 @@ updateAt k f = loop where
 mapWithKey :: (k -> v -> v) -> AssocList k v -> AssocList k v
 mapWithKey f = map $ \ (k,v) -> (k, f k v)
 
-mapWithKeyM :: (Functor m, Monad m) => (k -> v -> m v) -> AssocList k v -> m (AssocList k v)
 -- | O(n).
 --   If called with a effect-producing function, violation of the invariant
 --   could matter here (duplicating effects).
+mapWithKeyM :: (Functor m, Applicative m) => (k -> v -> m v) -> AssocList k v -> m (AssocList k v)
 mapWithKeyM f = mapM $ \ (k,v) -> (k,) <$> f k v
+  where
+    -- mapM is applicative!
+    mapM g [] = pure []
+    mapM g (x : xs) = (:) <$> g x <*> mapM g xs
 
 -- | O(n).
 --   Named in analogy to 'Data.Map.mapKeysMonotonic'.
