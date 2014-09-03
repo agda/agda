@@ -118,7 +118,7 @@ initializeIFSMeta s t = do
 --   its type again.
 findInScope :: MetaId -> Maybe Candidates -> TCM ()
 findInScope m Nothing = do
-  reportSLn "tc.constr.findInScope" 20 $ "The type of the FindInScope constraint isn't known, trying to find it again."
+  reportSLn "tc.instance" 20 $ "The type of the FindInScope constraint isn't known, trying to find it again."
   t <- getMetaType m
   cands <- initialIFSCandidates t
   case cands of
@@ -133,11 +133,11 @@ findInScope' m cands = ifM (isFrozen m) (return (Just cands)) $ do
     -- Andreas, 2013-12-28 issue 1003:
     -- If instance meta is already solved, simply discard the constraint.
     ifM (isInstantiatedMeta m) (return Nothing) $ do
-    reportSLn "tc.constr.findInScope" 15 $
+    reportSLn "tc.instance" 15 $
       "findInScope 2: constraint: " ++ show m ++ "; candidates left: " ++ show (length cands)
     t <- normalise =<< getMetaTypeInContext m
-    reportSDoc "tc.constr.findInScope" 15 $ text "findInScope 3: t =" <+> prettyTCM t
-    reportSLn "tc.constr.findInScope" 70 $ "findInScope 3: t: " ++ show t
+    reportSDoc "tc.instance" 15 $ text "findInScope 3: t =" <+> prettyTCM t
+    reportSLn "tc.instance" 70 $ "findInScope 3: t: " ++ show t
     mv <- lookupMeta m
     -- If there are recursive instances, it's not safe to instantiate
     -- metavariables in the goal, so we freeze them before checking candidates.
@@ -151,18 +151,18 @@ findInScope' m cands = ifM (isFrozen m) (return (Just cands)) $ do
       filterM (shouldFreeze rigid) (allMetas t)
     forM_ metas $ \ m -> updateMetaVar m $ \ mv -> mv { mvFrozen = Frozen }
     cands <- checkCandidates m t cands
-    reportSLn "tc.constr.findInScope" 15 $
+    reportSLn "tc.instance" 15 $
       "findInScope 4: cands left: " ++ show (length cands)
     unfreezeMeta metas
     case cands of
 
       [] -> do
-        reportSDoc "tc.constr.findInScope" 15 $
+        reportSDoc "tc.instance" 15 $
           text "findInScope 5: not a single candidate found..."
         typeError $ IFSNoCandidateInScope t
 
       [(term, t')] -> do
-        reportSDoc "tc.constr.findInScope" 15 $ vcat
+        reportSDoc "tc.instance" 15 $ vcat
           [ text "findInScope 5: found one candidate"
           , nest 2 $ prettyTCM term
           , text "of type " <+> prettyTCM t'
@@ -183,14 +183,14 @@ findInScope' m cands = ifM (isFrozen m) (return (Just cands)) $ do
             ctxArgs <- getContextArgs
             v <- (`applyDroppingParameters` args) =<< reduce term
             assignV DirEq m ctxArgs v
-            reportSDoc "tc.constr.findInScope" 10 $ vcat
+            reportSDoc "tc.instance" 10 $ vcat
               [ text "solved by instance search:"
               , prettyTCM m <+> text ":=" <+> prettyTCM v
               ]
             return Nothing
 
       cs -> do
-        reportSDoc "tc.constr.findInScope" 15 $
+        reportSDoc "tc.instance" 15 $
           text ("findInScope 5: more than one candidate found: ") <+>
           prettyTCM (List.map fst cs)
         return (Just cs)
@@ -256,10 +256,10 @@ checkCandidates m t cands = localTCState $ disableDestructiveUpdate $ do
   where
     checkCandidateForMeta :: MetaId -> Type -> Term -> Type -> TCM Bool
     checkCandidateForMeta m t term t' =
-      verboseBracket "tc.constr.findInScope" 20 ("checkCandidateForMeta " ++ show m) $ do
+      verboseBracket "tc.instance" 20 ("checkCandidateForMeta " ++ show m) $ do
       liftTCM $ flip catchError handle $ do
-        reportSLn "tc.constr.findInScope" 70 $ "  t: " ++ show t ++ "\n  t':" ++ show t' ++ "\n  term: " ++ show term ++ "."
-        reportSDoc "tc.constr.findInScope" 20 $ vcat
+        reportSLn "tc.instance" 70 $ "  t: " ++ show t ++ "\n  t':" ++ show t' ++ "\n  term: " ++ show term ++ "."
+        reportSDoc "tc.instance" 20 $ vcat
           [ text "checkCandidateForMeta"
           , text "t    =" <+> prettyTCM t
           , text "t'   =" <+> prettyTCM t'
@@ -272,7 +272,7 @@ checkCandidates m t cands = localTCState $ disableDestructiveUpdate $ do
           case ca of
             Left _ -> return False
             Right (args, t'') -> do
-              reportSDoc "tc.constr.findInScope" 20 $
+              reportSDoc "tc.instance" 20 $
                 text "instance search: checking" <+> prettyTCM t''
                 <+> text "<=" <+> prettyTCM t
               -- if constraints remain, we abort, but keep the candidate
@@ -280,7 +280,7 @@ checkCandidates m t cands = localTCState $ disableDestructiveUpdate $ do
               --tel <- getContextTelescope
               ctxArgs <- getContextArgs
               v <- (`applyDroppingParameters` args) =<< reduce term
-              reportSDoc "tc.constr.findInScope" 15 $ vcat
+              reportSDoc "tc.instance" 15 $ vcat
                 [ text "instance search: attempting"
                 , nest 2 $ prettyTCM m <+> text ":=" <+> prettyTCM v
                 ]
@@ -294,7 +294,7 @@ checkCandidates m t cands = localTCState $ disableDestructiveUpdate $ do
               return True
       where
         handle err = do
-          reportSDoc "tc.constr.findInScope" 50 $
+          reportSDoc "tc.instance" 50 $
             text "assignment failed:" <+> prettyTCM err
           return False
     isIFSConstraint :: Constraint -> Bool

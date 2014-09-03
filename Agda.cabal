@@ -309,6 +309,7 @@ library
                     Agda.TypeChecking.Tests
 --                    Agda.TypeChecking.UniversePolymorphism -- RETIRED
                     Agda.TypeChecking.With
+                    Agda.Utils.AssocList
                     Agda.Utils.BiMap
                     Agda.Utils.Char
                     Agda.Utils.Cluster

@@ -12,7 +12,7 @@ import Control.Monad hiding (mapM)
 import Control.Monad.Writer hiding (mapM)
 import Control.Monad.State hiding (mapM)
 
-import Data.List
+import Data.List as List
 import Data.Map (Map)
 import qualified Data.Map as Map
 import Data.Maybe
@@ -30,10 +30,13 @@ import Agda.TypeChecking.Monad.Base
 import Agda.TypeChecking.Monad.State
 import Agda.TypeChecking.Monad.Options
 
-import Agda.Utils.Tuple
+import qualified Agda.Utils.AssocList as AssocList
 import Agda.Utils.Fresh
-import Agda.Utils.Size
+import Agda.Utils.Function
 import Agda.Utils.List
+import Agda.Utils.Null (unlessNull)
+import Agda.Utils.Size
+import Agda.Utils.Tuple
 
 #include "../../undefined.h"
 import Agda.Utils.Impossible
@@ -98,9 +101,7 @@ createModule b m = do
 
 -- | Apply a function to the scope info.
 modifyScopeInfo :: (ScopeInfo -> ScopeInfo) -> ScopeM ()
-modifyScopeInfo f = do
-  scope <- getScope
-  setScope $ f scope
+modifyScopeInfo = modifyScope
 
 -- | Apply a function to the scope map.
 modifyScopes :: (Map A.ModuleName Scope -> Map A.ModuleName Scope) -> ScopeM ()
@@ -110,32 +111,24 @@ modifyScopes f = modifyScopeInfo $ \s -> s { scopeModules = f $ scopeModules s }
 modifyNamedScope :: A.ModuleName -> (Scope -> Scope) -> ScopeM ()
 modifyNamedScope m f = modifyScopes $ Map.adjust f m
 
--- | Apply a function to the current scope.
-modifyCurrentScope :: (Scope -> Scope) -> ScopeM ()
-modifyCurrentScope f = do
-  m <- getCurrentModule
-  modifyNamedScope m f
+setNamedScope :: A.ModuleName -> Scope -> ScopeM ()
+setNamedScope m s = modifyNamedScope m $ const s
 
 -- | Apply a monadic function to the top scope.
 modifyNamedScopeM :: A.ModuleName -> (Scope -> ScopeM Scope) -> ScopeM ()
-modifyNamedScopeM m f = do
-  s  <- getNamedScope m
-  s' <- f s
-  modifyNamedScope m (const s')
+modifyNamedScopeM m f = setNamedScope m =<< f =<< getNamedScope m
+
+-- | Apply a function to the current scope.
+modifyCurrentScope :: (Scope -> Scope) -> ScopeM ()
+modifyCurrentScope f = getCurrentModule >>= (`modifyNamedScope` f)
 
 modifyCurrentScopeM :: (Scope -> ScopeM Scope) -> ScopeM ()
-modifyCurrentScopeM f = do
-  m <- getCurrentModule
-  modifyNamedScopeM m f
+modifyCurrentScopeM f = getCurrentModule >>= (`modifyNamedScopeM` f)
 
 -- | Apply a function to the public or private name space.
 modifyCurrentNameSpace :: NameSpaceId -> (NameSpace -> NameSpace) -> ScopeM ()
-modifyCurrentNameSpace acc f = modifyCurrentScope action
-  where
-    action s = s { scopeNameSpaces = [ (nsid, f' nsid ns) | (nsid, ns) <- scopeNameSpaces s ] }
-
-    f' a | a == acc  = f
-         | otherwise = id
+modifyCurrentNameSpace acc f = modifyCurrentScope $ updateScopeNameSpaces $
+  AssocList.updateAt acc f
 
 setContextPrecedence :: Precedence -> ScopeM ()
 setContextPrecedence p = modifyScopeInfo $ \s -> s { scopePrecedence = p }
@@ -154,8 +147,11 @@ withContextPrecedence p m = do
 getLocalVars :: ScopeM LocalVars
 getLocalVars = scopeLocals <$> getScope
 
+modifyLocalVars :: (LocalVars -> LocalVars) -> ScopeM ()
+modifyLocalVars = modifyScope . updateScopeLocals
+
 setLocalVars :: LocalVars -> ScopeM ()
-setLocalVars vars = modifyScope $ setScopeLocals vars
+setLocalVars vars = modifyLocalVars $ const vars
 
 -- | Run a computation without changing the local variables.
 withLocalVars :: ScopeM a -> ScopeM a
@@ -310,11 +306,9 @@ bindQModule acc q m = modifyCurrentScope $ \s ->
 
 -- | Clear the scope of any no names.
 stripNoNames :: ScopeM ()
-stripNoNames = modifyScopes $ Map.map strip
+stripNoNames = modifyScopes $ Map.map $ mapScope_ stripN stripN
   where
-    strip     = mapScope (\_ -> stripN) (\_ -> stripN)
-    stripN m  = Map.filterWithKey (const . notNoName) m
-    notNoName = not . isNoName
+    stripN = Map.filterWithKey $ const . not . isNoName
 
 type Out = (A.Ren A.ModuleName, A.Ren A.QName)
 type WSM = StateT Out ScopeM
@@ -442,11 +436,21 @@ openModule_ :: C.QName -> ImportDirective -> ScopeM ()
 openModule_ cm dir = do
   current <- getCurrentModule
   m <- amodName <$> resolveModule cm
-  let ns = namespace current m
-  s <- setScopeAccess ns <$>
+  let acc = namespace current m
+  -- Get the scope exported by module to be opened.
+  s <- setScopeAccess acc <$>
         (applyImportDirectiveM cm dir . inScopeBecause (Opened cm) . removeOnlyQualified . restrictPrivate =<< getNamedScope m)
-  checkForClashes (scopeNameSpace ns s)
+  let ns = scopeNameSpace acc s
+  checkForClashes ns
   modifyCurrentScope (`mergeScope` s)
+  -- Andreas, issue 1266: it seems that what is missing here is to
+  -- remove the locals shadowed by imported definitions.
+  verboseS "scope.locals" 10 $ do
+    locals <- map fst <$> getLocalVars
+    let newdefs = Map.keys $ nsNames ns
+        shadowed = List.intersect locals newdefs
+    reportSLn "scope.locals" 10 $ "opening module shadows the following locals vars: " ++ show shadowed
+  modifyLocalVars $ filter $ \ (c,_) -> not $ Map.member c $ nsNames ns
   where
     namespace m0 m1
       | not (publicOpen dir)  = PrivateNS
@@ -455,26 +459,26 @@ openModule_ cm dir = do
 
     -- Only checks for clashes that would lead to the same
     -- name being exported twice from the module.
-    checkForClashes new
-      | not (publicOpen dir) = return ()
-      | otherwise = do
+    checkForClashes new = when (publicOpen dir) $ do
 
         old <- allThingsInScope . restrictPrivate <$> (getNamedScope =<< getCurrentModule)
 
         let defClashes = Map.toList $ Map.intersectionWith (,) (nsNames new) (nsNames old)
             modClashes = Map.toList $ Map.intersectionWith (,) (nsModules new) (nsModules old)
 
+            -- No ambiguity if concrete identifier is mapped to
+            -- single, identical abstract identifiers.
             realClash (_, ([x],[y])) = x /= y
             realClash _              = True
 
+            -- No ambiguity if concrete identifier is only mapped to
+            -- constructor names.
             defClash (_, (qs0, qs1)) =
               any ((/= ConName) . anameKind) (qs0 ++ qs1)
 
-            (f & g) x = f x && g x
+        -- We report the first clashing exported identifier.
+        unlessNull (filter (\ x -> realClash x && defClash x) defClashes) $
+          \ ((x, (_, q:_)) : _) -> typeError $ ClashingDefinition (C.QName x) (anameName q)
 
-        case filter (realClash & defClash) defClashes of
-          (x, (_, q:_)):_ -> typeError $ ClashingDefinition (C.QName x) (anameName q)
-          _               -> return ()
-        case filter realClash modClashes of
-          (_, (m0:_, m1:_)):_ -> typeError $ ClashingModule (amodName m0) (amodName m1)
-          _                   -> return ()
+        unlessNull (filter realClash modClashes) $ \ ((_, (m0:_, m1:_)) : _) ->
+          typeError $ ClashingModule (amodName m0) (amodName m1)

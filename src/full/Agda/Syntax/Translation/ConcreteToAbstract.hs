@@ -226,7 +226,7 @@ checkModuleMacro
   -> OpenShortHand
   -> ImportDirective
   -> ScopeM [a]
-checkModuleMacro apply r p x modapp open dir = withLocalVars $ do
+checkModuleMacro apply r p x modapp open dir = do
     notPublicWithoutOpen open dir
 
     m0 <- toAbstract (NewModuleName x)
@@ -239,9 +239,11 @@ checkModuleMacro apply r p x modapp open dir = withLocalVars $ do
                 DontOpen  -> dir
                 DoOpen    -> defaultImportDir
 
-    (modapp', renD, renM) <- checkModuleApplication modapp m0 x dir'
+    -- Restore the locals after module application has been checked.
+    (modapp', renD, renM) <- withLocalVars $ checkModuleApplication modapp m0 x dir'
     bindModule p x m0
     printScope "mod.inst.copy.after" 20 "after copying"
+    -- Andreas, 2014-09-02 openModule_ might shadow some locals!
     when (open == DoOpen) $
       openModule_ (C.QName x) dir
     printScope "mod.inst" 20 $ show open
@@ -972,7 +974,6 @@ instance ToAbstract LetDef [A.LetBinding] where
             -- You can't open public in a let
             NiceOpen r x dirs | not (C.publicOpen dirs) -> do
               m       <- toAbstract (OldModuleName x)
-              n       <- length . scopeLocals <$> getScope
               openModule_ x dirs
               return [A.LetOpen (ModuleInfo
                                    { minfoRange  = r
