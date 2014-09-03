@@ -12,8 +12,11 @@ record R : Set₁ where
 test : (A : R) → let open R A in A → A
 test _ a = a
 
+-- WAS:
 -- Either the A introduced by the let should shadow the outer A, or an
 -- ambiguity error should be raised. Current error message:
 --
 -- R !=< Set of type Set₁
 -- when checking that the expression A has type Set
+
+-- NOW: ambiguity error.

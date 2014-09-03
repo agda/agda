@@ -776,11 +776,11 @@ moduleContents norm rng s = do
                            Map.toList names)
   return (Map.keys modules, types)
 
-whyInScope :: String -> TCM (Maybe A.Name, [AbstractName], [AbstractModule])
+whyInScope :: String -> TCM (Maybe LocalVar, [AbstractName], [AbstractModule])
 whyInScope s = do
   x     <- parseName noRange s
   scope <- getScope
-  return ( lookup x $ map (C.QName *** localVar) $ scopeLocals scope
+  return ( lookup x $ map (first C.QName) $ scopeLocals scope
          , scopeLookup x scope
          , scopeLookup x scope )
 
