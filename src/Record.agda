@@ -7,14 +7,6 @@
 
 -- For an example of how this module can be used, see README.Record.
 
--- The module is parametrised by the type of labels, which should come
--- with decidable equality.
-
-open import Relation.Binary
-open import Relation.Binary.PropositionalEquality
-
-module Record (Label : Set) (_≟_ : Decidable (_≡_ {A = Label})) where
-
 open import Data.Bool
 open import Data.Empty
 open import Data.List
@@ -22,8 +14,15 @@ open import Data.Product hiding (proj₁; proj₂)
 open import Data.Unit
 open import Function
 open import Level
+open import Relation.Binary
+open import Relation.Binary.PropositionalEquality
 open import Relation.Nullary
 open import Relation.Nullary.Decidable
+
+-- The module is parametrised by the type of labels, which should come
+-- with decidable equality.
+
+module Record (Label : Set) (_≟_ : Decidable (_≡_ {A = Label})) where
 
 ------------------------------------------------------------------------
 -- A Σ-type with a manifest field
