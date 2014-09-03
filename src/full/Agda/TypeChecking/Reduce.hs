@@ -421,20 +421,20 @@ reduceDefCopy :: QName -> Args -> TCM (Reduced () Term)
 reduceDefCopy f vs = do
   info <- TCM.getConstInfo f
   if (defCopy info) then reduceDef_ info f vs else return $ NoReduction ()
-
-reduceDef_ :: Definition -> QName -> Args -> TCM (Reduced () Term)
-reduceDef_ info f vs = do
-  let v0   = Def f []
-      args = map notReduced vs
-      cls  = (defClauses info)
-      mcc  = (defCompiled info)
-  if (defDelayed info == Delayed) || (defNonterminating info)
-   then return $ NoReduction ()
-   else do
-      ev <- runReduceM $ appDef_ f v0 cls mcc args
-      case ev of
-        YesReduction simpl t -> return $ YesReduction simpl t
-        NoReduction args'    -> return $ NoReduction ()
+  where
+    reduceDef_ :: Definition -> QName -> Args -> TCM (Reduced () Term)
+    reduceDef_ info f vs = do
+      let v0   = Def f []
+          args = map notReduced vs
+          cls  = (defClauses info)
+          mcc  = (defCompiled info)
+      if (defDelayed info == Delayed) || (defNonterminating info)
+       then return $ NoReduction ()
+       else do
+          ev <- runReduceM $ appDef_ f v0 cls mcc args
+          case ev of
+            YesReduction simpl t -> return $ YesReduction simpl t
+            NoReduction args'    -> return $ NoReduction ()
 
 -- | Reduce simple (single clause) definitions.
 reduceHead :: Term -> TCM (Blocked Term)
