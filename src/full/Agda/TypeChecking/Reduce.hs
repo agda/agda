@@ -417,12 +417,6 @@ reduceDefCopy f vs = do
   info <- TCM.getConstInfo f
   if (defCopy info) then reduceDef_ info f vs else return $ NoReduction ()
 
--- | Reduce a non-primitive definition once unless it is delayed.
-reduceDef :: QName -> Args -> TCM (Reduced () Term)
-reduceDef f vs = do
-  info <- TCM.getConstInfo f
-  reduceDef_ info f vs
-
 reduceDef_ :: Definition -> QName -> Args -> TCM (Reduced () Term)
 reduceDef_ info f vs = do
   let v0   = Def f []
