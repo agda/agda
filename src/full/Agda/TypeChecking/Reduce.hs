@@ -338,29 +338,36 @@ unfoldDefinition' ::
 unfoldDefinition' unfoldDelayed keepGoing v0 f es =
   {-# SCC "reduceDef" #-} do
   info <- getConstInfo f
+  allowed <- asks envAllowedReductions
   let def = theDef info
       v   = v0 `applyE` es
+      -- Non-terminating functions
+      -- (i.e., those that failed the termination check)
+      -- and delayed definitions
+      -- are not unfolded unless explicitely permitted.
+      dontUnfold =
+        (defNonterminating info && notElem NonTerminatingReductions allowed)
+        || (defDelayed info == Delayed && not unfoldDelayed)
   case def of
     Constructor{conSrcCon = c} ->
       retSimpl $ notBlocked $ Con (c `withRangeOf` f) [] `applyE` es
     Primitive{primAbstr = ConcreteDef, primName = x, primClauses = cls} -> do
       pf <- fromMaybe __IMPOSSIBLE__ <$> getPrimitive' x
-      reducePrimitive x v0 f es pf (defDelayed info) (defNonterminating info)
+      reducePrimitive x v0 f es pf dontUnfold
                       cls (defCompiled info)
     _  -> do
-      allowed <- asks envAllowedReductions
       if FunctionReductions `elem` allowed ||
          (isJust (isProjection_ def) && ProjectionReductions `elem` allowed)  -- includes projection-like
-       then
-        reduceNormalE keepGoing v0 f (map notReduced es)
-                       (defDelayed info) (notElem NonTerminatingReductions allowed && defNonterminating info)
+        then
+          reduceNormalE keepGoing v0 f (map notReduced es)
+                       dontUnfold
                        (defClauses info) (defCompiled info)
         else retSimpl $ notBlocked v
 
   where
     retSimpl v = (,v) <$> getSimplification
 
-    reducePrimitive x v0 f es pf delayed nonterminating cls mcc
+    reducePrimitive x v0 f es pf dontUnfold cls mcc
       | genericLength es < ar
                   = retSimpl $ notBlocked $ v0 `applyE` es -- not fully applied
       | otherwise = {-# SCC "reducePrimitive" #-} do
@@ -377,7 +384,7 @@ unfoldDefinition' unfoldDelayed keepGoing v0 f es =
                else
                 reduceNormalE keepGoing v0 f
                              (es1' ++ map notReduced es2)
-                             delayed nonterminating cls mcc
+                             dontUnfold cls mcc
             YesReduction simpl v -> performedSimplification' simpl $
               keepGoing $ v `applyE` es2
       where
@@ -386,12 +393,10 @@ unfoldDefinition' unfoldDelayed keepGoing v0 f es =
           mredToBlocked (MaybeRed NotReduced  x) = notBlocked x
           mredToBlocked (MaybeRed (Reduced b) x) = x <$ b
 
-    reduceNormalE :: (Term -> ReduceM (Simplification, Blocked Term)) -> Term -> QName -> [MaybeReduced Elim] -> Delayed -> Bool -> [Clause] -> Maybe CompiledClauses -> ReduceM (Simplification, Blocked Term)
-    reduceNormalE keepGoing v0 f es delayed nonterminating def mcc = {-# SCC "reduceNormal" #-} do
+    reduceNormalE :: (Term -> ReduceM (Simplification, Blocked Term)) -> Term -> QName -> [MaybeReduced Elim] -> Bool -> [Clause] -> Maybe CompiledClauses -> ReduceM (Simplification, Blocked Term)
+    reduceNormalE keepGoing v0 f es dontUnfold def mcc = {-# SCC "reduceNormal" #-} do
       case def of
-        _ | nonterminating -> defaultResult
-        _ | Delayed <- delayed,
-            not unfoldDelayed -> defaultResult
+        _ | dontUnfold -> defaultResult
         [] -> defaultResult -- no definition for head
         cls -> do
             ev <- appDefE_ f v0 cls mcc es
