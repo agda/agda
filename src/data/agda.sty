@@ -286,28 +286,31 @@
 \newcommand{\AgdaOperator}    [1]{\AgdaFontStyle{\textcolor{AgdaOperator}{#1}}}
 
 % NameKind commands.
+\newcommand{\AgdaNoSpaceMath}[1]
+    {\begingroup\thickmuskip=0mu\medmuskip=0mu#1\endgroup}
+
 \newcommand{\AgdaBound}[1]
-    {\AgdaBoundFontStyle{\textcolor{AgdaBound}{#1}}}
+    {\AgdaNoSpaceMath{\AgdaBoundFontStyle{\textcolor{AgdaBound}{#1}}}}
 \newcommand{\AgdaInductiveConstructor}[1]
-    {\AgdaFontStyle{\textcolor{AgdaInductiveConstructor}{\AgdaLink{#1}}}}
+    {\AgdaNoSpaceMath{\AgdaFontStyle{\textcolor{AgdaInductiveConstructor}{\AgdaLink{#1}}}}}
 \newcommand{\AgdaCoinductiveConstructor}[1]
-    {\AgdaFontStyle{\textcolor{AgdaCoinductiveConstructor}{\AgdaLink{#1}}}}
+    {\AgdaNoSpaceMath{\AgdaFontStyle{\textcolor{AgdaCoinductiveConstructor}{\AgdaLink{#1}}}}}
 \newcommand{\AgdaDatatype}[1]
-    {\AgdaFontStyle{\textcolor{AgdaDatatype}{\AgdaLink{#1}}}}
+    {\AgdaNoSpaceMath{\AgdaFontStyle{\textcolor{AgdaDatatype}{\AgdaLink{#1}}}}}
 \newcommand{\AgdaField}[1]
-    {\AgdaFontStyle{\textcolor{AgdaField}{\AgdaLink{#1}}}}
+    {\AgdaNoSpaceMath{\AgdaFontStyle{\textcolor{AgdaField}{\AgdaLink{#1}}}}}
 \newcommand{\AgdaFunction}[1]
-    {\AgdaFontStyle{\textcolor{AgdaFunction}{\AgdaLink{#1}}}}
+    {\AgdaNoSpaceMath{\AgdaFontStyle{\textcolor{AgdaFunction}{\AgdaLink{#1}}}}}
 \newcommand{\AgdaModule}[1]
-    {\AgdaFontStyle{\textcolor{AgdaModule}{\AgdaLink{#1}}}}
+    {\AgdaNoSpaceMath{\AgdaFontStyle{\textcolor{AgdaModule}{\AgdaLink{#1}}}}}
 \newcommand{\AgdaPostulate}[1]
-    {\AgdaFontStyle{\textcolor{AgdaPostulate}{\AgdaLink{#1}}}}
+    {\AgdaNoSpaceMath{\AgdaFontStyle{\textcolor{AgdaPostulate}{\AgdaLink{#1}}}}}
 \newcommand{\AgdaPrimitive}[1]
-    {\AgdaFontStyle{\textcolor{AgdaPrimitive}{#1}}}
+    {\AgdaNoSpaceMath{\AgdaFontStyle{\textcolor{AgdaPrimitive}{#1}}}}
 \newcommand{\AgdaRecord}[1]
-    {\AgdaFontStyle{\textcolor{AgdaRecord}{\AgdaLink{#1}}}}
+    {\AgdaNoSpaceMath{\AgdaFontStyle{\textcolor{AgdaRecord}{\AgdaLink{#1}}}}}
 \newcommand{\AgdaArgument}[1]
-    {\AgdaFontStyle{\textcolor{AgdaArgument}{\AgdaLink{#1}}}}
+    {\AgdaNoSpaceMath{\AgdaFontStyle{\textcolor{AgdaArgument}{\AgdaLink{#1}}}}}
 
 % Other aspect commands.
 \newcommand{\AgdaDottedPattern}     [1]{\textcolor{AgdaDottedPattern}{#1}}
