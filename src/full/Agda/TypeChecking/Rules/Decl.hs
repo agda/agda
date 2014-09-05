@@ -124,45 +124,18 @@ checkDecl d = traceCall (SetRange (getRange d)) $ do
                                   -- highlighting purposes.
       A.UnquoteDecl mi i x e   -> checkUnquoteDecl mi i x e
 
-    unlessM (isJust . envMutualBlock <$> ask) $ do
-      -- The termination errors are not returned, but used for highlighting.
+    unlessM (isJust <$> asks envMutualBlock) $ do
+
+      -- Syntax highlighting.
+      highlight_ d
+
+      -- Post-typing checks.
       whenJust finalChecks $ \ theMutualChecks -> do
         solveSizeConstraints
         wakeupConstraints_   -- solve emptiness constraints
         freezeMetas
 
         theMutualChecks
-
-      -- Syntax highlighting.
-      let highlight d = generateAndPrintSyntaxInfo d Full
-      reimburseTop Bench.Typing $ billTop Bench.Highlighting $ case d of
-        A.Axiom{}                -> highlight d
-        A.Field{}                -> __IMPOSSIBLE__
-        A.Primitive{}            -> highlight d
-        A.Mutual{}               -> highlight d
-        A.Apply{}                -> highlight d
-        A.Import{}               -> highlight d
-        A.Pragma{}               -> highlight d
-        A.ScopedDecl{}           -> return ()
-        A.FunDef{}               -> __IMPOSSIBLE__
-        A.DataDef{}              -> __IMPOSSIBLE__
-        A.DataSig{}              -> __IMPOSSIBLE__
-        A.Open{}                 -> highlight d
-        A.PatternSynDef{}        -> highlight d
-        A.UnquoteDecl{}          -> highlight d
-        A.Section i x tel _      -> highlight (A.Section i x tel [])
-          -- Each block in the section has already been highlighted,
-          -- all that remains is the module declaration.
-        A.RecSig{}               -> highlight d
-        A.RecDef i x ind c ps tel cs ->
-          highlight (A.RecDef i x ind c [] tel (fields cs))
-          -- The telescope and all record module declarations except
-          -- for the fields have already been highlighted.
-          where
-          fields (A.ScopedDecl _ ds1 : ds2) = fields ds1 ++ fields ds2
-          fields (d@A.Field{}        : ds)  = d : fields ds
-          fields (_                  : ds)  = fields ds
-          fields []                         = []
 
     where
     unScope (A.ScopedDecl scope ds) = setScope scope >> unScope d
@@ -252,6 +225,38 @@ instantiateDefinitionType q = do
 --   def <- instantiateFull def
 --   modifySignature $ updateDefinition q $ const def
 
+-- | Highlight a declaration.
+highlight_ :: A.Declaration -> TCM ()
+highlight_ d = do
+  let highlight d = generateAndPrintSyntaxInfo d Full
+  reimburseTop Bench.Typing $ billTop Bench.Highlighting $ case d of
+    A.Axiom{}                -> highlight d
+    A.Field{}                -> __IMPOSSIBLE__
+    A.Primitive{}            -> highlight d
+    A.Mutual{}               -> highlight d
+    A.Apply{}                -> highlight d
+    A.Import{}               -> highlight d
+    A.Pragma{}               -> highlight d
+    A.ScopedDecl{}           -> return ()
+    A.FunDef{}               -> __IMPOSSIBLE__
+    A.DataDef{}              -> __IMPOSSIBLE__
+    A.DataSig{}              -> __IMPOSSIBLE__
+    A.Open{}                 -> highlight d
+    A.PatternSynDef{}        -> highlight d
+    A.UnquoteDecl{}          -> highlight d
+    A.Section i x tel _      -> highlight (A.Section i x tel [])
+      -- Each block in the section has already been highlighted,
+      -- all that remains is the module declaration.
+    A.RecSig{}               -> highlight d
+    A.RecDef i x ind c ps tel cs ->
+      highlight (A.RecDef i x ind c [] tel (fields cs))
+      -- The telescope and all record module declarations except
+      -- for the fields have already been highlighted.
+      where
+      fields (A.ScopedDecl _ ds1 : ds2) = fields ds1 ++ fields ds2
+      fields (d@A.Field{}        : ds)  = d : fields ds
+      fields (_                  : ds)  = fields ds
+      fields []                         = []
 
 -- | Termination check a declaration.
 checkTermination_ :: A.Declaration -> TCM ()
