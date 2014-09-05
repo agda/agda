@@ -124,17 +124,18 @@ checkDecl d = traceCall (SetRange (getRange d)) $ do
                                   -- highlighting purposes.
       A.UnquoteDecl mi i x e   -> checkUnquoteDecl mi i x e
 
-    unlessM (isJust . envMutualBlock <$> ask) $ do
-      -- The termination errors are not returned, but used for highlighting.
+    unlessM (isJust <$> asks envMutualBlock) $ do
+
+      -- Syntax highlighting.
+      highlight_ d
+
+      -- Post-typing checks.
       whenJust finalChecks $ \ theMutualChecks -> do
         solveSizeConstraints
         wakeupConstraints_   -- solve emptiness constraints
         freezeMetas
 
         theMutualChecks
-
-      -- Syntax highlighting.
-      highlight_ d
 
     where
     unScope (A.ScopedDecl scope ds) = setScope scope >> unScope d
