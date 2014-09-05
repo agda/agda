@@ -24,6 +24,17 @@ Language
   The last A produces an error, since it could refer to the local
   variable A or to the definition imported from module M.
 
+Type checking
+=============
+
+* Termination check failure is now a proper error.
+
+  We no longer continue type checking after termination check failures.
+  Use pragmas {-# NON_TERMINATING #-} and {-# NO_TERMINATION_CHECK #-}
+  near the offending definitions if you want to do so.
+  Or switch off the termination checker altogether with
+  {-# OPTIONS --no-termination-check #-} (at your own risk!).
+
 ------------------------------------------------------------------------
 -- Release notes for Agda version 2.4.2
 ------------------------------------------------------------------------
