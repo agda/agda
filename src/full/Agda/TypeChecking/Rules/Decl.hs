@@ -86,7 +86,7 @@ checkDecl d = traceCall (SetRange (getRange d)) $ do
     let -- What kind of final checks/computations should be performed
         -- if we're not inside a mutual block?
         none        m = m >> return Nothing
-        meta        m = m >> return (Just (return []))
+        meta        m = m >> return (Just (return ()))
         mutual i ds m = m >>= return . Just . mutualChecks i ds
         impossible  m = m >> return __IMPOSSIBLE__
                        -- We're definitely inside a mutual block.
@@ -126,15 +126,15 @@ checkDecl d = traceCall (SetRange (getRange d)) $ do
 
     unlessM (isJust . envMutualBlock <$> ask) $ do
       -- The termination errors are not returned, but used for highlighting.
-      termErrs <- caseMaybe finalChecks (return []) $ \ theMutualChecks -> do
+      whenJust finalChecks $ \ theMutualChecks -> do
         solveSizeConstraints
-        wakeupConstraints_   -- solve emptyness constraints
+        wakeupConstraints_   -- solve emptiness constraints
         freezeMetas
 
         theMutualChecks
 
       -- Syntax highlighting.
-      let highlight d = generateAndPrintSyntaxInfo d (Full termErrs)
+      let highlight d = generateAndPrintSyntaxInfo d Full
       reimburseTop Bench.Typing $ billTop Bench.Highlighting $ case d of
         A.Axiom{}                -> highlight d
         A.Field{}                -> __IMPOSSIBLE__
@@ -192,7 +192,7 @@ checkDecl d = traceCall (SetRange (getRange d)) $ do
       mapM_ instantiateDefinitionType $ Set.toList names
       -- Andreas, 2013-02-27: check termination before injectivity,
       -- to avoid making the injectivity checker loop.
-      termErrs <- case d of
+      case d of
         A.UnquoteDecl{} -> checkTermination_ $ A.Mutual i ds
         _               -> checkTermination_ d
       checkPositivity_         names
@@ -202,7 +202,6 @@ checkDecl d = traceCall (SetRange (getRange d)) $ do
       -- so do it here.
       checkInjectivity_        names
       checkProjectionLikeness_ names
-      return termErrs
 
     checkUnquoteDecl mi i x e = do
       reportSDoc "tc.unquote.decl" 20 $ text "Checking unquoteDecl" <+> prettyTCM x
@@ -254,21 +253,18 @@ instantiateDefinitionType q = do
 --   modifySignature $ updateDefinition q $ const def
 
 
--- | Termination check a declaration and return a list of termination errors.
-checkTermination_ :: A.Declaration -> TCM [TerminationError]
+-- | Termination check a declaration.
+checkTermination_ :: A.Declaration -> TCM ()
 checkTermination_ d = reimburseTop Bench.Typing $ billTop Bench.Termination $ do
   reportSLn "tc.decl" 20 $ "checkDecl: checking termination..."
-  ifNotM (optTerminationCheck <$> pragmaOptions) (return []) $ {- else -} do
+  whenM (optTerminationCheck <$> pragmaOptions) $ do
     case d of
       -- Record module definitions should not be termination-checked twice.
-      A.RecDef {} -> return []
+      A.RecDef {} -> return ()
       _ -> disableDestructiveUpdate $ do
-        termErrs <- {- nubList <$> -} termDecl d
+        termErrs <- termDecl d
         unless (null termErrs) $
           typeError $ TerminationCheckFailed termErrs
-        modify $ \st ->
-          st { stTermErrs = Fold.foldl' (|>) (stTermErrs st) termErrs }
-        return termErrs
 
 -- | Check a set of mutual names for positivity.
 checkPositivity_ :: Set QName -> TCM ()

@@ -112,27 +112,22 @@ printHighlightingInfo x = do
 -- | Highlighting levels.
 
 data Level
-  = Full [TerminationError]
+  = Full
     -- ^ Full highlighting. Should only be used after typechecking has
-    -- completed successfully.
-    --
-    -- The list of termination problems is also highlighted.
-    --
-    -- Precondition: The termination problems must be located in the
-    -- module that is highlighted.
+    --   completed successfully.
   | Partial
     -- ^ Highlighting without disambiguation of overloaded
-    -- constructors.
+    --   constructors.
 
 -- | Generate syntax highlighting information for the given
 -- declaration, and (if appropriate) print it. If the
--- 'HighlightingLevel' is @'Full' something@, then the state is
+-- 'HighlightingLevel' is @'Full'@, then the state is
 -- additionally updated with the new highlighting info (in case of a
 -- conflict new info takes precedence over old info).
 --
 -- The procedure makes use of some of the token highlighting info in
 -- 'stTokens' (that corresponding to the interval covered by the
--- declaration). If the 'HighlightingLevel' is @'Full' something@,
+-- declaration). If the 'HighlightingLevel' is @'Full'@,
 -- then this token highlighting info is additionally removed from
 -- 'stTokens'.
 
@@ -157,7 +152,7 @@ generateAndPrintSyntaxInfo decl hlLevel = do
     -- Constructors are only highlighted after type checking, since they
     -- can be overloaded.
     constructorInfo <- case hlLevel of
-      Full _ -> generateConstructorInfo modMap file kinds decl
+      Full{} -> generateConstructorInfo modMap file kinds decl
       _      -> return mempty
 
     let (from, to) = case P.rangeToInterval (P.getRange decl) of
@@ -176,13 +171,12 @@ generateAndPrintSyntaxInfo decl hlLevel = do
     let syntaxInfo = compress (mconcat [ constructorInfo
                                        , theRest modMap file
                                        , nameInfo
-                                       , termInfo
                                        ])
                        `mappend`
                      curTokens
 
     case hlLevel of
-      Full _ -> modify (\st ->
+      Full{} -> modify (\st ->
                   st { stSyntaxInfo = syntaxInfo `mappend` stSyntaxInfo st
                      , stTokens     = prevTokens `mappend` postTokens
                      })
@@ -191,11 +185,6 @@ generateAndPrintSyntaxInfo decl hlLevel = do
     ifTopLevelAndHighlightingLevelIs NonInteractive $
       printHighlightingInfo syntaxInfo
   where
-  -- Highlighting of termination problems.
-  termInfo = case hlLevel of
-    Full termErrs -> terminationErrorHighlighting termErrs
-    _ -> mempty
-
   -- All names mentioned in the syntax tree (not bound variables).
   names :: [A.AmbiguousQName]
   names =
@@ -367,7 +356,7 @@ type NameKinds = A.QName -> Maybe NameKind
 -- | Builds a 'NameKinds' function.
 
 nameKinds :: Level
-             -- ^ This should only be @'Full' something@ if
+             -- ^ This should only be @'Full'@ if
              -- type-checking completed successfully (without any
              -- errors).
           -> A.Declaration
@@ -375,7 +364,7 @@ nameKinds :: Level
 nameKinds hlLevel decl = do
   imported <- fix . stImports <$> get
   local    <- case hlLevel of
-    Full _ -> fix . stSignature <$> get
+    Full{} -> fix . stSignature <$> get
     _      -> return HMap.empty
       -- Traverses the syntax tree and constructs a map from qualified
       -- names to name kinds. TODO: Handle open public.

@@ -904,7 +904,7 @@ highlightExpr e =
   local (\e -> e { envModuleNestingLevel = 0
                  , envHighlightingLevel  = NonInteractive
                  , envHighlightingMethod = Direct }) $
-    generateAndPrintSyntaxInfo decl (Full [])
+    generateAndPrintSyntaxInfo decl Full
   where
     dummy = mkName_ (NameId 0 0) "dummy"
     info  = mkDefInfo (nameConcrete dummy) defaultFixity' PublicAccess ConcreteDef (getRange e)
