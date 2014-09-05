@@ -193,13 +193,7 @@ generateAndPrintSyntaxInfo decl hlLevel = do
   where
   -- Highlighting of termination problems.
   termInfo = case hlLevel of
-    Full termErrs -> functionDefs `mappend` callSites
-      where
-      m            = mempty { otherAspects = [TerminationProblem] }
-      functionDefs = Fold.foldMap (\x -> singleton (rToR $ bindingSite x) m) $
-                     concatMap M.termErrFunctions termErrs
-      callSites    = Fold.foldMap (\r -> singleton (rToR r) m) $
-                     concatMap (map M.callInfoRange . M.termErrCalls) termErrs
+    Full termErrs -> terminationErrorHighlighting termErrs
     _ -> mempty
 
   -- All names mentioned in the syntax tree (not bound variables).
@@ -563,6 +557,17 @@ errorHighlighting e = do
                   }
   where
     r = P.getRange e
+
+-- | Generate syntax highlighting for termination errors.
+
+terminationErrorHighlighting :: [TerminationError] -> File
+terminationErrorHighlighting termErrs = functionDefs `mappend` callSites
+  where
+    m            = mempty { otherAspects = [TerminationProblem] }
+    functionDefs = Fold.foldMap (\x -> singleton (rToR $ bindingSite x) m) $
+                   concatMap M.termErrFunctions termErrs
+    callSites    = Fold.foldMap (\r -> singleton (rToR r) m) $
+                   concatMap (map M.callInfoRange . M.termErrCalls) termErrs
 
 -- | Generates and prints syntax highlighting information for unsolved
 -- meta-variables and certain unsolved constraints.
