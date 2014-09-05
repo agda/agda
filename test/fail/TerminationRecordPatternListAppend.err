@@ -1,3 +1,6 @@
-TerminationRecordPatternListAppend.agda:40,42-48
-Unit !=< T (isCons l) of type Set
-when checking that the expression head l has type T true → .A₁
+TerminationRecordPatternListAppend.agda:31,1-33,32
+Termination checking failed for the following functions:
+  append
+Problematic calls:
+  append (t unit) l'
+    (at TerminationRecordPatternListAppend.agda:32,50-56)

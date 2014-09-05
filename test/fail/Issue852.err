@@ -1,7 +1,5 @@
-
+Issue852.agda:8,1-9,24
 Termination checking failed for the following functions:
-  ℓ, ℓ′
+  ℓ
 Problematic calls:
   ℓ (at Issue852.agda:9,22-23)
-  ℓ′
-    (at Issue852.agda:12,23-25)

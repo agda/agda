@@ -1,4 +1,4 @@
-
+SizedTypesVarSwap.agda:18,1-20,15
 Termination checking failed for the following functions:
   bad
 Problematic calls:

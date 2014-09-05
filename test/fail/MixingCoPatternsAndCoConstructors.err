@@ -1,7 +1,6 @@
+MixingCoPatternsAndCoConstructors.agda:30,3-32,41
 Termination checking failed for the following functions:
-  MStream.weird'', MStream.repeat
+  MStream.weird''
 Problematic calls:
   weird'' zero
     (at MixingCoPatternsAndCoConstructors.agda:31,28-35)
-  tail (repeat a)
-    (at MixingCoPatternsAndCoConstructors.agda:39,31-37)

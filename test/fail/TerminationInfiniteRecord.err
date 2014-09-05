@@ -1,4 +1,4 @@
-
+TerminationInfiniteRecord.agda:11,1-12,34
 Termination checking failed for the following functions:
   elimEmpty
 Problematic calls:

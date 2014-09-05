@@ -1,3 +1,4 @@
+Issue1015.agda:17,1-18,30
 Termination checking failed for the following functions:
   inh
 Problematic calls:
