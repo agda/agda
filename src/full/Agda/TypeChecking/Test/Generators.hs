@@ -311,7 +311,7 @@ instance GenC Term where
       genDef args = Def <$> elements defs <*> args
 
       genCon :: Gen Args -> Gen Term
-      genCon args = Con <$> (flip ConHead [] <$> elements cons) <*> args
+      genCon args = Con <$> ((\ c -> ConHead c Inductive []) <$> elements cons) <*> args
 
       genLeaf :: Gen Term
       genLeaf = frequency
@@ -395,7 +395,7 @@ instance ShrinkC DefName QName where
   noShrink = unDefName
 
 instance ShrinkC ConName ConHead where
-  shrinkC conf (ConName (ConHead{conName = c})) = map (flip ConHead []) $ takeWhile (/= c) $ tcConstructorNames conf
+  shrinkC conf (ConName (ConHead{conName = c})) = map (\ c -> ConHead c Inductive []) $ takeWhile (/= c) $ tcConstructorNames conf
   noShrink = unConName
 
 instance ShrinkC Literal Literal where

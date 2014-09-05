@@ -224,7 +224,7 @@ checkConstructor d tel nofIxs s con@(A.Axiom _ i _ c e) =
         debugAdd c t'
 
         -- add parameters to constructor type and put into signature
-        let con = ConHead c [] -- data constructors have no projectable fields
+        let con = ConHead c Inductive [] -- data constructors have no projectable fields and are always inductive
         escapeContext (size tel) $
           addConstant c $
 	    defaultDefn defaultArgInfo c (telePi tel t') $

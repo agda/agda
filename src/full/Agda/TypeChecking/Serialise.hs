@@ -779,9 +779,9 @@ instance EmbPrj Agda.Syntax.Common.Relevance where
                            valu _   = malformed
 
 instance EmbPrj I.ConHead where
-  icode (ConHead a b) = icode2' a b
-  value = vcase valu where valu [a, b] = valu2 ConHead a b
-                           valu _      = malformed
+  icode (ConHead a b c) = icode3' a b c
+  value = vcase valu where valu [a, b, c] = valu3 ConHead a b c
+                           valu _         = malformed
 
 instance EmbPrj I.Type where
   icode (El a b) = icode2' a b

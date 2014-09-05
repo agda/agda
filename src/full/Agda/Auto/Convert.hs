@@ -489,7 +489,7 @@ frommyExp (NotM e) =
         frommyExps n as v
 -}
        (ndrop, h) = case iscon of
-                      Just n -> (n, \ q -> I.Con (I.ConHead q [])) -- TODO: restore fields
+                      Just n -> (n, \ q -> I.Con (I.ConHead q Common.Inductive [])) -- TODO: restore fields
                       Nothing -> (0, \ f vs -> I.Def f $ map I.Apply vs)
    frommyExps ndrop as (h name [])
   Lam hid (Abs mid t) -> do
@@ -642,7 +642,7 @@ frommyClause (ids, pats, mrhs) = do
         cdef <- lift $ readIORef c
         let (Just ndrop, name) = cdorigin cdef
         ps' <- cnvps ndrop ps
-        let con = I.ConHead name [] -- TODO: restore record fields!
+        let con = I.ConHead name Common.Inductive [] -- TODO: restore record fields!
         return (I.ConP con Nothing ps')
        CSPatExp e -> do
         e' <- frommyExp e {- renm e -} -- renaming before adding to clause below

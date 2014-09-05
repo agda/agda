@@ -388,7 +388,7 @@ patsToTerms perm ps = evalState (toTerms ps) xs
       ProjP d     -> __IMPOSSIBLE__ -- TODO: convert spine to non-spine ... DDef d . defaultArg
       VarP _      -> DTerm . var <$> tick
       DotP t      -> DDot t <$ tick
-      ConP c _ ps -> DCon (conName c) <$> toTerms ps
+      ConP c _ ps -> DCon c <$> toTerms ps
       LitP l      -> return $ DTerm (Lit l)
 
 {- OLD
