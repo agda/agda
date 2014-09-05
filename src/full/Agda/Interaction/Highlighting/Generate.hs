@@ -62,7 +62,7 @@ import qualified Data.Foldable as Fold (toList, fold, foldMap)
 import Agda.Utils.Impossible
 
 -- | @highlightAsTypeChecked rPre r m@ runs @m@ and returns its
--- result. Some code may additionally be highlighted:
+--   result. Additionally, some code may be highlighted:
 --
 -- * If @r@ is non-empty and not a sub-range of @rPre@ (after
 --   'P.continuousPerLine' has been applied to both): @r@ is
