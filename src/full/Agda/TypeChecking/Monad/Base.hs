@@ -269,8 +269,7 @@ sourceToModule =
   Map.fromList
      .  List.map (\(m, f) -> (f, m))
      .  Map.toList
-     .  stModuleToSource
-    <$> get
+    <$> gets stModuleToSource
 
 ---------------------------------------------------------------------------
 -- ** Interface
