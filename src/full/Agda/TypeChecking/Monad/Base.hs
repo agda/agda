@@ -1404,9 +1404,8 @@ data CallInfo = CallInfo
 -- no Eq, Ord instances: too expensive! (see issues 851, 852)
 
 -- | We only 'show' the name of the callee.
-instance Show CallInfo where show = show . callInfoTarget
-
-instance Pretty CallInfo where pretty = text . show . callInfoTarget
+instance Show   CallInfo where show   = show . callInfoTarget
+instance Pretty CallInfo where pretty = text . show
 
 -- | Information about a mutual block which did not pass the
 -- termination checker.
