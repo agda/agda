@@ -530,26 +530,31 @@ generateConstructorInfo modMap file kinds decl = do
 -- | Prints syntax highlighting info for an error.
 
 printErrorInfo :: TCErr -> TCM ()
-printErrorInfo e = do
-  -- Erase previous highlighting.
-  printHighlightingInfo $ singletonC (rToR $ P.continuousPerLine $ P.getRange e) mempty
-
-  -- Print new highlighting.
-  printHighlightingInfo . compress =<< errorHighlighting e
+printErrorInfo e = printHighlightingInfo . compress =<< errorHighlighting e
 
 -- | Generate highlighting for error.
 --   Does something special for termination errors.
+
 errorHighlighting :: TCErr -> TCM File
+
 errorHighlighting (TypeError s cl@(Closure sig env scope (TerminationCheckFailed termErrs))) =
+  -- For termination errors, we keep the previous highlighting,
+  -- just additionally mark the bad calls.
   return $ terminationErrorHighlighting termErrs
+
 errorHighlighting e = do
+
+  -- Erase previous highlighting.
+  let r     = P.getRange e
+      erase = singleton (rToR $ P.continuousPerLine r) mempty
+
+  -- Print new highlighting.
   s <- E.prettyError e
-  return $ singleton (rToR r)
+  let error = singleton (rToR r)
          $ mempty { otherAspects = [Error]
                   , note         = Just s
                   }
-  where
-    r = P.getRange e
+  return $ mconcat [ erase, error ]
 
 -- | Generate syntax highlighting for termination errors.
 
