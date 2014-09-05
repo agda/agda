@@ -1,4 +1,4 @@
-
+Issue256.agda:13,1-14,24
 Termination checking failed for the following functions:
   ℓ
 Problematic calls:

@@ -1,4 +1,4 @@
-
+WrongSizeAssignment2.agda:24,1-25,23
 Termination checking failed for the following functions:
   f
 Problematic calls:

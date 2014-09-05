@@ -6,6 +6,7 @@ postulate
 
 mutual
 
+  {-# NON_TERMINATING #-}
   A : Set
   A = P B -- note A = P {A} B is non-terminating
 

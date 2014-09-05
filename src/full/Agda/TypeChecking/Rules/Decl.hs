@@ -264,6 +264,8 @@ checkTermination_ d = reimburseTop Bench.Typing $ billTop Bench.Termination $ do
       A.RecDef {} -> return []
       _ -> disableDestructiveUpdate $ do
         termErrs <- {- nubList <$> -} termDecl d
+        unless (null termErrs) $
+          typeError $ TerminationCheckFailed termErrs
         modify $ \st ->
           st { stTermErrs = Fold.foldl' (|>) (stTermErrs st) termErrs }
         return termErrs

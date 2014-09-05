@@ -22,11 +22,14 @@ data Rec (A : ∞ Set) : Set where
 
 module ℕ₁ where
 
+  -- Without the flag, the following is non-terminating,
+  -- hence, not reduced.
+  {-# NON_TERMINATING #-}
   ℕ : Set
   ℕ = ⊤ ⊎ Rec (♯ ℕ)
 
   zero : ℕ
-  zero = inj₁ _
+  zero = inj₁ _  -- yields a type error since ℕ does not reduce
 
   suc : ℕ → ℕ
   suc n = inj₂ (fold n)

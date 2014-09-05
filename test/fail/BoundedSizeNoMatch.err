@@ -1,4 +1,4 @@
-
+BoundedSizeNoMatch.agda:8,1-9,26
 Termination checking failed for the following functions:
   T
 Problematic calls:

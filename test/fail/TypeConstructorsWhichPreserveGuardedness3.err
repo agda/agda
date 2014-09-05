@@ -1,4 +1,4 @@
-
+TypeConstructorsWhichPreserveGuardedness3.agda:11,1-12,10
 Termination checking failed for the following functions:
   ℕ
 Problematic calls:

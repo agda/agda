@@ -1,8 +1,6 @@
-
+CoinductiveUnitRecord.agda:16,1-17,16
 Termination checking failed for the following functions:
-  bad, bad'
+  bad
 Problematic calls:
   bad
     (at CoinductiveUnitRecord.agda:17,13-16)
-  bad'
-    (at CoinductiveUnitRecord.agda:21,14-18)

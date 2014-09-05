@@ -13,6 +13,10 @@ record R (A : Set) : Set-one where
 
   field P : F A X → Set
 
+  -- Note: we cannot check highlighting of non-termination
+  -- any more (Andreas, 2014-09-05), since termination failure
+  -- is a type error now.
+  {-# NON_TERMINATING #-}
   Q : F A X → Set
   Q = Q
 

@@ -1,4 +1,4 @@
-Issue1251.agda:1,13-37
+Issue1251/NonTerminating.agda:6,1-8,20
 Termination checking failed for the following functions:
   NonTerminating.bla
 Problematic calls:

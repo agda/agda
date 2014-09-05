@@ -35,8 +35,11 @@ append (list false _ _) l' = l'
 -- but translating away the record pattern produces something
 -- that is in any case rejected by the termination checker
 append1 : {A : Set} -> List A -> List A -> List A
-append1 l l' = append1' l l' (isCons l)
-  where append1' : {A : Set} -> List A -> List A -> Bool -> List A
-        append1' l l' true  = list true (head l) (\ _ -> append (tail l) l')
-        append1' l l' false = l'
--- NEED inspect!
+append1 {A} l' l = append1' (isCons l') (head l') (tail l') l
+  where
+    append1' : (isCons : Bool)
+               (head   : T isCons -> A)
+               (tail   : T isCons -> List A) ->
+               List A -> List A
+    append1' true  h t l = list true h \ _ -> append1 (t _) l
+    append1' false h t l = l

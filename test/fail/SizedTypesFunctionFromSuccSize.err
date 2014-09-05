@@ -1,4 +1,4 @@
-
+SizedTypesFunctionFromSuccSize.agda:18,1-20,18
 Termination checking failed for the following functions:
   bad
 Problematic calls:

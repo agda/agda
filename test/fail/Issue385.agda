@@ -4,6 +4,7 @@ module Issue385 where
 import Common.Level
 open import Common.Equality
 
+{-# NON_TERMINATING #-}
 loop : ∀ {A}{x : A} → x ≡ x
 loop = loop
 
