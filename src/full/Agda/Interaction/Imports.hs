@@ -406,7 +406,7 @@ getInterface' x includeStateChanges =
                      addImportedThings isig ibuiltin Set.empty ipatsyns
 
                      r  <- withMsgs $ createInterface file x
-                     mf <- stModuleToSource <$> get
+                     mf <- gets stModuleToSource
                      ds <- getDecodedModules
                      return (r, do
                         modify $ \s -> s { stModuleToSource = mf }

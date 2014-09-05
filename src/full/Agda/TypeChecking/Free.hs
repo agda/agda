@@ -24,8 +24,10 @@ import Agda.Utils.VarSet (VarSet)
 import Agda.Syntax.Common hiding (Arg, Dom, NamedArg)
 import Agda.Syntax.Internal
 
-import Agda.Utils.Impossible
+import Agda.Utils.Function
+
 #include "../undefined.h"
+import Agda.Utils.Impossible
 
 -- | The distinction between rigid and strongly rigid occurrences comes from:
 --   Jason C. Reed, PhD thesis, 2009, page 96 (see also his LFMTP 2009 paper)
@@ -40,11 +42,11 @@ import Agda.Utils.Impossible
 -- | Free variables of a term, (disjointly) partitioned into strongly and
 --   and weakly rigid variables, flexible variables and irrelevant variables.
 data FreeVars = FV
-  { stronglyRigidVars :: VarSet -- ^ variables at top and under constructors
-  , weaklyRigidVars   :: VarSet -- ^ ord. rigid variables, e.g., in arguments of variables
-  , flexibleVars      :: VarSet -- ^ variables occuring in arguments of metas. These are potentially free, depending how the meta variable is instantiated.
-  , irrelevantVars    :: VarSet -- ^ variables in irrelevant arguments and under a @DontCare@, i.e., in irrelevant positions
-  , unusedVars        :: VarSet -- ^ variables in 'UnusedArg'uments
+  { stronglyRigidVars :: VarSet -- ^ Variables at top and under inductive constructors.
+  , weaklyRigidVars   :: VarSet -- ^ Ordinary rigid variables, e.g., in arguments of variables.
+  , flexibleVars      :: VarSet -- ^ Variables occuring in arguments of metas. These are potentially free, depending how the meta variable is instantiated.
+  , irrelevantVars    :: VarSet -- ^ Variables in irrelevant arguments and under a @DontCare@, i.e., in irrelevant positions.
+  , unusedVars        :: VarSet -- ^ Variables in 'UnusedArg'uments.
   }
 
 rigidVars :: FreeVars -> VarSet
@@ -158,7 +160,7 @@ instance Free Term where
       -- we cannot query whether we are dealing with a data/record (strongly r.)
       -- or a definition by pattern matching (weakly rigid)
       -- thus, we approximate, losing that x = List x is unsolvable
-    Con _ ts   -> freeVars' conf ts
+    Con c ts   -> applyWhen (conInductive c == CoInductive) weakly $ freeVars' conf ts
     Pi a b     -> freeVars' conf (a,b)
     Sort s     -> freeVars' conf s
     Level l    -> freeVars' conf l

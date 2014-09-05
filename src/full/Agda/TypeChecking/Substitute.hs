@@ -79,16 +79,16 @@ instance Apply Term where
 canProject :: QName -> Term -> Maybe (Arg Term)
 canProject f v =
   case ignoreSharing v of
-    (Con (ConHead _ fs) vs) -> do
+    (Con (ConHead _ _ fs) vs) -> do
       i <- elemIndex f fs
       mhead (drop i vs)
     _ -> Nothing
 
 -- | Eliminate a constructed term.
 conApp :: ConHead -> Args -> Elims -> Term
-conApp ch                args []             = Con ch args
-conApp ch                args (Apply a : es) = conApp ch (args ++ [a]) es
-conApp ch@(ConHead c fs) args (Proj f  : es) =
+conApp ch                  args []             = Con ch args
+conApp ch                  args (Apply a : es) = conApp ch (args ++ [a]) es
+conApp ch@(ConHead c _ fs) args (Proj f  : es) =
   let failure = flip trace __IMPOSSIBLE__ $
         "conApp: constructor " ++ show c ++
         " with fields " ++ show fs ++

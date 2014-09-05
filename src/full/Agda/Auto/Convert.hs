@@ -10,7 +10,7 @@ import Control.Monad.State
 import Control.Monad.Error
 
 import qualified Agda.Syntax.Internal as I
-import qualified Agda.Syntax.Common as C
+import qualified Agda.Syntax.Common as Common
 import qualified Agda.Syntax.Abstract.Name as AN
 import qualified Agda.Syntax.Abstract as A
 import qualified Agda.Syntax.Position as SP
@@ -98,7 +98,7 @@ tomy imi icns typs = do
        cons2 <- mapM (\con -> getConst True con TMAll) cons
        return (Datatype cons2 [], [])
       MB.Record {MB.recFields = fields, MB.recTel = tel} -> do -- the value of recPars seems unreliable or don't know what it signifies
-       let pars n (I.El _ (I.Pi it typ)) = C.Arg (C.domInfo it) (I.var n) :
+       let pars n (I.El _ (I.Pi it typ)) = Common.Arg (Common.domInfo it) (I.var n) :
                                            pars (n - 1) (I.unAbs typ)
            pars n (I.El s (I.Shared p))  = pars n (I.El s (I.derefPtr p))
            pars _ (I.El _ _) = []
@@ -111,7 +111,7 @@ tomy imi icns typs = do
        let Datatype [con] [] = cdcont cc
        lift $ liftIO $ modifyIORef con (\cdef -> cdef {cdtype = contyp'})
 
-       projfcns <- mapM (\name -> getConst False name TMAll) (map C.unArg fields)
+       projfcns <- mapM (\name -> getConst False name TMAll) (map Common.unArg fields)
 
        return (Datatype [con] projfcns, []{-map snd fields-})
       MB.Constructor {MB.conData = dt} -> do
@@ -148,7 +148,7 @@ tomy imi icns typs = do
          modify $ \s -> s {sEqs = (Map.insert (Map.size (fst $ sEqs s)) (Just (False, Meta m, sol')) (fst $ sEqs s), snd $ sEqs s)}
        let tt = MB.jMetaType $ mvJudgement mv
            minfo = getMetaInfo mv
-           localVars = map (snd . C.unDom . ctxEntry) . envContext . clEnv $ minfo
+           localVars = map (snd . Common.unDom . ctxEntry) . envContext . clEnv $ minfo
        (targettype, localVars) <- lift $ withMetaInfo minfo $ do
         vs <- getContextArgs
         let targettype = tt `piApply` permute (takeP (length vs) $ mvPermutation mv) vs
@@ -285,14 +285,14 @@ tomyClause cl@(I.Clause {I.clausePerm = Perm n ps, I.clauseBody = body}) = do
            Just (body', _) -> Just (pats', body')
            Nothing -> Nothing
 
-tomyPat p = case C.unArg p of
+tomyPat p = case Common.unArg p of
  I.ProjP _ -> lift $ copatternsNotImplemented
  I.VarP n -> return $ PatVar (show n)
  I.DotP _ -> return $ PatVar "_" -- because Agda includes these when referring to variables in the body
  I.ConP con _ pats -> do
   let n = I.conName con
   c <- getConst True n TMAll
-  pats' <- mapM (tomyPat . fmap C.namedThing) pats
+  pats' <- mapM (tomyPat . fmap Common.namedThing) pats
   def <- lift $ getConstInfo n
   cc <- lift $ liftIO $ readIORef c
   let Just npar = fst $ cdorigin cc
@@ -382,7 +382,7 @@ tomyExp v0 =
       cc  <- lift $ liftIO $ readIORef c
       let Just npar = fst $ cdorigin cc
       return $ NotM $ App Nothing (NotM OKVal) (Const c) (foldl (\x _ -> NotM $ ALConPar x) as' [1..npar])
-    I.Pi (C.Dom info x) b -> do
+    I.Pi (Common.Dom info x) b -> do
       let y    = I.absBody b
           name = I.absName b
       x' <- tomyType x
@@ -409,7 +409,7 @@ tomyExp v0 =
     I.ExtLam{} -> __IMPOSSIBLE__
 
 tomyExps [] = return $ NotM ALNil
-tomyExps (C.Arg info a : as) = do
+tomyExps (Common.Arg info a : as) = do
  a' <- tomyExp a
  as' <- tomyExps as
  return $ NotM $ ALCons (cnvh info) a' as'
@@ -429,7 +429,7 @@ fmExp m (I.Lit _) = False
 fmExp m (I.Level (I.Max as)) = any (fmLevel m) as
 fmExp m (I.Def _ as) = fmExps m $ I.argsFromElims as
 fmExp m (I.Con _ as) = fmExps m as
-fmExp m (I.Pi x y)  = fmType m (C.unDom x) || fmType m (I.unAbs y)
+fmExp m (I.Pi x y)  = fmType m (Common.unDom x) || fmType m (I.unAbs y)
 fmExp m (I.Sort _) = False
 fmExp m (I.MetaV mid _) = mid == m
 fmExp m (I.DontCare _) = False
@@ -437,7 +437,7 @@ fmExp m (I.Shared p) = fmExp m $ I.derefPtr p
 fmExp m I.ExtLam{} = __IMPOSSIBLE__
 
 fmExps m [] = False
-fmExps m (a : as) = fmExp m (C.unArg a) || fmExps m as
+fmExps m (a : as) = fmExp m (Common.unArg a) || fmExps m as
 
 fmLevel :: I.MetaId -> I.PlusLevel -> Bool
 fmLevel m I.ClosedLevel{} = False
@@ -449,16 +449,16 @@ fmLevel m (I.Plus _ l) = case l of
 
 -- ---------------------------------------------
 
-cnvh info = case C.getHiding info of
-    C.NotHidden -> NotHidden
-    C.Instance  -> Instance
-    C.Hidden    -> Hidden
-icnvh h = (C.setHiding h' C.defaultArgInfo)
+cnvh info = case Common.getHiding info of
+    Common.NotHidden -> NotHidden
+    Common.Instance  -> Instance
+    Common.Hidden    -> Hidden
+icnvh h = (Common.setHiding h' Common.defaultArgInfo)
     where
     h' = case h of
-        NotHidden -> C.NotHidden
-        Instance  -> C.Instance
-        Hidden    -> C.Hidden
+        NotHidden -> Common.NotHidden
+        Instance  -> Common.Instance
+        Hidden    -> Common.Hidden
 
 -- ---------------------------------------------
 
@@ -489,7 +489,7 @@ frommyExp (NotM e) =
         frommyExps n as v
 -}
        (ndrop, h) = case iscon of
-                      Just n -> (n, \ q -> I.Con (I.ConHead q [])) -- TODO: restore fields
+                      Just n -> (n, \ q -> I.Con (I.ConHead q Common.Inductive [])) -- TODO: restore fields
                       Nothing -> (0, \ f vs -> I.Def f $ map I.Apply vs)
    frommyExps ndrop as (h name [])
   Lam hid (Abs mid t) -> do
@@ -498,8 +498,8 @@ frommyExp (NotM e) =
   Pi _ hid _ x (Abs mid y) -> do
    x' <- frommyType x
    y' <- frommyType y
-   return $ I.Pi (C.Dom (icnvh hid) x') (I.Abs (case mid of {NoId -> "x"; Id id -> id}) y')
-   -- maybe have case for Pi where possdep is False which produces Fun (and has to unweaken y), return $ I.Fun (C.Arg (icnvh hid) x') y'
+   return $ I.Pi (Common.Dom (icnvh hid) x') (I.Abs (case mid of {NoId -> "x"; Id id -> id}) y')
+   -- maybe have case for Pi where possdep is False which produces Fun (and has to unweaken y), return $ I.Fun (Common.Arg (icnvh hid) x') y'
   Sort (Set l) ->
    return $ I.Sort (I.mkType (fromIntegral l))
   Sort Type -> __IMPOSSIBLE__
@@ -521,7 +521,7 @@ frommyExps ndrop (NotM as) trm =
   ALCons _ _ xs | ndrop > 0 -> frommyExps (ndrop - 1) xs trm
   ALCons hid x xs -> do
    x' <- frommyExp x
-   frommyExps ndrop xs (addend (C.Arg (icnvh hid) x') trm)
+   frommyExps ndrop xs (addend (Common.Arg (icnvh hid) x') trm)
 
   -- Andreas, 2013-10-19 TODO: restore postfix projections
   ALProj eas idx hid xs -> do
@@ -532,7 +532,7 @@ frommyExps ndrop (NotM as) trm =
    cdef <- lift $ readIORef c
    let name = snd $ cdorigin cdef
    trm2 <- frommyExps 0 eas (I.Def name [])
-   frommyExps 0 xs (addend (C.Arg (icnvh hid) trm) trm2)
+   frommyExps 0 xs (addend (Common.Arg (icnvh hid) trm) trm2)
 
   ALConPar xs | ndrop > 0 -> frommyExps (ndrop - 1) xs trm
   ALConPar _ -> __IMPOSSIBLE__
@@ -550,10 +550,10 @@ abslamvarname = "\0absurdlambda"
 modifyAbstractExpr :: A.Expr -> A.Expr
 modifyAbstractExpr = f
  where
-  f (A.App i e1 (C.Arg info (C.Named n e2))) =
-        A.App i (f e1) (C.Arg info (C.Named n (f e2)))
+  f (A.App i e1 (Common.Arg info (Common.Named n e2))) =
+        A.App i (f e1) (Common.Arg info (Common.Named n (f e2)))
   f (A.Lam i (A.DomainFree info n) _) | show n == abslamvarname =
-        A.AbsurdLam i $ C.argInfoHiding info
+        A.AbsurdLam i $ Common.argInfoHiding info
   f (A.Lam i b e) = A.Lam i b (f e)
   f (A.Rec i xs) = A.Rec i (map (\(n, e) -> (n, f e)) xs)
   f (A.RecUpdate i e xs) = A.RecUpdate i (f e) (map (\(n, e) -> (n, f e)) xs)
@@ -575,8 +575,8 @@ constructPats cmap mainm clause = do
       (ns'', p') <- cnvp ns' p
       return (ns'', p' : ps')
      cnvp ns p =
-      let hid = cnvh $ C.argInfo p
-      in case C.namedArg p of
+      let hid = cnvh $ Common.argInfo p
+      in case Common.namedArg p of
        I.VarP n -> return ((hid, Id n) : ns, HI hid (CSPatVar $ length ns))
        I.ConP con _ ps -> do
         let c = I.conName con
@@ -601,7 +601,7 @@ frommyClause (ids, pats, mrhs) = do
       let Id id = mid
       tel <- ctel ctx
       t' <- frommyType t
-      return $ I.ExtendTel (C.Dom (icnvh hid) t') (I.Abs id tel)
+      return $ I.ExtendTel (Common.Dom (icnvh hid) t') (I.Abs id tel)
  tel <- ctel $ reverse ids
  let getperms 0 [] perm nv = return (perm, nv)
      getperms n [] _ _ = __IMPOSSIBLE__
@@ -642,14 +642,14 @@ frommyClause (ids, pats, mrhs) = do
         cdef <- lift $ readIORef c
         let (Just ndrop, name) = cdorigin cdef
         ps' <- cnvps ndrop ps
-        let con = I.ConHead name [] -- TODO: restore record fields!
+        let con = I.ConHead name Common.Inductive [] -- TODO: restore record fields!
         return (I.ConP con Nothing ps')
        CSPatExp e -> do
         e' <- frommyExp e {- renm e -} -- renaming before adding to clause below
         return (I.DotP e')
        CSAbsurd -> __IMPOSSIBLE__ -- CSAbsurd not used
        _ -> __IMPOSSIBLE__
-      return $ C.Arg (icnvh hid) $ C.unnamed p'   -- TODO: recover names
+      return $ Common.Arg (icnvh hid) $ Common.unnamed p'   -- TODO: recover names
  ps <- cnvps 0 pats
  body <- case mrhs of
           Nothing -> return $ I.NoBody
@@ -747,13 +747,13 @@ findClauseDeep m = do
       I.Level (I.Max as) -> any (fmLevel m) as
       I.Def _ es -> findMetas $ I.argsFromElims es
       I.Con _ as -> findMetas as
-      I.Pi it ot -> findMetat (C.unDom it) || findMetat (I.unAbs ot)
+      I.Pi it ot -> findMetat (Common.unDom it) || findMetat (I.unAbs ot)
       I.Sort{} -> False
       I.MetaV m' _  -> m == m'
       I.DontCare _ -> False
       I.Shared{} -> __IMPOSSIBLE__
       I.ExtLam{} -> __IMPOSSIBLE__
-    findMetas = any (findMeta . C.unArg)
+    findMetas = any (findMeta . Common.unArg)
     findMetat (I.El _ e) = findMeta e
     toplevel e =
      case I.ignoreSharing e of
@@ -793,15 +793,15 @@ matchType cdfv tctx ctyp ttyp = trmodps cdfv ctyp
       (I.Lit lit1, I.Lit lit2) | lit1 == lit2 -> c (n + 1)
       (I.Def n1 as1, I.Def n2 as2) | n1 == n2 -> fes nl (n + 1) c as1 as2
       (I.Con n1 as1, I.Con n2 as2) | n1 == n2 -> fs nl (n + 1) c as1 as2
-      (I.Pi (C.Dom info1 it1) ot1, I.Pi (C.Dom info2 it2) ot2) | C.argInfoHiding info1 == C.argInfoHiding info2 -> ft nl n (\n -> ft (nl + 1) n c (I.absBody ot1) (I.absBody ot2)) it1 it2
+      (I.Pi (Common.Dom info1 it1) ot1, I.Pi (Common.Dom info2 it2) ot2) | Common.argInfoHiding info1 == Common.argInfoHiding info2 -> ft nl n (\n -> ft (nl + 1) n c (I.absBody ot1) (I.absBody ot2)) it1 it2
       (I.Sort{}, I.Sort{}) -> c n -- sloppy
       _ -> Nothing
     fs nl n c es1 es2 = case (es1, es2) of
      ([], []) -> c n
-     (C.Arg info1 e1 : es1, C.Arg info2 e2 : es2) | C.argInfoHiding info1 == C.argInfoHiding info2 -> f nl n (\n -> fs nl n c es1 es2) e1 e2
+     (Common.Arg info1 e1 : es1, Common.Arg info2 e2 : es2) | Common.argInfoHiding info1 == Common.argInfoHiding info2 -> f nl n (\n -> fs nl n c es1 es2) e1 e2
      _ -> Nothing
     fes nl n c es1 es2 = case (es1, es2) of
      ([], []) -> c n
      (I.Proj f : es1, I.Proj f' : es2) | f == f' -> fes nl n c es1 es2
-     (I.Apply (C.Arg info1 e1) : es1, I.Apply (C.Arg info2 e2) : es2) | C.argInfoHiding info1 == C.argInfoHiding info2 -> f nl n (\n -> fes nl n c es1 es2) e1 e2
+     (I.Apply (Common.Arg info1 e1) : es1, I.Apply (Common.Arg info2 e2) : es2) | Common.argInfoHiding info1 == Common.argInfoHiding info2 -> f nl n (\n -> fes nl n c es1 es2) e1 e2
      _ -> Nothing

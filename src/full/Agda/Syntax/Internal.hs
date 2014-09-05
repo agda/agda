@@ -63,17 +63,12 @@ type NamedArgs  = [NamedArg Term]
 --   This allows reduction of projection redexes outside of TCM.
 --   For instance, during substitution and application.
 data ConHead = ConHead
-  { conName   :: QName       -- ^ The name of the constructor.
-  , conFields :: [QName]     -- ^ The name of the record fields.
-                             --   Empty list for data constructors.
-                             --   'Arg' is not needed here since it
-                             --   is stored in the constructor args.
-{-
-  , conFields :: [Arg QName] -- ^ The name of the record fields.
-                             --   Empty list for data constructors.
-                             --   'Arg' is needed for irrelevance, to
-                             --   insert 'DontCare's in short-cut reduction.
--}
+  { conName      :: QName     -- ^ The name of the constructor.
+  , conInductive :: Induction -- ^ Record constructors can be coinductive.
+  , conFields    :: [QName]   -- ^ The name of the record fields.
+                              --   Empty list for data constructors.
+                              --   'Arg' is not needed here since it
+                              --   is stored in the constructor args.
   } deriving (Typeable)
 
 instance Eq ConHead where
@@ -83,7 +78,7 @@ instance Ord ConHead where
   (<=) = (<=) `on` conName
 
 instance Show ConHead where
-  show (ConHead c fs) = show c ++ show fs
+  show (ConHead c i fs) = show c ++ "(" ++ show i ++ ")" ++ show fs
 
 instance HasRange ConHead where
   getRange = getRange . conName
@@ -722,7 +717,7 @@ instance Sized a => Sized (Elim' a) where
 ---------------------------------------------------------------------------
 
 instance KillRange ConHead where
-  killRange (ConHead c fs) = killRange2 ConHead c fs
+  killRange (ConHead c i fs) = killRange3 ConHead c i fs
 
 instance KillRange Term where
   killRange v = case v of
@@ -821,7 +816,7 @@ instance Pretty Term where
             , nest 2 $ pretty (unAbs b) ]
       Lit l                -> pretty l
       Def q els            -> text (show q) `pApp` els
-      Con (ConHead c _) vs -> text (show c) `pApp` map Apply vs
+      Con c vs             -> text (show $ conName c) `pApp` map Apply vs
       Pi a (NoAbs _ b)     -> mparens (p > 0) $
         sep [ prettyPrec 1 (unDom a) <+> text "->"
             , nest 2 $ pretty b ]

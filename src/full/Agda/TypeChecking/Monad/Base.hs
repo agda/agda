@@ -662,7 +662,7 @@ data DisplayTerm
     --   The list of 'DisplayTerm's are the with expressions @ws@.
     --   The 'Args' are additional arguments @us@
     --   (possible in case the with-application is of function type).
-  | DCon QName [Arg DisplayTerm]
+  | DCon ConHead [Arg DisplayTerm]
     -- ^ @c vs@.
   | DDef QName [Arg DisplayTerm]
     -- ^ @d vs@.
