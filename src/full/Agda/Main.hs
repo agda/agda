@@ -129,20 +129,17 @@ runAgda = do
 
           unsolvedOK <- optAllowUnsolved <$> pragmaOptions
 
+          -- Reported unsolved problems as error unless unsolvedOK.
+          -- An interface is only generated if NoWarnings.
           result <- case mw of
-                          -- we get here if there are unfilled interaction
-                          -- points that have been solved by unification
-            SomeWarnings (Warnings Nothing [] []) -> return Nothing
             -- Unsolved metas.
-            SomeWarnings (Warnings _ w@(_:_) _)
-              | not unsolvedOK                    -> typeError $ UnsolvedMetas w
+            SomeWarnings (Warnings w@(_:_) _)
+              | not unsolvedOK                 -> typeError $ UnsolvedMetas w
             -- Unsolved constraints.
-            SomeWarnings (Warnings _ _ w@(_:_))
-              | not unsolvedOK                    -> typeError $ UnsolvedConstraints w
-            -- Termination errors.
-            SomeWarnings (Warnings (Just w) _ _)  -> throwError w
-            SomeWarnings _                        -> return Nothing
-            NoWarnings                            -> return $ Just i
+            SomeWarnings (Warnings _ w@(_:_))
+              | not unsolvedOK                 -> typeError $ UnsolvedConstraints w
+            SomeWarnings _                     -> return Nothing
+            NoWarnings                         -> return $ Just i
 
           whenM (optGenerateHTML <$> commandLineOptions) $
             generateHTML

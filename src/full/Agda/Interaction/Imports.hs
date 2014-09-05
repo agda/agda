@@ -582,7 +582,6 @@ createInterface file mname =
     -- TODO: It would be nice if unsolved things were highlighted
     -- after every mutual block.
 
-    termErrs            <- Fold.toList <$> stTermErrs <$> get
     unsolvedMetas       <- List.nub <$> (mapM getMetaRange =<< getOpenMetas)
     unsolvedConstraints <- getAllConstraints
     interactionPoints   <- getInteractionPoints
@@ -590,7 +589,7 @@ createInterface file mname =
     ifTopLevelAndHighlightingLevelIs NonInteractive $
       printUnsolvedInfo
 
-    r <- if and [ null termErrs, null unsolvedMetas, null unsolvedConstraints, null interactionPoints ]
+    r <- if and [ null unsolvedMetas, null unsolvedConstraints, null interactionPoints ]
      then billTop Bench.Serialization $ do
       -- The file was successfully type-checked (and no warnings were
       -- encountered), so the interface should be written out.
@@ -598,9 +597,7 @@ createInterface file mname =
       writeInterface ifile i
       return (i, NoWarnings)
      else do
-      termErr <- if null termErrs then return Nothing else Just <$> do
-        typeError_ $ TerminationCheckFailed termErrs
-      return (i, SomeWarnings $ Warnings termErr unsolvedMetas unsolvedConstraints)
+      return (i, SomeWarnings $ Warnings unsolvedMetas unsolvedConstraints)
 
     -- Profiling: Print statistics.
     verboseS "profile" 1 $ do

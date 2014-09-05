@@ -32,7 +32,6 @@ import Data.Int
 import qualified Data.List as List
 import Data.Map as Map
 import Data.Set as Set
-import Data.Sequence as Seq
 import Data.Typeable (Typeable)
 import Data.Foldable
 import Data.Traversable
@@ -85,7 +84,6 @@ data TCState =
          , stTokens            :: CompressedFile
            -- ^ Highlighting info for tokens (but not those tokens for
            -- which highlighting exists in 'stSyntaxInfo').
-         , stTermErrs          :: Seq TerminationError
 	 , stMetaStore	       :: MetaStore
 	 , stInteractionPoints :: InteractionPoints
 	 , stAwakeConstraints    :: Constraints
@@ -174,7 +172,6 @@ initState = TCSt
   , stMetaStore            = Map.empty
   , stSyntaxInfo           = mempty
   , stTokens               = mempty
-  , stTermErrs             = Seq.empty
   , stInteractionPoints    = Map.empty
   , stAwakeConstraints     = []
   , stSleepingConstraints  = []
