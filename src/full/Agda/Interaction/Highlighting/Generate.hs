@@ -548,7 +548,11 @@ printErrorInfo e = do
   -- Print new highlighting.
   printHighlightingInfo . compress =<< errorHighlighting e
 
+-- | Generate highlighting for error.
+--   Does something special for termination errors.
 errorHighlighting :: TCErr -> TCM File
+errorHighlighting (TypeError s cl@(Closure sig env scope (TerminationCheckFailed termErrs))) =
+  return $ terminationErrorHighlighting termErrs
 errorHighlighting e = do
   s <- E.prettyError e
   return $ singleton (rToR r)
