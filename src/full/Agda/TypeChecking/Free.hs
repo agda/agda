@@ -202,11 +202,15 @@ data IgnoreSorts
   deriving (Eq, Show)
 
 data FreeConf = FreeConf
-  { fcIgnoreSorts   :: IgnoreSorts -- ^ Ignore free variables in sorts.
+  { fcIgnoreSorts   :: !IgnoreSorts
+    -- ^ Ignore free variables in sorts.
+  , fcContext       :: !Int
+    -- ^ Under how many binders have we stepped?
   }
 
 initFreeConf = FreeConf
   { fcIgnoreSorts = IgnoreNot
+  , fcContext     = 0
   }
 
 -- | Doesn't go inside solved metas, but collects the variables from a
@@ -227,11 +231,13 @@ instance Monoid FreeT where
 
 -- | Base case: a variable.
 variable :: Int -> FreeT
-variable n = pure $ singleton n
+variable n = do
+  m <- (n -) <$> asks fcContext
+  if m >= 0 then pure $ singleton m else mempty
 
 -- | Going under a binder.
 bind :: FreeT -> FreeT
-bind m = subtractFV 1 . delete 0 <$> m
+bind = local $ \ e -> e { fcContext = 1 + fcContext e }
 
 class Free a where
   freeVars'   :: a -> FreeT
