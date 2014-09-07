@@ -10,5 +10,6 @@ data RUnit : Set where
 
 j : (u : RUnit) -> u ≡ runit (♯ u) -> Set
 j u ()
+
 -- needs to fail because of a non strongly rigid occurrence
 -- ♯ does not count as a constructor, and that is good!
