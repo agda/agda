@@ -21,9 +21,10 @@
 
 module Agda.TypeChecking.Free
     ( FreeVars(..)
-    , Free(..)
-    , FreeConf(..), IgnoreSorts(..)
+    , Free
+    , IgnoreSorts(..)
     , freeVars
+    , freeVarsIgnore
     , allVars
     , relevantVars
     , rigidVars
@@ -34,13 +35,20 @@ module Agda.TypeChecking.Free
     , occurrence
     ) where
 
-import qualified Agda.Utils.VarSet as Set
-import Agda.Utils.VarSet (VarSet)
+import Control.Applicative hiding (empty)
+import Control.Monad.Reader
+
+import Data.Foldable (foldMap)
+import Data.Monoid
 
 import Agda.Syntax.Common hiding (Arg, Dom, NamedArg)
 import Agda.Syntax.Internal
 
 import Agda.Utils.Function
+import Agda.Utils.Functor
+import Agda.Utils.Monad
+import Agda.Utils.VarSet (VarSet)
+import qualified Agda.Utils.VarSet as Set
 
 #include "../undefined.h"
 import Agda.Utils.Impossible
@@ -166,6 +174,12 @@ unions = foldr union empty
 empty :: FreeVars
 empty = FV Set.empty Set.empty Set.empty Set.empty Set.empty Set.empty
 
+-- | Free variable sets form a monoid under 'union'.
+instance Monoid FreeVars where
+  mempty  = empty
+  mappend = union
+  mconcat = unions
+
 -- | @delete x fv@ deletes variable @x@ from variable set @fv@.
 delete :: Nat -> FreeVars -> FreeVars
 delete n (FV sv gv rv fv iv uv) = FV (Set.delete n sv) (Set.delete n gv) (Set.delete n rv) (Set.delete n fv) (Set.delete n iv) (Set.delete n uv)
@@ -180,9 +194,6 @@ singleton x = empty { unguardedVars = Set.singleton x }
 
 -- * Collecting free variables.
 
-class Free a where
-  freeVars'   :: FreeConf -> a -> FreeVars
-
 -- | Where should we skip sorts in free variable analysis?
 data IgnoreSorts
   = IgnoreNot            -- ^ Do not skip.
@@ -191,81 +202,114 @@ data IgnoreSorts
   deriving (Eq, Show)
 
 data FreeConf = FreeConf
-  { fcIgnoreSorts   :: IgnoreSorts -- ^ Ignore free variables in sorts.
+  { fcIgnoreSorts   :: !IgnoreSorts
+    -- ^ Ignore free variables in sorts.
+  , fcContext       :: !Int
+    -- ^ Under how many binders have we stepped?
+  }
+
+initFreeConf = FreeConf
+  { fcIgnoreSorts = IgnoreNot
+  , fcContext     = 0
   }
 
 -- | Doesn't go inside solved metas, but collects the variables from a
 -- metavariable application @X ts@ as @flexibleVars@.
 freeVars :: Free a => a -> FreeVars
-freeVars = freeVars' FreeConf{ fcIgnoreSorts = IgnoreNot }
+freeVars t = freeVars' t `runReader` initFreeConf
+
+freeVarsIgnore :: Free a => IgnoreSorts -> a -> FreeVars
+freeVarsIgnore i t = freeVars' t `runReader` initFreeConf{ fcIgnoreSorts = i }
+
+-- | Return type of fold over syntax.
+type FreeT = Reader FreeConf FreeVars
+
+instance Monoid FreeT where
+  mempty  = pure mempty
+  mappend = liftA2 mappend
+  mconcat = mconcat <.> sequence
+
+-- | Base case: a variable.
+variable :: Int -> FreeT
+variable n = do
+  m <- (n -) <$> asks fcContext
+  if m >= 0 then pure $ singleton m else mempty
+
+-- | Going under a binder.
+bind :: FreeT -> FreeT
+bind = local $ \ e -> e { fcContext = 1 + fcContext e }
+
+class Free a where
+  freeVars'   :: a -> FreeT
 
 instance Free Term where
-  freeVars' conf t = case t of
-    Var n ts   -> singleton n `union` weakly (freeVars' conf ts)
+  freeVars' t = case t of
+    Var n ts   -> variable n `mappend` do weakly <$> freeVars' ts
     -- λ is not considered guarding, as
     -- we cannot prove that x ≡ λy.x is impossible.
-    Lam _ t    -> freeVars' conf t
-    Lit _      -> empty
-    Def _ ts   -> weakly $ freeVars' conf ts  -- because we are not in TCM
+    Lam _ t    -> freeVars' t
+    Lit _      -> mempty
+    Def _ ts   -> weakly <$> freeVars' ts  -- because we are not in TCM
       -- we cannot query whether we are dealing with a data/record (strongly r.)
       -- or a definition by pattern matching (weakly rigid)
       -- thus, we approximate, losing that x = List x is unsolvable
-    Con c ts   -> underConstructor c $ freeVars' conf ts
+    Con c ts   -> underConstructor c <$> freeVars' ts
     -- Pi is not guarding, since we cannot prove that A ≡ B → A is impossible.
     -- Even as we do not permit infinite type expressions,
     -- we cannot prove their absence (as Set is not inductive).
     -- Also, this is incompatible with univalence (HoTT).
-    Pi a b     -> freeVars' conf (a,b)
-    Sort s     -> freeVars' conf s
-    Level l    -> freeVars' conf l
-    MetaV _ ts -> flexible $ freeVars' conf ts
-    DontCare mt -> irrelevantly $ freeVars' conf mt
-    Shared p    -> freeVars' conf (derefPtr p)
-    ExtLam cs ts -> freeVars' conf (cs, ts)
+    Pi a b     -> freeVars' (a,b)
+    Sort s     -> freeVars' s
+    Level l    -> freeVars' l
+    MetaV _ ts -> flexible <$> freeVars' ts
+    DontCare mt -> irrelevantly <$> freeVars' mt
+    Shared p    -> freeVars' (derefPtr p)
+    ExtLam cs ts -> freeVars' (cs, ts)
 
 instance Free Type where
-  freeVars' conf (El s t)
-    | fcIgnoreSorts conf == IgnoreNot = freeVars' conf (s, t)
-    | otherwise                       = freeVars' conf t
+  freeVars' (El s t) =
+    ifM ((IgnoreNot ==) <$> asks fcIgnoreSorts)
+      {- then -} (freeVars' (s, t))
+      {- else -} (freeVars' t)
 
 instance Free Sort where
-  freeVars' conf s
-    | fcIgnoreSorts conf == IgnoreAll = empty
-    | otherwise                       = case s of
-      Type a     -> freeVars' conf a
-      Prop       -> empty
-      Inf        -> empty
-      DLub s1 s2 -> weakly $ freeVars' conf (s1, s2)
+  freeVars' s =
+    ifM ((IgnoreAll ==) <$> asks fcIgnoreSorts) mempty $ {- else -}
+    case s of
+      Type a     -> freeVars' a
+      Prop       -> mempty
+      Inf        -> mempty
+      DLub s1 s2 -> weakly <$> freeVars' (s1, s2)
 
 instance Free Level where
-  freeVars' conf (Max as) = freeVars' conf as
+  freeVars' (Max as) = freeVars' as
 
 instance Free PlusLevel where
-  freeVars' conf ClosedLevel{} = empty
-  freeVars' conf (Plus _ l)    = freeVars' conf l
+  freeVars' ClosedLevel{} = mempty
+  freeVars' (Plus _ l)    = freeVars' l
 
 instance Free LevelAtom where
-  freeVars' conf l = case l of
-    MetaLevel _ vs   -> flexible $ freeVars' conf vs
-    NeutralLevel v   -> freeVars' conf v
-    BlockedLevel _ v -> freeVars' conf v
-    UnreducedLevel v -> freeVars' conf v
+  freeVars' l = case l of
+    MetaLevel _ vs   -> flexible <$> freeVars' vs
+    NeutralLevel v   -> freeVars' v
+    BlockedLevel _ v -> freeVars' v
+    UnreducedLevel v -> freeVars' v
 
 instance Free a => Free [a] where
-  freeVars' conf = unions . map (freeVars' conf)
+  freeVars' = foldMap freeVars'
 
 instance Free a => Free (Maybe a) where
-  freeVars' conf = maybe empty (freeVars' conf)
+  freeVars' = foldMap freeVars'
 
 instance (Free a, Free b) => Free (a,b) where
-  freeVars' conf (x,y) = freeVars' conf x `union` freeVars' conf y
+  freeVars' (x,y) = freeVars' x `mappend` freeVars' y
 
 instance Free a => Free (Elim' a) where
-  freeVars' conf (Apply a) = freeVars' conf a
-  freeVars' conf (Proj{} ) = empty
+  freeVars' (Apply a) = freeVars' a
+  freeVars' (Proj{} ) = mempty
 
 instance Free a => Free (Arg a) where
-  freeVars' conf a = f $ freeVars' conf $ unArg a
+  freeVars' a = f <$> freeVars' (unArg a)
     where f = case getRelevance a of
                Irrelevant -> irrelevantly
                UnusedArg  -> unused
@@ -273,41 +317,41 @@ instance Free a => Free (Arg a) where
 
 
 instance Free a => Free (Dom a) where
-  freeVars' conf = freeVars' conf . unDom
+  freeVars' = freeVars' . unDom
 
 instance Free a => Free (Abs a) where
-  freeVars' conf (Abs   _ b) = subtractFV 1 $ delete 0 $ freeVars' conf b
-  freeVars' conf (NoAbs _ b) = freeVars' conf b
+  freeVars' (Abs   _ b) = bind $ freeVars' b
+  freeVars' (NoAbs _ b) = freeVars' b
 
 instance Free a => Free (Tele a) where
-  freeVars' conf EmptyTel	   = empty
-  freeVars' conf (ExtendTel a tel) = freeVars' conf (a, tel)
+  freeVars' EmptyTel	      = mempty
+  freeVars' (ExtendTel a tel) = freeVars' (a, tel)
 
 instance Free ClauseBody where
-  freeVars' conf (Body t)   = freeVars' conf t
-  freeVars' conf (Bind b)   = freeVars' conf b
-  freeVars' conf  NoBody    = empty
+  freeVars' (Body t)   = freeVars' t
+  freeVars' (Bind b)   = freeVars' b
+  freeVars'  NoBody    = mempty
 
 instance Free Clause where
-  freeVars' conf = freeVars' conf . clauseBody
+  freeVars' = freeVars' . clauseBody
 
 freeIn :: Free a => Nat -> a -> Bool
 freeIn v t = v `Set.member` allVars (freeVars t)
 
 freeInIgnoringSorts :: Free a => Nat -> a -> Bool
 freeInIgnoringSorts v t =
-  v `Set.member` allVars (freeVars' FreeConf{ fcIgnoreSorts = IgnoreAll } t)
+  v `Set.member` allVars (freeVarsIgnore IgnoreAll t)
 
 freeInIgnoringSortAnn :: Free a => Nat -> a -> Bool
 freeInIgnoringSortAnn v t =
-  v `Set.member` allVars (freeVars' FreeConf{ fcIgnoreSorts = IgnoreInAnnotations } t)
+  v `Set.member` allVars (freeVarsIgnore IgnoreInAnnotations t)
 
 relevantInIgnoringSortAnn :: Free a => Nat -> a -> Bool
 relevantInIgnoringSortAnn v t =
-  v `Set.member` relevantVars (freeVars' FreeConf{ fcIgnoreSorts = IgnoreInAnnotations } t)
+  v `Set.member` relevantVars (freeVarsIgnore IgnoreInAnnotations t)
 
 relevantIn :: Free a => Nat -> a -> Bool
-relevantIn v t = v `Set.member` relevantVars (freeVars' FreeConf{ fcIgnoreSorts = IgnoreAll } t)
+relevantIn v t = v `Set.member` relevantVars (freeVarsIgnore IgnoreAll t)
 
 -- | Is the variable bound by the abstraction actually used?
 isBinderUsed :: Free a => Abs a -> Bool
