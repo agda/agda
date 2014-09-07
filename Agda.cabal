@@ -68,9 +68,9 @@ library
     build-depends:  Win32 >= 2.2 && < 2.4
 
   build-depends:    base >= 4.2 && < 4.8,
-                    transformers == 0.3.*,
+                    transformers >= 0.3 && < 0.5,
                     -- mtl-2.1 contains a severe bug
-                    mtl >= 2.1.1 && < 2.2,
+                    mtl >= 2.1.1 && < 2.3,
                     QuickCheck >= 2.7.5 && < 2.8,
                     haskell-src-exts >= 1.9.6 && < 1.16,
                     containers >= 0.1 && < 0.6,

@@ -3,6 +3,22 @@
 {-# LANGUAGE TypeSynonymInstances #-}
 
 -- | Computing the free variables of a term.
+--
+-- The distinction between rigid and strongly rigid occurrences comes from:
+--   Jason C. Reed, PhD thesis, 2009, page 96 (see also his LFMTP 2009 paper)
+--
+-- The main idea is that x = t(x) is unsolvable if x occurs strongly rigidly
+-- in t.  It might have a solution if the occurrence is not strongly rigid, e.g.
+--
+--   x = \f -> suc (f (x (\ y -> k)))  has  x = \f -> suc (f (suc k))
+--
+-- [Jason C. Reed, PhD thesis, page 106]
+--
+-- Under coinductive constructors, occurrences are never strongly rigid.
+-- Also, function types and lambdas do not establish strong rigidity.
+-- Only inductive constructors do so.
+-- (See issue 1271).
+
 module Agda.TypeChecking.Free
     ( FreeVars(..)
     , Free(..)
@@ -29,43 +45,52 @@ import Agda.Utils.Function
 #include "../undefined.h"
 import Agda.Utils.Impossible
 
--- | The distinction between rigid and strongly rigid occurrences comes from:
---   Jason C. Reed, PhD thesis, 2009, page 96 (see also his LFMTP 2009 paper)
---
--- The main idea is that x = t(x) is unsolvable if x occurs strongly rigidly
--- in t.  It might have a solution if the occurrence is not strongly rigid, e.g.
---
---   x = \f -> suc (f (x (\ y -> k)))  has  x = \f -> suc (f (suc k))
---
--- [Jason C. Reed, PhD thesis, page 106]
-
 -- | Free variables of a term, (disjointly) partitioned into strongly and
 --   and weakly rigid variables, flexible variables and irrelevant variables.
 data FreeVars = FV
-  { stronglyRigidVars :: VarSet -- ^ Variables at top and under inductive constructors.
-  , weaklyRigidVars   :: VarSet -- ^ Ordinary rigid variables, e.g., in arguments of variables.
-  , flexibleVars      :: VarSet -- ^ Variables occuring in arguments of metas. These are potentially free, depending how the meta variable is instantiated.
-  , irrelevantVars    :: VarSet -- ^ Variables in irrelevant arguments and under a @DontCare@, i.e., in irrelevant positions.
-  , unusedVars        :: VarSet -- ^ Variables in 'UnusedArg'uments.
+  { stronglyRigidVars :: VarSet
+    -- ^ Variables under only and at least one inductive constructor(s).
+  , unguardedVars     :: VarSet
+    -- ^ Variables at top or only under inductive record constructors
+    --   λs and Πs.
+    --   The purpose of recording these separately is that they
+    --   can still become strongly rigid if put under a constructor
+    --   whereas weakly rigid ones stay weakly rigid.
+  , weaklyRigidVars   :: VarSet
+    -- ^ Ordinary rigid variables, e.g., in arguments of variables.
+  , flexibleVars      :: VarSet
+    -- ^ Variables occuring in arguments of metas.
+    --   These are only potentially free, depending how the meta variable is instantiated.
+  , irrelevantVars    :: VarSet
+    -- ^ Variables in irrelevant arguments and under a @DontCare@, i.e.,
+    --   in irrelevant positions.
+  , unusedVars        :: VarSet
+    -- ^ Variables in 'UnusedArg'uments.
   }
 
+-- | Rigid variables: either strongly rigid, unguarded, or weakly rigid.
 rigidVars :: FreeVars -> VarSet
-rigidVars fv = Set.union (stronglyRigidVars fv) (weaklyRigidVars fv)
-
--- | @allVars fv@ includes irrelevant variables.
-allVars :: FreeVars -> VarSet
-allVars fv = Set.unions [rigidVars fv, flexibleVars fv, irrelevantVars fv, unusedVars fv]
+rigidVars fv = Set.unions
+  [ stronglyRigidVars fv
+  ,     unguardedVars fv
+  ,   weaklyRigidVars fv
+  ]
 
 -- | All but the irrelevant variables.
 relevantVars :: FreeVars -> VarSet
 relevantVars fv = Set.unions [rigidVars fv, flexibleVars fv]
 
+-- | @allVars fv@ includes irrelevant variables.
+allVars :: FreeVars -> VarSet
+allVars fv = Set.unions [relevantVars fv, irrelevantVars fv, unusedVars fv]
+
 data Occurrence
   = NoOccurrence
   | Irrelevantly
-  | StronglyRigid
-  | WeaklyRigid
-  | Flexible
+  | StronglyRigid -- ^ Under at least one and only inductive constructors.
+  | Unguarded     -- ^ In top position, or only under inductive record constructors.
+  | WeaklyRigid   -- ^ In arguments to variables and definitions.
+  | Flexible      -- ^ In arguments of metas.
   | Unused
   deriving (Eq,Show)
 
@@ -75,6 +100,7 @@ data Occurrence
 occurrence :: Nat -> FreeVars -> Occurrence
 occurrence x fv
   | x `Set.member` stronglyRigidVars fv = StronglyRigid
+  | x `Set.member` unguardedVars     fv = Unguarded
   | x `Set.member` weaklyRigidVars   fv = WeaklyRigid
   | x `Set.member` flexibleVars      fv = Flexible
   | x `Set.member` irrelevantVars    fv = Irrelevantly
@@ -85,6 +111,7 @@ occurrence x fv
 flexible :: FreeVars -> FreeVars
 flexible fv =
     fv { stronglyRigidVars = Set.empty
+       , unguardedVars     = Set.empty
        , weaklyRigidVars   = Set.empty
        , flexibleVars      = relevantVars fv
        }
@@ -93,8 +120,29 @@ flexible fv =
 weakly :: FreeVars -> FreeVars
 weakly fv = fv
   { stronglyRigidVars = Set.empty
+  , unguardedVars     = Set.empty
   , weaklyRigidVars   = rigidVars fv
   }
+
+-- | Mark unguarded variables as strongly rigid.  Useful when traversion arguments of inductive constructors.
+strongly :: FreeVars -> FreeVars
+strongly fv = fv
+  { stronglyRigidVars = stronglyRigidVars fv `Set.union` unguardedVars fv
+  , unguardedVars     = Set.empty
+  }
+
+-- | What happens to the variables occurring under a constructor?
+underConstructor :: ConHead -> FreeVars -> FreeVars
+underConstructor (ConHead c i fs) =
+  case (i,fs) of
+    -- Coinductive (record) constructors admit infinite cycles:
+    (CoInductive, _)   -> weakly
+    -- Inductive data constructors do not admit infinite cycles:
+    (Inductive, [])    -> strongly
+    -- Inductive record constructors do not admit infinite cycles,
+    -- but this cannot be proven inside Agda.
+    -- Thus, unification should not prove it either.
+    (Inductive, (_:_)) -> id
 
 -- | Mark all free variables as irrelevant.
 irrelevantly :: FreeVars -> FreeVars
@@ -109,26 +157,26 @@ unused fv = empty
 
 -- | Pointwise union.
 union :: FreeVars -> FreeVars -> FreeVars
-union (FV sv1 rv1 fv1 iv1 uv1) (FV sv2 rv2 fv2 iv2 uv2) =
-  FV (Set.union sv1 sv2) (Set.union rv1 rv2) (Set.union fv1 fv2) (Set.union iv1 iv2) (Set.union uv1 uv2)
+union (FV sv1 gv1 rv1 fv1 iv1 uv1) (FV sv2 gv2 rv2 fv2 iv2 uv2) =
+  FV (Set.union sv1 sv2) (Set.union gv1 gv2) (Set.union rv1 rv2) (Set.union fv1 fv2) (Set.union iv1 iv2) (Set.union uv1 uv2)
 
 unions :: [FreeVars] -> FreeVars
 unions = foldr union empty
 
 empty :: FreeVars
-empty = FV Set.empty Set.empty Set.empty Set.empty Set.empty
+empty = FV Set.empty Set.empty Set.empty Set.empty Set.empty Set.empty
 
 -- | @delete x fv@ deletes variable @x@ from variable set @fv@.
 delete :: Nat -> FreeVars -> FreeVars
-delete n (FV sv rv fv iv uv) = FV (Set.delete n sv) (Set.delete n rv) (Set.delete n fv) (Set.delete n iv) (Set.delete n uv)
+delete n (FV sv gv rv fv iv uv) = FV (Set.delete n sv) (Set.delete n gv) (Set.delete n rv) (Set.delete n fv) (Set.delete n iv) (Set.delete n uv)
 
 -- | @subtractFV n fv@ subtracts $n$ from each free variable in @fv@.
 subtractFV :: Nat -> FreeVars -> FreeVars
-subtractFV n (FV sv rv fv iv uv) = FV (Set.subtract n sv) (Set.subtract n rv) (Set.subtract n fv) (Set.subtract n iv) (Set.subtract n uv)
+subtractFV n (FV sv gv rv fv iv uv) = FV (Set.subtract n sv) (Set.subtract n gv) (Set.subtract n rv) (Set.subtract n fv) (Set.subtract n iv) (Set.subtract n uv)
 
--- | A single (strongly) rigid variable.
+-- | A single unguarded variable.
 singleton :: Nat -> FreeVars
-singleton x = empty { stronglyRigidVars = Set.singleton x }
+singleton x = empty { unguardedVars = Set.singleton x }
 
 -- * Collecting free variables.
 
@@ -154,13 +202,19 @@ freeVars = freeVars' FreeConf{ fcIgnoreSorts = IgnoreNot }
 instance Free Term where
   freeVars' conf t = case t of
     Var n ts   -> singleton n `union` weakly (freeVars' conf ts)
+    -- λ is not considered guarding, as
+    -- we cannot prove that x ≡ λy.x is impossible.
     Lam _ t    -> freeVars' conf t
     Lit _      -> empty
     Def _ ts   -> weakly $ freeVars' conf ts  -- because we are not in TCM
       -- we cannot query whether we are dealing with a data/record (strongly r.)
       -- or a definition by pattern matching (weakly rigid)
       -- thus, we approximate, losing that x = List x is unsolvable
-    Con c ts   -> applyWhen (conInductive c == CoInductive) weakly $ freeVars' conf ts
+    Con c ts   -> underConstructor c $ freeVars' conf ts
+    -- Pi is not guarding, since we cannot prove that A ≡ B → A is impossible.
+    -- Even as we do not permit infinite type expressions,
+    -- we cannot prove their absence (as Set is not inductive).
+    -- Also, this is incompatible with univalence (HoTT).
     Pi a b     -> freeVars' conf (a,b)
     Sort s     -> freeVars' conf s
     Level l    -> freeVars' conf l
