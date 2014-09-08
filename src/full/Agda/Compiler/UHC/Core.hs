@@ -14,6 +14,7 @@ module Agda.Compiler.UHC.Core
 import Data.Char
 import Data.List
 import qualified Data.Map as M
+import Data.Maybe (fromJust)
 
 import Agda.TypeChecking.Monad
 import Agda.Syntax.Abstract.Name
@@ -103,36 +104,36 @@ funToBind :: MonadTCM m => Fun -> Compile m CBind
 funToBind (Fun _ name mqname comment vars e) = do -- TODO what is mqname?
   e' <- exprToCore e
   let aspects = [CBound_Bind cmetas (foldr mkLambdas e' vars)]
-  return $ CBind_Bind (hsnFromString name) aspects
+  return $ CBind_Bind (toHsName name) aspects
   where mkLambdas :: Var -> CExpr -> CExpr
-        mkLambdas v body = CExpr_Lam (CBind_Bind (hsnFromString v) []) body
-funToBind (CoreFun name _ _ crExpr) = return $ CBind_Bind (hsnFromString name) [CBound_Bind cmetas crExpr]
+        mkLambdas v body = CExpr_Lam (CBind_Bind (toHsName v) []) body
+funToBind (CoreFun name _ _ crExpr) = return $ CBind_Bind (toHsName name) [CBound_Bind cmetas crExpr]
 
 cmetas = (CMetaBind_Plain, CMetaVal_Val)
 
 exprToCore :: MonadTCM m => Expr -> Compile m CExpr
-exprToCore (Var v)      = return $ CExpr_Var (acoreMkRef $ hsnFromString v)
+exprToCore (Var v)      = return $ CExpr_Var (acoreMkRef $ toHsName v)
 exprToCore (Lit l)      = return $ litToCore l
-exprToCore (Lam v body) = exprToCore body >>= return . CExpr_Lam (CBind_Bind (hsnFromString v) [])
+exprToCore (Lam v body) = exprToCore body >>= return . CExpr_Lam (CBind_Bind (toHsName v) [])
 exprToCore (Con t qn es) = do
     es' <- mapM exprToCore es
     let ctor = CExpr_Tup $ mkCTag t qn
     return $ foldl (\x e -> CExpr_App x (CBound_Bind cmetas e)) ctor es'
 exprToCore (App fv es)   = do
     es' <- mapM exprToCore es
-    let fv' = CExpr_Var (acoreMkRef $ hsnFromString fv)
+    let fv' = CExpr_Var (acoreMkRef $ toHsName fv)
     return $ foldl (\x e -> CExpr_App x (CBound_Bind cmetas e)) fv' es'
 exprToCore (Case e brs) = do
     var <- newName
     (def, branches) <- branchesToCore brs
-    let cas = CExpr_Case (CExpr_Var (acoreMkRef $ hsnFromString var)) branches def
+    let cas = CExpr_Case (CExpr_Var (acoreMkRef $ toHsName var)) branches def
     e' <- exprToCore e
-    return $ CExpr_Let CBindCateg_Strict [CBind_Bind (hsnFromString var) [CBound_Bind cmetas e']] cas
+    return $ CExpr_Let CBindCateg_Strict [CBind_Bind (toHsName var) [CBound_Bind cmetas e']] cas
 exprToCore (Let v e1 e2) = do
     e1' <- exprToCore e1
     e2' <- exprToCore e2
 -- TODO do we really need let-rec here?
-    return $ CExpr_Let CBindCateg_Rec [CBind_Bind (hsnFromString v)
+    return $ CExpr_Let CBindCateg_Rec [CBind_Bind (toHsName v)
                                 [CBound_Bind cmetas e1']] e2'
 exprToCore UNIT         = return $ coreUnit
 exprToCore IMPOSSIBLE   = return $ coreImpossible
@@ -147,12 +148,12 @@ branchesToCore brs = do
     where f (Branch tag qn vars e)  = do
             -- TODO fix up everything
             let ctag = mkCTag tag qn
-            let binds = [CPatFld_Fld (hsnFromString "") (CExpr_Int i) (CBind_Bind (hsnFromString v) []) [] | (i, v) <- zip [0..] vars]
+            let binds = [CPatFld_Fld (hsnFromString "") (CExpr_Int i) (CBind_Bind (toHsName v) []) [] | (i, v) <- zip [0..] vars]
             e' <- exprToCore e
             return [CAlt_Alt (CPat_Con ctag CPatRest_Empty binds) e']
           f (CoreBranch dt ctor tag vars e) = do
             let ctag = CTag (hsnFromString dt) (hsnFromString ctor) (fromIntegral tag) 0 0
-            let binds = [CPatFld_Fld (hsnFromString "") (CExpr_Int i) (CBind_Bind (hsnFromString v) []) [] | (i, v) <- zip [0..] vars]
+            let binds = [CPatFld_Fld (hsnFromString "") (CExpr_Int i) (CBind_Bind (toHsName v) []) [] | (i, v) <- zip [0..] vars]
             e' <- exprToCore e
             return [CAlt_Alt (CPat_Con ctag CPatRest_Empty binds) e']
           f (BrInt _ _) = error "TODO"
@@ -189,3 +190,9 @@ coreStr s = CExpr_App (CExpr_Var $ acoreMkRef $ hsnFromString "UHC.Base.packedSt
 coreUnit :: CExpr
 coreUnit = CExpr_Int 0
 
+toHsName :: String -> HsName
+toHsName n = hsnFromString $ case elemIndex '.' nr of
+    Just i -> let (n', ns') = splitAt i nr
+               in (reverse ns') ++ "agda_c1_" ++ (reverse n')
+    Nothing -> "agda_c2_" ++ n
+  where nr = reverse n
