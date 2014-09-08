@@ -136,7 +136,8 @@ insertTele er n ins term (ExtendTel x xs) = do
     return (ExtendTel x $ Abs (absName xs) xs' , typ)
 
 -- TODO: restore fields in ConHead
-mkCon c n = I.Con (I.ConHead c []) [ defaultArg $ I.Var (fromIntegral i) [] | i <- [n - 1, n - 2 .. 0] ]
+--mkCon c n = I.Con (I.ConHead c []) [ defaultArg $ I.Var (fromIntegral i) [] | i <- [n - 1, n - 2 .. 0] ]
+mkCon = error "TODO fix"
 
 unifyI :: Telescope -> FlexibleVars -> Type -> Args -> Args -> Compile TCM [Maybe Term]
 unifyI tele flex typ a1 a2 = lift $ addCtxTel tele $ unifyIndices_ flex typ a1 a2
