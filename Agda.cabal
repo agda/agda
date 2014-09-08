@@ -72,7 +72,7 @@ library
 
   if flag(uhc)
     build-depends:  EH99 == 1.1,
-                    uhc-util == 0.1.3.2
+                    uhc-util == 0.1.3.7
 
   if os(windows)
     build-depends:  Win32 >= 2.2 && < 2.4
