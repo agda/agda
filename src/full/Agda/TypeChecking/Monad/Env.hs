@@ -70,21 +70,29 @@ performedSimplification' simpl = local $ \ e -> e { envSimplification = simpl `m
 getSimplification :: MonadReader TCEnv m => m Simplification
 getSimplification = asks envSimplification
 
+-- * Controlling reduction.
+
+-- | Lens for 'AllowedReductions'.
+updateAllowedReductions :: (AllowedReductions -> AllowedReductions) -> TCEnv -> TCEnv
+updateAllowedReductions f e = e { envAllowedReductions = f (envAllowedReductions e) }
+
+modifyAllowedReductions :: (AllowedReductions -> AllowedReductions) -> TCM a -> TCM a
+modifyAllowedReductions = local . updateAllowedReductions
+
+putAllowedReductions :: AllowedReductions -> TCM a -> TCM a
+putAllowedReductions = modifyAllowedReductions . const
+
 -- | Reduce @Def f vs@ only if @f@ is a projection.
 onlyReduceProjections :: TCM a -> TCM a
-onlyReduceProjections = local $ \ e -> e { envAllowedReductions = [ProjectionReductions] }
+onlyReduceProjections = putAllowedReductions [ProjectionReductions]
 
-dontReduceProjections :: TCM a -> TCM a
-dontReduceProjections = local $ \ e -> e { envAllowedReductions = allReductions \\ [ProjectionReductions] }
-
-dontReduceLevels :: TCM a -> TCM a
-dontReduceLevels = local $ \ e -> e { envAllowedReductions = allReductions \\ [LevelReductions] }
-
+-- | Allow all reductions except for non-terminating functions (default).
 allowAllReductions :: TCM a -> TCM a
-allowAllReductions = local $ \ e -> e { envAllowedReductions = allReductions }
+allowAllReductions = putAllowedReductions allReductions
 
+-- | Allow all reductions including non-terminating functions.
 allowNonTerminatingReductions :: TCM a -> TCM a
-allowNonTerminatingReductions = local $ \ e -> e { envAllowedReductions = allReductions ++ [NonTerminatingReductions] }
+allowNonTerminatingReductions = putAllowedReductions $ [NonTerminatingReductions] ++ allReductions
 
 insideDotPattern :: TCM a -> TCM a
 insideDotPattern = local $ \e -> e { envInsideDotPattern = True }

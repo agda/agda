@@ -86,7 +86,7 @@ checkDecl d = traceCall (SetRange (getRange d)) $ do
     let -- What kind of final checks/computations should be performed
         -- if we're not inside a mutual block?
         none        m = m >> return Nothing
-        meta        m = m >> return (Just (return []))
+        meta        m = m >> return (Just (return ()))
         mutual i ds m = m >>= return . Just . mutualChecks i ds
         impossible  m = m >> return __IMPOSSIBLE__
                        -- We're definitely inside a mutual block.
@@ -124,45 +124,18 @@ checkDecl d = traceCall (SetRange (getRange d)) $ do
                                   -- highlighting purposes.
       A.UnquoteDecl mi i x e   -> checkUnquoteDecl mi i x e
 
-    unlessM (isJust . envMutualBlock <$> ask) $ do
-      -- The termination errors are not returned, but used for highlighting.
-      termErrs <- caseMaybe finalChecks (return []) $ \ theMutualChecks -> do
+    unlessM (isJust <$> asks envMutualBlock) $ do
+
+      -- Syntax highlighting.
+      highlight_ d
+
+      -- Post-typing checks.
+      whenJust finalChecks $ \ theMutualChecks -> do
         solveSizeConstraints
-        wakeupConstraints_   -- solve emptyness constraints
+        wakeupConstraints_   -- solve emptiness constraints
         freezeMetas
 
         theMutualChecks
-
-      -- Syntax highlighting.
-      let highlight d = generateAndPrintSyntaxInfo d (Full termErrs)
-      reimburseTop Bench.Typing $ billTop Bench.Highlighting $ case d of
-        A.Axiom{}                -> highlight d
-        A.Field{}                -> __IMPOSSIBLE__
-        A.Primitive{}            -> highlight d
-        A.Mutual{}               -> highlight d
-        A.Apply{}                -> highlight d
-        A.Import{}               -> highlight d
-        A.Pragma{}               -> highlight d
-        A.ScopedDecl{}           -> return ()
-        A.FunDef{}               -> __IMPOSSIBLE__
-        A.DataDef{}              -> __IMPOSSIBLE__
-        A.DataSig{}              -> __IMPOSSIBLE__
-        A.Open{}                 -> highlight d
-        A.PatternSynDef{}        -> highlight d
-        A.UnquoteDecl{}          -> highlight d
-        A.Section i x tel _      -> highlight (A.Section i x tel [])
-          -- Each block in the section has already been highlighted,
-          -- all that remains is the module declaration.
-        A.RecSig{}               -> highlight d
-        A.RecDef i x ind c ps tel cs ->
-          highlight (A.RecDef i x ind c [] tel (fields cs))
-          -- The telescope and all record module declarations except
-          -- for the fields have already been highlighted.
-          where
-          fields (A.ScopedDecl _ ds1 : ds2) = fields ds1 ++ fields ds2
-          fields (d@A.Field{}        : ds)  = d : fields ds
-          fields (_                  : ds)  = fields ds
-          fields []                         = []
 
     where
     unScope (A.ScopedDecl scope ds) = setScope scope >> unScope d
@@ -192,7 +165,7 @@ checkDecl d = traceCall (SetRange (getRange d)) $ do
       mapM_ instantiateDefinitionType $ Set.toList names
       -- Andreas, 2013-02-27: check termination before injectivity,
       -- to avoid making the injectivity checker loop.
-      termErrs <- case d of
+      case d of
         A.UnquoteDecl{} -> checkTermination_ $ A.Mutual i ds
         _               -> checkTermination_ d
       checkPositivity_         names
@@ -202,7 +175,6 @@ checkDecl d = traceCall (SetRange (getRange d)) $ do
       -- so do it here.
       checkInjectivity_        names
       checkProjectionLikeness_ names
-      return termErrs
 
     checkUnquoteDecl mi i x e = do
       reportSDoc "tc.unquote.decl" 20 $ text "Checking unquoteDecl" <+> prettyTCM x
@@ -253,20 +225,51 @@ instantiateDefinitionType q = do
 --   def <- instantiateFull def
 --   modifySignature $ updateDefinition q $ const def
 
+-- | Highlight a declaration.
+highlight_ :: A.Declaration -> TCM ()
+highlight_ d = do
+  let highlight d = generateAndPrintSyntaxInfo d Full
+  reimburseTop Bench.Typing $ billTop Bench.Highlighting $ case d of
+    A.Axiom{}                -> highlight d
+    A.Field{}                -> __IMPOSSIBLE__
+    A.Primitive{}            -> highlight d
+    A.Mutual{}               -> highlight d
+    A.Apply{}                -> highlight d
+    A.Import{}               -> highlight d
+    A.Pragma{}               -> highlight d
+    A.ScopedDecl{}           -> return ()
+    A.FunDef{}               -> __IMPOSSIBLE__
+    A.DataDef{}              -> __IMPOSSIBLE__
+    A.DataSig{}              -> __IMPOSSIBLE__
+    A.Open{}                 -> highlight d
+    A.PatternSynDef{}        -> highlight d
+    A.UnquoteDecl{}          -> highlight d
+    A.Section i x tel _      -> highlight (A.Section i x tel [])
+      -- Each block in the section has already been highlighted,
+      -- all that remains is the module declaration.
+    A.RecSig{}               -> highlight d
+    A.RecDef i x ind c ps tel cs ->
+      highlight (A.RecDef i x ind c [] tel (fields cs))
+      -- The telescope and all record module declarations except
+      -- for the fields have already been highlighted.
+      where
+      fields (A.ScopedDecl _ ds1 : ds2) = fields ds1 ++ fields ds2
+      fields (d@A.Field{}        : ds)  = d : fields ds
+      fields (_                  : ds)  = fields ds
+      fields []                         = []
 
--- | Termination check a declaration and return a list of termination errors.
-checkTermination_ :: A.Declaration -> TCM [TerminationError]
+-- | Termination check a declaration.
+checkTermination_ :: A.Declaration -> TCM ()
 checkTermination_ d = reimburseTop Bench.Typing $ billTop Bench.Termination $ do
   reportSLn "tc.decl" 20 $ "checkDecl: checking termination..."
-  ifNotM (optTerminationCheck <$> pragmaOptions) (return []) $ {- else -} do
+  whenM (optTerminationCheck <$> pragmaOptions) $ do
     case d of
       -- Record module definitions should not be termination-checked twice.
-      A.RecDef {} -> return []
+      A.RecDef {} -> return ()
       _ -> disableDestructiveUpdate $ do
-        termErrs <- {- nubList <$> -} termDecl d
-        modify $ \st ->
-          st { stTermErrs = Fold.foldl' (|>) (stTermErrs st) termErrs }
-        return termErrs
+        termErrs <- termDecl d
+        unless (null termErrs) $
+          typeError $ TerminationCheckFailed termErrs
 
 -- | Check a set of mutual names for positivity.
 checkPositivity_ :: Set QName -> TCM ()
@@ -558,12 +561,12 @@ checkSection :: Info.ModuleInfo -> ModuleName -> A.Telescope -> [A.Declaration] 
 checkSection i x tel ds =
   checkTelescope_ tel $ \tel' -> do
     addSection x (size tel')
-    verboseS "tc.section.check" 10 $ do
+    verboseS "tc.mod.check" 10 $ do
       dx   <- prettyTCM x
       dtel <- mapM prettyAs tel
       dtel' <- prettyTCM =<< lookupSection x
-      reportSLn "tc.section.check" 10 $ "checking section " ++ show dx ++ " " ++ show dtel
-      reportSLn "tc.section.check" 10 $ "    actual tele: " ++ show dtel'
+      reportSLn "tc.mod.check" 10 $ "checking section " ++ show dx ++ " " ++ show dtel
+      reportSLn "tc.mod.check" 10 $ "    actual tele: " ++ show dtel'
     withCurrentModule x $ checkDecls ds
 
 -- | Helper for 'checkSectionApplication'.
@@ -609,10 +612,10 @@ checkModuleArity m tel args = check tel args
 -- | Check an application of a section (top-level function, includes @'traceCall'@).
 checkSectionApplication
   :: Info.ModuleInfo
-  -> ModuleName                 -- ^ Name @m1@ of module defined by the module macro.
-  -> A.ModuleApplication        -- ^ The module macro @λ tel → m2 args@.
-  -> Map QName QName            -- ^ Imported names (given as renaming).
-  -> Map ModuleName ModuleName  -- ^ Imported modules (given as renaming).
+  -> ModuleName          -- ^ Name @m1@ of module defined by the module macro.
+  -> A.ModuleApplication -- ^ The module macro @λ tel → m2 args@.
+  -> A.Ren QName         -- ^ Imported names (given as renaming).
+  -> A.Ren ModuleName    -- ^ Imported modules (given as renaming).
   -> TCM ()
 checkSectionApplication i m1 modapp rd rm =
   traceCall (CheckSectionApplication (getRange i) m1 modapp) $
@@ -621,12 +624,19 @@ checkSectionApplication i m1 modapp rd rm =
 -- | Check an application of a section.
 checkSectionApplication'
   :: Info.ModuleInfo
-  -> ModuleName                 -- ^ Name @m1@ of module defined by the module macro.
-  -> A.ModuleApplication        -- ^ The module macro @λ tel → m2 args@.
-  -> Map QName QName            -- ^ Imported names (given as renaming).
-  -> Map ModuleName ModuleName  -- ^ Imported modules (given as renaming).
+  -> ModuleName          -- ^ Name @m1@ of module defined by the module macro.
+  -> A.ModuleApplication -- ^ The module macro @λ tel → m2 args@.
+  -> A.Ren QName         -- ^ Imported names (given as renaming).
+  -> A.Ren ModuleName    -- ^ Imported modules (given as renaming).
   -> TCM ()
-checkSectionApplication' i m1 (A.SectionApp ptel m2 args) rd rm =
+checkSectionApplication' i m1 (A.SectionApp ptel m2 args) rd rm = do
+  -- Module applications can appear in lets, in which case we treat
+  -- lambda-bound variables as additional parameters to the module.
+  extraParams <- do
+    mfv <- getModuleFreeVars =<< currentModule
+    fv  <- size <$> getContextTelescope
+    return (fv - mfv)
+  when (extraParams > 0) $ reportSLn "tc.mod.apply" 30 $ "Extra parameters to " ++ show m1 ++ ": " ++ show extraParams
   -- Type-check the LHS (ptel) of the module macro.
   checkTelescope_ ptel $ \ ptel -> do
   -- We are now in the context @ptel@.
@@ -642,7 +652,7 @@ checkSectionApplication' i m1 (A.SectionApp ptel m2 args) rd rm =
   etaTel <- checkModuleArity m2 tel' args'
   -- Take the module parameters that will be instantiated by @args@.
   let tel'' = telFromList $ take (size tel' - size etaTel) $ telToList tel'
-  reportSDoc "tc.section.apply" 15 $ vcat
+  reportSDoc "tc.mod.apply" 15 $ vcat
     [ text "applying section" <+> prettyTCM m2
     , nest 2 $ text "args =" <+> sep (map prettyA args)
     , nest 2 $ text "ptel =" <+> escapeContext (size ptel) (prettyTCM ptel)
@@ -655,14 +665,14 @@ checkSectionApplication' i m1 (A.SectionApp ptel m2 args) rd rm =
   ts <- noConstraints $ checkArguments_ DontExpandLast (getRange i) args' tel''
   -- Perform the application of the module parameters.
   let aTel = tel' `apply` ts
-  reportSDoc "tc.section.apply" 15 $ vcat
+  reportSDoc "tc.mod.apply" 15 $ vcat
     [ nest 2 $ text "aTel =" <+> prettyTCM aTel
     ]
   -- Andreas, 2014-04-06, Issue 1094:
   -- Add the section with well-formed telescope.
-  addCtxTel aTel $ addSection m1 (size ptel + size aTel)
+  addCtxTel aTel $ addSection m1 (size ptel + size aTel + extraParams)
 
-  reportSDoc "tc.section.apply" 20 $ vcat
+  reportSDoc "tc.mod.apply" 20 $ vcat
     [ sep [ text "applySection", prettyTCM m1, text "=", prettyTCM m2, fsep $ map prettyTCM (vs ++ ts) ]
     , nest 2 $ text "  defs:" <+> text (show rd)
     , nest 2 $ text "  mods:" <+> text (show rm)
@@ -694,7 +704,7 @@ checkSectionApplication' i m1 (A.RecordModuleIFS x) rd rm = do
       -- Before instFinal is invoked, we have checked that the @tel@ is not empty.
       instFinal EmptyTel = __IMPOSSIBLE__
 
-  reportSDoc "tc.section.apply" 20 $ vcat
+  reportSDoc "tc.mod.apply" 20 $ vcat
     [ sep [ text "applySection", prettyTCM name, text "{{...}}" ]
     , nest 2 $ text "x       =" <+> prettyTCM x
     , nest 2 $ text "name    =" <+> prettyTCM name
@@ -703,7 +713,7 @@ checkSectionApplication' i m1 (A.RecordModuleIFS x) rd rm = do
     , nest 2 $ text "vs      =" <+> sep (map prettyTCM vs)
     -- , nest 2 $ text "args    =" <+> sep (map prettyTCM args)
     ]
-  reportSDoc "tc.section.apply" 60 $ vcat
+  reportSDoc "tc.mod.apply" 60 $ vcat
     [ nest 2 $ text "vs      =" <+> text (show vs)
     -- , nest 2 $ text "args    =" <+> text (show args)
     ]
@@ -712,11 +722,11 @@ checkSectionApplication' i m1 (A.RecordModuleIFS x) rd rm = do
 
   addCtxTel telInst $ do
     vs <- freeVarsToApply name
-    reportSDoc "tc.section.apply" 20 $ vcat
+    reportSDoc "tc.mod.apply" 20 $ vcat
       [ nest 2 $ text "vs      =" <+> sep (map prettyTCM vs)
       , nest 2 $ text "args    =" <+> sep (map (parens . prettyTCM) args)
       ]
-    reportSDoc "tc.section.apply" 60 $ vcat
+    reportSDoc "tc.mod.apply" 60 $ vcat
       [ nest 2 $ text "vs      =" <+> text (show vs)
       , nest 2 $ text "args    =" <+> text (show args)
       ]

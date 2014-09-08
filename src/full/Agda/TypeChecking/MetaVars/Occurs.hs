@@ -23,7 +23,6 @@ import Agda.TypeChecking.Pretty
 import Agda.TypeChecking.Free hiding (Occurrence(..))
 import Agda.TypeChecking.Substitute
 import Agda.TypeChecking.Records
-import Agda.TypeChecking.Datatypes (isDataOrRecordType)
 import {-# SOURCE #-} Agda.TypeChecking.MetaVars
 -- import Agda.TypeChecking.MetaVars
 

@@ -1,6 +1,5 @@
-
+Issue1140.agda:6,3-7,8
 Termination checking failed for the following functions:
-  M.f, N.f
+  M.f
 Problematic calls:
   f (at Issue1140.agda:7,7-8)
-  f (at Issue1140.agda:11,7-8)

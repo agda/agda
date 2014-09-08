@@ -93,7 +93,7 @@ bindBuiltinSharp e =
     addConstant sharp $
       sharpDefn { theDef = Constructor
                     { conPars   = 2
-                    , conSrcCon = ConHead sharp [] -- flat is added as field later
+                    , conSrcCon = ConHead sharp CoInductive [] -- flat is added as field later
                     , conData   = defName infDefn
                     , conAbstr  = ConcreteDef
                     , conInd    = CoInductive
@@ -115,7 +115,7 @@ bindBuiltinFlat e =
     Def sharp _ <- ignoreSharing <$> primSharp
     kit         <- requireLevels
     Def inf _   <- ignoreSharing <$> primInf
-    let sharpCon = ConHead sharp [flat]
+    let sharpCon = ConHead sharp CoInductive [flat]
         level    = El (mkType 0) $ Def (typeName kit) []
         tel     :: Telescope
         tel      = ExtendTel (domH $ level)                  $ Abs "a" $

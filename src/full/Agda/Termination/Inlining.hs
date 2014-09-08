@@ -207,7 +207,7 @@ inline f pcl t wf wcl = inTopContext $ addCtxTel (clauseTel wcl) $ do
     dtermToPat v =
       case v of
         DWithApp{}       -> __IMPOSSIBLE__   -- I believe
-        DCon c vs        -> ConP (ConHead c []) Nothing . map (fmap unnamed)
+        DCon c vs        -> ConP c Nothing . map (fmap unnamed)
                               <$> mapM (traverse dtermToPat) vs
         DDef{}           -> DotP (dtermToTerm v) <$ skip
         DDot v           -> DotP v <$ skip
@@ -233,7 +233,7 @@ expandWithFunctionCall f es = do
 
 dtermToTerm :: DisplayTerm -> Term
 dtermToTerm (DWithApp d ds vs)     = dtermToTerm d `apply` (map (defaultArg . dtermToTerm) ds ++ vs)
-dtermToTerm (DCon c args)          = Con (ConHead c []) $ map (fmap dtermToTerm) args
+dtermToTerm (DCon c args)          = Con c $ map (fmap dtermToTerm) args
 dtermToTerm (DDef f args)          = Def f $ map (Apply . fmap dtermToTerm) args
 dtermToTerm (DDot v)               = v
 dtermToTerm (DTerm v)              = v

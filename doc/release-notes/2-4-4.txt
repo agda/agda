@@ -1,0 +1,28 @@
+------------------------------------------------------------------------
+-- Release notes for Agda version 2.4.4
+------------------------------------------------------------------------
+
+TODO: replace X by a suitable number.
+Important changes since 2.4.2.X:
+
+Installation and infrastructure
+===============================
+
+Pragmas and options
+===================
+
+Language
+========
+
+Goal and error display
+======================
+
+Type checking
+=============
+
+Compiler backends
+=================
+
+Tools
+=====
+

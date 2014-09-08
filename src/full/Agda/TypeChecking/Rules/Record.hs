@@ -123,8 +123,13 @@ checkRecDef i name ind con ps contel fields =
 	  getName _		       = []
 
           fs = concatMap (convColor . getName) fields
-          con = ConHead conName $ map unArg fs
+          -- indCo is what the user wrote: inductive/coinductive/Nothing.
+          -- We drop the Range.
           indCo = rangedThing <$> ind
+          -- A constructor is inductive unless declared coinductive.
+          conInduction = fromMaybe Inductive indCo
+          haveEta      = conInduction == Inductive
+          con = ConHead conName conInduction $ map unArg fs
 
       reportSDoc "tc.rec" 30 $ text "record constructor is " <+> text (show con)
       addConstant name $ defaultDefn defaultArgInfo name t0
@@ -136,8 +141,8 @@ checkRecDef i name ind con ps contel fields =
 				, recFields         = fs
                                 , recTel            = ftel     -- addConstant adds params!
 				, recAbstr          = Info.defAbstract i
-                                , recEtaEquality    = indCo /= Just CoInductive
-                                , recInduction      = indCo
+                                , recEtaEquality    = haveEta
+                                , recInduction      = indCo    -- we retain the original user declaration, in case the record turns out to be recursive
                                 -- determined by positivity checker:
                                 , recRecursive      = False
                                 , recMutual         = []
@@ -152,7 +157,7 @@ checkRecDef i name ind con ps contel fields =
                          , conSrcCon = con
                          , conData   = name
                          , conAbstr  = Info.defAbstract conInfo
-                         , conInd    = fromMaybe Inductive indCo
+                         , conInd    = conInduction
                          }
 
       -- Declare the constructor as eligible for instance search

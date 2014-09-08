@@ -17,6 +17,7 @@ Epic
 examples/compiler/main
 MAlonzo
 mk/config.mk
+notes/style/haskell-style.tex
 src/full/tags
 src/full/TAGS
 std-lib

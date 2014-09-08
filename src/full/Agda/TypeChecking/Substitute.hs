@@ -79,16 +79,16 @@ instance Apply Term where
 canProject :: QName -> Term -> Maybe (Arg Term)
 canProject f v =
   case ignoreSharing v of
-    (Con (ConHead _ fs) vs) -> do
+    (Con (ConHead _ _ fs) vs) -> do
       i <- elemIndex f fs
       mhead (drop i vs)
     _ -> Nothing
 
 -- | Eliminate a constructed term.
 conApp :: ConHead -> Args -> Elims -> Term
-conApp ch                args []             = Con ch args
-conApp ch                args (Apply a : es) = conApp ch (args ++ [a]) es
-conApp ch@(ConHead c fs) args (Proj f  : es) =
+conApp ch                  args []             = Con ch args
+conApp ch                  args (Apply a : es) = conApp ch (args ++ [a]) es
+conApp ch@(ConHead c _ fs) args (Proj f  : es) =
   let failure = flip trace __IMPOSSIBLE__ $
         "conApp: constructor " ++ show c ++
         " with fields " ++ show fs ++
@@ -838,6 +838,7 @@ dLub s1 b@(Abs _ s2) = case occurrence 0 $ freeVars s2 of
 --  Free.Unused   -> sLub s1 (absApp b __IMPOSSIBLE__) -- triggers Issue784
   Free.Unused   -> DLub s1 b
   StronglyRigid -> Inf
+  Unguarded     -> Inf
   WeaklyRigid   -> Inf
 
 ---------------------------------------------------------------------------
@@ -884,24 +885,32 @@ underLambdas n cont a v = loop n a v where
     Lam h b -> Lam h $ underAbs (loop $ n-1) a b
     _       -> __IMPOSSIBLE__
 
--- | @getBody@ returns the properly raised clause 'Body',
---   and 'Nothing' if 'NoBody'.
---
---   @getBodyUnraised@ just grabs the body, without raising the de Bruijn indices.
---   This is useful if you want to consider the body in context 'clauseTel'.
+-- | Methods to retrieve the 'clauseBody'.
 class GetBody a where
   getBody         :: a -> Maybe Term
+  -- ^ Returns the properly raised clause 'Body',
+  --   and 'Nothing' if 'NoBody'.
   getBodyUnraised :: a -> Maybe Term
+  -- ^ Just grabs the body, without raising the de Bruijn indices.
+  --   This is useful if you want to consider the body in context 'clauseTel'.
 
 instance GetBody ClauseBody where
-  getBody = body 0
-    where
-      -- collect all shiftings and do them in the end in one go
-      body :: Int -> ClauseBody -> Maybe Term
-      body _ NoBody             = Nothing
-      body n (Body v)           = Just $ raise n v
-      body n (Bind (NoAbs _ v)) = body n v
-      body n (Bind (Abs   _ v)) = body (n + 1) v
+  getBody NoBody   = Nothing
+  getBody (Body v) = Just v
+  getBody (Bind b) = getBody $ absBody b
+
+  -- Andreas, 2014-08-25:  The following 'optimization' is WRONG,
+  -- since it does not respect the order of Abs and NoAbs.
+  -- (They do not commute w.r.t. raise!!)
+  --
+  -- getBody = body 0
+  --   where
+  --     -- collect all shiftings and do them in the end in one go
+  --     body :: Int -> ClauseBody -> Maybe Term
+  --     body _ NoBody             = Nothing
+  --     body n (Body v)           = Just $ raise n v
+  --     body n (Bind (NoAbs _ v)) = body (n + 1) v
+  --     body n (Bind (Abs   _ v)) = body n v
 
   getBodyUnraised NoBody   = Nothing
   getBodyUnraised (Body v) = Just v

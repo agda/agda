@@ -1,0 +1,70 @@
+\documentclass{article}
+
+\usepackage[references]{agda}
+
+\begin{document}
+
+\begin{code}%
+\>\AgdaKeyword{module} \AgdaModule{Tag} \AgdaKeyword{where}\<%
+\\
+%
+\\
+\>\AgdaKeyword{module} \AgdaModule{Apa} \AgdaKeyword{where}\<%
+\\
+%
+\\
+\>\AgdaFunction{bepa} \AgdaSymbol{:} \AgdaPrimitiveType{Set} \AgdaSymbol{→} \AgdaPrimitiveType{Set}\<%
+\\
+\>\AgdaFunction{bepa} \AgdaBound{x} \AgdaSymbol{=} \AgdaBound{x}\<%
+\\
+%
+\\
+\>\AgdaKeyword{data} \AgdaDatatype{Cepa} \AgdaSymbol{:} \AgdaPrimitiveType{Set} \AgdaKeyword{where}\<%
+\\
+\>[0]\AgdaIndent{2}{}\<[2]%
+\>[2]\AgdaInductiveConstructor{cepa} \AgdaSymbol{:} \AgdaDatatype{Cepa}\<%
+\\
+%
+\\
+\>\AgdaKeyword{record} \AgdaRecord{Depa} \AgdaSymbol{:} \AgdaPrimitiveType{Set₁} \AgdaKeyword{where}\<%
+\\
+\>[0]\AgdaIndent{2}{}\<[2]%
+\>[2]\AgdaKeyword{field}\<%
+\\
+\>[2]\AgdaIndent{4}{}\<[4]%
+\>[4]\AgdaField{depa} \AgdaSymbol{:} \AgdaPrimitiveType{Set}\<%
+\\
+%
+\\
+\>\AgdaKeyword{postulate}\<%
+\\
+\>[0]\AgdaIndent{2}{}\<[2]%
+\>[2]\AgdaPostulate{epa} \AgdaSymbol{:} \AgdaPrimitiveType{Set}\<%
+\\
+%
+\\
+\>\AgdaKeyword{postulate}\<%
+\\
+\>[0]\AgdaIndent{2}{}\<[2]%
+\>[2]\AgdaPostulate{α} \<[6]%
+\>[6]\AgdaSymbol{:} \AgdaPrimitiveType{Set}\<%
+\\
+\>[0]\AgdaIndent{2}{}\<[2]%
+\>[2]\AgdaPostulate{\_∘\_} \AgdaSymbol{:} \AgdaPrimitiveType{Set}\<%
+\end{code}
+
+\begin{tabular}{ll}
+  Name & Test \\
+  \hline
+  Apa   & \AgdaRef{Apa} \\
+  bepa  & \AgdaRef{bepa} \\
+  Cepa  & \AgdaRef{Cepa} \\
+  cepa  & \AgdaRef{cepa} \\
+  Depa  & \AgdaRef{Depa} \\
+  depa  & \AgdaRef{depa} \\
+  epa   & \AgdaRef{epa} \\
+  α     & \AgdaRef{α} \\
+  \_∘\_ & \AgdaRef{\_∘\_} \\
+\end{tabular}
+
+\end{document}

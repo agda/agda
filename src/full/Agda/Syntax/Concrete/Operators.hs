@@ -107,7 +107,7 @@ getDefinedNames kinds names =
 localNames :: FlatScope -> ScopeM ([QName], [NewNotation])
 localNames flat = do
   let defs = getDefinedNames allKindsOfNames flat
-  locals <- scopeLocals <$> getScope
+  locals <- notShadowedLocals <$> getLocalVars
   return $ split $ uniqBy fst $ map localOp locals ++ defs
   where
     localOp (x, y) = (QName x, A.nameFixity y)

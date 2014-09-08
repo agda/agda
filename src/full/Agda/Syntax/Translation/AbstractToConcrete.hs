@@ -5,6 +5,7 @@
 {-# LANGUAGE FunctionalDependencies #-}
 {-# LANGUAGE MultiParamTypeClasses #-}
 {-# LANGUAGE PatternGuards #-}
+{-# LANGUAGE TupleSections #-}
 {-# LANGUAGE TypeSynonymInstances #-}
 {-# LANGUAGE UndecidableInstances #-}
 
@@ -34,6 +35,7 @@ import Control.Applicative hiding (empty)
 import Control.Monad.Reader
 
 import Data.List as List hiding (null)
+import Data.Maybe
 import qualified Data.Map as Map
 import qualified Data.Set as Set
 import Data.Set (Set)
@@ -55,6 +57,7 @@ import Agda.TypeChecking.Monad.State (getScope)
 import Agda.TypeChecking.Monad.Base  (TCM, NamedMeta(..))
 import Agda.TypeChecking.Monad.Options
 
+import qualified Agda.Utils.AssocList as AssocList
 import Agda.Utils.Monad hiding (bracket)
 import Agda.Utils.Null
 import Agda.Utils.Tuple
@@ -164,7 +167,7 @@ unsafeQNameToName (C.Qual _ x) = unsafeQNameToName x
 lookupName :: A.Name -> AbsToCon C.Name
 lookupName x = do
   names <- asks $ scopeLocals . currentScope
-  case lookup x $ map swap names of
+  case lookup x $ mapMaybe (\ (c,x) -> (,c) <$> notShadowedLocal x) names of
       Just y  -> return y
       Nothing -> return $ nameConcrete x
 
@@ -197,9 +200,8 @@ bindName x ret = do
     True           -> bindName (nextName x) ret
     False          ->
         local (\e -> e { takenNames   = Set.insert y $ takenNames e
-                       , currentScope = (currentScope e)
-                          { scopeLocals = (y, x) : scopeLocals (currentScope e)
-                          }
+                       , currentScope = (`updateScopeLocals` currentScope e) $
+                           AssocList.insert y (LocalVar x)
                        }
               ) $ ret y
 

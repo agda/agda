@@ -6,11 +6,15 @@ import Control.Arrow ((&&&))
 import Control.Applicative
 import Control.Monad.State
 import Control.Monad.Reader
+
 import Data.List as List
+import Data.Maybe
 
 import Agda.TypeChecking.Monad.Base
 import Agda.TypeChecking.Monad.Closure
 import Agda.TypeChecking.Monad.Options
+
+import Agda.Utils.List
 import Agda.Utils.Monad
 
 #include "../../undefined.h"
@@ -18,30 +22,29 @@ import Agda.Utils.Impossible
 
 -- | Get the current problem
 currentProblem :: TCM ProblemId
-currentProblem = asks $ head' . envActiveProblems
-  where
-    head' []    = {- ' -} __IMPOSSIBLE__
-    head' (x:_) = x
+currentProblem = fromMaybe __IMPOSSIBLE__ . mhead <$> asks envActiveProblems
 
 -- | Steal all constraints belonging to the given problem and add them to the current problem.
 stealConstraints :: ProblemId -> TCM ()
 stealConstraints pid = do
   current <- currentProblem
   reportSLn "tc.constr.steal" 50 $ "problem " ++ show current ++ " is stealing problem " ++ show pid ++ "'s constraints!"
+  -- Rename @pid@ to @current@ in all constraints.
   let rename pc@(PConstr pid' c) | pid' == pid = PConstr current c
                                  | otherwise   = pc
   -- We should never steal from an active problem.
   whenM (elem pid <$> asks envActiveProblems) __IMPOSSIBLE__
-  modify $ \s -> s { stAwakeConstraints    = List.map rename $ stAwakeConstraints s
-                   , stSleepingConstraints = List.map rename $ stSleepingConstraints s }
+  modifyAwakeConstraints    $ List.map rename
+  modifySleepingConstraints $ List.map rename
 
 solvingProblem :: ProblemId -> TCM a -> TCM a
 solvingProblem pid m = verboseBracket "tc.constr.solve" 50 ("working on problem " ++ show pid) $ do
   x <- local (\e -> e { envActiveProblems = pid : envActiveProblems e }) m
-  ifM (isProblemSolved pid) (do
+  ifNotM (isProblemSolved pid)
+    (reportSLn "tc.constr.solve" 50 $ "problem " ++ show pid ++ " was not solved.")
+    $ {- else -} do
       reportSLn "tc.constr.solve" 50 $ "problem " ++ show pid ++ " was solved!"
       wakeConstraints (blockedOn pid . clValue . theConstraint)
-    ) (reportSLn "tc.constr.solve" 50 $ "problem " ++ show pid ++ " was not solved.")
   return x
   where
     blockedOn pid (Guarded _ pid') = pid == pid'
@@ -61,31 +64,25 @@ getAwakeConstraints = gets stAwakeConstraints
 
 wakeConstraints :: (ProblemConstraint-> Bool) -> TCM ()
 wakeConstraints wake = do
-  sleepers <- gets stSleepingConstraints
-  let (wakeup, sleepin) = List.partition wake sleepers
-  reportSLn "tc.constr.wake" 50 $ "waking up         " ++ show (List.map constraintProblem wakeup) ++ "\n" ++
-                                  "  still sleeping: " ++ show (List.map constraintProblem sleepin)
-  modify $ \s ->
-    s { stSleepingConstraints = sleepin
-      , stAwakeConstraints    = stAwakeConstraints s ++ wakeup
-      }
+  (wakeup, sleepin) <- List.partition wake <$> gets stSleepingConstraints
+  reportSLn "tc.constr.wake" 50 $
+    "waking up         " ++ show (List.map constraintProblem wakeup) ++ "\n" ++
+    "  still sleeping: " ++ show (List.map constraintProblem sleepin)
+  modifySleepingConstraints $ const sleepin
+  modifyAwakeConstraints (++ wakeup)
 
 -- danger...
 dropConstraints :: (ProblemConstraint -> Bool) -> TCM ()
 dropConstraints crit = do
-  sleepers <- gets stSleepingConstraints
-  wakers <- gets stAwakeConstraints
-  let filt = List.filter (not . crit)
-  modify $ \s -> s { stSleepingConstraints = filt sleepers
-                   , stAwakeConstraints = filt wakers
-                   }
+  let filt = List.filter $ not . crit
+  modifySleepingConstraints filt
+  modifyAwakeConstraints    filt
 
 putAllConstraintsToSleep :: TCM ()
 putAllConstraintsToSleep = do
   awakeOnes <- gets stAwakeConstraints
-  sleepers <- gets stSleepingConstraints
-  modify $ \s -> s { stSleepingConstraints = sleepers ++ awakeOnes
-                   , stAwakeConstraints = [] }
+  modifySleepingConstraints $ (++ awakeOnes)
+  modifyAwakeConstraints    $ const []
 
 takeAwakeConstraint :: TCM (Maybe ProblemConstraint)
 takeAwakeConstraint = do
@@ -93,8 +90,8 @@ takeAwakeConstraint = do
   case cs of
     []     -> return Nothing
     c : cs -> do
-      modify $ \s -> s { stAwakeConstraints = cs }
-      return (Just c)
+      modifyAwakeConstraints $ const cs
+      return $ Just c
 
 getAllConstraints :: TCM Constraints
 getAllConstraints = gets $ \s -> stAwakeConstraints s ++ stSleepingConstraints s
@@ -134,7 +131,7 @@ addConstraint' c = do
 
 -- | Add already awake constraints
 addAwakeConstraints :: Constraints -> TCM ()
-addAwakeConstraints cs = modify $ \s -> s { stAwakeConstraints = cs ++ stAwakeConstraints s }
+addAwakeConstraints cs = modifyAwakeConstraints (cs ++)
 
 -- | Start solving constraints
 nowSolvingConstraints :: TCM a -> TCM a
@@ -142,3 +139,20 @@ nowSolvingConstraints = local $ \e -> e { envSolvingConstraints = True }
 
 isSolvingConstraints :: TCM Bool
 isSolvingConstraints = asks envSolvingConstraints
+
+---------------------------------------------------------------------------
+-- * Lenses
+---------------------------------------------------------------------------
+
+mapAwakeConstraints :: (Constraints -> Constraints) -> TCState -> TCState
+mapAwakeConstraints f s = s { stAwakeConstraints = f (stAwakeConstraints s) }
+
+mapSleepingConstraints :: (Constraints -> Constraints) -> TCState -> TCState
+mapSleepingConstraints f s = s { stSleepingConstraints = f (stSleepingConstraints s) }
+
+modifyAwakeConstraints  :: (Constraints -> Constraints) -> TCM ()
+modifyAwakeConstraints = modify . mapAwakeConstraints
+
+modifySleepingConstraints  :: (Constraints -> Constraints) -> TCM ()
+modifySleepingConstraints = modify . mapSleepingConstraints
+

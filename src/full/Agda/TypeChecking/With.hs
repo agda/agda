@@ -48,8 +48,9 @@ withFunctionType delta1 vs as delta2 b = {-dontEtaContractImplicit $-} do
     reportSDoc "tc.with.abstract" 20 $ text "  vs = " <+> prettyTCM vs
     as <- etaContract =<< normalise as
     reportSDoc "tc.with.abstract" 20 $ text "  as = " <+> prettyTCM as
-    reportSDoc "tc.with.abstract" 30 $ text "normalizing b = " <+> prettyTCM (telePi_ delta2 b)
-    b  <- normalise (telePi_ delta2 b)
+    b <- return $ telePi_ delta2 b
+    reportSDoc "tc.with.abstract" 30 $ text "normalizing b = " <+> prettyTCM b
+    b  <- normalise b
     reportSDoc "tc.with.abstract" 30 $ text "eta-contracting b = " <+> prettyTCM b
     b  <- etaContract b
     reportSDoc "tc.with.abstract" 20 $ text "  b  = " <+> prettyTCM b
@@ -387,7 +388,7 @@ patsToTerms perm ps = evalState (toTerms ps) xs
       ProjP d     -> __IMPOSSIBLE__ -- TODO: convert spine to non-spine ... DDef d . defaultArg
       VarP _      -> DTerm . var <$> tick
       DotP t      -> DDot t <$ tick
-      ConP c _ ps -> DCon (conName c) <$> toTerms ps
+      ConP c _ ps -> DCon c <$> toTerms ps
       LitP l      -> return $ DTerm (Lit l)
 
 {- OLD

@@ -300,6 +300,20 @@ bindAsPatterns (AsB x v a : asb) ret = do
   addLetBinding defaultArgInfo x v a $ bindAsPatterns asb ret
 
 
+data LHSResult = LHSResult
+  { lhsPatternTele :: Maybe Telescope   -- ^ Γ: The types of the patterns.
+                                        -- 'Nothing' if more patterns than domain types in @a@.
+                                        -- Used only to construct a @with@ function; see 'stripwithClausePatterns'.
+  , lhsVarTele :: Telescope             -- ^ Δ : The types of the pattern variables.
+  , lhsSubstitution :: S.Substitution   -- ^ σ : The patterns in form of a substitution Δ ⊢ σ : Γ
+  , lhsVarNames :: [String]             -- ^ Names for the variables in Δ, for binding the body.
+  , lhsPatterns :: [I.NamedArg Pattern] -- ^ The patterns in internal syntax.
+  , lhsBodyType :: I.Arg Type           -- ^ The type of the body. Is @bσ@ if @Γ@ is defined.
+                                        -- 'Irrelevant' to indicate the rhs must be checked
+                                        -- in irrelevant mode.
+  , lhsPermutation :: Permutation       -- ^ The permutation from pattern vars to @Δ@.
+  }
+
 -- | Check a LHS. Main function.
 --
 --   @checkLeftHandSide a ps a ret@ checks that user patterns @ps@ eliminate
@@ -315,18 +329,7 @@ checkLeftHandSide
      -- ^ The patterns.
   -> Type
      -- ^ The expected type @a = Γ → b@.
-  -> (Maybe Telescope         -- Γ : The types of the patterns.
-                              -- 'Nothing' if more patterns than domain types in @a@.
-                              -- Used only to construct a @with@ function; see 'stripwithClausePatterns'.
-      -> Telescope            -- Δ : The types of the pattern variables.
-      -> S.Substitution       -- σ : The patterns in form of a substitution Δ ⊢ σ : Γ
-      -> [ArgName]            -- Names for the variables in Δ, for binding the body.
-      -> [I.NamedArg Pattern] -- The patterns in internal syntax.
-      -> I.Arg Type           -- The type of the body. Is @bσ@ if @Γ@ is defined.
-                              -- 'Irrelevant' to indicate the rhs must be checked
-                              -- in irrelevant mode.
-      -> Permutation          -- The permutation from pattern vars to @Δ@.
-      -> TCM a)
+  -> (LHSResult -> TCM a)
      -- ^ Continuation.
   -> TCM a
 checkLeftHandSide c f ps a ret = do
@@ -368,7 +371,7 @@ checkLeftHandSide c f ps a ret = do
         Perm n _ = perm
         xs  = [ stringToArgName $ "h" ++ show n | n <- [0..n - 1] ]
     applyRelevanceToContext (getRelevance b') $ do
-      ret mgamma delta rho xs qs b' perm
+      ret $ LHSResult mgamma delta rho xs qs b' perm
   where
     -- the loop: split at a variable in the problem until problem is solved
     checkLHS :: LHSState -> TCM LHSState

@@ -1,4 +1,4 @@
-
+Issue636.agda:15,1-16,26
 Termination checking failed for the following functions:
   not-d
 Problematic calls:

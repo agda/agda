@@ -12,9 +12,10 @@ module Agda.Syntax.Scope.Base where
 
 import Control.Arrow ((***), first, second)
 import Control.Applicative
+import Control.DeepSeq
 
 import Data.Function
-import Data.List
+import Data.List as List
 import Data.Map (Map)
 import qualified Data.Map as Map
 import Data.Maybe
@@ -28,8 +29,11 @@ import Agda.Syntax.Concrete.Name as C
 import Agda.Syntax.Concrete
   (ImportDirective(..), UsingOrHiding(..), ImportedName(..), Renaming(..))
 
-import qualified Agda.Utils.Map as Map
+import Agda.Utils.AssocList (AssocList)
+import qualified Agda.Utils.AssocList as AssocList
+import Agda.Utils.Functor
 import Agda.Utils.List
+import qualified Agda.Utils.Map as Map
 
 #include "../../undefined.h"
 import Agda.Utils.Impossible
@@ -41,7 +45,7 @@ import Agda.Utils.Impossible
 data Scope = Scope
       { scopeName           :: A.ModuleName
       , scopeParents        :: [A.ModuleName]
-      , scopeNameSpaces     :: [(NameSpaceId, NameSpace)]
+      , scopeNameSpaces     :: ScopeNameSpaces
       , scopeImports        :: Map C.QName A.ModuleName
       , scopeDatatypeModule :: Bool
       }
@@ -49,6 +53,8 @@ data Scope = Scope
 
 data NameSpaceId = PrivateNS | PublicNS | ImportedNS | OnlyQualifiedNS
   deriving (Typeable, Eq, Bounded, Enum)
+
+type ScopeNameSpaces = [(NameSpaceId, NameSpace)]
 
 localNameSpace :: Access -> NameSpaceId
 localNameSpace PublicAccess  = PublicNS
@@ -63,6 +69,16 @@ nameSpaceAccess _         = PublicAccess
 scopeNameSpace :: NameSpaceId -> Scope -> NameSpace
 scopeNameSpace ns = fromMaybe __IMPOSSIBLE__ . lookup ns . scopeNameSpaces
 
+-- | A lens for 'scopeNameSpaces'
+updateScopeNameSpaces :: (ScopeNameSpaces -> ScopeNameSpaces) -> Scope -> Scope
+updateScopeNameSpaces f s = s { scopeNameSpaces = f (scopeNameSpaces s) }
+
+-- | ``Monadic'' lens (Functor sufficient).
+updateScopeNameSpacesM ::
+  (Functor m) => (ScopeNameSpaces -> m ScopeNameSpaces) -> Scope -> m Scope
+updateScopeNameSpacesM f s = for (f $ scopeNameSpaces s) $ \ x ->
+  s { scopeNameSpaces = x }
+
 -- | The complete information about the scope at a particular program point
 --   includes the scope stack, the local variables, and the context precedence.
 data ScopeInfo = ScopeInfo
@@ -74,14 +90,53 @@ data ScopeInfo = ScopeInfo
   deriving (Typeable)
 
 -- | Local variables.
-type LocalVars = [(C.Name, A.Name)]
+type LocalVars = AssocList C.Name LocalVar
+
+-- | A local variable can be shadowed by an import.
+--   In case of reference to a shadowed variable, we want to report
+--   a scope error.
+data LocalVar
+  = LocalVar    { localVar :: A.Name }
+    -- ^ Unique ID of local variable.
+  | ShadowedVar { localVar :: A.Name, localShadowedBy :: [AbstractName] }
+    -- ^ This local variable is shadowed by one or more imports.
+    --   (List not empty).
+  deriving (Typeable)
+
+instance NFData LocalVar
+
+instance Eq LocalVar where
+  (==) = (==) `on` localVar
+
+instance Ord LocalVar where
+  compare = compare `on` localVar
+
+-- | We show shadowed variables as prefixed by a ".", as not in scope.
+instance Show LocalVar where
+  show (LocalVar    x)    = show x
+  show (ShadowedVar x xs) = "." ++ show x
+
+-- | Shadow a local name by a non-empty list of imports.
+shadowLocal :: [AbstractName] -> LocalVar -> LocalVar
+shadowLocal [] _ = __IMPOSSIBLE__
+shadowLocal ys (LocalVar    x   ) = ShadowedVar x ys
+shadowLocal ys (ShadowedVar x zs) = ShadowedVar x (ys ++ zs)
+
+-- | Project name of unshadowed local variable.
+notShadowedLocal :: LocalVar -> Maybe A.Name
+notShadowedLocal (LocalVar x) = Just x
+notShadowedLocal ShadowedVar{} = Nothing
+
+-- | Get all locals that are not shadowed.
+notShadowedLocals :: LocalVars -> AssocList C.Name A.Name
+notShadowedLocals = mapMaybe $ \ (c,x) -> (c,) <$> notShadowedLocal x
 
 -- | Lens for 'scopeLocals'.
-modifyScopeLocals :: (LocalVars -> LocalVars) -> ScopeInfo -> ScopeInfo
-modifyScopeLocals f sc = sc { scopeLocals = f (scopeLocals sc) }
+updateScopeLocals :: (LocalVars -> LocalVars) -> ScopeInfo -> ScopeInfo
+updateScopeLocals f sc = sc { scopeLocals = f (scopeLocals sc) }
 
 setScopeLocals :: LocalVars -> ScopeInfo -> ScopeInfo
-setScopeLocals vars = modifyScopeLocals (const vars)
+setScopeLocals vars = updateScopeLocals (const vars)
 
 ------------------------------------------------------------------------
 -- * Name spaces
@@ -228,14 +283,13 @@ zipNameSpace fd fm ns1 ns2 =
       }
 
 -- | Map monadic function over a namespace.
-mapNameSpaceM :: Monad m =>
+mapNameSpaceM :: Applicative m =>
   (NamesInScope   -> m NamesInScope  ) ->
   (ModulesInScope -> m ModulesInScope) ->
   NameSpace -> m NameSpace
-mapNameSpaceM fd fm ns = do
-  ds <- fd $ nsNames ns
-  ms <- fm $ nsModules ns
-  return $ ns { nsNames = ds, nsModules = ms }
+mapNameSpaceM fd fm ns = update ns <$> fd (nsNames ns) <*> fm (nsModules ns)
+  where
+    update ns ds ms = ns { nsNames = ds, nsModules = ms }
 
 ------------------------------------------------------------------------
 -- * General operations on scopes
@@ -264,8 +318,7 @@ emptyScopeInfo = ScopeInfo
 mapScope :: (NameSpaceId -> NamesInScope   -> NamesInScope  ) ->
 	    (NameSpaceId -> ModulesInScope -> ModulesInScope) ->
 	    Scope -> Scope
-mapScope fd fm s =
-  s { scopeNameSpaces = [ (nsid, mapNS nsid ns) | (nsid, ns) <- scopeNameSpaces s ] }
+mapScope fd fm = updateScopeNameSpaces $ AssocList.mapWithKey mapNS
   where
     mapNS acc = mapNameSpace (fd acc) (fm acc)
 
@@ -276,19 +329,17 @@ mapScope_ :: (NamesInScope   -> NamesInScope  ) ->
 mapScope_ fd fm = mapScope (const fd) (const fm)
 
 -- | Map monadic functions over the names and modules in a scope.
-mapScopeM :: (Functor m, Monad m) =>
+mapScopeM :: (Functor m, Applicative m) =>
   (NameSpaceId -> NamesInScope   -> m NamesInScope  ) ->
   (NameSpaceId -> ModulesInScope -> m ModulesInScope) ->
   Scope -> m Scope
-mapScopeM fd fm s = do
-  nss <- sequence [ (,) nsid <$> mapNS nsid ns | (nsid, ns) <- scopeNameSpaces s ]
-  return $ s { scopeNameSpaces = nss }
+mapScopeM fd fm = updateScopeNameSpacesM $ AssocList.mapWithKeyM mapNS
   where
     mapNS acc = mapNameSpaceM (fd acc) (fm acc)
 
 -- | Same as 'mapScopeM' but applies the same function to both the public and
 --   private name spaces.
-mapScopeM_ :: (Functor m, Monad m) =>
+mapScopeM_ :: (Functor m, Applicative m) =>
   (NamesInScope   -> m NamesInScope  ) ->
   (ModulesInScope -> m ModulesInScope) ->
   Scope -> m Scope
@@ -364,8 +415,7 @@ mergeScopes ss = foldr1 mergeScope ss
 -- | Move all names in a scope to the given name space (except never move from
 --   Imported to Public).
 setScopeAccess :: NameSpaceId -> Scope -> Scope
-setScopeAccess a s = s { scopeNameSpaces = [ (nsid, ns nsid) | (nsid, _) <- scopeNameSpaces s ]
-		       }
+setScopeAccess a s = (`updateScopeNameSpaces` s) $ AssocList.mapWithKey $ const . ns
   where
     zero  = emptyNameSpace
     one   = allThingsInScope s
@@ -378,10 +428,9 @@ setScopeAccess a s = s { scopeNameSpaces = [ (nsid, ns nsid) | (nsid, _) <- scop
       _ | a == b             -> one
         | otherwise          -> zero
 
+-- | Update a particular name space.
 setNameSpace :: NameSpaceId -> NameSpace -> Scope -> Scope
-setNameSpace nsid ns s =
-  s { scopeNameSpaces = [ (nsid', if nsid == nsid' then ns else ns')
-                        | (nsid', ns') <- scopeNameSpaces s ] }
+setNameSpace nsid ns = updateScopeNameSpaces $ AssocList.update nsid ns
 
 -- | Add names to a scope.
 addNamesToScope :: NameSpaceId -> C.Name -> [AbstractName] -> Scope -> Scope

@@ -15,6 +15,7 @@ import qualified Data.Map as Map
 import Data.Maybe
 
 import Agda.Syntax.Abstract.Name
+import Agda.Syntax.Abstract (Ren)
 import Agda.Syntax.Common
 import Agda.Syntax.Internal as I
 import Agda.Syntax.Position
@@ -40,6 +41,7 @@ import Agda.Utils.Monad
 import Agda.Utils.Size
 import Agda.Utils.Permutation
 import Agda.Utils.Pretty
+import Agda.Utils.List
 import qualified Agda.Utils.HashMap as HMap
 
 #include "../../undefined.h"
@@ -216,18 +218,14 @@ addDisplayForms x = do
 
 -- | Module application (followed by module parameter abstraction).
 applySection
-  :: ModuleName                -- ^ Name of new module defined by the module macro.
-  -> Telescope                 -- ^ Parameters of new module.
-  -> ModuleName                -- ^ Name of old module applied to arguments.
-  -> Args                      -- ^ Arguments of module application.
-  -> Map QName QName           -- ^ Imported names (given as renaming).
-  -> Map ModuleName ModuleName -- ^ Imported modules (given as renaming).
+  :: ModuleName     -- ^ Name of new module defined by the module macro.
+  -> Telescope      -- ^ Parameters of new module.
+  -> ModuleName     -- ^ Name of old module applied to arguments.
+  -> Args           -- ^ Arguments of module application.
+  -> Ren QName      -- ^ Imported names (given as renaming).
+  -> Ren ModuleName -- ^ Imported modules (given as renaming).
   -> TCM ()
 applySection new ptel old ts rd rm = do
-  sig  <- getSignature
-  isig <- getImportedSignature
-  let ss = getOld partOfOldM sigSections    [sig, isig]
-      ds = getOldH partOfOldD sigDefinitions [sig, isig]
   reportSLn "tc.mod.apply" 10 $ render $ vcat
     [ text "applySection"
     , text "new  =" <+> text (show new)
@@ -235,23 +233,13 @@ applySection new ptel old ts rd rm = do
     , text "old  =" <+> text (show old)
     , text "ts   =" <+> text (show ts)
     ]
-  reportSLn "tc.mod.apply" 80 $ "sections:    " ++ show ss ++ "\n" ++
-                                "definitions: " ++ show ds
   reportSLn "tc.mod.apply" 80 $ render $ vcat
     [ text "arguments:  " <+> text (show ts)
     ]
-  mapM_ (copyDef ts) ds
-  mapM_ (copySec ts) ss
+  mapM_ (copyDef ts) $ Map.toList rd
+  mapM_ (copySec ts) $ Map.toList rm
   mapM_ computePolarity (Map.elems rd)
   where
-    getOld partOfOld fromSig sigs =
-      Map.toList $ Map.filterKeys partOfOld $ Map.unions $ map fromSig sigs
-    getOldH partOfOld fromSig sigs =
-      HMap.toList $ HMap.filterWithKey (const . partOfOld) $ HMap.unions $ map fromSig sigs
-
-    partOfOldM x = x `isSubModuleOf` old
-    partOfOldD x = x `isInModule`    old
-
     -- Andreas, 2013-10-29
     -- Here, if the name x is not imported, it persists as
     -- old, possibly out-of-scope name.
@@ -262,12 +250,25 @@ applySection new ptel old ts rd rm = do
     -- produce out-of-scope constructors.
     copyName x = Map.findWithDefault x x rd
 
-    copyDef :: Args -> (QName, Definition) -> TCM ()
-    copyDef ts (x, d) =
-      case Map.lookup x rd of
-	Nothing -> return ()  -- if it's not in the renaming it was private and
-			      -- we won't need it
-	Just y	-> do
+    argsToUse x = do
+      let m = mnameFromList $ commonPrefix (mnameToList old) (mnameToList $ qnameModule x)
+      reportSLn "tc.mod.apply" 80 $ "Common prefix: " ++ show m
+      let ms = tail . map mnameFromList . inits . mnameToList $ m
+      ps <- sequence [ maybe 0 secFreeVars <$> getSection m | m <- ms ]
+      reportSLn "tc.mod.apply" 80 $ "  params: " ++ show (zip ms ps)
+      return $ sum ps
+
+    copyDef :: Args -> (QName, QName) -> TCM ()
+    copyDef ts (x, y) = do
+      def <- getConstInfo x
+      np  <- argsToUse x
+      copyDef' np def
+      where
+        copyDef' np d = do
+          reportSLn "tc.mod.apply" 80 $ "making new def for " ++ show y ++ " from " ++ show x ++ " with " ++ show np ++ " args"
+          reportSLn "tc.mod.apply" 80 $ "args = " ++ show ts' ++ "\n" ++
+                                        "old type = " ++ showTerm (unEl $ defType d) ++ "\n" ++
+                                        "new type = " ++ showTerm (unEl t)
 	  addConstant y =<< nd y
           makeProjection y
 	  -- Set display form for the old name if it's not a constructor.
@@ -282,58 +283,60 @@ applySection new ptel old ts rd rm = do
 
 	  unless (isCon || size ptel > 0) $ do
 	    addDisplayForms y
-      where
-	t   = defType d `apply` ts
-        pol = defPolarity d `apply` ts
-        occ = defArgOccurrences d `apply` ts
-        rew = defRewriteRules d `apply` ts
-        inst = defInstance d
-	-- the name is set by the addConstant function
-        nd :: QName -> TCM Definition
-	nd y = Defn (defArgInfo d) y t pol occ [] (-1) noCompiledRep rew inst <$> def  -- TODO: mutual block?
-        oldDef = theDef d
-	isCon  = case oldDef of { Constructor{} -> True ; _ -> False }
-        mutual = case oldDef of { Function{funMutual = m} -> m              ; _ -> [] }
-        extlam = case oldDef of { Function{funExtLam = e} -> e              ; _ -> Nothing }
-        with   = case oldDef of { Function{funWith = w}   -> copyName <$> w ; _ -> Nothing }
+          where
+            ts' = take np ts
+            t   = defType d `apply` ts'
+            pol = defPolarity d `apply` ts'
+            occ = defArgOccurrences d `apply` ts'
+            rew = defRewriteRules d `apply` ts'
+            inst = defInstance d
+            -- the name is set by the addConstant function
+            nd :: QName -> TCM Definition
+            nd y = Defn (defArgInfo d) y t pol occ [] (-1) noCompiledRep rew inst <$> def  -- TODO: mutual block?
+            oldDef = theDef d
+            isCon  = case oldDef of { Constructor{} -> True ; _ -> False }
+            mutual = case oldDef of { Function{funMutual = m} -> m              ; _ -> [] }
+            extlam = case oldDef of { Function{funExtLam = e} -> e              ; _ -> Nothing }
+            with   = case oldDef of { Function{funWith = w}   -> copyName <$> w ; _ -> Nothing }
 {- THIS BREAKS A LOT OF THINGS:
-        -- Andreas, 2013-10-21:
-        -- Even if we apply the record argument, we stay a projection.
-        -- This is because we may abstract the record argument later again.
-        -- See succeed/ProjectionNotNormalized.agda
-        proj   = case oldDef of
-          Function{funProjection = Just p@Projection{projIndex = n}}
-            -> Just $ p { projIndex    = n - size ts
-                        , projDropPars = projDropPars p `apply` ts
-                        }
-          _ -> Nothing
+            -- Andreas, 2013-10-21:
+            -- Even if we apply the record argument, we stay a projection.
+            -- This is because we may abstract the record argument later again.
+            -- See succeed/ProjectionNotNormalized.agda
+            proj   = case oldDef of
+              Function{funProjection = Just p@Projection{projIndex = n}}
+                -> Just $ p { projIndex    = n - size ts
+                            , projDropPars = projDropPars p `apply` ts
+                            }
+              _ -> Nothing
 -}
-        -- NB (Andreas, 2013-10-19):
-        -- If we apply the record argument, we are no longer a projection!
-        proj   = case oldDef of
-          Function{funProjection = Just p@Projection{projIndex = n}} | size ts < n
-            -> Just $ p { projIndex    = n - size ts
-                        , projDropPars = projDropPars p `apply` ts
-                        }
-          _ -> Nothing
+            -- NB (Andreas, 2013-10-19):
+            -- If we apply the record argument, we are no longer a projection!
+            proj   = case oldDef of
+              Function{funProjection = Just p@Projection{projIndex = n}} | size ts < n
+                -> Just $ p { projIndex    = n - size ts
+                            , projDropPars = projDropPars p `apply` ts
+                            }
+              _ -> Nothing
 
-	def  = case oldDef of
+            def =
+              case oldDef of
                 Constructor{ conPars = np, conData = d } -> return $
-                  oldDef { conPars = np - size ts
+                  oldDef { conPars = np - size ts'
                          , conData = copyName d
                          }
                 Datatype{ dataPars = np, dataCons = cs } -> return $
-                  oldDef { dataPars   = np - size ts
+                  oldDef { dataPars   = np - size ts'
                          , dataClause = Just cl
                          , dataCons   = map copyName cs
                          }
                 Record{ recPars = np, recConType = t, recTel = tel } -> return $
-                  oldDef { recPars    = np - size ts
+                  oldDef { recPars    = np - size ts'
                          , recClause  = Just cl
                          , recConType = apply t ts
                          , recTel     = apply tel ts
                          }
-		_ -> do
+                _ -> do
                   cc <- compileClauses Nothing [cl] -- Andreas, 2012-10-07 non need for record pattern translation
                   let newDef = Function
                         { funClauses        = [cl]
@@ -351,34 +354,26 @@ applySection new ptel old ts rd rm = do
                         }
                   reportSLn "tc.mod.apply" 80 $ "new def for " ++ show x ++ "\n  " ++ show newDef
                   return newDef
-{-
-        ts' | null ts   = []
-            | otherwise = case oldDef of
-                Function{funProjection = Just Projection{ projIndex = n}}
-                  | n == 0       -> __IMPOSSIBLE__
-                  | otherwise    -> drop (n - 1) ts
-                _ -> ts
--}
-        head = case oldDef of
-                 Function{funProjection = Just Projection{ projDropPars = f}}
-                   -> f
-                 _ -> Def x []
-	cl = Clause { clauseRange     = getRange $ defClauses d
-                    , clauseTel       = EmptyTel
-                    , clausePerm      = idP 0
-                    , namedClausePats = []
-                    , clauseBody      = Body $ head `apply` ts
-                    , clauseType      = Just $ defaultArg t
-                    }
 
-    copySec :: Args -> (ModuleName, Section) -> TCM ()
-    copySec ts (x, sec) = case Map.lookup x rm of
-	Nothing -> return ()  -- if it's not in the renaming it was private and
-			      -- we won't need it
-	Just y  ->
-          addCtxTel (apply tel ts) $ addSection y 0
-      where
-	tel = secTelescope sec
+            head = case oldDef of
+                     Function{funProjection = Just Projection{ projDropPars = f}}
+                       -> f
+                     _ -> Def x []
+            cl = Clause { clauseRange     = getRange $ defClauses d
+                        , clauseTel       = EmptyTel
+                        , clausePerm      = idP 0
+                        , namedClausePats = []
+                        , clauseBody      = Body $ head `apply` ts'
+                        , clauseType      = Just $ defaultArg t
+                        }
+
+    copySec :: Args -> (ModuleName, ModuleName) -> TCM ()
+    copySec ts (x, y) = do
+      tel <- lookupSection x
+      let fv = size tel - size ts
+      reportSLn "tc.mod.apply" 80 $ "Copying section " ++ show x ++ " to " ++ show y
+      reportSLn "tc.mod.apply" 80 $ "  free variables: " ++ show fv
+      addCtxTel (apply tel ts) $ addSection y fv
 
 addDisplayForm :: QName -> DisplayForm -> TCM ()
 addDisplayForm x df = do
@@ -564,16 +559,22 @@ setMutual d m = modifySignature $ updateDefinition d $ updateTheDef $ \ def ->
 mutuallyRecursive :: QName -> QName -> TCM Bool
 mutuallyRecursive d d' = (d `elem`) <$> getMutual d'
 
+-- | Why Maybe? The reason is that we look up all prefixes of a module to
+--   compute number of parameters, and for hierarchical top-level modules,
+--   A.B.C say, A and A.B do not exist.
+getSection :: ModuleName -> TCM (Maybe Section)
+getSection m = do
+  sig  <- sigSections <$> getSignature
+  isig <- sigSections <$> getImportedSignature
+  return $ Map.lookup m sig <|> Map.lookup m isig
+
 -- | Look up the number of free variables of a section. This is equal to the
 --   number of parameters if we're currently inside the section and 0 otherwise.
 getSecFreeVars :: ModuleName -> TCM Nat
 getSecFreeVars m = do
-  sig  <- sigSections <$> getSignature
-  isig <- sigSections <$> getImportedSignature
   top <- currentModule
   case top `isSubModuleOf` m || top == m of
-    True  -> return $ maybe 0 secFreeVars $
-               Map.lookup m sig <|> Map.lookup m isig
+    True  -> maybe 0 secFreeVars <$> getSection m
     False -> return 0
 
 -- | Compute the number of free variables of a module. This is the sum of

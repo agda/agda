@@ -126,10 +126,12 @@ isDataOrRecordType d = do
     Record{}   -> return $ Just IsRecord
     _          -> return $ Nothing
 
+-- | Precodition: 'Term' is 'reduce'd.
 isDataOrRecord :: Term -> TCM (Maybe QName)
-isDataOrRecord (Def d _)  = fmap (const d) <$> isDataOrRecordType d
-isDataOrRecord (Shared p) = isDataOrRecord (derefPtr p)
-isDataOrRecord _          = return Nothing
+isDataOrRecord v = do
+  case ignoreSharing v of
+    Def d _ -> fmap (const d) <$> isDataOrRecordType d
+    _       -> return Nothing
 
 getNumberOfParameters :: QName -> TCM (Maybe Nat)
 getNumberOfParameters d = do

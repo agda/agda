@@ -1,4 +1,4 @@
-
+TerminationNoCoinductiveProjectionFromVariable.agda:20,1-21,20
 Termination checking failed for the following functions:
   f
 Problematic calls:

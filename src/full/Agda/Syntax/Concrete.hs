@@ -27,6 +27,7 @@ module Agda.Syntax.Concrete
     , ColoredTypedBinding(..)
     , BoundName(..), mkBoundName_, mkBoundName
     , Telescope -- (..)
+    , countTelVars
       -- * Declarations
     , Declaration(..)
     , ModuleApplication(..)
@@ -58,6 +59,7 @@ import Control.DeepSeq
 import Data.Typeable (Typeable)
 import Data.Foldable (Foldable)
 import Data.Traversable (Traversable)
+import Data.List
 import Agda.Syntax.Position
 import Agda.Syntax.Common hiding (Arg, Dom, NamedArg, ArgInfo)
 import qualified Agda.Syntax.Common as Common
@@ -185,6 +187,13 @@ data ColoredTypedBinding = WithColors [Color] TypedBinding
 -- | A telescope is a sequence of typed bindings. Bound variables are in scope
 --   in later types.
 type Telescope = [TypedBindings]
+
+countTelVars :: Telescope -> Nat
+countTelVars tel =
+  sum [ case unArg b of
+          TBind _ xs _ -> genericLength xs
+          TLet{}       -> 0
+      | TypedBindings _ b <- tel ]
 
 {-| Left hand sides can be written in infix style. For example:
 

@@ -161,7 +161,7 @@ matchPattern (Arg h' r' (ConP c _ ps))     (Arg h Irrelevant v) = do
   -- Case record pattern: always succeed!
   -- This case is necessary if we want to use the clauses before
   -- record pattern translation (e.g., in type-checking definitions by copatterns).
-  (ConP con@(ConHead c ds) Just{} ps, arg@(Arg info v))
+  (ConP con@(ConHead c _ ds) Just{} ps, arg@(Arg info v))
      -- precondition: con actually comes with the record fields
      | size ds == size ps -> mapSnd (Arg info . Con con) <$> do
          matchPatterns ps $ for ds $ \ d -> Arg info $ v `applyE` [Proj d]

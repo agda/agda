@@ -1,4 +1,4 @@
-
+Issue847.agda:5,1-10,15
 Termination checking failed for the following functions:
   bad
 Problematic calls:

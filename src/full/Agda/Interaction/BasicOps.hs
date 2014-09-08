@@ -47,7 +47,7 @@ import Agda.TypeChecking.Coverage
 import Agda.TypeChecking.Records
 import Agda.TypeChecking.Irrelevance (wakeIrrelevantVars)
 import Agda.TypeChecking.Pretty (prettyTCM)
-import Agda.TypeChecking.Free (freeIn)
+import Agda.TypeChecking.Free
 import qualified Agda.TypeChecking.Pretty as TP
 
 import Agda.Utils.Functor
@@ -486,8 +486,15 @@ metaHelperType norm ii rng s = case words s of
       -- Remember the arity of a
       TelV atel _ <- telView a
       let arity = size atel
-      a        <- local (\e -> e { envPrintDomainFreePi = True }) $ do
-        reify =<< cleanupType arity args =<< normalForm norm =<< withFunctionType tel vs as EmptyTel a
+          fv = allVars $ freeVars (vs, as)
+          SplitTel delta1 delta2 perm = splitTelescope fv tel
+          a' = renameP (reverseP perm) a
+      (vs, as) <- do
+        let -- We know that as does not depend on Δ₂
+            rho = parallelS (replicate (size delta2) __IMPOSSIBLE__)
+        return $ applySubst rho $ renameP (reverseP perm) (vs, as)
+      a <- local (\e -> e { envPrintDomainFreePi = True }) $ do
+        reify =<< cleanupType arity args =<< normalForm norm =<< withFunctionType delta1 vs as delta2 a'
       return (OfType' h a)
   where
     cleanupType arity args t = do
@@ -723,7 +730,7 @@ atTopLevel m = inConcreteMode $ do
       -- Get the names of the local variables from @scope@
       -- and put them into the context.
       let names :: [A.Name]
-          names = reverse $ map snd $ scopeLocals scope
+          names = reverse $ map snd $ notShadowedLocals $ scopeLocals scope
           types :: [I.Dom I.Type]
           types = map (snd <$>) $ telToList tel
           gamma :: ListTel' A.Name
@@ -769,7 +776,7 @@ moduleContents norm rng s = do
                            Map.toList names)
   return (Map.keys modules, types)
 
-whyInScope :: String -> TCM (Maybe A.Name, [AbstractName], [AbstractModule])
+whyInScope :: String -> TCM (Maybe LocalVar, [AbstractName], [AbstractModule])
 whyInScope s = do
   x     <- parseName noRange s
   scope <- getScope

@@ -7,6 +7,7 @@ open import Common.Level
 
 module M {a}{A : Set a}(K : A → A → A) where
 
+  {-# NON_TERMINATING #-}
   -- F fails the termination check
   F : A → A
   F X = K X (F X)

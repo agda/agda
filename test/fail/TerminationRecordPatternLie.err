@@ -1,8 +1,6 @@
-
+TerminationRecordPatternLie.agda:35,1-36,27
 Termination checking failed for the following functions:
-  f, g
+  f
 Problematic calls:
   f (t lie)
     (at TerminationRecordPatternLie.agda:36,18-19)
-  g (tail l lie)
-    (at TerminationRecordPatternLie.agda:40,7-8)

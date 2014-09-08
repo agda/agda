@@ -1,5 +1,4 @@
-ClashingModuleImport.agda:3,5-46
-Not in scope:
-  TODO--I-haven't-fully-understood-this-one
-  at ClashingModuleImport.agda:3,5-46
-when scope checking TODO--I-haven't-fully-understood-this-one
+ClashingModuleImport.agda:7,13-27
+The modules Imports.Module.M and M clash.
+when scope checking the declaration
+  open Imports.Module public

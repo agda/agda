@@ -51,7 +51,7 @@ run_test=if test -f $*.in; \
          | $(sed) "s/currentFile/\"$(wildcard $*.agda $*.lagda)\"/g" \
          | $(AGDA_BIN) -i . -i .. --interaction --ignore-interfaces $(RTS_$*) \
            2>&1 | $(filter) ; \
-    else /bin/bash ./$*.sh > $(TMPDIR)/$*.tmp_out ; \
+    else /bin/bash ./$*.sh $(AGDA_BIN) > $(TMPDIR)/$*.tmp_out ; \
          cat $(TMPDIR)/$*.tmp_out | $(filter) ; \
     fi
 

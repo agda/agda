@@ -1,3 +1,3 @@
-TypeConstructorsWhichPreserveGuardedness1.agda:29,10-16
+TypeConstructorsWhichPreserveGuardedness1.agda:32,10-16
 _A_14 ⊎ _B_15 !=< ℕ of type Set
 when checking that the expression inj₁ _ has type ℕ

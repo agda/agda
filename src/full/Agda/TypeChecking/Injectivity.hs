@@ -1,12 +1,15 @@
 {-# LANGUAGE CPP #-}
+{-# LANGUAGE TupleSections #-}
 
 module Agda.TypeChecking.Injectivity where
 
 import Prelude hiding (mapM)
+
 import Control.Applicative
 import Control.Monad.Error hiding (mapM, forM)
 import Control.Monad.State hiding (mapM, forM)
 import Control.Monad.Reader hiding (mapM, forM)
+
 import Data.Map (Map)
 import qualified Data.Map as Map
 import qualified Data.Set as Set
@@ -15,6 +18,7 @@ import Data.Traversable hiding (for)
 
 import Agda.Syntax.Common
 import Agda.Syntax.Internal
+
 import Agda.TypeChecking.Monad
 import Agda.TypeChecking.Substitute
 import Agda.TypeChecking.Reduce
@@ -24,8 +28,9 @@ import {-# SOURCE #-} Agda.TypeChecking.Conversion
 import Agda.TypeChecking.Pretty
 import Agda.TypeChecking.Constraints
 import Agda.TypeChecking.Polarity
+
 import Agda.Utils.List
-import Agda.Utils.Functor (for)
+import Agda.Utils.Functor
 import Agda.Utils.Permutation
 
 #include "../undefined.h"
@@ -88,9 +93,7 @@ checkInjectivity f cs = do
   -- Extract the head symbol of the rhs of each clause (skip absurd clauses)
   es <- catMaybes <$> do
     forM cs $ \ c -> do             -- produces a list ...
-      forM (getBody c) $ \ v -> do  -- ... of maybes
-        h <- headSymbol v
-        return (h, c)
+      mapM ((,c) <.> headSymbol) $ getBodyUnraised c -- ... of maybes
   let (hs, ps) = unzip es
   reportSLn "tc.inj.check" 40 $ "  right hand sides: " ++ show hs
   if all isJust hs && distinct hs

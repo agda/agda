@@ -89,7 +89,7 @@ import Agda.Utils.Impossible
 -- 32-bit machines). Word64 does not have these problems.
 
 currentInterfaceVersion :: Word64
-currentInterfaceVersion = 20140721 * 10 + 0
+currentInterfaceVersion = 20140828 * 10 + 0
 
 -- | Constructor tag (maybe omitted) and argument indices.
 
@@ -458,7 +458,7 @@ instance EmbPrj C.QName where
 instance EmbPrj Scope where
   icode (Scope a b c d e) = icode5' a b c d e
   value = vcase valu where valu [a, b, c, d, e] = valu5 Scope a b c d e
-                           valu _            = malformed
+                           valu _               = malformed
 
 instance EmbPrj NameSpaceId where
   icode PublicNS        = icode0'
@@ -566,6 +566,13 @@ instance (EmbPrj s, EmbPrj t) => EmbPrj (Named s t) where
 instance EmbPrj a => EmbPrj (Ranged a) where
   icode (Ranged r x) = icode2' r x
   value = vcase valu where valu [r, x] = valu2 Ranged r x
+                           valu _      = malformed
+
+instance EmbPrj LocalVar where
+  icode (LocalVar a)      = icode1' a
+  icode (ShadowedVar a b) = icode2' a b
+  value = vcase valu where valu [a]    = valu1 LocalVar a
+                           valu [a, b] = valu2 ShadowedVar a b
                            valu _      = malformed
 
 -- Only used for pattern synonyms
@@ -782,9 +789,9 @@ instance EmbPrj Agda.Syntax.Common.Relevance where
                            valu _   = malformed
 
 instance EmbPrj I.ConHead where
-  icode (ConHead a b) = icode2' a b
-  value = vcase valu where valu [a, b] = valu2 ConHead a b
-                           valu _      = malformed
+  icode (ConHead a b c) = icode3' a b c
+  value = vcase valu where valu [a, b, c] = valu3 ConHead a b c
+                           valu _         = malformed
 
 instance EmbPrj I.Type where
   icode (El a b) = icode2' a b
@@ -1252,11 +1259,11 @@ instance EmbPrj HP.CompressedFile where
     valu _   = malformed
 
 instance EmbPrj Interface where
-  icode (Interface a b c d e f g h i j k l) = icode12' a b c d e f g h i j k l
+  icode (Interface a b c d e f g h i j k) = icode11' a b c d e f g h i j k
   value = vcase valu
     where
-      valu [a, b, c, d, e, f, g, h, i, j, k, l] = valu12 Interface a b c d e f g h i j k l
-      valu _                                    = malformed
+      valu [a, b, c, d, e, f, g, h, i, j, k] = valu11 Interface a b c d e f g h i j k
+      valu _                                 = malformed
 
 -- This is used for the Epic compiler backend
 instance EmbPrj Epic.EInterface where

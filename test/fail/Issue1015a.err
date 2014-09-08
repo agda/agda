@@ -1,8 +1,6 @@
-
+Issue1015a.agda:16,1-17,26
 Termination checking failed for the following functions:
-  elim, inh
+  elim
 Problematic calls:
   elim j r
     (at Issue1015a.agda:17,18-22)
-  inh
-    (at Issue1015a.agda:31,11-14)

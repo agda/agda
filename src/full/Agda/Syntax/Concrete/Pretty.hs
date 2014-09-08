@@ -96,25 +96,6 @@ instance Pretty Name where
 instance Pretty QName where
     pretty = text . show
 
-instance Pretty Literal where
-    pretty (LitInt _ n)	    = text $ show n
-    pretty (LitFloat _ x)   = text $ show x
-    pretty (LitString _ s)  = text $ showString' s ""
-    pretty (LitChar _ c)    = text $ "'" ++ showChar' c "" ++ "'"
-    pretty (LitQName _ x)   = text $ show x
-
-showString' :: String -> ShowS
-showString' s =
-    foldr (.) id $ [ showString "\"" ] ++ map showChar' s ++ [ showString "\"" ]
-
-showChar' :: Char -> ShowS
-showChar' '"'	= showString "\\\""
-showChar' c
-    | escapeMe c = showLitChar c
-    | otherwise	 = showString [c]
-    where
-	escapeMe c = not (isPrint c) || c == '\\'
-
 instance Pretty Relevance where
   pretty Forced     = empty
   pretty UnusedArg  = empty

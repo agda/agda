@@ -301,6 +301,34 @@ uniqBy tag =
 prop_uniqBy :: [Integer] -> Bool
 prop_uniqBy xs = sort (nub xs) == uniqBy id xs
 
+-- | Compute the common suffix of two lists.
+commonSuffix :: Eq a => [a] -> [a] -> [a]
+commonSuffix xs ys = reverse $ (commonPrefix `on` reverse) xs ys
+
+-- | Compute the common prefix of two lists.
+commonPrefix :: Eq a => [a] -> [a] -> [a]
+commonPrefix [] _ = []
+commonPrefix _ [] = []
+commonPrefix (x:xs) (y:ys)
+  | x == y    = x : commonPrefix xs ys
+  | otherwise = []
+
+prop_commonPrefix :: [Integer] -> [Integer] -> [Integer] -> Bool
+prop_commonPrefix xs ys zs =
+  and [ isPrefixOf zs zs'
+      , isPrefixOf zs' (zs ++ xs)
+      , isPrefixOf zs' (zs ++ ys) ]
+  where
+    zs' = commonPrefix (zs ++ xs) (zs ++ ys)
+
+prop_commonSuffix :: [Integer] -> [Integer] -> [Integer] -> Bool
+prop_commonSuffix xs ys zs =
+  and [ isSuffixOf zs zs'
+      , isSuffixOf zs' (xs ++ zs)
+      , isSuffixOf zs' (ys ++ zs) ]
+  where
+    zs' = commonSuffix (xs ++ zs) (ys ++ zs)
+
 -- Hack to make $quickCheckAll work under ghc-7.8
 return []
 

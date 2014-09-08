@@ -1,5 +1,5 @@
 name:            Agda
-version:         2.4.1
+version:         2.4.3
 cabal-version:   >= 1.8
 build-type:      Custom
 license:         OtherLicense
@@ -37,7 +37,7 @@ tested-with:        GHC == 7.2.2
                     GHC == 7.6.3
                     GHC == 7.8.3
 extra-source-files: src/full/Agda/undefined.h
-                    README
+                    README.md
                     CHANGELOG
 data-dir:           src/data
 data-files:         Agda.css
@@ -46,6 +46,7 @@ data-files:         Agda.css
                     EpicInclude/stdagda.c
                     EpicInclude/stdagda.h
                     agda.sty
+                    postprocess-latex.pl
                     lib/prim/Agda/Primitive.agda
 
 source-repository head
@@ -77,9 +78,9 @@ library
     build-depends:  Win32 >= 2.2 && < 2.4
 
   build-depends:    base >= 4.2 && < 4.8,
-                    transformers == 0.3.*,
+                    transformers >= 0.3 && < 0.5,
                     -- mtl-2.1 contains a severe bug
-                    mtl >= 2.1.1 && < 2.2,
+                    mtl >= 2.1.1 && < 2.3,
                     QuickCheck >= 2.7.5 && < 2.8,
                     haskell-src-exts >= 1.9.6 && < 1.16,
                     containers >= 0.1 && < 0.6,
@@ -326,6 +327,7 @@ library
                     Agda.TypeChecking.Tests
 --                    Agda.TypeChecking.UniversePolymorphism -- RETIRED
                     Agda.TypeChecking.With
+                    Agda.Utils.AssocList
                     Agda.Utils.BiMap
                     Agda.Utils.Char
                     Agda.Utils.Cluster
@@ -442,7 +444,7 @@ library
 executable agda
   hs-source-dirs: src/main
   main-is:        Main.hs
-  build-depends:  Agda == 2.4.1,
+  build-depends:  Agda == 2.4.3,
                   -- Nothing is used from the following package, except
                   -- for the prelude.
                   base >= 3 && < 6

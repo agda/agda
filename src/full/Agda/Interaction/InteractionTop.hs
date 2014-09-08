@@ -904,7 +904,7 @@ highlightExpr e =
   local (\e -> e { envModuleNestingLevel = 0
                  , envHighlightingLevel  = NonInteractive
                  , envHighlightingMethod = Direct }) $
-    generateAndPrintSyntaxInfo decl (Full [])
+    generateAndPrintSyntaxInfo decl Full
   where
     dummy = mkName_ (NameId 0 0) "dummy"
     info  = mkDefInfo (nameConcrete dummy) defaultFixity' PublicAccess ConcreteDef (getRange e)
@@ -1000,13 +1000,16 @@ whyInScope s = do
         variable (Just x) xs
           | null xs   = asVar
           | otherwise = TCP.vcat
-             [ TCP.sep [ asVar, TCP.nest 2 $ TCP.text "shadowing"]
+             [ TCP.sep [ asVar, TCP.nest 2 $ shadowing x]
              , TCP.nest 2 $ names xs
              ]
           where
             asVar :: TCM Doc
             asVar = do
-              TCP.text "* a variable bound at" TCP.<+> prettyTCM (nameBindingSite x)
+              TCP.text "* a variable bound at" TCP.<+> prettyTCM (nameBindingSite $ localVar x)
+            shadowing :: LocalVar -> TCM Doc
+            shadowing LocalVar{}    = TCP.text "shadowing"
+            shadowing ShadowedVar{} = TCP.text "in conflict with"
         names   xs = TCP.vcat $ map pName xs
         modules ms = TCP.vcat $ map pMod ms
 

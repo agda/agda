@@ -144,7 +144,7 @@ makeProjection x = inTopContext $ do
     ]
   case theDef defn of
     Function{funClauses = cls}
-      | any (isNothing . getBody) cls ->
+      | any (isNothing . getBodyUnraised) cls ->
         reportSLn "tc.proj.like" 30 $ "  projection-like functions cannot have absurd clauses"
     -- Constructor-headed functions can't be projection-like (at the moment). The reason
     -- for this is that invoking constructor-headedness will circumvent the inference of

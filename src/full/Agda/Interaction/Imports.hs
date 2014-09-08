@@ -89,7 +89,7 @@ mergeInterface i = do
             Just b1 = Map.lookup b bs
             Just b2 = Map.lookup b bi
     mapM_ check (map fst $ Map.toList $ Map.intersection bs bi)
-    addImportedThings sig bi (iHaskellImports i) (iPatternSyns i) (iInstanceDefs i)
+    addImportedThings sig bi (iHaskellImports i) (iPatternSyns i)
     reportSLn "import.iface.merge" 20 $
       "  Rebinding primitives " ++ show prim
     prim <- Map.fromList <$> mapM rebind prim
@@ -101,15 +101,15 @@ mergeInterface i = do
 	    return (x, Prim $ pf { primFunName = q })
 
 addImportedThings ::
-  Signature -> BuiltinThings PrimFun -> Set String -> A.PatternSynDefns -> InstanceTable -> TCM ()
-addImportedThings isig ibuiltin hsImports patsyns instdefs =
+  Signature -> BuiltinThings PrimFun -> Set String -> A.PatternSynDefns -> TCM ()
+addImportedThings isig ibuiltin hsImports patsyns = do
   modify $ \st -> st
     { stImports          = unionSignatures [stImports st, isig]
     , stImportedBuiltins = Map.union (stImportedBuiltins st) ibuiltin
     , stHaskellImports   = Set.union (stHaskellImports st) hsImports
     , stPatternSynImports = Map.union (stPatternSynImports st) patsyns
-    , stInstanceDefs     = (Map.unionWith List.union (fst (stInstanceDefs st)) instdefs, snd (stInstanceDefs st))
     }
+  addSignatureInstances isig
 
 -- | Scope checks the given module. A proper version of the module
 -- name (with correct definition sites) is returned.
@@ -363,8 +363,7 @@ getInterface' x includeStateChanges =
             -- things.
             sig <- getSignature
             patsyns <- getPatternSyns
-            instdefs <- getInstanceDefs
-            addImportedThings sig Map.empty Set.empty patsyns instdefs
+            addImportedThings sig Map.empty Set.empty patsyns
             setSignature emptySignature
             setPatternSyns Map.empty
 
@@ -381,7 +380,6 @@ getInterface' x includeStateChanges =
             isig     <- getImportedSignature
             ibuiltin <- gets stImportedBuiltins
             ipatsyns <- getPatternSynImports
-            instdefs <- getInstanceDefs
             ho       <- getInteractionOutputCallback
             -- Every interface is treated in isolation. Note: Changes
             -- to stDecodedModules are not preserved if an error is
@@ -405,10 +403,10 @@ getInterface' x includeStateChanges =
                      modify $ \s -> s { stModuleToSource     = mf
                                       }
                      setVisitedModules vs
-                     addImportedThings isig ibuiltin Set.empty ipatsyns instdefs
+                     addImportedThings isig ibuiltin Set.empty ipatsyns
 
                      r  <- withMsgs $ createInterface file x
-                     mf <- stModuleToSource <$> get
+                     mf <- gets stModuleToSource
                      ds <- getDecodedModules
                      return (r, do
                         modify $ \s -> s { stModuleToSource = mf }
@@ -584,7 +582,6 @@ createInterface file mname =
     -- TODO: It would be nice if unsolved things were highlighted
     -- after every mutual block.
 
-    termErrs            <- Fold.toList <$> stTermErrs <$> get
     unsolvedMetas       <- List.nub <$> (mapM getMetaRange =<< getOpenMetas)
     unsolvedConstraints <- getAllConstraints
     interactionPoints   <- getInteractionPoints
@@ -592,7 +589,7 @@ createInterface file mname =
     ifTopLevelAndHighlightingLevelIs NonInteractive $
       printUnsolvedInfo
 
-    r <- if and [ null termErrs, null unsolvedMetas, null unsolvedConstraints, null interactionPoints ]
+    r <- if and [ null unsolvedMetas, null unsolvedConstraints, null interactionPoints ]
      then billTop Bench.Serialization $ do
       -- The file was successfully type-checked (and no warnings were
       -- encountered), so the interface should be written out.
@@ -600,9 +597,7 @@ createInterface file mname =
       writeInterface ifile i
       return (i, NoWarnings)
      else do
-      termErr <- if null termErrs then return Nothing else Just <$> do
-        typeError_ $ TerminationCheckFailed termErrs
-      return (i, SomeWarnings $ Warnings termErr unsolvedMetas unsolvedConstraints)
+      return (i, SomeWarnings $ Warnings unsolvedMetas unsolvedConstraints)
 
     -- Profiling: Print statistics.
     verboseS "profile" 1 $ do
@@ -644,7 +639,6 @@ buildInterface file topLevel syntaxInfo previousHsImports pragmas = do
     mhs     <- mapM (\ m -> (m,) <$> moduleHash m) $ Set.toList ms
     hsImps  <- getHaskellImports
     patsyns <- getPatternSyns
-    instdefs<- getInstanceDefs
     h       <- liftIO $ hashFile file
     let	builtin' = Map.mapWithKey (\ x b -> (x,) . primFunName <$> b) builtin
     reportSLn "import.iface" 7 "  instantiating all meta variables"
@@ -660,7 +654,6 @@ buildInterface file topLevel syntaxInfo previousHsImports pragmas = do
       , iHighlighting    = syntaxInfo
       , iPragmaOptions   = pragmas
       , iPatternSyns     = patsyns
-      , iInstanceDefs    = instdefs
       }
     reportSLn "import.iface" 7 "  interface complete"
     return i

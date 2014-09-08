@@ -151,7 +151,7 @@ instance Reify DisplayTerm Expr where
   reify d = case d of
     DTerm v -> reifyTerm False v
     DDot  v -> reify v
-    DCon c vs -> apps (A.Con (AmbQ [c])) =<< reifyIArgs vs
+    DCon c vs -> apps (A.Con (AmbQ [conName c])) =<< reifyIArgs vs
     DDef f vs -> apps (A.Def f) =<< reifyIArgs vs
     DWithApp u us vs -> do
       (e, es) <- reify (u, us)
@@ -249,7 +249,7 @@ reifyDisplayFormP lhs@(A.SpineLHS i f ps wps) =
 
         termToPat (DTerm (I.Var n [])) = return $ ps !! n
 
-        termToPat (DCon c vs)          = A.ConP ci (AmbQ [c]) <$> do
+        termToPat (DCon c vs)          = A.ConP ci (AmbQ [conName c]) <$> do
           mapM argToPat =<< reifyIArgs' vs
 
         termToPat (DTerm (I.Con c vs)) = A.ConP ci (AmbQ [conName c]) <$> do

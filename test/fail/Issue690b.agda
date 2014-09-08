@@ -23,6 +23,7 @@ data _≡_ {A : Set} (x : A) : A → Set where
 
 data ⊥ : Set where
 
+{-# NON_TERMINATING #-}
 D : Set
 D = Rec (♯ Σ Set λ E → Σ (D ≡ E) λ _ → E → ⊥)
 

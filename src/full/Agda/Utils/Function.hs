@@ -65,3 +65,11 @@ applyWhen b f = if b then f else id
 -- | @applyUnless b f a@ applies @f@ to @a@ unless @b@.
 applyUnless :: Bool -> (a -> a) -> a -> a
 applyUnless b f = if b then id else f
+
+-- | Monadic version of @applyWhen@
+applyWhenM :: (Monad m) => m Bool -> (m a -> m a) -> m a -> m a
+applyWhenM mb f x = mb >>= \ b -> applyWhen b f x
+
+-- | Monadic version of @applyUnless@
+applyUnlessM :: (Monad m) => m Bool -> (m a -> m a) -> m a -> m a
+applyUnlessM mb f x = mb >>= \ b -> applyUnless b f x

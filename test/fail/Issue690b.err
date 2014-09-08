@@ -1,3 +1,3 @@
-Issue690b.agda:30,9-28
+Issue690b.agda:31,9-28
 Rec (_A_5 f) !=< D of type Set
 when checking that the expression fold (D , refl , f) has type D

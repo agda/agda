@@ -1,3 +1,7 @@
+-- Andreas, 2014-09-01 restored this test case
+
 module ClashingModuleImport where
 
-X = TODO--I-haven't-fully-understood-this-one
+module M where
+
+open import Imports.Module public
