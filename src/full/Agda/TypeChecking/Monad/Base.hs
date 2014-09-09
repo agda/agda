@@ -1611,6 +1611,7 @@ data TypeError
         | SafeFlagPostulate C.Name
         | SafeFlagPragma [String]
         | SafeFlagNoTerminationCheck
+        | SafeFlagNonTerminating
         | SafeFlagPrimTrustMe
     -- Language option errors
         | NeedOptionCopatterns
