@@ -1,4 +1,4 @@
-{-# LANGUAGE CPP #-}
+{-# LANGUAGE CPP, DoAndIfThenElse #-}
 -- | Epic compiler backend.
 module Agda.Compiler.UHC.Compiler(compilerMain) where
 
@@ -51,6 +51,7 @@ import qualified Agda.Compiler.UHC.Forcing      as Forcing
 import Agda.Compiler.UHC.CoreSyntax (ehcOpts)
 
 import UHC.Util.Pretty
+import UHC.Util.Serialize
 
 import qualified EH99.Core as EC
 import qualified EH99.Core.Pretty as EP
@@ -219,8 +220,17 @@ compileDefns mod defs = do
     let modName = L.intercalate "." (CN.moduleNameParts mod)
     toCore modName emits
 
-writeCoreFile :: String -> EC.CModule -> IO ()
-writeCoreFile f mod = putPPFile f (EP.ppCModule ehcOpts mod) 200
+writeCoreFile :: String -> EC.CModule -> Compile TCM FilePath
+writeCoreFile f mod = do
+  useTextual <- optUHCTextualCore <$> lift commandLineOptions
+  if useTextual then do
+    let f' = f <.> ".tcr"
+    liftIO $ putPPFile f' (EP.ppCModule ehcOpts mod) 200
+    return f' 
+  else do
+    let f' = f <.> ".bcr"
+    liftIO $ putSerializeFile f' mod
+    return f'
 
 -- | Change the current directory to Epic folder, create it if it doesn't already
 --   exist.
@@ -246,9 +256,9 @@ runUHC fp imports code = do
                            | imp <- (dataDir </> "AgdaPrelude.ei")
                                     : map (<.> "ei") imports]
         code'    = imports' ++ code-}
-    liftIO $ writeCoreFile (fp <.> "tcr") code
+    fp' <- writeCoreFile fp code
     -- this is a hack, fix this for supporting multiple agda modules
-    callUHC (fp <.> "tcr")
+    callUHC fp'
 {-    callEpic True $
         [ "-c", fp <.> "e" ]-}
 

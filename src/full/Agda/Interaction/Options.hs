@@ -82,6 +82,7 @@ data CommandLineOptions =
             , optJSCompile            :: Bool
             , optUHCCompile           :: Bool
             , optUHCEhcBin            :: Maybe FilePath
+            , optUHCTextualCore       :: Bool
             , optCompileDir           :: Maybe FilePath
               -- ^ In the absence of a path the project root is used.
 	    , optGenerateVimFile      :: Bool
@@ -160,6 +161,7 @@ defaultOptions =
             , optJSCompile            = False
             , optUHCCompile           = False
             , optUHCEhcBin            = Nothing
+            , optUHCTextualCore       = False
             , optCompileDir           = Nothing
 	    , optGenerateVimFile      = False
             , optGenerateLaTeX        = False
@@ -249,6 +251,9 @@ checkOpts opts
   | (isJust $ optUHCEhcBin opts)
       && not (optUHCCompile opts) =
       Left "Cannot set ehc binary without using UHC backend.\n"
+  | (optUHCTextualCore opts)
+      && not (optUHCCompile opts) =
+      Left "Cannot set --uhc-textual-core without using UHC backend.\n"
   | otherwise = Right opts
   where
   atMostOne bs = length (filter ($ opts) bs) <= 1
@@ -333,6 +338,7 @@ compileDirFlag f   o = return $ o { optCompileDir = Just f }
 ghcFlag        f   o = return $ o { optGhcFlags   = optGhcFlags o  ++ [f] }  -- NOTE: Quadratic in number of flags.
 epicFlagsFlag  s   o = return $ o { optEpicFlags  = optEpicFlags o ++ [s] }  -- NOTE: Quadratic in number of flags.
 uhcEhcBinFlag s    o = return $ o { optUHCEhcBin  = Just s }
+uhcTextualCoreFlag o = return $ o { optUHCTextualCore = True }
 
 htmlFlag      o = return $ o { optGenerateHTML = True }
 dependencyGraphFlag f o = return $ o { optDependencyGraph  = Just f }
@@ -380,6 +386,7 @@ standardOptions =
     , Option []     ["js"] (NoArg compileJSFlag) "compile program using the JS backend"
     , Option []     ["uhc"] (NoArg compileUHCFlag) "compile program using the UHC backend"
     , Option []     ["uhc-ehc-bin"] (ReqArg uhcEhcBinFlag "EHC") "The ehc binary to use when compiling with the uhc backend."
+    , Option []     ["uhc-textual-core"] (NoArg uhcTextualCoreFlag) "Use textual core as intermediate representation instead of binary core."
     , Option []     ["compile-dir"] (ReqArg compileDirFlag "DIR")
 		    ("directory for compiler output (default: the project root)")
     , Option []     ["ghc-flag"] (ReqArg ghcFlag "GHC-FLAG")
