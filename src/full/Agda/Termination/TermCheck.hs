@@ -20,14 +20,18 @@ module Agda.Termination.TermCheck
     , Result, DeBruijnPat
     ) where
 
+import Prelude hiding (null)
+
 import Control.Applicative
 import Control.Monad.Error
 import Control.Monad.State
 
-import Data.List as List
+import Data.List hiding (null)
+import qualified Data.List as List
 import Data.Maybe (mapMaybe, isJust, fromMaybe)
 import Data.Monoid
 import qualified Data.Map as Map
+import Data.Set (Set)
 import qualified Data.Set as Set
 import Data.Traversable (traverse)
 
@@ -41,8 +45,8 @@ import Agda.Syntax.Literal (Literal(LitString))
 
 import Agda.Termination.CutOff
 import Agda.Termination.Monad
-import Agda.Termination.CallGraph (CallGraph)
-import Agda.Termination.CallGraph as CallGraph
+import Agda.Termination.CallGraph hiding (null)
+import qualified Agda.Termination.CallGraph as CallGraph
 import Agda.Termination.CallMatrix hiding (null)
 import Agda.Termination.Order     as Order
 import qualified Agda.Termination.SparseMatrix as Matrix
@@ -74,6 +78,7 @@ import Agda.Utils.List
 import Agda.Utils.Size
 import Agda.Utils.Maybe
 import Agda.Utils.Monad -- (mapM', forM', ifM, or2M, and2M)
+import Agda.Utils.Null
 import Agda.Utils.Permutation
 import Agda.Utils.Pointed
 import Agda.Utils.Pretty (render)
