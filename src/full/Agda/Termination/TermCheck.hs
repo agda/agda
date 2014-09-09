@@ -203,43 +203,24 @@ termMutual i ds = if names == [] then return mempty else
       return mempty)
    $ {- else -} do
 
-     -- Assemble then initial configuration of the termination environment.
-
-     cutoff <- optTerminationDepth <$> pragmaOptions
-
-     reportSLn "term.top" 10 $ "Termination checking " ++ show names ++
-       " with cutoff=" ++ show cutoff ++ "..."
-
-     -- Get the name of size suc (if sized types are enabled)
-     suc <- sizeSucName
-
-     -- The name of sharp (if available).
-     sharp <- fmap nameOfSharp <$> coinductionKit
-
-     guardingTypeConstructors <-
-       optGuardingTypeConstructors <$> pragmaOptions
-
-     -- Andreas, 2014-08-28
-     -- We do not inline with functions if --without-K.
-     inlineWithFunctions <- not . optWithoutK <$> pragmaOptions
-
-     let tenv = defaultTerEnv
-           { terGuardingTypeConstructors = guardingTypeConstructors
-           , terInlineWithFunctions      = inlineWithFunctions
-           , terSizeSuc                  = suc
-           , terSharp                    = sharp
-           , terCutOff                   = cutoff
-           , terMutual                   = allNames
-           , terUserNames                = names
+     -- Set the mutual names in the termination environment.
+     let setNames e = e
+           { terMutual    = allNames
+           , terUserNames = names
            }
+         runTerm cont = runTerDefault $ do
+           cutoff <- terGetCutOff
+           reportSLn "term.top" 10 $ "Termination checking " ++ show names ++
+             " with cutoff=" ++ show cutoff ++ "..."
+           terLocal setNames cont
 
      -- New check currently only makes a difference for copatterns.
      -- Since it is slow, only invoke it if --copatterns.
      res <- ifM (optCopatterns <$> pragmaOptions)
          -- Then: New check, one after another.
-         (runTer tenv $ forM' allNames $ termFunction)
+         (runTerm $ forM' allNames $ termFunction)
          -- Else: Old check, all at once.
-         (runTer tenv $ termMutual')
+         (runTerm $ termMutual')
 
      -- record result of termination check in signature
      let terminates = List.null res

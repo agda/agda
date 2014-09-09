@@ -22,7 +22,7 @@ import Control.Monad.State
 import Data.Functor ((<$>))
 import qualified Data.List as List
 
-import Agda.Interaction.Options (defaultCutOff)
+import Agda.Interaction.Options
 
 import Agda.Syntax.Abstract (QName,IsProjP(..))
 import Agda.Syntax.Common   (Delayed(..), Induction(..), Dom(..))
@@ -179,6 +179,38 @@ instance MonadTer TerM where
 -- | Generic run method for termination monad.
 runTer :: TerEnv -> TerM a -> TCM a
 runTer tenv (TerM m) = runReaderT m tenv
+
+-- | Run TerM computation in default environment (created from options).
+
+runTerDefault :: TerM a -> TCM a
+runTerDefault cont = do
+
+  -- Assemble then initial configuration of the termination environment.
+
+  cutoff <- optTerminationDepth <$> pragmaOptions
+
+  -- Get the name of size suc (if sized types are enabled)
+  suc <- sizeSucName
+
+  -- The name of sharp (if available).
+  sharp <- fmap nameOfSharp <$> coinductionKit
+
+  guardingTypeConstructors <-
+    optGuardingTypeConstructors <$> pragmaOptions
+
+  -- Andreas, 2014-08-28
+  -- We do not inline with functions if --without-K.
+  inlineWithFunctions <- not . optWithoutK <$> pragmaOptions
+
+  let tenv = defaultTerEnv
+        { terGuardingTypeConstructors = guardingTypeConstructors
+        , terInlineWithFunctions      = inlineWithFunctions
+        , terSizeSuc                  = suc
+        , terSharp                    = sharp
+        , terCutOff                   = cutoff
+        }
+
+  runTer tenv cont
 
 -- * Termination monad is a 'MonadTCM'.
 
