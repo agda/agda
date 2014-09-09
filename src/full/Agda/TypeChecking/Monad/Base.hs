@@ -1612,6 +1612,7 @@ data TypeError
         | SafeFlagPragma [String]
         | SafeFlagNoTerminationCheck
         | SafeFlagNonTerminating
+        | SafeFlagTerminating
         | SafeFlagPrimTrustMe
     -- Language option errors
         | NeedOptionCopatterns

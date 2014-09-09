@@ -20,7 +20,9 @@ data Keyword
 	| KwOPTIONS | KwBUILTIN | KwLINE
 	| KwCOMPILED_DATA | KwCOMPILED_TYPE | KwCOMPILED | KwCOMPILED_EXPORT
         | KwCOMPILED_EPIC | KwCOMPILED_JS
-	| KwIMPORT | KwIMPOSSIBLE | KwETA | KwNO_TERMINATION_CHECK | KwNON_TERMINATING | KwMEASURE | KwSTATIC
+	| KwIMPORT | KwIMPOSSIBLE | KwETA | KwSTATIC
+        | KwNO_TERMINATION_CHECK | KwTERMINATING | KwNON_TERMINATING
+        | KwMEASURE
         | KwREWRITE
 	| KwQuoteGoal | KwQuoteContext | KwQuote | KwQuoteTerm | KwUnquote | KwUnquoteDecl | KwSyntax
         | KwPatternSyn | KwTactic

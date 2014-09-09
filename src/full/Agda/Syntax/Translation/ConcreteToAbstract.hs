@@ -912,6 +912,8 @@ instance ToAbstract [C.Declaration] [A.Declaration] where
       typeError $ SafeFlagNoTerminationCheck
     noNoTermCheck (C.Pragma (C.TerminationCheckPragma r NonTerminating)) =
       typeError $ SafeFlagNonTerminating
+    noNoTermCheck (C.Pragma (C.TerminationCheckPragma r Terminating)) =
+      typeError $ SafeFlagTerminating
     noNoTermCheck d = return d
 
 newtype LetDefs = LetDefs [C.Declaration]

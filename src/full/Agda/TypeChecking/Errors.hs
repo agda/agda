@@ -207,6 +207,7 @@ errorString err = case err of
     SafeFlagPragma{}                         -> "SafeFlagPragma"
     SafeFlagNoTerminationCheck{}             -> "SafeFlagNoTerminationCheck"
     SafeFlagNonTerminating{}                 -> "SafeFlagNonTerminating"
+    SafeFlagTerminating{}                    -> "SafeFlagTerminating"
     SafeFlagPrimTrustMe{}                    -> "SafeFlagPrimTrustMe"
     ShadowedModule{}                         -> "ShadowedModule"
     ShouldBeASort{}                          -> "ShouldBeASort"
@@ -794,6 +795,7 @@ instance PrettyTCM TypeError where
                           ++ map text xs ++ [fwords "with safe flag."]
             SafeFlagNoTerminationCheck -> fsep (pwords "Cannot use NO_TERMINATION_CHECK pragma with safe flag.")
             SafeFlagNonTerminating -> fsep (pwords "Cannot use NON_TERMINATING pragma with safe flag.")
+            SafeFlagTerminating -> fsep (pwords "Cannot use TERMINATING pragma with safe flag.")
             SafeFlagPrimTrustMe -> fsep (pwords "Cannot use primTrustMe with safe flag")
             NeedOptionCopatterns -> fsep (pwords "Option --copatterns needed to enable destructor patterns")
           where

@@ -192,7 +192,7 @@ termMutual i ds = if names == [] then return mempty else
         billTo [Benchmark.Termination, Benchmark.RecCheck] $ recursive allNames
 
   -- NO_TERMINATION_CHECK
-  if (Info.mutualTermCheck i == NoTerminationCheck) then do
+  if (Info.mutualTermCheck i `elem` [ NoTerminationCheck, Terminating ]) then do
       reportSLn "term.warn.yes" 2 $ "Skipping termination check for " ++ show names
       forM_ allNames $ \ q -> setTerminates q True -- considered terminating!
       return mempty

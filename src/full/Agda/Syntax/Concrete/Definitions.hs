@@ -260,17 +260,24 @@ combineTermChecks r tcs = loop tcs where
     let failure r = throwError $ InvalidMeasureMutual r
     tc' <- loop tcs
     case (tc, tc') of
-      (TerminationCheck      , _                     ) -> return tc'
-      (_                     , TerminationCheck      ) -> return tc
-      (NonTerminating        , NonTerminating        ) -> return tc
-      (NoTerminationCheck    , NoTerminationCheck    ) -> return tc
+      (TerminationCheck      , tc'                   ) -> return tc'
+      (tc                    , TerminationCheck      ) -> return tc
+      (NonTerminating        , NonTerminating        ) -> return NonTerminating
+      (NoTerminationCheck    , NoTerminationCheck    ) -> return NoTerminationCheck
+      (NoTerminationCheck    , Terminating           ) -> return Terminating
+      (Terminating           , NoTerminationCheck    ) -> return Terminating
+      (Terminating           , Terminating           ) -> return Terminating
       (TerminationMeasure{}  , TerminationMeasure{}  ) -> return tc
       (TerminationMeasure r _, NoTerminationCheck    ) -> failure r
+      (TerminationMeasure r _, Terminating           ) -> failure r
       (NoTerminationCheck    , TerminationMeasure r _) -> failure r
+      (Terminating           , TerminationMeasure r _) -> failure r
       (TerminationMeasure r _, NonTerminating        ) -> failure r
       (NonTerminating        , TerminationMeasure r _) -> failure r
       (NoTerminationCheck    , NonTerminating        ) -> failure r
+      (Terminating           , NonTerminating        ) -> failure r
       (NonTerminating        , NoTerminationCheck    ) -> failure r
+      (NonTerminating        , Terminating           ) -> failure r
 
 type LoneSigs = [(DataRecOrFun, Name)]
 data NiceEnv = NiceEnv
