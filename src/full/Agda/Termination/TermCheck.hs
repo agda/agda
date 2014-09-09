@@ -362,10 +362,22 @@ termFunction name = do
    reportTarget target
    terSetTarget target $ do
 
-   -- Collect all recursive calls in the block,
-   -- taking the target of the current function into account.
+   -- Collect the recursive calls in the block which (transitively)
+   -- involve @name@,
+   -- taking the target of @name@ into account for computing guardedness.
 
-   let collect = forM' allNames termDef
+   let collect = (`trampolineM` (Set.singleton index, mempty, mempty)) $ \ (todo, done, calls) -> do
+         if null todo then return $ Left calls else do
+         -- Extract calls originating from indices in @todo@.
+         new <- forM' todo $ \ i ->
+           termDef $ fromMaybe __IMPOSSIBLE__ $ allNames !!! i
+         -- Mark those functions as processed and add the calls to the result.
+         let done'  = done `mappend` todo
+             calls' = new  `mappend` calls
+         -- Compute the new todo list:
+             todo' = CallGraph.targetNodes new Set.\\ done'
+         -- Jump the trampoline.
+         return $ Right (todo', done', calls')
 
    -- First try to termination check ignoring the dot patterns
    calls1 <- terSetUseDotPatterns False $ collect
