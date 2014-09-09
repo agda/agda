@@ -20,6 +20,7 @@ module Agda.Termination.CallGraph
   , (>*<)
     -- * Call graphs
   , CallGraph(..)
+  , targetNodes
   , fromList
   , toList
   , empty
@@ -34,14 +35,15 @@ module Agda.Termination.CallGraph
 
 import Prelude hiding (null)
 
-import Data.Function
-import Data.Map (Map, (!))
-import qualified Data.Map as Map
-import qualified Data.List as List
-import Data.Monoid
-
 import Data.Foldable (Foldable)
 import qualified Data.Foldable as Fold
+import Data.Function
+import qualified Data.List as List
+import Data.Map (Map, (!))
+import qualified Data.Map as Map
+import Data.Monoid
+import Data.Set (Set)
+import qualified Data.Set as Set
 import Data.Traversable (Traversable)
 import qualified Data.Traversable as Trav
 
@@ -124,6 +126,12 @@ instance Monoid cinfo => CallComb (Call cinfo) where
 
 newtype CallGraph cinfo = CallGraph { theCallGraph :: Graph Node Node (CMSet cinfo) }
   deriving (Show)
+
+
+-- | Returns all the nodes with incoming edges.  Somewhat expensive. @O(e)@.
+
+targetNodes :: CallGraph cinfo -> Set Node
+targetNodes = Graph.targetNodes . theCallGraph
 
 -- | Converts a call graph to a list of calls with associated meta
 --   information.
@@ -230,7 +238,7 @@ combineNewOldCallGraph (CallGraph new) (CallGraph old) = CallGraph -*- CallGraph
 -- h@ are present in the graph, then @f -> h@ should also be present.
 
 complete :: (?cutoff :: CutOff) => Monoid cinfo => CallGraph cinfo -> CallGraph cinfo
-complete cs = trampoline (mapFst (not . null) . completionStep cs) cs
+complete cs = trampolineWhile (mapFst (not . null) . completionStep cs) cs
 
 completionStep :: (?cutoff :: CutOff) => Monoid cinfo =>
   CallGraph cinfo -> CallGraph cinfo -> (CallGraph cinfo, CallGraph cinfo)
