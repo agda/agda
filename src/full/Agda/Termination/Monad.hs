@@ -172,12 +172,13 @@ class (Functor m, Monad m) => MonadTer m where
 newtype TerM a = TerM { terM :: ReaderT TerEnv TCM a }
   deriving (Functor, Applicative, Monad)
 
-runTerm :: TerEnv -> TerM a -> TCM a
-runTerm tenv (TerM m) = runReaderT m tenv
-
 instance MonadTer TerM where
   terAsk     = TerM $ ask
   terLocal f = TerM . local f . terM
+
+-- | Generic run method for termination monad.
+runTer :: TerEnv -> TerM a -> TCM a
+runTer tenv (TerM m) = runReaderT m tenv
 
 -- * Termination monad is a 'MonadTCM'.
 
@@ -198,7 +199,7 @@ instance MonadTCM TerM where
 instance MonadError TCErr TerM where
   throwError = liftTCM . throwError
   catchError m handler = TerM $ ReaderT $ \ tenv -> do
-    runTerm tenv m `catchError` (\ err -> runTerm tenv $ handler err)
+    runTer tenv m `catchError` (\ err -> runTer tenv $ handler err)
 
 -- * Modifiers and accessors for the termination environment in the monad.
 

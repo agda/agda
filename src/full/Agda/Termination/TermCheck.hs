@@ -237,9 +237,9 @@ termMutual i ds = if names == [] then return mempty else
      -- Since it is slow, only invoke it if --copatterns.
      res <- ifM (optCopatterns <$> pragmaOptions)
          -- Then: New check, one after another.
-         (runTerm tenv $ forM' allNames $ termFunction)
+         (runTer tenv $ forM' allNames $ termFunction)
          -- Else: Old check, all at once.
-         (runTerm tenv $ termMutual')
+         (runTer tenv $ termMutual')
 
      -- record result of termination check in signature
      let terminates = List.null res
