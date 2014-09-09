@@ -337,9 +337,9 @@ reportCalls no calls = do
          step cs = do
            let (new, cs') = completionStep cs0 cs
            report " New call matrices " new
-           return (not $ CallGraph.null new, cs')
+           return $ if CallGraph.null new then Left () else Right cs'
      report " Initial call matrices " cs0
-     void $ trampolineM step cs0
+     trampolineM step cs0
 
    -- Print the result of completion.
    let calls' = CallGraph.complete calls
