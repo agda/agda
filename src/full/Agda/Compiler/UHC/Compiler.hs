@@ -273,9 +273,9 @@ runUhcMain mainName imports m = do
 
 callUHC :: FilePath -> Compile TCM ()
 callUHC fp = do
-    let uhc = "/home/philipp/Projects/uu/uhc/uhc/EHC/install/99/bin/ehc"
-        uhcCmd = [ fp ]
-    lift $ callCompiler uhc uhcCmd
+    ehcBin <- fromMaybe ("ehc") . optUHCEhcBin <$> lift commandLineOptions
+    let ehcCmd = [ fp ]
+    lift $ callCompiler ehcBin ehcCmd
 {-
 -- | Call epic, with a given set of flags, if the |Bool| is True then include
 -- the command line flags at the end
