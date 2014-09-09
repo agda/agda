@@ -404,6 +404,15 @@ typeEndsInDef t = liftTCM $ do
     _        -> return Nothing
 
 -- | Termination check a definition by pattern matching.
+--
+--   TODO: Refactor!
+--   As this function may be called twice,
+--   once disregarding dot patterns,
+--   the second time regarding dot patterns,
+--   it is better if we separated bare call extraction
+--   from computing the change in structural order.
+--   Only the latter depends on the choice whether we
+--   consider dot patterns or not.
 termDef :: QName -> TerM Calls
 termDef name = terSetCurrent name $ do
 
