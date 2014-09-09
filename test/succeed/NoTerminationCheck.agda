@@ -1,23 +1,23 @@
 -- 2012-03-08 Andreas
-module NoTerminationCheck where
+-- 2014-09-09 Andreas, use NON_TERMINATING or TERMINATING instead
 
 postulate A : Set
 
 -- Skipping a single definition: before type signature
 
-{-# NO_TERMINATION_CHECK #-}
+{-# NON_TERMINATING #-}
 a : A
 a = a
 
 -- Skipping a single definition: before first clause
 
 b : A
-{-# NO_TERMINATION_CHECK #-}
+{-# NON_TERMINATING #-}
 b = b
 
 -- Skipping an old-style mutual block (placed before)
 
-{-# NO_TERMINATION_CHECK #-}
+{-# NON_TERMINATING #-}
 mutual
   c : A
   c = d
@@ -28,7 +28,7 @@ mutual
 -- Skipping an old-style mutual block (placed within)
 
 mutual
-  {-# NO_TERMINATION_CHECK #-}
+  {-# TERMINATING #-}  -- It's a lie!!
   c1 : A
   c1 = d1
 
@@ -37,7 +37,7 @@ mutual
 
 mutual
   c2 : A
-  {-# NO_TERMINATION_CHECK #-}
+  {-# NON_TERMINATING #-}
   c2 = d2
 
   d2 : A
@@ -47,13 +47,13 @@ mutual
   c3 : A
   c3 = d3
 
-  {-# NO_TERMINATION_CHECK #-}
+  {-# NON_TERMINATING #-}
   d3 : A
   d3 = c3
 
 -- Skipping a new-style mutual block
 
-{-# NO_TERMINATION_CHECK #-}
+{-# NON_TERMINATING #-}
 e : A
 f : A
 
@@ -63,7 +63,7 @@ f = e
 -- Skipping a new-style mutual block, variant 2
 
 g : A
-{-# NO_TERMINATION_CHECK #-}
+{-# TERMINATING #-}  -- Beware of lies!!
 h : A
 
 g = h
@@ -76,16 +76,16 @@ i : A
 j : A
 
 i = j
-{-# NO_TERMINATION_CHECK #-}
+{-# NON_TERMINATING #-}
 j = i
 
 private
-  {-# NO_TERMINATION_CHECK #-}
+  {-# NON_TERMINATING #-}
   k : A
   k = k
 
 abstract
-  {-# NO_TERMINATION_CHECK #-}
+  {-# NON_TERMINATING #-}
   l : A
   l = l
 
