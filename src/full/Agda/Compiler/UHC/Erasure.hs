@@ -50,8 +50,8 @@ _        &&- _      = Irr
 infixr 3 &&-
 
 data ErasureState = ErasureState
-  { relevancies :: Map Var [Relevance]
-  , funs        :: Map Var Fun
+  { relevancies :: Map AName [Relevance]
+  , funs        :: Map AName Fun
   }
 
 type Erasure = StateT ErasureState
@@ -63,9 +63,10 @@ erasure fs = do
     (rels, erasureState) <- flip runStateT (ErasureState orgRel M.empty) $ do
         mapM_ initiate fs
         fu <- gets funs
-        M.mapKeys (fromMaybe __IMPOSSIBLE__ . flip M.lookup fu) <$> step 1
-    modifyEI $ \s -> s { relevantArgs = M.mapKeys funName rels }
-    concat <$> mapM (\f -> map (rem (relevancies erasureState)) <$> check f (M.lookup f rels)) fs
+        step 1
+--  TODO enable this again
+--    modifyEI $ \s -> s { relevantArgs = M.mapKeys funName rels }
+    concat <$> mapM (\f -> map (rem (relevancies erasureState)) <$> check f (M.lookup (funName f) rels)) fs
   where
 
     rem rels f@Fun{} = f { funExpr = removeUnused rels (funExpr f) }
@@ -75,10 +76,10 @@ erasure fs = do
     -- If the function is already marked as to inline we don't need to create a
     -- new function. Also If all arguments are relevant there is nothing to do.
     check f@Fun{} (Just rs) | any isIrr rs && not (funInline f) = do
-        f' <- (funName f ++) <$> newName
+        f' <- newName1 (funName f)
         let args' = pairwiseFilter (map isRel rs) (funArgs f)
             subs  = pairwiseFilter (map isIrr rs) (funArgs f)
-            e'    = foldr (\v e -> subst v "primUnit" e) (funExpr f) subs
+            e'    = foldr (\v e -> subst v (ANmCore "primUnit") e) (funExpr f) subs
         return [ Fun { funInline  = True
                      , funName    = funName f
                      , funQName   = funQName f
@@ -94,9 +95,25 @@ erasure fs = do
                      , funExpr    = e'
                      }
                ]
+{-    check f@CoreFun{} (Just rs) | any isIrr rs = do
+        f' <- (funName f ++) <$> newName
+        let args' = pairwiseFilter (map isRel rs) (funArgs f)
+            subs  = pairwiseFilter (map isIrr rs) (funArgs f)
+            e'    = foldr (\v e -> subst v "primUnit" e) (funExpr f) subs
+        return [ Fun { funInline  = True
+                     , funName    = funName f
+                     , funQName   = funQName f
+                     , funComment = funComment f
+                     , funArgs    = funArgs f
+                     , funExpr    = App f' $ map Var args'
+                     }
+               , CoreFun { funName      = f'
+                         , funQName     = Nothing
+                         , funComment   = funComment f ++ " [WORKER]"
+                         , funCoreExpr  = funCoreExpr f }]-}
     check f _ = return [f]
 
-removeUnused :: Map Var [Relevance] -> Expr -> Expr
+removeUnused :: Map AName [Relevance] -> Expr -> Expr
 removeUnused rels t = let rem = removeUnused rels
                        in case t of
     Var _         -> t
@@ -121,7 +138,7 @@ initiate f@(Fun _ name mqname _ args _) = do
     modify $ \s -> s { relevancies = M.insert name rels (relevancies s)
                      , funs        = M.insert name f (funs s)
                      }
-initiate f@(EpicFun {funName = name, funQName = mqname}) = case mqname of
+initiate f@(CoreFun {funName = name, funQName = mqname}) = case mqname of
     Just qn -> do
         ty <- lift $ getType qn
         let rels = initialRels ty Rel
@@ -148,7 +165,7 @@ ignoreForced SC.Relevant = False
 ignoreForced _           = True
 
 -- | Calculate if a variable is relevant in an expression
-relevant :: (Functor m, Monad m) => Var -> Expr -> Erasure m Relevance
+relevant :: (Functor m, Monad m) => AName -> Expr -> Erasure m Relevance
 relevant var expr = case expr of
     Var v  | v == var  -> return Rel
            | otherwise -> return Irr
@@ -181,7 +198,7 @@ relevant var expr = case expr of
     UNIT        -> return Irr
     IMPOSSIBLE  -> return Irr
   where
-    relevants :: (Functor m, Monad m) => Var -> [Expr] -> Erasure m Relevance
+    relevants :: (Functor m, Monad m) => AName -> [Expr] -> Erasure m Relevance
     relevants v [] = return Irr
     relevants v (e : es) = do
       r <- relevant v e
@@ -191,13 +208,13 @@ relevant var expr = case expr of
     -- relevants v es = return . foldr (\x y -> x ||- y) Irr =<< mapM (relevant v) es
 
 -- | Try to find a fixpoint for all the functions relevance.
-step :: Integer -> Erasure (Compile TCM) (Map Var [Relevance])
+step :: Integer -> Erasure (Compile TCM) (Map AName [Relevance])
 step nrOfLoops = do
     s  <- get
     newRels <- (M.fromList <$>) $ forM (M.toList (funs s)) $ \(v, f) -> ((,) v <$>) $ do
                let funRels = fromMaybe __IMPOSSIBLE__ $ M.lookup v (relevancies s)
                case f of
-                  EpicFun{} -> return funRels
+                  CoreFun{} -> return funRels
                   Fun{} -> do
                      forM (zip (funArgs f) (funRels ++ repeat Rel)) $ \ (x, rel) -> case rel of
                         Rel -> return Rel

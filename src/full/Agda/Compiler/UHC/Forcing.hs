@@ -169,7 +169,7 @@ remForced fs = do
 
 -- | For a given expression, in a certain telescope (the list of Var) is a mapping
 -- of variable name to the telescope.
-forcedExpr :: [Var] -> Telescope -> Expr -> Compile TCM Expr
+forcedExpr :: [AName] -> Telescope -> Expr -> Compile TCM Expr
 forcedExpr vars tele expr = case expr of
     Var _ -> return expr
     Lit _ -> return expr
@@ -246,7 +246,7 @@ forcedExpr vars tele expr = case expr of
     rec = forcedExpr vars tele
 
 -- | replace the forcedVar with pattern matching from the outside.
-replaceForced :: ([Var],[Var]) -> Telescope -> [Var] -> [Maybe I.Term] -> Expr -> Compile TCM Expr
+replaceForced :: ([AName],[AName]) -> Telescope -> [AName] -> [Maybe I.Term] -> Expr -> Compile TCM Expr
 replaceForced (vars,_) tele [] _ e = forcedExpr vars tele e
 replaceForced (vars,uvars) tele (fvar : fvars) unif e = do
     let n = fromMaybe __IMPOSSIBLE__ $ elemIndex fvar uvars
@@ -260,7 +260,7 @@ replaceForced (vars,uvars) tele (fvar : fvars) unif e = do
                 [ text "failure comming!"
                 , text "unif" <+> (text . show) unif
                 , text "n" <+> (text . show) n
-                , text "fvar" <+> (text fvar)
+                , text "fvar" <+> (text $ show fvar)
                 , text "fv" <+> (text . show) (fv e)
                 ]
               __IMPOSSIBLE__
@@ -278,7 +278,7 @@ replaceForced (vars,uvars) tele (fvar : fvars) unif e = do
 
 -- | Given a term containg the forced var, dig out the variable by inserting
 -- the proper case-expressions.
-buildTerm :: Var -> Nat -> Term -> Compile TCM (Expr -> Expr, Var)
+buildTerm :: AName -> Nat -> Term -> Compile TCM (Expr -> Expr, AName)
 buildTerm var idx (I.Var i _) | idx == i = return (id, var)
 buildTerm var idx (I.Con con args) = do
     let c = I.conName con

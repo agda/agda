@@ -20,19 +20,19 @@ type Inline   = Bool
 data Fun
   = Fun
       { funInline  :: Inline
-      , funName    :: Var
+      , funName    :: AName
       , funQName   :: Maybe QName
       , funComment :: Comment
-      , funArgs    :: [Var]
+      , funArgs    :: [AName]
       , funExpr    :: Expr
       }
   | CoreFun
-      { funName     :: Var
+      { funName     :: AName
       , funQName    :: Maybe QName
       , funComment  :: Comment
-      , funCoreName :: CoreExpr
+      , funCoreExpr :: CoreExpr
       }
-  deriving (Eq, Show) -- Ord
+  deriving (Eq, Show)
 
 data Lit
   = LInt    Integer
@@ -43,25 +43,25 @@ data Lit
 
 
 data Expr
-  = Var Var
+  = Var AName
   | Lit Lit
-  | Lam Var Expr
+  | Lam AName Expr
   | Con Tag QName [Expr]
-  | App Var [Expr]
+  | App AName [Expr]
   | Case Expr [Branch]
-  | Let Var Expr Expr
+  | Let AName Expr Expr
   | UNIT
   | IMPOSSIBLE
   deriving (Show, Ord, Eq)
 
 data Branch
-  = Branch  {brTag  :: Tag, brName :: QName, brVars :: [Var], brExpr :: Expr}
-  | CoreBranch {brDt :: String, brCtor :: String, brCrTag :: Integer, brVars :: [Var], brExpr :: Expr}
+  = Branch  {brTag  :: Tag, brName :: QName, brVars :: [AName], brExpr :: Expr}
+  | CoreBranch {brDt :: String, brCtor :: String, brCrTag :: Integer, brVars :: [AName], brExpr :: Expr}
   | BrInt   {brInt  :: Int, brExpr :: Expr}
   | Default {brExpr :: Expr}
   deriving (Show, Ord, Eq)
 
-getBrVars :: Branch -> [Var]
+getBrVars :: Branch -> [AName]
 getBrVars (Branch {brVars = vs}) = vs
 getBrVars (CoreBranch {brVars = vs}) = vs
 getBrVars _                      = []
@@ -70,7 +70,7 @@ getBrVars _                      = []
 -- * Some smart constructors
 
 -- | Smart constructor for let expressions to avoid unneceessary lets
-lett :: Var -> Expr -> Expr -> Expr
+lett :: AName -> Expr -> Expr -> Expr
 lett v (Var v') e' = subst v v' e'
 lett v e        e' = if v `elem` fv e' then Let v e e' else e'
 
@@ -100,7 +100,7 @@ casee x brs = Case x [br{brExpr = casingE br (brExpr br)} | br <- brs]
     sameCon _                     _                     = False
 
 -- | Smart constructor for applications to avoid empty applications
-apps :: Var -> [Expr] -> Expr
+apps :: AName -> [Expr] -> Expr
 apps v [] = Var v
 apps v as = App v as
 
@@ -108,8 +108,8 @@ apps v as = App v as
 -- * Substitution
 
 -- | Substitution
-subst :: Var  -- ^ Substitute this ...
-      -> Var  -- ^ with this ...
+subst :: AName  -- ^ Substitute this ...
+      -> AName  -- ^ with this ...
       -> Expr -- ^ in this.
       -> Expr
 subst var var' expr = case expr of
@@ -130,17 +130,17 @@ subst var var' expr = case expr of
     UNIT       -> UNIT
     IMPOSSIBLE -> IMPOSSIBLE
 
-substs :: [(Var, Var)] -> Expr -> Expr
+substs :: [(AName, AName)] -> Expr -> Expr
 substs ss e = foldr (uncurry subst) e ss
 
-substBranch :: Var -> Var -> Branch -> Branch
+substBranch :: AName -> AName -> Branch -> Branch
 substBranch x e br = br { brExpr = subst x e (brExpr br) }
 
 -- | Get the free variables in an expression
-fv :: Expr -> [Var]
+fv :: Expr -> [AName]
 fv = S.toList . fv'
   where
-    fv' :: Expr -> Set Var
+    fv' :: Expr -> Set AName
     fv' expr = case expr of
       Var v    -> S.singleton v
       Lit _    -> S.empty
@@ -154,7 +154,7 @@ fv = S.toList . fv'
       UNIT       -> S.empty
       IMPOSSIBLE -> S.empty
 
-    fvBr :: Branch -> Set Var
+    fvBr :: Branch -> Set AName
     fvBr b = case b of
       Branch _ _ vs e -> fv' e S.\\ S.fromList vs
       CoreBranch _ _ _ vs e -> fv' e S.\\ S.fromList vs

@@ -54,8 +54,8 @@ linkWithPrelude fPre modMain = do
 
 
 linkWithPrelude1 :: CModule -> CModule -> CModule
-linkWithPrelude1 (CModule_Mod preNm preMetaDecl preLets) (CModule_Mod mainNm mainMetaDecl mainLets) =
-  CModule_Mod mainNm (preMetaDecl ++ mainMetaDecl) (insertNewMain preLets)
+linkWithPrelude1 (CModule_Mod preNm preImps preMetaDecl preLets) (CModule_Mod mainNm mainImpts mainMetaDecl mainLets) =
+  CModule_Mod mainNm [] (preMetaDecl ++ mainMetaDecl) (insertNewMain preLets)
   where insertNewMain :: CExpr -> CExpr
 	insertNewMain (CExpr_Let categ bnds expr) = case getMainBind [] bnds of
 		(Just [])	-> mainLets
@@ -73,14 +73,14 @@ toCore mod funs = do
   binds <- mapM funToBind funs
   let mainEhc = CExpr_Let CBindCateg_Plain [
 	CBind_Bind (hsnFromString "main") [
-		CBound_Bind cmetas (CExpr_App (CExpr_Var $ acoreMkRef $ hsnFromString "UHC.Run.ehcRunMain") (CBound_Bind cmetas (CExpr_Var $ acoreMkRef $ hsnFromString (mod ++ ".main"))))]
+		CBound_Bind cmetas (CExpr_App (CExpr_Var $ acoreMkRef $ hsnFromString "UHC.Run.ehcRunMain") (CBound_Bind cmetas (CExpr_Var $ acoreMkRef $ toCoreName $ ANmAgda (mod ++ ".main"))))]
 	] (CExpr_Var (acoreMkRef $ hsnFromString "main"))
   let lets = CExpr_Let CBindCateg_Rec binds mainEhc
 
   constrs <- getsEI constrTags
   cMetaDeclL <- buildCMetaDeclL constrs
 
-  return $ CModule_Mod (hsnFromString mod) cMetaDeclL lets
+  return $ CModule_Mod (hsnFromString mod) [] cMetaDeclL lets
 
 buildCMetaDeclL :: M.Map QName Tag -> Compile TCM CDeclMetaL
 buildCMetaDeclL m = do
@@ -104,36 +104,36 @@ funToBind :: MonadTCM m => Fun -> Compile m CBind
 funToBind (Fun _ name mqname comment vars e) = do -- TODO what is mqname?
   e' <- exprToCore e
   let aspects = [CBound_Bind cmetas (foldr mkLambdas e' vars)]
-  return $ CBind_Bind (toHsName name) aspects
-  where mkLambdas :: Var -> CExpr -> CExpr
-        mkLambdas v body = CExpr_Lam (CBind_Bind (toHsName v) []) body
-funToBind (CoreFun name _ _ crExpr) = return $ CBind_Bind (toHsName name) [CBound_Bind cmetas crExpr]
+  return $ CBind_Bind (toCoreName name) aspects
+  where mkLambdas :: AName -> CExpr -> CExpr
+        mkLambdas v body = CExpr_Lam (CBind_Bind (toCoreName v) []) body
+funToBind (CoreFun name _ _ crExpr) = return $ CBind_Bind (toCoreName name) [CBound_Bind cmetas crExpr]
 
 cmetas = (CMetaBind_Plain, CMetaVal_Val)
 
 exprToCore :: MonadTCM m => Expr -> Compile m CExpr
-exprToCore (Var v)      = return $ CExpr_Var (acoreMkRef $ toHsName v)
+exprToCore (Var v)      = return $ CExpr_Var (acoreMkRef $ toCoreName v)
 exprToCore (Lit l)      = return $ litToCore l
-exprToCore (Lam v body) = exprToCore body >>= return . CExpr_Lam (CBind_Bind (toHsName v) [])
+exprToCore (Lam v body) = exprToCore body >>= return . CExpr_Lam (CBind_Bind (toCoreName v) [])
 exprToCore (Con t qn es) = do
     es' <- mapM exprToCore es
     let ctor = CExpr_Tup $ mkCTag t qn
     return $ foldl (\x e -> CExpr_App x (CBound_Bind cmetas e)) ctor es'
 exprToCore (App fv es)   = do
     es' <- mapM exprToCore es
-    let fv' = CExpr_Var (acoreMkRef $ toHsName fv)
+    let fv' = CExpr_Var (acoreMkRef $ toCoreName fv)
     return $ foldl (\x e -> CExpr_App x (CBound_Bind cmetas e)) fv' es'
 exprToCore (Case e brs) = do
     var <- newName
     (def, branches) <- branchesToCore brs
-    let cas = CExpr_Case (CExpr_Var (acoreMkRef $ toHsName var)) branches def
+    let cas = CExpr_Case (CExpr_Var (acoreMkRef $ toCoreName var)) branches def
     e' <- exprToCore e
-    return $ CExpr_Let CBindCateg_Strict [CBind_Bind (toHsName var) [CBound_Bind cmetas e']] cas
+    return $ CExpr_Let CBindCateg_Strict [CBind_Bind (toCoreName var) [CBound_Bind cmetas e']] cas
 exprToCore (Let v e1 e2) = do
     e1' <- exprToCore e1
     e2' <- exprToCore e2
 -- TODO do we really need let-rec here?
-    return $ CExpr_Let CBindCateg_Rec [CBind_Bind (toHsName v)
+    return $ CExpr_Let CBindCateg_Rec [CBind_Bind (toCoreName v)
                                 [CBound_Bind cmetas e1']] e2'
 exprToCore UNIT         = return $ coreUnit
 exprToCore IMPOSSIBLE   = return $ coreImpossible
@@ -148,12 +148,12 @@ branchesToCore brs = do
     where f (Branch tag qn vars e)  = do
             -- TODO fix up everything
             let ctag = mkCTag tag qn
-            let binds = [CPatFld_Fld (hsnFromString "") (CExpr_Int i) (CBind_Bind (toHsName v) []) [] | (i, v) <- zip [0..] vars]
+            let binds = [CPatFld_Fld (hsnFromString "") (CExpr_Int i) (CBind_Bind (toCoreName v) []) [] | (i, v) <- zip [0..] vars]
             e' <- exprToCore e
             return [CAlt_Alt (CPat_Con ctag CPatRest_Empty binds) e']
           f (CoreBranch dt ctor tag vars e) = do
             let ctag = CTag (hsnFromString dt) (hsnFromString ctor) (fromIntegral tag) 0 0
-            let binds = [CPatFld_Fld (hsnFromString "") (CExpr_Int i) (CBind_Bind (toHsName v) []) [] | (i, v) <- zip [0..] vars]
+            let binds = [CPatFld_Fld (hsnFromString "") (CExpr_Int i) (CBind_Bind (toCoreName v) []) [] | (i, v) <- zip [0..] vars]
             e' <- exprToCore e
             return [CAlt_Alt (CPat_Con ctag CPatRest_Empty binds) e']
           f (BrInt _ _) = error "TODO"
@@ -162,7 +162,7 @@ branchesToCore brs = do
           isDefault _ = False
 
 qnameTypeName :: QName -> HsName
-qnameTypeName = hsnFromString . unqname . qnameFromList . init . qnameToList
+qnameTypeName = toCoreName . unqname . qnameFromList . init . qnameToList
 
 qnameCtorName :: QName -> HsName
 qnameCtorName = hsnFromString . show . last . qnameToList
@@ -190,9 +190,11 @@ coreStr s = CExpr_App (CExpr_Var $ acoreMkRef $ hsnFromString "UHC.Base.packedSt
 coreUnit :: CExpr
 coreUnit = CExpr_Int 0
 
-toHsName :: String -> HsName
-toHsName n = hsnFromString $ case elemIndex '.' nr of
-    Just i -> let (n', ns') = splitAt i nr
-               in (reverse ns') ++ "agda_c1_" ++ (reverse n')
-    Nothing -> "agda_c2_" ++ n
-  where nr = reverse n
+toCoreName :: AName -> HsName
+toCoreName (ANmCore n) = hsnFromString n
+toCoreName (ANmAgda n) = hsnFromString $
+    case elemIndex '.' nr of
+        Just i -> let (n', ns') = splitAt i nr
+                   in (reverse ns') ++ "agda_c1_" ++ (reverse n')
+        Nothing -> n -- local (generated) name, always valid haskell identifiers
+    where nr = reverse n

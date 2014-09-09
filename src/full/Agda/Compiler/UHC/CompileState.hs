@@ -31,7 +31,7 @@ import Agda.Utils.Impossible
 
 -- | Stuff we need in our compiler
 data CompileState = CompileState
-    { nameSupply      :: [Var]
+    { nameSupply      :: [AName]
     , compiledModules :: Map TopLevelModuleName (EInterface, Set FilePath)
     , curModule       :: EInterface
     , importedModules :: EInterface
@@ -41,7 +41,7 @@ data CompileState = CompileState
 -- | The initial (empty) state
 initCompileState :: CompileState
 initCompileState = CompileState
-    { nameSupply        = map (('h':) . show) [0 :: Integer ..]
+    { nameSupply        = map (ANmAgda . ('h':) . show) [0 :: Integer ..]
     , compiledModules   = M.empty
     , curModule         = mempty
     , importedModules   = mempty
@@ -70,8 +70,8 @@ getType q = do
     return $ maybe __IMPOSSIBLE__ defType (HM.lookup q map)
 
 -- | Create a name which can be used in Epic code from a QName.
-unqname :: QName -> Var
-unqname qn = show qn
+unqname :: QName -> AName
+unqname qn = ANmAgda $ show qn
 --case nameId $ qnameName qn of
 --    NameId name modul -> 'd' : show modul
 --                     ++ "_" ++ show name
@@ -87,11 +87,17 @@ getDelayed q = lookInterface (M.lookup q . defDelayed) (return False)
 putDelayed :: MonadTCM m => QName -> Bool -> Compile m ()
 putDelayed q d = modifyEI $ \s -> s {defDelayed = M.insert q d (defDelayed s)}
 
-newName :: MonadTCM m => Compile m Var
+newName :: MonadTCM m => Compile m AName
 newName = do
     n:ns <- gets nameSupply
     modify $ \s -> s { nameSupply = ns}
     return n
+
+-- | Derives a new unique (agda) name from the given name.
+newName1 :: MonadTCM m => AName -> Compile m AName
+newName1 np = do
+  n' <- newName
+  return $ ANmAgda (aNmName np ++ "_" ++ aNmName n')
 
 putConstrTag :: MonadTCM m => QName -> Tag -> Compile m ()
 putConstrTag q t = modifyEI $ \s -> s { constrTags = M.insert q t $ constrTags s }
@@ -143,7 +149,7 @@ addDefName :: MonadTCM m => QName -> Compile m ()
 addDefName q = do
     modifyEI $ \s -> s {definitions = S.insert (unqname q) $ definitions s }
 
-topBindings :: MonadTCM m => Compile m (Set Var)
+topBindings :: MonadTCM m => Compile m (Set AName)
 topBindings = S.union <$> gets (definitions . importedModules) <*> gets (definitions . curModule)
 
 getConArity :: MonadTCM m => QName -> Compile m Int
@@ -155,7 +161,7 @@ putConArity n p = modifyEI $ \s -> s { conArity = M.insert n p (conArity s) }
 putMain :: MonadTCM m => QName -> Compile m ()
 putMain m = modifyEI $ \s -> s { mainName = Just m }
 
-getMain :: MonadTCM m => Compile m Var
+getMain :: MonadTCM m => Compile m AName
 getMain = maybe (epicError "Where is main? :(") (return . unqname) =<< getsEI mainName
 
 lookInterface :: MonadTCM m => (EInterface -> Maybe a) -> Compile m a -> Compile m a
@@ -207,7 +213,7 @@ constructorArity q = do
     _ -> internalError $ "constructorArity: non constructor: " ++ show q
 
 -- | Bind an expression to a fresh variable name
-bindExpr :: MonadTCM m => Expr -> (Var -> Compile m Expr) -> Compile m Expr
+bindExpr :: MonadTCM m => Expr -> (AName -> Compile m Expr) -> Compile m Expr
 bindExpr expr f = case expr of
   AuxAST.Var v -> f v
   _     -> do

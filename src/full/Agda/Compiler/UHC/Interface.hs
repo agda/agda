@@ -14,7 +14,12 @@ import Data.Typeable
 import Agda.Syntax.Common (Nat)
 import Agda.Syntax.Internal
 
-type Var       = String
+data AName
+  = ANmCore { aNmName :: String }
+  | ANmAgda { aNmName :: String }
+  deriving (Show, Eq, Ord)
+
+
 data Tag       = Tag Int
 --               | PrimTag Var
   deriving (Show, Eq, Ord, Typeable)
@@ -50,11 +55,11 @@ data InjectiveFun = InjectiveFun
 
 data EInterface = EInterface
     { constrTags    :: Map QName Tag
-    , definitions   :: Set Var
+    , definitions   :: Set AName
     , defDelayed    :: Map QName Bool
     , conArity      :: Map QName Int
     , mainName      :: Maybe QName
-    , relevantArgs  :: Map Var   RelevantArgs
+    , relevantArgs  :: Map AName   RelevantArgs
     , forcedArgs    :: Map QName ForcedArgs
     , injectiveFuns :: Map QName InjectiveFun
     } deriving (Typeable, Show)
@@ -83,3 +88,4 @@ instance Monoid EInterface where
     where
       comb :: Monoid a => (EInterface -> a) -> a
       comb f = (mappend `on` f) x y
+

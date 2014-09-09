@@ -387,7 +387,7 @@ library
 --                    Agda.Compiler.UHC.CaseOpts
                     Agda.Compiler.UHC.CompileState
                     Agda.Compiler.UHC.Core
---                    Agda.Compiler.UHC.Erasure
+                    Agda.Compiler.UHC.Erasure
                     Agda.Compiler.UHC.ForceConstrs
                     Agda.Compiler.UHC.Forcing
                     Agda.Compiler.UHC.FromAgda

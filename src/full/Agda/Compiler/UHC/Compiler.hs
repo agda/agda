@@ -41,7 +41,7 @@ import Agda.Compiler.UHC.CompileState
 --import qualified Agda.Compiler.UHC.CaseOpts     as COpts
 import qualified Agda.Compiler.UHC.ForceConstrs as ForceC
 import Agda.Compiler.UHC.Core
---import qualified Agda.Compiler.UHC.Erasure      as Eras
+import qualified Agda.Compiler.UHC.Erasure      as Eras
 import qualified Agda.Compiler.UHC.FromAgda     as FAgda
 import qualified Agda.Compiler.UHC.Forcing      as Forcing
 --import qualified Agda.Compiler.UHC.Injection    as ID
@@ -147,7 +147,7 @@ compileModule i = do
                     if (not $ null defns) then do
                         code <- compileDefns moduleName defns
 			-- HACK
-			code' <- linkWithPrelude "/home/philipp/Projects/exp1/src/examples/HelloWorld/HelloWorld_Uhc_Pre.tcr" code
+			code' <- linkWithPrelude "/home/philipp/Projects/uu/exp1/src/examples/HelloWorld/HelloWorld_Uhc_Pre.tcr" code
                         runUHC file (S.toList imps) code'
                         eif <- gets curModule
 -- PH : TODO see missing instance problem in readEInterface
@@ -220,7 +220,7 @@ compileDefns mod defs = do
     toCore modName emits
 
 writeCoreFile :: String -> EC.CModule -> IO ()
-writeCoreFile f c = putPPFile f (EP.ppCModule ehcOpts c) 200
+writeCoreFile f mod = putPPFile f (EP.ppCModule ehcOpts mod) 200
 
 -- | Change the current directory to Epic folder, create it if it doesn't already
 --   exist.
@@ -251,7 +251,7 @@ runUHC fp imports code = do
         [ "-c", fp <.> "e" ]-}
 
 -- | Create the Epic main file, which calls the Agda main function
-runUhcMain :: Var -> [FilePath] -> ModuleName -> Compile TCM ()
+runUhcMain :: AName -> [FilePath] -> ModuleName -> Compile TCM ()
 runUhcMain mainName imports m = do
     return ()
 {-    dataDir <- (</> "EpicInclude") <$> liftIO getDataDir

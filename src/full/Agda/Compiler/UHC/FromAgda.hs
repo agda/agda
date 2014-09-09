@@ -71,7 +71,7 @@ translateDefn msharp (n, defini) =
           Just (CrConstr dt (ctr, _)) -> do
                 -- UHC generates a wrapper function for all datatypes, so just call that one
                 let ctorFun = (reverse $ dropWhile (/='.') $ reverse dt) ++ ctr
-                return <$> mkFunGen n (const $ App ctorFun) (const $ "constructor: " ++ show n) (unqname n) ctr arit
+                return <$> mkFunGen n (const $ App $ ANmCore ctorFun) (const $ "constructor: " ++ show n) (unqname n) ctr arit
           Nothing                -> return <$> mkCon n tag arit
           _                      -> error "Compiled core must be def, something went wrong."
         -- Sharp has to use the primSharp function from AgdaPrelude.e
@@ -93,14 +93,15 @@ translateDefn msharp (n, defini) =
       let ar = arity $ defType defini
       return <$> mkFun n n' (primName p) ar
   where
-    mkFun q = mkFunGen q apps ("primitive: " ++)
+    mkFun :: QName -> AName -> String -> Int -> Compile TCM Fun
+    mkFun q n = mkFunGen q (const $ apps n) (("primitive: " ++) . show) n
     mkCon q tag ari = do
         let name = unqname q
         mkFunGen q (flip Con q) (const $ "constructor: " ++ show q) name tag ari
     mkFunGen :: QName                    -- ^ Original name
             -> (name -> [Expr] -> Expr) -- ^ combinator
             -> (name -> String)         -- ^ make comment
-            -> Var                      -- ^ Name of the function
+            -> AName                      -- ^ Name of the function
             -> name                     -- ^ Primitive function name
             -> Int                      -- ^ Arity ofthe function
             -> Compile TCM Fun            -- ^ Result?
@@ -116,7 +117,7 @@ translateDefn msharp (n, defini) =
             , funArgs = funArgs fun ++ names
             }
 -}
-    (@@) :: Expr -> [Var] -> Expr
+    (@@) :: Expr -> [AName] -> Expr
     e @@ [] = e
     e @@ vs = let ts = map Var vs in case e of
       Var var -> apps var ts
@@ -126,14 +127,12 @@ translateDefn msharp (n, defini) =
       Con tag qName es -> Con tag qName (es ++ ts)
       App var es       -> App var (es ++ ts)
       Case expr bs     -> Case expr (map (flip appBranch vs) bs)
---      If ea eb ec      -> If ea (eb @@ vs) (ec @@ vs)
       Let var el e'    -> lett var el (e' @@ vs)
---      Lazy e'          -> Lazy (e' @@ vs)
       Lit _lit         -> IMPOSSIBLE -- Right?
       UNIT             -> IMPOSSIBLE
       IMPOSSIBLE       -> IMPOSSIBLE
 
-    appBranch :: Branch -> [Var] -> Branch
+    appBranch :: Branch -> [AName] -> Branch
     appBranch b vs = b {brExpr = brExpr b @@ vs}
 
 reverseCCBody :: Int -> CC.CompiledClauses -> CC.CompiledClauses
@@ -187,7 +186,7 @@ compileClauses name nargs c = do
     e    <- compileClauses' vars Nothing c
     return $ Fun False n' (Just name) ("function: " ++ show name) vars e
   where
-    compileClauses' :: [Var] -> Maybe Var -> CC.CompiledClauses -> Compile TCM Expr
+    compileClauses' :: [AName] -> Maybe AName -> CC.CompiledClauses -> Compile TCM Expr
     compileClauses' env omniDefault cc = case cc of
         CC.Case n nc -> case length env <= n of
            True -> __IMPOSSIBLE__
@@ -202,7 +201,7 @@ compileClauses name nargs c = do
         CC.Done _ t -> substTerm ({- reverse -} env) t
         CC.Fail     -> return IMPOSSIBLE
 
-    compileCase :: [Var] -> Maybe Var -> Int -> CC.Case CC.CompiledClauses
+    compileCase :: [AName] -> Maybe AName -> Int -> CC.Case CC.CompiledClauses
                 -> Compile TCM [Branch]
     compileCase env omniDefault casedvar nc = do
         cb <- if M.null (CC.conBranches nc)
@@ -247,7 +246,7 @@ compileClauses name nargs c = do
 -- | Translate the actual Agda terms, with an environment of all the bound variables
 --   from patternmatching. Agda terms are in de Bruijn so we just check the new
 --   names in the position.
-substTerm :: [Var] -> T.Term -> Compile TCM Expr
+substTerm :: [AName] -> T.Term -> Compile TCM Expr
 substTerm env term = case T.unSpine term of
     T.Var ind es -> do
       let args = fromMaybe __IMPOSSIBLE__ $ allApplyElims es
@@ -297,3 +296,4 @@ substLit lit = case lit of
   TL.LitChar   _ c -> return $ LChar c
   TL.LitFloat  _ f -> return $ LFloat f
   _ -> epicError $ "literal not supported: " ++ show lit
+
