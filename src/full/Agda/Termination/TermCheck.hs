@@ -20,14 +20,18 @@ module Agda.Termination.TermCheck
     , Result, DeBruijnPat
     ) where
 
+import Prelude hiding (null)
+
 import Control.Applicative
 import Control.Monad.Error
 import Control.Monad.State
 
-import Data.List as List
+import Data.List hiding (null)
+import qualified Data.List as List
 import Data.Maybe (mapMaybe, isJust, fromMaybe)
 import Data.Monoid
 import qualified Data.Map as Map
+import Data.Set (Set)
 import qualified Data.Set as Set
 import Data.Traversable (traverse)
 
@@ -41,8 +45,8 @@ import Agda.Syntax.Literal (Literal(LitString))
 
 import Agda.Termination.CutOff
 import Agda.Termination.Monad
-import Agda.Termination.CallGraph (CallGraph)
-import Agda.Termination.CallGraph as CallGraph
+import Agda.Termination.CallGraph hiding (null)
+import qualified Agda.Termination.CallGraph as CallGraph
 import Agda.Termination.CallMatrix hiding (null)
 import Agda.Termination.Order     as Order
 import qualified Agda.Termination.SparseMatrix as Matrix
@@ -74,6 +78,7 @@ import Agda.Utils.List
 import Agda.Utils.Size
 import Agda.Utils.Maybe
 import Agda.Utils.Monad -- (mapM', forM', ifM, or2M, and2M)
+import Agda.Utils.Null
 import Agda.Utils.Permutation
 import Agda.Utils.Pointed
 import Agda.Utils.Pretty (render)
@@ -187,7 +192,7 @@ termMutual i ds = if names == [] then return mempty else
         billTo [Benchmark.Termination, Benchmark.RecCheck] $ recursive allNames
 
   -- NO_TERMINATION_CHECK
-  if (Info.mutualTermCheck i == NoTerminationCheck) then do
+  if (Info.mutualTermCheck i `elem` [ NoTerminationCheck, Terminating ]) then do
       reportSLn "term.warn.yes" 2 $ "Skipping termination check for " ++ show names
       forM_ allNames $ \ q -> setTerminates q True -- considered terminating!
       return mempty
@@ -203,43 +208,24 @@ termMutual i ds = if names == [] then return mempty else
       return mempty)
    $ {- else -} do
 
-     -- Assemble then initial configuration of the termination environment.
-
-     cutoff <- optTerminationDepth <$> pragmaOptions
-
-     reportSLn "term.top" 10 $ "Termination checking " ++ show names ++
-       " with cutoff=" ++ show cutoff ++ "..."
-
-     -- Get the name of size suc (if sized types are enabled)
-     suc <- sizeSucName
-
-     -- The name of sharp (if available).
-     sharp <- fmap nameOfSharp <$> coinductionKit
-
-     guardingTypeConstructors <-
-       optGuardingTypeConstructors <$> pragmaOptions
-
-     -- Andreas, 2014-08-28
-     -- We do not inline with functions if --without-K.
-     inlineWithFunctions <- not . optWithoutK <$> pragmaOptions
-
-     let tenv = defaultTerEnv
-           { terGuardingTypeConstructors = guardingTypeConstructors
-           , terInlineWithFunctions      = inlineWithFunctions
-           , terSizeSuc                  = suc
-           , terSharp                    = sharp
-           , terCutOff                   = cutoff
-           , terMutual                   = allNames
-           , terUserNames                = names
+     -- Set the mutual names in the termination environment.
+     let setNames e = e
+           { terMutual    = allNames
+           , terUserNames = names
            }
+         runTerm cont = runTerDefault $ do
+           cutoff <- terGetCutOff
+           reportSLn "term.top" 10 $ "Termination checking " ++ show names ++
+             " with cutoff=" ++ show cutoff ++ "..."
+           terLocal setNames cont
 
      -- New check currently only makes a difference for copatterns.
      -- Since it is slow, only invoke it if --copatterns.
      res <- ifM (optCopatterns <$> pragmaOptions)
          -- Then: New check, one after another.
-         (runTerm tenv $ forM' allNames $ termFunction)
+         (runTerm $ forM' allNames $ termFunction)
          -- Else: Old check, all at once.
-         (runTerm tenv $ termMutual')
+         (runTerm $ termMutual')
 
      -- record result of termination check in signature
      let terminates = List.null res
@@ -337,9 +323,9 @@ reportCalls no calls = do
          step cs = do
            let (new, cs') = completionStep cs0 cs
            report " New call matrices " new
-           return (not $ CallGraph.null new, cs')
+           return $ if CallGraph.null new then Left () else Right cs'
      report " Initial call matrices " cs0
-     void $ trampolineM step cs0
+     trampolineM step cs0
 
    -- Print the result of completion.
    let calls' = CallGraph.complete calls
@@ -376,10 +362,22 @@ termFunction name = do
    reportTarget target
    terSetTarget target $ do
 
-   -- Collect all recursive calls in the block,
-   -- taking the target of the current function into account.
+   -- Collect the recursive calls in the block which (transitively)
+   -- involve @name@,
+   -- taking the target of @name@ into account for computing guardedness.
 
-   let collect = forM' allNames termDef
+   let collect = (`trampolineM` (Set.singleton index, mempty, mempty)) $ \ (todo, done, calls) -> do
+         if null todo then return $ Left calls else do
+         -- Extract calls originating from indices in @todo@.
+         new <- forM' todo $ \ i ->
+           termDef $ fromMaybe __IMPOSSIBLE__ $ allNames !!! i
+         -- Mark those functions as processed and add the calls to the result.
+         let done'  = done `mappend` todo
+             calls' = new  `mappend` calls
+         -- Compute the new todo list:
+             todo' = CallGraph.targetNodes new Set.\\ done'
+         -- Jump the trampoline.
+         return $ Right (todo', done', calls')
 
    -- First try to termination check ignoring the dot patterns
    calls1 <- terSetUseDotPatterns False $ collect
@@ -423,6 +421,15 @@ typeEndsInDef t = liftTCM $ do
     _        -> return Nothing
 
 -- | Termination check a definition by pattern matching.
+--
+--   TODO: Refactor!
+--   As this function may be called twice,
+--   once disregarding dot patterns,
+--   the second time regarding dot patterns,
+--   it is better if we separated bare call extraction
+--   from computing the change in structural order.
+--   Only the latter depends on the choice whether we
+--   consider dot patterns or not.
 termDef :: QName -> TerM Calls
 termDef name = terSetCurrent name $ do
 

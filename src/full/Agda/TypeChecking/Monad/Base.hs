@@ -1626,6 +1626,8 @@ data TypeError
         | SafeFlagPostulate C.Name
         | SafeFlagPragma [String]
         | SafeFlagNoTerminationCheck
+        | SafeFlagNonTerminating
+        | SafeFlagTerminating
         | SafeFlagPrimTrustMe
     -- Language option errors
         | NeedOptionCopatterns

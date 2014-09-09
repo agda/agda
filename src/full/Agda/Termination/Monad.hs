@@ -22,7 +22,7 @@ import Control.Monad.State
 import Data.Functor ((<$>))
 import qualified Data.List as List
 
-import Agda.Interaction.Options (defaultCutOff)
+import Agda.Interaction.Options
 
 import Agda.Syntax.Abstract (QName,IsProjP(..))
 import Agda.Syntax.Common   (Delayed(..), Induction(..), Dom(..))
@@ -172,12 +172,45 @@ class (Functor m, Monad m) => MonadTer m where
 newtype TerM a = TerM { terM :: ReaderT TerEnv TCM a }
   deriving (Functor, Applicative, Monad)
 
-runTerm :: TerEnv -> TerM a -> TCM a
-runTerm tenv (TerM m) = runReaderT m tenv
-
 instance MonadTer TerM where
   terAsk     = TerM $ ask
   terLocal f = TerM . local f . terM
+
+-- | Generic run method for termination monad.
+runTer :: TerEnv -> TerM a -> TCM a
+runTer tenv (TerM m) = runReaderT m tenv
+
+-- | Run TerM computation in default environment (created from options).
+
+runTerDefault :: TerM a -> TCM a
+runTerDefault cont = do
+
+  -- Assemble then initial configuration of the termination environment.
+
+  cutoff <- optTerminationDepth <$> pragmaOptions
+
+  -- Get the name of size suc (if sized types are enabled)
+  suc <- sizeSucName
+
+  -- The name of sharp (if available).
+  sharp <- fmap nameOfSharp <$> coinductionKit
+
+  guardingTypeConstructors <-
+    optGuardingTypeConstructors <$> pragmaOptions
+
+  -- Andreas, 2014-08-28
+  -- We do not inline with functions if --without-K.
+  inlineWithFunctions <- not . optWithoutK <$> pragmaOptions
+
+  let tenv = defaultTerEnv
+        { terGuardingTypeConstructors = guardingTypeConstructors
+        , terInlineWithFunctions      = inlineWithFunctions
+        , terSizeSuc                  = suc
+        , terSharp                    = sharp
+        , terCutOff                   = cutoff
+        }
+
+  runTer tenv cont
 
 -- * Termination monad is a 'MonadTCM'.
 
@@ -198,7 +231,7 @@ instance MonadTCM TerM where
 instance MonadError TCErr TerM where
   throwError = liftTCM . throwError
   catchError m handler = TerM $ ReaderT $ \ tenv -> do
-    runTerm tenv m `catchError` (\ err -> runTerm tenv $ handler err)
+    runTer tenv m `catchError` (\ err -> runTer tenv $ handler err)
 
 -- * Modifiers and accessors for the termination environment in the monad.
 

@@ -7,18 +7,29 @@ module Agda.Utils.Function where
 --   as @Just{}@ is returned, and returns the last value of @a@
 --   upon @Nothing@.
 --
---   @usualTrampoline f = trampoline $ \ a -> maybe (False,a) (True,) (f a)@.
-trampoline :: (a -> (Bool, a)) -> a -> a
-trampoline f = loop where
+--   @usualTrampoline f = trampolineWhile $ \ a -> maybe (False,a) (True,) (f a)@.
+trampolineWhile :: (a -> (Bool, a)) -> a -> a
+trampolineWhile f = loop where
   loop a = if again then loop a' else a'
     where (again, a') = f a
 
--- | Monadic version of 'trampoline'.
-trampolineM :: (Monad m) => (a -> m (Bool, a)) -> a -> m a
-trampolineM f = loop where
+-- | Monadic version of 'trampolineWhile'.
+trampolineWhileM :: (Monad m) => (a -> m (Bool, a)) -> a -> m a
+trampolineWhileM f = loop where
   loop a = do
     (again, a') <- f a
     if again then loop a' else return a'
+
+-- | More general trampoline, which allows some final computation
+--   from iteration state @a@ into result type @b@.
+trampoline :: (a -> Either b a) -> a -> b
+trampoline f = loop where
+  loop a = either id loop $ f a
+
+-- | Monadic verison of 'trampoline'.
+trampolineM :: Monad m => (a -> m (Either b a)) -> a -> m b
+trampolineM f = loop where
+  loop a = either return loop =<< f a
 
 -- | Iteration to fixed-point.
 --

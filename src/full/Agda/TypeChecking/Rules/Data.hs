@@ -373,7 +373,7 @@ constructs nofPars t q = constrT 0 t
         nonLinearParams n pars ixs =
           -- compute the free de Bruijn indices in the data indices
           -- ALT: Ignore all sorts?
-          let fv = freeVars' FreeConf{ fcIgnoreSorts = IgnoreInAnnotations } ixs
+          let fv = freeVarsIgnore IgnoreInAnnotations ixs
           -- keep relevant ones, convert to de Bruijn levels
           -- note: xs is descending list
               xs = map ((n-1) -) $ VarSet.toList $ relevantVars fv
