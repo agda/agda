@@ -83,7 +83,7 @@ compilerMain inter = do
     case epic_exist of
         ExitSuccess -> flip evalStateT initCompileState $ do
 --            compilePrelude
-            setEpicDir inter
+            setUHCDir inter
             (_, imports) <- compileModule inter
             main <- getMain
             runUhcMain main (S.toList imports) (iModuleName inter)
@@ -224,8 +224,8 @@ writeCoreFile f mod = putPPFile f (EP.ppCModule ehcOpts mod) 200
 
 -- | Change the current directory to Epic folder, create it if it doesn't already
 --   exist.
-setEpicDir :: Interface -> Compile (TCMT IO) ()
-setEpicDir mainI = do
+setUHCDir :: Interface -> Compile (TCMT IO) ()
+setUHCDir mainI = do
     let tm = toTopLevelModuleName $ iModuleName mainI
     f <- lift $ findFile tm
     compileDir' <- lift $ gets (fromMaybe (filePath $ CN.projectRoot f tm) .
@@ -247,6 +247,8 @@ runUHC fp imports code = do
                                     : map (<.> "ei") imports]
         code'    = imports' ++ code-}
     liftIO $ writeCoreFile (fp <.> "tcr") code
+    -- this is a hack, fix this for supporting multiple agda modules
+    callUHC (fp <.> "tcr")
 {-    callEpic True $
         [ "-c", fp <.> "e" ]-}
 
@@ -268,6 +270,12 @@ runUhcMain mainName imports m = do
         , "-o", ".." </> show outputName
         ]
         ++ epic ++ map (<.> "o") imports'-}
+
+callUHC :: FilePath -> Compile TCM ()
+callUHC fp = do
+    let uhc = "/home/philipp/Projects/uu/uhc/uhc/EHC/install/99/bin/ehc"
+        uhcCmd = [ fp ]
+    lift $ callCompiler uhc uhcCmd
 {-
 -- | Call epic, with a given set of flags, if the |Bool| is True then include
 -- the command line flags at the end
