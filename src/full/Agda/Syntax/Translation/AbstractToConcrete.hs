@@ -58,7 +58,7 @@ import Agda.TypeChecking.Monad.Base  (TCM, NamedMeta(..))
 import Agda.TypeChecking.Monad.Options
 
 import qualified Agda.Utils.AssocList as AssocList
-import Agda.Utils.Monad hiding (bracket)
+import Agda.Utils.Monad
 import Agda.Utils.Null
 import Agda.Utils.Tuple
 

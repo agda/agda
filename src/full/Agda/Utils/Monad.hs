@@ -134,17 +134,6 @@ first `finally` after = do
     Left e  -> throwError e
     Right r -> return r
 
--- | Bracket for the 'Error' class.
-
-bracket :: (Error e, MonadError e m)
-        => m a         -- ^ Acquires resource. Run first.
-        -> (a -> m c)  -- ^ Releases resource. Run last.
-        -> (a -> m b)  -- ^ Computes result. Run in-between.
-        -> m b
-bracket acquire release compute = do
-  resource <- acquire
-  compute resource `finally` release resource
-
 -- State monad ------------------------------------------------------------
 
 -- | Bracket without failure.  Typically used to preserve state.
@@ -172,9 +161,20 @@ readM s = case reads s of
               throwError $ strMsg $ "readM: parse error string " ++ s
 
 
-
-
 -- RETIRED STUFF ----------------------------------------------------------
+
+{- RETIRED, ASR, 09 September 2014. Not used.
+-- | Bracket for the 'Error' class.
+
+-- bracket :: (Error e, MonadError e m)
+--         => m a         -- ^ Acquires resource. Run first.
+--         -> (a -> m c)  -- ^ Releases resource. Run last.
+--         -> (a -> m b)  -- ^ Computes result. Run in-between.
+--         -> m b
+-- bracket acquire release compute = do
+--   resource <- acquire
+--   compute resource `finally` release resource
+-}
 
 {- RETIRED, Andreas, 2012-04-30. Not used.
 concatMapM :: Applicative m => (a -> m [b]) -> [a] -> m [b]
