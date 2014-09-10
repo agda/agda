@@ -12,7 +12,7 @@ import Data.Typeable (Typeable)
 
 import Agda.Syntax.Common
 
-import Agda.Utils.Except ( throwError )
+import Agda.Utils.Except ( MonadError(throwError) )
 
 import Agda.Utils.Impossible
 #include "../undefined.h"
