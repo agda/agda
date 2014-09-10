@@ -64,7 +64,7 @@ import qualified Agda.TypeChecking.Monad.Base.Benchmark as Benchmark
 import Agda.Utils.Except
   ( Error(noMsg, strMsg)
   , ExceptT
-  ,  MonadError(catchError, throwError)
+  , MonadError(catchError, throwError)
   )
 
 import Agda.Utils.FileName
