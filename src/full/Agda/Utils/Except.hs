@@ -1,14 +1,17 @@
+{-# LANGUAGE CPP #-}
+
 ------------------------------------------------------------------------------
--- | Wrapper for Control.Monad.Except from mtl >= 2.2.1
+-- | Wrapper for Control.Monad.Except from the mtl package
 ------------------------------------------------------------------------------
 
 module Agda.Utils.Except
   ( Error(noMsg, strMsg)
-  , ExceptT(ExceptT)
+  , ExceptT
   , MonadError(catchError, throwError)
   , runExceptT
   ) where
 
+#if MIN_VERSION_mtl(2,2,1)
 import Control.Monad.Except
 
 -- From Control.Monad.Trans.Error of transformers 0.3.0.0.
@@ -30,3 +33,13 @@ class ErrorList a where
 
 instance ErrorList Char where
     listMsg = id
+
+#else
+import Control.Monad.Error
+
+type ExceptT = ErrorT
+
+-- | 'runExcept' function using mtl 2.1.*.
+runExceptT ::  ExceptT e m a -> m (Either e a)
+runExceptT = runErrorT
+#endif
