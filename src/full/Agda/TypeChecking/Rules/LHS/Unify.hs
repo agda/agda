@@ -1,14 +1,14 @@
-{-# LANGUAGE CPP #-}
-{-# LANGUAGE DeriveDataTypeable #-}
-{-# LANGUAGE DeriveFoldable #-}
-{-# LANGUAGE DeriveFunctor #-}
-{-# LANGUAGE DeriveTraversable #-}
-{-# LANGUAGE FlexibleInstances #-}
+{-# LANGUAGE CPP                        #-}
+{-# LANGUAGE DeriveDataTypeable         #-}
+{-# LANGUAGE DeriveFoldable             #-}
+{-# LANGUAGE DeriveFunctor              #-}
+{-# LANGUAGE DeriveTraversable          #-}
+{-# LANGUAGE FlexibleInstances          #-}
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
-{-# LANGUAGE MultiParamTypeClasses #-}
-{-# LANGUAGE PatternGuards #-}
-{-# LANGUAGE TupleSections #-}
-{-# LANGUAGE TypeSynonymInstances #-}
+{-# LANGUAGE MultiParamTypeClasses      #-}
+{-# LANGUAGE PatternGuards              #-}
+{-# LANGUAGE TupleSections              #-}
+{-# LANGUAGE TypeSynonymInstances       #-}
 
 module Agda.TypeChecking.Rules.LHS.Unify where
 
@@ -16,7 +16,6 @@ import Control.Arrow ((***))
 import Control.Applicative hiding (empty)
 import Control.Monad.State
 import Control.Monad.Reader
-import Control.Monad.Error
 import Control.Monad.Writer (WriterT(..), MonadWriter(..), Monoid(..))
 
 import Data.Map (Map)
@@ -54,6 +53,11 @@ import Agda.Interaction.Options (optInjectiveTypeConstructors, optWithoutK)
 
 import Agda.TypeChecking.Rules.LHS.Problem
 -- import Agda.TypeChecking.SyntacticEquality
+
+import Agda.Utils.Except
+  ( Error(noMsg, strMsg)
+  , MonadError(catchError, throwError)
+  )
 
 import Agda.Utils.Maybe
 import Agda.Utils.Size

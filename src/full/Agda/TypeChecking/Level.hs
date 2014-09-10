@@ -2,7 +2,6 @@
 
 module Agda.TypeChecking.Level where
 
-import Control.Monad.Error
 import Control.Applicative
 import Data.List as List
 
@@ -13,6 +12,8 @@ import Agda.TypeChecking.Substitute
 import Agda.TypeChecking.Reduce
 import Agda.TypeChecking.Reduce.Monad ()
 import Agda.TypeChecking.Monad.Builtin
+
+import Agda.Utils.Except ( MonadError(catchError) )
 
 #include "../undefined.h"
 import Agda.Utils.Impossible

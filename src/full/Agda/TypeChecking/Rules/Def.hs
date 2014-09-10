@@ -1,4 +1,4 @@
-{-# LANGUAGE CPP #-}
+{-# LANGUAGE CPP           #-}
 {-# LANGUAGE PatternGuards #-}
 
 module Agda.TypeChecking.Rules.Def where
@@ -7,7 +7,6 @@ import Prelude hiding (mapM)
 import Control.Arrow ((***))
 import Control.Applicative
 import Control.Monad.State hiding (forM, mapM)
-import Control.Monad.Error hiding (forM, mapM)
 
 import Data.Function
 import Data.List hiding (sort)
@@ -49,6 +48,7 @@ import Agda.TypeChecking.Rules.Term                ( checkExpr, inferExpr, infer
 import Agda.TypeChecking.Rules.LHS                 ( checkLeftHandSide, LHSResult(..) )
 import {-# SOURCE #-} Agda.TypeChecking.Rules.Decl ( checkDecls )
 
+import Agda.Utils.Except ( MonadError(catchError, throwError) )
 import Agda.Utils.Size
 import Agda.Utils.Permutation
 import Agda.Utils.Monad

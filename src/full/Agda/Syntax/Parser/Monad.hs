@@ -1,4 +1,6 @@
-{-# LANGUAGE MultiParamTypeClasses, DeriveDataTypeable #-}
+{-# LANGUAGE DeriveDataTypeable    #-}
+{-# LANGUAGE MultiParamTypeClasses #-}
+
 module Agda.Syntax.Parser.Monad
     ( -- * The parser monad
       Parser
@@ -33,10 +35,11 @@ import Data.Int
 import Data.Typeable
 
 import Control.Monad.State
-import Control.Monad.Error
 import Control.Applicative
 
 import Agda.Syntax.Position
+
+import Agda.Utils.Except ( MonadError(catchError, throwError) )
 
 import Agda.Utils.FileName
 import qualified Agda.Utils.IO.UTF8 as UTF8

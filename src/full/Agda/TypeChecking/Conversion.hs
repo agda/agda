@@ -1,6 +1,6 @@
-{-# LANGUAGE CPP #-}
-{-# LANGUAGE FlexibleInstances #-}
-{-# LANGUAGE PatternGuards #-}
+{-# LANGUAGE CPP                  #-}
+{-# LANGUAGE FlexibleInstances    #-}
+{-# LANGUAGE PatternGuards        #-}
 {-# LANGUAGE TypeSynonymInstances #-}
 
 module Agda.TypeChecking.Conversion where
@@ -9,7 +9,6 @@ import Control.Applicative
 import Control.Monad
 import Control.Monad.Reader
 import Control.Monad.State
-import Control.Monad.Error
 
 import Data.List hiding (sort)
 import qualified Data.List as List
@@ -45,6 +44,7 @@ import Agda.TypeChecking.ProjectionLike (elimView)
 
 import Agda.Interaction.Options
 
+import Agda.Utils.Except ( MonadError(catchError, throwError) )
 import Agda.Utils.Functor (($>))
 import Agda.Utils.Monad
 import Agda.Utils.Maybe

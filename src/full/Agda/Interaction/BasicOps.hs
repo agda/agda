@@ -1,15 +1,14 @@
-{-# LANGUAGE CPP #-}
-{-# LANGUAGE DeriveFunctor #-}
-{-# LANGUAGE FlexibleInstances #-}
+{-# LANGUAGE CPP                   #-}
+{-# LANGUAGE DeriveFunctor         #-}
+{-# LANGUAGE FlexibleInstances     #-}
 {-# LANGUAGE MultiParamTypeClasses #-}
-{-# LANGUAGE TupleSections #-}
-{-# LANGUAGE UndecidableInstances #-}
+{-# LANGUAGE TupleSections         #-}
+{-# LANGUAGE UndecidableInstances  #-}
 
 module Agda.Interaction.BasicOps where
 
 import Control.Arrow ((***), first, second)
 import Control.Applicative
-import Control.Monad.Error
 import Control.Monad.Reader
 import Control.Monad.State
 import Control.Monad.Identity
@@ -50,6 +49,7 @@ import Agda.TypeChecking.Pretty (prettyTCM)
 import Agda.TypeChecking.Free
 import qualified Agda.TypeChecking.Pretty as TP
 
+import Agda.Utils.Except ( Error(strMsg), MonadError(catchError, throwError) )
 import Agda.Utils.Functor
 import Agda.Utils.List
 import Agda.Utils.Maybe

@@ -1,12 +1,11 @@
-{-# LANGUAGE CPP #-}
-{-# LANGUAGE PatternGuards #-}
+{-# LANGUAGE CPP                 #-}
+{-# LANGUAGE PatternGuards       #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 
 module Agda.TypeChecking.Rules.LHS.Split where
 
 import Control.Applicative
-import Control.Monad.Error
-
+import Control.Monad.Trans ( lift )
 import Data.Maybe (fromMaybe)
 import Data.Monoid (mempty, mappend)
 import Data.List
@@ -41,6 +40,12 @@ import Agda.TypeChecking.Substitute
 
 import Agda.TypeChecking.Rules.LHS.Problem
 
+import Agda.Utils.Except
+  ( ExceptT
+  , MonadError(catchError, throwError)
+  , runExceptT
+  )
+
 import Agda.Utils.Functor ((<.>))
 import Agda.Utils.List
 import Agda.Utils.Maybe
@@ -74,11 +79,11 @@ splitProblem mf (Problem ps (perm, qs) tel pr) = do
       , nest 2 $ text "perm =" <+> prettyTCM perm
       , nest 2 $ text "tel  =" <+> prettyTCM tel
       ]
-    runErrorT $
+    runExceptT $
       splitP ps (permute perm $ zip [0..] $ allHoles qs) tel
   where
     -- Result splitting
-    splitRest :: ProblemRest -> ErrorT SplitError TCM SplitProblem
+    splitRest :: ProblemRest -> ExceptT SplitError TCM SplitProblem
     splitRest (ProblemRest (p : ps) b) | Just f <- mf = do
       let failure   = lift $ typeError $ CannotEliminateWithPattern p $ unArg b
           notProjP  = lift $ typeError $ NotAProjectionPattern p
@@ -156,7 +161,7 @@ splitProblem mf (Problem ps (perm, qs) tel pr) = do
     --   @ips@ are the one-hole patterns of the current split state (outPats)
     --   in one-to-one correspondence with the pattern variables
     --   recorded in @tel@.
-    splitP :: [A.NamedArg A.Pattern] -> [(Int, OneHolePatterns)] -> Telescope -> ErrorT SplitError TCM SplitProblem
+    splitP :: [A.NamedArg A.Pattern] -> [(Int, OneHolePatterns)] -> Telescope -> ExceptT SplitError TCM SplitProblem
     -- the next two cases violate the one-to-one correspondence of qs and tel
     splitP _	    []		 (ExtendTel _ _)	 = __IMPOSSIBLE__
     splitP _	    (_:_)	  EmptyTel		 = __IMPOSSIBLE__

@@ -2,7 +2,6 @@
 
 module Agda.Interaction.CommandLine.CommandLine where
 
-import Control.Monad.Error
 import Control.Monad.Reader
 import Control.Applicative
 
@@ -30,6 +29,7 @@ import Agda.TypeChecking.Reduce
 import Agda.TypeChecking.Errors
 import Agda.TypeChecking.Substitute
 
+import Agda.Utils.Except ( MonadError(catchError) )
 import Agda.Utils.Monad
 
 #include "../../undefined.h"

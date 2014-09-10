@@ -4,7 +4,6 @@
 module Agda.TypeChecking.Monad.Options where
 
 import Control.Applicative
-import Control.Monad.Error
 import Control.Monad.Reader
 import Control.Monad.State
 import Data.Maybe
@@ -24,6 +23,7 @@ import Agda.Interaction.Options
 import qualified Agda.Interaction.Options.Lenses as Lens
 import Agda.Interaction.Response
 
+import Agda.Utils.Except ( MonadError(catchError) )
 import Agda.Utils.FileName
 import Agda.Utils.Monad
 import Agda.Utils.List

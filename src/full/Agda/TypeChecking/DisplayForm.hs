@@ -1,11 +1,11 @@
-{-# LANGUAGE CPP #-}
-{-# LANGUAGE FlexibleInstances #-}
+{-# LANGUAGE CPP                  #-}
+{-# LANGUAGE FlexibleInstances    #-}
 {-# LANGUAGE TypeSynonymInstances #-}
 
 module Agda.TypeChecking.DisplayForm where
 
 import Control.Applicative
-import Control.Monad.Error
+import Control.Monad
 import Control.Monad.Trans.Maybe
 
 import Data.Traversable (traverse)

@@ -2,7 +2,6 @@
 
 module Agda.Auto.Auto (auto) where
 
-import Control.Monad.Error
 import Control.Monad.State
 import Data.List
 import qualified Data.Map as Map
@@ -43,8 +42,10 @@ import Agda.Auto.Typecheck
 
 import Agda.Auto.CaseSplit
 
-#include "../undefined.h"
+import Agda.Utils.Except ( runExceptT, MonadError(catchError) )
 import Agda.Utils.Impossible
+
+#include "../undefined.h"
 
 insertAbsurdPattern :: String -> String
 insertAbsurdPattern [] = []
@@ -131,10 +132,10 @@ auto ii rng argstr = liftTCM $ do
 
                        if listmode then do
                         nsol' <- readIORef nsol
-                        when (nsol' <= 10) $ runErrorT (mapM (\(m, _, _, _) -> frommy (Meta m)) (Map.elems tccons)) >>= \trms -> case trms of {Left{} -> writeIORef nsol $! nsol' + 1; Right trms -> modifyIORef sols (trms :)}
+                        when (nsol' <= 10) $ runExceptT (mapM (\(m, _, _, _) -> frommy (Meta m)) (Map.elems tccons)) >>= \trms -> case trms of {Left{} -> writeIORef nsol $! nsol' + 1; Right trms -> modifyIORef sols (trms :)}
                        else do
                         nsol' <- readIORef nsol
-                        when (nsol' == 1) $ runErrorT (mapM (\(m, _, _, _) -> frommy (Meta m)) (Map.elems tccons)) >>= \trms -> case trms of {Left{} -> writeIORef nsol $! nsol' + 1; Right trms -> writeIORef sols [trms]}
+                        when (nsol' == 1) $ runExceptT (mapM (\(m, _, _, _) -> frommy (Meta m)) (Map.elems tccons)) >>= \trms -> case trms of {Left{} -> writeIORef nsol $! nsol' + 1; Right trms -> writeIORef sols [trms]}
                ticks <- liftIO $ newIORef 0
                let exsearch initprop recinfo defdfv = liftIO $ System.Timeout.timeout (timeout * 1000000) (
                     let r d = do
@@ -316,7 +317,7 @@ auto ii rng argstr = liftTCM $ do
                     in r 0)
                  case sols of
                   Just (cls : _) -> withInteractionId ii $ do
-                   cls' <- liftIO $ runErrorT (mapM frommyClause cls)
+                   cls' <- liftIO $ runExceptT (mapM frommyClause cls)
                    case cls' of
                     Left{} -> dispmsg "No solution found"
                     Right cls' -> do

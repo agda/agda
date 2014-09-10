@@ -6,7 +6,6 @@
 module Agda.Compiler.HaskellTypes where
 
 import Control.Applicative
-import Control.Monad.Error
 import Data.Maybe (fromMaybe)
 
 import Agda.Syntax.Common
@@ -18,8 +17,10 @@ import Agda.TypeChecking.Reduce
 import Agda.TypeChecking.Substitute
 import Agda.TypeChecking.Free
 
-#include "../undefined.h"
+import Agda.Utils.Except ( MonadError(catchError) )
 import Agda.Utils.Impossible
+
+#include "../undefined.h"
 
 type HaskellKind = String
 

@@ -6,14 +6,14 @@ import Agda.Syntax.Internal
 -- import Agda.Syntax.Common hiding (Arg, Dom, NamedArg)
 import Agda.Syntax.Position
 import Agda.TypeChecking.Monad.Base
-import Control.Monad.Error (ErrorT)
+import Agda.Utils.Except ( ExceptT )
 
 isType_ :: A.Expr -> TCM Type
 
 checkExpr :: A.Expr -> Type -> TCM Term
 
 checkArguments :: ExpandHidden -> ExpandInstances -> Range -> [NamedArg A.Expr] -> Type -> Type ->
-                  ErrorT (Args, [NamedArg A.Expr], Type) TCM (Args, Type)
+                  ExceptT (Args, [NamedArg A.Expr], Type) TCM (Args, Type)
 
 checkArguments' :: ExpandHidden -> ExpandInstances -> Range -> [NamedArg A.Expr] -> Type -> Type ->
                    (Args -> Type -> TCM Term) -> TCM Term

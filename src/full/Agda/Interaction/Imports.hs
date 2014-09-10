@@ -1,4 +1,4 @@
-{-# LANGUAGE CPP #-}
+{-# LANGUAGE CPP           #-}
 {-# LANGUAGE TupleSections #-}
 
 {-| This module deals with finding imported modules and loading their
@@ -8,7 +8,6 @@ module Agda.Interaction.Imports where
 
 import Prelude
 
-import Control.Monad.Error
 import Control.Monad.Reader
 import Control.Monad.State
 import qualified Control.Exception as E
@@ -56,6 +55,7 @@ import Agda.Interaction.Highlighting.Precise (HighlightingInfo)
 import Agda.Interaction.Highlighting.Generate
 import Agda.Interaction.Highlighting.Vim
 
+import Agda.Utils.Except ( MonadError(catchError, throwError) )
 import Agda.Utils.FileName
 import Agda.Utils.Monad
 import Agda.Utils.IO.Binary

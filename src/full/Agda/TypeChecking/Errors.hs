@@ -1,6 +1,6 @@
-{-# LANGUAGE CPP #-}
-{-# LANGUAGE FlexibleInstances #-}
-{-# LANGUAGE TupleSections #-}
+{-# LANGUAGE CPP                  #-}
+{-# LANGUAGE FlexibleInstances    #-}
+{-# LANGUAGE TupleSections        #-}
 {-# LANGUAGE TypeSynonymInstances #-}
 
 module Agda.TypeChecking.Errors
@@ -14,7 +14,6 @@ module Agda.TypeChecking.Errors
 import Prelude hiding (null)
 
 import Control.Monad.State
-import Control.Monad.Error
 
 import Data.Function
 import Data.List (nub, sortBy)
@@ -41,6 +40,7 @@ import Agda.TypeChecking.Monad.Options
 import Agda.TypeChecking.Pretty
 import Agda.TypeChecking.Reduce (instantiate)
 
+import Agda.Utils.Except ( MonadError(catchError) )
 import Agda.Utils.FileName
 import Agda.Utils.Function
 import Agda.Utils.Monad

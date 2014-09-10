@@ -1,14 +1,13 @@
-{-# LANGUAGE CPP #-}
-{-# LANGUAGE FlexibleInstances #-}
-{-# LANGUAGE PatternGuards #-}
-{-# LANGUAGE RelaxedPolyRec #-}
-{-# LANGUAGE TupleSections #-}
+{-# LANGUAGE CPP                  #-}
+{-# LANGUAGE FlexibleInstances    #-}
+{-# LANGUAGE PatternGuards        #-}
+{-# LANGUAGE RelaxedPolyRec       #-}
+{-# LANGUAGE TupleSections        #-}
 {-# LANGUAGE TypeSynonymInstances #-}
 
 module Agda.TypeChecking.MetaVars where
 
 import Control.Monad.Reader
-import Control.Monad.Error
 
 import Data.Function
 import Data.List hiding (sort)
@@ -41,6 +40,13 @@ import Agda.TypeChecking.SizedTypes (boundedSizeMetaHook, isSizeProblem)
 -- import Agda.TypeChecking.CheckInternal
 -- import {-# SOURCE #-} Agda.TypeChecking.CheckInternal (checkInternal)
 import Agda.TypeChecking.MetaVars.Occurs
+
+import Agda.Utils.Except
+  ( Error(noMsg)
+  , ExceptT
+  , MonadError(throwError)
+  , runExceptT
+  )
 
 import Agda.Utils.Fresh
 import Agda.Utils.List
@@ -650,7 +656,7 @@ assign dir x args v = do
 
 	-- Check that the arguments are variables
 	mids <- do
-          res <- runErrorT $ inverseSubst args
+          res <- runExceptT $ inverseSubst args
           case res of
             -- all args are variables
             Right ids -> do
@@ -671,7 +677,7 @@ assign dir x args v = do
           Just ids -> do
             -- Check linearity
             ids <- do
-              res <- runErrorT $ checkLinearity {- (`Set.member` fvs) -} ids
+              res <- runExceptT $ checkLinearity {- (`Set.member` fvs) -} ids
               case res of
                 -- case: linear
                 Right ids -> return ids
@@ -996,7 +1002,7 @@ type SubstCand = [(Nat,Term)] -- ^ a possibly non-deterministic substitution
 
 -- | Turn non-det substitution into proper substitution, if possible.
 --   Otherwise, raise the error.
-checkLinearity :: SubstCand -> ErrorT () TCM SubstCand
+checkLinearity :: SubstCand -> ExceptT () TCM SubstCand
 checkLinearity ids0 = do
   let ids = sortBy (compare `on` fst) ids0  -- see issue 920
   let grps = groupOn fst ids
@@ -1004,7 +1010,7 @@ checkLinearity ids0 = do
   where
     -- | Non-determinism can be healed if type is singleton. [Issue 593]
     --   (Same as for irrelevance.)
-    makeLinear :: SubstCand -> ErrorT () TCM SubstCand
+    makeLinear :: SubstCand -> ExceptT () TCM SubstCand
     makeLinear []            = __IMPOSSIBLE__
     makeLinear grp@[_]       = return grp
     makeLinear (p@(i,t) : _) =
@@ -1060,7 +1066,7 @@ instance Error InvertExcept where
 --   Linearity, i.e., whether the substitution is deterministic,
 --   has to be checked separately.
 --
-inverseSubst :: Args -> ErrorT InvertExcept TCM SubstCand
+inverseSubst :: Args -> ExceptT InvertExcept TCM SubstCand
 inverseSubst args = map (mapFst unArg) <$> loop (zip args terms)
   where
     loop  = foldM isVarOrIrrelevant []
@@ -1072,7 +1078,7 @@ inverseSubst args = map (mapFst unArg) <$> loop (zip args terms)
       throwError CantInvert
     neutralArg = throwError NeutralArg
 
-    isVarOrIrrelevant :: Res -> (I.Arg Term, Term) -> ErrorT InvertExcept TCM Res
+    isVarOrIrrelevant :: Res -> (I.Arg Term, Term) -> ExceptT InvertExcept TCM Res
     isVarOrIrrelevant vars (arg, t) =
       case ignoreSharing <$> arg of
         -- i := x

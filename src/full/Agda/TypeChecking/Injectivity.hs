@@ -1,4 +1,4 @@
-{-# LANGUAGE CPP #-}
+{-# LANGUAGE CPP           #-}
 {-# LANGUAGE TupleSections #-}
 
 module Agda.TypeChecking.Injectivity where
@@ -6,7 +6,6 @@ module Agda.TypeChecking.Injectivity where
 import Prelude hiding (mapM)
 
 import Control.Applicative
-import Control.Monad.Error hiding (mapM, forM)
 import Control.Monad.State hiding (mapM, forM)
 import Control.Monad.Reader hiding (mapM, forM)
 
@@ -29,6 +28,7 @@ import Agda.TypeChecking.Pretty
 import Agda.TypeChecking.Constraints
 import Agda.TypeChecking.Polarity
 
+import Agda.Utils.Except ( MonadError(catchError, throwError) )
 import Agda.Utils.List
 import Agda.Utils.Functor
 import Agda.Utils.Permutation

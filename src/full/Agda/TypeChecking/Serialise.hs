@@ -1,9 +1,9 @@
-{-# LANGUAGE CPP #-}
+{-# LANGUAGE CPP                       #-}
 {-# LANGUAGE ExistentialQuantification #-}
-{-# LANGUAGE FlexibleInstances #-}
-{-# LANGUAGE OverlappingInstances #-}
-{-# LANGUAGE ScopedTypeVariables #-}
-{-# LANGUAGE TypeSynonymInstances #-}
+{-# LANGUAGE FlexibleInstances         #-}
+{-# LANGUAGE OverlappingInstances      #-}
+{-# LANGUAGE ScopedTypeVariables       #-}
+{-# LANGUAGE TypeSynonymInstances      #-}
 
 {-# OPTIONS_GHC -O2 #-}
 
@@ -26,7 +26,6 @@ import qualified Control.Exception as E
 import Control.Monad
 import Control.Monad.Reader
 import Control.Monad.State.Strict
-import Control.Monad.Error
 import Data.Array.IArray
 import Data.Word
 import qualified Data.ByteString.Lazy as L
@@ -78,6 +77,8 @@ import Agda.Utils.Permutation
 import Agda.Utils.HashMap (HashMap)
 import Agda.Utils.Hash
 import qualified Agda.Utils.HashMap as HMap
+
+import Agda.Utils.Except ( ExceptT, MonadError(throwError), runExceptT )
 
 #include "../undefined.h"
 import Agda.Utils.Impossible
@@ -149,7 +150,7 @@ type S a = ReaderT Dict IO a
 -- 'TCM' is not used because the associated overheads would make
 -- decoding slower.
 
-type R a = ErrorT TypeError (StateT St IO) a
+type R a = ExceptT TypeError (StateT St IO) a
 
 -- | Throws an error which is suitable when the data stream is
 -- malformed.
@@ -245,7 +246,7 @@ decode s = do
         st <- St (ar nL) (ar sL) (ar iL) (ar dL)
                 <$> liftIO H.new
                 <*> return mf <*> return incs
-        (r, st) <- runStateT (runErrorT (value r)) st
+        (r, st) <- runStateT (runExceptT (value r)) st
         return (Just (modFile st), r)
 
   case mf of
