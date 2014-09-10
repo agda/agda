@@ -22,6 +22,16 @@ import Control.Monad.Identity
 import Control.Monad.Reader
 import Control.Monad.State
 
+-- ASR (10 September 2014). The @type@ keyword (used in
+-- Agda.Utils.Except) introduces a synonym but it uses the *same* data
+-- constructors. Here, we are importing the required @ErrorT/ExceptT@
+-- data constructor.
+#if MIN_VERSION_mtl(2,2,1)
+import Control.Monad.Except ( ExceptT(ExceptT) )
+#else
+import Control.Monad.Error ( ErrorT(ErrorT) )
+#endif
+
 import Data.Foldable (Foldable)
 import Data.Function
 import Data.List as List
@@ -621,7 +631,11 @@ interpret (Cmd_highlight ii rng s) = withCurrentFile $ do
         Left s  -> display_info $ Info_Error s
         Right _ -> return ()
     try :: String -> TCM a -> ExceptT String TCM a
+#if MIN_VERSION_mtl(2,2,1)
     try err m = ExceptT $ do
+#else
+    try err m = ErrorT $ do
+#endif
       (Right <$> m) `catchError` \ _ -> return (Left err)
 
 interpret (Cmd_give   ii rng s) = give_gen ii rng s Give
