@@ -29,7 +29,6 @@ module Agda.Interaction.Options
     ) where
 
 import Control.Monad            ( when )
-import Control.Monad.Error	( MonadError(..) )
 import Data.Maybe               ( isJust )
 import Data.List		( isSuffixOf , intercalate )
 import System.Console.GetOpt	( getOpt, usageInfo, ArgOrder(ReturnInOrder)
@@ -46,6 +45,8 @@ import Agda.Utils.List          ( wordsBy )
 import Agda.Utils.String        ( indent )
 import Agda.Utils.Trie          ( Trie )
 import qualified Agda.Utils.Trie as Trie
+
+import Agda.Utils.Except ( MonadError(catchError, throwError) )
 
 -- | This should probably go somewhere else.
 isLiterate :: FilePath -> Bool

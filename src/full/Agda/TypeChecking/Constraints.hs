@@ -4,7 +4,6 @@ module Agda.TypeChecking.Constraints where
 
 import Control.Monad.State
 import Control.Monad.Reader
-import Control.Monad.Error
 import Control.Applicative
 import Data.List as List
 
@@ -23,6 +22,7 @@ import {-# SOURCE #-} Agda.TypeChecking.MetaVars
 import {-# SOURCE #-} Agda.TypeChecking.Empty
 -- import {-# SOURCE #-} Agda.TypeChecking.UniversePolymorphism -- RETIRED
 
+import Agda.Utils.Except ( MonadError(throwError) )
 import Agda.Utils.Fresh
 import Agda.Utils.Maybe
 import Agda.Utils.Monad

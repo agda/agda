@@ -1,14 +1,13 @@
-{-# LANGUAGE CPP #-}
-{-# LANGUAGE FlexibleInstances #-}
+{-# LANGUAGE CPP                  #-}
+{-# LANGUAGE FlexibleInstances    #-}
 {-# LANGUAGE TypeSynonymInstances #-}
-{-# LANGUAGE PatternGuards #-}
+{-# LANGUAGE PatternGuards        #-}
 
 module Agda.TypeChecking.Quote where
 
 import Control.Applicative
 import Control.Monad.State (evalState, get, put)
 import Control.Monad.Writer (execWriterT, tell)
-import Control.Monad.Error (catchError)
 
 import Data.Maybe (fromMaybe)
 import Data.Traversable (traverse)
@@ -31,6 +30,8 @@ import Agda.TypeChecking.DropArgs
 import Agda.TypeChecking.CompiledClause
 import Agda.TypeChecking.Free
 import Agda.TypeChecking.Level
+
+import Agda.Utils.Except ( MonadError(catchError) )
 
 import Agda.Utils.String
 import Agda.Utils.Permutation

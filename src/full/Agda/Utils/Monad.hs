@@ -11,13 +11,17 @@ module Agda.Utils.Monad
 
 import Prelude		   hiding (concat)
 import Control.Monad       hiding (mapM, forM)
-import Control.Monad.Error
 import Control.Monad.State
 import Control.Monad.Writer
 import Control.Applicative
 import Data.Traversable as Trav hiding (for, sequence)
 import Data.Foldable as Fold
 import Data.Maybe
+
+import Agda.Utils.Except
+  ( Error(noMsg, strMsg)
+  , MonadError(catchError, throwError)
+  )
 
 import Agda.Utils.List
 
@@ -119,7 +123,7 @@ dropWhileM p (x : xs) = ifM (p x) (dropWhileM p xs) (return (x : xs))
 
 -- Error monad ------------------------------------------------------------
 
--- | To simulate @MaybeT@ by @'ErrorT'@.
+-- | To simulate @MaybeT@ by @ExceptT@.
 instance Error () where
   noMsg = ()
 

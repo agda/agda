@@ -1,9 +1,7 @@
-{-# LANGUAGE CPP #-}
+{-# LANGUAGE CPP           #-}
 {-# LANGUAGE PatternGuards #-}
 
 module Agda.TypeChecking.SizedTypes where
-
-import Control.Monad.Error
 
 import Data.Function
 import Data.List
@@ -24,12 +22,14 @@ import Agda.TypeChecking.Telescope
 import {-# SOURCE #-} Agda.TypeChecking.Conversion
 import {-# SOURCE #-} Agda.TypeChecking.Constraints
 
-import qualified Agda.Utils.Warshall as W
+import Agda.Utils.Except ( MonadError(catchError, throwError) )
 import Agda.Utils.List
 import Agda.Utils.Maybe
 import Agda.Utils.Monad
 import Agda.Utils.Size
 import Agda.Utils.Tuple
+
+import qualified Agda.Utils.Warshall as W
 
 #include "../undefined.h"
 import Agda.Utils.Impossible

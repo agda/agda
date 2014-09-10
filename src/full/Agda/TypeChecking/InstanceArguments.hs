@@ -3,7 +3,6 @@
 module Agda.TypeChecking.InstanceArguments where
 
 import Control.Applicative
-import Control.Monad.Error
 import Control.Monad.Reader
 import Control.Monad.State
 import qualified Data.Map as Map
@@ -26,6 +25,7 @@ import {-# SOURCE #-} Agda.TypeChecking.Rules.Term (checkArguments)
 import {-# SOURCE #-} Agda.TypeChecking.MetaVars
 import {-# SOURCE #-} Agda.TypeChecking.Conversion
 
+import Agda.Utils.Except ( MonadError(catchError, throwError), runExceptT )
 import Agda.Utils.Maybe
 import Agda.Utils.Monad
 
@@ -170,7 +170,7 @@ findInScope' m cands = ifM (isFrozen m) (return (Just cands)) $ do
           ]
 
         -- if t' takes initial hidden arguments, apply them
-        ca <- liftTCM $ runErrorT $ checkArguments ExpandLast ExpandInstanceArguments (getRange mv) [] t' t
+        ca <- liftTCM $ runExceptT $ checkArguments ExpandLast ExpandInstanceArguments (getRange mv) [] t' t
         case ca of
           Left _ -> __IMPOSSIBLE__
           Right (args, t'') -> do
@@ -268,7 +268,7 @@ checkCandidates m t cands = localTCState $ disableDestructiveUpdate $ do
         localTCState $ do
            -- domi: we assume that nothing below performs direct IO (except
            -- for logging and such, I guess)
-          ca <- runErrorT $ checkArguments ExpandLast ExpandInstanceArguments noRange [] t' t
+          ca <- runExceptT $ checkArguments ExpandLast ExpandInstanceArguments noRange [] t' t
           case ca of
             Left _ -> return False
             Right (args, t'') -> do

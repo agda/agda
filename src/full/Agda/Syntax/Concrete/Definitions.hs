@@ -1,6 +1,6 @@
-{-# LANGUAGE CPP #-}
+{-# LANGUAGE CPP                #-}
 {-# LANGUAGE DeriveDataTypeable #-}
-{-# LANGUAGE PatternGuards #-}
+{-# LANGUAGE PatternGuards      #-}
 
 module Agda.Syntax.Concrete.Definitions
     ( NiceDeclaration(..)
@@ -15,7 +15,6 @@ module Agda.Syntax.Concrete.Definitions
 
 import Control.Arrow ((***))
 import Control.Applicative
-import Control.Monad.Error
 import Control.Monad.State
 
 import Data.Typeable (Typeable)
@@ -32,6 +31,8 @@ import Agda.Syntax.Position
 import Agda.Syntax.Fixity
 import Agda.Syntax.Notation
 import Agda.Syntax.Concrete.Pretty ()
+
+import Agda.Utils.Except ( Error(noMsg, strMsg), MonadError(throwError) )
 import Agda.Utils.Pretty
 import Agda.Utils.List (mhead, isSublistOf)
 import Agda.Utils.Monad

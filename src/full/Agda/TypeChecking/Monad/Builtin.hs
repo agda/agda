@@ -3,7 +3,6 @@
 module Agda.TypeChecking.Monad.Builtin where
 
 import Control.Applicative
-import Control.Monad.Error
 import Control.Monad.State
 
 import Data.Functor
@@ -16,6 +15,7 @@ import Agda.Syntax.Internal
 import Agda.TypeChecking.Monad.Base
 import Agda.TypeChecking.Substitute
 
+import Agda.Utils.Except ( Error, MonadError(catchError) )
 import Agda.Utils.Monad (when_)
 import Agda.Utils.Maybe
 import Agda.Utils.Tuple

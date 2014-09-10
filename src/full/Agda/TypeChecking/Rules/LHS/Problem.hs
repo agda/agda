@@ -1,12 +1,11 @@
 -- {-# LANGUAGE CPP #-}
-{-# LANGUAGE DeriveFoldable #-}
-{-# LANGUAGE DeriveFunctor #-}
+{-# LANGUAGE DeriveFoldable    #-}
+{-# LANGUAGE DeriveFunctor     #-}
 {-# LANGUAGE DeriveTraversable #-}
 {-# LANGUAGE FlexibleInstances #-}
 
 module Agda.TypeChecking.Rules.LHS.Problem where
 
-import Control.Monad.Error
 import Data.Monoid ( Monoid(mappend,mempty) )
 import Data.Foldable
 import Data.Traversable
@@ -21,6 +20,7 @@ import qualified Agda.Syntax.Abstract as A
 import Agda.TypeChecking.Substitute as S
 import Agda.TypeChecking.Pretty
 
+import Agda.Utils.Except ( Error(noMsg, strMsg) )
 import Agda.Utils.Permutation
 
 type Substitution   = [Maybe Term]

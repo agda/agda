@@ -5,7 +5,6 @@
 module Agda.Main where
 
 import Control.Monad.State
-import Control.Monad.Error
 import Control.Applicative
 
 import qualified Data.List as List
@@ -45,8 +44,10 @@ import qualified Agda.Utils.Trie as Trie
 import Agda.Tests
 import Agda.Version
 
-#include "undefined.h"
+import Agda.Utils.Except ( MonadError(catchError, throwError) )
 import Agda.Utils.Impossible
+
+#include "undefined.h"
 
 -- | The main function
 runAgda :: TCM ()

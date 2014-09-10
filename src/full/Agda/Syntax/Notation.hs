@@ -1,11 +1,10 @@
-{-# LANGUAGE CPP #-}
+{-# LANGUAGE CPP                #-}
 {-# LANGUAGE DeriveDataTypeable #-}
 
 module Agda.Syntax.Notation where
 
 import Control.Applicative
 import Control.Monad
-import Control.Monad.Error (throwError)
 
 import Data.List
 import Data.Maybe
@@ -13,8 +12,10 @@ import Data.Typeable (Typeable)
 
 import Agda.Syntax.Common
 
-#include "../undefined.h"
+import Agda.Utils.Except ( throwError )
+
 import Agda.Utils.Impossible
+#include "../undefined.h"
 
 {-| A name is a non-empty list of alternating 'Id's and 'Hole's. A normal name
     is represented by a singleton list, and operators are represented by a list

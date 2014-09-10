@@ -1,18 +1,18 @@
-{-# LANGUAGE CPP #-}
-{-# LANGUAGE DeriveDataTypeable #-}
-{-# LANGUAGE DeriveFoldable #-}
-{-# LANGUAGE DeriveFunctor #-}
-{-# LANGUAGE DeriveTraversable #-}
-{-# LANGUAGE ExistentialQuantification #-}
-{-# LANGUAGE FlexibleContexts #-}
-{-# LANGUAGE FlexibleInstances #-}
+{-# LANGUAGE CPP                        #-}
+{-# LANGUAGE DeriveDataTypeable         #-}
+{-# LANGUAGE DeriveFoldable             #-}
+{-# LANGUAGE DeriveFunctor              #-}
+{-# LANGUAGE DeriveTraversable          #-}
+{-# LANGUAGE ExistentialQuantification  #-}
+{-# LANGUAGE FlexibleContexts           #-}
+{-# LANGUAGE FlexibleInstances          #-}
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
-{-# LANGUAGE MultiParamTypeClasses #-}
-{-# LANGUAGE NamedFieldPuns #-}
-{-# LANGUAGE Rank2Types #-}
-{-# LANGUAGE ScopedTypeVariables #-}
-{-# LANGUAGE TypeSynonymInstances #-}
-{-# LANGUAGE UndecidableInstances #-}
+{-# LANGUAGE MultiParamTypeClasses      #-}
+{-# LANGUAGE NamedFieldPuns             #-}
+{-# LANGUAGE Rank2Types                 #-}
+{-# LANGUAGE ScopedTypeVariables        #-}
+{-# LANGUAGE TypeSynonymInstances       #-}
+{-# LANGUAGE UndecidableInstances       #-}
 
 module Agda.TypeChecking.Monad.Base where
 
@@ -20,7 +20,6 @@ import Control.Arrow ((***), first, second)
 import qualified Control.Concurrent as C
 import Control.DeepSeq
 import Control.Exception as E
-import Control.Monad.Error
 import Control.Monad.State
 import Control.Monad.Reader
 import Control.Monad.Writer
@@ -61,6 +60,12 @@ import qualified Agda.Compiler.JS.Syntax as JS
 
 import Agda.TypeChecking.Monad.Base.Benchmark (Benchmark)
 import qualified Agda.TypeChecking.Monad.Base.Benchmark as Benchmark
+
+import Agda.Utils.Except
+  ( Error(noMsg, strMsg)
+  , ExceptT
+  ,  MonadError(catchError, throwError)
+  )
 
 import Agda.Utils.FileName
 import Agda.Utils.Fresh
@@ -1754,7 +1759,7 @@ instance MonadIO m => MonadTCM (TCMT m) where
 instance MonadTCM tcm => MonadTCM (MaybeT tcm) where
   liftTCM = lift . liftTCM
 
-instance (Error err, MonadTCM tcm) => MonadTCM (ErrorT err tcm) where
+instance (Error err, MonadTCM tcm) => MonadTCM (ExceptT err tcm) where
   liftTCM = lift . liftTCM
 
 instance (Monoid w, MonadTCM tcm) => MonadTCM (WriterT w tcm) where

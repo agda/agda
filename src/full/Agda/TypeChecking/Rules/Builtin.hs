@@ -1,4 +1,4 @@
-{-# LANGUAGE CPP #-}
+{-# LANGUAGE CPP           #-}
 {-# LANGUAGE PatternGuards #-}
 {-# LANGUAGE TupleSections #-}
 
@@ -6,7 +6,6 @@ module Agda.TypeChecking.Rules.Builtin (bindBuiltin, bindPostulatedName) where
 
 import Control.Applicative
 import Control.Monad
-import Control.Monad.Error
 import Data.List (find)
 
 import qualified Agda.Syntax.Abstract as A
@@ -28,6 +27,7 @@ import Agda.TypeChecking.Rules.Term ( checkExpr , inferExpr )
 import {-# SOURCE #-} Agda.TypeChecking.Rules.Builtin.Coinduction
 import {-# SOURCE #-} Agda.TypeChecking.Rewriting
 
+import Agda.Utils.Except ( MonadError(catchError) )
 import Agda.Utils.Maybe
 import Agda.Utils.Size
 

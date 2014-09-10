@@ -11,7 +11,6 @@ module Agda.TypeChecking.Rules.Term where
 import Control.Applicative
 import Control.Monad.Trans
 import Control.Monad.Reader
-import Control.Monad.Error
 
 import Data.Maybe
 import Data.List hiding (sort)
@@ -60,6 +59,13 @@ import Agda.TypeChecking.Rules.LHS (checkLeftHandSide, LHSResult(..))
 import {-# SOURCE #-} Agda.TypeChecking.Empty (isEmptyType)
 import {-# SOURCE #-} Agda.TypeChecking.Rules.Decl (checkSectionApplication)
 import {-# SOURCE #-} Agda.TypeChecking.Rules.Def (checkFunDef,checkFunDef')
+
+import Agda.Utils.Except
+  ( Error(noMsg, strMsg)
+  , ExceptT
+  , MonadError(catchError, throwError)
+  , runExceptT
+  )
 
 import Agda.Utils.Fresh
 import Agda.Utils.Functor (($>))
@@ -518,7 +524,7 @@ checkArguments' ::
   ExpandHidden -> ExpandInstances -> Range -> [I.NamedArg A.Expr] -> Type -> Type ->
   (Args -> Type -> TCM Term) -> TCM Term
 checkArguments' exph expIFS r args t0 t k = do
-  z <- runErrorT $ checkArguments exph expIFS r args t0 t
+  z <- runExceptT $ checkArguments exph expIFS r args t0 t
   case z of
     Right (vs, t1) -> k vs t1
       -- vs = evaluated args
@@ -1199,9 +1205,9 @@ instance Error (a, b, c) where
   strMsg _ = __IMPOSSIBLE__
   noMsg = __IMPOSSIBLE__
 
-traceCallE :: Error e => (Maybe r -> Call) -> ErrorT e TCM r -> ErrorT e TCM r
+traceCallE :: Error e => (Maybe r -> Call) -> ExceptT e TCM r -> ExceptT e TCM r
 traceCallE call m = do
-  z <- lift $ traceCall call' $ runErrorT m
+  z <- lift $ traceCall call' $ runExceptT m
   case z of
     Right e  -> return e
     Left err -> throwError err
@@ -1216,7 +1222,7 @@ traceCallE call m = do
 --   type @t0'@ (which should be a subtype of @t1@) and any constraints @cs@
 --   that have to be solved for everything to be well-formed.
 checkArguments :: ExpandHidden -> ExpandInstances -> Range -> [I.NamedArg A.Expr] -> Type -> Type ->
-                  ErrorT (Args, [I.NamedArg A.Expr], Type) TCM (Args, Type)
+                  ExceptT (Args, [I.NamedArg A.Expr], Type) TCM (Args, Type)
 
 -- Case: no arguments, do not insert trailing hidden arguments: We are done.
 checkArguments DontExpandLast DontExpandInstanceArguments _ [] t0 t1 = return ([], t0)
@@ -1314,7 +1320,7 @@ checkArguments exh expandIFS r args0@(arg@(Arg info e) : args) t0 t1 =
 -- | Check that a list of arguments fits a telescope.
 checkArguments_ :: ExpandHidden -> Range -> [I.NamedArg A.Expr] -> Telescope -> TCM Args
 checkArguments_ exh r args tel = do
-    z <- runErrorT $ checkArguments exh ExpandInstanceArguments r args (telePi tel $ sort Prop) (sort Prop)
+    z <- runExceptT $ checkArguments exh ExpandInstanceArguments r args (telePi tel $ sort Prop) (sort Prop)
     case z of
       Right (args, _) -> return args
       Left _          -> __IMPOSSIBLE__
@@ -1327,7 +1333,7 @@ inferExpr :: A.Expr -> TCM (Term, Type)
 inferExpr e = case e of
   _ | Application hd args <- appView e, defOrVar hd -> traceCall (InferExpr e) $ do
     (f, t0) <- inferHead hd
-    res <- runErrorT $ checkArguments DontExpandLast ExpandInstanceArguments (getRange hd) (map convColor args) t0 (sort Prop)
+    res <- runExceptT $ checkArguments DontExpandLast ExpandInstanceArguments (getRange hd) (map convColor args) t0 (sort Prop)
     case res of
       Right (vs, t1) -> return (f vs, t1)
       Left t1 -> fallback -- blocked on type t1
