@@ -1,4 +1,4 @@
-{-# LANGUAGE CPP #-}
+{-# LANGUAGE CPP              #-}
 {-# LANGUAGE FlexibleContexts #-}
 
 module Agda.Utils.Monad
@@ -28,11 +28,11 @@ import Agda.Utils.Impossible
 
 -- | @when_@ is just @Control.Monad.when@ with a more general type.
 when_ :: Monad m => Bool -> m a -> m ()
-when_ b m = when b $ do m >> return ()
+when_ b m = when b $ m >> return ()
 
 -- | @unless_@ is just @Control.Monad.unless@ with a more general type.
 unless_ :: Monad m => Bool -> m a -> m ()
-unless_ b m = unless b $ do m >> return ()
+unless_ b m = unless b $ m >> return ()
 
 whenM :: Monad m => m Bool -> m a -> m ()
 whenM c m = c >>= (`when_` m)
@@ -113,7 +113,7 @@ mapMaybeM :: (Monad m, Functor m) => (a -> m (Maybe b)) -> [a] -> m [b]
 mapMaybeM f xs = catMaybes <$> Trav.mapM f xs
 
 -- | A monadic version of @'dropWhile' :: (a -> Bool) -> [a] -> [a]@.
-dropWhileM :: (Monad m) => (a -> m Bool) -> [a] -> m [a]
+dropWhileM :: Monad m => (a -> m Bool) -> [a] -> m [a]
 dropWhileM p []       = return []
 dropWhileM p (x : xs) = ifM (p x) (dropWhileM p xs) (return (x : xs))
 
@@ -137,7 +137,7 @@ first `finally` after = do
 -- State monad ------------------------------------------------------------
 
 -- | Bracket without failure.  Typically used to preserve state.
-bracket_ :: (Monad m)
+bracket_ :: Monad m
          => m a         -- ^ Acquires resource. Run first.
          -> (a -> m c)  -- ^ Releases resource. Run last.
          -> m b         -- ^ Computes result. Run in-between.
@@ -149,7 +149,7 @@ bracket_ acquire release compute = do
   return result
 
 -- | Restore state after computation.
-localState :: (MonadState s m) => m a -> m a
+localState :: MonadState s m => m a -> m a
 localState = bracket_ get put
 
 -- Read -------------------------------------------------------------------
