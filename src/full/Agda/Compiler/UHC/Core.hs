@@ -73,7 +73,7 @@ toCore mod funs = do
   binds <- mapM funToBind funs
   let mainEhc = CExpr_Let CBindCateg_Plain [
 	CBind_Bind (hsnFromString "main") [
-		CBound_Bind cmetas (CExpr_App (CExpr_Var $ acoreMkRef $ hsnFromString "UHC.Run.ehcRunMain") (CBound_Bind cmetas (CExpr_Var $ acoreMkRef $ toCoreName $ ANmAgda (mod ++ ".main"))))]
+		CBound_Bind cmetas (appS "UHC.Run.ehcRunMain" (CExpr_Var $ acoreMkRef $ toCoreName $ ANmAgda (mod ++ ".main")))]
 	] (CExpr_Var (acoreMkRef $ hsnFromString "main"))
   let lets = CExpr_Let CBindCateg_Rec binds mainEhc
 
@@ -118,11 +118,11 @@ exprToCore (Lam v body) = exprToCore body >>= return . CExpr_Lam (CBind_Bind (to
 exprToCore (Con t qn es) = do
     es' <- mapM exprToCore es
     let ctor = CExpr_Tup $ mkCTag t qn
-    return $ foldl (\x e -> CExpr_App x (CBound_Bind cmetas e)) ctor es'
+    return $ foldl (\x e -> app x e) ctor es'
 exprToCore (App fv es)   = do
     es' <- mapM exprToCore es
     let fv' = CExpr_Var (acoreMkRef $ toCoreName fv)
-    return $ foldl (\x e -> CExpr_App x (CBound_Bind cmetas e)) fv' es'
+    return $ foldl (\x e -> app x e) fv' es'
 exprToCore (Case e brs) = do
     var <- newName
     (def, branches) <- branchesToCore brs
@@ -151,13 +151,14 @@ branchesToCore brs = do
             let binds = [CPatFld_Fld (hsnFromString "") (CExpr_Int i) (CBind_Bind (toCoreName v) []) [] | (i, v) <- zip [0..] vars]
             e' <- exprToCore e
             return [CAlt_Alt (CPat_Con ctag CPatRest_Empty binds) e']
-          f (CoreBranch dt ctor tag vars e) = do
-            let ctag = CTag (hsnFromString dt) (hsnFromString ctor) (fromIntegral tag) 0 0
+          f (CoreBranch con vars e) = do
+            let ctag = conSpecToTag con
             let binds = [CPatFld_Fld (hsnFromString "") (CExpr_Int i) (CBind_Bind (toCoreName v) []) [] | (i, v) <- zip [0..] vars]
             e' <- exprToCore e
             return [CAlt_Alt (CPat_Con ctag CPatRest_Empty binds) e']
           f (BrInt _ _) = error "TODO"
           f (Default e) = return []
+          conSpecToTag (dt, ctor, tag) = CTag (hsnFromString dt) (hsnFromString ctor) (fromIntegral tag) 0 0
           isDefault (Default _) = True
           isDefault _ = False
 
@@ -172,7 +173,7 @@ mkCTag (Tag t) qn = CTag (qnameTypeName qn) (qnameCtorName qn) t 0 0
 
 litToCore :: Lit -> CExpr
 -- should we put this into a let?
-litToCore (LInt i) = CExpr_App (CExpr_Var $ acoreMkRef $ hsnFromString "UHC.Base.primIntToInteger") (CBound_Bind cmetas (CExpr_Int $ fromInteger i))
+litToCore (LInt i) = appS "UHC.Agda.Builtins.primIntegerToNat" (appS "UHC.Base.primIntToInteger" (CExpr_Int $ fromInteger i))
 litToCore (LString s) = coreStr s
 litToCore l = error $ "Not implemented literal: " ++ show l
 
@@ -181,14 +182,14 @@ coreImpossible = coreError "BUG! Impossible code reached."
 
 coreError :: String -> CExpr
 --should we put the string into a let?
-coreError msg = CExpr_App (CExpr_Var $ acoreMkRef $ hsnFromString "UHC.Base.error") (CBound_Bind cmetas (coreStr msg))
+coreError msg = appS "UHC.Base.error" (coreStr $ "AGDA: " ++ msg)
 --coreError msg = "(UHC.Base.error) ((UHC.Base.packedStringToString) (#String\"" ++ msg ++ "\"))"
 
 coreStr :: String -> CExpr
-coreStr s = CExpr_App (CExpr_Var $ acoreMkRef $ hsnFromString "UHC.Base.packedStringToString") (CBound_Bind cmetas (CExpr_String s))
+coreStr s = appS "UHC.Base.packedStringToString" (CExpr_String s)
 
 coreUnit :: CExpr
-coreUnit = CExpr_Int 0
+coreUnit = CExpr_Tup CTagRec
 
 toCoreName :: AName -> HsName
 toCoreName (ANmCore n) = hsnFromString n
@@ -198,3 +199,11 @@ toCoreName (ANmAgda n) = hsnFromString $
                    in (reverse ns') ++ "agda_c1_" ++ (reverse n')
         Nothing -> n -- local (generated) name, always valid haskell identifiers
     where nr = reverse n
+
+-- | Apply a lambda to one argument.
+app :: CExpr -> CExpr -> CExpr
+app f x = CExpr_App f (CBound_Bind cmetas x)
+
+-- | Apply the named function to one argument.
+appS :: String -> CExpr -> CExpr
+appS f = app (CExpr_Var $ acoreMkRef $ hsnFromString f)

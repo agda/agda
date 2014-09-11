@@ -999,12 +999,12 @@ instance EmbPrj JS.MemberId where
 instance EmbPrj CoreRepresentation where
   icode (CrType a)     = icode1' a
   icode (CrDefn a)     = icode1 1 a
-  icode (CrConstr a b) = icode2 2 a b
+  icode (CrConstr a)   = icode1 2 a
 
   value = vcase valu where
     valu [a]       = valu1 CrType a
     valu [1, a]    = valu1 CrDefn a
-    valu [2, a, b] = valu2 CrConstr a b
+    valu [2, a]    = valu1 CrConstr a
     valu _      = malformed
 
 instance EmbPrj CR.CoreExpr where

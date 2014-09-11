@@ -2,6 +2,7 @@
 
 module Agda.Compiler.UHC.CoreSyntax
   ( CoreExpr,
+    CoreConstr,
     parseCoreExpr,
     printCoreExpr,
     parseCoreConstr,
@@ -11,20 +12,8 @@ module Agda.Compiler.UHC.CoreSyntax
 where
 
 
-#ifndef UHC_BACKEND
 
-type CoreExpr = ()
-
-parseCoreConstr :: String -> Either String (String, Integer)
-parseCoreConstr = undefined
-
-parseCoreCode :: String -> Either String CoreExpr
-parseCoreCode = undefined
-
-printCoreExpr :: CoreExpr -> String
-printCoreExpr = undefined
-
-#else
+#ifdef UHC_BACKEND
 
 import Data.Maybe
 import Data.List
@@ -46,7 +35,29 @@ import UHC.Util.ScanUtils
 import EH99.Scanner.Common
 import EH99.Base.HsName
 
+#endif
+
+
+-- Datatype, ctor name, tag
+type CoreConstr = (String, String, Integer)
+
+#ifndef UHC_BACKEND
+
+type CoreExpr = ()
+
+parseCoreConstr :: String -> Either String (String, Integer)
+parseCoreConstr = undefined
+
+parseCoreCode :: String -> Either String CoreExpr
+parseCoreCode = undefined
+
+printCoreExpr :: CoreExpr -> String
+printCoreExpr = undefined
+
+#else
 --ehcOpts = emptyEHCOpts { ehcOptCoreOpts = [CoreOpt_Dump] }
+
+
 
 type CoreExpr = CExpr
 

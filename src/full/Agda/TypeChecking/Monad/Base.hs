@@ -732,8 +732,6 @@ type EpicCode    = String
 type JSCode      = JS.Exp
 type CoreCode    = CR.CoreExpr
 type CoreType    = String
--- | Core constructor, consisting of constructor name and tag.
-type CoreConstr  = (String, Integer)
 
 data HaskellRepresentation
       = HsDefn HaskellType HaskellCode
@@ -744,7 +742,7 @@ data HaskellExport = HsExport HaskellType String deriving (Show, Typeable)
 
 data CoreRepresentation
       = CrDefn CoreCode -- ^ Core code for functions.
-      | CrConstr CoreType CoreConstr -- ^ Core constructor for agda constructor.
+      | CrConstr CR.CoreConstr -- ^ Core constructor for agda constructor.
       | CrType CoreType -- ^ Core type for an agda type.
     deriving (Typeable, Show)
 

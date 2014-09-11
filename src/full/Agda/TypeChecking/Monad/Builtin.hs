@@ -108,6 +108,7 @@ constructorForm' pZero pSuc v = case ignoreSharing v of
 ---------------------------------------------------------------------------
 
 primInteger, primFloat, primChar, primString, primBool, primTrue, primFalse,
+    primUnit, primUnitCons,
     primList, primNil, primCons, primIO, primNat, primSuc, primZero,
     primNatPlus, primNatMinus, primNatTimes, primNatDivSucAux, primNatModSucAux,
     primNatEquality, primNatLess,
@@ -139,6 +140,8 @@ primString       = getBuiltin builtinString
 primBool         = getBuiltin builtinBool
 primTrue         = getBuiltin builtinTrue
 primFalse        = getBuiltin builtinFalse
+primUnit         = getBuiltin builtinUnit
+primUnitCons     = getBuiltin builtinUnitCons
 primList         = getBuiltin builtinList
 primNil          = getBuiltin builtinNil
 primCons         = getBuiltin builtinCons
@@ -242,6 +245,8 @@ builtinString       = "STRING"
 builtinBool         = "BOOL"
 builtinTrue         = "TRUE"
 builtinFalse        = "FALSE"
+builtinUnit         = "UNIT"
+builtinUnitCons     = "UNITCONS"
 builtinList         = "LIST"
 builtinNil          = "NIL"
 builtinCons         = "CONS"

@@ -8,7 +8,7 @@ import qualified Data.Set as S
 
 import Agda.Syntax.Abstract.Name
 
-import Agda.Compiler.UHC.CoreSyntax (CoreExpr)
+import Agda.Compiler.UHC.CoreSyntax (CoreExpr, CoreConstr)
 import Agda.Compiler.UHC.Interface
 
 #include "../../undefined.h"
@@ -42,6 +42,7 @@ data Lit
   deriving (Show, Ord, Eq)
 
 
+
 data Expr
   = Var AName
   | Lit Lit
@@ -56,7 +57,7 @@ data Expr
 
 data Branch
   = Branch  {brTag  :: Tag, brName :: QName, brVars :: [AName], brExpr :: Expr}
-  | CoreBranch {brDt :: String, brCtor :: String, brCrTag :: Integer, brVars :: [AName], brExpr :: Expr}
+  | CoreBranch {brCoreCon :: CoreConstr, brVars :: [AName], brExpr :: Expr}
   | BrInt   {brInt  :: Int, brExpr :: Expr}
   | Default {brExpr :: Expr}
   deriving (Show, Ord, Eq)
@@ -157,6 +158,6 @@ fv = S.toList . fv'
     fvBr :: Branch -> Set AName
     fvBr b = case b of
       Branch _ _ vs e -> fv' e S.\\ S.fromList vs
-      CoreBranch _ _ _ vs e -> fv' e S.\\ S.fromList vs
+      CoreBranch _ vs e -> fv' e S.\\ S.fromList vs
       BrInt _ e       -> fv' e
       Default e       -> fv' e

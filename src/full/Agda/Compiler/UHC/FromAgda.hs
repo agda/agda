@@ -20,7 +20,9 @@ import Agda.TypeChecking.Level (reallyUnLevelView)
 import qualified Agda.TypeChecking.Substitute as S
 import Agda.TypeChecking.Pretty
 import Agda.Utils.List
+import Agda.TypeChecking.Monad.Builtin
 
+import Agda.Compiler.UHC.CoreSyntax (CoreConstr)
 import Agda.Compiler.UHC.AuxAST
 import Agda.Compiler.UHC.CompileState
 import Agda.Compiler.UHC.Interface
@@ -33,11 +35,42 @@ import Agda.Utils.Impossible
 
 -- | Convert from Agda's internal representation to our auxiliary AST.
 fromAgda :: Maybe T.Term -> [(QName, Definition)] -> Compile TCM [Fun]
-fromAgda msharp defs = catMaybes <$> mapM (translateDefn msharp) defs
+fromAgda msharp defs = do
+  btins <- builtinCtors
+  catMaybes <$> mapM (translateDefn btins msharp) defs
+
+data BuiltinConSpec
+  = ConNamed { conSpecDt :: String, conSpecCtor :: String, conSpecTag :: Integer }
+  | ConUnit
+
+type BuiltinCache = M.Map QName BuiltinConSpec
+
+builtinCtors :: Compile TCM BuiltinCache
+builtinCtors = mapM f btinCtors >>= return . M.fromList . catMaybes
+  where btinCtors =
+          [ (builtinSuc,    (ConNamed "UHC.Agda.Builtins.Nat" "Suc" 1))
+          , (builtinZero,   (ConNamed "UHC.Agda.Builtins.Nat" "Zero" 0))
+--          TODO the Agda List type takes a type argument, Haskells doesn't
+--          , (builtinNil,    (ConNamed "UHC.Base.[]" "[]" 1))
+--          , (builtinCons,   (ConNamed "UHC.Base.[]" ":" 0))
+          , (builtinTrue,   (ConNamed "UHC.Base.Bool" "True" 1))
+          , (builtinFalse,  (ConNamed "UHC.Base.Bool" "False" 0))
+          , (builtinUnitCons, (ConUnit))
+          ]
+        f (b, sp) = do
+            bt <- lift $ getBuiltin' b
+            liftIO $ putStrLn $ show b ++ " - " ++ show bt
+            return $ case bt of
+              (Just (T.Con conHd [])) -> Just (conName conHd, sp)
+              _                    -> Nothing
+
+builtinConSpecToCoreConstr :: BuiltinConSpec -> CoreConstr
+builtinConSpecToCoreConstr (ConNamed dt ctor tag) = (dt, ctor, tag)
+builtinConSpecToCoreConstr (ConUnit) = __IMPOSSIBLE__
 
 -- | Translate an Agda definition to an Epic function where applicable
-translateDefn :: Maybe T.Term -> (QName, Definition) -> Compile TCM (Maybe Fun)
-translateDefn msharp (n, defini) =
+translateDefn :: BuiltinCache -> Maybe T.Term -> (QName, Definition) -> Compile TCM (Maybe Fun)
+translateDefn btins msharp (n, defini) =
   let n' = unqname n
       crRep = compiledCore $ defCompiledRep defini
   in case theDef defini of
@@ -58,7 +91,7 @@ translateDefn msharp (n, defini) =
                     $ head $ funClauses f)
         modify $ \s -> s {curFun = show n}
         lift $ reportSDoc "epic.fromagda" 5 $ text "ccs: " <+> (text . show) ccs
-        res <- return <$> (etaExpand toEta =<< compileClauses n len ccs)
+        res <- return <$> (etaExpand toEta =<< compileClauses btins n len ccs)
 {-        pres <- case res of
           Nothing -> return Nothing
           Just  c -> return <$> prettyEpicFun c
@@ -67,13 +100,12 @@ translateDefn msharp (n, defini) =
     Constructor{} -> do -- become functions returning a constructor with their tag
         arit <- lift $ constructorArity n
         tag   <- getConstrTag n
-        case crRep of
-          Just (CrConstr dt (ctr, _)) -> do
-                -- UHC generates a wrapper function for all datatypes, so just call that one
-                let ctorFun = (reverse $ dropWhile (/='.') $ reverse dt) ++ ctr
-                return <$> mkFunGen n (const $ App $ ANmCore ctorFun) (const $ "constructor: " ++ show n) (unqname n) ctr arit
-          Nothing                -> return <$> mkCon n tag arit
-          _                      -> error "Compiled core must be def, something went wrong."
+        case (crRep, n `M.lookup` btins) of
+          (Just (CrConstr (dt, ctr, tg)), Nothing) -> mkCrCtorFun n (ConNamed dt ctr tg) arit
+          (Just _, Just _)       -> error $ "Compiled core must not be specified for builtin " ++ show n
+          (Just _, Nothing)      -> error "Compiled core must be def, something went wrong."
+          (Nothing, Just btcon) -> mkCrCtorFun n btcon arit
+          (Nothing, Nothing)     -> return <$> mkCon n tag arit
         -- Sharp has to use the primSharp function from AgdaPrelude.e
 {-        case msharp of
           Just (T.Def sharp []) | sharp == n -> return <$> mkFun n n' "primSharp" 3
@@ -93,6 +125,12 @@ translateDefn msharp (n, defini) =
       let ar = arity $ defType defini
       return <$> mkFun n n' (primName p) ar
   where
+    mkCrCtorFun n (ConNamed dt ctr _) arit = do
+        -- UHC generates a wrapper function for all datatypes, so just call that one
+        let ctorFun = (reverse $ dropWhile (/='.') $ reverse dt) ++ ctr
+        return <$> mkFunGen n (const $ App $ ANmCore ctorFun) (const $ "constructor: " ++ show n) (unqname n) ctr arit
+    mkCrCtorFun n (ConUnit) 0 = return $ return $ Fun True (unqname n) (Just n) "Unit constructor function" [] UNIT
+    mkCrCtorFun _ _ _ = __IMPOSSIBLE__
     mkFun :: QName -> AName -> String -> Int -> Compile TCM Fun
     mkFun q n = mkFunGen q (const $ apps n) (("primitive: " ++) . show) n
     mkCon q tag ari = do
@@ -177,10 +215,10 @@ reverseCCBody c cc = case cc of
 --   we have to add the catchAllBranch to each inner case (here we are calling
 --   it omniDefault). To avoid code duplication it is first bound by a let
 --   expression.
-compileClauses :: QName
+compileClauses :: BuiltinCache -> QName
                -> Int -- ^ Number of arguments in the definition
                -> CC.CompiledClauses -> Compile TCM Fun
-compileClauses name nargs c = do
+compileClauses btins name nargs c = do
     let n' = unqname name
     vars <- replicateM nargs newName
     e    <- compileClauses' vars Nothing c
@@ -192,18 +230,18 @@ compileClauses name nargs c = do
            True -> __IMPOSSIBLE__
            False -> case CC.catchAllBranch nc of
             Nothing -> Case (Var (fromMaybe __IMPOSSIBLE__ $ env !!! n)) <$>
-                         compileCase env omniDefault n nc
+                         compileCase btins env omniDefault n nc
             Just de -> do
                 def <- compileClauses' env omniDefault de
                 bindExpr def $ \ var ->
                   Case (Var (fromMaybe __IMPOSSIBLE__ $ env !!! n)) <$>
-                    compileCase env (Just var) n nc
+                    compileCase btins env (Just var) n nc
         CC.Done _ t -> substTerm ({- reverse -} env) t
         CC.Fail     -> return IMPOSSIBLE
 
-    compileCase :: [AName] -> Maybe AName -> Int -> CC.Case CC.CompiledClauses
+    compileCase :: BuiltinCache -> [AName] -> Maybe AName -> Int -> CC.Case CC.CompiledClauses
                 -> Compile TCM [Branch]
-    compileCase env omniDefault casedvar nc = do
+    compileCase btins env omniDefault casedvar nc = do
         cb <- if M.null (CC.conBranches nc)
            -- Lit branch
            then forM (M.toList (CC.litBranches nc)) $ \(l, cc) -> do
@@ -219,12 +257,15 @@ compileClauses name nargs c = do
                arit  <- getConArity b -- Andreas, 2012-10-12: is the constructor arity @ar@ from Agda the same as the one from the Epic backen?
                vars <- replicateM arit newName
                cc'  <- compileClauses' (replaceAt casedvar env vars) omniDefault cc
-               case (crr, theDef def) of
-                   (Just (CrConstr dt (ctor, tag)), Constructor{}) -> do
-                       return $ CoreBranch dt ctor tag vars cc'
-                   _  -> do
+               case (b `M.lookup` btins, crr, theDef def) of
+                   (Just btCon, Nothing, Constructor{}) -> do
+                       return $ CoreBranch (builtinConSpecToCoreConstr btCon) vars cc'
+                   (Nothing, Just (CrConstr crCon), Constructor{}) -> do
+                       return $ CoreBranch crCon vars cc'
+                   (Nothing, Nothing, _) -> do
                        tag <- getConstrTag b
                        return $ Branch tag b vars cc'
+                   _ -> __IMPOSSIBLE__
 
 
 -- always use the original name for a constructor even when it's redefined.
