@@ -12,4 +12,4 @@ executable fix-agda-whitespace
     base >= 4.2 && < 4.8
     , directory >= 1.2 && < 1.3
     , filemanip == 0.3.*
-    , text >= 0.10 && < 1.2
+    , text >= 0.10 && < 1.3
