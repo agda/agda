@@ -148,7 +148,7 @@ compileModule i = do
                     if (not $ null defns) then do
                         code <- compileDefns moduleName defns
 			-- HACK
-			code' <- linkWithPrelude "/home/philipp/Projects/uu/exp1/src/examples/HelloWorld/HelloWorld_Uhc_Pre.tcr" code
+			code' <- linkWithPrelude "/home/philipp/Projects/uu/exp1/uhc-agda-base/src/UHC/Agda/Builtins.tcr" code
                         runUHC file (S.toList imps) code'
                         eif <- gets curModule
 -- PH : TODO see missing instance problem in readEInterface

@@ -48,8 +48,8 @@ type BuiltinCache = M.Map QName BuiltinConSpec
 builtinCtors :: Compile TCM BuiltinCache
 builtinCtors = mapM f btinCtors >>= return . M.fromList . catMaybes
   where btinCtors =
-          [ (builtinSuc,    (ConNamed "UHC.Agda.Builtins.Nat" "Suc" 1))
-          , (builtinZero,   (ConNamed "UHC.Agda.Builtins.Nat" "Zero" 0))
+          [ (builtinSuc,    (ConNamed "UHC.Agda.Builtins.Nat" "Suc" 0))
+          , (builtinZero,   (ConNamed "UHC.Agda.Builtins.Nat" "Zero" 1))
 --          TODO the Agda List type takes a type argument, Haskells doesn't
 --          , (builtinNil,    (ConNamed "UHC.Base.[]" "[]" 1))
 --          , (builtinCons,   (ConNamed "UHC.Base.[]" ":" 0))

@@ -36,8 +36,8 @@ import UHC.Util.ScanUtils
 import EH99.Scanner.Common
 
 import Agda.Compiler.UHC.CoreSyntax
--- #include "../../undefined.h"
---import Agda.Utils.Impossible
+
+import Agda.Utils.Impossible
 
 linkWithPrelude :: String -> CModule -> Compile TCM CModule
 linkWithPrelude fPre modMain = do
@@ -142,10 +142,16 @@ branchesToCore :: MonadTCM m => [Branch] -> Compile m (CExpr, CAltL)
 branchesToCore brs = do
     let defs = filter isDefault brs
     def <- if null defs then return coreImpossible else let (Default x) = head defs in exprToCore x
-    brs' <- mapM f brs
+    -- 20140912 PH: UHC does create incorrect code if the branches are not in alphabetical ordering
+    brs' <- mapM f (sortBy brOrd brs)
 
     return (def, concat brs')
-    where f (Branch tag qn vars e)  = do
+    where
+          brOrd (Branch _ qn1 _ _) (Branch _ qn2 _ _) = qn1 `compare` qn2
+          brOrd (CoreBranch (_, c1, _) _ _) (CoreBranch (_, c2, _) _ _) = c1 `compare` c2
+          brOrd (BrInt _ _) (BrInt _ _) = error "TODO"
+          brOrd _ _ = error "TODO use __IMPOSSIBLE__"
+          f (Branch tag qn vars e)  = do
             -- TODO fix up everything
             let ctag = mkCTag tag qn
             let binds = [CPatFld_Fld (hsnFromString "") (CExpr_Int i) (CBind_Bind (toCoreName v) []) [] | (i, v) <- zip [0..] vars]
@@ -158,7 +164,8 @@ branchesToCore brs = do
             return [CAlt_Alt (CPat_Con ctag CPatRest_Empty binds) e']
           f (BrInt _ _) = error "TODO"
           f (Default e) = return []
-          conSpecToTag (dt, ctor, tag) = CTag (hsnFromString dt) (hsnFromString ctor) (fromIntegral tag) 0 0
+          conSpecToTag (dt, ctor, tag) = CTag (hsnFromString dt) (hsnFromString $ (modNm dt) ++ "." ++ ctor) (fromIntegral tag) 0 0
+          modNm s = reverse $ tail $ dropWhile (/= '.') $ reverse s
           isDefault (Default _) = True
           isDefault _ = False
 
