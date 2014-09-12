@@ -45,6 +45,9 @@ data-files:         Agda.css
                     EpicInclude/AgdaPrelude.e
                     EpicInclude/stdagda.c
                     EpicInclude/stdagda.h
+                    uhc-agda-base/LICENSE
+                    uhc-agda-base/uhc-agda-base.cabal
+                    uhc-agda-base/src/UHC/Agda/*.hs
                     agda.sty
                     postprocess-latex.pl
                     lib/prim/Agda/Primitive.agda
