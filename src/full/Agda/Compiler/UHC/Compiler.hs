@@ -217,18 +217,23 @@ compileDefns mod defs = do
 --               >>= idPrint "erasure"     Eras.erasure
 --               >>= idPrint "caseOpts"    COpts.caseOpts
                >>= idPrint "done" return
+    lift $ reportSLn "uhc" 10 $ "Done generating AuxAST for \"" ++ show mod ++ "\"."
     let modName = L.intercalate "." (CN.moduleNameParts mod)
-    toCore modName emits
+    crMod <- toCore modName emits
+    lift $ reportSLn "uhc" 10 $ "Done generating Core for \"" ++ show mod ++ "\"."
+    return crMod
 
 writeCoreFile :: String -> EC.CModule -> Compile TCM FilePath
 writeCoreFile f mod = do
   useTextual <- optUHCTextualCore <$> lift commandLineOptions
   if useTextual then do
     let f' = f <.> ".tcr"
+    lift $ reportSLn "uhc" 10 $ "Writing textual core to \"" ++ show f' ++ "\"."
     liftIO $ putPPFile f' (EP.ppCModule ehcOpts mod) 200
     return f' 
   else do
     let f' = f <.> ".bcr"
+    lift $ reportSLn "uhc" 10 $ "Writing binary core to \"" ++ show f' ++ "\"."
     liftIO $ putSerializeFile f' mod
     return f'
 
