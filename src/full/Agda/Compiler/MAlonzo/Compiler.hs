@@ -318,6 +318,7 @@ clause q maybeName (i, isLast, Clause{ namedClausePats = ps, clauseBody = b }) =
 argpatts :: [I.NamedArg Pattern] -> [HS.Pat] -> TCM [HS.Pat]
 argpatts ps0 bvs = evalStateT (mapM pat' ps0) bvs
   where
+  pat :: Pattern -> StateT [HS.Pat] TCM HS.Pat
   pat   (ProjP _  ) = lift $ typeError $ NotImplemented $ "Compilation of copatterns"
   pat   (VarP _   ) = do v <- gets head; modify tail; return v
   pat   (DotP _   ) = pat (VarP dummy) -- WHY NOT: return HS.PWildCard -- SEE ABOVE
@@ -327,7 +328,8 @@ argpatts ps0 bvs = evalStateT (mapM pat' ps0) bvs
     -- worst case it is quadratic in the size of the pattern. I
     -- suspect that this will not be a problem in practice, though.
     irrefutable <- lift $ irr p
-    let tilde = if   tildesEnabled && irrefutable
+    let tilde :: HS.Pat -> HS.Pat
+        tilde = if tildesEnabled && irrefutable
                 then HS.PParen . HS.PIrrPat
                 else id
     (tilde . HS.PParen) <$>
@@ -342,6 +344,7 @@ argpatts ps0 bvs = evalStateT (mapM pat' ps0) bvs
   -- do not match against irrelevant stuff
   pat' a | isIrrelevant a = return $ HS.PWildCard
 -}
+  pat' :: I.NamedArg Pattern -> StateT [HS.Pat] TCM HS.Pat
   pat' a = pat $ namedArg a
 
   tildesEnabled = False
@@ -357,6 +360,7 @@ argpatts ps0 bvs = evalStateT (mapM pat' ps0) bvs
          <*> (andM $ L.map irr' ps)
 
   -- | Irrelevant patterns are naturally irrefutable.
+  irr' :: I.NamedArg Pattern -> TCM Bool
   irr' a | isIrrelevant a = return $ True
   irr' a = irr $ namedArg a
 
