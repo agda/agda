@@ -97,8 +97,11 @@ imports = (++) <$> hsImps <*> imps where
            ((++) <$> importsForPrim <*> (L.map mazMod <$> mnames))
 
   decl :: HS.ModuleName -> HS.ImportDecl
+#if MIN_VERSION_haskell_src_exts(1,16,0)
+  decl m = HS.ImportDecl dummy m True False False Nothing Nothing Nothing
+#else
   decl m = HS.ImportDecl dummy m True False Nothing Nothing Nothing
-
+#endif
   mnames :: TCM [ModuleName]
   mnames = (++) <$> (S.elems <$> gets stImportedModules)
                 <*> (L.map fst . iImportedModules <$> curIF)
