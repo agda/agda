@@ -256,7 +256,11 @@ checkCover q ty n cs = do
         (a, _) <- conArityAndPars c
         Just (HsDefn _ hsc) <- compiledHaskell . defCompiledRep <$> getConstInfo c
         let pat = HS.PApp (HS.UnQual $ HS.Ident hsc) $ genericReplicate a HS.PWildCard
+#if MIN_VERSION_haskell_src_exts(1,16,0)
+        return $ HS.Alt dummy pat (HS.UnGuardedRhs $ HS.unit_con) (HS.BDecls [])
+#else
         return $ HS.Alt dummy pat (HS.UnGuardedAlt $ HS.unit_con) (HS.BDecls [])
+#endif
   cs <- mapM makeClause cs
   let rhs = case cs of
               [] -> fakeExp "()" -- There is no empty case statement in Haskell
