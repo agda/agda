@@ -426,7 +426,11 @@ condecl q = do
 
 cdecl :: QName -> Nat -> HS.ConDecl
 cdecl q n = HS.ConDecl (unqhname "C" q)
-            [ HS.UnBangedTy $ HS.TyVar $ ihname "a" i | i <- [0 .. n - 1]]
+#if MIN_VERSION_haskell_src_exts(1,16,0)
+            [ HS.TyVar $ ihname "a" i | i <- [0 .. n - 1] ]
+#else
+            [ UnBangedTy $ HS.TyVar $ ihname "a" i | i <- [0 .. n - 1] ]
+#endif
 
 tvaldecl :: QName
          -> Induction
