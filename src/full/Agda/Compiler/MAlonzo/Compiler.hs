@@ -322,7 +322,11 @@ argpatts ps0 bvs = evalStateT (mapM pat' ps0) bvs
   pat   (ProjP _  ) = lift $ typeError $ NotImplemented $ "Compilation of copatterns"
   pat   (VarP _   ) = do v <- gets head; modify tail; return v
   pat   (DotP _   ) = pat (VarP dummy) -- WHY NOT: return HS.PWildCard -- SEE ABOVE
+#if MIN_VERSION_haskell_src_exts(1,16,0)
+  pat   (LitP l   ) = return $ HS.PLit HS.Signless $ hslit l
+#else
   pat   (LitP l   ) = return $ HS.PLit $ hslit l
+#endif
   pat p@(ConP c _ ps) = do
     -- Note that irr is applied once for every subpattern, so in the
     -- worst case it is quadratic in the size of the pattern. I
