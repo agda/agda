@@ -87,15 +87,24 @@ compile i = do
 
 imports :: TCM [HS.ImportDecl]
 imports = (++) <$> hsImps <*> imps where
+  hsImps :: TCM [HS.ImportDecl]
   hsImps = (L.map decl . S.toList .
             S.insert mazRTE . S.map HS.ModuleName) <$>
              getHaskellImports
-  imps   = L.map decl . uniq <$>
-             ((++) <$> importsForPrim <*> (L.map mazMod <$> mnames))
+
+  imps :: TCM [HS.ImportDecl]
+  imps = L.map decl . uniq <$>
+           ((++) <$> importsForPrim <*> (L.map mazMod <$> mnames))
+
+  decl :: HS.ModuleName -> HS.ImportDecl
   decl m = HS.ImportDecl dummy m True False Nothing Nothing Nothing
+
+  mnames :: TCM [ModuleName]
   mnames = (++) <$> (S.elems <$> gets stImportedModules)
                 <*> (L.map fst . iImportedModules <$> curIF)
-  uniq   = L.map head . group . L.sort
+
+  uniq :: [HS.ModuleName] -> [HS.ModuleName]
+  uniq = L.map head . group . L.sort
 
 --------------------------------------------------
 -- Main compiling clauses
