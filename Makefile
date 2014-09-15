@@ -38,21 +38,21 @@ endif
 # The cabal command.
 CABAL_CMD=cabal
 
-CABAL_OPTS=$(CABAL_OPTIONS)
+override CABAL_OPTS+=$(CABAL_OPTIONS)
 
 # Options used by cabal install.
-CABAL_OPTS+=--builddir=dist/$(VERSION)
+override CABAL_OPTS+=--builddir=dist/$(VERSION)
 #  -f old-time
 #  -f epic
 
-# CABAL_OPTS+=--program-suffix=-$(VERSION)
+# override CABAL_OPTS+=--program-suffix=-$(VERSION)
 
 # If you want to make use of parallel compilation with ghc>=7.8,
 # enable the flag below, or set the "jobs" field in your
 # ".cabal/config".
 #
 # ifeq ($(HAVE_GHC_7_7),Yes)
-# CABAL_OPTS+=--ghc-option=-j3
+# override CABAL_OPTS+=--ghc-option=-j3
 # endif
 
 .PHONY : install
