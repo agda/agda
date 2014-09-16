@@ -2,13 +2,8 @@
 
 -- | Pretty-print the AuxAST to valid Epic code.
 module Agda.Compiler.UHC.Core
---  ( prettyEpicFun
---  , prettyEpic
---  ) where
   ( toCore
   , coreError
-  , linkWithPrelude
-  , linkWithPrelude1
   ) where
 
 import Data.Char
@@ -39,34 +34,6 @@ import Agda.Compiler.UHC.CoreSyntax
 
 import Agda.Utils.Impossible
 
-linkWithPrelude :: String -> CModule -> Compile TCM CModule
-linkWithPrelude fPre modMain = do
-  modPre <- liftIO $ parsePrelude fPre
-  return $ linkWithPrelude1 modPre modMain
-  where parsePrelude f = do
-    		cs <- readFile f
-        	let tokens = scan scanOpts (initPos cs) cs
-	        let (res, errs) = parseToResMsgs pCModule tokens
-		case errs of
-		    [] -> return $ res
-		    _  -> error $ "Parsing core prelude failed:\n" ++ (intercalate "\n" $ map show errs)
-        scanOpts = coreScanOpts ehcOpts
-
-
-linkWithPrelude1 :: CModule -> CModule -> CModule
-linkWithPrelude1 (CModule_Mod preNm preImps preMetaDecl preLets) (CModule_Mod mainNm mainImpts mainMetaDecl mainLets) =
-  CModule_Mod mainNm [] (preMetaDecl ++ mainMetaDecl) (insertNewMain preLets)
-  where insertNewMain :: CExpr -> CExpr
-	insertNewMain (CExpr_Let categ bnds expr) = case getMainBind [] bnds of
-		(Just [])	-> mainLets
-		(Just othrBnds) -> CExpr_Let categ othrBnds mainLets
-		(Nothing)	-> CExpr_Let categ bnds (insertNewMain expr)
-	insertNewMain ex = error "TODO"
-	getMainBind :: [CBind] -> [CBind] -> Maybe [CBind]
-	getMainBind ac ((CBind_Bind nm asps):bs) | show nm == "main" = Just $ ac ++ bs
-	getMainBind ac (b:bs) = getMainBind (b:ac) bs
-	getMainBind ac [] = Nothing
-		
 
 toCore :: String -> [Fun] -> Compile TCM CModule
 toCore mod funs = do
@@ -80,7 +47,7 @@ toCore mod funs = do
   constrs <- getsEI constrTags
   cMetaDeclL <- buildCMetaDeclL constrs
 
-  return $ CModule_Mod (hsnFromString mod) [] cMetaDeclL lets
+  return $ CModule_Mod (hsnFromString mod) [CImport_Import $ hsnFromString "UHC.Agda.Builtins"] cMetaDeclL lets
 
 buildCMetaDeclL :: M.Map QName Tag -> Compile TCM CDeclMetaL
 buildCMetaDeclL m = do

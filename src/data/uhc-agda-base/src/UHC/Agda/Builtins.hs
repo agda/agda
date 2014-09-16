@@ -4,6 +4,8 @@ module UHC.Agda.Builtins
   , primPutStrLn
   , primReturn
   , primBind
+  , primDebugNatToInteger
+  , primDebugIntegerToString
   )
 where
 
@@ -33,9 +35,9 @@ primBind :: IO a -> (a -> IO b) -> IO b
 primBind = (>>=)
 
 -- TODO this is a work around, as we don't have proper linking for core modules yet
-main :: IO ()
+{-main :: IO ()
 main = Zero `seq` Suc `seq` primIntegerToNat `seq` primPutStrLn `seq` primReturn `seq` primBind `seq` primDebugNatToInteger
-       `seq` primDebugIntegerToString `seq` return ()
+       `seq` primDebugIntegerToString `seq` return ()-}
 
 -- TODO should this actually be a prim? if so, rename
 primDebugNatToInteger :: Nat -> Integer

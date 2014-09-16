@@ -2,6 +2,8 @@
 -- documentation, see http://haskell.org/cabal/users-guide/
 
 -- ATTENTION: normally this package gets built using UHC directly without cabal!
+-- The version of this package, when built directly using UHC, is the version of Agda.
+-- In the long term, it would be nice if we could use "cabal install --uhc" to install this package.
 
 name:                uhc-agda-base
 version:             0.1.0.0

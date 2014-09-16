@@ -15,6 +15,7 @@ import Data.Monoid
 import System.Directory ( canonicalizePath, createDirectoryIfMissing
                         , getCurrentDirectory, setCurrentDirectory
                         )
+import Data.Version
 import Data.List as L
 import System.Exit
 import System.FilePath hiding (normalise)
@@ -62,15 +63,44 @@ import Agda.Utils.Impossible
 
 type CoreCode = String
 
-{-compilePrelude :: Compile TCM ()
-compilePrelude = do
-    dataDir <- (</> "EpicInclude") <$> liftIO getDataDir
+compileUHCAgdaBase :: Compile TCM ()
+compileUHCAgdaBase = do
+    -- TODO only compile uhc-agda-base when we have to
+    dataDir <- (</> "uhc-agda-base") <$> liftIO getDataDir
     pwd <- liftIO $ getCurrentDirectory
-    liftIO $ setCurrentDirectory dataDir
-    let prelude = "AgdaPrelude"
+
+    -- get user package dir
+    ehcBin <- getEhcBin
+    (pkgSuc, pkgDbOut, _) <- liftIO $ readProcessWithExitCode ehcBin ["--meta-pkgdir-user"] ""
+
+    case pkgSuc of
+        ExitSuccess -> do
+                let pkgDbDir = head $ lines pkgDbOut
+                liftIO $ setCurrentDirectory dataDir
+
+                let vers = showVersion version
+                    pkgName = "uhc-agda-base-" ++ vers
+                    hsFiles = ["src/UHC/Agda/Builtins.hs"]
+                lift $ reportSLn "uhc" 10 $ unlines $
+                    [ "Compiling " ++ pkgName ++ ", installing into package db " ++ pkgDbDir ++ "."
+                    ]
+
+
+                -- TODO should we pass pkg-build-depends as well?
+                callUHC1 (  ["--odir=" ++ pkgDbDir ++""
+                            , "--pkg-build=" ++ pkgName
+                            , "--pkg-build-exposed=UHC.Agda.Builtins"
+                            , "--pkg-expose=base-3.0.0.0"
+{-                            , "--pkg-expose=uhcbase-1.1.7.0"-}] ++ hsFiles)
+
+
+                liftIO $ setCurrentDirectory pwd
+        ExitFailure _ -> lift $ internalError $ unlines
+            [ "Agda couldn't find the UHC user package directory."
+            ]
+    {-
     uptodate <- liftIO $ (prelude <.> "ei") `isNewerThan` (prelude <.> "e")
-    when (not uptodate) $ callEpic False [ "-c" , prelude <.> "e" ]
-    liftIO $ setCurrentDirectory pwd-}
+    when (not uptodate) $ callEpic False [ "-c" , prelude <.> "e" ]-}
 
 -- | Compile an interface into an executable using Epic
 compilerMain :: Interface -> TCM ()
@@ -80,10 +110,12 @@ compilerMain inter = do
                   "ghc-pkg"
                   ["-v0", "field", "epic", "id"]
                   ""-}
+
     let epic_exist = ExitSuccess -- PH TODO do check for uhc
     case epic_exist of
         ExitSuccess -> flip evalStateT initCompileState $ do
---            compilePrelude
+            compileUHCAgdaBase
+
             setUHCDir inter
             (_, imports) <- compileModule inter
             main <- getMain
@@ -147,9 +179,8 @@ compileModule i = do
                     -- Epic cannot parse files with no definitions
                     if (not $ null defns) then do
                         code <- compileDefns moduleName defns
-			-- HACK
-			code' <- linkWithPrelude "/home/philipp/Projects/uu/exp1/uhc-agda-base/src/UHC/Agda/Builtins.tcr" code
-                        runUHC file (S.toList imps) code'
+            	        -- HACK
+                        runUHC file (S.toList imps) code
                         eif <- gets curModule
 -- PH : TODO see missing instance problem in readEInterface
 {-                        lift $ do
@@ -287,33 +318,15 @@ runUhcMain mainName imports m = do
         ++ epic ++ map (<.> "o") imports'-}
 
 callUHC :: FilePath -> Compile TCM ()
-callUHC fp = do
-    ehcBin <- fromMaybe ("ehc") . optUHCEhcBin <$> lift commandLineOptions
-    let ehcCmd = [ fp ]
-    lift $ callCompiler ehcBin ehcCmd
-{-
--- | Call epic, with a given set of flags, if the |Bool| is True then include
--- the command line flags at the end
-callEpic :: Bool -> [String] -> Compile TCM ()
-callEpic incEFlags flags = callEpic' $ \epicFlags ->
-  flags ++ if incEFlags then epicFlags else []
+callUHC fp = callUHC1 [fp]
 
--- | Call epic with a given set of flags, the argument function receives the flags given
--- at the command line
-callEpic' :: ([String] -> [String]) -> Compile TCM ()
-callEpic' flags = do
-    epicFlags <- optEpicFlags <$> lift commandLineOptions
-    dataDir   <- (</> "EpicInclude") <$> liftIO getDataDir
-    let epic        = "epic"
-        epicCommand =
-          [ "-keepc"
-          -- , "-g"
-          -- , "-checking", "0"
-          -- , "-trace"
-          , "-i", dataDir </> "stdagda" <.> "c"
-          ] ++ flags epicFlags
+callUHC1 :: [String] -> Compile TCM ()
+callUHC1 args = do
+    ehcBin <- getEhcBin
+    lift $ callCompiler ehcBin args
 
-    lift $ callCompiler epic epicCommand-}
+getEhcBin :: Compile TCM FilePath
+getEhcBin = fromMaybe ("ehc") . optUHCEhcBin <$> lift commandLineOptions
 
 #else
 
