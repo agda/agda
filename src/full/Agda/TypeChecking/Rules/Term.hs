@@ -580,16 +580,16 @@ checkExpr e t0 =
                       Nothing  -> noRange
                       Just pos -> posToRange pos pos
 
-                hiddenLambdaOrHole h (A.AbsurdLam _ h') | h == h'                      = True
-                hiddenLambdaOrHole h (A.ExtendedLam _ _ _ [])                          = False
-                hiddenLambdaOrHole h (A.ExtendedLam _ _ _ cls)                         = any hiddenLHS cls
-		hiddenLambdaOrHole h (A.Lam _ (A.DomainFree info' _) _) | h == getHiding info'       = True
-		hiddenLambdaOrHole h (A.Lam _ (A.DomainFull (A.TypedBindings _ (Arg info' _))) _)
-                  | h == getHiding info'                                                            = True
-		hiddenLambdaOrHole _ A.QuestionMark{}				       = True
-		hiddenLambdaOrHole _ _						       = False
+                hiddenLambdaOrHole h e = case e of
+                  A.AbsurdLam _ h'                 -> h == h'
+                  A.ExtendedLam _ _ _ cls          -> any hiddenLHS cls
+                  A.Lam _ (A.DomainFree info' _) _ -> h == getHiding info'
+                  A.Lam _ (A.DomainFull (A.TypedBindings _ (Arg info' _))) _
+                                                   -> h == getHiding info'
+                  A.QuestionMark{}                 -> True
+                  _                                -> False
 
-                hiddenLHS (A.Clause (A.LHS _ (A.LHSHead _ (a : _)) _) _ _) = elem (getHiding a) [Hidden, Instance]
+                hiddenLHS (A.Clause (A.LHS _ (A.LHSHead _ (a : _)) _) _ _) = notVisible a
                 hiddenLHS _ = False
 
         -- a meta variable without arguments: type check directly for efficiency
