@@ -257,16 +257,17 @@ compileDefns mod defs = do
 writeCoreFile :: String -> EC.CModule -> Compile TCM FilePath
 writeCoreFile f mod = do
   useTextual <- optUHCTextualCore <$> lift commandLineOptions
+  let f' = takeDirectory f </> "AgdaPU." ++ takeFileName f
   if useTextual then do
-    let f' = f <.> ".tcr"
-    lift $ reportSLn "uhc" 10 $ "Writing textual core to \"" ++ show f' ++ "\"."
-    liftIO $ putPPFile f' (EP.ppCModule ehcOpts mod) 200
-    return f' 
+    let f'' = f' <.> ".tcr"
+    lift $ reportSLn "uhc" 10 $ "Writing textual core to \"" ++ show f'' ++ "\"."
+    liftIO $ putPPFile f'' (EP.ppCModule ehcOpts mod) 200
+    return f''
   else do
-    let f' = f <.> ".bcr"
-    lift $ reportSLn "uhc" 10 $ "Writing binary core to \"" ++ show f' ++ "\"."
-    liftIO $ putSerializeFile f' mod
-    return f'
+    let f'' = f' <.> ".bcr"
+    lift $ reportSLn "uhc" 10 $ "Writing binary core to \"" ++ show f'' ++ "\"."
+    liftIO $ putSerializeFile f'' mod
+    return f''
 
 -- | Change the current directory to Epic folder, create it if it doesn't already
 --   exist.

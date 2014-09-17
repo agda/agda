@@ -399,7 +399,7 @@ library
                     Agda.Compiler.UHC.FromAgda
 --                    Agda.Compiler.UHC.Injection
 --                    Agda.Compiler.UHC.NatDetection
---                    Agda.Compiler.UHC.Primitive
+                    Agda.Compiler.UHC.Primitives
 --                    Agda.Compiler.UHC.Smashing
                     Agda.Compiler.UHC.Static
 

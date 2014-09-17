@@ -27,7 +27,7 @@ import Agda.Compiler.UHC.AuxAST
 import Agda.Compiler.UHC.CompileState
 import Agda.Compiler.UHC.Interface
 import Agda.Compiler.UHC.Static
-
+import Agda.Compiler.UHC.Primitives
 import Agda.Compiler.UHC.Core
 
 #include "../../undefined.h"
@@ -83,15 +83,16 @@ translateDefn btins msharp (n, defini) =
         -- let projArgs = maybe 0 (pred . projIndex) (funProjection f)
         ccs  <- reverseCCBody projArgs <$> normaliseStatic cc
         let len   = (+ projArgs) . length . clausePats . head .  funClauses $ f
-            toEta = arity (defType defini) - len
+            ty    = (defType defini)
         -- forcing <- lift $ gets (optForcing . stPersistentOptions)
-        lift $ reportSDoc "epic.fromagda" 5 $ text "compiling fun:" <+> prettyTCM n
-        lift $ reportSDoc "epic.fromagda" 5 $ text "len:" <+> (text . show) len
-        lift $ reportSDoc "epic.fromagda" 5 $ text "pats:" <+> (text . show) (clausePats
+        lift $ reportSDoc "uhc.fromagda" 5 $ text "compiling fun:" <+> prettyTCM n
+        lift $ reportSDoc "uhc.fromagda" 5 $ text "len:" <+> (text . show) len
+        lift $ reportSDoc "uhc.fromagda" 5 $ text "pats:" <+> (text . show) (clausePats
                     $ head $ funClauses f)
+        lift $ reportSDoc "uhc.fromagda" 5 $ text "type:" <+> (text . show) ty
         modify $ \s -> s {curFun = show n}
-        lift $ reportSDoc "epic.fromagda" 5 $ text "ccs: " <+> (text . show) ccs
-        res <- return <$> (etaExpand toEta =<< compileClauses btins n len ccs)
+        lift $ reportSDoc "uhc.fromagda" 5 $ text "ccs: " <+> (text . show) ccs
+        res <- return <$> compileClauses btins n len ccs
 {-        pres <- case res of
           Nothing -> return Nothing
           Just  c -> return <$> prettyEpicFun c
@@ -120,19 +121,20 @@ translateDefn btins msharp (n, defini) =
                 $ coreError ("Axiom " ++ show n ++ " used but has no computation.")
             Just (CrDefn x)  -> return . return $ CoreFun n' (Just n) ("COMPILED_CORE: " ++ show n) x
             _       -> error "Compiled core must be def, something went wrong."
-    p@(Primitive{}) -> do -- Primitives use primitive functions from AgdaPrelude.e of the same name.
-                          -- Hopefully they are defined!
+    p@(Primitive{}) -> do -- Primitives use primitive functions from UHC.Agda.Builtins of the same name.
+      
       let ar = arity $ defType defini
-      return <$> mkFun n n' (primName p) ar
+      case primName p `M.lookup` primFunctions of
+        Nothing     -> error $ "Primitive " ++ show (primName p) ++ " declared, but no such primitive exists."
+        (Just anm)  -> return <$> mkFunGen n (const $ App anm) ("primitive: " ++) (unqname n) (primName p) ar
   where
+    modOf = reverse . dropWhile (/='.') . reverse
     mkCrCtorFun n (ConNamed dt ctr _) arit = do
         -- UHC generates a wrapper function for all datatypes, so just call that one
-        let ctorFun = (reverse $ dropWhile (/='.') $ reverse dt) ++ ctr
+        let ctorFun = (modOf dt) ++ ctr
         return <$> mkFunGen n (const $ App $ ANmCore ctorFun) (const $ "constructor: " ++ show n) (unqname n) ctr arit
     mkCrCtorFun n (ConUnit) 0 = return $ return $ Fun True (unqname n) (Just n) "Unit constructor function" [] UNIT
     mkCrCtorFun _ _ _ = __IMPOSSIBLE__
-    mkFun :: QName -> AName -> String -> Int -> Compile TCM Fun
-    mkFun q n = mkFunGen q (const $ apps n) (("primitive: " ++) . show) n
     mkCon q tag ari = do
         let name = unqname q
         mkFunGen q (flip Con q) (const $ "constructor: " ++ show q) name tag ari
@@ -147,14 +149,6 @@ translateDefn btins msharp (n, defini) =
         vars <- replicateM arit newName
         return $ Fun True name (Just qn) (sh primname) vars (comb primname (map Var vars))
 
-    etaExpand :: Int -> Fun -> Compile TCM Fun
-    etaExpand num fun = return fun -- do
-{-        names <- replicateM num newName
-        return $ fun
-            { funExpr = funExpr fun @@ names
-            , funArgs = funArgs fun ++ names
-            }
--}
     (@@) :: Expr -> [AName] -> Expr
     e @@ [] = e
     e @@ vs = let ts = map Var vs in case e of

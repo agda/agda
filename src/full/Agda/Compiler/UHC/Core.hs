@@ -47,14 +47,14 @@ toCore mod funs = do
   constrs <- getsEI constrTags
   cMetaDeclL <- buildCMetaDeclL constrs
 
-  return $ CModule_Mod (hsnFromString mod) [CImport_Import $ hsnFromString "UHC.Agda.Builtins"] cMetaDeclL lets
+  return $ CModule_Mod (hsnFromString $ "AgdaPU." ++ mod) [CImport_Import $ hsnFromString "UHC.Agda.Builtins"] cMetaDeclL lets
 
 buildCMetaDeclL :: M.Map QName Tag -> Compile TCM CDeclMetaL
 buildCMetaDeclL m = do
     dataCons <- mapM f (M.toList m)
-    let dataCons' = M.unionsWith (++) dataCons
+    let dataCons' = M.toList $ M.unionsWith (++) dataCons
     
-    return $ map (\(tyNm, dConL) -> CDeclMeta_Data tyNm dConL) (M.toList dataCons')
+    return $ map (\(tyNm, dConL) -> CDeclMeta_Data tyNm dConL) dataCons'
     where f :: (QName, Tag) -> Compile TCM (M.Map HsName [CDataCon])
           f (qn, (Tag t)) = do
               cr <- (lift $ getConstInfo qn) >>= return . compiledCore . defCompiledRep
@@ -109,15 +109,10 @@ branchesToCore :: MonadTCM m => [Branch] -> Compile m (CExpr, CAltL)
 branchesToCore brs = do
     let defs = filter isDefault brs
     def <- if null defs then return coreImpossible else let (Default x) = head defs in exprToCore x
-    -- 20140912 PH: UHC does create incorrect code if the branches are not in alphabetical ordering
-    brs' <- mapM f (sortBy brOrd brs)
+    brs' <- mapM f brs
 
     return (def, concat brs')
     where
-          brOrd (Branch _ qn1 _ _) (Branch _ qn2 _ _) = qn1 `compare` qn2
-          brOrd (CoreBranch (_, c1, _) _ _) (CoreBranch (_, c2, _) _ _) = c1 `compare` c2
-          brOrd (BrInt _ _) (BrInt _ _) = error "TODO"
-          brOrd _ _ = error "TODO use __IMPOSSIBLE__"
           f (Branch tag qn vars e)  = do
             -- TODO fix up everything
             let ctag = mkCTag tag qn
@@ -131,6 +126,7 @@ branchesToCore brs = do
             return [CAlt_Alt (CPat_Con ctag CPatRest_Empty binds) e']
           f (BrInt _ _) = error "TODO"
           f (Default e) = return []
+          -- UHC resets the tags for some constructors, but only those wo are defined in the same module. So just set it anyway, to be safe.
           conSpecToTag (dt, ctor, tag) = CTag (hsnFromString dt) (hsnFromString $ (modNm dt) ++ "." ++ ctor) (fromIntegral tag) 0 0
           modNm s = reverse $ tail $ dropWhile (/= '.') $ reverse s
           isDefault (Default _) = True
@@ -170,8 +166,8 @@ toCoreName (ANmCore n) = hsnFromString n
 toCoreName (ANmAgda n) = hsnFromString $
     case elemIndex '.' nr of
         Just i -> let (n', ns') = splitAt i nr
-                   in (reverse ns') ++ "agda_c1_" ++ (reverse n')
-        Nothing -> n -- local (generated) name, always valid haskell identifiers
+                   in "AgdaPU." ++ (reverse ns') ++ "agda_c1_" ++ (reverse n')
+        Nothing -> n -- local (generated) name
     where nr = reverse n
 
 -- | Apply a lambda to one argument.
