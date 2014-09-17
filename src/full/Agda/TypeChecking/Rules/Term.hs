@@ -571,14 +571,13 @@ checkExpr e t0 =
 	_   | Pi (Dom info _) _ <- ignoreSharing $ unEl t
             , not (hiddenLambdaOrHole (getHiding info) e)
             , getHiding info /= NotHidden -> do
-		x <- freshName r (argName t)
+                x <- freshName rx (argName t)
                 info <- reify info
                 reportSLn "tc.term.expr.impl" 15 $ "Inserting implicit lambda"
-		checkExpr (A.Lam (A.ExprRange $ getRange e) (domainFree info x) e) t
-	    where
-		r = case rStart $ getRange e of
-                      Nothing  -> noRange
-                      Just pos -> posToRange pos pos
+                checkExpr (A.Lam (A.ExprRange re) (domainFree info x) e) t
+            where
+                re = getRange e
+                rx = caseMaybe (rStart re) noRange $ \ pos -> posToRange pos pos
 
                 hiddenLambdaOrHole h e = case e of
                   A.AbsurdLam _ h'                 -> h == h'
