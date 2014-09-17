@@ -66,33 +66,33 @@ erasure fs = do
         step 1
 --  TODO enable this again
 --    modifyEI $ \s -> s { relevantArgs = M.mapKeys funName rels }
-    concat <$> mapM (\f -> map (rem (relevancies erasureState)) <$> check f (M.lookup (funName f) rels)) fs
+    concat <$> mapM (\f -> map (rem (relevancies erasureState)) <$> check f (M.lookup (xfunName f) rels)) fs
   where
 
-    rem rels f@Fun{} = f { funExpr = removeUnused rels (funExpr f) }
+    rem rels f@Fun{} = f { xfunExpr = removeUnused rels (xfunExpr f) }
     rem _    f       = f
     -- | Perform the worker//wrapper transform
     check :: Fun -> Maybe [Relevance] -> Compile TCM [Fun]
     -- If the function is already marked as to inline we don't need to create a
     -- new function. Also If all arguments are relevant there is nothing to do.
-    check f@Fun{} (Just rs) | any isIrr rs && not (funInline f) = do
-        f' <- newName1 (funName f)
-        let args' = pairwiseFilter (map isRel rs) (funArgs f)
-            subs  = pairwiseFilter (map isIrr rs) (funArgs f)
-            e'    = foldr (\v e -> subst v (ANmCore "primUnit") e) (funExpr f) subs
-        return [ Fun { funInline  = True
-                     , funName    = funName f
-                     , funQName   = funQName f
-                     , funComment = funComment f
-                     , funArgs    = funArgs f
-                     , funExpr    = App f' $ map Var args'
+    check f@Fun{} (Just rs) | any isIrr rs && not (xfunInline f) = do
+        f' <- newName1 (xfunName f)
+        let args' = pairwiseFilter (map isRel rs) (xfunArgs f)
+            subs  = pairwiseFilter (map isIrr rs) (xfunArgs f)
+            e'    = foldr (\v e -> subst v (ANmCore "primUnit") e) (xfunExpr f) subs
+        return [ Fun { xfunInline  = True
+                     , xfunName    = xfunName f
+                     , xfunQName   = xfunQName f
+                     , xfunComment = xfunComment f
+                     , xfunArgs    = xfunArgs f
+                     , xfunExpr    = App f' $ map Var args'
                      }
-               , Fun { funInline  = False
-                     , funName    = f'
-                     , funQName   = Nothing
-                     , funComment = funComment f ++ " [ERASED]"
-                     , funArgs    = args'
-                     , funExpr    = e'
+               , Fun { xfunInline  = False
+                     , xfunName    = f'
+                     , xfunQName   = Nothing
+                     , xfunComment = xfunComment f ++ " [ERASED]"
+                     , xfunArgs    = args'
+                     , xfunExpr    = e'
                      }
                ]
 {-    check f@CoreFun{} (Just rs) | any isIrr rs = do
@@ -138,7 +138,7 @@ initiate f@(Fun _ name mqname _ args _) = do
     modify $ \s -> s { relevancies = M.insert name rels (relevancies s)
                      , funs        = M.insert name f (funs s)
                      }
-initiate f@(CoreFun {funName = name, funQName = mqname}) = case mqname of
+initiate f@(CoreFun {xfunName = name, xfunQName = mqname}) = case mqname of
     Just qn -> do
         ty <- lift $ getType qn
         let rels = initialRels ty Rel
@@ -216,11 +216,11 @@ step nrOfLoops = do
                case f of
                   CoreFun{} -> return funRels
                   Fun{} -> do
-                     forM (zip (funArgs f) (funRels ++ repeat Rel)) $ \ (x, rel) -> case rel of
+                     forM (zip (xfunArgs f) (funRels ++ repeat Rel)) $ \ (x, rel) -> case rel of
                         Rel -> return Rel
                         Irr -> do
-                          lift $ lift $ reportSDoc "epic.erasure" 10 $ P.text "running erasure:" P.<+> (P.text . show) (funQName f)
-                          relevant x (funExpr f)
+                          lift $ lift $ reportSDoc "epic.erasure" 10 $ P.text "running erasure:" P.<+> (P.text . show) (xfunQName f)
+                          relevant x (xfunExpr f)
     let relsm = newRels `M.union` relevancies s
     if relevancies s == relsm
        then return newRels

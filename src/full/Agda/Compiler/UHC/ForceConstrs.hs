@@ -79,5 +79,4 @@ forceFun (Fun inline name qname comment args expr) =
                   then return e
                   else __IMPOSSIBLE__ -- If so, the removal of forced args has gone wrong-}
             return $ CoreBranch con vars e --tag name vs <$> forceExpr e''
-        BrInt i e -> BrInt i <$> forceExpr e
         Default e -> Default <$> forceExpr e

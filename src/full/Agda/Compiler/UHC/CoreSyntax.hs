@@ -39,7 +39,7 @@ import EH99.Base.HsName
 
 
 -- Datatype, ctor name, tag
-type CoreConstr = (String, String, Integer)
+type CoreConstr = (String, String, Int)
 
 #ifndef UHC_BACKEND
 
@@ -64,7 +64,7 @@ type CoreExpr = CExpr
 ehcOpts = defaultEHCOpts { ehcOptCoreOpts = [ CoreOpt_Dump ] }
 
 -- TODO very adhoc, do proper parsing instead
-parseCoreConstr :: String -> Either String (String, Integer)
+parseCoreConstr :: String -> Either String (String, Int)
 parseCoreConstr xs@('(':xss) | last xs == ')' = Right (s1, read $ tail s2)
   where s = init xss
         (s1, s2) = splitAt (fromJust $ elemIndex ',' s) s

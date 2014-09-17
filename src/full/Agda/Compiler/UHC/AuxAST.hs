@@ -17,20 +17,42 @@ import Agda.Utils.Impossible
 type Comment  = String
 type Inline   = Bool
 
+data AMod
+  = AMod
+      { xmodName    :: String
+      , xmodDataTys :: [ADataTy]
+      , xmodFunDefs :: [Fun]
+      }
+
+data ADataTy
+  = ADataTy
+      { xdatName     :: AName
+      , xdatQName    :: QName
+      , xdatCons     :: [ADataCon]
+      }
+
+data ADataCon
+  = ADataCon
+      { xconArity    :: Int
+      , xconLocalName :: String -- constructor name without module/datatype part
+      , xconQName    :: QName
+      , xconTag      :: Tag
+      }
+
 data Fun
   = Fun
-      { funInline  :: Inline
-      , funName    :: AName
-      , funQName   :: Maybe QName
-      , funComment :: Comment
-      , funArgs    :: [AName]
-      , funExpr    :: Expr
+      { xfunInline  :: Inline
+      , xfunName    :: AName
+      , xfunQName   :: Maybe QName
+      , xfunComment :: Comment
+      , xfunArgs    :: [AName]
+      , xfunExpr    :: Expr
       }
   | CoreFun
-      { funName     :: AName
-      , funQName    :: Maybe QName
-      , funComment  :: Comment
-      , funCoreExpr :: CoreExpr
+      { xfunName     :: AName
+      , xfunQName    :: Maybe QName
+      , xfunComment  :: Comment
+      , xfunCoreExpr :: CoreExpr
       }
   deriving (Eq, Show)
 
@@ -58,7 +80,6 @@ data Expr
 data Branch
   = Branch  {brTag  :: Tag, brName :: QName, brVars :: [AName], brExpr :: Expr}
   | CoreBranch {brCoreCon :: CoreConstr, brVars :: [AName], brExpr :: Expr}
-  | BrInt   {brInt  :: Int, brExpr :: Expr}
   | Default {brExpr :: Expr}
   deriving (Show, Ord, Eq)
 
@@ -97,7 +118,6 @@ casee x brs = Case x [br{brExpr = casingE br (brExpr br)} | br <- brs]
       UNIT        -> UNIT
       IMPOSSIBLE  -> IMPOSSIBLE
     sameCon (Branch {brTag = t1}) (Branch {brTag = t2}) = t1 == t2
-    sameCon (BrInt  {brInt = i1}) (BrInt  {brInt = i2}) = i1 == i2
     sameCon _                     _                     = False
 
 -- | Smart constructor for applications to avoid empty applications
@@ -159,5 +179,4 @@ fv = S.toList . fv'
     fvBr b = case b of
       Branch _ _ vs e -> fv' e S.\\ S.fromList vs
       CoreBranch _ vs e -> fv' e S.\\ S.fromList vs
-      BrInt _ e       -> fv' e
       Default e       -> fv' e

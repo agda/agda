@@ -34,36 +34,31 @@ import Agda.Compiler.UHC.CoreSyntax
 
 import Agda.Utils.Impossible
 
+toCore :: AMod -> Compile TCM CModule
+toCore mod = do
+  funs <- funsToCore (xmodName mod) (xmodFunDefs mod)
+  let cMetaDeclL = buildCMetaDeclL (xmodDataTys mod)
+  
+  return $ CModule_Mod (hsnFromString $ "AgdaPU." ++ (xmodName mod)) [CImport_Import $ hsnFromString "UHC.Agda.Builtins"] cMetaDeclL funs
 
-toCore :: String -> [Fun] -> Compile TCM CModule
-toCore mod funs = do
+-- TODO we should move the main generation somewhere else, but where?
+funsToCore :: String -> [Fun] -> Compile TCM CExpr
+funsToCore mod funs = do
   binds <- mapM funToBind funs
   let mainEhc = CExpr_Let CBindCateg_Plain [
 	CBind_Bind (hsnFromString "main") [
 		CBound_Bind cmetas (appS "UHC.Run.ehcRunMain" (CExpr_Var $ acoreMkRef $ toCoreName $ ANmAgda (mod ++ ".main")))]
 	] (CExpr_Var (acoreMkRef $ hsnFromString "main"))
-  let lets = CExpr_Let CBindCateg_Rec binds mainEhc
+  return $ CExpr_Let CBindCateg_Rec binds mainEhc
 
-  constrs <- getsEI constrTags
-  cMetaDeclL <- buildCMetaDeclL constrs
+--buildCMetaDeclL :: M.Map QName Tag -> Compile TCM CDeclMetaL
+buildCMetaDeclL :: [ADataTy] -> CDeclMetaL
+buildCMetaDeclL dts = map f dts
+    where f :: ADataTy -> CDeclMeta
+          f d@(ADataTy{}) = CDeclMeta_Data (toCoreName $ xdatName d) (map g (xdatCons d))
+          g :: ADataCon -> CDataCon
+          g c@(ADataCon{}) = CDataCon_Con (toCoreName $ unqname $ xconQName c) (xconTag c) (xconArity c)
 
-  return $ CModule_Mod (hsnFromString $ "AgdaPU." ++ mod) [CImport_Import $ hsnFromString "UHC.Agda.Builtins"] cMetaDeclL lets
-
-buildCMetaDeclL :: M.Map QName Tag -> Compile TCM CDeclMetaL
-buildCMetaDeclL m = do
-    dataCons <- mapM f (M.toList m)
-    let dataCons' = M.toList $ M.unionsWith (++) dataCons
-    
-    return $ map (\(tyNm, dConL) -> CDeclMeta_Data tyNm dConL) dataCons'
-    where f :: (QName, Tag) -> Compile TCM (M.Map HsName [CDataCon])
-          f (qn, (Tag t)) = do
-              cr <- (lift $ getConstInfo qn) >>= return . compiledCore . defCompiledRep
-              case cr of
-                (Just _) -> return M.empty
-                _ -> do
-                  a <- getConArity qn
-                  -- TODO do we have to put full qn into con name?
-                  return $ M.singleton (qnameTypeName qn) [CDataCon_Con (hsnFromString $ show qn) t a]
 
 funToBind :: MonadTCM m => Fun -> Compile m CBind
 -- TODO Just put everything into one big let rec. Is this actually valid Core?
@@ -124,10 +119,9 @@ branchesToCore brs = do
             let binds = [CPatFld_Fld (hsnFromString "") (CExpr_Int i) (CBind_Bind (toCoreName v) []) [] | (i, v) <- zip [0..] vars]
             e' <- exprToCore e
             return [CAlt_Alt (CPat_Con ctag CPatRest_Empty binds) e']
-          f (BrInt _ _) = error "TODO"
           f (Default e) = return []
           -- UHC resets the tags for some constructors, but only those wo are defined in the same module. So just set it anyway, to be safe.
-          conSpecToTag (dt, ctor, tag) = CTag (hsnFromString dt) (hsnFromString $ (modNm dt) ++ "." ++ ctor) (fromIntegral tag) 0 0
+          conSpecToTag (dt, ctor, tag) = CTag (hsnFromString dt) (hsnFromString $ (modNm dt) ++ "." ++ ctor) tag 0 0
           modNm s = reverse $ tail $ dropWhile (/= '.') $ reverse s
           isDefault (Default _) = True
           isDefault _ = False
@@ -139,7 +133,7 @@ qnameCtorName :: QName -> HsName
 qnameCtorName = hsnFromString . show . last . qnameToList
 
 mkCTag :: Tag -> QName -> CTag
-mkCTag (Tag t) qn = CTag (qnameTypeName qn) (qnameCtorName qn) t 0 0
+mkCTag t qn = CTag (qnameTypeName qn) (qnameCtorName qn) t 0 0
 
 litToCore :: Lit -> CExpr
 -- should we put this into a let?
@@ -151,9 +145,7 @@ coreImpossible :: CExpr
 coreImpossible = coreError "BUG! Impossible code reached."
 
 coreError :: String -> CExpr
---should we put the string into a let?
 coreError msg = appS "UHC.Base.error" (coreStr $ "AGDA: " ++ msg)
---coreError msg = "(UHC.Base.error) ((UHC.Base.packedStringToString) (#String\"" ++ msg ++ "\"))"
 
 coreStr :: String -> CExpr
 coreStr s = appS "UHC.Base.packedStringToString" (CExpr_String s)

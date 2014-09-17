@@ -109,7 +109,7 @@ assignConstrTag' :: MonadTCM m => QName -> [QName] -> Compile m Tag
 assignConstrTag' constr constrs = do
     constrs <- concat <$> mapM ((getDataCon =<<) . getConData) (constr : constrs)
     tags    <- catMaybes <$> mapM getConstrTag' constrs
-    let tag =  head $ map Tag [0..] \\ tags
+    let tag =  head $ [0..] \\ tags
     putConstrTag constr tag
     return tag
 

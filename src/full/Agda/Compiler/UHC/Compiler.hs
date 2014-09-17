@@ -238,9 +238,10 @@ compileDefns :: CN.TopLevelModuleName -> [(QName, Definition)] -> Compile TCM EC
 compileDefns mod defs = do
     -- We need to handle sharp (coinduction) differently, so we get it here.
     msharp <- lift $ getBuiltin' builtinSharp
-    emits   <- return defs
+    let modName = L.intercalate "." (CN.moduleNameParts mod)
+    amod   <- return defs
 --               >>= idPrint "findInjection" ID.findInjection
-               >>= idPrint "fromAgda"   (FAgda.fromAgda msharp)
+               >>= idPrint "fromAgda"   (FAgda.fromAgdaModule msharp modName)
 --               >>= idPrint "forcing"     Forcing.remForced
 --               >>= idPrint "irr"         ForceC.forceConstrs
 --               >>= idPrint "primitivise" Prim.primitivise
@@ -249,8 +250,7 @@ compileDefns mod defs = do
 --               >>= idPrint "caseOpts"    COpts.caseOpts
                >>= idPrint "done" return
     lift $ reportSLn "uhc" 10 $ "Done generating AuxAST for \"" ++ show mod ++ "\"."
-    let modName = L.intercalate "." (CN.moduleNameParts mod)
-    crMod <- toCore modName emits
+    crMod <- toCore amod
     lift $ reportSLn "uhc" 10 $ "Done generating Core for \"" ++ show mod ++ "\"."
     return crMod
 

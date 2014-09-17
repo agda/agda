@@ -151,20 +151,20 @@ remForced :: [Fun] -> Compile TCM [Fun]
 remForced fs = do
     defs <- lift (gets (sigDefinitions . stImports))
     forM fs $ \f -> case f of
-        Fun{} -> case funQName f >>= flip HM.lookup defs of
+        Fun{} -> case xfunQName f >>= flip HM.lookup defs of
             Nothing -> __IMPOSSIBLE__
             Just def -> do
                 TelV tele _ <- lift $ telView (defType def)
                 report 10 $ vcat
-                  [ text "compiling fun" <+> (text . show) (funQName f)
+                  [ text "compiling fun" <+> (text . show) (xfunQName f)
                   ]
-                e <- forcedExpr (funArgs f) tele (funExpr f)
+                e <- forcedExpr (xfunArgs f) tele (xfunExpr f)
 {-                report 10 $ vcat
                   [ text "compilied fun" <+> (text . show) (funQName f)
                   , text "before:" <+> (text . prettyEpic) (funExpr f)
                   , text "after:" <+> (text . prettyEpic) e
                   ]-}
-                return $ f { funExpr = e}
+                return $ f { xfunExpr = e}
         CoreFun{} -> return f
 
 -- | For a given expression, in a certain telescope (the list of Var) is a mapping
@@ -184,10 +184,6 @@ forcedExpr vars tele expr = case expr of
     Case v@(Var x) brs -> do
         let n = fromMaybe __IMPOSSIBLE__ $ elemIndex x vars
         (Case v <$>) . forM brs $ \ br -> case br of
-            BrInt i e -> do
-              (tele'', _) <-  insertTele __IMPOSSIBLE__ n Nothing (I.Lit (LitChar noRange (chr i))) tele
-              BrInt i <$> forcedExpr (replaceAt n vars []) tele'' e
-
             Default e -> Default <$> rec e
             CoreBranch ctor as e -> return $ CoreBranch ctor as e -- TODO this might not be correct??!!?
             Branch t constr as e -> do

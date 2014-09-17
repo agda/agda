@@ -20,9 +20,9 @@ data AName
   deriving (Show, Eq, Ord)
 
 
-data Tag       = Tag Int
+type Tag       = Int
 --               | PrimTag Var
-  deriving (Show, Eq, Ord, Typeable)
+--  deriving (Show, Eq, Ord, Typeable)
 
 data Forced = NotForced | Forced
   deriving (Show, Typeable, Eq)

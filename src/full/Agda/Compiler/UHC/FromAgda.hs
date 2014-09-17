@@ -34,39 +34,47 @@ import Agda.Compiler.UHC.Core
 import Agda.Utils.Impossible
 
 -- | Convert from Agda's internal representation to our auxiliary AST.
-fromAgda :: Maybe T.Term -> [(QName, Definition)] -> Compile TCM [Fun]
-fromAgda msharp defs = do
-  btins <- builtinCtors
-  catMaybes <$> mapM (translateDefn btins msharp) defs
+fromAgdaModule :: Maybe T.Term -> String -> [(QName, Definition)] -> Compile TCM AMod
+fromAgdaModule msharp modNm defs = do
+  btins <- lift getBuiltins
+  funs <- catMaybes <$> mapM (translateDefn btins msharp) defs
+  dats <- translateDataTypes btins
 
-data BuiltinConSpec
-  = ConNamed { conSpecDt :: String, conSpecCtor :: String, conSpecTag :: Integer }
-  | ConUnit
+  return $ AMod { xmodName = modNm
+                , xmodFunDefs = funs
+                , xmodDataTys = dats
+                }
 
-type BuiltinCache = M.Map QName BuiltinConSpec
+-- | Translate the datatypes to the aux ast. The data types are already stored
+--   in the compile monad.
+translateDataTypes :: BuiltinCache -> Compile TCM [ADataTy]
+translateDataTypes btins = do
+    constrs <- getsEI constrTags
+    dataCons <- mapM f (M.toList constrs)
+    let dataCons' = filter (\(x,_) -> not $ x `M.member` btccTys btins) $ M.toList $ M.unionsWith (++) dataCons
+    
+    return $ map (\(tyNm, dConL) -> ADataTy (unqname tyNm) tyNm dConL) dataCons'
+    where f :: (QName, Tag) -> Compile TCM (M.Map QName [ADataCon])
+          f (qn, t) = do
+              cr <- (lift $ getConstInfo qn) >>= return . compiledCore . defCompiledRep
+              case cr of
+                (Just _) -> return M.empty
+                Nothing  -> do
+                  a <- getConArity qn
+                  -- TODO do we have to put full qn into con name?
+                  return $ M.singleton (qnameTypeName qn) [ADataCon
+                        { xconArity = a
+                        , xconLocalName = qnameCtorName qn
+                        , xconQName = qn
+                        , xconTag = t
+                        }]
+          qnameTypeName :: QName -> QName
+          qnameTypeName = qnameFromList . init . qnameToList
 
-builtinCtors :: Compile TCM BuiltinCache
-builtinCtors = mapM f btinCtors >>= return . M.fromList . catMaybes
-  where btinCtors =
-          [ (builtinSuc,    (ConNamed "UHC.Agda.Builtins.Nat" "Suc" 0))
-          , (builtinZero,   (ConNamed "UHC.Agda.Builtins.Nat" "Zero" 1))
---          TODO the Agda List type takes a type argument, Haskells doesn't
---          , (builtinNil,    (ConNamed "UHC.Base.[]" "[]" 1))
---          , (builtinCons,   (ConNamed "UHC.Base.[]" ":" 0))
-          , (builtinTrue,   (ConNamed "UHC.Base.Bool" "True" 1))
-          , (builtinFalse,  (ConNamed "UHC.Base.Bool" "False" 0))
-          , (builtinUnitCons, (ConUnit))
-          ]
-        f (b, sp) = do
-            bt <- lift $ getBuiltin' b
-            liftIO $ putStrLn $ show b ++ " - " ++ show bt
-            return $ case bt of
-              (Just (T.Con conHd [])) -> Just (conName conHd, sp)
-              _                    -> Nothing
+          qnameCtorName :: QName -> String
+          qnameCtorName = show . last . qnameToList
 
-builtinConSpecToCoreConstr :: BuiltinConSpec -> CoreConstr
-builtinConSpecToCoreConstr (ConNamed dt ctor tag) = (dt, ctor, tag)
-builtinConSpecToCoreConstr (ConUnit) = __IMPOSSIBLE__
+
 
 -- | Translate an Agda definition to an Epic function where applicable
 translateDefn :: BuiltinCache -> Maybe T.Term -> (QName, Definition) -> Compile TCM (Maybe Fun)
@@ -101,7 +109,7 @@ translateDefn btins msharp (n, defini) =
     Constructor{} -> do -- become functions returning a constructor with their tag
         arit <- lift $ constructorArity n
         tag   <- getConstrTag n
-        case (crRep, n `M.lookup` btins) of
+        case (crRep, n `M.lookup` (btccCtors btins)) of
           (Just (CrConstr (dt, ctr, tg)), Nothing) -> mkCrCtorFun n (ConNamed dt ctr tg) arit
           (Just _, Just _)       -> error $ "Compiled core must not be specified for builtin " ++ show n
           (Just _, Nothing)      -> error "Compiled core must be def, something went wrong."
@@ -241,7 +249,6 @@ compileClauses btins name nargs c = do
            then forM (M.toList (CC.litBranches nc)) $ \(l, cc) -> do
                cc' <- compileClauses' (replaceAt casedvar env []) omniDefault cc
                case l of
-                   TL.LitChar _ cha -> return $ BrInt (ord cha) cc'
                    -- TODO: Handle other literals
                    _ -> epicError $ "case on literal not supported: " ++ show l
            -- Con branch
@@ -251,7 +258,7 @@ compileClauses btins name nargs c = do
                arit  <- getConArity b -- Andreas, 2012-10-12: is the constructor arity @ar@ from Agda the same as the one from the Epic backen?
                vars <- replicateM arit newName
                cc'  <- compileClauses' (replaceAt casedvar env vars) omniDefault cc
-               case (b `M.lookup` btins, crr, theDef def) of
+               case (b `M.lookup` (btccCtors btins), crr, theDef def) of
                    (Just btCon, Nothing, Constructor{}) -> do
                        return $ CoreBranch (builtinConSpecToCoreConstr btCon) vars cc'
                    (Nothing, Just (CrConstr crCon), Constructor{}) -> do
