@@ -15,9 +15,11 @@ import Agda.TypeChecking.Monad
 import Agda.Syntax.Abstract.Name
 import Control.Monad.IO.Class
 import Control.Monad.Trans.Class (lift)
+import Control.Monad.State.Class
+import Control.Monad.State
 
 import Agda.Compiler.UHC.AuxAST
-import Agda.Compiler.UHC.CompileState
+import Agda.Compiler.UHC.CompileState hiding (newName)
 import Agda.Compiler.UHC.Interface
 
 import EH99.Opts
@@ -34,15 +36,28 @@ import Agda.Compiler.UHC.CoreSyntax
 
 import Agda.Utils.Impossible
 
+data ToCoreState = ToCoreState
+  { tcsNameSupply :: [AName] }
+type ToCore = State ToCoreState
+
+newName :: ToCore AName
+newName = do
+  (n:ns) <- gets tcsNameSupply
+  modify (\x -> x { tcsNameSupply = ns })
+  return n
+
 toCore :: AMod -> Compile TCM CModule
 toCore mod = do
-  funs <- funsToCore (xmodName mod) (xmodFunDefs mod)
+  ns <- gets nameSupply
+  let (funs, ns') = runState (funsToCore (xmodName mod) (xmodFunDefs mod)) (ToCoreState ns)
+  modify (\x -> x { nameSupply = tcsNameSupply ns' })
+
   let cMetaDeclL = buildCMetaDeclL (xmodDataTys mod)
   
   return $ CModule_Mod (hsnFromString $ "AgdaPU." ++ (xmodName mod)) [CImport_Import $ hsnFromString "UHC.Agda.Builtins"] cMetaDeclL funs
 
 -- TODO we should move the main generation somewhere else, but where?
-funsToCore :: String -> [Fun] -> Compile TCM CExpr
+funsToCore :: String -> [Fun] -> ToCore CExpr
 funsToCore mod funs = do
   binds <- mapM funToBind funs
   let mainEhc = CExpr_Let CBindCateg_Plain [
@@ -60,7 +75,7 @@ buildCMetaDeclL dts = map f dts
           g c@(ADataCon{}) = CDataCon_Con (toCoreName $ unqname $ xconQName c) (xconTag c) (xconArity c)
 
 
-funToBind :: MonadTCM m => Fun -> Compile m CBind
+funToBind :: Fun -> ToCore CBind
 -- TODO Just put everything into one big let rec. Is this actually valid Core?
 -- Maybe bad for optimizations?
 funToBind (Fun _ name mqname comment vars e) = do -- TODO what is mqname?
@@ -73,8 +88,7 @@ funToBind (CoreFun name _ _ crExpr) = return $ CBind_Bind (toCoreName name) [CBo
 
 cmetas = (CMetaBind_Plain, CMetaVal_Val)
 
--- this is only in the Comnpile Monad for fresh variables
-exprToCore :: MonadTCM m => Expr -> Compile m CExpr
+exprToCore :: Expr -> ToCore CExpr
 exprToCore (Var v)      = return $ CExpr_Var (acoreMkRef $ toCoreName v)
 exprToCore (Lit l)      = return $ litToCore l
 exprToCore (Lam v body) = exprToCore body >>= return . CExpr_Lam (CBind_Bind (toCoreName v) [])
@@ -101,7 +115,7 @@ exprToCore (Let v e1 e2) = do
 exprToCore UNIT         = return $ coreUnit
 exprToCore IMPOSSIBLE   = return $ coreImpossible
 
-branchesToCore :: MonadTCM m => [Branch] -> Compile m (CExpr, CAltL)
+branchesToCore :: [Branch] -> ToCore (CExpr, CAltL)
 branchesToCore brs = do
     let defs = filter isDefault brs
     def <- if null defs then return coreImpossible else let (Default x) = head defs in exprToCore x
