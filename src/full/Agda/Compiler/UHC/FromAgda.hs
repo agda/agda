@@ -26,7 +26,6 @@ import Agda.Compiler.UHC.CoreSyntax (CoreConstr)
 import Agda.Compiler.UHC.AuxAST
 import Agda.Compiler.UHC.CompileState
 import Agda.Compiler.UHC.Interface
-import Agda.Compiler.UHC.Static
 import Agda.Compiler.UHC.Primitives
 import Agda.Compiler.UHC.Core
 
@@ -89,7 +88,7 @@ translateDefn btins msharp (n, defini) =
         let projArgs = projectionArgs f
             cc       = fromMaybe __IMPOSSIBLE__ $ funCompiled f
         -- let projArgs = maybe 0 (pred . projIndex) (funProjection f)
-        ccs  <- reverseCCBody projArgs <$> normaliseStatic cc
+        let ccs = reverseCCBody projArgs cc
         let len   = (+ projArgs) . length . clausePats . head .  funClauses $ f
             ty    = (defType defini)
         -- forcing <- lift $ gets (optForcing . stPersistentOptions)
