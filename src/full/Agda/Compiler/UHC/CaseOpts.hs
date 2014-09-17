@@ -11,8 +11,8 @@ import Agda.Compiler.UHC.CompileState
 caseOpts :: [Fun] -> Compile TCM [Fun]
 caseOpts = mapM  $ \ def -> case def of
   Fun{} -> do
-    e' <- caseOptsExpr (funExpr def)
-    return def { funExpr = e' }
+    e' <- caseOptsExpr (xfunExpr def)
+    return def { xfunExpr = e' }
   _     -> return def
 
 -- | Run the case-opts on an expression
@@ -33,8 +33,6 @@ caseOptsExpr expr = case expr of
   Case e [Default{brExpr = e'}] -> caseOptsExpr e'
   Case e brs  -> Case <$> caseOptsExpr e <*> (mapM (\br -> do e' <- caseOptsExpr (brExpr br)
                                                               return br {brExpr = e'}) brs)
---  If a b c    -> If <$> caseOptsExpr a <*> caseOptsExpr b <*> caseOptsExpr c
   Let v e1 e2 -> Let v <$> caseOptsExpr e1 <*> caseOptsExpr e2
---  Lazy e      -> Lazy <$> caseOptsExpr e
   UNIT        -> return UNIT
   IMPOSSIBLE  -> return IMPOSSIBLE

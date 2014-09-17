@@ -393,13 +393,8 @@ library
 --                    Agda.Compiler.UHC.CaseOpts
                     Agda.Compiler.UHC.CompileState
                     Agda.Compiler.UHC.Core
-                    Agda.Compiler.UHC.ForceConstrs
-                    Agda.Compiler.UHC.Forcing
                     Agda.Compiler.UHC.FromAgda
---                    Agda.Compiler.UHC.Injection
---                    Agda.Compiler.UHC.NatDetection
                     Agda.Compiler.UHC.Primitives
---                    Agda.Compiler.UHC.Smashing
 
 
   other-modules:    Paths_Agda

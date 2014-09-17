@@ -40,10 +40,10 @@ import Agda.Compiler.UHC.Interface
 #ifdef UHC_BACKEND
 import Agda.Compiler.UHC.CompileState
 --import qualified Agda.Compiler.UHC.CaseOpts     as COpts
-import qualified Agda.Compiler.UHC.ForceConstrs as ForceC
+--import qualified Agda.Compiler.UHC.ForceConstrs as ForceC
 import Agda.Compiler.UHC.Core
 import qualified Agda.Compiler.UHC.FromAgda     as FAgda
-import qualified Agda.Compiler.UHC.Forcing      as Forcing
+--import qualified Agda.Compiler.UHC.Forcing      as Forcing
 --import qualified Agda.Compiler.UHC.Injection    as ID
 --import qualified Agda.Compiler.UHC.NatDetection as ND
 --import qualified Agda.Compiler.UHC.Primitive    as Prim

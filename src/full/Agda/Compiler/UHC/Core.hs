@@ -73,6 +73,7 @@ funToBind (CoreFun name _ _ crExpr) = return $ CBind_Bind (toCoreName name) [CBo
 
 cmetas = (CMetaBind_Plain, CMetaVal_Val)
 
+-- this is only in the Comnpile Monad for fresh variables
 exprToCore :: MonadTCM m => Expr -> Compile m CExpr
 exprToCore (Var v)      = return $ CExpr_Var (acoreMkRef $ toCoreName v)
 exprToCore (Lit l)      = return $ litToCore l
