@@ -329,10 +329,10 @@ defaultColoredArg :: ([c],a) -> Arg c a
 defaultColoredArg (cs,a) = setArgColors cs $ defaultArg a
 
 noColorArg :: Hiding -> Relevance -> a -> Arg c a
-noColorArg h r = Arg $ ArgInfo { argInfoHiding    = h
-                               , argInfoRelevance = r
-                               , argInfoColors    = []
-                               }
+noColorArg h r = Arg ArgInfo { argInfoHiding    = h
+                             , argInfoRelevance = r
+                             , argInfoColors    = []
+                             }
 
 -- | @xs \`withArgsFrom\` args@ translates @xs@ into a list of 'Arg's,
 -- using the elements in @args@ to fill in the non-'unArg' fields.
