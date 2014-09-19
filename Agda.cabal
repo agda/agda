@@ -32,7 +32,8 @@ description:
   Note that the Agda library does not follow the package versioning
   policy, because it is not intended to be used by third-party
   packages.
-tested-with:        GHC == 7.2.2
+tested-with:        GHC == 7.0.4
+                    GHC == 7.2.2
                     GHC == 7.4.2
                     GHC == 7.6.3
                     GHC == 7.8.3
@@ -390,8 +391,10 @@ library
   -- The Cabal-generated module Paths_Agda triggers a warning under
   -- GHC 7.2.1/7.2.2 (at least when certain versions of Cabal are
   -- used).
-  -- Issue 1103: Termination.SparseMatrix triggers a warning under GHC 7.0.4.
-  -- -Werror is for developers only, who are assumed to use a recent GHC.
+  --
+  -- Issue 1103: Some files trigger a warning under GHC 7.0.4.
+  -- -Werror is for developers only, who are assumed to use a recent
+  -- GHC.
   if impl(ghc > 7.2.2)
     ghc-options:    -Werror
   if impl(ghc >= 6.12)
