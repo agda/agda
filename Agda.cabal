@@ -32,7 +32,8 @@ description:
   Note that the Agda library does not follow the package versioning
   policy, because it is not intended to be used by third-party
   packages.
-tested-with:        GHC == 7.2.2
+tested-with:        GHC == 7.0.4
+                    GHC == 7.2.2
                     GHC == 7.4.2
                     GHC == 7.6.3
                     GHC == 7.8.3
