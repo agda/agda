@@ -1,9 +1,9 @@
-{-# LANGUAGE CPP #-}
+{-# LANGUAGE CPP                #-}
 {-# LANGUAGE DeriveDataTypeable #-}
-{-# LANGUAGE DeriveFoldable #-}
-{-# LANGUAGE DeriveFunctor #-}
-{-# LANGUAGE DeriveTraversable #-}
-{-# LANGUAGE TypeOperators #-}
+{-# LANGUAGE DeriveFoldable     #-}
+{-# LANGUAGE DeriveFunctor      #-}
+{-# LANGUAGE DeriveTraversable  #-}
+{-# LANGUAGE TypeOperators      #-}
 
 module Agda.TypeChecking.CompiledClause where
 
@@ -26,6 +26,7 @@ data WithArity c = WithArity { arity :: Int, content :: c }
   deriving (Typeable, Functor, Foldable, Traversable)
 
 -- | Branches in a case tree.
+
 data Case c = Branches
   { conBranches    :: Map QName (WithArity c)
     -- ^ Map from constructor (or projection) names to their arity
@@ -38,6 +39,7 @@ data Case c = Branches
   deriving (Typeable, Functor, Foldable, Traversable)
 
 -- | Case tree with bodies.
+
 data CompiledClauses
   = Case Int (Case CompiledClauses)
     -- ^ @Case n bs@ stands for a match on the @n@-th argument
@@ -59,10 +61,10 @@ conCase c x = Branches (Map.singleton c x) Map.empty Nothing
 catchAll x  = Branches Map.empty Map.empty (Just x)
 
 instance Monoid c => Monoid (WithArity c) where
- mempty = WithArity __IMPOSSIBLE__ mempty
- mappend (WithArity n1 c1) (WithArity n2 c2)
-  | n1 == n2  = WithArity n1 $ mappend c1 c2
-  | otherwise = __IMPOSSIBLE__   -- arity must match!
+  mempty = WithArity __IMPOSSIBLE__ mempty
+  mappend (WithArity n1 c1) (WithArity n2 c2)
+    | n1 == n2  = WithArity n1 $ mappend c1 c2
+    | otherwise = __IMPOSSIBLE__   -- arity must match!
 
 instance Monoid m => Monoid (Case m) where
   mempty = Branches Map.empty Map.empty Nothing
