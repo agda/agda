@@ -44,11 +44,6 @@ data CompiledClauses
     -- (counting from zero) with @bs@ as the case branches.
     -- If the @n@-th argument is a projection, we have only 'conBranches'.
     -- with arity 0.
-{-
-  | CoCase Int (Map QName CompiledClauses)
-    -- ^ @CoCase n bs@ matches on projections.
-    --   Catch-all is not meaningful here.
--}
   | Done [Arg ArgName] Term
     -- ^ @Done xs b@ stands for the body @b@ where the @xs@ contains hiding
     --   and name suggestions for the free variables. This is needed to build
@@ -108,9 +103,3 @@ instance Pretty CompiledClauses where
     sep [ text ("case " ++ show n ++ " of")
         , nest 2 $ pretty bs
         ]
-{-
-  pretty (CoCase n bs) =
-    sep [ text ("cocase " ++ show n ++ " of")
-        , nest 2 $ vcat $ prettyMap bs
-        ]
--}
