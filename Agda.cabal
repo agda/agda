@@ -112,7 +112,7 @@ library
   else
       build-depends:
         directory == 1.2.*
-        , time >= 1.4 && < 1.6
+        , time == 1.4.*
 
   build-tools:
     alex >= 3.1.0 && < 3.2
