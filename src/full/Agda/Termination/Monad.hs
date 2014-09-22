@@ -445,6 +445,16 @@ instance PrettyTCM DeBruijnPat where
   prettyTCM (LitDBP l)    = prettyTCM l
   prettyTCM (ProjDBP d)   = prettyTCM d
 
+-- | How long is the path to the deepest variable?
+patternDepth :: DeBruijnPat' a -> Int
+patternDepth p =
+  case p of
+    ConDBP _ ps -> succ $ maximum $ 0 : map patternDepth ps
+    VarDBP{}    -> 0
+    LitDBP{}    -> 0
+    ProjDBP{}   -> 0
+
+
 -- | A dummy pattern used to mask a pattern that cannot be used
 --   for structural descent.
 

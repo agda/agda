@@ -1243,6 +1243,14 @@ compareTerm' v0 p = do
       increase <$> offsetFromConstructor (conName c)
                <*> (infimum <$> mapM (\ t -> compareTerm' (unArg t) p) ts)
 
+    -- Andreas, 2014-09-22, issue 1281:
+    -- For metas, termination checking should be optimistic.
+    -- If there is any instance of the meta making termination
+    -- checking succeed, then we should not fail.
+    -- Thus, we assume the meta will be instantiated with the
+    -- deepest variable in @p@.
+    (MetaV{}, p) -> return $ Order.decr $ patternDepth p
+
     (t, p) | isSubTerm t p -> return Order.le
 
     _ -> return Order.unknown
