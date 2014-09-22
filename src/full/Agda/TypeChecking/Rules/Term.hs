@@ -567,29 +567,32 @@ checkExpr e t0 =
 
 	A.ScopedExpr scope e -> __IMPOSSIBLE__ -- setScope scope >> checkExpr e t
 
-	-- Insert hidden lambda if appropriate
-	_   | Pi (Dom info _) _ <- ignoreSharing $ unEl t
-            , not (hiddenLambdaOrHole (getHiding info) e)
-            , getHiding info /= NotHidden -> do
-		x <- freshName r (argName t)
+	-- Insert hidden lambda if all of the following conditions are met:
+        ------ * type is a hidden function type, {x : A} -> B or {{x : A} -> B
+        _   | Pi (Dom info _) _ <- ignoreSharing $ unEl t
+            , let h = getHiding info
+            , notVisible h
+            -- * expression is not a matching hidden lambda or question mark
+            , not (hiddenLambdaOrHole h e)
+            -> do
+                x <- freshName rx (argName t)
                 info <- reify info
                 reportSLn "tc.term.expr.impl" 15 $ "Inserting implicit lambda"
-		checkExpr (A.Lam (A.ExprRange $ getRange e) (domainFree info x) e) t
-	    where
-		r = case rStart $ getRange e of
-                      Nothing  -> noRange
-                      Just pos -> posToRange pos pos
+                checkExpr (A.Lam (A.ExprRange re) (domainFree info x) e) t
+            where
+                re = getRange e
+                rx = caseMaybe (rStart re) noRange $ \ pos -> posToRange pos pos
 
-                hiddenLambdaOrHole h (A.AbsurdLam _ h') | h == h'                      = True
-                hiddenLambdaOrHole h (A.ExtendedLam _ _ _ [])                          = False
-                hiddenLambdaOrHole h (A.ExtendedLam _ _ _ cls)                         = any hiddenLHS cls
-		hiddenLambdaOrHole h (A.Lam _ (A.DomainFree info' _) _) | h == getHiding info'       = True
-		hiddenLambdaOrHole h (A.Lam _ (A.DomainFull (A.TypedBindings _ (Arg info' _))) _)
-                  | h == getHiding info'                                                            = True
-		hiddenLambdaOrHole _ A.QuestionMark{}				       = True
-		hiddenLambdaOrHole _ _						       = False
+                hiddenLambdaOrHole h e = case e of
+                  A.AbsurdLam _ h'                 -> h == h'
+                  A.ExtendedLam _ _ _ cls          -> any hiddenLHS cls
+                  A.Lam _ (A.DomainFree info' _) _ -> h == getHiding info'
+                  A.Lam _ (A.DomainFull (A.TypedBindings _ (Arg info' _))) _
+                                                   -> h == getHiding info'
+                  A.QuestionMark{}                 -> True
+                  _                                -> False
 
-                hiddenLHS (A.Clause (A.LHS _ (A.LHSHead _ (a : _)) _) _ _) = elem (getHiding a) [Hidden, Instance]
+                hiddenLHS (A.Clause (A.LHS _ (A.LHSHead _ (a : _)) _) _ _) = notVisible a
                 hiddenLHS _ = False
 
         -- a meta variable without arguments: type check directly for efficiency
