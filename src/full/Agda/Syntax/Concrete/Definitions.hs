@@ -33,9 +33,10 @@ import Agda.Syntax.Notation
 import Agda.Syntax.Concrete.Pretty ()
 
 import Agda.Utils.Except ( Error(noMsg, strMsg), MonadError(throwError) )
-import Agda.Utils.Pretty
+import Agda.Utils.Lens
 import Agda.Utils.List (mhead, isSublistOf)
 import Agda.Utils.Monad
+import Agda.Utils.Pretty
 import Agda.Utils.Update
 
 #include "../../undefined.h"
@@ -280,40 +281,64 @@ combineTermChecks r tcs = loop tcs where
       (NonTerminating        , NoTerminationCheck    ) -> failure r
       (NonTerminating        , Terminating           ) -> failure r
 
-type LoneSigs = [(DataRecOrFun, Name)]
-data NiceEnv = NiceEnv
-  { loneSigs :: LoneSigs -- ^ lone type signatures that wait for their definition
-  , fixs     :: Map Name Fixity'
-  }
 
-initNiceEnv :: NiceEnv
-initNiceEnv = NiceEnv
-  { loneSigs = []
-  , fixs     = Map.empty
-  }
+-- | Nicifier monad.
 
 type Nice = StateT NiceEnv (Either DeclarationException)
 
+-- | Nicifier state.
+
+data NiceEnv = NiceEnv
+  { _loneSigs :: LoneSigs
+    -- ^ Lone type signatures that wait for their definition.
+  , fixs     :: Map Name Fixity'
+  }
+
+-- | Initial nicifier state.
+
+initNiceEnv :: NiceEnv
+initNiceEnv = NiceEnv
+  { _loneSigs = []
+  , fixs     = Map.empty
+  }
+
+-- * Handling the lone signatures, stored to infer mutual blocks.
+
+type LoneSigs = [(DataRecOrFun, Name)]
+
+-- | Lens for field '_loneSigs'.
+
+loneSigs :: Lens' LoneSigs NiceEnv
+loneSigs f e = f (_loneSigs e) <&> \ s -> e { _loneSigs = s }
+
+-- | Adding a lone signature to the state.
+
 addLoneSig :: DataRecOrFun -> Name -> Nice ()
-addLoneSig k x = modify $ \ niceEnv -> niceEnv { loneSigs = (k, x) : loneSigs niceEnv }
+addLoneSig k x = loneSigs %= ((k, x) :)
+
+-- | Remove a lone signature from the state.
 
 removeLoneSig :: Name -> Nice ()
-removeLoneSig x = modify $ \ niceEnv ->
-  niceEnv { loneSigs = filter (\ (k', x') -> x /= x') $ loneSigs niceEnv }
+removeLoneSig x = loneSigs %= filter (\ (k', x') -> x /= x')
 
--- | Search for forward type signature that
+-- | Search for forward type signature.
+
 getSig :: Name -> Nice (Maybe DataRecOrFun)
-getSig n = gets $ fmap fst . List.find (\ (k, x) -> x == n) . loneSigs
+getSig n = fmap fst . List.find (\ (k, x) -> x == n) <$> use loneSigs
+
+-- | Check that no lone signatures are left in the state.
 
 noLoneSigs :: Nice Bool
-noLoneSigs = gets $ null . loneSigs
+noLoneSigs = null <$> use loneSigs
 
 -- | Ensure that all forward declarations have been given a definition.
+
 checkLoneSigs :: LoneSigs -> Nice ()
 checkLoneSigs xs =
   case xs of
     []       -> return ()
     (_, x):_ -> throwError $ MissingDefinition x
+
 
 getFixity :: Name -> Nice Fixity'
 getFixity x = gets $ Map.findWithDefault defaultFixity' x . fixs
@@ -365,8 +390,8 @@ niceDeclarations ds = do
     []  -> localState $ do
       put $ initNiceEnv { fixs = fixs }
       ds <- nice ds
-      checkLoneSigs =<< gets loneSigs
-      modify $ \s -> s { loneSigs = [] }
+      checkLoneSigs =<< use loneSigs
+      loneSigs .= []
       inferMutualBlocks ds
     xs  -> throwError $ UnknownNamesInFixityDecl xs
   where
@@ -424,7 +449,7 @@ niceDeclarations ds = do
           done <- noLoneSigs
           if done then return (tc, ([], ds)) else
             case ds of
-              []     -> __IMPOSSIBLE__ <$ (checkLoneSigs =<< gets loneSigs)
+              []     -> __IMPOSSIBLE__ <$ (checkLoneSigs =<< use loneSigs)
               d : ds -> case declKind d of
                 LoneSig k x -> addLoneSig  k x >> cons d (untilAllDefined (terminationCheck k : tc) ds)
                 LoneDef k x -> removeLoneSig x >> cons d (untilAllDefined (terminationCheck k : tc) ds)
@@ -521,7 +546,7 @@ niceDeclarations ds = do
 
     niceFunClause :: TerminationCheck -> Declaration -> [Declaration] -> Nice [NiceDeclaration]
     niceFunClause termCheck d@(FunClause lhs _ _) ds = do
-          xs <- gets $ map snd . filter (isFunName . fst) . loneSigs
+          xs <- map snd . filter (isFunName . fst) <$> use loneSigs
           -- for each type signature 'x' waiting for clauses, we try
           -- if we have some clauses for 'x'
           fixs <- gets fixs
