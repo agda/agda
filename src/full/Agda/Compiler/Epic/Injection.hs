@@ -251,7 +251,7 @@ unionConstraints (Just c : cs) = do
 --   Precondition: t1 is normalised, t2 is in WHNF
 -- When reducing t2, it may become a literal, which makes this not work in some cases...
 class Injectible a where
-  (<:) :: a -> a -> ReaderT (QName :-> InjectiveFun) (Compile TCM) InjConstraints
+  (<:) :: a -> a -> ReaderT (Map QName InjectiveFun) (Compile TCM) InjConstraints
 
 instance Injectible a => Injectible (I.Arg a) where
   a1 <: a2 = unArg a1 <: unArg a2
@@ -335,8 +335,8 @@ data TagEq
   deriving Eq
 
 data Tags = Tags
-    { eqGroups    :: Int :-> Set QName
-    , constrGroup :: QName :-> TagEq
+    { eqGroups    :: Map Int (Set QName)
+    , constrGroup :: Map QName TagEq
     }
 
 initialTags :: Map QName Tag -> [QName] -> Tags
@@ -381,7 +381,7 @@ unifiable c1 c2 = do
     d2 <- getConData c2
     return $ d1 /= d2
 
-(!!!!) :: Ord k => k :-> v -> k -> v
+(!!!!) :: Ord k => Map k v -> k -> v
 m !!!!  k = case M.lookup k m of
     Nothing -> __IMPOSSIBLE__
     Just x  -> x
