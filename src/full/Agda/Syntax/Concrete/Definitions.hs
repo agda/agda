@@ -1013,7 +1013,7 @@ niceDeclarations ds = do
       _             -> dirty $ InstanceDef
 
 -- | Add more fixities. Throw an exception for multiple fixity declarations.
-plusFixities :: Map.Map Name Fixity' -> Map.Map Name Fixity' -> Nice (Map.Map Name Fixity')
+plusFixities :: Map Name Fixity' -> Map Name Fixity' -> Nice (Map Name Fixity')
 plusFixities m1 m2
     | not (null isect) = throwError $ MultipleFixityDecls isect
     | otherwise = return $ Map.unionWithKey mergeFixites m1 m2
@@ -1035,7 +1035,7 @@ plusFixities m1 m2
 --   The reason for this is that fixity declarations have to appear at the same
 --   level (or possibly outside an abstract or mutual block) as its target
 --   declaration.
-fixities :: [Declaration] -> Nice (Map.Map Name Fixity')
+fixities :: [Declaration] -> Nice (Map Name Fixity')
 fixities (d:ds) = case d of
   Syntax x syn   -> plusFixities (Map.singleton x (Fixity' noFixity syn)) =<< fixities ds
   Infix f xs     -> plusFixities (Map.fromList [ (x,Fixity' f noNotation) | x <- xs ]) =<< fixities ds
