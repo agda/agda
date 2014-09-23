@@ -7,9 +7,10 @@
 -}
 module Agda.Syntax.Fixity where
 
-import Data.Typeable (Typeable)
 import Data.Foldable
+import Data.List as List
 import Data.Traversable
+import Data.Typeable (Typeable)
 
 import Agda.Syntax.Position
 import Agda.Syntax.Common
@@ -47,6 +48,19 @@ oldToNewNotation (name, Fixity' f syn) = NewNotation
   , notaFixity = f
   , notation   = if null syn then syntaxOf $ unqualify name else syn
   }
+
+-- | Return the 'IdPart's of a notation, the first part qualified,
+--   the other parts unqualified.
+--   This allows for qualified use of operators, e.g.,
+--   @M.for x ∈ xs return e@, or @x ℕ.+ y@.
+notationNames :: NewNotation -> [QName]
+notationNames (NewNotation q _ parts) =
+  zipWith ($) (reQualify : repeat QName) [Name noRange [Id x] | IdPart x <- parts ]
+  where
+    -- The qualification of @q@.
+    modules     = init (qnameParts q)
+    -- Putting the qualification onto @x@.
+    reQualify x = List.foldr Qual (QName x) modules
 
 -- | Create a 'Notation' (without binders) from a concrete 'Name'.
 --   Does the obvious thing:

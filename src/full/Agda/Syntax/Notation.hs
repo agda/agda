@@ -75,6 +75,26 @@ isBindingHole :: GenPart -> Bool
 isBindingHole (BindHole _) = True
 isBindingHole _ = False
 
+-- | Classification of notations.
+
+data NotationKind
+  = InfixNotation   -- ^ Ex: @_bla_blub_@.
+  | PrefixNotation  -- ^ Ex: @_bla_blub@.
+  | PostfixNotation -- ^ Ex: @bla_blub_@.
+  | NonfixNotation  -- ^ Ex: @bla_blub@.
+  | NoNotation
+   deriving (Eq)
+
+-- | Classify a notation by presence of leading and/or trailing hole.
+notationKind :: Notation -> NotationKind
+notationKind []  = NoNotation
+notationKind syn =
+  case (isAHole $ head syn, isAHole $ last syn) of
+    (True , True ) -> InfixNotation
+    (True , False) -> PostfixNotation
+    (False, True ) -> PrefixNotation
+    (False, False) -> NonfixNotation
+
 -- | From notation with names to notation with indices.
 --
 --   Example:

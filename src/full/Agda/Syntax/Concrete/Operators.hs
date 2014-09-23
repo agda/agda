@@ -120,26 +120,6 @@ localNames flat = do
           x          -> [NewNotation q fx $ syntaxOf x]
         nota = if null syn then [] else [NewNotation q fx syn]
 
-
-
-data NotationStyle = InfixS | Prefix | Postfix | Nonfix | None
-   deriving (Eq)
-
-fixStyle :: Notation -> NotationStyle
-fixStyle []  = None
-fixStyle syn = case (isAHole (head syn), isAHole (last syn)) of
-  (True , True ) -> InfixS
-  (True , False) -> Postfix
-  (False, True ) -> Prefix
-  (False, False) -> Nonfix
-
-
-notationNames :: NewNotation -> [QName]
-notationNames (NewNotation q _ ps) = zipWith ($) (requal : repeat QName) [Name noRange [Id x] | IdPart x <- ps ]
-  where
-    ms       = init (qnameParts q)
-    requal x = foldr Qual (QName x) ms
-
 -- | Data structure filled in by @buildParsers@.
 --   The top-level parser @pTop@ is of primary interest,
 --   but @pArgs@ is used to convert module application
@@ -225,12 +205,12 @@ buildParsers r flat use = do
         isinfix (NewNotation _ (NonAssoc _ _) syn)    = isInfix syn
         isinfix _ = False
 
-        nonfix    (NewNotation _ _ syn) = fixStyle syn == Nonfix
-        isprefix  (NewNotation _ _ syn) = fixStyle syn == Prefix
-        ispostfix (NewNotation _ _ syn) = fixStyle syn == Postfix
+        nonfix    (NewNotation _ _ syn) = notationKind syn == NonfixNotation
+        isprefix  (NewNotation _ _ syn) = notationKind syn == PrefixNotation
+        ispostfix (NewNotation _ _ syn) = notationKind syn == PostfixNotation
 
         isInfix :: Notation -> Bool
-        isInfix syn = fixStyle syn == InfixS
+        isInfix syn = notationKind syn == InfixNotation
 
         -- | Group operators by precedence level
         order :: [NewNotation] -> [[NewNotation]]
