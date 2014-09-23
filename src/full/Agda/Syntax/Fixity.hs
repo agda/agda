@@ -50,21 +50,18 @@ noFixity = NonAssoc noRange (negate 666) -- ts,ts,ts, why the number of the beas
                                          -- number of the beast, which must be a divine number, right?
 
 -- | Fixity of operators.
-data Fixity = LeftAssoc  Range Integer
-	    | RightAssoc Range Integer
-	    | NonAssoc   Range Integer
-    deriving (Typeable, Show)
 
 instance Eq Fixity where
     LeftAssoc _ n   == LeftAssoc _ m	= n == m
     RightAssoc _ n  == RightAssoc _ m	= n == m
     NonAssoc _ n    == NonAssoc _ m	= n == m
     _		    == _		= False
+data Fixity
+  = LeftAssoc  { fixityRange :: Range, fixityLevel :: Integer }
+  | RightAssoc { fixityRange :: Range, fixityLevel :: Integer }
+  | NonAssoc   { fixityRange :: Range, fixityLevel :: Integer }
+  deriving (Typeable, Show)
 
-fixityLevel :: Fixity -> Integer
-fixityLevel (LeftAssoc	_ n) = n
-fixityLevel (RightAssoc _ n) = n
-fixityLevel (NonAssoc	_ n) = n
 
 -- | The default fixity. Currently defined to be @'NonAssoc' 20@.
 defaultFixity :: Fixity
@@ -138,9 +135,7 @@ roundFixBrackets DotPatternCtx = True
 roundFixBrackets _ = False
 
 instance HasRange Fixity where
-    getRange (LeftAssoc  r _)	= r
-    getRange (RightAssoc r _)	= r
-    getRange (NonAssoc   r _)	= r
+  getRange = fixityRange
 
 instance KillRange Fixity where
   killRange (LeftAssoc  _ n) = LeftAssoc  noRange n
