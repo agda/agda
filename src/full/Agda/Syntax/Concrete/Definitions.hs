@@ -1061,13 +1061,34 @@ instance Monoid (Nice Fixities) where
 --   declaration.
 fixities :: [Declaration] -> Nice Fixities
 fixities = foldMap $ \ d -> case d of
+  -- These declarations define fixities:
   Syntax x syn    -> return $ Map.singleton x $ Fixity' noFixity syn
   Infix  f xs     -> return $ Map.fromList $ map (,Fixity' f noNotation) xs
+  -- We look into these blocks:
   Mutual    _ ds' -> fixities ds'
   Abstract  _ ds' -> fixities ds'
   Private   _ ds' -> fixities ds'
   InstanceB _ ds' -> fixities ds'
-  _               -> mempty
+  -- All other declarations are ignored.
+  -- We expand these boring cases to trigger a revisit
+  -- in case the @Declaration@ type is extended in the future.
+  TypeSig     {}  -> mempty
+  Field       {}  -> mempty
+  FunClause   {}  -> mempty
+  DataSig     {}  -> mempty
+  Data        {}  -> mempty
+  RecordSig   {}  -> mempty
+  Record      {}  -> mempty
+  PatternSyn  {}  -> mempty
+  Postulate   {}  -> mempty
+  Primitive   {}  -> mempty
+  Open        {}  -> mempty
+  Import      {}  -> mempty
+  ModuleMacro {}  -> mempty
+  Module      {}  -> mempty
+  UnquoteDecl {}  -> mempty
+  Pragma      {}  -> mempty
+
 
 -- Andreas, 2012-04-07
 -- The following function is only used twice, for building a Let, and for
