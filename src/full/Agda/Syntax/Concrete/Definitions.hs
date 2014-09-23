@@ -192,7 +192,7 @@ instance Show DeclarationException where
         , vcat $ map f xs
         ]
       where
-        f (x, fs) = pretty x <> text ":" <+> fsep (map (text . show) fs)
+        f (x, fs) = pretty x <> text ":" <+> fsep (map (pretty . theFixity) fs)
   show (MissingDefinition x) = show $ fsep $
     pwords "Missing definition for" ++ [pretty x]
   show (MissingWithClauses x) = show $ fsep $
