@@ -372,21 +372,6 @@ parameters = List.concat . List.map numP where
   numP (DomainFull (TypedBindings _ (Common.Arg i (TBind _ xs _)))) = List.replicate (length xs) $ argInfoHiding i
   numP (DomainFull (TypedBindings _ (Common.Arg _ TLet{})))         = []
 
-{- OLD:
-
--- | Compute number of visible parameters of a data or record signature or definition.
-numberOfPars :: [LamBinding] -> Params
-numberOfPars = List.sum . List.map numP where
-  numP (DomainFree NotHidden _ _) = 1
-  numP (DomainFull (TypedBindings _ (Arg NotHidden _ (TBind _ xs _)))) = length xs
-  numP _ = 0  -- hidden / instance argument
--- | Compute number of parameters of a data or record signature or definition.
-numberOfPars :: [LamBinding] -> Int
-numberOfPars = List.sum . List.map numP where
-  numP (DomainFree{}) = 1
-  numP (DomainFull (TypedBindings _ arg)) = nP $ unArg arg where
-    nP (TBind _ xs _) = length xs
--}
 
 niceDeclarations :: [Declaration] -> Nice [NiceDeclaration]
 niceDeclarations ds = do
@@ -555,10 +540,6 @@ niceDeclarations ds = do
           -- for each type signature 'x' waiting for clauses, we try
           -- if we have some clauses for 'x'
           fixs <- gets fixs
-{- OLD CODE, a bit dense
-          case filter (\ (x,(fits,rest)) -> not $ null fits) $
-                  map (\ x -> (x, span (couldBeFunClauseOf (Map.lookup x fixs) x) $ d : ds)) xs of
--}
           case [ (x, (fits, rest))
                | x <- xs
                , let (fits, rest) =
@@ -836,48 +817,6 @@ niceDeclarations ds = do
     mkAbstractWhere (AnyWhere ds)    = dirty $ AnyWhere [Abstract noRange ds]
     mkAbstractWhere (SomeWhere m ds) = dirty $SomeWhere m [Abstract noRange ds]
 
-{- OLD CODE
-    abstractBlock _ [] = return []
-    abstractBlock r ds
-        -- hack to avoid failing on inherited abstract blocks in where clauses
-      | r == noRange           = return $ map mkAbstract ds
-      | all uselessAbstract ds = throwError $ UselessAbstract r
-      | otherwise              = return $ map mkAbstract ds
-
-    uselessAbstract d = case d of
-      FunDef{}  -> False
-      DataDef{} -> False
-      RecDef{}  -> False
-      _         -> True
-
-    -- Make a declaration abstract
-    mkAbstract d =
-        case d of
-            NiceField r f a _ x e            -> NiceField r f a AbstractDef x e
-            PrimitiveFunction r f a _ x e    -> PrimitiveFunction r f a AbstractDef x e
-            NiceMutual r termCheck ds        -> NiceMutual r termCheck (map mkAbstract ds)
-            FunDef r ds f _ tc x cs          -> FunDef r ds f AbstractDef tc x (map mkAbstractClause cs)
-            DataDef r f _ x ps cs            -> DataDef r f AbstractDef x ps $ map mkAbstract cs
-            RecDef r f _ x i c ps cs         -> RecDef r f AbstractDef x i c ps $ map mkAbstract cs
-            NiceFunClause r a _ termCheck d  -> NiceFunClause r a AbstractDef termCheck d
-            NiceModule{}                     -> d
-            NiceModuleMacro{}                -> d
-            Axiom{}                          -> d
-            NicePragma{}                     -> d
-            NiceOpen{}                       -> d
-            NiceImport{}                     -> d
-            FunSig{}                         -> d
-            NiceRecSig{}                     -> d
-            NiceDataSig{}                    -> d
-            NicePatternSyn{}                 -> d
-
-    mkAbstractClause (Clause x lhs rhs wh with) =
-        Clause x lhs rhs (mkAbstractWhere wh) (map mkAbstractClause with)
-
-    mkAbstractWhere  NoWhere         = NoWhere
-    mkAbstractWhere (AnyWhere ds)    = AnyWhere [Abstract noRange ds]
-    mkAbstractWhere (SomeWhere m ds) = SomeWhere m [Abstract noRange ds]
--}
     privateBlock _ [] = return []
     privateBlock r ds = do
       let (ds', anyChange) = runChange $ mapM mkPrivate ds
@@ -903,18 +842,6 @@ niceDeclarations ds = do
         NiceDataSig r f p x ls t         -> (\ p -> NiceDataSig r f p x ls t) <$> setPrivate p
         NiceFunClause r p a termCheck d  -> (\ p -> NiceFunClause r p a termCheck d) <$> setPrivate p
         NiceUnquoteDecl r f p a t x e    -> (\ p -> NiceUnquoteDecl r f p a t x e) <$> setPrivate p
-{-
-        Axiom r f _ rel x e              -> dirty $ Axiom r f PrivateAccess rel x e
-        NiceField r f _ a x e            -> dirty $ NiceField r f PrivateAccess a x e
-        PrimitiveFunction r f _ a x e    -> dirty $ PrimitiveFunction r f PrivateAccess a x e
-        NiceMutual r termCheck ds        -> NiceMutual r termCheck <$> mapM mkPrivate ds
-        NiceModule r _ a x tel ds        -> dirty $ NiceModule r PrivateAccess a x tel ds
-        NiceModuleMacro r _ x ma op is   -> dirty $ NiceModuleMacro r PrivateAccess x ma op is
-        FunSig r f _ rel tc x e          -> dirty $ FunSig r f PrivateAccess rel tc x e
-        NiceRecSig r f _ x ls t          -> dirty $ NiceRecSig r f PrivateAccess x ls t
-        NiceDataSig r f _ x ls t         -> dirty $ NiceDataSig r f PrivateAccess x ls t
-        NiceFunClause r _ a termCheck d  -> dirty $ NiceFunClause r PrivateAccess a termCheck d
--}
         NicePragma _ _                   -> return $ d
         NiceOpen _ _ _                   -> return $ d
         NiceImport _ _ _ _ _             -> return $ d
@@ -939,49 +866,6 @@ niceDeclarations ds = do
     mkPrivateWhere  NoWhere         = return $ NoWhere
     mkPrivateWhere (AnyWhere ds)    = dirty  $ AnyWhere [Private (getRange ds) ds]
     mkPrivateWhere (SomeWhere m ds) = dirty  $ SomeWhere m [Private (getRange ds) ds]
-
-{- OLD CODE, with two functions (uselessPrivate, mkPrivate) to be maintained in sync.
-
-    privateBlock _ [] = return []
-    privateBlock r ds
-      | all uselessPrivate ds = throwError $ UselessPrivate r
-      | otherwise             = return $ map mkPrivate ds
-
-    uselessPrivate d = case d of
-      FunDef{}  -> True
-      DataDef{} -> True
-      RecDef{}  -> True
-      _         -> False
-
-    -- Make a declaration private
-    mkPrivate d =
-        case d of
-            Axiom r f _ rel x e              -> Axiom r f PrivateAccess rel x e
-            NiceField r f _ a x e            -> NiceField r f PrivateAccess a x e
-            PrimitiveFunction r f _ a x e    -> PrimitiveFunction r f PrivateAccess a x e
-            NiceMutual r termCheck ds        -> NiceMutual r termCheck (map mkPrivate ds)
-            NiceModule r _ a x tel ds        -> NiceModule r PrivateAccess a x tel ds
-            NiceModuleMacro r _ x ma op is   -> NiceModuleMacro r PrivateAccess x ma op is
-            FunSig r f _ rel tc x e          -> FunSig r f PrivateAccess rel tc x e
-            NiceRecSig r f _ x ls t          -> NiceRecSig r f PrivateAccess x ls t
-            NiceDataSig r f _ x ls t         -> NiceDataSig r f PrivateAccess x ls t
-            NiceFunClause r _ a termCheck d  -> NiceFunClause r PrivateAccess a termCheck d
-            NiceUnquoteDecl r fx _ a term x d -> NiceUnquoteDecl r fx PrivateAccess a term x d
-            NicePragma _ _                   -> d
-            NiceOpen _ _ _                   -> d
-            NiceImport _ _ _ _ _             -> d
-            FunDef{}                         -> d
-            DataDef{}                        -> d
-            RecDef{}                         -> d
-            NicePatternSyn _ _ _ _ _         -> d
-
-    mkPrivateClause (Clause x lhs rhs wh with) =
-        Clause x lhs rhs (mkPrivateWhere wh) (map mkPrivateClause with)
-
-    mkPrivateWhere  NoWhere         = NoWhere
-    mkPrivateWhere (AnyWhere ds)    = AnyWhere [Private (getRange ds) ds]
-    mkPrivateWhere (SomeWhere m ds) = SomeWhere m [Private (getRange ds) ds]
--}
 
     instanceBlock _ [] = return []
     instanceBlock r ds = do
@@ -1117,28 +1001,3 @@ notSoNiceDeclaration d =
       NicePatternSyn r _ n as p        -> PatternSyn r n as p
       NiceUnquoteDecl r _ _ _ _ x e    -> UnquoteDecl r x e
 
-{-
--- Andreas, 2012-03-08 the following function is only used twice,
--- both just on a single declaration.
-notSoNiceDeclarations :: [NiceDeclaration] -> [Declaration]
-notSoNiceDeclarations = concatMap notNice
-  where
-    notNice d = case d of
-      Axiom _ _ _ rel x e              -> [TypeSig rel x e]
-      NiceField _ _ _ _ x argt         -> [Field x argt]
-      PrimitiveFunction r _ _ _ x e    -> [Primitive r [TypeSig Relevant x e]]
-      NiceMutual _ _ ds                -> concatMap notNice ds
-      NiceModule r _ _ x tel ds        -> [Module r x tel ds]
-      NiceModuleMacro r _ x ma o dir   -> [ModuleMacro r x ma o dir]
-      NiceOpen r x dir                 -> [Open r x dir]
-      NiceImport r x as o dir          -> [Import r x as o dir]
-      NicePragma _ p                   -> [Pragma p]
-      NiceRecSig r _ _ x bs e          -> [RecordSig r x bs e]
-      NiceDataSig r _ _ x bs e         -> [DataSig r Inductive x bs e]
-      FunSig _ _ _ rel tc x e          -> [TypeSig rel x e]
-      FunDef _ ds _ _ _ _ _            -> ds
-      DataDef r _ _ x bs cs            -> [Data r Inductive x bs Nothing $ concatMap notNice cs]
-      RecDef r _ _ x c bs ds           -> [Record r x (unThing <$> c) bs Nothing $ concatMap notNice ds]
-        where unThing (ThingWithFixity c _) = c
-      NicePatternSyn r _ n as p        -> [PatternSyn r n as p]
--}
