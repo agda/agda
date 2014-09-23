@@ -1648,7 +1648,7 @@ instance ToAbstract C.Pattern (A.Pattern' C.Expr) where
 toAbstractOpApp :: C.QName -> [C.NamedArg (OpApp C.Expr)] -> ScopeM A.Expr
 toAbstractOpApp op es = do
     f  <- getFixity op
-    let (_,_,parts) = oldToNewNotation $ (op, f)
+    let parts = notation . oldToNewNotation $ (op, f)
     op <- toAbstract (OldQName op)
     foldl' app op <$> left (theFixity f) [p | p <- parts, not (isBindingHole p)] es
     where

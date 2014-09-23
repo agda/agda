@@ -80,7 +80,7 @@ postop middleP = do
 -- place as where the holes are discarded, however that would require a dependently
 -- typed function (or duplicated code)
 opP :: IsExpr e => ReadP e e -> NewNotation -> ReadP e (NewNotation,Range,[e])
-opP p nsyn@(q,_,syn) = do
+opP p nsyn@(NewNotation q _ syn) = do
   (range,es) <- worker (init $ qnameParts q) $ removeExternalHoles syn
   return (nsyn,range,es)
  where worker ms [IdPart x] = do r <- partP ms x; return (r,[])
@@ -97,7 +97,7 @@ opP p nsyn@(q,_,syn) = do
 -- | Given a name with a syntax spec, and a list of parsed expressions
 -- fitting it, rebuild the expression.
 rebuild :: forall e. IsExpr e => NewNotation -> Range -> [e] -> e
-rebuild (name,_,syn) r es = unExprView $ OpAppV (setRange r name) exprs
+rebuild (NewNotation name _ syn) r es = unExprView $ OpAppV (setRange r name) exprs
   where
     exprs = map findExprFor [0..lastHole]
     filledHoles = zip es (filter isAHole syn)

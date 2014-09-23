@@ -113,13 +113,12 @@ localNames flat = do
     localOp (x, y) = (QName x, A.nameFixity y)
     split ops = partitionEithers $ concatMap opOrNot ops
 
-    opOrNot (q, Fixity' fx syn) = Left q
-                                :  case unqualify q of
-                                      Name _ [_] -> []
-                                      x -> [Right (q, fx, syntaxOf x)]
-                                ++ case syn of
-                                    [] -> []
-                                    _ -> [Right (q, fx, syn)]
+    opOrNot (q, Fixity' fx syn) = Left q : map Right (notaFromName ++ nota)
+      where
+        notaFromName = case unqualify q of
+          Name _ [_] -> []
+          x          -> [NewNotation q fx $ syntaxOf x]
+        nota = if null syn then [] else [NewNotation q fx syn]
 
 data UseBoundNames = UseBoundNames | DontUseBoundNames
 
@@ -169,7 +168,7 @@ fixStyle syn = case (isAHole (head syn), isAHole (last syn)) of
 
 
 notationNames :: NewNotation -> [QName]
-notationNames (q, _, ps) = zipWith ($) (requal : repeat QName) [Name noRange [Id x] | IdPart x <- ps ]
+notationNames (NewNotation q _ ps) = zipWith ($) (requal : repeat QName) [Name noRange [Id x] | IdPart x <- ps ]
   where
     ms       = init (qnameParts q)
     requal x = foldr Qual (QName x) ms
@@ -224,22 +223,23 @@ buildParsers r flat use = do
         }
     where
         level :: NewNotation -> Integer
-        level (_name, fixity, _syn) = fixityLevel fixity
+        level = fixityLevel . notaFixity
 
         isinfixl, isinfixr, isinfix, nonfix, isprefix, ispostfix :: NewNotation -> Bool
 
-        isinfixl (_, LeftAssoc _ _, syn)  = isInfix syn
-        isinfixl _                    = False
+        isinfixl (NewNotation _ (LeftAssoc _ _) syn)  = isInfix syn
+        isinfixl _ = False
 
-        isinfixr (_, RightAssoc _ _, syn) = isInfix syn
-        isinfixr _                    = False
+        isinfixr (NewNotation _ (RightAssoc _ _) syn) = isInfix syn
+        isinfixr _ = False
 
-        isinfix (_, NonAssoc _ _,syn)    = isInfix syn
-        isinfix _                     = False
+        isinfix (NewNotation _ (NonAssoc _ _) syn)    = isInfix syn
+        isinfix _ = False
 
-        nonfix (_,_,syn) = fixStyle syn == Nonfix
-        isprefix (_,_,syn) = fixStyle syn == Prefix
-        ispostfix (_,_,syn) = fixStyle syn == Postfix
+        nonfix    (NewNotation _ _ syn) = fixStyle syn == Nonfix
+        isprefix  (NewNotation _ _ syn) = fixStyle syn == Prefix
+        ispostfix (NewNotation _ _ syn) = fixStyle syn == Postfix
+
         isInfix :: Notation -> Bool
         isInfix syn = fixStyle syn == InfixS
 

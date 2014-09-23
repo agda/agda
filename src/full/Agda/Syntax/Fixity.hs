@@ -31,18 +31,35 @@ data ThingWithFixity x = ThingWithFixity x Fixity'
   deriving (Functor, Foldable, Traversable, Typeable, Show)
 
 -- | All the notation information related to a name.
-type NewNotation = (QName, Fixity, Notation)
+data NewNotation = NewNotation
+  { notaName   :: QName
+    -- ^ The concrete name the syntax or fixity belongs to.
+  , notaFixity :: Fixity
+    -- ^ Associativity and precedence (fixity) of the name.
+  , notation   :: Notation
+    -- ^ Syntax associated with the name.
+  } deriving (Typeable, Show)
 
 -- | If an operator has no specific notation, recover it from its name.
 oldToNewNotation :: (QName, Fixity') -> NewNotation
-oldToNewNotation (name, Fixity' f [] ) = (name, f, syntaxOf $ unqualify name)
-oldToNewNotation (name, Fixity' f syn) = (name, f, syn)
+oldToNewNotation (name, Fixity' f syn) = NewNotation
+  { notaName   = name
+  , notaFixity = f
+  , notation   = if null syn then syntaxOf $ unqualify name else syn
+  }
 
+-- | Create a 'Notation' (without binders) from a concrete 'Name'.
+--   Does the obvious thing:
+--   'Hole's become 'NormalHole's, 'Id's become 'IdParts'.
+--   If 'Name' has no 'Hole's, it returns 'noNotation'.
 syntaxOf :: Name -> Notation
-syntaxOf (NoName _ _) = []
-syntaxOf (Name _ [_]) = []
+syntaxOf (NoName _ _) = noNotation
+syntaxOf (Name _ [_]) = noNotation
 syntaxOf (Name _ xs)  = mkSyn 0 xs
   where
+    -- Turn a concrete name into a Notation,
+    -- numbering the holes from left to right.
+    -- Result will have no 'BindingHole's.
     mkSyn :: Int -> [NamePart] -> Notation
     mkSyn n []          = []
     mkSyn n (Hole : xs) = NormalHole (defaultNamedArg n) : mkSyn (1 + n) xs
