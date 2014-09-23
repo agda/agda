@@ -1013,23 +1013,31 @@ niceDeclarations ds = do
       _             -> dirty $ InstanceDef
 
 -- | Add more fixities. Throw an exception for multiple fixity declarations.
+--   OR:  Disjoint union of fixity maps.  Throws exception if not disjoint.
+
 plusFixities :: Map Name Fixity' -> Map Name Fixity' -> Nice (Map Name Fixity')
 plusFixities m1 m2
+    -- If maps are not disjoint, report conflicts as exception.
     | not (null isect) = throwError $ MultipleFixityDecls isect
-    | otherwise = return $ Map.unionWithKey mergeFixites m1 m2
-    where mergeFixites name (Fixity' f1 s1) (Fixity' f2 s2) = Fixity' f s
+    -- Otherwise, do the union.
+    | otherwise        = return $ Map.unionWithKey mergeFixites m1 m2
+  where
+    --  Merge two fixities, assuming there is no conflict
+    mergeFixites name (Fixity' f1 s1) (Fixity' f2 s2) = Fixity' f s
               where f | f1 == noFixity = f2
                       | f2 == noFixity = f1
                       | otherwise = __IMPOSSIBLE__
                     s | s1 == noNotation = s2
                       | s2 == noNotation = s1
                       | otherwise = __IMPOSSIBLE__
-          isect = [decls x | (x,compat) <- Map.assocs (Map.intersectionWith compatible m1 m2), not compat]
 
-          decls x = (x, map (Map.findWithDefault __IMPOSSIBLE__ x) [m1,m2])
-                                -- cpp doesn't know about primes
-          compatible (Fixity' f1 s1) (Fixity' f2 s2) = (f1 == noFixity || f2 == noFixity) &&
-                                                       (s1 == noNotation || s2 == noNotation)
+    -- Compute a list of conflicts in a format suitable for error reporting.
+    isect = [ (x, map (Map.findWithDefault __IMPOSSIBLE__ x) [m1,m2])
+            | (x, False) <- Map.assocs $ Map.intersectionWith compatible m1 m2 ]
+
+    -- Check for no conflict.
+    compatible (Fixity' f1 s1) (Fixity' f2 s2) = (f1 == noFixity || f2 == noFixity) &&
+                                                 (s1 == noNotation || s2 == noNotation)
 
 -- | Get the fixities from the current block. Doesn't go inside /any/ blocks.
 --   The reason for this is that fixity declarations have to appear at the same
@@ -1038,7 +1046,7 @@ plusFixities m1 m2
 fixities :: [Declaration] -> Nice (Map Name Fixity')
 fixities (d:ds) = case d of
   Syntax x syn   -> plusFixities (Map.singleton x (Fixity' noFixity syn)) =<< fixities ds
-  Infix f xs     -> plusFixities (Map.fromList [ (x,Fixity' f noNotation) | x <- xs ]) =<< fixities ds
+  Infix f xs     -> plusFixities (Map.fromList [ (x, Fixity' f noNotation) | x <- xs ]) =<< fixities ds
   Mutual _ ds'   -> fixities (ds' ++ ds)
   Abstract _ ds' -> fixities (ds' ++ ds)
   Private _ ds'  -> fixities (ds' ++ ds)
