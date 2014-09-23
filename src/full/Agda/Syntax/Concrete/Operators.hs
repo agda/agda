@@ -15,8 +15,6 @@ module Agda.Syntax.Concrete.Operators
     , parseLHS
     , parsePattern
     , parsePatternSyn
-    , paren
-    , mparen
     ) where
 
 import Control.DeepSeq
@@ -615,43 +613,3 @@ fullParen' e = case exprView e of
     LamV bs e -> par $ unExprView $ LamV bs (fullParen e)
     where
         par = unExprView . ParenV
-
-paren :: Monad m => (QName -> m Fixity) -> Expr -> m (Precedence -> Expr)
-paren _   e@(App _ _ _)           = return $ \p -> mparen (appBrackets p) e
-paren f   e@(OpApp _ op _)        = do fx <- f op; return $ \p -> mparen (opBrackets fx p) e
-paren _   e@(Lam _ _ _)           = return $ \p -> mparen (lamBrackets p) e
-paren _   e@(AbsurdLam _ _)       = return $ \p -> mparen (lamBrackets p) e
-paren _   e@(ExtendedLam _ _)     = return $ \p -> mparen (lamBrackets p) e
-paren _   e@(Fun _ _ _)           = return $ \p -> mparen (lamBrackets p) e
-paren _   e@(Pi _ _)              = return $ \p -> mparen (lamBrackets p) e
-paren _   e@(Let _ _ _)           = return $ \p -> mparen (lamBrackets p) e
-paren _   e@(Rec _ _)             = return $ \p -> mparen (appBrackets p) e
-paren _   e@(RecUpdate _ _ _)     = return $ \p -> mparen (appBrackets p) e
-paren _   e@(WithApp _ _ _)       = return $ \p -> mparen (withAppBrackets p) e
-paren _   e@Tactic{}              = return $ \p -> mparen (withAppBrackets p) e
-paren _   e@(Ident _)             = return $ \p -> e
-paren _   e@(Lit _)               = return $ \p -> e
-paren _   e@(QuestionMark _ _)    = return $ \p -> e
-paren _   e@(Underscore _ _)      = return $ \p -> e
-paren _   e@(Set _)               = return $ \p -> e
-paren _   e@(SetN _ _)            = return $ \p -> e
-paren _   e@(Prop _)              = return $ \p -> e
-paren _   e@(Paren _ _)           = return $ \p -> e
-paren _   e@(As _ _ _)            = return $ \p -> e
-paren _   e@(Dot _ _)             = return $ \p -> e
-paren _   e@(Absurd _)            = return $ \p -> e
-paren _   e@(ETel _)              = return $ \p -> e
-paren _   e@(RawApp _ _)          = __IMPOSSIBLE__
-paren _   e@(HiddenArg _ _)       = __IMPOSSIBLE__
-paren _   e@(InstanceArg _ _)     = __IMPOSSIBLE__
-paren _   e@(QuoteGoal _ _ _)     = return $ \p -> mparen (lamBrackets p) e
-paren _   e@(QuoteContext _ _ _)  = return $ \p -> mparen (lamBrackets p) e
-paren _   e@(Quote _)             = return $ \p -> e
-paren _   e@(QuoteTerm _)         = return $ \p -> e
-paren _   e@(Unquote _)           = return $ \p -> e
-paren _   e@(DontCare _)          = return $ \p -> e
-paren _   e@(Equal _ _ _)         = __IMPOSSIBLE__
-
-mparen :: Bool -> Expr -> Expr
-mparen True  e = Paren (getRange e) e
-mparen False e = e
