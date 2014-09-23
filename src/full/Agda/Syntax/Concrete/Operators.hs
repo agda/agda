@@ -21,7 +21,7 @@ module Agda.Syntax.Concrete.Operators
     , validConPattern
     , patternAppView
     , fullParen
-    , buildParsers, buildParser
+    , buildParsers
     , parsePat
     , getDefinedNames
     , UseBoundNames(..)
@@ -178,19 +178,12 @@ notationNames (NewNotation q _ ps) = zipWith ($) (requal : repeat QName) [Name n
 --   but @pArgs@ is used to convert module application
 --   from concrete to abstract syntax.
 data Parsers e = Parsers
-  { pTop    :: ReadP e e  -- this was returned by @buildParser@
+  { pTop    :: ReadP e e
   , pApp    :: ReadP e e
   , pArgs   :: ReadP e [NamedArg e]
   , pNonfix :: ReadP e e
   , pAtom   :: ReadP e e
   }
-
--- | For backwards compatibility.
---   Returns the @pTop@ from @buildParsers@.
-buildParser :: forall e. IsExpr e => Range -> FlatScope -> UseBoundNames -> ScopeM (ReadP e e)
-buildParser r flat use = do
-    p <- buildParsers r flat use
-    return $ pTop p
 
 buildParsers :: forall e. IsExpr e => Range -> FlatScope -> UseBoundNames -> ScopeM (Parsers e)
 buildParsers r flat use = do
