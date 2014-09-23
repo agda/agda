@@ -1064,9 +1064,9 @@ Syntax :: { Declaration }
 Syntax : 'syntax' Id HoleNames '=' SimpleIds  {%
   case $2 of
     Name _ [_] -> case mkNotation $3 (map rangedThing $5) of
-      Left err -> parseError $ "malformed syntax declaration: " ++ err
+      Left err -> parseError $ "Malformed syntax declaration: " ++ err
       Right n -> return $ Syntax $2 n
-    _ -> parseError "syntax declarations are allowed only for simple names (without holes)"
+    _ -> parseError "Syntax declarations are allowed only for simple names (without holes)"
 }
 
 -- Pattern synonyms.
@@ -1541,7 +1541,7 @@ verifyImportDirective i =
 	[]  -> return i
 	yss -> let Just pos = rStart $ getRange $ head $ concat yss in
                parseErrorAt pos $
-		"repeated name" ++ s ++ " in import directive: " ++
+		"Repeated name" ++ s ++ " in import directive: " ++
 		concat (intersperse ", " $ map (show . head) yss)
 	    where
 		s = case yss of
@@ -1625,7 +1625,7 @@ exprToPattern e =
           parseErrorAt pos $ "Not a valid pattern: " ++ show e
 
 opAppExprToPattern :: OpApp Expr -> Parser Pattern
-opAppExprToPattern (SyntaxBindingLambda _ _ _) = parseError "syntax binding lambda cannot appear in a pattern"
+opAppExprToPattern (SyntaxBindingLambda _ _ _) = parseError "Syntax binding lambda cannot appear in a pattern"
 opAppExprToPattern (Ordinary e) = exprToPattern e
 
 -- | Turn an expression into a name. Fails if the expression is not a
@@ -1671,6 +1671,7 @@ data RHSOrTypeSigs = JustRHS RHS
 
 namesOfPattern :: Pattern -> Maybe [(C.ArgInfo, Name)]
 namesOfPattern (IdentP (QName i))         = Just [(defaultArgInfo, i)]
+namesOfPattern (WildP r)                  = Just [(defaultArgInfo, C.noName r)]
 namesOfPattern (DotP _ (Ident (QName i))) = Just [(setRelevance Irrelevant defaultArgInfo, i)]
 namesOfPattern (RawAppP _ ps)             = fmap concat $ mapM namesOfPattern ps
 namesOfPattern _                          = Nothing
