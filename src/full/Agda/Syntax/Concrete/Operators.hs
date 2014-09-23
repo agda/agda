@@ -79,12 +79,15 @@ partsInScope flat = do
 type FlatScope = Map QName [AbstractName]
 
 -- | Compute all unqualified defined names in scope and their fixities.
+--   Note that overloaded names (constructors) can have several fixities.
+--   Then we 'chooseFixity'. (See issue 1194.)
 getDefinedNames :: [KindOfName] -> FlatScope -> [(QName, Fixity')]
 getDefinedNames kinds names =
-  [ (x, A.nameFixity $ A.qnameName $ anameName d)
+  [ (x, chooseFixity fixs)
   | (x, ds) <- Map.toList names
-  , d       <- take 1 ds
-  , any (\ d -> anameKind d `elem` kinds) ds
+  , any ((`elem` kinds) . anameKind) ds
+  , let fixs = map (A.nameFixity . A.qnameName . anameName) ds
+  , not (null fixs)
   -- Andreas, 2013-03-21 see Issue 822
   -- Names can have different kinds, i.e., 'defined' and 'constructor'.
   -- We need to consider all names that have *any* matching kind,

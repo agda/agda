@@ -17,6 +17,8 @@ import Agda.Syntax.Common
 import Agda.Syntax.Concrete.Name
 import Agda.Syntax.Notation
 
+import Agda.Utils.List
+
 -- * Notation coupled with 'Fixity'
 
 -- | The notation is handled as the fixity in the renamer.
@@ -82,6 +84,18 @@ syntaxOf (Name _ xs)  = mkSyn 0 xs
 defaultFixity' :: Fixity'
 defaultFixity' = Fixity' defaultFixity defaultNotation
 
+-- | Removes copies of @defaultFixity'@ from a list of fixities.
+--   Never returns an empty list, though, rather a singleton list
+--   consisting of @defaultFixity'@.
+interestingFixities :: [Fixity'] -> [Fixity']
+interestingFixities fixs = if null fixs' then [defaultFixity'] else fixs'
+  where fixs' = filter (not . (== defaultFixity')) fixs
+
+-- | If different interesting fixities are available for the same symbol,
+--   we take none of them.
+chooseFixity :: [Fixity'] -> Fixity'
+chooseFixity fixs = if allEqual fixs' then head fixs' else defaultFixity'
+  where fixs' = interestingFixities fixs
 
 -- * Fixity
 
