@@ -210,7 +210,7 @@ instance Show DeclarationException where
     pwords "More than one matching type signature for left hand side" ++ [pretty lhs] ++
     pwords "it could belong to any of:" ++ map pretty xs
   show (UnknownNamesInFixityDecl xs) = show $ fsep $
-    pwords "Names out of scope in fixity declarations:" ++ map pretty xs
+    pwords "The following names are not declared in the same scope as their syntax or fixity declaration (i.e., either not in scope at all, imported from another module, or declared in a super module):" ++ map pretty xs
   show (UselessPrivate _)      = show $ fsep $
     pwords "Using private here has no effect. Private applies only to declarations that introduce new identifiers into the module, like type signatures and data, record, and module declarations."
   show (UselessAbstract _)      = show $ fsep $
