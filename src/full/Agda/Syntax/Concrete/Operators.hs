@@ -17,16 +17,6 @@ module Agda.Syntax.Concrete.Operators
     , parsePatternSyn
     , paren
     , mparen
-    -- exports for Copatterns
-    , validConPattern
-    , patternAppView
-    , fullParen
-    , buildParsers
-    , parsePat
-    , getDefinedNames
-    , UseBoundNames(..)
-    , qualifierModules
-    , patternQNames
     ) where
 
 import Control.DeepSeq
