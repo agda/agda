@@ -24,12 +24,13 @@ import Control.Monad
 import Data.Either (partitionEithers)
 import Data.Function
 import Data.List
-import Data.Traversable (traverse)
-import qualified Data.Traversable as Trav
+import Data.Maybe
 import Data.Map (Map)
 import qualified Data.Map as Map
 import Data.Set (Set)
 import qualified Data.Set as Set
+import Data.Traversable (traverse)
+import qualified Data.Traversable as Trav
 
 import Agda.Syntax.Concrete.Pretty ()
 import Agda.Syntax.Common hiding (Arg, Dom, NamedArg)
@@ -75,7 +76,7 @@ partsInScope flat = do
           where
             first:iparts = [ i | i@(Id {}) <- xs ]
 
-type FlatScope = Map.Map QName [AbstractName]
+type FlatScope = Map QName [AbstractName]
 
 -- | Compute all unqualified defined names in scope and their fixities.
 getDefinedNames :: [KindOfName] -> FlatScope -> [(QName, Fixity')]
@@ -96,6 +97,12 @@ localNames :: FlatScope -> ScopeM ([QName], [NewNotation])
 localNames flat = do
   let defs = getDefinedNames allKindsOfNames flat
   locals <- notShadowedLocals <$> getLocalVars
+  -- Note: Debug printout aligned with the one in buildParsers.
+  reportSLn "scope.operators" 50 $ unlines
+    [ "flat  = " ++ show flat
+    , "defs  = " ++ show defs
+    , "locals= " ++ show locals
+    ]
   return $ split $ uniqBy fst $ map localOp locals ++ defs
   where
     localOp (x, y) = (QName x, A.nameFixity y)
