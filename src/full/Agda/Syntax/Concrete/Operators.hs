@@ -120,11 +120,39 @@ localNames flat = do
           x          -> [NewNotation q fx $ syntaxOf x]
         nota = if null syn then [] else [NewNotation q fx syn]
 
+
+
+data NotationStyle = InfixS | Prefix | Postfix | Nonfix | None
+   deriving (Eq)
+
+fixStyle :: Notation -> NotationStyle
+fixStyle []  = None
+fixStyle syn = case (isAHole (head syn), isAHole (last syn)) of
+  (True , True ) -> InfixS
+  (True , False) -> Postfix
+  (False, True ) -> Prefix
+  (False, False) -> Nonfix
+
+
+notationNames :: NewNotation -> [QName]
+notationNames (NewNotation q _ ps) = zipWith ($) (requal : repeat QName) [Name noRange [Id x] | IdPart x <- ps ]
+  where
+    ms       = init (qnameParts q)
+    requal x = foldr Qual (QName x) ms
+
+-- | Data structure filled in by @buildParsers@.
+--   The top-level parser @pTop@ is of primary interest,
+--   but @pArgs@ is used to convert module application
+--   from concrete to abstract syntax.
+data Parsers e = Parsers
+  { pTop    :: ReadP e e
+  , pApp    :: ReadP e e
+  , pArgs   :: ReadP e [NamedArg e]
+  , pNonfix :: ReadP e e
+  , pAtom   :: ReadP e e
+  }
+
 data UseBoundNames = UseBoundNames | DontUseBoundNames
-
-
-
-
 
 {-| Builds parser for operator applications from all the operators and function
     symbols in scope. When parsing a pattern we use 'DontUseBoundNames'.
@@ -152,39 +180,7 @@ data UseBoundNames = UseBoundNames | DontUseBoundNames
     different associativity the parser won't complain. One could argue that
     this is a Bad Thing, but since it's not trivial to implement the check it
     will stay this way until people start complaining about it.
-
 -}
-
-data NotationStyle = InfixS | Prefix | Postfix | Nonfix | None
-   deriving (Eq)
-
-fixStyle :: Notation -> NotationStyle
-fixStyle [] = None
-fixStyle syn = case (isAHole (head syn), isAHole (last syn)) of
-  (True,True) -> InfixS
-  (True,False) -> Postfix
-  (False,True) -> Prefix
-  (False,False) -> Nonfix
-
-
-notationNames :: NewNotation -> [QName]
-notationNames (NewNotation q _ ps) = zipWith ($) (requal : repeat QName) [Name noRange [Id x] | IdPart x <- ps ]
-  where
-    ms       = init (qnameParts q)
-    requal x = foldr Qual (QName x) ms
-
--- | Data structure filled in by @buildParsers@.
---   The top-level parser @pTop@ is of primary interest,
---   but @pArgs@ is used to convert module application
---   from concrete to abstract syntax.
-data Parsers e = Parsers
-  { pTop    :: ReadP e e
-  , pApp    :: ReadP e e
-  , pArgs   :: ReadP e [NamedArg e]
-  , pNonfix :: ReadP e e
-  , pAtom   :: ReadP e e
-  }
-
 buildParsers :: forall e. IsExpr e => Range -> FlatScope -> UseBoundNames -> ScopeM (Parsers e)
 buildParsers r flat use = do
     (names, ops) <- localNames flat
