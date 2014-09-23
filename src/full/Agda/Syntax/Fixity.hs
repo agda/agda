@@ -85,6 +85,8 @@ instance Eq Fixity where
     NonAssoc   _ n == NonAssoc   _ m = n == m
     _              == _              = False
 
+-- For @instance Pretty Fixity@, see Agda.Syntax.Concrete.Pretty
+
 -- | The default fixity. Currently defined to be @'NonAssoc' 20@.
 defaultFixity :: Fixity
 defaultFixity = NonAssoc noRange 20
