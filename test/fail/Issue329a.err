@@ -1,4 +1,4 @@
-Issue329c.agda:5,14-24
+Issue329a.agda:10,14-24
 The following names are not declared in the same scope as their
 syntax or fixity declaration (i.e., either not in scope at all,
 imported from another module, or declared in a super module):

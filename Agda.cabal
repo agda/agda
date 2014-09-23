@@ -336,6 +336,8 @@ library
                     Agda.Utils.Impossible
                     Agda.Utils.IO.Binary
                     Agda.Utils.IO.UTF8
+                    Agda.Utils.Lens
+                    Agda.Utils.Lens.Examples
                     Agda.Utils.List
                     Agda.Utils.Map
                     Agda.Utils.Maybe
