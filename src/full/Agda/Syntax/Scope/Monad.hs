@@ -248,17 +248,14 @@ getFixity :: C.QName -> ScopeM Fixity'
 getFixity x = do
   r <- resolveName x
   case r of
-    VarName y          -> return $ nameFixity y
-    DefinedName _ d    -> return $ nameFixity $ qnameName $ anameName d
-    FieldName d        -> return $ nameFixity $ qnameName $ anameName d
-    ConstructorName ds
-      | null fs        -> __IMPOSSIBLE__
-      | allEqual fs    -> return $ head fs
-      | otherwise      -> return defaultFixity'
-      where
-        fs = map (nameFixity . qnameName . anameName) ds
-    PatternSynResName n -> return $ nameFixity $ qnameName $ anameName n
+    VarName y           -> return $ nameFixity y
+    DefinedName _ d     -> return $ aFixity d
+    FieldName d         -> return $ aFixity d
+    ConstructorName ds  -> return $ chooseFixity $ map aFixity ds
+    PatternSynResName n -> return $ aFixity n
     UnknownName         -> __IMPOSSIBLE__
+  where
+    aFixity = nameFixity . qnameName . anameName
 
 -- * Binding names
 

@@ -192,7 +192,7 @@ instance Show DeclarationException where
         , vcat $ map f xs
         ]
       where
-        f (x, fs) = pretty x <> text ":" <+> fsep (map (text . show) fs)
+        f (x, fs) = pretty x <> text ":" <+> fsep (map (pretty . theFixity) fs)
   show (MissingDefinition x) = show $ fsep $
     pwords "Missing definition for" ++ [pretty x]
   show (MissingWithClauses x) = show $ fsep $
@@ -398,43 +398,51 @@ parameters = List.concat . List.map numP where
 -- | Main.
 niceDeclarations :: [Declaration] -> Nice [NiceDeclaration]
 niceDeclarations ds = do
+  -- Get fixity and syntax declarations.
   fixs <- fixities ds
   case Map.keys fixs \\ concatMap declaredNames ds of
-    []  -> localState $ do
+    -- If we have fixity/syntax decls for names not declared
+    -- in the current scope, fail.
+    xs@(_:_) -> throwError $ UnknownNamesInFixityDecl xs
+    []       -> localState $ do
+      -- Run the nicifier in an initial environment of fixity decls.
       put $ initNiceEnv { fixs = fixs }
       ds <- nice ds
+      -- Check that every signature got its definition.
       checkLoneSigs =<< use loneSigs
-      loneSigs .= []
+      -- Note that loneSigs is ensured to be empty.
+      -- (Important, since inferMutualBlocks also uses loneSigs state).
       inferMutualBlocks ds
-    xs  -> throwError $ UnknownNamesInFixityDecl xs
   where
-    -- Compute the names defined in a declaration
+    -- Compute the names defined in a declaration.
+    -- We stay in the current scope, i.e., do not go into modules.
     declaredNames :: Declaration -> [Name]
     declaredNames d = case d of
-      TypeSig _ x _                                -> [x]
-      Field x _                                    -> [x]
+      TypeSig _ x _        -> [x]
+      Field x _            -> [x]
       FunClause (LHS p [] [] []) _ _
-        | IdentP (QName x) <- removeSingletonRawAppP p -> [x]
-      FunClause{}                                  -> []
-      DataSig _ _ x _ _                            -> [x]
-      Data _ _ x _ _ cs                            -> x : concatMap declaredNames cs
-      RecordSig _ x _ _                            -> [x]
-      Record _ x _ c _ _ _                         -> x : foldMap (:[]) c
-      Infix _ _                                    -> []
-      Syntax _ _                                   -> []
-      PatternSyn _ x _ _                           -> [x]
-      Mutual _ ds                                  -> concatMap declaredNames ds
-      Abstract _ ds                                -> concatMap declaredNames ds
-      Private _ ds                                 -> concatMap declaredNames ds
-      InstanceB _ ds                               -> concatMap declaredNames ds
-      Postulate _ ds                               -> concatMap declaredNames ds
-      Primitive _ ds                               -> concatMap declaredNames ds
-      Open{}                                       -> []
-      Import{}                                     -> []
-      ModuleMacro{}                                -> []
-      Module{}                                     -> []
-      UnquoteDecl _ x _                            -> [x]
-      Pragma{}                                     -> []
+        | IdentP (QName x) <- removeSingletonRawAppP p
+                           -> [x]
+      FunClause{}          -> []
+      DataSig _ _ x _ _    -> [x]
+      Data _ _ x _ _ cs    -> x : concatMap declaredNames cs
+      RecordSig _ x _ _    -> [x]
+      Record _ x _ c _ _ _ -> x : foldMap (:[]) c
+      Infix _ _            -> []
+      Syntax _ _           -> []
+      PatternSyn _ x _ _   -> [x]
+      Mutual    _ ds       -> concatMap declaredNames ds
+      Abstract  _ ds       -> concatMap declaredNames ds
+      Private   _ ds       -> concatMap declaredNames ds
+      InstanceB _ ds       -> concatMap declaredNames ds
+      Postulate _ ds       -> concatMap declaredNames ds
+      Primitive _ ds       -> concatMap declaredNames ds
+      Open{}               -> []
+      Import{}             -> []
+      ModuleMacro{}        -> []
+      Module{}             -> []
+      UnquoteDecl _ x _    -> [x]
+      Pragma{}             -> []
 
     inferMutualBlocks :: [NiceDeclaration] -> Nice [NiceDeclaration]
     inferMutualBlocks [] = return []
@@ -541,8 +549,10 @@ niceDeclarations ds = do
           (NiceModuleMacro r PublicAccess x modapp op is :)
             <$> nice ds
 
+        -- Fixity and syntax declarations have been looked at already.
         Infix _ _           -> nice ds
         Syntax _ _          -> nice ds
+
         PatternSyn r n as p -> do
           fx <- getFixity n
           (NicePatternSyn r fx n as p :) <$> nice ds

@@ -15,18 +15,6 @@ module Agda.Syntax.Concrete.Operators
     , parseLHS
     , parsePattern
     , parsePatternSyn
-    , paren
-    , mparen
-    -- exports for Copatterns
-    , validConPattern
-    , patternAppView
-    , fullParen
-    , buildParsers, buildParser
-    , parsePat
-    , getDefinedNames
-    , UseBoundNames(..)
-    , qualifierModules
-    , patternQNames
     ) where
 
 import Control.DeepSeq
@@ -36,12 +24,13 @@ import Control.Monad
 import Data.Either (partitionEithers)
 import Data.Function
 import Data.List
-import Data.Traversable (traverse)
-import qualified Data.Traversable as Trav
+import Data.Maybe
 import Data.Map (Map)
 import qualified Data.Map as Map
 import Data.Set (Set)
 import qualified Data.Set as Set
+import Data.Traversable (traverse)
+import qualified Data.Traversable as Trav
 
 import Agda.Syntax.Concrete.Pretty ()
 import Agda.Syntax.Common hiding (Arg, Dom, NamedArg)
@@ -87,15 +76,18 @@ partsInScope flat = do
           where
             first:iparts = [ i | i@(Id {}) <- xs ]
 
-type FlatScope = Map.Map QName [AbstractName]
+type FlatScope = Map QName [AbstractName]
 
 -- | Compute all unqualified defined names in scope and their fixities.
+--   Note that overloaded names (constructors) can have several fixities.
+--   Then we 'chooseFixity'. (See issue 1194.)
 getDefinedNames :: [KindOfName] -> FlatScope -> [(QName, Fixity')]
 getDefinedNames kinds names =
-  [ (x, A.nameFixity $ A.qnameName $ anameName d)
+  [ (x, chooseFixity fixs)
   | (x, ds) <- Map.toList names
-  , d       <- take 1 ds
-  , any (\ d -> anameKind d `elem` kinds) ds
+  , any ((`elem` kinds) . anameKind) ds
+  , let fixs = map (A.nameFixity . A.qnameName . anameName) ds
+  , not (null fixs)
   -- Andreas, 2013-03-21 see Issue 822
   -- Names can have different kinds, i.e., 'defined' and 'constructor'.
   -- We need to consider all names that have *any* matching kind,
@@ -108,24 +100,37 @@ localNames :: FlatScope -> ScopeM ([QName], [NewNotation])
 localNames flat = do
   let defs = getDefinedNames allKindsOfNames flat
   locals <- notShadowedLocals <$> getLocalVars
+  -- Note: Debug printout aligned with the one in buildParsers.
+  reportSLn "scope.operators" 50 $ unlines
+    [ "flat  = " ++ show flat
+    , "defs  = " ++ show defs
+    , "locals= " ++ show locals
+    ]
   return $ split $ uniqBy fst $ map localOp locals ++ defs
   where
     localOp (x, y) = (QName x, A.nameFixity y)
     split ops = partitionEithers $ concatMap opOrNot ops
 
-    opOrNot (q, Fixity' fx syn) = Left q
-                                :  case unqualify q of
-                                      Name _ [_] -> []
-                                      x -> [Right (q, fx, syntaxOf x)]
-                                ++ case syn of
-                                    [] -> []
-                                    _ -> [Right (q, fx, syn)]
+    opOrNot (q, Fixity' fx syn) = Left q : map Right (notaFromName ++ nota)
+      where
+        notaFromName = case unqualify q of
+          Name _ [_] -> []
+          x          -> [NewNotation q fx $ syntaxOf x]
+        nota = if null syn then [] else [NewNotation q fx syn]
+
+-- | Data structure filled in by @buildParsers@.
+--   The top-level parser @pTop@ is of primary interest,
+--   but @pArgs@ is used to convert module application
+--   from concrete to abstract syntax.
+data Parsers e = Parsers
+  { pTop    :: ReadP e e
+  , pApp    :: ReadP e e
+  , pArgs   :: ReadP e [NamedArg e]
+  , pNonfix :: ReadP e e
+  , pAtom   :: ReadP e e
+  }
 
 data UseBoundNames = UseBoundNames | DontUseBoundNames
-
-
-
-
 
 {-| Builds parser for operator applications from all the operators and function
     symbols in scope. When parsing a pattern we use 'DontUseBoundNames'.
@@ -153,46 +158,7 @@ data UseBoundNames = UseBoundNames | DontUseBoundNames
     different associativity the parser won't complain. One could argue that
     this is a Bad Thing, but since it's not trivial to implement the check it
     will stay this way until people start complaining about it.
-
 -}
-
-data NotationStyle = InfixS | Prefix | Postfix | Nonfix | None
-   deriving (Eq)
-
-fixStyle :: Notation -> NotationStyle
-fixStyle [] = None
-fixStyle syn = case (isAHole (head syn), isAHole (last syn)) of
-  (True,True) -> InfixS
-  (True,False) -> Postfix
-  (False,True) -> Prefix
-  (False,False) -> Nonfix
-
-
-notationNames :: NewNotation -> [QName]
-notationNames (q, _, ps) = zipWith ($) (requal : repeat QName) [Name noRange [Id x] | IdPart x <- ps ]
-  where
-    ms       = init (qnameParts q)
-    requal x = foldr Qual (QName x) ms
-
--- | Data structure filled in by @buildParsers@.
---   The top-level parser @pTop@ is of primary interest,
---   but @pArgs@ is used to convert module application
---   from concrete to abstract syntax.
-data Parsers e = Parsers
-  { pTop    :: ReadP e e  -- this was returned by @buildParser@
-  , pApp    :: ReadP e e
-  , pArgs   :: ReadP e [NamedArg e]
-  , pNonfix :: ReadP e e
-  , pAtom   :: ReadP e e
-  }
-
--- | For backwards compatibility.
---   Returns the @pTop@ from @buildParsers@.
-buildParser :: forall e. IsExpr e => Range -> FlatScope -> UseBoundNames -> ScopeM (ReadP e e)
-buildParser r flat use = do
-    p <- buildParsers r flat use
-    return $ pTop p
-
 buildParsers :: forall e. IsExpr e => Range -> FlatScope -> UseBoundNames -> ScopeM (Parsers e)
 buildParsers r flat use = do
     (names, ops) <- localNames flat
@@ -224,24 +190,25 @@ buildParsers r flat use = do
         }
     where
         level :: NewNotation -> Integer
-        level (_name, fixity, _syn) = fixityLevel fixity
+        level = fixityLevel . notaFixity
 
         isinfixl, isinfixr, isinfix, nonfix, isprefix, ispostfix :: NewNotation -> Bool
 
-        isinfixl (_, LeftAssoc _ _, syn)  = isInfix syn
-        isinfixl _                    = False
+        isinfixl (NewNotation _ (LeftAssoc _ _) syn)  = isInfix syn
+        isinfixl _ = False
 
-        isinfixr (_, RightAssoc _ _, syn) = isInfix syn
-        isinfixr _                    = False
+        isinfixr (NewNotation _ (RightAssoc _ _) syn) = isInfix syn
+        isinfixr _ = False
 
-        isinfix (_, NonAssoc _ _,syn)    = isInfix syn
-        isinfix _                     = False
+        isinfix (NewNotation _ (NonAssoc _ _) syn)    = isInfix syn
+        isinfix _ = False
 
-        nonfix (_,_,syn) = fixStyle syn == Nonfix
-        isprefix (_,_,syn) = fixStyle syn == Prefix
-        ispostfix (_,_,syn) = fixStyle syn == Postfix
+        nonfix    (NewNotation _ _ syn) = notationKind syn == NonfixNotation
+        isprefix  (NewNotation _ _ syn) = notationKind syn == PrefixNotation
+        ispostfix (NewNotation _ _ syn) = notationKind syn == PostfixNotation
+
         isInfix :: Notation -> Bool
-        isInfix syn = fixStyle syn == InfixS
+        isInfix syn = notationKind syn == InfixNotation
 
         -- | Group operators by precedence level
         order :: [NewNotation] -> [[NewNotation]]
@@ -656,43 +623,3 @@ fullParen' e = case exprView e of
     LamV bs e -> par $ unExprView $ LamV bs (fullParen e)
     where
         par = unExprView . ParenV
-
-paren :: Monad m => (QName -> m Fixity) -> Expr -> m (Precedence -> Expr)
-paren _   e@(App _ _ _)           = return $ \p -> mparen (appBrackets p) e
-paren f   e@(OpApp _ op _)        = do fx <- f op; return $ \p -> mparen (opBrackets fx p) e
-paren _   e@(Lam _ _ _)           = return $ \p -> mparen (lamBrackets p) e
-paren _   e@(AbsurdLam _ _)       = return $ \p -> mparen (lamBrackets p) e
-paren _   e@(ExtendedLam _ _)     = return $ \p -> mparen (lamBrackets p) e
-paren _   e@(Fun _ _ _)           = return $ \p -> mparen (lamBrackets p) e
-paren _   e@(Pi _ _)              = return $ \p -> mparen (lamBrackets p) e
-paren _   e@(Let _ _ _)           = return $ \p -> mparen (lamBrackets p) e
-paren _   e@(Rec _ _)             = return $ \p -> mparen (appBrackets p) e
-paren _   e@(RecUpdate _ _ _)     = return $ \p -> mparen (appBrackets p) e
-paren _   e@(WithApp _ _ _)       = return $ \p -> mparen (withAppBrackets p) e
-paren _   e@Tactic{}              = return $ \p -> mparen (withAppBrackets p) e
-paren _   e@(Ident _)             = return $ \p -> e
-paren _   e@(Lit _)               = return $ \p -> e
-paren _   e@(QuestionMark _ _)    = return $ \p -> e
-paren _   e@(Underscore _ _)      = return $ \p -> e
-paren _   e@(Set _)               = return $ \p -> e
-paren _   e@(SetN _ _)            = return $ \p -> e
-paren _   e@(Prop _)              = return $ \p -> e
-paren _   e@(Paren _ _)           = return $ \p -> e
-paren _   e@(As _ _ _)            = return $ \p -> e
-paren _   e@(Dot _ _)             = return $ \p -> e
-paren _   e@(Absurd _)            = return $ \p -> e
-paren _   e@(ETel _)              = return $ \p -> e
-paren _   e@(RawApp _ _)          = __IMPOSSIBLE__
-paren _   e@(HiddenArg _ _)       = __IMPOSSIBLE__
-paren _   e@(InstanceArg _ _)     = __IMPOSSIBLE__
-paren _   e@(QuoteGoal _ _ _)     = return $ \p -> mparen (lamBrackets p) e
-paren _   e@(QuoteContext _ _ _)  = return $ \p -> mparen (lamBrackets p) e
-paren _   e@(Quote _)             = return $ \p -> e
-paren _   e@(QuoteTerm _)         = return $ \p -> e
-paren _   e@(Unquote _)           = return $ \p -> e
-paren _   e@(DontCare _)          = return $ \p -> e
-paren _   e@(Equal _ _ _)         = __IMPOSSIBLE__
-
-mparen :: Bool -> Expr -> Expr
-mparen True  e = Paren (getRange e) e
-mparen False e = e

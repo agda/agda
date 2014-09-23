@@ -24,6 +24,17 @@ import Agda.Utils.Tuple
 #include "../undefined.h"
 import Agda.Utils.Impossible
 
+-- | Case distinction for lists, with list first.
+--   Cf. 'Agda.Utils.Null.ifNull'.
+caseList :: [a] -> b -> (a -> [a] -> b) -> b
+caseList []     n c = n
+caseList (x:xs) n c = c x xs
+
+-- | Case distinction for lists, with list last.
+listCase :: b -> (a -> [a] -> b) -> [a] -> b
+listCase n c []     = n
+listCase n c (x:xs) = c x xs
+
 -- | Head function (safe).
 mhead :: [a] -> Maybe a
 mhead []    = Nothing
