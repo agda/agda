@@ -5,6 +5,29 @@
 {-# LANGUAGE TupleSections        #-}
 {-# LANGUAGE TypeSynonymInstances #-}
 
+-- | Preprocess 'Agda.Syntax.Concrete.Declaration's, producing 'NiceDeclaration's.
+--
+--   * Attach fixity and syntax declarations to the definition they refer to.
+--
+--   * Distribute the following attributes to the individual definitions:
+--       @abstract@,
+--       @instance@,
+--       @postulate@,
+--       @primitive@,
+--       @private@,
+--       termination pragmas.
+--
+--   * Gather the function clauses belonging to one function definition.
+--
+--   * Expand ellipsis @...@ in function clauses following @with@.
+--
+--   * Infer mutual blocks.
+--     A block starts when a lone signature is encountered, and ends when
+--     all lone signatures have seen their definition.
+--
+--   * Report basic well-formedness error,
+--     when one of the above transformation fails.
+
 module Agda.Syntax.Concrete.Definitions
     ( NiceDeclaration(..)
     , NiceConstructor, NiceTypeSignature
@@ -372,7 +395,7 @@ parameters = List.concat . List.map numP where
   numP (DomainFull (TypedBindings _ (Common.Arg i (TBind _ xs _)))) = List.replicate (length xs) $ argInfoHiding i
   numP (DomainFull (TypedBindings _ (Common.Arg _ TLet{})))         = []
 
-
+-- | Main.
 niceDeclarations :: [Declaration] -> Nice [NiceDeclaration]
 niceDeclarations ds = do
   fixs <- fixities ds
@@ -977,6 +1000,8 @@ fixities = foldMap $ \ d -> case d of
 -- Andreas, 2012-04-07
 -- The following function is only used twice, for building a Let, and for
 -- printing an error message.
+
+-- | (Approximately) convert a 'NiceDeclaration' back to a 'Declaration'.
 notSoNiceDeclaration :: NiceDeclaration -> Declaration
 notSoNiceDeclaration d =
     case d of
