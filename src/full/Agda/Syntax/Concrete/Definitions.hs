@@ -1,6 +1,9 @@
-{-# LANGUAGE CPP                #-}
-{-# LANGUAGE DeriveDataTypeable #-}
-{-# LANGUAGE PatternGuards      #-}
+{-# LANGUAGE CPP                  #-}
+{-# LANGUAGE DeriveDataTypeable   #-}
+{-# LANGUAGE FlexibleInstances    #-}
+{-# LANGUAGE PatternGuards        #-}
+{-# LANGUAGE TupleSections        #-}
+{-# LANGUAGE TypeSynonymInstances #-}
 
 module Agda.Syntax.Concrete.Definitions
     ( NiceDeclaration(..)
@@ -17,12 +20,13 @@ import Control.Arrow ((***))
 import Control.Applicative
 import Control.Monad.State
 
-import Data.Typeable (Typeable)
 import Data.Foldable hiding (concatMap, mapM_, notElem, elem, all)
 import qualified Data.Map as Map
 import Data.Map (Map)
+import Data.Monoid hiding ((<>))
 import Data.List as List
 import Data.Traversable (traverse)
+import Data.Typeable (Typeable)
 
 import Agda.Syntax.Concrete
 import Agda.Syntax.Common hiding (Arg, Dom, NamedArg, ArgInfo, TerminationCheck())
@@ -291,8 +295,11 @@ type Nice = StateT NiceEnv (Either DeclarationException)
 data NiceEnv = NiceEnv
   { _loneSigs :: LoneSigs
     -- ^ Lone type signatures that wait for their definition.
-  , fixs     :: Map Name Fixity'
+  , fixs     :: Fixities
   }
+
+type LoneSigs = [(DataRecOrFun, Name)]
+type Fixities = Map Name Fixity'
 
 -- | Initial nicifier state.
 
@@ -303,8 +310,6 @@ initNiceEnv = NiceEnv
   }
 
 -- * Handling the lone signatures, stored to infer mutual blocks.
-
-type LoneSigs = [(DataRecOrFun, Name)]
 
 -- | Lens for field '_loneSigs'.
 
@@ -1015,7 +1020,7 @@ niceDeclarations ds = do
 -- | Add more fixities. Throw an exception for multiple fixity declarations.
 --   OR:  Disjoint union of fixity maps.  Throws exception if not disjoint.
 
-plusFixities :: Map Name Fixity' -> Map Name Fixity' -> Nice (Map Name Fixity')
+plusFixities :: Fixities -> Fixities -> Nice Fixities
 plusFixities m1 m2
     -- If maps are not disjoint, report conflicts as exception.
     | not (null isect) = throwError $ MultipleFixityDecls isect
@@ -1039,20 +1044,30 @@ plusFixities m1 m2
     compatible (Fixity' f1 s1) (Fixity' f2 s2) = (f1 == noFixity || f2 == noFixity) &&
                                                  (s1 == noNotation || s2 == noNotation)
 
--- | Get the fixities from the current block. Doesn't go inside /any/ blocks.
+-- | While 'Fixities' is not a monoid under disjoint union (which might fail),
+--   we get the monoid instance for the monadic @Nice Fixities@ which propagates
+--   the first error.
+instance Monoid (Nice Fixities) where
+  mempty        = return $ Map.empty
+  mappend c1 c2 = do
+    m1 <- c1
+    m2 <- c2
+    plusFixities m1 m2
+
+-- | Get the fixities from the current block.
+--   Doesn't go inside modules and where blocks.
 --   The reason for this is that fixity declarations have to appear at the same
 --   level (or possibly outside an abstract or mutual block) as its target
 --   declaration.
-fixities :: [Declaration] -> Nice (Map Name Fixity')
-fixities (d:ds) = case d of
-  Syntax x syn   -> plusFixities (Map.singleton x (Fixity' noFixity syn)) =<< fixities ds
-  Infix f xs     -> plusFixities (Map.fromList [ (x, Fixity' f noNotation) | x <- xs ]) =<< fixities ds
-  Mutual _ ds'   -> fixities (ds' ++ ds)
-  Abstract _ ds' -> fixities (ds' ++ ds)
-  Private _ ds'  -> fixities (ds' ++ ds)
-  _              -> fixities ds
-fixities [] = return $ Map.empty
-
+fixities :: [Declaration] -> Nice Fixities
+fixities = foldMap $ \ d -> case d of
+  Syntax x syn    -> return $ Map.singleton x $ Fixity' noFixity syn
+  Infix  f xs     -> return $ Map.fromList $ map (,Fixity' f noNotation) xs
+  Mutual    _ ds' -> fixities ds'
+  Abstract  _ ds' -> fixities ds'
+  Private   _ ds' -> fixities ds'
+  InstanceB _ ds' -> fixities ds'
+  _               -> mempty
 
 -- Andreas, 2012-04-07
 -- The following function is only used twice, for building a Let, and for
