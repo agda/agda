@@ -1,0 +1,5 @@
+You tried to load
+FixityOutOfScopeInRecord1.agda which
+defines the module FixityOutOfScopeInRecord. However, according to
+the include path this module should be defined in
+FixityOutOfScopeInRecord.agda.

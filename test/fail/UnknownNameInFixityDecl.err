@@ -1,2 +1,5 @@
 UnknownNameInFixityDecl.agda:5,11-14
-Names out of scope in fixity declarations: _*_ _+_
+The following names are not declared in the same scope as their
+syntax or fixity declaration (i.e., either not in scope at all,
+imported from another module, or declared in a super module): _*_
+_+_
