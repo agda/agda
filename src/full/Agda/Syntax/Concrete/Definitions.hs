@@ -46,7 +46,7 @@ import Control.Monad.State
 import Data.Foldable hiding (concatMap, mapM_, notElem, elem, all)
 import qualified Data.Map as Map
 import Data.Map (Map)
-import Data.Monoid hiding ((<>))
+import Data.Monoid ( Monoid(mappend, mempty) )
 import Data.List as List
 import Data.Traversable (traverse)
 import Data.Typeable (Typeable)
