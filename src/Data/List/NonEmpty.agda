@@ -12,7 +12,7 @@ open import Data.Bool.Properties
 open import Data.List as List using (List; []; _∷_)
 open import Data.Maybe using (nothing; just)
 open import Data.Nat as Nat
-open import Data.Product using (_×_; ∃; proj₁; proj₂; _,_; ,_; uncurry)
+open import Data.Product using (∃; proj₁; proj₂; _,_; ,_)
 open import Data.Sum as Sum using (_⊎_; inj₁; inj₂)
 open import Data.Unit
 open import Data.Vec as Vec using (Vec; []; _∷_)
@@ -26,10 +26,15 @@ open import Relation.Nullary.Decidable using (⌊_⌋)
 ------------------------------------------------------------------------
 -- Non-empty lists
 
-List⁺ : ∀ {a} → Set a → Set a
-List⁺ A = A × List A
+infixr 5 _∷_
 
-open Data.Product public using () renaming (_,_ to _∷_)
+record List⁺ {a} (A : Set a) : Set a where
+  constructor _∷_
+  field
+    head : A
+    tail : List A
+
+open List⁺ public
 
 [_] : ∀ {a} {A : Set a} → A → List⁺ A
 [ x ] = x ∷ []
@@ -62,12 +67,6 @@ lift f xs = fromVec (proj₂ (f (toVec xs)))
 ------------------------------------------------------------------------
 -- Other operations
 
-head : ∀ {a} {A : Set a} → List⁺ A → A
-head (x ∷ xs) = x
-
-tail : ∀ {a} {A : Set a} → List⁺ A → List A
-tail (x ∷ xs) = xs
-
 map : ∀ {a b} {A : Set a} {B : Set b} → (A → B) → List⁺ A → List⁺ B
 map f (x ∷ xs) = (f x ∷ List.map f xs)
 
@@ -76,7 +75,7 @@ map f (x ∷ xs) = (f x ∷ List.map f xs)
 
 foldr : ∀ {a b} {A : Set a} {B : Set b} →
         (A → B → B) → (A → B) → List⁺ A → B
-foldr {A = A} {B} c s = uncurry foldr′
+foldr {A = A} {B} c s (x ∷ xs) = foldr′ x xs
   where
   foldr′ : A → List A → B
   foldr′ x []       = s x
