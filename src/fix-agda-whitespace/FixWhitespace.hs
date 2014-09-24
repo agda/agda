@@ -121,6 +121,7 @@ transform =
   Text.unlines .
   removeFinalEmptyLinesExceptOne .
   map removeTrailingWhitespace .
+  map convertTabs .
   Text.lines
   where
   removeFinalEmptyLinesExceptOne =
@@ -128,6 +129,17 @@ transform =
 
   removeTrailingWhitespace =
     Text.dropWhileEnd Char.isSpace
+
+  convertTabs =
+    Text.pack . reverse . fst . foldl convertOne ([], 0) . Text.unpack
+
+  convertOne (a, p) '\t' = (addSpaces n a, p + n)
+                           where
+                             n = 8 - p `mod` 8
+  convertOne (a, p) c = (c:a, p+1)
+
+  addSpaces 0 x = x
+  addSpaces n x = addSpaces (n-1) (' ':x)
 
 -- | 'dropWhile' except keep the first of the dropped elements
 dropWhile1 :: (a -> Bool) -> [a] -> [a]
