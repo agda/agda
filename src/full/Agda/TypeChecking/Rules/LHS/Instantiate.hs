@@ -155,28 +155,28 @@ instantiateTel s tel = liftTCM $ do
     mkSubst :: [Maybe Term] -> S.Substitution
     mkSubst s = rho 0 s'
       where s'  = s
-	    rho i (Nothing : s) = var i :# rho (i + 1) s
-	    rho i (Just u  : s) = u :# rho i s
-	    rho i []		= raiseS i
+            rho i (Nothing : s) = var i :# rho (i + 1) s
+            rho i (Just u  : s) = u :# rho i s
+            rho i []            = raiseS i
 
 -- | Produce a nice error message when splitting failed
 nothingToSplitError :: Problem -> TCM a
 nothingToSplitError (Problem ps _ tel pr) = splitError ps tel
   where
-    splitError []	EmptyTel    = do
+    splitError []       EmptyTel    = do
       if null $ restPats pr then __IMPOSSIBLE__ else do
         typeError $ GenericError $ "Arguments left we cannot split on. TODO: better error message"
-    splitError (_:_)	EmptyTel    = __IMPOSSIBLE__
-    splitError []	ExtendTel{} = __IMPOSSIBLE__
+    splitError (_:_)    EmptyTel    = __IMPOSSIBLE__
+    splitError []       ExtendTel{} = __IMPOSSIBLE__
     splitError (p : ps) (ExtendTel a tel)
       | isBad p   = traceCall (CheckPattern (strip p) EmptyTel (unDom a)) $ case strip p of
-	  A.DotP _ e -> typeError $ UninstantiatedDotPattern e
-	  p	     -> typeError $ IlltypedPattern p (unDom a)
+          A.DotP _ e -> typeError $ UninstantiatedDotPattern e
+          p          -> typeError $ IlltypedPattern p (unDom a)
       | otherwise = underAbstraction a tel $ \tel -> splitError ps tel
       where
-	strip = snd . asView . namedArg
-	isBad p = case strip p of
-	  A.DotP _ _   -> True
-	  A.ConP _ _ _ -> True
-	  A.LitP _     -> True
-	  _	       -> False
+        strip = snd . asView . namedArg
+        isBad p = case strip p of
+          A.DotP _ _   -> True
+          A.ConP _ _ _ -> True
+          A.LitP _     -> True
+          _            -> False

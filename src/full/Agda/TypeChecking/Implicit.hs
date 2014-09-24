@@ -76,8 +76,8 @@ introImplicits expand t = do
 ---------------------------------------------------------------------------
 
 data ImplicitInsertion
-      = ImpInsert [Hiding]	  -- ^ this many implicits have to be inserted
-      | BadImplicits	  -- ^ hidden argument where there should have been a non-hidden arg
+      = ImpInsert [Hiding]        -- ^ this many implicits have to be inserted
+      | BadImplicits      -- ^ hidden argument where there should have been a non-hidden arg
       | NoSuchName ArgName -- ^ bad named argument
       | NoInsertNeeded
   deriving (Show)
@@ -108,4 +108,4 @@ insertImplicit a ts =
       | x == y && hidingx == getHiding a = impInsert $ reverse hs
       | x == y && hidingx /= getHiding a = BadImplicits
       | otherwise = find (getHiding a:hs) x hidingx ts
-    find i x _ []			     = NoSuchName x
+    find i x _ []                            = NoSuchName x

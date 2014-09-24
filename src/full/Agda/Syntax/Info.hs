@@ -53,10 +53,10 @@ instance KillRange MetaInfo where
 -- | For a general expression we can either remember just the source code
 --   position or the entire concrete expression it came from.
 data ExprInfo
-	= ExprRange  Range
-	| ExprSource Range (Precedence -> Expr)
-	    -- ^ Even if we store the original expression we have to know
-	    --	 whether to put parenthesis around it.
+        = ExprRange  Range
+        | ExprSource Range (Precedence -> Expr)
+            -- ^ Even if we store the original expression we have to know
+            --   whether to put parenthesis around it.
   deriving (Typeable, Show)
 
 instance HasRange ExprInfo where
@@ -72,7 +72,7 @@ instance KillRange ExprInfo where
  --------------------------------------------------------------------------}
 
 data ModuleInfo =
-	ModuleInfo { minfoRange    :: Range
+        ModuleInfo { minfoRange    :: Range
                    , minfoAsTo     :: Range
                      -- The range of the \"as\" and \"to\" keywords,
                      -- if any. Retained for highlighting purposes.
@@ -82,7 +82,7 @@ data ModuleInfo =
                    , minfoOpenShort :: Maybe OpenShortHand
                    , minfoDirective :: Maybe ImportDirective
                      -- Retained for abstractToConcrete of ModuleMacro
-		   }
+                   }
   deriving (Typeable)
 
 deriving instance (Show OpenShortHand, Show ImportDirective) => Show ModuleInfo
@@ -114,12 +114,12 @@ instance KillRange LetInfo where
  --------------------------------------------------------------------------}
 
 data DefInfo =
-	DefInfo	{ defFixity   :: Fixity'
-		, defAccess   :: Access
-		, defAbstract :: IsAbstract
-		, defInstance :: IsInstance
-		, defInfo     :: DeclInfo
-		}
+        DefInfo { defFixity   :: Fixity'
+                , defAccess   :: Access
+                , defAbstract :: IsAbstract
+                , defInstance :: IsInstance
+                , defInfo     :: DeclInfo
+                }
   deriving (Typeable, Show)
 
 mkDefInfo :: Name -> Fixity' -> Access -> IsAbstract -> Range -> DefInfo
@@ -143,9 +143,9 @@ instance KillRange DefInfo where
  --------------------------------------------------------------------------}
 
 data DeclInfo =
-	DeclInfo { declName  :: Name
-		 , declRange :: Range
-		 }
+        DeclInfo { declName  :: Name
+                 , declRange :: Range
+                 }
   deriving (Typeable, Show)
 
 instance HasRange DeclInfo where
@@ -163,8 +163,8 @@ instance KillRange DeclInfo where
 
 data MutualInfo =
      MutualInfo { mutualTermCheck :: TerminationCheck Name
-		, mutualRange     :: Range
-		}
+                , mutualRange     :: Range
+                }
   deriving (Typeable, Show)
 
 instance HasRange MutualInfo where
@@ -194,7 +194,7 @@ instance KillRange LHSInfo where
 -- function space.
 
 data PatInfo = PatRange Range
-	     | PatSource Range (Precedence -> Pattern)
+             | PatSource Range (Precedence -> Pattern)
   deriving (Typeable)
 
 instance Show PatInfo where

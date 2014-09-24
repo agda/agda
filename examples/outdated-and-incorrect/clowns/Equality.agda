@@ -2,7 +2,7 @@
 module Equality where
 
   postulate _==_ : {A : Set} -> A -> A -> Set
-	    refl : {A : Set}{x : A} -> x == x
+            refl : {A : Set}{x : A} -> x == x
 
   {-# BUILTIN EQUAL _==_ #-}
   {-# BUILTIN REFL  refl #-}
@@ -10,7 +10,7 @@ module Equality where
   private
    primitive
     primEqElim : {A : Set}(x : A)(C : (y : A) -> x == y -> Set) ->
-		 C x refl -> (y : A) -> (p : x == y) -> C y p
+                 C x refl -> (y : A) -> (p : x == y) -> C y p
 
   elim-== = \{A : Set} -> primEqElim {A}
 

@@ -46,7 +46,7 @@ prop_reorderTelStable conf =
 -- | The result of splitting a telescope is well-scoped.
 prop_splitTelescopeScope :: TermConfiguration -> Property
 prop_splitTelescopeScope conf =
-  forAll (genC conf)			    $ \tel ->
+  forAll (genC conf)                        $ \tel ->
   forAll (listOfElements [0..size tel - 1]) $ \vs ->
   let SplitTel tel1 tel2 perm = splitTelescope (Set.fromList vs) tel
       tel' = telFromList (telToList tel1 ++ telToList tel2)
@@ -55,7 +55,7 @@ prop_splitTelescopeScope conf =
 -- | The permutation generated when splitting a telescope preserves scoping.
 prop_splitTelescopePermScope :: TermConfiguration -> Property
 prop_splitTelescopePermScope conf =
-      forAllShrink (genC conf) (shrinkC conf)		     $ \tel ->
+      forAllShrink (genC conf) (shrinkC conf)                $ \tel ->
       forAllShrink (listOfElements [0..size tel - 1]) shrink $ \vs ->
   let SplitTel tel1 tel2 perm = splitTelescope (Set.fromList vs) tel
       conf1 = extendWithTelConf tel1 conf
@@ -69,7 +69,7 @@ prop_splitTelescopePermScope conf =
 --   between the old and the new telescope.
 prop_splitTelescopePermInv :: TermConfiguration -> Property
 prop_splitTelescopePermInv conf =
-      forAll (wellScopedTel conf)		$ \tel ->
+      forAll (wellScopedTel conf)               $ \tel ->
       forAll (listOfElements [0..size tel - 1]) $ \vs ->
   let SplitTel tel1 tel2 perm = splitTelescope (Set.fromList vs) tel
       tel' = telFromList (telToList tel1 ++ telToList tel2)

@@ -71,10 +71,10 @@ import Agda.Utils.Impossible
 -- | Merge an interface into the current proof state.
 mergeInterface :: Interface -> TCM ()
 mergeInterface i = do
-    let sig	= iSignature i
-	builtin = Map.toList $ iBuiltin i
-	prim	= [ x | (_,Prim x) <- builtin ]
-	bi	= Map.fromList [ (x,Builtin t) | (x,Builtin t) <- builtin ]
+    let sig     = iSignature i
+        builtin = Map.toList $ iBuiltin i
+        prim    = [ x | (_,Prim x) <- builtin ]
+        bi      = Map.fromList [ (x,Builtin t) | (x,Builtin t) <- builtin ]
     bs <- gets stBuiltinThings
     reportSLn "import.iface.merge" 10 $ "Merging interface"
     reportSLn "import.iface.merge" 20 $
@@ -94,11 +94,11 @@ mergeInterface i = do
       "  Rebinding primitives " ++ show prim
     prim <- Map.fromList <$> mapM rebind prim
     modify $ \st -> st { stImportedBuiltins = stImportedBuiltins st `Map.union` prim
-		       }
+                       }
     where
-	rebind (x, q) = do
-	    PrimImpl _ pf <- lookupPrimitiveFunction x
-	    return (x, Prim $ pf { primFunName = q })
+        rebind (x, q) = do
+            PrimImpl _ pf <- lookupPrimitiveFunction x
+            return (x, Prim $ pf { primFunName = q })
 
 addImportedThings ::
   Signature -> BuiltinThings PrimFun -> Set String -> A.PatternSynDefns -> TCM ()
@@ -146,10 +146,10 @@ alreadyVisited x getIface = do
     case mm of
         -- A module with warnings should never be allowed to be
         -- imported from another module.
-	Just mi | not (miWarnings mi) -> do
+        Just mi | not (miWarnings mi) -> do
           reportSLn "import.visit" 10 $ "  Already visited " ++ render (pretty x)
           return (miInterface mi, NoWarnings)
-	_ -> do
+        _ -> do
           reportSLn "import.visit" 5 $ "  Getting interface for " ++ render (pretty x)
           r@(i, wt) <- getIface
           reportSLn "import.visit" 5 $ "  Now we've looked at " ++ render (pretty x)
@@ -327,10 +327,10 @@ getInterface' x includeStateChanges =
 
         -- Check that it's the right version
         case mi of
-          Nothing	-> do
+          Nothing       -> do
             reportSLn "import.iface" 5 $ "  bad interface, re-type checking"
             typeCheckThe file
-          Just i	-> do
+          Just i        -> do
 
             reportSLn "import.iface" 5 $ "  imports: " ++ show (iImportedModules i)
 
@@ -339,7 +339,7 @@ getInterface' x includeStateChanges =
             -- If any of the imports are newer we need to retype check
             if hs /= map snd (iImportedModules i)
               then do
-                -- liftIO close	-- Close the interface file. See above.
+                -- liftIO close -- Close the interface file. See above.
                 typeCheckThe file
               else do
                 unless cached $ chaseMsg "Skipping" (Just ifile)
@@ -640,7 +640,7 @@ buildInterface file topLevel syntaxInfo previousHsImports pragmas = do
     hsImps  <- getHaskellImports
     patsyns <- getPatternSyns
     h       <- liftIO $ hashFile file
-    let	builtin' = Map.mapWithKey (\ x b -> (x,) . primFunName <$> b) builtin
+    let builtin' = Map.mapWithKey (\ x b -> (x,) . primFunName <$> b) builtin
     reportSLn "import.iface" 7 "  instantiating all meta variables"
     i <- instantiateFull $ Interface
       { iSourceHash      = h
@@ -684,8 +684,8 @@ isNewerThan new old = do
     newExist <- doesFileExist new
     oldExist <- doesFileExist old
     if not (newExist && oldExist)
-	then return newExist
-	else do
-	    newT <- getModificationTime new
-	    oldT <- getModificationTime old
-	    return $ newT >= oldT
+        then return newExist
+        else do
+            newT <- getModificationTime new
+            oldT <- getModificationTime old
+            return $ newT >= oldT

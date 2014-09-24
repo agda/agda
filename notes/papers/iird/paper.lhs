@@ -763,7 +763,7 @@ representation, |Args (eps gamma (index gamma Ugg a)) Ugg|. This function
 simply adds a reflexivity proof to |a|:
 \begin{code}
 grArgs_I :  (gamma : OPg I)(U : I -> Set)
-	    (a : Args gamma U) -> Args (eps gamma (index gamma U a)) U
+            (a : Args gamma U) -> Args (eps gamma (index gamma U a)) U
 grArgs (iota e)           U a         = < refl, star >
 grArgs (sigma A gamma)    U < a, b >  = < a, grArgs (gamma a) U b >
 grArgs (delta H i gamma)  U < g, b >  = < g, grArgs gamma U b >
@@ -814,7 +814,7 @@ argument we simply remove the equality proof.
 
 \begin{code}
 rgArgs_I :  (gamma : OPg I)(U : I -> Set)
-	    (i : I)(a : Args (eps gamma i) U) -> Args gamma U
+            (i : I)(a : Args (eps gamma i) U) -> Args gamma U
 rgArgs (iota i)           U j _         = star
 rgArgs (sigma A gamma)    U j < a, b >  = < a, rgArgs (gamma a) U j b >
 rgArgs (delta H i gamma)  U j < g, b >  = < g, rgArgs gamma U j b >
@@ -921,7 +921,7 @@ elim_Even C cz css n (evenZ' p)       =
   elimId zero (\ m q. C m (evenZ' q)) cz n p
 elim_Even C cz css n (evenSS' m e p)  =
   elimId  (suc (suc m)) (\ z q. C z (evenSS' m e q))
-	  (css m e (elim_Even C cz css m e)) n p
+          (css m e (elim_Even C cz css m e)) n p
 \end{code}
 To improve readability we present the rule using pattern matching and explicit
 recursion rather than calling |elim_Even'|.  The call to |rgArgssubst| is has

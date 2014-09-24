@@ -21,22 +21,22 @@ data EitherOrBoth a b = L a | B a b | R b
 unionWithM :: (Ord k, Functor m, Monad m) => (a -> a -> m a) -> Map k a -> Map k a -> m (Map k a)
 unionWithM f m1 m2 = fromList <$> mapM combine (toList m)
     where
-	m = unionWith both (map L m1) (map R m2)
+        m = unionWith both (map L m1) (map R m2)
 
-	both (L a) (R b) = B a b
-	both _     _	 = __IMPOSSIBLE__
+        both (L a) (R b) = B a b
+        both _     _     = __IMPOSSIBLE__
 
-	combine (k, B a b) = (,) k <$> f a b
-	combine (k, L a)   = return (k, a)
-	combine (k, R b)   = return (k, b)
+        combine (k, B a b) = (,) k <$> f a b
+        combine (k, L a)   = return (k, a)
+        combine (k, R b)   = return (k, b)
 
 insertWithKeyM :: (Ord k, Monad m) => (k -> a -> a -> m a) -> k -> a -> Map k a -> m (Map k a)
 insertWithKeyM clash k x m =
     case lookup k m of
-	Just y	-> do
-	    z <- clash k x y
-	    return $ insert k z m
-	Nothing	-> return $ insert k x m
+        Just y  -> do
+            z <- clash k x y
+            return $ insert k z m
+        Nothing -> return $ insert k x m
 
 -- * Non-monadic map operations
 ---------------------------------------------------------------------------

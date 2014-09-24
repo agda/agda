@@ -9,8 +9,8 @@ newtype Ptr a = Ptr { rawPtr :: Int }
     deriving (Eq, Ord)
 
 data Heap a = Heap { nextPtr :: Int
-		   , thunks  :: Map (Ptr a) a
-		   }
+                   , thunks  :: Map (Ptr a) a
+                   }
 
 type HeapM a = State (Heap a)
 

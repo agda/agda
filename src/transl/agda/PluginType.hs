@@ -21,7 +21,7 @@ data Plugin a tc = Plugin {
                      pluginName :: String,
                      pluginOpts :: String,
                      pluginArgs :: [a],
-		     pluginTransClass :: tc
+                     pluginTransClass :: tc
                    }
   deriving (Eq, Show,Ord)
 

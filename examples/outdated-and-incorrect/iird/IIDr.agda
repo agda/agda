@@ -16,13 +16,13 @@ data Ur {I : Set}(γ : OPr I)(i : I) : Set where
 
 -- The elimination rule
 elim-Ur : {I : Set}(γ : OPr I)(C : (i : I) -> Ur γ i -> Set) ->
-	  ((i : I)(a : rArgs γ (Ur γ) i) -> IndHyp (γ i) (Ur γ) C a -> C i (intror a)) ->
-	  (i : I)(u : Ur γ i) -> C i u
+          ((i : I)(a : rArgs γ (Ur γ) i) -> IndHyp (γ i) (Ur γ) C a -> C i (intror a)) ->
+          (i : I)(u : Ur γ i) -> C i u
 elim-Ur γ C m i (intror a) = m i a (induction (γ i) (Ur γ) C (elim-Ur γ C m) a)
 
 -- Large elimination
 elim-Ur₁ : {I : Set}(γ : OPr I)(C : (i : I) -> Ur γ i -> Set1) ->
-	   ((i : I)(a : rArgs γ (Ur γ) i) -> IndHyp₁ (γ i) (Ur γ) C a -> C i (intror a)) ->
-	   (i : I)(u : Ur γ i) -> C i u
+           ((i : I)(a : rArgs γ (Ur γ) i) -> IndHyp₁ (γ i) (Ur γ) C a -> C i (intror a)) ->
+           (i : I)(u : Ur γ i) -> C i u
 elim-Ur₁ γ C m i (intror a) = m i a (induction₁ (γ i) (Ur γ) C (elim-Ur₁ γ C m) a)
 

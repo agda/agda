@@ -59,8 +59,8 @@ If the face does not exist, then it is created first."
 
 (defvar agda2-highlight-face-attributes-list
   '(:family :width :height :weight :slant :foreground :background
-	    :inverse-video :stipple :underline :overline :strike-through
-	    :inherit :box :font)
+            :inverse-video :stipple :underline :overline :strike-through
+            :inherit :box :font)
   "The attributes considered by `agda2-highlight-face-attributes'.")
 
 (defun agda2-highlight-face-attributes (face)
@@ -133,61 +133,61 @@ Also sets the default value of VARIABLE to GROUP."
             (agda2-highlight-typechecks-face
              :foreground "black"
              :background "light blue")))
-	 ((equal group 'default-faces)
+         ((equal group 'default-faces)
           (list (cons 'agda2-highlight-keyword-face
-		      (agda2-highlight-face-attributes
-		       font-lock-keyword-face))
-		(cons 'agda2-highlight-string-face
-		      (agda2-highlight-face-attributes
-		       font-lock-string-face))
-		(cons 'agda2-highlight-number-face
-		      (agda2-highlight-face-attributes
-		       font-lock-constant-face))
-		(cons 'agda2-highlight-symbol-face
-		      (agda2-highlight-face-attributes
-		       font-lock-keyword-face))
-		(cons 'agda2-highlight-primitive-type-face
-		      (agda2-highlight-face-attributes
-		       font-lock-keyword-face))
-		(cons 'agda2-highlight-bound-variable-face
-		      (agda2-highlight-face-attributes
-		       font-lock-variable-name-face))
-		(cons 'agda2-highlight-inductive-constructor-face
-		      (agda2-highlight-face-attributes
-		       font-lock-type-face))
-		(cons 'agda2-highlight-coinductive-constructor-face
-		      (agda2-highlight-face-attributes
-		       font-lock-type-face))
-		(cons 'agda2-highlight-datatype-face
-		      (agda2-highlight-face-attributes
-		       font-lock-type-face))
-		(cons 'agda2-highlight-field-face
-		      (agda2-highlight-face-attributes
-		       font-lock-variable-name-face))
-		(cons 'agda2-highlight-function-face
-		      (agda2-highlight-face-attributes
-		       font-lock-function-name-face))
-		(cons 'agda2-highlight-module-face
-		      (agda2-highlight-face-attributes
-		       font-lock-type-face))
-		(cons 'agda2-highlight-postulate-face
-		      (agda2-highlight-face-attributes
-		       font-lock-type-face))
-		(cons 'agda2-highlight-primitive-face
-		      (agda2-highlight-face-attributes
-		       font-lock-constant-face))
-		(cons 'agda2-highlight-record-face
-		      (agda2-highlight-face-attributes
-		       font-lock-variable-name-face))
-		(cons 'agda2-highlight-dotted-face
-		      (agda2-highlight-face-attributes
-		       font-lock-variable-name-face))
-		(cons 'agda2-highlight-operator-face
-		      (agda2-highlight-face-attributes
-		       font-lock-function-name-face))
-		(cons 'agda2-highlight-error-face
-		      (agda2-highlight-face-attributes
-		       font-lock-warning-face))
+                      (agda2-highlight-face-attributes
+                       font-lock-keyword-face))
+                (cons 'agda2-highlight-string-face
+                      (agda2-highlight-face-attributes
+                       font-lock-string-face))
+                (cons 'agda2-highlight-number-face
+                      (agda2-highlight-face-attributes
+                       font-lock-constant-face))
+                (cons 'agda2-highlight-symbol-face
+                      (agda2-highlight-face-attributes
+                       font-lock-keyword-face))
+                (cons 'agda2-highlight-primitive-type-face
+                      (agda2-highlight-face-attributes
+                       font-lock-keyword-face))
+                (cons 'agda2-highlight-bound-variable-face
+                      (agda2-highlight-face-attributes
+                       font-lock-variable-name-face))
+                (cons 'agda2-highlight-inductive-constructor-face
+                      (agda2-highlight-face-attributes
+                       font-lock-type-face))
+                (cons 'agda2-highlight-coinductive-constructor-face
+                      (agda2-highlight-face-attributes
+                       font-lock-type-face))
+                (cons 'agda2-highlight-datatype-face
+                      (agda2-highlight-face-attributes
+                       font-lock-type-face))
+                (cons 'agda2-highlight-field-face
+                      (agda2-highlight-face-attributes
+                       font-lock-variable-name-face))
+                (cons 'agda2-highlight-function-face
+                      (agda2-highlight-face-attributes
+                       font-lock-function-name-face))
+                (cons 'agda2-highlight-module-face
+                      (agda2-highlight-face-attributes
+                       font-lock-type-face))
+                (cons 'agda2-highlight-postulate-face
+                      (agda2-highlight-face-attributes
+                       font-lock-type-face))
+                (cons 'agda2-highlight-primitive-face
+                      (agda2-highlight-face-attributes
+                       font-lock-constant-face))
+                (cons 'agda2-highlight-record-face
+                      (agda2-highlight-face-attributes
+                       font-lock-variable-name-face))
+                (cons 'agda2-highlight-dotted-face
+                      (agda2-highlight-face-attributes
+                       font-lock-variable-name-face))
+                (cons 'agda2-highlight-operator-face
+                      (agda2-highlight-face-attributes
+                       font-lock-function-name-face))
+                (cons 'agda2-highlight-error-face
+                      (agda2-highlight-face-attributes
+                       font-lock-warning-face))
                 (cons 'agda2-highlight-typechecks-face
                       (agda2-highlight-face-attributes
                        font-lock-type-face))

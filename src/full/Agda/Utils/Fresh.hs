@@ -13,11 +13,11 @@ class HasFresh i a where
 
 fresh :: (HasFresh i s, MonadState s m) => m i
 fresh =
-    do	(i,s) <- gets nextFresh
-	put s
-	return i
+    do  (i,s) <- gets nextFresh
+        put s
+        return i
 
 withFresh :: (HasFresh i e, MonadReader e m) => (i -> m a) -> m a
 withFresh ret =
-    do	(i,e) <- asks nextFresh
-	local (const e) $ ret i
+    do  (i,e) <- asks nextFresh
+        local (const e) $ ret i

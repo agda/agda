@@ -32,15 +32,15 @@ import Agda.Utils.FileName
 -- Wrapping parse results
 
 wrap :: ParseResult a -> a
-wrap (ParseOk _ x)	= x
-wrap (ParseFailed err)	= throw err
+wrap (ParseOk _ x)      = x
+wrap (ParseFailed err)  = throw err
 
 wrapM:: Monad m => m (ParseResult a) -> m a
 wrapM m =
-    do	r <- m
-	case r of
-	    ParseOk _ x	    -> return x
-	    ParseFailed err -> throw err
+    do  r <- m
+        case r of
+            ParseOk _ x     -> return x
+            ParseFailed err -> throw err
 
 ------------------------------------------------------------------------
 -- Parse functions

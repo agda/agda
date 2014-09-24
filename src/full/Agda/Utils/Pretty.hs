@@ -12,11 +12,11 @@ instance Eq Doc where
   (==) = (==) `on` render
 
 class Pretty a where
-    pretty	:: a -> Doc
-    prettyPrec	:: Int -> a -> Doc
+    pretty      :: a -> Doc
+    prettyPrec  :: Int -> a -> Doc
 
-    pretty	= prettyPrec 0
-    prettyPrec	= const pretty
+    pretty      = prettyPrec 0
+    prettyPrec  = const pretty
 
 instance Pretty Doc where
     pretty = id

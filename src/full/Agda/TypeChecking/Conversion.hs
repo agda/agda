@@ -70,7 +70,7 @@ tryConversion m = (noConstraints m $> True)
 sameVars :: Elims -> Elims -> Bool
 sameVars xs ys = and $ zipWith same xs ys
     where
-	same (Apply (Arg _ (Var n []))) (Apply (Arg _ (Var m []))) = n == m
+        same (Apply (Arg _ (Var n []))) (Apply (Arg _ (Var m []))) = n == m
         same _ _ = False
 
 -- | @intersectVars us vs@ checks whether all relevant elements in @us@ and @vs@
@@ -338,8 +338,8 @@ compareTel t1 t2 cmp tel1 tel2 =
 
           addCtx name dom1 $
             if dependent
-	    then guardConstraint c checkDom
-	    else checkDom >> solveConstraint_ c
+            then guardConstraint c checkDom
+            else checkDom >> solveConstraint_ c
 -}
   where
     -- Andreas, 2011-05-10 better report message about types
@@ -388,7 +388,7 @@ compareAtom cmp t m n =
     -- if a PatternErr is thrown, rebuild constraint!
     catchConstraint (ValueCmp cmp t m n) $ do
       reportSDoc "tc.conv.atom" 50 $
-	text "compareAtom" <+> fsep [ prettyTCM m <+> prettyTCM cmp
+        text "compareAtom" <+> fsep [ prettyTCM m <+> prettyTCM cmp
                                     , prettyTCM n
                                     , text ":" <+> prettyTCM t ]
       -- Andreas: what happens if I cut out the eta expansion here?
@@ -401,7 +401,7 @@ compareAtom cmp t m n =
       -- constructorForm changes literal to constructors
       -- only needed if the other side is not a literal
       (mb'', nb'') <- case (ignoreSharing $ ignoreBlocking mb', ignoreSharing $ ignoreBlocking nb') of
-	(Lit _, Lit _) -> return (mb', nb')
+        (Lit _, Lit _) -> return (mb', nb')
         _ -> (,) <$> traverse constructorForm mb'
                  <*> traverse constructorForm nb'
 
@@ -417,7 +417,7 @@ compareAtom cmp t m n =
             n <- normalise n    -- is this what we want?
             m <- normalise m
             if m == n
-                then return ()	-- Check syntactic equality for blocked terms
+                then return ()  -- Check syntactic equality for blocked terms
                 else postpone
 
           dir = fromCmp cmp
@@ -428,7 +428,7 @@ compareAtom cmp t m n =
       unifyPointers cmp (ignoreBlocking mb') (ignoreBlocking nb') $ do    -- this needs to go after eta expansion to avoid creating infinite terms
 
       reportSDoc "tc.conv.atom" 30 $
-	text "compareAtom" <+> fsep [ prettyTCM mb <+> prettyTCM cmp
+        text "compareAtom" <+> fsep [ prettyTCM mb <+> prettyTCM cmp
                                     , prettyTCM nb
                                     , text ":" <+> prettyTCM t ]
       case (ignoreSharing <$> mb, ignoreSharing <$> nb) of
@@ -455,7 +455,7 @@ compareAtom cmp t m n =
                 -- instantiate later meta variables first
                 let (solve1, solve2)
                       | (p1,x) > (p2,y) = (l,r)
-                      | otherwise	= (r,l)
+                      | otherwise       = (r,l)
                       where l = assign dir x xArgs n
                             r = assign rid y yArgs m
 
@@ -468,9 +468,9 @@ compareAtom cmp t m n =
                 try solve1 solve2
 
         -- one side a meta, the other an unblocked term
-	(NotBlocked (MetaV x es), _) -> assign dir x es n
-	(_, NotBlocked (MetaV x es)) -> assign rid x es m
-        (Blocked{}, Blocked{})	-> checkSyntacticEquality
+        (NotBlocked (MetaV x es), _) -> assign dir x es n
+        (_, NotBlocked (MetaV x es)) -> assign rid x es m
+        (Blocked{}, Blocked{})  -> checkSyntacticEquality
         (Blocked{}, _)    -> useInjectivity cmp t m n
         (_,Blocked{})     -> useInjectivity cmp t m n
         _ -> do
@@ -481,15 +481,15 @@ compareAtom cmp t m n =
           m <- elimView False m
           n <- elimView False n
           case (ignoreSharing m, ignoreSharing n) of
-	    (Pi{}, Pi{}) -> equalFun m n
+            (Pi{}, Pi{}) -> equalFun m n
 
-	    (Sort s1, Sort s2) -> compareSort CmpEq s1 s2
+            (Sort s1, Sort s2) -> compareSort CmpEq s1 s2
 
-	    (Lit l1, Lit l2) | l1 == l2 -> return ()
-	    (Var i es, Var i' es') | i == i' -> do
-		a <- typeOfBV i
+            (Lit l1, Lit l2) | l1 == l2 -> return ()
+            (Var i es, Var i' es') | i == i' -> do
+                a <- typeOfBV i
                 -- Variables are invariant in their arguments
-		compareElims [] a (var i) es es'
+                compareElims [] a (var i) es es'
             (Def f es, Def f' es') | f == f' -> do
                 a   <- defType <$> getConstInfo f
                 pol <- getPolarity' cmp f
@@ -546,8 +546,8 @@ compareAtom cmp t m n =
                     reportSLn "tc.conv.elim" 50 $ "v (raw) = " ++ show v
                     compareElims pol a v els1 els2
 -}
-	    (Con x xArgs, Con y yArgs)
-		| x == y -> do
+            (Con x xArgs, Con y yArgs)
+                | x == y -> do
                     -- Get the type of the constructor instantiated to the datatype parameters.
                     a' <- conType x t
                     -- Constructors are invariant in their arguments
@@ -584,13 +584,13 @@ compareAtom cmp t m n =
             _ -> impossible
 -}
         equalFun t1 t2 = case (ignoreSharing t1, ignoreSharing t2) of
-	  (Pi dom1@(Dom i1 a1@(El a1s a1t)) b1, Pi (Dom i2 a2) b2)
-	    | argInfoHiding i1 /= argInfoHiding i2 -> typeError $ UnequalHiding t1 t2
+          (Pi dom1@(Dom i1 a1@(El a1s a1t)) b1, Pi (Dom i2 a2) b2)
+            | argInfoHiding i1 /= argInfoHiding i2 -> typeError $ UnequalHiding t1 t2
             -- Andreas 2010-09-21 compare r1 and r2, but ignore forcing annotations!
-	    | not (compareRelevance cmp (ignoreForced $ argInfoRelevance i2)
+            | not (compareRelevance cmp (ignoreForced $ argInfoRelevance i2)
                                         (ignoreForced $ argInfoRelevance i1))
                 -> typeError $ UnequalRelevance cmp t1 t2
-	    | otherwise -> verboseBracket "tc.conv.fun" 15 "compare function types" $ do
+            | otherwise -> verboseBracket "tc.conv.fun" 15 "compare function types" $ do
                 reportSDoc "tc.conv.fun" 20 $ nest 2 $ vcat
                   [ text "t1 =" <+> prettyTCM t1
                   , text "t2 =" <+> prettyTCM t2 ]
@@ -620,7 +620,7 @@ compareAtom cmp t m n =
                   then guardConstraint conCoDom checkDom
                   else checkDom >> solveConstraint_ conCoDom
 -}
-	  _ -> __IMPOSSIBLE__
+          _ -> __IMPOSSIBLE__
 
 compareRelevance :: Comparison -> Relevance -> Relevance -> Bool
 compareRelevance CmpEq  = (==)
@@ -836,14 +836,14 @@ compareType :: Comparison -> Type -> Type -> TCM ()
 compareType cmp ty1@(El s1 a1) ty2@(El s2 a2) =
     verboseBracket "tc.conv.type" 20 "compareType" $
     catchConstraint (TypeCmp cmp ty1 ty2) $ do
-	reportSDoc "tc.conv.type" 50 $ vcat
+        reportSDoc "tc.conv.type" 50 $ vcat
           [ text "compareType" <+> sep [ prettyTCM ty1 <+> prettyTCM cmp
                                        , prettyTCM ty2 ]
           , hsep [ text "   sorts:", prettyTCM s1, text " and ", prettyTCM s2 ]
           ]
 -- Andreas, 2011-4-27 should not compare sorts, but currently this is needed
 -- for solving sort and level metas
-	compareSort CmpEq s1 s2 `catchError` \err -> case err of
+        compareSort CmpEq s1 s2 `catchError` \err -> case err of
           TypeError _ e -> do
             reportSDoc "tc.conv.type" 30 $ vcat
               [ text "sort comparison failed"
@@ -873,8 +873,8 @@ compareType cmp ty1@(El s1 a1) ty2@(El s2 a2) =
                 -- throwError err
                 compareSort CmpEq s1 s2
           _             -> throwError err
-	compareTerm cmp (sort s1) a1 a2
-	return ()
+        compareTerm cmp (sort s1) a1 a2
+        return ()
 
 leqType :: Type -> Type -> TCM ()
 leqType = compareType CmpLeq
@@ -962,28 +962,28 @@ leqSort :: Sort -> Sort -> TCM ()
 leqSort s1 s2 =
   ifM typeInType (return ()) $
     catchConstraint (SortCmp CmpLeq s1 s2) $
-    do	(s1,s2) <- reduce (s1,s2)
+    do  (s1,s2) <- reduce (s1,s2)
         let postpone = addConstraint (SortCmp CmpLeq s1 s2)
         reportSDoc "tc.conv.sort" 30 $
           sep [ text "leqSort"
               , nest 2 $ fsep [ prettyTCM s1 <+> text "=<"
                               , prettyTCM s2 ]
               ]
-	case (s1, s2) of
+        case (s1, s2) of
 
             (Type a, Type b) -> leqLevel a b
 
-	    (Prop    , Prop    )	     -> return ()
-	    (Type _  , Prop    )	     -> notLeq s1 s2
+            (Prop    , Prop    )             -> return ()
+            (Type _  , Prop    )             -> notLeq s1 s2
 
-	    (Prop    , Type _  )	     -> return ()
+            (Prop    , Type _  )             -> return ()
 
             (_       , Inf     )             -> return ()
             (Inf     , _       )             -> equalSort s1 s2
             (DLub{}  , _       )             -> postpone
             (_       , DLub{}  )             -> postpone
     where
-	notLeq s1 s2 = typeError $ NotLeqSort s1 s2
+        notLeq s1 s2 = typeError $ NotLeqSort s1 s2
 
 leqLevel :: Level -> Level -> TCM ()
 leqLevel a b = liftTCM $ do
@@ -1271,13 +1271,13 @@ equalSort s1 s2 =
                                      , text (show s2) ]
                      ]
               ]
-	case (s1, s2) of
+        case (s1, s2) of
 
             (Type a  , Type b  ) -> equalLevel a b
 
-	    (Prop    , Prop    ) -> return ()
-	    (Type _  , Prop    ) -> notEq s1 s2
-	    (Prop    , Type _  ) -> notEq s1 s2
+            (Prop    , Prop    ) -> return ()
+            (Type _  , Prop    ) -> notEq s1 s2
+            (Prop    , Type _  ) -> notEq s1 s2
 
             (Inf     , Inf     )             -> return ()
             (Inf     , Type (Max as@(_:_)))  -> mapM_ (isInf $ notEq s1 s2) as
@@ -1297,7 +1297,7 @@ equalSort s1 s2 =
             (DLub{}  , _       )             -> postpone
             (_       , DLub{}  )             -> postpone
     where
-	notEq s1 s2 = typeError $ UnequalSorts s1 s2
+        notEq s1 s2 = typeError $ UnequalSorts s1 s2
 
         isInf notok ClosedLevel{} = notok
         isInf notok (Plus _ l) = case l of

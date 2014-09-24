@@ -324,7 +324,7 @@ instance Free a => Free (Abs a) where
   freeVars' (NoAbs _ b) = freeVars' b
 
 instance Free a => Free (Tele a) where
-  freeVars' EmptyTel	      = mempty
+  freeVars' EmptyTel          = mempty
   freeVars' (ExtendTel a tel) = freeVars' (a, tel)
 
 instance Free ClauseBody where

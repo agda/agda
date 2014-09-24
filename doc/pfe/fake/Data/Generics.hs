@@ -3,9 +3,9 @@ module Data.Generics where
 
 -- | Fixity of constructors
 data Fixity = Prefix
-            | Infix	-- Later: add associativity and precedence
+            | Infix     -- Later: add associativity and precedence
 
-	    deriving (Eq,Show)
+            deriving (Eq,Show)
 
 class Typeable a where
   typeOf :: a -> TypeRep
