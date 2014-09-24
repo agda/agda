@@ -33,6 +33,11 @@ Important changes since 0.8:
   The current compatibility modules Foo.Props.Bar will be removed in
   the next release.
 
+* Data.List.NonEmpty
+
+  Non-empty lists are no longer defined in terms of Data.Product._×_,
+  instead, now they are defined as record with fields head and tail.
+
 ------------------------------------------------------------------------
 Version 0.8
 ------------------------------------------------------------------------
