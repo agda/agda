@@ -1,3 +1,3 @@
-{-# OPTIONS     --type-in-type #-}
+{-# OPTIONS	--type-in-type #-}
 
 module TabsInPragmas where
