@@ -30,10 +30,10 @@ inMutualBlock m = do
 setMutualBlock :: MutualId -> QName -> TCM ()
 setMutualBlock i x = do
   modify $ \s -> s { stMutualBlocks = Map.insertWith Set.union i (Set.singleton x) $ stMutualBlocks s
-		   , stSignature    = (stSignature s)
-				      { sigDefinitions = setMutId x i $ sigDefinitions $ stSignature s
-				      }
-		   }
+                   , stSignature    = (stSignature s)
+                                      { sigDefinitions = setMutId x i $ sigDefinitions $ stSignature s
+                                      }
+                   }
   where
     setMutId x i = flip HMap.adjust x $ \defn -> defn { defMutual = i }
 

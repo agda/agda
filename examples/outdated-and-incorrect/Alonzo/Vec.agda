@@ -55,7 +55,7 @@ module examples.Vec where
   transpose zero n xss = vec n unit
   transpose (suc m) n (pair xs xss) =
     vapp n (vapp n (vec n (lam2 pair)) xs)
-	   (transpose m n xss)
+           (transpose m n xss)
 
   {- Sets of a given finite size may be computed as follows... -}
 
@@ -152,7 +152,7 @@ module examples.Vec where
 
   liftS : (m n : Nat) -> m `Sub` n -> suc m `Sub` suc n
   liftS m n m2n = pair (evar (inl unit))
-		       (vMap m (rename (vMap n inr (idR n))) m2n)
+                       (vMap m (rename (vMap n inr (idR n))) m2n)
 
   {- functor from Sub to Tm-arrows -}
 

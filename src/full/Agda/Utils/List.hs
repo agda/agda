@@ -154,12 +154,12 @@ preOrSuffix (a:as) (b:bs)
 wordsBy :: (a -> Bool) -> [a] -> [[a]]
 wordsBy p xs = yesP xs
     where
-	yesP xs = noP (dropWhile p xs)
+        yesP xs = noP (dropWhile p xs)
 
-	noP []	= []
-	noP xs	= ys : yesP zs
-	    where
-		(ys,zs) = break p xs
+        noP []  = []
+        noP xs  = ys : yesP zs
+            where
+                (ys,zs) = break p xs
 
 -- | Chop up a list in chunks of a given length.
 chop :: Int -> [a] -> [[a]]
@@ -184,7 +184,7 @@ sorted xs = and $ zipWith (<=) (init xs) (tail xs)
 -- other. Assumes that the 'Eq' instance stands for an equivalence
 -- relation.
 distinct :: Eq a => [a] -> Bool
-distinct []	= True
+distinct []     = True
 distinct (x:xs) = x `notElem` xs && distinct xs
 
 -- | An optimised version of 'distinct'.

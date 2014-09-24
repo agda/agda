@@ -19,8 +19,8 @@ OPg I = OP I I
 
 -- Adds a reflexivity proof.
 g→rArgs : {I : Set}(γ : OPg I)(U : I -> Set)
-	      (a : Args γ U) ->
-	      rArgs (ε γ) U (index γ U a)
-g→rArgs (ι e)     U arg	= (refl , ★)
+              (a : Args γ U) ->
+              rArgs (ε γ) U (index γ U a)
+g→rArgs (ι e)     U arg = (refl , ★)
 g→rArgs (σ A γ)   U arg = (π₀ arg , g→rArgs (γ (π₀ arg)) U (π₁ arg))
 g→rArgs (δ H i γ) U arg = (π₀ arg , g→rArgs γ U (π₁ arg))

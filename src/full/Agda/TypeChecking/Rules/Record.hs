@@ -94,8 +94,8 @@ checkRecDef i name ind con ps contel fields =
       -- t = tel -> t0 where t0 must be a sort s
       t0' <- normalise t0
       s <- case ignoreSharing $ unEl t0' of
-	Sort s	-> return s
-	_	-> typeError $ ShouldBeASort t0
+        Sort s  -> return s
+        _       -> typeError $ ShouldBeASort t0
       gamma <- getContextTelescope  -- the record params (incl. module params)
       -- record type (name applied to parameters)
       let rect = El s $ Def name $ map Apply $ teleArgs gamma
@@ -119,8 +119,8 @@ checkRecDef i name ind con ps contel fields =
 
       let getName :: A.Declaration -> [A.Arg QName]
           getName (A.Field _ x arg)    = [x <$ arg]
-	  getName (A.ScopedDecl _ [f]) = getName f
-	  getName _		       = []
+          getName (A.ScopedDecl _ [f]) = getName f
+          getName _                    = []
 
           fs = concatMap (convColor . getName) fields
           -- indCo is what the user wrote: inductive/coinductive/Nothing.
@@ -133,14 +133,14 @@ checkRecDef i name ind con ps contel fields =
 
       reportSDoc "tc.rec" 30 $ text "record constructor is " <+> text (show con)
       addConstant name $ defaultDefn defaultArgInfo name t0
-		       $ Record { recPars           = 0
+                       $ Record { recPars           = 0
                                 , recClause         = Nothing
                                 , recConHead        = con
                                 , recNamedCon       = hasNamedCon
                                 , recConType        = contype  -- addConstant adds params!
-				, recFields         = fs
+                                , recFields         = fs
                                 , recTel            = ftel     -- addConstant adds params!
-				, recAbstr          = Info.defAbstract i
+                                , recAbstr          = Info.defAbstract i
                                 , recEtaEquality    = haveEta
                                 , recInduction      = indCo    -- we retain the original user declaration, in case the record turns out to be recursive
                                 -- determined by positivity checker:
@@ -204,9 +204,9 @@ checkRecDef i name ind con ps contel fields =
       let -- name of record module
           m    = qnameToMName name
           -- make record parameters hidden and non-stricts irrelevant
-	  htel = map hideAndRelParams $ telToList tel
+          htel = map hideAndRelParams $ telToList tel
           info = setRelevance recordRelevance defaultArgInfo
-	  tel' = telFromList $ htel ++ [Dom info ("r", rect)]
+          tel' = telFromList $ htel ++ [Dom info ("r", rect)]
           ext (Dom info (x, t)) = addCtx x (Dom info t)
 
       -- Add the record section
@@ -219,17 +219,17 @@ checkRecDef i name ind con ps contel fields =
       escapeContext (size tel) $ flip (foldr ext) ctx $
        -- the record variable has the empty name by intention, see issue 208
        underAbstraction (Dom info rect) (Abs "" ()) $ \_ -> do
-	reportSDoc "tc.rec.def" 10 $ sep
-	  [ text "record section:"
-	  , nest 2 $ sep
+        reportSDoc "tc.rec.def" 10 $ sep
+          [ text "record section:"
+          , nest 2 $ sep
             [ prettyTCM m <+> (inTopContext . prettyTCM =<< getContextTelescope)
             , fsep $ punctuate comma $ map (text . show . getName) fields
             ]
-	  ]
+          ]
         reportSDoc "tc.rec.def" 15 $ nest 2 $ vcat
           [ text "field tel =" <+> escapeContext 1 (prettyTCM ftel)
           ]
-	addSection m (size tel')
+        addSection m (size tel')
 
       -- Check the types of the fields
       -- Andreas, 2013-09-13 all module telescopes count as parameters to the record projections
@@ -281,15 +281,15 @@ checkRecordProjections m r con tel ftel fs = do
       -- because then meta variables are created again.
       -- Instead, we take the field type t from the field telescope.
       reportSDoc "tc.rec.proj" 5 $ sep
-	[ text "checking projection" <+> text (show x)
-	, nest 2 $ vcat
-	  [ text "top   =" <+> (inTopContext . prettyTCM =<< getContextTelescope)
+        [ text "checking projection" <+> text (show x)
+        , nest 2 $ vcat
+          [ text "top   =" <+> (inTopContext . prettyTCM =<< getContextTelescope)
           , text "tel   =" <+> (inTopContext . prettyTCM $ tel)
-	  , text "ftel1 =" <+> prettyTCM ftel1
-	  , text "t     =" <+> prettyTCM t
-	  , text "ftel2 =" <+> addCtxTel ftel1 (underAbstraction_ ftel2 prettyTCM)
-	  ]
-	]
+          , text "ftel1 =" <+> prettyTCM ftel1
+          , text "t     =" <+> prettyTCM t
+          , text "ftel2 =" <+> addCtxTel ftel1 (underAbstraction_ ftel2 prettyTCM)
+          ]
+        ]
 
       -- Andreas, 2010-09-09 The following comments are misleading, TODO: update
       -- in fact, tel includes the variable of record type as last one
@@ -302,16 +302,16 @@ checkRecordProjections m r con tel ftel fs = do
 
       {- what are the contexts?
 
-	  Γ, tel            ⊢ t
-	  Γ, tel, r         ⊢ vs
-	  Γ, tel, r, ftel₁  ⊢ raiseFrom (size ftel₁) 1 t
+          Γ, tel            ⊢ t
+          Γ, tel, r         ⊢ vs
+          Γ, tel, r, ftel₁  ⊢ raiseFrom (size ftel₁) 1 t
       -}
 
       -- The type of the projection function should be
       --  {tel} -> (r : R Δ) -> t
       -- where Δ = Γ, tel is the current context
       let finalt   = telePi (replaceEmptyName "r" tel) t
-	  projname = qualify m $ qnameName x
+          projname = qualify m $ qnameName x
           projcall = Var 0 [Proj projname]
 --          projcall = Def projname [defaultArg $ var 0]
           rel      = getRelevance ai
@@ -328,9 +328,9 @@ checkRecordProjections m r con tel ftel fs = do
       ifM (return (rel == Irrelevant) `and2M` do not . optIrrelevantProjections <$> pragmaOptions) recurse $ do
 
       reportSDoc "tc.rec.proj" 10 $ sep
-	[ text "adding projection"
-	, nest 2 $ prettyTCM projname <+> text ":" <+> inTopContext (prettyTCM finalt)
-	]
+        [ text "adding projection"
+        , nest 2 $ prettyTCM projname <+> text ":" <+> inTopContext (prettyTCM finalt)
+        ]
 
       -- The body should be
       --  P.xi {tel} (r _ .. x .. _) = x
@@ -364,17 +364,17 @@ checkRecordProjections m r con tel ftel fs = do
           -- (rt) which should be  R ptel
           (ptel,[rt]) = splitAt (size tel - 1) $ telToList tel
           projArgI    = domInfo rt
-	  conp	 = defaultArg
-		 $ ConP con (Just (False, argFromDom $ fmap snd rt))
+          conp   = defaultArg
+                 $ ConP con (Just (False, argFromDom $ fmap snd rt))
                    [ Arg info $ unnamed $ VarP "x" | Dom info _ <- telToList ftel ]
-	  nobind 0 = id
-	  nobind n = Bind . Abs "_" . nobind (n - 1)
-	  body	 = nobind (size ftel1)
-		 $ Bind . Abs "x"
-		 $ nobind (size ftel2)
-		 $ Body $ bodyMod $ var (size ftel2)
+          nobind 0 = id
+          nobind n = Bind . Abs "_" . nobind (n - 1)
+          body   = nobind (size ftel1)
+                 $ Bind . Abs "x"
+                 $ nobind (size ftel2)
+                 $ Body $ bodyMod $ var (size ftel2)
           cltel  = ftel
-	  clause                            = Clause { clauseRange = getRange info
+          clause                            = Clause { clauseRange = getRange info
                           , clauseTel       = killRange cltel
                           , clausePerm      = idP $ size ftel
                           , namedClausePats = [Named Nothing <$> conp]
@@ -400,18 +400,18 @@ checkRecordProjections m r con tel ftel fs = do
             }
 
       reportSDoc "tc.rec.proj" 80 $ sep
-	[ text "adding projection"
-	, nest 2 $ prettyTCM projname <+> text (show clause)
-	]
+        [ text "adding projection"
+        , nest 2 $ prettyTCM projname <+> text (show clause)
+        ]
       reportSDoc "tc.rec.proj" 70 $ sep
-	[ text "adding projection"
-	, nest 2 $ prettyTCM projname <+> text (show (clausePats clause)) <+> text "=" <+>
+        [ text "adding projection"
+        , nest 2 $ prettyTCM projname <+> text (show (clausePats clause)) <+> text "=" <+>
                      inTopContext (addCtxTel ftel (prettyTCM (clauseBody clause)))
-	]
+        ]
       reportSDoc "tc.rec.proj" 10 $ sep
-	[ text "adding projection"
-	, nest 2 $ prettyTCM (QNamed projname clause)
-	]
+        [ text "adding projection"
+        , nest 2 $ prettyTCM (QNamed projname clause)
+        ]
 
             -- Record patterns should /not/ be translated when the
             -- projection functions are defined. Record pattern
@@ -425,7 +425,7 @@ checkRecordProjections m r con tel ftel fs = do
             ]
 
       escapeContext (size tel) $ do
-	addConstant projname $
+        addConstant projname $
           (defaultDefn ai projname (killRange finalt)
             Function { funClauses        = [clause]
                      , funCompiled       = Just cc

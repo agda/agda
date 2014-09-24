@@ -59,7 +59,7 @@ renameP p = applySubst (renaming p)
 renaming :: Permutation -> Substitution
 renaming p = gamma'
   where
-    n	   = size p
+    n      = size p
     gamma  = permute (reverseP $ invertP $ reverseP p) $ map var [0..]
     gamma' = gamma ++# raiseS n
 
@@ -69,7 +69,7 @@ renamingR p@(Perm n _) = permute (reverseP p) (map var [0..]) ++# raiseS n
 
 -- | Flatten telescope: (Γ : Tel) -> [Type Γ]
 flattenTel :: Telescope -> [Dom Type]
-flattenTel EmptyTel	     = []
+flattenTel EmptyTel          = []
 flattenTel (ExtendTel a tel) = raise (size tel + 1) a : flattenTel (absBody tel)
 
 -- | Order a flattened telescope in the correct dependeny order: Γ ->
@@ -91,7 +91,7 @@ reorderTel_ tel = case reorderTel tel of
 -- | Unflatten: turns a flattened telescope into a proper telescope. Must be
 --   properly ordered.
 unflattenTel :: [ArgName] -> [Dom Type] -> Telescope
-unflattenTel []	  []	        = EmptyTel
+unflattenTel []   []            = EmptyTel
 unflattenTel (x : xs) (a : tel) = ExtendTel a' (Abs x tel')
   where
     tel' = unflattenTel xs tel

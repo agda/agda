@@ -17,4 +17,4 @@ handleParseException crash e = crash e
 failOnException :: (Range -> String -> IO a) -> IO a -> IO a
 failOnException h m = m `E.catch` handleParseException handler
     where
-	handler x = h (getRange x) (show x)
+        handler x = h (getRange x) (show x)

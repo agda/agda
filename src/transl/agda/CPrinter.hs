@@ -324,7 +324,7 @@ ppIndSummands d cs = sepList (map ppIndCon cs) (t" |")
   where ppIndCon (CIndExpl (i,ts) n es) = separate
           [ separate (ppId d i : map (nest 2 . pPrint d 10) ts)
           , nest 2 ((t ":: ") ~. (pp d (cApply (CVar n) es)))]
-	ppIndCon (CIndImpl (i, ts) es) = separate
+        ppIndCon (CIndImpl (i, ts) es) = separate
           [ separate (ppId d i : map (nest 2 . pPrint d 10) ts)
           , nest 2 . separate $ t":: _" : map (ppApArg d 10) es]
 
@@ -485,29 +485,29 @@ ppCList d e = fmap (ppList d) (mkCList e)
 
 mkString e = mkString' False e
    where mkString' :: Bool -> CExpr -> Maybe String
- 	 mkString' True (CCCon i ty)|i==nilId = Just$ ""
- 	 mkString' True (CCConS i)  |i==nilId = Just$ ""
+         mkString' True (CCCon i ty)|i==nilId = Just$ ""
+         mkString' True (CCConS i)  |i==nilId = Just$ ""
          mkString' True (CVar i)| i == nilId = Just$ ""
-	 mkString' _ (CApply (CVar i) [(True,ty)]) | i == nilId && isStringType ty = Just$ ""
-	 mkString' _ (CLit _ (LString l)) =  Just l
+         mkString' _ (CApply (CVar i) [(True,ty)]) | i == nilId && isStringType ty = Just$ ""
+         mkString' _ (CLit _ (LString l)) =  Just l
 
          mkString' False (CCCon i ty) |i==nilId && isStringType ty  = Just$ ""
-	 mkString' _ (CApply (CCCon i ty) [(_,CLit _ (LChar x)),(_,xs)])| i == consId = do
+         mkString' _ (CApply (CCCon i ty) [(_,CLit _ (LChar x)),(_,xs)])| i == consId = do
            xs' <- mkString' True xs
            return (x:xs')
-	 mkString' _ (CApply (CCConS i) [(_,CLit _ (LChar x)),(_,xs)]) | i == consId = do
+         mkString' _ (CApply (CCConS i) [(_,CLit _ (LChar x)),(_,xs)]) | i == consId = do
            xs' <- mkString' True xs
            return (x:xs')
-	 mkString' _ (CApply (CVar i) [_,(_,CLit _ (LChar x)),(_,xs)])| i == consId = do
+         mkString' _ (CApply (CVar i) [_,(_,CLit _ (LChar x)),(_,xs)])| i == consId = do
            xs' <- mkString' True xs
            return (x:xs')
-	 mkString' _ (CApply (CVar i) [(False,CLit _ (LChar x)),(False,xs)])| i == consId = do
+         mkString' _ (CApply (CVar i) [(False,CLit _ (LChar x)),(False,xs)])| i == consId = do
            xs' <- mkString' True xs
            return (x:xs')
-	 mkString' _ (CBinOp (CLit _ (LChar x)) i xs)| i == consId =  do
+         mkString' _ (CBinOp (CLit _ (LChar x)) i xs)| i == consId =  do
            xs' <- mkString' True xs
            return (x:xs')
-	 mkString' _ _ = Nothing
+         mkString' _ _ = Nothing
 
 ppStr :: CExpr -> Maybe IText
 ppStr e = maybe Nothing (\s -> Just $ t (show s)) (mkString e)

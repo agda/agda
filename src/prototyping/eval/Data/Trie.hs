@@ -11,7 +11,7 @@ import Data.Generics
 import Test.QuickCheck
 
 (f -*- g) (x, y) = (f x, g y)
-(f `on` g) x y	 = f (g x) (g y)
+(f `on` g) x y   = f (g x) (g y)
 
 data Trie k a = Node (Maybe a) !(Map k (Trie k a))
     deriving (Eq, Ord, Show, Typeable, Data)
@@ -46,9 +46,9 @@ fromList = foldr (uncurry insert) empty
 toList :: Ord k => Trie k a -> [([k], a)]
 toList (Node v m) = el v ++ concat (map rest $ Map.toList m)
     where
-	el Nothing  = []
-	el (Just v) = [([], v)]
-	rest (k, t) = map ((k:) -*- id) $ toList t
+        el Nothing  = []
+        el (Just v) = [([], v)]
+        rest (k, t) = map ((k:) -*- id) $ toList t
 
 instance (Ord k, Arbitrary k, Arbitrary a) => Arbitrary (Trie k a) where
     arbitrary = fmap fromList arbitrary
@@ -62,13 +62,13 @@ instance Show Lower where
     showList = shows . map unLower
 
 instance Arbitrary Lower where
-    arbitrary	= elements $ map Lower $ ['a'..'f']
+    arbitrary   = elements $ map Lower $ ['a'..'f']
     coarbitrary = coarbitrary . fromEnum . unLower
 
 prop_fromToList :: [([Lower], Int)] -> Bool
 prop_fromToList xs = xs' == List.sort (toList $ fromList xs)
     where
-	xs' = List.sort $ List.nubBy ((==) `on` fst) xs
+        xs' = List.sort $ List.nubBy ((==) `on` fst) xs
 
 prop_toFromList :: Trie Lower Int -> Bool
 prop_toFromList t = t == fromList (toList t)

@@ -163,12 +163,12 @@ splitProblem mf (Problem ps (perm, qs) tel pr) = do
     --   recorded in @tel@.
     splitP :: [A.NamedArg A.Pattern] -> [(Int, OneHolePatterns)] -> Telescope -> ExceptT SplitError TCM SplitProblem
     -- the next two cases violate the one-to-one correspondence of qs and tel
-    splitP _	    []		 (ExtendTel _ _)	 = __IMPOSSIBLE__
-    splitP _	    (_:_)	  EmptyTel		 = __IMPOSSIBLE__
+    splitP _        []           (ExtendTel _ _)         = __IMPOSSIBLE__
+    splitP _        (_:_)         EmptyTel               = __IMPOSSIBLE__
     -- no more patterns?  pull them from the rest
-    splitP []	     _		  _			 = splitRest pr
+    splitP []        _            _                      = splitRest pr
     -- patterns but no types for them?  Impossible.
-    splitP ps	    []		  EmptyTel		 = __IMPOSSIBLE__
+    splitP ps       []            EmptyTel               = __IMPOSSIBLE__
     -- pattern with type?  Let's get to work:
     splitP (p : ps) ((i, q) : qs) tel0@(ExtendTel a tel) = do
       liftTCM $ reportSDoc "tc.lhs.split" 30 $ sep
@@ -187,7 +187,7 @@ splitProblem mf (Problem ps (perm, qs) tel pr) = do
           then CannotEliminateWithPattern p (telePi tel0 $ unArg $ restType pr)
           else IllformedProjectionPattern $ namedArg p
         -- Case: literal pattern
-	(xs, p@(A.LitP lit))  -> do
+        (xs, p@(A.LitP lit))  -> do
           -- Note that, in the presence of --without-K, this branch is
           -- based on the assumption that the types of literals are
           -- not indexed.
@@ -195,21 +195,21 @@ splitProblem mf (Problem ps (perm, qs) tel pr) = do
           -- Andreas, 2010-09-07 cannot split on irrelevant args
           when (unusableRelevance $ getRelevance a) $
             typeError $ SplitOnIrrelevant p a
-	  b <- lift $ litType lit
-	  ok <- lift $ do
-	      noConstraints (equalType (unDom a) b)
-	      return True
-	    `catchError` \_ -> return False
-	  if ok
-	    then return $
-	      Split mempty
-		    xs
-		    (argFromDom $ fmap (LitFocus lit q i) a)
-		    (fmap (\ tel -> Problem ps () tel __IMPOSSIBLE__) tel)
-	    else keepGoing
+          b <- lift $ litType lit
+          ok <- lift $ do
+              noConstraints (equalType (unDom a) b)
+              return True
+            `catchError` \_ -> return False
+          if ok
+            then return $
+              Split mempty
+                    xs
+                    (argFromDom $ fmap (LitFocus lit q i) a)
+                    (fmap (\ tel -> Problem ps () tel __IMPOSSIBLE__) tel)
+            else keepGoing
 
         -- Case: constructor pattern
-	(xs, p@(A.ConP ci (A.AmbQ cs) args)) -> do
+        (xs, p@(A.ConP ci (A.AmbQ cs) args)) -> do
           let tryInstantiate a'
                 | [c] <- cs = do
                     -- Type is blocked by a meta and constructor is unambiguous,
@@ -225,11 +225,11 @@ splitProblem mf (Problem ps (perm, qs) tel pr) = do
                 | otherwise = keepGoing
           -- ifBlockedType reduces the type
           ifBlockedType (unDom a) (const tryInstantiate) $ \ a' -> do
-	  case ignoreSharing $ unEl a' of
+          case ignoreSharing $ unEl a' of
 
             -- Subcase: split type is a Def
-	    Def d es	-> do
-	      def <- liftTCM $ theDef <$> getConstInfo d
+            Def d es    -> do
+              def <- liftTCM $ theDef <$> getConstInfo d
               unless (defIsRecord def) $
                 -- cannot split on irrelevant or non-strict things
                 when (unusableRelevance $ getRelevance a) $ do
@@ -245,7 +245,7 @@ splitProblem mf (Problem ps (perm, qs) tel pr) = do
                 Nothing -> keepGoing
                 Just np -> do
                   let vs = fromMaybe __IMPOSSIBLE__ $ allApplyElims es
-		  liftTCM $ traceCall (CheckPattern p EmptyTel (unDom a)) $ do  -- TODO: wrong telescope
+                  liftTCM $ traceCall (CheckPattern p EmptyTel (unDom a)) $ do  -- TODO: wrong telescope
                   -- Check that we construct something in the right datatype
                   c <- do
                       cs' <- mapM canonicalName cs
@@ -265,14 +265,14 @@ splitProblem mf (Problem ps (perm, qs) tel pr) = do
                             "Can't resolve overloaded constructors targeting the same datatype (" ++ show d ++ "):" ++
                             unwords (map show cs)
 -}
-		  let (pars, ixs) = genericSplitAt np vs
-		  reportSDoc "tc.lhs.split" 10 $
-		    vcat [ sep [ text "splitting on"
-			       , nest 2 $ fsep [ prettyA p, text ":", prettyTCM a ]
-			       ]
-			 , nest 2 $ text "pars =" <+> fsep (punctuate comma $ map prettyTCM pars)
-			 , nest 2 $ text "ixs  =" <+> fsep (punctuate comma $ map prettyTCM ixs)
-			 ]
+                  let (pars, ixs) = genericSplitAt np vs
+                  reportSDoc "tc.lhs.split" 10 $
+                    vcat [ sep [ text "splitting on"
+                               , nest 2 $ fsep [ prettyA p, text ":", prettyTCM a ]
+                               ]
+                         , nest 2 $ text "pars =" <+> fsep (punctuate comma $ map prettyTCM pars)
+                         , nest 2 $ text "ixs  =" <+> fsep (punctuate comma $ map prettyTCM ixs)
+                         ]
 
                   -- Andreas, 2013-03-22 fixing issue 279
                   -- To resolve ambiguous constructors, Agda always looks up
@@ -289,27 +289,27 @@ splitProblem mf (Problem ps (perm, qs) tel pr) = do
                   --whenM (optWithoutK <$> pragmaOptions) $
                   --  wellFormedIndices a'
 
-		  return $ Split mempty
-				 xs
-				 (argFromDom $ fmap (Focus c (A.patImplicit ci) args (getRange p) q i d pars ixs) a)
-				 (fmap (\ tel -> Problem ps () tel __IMPOSSIBLE__) tel)
+                  return $ Split mempty
+                                 xs
+                                 (argFromDom $ fmap (Focus c (A.patImplicit ci) args (getRange p) q i d pars ixs) a)
+                                 (fmap (\ tel -> Problem ps () tel __IMPOSSIBLE__) tel)
             -- Subcase: split type is not a Def
-	    _	-> keepGoing
+            _   -> keepGoing
         -- Case: neither literal nor constructor pattern
-	p -> keepGoing
+        p -> keepGoing
       where
-	keepGoing = do
+        keepGoing = do
           r <- underAbstraction a tel $ \tel -> splitP ps qs tel
           case r of
             SplitRest{} -> return r
-	    Split p1 xs foc p2 -> do
-  	      let p0 = Problem [p] () (ExtendTel a (EmptyTel <$ tel)) mempty
-	      return $ Split (mappend p0 p1) xs foc p2
+            Split p1 xs foc p2 -> do
+              let p0 = Problem [p] () (ExtendTel a (EmptyTel <$ tel)) mempty
+              return $ Split (mappend p0 p1) xs foc p2
 {- OLD
-	keepGoing = do
-	  let p0 = Problem [p] () (ExtendTel a (EmptyTel <$ tel)) mempty
-	  Split p1 xs foc p2 <- underAbstraction a tel $ \tel -> splitP ps qs tel
-	  return $ Split (mappend p0 p1) xs foc p2
+        keepGoing = do
+          let p0 = Problem [p] () (ExtendTel a (EmptyTel <$ tel)) mempty
+          Split p1 xs foc p2 <- underAbstraction a tel $ \tel -> splitP ps qs tel
+          return $ Split (mappend p0 p1) xs foc p2
 -}
 
 -- | @checkParsIfUnambiguous [c] d pars@ checks that the data/record type

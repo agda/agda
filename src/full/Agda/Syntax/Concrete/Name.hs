@@ -69,7 +69,7 @@ data NamePart
 instance Eq Name where
     Name _ xs  == Name _ ys  = xs == ys
     NoName _ i == NoName _ j = i == j
-    _	       == _	     = False
+    _          == _          = False
 
 instance Ord Name where
     compare (Name _ xs)  (Name _ ys)  = compare xs ys
@@ -156,8 +156,8 @@ isNonfix  x = not (isHole (head xs)) && not (isHole (last xs)) where xs = namePa
 
 -- | @qualify A.B x == A.B.x@
 qualify :: QName -> Name -> QName
-qualify (QName m) x	= Qual m (QName x)
-qualify (Qual m m') x	= Qual m $ qualify m' x
+qualify (QName m) x     = Qual m (QName x)
+qualify (Qual m m') x   = Qual m $ qualify m' x
 
 -- | @unqualify A.B.x == x@
 --
@@ -279,7 +279,7 @@ instance HasRange Name where
 
 instance HasRange QName where
     getRange (QName  x) = getRange x
-    getRange (Qual n x)	= fuseRange n x
+    getRange (Qual n x) = fuseRange n x
 
 instance SetRange Name where
   setRange r (Name _ ps)  = Name r ps

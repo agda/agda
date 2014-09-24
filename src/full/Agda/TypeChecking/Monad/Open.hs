@@ -1,11 +1,11 @@
 -- {-# LANGUAGE CPP #-}
 
 module Agda.TypeChecking.Monad.Open
-	( makeOpen
-	, makeClosed
-	, getOpen
-	, tryOpen
-	) where
+        ( makeOpen
+        , makeClosed
+        , getOpen
+        , tryOpen
+        ) where
 
 import Control.Applicative
 import Control.Monad

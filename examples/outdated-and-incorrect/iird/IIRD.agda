@@ -25,7 +25,7 @@ data OP (I : Set)(D : I -> Set1)(E : Set1) : Set1 where
   -- A - assumptions, for instance  lim : (Nat -> Ord) -> Ord, where A = Nat
   -- i - the index of the inductive occurrence
   -- γ - the rest of the arguments, may depend on the result of calling the
-  --	 recursive function on the inductive argument
+  --     recursive function on the inductive argument
   δ : (A : Set)(i : A -> I)(γ : ((a : A) -> D (i a)) -> OP I D E) -> OP I D E
 
 -- Helper function. The definition is simple, but the type is not.

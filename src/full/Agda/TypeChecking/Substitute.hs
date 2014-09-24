@@ -812,7 +812,7 @@ telePi_ (ExtendTel u tel) t = el $ Pi u b
 -}
 
 teleLam :: Telescope -> Term -> Term
-teleLam  EmptyTel	  t = t
+teleLam  EmptyTel         t = t
 teleLam (ExtendTel u tel) t = Lam (domInfo u) $ flip teleLam t <$> tel
 
 -- | Performs void ('noAbs') abstraction over telescope.

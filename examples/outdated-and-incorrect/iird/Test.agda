@@ -14,10 +14,10 @@ r←→gArgs-subst-identity :
   let a = g→rArgs γ U a'
       i = index γ U a' in
   (h : C (index γ U (r→gArgs γ U i a))
-	 (g→rArgs γ U (r→gArgs γ U i a))
+         (g→rArgs γ U (r→gArgs γ U i a))
   ) -> r←→gArgs-subst γ U C i a h ≡ h
-r←→gArgs-subst-identity (ι i)	  U C _   h = refl-≡
-r←→gArgs-subst-identity (σ A γ)	  U C arg h = r←→gArgs-subst-identity (γ (π₀ arg)) U C' (π₁ arg) h
+r←→gArgs-subst-identity (ι i)     U C _   h = refl-≡
+r←→gArgs-subst-identity (σ A γ)   U C arg h = r←→gArgs-subst-identity (γ (π₀ arg)) U C' (π₁ arg) h
   where C' = \i c -> C i (π₀ arg , c)
 r←→gArgs-subst-identity (δ H i γ) U C arg h = r←→gArgs-subst-identity γ U C' (π₁ arg) h
   where C' = \i c -> C i (π₀ arg , c)

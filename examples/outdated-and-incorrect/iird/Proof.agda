@@ -58,7 +58,7 @@ Rg {I}{D} γ F h = Rr (ε γ) F \i a ih ->
 
 open module Chain-≡  = Chain.Poly.Heterogenous1 _≡₁_ (\x -> refl-≡₁) trans-≡₁
 open module Chain-≡₀ = Chain.Poly.Heterogenous  _≡_  (\x -> refl-≡)  trans-≡
-	      renaming (chain>_ to chain>₀_; _===_ to _===₀_; _by_ to _by₀_)
+              renaming (chain>_ to chain>₀_; _===_ to _===₀_; _by_ to _by₀_)
 
 -- Again we have to generalise
 Rg-eq : {I : Set}{D : I -> Set1}(γ : OPg I D)(U : I -> Set)(T : (i : I) -> U i -> D i)
@@ -69,8 +69,8 @@ Rg-eq : {I : Set}{D : I -> Set1}(γ : OPg I D)(U : I -> Set)(T : (i : I) -> U i 
         let i  = Gi γ U T a
             a' = G→H γ U T a
         in h (H→G γ U T i a')
-	     (\v -> εIArg-subst γ U T F i a' v
-		      (Kmap (ε γ i) U T F g a' (εIArg γ U T i a' v)))
+             (\v -> εIArg-subst γ U T F i a' v
+                      (Kmap (ε γ i) U T F g a' (εIArg γ U T i a' v)))
            ≡₁ h a (Kmap γ U T F g a)
 Rg-eq {I}{D} γ U T F intro g h a = app-≡₁
   (cong-≡₁⁰ h (H→G∘G→H-identity γ U T a))

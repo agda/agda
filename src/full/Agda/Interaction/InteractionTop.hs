@@ -1113,7 +1113,7 @@ display_info info = do
 --   xss <- sequence [ List.map (fst . unDom) <$> getContext
 --                   , Map.keys <$> asks envLetBindings
 --                   , List.map qnameName . HMap.keys . sigDefinitions <$> getSignature
--- 		  ]
+--                ]
 --   return $ concat [ parts $ nameConcrete x | x <- concat xss]
 --   where
 --     parts x = [ s | Id s <- nameParts x ]

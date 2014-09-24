@@ -28,7 +28,7 @@ class (Functor m, Applicative m, Monad m) => HasBuiltins m where
 
 litType :: Literal -> TCM Type
 litType l = case l of
-    LitInt _ n	  -> do
+    LitInt _ n    -> do
       primZero
       when_ (n > 0) $ primSuc
       el <$> primNat
@@ -48,11 +48,11 @@ setBuiltinThings b = modify $ \s -> s { stLocalBuiltins = b }
 
 bindBuiltinName :: String -> Term -> TCM ()
 bindBuiltinName b x = do
-	builtin <- getBuiltinThing b
-	case builtin of
-	    Just (Builtin y) -> typeError $ DuplicateBuiltinBinding b y x
-	    Just (Prim _)    -> typeError $ NoSuchBuiltinName b
-	    Nothing	     -> modify $ \st ->
+        builtin <- getBuiltinThing b
+        case builtin of
+            Just (Builtin y) -> typeError $ DuplicateBuiltinBinding b y x
+            Just (Prim _)    -> typeError $ NoSuchBuiltinName b
+            Nothing          -> modify $ \st ->
               st { stLocalBuiltins =
                     Map.insert b (Builtin x) $ stLocalBuiltins st
                  }
@@ -70,8 +70,8 @@ getBuiltin' :: HasBuiltins m => String -> m (Maybe Term)
 getBuiltin' x = do
     builtin <- getBuiltinThing x
     case builtin of
-	Just (Builtin t) -> return $ Just (killRange t)
-	_		 -> return Nothing
+        Just (Builtin t) -> return $ Just (killRange t)
+        _                -> return Nothing
 
 getPrimitive' :: HasBuiltins m => String -> m (Maybe PrimFun)
 getPrimitive' x = (getPrim =<<) <$> getBuiltinThing x

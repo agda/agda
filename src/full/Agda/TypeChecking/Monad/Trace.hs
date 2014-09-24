@@ -21,12 +21,12 @@ import Agda.Utils.Null
 
 interestingCall :: Closure Call -> Bool
 interestingCall cl = case clValue cl of
-    InferVar _ _	      -> False
-    InferDef _ _ _	      -> False
+    InferVar _ _              -> False
+    InferDef _ _ _            -> False
     CheckArguments _ [] _ _ _ -> False
-    SetRange _ _	      -> False
+    SetRange _ _              -> False
     NoHighlighting {}         -> False
-    _			      -> True
+    _                         -> True
 
 traceCallM :: MonadTCM tcm => tcm (Maybe r -> Call) -> tcm a -> tcm a
 traceCallM mkCall m = flip traceCall m =<< mkCall

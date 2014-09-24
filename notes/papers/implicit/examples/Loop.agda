@@ -20,7 +20,7 @@ app : (A, B : Set) -> (A -> B) -> A -> B
 app A B f = f
 
 postulate Nat : Set
-	  zero : Nat
+          zero : Nat
 
 wrap : (F : Nat -> Set) -> F zero -> F zero
 wrap F x = x

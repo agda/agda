@@ -21,8 +21,8 @@ checkFile file = do
     s <- readFile file
     let tokens = resolveLayout False $ myLexer s
     case pProgram tokens of
-	Bad s	-> putStrLn $ "Parse error: " ++ s
-	Ok p	-> do
+        Bad s   -> putStrLn $ "Parse error: " ++ s
+        Ok p    -> do
           case scopeCheck p of
             Left err -> print err
             Right p  -> do
@@ -36,6 +36,6 @@ main = do
     args <- getArgs
     prog <- getProgName
     case args of
-	[file]  -> checkFile file
-	_	-> putStrLn $ "Usage: " ++ prog ++ " FILE"
+        [file]  -> checkFile file
+        _       -> putStrLn $ "Usage: " ++ prog ++ " FILE"
 

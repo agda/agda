@@ -26,11 +26,11 @@ mutual
 
   data _─→_ : Obj -> Obj -> Set where
     Idle  : {A : Name} -> A    ─→' A
-    All   :		  Zero ─→' One
-    Start :		  Zero ─→' Half
-    Turn  :		  Half ─→' Half
-    Back  :		  One  ─→' Half
-    End   :		  Half ─→' One
+    All   :               Zero ─→' One
+    Start :               Zero ─→' Half
+    Turn  :               Half ─→' Half
+    Back  :               One  ─→' Half
+    End   :               Half ─→' One
 
 id : {A : Obj} -> A ─→ A
 id {obj x} = Idle
@@ -61,7 +61,7 @@ idR : {A B : Obj}{f : A ─→ B} -> f ∘ id ≡ f
 idR {obj _} = refl
 
 assoc : {A B C D : Obj}{f : C ─→ D}{g : B ─→ C}{h : A ─→ B} ->
-	(f ∘ g) ∘ h ≡ f ∘ (g ∘ h)
+        (f ∘ g) ∘ h ≡ f ∘ (g ∘ h)
 assoc {f = _   }{g = _   }{h = Idle } = refl
 assoc {f = _   }{g = Idle}{h = All  } = refl
 assoc {f = _   }{g = Idle}{h = Start} = refl
@@ -83,9 +83,9 @@ assoc {f = _   }{g = Idle}{h = End  } = refl
 
 ℂ : Cat
 ℂ = cat Obj _─→_ id _∘_
-	(\{_}{_} -> Equiv)
-	(\{_}{_}{_} -> cong2 _∘_)
-	idL idR assoc
+        (\{_}{_} -> Equiv)
+        (\{_}{_}{_} -> cong2 _∘_)
+        idL idR assoc
 
 open module T = Term ℂ
 open module I = Init ℂ

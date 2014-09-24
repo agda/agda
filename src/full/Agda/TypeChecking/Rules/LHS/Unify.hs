@@ -138,9 +138,9 @@ instance Error UnifyException where
   noMsg  = strMsg ""
   strMsg = GenericUnifyException
 
-data UnifyState = USt { uniSub	  :: Sub
-		      , uniConstr :: [Equality]
-		      }
+data UnifyState = USt { uniSub    :: Sub
+                      , uniConstr :: [Equality]
+                      }
 
 emptyUState = USt Map.empty []
 
@@ -333,7 +333,7 @@ flattenSubstitution s = foldr instantiate s is
     instantiate :: Nat -> Substitution -> Substitution
     instantiate i s = map (fmap $ inst i u) s
       where
-	Just u = s !! i
+        Just u = s !! i
 
     inst :: Nat -> Term -> Term -> Term
     inst i u v = applySubst us v
@@ -517,9 +517,9 @@ unifyIndices flex a us vs = liftTCM $ do
     unifyConstructorArgs a12 vs1 vs2 = do
       liftTCM $ reportSDoc "tc.lhs.unify" 15 $ sep
         [ text "unifyConstructorArgs"
-	-- , nest 2 $ parens (prettyTCM tel0)
-	, nest 2 $ prettyList $ map prettyTCM vs1
-	, nest 2 $ prettyList $ map prettyTCM vs2
+        -- , nest 2 $ parens (prettyTCM tel0)
+        , nest 2 $ prettyList $ map prettyTCM vs1
+        , nest 2 $ prettyList $ map prettyTCM vs2
         , nest 2 $ text "constructor type:" <+> prettyTCM a12
         ]
       let n = genericLength vs1
@@ -544,10 +544,10 @@ unifyIndices flex a us vs = liftTCM $ do
     unifyConArgs tel0@(ExtendTel a@(Dom _ bHH) tel) us0@(arg@(Arg _ u) : us) vs0@(Arg _ v : vs) = do
       liftTCM $ reportSDoc "tc.lhs.unify" 15 $ sep
         [ text "unifyConArgs"
-	-- , nest 2 $ parens (prettyTCM tel0)
-	, nest 2 $ prettyList $ map prettyTCM us0
-	, nest 2 $ prettyList $ map prettyTCM vs0
-	, nest 2 $ text "at telescope" <+> prettyTCM bHH <+> text "..."
+        -- , nest 2 $ parens (prettyTCM tel0)
+        , nest 2 $ prettyList $ map prettyTCM us0
+        , nest 2 $ prettyList $ map prettyTCM vs0
+        , nest 2 $ text "at telescope" <+> prettyTCM bHH <+> text "..."
         ]
       liftTCM $ reportSDoc "tc.lhs.unify" 25 $
         (text $ "tel0 = " ++ show tel0)
@@ -586,24 +586,24 @@ unifyIndices flex a us vs = liftTCM $ do
     unifyElims a us0@(Apply arg@(Arg _ u) : us) vs0@(Apply (Arg _ v) : vs) = do
       liftTCM $ reportSDoc "tc.lhs.unify" 15 $ sep
         [ text "unifyElims"
-	, nest 2 $ parens (prettyTCM a)
-	, nest 2 $ prettyList $ map prettyTCM us0
-	, nest 2 $ prettyList $ map prettyTCM vs0
+        , nest 2 $ parens (prettyTCM a)
+        , nest 2 $ prettyList $ map prettyTCM us0
+        , nest 2 $ prettyList $ map prettyTCM vs0
         ]
       a <- ureduce a  -- Q: reduce sufficient?
       case ignoreSharing $ unEl a of
-	Pi b _  -> do
+        Pi b _  -> do
           -- Andreas, Ulf, 2011-09-08 (AIM XVI)
           -- in case of dependent function type, we cannot postpone
           -- unification of u and v, otherwise us or vs might be ill-typed
           let dep = dependent $ unEl a
           -- skip irrelevant parts
-	  unless (isIrrelevant b) $
+          unless (isIrrelevant b) $
             (if dep then noPostponing else id) $
               unify (unDom b) u v
           arg <- traverse ureduce arg
-	  unifyElims (a `piApply` [arg]) us vs
-	_	  -> __IMPOSSIBLE__
+          unifyElims (a `piApply` [arg]) us vs
+        _         -> __IMPOSSIBLE__
       where dependent (Pi _ NoAbs{}) = False
             dependent (Pi b c)       = 0 `relevantIn` absBody c
             dependent (Shared p)     = dependent (derefPtr p)
@@ -617,24 +617,24 @@ unifyIndices flex a us vs = liftTCM $ do
     unifyArgs a us0@(arg@(Arg _ u) : us) vs0@(Arg _ v : vs) = do
       liftTCM $ reportSDoc "tc.lhs.unify" 15 $ sep
         [ text "unifyArgs"
-	, nest 2 $ parens (prettyTCM a)
-	, nest 2 $ prettyList $ map prettyTCM us0
-	, nest 2 $ prettyList $ map prettyTCM vs0
+        , nest 2 $ parens (prettyTCM a)
+        , nest 2 $ prettyList $ map prettyTCM us0
+        , nest 2 $ prettyList $ map prettyTCM vs0
         ]
       a <- ureduce a  -- Q: reduce sufficient?
       case ignoreSharing $ unEl a of
-	Pi b _  -> do
+        Pi b _  -> do
           -- Andreas, Ulf, 2011-09-08 (AIM XVI)
           -- in case of dependent function type, we cannot postpone
           -- unification of u and v, otherwise us or vs might be ill-typed
           let dep = dependent $ unEl a
           -- skip irrelevant parts
-	  unless (isIrrelevant b) $
+          unless (isIrrelevant b) $
             (if dep then noPostponing else id) $
               unify (unDom b) u v
           arg <- traverse ureduce arg
-	  unifyArgs (a `piApply` [arg]) us vs
-	_	  -> __IMPOSSIBLE__
+          unifyArgs (a `piApply` [arg]) us vs
+        _         -> __IMPOSSIBLE__
       where dependent (Pi _ NoAbs{}) = False
             dependent (Pi b c)       = 0 `relevantIn` absBody c
             dependent (Shared p)     = dependent (derefPtr p)
@@ -682,20 +682,20 @@ unifyIndices flex a us vs = liftTCM $ do
      -> Term -> Term -> Unify ()
     unifyHH aHH u v = do
       liftTCM $ reportSDoc "tc.lhs.unify" 15 $
-	sep [ text "unifyHH"
-	    , nest 2 $ (parens $ prettyTCM u) <+> text "=?="
-	    , nest 2 $ parens $ prettyTCM v
-	    , nest 2 $ text ":" <+> prettyTCM aHH
-	    ]
+        sep [ text "unifyHH"
+            , nest 2 $ (parens $ prettyTCM u) <+> text "=?="
+            , nest 2 $ parens $ prettyTCM v
+            , nest 2 $ text ":" <+> prettyTCM aHH
+            ]
       u <- liftTCM . constructorForm =<< ureduce u
       v <- liftTCM . constructorForm =<< ureduce v
       aHH <- ureduce aHH
       liftTCM $ reportSDoc "tc.lhs.unify" 25 $
-	sep [ text "unifyHH (reduced)"
-	    , nest 2 $ (parens $ prettyTCM u) <+> text "=?="
-	    , nest 2 $ parens $ prettyTCM v
-	    , nest 2 $ text ":" <+> prettyTCM aHH
-	    ]
+        sep [ text "unifyHH (reduced)"
+            , nest 2 $ (parens $ prettyTCM u) <+> text "=?="
+            , nest 2 $ parens $ prettyTCM v
+            , nest 2 $ text ":" <+> prettyTCM aHH
+            ]
       -- obtain the (== Size) function
       isSizeName <- liftTCM isSizeNameTest
 
@@ -740,12 +740,12 @@ unifyIndices flex a us vs = liftTCM $ do
           (|->?) = maybeAssign fallback
 
       liftTCM $ reportSDoc "tc.lhs.unify" 15 $
-	sep [ text "unifyAtom"
-	    , nest 2 $ prettyTCM u <> if flexibleTerm u then text " (flexible)" else empty
+        sep [ text "unifyAtom"
+            , nest 2 $ prettyTCM u <> if flexibleTerm u then text " (flexible)" else empty
             , nest 2 $ text "=?="
-	    , nest 2 $ prettyTCM v <> if flexibleTerm v then text " (flexible)" else empty
-	    , nest 2 $ text ":" <+> prettyTCM aHH
-	    ]
+            , nest 2 $ prettyTCM v <> if flexibleTerm v then text " (flexible)" else empty
+            , nest 2 $ text ":" <+> prettyTCM aHH
+            ]
       liftTCM $ reportSDoc "tc.lhs.unify" 60 $
         text $ "aHH = " ++ show aHH
       case (ignoreSharing u, ignoreSharing v) of
@@ -757,7 +757,7 @@ unifyIndices flex a us vs = liftTCM $ do
         (_, Level l) -> do
             v <- liftTCM $ reallyUnLevelView l
             unifyAtomHH aHH u v tryAgain
-	(Var i us, Var j vs) | i == j  -> checkEqualityHH aHH u v
+        (Var i us, Var j vs) | i == j  -> checkEqualityHH aHH u v
 -- Andreas, 2013-03-05: the following flex/flex case is an attempt at
 -- better dotting (see Issue811).  Does not work perfectly, maybe the best choice
 -- which variable to assign cannot made locally, but would need a look at the full
@@ -773,9 +773,9 @@ unifyIndices flex a us vs = liftTCM $ do
             -- (in this order, see Problem.hs).
             -- The comparison is total.
             if fj >= fi then j |->? (u, a) else i |->? (v, a)
-	(Var i [], _) | homogeneous && flexible i -> i |->? (v, a)
-	(_, Var j []) | homogeneous && flexible j -> j |->? (u, a)
-	(Con c us, Con c' vs)
+        (Var i [], _) | homogeneous && flexible i -> i |->? (v, a)
+        (_, Var j []) | homogeneous && flexible j -> j |->? (u, a)
+        (Con c us, Con c' vs)
           | c == c' -> do
               r <- liftTCM (dataOrRecordTypeHH' c aHH)
               case r of
@@ -795,7 +795,7 @@ unifyIndices flex a us vs = liftTCM $ do
                 Nothing -> checkEqualityHH aHH u v
           | otherwise -> constructorMismatchHH aHH u v
         -- Definitions are ok as long as they can't reduce (i.e. datatypes/axioms)
-	(Def d us, Def d' vs)
+        (Def d us, Def d' vs)
           | d == d' -> do
               -- d must be a data, record or axiom
               def <- getConstInfo d
@@ -836,7 +836,7 @@ unifyIndices flex a us vs = liftTCM $ do
             if ok then unify a u v
                   else addEquality a u v
 
-	(Con c us, _) -> do
+        (Con c us, _) -> do
            md <- isEtaRecordTypeHH aHH
            case md of
              Just (d, parsHH) -> do
@@ -846,7 +846,7 @@ unifyIndices flex a us vs = liftTCM $ do
                unifyConstructorArgs bHH us vs
              Nothing -> fallback
 
-	(_, Con c vs) -> do
+        (_, Con c vs) -> do
            md <- isEtaRecordTypeHH aHH
            case md of
              Just (d, parsHH) -> do
@@ -858,7 +858,7 @@ unifyIndices flex a us vs = liftTCM $ do
 
         -- Andreas, 2011-05-30: If I put checkEquality below, then Issue81 fails
         -- because there are definitions blocked by flexibles that need postponement
-	_  -> fallback
+        _  -> fallback
 
 
     unify :: Type -> Term -> Term -> Unify ()

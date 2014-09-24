@@ -27,10 +27,10 @@ import Agda.Utils.Monad
 
 -- | This is what the lexer manipulates.
 data AlexInput = AlexInput
-		    { lexPos	    :: !Position    -- ^ current position
-		    , lexInput	    :: String	    -- ^ current input
-		    , lexPrevChar   :: !Char	    -- ^ previously read character
-		    }
+                    { lexPos        :: !Position    -- ^ current position
+                    , lexInput      :: String       -- ^ current input
+                    , lexPrevChar   :: !Char        -- ^ previously read character
+                    }
 
 -- | Get the previously lexed character. Same as 'lexPrevChar'. Alex needs this
 --   to be defined to handle \"patterns with a left-context\".
@@ -44,11 +44,11 @@ alexGetChar :: AlexInput -> Maybe (Char, AlexInput)
 alexGetChar (AlexInput { lexInput = []  }) = Nothing
 alexGetChar (AlexInput { lexInput = c:s, lexPos = p }) =
     Just (c, AlexInput
-		 { lexInput	= s
-		 , lexPos	= movePos p c
-		 , lexPrevChar	= c
-		 }
-	 )
+                 { lexInput     = s
+                 , lexPos       = movePos p c
+                 , lexPrevChar  = c
+                 }
+         )
 
 -- | A variant of 'alexGetChar'.
 --
@@ -66,19 +66,19 @@ alexGetByte ai =
 getLexInput :: Parser AlexInput
 getLexInput = getInp <$> get
     where
-	getInp s = AlexInput
-		    { lexPos	    = parsePos s
-		    , lexInput	    = parseInp s
-		    , lexPrevChar   = parsePrevChar s
-		    }
+        getInp s = AlexInput
+                    { lexPos        = parsePos s
+                    , lexInput      = parseInp s
+                    , lexPrevChar   = parsePrevChar s
+                    }
 
 setLexInput :: AlexInput -> Parser ()
 setLexInput inp = modify upd
     where
-	upd s = s { parsePos	    = lexPos inp
-		  , parseInp	    = lexInput inp
-		  , parsePrevChar   = lexPrevChar inp
-		  }
+        upd s = s { parsePos        = lexPos inp
+                  , parseInp        = lexInput inp
+                  , parsePrevChar   = lexPrevChar inp
+                  }
 
 {--------------------------------------------------------------------------
     Lex actions

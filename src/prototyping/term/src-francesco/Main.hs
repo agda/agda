@@ -17,8 +17,8 @@ checkFile file = do
     s <- readFile file
     let tokens = resolveLayout False $ myLexer s
     case pProgram tokens of
-	Bad err -> return $ Left $ "Parse error: " ++ err
-	Ok p    -> do
+        Bad err -> return $ Left $ "Parse error: " ++ err
+        Ok p    -> do
           case scopeCheck p of
             Left err ->
               return $ Left $ show err

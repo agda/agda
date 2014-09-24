@@ -63,7 +63,7 @@ _primNatToInteger (Suc n) = ( _primIntAdd (1::Prelude.Integer)  ( (_primNatToInt
 
 _primIntegerAbs 0 = zero
 _primIntegerAbs n | (Prelude.>) n (0 :: Prelude.Integer) = suc (cast (_primIntegerAbs (  _primIntSub n (1::Prelude.Integer))))
-	| Prelude.otherwise = _primIntegerAbs (_primIntSub 0 n)
+        | Prelude.otherwise = _primIntegerAbs (_primIntSub 0 n)
 _abs = _primIntegerAbs
 
 _primIntegerToNat n = _primIntegerAbs n

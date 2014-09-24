@@ -9,7 +9,7 @@ elim== : {A : Set}(x : A)(C : (y : A) -> x == y -> Set) ->
 elim== x C Cx .x refl = Cx
 
 elim==₁ : {A : Set}(x : A)(C : (y : A) -> x == y -> Set1) ->
-	  C x refl -> (y : A) -> (p : x == y) -> C y p
+          C x refl -> (y : A) -> (p : x == y) -> C y p
 elim==₁ x C Cx .x refl = Cx
 
 sym : {A : Set}{x y : A} -> x == y -> y == x

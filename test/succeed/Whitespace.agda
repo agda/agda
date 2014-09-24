@@ -8,7 +8,7 @@ foo x _ =  x
 
 -- Tab characters are not treated as white space, but are still
 -- allowed in character and string literals and non-pragma comments
--- (	).
+-- (    ).
 
 postulate
   String : Set
@@ -18,7 +18,7 @@ postulate
 {-# BUILTIN CHAR    Char   #-}
 
 string : String
-string = "	"
+string = "      "
 
 char : Char
-char = '	'
+char = '        '

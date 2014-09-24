@@ -7,14 +7,14 @@ open import Category
 
 _op : Cat -> Cat
 ℂ@(cat _ _ _ _ _ _ _ _ _) op = cat Obj
-	   (\A B -> B ─→ A)
-	    id
-	   (\{_}{_}{_} -> flip _∘_)
-	   (\{_}{_} -> Eq)
-	   (\{_}{_}{_}{_}{_}{_}{_} -> flip cong)
-	   (\{_}{_}{_} -> idR)
-	   (\{_}{_}{_} -> idL)
-	   (\{_}{_}{_}{_}{_}{_}{_} -> sym assoc)
+           (\A B -> B ─→ A)
+            id
+           (\{_}{_}{_} -> flip _∘_)
+           (\{_}{_} -> Eq)
+           (\{_}{_}{_}{_}{_}{_}{_} -> flip cong)
+           (\{_}{_}{_} -> idR)
+           (\{_}{_}{_} -> idL)
+           (\{_}{_}{_}{_}{_}{_}{_} -> sym assoc)
   where open module C = Cat ℂ
 
 {-
@@ -30,6 +30,6 @@ dualdualArr : {ℂ : Cat}{A B : Obj ℂ} -> A ─→ B -> dualObj B ─→ dualO
 dualdualArr {cat _ _ _ _ _ _ _ _ _}{A = obj _}{B = obj _}(arr f) = arr f
 
 dualundualArr : {ℂ : Cat}{A : Obj ℂ}{B : Obj (ℂ op)} ->
-		A ─→ undualObj B -> B ─→ dualObj A
+                A ─→ undualObj B -> B ─→ dualObj A
 dualundualArr {cat _ _ _ _ _ _ _ _ _}{A = obj _}{B = obj _}(arr f) = arr f
 -}

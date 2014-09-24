@@ -95,11 +95,11 @@ giveExpr mi e = do
       let t' = t `piApply` permute (takeP (length ctx) $ mvPermutation mv) ctx
       reportSDoc "interaction.give" 20 $
         TP.text "give: instantiated meta type =" TP.<+> prettyTCM t'
-      v	<- checkExpr e t'
+      v <- checkExpr e t'
       case mvInstantiation mv of
           InstV v' -> unlessM ((Irrelevant ==) <$> asks envRelevance) $
                         equalTerm t' v (v' `apply` ctx)
-          _	   -> updateMeta mi v
+          _        -> updateMeta mi v
       reify v
 
 -- | Try to fill hole by expression.
@@ -177,23 +177,23 @@ refine ii mr e = do
 evalInCurrent :: Expr -> TCM Expr
 evalInCurrent e =
     do  (v, t) <- inferExpr e
-	v' <- {- etaContract =<< -} normalise v
-	reify v'
+        v' <- {- etaContract =<< -} normalise v
+        reify v'
 
 
 evalInMeta :: InteractionId -> Expr -> TCM Expr
 evalInMeta ii e =
-   do 	m <- lookupInteractionId ii
-	mi <- getMetaInfo <$> lookupMeta m
-	withMetaInfo mi $
-	    evalInCurrent e
+   do   m <- lookupInteractionId ii
+        mi <- getMetaInfo <$> lookupMeta m
+        withMetaInfo mi $
+            evalInCurrent e
 
 
 data Rewrite =  AsIs | Instantiated | HeadNormal | Simplified | Normalised
     deriving (Read)
 
 --normalForm :: Rewrite -> Term -> TCM Term
-normalForm AsIs	     t = return t
+normalForm AsIs      t = return t
 normalForm Instantiated t = return t   -- reify does instantiation
 normalForm HeadNormal   t = {- etaContract =<< -} reduce t
 normalForm Simplified   t = {- etaContract =<< -} simplify t
@@ -255,8 +255,8 @@ instance Reify Constraint (OutputConstraint Expr Expr) where
     reify (TelCmp a b cmp t t')  = CmpTeles cmp <$> (ETel <$> reify t) <*> (ETel <$> reify t')
     reify (SortCmp cmp s s')     = CmpSorts cmp <$> reify s <*> reify s'
     reify (Guarded c pid) = do
-	o  <- reify c
-	return $ Guard o pid
+        o  <- reify c
+        return $ Guard o pid
     reify (UnBlock m) = do
         mi <- mvInstantiation <$> lookupMeta m
         case mi of
@@ -428,8 +428,8 @@ getSolvedInteractionPoints all = concat <$> do
 typeOfMetaMI :: Rewrite -> MetaId -> TCM (OutputConstraint Expr NamedMeta)
 typeOfMetaMI norm mi =
      do mv <- lookupMeta mi
-	withMetaInfo (getMetaInfo mv) $
-	  rewriteJudg mv (mvJudgement mv)
+        withMetaInfo (getMetaInfo mv) $
+          rewriteJudg mv (mvJudgement mv)
    where
     rewriteJudg mv (HasType i t) = do
       ms <- getMetaNameSuggestion i
@@ -587,7 +587,7 @@ contextOfMeta ii norm = do
   where gfilter p = catMaybes . map p
         visible (OfType x y) | show x /= "_" = Just (OfType' x y)
                              | otherwise     = Nothing
-	visible _	     = __IMPOSSIBLE__
+        visible _            = __IMPOSSIBLE__
         reifyContext skip xs =
           reverse <$> zipWithM out
                                -- don't escape context for letvars
@@ -604,7 +604,7 @@ contextOfMeta ii norm = do
 --   invoke that command in an irrelevant context.
 typeInCurrent :: Rewrite -> Expr -> TCM Expr
 typeInCurrent norm e =
-    do 	(_,t) <- wakeIrrelevantVars $ inferExpr e
+    do  (_,t) <- wakeIrrelevantVars $ inferExpr e
         v <- normalForm norm t
         reify v
 
@@ -612,10 +612,10 @@ typeInCurrent norm e =
 
 typeInMeta :: InteractionId -> Rewrite -> Expr -> TCM Expr
 typeInMeta ii norm e =
-   do 	m <- lookupInteractionId ii
-	mi <- getMetaInfo <$> lookupMeta m
-	withMetaInfo mi $
-	    typeInCurrent norm e
+   do   m <- lookupInteractionId ii
+        mi <- getMetaInfo <$> lookupMeta m
+        withMetaInfo mi $
+            typeInCurrent norm e
 
 withInteractionId :: InteractionId -> TCM a -> TCM a
 withInteractionId i ret = do

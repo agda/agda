@@ -10,7 +10,7 @@ data Bool : Set where
   true  : Bool
 
 F : Nat -> Set
-F  zero	  = Nat
+F  zero   = Nat
 F (suc x) = Bool
 
 postulate

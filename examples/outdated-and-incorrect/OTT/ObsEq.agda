@@ -311,12 +311,12 @@ irr  (∏ _ _)  (_ ∧ _)  () _ _
 
 {---------------------------------------------------------------------------
 
-	      The News from Nottingham (with subtitles)
+              The News from Nottingham (with subtitles)
 
-			    Conor McBride
+                            Conor McBride
 
-			   joint work with
-	 Thorsten Altenkirch, Wouter Swierstra, Peter Hancock,
+                           joint work with
+         Thorsten Altenkirch, Wouter Swierstra, Peter Hancock,
             Nicolas Oury, James Chapman and Peter Morris
 
 ---------------------------------------------------------------------------}

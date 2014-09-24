@@ -41,7 +41,7 @@ catchConstraint c v = liftTCM $
         -- The problem is most likely that there are internal catchErrors which forgets the
         -- state. catchError should preserve the state on pattern violations.
        PatternErr s -> put s >> addConstraint c
-       _	    -> throwError err
+       _            -> throwError err
 
 addConstraint :: Constraint -> TCM ()
 addConstraint c = do
