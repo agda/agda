@@ -8,7 +8,9 @@ import System.Environment
 import System.Exit
 import System.FilePath.Find
   ( (||?)
+  , (&&?)
   , (==?)
+  , (/=?)
   , extension
   , fileName
   , find
@@ -30,10 +32,21 @@ excludedDirs :: [String]
 excludedDirs =
  ["_darcs", ".git", "dist", "LineEndings", "MAlonzo", "std-lib"]
 
+-- Andreas (24 Sep 2014).
+-- | The following files are exempt from the whitespace check,
+--   as they test behavior of Agda with regard to tab characters.
+excludedFiles :: [FilePath]
+excludedFiles =
+  [ "Whitespace.agda"    -- in test/succeed
+  , "Tabs.agda"          -- in test/fail
+  , "TabsInPragmas.agda" -- in test/fail
+  ]
+
 -- Auxiliary functions.
 
 filesFilter :: FindClause Bool
-filesFilter = foldr1 (||?) $ map (extension ==?) extensions
+filesFilter = foldr1 (||?) (map (extension ==?) extensions)
+          &&? foldr1 (&&?) (map (fileName /=?) excludedFiles)
 
 -- ASR (12 June 2014). Adapted from the examples of fileManip 0.3.6.2.
 --
