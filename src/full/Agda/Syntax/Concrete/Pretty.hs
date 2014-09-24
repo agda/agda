@@ -14,10 +14,11 @@ import Data.Maybe
 
 import qualified Agda.Syntax.Common as Common
 import Agda.Syntax.Common hiding (Arg, Dom, NamedArg, ArgInfo)
-import Agda.Syntax.Position
 import Agda.Syntax.Concrete
 import Agda.Syntax.Fixity
 import Agda.Syntax.Literal
+import Agda.Syntax.Notation
+import Agda.Syntax.Position
 
 import Agda.Utils.Pretty
 import Agda.Utils.String
@@ -460,7 +461,20 @@ instance Pretty Pragma where
 instance Pretty Fixity where
     pretty (LeftAssoc  _ n) = text "infixl" <+> text (show n)
     pretty (RightAssoc _ n) = text "infixr" <+> text (show n)
-    pretty (NonAssoc   _ n) = text "infix" <+> text (show n)
+    pretty (NonAssoc   _ n) = text "infix"  <+> text (show n)
+
+instance Pretty GenPart where
+    pretty (IdPart x)   = text x
+    pretty BindHole{}   = underscore
+    pretty NormalHole{} = underscore
+
+instance Pretty Notation where
+    pretty = hcat . map pretty
+
+instance Pretty Fixity' where
+    pretty (Fixity' fix nota)
+      | nota == defaultNotation = pretty fix
+      | otherwise               = text "syntax" <+> pretty nota
 
 instance Pretty e => Pretty (Arg e) where
  -- Andreas 2010-09-21: do not print relevance in general, only in function types!

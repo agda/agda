@@ -188,11 +188,11 @@ instance Error DeclarationException where
 
 instance Show DeclarationException where
   show (MultipleFixityDecls xs) = show $
-    sep [ fsep $ pwords "Multiple fixity declarations for"
+    sep [ fsep $ pwords "Multiple fixity or syntax declarations for"
         , vcat $ map f xs
         ]
       where
-        f (x, fs) = pretty x <> text ":" <+> fsep (map (pretty . theFixity) fs)
+        f (x, fs) = pretty x <> text ": " <+> fsep (map pretty fs)
   show (MissingDefinition x) = show $ fsep $
     pwords "Missing definition for" ++ [pretty x]
   show (MissingWithClauses x) = show $ fsep $
