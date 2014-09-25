@@ -386,7 +386,6 @@ library
                     -fwarn-monomorphism-restriction
                     -fwarn-overlapping-patterns
                     -fwarn-unrecognised-pragmas
-                    -fwarn-tabs
                     -fwarn-warnings-deprecations
                     -- Using cpphs as the C preprocessor.
                     -pgmPcpphs -optP--cpp
