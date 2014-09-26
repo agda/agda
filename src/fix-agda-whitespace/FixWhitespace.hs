@@ -28,6 +28,9 @@ extensions =
 -- ASR (16 June 2014). In test/succeed/LineEndings/ we test that Agda
 -- can handle various kinds of whitespace (pointed out by Nils), so we
 -- exclude this directory.
+--
+-- ASR (26 September 2014) TODO: The directory Compiler/MAlonzo from
+-- Agda source code shouldn't be excluded.
 excludedDirs :: [String]
 excludedDirs =
  ["_darcs", ".git", "dist", "LineEndings", "MAlonzo", "std-lib"]

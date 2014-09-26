@@ -384,6 +384,7 @@ library
                     -fwarn-missing-fields
                     -fwarn-missing-methods
                     -fwarn-monomorphism-restriction
+                    -fwarn-tabs
                     -fwarn-overlapping-patterns
                     -fwarn-unrecognised-pragmas
                     -fwarn-warnings-deprecations
