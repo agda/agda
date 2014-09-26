@@ -546,7 +546,7 @@ rteModule = ok $ parse $ unlines
   ]
   where
     parse :: String -> HS.ParseResult HS.Module
-    parse = HS.parseWithMode
+    parse = HS.parseModuleWithMode
               HS.defaultParseMode{HS.extensions = [explicitForAll]}
 
     ok :: HS.ParseResult HS.Module -> HS.Module
