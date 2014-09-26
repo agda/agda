@@ -49,6 +49,15 @@ s₁ ≟-Name s₂ with s₁ == s₂
 ... | false = no whatever
   where postulate whatever : _
 
+-- Names can be shown.
+
+private
+  primitive
+    primShowQName : Name → String
+
+showName : Name → String
+showName = primShowQName
+
 ------------------------------------------------------------------------
 -- Terms
 
