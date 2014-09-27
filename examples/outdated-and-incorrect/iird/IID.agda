@@ -41,7 +41,7 @@ IndArg (δ A i γ) U a = A + IndArg γ U (π₁ a)
 IndIndex : {I : Set}{E : Set}
           (γ : OP I E)(U : I -> Set) ->
           (a : Args γ U) -> IndArg γ U a -> I
-IndIndex (ι e)     U _	      ()
+IndIndex (ι e)     U _        ()
 IndIndex (σ A γ)   U arg c       = IndIndex (γ (π₀ arg)) U (π₁ arg) c
 IndIndex (δ A i γ) U arg (inl a) = i a
 IndIndex (δ A i γ) U arg (inr a) = IndIndex γ U (π₁ arg) a
@@ -51,7 +51,7 @@ IndIndex (δ A i γ) U arg (inr a) = IndIndex γ U (π₁ arg) a
 Ind : {I : Set}{E : Set}
       (γ : OP I E)(U : I -> Set) ->
       (a : Args γ U)(v : IndArg γ U a) -> U (IndIndex γ U a v)
-Ind (ι e)     U _	      ()
+Ind (ι e)     U _             ()
 Ind (σ A γ)   U arg c       = Ind (γ (π₀ arg)) U (π₁ arg) c
 Ind (δ A i γ) U arg (inl a) = (π₀ arg) a
 Ind (δ A i γ) U arg (inr a) = Ind γ U (π₁ arg) a

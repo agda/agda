@@ -16,6 +16,6 @@ module Zipper where
 
   -- Plugging a zipper
   unzip : {F : U} -> Zipper F -> μ F -> μ F
-  unzip	    []	     t = t
+  unzip     []       t = t
   unzip {F} (c :: γ) t = inn (plug-∂ F c (unzip γ t))
 

@@ -67,6 +67,7 @@ encodeModuleName (HS.ModuleName s) = HS.ModuleName $ case splitUp s of
 -- Note: This injectivity test is quite weak. A better, dedicated
 -- generator could strengthen it.
 
+prop_encodeModuleName_injective :: M -> M -> Bool
 prop_encodeModuleName_injective (M s1) (M s2) =
   if encodeModuleName (HS.ModuleName s1) ==
      encodeModuleName (HS.ModuleName s2) then
@@ -74,6 +75,7 @@ prop_encodeModuleName_injective (M s1) (M s2) =
    else
     True
 
+prop_encodeModuleName_OK :: M -> Bool
 prop_encodeModuleName_OK (M s') =
   s ~= unM (encodeModuleName (HS.ModuleName s))
   where
@@ -88,6 +90,7 @@ prop_encodeModuleName_OK (M s') =
 
   unM (HS.ModuleName s) = s
 
+prop_encodeModuleName_preserved :: M -> Property
 prop_encodeModuleName_preserved (M m) =
   shouldBePreserved m ==>
     encodeModuleName (HS.ModuleName m) == HS.ModuleName m

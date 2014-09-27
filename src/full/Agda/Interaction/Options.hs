@@ -30,17 +30,17 @@ module Agda.Interaction.Options
 
 import Control.Monad            ( when )
 import Data.Maybe               ( isJust )
-import Data.List		( isSuffixOf , intercalate )
-import System.Console.GetOpt	( getOpt, usageInfo, ArgOrder(ReturnInOrder)
-				, OptDescr(..), ArgDescr(..)
-				)
+import Data.List                ( isSuffixOf , intercalate )
+import System.Console.GetOpt    ( getOpt, usageInfo, ArgOrder(ReturnInOrder)
+                                , OptDescr(..), ArgDescr(..)
+                                )
 
 import Agda.Termination.CutOff  ( CutOff(..) )
 
 import Agda.Utils.TestHelpers   ( runTests )
 import Agda.Utils.QuickCheck    ( quickCheck' )
 import Agda.Utils.FileName      ( AbsolutePath )
-import Agda.Utils.Monad		( readM )
+import Agda.Utils.Monad         ( readM )
 import Agda.Utils.List          ( wordsBy )
 import Agda.Utils.String        ( indent )
 import Agda.Utils.Trie          ( Trie )
@@ -83,14 +83,14 @@ data CommandLineOptions =
             , optJSCompile            :: Bool
             , optCompileDir           :: Maybe FilePath
               -- ^ In the absence of a path the project root is used.
-	    , optGenerateVimFile      :: Bool
+            , optGenerateVimFile      :: Bool
             , optGenerateLaTeX        :: Bool
-	    , optGenerateHTML         :: Bool
-	    , optDependencyGraph      :: Maybe FilePath
-	    , optLaTeXDir             :: FilePath
-	    , optHTMLDir              :: FilePath
-	    , optCSSFile              :: Maybe FilePath
-	    , optIgnoreInterfaces     :: Bool
+            , optGenerateHTML         :: Bool
+            , optDependencyGraph      :: Maybe FilePath
+            , optLaTeXDir             :: FilePath
+            , optHTMLDir              :: FilePath
+            , optCSSFile              :: Maybe FilePath
+            , optIgnoreInterfaces     :: Bool
             , optForcing              :: Bool
             , optGhcFlags             :: [String]
             , optPragmaOptions        :: PragmaOptions
@@ -158,14 +158,14 @@ defaultOptions =
             , optEpicCompile          = False
             , optJSCompile            = False
             , optCompileDir           = Nothing
-	    , optGenerateVimFile      = False
+            , optGenerateVimFile      = False
             , optGenerateLaTeX        = False
-	    , optGenerateHTML         = False
-	    , optDependencyGraph      = Nothing
-	    , optLaTeXDir             = defaultLaTeXDir
-	    , optHTMLDir              = defaultHTMLDir
-	    , optCSSFile              = Nothing
-	    , optIgnoreInterfaces     = False
+            , optGenerateHTML         = False
+            , optDependencyGraph      = Nothing
+            , optLaTeXDir             = defaultLaTeXDir
+            , optHTMLDir              = defaultHTMLDir
+            , optCSSFile              = Nothing
+            , optIgnoreInterfaces     = False
             , optForcing              = True
             , optGhcFlags             = []
             , optPragmaOptions        = defaultPragmaOptions
@@ -371,33 +371,33 @@ standardOptions =
     , Option []     ["epic"] (NoArg compileEpicFlag) "compile program using the Epic backend"
     , Option []     ["js"] (NoArg compileJSFlag) "compile program using the JS backend"
     , Option []     ["compile-dir"] (ReqArg compileDirFlag "DIR")
-		    ("directory for compiler output (default: the project root)")
+                    ("directory for compiler output (default: the project root)")
     , Option []     ["ghc-flag"] (ReqArg ghcFlag "GHC-FLAG")
                     "give the flag GHC-FLAG to GHC when compiling using MAlonzo"
     , Option []     ["epic-flag"] (ReqArg epicFlagsFlag "EPIC-FLAG")
                     "give the flag EPIC-FLAG to Epic when compiling using Epic"
-    , Option []	    ["test"] (NoArg runTestsFlag)
-		    "run internal test suite"
-    , Option []	    ["vim"] (NoArg vimFlag)
-		    "generate Vim highlighting files"
-    , Option []	    ["latex"] (NoArg latexFlag)
+    , Option []     ["test"] (NoArg runTestsFlag)
+                    "run internal test suite"
+    , Option []     ["vim"] (NoArg vimFlag)
+                    "generate Vim highlighting files"
+    , Option []     ["latex"] (NoArg latexFlag)
                     "generate LaTeX with highlighted source code"
-    , Option []	    ["latex-dir"] (ReqArg latexDirFlag "DIR")
+    , Option []     ["latex-dir"] (ReqArg latexDirFlag "DIR")
                     ("directory in which LaTeX files are placed (default: " ++
                      defaultLaTeXDir ++ ")")
-    , Option []	    ["html"] (NoArg htmlFlag)
-		    "generate HTML files with highlighted source code"
-    , Option []	    ["dependency-graph"] (ReqArg dependencyGraphFlag "FILE")
-		    "generate a Dot file with a module dependency graph"
-    , Option []	    ["html-dir"] (ReqArg htmlDirFlag "DIR")
+    , Option []     ["html"] (NoArg htmlFlag)
+                    "generate HTML files with highlighted source code"
+    , Option []     ["dependency-graph"] (ReqArg dependencyGraphFlag "FILE")
+                    "generate a Dot file with a module dependency graph"
+    , Option []     ["html-dir"] (ReqArg htmlDirFlag "DIR")
                     ("directory in which HTML files are placed (default: " ++
                      defaultHTMLDir ++ ")")
-    , Option []	    ["css"] (ReqArg cssFlag "URL")
-		    "the CSS file used by the HTML files (can be relative)"
-    , Option []	    ["ignore-interfaces"] (NoArg ignoreInterfacesFlag)
-		    "ignore interface files (re-type check everything)"
+    , Option []     ["css"] (ReqArg cssFlag "URL")
+                    "the CSS file used by the HTML files (can be relative)"
+    , Option []     ["ignore-interfaces"] (NoArg ignoreInterfacesFlag)
+                    "ignore interface files (re-type check everything)"
     , Option ['i']  ["include-path"] (ReqArg includeFlag "DIR")
-		    "look for imports in DIR"
+                    "look for imports in DIR"
     , Option []     ["no-forcing"] (NoArg noForcingFlag)
                     "disable the forcing optimisation"
     , Option []     ["safe"] (NoArg safeFlag)
@@ -411,26 +411,26 @@ standardOptions =
 
 pragmaOptions :: [OptDescr (Flag PragmaOptions)]
 pragmaOptions =
-    [ Option []	    ["show-implicit"] (NoArg showImplicitFlag)
-		    "show implicit arguments when printing"
-    , Option []	    ["show-irrelevant"] (NoArg showIrrelevantFlag)
-		    "show irrelevant arguments when printing"
-    , Option ['v']  ["verbose"]	(ReqArg verboseFlag "N")
+    [ Option []     ["show-implicit"] (NoArg showImplicitFlag)
+                    "show implicit arguments when printing"
+    , Option []     ["show-irrelevant"] (NoArg showIrrelevantFlag)
+                    "show irrelevant arguments when printing"
+    , Option ['v']  ["verbose"] (ReqArg verboseFlag "N")
                     "set verbosity level to N"
-    -- , Option []	    ["proof-irrelevance"] (NoArg proofIrrelevanceFlag)
-    --     	    "enable proof irrelevance (experimental feature)"
-    , Option []	    ["allow-unsolved-metas"] (NoArg allowUnsolvedFlag)
-		    "allow unsolved meta variables (only needed in batch mode)"
-    , Option []	    ["no-positivity-check"] (NoArg noPositivityFlag)
-		    "do not warn about not strictly positive data types"
-    , Option []	    ["no-termination-check"] (NoArg dontTerminationCheckFlag)
-		    "do not warn about possibly nonterminating code"
-    , Option []	    ["termination-depth"] (ReqArg terminationDepthFlag "N")
-		    "allow termination checker to count decrease/increase upto N (default N=1)"
-    , Option []	    ["no-coverage-check"] (NoArg dontCompletenessCheckFlag)
-		    "do not warn about possibly incomplete pattern matches"
-    , Option []	    ["type-in-type"] (NoArg dontUniverseCheckFlag)
-		    "ignore universe levels (this makes Agda inconsistent)"
+    -- , Option []          ["proof-irrelevance"] (NoArg proofIrrelevanceFlag)
+    --              "enable proof irrelevance (experimental feature)"
+    , Option []     ["allow-unsolved-metas"] (NoArg allowUnsolvedFlag)
+                    "allow unsolved meta variables (only needed in batch mode)"
+    , Option []     ["no-positivity-check"] (NoArg noPositivityFlag)
+                    "do not warn about not strictly positive data types"
+    , Option []     ["no-termination-check"] (NoArg dontTerminationCheckFlag)
+                    "do not warn about possibly nonterminating code"
+    , Option []     ["termination-depth"] (ReqArg terminationDepthFlag "N")
+                    "allow termination checker to count decrease/increase upto N (default N=1)"
+    , Option []     ["no-coverage-check"] (NoArg dontCompletenessCheckFlag)
+                    "do not warn about possibly incomplete pattern matches"
+    , Option []     ["type-in-type"] (NoArg dontUniverseCheckFlag)
+                    "ignore universe levels (this makes Agda inconsistent)"
     , Option []     ["sized-types"] (NoArg sizedTypes)
                     "use sized types (default, inconsistent with `musical' coinduction)"
     , Option []     ["no-sized-types"] (NoArg noSizedTypes)
@@ -466,8 +466,8 @@ parseOptions' ::
   [String] -> [OptDescr (Flag opts)] -> (String -> Flag opts) -> Flag opts
 parseOptions' argv opts fileArg = \defaults ->
     case getOpt (ReturnInOrder fileArg) opts argv of
-	(o,_,[])    -> foldl (>>=) (return defaults) o
-	(_,_,errs)  -> throwError $ concat errs
+        (o,_,[])    -> foldl (>>=) (return defaults) o
+        (_,_,errs)  -> throwError $ concat errs
 
 -- | Parse the standard options.
 parseStandardOptions :: [String] -> Either String CommandLineOptions
@@ -500,27 +500,27 @@ parsePluginOptions argv opts =
 --   agda).
 usage :: [OptDescr ()] -> [(String, String, [String], [OptDescr ()])] -> String -> String
 usage options pluginInfos progName =
-	usageInfo (header progName) options ++
-	"\nPlugins:\n" ++
+        usageInfo (header progName) options ++
+        "\nPlugins:\n" ++
         indent 2 (concatMap pluginMsg pluginInfos)
 
     where
-	header progName = unlines [ "Agda"
-				  , ""
-				  , "Usage: " ++ progName ++ " [OPTIONS...] [FILE]"
-				  ]
+        header progName = unlines [ "Agda"
+                                  , ""
+                                  , "Usage: " ++ progName ++ " [OPTIONS...] [FILE]"
+                                  ]
 
         pluginMsg (name, help, inherited, opts)
             | null opts && null inherited = optHeader
             | otherwise = usageInfo (optHeader ++
                                      "  Plugin-specific options:" ++
-				     inheritedOptions inherited
-				     ) opts
+                                     inheritedOptions inherited
+                                     ) opts
             where
-		optHeader = "\n" ++ name ++ "-plugin:\n" ++ indent 2 help
-		inheritedOptions [] = ""
-		inheritedOptions pls =
-		    "\n    Inherits options from: " ++ unwords pls
+                optHeader = "\n" ++ name ++ "-plugin:\n" ++ indent 2 help
+                inheritedOptions [] = ""
+                inheritedOptions pls =
+                    "\n    Inherits options from: " ++ unwords pls
 
 ------------------------------------------------------------------------
 -- All tests

@@ -35,7 +35,7 @@ instance Monoid (Match a) where
     Yes s us   `mappend` Yes s' vs        = Yes (s `mappend` s') (us ++ vs)
     Yes _ _    `mappend` No               = No
     Yes _ _    `mappend` DontKnow m       = DontKnow m
-    No	       `mappend` _                = No
+    No         `mappend` _                = No
 
     -- Nothing means blocked by a variable.  In this case no instantiation of
     -- meta-variables will make progress.
@@ -43,7 +43,7 @@ instance Monoid (Match a) where
 
     -- One could imagine DontKnow _ `mappend` No = No, but would break the
     -- equivalence to case-trees.
-    DontKnow m `mappend` _		  = DontKnow m
+    DontKnow m `mappend` _                = DontKnow m
 
 -- | Instead of 'zipWithM', we need to use this lazy version
 --   of combining pattern matching computations.
@@ -141,21 +141,21 @@ matchPattern p u = case (p, u) of
     w <- reduceB' v
     let arg' = arg $> ignoreBlocking w
     case ignoreSharing <$> w of
-	NotBlocked (Lit l')
-	    | l == l'          -> return (Yes YesSimplification [] , arg')
-	    | otherwise        -> return (No                       , arg')
-	NotBlocked (MetaV x _) -> return (DontKnow $ Just x        , arg')
-	Blocked x _            -> return (DontKnow $ Just x        , arg')
-	_                      -> return (DontKnow Nothing         , arg')
+        NotBlocked (Lit l')
+            | l == l'          -> return (Yes YesSimplification [] , arg')
+            | otherwise        -> return (No                       , arg')
+        NotBlocked (MetaV x _) -> return (DontKnow $ Just x        , arg')
+        Blocked x _            -> return (DontKnow $ Just x        , arg')
+        _                      -> return (DontKnow Nothing         , arg')
 
 {- Andreas, 2012-04-02 NO LONGER UP-TO-DATE
 matchPattern (Arg h' r' (ConP c _ ps))     (Arg h Irrelevant v) = do
           -- Andreas, 2010-09-07 matching a record constructor against
           -- something irrelevant will just continue matching against
           -- irrelevant stuff
-		(m, vs) <- matchPatterns ps $
+                (m, vs) <- matchPatterns ps $
                   repeat $ Arg NotHidden Irrelevant $ DontCare __IMPOSSIBLE__
-		return (m, Arg h Irrelevant $ Con c vs)
+                return (m, Arg h Irrelevant $ Con c vs)
 -}
 
   -- Case record pattern: always succeed!
@@ -170,7 +170,7 @@ matchPattern (Arg h' r' (ConP c _ ps))     (Arg h Irrelevant v) = do
 
   -- Case data constructor pattern.
   (ConP c _ ps, Arg info v) ->
-    do	w <- traverse constructorForm =<< reduceB' v
+    do  w <- traverse constructorForm =<< reduceB' v
         -- Unfold delayed (corecursive) definitions one step. This is
         -- only necessary if c is a coinductive constructor, but
         -- 1) it does not hurt to do it all the time, and
@@ -185,7 +185,7 @@ matchPattern (Arg h' r' (ConP c _ ps))     (Arg h Irrelevant v) = do
                    -- unfolded (due to open public).
                _ -> return w
         let v = ignoreBlocking w
-	case ignoreSharing <$> w of
+        case ignoreSharing <$> w of
 
 {- Andreas, 2013-10-27 the following considered HARMFUL:
           -- Andreas, 2010-09-07 matching a record constructor against
@@ -193,18 +193,18 @@ matchPattern (Arg h' r' (ConP c _ ps))     (Arg h Irrelevant v) = do
           -- irrelevant stuff
           -- NotBlocked (Sort Prop)
           _  | isIrrelevant info -> do
-		(m, vs) <- matchPatterns ps $
+                (m, vs) <- matchPatterns ps $
                   repeat $ setRelevance Irrelevant $ defaultArg $ Sort Prop
                     -- repeat looks very bad here (non-termination!)
-		return (m, Arg info $ Con c vs)
+                return (m, Arg info $ Con c vs)
 -}
-	  NotBlocked (Con c' vs)
-	    | c == c'            -> do
-		(m, vs) <- yesSimplification <$> matchPatterns ps vs
-		return (m, Arg info $ Con c' vs)
-	    | otherwise           -> return (No, Arg info v) -- NOTE: v the reduced thing(shadowing!). Andreas, 2013-07-03
-	  NotBlocked (MetaV x vs) -> return (DontKnow $ Just x, Arg info v)
-	  Blocked x _             -> return (DontKnow $ Just x, Arg info v)
+          NotBlocked (Con c' vs)
+            | c == c'            -> do
+                (m, vs) <- yesSimplification <$> matchPatterns ps vs
+                return (m, Arg info $ Con c' vs)
+            | otherwise           -> return (No, Arg info v) -- NOTE: v the reduced thing(shadowing!). Andreas, 2013-07-03
+          NotBlocked (MetaV x vs) -> return (DontKnow $ Just x, Arg info v)
+          Blocked x _             -> return (DontKnow $ Just x, Arg info v)
           _                       -> return (DontKnow Nothing, Arg info v)
 
 yesSimplification (Yes _ vs, us) = (Yes YesSimplification vs, us)

@@ -74,12 +74,12 @@ isBlockedTerm x = do
     reportSLn "tc.meta.blocked" 12 $ "is " ++ show x ++ " a blocked term? "
     i <- mvInstantiation <$> lookupMeta x
     let r = case i of
-	    BlockedConst{}                 -> True
+            BlockedConst{}                 -> True
             PostponedTypeCheckingProblem{} -> True
-	    InstV{}                        -> False
-	    InstS{}                        -> False
-	    Open{}                         -> False
-	    OpenIFS{}                      -> False
+            InstV{}                        -> False
+            InstS{}                        -> False
+            Open{}                         -> False
+            OpenIFS{}                      -> False
     reportSLn "tc.meta.blocked" 12 $
       if r then "  yes, because " ++ show i else "  no"
     return r
@@ -295,7 +295,7 @@ newRecordMeta r pars = do
 
 newRecordMetaCtx :: QName -> Args -> Telescope -> Args -> TCM Term
 newRecordMetaCtx r pars tel ctx = do
-  ftel	 <- flip apply pars <$> getRecordFieldTypes r
+  ftel   <- flip apply pars <$> getRecordFieldTypes r
   fields <- newArgsMetaCtx (telePi_ ftel $ sort Prop) tel ctx
   con    <- getRecordConstructor r
   return $ Con con fields
@@ -400,7 +400,7 @@ problemType (CheckArgs _ _ _ _ _ t _) = t
 etaExpandListeners :: MetaId -> TCM ()
 etaExpandListeners m = do
   ls <- getMetaListeners m
-  clearMetaListeners m	-- we don't really have to do this
+  clearMetaListeners m  -- we don't really have to do this
   mapM_ wakeupListener ls
 
 -- | Wake up a meta listener and let it do its thing
@@ -460,7 +460,7 @@ etaExpandMeta kinds m = whenM (isEtaExpandable m) $ do
     lvl@(Def r es) ->
       ifM (isEtaRecord r) {- then -} (do
         let ps = fromMaybe __IMPOSSIBLE__ $ allApplyElims es
-	let expand = do
+        let expand = do
               u <- abstract tel <$> do withMetaInfo' meta $ newRecordMetaCtx r ps tel $ teleArgs tel
               inTopContext $ do
                 verboseS "tc.meta.eta" 15 $ do
@@ -569,8 +569,8 @@ assign dir x args v = do
           reportSLn "tc.meta.assign" 25 $ "aborting: meta is frozen!"
           patternViolation
 
-	-- We never get blocked terms here anymore. TODO: we actually do. why?
-	whenM (isBlockedTerm x) patternViolation
+        -- We never get blocked terms here anymore. TODO: we actually do. why?
+        whenM (isBlockedTerm x) patternViolation
 
         -- Andreas, 2010-10-15 I want to see whether rhs is blocked
         reportSLn "tc.meta.assign" 50 $ "MetaVars.assign: I want to see whether rhs is blocked"
@@ -629,17 +629,17 @@ assign dir x args v = do
                  , text "fvars lhs (irr):" <+> sep (map (text . show) irrVL)
                  ]
 
-	-- Check that the x doesn't occur in the right hand side.
+        -- Check that the x doesn't occur in the right hand side.
         -- Prune mvars on rhs such that they can only depend on varsL.
         -- Herein, distinguish relevant and irrelevant vars,
         -- since when abstracting irrelevant lhs vars, they may only occur
         -- irrelevantly on rhs.
-	v <- liftTCM $ occursCheck x (relVL, irrVL) v
+        v <- liftTCM $ occursCheck x (relVL, irrVL) v
 
-	reportSLn "tc.meta.assign" 15 "passed occursCheck"
-	verboseS "tc.meta.assign" 30 $ do
-	  let n = size v
-	  when (n > 200) $ reportSDoc "tc.meta.assign" 30 $
+        reportSLn "tc.meta.assign" 15 "passed occursCheck"
+        verboseS "tc.meta.assign" 30 $ do
+          let n = size v
+          when (n > 200) $ reportSDoc "tc.meta.assign" 30 $
             sep [ text "size" <+> text (show n)
 --                , nest 2 $ text "type" <+> prettyTCM t
                 , nest 2 $ text "term" <+> prettyTCM v
@@ -654,8 +654,8 @@ assign dir x args v = do
         reportSDoc "tc.meta.assign" 20 $
           text "fvars rhs:" <+> sep (map (text . show) $ Set.toList fvs)
 
-	-- Check that the arguments are variables
-	mids <- do
+        -- Check that the arguments are variables
+        mids <- do
           res <- runExceptT $ inverseSubst args
           case res of
             -- all args are variables

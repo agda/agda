@@ -33,15 +33,15 @@ run v p s = let ts = myLLexer s in case p ts of
                           putStrV v $ show ts
                           putStrLn s
            Ok  tree -> case scopeCheckProgram tree of
-	    Left err	-> putStrLn $ "Scope error:\n" ++ err
-            Right ds	-> do
-		putStrLn "\nScope OK:"
-		mapM_ print ds
-		case runTCM $ mapM_ checkDecl ds of
-		    Left err	-> putStrLn $ "Type error:\n" ++ err
-		    Right st	-> do
-			putStrLn "\nType OK:"
-			print st
+            Left err    -> putStrLn $ "Scope error:\n" ++ err
+            Right ds    -> do
+                putStrLn "\nScope OK:"
+                mapM_ print ds
+                case runTCM $ mapM_ checkDecl ds of
+                    Left err    -> putStrLn $ "Type error:\n" ++ err
+                    Right st    -> do
+                        putStrLn "\nType OK:"
+                        print st
 
 
 

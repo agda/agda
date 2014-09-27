@@ -36,19 +36,19 @@ type Doc = P.Doc
 
 empty, comma, colon, equals :: TCM Doc
 
-empty	   = return P.empty
-comma	   = return P.comma
+empty      = return P.empty
+comma      = return P.comma
 colon      = return P.colon
 equals     = return P.equals
 pretty x   = return $ P.pretty x
 prettyA x  = P.prettyA x
 prettyAs x = P.prettyAs x
 text :: String -> TCM Doc
-text s	   = return $ P.text s
+text s     = return $ P.text s
 pwords s   = map return $ P.pwords s
 fwords s   = return $ P.fwords s
 sep, fsep, hsep, vcat :: [TCM Doc] -> TCM Doc
-sep ds	   = P.sep <$> sequence ds
+sep ds     = P.sep <$> sequence ds
 fsep ds    = P.fsep <$> sequence ds
 hsep ds    = P.hsep <$> sequence ds
 hcat ds    = P.hcat <$> sequence ds
@@ -69,7 +69,7 @@ prettyList ds = brackets $ fsep $ punctuate comma ds
 punctuate _ [] = []
 punctuate d ds = zipWith (<>) ds (replicate n d ++ [empty])
     where
-	n = length ds - 1
+        n = length ds - 1
 
 ---------------------------------------------------------------------------
 -- * The PrettyTCM class
@@ -172,40 +172,40 @@ instance PrettyTCM ProblemConstraint where
 
 instance PrettyTCM Constraint where
     prettyTCM c = case c of
-	ValueCmp cmp ty s t ->
-	    sep [ sep [ prettyTCM s
-		      , prettyTCM cmp <+> prettyTCM t
-		      ]
-		, nest 2 $ text ":" <+> prettyTCM ty
-		]
+        ValueCmp cmp ty s t ->
+            sep [ sep [ prettyTCM s
+                      , prettyTCM cmp <+> prettyTCM t
+                      ]
+                , nest 2 $ text ":" <+> prettyTCM ty
+                ]
         ElimCmp cmps t v us vs ->
           sep [ sep [ prettyTCM us
                     , nest 2 $ text "~~" <+> prettyTCM vs
                     ]
               , text ":" <+> prettyTCM t ]
-	LevelCmp cmp a b ->
-	    sep [ prettyTCM a
-		, prettyTCM cmp <+> prettyTCM b
-		]
-	TypeCmp cmp a b ->
-	    sep [ prettyTCM a
-		, prettyTCM cmp <+> prettyTCM b
-		]
-	TelCmp a b cmp tela telb ->
-	    sep [ prettyTCM tela
-		, prettyTCM cmp <+> prettyTCM telb
-		]
-	SortCmp cmp s1 s2 ->
-	    sep [ prettyTCM s1
-		, prettyTCM cmp <+> prettyTCM s2
-		]
-	Guarded c pid ->
-	    sep [ prettyTCM c
-		, nest 2 $ brackets $ text "blocked on problem" <+> text (show pid)
-		]
-	UnBlock m   -> do
-	    -- BlockedConst t <- mvInstantiation <$> lookupMeta m
-	    mi <- mvInstantiation <$> lookupMeta m
+        LevelCmp cmp a b ->
+            sep [ prettyTCM a
+                , prettyTCM cmp <+> prettyTCM b
+                ]
+        TypeCmp cmp a b ->
+            sep [ prettyTCM a
+                , prettyTCM cmp <+> prettyTCM b
+                ]
+        TelCmp a b cmp tela telb ->
+            sep [ prettyTCM tela
+                , prettyTCM cmp <+> prettyTCM telb
+                ]
+        SortCmp cmp s1 s2 ->
+            sep [ prettyTCM s1
+                , prettyTCM cmp <+> prettyTCM s2
+                ]
+        Guarded c pid ->
+            sep [ prettyTCM c
+                , nest 2 $ brackets $ text "blocked on problem" <+> text (show pid)
+                ]
+        UnBlock m   -> do
+            -- BlockedConst t <- mvInstantiation <$> lookupMeta m
+            mi <- mvInstantiation <$> lookupMeta m
             case mi of
               BlockedConst t ->
                 sep [ text (show m) <+> text ":="
@@ -218,11 +218,11 @@ instance PrettyTCM Constraint where
               OpenIFS{}  -> __IMPOSSIBLE__
               InstS{} -> __IMPOSSIBLE__
               InstV{} -> __IMPOSSIBLE__
-	FindInScope m Nothing -> do
+        FindInScope m Nothing -> do
             t <- getMetaType m
             sep [ text $ "Find in scope " ++ (show m) ++ " :" ++ (show t) ++ " (no candidate for now)"
                 ]
-	FindInScope m (Just cands) -> do
+        FindInScope m (Just cands) -> do
             t <- getMetaType m
             sep [ text $ "Find in scope " ++ (show m) ++ " :"
                 , nest 2 $ prettyTCM t
@@ -267,7 +267,7 @@ instance PrettyTCM PrettyContext where
   prettyTCM (PrettyContext ctx) = P.fsep . reverse <$> pr (map ctxEntry ctx)
       where
           pr :: [Dom (Name, Type)] -> TCM [P.Doc]
-          pr []		   = return []
+          pr []            = return []
           pr (Common.Dom info (x,t) : ctx) = escapeContext 1 $ do
               d    <- prettyTCM t
               x    <- prettyTCM x

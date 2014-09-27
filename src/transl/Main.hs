@@ -18,7 +18,7 @@ data Flag = Help | Debug | OldSyntax
 options :: [OptDescr Flag]
 options = [ Option ['?'] ["help"]   (NoArg Help)         "show this help"
           , Option ['D'] ["debug"]  (NoArg Debug)        "print debug messages to stderr"
-	  , Option [] ["old"] (NoArg OldSyntax)		 "use old syntax"
+          , Option [] ["old"] (NoArg OldSyntax)          "use old syntax"
           ]
 
 compilerOpts :: [String] -> IO ([Flag], [String])
@@ -41,30 +41,30 @@ main = do { argv <- getArgs
                       ; agda1to2 (trans fs) ctree
                       }
               _ -> hPutStrLn stderr usage
-	  }
+          }
   where
     newSyntax fs = OldSyntax `notElem` fs
     trans fs cldfs tab = do { return ()                       -- dummy
                          ; let whenDebug = when (Debug `elem` fs) . hPutStrLn stderr
                          ; whenDebug $ show
-			 $ let { (t,i)   = freshId' tab [] "add"
-			       ; (t',i') = freshId' t [i] "add" }
-			   in freshId' t' [i,i'] "add"
+                         $ let { (t,i)   = freshId' tab [] "add"
+                               ; (t',i') = freshId' t [i] "add" }
+                           in freshId' t' [i,i'] "add"
                          ; whenDebug $ show $ cldfs
                          ; ctnorm <- return $ flip evalState tab
                                             $ normalise cldfs
                          ; whenDebug $ show ctnorm
-		         ; a2tree <- return $ translate ctnorm
+                         ; a2tree <- return $ translate ctnorm
                          ; whenDebug $ unlines $ map gshow $ a2tree
-		         ; hPutStrLn stdout $ unlines $ map show $ a2tree
-			 }
+                         ; hPutStrLn stdout $ unlines $ map show $ a2tree
+                         }
     normalise defs0 = do { return ()                       -- dummy
                          ; defs00 <- return $ map valueT2valueS defs0
-			 ; defs10 <- return $ map elimTopLam defs00
-			 ; defs20 <- return $ concatMap elimTopCase defs10
-			 ; defs30 <- mapM convCase defs20
-			 ; return $ concat defs30
-			 }
+                         ; defs10 <- return $ map elimTopLam defs00
+                         ; defs20 <- return $ concatMap elimTopCase defs10
+                         ; defs30 <- mapM convCase defs20
+                         ; return $ concat defs30
+                         }
 --
 -- N.B. (2006-05-29): elimTopCase and convCase do nothing.
 --                    only top-level case-expression in Agda1 will be

@@ -82,13 +82,13 @@ instance (PrimType a, PrimType b) => PrimTerm (a -> b) where
 instance PrimTerm a => PrimType a where
     primType _ = el $ primTerm (undefined :: a)
 
-class	 PrimTerm a	  where primTerm :: a -> TCM Term
+class    PrimTerm a       where primTerm :: a -> TCM Term
 instance PrimTerm Integer where primTerm _ = primInteger
-instance PrimTerm Bool	  where primTerm _ = primBool
-instance PrimTerm Char	  where primTerm _ = primChar
+instance PrimTerm Bool    where primTerm _ = primBool
+instance PrimTerm Char    where primTerm _ = primChar
 instance PrimTerm Double  where primTerm _ = primFloat
-instance PrimTerm Str	  where primTerm _ = primString
-instance PrimTerm Nat	  where primTerm _ = primNat
+instance PrimTerm Str     where primTerm _ = primString
+instance PrimTerm Nat     where primTerm _ = primNat
 instance PrimTerm Lvl     where primTerm _ = primLevel
 instance PrimTerm QName   where primTerm _ = primQName
 instance PrimTerm Type    where primTerm _ = primAgdaType
@@ -108,18 +108,18 @@ class ToTerm a where
     toTermR = (pure .) <$> toTerm
 
 instance ToTerm Integer where toTerm = return $ Lit . LitInt noRange
-instance ToTerm Nat	where toTerm = return $ Lit . LitInt noRange . unNat
-instance ToTerm Lvl	where toTerm = return $ Level . Max . (:[]) . ClosedLevel . unLvl
+instance ToTerm Nat     where toTerm = return $ Lit . LitInt noRange . unNat
+instance ToTerm Lvl     where toTerm = return $ Level . Max . (:[]) . ClosedLevel . unLvl
 instance ToTerm Double  where toTerm = return $ Lit . LitFloat noRange
-instance ToTerm Char	where toTerm = return $ Lit . LitChar noRange
-instance ToTerm Str	where toTerm = return $ Lit . LitString noRange . unStr
-instance ToTerm QName	where toTerm = return $ Lit . LitQName noRange
+instance ToTerm Char    where toTerm = return $ Lit . LitChar noRange
+instance ToTerm Str     where toTerm = return $ Lit . LitString noRange . unStr
+instance ToTerm QName   where toTerm = return $ Lit . LitQName noRange
 
 instance ToTerm Bool where
     toTerm = do
-	true  <- primTrue
-	false <- primFalse
-	return $ \b -> if b then true else false
+        true  <- primTrue
+        false <- primFalse
+        return $ \b -> if b then true else false
 
 instance ToTerm Term where
     toTerm  = do (f, _, _) <- quotingKit; runReduceF f
@@ -158,14 +158,14 @@ buildList = do
     nil'  <- primNil
     cons' <- primCons
     let nil       = nil'
-	cons x xs = cons' `apply` [defaultArg x, defaultArg xs]
+        cons x xs = cons' `apply` [defaultArg x, defaultArg xs]
     return $ foldr cons nil
 
 instance (PrimTerm a, ToTerm a) => ToTerm [a] where
     toTerm = do
-	mkList <- buildList
-	fromA  <- toTerm
-	return $ mkList . map fromA
+        mkList <- buildList
+        fromA  <- toTerm
+        return $ mkList . map fromA
 
 -- From Haskell value to Agda term
 
@@ -176,52 +176,52 @@ class FromTerm a where
 
 instance FromTerm Integer where
     fromTerm = fromLiteral $ \l -> case l of
-	LitInt _ n -> Just n
-	_	   -> Nothing
+        LitInt _ n -> Just n
+        _          -> Nothing
 
 instance FromTerm Nat where
     fromTerm = fromLiteral $ \l -> case l of
-	LitInt _ n -> Just $ Nat n
-	_	   -> Nothing
+        LitInt _ n -> Just $ Nat n
+        _          -> Nothing
 
 instance FromTerm Lvl where
     fromTerm = fromReducedTerm $ \l -> case l of
-	Level (Max [ClosedLevel n]) -> Just $ Lvl n
-	_                           -> Nothing
+        Level (Max [ClosedLevel n]) -> Just $ Lvl n
+        _                           -> Nothing
 
 instance FromTerm Double where
     fromTerm = fromLiteral $ \l -> case l of
-	LitFloat _ x -> Just x
-	_	     -> Nothing
+        LitFloat _ x -> Just x
+        _            -> Nothing
 
 instance FromTerm Char where
     fromTerm = fromLiteral $ \l -> case l of
-	LitChar _ c -> Just c
-	_	    -> Nothing
+        LitChar _ c -> Just c
+        _           -> Nothing
 
 instance FromTerm Str where
     fromTerm = fromLiteral $ \l -> case l of
-	LitString _ s -> Just $ Str s
-	_	      -> Nothing
+        LitString _ s -> Just $ Str s
+        _             -> Nothing
 
 instance FromTerm QName where
     fromTerm = fromLiteral $ \l -> case l of
-	LitQName _ x -> Just x
-	_	      -> Nothing
+        LitQName _ x -> Just x
+        _             -> Nothing
 
 instance FromTerm Bool where
     fromTerm = do
-	true  <- primTrue
-	false <- primFalse
-	fromReducedTerm $ \t -> case t of
-	    _	| t === true  -> Just True
-		| t === false -> Just False
-		| otherwise   -> Nothing
-	where
-	    Def x [] === Def y []   = x == y
-	    Con x [] === Con y []   = x == y
-	    Var n [] === Var m []   = n == m
-	    _	     === _	    = False
+        true  <- primTrue
+        false <- primFalse
+        fromReducedTerm $ \t -> case t of
+            _   | t === true  -> Just True
+                | t === false -> Just False
+                | otherwise   -> Nothing
+        where
+            Def x [] === Def y []   = x == y
+            Con x [] === Con y []   = x == y
+            Var n [] === Var m []   = n == m
+            _        === _          = False
 
 instance (ToTerm a, FromTerm a) => FromTerm [a] where
   fromTerm = do
@@ -260,12 +260,12 @@ instance (ToTerm a, FromTerm a) => FromTerm [a] where
 
 -- | Conceptually: @redBind m f k = either (return . Left . f) k =<< m@
 redBind :: ReduceM (Reduced a a') -> (a -> b) ->
-	     (a' -> ReduceM (Reduced b b')) -> ReduceM (Reduced b b')
+             (a' -> ReduceM (Reduced b b')) -> ReduceM (Reduced b b')
 redBind ma f k = do
     r <- ma
     case r of
-	NoReduction x    -> return $ NoReduction $ f x
-	YesReduction _ y -> k y
+        NoReduction x    -> return $ NoReduction $ f x
+        YesReduction _ y -> k y
 
 redReturn :: a -> ReduceM (Reduced a' a)
 redReturn = return . YesReduction YesSimplification
@@ -274,13 +274,13 @@ fromReducedTerm :: (Term -> Maybe a) -> TCM (FromTermFunction a)
 fromReducedTerm f = return $ \t -> do
     b <- reduceB' t
     case f $ ignoreSharing $ unArg (ignoreBlocking b) of
-	Just x	-> return $ YesReduction NoSimplification x
-	Nothing	-> return $ NoReduction (reduced b)
+        Just x  -> return $ YesReduction NoSimplification x
+        Nothing -> return $ NoReduction (reduced b)
 
 fromLiteral :: (Literal -> Maybe a) -> TCM (FromTermFunction a)
 fromLiteral f = fromReducedTerm $ \t -> case t of
     Lit lit -> f lit
-    _	    -> Nothing
+    _       -> Nothing
 
 -- trustMe : {a : Level} {A : Set a} {x y : A} -> x ≡ y
 primTrustMe :: TCM PrimitiveImpl
@@ -403,11 +403,11 @@ mkPrimFun1TCM mt f = do
 
 -- Tying the knot
 mkPrimFun1 :: (PrimType a, PrimType b, FromTerm a, ToTerm b) =>
-	      (a -> b) -> TCM PrimitiveImpl
+              (a -> b) -> TCM PrimitiveImpl
 mkPrimFun1 f = do
     toA   <- fromTerm
     fromB <- toTerm
-    t	  <- primType f
+    t     <- primType f
     return $ PrimImpl t $ PrimFun __IMPOSSIBLE__ 1 $ \ts ->
       case ts of
         [v] ->
@@ -417,13 +417,13 @@ mkPrimFun1 f = do
         _ -> __IMPOSSIBLE__
 
 mkPrimFun2 :: (PrimType a, PrimType b, PrimType c, FromTerm a, ToTerm a, FromTerm b, ToTerm c) =>
-	      (a -> b -> c) -> TCM PrimitiveImpl
+              (a -> b -> c) -> TCM PrimitiveImpl
 mkPrimFun2 f = do
     toA   <- fromTerm
     fromA <- toTerm
-    toB	  <- fromTerm
+    toB   <- fromTerm
     fromC <- toTerm
-    t	  <- primType f
+    t     <- primType f
     return $ PrimImpl t $ PrimFun __IMPOSSIBLE__ 2 $ \ts ->
       case ts of
         [v,w] ->
@@ -440,7 +440,7 @@ mkPrimFun4 :: ( PrimType a, FromTerm a, ToTerm a
               , PrimType c, FromTerm c, ToTerm c
               , PrimType d, FromTerm d
               , PrimType e, ToTerm e) =>
-	      (a -> b -> c -> d -> e) -> TCM PrimitiveImpl
+              (a -> b -> c -> d -> e) -> TCM PrimitiveImpl
 mkPrimFun4 f = do
     (toA, fromA) <- (,) <$> fromTerm <*> toTerm
     (toB, fromB) <- (,) <$> fromTerm <*> toTerm
@@ -550,71 +550,71 @@ primitiveFunctions :: Map String (TCM PrimitiveImpl)
 primitiveFunctions = Map.fromList
 
     -- Integer functions
-    [ "primIntegerPlus"	    |-> mkPrimFun2 ((+)	       :: Op Integer)
-    , "primIntegerMinus"    |-> mkPrimFun2 ((-)	       :: Op Integer)
-    , "primIntegerTimes"    |-> mkPrimFun2 ((*)	       :: Op Integer)
-    , "primIntegerDiv"	    |-> mkPrimFun2 (div	       :: Op Integer)    -- partial
-    , "primIntegerMod"	    |-> mkPrimFun2 (mod	       :: Op Integer)    -- partial
+    [ "primIntegerPlus"     |-> mkPrimFun2 ((+)        :: Op Integer)
+    , "primIntegerMinus"    |-> mkPrimFun2 ((-)        :: Op Integer)
+    , "primIntegerTimes"    |-> mkPrimFun2 ((*)        :: Op Integer)
+    , "primIntegerDiv"      |-> mkPrimFun2 (div        :: Op Integer)    -- partial
+    , "primIntegerMod"      |-> mkPrimFun2 (mod        :: Op Integer)    -- partial
     , "primIntegerEquality" |-> mkPrimFun2 ((==)       :: Rel Integer)
-    , "primIntegerLess"	    |-> mkPrimFun2 ((<)	       :: Rel Integer)
+    , "primIntegerLess"     |-> mkPrimFun2 ((<)        :: Rel Integer)
     , "primIntegerAbs"      |-> mkPrimFun1 (Nat . abs  :: Integer -> Nat)
     , "primNatToInteger"    |-> mkPrimFun1 (unNat      :: Nat -> Integer)
-    , "primShowInteger"	    |-> mkPrimFun1 (Str . show :: Integer -> Str)
+    , "primShowInteger"     |-> mkPrimFun1 (Str . show :: Integer -> Str)
 
     -- Natural number functions
-    , "primNatPlus"	    |-> mkPrimFun2 ((+)			    :: Op Nat)
-    , "primNatMinus"	    |-> mkPrimFun2 ((\x y -> max 0 (x - y)) :: Op Nat)
-    , "primNatTimes"	    |-> mkPrimFun2 ((*)			    :: Op Nat)
+    , "primNatPlus"         |-> mkPrimFun2 ((+)                     :: Op Nat)
+    , "primNatMinus"        |-> mkPrimFun2 ((\x y -> max 0 (x - y)) :: Op Nat)
+    , "primNatTimes"        |-> mkPrimFun2 ((*)                     :: Op Nat)
     , "primNatDivSucAux"    |-> mkPrimFun4 ((\k m n j -> k + div (max 0 $ n + m - j) (m + 1)) :: Nat -> Nat -> Nat -> Nat -> Nat)
     , "primNatModSucAux"    |->
         let aux :: Nat -> Nat -> Nat -> Nat -> Nat
             aux k m n j | n > j     = mod (n - j - 1) (m + 1)
                         | otherwise = k + n
         in mkPrimFun4 aux
-    , "primNatEquality"	    |-> mkPrimFun2 ((==)		    :: Rel Nat)
-    , "primNatLess"	    |-> mkPrimFun2 ((<)			    :: Rel Nat)
-    , "primLevelZero"	    |-> mkPrimLevelZero
-    , "primLevelSuc"	    |-> mkPrimLevelSuc
-    , "primLevelMax"	    |-> mkPrimLevelMax
+    , "primNatEquality"     |-> mkPrimFun2 ((==)                    :: Rel Nat)
+    , "primNatLess"         |-> mkPrimFun2 ((<)                     :: Rel Nat)
+    , "primLevelZero"       |-> mkPrimLevelZero
+    , "primLevelSuc"        |-> mkPrimLevelSuc
+    , "primLevelMax"        |-> mkPrimLevelMax
 
     -- Floating point functions
     , "primIntegerToFloat"  |-> mkPrimFun1 (fromIntegral :: Integer -> Double)
-    , "primFloatPlus"	    |-> mkPrimFun2 ((+)		 :: Op Double)
-    , "primFloatMinus"	    |-> mkPrimFun2 ((-)		 :: Op Double)
-    , "primFloatTimes"	    |-> mkPrimFun2 ((*)		 :: Op Double)
-    , "primFloatDiv"	    |-> mkPrimFun2 ((/)		 :: Op Double)
-    , "primFloatEquality"   |-> mkPrimFun2 ((==)	 :: Rel Double)
-    , "primFloatLess"	    |-> mkPrimFun2 ((<)		 :: Rel Double)
-    , "primRound"	    |-> mkPrimFun1 (round	 :: Double -> Integer)
-    , "primFloor"	    |-> mkPrimFun1 (floor	 :: Double -> Integer)
-    , "primCeiling"	    |-> mkPrimFun1 (ceiling	 :: Double -> Integer)
-    , "primExp"		    |-> mkPrimFun1 (exp		 :: Fun Double)
-    , "primLog"		    |-> mkPrimFun1 (log		 :: Fun Double)    -- partial
-    , "primSin"		    |-> mkPrimFun1 (sin		 :: Fun Double)
-    , "primShowFloat"	    |-> mkPrimFun1 (Str . show	 :: Double -> Str)
+    , "primFloatPlus"       |-> mkPrimFun2 ((+)          :: Op Double)
+    , "primFloatMinus"      |-> mkPrimFun2 ((-)          :: Op Double)
+    , "primFloatTimes"      |-> mkPrimFun2 ((*)          :: Op Double)
+    , "primFloatDiv"        |-> mkPrimFun2 ((/)          :: Op Double)
+    , "primFloatEquality"   |-> mkPrimFun2 ((==)         :: Rel Double)
+    , "primFloatLess"       |-> mkPrimFun2 ((<)          :: Rel Double)
+    , "primRound"           |-> mkPrimFun1 (round        :: Double -> Integer)
+    , "primFloor"           |-> mkPrimFun1 (floor        :: Double -> Integer)
+    , "primCeiling"         |-> mkPrimFun1 (ceiling      :: Double -> Integer)
+    , "primExp"             |-> mkPrimFun1 (exp          :: Fun Double)
+    , "primLog"             |-> mkPrimFun1 (log          :: Fun Double)    -- partial
+    , "primSin"             |-> mkPrimFun1 (sin          :: Fun Double)
+    , "primShowFloat"       |-> mkPrimFun1 (Str . show   :: Double -> Str)
 
     -- Character functions
     , "primCharEquality"    |-> mkPrimFun2 ((==) :: Rel Char)
-    , "primIsLower"	    |-> mkPrimFun1 isLower
-    , "primIsDigit"	    |-> mkPrimFun1 isDigit
-    , "primIsAlpha"	    |-> mkPrimFun1 isAlpha
-    , "primIsSpace"	    |-> mkPrimFun1 isSpace
-    , "primIsAscii"	    |-> mkPrimFun1 isAscii
-    , "primIsLatin1"	    |-> mkPrimFun1 isLatin1
-    , "primIsPrint"	    |-> mkPrimFun1 isPrint
-    , "primIsHexDigit"	    |-> mkPrimFun1 isHexDigit
-    , "primToUpper"	    |-> mkPrimFun1 toUpper
-    , "primToLower"	    |-> mkPrimFun1 toLower
+    , "primIsLower"         |-> mkPrimFun1 isLower
+    , "primIsDigit"         |-> mkPrimFun1 isDigit
+    , "primIsAlpha"         |-> mkPrimFun1 isAlpha
+    , "primIsSpace"         |-> mkPrimFun1 isSpace
+    , "primIsAscii"         |-> mkPrimFun1 isAscii
+    , "primIsLatin1"        |-> mkPrimFun1 isLatin1
+    , "primIsPrint"         |-> mkPrimFun1 isPrint
+    , "primIsHexDigit"      |-> mkPrimFun1 isHexDigit
+    , "primToUpper"         |-> mkPrimFun1 toUpper
+    , "primToLower"         |-> mkPrimFun1 toLower
     , "primCharToNat"       |-> mkPrimFun1 (fromIntegral . fromEnum :: Char -> Nat)
     , "primNatToChar"       |-> mkPrimFun1 (toEnum . fromIntegral   :: Nat -> Char)
-    , "primShowChar"	    |-> mkPrimFun1 (Str . show . pretty . LitChar noRange)
+    , "primShowChar"        |-> mkPrimFun1 (Str . show . pretty . LitChar noRange)
 
     -- String functions
     , "primStringToList"    |-> mkPrimFun1 unStr
     , "primStringFromList"  |-> mkPrimFun1 Str
     , "primStringAppend"    |-> mkPrimFun2 (\s1 s2 -> Str $ unStr s1 ++ unStr s2)
     , "primStringEquality"  |-> mkPrimFun2 ((==) :: Rel Str)
-    , "primShowString"	    |-> mkPrimFun1 (Str . show . pretty . LitString noRange . unStr)
+    , "primShowString"      |-> mkPrimFun1 (Str . show . pretty . LitString noRange . unStr)
 
     -- Reflection
     , "primQNameType"       |-> primQNameType
@@ -627,13 +627,13 @@ primitiveFunctions = Map.fromList
     , "primShowQName"       |-> mkPrimFun1 (Str . show :: QName -> Str)
     ]
     where
-	(|->) = (,)
+        (|->) = (,)
 
 lookupPrimitiveFunction :: String -> TCM PrimitiveImpl
 lookupPrimitiveFunction x =
     case Map.lookup x primitiveFunctions of
-	Just p	-> p
-	Nothing	-> typeError $ NoSuchPrimitiveFunction x
+        Just p  -> p
+        Nothing -> typeError $ NoSuchPrimitiveFunction x
 
 lookupPrimitiveFunctionQ :: QName -> TCM (String, PrimitiveImpl)
 lookupPrimitiveFunctionQ q = do

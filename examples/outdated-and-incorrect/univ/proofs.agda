@@ -99,27 +99,27 @@ lem-Π/ B (el < σ , pσ >) =
 
 {-
 lem-β : {Γ : Con}{A : Type Γ}{B : Type (Γ , A)}
-	(v : Elem (Γ , A) B)(u : Elem Γ A) ->
-	(ƛ v) ∙ u =El v // [ u ]
+        (v : Elem (Γ , A) B)(u : Elem Γ A) ->
+        (ƛ v) ∙ u =El v // [ u ]
 lem-β {Γ}{A}{B} (elem (el < v , pv >)) (elem (el < u , pu >)) = eqEl (eq \x -> prf x _ _)
   where
     prf : (x : El Γ)(q : _ =S _)(p : _ =S _) ->
-	  p << v (el < x , u x >) == v (el < x , q << u (refS << x) >)
+          p << v (el < x , u x >) == v (el < x , q << u (refS << x) >)
     prf x q p =
       chain> p << v (el < x , u x >)
-	 === p << q0 << v (el < x , q1 << u (refS << x) >)
-	  by p<< p (pv (eqSnd (pu (sym (ref<< x)))))
-	 === q2 << v (el < x , q1 << u (refS << x) >)
-	  by sym (trans<< p q0 _)
-	 === q2 << q3 << v (el < x , q << u (refS << x) >)
-	  by p<< q2 (pv (eqSnd (pfi q1 q _)))
-	 === v (el < x , q << u (refS << x) >)
-	  by castref2 q2 q3 _
+         === p << q0 << v (el < x , q1 << u (refS << x) >)
+          by p<< p (pv (eqSnd (pu (sym (ref<< x)))))
+         === q2 << v (el < x , q1 << u (refS << x) >)
+          by sym (trans<< p q0 _)
+         === q2 << q3 << v (el < x , q << u (refS << x) >)
+          by p<< q2 (pv (eqSnd (pfi q1 q _)))
+         === v (el < x , q << u (refS << x) >)
+          by castref2 q2 q3 _
       where
-	open module C17 = Chain _==_ (ref {_}) (trans {_})
-	q0 = _
-	q1 = _
-	q2 = _
-	q3 = _
+        open module C17 = Chain _==_ (ref {_}) (trans {_})
+        q0 = _
+        q1 = _
+        q2 = _
+        q3 = _
 
 -}

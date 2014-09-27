@@ -9,7 +9,7 @@ module Agda.Utils.Monad
     )
     where
 
-import Prelude		   hiding (concat)
+import Prelude             hiding (concat)
 import Control.Monad       hiding (mapM, forM)
 import Control.Monad.State
 import Control.Monad.Writer
@@ -49,8 +49,8 @@ unlessM c m = c >>= (`unless_` m)
 -- | Monadic if-then-else.
 ifM :: Monad m => m Bool -> m a -> m a -> m a
 ifM c m m' =
-    do	b <- c
-	if b then m else m'
+    do  b <- c
+        if b then m else m'
 
 -- | @ifNotM mc = ifM (not <$> mc)@
 ifNotM :: Monad m => m Bool -> m a -> m a -> m a
@@ -160,8 +160,8 @@ localState = bracket_ get put
 
 readM :: (Error e, MonadError e m, Read a) => String -> m a
 readM s = case reads s of
-	    [(x,"")]	-> return x
-	    _		->
+            [(x,"")]    -> return x
+            _           ->
               throwError $ strMsg $ "readM: parse error string " ++ s
 
 
@@ -188,7 +188,7 @@ concatMapM f xs = concat <$> traverse f xs
 --   the force to be effective. For the 'IO' monad you do.
 forceM :: Monad m => [a] -> m ()
 forceM xs = do () <- length xs `seq` return ()
-	       return ()
+               return ()
 
 commuteM :: (Traversable f, Applicative m) => f (m a) -> m (f a)
 commuteM = traverse id

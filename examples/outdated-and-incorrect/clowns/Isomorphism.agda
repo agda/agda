@@ -8,9 +8,9 @@ module Isomorphism where
 
   data _≅_ (A B : Set) : Set where
     iso : (i : A -> B)(j : B -> A) ->
-	  (forall x -> j (i x) == x) ->
-	  (forall y -> i (j y) == y) ->
-	  A ≅ B
+          (forall x -> j (i x) == x) ->
+          (forall y -> i (j y) == y) ->
+          A ≅ B
 
   refl-≅ : (A : Set) -> A ≅ A
   refl-≅ A = iso id id (\x -> refl) (\x -> refl)

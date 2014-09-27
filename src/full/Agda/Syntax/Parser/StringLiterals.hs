@@ -35,10 +35,10 @@ litString = stringToken '"' (\i s ->
 -}
 litChar :: LexAction Token
 litChar = stringToken '\'' $ \i s ->
-	    do	case s of
-		    [c]	-> return $ TokLiteral $ LitChar (getRange i) c
-		    _	-> lexError
-			    "character literal must contain a single character"
+            do  case s of
+                    [c] -> return $ TokLiteral $ LitChar (getRange i) c
+                    _   -> lexError
+                            "character literal must contain a single character"
 
 
 {--------------------------------------------------------------------------
@@ -48,9 +48,9 @@ litChar = stringToken '\'' $ \i s ->
 -- | Custom error function.
 litError :: String -> LookAhead a
 litError msg =
-    do	sync
-	liftP $ lexError $
-	    "Lexical error in string or character literal: " ++ msg
+    do  sync
+        liftP $ lexError $
+            "Lexical error in string or character literal: " ++ msg
 
 
 {--------------------------------------------------------------------------
@@ -62,13 +62,13 @@ litError msg =
 --   characters).
 stringToken :: Char -> (Interval -> String -> Parser tok) -> LexAction tok
 stringToken del mkTok inp inp' n =
-    do	setLastPos (backupPos $ lexPos inp')
+    do  setLastPos (backupPos $ lexPos inp')
         setLexInput inp'
         -- TODO: Should setPrevToken be run here? Compare with
         -- Agda.Syntax.Parser.LexActions.token.
-	tok <- runLookAhead litError $ lexString del ""
-	i   <- getParseInterval
-	mkTok i tok
+        tok <- runLookAhead litError $ lexString del ""
+        i   <- getParseInterval
+        mkTok i tok
 
 
 -- | This is where the work happens. The string argument is an accumulating
@@ -76,90 +76,90 @@ stringToken del mkTok inp inp' n =
 lexString :: Char -> String -> LookAhead String
 lexString del s =
 
-    do	c <- nextChar
-	case c of
+    do  c <- nextChar
+        case c of
 
-	    c | c == del  -> sync >> return (reverse s)
+            c | c == del  -> sync >> return (reverse s)
 
-	    '\\' ->
-		do  c' <- nextChar
-		    case c' of
-			'&'		-> sync >> lexString del s
-			c | isSpace c	-> sync >> lexStringGap del s
-			_		-> normalChar
+            '\\' ->
+                do  c' <- nextChar
+                    case c' of
+                        '&'             -> sync >> lexString del s
+                        c | isSpace c   -> sync >> lexStringGap del s
+                        _               -> normalChar
 
-	    _ -> normalChar
+            _ -> normalChar
     where
-	normalChar =
-	    do	rollback
-		c <- lexChar
-		lexString del (c:s)
+        normalChar =
+            do  rollback
+                c <- lexChar
+                lexString del (c:s)
 
 
 -- | A string gap consists of whitespace (possibly including line breaks)
 --   enclosed in backslashes. The gap is not part of the resulting string.
 lexStringGap :: Char -> String -> LookAhead String
 lexStringGap del s =
-    do	c <- eatNextChar
-	case c of
-	    '\\'	    -> lexString del s
-	    c | isSpace c   -> lexStringGap del s
-	    _		    -> fail "non-space in string gap"
+    do  c <- eatNextChar
+        case c of
+            '\\'            -> lexString del s
+            c | isSpace c   -> lexStringGap del s
+            _               -> fail "non-space in string gap"
 
 -- | Lex a single character.
 lexChar :: LookAhead Char
 lexChar =
-    do	c <- eatNextChar
-	case c of
-	    '\\'    -> lexEscape
-	    _	    -> return c
+    do  c <- eatNextChar
+        case c of
+            '\\'    -> lexEscape
+            _       -> return c
 
 -- | Lex an escaped character. Assumes the backslash has been lexed.
 lexEscape :: LookAhead Char
 lexEscape =
-    do	c <- eatNextChar
-	case c of
-	    '^'	    -> do c <- eatNextChar
-			  if c >= '@' && c <= '_'
-			    then return (chr (ord c - ord '@'))
-			    else fail "invalid control character"
+    do  c <- eatNextChar
+        case c of
+            '^'     -> do c <- eatNextChar
+                          if c >= '@' && c <= '_'
+                            then return (chr (ord c - ord '@'))
+                            else fail "invalid control character"
 
-	    'x'	    -> readNum isHexDigit 16 hexDigit
-	    'o'	    -> readNum isOctDigit  8 octDigit
-	    x | isDigit x
-		    -> readNumAcc isDigit 10 decDigit (decDigit x)
+            'x'     -> readNum isHexDigit 16 hexDigit
+            'o'     -> readNum isOctDigit  8 octDigit
+            x | isDigit x
+                    -> readNumAcc isDigit 10 decDigit (decDigit x)
 
-	    c ->
-		-- Try to match the input (starting with c) against the
-		-- silly escape codes.
-		do  esc <- match' c (map (id -*- return) sillyEscapeChars)
-				    (fail "bad escape code")
-		    sync
-		    return esc
+            c ->
+                -- Try to match the input (starting with c) against the
+                -- silly escape codes.
+                do  esc <- match' c (map (id -*- return) sillyEscapeChars)
+                                    (fail "bad escape code")
+                    sync
+                    return esc
 
 -- | Read a number in the specified base.
 readNum :: (Char -> Bool) -> Int -> (Char -> Int) -> LookAhead Char
 readNum isDigit base conv =
-    do	c <- eatNextChar
-	if isDigit c
-	    then readNumAcc isDigit base conv (conv c)
-	    else fail "non-digit in numeral"
+    do  c <- eatNextChar
+        if isDigit c
+            then readNumAcc isDigit base conv (conv c)
+            else fail "non-digit in numeral"
 
 -- | Same as 'readNum' but with an accumulating parameter.
 readNumAcc :: (Char -> Bool) -> Int -> (Char -> Int) -> Int -> LookAhead Char
 readNumAcc isDigit base conv i = scan i
     where
-	scan i =
-	    do	inp <- getInput
-		c   <- nextChar
-		case c of
-		    c | isDigit c -> scan (i*base + conv c)
-		    _		  ->
-			do  setInput inp
-			    sync
-			    if i >= ord minBound && i <= ord maxBound
-				then return (chr i)
-				else fail "character literal out of bounds"
+        scan i =
+            do  inp <- getInput
+                c   <- nextChar
+                case c of
+                    c | isDigit c -> scan (i*base + conv c)
+                    _             ->
+                        do  setInput inp
+                            sync
+                            if i >= ord minBound && i <= ord maxBound
+                                then return (chr i)
+                                else fail "character literal out of bounds"
 
 -- | The escape codes.
 sillyEscapeChars :: [(String, Char)]

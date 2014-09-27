@@ -1,9 +1,102 @@
-# Created: 2014-09-16, Andreas
+# Adapted from https://github.com/hvr/multi-ghc-travis, go there for more information
 
-language: haskell
+# NB: don't set `language: haskell` here
 
-ghc:
-  - 7.0
-  - 7.4
-  - 7.6
-  - 7.8
+# The following lines enable several GHC versions and/or HP versions
+# to be tested; often it's enough to test only against the last
+# release of a major GHC version. Setting HPVER implictly sets
+# GHCVER. Omit lines with versions you don't need/want testing for.
+env:
+ # - GHCVER=7.0.4
+ # - GHCVER=7.2.1
+ # - GHCVER=7.2.2
+ # - GHCVER=7.4.1
+ # - GHCVER=7.4.2
+ # - GHCVER=7.6.1
+ # - GHCVER=7.6.2
+ # - GHCVER=7.6.3
+ # - GHCVER=7.8.1
+ # - GHCVER=7.8.2
+ # - GHCVER=7.8.3
+ - HPVER=2011.4.0.0
+ - HPVER=2012.4.0.0
+ - HPVER=2012.2.0.0
+ - HPVER=2013.2.0.0
+ - HPVER=2014.2.0.0
+
+# Note: the distinction between `before_install` and `install` is not
+#       important.
+before_install:
+ - case "$HPVER" in
+    "") ;;
+
+    "2014.2.0.0")
+      export GHCVER=7.8.3 ;
+#      echo "constraints:async==2.0.1.5,attoparsec==0.10.4.0,case-insensitive==1.1.0.3,fgl==5.5.0.1,GLUT==2.5.1.1,GLURaw==1.4.0.1,haskell-src==1.0.1.6,hashable==1.2.2.0,html==1.0.1.2,HTTP==4000.2.10,HUnit==1.2.5.2,mtl==2.1.3.1,network==2.4.2.3,OpenGL==2.9.2.0,OpenGLRaw==1.5.0.0,parallel==3.2.0.4,parsec==3.1.5,primitive==0.5.2.1,QuickCheck==2.6,random==1.0.1.1,regex-base==0.93.2,regex-compat==0.95.1,regex-posix==0.95.2,split==0.2.2,stm==2.4.2,syb==0.4.1,text==1.1.0.0,transformers==0.3.0.0,unordered-containers==0.2.4.0,vector==0.10.9.1,xhtml==3000.2.1,zlib==0.5.4.1" > cabal.config ;;
+
+    "2013.2.0.0")
+      export GHCVER=7.6.3 ;
+#      echo "constraints:async==2.0.1.4,attoparsec==0.10.4.0,case-insensitive==1.0.0.1,cgi==3001.1.7.5,fgl==5.4.2.4,GLUT==2.4.0.0,GLURaw==1.3.0.0,haskell-src==1.0.1.5,hashable==1.1.2.5,html==1.0.1.2,HTTP==4000.2.8,HUnit==1.2.5.2,mtl==2.1.2,network==2.4.1.2,OpenGL==2.8.0.0,OpenGLRaw==1.3.0.0,parallel==3.2.0.3,parsec==3.1.3,QuickCheck==2.6,random==1.0.1.1,regex-base==0.93.2,regex-compat==0.95.1,regex-posix==0.95.2,split==0.2.2,stm==2.4.2,syb==0.4.0,text==0.11.3.1,transformers==0.3.0.0,unordered-containers==0.2.3.0,vector==0.10.0.1,xhtml==3000.2.1,zlib==0.5.4.1" > cabal.config ;;
+
+    "2012.4.0.0")
+      export GHCVER=7.6.2 ;
+#      echo "constraints:async==2.0.1.3,cgi==3001.1.7.4,fgl==5.4.2.4,GLUT==2.1.2.1,haskell-src==1.0.1.5,html==1.0.1.2,HTTP==4000.2.5,HUnit==1.2.5.1,mtl==2.1.2,network==2.3.1.0,OpenGL==2.2.3.1,parallel==3.2.0.3,parsec==3.1.3,QuickCheck==2.5.1.1,random==1.0.1.1,regex-base==0.93.2,regex-compat==0.95.1,regex-posix==0.95.2,split==0.2.1.1,stm==2.4,syb==0.3.7,text==0.11.2.3,transformers==0.3.0.0,vector==0.10.0.1,xhtml==3000.2.1,zlib==0.5.4.0" > cabal.config ;;
+
+    "2012.2.0.0")
+      export GHCVER=7.4.1 ;
+#      echo "constraints:cgi==3001.1.7.4,fgl==5.4.2.4,GLUT==2.1.2.1,haskell-src==1.0.1.5,html==1.0.1.2,HTTP==4000.2.3,HUnit==1.2.4.2,mtl==2.1.1,network==2.3.0.13,OpenGL==2.2.3.1,parallel==3.2.0.2,parsec==3.1.2,QuickCheck==2.4.2,random==1.0.1.1,regex-base==0.93.2,regex-compat==0.95.1,regex-posix==0.95.1,stm==2.3,syb==0.3.6.1,text==0.11.2.0,transformers==0.3.0.0,xhtml==3000.2.1,zlib==0.5.3.3" > cabal.config ;;
+
+    "2011.4.0.0")
+      export GHCVER=7.0.4 ;
+#      echo "constraints:cgi==3001.1.7.4,fgl==5.4.2.4,GLUT==2.1.2.1,haskell-src==1.0.1.4,html==1.0.1.2,HUnit==1.2.4.2,network==2.3.0.5,OpenGL==2.2.3.0,parallel==3.1.0.1,parsec==3.1.1,QuickCheck==2.4.1.1,regex-base==0.93.2,regex-compat==0.95.1,regex-posix==0.95.1,stm==2.2.0.1,syb==0.3.3,xhtml==3000.2.0.4,zlib==0.5.3.1,HTTP==4000.1.2,deepseq==1.1.0.2" > cabal.config ;;
+
+    *)
+      export GHCVER=unknown ;
+      echo "unknown/invalid Haskell Platform requested" ;
+      exit 1 ;;
+
+   esac
+
+ - sudo add-apt-repository -y ppa:hvr/ghc
+ - sudo apt-get update
+ - sudo apt-get install cabal-install-1.18 ghc-$GHCVER
+ - export PATH=/opt/ghc/$GHCVER/bin:$PATH
+
+install:
+ - cabal-1.18 update
+ - cabal-1.18 install --only-dependencies --enable-tests --enable-benchmarks
+
+# Here starts the actual work to be performed for the package under
+# test; any command which exits with a non-zero exit code causes the
+# build to fail.
+script:
+ # -v2 provides useful information for debugging
+ - cabal-1.18 configure --enable-tests --enable-benchmarks -v2
+
+ # this builds all libraries and executables
+ # (including tests/benchmarks)
+ - cabal-1.18 build
+
+ - autoconf
+
+ - ./configure
+
+ - make test
+
+ # - cabal-1.18 test
+ # - cabal-1.18 check
+
+ # # tests that a source-distribution can be generated
+ # - cabal-1.18 sdist
+
+ # # check that the generated source-distribution can be built & installed
+ # - export SRC_TGZ=$(cabal-1.18 info . | awk '{print $2 ".tar.gz";exit}') ;
+ #   cd dist/;
+ #   if [ -f "$SRC_TGZ" ]; then
+ #      cabal-1.18 install "$SRC_TGZ";
+ #   else
+ #      echo "expected '$SRC_TGZ' not found";
+ #      exit 1;
+ #   fi
+
+# EOF

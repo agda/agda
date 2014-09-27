@@ -402,8 +402,8 @@ bindBuiltinInfo (BuiltinInfo s d) e = do
         bindBuiltinName s (name e')
 
       BuiltinPrim pfname axioms -> do
-	case e of
-	  A.Def qx -> do
+        case e of
+          A.Def qx -> do
 
             PrimImpl t pf <- lookupPrimitiveFunction pfname
             v <- checkExpr e t
@@ -420,7 +420,7 @@ bindBuiltinInfo (BuiltinInfo s d) e = do
             -- needed? yes, for checking equations for mul
             bindBuiltinName s v
 
-	  _ -> typeError $ GenericError $ "Builtin " ++ s ++ " must be bound to a function"
+          _ -> typeError $ GenericError $ "Builtin " ++ s ++ " must be bound to a function"
 
       BuiltinPostulate rel t -> do
         t' <- t

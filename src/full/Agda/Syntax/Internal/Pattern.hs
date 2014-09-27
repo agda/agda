@@ -117,7 +117,7 @@ data OneHolePatterns = OHPats [NamedArg Pattern]
                               [NamedArg Pattern]
   deriving (Show)
 data OneHolePattern  = Hole
-		     | OHCon ConHead ConPatternInfo OneHolePatterns
+                     | OHCon ConHead ConPatternInfo OneHolePatterns
                        -- ^ The type in 'ConPatternInfo' serves the same role as in 'ConP'.
                        --
                        -- TODO: If a hole is plugged this type may

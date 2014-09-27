@@ -106,15 +106,15 @@ instance LensConName ConHead where
 --     list of clauses.
 --
 data Term = Var {-# UNPACK #-} !Int Elims -- ^ @x es@ neutral
-	  | Lam ArgInfo (Abs Term)        -- ^ Terms are beta normal. Relevance is ignored
+          | Lam ArgInfo (Abs Term)        -- ^ Terms are beta normal. Relevance is ignored
           | ExtLam [Clause] Args          -- ^ Only used by unquote --> reify. Should never appear elsewhere.
-	  | Lit Literal
-	  | Def QName Elims               -- ^ @f es@, possibly a delta/iota-redex
-	  | Con ConHead Args              -- ^ @c vs@
-	  | Pi (Dom Type) (Abs Type)      -- ^ dependent or non-dependent function space
-	  | Sort Sort
+          | Lit Literal
+          | Def QName Elims               -- ^ @f es@, possibly a delta/iota-redex
+          | Con ConHead Args              -- ^ @c vs@
+          | Pi (Dom Type) (Abs Type)      -- ^ dependent or non-dependent function space
+          | Sort Sort
           | Level Level
-	  | MetaV {-# UNPACK #-} !MetaId Elims
+          | MetaV {-# UNPACK #-} !MetaId Elims
           | DontCare Term
             -- ^ Irrelevant stuff in relevant position, but created
             --   in an irrelevant context.  Basically, an internal
@@ -169,7 +169,7 @@ instance Decoration Type' where
 -- | Sequence of types. An argument of the first type is bound in later types
 --   and so on.
 data Tele a = EmptyTel
-	    | ExtendTel a (Abs (Tele a))  -- ^ 'Abs' is never 'NoAbs'.
+            | ExtendTel a (Abs (Tele a))  -- ^ 'Abs' is never 'NoAbs'.
   deriving (Typeable, Show, Functor, Foldable, Traversable)
 
 type Telescope = Tele (Dom Type)
@@ -198,7 +198,7 @@ replaceEmptyName x = mapAbsNames $ \ y -> if null y then x else y
 -- | Sorts.
 --
 data Sort = Type Level
-	  | Prop  -- ignore me
+          | Prop  -- ignore me
           | Inf
           | DLub Sort (Abs Sort)
             -- ^ if the free variable occurs in the second sort
@@ -295,8 +295,8 @@ clausePats = map (fmap namedThing) . namedClausePats
 --       ProjP{}     -> __IMPOSSIBLE__   -- TODO
 
 data ClauseBodyF a = Body a
-		   | Bind (Abs (ClauseBodyF a))
-		   | NoBody    -- ^ for absurd clauses.
+                   | Bind (Abs (ClauseBodyF a))
+                   | NoBody    -- ^ for absurd clauses.
   deriving (Typeable, Show, Functor, Foldable, Traversable)
 
 type ClauseBody = ClauseBodyF Term
@@ -542,8 +542,8 @@ arity t = case ignoreSharing $ unEl t of
 argName :: Type -> String
 argName = argN . ignoreSharing . unEl
     where
-	argN (Pi _ b)  = "." ++ argNameToString (absName b)
-	argN _	  = __IMPOSSIBLE__
+        argN (Pi _ b)  = "." ++ argNameToString (absName b)
+        argN _    = __IMPOSSIBLE__
 
 -- | Pick the better name suggestion, i.e., the one that is not just underscore.
 class Suggest a b where
@@ -702,7 +702,7 @@ instance Sized LevelAtom where
   size (UnreducedLevel v) = size v
 
 instance Sized (Tele a) where
-  size  EmptyTel	 = 0
+  size  EmptyTel         = 0
   size (ExtendTel _ tel) = 1 + size tel
 
 instance Sized a => Sized (Abs a) where

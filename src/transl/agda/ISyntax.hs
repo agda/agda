@@ -82,7 +82,7 @@ ppExp d p = go where
 
       (EClos env e)
         | deb       -> pparen True $ go e `sepnest` ppEnv d env
-	| readable  -> go e
+        | readable  -> go e
         | otherwise -> case env `reducedFor` e of
             (E (r,_))| null r ->           go e
             env'          -> ppar  0 $ go e `sepnest` ppEnv d env'

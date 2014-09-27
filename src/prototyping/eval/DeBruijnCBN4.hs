@@ -13,9 +13,9 @@ import qualified Syntax as S
 import Syntax ( Pat(..), Name, AppView(..), appView )
 
 data Exp = Var Int [Exp]
-	 | Con Name [Exp]
-	 | Def Name [Exp]
-	 | Lam Exp [Exp]
+         | Con Name [Exp]
+         | Def Name [Exp]
+         | Lam Exp [Exp]
 
 data Clause = Clause [Pat] Exp
 
@@ -38,10 +38,10 @@ instance Compile a b => Compile [a] [b] where
 
 instance Compile S.Exp Exp where
     compile e = case appView e of
-	Apps (S.Var n) es -> Var n	     $ compile es
-	Apps (S.Con c) es -> Con c	     $ compile es
-	Apps (S.Def c) es -> Def c	     $ compile es
-	Apps (S.Lam v) es -> Lam (compile v) $ compile es
+        Apps (S.Var n) es -> Var n           $ compile es
+        Apps (S.Con c) es -> Con c           $ compile es
+        Apps (S.Def c) es -> Def c           $ compile es
+        Apps (S.Lam v) es -> Lam (compile v) $ compile es
 
 instance Compile S.Clause Clause where
     compile (S.Clause ps v) = Clause ps $ compile v
@@ -58,11 +58,11 @@ decompile e = case e of
 raiseFrom :: Int -> Int -> Exp -> Exp
 raiseFrom n k e = case e of
     Var m es
-	| m < n	    -> Var m $ map (raiseFrom n k) es
-	| otherwise -> Var (m + k) $ map (raiseFrom n k) es
-    Con c es	    -> Con c $ map (raiseFrom n k) es
-    Def c es	    -> Def c $ map (raiseFrom n k) es
-    Lam e es	    -> Lam (raiseFrom (n + 1) k e) $ map (raiseFrom n k) es
+        | m < n     -> Var m $ map (raiseFrom n k) es
+        | otherwise -> Var (m + k) $ map (raiseFrom n k) es
+    Con c es        -> Con c $ map (raiseFrom n k) es
+    Def c es        -> Def c $ map (raiseFrom n k) es
+    Lam e es        -> Lam (raiseFrom (n + 1) k e) $ map (raiseFrom n k) es
 
 raise :: Int -> Exp -> Exp
 raise = raiseFrom 0
@@ -77,9 +77,9 @@ subst us v = case v of
 data Match a = No | DontKnow | Yes a
 
 instance Monoid a => Monoid (Match a) where
-    mempty		       = Yes mempty
-    mappend  No	      _	       = No
-    mappend  DontKnow _	       = DontKnow
+    mempty                     = Yes mempty
+    mappend  No       _        = No
+    mappend  DontKnow _        = DontKnow
     mappend (Yes _)   No       = No
     mappend (Yes _)   DontKnow = DontKnow
     mappend (Yes x)  (Yes y)   = Yes $ mappend x y
@@ -87,72 +87,72 @@ instance Monoid a => Monoid (Match a) where
 data Reduction a b = NotReduced a | Reduced b
 
 matchDef :: Sig -> [Clause] -> [Exp] -> Reduction [Exp] Exp
-matchDef sig []	      vs = NotReduced vs
+matchDef sig []       vs = NotReduced vs
 matchDef sig (c : cs) vs = case m of
-    No	     -> matchDef sig cs vs'
+    No       -> matchDef sig cs vs'
     DontKnow -> NotReduced vs'
     Yes v    -> Reduced v
     where
-	(m, vs') = match sig c vs
+        (m, vs') = match sig c vs
 
 match :: Sig -> Clause -> [Exp] -> (Match Exp, [Exp])
 match sig (Clause ps v) vs
     | length vs < nargs = (DontKnow, vs)
-    | otherwise		=
-	let (m, vs0') = {-# SCC "matchPs" #-} matchPats sig ps vs0
-	in  case m of
-	    Yes us   ->
-		let r = {-# SCC "matchYes" #-} subst (reverse us) v `apps` vs1
-		in	(Yes r,	   vs0' ++ vs1)
-	    No	     -> (No,	   vs0' ++ vs1)
-	    DontKnow -> (DontKnow, vs0' ++ vs1)
-	where
-	    nargs     = {-# SCC "matchLen" #-} length ps
-	    (vs0,vs1) = {-# SCC "matchSplit" #-} splitAt nargs vs
+    | otherwise         =
+        let (m, vs0') = {-# SCC "matchPs" #-} matchPats sig ps vs0
+        in  case m of
+            Yes us   ->
+                let r = {-# SCC "matchYes" #-} subst (reverse us) v `apps` vs1
+                in      (Yes r,    vs0' ++ vs1)
+            No       -> (No,       vs0' ++ vs1)
+            DontKnow -> (DontKnow, vs0' ++ vs1)
+        where
+            nargs     = {-# SCC "matchLen" #-} length ps
+            (vs0,vs1) = {-# SCC "matchSplit" #-} splitAt nargs vs
 
 matchPats :: Sig -> [Pat] -> [Exp] -> (Match [Exp], [Exp])
 matchPats sig [] [] = (Yes [], [])
 matchPats sig (p : ps) (v : vs) =
     let (m, v') = matchPat sig p v
-    in	case m of
-	No	 -> (No, v' : vs)
-	DontKnow -> (DontKnow, v' : vs)
-	Yes _	 -> let (ms, vs') = matchPats sig ps vs
-		    in  (mappend m ms, v' : vs')
+    in  case m of
+        No       -> (No, v' : vs)
+        DontKnow -> (DontKnow, v' : vs)
+        Yes _    -> let (ms, vs') = matchPats sig ps vs
+                    in  (mappend m ms, v' : vs')
 
 matchPat :: Sig -> Pat -> Exp -> (Match [Exp], Exp)
-matchPat _ VarP v	   = (Yes [v], v)
-matchPat _ WildP v	   = (Yes [v], v)
+matchPat _ VarP v          = (Yes [v], v)
+matchPat _ WildP v         = (Yes [v], v)
 matchPat sig (ConP c ps) v = case v' of
     Con c' vs
-	| c == c'   ->
-	    let (m, vs') = matchPats sig ps vs
-	    in case m of
-		Yes vs	 -> (Yes vs,   Con c' vs')
-		No	 -> (No,       Con c' vs')
-		DontKnow -> (DontKnow, Con c' vs')
-	| otherwise -> (No, v')
-    _		    -> (DontKnow, v')
+        | c == c'   ->
+            let (m, vs') = matchPats sig ps vs
+            in case m of
+                Yes vs   -> (Yes vs,   Con c' vs')
+                No       -> (No,       Con c' vs')
+                DontKnow -> (DontKnow, Con c' vs')
+        | otherwise -> (No, v')
+    _               -> (DontKnow, v')
     where
-	v' = whnf sig v
+        v' = whnf sig v
 
 iota :: Sig -> String -> [Exp] -> Exp
 iota sig c vs = fromMaybe (Con c vs) $ do
     cs <- Map.lookup c sig
     case matchDef sig cs vs of
-	NotReduced vs -> return $ Con c vs
-	Reduced v     -> return $ whnf sig v
+        NotReduced vs -> return $ Con c vs
+        Reduced v     -> return $ whnf sig v
 
 top :: Exp -> [Exp]
 top v = v : map (flip Var []) [0..]
 
 whnf :: Sig -> Exp -> Exp
 whnf sig v = case v of
-    Var n vs	   -> Var n vs
-    Con c vs	   -> Con c vs
-    Def c vs	   -> iota sig c vs
+    Var n vs       -> Var n vs
+    Con c vs       -> Con c vs
+    Def c vs       -> iota sig c vs
     Lam u (v : vs) -> whnf sig (subst (top v) u `apps` vs)
-    Lam u []	   -> Lam u []
+    Lam u []       -> Lam u []
 
 eval' :: Sig -> Exp -> Exp
 eval' sig v = case whnf sig v of

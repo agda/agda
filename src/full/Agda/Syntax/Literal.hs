@@ -8,9 +8,9 @@ import Agda.Syntax.Abstract.Name
 import Agda.Utils.Pretty
 
 data Literal = LitInt    Range Integer
-	     | LitFloat  Range Double
-	     | LitString Range String
-	     | LitChar   Range Char
+             | LitFloat  Range Double
+             | LitString Range String
+             | LitChar   Range Char
              | LitQName  Range QName
   deriving (Typeable)
 
@@ -26,7 +26,7 @@ instance Show Literal where
       sh c x = showString (c ++ " ") . shows x
 
 instance Pretty Literal where
-    pretty (LitInt _ n)	    = text $ show n
+    pretty (LitInt _ n)     = text $ show n
     pretty (LitFloat _ x)   = text $ show x
     pretty (LitString _ s)  = text $ showString' s ""
     pretty (LitChar _ c)    = text $ "'" ++ showChar' c "" ++ "'"
@@ -37,12 +37,12 @@ showString' s =
     foldr (.) id $ [ showString "\"" ] ++ map showChar' s ++ [ showString "\"" ]
 
 showChar' :: Char -> ShowS
-showChar' '"'	= showString "\\\""
+showChar' '"'   = showString "\\\""
 showChar' c
     | escapeMe c = showLitChar c
-    | otherwise	 = showString [c]
+    | otherwise  = showString [c]
     where
-	escapeMe c = not (isPrint c) || c == '\\'
+        escapeMe c = not (isPrint c) || c == '\\'
 
 instance Eq Literal where
   LitInt _ n    == LitInt _ m    = n == m

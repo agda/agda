@@ -79,7 +79,7 @@ data Problem' p = Problem
 
 -- | The permutation should permute @allHoles@ of the patterns to correspond to
 --   the abstract patterns in the problem.
-type Problem	 = Problem' (Permutation, [I.NamedArg Pattern])
+type Problem     = Problem' (Permutation, [I.NamedArg Pattern])
 type ProblemPart = Problem' ()
 
 -- | User patterns that could not be given a type yet.

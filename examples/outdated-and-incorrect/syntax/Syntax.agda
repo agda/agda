@@ -17,8 +17,8 @@ module examples.syntax.Syntax where
 
     -- There are three forms of sorts. Set = Set0.
     postulate A1 : Set
-	      A2 : Set3
-	      A3 : Prop
+              A2 : Set3
+              A3 : Prop
 
     -- Independent function space.
     fun1 : X -> X
@@ -106,12 +106,12 @@ module examples.syntax.Syntax where
     -- You can pattern match over elements of a datatype when defining
     -- functions (and only then).
     null : (A : Set) -> List A -> Bool
-    null A nil	   = true
+    null A nil     = true
     null A (x::xs) = false
 
     -- Patterns can be nested (and functions can be recursive).
     and : List Bool -> Bool
-    and nil	    = true
+    and nil         = true
     and (true::xs)  = and xs
     and (false::xs) = false
 
@@ -119,7 +119,7 @@ module examples.syntax.Syntax where
     -- clear what name is being defined without looking at fixities. Hence we
     -- could never remove the parenthesis around x::xs in the second clause.
     (++) : List X -> List X -> List X
-    nil	    ++ ys = ys
+    nil     ++ ys = ys
     (x::xs) ++ ys = x :: (xs ++ ys)
 
     -- You can also use a combination of infix and prefix.
@@ -133,7 +133,7 @@ module examples.syntax.Syntax where
     -- You can introduce new constants with the postulate declaration. A
     -- postulate declaration takes a list of type signatures.
     postulate A : Set
-	      a : A
+              a : A
 
     -- Let's introduce some datatypes so we have something to work with. At the
     -- same time we illustrate that layout is optional.
@@ -150,8 +150,8 @@ module examples.syntax.Syntax where
 
          infixl 15 +
          mutual
-	   (+) : Nat -> Nat -> Nat
-	   ..
+           (+) : Nat -> Nat -> Nat
+           ..
 
        There are three forms: infix, infixl and infixr, for non-associative,
        left associative and right associative respectively. The number is the
@@ -193,11 +193,11 @@ module examples.syntax.Syntax where
     -- (induction-recursion) and fixity declarations.
     mutual
       even : Nat -> Bool
-      even zero	    = true
+      even zero     = true
       even (suc n)  = odd n
 
       odd : Nat -> Bool
-      odd zero	    = false
+      odd zero      = false
       odd (suc n)   = even n
 
     -- If a function is declared abstract the definition of the function is not
@@ -207,8 +207,8 @@ module examples.syntax.Syntax where
     -- blocks, open and name space declarations (see NameSpaces).
     abstract
       data Stack : Set where
-	nil  : Stack
-	cons : A -> Stack -> Stack
+        nil  : Stack
+        cons : A -> Stack -> Stack
 
       empty : Stack
       empty = nil
@@ -222,11 +222,11 @@ module examples.syntax.Syntax where
     -- abstract blocks. Local functions can be recursive.
     foo : (A : Set) -> A -> A
     foo A x = let f : Local -> A
-		  f (local y) = y
-	      in  f (local x)
+                  f (local y) = y
+              in  f (local x)
       where
-	data Local : Set where
-	  local : A -> Local
+        data Local : Set where
+          local : A -> Local
 
     -- You can declare things to be private to the current module. This means
     -- that they cannot be accessed outside the module (but they're still
@@ -240,8 +240,8 @@ module examples.syntax.Syntax where
     -- Private declarations can go inside mutual and abstract blocks.
     mutual
       private f : Nat -> Nat
-	      f zero	= zero
-	      f (suc n) = g n
+              f zero    = zero
+              f (suc n) = g n
 
       g : Nat -> Nat
       g n = f n
@@ -251,7 +251,7 @@ module examples.syntax.Syntax where
       Nat' = Nat
 
       private h : Nat' -> Nat
-	      h n = n
+              h n = n
 
 
   -- A name space is something that contains names. You can create new
@@ -290,9 +290,9 @@ module examples.syntax.Syntax where
     import examples.syntax.ModuleB
 
     -- To instantiate ModuleB we need something to instantiate it with.
-    postulate X	   : Set
-	      (==) : X -> X -> Prop
-	      refl : (x : X) -> x == x
+    postulate X    : Set
+              (==) : X -> X -> Prop
+              refl : (x : X) -> x == x
 
     -- To instantiate a module you create a new module and define it as the
     -- instantiation in question.
@@ -300,9 +300,9 @@ module examples.syntax.Syntax where
 
     -- Now the module B contains all the names from ModuleB.
     XList = B.List
-    And	  = B./\    -- qualified operators are not infix symbols
+    And   = B./\    -- qualified operators are not infix symbols
 
-    dummyX = B.SubModule.dummy	-- submodules of ModuleB are also in scope
+    dummyX = B.SubModule.dummy  -- submodules of ModuleB are also in scope
 
     -- This of course works for non-parameterised modules as well.
     module B' = B
@@ -320,15 +320,15 @@ module examples.syntax.Syntax where
        can give modifiers that affect the names which are imported. There are
        three modifiers:
 
-	using (x1;..;xn)		only import x1,..,xn
-	hiding (x1;..;xn)		import everything but x1,..,xn
-	renaming (x1 to y1;..;xn to yn)	import x1,..,xn but call them y1,..,yn
+        using (x1;..;xn)                only import x1,..,xn
+        hiding (x1;..;xn)               import everything but x1,..,xn
+        renaming (x1 to y1;..;xn to yn) import x1,..,xn but call them y1,..,yn
 
       Restrictions:
-	- a modifier can appear only once
-	- 'using' and 'hiding' cannot appear together
-	- imported names must be distinct (e.g. you cannot rename to a name
-	  that is already being imported).
+        - a modifier can appear only once
+        - 'using' and 'hiding' cannot appear together
+        - imported names must be distinct (e.g. you cannot rename to a name
+          that is already being imported).
     -}
 
     -- B1 only contains True and False
@@ -354,7 +354,7 @@ module examples.syntax.Syntax where
   module MetaVariables where
 
     postulate X : Set
-	      x : X
+              x : X
 
     -- There are two ways of writing a question mark: ? and {! ... !}
     -- The type checker will not complain about unsolved question marks (unless
@@ -364,8 +364,8 @@ module examples.syntax.Syntax where
 
     incomplete' : {A:Set} -> A -> A
     incomplete' x = {! you can put anything in here,
-		       even {! nested holes !}
-		    !}
+                       even {! nested holes !}
+                    !}
 
     -- Underscores should always be solvable locally. Internally underscores
     -- are inserted for implicit arguments, but there are cases where you would
@@ -388,9 +388,9 @@ module examples.syntax.Syntax where
 
     -- We haven't decided how to handle built-in types.
     postulate Integer : Set
-	      Char    : Set
-	      String  : Set
-	      Float   : Set
+              Char    : Set
+              String  : Set
+              Float   : Set
 
     fortyTwo : Integer
     fortyTwo = 42
@@ -417,7 +417,7 @@ module examples.syntax.Syntax where
 
     {- Relative imports. You might want to be able to say
 
-	import .ModuleA
+        import .ModuleA
 
        to import the module 'current.directory.ModuleA'. Easy to implement but
        I'm not sure it's that painful to write the complete name (not a problem

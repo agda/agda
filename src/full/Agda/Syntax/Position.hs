@@ -278,19 +278,19 @@ instance Show a => Show (Position' (Maybe a)) where
 
 instance Show a => Show (Interval' (Maybe a)) where
     show (Interval s e) = file ++ start ++ "-" ++ end
-	where
-	    f	= srcFile s
-	    sl	= posLine s
-	    el	= posLine e
-	    sc	= posCol s
-	    ec	= posCol e
-	    file = case f of
+        where
+            f   = srcFile s
+            sl  = posLine s
+            el  = posLine e
+            sc  = posCol s
+            ec  = posCol e
+            file = case f of
                      Nothing -> ""
                      Just f  -> show f ++ ":"
-	    start = show sl ++ "," ++ show sc
-	    end
-		| sl == el  = show ec
-		| otherwise = show el ++ "," ++ show ec
+            start = show sl ++ "," ++ show sc
+            end
+                | sl == el  = show ec
+                | otherwise = show el ++ "," ++ show ec
 
 instance Show a => Show (Range' (Maybe a)) where
   show r = case rangeToInterval r of
@@ -315,7 +315,7 @@ noRange = Range []
 --   position to the next column.
 movePos :: Position' a -> Char -> Position' a
 movePos (Pn f p l c) '\n' = Pn f (p + 1) (l + 1) 1
-movePos (Pn f p l c) _	  = Pn f (p + 1) l (c + 1)
+movePos (Pn f p l c) _    = Pn f (p + 1) l (c + 1)
 
 -- | Advance the position by a string.
 --

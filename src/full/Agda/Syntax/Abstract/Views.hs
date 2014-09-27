@@ -33,7 +33,7 @@ unAppView (Application h es) =
 -- | Gather top-level 'AsP'atterns to expose underlying pattern.
 asView :: A.Pattern -> ([Name], A.Pattern)
 asView (A.AsP _ x p) = first (x :) $ asView p
-asView p	     = ([], p)
+asView p             = ([], p)
 
 -- | Check whether we are dealing with a universe.
 isSet :: Expr -> Bool

@@ -1,16 +1,19 @@
-{-# LANGUAGE CPP           #-}
-{-# LANGUAGE PatternGuards #-}
+{-# LANGUAGE CPP              #-}
+{-# LANGUAGE FlexibleContexts #-}
+{-# LANGUAGE PatternGuards    #-}
 
 module Agda.Compiler.MAlonzo.Compiler where
 
 import Control.Applicative
 import Control.Monad.Reader
 import Control.Monad.State
+import Data.Generics.Geniplate
 import Data.List as L
 import Data.Map as M
 import Data.Set as S
 import qualified Language.Haskell.Exts.Extension as HS
 import qualified Language.Haskell.Exts.Parser as HS
+import qualified Language.Haskell.Exts.Pretty as HS
 import qualified Language.Haskell.Exts.Syntax as HS
 import System.Directory (createDirectoryIfMissing)
 import System.FilePath hiding (normalise)
@@ -493,14 +496,16 @@ hsCast = addcast . go where
 -}
 
 hsCast e = mazCoerce `HS.App` hsCast' e
+
+hsCast' :: HS.Exp -> HS.Exp
 hsCast' (HS.App e1 e2)     = hsCast' e1 `HS.App` (hsCoerce $ hsCast' e2)
 hsCast' (HS.Lambda _ ps e) = HS.Lambda dummy ps $ hsCast' e
 hsCast' e = e
 
 -- No coercion for literal integers
+hsCoerce :: HS.Exp -> HS.Exp
 hsCoerce e@(HS.ExpTypeSig _ (HS.Lit (HS.Int{})) _) = e
 hsCoerce e = HS.App mazCoerce e
-
 
 --------------------------------------------------
 -- Writing out a haskell module
@@ -540,8 +545,11 @@ rteModule = ok $ parse $ unlines
   , "mazIncompleteMatch s = error (\"MAlonzo Runtime Error: incomplete pattern matching: \" ++ s)"
   ]
   where
-    parse = HS.parseWithMode
+    parse :: String -> HS.ParseResult HS.Module
+    parse = HS.parseModuleWithMode
               HS.defaultParseMode{HS.extensions = [explicitForAll]}
+
+    ok :: HS.ParseResult HS.Module -> HS.Module
     ok (HS.ParseOk d)   = d
     ok HS.ParseFailed{} = __IMPOSSIBLE__
 
@@ -564,6 +572,8 @@ compileDir = do
     Just dir -> return dir
     Nothing  -> __IMPOSSIBLE__
 
+outFile' :: (HS.Pretty a, TransformBi HS.ModuleName (Wrap a)) =>
+            a -> TCM (FilePath, FilePath)
 outFile' m = do
   mdir <- compileDir
   let (fdir, fn) = splitFileName $ repldot pathSeparator $

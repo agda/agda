@@ -15,11 +15,11 @@ module Prod (ℂ : Cat) where
 
   data _×_ (A B : Obj) : Set1 where
     prod : (AB : Obj)
-	   (π₀ : AB ─→ A)
-	   (π₁ : AB ─→ B) ->
-	   ((X : Obj)(f : X ─→ A)(g : X ─→ B) ->
-	    ∃! \(h : X ─→ AB) -> π₀ ∘ h == f /\ π₁ ∘ h == g
-	   ) -> A × B
+           (π₀ : AB ─→ A)
+           (π₁ : AB ─→ B) ->
+           ((X : Obj)(f : X ─→ A)(g : X ─→ B) ->
+            ∃! \(h : X ─→ AB) -> π₀ ∘ h == f /\ π₁ ∘ h == g
+           ) -> A × B
 
   Product : {A B : Obj} -> A × B -> Obj
   Product (prod AB _ _ _) = AB
@@ -32,9 +32,9 @@ module Prod (ℂ : Cat) where
 
 module Sum (ℂ : Cat) = Prod (η-Cat ℂ op)
     renaming ( _×_     to _+_
-	     ; prod    to sum
-	     ; Product to Sum
-	     ; π₀      to inl
-	     ; π₁      to inr
-	     )
+             ; prod    to sum
+             ; Product to Sum
+             ; π₀      to inl
+             ; π₁      to inr
+             )
 

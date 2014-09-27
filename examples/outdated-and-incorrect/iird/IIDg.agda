@@ -16,27 +16,27 @@ Args (δ H i γ) U = ((x : H) -> U (i x)) × \_ -> Args γ U
 
 -- The index of a value in an IIDg
 Index : {I : Set}(γ : OPg I)(U : I -> Set) -> Args γ U -> I
-Index (ι i)	U _	    = i
-Index (σ A γ)	U < a | b > = Index (γ a) U b
+Index (ι i)     U _         = i
+Index (σ A γ)   U < a | b > = Index (γ a) U b
 Index (δ _ _ γ) U < _ | b > = Index γ U b
 
 -- The assumptions of a particular inductive occurrence.
 IndArg : {I : Set}(γ : OPg I)(U : I -> Set) -> Args γ U -> Set
-IndArg (ι _)     U _	     = Zero
-IndArg (σ A γ)	 U < a | b > = IndArg (γ a) U b
+IndArg (ι _)     U _         = Zero
+IndArg (σ A γ)   U < a | b > = IndArg (γ a) U b
 IndArg (δ H i γ) U < _ | b > = H + IndArg γ U b
 
 -- The index of an inductive occurrence.
 IndIndex : {I : Set}(γ : OPg I)(U : I -> Set)(a : Args γ U) -> IndArg γ U a -> I
-IndIndex (ι _)	   U _	     ()
+IndIndex (ι _)     U _       ()
 IndIndex (σ A γ)   U < a | b > h       = IndIndex (γ a) U b h
 IndIndex (δ A i γ) U < g | b > (inl h) = i h
 IndIndex (δ A i γ) U < g | b > (inr h) = IndIndex γ U b h
 
 -- An inductive occurrence.
 Ind : {I : Set}(γ : OPg I)(U : I -> Set)(a : Args γ U)(h : IndArg γ U a) -> U (IndIndex γ U a h)
-Ind (ι _)     U _	  ()
-Ind (σ A γ)   U < a | b > h	  = Ind (γ a) U b h
+Ind (ι _)     U _         ()
+Ind (σ A γ)   U < a | b > h       = Ind (γ a) U b h
 Ind (δ H i γ) U < g | b > (inl h) = g h
 Ind (δ H i γ) U < _ | b > (inr h) = Ind γ U b h
 

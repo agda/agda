@@ -97,8 +97,8 @@ invertP :: Permutation -> Permutation
 invertP p@(Perm n xs) = Perm (size xs) $ map inv [0..n - 1]
   where
     inv x = case findIndex (x ==) xs of
-	      Just y  -> fromIntegral y
-	      Nothing -> error $ "invertP: non-surjective permutation " ++ show p
+              Just y  -> fromIntegral y
+              Nothing -> error $ "invertP: non-surjective permutation " ++ show p
 
 -- | Turn a possible non-surjective permutation into a surjective permutation.
 compactP :: Permutation -> Permutation
@@ -130,8 +130,8 @@ expandP :: Int -> Int -> Permutation -> Permutation
 expandP i n (Perm m xs) = Perm (m + n - 1) $ concatMap expand xs
   where
     expand j
-      | j == i	  = [i..i + n - 1]
-      | j < i	  = [j]
+      | j == i    = [i..i + n - 1]
+      | j < i     = [j]
       | otherwise = [j + n - 1]
 
 -- | Stable topologic sort. The first argument decides whether its first
@@ -140,7 +140,7 @@ topoSort :: (a -> a -> Bool) -> [a] -> Maybe Permutation
 topoSort parent xs = fmap (Perm (size xs)) $ topo g
   where
     nodes     = zip [0..] xs
-    g	      = [ (n, parents x) | (n, x) <- nodes ]
+    g         = [ (n, parents x) | (n, x) <- nodes ]
     parents x = [ n | (n, y) <- nodes, parent y x ]
 
     topo :: Eq node => [(node, [node])] -> Maybe [node]
@@ -148,11 +148,11 @@ topoSort parent xs = fmap (Perm (size xs)) $ topo g
     topo g  = case xs of
       []    -> fail "cycle detected"
       x : _ -> do
-	ys <- topo $ remove x g
-	return $ x : ys
+        ys <- topo $ remove x g
+        return $ x : ys
       where
-	xs = [ x | (x, []) <- g ]
-	remove x g = [ (y, filter (/= x) ys) | (y, ys) <- g, x /= y ]
+        xs = [ x | (x, []) <- g ]
+        remove x g = [ (y, filter (/= x) ys) | (y, ys) <- g, x /= y ]
 
 -- * Drop (apply) and undrop (abstract)
 

@@ -84,7 +84,7 @@ updateScopeNameSpacesM f s = for (f $ scopeNameSpaces s) $ \ x ->
 data ScopeInfo = ScopeInfo
       { scopeCurrent    :: A.ModuleName
       , scopeModules    :: Map A.ModuleName Scope
-      , scopeLocals	:: LocalVars
+      , scopeLocals     :: LocalVars
       , scopePrecedence :: Precedence
       }
   deriving (Typeable)
@@ -148,7 +148,7 @@ setScopeLocals vars = updateScopeLocals (const vars)
 --   write to the abstract fully qualified names that the type checker wants to
 --   read.
 data NameSpace = NameSpace
-      { nsNames	  :: NamesInScope
+      { nsNames   :: NamesInScope
         -- ^ Maps concrete names to a list of abstract names.
       , nsModules :: ModulesInScope
         -- ^ Maps concrete module names to a list of abstract module names.
@@ -266,19 +266,19 @@ emptyNameSpace = NameSpace Map.empty Map.empty
 
 -- | Map functions over the names and modules in a name space.
 mapNameSpace :: (NamesInScope   -> NamesInScope  ) ->
-		(ModulesInScope -> ModulesInScope) ->
-		NameSpace -> NameSpace
+                (ModulesInScope -> ModulesInScope) ->
+                NameSpace -> NameSpace
 mapNameSpace fd fm ns =
-  ns { nsNames	 = fd $ nsNames ns
+  ns { nsNames   = fd $ nsNames ns
      , nsModules = fm $ nsModules  ns
      }
 
 -- | Zip together two name spaces.
 zipNameSpace :: (NamesInScope   -> NamesInScope   -> NamesInScope  ) ->
-		(ModulesInScope -> ModulesInScope -> ModulesInScope) ->
-		NameSpace -> NameSpace -> NameSpace
+                (ModulesInScope -> ModulesInScope -> ModulesInScope) ->
+                NameSpace -> NameSpace -> NameSpace
 zipNameSpace fd fm ns1 ns2 =
-  ns1 { nsNames	  = nsNames   ns1 `fd` nsNames   ns2
+  ns1 { nsNames   = nsNames   ns1 `fd` nsNames   ns2
       , nsModules = nsModules ns1 `fm` nsModules ns2
       }
 
@@ -310,22 +310,22 @@ emptyScopeInfo :: ScopeInfo
 emptyScopeInfo = ScopeInfo
   { scopeCurrent    = noModuleName
   , scopeModules    = Map.singleton noModuleName emptyScope
-  , scopeLocals	    = []
+  , scopeLocals     = []
   , scopePrecedence = TopCtx
   }
 
 -- | Map functions over the names and modules in a scope.
 mapScope :: (NameSpaceId -> NamesInScope   -> NamesInScope  ) ->
-	    (NameSpaceId -> ModulesInScope -> ModulesInScope) ->
-	    Scope -> Scope
+            (NameSpaceId -> ModulesInScope -> ModulesInScope) ->
+            Scope -> Scope
 mapScope fd fm = updateScopeNameSpaces $ AssocList.mapWithKey mapNS
   where
     mapNS acc = mapNameSpace (fd acc) (fm acc)
 
 -- | Same as 'mapScope' but applies the same function to all name spaces.
 mapScope_ :: (NamesInScope   -> NamesInScope  ) ->
-	     (ModulesInScope -> ModulesInScope) ->
-	     Scope -> Scope
+             (ModulesInScope -> ModulesInScope) ->
+             Scope -> Scope
 mapScope_ fd fm = mapScope (const fd) (const fm)
 
 -- | Map monadic functions over the names and modules in a scope.
@@ -348,8 +348,8 @@ mapScopeM_ fd fm = mapScopeM (const fd) (const fm)
 -- | Zip together two scopes. The resulting scope has the same name as the
 --   first scope.
 zipScope :: (NameSpaceId -> NamesInScope   -> NamesInScope   -> NamesInScope  ) ->
-	    (NameSpaceId -> ModulesInScope -> ModulesInScope -> ModulesInScope) ->
-	    Scope -> Scope -> Scope
+            (NameSpaceId -> ModulesInScope -> ModulesInScope -> ModulesInScope) ->
+            Scope -> Scope -> Scope
 zipScope fd fm s1 s2 =
   s1 { scopeNameSpaces = [ (nsid, zipNS nsid ns1 ns2)
                          | ((nsid, ns1), (nsid', ns2)) <- zipWith' (,) (scopeNameSpaces s1) (scopeNameSpaces s2)
@@ -365,8 +365,8 @@ zipScope fd fm s1 s2 =
 -- | Same as 'zipScope' but applies the same function to both the public and
 --   private name spaces.
 zipScope_ :: (NamesInScope   -> NamesInScope   -> NamesInScope  ) ->
-	     (ModulesInScope -> ModulesInScope -> ModulesInScope) ->
-	     Scope -> Scope -> Scope
+             (ModulesInScope -> ModulesInScope -> ModulesInScope) ->
+             Scope -> Scope -> Scope
 zipScope_ fd fm = zipScope (const fd) (const fm)
 
 -- | Filter a scope keeping only concrete names matching the predicates.
@@ -462,40 +462,40 @@ applyImportDirective :: ImportDirective -> Scope -> Scope
 applyImportDirective dir s = mergeScope usedOrHidden renamed
   where
     usedOrHidden = useOrHide (hideLHS (renaming dir) $ usingOrHiding dir) s
-    renamed	 = rename (renaming dir) $ useOrHide useRenamedThings s
+    renamed      = rename (renaming dir) $ useOrHide useRenamedThings s
 
     useRenamedThings = Using $ map renFrom $ renaming dir
 
     hideLHS :: [Renaming] -> UsingOrHiding -> UsingOrHiding
-    hideLHS _	i@(Using _) = i
+    hideLHS _   i@(Using _) = i
     hideLHS ren (Hiding xs) = Hiding $ xs ++ map renFrom ren
 
     useOrHide :: UsingOrHiding -> Scope -> Scope
     useOrHide (Hiding xs) s = filterNames notElem notElem xs s
-    useOrHide (Using  xs) s = filterNames elem	  elem	  xs s
+    useOrHide (Using  xs) s = filterNames elem    elem    xs s
 
     filterNames :: (C.Name -> [C.Name] -> Bool) -> (C.Name -> [C.Name] -> Bool) ->
-		   [ImportedName] -> Scope -> Scope
+                   [ImportedName] -> Scope -> Scope
     filterNames pd pm xs = filterScope' (flip pd ds) (flip pm ms)
       where
-	ds = [ x | ImportedName   x <- xs ]
-	ms = [ m | ImportedModule m <- xs ]
+        ds = [ x | ImportedName   x <- xs ]
+        ms = [ m | ImportedModule m <- xs ]
 
     filterScope' pd pm = filterScope pd pm
 
     -- Renaming
     rename :: [Renaming] -> Scope -> Scope
     rename rho = mapScope_ (Map.mapKeys $ ren drho)
-			   (Map.mapKeys $ ren mrho)
+                           (Map.mapKeys $ ren mrho)
       where
-	mrho = [ (x, y) | Renaming { renFrom = ImportedModule x, renTo = y } <- rho ]
-	drho = [ (x, y) | Renaming { renFrom = ImportedName   x, renTo = y } <- rho ]
+        mrho = [ (x, y) | Renaming { renFrom = ImportedModule x, renTo = y } <- rho ]
+        drho = [ (x, y) | Renaming { renFrom = ImportedName   x, renTo = y } <- rho ]
 
-	ren r x = maybe x id $ lookup x r
+        ren r x = maybe x id $ lookup x r
 
 -- | Rename the abstract names in a scope.
 renameCanonicalNames :: Map A.QName A.QName -> Map A.ModuleName A.ModuleName ->
-			Scope -> Scope
+                        Scope -> Scope
 renameCanonicalNames renD renM = mapScope_ renameD renameM
   where
     renameD = Map.map (map $ onName  rD)

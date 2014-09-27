@@ -40,11 +40,11 @@ import Agda.Utils.Impossible
 -- | A name is a unique identifier and a suggestion for a concrete name. The
 --   concrete name contains the source location (if any) of the name. The
 --   source location of the binding site is also recorded.
-data Name = Name { nameId	   :: NameId
-		 , nameConcrete	   :: C.Name
-		 , nameBindingSite :: Range
-		 , nameFixity	   :: Fixity'
-		 }
+data Name = Name { nameId          :: NameId
+                 , nameConcrete    :: C.Name
+                 , nameBindingSite :: Range
+                 , nameFixity      :: Fixity'
+                 }
     deriving (Typeable)
 
 -- | Qualified names are non-empty lists of names. Equality on qualified names
@@ -54,8 +54,8 @@ data Name = Name { nameId	   :: NameId
 -- The 'SetRange' instance for qualified names sets all individual
 -- ranges (including those of the module prefix) to the given one.
 data QName = QName { qnameModule :: ModuleName
-		   , qnameName	 :: Name
-		   }
+                   , qnameName   :: Name
+                   }
     deriving (Typeable)
 
 -- | Something preceeded by a qualified name.
@@ -208,8 +208,8 @@ freshName r s = do
 
 freshNoName :: (MonadState s m, HasFresh NameId s) => Range -> m Name
 freshNoName r =
-    do	i <- fresh
-	return $ Name i (C.NoName noRange i) r defaultFixity'
+    do  i <- fresh
+        return $ Name i (C.NoName noRange i) r defaultFixity'
 
 freshNoName_ :: (MonadState s m, HasFresh NameId s) => m Name
 freshNoName_ = freshNoName noRange
@@ -235,14 +235,14 @@ instance FreshName () where
 nextName :: Name -> Name
 nextName x = x { nameConcrete = C.Name noRange $ nextSuf ps }
     where
-	C.Name _ ps = nameConcrete x
-	-- NoName cannot appear here
-	nextSuf [C.Id s]         = [C.Id $ nextStr s]
-	nextSuf [C.Id s, C.Hole] = [C.Id $ nextStr s, C.Hole]
-	nextSuf (p : ps)         = p : nextSuf ps
-	nextSuf []               = __IMPOSSIBLE__
-	nextStr s = case suffixView s of
-	    (s0, suf) -> addSuffix s0 (nextSuffix suf)
+        C.Name _ ps = nameConcrete x
+        -- NoName cannot appear here
+        nextSuf [C.Id s]         = [C.Id $ nextStr s]
+        nextSuf [C.Id s, C.Hole] = [C.Id $ nextStr s, C.Hole]
+        nextSuf (p : ps)         = p : nextSuf ps
+        nextSuf []               = __IMPOSSIBLE__
+        nextStr s = case suffixView s of
+            (s0, suf) -> addSuffix s0 (nextSuffix suf)
 
 ------------------------------------------------------------------------
 -- * Important instances: Eq, Ord, Hashable

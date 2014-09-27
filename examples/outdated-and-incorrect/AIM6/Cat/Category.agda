@@ -28,7 +28,7 @@ module Category (ℂ : Cat) where
   private module Eq {A B : Obj} = Equivalence (Eq {A}{B})
   open Eq public hiding (_==_)
 
-  infix	 20 _==_
+  infix  20 _==_
   infixr 30 _─→_
   infixr 90 _∘_
 
@@ -41,9 +41,9 @@ module Category (ℂ : Cat) where
   _∘_ = CC._∘_
 
   congL : {A B C : Obj}{f₁ f₂ : B ─→ C}{g : A ─→ B} ->
-	  f₁ == f₂ -> f₁ ∘ g == f₂ ∘ g
+          f₁ == f₂ -> f₁ ∘ g == f₂ ∘ g
   congL p = cong p refl
 
   congR : {A B C : Obj}{f : B ─→ C}{g₁ g₂ : A ─→ B} ->
-	  g₁ == g₂ -> f ∘ g₁ == f ∘ g₂
+          g₁ == g₂ -> f ∘ g₁ == f ∘ g₂
   congR p = cong refl p
