@@ -524,28 +524,23 @@ inScopeBecause f = mapScope_ mapName mapMod
 
 -- | Get the public parts of the public modules of a scope
 publicModules :: ScopeInfo -> Map A.ModuleName Scope
-publicModules scope = Map.filterWithKey (\m _ -> reachable m) allMods
+publicModules scope = Map.filterWithKey (\ m _ -> reachable m) allMods
   where
     allMods   = Map.map restrictPrivate $ scopeModules scope
     root      = scopeCurrent scope
     modules s = map amodName $ concat $ Map.elems $ allNamesInScope s
 
-    chase m = m : case Map.lookup m allMods of
-      Just s  -> concatMap chase $ modules s
-      Nothing -> __IMPOSSIBLE__
+    chase m = m : concatMap chase ms
+      where ms = maybe __IMPOSSIBLE__ modules $ Map.lookup m allMods
 
     reachable = (`elem` chase root)
 
 everythingInScope :: ScopeInfo -> NameSpace
-everythingInScope scope =
-    allThingsInScope
-    $ mergeScopes
+everythingInScope scope = allThingsInScope $ mergeScopes $
     [ s | (m, s) <- Map.toList (scopeModules scope), m `elem` current ]
   where
     this    = scopeCurrent scope
-    parents = case Map.lookup this (scopeModules scope) of
-      Just s  -> scopeParents s
-      Nothing -> __IMPOSSIBLE__
+    parents = maybe __IMPOSSIBLE__ scopeParents $ Map.lookup this $ scopeModules scope
     current = this : parents
 
 -- | Compute a flattened scope. Only include unqualified names or names
@@ -578,7 +573,7 @@ flattenScope ms scope =
         $ Map.unionsWith (++) $
           [ Map.mapKeys (\y -> C.Qual x y) $ build ms' exportedNamesInScope $ moduleScope m
           | (x, mods) <- Map.toList (getNames s)
-          , let ms' = [ ms' | m':ms' <- ms, m' == x ]
+          , let ms' = [ tl | hd:tl <- ms, hd == x ]
           , not $ null ms'
           , AbsModule m _ <- mods ]
 
@@ -675,9 +670,8 @@ inverseScopeLookup' ambCon name scope = case name of
     len (C.QName _)  = 1
     len (C.Qual _ x) = 1 + len x
 
-    best xs = case sortBy (compare `on` len) xs of
-      []    -> Nothing
-      x : _ -> Just x
+    best :: [C.QName] -> Maybe C.QName
+    best xs = mhead $ sortBy (compare `on` len) xs
 
     unique :: forall a . [a] -> Bool
     unique []      = __IMPOSSIBLE__
@@ -690,7 +684,7 @@ inverseScopeLookup' ambCon name scope = case name of
 
     findName :: Ord a => Map a [(A.ModuleName, C.Name)] -> a -> [C.QName]
     findName table q = do
-      (m, x) <- maybe [] id $ Map.lookup q table
+      (m, x) <- fromMaybe [] $ Map.lookup q table
       if m `elem` current
         then return (C.QName x)
         else do
@@ -699,7 +693,7 @@ inverseScopeLookup' ambCon name scope = case name of
 
     findModule :: A.ModuleName -> [C.QName]
     findModule q = findName moduleMap q ++
-                   maybe [] id (Map.lookup q importMap)
+                   fromMaybe [] (Map.lookup q importMap)
 
     importMap = Map.unionsWith (++) $ do
       (m, s) <- scopes
