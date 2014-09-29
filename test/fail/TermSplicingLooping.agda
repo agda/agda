@@ -1,5 +1,5 @@
 open import Common.Prelude
-open import Common.Reflect
+open import Common.Reflection
 
 module TermSplicingLooping where
 

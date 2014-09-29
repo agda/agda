@@ -2,7 +2,7 @@ module TestQuote where
 
 {- test of reflection, implementing a trivial prover. -}
 
-open import Common.Reflect
+open import Common.Reflection
 open import Common.Prelude
 open import Common.Level
 

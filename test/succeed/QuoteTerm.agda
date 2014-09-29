@@ -1,7 +1,7 @@
 
 module QuoteTerm where
 
-open import Common.Reflect
+open import Common.Reflection
 open import Common.Prelude renaming (Nat to ℕ; module Nat to ℕ)
 
 data _≡_ {a}{A : Set a}(x : A) : A → Set where

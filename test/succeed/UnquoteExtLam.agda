@@ -1,5 +1,5 @@
 
-open import Common.Reflect
+open import Common.Reflection
 open import Common.Prelude
 open import Common.Equality
 

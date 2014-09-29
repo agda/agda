@@ -2,7 +2,7 @@
 -- issue 1269.
 
 open import Common.Product
-open import Common.Reflect
+open import Common.Reflection
 open import Common.Equality
 
 postulate

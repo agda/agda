@@ -1,6 +1,6 @@
 
 open import Common.Prelude hiding (pred)
-open import Common.Reflect
+open import Common.Reflection
 open import Common.Equality
 
 un-function : Definition → FunDef
