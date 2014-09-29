@@ -478,7 +478,7 @@ tvaldecl q ind ntv npar cds cl =
     _                               -> HS.DataType
 
 infodecl :: QName -> HS.Decl
-infodecl q = fakeD (unqhname "name" q) $ show (show q)
+infodecl q = fakeD (unqhname "name" q) $ show $ show $ qnameToConcrete q
 
 --------------------------------------------------
 -- Inserting unsafeCoerce
