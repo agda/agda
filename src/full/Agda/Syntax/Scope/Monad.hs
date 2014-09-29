@@ -322,7 +322,9 @@ copyScope oldc new s = first (inScopeBecause $ Applied oldc) <$> runStateT (copy
       lift $ reportSLn "scope.copy" 20 $ "Copying scope " ++ show old ++ " to " ++ show new
       lift $ reportSLn "scope.copy" 50 $ show s
       s0 <- lift $ getNamedScope new
-      s' <- mapScopeM copyD copyM s
+      -- Delete private names, then copy names and modules.
+      s' <- mapScopeM_ copyD copyM $ setNameSpace PrivateNS emptyNameSpace s
+      -- Fix name and parent.
       return $ s' { scopeName    = scopeName s0
                   , scopeParents = scopeParents s0
                   }
@@ -330,17 +332,11 @@ copyScope oldc new s = first (inScopeBecause $ Applied oldc) <$> runStateT (copy
         new' = killRange new
         old  = scopeName s
 
-        copyM :: NameSpaceId -> ModulesInScope -> WSM ModulesInScope
-        copyM ImportedNS      ms = traverse (mapM $ lensAmodName renMod) ms
-        copyM PrivateNS       _  = return Map.empty
-        copyM PublicNS        ms = traverse (mapM $ lensAmodName renMod) ms
-        copyM OnlyQualifiedNS ms = traverse (mapM $ lensAmodName renMod) ms
+        copyM :: ModulesInScope -> WSM ModulesInScope
+        copyM = traverse $ mapM $ lensAmodName renMod
 
-        copyD :: NameSpaceId -> NamesInScope -> WSM NamesInScope
-        copyD ImportedNS      ds = traverse (mapM $ onName renName) ds
-        copyD PrivateNS       _  = return Map.empty
-        copyD PublicNS        ds = traverse (mapM $ onName renName) ds
-        copyD OnlyQualifiedNS ds = traverse (mapM $ onName renName) ds
+        copyD :: NamesInScope -> WSM NamesInScope
+        copyD = traverse $ mapM $ onName renName
 
         onName f d =
           case anameKind d of
@@ -348,10 +344,10 @@ copyScope oldc new s = first (inScopeBecause $ Applied oldc) <$> runStateT (copy
             _ -> lensAnameName f d
 
         addName x y = addNames (Map.singleton x y)
-        addMod  x y = addMods (Map.singleton x y)
+        addMod  x y = addMods  (Map.singleton x y)
 
-        addNames rd' = modify $ \(rm, rd) -> (rm, Map.union rd rd')
-        addMods  rm' = modify $ \(rm, rd) -> (Map.union rm rm', rd)
+        addNames rd' = modify $ \ (rm, rd) -> (rm, Map.union rd rd')
+        addMods  rm' = modify $ \ (rm, rd) -> (Map.union rm rm', rd)
 
         findName x = Map.lookup x <$> gets snd
         findMod  x = Map.lookup x <$> gets fst
