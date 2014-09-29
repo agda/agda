@@ -32,6 +32,7 @@ import Agda.Syntax.Concrete
 import Agda.Utils.AssocList (AssocList)
 import qualified Agda.Utils.AssocList as AssocList
 import Agda.Utils.Functor
+import Agda.Utils.Lens
 import Agda.Utils.List
 import qualified Agda.Utils.Map as Map
 
@@ -244,11 +245,19 @@ instance Eq AbstractName where
 instance Ord AbstractName where
   compare = compare `on` anameName
 
+-- | Van Laarhoven lens on 'anameName'.
+lensAnameName :: Functor m => (A.QName -> m A.QName) -> AbstractName -> m AbstractName
+lensAnameName f am = f (anameName am) <&> \ m -> am { anameName = m }
+
 instance Eq AbstractModule where
   (==) = (==) `on` amodName
 
 instance Ord AbstractModule where
   compare = compare `on` amodName
+
+-- | Van Laarhoven lens on 'amodName'.
+lensAmodName :: Functor m => (A.ModuleName -> m A.ModuleName) -> AbstractModule -> m AbstractModule
+lensAmodName f am = f (amodName am) <&> \ m -> am { amodName = m }
 
 -- * Operations on name and module maps.
 
@@ -491,21 +500,15 @@ applyImportDirective dir s = mergeScope usedOrHidden renamed
         mrho = [ (x, y) | Renaming { renFrom = ImportedModule x, renTo = y } <- rho ]
         drho = [ (x, y) | Renaming { renFrom = ImportedName   x, renTo = y } <- rho ]
 
-        ren r x = maybe x id $ lookup x r
+        ren r x = fromMaybe x $ lookup x r
 
 -- | Rename the abstract names in a scope.
 renameCanonicalNames :: Map A.QName A.QName -> Map A.ModuleName A.ModuleName ->
                         Scope -> Scope
 renameCanonicalNames renD renM = mapScope_ renameD renameM
   where
-    renameD = Map.map (map $ onName  rD)
-    renameM = Map.map (map $ onMName rM)
-
-    onName  f x = x { anameName = f $ anameName x }
-    onMName f x = x { amodName  = f $ amodName  x }
-
-    rD x = maybe x id $ Map.lookup x renD
-    rM x = maybe x id $ Map.lookup x renM
+    renameD = Map.map $ map $ over lensAnameName $ \ x -> Map.findWithDefault x x renD
+    renameM = Map.map $ map $ over lensAmodName  $ \ x -> Map.findWithDefault x x renM
 
 -- | Restrict the private name space of a scope
 restrictPrivate :: Scope -> Scope
