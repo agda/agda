@@ -820,7 +820,7 @@ domainFree info x =
       { A.metaRange          = r
       , A.metaScope          = emptyScopeInfo
       , A.metaNumber         = Nothing
-      , A.metaNameSuggestion = show x
+      , A.metaNameSuggestion = show $ A.nameConcrete x
       }
 
 ---------------------------------------------------------------------------
@@ -1141,7 +1141,7 @@ checkHeadApplication e t hd args = do
 
       -- The name of the fresh function.
       i <- fresh :: TCM Int
-      let name = filter (/= '_') (show $ A.qnameName c) ++ "-" ++ show i
+      let name = filter (/= '_') (show $ A.nameConcrete $ A.qnameName c) ++ "-" ++ show i
       c' <- setRange (getRange c) <$>
               liftM2 qualify (killRange <$> currentModule)
                              (freshName_ name)

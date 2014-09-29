@@ -44,7 +44,7 @@ checkTypeOfMain q ty
 -- | Check that the main function has type IO a, for some a.
 checkTypeOfMain :: QName -> Type -> TCM [HS.Decl] -> TCM [HS.Decl]
 checkTypeOfMain q ty ret
-  | show (qnameName q) /= "main" = ret
+  | show (nameConcrete $ qnameName q) /= "main" = ret
   | otherwise = do
     Def io _ <- ignoreSharing <$> primIO
     ty <- normalise ty
