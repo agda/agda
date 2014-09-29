@@ -331,10 +331,10 @@ copyScope oldc new s = first (inScopeBecause $ Applied oldc) <$> runStateT (copy
         old  = scopeName s
 
         copyM :: NameSpaceId -> ModulesInScope -> WSM ModulesInScope
-        copyM ImportedNS      ms = traverse (mapM $ onMod renMod) ms
+        copyM ImportedNS      ms = traverse (mapM $ lensAmodName renMod) ms
         copyM PrivateNS       _  = return Map.empty
-        copyM PublicNS        ms = traverse (mapM $ onMod renMod) ms
-        copyM OnlyQualifiedNS ms = traverse (mapM $ onMod renMod) ms
+        copyM PublicNS        ms = traverse (mapM $ lensAmodName renMod) ms
+        copyM OnlyQualifiedNS ms = traverse (mapM $ lensAmodName renMod) ms
 
         copyD :: NameSpaceId -> NamesInScope -> WSM NamesInScope
         copyD ImportedNS      ds = traverse (mapM $ onName renName) ds
@@ -342,16 +342,10 @@ copyScope oldc new s = first (inScopeBecause $ Applied oldc) <$> runStateT (copy
         copyD PublicNS        ds = traverse (mapM $ onName renName) ds
         copyD OnlyQualifiedNS ds = traverse (mapM $ onName renName) ds
 
-        onMod f m = do
-          x <- f $ amodName m
-          return m { amodName = x }
-
         onName f d =
           case anameKind d of
             PatternSynName -> return d  -- Pattern synonyms are simply aliased, not renamed
-            _ -> do
-              x <- f $ anameName d
-              return d { anameName = x }
+            _ -> lensAnameName f d
 
         addName x y = addNames (Map.singleton x y)
         addMod  x y = addMods (Map.singleton x y)
