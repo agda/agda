@@ -172,7 +172,7 @@ recordConstructorType fields = build fs
 -- | @checkModuleApplication modapp m0 x dir = return (modapp', renD, renM)@
 --
 --   @m0@ is the new (abstract) module name and
---   @x@ its concret form (used for error messages).
+--   @x@ its concrete form (used for error messages).
 checkModuleApplication
   :: C.ModuleApplication
   -> ModuleName
@@ -981,15 +981,14 @@ instance ToAbstract LetDef [A.LetBinding] where
             NiceOpen r x dirs | not (C.publicOpen dirs) -> do
               m       <- toAbstract (OldModuleName x)
               openModule_ x dirs
-              return [A.LetOpen (ModuleInfo
-                                   { minfoRange  = r
-                                   , minfoAsName = Nothing
-                                   , minfoAsTo   = renamingRange dirs
-                                   , minfoOpenShort = Nothing
-                                   , minfoDirective = Just dirs
-                                   })
-                                m
-                     ]
+              let minfo = ModuleInfo
+                    { minfoRange  = r
+                    , minfoAsName = Nothing
+                    , minfoAsTo   = renamingRange dirs
+                    , minfoOpenShort = Nothing
+                    , minfoDirective = Just dirs
+                    }
+              return [A.LetOpen minfo m]
 
             NiceModuleMacro r p x modapp open dir | not (C.publicOpen dir) ->
               checkModuleMacro LetApply r p x modapp open dir
@@ -1183,14 +1182,14 @@ instance ToAbstract NiceDeclaration A.Declaration where
       printScope "open" 20 $ "opening " ++ show x
       openModule_ x dir
       printScope "open" 20 $ "result:"
-      return [A.Open (ModuleInfo
-                        { minfoRange  = r
-                        , minfoAsName = Nothing
-                        , minfoAsTo   = renamingRange dir
-                        , minfoOpenShort = Nothing
-                        , minfoDirective = Just dir
-                        })
-                     m]
+      let minfo = ModuleInfo
+            { minfoRange     = r
+            , minfoAsName    = Nothing
+            , minfoAsTo      = renamingRange dir
+            , minfoOpenShort = Nothing
+            , minfoDirective = Just dir
+            }
+      return [A.Open minfo m]
 
     NicePragma r p -> do
       ps <- toAbstract p
@@ -1229,21 +1228,17 @@ instance ToAbstract NiceDeclaration A.Declaration where
             Nothing -> (x,                  noRange,   Nothing)
             Just a  -> (C.QName (asName a), asRange a, Just (asName a))
       case open of
-        DoOpen   -> do
-          toAbstract [ C.Open r name dir ]
-          return ()
-        DontOpen -> do
-          -- If not opening import directives are applied to the original scope
-          modifyNamedScopeM m $ applyImportDirectiveM x dir
-      return [ A.Import (ModuleInfo
-                           { minfoRange  = r
-                           , minfoAsName = theAsName
-                           , minfoAsTo   =
-                               getRange (theAsSymbol, renamingRange dir)
-                           , minfoOpenShort = Just open
-                           , minfoDirective = Just dir
-                           })
-                        m ]
+        DoOpen   -> void $ toAbstract [ C.Open r name dir ]
+        -- If not opening, import directives are applied to the original scope.
+        DontOpen -> modifyNamedScopeM m $ applyImportDirectiveM x dir
+      let minfo = ModuleInfo
+            { minfoRange     = r
+            , minfoAsName    = theAsName
+            , minfoAsTo      = getRange (theAsSymbol, renamingRange dir)
+            , minfoOpenShort = Just open
+            , minfoDirective = Just dir
+            }
+      return [ A.Import minfo m ]
 
     NiceUnquoteDecl r fx p a tc x e -> do
       y <- freshAbstractQName fx x
