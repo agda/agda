@@ -326,7 +326,7 @@ primTrustMe = do
 
 primQNameType :: TCM PrimitiveImpl
 primQNameType = mkPrimFun1TCM (el primQName --> el primAgdaType)
-                              (\q -> defType <$> getConstInfo q)
+                              (\q -> normalise' . defType =<< getConstInfo q)
   -- Note: gets the top-level type! All bounds variables have been lifted.
 
 primQNameDefinition :: TCM PrimitiveImpl
