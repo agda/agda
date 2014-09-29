@@ -26,8 +26,11 @@ Important changes since 0.8.1:
 
 * Reflection API
 
-  The primitive function for showing names, primShowQName, is now
-  exposed as Reflection.showName.
+  ** The Reflection.type function returns a normalised type now. This
+     change could break some code (see Agda issue 1269).
+
+  ** The primitive function for showing names, primShowQName, is now
+     exposed as Reflection.showName.
 
 * TODO: Remove the modules Foo.Props.Bar (see release notes for
   version 0.8.1). It should be enough revert the commit
