@@ -2,7 +2,7 @@
 module Reflection where
 
 open import Common.Prelude hiding (Unit; module Unit) renaming (Nat to ℕ; module Nat to ℕ)
-open import Common.Reflect
+open import Common.Reflection
 
 data _≡_ {a}{A : Set a}(x : A) : A → Set a where
   refl : x ≡ x

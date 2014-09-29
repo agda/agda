@@ -2,7 +2,7 @@
 module UnquoteDecl where
 
 open import Common.Prelude
-open import Common.Reflect
+open import Common.Reflection
 open import Common.Equality
 
 infixr 3 _`⇒_

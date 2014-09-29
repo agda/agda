@@ -1,5 +1,5 @@
 
-module Common.Reflect where
+module Common.Reflection where
 
 open import Common.Level
 open import Common.Prelude renaming (Nat to ℕ)
