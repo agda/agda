@@ -1599,7 +1599,6 @@ data TypeError
         | NothingAppliedToHiddenArg C.Expr
         | NothingAppliedToInstanceArg C.Expr
         | UnusedVariableInPatternSynonym
-        | PatternSynonymArityMismatch A.QName
     -- Operator errors
         | NoParseForApplication [C.Expr]
         | AmbiguousParseForApplication [C.Expr] [C.Expr]
