@@ -1,12 +1,11 @@
-{-# LANGUAGE CPP #-}
-{-# LANGUAGE FlexibleInstances #-}
+{-# LANGUAGE CPP                  #-}
+{-# LANGUAGE FlexibleInstances    #-}
 {-# LANGUAGE TypeSynonymInstances #-}
 
 module Agda.TypeChecking.MetaVars.Occurs where
 
 import Control.Applicative
 import Control.Monad
-import Control.Monad.Error
 import Control.Monad.Reader
 import Control.Monad.State
 
@@ -27,6 +26,13 @@ import {-# SOURCE #-} Agda.TypeChecking.MetaVars
 -- import Agda.TypeChecking.MetaVars
 
 import Agda.Utils.Either
+
+import Agda.Utils.Except
+  ( ExceptT
+  , MonadError(catchError, throwError)
+  , runExceptT
+  )
+
 import Agda.Utils.List (takeWhileJust)
 import Agda.Utils.Maybe
 import Agda.Utils.Monad
@@ -225,14 +231,14 @@ instance Occurs Term where
                 abort (strongly ctx) $ MetaCannotDependOn m (takeRelevant xs) i
               -- is a singleton type with unique inhabitant sv
               Right (Just sv) -> return $ sv `applyE` es
-        Lam h f	    -> Lam h <$> occ (leaveTop ctx) f
+        Lam h f     -> Lam h <$> occ (leaveTop ctx) f
         Level l     -> Level <$> occ ctx l  -- stay in Top
-        Lit l	    -> return v
+        Lit l       -> return v
         DontCare v  -> dontCare <$> occurs red Irrel m (goIrrelevant xs) v
         Def d es    -> Def d <$> occDef d (leaveTop ctx) es
         Con c vs    -> Con c <$> occ (leaveTop ctx) vs  -- if strongly rigid, remain so
-        Pi a b	    -> uncurry Pi <$> occ (leaveTop ctx) (a,b)
-        Sort s	    -> Sort <$> occ (leaveTop ctx) s
+        Pi a b      -> uncurry Pi <$> occ (leaveTop ctx) (a,b)
+        Sort s      -> Sort <$> occ (leaveTop ctx) s
         v@Shared{}  -> updateSharedTerm (occ ctx) v
         ExtLam{}    -> __IMPOSSIBLE__
         MetaV m' es -> do
@@ -441,7 +447,7 @@ instance Occurs a => Occurs [a] where
 --   reduction for a suitable instantiation of the meta variable.
 prune :: MetaId -> Args -> [Nat] -> TCM PruneResult
 prune m' vs xs = do
-  caseEitherM (runErrorT $ mapM (hasBadRigid xs) $ map unArg vs)
+  caseEitherM (runExceptT $ mapM (hasBadRigid xs) $ map unArg vs)
     (const $ return PrunedNothing) $ \ kills -> do
   reportSDoc "tc.meta.kill" 10 $ vcat
     [ text "attempting kills"
@@ -469,7 +475,7 @@ prune m' vs xs = do
 --   @hasBadRigid xs v = Nothing@ means that
 --   we cannot prune at all as one of the meta args is matchable.
 --   (See issue 1147.)
-hasBadRigid :: [Nat] -> Term -> ErrorT () TCM Bool
+hasBadRigid :: [Nat] -> Term -> ExceptT () TCM Bool
 hasBadRigid xs t = do
   -- We fail if we encounter a matchable argument.
   let failure = throwError ()

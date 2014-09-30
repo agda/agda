@@ -38,15 +38,15 @@ so the type checker first infers the type of |id ? zero|.
 {\small\[
     \Rule{ \InferTypeCtx {} {|id ? zero|} {|beta|} {|id beta zero|}}
     {\begin{array}{ccc}
-	\begin{array}[b]{lll}
-	    \InferTypeCtx {} {|id|} {|(A : Set) -> A -> A|} {|id|}
-	&~&  \CheckTypeCtx {} {|?|} {|Set|} {|beta|}
-	\end{array}
-    &~&	\infer{ \CheckTypeCtx {} {|zero|} {|beta|} {|zero|} }
-	{\begin{array}{lll}
-	    \InferTypeCtx {} {|zero|} {|Nat|} {|zero|}
-	&&  \InstMeta {|beta|} {|Nat|}
-	\end{array}}
+        \begin{array}[b]{lll}
+            \InferTypeCtx {} {|id|} {|(A : Set) -> A -> A|} {|id|}
+        &~&  \CheckTypeCtx {} {|?|} {|Set|} {|beta|}
+        \end{array}
+    &~& \infer{ \CheckTypeCtx {} {|zero|} {|beta|} {|zero|} }
+        {\begin{array}{lll}
+            \InferTypeCtx {} {|zero|} {|Nat|} {|zero|}
+        &&  \InstMeta {|beta|} {|Nat|}
+        \end{array}}
     \end{array}}
 \]}
 The inferred type |beta| is then compared against the expected type |alpha|,
@@ -67,8 +67,8 @@ principle:
 \begin{code}
     Nat : Set, zero : Nat, suc : Nat -> Nat,
     caseNat :  (P : Nat -> Set) -> P zero ->
-	       ((n : Nat) -> P (suc n)) ->
-	       (n : Nat) -> P n
+               ((n : Nat) -> P (suc n)) ->
+               (n : Nat) -> P n
 \end{code}
 
 In this signature we want to check that |caseNat ? zero (\n. n)| has type |Nat
@@ -122,7 +122,7 @@ is not the case in {\Core}. However, the type checking algorithm can be
 extended to handle this, something we have done in the implementation.}
 \begin{code}
 omega  : (N -> N) -> N  = \x. x (coerce ? x)
-Omega  : N	        = omega (coerce ? omega)
+Omega  : N              = omega (coerce ? omega)
 \end{code}
 where without guarded constants |Omega| would reduce to the non-normalising
 $\lambda$-term |(\x. x x) (\x. x x)|. With our, algorithm new guarded

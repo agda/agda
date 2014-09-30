@@ -12,7 +12,7 @@ module Uniq (ℂ : Cat) where
     unique : (forall g -> P g -> f == g) -> f ∈! P
 
   itsUnique : {A B : Obj}{f : A ─→ B}{P : A ─→ B -> Set} ->
-	      f ∈! P -> (g : A ─→ B) -> P g -> f == g
+              f ∈! P -> (g : A ─→ B) -> P g -> f == g
   itsUnique (unique h) = h
 
   data ∃! {A B : Obj}(P : A ─→ B -> Set) : Set where
@@ -22,11 +22,11 @@ module Uniq (ℂ : Cat) where
   getWitness (witness w _) = w
 
   uniqueWitness : {A B : Obj}{P : A ─→ B -> Set}(u : ∃! P) ->
-		  getWitness u ∈! P
+                  getWitness u ∈! P
   uniqueWitness (witness _ u) = u
 
   witnessEqual : {A B : Obj}{P : A ─→ B -> Set} -> ∃! P ->
-		 {f g : A ─→ B} -> P f -> P g -> f == g
+                 {f g : A ─→ B} -> P f -> P g -> f == g
   witnessEqual u {f} {g} pf pg = trans (sym hf) hg
     where
       h = getWitness u

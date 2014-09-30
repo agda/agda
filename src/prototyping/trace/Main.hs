@@ -13,12 +13,12 @@ main = do
 
 action s =
     case pExp $ myLexer s of
-	Ok e	-> do
-	    putStrLn ""
-	    putStrLn $ printTree e
-	    case runTC $ infer e of
-		Left e	-> do
-		    putStrLn $ "ERROR " ++ displayError e
-		Right t ->
-		    putStrLn $ "OK " ++ printTree t
-	Bad err -> putStrLn err
+        Ok e    -> do
+            putStrLn ""
+            putStrLn $ printTree e
+            case runTC $ infer e of
+                Left e  -> do
+                    putStrLn $ "ERROR " ++ displayError e
+                Right t ->
+                    putStrLn $ "OK " ++ printTree t
+        Bad err -> putStrLn err

@@ -1,13 +1,13 @@
-{-# LANGUAGE CPP #-}
-{-# LANGUAGE DeriveFoldable #-}
-{-# LANGUAGE DeriveFunctor #-}
-{-# LANGUAGE DeriveTraversable #-}
-{-# LANGUAGE FlexibleInstances #-}
+{-# LANGUAGE CPP                   #-}
+{-# LANGUAGE DeriveFoldable        #-}
+{-# LANGUAGE DeriveFunctor         #-}
+{-# LANGUAGE DeriveTraversable     #-}
+{-# LANGUAGE FlexibleInstances     #-}
 {-# LANGUAGE MultiParamTypeClasses #-}
-{-# LANGUAGE Rank2Types #-}
-{-# LANGUAGE ScopedTypeVariables #-}
-{-# LANGUAGE TupleSections #-}
-{-# LANGUAGE TypeSynonymInstances #-}
+{-# LANGUAGE Rank2Types            #-}
+{-# LANGUAGE ScopedTypeVariables   #-}
+{-# LANGUAGE TupleSections         #-}
+{-# LANGUAGE TypeSynonymInstances  #-}
 
 {-# OPTIONS -fno-cse #-}
 
@@ -19,7 +19,6 @@ module Agda.Interaction.InteractionTop
 import Control.Applicative hiding (empty)
 import qualified Control.Exception as E
 import Control.Monad.Identity
-import Control.Monad.Error
 import Control.Monad.Reader
 import Control.Monad.State
 
@@ -72,6 +71,13 @@ import qualified Agda.Compiler.MAlonzo.Compiler as MAlonzo
 import qualified Agda.Compiler.JS.Compiler as JS
 
 import qualified Agda.Auto.Auto as Auto
+
+import Agda.Utils.Except
+  ( ExceptT
+  , mkExceptT
+  , MonadError(catchError, throwError)
+  , runExceptT
+  )
 
 import Agda.Utils.FileName
 import Agda.Utils.Hash
@@ -406,7 +412,7 @@ data IOTCM' range
 -- | The 'Parse' monad.
 --   'StateT' state holds the remaining input.
 
-type Parse a = ErrorT String (StateT String Identity) a
+type Parse a = ExceptT String (StateT String Identity) a
 
 -- | Converter from the type of 'reads' to 'Parse'
 --   The first paramter is part of the error message
@@ -422,7 +428,7 @@ readsToParse s f = do
             return a
 
 parseToReadsPrec :: Parse a -> Int -> String -> [(a, String)]
-parseToReadsPrec p i s = case runIdentity . flip runStateT s . runErrorT $ parens' p of
+parseToReadsPrec p i s = case runIdentity . flip runStateT s . runExceptT $ parens' p of
     (Right a, s) -> [(a,s)]
     _ -> []
 
@@ -609,14 +615,14 @@ interpret (Cmd_highlight ii rng s) = withCurrentFile $ do
     lift $ printHighlightingInfo =<< generateTokenInfoFromString rng s
     lift $ highlightExpr e
   where
-    handle :: ErrorT String TCM () -> CommandM ()
+    handle :: ExceptT String TCM () -> CommandM ()
     handle m = do
-      res <- lift $ runErrorT m
+      res <- lift $ runExceptT m
       case res of
         Left s  -> display_info $ Info_Error s
         Right _ -> return ()
-    try :: String -> TCM a -> ErrorT String TCM a
-    try err m = ErrorT $ do
+    try :: String -> TCM a -> ExceptT String TCM a
+    try err m = mkExceptT $ do
       (Right <$> m) `catchError` \ _ -> return (Left err)
 
 interpret (Cmd_give   ii rng s) = give_gen ii rng s Give
@@ -1107,7 +1113,7 @@ display_info info = do
 --   xss <- sequence [ List.map (fst . unDom) <$> getContext
 --                   , Map.keys <$> asks envLetBindings
 --                   , List.map qnameName . HMap.keys . sigDefinitions <$> getSignature
--- 		  ]
+--                ]
 --   return $ concat [ parts $ nameConcrete x | x <- concat xss]
 --   where
 --     parts x = [ s | Id s <- nameParts x ]

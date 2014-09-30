@@ -1,12 +1,12 @@
-{-# LANGUAGE CPP #-}
-{-# LANGUAGE FlexibleInstances #-}
+{-# LANGUAGE CPP                        #-}
+{-# LANGUAGE FlexibleInstances          #-}
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
-{-# LANGUAGE ImplicitParams #-}
-{-# LANGUAGE NamedFieldPuns #-}
-{-# LANGUAGE PatternGuards #-}
-{-# LANGUAGE StandaloneDeriving #-}
-{-# LANGUAGE TupleSections #-}
-{-# LANGUAGE TypeSynonymInstances #-}
+{-# LANGUAGE ImplicitParams             #-}
+{-# LANGUAGE NamedFieldPuns             #-}
+{-# LANGUAGE PatternGuards              #-}
+{-# LANGUAGE StandaloneDeriving         #-}
+{-# LANGUAGE TupleSections              #-}
+{-# LANGUAGE TypeSynonymInstances       #-}
 
 {- Checking for Structural recursion
    Authors: Andreas Abel, Nils Anders Danielsson, Ulf Norell,
@@ -23,7 +23,6 @@ module Agda.Termination.TermCheck
 import Prelude hiding (null)
 
 import Control.Applicative
-import Control.Monad.Error
 import Control.Monad.State
 
 import Data.List hiding (null)
@@ -1243,6 +1242,14 @@ compareTerm' v0 p = do
     (Con c ts, p) -> do
       increase <$> offsetFromConstructor (conName c)
                <*> (infimum <$> mapM (\ t -> compareTerm' (unArg t) p) ts)
+
+    -- Andreas, 2014-09-22, issue 1281:
+    -- For metas, termination checking should be optimistic.
+    -- If there is any instance of the meta making termination
+    -- checking succeed, then we should not fail.
+    -- Thus, we assume the meta will be instantiated with the
+    -- deepest variable in @p@.
+    (MetaV{}, p) -> return $ Order.decr $ patternDepth p
 
     (t, p) | isSubTerm t p -> return Order.le
 

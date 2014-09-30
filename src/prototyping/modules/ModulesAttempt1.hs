@@ -12,14 +12,14 @@ type QName = (MName, Name)
 
 type Sig = Name -> MDef
 
-type Var  = Int	    -- deBruijn variables
+type Var  = Int     -- deBruijn variables
 type Term = [Var]
-type Type = ()	    -- we don't care about types here
+type Type = ()      -- we don't care about types here
 type Tel  = [Type]
 type Args = [Term]
 
 data MDef = Impl Tel MName Args
-	  | Expl Tel (Name -> Def) (Name -> MDef)
+          | Expl Tel (Name -> Def) (Name -> MDef)
 
 type Def  = Term
 
@@ -36,7 +36,7 @@ lookupModule_ sig (x:m) = look (sig x) m
   where
     look (Impl _ m' _) m       = lookupModule_ sig (m' ++ m)
     look (Expl _ _ mods) (x:m) = look (mods x) m
-    look m []		       = m
+    look m []                  = m
 
 -- Taking free variables into account -------------------------------------
 
@@ -46,8 +46,8 @@ lookupModule_ sig (x:m) = look (sig x) m
 raiseByFrom :: Int -> Int -> Term -> Term
 raiseByFrom k n t = map raise t
   where
-    raise m | m >= n	= m + k
-	    | otherwise	= m
+    raise m | m >= n    = m + k
+            | otherwise = m
 
 raiseBy n = raiseByFrom n 0
 
@@ -56,7 +56,7 @@ subst :: [Term] -> Term -> Term
 subst ts t = concatMap sub t
   where
     sub m | m < length ts = ts !! m
-	  | otherwise	  = [ m - length ts ]
+          | otherwise     = [ m - length ts ]
 
 {-
   Now the lookup functions. First we should think about what results we want to
@@ -70,10 +70,10 @@ subst ts t = concatMap sub t
 
     module T Φ where
       module A Δ where
-	f = e
+        f = e
       module B Γ = A us
       module C Θ where
-	module D = B vs
+        module D = B vs
       module E = C ws
 
     Here we have
@@ -87,12 +87,12 @@ subst ts t = concatMap sub t
     context inside its module:
 
       T.A.f   --> ΦΔ ⊢ e
-      T.B.f   --> ΦΓ ⊢ e↑(Γ,Δ)[us/Δ]		    -- ΦΓΔ ⊢ e↑(Γ,Δ)
+      T.B.f   --> ΦΓ ⊢ e↑(Γ,Δ)[us/Δ]                -- ΦΓΔ ⊢ e↑(Γ,Δ)
       T.C.D.f --> ΦΘ ⊢ e↑(Γ,Δ)[us/Δ]↑(Θ,Γ)[vs/Γ]    -- ΦΘΓ ⊢ e↑(Γ,Δ)[us/Δ]↑(Θ,Γ)
       T.E.D.f --> Φ  ⊢ e↑(Γ,Δ)[us/Δ]↑(Θ,Γ)[vs/Γ][ws/Θ]
 
     Notation: e↑(Γ,Δ) = raiseByFrom (length Γ) (length Δ) e
-	      e[us/Δ] = subst us e  -- requires ΓΔ ⊢ e, for some Γ
+              e[us/Δ] = subst us e  -- requires ΓΔ ⊢ e, for some Γ
 
   To accomplish this we need only modify lookupModule to return a module with
   properly abstracted and instantiated definitions. So for our example:
@@ -130,28 +130,28 @@ sig "T" = Expl phi defT modT
     defT x   = noDef x "T"
     modT "A" = Expl delta defA modA
       where
-	defA "f" = e
-	defA  x  = noDef x "T.A"
-	modA  x  = noMod x "T.A"
+        defA "f" = e
+        defA  x  = noDef x "T.A"
+        modA  x  = noMod x "T.A"
     modT "B" = Impl gamma ["T","A"] us
     modT "C" = Expl theta defC modC
       where
-	defC  x  = noDef x "T.C"
-	modC "D" = Impl [] ["T","B"] vs
-	modC  x  = noMod x "T.C"
+        defC  x  = noDef x "T.C"
+        modC "D" = Impl [] ["T","B"] vs
+        modC  x  = noMod x "T.C"
     modT "E" = Impl gamma ["T","C"] ws
     modT  x  = noMod x "T"
 
-    phi	  = [(),()]
+    phi   = [(),()]
     delta = [()]
     gamma = [(),(),()]
     theta = [()]
 
-    us	  = [[4,3,2,1,0]]     -- ΦΓ ⊢ us : Δ
-    vs	  = [[0],[1,2],[2,1]] -- ΦΘ ⊢ vs : Γ
-    ws	  = [[0,0,1]]	      -- Φ  ⊢ ws : Θ
+    us    = [[4,3,2,1,0]]     -- ΦΓ ⊢ us : Δ
+    vs    = [[0],[1,2],[2,1]] -- ΦΘ ⊢ vs : Γ
+    ws    = [[0,0,1]]         -- Φ  ⊢ ws : Θ
 
-    e	  = [0,1,2]	      -- ΦΔ ⊢ e
+    e     = [0,1,2]           -- ΦΔ ⊢ e
 
     noDef x m = error $ "no definition " ++ x ++ " in " ++ show m
     noMod x m = error $ "no module " ++ x ++ " in " ++ show m

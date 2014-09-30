@@ -1,10 +1,11 @@
-{-# LANGUAGE CPP #-}
-{-# LANGUAGE DeriveDataTypeable #-}
-{-# LANGUAGE DeriveFoldable #-}
-{-# LANGUAGE DeriveFunctor #-}
-{-# LANGUAGE DeriveTraversable #-}
-{-# LANGUAGE FlexibleInstances #-}
+{-# LANGUAGE CPP                        #-}
+{-# LANGUAGE DeriveDataTypeable         #-}
+{-# LANGUAGE DeriveFoldable             #-}
+{-# LANGUAGE DeriveFunctor              #-}
+{-# LANGUAGE DeriveTraversable          #-}
+{-# LANGUAGE FlexibleInstances          #-}
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
+{-# LANGUAGE TypeSynonymInstances       #-}
 
 {-| Some common syntactic entities are defined in this module.
 -}
@@ -329,10 +330,10 @@ defaultColoredArg :: ([c],a) -> Arg c a
 defaultColoredArg (cs,a) = setArgColors cs $ defaultArg a
 
 noColorArg :: Hiding -> Relevance -> a -> Arg c a
-noColorArg h r = Arg $ ArgInfo { argInfoHiding    = h
-                               , argInfoRelevance = r
-                               , argInfoColors    = []
-                               }
+noColorArg h r = Arg ArgInfo { argInfoHiding    = h
+                             , argInfoRelevance = r
+                             , argInfoColors    = []
+                             }
 
 -- | @xs \`withArgsFrom\` args@ translates @xs@ into a list of 'Arg's,
 -- using the elements in @args@ to fill in the non-'unArg' fields.
@@ -426,8 +427,8 @@ defaultDom = Dom defaultArgInfo
 -- | Something potentially carrying a name.
 data Named name a =
     Named { nameOf     :: Maybe name
-	  , namedThing :: a
-	  }
+          , namedThing :: a
+          }
     deriving (Eq, Ord, Typeable, Functor, Foldable, Traversable)
 
 -- | Standard naming.
@@ -557,9 +558,9 @@ instance Show NameId where
   show (NameId x i) = show x ++ "@" ++ show i
 
 instance Enum NameId where
-  succ (NameId n m)	= NameId (n + 1) m
-  pred (NameId n m)	= NameId (n - 1) m
-  toEnum n		= __IMPOSSIBLE__  -- should not be used
+  succ (NameId n m)     = NameId (n + 1) m
+  pred (NameId n m)     = NameId (n - 1) m
+  toEnum n              = __IMPOSSIBLE__  -- should not be used
   fromEnum (NameId n _) = fromIntegral n
 
 instance Hashable NameId where

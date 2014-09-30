@@ -245,13 +245,13 @@ nameOfBV n = fst . unDom <$> lookupBV n
 {-# SPECIALIZE getVarInfo :: Name -> TCM (Term, Dom Type) #-}
 getVarInfo :: MonadTCM tcm => Name -> tcm (Term, Dom Type)
 getVarInfo x =
-    do	ctx <- getContext
-	def <- asks envLetBindings
-	case findIndex ((==x) . fst . unDom) ctx of
-	    Just n -> do
+    do  ctx <- getContext
+        def <- asks envLetBindings
+        case findIndex ((==x) . fst . unDom) ctx of
+            Just n -> do
                 t <- typeOfBV' n
                 return (var n, t)
-	    _	    ->
-		case Map.lookup x def of
-		    Just vt -> liftTCM $ getOpen vt
-		    _	    -> fail $ "unbound variable " ++ show x
+            _       ->
+                case Map.lookup x def of
+                    Just vt -> liftTCM $ getOpen vt
+                    _       -> fail $ "unbound variable " ++ show x

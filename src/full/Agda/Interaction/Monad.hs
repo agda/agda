@@ -1,12 +1,15 @@
-{-# LANGUAGE TypeSynonymInstances, FlexibleInstances,
-             MultiParamTypeClasses #-}
+{-# LANGUAGE FlexibleInstances     #-}
+{-# LANGUAGE MultiParamTypeClasses #-}
+{-# LANGUAGE TypeSynonymInstances  #-}
+
 module Agda.Interaction.Monad where
 
 import Agda.TypeChecking.Monad
 
 import Control.Monad.Trans
-import Control.Monad.Error
 import System.Console.Haskeline
+
+import Agda.Utils.Except ( MonadError(catchError, throwError) )
 
 -- | Interaction monad.
 

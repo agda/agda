@@ -1,4 +1,4 @@
-{-# LANGUAGE CPP #-}
+{-# LANGUAGE CPP           #-}
 {-# LANGUAGE PatternGuards #-}
 {-# LANGUAGE TupleSections #-}
 
@@ -6,7 +6,6 @@ module Agda.TypeChecking.Rules.Builtin (bindBuiltin, bindPostulatedName) where
 
 import Control.Applicative
 import Control.Monad
-import Control.Monad.Error
 import Data.List (find)
 
 import qualified Agda.Syntax.Abstract as A
@@ -28,6 +27,7 @@ import Agda.TypeChecking.Rules.Term ( checkExpr , inferExpr )
 import {-# SOURCE #-} Agda.TypeChecking.Rules.Builtin.Coinduction
 import {-# SOURCE #-} Agda.TypeChecking.Rewriting
 
+import Agda.Utils.Except ( MonadError(catchError) )
 import Agda.Utils.Maybe
 import Agda.Utils.Size
 
@@ -427,8 +427,8 @@ bindBuiltinInfo (BuiltinInfo s d) e = do
         bindBuiltinName s (name e')
 
       BuiltinPrim pfname axioms -> do
-	case e of
-	  A.Def qx -> do
+        case e of
+          A.Def qx -> do
 
             PrimImpl t pf <- lookupPrimitiveFunction pfname
             v <- checkExpr e t
@@ -445,7 +445,7 @@ bindBuiltinInfo (BuiltinInfo s d) e = do
             -- needed? yes, for checking equations for mul
             bindBuiltinName s v
 
-	  _ -> typeError $ GenericError $ "Builtin " ++ s ++ " must be bound to a function"
+          _ -> typeError $ GenericError $ "Builtin " ++ s ++ " must be bound to a function"
 
       BuiltinPostulate rel t -> do
         t' <- t

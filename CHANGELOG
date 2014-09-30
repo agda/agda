@@ -52,6 +52,11 @@ Type checking
   Or switch off the termination checker altogether with
   {-# OPTIONS --no-termination-check #-} (at your own risk!).
 
+Bug fixes
+=========
+
+* Issue 1194
+
 ------------------------------------------------------------------------
 -- Release notes for Agda version 2.4.2
 ------------------------------------------------------------------------

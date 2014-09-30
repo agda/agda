@@ -1,4 +1,4 @@
-{-# LANGUAGE CPP #-}
+{-# LANGUAGE CPP              #-}
 {-# LANGUAGE FlexibleContexts #-}
 
 module Agda.Utils.Monad
@@ -9,15 +9,19 @@ module Agda.Utils.Monad
     )
     where
 
-import Prelude		   hiding (concat)
+import Prelude             hiding (concat)
 import Control.Monad       hiding (mapM, forM)
-import Control.Monad.Error
 import Control.Monad.State
 import Control.Monad.Writer
 import Control.Applicative
 import Data.Traversable as Trav hiding (for, sequence)
 import Data.Foldable as Fold
 import Data.Maybe
+
+import Agda.Utils.Except
+  ( Error(noMsg, strMsg)
+  , MonadError(catchError, throwError)
+  )
 
 import Agda.Utils.List
 
@@ -28,11 +32,11 @@ import Agda.Utils.Impossible
 
 -- | @when_@ is just @Control.Monad.when@ with a more general type.
 when_ :: Monad m => Bool -> m a -> m ()
-when_ b m = when b $ do m >> return ()
+when_ b m = when b $ m >> return ()
 
 -- | @unless_@ is just @Control.Monad.unless@ with a more general type.
 unless_ :: Monad m => Bool -> m a -> m ()
-unless_ b m = unless b $ do m >> return ()
+unless_ b m = unless b $ m >> return ()
 
 whenM :: Monad m => m Bool -> m a -> m ()
 whenM c m = c >>= (`when_` m)
@@ -45,8 +49,8 @@ unlessM c m = c >>= (`unless_` m)
 -- | Monadic if-then-else.
 ifM :: Monad m => m Bool -> m a -> m a -> m a
 ifM c m m' =
-    do	b <- c
-	if b then m else m'
+    do  b <- c
+        if b then m else m'
 
 -- | @ifNotM mc = ifM (not <$> mc)@
 ifNotM :: Monad m => m Bool -> m a -> m a -> m a
@@ -113,13 +117,13 @@ mapMaybeM :: (Monad m, Functor m) => (a -> m (Maybe b)) -> [a] -> m [b]
 mapMaybeM f xs = catMaybes <$> Trav.mapM f xs
 
 -- | A monadic version of @'dropWhile' :: (a -> Bool) -> [a] -> [a]@.
-dropWhileM :: (Monad m) => (a -> m Bool) -> [a] -> m [a]
+dropWhileM :: Monad m => (a -> m Bool) -> [a] -> m [a]
 dropWhileM p []       = return []
 dropWhileM p (x : xs) = ifM (p x) (dropWhileM p xs) (return (x : xs))
 
 -- Error monad ------------------------------------------------------------
 
--- | To simulate @MaybeT@ by @'ErrorT'@.
+-- | To simulate @MaybeT@ by @ExceptT@.
 instance Error () where
   noMsg = ()
 
@@ -134,21 +138,10 @@ first `finally` after = do
     Left e  -> throwError e
     Right r -> return r
 
--- | Bracket for the 'Error' class.
-
-bracket :: (Error e, MonadError e m)
-        => m a         -- ^ Acquires resource. Run first.
-        -> (a -> m c)  -- ^ Releases resource. Run last.
-        -> (a -> m b)  -- ^ Computes result. Run in-between.
-        -> m b
-bracket acquire release compute = do
-  resource <- acquire
-  compute resource `finally` release resource
-
 -- State monad ------------------------------------------------------------
 
 -- | Bracket without failure.  Typically used to preserve state.
-bracket_ :: (Monad m)
+bracket_ :: Monad m
          => m a         -- ^ Acquires resource. Run first.
          -> (a -> m c)  -- ^ Releases resource. Run last.
          -> m b         -- ^ Computes result. Run in-between.
@@ -160,21 +153,32 @@ bracket_ acquire release compute = do
   return result
 
 -- | Restore state after computation.
-localState :: (MonadState s m) => m a -> m a
+localState :: MonadState s m => m a -> m a
 localState = bracket_ get put
 
 -- Read -------------------------------------------------------------------
 
 readM :: (Error e, MonadError e m, Read a) => String -> m a
 readM s = case reads s of
-	    [(x,"")]	-> return x
-	    _		->
+            [(x,"")]    -> return x
+            _           ->
               throwError $ strMsg $ "readM: parse error string " ++ s
 
 
-
-
 -- RETIRED STUFF ----------------------------------------------------------
+
+{- RETIRED, ASR, 09 September 2014. Not used.
+-- | Bracket for the 'Error' class.
+
+-- bracket :: (Error e, MonadError e m)
+--         => m a         -- ^ Acquires resource. Run first.
+--         -> (a -> m c)  -- ^ Releases resource. Run last.
+--         -> (a -> m b)  -- ^ Computes result. Run in-between.
+--         -> m b
+-- bracket acquire release compute = do
+--   resource <- acquire
+--   compute resource `finally` release resource
+-}
 
 {- RETIRED, Andreas, 2012-04-30. Not used.
 concatMapM :: Applicative m => (a -> m [b]) -> [a] -> m [b]
@@ -184,7 +188,7 @@ concatMapM f xs = concat <$> traverse f xs
 --   the force to be effective. For the 'IO' monad you do.
 forceM :: Monad m => [a] -> m ()
 forceM xs = do () <- length xs `seq` return ()
-	       return ()
+               return ()
 
 commuteM :: (Traversable f, Applicative m) => f (m a) -> m (f a)
 commuteM = traverse id

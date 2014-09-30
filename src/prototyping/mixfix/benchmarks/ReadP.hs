@@ -162,7 +162,7 @@ run _            _     = []
 
 parse :: ReadP t a -> [t] -> [a]
 parse p ts = case complete p of
-    R f	-> map fst $ run (f return) ts
+    R f -> map fst $ run (f return) ts
 
 get :: ReadP t t
 -- ^ Consumes and returns the next character.
@@ -447,10 +447,10 @@ Here follow the properties:
 >  prop_Gather s =
 >    forAll readPWithoutReadS $ \p ->
 >      readP_to_S (gather p) s =~
->	 [ ((pre,x::Int),s')
->	 | (x,s') <- readP_to_S p s
->	 , let pre = take (length s - length s') s
->	 ]
+>        [ ((pre,x::Int),s')
+>        | (x,s') <- readP_to_S p s
+>        , let pre = take (length s - length s') s
+>        ]
 >
 >  prop_String_Yes this s =
 >    readP_to_S (string this) (this ++ s) =~

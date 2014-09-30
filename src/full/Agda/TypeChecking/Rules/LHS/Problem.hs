@@ -1,12 +1,11 @@
 -- {-# LANGUAGE CPP #-}
-{-# LANGUAGE DeriveFoldable #-}
-{-# LANGUAGE DeriveFunctor #-}
+{-# LANGUAGE DeriveFoldable    #-}
+{-# LANGUAGE DeriveFunctor     #-}
 {-# LANGUAGE DeriveTraversable #-}
 {-# LANGUAGE FlexibleInstances #-}
 
 module Agda.TypeChecking.Rules.LHS.Problem where
 
-import Control.Monad.Error
 import Data.Monoid ( Monoid(mappend,mempty) )
 import Data.Foldable
 import Data.Traversable
@@ -21,6 +20,7 @@ import qualified Agda.Syntax.Abstract as A
 import Agda.TypeChecking.Substitute as S
 import Agda.TypeChecking.Pretty
 
+import Agda.Utils.Except ( Error(noMsg, strMsg) )
 import Agda.Utils.Permutation
 
 type Substitution   = [Maybe Term]
@@ -79,7 +79,7 @@ data Problem' p = Problem
 
 -- | The permutation should permute @allHoles@ of the patterns to correspond to
 --   the abstract patterns in the problem.
-type Problem	 = Problem' (Permutation, [I.NamedArg Pattern])
+type Problem     = Problem' (Permutation, [I.NamedArg Pattern])
 type ProblemPart = Problem' ()
 
 -- | User patterns that could not be given a type yet.

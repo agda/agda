@@ -192,19 +192,19 @@ primBody s = maybe unimplemented (either (hsVarUQ . HS.Ident) id <$>) $
 
   -- Floating point functions
   , "primIntegerToFloat"    |-> return "(fromIntegral :: Integer -> Double)"
-  , "primFloatPlus"	    |-> return "((+) :: Double -> Double -> Double)"
-  , "primFloatMinus"	    |-> return "((-) :: Double -> Double -> Double)"
-  , "primFloatTimes"	    |-> return "((*) :: Double -> Double -> Double)"
-  , "primFloatDiv"	    |-> return "((/) :: Double -> Double -> Double)"
+  , "primFloatPlus"         |-> return "((+) :: Double -> Double -> Double)"
+  , "primFloatMinus"        |-> return "((-) :: Double -> Double -> Double)"
+  , "primFloatTimes"        |-> return "((*) :: Double -> Double -> Double)"
+  , "primFloatDiv"          |-> return "((/) :: Double -> Double -> Double)"
   , "primFloatEquality"     |-> rel "(==)" "Double"
   , "primFloatLess"         |-> rel "(<)" "Double"
-  , "primRound"	            |-> return "(round :: Double -> Integer)"
-  , "primFloor"	            |-> return "(floor :: Double -> Integer)"
-  , "primCeiling"	    |-> return "(ceiling :: Double -> Integer)"
-  , "primExp"		    |-> return "(exp :: Double -> Double)"
-  , "primLog"		    |-> return "(log :: Double -> Double)"  -- partial
-  , "primSin"		    |-> return "(sin :: Double -> Double)"
-  , "primShowFloat"	    |-> return "(show :: Double -> String)"
+  , "primRound"             |-> return "(round :: Double -> Integer)"
+  , "primFloor"             |-> return "(floor :: Double -> Integer)"
+  , "primCeiling"           |-> return "(ceiling :: Double -> Integer)"
+  , "primExp"               |-> return "(exp :: Double -> Double)"
+  , "primLog"               |-> return "(log :: Double -> Double)"  -- partial
+  , "primSin"               |-> return "(sin :: Double -> Double)"
+  , "primShowFloat"         |-> return "(show :: Double -> String)"
   , "primRound"             |-> return "(round :: Double -> Integer)"
 
   -- Character functions

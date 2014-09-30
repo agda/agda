@@ -1,7 +1,7 @@
-{-# LANGUAGE FlexibleInstances #-}
+{-# LANGUAGE FlexibleInstances      #-}
 {-# LANGUAGE FunctionalDependencies #-}
-{-# LANGUAGE MultiParamTypeClasses #-}
-{-# LANGUAGE UndecidableInstances #-}
+{-# LANGUAGE MultiParamTypeClasses  #-}
+{-# LANGUAGE UndecidableInstances   #-}
 
 -- | Basically a copy of the ErrorT monad transformer. It's handy to slap
 --   onto TCM and still be a MonadTCM (which isn't possible with ErrorT).
@@ -13,11 +13,12 @@
 module Agda.TypeChecking.Monad.Exception where
 
 import Control.Applicative
-import Control.Monad.Error
 import Control.Monad.State
 import Control.Monad.Reader
 import Control.Monad.Writer
+
 import Agda.TypeChecking.Monad.Base
+import Agda.Utils.Except ( Error(strMsg), MonadError(catchError, throwError) )
 
 newtype ExceptionT err m a = ExceptionT { runExceptionT :: m (Either err a) }
 

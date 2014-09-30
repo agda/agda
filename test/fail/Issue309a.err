@@ -1,4 +1,4 @@
 Issue309a.agda:6,18-18
-Issue309a.agda:6,18: malformed
-syntax declaration: syntax must use unique argument names x<ERROR>
-g : D → D g (d x) = e x ...
+Issue309a.agda:6,18: Malformed syntax
+declaration: syntax must use unique argument names x<ERROR> g : D →
+D g (d x) = e x ...

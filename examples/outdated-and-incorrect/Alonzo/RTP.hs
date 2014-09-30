@@ -59,7 +59,7 @@ _primNatToInt (RTN.C3 n) = ( _primIntAdd (1::Prelude.Int)  ( (_primNatToInt(cast
 
 _primIntToNat 0 = zero
 _primIntToNat n | (Prelude.>) n (0 :: Prelude.Int) = suc (cast (_primIntToNat (  _primIntSub n (1::Prelude.Int))))
-	| Prelude.otherwise = _primIntToNat (_primIntSub 0 n)
+        | Prelude.otherwise = _primIntToNat (_primIntSub 0 n)
 _abs = _primIntToNat
 
 _primShowFloat :: Float -> Prelude.String

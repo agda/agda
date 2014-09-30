@@ -53,8 +53,8 @@ addConstant q d = do
   reportSLn "tc.signature" 20 $ "adding constant " ++ show q ++ " to signature"
   tel <- getContextTelescope
   let tel' = replaceEmptyName "r" $ killRange $ case theDef d of
-	      Constructor{} -> fmap (setHiding Hidden) tel
-	      _		    -> tel
+              Constructor{} -> fmap (setHiding Hidden) tel
+              _             -> tel
   let d' = abstract tel' $ d { defName = q }
   reportSLn "tc.signature" 30 $ "lambda-lifted definition = " ++ show d'
   modifySignature $ \sig -> sig
@@ -184,29 +184,29 @@ addDisplayForms x = do
       def <- getConstInfo x
       let cs = defClauses def
       case cs of
-	[ Clause{ namedClausePats = pats, clauseBody = b } ]
-	  | all (isVar . namedArg) pats
+        [ Clause{ namedClausePats = pats, clauseBody = b } ]
+          | all (isVar . namedArg) pats
           , Just (m, Def y es) <- strip (b `apply` vs0)
           , Just vs <- mapM isApplyElim es -> do
-	      let ps = raise 1 $ map unArg vs
+              let ps = raise 1 $ map unArg vs
                   df = Display 0 ps $ DTerm $ Def top $ map Apply args
-	      reportSLn "tc.display.section" 20 $ "adding display form " ++ show y ++ " --> " ++ show top
+              reportSLn "tc.display.section" 20 $ "adding display form " ++ show y ++ " --> " ++ show top
                                                 ++ "\n  " ++ show df
-	      addDisplayForm y df
-	      add args top y vs
-	_ -> do
-	      let reason = case cs of
-		    []    -> "no clauses"
-		    _:_:_ -> "many clauses"
-		    [ Clause{ clauseBody = b } ] -> case strip b of
-		      Nothing -> "bad body"
-		      Just (m, Def y es)
-			| m < length args -> "too few args"
-			| m > length args -> "too many args"
-			| otherwise	  -> "args=" ++ show args ++ " es=" ++ show es
-		      Just (m, v) -> "not a def body"
-	      reportSLn "tc.display.section" 30 $ "no display form from " ++ show x ++ " because " ++ reason
-	      return ()
+              addDisplayForm y df
+              add args top y vs
+        _ -> do
+              let reason = case cs of
+                    []    -> "no clauses"
+                    _:_:_ -> "many clauses"
+                    [ Clause{ clauseBody = b } ] -> case strip b of
+                      Nothing -> "bad body"
+                      Just (m, Def y es)
+                        | m < length args -> "too few args"
+                        | m > length args -> "too many args"
+                        | otherwise       -> "args=" ++ show args ++ " es=" ++ show es
+                      Just (m, v) -> "not a def body"
+              reportSLn "tc.display.section" 30 $ "no display form from " ++ show x ++ " because " ++ reason
+              return ()
     strip (Body v)   = return (0, unSpine v)
     strip  NoBody    = Nothing
     strip (Bind b)   = do
@@ -269,20 +269,20 @@ applySection new ptel old ts rd rm = do
           reportSLn "tc.mod.apply" 80 $ "args = " ++ show ts' ++ "\n" ++
                                         "old type = " ++ showTerm (unEl $ defType d) ++ "\n" ++
                                         "new type = " ++ showTerm (unEl t)
-	  addConstant y =<< nd y
+          addConstant y =<< nd y
           makeProjection y
-	  -- Set display form for the old name if it's not a constructor.
+          -- Set display form for the old name if it's not a constructor.
 {- BREAKS fail/Issue478
           -- Andreas, 2012-10-20 and if we are not an anonymous module
-	  -- unless (isAnonymousModuleName new || isCon || size ptel > 0) $ do
+          -- unless (isAnonymousModuleName new || isCon || size ptel > 0) $ do
 -}
           -- Issue1238: the copied def should be an 'instance' if the original
           -- def is one. Skip constructors since the original constructor will
           -- still work as an instance.
           unless isCon $ flip (maybe (return ())) inst $ \c -> addNamedInstance y c
 
-	  unless (isCon || size ptel > 0) $ do
-	    addDisplayForms y
+          unless (isCon || size ptel > 0) $ do
+            addDisplayForms y
           where
             ts' = take np ts
             t   = defType d `apply` ts'
@@ -383,8 +383,8 @@ addDisplayForm x df = do
   where
     add df sig = sig { sigDefinitions = HMap.adjust addDf x defs }
       where
-	addDf def = def { defDisplay = df : defDisplay def }
-	defs	  = sigDefinitions sig
+        addDf def = def { defDisplay = df : defDisplay def }
+        defs      = sigDefinitions sig
 
 canonicalName :: QName -> TCM QName
 canonicalName x = do
@@ -454,8 +454,8 @@ instance HasConstInfo (TCMT IO) where
       mkAbs env d
         | treatAbstractly' q' env =
           case makeAbstract d of
-            Just d	-> return d
-            Nothing	-> notInScope $ qnameToConcrete q
+            Just d      -> return d
+            Nothing     -> notInScope $ qnameToConcrete q
               -- the above can happen since the scope checker is a bit sloppy with 'abstract'
         | otherwise = return d
         where
@@ -652,12 +652,12 @@ treatAbstractly q = asks $ treatAbstractly' q
 
 treatAbstractly' :: QName -> TCEnv -> Bool
 treatAbstractly' q env = case envAbstractMode env of
-  ConcreteMode	     -> True
+  ConcreteMode       -> True
   IgnoreAbstractMode -> False
-  AbstractMode	     -> not $ current == m || current `isSubModuleOf` m
+  AbstractMode       -> not $ current == m || current `isSubModuleOf` m
   where
     current = envCurrentModule env
-    m	    = qnameModule q
+    m       = qnameModule q
 
 -- | Get type of a constant, instantiated to the current context.
 typeOfConst :: QName -> TCM Type
@@ -674,10 +674,10 @@ colOfConst q = defColors <$> getConstInfo q
 -- | The name must be a datatype.
 sortOfConst :: QName -> TCM Sort
 sortOfConst q =
-    do	d <- theDef <$> getConstInfo q
-	case d of
-	    Datatype{dataSort = s} -> return s
-	    _			   -> fail $ "Expected " ++ show q ++ " to be a datatype."
+    do  d <- theDef <$> getConstInfo q
+        case d of
+            Datatype{dataSort = s} -> return s
+            _                      -> fail $ "Expected " ++ show q ++ " to be a datatype."
 
 -- | Is it the name of a record projection?
 isProjection :: QName -> TCM (Maybe Projection)

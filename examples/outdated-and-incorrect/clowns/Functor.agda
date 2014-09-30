@@ -25,8 +25,8 @@ data U₂ : Set1 where
 
 -- Functor composition
 _[_] : U -> U -> U
-K A	[ H ] = K A
-Id	[ H ] = H
+K A     [ H ] = K A
+Id      [ H ] = H
 (F + G) [ H ] = F [ H ] + G [ H ]
 (F × G) [ H ] = F [ H ] × G [ H ]
 
@@ -34,15 +34,15 @@ module Semantics where
 
   -- The semantic of a functor
   ⟦_⟧ : U -> Set -> Set
-  ⟦ K A	  ⟧ X = A
-  ⟦ Id	  ⟧ X = X
+  ⟦ K A   ⟧ X = A
+  ⟦ Id    ⟧ X = X
   ⟦ F + G ⟧ X = ⟦ F ⟧ X [+] ⟦ G ⟧ X
   ⟦ F × G ⟧ X = ⟦ F ⟧ X [×] ⟦ G ⟧ X
 
   ⟦_⟧₂ : (F : U₂) -> Set -> Set -> Set
   ⟦ K₂ A   ⟧₂ C J = A
-  ⟦ ↖ F	   ⟧₂ C J = ⟦ F ⟧ C
-  ⟦ ↗ F	   ⟧₂ C J = ⟦ F ⟧ J
+  ⟦ ↖ F    ⟧₂ C J = ⟦ F ⟧ C
+  ⟦ ↗ F    ⟧₂ C J = ⟦ F ⟧ J
   ⟦ F +₂ G ⟧₂ C J = ⟦ F ⟧₂ C J [+] ⟦ G ⟧₂ C J
   ⟦ F ×₂ G ⟧₂ C J = ⟦ F ⟧₂ C J [×] ⟦ G ⟧₂ C J
 

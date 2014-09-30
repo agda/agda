@@ -41,8 +41,8 @@ import Agda.Utils.Unicode
 returnEOF :: AlexInput -> Parser Token
 returnEOF inp =
     do  setLastPos $ lexPos inp
-	setPrevToken "<EOF>"
-	return TokEOF
+        setPrevToken "<EOF>"
+        return TokEOF
 
 -- | Set the current input and lex a new token (calls 'lexToken').
 skipTo :: AlexInput -> Parser Token
@@ -55,14 +55,14 @@ used by the parser is the continuation version of this function.
 -}
 lexToken :: Parser Token
 lexToken =
-    do	inp <- getLexInput
-	lss@(ls:_) <- getLexState
+    do  inp <- getLexInput
+        lss@(ls:_) <- getLexState
         flags <- getParseFlags
-	case alexScanUser (lss, flags) (foolAlex inp) ls of
-	    AlexEOF			-> returnEOF inp
-	    AlexSkip inp' len		-> skipTo (newInput inp inp' len)
-	    AlexToken inp' len action	-> fmap postToken $ action inp (newInput inp inp' len) len
-	    AlexError i			-> parseError $ "Lexical error" ++
+        case alexScanUser (lss, flags) (foolAlex inp) ls of
+            AlexEOF                     -> returnEOF inp
+            AlexSkip inp' len           -> skipTo (newInput inp inp' len)
+            AlexToken inp' len action   -> fmap postToken $ action inp (newInput inp inp' len) len
+            AlexError i                 -> parseError $ "Lexical error" ++
               (case lexInput i of
                  '\t' : _ -> " (you may want to replace tabs with spaces)"
                  _        -> "") ++
@@ -88,10 +88,10 @@ postToken t = t
 newInput :: PreviousInput -> CurrentInput -> TokenLength -> CurrentInput
 newInput inp inp' len =
     case drop (len - 1) (lexInput inp) of
-	c:s'	-> inp' { lexInput    = s'
-			, lexPrevChar = c
-			}
-	[]	-> inp' { lexInput = [] }   -- we do get empty tokens moving between states
+        c:s'    -> inp' { lexInput    = s'
+                        , lexPrevChar = c
+                        }
+        []      -> inp' { lexInput = [] }   -- we do get empty tokens moving between states
 
 -- | Alex 2 can't handle unicode characters. To solve this we
 --   translate all Unicode (non-ASCII) identifiers to @z@, all Unicode
@@ -101,10 +101,10 @@ newInput inp inp' len =
 foolAlex :: AlexInput -> AlexInput
 foolAlex inp = inp { lexInput = map fool $ lexInput inp }
     where
-	fool c
+        fool c
             | isSpace c && not (c `elem` "\t\n") = ' '
-	    | isUnicodeId c = if isAlpha c then 'z' else '+'
-	    | otherwise     = c
+            | isUnicodeId c = if isAlpha c then 'z' else '+'
+            | otherwise     = c
 
 {--------------------------------------------------------------------------
     Lex actions
@@ -114,17 +114,17 @@ foolAlex inp = inp { lexInput = map fool $ lexInput inp }
 token :: (String -> Parser tok) -> LexAction tok
 token action inp inp' len =
     do  setLexInput inp'
-	setPrevToken t
-	setLastPos $ lexPos inp
-	action t
+        setPrevToken t
+        setLastPos $ lexPos inp
+        action t
     where
-	t = take len $ lexInput inp
+        t = take len $ lexInput inp
 
 -- | Parse a token from an 'Interval' and the lexed string.
 withInterval :: ((Interval, String) -> tok) -> LexAction tok
 withInterval f = token $ \s -> do
                    r <- getParseInterval
-		   return $ f (r,s)
+                   return $ f (r,s)
 
 -- | Like 'withInterval', but applies a function to the string.
 withInterval' :: (String -> a) -> ((Interval, a) -> tok) -> LexAction tok
@@ -139,50 +139,50 @@ withInterval_ f = withInterval (f . fst)
 --   state and performs the given action.
 withLayout :: LexAction r -> LexAction r
 withLayout a i1 i2 n =
-    do	pushLexState layout
-	a i1 i2 n
+    do  pushLexState layout
+        a i1 i2 n
 
 
 -- | Enter a new state without consuming any input.
 begin :: LexState -> LexAction Token
 begin code _ _ _ =
-    do	pushLexState code
-	lexToken
+    do  pushLexState code
+        lexToken
 
 
 -- | Enter a new state throwing away the current lexeme.
 begin_ :: LexState -> LexAction Token
 begin_ code _ inp' _ =
-    do	pushLexState code
-	skipTo inp'
+    do  pushLexState code
+        skipTo inp'
 
 
 -- | Exit the current state throwing away the current lexeme.
 end_ :: LexAction Token
 end_ _ inp' _ =
-    do	popLexState
-	skipTo inp'
+    do  popLexState
+        skipTo inp'
 
 
 -- | Exit the current state and perform the given action.
 endWith :: LexAction a -> LexAction a
 endWith a inp inp' n =
-    do	popLexState
-	a inp inp' n
+    do  popLexState
+        a inp inp' n
 
 
 -- | Exit the current state without consuming any input
 end :: LexAction Token
 end _ _ _ =
-    do	popLexState
-	lexToken
+    do  popLexState
+        lexToken
 
 -- | Parse a 'Keyword' token, triggers layout for 'layoutKeywords'.
 keyword :: Keyword -> LexAction Token
 keyword k = layout $ withInterval_ (TokKeyword k)
     where
-	layout | elem k layoutKeywords	= withLayout
-	       | otherwise		= id
+        layout | elem k layoutKeywords  = withLayout
+               | otherwise              = id
 
 
 -- | Parse a 'Symbol' token.
@@ -206,24 +206,24 @@ qualified :: (Either (Interval, String) [(Interval, String)] -> a) -> LexAction 
 qualified tok =
     token $ \s ->
     do  i <- getParseInterval
-	case mkName i $ wordsBy (=='.') s of
-	    []	-> lexError "lex error on .."
-	    [x]	-> return $ tok $ Left  x
-	    xs	-> return $ tok $ Right xs
+        case mkName i $ wordsBy (=='.') s of
+            []  -> lexError "lex error on .."
+            [x] -> return $ tok $ Left  x
+            xs  -> return $ tok $ Right xs
     where
-	-- Compute the ranges for the substrings (separated by '.') of
-	-- a name. Dots are included: the intervals generated for
-	-- "A.B.x" correspond to "A.", "B." and "x".
-	mkName :: Interval -> [String] -> [(Interval, String)]
-	mkName _ []	= []
-	mkName i [x]	= [(i, x)]
-	mkName i (x:xs) = (i0, x) : mkName i1 xs
-	    where
-		p0 = iStart i
-		p1 = iEnd i
-		p' = movePos (movePosByString p0 x) '.'
-		i0 = Interval p0 p'
-		i1 = Interval p' p1
+        -- Compute the ranges for the substrings (separated by '.') of
+        -- a name. Dots are included: the intervals generated for
+        -- "A.B.x" correspond to "A.", "B." and "x".
+        mkName :: Interval -> [String] -> [(Interval, String)]
+        mkName _ []     = []
+        mkName i [x]    = [(i, x)]
+        mkName i (x:xs) = (i0, x) : mkName i1 xs
+            where
+                p0 = iStart i
+                p1 = iEnd i
+                p' = movePos (movePosByString p0 x) '.'
+                i0 = Interval p0 p'
+                i1 = Interval p' p1
 
 
 {--------------------------------------------------------------------------
@@ -234,8 +234,8 @@ qualified tok =
 followedBy :: Char -> LexPredicate
 followedBy c' _ _ _ inp =
     case lexInput inp of
-	[]  -> False
-	c:_ -> c == c'
+        []  -> False
+        c:_ -> c == c'
 
 -- | True if we are at the end of the file.
 eof :: LexPredicate

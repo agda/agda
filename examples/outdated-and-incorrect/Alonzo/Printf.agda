@@ -37,8 +37,8 @@ format s = format' (toList s)
     format' ('%' :: 'c' :: fmt) = charArg     :: format' fmt
     format' ('%' :: '%' :: fmt) = litChar '%' :: format' fmt
     format' ('%' ::  c  :: fmt) = badFormat c :: format' fmt
-    format' (c		:: fmt) = litChar c   :: format' fmt
-    format'  []		= []
+    format' (c          :: fmt) = litChar c   :: format' fmt
+    format'  []         = []
 
 Printf' : List Format -> Set
 Printf' (stringArg   :: fmt) = String  × Printf' fmt
@@ -48,36 +48,36 @@ Printf' (floatArg    :: fmt) = Float   × Printf' fmt
 Printf' (charArg     :: fmt) = Char    × Printf' fmt
 Printf' (badFormat c :: fmt) = BadFormat c
 Printf' (litChar _   :: fmt) = Printf' fmt
-Printf'  []		     = Unit
+Printf'  []                  = Unit
 
 Printf : String -> Set
 Printf fmt = Printf' (format fmt)
 
 {-
 printf' : (fmt : List Format) -> Printf' fmt -> String
-printf' (stringArg   :: fmt) < s , args > = s			 ++ printf' fmt args
-printf' (natArg      :: fmt) < n , args > = showNat n		 ++ printf' fmt args
-printf' (intArg      :: fmt) < n , args > = showInt n		 ++ printf' fmt args
-printf' (floatArg    :: fmt) < x , args > = showFloat x	 ++ printf' fmt args
-printf' (charArg     :: fmt) < c , args > = showChar c	 ++ printf' fmt args
+printf' (stringArg   :: fmt) < s , args > = s                    ++ printf' fmt args
+printf' (natArg      :: fmt) < n , args > = showNat n            ++ printf' fmt args
+printf' (intArg      :: fmt) < n , args > = showInt n            ++ printf' fmt args
+printf' (floatArg    :: fmt) < x , args > = showFloat x  ++ printf' fmt args
+printf' (charArg     :: fmt) < c , args > = showChar c   ++ printf' fmt args
 printf' (litChar c   :: fmt) args = fromList (c :: []) ++ printf' fmt args
 printf' (badFormat _ :: fmt) ()
-printf'  []		 unit = ""
+printf'  []              unit = ""
 -}
 printf : (fmt : String) -> Printf fmt -> String
 printf fmt = printf' (format fmt)
   where
     printf' : (fmt : List Format) -> Printf' fmt -> String
-    printf' (stringArg   :: fmt) < s , args > = s			 ++ printf' fmt args
-    printf' (natArg      :: fmt) < n , args > = showNat n		 ++ printf' fmt args
-    printf' (intArg      :: fmt) < n , args > = showInt n		 ++ printf' fmt args
-    printf' (floatArg    :: fmt) < x , args > = showFloat x	 ++ printf' fmt args
-    printf' (charArg     :: fmt) < c , args > = showChar c	 ++ printf' fmt args
-    printf' (litChar c   :: fmt) args	    = fromList (c :: []) ++ printf' fmt args
+    printf' (stringArg   :: fmt) < s , args > = s                        ++ printf' fmt args
+    printf' (natArg      :: fmt) < n , args > = showNat n                ++ printf' fmt args
+    printf' (intArg      :: fmt) < n , args > = showInt n                ++ printf' fmt args
+    printf' (floatArg    :: fmt) < x , args > = showFloat x      ++ printf' fmt args
+    printf' (charArg     :: fmt) < c , args > = showChar c       ++ printf' fmt args
+    printf' (litChar c   :: fmt) args       = fromList (c :: []) ++ printf' fmt args
     printf' (badFormat _ :: fmt) ()
-    printf'  []		 unit 	    = ""
+    printf'  []          unit       = ""
 
 mainS : String
 -- mainS = printf  "pi = %f"  < 3.14 , unit >
 mainS = printf "Answer is %n, pi = %f %% %s"
-	< 42 , < 3.14159 , < "Alonzo" , unit > > >
+        < 42 , < 3.14159 , < "Alonzo" , unit > > >

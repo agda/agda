@@ -14,9 +14,9 @@ infixr 50 _++_
 
 private
     primitive
-      primStringAppend	 : String -> String -> String
+      primStringAppend   : String -> String -> String
       -- primStringReverse  : String -> String
-      primStringToList	 : String -> List Char
+      primStringToList   : String -> List Char
       primStringFromList : List Char -> String
 
 _++_     = primStringAppend

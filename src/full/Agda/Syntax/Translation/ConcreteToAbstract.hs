@@ -1,12 +1,12 @@
-{-# LANGUAGE CPP #-}
-{-# LANGUAGE FlexibleInstances #-}
+{-# LANGUAGE CPP                    #-}
+{-# LANGUAGE FlexibleInstances      #-}
 {-# LANGUAGE FunctionalDependencies #-}
-{-# LANGUAGE MultiParamTypeClasses #-}
-{-# LANGUAGE OverlappingInstances #-}
-{-# LANGUAGE PatternGuards #-}
-{-# LANGUAGE ScopedTypeVariables #-}
-{-# LANGUAGE TypeSynonymInstances #-}
-{-# LANGUAGE UndecidableInstances #-}
+{-# LANGUAGE MultiParamTypeClasses  #-}
+{-# LANGUAGE OverlappingInstances   #-}
+{-# LANGUAGE PatternGuards          #-}
+{-# LANGUAGE ScopedTypeVariables    #-}
+{-# LANGUAGE TypeSynonymInstances   #-}
+{-# LANGUAGE UndecidableInstances   #-}
 
 {-| Translation from "Agda.Syntax.Concrete" to "Agda.Syntax.Abstract". Involves scope analysis,
     figuring out infix operator precedences and tidying up definitions.
@@ -30,7 +30,6 @@ module Agda.Syntax.Translation.ConcreteToAbstract
 import Prelude hiding (mapM)
 import Control.Applicative
 import Control.Monad.Reader hiding (mapM)
-import Control.Monad.Error hiding (mapM)
 
 import Data.Foldable (Foldable, traverse_)
 import Data.Traversable (mapM, traverse)
@@ -68,6 +67,7 @@ import Agda.Interaction.FindFile (checkModuleName)
 import {-# SOURCE #-} Agda.Interaction.Imports (scopeCheckImport)
 import Agda.Interaction.Options
 
+import Agda.Utils.Except ( MonadError(catchError, throwError) )
 import Agda.Utils.FileName
 import Agda.Utils.Functor
 import Agda.Utils.Fresh
@@ -494,22 +494,26 @@ toAbstractDot prec e = do
         e <- toAbstractCtx prec e
         return (e, False)
 
+-- | An argument @OpApp C.Expr@ to an operator can have binders,
+--   in case the operator is some @syntax@-notation.
+--   For these binders, we have to create lambda-abstractions.
 toAbstractOpArg :: Precedence -> OpApp C.Expr -> ScopeM A.Expr
-toAbstractOpArg ctx (Ordinary e) = toAbstractCtx ctx e
+toAbstractOpArg ctx (Ordinary e)                 = toAbstractCtx ctx e
 toAbstractOpArg ctx (SyntaxBindingLambda r bs e) = toAbstractLam r bs e ctx
 
+-- | Translate concrete expression under at least one binder into nested
+--   lambda abstraction in abstract syntax.
 toAbstractLam :: Range -> [C.LamBinding] -> C.Expr -> Precedence -> ScopeM A.Expr
 toAbstractLam r bs e ctx = do
-        localToAbstract (map (C.DomainFull . makeDomainFull) bs) $ \bs ->
-          case bs of
-            b:bs' -> do
-              e        <- toAbstractCtx ctx e
-              let info = ExprRange r
-              return $ A.Lam info b $ foldr mkLam e bs'
-              where
-                  mkLam b e = A.Lam (ExprRange $ fuseRange b e) b e
-            [] -> __IMPOSSIBLE__
-
+  -- Translate the binders
+  localToAbstract (map (C.DomainFull . makeDomainFull) bs) $ \ bs -> do
+    -- Translate the body
+    e <- toAbstractCtx ctx e
+    -- We have at least one binder.  Get first @b@ and rest @bs@.
+    caseList bs __IMPOSSIBLE__ $ \ b bs -> do
+    return $ A.Lam (ExprRange r) b $ foldr mkLam e bs
+  where
+    mkLam b e = A.Lam (ExprRange $ fuseRange b e) b e
 
 instance ToAbstract C.Expr A.Expr where
   toAbstract e =
@@ -1658,34 +1662,47 @@ instance ToAbstract C.Pattern (A.Pattern' C.Expr) where
 -- right precedences for the various arguments.
 toAbstractOpApp :: C.QName -> [C.NamedArg (OpApp C.Expr)] -> ScopeM A.Expr
 toAbstractOpApp op es = do
+    -- Get the notation for the operator.
     f  <- getFixity op
-    let (_,_,parts) = oldToNewNotation $ (op, f)
+    let parts = notation . oldToNewNotation $ (op, f)
+    -- We can throw away the @BindingHoles@, since binders
+    -- have been preprocessed into @OpApp C.Expr@.
+    let nonBindingParts = filter (not . isBindingHole) parts
+    -- We should be left with as many holes as we have been given args @es@.
+    -- If not, crash.
+    unless (length (filter isAHole nonBindingParts) == length es) __IMPOSSIBLE__
+    -- Translate operator and its arguments (each in the right context).
     op <- toAbstract (OldQName op)
-    foldl' app op <$> left (theFixity f) [p | p <- parts, not (isBindingHole p)] es
-    where
-        app e arg = A.App (ExprRange (fuseRange e arg)) e (setArgColors [] arg)
+    foldl' app op <$> left (theFixity f) nonBindingParts es
+  where
+    -- Build an application in the abstract syntax, with correct Range.
+    app e arg = A.App (ExprRange (fuseRange e arg)) e (setArgColors [] arg)
 
-        toAbsOpArg cxt = traverse $ traverse $ toAbstractOpArg cxt
+    -- Translate an argument (inside @C.NamedArg . OpApp@).
+    toAbsOpArg cxt = traverse $ traverse $ toAbstractOpArg cxt
 
-        left f (IdPart _ : xs) es = inside f xs es
-        left f (_ : xs) (e : es) = do
-            e  <- toAbsOpArg (LeftOperandCtx f) e
-            es <- inside f xs es
-            return (e : es)
-        left f (_  : _)  [] = __IMPOSSIBLE__
-        left f []        _  = __IMPOSSIBLE__
+    -- The hole left to the first @IdPart@ is filled with an expression in @LeftOperandCtx@.
+    left f (IdPart _ : xs) es = inside f xs es
+    left f (_ : xs) (e : es) = do
+        e  <- toAbsOpArg (LeftOperandCtx f) e
+        es <- inside f xs es
+        return (e : es)
+    left f (_  : _)  [] = __IMPOSSIBLE__
+    left f []        _  = __IMPOSSIBLE__
 
-        inside f [x]          es    = right f x es
-        inside f (IdPart _ : xs) es = inside f xs es
-        inside f (_  : xs) (e : es) = do
-            e  <- toAbsOpArg InsideOperandCtx e
-            es <- inside f xs es
-            return (e : es)
-        inside _ (_ : _) [] = __IMPOSSIBLE__
-        inside _ []         _  = __IMPOSSIBLE__
+    -- The holes in between the @IdPart@s is filled with an expression in @InsideOperandCtx@.
+    inside f [x]          es    = right f x es
+    inside f (IdPart _ : xs) es = inside f xs es
+    inside f (_  : xs) (e : es) = do
+        e  <- toAbsOpArg InsideOperandCtx e
+        es <- inside f xs es
+        return (e : es)
+    inside _ (_ : _) [] = __IMPOSSIBLE__
+    inside _ []         _  = __IMPOSSIBLE__
 
-        right _ (IdPart _)  [] = return []
-        right f _          [e] = do
-            e <- toAbsOpArg (RightOperandCtx f) e
-            return [e]
-        right _ _     _  = __IMPOSSIBLE__
+    -- The hole right of the last @IdPart@ is filled with an expression in @RightOperandCtx@.
+    right _ (IdPart _)  [] = return []
+    right f _          [e] = do
+        e <- toAbsOpArg (RightOperandCtx f) e
+        return [e]
+    right _ _     _  = __IMPOSSIBLE__

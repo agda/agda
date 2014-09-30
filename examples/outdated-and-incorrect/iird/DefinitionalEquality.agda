@@ -28,8 +28,8 @@ cong-≡' : {A : Set}{B : A -> Set}{x y : A}(f : (z : A) -> B z)(p : x ≡ y) ->
 cong-≡' {_}{_}{_}{y} f p = subst-≡ (\z -> f z ≡ f y) p refl-≡
 
 cong₂-≡' : {A : Set}{B : A -> Set}{C : (x : A) -> B x -> Set}
-	   {x y : A}{z : B x}{w : B y}(f : (x : A)(z : B x) -> C x z) ->
-	   x ≡ y -> z ≡ w -> f x z ≡ f y w
+           {x y : A}{z : B x}{w : B y}(f : (x : A)(z : B x) -> C x z) ->
+           x ≡ y -> z ≡ w -> f x z ≡ f y w
 cong₂-≡' f xy zw = app-≡₀ (cong-≡' f xy) zw
 
 trans-≡ : {A B C : Set}(x : A)(y : B)(z : C) -> x ≡ y -> y ≡ z -> x ≡ z

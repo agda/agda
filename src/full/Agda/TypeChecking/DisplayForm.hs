@@ -1,11 +1,11 @@
-{-# LANGUAGE CPP #-}
-{-# LANGUAGE FlexibleInstances #-}
+{-# LANGUAGE CPP                  #-}
+{-# LANGUAGE FlexibleInstances    #-}
 {-# LANGUAGE TypeSynonymInstances #-}
 
 module Agda.TypeChecking.DisplayForm where
 
 import Control.Applicative
-import Control.Monad.Error
+import Control.Monad
 import Control.Monad.Trans.Maybe
 
 import Data.Traversable (traverse)
@@ -38,7 +38,7 @@ displayForm q vs = do
         "displayForm: context = " ++ show n ++
         ", dfs = " ++ show (map openThingCtxIds odfs)
     -- Use only the display forms that can be opened in the current context.
-    dfs	  <- catMaybes <$> mapM tryOpen odfs
+    dfs   <- catMaybes <$> mapM tryOpen odfs
     scope <- getScope
     -- Keep the display forms that match the application @c vs@.
     ms <- do
@@ -71,7 +71,7 @@ displayForm q vs = do
     -- hd (DTerm (Con x _))    = Just $ conName x
     -- hd (DTerm (Shared p))   = hd (DTerm $ derefPtr p)
     -- hd (DWithApp d _ _) = hd d
-    -- hd _		    = Nothing
+    -- hd _                 = Nothing
 
 -- | Match a 'DisplayForm' @q ps = v@ against @q vs@.
 --   Return the 'DisplayTerm' @v[us]@ if the match was successful,

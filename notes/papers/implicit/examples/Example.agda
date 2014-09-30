@@ -7,15 +7,15 @@ data Nat : Set where
 
 postulate
   case-Nat : (P : Nat -> Set) -> P zero ->
-	     ((n:Nat) -> P (suc n)) ->
-	     (n : Nat) -> P n
+             ((n:Nat) -> P (suc n)) ->
+             (n : Nat) -> P n
 
 -- test : Nat -> Nat
 test = case-Nat _ zero (\n -> n)
 
 {-
 data Size : Set where
-  empty	   : Size
+  empty    : Size
   nonempty : Size
   whatever : Size
 
@@ -32,9 +32,9 @@ data Monad (M:Set -> Set) : Set1 where
 
 postulate
   build : {M:Set -> Set} -> Monad M -> {C:Size -> Set} -> (A:Set) ->
-	  (A -> C nonempty) ->
-	  ((n:Size) -> List (C n) -> M (List A)) ->
-	  List A -> M (C whatever)
+          (A -> C nonempty) ->
+          ((n:Size) -> List (C n) -> M (List A)) ->
+          List A -> M (C whatever)
 
 test : (A:Set) -> Nat
 test A = build monad A (\x -> x) (\n xs -> xs) nil

@@ -1,16 +1,19 @@
-{-# LANGUAGE CPP           #-}
-{-# LANGUAGE PatternGuards #-}
+{-# LANGUAGE CPP              #-}
+{-# LANGUAGE FlexibleContexts #-}
+{-# LANGUAGE PatternGuards    #-}
 
 module Agda.Compiler.MAlonzo.Compiler where
 
 import Control.Applicative
 import Control.Monad.Reader
 import Control.Monad.State
+import Data.Generics.Geniplate
 import Data.List as L
 import Data.Map as M
 import Data.Set as S
 import qualified Language.Haskell.Exts.Extension as HS
 import qualified Language.Haskell.Exts.Parser as HS
+import qualified Language.Haskell.Exts.Pretty as HS
 import qualified Language.Haskell.Exts.Syntax as HS
 import System.Directory (createDirectoryIfMissing)
 import System.FilePath hiding (normalise)
@@ -87,15 +90,27 @@ compile i = do
 
 imports :: TCM [HS.ImportDecl]
 imports = (++) <$> hsImps <*> imps where
+  hsImps :: TCM [HS.ImportDecl]
   hsImps = (L.map decl . S.toList .
             S.insert mazRTE . S.map HS.ModuleName) <$>
              getHaskellImports
-  imps   = L.map decl . uniq <$>
-             ((++) <$> importsForPrim <*> (L.map mazMod <$> mnames))
+
+  imps :: TCM [HS.ImportDecl]
+  imps = L.map decl . uniq <$>
+           ((++) <$> importsForPrim <*> (L.map mazMod <$> mnames))
+
+  decl :: HS.ModuleName -> HS.ImportDecl
+#if MIN_VERSION_haskell_src_exts(1,16,0)
+  decl m = HS.ImportDecl dummy m True False False Nothing Nothing Nothing
+#else
   decl m = HS.ImportDecl dummy m True False Nothing Nothing Nothing
+#endif
+  mnames :: TCM [ModuleName]
   mnames = (++) <$> (S.elems <$> gets stImportedModules)
                 <*> (L.map fst . iImportedModules <$> curIF)
-  uniq   = L.map head . group . L.sort
+
+  uniq :: [HS.ModuleName] -> [HS.ModuleName]
+  uniq = L.map head . group . L.sort
 
 --------------------------------------------------
 -- Main compiling clauses
@@ -256,7 +271,11 @@ checkCover q ty n cs = do
         (a, _) <- conArityAndPars c
         Just (HsDefn _ hsc) <- compiledHaskell . defCompiledRep <$> getConstInfo c
         let pat = HS.PApp (HS.UnQual $ HS.Ident hsc) $ genericReplicate a HS.PWildCard
+#if MIN_VERSION_haskell_src_exts(1,16,0)
+        return $ HS.Alt dummy pat (HS.UnGuardedRhs $ HS.unit_con) (HS.BDecls [])
+#else
         return $ HS.Alt dummy pat (HS.UnGuardedAlt $ HS.unit_con) (HS.BDecls [])
+#endif
   cs <- mapM makeClause cs
   let rhs = case cs of
               [] -> fakeExp "()" -- There is no empty case statement in Haskell
@@ -302,16 +321,22 @@ clause q maybeName (i, isLast, Clause{ namedClausePats = ps, clauseBody = b }) =
 argpatts :: [I.NamedArg Pattern] -> [HS.Pat] -> TCM [HS.Pat]
 argpatts ps0 bvs = evalStateT (mapM pat' ps0) bvs
   where
+  pat :: Pattern -> StateT [HS.Pat] TCM HS.Pat
   pat   (ProjP _  ) = lift $ typeError $ NotImplemented $ "Compilation of copatterns"
   pat   (VarP _   ) = do v <- gets head; modify tail; return v
   pat   (DotP _   ) = pat (VarP dummy) -- WHY NOT: return HS.PWildCard -- SEE ABOVE
+#if MIN_VERSION_haskell_src_exts(1,16,0)
+  pat   (LitP l   ) = return $ HS.PLit HS.Signless $ hslit l
+#else
   pat   (LitP l   ) = return $ HS.PLit $ hslit l
+#endif
   pat p@(ConP c _ ps) = do
     -- Note that irr is applied once for every subpattern, so in the
     -- worst case it is quadratic in the size of the pattern. I
     -- suspect that this will not be a problem in practice, though.
     irrefutable <- lift $ irr p
-    let tilde = if   tildesEnabled && irrefutable
+    let tilde :: HS.Pat -> HS.Pat
+        tilde = if tildesEnabled && irrefutable
                 then HS.PParen . HS.PIrrPat
                 else id
     (tilde . HS.PParen) <$>
@@ -326,6 +351,7 @@ argpatts ps0 bvs = evalStateT (mapM pat' ps0) bvs
   -- do not match against irrelevant stuff
   pat' a | isIrrelevant a = return $ HS.PWildCard
 -}
+  pat' :: I.NamedArg Pattern -> StateT [HS.Pat] TCM HS.Pat
   pat' a = pat $ namedArg a
 
   tildesEnabled = False
@@ -341,6 +367,7 @@ argpatts ps0 bvs = evalStateT (mapM pat' ps0) bvs
          <*> (andM $ L.map irr' ps)
 
   -- | Irrelevant patterns are naturally irrefutable.
+  irr' :: I.NamedArg Pattern -> TCM Bool
   irr' a | isIrrelevant a = return $ True
   irr' a = irr $ namedArg a
 
@@ -422,7 +449,11 @@ condecl q = do
 
 cdecl :: QName -> Nat -> HS.ConDecl
 cdecl q n = HS.ConDecl (unqhname "C" q)
-            [ HS.UnBangedTy $ HS.TyVar $ ihname "a" i | i <- [0 .. n - 1]]
+#if MIN_VERSION_haskell_src_exts(1,16,0)
+            [ HS.TyVar $ ihname "a" i | i <- [0 .. n - 1] ]
+#else
+            [ HS.UnBangedTy $ HS.TyVar $ ihname "a" i | i <- [0 .. n - 1] ]
+#endif
 
 tvaldecl :: QName
          -> Induction
@@ -465,14 +496,16 @@ hsCast = addcast . go where
 -}
 
 hsCast e = mazCoerce `HS.App` hsCast' e
+
+hsCast' :: HS.Exp -> HS.Exp
 hsCast' (HS.App e1 e2)     = hsCast' e1 `HS.App` (hsCoerce $ hsCast' e2)
 hsCast' (HS.Lambda _ ps e) = HS.Lambda dummy ps $ hsCast' e
 hsCast' e = e
 
 -- No coercion for literal integers
+hsCoerce :: HS.Exp -> HS.Exp
 hsCoerce e@(HS.ExpTypeSig _ (HS.Lit (HS.Int{})) _) = e
 hsCoerce e = HS.App mazCoerce e
-
 
 --------------------------------------------------
 -- Writing out a haskell module
@@ -512,8 +545,11 @@ rteModule = ok $ parse $ unlines
   , "mazIncompleteMatch s = error (\"MAlonzo Runtime Error: incomplete pattern matching: \" ++ s)"
   ]
   where
-    parse = HS.parseWithMode
+    parse :: String -> HS.ParseResult HS.Module
+    parse = HS.parseModuleWithMode
               HS.defaultParseMode{HS.extensions = [explicitForAll]}
+
+    ok :: HS.ParseResult HS.Module -> HS.Module
     ok (HS.ParseOk d)   = d
     ok HS.ParseFailed{} = __IMPOSSIBLE__
 
@@ -536,6 +572,8 @@ compileDir = do
     Just dir -> return dir
     Nothing  -> __IMPOSSIBLE__
 
+outFile' :: (HS.Pretty a, TransformBi HS.ModuleName (Wrap a)) =>
+            a -> TCM (FilePath, FilePath)
 outFile' m = do
   mdir <- compileDir
   let (fdir, fn) = splitFileName $ repldot pathSeparator $

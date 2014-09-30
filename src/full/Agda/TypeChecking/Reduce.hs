@@ -149,8 +149,8 @@ instance (Instantiate a, Instantiate b,Instantiate c) => Instantiate (a,b,c) whe
 
 instance Instantiate a => Instantiate (Closure a) where
     instantiate' cl = do
-	x <- enterClosure cl instantiate'
-	return $ cl { clValue = x }
+        x <- enterClosure cl instantiate'
+        return $ cl { clValue = x }
 
 instance Instantiate Telescope where
   instantiate' tel = return tel
@@ -305,12 +305,12 @@ instance Reduce Term where
         mz  <- getBuiltin' builtinZero
         case v of
           _ | Just v == mz  -> return $ Lit $ LitInt (getRange c) 0
-          _		    -> return v
+          _                 -> return v
       reduceNat v@(Con c [a]) | notHidden a && isRelevant a = do
         ms  <- fmap ignoreSharing <$> getBuiltin' builtinSuc
         case v of
           _ | Just (Con c []) == ms -> inc <$> reduce' (unArg a)
-          _	                    -> return v
+          _                         -> return v
           where
             inc w = case ignoreSharing w of
               Lit (LitInt r n) -> Lit (LitInt (fuseRange c r) $ n + 1)
@@ -551,13 +551,13 @@ appDefE' v cls es = goCls cls $ map ignoreReduced es
     app (v : vs) (Bind (Abs   _ b)) sigma = app vs b (v :# sigma) -- CBN
     app (v : vs) (Bind (NoAbs _ b)) sigma = app vs b sigma
     app  _        NoBody            sigma = __IMPOSSIBLE__
-    app (_ : _)	 (Body _)           sigma = __IMPOSSIBLE__
+    app (_ : _)  (Body _)           sigma = __IMPOSSIBLE__
     app []       (Bind _)           sigma = __IMPOSSIBLE__
 
 instance Reduce a => Reduce (Closure a) where
     reduce' cl = do
-	x <- enterClosure cl reduce'
-	return $ cl { clValue = x }
+        x <- enterClosure cl reduce'
+        return $ cl { clValue = x }
 
 instance Reduce Telescope where
   reduce' tel = return tel
@@ -676,13 +676,13 @@ instance (Simplify a, Simplify b) => Simplify (a,b) where
 
 instance (Simplify a, Simplify b, Simplify c) => Simplify (a,b,c) where
     simplify' (x,y,z) =
-	do  (x,(y,z)) <- simplify' (x,(y,z))
-	    return (x,y,z)
+        do  (x,(y,z)) <- simplify' (x,(y,z))
+            return (x,y,z)
 
 instance Simplify a => Simplify (Closure a) where
     simplify' cl = do
-	x <- enterClosure cl simplify'
-	return $ cl { clValue = x }
+        x <- enterClosure cl simplify'
+        return $ cl { clValue = x }
 
 instance (Subst a, Simplify a) => Simplify (Tele a) where
   simplify' EmptyTel        = return EmptyTel
@@ -720,7 +720,7 @@ instance Simplify Pattern where
 instance Simplify ClauseBody where
     simplify' (Body   t) = Body   <$> simplify' t
     simplify' (Bind   b) = Bind   <$> simplify' b
-    simplify'  NoBody	= return NoBody
+    simplify'  NoBody   = return NoBody
 
 instance Simplify DisplayForm where
   simplify' (Display n ps v) = Display n <$> simplify' ps <*> return v
@@ -747,17 +747,17 @@ instance Normalise Type where
 
 instance Normalise Term where
     normalise' v =
-	do  v <- reduce' v
-	    case v of
-		Var n vs    -> Var n <$> normalise' vs
-		Con c vs    -> Con c <$> normalise' vs
-		Def f vs    -> Def f <$> normalise' vs
-		MetaV x vs  -> MetaV x <$> normalise' vs
-		Lit _	    -> return v
+        do  v <- reduce' v
+            case v of
+                Var n vs    -> Var n <$> normalise' vs
+                Con c vs    -> Con c <$> normalise' vs
+                Def f vs    -> Def f <$> normalise' vs
+                MetaV x vs  -> MetaV x <$> normalise' vs
+                Lit _       -> return v
                 Level l     -> levelTm <$> normalise' l
-		Lam h b	    -> Lam h <$> normalise' b
-		Sort s	    -> sortTm <$> normalise' s
-		Pi a b	    -> uncurry Pi <$> normalise' (a,b)
+                Lam h b     -> Lam h <$> normalise' b
+                Sort s      -> sortTm <$> normalise' s
+                Pi a b      -> uncurry Pi <$> normalise' (a,b)
                 Shared{}    -> __IMPOSSIBLE__ -- updateSharedTerm normalise' v
                 ExtLam{}    -> __IMPOSSIBLE__
                 DontCare _  -> return v
@@ -785,7 +785,7 @@ instance Normalise LevelAtom where
 instance Normalise ClauseBody where
     normalise' (Body   t) = Body   <$> normalise' t
     normalise' (Bind   b) = Bind   <$> normalise' b
-    normalise'  NoBody	 = return NoBody
+    normalise'  NoBody   = return NoBody
 
 instance (Subst t, Normalise t) => Normalise (Abs t) where
     normalise' a@(Abs x _) = Abs x <$> underAbstraction_ a normalise'
@@ -809,13 +809,13 @@ instance (Normalise a, Normalise b) => Normalise (a,b) where
 
 instance (Normalise a, Normalise b, Normalise c) => Normalise (a,b,c) where
     normalise' (x,y,z) =
-	do  (x,(y,z)) <- normalise' (x,(y,z))
-	    return (x,y,z)
+        do  (x,(y,z)) <- normalise' (x,(y,z))
+            return (x,y,z)
 
 instance Normalise a => Normalise (Closure a) where
     normalise' cl = do
-	x <- enterClosure cl normalise'
-	return $ cl { clValue = x }
+        x <- enterClosure cl normalise'
+        return $ cl { clValue = x }
 
 instance (Subst a, Normalise a) => Normalise (Tele a) where
   normalise' EmptyTel        = return EmptyTel
@@ -876,11 +876,11 @@ instance InstantiateFull Name where
 
 instance InstantiateFull Sort where
     instantiateFull' s = do
-	s <- instantiate' s
-	case s of
-	    Type n     -> levelSort <$> instantiateFull' n
-	    Prop       -> return s
-	    DLub s1 s2 -> dLub <$> instantiateFull' s1 <*> instantiateFull' s2
+        s <- instantiate' s
+        case s of
+            Type n     -> levelSort <$> instantiateFull' n
+            Prop       -> return s
+            DLub s1 s2 -> dLub <$> instantiateFull' s1 <*> instantiateFull' s2
             Inf        -> return s
 
 instance InstantiateFull Type where
@@ -896,7 +896,7 @@ instance InstantiateFull Term where
           Con c vs    -> Con c <$> instantiateFull' vs
           Def f vs    -> Def f <$> instantiateFull' vs
           MetaV x vs  -> MetaV x <$> instantiateFull' vs
-          Lit _	      -> return v
+          Lit _       -> return v
           Level l     -> levelTm <$> instantiateFull' l
           Lam h b     -> Lam h <$> instantiateFull' b
           Sort s      -> sortTm <$> instantiateFull' s
@@ -962,13 +962,13 @@ instance (InstantiateFull a, InstantiateFull b) => InstantiateFull (a,b) where
 
 instance (InstantiateFull a, InstantiateFull b, InstantiateFull c) => InstantiateFull (a,b,c) where
     instantiateFull' (x,y,z) =
-	do  (x,(y,z)) <- instantiateFull' (x,(y,z))
-	    return (x,y,z)
+        do  (x,(y,z)) <- instantiateFull' (x,(y,z))
+            return (x,y,z)
 
 instance InstantiateFull a => InstantiateFull (Closure a) where
     instantiateFull' cl = do
-	x <- enterClosure cl instantiateFull'
-	return $ cl { clValue = x }
+        x <- enterClosure cl instantiateFull'
+        return $ cl { clValue = x }
 
 instance InstantiateFull ProblemConstraint where
   instantiateFull' (PConstr p c) = PConstr p <$> instantiateFull' c
@@ -1038,10 +1038,10 @@ instance InstantiateFull DisplayForm where
   instantiateFull' (Display n ps v) = uncurry (Display n) <$> instantiateFull' (ps, v)
 
 instance InstantiateFull DisplayTerm where
-  instantiateFull' (DTerm v)	   = DTerm <$> instantiateFull' v
-  instantiateFull' (DDot  v)	   = DDot  <$> instantiateFull' v
-  instantiateFull' (DCon c vs)	   = DCon c <$> instantiateFull' vs
-  instantiateFull' (DDef c vs)	   = DDef c <$> instantiateFull' vs
+  instantiateFull' (DTerm v)       = DTerm <$> instantiateFull' v
+  instantiateFull' (DDot  v)       = DDot  <$> instantiateFull' v
+  instantiateFull' (DCon c vs)     = DCon c <$> instantiateFull' vs
+  instantiateFull' (DDef c vs)     = DDef c <$> instantiateFull' vs
   instantiateFull' (DWithApp v vs ws) = uncurry3 DWithApp <$> instantiateFull' (v, vs, ws)
 
 instance InstantiateFull Defn where
@@ -1051,9 +1051,9 @@ instance InstantiateFull Defn where
         (cs, cc, inv) <- instantiateFull' (cs, cc, inv)
         return $ d { funClauses = cs, funCompiled = cc, funInv = inv }
       Datatype{ dataSort = s, dataClause = cl } -> do
-	s  <- instantiateFull' s
-	cl <- instantiateFull' cl
-	return $ d { dataSort = s, dataClause = cl }
+        s  <- instantiateFull' s
+        cl <- instantiateFull' cl
+        return $ d { dataSort = s, dataClause = cl }
       Record{ recConType = t, recClause = cl, recTel = tel } -> do
         t   <- instantiateFull' t
         cl  <- instantiateFull' cl
@@ -1093,9 +1093,9 @@ instance InstantiateFull Clause where
 instance InstantiateFull Interface where
     instantiateFull' (Interface h ms mod scope inside
                                sig b hsImports highlighting pragmas patsyns) =
-	Interface h ms mod scope inside
-	    <$> instantiateFull' sig
-	    <*> instantiateFull' b
+        Interface h ms mod scope inside
+            <$> instantiateFull' sig
+            <*> instantiateFull' b
             <*> return hsImports
             <*> return highlighting
             <*> return pragmas
@@ -1103,7 +1103,7 @@ instance InstantiateFull Interface where
 
 instance InstantiateFull a => InstantiateFull (Builtin a) where
     instantiateFull' (Builtin t) = Builtin <$> instantiateFull' t
-    instantiateFull' (Prim x)	= Prim <$> instantiateFull' x
+    instantiateFull' (Prim x)   = Prim <$> instantiateFull' x
 
 instance InstantiateFull QName where
   instantiateFull' = return

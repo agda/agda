@@ -40,36 +40,36 @@ instance Pretty V where
 
 instance Pretty Pat where
     prettyPC p fresh used pat ret = case pat of
-	ConP c []   -> ret fresh used $ text c
-	ConP c ps   -> prettyPCs 2 fresh used ps $ \fresh used ds ->
-	    ret fresh used $
-	    mparen (p > 1) $
-	    fsep $ text c : ds
-	WildP	    -> ret fresh used $ text "_"
-	VarP	    -> prettyPC p fresh used V ret
+        ConP c []   -> ret fresh used $ text c
+        ConP c ps   -> prettyPCs 2 fresh used ps $ \fresh used ds ->
+            ret fresh used $
+            mparen (p > 1) $
+            fsep $ text c : ds
+        WildP       -> ret fresh used $ text "_"
+        VarP        -> prettyPC p fresh used V ret
 
 instance Pretty Exp where
     prettyP p fresh used v = case v of
-	Var n   -> text $ used !!! n
-	Con c   -> text c
-	Def c	-> text c
-	_	    -> case lamView v of
-	    Lams n v -> prettyPCs 0 fresh used (replicate n V) $ \fresh used xs ->
-		mparen (p > 0) $
-		sep [ text "\\" <> fsep xs <> text "."
-		    , nest 2 $ prettyP 0 fresh used v
-		    ]
-	    _	-> case appView v of
-		Apps u vs -> mparen (p > 1) $
-		    fsep $ prettyP 1 fresh used u
-			 : map (prettyP 2 fresh used) vs
-	where
-	    xs !!! n
-		| length xs <= n = "BAD@" ++ show n
-		| otherwise	 = xs !! n
+        Var n   -> text $ used !!! n
+        Con c   -> text c
+        Def c   -> text c
+        _           -> case lamView v of
+            Lams n v -> prettyPCs 0 fresh used (replicate n V) $ \fresh used xs ->
+                mparen (p > 0) $
+                sep [ text "\\" <> fsep xs <> text "."
+                    , nest 2 $ prettyP 0 fresh used v
+                    ]
+            _   -> case appView v of
+                Apps u vs -> mparen (p > 1) $
+                    fsep $ prettyP 1 fresh used u
+                         : map (prettyP 2 fresh used) vs
+        where
+            xs !!! n
+                | length xs <= n = "BAD@" ++ show n
+                | otherwise      = xs !! n
 
 instance Pretty Clause where
     pretty (Clause ps v) = prettyPCs 2 allNames [] ps $ \fresh used ps ->
-	sep [ fsep ps <+> text "="
-	    , nest 2 $ prettyP 0 fresh used v
-	    ]
+        sep [ fsep ps <+> text "="
+            , nest 2 $ prettyP 0 fresh used v
+            ]

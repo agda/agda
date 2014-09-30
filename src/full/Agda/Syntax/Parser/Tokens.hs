@@ -10,21 +10,21 @@ import Agda.Syntax.Literal (Literal)
 import Agda.Syntax.Position
 
 data Keyword
-	= KwLet | KwIn | KwWhere | KwData | KwCoData
-	| KwPostulate | KwMutual | KwAbstract | KwPrivate | KwInstance
-	| KwOpen | KwImport | KwModule | KwPrimitive
-	| KwInfix | KwInfixL | KwInfixR | KwWith | KwRewrite
-	| KwSet | KwProp | KwForall | KwRecord | KwConstructor | KwField
+        = KwLet | KwIn | KwWhere | KwData | KwCoData
+        | KwPostulate | KwMutual | KwAbstract | KwPrivate | KwInstance
+        | KwOpen | KwImport | KwModule | KwPrimitive
+        | KwInfix | KwInfixL | KwInfixR | KwWith | KwRewrite
+        | KwSet | KwProp | KwForall | KwRecord | KwConstructor | KwField
         | KwInductive | KwCoInductive
-	| KwHiding | KwUsing | KwRenaming | KwTo | KwPublic
-	| KwOPTIONS | KwBUILTIN | KwLINE
-	| KwCOMPILED_DATA | KwCOMPILED_TYPE | KwCOMPILED | KwCOMPILED_EXPORT
+        | KwHiding | KwUsing | KwRenaming | KwTo | KwPublic
+        | KwOPTIONS | KwBUILTIN | KwLINE
+        | KwCOMPILED_DATA | KwCOMPILED_TYPE | KwCOMPILED | KwCOMPILED_EXPORT
         | KwCOMPILED_EPIC | KwCOMPILED_JS | KwCOMPILED_CORE | KwCOMPILED_CORE_DATA
-	| KwIMPORT | KwIMPOSSIBLE | KwETA | KwSTATIC
+        | KwIMPORT | KwIMPOSSIBLE | KwETA | KwSTATIC
         | KwNO_TERMINATION_CHECK | KwTERMINATING | KwNON_TERMINATING
         | KwMEASURE
         | KwREWRITE
-	| KwQuoteGoal | KwQuoteContext | KwQuote | KwQuoteTerm | KwUnquote | KwUnquoteDecl | KwSyntax
+        | KwQuoteGoal | KwQuoteContext | KwQuote | KwQuoteTerm | KwUnquote | KwUnquoteDecl | KwSyntax
         | KwPatternSyn | KwTactic
     deriving (Eq, Show)
 
@@ -33,37 +33,37 @@ layoutKeywords =
     [ KwLet, KwWhere, KwPostulate, KwMutual, KwAbstract, KwPrivate, KwInstance, KwPrimitive, KwField ]
 
 data Symbol
-	= SymDot | SymSemi | SymVirtualSemi | SymBar
-	| SymColon | SymArrow | SymEqual | SymLambda
-	| SymUnderscore	| SymQuestionMark   | SymAs
-	| SymOpenParen	      | SymCloseParen
-	| SymDoubleOpenBrace  | SymDoubleCloseBrace
-	| SymOpenBrace	      | SymCloseBrace
-	| SymOpenVirtualBrace | SymCloseVirtualBrace
-	| SymOpenPragma	      | SymClosePragma | SymEllipsis | SymDotDot
+        = SymDot | SymSemi | SymVirtualSemi | SymBar
+        | SymColon | SymArrow | SymEqual | SymLambda
+        | SymUnderscore | SymQuestionMark   | SymAs
+        | SymOpenParen        | SymCloseParen
+        | SymDoubleOpenBrace  | SymDoubleCloseBrace
+        | SymOpenBrace        | SymCloseBrace
+        | SymOpenVirtualBrace | SymCloseVirtualBrace
+        | SymOpenPragma       | SymClosePragma | SymEllipsis | SymDotDot
         | SymEndComment -- ^ A misplaced end-comment "-}".
     deriving (Eq, Show)
 
 data Token
-	  -- Keywords
-	= TokKeyword Keyword Interval
-	  -- Identifiers and operators
-	| TokId		(Interval, String)
-	| TokQId	[(Interval, String)]
+          -- Keywords
+        = TokKeyword Keyword Interval
+          -- Identifiers and operators
+        | TokId         (Interval, String)
+        | TokQId        [(Interval, String)]
                         -- Non-empty namespace. The intervals for
                         -- "A.B.x" correspond to "A.", "B." and "x".
-	  -- Literals
-	| TokLiteral	Literal
-	  -- Special symbols
-	| TokSymbol Symbol Interval
-	  -- Other tokens
-	| TokString (Interval, String)  -- arbitrary string, used in pragmas
-	| TokSetN (Interval, Integer)
-	| TokTeX (Interval, String)
+          -- Literals
+        | TokLiteral    Literal
+          -- Special symbols
+        | TokSymbol Symbol Interval
+          -- Other tokens
+        | TokString (Interval, String)  -- arbitrary string, used in pragmas
+        | TokSetN (Interval, Integer)
+        | TokTeX (Interval, String)
         | TokComment (Interval, String)
-	| TokDummy	-- Dummy token to make Happy not complain
-			-- about overlapping cases.
-	| TokEOF
+        | TokDummy      -- Dummy token to make Happy not complain
+                        -- about overlapping cases.
+        | TokEOF
     deriving (Eq, Show)
 
 instance HasRange Token where

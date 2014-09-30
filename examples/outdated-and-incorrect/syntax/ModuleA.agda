@@ -8,9 +8,9 @@ module examples.syntax.ModuleA where
     plus  : Nat -> Nat -> Nat
 
   eval : Nat -> Nat
-  eval zero		    = zero
-  eval (suc x)		    = suc (eval x)
-  eval (plus zero y)	    = eval y
-  eval (plus (suc x) y)	    = suc (eval (plus x y))
+  eval zero                 = zero
+  eval (suc x)              = suc (eval x)
+  eval (plus zero y)        = eval y
+  eval (plus (suc x) y)     = suc (eval (plus x y))
   eval (plus (plus x y) z)  = eval (plus x (plus y z))
 

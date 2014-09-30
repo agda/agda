@@ -21,9 +21,9 @@ data _\/_ (P Q : Set) : Set where
   \/-IR : Q -> P \/ Q
 
 elimD-\/ : {P Q : Set}(C : P \/ Q -> Set) ->
-	   ((p : P) -> C (\/-IL p)) ->
-	   ((q : Q) -> C (\/-IR q)) ->
-	   (pq : P \/ Q) -> C pq
+           ((p : P) -> C (\/-IL p)) ->
+           ((q : Q) -> C (\/-IR q)) ->
+           (pq : P \/ Q) -> C pq
 elimD-\/ C left right (\/-IL p) = left p
 elimD-\/ C left right (\/-IR q) = right q
 

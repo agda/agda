@@ -8,7 +8,9 @@ import System.Environment
 import System.Exit
 import System.FilePath.Find
   ( (||?)
+  , (&&?)
   , (==?)
+  , (/=?)
   , extension
   , fileName
   , find
@@ -26,14 +28,28 @@ extensions =
 -- ASR (16 June 2014). In test/succeed/LineEndings/ we test that Agda
 -- can handle various kinds of whitespace (pointed out by Nils), so we
 -- exclude this directory.
+--
+-- ASR (26 September 2014) TODO: The directory Compiler/MAlonzo from
+-- Agda source code shouldn't be excluded.
 excludedDirs :: [String]
 excludedDirs =
  ["_darcs", ".git", "dist", "LineEndings", "MAlonzo", "std-lib"]
 
+-- Andreas (24 Sep 2014).
+-- | The following files are exempt from the whitespace check,
+--   as they test behavior of Agda with regard to tab characters.
+excludedFiles :: [FilePath]
+excludedFiles =
+  [ "Whitespace.agda"    -- in test/succeed
+  , "Tabs.agda"          -- in test/fail
+  , "TabsInPragmas.agda" -- in test/fail
+  ]
+
 -- Auxiliary functions.
 
 filesFilter :: FindClause Bool
-filesFilter = foldr1 (||?) $ map (extension ==?) extensions
+filesFilter = foldr1 (||?) (map (extension ==?) extensions)
+          &&? foldr1 (&&?) (map (fileName /=?) excludedFiles)
 
 -- ASR (12 June 2014). Adapted from the examples of fileManip 0.3.6.2.
 --
@@ -121,6 +137,7 @@ transform =
   Text.unlines .
   removeFinalEmptyLinesExceptOne .
   map removeTrailingWhitespace .
+  map convertTabs .
   Text.lines
   where
   removeFinalEmptyLinesExceptOne =
@@ -128,6 +145,17 @@ transform =
 
   removeTrailingWhitespace =
     Text.dropWhileEnd Char.isSpace
+
+  convertTabs =
+    Text.pack . reverse . fst . foldl convertOne ([], 0) . Text.unpack
+
+  convertOne (a, p) '\t' = (addSpaces n a, p + n)
+                           where
+                             n = 8 - p `mod` 8
+  convertOne (a, p) c = (c:a, p+1)
+
+  addSpaces 0 x = x
+  addSpaces n x = addSpaces (n-1) (' ':x)
 
 -- | 'dropWhile' except keep the first of the dropped elements
 dropWhile1 :: (a -> Bool) -> [a] -> [a]

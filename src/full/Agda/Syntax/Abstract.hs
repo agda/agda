@@ -1,12 +1,15 @@
-{-# LANGUAGE CPP #-}
-{-# LANGUAGE DeriveDataTypeable #-}
-{-# LANGUAGE DeriveFoldable #-}
-{-# LANGUAGE DeriveFunctor #-}
-{-# LANGUAGE DeriveTraversable #-}
-{-# LANGUAGE FlexibleInstances #-}
+{-# OPTIONS_GHC -fwarn-missing-signatures #-}
+
+{-# LANGUAGE CPP                   #-}
+{-# LANGUAGE DeriveDataTypeable    #-}
+{-# LANGUAGE DeriveFoldable        #-}
+{-# LANGUAGE DeriveFunctor         #-}
+{-# LANGUAGE DeriveTraversable     #-}
+{-# LANGUAGE FlexibleInstances     #-}
 {-# LANGUAGE MultiParamTypeClasses #-}
-{-# LANGUAGE TemplateHaskell #-}
-{-# LANGUAGE TypeSynonymInstances #-}
+{-# LANGUAGE TemplateHaskell       #-}
+{-# LANGUAGE TypeSynonymInstances  #-}
+{-# LANGUAGE UnicodeSyntax         #-}
 
 {-| The abstract syntax. This is what you get after desugaring and scope
     analysis of the concrete syntax. The type checker works on abstract syntax,
@@ -23,6 +26,7 @@ import Control.Applicative
 
 import Data.Foldable as Fold
 import Data.Map (Map)
+import Data.Maybe
 import Data.Sequence (Seq, (<|), (><))
 import qualified Data.Sequence as Seq
 import Data.Traversable
@@ -66,11 +70,11 @@ instance Ord Color where
   _ <= _         = __IMPOSSIBLE__
 
 data Expr
-        = Var  Name			     -- ^ Bound variables
-        | Def  QName			     -- ^ Constants (i.e. axioms, functions, projections, and datatypes)
-        | Con  AmbiguousQName		     -- ^ Constructors
-	| Lit Literal			     -- ^ Literals
-	| QuestionMark MetaInfo	InteractionId
+        = Var  Name                          -- ^ Bound variables
+        | Def  QName                         -- ^ Constants (i.e. axioms, functions, projections, and datatypes)
+        | Con  AmbiguousQName                -- ^ Constructors
+        | Lit Literal                        -- ^ Literals
+        | QuestionMark MetaInfo InteractionId
           -- ^ Meta variable for interaction.
           --   The 'InteractionId' is usually identical with the
           --   'metaNumber' of 'MetaInfo'.
@@ -80,19 +84,19 @@ data Expr
         | Underscore   MetaInfo
           -- ^ Meta variable for hidden argument (must be inferred locally).
         | App  ExprInfo Expr (NamedArg Expr) -- ^
-	| WithApp ExprInfo Expr [Expr]	     -- ^ with application
-        | Lam  ExprInfo LamBinding Expr	     -- ^
+        | WithApp ExprInfo Expr [Expr]       -- ^ with application
+        | Lam  ExprInfo LamBinding Expr      -- ^
         | AbsurdLam ExprInfo Hiding
         | ExtendedLam ExprInfo DefInfo QName [Clause]
-        | Pi   ExprInfo Telescope Expr	     -- ^
-	| Fun  ExprInfo (Arg Expr) Expr	     -- ^ independent function space
+        | Pi   ExprInfo Telescope Expr       -- ^
+        | Fun  ExprInfo (Arg Expr) Expr      -- ^ independent function space
         | Set  ExprInfo Integer              -- ^ Set, Set1, Set2, ...
-        | Prop ExprInfo			     -- ^
+        | Prop ExprInfo                      -- ^
         | Let  ExprInfo [LetBinding] Expr    -- ^
         | ETel Telescope                     -- ^ only used when printing telescopes
-	| Rec  ExprInfo Assigns              -- ^ record construction
-	| RecUpdate ExprInfo Expr Assigns    -- ^ record update
-	| ScopedExpr ScopeInfo Expr	     -- ^ scope annotation
+        | Rec  ExprInfo Assigns              -- ^ record construction
+        | RecUpdate ExprInfo Expr Assigns    -- ^ record update
+        | ScopedExpr ScopeInfo Expr          -- ^ scope annotation
         | QuoteGoal ExprInfo Name Expr       -- ^ binds @Name@ to current type in @Expr@
         | QuoteContext ExprInfo Name Expr    -- ^ binds @Name@ to current context in @Expr@
         | Quote ExprInfo                     -- ^ Quote an identifier 'QName'.
@@ -116,14 +120,14 @@ data Axiom
 type Ren a = Map a a
 
 data Declaration
-	= Axiom      Axiom DefInfo ArgInfo QName Expr      -- ^ type signature (can be irrelevant and colored, but not hidden)
-	| Field      DefInfo QName (Arg Expr)		   -- ^ record field
-	| Primitive  DefInfo QName Expr			   -- ^ primitive function
-	| Mutual     MutualInfo [Declaration]              -- ^ a bunch of mutually recursive definitions
-	| Section    ModuleInfo ModuleName [TypedBindings] [Declaration]
-	| Apply	     ModuleInfo ModuleName ModuleApplication (Ren QName) (Ren ModuleName)
-	| Import     ModuleInfo ModuleName
-	| Pragma     Range	Pragma
+        = Axiom      Axiom DefInfo ArgInfo QName Expr      -- ^ type signature (can be irrelevant and colored, but not hidden)
+        | Field      DefInfo QName (Arg Expr)              -- ^ record field
+        | Primitive  DefInfo QName Expr                    -- ^ primitive function
+        | Mutual     MutualInfo [Declaration]              -- ^ a bunch of mutually recursive definitions
+        | Section    ModuleInfo ModuleName [TypedBindings] [Declaration]
+        | Apply      ModuleInfo ModuleName ModuleApplication (Ren QName) (Ren ModuleName)
+        | Import     ModuleInfo ModuleName
+        | Pragma     Range      Pragma
         | Open       ModuleInfo ModuleName
           -- ^ only retained for highlighting purposes
         | FunDef     DefInfo QName Delayed [Clause] -- ^ sequence of function clauses
@@ -138,7 +142,7 @@ data Declaration
         | PatternSynDef QName [Arg Name] Pattern
             -- ^ Only for highlighting purposes
         | UnquoteDecl MutualInfo DefInfo QName Expr
-	| ScopedDecl ScopeInfo [Declaration]  -- ^ scope annotation
+        | ScopedDecl ScopeInfo [Declaration]  -- ^ scope annotation
         deriving (Typeable, Show)
 
 class GetDefInfo a where
@@ -164,8 +168,8 @@ data ModuleApplication
   deriving (Typeable, Show)
 
 data Pragma = OptionsPragma [String]
-	    | BuiltinPragma String Expr
-	    | RewritePragma QName
+            | BuiltinPragma String Expr
+            | RewritePragma QName
             | CompiledPragma QName String
             | CompiledExportPragma QName String
             | CompiledTypePragma QName String
@@ -197,13 +201,13 @@ type Field          = TypeSignature
 
 -- | A lambda binding is either domain free or typed.
 data LamBinding
-	= DomainFree ArgInfo Name   -- ^ . @x@ or @{x}@ or @.x@ or @.{x}@
-	| DomainFull TypedBindings  -- ^ . @(xs:e)@ or @{xs:e}@ or @(let Ds)@
+        = DomainFree ArgInfo Name   -- ^ . @x@ or @{x}@ or @.x@ or @.{x}@
+        | DomainFull TypedBindings  -- ^ . @(xs:e)@ or @{xs:e}@ or @(let Ds)@
   deriving (Typeable, Show)
 
 -- | Typed bindings with hiding information.
 data TypedBindings = TypedBindings Range (Arg TypedBinding)
-	    -- ^ . @(xs : e)@ or @{xs : e}@
+            -- ^ . @(xs : e)@ or @{xs : e}@
   deriving (Typeable, Show)
 
 -- | A typed binding. Appears in dependent function spaces, typed lambdas, and
@@ -222,7 +226,7 @@ data TypedBinding
       -- ^
   deriving (Typeable, Show)
 
-type Telescope	= [TypedBindings]
+type Telescope  = [TypedBindings]
 
 -- | We could throw away @where@ clauses at this point and translate them to
 --   @let@. It's not obvious how to remember that the @let@ was really a
@@ -236,9 +240,9 @@ data Clause' lhs = Clause
 type Clause = Clause' LHS
 type SpineClause = Clause' SpineLHS
 
-data RHS	= RHS Expr
-		| AbsurdRHS
-		| WithRHS QName [Expr] [Clause] -- ^ The 'QName' is the name of the with function.
+data RHS        = RHS Expr
+                | AbsurdRHS
+                | WithRHS QName [Expr] [Clause] -- ^ The 'QName' is the name of the with function.
                 | RewriteRHS [QName] [Expr] RHS [Declaration]
                     -- ^ The 'QName's are the names of the generated with functions.
                     --   One for each 'Expr'.
@@ -464,31 +468,31 @@ instance HasRange TypedBinding where
     getRange (TLet r _)    = r
 
 instance HasRange Expr where
-    getRange (Var x)		   = getRange x
-    getRange (Def x)		   = getRange x
-    getRange (Con x)		   = getRange x
-    getRange (Lit l)		   = getRange l
-    getRange (QuestionMark i _)	   = getRange i
-    getRange (Underscore  i)	   = getRange i
-    getRange (App i _ _)	   = getRange i
-    getRange (WithApp i _ _)	   = getRange i
-    getRange (Lam i _ _)	   = getRange i
+    getRange (Var x)               = getRange x
+    getRange (Def x)               = getRange x
+    getRange (Con x)               = getRange x
+    getRange (Lit l)               = getRange l
+    getRange (QuestionMark i _)    = getRange i
+    getRange (Underscore  i)       = getRange i
+    getRange (App i _ _)           = getRange i
+    getRange (WithApp i _ _)       = getRange i
+    getRange (Lam i _ _)           = getRange i
     getRange (AbsurdLam i _)       = getRange i
     getRange (ExtendedLam i _ _ _) = getRange i
-    getRange (Pi i _ _)		   = getRange i
-    getRange (Fun i _ _)	   = getRange i
-    getRange (Set i _)		   = getRange i
-    getRange (Prop i)		   = getRange i
-    getRange (Let i _ _)	   = getRange i
-    getRange (Rec i _)		   = getRange i
+    getRange (Pi i _ _)            = getRange i
+    getRange (Fun i _ _)           = getRange i
+    getRange (Set i _)             = getRange i
+    getRange (Prop i)              = getRange i
+    getRange (Let i _ _)           = getRange i
+    getRange (Rec i _)             = getRange i
     getRange (RecUpdate i _ _)     = getRange i
     getRange (ETel tel)            = getRange tel
-    getRange (ScopedExpr _ e)	   = getRange e
-    getRange (QuoteGoal _ _ e)	   = getRange e
+    getRange (ScopedExpr _ e)      = getRange e
+    getRange (QuoteGoal _ _ e)     = getRange e
     getRange (QuoteContext _ _ e)  = getRange e
-    getRange (Quote i)  	   = getRange i
-    getRange (QuoteTerm i)  	   = getRange i
-    getRange (Unquote i)  	   = getRange i
+    getRange (Quote i)             = getRange i
+    getRange (QuoteTerm i)         = getRange i
+    getRange (Unquote i)           = getRange i
     getRange (DontCare{})          = noRange
     getRange (PatternSyn x)        = getRange x
 
@@ -497,12 +501,12 @@ instance HasRange Declaration where
     getRange (Field      i _ _      ) = getRange i
     getRange (Mutual     i _        ) = getRange i
     getRange (Section    i _ _ _    ) = getRange i
-    getRange (Apply	 i _ _ _ _  ) = getRange i
-    getRange (Import     i _	    ) = getRange i
-    getRange (Primitive  i _ _	    ) = getRange i
-    getRange (Pragma	 i _	    ) = getRange i
+    getRange (Apply      i _ _ _ _  ) = getRange i
+    getRange (Import     i _        ) = getRange i
+    getRange (Primitive  i _ _      ) = getRange i
+    getRange (Pragma     i _        ) = getRange i
     getRange (Open       i _        ) = getRange i
-    getRange (ScopedDecl _ d	    ) = getRange d
+    getRange (ScopedDecl _ d        ) = getRange d
     getRange (FunDef     i _ _ _    ) = getRange i
     getRange (DataSig    i _ _ _    ) = getRange i
     getRange (DataDef    i _ _ _    ) = getRange i
@@ -512,15 +516,15 @@ instance HasRange Declaration where
     getRange (UnquoteDecl _ i _ _)    = getRange i
 
 instance HasRange (Pattern' e) where
-    getRange (VarP x)	         = getRange x
+    getRange (VarP x)            = getRange x
     getRange (ConP i _ _)        = getRange i
     getRange (DefP i _ _)        = getRange i
-    getRange (WildP i)	         = getRange i
+    getRange (WildP i)           = getRange i
     getRange (ImplicitP i)       = getRange i
     getRange (AsP i _ _)         = getRange i
     getRange (DotP i _)          = getRange i
     getRange (AbsurdP i)         = getRange i
-    getRange (LitP l)	         = getRange l
+    getRange (LitP l)            = getRange l
     getRange (PatternSynP i _ _) = getRange i
 
 instance HasRange SpineLHS where
@@ -806,14 +810,15 @@ instance AnyAbstract Declaration where
   anyAbstract (RecSig i _ _ _)       = defAbstract i == AbstractDef
   anyAbstract _                      = __IMPOSSIBLE__
 
-app   = foldl (App (ExprRange noRange))
+app ∷ Expr → [NamedArg Expr] → Expr
+app = foldl (App (ExprRange noRange))
 
 patternToExpr :: Pattern -> Expr
 patternToExpr (VarP x)            = Var x
 patternToExpr (ConP _ c ps)       =
-          Con c `app` map (fmap (fmap patternToExpr)) ps
+  Con c `app` map (fmap (fmap patternToExpr)) ps
 patternToExpr (DefP _ f ps)       =
-          Def f `app` map (fmap (fmap patternToExpr)) ps
+  Def f `app` map (fmap (fmap patternToExpr)) ps
 patternToExpr (WildP _)           = Underscore emptyMetaInfo
 patternToExpr (AsP _ _ p)         = patternToExpr p
 patternToExpr (DotP _ e)          = e
@@ -833,9 +838,7 @@ lambdaLiftExpr (n:ns) e = Lam (ExprRange noRange)
 
 substPattern :: [(Name, Pattern)] -> Pattern -> Pattern
 substPattern s p = case p of
-  VarP z      -> case lookup z s of
-    Nothing -> p
-    Just x  -> x
+  VarP z      -> fromMaybe p (lookup z s)
   ConP i q ps -> ConP i q (fmap (fmap (fmap (substPattern s))) ps)
   WildP i     -> p
   DotP i e    -> DotP i (substExpr (map (fmap patternToExpr) s) e)
@@ -847,11 +850,9 @@ substPattern s p = case p of
 
 substExpr :: [(Name, Expr)] -> Expr -> Expr
 substExpr s e = case e of
-  Var n -> case lookup n s of
-    Nothing -> e
-    Just z  -> z
+  Var n                 -> fromMaybe e (lookup n s)
   Def _                 -> e
-  Con _	                -> e
+  Con _                 -> e
   Lit _                 -> e
   QuestionMark{}        -> e
   Underscore   _        -> e

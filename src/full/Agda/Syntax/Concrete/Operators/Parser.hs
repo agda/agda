@@ -54,9 +54,9 @@ partP ms s = do
       Nothing -> pfail
     where
         str = show (foldr Qual (QName (Name noRange [Id s])) ms)
-	isLocal e = case exprView e of
-	    LocalV y | str == show y -> Just (getRange y)
-	    _			     -> Nothing
+        isLocal e = case exprView e of
+            LocalV y | str == show y -> Just (getRange y)
+            _                        -> Nothing
 
 binop :: IsExpr e => ReadP e (NewNotation,Range,[e]) -> ReadP e (e -> e -> e)
 binop middleP = do
@@ -80,14 +80,14 @@ postop middleP = do
 -- place as where the holes are discarded, however that would require a dependently
 -- typed function (or duplicated code)
 opP :: IsExpr e => ReadP e e -> NewNotation -> ReadP e (NewNotation,Range,[e])
-opP p nsyn@(q,_,syn) = do
+opP p nsyn@(NewNotation q _ syn) = do
   (range,es) <- worker (init $ qnameParts q) $ removeExternalHoles syn
   return (nsyn,range,es)
  where worker ms [IdPart x] = do r <- partP ms x; return (r,[])
        worker ms (IdPart x : _ : xs) = do
             r1        <- partP ms x
-	    e         <- p
-	    (r2 , es) <- worker [] xs -- only the first part is qualified
+            e         <- p
+            (r2 , es) <- worker [] xs -- only the first part is qualified
             return (fuseRanges r1 r2, e : es)
        worker _ x = __IMPOSSIBLE__ -- holes and non-holes must be alternated.
 
@@ -97,7 +97,7 @@ opP p nsyn@(q,_,syn) = do
 -- | Given a name with a syntax spec, and a list of parsed expressions
 -- fitting it, rebuild the expression.
 rebuild :: forall e. IsExpr e => NewNotation -> Range -> [e] -> e
-rebuild (name,_,syn) r es = unExprView $ OpAppV (setRange r name) exprs
+rebuild (NewNotation name _ syn) r es = unExprView $ OpAppV (setRange r name) exprs
   where
     exprs = map findExprFor [0..lastHole]
     filledHoles = zip es (filter isAHole syn)
@@ -140,9 +140,9 @@ infixP  op p = do
     e <- p
     restP e
     where
-	restP x = return x +++ do
-	    f <- binop op
-	    f x <$> p
+        restP x = return x +++ do
+            f <- binop op
+            f x <$> p
 
 nonfixP op p = do
   (nsyn,r,es) <- op
@@ -152,26 +152,26 @@ nonfixP op p = do
 argsP :: IsExpr e => ReadP e e -> ReadP e [NamedArg e]
 argsP p = many (nothidden +++ hidden +++ instanceH)
     where
-	isHidden (HiddenArgV _) = True
-	isHidden _	        = False
+        isHidden (HiddenArgV _) = True
+        isHidden _              = False
 
-	isInstance (InstanceArgV _) = True
-	isInstance _	            = False
+        isInstance (InstanceArgV _) = True
+        isInstance _                = False
 
-	nothidden = defaultArg . unnamed <$> do
-	    e <- p
-	    case exprView e of
-		HiddenArgV   _ -> pfail
-		InstanceArgV _ -> pfail
-		_	       -> return e
+        nothidden = defaultArg . unnamed <$> do
+            e <- p
+            case exprView e of
+                HiddenArgV   _ -> pfail
+                InstanceArgV _ -> pfail
+                _              -> return e
 
-	instanceH = do
-	    InstanceArgV e <- exprView <$> satisfy (isInstance . exprView)
-	    return $ makeInstance $ defaultArg e
+        instanceH = do
+            InstanceArgV e <- exprView <$> satisfy (isInstance . exprView)
+            return $ makeInstance $ defaultArg e
 
-	hidden = do
-	    HiddenArgV e <- exprView <$> satisfy (isHidden . exprView)
-	    return $ hide $ defaultArg e
+        hidden = do
+            HiddenArgV e <- exprView <$> satisfy (isHidden . exprView)
+            return $ hide $ defaultArg e
 
 appP :: IsExpr e => ReadP e e -> ReadP e [NamedArg e] -> ReadP e e
 appP p pa = do
@@ -179,11 +179,11 @@ appP p pa = do
     es <- pa
     return $ foldl app h es
     where
-	app e = unExprView . AppV e
+        app e = unExprView . AppV e
 
 atomP :: IsExpr e => (QName -> Bool) -> ReadP e e
 atomP p = do
     e <- get
     case exprView e of
-	LocalV x | not (p x) -> pfail
-	_		     -> return e
+        LocalV x | not (p x) -> pfail
+        _                    -> return e

@@ -39,9 +39,9 @@ import Agda.Syntax.Position
 --   context.
 openBrace :: LexAction Token
 openBrace = token $ \_ ->
-    do	pushContext NoLayout
-	i <- getParseInterval
-	return (TokSymbol SymOpenBrace i)
+    do  pushContext NoLayout
+        i <- getParseInterval
+        return (TokSymbol SymOpenBrace i)
 
 
 {-| Executed upon lexing a close brace (@\'}\'@). Exits the current layout
@@ -51,9 +51,9 @@ openBrace = token $ \_ ->
 -}
 closeBrace :: LexAction Token
 closeBrace = token $ \_ ->
-    do	popContext
-	i <- getParseInterval
-	return (TokSymbol SymCloseBrace i)
+    do  popContext
+        i <- getParseInterval
+        return (TokSymbol SymCloseBrace i)
 
 
 {-| Executed for the first token in each line (see 'Agda.Syntax.Parser.Lexer.bol').
@@ -61,31 +61,31 @@ closeBrace = token $ \_ ->
     If the token is
 
     - /to the left/ :
-	Exit the current context and a return virtual close brace (stay in the
-	'Agda.Syntax.Parser.Lexer.bol' state).
+        Exit the current context and a return virtual close brace (stay in the
+        'Agda.Syntax.Parser.Lexer.bol' state).
 
     - /same column/ :
-	Exit the 'Agda.Syntax.Parser.Lexer.bol' state and return a virtual semi
-	colon.
+        Exit the 'Agda.Syntax.Parser.Lexer.bol' state and return a virtual semi
+        colon.
 
     - /to the right/ :
-	Exit the 'Agda.Syntax.Parser.Lexer.bol' state and continue lexing.
+        Exit the 'Agda.Syntax.Parser.Lexer.bol' state and continue lexing.
 
     If the current block doesn't use layout (i.e. it was started by
     'openBrace') all positions are considered to be /to the right/.
 -}
 offsideRule :: LexAction Token
 offsideRule inp _ _ =
-    do	offs <- getOffside p
-	case offs of
-	    LT	-> do	popContext
-			return (TokSymbol SymCloseVirtualBrace (Interval p p))
-	    EQ	-> do	popLexState
-			return (TokSymbol SymVirtualSemi (Interval p p))
-	    GT	-> do	popLexState
-			lexToken
+    do  offs <- getOffside p
+        case offs of
+            LT  -> do   popContext
+                        return (TokSymbol SymCloseVirtualBrace (Interval p p))
+            EQ  -> do   popLexState
+                        return (TokSymbol SymVirtualSemi (Interval p p))
+            GT  -> do   popLexState
+                        lexToken
     where
-	p = lexPos inp
+        p = lexPos inp
 
 
 {-| This action is only executed from the 'Agda.Syntax.Parser.Lexer.empty_layout'
@@ -95,11 +95,11 @@ offsideRule inp _ _ =
 -}
 emptyLayout :: LexAction Token
 emptyLayout inp _ _ =
-    do	popLexState
-	pushLexState bol
-	return (TokSymbol SymCloseVirtualBrace (Interval p p))
+    do  popLexState
+        pushLexState bol
+        return (TokSymbol SymCloseVirtualBrace (Interval p p))
     where
-	p = lexPos inp
+        p = lexPos inp
 
 
 {-| Start a new layout context. This is one of two ways to get out of the
@@ -125,24 +125,24 @@ emptyLayout inp _ _ =
 -}
 newLayoutContext :: LexAction Token
 newLayoutContext inp _ _ =
-    do	let offset = posCol p
-	ctx <- topContext
-	case ctx of
-	    Layout prevOffs | prevOffs >= offset ->
-		do  pushLexState empty_layout
-		    return (TokSymbol SymOpenVirtualBrace (Interval p p))
-	    _ ->
-		do  pushContext (Layout offset)
-		    return (TokSymbol SymOpenVirtualBrace (Interval p p))
+    do  let offset = posCol p
+        ctx <- topContext
+        case ctx of
+            Layout prevOffs | prevOffs >= offset ->
+                do  pushLexState empty_layout
+                    return (TokSymbol SymOpenVirtualBrace (Interval p p))
+            _ ->
+                do  pushContext (Layout offset)
+                    return (TokSymbol SymOpenVirtualBrace (Interval p p))
     where
-	p = lexPos inp
+        p = lexPos inp
 
 
 -- | Compute the relative position of a location to the
 --   current layout context.
 getOffside :: Position -> Parser Ordering
 getOffside loc =
-    do	ctx <- topContext
-	return $ case ctx of
-	    Layout n	-> compare (posCol loc) n
-	    _		-> GT
+    do  ctx <- topContext
+        return $ case ctx of
+            Layout n    -> compare (posCol loc) n
+            _           -> GT

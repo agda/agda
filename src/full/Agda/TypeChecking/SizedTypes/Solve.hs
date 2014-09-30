@@ -1,10 +1,10 @@
-{-# LANGUAGE CPP #-}
-{-# LANGUAGE FlexibleInstances #-}
+{-# LANGUAGE CPP                   #-}
+{-# LANGUAGE FlexibleInstances     #-}
 {-# LANGUAGE MultiParamTypeClasses #-}
-{-# LANGUAGE PatternGuards #-}
-{-# LANGUAGE ScopedTypeVariables #-}
-{-# LANGUAGE TupleSections #-}
-{-# LANGUAGE TypeSynonymInstances #-}
+{-# LANGUAGE PatternGuards         #-}
+{-# LANGUAGE ScopedTypeVariables   #-}
+{-# LANGUAGE TupleSections         #-}
+{-# LANGUAGE TypeSynonymInstances  #-}
 
 -- | Solving size constraints under hypotheses.
 --
@@ -56,8 +56,7 @@
 
 module Agda.TypeChecking.SizedTypes.Solve where
 
-import Control.Monad.Error
-
+import Control.Monad ( forM )
 import Data.Foldable (Foldable, foldMap)
 import Data.Function
 import Data.List
@@ -90,6 +89,7 @@ import Agda.TypeChecking.SizedTypes.Utils
 import Agda.TypeChecking.SizedTypes.WarshallSolver as Size
 
 import Agda.Utils.Cluster
+import Agda.Utils.Except ( MonadError(catchError) )
 import Agda.Utils.Function
 import Agda.Utils.Functor
 import Agda.Utils.List

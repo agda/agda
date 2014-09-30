@@ -7,7 +7,7 @@ module Derivative where
 
   ∂ : U -> U
   ∂ (K A)   = K [0]
-  ∂ Id	    = K [1]
+  ∂ Id      = K [1]
   ∂ (F + G) = ∂ F + ∂ G
   ∂ (F × G) = ∂ F × G + F × ∂ G
 
@@ -15,10 +15,10 @@ module Derivative where
 
   -- Plugging a hole
   plug-∂ : {X : Set}(F : U) -> ⟦ ∂ F ⟧ X -> X -> ⟦ F ⟧ X
-  plug-∂ (K _)	()		 x
-  plug-∂ Id	<>		 x = x
-  plug-∂ (F + G) (inl c)	 x = inl (plug-∂ F c x)
-  plug-∂ (F + G) (inr c)	 x = inr (plug-∂ G c x)
+  plug-∂ (K _)  ()               x
+  plug-∂ Id     <>               x = x
+  plug-∂ (F + G) (inl c)         x = inl (plug-∂ F c x)
+  plug-∂ (F + G) (inr c)         x = inr (plug-∂ G c x)
   plug-∂ (F × G) (inl < c , g >) x = < plug-∂ F c x , g >
   plug-∂ (F × G) (inr < f , c >) x = < f , plug-∂ G c x >
 

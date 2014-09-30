@@ -28,7 +28,7 @@ module Category (ℂ : Cat) where
   private module Eq {A B : Obj} = Equivalence (Eq {A}{B})
   open Eq public hiding (_==_)
 
-  infix	 20 _==_
+  infix  20 _==_
   infixr 30 _─→_
   infixr 90 _∘_
 
@@ -41,11 +41,11 @@ module Category (ℂ : Cat) where
   _∘_ = CC._∘_
 
   congL : {A B C : Obj}{f₁ f₂ : B ─→ C}{g : A ─→ B} ->
-	  f₁ == f₂ -> f₁ ∘ g == f₂ ∘ g
+          f₁ == f₂ -> f₁ ∘ g == f₂ ∘ g
   congL p = cong p (refl _)
 
   congR : {A B C : Obj}{f : B ─→ C}{g₁ g₂ : A ─→ B} ->
-	  g₁ == g₂ -> f ∘ g₁ == f ∘ g₂
+          g₁ == g₂ -> f ∘ g₁ == f ∘ g₂
   congR p = cong (refl _) p
 
 module Poly-Cat where
@@ -104,16 +104,16 @@ open Category hiding (Obj; _─→_)
   trans {ℂ} (eqArr fg) (eqArr gh) = eqArr (Pr.trans ℂ fg gh)
 
   cong : {ℂ : Cat}{A B C : Obj ℂ}{f₁ f₂ : B ─→ C}{g₁ g₂ : A ─→ B} ->
-	 f₁ == f₂ -> g₁ == g₂ -> f₁ ∘ g₁ == f₂ ∘ g₂
+         f₁ == f₂ -> g₁ == g₂ -> f₁ ∘ g₁ == f₂ ∘ g₂
   cong {ℂ} {f₁ = arr _}{f₂ = arr _}{g₁ = arr _}{g₂ = arr _}
-	   (eqArr p) (eqArr q) = eqArr (Pr.cong ℂ p q)
+           (eqArr p) (eqArr q) = eqArr (Pr.cong ℂ p q)
 
   congL : {ℂ : Cat}{A B C : Obj ℂ}{f₁ f₂ : B ─→ C}{g : A ─→ B} ->
-	  f₁ == f₂ -> f₁ ∘ g == f₂ ∘ g
+          f₁ == f₂ -> f₁ ∘ g == f₂ ∘ g
   congL p = cong p refl
 
   congR : {ℂ : Cat}{A B C : Obj ℂ}{f : B ─→ C}{g₁ g₂ : A ─→ B} ->
-	  g₁ == g₂ -> f ∘ g₁ == f ∘ g₂
+          g₁ == g₂ -> f ∘ g₁ == f ∘ g₂
   congR q = cong refl q
 
   Eq : {ℂ : Cat}{A B : Obj ℂ} -> Equivalence (A ─→ B)
@@ -126,7 +126,7 @@ open Category hiding (Obj; _─→_)
   idR {ℂ}{f = arr _} = eqArr (Pr.idR ℂ)
 
   assoc : {ℂ : Cat}{A B C D : Obj ℂ}{f : C ─→ D}{g : B ─→ C}{h : A ─→ B} ->
-	  (f ∘ g) ∘ h == f ∘ (g ∘ h)
+          (f ∘ g) ∘ h == f ∘ (g ∘ h)
   assoc {ℂ}{f = arr _}{g = arr _}{h = arr _} = eqArr (Pr.assoc ℂ)
 -}
 

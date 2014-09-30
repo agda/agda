@@ -1,12 +1,12 @@
-{-# LANGUAGE CPP #-}
+{-# LANGUAGE CPP              #-}
 {-# LANGUAGE FlexibleContexts #-}
-{-# LANGUAGE PatternGuards #-}
-{-# LANGUAGE TupleSections #-}
+{-# LANGUAGE PatternGuards    #-}
+{-# LANGUAGE TupleSections    #-}
 
 module Agda.TypeChecking.Coverage where
 
 import Control.Monad
-import Control.Monad.Error
+import Control.Monad.Trans ( lift )
 import Control.Applicative hiding (empty)
 
 import Data.List

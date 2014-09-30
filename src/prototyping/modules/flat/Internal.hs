@@ -12,18 +12,18 @@ import Pretty
 import Utils
 
 data Type = Pi Type (Abs Type)
-	  | Set
-	  | El Term
+          | Set
+          | El Term
 
 data Term = Lam (Abs Term)
-	  | App Term Term
-	  | Def Name
-	  | Var Int
+          | App Term Term
+          | Def Name
+          | Var Int
 
 data Abs a = Abs { absName :: Var, unAbs :: a }
 
 data Defn = Type  { defName :: Name, defFreeVars :: Int, defType :: Type }
-	  | Value { defName :: Name, defFreeVars :: Int, defType :: Type, _defValue :: Term }
+          | Value { defName :: Name, defFreeVars :: Int, defType :: Type, _defValue :: Term }
 
 -- To abstract ------------------------------------------------------------
 
@@ -35,23 +35,23 @@ class ToExpr a where
 
 instance ToExpr Type where
     toExpr ctx a = case a of
-	Set    -> A.Set
-	Pi a b -> A.Pi (fresh ctx $ absName b) (toExpr ctx a) (toExpr ctx b)
-	El t   -> toExpr ctx t
+        Set    -> A.Set
+        Pi a b -> A.Pi (fresh ctx $ absName b) (toExpr ctx a) (toExpr ctx b)
+        El t   -> toExpr ctx t
 
 instance ToExpr Term where
     toExpr ctx t = case t of
-	Lam t	-> A.Lam (fresh ctx $ absName t) $ toExpr ctx t
-	App s t -> (A.App `on` toExpr ctx) s t
-	Var n	-> A.Var $ ctx !!! n
-	Def c	-> A.Def c
+        Lam t   -> A.Lam (fresh ctx $ absName t) $ toExpr ctx t
+        App s t -> (A.App `on` toExpr ctx) s t
+        Var n   -> A.Var $ ctx !!! n
+        Def c   -> A.Def c
 
 instance ToExpr a => ToExpr (Abs a) where
     toExpr ctx (Abs x b) = toExpr (fresh ctx x : ctx) b
 
 xs !!! n
     | length xs <= n = "BAD" ++ show (n - length xs)
-    | otherwise	     = xs !! n
+    | otherwise      = xs !! n
 
 fresh :: [Var] -> Var -> Var
 fresh _ "_" = "_"

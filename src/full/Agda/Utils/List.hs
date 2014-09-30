@@ -24,6 +24,17 @@ import Agda.Utils.Tuple
 #include "../undefined.h"
 import Agda.Utils.Impossible
 
+-- | Case distinction for lists, with list first.
+--   Cf. 'Agda.Utils.Null.ifNull'.
+caseList :: [a] -> b -> (a -> [a] -> b) -> b
+caseList []     n c = n
+caseList (x:xs) n c = c x xs
+
+-- | Case distinction for lists, with list last.
+listCase :: b -> (a -> [a] -> b) -> [a] -> b
+listCase n c []     = n
+listCase n c (x:xs) = c x xs
+
 -- | Head function (safe).
 mhead :: [a] -> Maybe a
 mhead []    = Nothing
@@ -143,12 +154,12 @@ preOrSuffix (a:as) (b:bs)
 wordsBy :: (a -> Bool) -> [a] -> [[a]]
 wordsBy p xs = yesP xs
     where
-	yesP xs = noP (dropWhile p xs)
+        yesP xs = noP (dropWhile p xs)
 
-	noP []	= []
-	noP xs	= ys : yesP zs
-	    where
-		(ys,zs) = break p xs
+        noP []  = []
+        noP xs  = ys : yesP zs
+            where
+                (ys,zs) = break p xs
 
 -- | Chop up a list in chunks of a given length.
 chop :: Int -> [a] -> [[a]]
@@ -173,7 +184,7 @@ sorted xs = and $ zipWith (<=) (init xs) (tail xs)
 -- other. Assumes that the 'Eq' instance stands for an equivalence
 -- relation.
 distinct :: Eq a => [a] -> Bool
-distinct []	= True
+distinct []     = True
 distinct (x:xs) = x `notElem` xs && distinct xs
 
 -- | An optimised version of 'distinct'.

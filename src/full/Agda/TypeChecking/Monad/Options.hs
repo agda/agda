@@ -4,7 +4,6 @@
 module Agda.TypeChecking.Monad.Options where
 
 import Control.Applicative
-import Control.Monad.Error
 import Control.Monad.Reader
 import Control.Monad.State
 import Data.Maybe
@@ -24,6 +23,7 @@ import Agda.Interaction.Options
 import qualified Agda.Interaction.Options.Lenses as Lens
 import Agda.Interaction.Response
 
+import Agda.Utils.Except ( MonadError(catchError) )
 import Agda.Utils.FileName
 import Agda.Utils.Monad
 import Agda.Utils.List
@@ -89,8 +89,8 @@ setOptionsFromPragma :: OptionsPragma -> TCM ()
 setOptionsFromPragma ps = do
     opts <- commandLineOptions
     case parsePragmaOptions ps opts of
-	Left err    -> typeError $ GenericError err
-	Right opts' -> setPragmaOptions opts'
+        Left err    -> typeError $ GenericError err
+        Right opts' -> setPragmaOptions opts'
 
 -- | Disable display forms.
 enableDisplayForms :: TCM a -> TCM a
@@ -209,17 +209,17 @@ setIncludeDirs incs relativeTo = do
 
 setInputFile :: FilePath -> TCM ()
 setInputFile file =
-    do	opts <- commandLineOptions
-	setCommandLineOptions $
+    do  opts <- commandLineOptions
+        setCommandLineOptions $
           opts { optInputFile = Just file }
 
 -- | Should only be run if 'hasInputFile'.
 getInputFile :: TCM AbsolutePath
 getInputFile =
-    do	mf <- optInputFile <$> commandLineOptions
-	case mf of
-	    Just file -> liftIO $ absolute file
-	    Nothing   -> __IMPOSSIBLE__
+    do  mf <- optInputFile <$> commandLineOptions
+        case mf of
+            Just file -> liftIO $ absolute file
+            Nothing   -> __IMPOSSIBLE__
 
 hasInputFile :: TCM Bool
 hasInputFile = isJust <$> optInputFile <$> commandLineOptions
@@ -297,7 +297,7 @@ hasVerbosity k n | n < 0     = __IMPOSSIBLE__
                  | otherwise = do
     t <- getVerbosity
     let ks = wordsBy (`elem` ".:") k
-	m  = maximum $ 0 : Trie.lookupPath ks t
+        m  = maximum $ 0 : Trie.lookupPath ks t
     return (n <= m)
 
 -- | Displays a debug message in a suitable way.

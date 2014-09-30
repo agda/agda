@@ -351,14 +351,14 @@ checkLeftHandSide c f ps a ret = do
 
   reportSDoc "tc.lhs.top" 10 $
     vcat [ text "checked lhs:"
-	 , nest 2 $ vcat
-	   [ text "ps    = " <+> fsep (map prettyA ps)
-	   , text "perm  = " <+> text (show perm)
-	   , text "delta = " <+> prettyTCM delta
-	   , text "dpi   = " <+> brackets (fsep $ punctuate comma $ map prettyTCM dpi)
-	   , text "asb   = " <+> brackets (fsep $ punctuate comma $ map prettyTCM asb)
+         , nest 2 $ vcat
+           [ text "ps    = " <+> fsep (map prettyA ps)
+           , text "perm  = " <+> text (show perm)
+           , text "delta = " <+> prettyTCM delta
+           , text "dpi   = " <+> brackets (fsep $ punctuate comma $ map prettyTCM dpi)
+           , text "asb   = " <+> brackets (fsep $ punctuate comma $ map prettyTCM asb)
            , text "qs    = " <+> text (show qs)
-	   ]
+           ]
          ]
   bindLHSVars (filter (isNothing . isProjP) ps) delta $ bindAsPatterns asb $ do
     reportSDoc "tc.lhs.top" 10 $ text "bound pattern variables"
@@ -533,18 +533,18 @@ checkLeftHandSide c f ps a ret = do
             -- Compute the constructor indices by dropping the parameters
             let us' = drop (size vs) us
 
-	    reportSDoc "tc.lhs.top" 15 $ addCtxTel delta1 $
-	      sep [ text "preparing to unify"
-		  , nest 2 $ vcat
-		    [ text "c      =" <+> prettyTCM c <+> text ":" <+> prettyTCM a
-		    , text "d      =" <+> prettyTCM d <+> text ":" <+> prettyTCM da
-		    , text "gamma  =" <+> prettyTCM gamma
-		    , text "gamma' =" <+> prettyTCM gamma'
-		    , text "vs     =" <+> brackets (fsep $ punctuate comma $ map prettyTCM vs)
-		    , text "us'    =" <+> brackets (fsep $ punctuate comma $ map prettyTCM us')
-		    , text "ws     =" <+> brackets (fsep $ punctuate comma $ map prettyTCM ws)
-		    ]
-		  ]
+            reportSDoc "tc.lhs.top" 15 $ addCtxTel delta1 $
+              sep [ text "preparing to unify"
+                  , nest 2 $ vcat
+                    [ text "c      =" <+> prettyTCM c <+> text ":" <+> prettyTCM a
+                    , text "d      =" <+> prettyTCM d <+> text ":" <+> prettyTCM da
+                    , text "gamma  =" <+> prettyTCM gamma
+                    , text "gamma' =" <+> prettyTCM gamma'
+                    , text "vs     =" <+> brackets (fsep $ punctuate comma $ map prettyTCM vs)
+                    , text "us'    =" <+> brackets (fsep $ punctuate comma $ map prettyTCM us')
+                    , text "ws     =" <+> brackets (fsep $ punctuate comma $ map prettyTCM ws)
+                    ]
+                  ]
 
             -- Unify constructor target and given type (in Δ₁Γ)
             sub0 <- addCtxTel (delta1 `abstract` gamma) $

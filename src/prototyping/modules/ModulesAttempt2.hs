@@ -16,10 +16,10 @@ type QName = (MName, Name)
 
 type Sig = Map MName MDef
 
-type Var  = Int	    -- deBruijn variables
+type Var  = Int     -- deBruijn variables
 data Term = Def QName [Term]
-	  | Var Var [Term]
-	  | Lam Term
+          | Var Var [Term]
+          | Lam Term
   deriving Show
 type Tel  = [Name]  -- we don't care about types
 type Args = [Term]
@@ -29,7 +29,7 @@ type Args = [Term]
   arguments in implicit modules define all free variables.
 -}
 data MDef = Impl Tel MName Args
-	  | Expl Tel (Map Name Def)
+          | Expl Tel (Map Name Def)
   deriving Show
 
 type Def = Term
@@ -54,8 +54,8 @@ lookupName_ sig (m,x) = lookUp f x
 lookupModule_ :: Sig -> MName -> MDef
 lookupModule_ sig m =
   case lookUp sig m of
-    Impl _ m' _	-> lookupModule_ sig m'
-    d		-> d
+    Impl _ m' _ -> lookupModule_ sig m'
+    d           -> d
 
 -- Taking free variables into account -------------------------------------
 
@@ -69,12 +69,12 @@ apply (Lam t) (u:us) = subst [u] t `apply` us
 
 -- Raising the level of a term.
 raiseByFrom :: Int -> Int -> Term -> Term
-raiseByFrom k n (Lam t)	   = Lam $ raiseByFrom k (n + 1) t
+raiseByFrom k n (Lam t)    = Lam $ raiseByFrom k (n + 1) t
 raiseByFrom k n (Def x ts) = Def x $ List.map (raiseByFrom k n) ts
 raiseByFrom k n (Var m ts) = Var (raise m) $ List.map (raiseByFrom k n) ts
   where
-    raise m | m >= n	= m + k
-	    | otherwise	= m
+    raise m | m >= n    = m + k
+            | otherwise = m
 
 raiseBy n = raiseByFrom n 0
 
@@ -85,7 +85,7 @@ subst us (Def x ts) = Def x $ List.map (subst us) ts
 subst us (Var m ts) = sub m `apply` List.map (subst us) ts
   where
     sub m | m < length us = us !! m
-	  | otherwise	  = Var (m - length us) []
+          | otherwise     = Var (m - length us) []
 
 {-
   Now the lookup functions. First we should think about what results we want to
@@ -101,12 +101,12 @@ subst us (Var m ts) = sub m `apply` List.map (subst us) ts
   There are a few possible solutions:
 
     (1) Add all submodules to the signature. This would make lookup very simple
-	but would some work at typechecking (going through the signature
-	looking for submodules of the instantiated module).
+        but would some work at typechecking (going through the signature
+        looking for submodules of the instantiated module).
 
     (2) Look for parent modules if a module isn't found. Doesn't require any work
-	at typechecking, but on the other hand lookup gets complicated (and
-	inefficient).
+        at typechecking, but on the other hand lookup gets complicated (and
+        inefficient).
 
   Conclusion: go with curtain number (1).
 
@@ -128,7 +128,7 @@ lookupModule0 :: Sig -> MName -> MDef
 lookupModule0 sig m =
   case lookUp sig m of
     Impl tel m' args  -> substMDef tel args $ lookupModule0 sig m'
-    d		      -> d
+    d                 -> d
 
 -- substMDef Γ γ (Expl Δ f) = Expl Γ fγ, where γ : Γ -> Δ
 substMDef :: Tel -> Args -> MDef -> MDef
@@ -202,14 +202,14 @@ lookupModule = lookupModule0
   How do we get Top.B.f? And how do we store it?
 
     Top.A (y:N)(x:N) --> f |-> \y x -> e[Top.A.f y x, x, y]
-    Top.B (y:N)	     --> Top.A y zero
+    Top.B (y:N)      --> Top.A y zero
 
   Looking up Top.B.f:
 
-	Top.B (y:N) --> Top.A y zero
-    so	Top.B.f	    --> \y -> Top.A.f y zero
+        Top.B (y:N) --> Top.A y zero
+    so  Top.B.f     --> \y -> Top.A.f y zero
 
-	Top.A.f	    --> \y x -> e[Top.A.f y x, x, y]
+        Top.A.f     --> \y x -> e[Top.A.f y x, x, y]
     and Top.B.f     --> \y -> e[Top.A.f y zero, zero, y]
 
   When typechecking a call to a definition we have to apply it to an
@@ -219,13 +219,13 @@ lookupModule = lookupModule0
 -}
 
 data Decl = ModImpl Name Tel MName [Expr]
-	  | ModExpl Name Tel [Decl]
-	  | Defn Name Expr
+          | ModExpl Name Tel [Decl]
+          | Defn Name Expr
   deriving Show
 
 data Expr = EVar Name
-	  | EDef QName
-	  | EApp [Expr]
+          | EDef QName
+          | EApp [Expr]
   deriving Show
 
 type Context = Tel -- only backwards
@@ -262,8 +262,8 @@ addDef (m,x) d = modify $ Map.adjust (\ (Expl tel f) -> Expl tel $ Map.insert x 
 
 typeCheck :: Decl -> Sig
 typeCheck d = flip execState Map.empty
-	    $ flip runReaderT ([],[])
-	    $ checkDecl d
+            $ flip runReaderT ([],[])
+            $ checkDecl d
 
 -- Type checking
 
@@ -273,11 +273,11 @@ checkDecl (Defn x e) =
       q <- qualify x
       addDef q t
 checkDecl (ModImpl x tel m args) = undefined
-checkDecl (ModExpl x tel ds)	 = undefined
+checkDecl (ModExpl x tel ds)     = undefined
 
 checkExpr :: Expr -> TCM Term
 checkExpr (EDef x)      = return $ Def x []
-checkExpr (EVar x)	= Var <$> checkVar x <*> return []
+checkExpr (EVar x)      = Var <$> checkVar x <*> return []
 checkExpr (EApp (e:es)) =
   do  t <- checkExpr e
       ts <- mapM checkExpr es
@@ -287,8 +287,8 @@ checkVar :: Name -> TCM Var
 checkVar x =
   do  ctx <- getContext
       case List.findIndex (x==) ctx of
-	Just n	-> return n
-	Nothing	-> fail $ "no such var: " ++ x
+        Just n  -> return n
+        Nothing -> fail $ "no such var: " ++ x
 
 -- Example ----------------------------------------------------------------
 
@@ -316,23 +316,23 @@ checkVar x =
 -}
 sig :: Sig
 sig = Map.fromList
-  [ ( ["T"]	    , Expl phi Map.empty			  )
-  , ( ["T","A"]	    , Expl (phi ++ delta) (Map.singleton "f" e)	  )
-  , ( ["T","B"]	    , Impl (phi ++ gamma) ["T","A"] us		  )
-  , ( ["T","B'"]    , Impl phi ["T","B"] us'			  )
-  , ( ["T","C"]	    , Expl (phi ++ theta) Map.empty		  )
-  , ( ["T","C","D"] , Impl (phi ++ theta) ["T","B"] vs		  )
-  , ( ["T","E"]	    , Impl phi ["T","C"] ws			  )
+  [ ( ["T"]         , Expl phi Map.empty                          )
+  , ( ["T","A"]     , Expl (phi ++ delta) (Map.singleton "f" e)   )
+  , ( ["T","B"]     , Impl (phi ++ gamma) ["T","A"] us            )
+  , ( ["T","B'"]    , Impl phi ["T","B"] us'                      )
+  , ( ["T","C"]     , Expl (phi ++ theta) Map.empty               )
+  , ( ["T","C","D"] , Impl (phi ++ theta) ["T","B"] vs            )
+  , ( ["T","E"]     , Impl phi ["T","C"] ws                       )
   , ( ["T","E","D"] , Impl phi ["T","B"] (List.map (subst $ reverse ws) vs) )
   ]
   where
     -- The two first term (corresponding to Φ) have to be added by the type checker.
-    us	  = [var [4],var [3],var [4,3,2,1,0]]		  -- us  : ΦΓ -> ΦΔ
-    us'	  = [var [1],var [0],var [0],var [1],var [0]]	  -- us' : Φ  -> ΦΓ
-    vs	  = [var [2],var [1],var [1,2],var [2,1],var [0]] -- vs  : ΦΘ -> ΦΓ
-    ws	  = [var [0],var [1],var [0,0,1]]		  -- ws  : Φ  -> ΦΘ
+    us    = [var [4],var [3],var [4,3,2,1,0]]             -- us  : ΦΓ -> ΦΔ
+    us'   = [var [1],var [0],var [0],var [1],var [0]]     -- us' : Φ  -> ΦΓ
+    vs    = [var [2],var [1],var [1,2],var [2,1],var [0]] -- vs  : ΦΘ -> ΦΓ
+    ws    = [var [0],var [1],var [0,0,1]]                 -- ws  : Φ  -> ΦΘ
 
-    e	  = var [0,1,2]     -- ΦΔ ⊢ e
+    e     = var [0,1,2]     -- ΦΔ ⊢ e
 
     var (x:xs) = Var x $ List.map (var . (:[])) xs
 

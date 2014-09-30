@@ -1,4 +1,4 @@
-{-# LANGUAGE CPP #-}
+{-# LANGUAGE CPP           #-}
 {-# LANGUAGE DeriveFunctor #-}
 {-# LANGUAGE TupleSections #-}
 
@@ -9,7 +9,6 @@
 module Agda.TypeChecking.Monad.SizedTypes where
 
 import Control.Applicative
-import Control.Monad.Error
 
 import Agda.Interaction.Options
 
@@ -23,6 +22,7 @@ import Agda.TypeChecking.Monad.Signature
 import Agda.TypeChecking.Monad.State
 import Agda.TypeChecking.Substitute ()
 
+import Agda.Utils.Except ( MonadError(catchError) )
 import Agda.Utils.Monad
 
 #include "../../undefined.h"

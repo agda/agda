@@ -1,9 +1,9 @@
-{-# LANGUAGE CPP #-}
-{-# LANGUAGE DeriveFunctor #-}
-{-# LANGUAGE FlexibleInstances #-}
+{-# LANGUAGE CPP                        #-}
+{-# LANGUAGE DeriveFunctor              #-}
+{-# LANGUAGE FlexibleInstances          #-}
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
-{-# LANGUAGE MultiParamTypeClasses #-}
-{-# LANGUAGE TypeSynonymInstances #-}
+{-# LANGUAGE MultiParamTypeClasses      #-}
+{-# LANGUAGE TypeSynonymInstances       #-}
 
 -- | The monad for the termination checker.
 --
@@ -14,7 +14,6 @@
 module Agda.Termination.Monad where
 
 import Control.Applicative
-import Control.Monad.Error
 import Control.Monad.Reader
 import Control.Monad.Writer
 import Control.Monad.State
@@ -40,6 +39,7 @@ import Agda.TypeChecking.Pretty
 import Agda.TypeChecking.Records
 import Agda.TypeChecking.Substitute
 
+import Agda.Utils.Except ( MonadError(catchError, throwError) )
 import Agda.Utils.Maybe
 import Agda.Utils.Monad
 import Agda.Utils.Pretty (Pretty)
@@ -444,6 +444,16 @@ instance PrettyTCM DeBruijnPat where
   prettyTCM (ConDBP c ps) = parens (prettyTCM c <+> hsep (map prettyTCM ps))
   prettyTCM (LitDBP l)    = prettyTCM l
   prettyTCM (ProjDBP d)   = prettyTCM d
+
+-- | How long is the path to the deepest variable?
+patternDepth :: DeBruijnPat' a -> Int
+patternDepth p =
+  case p of
+    ConDBP _ ps -> succ $ maximum $ 0 : map patternDepth ps
+    VarDBP{}    -> 0
+    LitDBP{}    -> 0
+    ProjDBP{}   -> 0
+
 
 -- | A dummy pattern used to mask a pattern that cannot be used
 --   for structural descent.

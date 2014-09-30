@@ -18,12 +18,12 @@ module Adj where
       (inv₁ : {X : Obj ℂ}{Y : Obj ⅅ}(g : X ─→ Map G Y) -> g # * == g)
       (inv₂ : {X : Obj ℂ}{Y : Obj ⅅ}(f : Map F X ─→ Y) -> f * # == f)
       (nat₁ : {X₁ X₂ : Obj ℂ}{Y₁ Y₂ : Obj ⅅ}
-	      (f : Y₁ ─→ Y₂)(g : X₂ ─→ X₁)(h : Map F X₁ ─→ Y₁) ->
-	      (f ∘ h ∘ map F g) * == map G f ∘ (h *) ∘ g
+              (f : Y₁ ─→ Y₂)(g : X₂ ─→ X₁)(h : Map F X₁ ─→ Y₁) ->
+              (f ∘ h ∘ map F g) * == map G f ∘ (h *) ∘ g
       )
       (nat₂ : {X₁ X₂ : Obj ℂ}{Y₁ Y₂ : Obj ⅅ}
-	      (f : Y₁ ─→ Y₂)(g : X₂ ─→ X₁)(h : X₁ ─→ Map G Y₁) ->
-	      (map G f ∘ h ∘ g) # == f ∘ (h #) ∘ map F g
+              (f : Y₁ ─→ Y₂)(g : X₂ ─→ X₁)(h : X₁ ─→ Map G Y₁) ->
+              (map G f ∘ h ∘ g) # == f ∘ (h #) ∘ map F g
       )
       -> F ⊢ G
 

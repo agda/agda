@@ -10,7 +10,7 @@ import Iso
 module Term (ℂ : Cat) where
 
   private ℂ' = η-Cat ℂ
-  private open module C	= Cat ℂ'
+  private open module C = Cat ℂ'
   private open module U = Uniq ℂ'
   private open module I = Iso ℂ'
 
@@ -22,8 +22,8 @@ module Term (ℂ : Cat) where
 
   terminalIso : {A B : Obj} -> Terminal A -> Terminal B -> A ≅ B
   terminalIso tA tB = iso (toTerminal tB)
-			   (toTerminal tA)
-			   p q
+                           (toTerminal tA)
+                           p q
     where
       p : toTerminal tB ∘ toTerminal tA == id
       p = witnessEqual (tB _) tt tt

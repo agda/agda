@@ -35,8 +35,8 @@ format' ('%' :: 'f' :: fmt) = floatArg    :: format' fmt
 format' ('%' :: 'c' :: fmt) = charArg     :: format' fmt
 format' ('%' :: '%' :: fmt) = litChar '%' :: format' fmt
 format' ('%' ::  c  :: fmt) = badFormat c :: format' fmt
-format' (c		:: fmt) = litChar c   :: format' fmt
-format'  []		= []
+format' (c              :: fmt) = litChar c   :: format' fmt
+format'  []             = []
 
 format : String -> List Format
 format s = format' (toList s)
@@ -53,21 +53,21 @@ Printf' (floatArg    :: fmt) = Float   × Printf' fmt
 Printf' (charArg     :: fmt) = Char    × Printf' fmt
 Printf' (badFormat c :: fmt) = BadFormat c
 Printf' (litChar _   :: fmt) = Printf' fmt
-Printf'  []		     = Unit × Unit
+Printf'  []                  = Unit × Unit
 
 Printf : String -> Set
 Printf fmt = Printf' (format fmt)
 
 printf' : (fmt : List Format) -> Printf' fmt -> String
-printf' (stringArg   :: fmt) < s | args > = s			 ++ printf' fmt args
-printf' (natArg      :: fmt) < n | args > = showNat n		 ++ printf' fmt args
-printf' (intArg      :: fmt) < n | args > = showInt n		 ++ printf' fmt args
-printf' (floatArg    :: fmt) < x | args > = showFloat x	 ++ printf' fmt args
-printf' (charArg     :: fmt) < c | args > = showChar c	 ++ printf' fmt args
+printf' (stringArg   :: fmt) < s | args > = s                    ++ printf' fmt args
+printf' (natArg      :: fmt) < n | args > = showNat n            ++ printf' fmt args
+printf' (intArg      :: fmt) < n | args > = showInt n            ++ printf' fmt args
+printf' (floatArg    :: fmt) < x | args > = showFloat x  ++ printf' fmt args
+printf' (charArg     :: fmt) < c | args > = showChar c   ++ printf' fmt args
 printf' (litChar c   :: fmt) args = fromList (c :: []) ++ printf' fmt args
 printf' (badFormat _ :: fmt) ()
-printf'  []		 < unit | unit >	    = ""
---    printf'  nil		 unit 	    = ""
+printf'  []              < unit | unit >            = ""
+--    printf'  nil               unit       = ""
 
 printf : (fmt : String) -> Printf fmt -> String
 printf fmt = printf' (format fmt)

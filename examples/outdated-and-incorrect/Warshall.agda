@@ -80,7 +80,7 @@ vec  zero   _ = nil
 vec (suc n) x = x :: vec n x
 
 map : {n:Nat} -> (X -> X) -> Vec n -> Vec n
-map {zero}  f (vecI nil_)	  = nil
+map {zero}  f (vecI nil_)         = nil
 map {suc n} f (vecI (cons_ x xs)) = f x :: map f xs
 
 (!) : {n:Nat} -> Vec n -> Fin n -> X

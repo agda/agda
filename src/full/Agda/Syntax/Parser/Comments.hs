@@ -36,8 +36,8 @@ keepCommentsM = fmap parseKeepComments getParseFlags
 --   token.
 nestedComment :: LexAction Token
 nestedComment inp inp' _ =
-    do	setLexInput inp'
-	runLookAhead err $ skipBlock "{-" "-}"
+    do  setLexInput inp'
+        runLookAhead err $ skipBlock "{-" "-}"
         keep <- keepCommentsM
         if keep then do
           inp'' <- getLexInput
@@ -48,7 +48,7 @@ nestedComment inp inp' _ =
                       genericTake (p2 - p1) $ lexInput inp
           return $ TokComment (i, s)
          else
-	  lexToken
+          lexToken
     where
         err _ = liftP $ parseErrorAt (lexPos inp) "Unterminated '{-'"
 
@@ -56,10 +56,10 @@ nestedComment inp inp' _ =
 --   Returns @'TokSymbol' 'SymQuestionMark'@.
 hole :: LexAction Token
 hole inp inp' _ =
-    do	setLexInput inp'
-	runLookAhead err $ skipBlock "{!" "!}"
-	p <- lexPos <$> getLexInput
-	return $ TokSymbol SymQuestionMark (Interval (lexPos inp) p)
+    do  setLexInput inp'
+        runLookAhead err $ skipBlock "{!" "!}"
+        p <- lexPos <$> getLexInput
+        return $ TokSymbol SymQuestionMark (Interval (lexPos inp) p)
     where
         err _ = liftP $ parseErrorAt (lexPos inp) "Unterminated '{!'"
 
@@ -68,10 +68,10 @@ hole inp inp' _ =
 skipBlock :: String -> String -> LookAhead ()
 skipBlock open close = scan 1
     where
-	scan 0 = sync
-	scan n = match [ open	==>  scan (n + 1)
-		       , close	==>  scan (n - 1)
-		       ] `other` scan n
-	    where
-		(==>) = (,)
-		other = ($)
+        scan 0 = sync
+        scan n = match [ open   ==>  scan (n + 1)
+                       , close  ==>  scan (n - 1)
+                       ] `other` scan n
+            where
+                (==>) = (,)
+                other = ($)

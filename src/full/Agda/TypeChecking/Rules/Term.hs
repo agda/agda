@@ -11,7 +11,6 @@ module Agda.TypeChecking.Rules.Term where
 import Control.Applicative
 import Control.Monad.Trans
 import Control.Monad.Reader
-import Control.Monad.Error
 
 import Data.Maybe
 import Data.List hiding (sort)
@@ -60,6 +59,13 @@ import Agda.TypeChecking.Rules.LHS (checkLeftHandSide, LHSResult(..))
 import {-# SOURCE #-} Agda.TypeChecking.Empty (isEmptyType)
 import {-# SOURCE #-} Agda.TypeChecking.Rules.Decl (checkSectionApplication)
 import {-# SOURCE #-} Agda.TypeChecking.Rules.Def (checkFunDef,checkFunDef')
+
+import Agda.Utils.Except
+  ( Error(noMsg, strMsg)
+  , ExceptT
+  , MonadError(catchError, throwError)
+  , runExceptT
+  )
 
 import Agda.Utils.Fresh
 import Agda.Utils.Functor (($>))
@@ -134,9 +140,9 @@ leqType_ t t' = workOnTypes $ leqType t t'
 
 forcePi :: Hiding -> String -> Type -> TCM (Type, Constraints)
 forcePi h name (El s t) =
-    do	t' <- reduce t
-	case t' of
-	    Pi _ _	-> return (El s t', [])
+    do  t' <- reduce t
+        case t' of
+            Pi _ _      -> return (El s t', [])
             _           -> do
                 sa <- newSortMeta
                 sb <- newSortMeta
@@ -144,7 +150,7 @@ forcePi h name (El s t) =
 
                 a <- newTypeMeta sa
                 x <- freshName_ name
-		let arg = Arg h Relevant a
+                let arg = Arg h Relevant a
                 b <- addCtx x arg $ newTypeMeta sb
                 let ty = El s' $ Pi arg (Abs (show x) b)
                 cs <- equalType (El s t') ty
@@ -162,7 +168,7 @@ checkTelescope_ [] ret = ret EmptyTel
 checkTelescope_ (b : tel) ret =
     checkTypedBindings_ b $ \tel1 ->
     checkTelescope_ tel   $ \tel2 ->
-	ret $ abstract tel1 tel2
+        ret $ abstract tel1 tel2
 
 -- | Check a typed binding and extends the context with the bound variables.
 --   The telescope passed to the continuation is valid in the original context.
@@ -518,7 +524,7 @@ checkArguments' ::
   ExpandHidden -> ExpandInstances -> Range -> [I.NamedArg A.Expr] -> Type -> Type ->
   (Args -> Type -> TCM Term) -> TCM Term
 checkArguments' exph expIFS r args t0 t k = do
-  z <- runErrorT $ checkArguments exph expIFS r args t0 t
+  z <- runExceptT $ checkArguments exph expIFS r args t0 t
   case z of
     Right (vs, t1) -> k vs t1
       -- vs = evaluated args
@@ -543,9 +549,9 @@ checkExpr e t0 =
   traceCall (CheckExprCall e t0) $ localScope $ doExpandLast $ shared <$> do
     reportSDoc "tc.term.expr.top" 15 $
         text "Checking" <+> sep
-	  [ fsep [ prettyTCM e, text ":", prettyTCM t0 ]
-	  , nest 2 $ text "at " <+> (text . show =<< getCurrentRange)
-	  ]
+          [ fsep [ prettyTCM e, text ":", prettyTCM t0 ]
+          , nest 2 $ text "at " <+> (text . show =<< getCurrentRange)
+          ]
     reportSDoc "tc.term.expr.top.detailed" 80 $
       text "Checking" <+> fsep [ prettyTCM e, text ":", text (show t0) ]
     t <- reduce t0
@@ -553,44 +559,47 @@ checkExpr e t0 =
         text "    --> " <+> prettyTCM t
 
     let scopedExpr (A.ScopedExpr scope e) = setScope scope >> scopedExpr e
-	scopedExpr e			  = return e
+        scopedExpr e                      = return e
 
     e <- scopedExpr e
 
     case e of
 
-	A.ScopedExpr scope e -> __IMPOSSIBLE__ -- setScope scope >> checkExpr e t
+        A.ScopedExpr scope e -> __IMPOSSIBLE__ -- setScope scope >> checkExpr e t
 
-	-- Insert hidden lambda if appropriate
-	_   | Pi (Dom info _) _ <- ignoreSharing $ unEl t
-            , not (hiddenLambdaOrHole (getHiding info) e)
-            , getHiding info /= NotHidden -> do
-		x <- freshName r (argName t)
+        -- Insert hidden lambda if all of the following conditions are met:
+        ------ * type is a hidden function type, {x : A} -> B or {{x : A} -> B
+        _   | Pi (Dom info _) _ <- ignoreSharing $ unEl t
+            , let h = getHiding info
+            , notVisible h
+            -- * expression is not a matching hidden lambda or question mark
+            , not (hiddenLambdaOrHole h e)
+            -> do
+                x <- freshName rx (argName t)
                 info <- reify info
                 reportSLn "tc.term.expr.impl" 15 $ "Inserting implicit lambda"
-		checkExpr (A.Lam (A.ExprRange $ getRange e) (domainFree info x) e) t
-	    where
-		r = case rStart $ getRange e of
-                      Nothing  -> noRange
-                      Just pos -> posToRange pos pos
+                checkExpr (A.Lam (A.ExprRange re) (domainFree info x) e) t
+            where
+                re = getRange e
+                rx = caseMaybe (rStart re) noRange $ \ pos -> posToRange pos pos
 
-                hiddenLambdaOrHole h (A.AbsurdLam _ h') | h == h'                      = True
-                hiddenLambdaOrHole h (A.ExtendedLam _ _ _ [])                          = False
-                hiddenLambdaOrHole h (A.ExtendedLam _ _ _ cls)                         = any hiddenLHS cls
-		hiddenLambdaOrHole h (A.Lam _ (A.DomainFree info' _) _) | h == getHiding info'       = True
-		hiddenLambdaOrHole h (A.Lam _ (A.DomainFull (A.TypedBindings _ (Arg info' _))) _)
-                  | h == getHiding info'                                                            = True
-		hiddenLambdaOrHole _ A.QuestionMark{}				       = True
-		hiddenLambdaOrHole _ _						       = False
+                hiddenLambdaOrHole h e = case e of
+                  A.AbsurdLam _ h'                 -> h == h'
+                  A.ExtendedLam _ _ _ cls          -> any hiddenLHS cls
+                  A.Lam _ (A.DomainFree info' _) _ -> h == getHiding info'
+                  A.Lam _ (A.DomainFull (A.TypedBindings _ (Arg info' _))) _
+                                                   -> h == getHiding info'
+                  A.QuestionMark{}                 -> True
+                  _                                -> False
 
-                hiddenLHS (A.Clause (A.LHS _ (A.LHSHead _ (a : _)) _) _ _) = elem (getHiding a) [Hidden, Instance]
+                hiddenLHS (A.Clause (A.LHS _ (A.LHSHead _ (a : _)) _) _ _) = notVisible a
                 hiddenLHS _ = False
 
         -- a meta variable without arguments: type check directly for efficiency
-	A.QuestionMark i ii -> checkMeta (newQuestionMark ii) t0 i -- Andreas, 2013-05-22 use unreduced type t0!
-	A.Underscore i   -> checkMeta (newValueMeta RunMetaOccursCheck) t0 i
+        A.QuestionMark i ii -> checkMeta (newQuestionMark ii) t0 i -- Andreas, 2013-05-22 use unreduced type t0!
+        A.Underscore i   -> checkMeta (newValueMeta RunMetaOccursCheck) t0 i
 
-	A.WithApp _ e es -> typeError $ NotImplemented "type checking of with application"
+        A.WithApp _ e es -> typeError $ NotImplemented "type checking of with application"
 
         -- check |- Set l : t  (requires universe polymorphism)
         A.App i s (Arg ai l)
@@ -634,14 +643,14 @@ checkExpr e t0 =
 
         A.ExtendedLam i di qname cs -> checkExtendedLambda i di qname cs e t
 
-	A.Lam i (A.DomainFull (A.TypedBindings _ b)) e -> checkLambda (convColor b) e t
+        A.Lam i (A.DomainFull (A.TypedBindings _ b)) e -> checkLambda (convColor b) e t
 
-	A.Lam i (A.DomainFree info x) e0 -> checkExpr (A.Lam i (domainFree info x) e0) t
+        A.Lam i (A.DomainFree info x) e0 -> checkExpr (A.Lam i (domainFree info x) e0) t
 
-	A.Lit lit    -> checkLiteral lit t
-	A.Let i ds e -> checkLetBindings ds $ checkExpr e t
-	A.Pi _ tel e -> do
-	    t' <- checkTelescope_ tel $ \tel -> do
+        A.Lit lit    -> checkLiteral lit t
+        A.Let i ds e -> checkLetBindings ds $ checkExpr e t
+        A.Pi _ tel e -> do
+            t' <- checkTelescope_ tel $ \tel -> do
                     t   <- instantiateFull =<< isType_ e
                     tel <- instantiateFull tel
                     return $ telePi tel t
@@ -651,25 +660,25 @@ checkExpr e t0 =
                    , nest 2 $ text "t   =" <+> prettyTCM t'
                    , nest 2 $ text "cxt =" <+> (prettyTCM =<< getContextTelescope)
                    ]
-	    coerce (unEl t') (sort s) t
-	A.Fun _ (Arg info a) b -> do
-	    a' <- isType_ a
-	    b' <- isType_ b
-	    s <- reduce $ getSort a' `sLub` getSort b'
-	    coerce (Pi (convColor $ Dom info a') (NoAbs underscore b')) (sort s) t
-	A.Set _ n    -> do
+            coerce (unEl t') (sort s) t
+        A.Fun _ (Arg info a) b -> do
+            a' <- isType_ a
+            b' <- isType_ b
+            s <- reduce $ getSort a' `sLub` getSort b'
+            coerce (Pi (convColor $ Dom info a') (NoAbs underscore b')) (sort s) t
+        A.Set _ n    -> do
           n <- ifM typeInType (return 0) (return n)
-	  coerce (Sort $ mkType n) (sort $ mkType $ n + 1) t
-	A.Prop _     -> do
+          coerce (Sort $ mkType n) (sort $ mkType $ n + 1) t
+        A.Prop _     -> do
           typeError $ GenericError "Prop is no longer supported"
           -- s <- ifM typeInType (return $ mkType 0) (return Prop)
-	  -- coerce (Sort Prop) (sort $ mkType 1) t
+          -- coerce (Sort Prop) (sort $ mkType 1) t
 
-	A.Rec _ fs  -> checkRecordExpression fs e t
+        A.Rec _ fs  -> checkRecordExpression fs e t
 
         A.RecUpdate ei recexpr fs -> checkRecordUpdate ei recexpr fs e t
 
-	A.DontCare e -> -- resurrect vars
+        A.DontCare e -> -- resurrect vars
           ifM ((Irrelevant ==) <$> asks envRelevance)
             (dontCare <$> do applyRelevanceToContext Irrelevant $ checkExpr e t)
             (internalError "DontCare may only appear in irrelevant contexts")
@@ -699,7 +708,7 @@ checkExpr e t0 =
           blockTerm t $ coerce v ctxType t
         A.ETel _   -> __IMPOSSIBLE__
 
-	-- Application
+        -- Application
         _   | Application hd args <- appView e -> checkApplication hd args e t
 
 -- | @checkApplication hd args e t@ checks an application.
@@ -1199,9 +1208,9 @@ instance Error (a, b, c) where
   strMsg _ = __IMPOSSIBLE__
   noMsg = __IMPOSSIBLE__
 
-traceCallE :: Error e => (Maybe r -> Call) -> ErrorT e TCM r -> ErrorT e TCM r
+traceCallE :: Error e => (Maybe r -> Call) -> ExceptT e TCM r -> ExceptT e TCM r
 traceCallE call m = do
-  z <- lift $ traceCall call' $ runErrorT m
+  z <- lift $ traceCall call' $ runExceptT m
   case z of
     Right e  -> return e
     Left err -> throwError err
@@ -1216,7 +1225,7 @@ traceCallE call m = do
 --   type @t0'@ (which should be a subtype of @t1@) and any constraints @cs@
 --   that have to be solved for everything to be well-formed.
 checkArguments :: ExpandHidden -> ExpandInstances -> Range -> [I.NamedArg A.Expr] -> Type -> Type ->
-                  ErrorT (Args, [I.NamedArg A.Expr], Type) TCM (Args, Type)
+                  ExceptT (Args, [I.NamedArg A.Expr], Type) TCM (Args, Type)
 
 -- Case: no arguments, do not insert trailing hidden arguments: We are done.
 checkArguments DontExpandLast DontExpandInstanceArguments _ [] t0 t1 = return ([], t0)
@@ -1314,7 +1323,7 @@ checkArguments exh expandIFS r args0@(arg@(Arg info e) : args) t0 t1 =
 -- | Check that a list of arguments fits a telescope.
 checkArguments_ :: ExpandHidden -> Range -> [I.NamedArg A.Expr] -> Telescope -> TCM Args
 checkArguments_ exh r args tel = do
-    z <- runErrorT $ checkArguments exh ExpandInstanceArguments r args (telePi tel $ sort Prop) (sort Prop)
+    z <- runExceptT $ checkArguments exh ExpandInstanceArguments r args (telePi tel $ sort Prop) (sort Prop)
     case z of
       Right (args, _) -> return args
       Left _          -> __IMPOSSIBLE__
@@ -1327,7 +1336,7 @@ inferExpr :: A.Expr -> TCM (Term, Type)
 inferExpr e = case e of
   _ | Application hd args <- appView e, defOrVar hd -> traceCall (InferExpr e) $ do
     (f, t0) <- inferHead hd
-    res <- runErrorT $ checkArguments DontExpandLast ExpandInstanceArguments (getRange hd) (map convColor args) t0 (sort Prop)
+    res <- runExceptT $ checkArguments DontExpandLast ExpandInstanceArguments (getRange hd) (map convColor args) t0 (sort Prop)
     case res of
       Right (vs, t1) -> return (f vs, t1)
       Left t1 -> fallback -- blocked on type t1
