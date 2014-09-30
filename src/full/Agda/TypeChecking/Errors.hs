@@ -128,6 +128,8 @@ errorString err = case err of
     AmbiguousParseForLHS{}                   -> "AmbiguousParseForLHS"
 --    AmbiguousParseForPatternSynonym{}        -> "AmbiguousParseForPatternSynonym"
     AmbiguousTopLevelModuleName {}           -> "AmbiguousTopLevelModuleName"
+    BadArgumentsToPatternSynonym{}           -> "BadArgumentsToPatternSynonym"
+    TooFewArgumentsToPatternSynonym{}        -> "TooFewArgumentsToPatternSynonym"
     BothWithAndRHS                           -> "BothWithAndRHS"
     BuiltinInParameterisedModule{}           -> "BuiltinInParameterisedModule"
     BuiltinMustBeConstructor{}               -> "BuiltinMustBeConstructor"
@@ -674,6 +676,10 @@ instance PrettyTCM TypeError where
                 fromOrdinary :: C.OpApp e -> e
                 fromOrdinary (C.Ordinary e) = e
                 fromOrdinary _ = __IMPOSSIBLE__
+            BadArgumentsToPatternSynonym x -> fsep $
+                pwords "Bad arguments to pattern synonym " ++ [prettyTCM x]
+            TooFewArgumentsToPatternSynonym x -> fsep $
+                pwords "Too few arguments to pattern synonym " ++ [prettyTCM x]
             UnusedVariableInPatternSynonym -> fsep $
                 pwords "Unused variable in pattern synonym."
             NoParseForLHS IsLHS p -> fsep $

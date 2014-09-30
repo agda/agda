@@ -786,7 +786,7 @@ checkApplication hd args e t = do
       -- over the ones we haven't.
       let meta r = A.Underscore $ A.emptyMetaInfo{ A.metaRange = r }   -- TODO: name suggestion
       case A.insertImplicitPatSynArgs meta (getRange n) ns args of
-        Nothing      -> typeError $ GenericError $ "Bad arguments to pattern synonym " ++ show n
+        Nothing      -> typeError $ BadArgumentsToPatternSynonym n
         Just (s, ns) -> do
           let p' = A.patternToExpr p
               e' = A.lambdaLiftExpr (map unArg ns) (A.substExpr s p')

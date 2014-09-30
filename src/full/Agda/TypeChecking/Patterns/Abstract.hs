@@ -117,6 +117,6 @@ instance ExpandPatternSynonyms A.Pattern where
         instPatternSyn (ns, p) as = do
           p <- expandPatternSynonyms p
           case A.insertImplicitPatSynArgs (A.ImplicitP . PatRange) (getRange x) ns as of
-            Nothing       -> typeError $ GenericError $ "Bad arguments to pattern synonym " ++ show x
-            Just (_, _:_) -> typeError $ GenericError $ "Too few arguments to pattern synonym " ++ show x
+            Nothing       -> typeError $ BadArgumentsToPatternSynonym x
+            Just (_, _:_) -> typeError $ TooFewArgumentsToPatternSynonym x
             Just (s, [])  -> return $ setRange (getRange i) $ A.substPattern s p

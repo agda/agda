@@ -1598,6 +1598,9 @@ data TypeError
         | NotAValidLetBinding D.NiceDeclaration
         | NothingAppliedToHiddenArg C.Expr
         | NothingAppliedToInstanceArg C.Expr
+    -- Pattern synonym errors
+        | BadArgumentsToPatternSynonym A.QName
+        | TooFewArgumentsToPatternSynonym A.QName
         | UnusedVariableInPatternSynonym
     -- Operator errors
         | NoParseForApplication [C.Expr]
