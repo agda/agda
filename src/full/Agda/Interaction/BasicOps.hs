@@ -366,11 +366,7 @@ instance (ToConcrete a c, ToConcrete b d) =>
 --ToDo: Move somewhere else
 instance ToConcrete InteractionId C.Expr where
     toConcrete (InteractionId i) = return $ C.QuestionMark noRange (Just i)
-{- UNUSED
-instance ToConcrete MetaId C.Expr where
-    toConcrete x@(MetaId i) = do
-      return $ C.Underscore noRange (Just $ "_" ++ show i)
--}
+
 instance ToConcrete NamedMeta C.Expr where
     toConcrete i = do
       return $ C.Underscore noRange (Just $ show i)
