@@ -53,7 +53,7 @@ import Agda.Syntax.Scope.Base
 import Agda.Syntax.Scope.Monad
 
 import Agda.TypeChecking.Monad.Base (TypeError(..), Call(..), typeError,
-                                     TCErr(..), extendlambdaname)
+                                     TCErr(..), extendedLambdaName)
 import Agda.TypeChecking.Monad.Benchmark (billTo, billTop, reimburseTop)
 import qualified Agda.TypeChecking.Monad.Benchmark as Bench
 import Agda.TypeChecking.Monad.Trace (traceCall, setCurrentRange)
@@ -588,9 +588,9 @@ instance ToAbstract C.Expr A.Expr where
   -- Extended Lambda
       C.ExtendedLam r cs ->
         ifM isInsideDotPattern (typeError $ GenericError "Extended lambdas are not allowed in dot patterns") $ do
-        cname <- nextlamname r 0 extendlambdaname
+        cname <- nextlamname r 0 extendedLambdaName
         name  <- freshAbstractName_ cname
-        reportSLn "toabstract.extendlambda" 10 $ "new extended lambda name: " ++ show name
+        reportSLn "scope.extendedLambda" 10 $ "new extended lambda name: " ++ show name
         qname <- qualifyName_ name
         bindName PrivateAccess DefName cname qname
         let insertApp (C.RawAppP r es) = C.RawAppP r ((IdentP (C.QName cname)) : es)

@@ -1903,12 +1903,11 @@ forkTCM m = do
 
 
 -- | Base name for extended lambda patterns
-extendlambdaname = ".extendedlambda"
+extendedLambdaName = ".extendedlambda"
 
 -- | Name of absurdLambda definitions.
 absurdLambdaName = ".absurdlambda"
 
 -- | Check whether we have an definition from an absurd lambda.
 isAbsurdLambdaName :: QName -> Bool
-isAbsurdLambdaName (QName _ x) | show x == absurdLambdaName = True
-isAbsurdLambdaName _ = False
+isAbsurdLambdaName = (absurdLambdaName ==) . show . nameConcrete . qnameName

@@ -220,7 +220,7 @@ reifyDisplayFormP lhs@(A.SpineLHS i f ps wps) =
 
     okTerm (I.Var _ []) = True
     okTerm (I.Con c vs) = all okArg vs
-    okTerm (I.Def x []) = show x == "_" -- Handling wildcards in display forms
+    okTerm (I.Def x []) = isNoName $ qnameToConcrete x -- Handling wildcards in display forms
     okTerm _            = True -- False
 
     -- Flatten a dt into (parentName, parentArgs, withArgs).
