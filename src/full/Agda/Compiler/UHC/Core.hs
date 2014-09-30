@@ -18,7 +18,7 @@ import Control.Monad.Trans.Class (lift)
 import Control.Monad.State.Class
 import Control.Monad.State
 
-import Agda.Compiler.UHC.AuxAST
+import Agda.Compiler.UHC.AuxAST hiding (apps)
 import Agda.Compiler.UHC.CompileState hiding (newName)
 import Agda.Compiler.UHC.Interface
 
@@ -53,8 +53,13 @@ toCore mod = do
   modify (\x -> x { nameSupply = tcsNameSupply ns' })
 
   let cMetaDeclL = buildCMetaDeclL (xmodDataTys mod)
-  
-  return $ CModule_Mod (hsnFromString $ "AgdaPU." ++ (xmodName mod)) [CImport_Import $ hsnFromString "UHC.Agda.Builtins"] cMetaDeclL funs
+  -- import resolution fails if we just use hsnFromString, as it produces a _Base hsname, but the Map used for the lookups stores _Modf names. Is this a bug?
+  let imps = [ CImport_Import $ mkHsName x | x <-
+        [ "UHC.Run"
+        , "UHC.Base"
+        , "UHC.Agda.Builtins"
+        ] ]
+  return $ CModule_Mod (hsnFromString $ "AgdaPU." ++ (xmodName mod)) imps cMetaDeclL funs
 
 -- TODO we should move the main generation somewhere else, but where?
 funsToCore :: String -> [Fun] -> ToCore CExpr
@@ -95,11 +100,11 @@ exprToCore (Lam v body) = exprToCore body >>= return . CExpr_Lam (CBind_Bind (to
 exprToCore (Con t qn es) = do
     es' <- mapM exprToCore es
     let ctor = CExpr_Tup $ mkCTag t qn
-    return $ foldl (\x e -> app x e) ctor es'
+    return $ apps ctor es' -- foldl (\x e -> app x e) ctor es'
 exprToCore (App fv es)   = do
     es' <- mapM exprToCore es
     let fv' = CExpr_Var (acoreMkRef $ toCoreName fv)
-    return $ foldl (\x e -> app x e) fv' es'
+    return $ apps fv' es' -- foldl (\x e -> app x e) fv' es'
 exprToCore (Case e brs) = do
     var <- newName
     (def, branches) <- branchesToCore brs
@@ -136,7 +141,7 @@ branchesToCore brs = do
             return [CAlt_Alt (CPat_Con ctag CPatRest_Empty binds) e']
           f (Default e) = return []
           -- UHC resets the tags for some constructors, but only those wo are defined in the same module. So just set it anyway, to be safe.
-          conSpecToTag (dt, ctor, tag) = CTag (hsnFromString dt) (hsnFromString $ (modNm dt) ++ "." ++ ctor) tag 0 0
+          conSpecToTag (dt, ctor, tag) = CTag (mkHsName dt) (mkHsName $ (modNm dt) ++ "." ++ ctor) tag (-1) (-1)
           modNm s = reverse $ tail $ dropWhile (/= '.') $ reverse s
           isDefault (Default _) = True
           isDefault _ = False
@@ -145,10 +150,10 @@ qnameTypeName :: QName -> HsName
 qnameTypeName = toCoreName . unqname . qnameFromList . init . qnameToList
 
 qnameCtorName :: QName -> HsName
-qnameCtorName = hsnFromString . show . last . qnameToList
+qnameCtorName = mkHsName . show . last . qnameToList
 
 mkCTag :: Tag -> QName -> CTag
-mkCTag t qn = CTag (qnameTypeName qn) (qnameCtorName qn) t 0 0
+mkCTag t qn = CTag (qnameTypeName qn) (qnameCtorName qn) t (-1) (-1)
 
 litToCore :: Lit -> CExpr
 -- should we put this into a let?
@@ -169,18 +174,30 @@ coreUnit :: CExpr
 coreUnit = CExpr_Tup CTagRec
 
 toCoreName :: AName -> HsName
-toCoreName (ANmCore n) = hsnFromString n
-toCoreName (ANmAgda n) = hsnFromString $
+toCoreName (ANmCore n) = mkHsName n
+toCoreName (ANmAgda n) = mkHsName $
     case elemIndex '.' nr of
         Just i -> let (n', ns') = splitAt i nr
                    in "AgdaPU." ++ (reverse ns') ++ "agda_c1_" ++ (reverse n')
         Nothing -> n -- local (generated) name
     where nr = reverse n
 
+-- | Creates a Haskell Name from a String.
+mkHsName :: String -> HsName
+mkHsName x = -- UHC expects names to be of the _Modf variety, if _Base/hsnFromString is used
+  -- instead things start to break, e.g. calling functions defined in other packages.
+  hsnMkModf (init xs) (hsnFromString $ last xs) M.empty
+  where xs = splitBy '.' x
+        splitBy :: Eq a => a -> [a] -> [[a]]
+        splitBy sep = (foldr (\x (a1:as) -> if x == sep then ([]:a1:as) else ((x:a1):as)) [[]])
+
 -- | Apply a lambda to one argument.
 app :: CExpr -> CExpr -> CExpr
-app f x = CExpr_App f (CBound_Bind cmetas x)
+app f x = acoreApp f [x] --CExpr_App f (CBound_Bind cmetas x)
+
+apps :: CExpr -> [CExpr] -> CExpr
+apps f xs = acoreApp f xs
 
 -- | Apply the named function to one argument.
 appS :: String -> CExpr -> CExpr
-appS f = app (CExpr_Var $ acoreMkRef $ hsnFromString f)
+appS f = app (CExpr_Var $ acoreMkRef $ mkHsName f)
