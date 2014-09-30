@@ -1,10 +1,12 @@
-{-# LANGUAGE CPP #-}
-{-# LANGUAGE FlexibleInstances #-}
-{-# LANGUAGE NamedFieldPuns #-}
+{-# OPTIONS_GHC -fwarn-missing-signatures #-}
+
+{-# LANGUAGE CPP                   #-}
+{-# LANGUAGE FlexibleInstances     #-}
+{-# LANGUAGE NamedFieldPuns        #-}
 {-# LANGUAGE MultiParamTypeClasses #-}
-{-# LANGUAGE PatternGuards #-}
-{-# LANGUAGE TupleSections #-}
-{-# LANGUAGE TypeSynonymInstances #-}
+{-# LANGUAGE PatternGuards         #-}
+{-# LANGUAGE TypeSynonymInstances  #-}
+{-# LANGUAGE TupleSections         #-}
 
 module Agda.TypeChecking.Rules.Term where
 
@@ -631,10 +633,11 @@ checkExpr e t0 =
           coerce (quoteName x) ty t
 
           | A.QuoteTerm _ <- unScope q ->
-             do (et, _) <- inferExpr (namedThing e)
-                q <- quoteTerm =<< normalise et
-                ty <- el primAgdaTerm
+             do (et, _)   <- inferExpr (namedThing e)
+                q         <- normalise et >>= etaContract >>= quoteTerm
+                ty        <- el primAgdaTerm
                 coerce q ty t
+
         A.Quote _ -> typeError $ GenericError "quote must be applied to a defined name"
         A.QuoteTerm _ -> typeError $ GenericError "quoteTerm must be applied to a term"
         A.Unquote _ -> typeError $ GenericError "unquote must be applied to a term"

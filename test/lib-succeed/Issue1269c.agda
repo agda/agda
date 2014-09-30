@@ -1,6 +1,6 @@
--- ASR (29 September 2014). Adapted from the example in issue 1269.
+-- ASR (30 September 2014). Adapted from the example in issue 1269.
 
--- Case: quote η-reduced and quoteTerm η-reduced.
+-- Case: quoteTerm η-reduced and non η-reduced.
 
 open import Data.Nat
 open import Data.List
@@ -12,23 +12,19 @@ data Even  : ℕ → Set where
   isEven0  : Even 0
   isEven+2 : ∀ {n} → Even n → Even (suc (suc n))
 
-input0 : ∃ Even
-input0 = 0 , isEven0
-
-quote0 : Term
-quote0 with type (quote input0)
-quote0 | el s t = t
-
 quotedTerm0 : Term
 quotedTerm0 = quoteTerm (∃ Even)
 
-ok : quote0 ≡ quotedTerm0
+quotedTerm1 : Term
+quotedTerm1 = quoteTerm (∃ (λ n → Even n))
+
+ok : quotedTerm0 ≡ quotedTerm1
 ok = refl
 
 ------------------------------------------------------------------------------
 -- For debugging purpose
 
-a : quote0 ≡
+a : quotedTerm0 ≡
     def (quote Σ)
         ( arg (arg-info hidden relevant) unknown ∷
           arg (arg-info hidden relevant) unknown ∷
@@ -38,7 +34,7 @@ a : quote0 ≡
         )
 a = refl
 
-b : quotedTerm0 ≡
+b : quotedTerm1 ≡
     def (quote Σ)
         ( arg (arg-info hidden relevant) unknown ∷
           arg (arg-info hidden relevant) unknown ∷

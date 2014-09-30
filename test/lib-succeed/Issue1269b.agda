@@ -32,16 +32,22 @@ ok = refl
 ------------------------------------------------------------------------------
 -- For debugging purpose
 
-a : quote0 ≡ def (quote Σ)
-                 (arg (arg-info hidden relevant) unknown ∷
-                  arg (arg-info hidden relevant) unknown ∷
-                  arg (arg-info visible relevant) (def (quote ℕ) []) ∷
-                  arg (arg-info visible relevant) (def (quote Even) []) ∷ [])
+a : quote0 ≡
+    def (quote Σ)
+        ( arg (arg-info hidden relevant) unknown ∷
+          arg (arg-info hidden relevant) unknown ∷
+          arg (arg-info visible relevant) (def (quote ℕ) []) ∷
+          arg (arg-info visible relevant) (def (quote Even) []) ∷
+          []
+        )
 a = refl
 
-b : quote1 ≡ def (quote Σ)
-                 (arg (arg-info hidden relevant) unknown ∷
-                  arg (arg-info hidden relevant) unknown ∷
-                  arg (arg-info visible relevant) (def (quote ℕ) []) ∷
-                  arg (arg-info visible relevant) (def (quote Even) []) ∷ [])
+b : quote1 ≡
+    def (quote Σ)
+        ( arg (arg-info hidden relevant) unknown ∷
+          arg (arg-info hidden relevant) unknown ∷
+          arg (arg-info visible relevant) (def (quote ℕ) []) ∷
+          arg (arg-info visible relevant) (def (quote Even) []) ∷
+          []
+        )
 b = refl
