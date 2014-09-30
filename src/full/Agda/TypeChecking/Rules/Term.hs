@@ -632,7 +632,7 @@ checkExpr e t0 =
 
           | A.QuoteTerm _ <- unScope q ->
              do (et, _) <- inferExpr (namedThing e)
-                q <- quoteTerm =<< normalise et
+                q <- normalise et >>= etaContract >>= quoteTerm
                 ty <- el primAgdaTerm
                 coerce q ty t
         A.Quote _ -> typeError $ GenericError "quote must be applied to a defined name"
