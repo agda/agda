@@ -1,6 +1,8 @@
-{-# LANGUAGE CPP #-}
+{-# OPTIONS_GHC -fwarn-missing-signatures #-}
+
+{-# LANGUAGE CPP              #-}
 {-# LANGUAGE FlexibleContexts #-}
-{-# LANGUAGE PatternGuards #-}
+{-# LANGUAGE PatternGuards    #-}
 
 -- | Compute eta short normal forms.
 module Agda.TypeChecking.EtaContract where
