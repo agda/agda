@@ -181,7 +181,7 @@ qualifyQ :: ModuleName -> QName -> QName
 qualifyQ m x = qnameFromList $ mnameToList m ++ qnameToList x
 
 qualify :: ModuleName -> Name -> QName
-qualify m x = qualifyQ m (qnameFromList [x])
+qualify = QName
 
 -- | Convert a 'Name' to a 'QName' (add no module name).
 qualify_ :: Name -> QName
