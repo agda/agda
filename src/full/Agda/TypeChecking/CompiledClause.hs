@@ -5,6 +5,12 @@
 {-# LANGUAGE DeriveTraversable  #-}
 {-# LANGUAGE TypeOperators      #-}
 
+-- | Case trees.
+--
+--   After coverage checking, pattern matching is translated
+--   to case trees, i.e., a tree of successive case splits
+--   on one variable at a time.
+
 module Agda.TypeChecking.CompiledClause where
 
 import qualified Data.Map as Map
