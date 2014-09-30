@@ -66,9 +66,9 @@ funsToCore :: String -> [Fun] -> ToCore CExpr
 funsToCore mod funs = do
   binds <- mapM funToBind funs
   let mainEhc = CExpr_Let CBindCateg_Plain [
-	CBind_Bind (hsnFromString "main") [
-		CBound_Bind cmetas (appS "UHC.Run.ehcRunMain" (CExpr_Var $ acoreMkRef $ toCoreName $ ANmAgda (mod ++ ".main")))]
-	] (CExpr_Var (acoreMkRef $ hsnFromString "main"))
+        CBind_Bind (hsnFromString "main") [
+            CBound_Bind cmetas (appS "UHC.Run.ehcRunMain" (CExpr_Var $ acoreMkRef $ toCoreName $ ANmAgda (mod ++ ".main")))]
+        ] (CExpr_Var (acoreMkRef $ hsnFromString "main"))
   return $ CExpr_Let CBindCateg_Rec binds mainEhc
 
 --buildCMetaDeclL :: M.Map QName Tag -> Compile TCM CDeclMetaL

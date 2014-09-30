@@ -178,7 +178,7 @@ compileModule i = do
                     -- Epic cannot parse files with no definitions
                     if (not $ null defns) then do
                         code <- compileDefns moduleName defns
-            	        -- HACK
+                        -- HACK
                         runUHC file (S.toList imps) code
                         eif <- gets curModule
 -- PH : TODO see missing instance problem in readEInterface

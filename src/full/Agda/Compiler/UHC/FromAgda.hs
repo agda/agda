@@ -48,30 +48,30 @@ fromAgdaModule msharp modNm defs = do
 --   in the compile monad.
 translateDataTypes :: BuiltinCache -> Compile TCM [ADataTy]
 translateDataTypes btins = do
-    constrs <- getsEI constrTags
-    dataCons <- mapM f (M.toList constrs)
-    let dataCons' = filter (\(x,_) -> not $ x `M.member` btccTys btins) $ M.toList $ M.unionsWith (++) dataCons
-    
-    return $ map (\(tyNm, dConL) -> ADataTy (unqname tyNm) tyNm dConL) dataCons'
-    where f :: (QName, Tag) -> Compile TCM (M.Map QName [ADataCon])
-          f (qn, t) = do
-              cr <- (lift $ getConstInfo qn) >>= return . compiledCore . defCompiledRep
-              case cr of
-                (Just _) -> return M.empty
-                Nothing  -> do
-                  a <- getConArity qn
-                  -- TODO do we have to put full qn into con name?
-                  return $ M.singleton (qnameTypeName qn) [ADataCon
-                        { xconArity = a
-                        , xconLocalName = qnameCtorName qn
-                        , xconQName = qn
-                        , xconTag = t
-                        }]
-          qnameTypeName :: QName -> QName
-          qnameTypeName = qnameFromList . init . qnameToList
+  constrs <- getsEI constrTags
+  dataCons <- mapM f (M.toList constrs)
+  let dataCons' = filter (\(x,_) -> not $ x `M.member` btccTys btins) $ M.toList $ M.unionsWith (++) dataCons
 
-          qnameCtorName :: QName -> String
-          qnameCtorName = show . last . qnameToList
+  return $ map (\(tyNm, dConL) -> ADataTy (unqname tyNm) tyNm dConL) dataCons'
+  where f :: (QName, Tag) -> Compile TCM (M.Map QName [ADataCon])
+        f (qn, t) = do
+            cr <- (lift $ getConstInfo qn) >>= return . compiledCore . defCompiledRep
+            case cr of
+              (Just _) -> return M.empty
+              Nothing  -> do
+                a <- getConArity qn
+                -- TODO do we have to put full qn into con name?
+                return $ M.singleton (qnameTypeName qn) [ADataCon
+                      { xconArity = a
+                      , xconLocalName = qnameCtorName qn
+                      , xconQName = qn
+                      , xconTag = t
+                      }]
+        qnameTypeName :: QName -> QName
+        qnameTypeName = qnameFromList . init . qnameToList
+
+        qnameCtorName :: QName -> String
+        qnameCtorName = show . last . qnameToList
 
 
 
@@ -129,7 +129,7 @@ translateDefn btins msharp (n, defini) =
             Just (CrDefn x)  -> return . return $ CoreFun n' (Just n) ("COMPILED_CORE: " ++ show n) x
             _       -> error "Compiled core must be def, something went wrong."
     p@(Primitive{}) -> do -- Primitives use primitive functions from UHC.Agda.Builtins of the same name.
-      
+
       let ar = arity $ defType defini
       case primName p `M.lookup` primFunctions of
         Nothing     -> error $ "Primitive " ++ show (primName p) ++ " declared, but no such primitive exists."
@@ -176,15 +176,15 @@ translateDefn btins msharp (n, defini) =
 
 reverseCCBody :: Int -> CC.CompiledClauses -> CC.CompiledClauses
 reverseCCBody c cc = case cc of
-    CC.Case n (CC.Branches cbr lbr cabr) -> CC.Case (c+n)
-        $ CC.Branches (M.map (fmap $ reverseCCBody c) cbr)
-          (M.map (reverseCCBody c) lbr)
-          (fmap  (reverseCCBody c) cabr)
-    CC.Done i t -> CC.Done i (S.applySubst
-                                (S.parallelS $ map (flip T.Var []) $
-                                   reverse $ take (length i) [c..])
-                                t)
-    CC.Fail     -> CC.Fail
+  CC.Case n (CC.Branches cbr lbr cabr) -> CC.Case (c+n)
+      $ CC.Branches (M.map (fmap $ reverseCCBody c) cbr)
+        (M.map (reverseCCBody c) lbr)
+        (fmap  (reverseCCBody c) cabr)
+  CC.Done i t -> CC.Done i (S.applySubst
+                              (S.parallelS $ map (flip T.Var []) $
+                                 reverse $ take (length i) [c..])
+                              t)
+  CC.Fail     -> CC.Fail
 
 -- | Translate from Agda's desugared pattern matching (CompiledClauses) to our AuxAST.
 --   This is all done by magic. It uses 'substTerm' to translate the actual
@@ -220,10 +220,10 @@ compileClauses :: BuiltinCache -> QName
                -> Int -- ^ Number of arguments in the definition
                -> CC.CompiledClauses -> Compile TCM Fun
 compileClauses btins name nargs c = do
-    let n' = unqname name
-    vars <- replicateM nargs newName
-    e    <- compileClauses' vars Nothing c
-    return $ Fun False n' (Just name) ("function: " ++ show name) vars e
+  let n' = unqname name
+  vars <- replicateM nargs newName
+  e    <- compileClauses' vars Nothing c
+  return $ Fun False n' (Just name) ("function: " ++ show name) vars e
   where
     compileClauses' :: [AName] -> Maybe AName -> CC.CompiledClauses -> Compile TCM Expr
     compileClauses' env omniDefault cc = case cc of
