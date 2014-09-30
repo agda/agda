@@ -1029,13 +1029,13 @@ whyInScope s = do
         pName a = TCP.sep
           [ TCP.text "* a"
             TCP.<+> pKind (anameKind a)
-            TCP.<+> TCP.text (show $ anameName a)
+            TCP.<+> TCP.text (show $ qnameToConcrete $ anameName a)
           , TCP.nest 2 $ TCP.text "brought into scope by"
           ] TCP.$$
           TCP.nest 2 (pWhy (nameBindingSite $ qnameName $ anameName a) (anameLineage a))
         pMod :: AbstractModule -> TCM Doc
         pMod  a = TCP.sep
-          [ TCP.text "* a module" TCP.<+> TCP.text (show $ amodName a)
+          [ TCP.text "* a module" TCP.<+> TCP.text (show $ mnameToConcrete $ amodName a)
           , TCP.nest 2 $ TCP.text "brought into scope by"
           ] TCP.$$
           TCP.nest 2 (pWhy (nameBindingSite $ qnameName $ mnameToQName $ amodName a) (amodLineage a))
