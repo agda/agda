@@ -8,9 +8,9 @@ import Control.Applicative
 import Control.Monad.Reader
 import Control.Monad.State
 import Data.Generics.Geniplate
-import Data.List as L
-import Data.Map as M
-import Data.Set as S
+import Data.List as List
+import Data.Map as Map
+import Data.Set as Set
 import qualified Language.Haskell.Exts.Extension as HS
 import qualified Language.Haskell.Exts.Parser as HS
 import qualified Language.Haskell.Exts.Pretty as HS
@@ -64,7 +64,7 @@ compilerMain modIsMain mainI =
       opts { optCompileDir = Just compileDir }
 
     ignoreAbstractMode $ do
-      mapM_ (compile . miInterface) =<< (M.elems <$> getVisitedModules)
+      mapM_ (compile . miInterface) =<< (Map.elems <$> getVisitedModules)
       writeModule rteModule
       callGHC modIsMain mainI
 
@@ -91,13 +91,13 @@ compile i = do
 imports :: TCM [HS.ImportDecl]
 imports = (++) <$> hsImps <*> imps where
   hsImps :: TCM [HS.ImportDecl]
-  hsImps = (L.map decl . S.toList .
-            S.insert mazRTE . S.map HS.ModuleName) <$>
+  hsImps = (List.map decl . Set.toList .
+            Set.insert mazRTE . Set.map HS.ModuleName) <$>
              getHaskellImports
 
   imps :: TCM [HS.ImportDecl]
-  imps = L.map decl . uniq <$>
-           ((++) <$> importsForPrim <*> (L.map mazMod <$> mnames))
+  imps = List.map decl . uniq <$>
+           ((++) <$> importsForPrim <*> (List.map mazMod <$> mnames))
 
   decl :: HS.ModuleName -> HS.ImportDecl
 #if MIN_VERSION_haskell_src_exts(1,16,0)
@@ -106,11 +106,11 @@ imports = (++) <$> hsImps <*> imps where
   decl m = HS.ImportDecl dummy m True False Nothing Nothing Nothing
 #endif
   mnames :: TCM [ModuleName]
-  mnames = (++) <$> (S.elems <$> gets stImportedModules)
-                <*> (L.map fst . iImportedModules <$> curIF)
+  mnames = (++) <$> (Set.elems <$> gets stImportedModules)
+                <*> (List.map fst . iImportedModules <$> curIF)
 
   uniq :: [HS.ModuleName] -> [HS.ModuleName]
-  uniq = L.map head . group . L.sort
+  uniq = List.map head . group . List.sort
 
 --------------------------------------------------
 -- Main compiling clauses
@@ -165,10 +165,10 @@ definition kit Defn{defName = q, defType = ty, defCompiledRep = compiled, theDef
           b    = ihname "a" 1
           vars = [a, b]
       return [ HS.TypeDecl dummy infT
-                           (L.map HS.UnkindedVar vars)
+                           (List.map HS.UnkindedVar vars)
                            (HS.TyVar b)
              , HS.FunBind [HS.Match dummy infV
-                                    (L.map HS.PVar vars) Nothing
+                                    (List.map HS.PVar vars) Nothing
                                     (HS.UnGuardedRhs HS.unit_con)
                                     (HS.BDecls [])]
              ]
@@ -299,11 +299,11 @@ clause :: QName -> Maybe String -> (Nat, Bool, Clause) -> TCM HS.Decl
 clause q maybeName (i, isLast, Clause{ namedClausePats = ps, clauseBody = b }) =
   HS.FunBind . (: cont) <$> main where
   main = match <$> argpatts ps (bvars b (0::Nat)) <*> clausebody b
-  cont | isLast && any isCon ps = [match (L.map HS.PVar cvs) failrhs]
+  cont | isLast && any isCon ps = [match (List.map HS.PVar cvs) failrhs]
        | isLast                 = []
-       | otherwise              = [match (L.map HS.PVar cvs) crhs]
-  cvs  = L.map (ihname "v") [0 .. genericLength ps - 1]
-  crhs = hsCast$ L.foldl HS.App (hsVarUQ $ dsubname q (i + 1)) (L.map hsVarUQ cvs)
+       | otherwise              = [match (List.map HS.PVar cvs) crhs]
+  cvs  = List.map (ihname "v") [0 .. genericLength ps - 1]
+  crhs = hsCast$ List.foldl HS.App (hsVarUQ $ dsubname q (i + 1)) (List.map hsVarUQ cvs)
   failrhs = rtmIncompleteMatch q  -- Andreas, 2011-11-16 call to RTE instead of inlined error
 --  failrhs = rtmError $ "incomplete pattern matching: " ++ show q
   match hps rhs = HS.Match dummy (maybe (dsubname q i) HS.Ident maybeName) hps Nothing
@@ -364,7 +364,7 @@ argpatts ps0 bvs = evalStateT (mapM pat' ps0) bvs
   irr (LitP {})   = return False
   irr (ConP c _ ps) =
     (&&) <$> singleConstructorType (conName c)
-         <*> (andM $ L.map irr' ps)
+         <*> (andM $ List.map irr' ps)
 
   -- | Irrelevant patterns are naturally irrefutable.
   irr' :: I.NamedArg Pattern -> TCM Bool
@@ -463,7 +463,7 @@ tvaldecl q ind ntv npar cds cl =
   HS.FunBind [HS.Match dummy vn pvs Nothing
                        (HS.UnGuardedRhs HS.unit_con) (HS.BDecls [])] :
   maybe [HS.DataDecl dummy kind [] tn tvs
-                     (L.map (HS.QualConDecl dummy [] []) cds) []]
+                     (List.map (HS.QualConDecl dummy [] []) cds) []]
         (const []) cl
   where
   (tn, vn) = (unqhname "T" q, unqhname "d" q)
@@ -518,7 +518,7 @@ writeModule (HS.Module l m ps w ex imp ds) = do
   liftIO $ UTF8.writeFile out $ prettyPrint $
     HS.Module l m (p : ps) w ex imp ds
   where
-  p = HS.LanguagePragma dummy $ L.map HS.Ident $
+  p = HS.LanguagePragma dummy $ List.map HS.Ident $
         [ "EmptyDataDecls"
         , "ExistentialQuantification"
         , "ScopedTypeVariables"
@@ -583,7 +583,7 @@ outFile' m = do
   liftIO $ createDirectoryIfMissing True dir
   return (mdir, fp)
   where
-  repldot c = L.map (\c' -> if c' == '.' then c else c')
+  repldot c = List.map $ \ c' -> if c' == '.' then c else c'
 
 outFile :: HS.ModuleName -> TCM FilePath
 outFile m = snd <$> outFile' m
