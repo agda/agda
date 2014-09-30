@@ -260,11 +260,7 @@ splitProblem mf (Problem ps (perm, qs) tel pr) = do
                         []    -> typeError $ ConstructorPatternInWrongDatatype (head cs) d
                         cs    -> -- if there are more than one we give up (they might have different types)
                           typeError $ CantResolveOverloadedConstructorsTargetingSameDatatype d cs
-{-
-                          typeError $ GenericError $
-                            "Can't resolve overloaded constructors targeting the same datatype (" ++ show d ++ "):" ++
-                            unwords (map show cs)
--}
+
                   let (pars, ixs) = genericSplitAt np vs
                   reportSDoc "tc.lhs.split" 10 $
                     vcat [ sep [ text "splitting on"
