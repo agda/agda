@@ -558,7 +558,7 @@ modifyAbstractExpr = f
  where
   f (A.App i e1 (Common.Arg info (Common.Named n e2))) =
         A.App i (f e1) (Common.Arg info (Common.Named n (f e2)))
-  f (A.Lam i (A.DomainFree info n) _) | show n == abslamvarname =
+  f (A.Lam i (A.DomainFree info n) _) | show (A.nameConcrete n) == abslamvarname =
         A.AbsurdLam i $ Common.argInfoHiding info
   f (A.Lam i b e) = A.Lam i b (f e)
   f (A.Rec i xs) = A.Rec i (map (\(n, e) -> (n, f e)) xs)

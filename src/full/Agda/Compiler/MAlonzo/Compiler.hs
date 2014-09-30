@@ -27,6 +27,7 @@ import Agda.Interaction.Imports
 import Agda.Interaction.Options
 import Agda.Syntax.Common
 import qualified Agda.Syntax.Concrete.Name as CN
+import qualified Agda.Syntax.Abstract.Name as A
 import Agda.Syntax.Internal as I
 import Agda.Syntax.Literal
 import Agda.TypeChecking.Monad
@@ -71,16 +72,17 @@ compilerMain modIsMain mainI =
 compile :: Interface -> TCM ()
 compile i = do
   setInterface i
-  ifM uptodate noComp $ (yesComp >>) $ do
+  ifM uptodate noComp $ {- else -} do
+    yesComp
     writeModule =<< decl <$> curHsMod <*> (definitions =<< curDefs) <*> imports
   where
   decl mn ds imp = HS.Module dummy mn [] Nothing Nothing imp ds
   uptodate = liftIO =<< (isNewerThan <$> outFile_ <*> ifile)
   ifile    = maybe __IMPOSSIBLE__ filePath <$>
                (findInterfaceFile . toTopLevelModuleName =<< curMName)
-  noComp   = reportSLn "" 1 . (++ " : no compilation is needed.").show =<< curMName
+  noComp   = reportSLn "" 1 . (++ " : no compilation is needed.") . show . A.mnameToConcrete =<< curMName
   yesComp  = reportSLn "" 1 . (`repl` "Compiling <<0>> in <<1>> to <<2>>") =<<
-             sequence [show <$> curMName, ifile, outFile_] :: TCM ()
+             sequence [show . A.mnameToConcrete <$> curMName, ifile, outFile_] :: TCM ()
 
 --------------------------------------------------
 -- imported modules
