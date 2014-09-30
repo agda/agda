@@ -1,7 +1,7 @@
 {-# OPTIONS --universe-polymorphism #-}
 open import Common.Prelude
 open import Common.Level
-open import Common.Reflect
+open import Common.Reflection
 
 module UnquoteSetOmega where
 

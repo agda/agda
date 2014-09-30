@@ -1,12 +1,15 @@
-{-# LANGUAGE CPP #-}
-{-# LANGUAGE DeriveDataTypeable #-}
-{-# LANGUAGE DeriveFoldable #-}
-{-# LANGUAGE DeriveFunctor #-}
-{-# LANGUAGE DeriveTraversable #-}
-{-# LANGUAGE FlexibleInstances #-}
+{-# OPTIONS_GHC -fwarn-missing-signatures #-}
+
+{-# LANGUAGE CPP                   #-}
+{-# LANGUAGE DeriveDataTypeable    #-}
+{-# LANGUAGE DeriveFoldable        #-}
+{-# LANGUAGE DeriveFunctor         #-}
+{-# LANGUAGE DeriveTraversable     #-}
+{-# LANGUAGE FlexibleInstances     #-}
 {-# LANGUAGE MultiParamTypeClasses #-}
-{-# LANGUAGE TemplateHaskell #-}
-{-# LANGUAGE TypeSynonymInstances #-}
+{-# LANGUAGE TemplateHaskell       #-}
+{-# LANGUAGE TypeSynonymInstances  #-}
+{-# LANGUAGE UnicodeSyntax         #-}
 
 {-| The abstract syntax. This is what you get after desugaring and scope
     analysis of the concrete syntax. The type checker works on abstract syntax,
@@ -23,6 +26,7 @@ import Control.Applicative
 
 import Data.Foldable as Fold
 import Data.Map (Map)
+import Data.Maybe
 import Data.Sequence (Seq, (<|), (><))
 import qualified Data.Sequence as Seq
 import Data.Traversable
@@ -804,14 +808,15 @@ instance AnyAbstract Declaration where
   anyAbstract (RecSig i _ _ _)       = defAbstract i == AbstractDef
   anyAbstract _                      = __IMPOSSIBLE__
 
-app   = foldl (App (ExprRange noRange))
+app ∷ Expr → [NamedArg Expr] → Expr
+app = foldl (App (ExprRange noRange))
 
 patternToExpr :: Pattern -> Expr
 patternToExpr (VarP x)            = Var x
 patternToExpr (ConP _ c ps)       =
-          Con c `app` map (fmap (fmap patternToExpr)) ps
+  Con c `app` map (fmap (fmap patternToExpr)) ps
 patternToExpr (DefP _ f ps)       =
-          Def f `app` map (fmap (fmap patternToExpr)) ps
+  Def f `app` map (fmap (fmap patternToExpr)) ps
 patternToExpr (WildP _)           = Underscore emptyMetaInfo
 patternToExpr (AsP _ _ p)         = patternToExpr p
 patternToExpr (DotP _ e)          = e
@@ -831,9 +836,7 @@ lambdaLiftExpr (n:ns) e = Lam (ExprRange noRange)
 
 substPattern :: [(Name, Pattern)] -> Pattern -> Pattern
 substPattern s p = case p of
-  VarP z      -> case lookup z s of
-    Nothing -> p
-    Just x  -> x
+  VarP z      -> fromMaybe p (lookup z s)
   ConP i q ps -> ConP i q (fmap (fmap (fmap (substPattern s))) ps)
   WildP i     -> p
   DotP i e    -> DotP i (substExpr (map (fmap patternToExpr) s) e)
@@ -845,9 +848,7 @@ substPattern s p = case p of
 
 substExpr :: [(Name, Expr)] -> Expr -> Expr
 substExpr s e = case e of
-  Var n -> case lookup n s of
-    Nothing -> e
-    Just z  -> z
+  Var n                 -> fromMaybe e (lookup n s)
   Def _                 -> e
   Con _                 -> e
   Lit _                 -> e

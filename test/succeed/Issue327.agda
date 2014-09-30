@@ -2,7 +2,7 @@
 module Issue327 where
 
 open import Common.Prelude
-open import Common.Reflect
+open import Common.Reflection
 
 _==_ : QName → QName → Bool
 _==_ = primQNameEquality
