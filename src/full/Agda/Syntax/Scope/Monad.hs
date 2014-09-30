@@ -363,12 +363,9 @@ copyScope oldc new s = first (inScopeBecause $ Applied oldc) <$> runStateT (copy
             Nothing -> do
               -- First time, generate a fresh name for it
               i <- lift fresh
-              let y = qualifyQ new' . dequalify
-                    $ x { qnameName = (qnameName x) { nameId = i } }
+              let y = A.QName new' $ (qnameName x) { nameId = i }
               addName x y
               return y
-          where
-            dequalify q = A.qnameFromList [last $ A.qnameToList q]
 
         -- Change a binding M.x -> old.M'.y to M.x -> new.M'.y
         renMod :: A.ModuleName -> WSM A.ModuleName
