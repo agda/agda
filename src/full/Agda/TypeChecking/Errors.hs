@@ -128,6 +128,8 @@ errorString err = case err of
     AmbiguousParseForLHS{}                   -> "AmbiguousParseForLHS"
 --    AmbiguousParseForPatternSynonym{}        -> "AmbiguousParseForPatternSynonym"
     AmbiguousTopLevelModuleName {}           -> "AmbiguousTopLevelModuleName"
+    BadArgumentsToPatternSynonym{}           -> "BadArgumentsToPatternSynonym"
+    TooFewArgumentsToPatternSynonym{}        -> "TooFewArgumentsToPatternSynonym"
     BothWithAndRHS                           -> "BothWithAndRHS"
     BuiltinInParameterisedModule{}           -> "BuiltinInParameterisedModule"
     BuiltinMustBeConstructor{}               -> "BuiltinMustBeConstructor"
@@ -200,7 +202,6 @@ errorString err = case err of
     NothingAppliedToInstanceArg{}            -> "NothingAppliedToInstanceArg"
     OverlappingProjects {}                   -> "OverlappingProjects"
     PatternShadowsConstructor {}             -> "PatternShadowsConstructor"
-    PatternSynonymArityMismatch {}           -> "PatternSynonymArityMismatch"
     PropMustBeSingleton                      -> "PropMustBeSingleton"
     RepeatedVariablesInPattern{}             -> "RepeatedVariablesInPattern"
     SafeFlagPostulate{}                      -> "SafeFlagPostulate"
@@ -292,9 +293,9 @@ instance PrettyTCM TypeError where
             GenericDocError d   -> return d
             TerminationCheckFailed because ->
               fwords "Termination checking failed for the following functions:"
-              $$ (nest 2 $
-                    fsep (punctuate comma (map (text . show . dropTopLevelModule)
-                                               (concatMap termErrFunctions because))))
+              $$ (nest 2 $ fsep $ punctuate comma $
+                   map (text . show . qnameToConcrete . dropTopLevelModule) $
+                     concatMap termErrFunctions because)
               $$ fwords "Problematic calls:"
               $$ (nest 2 $ fmap (P.vcat . nub) $
                     mapM prettyTCM $ sortBy (compare `on` callInfoRange) $
@@ -366,7 +367,9 @@ instance PrettyTCM TypeError where
               pwords "The constructor" ++ [prettyTCM c] ++ pwords "expects" ++
               [text (show expect)] ++ pwords "arguments (including hidden ones), but has been given" ++ [text (show given)] ++ pwords "(including hidden ones)"
             CantResolveOverloadedConstructorsTargetingSameDatatype d cs -> fsep $
-              pwords ("Can't resolve overloaded constructors targeting the same datatype (" ++ show d ++ "):") ++ map (text . show) cs
+              pwords ("Can't resolve overloaded constructors targeting the same datatype ("
+              ++ show (qnameToConcrete d) ++ "):")
+              ++ map (text . show . qnameToConcrete) cs
             DoesNotConstructAnElementOf c t -> fsep $
               pwords "The constructor" ++ [prettyTCM c] ++
               pwords "does not construct an element of" ++ [prettyTCM t]
@@ -673,10 +676,12 @@ instance PrettyTCM TypeError where
                 fromOrdinary :: C.OpApp e -> e
                 fromOrdinary (C.Ordinary e) = e
                 fromOrdinary _ = __IMPOSSIBLE__
+            BadArgumentsToPatternSynonym x -> fsep $
+                pwords "Bad arguments to pattern synonym " ++ [prettyTCM x]
+            TooFewArgumentsToPatternSynonym x -> fsep $
+                pwords "Too few arguments to pattern synonym " ++ [prettyTCM x]
             UnusedVariableInPatternSynonym -> fsep $
                 pwords "Unused variable in pattern synonym."
-            PatternSynonymArityMismatch x -> fsep $
-                pwords "Arity mismatch when using pattern synonym" ++ [prettyTCM x]
             NoParseForLHS IsLHS p -> fsep $
                 pwords "Could not parse the left-hand side" ++ [pretty p]
             NoParseForLHS IsPatSyn p -> fsep $

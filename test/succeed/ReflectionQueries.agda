@@ -1,6 +1,6 @@
 
 open import Common.Prelude
-open import Common.Reflect
+open import Common.Reflection
 open import Common.Equality
 
 data L (A : Set) : Set where

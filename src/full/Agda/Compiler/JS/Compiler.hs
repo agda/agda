@@ -21,6 +21,7 @@ import Agda.Syntax.Common ( Nat, unArg, namedArg )
 import Agda.Syntax.Concrete.Name ( projectRoot )
 import Agda.Syntax.Abstract.Name
   ( ModuleName(MName), QName,
+    mnameToConcrete,
     mnameToList, qnameName, qnameModule, isInModule, nameId )
 import Agda.Syntax.Internal
   ( Name, Args, Type,
@@ -96,15 +97,16 @@ compilerMain mainI =
 compile :: Interface -> TCM ()
 compile i = do
   setInterface i
-  ifM uptodate noComp $ (yesComp >>) $ do
+  ifM uptodate noComp $ do
+    yesComp
     writeModule =<< curModule
   where
   uptodate = liftIO =<< (isNewerThan <$> outFile_ <*> ifile)
   ifile    = maybe __IMPOSSIBLE__ filePath <$>
                (findInterfaceFile . toTopLevelModuleName =<< curMName)
-  noComp   = reportSLn "" 1 . (++ " : no compilation is needed.").show =<< curMName
+  noComp   = reportSLn "" 1 . (++ " : no compilation is needed.") . show . mnameToConcrete =<< curMName
   yesComp  = reportSLn "" 1 . (`repl` "Compiling <<0>> in <<1>> to <<2>>") =<<
-             sequence [show <$> curMName, ifile, outFile_] :: TCM ()
+             sequence [show . mnameToConcrete <$> curMName, ifile, outFile_] :: TCM ()
 
 --------------------------------------------------
 -- Naming

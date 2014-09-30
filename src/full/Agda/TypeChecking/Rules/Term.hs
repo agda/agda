@@ -1,10 +1,12 @@
-{-# LANGUAGE CPP #-}
-{-# LANGUAGE FlexibleInstances #-}
-{-# LANGUAGE NamedFieldPuns #-}
+{-# OPTIONS_GHC -fwarn-missing-signatures #-}
+
+{-# LANGUAGE CPP                   #-}
+{-# LANGUAGE FlexibleInstances     #-}
+{-# LANGUAGE NamedFieldPuns        #-}
 {-# LANGUAGE MultiParamTypeClasses #-}
-{-# LANGUAGE PatternGuards #-}
-{-# LANGUAGE TupleSections #-}
-{-# LANGUAGE TypeSynonymInstances #-}
+{-# LANGUAGE PatternGuards         #-}
+{-# LANGUAGE TypeSynonymInstances  #-}
+{-# LANGUAGE TupleSections         #-}
 
 module Agda.TypeChecking.Rules.Term where
 
@@ -631,10 +633,11 @@ checkExpr e t0 =
           coerce (quoteName x) ty t
 
           | A.QuoteTerm _ <- unScope q ->
-             do (et, _) <- inferExpr (namedThing e)
-                q <- quoteTerm =<< normalise et
-                ty <- el primAgdaTerm
+             do (et, _)   <- inferExpr (namedThing e)
+                q         <- quoteTerm =<< etaContract =<< normalise et
+                ty        <- el primAgdaTerm
                 coerce q ty t
+
         A.Quote _ -> typeError $ GenericError "quote must be applied to a defined name"
         A.QuoteTerm _ -> typeError $ GenericError "quoteTerm must be applied to a term"
         A.Unquote _ -> typeError $ GenericError "unquote must be applied to a term"
@@ -783,7 +786,7 @@ checkApplication hd args e t = do
       -- over the ones we haven't.
       let meta r = A.Underscore $ A.emptyMetaInfo{ A.metaRange = r }   -- TODO: name suggestion
       case A.insertImplicitPatSynArgs meta (getRange n) ns args of
-        Nothing      -> typeError $ GenericError $ "Bad arguments to pattern synonym " ++ show n
+        Nothing      -> typeError $ BadArgumentsToPatternSynonym n
         Just (s, ns) -> do
           let p' = A.patternToExpr p
               e' = A.lambdaLiftExpr (map unArg ns) (A.substExpr s p')
@@ -820,7 +823,7 @@ domainFree info x =
       { A.metaRange          = r
       , A.metaScope          = emptyScopeInfo
       , A.metaNumber         = Nothing
-      , A.metaNameSuggestion = show x
+      , A.metaNameSuggestion = show $ A.nameConcrete x
       }
 
 ---------------------------------------------------------------------------
@@ -1141,7 +1144,7 @@ checkHeadApplication e t hd args = do
 
       -- The name of the fresh function.
       i <- fresh :: TCM Int
-      let name = filter (/= '_') (show $ A.qnameName c) ++ "-" ++ show i
+      let name = filter (/= '_') (show $ A.nameConcrete $ A.qnameName c) ++ "-" ++ show i
       c' <- setRange (getRange c) <$>
               liftM2 qualify (killRange <$> currentModule)
                              (freshName_ name)

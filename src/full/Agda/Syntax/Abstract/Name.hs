@@ -31,6 +31,7 @@ import Agda.Syntax.Concrete.Name (IsNoName(..))
 import qualified Agda.Syntax.Concrete.Name as C
 
 import Agda.Utils.Fresh
+-- import Agda.Utils.Function
 import Agda.Utils.Size
 import Agda.Utils.Suffix
 
@@ -172,7 +173,7 @@ mnameToConcrete (MName xs) = foldr C.Qual (C.QName $ last cs) $ init cs
 
 toTopLevelModuleName :: ModuleName -> C.TopLevelModuleName
 toTopLevelModuleName (MName []) = __IMPOSSIBLE__
-toTopLevelModuleName (MName ms) = C.TopLevelModuleName (map show ms)
+toTopLevelModuleName (MName ms) = C.TopLevelModuleName $ map (C.nameToRawName . nameConcrete) ms
 
 qualifyM :: ModuleName -> ModuleName -> ModuleName
 qualifyM m1 m2 = mnameFromList $ mnameToList m1 ++ mnameToList m2
@@ -181,7 +182,7 @@ qualifyQ :: ModuleName -> QName -> QName
 qualifyQ m x = qnameFromList $ mnameToList m ++ qnameToList x
 
 qualify :: ModuleName -> Name -> QName
-qualify m x = qualifyQ m (qnameFromList [x])
+qualify = QName
 
 -- | Convert a 'Name' to a 'QName' (add no module name).
 qualify_ :: Name -> QName
@@ -282,12 +283,19 @@ instance IsNoName Name where
 -- * Show instances
 ------------------------------------------------------------------------
 
+-- | Only use this @show@ function in debugging!  To convert an
+--   abstract 'Name' into a string use @show . nameConcrete@.
 instance Show Name where
-  show x = show (nameConcrete x) -- ++ "|" ++ show (nameId x)
+  show n = show (nameConcrete n) ++ "^" ++ show (nameId n)
+  -- show n = applyWhen (isNoName n) (++ show (nameId n)) $ show (nameConcrete n)
 
+-- | Only use this @show@ function in debugging!  To convert an
+--   abstract 'ModuleName' into a string use @show . mnameToConcrete@.
 instance Show ModuleName where
   show m = concat $ intersperse "." $ map show $ mnameToList m
 
+-- | Only use this @show@ function in debugging!  To convert an
+--   abstract 'QName' into a string use @show . qnameToConcrete@.
 instance Show QName where
   show q = concat $ intersperse "." $ map show $ qnameToList q
 

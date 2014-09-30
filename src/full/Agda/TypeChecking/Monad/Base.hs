@@ -1598,8 +1598,10 @@ data TypeError
         | NotAValidLetBinding D.NiceDeclaration
         | NothingAppliedToHiddenArg C.Expr
         | NothingAppliedToInstanceArg C.Expr
+    -- Pattern synonym errors
+        | BadArgumentsToPatternSynonym A.QName
+        | TooFewArgumentsToPatternSynonym A.QName
         | UnusedVariableInPatternSynonym
-        | PatternSynonymArityMismatch A.QName
     -- Operator errors
         | NoParseForApplication [C.Expr]
         | AmbiguousParseForApplication [C.Expr] [C.Expr]
@@ -1903,12 +1905,11 @@ forkTCM m = do
 
 
 -- | Base name for extended lambda patterns
-extendlambdaname = ".extendedlambda"
+extendedLambdaName = ".extendedlambda"
 
 -- | Name of absurdLambda definitions.
 absurdLambdaName = ".absurdlambda"
 
 -- | Check whether we have an definition from an absurd lambda.
 isAbsurdLambdaName :: QName -> Bool
-isAbsurdLambdaName (QName _ x) | show x == absurdLambdaName = True
-isAbsurdLambdaName _ = False
+isAbsurdLambdaName = (absurdLambdaName ==) . show . nameConcrete . qnameName

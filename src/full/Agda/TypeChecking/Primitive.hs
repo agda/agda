@@ -1,9 +1,12 @@
-{-# LANGUAGE CPP #-}
-{-# LANGUAGE FlexibleInstances #-}
+{-# OPTIONS_GHC -fwarn-missing-signatures #-}
+
+{-# LANGUAGE CPP                        #-}
+{-# LANGUAGE FlexibleInstances          #-}
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
-{-# LANGUAGE ScopedTypeVariables #-}
-{-# LANGUAGE TypeSynonymInstances #-}
-{-# LANGUAGE UndecidableInstances #-}
+{-# LANGUAGE ScopedTypeVariables        #-}
+{-# LANGUAGE TypeSynonymInstances       #-}
+{-# LANGUAGE UndecidableInstances       #-}
+{-# LANGUAGE UnicodeSyntax              #-}
 
 {-| Primitive functions, such as addition on builtin integers.
 -}
@@ -15,6 +18,7 @@ import Control.Applicative
 import Data.Char
 import Data.Map (Map)
 import qualified Data.Map as Map
+import Data.Maybe
 
 import Agda.Interaction.Options
 
@@ -37,7 +41,6 @@ import Agda.TypeChecking.Pretty ()  -- instances only
 
 import Agda.Utils.Monad
 import Agda.Utils.Pretty (pretty)
-import Agda.Utils.Maybe
 
 #include "../undefined.h"
 import Agda.Utils.Impossible
@@ -309,7 +312,7 @@ primTrustMe = do
             -- like this.
             -- We can only do untyped equality, e.g., by normalisation.
             (u', v') <- normalise' (u, v)
-            if (u' == v') then redReturn (refl $ unArg u) else
+            if u' == v' then redReturn (refl $ unArg u) else
               return (NoReduction $ map notReduced [a, t, u, v])
 {- OLD:
 
@@ -323,7 +326,7 @@ primTrustMe = do
 
 primQNameType :: TCM PrimitiveImpl
 primQNameType = mkPrimFun1TCM (el primQName --> el primAgdaType)
-                              (\q -> defType <$> getConstInfo q)
+                              (\q -> normalise' . defType =<< getConstInfo q)
   -- Note: gets the top-level type! All bounds variables have been lifted.
 
 primQNameDefinition :: TCM PrimitiveImpl
@@ -497,7 +500,7 @@ gpi info name a b = do
               (Pi (Dom info a) (Abs y b))
 
 hPi, nPi :: String -> TCM Type -> TCM Type -> TCM Type
-hPi = gpi $ setHiding Hidden $ defaultArgInfo
+hPi = gpi $ setHiding Hidden defaultArgInfo
 nPi = gpi defaultArgInfo
 
 varM :: Int -> TCM Term
@@ -528,13 +531,17 @@ tset :: TCM Type
 tset = return $ sort (mkType 0)
 
 -- | Abbreviation: @argN = 'Arg' 'defaultArgInfo'@.
-
+argN ∷ e → I.Arg e
 argN = Arg defaultArgInfo
+
+domN ∷ e → I.Dom e
 domN = Dom defaultArgInfo
 
 -- | Abbreviation: @argH = 'hide' 'Arg' 'defaultArgInfo'@.
-
+argH ∷ e → I.Arg e
 argH = Arg $ setHiding Hidden defaultArgInfo
+
+domH ∷ e → I.Dom e
 domH = Dom $ setHiding Hidden defaultArgInfo
 
 ---------------------------------------------------------------------------
@@ -631,9 +638,8 @@ primitiveFunctions = Map.fromList
 
 lookupPrimitiveFunction :: String -> TCM PrimitiveImpl
 lookupPrimitiveFunction x =
-    case Map.lookup x primitiveFunctions of
-        Just p  -> p
-        Nothing -> typeError $ NoSuchPrimitiveFunction x
+  fromMaybe (typeError $ NoSuchPrimitiveFunction x)
+            (Map.lookup x primitiveFunctions)
 
 lookupPrimitiveFunctionQ :: QName -> TCM (String, PrimitiveImpl)
 lookupPrimitiveFunctionQ q = do

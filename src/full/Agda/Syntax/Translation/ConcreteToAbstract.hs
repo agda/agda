@@ -53,7 +53,7 @@ import Agda.Syntax.Scope.Base
 import Agda.Syntax.Scope.Monad
 
 import Agda.TypeChecking.Monad.Base (TypeError(..), Call(..), typeError,
-                                     TCErr(..), extendlambdaname)
+                                     TCErr(..), extendedLambdaName)
 import Agda.TypeChecking.Monad.Benchmark (billTo, billTop, reimburseTop)
 import qualified Agda.TypeChecking.Monad.Benchmark as Bench
 import Agda.TypeChecking.Monad.Trace (traceCall, setCurrentRange)
@@ -172,7 +172,7 @@ recordConstructorType fields = build fs
 -- | @checkModuleApplication modapp m0 x dir = return (modapp', renD, renM)@
 --
 --   @m0@ is the new (abstract) module name and
---   @x@ its concret form (used for error messages).
+--   @x@ its concrete form (used for error messages).
 checkModuleApplication
   :: C.ModuleApplication
   -> ModuleName
@@ -183,11 +183,11 @@ checkModuleApplication
 checkModuleApplication (C.SectionApp _ tel e) m0 x dir' =
   -- For the following, set the current module to be m0.
   withCurrentModule m0 $ do
-    -- check that expression @e@ is of the form @m args@
+    -- Check that expression @e@ is of the form @m args@.
     (m, args) <- parseModuleApplication e
-    -- scope check the telescope (introduces bindings!)
+    -- Scope check the telescope (introduces bindings!).
     tel' <- toAbstract tel
-    -- scope the old module name, the module args
+    -- Scope check the old module name and the module args.
     (m1, args') <- toAbstract (OldModuleName m, args)
     -- Drop constructors (OnlyQualified) if there are arguments. The record constructor
     -- isn't properly in the record module, so copying it will lead to badness.
@@ -588,9 +588,9 @@ instance ToAbstract C.Expr A.Expr where
   -- Extended Lambda
       C.ExtendedLam r cs ->
         ifM isInsideDotPattern (typeError $ GenericError "Extended lambdas are not allowed in dot patterns") $ do
-        cname <- nextlamname r 0 extendlambdaname
+        cname <- nextlamname r 0 extendedLambdaName
         name  <- freshAbstractName_ cname
-        reportSLn "toabstract.extendlambda" 10 $ "new extended lambda name: " ++ show name
+        reportSLn "scope.extendedLambda" 10 $ "new extended lambda name: " ++ show name
         qname <- qualifyName_ name
         bindName PrivateAccess DefName cname qname
         let insertApp (C.RawAppP r es) = C.RawAppP r ((IdentP (C.QName cname)) : es)
@@ -981,15 +981,14 @@ instance ToAbstract LetDef [A.LetBinding] where
             NiceOpen r x dirs | not (C.publicOpen dirs) -> do
               m       <- toAbstract (OldModuleName x)
               openModule_ x dirs
-              return [A.LetOpen (ModuleInfo
-                                   { minfoRange  = r
-                                   , minfoAsName = Nothing
-                                   , minfoAsTo   = renamingRange dirs
-                                   , minfoOpenShort = Nothing
-                                   , minfoDirective = Just dirs
-                                   })
-                                m
-                     ]
+              let minfo = ModuleInfo
+                    { minfoRange  = r
+                    , minfoAsName = Nothing
+                    , minfoAsTo   = renamingRange dirs
+                    , minfoOpenShort = Nothing
+                    , minfoDirective = Just dirs
+                    }
+              return [A.LetOpen minfo m]
 
             NiceModuleMacro r p x modapp open dir | not (C.publicOpen dir) ->
               checkModuleMacro LetApply r p x modapp open dir
@@ -1183,14 +1182,14 @@ instance ToAbstract NiceDeclaration A.Declaration where
       printScope "open" 20 $ "opening " ++ show x
       openModule_ x dir
       printScope "open" 20 $ "result:"
-      return [A.Open (ModuleInfo
-                        { minfoRange  = r
-                        , minfoAsName = Nothing
-                        , minfoAsTo   = renamingRange dir
-                        , minfoOpenShort = Nothing
-                        , minfoDirective = Just dir
-                        })
-                     m]
+      let minfo = ModuleInfo
+            { minfoRange     = r
+            , minfoAsName    = Nothing
+            , minfoAsTo      = renamingRange dir
+            , minfoOpenShort = Nothing
+            , minfoDirective = Just dir
+            }
+      return [A.Open minfo m]
 
     NicePragma r p -> do
       ps <- toAbstract p
@@ -1229,21 +1228,17 @@ instance ToAbstract NiceDeclaration A.Declaration where
             Nothing -> (x,                  noRange,   Nothing)
             Just a  -> (C.QName (asName a), asRange a, Just (asName a))
       case open of
-        DoOpen   -> do
-          toAbstract [ C.Open r name dir ]
-          return ()
-        DontOpen -> do
-          -- If not opening import directives are applied to the original scope
-          modifyNamedScopeM m $ applyImportDirectiveM x dir
-      return [ A.Import (ModuleInfo
-                           { minfoRange  = r
-                           , minfoAsName = theAsName
-                           , minfoAsTo   =
-                               getRange (theAsSymbol, renamingRange dir)
-                           , minfoOpenShort = Just open
-                           , minfoDirective = Just dir
-                           })
-                        m ]
+        DoOpen   -> void $ toAbstract [ C.Open r name dir ]
+        -- If not opening, import directives are applied to the original scope.
+        DontOpen -> modifyNamedScopeM m $ applyImportDirectiveM x dir
+      let minfo = ModuleInfo
+            { minfoRange     = r
+            , minfoAsName    = theAsName
+            , minfoAsTo      = getRange (theAsSymbol, renamingRange dir)
+            , minfoOpenShort = Just open
+            , minfoDirective = Just dir
+            }
+      return [ A.Import minfo m ]
 
     NiceUnquoteDecl r fx p a tc x e -> do
       y <- freshAbstractQName fx x

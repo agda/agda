@@ -254,4 +254,4 @@ getVarInfo x =
             _       ->
                 case Map.lookup x def of
                     Just vt -> liftTCM $ getOpen vt
-                    _       -> fail $ "unbound variable " ++ show x
+                    _       -> fail $ "unbound variable " ++ show (nameConcrete x)

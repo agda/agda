@@ -366,11 +366,7 @@ instance (ToConcrete a c, ToConcrete b d) =>
 --ToDo: Move somewhere else
 instance ToConcrete InteractionId C.Expr where
     toConcrete (InteractionId i) = return $ C.QuestionMark noRange (Just i)
-{- UNUSED
-instance ToConcrete MetaId C.Expr where
-    toConcrete x@(MetaId i) = do
-      return $ C.Underscore noRange (Just $ "_" ++ show i)
--}
+
 instance ToConcrete NamedMeta C.Expr where
     toConcrete i = do
       return $ C.Underscore noRange (Just $ show i)
@@ -569,7 +565,7 @@ metaHelperType norm ii rng s = case words s of
       arg : args <- get
       put args
       return $ case arg of
-        Arg _ (Named _ (A.Var x)) -> show x
+        Arg _ (Named _ (A.Var x)) -> show $ A.nameConcrete x
         Arg _ (Named (Just x) _)  -> argNameToString $ rangedThing x
         _                         -> "w"
 
@@ -585,8 +581,8 @@ contextOfMeta ii norm = do
   withMetaInfo info $ gfilter visible <$> reifyContext (length letVars)
                                                        (letVars ++ localVars)
   where gfilter p = catMaybes . map p
-        visible (OfType x y) | show x /= "_" = Just (OfType' x y)
-                             | otherwise     = Nothing
+        visible (OfType x y) | not (isNoName x) = Just (OfType' x y)
+                             | otherwise        = Nothing
         visible _            = __IMPOSSIBLE__
         reifyContext skip xs =
           reverse <$> zipWithM out

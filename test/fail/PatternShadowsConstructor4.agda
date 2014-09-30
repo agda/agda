@@ -1,4 +1,4 @@
-{-# OPTIONS -v tc.lhs.shadow:30 #-}
+-- {-# OPTIONS -v tc.lhs.shadow:30 #-}
 
 {-# OPTIONS --copatterns #-}
 

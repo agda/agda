@@ -1,6 +1,6 @@
 
 open import Common.Prelude
-open import Common.Reflect
+open import Common.Reflection
 
 {-# NO_TERMINATION_CHECK #-}
 -- Note that in the body of the unquote, 'loops' really means 'quote loops'.

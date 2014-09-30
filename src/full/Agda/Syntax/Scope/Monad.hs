@@ -34,6 +34,7 @@ import qualified Agda.Utils.AssocList as AssocList
 import Agda.Utils.Fresh
 import Agda.Utils.Function
 import Agda.Utils.List
+import Agda.Utils.Maybe
 import Agda.Utils.Null (unlessNull)
 import Agda.Utils.Size
 import Agda.Utils.Tuple
@@ -315,50 +316,49 @@ type WSM = StateT Out ScopeM
 -- | Create a new scope with the given name from an old scope. Renames
 --   public names in the old scope to match the new name and returns the
 --   renamings.
+--
+--   Data and record types share a common abstract name with their module.
+--   This invariant needs to be preserved by @copyScope@, since constructors
+--   (fields) can be qualified by their data (record) type name (as an
+--   alternative to qualification by their module).
+--   (See Issue 836).
 copyScope :: C.QName -> A.ModuleName -> Scope -> ScopeM (Scope, (A.Ren A.ModuleName, A.Ren A.QName))
 copyScope oldc new s = first (inScopeBecause $ Applied oldc) <$> runStateT (copy new s) (Map.empty, Map.empty)
   where
+    -- | A memoizing algorithm, the renamings serving as memo structure.
+    copy :: A.ModuleName -> Scope -> StateT (A.Ren A.ModuleName, A.Ren A.QName) ScopeM Scope
     copy new s = do
       lift $ reportSLn "scope.copy" 20 $ "Copying scope " ++ show old ++ " to " ++ show new
       lift $ reportSLn "scope.copy" 50 $ show s
       s0 <- lift $ getNamedScope new
-      s' <- mapScopeM copyD copyM s
+      -- Delete private names, then copy names and modules.
+      s' <- mapScopeM_ copyD copyM $ setNameSpace PrivateNS emptyNameSpace s
+      -- Fix name and parent.
       return $ s' { scopeName    = scopeName s0
                   , scopeParents = scopeParents s0
                   }
       where
         new' = killRange new
+        newL = A.mnameToList new'
         old  = scopeName s
 
-        copyM :: NameSpaceId -> ModulesInScope -> WSM ModulesInScope
-        copyM ImportedNS      ms = traverse (mapM $ onMod renMod) ms
-        copyM PrivateNS       _  = return Map.empty
-        copyM PublicNS        ms = traverse (mapM $ onMod renMod) ms
-        copyM OnlyQualifiedNS ms = traverse (mapM $ onMod renMod) ms
+        copyD :: NamesInScope -> WSM NamesInScope
+        copyD = traverse $ mapM $ onName renName
 
-        copyD :: NameSpaceId -> NamesInScope -> WSM NamesInScope
-        copyD ImportedNS      ds = traverse (mapM $ onName renName) ds
-        copyD PrivateNS       _  = return Map.empty
-        copyD PublicNS        ds = traverse (mapM $ onName renName) ds
-        copyD OnlyQualifiedNS ds = traverse (mapM $ onName renName) ds
+        copyM :: ModulesInScope -> WSM ModulesInScope
+        copyM = traverse $ mapM $ lensAmodName renMod
 
-        onMod f m = do
-          x <- f $ amodName m
-          return m { amodName = x }
-
+        onName :: (A.QName -> WSM A.QName) -> AbstractName -> WSM AbstractName
         onName f d =
           case anameKind d of
             PatternSynName -> return d  -- Pattern synonyms are simply aliased, not renamed
-            _ -> do
-              x <- f $ anameName d
-              return d { anameName = x }
+            _ -> lensAnameName f d
 
-        addName x y = addNames (Map.singleton x y)
-        addMod  x y = addMods (Map.singleton x y)
+        -- Adding to memo structure.
+        addName x y = modify $ second $ Map.insert x y
+        addMod  x y = modify $ first  $ Map.insert x y
 
-        addNames rd' = modify $ \(rm, rd) -> (rm, Map.union rd rd')
-        addMods  rm' = modify $ \(rm, rd) -> (Map.union rm rm', rd)
-
+        -- Querying the memo structure.
         findName x = Map.lookup x <$> gets snd
         findMod  x = Map.lookup x <$> gets fst
 
@@ -366,39 +366,34 @@ copyScope oldc new s = first (inScopeBecause $ Applied oldc) <$> runStateT (copy
         renName :: A.QName -> WSM A.QName
         renName x = do
           lift $ reportSLn "scope.copy" 50 $ "  Copying " ++ show x
-          -- Check if we've seen it already
-          my <- findName x
-          case my of
-            Just y -> return y
-            Nothing -> do
-              -- First time, generate a fresh name for it
-              i <- lift fresh
-              let y = qualifyQ new' . dequalify
-                    $ x { qnameName = (qnameName x) { nameId = i } }
-              addName x y
-              return y
-          where
-            dequalify q = A.qnameFromList [last $ A.qnameToList q]
+          -- If we've seen it already, just return its copy.
+          (`fromMaybeM` findName x) $ do
+          -- We have not processed this name @x@, so copy it to some @y@.
+          -- Check whether we have already seen a module of the same name.
+          -- If yes, use its copy as @y@.
+          y <- ifJustM (findMod $ qnameToMName x) (return . mnameToQName) $ {- else -} do
+            -- First time, generate a fresh name for it.
+            i <- lift fresh
+            return $ A.qualify new' $ (qnameName x) { nameId = i }
+          addName x y
+          return y
 
         -- Change a binding M.x -> old.M'.y to M.x -> new.M'.y
         renMod :: A.ModuleName -> WSM A.ModuleName
         renMod x = do
-          -- Check if we've seen it already
-          my <- findMod x
-          case my of
-            Just y -> return y
-            Nothing -> do
-              -- Create the name of the new module
-              let y = qualifyM new' $ dequalify x
-              addMod x y
-
-              -- We need to copy the contents of included modules recursively
-              s0 <- lift $ createModule False y >> getNamedScope x
-              s  <- withCurrentModule' y $ copy y s0
-              lift $ modifyNamedScope y (const s)
-              return y
-          where
-            dequalify = A.mnameFromList . drop (size old) . A.mnameToList
+          -- If we've seen it already, just return its copy.
+          (`fromMaybeM` findMod x) $ do
+          -- We have not processed this name @x@, so copy it to some @y@.
+          -- Check whether we have seen it already, yet as  name.
+          -- If yes, use its copy as @y@.
+          y <- ifJustM (findName $ mnameToQName x) (return . qnameToMName) $ {- else -} do
+             return $ A.mnameFromList $ (newL ++) $ drop (size old) $ A.mnameToList x
+          addMod x y
+          -- We need to copy the contents of included modules recursively
+          s0 <- lift $ createModule False y >> getNamedScope x
+          s  <- withCurrentModule' y $ copy y s0
+          lift $ modifyNamedScope y (const s)
+          return y
 
 -- | Apply an import directive and check that all the names mentioned actually
 --   exist.
