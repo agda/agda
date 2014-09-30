@@ -31,6 +31,7 @@ import Agda.Syntax.Concrete.Name (IsNoName(..))
 import qualified Agda.Syntax.Concrete.Name as C
 
 import Agda.Utils.Fresh
+-- import Agda.Utils.Function
 import Agda.Utils.Size
 import Agda.Utils.Suffix
 
@@ -285,7 +286,8 @@ instance IsNoName Name where
 -- | Only use this @show@ function in debugging!  To convert an
 --   abstract 'Name' into a string use @show . nameConcrete@.
 instance Show Name where
-  show x = show (nameConcrete x) -- ++ "|" ++ show (nameId x)
+  show n = show (nameConcrete n) ++ "^" ++ show (nameId n)
+  -- show n = applyWhen (isNoName n) (++ show (nameId n)) $ show (nameConcrete n)
 
 -- | Only use this @show@ function in debugging!  To convert an
 --   abstract 'ModuleName' into a string use @show . mnameToConcrete@.
