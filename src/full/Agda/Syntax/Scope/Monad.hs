@@ -318,6 +318,8 @@ type WSM = StateT Out ScopeM
 copyScope :: C.QName -> A.ModuleName -> Scope -> ScopeM (Scope, (A.Ren A.ModuleName, A.Ren A.QName))
 copyScope oldc new s = first (inScopeBecause $ Applied oldc) <$> runStateT (copy new s) (Map.empty, Map.empty)
   where
+    -- | A memoizing algorithm, the renamings serving as memo structure.
+    copy :: A.ModuleName -> Scope -> StateT (A.Ren A.ModuleName, A.Ren A.QName) ScopeM Scope
     copy new s = do
       lift $ reportSLn "scope.copy" 20 $ "Copying scope " ++ show old ++ " to " ++ show new
       lift $ reportSLn "scope.copy" 50 $ show s
@@ -332,23 +334,23 @@ copyScope oldc new s = first (inScopeBecause $ Applied oldc) <$> runStateT (copy
         new' = killRange new
         old  = scopeName s
 
-        copyM :: ModulesInScope -> WSM ModulesInScope
-        copyM = traverse $ mapM $ lensAmodName renMod
-
         copyD :: NamesInScope -> WSM NamesInScope
         copyD = traverse $ mapM $ onName renName
 
+        copyM :: ModulesInScope -> WSM ModulesInScope
+        copyM = traverse $ mapM $ lensAmodName renMod
+
+        onName :: (A.QName -> WSM A.QName) -> AbstractName -> WSM AbstractName
         onName f d =
           case anameKind d of
             PatternSynName -> return d  -- Pattern synonyms are simply aliased, not renamed
             _ -> lensAnameName f d
 
-        addName x y = addNames (Map.singleton x y)
-        addMod  x y = addMods  (Map.singleton x y)
+        -- Adding to memo structure.
+        addName x y = modify $ second $ Map.insert x y
+        addMod  x y = modify $ first  $ Map.insert x y
 
-        addNames rd' = modify $ \ (rm, rd) -> (rm, Map.union rd rd')
-        addMods  rm' = modify $ \ (rm, rd) -> (Map.union rm rm', rd)
-
+        -- Querying the memo structure.
         findName x = Map.lookup x <$> gets snd
         findMod  x = Map.lookup x <$> gets fst
 
