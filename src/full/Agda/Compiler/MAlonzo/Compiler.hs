@@ -263,7 +263,7 @@ definition kit Defn{defName = q, defType = ty, defCompiledRep = compiled, theDef
                                 (HS.UnGuardedRhs $ e) (HS.BDecls [])]]
 
   axiomErr :: HS.Exp
-  axiomErr = rtmError $ "postulate evaluated: " ++ show q
+  axiomErr = rtmError $ "postulate evaluated: " ++ show (A.qnameToConcrete q)
 
 checkConstructorType :: QName -> TCM [HS.Decl]
 checkConstructorType q = do
