@@ -21,6 +21,8 @@ import qualified Data.Map as Map
 import Data.Maybe
 import Data.Typeable (Typeable)
 
+-- import Debug.Trace (trace)
+
 import Agda.Syntax.Position
 import Agda.Syntax.Common
 import Agda.Syntax.Fixity
@@ -621,10 +623,13 @@ scopeLookup' q scope = nubBy ((==) `on` fst) $ findName q root ++ topImports ++ 
         -- if we just consider the modules:
         -- m <- mods
         -- The feature is on if we consider also the data and record types:
+        -- trace ("mods ++ defs = " ++ show (mods ++ defs)) $ do
         m <- nub $ mods ++ defs -- record types will appear both as a mod and a def
         -- Get the scope of module m, if any, and remove its private definitions.
         let ss  = maybeToList $ Map.lookup m $ scopeModules scope
             ss' = restrictPrivate <$> ss
+        -- trace ("ss  = " ++ show ss ) $ do
+        -- trace ("ss' = " ++ show ss') $ do
         s' <- ss'
         findName q s'
       where
