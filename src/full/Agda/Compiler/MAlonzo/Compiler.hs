@@ -605,7 +605,7 @@ callGHC modIsMain i = do
 
   let overridableArgs =
         [ "-O"] ++
-        (if modIsMain then ["-o", mdir </> show outputName] else []) ++
+        (if modIsMain then ["-o", mdir </> show (nameConcrete outputName)] else []) ++
         [ "-Werror"]
       otherArgs       =
         [ "-i" ++ mdir] ++

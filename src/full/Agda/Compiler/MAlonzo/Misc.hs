@@ -158,7 +158,7 @@ mazMod' :: String -> HS.ModuleName
 mazMod' s = HS.ModuleName $ mazstr ++ "." ++ s
 
 mazMod :: ModuleName -> HS.ModuleName
-mazMod = mazMod' . show
+mazMod = mazMod' . show . mnameToConcrete
 
 mazerror :: String -> a
 mazerror msg = error $ mazstr ++ ": " ++ msg

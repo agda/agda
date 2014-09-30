@@ -194,7 +194,7 @@ generateAndPrintSyntaxInfo decl hlLevel = do
     universeBi decl
     where
     extendedLambda :: A.QName -> Bool
-    extendedLambda n = extendlambdaname `isPrefixOf` show (A.qnameName n)
+    extendedLambda = (extendedLambdaName `isPrefixOf`) . show . A.nameConcrete . A.qnameName
 
   -- Bound variables, dotted patterns, record fields, module names,
   -- the "as" and "to" symbols.

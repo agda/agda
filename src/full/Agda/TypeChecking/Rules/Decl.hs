@@ -685,7 +685,7 @@ checkSectionApplication' i m1 (A.RecordModuleIFS x) rd rm = do
     -- , nest 2 $ text "args    =" <+> text (show args)
     ]
   when (tel == EmptyTel) $
-    typeError $ GenericError $ show name ++ " is not a parameterised section"
+    typeError $ GenericError $ show (qnameToConcrete name) ++ " is not a parameterised section"
 
   addCtxTel telInst $ do
     vs <- freeVarsToApply name

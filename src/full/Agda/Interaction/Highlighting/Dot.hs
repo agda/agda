@@ -93,7 +93,7 @@ generateDot inter = do
     mkDot :: DotState -> String
     mkDot st = unlines $
         [ "digraph dependencies {"
-        ] ++ ["   " ++ repr ++ "[label=\"" ++ show modulename ++ "\"];"
+        ] ++ ["   " ++ repr ++ "[label=\"" ++ show (mnameToConcrete modulename) ++ "\"];"
              | (modulename, repr) <- M.toList (dsModules st)]
           ++ ["   " ++ r1 ++ " -> " ++ r2 ++ ";"
              | (r1 , r2) <- S.toList (dsConnection st) ]

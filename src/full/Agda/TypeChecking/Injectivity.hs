@@ -15,6 +15,7 @@ import qualified Data.Set as Set
 import Data.Maybe
 import Data.Traversable hiding (for)
 
+import qualified Agda.Syntax.Abstract.Name as A
 import Agda.Syntax.Common
 import Agda.Syntax.Internal
 
@@ -78,7 +79,8 @@ headSymbol v = do -- ignoreAbstractMode $ do
 checkInjectivity :: QName -> [Clause] -> TCM FunctionInverse
 checkInjectivity f cs
   | pointLess cs = do
-      reportSLn "tc.inj.check" 20 $ "Injectivity of " ++ show f ++ " would be pointless."
+      reportSLn "tc.inj.check.pointless" 20 $
+        "Injectivity of " ++ show (A.qnameToConcrete f) ++ " would be pointless."
       return NotInjective
   where
     -- Is it pointless to use injectivity for this function?

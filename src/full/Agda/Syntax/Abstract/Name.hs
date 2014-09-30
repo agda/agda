@@ -282,12 +282,18 @@ instance IsNoName Name where
 -- * Show instances
 ------------------------------------------------------------------------
 
+-- | Only use this @show@ function in debugging!  To convert an
+--   abstract 'Name' into a string use @show . nameConcrete@.
 instance Show Name where
   show x = show (nameConcrete x) -- ++ "|" ++ show (nameId x)
 
+-- | Only use this @show@ function in debugging!  To convert an
+--   abstract 'ModuleName' into a string use @show . mnameToConcrete@.
 instance Show ModuleName where
   show m = concat $ intersperse "." $ map show $ mnameToList m
 
+-- | Only use this @show@ function in debugging!  To convert an
+--   abstract 'QName' into a string use @show . qnameToConcrete@.
 instance Show QName where
   show q = concat $ intersperse "." $ map show $ qnameToList q
 

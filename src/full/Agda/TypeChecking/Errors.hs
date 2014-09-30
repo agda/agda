@@ -292,9 +292,9 @@ instance PrettyTCM TypeError where
             GenericDocError d   -> return d
             TerminationCheckFailed because ->
               fwords "Termination checking failed for the following functions:"
-              $$ (nest 2 $
-                    fsep (punctuate comma (map (text . show . dropTopLevelModule)
-                                               (concatMap termErrFunctions because))))
+              $$ (nest 2 $ fsep $ punctuate comma $
+                   map (text . show . qnameToConcrete . dropTopLevelModule) $
+                     concatMap termErrFunctions because)
               $$ fwords "Problematic calls:"
               $$ (nest 2 $ fmap (P.vcat . nub) $
                     mapM prettyTCM $ sortBy (compare `on` callInfoRange) $
@@ -366,7 +366,9 @@ instance PrettyTCM TypeError where
               pwords "The constructor" ++ [prettyTCM c] ++ pwords "expects" ++
               [text (show expect)] ++ pwords "arguments (including hidden ones), but has been given" ++ [text (show given)] ++ pwords "(including hidden ones)"
             CantResolveOverloadedConstructorsTargetingSameDatatype d cs -> fsep $
-              pwords ("Can't resolve overloaded constructors targeting the same datatype (" ++ show d ++ "):") ++ map (text . show) cs
+              pwords ("Can't resolve overloaded constructors targeting the same datatype ("
+              ++ show (qnameToConcrete d) ++ "):")
+              ++ map (text . show . qnameToConcrete) cs
             DoesNotConstructAnElementOf c t -> fsep $
               pwords "The constructor" ++ [prettyTCM c] ++
               pwords "does not construct an element of" ++ [prettyTCM t]
