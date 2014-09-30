@@ -634,7 +634,7 @@ checkExpr e t0 =
 
           | A.QuoteTerm _ <- unScope q ->
              do (et, _)   <- inferExpr (namedThing e)
-                q         <- normalise et >>= etaContract >>= quoteTerm
+                q         <- quoteTerm =<< etaContract =<< normalise et
                 ty        <- el primAgdaTerm
                 coerce q ty t
 
