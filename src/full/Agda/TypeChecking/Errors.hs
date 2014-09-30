@@ -200,7 +200,6 @@ errorString err = case err of
     NothingAppliedToInstanceArg{}            -> "NothingAppliedToInstanceArg"
     OverlappingProjects {}                   -> "OverlappingProjects"
     PatternShadowsConstructor {}             -> "PatternShadowsConstructor"
-    PatternSynonymArityMismatch {}           -> "PatternSynonymArityMismatch"
     PropMustBeSingleton                      -> "PropMustBeSingleton"
     RepeatedVariablesInPattern{}             -> "RepeatedVariablesInPattern"
     SafeFlagPostulate{}                      -> "SafeFlagPostulate"
@@ -677,8 +676,6 @@ instance PrettyTCM TypeError where
                 fromOrdinary _ = __IMPOSSIBLE__
             UnusedVariableInPatternSynonym -> fsep $
                 pwords "Unused variable in pattern synonym."
-            PatternSynonymArityMismatch x -> fsep $
-                pwords "Arity mismatch when using pattern synonym" ++ [prettyTCM x]
             NoParseForLHS IsLHS p -> fsep $
                 pwords "Could not parse the left-hand side" ++ [pretty p]
             NoParseForLHS IsPatSyn p -> fsep $
