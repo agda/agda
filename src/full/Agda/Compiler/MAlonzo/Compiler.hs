@@ -7,14 +7,17 @@ module Agda.Compiler.MAlonzo.Compiler where
 import Control.Applicative
 import Control.Monad.Reader
 import Control.Monad.State
+
 import Data.Generics.Geniplate
 import Data.List as List
 import Data.Map as Map
 import Data.Set as Set
+
 import qualified Language.Haskell.Exts.Extension as HS
 import qualified Language.Haskell.Exts.Parser as HS
 import qualified Language.Haskell.Exts.Pretty as HS
 import qualified Language.Haskell.Exts.Syntax as HS
+
 import System.Directory (createDirectoryIfMissing)
 import System.FilePath hiding (normalise)
 
@@ -22,14 +25,17 @@ import Agda.Compiler.CallCompiler
 import Agda.Compiler.MAlonzo.Misc
 import Agda.Compiler.MAlonzo.Pretty
 import Agda.Compiler.MAlonzo.Primitives
+
 import Agda.Interaction.FindFile
 import Agda.Interaction.Imports
 import Agda.Interaction.Options
+
 import Agda.Syntax.Common
-import qualified Agda.Syntax.Concrete.Name as CN
 import qualified Agda.Syntax.Abstract.Name as A
+import qualified Agda.Syntax.Concrete.Name as C
 import Agda.Syntax.Internal as I
 import Agda.Syntax.Literal
+
 import Agda.TypeChecking.Monad
 import Agda.TypeChecking.Monad.Builtin
 import Agda.TypeChecking.Reduce
@@ -37,6 +43,7 @@ import Agda.TypeChecking.Pretty
 import Agda.TypeChecking.Substitute
 import Agda.TypeChecking.Telescope
 import Agda.TypeChecking.Level (reallyUnLevelView)
+
 import Agda.Utils.FileName
 import Agda.Utils.Monad
 import qualified Agda.Utils.IO.UTF8 as UTF8
@@ -60,7 +67,7 @@ compilerMain modIsMain mainI =
         -- The default output directory is the project root.
         let tm = toTopLevelModuleName $ iModuleName mainI
         f <- findFile tm
-        return $ filePath $ CN.projectRoot f tm
+        return $ filePath $ C.projectRoot f tm
     setCommandLineOptions $
       opts { optCompileDir = Just compileDir }
 
