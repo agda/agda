@@ -57,6 +57,23 @@ Bug fixes
 
 * Issue 1194
 
+* Issue 836:  Fields and constructors can be qualified by the
+  record/data *type* as well as by their record/data module.
+  This now works also for record/data type imported from
+  parametrized modules:
+
+    module M (_ : Set₁) where
+
+      record R : Set₁ where
+        field
+          X : Set
+
+    open M Set using (R)  -- rather than using (module R)
+
+    X : R → Set
+    X = R.X
+
+
 ------------------------------------------------------------------------
 -- Release notes for Agda version 2.4.2
 ------------------------------------------------------------------------
