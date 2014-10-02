@@ -7,12 +7,14 @@ import Control.Applicative
 import Control.Monad
 import Control.Monad.Reader
 import Control.Monad.State
+
 import qualified Data.ByteString.Lazy as BS
 import qualified Data.Map as M
 import Data.Set(Set)
 import qualified Data.Set as S
 import Data.Maybe
 import Data.Monoid
+
 import System.Directory ( canonicalizePath, createDirectoryIfMissing
                         , getCurrentDirectory, setCurrentDirectory
                         )
@@ -21,19 +23,20 @@ import System.FilePath hiding (normalise)
 import System.Process hiding (env)
 
 import Paths_Agda
-import Agda.Compiler.CallCompiler
+
 import Agda.Interaction.FindFile
 import Agda.Interaction.Options
 import Agda.Interaction.Imports
+
 import Agda.Syntax.Common (Delayed(..))
 import qualified Agda.Syntax.Concrete.Name as CN
 import Agda.Syntax.Internal hiding (Term(..))
+
 import Agda.TypeChecking.Monad
 import Agda.TypeChecking.Monad.Builtin
 import Agda.TypeChecking.Serialise
-import Agda.Utils.FileName
-import qualified Agda.Utils.HashMap as HMap
 
+import Agda.Compiler.CallCompiler
 import Agda.Compiler.Epic.CompileState
 import qualified Agda.Compiler.Epic.CaseOpts     as COpts
 import qualified Agda.Compiler.Epic.ForceConstrs as ForceC
@@ -46,6 +49,9 @@ import qualified Agda.Compiler.Epic.Injection    as ID
 import qualified Agda.Compiler.Epic.NatDetection as ND
 import qualified Agda.Compiler.Epic.Primitive    as Prim
 import qualified Agda.Compiler.Epic.Smashing     as Smash
+
+import Agda.Utils.FileName
+import qualified Agda.Utils.HashMap as HMap
 
 #include "../../undefined.h"
 import Agda.Utils.Impossible
