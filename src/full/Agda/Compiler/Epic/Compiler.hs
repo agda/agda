@@ -52,6 +52,7 @@ import qualified Agda.Compiler.Epic.Smashing     as Smash
 
 import Agda.Utils.FileName
 import qualified Agda.Utils.HashMap as HMap
+import Agda.Utils.List
 
 #include "../../undefined.h"
 import Agda.Utils.Impossible
@@ -168,7 +169,7 @@ initialAnalysis inter = do
         putForcedArgs q . drop np . ForceC.makeForcedArgs $ defType def
         putConArity q =<< lift (constructorArity q)
       f@(Function{}) -> do
-        when ("main" == show (qnameName q)) $ do
+        when ("main" == show (nameConcrete $ qnameName q)) $ do
             -- lift $ liftTCM $ checkTypeOfMain q (defType def)
             putMain q
         putDelayed q $ case funDelayed f of
@@ -238,9 +239,7 @@ runEpicMain mainName imports m = do
                        | imp <- imports'
                        ] ++ "main() -> Unit = init() ; " ++ mainName ++ "(unit)"
     liftIO $ writeFile ("main" <.> "e") code
-    let outputName  = case mnameToList m of
-          [] -> __IMPOSSIBLE__
-          ms -> last ms
+    let outputName  = maybe __IMPOSSIBLE__ nameConcrete $ mlast $ mnameToList m
     callEpic'  $ \epic ->
         [ "main" <.> "e"
         , "-o", ".." </> show outputName
