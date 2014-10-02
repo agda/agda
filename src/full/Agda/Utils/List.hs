@@ -40,6 +40,11 @@ mhead :: [a] -> Maybe a
 mhead []    = Nothing
 mhead (x:_) = Just x
 
+-- | Last element (safe).
+mlast :: [a] -> Maybe a
+mlast [] = Nothing
+mlast xs = Just $ last xs
+
 -- | Opposite of cons @(:)@, safe.
 uncons :: [a] -> Maybe (a, [a])
 uncons []     = Nothing
