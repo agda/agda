@@ -286,7 +286,12 @@ instance IsNoName Name where
 -- | Only use this @show@ function in debugging!  To convert an
 --   abstract 'Name' into a string use @show . nameConcrete@.
 instance Show Name where
-  show n = show (nameConcrete n) ++ "^" ++ show (nameId n)
+  -- Andreas, 2014-10-02: Reverted to nice printing.
+  -- Reason: I do not have time just now to properly fix the
+  -- use of Show Name for pretty printing everywhere, e.g. in
+  -- the Epic backend.  But I want to push the fix for Issue 836 now.
+  show n = show (nameConcrete n)
+  -- show n = show (nameConcrete n) ++ "^" ++ show (nameId n)
   -- show n = applyWhen (isNoName n) (++ show (nameId n)) $ show (nameConcrete n)
 
 -- | Only use this @show@ function in debugging!  To convert an
