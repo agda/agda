@@ -243,29 +243,35 @@ compareTerm' cmp a m n =
           isrec <- isEtaRecord r
           if isrec
             then do
-              dontHaveCopatterns <- not . optCopatterns <$> pragmaOptions
+              sig <- getSignature
               let ps = fromMaybe __IMPOSSIBLE__ $ allApplyElims es
               -- Andreas, 2010-10-11: allowing neutrals to be blocked things does not seem
               -- to change Agda's behavior
               --    isNeutral Blocked{}          = False
                   isNeutral = isNeutral' . fmap ignoreSharing
                   isMeta    = isMeta'    . fmap ignoreSharing
-                  isNeutral' (NotBlocked Con{}) = False
+                  isNeutral' (NotBlocked Con{}) = return False
               -- Andreas, 2013-09-18: this is expensive:
               -- should only do this when copatterns are on
-                  isNeutral' (NotBlocked Def{}) = dontHaveCopatterns -- a def by copattern can reduce if projected
-                  isNeutral' _                  = True
+                  isNeutral' (NotBlocked (Def q _)) = do
+                    d <- getConstInfo q
+                    return $ case d of
+                      Defn {theDef = Function {funCopatternLHS = True}} -> False -- a def by copattern can reduce if projected
+                      _                                                 -> True
+                  isNeutral' _                  = return True
                   isMeta' (NotBlocked MetaV{})  = True
                   isMeta' _                     = False
 
               reportSDoc "tc.conv.term" 30 $ prettyTCM a <+> text "is eta record type"
               m <- reduceB m
+              mNeutral <- isNeutral m
               n <- reduceB n
+              nNeutral <- isNeutral n
               case (m, n) of
                 _ | isMeta m || isMeta n ->
                     compareAtom cmp a' (ignoreBlocking m) (ignoreBlocking n)
 
-                _ | isNeutral m && isNeutral n -> do
+                _ | mNeutral && nNeutral -> do
                     -- Andreas 2011-03-23: (fixing issue 396)
                     -- if we are dealing with a singleton record,
                     -- we can succeed immediately

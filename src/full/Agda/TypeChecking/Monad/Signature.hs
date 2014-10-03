@@ -328,6 +328,7 @@ applySection new ptel old ts rd rm = do
                         , funTerminates     = Just True
                         , funExtLam         = extlam
                         , funWith           = with
+                        , funCopatternLHS   = isCopatternLHS [cl]
                         }
                   reportSLn "tc.mod.apply" 80 $ "new def for " ++ show x ++ "\n  " ++ show newDef
                   return newDef
