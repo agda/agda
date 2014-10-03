@@ -439,6 +439,7 @@ checkRecordProjections m r con tel ftel fs = do
                      , funTerminates     = Just True
                      , funExtLam         = Nothing
                      , funWith           = Nothing
+                     , funCopatternLHS   = isCopatternLHS [clause]
                      })
             { defArgOccurrences = [StrictPos] }
         computePolarity projname

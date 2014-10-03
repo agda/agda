@@ -44,8 +44,8 @@ instance KillRange Defn where
   killRange def =
     case def of
       Axiom -> Axiom
-      Function cls comp inv mut isAbs delayed proj static copy term extlam with ->
-        killRange12 Function cls comp inv mut isAbs delayed proj static copy term extlam with
+      Function cls comp inv mut isAbs delayed proj static copy term extlam with cop ->
+        killRange13 Function cls comp inv mut isAbs delayed proj static copy term extlam with cop
       Datatype a b c d e f g h i j   -> killRange10 Datatype a b c d e f g h i j
       Record a b c d e f g h i j k l -> killRange12 Record a b c d e f g h i j k l
       Constructor a b c d e          -> killRange5 Constructor a b c d e
