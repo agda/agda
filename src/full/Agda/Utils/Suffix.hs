@@ -38,12 +38,23 @@ fromSubscriptDigit d
 ------------------------------------------------------------------------
 -- Suffices
 
-data Suffix = NoSuffix | Prime Int | Index Int | Subscript Int
+-- | Classification of identifier variants.
 
+data Suffix
+  = NoSuffix
+  | Prime     Int  -- ^ Identifier ends in @Int@ many primes.
+  | Index     Int  -- ^ Identifier ends in number @Int@ (ordinary digits).
+  | Subscript Int  -- ^ Identifier ends in number @Int@ (subscript digits).
+
+-- | Increase the suffix by one.  If no suffix yet, put a subscript @1@.
+
+nextSuffix :: Suffix -> Suffix
 nextSuffix NoSuffix      = Subscript 1
 nextSuffix (Prime i)     = Prime $ i + 1
 nextSuffix (Index i)     = Index $ i + 1
 nextSuffix (Subscript i) = Subscript $ i + 1
+
+-- | Parse suffix.
 
 suffixView :: String -> (String, Suffix)
 suffixView s
@@ -54,6 +65,8 @@ suffixView s
                                                       map fromSubscriptDigit $ reverse ns)
     | otherwise                                  = (s, NoSuffix)
     where rs = reverse s
+
+-- | Print suffix.
 
 addSuffix :: String -> Suffix -> String
 addSuffix s NoSuffix      = s
