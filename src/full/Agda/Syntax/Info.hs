@@ -1,6 +1,6 @@
-{-# LANGUAGE DeriveDataTypeable #-}
-{-# LANGUAGE FlexibleContexts #-}
-{-# LANGUAGE StandaloneDeriving #-}
+{-# LANGUAGE DeriveDataTypeable   #-}
+{-# LANGUAGE FlexibleContexts     #-}
+{-# LANGUAGE StandaloneDeriving   #-}
 {-# LANGUAGE UndecidableInstances #-}
 
 {-| An info object contains additional information about a piece of abstract

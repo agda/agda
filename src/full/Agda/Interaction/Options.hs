@@ -1,7 +1,7 @@
 {-# LANGUAGE CPP #-}
 
 #if __GLASGOW_HASKELL__ <= 706
-{-# LANGUAGE DeriveFunctor #-}
+{-# LANGUAGE DeriveFunctor      #-}
 {-# LANGUAGE StandaloneDeriving #-}
 #endif
 

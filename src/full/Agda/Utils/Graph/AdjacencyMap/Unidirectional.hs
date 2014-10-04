@@ -1,5 +1,8 @@
-{-# LANGUAGE TupleSections, DoAndIfThenElse,
-  DeriveFunctor, GeneralizedNewtypeDeriving, FlexibleInstances #-}
+{-# LANGUAGE DeriveFunctor              #-}
+{-# LANGUAGE DoAndIfThenElse            #-}
+{-# LANGUAGE FlexibleInstances          #-}
+{-# LANGUAGE GeneralizedNewtypeDeriving #-}
+{-# LANGUAGE TupleSections              #-}
 
 -- | Directed graphs (can of course simulate undirected graphs).
 --

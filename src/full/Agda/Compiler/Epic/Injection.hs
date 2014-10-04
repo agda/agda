@@ -1,7 +1,7 @@
-{-# LANGUAGE CPP #-}
-{-# LANGUAGE FlexibleInstances #-}
-{-# LANGUAGE PatternGuards #-}
-{-# LANGUAGE TypeOperators #-}
+{-# LANGUAGE CPP                  #-}
+{-# LANGUAGE FlexibleInstances    #-}
+{-# LANGUAGE PatternGuards        #-}
+{-# LANGUAGE TypeOperators        #-}
 {-# LANGUAGE TypeSynonymInstances #-}
 {-# LANGUAGE OverlappingInstances #-}
 

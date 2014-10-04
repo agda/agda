@@ -1,4 +1,6 @@
-{-# LANGUAGE TupleSections, DeriveFunctor, GeneralizedNewtypeDeriving #-}
+{-# LANGUAGE DeriveFunctor              #-}
+{-# LANGUAGE GeneralizedNewtypeDeriving #-}
+{-# LANGUAGE TupleSections              #-}
 
 -- | Directed graphs (can of course simulate undirected graphs).
 --

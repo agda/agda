@@ -1,13 +1,13 @@
--- {-# LANGUAGE CPP #-}
-{-# LANGUAGE DeriveFoldable #-}
-{-# LANGUAGE DeriveFunctor #-}
-{-# LANGUAGE DeriveTraversable #-}
-{-# LANGUAGE FlexibleInstances #-}
+-- {-# LANGUAGE CPP                        #-}
+{-# LANGUAGE DeriveFoldable             #-}
+{-# LANGUAGE DeriveFunctor              #-}
+{-# LANGUAGE DeriveTraversable          #-}
+{-# LANGUAGE FlexibleInstances          #-}
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
-{-# LANGUAGE ImplicitParams #-}
-{-# LANGUAGE MultiParamTypeClasses #-}
-{-# LANGUAGE StandaloneDeriving #-}
-{-# LANGUAGE TypeSynonymInstances #-}
+{-# LANGUAGE ImplicitParams             #-}
+{-# LANGUAGE MultiParamTypeClasses      #-}
+{-# LANGUAGE StandaloneDeriving         #-}
+{-# LANGUAGE TypeSynonymInstances       #-}
 
 module Agda.Termination.CallMatrix where
 

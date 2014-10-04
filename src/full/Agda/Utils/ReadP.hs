@@ -1,4 +1,7 @@
-{-# LANGUAGE MagicHash, Rank2Types, DeriveFunctor #-}
+{-# LANGUAGE DeriveFunctor #-}
+{-# LANGUAGE MagicHash     #-}
+{-# LANGUAGE Rank2Types    #-}
+
 -----------------------------------------------------------------------------
 -- |
 

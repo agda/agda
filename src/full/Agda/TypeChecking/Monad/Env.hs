@@ -1,4 +1,5 @@
 {-# LANGUAGE FlexibleContexts #-}
+
 module Agda.TypeChecking.Monad.Env where
 
 import Control.Monad.Reader

@@ -1,4 +1,5 @@
-{-# LANGUAGE Rank2Types, GeneralizedNewtypeDeriving #-}
+{-# LANGUAGE GeneralizedNewtypeDeriving #-}
+{-# LANGUAGE Rank2Types                 #-}
 
 {-| When lexing by hands (for instance string literals) we need to do some
     looking ahead. The 'LookAhead' monad keeps track of the position we are

@@ -1,6 +1,6 @@
-{-# LANGUAGE CPP #-}
+{-# LANGUAGE CPP              #-}
 {-# LANGUAGE FlexibleContexts #-}
-{-# LANGUAGE TupleSections #-}
+{-# LANGUAGE TupleSections    #-}
 
 module Agda.TypeChecking.Reduce.Monad
   ( constructorForm

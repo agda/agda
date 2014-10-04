@@ -1,8 +1,8 @@
-{-# LANGUAGE CPP #-}
-{-# LANGUAGE FlexibleContexts #-}
-{-# LANGUAGE FlexibleInstances #-}
-{-# LANGUAGE PatternGuards #-}
-{-# LANGUAGE TupleSections #-}
+{-# LANGUAGE CPP                  #-}
+{-# LANGUAGE FlexibleContexts     #-}
+{-# LANGUAGE FlexibleInstances    #-}
+{-# LANGUAGE PatternGuards        #-}
+{-# LANGUAGE TupleSections        #-}
 {-# LANGUAGE TypeSynonymInstances #-}
 
 -- | A syntactic equality check that takes meta instantiations into account,

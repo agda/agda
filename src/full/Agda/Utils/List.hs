@@ -1,5 +1,5 @@
-{-# LANGUAGE CPP #-}
-{-# LANGUAGE PatternGuards #-}
+{-# LANGUAGE CPP             #-}
+{-# LANGUAGE PatternGuards   #-}
 {-# LANGUAGE TemplateHaskell #-}
 
 {-| Utitlity functions on lists.

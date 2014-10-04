@@ -29,6 +29,7 @@ import Control.Applicative
 import Data.Function
 import Data.Int
 import qualified Data.List as List
+import Data.Maybe
 import Data.Map as Map
 import Data.Set as Set
 import Data.Typeable (Typeable)
@@ -43,6 +44,7 @@ import qualified Agda.Syntax.Concrete as C
 import qualified Agda.Syntax.Concrete.Definitions as D
 import qualified Agda.Syntax.Abstract as A
 import Agda.Syntax.Internal as I
+import Agda.Syntax.Internal.Pattern ()
 import Agda.Syntax.Position
 import Agda.Syntax.Scope.Base
 
@@ -835,6 +837,8 @@ data Defn = Axiom
             , funWith           :: Maybe QName
               -- ^ Is this a generated with-function? If yes, then what's the
               --   name of the parent function.
+            , funCopatternLHS   :: Bool
+              -- ^ Is this a function defined by copatterns?
             }
           | Datatype
             { dataPars           :: Nat            -- ^ Number of parameters.
@@ -901,8 +905,11 @@ emptyFunction = Function
   , funTerminates  = Nothing
   , funExtLam      = Nothing
   , funWith        = Nothing
+  , funCopatternLHS = False
   }
 
+isCopatternLHS :: [Clause] -> Bool
+isCopatternLHS = List.any (List.any (isJust . A.isProjP) . clausePats)
 
 recCon :: Defn -> QName
 recCon Record{ recConHead } = conName recConHead

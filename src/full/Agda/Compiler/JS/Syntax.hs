@@ -1,4 +1,5 @@
 {-# LANGUAGE DeriveDataTypeable #-}
+
 module Agda.Compiler.JS.Syntax where
 
 import Data.Typeable ( Typeable )

@@ -1,6 +1,6 @@
-{-# LANGUAGE CPP #-}
-{-# LANGUAGE FlexibleInstances #-}
-{-# LANGUAGE PatternGuards #-}
+{-# LANGUAGE CPP                  #-}
+{-# LANGUAGE FlexibleInstances    #-}
+{-# LANGUAGE PatternGuards        #-}
 {-# LANGUAGE TypeSynonymInstances #-}
 
 -- | Functions for abstracting terms over other terms.
