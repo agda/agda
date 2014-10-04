@@ -1,4 +1,5 @@
-{-# LANGUAGE TupleSections, PatternGuards #-}
+{-# LANGUAGE PatternGuards #-}
+{-# LANGUAGE TupleSections #-}
 
 module Agda.Syntax.Abstract.Views where
 

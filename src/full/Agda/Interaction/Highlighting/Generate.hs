@@ -1,6 +1,6 @@
-{-# LANGUAGE CPP #-}
+{-# LANGUAGE CPP              #-}
 {-# LANGUAGE FlexibleContexts #-}
-{-# LANGUAGE RelaxedPolyRec #-}
+{-# LANGUAGE RelaxedPolyRec   #-}
 
 -- | Generates data used for precise syntax highlighting.
 

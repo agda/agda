@@ -1,6 +1,7 @@
 -- | Lazy tries (based on Data.Map.Lazy).
 
-{-# LANGUAGE TupleSections, PatternGuards #-}
+{-# LANGUAGE TupleSections #-}
+{-# LANGUAGE PatternGuards #-}
 
 module Agda.Utils.Trie
   ( Trie
