@@ -91,12 +91,6 @@ instance (Pretty a, Pretty b) => Pretty (a, b) where
 instance Pretty (ThingWithFixity Name) where
     pretty (ThingWithFixity n _) = pretty n
 
-instance Pretty Name where
-    pretty = text . show
-
-instance Pretty QName where
-    pretty = text . show
-
 instance Pretty Relevance where
   pretty Forced     = empty
   pretty UnusedArg  = empty
