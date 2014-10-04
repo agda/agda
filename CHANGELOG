@@ -52,6 +52,32 @@ Type checking
   Or switch off the termination checker altogether with
   {-# OPTIONS --no-termination-check #-} (at your own risk!).
 
+* (Since Agda 2.4.2:) Termination checking --without-K restricts
+  structural descent to arguments ending in data types or `Size`.
+  Likewise, guardedness is only tracked when result type is data or
+  record type.
+
+    mutual
+      data WOne : Set where wrap : FOne → WOne
+      FOne = ⊥ → WOne
+
+    noo : (X : Set) → (WOne ≡ X) → X → ⊥
+    noo .WOne refl (wrap f) = noo FOne iso f
+
+  `noo` is rejected since at type `X` the structural descent
+  `f < wrap f` is discounted --without-K.
+
+    data Pandora : Set where
+      C : ∞ ⊥ → Pandora
+
+    loop : (A : Set) → A ≡ Pandora → A
+    loop .Pandora refl = C (♯ (loop ⊥ foo))
+
+  `loop` is rejected since guardedness is not tracked at type `A`
+  --without-K.
+
+  See issues 1023, 1264, 1292.
+
 Bug fixes
 =========
 
