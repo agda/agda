@@ -35,9 +35,6 @@ instance Pretty a => Pretty (Lisp a) where
   pretty (L xs)     = parens (hsep (map pretty xs))
   pretty (Q x)      = text "'" <> pretty x
 
-instance Pretty String where
-  pretty = text
-
 instance Pretty a => Show (Lisp a) where
   show = show . pretty
 

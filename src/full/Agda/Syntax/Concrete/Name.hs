@@ -241,8 +241,12 @@ instance IsNoName QName where
 -- no instance for TopLevelModuleName
 
 ------------------------------------------------------------------------
--- * Printing names
+-- * Showing names
 ------------------------------------------------------------------------
+
+-- TODO: 'Show' should output Haskell-parseable representations.
+-- The following instances are deprecated, and Pretty should be used
+-- instead.  Later, simply derive Show for these types:
 
 instance Show Name where
     show (Name _ xs)  = concatMap show xs
@@ -255,6 +259,22 @@ instance Show NamePart where
 instance Show QName where
     show (Qual m x) = show m ++ "." ++ show x
     show (QName x)  = show x
+
+------------------------------------------------------------------------
+-- * Printing names
+------------------------------------------------------------------------
+
+instance Pretty Name where
+    pretty (Name _ xs)  = hcat $ map pretty xs
+    pretty (NoName _ _) = text $ "_"
+
+instance Pretty NamePart where
+    pretty Hole   = text $ "_"
+    pretty (Id s) = text $ rawNameToString s
+
+instance Pretty QName where
+    pretty (Qual m x) = pretty m <> pretty "." <> pretty x
+    pretty (QName x)  = pretty x
 
 instance Pretty TopLevelModuleName where
   pretty (TopLevelModuleName ms) = text $ intercalate "." ms
