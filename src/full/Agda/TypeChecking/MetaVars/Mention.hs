@@ -1,4 +1,7 @@
-{-# LANGUAGE CPP, FlexibleInstances, TypeSynonymInstances #-}
+{-# LANGUAGE CPP                  #-}
+{-# LANGUAGE FlexibleInstances    #-}
+{-# LANGUAGE TypeSynonymInstances #-}
+
 module Agda.TypeChecking.MetaVars.Mention where
 
 import Agda.Syntax.Common

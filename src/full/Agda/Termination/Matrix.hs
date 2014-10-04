@@ -1,7 +1,10 @@
 -- UNUSED
 
-{-# LANGUAGE MultiParamTypeClasses, FunctionalDependencies, FlexibleInstances,
-  GeneralizedNewtypeDeriving, DeriveTraversable #-}
+{-# LANGUAGE MultiParamTypeClasses      #-}
+{-# LANGUAGE FunctionalDependencies     #-}
+{-# LANGUAGE FlexibleInstances          #-}
+{-# LANGUAGE GeneralizedNewtypeDeriving #-}
+{-# LANGUAGE DeriveTraversable          #-}
 
 -- | Naive implementation of simple matrix library.
 

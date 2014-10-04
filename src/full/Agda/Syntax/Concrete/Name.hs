@@ -1,7 +1,7 @@
-{-# LANGUAGE CPP #-}
-{-# LANGUAGE DeriveDataTypeable #-}
-{-# LANGUAGE FlexibleInstances #-}
-{-# LANGUAGE PatternGuards #-}
+{-# LANGUAGE CPP                  #-}
+{-# LANGUAGE DeriveDataTypeable   #-}
+{-# LANGUAGE FlexibleInstances    #-}
+{-# LANGUAGE PatternGuards        #-}
 {-# LANGUAGE TypeSynonymInstances #-}
 
 {-| Names in the concrete syntax are just strings (or lists of strings for

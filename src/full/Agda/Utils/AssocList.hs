@@ -1,4 +1,4 @@
-{-# LANGUAGE CPP #-}
+{-# LANGUAGE CPP           #-}
 {-# LANGUAGE TupleSections #-}
 
 -- | Additional functions for association lists.

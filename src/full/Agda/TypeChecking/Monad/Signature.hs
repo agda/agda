@@ -1,7 +1,7 @@
-{-# LANGUAGE CPP #-}
-{-# LANGUAGE FlexibleContexts #-}
+{-# LANGUAGE CPP               #-}
+{-# LANGUAGE FlexibleContexts  #-}
 {-# LANGUAGE FlexibleInstances #-}
-{-# LANGUAGE PatternGuards #-}
+{-# LANGUAGE PatternGuards     #-}
 
 module Agda.TypeChecking.Monad.Signature where
 

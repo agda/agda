@@ -1,4 +1,4 @@
-{-# LANGUAGE CPP #-}
+{-# LANGUAGE CPP           #-}
 {-# LANGUAGE TupleSections #-}
 
 module Agda.TypeChecking.Rules.Decl where

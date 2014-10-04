@@ -1,10 +1,10 @@
 -- | Strict tries (based on 'Data.Map.Strict' and 'Agda.Utils.Maybe.Strict').
 
-{-# LANGUAGE CPP #-}
-{-# LANGUAGE BangPatterns #-}
+{-# LANGUAGE CPP                        #-}
+{-# LANGUAGE BangPatterns               #-}
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
-{-# LANGUAGE PatternGuards #-}
-{-# LANGUAGE TupleSections #-}
+{-# LANGUAGE PatternGuards              #-}
+{-# LANGUAGE TupleSections              #-}
 
 module Agda.Utils.Trie
   ( Trie

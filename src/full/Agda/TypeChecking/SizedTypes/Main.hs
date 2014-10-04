@@ -1,6 +1,8 @@
 -- ASR (01 June 2014): Not used yet.
 
-{-# LANGUAGE NoMonomorphismRestriction, ScopedTypeVariables, TupleSections #-}
+{-# LANGUAGE NoMonomorphismRestriction #-}
+{-# LANGUAGE ScopedTypeVariables       #-}
+{-# LANGUAGE TupleSections             #-}
 
 module Agda.TypeChecking.SizedTypes.Main where
 

@@ -1,5 +1,5 @@
-{-# LANGUAGE NoMonomorphismRestriction,
-   MultiParamTypeClasses #-}
+{-# LANGUAGE MultiParamTypeClasses     #-}
+{-# LANGUAGE NoMonomorphismRestriction #-}
 
 module Agda.TypeChecking.SizedTypes.Utils where
 

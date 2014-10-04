@@ -1,4 +1,4 @@
-{-# LANGUAGE CPP #-}
+{-# LANGUAGE CPP           #-}
 {-# LANGUAGE PatternGuards #-}
 
 module Agda.TypeChecking.With where
