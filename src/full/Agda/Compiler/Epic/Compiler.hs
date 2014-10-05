@@ -57,6 +57,7 @@ import qualified Agda.Compiler.Epic.Smashing     as Smash
 import Agda.Utils.FileName
 import qualified Agda.Utils.HashMap as HMap
 import Agda.Utils.List
+import Agda.Utils.Pretty ( Pretty(pretty),  prettyShow )
 
 #include "../../undefined.h"
 import Agda.Utils.Impossible
@@ -127,13 +128,13 @@ compileModule i = do
             (eif, imps') <- case uptodate of
                 True  -> do
                     lift $ reportSLn "" 1 $
-                        show (iModuleName i) ++ " : no compilation is needed."
+                      (prettyShow . iModuleName) i ++ " : no compilation is needed."
                     eif <- readEInterface eifFile
                     modify $ \s -> s { curModule = eif }
                     return (eif, Set.insert file imps)
                 False -> do
                     lift $ reportSLn "" 1 $
-                        "Compiling: " ++ show (iModuleName i)
+                        "Compiling: " ++ (prettyShow . iModuleName) i
                     resetNameSupply
                     initialAnalysis i
                     let defns = HMap.toList $ sigDefinitions $ iSignature i
@@ -173,7 +174,7 @@ initialAnalysis inter = do
         putForcedArgs q . drop np . ForceC.makeForcedArgs $ defType def
         putConArity q =<< lift (constructorArity q)
       f@(Function{}) -> do
-        when ("main" == show (nameConcrete $ qnameName q)) $ do
+        when ("main" == (show . pretty . nameConcrete . qnameName) q) $ do
             -- lift $ liftTCM $ checkTypeOfMain q (defType def)
             putMain q
         putDelayed q $ case funDelayed f of
@@ -244,10 +245,13 @@ runEpicMain mainName imports m = do
                        | imp <- imports'
                        ] ++ "main() -> Unit = init() ; " ++ mainName ++ "(unit)"
     liftIO $ writeFile ("main" <.> "e") code
-    let outputName  = maybe __IMPOSSIBLE__ nameConcrete $ mlast $ mnameToList m
+
+    let outputName ∷ CN.Name
+        outputName = maybe __IMPOSSIBLE__ nameConcrete $ mlast $ mnameToList m
+
     callEpic'  $ \epic ->
         [ "main" <.> "e"
-        , "-o", ".." </> show outputName
+        , "-o", ".." </> prettyShow outputName
         ]
         ++ epic ++ map (<.> "o") imports'
 
