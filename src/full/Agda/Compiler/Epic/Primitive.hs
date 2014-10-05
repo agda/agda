@@ -7,8 +7,8 @@ module Agda.Compiler.Epic.Primitive where
 import Control.Applicative
 import Control.Monad
 import Control.Monad.Trans
-import Data.Map(Map)
-import qualified Data.Map as M
+import Data.Map (Map)
+import qualified Data.Map as Map
 import Data.Maybe
 
 import Agda.Syntax.Internal(QName)
@@ -107,7 +107,7 @@ head'' _      e = e
 -- | Translation to primitive integer functions
 natPrimTF :: ForcedArgs -> [QName] -> PrimTransform
 natPrimTF filt [zero, suc] = PrimTF
-  { mapCon = M.fromList [(zero, prZero), (suc, prSuc)]
+  { mapCon = Map.fromList [(zero, prZero), (suc, prSuc)]
   , translateCase = \ce brs -> case brs of
         -- Assuming only the first two branches are relevant when casing on Nats
         (Branch _ n vs e:Branch _ _n' vs'' e'':_) ->
@@ -145,7 +145,7 @@ primNatCaseZD n zeroBr defBr = If (App prNatEquality [n, Var prZero]) zeroBr def
 -- | Translation to primitive bool functions
 boolPrimTF :: [QName] -> PrimTransform
 boolPrimTF [true, false] = PrimTF
-  { mapCon = M.fromList [(true, prTrue), (false, prFalse)]
+  { mapCon = Map.fromList [(true, prTrue), (false, prFalse)]
   , translateCase = \ce brs ->
     case brs of
         (Branch _ n _vs e:b':_) ->
@@ -189,7 +189,7 @@ primExpr prim ex = case ex of
     --   case, otherwise Nothing.
     testCon :: [PrimTransform] -> QName -> Maybe Var
     testCon [] _ = Nothing
-    testCon (p : ps) k = M.lookup k (mapCon p) `mplus` testCon ps k
+    testCon (p : ps) k = Map.lookup k (mapCon p) `mplus` testCon ps k
 
     -- | Test if we should transform the case, based on the branches. Returns
     --   the (first) PrimTransform that is applicable.
@@ -201,7 +201,7 @@ primExpr prim ex = case ex of
     --   Returns the PrimTransform in that case.
     check :: PrimTransform -> Branch -> Maybe PrimTransform
     check p br = case br of
-        Branch  _ n _ _ -> fmap (const p) $ M.lookup n (mapCon p)
+        Branch  _ n _ _ -> fmap (const p) $ Map.lookup n (mapCon p)
         BrInt _ _       -> Nothing
         Default _       -> Nothing
 

@@ -11,7 +11,7 @@ import Control.Applicative
 import Control.Monad
 import Control.Monad.State
 
-import qualified Data.Map as M
+import qualified Data.Map as Map
 import Data.Traversable (traverse)
 
 import Agda.Syntax.Common
@@ -39,14 +39,14 @@ normaliseStatic = evaluateCC
 evaluateCC :: CompiledClauses -> Compile TCM CompiledClauses
 evaluateCC ccs = case ccs of
     Case n brs -> do
-        cbrs <- forM (M.toList $ conBranches brs) $ \(c, WithArity n cc) -> (,) c <$> (WithArity n <$> evaluateCC cc)
-        lbrs <- forM (M.toList $ litBranches brs) $ \(l, cc) -> (,) l <$> evaluateCC cc
+        cbrs <- forM (Map.toList $ conBranches brs) $ \(c, WithArity n cc) -> (,) c <$> (WithArity n <$> evaluateCC cc)
+        lbrs <- forM (Map.toList $ litBranches brs) $ \(l, cc) -> (,) l <$> evaluateCC cc
         cab <- case catchAllBranch brs of
             Nothing -> return Nothing
             Just cc -> Just <$> evaluateCC cc
         return $ Case n Branches
-            { conBranches    = M.fromList cbrs
-            , litBranches    = M.fromList lbrs
+            { conBranches    = Map.fromList cbrs
+            , litBranches    = Map.fromList lbrs
             , catchAllBranch = cab
             }
     Done n t   -> Done n <$> evaluate t
