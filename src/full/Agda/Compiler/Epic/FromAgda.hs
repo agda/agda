@@ -1,3 +1,5 @@
+{-# OPTIONS_GHC -fwarn-missing-signatures #-}
+
 {-# LANGUAGE CPP #-}
 
 -- | Convert from Agda's internal representation to our auxiliary AST.

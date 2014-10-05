@@ -1,4 +1,7 @@
-{-# LANGUAGE CPP #-}
+{-# OPTIONS_GHC -fwarn-missing-signatures #-}
+
+{-# LANGUAGE CPP           #-}
+{-# LANGUAGE UnicodeSyntax #-}
 
 -- | Epic compiler backend.
 module Agda.Compiler.Epic.Compiler(compilerMain) where
@@ -37,6 +40,7 @@ import Agda.TypeChecking.Monad.Builtin
 import Agda.TypeChecking.Serialise
 
 import Agda.Compiler.CallCompiler
+
 import Agda.Compiler.Epic.CompileState
 import qualified Agda.Compiler.Epic.CaseOpts     as COpts
 import qualified Agda.Compiler.Epic.ForceConstrs as ForceC
@@ -181,6 +185,7 @@ initialAnalysis inter = do
           _       -> return ()
       _ -> return ()
 
+idPrint ∷ String → (a → Compile TCM b) → a → Compile TCM b
 idPrint s m x = do
   lift $ reportSLn "epic.phases" 10 s
   m x

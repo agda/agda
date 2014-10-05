@@ -1,10 +1,11 @@
--- | Find the places where the builtin static is used and do some normalisation
---   there.
+{-# OPTIONS_GHC -fwarn-missing-signatures #-}
 
 {-# LANGUAGE CPP                  #-}
 {-# LANGUAGE FlexibleInstances    #-}
 {-# LANGUAGE TypeSynonymInstances #-}
 
+-- | Find the places where the builtin static is used and do some normalisation
+--   there.
 module Agda.Compiler.Epic.Static where
 
 import Control.Applicative

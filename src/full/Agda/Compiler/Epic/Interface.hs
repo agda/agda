@@ -1,4 +1,7 @@
+{-# OPTIONS_GHC -fwarn-missing-signatures #-}
+
 {-# LANGUAGE DeriveDataTypeable #-}
+
 -- | Epic interface data structure, which is serialisable and stored for each
 --   compiled file
 module Agda.Compiler.Epic.Interface where

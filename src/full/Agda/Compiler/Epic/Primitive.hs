@@ -1,4 +1,7 @@
-{-# LANGUAGE CPP #-}
+{-# OPTIONS_GHC -fwarn-missing-signatures #-}
+
+{-# LANGUAGE CPP           #-}
+{-# LANGUAGE UnicodeSyntax #-}
 
 -- | Change constructors and cases on builtins and natish datatypes to use
 --   primitive data
@@ -97,10 +100,12 @@ getBuiltins =
                 if b then return $ Just (transf names) else return Nothing
            else return Nothing
 
+defName ∷ T.Term → QName
 defName (T.Def q []) = q
 defName (T.Con q []) = T.conName q
 defName _            = __IMPOSSIBLE__
 
+head'' ∷ [a] → a → a
 head'' (x:xs) e = x
 head'' _      e = e
 

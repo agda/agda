@@ -1,3 +1,5 @@
+{-# OPTIONS_GHC -fwarn-missing-signatures #-}
+
 -- | Perform simple optimisations based on case-laws
 module Agda.Compiler.Epic.CaseOpts where
 
