@@ -32,6 +32,7 @@ import qualified Agda.Syntax.Concrete.Name as C
 
 import Agda.Utils.Fresh
 -- import Agda.Utils.Function
+import Agda.Utils.Pretty
 import Agda.Utils.Size
 import Agda.Utils.Suffix
 
@@ -303,6 +304,19 @@ instance Show ModuleName where
 --   abstract 'QName' into a string use @show . qnameToConcrete@.
 instance Show QName where
   show q = concat $ intersperse "." $ map show $ qnameToList q
+
+------------------------------------------------------------------------
+-- * Pretty instances
+------------------------------------------------------------------------
+
+instance Pretty Name where
+  pretty = pretty . nameConcrete
+
+instance Pretty ModuleName where
+  pretty = hcat . punctuate (text ".") . map pretty . mnameToList
+
+instance Pretty QName where
+  pretty = hcat . punctuate (text ".") . map pretty . qnameToList
 
 ------------------------------------------------------------------------
 -- * Range instances
