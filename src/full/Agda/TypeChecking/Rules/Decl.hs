@@ -56,11 +56,11 @@ import Agda.TypeChecking.Rules.Builtin ( bindBuiltin )
 
 import Agda.Termination.TermCheck
 
-import Agda.Utils.Size
+import qualified Agda.Utils.HashMap as HMap
 import Agda.Utils.Maybe
 import Agda.Utils.Monad
-import qualified Agda.Utils.HashMap as HMap
 import Agda.Utils.Pretty (prettyShow)
+import Agda.Utils.Size
 
 #include "../../undefined.h"
 import Agda.Utils.Impossible
@@ -384,9 +384,6 @@ checkPrimitive i x e =
     addConstant x $
       defaultDefn defaultArgInfo x t $
         Primitive (Info.defAbstract i) s [] Nothing
-    where
-        nameString (Name _ x _ _) = show x
-
 
 -- | Check a pragma.
 checkPragma :: Range -> A.Pragma -> TCM ()

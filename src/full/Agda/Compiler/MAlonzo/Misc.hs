@@ -3,18 +3,20 @@
 module Agda.Compiler.MAlonzo.Misc where
 
 import Control.Monad.State
+
 import Data.List as List
 import Data.Map as Map
 import Data.Set as Set
 import Data.Function
+
 import qualified Language.Haskell.Exts.Syntax as HS
 
 import Agda.Syntax.Common
--- import Agda.Syntax.Abstract.Name (isAnonymousModuleName)
 import Agda.Syntax.Internal
+
 import Agda.TypeChecking.Monad
 import Agda.TypeChecking.Monad.Builtin
--- import Agda.TypeChecking.Pretty
+
 import Agda.Utils.Monad
 import Agda.Utils.Pretty
 

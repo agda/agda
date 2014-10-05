@@ -17,6 +17,7 @@ import qualified Agda.Syntax.Concrete.Name as C
 import Agda.Syntax.Abstract.Name
 import Agda.Syntax.Internal as I
 import Agda.Syntax.Position
+
 import Agda.TypeChecking.Monad
 import Agda.TypeChecking.Substitute
 import Agda.TypeChecking.Pretty
