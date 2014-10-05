@@ -28,6 +28,11 @@ class Pretty a where
     pretty      = prettyPrec 0
     prettyPrec  = const pretty
 
+-- | Use instead of 'show' when printing to world.
+
+prettyShow :: Pretty a => a -> String
+prettyShow = render . pretty
+
 -- * Pretty instances
 
 instance Pretty Int where
