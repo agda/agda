@@ -1,6 +1,8 @@
--- | Remove forced arguments from constructors.
+{-# OPTIONS_GHC -fwarn-missing-signatures #-}
+
 {-# LANGUAGE CPP #-}
 
+-- | Remove forced arguments from constructors.
 module Agda.Compiler.Epic.ForceConstrs where
 
 import Control.Applicative

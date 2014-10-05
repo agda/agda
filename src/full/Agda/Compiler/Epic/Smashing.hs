@@ -1,4 +1,7 @@
-{-# LANGUAGE CPP #-}
+{-# OPTIONS_GHC -fwarn-missing-signatures #-}
+
+{-# LANGUAGE CPP           #-}
+{-# LANGUAGE UnicodeSyntax #-}
 
 -- | Smash functions which return something that can be inferred
 --   (something of a type with only one element)
@@ -10,8 +13,8 @@ import Control.Monad.State
 import Data.List
 import Data.Maybe
 
-import qualified Data.Set as S
 import Data.Set (Set)
+import qualified Data.Set as Set
 
 import Agda.Syntax.Common
 import Agda.Syntax.Internal as SI
@@ -71,7 +74,7 @@ xs +++ ys = unflattenTel names $ map (raise (size ys)) (flattenTel xs) ++ flatte
 
 -- | Can a datatype be inferred? If so, return the only possible value.
 inferable :: Set QName -> QName -> [SI.Arg Term] ->  Compile TCM (Maybe Expr)
-inferable visited dat args | dat `S.member` visited = return Nothing
+inferable visited dat args | dat `Set.member` visited = return Nothing
 inferable visited dat args = do
   lift $ reportSLn "epic.smashing" 10 $ "  inferring:" ++ (show dat)
   defs <- lift (gets (sigDefinitions . stImports))
@@ -101,8 +104,9 @@ inferable visited dat args = do
           , text "constr:" <+> prettyTCM c
           ]
         (AA.Con tag c <$>) <$> sequence <$> forM (notForced forc $ flattenTel tel) (inferableTerm visited' . unEl . unDom)
-    visited' = S.insert dat visited
+    visited' = Set.insert dat visited
 
+inferableTerm ∷ Set QName → Term → Compile TCM (Maybe Expr)
 inferableTerm visited t = do
   case t of
     Def q es    ->
@@ -122,7 +126,7 @@ smashable origArity typ = do
     TelV tele retType <- lift $ telView typ
     retType' <- return retType -- lift $ reduce retType
 
-    inf <- inferableTerm S.empty (unEl retType')
+    inf <- inferableTerm Set.empty (unEl retType')
     lift $ reportSDoc "epic.smashing" 10 $ nest 2 $ vcat
       [ text "Result is"
       , text "inf: " <+> (text . show) inf

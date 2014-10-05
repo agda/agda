@@ -1,4 +1,7 @@
-{-# LANGUAGE CPP #-}
+{-# OPTIONS_GHC -fwarn-missing-signatures #-}
+
+{-# LANGUAGE CPP           #-}
+{-# LANGUAGE UnicodeSyntax #-}
 
 -- | Epic compiler backend.
 module Agda.Compiler.Epic.Compiler(compilerMain) where
@@ -9,11 +12,11 @@ import Control.Monad.Reader
 import Control.Monad.State
 
 import qualified Data.ByteString.Lazy as BS
-import qualified Data.Map as M
-import Data.Set(Set)
-import qualified Data.Set as S
+import qualified Data.Map as Map
 import Data.Maybe
 import Data.Monoid
+import Data.Set (Set)
+import qualified Data.Set as Set
 
 import System.Directory ( canonicalizePath, createDirectoryIfMissing
                         , getCurrentDirectory, setCurrentDirectory
@@ -37,6 +40,7 @@ import Agda.TypeChecking.Monad.Builtin
 import Agda.TypeChecking.Serialise
 
 import Agda.Compiler.CallCompiler
+
 import Agda.Compiler.Epic.CompileState
 import qualified Agda.Compiler.Epic.CaseOpts     as COpts
 import qualified Agda.Compiler.Epic.ForceConstrs as ForceC
@@ -53,6 +57,7 @@ import qualified Agda.Compiler.Epic.Smashing     as Smash
 import Agda.Utils.FileName
 import qualified Agda.Utils.HashMap as HMap
 import Agda.Utils.List
+import Agda.Utils.Pretty ( Pretty(pretty),  prettyShow )
 
 #include "../../undefined.h"
 import Agda.Utils.Impossible
@@ -81,7 +86,7 @@ compilerMain inter = do
             setEpicDir inter
             (_, imports) <- compileModule inter
             main <- getMain
-            runEpicMain main (S.toList imports) (iModuleName inter)
+            runEpicMain main (Set.toList imports) (iModuleName inter)
 
         ExitFailure _ -> internalError $ unlines
            [ "Agda cannot find the Epic compiler."
@@ -108,14 +113,14 @@ compileModule i = do
     cm <- gets compiledModules
     let moduleName = toTopLevelModuleName $ iModuleName i
     file  <- outFile moduleName
-    case M.lookup moduleName cm of
+    case Map.lookup moduleName cm of
         Just eifs -> return eifs
         Nothing  -> do
             imports <- map miInterface . catMaybes
                                       <$> mapM (lift . getVisitedModule . toTopLevelModuleName . fst)
                                                (iImportedModules i)
             (ifaces, limps) <- mapAndUnzipM compileModule imports
-            let imps = S.unions limps
+            let imps = Set.unions limps
             modify $ \s -> s { importedModules = importedModules s `mappend` mconcat ifaces }
             ifile <- maybe __IMPOSSIBLE__ filePath <$> lift (findInterfaceFile moduleName)
             let eifFile = file <.> "aei"
@@ -123,28 +128,28 @@ compileModule i = do
             (eif, imps') <- case uptodate of
                 True  -> do
                     lift $ reportSLn "" 1 $
-                        show (iModuleName i) ++ " : no compilation is needed."
+                      (prettyShow . iModuleName) i ++ " : no compilation is needed."
                     eif <- readEInterface eifFile
                     modify $ \s -> s { curModule = eif }
-                    return (eif, S.insert file imps)
+                    return (eif, Set.insert file imps)
                 False -> do
                     lift $ reportSLn "" 1 $
-                        "Compiling: " ++ show (iModuleName i)
+                        "Compiling: " ++ (prettyShow . iModuleName) i
                     resetNameSupply
                     initialAnalysis i
                     let defns = HMap.toList $ sigDefinitions $ iSignature i
                     -- Epic cannot parse files with no definitions
                     if (not $ null defns) then do
                         code <- compileDefns defns
-                        runEpic file (S.toList imps) code
+                        runEpic file (Set.toList imps) code
                         eif <- gets curModule
                         lift $ do
                             bif <- encode eif
                             liftIO $ BS.writeFile eifFile bif
-                        return (eif, S.insert file imps)
+                        return (eif, Set.insert file imps)
                      else
                         flip (,) imps <$> gets curModule
-            modify $ \s -> s { compiledModules = (M.insert moduleName (eif, imps') (compiledModules s))}
+            modify $ \s -> s { compiledModules = (Map.insert moduleName (eif, imps') (compiledModules s))}
             return (eif, imps')
 
 -- | Before running the compiler, we need to store some things in the state,
@@ -169,7 +174,7 @@ initialAnalysis inter = do
         putForcedArgs q . drop np . ForceC.makeForcedArgs $ defType def
         putConArity q =<< lift (constructorArity q)
       f@(Function{}) -> do
-        when ("main" == show (nameConcrete $ qnameName q)) $ do
+        when ("main" == (show . pretty . nameConcrete . qnameName) q) $ do
             -- lift $ liftTCM $ checkTypeOfMain q (defType def)
             putMain q
         putDelayed q $ case funDelayed f of
@@ -181,6 +186,7 @@ initialAnalysis inter = do
           _       -> return ()
       _ -> return ()
 
+idPrint ∷ String → (a → Compile TCM b) → a → Compile TCM b
 idPrint s m x = do
   lift $ reportSLn "epic.phases" 10 s
   m x
@@ -239,10 +245,13 @@ runEpicMain mainName imports m = do
                        | imp <- imports'
                        ] ++ "main() -> Unit = init() ; " ++ mainName ++ "(unit)"
     liftIO $ writeFile ("main" <.> "e") code
-    let outputName  = maybe __IMPOSSIBLE__ nameConcrete $ mlast $ mnameToList m
+
+    let outputName ∷ CN.Name
+        outputName = maybe __IMPOSSIBLE__ nameConcrete $ mlast $ mnameToList m
+
     callEpic'  $ \epic ->
         [ "main" <.> "e"
-        , "-o", ".." </> show outputName
+        , "-o", ".." </> prettyShow outputName
         ]
         ++ epic ++ map (<.> "o") imports'
 
