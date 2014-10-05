@@ -84,6 +84,7 @@ import Test.QuickCheck.All
 import Agda.Utils.FileName hiding (tests)
 import Agda.Utils.Maybe
 import Agda.Utils.Null
+import Agda.Utils.Pretty ( (<>), Pretty(pretty) )
 import Agda.Utils.TestHelpers
 import Agda.Utils.QuickCheck
 
@@ -372,9 +373,13 @@ instance (KillRange a, KillRange b) => KillRange (Either a b) where
   killRange (Left  x) = Left  $ killRange x
   killRange (Right x) = Right $ killRange x
 
-{--------------------------------------------------------------------------
-    Pretty printing
- --------------------------------------------------------------------------}
+------------------------------------------------------------------------
+-- Showing
+------------------------------------------------------------------------
+
+-- TODO: 'Show' should output Haskell-parseable representations.
+-- The following instances are deprecated, and Pretty should be used
+-- instead.  Later, simply derive Show for these types:
 
 instance Show a => Show (Position' (Maybe a)) where
     show (Pn Nothing  _ l c) = show l ++ "," ++ show c
@@ -400,6 +405,15 @@ instance Show a => Show (Range' (Maybe a)) where
   show r = case rangeToInterval r of
     Nothing -> ""
     Just i  -> show i
+
+------------------------------------------------------------------------
+-- Printing
+------------------------------------------------------------------------
+
+instance Pretty a ⇒ Pretty (Position' (Maybe a)) where
+    pretty (Pn Nothing  _ l c) = pretty l <> pretty "," <> pretty c
+    pretty (Pn (Just f) _ l c) =
+      pretty f <> pretty ":" <> pretty l <> pretty "," <> pretty c
 
 {--------------------------------------------------------------------------
     Functions on postitions and ranges
