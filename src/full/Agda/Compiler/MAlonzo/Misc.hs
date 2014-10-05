@@ -16,6 +16,7 @@ import Agda.TypeChecking.Monad
 import Agda.TypeChecking.Monad.Builtin
 -- import Agda.TypeChecking.Pretty
 import Agda.Utils.Monad
+import Agda.Utils.Pretty
 
 #include "../../undefined.h"
 import Agda.Utils.Impossible
@@ -158,7 +159,7 @@ mazMod' :: String -> HS.ModuleName
 mazMod' s = HS.ModuleName $ mazstr ++ "." ++ s
 
 mazMod :: ModuleName -> HS.ModuleName
-mazMod = mazMod' . show . mnameToConcrete
+mazMod = mazMod' . prettyShow
 
 mazerror :: String -> a
 mazerror msg = error $ mazstr ++ ": " ++ msg

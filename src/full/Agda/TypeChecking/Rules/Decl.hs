@@ -60,6 +60,7 @@ import Agda.Utils.Size
 import Agda.Utils.Maybe
 import Agda.Utils.Monad
 import qualified Agda.Utils.HashMap as HMap
+import Agda.Utils.Pretty (prettyShow)
 
 #include "../../undefined.h"
 import Agda.Utils.Impossible
@@ -378,7 +379,7 @@ checkPrimitive i x e =
     (_, PrimImpl t' pf) <- lookupPrimitiveFunctionQ x
     t <- isType_ e
     noConstraints $ equalType t t'
-    let s  = show $ nameConcrete $ qnameName x
+    let s  = prettyShow $ qnameName x
     bindPrimitive s pf
     addConstant x $
       defaultDefn defaultArgInfo x t $

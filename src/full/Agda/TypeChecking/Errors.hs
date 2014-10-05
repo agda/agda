@@ -294,7 +294,7 @@ instance PrettyTCM TypeError where
             TerminationCheckFailed because ->
               fwords "Termination checking failed for the following functions:"
               $$ (nest 2 $ fsep $ punctuate comma $
-                   map (text . show . qnameToConcrete . dropTopLevelModule) $
+                   map (pretty . dropTopLevelModule) $
                      concatMap termErrFunctions because)
               $$ fwords "Problematic calls:"
               $$ (nest 2 $ fmap (P.vcat . nub) $
@@ -369,7 +369,7 @@ instance PrettyTCM TypeError where
             CantResolveOverloadedConstructorsTargetingSameDatatype d cs -> fsep $
               pwords ("Can't resolve overloaded constructors targeting the same datatype ("
               ++ show (qnameToConcrete d) ++ "):")
-              ++ map (text . show . qnameToConcrete) cs
+              ++ map pretty cs
             DoesNotConstructAnElementOf c t -> fsep $
               pwords "The constructor" ++ [prettyTCM c] ++
               pwords "does not construct an element of" ++ [prettyTCM t]

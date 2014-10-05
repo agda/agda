@@ -53,6 +53,7 @@ import Agda.TypeChecking.Reduce ( instantiateFull, normalise )
 import Agda.Utils.FileName ( filePath )
 import Agda.Utils.Function ( iterate' )
 import Agda.Utils.Monad ( (<$>), (<*>), ifM )
+import Agda.Utils.Pretty (prettyShow)
 import Agda.Utils.IO.UTF8 ( writeFile )
 import qualified Agda.Utils.HashMap as HMap
 import Agda.Compiler.MAlonzo.Misc ( curDefs, curIF, curMName, setInterface )
@@ -104,9 +105,9 @@ compile i = do
   uptodate = liftIO =<< (isNewerThan <$> outFile_ <*> ifile)
   ifile    = maybe __IMPOSSIBLE__ filePath <$>
                (findInterfaceFile . toTopLevelModuleName =<< curMName)
-  noComp   = reportSLn "" 1 . (++ " : no compilation is needed.") . show . mnameToConcrete =<< curMName
+  noComp   = reportSLn "" 1 . (++ " : no compilation is needed.") . prettyShow =<< curMName
   yesComp  = reportSLn "" 1 . (`repl` "Compiling <<0>> in <<1>> to <<2>>") =<<
-             sequence [show . mnameToConcrete <$> curMName, ifile, outFile_] :: TCM ()
+             sequence [prettyShow <$> curMName, ifile, outFile_] :: TCM ()
 
 --------------------------------------------------
 -- Naming

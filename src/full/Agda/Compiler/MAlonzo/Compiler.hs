@@ -46,6 +46,7 @@ import Agda.TypeChecking.Level (reallyUnLevelView)
 
 import Agda.Utils.FileName
 import Agda.Utils.Monad
+import Agda.Utils.Pretty (prettyShow)
 import qualified Agda.Utils.IO.UTF8 as UTF8
 import qualified Agda.Utils.HashMap as HMap
 
@@ -487,7 +488,7 @@ tvaldecl q ind ntv npar cds cl =
     _                               -> HS.DataType
 
 infodecl :: QName -> HS.Decl
-infodecl q = fakeD (unqhname "name" q) $ show $ show $ qnameToConcrete q
+infodecl q = fakeD (unqhname "name" q) $ show $ prettyShow q
 
 --------------------------------------------------
 -- Inserting unsafeCoerce
