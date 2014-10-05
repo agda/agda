@@ -144,7 +144,7 @@ appendArgNames :: ArgName -> ArgName -> ArgName
 appendArgNames = (++)
 
 nameToArgName :: Name -> ArgName
-nameToArgName = stringToArgName . show . nameConcrete
+nameToArgName = stringToArgName . prettyShow
 
 -- | Binder.
 --   'Abs': The bound variable might appear in the body.

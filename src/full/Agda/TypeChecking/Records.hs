@@ -17,6 +17,7 @@ import qualified Agda.Syntax.Concrete.Name as C
 import Agda.Syntax.Abstract.Name
 import Agda.Syntax.Internal as I
 import Agda.Syntax.Position
+
 import Agda.TypeChecking.Monad
 import Agda.TypeChecking.Substitute
 import Agda.TypeChecking.Pretty
@@ -30,6 +31,7 @@ import Agda.Utils.Functor (for, ($>))
 import Agda.Utils.Maybe
 import Agda.Utils.Monad
 import qualified Agda.Utils.HashMap as HMap
+import Agda.Utils.Pretty (prettyShow)
 import Agda.Utils.Size
 
 #include "../undefined.h"
@@ -297,7 +299,7 @@ etaExpandBoundVar i = do
 
       rev   = foldl (\ l (Dom ai (n, t)) -> Dom ai (nameToArgName n, t) : l) []
       -- Use "f(x)" as variable name for the projection f(x).
-      s     = show $ nameConcrete x
+      s     = prettyShow x
       tel'  = mapAbsNames (\ f -> stringToArgName $ argNameToString f ++ "(" ++ s ++ ")") tel
       delta = telFromList $ rev gamma1 ++ telToList tel' ++ rev (applySubst tau0 gamma2)
 
