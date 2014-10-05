@@ -126,7 +126,7 @@ instance Eq a => Eq (Position' a) where
 instance Ord a => Ord (Position' a) where
   compare = compare `on` importantPart
 
-type SrcFile     = Maybe AbsolutePath
+type SrcFile = Maybe AbsolutePath
 
 type Position = Position' SrcFile
 
@@ -136,7 +136,7 @@ type Position = Position' SrcFile
 data Interval' a = Interval { iStart, iEnd :: !(Position' a) }
     deriving (Typeable, Eq, Ord, Functor, Foldable, Traversable)
 
-type Interval     = Interval' SrcFile
+type Interval = Interval' SrcFile
 
 intervalInvariant :: Ord a => Interval' a -> Bool
 intervalInvariant i =
@@ -155,7 +155,7 @@ iLength i = posPos (iEnd i) - posPos (iStart i)
 newtype Range' a = Range [Interval' a]
   deriving (Typeable, Eq, Ord, Functor, Foldable, Traversable, Null)
 
-type Range     = Range' SrcFile
+type Range = Range' SrcFile
 
 rangeInvariant :: Range -> Bool
 rangeInvariant (Range []) = True
@@ -219,15 +219,15 @@ class KillRange a where
 
 type KillRangeT a = a -> a
 
-killRange1 f a = f (killRange a)
-killRange2 f a = killRange1 (f $ killRange a)
-killRange3 f a = killRange2 (f $ killRange a)
-killRange4 f a = killRange3 (f $ killRange a)
-killRange5 f a = killRange4 (f $ killRange a)
-killRange6 f a = killRange5 (f $ killRange a)
-killRange7 f a = killRange6 (f $ killRange a)
-killRange8 f a = killRange7 (f $ killRange a)
-killRange9 f a = killRange8 (f $ killRange a)
+killRange1  f a = f (killRange a)
+killRange2  f a = killRange1 (f $ killRange a)
+killRange3  f a = killRange2 (f $ killRange a)
+killRange4  f a = killRange3 (f $ killRange a)
+killRange5  f a = killRange4 (f $ killRange a)
+killRange6  f a = killRange5 (f $ killRange a)
+killRange7  f a = killRange6 (f $ killRange a)
+killRange8  f a = killRange7 (f $ killRange a)
+killRange9  f a = killRange8 (f $ killRange a)
 killRange10 f a = killRange9 (f $ killRange a)
 killRange11 f a = killRange10 (f $ killRange a)
 killRange12 f a = killRange11 (f $ killRange a)
