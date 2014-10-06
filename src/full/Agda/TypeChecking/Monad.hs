@@ -1,3 +1,5 @@
+{-# OPTIONS_GHC -fwarn-missing-signatures #-}
+
 module Agda.TypeChecking.Monad
     ( module Agda.TypeChecking.Monad.Base
     , module Agda.TypeChecking.Monad.Closure

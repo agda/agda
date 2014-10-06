@@ -1,3 +1,5 @@
+{-# OPTIONS_GHC -fwarn-missing-signatures #-}
+
 module Agda.TypeChecking.Tests where
 
 import qualified Agda.Utils.VarSet as Set

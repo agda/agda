@@ -1,3 +1,5 @@
+{-# OPTIONS_GHC -fwarn-missing-signatures #-}
+
 -- | Some functions and generators suitable for writing QuickCheck
 -- properties.
 

@@ -1,3 +1,5 @@
+{-# OPTIONS_GHC -fwarn-missing-signatures #-}
+
 ------------------------------------------------------------------------
 -- | Functions which map between module names and file names.
 --

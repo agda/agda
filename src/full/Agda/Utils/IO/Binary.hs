@@ -1,3 +1,5 @@
+{-# OPTIONS_GHC -fwarn-missing-signatures #-}
+
 -- | Binary IO.
 
 module Agda.Utils.IO.Binary

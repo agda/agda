@@ -1,3 +1,4 @@
+{-# OPTIONS_GHC -fwarn-missing-signatures #-}
 
 {-| The code to lex string and character literals. Basically the same code
     as in GHC.

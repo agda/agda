@@ -1,3 +1,5 @@
+{-# OPTIONS_GHC -fwarn-missing-signatures #-}
+
 -- | Defines 'CutOff' type which is used in 'Agda.Interaction.Options'.
 --   This module's purpose is to eliminate the dependency of
 --   'Agda.TypeChecking.Monad.Base' on the termination checker and

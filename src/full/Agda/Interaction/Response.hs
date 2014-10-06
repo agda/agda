@@ -1,10 +1,12 @@
-------------------------------------------------------------------------
--- | Data type for all interactive responses
-------------------------------------------------------------------------
+{-# OPTIONS_GHC -fwarn-missing-signatures #-}
 
 {-# LANGUAGE CPP                  #-}
 {-# LANGUAGE FlexibleInstances    #-}
 {-# LANGUAGE TypeSynonymInstances #-}
+
+------------------------------------------------------------------------
+-- | Data type for all interactive responses
+------------------------------------------------------------------------
 
 module Agda.Interaction.Response
   ( Response (..)

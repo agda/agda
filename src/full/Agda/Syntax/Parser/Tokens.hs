@@ -1,3 +1,4 @@
+{-# OPTIONS_GHC -fwarn-missing-signatures #-}
 
 module Agda.Syntax.Parser.Tokens
     ( Token(..)

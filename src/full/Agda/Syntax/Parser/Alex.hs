@@ -1,3 +1,4 @@
+{-# OPTIONS_GHC -fwarn-missing-signatures #-}
 
 {-| This module defines the things required by Alex and some other
     Alex related things.

@@ -1,11 +1,13 @@
--- | Generic traversal and reduce for concrete syntax,
---   in the style of 'Agda.Syntax.Internal.Generic'.
---
---   However, here we use the terminology of 'Data.Traversable'.
+{-# OPTIONS_GHC -fwarn-missing-signatures #-}
 
 {-# LANGUAGE CPP                  #-}
 {-# LANGUAGE FlexibleInstances    #-}
 {-# LANGUAGE TypeSynonymInstances #-}
+
+-- | Generic traversal and reduce for concrete syntax,
+--   in the style of 'Agda.Syntax.Internal.Generic'.
+--
+--   However, here we use the terminology of 'Data.Traversable'.
 
 module Agda.Syntax.Concrete.Generic where
 
