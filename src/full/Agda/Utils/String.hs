@@ -1,3 +1,5 @@
+{-# OPTIONS_GHC -fwarn-missing-signatures #-}
+
 module Agda.Utils.String
   ( quote
   , showIndex

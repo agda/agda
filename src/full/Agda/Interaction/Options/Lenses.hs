@@ -1,3 +1,5 @@
+{-# OPTIONS_GHC -fwarn-missing-signatures #-}
+
 -- | Lenses for 'CommandLineOptions' and 'PragmaOptions'.
 --
 --   Add as needed.

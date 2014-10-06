@@ -1,8 +1,10 @@
+{-# OPTIONS_GHC -fwarn-missing-signatures #-}
+
+-- {-# LANGUAGE CPP #-}
+
 ------------------------------------------------------------------------
 -- | Handling of the INFINITY, SHARP and FLAT builtins.
 ------------------------------------------------------------------------
-
--- {-# LANGUAGE CPP #-}
 
 module Agda.TypeChecking.Rules.Builtin.Coinduction where
 

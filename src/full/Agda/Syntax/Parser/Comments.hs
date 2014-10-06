@@ -1,3 +1,5 @@
+{-# OPTIONS_GHC -fwarn-missing-signatures #-}
+
 -- {-# LANGUAGE CPP #-}
 
 {-| This module defines the lex action to lex nested comments. As is well-known

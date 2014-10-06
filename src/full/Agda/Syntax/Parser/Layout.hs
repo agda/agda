@@ -1,3 +1,5 @@
+{-# OPTIONS_GHC -fwarn-missing-signatures #-}
+
 -- {-# LANGUAGE CPP #-}
 
 {-| This module contains the lex actions that handle the layout rules. The way
