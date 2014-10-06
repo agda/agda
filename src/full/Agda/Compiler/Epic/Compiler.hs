@@ -57,7 +57,7 @@ import qualified Agda.Compiler.Epic.Smashing     as Smash
 import Agda.Utils.FileName
 import qualified Agda.Utils.HashMap as HMap
 import Agda.Utils.List
-import Agda.Utils.Pretty ( Pretty(pretty),  prettyShow )
+import Agda.Utils.Pretty ( prettyShow )
 
 #include "../../undefined.h"
 import Agda.Utils.Impossible
@@ -174,7 +174,7 @@ initialAnalysis inter = do
         putForcedArgs q . drop np . ForceC.makeForcedArgs $ defType def
         putConArity q =<< lift (constructorArity q)
       f@(Function{}) -> do
-        when ("main" == (show . pretty . nameConcrete . qnameName) q) $ do
+        when ("main" == (prettyShow . qnameName) q) $ do
             -- lift $ liftTCM $ checkTypeOfMain q (defType def)
             putMain q
         putDelayed q $ case funDelayed f of
