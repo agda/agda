@@ -14,6 +14,7 @@
 {-# LANGUAGE ScopedTypeVariables  #-}
 {-# LANGUAGE TemplateHaskell      #-}
 {-# LANGUAGE TypeSynonymInstances #-}
+{-# LANGUAGE UnicodeSyntax        #-}
 
 {-| Position information for syntax. Crucial for giving good error messages.
 -}
@@ -83,6 +84,7 @@ import Test.QuickCheck.All
 import Agda.Utils.FileName hiding (tests)
 import Agda.Utils.Maybe
 import Agda.Utils.Null
+import Agda.Utils.Pretty ( (<>), Pretty(pretty) )
 import Agda.Utils.TestHelpers
 import Agda.Utils.QuickCheck
 
@@ -126,7 +128,7 @@ instance Eq a => Eq (Position' a) where
 instance Ord a => Ord (Position' a) where
   compare = compare `on` importantPart
 
-type SrcFile     = Maybe AbsolutePath
+type SrcFile = Maybe AbsolutePath
 
 type Position = Position' SrcFile
 
@@ -136,7 +138,7 @@ type Position = Position' SrcFile
 data Interval' a = Interval { iStart, iEnd :: !(Position' a) }
     deriving (Typeable, Eq, Ord, Functor, Foldable, Traversable)
 
-type Interval     = Interval' SrcFile
+type Interval = Interval' SrcFile
 
 intervalInvariant :: Ord a => Interval' a -> Bool
 intervalInvariant i =
@@ -155,7 +157,7 @@ iLength i = posPos (iEnd i) - posPos (iStart i)
 newtype Range' a = Range [Interval' a]
   deriving (Typeable, Eq, Ord, Functor, Foldable, Traversable, Null)
 
-type Range     = Range' SrcFile
+type Range = Range' SrcFile
 
 rangeInvariant :: Range -> Bool
 rangeInvariant (Range []) = True
@@ -219,15 +221,118 @@ class KillRange a where
 
 type KillRangeT a = a -> a
 
-killRange1 f a = f (killRange a)
-killRange2 f a = killRange1 (f $ killRange a)
-killRange3 f a = killRange2 (f $ killRange a)
-killRange4 f a = killRange3 (f $ killRange a)
-killRange5 f a = killRange4 (f $ killRange a)
-killRange6 f a = killRange5 (f $ killRange a)
-killRange7 f a = killRange6 (f $ killRange a)
-killRange8 f a = killRange7 (f $ killRange a)
-killRange9 f a = killRange8 (f $ killRange a)
+killRange1 ∷ KillRange a ⇒ (a → b) → a → b
+
+killRange2 ∷ (KillRange a, KillRange b) ⇒ (a → b → c) → a → b → c
+
+killRange3 ∷ (KillRange a, KillRange b, KillRange c) ⇒
+             (a → b → c → d) → a → b → c → d
+
+killRange4 ∷ (KillRange a, KillRange b, KillRange c, KillRange d) ⇒
+             (a → b → c → d → e) → a → b → c → d → e
+
+killRange5 ∷ ( KillRange a, KillRange b, KillRange c, KillRange d
+             , KillRange e ) ⇒
+             (a → b → c → d → e → f) → a → b → c → d → e → f
+
+killRange6 ∷ ( KillRange a, KillRange b, KillRange c, KillRange d
+             , KillRange e, KillRange f ) ⇒
+             (a → b → c → d → e → f → g) → a → b → c → d → e → f → g
+
+killRange7 ∷ ( KillRange a, KillRange b, KillRange c, KillRange d
+             , KillRange e, KillRange f, KillRange g ) ⇒
+             (a → b → c → d → e → f → g → h) → a → b → c → d → e → f → g → h
+
+killRange8 ∷ ( KillRange a, KillRange b, KillRange c, KillRange d
+             , KillRange e, KillRange f, KillRange g, KillRange h ) ⇒
+             (a → b → c → d → e → f → g → h → i) →
+             a → b → c → d → e → f → g → h → i
+
+killRange9 ∷ ( KillRange a, KillRange b, KillRange c, KillRange d
+             , KillRange e, KillRange f, KillRange g, KillRange h
+             , KillRange i ) ⇒
+             (a → b → c → d → e → f → g → h → i → j) →
+             a → b → c → d → e → f → g → h → i → j
+
+killRange10 ∷ ( KillRange a, KillRange b, KillRange c, KillRange d
+              , KillRange e, KillRange f, KillRange g, KillRange h
+              , KillRange i, KillRange j ) ⇒
+              (a → b → c → d → e → f → g → h → i → j → k) →
+              a → b → c → d → e → f → g → h → i → j → k
+
+killRange11 ∷ ( KillRange a, KillRange b, KillRange c, KillRange d
+              , KillRange e, KillRange f, KillRange g, KillRange h
+              , KillRange i, KillRange j, KillRange k ) ⇒
+              (a → b → c → d → e → f → g → h → i → j → k → l) →
+              a → b → c → d → e → f → g → h → i → j → k → l
+
+killRange12 ∷ ( KillRange a, KillRange b, KillRange c, KillRange d
+              , KillRange e, KillRange f, KillRange g, KillRange h
+              , KillRange i, KillRange j, KillRange k, KillRange l ) ⇒
+              (a → b → c → d → e → f → g → h → i → j → k → l → m) →
+              a → b → c → d → e → f → g → h → i → j → k → l → m
+
+killRange13 ∷ ( KillRange a, KillRange b, KillRange c, KillRange d
+              , KillRange e, KillRange f, KillRange g, KillRange h
+              , KillRange i, KillRange j, KillRange k, KillRange l
+              , KillRange m ) ⇒
+              (a → b → c → d → e → f → g → h → i → j → k → l → m → n) →
+              a → b → c → d → e → f → g → h → i → j → k → l → m → n
+
+killRange14 ∷ ( KillRange a, KillRange b, KillRange c, KillRange d
+              , KillRange e, KillRange f, KillRange g, KillRange h
+              , KillRange i, KillRange j, KillRange k, KillRange l
+              , KillRange m, KillRange n ) ⇒
+              (a → b → c → d → e → f → g → h → i → j → k → l → m → n → o) →
+              a → b → c → d → e → f → g → h → i → j → k → l → m → n → o
+
+killRange15 ∷ ( KillRange a, KillRange b, KillRange c, KillRange d
+              , KillRange e, KillRange f, KillRange g, KillRange h
+              , KillRange i, KillRange j, KillRange k, KillRange l
+              , KillRange m, KillRange n, KillRange o ) ⇒
+              (a → b → c → d → e → f → g → h → i → j → k → l → m → n → o → p) →
+              a → b → c → d → e → f → g → h → i → j → k → l → m → n → o → p
+
+killRange16 ∷ ( KillRange a, KillRange b, KillRange c, KillRange d
+              , KillRange e, KillRange f, KillRange g, KillRange h
+              , KillRange i, KillRange j, KillRange k, KillRange l
+              , KillRange m, KillRange n, KillRange o, KillRange p ) ⇒
+              (a → b → c → d → e → f → g → h → i → j → k → l → m → n → o → p → q) →
+              a → b → c → d → e → f → g → h → i → j → k → l → m → n → o → p → q
+
+killRange17 ∷ ( KillRange a, KillRange b, KillRange c, KillRange d
+              , KillRange e, KillRange f, KillRange g, KillRange h
+              , KillRange i, KillRange j, KillRange k, KillRange l
+              , KillRange m, KillRange n, KillRange o, KillRange p
+              , KillRange q ) ⇒
+              (a → b → c → d → e → f → g → h → i → j → k → l → m → n → o → p → q → r) →
+              a → b → c → d → e → f → g → h → i → j → k → l → m → n → o → p → q → r
+
+killRange18 ∷ ( KillRange a, KillRange b, KillRange c, KillRange d
+              , KillRange e, KillRange f, KillRange g, KillRange h
+              , KillRange i, KillRange j, KillRange k, KillRange l
+              , KillRange m, KillRange n, KillRange o, KillRange p
+              , KillRange q, KillRange r ) ⇒
+              (a → b → c → d → e → f → g → h → i → j → k → l → m → n → o → p → q → r → s) →
+              a → b → c → d → e → f → g → h → i → j → k → l → m → n → o → p → q → r → s
+
+killRange19 ∷ ( KillRange a, KillRange b, KillRange c, KillRange d
+              , KillRange e, KillRange f, KillRange g, KillRange h
+              , KillRange i, KillRange j, KillRange k, KillRange l
+              , KillRange m, KillRange n, KillRange o, KillRange p
+              , KillRange q, KillRange r, KillRange s ) ⇒
+              (a → b → c → d → e → f → g → h → i → j → k → l → m → n → o → p → q → r → s → t) →
+              a → b → c → d → e → f → g → h → i → j → k → l → m → n → o → p → q → r → s → t
+
+killRange1  f a = f (killRange a)
+killRange2  f a = killRange1 (f $ killRange a)
+killRange3  f a = killRange2 (f $ killRange a)
+killRange4  f a = killRange3 (f $ killRange a)
+killRange5  f a = killRange4 (f $ killRange a)
+killRange6  f a = killRange5 (f $ killRange a)
+killRange7  f a = killRange6 (f $ killRange a)
+killRange8  f a = killRange7 (f $ killRange a)
+killRange9  f a = killRange8 (f $ killRange a)
 killRange10 f a = killRange9 (f $ killRange a)
 killRange11 f a = killRange10 (f $ killRange a)
 killRange12 f a = killRange11 (f $ killRange a)
@@ -268,9 +373,13 @@ instance (KillRange a, KillRange b) => KillRange (Either a b) where
   killRange (Left  x) = Left  $ killRange x
   killRange (Right x) = Right $ killRange x
 
-{--------------------------------------------------------------------------
-    Pretty printing
- --------------------------------------------------------------------------}
+------------------------------------------------------------------------
+-- Showing
+------------------------------------------------------------------------
+
+-- TODO: 'Show' should output Haskell-parseable representations.
+-- The following instances are deprecated, and Pretty should be used
+-- instead.  Later, simply derive Show for these types:
 
 instance Show a => Show (Position' (Maybe a)) where
     show (Pn Nothing  _ l c) = show l ++ "," ++ show c
@@ -296,6 +405,15 @@ instance Show a => Show (Range' (Maybe a)) where
   show r = case rangeToInterval r of
     Nothing -> ""
     Just i  -> show i
+
+------------------------------------------------------------------------
+-- Printing
+------------------------------------------------------------------------
+
+instance Pretty a ⇒ Pretty (Position' (Maybe a)) where
+    pretty (Pn Nothing  _ l c) = pretty l <> pretty "," <> pretty c
+    pretty (Pn (Just f) _ l c) =
+      pretty f <> pretty ":" <> pretty l <> pretty "," <> pretty c
 
 {--------------------------------------------------------------------------
     Functions on postitions and ranges
