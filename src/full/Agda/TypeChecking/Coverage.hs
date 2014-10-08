@@ -298,13 +298,13 @@ isDatatype ind at = do
 -- | update the target type, add more patterns to split clause
 -- if target becomes a function type.
 fixTarget :: SplitClause -> TCM SplitClause
-fixTarget sc@SClause{ scSubst = sigma, scTarget = target } =
+fixTarget sc@SClause{ scTel = sctel, scSubst = sigma, scTarget = target } =
   caseMaybe target (return sc) $ \ a -> do
-    reportSDoc "tc.cover.target" 20 $
-      text "target type before substitution: " <+> prettyTCM a
+    reportSDoc "tc.cover.target" 20 $ sep
+      [ text "split clause telescope: " <+> prettyTCM sctel
+      , text "target type before substitution (variables may be wrong): " <+> do addContext sctel $ prettyTCM a
+      ]
     TelV tel b <- telView $ applySubst sigma $ unArg a
-    reportSDoc "tc.cover.target" 10 $
-      text "telescope (after substitution): " <+> prettyTCM tel
     let n      = size tel
         lgamma = telToList tel
         xs     = for lgamma $ \ (Common.Dom ai (x, _)) -> Common.Arg ai $ namedVarP "_"
@@ -316,6 +316,10 @@ fixTarget sc@SClause{ scSubst = sigma, scTarget = target } =
       , scSubst  = liftS n $ sigma
       , scTarget = Just $ a $> b
       }
+    reportSDoc "tc.cover.target" 10 $ sep
+      [ text "telescope   (after substitution): " <+> do addContext sctel $ prettyTCM tel
+      , text "target type (after substitution): " <+> do addContext sctel $ addContext tel $ prettyTCM b
+      ]
 
 -- | @computeNeighbourhood delta1 delta2 perm d pars ixs hix hps con@
 --
