@@ -298,24 +298,29 @@ isDatatype ind at = do
 -- | update the target type, add more patterns to split clause
 -- if target becomes a function type.
 fixTarget :: SplitClause -> TCM SplitClause
-fixTarget sc@SClause{ scSubst = sigma, scTarget = target } =
+fixTarget sc@SClause{ scTel = sctel, scSubst = sigma, scTarget = target } =
   caseMaybe target (return sc) $ \ a -> do
-    reportSDoc "tc.cover.target" 20 $
-      text "target type before substitution: " <+> prettyTCM a
+    reportSDoc "tc.cover.target" 20 $ sep
+      [ text "split clause telescope: " <+> prettyTCM sctel
+      , text "target type before substitution (variables may be wrong): " <+> do addContext sctel $ prettyTCM a
+      ]
     TelV tel b <- telView $ applySubst sigma $ unArg a
-    reportSDoc "tc.cover.target" 10 $
-      text "telescope (after substitution): " <+> prettyTCM tel
-    let n      = size tel
-        lgamma = telToList tel
-        xs     = for lgamma $ \ (Common.Dom ai (x, _)) -> Common.Arg ai $ namedVarP "_"
-    if (n == 0) then return sc { scTarget = Just $ a $> b }
-     else return $ SClause
-      { scTel    = telFromList $ telToList (scTel sc) ++ lgamma
-      , scPerm   = liftP n $ scPerm sc
-      , scPats   = scPats sc ++ xs
-      , scSubst  = liftS n $ sigma
-      , scTarget = Just $ a $> b
-      }
+    reportSDoc "tc.cover.target" 10 $ sep
+      [ text "telescope   (after substitution): " <+> do addContext sctel $ prettyTCM tel
+      , text "target type (after substitution): " <+> do addContext sctel $ addContext tel $ prettyTCM b
+      ]
+    let n         = size tel
+        lgamma    = telToList tel
+        xs        = for lgamma $ \ (Common.Dom ai (x, _)) -> Common.Arg ai $ namedVarP "_"
+        sc'       = SClause
+          { scTel    = telFromList $ telToList (raise n sctel) ++ lgamma
+          , scPerm   = liftP n $ scPerm sc
+          , scPats   = scPats sc ++ xs
+          , scSubst  = liftS n $ sigma
+          , scTarget = newTarget
+          }
+        newTarget = Just $ a $> b
+    return $ if n == 0 then sc { scTarget = newTarget } else sc'
 
 -- | @computeNeighbourhood delta1 delta2 perm d pars ixs hix hps con@
 --
@@ -716,6 +721,7 @@ splitResult f sc@(SClause tel perm ps _ target) = do
             let -- type of projection instantiated at self
                 target' = Just $ proj $> dType `apply` pargs
                 sc' = sc { scPats   = scPats sc ++ [fmap (Named Nothing . ProjP) proj]
+                         , scSubst  = idS
                          , scTarget = target'
                          }
             return (unArg proj, sc')
