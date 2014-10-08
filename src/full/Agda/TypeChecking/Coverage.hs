@@ -721,6 +721,7 @@ splitResult f sc@(SClause tel perm ps _ target) = do
             let -- type of projection instantiated at self
                 target' = Just $ proj $> dType `apply` pargs
                 sc' = sc { scPats   = scPats sc ++ [fmap (Named Nothing . ProjP) proj]
+                         , scSubst  = idS
                          , scTarget = target'
                          }
             return (unArg proj, sc')
