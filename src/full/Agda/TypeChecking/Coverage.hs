@@ -305,21 +305,22 @@ fixTarget sc@SClause{ scTel = sctel, scSubst = sigma, scTarget = target } =
       , text "target type before substitution (variables may be wrong): " <+> do addContext sctel $ prettyTCM a
       ]
     TelV tel b <- telView $ applySubst sigma $ unArg a
-    let n      = size tel
-        lgamma = telToList tel
-        xs     = for lgamma $ \ (Common.Dom ai (x, _)) -> Common.Arg ai $ namedVarP "_"
-    if (n == 0) then return sc { scTarget = Just $ a $> b }
-     else return $ SClause
-      { scTel    = telFromList $ telToList (scTel sc) ++ lgamma
-      , scPerm   = liftP n $ scPerm sc
-      , scPats   = scPats sc ++ xs
-      , scSubst  = liftS n $ sigma
-      , scTarget = Just $ a $> b
-      }
     reportSDoc "tc.cover.target" 10 $ sep
       [ text "telescope   (after substitution): " <+> do addContext sctel $ prettyTCM tel
       , text "target type (after substitution): " <+> do addContext sctel $ addContext tel $ prettyTCM b
       ]
+    let n         = size tel
+        lgamma    = telToList tel
+        xs        = for lgamma $ \ (Common.Dom ai (x, _)) -> Common.Arg ai $ namedVarP "_"
+        sc'       = SClause
+          { scTel    = telFromList $ telToList (raise n sctel) ++ lgamma
+          , scPerm   = liftP n $ scPerm sc
+          , scPats   = scPats sc ++ xs
+          , scSubst  = liftS n $ sigma
+          , scTarget = newTarget
+          }
+        newTarget = Just $ a $> b
+    return $ if n == 0 then sc { scTarget = newTarget } else sc'
 
 -- | @computeNeighbourhood delta1 delta2 perm d pars ixs hix hps con@
 --
