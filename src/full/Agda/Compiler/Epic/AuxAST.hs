@@ -1,3 +1,5 @@
+{-# OPTIONS_GHC -fwarn-missing-signatures #-}
+
 {-# LANGUAGE CPP #-}
 
 -- | Intermediate abstract syntax tree used in the compiler. Pretty close to
@@ -5,7 +7,7 @@
 module Agda.Compiler.Epic.AuxAST where
 
 import Data.Set (Set)
-import qualified Data.Set as S
+import qualified Data.Set as Set
 
 import Agda.Syntax.Abstract.Name
 
@@ -145,24 +147,24 @@ substBranch x e br = br { brExpr = subst x e (brExpr br) }
 
 -- | Get the free variables in an expression
 fv :: Expr -> [Var]
-fv = S.toList . fv'
+fv = Set.toList . fv'
   where
     fv' :: Expr -> Set Var
     fv' expr = case expr of
-      Var v    -> S.singleton v
-      Lit _    -> S.empty
-      Lam v e1 -> S.delete v (fv' e1)
-      Con _ _ es -> S.unions (map fv' es)
-      App v es -> S.insert v $ S.unions (map fv' es)
-      Case e brs -> fv' e `S.union` S.unions (map fvBr brs)
-      If a b c   -> S.unions (map fv' [a,b,c])
-      Let v e e' -> fv' e `S.union` (S.delete v $ fv' e')
+      Var v      -> Set.singleton v
+      Lit _      -> Set.empty
+      Lam v e1   -> Set.delete v (fv' e1)
+      Con _ _ es -> Set.unions (map fv' es)
+      App v es   -> Set.insert v $ Set.unions (map fv' es)
+      Case e brs -> fv' e `Set.union` Set.unions (map fvBr brs)
+      If a b c   -> Set.unions (map fv' [a,b,c])
+      Let v e e' -> fv' e `Set.union` (Set.delete v $ fv' e')
       Lazy e     -> fv' e
-      UNIT       -> S.empty
-      IMPOSSIBLE -> S.empty
+      UNIT       -> Set.empty
+      IMPOSSIBLE -> Set.empty
 
     fvBr :: Branch -> Set Var
     fvBr b = case b of
-      Branch _ _ vs e -> fv' e S.\\ S.fromList vs
+      Branch _ _ vs e -> fv' e Set.\\ Set.fromList vs
       BrInt _ e       -> fv' e
       Default e       -> fv' e

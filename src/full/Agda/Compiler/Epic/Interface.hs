@@ -1,4 +1,7 @@
+{-# OPTIONS_GHC -fwarn-missing-signatures #-}
+
 {-# LANGUAGE DeriveDataTypeable #-}
+
 -- | Epic interface data structure, which is serialisable and stored for each
 --   compiled file
 module Agda.Compiler.Epic.Interface where
@@ -8,7 +11,7 @@ import Control.Monad
 import Data.Function
 import Data.Map(Map)
 import Data.Monoid
-import Data.Set(Set)
+import Data.Set (Set)
 import Data.Typeable
 
 import Agda.Syntax.Common (Nat)

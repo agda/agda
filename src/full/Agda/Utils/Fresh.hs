@@ -1,3 +1,5 @@
+{-# OPTIONS_GHC -fwarn-missing-signatures #-}
+
 {-# LANGUAGE MultiParamTypeClasses #-}
 
 {-| A common interface for monads which allow some kind of fresh name

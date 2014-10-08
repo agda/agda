@@ -1,3 +1,5 @@
+{-# OPTIONS_GHC -fwarn-missing-signatures #-}
+
 {-# LANGUAGE CPP #-}
 
 -- | Convert from Agda's internal representation to our auxiliary AST.
@@ -7,7 +9,7 @@ import Control.Applicative
 import Control.Monad
 import Control.Monad.State
 import Data.Char
-import qualified Data.Map as M
+import qualified Data.Map as Map
 import Data.Maybe
 
 import Agda.Syntax.Common
@@ -130,8 +132,8 @@ translateDefn msharp (n, defini) =
 reverseCCBody :: Int -> CC.CompiledClauses -> CC.CompiledClauses
 reverseCCBody c cc = case cc of
     CC.Case n (CC.Branches cbr lbr cabr) -> CC.Case (c+n)
-        $ CC.Branches (M.map (fmap $ reverseCCBody c) cbr)
-          (M.map (reverseCCBody c) lbr)
+        $ CC.Branches (Map.map (fmap $ reverseCCBody c) cbr)
+          (Map.map (reverseCCBody c) lbr)
           (fmap  (reverseCCBody c) cabr)
     CC.Done i t -> CC.Done i (S.applySubst
                                 (S.parallelS $ map (flip T.Var []) $
@@ -196,16 +198,16 @@ compileClauses name nargs c = do
     compileCase :: [Var] -> Maybe Var -> Int -> CC.Case CC.CompiledClauses
                 -> Compile TCM [Branch]
     compileCase env omniDefault casedvar nc = do
-        cb <- if M.null (CC.conBranches nc)
+        cb <- if Map.null (CC.conBranches nc)
            -- Lit branch
-           then forM (M.toList (CC.litBranches nc)) $ \(l, cc) -> do
+           then forM (Map.toList (CC.litBranches nc)) $ \(l, cc) -> do
                cc' <- compileClauses' (replaceAt casedvar env []) omniDefault cc
                case l of
                    TL.LitChar _ cha -> return $ BrInt (ord cha) cc'
                    -- TODO: Handle other literals
                    _ -> epicError $ "case on literal not supported: " ++ show l
            -- Con branch
-           else forM (M.toList (CC.conBranches nc)) $ \(b, CC.WithArity ar cc) -> do
+           else forM (Map.toList (CC.conBranches nc)) $ \(b, CC.WithArity ar cc) -> do
                arit  <- getConArity b -- Andreas, 2012-10-12: is the constructor arity @ar@ from Agda the same as the one from the Epic backen?
                tag  <- getConstrTag b
                vars <- replicateM arit newName

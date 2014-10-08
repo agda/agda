@@ -1,3 +1,5 @@
+{-# OPTIONS_GHC -fwarn-missing-signatures #-}
+
 -- | Data structures for collecting CPU usage.
 
 module Agda.TypeChecking.Monad.Base.Benchmark where

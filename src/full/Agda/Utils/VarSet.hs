@@ -1,3 +1,4 @@
+{-# OPTIONS_GHC -fwarn-missing-signatures #-}
 
 -- | Var field implementation of sets of (small) natural numbers.
 module Agda.Utils.VarSet

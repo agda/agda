@@ -1,3 +1,5 @@
+{-# OPTIONS_GHC -fwarn-missing-signatures #-}
+
 -- {-# LANGUAGE CPP #-}
 
 module Agda.Interaction.Highlighting.Vim where

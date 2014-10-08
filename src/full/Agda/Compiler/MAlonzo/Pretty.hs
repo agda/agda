@@ -1,11 +1,13 @@
-------------------------------------------------------------------------
--- Pretty-printing of Haskell modules
-------------------------------------------------------------------------
+{-# OPTIONS_GHC -fwarn-missing-signatures #-}
 
 {-# LANGUAGE FlexibleContexts      #-}
 {-# LANGUAGE FlexibleInstances     #-}
 {-# LANGUAGE MultiParamTypeClasses #-}
 {-# LANGUAGE TemplateHaskell       #-}
+
+------------------------------------------------------------------------
+-- Pretty-printing of Haskell modules
+------------------------------------------------------------------------
 
 module Agda.Compiler.MAlonzo.Pretty where
 

@@ -1,3 +1,4 @@
+{-# OPTIONS_GHC -fwarn-missing-signatures #-}
 
 module Agda.Utils.Size ( Sized(..) ) where
 

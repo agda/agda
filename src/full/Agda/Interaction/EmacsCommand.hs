@@ -1,9 +1,11 @@
-------------------------------------------------------------------------
--- | Code for instructing Emacs to do things
-------------------------------------------------------------------------
+{-# OPTIONS_GHC -fwarn-missing-signatures #-}
 
 {-# LANGUAGE FlexibleInstances    #-}
 {-# LANGUAGE TypeSynonymInstances #-}
+
+------------------------------------------------------------------------
+-- | Code for instructing Emacs to do things
+------------------------------------------------------------------------
 
 module Agda.Interaction.EmacsCommand
   ( Lisp(..)

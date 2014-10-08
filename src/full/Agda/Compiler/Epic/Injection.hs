@@ -1,3 +1,5 @@
+{-# OPTIONS_GHC -fwarn-missing-signatures #-}
+
 {-# LANGUAGE CPP                  #-}
 {-# LANGUAGE FlexibleInstances    #-}
 {-# LANGUAGE PatternGuards        #-}
@@ -11,11 +13,11 @@ import Control.Monad.State
 import Control.Monad.Reader
 
 import Data.List
-import Data.Map(Map)
-import qualified Data.Map as M
+import Data.Map (Map)
+import qualified Data.Map as Map
 import Data.Maybe
-import Data.Set(Set)
-import qualified Data.Set as S
+import Data.Set (Set)
+import qualified Data.Set as Set
 
 import Agda.Syntax.Common
 import Agda.Syntax.Internal as I
@@ -45,13 +47,13 @@ findInjection defs = do
     funs <- forM defs $ \(name, def) -> case theDef def of
         f@(Function{}) -> isInjective name (funClauses f)
         _              -> return Nothing
-    newNames <- M.keys <$> gets (Interface.conArity . curModule)
+    newNames <- Map.keys <$> gets (Interface.conArity . curModule)
     injFuns <- solve newNames (catMaybes funs)
     defs' <- forM defs $ \(q, def) -> case q `isIn` injFuns of
         Nothing -> return (q, def)
         Just inj@(InjectiveFun nvar arity) -> case theDef def of
             f@(Function{})   -> do
-                modifyEI $ \s -> s { injectiveFuns = M.insert q inj (injectiveFuns s) }
+                modifyEI $ \s -> s { injectiveFuns = Map.insert q inj (injectiveFuns s) }
                 let ns = replicate arity (defaultArg empty)
                 return $ (,) q $ def { theDef = f { funCompiled = Just $ Done ns $
                                                       var $ arity - nvar - 1 } }
@@ -154,8 +156,8 @@ isInjectiveHere nam idx clause = do
     lift $ reportSLn "epic.injection" 40 "reduced body"
     injFs <- gets (injectiveFuns . importedModules)
     lift $ reportSLn "epic.injection" 40 "calculated injFs"
-    res <- (t' <: body') `runReaderT` (M.insert nam (InjectiveFun idx
-                                                     (length (clausePats clause))) injFs)
+    res <- (t' <: body') `runReaderT` (Map.insert nam (InjectiveFun idx
+                                                      (length (clausePats clause))) injFs)
     lift $ reportSDoc "epic.injection" 20 $ vcat
       [ text "isInjective:" <+> text (show nam)
       , text "at Index   :" <+> text (show idx)
@@ -194,7 +196,7 @@ solve newNames xs = do
       sep $ text "Epic.Injection.solve" : map prettyTCM newNames
     -- Only primitive lists should be in the current module at this point,
     -- but we still want them
-    conGraph <- M.union <$> gets (constrTags . curModule) <*> gets (constrTags . importedModules)
+    conGraph <- Map.union <$> gets (constrTags . curModule) <*> gets (constrTags . importedModules)
     (funs, mconstr) <- ($ xs) $ flip foldM ([] , Just $ initialTags conGraph newNames) $ \ (xs , prev) (fun , con) -> do
          m <- foldM solvable prev con
          return $ case m of
@@ -212,22 +214,22 @@ solve newNames xs = do
 
     updateTags :: Tags -> Compile TCM ()
     updateTags tags = do
-        let (hasTags, eqs) = M.partition isTag (constrGroup tags)
+        let (hasTags, eqs) = Map.partition isTag (constrGroup tags)
             isTag (IsTag _) = True
             isTag _         = False
-        forM (M.toList hasTags) $ \ (c, tagged) -> case tagged of
+        forM (Map.toList hasTags) $ \ (c, tagged) -> case tagged of
             IsTag tag -> putCon c tag
             _         -> __IMPOSSIBLE__
-        case M.toList eqs of
+        case Map.toList eqs of
             (c, Same n) : _ -> do
                 let grp = eqGroups tags !!!! n
-                tag <- assignConstrTag' c (S.toList grp)
+                tag <- assignConstrTag' c (Set.toList grp)
                 updateTags . fromMaybe __IMPOSSIBLE__ =<< setTag n tag tags { constrGroup = eqs }
             _              -> return ()
     putCon :: QName -> Tag -> Compile TCM ()
     putCon con tag = do
         m <- gets (constrTags . importedModules)
-        case M.lookup con m of
+        case Map.lookup con m of
             Nothing -> putConstrTag con tag
             Just _  -> return () -- old
 
@@ -286,7 +288,7 @@ instance Injectible Term where
       (_,  Lit l) | litInt l -> do
         l' <- lift . lift $ litToCon l
         t1 <: l'
-      (_, Def n2 es2) | Just (InjectiveFun argn arit) <- M.lookup n2 injs -> do
+      (_, Def n2 es2) | Just (InjectiveFun argn arit) <- Map.lookup n2 injs -> do
         if genericLength es2 /= arit
           then return Nothing
           else do
@@ -305,7 +307,7 @@ instance Injectible Term where
           args1' <: args2'
       _ -> return Nothing
 {-
-      (_, Def n2 args2) | Just (InjectiveFun argn arit) <- M.lookup n2 injs -> do
+      (_, Def n2 args2) | Just (InjectiveFun argn arit) <- Map.lookup n2 injs -> do
         if genericLength args2 /= arit
           then return Nothing
           else do
@@ -341,8 +343,8 @@ data Tags = Tags
 
 initialTags :: Map QName Tag -> [QName] -> Tags
 initialTags setTags newNames = Tags
-    { eqGroups    = M.fromList $ zip [0..] (map S.singleton newNames)
-    , constrGroup = M.map IsTag setTags `M.union` M.fromList (zip newNames (map Same [0..]))
+    { eqGroups    = Map.fromList $ zip [0..] (map Set.singleton newNames)
+    , constrGroup = Map.map IsTag setTags `Map.union` Map.fromList (zip newNames (map Same [0..]))
     }
 
 unify :: QName -> QName -> Tags -> Compile TCM (Maybe Tags)
@@ -359,20 +361,20 @@ unify c1 c2 ts = do
 
 setTag :: Int -> Tag -> Tags -> Compile TCM (Maybe Tags)
 setTag gid tag ts = return $ Just $ ts
-    { constrGroup = foldr (\c -> M.insert c (IsTag tag)) (constrGroup ts) (S.toList $ eqGroups ts !!!! gid)}
+    { constrGroup = foldr (\c -> Map.insert c (IsTag tag)) (constrGroup ts) (Set.toList $ eqGroups ts !!!! gid)}
 
 mergeGroups :: Int -> Int -> Tags -> Compile TCM (Maybe Tags)
 mergeGroups n1 n2 ts = do
     let g1s = eqGroups ts !!!! n1
         g2s = eqGroups ts !!!! n2
-        gs  = S.union g1s g2s
-        g1l = S.toList g1s
-        g2l = S.toList g2s
+        gs  = Set.union g1s g2s
+        g1l = Set.toList g1s
+        g2l = Set.toList g2s
     ifNotM (andM $ zipWith unifiable g1l g2l)
         (return Nothing) $
         return $ Just $ ts
-            { eqGroups    = M.delete n2 $ M.insert n1 gs (eqGroups ts)
-            , constrGroup = M.fromList [ (e2, Same n1) | e2 <- g2l ] `M.union` constrGroup ts
+            { eqGroups    = Map.delete n2 $ Map.insert n1 gs (eqGroups ts)
+            , constrGroup = Map.fromList [ (e2, Same n1) | e2 <- g2l ] `Map.union` constrGroup ts
             }
 
 unifiable :: QName -> QName -> Compile TCM Bool
@@ -382,6 +384,6 @@ unifiable c1 c2 = do
     return $ d1 /= d2
 
 (!!!!) :: Ord k => Map k v -> k -> v
-m !!!!  k = case M.lookup k m of
+m !!!!  k = case Map.lookup k m of
     Nothing -> __IMPOSSIBLE__
     Just x  -> x

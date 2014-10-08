@@ -1,3 +1,5 @@
+{-# OPTIONS_GHC -fwarn-missing-signatures #-}
+
 {-# LANGUAGE FlexibleInstances    #-}
 {-# LANGUAGE TypeSynonymInstances #-}
 
@@ -10,6 +12,7 @@ module Agda.Utils.Pretty
     ) where
 
 import Data.Function
+import Data.Int ( Int32 )
 import Text.PrettyPrint hiding (TextDetails(Str))
 
 -- * Pretty class
@@ -36,6 +39,9 @@ prettyShow = render . pretty
 -- * Pretty instances
 
 instance Pretty Int where
+    pretty = text . show
+
+instance Pretty Int32 where
     pretty = text . show
 
 instance Pretty Integer where

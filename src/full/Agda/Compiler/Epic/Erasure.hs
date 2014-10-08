@@ -1,3 +1,5 @@
+{-# OPTIONS_GHC -fwarn-missing-signatures #-}
+
 {-# LANGUAGE CPP #-}
 
 -- | Some arguments to functions (types in particular) will not be used in the
@@ -14,8 +16,8 @@ module Agda.Compiler.Epic.Erasure where
 
 import Control.Applicative
 import Control.Monad.State
-import Data.Map(Map)
-import qualified Data.Map as M
+import Data.Map (Map)
+import qualified Data.Map as Map
 import Data.Maybe
 
 import Agda.Compiler.Epic.AuxAST
@@ -61,12 +63,12 @@ type Erasure = StateT ErasureState
 erasure :: [Fun] -> Compile TCM [Fun]
 erasure fs = do
     orgRel <- gets (relevantArgs . importedModules)
-    (rels, erasureState) <- flip runStateT (ErasureState orgRel M.empty) $ do
+    (rels, erasureState) <- flip runStateT (ErasureState orgRel Map.empty) $ do
         mapM_ initiate fs
         fu <- gets funs
-        M.mapKeys (fromMaybe __IMPOSSIBLE__ . flip M.lookup fu) <$> step 1
-    modifyEI $ \s -> s { relevantArgs = M.mapKeys funName rels }
-    concat <$> mapM (\f -> map (rem (relevancies erasureState)) <$> check f (M.lookup f rels)) fs
+        Map.mapKeys (fromMaybe __IMPOSSIBLE__ . flip Map.lookup fu) <$> step 1
+    modifyEI $ \s -> s { relevantArgs = Map.mapKeys funName rels }
+    concat <$> mapM (\f -> map (rem (relevancies erasureState)) <$> check f (Map.lookup f rels)) fs
   where
 
     rem rels f@Fun{} = f { funExpr = removeUnused rels (funExpr f) }
@@ -104,7 +106,7 @@ removeUnused rels t = let rem = removeUnused rels
     Lit _         -> t
     Lam v e       -> Lam v (rem e)
     Con tag qn es -> Con tag qn (map rem es)
-    App v es      -> case M.lookup v rels of
+    App v es      -> case Map.lookup v rels of
        Just re -> App v $ zipWith (\r x -> if isIrr r then UNIT else rem x)
                                   (re ++ repeat Rel) es
        Nothing    -> App v $ map rem es
@@ -119,16 +121,16 @@ removeUnused rels t = let rem = removeUnused rels
 initiate :: Fun -> Erasure (Compile TCM) ()
 initiate f@(Fun _ name mqname _ args _) = do
     let rels = replicate (length args) Irr
-    modify $ \s -> s { relevancies = M.insert name rels (relevancies s)
-                     , funs        = M.insert name f (funs s)
+    modify $ \s -> s { relevancies = Map.insert name rels (relevancies s)
+                     , funs        = Map.insert name f (funs s)
                      }
 initiate f@(EpicFun {funName = name, funQName = mqname}) = case mqname of
     Just qn -> do
         ty <- lift $ getType qn
         let rels = initialRels ty Rel
         return ()
-        modify $ \s -> s { relevancies = M.insert name rels (relevancies s)
-                         , funs        = M.insert name f (funs s)
+        modify $ \s -> s { relevancies = Map.insert name rels (relevancies s)
+                         , funs        = Map.insert name f (funs s)
                          }
     Nothing -> return ()
 
@@ -159,7 +161,7 @@ relevant var expr = case expr of
     App v es | v == var  -> return Rel
              | otherwise -> do
                 -- The variable is relevant if it is used in a relevant position
-                mvrs <- gets (M.lookup v . relevancies)
+                mvrs <- gets (Map.lookup v . relevancies)
                 case mvrs of
                   Nothing  -> relevants var es
                   Just vrs ->
@@ -195,8 +197,8 @@ relevant var expr = case expr of
 step :: Integer -> Erasure (Compile TCM) (Map Var [Relevance])
 step nrOfLoops = do
     s  <- get
-    newRels <- (M.fromList <$>) $ forM (M.toList (funs s)) $ \(v, f) -> ((,) v <$>) $ do
-               let funRels = fromMaybe __IMPOSSIBLE__ $ M.lookup v (relevancies s)
+    newRels <- (Map.fromList <$>) $ forM (Map.toList (funs s)) $ \(v, f) -> ((,) v <$>) $ do
+               let funRels = fromMaybe __IMPOSSIBLE__ $ Map.lookup v (relevancies s)
                case f of
                   EpicFun{} -> return funRels
                   Fun{} -> do
@@ -205,7 +207,7 @@ step nrOfLoops = do
                         Irr -> do
                           lift $ lift $ reportSDoc "epic.erasure" 10 $ P.text "running erasure:" P.<+> (P.text . show) (funQName f)
                           relevant x (funExpr f)
-    let relsm = newRels `M.union` relevancies s
+    let relsm = newRels `Map.union` relevancies s
     if relevancies s == relsm
        then return newRels
        else do
@@ -213,4 +215,4 @@ step nrOfLoops = do
          step (nrOfLoops + 1)
 
 diff :: (Ord k, Eq a) => Map k a -> Map k a -> [(k,(a,a))]
-diff m1 m2 = catMaybes $ zipWith (\(k, x) (_, y) -> if x == y then Nothing else Just (k, (x, y))) (M.toList m1) (M.toList m2)
+diff m1 m2 = catMaybes $ zipWith (\(k, x) (_, y) -> if x == y then Nothing else Just (k, (x, y))) (Map.toList m1) (Map.toList m2)

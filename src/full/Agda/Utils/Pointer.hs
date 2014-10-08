@@ -1,4 +1,7 @@
+{-# OPTIONS_GHC -fwarn-missing-signatures #-}
+
 {-# LANGUAGE DeriveDataTypeable #-}
+
 module Agda.Utils.Pointer
   ( Ptr, newPtr, derefPtr, setPtr
   , updatePtr, updatePtrM

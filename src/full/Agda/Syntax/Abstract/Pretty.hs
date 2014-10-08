@@ -1,4 +1,7 @@
+{-# OPTIONS_GHC -fwarn-missing-signatures #-}
+
 {-# LANGUAGE FlexibleContexts #-}
+
 module Agda.Syntax.Abstract.Pretty where
 
 import Control.Applicative

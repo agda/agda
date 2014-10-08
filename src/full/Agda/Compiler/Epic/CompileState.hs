@@ -1,3 +1,5 @@
+{-# OPTIONS_GHC -fwarn-missing-signatures #-}
+
 {-# LANGUAGE CPP #-}
 
 -- | Contains the state monad that the compiler works in and some functions
@@ -7,12 +9,12 @@ module Agda.Compiler.Epic.CompileState where
 import Control.Applicative
 import Control.Monad.State
 import Data.List
-import Data.Map(Map)
-import qualified Data.Map as M
+import Data.Map (Map)
+import qualified Data.Map as Map
 import Data.Maybe
 import Data.Monoid
-import Data.Set(Set)
-import qualified Data.Set as S
+import Data.Set (Set)
+import qualified Data.Set as Set
 
 import Agda.Compiler.Epic.AuxAST as AuxAST
 import Agda.Compiler.Epic.Interface
@@ -42,7 +44,7 @@ data CompileState = CompileState
 initCompileState :: CompileState
 initCompileState = CompileState
     { nameSupply        = map (('h':) . show) [0 :: Integer ..]
-    , compiledModules   = M.empty
+    , compiledModules   = Map.empty
     , curModule         = mempty
     , importedModules   = mempty
     , curFun            = undefined
@@ -81,10 +83,10 @@ resetNameSupply :: Compile TCM ()
 resetNameSupply = modify $ \s -> s {nameSupply = nameSupply initCompileState}
 
 getDelayed :: QName -> Compile TCM Bool
-getDelayed q = lookInterface (M.lookup q . defDelayed) (return False)
+getDelayed q = lookInterface (Map.lookup q . defDelayed) (return False)
 
 putDelayed :: QName -> Bool -> Compile TCM ()
-putDelayed q d = modifyEI $ \s -> s {defDelayed = M.insert q d (defDelayed s)}
+putDelayed q d = modifyEI $ \s -> s {defDelayed = Map.insert q d (defDelayed s)}
 
 newName :: Compile TCM Var
 newName = do
@@ -93,7 +95,7 @@ newName = do
     return n
 
 putConstrTag :: QName -> Tag -> Compile TCM ()
-putConstrTag q t = modifyEI $ \s -> s { constrTags = M.insert q t $ constrTags s }
+putConstrTag q t = modifyEI $ \s -> s { constrTags = Map.insert q t $ constrTags s }
 
 assignConstrTag :: QName -> Compile TCM Tag
 assignConstrTag constr = assignConstrTag' constr []
@@ -126,30 +128,30 @@ getDataCon con = do
         Nothing -> __IMPOSSIBLE__
 
 getConstrTag :: QName -> Compile TCM Tag
-getConstrTag con = lookInterface (M.lookup con . constrTags)
+getConstrTag con = lookInterface (Map.lookup con . constrTags)
                                  (assignConstrTag con)
 
 getConstrTag' :: QName -> Compile TCM (Maybe Tag)
 getConstrTag' con = do
     cur <- gets curModule
-    case M.lookup con (constrTags cur) of
+    case Map.lookup con (constrTags cur) of
         Just x -> return (Just x)
         Nothing -> do
             imps <- gets importedModules
-            return $ M.lookup con (constrTags imps)
+            return $ Map.lookup con (constrTags imps)
 
 addDefName :: QName -> Compile TCM ()
 addDefName q = do
-    modifyEI $ \s -> s {definitions = S.insert (unqname q) $ definitions s }
+    modifyEI $ \s -> s {definitions = Set.insert (unqname q) $ definitions s }
 
 topBindings :: Compile TCM (Set Var)
-topBindings = S.union <$> gets (definitions . importedModules) <*> gets (definitions . curModule)
+topBindings = Set.union <$> gets (definitions . importedModules) <*> gets (definitions . curModule)
 
 getConArity :: QName -> Compile TCM Int
-getConArity n = lookInterface (M.lookup n . conArity) __IMPOSSIBLE__
+getConArity n = lookInterface (Map.lookup n . conArity) __IMPOSSIBLE__
 
 putConArity :: QName -> Int -> Compile TCM ()
-putConArity n p = modifyEI $ \s -> s { conArity = M.insert n p (conArity s) }
+putConArity n p = modifyEI $ \s -> s { conArity = Map.insert n p (conArity s) }
 
 putMain :: QName -> Compile TCM ()
 putMain m = modifyEI $ \s -> s { mainName = Just m }
@@ -171,23 +173,23 @@ lookInterface f def = do
 constrInScope :: QName -> Compile TCM Bool
 constrInScope name = do
     cur <- gets curModule
-    case M.lookup name (constrTags cur) of
+    case Map.lookup name (constrTags cur) of
         Just x -> return True
         Nothing -> do
             imps <- gets importedModules
-            case M.lookup name (constrTags imps) of
+            case Map.lookup name (constrTags imps) of
                 Nothing -> return False
                 Just x  -> return True
 
 getForcedArgs :: QName -> Compile TCM ForcedArgs
-getForcedArgs q = lookInterface (M.lookup q . forcedArgs) __IMPOSSIBLE__
+getForcedArgs q = lookInterface (Map.lookup q . forcedArgs) __IMPOSSIBLE__
 
 putForcedArgs :: QName -> ForcedArgs -> Compile TCM ()
 putForcedArgs n f = do
   b <- lift $ gets (optForcing . stPersistentOptions . stPersistent)
   let f' | b = f
          | otherwise = replicate (length f) NotForced
-  modifyEI $ \s -> s {forcedArgs = M.insert n f' $ forcedArgs s}
+  modifyEI $ \s -> s {forcedArgs = Map.insert n f' $ forcedArgs s}
 
 replaceAt :: Int -- ^ replace at
           -> [a] -- ^ to replace
