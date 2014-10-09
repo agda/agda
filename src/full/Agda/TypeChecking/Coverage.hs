@@ -296,7 +296,8 @@ fixTarget sc@SClause{ scTel = sctel, scPerm = perm, scPats = ps, scSubst = sigma
         -- Compute new split clause
         sctel'    = telFromList $ telToList (raise n sctel) ++ lgamma
         perm'     = liftP n $ scPerm sc
-        ps'       = ps ++ xs
+        -- Dot patterns in @ps@ need to be raised!  (Issue 1298)
+        ps'       = raise n ps ++ xs
         newTarget = Just $ a $> b
         sc'       = SClause
           { scTel    = sctel'
