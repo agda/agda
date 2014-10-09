@@ -287,7 +287,7 @@ instance IsNoName Name where
 ------------------------------------------------------------------------
 
 -- | Only use this @show@ function in debugging!  To convert an
---   abstract 'Name' into a string use @show . nameConcrete@.
+--   abstract 'Name' into a string use @prettyShow@.
 instance Show Name where
   -- Andreas, 2014-10-02: Reverted to nice printing.
   -- Reason: I do not have time just now to properly fix the
@@ -298,12 +298,12 @@ instance Show Name where
   -- show n = applyWhen (isNoName n) (++ show (nameId n)) $ show (nameConcrete n)
 
 -- | Only use this @show@ function in debugging!  To convert an
---   abstract 'ModuleName' into a string use @show . mnameToConcrete@.
+--   abstract 'ModuleName' into a string use @prettyShow@.
 instance Show ModuleName where
   show m = concat $ intersperse "." $ map show $ mnameToList m
 
 -- | Only use this @show@ function in debugging!  To convert an
---   abstract 'QName' into a string use @show . qnameToConcrete@.
+--   abstract 'QName' into a string use @prettyShow@.
 instance Show QName where
   show q = concat $ intersperse "." $ map show $ qnameToList q
 
