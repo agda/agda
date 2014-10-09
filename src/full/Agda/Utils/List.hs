@@ -20,6 +20,8 @@ import Text.Show.Functions ()
 import Test.QuickCheck
 import Test.QuickCheck.All
 
+import Agda.Utils.Bag (Bag)
+import qualified Agda.Utils.Bag as Bag
 import Agda.Utils.TestHelpers
 -- import Agda.Utils.QuickCheck -- Andreas, 2014-04-27 Inconvenient
 -- because cabal-only CPP directive
@@ -211,6 +213,14 @@ prop_distinct_fastDistinct xs = distinct xs == fastDistinct xs
 allEqual :: Eq a => [a] -> Bool
 allEqual []       = True
 allEqual (x : xs) = all (== x) xs
+
+-- | Returns an (arbitrary) representative for each list element
+--   that occurs more than once.
+duplicates :: Ord a => [a] -> [a]
+duplicates = mapMaybe dup . Bag.groups . Bag.fromList
+  where
+    dup (a : _ : _) = Just a
+    dup _           = Nothing
 
 -- | A variant of 'groupBy' which applies the predicate to consecutive
 -- pairs.
