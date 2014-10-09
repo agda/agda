@@ -139,7 +139,10 @@ runAgda = do
             -- Unsolved constraints.
             SomeWarnings (Warnings _ w@(_:_))
               | not unsolvedOK                 -> typeError $ UnsolvedConstraints w
-            SomeWarnings _                     -> return Nothing
+            -- Unsolved metas, unsolved constraints, or
+            -- interaction points left whose metas have been solved
+            -- automatically.  (See Issue 1296).
+            SomeWarnings (Warnings _ _)        -> return Nothing
             NoWarnings                         -> return $ Just i
 
           whenM (optGenerateHTML <$> commandLineOptions) $
