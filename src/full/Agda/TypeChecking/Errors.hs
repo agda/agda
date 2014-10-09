@@ -88,7 +88,7 @@ data Warnings = Warnings
 -- | Turns warnings into an error. Even if several errors are possible
 --   only one is raised.
 warningsToError :: Warnings -> TCM a
-warningsToError (Warnings [] [])     = __IMPOSSIBLE__
+warningsToError (Warnings [] [])     = typeError $ SolvedButOpenHoles
 warningsToError (Warnings w@(_:_) _) = typeError $ UnsolvedMetas w
 warningsToError (Warnings _ w@(_:_)) = typeError $ UnsolvedConstraints w
 
@@ -246,6 +246,7 @@ errorString err = case err of
     UnreachableClauses{}                     -> "UnreachableClauses"
     UnsolvedConstraints{}                    -> "UnsolvedConstraints"
     UnsolvedMetas{}                          -> "UnsolvedMetas"
+    SolvedButOpenHoles{}                     -> "SolvedButOpenHoles"
     UnusedVariableInPatternSynonym           -> "UnusedVariableInPatternSynonym"
     WithClausePatternMismatch{}              -> "WithClausePatternMismatch"
     WithoutKError{}                          -> "WithoutKError"
@@ -536,6 +537,7 @@ instance PrettyTCM TypeError where
             LocalVsImportedModuleClash m -> fsep $
                 pwords "The module" ++ [text $ show m] ++
                 pwords "can refer to either a local module or an imported module"
+            SolvedButOpenHoles -> text "Module cannot be imported since it has open interaction points"
             UnsolvedMetas rs ->
                 fsep ( pwords "Unsolved metas at the following locations:" )
                 $$ nest 2 (vcat $ map prettyTCM rs)
