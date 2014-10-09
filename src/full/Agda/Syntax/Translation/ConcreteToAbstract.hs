@@ -733,9 +733,10 @@ scopeCheckNiceModule
   -> ScopeM [A.Declaration]
   -> ScopeM [A.Declaration]
 scopeCheckNiceModule r p name tel checkDs
-  | telHasOpenStms tel = do
+  | telHasOpenStmsOrModuleMacros tel = do
       -- Andreas, 2013-12-10:
-      -- If the module telescope contains open statements,
+      -- If the module telescope contains open statements
+      -- or module macros (Issue 1299),
       -- add an extra anonymous module around the current one.
       -- Otherwise, the open statements would create
       -- identifiers in the parent scope of the current module.
@@ -770,20 +771,20 @@ scopeCheckNiceModule r p name tel checkDs
           defaultImportDir { publicOpen = True }
       return ds
 
--- | Check whether a telescope has open declarations.
-telHasOpenStms :: C.Telescope -> Bool
-telHasOpenStms = any isOpenBinds
+-- | Check whether a telescope has open declarations or module macros.
+telHasOpenStmsOrModuleMacros :: C.Telescope -> Bool
+telHasOpenStmsOrModuleMacros = any yesBinds
   where
-    isOpenBinds (C.TypedBindings _ tb) = isOpenBind $ unArg tb
-    isOpenBind C.TBind{}     = False
-    isOpenBind (C.TLet _ ds) = any isOpen ds
-    isOpen (C.ModuleMacro _ _ _ DoOpen _) = True
-    isOpen C.Open{}          = True
-    isOpen C.Import{}        = __IMPOSSIBLE__
-    isOpen (C.Mutual   _ ds) = any isOpen ds
-    isOpen (C.Abstract _ ds) = any isOpen ds
-    isOpen (C.Private  _ ds) = any isOpen ds
-    isOpen   _               = False
+    yesBinds (C.TypedBindings _ tb) = yesBind $ unArg tb
+    yesBind C.TBind{}     = False
+    yesBind (C.TLet _ ds) = any yes ds
+    yes C.ModuleMacro{}   = True
+    yes C.Open{}          = True
+    yes C.Import{}        = __IMPOSSIBLE__
+    yes (C.Mutual   _ ds) = any yes ds
+    yes (C.Abstract _ ds) = any yes ds
+    yes (C.Private  _ ds) = any yes ds
+    yes _                 = False
 
 {- UNUSED
 telHasLetStms :: C.Telescope -> Bool
@@ -991,7 +992,9 @@ instance ToAbstract LetDef [A.LetBinding] where
               return [A.LetOpen minfo m]
 
             NiceModuleMacro r p x modapp open dir | not (C.publicOpen dir) ->
-              checkModuleMacro LetApply r p x modapp open dir
+              -- Andreas, 2014-10-09, Issue 1299: module macros in lets need
+              -- to be private
+              checkModuleMacro LetApply r PrivateAccess x modapp open dir
 
             _   -> notAValidLetBinding d
         where
