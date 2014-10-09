@@ -251,28 +251,43 @@ isDatatype ind at = do
 -- | update the target type, add more patterns to split clause
 -- if target becomes a function type.
 fixTarget :: SplitClause -> TCM SplitClause
-fixTarget sc@SClause{ scTel = sctel, scSubst = sigma, scTarget = target } =
+fixTarget sc@SClause{ scTel = sctel, scPerm = perm, scPats = ps, scSubst = sigma, scTarget = target } =
   caseMaybe target (return sc) $ \ a -> do
     reportSDoc "tc.cover.target" 20 $ sep
       [ text "split clause telescope: " <+> prettyTCM sctel
-      , text "target type before substitution (variables may be wrong): " <+> do addContext sctel $ prettyTCM a
+      , text "old permutation       : " <+> prettyTCM perm
+      , text "old patterns          : " <+> (text . show) ps
+      ]
+    reportSDoc "tc.cover.target" 30 $ sep
+      [ text "target type before substitution (variables may be wrong): " <+> do
+          addContext sctel $ prettyTCM a
       ]
     TelV tel b <- telView $ applySubst sigma $ unArg a
     reportSDoc "tc.cover.target" 10 $ sep
-      [ text "telescope   (after substitution): " <+> do addContext sctel $ prettyTCM tel
-      , text "target type (after substitution): " <+> do addContext sctel $ addContext tel $ prettyTCM b
+      [ text "target type telescope (after substitution): " <+> do
+          addContext sctel $ prettyTCM tel
+      , text "target type core      (after substitution): " <+> do
+          addContext sctel $ addContext tel $ prettyTCM b
       ]
     let n         = size tel
         lgamma    = telToList tel
         xs        = for lgamma $ \ (Common.Dom ai (x, _)) -> Common.Arg ai $ namedVarP "_"
+        -- Compute new split clause
+        sctel'    = telFromList $ telToList (raise n sctel) ++ lgamma
+        perm'     = liftP n $ scPerm sc
+        ps'       = ps ++ xs
+        newTarget = Just $ a $> b
         sc'       = SClause
-          { scTel    = telFromList $ telToList (raise n sctel) ++ lgamma
-          , scPerm   = liftP n $ scPerm sc
-          , scPats   = scPats sc ++ xs
+          { scTel    = sctel'
+          , scPerm   = perm'
+          , scPats   = ps'
           , scSubst  = liftS n $ sigma
           , scTarget = newTarget
           }
-        newTarget = Just $ a $> b
+    reportSDoc "tc.cover.target" 20 $ sep
+      [ text "new split clause"
+      , prettyTCM sc'
+      ]
     return $ if n == 0 then sc { scTarget = newTarget } else sc'
 
 -- | @computeNeighbourhood delta1 delta2 perm d pars ixs hix hps con@
@@ -676,3 +691,23 @@ splitResult f sc@(SClause tel perm ps _ target) = do
                          }
             return (unArg proj, sc')
       _ -> done
+
+-- * Boring instances
+
+-- | For debugging only.
+instance PrettyTCM SplitClause where
+  prettyTCM (SClause tel perm pats sigma target) = sep
+    [ text "SplitClause"
+    , nest 2 $ vcat
+      [ text "tel          = " <+> prettyTCM tel
+      , text "perm         = " <+> prettyTCM perm
+      , text "pats         = " <+> (text . show) pats
+      , text "subst        = " <+> (text . show) sigma
+      , text "target       = " <+> do
+          caseMaybe target empty $ \ t -> do
+            addContext tel $ prettyTCM t
+      , text "subst target = " <+> do
+          caseMaybe target empty $ \ t -> do
+            addContext tel $ prettyTCM $ applySubst sigma t
+      ]
+    ]
