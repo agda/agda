@@ -12,6 +12,8 @@ import Data.Functor ((<$>))
 import Data.Function
 import Data.List
 import Data.Maybe
+import Data.Map (Map)
+import qualified Data.Map as Map
 import qualified Data.Set as Set
 
 import Text.Show.Functions ()
@@ -307,17 +309,23 @@ zipWithTails f (x : xs) (y : ys) = (f x y : zs , as , bs)
   where (zs , as , bs) = zipWithTails f xs ys
 -}
 
--- | Efficient version of nub that sorts the list first. The tag function is
---   assumed to be cheap. If it isn't pair up the elements with their tags and
---   call uniqBy fst (or snd).
-uniqBy :: Ord b => (a -> b) -> [a] -> [a]
-uniqBy tag =
-  map head
-  . groupBy ((==) `on` tag)
-  . sortBy (compare `on` tag)
+-- | Efficient version of nub that sorts the list via a search tree ('Data.Map').
+uniqOn :: Ord b => (a -> b) -> [a] -> [a]
+uniqOn key = Map.elems . Map.fromList . map (\ a -> (key a, a))
 
-prop_uniqBy :: [Integer] -> Bool
-prop_uniqBy xs = sort (nub xs) == uniqBy id xs
+-- Andreas, 2014-10-09 RETIRED, the Map version is simpler,
+-- and possibly more efficient (discards duplicates early).
+-- -- | Efficient version of nub that sorts the list first. The tag function is
+-- --   assumed to be cheap. If it isn't pair up the elements with their tags and
+-- --   call uniqOn fst (or snd).
+-- uniqOn :: Ord b => (a -> b) -> [a] -> [a]
+-- uniqOn tag =
+--   map head
+--   . groupBy ((==) `on` tag)
+--   . sortBy (compare `on` tag)
+
+prop_uniqOn :: [Integer] -> Bool
+prop_uniqOn xs = sort (nub xs) == uniqOn id xs
 
 -- | Compute the common suffix of two lists.
 commonSuffix :: Eq a => [a] -> [a] -> [a]
@@ -364,5 +372,5 @@ tests = do
 --   , quickCheck' prop_extractNthElement
 --   , quickCheck' prop_genericElemIndex
 --   , quickCheck' prop_zipWith'
---   , quickCheck' prop_uniqBy
+--   , quickCheck' prop_uniqOn
 --   ]

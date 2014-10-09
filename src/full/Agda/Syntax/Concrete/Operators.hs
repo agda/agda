@@ -108,7 +108,7 @@ localNames flat = do
     , "defs  = " ++ show defs
     , "locals= " ++ show locals
     ]
-  return $ split $ uniqBy fst $ map localOp locals ++ defs
+  return $ split $ uniqOn fst $ map localOp locals ++ defs
   where
     localOp (x, y) = (QName x, A.nameFixity y)
     split ops = partitionEithers $ concatMap opOrNot ops
