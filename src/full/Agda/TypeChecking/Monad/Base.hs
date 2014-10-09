@@ -1572,6 +1572,11 @@ data TypeError
         | LocalVsImportedModuleClash ModuleName
         | UnsolvedMetas [Range]
         | UnsolvedConstraints Constraints
+        | SolvedButOpenHoles
+          -- ^ Some interaction points (holes) have not be filled by user.
+          --   There are not 'UnsolvedMetas' since unification solved them.
+          --   This is an error, since interaction points are never filled
+          --   without user interaction.
         | CyclicModuleDependency [C.TopLevelModuleName]
         | FileNotFound C.TopLevelModuleName [AbsolutePath]
         | OverlappingProjects AbsolutePath C.TopLevelModuleName C.TopLevelModuleName
