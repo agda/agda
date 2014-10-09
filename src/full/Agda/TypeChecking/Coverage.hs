@@ -60,12 +60,33 @@ import Agda.Utils.Tuple
 import Agda.Utils.Impossible
 
 data SplitClause = SClause
-      { scTel    :: Telescope            -- ^ Type of variables in @scPats@.
-      , scPerm   :: Permutation          -- ^ How to get from the variables in the patterns to the telescope.
-      , scPats   :: [I.NamedArg Pattern] -- ^ The patterns leading to the currently considered branch of the split tree.
-      , scSubst  :: Substitution         -- ^ Substitution from @scTel@ to old context.
-      , scTarget :: Maybe (I.Arg Type)   -- ^ The type of the rhs.
-      }
+  { scTel    :: Telescope
+    -- ^ Type of variables in @scPats@.
+  , scPerm   :: Permutation
+    -- ^ How to get from the variables in the patterns to the telescope.
+  , scPats   :: [I.NamedArg Pattern]
+    -- ^ The patterns leading to the currently considered branch of
+    --   the split tree.
+  , scSubst  :: Substitution
+    -- ^ Substitution from 'scTel' to old context.
+    --   Only needed directly after split on variable:
+    --   * To update 'scTarget'
+    --   * To rename other split variables when splitting on
+    --     multiple variables.
+    --   @scSubst@ is not ``transitive'', i.e., does not record
+    --   the substitution from the original context to 'scTel'
+    --   over a series of splits.  It is freshly computed
+    --   after each split by 'computeNeighborhood'; also
+    --   'splitResult', which does not split on a variable,
+    --   should reset it to the identity 'idS', lest it be
+    --   applied to 'scTarget' again, leading to Issue 1294.
+  , scTarget :: Maybe (I.Arg Type)
+    -- ^ The type of the rhs, living in context 'scTel'.
+    --   This invariant is broken before calls to 'fixTarget';
+    --   there, 'scTarget' lives in the old context.
+    --   'fixTarget' moves 'scTarget' to the new context by applying
+    --   substitution 'scSubst'.
+  }
 
 -- | A @Covering@ is the result of splitting a 'SplitClause'.
 data Covering = Covering
@@ -89,17 +110,6 @@ clauseToSplitClause cl = SClause
   }
 
 type CoverM = ExceptionT SplitError TCM
-
-{- UNUSED
-typeOfVar :: Telescope -> Nat -> Dom Type
-typeOfVar tel n
-  | n >= len  = __IMPOSSIBLE__
-  | otherwise = fmap snd  -- throw away name, keep Arg Type
-                  $ ts !! fromIntegral (len - 1 - n)
-  where
-    len = genericLength ts
-    ts  = telToList tel
--}
 
 -- | Old top-level function for checking pattern coverage.
 --   DEPRECATED
@@ -168,7 +178,6 @@ cover f cs sc@(SClause tel perm ps _ target) = do
       reportSLn "tc.cover.cover" 10 $ "pattern covered by clause " ++ show i
       -- Check if any earlier clauses could match with appropriate literals
       let is = [ j | (j, c) <- zip [0..i-1] cs, matchLits c ups perm ]
-      -- OLD: let is = [ j | (j, c) <- zip [0..] (genericTake i cs), matchLits c ps perm ]
       reportSLn "tc.cover.cover"  10 $ "literal matches: " ++ show is
       return (SplittingDone (size tel), Set.fromList (i : is), [])
     No       ->  do
@@ -186,41 +195,6 @@ cover f cs sc@(SClause tel perm ps _ target) = do
           -- OR: mapM (traverseF $ cover f cs <=< fixTarget) scs
         let tree = SplitAt n $ zip projs trees
         return (tree, Set.unions useds, concat psss)
-
-      -- caseMaybe target done $ \ t -> do
-      --   isR <- addCtxTel tel $ isRecordType $ unArg t
-      --   case isR of
-      --     Just (_r, vs, Record{ recFields = fs }) -> do
-      --       reportSDoc "tc.cover" 20 $ sep
-      --         [ text $ "we are of record type _r = " ++ show _r
-      --         , text   "applied to parameters vs = " <+> (addCtxTel tel $ prettyTCM vs)
-      --         , text $ "and have fields       fs = " ++ show fs
-      --         ]
-      --       fvs <- freeVarsToApply f
-      --       let es = patternsToElims perm ps
-      --       let self  = defaultArg $ Def f (map Apply fvs) `applyE` es
-      --           pargs = vs ++ [self]
-      --       reportSDoc "tc.cover" 20 $ sep
-      --         [ text   "we are              self = " <+> (addCtxTel tel $ prettyTCM $ unArg self)
-      --         ]
-      --       (projs, (trees, useds, psss)) <- mapSnd unzip3 . unzip <$> do
-      --         forM fs $ \ proj -> do
-      --           -- compute the new target
-      --           dType <- defType <$> do getConstInfo $ unArg proj -- WRONG: typeOfConst $ unArg proj
-      --           let -- type of projection instantiated at self
-      --               target' = Just $ proj $> dType `apply` pargs
-      --               sc' = sc { scPats   = scPats sc ++ [fmap (Named Nothing . ProjP) proj]
-      --                        , scTarget = target'
-      --                        }
-      --           (unArg proj,) <$> do cover f cs =<< fixTarget sc'
-      --       let -- WRONG: -- n = length ps -- past the last argument, is pos. of proj pat.
-      --           -- n = size tel -- past the last variable, is pos. of proj pat. DURING SPLITTING
-      --           n = permRange perm -- Andreas & James, 2013-11-19 includes the dot patterns!
-      --           -- See test/succeed/CopatternsAndDotPatterns.agda for a case with dot patterns
-      --           -- and copatterns which fails for @n = size tel@ with a broken case tree.
-      --           tree = SplitAt n $ zip projs trees
-      --       return (tree, Set.unions useds, concat psss)
-      --     _ -> done
 
     -- case: split on variable
     Block bs -> do
@@ -255,7 +229,7 @@ splitStrategy bs tel = return $ updateLast clearBlockingVarCons xs
   -- Otherwise, we will not get a nice error message.
   where
     xs       = bs
-{-
+{- KEEP!
 --  Andreas, 2012-10-13
 --  The following split strategy which prefers all-constructor columns
 --  fails on test/fail/CoverStrategy
@@ -298,28 +272,44 @@ isDatatype ind at = do
 -- | update the target type, add more patterns to split clause
 -- if target becomes a function type.
 fixTarget :: SplitClause -> TCM SplitClause
-fixTarget sc@SClause{ scTel = sctel, scSubst = sigma, scTarget = target } =
+fixTarget sc@SClause{ scTel = sctel, scPerm = perm, scPats = ps, scSubst = sigma, scTarget = target } =
   caseMaybe target (return sc) $ \ a -> do
     reportSDoc "tc.cover.target" 20 $ sep
       [ text "split clause telescope: " <+> prettyTCM sctel
-      , text "target type before substitution (variables may be wrong): " <+> do addContext sctel $ prettyTCM a
+      , text "old permutation       : " <+> prettyTCM perm
+      , text "old patterns          : " <+> (text . show) ps
+      ]
+    reportSDoc "tc.cover.target" 30 $ sep
+      [ text "target type before substitution (variables may be wrong): " <+> do
+          addContext sctel $ prettyTCM a
       ]
     TelV tel b <- telView $ applySubst sigma $ unArg a
     reportSDoc "tc.cover.target" 10 $ sep
-      [ text "telescope   (after substitution): " <+> do addContext sctel $ prettyTCM tel
-      , text "target type (after substitution): " <+> do addContext sctel $ addContext tel $ prettyTCM b
+      [ text "target type telescope (after substitution): " <+> do
+          addContext sctel $ prettyTCM tel
+      , text "target type core      (after substitution): " <+> do
+          addContext sctel $ addContext tel $ prettyTCM b
       ]
     let n         = size tel
         lgamma    = telToList tel
         xs        = for lgamma $ \ (Common.Dom ai (x, _)) -> Common.Arg ai $ namedVarP "_"
+        -- Compute new split clause
+        sctel'    = telFromList $ telToList (raise n sctel) ++ lgamma
+        perm'     = liftP n $ scPerm sc
+        -- Dot patterns in @ps@ need to be raised!  (Issue 1298)
+        ps'       = raise n ps ++ xs
+        newTarget = Just $ a $> b
         sc'       = SClause
-          { scTel    = telFromList $ telToList (raise n sctel) ++ lgamma
-          , scPerm   = liftP n $ scPerm sc
-          , scPats   = scPats sc ++ xs
+          { scTel    = sctel'
+          , scPerm   = perm'
+          , scPats   = ps'
           , scSubst  = liftS n $ sigma
           , scTarget = newTarget
           }
-        newTarget = Just $ a $> b
+    reportSDoc "tc.cover.target" 20 $ sep
+      [ text "new split clause"
+      , prettyTCM sc'
+      ]
     return $ if n == 0 then sc { scTarget = newTarget } else sc'
 
 -- | @computeNeighbourhood delta1 delta2 perm d pars ixs hix hps con@
@@ -604,9 +594,6 @@ split' ind sc@(SClause tel perm ps _ target) (BlockingVar x mcons) = liftTCM $ r
   -- cons = constructors of this datatype
   (d, pars, ixs, cons) <- inContextOfT $ isDatatype ind t
 
-  --liftTCM $ whenM (optWithoutK <$> pragmaOptions) $
-  --  inContextOfT $ Split.wellFormedIndices (unDom t)
-
   -- Compute the neighbourhoods for the constructors
   ns <- catMaybes <$> do
     forM cons $ \ con ->
@@ -726,3 +713,23 @@ splitResult f sc@(SClause tel perm ps _ target) = do
                          }
             return (unArg proj, sc')
       _ -> done
+
+-- * Boring instances
+
+-- | For debugging only.
+instance PrettyTCM SplitClause where
+  prettyTCM (SClause tel perm pats sigma target) = sep
+    [ text "SplitClause"
+    , nest 2 $ vcat
+      [ text "tel          = " <+> prettyTCM tel
+      , text "perm         = " <+> prettyTCM perm
+      , text "pats         = " <+> (text . show) pats
+      , text "subst        = " <+> (text . show) sigma
+      , text "target       = " <+> do
+          caseMaybe target empty $ \ t -> do
+            addContext tel $ prettyTCM t
+      , text "subst target = " <+> do
+          caseMaybe target empty $ \ t -> do
+            addContext tel $ prettyTCM $ applySubst sigma t
+      ]
+    ]
