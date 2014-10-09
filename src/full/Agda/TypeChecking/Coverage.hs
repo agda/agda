@@ -277,7 +277,7 @@ fixTarget sc@SClause{ scTel = sctel, scPerm = perm, scPats = ps, scSubst = sigma
     reportSDoc "tc.cover.target" 20 $ sep
       [ text "split clause telescope: " <+> prettyTCM sctel
       , text "old permutation       : " <+> prettyTCM perm
-      , text "old patterns          : " <+> (text . show) ps
+      , text "old patterns          : " <+> sep (map (prettyTCM . namedArg) ps)
       ]
     reportSDoc "tc.cover.target" 30 $ sep
       [ text "target type before substitution (variables may be wrong): " <+> do
@@ -723,7 +723,7 @@ instance PrettyTCM SplitClause where
     , nest 2 $ vcat
       [ text "tel          = " <+> prettyTCM tel
       , text "perm         = " <+> prettyTCM perm
-      , text "pats         = " <+> (text . show) pats
+      , text "pats         = " <+> sep (map (prettyTCM . namedArg) pats)
       , text "subst        = " <+> (text . show) sigma
       , text "target       = " <+> do
           caseMaybe target empty $ \ t -> do
