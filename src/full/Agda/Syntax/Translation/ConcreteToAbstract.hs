@@ -1255,6 +1255,7 @@ instance ToAbstract NiceDeclaration A.Declaration where
       bindName PublicAccess PatternSynName n y
       defn@(as, p) <- withLocalVars $ do
          p  <- toAbstract =<< toAbstract =<< parsePatternSyn p
+         checkPatternLinearity [p]
          as <- (traverse . mapM) (unVarName <=< resolveName . C.QName) as
          as <- (map . fmap) unBlind <$> toAbstract ((map . fmap) Blind as)
          return (as, p)
