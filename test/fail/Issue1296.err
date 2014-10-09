@@ -1,0 +1,4 @@
+Issue1296.agda:1,13-33
+Module cannot be imported since it has open interaction points
+when scope checking the declaration
+  open import Issue1296.SolvedMeta
