@@ -24,6 +24,7 @@ import Agda.Termination.Termination           as TermTerm   (tests)
 import Agda.TypeChecking.Irrelevance          as Irrel      (tests)
 import Agda.TypeChecking.Tests                as TypeChck   (tests)
 import Agda.TypeChecking.SizedTypes.Tests     as SizedTypes (tests)
+import Agda.Utils.Bag                         as UtilBag    (tests)
 import Agda.Utils.BiMap                       as UtilBiMap  (tests)
 import Agda.Utils.Cluster                     as UtilClust  (tests)
 import Agda.Utils.Either                      as UtilEith   (tests)
@@ -58,6 +59,7 @@ testSuite = runTests "QuickCheck test suite:"
   , TermSparse.tests
   , TermTerm.tests
   , TypeChck.tests
+  , UtilBag.tests
   , UtilBiMap.tests
   , UtilClust.tests
   , UtilEith.tests

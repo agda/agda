@@ -641,7 +641,7 @@ instance PrettyTCM TypeError where
             InvalidPattern p -> fsep $
               pretty p : pwords "is not a valid pattern"
             RepeatedVariablesInPattern xs -> fsep $
-              pwords "Repeated variables in left hand side:" ++ map pretty xs
+              pwords "Repeated variables in pattern:" ++ map pretty xs
             NotAnExpression e -> fsep $
                 [pretty e] ++ pwords "is not a valid expression."
             NotAValidLetBinding nd -> fwords $

@@ -1,0 +1,4 @@
+Issue1295.agda:5,1-22
+Repeated variables in pattern: x
+when scope checking the declaration
+  pattern foo x = x , x
