@@ -18,6 +18,8 @@ import qualified Data.Sequence as Seq
 import Data.Set (Set)
 import qualified Data.Set as Set
 
+import Agda.Utils.Bag (Bag)
+import qualified Agda.Utils.Bag as Bag
 import Agda.Utils.Functor
 import Agda.Utils.Monad
 
@@ -33,6 +35,10 @@ instance Null ByteString where
 instance Null [a] where
   empty = []
   null  = List.null
+
+instance Null (Bag a) where
+  empty = Bag.empty
+  null  = Bag.null
 
 instance Null (Map k a) where
   empty = Map.empty
