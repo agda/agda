@@ -60,12 +60,33 @@ import Agda.Utils.Tuple
 import Agda.Utils.Impossible
 
 data SplitClause = SClause
-      { scTel    :: Telescope            -- ^ Type of variables in @scPats@.
-      , scPerm   :: Permutation          -- ^ How to get from the variables in the patterns to the telescope.
-      , scPats   :: [I.NamedArg Pattern] -- ^ The patterns leading to the currently considered branch of the split tree.
-      , scSubst  :: Substitution         -- ^ Substitution from @scTel@ to old context.
-      , scTarget :: Maybe (I.Arg Type)   -- ^ The type of the rhs.
-      }
+  { scTel    :: Telescope
+    -- ^ Type of variables in @scPats@.
+  , scPerm   :: Permutation
+    -- ^ How to get from the variables in the patterns to the telescope.
+  , scPats   :: [I.NamedArg Pattern]
+    -- ^ The patterns leading to the currently considered branch of
+    --   the split tree.
+  , scSubst  :: Substitution
+    -- ^ Substitution from 'scTel' to old context.
+    --   Only needed directly after split on variable:
+    --   * To update 'scTarget'
+    --   * To rename other split variables when splitting on
+    --     multiple variables.
+    --   @scSubst@ is not ``transitive'', i.e., does not record
+    --   the substitution from the original context to 'scTel'
+    --   over a series of splits.  It is freshly computed
+    --   after each split by 'computeNeighborhood'; also
+    --   'splitResult', which does not split on a variable,
+    --   should reset it to the identity 'idS', lest it be
+    --   applied to 'scTarget' again, leading to Issue 1294.
+  , scTarget :: Maybe (I.Arg Type)
+    -- ^ The type of the rhs, living in context 'scTel'.
+    --   This invariant is broken before calls to 'fixTarget';
+    --   there, 'scTarget' lives in the old context.
+    --   'fixTarget' moves 'scTarget' to the new context by applying
+    --   substitution 'scSubst'.
+  }
 
 -- | A @Covering@ is the result of splitting a 'SplitClause'.
 data Covering = Covering
