@@ -27,7 +27,7 @@ module Agda.Syntax.Translation.ConcreteToAbstract
     , PatName, APatName, LetDef, LetDefs
     ) where
 
-import Prelude hiding (mapM)
+import Prelude hiding (mapM, null)
 import Control.Applicative
 import Control.Monad.Reader hiding (mapM)
 
@@ -73,6 +73,7 @@ import Agda.Utils.Functor
 import Agda.Utils.Fresh
 import Agda.Utils.List
 import Agda.Utils.Monad
+import Agda.Utils.Null
 import Agda.Utils.Pretty
 
 #include "../../undefined.h"
@@ -122,9 +123,8 @@ expandEllipsis p ps (C.Clause x (C.Ellipsis _ ps' eqs es) rhs wh wcs) =
 
 -- | Make sure that each variable occurs only once.
 checkPatternLinearity :: [A.Pattern' e] -> ScopeM ()
-checkPatternLinearity ps = case xs \\ nub xs of
-    []  -> return ()
-    ys  -> typeError $ RepeatedVariablesInPattern $ nub ys
+checkPatternLinearity ps = unlessNull (duplicates xs) $ \ ys -> do
+  typeError $ RepeatedVariablesInPattern ys
   where
     xs = concatMap vars ps
     vars :: A.Pattern' e -> [C.Name]
