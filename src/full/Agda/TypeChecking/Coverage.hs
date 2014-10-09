@@ -90,17 +90,6 @@ clauseToSplitClause cl = SClause
 
 type CoverM = ExceptionT SplitError TCM
 
-{- UNUSED
-typeOfVar :: Telescope -> Nat -> Dom Type
-typeOfVar tel n
-  | n >= len  = __IMPOSSIBLE__
-  | otherwise = fmap snd  -- throw away name, keep Arg Type
-                  $ ts !! fromIntegral (len - 1 - n)
-  where
-    len = genericLength ts
-    ts  = telToList tel
--}
-
 -- | Old top-level function for checking pattern coverage.
 --   DEPRECATED
 checkCoverage :: QName -> TCM ()
@@ -168,7 +157,6 @@ cover f cs sc@(SClause tel perm ps _ target) = do
       reportSLn "tc.cover.cover" 10 $ "pattern covered by clause " ++ show i
       -- Check if any earlier clauses could match with appropriate literals
       let is = [ j | (j, c) <- zip [0..i-1] cs, matchLits c ups perm ]
-      -- OLD: let is = [ j | (j, c) <- zip [0..] (genericTake i cs), matchLits c ps perm ]
       reportSLn "tc.cover.cover"  10 $ "literal matches: " ++ show is
       return (SplittingDone (size tel), Set.fromList (i : is), [])
     No       ->  do
@@ -186,41 +174,6 @@ cover f cs sc@(SClause tel perm ps _ target) = do
           -- OR: mapM (traverseF $ cover f cs <=< fixTarget) scs
         let tree = SplitAt n $ zip projs trees
         return (tree, Set.unions useds, concat psss)
-
-      -- caseMaybe target done $ \ t -> do
-      --   isR <- addCtxTel tel $ isRecordType $ unArg t
-      --   case isR of
-      --     Just (_r, vs, Record{ recFields = fs }) -> do
-      --       reportSDoc "tc.cover" 20 $ sep
-      --         [ text $ "we are of record type _r = " ++ show _r
-      --         , text   "applied to parameters vs = " <+> (addCtxTel tel $ prettyTCM vs)
-      --         , text $ "and have fields       fs = " ++ show fs
-      --         ]
-      --       fvs <- freeVarsToApply f
-      --       let es = patternsToElims perm ps
-      --       let self  = defaultArg $ Def f (map Apply fvs) `applyE` es
-      --           pargs = vs ++ [self]
-      --       reportSDoc "tc.cover" 20 $ sep
-      --         [ text   "we are              self = " <+> (addCtxTel tel $ prettyTCM $ unArg self)
-      --         ]
-      --       (projs, (trees, useds, psss)) <- mapSnd unzip3 . unzip <$> do
-      --         forM fs $ \ proj -> do
-      --           -- compute the new target
-      --           dType <- defType <$> do getConstInfo $ unArg proj -- WRONG: typeOfConst $ unArg proj
-      --           let -- type of projection instantiated at self
-      --               target' = Just $ proj $> dType `apply` pargs
-      --               sc' = sc { scPats   = scPats sc ++ [fmap (Named Nothing . ProjP) proj]
-      --                        , scTarget = target'
-      --                        }
-      --           (unArg proj,) <$> do cover f cs =<< fixTarget sc'
-      --       let -- WRONG: -- n = length ps -- past the last argument, is pos. of proj pat.
-      --           -- n = size tel -- past the last variable, is pos. of proj pat. DURING SPLITTING
-      --           n = permRange perm -- Andreas & James, 2013-11-19 includes the dot patterns!
-      --           -- See test/succeed/CopatternsAndDotPatterns.agda for a case with dot patterns
-      --           -- and copatterns which fails for @n = size tel@ with a broken case tree.
-      --           tree = SplitAt n $ zip projs trees
-      --       return (tree, Set.unions useds, concat psss)
-      --     _ -> done
 
     -- case: split on variable
     Block bs -> do
@@ -255,7 +208,7 @@ splitStrategy bs tel = return $ updateLast clearBlockingVarCons xs
   -- Otherwise, we will not get a nice error message.
   where
     xs       = bs
-{-
+{- KEEP!
 --  Andreas, 2012-10-13
 --  The following split strategy which prefers all-constructor columns
 --  fails on test/fail/CoverStrategy
@@ -603,9 +556,6 @@ split' ind sc@(SClause tel perm ps _ target) (BlockingVar x mcons) = liftTCM $ r
   -- Andreas, 2010-09-21, isDatatype now directly throws an exception if it fails
   -- cons = constructors of this datatype
   (d, pars, ixs, cons) <- inContextOfT $ isDatatype ind t
-
-  --liftTCM $ whenM (optWithoutK <$> pragmaOptions) $
-  --  inContextOfT $ Split.wellFormedIndices (unDom t)
 
   -- Compute the neighbourhoods for the constructors
   ns <- catMaybes <$> do
