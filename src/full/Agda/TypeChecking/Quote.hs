@@ -163,7 +163,7 @@ quotingKit = do
           Con x ts   -> con !@! quoteConName x @@ quoteArgs ts
           Pi t u     -> pi !@ quoteDom quoteType t
                              @@ quoteType (absBody u)
-          Level _    -> pure unsupported
+          Level l    -> quote (unlevelWithKit lkit l)
           Lit lit    -> quoteLit lit
           Sort s     -> sort !@ quoteSort s
           Shared p   -> quote $ derefPtr p
