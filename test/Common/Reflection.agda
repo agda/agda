@@ -158,3 +158,6 @@ primitive
   primDataConstructors  : DataDef   → List QName
 --primRecordConstructor : RecordDef → QName
 --primRecordFields      : RecordDef → List QName
+
+type : QName → Type
+type = primQNameType
