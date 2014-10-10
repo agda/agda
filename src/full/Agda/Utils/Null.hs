@@ -10,6 +10,8 @@ import Control.Monad
 
 import Data.ByteString.Char8 (ByteString)
 import qualified Data.ByteString.Char8 as ByteString
+import Data.IntMap (IntMap)
+import qualified Data.IntMap as IntMap
 import qualified Data.List as List
 import Data.Map (Map)
 import qualified Data.Map as Map
@@ -39,6 +41,10 @@ instance Null [a] where
 instance Null (Bag a) where
   empty = Bag.empty
   null  = Bag.null
+
+instance Null (IntMap a) where
+  empty = IntMap.empty
+  null  = IntMap.null
 
 instance Null (Map k a) where
   empty = Map.empty
