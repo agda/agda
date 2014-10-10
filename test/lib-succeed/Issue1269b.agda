@@ -2,6 +2,7 @@
 
 -- Case: quote η-reduced and non η-reduced.
 
+open import Level using ()
 open import Data.Nat
 open import Data.List
 open import Data.Product
@@ -34,8 +35,8 @@ ok = refl
 
 a : quote0 ≡
     def (quote Σ)
-        ( arg (arg-info hidden relevant) unknown ∷
-          arg (arg-info hidden relevant) unknown ∷
+        ( arg (arg-info hidden relevant) (def (quote Level.zero) []) ∷
+          arg (arg-info hidden relevant) (def (quote Level.zero) []) ∷
           arg (arg-info visible relevant) (def (quote ℕ) []) ∷
           arg (arg-info visible relevant) (def (quote Even) []) ∷
           []
@@ -44,8 +45,8 @@ a = refl
 
 b : quote1 ≡
     def (quote Σ)
-        ( arg (arg-info hidden relevant) unknown ∷
-          arg (arg-info hidden relevant) unknown ∷
+        ( arg (arg-info hidden relevant) (def (quote Level.zero) []) ∷
+          arg (arg-info hidden relevant) (def (quote Level.zero) []) ∷
           arg (arg-info visible relevant) (def (quote ℕ) []) ∷
           arg (arg-info visible relevant) (def (quote Even) []) ∷
           []
