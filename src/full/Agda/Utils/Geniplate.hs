@@ -1,4 +1,7 @@
+{-# OPTIONS_GHC -fwarn-missing-signatures #-}
+
 {-# LANGUAGE TemplateHaskell #-}
+{-# LANGUAGE UnicodeSyntax   #-}
 
 -- | Utilities related to Geniplate.
 
@@ -11,12 +14,15 @@ module Agda.Utils.Geniplate
 import Data.Generics.Geniplate
 import Data.Map (Map)
 
+import qualified Language.Haskell.TH as TH
+
 import qualified Agda.Syntax.Abstract.Name as A
 import qualified Agda.Syntax.Concrete.Name as C
 import qualified Agda.Syntax.Scope.Base as S
 
 -- | Types which Geniplate should not descend into.
 
+dontDescendInto ∷ [TH.TypeQ]
 dontDescendInto =
   [ [t| String |]
   , [t| A.QName |]
@@ -32,6 +38,7 @@ dontDescendInto =
 -- 'universeBi' functions neither descend into the types in
 -- 'dontDescendInto', nor into the types in the list argument.
 
+instanceUniverseBiT' ∷ [TH.TypeQ] → TH.TypeQ → TH.Q [TH.Dec]
 instanceUniverseBiT' ts p =
   instanceUniverseBiT (ts ++ dontDescendInto) p
 
@@ -39,5 +46,6 @@ instanceUniverseBiT' ts p =
 -- 'transformBiM' functions neither descend into the types in
 -- 'dontDescendInto', nor into the types in the list argument.
 
+instanceTransformBiMT' ∷ [TH.TypeQ] → TH.TypeQ → TH.TypeQ → TH.Q [TH.Dec]
 instanceTransformBiMT' ts p =
   instanceTransformBiMT (ts ++ dontDescendInto) p

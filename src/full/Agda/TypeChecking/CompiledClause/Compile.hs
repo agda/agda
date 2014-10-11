@@ -20,7 +20,7 @@ import Agda.TypeChecking.RecordPatterns
 import Agda.TypeChecking.Substitute
 import Agda.TypeChecking.Pretty
 
-import Agda.Utils.Functor
+import Agda.Utils.Functor (($>))
 import Agda.Utils.List
 
 #include "../../undefined.h"
