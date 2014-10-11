@@ -1,11 +1,14 @@
+{-# OPTIONS_GHC -fwarn-missing-signatures #-}
+{-# OPTIONS_GHC -O2                       #-}
+
 {-# LANGUAGE CPP                       #-}
 {-# LANGUAGE ExistentialQuantification #-}
 {-# LANGUAGE FlexibleInstances         #-}
 {-# LANGUAGE OverlappingInstances      #-}
 {-# LANGUAGE ScopedTypeVariables       #-}
 {-# LANGUAGE TypeSynonymInstances      #-}
+{-# LANGUAGE UnicodeSyntax             #-}
 
-{-# OPTIONS_GHC -O2 #-}
 
 -- | Structure-sharing serialisation of Agda interface files.
 
@@ -1318,6 +1321,72 @@ vcase valu = \ix -> do
           liftIO $ H.insert memo (ix, aTyp) (U v)
           return v
 
+icode0 ∷ Int32 → S Int32
+
+icode1 ∷ EmbPrj a ⇒ Int32 → a → S Int32
+
+icode2 ∷ (EmbPrj a, EmbPrj b) ⇒
+         Int32 → a → b →
+         S Int32
+
+icode3 ∷ (EmbPrj a, EmbPrj b, EmbPrj c) ⇒
+         Int32 → a → b → c →
+         S Int32
+
+icode4 ∷ (EmbPrj a, EmbPrj b, EmbPrj c, EmbPrj d) ⇒
+         Int32 → a → b → c → d →
+         S Int32
+
+icode5 ∷ (EmbPrj a, EmbPrj b, EmbPrj c, EmbPrj d, EmbPrj e) ⇒
+         Int32 → a → b → c → d → e →
+         S Int32
+
+icode6 ∷ (EmbPrj a, EmbPrj b, EmbPrj c, EmbPrj d, EmbPrj e, EmbPrj f) ⇒
+         Int32 → a → b → c → d → e → f →
+         S Int32
+
+icode7 ∷ ( EmbPrj a, EmbPrj b, EmbPrj c, EmbPrj d, EmbPrj e, EmbPrj f
+         , EmbPrj g ) ⇒
+         Int32 → a → b → c → d → e → f → g →
+         S Int32
+
+icode8 ∷ ( EmbPrj a, EmbPrj b, EmbPrj c, EmbPrj d, EmbPrj e, EmbPrj f
+         , EmbPrj g, EmbPrj h ) ⇒
+         Int32 → a → b → c → d → e → f → g → h →
+         S Int32
+
+icode9 ∷ ( EmbPrj a, EmbPrj b, EmbPrj c, EmbPrj d, EmbPrj e, EmbPrj f
+         , EmbPrj g, EmbPrj h, EmbPrj i ) ⇒
+         Int32 → a → b → c → d → e → f → g → h → i →
+         S Int32
+
+icode10 ∷ ( EmbPrj a, EmbPrj b, EmbPrj c, EmbPrj d, EmbPrj e, EmbPrj f
+          , EmbPrj g, EmbPrj h, EmbPrj i, EmbPrj j ) ⇒
+          Int32 → a → b → c → d → e → f → g → h → i → j →
+          S Int32
+
+icode11 ∷ ( EmbPrj a, EmbPrj b, EmbPrj c, EmbPrj d, EmbPrj e, EmbPrj f
+          , EmbPrj g, EmbPrj h, EmbPrj i, EmbPrj j, EmbPrj k ) ⇒
+          Int32 → a → b → c → d → e → f → g → h → i → j → k →
+          S Int32
+
+icode12 ∷ ( EmbPrj a, EmbPrj b, EmbPrj c, EmbPrj d, EmbPrj e, EmbPrj f
+          , EmbPrj g, EmbPrj h, EmbPrj i, EmbPrj j, EmbPrj k, EmbPrj l ) ⇒
+          Int32 → a → b → c → d → e → f → g → h → i → j → k → l →
+          S Int32
+
+icode13 ∷ ( EmbPrj a, EmbPrj b, EmbPrj c, EmbPrj d, EmbPrj e, EmbPrj f
+          , EmbPrj g, EmbPrj h, EmbPrj i, EmbPrj j, EmbPrj k, EmbPrj l
+          , EmbPrj m ) ⇒
+          Int32 → a → b → c → d → e → f → g → h → i → j → k → l → m →
+          S Int32
+
+icode14 ∷ ( EmbPrj a, EmbPrj b, EmbPrj c, EmbPrj d, EmbPrj e, EmbPrj f
+          , EmbPrj g, EmbPrj h, EmbPrj i, EmbPrj j, EmbPrj k, EmbPrj l
+          , EmbPrj m, EmbPrj n ) ⇒
+          Int32 → a → b → c → d → e → f → g → h → i → j → k → l → m → n →
+          S Int32
+
 icode0  tag                       = icodeN [tag]
 icode1  tag a                     = icodeN . (tag :) =<< sequence [icode a]
 icode2  tag a b                   = icodeN . (tag :) =<< sequence [icode a, icode b]
@@ -1334,6 +1403,72 @@ icode12 tag a b c d e f g h i j k l = icodeN . (tag :) =<< sequence [icode a, ic
 icode13 tag a b c d e f g h i j k l m = icodeN . (tag :) =<< sequence [icode a, icode b, icode c, icode d, icode e, icode f, icode g, icode h, icode i, icode j, icode k, icode l, icode m]
 icode14 tag a b c d e f g h i j k l m n = icodeN . (tag :) =<< sequence [icode a, icode b, icode c, icode d, icode e, icode f, icode g, icode h, icode i, icode j, icode k, icode l, icode m, icode n]
 
+icode0' ∷ S Int32
+
+icode1' ∷ EmbPrj a ⇒ a → S Int32
+
+icode2' ∷ (EmbPrj a, EmbPrj b) ⇒
+          a → b →
+          S Int32
+
+icode3' ∷ (EmbPrj a, EmbPrj b, EmbPrj c) ⇒
+          a → b → c →
+          S Int32
+
+icode4' ∷ (EmbPrj a, EmbPrj b, EmbPrj c, EmbPrj d) ⇒
+          a → b → c → d →
+          S Int32
+
+icode5' ∷ (EmbPrj a, EmbPrj b, EmbPrj c, EmbPrj d, EmbPrj e) ⇒
+          a → b → c → d → e →
+          S Int32
+
+icode6' ∷ (EmbPrj a, EmbPrj b, EmbPrj c, EmbPrj d, EmbPrj e, EmbPrj f) ⇒
+          a → b → c → d → e → f →
+          S Int32
+
+icode7' ∷ ( EmbPrj a, EmbPrj b, EmbPrj c, EmbPrj d, EmbPrj e, EmbPrj f
+          , EmbPrj g ) ⇒
+          a → b → c → d → e → f → g →
+          S Int32
+
+icode8' ∷ ( EmbPrj a, EmbPrj b, EmbPrj c, EmbPrj d, EmbPrj e, EmbPrj f
+          , EmbPrj g, EmbPrj h ) ⇒
+          a → b → c → d → e → f → g → h →
+          S Int32
+
+icode9' ∷ ( EmbPrj a, EmbPrj b, EmbPrj c, EmbPrj d, EmbPrj e, EmbPrj f
+          , EmbPrj g, EmbPrj h, EmbPrj i ) ⇒
+          a → b → c → d → e → f → g → h → i →
+          S Int32
+
+icode10' ∷ ( EmbPrj a, EmbPrj b, EmbPrj c, EmbPrj d, EmbPrj e, EmbPrj f
+           , EmbPrj g, EmbPrj h, EmbPrj i, EmbPrj j ) ⇒
+           a → b → c → d → e → f → g → h → i → j →
+           S Int32
+
+icode11' ∷ ( EmbPrj a, EmbPrj b, EmbPrj c, EmbPrj d, EmbPrj e, EmbPrj f
+           , EmbPrj g, EmbPrj h, EmbPrj i, EmbPrj j, EmbPrj k ) ⇒
+           a → b → c → d → e → f → g → h → i → j → k →
+           S Int32
+
+icode12' ∷ ( EmbPrj a, EmbPrj b, EmbPrj c, EmbPrj d, EmbPrj e, EmbPrj f
+           , EmbPrj g, EmbPrj h, EmbPrj i, EmbPrj j, EmbPrj k, EmbPrj l ) ⇒
+           a → b → c → d → e → f → g → h → i → j → k → l →
+           S Int32
+
+icode13' ∷ ( EmbPrj a, EmbPrj b, EmbPrj c, EmbPrj d, EmbPrj e, EmbPrj f
+           , EmbPrj g, EmbPrj h, EmbPrj i, EmbPrj j, EmbPrj k, EmbPrj l
+           , EmbPrj m ) ⇒
+           a → b → c → d → e → f → g → h → i → j → k → l → m →
+           S Int32
+
+icode14' ∷ ( EmbPrj a, EmbPrj b, EmbPrj c, EmbPrj d, EmbPrj e, EmbPrj f
+           , EmbPrj g, EmbPrj h, EmbPrj i, EmbPrj j, EmbPrj k, EmbPrj l
+           , EmbPrj m, EmbPrj n ) ⇒
+           a → b → c → d → e → f → g → h → i → j → k → l → m → n →
+           S Int32
+
 icode0'                        = icodeN []
 icode1'  a                     = icodeN =<< sequence [icode a]
 icode2'  a b                   = icodeN =<< sequence [icode a, icode b]
@@ -1349,6 +1484,85 @@ icode11' a b c d e f g h i j k = icodeN =<< sequence [icode a, icode b, icode c,
 icode12' a b c d e f g h i j k l = icodeN =<< sequence [icode a, icode b, icode c, icode d, icode e, icode f, icode g, icode h, icode i, icode j, icode k, icode l]
 icode13' a b c d e f g h i j k l m = icodeN =<< sequence [icode a, icode b, icode c, icode d, icode e, icode f, icode g, icode h, icode i, icode j, icode k, icode l, icode m]
 icode14' a b c d e f g h i j k l m n = icodeN =<< sequence [icode a, icode b, icode c, icode d, icode e, icode f, icode g, icode h, icode i, icode j, icode k, icode l, icode m, icode n]
+
+valu0 ∷ a → R a
+
+valu1 ∷ EmbPrj a ⇒ (a → b) → Int32 → R b
+
+valu2 ∷ (EmbPrj a, EmbPrj b) ⇒
+        (a → b → c) →
+        Int32 → Int32 →
+        R c
+
+valu3 ∷ (EmbPrj a, EmbPrj b, EmbPrj c) ⇒
+        (a → b → c → d) →
+        Int32 → Int32 → Int32 →
+        R d
+
+valu4 ∷ (EmbPrj a, EmbPrj b, EmbPrj c, EmbPrj d) ⇒
+        (a → b → c → d → e) →
+        Int32 → Int32 → Int32 → Int32 →
+        R e
+
+valu5 ∷ (EmbPrj a, EmbPrj b, EmbPrj c, EmbPrj d, EmbPrj e) ⇒
+        (a → b → c → d → e → f) →
+        Int32 → Int32 → Int32 → Int32 → Int32 →
+        R f
+
+valu6 ∷ (EmbPrj a, EmbPrj b, EmbPrj c, EmbPrj d, EmbPrj e, EmbPrj f) ⇒
+        (a → b → c → d → e → f → g) →
+        Int32 → Int32 → Int32 → Int32 → Int32 → Int32 →
+        R g
+
+valu7 ∷ ( EmbPrj a, EmbPrj b, EmbPrj c, EmbPrj d, EmbPrj e, EmbPrj f
+        , EmbPrj g ) ⇒
+        (a → b → c → d → e → f → g → h) →
+        Int32 → Int32 → Int32 → Int32 → Int32 → Int32 → Int32 →
+        R h
+
+valu8 ∷ ( EmbPrj a, EmbPrj b, EmbPrj c, EmbPrj d, EmbPrj e, EmbPrj f
+         , EmbPrj g, EmbPrj h ) ⇒
+        (a → b → c → d → e → f → g → h → i) →
+        Int32 → Int32 → Int32 → Int32 → Int32 → Int32 → Int32 → Int32 →
+        R i
+
+valu9 ∷ ( EmbPrj a, EmbPrj b, EmbPrj c, EmbPrj d, EmbPrj e, EmbPrj f
+        , EmbPrj g, EmbPrj h, EmbPrj i ) ⇒
+        (a → b → c → d → e → f → g → h → i → j) →
+        Int32 → Int32 → Int32 → Int32 → Int32 → Int32 → Int32 → Int32 → Int32 →
+        R j
+
+valu10 ∷ ( EmbPrj a, EmbPrj b, EmbPrj c, EmbPrj d, EmbPrj e, EmbPrj f
+         , EmbPrj g, EmbPrj h, EmbPrj i, EmbPrj j ) ⇒
+         (a → b → c → d → e → f → g → h → i → j → k) →
+         Int32 → Int32 → Int32 → Int32 → Int32 → Int32 → Int32 → Int32 → Int32 → Int32 →
+         R k
+
+valu11 ∷ ( EmbPrj a, EmbPrj b, EmbPrj c, EmbPrj d, EmbPrj e, EmbPrj f
+         , EmbPrj g, EmbPrj h, EmbPrj i, EmbPrj j, EmbPrj k ) ⇒
+         (a → b → c → d → e → f → g → h → i → j → k → l) →
+         Int32 → Int32 → Int32 → Int32 → Int32 → Int32 → Int32 → Int32 → Int32 → Int32 → Int32 →
+         R l
+
+valu12 ∷ ( EmbPrj a, EmbPrj b, EmbPrj c, EmbPrj d, EmbPrj e, EmbPrj f
+         , EmbPrj g, EmbPrj h, EmbPrj i, EmbPrj j, EmbPrj k, EmbPrj l ) ⇒
+         (a → b → c → d → e → f → g → h → i → j → k → l → m) →
+         Int32 → Int32 → Int32 → Int32 → Int32 → Int32 → Int32 → Int32 → Int32 → Int32 → Int32 → Int32 →
+          R m
+
+valu13 ∷ ( EmbPrj a, EmbPrj b, EmbPrj c, EmbPrj d, EmbPrj e, EmbPrj f
+         , EmbPrj g, EmbPrj h, EmbPrj i, EmbPrj j, EmbPrj k, EmbPrj l
+         , EmbPrj m ) ⇒
+         (a → b → c → d → e → f → g → h → i → j → k → l → m → n) →
+         Int32 → Int32 → Int32 → Int32 → Int32 → Int32 → Int32 → Int32 → Int32 → Int32 → Int32 → Int32 → Int32 →
+         R n
+
+valu14 ∷ ( EmbPrj a, EmbPrj b, EmbPrj c, EmbPrj d, EmbPrj e, EmbPrj f
+         , EmbPrj g, EmbPrj h, EmbPrj i, EmbPrj j, EmbPrj k, EmbPrj l
+         , EmbPrj m, EmbPrj n ) ⇒
+         (a → b → c → d → e → f → g → h → i → j → k → l → m → n → o) →
+         Int32 → Int32 → Int32 → Int32 → Int32 → Int32 → Int32 → Int32 → Int32 → Int32 → Int32 → Int32 → Int32 → Int32 →
+         R o
 
 valu0  z                           = return z
 valu1  z a                         = valu0 z                        `ap` value a
