@@ -3,4 +3,4 @@ module NoTerminationCheck1 where
 
 {-# NO_TERMINATION_CHECK #-}
 
--- error: misplaced pragma
+-- error: this pragma has been removed

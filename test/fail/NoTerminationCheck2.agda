@@ -1,7 +1,7 @@
 -- 2012-03-08 Andreas
 module NoTerminationCheck2 where
 
-{-# NO_TERMINATION_CHECK #-}
+{-# NON_TERMINATING #-}
 data D : Set where
   lam : (D -> D) -> D
 

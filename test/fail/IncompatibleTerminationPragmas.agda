@@ -5,7 +5,7 @@ mutual
   f : Set
   f = g
 
-  {-# NO_TERMINATION_CHECK #-}
+  {-# TERMINATING #-}
   g : Set
   g = f
 

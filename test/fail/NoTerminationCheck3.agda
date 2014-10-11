@@ -6,7 +6,7 @@ data Bool : Set where
 
 f : Bool -> Bool
 f true = true
-{-# NO_TERMINATION_CHECK #-}
+{-# TERMINATING #-}
 f false = false
 
 -- error: cannot place pragma inbetween clauses

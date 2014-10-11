@@ -52,15 +52,15 @@ module CoPat where
 
 module HandTranslated where
 
-  {-# NO_TERMINATION_CHECK #-}
+  {-# NON_TERMINATING #-}
   map : {A B : Set} → (A → B) → Stream A → Stream B
   map f s = record
     { head = f (S.head s)
     ; tail = map f (S.tail s)
     }
 
-  {- loops
-  {-# NO_TERMINATION_CHECK #-}
+  {- rejected because map is not unfolded
+  {-# NON_TERMINATING #-}
   map_id : {A : Set}(s : Stream A) → map (λ x → x) s ≈ s
   map_id s = record
     { head = refl
@@ -82,16 +82,14 @@ module DeepCoPat where
 
 module ProjectionRHS where
 
-  -- THIS SHOULD NOT TERMINATION CHECK WITH CURRENT TRANSLATION SEMANTICS
-  {-# NO_TERMINATION_CHECK #-}
   repeat′ : {A : Set}(a : A) → Stream A
   (       (S.head (repeat′ a))) = a
   (S.head (S.tail (repeat′ a))) = a
   (S.tail (S.tail (repeat′ a))) = S.tail (repeat′ a)
 
-{- LOOPS
-  repeat≈repeat′ : {A : Set}(a : A) → repeat a ≈ repeat′ a
-  (       (B.head (repeat≈repeat′ a))) = refl
-  (B.head (B.tail (repeat≈repeat′ a))) = refl
-  (B.tail (B.tail (repeat≈repeat′ a))) = repeat≈repeat′ a
--}
+-- -- Type error:
+--   repeat≈repeat′ : {A : Set}(a : A) → repeat a ≈ repeat′ a
+--   (       (B.head (repeat≈repeat′ a))) = refl
+--   (B.head (B.tail (repeat≈repeat′ a))) = refl
+--   (B.tail (B.tail (repeat≈repeat′ a))) = repeat≈repeat′ a
+

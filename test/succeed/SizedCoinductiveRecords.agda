@@ -114,7 +114,7 @@ omegaBad' F i j f = f j
 A : Size → Set
 A i = Nat {i} → Nat
 
-{-# NO_TERMINATION_CHECK #-}
+{-# TERMINATING #-}
 fix : (f : (i : Size) → ((j : Size< i) → A j) → A i) → (i : Size) → A i
 fix f i zero        = zero
 fix f i (suc {j} n) = f i (λ j → fix f j) (suc n)
