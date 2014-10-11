@@ -21,7 +21,7 @@ data Empty : Set where
 
 data ListTag : Set where nil cons : ListTag
 
-{-# NO_TERMINATION_CHECK #-}
+{-# TERMINATING #-}
 List : (A : Set) -> Set
 List A = Sigma ListTag T where
   T : ListTag -> Set
@@ -36,7 +36,7 @@ pattern _∷_ x xs = cons , x , xs
 
 data TyTag : Set where base arr : TyTag
 
-{-# NO_TERMINATION_CHECK #-}
+{-# TERMINATING #-}
 Ty : Set
 Ty = Sigma TyTag T where
   T : TyTag -> Set

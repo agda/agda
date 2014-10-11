@@ -1,7 +1,7 @@
 -- Andreas, 2012-03-08
 module NoNoTerminationCheck where
 
-{-# NO_TERMINATION_CHECK #-}
+{-# NON_TERMINATING #-}
 f : Set
 f = f
 

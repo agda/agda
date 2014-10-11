@@ -4,7 +4,7 @@ module NoTerminationCheck4 where
 data Bool : Set where
   true false : Bool
 
-{-# NO_TERMINATION_CHECK #-}
+{-# NON_TERMINATING #-}
 private
   f : Bool -> Bool
   f true = f true

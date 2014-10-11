@@ -2,7 +2,7 @@ module Issue804 where
 
 mutual
 
-  {-# NO_TERMINATION_CHECK #-}
+  {-# NON_TERMINATING #-}
 
   Foo : Set
   Foo = Foo
