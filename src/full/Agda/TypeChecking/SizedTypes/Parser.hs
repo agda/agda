@@ -22,6 +22,7 @@ import Text.Parsec.Language (haskellDef)
 
 import Agda.TypeChecking.SizedTypes.Syntax
 import Agda.TypeChecking.SizedTypes.Utils
+import Agda.Utils.Functor (($>))
 
 -- | Size meta variable identifiers are upper case or start with x, y, or z.
 isFlexId :: String -> Bool

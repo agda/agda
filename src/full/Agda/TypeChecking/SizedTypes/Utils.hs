@@ -19,9 +19,6 @@ trace  s = applyWhen debug $ Debug.trace s
 traceM ∷ Applicative f ⇒ String → f ()
 traceM s = trace s $ pure ()
 
-($>) ∷ Functor f ⇒ f b → a → f a
-($>) = flip (<$)
-
 class Eq a => Top a where
   top   :: a
   isTop :: a -> Bool
