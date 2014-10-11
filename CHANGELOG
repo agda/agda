@@ -7,19 +7,20 @@ Important changes since 2.4.2:
 Pragmas and options
 ===================
 
-* New pragma {-# TERMINATING #-}
+* New pragma {-# TERMINATING #-} replacing {-# NO_TERMINATION_CHECK #-}
 
-  Complements the existing pragma {-# NON_TERMINATING #-}.  Skips
-  termination check for the associated definitions and marks them as
-  terminating.
+  Complements the existing pragma {-# NON_TERMINATING #-}.
+  Skips termination check for the associated definitions and marks
+  them as terminating.  Thus, it is a replacement for
+  {-# NO_TERMINATION_CHECK #-} with the same semantics.
 
-  Thus, it has the same semantics as {-# NO_TERMINATION_CHECK #-}, and
-  is intended as replacement for the latter, which is henceforth
-  deprecated.
-
-  Short message: no longer use {-# NO_TERMINATION_CHECK #-} to skip
-  the termination check, but label your definitions as either
+  You can no longer use pragma {-# NO_TERMINATION_CHECK #-} to skip
+  the termination check, but must label your definitions as either
   {-# TERMINATING #-} or {-# NON_TERMINATING #-} instead.
+
+  Note: {-# OPTION --no-termination-check #-} labels all your
+  definitions as {-# TERMINATING #-}, putting you in the danger zone
+  of a loop in the type checker.
 
 Language
 ========
