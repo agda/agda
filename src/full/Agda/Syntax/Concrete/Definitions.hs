@@ -140,6 +140,9 @@ data DeclarationException
         | InvalidMeasureMutual Range
           -- ^ In a mutual block, all or none need a MEASURE pragma.
           --   Range is of mutual block.
+        | PragmaNoTerminationCheck Range
+          -- ^ Pragma @{-# NO_TERMINATION_CHECK #-}@ has been replaced
+          --   by {-# TERMINATING #-} and {-# NON_TERMINATING #-}.
     deriving (Typeable)
 
 instance HasRange DeclarationException where
@@ -161,6 +164,7 @@ instance HasRange DeclarationException where
     getRange (WrongContentPostulateBlock r) = r
     getRange (InvalidTerminationCheckPragma r) = r
     getRange (InvalidMeasureMutual r)      = r
+    getRange (PragmaNoTerminationCheck r)  = r
 
 instance HasRange NiceDeclaration where
   getRange (Axiom r _ _ _ _ _ _)           = r
@@ -186,6 +190,8 @@ instance Error DeclarationException where
   noMsg  = strMsg ""
   strMsg = DeclarationPanic
 
+-- These error messages can (should) be terminated by a dot ".",
+-- there is no error context printed after them.
 instance Show DeclarationException where
   show (MultipleFixityDecls xs) = show $
     sep [ fsep $ pwords "Multiple fixity or syntax declarations for"
@@ -219,8 +225,10 @@ instance Show DeclarationException where
     pwords "Using instance here has no effect. Instance applies only to declarations that introduce new identifiers into the module, like type signatures and axioms."
   show (WrongContentPostulateBlock _)      = show $ fsep $
     pwords "A postulate block can only contain type signatures or instance blocks"
+  show (PragmaNoTerminationCheck _) = show $ fsep $
+    pwords "Pragma {-# NO_TERMINATION_CHECK #-} has been removed.  To skip the termination check, label your definitions either as {-# TERMINATING #-} or {-# NON_TERMINATING #-}."
   show (InvalidTerminationCheckPragma _) = show $ fsep $
-    pwords "Termination checking pragmas can only preceed a mutual block or a function definition."
+    pwords "Termination checking pragmas can only precede a mutual block or a function definition."
   show (InvalidMeasureMutual _) = show $ fsep $
     pwords "In a mutual block, either all functions must have the same (or no) termination checking pragma."
   show (NotAllowedInMutual nd) = show $ fsep $
@@ -483,6 +491,8 @@ niceDeclarations ds = do
 
     nice :: [Declaration] -> Nice [NiceDeclaration]
     nice [] = return []
+    nice (Pragma (TerminationCheckPragma r NoTerminationCheck) : _) =
+      throwError $ PragmaNoTerminationCheck r
     nice (Pragma (TerminationCheckPragma r tc) : ds@(Mutual{} : _)) | notMeasure tc = do
       ds <- nice ds
       case ds of
@@ -563,6 +573,8 @@ niceDeclarations ds = do
           fx <- getFixity x
           (NiceUnquoteDecl r fx PublicAccess ConcreteDef TerminationCheck x e :) <$> nice ds
 
+        Pragma (TerminationCheckPragma r NoTerminationCheck) ->
+          throwError $ PragmaNoTerminationCheck r
         Pragma (TerminationCheckPragma r _) ->
           throwError $ InvalidTerminationCheckPragma r
         Pragma p            -> (NicePragma (getRange p) p :) <$> nice ds
