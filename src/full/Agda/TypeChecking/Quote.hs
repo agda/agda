@@ -12,37 +12,35 @@ import Control.Applicative
 import Control.Monad.State (evalState, get, put)
 import Control.Monad.Writer (execWriterT, tell)
 
+import Data.Char
 import Data.Maybe (fromMaybe)
 import Data.Traversable (traverse)
-import Data.Char
 
-import Agda.Syntax.Position
-import Agda.Syntax.Literal
-import Agda.Syntax.Internal as I
 import Agda.Syntax.Common
+import Agda.Syntax.Internal as I
+import Agda.Syntax.Literal
+import Agda.Syntax.Position
 import Agda.Syntax.Translation.InternalToAbstract
 
-import {-# SOURCE #-} Agda.TypeChecking.Datatypes
-import Agda.TypeChecking.Monad
-import Agda.TypeChecking.Monad.Builtin
-import Agda.TypeChecking.Reduce
-import Agda.TypeChecking.Reduce.Monad
-import Agda.TypeChecking.Pretty
-import Agda.TypeChecking.Substitute
-import Agda.TypeChecking.DropArgs
 import Agda.TypeChecking.CompiledClause
+import {-# SOURCE #-} Agda.TypeChecking.Datatypes
+import Agda.TypeChecking.DropArgs
 import Agda.TypeChecking.Free
 import Agda.TypeChecking.Level
+import Agda.TypeChecking.Monad
+import Agda.TypeChecking.Monad.Builtin
+import Agda.TypeChecking.Pretty
+import Agda.TypeChecking.Reduce
+import Agda.TypeChecking.Reduce.Monad
+import Agda.TypeChecking.Substitute
 
 import Agda.Utils.Except ( MonadError(catchError) )
-
-import Agda.Utils.String
-import Agda.Utils.Permutation
-
-import Agda.Utils.Monad
+import Agda.Utils.Impossible
+import Agda.Utils.Monad ( ifM )
+import Agda.Utils.Permutation ( Permutation(Perm) )
+import Agda.Utils.String ( getStr, Str(Str) )
 
 #include "../undefined.h"
-import Agda.Utils.Impossible
 
 quotingKit :: TCM (Term -> ReduceM Term, Type -> ReduceM Term, Clause -> ReduceM Term)
 quotingKit = do
