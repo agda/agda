@@ -125,7 +125,7 @@ quotingKit = do
       quoteSortLevelTerm ∷ Level → ReduceM Term
       quoteSortLevelTerm (Max [])              = setLit !@! Lit (LitInt noRange 0)
       quoteSortLevelTerm (Max [ClosedLevel n]) = setLit !@! Lit (LitInt noRange n)
-      quoteSortLevelTerm l                     = set !@ quote (unlevelWithKit lkit l)
+      quoteSortLevelTerm l                     = set !@ quoteTerm (unlevelWithKit lkit l)
 
       quoteSort ∷ Sort → ReduceM Term
       quoteSort (Type t) = quoteSortLevelTerm t
@@ -134,7 +134,7 @@ quotingKit = do
       quoteSort DLub{}   = pure unsupportedSort
 
       quoteType ∷ Type → ReduceM Term
-      quoteType (El s t) = el !@ quoteSort s @@ quote t
+      quoteType (El s t) = el !@ quoteSort s @@ quoteTerm t
 
       quoteQName ∷ QName → ReduceM Term
       quoteQName x = pure $ Lit $ LitQName noRange x
@@ -151,7 +151,7 @@ quotingKit = do
       quotePat (ProjP x)     = projP !@ quoteQName x
 
       quoteBody ∷ I.ClauseBody → Maybe (ReduceM Term)
-      quoteBody (Body a) = Just (quote a)
+      quoteBody (Body a) = Just (quoteTerm a)
       quoteBody (Bind b) = quoteBody (absBody b)
       quoteBody NoBody   = Nothing
 
@@ -172,15 +172,15 @@ quotingKit = do
       quoteArg q (Arg info t) = arg !@ quoteArgInfo info @@ q t
 
       quoteArgs ∷ I.Args → ReduceM Term
-      quoteArgs ts = list (map (quoteArg quote) ts)
+      quoteArgs ts = list (map (quoteArg quoteTerm) ts)
 
-      quote ∷ Term → ReduceM Term
-      quote v =
+      quoteTerm ∷ Term → ReduceM Term
+      quoteTerm v =
         case unSpine v of
           Var n es   ->
              let ts = fromMaybe __IMPOSSIBLE__ $ allApplyElims es
              in  var !@! Lit (LitInt noRange $ fromIntegral n) @@ quoteArgs ts
-          Lam info t -> lam !@ quoteHiding (getHiding info) @@ quote (absBody t)
+          Lam info t -> lam !@ quoteHiding (getHiding info) @@ quoteTerm (absBody t)
           Def x es   -> do
             d <- theDef <$> getConstInfo x
             qx d @@ quoteArgs ts
@@ -194,15 +194,15 @@ quotingKit = do
           Con x ts   -> con !@! quoteConName x @@ quoteArgs ts
           Pi t u     -> pi !@ quoteDom quoteType t
                              @@ quoteType (absBody u)
-          Level l    -> quote (unlevelWithKit lkit l)
+          Level l    -> quoteTerm (unlevelWithKit lkit l)
           Lit lit    -> quoteLit lit
           Sort s     -> sort !@ quoteSort s
-          Shared p   -> quote $ derefPtr p
+          Shared p   -> quoteTerm $ derefPtr p
           MetaV{}    -> pure unsupported
           DontCare{} -> pure unsupported -- could be exposed at some point but we have to take care
           ExtLam{}   -> __IMPOSSIBLE__
 
-  return (quote, quoteType, quoteClause)
+  return (quoteTerm, quoteType, quoteClause)
 
 quoteName :: QName -> Term
 quoteName x = Lit (LitQName noRange x)
