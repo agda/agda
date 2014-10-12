@@ -21,7 +21,7 @@ open Move using (picked)
 
 Strategy = ℕ → Move
 
-{-# NO_TERMINATION_CHECK #-}
+{-# TERMINATING #-}
 play : ℕ → Strategy → Strategy → List ℕ
 play 0 _ _ = []
 play n p1 p2 = n ∷ play (n ∸ picked (p1 n)) p2 p1
