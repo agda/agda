@@ -12,37 +12,35 @@ import Control.Applicative
 import Control.Monad.State (evalState, get, put)
 import Control.Monad.Writer (execWriterT, tell)
 
+import Data.Char
 import Data.Maybe (fromMaybe)
 import Data.Traversable (traverse)
-import Data.Char
 
-import Agda.Syntax.Position
-import Agda.Syntax.Literal
-import Agda.Syntax.Internal as I
 import Agda.Syntax.Common
+import Agda.Syntax.Internal as I
+import Agda.Syntax.Literal
+import Agda.Syntax.Position
 import Agda.Syntax.Translation.InternalToAbstract
 
-import {-# SOURCE #-} Agda.TypeChecking.Datatypes
-import Agda.TypeChecking.Monad
-import Agda.TypeChecking.Monad.Builtin
-import Agda.TypeChecking.Reduce
-import Agda.TypeChecking.Reduce.Monad
-import Agda.TypeChecking.Pretty
-import Agda.TypeChecking.Substitute
-import Agda.TypeChecking.DropArgs
 import Agda.TypeChecking.CompiledClause
+import Agda.TypeChecking.Datatypes ( getConHead )
+import Agda.TypeChecking.DropArgs
 import Agda.TypeChecking.Free
 import Agda.TypeChecking.Level
+import Agda.TypeChecking.Monad
+import Agda.TypeChecking.Monad.Builtin
+import Agda.TypeChecking.Pretty
+import Agda.TypeChecking.Reduce
+import Agda.TypeChecking.Reduce.Monad
+import Agda.TypeChecking.Substitute
 
 import Agda.Utils.Except ( MonadError(catchError) )
-
-import Agda.Utils.String
-import Agda.Utils.Permutation
-
-import Agda.Utils.Monad
+import Agda.Utils.Impossible
+import Agda.Utils.Monad ( ifM )
+import Agda.Utils.Permutation ( Permutation(Perm) )
+import Agda.Utils.String ( Str(Str), unStr )
 
 #include "../undefined.h"
-import Agda.Utils.Impossible
 
 quotingKit :: TCM (Term -> ReduceM Term, Type -> ReduceM Term, Clause -> ReduceM Term)
 quotingKit = do
@@ -127,7 +125,7 @@ quotingKit = do
       quoteSortLevelTerm ∷ Level → ReduceM Term
       quoteSortLevelTerm (Max [])              = setLit !@! Lit (LitInt noRange 0)
       quoteSortLevelTerm (Max [ClosedLevel n]) = setLit !@! Lit (LitInt noRange n)
-      quoteSortLevelTerm l                     = set !@ quote (unlevelWithKit lkit l)
+      quoteSortLevelTerm l                     = set !@ quoteTerm (unlevelWithKit lkit l)
 
       quoteSort ∷ Sort → ReduceM Term
       quoteSort (Type t) = quoteSortLevelTerm t
@@ -136,7 +134,7 @@ quotingKit = do
       quoteSort DLub{}   = pure unsupportedSort
 
       quoteType ∷ Type → ReduceM Term
-      quoteType (El s t) = el !@ quoteSort s @@ quote t
+      quoteType (El s t) = el !@ quoteSort s @@ quoteTerm t
 
       quoteQName ∷ QName → ReduceM Term
       quoteQName x = pure $ Lit $ LitQName noRange x
@@ -153,7 +151,7 @@ quotingKit = do
       quotePat (ProjP x)     = projP !@ quoteQName x
 
       quoteBody ∷ I.ClauseBody → Maybe (ReduceM Term)
-      quoteBody (Body a) = Just (quote a)
+      quoteBody (Body a) = Just (quoteTerm a)
       quoteBody (Bind b) = quoteBody (absBody b)
       quoteBody NoBody   = Nothing
 
@@ -174,15 +172,15 @@ quotingKit = do
       quoteArg q (Arg info t) = arg !@ quoteArgInfo info @@ q t
 
       quoteArgs ∷ I.Args → ReduceM Term
-      quoteArgs ts = list (map (quoteArg quote) ts)
+      quoteArgs ts = list (map (quoteArg quoteTerm) ts)
 
-      quote ∷ Term → ReduceM Term
-      quote v =
+      quoteTerm ∷ Term → ReduceM Term
+      quoteTerm v =
         case unSpine v of
           Var n es   ->
              let ts = fromMaybe __IMPOSSIBLE__ $ allApplyElims es
              in  var !@! Lit (LitInt noRange $ fromIntegral n) @@ quoteArgs ts
-          Lam info t -> lam !@ quoteHiding (getHiding info) @@ quote (absBody t)
+          Lam info t -> lam !@ quoteHiding (getHiding info) @@ quoteTerm (absBody t)
           Def x es   -> do
             d <- theDef <$> getConstInfo x
             qx d @@ quoteArgs ts
@@ -196,15 +194,15 @@ quotingKit = do
           Con x ts   -> con !@! quoteConName x @@ quoteArgs ts
           Pi t u     -> pi !@ quoteDom quoteType t
                              @@ quoteType (absBody u)
-          Level l    -> quote (unlevelWithKit lkit l)
+          Level l    -> quoteTerm (unlevelWithKit lkit l)
           Lit lit    -> quoteLit lit
           Sort s     -> sort !@ quoteSort s
-          Shared p   -> quote $ derefPtr p
+          Shared p   -> quoteTerm $ derefPtr p
           MetaV{}    -> pure unsupported
           DontCare{} -> pure unsupported -- could be exposed at some point but we have to take care
           ExtLam{}   -> __IMPOSSIBLE__
 
-  return (quote, quoteType, quoteClause)
+  return (quoteTerm, quoteType, quoteClause)
 
 quoteName :: QName -> Term
 quoteName x = Lit (LitQName noRange x)
@@ -433,7 +431,7 @@ instance Unquote Literal where
           [ (c `isCon` primAgdaLitNat,    LitInt    noRange <$> unquoteN x)
           , (c `isCon` primAgdaLitFloat,  LitFloat  noRange <$> unquoteN x)
           , (c `isCon` primAgdaLitChar,   LitChar   noRange <$> unquoteN x)
-          , (c `isCon` primAgdaLitString, LitString noRange . getStr <$> unquoteN x)
+          , (c `isCon` primAgdaLitString, LitString noRange . unStr <$> unquoteN x)
           , (c `isCon` primAgdaLitQName,  LitQName  noRange <$> unquoteN x) ]
           (unquoteFailed "Literal" "not a literal constructor" t)
       _ -> unquoteFailed "Literal" "not a literal constructor" t

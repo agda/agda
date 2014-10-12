@@ -1,3 +1,5 @@
+{-# OPTIONS_GHC -fwarn-missing-signatures #-}
+
 {-# LANGUAGE DeriveFoldable            #-}
 {-# LANGUAGE DeriveFunctor             #-}
 {-# LANGUAGE DeriveTraversable         #-}
@@ -106,7 +108,7 @@ getPolarity pols x = Map.findWithDefault Least x pols
 -- | Partial substitution from flexible variables to size expression.
 type Solution rigid flex = Map flex (SizeExpr' rigid flex)
 
-emptySolution = Map.empty
+-- emptySolution = Map.empty
 
 -- | Executing a substitution.
 class Substitute r f a where
