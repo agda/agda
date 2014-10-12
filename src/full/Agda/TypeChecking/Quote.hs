@@ -2,8 +2,9 @@
 
 {-# LANGUAGE CPP                  #-}
 {-# LANGUAGE FlexibleInstances    #-}
-{-# LANGUAGE TypeSynonymInstances #-}
 {-# LANGUAGE PatternGuards        #-}
+{-# LANGUAGE TypeSynonymInstances #-}
+{-# LANGUAGE UnicodeSyntax        #-}
 
 module Agda.TypeChecking.Quote where
 
@@ -90,60 +91,92 @@ quotingKit = do
       t @@ u = apply <$> t <*> ((:[]) . defaultArg <$> u)
 
       (!@) :: Apply a => a -> ReduceM Term -> ReduceM a
-      t !@  u = pure t @@ u
+      t !@ u = pure t @@ u
 
       (!@!) :: Apply a => a -> Term -> ReduceM a
       t !@! u = pure t @@ pure u
 
+      quoteHiding ∷ Hiding → ReduceM Term
       quoteHiding Hidden    = pure hidden
       quoteHiding Instance  = pure instanceH
       quoteHiding NotHidden = pure visible
+
+      quoteRelevance ∷ Relevance → ReduceM Term
       quoteRelevance Relevant   = pure relevant
       quoteRelevance Irrelevant = pure irrelevant
       quoteRelevance NonStrict  = pure relevant
       quoteRelevance Forced     = pure relevant
       quoteRelevance UnusedArg  = pure relevant
-      quoteColors _ = nil -- TODO guilhem
+
+--      quoteColors _ = nil -- TODO guilhem
+
+      quoteArgInfo ∷ I.ArgInfo → ReduceM Term
       quoteArgInfo (ArgInfo h r cs) = arginfo !@ quoteHiding h
                                               @@ quoteRelevance r
                                 --              @@ quoteColors cs
+
+      quoteLit ∷ Literal → ReduceM Term
       quoteLit l@LitInt{}    = lit !@ (litNat    !@! Lit l)
       quoteLit l@LitFloat{}  = lit !@ (litFloat  !@! Lit l)
       quoteLit l@LitChar{}   = lit !@ (litChar   !@! Lit l)
       quoteLit l@LitString{} = lit !@ (litString !@! Lit l)
       quoteLit l@LitQName{}  = lit !@ (litQName  !@! Lit l)
+
       -- We keep no ranges in the quoted term, so the equality on terms
       -- is only on the structure.
+      quoteSortLevelTerm ∷ Level → ReduceM Term
       quoteSortLevelTerm (Max [])              = setLit !@! Lit (LitInt noRange 0)
       quoteSortLevelTerm (Max [ClosedLevel n]) = setLit !@! Lit (LitInt noRange n)
-      quoteSortLevelTerm l = set !@ quote (unlevelWithKit lkit l)
-      quoteSort (Type t)    = quoteSortLevelTerm t
-      quoteSort Prop        = pure unsupportedSort
-      quoteSort Inf         = pure unsupportedSort
-      quoteSort DLub{}      = pure unsupportedSort
+      quoteSortLevelTerm l                     = set !@ quote (unlevelWithKit lkit l)
+
+      quoteSort ∷ Sort → ReduceM Term
+      quoteSort (Type t) = quoteSortLevelTerm t
+      quoteSort Prop     = pure unsupportedSort
+      quoteSort Inf      = pure unsupportedSort
+      quoteSort DLub{}   = pure unsupportedSort
+
+      quoteType ∷ Type → ReduceM Term
       quoteType (El s t) = el !@ quoteSort s @@ quote t
 
+      quoteQName ∷ QName → ReduceM Term
       quoteQName x = pure $ Lit $ LitQName noRange x
+
+      quotePats ∷ [I.NamedArg Pattern] → ReduceM Term
       quotePats ps = list $ map (quoteArg quotePat . fmap namedThing) ps
+
+      quotePat ∷ Pattern → ReduceM Term
       quotePat (VarP "()")   = pure absurdP
       quotePat (VarP _)      = pure varP
       quotePat (DotP _)      = pure dotP
       quotePat (ConP c _ ps) = conP !@ quoteQName (conName c) @@ quotePats ps
       quotePat (LitP l)      = litP !@! Lit l
       quotePat (ProjP x)     = projP !@ quoteQName x
+
+      quoteBody ∷ I.ClauseBody → Maybe (ReduceM Term)
       quoteBody (Body a) = Just (quote a)
       quoteBody (Bind b) = quoteBody (absBody b)
       quoteBody NoBody   = Nothing
+
+      quoteClause ∷ Clause → ReduceM Term
       quoteClause Clause{namedClausePats = ps, clauseBody = body} =
         case quoteBody body of
           Nothing -> absurdClause !@ quotePats ps
           Just b  -> normalClause !@ quotePats ps @@ b
 
-      list [] = pure nil
+      list ∷ [ReduceM Term] → ReduceM Term
+      list []       = pure nil
       list (a : as) = cons !@ a @@ list as
+
+      quoteDom ∷ (Type → ReduceM Term) → I.Dom Type → ReduceM Term
       quoteDom q (Dom info t) = arg !@ quoteArgInfo info @@ q t
+
+      quoteArg ∷ (a → ReduceM Term) → I.Arg a → ReduceM Term
       quoteArg q (Arg info t) = arg !@ quoteArgInfo info @@ q t
+
+      quoteArgs ∷ I.Args → ReduceM Term
       quoteArgs ts = list (map (quoteArg quote) ts)
+
+      quote ∷ Term → ReduceM Term
       quote v =
         case unSpine v of
           Var n es   ->
@@ -170,6 +203,7 @@ quotingKit = do
           MetaV{}    -> pure unsupported
           DontCare{} -> pure unsupported -- could be exposed at some point but we have to take care
           ExtLam{}   -> __IMPOSSIBLE__
+
   return (quote, quoteType, quoteClause)
 
 quoteName :: QName -> Term

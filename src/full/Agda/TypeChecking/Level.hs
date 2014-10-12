@@ -1,4 +1,7 @@
-{-# LANGUAGE CPP #-}
+{-# OPTIONS_GHC -fwarn-missing-signatures #-}
+
+{-# LANGUAGE CPP           #-}
+{-# LANGUAGE UnicodeSyntax #-}
 
 module Agda.TypeChecking.Level where
 
@@ -94,6 +97,7 @@ unlevelWithKit LevelKit{ lvlZero = zer, lvlSuc = suc, lvlMax = max } (Max as) =
     []  -> zer
     as  -> foldr1 max as
 
+unPlusV ∷ Term → (Term → Term) → PlusLevel → Term
 unPlusV zer suc (ClosedLevel n) = foldr (.) id (genericReplicate n suc) zer
 unPlusV _   suc (Plus n a)      = foldr (.) id (genericReplicate n suc) (unLevelAtom a)
 

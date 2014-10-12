@@ -42,13 +42,6 @@ Language
   The last A produces an error, since it could refer to the local
   variable A or to the definition imported from module M.
 
-* Quoting levels now results in a proper term rather than `unknown`.
-
-  Example:
-
-    test : quoteTerm lzero ≡ def (quote lzero) []
-    test = refl
-
 Type checking
 =============
 
