@@ -792,6 +792,7 @@ instance DotVars A.Expr where
     A.ScopedExpr _ e       -> dotVars e
     A.Var x                -> Set.singleton x -- add any expression variable
     A.Def _                -> Set.empty
+    A.Proj _               -> Set.empty
     A.Con _                -> Set.empty
     A.Lit _                -> Set.empty
     A.QuestionMark{}       -> Set.empty

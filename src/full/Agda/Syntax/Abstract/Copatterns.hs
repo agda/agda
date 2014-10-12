@@ -270,6 +270,7 @@ instance Rename Expr where
     case e of
       Var x                 -> Var $ maybe x id (rho x)
       Def f                 -> e
+      Proj f                -> e
       Con c                 -> e
       Lit l                 -> e
       QuestionMark{}        -> e

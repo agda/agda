@@ -73,6 +73,7 @@ instance ExprLike Expr where
     case e of
       Var{}                -> m
       Def{}                -> m
+      Proj{}               -> m
       Con{}                -> m
       PatternSyn{}         -> m
       Lit{}                -> m

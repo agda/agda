@@ -73,6 +73,7 @@ instance Ord Color where
 data Expr
   = Var  Name                          -- ^ Bound variable.
   | Def  QName                         -- ^ Constant: axiom, function, data or record type.
+  | Proj QName                         -- ^ Projection.
   | Con  AmbiguousQName                -- ^ Constructor.
   | PatternSyn QName                   -- ^ Pattern synonym.
   | Lit Literal                        -- ^ Literal.
@@ -415,6 +416,7 @@ instance HasRange TypedBinding where
 instance HasRange Expr where
     getRange (Var x)               = getRange x
     getRange (Def x)               = getRange x
+    getRange (Proj x)              = getRange x
     getRange (Con x)               = getRange x
     getRange (Lit l)               = getRange l
     getRange (QuestionMark i _)    = getRange i
@@ -524,6 +526,7 @@ instance KillRange TypedBinding where
 instance KillRange Expr where
   killRange (Var x)                = killRange1 Var x
   killRange (Def x)                = killRange1 Def x
+  killRange (Proj x)               = killRange1 Proj x
   killRange (Con x)                = killRange1 Con x
   killRange (Lit l)                = killRange1 Lit l
   killRange (QuestionMark i ii)    = killRange2 QuestionMark i ii
@@ -690,6 +693,7 @@ instance AllNames RHS where
 instance AllNames Expr where
   allNames Var{}                   = Seq.empty
   allNames Def{}                   = Seq.empty
+  allNames Proj{}                  = Seq.empty
   allNames Con{}                   = Seq.empty
   allNames Lit{}                   = Seq.empty
   allNames QuestionMark{}          = Seq.empty
@@ -809,6 +813,7 @@ substExpr :: [(Name, Expr)] -> Expr -> Expr
 substExpr s e = case e of
   Var n                 -> fromMaybe e (lookup n s)
   Def _                 -> e
+  Proj{}                -> e
   Con _                 -> e
   Lit _                 -> e
   QuestionMark{}        -> e
