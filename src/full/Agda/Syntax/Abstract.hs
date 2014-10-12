@@ -71,10 +71,11 @@ instance Ord Color where
 
 -- | Expressions after scope checking (operators parsed, names resolved).
 data Expr
-  = Var  Name                          -- ^ Bound variables
-  | Def  QName                         -- ^ Constants (i.e. axioms, functions, projections, and datatypes)
-  | Con  AmbiguousQName                -- ^ Constructors
-  | Lit Literal                        -- ^ Literals
+  = Var  Name                          -- ^ Bound variable.
+  | Def  QName                         -- ^ Constant: axiom, function, data or record type.
+  | Con  AmbiguousQName                -- ^ Constructor.
+  | PatternSyn QName                   -- ^ Pattern synonym.
+  | Lit Literal                        -- ^ Literal.
   | QuestionMark MetaInfo InteractionId
     -- ^ Meta variable for interaction.
     --   The 'InteractionId' is usually identical with the
@@ -84,27 +85,26 @@ data Expr
     --   'metaNumber' to 'Nothing' while keeping the 'InteractionId'.
   | Underscore   MetaInfo
     -- ^ Meta variable for hidden argument (must be inferred locally).
-  | App  ExprInfo Expr (NamedArg Expr) -- ^
-  | WithApp ExprInfo Expr [Expr]       -- ^ with application
-  | Lam  ExprInfo LamBinding Expr      -- ^
-  | AbsurdLam ExprInfo Hiding
+  | App  ExprInfo Expr (NamedArg Expr) -- ^ Ordinary (binary) application.
+  | WithApp ExprInfo Expr [Expr]       -- ^ With application.
+  | Lam  ExprInfo LamBinding Expr      -- ^ @λ bs → e@.
+  | AbsurdLam ExprInfo Hiding          -- ^ @λ()@ or @λ{}@.
   | ExtendedLam ExprInfo DefInfo QName [Clause]
-  | Pi   ExprInfo Telescope Expr       -- ^
-  | Fun  ExprInfo (Arg Expr) Expr      -- ^ independent function space
-  | Set  ExprInfo Integer              -- ^ Set, Set1, Set2, ...
-  | Prop ExprInfo                      -- ^
-  | Let  ExprInfo [LetBinding] Expr    -- ^
-  | ETel Telescope                     -- ^ only used when printing telescopes
-  | Rec  ExprInfo Assigns              -- ^ record construction
-  | RecUpdate ExprInfo Expr Assigns    -- ^ record update
-  | ScopedExpr ScopeInfo Expr          -- ^ scope annotation
-  | QuoteGoal ExprInfo Name Expr       -- ^ binds @Name@ to current type in @Expr@
-  | QuoteContext ExprInfo Name Expr    -- ^ binds @Name@ to current context in @Expr@
+  | Pi   ExprInfo Telescope Expr       -- ^ Dependent function space @Γ → A@.
+  | Fun  ExprInfo (Arg Expr) Expr      -- ^ Non-dependent function space.
+  | Set  ExprInfo Integer              -- ^ @Set@, @Set1@, @Set2@, ...
+  | Prop ExprInfo                      -- ^ @Prop@ (no longer supported, used as dummy type).
+  | Let  ExprInfo [LetBinding] Expr    -- ^ @let bs in e@.
+  | ETel Telescope                     -- ^ Only used when printing telescopes.
+  | Rec  ExprInfo Assigns              -- ^ Record construction.
+  | RecUpdate ExprInfo Expr Assigns    -- ^ Record update.
+  | ScopedExpr ScopeInfo Expr          -- ^ Scope annotation.
+  | QuoteGoal ExprInfo Name Expr       -- ^ Binds @Name@ to current type in @Expr@.
+  | QuoteContext ExprInfo Name Expr    -- ^ Binds @Name@ to current context in @Expr@.
   | Quote ExprInfo                     -- ^ Quote an identifier 'QName'.
   | QuoteTerm ExprInfo                 -- ^ Quote a term.
   | Unquote ExprInfo                   -- ^ The splicing construct: unquote ...
-  | DontCare Expr                      -- ^ for printing DontCare from Syntax.Internal
-  | PatternSyn QName
+  | DontCare Expr                      -- ^ For printing @DontCare@ from @Syntax.Internal@.
   deriving (Typeable, Show)
 
 -- | Record field assignment @f = e@.
