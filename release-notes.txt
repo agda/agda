@@ -39,6 +39,8 @@ Important changes since 0.8.1:
 
      This change could break some code.
 
+ These change could break some code (see Agda issue 1269).
+
   ** The Reflection.type function returns a normalised Reflection.Type
      and quoteTerm returns an η-contracted Reflection.Term now. These
      changes could break some code (see Agda issue 1269).
