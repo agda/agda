@@ -298,42 +298,6 @@ class LHSToSpine a b where
   lhsToSpine :: a -> b
   spineToLhs :: b -> a
 
-{-
--- | Pattern instance.
--- instance LHSToSpine (LHSCore' e) (A.QNamed [NamedArg (Pattern' e)]) where
-instance LHSToSpine (LHSCore' e) (A.QNamed [Common.NamedArg Expr (Pattern' e)]) where
-  lhsToSpine (LHSHead f ps) = QNamed f ps
-  lhsToSpine (LHSProj d ps1 h ps2) = (++ (p : ps2)) <$> lhsToSpine (namedArg h)
-    where p = updateNamedArg (const $ DefP patNoRange d ps1) h
-
-instance SpineToLHS (LHSCore' e) (A.QNamed [Common.NamedArg Expr (Pattern' e)]) where
-  spineToLhs (QNamed f ps) = lhsCoreAddSpine (LHSHead f []) ps
-    where
-      -- | Add applicative patterns (non-projection patterns) to the right.
-      -- lhsCoreApp :: LHSCore' e -> [NamedArg (Pattern' e)] -> LHSCore' e
-      lhsCoreApp (LHSHead f ps)        ps' = LHSHead f $ ps ++ ps'
-      lhsCoreApp (LHSProj d ps1 h ps2) ps' = LHSProj d ps1 h $ ps2 ++ ps'
-
-      -- | Add projection and applicative patterns to the right.
-      -- lhsCoreAddSpine :: LHSCore' e -> [NamedArg (Pattern' e)] -> LHSCore' e
-      lhsCoreAddSpine core ps = case ps2 of
-          []                                      -> lhsCoreApp core ps
-          (Common.Arg info (Named n (DefP i d ps0)) : ps2') ->
-             LHSProj d ps0 (Common.Arg info $ Named n $ lhsCoreApp core ps1) []
-               `lhsCoreAddSpine` ps2'
-          _ -> __IMPOSSIBLE__
-        where
-          (ps1, ps2) = break (isDefP . namedArg) ps
-          isDefP DefP{} = True
-          isDefP _      = False
--}
-
--- | LHS instance.
-instance LHSToSpine LHS SpineLHS where
-  lhsToSpine (LHS i core wps) = SpineLHS i f ps wps
-    where QNamed f ps = lhsCoreToSpine core
-  spineToLhs (SpineLHS i f ps wps) = LHS i (spineToLhsCore $ QNamed f ps) wps
-
 -- | Clause instance.
 instance LHSToSpine Clause SpineClause where
   lhsToSpine = fmap lhsToSpine
@@ -344,17 +308,11 @@ instance LHSToSpine a b => LHSToSpine [a] [b] where
   lhsToSpine = map lhsToSpine
   spineToLhs = map spineToLhs
 
-
-{-
--- | Convert a focused lhs to spine view.
-lhsToSpine :: LHS -> SpineLHS
-lhsToSpine (LHS i core wps) = SpineLHS i f ps wps
-  where QNamed f ps = lhsCoreToSpine core
-
--- | Convert a lhs from spine view into focused view.
-spineToLhs :: SpineLHS -> LHS
-spineToLhs (SpineLHS i f ps wps) = LHS i (spineToLhsCore $ QNamed f ps) wps
--}
+-- | LHS instance.
+instance LHSToSpine LHS SpineLHS where
+  lhsToSpine (LHS i core wps) = SpineLHS i f ps wps
+    where QNamed f ps = lhsCoreToSpine core
+  spineToLhs (SpineLHS i f ps wps) = LHS i (spineToLhsCore $ QNamed f ps) wps
 
 lhsCoreToSpine :: LHSCore' e -> A.QNamed [NamedArg (Pattern' e)]
 lhsCoreToSpine (LHSHead f ps) = QNamed f ps
@@ -372,27 +330,19 @@ lhsCoreApp (LHSProj d ps1 h ps2) ps' = LHSProj d ps1 h $ ps2 ++ ps'
 -- | Add projection and applicative patterns to the right.
 lhsCoreAddSpine :: LHSCore' e -> [NamedArg (Pattern' e)] -> LHSCore' e
 lhsCoreAddSpine core ps = case ps2 of
-    []                                      -> lhsCoreApp core ps
     (Common.Arg info (Named n (DefP i d ps0)) : ps2') ->
        LHSProj d ps0 (Common.Arg info $ Named n $ lhsCoreApp core ps1) []
          `lhsCoreAddSpine` ps2'
+    [] -> lhsCoreApp core ps
     _ -> __IMPOSSIBLE__
   where
     (ps1, ps2) = break (isDefP . namedArg) ps
     isDefP DefP{} = True
     isDefP _      = False
 
-
 -- | Used for checking pattern linearity.
 lhsCoreAllPatterns :: LHSCore' e -> [Pattern' e]
 lhsCoreAllPatterns = map namedArg . qnamed . lhsCoreToSpine
-{- OLD code, dumps projection patterns, superfluous
-lhsCoreAllPatterns (LHSHead f ps) = map namedArg ps
-lhsCoreAllPatterns (LHSProj d ps1 l ps2) =
-  map namedArg ps1 ++
-  lhsCoreAllPatterns (namedArg l) ++
-  map namedArg ps2
--}
 
 -- | Used in AbstractToConcrete.
 lhsCoreToPattern :: LHSCore -> Pattern
@@ -407,14 +357,6 @@ mapLHSHead :: (QName -> [NamedArg Pattern] -> LHSCore) -> LHSCore -> LHSCore
 mapLHSHead f (LHSHead x ps)        = f x ps
 mapLHSHead f (LHSProj d ps1 l ps2) =
   LHSProj d ps1 (fmap (fmap (mapLHSHead f)) l) ps2
-
-{- UNUSED
-mapLHSHeadM :: (Monad m) => (QName -> [NamedArg Pattern] -> m LHSCore) -> LHSCore -> m LHSCore
-mapLHSHeadM f (LHSHead x ps)        = f x ps
-mapLHSHeadM f (LHSProj d ps1 l ps2) = do
-  l <- mapLHSHead f l
-  return $ LHSProj d ps1 l ps2
--}
 
 ---------------------------------------------------------------------------
 -- * Patterns
