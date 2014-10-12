@@ -10,47 +10,21 @@
 
 module Agda.TypeChecking.Patterns.Abstract where
 
--- import Control.Applicative
--- import Control.Monad.Error
-
--- import Data.Maybe (fromMaybe)
--- import Data.Monoid (mempty, mappend)
 import Data.List
 import Data.Traversable hiding (mapM, sequence)
 
--- import Agda.Interaction.Options
-
-import Agda.Syntax.Common as Common
-import Agda.Syntax.Literal
-import Agda.Syntax.Position
-import Agda.Syntax.Internal as I
--- import Agda.Syntax.Internal.Pattern
--- import Agda.Syntax.Abstract (IsProjP(..))
 import qualified Agda.Syntax.Abstract as A
 import Agda.Syntax.Abstract.Views
+import Agda.Syntax.Common as Common
 import Agda.Syntax.Info as A
+import Agda.Syntax.Internal as I
+import Agda.Syntax.Literal
+import Agda.Syntax.Position
 
 import Agda.TypeChecking.Monad
--- import Agda.TypeChecking.Pretty
--- import Agda.TypeChecking.Reduce
--- import Agda.TypeChecking.Substitute
--- import Agda.TypeChecking.Constraints
--- import Agda.TypeChecking.Conversion
--- import Agda.TypeChecking.Datatypes
--- import Agda.TypeChecking.Records
--- import Agda.TypeChecking.Rules.LHS.Problem
 import Agda.TypeChecking.Monad.Builtin
--- import Agda.TypeChecking.Free
--- import Agda.TypeChecking.Irrelevance
--- import Agda.TypeChecking.MetaVars
 
 import Agda.Utils.Functor
--- import Agda.Utils.List
--- import Agda.Utils.Maybe
--- import Agda.Utils.Monad
--- import Agda.Utils.Permutation
--- import Agda.Utils.Tuple
--- import qualified Agda.Utils.Pretty as P
 
 #include "../../undefined.h"
 import Agda.Utils.Impossible
