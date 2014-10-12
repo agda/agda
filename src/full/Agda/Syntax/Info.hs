@@ -46,7 +46,7 @@ instance HasRange MetaInfo where
   getRange = metaRange
 
 instance KillRange MetaInfo where
-  killRange m = m { metaRange = killRange $ metaRange m }
+  killRange m = m { metaRange = noRange }
 
 {--------------------------------------------------------------------------
     General expression information
@@ -61,13 +61,16 @@ data ExprInfo
             --   whether to put parenthesis around it.
   deriving (Typeable, Show)
 
+exprNoRange :: ExprInfo
+exprNoRange = ExprRange noRange
+
 instance HasRange ExprInfo where
   getRange (ExprRange  r  ) = r
   getRange (ExprSource r _) = r
 
 instance KillRange ExprInfo where
-  killRange (ExprRange r)    = ExprRange (killRange r)
-  killRange (ExprSource r f) = ExprSource (killRange r) f
+  killRange (ExprRange r)    = exprNoRange
+  killRange (ExprSource r f) = ExprSource noRange f
 
 {--------------------------------------------------------------------------
     Module information
@@ -95,7 +98,7 @@ instance SetRange ModuleInfo where
   setRange r i = i { minfoRange = r }
 
 instance KillRange ModuleInfo where
-  killRange m = m { minfoRange = killRange $ minfoRange m }
+  killRange m = m { minfoRange = noRange }
 
 ---------------------------------------------------------------------------
 -- Let info
@@ -108,7 +111,7 @@ instance HasRange LetInfo where
   getRange (LetRange r)   = r
 
 instance KillRange LetInfo where
-  killRange (LetRange r) = LetRange (killRange r)
+  killRange (LetRange r) = LetRange noRange
 
 {--------------------------------------------------------------------------
     Definition information (declarations that actually define something)
@@ -156,7 +159,7 @@ instance SetRange DeclInfo where
   setRange r i = i { declRange = r }
 
 instance KillRange DeclInfo where
-  killRange i = i { declRange = killRange $ declRange i }
+  killRange i = i { declRange = noRange }
 
 {--------------------------------------------------------------------------
     Mutual block information
@@ -172,7 +175,7 @@ instance HasRange MutualInfo where
   getRange = mutualRange
 
 instance KillRange MutualInfo where
-  killRange i = i { mutualRange = killRange $ mutualRange i }
+  killRange i = i { mutualRange = noRange }
 
 {--------------------------------------------------------------------------
     Left hand side information
@@ -185,7 +188,7 @@ instance HasRange LHSInfo where
   getRange (LHSRange r) = r
 
 instance KillRange LHSInfo where
-  killRange (LHSRange r) = LHSRange (killRange r)
+  killRange (LHSRange r) = LHSRange noRange
 
 {--------------------------------------------------------------------------
     Pattern information
@@ -208,8 +211,8 @@ instance HasRange PatInfo where
   getRange (PatSource r _) = r
 
 instance KillRange PatInfo where
-  killRange (PatRange r)    = PatRange $ killRange r
-  killRange (PatSource r f) = PatSource (killRange r) f
+  killRange (PatRange r)    = PatRange noRange
+  killRange (PatSource r f) = PatSource noRange f
 
 -- | Empty range for patterns.
 patNoRange :: PatInfo
