@@ -377,15 +377,14 @@ checkRecordExpression fs e t = do
     Def r es  -> do
       let ~(Just vs) = allApplyElims es
       reportSDoc "tc.term.rec" 20 $ text $ "  r   = " ++ show r
-{-
-      axs    <- getRecordFieldNames r
-      let xs = map unArg axs
-      reportSDoc "tc.term.rec" 20 $ text $ "  xs  = " ++ show xs
-      ftel   <- getRecordFieldTypes r
-      reportSDoc "tc.term.rec" 20 $ text   "  ftel= " <> prettyTCM ftel
-      con    <- getRecordConstructor r
-      reportSDoc "tc.term.rec" 20 $ text $ "  con = " ++ show con
--}
+
+      reportSDoc "tc.term.rec" 30 $ text "  xs  = " <> do
+        text =<< show . map unArg <$> getRecordFieldNames r
+      reportSDoc "tc.term.rec" 30 $ text "  ftel= " <> do
+        prettyTCM =<< getRecordFieldTypes r
+      reportSDoc "tc.term.rec" 30 $ text "  con = " <> do
+        text =<< show <$> getRecordConstructor r
+
       def <- getRecordDef r
       let axs  = recordFieldNames def
           xs   = map unArg axs
