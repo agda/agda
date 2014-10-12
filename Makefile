@@ -276,13 +276,13 @@ library-test : # up-to-date-std-lib
 	@echo "========================== Standard library =========================="
 	@echo "======================================================================"
 	@(cd std-lib && \
-          time $(PWD)/$(AGDA_BIN) -v profile:$(PROFVERB) -i. -isrc README.agda $(AGDA_TEST_FLAGS) \
+          time ../$(AGDA_BIN) -v profile:$(PROFVERB) -i. -isrc README.agda $(AGDA_TEST_FLAGS) \
             +RTS -s -H1G -M1.5G)
 
 .PHONY : continue-library-test
 continue-library-test :
 	@(cd std-lib && \
-          time $(PWD)/$(AGDA_BIN) -v profile:$(PROFVERB) -i. -isrc README.agda +RTS -s -H1G -M1.5G)
+          time ../$(AGDA_BIN) -v profile:$(PROFVERB) -i. -isrc README.agda +RTS -s -H1G -M1.5G)
 
 .PHONY : compiler-test
 compiler-test : # up-to-date-std-lib

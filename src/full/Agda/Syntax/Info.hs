@@ -46,45 +46,39 @@ instance HasRange MetaInfo where
   getRange = metaRange
 
 instance KillRange MetaInfo where
-  killRange m = m { metaRange = killRange $ metaRange m }
+  killRange m = m { metaRange = noRange }
 
 {--------------------------------------------------------------------------
     General expression information
  --------------------------------------------------------------------------}
 
--- | For a general expression we can either remember just the source code
---   position or the entire concrete expression it came from.
-data ExprInfo
-        = ExprRange  Range
-        | ExprSource Range (Precedence -> Expr)
-            -- ^ Even if we store the original expression we have to know
-            --   whether to put parenthesis around it.
+newtype ExprInfo = ExprRange Range
   deriving (Typeable, Show)
 
+exprNoRange :: ExprInfo
+exprNoRange = ExprRange noRange
+
 instance HasRange ExprInfo where
-  getRange (ExprRange  r  ) = r
-  getRange (ExprSource r _) = r
+  getRange (ExprRange r) = r
 
 instance KillRange ExprInfo where
-  killRange (ExprRange r)    = ExprRange (killRange r)
-  killRange (ExprSource r f) = ExprSource (killRange r) f
+  killRange (ExprRange r) = exprNoRange
 
 {--------------------------------------------------------------------------
     Module information
  --------------------------------------------------------------------------}
 
-data ModuleInfo =
-        ModuleInfo { minfoRange    :: Range
-                   , minfoAsTo     :: Range
-                     -- The range of the \"as\" and \"to\" keywords,
-                     -- if any. Retained for highlighting purposes.
-                   , minfoAsName   :: Maybe C.Name
-                     -- The \"as\" module name, if any. Retained for
-                     -- highlighting purposes.
-                   , minfoOpenShort :: Maybe OpenShortHand
-                   , minfoDirective :: Maybe ImportDirective
-                     -- Retained for abstractToConcrete of ModuleMacro
-                   }
+data ModuleInfo = ModuleInfo
+  { minfoRange    :: Range
+  , minfoAsTo     :: Range
+    -- ^ The range of the \"as\" and \"to\" keywords,
+    -- if any. Retained for highlighting purposes.
+  , minfoAsName   :: Maybe C.Name
+    -- ^ The \"as\" module name, if any. Retained for highlighting purposes.
+  , minfoOpenShort :: Maybe OpenShortHand
+  , minfoDirective :: Maybe ImportDirective
+    -- ^ Retained for @abstractToConcrete@ of 'ModuleMacro'.
+  }
   deriving (Typeable)
 
 deriving instance (Show OpenShortHand, Show ImportDirective) => Show ModuleInfo
@@ -96,7 +90,7 @@ instance SetRange ModuleInfo where
   setRange r i = i { minfoRange = r }
 
 instance KillRange ModuleInfo where
-  killRange m = m { minfoRange = killRange $ minfoRange m }
+  killRange m = m { minfoRange = noRange }
 
 ---------------------------------------------------------------------------
 -- Let info
@@ -109,19 +103,19 @@ instance HasRange LetInfo where
   getRange (LetRange r)   = r
 
 instance KillRange LetInfo where
-  killRange (LetRange r) = LetRange (killRange r)
+  killRange (LetRange r) = LetRange noRange
 
 {--------------------------------------------------------------------------
     Definition information (declarations that actually define something)
  --------------------------------------------------------------------------}
 
-data DefInfo =
-        DefInfo { defFixity   :: Fixity'
-                , defAccess   :: Access
-                , defAbstract :: IsAbstract
-                , defInstance :: IsInstance
-                , defInfo     :: DeclInfo
-                }
+data DefInfo = DefInfo
+  { defFixity   :: Fixity'
+  , defAccess   :: Access
+  , defAbstract :: IsAbstract
+  , defInstance :: IsInstance
+  , defInfo     :: DeclInfo
+  }
   deriving (Typeable, Show)
 
 mkDefInfo :: Name -> Fixity' -> Access -> IsAbstract -> Range -> DefInfo
@@ -144,10 +138,10 @@ instance KillRange DefInfo where
     General declaration information
  --------------------------------------------------------------------------}
 
-data DeclInfo =
-        DeclInfo { declName  :: Name
-                 , declRange :: Range
-                 }
+data DeclInfo = DeclInfo
+  { declName  :: Name
+  , declRange :: Range
+  }
   deriving (Typeable, Show)
 
 instance HasRange DeclInfo where
@@ -157,23 +151,23 @@ instance SetRange DeclInfo where
   setRange r i = i { declRange = r }
 
 instance KillRange DeclInfo where
-  killRange i = i { declRange = killRange $ declRange i }
+  killRange i = i { declRange = noRange }
 
 {--------------------------------------------------------------------------
     Mutual block information
  --------------------------------------------------------------------------}
 
-data MutualInfo =
-     MutualInfo { mutualTermCheck :: TerminationCheck Name
-                , mutualRange     :: Range
-                }
+data MutualInfo = MutualInfo
+  { mutualTermCheck :: TerminationCheck Name
+  , mutualRange     :: Range
+  }
   deriving (Typeable, Show)
 
 instance HasRange MutualInfo where
   getRange = mutualRange
 
 instance KillRange MutualInfo where
-  killRange i = i { mutualRange = killRange $ mutualRange i }
+  killRange i = i { mutualRange = noRange }
 
 {--------------------------------------------------------------------------
     Left hand side information
@@ -186,17 +180,19 @@ instance HasRange LHSInfo where
   getRange (LHSRange r) = r
 
 instance KillRange LHSInfo where
-  killRange (LHSRange r) = LHSRange (killRange r)
+  killRange (LHSRange r) = LHSRange noRange
 
 {--------------------------------------------------------------------------
     Pattern information
  --------------------------------------------------------------------------}
 
--- TODO: Is it safe to add Typeable/Data here? PatInfo contains a
--- function space.
-
-data PatInfo = PatRange Range
-             | PatSource Range (Precedence -> Pattern)
+-- | For a general pattern we can either remember just the source code
+--   position or the entire concrete pattern it came from.
+data PatInfo
+  = PatRange Range
+  | PatSource Range (Precedence -> Pattern)
+      -- ^ Even if we store the original pattern we have to know
+      --   whether to put parenthesis around it.
   deriving (Typeable)
 
 instance Show PatInfo where
@@ -208,8 +204,8 @@ instance HasRange PatInfo where
   getRange (PatSource r _) = r
 
 instance KillRange PatInfo where
-  killRange (PatRange r)    = PatRange $ killRange r
-  killRange (PatSource r f) = PatSource (killRange r) f
+  killRange (PatRange r)    = PatRange noRange
+  killRange (PatSource r f) = PatSource noRange f
 
 -- | Empty range for patterns.
 patNoRange :: PatInfo
@@ -218,7 +214,7 @@ patNoRange = PatRange noRange
 -- | Constructor pattern info.
 data ConPatInfo = ConPatInfo
   { patImplicit :: Bool
-    -- ^ Does this pattern come form the eta-expansion of an implicit pattern.
+    -- ^ Does this pattern come form the eta-expansion of an implicit pattern?
   , patInfo     :: PatInfo
   }
 

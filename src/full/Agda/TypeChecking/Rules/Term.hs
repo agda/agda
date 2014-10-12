@@ -258,7 +258,6 @@ checkLambda (Arg info (A.TBind _ xs typ)) body target = do
         let r  = getRelevance info
             r' = getRelevance arg -- relevance of function type
         when (r == Irrelevant && r' /= r) $ typeError $ WrongIrrelevanceInLambda target
---        unless (getRelevance arg == r) $ typeError $ WrongIrrelevanceInLambda target
         -- We only need to block the final term on the argument type
         -- comparison. The body will be blocked if necessary. We still want to
         -- compare the argument types first, so we spawn a new problem for that
@@ -286,7 +285,6 @@ checkAbsurdLambda i h e t = do
               null . allMetas <$> instantiateFull a
         | otherwise -> blockTerm t' $ do
           isEmptyType (getRange i) a
---          return $ Lam info' absurdBody
           -- Add helper function
           top <- currentModule
           aux <- qualify top <$> freshName_ (getRange i, absurdLambdaName)
@@ -379,15 +377,14 @@ checkRecordExpression fs e t = do
     Def r es  -> do
       let ~(Just vs) = allApplyElims es
       reportSDoc "tc.term.rec" 20 $ text $ "  r   = " ++ show r
-{-
-      axs    <- getRecordFieldNames r
-      let xs = map unArg axs
-      reportSDoc "tc.term.rec" 20 $ text $ "  xs  = " ++ show xs
-      ftel   <- getRecordFieldTypes r
-      reportSDoc "tc.term.rec" 20 $ text   "  ftel= " <> prettyTCM ftel
-      con    <- getRecordConstructor r
-      reportSDoc "tc.term.rec" 20 $ text $ "  con = " ++ show con
--}
+
+      reportSDoc "tc.term.rec" 30 $ text "  xs  = " <> do
+        text =<< show . map unArg <$> getRecordFieldNames r
+      reportSDoc "tc.term.rec" 30 $ text "  ftel= " <> do
+        prettyTCM =<< getRecordFieldTypes r
+      reportSDoc "tc.term.rec" 30 $ text "  con = " <> do
+        text =<< show <$> getRecordConstructor r
+
       def <- getRecordDef r
       let axs  = recordFieldNames def
           xs   = map unArg axs
@@ -502,20 +499,9 @@ checkLiteral lit t = do
   t' <- litType lit
   coerce (Lit lit) t' t
 
--- moved to TypeChecking.Monad.Builtin to avoid import cycles:
--- litType :: Literal -> TCM Type
-
 ---------------------------------------------------------------------------
 -- * Terms
 ---------------------------------------------------------------------------
-
-{- MOVED to TC.Datatypes.getConForm
--- TODO: move somewhere suitable
-reduceCon :: QName -> TCM ConHead
-reduceCon x = do
-  Con c [] <- ignoreSharing <$> (constructorForm =<< getConHead c)
-  return c
--}
 
 -- | @checkArguments' exph r args t0 t k@ tries @checkArguments exph args t0 t@.
 -- If it succeeds, it continues @k@ with the returned results.  If it fails,
@@ -625,6 +611,7 @@ checkExpr e t0 =
         A.App i q (Arg ai e)
           | A.Quote _ <- unScope q, visible ai -> do
           let quoted (A.Def x) = return x
+              quoted (A.Proj x) = return x
               quoted (A.Con (AmbQ [x])) = return x
               quoted (A.Con (AmbQ xs))  = typeError $ GenericError $ "quote: Ambigous name: " ++ show xs
               quoted (A.ScopedExpr _ e) = quoted e
@@ -741,16 +728,8 @@ checkApplication hd args e t = do
       cons  <- mapM getConForm cs
       reportSLn "tc.check.term" 40 $ "  reduced: " ++ show cons
       dcs <- zipWithM (\ c con -> (, setConName c con) . getData . theDef <$> getConInfo con) cs cons
-{-
-      cs  <- zip cs . zipWith setRange (map getRange cs) <$> mapM reduceCon cs
-      reportSLn "tc.check.term" 40 $ "  ranges after: " ++ show (getRange cs)
-      reportSLn "tc.check.term" 40 $ "  reduced: " ++ show cs
-      dcs <- mapM (\(c0, c1) -> (getData /\ const c0) . theDef <$> getConstInfo c1) cs
--}
       -- Type error
       let badCon t = typeError $ DoesNotConstructAnElementOf (head cs) t
---      let badCon t = typeError $ DoesNotConstructAnElementOf (fst $ head cs) t
-
       -- Lets look at the target type at this point
       let getCon = do
           TelV tel t1 <- telView t
@@ -775,7 +754,6 @@ checkApplication hd args e t = do
     A.Con (AmbQ [c]) -> do
       -- augment c with record fields, but do not revert to original name
       con <- getOrigConHead c
---      con <- setConName c . conSrcCon . theDef <$> getConstInfo c
       checkConstructorApplication e t con $ map convColor args
 
     -- Subcase: pattern synonym
@@ -833,37 +811,9 @@ domainFree info x =
 
 checkMeta :: (Type -> TCM Term) -> Type -> A.MetaInfo -> TCM Term
 checkMeta newMeta t i = fst <$> checkOrInferMeta newMeta (Just t) i
-{-
-checkMeta newMeta t i = do
-  case A.metaNumber i of
-    Nothing -> do
-      setScope (A.metaScope i)
-      v <- newMeta t
-      setValueMetaName v (A.metaNameSuggestion i)
-      return v
-    -- Rechecking an existing metavariable
-    Just n -> do
-      let v = MetaV (MetaId n) []
-      t' <- jMetaType . mvJudgement <$> lookupMeta (MetaId n)
-      coerce v t' t
--}
 
 inferMeta :: (Type -> TCM Term) -> A.MetaInfo -> TCM (Args -> Term, Type)
 inferMeta newMeta i = mapFst apply <$> checkOrInferMeta newMeta Nothing i
-{-
-inferMeta newMeta i =
-  case A.metaNumber i of
-    Nothing -> do
-      setScope (A.metaScope i)
-      t <- workOnTypes $ newTypeMeta_
-      v <- newMeta t
-      return (apply v, t)
-    -- Rechecking an existing metavariable
-    Just n -> do
-      let v = MetaV (MetaId n)
-      t' <- jMetaType . mvJudgement <$> lookupMeta (MetaId n)
-      return (v, t')
--}
 
 -- | Type check a meta variable.
 --   If its type is not given, we return its type, or a fresh one, if it is a new meta.
@@ -890,6 +840,15 @@ checkOrInferMeta newMeta mt i = do
 -- * Applications
 ---------------------------------------------------------------------------
 
+inferHeadDef :: QName -> TCM (Args -> Term, Type)
+inferHeadDef x = do
+  proj <- isProjection x
+  let app =
+        case proj of
+          Nothing -> \ f args -> return $ Def f $ map Apply args
+          Just p  -> \ f args -> return $ projDropPars p `apply` args
+  mapFst apply <$> inferDef app x
+
 -- | Infer the type of a head thing (variable, function symbol, or constructor).
 --   We return a function that applies the head to arguments.
 --   This is because in case of a constructor we want to drop the parameters.
@@ -901,34 +860,8 @@ inferHead e = do
       when (unusableRelevance $ getRelevance a) $
         typeError $ VariableIsIrrelevant x
       return (apply u, unDom a)
-    (A.Def x) -> do
-      proj <- isProjection x
-      case proj of
-        Nothing -> do
-          (u, a) <- inferDef (\ f args -> return $ Def f $ map Apply args) x
-          return (apply u, a)
-        Just Projection{ projDropPars = proj } -> do
-{- MOVED to Rules/Record.hs and ProjectionLike.hs
-        Just Projection{ projIndex = n, projProper, projDropPars = proj } -> do
-          reportSDoc "tc.term.proj" 10 $ sep
-            [ text "building projection" <+> prettyTCM x
-            , nest 2 $ parens (text "ctx =" <+> (text . show =<< do
-                size <$> freeVarsToApply x))
-            , nest 2 $ parens (text "n =" <+> text (show n))
-            , nest 2 $ parens (text "m =" <+> (text . show =<< getDefFreeVars x))
-            ]
-          let is | n == 0    = __IMPOSSIBLE__
-                 | otherwise = genericReplicate (n - 1) defaultArgInfo -- TODO: hiding
-              names = [ s ++ [c] | s <- "" : names, c <- ['a'..'z'] ]
-              -- Andreas, 2013-10-19
-              -- proper projections are postfix, projection-like defs are prefix
-              core | projProper = (Lam defaultArgInfo $ Abs "r" $ Var 0 [Proj x])
-                   | otherwise  = Def x []
-              -- leading lambdas are to ignore parameter applications
-              proj  = foldr (\ (i, s) -> Lam i . NoAbs s) core (zip is names)
--}
-          (u, a) <- inferDef (\ f vs -> return $ proj `apply` vs) x
-          return (apply u, a)
+    (A.Def x) -> inferHeadDef x
+    (A.Proj x) -> inferHeadDef x
     (A.Con (AmbQ [c])) -> do
 
       -- Constructors are polymorphic internally.
@@ -1203,9 +1136,6 @@ checkHeadApplication e t hd args = do
     expandLast <- asks envExpandLast
     checkArguments' expandLast ExpandInstanceArguments (getRange hd) args t0 t $ \vs t1 -> do
       coerce (f vs) t1 t
-      -- -- try to remove projection redexes  -- fails succeed/Issue286
-      -- v <- onlyReduceProjections $ reduce $ f vs
-      -- coerce v t1 t
 
 -- Stupid ErrorT!
 instance Error (a, b, c) where
@@ -1354,6 +1284,7 @@ inferExpr e = case e of
 defOrVar :: A.Expr -> Bool
 defOrVar A.Var{} = True
 defOrVar A.Def{} = True
+defOrVar A.Proj{} = True
 defOrVar (A.ScopedExpr _ e) = defOrVar e
 defOrVar _     = False
 
@@ -1481,7 +1412,6 @@ checkLetBinding b@(A.LetPatBind i p e) ret =
 checkLetBinding (A.LetApply i x modapp rd rm) ret = do
   -- Any variables in the context that doesn't belong to the current
   -- module should go with the new module.
-  -- fv   <- getDefFreeVars =<< (qnameFromList . mnameToList) <$> currentModule
   fv   <- getModuleFreeVars =<< currentModule
   n    <- getContextSize
   let new = n - fv
