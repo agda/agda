@@ -118,6 +118,7 @@ data Axiom
               --   or another (e.g. data/record) type signature (internally).
   deriving (Typeable, Eq, Ord, Show)
 
+-- | Renaming (generic).
 type Ren a = Map a a
 
 data Declaration
@@ -776,8 +777,7 @@ type PatternSynDefns = Map QName PatternSynDefn
 
 lambdaLiftExpr :: [Name] -> Expr -> Expr
 lambdaLiftExpr []     e = e
-lambdaLiftExpr (n:ns) e = Lam (ExprRange noRange)
-                                     (DomainFree defaultArgInfo n) $
+lambdaLiftExpr (n:ns) e = Lam (ExprRange noRange) (DomainFree defaultArgInfo n) $
                                      lambdaLiftExpr ns e
 
 substPattern :: [(Name, Pattern)] -> Pattern -> Pattern
