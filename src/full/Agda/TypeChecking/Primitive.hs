@@ -41,6 +41,7 @@ import Agda.TypeChecking.Pretty ()  -- instances only
 
 import Agda.Utils.Monad
 import Agda.Utils.Pretty (pretty)
+import Agda.Utils.String ( Str(Str), unStr )
 
 #include "../undefined.h"
 import Agda.Utils.Impossible
@@ -53,9 +54,6 @@ import Debug.Trace
 data PrimitiveImpl = PrimImpl Type PrimFun
 
 -- Haskell type to Agda type
-
-newtype Str = Str { unStr :: String }
-    deriving (Eq, Ord)
 
 newtype Nat = Nat { unNat :: Integer }
     deriving (Eq, Ord, Num, Enum, Real)

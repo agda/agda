@@ -38,7 +38,7 @@ import Agda.Utils.Except ( MonadError(catchError) )
 import Agda.Utils.Impossible
 import Agda.Utils.Monad ( ifM )
 import Agda.Utils.Permutation ( Permutation(Perm) )
-import Agda.Utils.String ( getStr, Str(Str) )
+import Agda.Utils.String ( Str(Str), unStr )
 
 #include "../undefined.h"
 
@@ -431,7 +431,7 @@ instance Unquote Literal where
           [ (c `isCon` primAgdaLitNat,    LitInt    noRange <$> unquoteN x)
           , (c `isCon` primAgdaLitFloat,  LitFloat  noRange <$> unquoteN x)
           , (c `isCon` primAgdaLitChar,   LitChar   noRange <$> unquoteN x)
-          , (c `isCon` primAgdaLitString, LitString noRange . getStr <$> unquoteN x)
+          , (c `isCon` primAgdaLitString, LitString noRange . unStr <$> unquoteN x)
           , (c `isCon` primAgdaLitQName,  LitQName  noRange <$> unquoteN x) ]
           (unquoteFailed "Literal" "not a literal constructor" t)
       _ -> unquoteFailed "Literal" "not a literal constructor" t
