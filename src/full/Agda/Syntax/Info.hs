@@ -52,25 +52,17 @@ instance KillRange MetaInfo where
     General expression information
  --------------------------------------------------------------------------}
 
--- | For a general expression we can either remember just the source code
---   position or the entire concrete expression it came from.
-data ExprInfo
-        = ExprRange  Range
-        | ExprSource Range (Precedence -> Expr)
-            -- ^ Even if we store the original expression we have to know
-            --   whether to put parenthesis around it.
+newtype ExprInfo = ExprRange Range
   deriving (Typeable, Show)
 
 exprNoRange :: ExprInfo
 exprNoRange = ExprRange noRange
 
 instance HasRange ExprInfo where
-  getRange (ExprRange  r  ) = r
-  getRange (ExprSource r _) = r
+  getRange (ExprRange r) = r
 
 instance KillRange ExprInfo where
-  killRange (ExprRange r)    = exprNoRange
-  killRange (ExprSource r f) = ExprSource noRange f
+  killRange (ExprRange r) = exprNoRange
 
 {--------------------------------------------------------------------------
     Module information
@@ -194,12 +186,13 @@ instance KillRange LHSInfo where
     Pattern information
  --------------------------------------------------------------------------}
 
--- TODO: Is it safe to add Typeable/Data here? PatInfo contains a
--- function space.
-
+-- | For a general pattern we can either remember just the source code
+--   position or the entire concrete pattern it came from.
 data PatInfo
   = PatRange Range
   | PatSource Range (Precedence -> Pattern)
+      -- ^ Even if we store the original pattern we have to know
+      --   whether to put parenthesis around it.
   deriving (Typeable)
 
 instance Show PatInfo where
