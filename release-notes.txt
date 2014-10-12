@@ -26,6 +26,9 @@ Important changes since 0.8.1:
 
 * Reflection API
 
+  ** Quoting levels was fixed. This fix could break some code (see
+     Agda issue 1207).
+
   ** The Reflection.type function returns a normalised Reflection.Type
      and quoteTerm returns an η-contracted Reflection.Term now. These
      changes could break some code (see Agda issue 1269).
