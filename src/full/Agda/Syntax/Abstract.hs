@@ -69,41 +69,42 @@ instance Ord Color where
   -- TODO guilhem:
   _ <= _         = __IMPOSSIBLE__
 
+-- | Expressions after scope checking (operators parsed, names resolved).
 data Expr
-        = Var  Name                          -- ^ Bound variables
-        | Def  QName                         -- ^ Constants (i.e. axioms, functions, projections, and datatypes)
-        | Con  AmbiguousQName                -- ^ Constructors
-        | Lit Literal                        -- ^ Literals
-        | QuestionMark MetaInfo InteractionId
-          -- ^ Meta variable for interaction.
-          --   The 'InteractionId' is usually identical with the
-          --   'metaNumber' of 'MetaInfo'.
-          --   However, if you want to print an interaction meta as
-          --   just @?@ instead of @?n@, you should set the
-          --   'metaNumber' to 'Nothing' while keeping the 'InteractionId'.
-        | Underscore   MetaInfo
-          -- ^ Meta variable for hidden argument (must be inferred locally).
-        | App  ExprInfo Expr (NamedArg Expr) -- ^
-        | WithApp ExprInfo Expr [Expr]       -- ^ with application
-        | Lam  ExprInfo LamBinding Expr      -- ^
-        | AbsurdLam ExprInfo Hiding
-        | ExtendedLam ExprInfo DefInfo QName [Clause]
-        | Pi   ExprInfo Telescope Expr       -- ^
-        | Fun  ExprInfo (Arg Expr) Expr      -- ^ independent function space
-        | Set  ExprInfo Integer              -- ^ Set, Set1, Set2, ...
-        | Prop ExprInfo                      -- ^
-        | Let  ExprInfo [LetBinding] Expr    -- ^
-        | ETel Telescope                     -- ^ only used when printing telescopes
-        | Rec  ExprInfo Assigns              -- ^ record construction
-        | RecUpdate ExprInfo Expr Assigns    -- ^ record update
-        | ScopedExpr ScopeInfo Expr          -- ^ scope annotation
-        | QuoteGoal ExprInfo Name Expr       -- ^ binds @Name@ to current type in @Expr@
-        | QuoteContext ExprInfo Name Expr    -- ^ binds @Name@ to current context in @Expr@
-        | Quote ExprInfo                     -- ^ Quote an identifier 'QName'.
-        | QuoteTerm ExprInfo                 -- ^ Quote a term.
-        | Unquote ExprInfo                   -- ^ The splicing construct: unquote ...
-        | DontCare Expr                      -- ^ for printing DontCare from Syntax.Internal
-        | PatternSyn QName
+  = Var  Name                          -- ^ Bound variables
+  | Def  QName                         -- ^ Constants (i.e. axioms, functions, projections, and datatypes)
+  | Con  AmbiguousQName                -- ^ Constructors
+  | Lit Literal                        -- ^ Literals
+  | QuestionMark MetaInfo InteractionId
+    -- ^ Meta variable for interaction.
+    --   The 'InteractionId' is usually identical with the
+    --   'metaNumber' of 'MetaInfo'.
+    --   However, if you want to print an interaction meta as
+    --   just @?@ instead of @?n@, you should set the
+    --   'metaNumber' to 'Nothing' while keeping the 'InteractionId'.
+  | Underscore   MetaInfo
+    -- ^ Meta variable for hidden argument (must be inferred locally).
+  | App  ExprInfo Expr (NamedArg Expr) -- ^
+  | WithApp ExprInfo Expr [Expr]       -- ^ with application
+  | Lam  ExprInfo LamBinding Expr      -- ^
+  | AbsurdLam ExprInfo Hiding
+  | ExtendedLam ExprInfo DefInfo QName [Clause]
+  | Pi   ExprInfo Telescope Expr       -- ^
+  | Fun  ExprInfo (Arg Expr) Expr      -- ^ independent function space
+  | Set  ExprInfo Integer              -- ^ Set, Set1, Set2, ...
+  | Prop ExprInfo                      -- ^
+  | Let  ExprInfo [LetBinding] Expr    -- ^
+  | ETel Telescope                     -- ^ only used when printing telescopes
+  | Rec  ExprInfo Assigns              -- ^ record construction
+  | RecUpdate ExprInfo Expr Assigns    -- ^ record update
+  | ScopedExpr ScopeInfo Expr          -- ^ scope annotation
+  | QuoteGoal ExprInfo Name Expr       -- ^ binds @Name@ to current type in @Expr@
+  | QuoteContext ExprInfo Name Expr    -- ^ binds @Name@ to current context in @Expr@
+  | Quote ExprInfo                     -- ^ Quote an identifier 'QName'.
+  | QuoteTerm ExprInfo                 -- ^ Quote a term.
+  | Unquote ExprInfo                   -- ^ The splicing construct: unquote ...
+  | DontCare Expr                      -- ^ for printing DontCare from Syntax.Internal
+  | PatternSyn QName
   deriving (Typeable, Show)
 
 -- | Record field assignment @f = e@.
@@ -120,30 +121,30 @@ data Axiom
 type Ren a = Map a a
 
 data Declaration
-        = Axiom      Axiom DefInfo ArgInfo QName Expr      -- ^ type signature (can be irrelevant and colored, but not hidden)
-        | Field      DefInfo QName (Arg Expr)              -- ^ record field
-        | Primitive  DefInfo QName Expr                    -- ^ primitive function
-        | Mutual     MutualInfo [Declaration]              -- ^ a bunch of mutually recursive definitions
-        | Section    ModuleInfo ModuleName [TypedBindings] [Declaration]
-        | Apply      ModuleInfo ModuleName ModuleApplication (Ren QName) (Ren ModuleName)
-        | Import     ModuleInfo ModuleName
-        | Pragma     Range      Pragma
-        | Open       ModuleInfo ModuleName
-          -- ^ only retained for highlighting purposes
-        | FunDef     DefInfo QName Delayed [Clause] -- ^ sequence of function clauses
-        | DataSig    DefInfo QName Telescope Expr -- ^ lone data signature
-            -- ^ the 'LamBinding's are 'DomainFree' and binds the parameters of the datatype.
-        | DataDef    DefInfo QName [LamBinding] [Constructor]
-            -- ^ the 'LamBinding's are 'DomainFree' and binds the parameters of the datatype.
-        | RecSig     DefInfo QName Telescope Expr -- ^ lone record signature
-        | RecDef     DefInfo QName (Maybe (Ranged Induction)) (Maybe QName) [LamBinding] Expr [Declaration]
-            -- ^ The 'Expr' gives the constructor type telescope, @(x1 : A1)..(xn : An) -> Prop@,
-            --   and the optional name is the constructor's name.
-        | PatternSynDef QName [Arg Name] Pattern
-            -- ^ Only for highlighting purposes
-        | UnquoteDecl MutualInfo DefInfo QName Expr
-        | ScopedDecl ScopeInfo [Declaration]  -- ^ scope annotation
-        deriving (Typeable, Show)
+  = Axiom      Axiom DefInfo ArgInfo QName Expr      -- ^ type signature (can be irrelevant and colored, but not hidden)
+  | Field      DefInfo QName (Arg Expr)              -- ^ record field
+  | Primitive  DefInfo QName Expr                    -- ^ primitive function
+  | Mutual     MutualInfo [Declaration]              -- ^ a bunch of mutually recursive definitions
+  | Section    ModuleInfo ModuleName [TypedBindings] [Declaration]
+  | Apply      ModuleInfo ModuleName ModuleApplication (Ren QName) (Ren ModuleName)
+  | Import     ModuleInfo ModuleName
+  | Pragma     Range      Pragma
+  | Open       ModuleInfo ModuleName
+    -- ^ only retained for highlighting purposes
+  | FunDef     DefInfo QName Delayed [Clause] -- ^ sequence of function clauses
+  | DataSig    DefInfo QName Telescope Expr -- ^ lone data signature
+      -- ^ the 'LamBinding's are 'DomainFree' and binds the parameters of the datatype.
+  | DataDef    DefInfo QName [LamBinding] [Constructor]
+      -- ^ the 'LamBinding's are 'DomainFree' and binds the parameters of the datatype.
+  | RecSig     DefInfo QName Telescope Expr -- ^ lone record signature
+  | RecDef     DefInfo QName (Maybe (Ranged Induction)) (Maybe QName) [LamBinding] Expr [Declaration]
+      -- ^ The 'Expr' gives the constructor type telescope, @(x1 : A1)..(xn : An) -> Prop@,
+      --   and the optional name is the constructor's name.
+  | PatternSynDef QName [Arg Name] Pattern
+      -- ^ Only for highlighting purposes
+  | UnquoteDecl MutualInfo DefInfo QName Expr
+  | ScopedDecl ScopeInfo [Declaration]  -- ^ scope annotation
+  deriving (Typeable, Show)
 
 class GetDefInfo a where
   getDefInfo :: a -> Maybe DefInfo
@@ -167,17 +168,18 @@ data ModuleApplication
       -- ^ @M {{...}}@
   deriving (Typeable, Show)
 
-data Pragma = OptionsPragma [String]
-            | BuiltinPragma String Expr
-            | RewritePragma QName
-            | CompiledPragma QName String
-            | CompiledExportPragma QName String
-            | CompiledTypePragma QName String
-            | CompiledDataPragma QName String [String]
-            | CompiledEpicPragma QName String
-            | CompiledJSPragma QName String
-            | StaticPragma QName
-            | EtaPragma QName
+data Pragma
+  = OptionsPragma [String]
+  | BuiltinPragma String Expr
+  | RewritePragma QName
+  | CompiledPragma QName String
+  | CompiledExportPragma QName String
+  | CompiledTypePragma QName String
+  | CompiledDataPragma QName String [String]
+  | CompiledEpicPragma QName String
+  | CompiledJSPragma QName String
+  | StaticPragma QName
+  | EtaPragma QName
   deriving (Typeable, Show)
 
 -- | Bindings that are valid in a @let@.
@@ -199,8 +201,8 @@ type Field          = TypeSignature
 
 -- | A lambda binding is either domain free or typed.
 data LamBinding
-        = DomainFree ArgInfo Name   -- ^ . @x@ or @{x}@ or @.x@ or @.{x}@
-        | DomainFull TypedBindings  -- ^ . @(xs:e)@ or @{xs:e}@ or @(let Ds)@
+  = DomainFree ArgInfo Name   -- ^ . @x@ or @{x}@ or @.x@ or @.{x}@
+  | DomainFull TypedBindings  -- ^ . @(xs:e)@ or @{xs:e}@ or @(let Ds)@
   deriving (Typeable, Show)
 
 -- | Typed bindings with hiding information.
@@ -218,10 +220,10 @@ data TypedBindings = TypedBindings Range (Arg TypedBinding)
 --   (Andreas, 2013-12-10: The more serious problem would that the translation
 --   from @(x y : ?)@ to @(x : ?) (y : ?)@ duplicates the hole @?@.
 data TypedBinding
-    = TBind Range [Name] Expr
-      -- ^ As in telescope @(x y z : A)@ or type @(x y z : A) -> B@.
-    | TLet Range [LetBinding]
-      -- ^
+  = TBind Range [Name] Expr
+    -- ^ As in telescope @(x y z : A)@ or type @(x y z : A) -> B@.
+  | TLet Range [LetBinding]
+    -- ^
   deriving (Typeable, Show)
 
 type Telescope  = [TypedBindings]
@@ -238,13 +240,15 @@ data Clause' lhs = Clause
 type Clause = Clause' LHS
 type SpineClause = Clause' SpineLHS
 
-data RHS        = RHS Expr
-                | AbsurdRHS
-                | WithRHS QName [Expr] [Clause] -- ^ The 'QName' is the name of the with function.
-                | RewriteRHS [QName] [Expr] RHS [Declaration]
-                    -- ^ The 'QName's are the names of the generated with functions.
-                    --   One for each 'Expr'.
-                    --   The RHS shouldn't be another RewriteRHS
+data RHS
+  = RHS Expr
+  | AbsurdRHS
+  | WithRHS QName [Expr] [Clause]
+      -- ^ The 'QName' is the name of the with function.
+  | RewriteRHS [QName] [Expr] RHS [Declaration]
+      -- ^ The 'QName's are the names of the generated with functions.
+      --   One for each 'Expr'.
+      --   The RHS shouldn't be another @RewriteRHS@.
   deriving (Typeable, Show)
 
 -- | The lhs of a clause in spine view (inside-out).

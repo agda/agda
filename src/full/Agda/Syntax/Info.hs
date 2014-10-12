@@ -73,18 +73,17 @@ instance KillRange ExprInfo where
     Module information
  --------------------------------------------------------------------------}
 
-data ModuleInfo =
-        ModuleInfo { minfoRange    :: Range
-                   , minfoAsTo     :: Range
-                     -- The range of the \"as\" and \"to\" keywords,
-                     -- if any. Retained for highlighting purposes.
-                   , minfoAsName   :: Maybe C.Name
-                     -- The \"as\" module name, if any. Retained for
-                     -- highlighting purposes.
-                   , minfoOpenShort :: Maybe OpenShortHand
-                   , minfoDirective :: Maybe ImportDirective
-                     -- Retained for abstractToConcrete of ModuleMacro
-                   }
+data ModuleInfo = ModuleInfo
+  { minfoRange    :: Range
+  , minfoAsTo     :: Range
+    -- ^ The range of the \"as\" and \"to\" keywords,
+    -- if any. Retained for highlighting purposes.
+  , minfoAsName   :: Maybe C.Name
+    -- ^ The \"as\" module name, if any. Retained for highlighting purposes.
+  , minfoOpenShort :: Maybe OpenShortHand
+  , minfoDirective :: Maybe ImportDirective
+    -- ^ Retained for @abstractToConcrete@ of 'ModuleMacro'.
+  }
   deriving (Typeable)
 
 deriving instance (Show OpenShortHand, Show ImportDirective) => Show ModuleInfo
@@ -115,13 +114,13 @@ instance KillRange LetInfo where
     Definition information (declarations that actually define something)
  --------------------------------------------------------------------------}
 
-data DefInfo =
-        DefInfo { defFixity   :: Fixity'
-                , defAccess   :: Access
-                , defAbstract :: IsAbstract
-                , defInstance :: IsInstance
-                , defInfo     :: DeclInfo
-                }
+data DefInfo = DefInfo
+  { defFixity   :: Fixity'
+  , defAccess   :: Access
+  , defAbstract :: IsAbstract
+  , defInstance :: IsInstance
+  , defInfo     :: DeclInfo
+  }
   deriving (Typeable, Show)
 
 mkDefInfo :: Name -> Fixity' -> Access -> IsAbstract -> Range -> DefInfo
@@ -144,10 +143,10 @@ instance KillRange DefInfo where
     General declaration information
  --------------------------------------------------------------------------}
 
-data DeclInfo =
-        DeclInfo { declName  :: Name
-                 , declRange :: Range
-                 }
+data DeclInfo = DeclInfo
+  { declName  :: Name
+  , declRange :: Range
+  }
   deriving (Typeable, Show)
 
 instance HasRange DeclInfo where
@@ -163,10 +162,10 @@ instance KillRange DeclInfo where
     Mutual block information
  --------------------------------------------------------------------------}
 
-data MutualInfo =
-     MutualInfo { mutualTermCheck :: TerminationCheck Name
-                , mutualRange     :: Range
-                }
+data MutualInfo = MutualInfo
+  { mutualTermCheck :: TerminationCheck Name
+  , mutualRange     :: Range
+  }
   deriving (Typeable, Show)
 
 instance HasRange MutualInfo where
@@ -195,8 +194,9 @@ instance KillRange LHSInfo where
 -- TODO: Is it safe to add Typeable/Data here? PatInfo contains a
 -- function space.
 
-data PatInfo = PatRange Range
-             | PatSource Range (Precedence -> Pattern)
+data PatInfo
+  = PatRange Range
+  | PatSource Range (Precedence -> Pattern)
   deriving (Typeable)
 
 instance Show PatInfo where
@@ -218,7 +218,7 @@ patNoRange = PatRange noRange
 -- | Constructor pattern info.
 data ConPatInfo = ConPatInfo
   { patImplicit :: Bool
-    -- ^ Does this pattern come form the eta-expansion of an implicit pattern.
+    -- ^ Does this pattern come form the eta-expansion of an implicit pattern?
   , patInfo     :: PatInfo
   }
 
