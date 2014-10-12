@@ -55,6 +55,7 @@ insertAbsurdPattern (c:s) = c : insertAbsurdPattern s
 getName :: A.Expr -> Maybe (Bool, I.QName)
 getName (A.ScopedExpr _ e) = getName e
 getName (A.Def qname) = Just (False, qname)
+getName (A.Proj qname) = Just (False, qname)
 getName (A.Con qname) = Just (True, head $ I.unAmbQ qname)
 getName _ = Nothing
 

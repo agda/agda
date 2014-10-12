@@ -611,6 +611,7 @@ checkExpr e t0 =
         A.App i q (Arg ai e)
           | A.Quote _ <- unScope q, visible ai -> do
           let quoted (A.Def x) = return x
+              quoted (A.Proj x) = return x
               quoted (A.Con (AmbQ [x])) = return x
               quoted (A.Con (AmbQ xs))  = typeError $ GenericError $ "quote: Ambigous name: " ++ show xs
               quoted (A.ScopedExpr _ e) = quoted e
@@ -839,6 +840,15 @@ checkOrInferMeta newMeta mt i = do
 -- * Applications
 ---------------------------------------------------------------------------
 
+inferHeadDef :: QName -> TCM (Args -> Term, Type)
+inferHeadDef x = do
+  proj <- isProjection x
+  let app =
+        case proj of
+          Nothing -> \ f args -> return $ Def f $ map Apply args
+          Just p  -> \ f args -> return $ projDropPars p `apply` args
+  mapFst apply <$> inferDef app x
+
 -- | Infer the type of a head thing (variable, function symbol, or constructor).
 --   We return a function that applies the head to arguments.
 --   This is because in case of a constructor we want to drop the parameters.
@@ -850,15 +860,8 @@ inferHead e = do
       when (unusableRelevance $ getRelevance a) $
         typeError $ VariableIsIrrelevant x
       return (apply u, unDom a)
-    (A.Def x) -> do
-      proj <- isProjection x
-      case proj of
-        Nothing -> do
-          (u, a) <- inferDef (\ f args -> return $ Def f $ map Apply args) x
-          return (apply u, a)
-        Just Projection{ projDropPars = proj } -> do
-          (u, a) <- inferDef (\ f vs -> return $ proj `apply` vs) x
-          return (apply u, a)
+    (A.Def x) -> inferHeadDef x
+    (A.Proj x) -> inferHeadDef x
     (A.Con (AmbQ [c])) -> do
 
       -- Constructors are polymorphic internally.
@@ -1281,6 +1284,7 @@ inferExpr e = case e of
 defOrVar :: A.Expr -> Bool
 defOrVar A.Var{} = True
 defOrVar A.Def{} = True
+defOrVar A.Proj{} = True
 defOrVar (A.ScopedExpr _ e) = defOrVar e
 defOrVar _     = False
 

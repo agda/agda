@@ -355,9 +355,9 @@ instance ToAbstract (NewName C.BoundName) A.Name where
 nameExpr :: AbstractName -> A.Expr
 nameExpr d = mk (anameKind d) $ anameName d
   where
-    mk DefName        x = Def x
-    mk FldName        x = Def x
-    mk ConName        x = Con $ AmbQ [x]
+    mk DefName        x = A.Def x
+    mk FldName        x = A.Proj x
+    mk ConName        x = A.Con $ AmbQ [x]
     mk PatternSynName x = A.PatternSyn x
     mk QuotableName   x = A.App i (A.Quote i) (defaultNamedArg $ A.Def x)
       where i = ExprRange (getRange x)
@@ -1318,6 +1318,7 @@ instance ToAbstract C.Pragma [A.Pragma] where
       e <- toAbstract $ OldQName x
       case e of
         A.Def x          -> return [ A.RewritePragma x ]
+        A.Proj x         -> return [ A.RewritePragma x ]
         A.Con (AmbQ [x]) -> return [ A.RewritePragma x ]
         A.Con x          -> fail $ "REWRITE used on ambiguous name " ++ show x
         _       -> __IMPOSSIBLE__
@@ -1335,6 +1336,7 @@ instance ToAbstract C.Pragma [A.Pragma] where
       e <- toAbstract $ OldQName x
       y <- case e of
             A.Def x -> return x
+            A.Proj x -> return x -- TODO: do we need to do s.th. special for projections? (Andreas, 2014-10-12)
             A.Con _ -> fail "Use COMPILED_DATA for constructors" -- TODO
             _       -> __IMPOSSIBLE__
       return [ A.CompiledPragma y hs ]
@@ -1342,7 +1344,6 @@ instance ToAbstract C.Pragma [A.Pragma] where
       e <- toAbstract $ OldQName x
       y <- case e of
             A.Def x -> return x
-            --A.Con x -> return x
             _       -> __IMPOSSIBLE__
       return [ A.CompiledExportPragma y hs ]
     toAbstract (C.CompiledEpicPragma _ x ep) = do
@@ -1355,6 +1356,7 @@ instance ToAbstract C.Pragma [A.Pragma] where
       e <- toAbstract $ OldQName x
       y <- case e of
             A.Def x -> return x
+            A.Proj x -> return x
             A.Con (AmbQ [x]) -> return x
             A.Con x -> fail ("COMPILED_JS used on ambiguous name " ++ show x)
             _       -> __IMPOSSIBLE__
@@ -1589,6 +1591,7 @@ instance ToAbstract C.Pattern (A.Pattern' C.Expr) where
         getHiding p == NotHidden = do
       e <- toAbstract (OldQName x)
       let quoted (A.Def x) = return x
+          quoted (A.Proj x) = return x
           quoted (A.Con (AmbQ [x])) = return x
           quoted (A.Con (AmbQ xs))  = typeError $ GenericError $ "quote: Ambigous name: " ++ show xs
           quoted (A.ScopedExpr _ e) = quoted e
