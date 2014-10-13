@@ -23,9 +23,9 @@ allagda=$(patsubst %.agda,%.test,$(filter-out $(excluded),$(shell ls *.*agda)))
 default : all
 all : $(allagda) # $(alllagda)
 
-#  --vim $(AGDA_TEST_FLAGS)
+#  --vim
 
-RUN_AGDA = time $(AGDA_BIN) -i. -i../../std-lib -i../../std-lib/src -v$(V) $(shell if [ -e $*.flags ]; then cat $*.flags; fi) +RTS -H1G -M1.5G -RTS
+RUN_AGDA = time $(AGDA_BIN) $(AGDA_TEST_FLAGS) -i. -i../../std-lib -i../../std-lib/src -v$(V) $(shell if [ -e $*.flags ]; then cat $*.flags; fi) +RTS -H1G -M1.5G -RTS
 
 %.test : %.agda
 	@echo $<
