@@ -99,7 +99,7 @@ checkStrictlyPositive qs = disableDestructiveUpdate $ do
           setCurrentRange (getRange q) $ typeError $ GenericError (show err)
 
       -- if we find an unguarded record, mark it as such
-      case mhead [ how | Edge o how <- loops, o <= StrictPos ] of
+      case headMay [ how | Edge o how <- loops, o <= StrictPos ] of
         Just how -> do
           reportSDoc "tc.pos.record" 5 $ sep
             [ prettyTCM q <+> text "is not guarded, because it occurs"

@@ -181,7 +181,7 @@ expandCatchAlls single n cs =
     -- True if nth pattern is variable or there are less than n patterns.
     isCatchAllNth ps = all (isVar . unArg) $ take 1 $ drop n ps
 
-    nth qs = fromMaybe __IMPOSSIBLE__ $ mhead $ drop n qs
+    nth qs = fromMaybe __IMPOSSIBLE__ $ headMay $ drop n qs
 
     classify (LitP l)     = Left l
     classify (ConP c _ _) = Right c

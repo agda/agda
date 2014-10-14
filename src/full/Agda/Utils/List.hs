@@ -42,14 +42,14 @@ listCase n c []     = n
 listCase n c (x:xs) = c x xs
 
 -- | Head function (safe).
-mhead :: [a] -> Maybe a
-mhead []    = Nothing
-mhead (x:_) = Just x
+headMay :: [a] -> Maybe a
+headMay []      = Nothing
+headMay (x : _) = Just x
 
 -- | Last element (safe).
-mlast :: [a] -> Maybe a
-mlast [] = Nothing
-mlast xs = Just $ last xs
+lastMay :: [a] -> Maybe a
+lastMay [] = Nothing
+lastMay xs = Just $ last xs
 
 -- | Opposite of cons @(:)@, safe.
 uncons :: [a] -> Maybe (a, [a])

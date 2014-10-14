@@ -84,7 +84,7 @@ canProject f v =
   case ignoreSharing v of
     (Con (ConHead _ _ fs) vs) -> do
       i <- elemIndex f fs
-      mhead (drop i vs)
+      headMay (drop i vs)
     _ -> Nothing
 
 -- | Eliminate a constructed term.
@@ -97,14 +97,14 @@ conApp ch@(ConHead c _ fs) args (Proj f  : es) =
         " with fields " ++ show fs ++
         " projected by " ++ show f
       i = maybe failure id            $ elemIndex f fs
-      v = maybe failure argToDontCare $ mhead $ drop i args
+      v = maybe failure argToDontCare $ headMay $ drop i args
   in  applyE v es
 {-
       i = maybe failure id    $ elemIndex f $ map unArg fs
-      v = maybe failure unArg $ mhead $ drop i args
+      v = maybe failure unArg $ headMay $ drop i args
       -- Andreas, 2013-10-20 see Issue543a:
       -- protect result of irrelevant projection.
-      r = maybe __IMPOSSIBLE__ getRelevance $ mhead $ drop i fs
+      r = maybe __IMPOSSIBLE__ getRelevance $ headMay $ drop i fs
       u | Irrelevant <- r = DontCare v
         | otherwise       = v
   in  applyE v es
