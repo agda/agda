@@ -3,6 +3,7 @@
 {-# LANGUAGE CPP             #-}
 {-# LANGUAGE PatternGuards   #-}
 {-# LANGUAGE TemplateHaskell #-}
+{-# LANGUAGE UnicodeSyntax   #-}
 
 {-| Utitlity functions on lists.
 -}
@@ -45,6 +46,13 @@ listCase n c (x:xs) = c x xs
 headMay :: [a] -> Maybe a
 headMay []      = Nothing
 headMay (x : _) = Just x
+
+-- | Head function (safe). Returns a value on empty lists.
+--
+-- > headDef 42 []      = 42
+-- > headDef 42 [1,2,3] = 1
+headDef :: a → [a] → a
+headDef def = fromMaybe def . headMay
 
 -- | Last element (safe).
 lastMay :: [a] -> Maybe a

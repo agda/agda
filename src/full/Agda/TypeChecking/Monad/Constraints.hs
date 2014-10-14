@@ -24,7 +24,7 @@ import Agda.Utils.Impossible
 
 -- | Get the current problem
 currentProblem :: TCM ProblemId
-currentProblem = fromMaybe __IMPOSSIBLE__ . headMay <$> asks envActiveProblems
+currentProblem = headDef __IMPOSSIBLE__ <$> asks envActiveProblems
 
 -- | Steal all constraints belonging to the given problem and add them to the current problem.
 stealConstraints :: ProblemId -> TCM ()
