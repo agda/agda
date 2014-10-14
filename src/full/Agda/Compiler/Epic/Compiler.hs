@@ -247,7 +247,7 @@ runEpicMain mainName imports m = do
     liftIO $ writeFile ("main" <.> "e") code
 
     let outputName ∷ CN.Name
-        outputName = maybe __IMPOSSIBLE__ nameConcrete $ mlast $ mnameToList m
+        outputName = maybe __IMPOSSIBLE__ nameConcrete $ lastMay $ mnameToList m
 
     callEpic'  $ \epic ->
         [ "main" <.> "e"

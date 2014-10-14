@@ -1,9 +1,12 @@
+{-# OPTIONS_GHC -fwarn-missing-signatures #-}
+
 {-# LANGUAGE CPP                  #-}
 {-# LANGUAGE DeriveDataTypeable   #-}
 {-# LANGUAGE FlexibleInstances    #-}
 {-# LANGUAGE PatternGuards        #-}
 {-# LANGUAGE TupleSections        #-}
 {-# LANGUAGE TypeSynonymInstances #-}
+{-# LANGUAGE UnicodeSyntax        #-}
 
 -- | Preprocess 'Agda.Syntax.Concrete.Declaration's, producing 'NiceDeclaration's.
 --
@@ -61,7 +64,7 @@ import Agda.Syntax.Concrete.Pretty ()
 
 import Agda.Utils.Except ( Error(noMsg, strMsg), MonadError(throwError) )
 import Agda.Utils.Lens
-import Agda.Utils.List (mhead, isSublistOf)
+import Agda.Utils.List (headMay, isSublistOf)
 import Agda.Utils.Monad
 import Agda.Utils.Pretty
 import Agda.Utils.Update
@@ -388,6 +391,7 @@ data DeclKind
     | OtherDecl
   deriving (Eq, Show)
 
+declKind ∷ NiceDeclaration → DeclKind
 declKind (FunSig _ _ _ _ _ tc x _)    = LoneSig (FunName tc) x
 declKind (NiceRecSig _ _ _ x pars _)  = LoneSig (RecName $ parameters pars) x
 declKind (NiceDataSig _ _ _ x pars _) = LoneSig (DataName $ parameters pars) x
@@ -742,7 +746,7 @@ niceDeclarations ds = do
 --          trace ("xStrings = " ++ show xStrings) $
 --          trace ("patStrings = " ++ show patStrings) $
 --          trace ("mFixity = " ++ show mFixity) $
-      case (mhead pns, mFixity) of
+      case (headMay pns, mFixity) of
         -- first identifier in the patterns is the fun.symbol?
         (Just y, _) | x == y -> True -- trace ("couldBe since y = " ++ show y) $ True
         -- are the parts of x contained in p
