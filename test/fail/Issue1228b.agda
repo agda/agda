@@ -7,7 +7,7 @@ tt : ⊤
 tt = record{}
 
 arg₀ : {A : Set} → A → Arg A
-arg₀ = arg (arginfo visible relevant)
+arg₀ = arg (argInfo visible relevant)
 
 el₀ : Term → Type
 el₀ = el (lit 0)

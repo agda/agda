@@ -30,20 +30,20 @@ ok = refl
 
 a : quote0 ≡
     def (quote Σ)
-        ( arg (arginfo hidden relevant) (def (quote Common.Level.lzero) []) ∷
-          arg (arginfo hidden relevant) (def (quote Common.Level.lzero) []) ∷
-          arg (arginfo visible relevant) (def (quote ℕ) []) ∷
-          arg (arginfo visible relevant) (def (quote Even) []) ∷
+        ( arg (argInfo hidden relevant) (def (quote Common.Level.lzero) []) ∷
+          arg (argInfo hidden relevant) (def (quote Common.Level.lzero) []) ∷
+          arg (argInfo visible relevant) (def (quote ℕ) []) ∷
+          arg (argInfo visible relevant) (def (quote Even) []) ∷
           []
         )
 a = refl
 
 b : quotedTerm0 ≡
     def (quote Σ)
-        ( arg (arginfo hidden relevant) (def (quote Common.Level.lzero) []) ∷
-          arg (arginfo hidden relevant) (def (quote Common.Level.lzero) []) ∷
-          arg (arginfo visible relevant) (def (quote ℕ) []) ∷
-          arg (arginfo visible relevant) (def (quote Even) []) ∷
+        ( arg (argInfo hidden relevant) (def (quote Common.Level.lzero) []) ∷
+          arg (argInfo hidden relevant) (def (quote Common.Level.lzero) []) ∷
+          arg (argInfo visible relevant) (def (quote ℕ) []) ∷
+          arg (argInfo visible relevant) (def (quote Even) []) ∷
           []
         )
 b = refl
