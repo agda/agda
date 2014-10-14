@@ -1,8 +1,11 @@
+{-# OPTIONS_GHC -fwarn-missing-signatures #-}
+
 {-# LANGUAGE CPP                  #-}
 {-# LANGUAGE FlexibleContexts     #-}
 {-# LANGUAGE FlexibleInstances    #-}
 {-# LANGUAGE TypeSynonymInstances #-}
 {-# LANGUAGE UndecidableInstances #-}
+{-# LANGUAGE UnicodeSyntax        #-}
 
 -- | Check that a datatype is strictly positive.
 module Agda.TypeChecking.Positivity where
@@ -154,6 +157,7 @@ checkStrictlyPositive qs = disableDestructiveUpdate $ do
       -- it is computed deep-strictly.
       setArgOccurrences q $!! args
 
+getDefArity ∷ Definition → TCM Int
 getDefArity def = case theDef def of
   Function{ funClauses = cs, funProjection = proj } -> do
     let dropped = maybe 0 (subtract 1 . projIndex) proj

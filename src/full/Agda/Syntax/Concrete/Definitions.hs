@@ -1,9 +1,12 @@
+{-# OPTIONS_GHC -fwarn-missing-signatures #-}
+
 {-# LANGUAGE CPP                  #-}
 {-# LANGUAGE DeriveDataTypeable   #-}
 {-# LANGUAGE FlexibleInstances    #-}
 {-# LANGUAGE PatternGuards        #-}
 {-# LANGUAGE TupleSections        #-}
 {-# LANGUAGE TypeSynonymInstances #-}
+{-# LANGUAGE UnicodeSyntax        #-}
 
 -- | Preprocess 'Agda.Syntax.Concrete.Declaration's, producing 'NiceDeclaration's.
 --
@@ -388,6 +391,7 @@ data DeclKind
     | OtherDecl
   deriving (Eq, Show)
 
+declKind ∷ NiceDeclaration → DeclKind
 declKind (FunSig _ _ _ _ _ tc x _)    = LoneSig (FunName tc) x
 declKind (NiceRecSig _ _ _ x pars _)  = LoneSig (RecName $ parameters pars) x
 declKind (NiceDataSig _ _ _ x pars _) = LoneSig (DataName $ parameters pars) x
