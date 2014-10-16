@@ -37,11 +37,9 @@ V = 0
 # Enable read -n
 SHELL=bash
 
-# Getting all agda files
+# Getting all agda files.  This is a placeholder in case you want to
+# exclude some tests.  But don't push it.
 excluded=
-# This is a placeholder for test cases you want to skip, e.g.
-# # Andreas 2013-10-27 skip over Epic testcase
-excluded=Issue390.agda
 allagda=$(filter-out $(excluded),$(shell ls *agda))
 allstems=$(patsubst %.agda,%,$(allagda))
 allout=$(patsubst %.agda,%.err,$(allagda))

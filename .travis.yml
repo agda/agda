@@ -17,6 +17,9 @@ install:
   - cabal install happy
   # New new alex for us
   - cabal install alex
+  # And epic
+  - sudo apt-get install libgc-dev
+  - cabal install epic
   # GO GO GO
   - cabal install --only-dependencies -j
   - make install-fix-agda-whitespace
