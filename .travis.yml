@@ -13,6 +13,7 @@ ghc:
 install:
   # New happy needed for haskell-src-exts
   - cabal install happy
+  - cabal install alex
   - cabal install --only-dependencies -j
 
 script:
