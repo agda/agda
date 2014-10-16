@@ -237,17 +237,24 @@ instance Show DeclarationException where
   show (NotAllowedInMutual nd) = show $ fsep $
     [text $ decl nd] ++ pwords "are not allowed in mutual blocks"
     where
-      decl (Axiom{})             = "Postulates"
-      decl (NiceField{})         = "Fields"
-      decl (NiceMutual{})        = "Mutual blocks"
-      decl (NiceModule{})        = "Modules"
-      decl (NiceModuleMacro{})   = "Modules"
-      decl (NiceOpen{})          = "Open declarations"
-      decl (NiceImport{})        = "Import statements"
-      decl (NicePragma{})        = "Pragmas"
-      decl (PrimitiveFunction{}) = "Primitive declarations"
-      decl (NicePatternSyn{})    = "Pattern synonyms"
-      decl _ = __IMPOSSIBLE__
+      decl Axiom{}             = "Postulates"
+      decl NiceField{}         = "Fields"
+      decl NiceMutual{}        = "Mutual blocks"
+      decl NiceModule{}        = "Modules"
+      decl NiceModuleMacro{}   = "Modules"
+      decl NiceOpen{}          = "Open declarations"
+      decl NiceImport{}        = "Import statements"
+      decl NicePragma{}        = "Pragmas"
+      decl PrimitiveFunction{} = "Primitive declarations"
+      decl NicePatternSyn{}    = "Pattern synonyms"
+      decl NiceUnquoteDecl{}   = "Unquoted declarations"
+      decl NiceRecSig{}        = __IMPOSSIBLE__
+      decl NiceDataSig{}       = __IMPOSSIBLE__
+      decl NiceFunClause{}     = __IMPOSSIBLE__
+      decl FunSig{}            = __IMPOSSIBLE__
+      decl FunDef{}            = __IMPOSSIBLE__
+      decl RecDef{}            = __IMPOSSIBLE__
+      decl DataDef{}           = __IMPOSSIBLE__
   show (Codata _) =
     "The codata construction has been removed. " ++
     "Use the INFINITY builtin instead."
