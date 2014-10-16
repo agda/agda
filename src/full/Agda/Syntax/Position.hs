@@ -14,7 +14,6 @@
 {-# LANGUAGE ScopedTypeVariables  #-}
 {-# LANGUAGE TemplateHaskell      #-}
 {-# LANGUAGE TypeSynonymInstances #-}
-{-# LANGUAGE UnicodeSyntax        #-}
 
 {-| Position information for syntax. Crucial for giving good error messages.
 -}
@@ -221,108 +220,108 @@ class KillRange a where
 
 type KillRangeT a = a -> a
 
-killRange1 ∷ KillRange a ⇒ (a → b) → a → b
+killRange1 :: KillRange a => (a -> b) -> a -> b
 
-killRange2 ∷ (KillRange a, KillRange b) ⇒ (a → b → c) → a → b → c
+killRange2 :: (KillRange a, KillRange b) => (a -> b -> c) -> a -> b -> c
 
-killRange3 ∷ (KillRange a, KillRange b, KillRange c) ⇒
-             (a → b → c → d) → a → b → c → d
+killRange3 :: (KillRange a, KillRange b, KillRange c) =>
+              (a -> b -> c -> d) -> a -> b -> c -> d
 
-killRange4 ∷ (KillRange a, KillRange b, KillRange c, KillRange d) ⇒
-             (a → b → c → d → e) → a → b → c → d → e
+killRange4 :: (KillRange a, KillRange b, KillRange c, KillRange d) =>
+              (a -> b -> c -> d -> e) -> a -> b -> c -> d -> e
 
-killRange5 ∷ ( KillRange a, KillRange b, KillRange c, KillRange d
-             , KillRange e ) ⇒
-             (a → b → c → d → e → f) → a → b → c → d → e → f
+killRange5 :: ( KillRange a, KillRange b, KillRange c, KillRange d
+              , KillRange e ) =>
+              (a -> b -> c -> d -> e -> f) -> a -> b -> c -> d -> e -> f
 
-killRange6 ∷ ( KillRange a, KillRange b, KillRange c, KillRange d
-             , KillRange e, KillRange f ) ⇒
-             (a → b → c → d → e → f → g) → a → b → c → d → e → f → g
+killRange6 :: ( KillRange a, KillRange b, KillRange c, KillRange d
+              , KillRange e, KillRange f ) =>
+              (a -> b -> c -> d -> e -> f -> g) -> a -> b -> c -> d -> e -> f -> g
 
-killRange7 ∷ ( KillRange a, KillRange b, KillRange c, KillRange d
-             , KillRange e, KillRange f, KillRange g ) ⇒
-             (a → b → c → d → e → f → g → h) → a → b → c → d → e → f → g → h
+killRange7 :: ( KillRange a, KillRange b, KillRange c, KillRange d
+              , KillRange e, KillRange f, KillRange g ) =>
+              (a -> b -> c -> d -> e -> f -> g -> h) -> a -> b -> c -> d -> e -> f -> g -> h
 
-killRange8 ∷ ( KillRange a, KillRange b, KillRange c, KillRange d
-             , KillRange e, KillRange f, KillRange g, KillRange h ) ⇒
-             (a → b → c → d → e → f → g → h → i) →
-             a → b → c → d → e → f → g → h → i
+killRange8 :: ( KillRange a, KillRange b, KillRange c, KillRange d
+              , KillRange e, KillRange f, KillRange g, KillRange h ) =>
+              (a -> b -> c -> d -> e -> f -> g -> h -> i) ->
+              a -> b -> c -> d -> e -> f -> g -> h -> i
 
-killRange9 ∷ ( KillRange a, KillRange b, KillRange c, KillRange d
-             , KillRange e, KillRange f, KillRange g, KillRange h
-             , KillRange i ) ⇒
-             (a → b → c → d → e → f → g → h → i → j) →
-             a → b → c → d → e → f → g → h → i → j
-
-killRange10 ∷ ( KillRange a, KillRange b, KillRange c, KillRange d
+killRange9 :: ( KillRange a, KillRange b, KillRange c, KillRange d
               , KillRange e, KillRange f, KillRange g, KillRange h
-              , KillRange i, KillRange j ) ⇒
-              (a → b → c → d → e → f → g → h → i → j → k) →
-              a → b → c → d → e → f → g → h → i → j → k
+              , KillRange i ) =>
+              (a -> b -> c -> d -> e -> f -> g -> h -> i -> j) ->
+              a -> b -> c -> d -> e -> f -> g -> h -> i -> j
 
-killRange11 ∷ ( KillRange a, KillRange b, KillRange c, KillRange d
-              , KillRange e, KillRange f, KillRange g, KillRange h
-              , KillRange i, KillRange j, KillRange k ) ⇒
-              (a → b → c → d → e → f → g → h → i → j → k → l) →
-              a → b → c → d → e → f → g → h → i → j → k → l
+killRange10 :: ( KillRange a, KillRange b, KillRange c, KillRange d
+               , KillRange e, KillRange f, KillRange g, KillRange h
+               , KillRange i, KillRange j ) =>
+               (a -> b -> c -> d -> e -> f -> g -> h -> i -> j -> k) ->
+               a -> b -> c -> d -> e -> f -> g -> h -> i -> j -> k
 
-killRange12 ∷ ( KillRange a, KillRange b, KillRange c, KillRange d
-              , KillRange e, KillRange f, KillRange g, KillRange h
-              , KillRange i, KillRange j, KillRange k, KillRange l ) ⇒
-              (a → b → c → d → e → f → g → h → i → j → k → l → m) →
-              a → b → c → d → e → f → g → h → i → j → k → l → m
+killRange11 :: ( KillRange a, KillRange b, KillRange c, KillRange d
+               , KillRange e, KillRange f, KillRange g, KillRange h
+               , KillRange i, KillRange j, KillRange k ) =>
+               (a -> b -> c -> d -> e -> f -> g -> h -> i -> j -> k -> l) ->
+               a -> b -> c -> d -> e -> f -> g -> h -> i -> j -> k -> l
 
-killRange13 ∷ ( KillRange a, KillRange b, KillRange c, KillRange d
-              , KillRange e, KillRange f, KillRange g, KillRange h
-              , KillRange i, KillRange j, KillRange k, KillRange l
-              , KillRange m ) ⇒
-              (a → b → c → d → e → f → g → h → i → j → k → l → m → n) →
-              a → b → c → d → e → f → g → h → i → j → k → l → m → n
+killRange12 :: ( KillRange a, KillRange b, KillRange c, KillRange d
+               , KillRange e, KillRange f, KillRange g, KillRange h
+               , KillRange i, KillRange j, KillRange k, KillRange l ) =>
+               (a -> b -> c -> d -> e -> f -> g -> h -> i -> j -> k -> l -> m) ->
+               a -> b -> c -> d -> e -> f -> g -> h -> i -> j -> k -> l -> m
 
-killRange14 ∷ ( KillRange a, KillRange b, KillRange c, KillRange d
-              , KillRange e, KillRange f, KillRange g, KillRange h
-              , KillRange i, KillRange j, KillRange k, KillRange l
-              , KillRange m, KillRange n ) ⇒
-              (a → b → c → d → e → f → g → h → i → j → k → l → m → n → o) →
-              a → b → c → d → e → f → g → h → i → j → k → l → m → n → o
+killRange13 :: ( KillRange a, KillRange b, KillRange c, KillRange d
+               , KillRange e, KillRange f, KillRange g, KillRange h
+               , KillRange i, KillRange j, KillRange k, KillRange l
+               , KillRange m ) =>
+               (a -> b -> c -> d -> e -> f -> g -> h -> i -> j -> k -> l -> m -> n) ->
+               a -> b -> c -> d -> e -> f -> g -> h -> i -> j -> k -> l -> m -> n
 
-killRange15 ∷ ( KillRange a, KillRange b, KillRange c, KillRange d
-              , KillRange e, KillRange f, KillRange g, KillRange h
-              , KillRange i, KillRange j, KillRange k, KillRange l
-              , KillRange m, KillRange n, KillRange o ) ⇒
-              (a → b → c → d → e → f → g → h → i → j → k → l → m → n → o → p) →
-              a → b → c → d → e → f → g → h → i → j → k → l → m → n → o → p
+killRange14 :: ( KillRange a, KillRange b, KillRange c, KillRange d
+               , KillRange e, KillRange f, KillRange g, KillRange h
+               , KillRange i, KillRange j, KillRange k, KillRange l
+               , KillRange m, KillRange n ) =>
+               (a -> b -> c -> d -> e -> f -> g -> h -> i -> j -> k -> l -> m -> n -> o) ->
+               a -> b -> c -> d -> e -> f -> g -> h -> i -> j -> k -> l -> m -> n -> o
 
-killRange16 ∷ ( KillRange a, KillRange b, KillRange c, KillRange d
-              , KillRange e, KillRange f, KillRange g, KillRange h
-              , KillRange i, KillRange j, KillRange k, KillRange l
-              , KillRange m, KillRange n, KillRange o, KillRange p ) ⇒
-              (a → b → c → d → e → f → g → h → i → j → k → l → m → n → o → p → q) →
-              a → b → c → d → e → f → g → h → i → j → k → l → m → n → o → p → q
+killRange15 :: ( KillRange a, KillRange b, KillRange c, KillRange d
+               , KillRange e, KillRange f, KillRange g, KillRange h
+               , KillRange i, KillRange j, KillRange k, KillRange l
+               , KillRange m, KillRange n, KillRange o ) =>
+               (a -> b -> c -> d -> e -> f -> g -> h -> i -> j -> k -> l -> m -> n -> o -> p) ->
+               a -> b -> c -> d -> e -> f -> g -> h -> i -> j -> k -> l -> m -> n -> o -> p
 
-killRange17 ∷ ( KillRange a, KillRange b, KillRange c, KillRange d
-              , KillRange e, KillRange f, KillRange g, KillRange h
-              , KillRange i, KillRange j, KillRange k, KillRange l
-              , KillRange m, KillRange n, KillRange o, KillRange p
-              , KillRange q ) ⇒
-              (a → b → c → d → e → f → g → h → i → j → k → l → m → n → o → p → q → r) →
-              a → b → c → d → e → f → g → h → i → j → k → l → m → n → o → p → q → r
+killRange16 :: ( KillRange a, KillRange b, KillRange c, KillRange d
+               , KillRange e, KillRange f, KillRange g, KillRange h
+               , KillRange i, KillRange j, KillRange k, KillRange l
+               , KillRange m, KillRange n, KillRange o, KillRange p ) =>
+               (a -> b -> c -> d -> e -> f -> g -> h -> i -> j -> k -> l -> m -> n -> o -> p -> q) ->
+               a -> b -> c -> d -> e -> f -> g -> h -> i -> j -> k -> l -> m -> n -> o -> p -> q
 
-killRange18 ∷ ( KillRange a, KillRange b, KillRange c, KillRange d
-              , KillRange e, KillRange f, KillRange g, KillRange h
-              , KillRange i, KillRange j, KillRange k, KillRange l
-              , KillRange m, KillRange n, KillRange o, KillRange p
-              , KillRange q, KillRange r ) ⇒
-              (a → b → c → d → e → f → g → h → i → j → k → l → m → n → o → p → q → r → s) →
-              a → b → c → d → e → f → g → h → i → j → k → l → m → n → o → p → q → r → s
+killRange17 :: ( KillRange a, KillRange b, KillRange c, KillRange d
+               , KillRange e, KillRange f, KillRange g, KillRange h
+               , KillRange i, KillRange j, KillRange k, KillRange l
+               , KillRange m, KillRange n, KillRange o, KillRange p
+               , KillRange q ) =>
+               (a -> b -> c -> d -> e -> f -> g -> h -> i -> j -> k -> l -> m -> n -> o -> p -> q -> r) ->
+               a -> b -> c -> d -> e -> f -> g -> h -> i -> j -> k -> l -> m -> n -> o -> p -> q -> r
 
-killRange19 ∷ ( KillRange a, KillRange b, KillRange c, KillRange d
-              , KillRange e, KillRange f, KillRange g, KillRange h
-              , KillRange i, KillRange j, KillRange k, KillRange l
-              , KillRange m, KillRange n, KillRange o, KillRange p
-              , KillRange q, KillRange r, KillRange s ) ⇒
-              (a → b → c → d → e → f → g → h → i → j → k → l → m → n → o → p → q → r → s → t) →
-              a → b → c → d → e → f → g → h → i → j → k → l → m → n → o → p → q → r → s → t
+killRange18 :: ( KillRange a, KillRange b, KillRange c, KillRange d
+               , KillRange e, KillRange f, KillRange g, KillRange h
+               , KillRange i, KillRange j, KillRange k, KillRange l
+               , KillRange m, KillRange n, KillRange o, KillRange p
+               , KillRange q, KillRange r ) =>
+               (a -> b -> c -> d -> e -> f -> g -> h -> i -> j -> k -> l -> m -> n -> o -> p -> q -> r -> s) ->
+               a -> b -> c -> d -> e -> f -> g -> h -> i -> j -> k -> l -> m -> n -> o -> p -> q -> r -> s
+
+killRange19 :: ( KillRange a, KillRange b, KillRange c, KillRange d
+               , KillRange e, KillRange f, KillRange g, KillRange h
+               , KillRange i, KillRange j, KillRange k, KillRange l
+               , KillRange m, KillRange n, KillRange o, KillRange p
+               , KillRange q, KillRange r, KillRange s ) =>
+               (a -> b -> c -> d -> e -> f -> g -> h -> i -> j -> k -> l -> m -> n -> o -> p -> q -> r -> s -> t) ->
+               a -> b -> c -> d -> e -> f -> g -> h -> i -> j -> k -> l -> m -> n -> o -> p -> q -> r -> s -> t
 
 killRange1  f a = f (killRange a)
 killRange2  f a = killRange1 (f $ killRange a)
@@ -410,7 +409,7 @@ instance Show a => Show (Range' (Maybe a)) where
 -- Printing
 ------------------------------------------------------------------------
 
-instance Pretty a ⇒ Pretty (Position' (Maybe a)) where
+instance Pretty a => Pretty (Position' (Maybe a)) where
     pretty (Pn Nothing  _ l c) = pretty l <> pretty "," <> pretty c
     pretty (Pn (Just f) _ l c) =
       pretty f <> pretty ":" <> pretty l <> pretty "," <> pretty c

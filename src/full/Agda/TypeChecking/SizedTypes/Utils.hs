@@ -1,7 +1,6 @@
 {-# OPTIONS_GHC -fwarn-missing-signatures #-}
 
 {-# LANGUAGE MultiParamTypeClasses #-}
-{-# LANGUAGE UnicodeSyntax         #-}
 
 module Agda.TypeChecking.SizedTypes.Utils where
 
@@ -10,13 +9,13 @@ import Data.Functor
 import qualified Debug.Trace as Debug
 import Agda.Utils.Function
 
-debug ∷ Bool
+debug :: Bool
 debug = False
 
-trace ∷ String → a → a
+trace :: String -> a -> a
 trace  s = applyWhen debug $ Debug.trace s
 
-traceM ∷ Applicative f ⇒ String → f ()
+traceM :: Applicative f => String -> f ()
 traceM s = trace s $ pure ()
 
 class Eq a => Top a where

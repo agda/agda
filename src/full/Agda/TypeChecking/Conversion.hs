@@ -4,7 +4,6 @@
 {-# LANGUAGE FlexibleInstances    #-}
 {-# LANGUAGE PatternGuards        #-}
 {-# LANGUAGE TypeSynonymInstances #-}
-{-# LANGUAGE UnicodeSyntax        #-}
 
 module Agda.TypeChecking.Conversion where
 
@@ -181,7 +180,7 @@ compareTerm cmp a u v = do
                     PatternErr s -> put s >> h
                     _            -> h
 
-unifyPointers ∷ Comparison → Term → Term → TCM () → TCM ()
+unifyPointers :: Comparison -> Term -> Term -> TCM () -> TCM ()
 unifyPointers _ _ _ action = action
 -- unifyPointers cmp _ _ action | cmp /= CmpEq = action
 -- unifyPointers _ u v action = do

@@ -9,7 +9,6 @@
 {-# LANGUAGE StandaloneDeriving   #-}
 {-# LANGUAGE TupleSections        #-}
 {-# LANGUAGE TypeSynonymInstances #-}
-{-# LANGUAGE UnicodeSyntax        #-}
 
 module Agda.TypeChecking.Substitute where
 
@@ -1102,7 +1101,7 @@ levelTm l =
     Max [Plus 0 l] -> unLevelAtom l
     _              -> Level l
 
-unLevelAtom ∷ LevelAtom → Term
+unLevelAtom :: LevelAtom -> Term
 unLevelAtom (MetaLevel x es)   = MetaV x es
 unLevelAtom (NeutralLevel v)   = v
 unLevelAtom (UnreducedLevel v) = v

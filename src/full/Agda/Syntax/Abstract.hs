@@ -9,7 +9,6 @@
 {-# LANGUAGE MultiParamTypeClasses #-}
 {-# LANGUAGE TemplateHaskell       #-}
 {-# LANGUAGE TypeSynonymInstances  #-}
-{-# LANGUAGE UnicodeSyntax         #-}
 
 {-| The abstract syntax. This is what you get after desugaring and scope
     analysis of the concrete syntax. The type checker works on abstract syntax,
@@ -776,7 +775,7 @@ instance AnyAbstract Declaration where
   anyAbstract (RecSig i _ _ _)       = defAbstract i == AbstractDef
   anyAbstract _                      = __IMPOSSIBLE__
 
-app ∷ Expr → [NamedArg Expr] → Expr
+app :: Expr -> [NamedArg Expr] -> Expr
 app = foldl (App (ExprRange noRange))
 
 patternToExpr :: Pattern -> Expr
