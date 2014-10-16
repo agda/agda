@@ -1,8 +1,25 @@
 language: haskell
+
+# We build with all the latest GHC versions for each 7.X, so we reduce
+# build times, possibly avoid compiler bugs and still test all the major
+# interface changes.
 ghc:
   - 7.8.3
+  - 7.6.3
+  - 7.4.2
+  - 7.2.2
+  - 7.0.4
+
 script:
-  cabal configure && cabal build
+  - cabal update
+  - cabal install happy
+  - cabal install alex
+  # Just for testing
+  - cabal --version
+  - happy --version
+  - which happy
+  - which cabal
+  - cabal build -v2
 
 # # Adapted from https://github.com/hvr/multi-ghc-travis, go there for more information
 
