@@ -1,5 +1,4 @@
 {-# LANGUAGE ScopedTypeVariables #-}
-{-# LANGUAGE UnicodeSyntax       #-}
 
 module Main where
 
@@ -19,14 +18,14 @@ import Agda.TypeChecking.Monad.Options ( setCommandLineOptions )
 
 ------------------------------------------------------------------------------
 
-main ∷ IO ()
+main :: IO ()
 main = do
-  r ∷ Either TCErr (Maybe Interface) ← liftIO $ runTCMTop $
+  r :: Either TCErr (Maybe Interface) <- liftIO $ runTCMTop $
     do setCommandLineOptions defaultOptions
        readInterface "Issue1168.agdai"
 
   case r of
-    Right (Just _) → exitSuccess
+    Right (Just _) -> exitSuccess
 
     -- This case can occurs because:
     --
@@ -34,7 +33,7 @@ main = do
     --
     -- b) the Agda versions used for compiling Issue1168.hs and
     -- type-checking Issue1168.agda are different.
-    Right Nothing → error "Nothing"
+    Right Nothing -> error "Nothing"
 
     -- Impossible.
-    Left _ → error "Left"
+    Left _ -> error "Left"
