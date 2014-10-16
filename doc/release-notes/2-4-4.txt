@@ -14,6 +14,27 @@ Pragmas and options
 Language
 ========
 
+* Unquoting function definitions.
+
+  There is a new declaration
+
+    unquoteDef x = e
+
+  Here e should have type LIST AGDACLAUSE and evaluate to a closed value. Since
+  unquoteDef only contains the function clauses you need a separate type
+  signature. For instance, given that you have a 'derivingEq' function that
+  builds decidable equality functions, you would say
+
+    eqNat : (x y : Nat) → Dec (x ≡ y)
+    unquoteDef eqNat = derivingEq (quote Nat) (quote eqNat)
+
+  Note that, in contrast to unquoteDecl, you have to quote the name of the
+  defined function to get a QNAME.
+
+  The main advantage of unquoteDef over unquoteDecl is that unquoteDef is
+  allowed in mutual blocks, allowing you to create mutually recursive
+  definitions by unquoting.
+
 Goal and error display
 ======================
 
