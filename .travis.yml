@@ -33,3 +33,6 @@ script:
   - make interaction
   - make examples
   - make tests
+
+notifications:
+  email: false
