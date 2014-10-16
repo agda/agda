@@ -29,7 +29,7 @@ data Relevance : Set where
 {-# BUILTIN IRRELEVANT irrelevant #-}
 
 data ArgInfo : Set where
-  arginfo : Hiding → Relevance → ArgInfo
+  argInfo : Hiding → Relevance → ArgInfo
 
 data Arg A : Set where
   arg : ArgInfo → A → Arg A
@@ -37,7 +37,7 @@ data Arg A : Set where
 {-# BUILTIN ARGINFO    ArgInfo #-}
 {-# BUILTIN ARG        Arg     #-}
 {-# BUILTIN ARGARG     arg     #-}
-{-# BUILTIN ARGARGINFO arginfo #-}
+{-# BUILTIN ARGARGINFO argInfo #-}
 
 data Literal : Set where
   nat   : ℕ → Literal
@@ -46,12 +46,12 @@ data Literal : Set where
   string : String → Literal
   qname : QName → Literal
 
-{-# BUILTIN AGDALITERAL Literal #-}
-{-# BUILTIN AGDALITNAT nat #-}
-{-# BUILTIN AGDALITFLOAT float #-}
-{-# BUILTIN AGDALITCHAR char #-}
-{-# BUILTIN AGDALITSTRING string #-}
-{-# BUILTIN AGDALITQNAME qname #-}
+{-# BUILTIN AGDALITERAL   Literal #-}
+{-# BUILTIN AGDALITNAT    nat     #-}
+{-# BUILTIN AGDALITFLOAT  float   #-}
+{-# BUILTIN AGDALITCHAR   char    #-}
+{-# BUILTIN AGDALITSTRING string  #-}
+{-# BUILTIN AGDALITQNAME  qname   #-}
 
 Args : Set
 
@@ -64,7 +64,7 @@ data Term : Set where
   con     : QName → Args → Term
   def     : QName → Args → Term
   lam     : Hiding → Term → Term
-  ext-lam : List Clause → Args → Term
+  extLam  : List Clause → Args → Term
   pi      : Arg Type → Type → Term
   sort    : Sort → Term
   lit     : Literal → Term
@@ -90,7 +90,7 @@ data Pattern : Set where
 
 data Clause where
   clause : List (Arg Pattern) → Term → Clause
-  absurd-clause : List (Arg Pattern) → Clause
+  absurdClause : List (Arg Pattern) → Clause
 
 
 {-# BUILTIN AGDASORT            Sort    #-}
@@ -103,7 +103,7 @@ data Clause where
 {-# BUILTIN AGDATERMCON         con     #-}
 {-# BUILTIN AGDATERMDEF         def     #-}
 {-# BUILTIN AGDATERMLAM         lam     #-}
-{-# BUILTIN AGDATERMEXTLAM      ext-lam #-}
+{-# BUILTIN AGDATERMEXTLAM      extLam  #-}
 {-# BUILTIN AGDATERMPI          pi      #-}
 {-# BUILTIN AGDATERMSORT        sort    #-}
 {-# BUILTIN AGDATERMLIT         lit     #-}
@@ -113,15 +113,15 @@ data Clause where
 {-# BUILTIN AGDASORTLIT         lit     #-}
 {-# BUILTIN AGDASORTUNSUPPORTED unknown #-}
 
-{-# BUILTIN AGDAPATCON con #-}
-{-# BUILTIN AGDAPATDOT dot #-}
-{-# BUILTIN AGDAPATVAR var #-}
-{-# BUILTIN AGDAPATLIT lit #-}
+{-# BUILTIN AGDAPATCON    con    #-}
+{-# BUILTIN AGDAPATDOT    dot    #-}
+{-# BUILTIN AGDAPATVAR    var    #-}
+{-# BUILTIN AGDAPATLIT    lit    #-}
 {-# BUILTIN AGDAPATABSURD absurd #-}
-{-# BUILTIN AGDAPATPROJ projP #-}
+{-# BUILTIN AGDAPATPROJ   projP  #-}
 
-{-# BUILTIN AGDACLAUSECLAUSE clause #-}
-{-# BUILTIN AGDACLAUSEABSURD absurd-clause #-}
+{-# BUILTIN AGDACLAUSECLAUSE clause       #-}
+{-# BUILTIN AGDACLAUSEABSURD absurdClause #-}
 
 data FunDef : Set where
   funDef : Type → List Clause → FunDef
@@ -133,8 +133,8 @@ postulate
   DataDef   : Set
   RecordDef : Set
 
-{-# BUILTIN AGDADATADEF         DataDef #-}
-{-# BUILTIN AGDARECORDDEF       RecordDef #-}
+{-# BUILTIN AGDADATADEF   DataDef #-}
+{-# BUILTIN AGDARECORDDEF RecordDef #-}
 
 data Definition : Set where
   funDef          : FunDef    → Definition

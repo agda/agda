@@ -1097,4 +1097,3 @@ notSoNiceDeclaration d =
       NicePatternSyn r _ n as p        -> PatternSyn r n as p
       NiceUnquoteDecl r _ _ _ _ x e    -> UnquoteDecl r x e
       NiceUnquoteDef r _ _ _ _ x e     -> UnquoteDef r x e
-

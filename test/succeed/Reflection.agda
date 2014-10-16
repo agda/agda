@@ -22,10 +22,10 @@ unEl : Type → Term
 unEl (el _ t) = t
 
 argᵛʳ : ∀{A} → A → Arg A
-argᵛʳ = arg (arginfo visible relevant)
+argᵛʳ = arg (argInfo visible relevant)
 
 argʰʳ : ∀{A} → A → Arg A
-argʰʳ = arg (arginfo hidden relevant)
+argʰʳ = arg (argInfo hidden relevant)
 
 el₀ : Term → Type
 el₀ = el (lit 0)

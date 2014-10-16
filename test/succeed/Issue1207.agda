@@ -12,7 +12,7 @@ data Check : Set where
 
 pattern _==_ x y = check x y refl
 
-pattern vArg x = arg (arginfo visible relevant) x
+pattern vArg x = arg (argInfo visible relevant) x
 pattern `a = def (quote a) []
 pattern `b = def (quote b) []
 pattern `suc x = def (quote lsuc) (vArg x ∷ [])

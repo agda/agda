@@ -6,7 +6,7 @@ open import Common.Reflection
 open import Common.Equality
 
 infixr 3 _`⇒_
-pattern vArg x = arg (arginfo visible relevant) x
+pattern vArg x = arg (argInfo visible relevant) x
 pattern `el a = el (lit 0) a
 pattern _`⇒_ a b = `el (pi (vArg a) b)
 pattern `Nat = `el (def (quote Nat) [])
@@ -35,6 +35,6 @@ prf = refl
 magicDef : FunDef
 magicDef =
   funDef (`el (def (quote ⊥) []) `⇒ `Nat)
-         (absurd-clause (vArg absurd ∷ []) ∷ [])
+         (absurdClause (vArg absurd ∷ []) ∷ [])
 
 unquoteDecl magic = magicDef

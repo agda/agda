@@ -29,8 +29,8 @@ instance
       eqNat (suc x) (suc .x) | yes refl = yes refl
       ... | no     = no
 
-pattern vArg a = arg (arginfo visible relevant) a
-pattern iArg a = arg (arginfo inst relevant) a
+pattern vArg a = arg (argInfo visible relevant) a
+pattern iArg a = arg (argInfo inst relevant) a
 
 id : {A : Set} → A → A
 id x = x

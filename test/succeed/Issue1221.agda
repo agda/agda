@@ -7,7 +7,7 @@ open import Common.Prelude
 postulate
   f : ∀ a → Set a
 
-pattern varg  x = arg (arginfo visible relevant) x
+pattern varg  x = arg (argInfo visible relevant) x
 pattern `lsuc x = set (def (quote lsuc) (varg x ∷ []))
 
 thm : primQNameType (quote f) ≡
