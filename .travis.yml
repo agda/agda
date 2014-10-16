@@ -11,7 +11,6 @@ ghc:
   # - 7.0.4
 
 install:
-  - cabal update
   - cabal install happy
   - cabal install --only-dependencies
 
