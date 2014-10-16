@@ -201,8 +201,7 @@ typeCheck f = do
   m <- moduleName f
   getInterface' m True
 
--- | Tries to return the interface associated to the given module. The
--- time stamp of the relevant interface file is also returned. May
+-- | Tries to return the interface associated to the given module. May
 -- type check the module. An error is raised if a warning is
 -- encountered.
 
@@ -473,9 +472,8 @@ readInterface file = do
                          -- document.
       _               -> throwError e
 
--- | Writes the given interface to the given file. Returns the file's
--- new modification time stamp, or 'Nothing' if the write failed.
-
+-- | Writes the given interface to the given file.
+-- Throws an error if the write fails.
 writeInterface :: FilePath -> Interface -> TCM ()
 writeInterface file i = do
     reportSLn "import.iface.write" 5  $ "Writing interface file " ++ file ++ "."
