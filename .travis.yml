@@ -13,11 +13,16 @@ ghc:
 install:
   # New happy needed for haskell-src-exts
   - cabal install happy
+  # New new alex for us
   - cabal install alex
   - cabal install --only-dependencies -j
+  - make install-fix-agda-whitespace
+  - autoconf
+  - ./configure
 
 script:
-  - cabal build -v2
+  - make install-bin
+  - make test
 
 # Just for the time being while things don't work
 notifications:
