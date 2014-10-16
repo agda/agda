@@ -193,11 +193,11 @@ checkUnquoteDecl mi i x e = do
          : [ nest 2 $ text (show c) | c <- cs ]
   -- Add x to signature, otherwise reification gets unhappy.
   addConstant x $ defaultDefn defaultArgInfo x a emptyFunction
-  a <- reifyUnquoted a
+  a <- reifyUnquoted $ killRange a
   reportSDoc "tc.unquote.decl" 10 $
     vcat [ text "unquoteDecl" <+> prettyTCM x <+> text "-->"
          , prettyTCM x <+> text ":" <+> prettyA a ]
-  cs <- mapM (reifyUnquoted . QNamed x) cs
+  cs <- mapM (reifyUnquoted . QNamed x) $ killRange cs
   reportSDoc "tc.unquote.decl" 10 $ vcat $ map prettyA cs
   let ds = [ A.Axiom A.FunSig i defaultArgInfo x a   -- TODO other than defaultArg
            , A.FunDef i x NotDelayed cs ]
@@ -215,7 +215,7 @@ checkUnquoteDef i x e = do
   reportSDoc "tc.unquote.def" 20 $
     vcat $ text "unquoteDef: Unquoted term"
          : [ nest 2 $ text (show c) | c <- cs ]
-  cs <- mapM (reifyUnquoted . QNamed x) cs
+  cs <- mapM (reifyUnquoted . QNamed x) $ killRange cs
   reportSDoc "tc.unquote.def" 10 $ vcat $ map prettyA cs
   checkFunDef NotDelayed i x cs
 
