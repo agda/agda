@@ -106,7 +106,7 @@ toList = concat . groups
 keys :: Bag a -> [a]
 keys = Map.keys . bag
 -- Works because of the invariant!
--- keys = catMaybes . map mhead . Map.elems . bag
+-- keys = catMaybes . map headMay . Map.elems . bag
 --   -- Map.keys does not work, as zero copies @(a,[])@
 --   -- should count as not present in the bag.
 

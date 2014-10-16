@@ -1,8 +1,11 @@
+{-# OPTIONS_GHC -fwarn-missing-signatures #-}
+
 {-# LANGUAGE CPP                  #-}
 {-# LANGUAGE FlexibleContexts     #-}
 {-# LANGUAGE FlexibleInstances    #-}
 {-# LANGUAGE TypeSynonymInstances #-}
 {-# LANGUAGE UndecidableInstances #-}
+{-# LANGUAGE UnicodeSyntax        #-}
 
 -- | Check that a datatype is strictly positive.
 module Agda.TypeChecking.Positivity where
@@ -96,7 +99,7 @@ checkStrictlyPositive qs = disableDestructiveUpdate $ do
           setCurrentRange (getRange q) $ typeError $ GenericError (show err)
 
       -- if we find an unguarded record, mark it as such
-      case mhead [ how | Edge o how <- loops, o <= StrictPos ] of
+      case headMay [ how | Edge o how <- loops, o <= StrictPos ] of
         Just how -> do
           reportSDoc "tc.pos.record" 5 $ sep
             [ prettyTCM q <+> text "is not guarded, because it occurs"
@@ -154,6 +157,7 @@ checkStrictlyPositive qs = disableDestructiveUpdate $ do
       -- it is computed deep-strictly.
       setArgOccurrences q $!! args
 
+getDefArity ∷ Definition → TCM Int
 getDefArity def = case theDef def of
   Function{ funClauses = cs, funProjection = proj } -> do
     let dropped = maybe 0 (subtract 1 . projIndex) proj

@@ -1,8 +1,11 @@
+{-# OPTIONS_GHC -fwarn-missing-signatures #-}
+
 {-# LANGUAGE DeriveFunctor              #-}
 {-# LANGUAGE DoAndIfThenElse            #-}
 {-# LANGUAGE FlexibleInstances          #-}
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
 {-# LANGUAGE TupleSections              #-}
+{-# LANGUAGE UnicodeSyntax              #-}
 
 -- | Directed graphs (can of course simulate undirected graphs).
 --
@@ -70,7 +73,7 @@ import Data.Set (Set)
 
 import Agda.Utils.Function (iterateUntil)
 import Agda.Utils.Functor (for)
-import Agda.Utils.List (mhead)
+import Agda.Utils.List (headMay)
 import Agda.Utils.QuickCheck as QuickCheck
 import Agda.Utils.SemiRing
 import Agda.Utils.TestHelpers
@@ -160,6 +163,7 @@ lookup s t (Graph g) = Map.lookup t =<< Map.lookup s g
 neighbours :: (Ord s, Ord t) => s -> Graph s t e -> [(t, e)]
 neighbours s (Graph g) = maybe [] Map.assocs $ Map.lookup s g
 
+prop_neighbours ∷ (Ord s, Ord t, Eq e) ⇒ s → Graph s t e → Bool
 prop_neighbours s g =
   neighbours s g == map (\ (Edge s t e) -> (t, e)) (edgesFrom g [s])
 
@@ -207,6 +211,7 @@ nodes = allNodes . computeNodes
 fromNodes :: Ord n => [n] -> Graph n n e
 fromNodes ns = Graph $ Map.fromList $ map (, Map.empty) ns
 
+prop_nodes_fromNodes ∷ Ord n ⇒ [n] → Bool
 prop_nodes_fromNodes ns = sourceNodes (fromNodes ns) == Set.fromList ns
 
 -- | Constructs a graph from a list of edges.  O(e log n)
@@ -451,6 +456,7 @@ transitiveClosure g = List.foldl' extend g $ sccs' g
 
 -- | Correctness of the optimized algorithm that proceeds by SCC.
 
+prop_transitiveClosure ∷ (Eq e, SemiRing e, Ord n) ⇒ Graph n n e → Property
 prop_transitiveClosure g = QuickCheck.label sccInfo $
   transitiveClosure g == transitiveClosure1 g
   where
@@ -464,7 +470,7 @@ prop_transitiveClosure g = QuickCheck.label sccInfo $
 --
 --   The path must satisfy the given predicate @good :: e -> Bool@.
 findPath :: (SemiRing e, Ord n) => (e -> Bool) -> n -> n -> Graph n n e -> Maybe e
-findPath good a b g = mhead $ filter good $ allPaths good a b g
+findPath good a b g = headMay $ filter good $ allPaths good a b g
 
 -- | @allPaths classify a b g@ returns a list of pathes (accumulated edge weights)
 --   from node @a@ to node @b@ in @g@.
@@ -527,6 +533,7 @@ type G = Graph N N E
 newtype N = N (Positive Int)
   deriving (Arbitrary, Eq, Ord)
 
+n ∷ Int → N
 n = N . Positive
 
 instance Show N where

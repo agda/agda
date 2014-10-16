@@ -21,7 +21,11 @@ allagda=$(patsubst %.agda,%.test,$(filter-out $(excluded),$(shell ls *.*agda)))
 # alllagda=$(patsubst %.lagda,%.test,$(shell find . -name "*.lagda"))
 
 default : all
-all : $(allagda) # $(alllagda)
+all : remove_interface_files $(allagda) # $(alllagda)
+
+# Removing all the Agda inteface files.
+remove_interface_files :
+	find -name '*.agdai' | xargs rm -f
 
 #  --vim $(AGDA_TEST_FLAGS)
 
@@ -29,14 +33,12 @@ RUN_AGDA = time $(AGDA_BIN) -i. -i../../std-lib -i../../std-lib/src -v$(V) $(she
 
 %.test : %.agda
 	@echo $<
-	@-rm $*.agdai
 	@$(RUN_AGDA) $<
 	@$(check_$*)
 	@$(cleanup_$*)
 
 %.test : %.lagda
 	@echo $<
-	@-rm $*.agdai
 	@$(RUN_AGDA) $<
 	@$(cleanup_$*)
 

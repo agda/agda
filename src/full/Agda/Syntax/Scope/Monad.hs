@@ -277,13 +277,10 @@ bindName acc kind x y = do
     ConstructorName [] -> __IMPOSSIBLE__
     ConstructorName ds
       | kind == ConName && all ((==ConName) . anameKind) ds -> return [ AbsName y kind Defined ]
-      | otherwise -> typeError $ ClashingDefinition (C.QName x) $ anameName (head' ds)
+      | otherwise -> typeError $ ClashingDefinition (C.QName x) $ anameName (headDef __IMPOSSIBLE__ ds)
     PatternSynResName n -> typeError $ ClashingDefinition (C.QName x) $ anameName n
     UnknownName         -> return [AbsName y kind Defined]
   modifyCurrentScope $ addNamesToScope (localNameSpace acc) x ys
-  where
-    head' []    = {- ' -} __IMPOSSIBLE__
-    head' (x:_) = x
 
 -- | Rebind a name. Use with care!
 --   Ulf, 2014-06-29: Currently used to rebind the name defined by an

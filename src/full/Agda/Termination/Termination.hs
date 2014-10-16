@@ -74,7 +74,7 @@ endos cs = [ m | c <- cs, source c == target c
            ]
 
 checkIdems :: (Monoid cinfo, ?cutoff :: CutOff) => [CallMatrixAug cinfo] -> Either cinfo ()
-checkIdems calls = caseMaybe (mhead offending) (Right ()) $ Left . augCallInfo
+checkIdems calls = caseMaybe (headMay offending) (Right ()) $ Left . augCallInfo
   where
     -- Every idempotent call must have decrease, otherwise it offends us.
     offending = filter (not . hasDecrease) $ filter idempotent calls

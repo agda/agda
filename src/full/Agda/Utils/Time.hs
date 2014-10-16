@@ -1,6 +1,8 @@
 {-# OPTIONS_GHC -fwarn-missing-signatures #-}
+{-# OPTIONS_GHC -fno-warn-identities #-}
+-- To avoid warning on derived Integral instance for CPUTime
 
-{-# LANGUAGE CPP #-}
+{-# LANGUAGE CPP, GeneralizedNewtypeDeriving #-}
 
 -- | Time-related utilities.
 
@@ -8,6 +10,7 @@ module Agda.Utils.Time
   ( ClockTime
   , getClockTime
   , measureTime
+  , CPUTime(..)
   ) where
 
 import Control.Monad.Trans
@@ -18,6 +21,9 @@ import qualified Data.Time
 #else
 import qualified System.Time
 #endif
+
+import Agda.Utils.Pretty
+import Agda.Utils.String
 
 -- | Timestamps.
 
@@ -38,13 +44,18 @@ getClockTime =
   System.Time.getClockTime
 #endif
 
-type Picoseconds = Integer
+newtype CPUTime = CPUTime Integer
+  deriving (Eq, Show, Ord, Num, Real, Enum, Integral)
+
+instance Pretty CPUTime where
+  pretty (CPUTime ps) =
+    text $ showThousandSep (div ps 1000000000) ++ "ms"
 
 -- | Measure the time of a computation. Returns the
-measureTime :: MonadIO m => m a -> m (a, Picoseconds)
+measureTime :: MonadIO m => m a -> m (a, CPUTime)
 measureTime m = do
   start <- liftIO $ getCPUTime
   x     <- m
   stop  <- liftIO $ getCPUTime
-  return (x, stop - start)
+  return (x, CPUTime $ stop - start)
 
