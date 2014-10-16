@@ -5,6 +5,7 @@
 module Agda.TypeChecking.Monad.Base.Benchmark where
 
 import Agda.Utils.Trie as Trie
+import Agda.Utils.Time (CPUTime)
 
 -- | Phases to allocate CPU time to.
 data Phase
@@ -56,9 +57,6 @@ data Phase
 
 -- | Account we can bill computation time to.
 type Account = [Phase]
-
--- | We measure CPU time spent on certain tasks.
-type CPUTime = Integer
 
 -- | Benchmark structure is a trie, mapping phases (and subphases)
 --   to CPU time spent on their performance.
