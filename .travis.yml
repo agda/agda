@@ -12,7 +12,7 @@ ghc:
 
 install:
   - cabal install happy
-  - cabal install --only-dependencies
+  - cabal install --only-dependencies -j
 
 script:
   # Just for testing
@@ -21,3 +21,7 @@ script:
   - which happy
   - which cabal
   - cabal build -v2
+
+# Just for the time being while things don't work
+notifications:
+  email: false
