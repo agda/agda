@@ -13,6 +13,7 @@ ghc:
 install:
   - cabal update
   - cabal install happy
+  - cabal install --only-dependencies
 
 script:
   # Just for testing
