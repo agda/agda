@@ -208,7 +208,7 @@ TAGS :
 quick : install-O0-bin quicktest
 
 .PHONY : test
-test : check-whitespace succeed fail interaction latex-test examples library-test lib-succeed compiler-test epic-test api tests
+test : check-whitespace succeed fail interaction latex-test examples library-test lib-succeed compiler-test epic-test api-test tests
 
 .PHONY : quicktest
 quicktest : succeed fail
@@ -305,12 +305,12 @@ epic-test :
 	@echo "======================================================================"
 	@$(MAKE) -C test/epic
 
-.PHONY : api
-api :
+.PHONY : api-test
+api-test :
 	@echo "======================================================================"
-	@echo "======== Successfull tests using Agda as an Haskell library =========="
+	@echo "======== Successfull tests using Agda as a Haskell library ==========="
 	@echo "======================================================================"
-	@$(MAKE) -C test/$@
+	@$(MAKE) -C test/api
 
 .PHONY : benchmark
 benchmark :
