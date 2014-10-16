@@ -11,15 +11,11 @@ ghc:
   # - 7.0.4
 
 install:
+  # New happy needed for haskell-src-exts
   - cabal install happy
   - cabal install --only-dependencies -j
 
 script:
-  # Just for testing
-  - cabal --version
-  - happy --version
-  - which happy
-  - which cabal
   - cabal build -v2
 
 # Just for the time being while things don't work
