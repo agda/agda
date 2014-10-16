@@ -10,10 +10,11 @@ ghc:
   - 7.2.2
   - 7.0.4
 
-script:
+install:
   - cabal update
   - cabal install happy
-  - cabal install alex
+
+script:
   # Just for testing
   - cabal --version
   - happy --version
