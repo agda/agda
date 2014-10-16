@@ -1,8 +1,9 @@
+{-# OPTIONS_GHC -fwarn-missing-signatures #-}
+{-# OPTIONS_GHC -fno-warn-orphans         #-}
+
 {-# LANGUAGE CPP                  #-}
 {-# LANGUAGE FlexibleInstances    #-}
 {-# LANGUAGE TypeSynonymInstances #-}
-
-{-# OPTIONS -fno-warn-orphans #-}
 
 {-| Pretty printer for the concrete syntax.
 -}
@@ -36,6 +37,7 @@ instance Show ImportDirective where show = show . pretty
 instance Show Pragma          where show = show . pretty
 instance Show RHS             where show = show . pretty
 
+braces' :: Doc -> Doc
 braces' d = case render d of
   -- Add space to avoid starting a comment
   '-':_ -> braces (text " " <> d)
@@ -59,6 +61,7 @@ bracesAndSemicolons []       = text "{}"
 bracesAndSemicolons (d : ds) =
   sep ([text "{" <+> d] ++ map (text ";" <+>) ds ++ [text "}"])
 
+arrow, lambda :: Doc
 arrow  = text "\x2192"
 lambda = text "\x03bb"
 
