@@ -502,8 +502,9 @@ niceDeclarations ds = do
 
     nice :: [Declaration] -> Nice [NiceDeclaration]
     nice [] = return []
-    nice (Pragma (TerminationCheckPragma r NoTerminationCheck) : _) =
-      throwError $ PragmaNoTerminationCheck r
+    -- Andreas, AIM XX: do not forbid NO_TERMINATION_CHECK in maintenance version.
+    -- nice (Pragma (TerminationCheckPragma r NoTerminationCheck) : _) =
+    --   throwError $ PragmaNoTerminationCheck r
     nice (Pragma (TerminationCheckPragma r tc) : ds@(Mutual{} : _)) | notMeasure tc = do
       ds <- nice ds
       case ds of
@@ -583,9 +584,9 @@ niceDeclarations ds = do
         UnquoteDecl r x e -> do
           fx <- getFixity x
           (NiceUnquoteDecl r fx PublicAccess ConcreteDef TerminationCheck x e :) <$> nice ds
-
-        Pragma (TerminationCheckPragma r NoTerminationCheck) ->
-          throwError $ PragmaNoTerminationCheck r
+        -- Andreas, AIM XX: do not forbid NO_TERMINATION_CHECK in maintenance version.
+        -- Pragma (TerminationCheckPragma r NoTerminationCheck) ->
+        --   throwError $ PragmaNoTerminationCheck r
         Pragma (TerminationCheckPragma r _) ->
           throwError $ InvalidTerminationCheckPragma r
         Pragma p            -> (NicePragma (getRange p) p :) <$> nice ds
