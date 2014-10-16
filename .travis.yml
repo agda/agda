@@ -22,7 +22,11 @@ install:
 
 script:
   - make install-bin
-  - make test
+  - make succeed
+  - make fail
+  - make interaction
+  - make examples
+  - make tests
 
 # Just for the time being while things don't work
 notifications:
