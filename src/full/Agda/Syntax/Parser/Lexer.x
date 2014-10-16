@@ -173,6 +173,7 @@ tokens :-
 <0,code> quoteTerm      { keyword KwQuoteTerm }
 <0,code> unquote        { keyword KwUnquote }
 <0,code> unquoteDecl    { keyword KwUnquoteDecl }
+<0,code> unquoteDef     { keyword KwUnquoteDef  }
 <0,code> tactic         { keyword KwTactic }
 <0,code> syntax         { keyword KwSyntax }
 <0,code> pattern        { keyword KwPatternSyn }

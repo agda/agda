@@ -348,6 +348,7 @@ data Declaration
   | ModuleMacro !Range  Name ModuleApplication OpenShortHand ImportDirective
   | Module      !Range QName [TypedBindings] [Declaration]
   | UnquoteDecl !Range Name Expr
+  | UnquoteDef  !Range Name Expr
   | Pragma      Pragma
   deriving (Typeable)
 
@@ -554,6 +555,7 @@ instance HasRange Declaration where
   getRange (Syntax n _)            = getRange n
   getRange (PatternSyn r _ _ _)    = r
   getRange (UnquoteDecl r _ _)     = r
+  getRange (UnquoteDef r _ _)      = r
   getRange (Pragma p)              = getRange p
 
 instance HasRange LHS where
@@ -644,6 +646,7 @@ instance KillRange Declaration where
   killRange (ModuleMacro _ n m o i) = killRange3 (\n m -> ModuleMacro noRange n m o) n m i
   killRange (Module _ q t d)        = killRange3 (Module noRange) q t d
   killRange (UnquoteDecl _ x t)     = killRange2 (UnquoteDecl noRange) x t
+  killRange (UnquoteDef _ x t)      = killRange2 (UnquoteDef noRange) x t
   killRange (Pragma p)              = killRange1 Pragma p
 
 instance KillRange Expr where

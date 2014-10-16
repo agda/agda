@@ -145,6 +145,7 @@ data Declaration
   | PatternSynDef QName [Arg Name] Pattern
       -- ^ Only for highlighting purposes
   | UnquoteDecl MutualInfo DefInfo QName Expr
+  | UnquoteDef  DefInfo QName Expr
   | ScopedDecl ScopeInfo [Declaration]  -- ^ scope annotation
   deriving (Typeable, Show)
 
@@ -461,6 +462,7 @@ instance HasRange Declaration where
     getRange (RecDef   i _ _ _ _ _ _) = getRange i
     getRange (PatternSynDef x _ _   ) = getRange x
     getRange (UnquoteDecl _ i _ _)    = getRange i
+    getRange (UnquoteDef i _ _)       = getRange i
 
 instance HasRange (Pattern' e) where
     getRange (VarP x)            = getRange x
@@ -574,6 +576,7 @@ instance KillRange Declaration where
   killRange (RecDef  i a b c d e f    ) = killRange7 RecDef  i a b c d e f
   killRange (PatternSynDef x xs p     ) = killRange3 PatternSynDef x xs p
   killRange (UnquoteDecl mi i x e     ) = killRange4 UnquoteDecl mi i x e
+  killRange (UnquoteDef i x e         ) = killRange3 UnquoteDef i x e
 
 instance KillRange ModuleApplication where
   killRange (SectionApp a b c  ) = killRange3 SectionApp a b c
@@ -673,6 +676,7 @@ instance AllNames Declaration where
   allNames (RecDef _ q _ c _ _ decls) = q <| allNames c >< allNames decls
   allNames (PatternSynDef q _ _)      = Seq.singleton q
   allNames (UnquoteDecl _ _ q _)      = Seq.singleton q
+  allNames (UnquoteDef _ q _)         = Seq.singleton q
   allNames (FunDef _ q _ cls)         = q <| allNames cls
   allNames (Section _ _ _ decls)      = allNames decls
   allNames Apply{}                    = Seq.empty

@@ -25,7 +25,9 @@ data Keyword
         | KwNO_TERMINATION_CHECK | KwTERMINATING | KwNON_TERMINATING
         | KwMEASURE
         | KwREWRITE
-        | KwQuoteGoal | KwQuoteContext | KwQuote | KwQuoteTerm | KwUnquote | KwUnquoteDecl | KwSyntax
+        | KwQuoteGoal | KwQuoteContext | KwQuote | KwQuoteTerm
+        | KwUnquote | KwUnquoteDecl | KwUnquoteDef
+        | KwSyntax
         | KwPatternSyn | KwTactic
     deriving (Eq, Show)
 

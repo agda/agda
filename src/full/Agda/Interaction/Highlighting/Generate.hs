@@ -411,6 +411,7 @@ nameKinds hlLevel decl = do
   declToKind (A.PatternSynDef q _ _) = insert q (Constructor SC.Inductive)
   declToKind (A.FunDef  _ q _ _)    = insert q Function
   declToKind (A.UnquoteDecl _ _ q _) = insert q Function
+  declToKind (A.UnquoteDef _ q _)    = insert q Function
   declToKind (A.DataSig _ q _ _)    = insert q Datatype
   declToKind (A.DataDef _ q _ cs)   = \m ->
                                       insert q Datatype $

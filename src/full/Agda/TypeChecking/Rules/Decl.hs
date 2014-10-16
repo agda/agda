@@ -126,6 +126,7 @@ checkDecl d = traceCall (SetRange (getRange d)) $ do
                                   -- from the concrete syntax, retained for
                                   -- highlighting purposes.
       A.UnquoteDecl mi i x e   -> checkUnquoteDecl mi i x e
+      A.UnquoteDef i x e       -> impossible $ checkUnquoteDef i x e
 
     unlessM (isJust <$> asks envMutualBlock) $ do
 
@@ -203,6 +204,21 @@ checkUnquoteDecl mi i x e = do
   xs <- checkMutual mi ds
   return $ Just $ mutualChecks mi (A.Mutual mi ds) ds xs
 
+checkUnquoteDef :: Info.DefInfo -> QName -> A.Expr -> TCM ()
+checkUnquoteDef i x e = do
+  reportSDoc "tc.unquote.def" 20 $ text "Checking unquoteDef" <+> prettyTCM x
+  list   <- primList
+  clause <- primAgdaClause
+  v      <- checkExpr e $ El (mkType 0) $ list `apply` [defaultArg clause]
+  reportSDoc "tc.unquote.def" 20 $ text "unquoteDef: Checked term"
+  cs <- unquote v :: TCM [Clause]
+  reportSDoc "tc.unquote.def" 20 $
+    vcat $ text "unquoteDef: Unquoted term"
+         : [ nest 2 $ text (show c) | c <- cs ]
+  cs <- mapM (reifyUnquoted . QNamed x) cs
+  reportSDoc "tc.unquote.def" 10 $ vcat $ map prettyA cs
+  checkFunDef NotDelayed i x cs
+
 -- | Instantiate all metas in 'Definition' associated to 'QName'. --   Makes sense after freezing metas.
 --   Some checks, like free variable analysis, are not in 'TCM', --   so they will be more precise (see issue 1099) after meta instantiation.
 -- --   Precondition: name has been added to signature already.
@@ -249,6 +265,7 @@ highlight_ d = do
     A.Open{}                 -> highlight d
     A.PatternSynDef{}        -> highlight d
     A.UnquoteDecl{}          -> highlight d
+    A.UnquoteDef{}           -> highlight d
     A.Section i x tel _      -> highlight (A.Section i x tel [])
       -- Each block in the section has already been highlighted,
       -- all that remains is the module declaration.

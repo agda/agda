@@ -139,8 +139,9 @@ termDecl' d = case d of
     A.FunDef{}  -> __IMPOSSIBLE__
     A.DataSig{} -> __IMPOSSIBLE__
     A.DataDef{} -> __IMPOSSIBLE__
-    -- This should have been expanded to a proper declaration before termination checking
+    -- These should have been expanded to a proper declaration before termination checking
     A.UnquoteDecl{} -> __IMPOSSIBLE__
+    A.UnquoteDef{}  -> __IMPOSSIBLE__
   where
     setScopeFromDefs = mapM_ setScopeFromDef
     setScopeFromDef (A.ScopedDecl scope d) = setScope scope
