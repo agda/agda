@@ -82,7 +82,7 @@ lispifyResponse (Resp_DisplayInfo info) = return $ case info of
     Info_AllGoals s -> f s "*All Goals*"
     Info_Auto s -> f s "*Auto*"
     Info_Error s -> f s "*Error*"
-
+    Info_Time s -> f (render s) "*Time*"
     Info_NormalForm s -> f (render s) "*Normal Form*"   -- show?
     Info_InferredType s -> f (render s) "*Inferred Type*"
     Info_CurrentGoal s -> f (render s) "*Current Goal*"

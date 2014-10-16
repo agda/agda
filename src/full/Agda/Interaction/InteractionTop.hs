@@ -860,13 +860,13 @@ give_gen ii rng s giveRefine = withCurrentFile $ do
   scope     <- lift $ getInteractionScope ii
   -- parse string and "give", obtaining an abstract expression
   -- and newly created interaction points
-  (ae, iis) <- lift $ do
-    mis  <- getInteractionPoints
-    reportSLn "interaction.give" 30 $ "interaction points before = " ++ show mis
-    ae   <- give_ref ii Nothing =<< B.parseExprIn ii rng s
-    mis' <- getInteractionPoints
-    reportSLn "interaction.give" 30 $ "interaction points after = " ++ show mis'
-    return (ae, mis' \\ mis)
+  (time, (ae, iis)) <- maybeTimed (lift $ do
+      mis  <- getInteractionPoints
+      reportSLn "interaction.give" 30 $ "interaction points before = " ++ show mis
+      ae   <- give_ref ii Nothing =<< B.parseExprIn ii rng s
+      mis' <- getInteractionPoints
+      reportSLn "interaction.give" 30 $ "interaction points after = " ++ show mis'
+      return (ae, mis' \\ mis))
   -- favonia: backup the old scope for highlighting
   insertOldInteractionScope ii scope
   -- sort the new interaction points and put them into the state
@@ -893,8 +893,8 @@ give_gen ii rng s giveRefine = withCurrentFile $ do
     highlightExpr ae
   putResponse $ Resp_GiveAction ii $ mkNewTxt literally ce
   lift $ reportSLn "interaction.give" 30 $ "putResponse GiveAction passed"
-  -- display new goal set
-  interpret Cmd_metas
+  -- display new goal set (if not measuring time)
+  maybe (interpret Cmd_metas) (display_info . Info_Time) time
   lift $ reportSLn "interaction.give" 30 $ "interpret Cmd_metas passed"
   where
     -- Substitutes xs for x in ys.
@@ -1158,13 +1158,18 @@ parseAndDoAtToplevel
      -- ^ The expression to parse.
   -> CommandM ()
 parseAndDoAtToplevel cmd title s = do
-  e      <- liftIO $ parse exprParser s
+  e   <- liftIO $ parse exprParser s
+  (time, res) <-
+    maybeTimed (lift $ B.atTopLevel $
+                prettyA =<< cmd =<< concreteToAbstract_ e)
+  display_info (title $ fromMaybe empty time $$ res)
+
+maybeTimed :: CommandM a -> CommandM (Maybe Doc, a)
+maybeTimed work = do
   doTime <- lift $ hasVerbosity "profile.interactive" 10
-  let work = lift (B.atTopLevel $ prettyA =<< cmd =<< concreteToAbstract_ e)
-  res <- if not doTime then work else do
-      (r, time) <- measureTime work
-      return $ text ("Time: " ++ showThousandSep (div time 1000000000) ++ "ms") $$ r
-  display_info (title res)
+  if not doTime then (Nothing,) <$> work else do
+    (r, time) <- measureTime work
+    return (Just $ text "Time:" <+> pretty time, r)
 
 -- | Tell to highlight the code using the given highlighting
 -- info (unless it is @Nothing@).
