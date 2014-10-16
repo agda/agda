@@ -2,7 +2,6 @@
 
 {-# LANGUAGE CPP           #-}
 {-# LANGUAGE TupleSections #-}
-{-# LANGUAGE UnicodeSyntax #-}
 
 -- | Utilities for functors.
 
@@ -19,7 +18,7 @@ import Data.Functor.Constant
 
 -- ASR (15 October 2014): See issue 1304.
 #if !MIN_VERSION_transformers(0,4,1)
-instance Eq a ⇒ Eq (Identity a) where
+instance Eq a => Eq (Identity a) where
   Identity x == Identity x' = x == x'
 #endif
 

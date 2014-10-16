@@ -3,7 +3,6 @@
 {-# LANGUAGE CPP             #-}
 {-# LANGUAGE PatternGuards   #-}
 {-# LANGUAGE TemplateHaskell #-}
-{-# LANGUAGE UnicodeSyntax   #-}
 
 {-| Utitlity functions on lists.
 -}
@@ -51,7 +50,7 @@ headMay (x : _) = Just x
 --
 -- > headDef 42 []      = 42
 -- > headDef 42 [1,2,3] = 1
-headDef :: a → [a] → a
+headDef :: a -> [a] -> a
 headDef def = fromMaybe def . headMay
 
 -- | Last element (safe).

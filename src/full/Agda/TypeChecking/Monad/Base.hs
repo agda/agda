@@ -15,7 +15,6 @@
 {-# LANGUAGE ScopedTypeVariables        #-}
 {-# LANGUAGE TypeSynonymInstances       #-}
 {-# LANGUAGE UndecidableInstances       #-}
-{-# LANGUAGE UnicodeSyntax              #-}
 
 module Agda.TypeChecking.Monad.Base where
 
@@ -686,10 +685,10 @@ data DisplayTerm
 defaultDisplayForm :: QName -> [Open DisplayForm]
 defaultDisplayForm c = []
 
-defRelevance ∷ Definition → Relevance
+defRelevance :: Definition -> Relevance
 defRelevance = argInfoRelevance . defArgInfo
 
-defColors ∷ Definition → [Color]
+defColors :: Definition -> [Color]
 defColors = argInfoColors . defArgInfo
 
 type RewriteRules = [RewriteRule]
@@ -1923,11 +1922,11 @@ forkTCM m = do
 
 
 -- | Base name for extended lambda patterns
-extendedLambdaName ∷ String
+extendedLambdaName :: String
 extendedLambdaName = ".extendedlambda"
 
 -- | Name of absurdLambda definitions.
-absurdLambdaName ∷ String
+absurdLambdaName :: String
 absurdLambdaName = ".absurdlambda"
 
 -- | Check whether we have an definition from an absurd lambda.
