@@ -12,9 +12,9 @@ module Target where
 
     odd : Nat → Bool
     odd zero    = false
-    odd (suc n) = even n 
+    odd (suc n) = even n
 
-pattern vArg x = arg (arginfo visible relevant) x
+pattern vArg x = arg (argInfo visible relevant) x
 
 pattern `false = con (quote false) []
 pattern `true  = con (quote true) []
@@ -36,7 +36,7 @@ pattern `Bool = def (quote Bool) []
 `idType = el- (`Nat `→ `Nat)
 
 `idDef : QName → List Clause
-`idDef f = 
+`idDef f =
    clause (vArg `zero      ∷ []) `zero
  ∷ clause (vArg (`suc var) ∷ []) (`suc (def f (vArg (var 0 []) ∷ [])))
  ∷ []
