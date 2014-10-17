@@ -31,6 +31,8 @@ import Agda.TypeChecking.Telescope
 
 import {-# SOURCE #-} Agda.TypeChecking.Rules.Term ( isType_ )
 
+import Agda.Interaction.Options
+
 import Agda.Utils.List
 import Agda.Utils.Monad
 import Agda.Utils.Permutation
@@ -216,13 +218,13 @@ checkConstructor d tel nofIxs s con@(A.Axiom _ i _ c e) =
         debugEndsIn t d n
         nonLinPars <- constructs n t d
         debugNonLinPars nonLinPars
+        -- check which constructor arguments are determined by the type ('forcing')
+        t' <- addForcingAnnotations t
         -- check that the sort (universe level) of the constructor type
         -- is contained in the sort of the data type
         -- (to avoid impredicative existential types)
         debugFitsIn s
-        t `fitsIn` s
-        -- check which constructor arguments are determined by the type ('forcing')
-        t' <- addForcingAnnotations t
+        t' `fitsIn` s
         debugAdd c t'
 
         -- add parameters to constructor type and put into signature
@@ -301,7 +303,9 @@ fitsIn t s = do
   t <- reduce t
   case ignoreSharing $ unEl t of
     Pi dom b -> do
-      getSort (unDom dom) `leqSort` s
+      withoutK <- optWithoutK <$> pragmaOptions
+      when (withoutK || Forced /= getRelevance dom) $
+        getSort (unDom dom) `leqSort` s
       addContext (absName b, dom) $ fitsIn (absBody b) (raise 1 s)
     _ -> return () -- getSort t `leqSort` s  -- Andreas, 2013-04-13 not necessary since constructor type ends in data type
 

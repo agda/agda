@@ -35,6 +35,18 @@ Language
   allowed in mutual blocks, allowing you to create mutually recursive
   definitions by unquoting.
 
+* Large indices.
+
+  Force constructor arguments no longer count towards the size of a datatype.
+  For instance, the definition of equality below is accepted.
+
+    data _≡_ {a} {A : Set a} : A → A → Set where
+      refl : ∀ x → x ≡ x
+
+  This gets rid of the asymmetry that the version of equality which indexes
+  only on the second argument could be small, but not the version above which
+  indexes on both arguments.
+
 Goal and error display
 ======================
 
