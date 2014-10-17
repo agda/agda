@@ -27,7 +27,7 @@ prof : install-prof-bin
 
 .PHONY : install-bin
 install-bin :
-	time $(CABAL_CMD) install --disable-library-profiling --disable-documentation $(CABAL_OPTS)
+	$(CABAL_CMD) install --disable-library-profiling --disable-documentation $(CABAL_OPTS)
 
 .PHONY : install-O0-bin
 install-O0-bin :
