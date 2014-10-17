@@ -85,7 +85,6 @@ runAgda = do
                        map (Boxes.text . showAccount) $
                        accounts
                 -- Second column is times.
-                -- CPU times are in pico seconds, convert to milliseconds.
                 col2 = Boxes.vcat Boxes.right $
                        map (Boxes.text . prettyShow) $
                        times

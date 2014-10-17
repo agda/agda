@@ -6,7 +6,7 @@
 
 \AgdaHide
 \begin{code}
-module LaTeX where
+module LaTeX-succeed where
 \end{code}
 }
 
