@@ -1,6 +1,8 @@
 TOP = ../..
 
 include $(TOP)/mk/paths.mk
+include $(TOP)/mk/version.mk
+
 AGDA = $(AGDA_BIN) -v0
 
 Issue1168 : Issue1168.agda Issue1168.hs
