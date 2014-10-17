@@ -38,8 +38,8 @@ import Agda.Compiler.Epic.Compiler as Epic
 import Agda.Compiler.JS.Compiler as JS
 
 import Agda.Utils.Monad
+import Agda.Utils.Pretty (prettyShow)
 import Agda.Utils.String
-import Agda.Utils.Pretty
 import qualified Agda.Utils.Trie as Trie
 
 import Agda.Tests
@@ -86,7 +86,7 @@ runAgda = do
                        accounts
                 -- Second column is times.
                 col2 = Boxes.vcat Boxes.right $
-                       map (Boxes.text . show . pretty) $
+                       map (Boxes.text . prettyShow) $
                        times
                 table = Boxes.hsep 1 Boxes.left [col1, col2]
             reportBenchmarkingLn $ Boxes.render table
