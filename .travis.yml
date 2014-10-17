@@ -28,7 +28,9 @@ install:
 
 script:
   - cabal install --disable-library-profiling --disable-documentation
-  - cabal haddock
+  # Right now haddock doesn't work, presumably because it consumes too
+  # much memory.
+  # - cabal haddock
   # Right now tests are broken.
   # - make test
 
