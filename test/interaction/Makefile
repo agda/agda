@@ -67,7 +67,7 @@ setup_Auto-IndexedDatatypes = $(setup_Auto)
 setup_Auto-Misc = $(setup_Auto)
 setup_Auto-Modules = $(setup_Auto)
 cleanup_Issue373   = rm -rf Issue373 MAlonzo
-RTS_Issue637       = +RTS -K1000 -RTS
+RTS_Issue637       = +RTS -K10000 -RTS
 RTS_Issue639       = --safe
 
 # No recorded output
