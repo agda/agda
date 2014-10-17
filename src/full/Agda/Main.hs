@@ -38,6 +38,7 @@ import Agda.Compiler.Epic.Compiler as Epic
 import Agda.Compiler.JS.Compiler as JS
 
 import Agda.Utils.Monad
+import Agda.Utils.Pretty (prettyShow)
 import Agda.Utils.String
 import qualified Agda.Utils.Trie as Trie
 
@@ -86,7 +87,7 @@ runAgda = do
                 -- Second column is times.
                 -- CPU times are in pico seconds, convert to milliseconds.
                 col2 = Boxes.vcat Boxes.right $
-                       map (Boxes.text . (++ " ms") . showThousandSep . (`div` 1000000000)) $
+                       map (Boxes.text . prettyShow) $
                        times
                 table = Boxes.hsep 1 Boxes.left [col1, col2]
             reportBenchmarkingLn $ Boxes.render table
