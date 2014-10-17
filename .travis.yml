@@ -33,16 +33,13 @@ install:
 script:
   - cabal configure --disable-library-profiling -v2
   - cabal build -v2
-  - cabal install
+  - cabal install -v2
   # Right now haddock doesn't work, presumably because it consumes too
   # much memory.
   # - cabal haddock
   - make check-whitespace succeed fail interaction examples library-test lib-succeed compiler-test epic-test api-test tests
   # Travis doesn't have latex, not sure if we should install it
   # - make latex-test
-
-# notifications:
-#   email: false
 
 # Builds are loooong, we want to send an email as fast as possible.
 matrix:
