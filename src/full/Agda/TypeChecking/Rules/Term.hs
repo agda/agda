@@ -557,11 +557,11 @@ checkExpr e t0 =
         A.ScopedExpr scope e -> __IMPOSSIBLE__ -- setScope scope >> checkExpr e t
 
         -- Insert hidden lambda if all of the following conditions are met:
-        ------ * type is a hidden function type, {x : A} -> B or {{x : A} -> B
+            -- type is a hidden function type, {x : A} -> B or {{x : A} -> B
         _   | Pi (Dom info _) _ <- ignoreSharing $ unEl t
             , let h = getHiding info
             , notVisible h
-            -- * expression is not a matching hidden lambda or question mark
+            -- expression is not a matching hidden lambda or question mark
             , not (hiddenLambdaOrHole h e)
             -> do
                 x <- freshName rx (argName t)
