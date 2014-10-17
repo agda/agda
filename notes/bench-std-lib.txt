@@ -2747,6 +2747,62 @@ Serialization.BinaryEncode  17,509ms
 Serialization.Compress       4,280ms
 ModuleName                      24ms
 
+
+After specializing icodeX to Integer, String, Double, Node.
+------------------------------------------------------------------------
+
+  Finished Universe.
+ Finished Everything.
+Finished README.
+Total time                 215,509ms
+Parsing                      1,292ms
+Parsing.Operators           10,916ms
+Import                       4,088ms
+Deserialization                 20ms
+Scoping                      8,684ms
+Typing                      50,087ms
+Termination                  1,844ms
+Termination.Graph              216ms
+Termination.RecCheck           508ms
+Termination.Compare            348ms
+Positivity                   5,132ms
+Injectivity                    732ms
+ProjectionLikeness             160ms
+Coverage                     2,288ms
+Highlighting                 7,092ms
+Serialization               97,366ms
+Serialization.Sort           1,200ms
+Serialization.BinaryEncode  18,557ms
+Serialization.Compress       4,132ms
+ModuleName                      24ms
+
+ 138,864,328,792 bytes allocated in the heap
+  16,214,969,216 bytes copied during GC
+     479,648,664 bytes maximum residency (45 sample(s))
+       5,928,496 bytes maximum slop
+            1171 MB total memory in use (0 MB lost due to fragmentation)
+
+                                    Tot time (elapsed)  Avg pause  Max pause
+  Gen  0      1663 colls,     0 par   45.62s   46.22s     0.0278s    0.4175s
+  Gen  1        45 colls,     0 par   14.44s   14.54s     0.3230s    1.0345s
+
+  INIT    time    0.00s  (  0.00s elapsed)
+  MUT     time  152.37s  (155.12s elapsed)
+  GC      time   60.06s  ( 60.76s elapsed)
+  EXIT    time    0.03s  (  0.03s elapsed)
+  Total   time  212.47s  (215.92s elapsed)
+
+  %GC     time      28.3%  (28.1% elapsed)
+
+  Alloc rate    911,365,449 bytes per MUT second
+
+  Productivity  71.7% of total user, 70.6% of total elapsed
+
+
+real	3m36.018s
+user	3m32.469s
+sys	0m3.168s
+
  143,280,163,896 bytes allocated in the heap
   16,076,672,192 bytes copied during GC
      421,917,664 bytes maximum residency (44 sample(s))
