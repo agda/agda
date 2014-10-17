@@ -24,7 +24,7 @@ import Agda.Utils.Tuple
 import Agda.Utils.VarSet (VarSet)
 import qualified Agda.Utils.VarSet as Set
 
-#include "../undefined.h"
+#include "undefined.h"
 import Agda.Utils.Impossible
 
 data OutputTypeName

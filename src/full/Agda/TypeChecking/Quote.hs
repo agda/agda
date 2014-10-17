@@ -39,7 +39,7 @@ import Agda.Utils.Monad ( ifM )
 import Agda.Utils.Permutation ( Permutation(Perm) )
 import Agda.Utils.String ( Str(Str), unStr )
 
-#include "../undefined.h"
+#include "undefined.h"
 
 quotingKit :: TCM (Term -> ReduceM Term, Type -> ReduceM Term, Clause -> ReduceM Term)
 quotingKit = do

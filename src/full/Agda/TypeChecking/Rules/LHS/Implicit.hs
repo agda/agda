@@ -25,7 +25,7 @@ import Agda.TypeChecking.Rules.LHS.Problem
 
 import Agda.Utils.Maybe
 
-#include "../../../undefined.h"
+#include "undefined.h"
 import Agda.Utils.Impossible
 
 -- | Insert implicit patterns in a problem.

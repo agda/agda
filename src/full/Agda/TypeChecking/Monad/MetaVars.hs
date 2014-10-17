@@ -36,7 +36,7 @@ import Agda.Utils.Permutation
 import Agda.Utils.Tuple
 import Agda.Utils.Size
 
-#include "../../undefined.h"
+#include "undefined.h"
 import Agda.Utils.Impossible
 
 -- | Switch off assignment of metas.

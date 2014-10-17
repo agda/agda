@@ -17,7 +17,7 @@ import Agda.TypeChecking.Monad.Builtin
 
 import Agda.Utils.Except ( MonadError(catchError) )
 
-#include "../undefined.h"
+#include "undefined.h"
 import Agda.Utils.Impossible
 
 data LevelKit = LevelKit

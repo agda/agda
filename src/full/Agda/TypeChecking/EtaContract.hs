@@ -21,7 +21,7 @@ import {-# SOURCE #-} Agda.TypeChecking.Records
 import {-# SOURCE #-} Agda.TypeChecking.Datatypes
 import Agda.Utils.Monad
 
-#include "../undefined.h"
+#include "undefined.h"
 import Agda.Utils.Impossible
 
 -- TODO: move to Agda.Syntax.Internal.SomeThing

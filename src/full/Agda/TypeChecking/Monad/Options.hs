@@ -32,7 +32,7 @@ import Agda.Utils.List
 import Agda.Utils.Trie (Trie)
 import qualified Agda.Utils.Trie as Trie
 
-#include "../../undefined.h"
+#include "undefined.h"
 import Agda.Utils.Impossible
 
 -- | Sets the pragma options.

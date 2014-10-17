@@ -37,7 +37,7 @@ tested-with:        GHC == 7.0.4
                     GHC == 7.4.2
                     GHC == 7.6.3
                     GHC == 7.8.3
-extra-source-files: src/full/Agda/undefined.h
+extra-source-files: src/full/undefined.h
                     README.md
                     CHANGELOG
 data-dir:           src/data
@@ -62,6 +62,7 @@ flag epic
 
 library
   hs-source-dirs:   src/full
+  include-dirs:     src/full
   if flag(epic)
     build-depends:  epic >= 0.1.13 && < 0.10
 

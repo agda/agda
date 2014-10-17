@@ -13,7 +13,7 @@ import Data.Foldable
 import Agda.Syntax.Internal
 
 import Agda.Utils.Impossible
-#include "../../undefined.h"
+#include "undefined.h"
 
 class TermLike a where
   traverseTerm  :: (Term -> Term) -> a -> a

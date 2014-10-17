@@ -24,7 +24,7 @@ import Agda.TypeChecking.Pretty
 
 import Agda.Utils.Tuple
 
-#include "../undefined.h"
+#include "undefined.h"
 import Agda.Utils.Impossible
 
 -- | @implicitArgs n expand t@ generates up to @n@ implicit arguments

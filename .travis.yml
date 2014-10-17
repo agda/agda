@@ -20,19 +20,16 @@ install:
   # And epic
   - sudo apt-get install libgc-dev
   - cabal install epic
+  # Get the std-lib
+  - make std-lib
   # GO GO GO
   - cabal install --only-dependencies -j
   - make install-fix-agda-whitespace
-  - autoconf
-  - ./configure
 
 script:
   - make install-bin
-  - make succeed
-  - make fail
-  - make interaction
-  - make examples
-  - make tests
+  - make doc
+  - make test
 
 notifications:
   email: false

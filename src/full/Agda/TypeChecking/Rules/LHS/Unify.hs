@@ -63,7 +63,7 @@ import Agda.Utils.Maybe
 import Agda.Utils.Size
 import Agda.Utils.Monad
 
-#include "../../../undefined.h"
+#include "undefined.h"
 import Agda.Utils.Impossible
 
 newtype Unify a = U { unUnify :: ReaderT UnifyEnv (WriterT UnifyOutput (ExceptionT UnifyException (StateT UnifyState TCM))) a }

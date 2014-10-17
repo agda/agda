@@ -24,7 +24,7 @@ import Agda.Syntax.Position
 import Agda.Utils.Pretty
 import Agda.Utils.String
 
-#include "../../undefined.h"
+#include "undefined.h"
 import Agda.Utils.Impossible
 
 instance Show Expr            where show = show . pretty

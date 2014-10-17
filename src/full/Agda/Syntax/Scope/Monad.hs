@@ -41,7 +41,7 @@ import Agda.Utils.Null (unlessNull)
 import Agda.Utils.Size
 import Agda.Utils.Tuple
 
-#include "../../undefined.h"
+#include "undefined.h"
 import Agda.Utils.Impossible
 
 -- * The scope checking monad

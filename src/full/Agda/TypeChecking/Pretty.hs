@@ -25,7 +25,7 @@ import Agda.TypeChecking.Monad
 import qualified Agda.Utils.Pretty as P
 import Agda.Utils.Permutation (Permutation)
 
-#include "../undefined.h"
+#include "undefined.h"
 import Agda.Utils.Impossible
 
 ---------------------------------------------------------------------------

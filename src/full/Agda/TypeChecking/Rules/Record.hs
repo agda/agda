@@ -33,7 +33,7 @@ import Agda.Utils.Monad
 import Agda.Interaction.Options
 
 
-#include "../../undefined.h"
+#include "undefined.h"
 import Agda.Utils.Impossible
 
 ---------------------------------------------------------------------------

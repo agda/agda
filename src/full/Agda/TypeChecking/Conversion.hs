@@ -53,7 +53,7 @@ import Agda.Utils.Maybe
 import Agda.Utils.Size
 import Agda.Utils.Tuple
 
-#include "../undefined.h"
+#include "undefined.h"
 import Agda.Utils.Impossible
 
 {- MOVED to TypeChecking.Level

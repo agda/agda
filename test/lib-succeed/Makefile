@@ -8,7 +8,6 @@ SHELL=bash
 TOP=../..
 
 include $(TOP)/mk/paths.mk
-include $(TOP)/mk/config.mk
 
 # Verbosity
 V = 1

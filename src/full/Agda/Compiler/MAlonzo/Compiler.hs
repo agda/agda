@@ -52,7 +52,7 @@ import Agda.Utils.Pretty (prettyShow)
 import qualified Agda.Utils.IO.UTF8 as UTF8
 import qualified Agda.Utils.HashMap as HMap
 
-#include "../../undefined.h"
+#include "undefined.h"
 import Agda.Utils.Impossible
 
 compilerMain :: Bool -> Interface -> TCM ()

@@ -37,7 +37,7 @@ import Agda.Utils.Monad
 import Agda.Utils.Permutation
 import Agda.Utils.Size
 
-#include "../undefined.h"
+#include "undefined.h"
 import Agda.Utils.Impossible
 
 -- showPat moved to TypeChecking.Pretty as prettyTCM instance

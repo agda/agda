@@ -16,7 +16,7 @@ import qualified Data.List as List
 
 import Agda.Utils.Tuple
 
-#include "../undefined.h"
+#include "undefined.h"
 import Agda.Utils.Impossible
 
 -- | A finite map, represented as a set of pairs.

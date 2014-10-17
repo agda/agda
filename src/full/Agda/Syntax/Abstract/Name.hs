@@ -38,7 +38,7 @@ import Agda.Utils.Pretty
 import Agda.Utils.Size
 import Agda.Utils.Suffix
 
-#include "../../undefined.h"
+#include "undefined.h"
 import Agda.Utils.Impossible
 
 -- | A name is a unique identifier and a suggestion for a concrete name. The

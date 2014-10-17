@@ -35,7 +35,7 @@ import qualified Agda.Utils.Pretty as P
 import Agda.Utils.Size
 import qualified Agda.Utils.HashMap as HMap
 
-#include "../undefined.h"
+#include "undefined.h"
 import Agda.Utils.Impossible
 
 data CaseContext = FunctionDef | ExtendedLambda Int Int

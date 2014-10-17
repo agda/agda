@@ -5,7 +5,6 @@
 TOP=../..
 
 include $(TOP)/mk/paths.mk
-include $(TOP)/mk/config.mk
 
 # Getting all agda files
 excluded=./TestHarness.agda

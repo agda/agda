@@ -17,7 +17,7 @@ import Agda.Compiler.Epic.AuxAST
 import Agda.Compiler.Epic.CompileState
 import Agda.Compiler.Epic.Interface
 
-#include "../../undefined.h"
+#include "undefined.h"
 import Agda.Utils.Impossible
 
 -- * Some auxilliary pretty-printer functions

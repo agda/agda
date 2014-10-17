@@ -15,7 +15,7 @@ import Data.IORef hiding (writeIORef, modifyIORef)
 import qualified Data.IORef as NoUndo (writeIORef, modifyIORef)
 import Control.Monad.State
 
-#include "../undefined.h"
+#include "undefined.h"
 import Agda.Utils.Impossible
 
 type Prio = Int

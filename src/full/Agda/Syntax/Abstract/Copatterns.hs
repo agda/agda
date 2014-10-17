@@ -35,7 +35,7 @@ import Agda.Syntax.Scope.Monad
 import Agda.TypeChecking.Monad.Base (TypeError(..), typeError)
 import Agda.Utils.Tuple
 
-#include "../../undefined.h"
+#include "undefined.h"
 import Agda.Utils.Impossible
 
 {- Andreas 2012-04-07, 2012-05-08

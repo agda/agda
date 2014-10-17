@@ -1,7 +1,6 @@
 TOP = ../..
 
 include $(TOP)/mk/paths.mk
-include $(TOP)/mk/config.mk
 
 # Enable read -n and 2>&1 |.
 SHELL=bash

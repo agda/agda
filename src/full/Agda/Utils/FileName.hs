@@ -30,7 +30,7 @@ import Data.Typeable (Typeable)
 import Agda.Utils.TestHelpers
 import Agda.Utils.QuickCheck
 
-#include "../undefined.h"
+#include "undefined.h"
 import Agda.Utils.Impossible
 
 -- | Paths which are known to be absolute.

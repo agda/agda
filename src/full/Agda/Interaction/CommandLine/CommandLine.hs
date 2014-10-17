@@ -34,7 +34,7 @@ import Agda.TypeChecking.Substitute
 import Agda.Utils.Except ( MonadError(catchError) )
 import Agda.Utils.Monad
 
-#include "../../undefined.h"
+#include "undefined.h"
 import Agda.Utils.Impossible
 
 data ExitCode a = Continue | ContinueIn TCEnv | Return a

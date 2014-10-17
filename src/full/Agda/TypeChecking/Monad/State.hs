@@ -35,7 +35,7 @@ import Agda.Utils.Monad (bracket_)
 import Agda.Utils.Pretty
 import Agda.Utils.Tuple
 
-#include "../../undefined.h"
+#include "undefined.h"
 import Agda.Utils.Impossible
 
 -- | Resets the non-persistent part of the type checking state.

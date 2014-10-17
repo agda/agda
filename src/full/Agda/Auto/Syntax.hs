@@ -7,7 +7,7 @@ import Data.IORef
 
 import Agda.Auto.NarrowingSearch
 
-#include "../undefined.h"
+#include "undefined.h"
 import Agda.Utils.Impossible
 
 -- | Unique identifiers for variable occurrences in unification.

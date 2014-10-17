@@ -45,7 +45,7 @@ import Agda.Utils.Pretty
 import Agda.Utils.List
 import qualified Agda.Utils.HashMap as HMap
 
-#include "../../undefined.h"
+#include "undefined.h"
 import Agda.Utils.Impossible
 
 -- | Add a constant to the signature. Lifts the definition to top level.

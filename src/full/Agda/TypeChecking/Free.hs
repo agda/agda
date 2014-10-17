@@ -50,7 +50,7 @@ import Agda.Utils.Monad
 import Agda.Utils.VarSet (VarSet)
 import qualified Agda.Utils.VarSet as Set
 
-#include "../undefined.h"
+#include "undefined.h"
 import Agda.Utils.Impossible
 
 -- | Free variables of a term, (disjointly) partitioned into strongly and

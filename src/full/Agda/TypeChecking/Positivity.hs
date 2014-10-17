@@ -40,7 +40,7 @@ import Agda.Utils.SemiRing
 import qualified Agda.Utils.Graph.AdjacencyMap as Graph
 import Agda.Utils.Graph.AdjacencyMap (Graph)
 
-#include "../undefined.h"
+#include "undefined.h"
 import Agda.Utils.Impossible
 
 -- | Check that the datatypes in the mutual block containing the given

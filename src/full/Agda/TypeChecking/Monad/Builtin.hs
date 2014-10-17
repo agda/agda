@@ -20,7 +20,7 @@ import Agda.Utils.Monad (when_)
 import Agda.Utils.Maybe
 import Agda.Utils.Tuple
 
-#include "../../undefined.h"
+#include "undefined.h"
 import Agda.Utils.Impossible
 
 class (Functor m, Applicative m, Monad m) => HasBuiltins m where

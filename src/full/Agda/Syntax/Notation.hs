@@ -30,7 +30,7 @@ import Agda.Utils.Except ( MonadError(throwError) )
 import Agda.Utils.List
 
 import Agda.Utils.Impossible
-#include "../undefined.h"
+#include "undefined.h"
 
 -- | Data type constructed in the Happy parser; converted to 'GenPart'
 --   before it leaves the Happy code.

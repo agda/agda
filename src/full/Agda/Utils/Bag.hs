@@ -23,7 +23,7 @@ import qualified Data.Traversable as Trav
 import Agda.Utils.Functor
 import Agda.Utils.QuickCheck
 
-#include "../undefined.h"
+#include "undefined.h"
 import Agda.Utils.Impossible
 
 -- | A set with duplicates.

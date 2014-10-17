@@ -37,7 +37,7 @@ import Agda.Utils.Pretty hiding (empty)
 import Agda.Utils.QuickCheck
 import Agda.Utils.TestHelpers
 
-#include "../undefined.h"
+#include "undefined.h"
 import Agda.Utils.Impossible
 
 ------------------------------------------------------------------------

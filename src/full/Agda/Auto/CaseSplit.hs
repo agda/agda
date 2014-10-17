@@ -14,7 +14,7 @@ import Agda.Auto.Syntax
 import Agda.Auto.SearchControl
 import Agda.Auto.Typecheck
 
-#include "../undefined.h"
+#include "undefined.h"
 import Agda.Utils.Impossible
 
 abspatvarname :: String

@@ -14,7 +14,7 @@ import Agda.TypeChecking.Monad.Base
 import Agda.TypeChecking.Monad.Options
 import Agda.Utils.Monad
 
-#include "../../undefined.h"
+#include "undefined.h"
 import Agda.Utils.Impossible
 
 updateSharedTerm :: MonadTCM tcm => (Term -> tcm Term) -> Term -> tcm Term

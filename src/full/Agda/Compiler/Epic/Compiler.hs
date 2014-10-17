@@ -58,7 +58,7 @@ import qualified Agda.Utils.HashMap as HMap
 import Agda.Utils.List
 import Agda.Utils.Pretty ( prettyShow )
 
-#include "../../undefined.h"
+#include "undefined.h"
 import Agda.Utils.Impossible
 
 compilePrelude :: Compile TCM ()

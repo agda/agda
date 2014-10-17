@@ -19,7 +19,7 @@ import Agda.TypeChecking.Substitute
 
 import Agda.Utils.Size
 
-#include "../undefined.h"
+#include "undefined.h"
 import Agda.Utils.Impossible
 
 ---------------------------------------------------------------------------

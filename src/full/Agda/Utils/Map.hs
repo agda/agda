@@ -11,7 +11,7 @@ import Data.Traversable
 
 import Agda.Utils.Tuple
 
-#include "../undefined.h"
+#include "undefined.h"
 import Agda.Utils.Impossible
 
 -- * Monadic map operations

@@ -28,7 +28,7 @@ import Control.Monad.Trans
 import Data.Int
 import System.IO
 
-#include "../undefined.h"
+#include "undefined.h"
 import Agda.Utils.Impossible
 
 -- | Responses for any interactive interface

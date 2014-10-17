@@ -40,7 +40,7 @@ import Agda.Utils.Pretty (pretty, render)
 
 import Agda.Utils.Except ( ExceptT, MonadError(throwError), runExceptT )
 
-#include "../../undefined.h"
+#include "undefined.h"
 import Agda.Utils.Impossible
 
 ------------------------------------------------------------------------

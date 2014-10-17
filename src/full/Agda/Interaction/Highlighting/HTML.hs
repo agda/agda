@@ -42,7 +42,7 @@ import qualified Agda.Utils.IO.UTF8 as UTF8
 import Agda.Utils.Pretty
 import Agda.Utils.Tuple
 
-#include "../../undefined.h"
+#include "undefined.h"
 import Agda.Utils.Impossible
 
 -- | The name of the default CSS file.

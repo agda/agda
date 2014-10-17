@@ -57,7 +57,7 @@ import Agda.Utils.Tuple
 import Agda.Utils.Permutation
 import qualified Agda.Utils.VarSet as Set
 
-#include "../undefined.h"
+#include "undefined.h"
 import Agda.Utils.Impossible
 
 -- | Find position of a value in a list.

@@ -46,7 +46,7 @@ import Agda.Utils.Maybe
 import Agda.Utils.Permutation hiding (dropFrom)
 import Agda.Utils.Size
 
-#include "../undefined.h"
+#include "undefined.h"
 import Agda.Utils.Impossible
 
 ---------------------------------------------------------------------------

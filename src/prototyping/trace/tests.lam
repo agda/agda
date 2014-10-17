@@ -1,7 +1,0 @@
-\(x:Nat) -> x z
-\(x:Nat) -> x
-\(x:Bool) -> z
-(\(x:Nat -> Nat) -> x 0) (\(x:Nat) -> x) 1
-\(x:Nat -> Nat) -> x x
-\(x:(Nat -> Nat) -> Nat) -> x x
-(\(x:Nat) -> x) (\(x:Nat) -> x)

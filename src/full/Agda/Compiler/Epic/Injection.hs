@@ -37,7 +37,7 @@ import qualified Agda.Utils.HashMap as HM
 import Agda.Compiler.Epic.CompileState
 import Agda.Compiler.Epic.Interface as Interface
 
-#include "../../undefined.h"
+#include "undefined.h"
 import Agda.Utils.Impossible
 
 -- | Find potentially injective functions, solve constraints to fix some constructor

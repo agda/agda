@@ -45,7 +45,7 @@ import Agda.Auto.CaseSplit
 import Agda.Utils.Except ( runExceptT, MonadError(catchError) )
 import Agda.Utils.Impossible
 
-#include "../undefined.h"
+#include "undefined.h"
 
 insertAbsurdPattern :: String -> String
 insertAbsurdPattern [] = []

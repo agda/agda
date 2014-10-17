@@ -36,7 +36,7 @@ import Agda.Compiler.Epic.Epic
 import Agda.Compiler.Epic.Interface
 import qualified Agda.Compiler.Epic.FromAgda as FA
 
-#include "../../undefined.h"
+#include "undefined.h"
 import Agda.Utils.Impossible
 
 -- | Returns how many parameters a datatype has

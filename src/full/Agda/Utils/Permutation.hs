@@ -21,7 +21,7 @@ import Data.Typeable (Typeable)
 import Agda.Utils.Size
 import Agda.Utils.List ((!!!))
 
-#include "../undefined.h"
+#include "undefined.h"
 import Agda.Utils.Impossible
 
 -- | Partial permutations. Examples:

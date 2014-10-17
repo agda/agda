@@ -20,7 +20,7 @@ import {-# SOURCE #-} Agda.TypeChecking.Pretty
 
 import Agda.Utils.Tuple
 
-#include "../undefined.h"
+#include "undefined.h"
 import Agda.Utils.Impossible
 
 -- | Weak head normal form in elimination presentation.

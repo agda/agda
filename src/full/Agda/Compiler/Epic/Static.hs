@@ -31,7 +31,7 @@ import qualified Agda.Utils.HashMap as HM
 
 import Agda.Compiler.Epic.CompileState
 
-#include "../../undefined.h"
+#include "undefined.h"
 import Agda.Utils.Impossible
 
 normaliseStatic :: CompiledClauses -> Compile TCM CompiledClauses

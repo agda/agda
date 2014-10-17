@@ -1,67 +1,29 @@
 # Top-level Makefile for Agda 2
-# Authors: Ulf Norell, Nils Anders Danielsson
+# Authors: Ulf Norell, Nils Anders Danielsson, Francesco Mazzoli
 
 # Profiling verbosity for library-test
 PROFVERB=7
 
-SHELL=bash
-## Includes ###############################################################
+# Various paths and commands
 
-TOP = .
+include ./mk/paths.mk
 
-is_configured = $(shell if test -f mk/config.mk; \
-						then echo Yes; \
-						else echo No; \
-						fi \
-				 )
-
-include mk/paths.mk
-
-ifeq ($(is_configured),Yes)
-include mk/config.mk
-include mk/rules.mk
-endif
+CABAL_CMD=cabal
+CABAL_OPTS=
 
 ## Default target #########################################################
 
 .PHONY : default
-
-ifeq ($(is_configured),Yes)
-default : install-bin
-# tags
-else
-default : make_configure
-endif
+default: $(AGDA_BIN)
 
 ## Cabal-based installation ###############################################
 
-# The cabal command.
-CABAL_CMD=cabal
-
-override CABAL_OPTS+=$(CABAL_OPTIONS)
-
-# Options used by cabal install.
-override CABAL_OPTS+=--builddir=dist/$(VERSION)
-#  -f old-time
-#  -f epic
-
-# override CABAL_OPTS+=--program-suffix=-$(VERSION)
-
-# If you want to make use of parallel compilation with ghc>=7.8,
-# enable the flag below, or set the "jobs" field in your
-# ".cabal/config".
-#
-# ifeq ($(HAVE_GHC_7_7),Yes)
-# override CABAL_OPTS+=--ghc-option=-j3
-# endif
-
 .PHONY : install
-install : install-bin compile-emacs-mode setup-emacs-mode
+install: install-bin compile-emacs-mode setup-emacs-mode
 
 .PHONY : prof
 prof : install-prof-bin
 
-# Installs the Emacs mode, but does not set it up.
 .PHONY : install-bin
 install-bin :
 	time $(CABAL_CMD) install --disable-library-profiling --disable-documentation $(CABAL_OPTS)
@@ -80,7 +42,7 @@ install-prof-bin :
                              --program-suffix=_p --disable-documentation $(CABAL_OPTS)
 
 .PHONY : compile-emacs-mode
-compile-emacs-mode : install-bin
+compile-emacs-mode: install-bin
 	agda-mode compile
 
 .PHONY : setup-emacs-mode
@@ -91,108 +53,21 @@ setup-emacs-mode : install-bin
 	@echo
 	agda-mode setup
 
-## Making the make system #################################################
-
-m4_macros	= $(wildcard $(MACRO_DIR)/*.m4)
-
-.PHONY : make_configure
-make_configure : configure
-	@echo "Run './configure' to set up the build system."
-
-.PHONY : configure
-configure : aclocal.m4 $(m4_macros) configure.ac
-	autoconf
-
-##
-## The following targets are only available after running configure #######
-##
-
-ifeq ($(is_configured),Yes)
-
 ## Making the documentation ###############################################
 
 .PHONY : doc
-doc :
-	$(MAKE) -C $(HADDOCK_DIR)
+doc:
+	cabal haddock
 
 ## Making the full language ###############################################
 
-ifeq ($(HAVE_RUNHASKELL),Yes)
-
-SETUP	   = Setup.hs
-RUNSETUP   = $(RUNHASKELL) $(SETUP)
-
-else
-
-SETUP	   = setup
-RUNSETUP   = ./setup
-
-$(SETUP) : Setup.hs
-	ghc --make -o $@ $<
-
-endif
-
-CONFIG	= dist/setup-config
-CABAL		= Agda.cabal
-BUILD		= dist/build-complete
-INPLACE = dist/installed-inplace
-SOURCES = $(shell $(FIND) $(FULL_SRC_DIR) -name '*hs') \
-					$(shell $(FIND) $(FULL_SRC_DIR) -name '*.y') \
-					$(shell $(FIND) $(FULL_SRC_DIR) -name '*.x')
-
-$(CONFIG) : $(CABAL) $(SETUP)
-	$(RUNSETUP) configure
-
-$(BUILD) : $(CONFIG) $(SOURCES)
-	$(RUNSETUP) build
-	@date > $@
-
-$(INPLACE) : $(BUILD)
-	$(RUNSETUP) register --user --inplace
-	@date > $@
-
-$(AGDA_BIN) : $(INPLACE) $(MAIN_SRC_DIR)/Main.hs
-	$(MAKE) -C $(MAIN_SRC_DIR)
+$(AGDA_BIN):
+	cabal build
 
 .PHONY : full
 full : $(AGDA_BIN)
 
-## Making the core language ###############################################
-
-.PHONY : core
-core :
-	$(MAKE) -C $(CORE_SRC_DIR)
-
-## Making the Agda 1 to Agda 2 translator #################################
-
-.PHONY : transl
-transl :
-	(cd $(TRANSL_SRC_DIR); cabal configure && cabal build)
-
 ## Making the source distribution #########################################
-
-ifeq ($(HAVE_DARCS)-$(shell if test -d _darcs; then echo darcs; fi),Yes-darcs)
-  is_darcs_repo = Yes
-else
-  is_darcs_repo = No
-endif
-
-.PHONY : dist
-
-ifeq ($(is_darcs_repo),Yes)
-
-dist : agda2.tar.gz
-
-agda2.tar.gz :
-	$(DARCS) dist -d agda2
-
-else
-
-dist :
-	@echo You can only "'make dist'" from the darcs repository.
-	@$(FALSE)
-
-endif
 
 .PHONY : tags
 tags :
@@ -275,8 +150,8 @@ library-test : # up-to-date-std-lib
 	@echo "======================================================================"
 	@echo "========================== Standard library =========================="
 	@echo "======================================================================"
-	@(cd std-lib && \
-          time ../$(AGDA_BIN) -v profile:$(PROFVERB) -i. -isrc README.agda $(AGDA_TEST_FLAGS) \
+	@(cd std-lib && runhaskell GenerateEverything.hs && \
+          time ../$(AGDA_BIN) --ignore-interfaces -v profile:$(PROFVERB) -i. -isrc README.agda $(AGDA_TEST_FLAGS) \
             +RTS -s -H1G -M1.5G)
 
 .PHONY : continue-library-test
@@ -320,32 +195,7 @@ benchmark :
 
 .PHONY : clean
 clean :
-	$(MAKE) -C $(HADDOCK_DIR) clean
-	rm -rf $(OUT_DIR)
-	rm -rf dist
-
-.PHONY : veryclean
-veryclean :
-	$(MAKE) -C $(HADDOCK_DIR) veryclean
-	rm -rf $(OUT_DIR)
-	rm -rf configure config.log config.status autom4te.cache mk/config.mk
-
-## Debugging the Makefile #################################################
-.PHONY : info
-
-info :
-	@echo "The agda binary is at:         $(AGDA_BIN)"
-	@echo "Do we have ghc 7.7?            $(HAVE_GHC_7_7)"
-	@echo "Is this the darcs repository?  $(is_darcs_repo)"
-	@echo "Agda test flags are:           $(AGDA_TEST_FLAGS)"
-	@echo "Cabal flags are:               $(CABAL_OPTS)"
-
-else	# is_configured
-
-info :
-	@echo "You haven't run configure."
-
-endif	# is_configured
+	cabal clean
 
 ## Whitespace-related #####################################################
 

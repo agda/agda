@@ -1,4 +1,0 @@
-
-default :
-	make -C src
-

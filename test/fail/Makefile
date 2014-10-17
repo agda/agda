@@ -17,7 +17,6 @@
 TOP = ../..
 
 include $(TOP)/mk/paths.mk
-include $(TOP)/mk/config.mk
 
 # Path to Agda
 agda=$(AGDA_BIN) $(AGDA_TEST_FLAGS)

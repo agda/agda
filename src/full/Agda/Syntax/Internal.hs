@@ -45,7 +45,7 @@ import Agda.Utils.Pointer
 import Agda.Utils.Size
 import Agda.Utils.Pretty
 
-#include "../undefined.h"
+#include "undefined.h"
 import Agda.Utils.Impossible
 
 type Color      = Term

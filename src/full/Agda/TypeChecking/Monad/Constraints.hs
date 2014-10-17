@@ -19,7 +19,7 @@ import Agda.TypeChecking.Monad.Options
 import Agda.Utils.List
 import Agda.Utils.Monad
 
-#include "../../undefined.h"
+#include "undefined.h"
 import Agda.Utils.Impossible
 
 -- | Get the current problem

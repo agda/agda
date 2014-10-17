@@ -82,7 +82,7 @@ import qualified Agda.Utils.HashMap as HMap
 
 import Agda.Utils.Except ( ExceptT, MonadError(throwError), runExceptT )
 
-#include "../undefined.h"
+#include "undefined.h"
 import Agda.Utils.Impossible
 
 -- Note that the Binary instance for Int writes 64 bits, but throws

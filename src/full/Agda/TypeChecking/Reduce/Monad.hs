@@ -41,7 +41,7 @@ import qualified Agda.Utils.HashMap as HMap
 import Agda.Utils.Monad
 import Agda.Utils.Pretty
 
-#include "../../undefined.h"
+#include "undefined.h"
 import Agda.Utils.Impossible
 
 gets :: (TCState -> a) -> ReduceM a
