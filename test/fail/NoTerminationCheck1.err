@@ -1,4 +1,3 @@
 NoTerminationCheck1.agda:4,1-29
-Pragma {-# NO_TERMINATION_CHECK #-} has been removed. To skip the
-termination check, label your definitions either as {-# TERMINATING
-#-} or {-# NON_TERMINATING #-}.
+Termination checking pragmas can only precede a mutual block or a
+function definition.
