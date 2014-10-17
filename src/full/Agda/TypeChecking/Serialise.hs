@@ -24,6 +24,7 @@ module Agda.TypeChecking.Serialise
   where
 
 import Control.Applicative
+import Control.DeepSeq
 import qualified Control.Exception as E
 import Control.Monad
 import Control.Monad.Reader
@@ -66,7 +67,7 @@ import qualified Agda.Interaction.Highlighting.Precise as HP
 import Agda.Interaction.FindFile
 
 import qualified Agda.TypeChecking.Monad.Benchmark as Bench
-import Agda.TypeChecking.Monad.Benchmark (billTo)
+import Agda.TypeChecking.Monad.Benchmark (billSub, billTo)
 
 import Agda.TypeChecking.Monad
 import Agda.TypeChecking.CompiledClause
@@ -177,8 +178,15 @@ encode a = do
     iL <- benchSort $ l iD
     dL <- benchSort $ l dD
     (shared, total) <- liftIO $ readIORef stats
-    let x = B.encode currentInterfaceVersion `L.append`
-            G.compress (B.encode (root, nL, sL, iL, dL))
+    bits1 <- billSub [ Bench.Serialization, Bench.BinaryEncode ] $
+      return $!! B.encode (root, nL, sL, iL, dL)
+    let compressParams = G.defaultCompressParams
+          { G.compressLevel    = G.bestSpeed
+          , G.compressStrategy = G.huffmanOnlyStrategy
+          }
+    cbits <- billSub [ Bench.Serialization, Bench.Compress ] $
+      return $!! G.compressWith compressParams bits1
+    let x = B.encode currentInterfaceVersion `L.append` cbits
     verboseS "profile.sharing" 10 $ do
       tickN "pointers (reused)" $ fromIntegral shared
       tickN "pointers" $ fromIntegral total
