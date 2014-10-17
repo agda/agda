@@ -15,7 +15,7 @@ TOP=.
 ## Default target #########################################################
 
 .PHONY : default
-default: $(AGDA_BIN)
+default: install-bin
 
 ## Cabal-based installation ###############################################
 
