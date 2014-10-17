@@ -44,8 +44,12 @@ getClockTime =
   System.Time.getClockTime
 #endif
 
+-- | CPU time in pico (10^-12) seconds.
+
 newtype CPUTime = CPUTime Integer
   deriving (Eq, Show, Ord, Num, Real, Enum, Integral)
+
+-- | Print CPU time in milli (10^-3) seconds.
 
 instance Pretty CPUTime where
   pretty (CPUTime ps) =
