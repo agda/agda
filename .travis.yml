@@ -50,3 +50,7 @@ script:
 
 # notifications:
 #   email: false
+
+# Builds are loooong, we want to send an email as fast as possible.
+matrix:
+  fast_finish: true
