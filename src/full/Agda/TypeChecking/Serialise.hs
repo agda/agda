@@ -309,11 +309,11 @@ decodeFile :: FilePath -> TCM (Maybe Interface)
 decodeFile f = decodeInterface =<< liftIO (L.readFile f)
 
 instance EmbPrj String where
-  icode   = icodeX stringD stringC
+  icode   = icodeString
   value i = (! i) `fmap` gets stringE
 
 instance EmbPrj Integer where
-  icode   = icodeX integerD integerC
+  icode   = icodeInteger
   value i = (! i) `fmap` gets integerE
 
 instance EmbPrj Word64 where
@@ -338,7 +338,7 @@ instance EmbPrj Char where
   value i = return (toEnum $ fromInteger $ toInteger i)
 
 instance EmbPrj Double where
-  icode   = icodeX doubleD doubleC
+  icode   = icodeDouble
   value i = (! i) `fmap` gets doubleE
 
 instance EmbPrj () where
@@ -1289,9 +1289,31 @@ instance EmbPrj Epic.Tag where
     valu [1, a] = valu1 Epic.PrimTag a
     valu _      = malformed
 
-icodeX :: (Eq k, Hashable k) =>
-          (Dict -> HashTable k Int32) -> (Dict -> IORef Int32) ->
-          k -> S Int32
+-- Specializing icodeX leads to Warning like
+-- src/full/Agda/TypeChecking/Serialise.hs:1297:1: Warning:
+--     RULE left-hand side too complicated to desugar
+--       case cobox_aQY5 of _ [Occ=Dead] { ghc-prim:GHC.Types.Eq# cobox ->
+--       icodeX @ String $dEq_aQY3 $dHashable_aQY4
+--       }
+--
+-- type ICodeX k
+--   =  (Dict -> HashTable k Int32)
+--   -> (Dict -> IORef Int32)
+--   -> k -> S Int32
+-- {-# SPECIALIZE icodeX :: ICodeX String  #-}
+-- {-# SPECIALIZE icodeX :: ICodeX Integer #-}
+-- {-# SPECIALIZE icodeX :: ICodeX Double  #-}
+-- {-# SPECIALIZE icodeX :: ICodeX Node    #-}
+
+-- Andreas, 2014-10-16 AIM XX:
+-- Inlining this increases Serialization time by 10%
+-- Makoto's theory: code size increase might lead to
+-- instruction cache misses.
+-- {-# INLINE icodeX #-}
+icodeX :: (Eq k, Hashable k)
+  =>  (Dict -> HashTable k Int32)
+  -> (Dict -> IORef Int32)
+  -> k -> S Int32
 icodeX dict counter key = do
   d <- asks dict
   c <- asks counter
@@ -1305,8 +1327,68 @@ icodeX dict counter key = do
       writeIORef c $! fresh + 1
       return fresh
 
-icodeN :: [Int32] -> S Int32
-icodeN = icodeX nodeD nodeC
+-- Instead of inlining icodeX, we manually specialize it to
+-- its four uses: Integer, String, Double, Node.
+-- Not a great gain (hardly noticeable), but not harmful.
+
+icodeInteger :: Integer -> S Int32
+icodeInteger key = do
+  d <- asks integerD
+  c <- asks integerC
+  liftIO $ do
+  mi <- H.lookup d key
+  case mi of
+    Just i  -> return i
+    Nothing -> do
+      fresh <- readIORef c
+      H.insert d key fresh
+      writeIORef c $! fresh + 1
+      return fresh
+
+icodeDouble :: Double -> S Int32
+icodeDouble key = do
+  d <- asks doubleD
+  c <- asks doubleC
+  liftIO $ do
+  mi <- H.lookup d key
+  case mi of
+    Just i  -> return i
+    Nothing -> do
+      fresh <- readIORef c
+      H.insert d key fresh
+      writeIORef c $! fresh + 1
+      return fresh
+
+icodeString :: String -> S Int32
+icodeString key = do
+  d <- asks stringD
+  c <- asks stringC
+  liftIO $ do
+  mi <- H.lookup d key
+  case mi of
+    Just i  -> return i
+    Nothing -> do
+      fresh <- readIORef c
+      H.insert d key fresh
+      writeIORef c $! fresh + 1
+      return fresh
+
+icodeN :: Node -> S Int32
+icodeN key = do
+  d <- asks nodeD
+  c <- asks nodeC
+  liftIO $ do
+  mi <- H.lookup d key
+  case mi of
+    Just i  -> return i
+    Nothing -> do
+      fresh <- readIORef c
+      H.insert d key fresh
+      writeIORef c $! fresh + 1
+      return fresh
+
+-- icodeN :: [Int32] -> S Int32
+-- icodeN = icodeX nodeD nodeC
 
 {-# INLINE vcase #-}
 -- | @vcase value ix@ decodes thing represented by @ix :: Int32@
