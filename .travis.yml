@@ -31,8 +31,20 @@ script:
   # Right now haddock doesn't work, presumably because it consumes too
   # much memory.
   # - cabal haddock
-  # Right now tests are broken.
-  # - make test
+  make check-whitespace
+  make succeed
+  # Right now fail tests are broken, the output differs
+  # make fail
+  make interaction
+  # Travis doesn't have latex, not sure if we should install it
+  # make latex-test
+  make examples
+  make library-test
+  make lib-succeed
+  make compiler-test
+  make epic-test
+  make api-test
+  make tests
 
 # notifications:
 #   email: false
