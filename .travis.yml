@@ -27,6 +27,9 @@ install:
   - make install-fix-agda-whitespace
 
 script:
+  # We first build so that we get some output for travis -- otherwise
+  # it'll stall the build
+  - cabal build -v2
   - make install-bin
   - make doc
   - make test
