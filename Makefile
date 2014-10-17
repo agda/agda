@@ -58,6 +58,7 @@ setup-emacs-mode : install-bin
 
 .PHONY : doc
 doc:
+	cabal configure
 	cabal haddock
 
 ## Making the full language ###############################################
