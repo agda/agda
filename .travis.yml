@@ -34,5 +34,5 @@ script:
   # Right now tests are broken.
   # - make test
 
-notifications:
-  email: false
+# notifications:
+#   email: false
