@@ -11,6 +11,8 @@ ghc:
   # - 7.0.4
 
 install:
+  # Apparently travis doesn't have "time".
+  - sudo apt-get install time
   # With old GHCs, we get an old cabal-install
   - cabal install cabal-install
   # New happy needed for haskell-src-exts
