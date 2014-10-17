@@ -2747,6 +2747,33 @@ Serialization.BinaryEncode  17,509ms
 Serialization.Compress       4,280ms
 ModuleName                      24ms
 
+ 143,280,163,896 bytes allocated in the heap
+  16,076,672,192 bytes copied during GC
+     421,917,664 bytes maximum residency (44 sample(s))
+       6,044,976 bytes maximum slop
+            1218 MB total memory in use (0 MB lost due to fragmentation)
+
+                                    Tot time (elapsed)  Avg pause  Max pause
+  Gen  0      1854 colls,     0 par   45.51s   46.04s     0.0248s    0.4052s
+  Gen  1        44 colls,     0 par   14.10s   14.24s     0.3237s    0.8752s
+
+  INIT    time    0.00s  (  0.00s elapsed)
+  MUT     time  153.36s  (156.31s elapsed)
+  GC      time   59.61s  ( 60.28s elapsed)
+  EXIT    time    0.02s  (  0.03s elapsed)
+  Total   time  213.01s  (216.63s elapsed)
+
+  %GC     time      28.0%  (27.8% elapsed)
+
+  Alloc rate    934,263,561 bytes per MUT second
+
+  Productivity  72.0% of total user, 70.8% of total elapsed
+
+
+real	3m36.724s
+user	3m33.005s
+sys	0m2.716s
+
 
 After specializing icodeX to Integer, String, Double, Node.
 ------------------------------------------------------------------------
@@ -2803,29 +2830,108 @@ real	3m36.018s
 user	3m32.469s
 sys	0m3.168s
 
- 143,280,163,896 bytes allocated in the heap
-  16,076,672,192 bytes copied during GC
-     421,917,664 bytes maximum residency (44 sample(s))
-       6,044,976 bytes maximum slop
-            1218 MB total memory in use (0 MB lost due to fragmentation)
+
+After INLINE icode<nn>[']
+------------------------------------------------------------------------
+Finished README.
+Total time                 215,789ms
+Parsing                      1,292ms
+Parsing.Operators           10,440ms
+Import                       4,228ms
+Deserialization                 28ms
+Scoping                      8,948ms
+Typing                      50,175ms
+Termination                  2,048ms
+Termination.Graph              208ms
+Termination.RecCheck           432ms
+Termination.Compare            428ms
+Positivity                   4,328ms
+Injectivity                    744ms
+ProjectionLikeness             160ms
+Coverage                     2,312ms
+Highlighting                 7,464ms
+Serialization               96,422ms
+Serialization.Sort             944ms
+Serialization.BinaryEncode  19,589ms
+Serialization.Compress       3,856ms
+ModuleName                      24ms
+
+ 141,379,633,872 bytes allocated in the heap
+  16,330,082,400 bytes copied during GC
+     448,454,176 bytes maximum residency (45 sample(s))
+       6,032,632 bytes maximum slop
+            1163 MB total memory in use (0 MB lost due to fragmentation)
 
                                     Tot time (elapsed)  Avg pause  Max pause
-  Gen  0      1854 colls,     0 par   45.51s   46.04s     0.0248s    0.4052s
-  Gen  1        44 colls,     0 par   14.10s   14.24s     0.3237s    0.8752s
+  Gen  0      1666 colls,     0 par   45.15s   45.63s     0.0274s    0.4114s
+  Gen  1        45 colls,     0 par   14.32s   14.35s     0.3189s    0.9113s
 
   INIT    time    0.00s  (  0.00s elapsed)
-  MUT     time  153.36s  (156.31s elapsed)
-  GC      time   59.61s  ( 60.28s elapsed)
-  EXIT    time    0.02s  (  0.03s elapsed)
-  Total   time  213.01s  (216.63s elapsed)
+  MUT     time  155.12s  (156.34s elapsed)
+  GC      time   59.47s  ( 59.98s elapsed)
+  EXIT    time    0.03s  (  0.03s elapsed)
+  Total   time  214.63s  (216.36s elapsed)
 
-  %GC     time      28.0%  (27.8% elapsed)
+  %GC     time      27.7%  (27.7% elapsed)
 
-  Alloc rate    934,263,561 bytes per MUT second
+  Alloc rate    911,434,673 bytes per MUT second
 
-  Productivity  72.0% of total user, 70.8% of total elapsed
+  Productivity  72.3% of total user, 71.7% of total elapsed
 
 
-real	3m36.724s
-user	3m33.005s
-sys	0m2.716s
+real	3m36.457s
+user	3m34.629s
+sys	0m1.292s
+
+
+After removing -O2  (but reverting INLINE icode)
+------------------------------------------------------------------------
+Finished README.
+Total time                 214,393ms
+Parsing                      1,268ms
+Parsing.Operators           11,148ms
+Import                       3,964ms
+Deserialization                 28ms
+Scoping                      8,812ms
+Typing                      50,215ms
+Termination                  1,816ms
+Termination.Graph              212ms
+Termination.RecCheck           528ms
+Termination.Compare            376ms
+Positivity                   4,324ms
+Injectivity                    764ms
+ProjectionLikeness             160ms
+Coverage                     2,344ms
+Highlighting                 7,008ms
+Serialization               96,814ms
+Serialization.Sort           1,140ms
+Serialization.BinaryEncode  18,589ms
+Serialization.Compress       4,036ms
+ModuleName                      24ms
+
+ 140,104,546,568 bytes allocated in the heap
+  16,220,714,584 bytes copied during GC
+     479,648,656 bytes maximum residency (45 sample(s))
+       5,905,712 bytes maximum slop
+            1189 MB total memory in use (0 MB lost due to fragmentation)
+
+                                    Tot time (elapsed)  Avg pause  Max pause
+  Gen  0      1662 colls,     0 par   45.35s   45.65s     0.0275s    0.4145s
+  Gen  1        45 colls,     0 par   14.36s   14.44s     0.3209s    1.0499s
+
+  INIT    time    0.00s  (  0.00s elapsed)
+  MUT     time  153.34s  (154.68s elapsed)
+  GC      time   59.71s  ( 60.09s elapsed)
+  EXIT    time    0.03s  (  0.03s elapsed)
+  Total   time  213.09s  (214.81s elapsed)
+
+  %GC     time      28.0%  (28.0% elapsed)
+
+  Alloc rate    913,699,986 bytes per MUT second
+
+  Productivity  72.0% of total user, 71.4% of total elapsed
+
+
+real	3m34.906s
+user	3m33.085s
+sys	0m1.436s
