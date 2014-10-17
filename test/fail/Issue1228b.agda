@@ -25,12 +25,15 @@ NoConf (suc m) (suc n) = m ≡ n
 noConf : FunDef
 noConf = funDef
   (el₀ (pi (arg₀ (el₀ (def (quote Nat) [])))
+   (abs "_"
     (el₀ (pi (arg₀ (el₀ (def (quote Nat) [])))
+     (abs "_"
       (el₀ (pi (arg₀ (el₀ (def (quote _≡_) (arg₀ (var 1 []) ∷ arg₀ (var 0 []) ∷ []))))
-        (el₀ (def (quote NoConf) (arg₀ (var 2 []) ∷ arg₀ (var 1 []) ∷ [])))))))))
+       (abs "_"
+        (el₀ (def (quote NoConf) (arg₀ (var 2 []) ∷ arg₀ (var 1 []) ∷ []))))))))))))
   ( clause (arg₀ (con (quote zero) []) ∷ arg₀ dot ∷ arg₀ (con (quote refl) []) ∷ [])
            (def (quote tt) [])
-  ∷ clause (arg₀ (con (quote suc) (arg₀ var ∷ [])) ∷ arg₀ dot ∷ arg₀ (con (quote refl) []) ∷ [])
+  ∷ clause (arg₀ (con (quote suc) (arg₀ (var "m") ∷ [])) ∷ arg₀ dot ∷ arg₀ (con (quote refl) []) ∷ [])
            (def (quote refl) [])
   ∷ [])
 

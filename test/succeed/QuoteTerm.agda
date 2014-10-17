@@ -8,7 +8,7 @@ data _≡_ {a}{A : Set a}(x : A) : A → Set where
   refl : x ≡ x
 
 test₁ : quoteTerm (λ {A : Set} (x : A) → x)
-         ≡ lam hidden (lam visible (var 0 []))
+         ≡ lam hidden (abs "A" (lam visible (abs "x" (var 0 []))))
 test₁ = refl
 
 -- Local variables are de Bruijn indices, do not forget to shift

@@ -22,23 +22,23 @@ pattern `zero  = con (quote zero) []
 pattern `suc n = con (quote suc) (vArg n ∷ [])
 
 pattern el- a = el unknown a
-pattern _`→_ a b = pi (vArg (el- a)) (el- b)
+pattern _`→_ a b = pi (vArg (el- a)) (abs "A" (el- b))
 pattern `Nat = def (quote Nat) []
 pattern `Bool = def (quote Bool) []
 
 -- Simple non-mutual case
 `id : QName → FunDef
 `id f = funDef (el- (`Nat `→ `Nat))
-        ( clause (vArg `zero      ∷ []) `zero
-        ∷ clause (vArg (`suc var) ∷ []) (`suc (def f (vArg (var 0 []) ∷ [])))
+        ( clause (vArg `zero            ∷ []) `zero
+        ∷ clause (vArg (`suc (var "n")) ∷ []) (`suc (def f (vArg (var 0 []) ∷ [])))
         ∷ [])
 
 `idType = el- (`Nat `→ `Nat)
 
 `idDef : QName → List Clause
 `idDef f =
-   clause (vArg `zero      ∷ []) `zero
- ∷ clause (vArg (`suc var) ∷ []) (`suc (def f (vArg (var 0 []) ∷ [])))
+   clause (vArg `zero            ∷ []) `zero
+ ∷ clause (vArg (`suc (var "n")) ∷ []) (`suc (def f (vArg (var 0 []) ∷ [])))
  ∷ []
 
 -- id : Nat → Nat
@@ -47,8 +47,8 @@ pattern `Bool = def (quote Bool) []
 -- Now for the mutal ones
 `evenOdd : Term → QName → List Clause
 `evenOdd base step =
-    clause (vArg `zero      ∷ []) base
-  ∷ clause (vArg (`suc var) ∷ []) (def step (vArg (var 0 []) ∷ []))
+    clause (vArg `zero            ∷ []) base
+  ∷ clause (vArg (`suc (var "n")) ∷ []) (def step (vArg (var 0 []) ∷ []))
   ∷ []
 
 even odd : Nat → Bool

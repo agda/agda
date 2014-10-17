@@ -39,6 +39,14 @@ data Arg A : Set where
 {-# BUILTIN ARGARG     arg     #-}
 {-# BUILTIN ARGARGINFO argInfo #-}
 
+data Abs (A : Set) : Set where
+  -- The String here is just a hint to help display the variable.
+  -- The actual binding structure is with de Bruijn indices.
+  abs : (s : String) (x : A) → Abs A
+
+{-# BUILTIN ABS        Abs      #-}
+{-# BUILTIN ABSABS     abs      #-}
+
 data Literal : Set where
   nat   : ℕ → Literal
   float : Float → Literal
@@ -63,9 +71,9 @@ data Term : Set where
   var     : ℕ → Args → Term
   con     : QName → Args → Term
   def     : QName → Args → Term
-  lam     : Hiding → Term → Term
+  lam     : Hiding → Abs Term → Term
   extLam  : List Clause → Args → Term
-  pi      : Arg Type → Type → Term
+  pi      : Arg Type → Abs Type → Term
   sort    : Sort → Term
   lit     : Literal → Term
   unknown : Term
@@ -83,7 +91,7 @@ data Sort where
 data Pattern : Set where
   con : QName → List (Arg Pattern) → Pattern
   dot : Pattern
-  var : Pattern
+  var : String → Pattern
   lit : Literal → Pattern
   absurd : Pattern
   projP : QName → Pattern

@@ -23,7 +23,7 @@ def₄ = primQNameDefinition (quote magic₄)
 pattern `el x = el (lit 0) x
 pattern `Nat  = `el (def (quote Nat) [])
 pattern vArg x = arg (argInfo visible relevant) x
-pattern _`→_ a b = `el (pi (vArg a) b)
+pattern _`→_ a b = `el (pi (vArg a) (abs "_" b))
 pattern `Wrap a = `el (def (quote Wrap) (vArg a ∷ []))
 pattern `⊥ = def (quote ⊥) []
 
@@ -48,7 +48,7 @@ expectedDef : Definition
 expectedDef =
   funDef (funDef
     (el (lit 0) (pi (arg (argInfo visible relevant) (el (lit 0) (def (quote ⊥) [])))
-                    (el (lit 0) (def (quote Nat) []))))
+                    (abs "_" (el (lit 0) (def (quote Nat) [])))))
     (absurdClause (arg (argInfo visible relevant) absurd ∷ []) ∷ []))
 
 check₃ : primQNameDefinition (quote magic₃) ≡ expectedDef

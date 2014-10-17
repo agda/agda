@@ -8,7 +8,7 @@ pattern hArg x = arg (argInfo hidden  relevant) x
 
 pattern `el x = el (lit 0) x
 pattern `Nat = `el (def (quote Nat) [])
-pattern _`→_ a b = `el (pi (vArg a) b)
+pattern _`→_ a b = `el (pi (vArg a) (abs "_" b))
 pattern `Set     = el (lit 1) (sort (lit 0))
 pattern `⊥       = `el (def (quote ⊥) [])
 
@@ -19,13 +19,13 @@ prDef : FunDef
 prDef =
   funDef (`Nat `→ `Nat)
        ( clause [] (extLam ( clause (vArg `zero ∷ []) `zero
-                           ∷ clause (vArg (`suc var) ∷ []) (var 0 [])
+                           ∷ clause (vArg (`suc (var "x")) ∷ []) (var 0 [])
                            ∷ []) [])
        ∷ [] )
 
 magicDef : FunDef
 magicDef =
-  funDef (el (lit 1) (pi (hArg `Set) (`⊥ `→ `el (var 1 []))))
+  funDef (el (lit 1) (pi (hArg `Set) (abs "A" (`⊥ `→ `el (var 1 [])))))
        ( clause [] (extLam ( absurdClause (vArg absurd ∷ [])
                            ∷ []) [])
        ∷ [] )

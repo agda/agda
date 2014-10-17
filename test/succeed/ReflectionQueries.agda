@@ -11,16 +11,16 @@ record R : Set where
 
 checkType : primQNameType (quote L._∷_) ≡
   el (lit 1) (pi (arg (argInfo hidden relevant) (el (lit 1) (sort (lit 0))))
-               (el (lit 0)
+               (abs "A" (el (lit 0)
                 (pi (arg (argInfo visible relevant) (el (lit 0) (var 0 [])))
-                 (el (lit 0)
+                 (abs "_" (el (lit 0)
                   (pi
                    (arg (argInfo visible relevant)
-                    (el (lit 0)
-                     (def (quote L) (arg (argInfo visible relevant) (var 1 []) ∷ []))))
-                   (el (lit 0)
+                     (el (lit 0)
+                      (def (quote L) (arg (argInfo visible relevant) (var 1 []) ∷ []))))
+                   (abs "_" (el (lit 0)
                     (def (quote L)
-                     (arg (argInfo visible relevant) (var 2 []) ∷ []))))))))
+                     (arg (argInfo visible relevant) (var 2 []) ∷ [])))))))))))
 checkType = refl
 
 getCons : QName → List QName

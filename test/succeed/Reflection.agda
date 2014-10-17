@@ -50,12 +50,12 @@ data Check {a}{A : Set a}(x : A) : Set where
 
 test₁ : Check ({A : Set} → A → A)
 test₁ = quoteGoal t in
-        t is pi (argʰʳ set₀) (el₀ (pi (argᵛʳ (el₀ (var 0 []))) (el₀ (var 1 []))))
+        t is pi (argʰʳ set₀) (abs "A" (el₀ (pi (argᵛʳ (el₀ (var 0 []))) (abs "_" (el₀ (var 1 []))))))
         of course
 
 test₂ : (X : Set) → Check (λ (x : X) → x)
 test₂ X = quoteGoal t in
-          t is lam visible (var 0 []) of course
+          t is lam visible (abs "x" (var 0 [])) of course
 
 infixr 40 _`∷_
 
@@ -91,7 +91,7 @@ test₅ = refl
 test₆ : unEl (primQNameType (quote set₀)) ≡ `Type
 test₆ = refl
 
-test₇ : primQNameType (quote Sort.lit) ≡ el₀ (pi (argᵛʳ (el₀ `ℕ)) (el₀ `Sort))
+test₇ : primQNameType (quote Sort.lit) ≡ el₀ (pi (argᵛʳ (el₀ `ℕ)) (abs "_" (el₀ `Sort)))
 test₇ = refl
 
 mutual

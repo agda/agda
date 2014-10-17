@@ -8,7 +8,7 @@ open import Common.Equality
 infixr 3 _`⇒_
 pattern vArg x = arg (argInfo visible relevant) x
 pattern `el a = el (lit 0) a
-pattern _`⇒_ a b = `el (pi (vArg a) b)
+pattern _`⇒_ a b = `el (pi (vArg a) (abs "_" b))
 pattern `Nat = `el (def (quote Nat) [])
 
 unquoteDecl x =
@@ -24,8 +24,8 @@ pattern `suc n = con (quote suc) (vArg n ∷ [])
 -- Note that in the body of the unquote, 'plus' really means 'quote plus'.
 unquoteDecl plus =
   funDef (`Nat `⇒ `Nat `⇒ `Nat)
-         ( clause (vArg (con (quote zero) []) ∷ vArg var ∷ []) (var 0 [])
-         ∷ clause (vArg (con (quote suc) (vArg var ∷ [])) ∷ vArg var ∷ [])
+         ( clause (vArg (con (quote zero) []) ∷ vArg (var "y") ∷ []) (var 0 [])
+         ∷ clause (vArg (con (quote suc) (vArg (var "x") ∷ [])) ∷ vArg (var "y") ∷ [])
                   (`suc (def plus (vArg (var 1 []) ∷ vArg (var 0 []) ∷ [])))
          ∷ [])
 
