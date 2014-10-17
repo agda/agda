@@ -1412,6 +1412,25 @@ vcase valu = \ix -> do
           liftIO $ H.insert memo (ix, aTyp) (U v)
           return v
 
+-- Andreas, Makoto, AIM XX (2014-10-15):
+-- No performance gain for INLINE here (neutral / slighly negative).
+--
+-- {-# INLINE icode0 #-}
+-- {-# INLINE icode1 #-}
+-- {-# INLINE icode2 #-}
+-- {-# INLINE icode3 #-}
+-- {-# INLINE icode4 #-}
+-- {-# INLINE icode5 #-}
+-- {-# INLINE icode6 #-}
+-- {-# INLINE icode7 #-}
+-- {-# INLINE icode8 #-}
+-- {-# INLINE icode9 #-}
+-- {-# INLINE icode10 #-}
+-- {-# INLINE icode11 #-}
+-- {-# INLINE icode12 #-}
+-- {-# INLINE icode13 #-}
+-- {-# INLINE icode14 #-}
+
 icode0 :: Int32 -> S Int32
 
 icode1 :: EmbPrj a => Int32 -> a -> S Int32
@@ -1493,6 +1512,26 @@ icode11 tag a b c d e f g h i j k = icodeN . (tag :) =<< sequence [icode a, icod
 icode12 tag a b c d e f g h i j k l = icodeN . (tag :) =<< sequence [icode a, icode b, icode c, icode d, icode e, icode f, icode g, icode h, icode i, icode j, icode k, icode l]
 icode13 tag a b c d e f g h i j k l m = icodeN . (tag :) =<< sequence [icode a, icode b, icode c, icode d, icode e, icode f, icode g, icode h, icode i, icode j, icode k, icode l, icode m]
 icode14 tag a b c d e f g h i j k l m n = icodeN . (tag :) =<< sequence [icode a, icode b, icode c, icode d, icode e, icode f, icode g, icode h, icode i, icode j, icode k, icode l, icode m, icode n]
+
+
+-- Andreas, Makoto, AIM XX (2014-10-15):
+-- No performance gain for INLINE here (neutral / slighly negative).
+--
+-- {-# INLINE icode0' #-}
+-- {-# INLINE icode1' #-}
+-- {-# INLINE icode2' #-}
+-- {-# INLINE icode3' #-}
+-- {-# INLINE icode4' #-}
+-- {-# INLINE icode5' #-}
+-- {-# INLINE icode6' #-}
+-- {-# INLINE icode7' #-}
+-- {-# INLINE icode8' #-}
+-- {-# INLINE icode9' #-}
+-- {-# INLINE icode10' #-}
+-- {-# INLINE icode11' #-}
+-- {-# INLINE icode12' #-}
+-- {-# INLINE icode13' #-}
+-- {-# INLINE icode14' #-}
 
 icode0' :: S Int32
 
