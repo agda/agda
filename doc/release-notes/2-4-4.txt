@@ -35,6 +35,24 @@ Language
   allowed in mutual blocks, allowing you to create mutually recursive
   definitions by unquoting.
 
+* The reflection interface now exposes the name hint (as a string)
+  for variables. As before, the actual binding structure is with
+  de Bruijn indices. The String value is just a hint used as a prefix
+  to help display the variable. The type Abs is a new bultin type used
+  for the constructors `Term.lam`, `Term.pi`, `Pattern.var`
+  (bultins `AGDATERMLAM`, `AGDATERMPI` and `AGDAPATVAR`).
+
+    data Abs (A : Set) : Set where
+      abs : (s : String) (x : A) → Abs A
+    {-# BUILTIN ABS    Abs #-}
+    {-# BUILTIN ABSABS abs #-}
+
+  Updated constructor types:
+
+    Term.lam    : Hiding   → Abs Term → Term
+    Term.pi     : Arg Type → Abs Type → Term
+    Pattern.var : String   → Pattern
+
 * Large indices.
 
   Force constructor arguments no longer count towards the size of a datatype.
