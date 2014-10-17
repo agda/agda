@@ -35,11 +35,6 @@ private
   primitive
     primQNameEquality : Name → Name → Bool
 
-    primShowQName : Name → String
-
-showName : Name → String
-showName = primShowQName
-
 -- Equality of names is decidable.
 
 infix 4 _==_ _≟-Name_
