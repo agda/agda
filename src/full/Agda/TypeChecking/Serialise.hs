@@ -1,16 +1,12 @@
 {-# OPTIONS_GHC -fwarn-missing-signatures #-}
 {-# OPTIONS_GHC -O2                       #-}
 
-{-# LANGUAGE CPP                        #-}
-{-# LANGUAGE DeriveFunctor              #-}
-{-# LANGUAGE ExistentialQuantification  #-}
-{-# LANGUAGE FlexibleInstances          #-}
-{-# LANGUAGE GeneralizedNewtypeDeriving #-}
-{-# LANGUAGE MultiParamTypeClasses      #-}
-{-# LANGUAGE OverlappingInstances       #-}
-{-# LANGUAGE ScopedTypeVariables        #-}
-{-# LANGUAGE TypeSynonymInstances       #-}
-{-# LANGUAGE TupleSections              #-}
+{-# LANGUAGE CPP                       #-}
+{-# LANGUAGE ExistentialQuantification #-}
+{-# LANGUAGE FlexibleInstances         #-}
+{-# LANGUAGE OverlappingInstances      #-}
+{-# LANGUAGE ScopedTypeVariables       #-}
+{-# LANGUAGE TypeSynonymInstances      #-}
 
 
 -- | Structure-sharing serialisation of Agda interface files.
@@ -84,7 +80,7 @@ import Agda.Utils.HashMap (HashMap)
 import Agda.Utils.Hash
 import qualified Agda.Utils.HashMap as HMap
 
-import Agda.Utils.Except ( ExceptT, MonadError(throwError,catchError), runExceptT )
+import Agda.Utils.Except ( ExceptT, MonadError(throwError), runExceptT )
 
 #include "../undefined.h"
 import Agda.Utils.Impossible
@@ -156,41 +152,7 @@ type S a = ReaderT Dict IO a
 -- 'TCM' is not used because the associated overheads would make
 -- decoding slower.
 
--- type R a = ExceptT TypeError (StateT St IO) a
-
-newtype R a = R { unR :: IORef St -> IO a }
-
-runR :: R a -> St -> IO (Either TypeError a, St)
-runR m s = do
-  ref <- newIORef s
-  a   <- (Right <$> unR m ref) `E.catch` \ err -> do
-   return $ Left err
-  (a,) <$> readIORef ref
-
-instance Monad R where
-  return a = R $ \ ref -> return a
-  m >>= k  = R $ \ ref -> unR m ref >>= \ a -> unR (k a) ref
-
-instance Applicative R where
-  pure = return
-  mf <*> ma = mf >>= \ f -> ma >>= \ a -> return $ f a
-
-instance Functor R where
-  fmap f ma = pure f <*> ma
-
-instance MonadIO R where
-  liftIO m = R $ \ ref -> m
-
-instance E.Exception TypeError where
-
-instance MonadError TypeError R where
-  throwError = liftIO . E.throwIO
-  catchError m h = R $ \ ref -> unR m ref `E.catch` \ err -> do
-    unR (h err) ref
-
-instance MonadState St R where
-  get   = R $ \ ref -> liftIO $ readIORef ref
-  put s = R $ \ ref -> liftIO $ writeIORef ref s
+type R a = ExceptT TypeError (StateT St IO) a
 
 -- | Throws an error which is suitable when the data stream is
 -- malformed.
@@ -286,7 +248,7 @@ decode s = do
         st <- St (ar nL) (ar sL) (ar iL) (ar dL)
                 <$> liftIO H.new
                 <*> return mf <*> return incs
-        (r, st) <- runR (value r) st
+        (r, st) <- runStateT (runExceptT (value r)) st
         return (Just (modFile st), r)
 
   case mf of
