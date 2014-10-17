@@ -11,6 +11,8 @@ ghc:
   # - 7.0.4
 
 install:
+  # Apparently travis doesn't have "time".
+  - sudo apt-get install time
   # With old GHCs, we get an old cabal-install
   - cabal install cabal-install
   # New happy needed for haskell-src-exts
@@ -27,14 +29,13 @@ install:
   - make install-fix-agda-whitespace
 
 script:
-  - cabal install --disable-library-profiling --disable-documentation
+  - cabal install -v2 --disable-library-profiling --disable-documentation
   # Right now haddock doesn't work, presumably because it consumes too
   # much memory.
   # - cabal haddock
   - make check-whitespace
   - make succeed
-  # Right now fail tests are broken, the output differs
-  # - make fail
+  - make fail
   - make interaction
   # Travis doesn't have latex, not sure if we should install it
   # - make latex-test
