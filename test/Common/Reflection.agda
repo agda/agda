@@ -17,7 +17,7 @@ data Hiding : Set where
 {-# BUILTIN HIDING   Hiding   #-}
 {-# BUILTIN HIDDEN   hidden   #-}
 {-# BUILTIN VISIBLE  visible  #-}
-{-# BUILTIN INSTANCE inst #-}
+{-# BUILTIN INSTANCE inst     #-}
 
 -- relevant    the argument is (possibly) relevant at compile-time
 -- irrelevant  the argument is irrelevant at compile- and runtime
@@ -44,15 +44,15 @@ data Abs (A : Set) : Set where
   -- The actual binding structure is with de Bruijn indices.
   abs : (s : String) (x : A) → Abs A
 
-{-# BUILTIN ABS        Abs      #-}
-{-# BUILTIN ABSABS     abs      #-}
+{-# BUILTIN ABS    Abs #-}
+{-# BUILTIN ABSABS abs #-}
 
 data Literal : Set where
-  nat   : ℕ → Literal
-  float : Float → Literal
-  char  : Char → Literal
+  nat    : ℕ → Literal
+  float  : Float → Literal
+  char   : Char → Literal
   string : String → Literal
-  qname : QName → Literal
+  qname  : QName → Literal
 
 {-# BUILTIN AGDALITERAL   Literal #-}
 {-# BUILTIN AGDALITNAT    nat     #-}
@@ -89,17 +89,16 @@ data Sort where
   unknown : Sort
 
 data Pattern : Set where
-  con : QName → List (Arg Pattern) → Pattern
-  dot : Pattern
-  var : String → Pattern
-  lit : Literal → Pattern
+  con    : QName → List (Arg Pattern) → Pattern
+  dot    : Pattern
+  var    : String → Pattern
+  lit    : Literal → Pattern
   absurd : Pattern
-  projP : QName → Pattern
+  projP  : QName → Pattern
 
 data Clause where
-  clause : List (Arg Pattern) → Term → Clause
+  clause       : List (Arg Pattern) → Term → Clause
   absurdClause : List (Arg Pattern) → Clause
-
 
 {-# BUILTIN AGDASORT            Sort    #-}
 {-# BUILTIN AGDATERM            Term    #-}
@@ -141,7 +140,7 @@ postulate
   DataDef   : Set
   RecordDef : Set
 
-{-# BUILTIN AGDADATADEF   DataDef #-}
+{-# BUILTIN AGDADATADEF   DataDef   #-}
 {-# BUILTIN AGDARECORDDEF RecordDef #-}
 
 data Definition : Set where
