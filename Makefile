@@ -10,6 +10,7 @@ include ./mk/paths.mk
 
 CABAL_CMD=cabal
 CABAL_OPTS=
+TOP=.
 
 ## Default target #########################################################
 
