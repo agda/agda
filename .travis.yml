@@ -33,6 +33,7 @@ install:
 script:
   - cabal configure --disable-library-profiling -v2
   - cabal build -v2
+  - cabal install
   # Right now haddock doesn't work, presumably because it consumes too
   # much memory.
   # - cabal haddock
