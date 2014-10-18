@@ -223,7 +223,7 @@ compileClauses name nargs c = do
 --   from patternmatching. Agda terms are in de Bruijn so we just check the new
 --   names in the position.
 substTerm :: [Var] -> T.Term -> Compile TCM Expr
-substTerm env term = case T.unSpine term of
+substTerm env term = case T.ignoreSharing $ T.unSpine term of
     T.Var ind es -> do
       let args = fromMaybe __IMPOSSIBLE__ $ allApplyElims es
       case length env <= ind of

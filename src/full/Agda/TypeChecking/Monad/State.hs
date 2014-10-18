@@ -61,10 +61,10 @@ resetAllState = do
 --   In contrast to 'Agda.Utils.Monad.localState', the 'Benchmark'
 --   info from the subcomputation is saved.
 localTCState :: TCM a -> TCM a
-localTCState = bracket_ get $ \ s -> do
+localTCState = disableDestructiveUpdate . bracket_ get (\ s -> do
    b <- getBenchmark
    put s
-   modifyBenchmark $ const b
+   modifyBenchmark $ const b)
 
 -- | Same as 'localTCState' but also returns the state in which we were just
 --   before reverting it.

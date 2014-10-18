@@ -102,9 +102,10 @@ getBuiltins =
            else return Nothing
 
 defName :: T.Term -> QName
-defName (T.Def q []) = q
-defName (T.Con q []) = T.conName q
-defName _            = __IMPOSSIBLE__
+defName v = case T.ignoreSharing v of
+  T.Def q [] -> q
+  T.Con q [] -> T.conName q
+  _          -> __IMPOSSIBLE__
 
 -- | Translation to primitive integer functions
 natPrimTF :: ForcedArgs -> [QName] -> PrimTransform

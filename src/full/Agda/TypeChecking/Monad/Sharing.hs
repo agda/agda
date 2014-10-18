@@ -1,9 +1,11 @@
 {-# OPTIONS_GHC -fwarn-missing-signatures #-}
 
 {-# LANGUAGE CPP #-}
+{-# LANGUAGE FlexibleContexts #-}
 
 module Agda.TypeChecking.Monad.Sharing where
 
+import Control.Applicative
 import Control.Monad.Reader
 import Data.List
 import Data.Function
@@ -17,15 +19,15 @@ import Agda.Utils.Monad
 #include "undefined.h"
 import Agda.Utils.Impossible
 
-updateSharedTerm :: MonadTCM tcm => (Term -> tcm Term) -> Term -> tcm Term
+updateSharedTerm :: MonadReader TCEnv m => (Term -> m Term) -> Term -> m Term
 updateSharedTerm f v =
-  ifM (liftTCM $ asks envAllowDestructiveUpdate)
+  ifM (asks envAllowDestructiveUpdate)
       (updateSharedM f v)
       (f $ ignoreSharing v)
 
-updateSharedTermF :: (MonadTCM tcm, Traversable f) => (Term -> tcm (f Term)) -> Term -> tcm (f Term)
+updateSharedTermF :: (Applicative m, MonadReader TCEnv m, Traversable f) => (Term -> m (f Term)) -> Term -> m (f Term)
 updateSharedTermF f v =
-  ifM (liftTCM $ asks envAllowDestructiveUpdate)
+  ifM (asks envAllowDestructiveUpdate)
       (updateSharedFM f v)
       (f $ ignoreSharing v)
 
@@ -53,5 +55,3 @@ forceEqualTerms u v =
     update _ _ = __IMPOSSIBLE__
     report x y = reportSLn "tc.ptr" 50 $ "setting " ++ show x ++ "\n     to " ++ show y
 
-disableDestructiveUpdate :: TCM a -> TCM a
-disableDestructiveUpdate = local $ \e -> e { envAllowDestructiveUpdate = False }

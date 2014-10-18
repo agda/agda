@@ -421,23 +421,23 @@ isAbsurdPatternName x = x == absurdPatternName
 ---------------------------------------------------------------------------
 
 ignoreSharing :: Term -> Term
--- ignoreSharing (Shared p) = ignoreSharing $ derefPtr p
+ignoreSharing (Shared p) = ignoreSharing $ derefPtr p
 ignoreSharing v          = v
 
 ignoreSharingType :: Type -> Type
--- ignoreSharingType (El s v) = El s (ignoreSharing v)
-ignoreSharingType v = v
+ignoreSharingType (El s v) = El s (ignoreSharing v)
+-- ignoreSharingType v = v
 
 -- | Introduce sharing.
 shared :: Term -> Term
--- shared v@Shared{}   = v
--- shared v@(Var _ []) = v
--- shared v            = Shared (newPtr v)
-shared v = v
+shared v@Shared{}   = v
+shared v@(Var _ []) = v
+shared v            = Shared (newPtr v)
+-- shared v = v
 
 sharedType :: Type -> Type
--- sharedType (El s v) = El s (shared v)
-sharedType v = v
+sharedType (El s v) = El s (shared v)
+-- sharedType v = v
 
 -- | Typically m would be TCM and f would be Blocked.
 updateSharedFM :: (Monad m, Applicative m, Traversable f) => (Term -> m (f Term)) -> Term -> m (f Term)

@@ -136,13 +136,13 @@ initiate f@(EpicFun {funName = name, funQName = mqname}) = case mqname of
 
 initialRels :: SI.Type -> Relevance -> [Relevance]
 initialRels ty rel =
-    case SI.unEl ty of
+    case SI.ignoreSharing $ SI.unEl ty of
         SI.Pi  a b -> mkRel a : initialRels (SI.unAbs b) rel
         _       -> []
   where
     mkRel :: SI.Dom SI.Type -> Relevance
     mkRel a | ignoreForced (SC.getRelevance a) = Irr
-    mkRel a = case SI.unEl (SC.unDom a) of
+    mkRel a = case SI.ignoreSharing $ SI.unEl (SC.unDom a) of
        SI.Sort _ -> Irr
        _         -> rel
 

@@ -1,5 +1,6 @@
 {-# OPTIONS_GHC -fwarn-missing-signatures #-}
 
+{-# LANGUAGE BangPatterns #-}
 {-# LANGUAGE DeriveDataTypeable #-}
 
 module Agda.Utils.Pointer
@@ -46,7 +47,7 @@ updatePtr :: (a -> a) -> Ptr a -> Ptr a
 updatePtr f p = unsafePerformIO $ p <$ modifyIORef (ptrRef p) f
 
 setPtr :: a -> Ptr a -> Ptr a
-setPtr x = updatePtr (const x)
+setPtr !x = updatePtr (const x)
 
 -- | If @f a@ contains many copies of @a@ they will all be the same pointer in
 --   the result. If the function is well-behaved (i.e. preserves the implicit

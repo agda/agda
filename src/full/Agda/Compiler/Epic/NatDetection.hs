@@ -69,7 +69,7 @@ nrRel = sum . map (const 1) . filter (== NotForced)
 
 -- | Check if argument n is recursive
 isRec :: Int -> Type -> QName -> Bool
-isRec 0 (El _ t) dat = case t of
+isRec 0 (El _ t) dat = case ignoreSharing t of
     Pi  arg _ -> argIsDef (unDom arg) dat
     _         -> False
 isRec n (El _ t) dat = case t of
@@ -77,6 +77,6 @@ isRec n (El _ t) dat = case t of
     _         -> False
 
 argIsDef :: Type -> QName -> Bool
-argIsDef (El _ t) dat = case t of
+argIsDef (El _ t) dat = case ignoreSharing t of
     Def q _ -> q == dat
     _       -> False

@@ -279,7 +279,7 @@ instance Injectible Term where
     -- It could be restored by only reducing the right argument in the Arg-instance.
 
     -- (t1, t2) <- lift . lift . reduce $ (t1, t2)  -- NOTE: reduce *introduces* Lit! Loops!
-    case (t1, t2) of
+    case (ignoreSharing t1, ignoreSharing t2) of
       (Lit l, Lit l') | l == l' -> return $ Just []
       (Lit l, _) | litInt l -> do
         l' <- lift . lift $ litToCon l

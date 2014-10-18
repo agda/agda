@@ -108,7 +108,7 @@ inferable visited dat args = do
 
 inferableTerm :: Set QName -> Term -> Compile TCM (Maybe Expr)
 inferableTerm visited t = do
-  case t of
+  case ignoreSharing t of
     Def q es    ->
       case allApplyElims es of
         Just vs -> inferable visited q vs

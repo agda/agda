@@ -69,7 +69,7 @@ etaOnce v = case v of
   -- Andreas, 2012-11-18: this call to reportSDoc seems to cost me 2%
   -- performance on the std-lib
   -- reportSDoc "tc.eta" 70 $ text "eta-contracting" <+> prettyTCM v
-  Shared{} -> __IMPOSSIBLE__ -- updateSharedTerm eta v
+  Shared{} -> updateSharedTerm etaOnce v
   Lam i (Abs _ b) -> do  -- NoAbs can't be eta'd
       imp <- shouldEtaContractImplicit
       case binAppView b of
@@ -80,7 +80,7 @@ etaOnce v = case v of
             return $ strengthen __IMPOSSIBLE__ u
         _ -> return v
     where
-      isVar0 (Shared p)               = __IMPOSSIBLE__ -- isVar0 (derefPtr p)
+      isVar0 (Shared p)               = isVar0 (derefPtr p)
       isVar0 (Var 0 [])               = True
       isVar0 (Level (Max [Plus 0 l])) = case l of
         NeutralLevel v   -> isVar0 v

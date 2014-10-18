@@ -304,7 +304,7 @@ newQuestionMark ii t = do
   -- Do not run check for recursive occurrence of meta in definitions,
   -- because we want to give the recursive solution interactively (Issue 589)
   m  <- newValueMeta' DontRunMetaOccursCheck t
-  let MetaV x _ = ignoreSharing m
+  MetaV x _ <- return $ ignoreSharing m   -- needs to be strict!
   connectInteractionPoint ii x
   return m
 

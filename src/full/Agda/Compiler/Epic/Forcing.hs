@@ -100,7 +100,7 @@ insertTele x 0 ins term (ExtendTel t to) = do
       , text "term:" <+> prettyTCM term
       , text "to:"   <+> prettyTCM (unAbs to)
       ]
-    (st, arg) <- case I.unEl . unDom $ t' of
+    (st, arg) <- case I.ignoreSharing . I.unEl . unDom $ t' of
             I.Def st es -> return (st, fromMaybe __IMPOSSIBLE__ $ I.allApplyElims es)
             s          -> do
               report 10 $ vcat
@@ -203,7 +203,7 @@ forcedExpr vars tele expr = case expr of
                   then Branch t constr as <$> forcedExpr (replaceAt n vars as) tele'' e
                   else do
                     -- unify the telescope type with the return type of the constructor
-                    unif <- case (unEl ntyp, unEl ctyp) of
+                    unif <- case (I.ignoreSharing $ unEl ntyp, I.ignoreSharing $ unEl ctyp) of
                         (I.Def st es1, I.Def st' es2) | st == st' -> do
                             let a1 = fromMaybe __IMPOSSIBLE__ $ I.allApplyElims es1
                             let a2 = fromMaybe __IMPOSSIBLE__ $ I.allApplyElims es2
@@ -280,6 +280,7 @@ replaceForced (vars,uvars) tele (fvar : fvars) unif e = do
 -- | Given a term containg the forced var, dig out the variable by inserting
 -- the proper case-expressions.
 buildTerm :: Var -> Nat -> Term -> Compile TCM (Expr -> Expr, Var)
+buildTerm var idx (I.Shared p) = buildTerm var idx $ I.derefPtr p
 buildTerm var idx (I.Var i _) | idx == i = return (id, var)
 buildTerm var idx (I.Con con args) = do
     let c = I.conName con
@@ -302,7 +303,7 @@ findPosition var ts = (listToMaybe . catMaybes <$>) . forM (zip [0..] ts) $ \ (n
         (return Nothing)
   where
     pred :: Term -> Compile TCM Bool
-    pred t = case t of
+    pred t = case I.ignoreSharing t of
       I.Var i _ | var == i -> return True
       I.Con c args         -> do
           forc <- getForcedArgs $ I.conName c

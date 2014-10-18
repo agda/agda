@@ -14,6 +14,7 @@ import Agda.Syntax.Literal
 import Agda.Syntax.Internal
 import Agda.TypeChecking.Monad.Base
 import Agda.TypeChecking.Substitute
+import Agda.TypeChecking.Monad.Options
 
 import Agda.Utils.Except ( Error, MonadError(catchError) )
 import Agda.Utils.Lens
@@ -67,8 +68,8 @@ getBuiltin x =
 getBuiltin' :: HasBuiltins m => String -> m (Maybe Term)
 getBuiltin' x = do
     builtin <- getBuiltinThing x
-    case builtin of
-        Just (Builtin t) -> return $ Just (killRange t)
+    case builtin of         -- ignore sharing to make sure zero isn't reduced to Lit 0
+        Just (Builtin t) -> return $ Just $ ignoreSharing $ killRange t
         _                -> return Nothing
 
 getPrimitive' :: HasBuiltins m => String -> m (Maybe PrimFun)

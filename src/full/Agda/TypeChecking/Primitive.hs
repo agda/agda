@@ -235,7 +235,7 @@ instance (ToTerm a, FromTerm a) => FromTerm [a] where
     where
       isCon (Lam _ b)  = isCon $ absBody b
       isCon (Con c _)  = return c
-      isCon (Shared p) = __IMPOSSIBLE__ -- isCon (derefPtr p)
+      isCon (Shared p) = isCon (derefPtr p)
       isCon v          = __IMPOSSIBLE__
 
       mkList nil cons toA fromA t = do

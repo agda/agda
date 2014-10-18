@@ -281,7 +281,7 @@ repl subs = go where
   go []    = []
 
 pconName :: String -> TCM String
-pconName s = toS =<< getBuiltin s where
+pconName s = toS . ignoreSharing =<< getBuiltin s where
   toS (Con q _) = prettyPrint <$> conhqn (conName q)
   toS (Lam _ t) = toS (unAbs t)
   toS _ = mazerror $ "pconName" ++ s

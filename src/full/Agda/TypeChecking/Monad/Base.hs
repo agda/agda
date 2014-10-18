@@ -1563,6 +1563,9 @@ initEnv = TCEnv { envContext             = []
                 , envReifyUnquoted          = False
                 }
 
+disableDestructiveUpdate :: TCM a -> TCM a
+disableDestructiveUpdate = local $ \e -> e { envAllowDestructiveUpdate = False }
+
 ---------------------------------------------------------------------------
 -- ** Context
 ---------------------------------------------------------------------------
@@ -1924,24 +1927,35 @@ mapRedEnvSt :: (TCEnv -> TCEnv) -> (TCState -> TCState) -> ReduceEnv
             -> ReduceEnv
 mapRedEnvSt f g (ReduceEnv e s) = ReduceEnv (f e) (g s)
 
-newtype ReduceM a = ReduceM { unReduceM :: Reader ReduceEnv a }
-  deriving (Functor, Applicative, Monad)
+newtype ReduceM a = ReduceM { unReduceM :: ReduceEnv -> a }
+--  deriving (Functor, Applicative, Monad)
+
+instance Functor ReduceM where
+  fmap f (ReduceM m) = ReduceM $ \ e -> f $! m e
+
+instance Applicative ReduceM where
+  pure x = ReduceM (const x)
+  ReduceM f <*> ReduceM x = ReduceM $ \ e -> f e $! x e
+
+instance Monad ReduceM where
+  return x = ReduceM (const x)
+  ReduceM m >>= f = ReduceM $ \ e -> unReduceM (f $! m e) e
 
 runReduceM :: ReduceM a -> TCM a
 runReduceM m = do
   e <- ask
   s <- get
-  return $ runReader (unReduceM m) (ReduceEnv e s)
+  return $! unReduceM m (ReduceEnv e s)
 
 runReduceF :: (a -> ReduceM b) -> TCM (a -> b)
 runReduceF f = do
   e <- ask
   s <- get
-  return $ \x -> runReader (unReduceM (f x)) (ReduceEnv e s)
+  return $ \x -> unReduceM (f x) (ReduceEnv e s)
 
 instance MonadReader TCEnv ReduceM where
-  ask = redEnv <$> ReduceM ask
-  local f = ReduceM . local (mapRedEnv f) . unReduceM
+  ask = ReduceM redEnv
+  local f (ReduceM m) = ReduceM (m . mapRedEnv f)
 
 ---------------------------------------------------------------------------
 -- * Type checking monad transformer

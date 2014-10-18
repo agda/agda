@@ -91,6 +91,7 @@ buildMPatterns perm ps = evalState (mapM (traverse build) ps) xs
 
     buildT (Con c args)   = ConMP c <$> mapM (traverse buildT) args
     buildT (Var i [])     = return (VarMP i)
+    buildT (Shared p)     = buildT (derefPtr p)
     buildT _              = return WildMP
 
 isTrivialMPattern :: MPat -> Bool

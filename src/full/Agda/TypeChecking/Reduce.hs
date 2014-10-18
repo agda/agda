@@ -86,7 +86,7 @@ instance Instantiate Term where
   instantiate' (Level l) = levelTm <$> instantiate' l
   instantiate' (Sort s) = sortTm <$> instantiate' s
   instantiate' v@Shared{} =
-    __IMPOSSIBLE__ -- updateSharedTerm instantiate' v
+    updateSharedTerm instantiate' v
   instantiate' t = return t
 
 instance Instantiate Level where
@@ -299,10 +299,10 @@ instance Reduce Term where
       Lam _ _  -> done
       DontCare _ -> done
       ExtLam{}   -> __IMPOSSIBLE__
-      Shared{}   -> __IMPOSSIBLE__ -- updateSharedTermF reduceB' v
+      Shared{}   -> updateSharedTermF reduceB' v
     where
       -- NOTE: reduceNat can traverse the entire term.
-      reduceNat v@Shared{} = __IMPOSSIBLE__ -- updateSharedTerm reduceNat v
+      reduceNat v@Shared{} = updateSharedTerm reduceNat v
       reduceNat v@(Con c []) = do
         mz  <- getBuiltin' builtinZero
         case v of
@@ -614,7 +614,7 @@ instance Simplify Term where
       Lam h v    -> Lam h    <$> simplify' v
       DontCare v -> dontCare <$> simplify' v
       ExtLam{}   -> __IMPOSSIBLE__
-      Shared{}   -> __IMPOSSIBLE__ -- updateSharedTerm simplify' v
+      Shared{}   -> updateSharedTerm simplify' v
 
 simplifyBlocked' :: Simplify t => Blocked t -> ReduceM t
 simplifyBlocked' (Blocked _ t)  = return t
@@ -760,7 +760,7 @@ instance Normalise Term where
                 Lam h b     -> Lam h <$> normalise' b
                 Sort s      -> sortTm <$> normalise' s
                 Pi a b      -> uncurry Pi <$> normalise' (a,b)
-                Shared{}    -> __IMPOSSIBLE__ -- updateSharedTerm normalise' v
+                Shared{}    -> updateSharedTerm normalise' v
                 ExtLam{}    -> __IMPOSSIBLE__
                 DontCare _  -> return v
 
@@ -903,7 +903,7 @@ instance InstantiateFull Term where
           Lam h b     -> Lam h <$> instantiateFull' b
           Sort s      -> sortTm <$> instantiateFull' s
           Pi a b      -> uncurry Pi <$> instantiateFull' (a,b)
-          Shared{}    -> __IMPOSSIBLE__ -- updateSharedTerm instantiateFull' v
+          Shared{}    -> updateSharedTerm instantiateFull' v
           ExtLam{}    -> __IMPOSSIBLE__
           DontCare v  -> dontCare <$> instantiateFull' v
 
