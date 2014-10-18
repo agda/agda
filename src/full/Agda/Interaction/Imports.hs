@@ -281,11 +281,6 @@ getInterface' x includeStateChanges =
 
     modify (\s -> s { stCurrentModule = Just $ iModuleName i })
 
-    -- Get the statistics of the current module
-    -- and add it to the accumulated statistics.
-    localStatistics <- getStatistics
-    lensAccumStatistics %= Map.unionWith (+) localStatistics
-
     -- Interfaces are only stored if no warnings were encountered.
     case wt of
       SomeWarnings w -> return ()
@@ -613,6 +608,13 @@ createInterface file mname =
 
     -- Profiling: Print statistics.
     printStatistics 30 (Just mname) =<< getStatistics
+
+    -- Get the statistics of the current module
+    -- and add it to the accumulated statistics.
+    localStatistics <- getStatistics
+    lensAccumStatistics %= Map.unionWith (+) localStatistics
+    verboseS "profile" 1 $ do
+      reportSLn "import.iface" 5 $ "Accumulated statistics."
 
     return r
 
