@@ -213,7 +213,7 @@ checkRecDef i name ind con ps contel fields =
 
       -- Add the record section
       -- make record parameters hidden
-      ctx <- (reverse . map (setHiding Hidden) . take (size tel)) <$> getContext
+      ctx <- (reverse . map hideOrKeepInstance . take (size tel)) <$> getContext
       reportSDoc "tc.rec" 80 $ sep
         [ text "visibility-modified record telescope"
         , nest 2 $ text "ctx =" <+> prettyTCM ctx

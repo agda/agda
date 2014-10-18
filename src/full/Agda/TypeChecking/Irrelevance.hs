@@ -90,7 +90,7 @@ nonStrictToIrr rel       = rel
 -- | Prepare parts of a parameter telescope for abstraction in constructors
 --   and projections.
 hideAndRelParams :: Dom a -> Dom a
-hideAndRelParams = setHiding Hidden . mapRelevance nonStrictToIrr
+hideAndRelParams = hideOrKeepInstance . mapRelevance nonStrictToIrr
 
 -- | Used to modify context when going into a @rel@ argument.
 inverseApplyRelevance :: Relevance -> Dom a -> Dom a

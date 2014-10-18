@@ -113,6 +113,13 @@ notVisible a = getHiding a /= NotHidden
 hide :: LensHiding a => a -> a
 hide = setHiding Hidden
 
+hideOrKeepInstance :: LensHiding a => a -> a
+hideOrKeepInstance x =
+  case getHiding x of
+    Hidden -> x
+    Instance -> x
+    NotHidden -> setHiding Hidden x
+
 makeInstance :: LensHiding a => a -> a
 makeInstance = setHiding Instance
 

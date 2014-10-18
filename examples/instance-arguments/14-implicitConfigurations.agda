@@ -33,7 +33,7 @@ open Modulus {{...}}
 
 normalize : ∀ {s A} {{intA : Integral A}} {{mod : Modulus s A}} →
             A → M s A
-normalize a = MkM (mod modulus a)
+normalize {s} a = MkM (mod (modulus {s}) a)
 
 _+_ : ∀ {s A} {{intA : Integral A}} {{mod : Modulus s A}} →
       M s A → M s A → M s A

@@ -156,7 +156,7 @@ module test₁ where
   open Eq {{...}}
 
   instance
-    eqNat : Eq _
+    eqNat : Eq ℕ
     eqNat = eqA
 
   test₁ = 5 < 3
@@ -168,20 +168,6 @@ module test₁ where
       instance
         eqA' : Eq _
         eqA' = eqA
-
-module test₂ where
-  open Ord₂ {{...}}
-  open Eq {{...}}
-
-  eqNat : Eq ℕ
-  eqNat = record { eq = primEqNat }
-
-  test₁ = 5 < 3
-  test₂ = eq 5 3
-  test₃ = eq true false
-  test₄ : {A : Set} → {eqA : Eq A} → {{ ordA : Ord₂ eqA }} → A → A → Bool
-  test₄ {eqA = _} a b = a < b ∨ eq a b
-
 
 module test₃ where
   open Ord₃ {{...}}
