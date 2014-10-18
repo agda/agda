@@ -87,6 +87,7 @@ import qualified Agda.Utils.HashMap as HMap
 import Agda.Utils.FileName
 import Agda.Utils.IORef
 import Agda.Utils.Lens
+import Agda.Utils.Monad
 import Agda.Utils.Permutation
 
 import Agda.Utils.Except ( ExceptT, MonadError(throwError), runExceptT )
@@ -136,19 +137,45 @@ lensReuse f r = f (farReuse r) <&> \ i -> r { farReuse = i }
 
 -- | State of the the encoder.
 data Dict = Dict
-  { nodeD     :: !(HashTable Node    Int32)
-  , stringD   :: !(HashTable String  Int32)
-  , integerD  :: !(HashTable Integer Int32)
-  , doubleD   :: !(HashTable Double  Int32)
-  , termD     :: !(HashTable (Ptr Term) Int32)
-  , nodeC     :: !(IORef FreshAndReuse)  -- counters for fresh indexes
-  , stringC   :: !(IORef FreshAndReuse)
-  , integerC  :: !(IORef FreshAndReuse)
-  , doubleC   :: !(IORef FreshAndReuse)
-  , termC     :: !(IORef FreshAndReuse)
-  , stats     :: !(HashTable String Int32)
-  , fileMod   :: !SourceToModule
+  { nodeD        :: !(HashTable Node    Int32)
+  , stringD      :: !(HashTable String  Int32)
+  , integerD     :: !(HashTable Integer Int32)
+  , doubleD      :: !(HashTable Double  Int32)
+  , termD        :: !(HashTable (Ptr Term) Int32)
+  , nodeC        :: !(IORef FreshAndReuse)  -- counters for fresh indexes
+  , stringC      :: !(IORef FreshAndReuse)
+  , integerC     :: !(IORef FreshAndReuse)
+  , doubleC      :: !(IORef FreshAndReuse)
+  , termC        :: !(IORef FreshAndReuse)
+  , stats        :: !(HashTable String Int32)
+  , collectStats :: Bool
+    -- ^ If @True@ collect in @stats@ the quantities of
+    --   calls to @icode@ for each @Typeable a@.
+  , fileMod      :: !SourceToModule
   }
+
+-- | Creates an empty dictionary.
+emptyDict
+  :: Bool
+     -- ^ Collect statistics for @icode@ calls?
+  -> SourceToModule
+     -- ^ Maps file names to the corresponding module names.
+     --   Must contain a mapping for every file name that is later encountered.
+  -> IO Dict
+emptyDict collectStats fileMod = Dict
+  <$> H.new
+  <*> H.new
+  <*> H.new
+  <*> H.new
+  <*> H.new
+  <*> newIORef farEmpty
+  <*> newIORef farEmpty
+  <*> newIORef farEmpty
+  <*> newIORef farEmpty
+  <*> newIORef farEmpty
+  <*> H.new
+  <*> pure collectStats
+  <*> pure fileMod
 
 -- | Universal type, wraps everything.
 data U    = forall a . Typeable a => U !a
@@ -193,32 +220,41 @@ class Typeable a => EmbPrj a where
   value :: Int32 -> R a  -- ^ Deserialization.
 
   icode a = do
+    tickICode a
+    icod_ a
+
+-- | Increase entry for @a@ in 'stats'.
+tickICode :: forall a. Typeable a => a -> S ()
+tickICode _ = whenM (asks collectStats) $ do
     let key = "icode " ++ show (typeOf (undefined :: a))
     hmap <- asks stats
     liftIO $ do
       n <- fromMaybe 0 <$> H.lookup hmap key
       H.insert hmap key $! n + 1
-    icod_ a
 
 -- | Encodes something. To ensure relocatability file paths in
 -- positions are replaced with module names.
 
 encode :: EmbPrj a => a -> TCM L.ByteString
 encode a = do
+    collectStats <- hasVerbosity "profile.serialize" 20
     fileMod <- sourceToModule
-    newD@(Dict nD sD iD dD _ nC sC iC dC tC stats _) <- liftIO $ emptyDict fileMod
+    newD@(Dict nD sD iD dD _ nC sC iC dC tC stats _ _) <- liftIO $
+      emptyDict collectStats fileMod
     root <- liftIO $ runReaderT (icode a) newD
     nL <- benchSort $ l nD
     sL <- benchSort $ l sD
     iL <- benchSort $ l iD
     dL <- benchSort $ l dD
-    -- Print reuse statistics.
+    -- Record reuse statistics.
     verboseS "profile.sharing" 10 $ do
       statistics "pointers" tC
+    verboseS "profile.serialize" 10 $ do
       statistics "Integer"  iC
       statistics "String"   sC
       statistics "Double"   dC
       statistics "Node"     nC
+    when collectStats $ do
       stats <- Map.fromList . map (second toInteger) <$> do
         liftIO $ H.toList stats
       modifyStatistics $ Map.union stats
@@ -1764,24 +1800,3 @@ valu11 z a b c d e f g h i j k     = valu10 z a b c d e f g h i j   `ap` value k
 valu12 z a b c d e f g h i j k l   = valu11 z a b c d e f g h i j k `ap` value l
 valu13 z a b c d e f g h i j k l m = valu12 z a b c d e f g h i j k l `ap` value m
 valu14 z a b c d e f g h i j k l m n = valu13 z a b c d e f g h i j k l m `ap` value n
-
--- | Creates an empty dictionary.
-
-emptyDict :: SourceToModule
-             -- ^ Maps file names to the corresponding module names.
-             -- Must contain a mapping for every file name that is
-             -- later encountered.
-          -> IO Dict
-emptyDict fileMod = Dict
-  <$> H.new
-  <*> H.new
-  <*> H.new
-  <*> H.new
-  <*> H.new
-  <*> newIORef farEmpty
-  <*> newIORef farEmpty
-  <*> newIORef farEmpty
-  <*> newIORef farEmpty
-  <*> newIORef farEmpty
-  <*> H.new
-  <*> return fileMod
