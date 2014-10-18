@@ -3,7 +3,7 @@
 -- | Collect statistics.
 
 module Agda.TypeChecking.Monad.Statistics
-    ( tick, tickN, tickMax, getStatistics
+    ( tick, tickN, tickMax, getStatistics, modifyStatistics
     ) where
 
 import Control.Monad.State
