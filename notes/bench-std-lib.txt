@@ -7158,3 +7158,596 @@ ModuleName                      24ms
 real	3m41.535s
 user	3m36.298s
 sys	0m1.768s
+
+
+Collecting statistics about frequency of nodes (by type) in interface
+------------------------------------------------------------------------
+
+ Finished Everything.
+Finished README.
+Total time                 508,883ms
+Parsing                      4,884ms
+Parsing.Operators           11,224ms
+Import                       5,044ms
+Deserialization                 20ms
+Scoping                      9,460ms
+Typing                      59,891ms
+Termination                  1,996ms
+Termination.Graph              260ms
+Termination.RecCheck           520ms
+Termination.Compare            324ms
+Positivity                   5,004ms
+Injectivity                    904ms
+ProjectionLikeness             148ms
+Coverage                     2,576ms
+Highlighting                 7,436ms
+Serialization              367,578ms
+Serialization.Sort             768ms
+Serialization.BinaryEncode  17,905ms
+Serialization.Compress       3,588ms
+ModuleName                      28ms
+
+Accumlated statistics
+Double  (fresh)                                                    0
+Double (reused)                                                    0
+Integer  (fresh)                                             461,937
+Integer (reused)                                          14,008,517
+Node  (fresh)                                              3,729,371
+Node (reused)                                            114,550,466
+String  (fresh)                                               66,532
+String (reused)                                           19,462,807
+attempted-constraints                                         24,401
+equal terms                                                  147,261
+icode ()                                                      27,984
+icode (Bool,(Arg Term (Type' Term)))                           1,064
+icode (Int,Int)                                                   41
+icode (ModuleName,Scope)                                      13,510
+icode (ModuleName,Section)                                     1,946
+icode (ModuleName,Word64)                                      1,859
+icode (Name,LocalVar)                                            184
+icode (Name,[AbstractModule])                                 15,626
+icode (Name,[AbstractName])                                  164,241
+icode (NameSpaceId,NameSpace)                                 54,040
+icode (QName,(WithArity CompiledClauses))                      4,865
+icode (QName,([Arg Expr Name],(Pattern' Expr)))                    2
+icode (QName,Definition)                                      15,783
+icode (QName,ModuleName)                                       1,403
+icode (Range,MetaInfo)                                       210,240
+icode (TermHead,Clause)                                          808
+icode (TopLevelModuleName,Integer)                           111,583
+icode ([Arg Expr Name],(Pattern' Expr))                            2
+icode ([Char],(Builtin ([Char],QName)))                          103
+icode ([Char],QName)                                              18
+icode Abs (ClauseBodyF Term)                                  80,068
+icode Abs (Tele (Dom Term (Type' Term)))                      85,967
+icode Abs (Type' Term)                                       130,560
+icode Abs Term                                                48,051
+icode AbsolutePath                                         6,000,666
+icode AbstractModule                                          15,668
+icode AbstractName                                           166,100
+icode AmbiguousQName                                               4
+icode Arg () (Named (Ranged [Char]) Int)                       1,741
+icode Arg Expr (Named (Ranged [Char]) (Pattern' Expr))             6
+icode Arg Expr Name                                                3
+icode Arg Term (Named (Ranged [Char]) Pattern)                88,057
+icode Arg Term (Type' Term)                                   18,606
+icode Arg Term DisplayTerm                                     3,196
+icode Arg Term QName                                             376
+icode Arg Term Term                                        1,661,660
+icode Arg Term [Char]                                         72,270
+icode ArgInfo ()                                               1,741
+icode ArgInfo Expr                                                 9
+icode ArgInfo Term                                         2,127,109
+icode Aspect                                                 210,240
+icode Bool                                                   189,227
+icode Builtin ([Char],QName)                                     103
+icode Case CompiledClauses                                     2,929
+icode Char                                                        36
+icode Clause                                                  17,542
+icode ClauseBodyF Term                                        97,610
+icode CompiledClauses                                         19,614
+icode CompiledRepresentation                                  15,783
+icode CompressedFile                                             227
+icode ConHead                                                 93,797
+icode CtxId                                                   20,362
+icode Definition                                              15,783
+icode Defn                                                    15,783
+icode Delayed                                                 14,664
+icode DisplayForm                                              5,630
+icode DisplayTerm                                              9,737
+icode Dom Term (Type' Term)                                  216,527
+icode Drop Permutation                                           261
+icode Elim' Term                                           1,670,134
+icode Fixity                                               4,274,166
+icode Fixity'                                              4,274,166
+icode FunctionInverse' Clause                                 14,664
+icode GenPart                                                  4,023
+icode HashMap QName Definition                                   227
+icode HaskellRepresentation                                       36
+icode Hiding                                               2,128,859
+icode Induction                                              106,376
+icode Int                                                  1,677,573
+icode Int32                                               18,021,953
+icode Integer                                             14,470,454
+icode Interface                                                  227
+icode Interval' (Maybe AbsolutePath)                       3,000,333
+icode IsAbstract                                              15,757
+icode KindOfName                                             166,100
+icode Level                                                  533,482
+icode LevelAtom                                              411,010
+icode Literal                                                  9,549
+icode LocalVar                                                   184
+icode Map Literal CompiledClauses                              2,929
+icode Map ModuleName Scope                                       454
+icode Map ModuleName Section                                     227
+icode Map Name [AbstractModule]                               54,040
+icode Map Name [AbstractName]                                 54,040
+icode Map QName (WithArity CompiledClauses)                    2,929
+icode Map QName ([Arg Expr Name],(Pattern' Expr))                227
+icode Map QName ModuleName                                    13,510
+icode Map TermHead Clause                                        478
+icode Map [Char] (Builtin ([Char],QName))                        227
+icode Maybe (Arg Term (Type' Term))                           17,542
+icode Maybe (Bool,(Arg Term (Type' Term)))                     7,056
+icode Maybe (Int,Int)                                         14,664
+icode Maybe (Ranged [Char])                                   89,804
+icode Maybe (TopLevelModuleName,Integer)                     210,240
+icode Maybe AbsolutePath                                   6,000,666
+icode Maybe Aspect                                           210,240
+icode Maybe Bool                                              14,664
+icode Maybe Clause                                               382
+icode Maybe CompiledClauses                                   17,611
+icode Maybe Exp                                               15,783
+icode Maybe HaskellExport                                     15,783
+icode Maybe HaskellRepresentation                             15,783
+icode Maybe Induction                                            121
+icode Maybe NameKind                                         115,634
+icode Maybe Projection                                        14,664
+icode Maybe QName                                             33,030
+icode Maybe [Char]                                           226,023
+icode MetaInfo                                               210,240
+icode ModuleName                                           1,084,747
+icode MutualId                                                15,783
+icode Name                                                 9,110,302
+icode NameId                                               4,611,383
+icode NameKind                                               115,634
+icode NamePart                                             5,100,727
+icode NameSpace                                               54,040
+icode NameSpaceId                                             54,040
+icode Named (Ranged [Char]) (Pattern' Expr)                        6
+icode Named (Ranged [Char]) Int                                1,741
+icode Named (Ranged [Char]) Pattern                           88,057
+icode Occurrence                                              63,382
+icode Open DisplayForm                                         5,630
+icode OtherAspect                                                720
+icode Pattern                                                 88,057
+icode Pattern' Expr                                                8
+icode Permutation                                             18,064
+icode PlusLevel                                              432,162
+icode Polarity                                                63,379
+icode Position' (Maybe AbsolutePath)                       6,000,666
+icode Precedence                                                 227
+icode Projection                                               2,583
+icode QName                                                1,389,064
+icode Range                                                  210,240
+icode Range' (Maybe AbsolutePath)                         13,495,124
+icode Ranged [Char]                                           83,565
+icode Relevance                                            2,128,859
+icode Scope                                                   13,510
+icode ScopeInfo                                                  227
+icode Section                                                  1,946
+icode Set [Char]                                                 227
+icode Signature                                                  227
+icode Sort                                                   419,697
+icode Tele (Dom Term (Type' Term))                           105,576
+icode Term                                                 2,567,151
+icode TermHead                                                   808
+icode TopLevelModuleName                                   6,112,249
+icode Type' Term                                             381,597
+icode WhyInScope                                             528,033
+icode WithArity CompiledClauses                                4,865
+icode Word64                                                   2,086
+icode [()]                                                     1,741
+icode [(Literal,CompiledClauses)]                              2,929
+icode [(ModuleName,Scope)]                                       454
+icode [(ModuleName,Section)]                                     227
+icode [(ModuleName,Word64)]                                      227
+icode [(Name,LocalVar)]                                          227
+icode [(Name,[AbstractModule])]                               54,040
+icode [(Name,[AbstractName])]                                 54,040
+icode [(NameSpaceId,NameSpace)]                               13,510
+icode [(QName,(WithArity CompiledClauses))]                    2,929
+icode [(QName,([Arg Expr Name],(Pattern' Expr)))]                227
+icode [(QName,Definition)]                                       227
+icode [(QName,ModuleName)]                                    13,510
+icode [(Range,MetaInfo)]                                         227
+icode [(TermHead,Clause)]                                        478
+icode [([Char],(Builtin ([Char],QName)))]                        227
+icode [AbstractModule]                                        15,626
+icode [AbstractName]                                         164,242
+icode [Arg Expr (Named (Ranged [Char]) (Pattern' Expr))]           4
+icode [Arg Expr Name]                                              2
+icode [Arg Term (Named (Ranged [Char]) Pattern)]              24,598
+icode [Arg Term DisplayTerm]                                     807
+icode [Arg Term QName]                                           121
+icode [Arg Term Term]                                         85,838
+icode [Arg Term [Char]]                                       16,285
+icode [Char]                                              19,529,339
+icode [Clause]                                                14,682
+icode [CtxId]                                                  5,630
+icode [DisplayTerm]                                              359
+icode [Elim' Term]                                         2,113,904
+icode [Expr]                                                       9
+icode [GenPart]                                            4,274,166
+icode [Int]                                                   18,064
+icode [Interval' (Maybe AbsolutePath)]                    13,495,124
+icode [ModuleName]                                            13,510
+icode [NamePart]                                           4,498,919
+icode [Name]                                               1,084,747
+icode [Occurrence]                                            15,783
+icode [Open DisplayForm]                                      15,783
+icode [OtherAspect]                                          210,240
+icode [PlusLevel]                                            533,482
+icode [Polarity]                                              15,783
+icode [QName]                                                109,108
+icode [RewriteRule]                                           15,783
+icode [Term]                                               2,132,739
+icode [[Char]]                                             6,112,477
+icode [[[Char]]]                                                 227
+max-open-constraints                                             806
+max-open-metas                                                 3,189
+metas                                                        105,898
+pointers  (fresh)                                                  0
+pointers (reused)                                                  0
+unequal terms                                                152,929
+
+ 251,644,177,024 bytes allocated in the heap
+  21,195,274,144 bytes copied during GC
+     566,113,528 bytes maximum residency (50 sample(s))
+       7,002,376 bytes maximum slop
+            1283 MB total memory in use (16 MB lost due to fragmentation)
+
+                                    Tot time (elapsed)  Avg pause  Max pause
+  Gen  0      4786 colls,     0 par   78.20s   78.74s     0.0165s    0.4085s
+  Gen  1        50 colls,     0 par   40.76s   40.95s     0.8190s    4.0209s
+
+  INIT    time    0.00s  (  0.00s elapsed)
+  MUT     time  387.40s  (390.15s elapsed)
+  GC      time  118.96s  (119.69s elapsed)
+  EXIT    time    0.58s  (  0.58s elapsed)
+  Total   time  506.94s  (510.43s elapsed)
+
+  %GC     time      23.5%  (23.4% elapsed)
+
+  Alloc rate    649,571,550 bytes per MUT second
+
+  Productivity  76.5% of total user, 76.0% of total elapsed
+
+
+real	8m30.563s
+user	8m26.944s
+sys	0m2.664s
+
+
+
+After removing iInsideScope
+------------------------------------------------------------------------
+  Finished Universe.
+ Finished Everything.
+Finished README.
+Total time                 401,229ms
+Parsing                      1,364ms
+Parsing.Operators           11,016ms
+Import                       4,580ms
+Deserialization                 16ms
+Scoping                      9,624ms
+Typing                      58,499ms
+Termination                  2,100ms
+Termination.Graph              248ms
+Termination.RecCheck           732ms
+Termination.Compare            204ms
+Positivity                   4,576ms
+Injectivity                    904ms
+ProjectionLikeness             188ms
+Coverage                     2,652ms
+Highlighting                 7,692ms
+Serialization              274,625ms
+Serialization.Sort             464ms
+Serialization.BinaryEncode  12,788ms
+Serialization.Compress       1,676ms
+ModuleName                      24ms
+
+Accumlated statistics
+Double  (fresh)                                                   0
+Double (reused)                                                   0
+Integer  (fresh)                                            411,263
+Integer (reused)                                         11,021,103
+Node  (fresh)                                             2,072,398
+Node (reused)                                            86,053,270
+String  (fresh)                                              28,124
+String (reused)                                          11,747,768
+attempted-constraints                                        24,401
+equal terms                                                 147,261
+icode ()                                                     27,984
+icode (Bool,(Arg Term (Type' Term)))                          1,064
+icode (Int,Int)                                                  41
+icode (ModuleName,Scope)                                        895
+icode (ModuleName,Section)                                    1,946
+icode (ModuleName,Word64)                                     1,859
+icode (Name,[AbstractModule])                                   441
+icode (Name,[AbstractName])                                   6,482
+icode (NameSpaceId,NameSpace)                                 3,580
+icode (QName,(WithArity CompiledClauses))                     4,865
+icode (QName,([Arg Expr Name],(Pattern' Expr)))                   2
+icode (QName,Definition)                                     15,783
+icode (Range,MetaInfo)                                      210,240
+icode (TermHead,Clause)                                         808
+icode (TopLevelModuleName,Integer)                          111,583
+icode ([Arg Expr Name],(Pattern' Expr))                           2
+icode ([Char],(Builtin ([Char],QName)))                         103
+icode ([Char],QName)                                             18
+icode Abs (ClauseBodyF Term)                                 80,068
+icode Abs (Tele (Dom Term (Type' Term)))                     85,967
+icode Abs (Type' Term)                                      130,560
+icode Abs Term                                               48,051
+icode AbsolutePath                                        3,129,812
+icode AbstractModule                                            441
+icode AbstractName                                            6,597
+icode AmbiguousQName                                              4
+icode Arg () (Named (Ranged [Char]) Int)                        933
+icode Arg Expr (Named (Ranged [Char]) (Pattern' Expr))            6
+icode Arg Expr Name                                               3
+icode Arg Term (Named (Ranged [Char]) Pattern)               88,057
+icode Arg Term (Type' Term)                                  18,606
+icode Arg Term DisplayTerm                                    3,196
+icode Arg Term QName                                            376
+icode Arg Term Term                                       1,661,660
+icode Arg Term [Char]                                        72,270
+icode ArgInfo ()                                                933
+icode ArgInfo Expr                                                9
+icode ArgInfo Term                                        2,127,109
+icode Aspect                                                210,240
+icode Bool                                                  176,612
+icode Builtin ([Char],QName)                                    103
+icode Case CompiledClauses                                    2,929
+icode Char                                                       36
+icode Clause                                                 17,542
+icode ClauseBodyF Term                                       97,610
+icode CompiledClauses                                        19,614
+icode CompiledRepresentation                                 15,783
+icode CompressedFile                                            227
+icode ConHead                                                93,797
+icode CtxId                                                  20,362
+icode Definition                                             15,783
+icode Defn                                                   15,783
+icode Delayed                                                14,664
+icode DisplayForm                                             5,630
+icode DisplayTerm                                             9,737
+icode Dom Term (Type' Term)                                 216,527
+icode Drop Permutation                                          261
+icode Elim' Term                                          1,670,134
+icode Fixity                                              3,397,352
+icode Fixity'                                             3,397,352
+icode FunctionInverse' Clause                                14,664
+icode GenPart                                                 1,843
+icode HashMap QName Definition                                  227
+icode HaskellRepresentation                                      36
+icode Hiding                                              2,128,051
+icode Induction                                             106,376
+icode Int                                                 1,676,455
+icode Int32                                               9,409,391
+icode Integer                                            11,432,366
+icode Interface                                                 227
+icode Interval' (Maybe AbsolutePath)                      1,564,906
+icode IsAbstract                                             15,757
+icode KindOfName                                              6,597
+icode Level                                                 533,482
+icode LevelAtom                                             411,010
+icode Literal                                                 9,549
+icode Map Literal CompiledClauses                             2,929
+icode Map ModuleName Scope                                      454
+icode Map ModuleName Section                                    227
+icode Map Name [AbstractModule]                               3,580
+icode Map Name [AbstractName]                                 3,580
+icode Map QName (WithArity CompiledClauses)                   2,929
+icode Map QName ([Arg Expr Name],(Pattern' Expr))               227
+icode Map QName ModuleName                                      895
+icode Map TermHead Clause                                       478
+icode Map [Char] (Builtin ([Char],QName))                       227
+icode Maybe (Arg Term (Type' Term))                          17,542
+icode Maybe (Bool,(Arg Term (Type' Term)))                    7,056
+icode Maybe (Int,Int)                                        14,664
+icode Maybe (Ranged [Char])                                  88,996
+icode Maybe (TopLevelModuleName,Integer)                    210,240
+icode Maybe AbsolutePath                                  3,129,812
+icode Maybe Aspect                                          210,240
+icode Maybe Bool                                             14,664
+icode Maybe Clause                                              382
+icode Maybe CompiledClauses                                  17,611
+icode Maybe Exp                                              15,783
+icode Maybe HaskellExport                                    15,783
+icode Maybe HaskellRepresentation                            15,783
+icode Maybe Induction                                           121
+icode Maybe NameKind                                        115,634
+icode Maybe Projection                                       14,664
+icode Maybe QName                                            33,030
+icode Maybe [Char]                                          226,023
+icode MetaInfo                                              210,240
+icode ModuleName                                            855,382
+icode MutualId                                               15,783
+icode Name                                                6,814,256
+icode NameId                                              3,530,746
+icode NameKind                                              115,634
+icode NamePart                                            3,718,531
+icode NameSpace                                               3,580
+icode NameSpaceId                                             3,580
+icode Named (Ranged [Char]) (Pattern' Expr)                       6
+icode Named (Ranged [Char]) Int                                 933
+icode Named (Ranged [Char]) Pattern                          88,057
+icode Occurrence                                             63,382
+icode Open DisplayForm                                        5,630
+icode OtherAspect                                               720
+icode Pattern                                                88,057
+icode Pattern' Expr                                               8
+icode Permutation                                            18,064
+icode PlusLevel                                             432,162
+icode Polarity                                               63,379
+icode Position' (Maybe AbsolutePath)                      3,129,812
+icode Precedence                                                227
+icode Projection                                              2,583
+icode QName                                                 860,271
+icode Range                                                 210,240
+icode Range' (Maybe AbsolutePath)                        10,322,264
+icode Ranged [Char]                                          83,565
+icode Relevance                                           2,128,051
+icode Scope                                                     895
+icode ScopeInfo                                                 227
+icode Section                                                 1,946
+icode Set [Char]                                                227
+icode Signature                                                 227
+icode Sort                                                  419,697
+icode Tele (Dom Term (Type' Term))                          105,576
+icode Term                                                2,567,151
+icode TermHead                                                  808
+icode TopLevelModuleName                                  3,241,395
+icode Type' Term                                            381,597
+icode WhyInScope                                             19,034
+icode WithArity CompiledClauses                               4,865
+icode Word64                                                  2,086
+icode [()]                                                      933
+icode [(Literal,CompiledClauses)]                             2,929
+icode [(ModuleName,Scope)]                                      454
+icode [(ModuleName,Section)]                                    227
+icode [(ModuleName,Word64)]                                     227
+icode [(Name,LocalVar)]                                         227
+icode [(Name,[AbstractModule])]                               3,580
+icode [(Name,[AbstractName])]                                 3,580
+icode [(NameSpaceId,NameSpace)]                                 895
+icode [(QName,(WithArity CompiledClauses))]                   2,929
+icode [(QName,([Arg Expr Name],(Pattern' Expr)))]               227
+icode [(QName,Definition)]                                      227
+icode [(QName,ModuleName)]                                      895
+icode [(Range,MetaInfo)]                                        227
+icode [(TermHead,Clause)]                                       478
+icode [([Char],(Builtin ([Char],QName)))]                       227
+icode [AbstractModule]                                          441
+icode [AbstractName]                                          6,482
+icode [Arg Expr (Named (Ranged [Char]) (Pattern' Expr))]          4
+icode [Arg Expr Name]                                             2
+icode [Arg Term (Named (Ranged [Char]) Pattern)]             24,598
+icode [Arg Term DisplayTerm]                                    807
+icode [Arg Term QName]                                          121
+icode [Arg Term Term]                                        85,838
+icode [Arg Term [Char]]                                      16,285
+icode [Char]                                             11,775,892
+icode [Clause]                                               14,682
+icode [CtxId]                                                 5,630
+icode [DisplayTerm]                                             359
+icode [Elim' Term]                                        2,113,904
+icode [Expr]                                                      9
+icode [GenPart]                                           3,397,352
+icode [Int]                                                  18,064
+icode [Interval' (Maybe AbsolutePath)]                   10,322,264
+icode [ModuleName]                                              895
+icode [NamePart]                                          3,283,510
+icode [Name]                                                855,382
+icode [Occurrence]                                           15,783
+icode [Open DisplayForm]                                     15,783
+icode [OtherAspect]                                         210,240
+icode [PlusLevel]                                           533,482
+icode [Polarity]                                             15,783
+icode [QName]                                               109,108
+icode [RewriteRule]                                          15,783
+icode [Term]                                              2,132,739
+icode [[Char]]                                            3,241,623
+icode [[[Char]]]                                                227
+max-open-constraints                                            806
+max-open-metas                                                3,189
+metas                                                       105,898
+pointers  (fresh)                                                 0
+pointers (reused)                                                 0
+unequal terms                                               152,929
+
+ 210,959,534,512 bytes allocated in the heap
+  15,619,327,216 bytes copied during GC
+     626,502,040 bytes maximum residency (33 sample(s))
+       7,020,960 bytes maximum slop
+            1308 MB total memory in use (0 MB lost due to fragmentation)
+
+                                    Tot time (elapsed)  Avg pause  Max pause
+  Gen  0     11630 colls,     0 par   58.04s   58.38s     0.0050s    0.4102s
+  Gen  1        33 colls,     0 par   33.53s   33.74s     1.0223s    4.4044s
+
+  INIT    time    0.00s  (  0.00s elapsed)
+  MUT     time  307.68s  (309.94s elapsed)
+  GC      time   91.57s  ( 92.12s elapsed)
+  EXIT    time    0.38s  (  0.38s elapsed)
+  Total   time  399.64s  (402.45s elapsed)
+
+  %GC     time      22.9%  (22.9% elapsed)
+
+  Alloc rate    685,638,701 bytes per MUT second
+
+  Productivity  77.1% of total user, 76.5% of total elapsed
+
+
+real	6m42.581s
+user	6m39.645s
+sys	0m2.112s
+
+
+Without iInsideScope and statistics:
+------------------------------------------------------------------------
+
+ Finished Everything.
+Finished README.
+Total time                 190,035ms
+Parsing                      1,252ms
+Parsing.Operators           11,200ms
+Import                       2,804ms
+Deserialization                  4ms
+Scoping                      9,832ms
+Typing                      51,915ms
+Termination                  1,792ms
+Termination.Graph              236ms
+Termination.RecCheck           564ms
+Termination.Compare            228ms
+Positivity                   8,520ms
+Injectivity                    832ms
+ProjectionLikeness             164ms
+Coverage                     2,036ms
+Highlighting                 6,840ms
+Serialization               81,013ms
+Serialization.Sort             412ms
+Serialization.BinaryEncode   8,024ms
+Serialization.Compress       1,576ms
+ModuleName                      24ms
+
+ 126,348,361,928 bytes allocated in the heap
+  13,047,982,960 bytes copied during GC
+     657,615,728 bytes maximum residency (31 sample(s))
+       7,384,192 bytes maximum slop
+            1312 MB total memory in use (16 MB lost due to fragmentation)
+
+                                    Tot time (elapsed)  Avg pause  Max pause
+  Gen  0      6495 colls,     0 par   37.36s   37.70s     0.0058s    0.4181s
+  Gen  1        31 colls,     0 par   21.67s   21.80s     0.7034s    4.1436s
+
+  INIT    time    0.00s  (  0.00s elapsed)
+  MUT     time  129.57s  (134.19s elapsed)
+  GC      time   59.03s  ( 59.51s elapsed)
+  EXIT    time    0.53s  (  0.53s elapsed)
+  Total   time  189.14s  (194.24s elapsed)
+
+  %GC     time      31.2%  (30.6% elapsed)
+
+  Alloc rate    975,120,061 bytes per MUT second
+
+  Productivity  68.8% of total user, 67.0% of total elapsed
+
+
+real	3m14.364s
+user	3m9.136s
+sys	0m1.560s
+
+saves 27 seconds!
