@@ -24,8 +24,11 @@ import Data.Maybe
 import Data.Monoid (mempty, mappend)
 import Data.Map (Map)
 import Data.Set (Set)
+
 import System.Directory (doesFileExist, getModificationTime, removeFile)
 import System.FilePath ((</>))
+
+import qualified Text.PrettyPrint.Boxes as Boxes
 
 import Paths_Agda (getDataFileName)
 
@@ -60,6 +63,7 @@ import Agda.Interaction.Highlighting.Vim
 import Agda.Utils.Except ( MonadError(catchError, throwError) )
 import Agda.Utils.FileName
 import Agda.Utils.Monad
+import Agda.Utils.Null (unlessNullM)
 import Agda.Utils.IO.Binary
 import Agda.Utils.Pretty
 import Agda.Utils.Fresh
@@ -603,13 +607,14 @@ createInterface file mname =
 
     -- Profiling: Print statistics.
     verboseS "profile" 1 $ do
-      stats <- Map.toList <$> getStatistics
-      case stats of
-        []      -> return ()
-        _       -> reportS "profile" 1 $ unlines $
-          [ "Ticks for " ++ show (pretty mname) ] ++
-          [ "  " ++ s ++ " = " ++ show n
-          | (s, n) <- sortBy (compare `on` snd) stats ]
+      unlessNullM (Map.toList <$> getStatistics) $ \ stats -> do
+      let -- First column (left aligned) is accounts.
+          col1 = Boxes.vcat Boxes.left  $ map (Boxes.text . fst) stats
+          -- Second column (right aligned) is numbers.
+          col2 = Boxes.vcat Boxes.right $ map (Boxes.text . show . snd) stats
+          table = Boxes.hsep 1 Boxes.left [col1, col2]
+      reportSLn "profile" 1 $ "Ticks for " ++ prettyShow mname
+      reportSLn "profile" 1 $ Boxes.render table
 
     return r
 
