@@ -1,4 +1,3 @@
-<<<<<<< HEAD
 .*.sw[a-p]
 .*.vim
 .sw[a-p]
@@ -31,9 +30,7 @@ test/succeed/latex/
 test/latex-backend/succeed/latex/
 src/full/Agda/Syntax/Parser/Lexer.hs
 src/full/Agda/Syntax/Parser/Parser.hs
-=======
 agda-ffi/dist
 *.agdai
 MAlonzo
 test/hello
->>>>>>> dc5eb82cd27e01199e852a2c2baf24b49b4a9e54
