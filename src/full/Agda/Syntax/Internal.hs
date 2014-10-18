@@ -468,8 +468,6 @@ typeDontCare = El Prop (Sort Prop)
 topSort :: Type
 topSort = El Inf (Sort Inf)
 
-set0      = set 0
-set n     = sort $ mkType n
 prop      = sort Prop
 sort s    = El (sSuc s) $ Sort s
 varSort n = Type $ Max [Plus 0 $ NeutralLevel $ Var n []]
