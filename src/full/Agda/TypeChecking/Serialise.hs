@@ -40,7 +40,6 @@ import qualified Data.ByteString.Lazy as L
 import Data.Hashable
 import qualified Data.HashTable.IO as H
 import Data.Int (Int32)
-import Data.IORef
 import Data.Map (Map)
 import qualified Data.Map as Map
 import Data.Set (Set)
@@ -80,11 +79,13 @@ import Agda.TypeChecking.CompiledClause
 
 import Agda.Utils.BiMap (BiMap)
 import qualified Agda.Utils.BiMap as BiMap
-import Agda.Utils.FileName
-import Agda.Utils.Permutation
 import Agda.Utils.HashMap (HashMap)
 import Agda.Utils.Hash
 import qualified Agda.Utils.HashMap as HMap
+import Agda.Utils.FileName
+import Agda.Utils.IORef
+import Agda.Utils.Lens
+import Agda.Utils.Permutation
 
 import Agda.Utils.Except ( ExceptT, MonadError(throwError), runExceptT )
 
@@ -115,17 +116,33 @@ type HashTable k v = H.CuckooHashTable k v
 type HashTable k v = H.BasicHashTable k v
 #endif
 
+-- | Structure providing fresh identifiers for hash map
+--   and counting hash map hits (i.e. when no fresh identifier required).
+data FreshAndReuse = FreshAndReuse
+  { farFresh :: !Int32 -- ^ Number of hash map misses.
+  , farReuse :: !Int32 -- ^ Number of hash map hits.
+  }
+
+farEmpty :: FreshAndReuse
+farEmpty = FreshAndReuse 0 0
+
+lensFresh :: Lens' Int32 FreshAndReuse
+lensFresh f r = f (farFresh r) <&> \ i -> r { farFresh = i }
+
+lensReuse :: Lens' Int32 FreshAndReuse
+lensReuse f r = f (farReuse r) <&> \ i -> r { farReuse = i }
+
 -- | State of the the encoder.
 data Dict = Dict{ nodeD     :: !(HashTable Node    Int32)
                 , stringD   :: !(HashTable String  Int32)
                 , integerD  :: !(HashTable Integer Int32)
                 , doubleD   :: !(HashTable Double  Int32)
                 , termD     :: !(HashTable (Ptr Term) Int32)
-                , nodeC     :: !(IORef Int32)  -- counters for fresh indexes
-                , stringC   :: !(IORef Int32)
-                , integerC  :: !(IORef Int32)
-                , doubleC   :: !(IORef Int32)
-                , sharingStats :: !(IORef (Int32, Int32))
+                , nodeC     :: !(IORef FreshAndReuse)  -- counters for fresh indexes
+                , stringC   :: !(IORef FreshAndReuse)
+                , integerC  :: !(IORef FreshAndReuse)
+                , doubleC   :: !(IORef FreshAndReuse)
+                , termC     :: !(IORef FreshAndReuse)
                 , fileMod   :: !SourceToModule
                 }
 
@@ -176,13 +193,20 @@ class Typeable a => EmbPrj a where
 encode :: EmbPrj a => a -> TCM L.ByteString
 encode a = do
     fileMod <- sourceToModule
-    newD@(Dict nD sD iD dD _ _ _ _ _ stats _) <- liftIO $ emptyDict fileMod
+    newD@(Dict nD sD iD dD _ nC sC iC dC tC _) <- liftIO $ emptyDict fileMod
     root <- liftIO $ runReaderT (icode a) newD
     nL <- benchSort $ l nD
     sL <- benchSort $ l sD
     iL <- benchSort $ l iD
     dL <- benchSort $ l dD
-    (shared, total) <- liftIO $ readIORef stats
+    -- Print reuse statistics.
+    verboseS "profile.sharing" 10 $ do
+      statistics "pointers" tC
+      statistics "Integer"  iC
+      statistics "String"   sC
+      statistics "Double"   dC
+      statistics "Node"     nC
+    -- Encode hashmaps and root, and compress.
     bits1 <- billSub [ Bench.Serialization, Bench.BinaryEncode ] $
       return $!! B.encode (root, nL, sL, iL, dL)
     let compressParams = G.defaultCompressParams
@@ -192,13 +216,16 @@ encode a = do
     cbits <- billSub [ Bench.Serialization, Bench.Compress ] $
       return $!! G.compressWith compressParams bits1
     let x = B.encode currentInterfaceVersion `L.append` cbits
-    verboseS "profile.sharing" 10 $ do
-      tickN "pointers (reused)" $ fromIntegral shared
-      tickN "pointers" $ fromIntegral total
     return x
   where
     l h = List.map fst . List.sortBy (compare `on` snd) <$> H.toList h
     benchSort = billTo [Bench.Serialization, Bench.Sort] . liftIO
+    statistics :: String -> IORef FreshAndReuse -> TCM ()
+    statistics kind ioref = do
+      FreshAndReuse fresh reused <- liftIO $ readIORef ioref
+      tickN (kind ++ "  (fresh)") $ fromIntegral fresh
+      tickN (kind ++ " (reused)") $ fromIntegral reused
+
 
 -- encode :: EmbPrj a => a -> TCM L.ByteString
 -- encode a = do
@@ -828,11 +855,13 @@ instance EmbPrj I.Term where
   icode (Shared p)     = do
     h  <- asks termD
     mi <- liftIO $ H.lookup h p
-    st <- asks sharingStats
+    st <- asks termC
     case mi of
-      Just i  -> liftIO $ modifyIORef st (\(a, b) -> ((,) $! a + 1) b) >> return i
+      Just i  -> liftIO $ do
+        modifyIORef' st $ over lensReuse (+ 1)
+        return i
       Nothing -> do
-        liftIO $ modifyIORef st (\(a, b) -> (,) a $! b + 1)
+        liftIO $ modifyIORef' st $ over lensFresh (+1)
         n <- icode (derefPtr p)
         liftIO $ H.insert h p n
         return n
@@ -1317,7 +1346,7 @@ instance EmbPrj Epic.Tag where
 -- {-# INLINE icodeX #-}
 icodeX :: (Eq k, Hashable k)
   =>  (Dict -> HashTable k Int32)
-  -> (Dict -> IORef Int32)
+  -> (Dict -> IORef FreshAndReuse)
   -> k -> S Int32
 icodeX dict counter key = do
   d <- asks dict
@@ -1325,11 +1354,12 @@ icodeX dict counter key = do
   liftIO $ do
   mi    <- H.lookup d key
   case mi of
-    Just i  -> return i
+    Just i  -> do
+      modifyIORef' c $ over lensReuse (+1)
+      return i
     Nothing -> do
-      fresh <- readIORef c
+      fresh <- (lensFresh ^.) <$> do readModifyIORef' c $ over lensFresh (+1)
       H.insert d key fresh
-      writeIORef c $! fresh + 1
       return fresh
 
 -- Instead of inlining icodeX, we manually specialize it to
@@ -1343,11 +1373,12 @@ icodeInteger key = do
   liftIO $ do
   mi <- H.lookup d key
   case mi of
-    Just i  -> return i
+    Just i  -> do
+      modifyIORef' c $ over lensReuse (+1)
+      return i
     Nothing -> do
-      fresh <- readIORef c
+      fresh <- (lensFresh ^.) <$> do readModifyIORef' c $ over lensFresh (+1)
       H.insert d key fresh
-      writeIORef c $! fresh + 1
       return fresh
 
 icodeDouble :: Double -> S Int32
@@ -1357,11 +1388,12 @@ icodeDouble key = do
   liftIO $ do
   mi <- H.lookup d key
   case mi of
-    Just i  -> return i
+    Just i  -> do
+      modifyIORef' c $ over lensReuse (+1)
+      return i
     Nothing -> do
-      fresh <- readIORef c
+      fresh <- (lensFresh ^.) <$> do readModifyIORef' c $ over lensFresh (+1)
       H.insert d key fresh
-      writeIORef c $! fresh + 1
       return fresh
 
 icodeString :: String -> S Int32
@@ -1371,11 +1403,12 @@ icodeString key = do
   liftIO $ do
   mi <- H.lookup d key
   case mi of
-    Just i  -> return i
+    Just i  -> do
+      modifyIORef' c $ over lensReuse (+1)
+      return i
     Nothing -> do
-      fresh <- readIORef c
+      fresh <- (lensFresh ^.) <$> do readModifyIORef' c $ over lensFresh (+1)
       H.insert d key fresh
-      writeIORef c $! fresh + 1
       return fresh
 
 icodeN :: Node -> S Int32
@@ -1385,11 +1418,12 @@ icodeN key = do
   liftIO $ do
   mi <- H.lookup d key
   case mi of
-    Just i  -> return i
+    Just i  -> do
+      modifyIORef' c $ over lensReuse (+1)
+      return i
     Nothing -> do
-      fresh <- readIORef c
+      fresh <- (lensFresh ^.) <$> do readModifyIORef' c $ over lensFresh (+1)
       H.insert d key fresh
-      writeIORef c $! fresh + 1
       return fresh
 
 -- icodeN :: [Int32] -> S Int32
@@ -1728,9 +1762,9 @@ emptyDict fileMod = Dict
   <*> H.new
   <*> H.new
   <*> H.new
-  <*> newIORef 0
-  <*> newIORef 0
-  <*> newIORef 0
-  <*> newIORef 0
-  <*> newIORef (0, 0)
+  <*> newIORef farEmpty
+  <*> newIORef farEmpty
+  <*> newIORef farEmpty
+  <*> newIORef farEmpty
+  <*> newIORef farEmpty
   <*> return fileMod
