@@ -28,5 +28,5 @@ std-lib
 test/compiler/Main
 test/epic/RunTests
 test/epic/tests/bin/
-test/succeed/latex/
 test/latex-backend/succeed/latex/
+test/succeed/latex/
