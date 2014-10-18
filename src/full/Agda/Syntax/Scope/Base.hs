@@ -54,7 +54,7 @@ data Scope = Scope
       , scopeImports        :: Map C.QName A.ModuleName
       , scopeDatatypeModule :: Bool
       }
-  deriving (Typeable)
+  deriving (Typeable, Eq)
 
 data NameSpaceId = PrivateNS | PublicNS | ImportedNS | OnlyQualifiedNS
   deriving (Typeable, Eq, Bounded, Enum)
@@ -92,7 +92,7 @@ data ScopeInfo = ScopeInfo
       , scopeLocals     :: LocalVars
       , scopePrecedence :: Precedence
       }
-  deriving (Typeable)
+  deriving (Typeable, Eq)
 
 -- | Local variables.
 type LocalVars = AssocList C.Name LocalVar
@@ -158,7 +158,7 @@ data NameSpace = NameSpace
       , nsModules :: ModulesInScope
         -- ^ Maps concrete module names to a list of abstract module names.
       }
-  deriving (Typeable)
+  deriving (Typeable, Eq)
 
 type ThingsInScope a = Map C.Name [a]
 type NamesInScope    = ThingsInScope AbstractName

@@ -67,6 +67,52 @@ import Agda.Utils.Size
 #include "undefined.h"
 import Agda.Utils.Impossible
 
+-- | Cached checkDecl
+ccheckDecl :: A.Declaration -> TCM ()
+ccheckDecl d@A.ScopedDecl{} = checkDecl d
+ccheckDecl d@A.Section{} = checkDecl d
+ccheckDecl d = do
+    e <- readCS
+    reportSLn "cache.decl" 10 $ "ccheckDecl: " ++ show (isJust e)
+    case e of
+      (Just (Decl d',s)) | compareDecl d d' -> do
+
+        reportSLn "cache.decl" 10 $ "restoring!"
+        reportSLn "cache.decl" 20 $ show d
+        reportSLn "cache.decl" 20 $ "----------------------------------------------"
+        restoreLFS s
+        | otherwise -> do
+        reportSLn "cache.decl" 20 $ "stored: " ++ show d'
+        reportSLn "cache.decl" 20 $ "----------------------------------------------"
+        reportSLn "cache.decl" 20 $ "new: " ++ show d
+
+        cleanCS
+        checkDeclWrap d
+      _ -> do
+        cleanCS
+        checkDeclWrap d
+    cacheLFS (Decl d)
+ where
+   compareDecl (A.Section minfo mname binds _) (A.Section minfo' mname' binds' _)
+     = __IMPOSSIBLE__ -- minfo == minfo' && mname == mname' && binds == binds'
+   compareDecl A.ScopedDecl{} A.ScopedDecl{} = __IMPOSSIBLE__
+   compareDecl x y = x == y
+   checkDeclWrap d@A.RecDef{} = do
+     cs <- getCachedState
+     cleanCS
+     checkDecl d
+     -- changes to CS inside a RecDef ought not happen,
+     -- but they do happen, so we discard them.
+     putCachedState cs
+   checkDeclWrap d@A.Mutual{} = do
+     cs <- getCachedState
+     cleanCS
+     checkDecl d
+     -- changes to CS inside a Mutual block ought not happen,
+     -- but they do happen, so we discard them.
+     putCachedState cs
+   checkDeclWrap d = checkDecl d
+
 -- | Type check a sequence of declarations.
 checkDecls :: [A.Declaration] -> TCM ()
 checkDecls ds = do
@@ -105,7 +151,7 @@ checkDecl d = traceCall (SetRange (getRange d)) $ do
       A.Apply i x modapp rd rm -> meta $ checkSectionApplication i x modapp rd rm
       A.Import i x             -> none $ checkImport i x
       A.Pragma i p             -> none $ checkPragma i p
-      A.ScopedDecl scope ds    -> none $ setScope scope >> checkDecls ds
+      A.ScopedDecl scope ds    -> none $ setScope scope >> mapM_ ccheckDecl ds -- what's the purpouse? Ulf?
       A.FunDef i x delayed cs  -> impossible $ check x i $ checkFunDef delayed i x cs
       A.DataDef i x ps cs      -> impossible $ check x i $ checkDataDef i x ps cs
       A.RecDef i x ind c ps tel cs -> mutual mi [d] $ check x i $ do
@@ -553,7 +599,7 @@ checkSection i x tel ds =
       dtel' <- prettyTCM =<< lookupSection x
       reportSLn "tc.mod.check" 10 $ "checking section " ++ show dx ++ " " ++ show dtel
       reportSLn "tc.mod.check" 10 $ "    actual tele: " ++ show dtel'
-    withCurrentModule x $ checkDecls ds
+    withCurrentModule x $ mapM_ ccheckDecl ds
 
 -- | Helper for 'checkSectionApplication'.
 --

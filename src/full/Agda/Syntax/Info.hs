@@ -32,7 +32,7 @@ data MetaInfo = MetaInfo
   , metaNumber         :: Maybe Nat  -- ^ The 'MetaId', not the 'InteractionId'.
   , metaNameSuggestion :: String
   }
-  deriving (Typeable, Show)
+  deriving (Typeable, Show, Eq)
 
 emptyMetaInfo :: MetaInfo
 emptyMetaInfo = MetaInfo
@@ -53,7 +53,7 @@ instance KillRange MetaInfo where
  --------------------------------------------------------------------------}
 
 newtype ExprInfo = ExprRange Range
-  deriving (Typeable, Show)
+  deriving (Typeable, Show, Eq)
 
 exprNoRange :: ExprInfo
 exprNoRange = ExprRange noRange
@@ -79,8 +79,9 @@ data ModuleInfo = ModuleInfo
   , minfoDirective :: Maybe ImportDirective
     -- ^ Retained for @abstractToConcrete@ of 'ModuleMacro'.
   }
-  deriving (Typeable)
-
+  deriving (Typeable, Eq)
+instance Eq ImportDirective where -- TODO Andrea
+  x == y = True
 deriving instance (Show OpenShortHand, Show ImportDirective) => Show ModuleInfo
 
 instance HasRange ModuleInfo where
@@ -97,7 +98,7 @@ instance KillRange ModuleInfo where
 ---------------------------------------------------------------------------
 
 newtype LetInfo = LetRange Range
-  deriving (Typeable, Show)
+  deriving (Typeable, Show, Eq)
 
 instance HasRange LetInfo where
   getRange (LetRange r)   = r
@@ -116,7 +117,7 @@ data DefInfo = DefInfo
   , defInstance :: IsInstance
   , defInfo     :: DeclInfo
   }
-  deriving (Typeable, Show)
+  deriving (Typeable, Show, Eq)
 
 mkDefInfo :: Name -> Fixity' -> Access -> IsAbstract -> Range -> DefInfo
 mkDefInfo x f a ab r = DefInfo f a ab NotInstanceDef (DeclInfo x r)
@@ -142,7 +143,7 @@ data DeclInfo = DeclInfo
   { declName  :: Name
   , declRange :: Range
   }
-  deriving (Typeable, Show)
+  deriving (Typeable, Show, Eq)
 
 instance HasRange DeclInfo where
   getRange = declRange
@@ -161,7 +162,7 @@ data MutualInfo = MutualInfo
   { mutualTermCheck :: TerminationCheck Name
   , mutualRange     :: Range
   }
-  deriving (Typeable, Show)
+  deriving (Typeable, Show, Eq)
 
 instance HasRange MutualInfo where
   getRange = mutualRange
@@ -174,7 +175,7 @@ instance KillRange MutualInfo where
  --------------------------------------------------------------------------}
 
 newtype LHSInfo = LHSRange Range
-  deriving (Typeable, Show)
+  deriving (Typeable, Show, Eq)
 
 instance HasRange LHSInfo where
   getRange (LHSRange r) = r
@@ -194,6 +195,9 @@ data PatInfo
       -- ^ Even if we store the original pattern we have to know
       --   whether to put parenthesis around it.
   deriving (Typeable)
+
+instance Eq PatInfo where -- TODO
+  a == b = True
 
 instance Show PatInfo where
   show (PatRange r) = "PatRange " ++ show r
@@ -216,7 +220,7 @@ data ConPatInfo = ConPatInfo
   { patImplicit :: Bool
     -- ^ Does this pattern come form the eta-expansion of an implicit pattern?
   , patInfo     :: PatInfo
-  }
+  } deriving Eq
 
 instance Show ConPatInfo where
   show (ConPatInfo b i) = (if b then ("implicit " ++) else id) $ show i

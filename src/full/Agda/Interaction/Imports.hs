@@ -195,6 +195,9 @@ typeCheckMain f = do
           moduleName $ mkAbsolute $
             libpath </> "prim" </> "Agda" </> "Primitive.agda"
   reportSLn "import.main" 10 $ "Done importing the primitive modules."
+
+  activateCS
+
   typeCheck f
 
 -- | Type checks the given module (if necessary).
@@ -357,6 +360,7 @@ getInterface' x includeStateChanges =
                 return (False, (i, NoWarnings))
 
       typeCheckThe file = do
+          unless includeStateChanges cleanCS
           let withMsgs = bracket_
                 (chaseMsg "Checking" $ Just $ filePath file)
                 (const $ chaseMsg "Finished" Nothing)
@@ -529,13 +533,13 @@ createInterface file mname =
     let getOptions (A.OptionsPragma opts) = Just opts
         getOptions _                      = Nothing
         options = catMaybes $ map getOptions pragmas
-    mapM_ setOptionsFromPragma options
+    mapM_ setOptionsFromPragma options -- TODO invalidate if pragmas change
 
     -- Scope checking.
     topLevel <- billTop Bench.Scoping $
-      concreteToAbstract_ (TopLevel file top)
+      concreteToAbstract_ (TopLevel file top) -- THE scope checking
 
-    let ds = topLevelDecls topLevel
+    let ds = topLevelDecls topLevel           -- THE declarations
 
     -- Highlighting from scope checker.
     billTop Bench.Highlighting $ do
@@ -544,8 +548,24 @@ createInterface file mname =
       printHighlightingInfo fileTokenInfo
       mapM_ (\ d -> generateAndPrintSyntaxInfo d Partial) ds
 
+    -- flow <- gets stFlow
+    -- reportSLn "import.flow" 10 $ show mname ++ ": " ++ show (isJust flow)
+    -- case flow of
+    --   Nothing -> do
+    --     billTop Bench.Typing $ checkDecls ds      -- TODO prune ds
+
+    --   Just st -> do
+    --     modify $ \s -> st { stFlow = Just st }
+
     -- Type checking.
-    billTop Bench.Typing $ checkDecls ds
+
+    cs <- gets (stCachedState . stPersistent)
+    reportSLn "import.flow" 10 $ "before:" ++ show mname ++ ": " ++ (maybe "empty" (show . length . fst) cs) ++ " , " ++ show (length ds)
+
+    billTop Bench.Typing $ mapM_ ccheckDecl ds >> storeWrittenCS
+
+    cs <- gets (stCachedState . stPersistent)
+    reportSLn "import.flow" 10 $ "after:" ++ show mname ++ ": " ++ (maybe "empty" (show . length . fst) cs) ++ " , " ++ show (length ds)
 
     -- Ulf, 2013-11-09: Since we're rethrowing the error, leave it up to the
     -- code that handles that error to reset the state.

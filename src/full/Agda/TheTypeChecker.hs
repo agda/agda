@@ -1,7 +1,7 @@
 {-# OPTIONS_GHC -fwarn-missing-signatures #-}
 
 module Agda.TheTypeChecker
-  ( checkDecls, checkDecl
+  ( checkDecls, checkDecl, ccheckDecl
   , inferExpr, checkExpr
   ) where
 
