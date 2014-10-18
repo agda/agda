@@ -118,7 +118,7 @@ data Expr
   | Dot !Range Expr                            -- ^ ex: @.p@, only in patterns
   | ETel Telescope                             -- ^ only used for printing telescopes
   | QuoteGoal !Range Name Expr                 -- ^ ex: @quoteGoal x in e@
-  | QuoteContext !Range Name Expr              -- ^ ex: @quoteContext ctx in e@
+  | QuoteContext !Range                        -- ^ ex: @quoteContext@
   | Quote !Range                               -- ^ ex: @quote@, should be applied to a name
   | QuoteTerm !Range                           -- ^ ex: @quoteTerm@, should be applied to a term
   | Tactic !Range Expr [Expr]                  -- ^ @tactic solve | subgoal1 | .. | subgoalN@
@@ -498,7 +498,7 @@ instance HasRange Expr where
       RecUpdate r _ _    -> r
       ETel tel           -> getRange tel
       QuoteGoal r _ _    -> r
-      QuoteContext r _ _ -> r
+      QuoteContext r     -> r
       Quote r            -> r
       QuoteTerm r        -> r
       Unquote r          -> r
@@ -677,7 +677,7 @@ instance KillRange Expr where
   killRange (Dot _ e)            = killRange1 (Dot noRange) e
   killRange (ETel t)             = killRange1 ETel t
   killRange (QuoteGoal _ n e)    = killRange2 (QuoteGoal noRange) n e
-  killRange (QuoteContext _ n e) = killRange2 (QuoteContext noRange) n e
+  killRange (QuoteContext _)     = QuoteContext noRange
   killRange (Quote _)            = Quote noRange
   killRange (QuoteTerm _)        = QuoteTerm noRange
   killRange (Unquote _)          = Unquote noRange

@@ -495,11 +495,7 @@ instance ToConcrete A.Expr C.Expr where
         bindToConcrete x $ \ x' -> do
             e' <- toConcrete e
             return $ C.QuoteGoal (getRange i) x' e'
-    toConcrete (A.QuoteContext i x e) =
-      bracket lamBrackets $
-        bindToConcrete x $ \ x' -> do
-            e' <- toConcrete e
-            return $ C.QuoteContext (getRange i) x' e'
+    toConcrete (A.QuoteContext i) = return $ C.QuoteContext (getRange i)
     toConcrete (A.Quote i) = return $ C.Quote (getRange i)
     toConcrete (A.QuoteTerm i) = return $ C.QuoteTerm (getRange i)
     toConcrete (A.Unquote i) = return $ C.Unquote (getRange i)

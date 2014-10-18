@@ -100,7 +100,7 @@ data Expr
   | RecUpdate ExprInfo Expr Assigns    -- ^ Record update.
   | ScopedExpr ScopeInfo Expr          -- ^ Scope annotation.
   | QuoteGoal ExprInfo Name Expr       -- ^ Binds @Name@ to current type in @Expr@.
-  | QuoteContext ExprInfo Name Expr    -- ^ Binds @Name@ to current context in @Expr@.
+  | QuoteContext ExprInfo              -- ^ Returns the current context.
   | Quote ExprInfo                     -- ^ Quote an identifier 'QName'.
   | QuoteTerm ExprInfo                 -- ^ Quote a term.
   | Unquote ExprInfo                   -- ^ The splicing construct: unquote ...
@@ -436,7 +436,7 @@ instance HasRange Expr where
     getRange (ETel tel)            = getRange tel
     getRange (ScopedExpr _ e)      = getRange e
     getRange (QuoteGoal _ _ e)     = getRange e
-    getRange (QuoteContext _ _ e)  = getRange e
+    getRange (QuoteContext i)      = getRange i
     getRange (Quote i)             = getRange i
     getRange (QuoteTerm i)         = getRange i
     getRange (Unquote i)           = getRange i
@@ -549,7 +549,7 @@ instance KillRange Expr where
   killRange (ETel tel)             = killRange1 ETel tel
   killRange (ScopedExpr s e)       = killRange1 (ScopedExpr s) e
   killRange (QuoteGoal i x e)      = killRange3 QuoteGoal i x e
-  killRange (QuoteContext i x e)   = killRange3 QuoteContext i x e
+  killRange (QuoteContext i)       = killRange1 QuoteContext i
   killRange (Quote i)              = killRange1 Quote i
   killRange (QuoteTerm i)          = killRange1 QuoteTerm i
   killRange (Unquote i)            = killRange1 Unquote i
@@ -716,7 +716,7 @@ instance AllNames Expr where
   allNames (RecUpdate _ e fs)      = allNames e >< allNames (map snd fs)
   allNames (ScopedExpr _ e)        = allNames e
   allNames (QuoteGoal _ _ e)       = allNames e
-  allNames (QuoteContext _ _ e)    = allNames e
+  allNames (QuoteContext _)        = Seq.empty
   allNames Quote{}                 = Seq.empty
   allNames QuoteTerm{}             = Seq.empty
   allNames Unquote{}               = Seq.empty
@@ -843,7 +843,7 @@ substExpr s e = case e of
   -- XXX: Do we need to do more with ScopedExprs?
   ScopedExpr si e       -> ScopedExpr si (substExpr s e)
   QuoteGoal i n e       -> QuoteGoal i n (substExpr s e)
-  QuoteContext i n e    -> QuoteContext i n (substExpr s e)
+  QuoteContext i        -> e
   Quote i               -> e
   QuoteTerm i           -> e
   Unquote i             -> e

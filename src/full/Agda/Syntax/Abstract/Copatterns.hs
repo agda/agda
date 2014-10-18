@@ -290,7 +290,7 @@ instance Rename Expr where
       RecUpdate i e fes     -> RecUpdate i (rename rho e) $ map (id -*- rename rho) fes
       ScopedExpr i e        -> ScopedExpr i (rename rho e)
       QuoteGoal i n e       -> QuoteGoal i n (rename rho e)
-      QuoteContext i n e    -> QuoteContext i n (rename rho e)
+      QuoteContext i        -> e
       Quote i               -> e
       QuoteTerm i           -> e
       Unquote i             -> e

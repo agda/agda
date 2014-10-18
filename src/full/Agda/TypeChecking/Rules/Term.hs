@@ -684,17 +684,12 @@ checkExpr e t0 =
               tmType <- agdaTermType
               (v, ty) <- addLetBinding defaultArgInfo x quoted tmType (inferExpr e)
               blockTerm t' $ coerce v ty t'
-        e0@(A.QuoteContext _ x e) -> do
+        e0@(A.QuoteContext _) -> do
           contextTypes <- map (fmap snd) <$> getContext
           contextTypes <- etaContract =<< normalise contextTypes
-          {-let metas = allMetas contextTypes
-          case metas of
-            _:_ -> postponeTypeCheckingProblem (CheckExpr e0 t) $ andM $ map isInstantiatedMeta metas
-            []  -> do-}
           quotedContext <- buildList <*> mapM quoteDom contextTypes
           ctxType <- el $ list $ primArg <@> (unEl <$> agdaTypeType)
-          (v, ctxType) <- addLetBinding defaultArgInfo x quotedContext ctxType (inferExpr e)
-          blockTerm t $ coerce v ctxType t
+          coerce quotedContext ctxType t
         A.ETel _   -> __IMPOSSIBLE__
 
         -- Application

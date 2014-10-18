@@ -591,7 +591,7 @@ instance EmbPrj A.Expr where
   icode (A.RecUpdate _ a b)     = icode2 18 a b
   icode (A.ScopedExpr a b)      = icode2 19 a b
   icode (A.QuoteGoal _ a b)     = icode2 20 a b
-  icode (A.QuoteContext _ a b)  = icode2 21 a b
+  icode (A.QuoteContext _)      = icode0 21
   icode (A.Quote _)             = icode0 22
   icode (A.QuoteTerm _)         = icode0 23
   icode (A.Unquote _)           = icode0 24
@@ -620,7 +620,7 @@ instance EmbPrj A.Expr where
       valu [18, a, b] = valu2 (A.RecUpdate i) a b
       valu [19, a, b] = valu2 A.ScopedExpr a b
       valu [20, a, b] = valu2 (A.QuoteGoal i) a b
-      valu [21, a, b] = valu2 (A.QuoteContext i) a b
+      valu [21]       = valu0 (A.QuoteContext i)
       valu [22]       = valu0 (A.Quote i)
       valu [23]       = valu0 (A.QuoteTerm i)
       valu [24]       = valu0 (A.Unquote i)

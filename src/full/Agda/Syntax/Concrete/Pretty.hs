@@ -172,8 +172,7 @@ instance Pretty Expr where
             ETel tel -> fsep $ map pretty tel
             QuoteGoal _ x e -> sep [text "quoteGoal" <+> pretty x <+> text "in",
                                     nest 2 $ pretty e]
-            QuoteContext _ x e -> sep [text "quoteContext" <+> pretty x <+> text "in",
-                                    nest 2 $ pretty e]
+            QuoteContext _ -> text "quoteContext"
             Quote _ -> text "quote"
             QuoteTerm _ -> text "quoteTerm"
             Unquote _ -> text "unquote"

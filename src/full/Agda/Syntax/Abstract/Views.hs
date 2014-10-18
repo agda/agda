@@ -94,7 +94,7 @@ instance ExprLike Expr where
       RecUpdate _ e as     -> m `mappend` fold e `mappend` fold as
       ScopedExpr _ e       -> m `mappend` fold e
       QuoteGoal _ _ e      -> m `mappend` fold e
-      QuoteContext _ _ e   -> m `mappend` fold e
+      QuoteContext _       -> m
       Quote{}              -> m
       QuoteTerm{}          -> m
       Unquote{}            -> m
@@ -128,7 +128,7 @@ instance ExprLike Expr where
       RecUpdate ei e bs       -> f =<< RecUpdate ei <$> trav e <*> trav bs
       ScopedExpr sc e         -> f =<< ScopedExpr sc <$> trav e
       QuoteGoal ei n e        -> f =<< QuoteGoal ei n <$> trav e
-      QuoteContext ei n e     -> f =<< QuoteContext ei n <$> trav e
+      QuoteContext{}          -> f e
       Quote{}                 -> f e
       QuoteTerm{}             -> f e
       Unquote{}               -> f e
