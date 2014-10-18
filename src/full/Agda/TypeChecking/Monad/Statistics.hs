@@ -21,6 +21,7 @@ import Agda.TypeChecking.Monad.State
 import Agda.Utils.Maybe
 import Agda.Utils.Null
 import Agda.Utils.Pretty
+import Agda.Utils.String
 
 -- | Get the statistics.
 getStatistics :: TCM Statistics
@@ -64,7 +65,7 @@ printStatistics vl mmname stats = verboseS "profile" vl $ do
   let -- First column (left aligned) is accounts.
       col1 = Boxes.vcat Boxes.left  $ map (Boxes.text . fst) stats
       -- Second column (right aligned) is numbers.
-      col2 = Boxes.vcat Boxes.right $ map (Boxes.text . show . snd) stats
+      col2 = Boxes.vcat Boxes.right $ map (Boxes.text . showThousandSep . snd) stats
       table = Boxes.hsep 1 Boxes.left [col1, col2]
   reportSLn "profile" 1 $ caseMaybe mmname "Accumlated statistics" $ \ mname ->
     "Statistics for " ++ prettyShow mname
