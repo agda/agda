@@ -212,7 +212,6 @@ quotingKit = do
           MetaV{}    -> pure unsupported
           DontCare{} -> pure unsupported -- could be exposed at some point but we have to take care
           ExtLam{}   -> __IMPOSSIBLE__
-
   return $ QuotingKit quoteTerm quoteType quoteClause (quoteDom quoteType)
 
 quoteString :: String -> Term
@@ -234,8 +233,16 @@ quoteType v = do
   kit <- quotingKit
   runReduceM (quoteTypeWithKit kit v)
 
+quoteDom :: I.Dom Type -> TCM Term
+quoteDom v = do
+  kit <- quotingKit
+  runReduceM (quoteDomWithKit kit v)
+
 agdaTermType :: TCM Type
 agdaTermType = El (mkType 0) <$> primAgdaTerm
+
+agdaTypeType :: TCM Type
+agdaTypeType = El (mkType 0) <$> primAgdaType
 
 qNameType :: TCM Type
 qNameType = El (mkType 0) <$> primQName
