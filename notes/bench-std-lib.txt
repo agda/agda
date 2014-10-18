@@ -7039,4 +7039,122 @@ ModuleName                      24ms
 real	3m48.838s
 user	3m46.954s
 sys	0m1.444s
-abel@agda:~/agda$
+
+
+
+Will KillRange Signature
+------------------------------------------------------------------------
+
+  Checking Size (/home/abel/agda/agda-stdlib/src/Size.agda).
+Ticks for Size
+Double  (fresh)         0
+Double (reused)         0
+Integer  (fresh)       88
+Integer (reused)      175
+Node  (fresh)         285
+Node (reused)        1925
+String  (fresh)         9
+String (reused)       213
+max-open-constraints    0
+max-open-metas          1
+metas                   4
+pointers  (fresh)       0
+pointers (reused)       0
+
+  Finished Size.
+  Checking Universe (/home/abel/agda/agda-stdlib/src/Universe.agda).
+Ticks for Universe
+Double  (fresh)           0
+Double (reused)           0
+Integer  (fresh)        283
+Integer (reused)       2931
+Node  (fresh)          2422
+Node (reused)         28547
+String  (fresh)          71
+String (reused)        4173
+attempted-constraints     8
+max-open-constraints      4
+max-open-metas            7
+metas                    32
+pointers  (fresh)         0
+pointers (reused)         0
+
+  Finished Universe.
+Ticks for Everything
+Double  (fresh)            0
+Double (reused)            0
+Integer  (fresh)        2699
+Integer (reused)      130382
+Node  (fresh)          91091
+Node (reused)        1200229
+String  (fresh)         2245
+String (reused)       369272
+max-open-constraints       0
+metas                      0
+pointers  (fresh)          0
+pointers (reused)          0
+
+ Finished Everything.
+Ticks for README
+Double  (fresh)           0
+Double (reused)           0
+Integer  (fresh)       1425
+Integer (reused)      27049
+Node  (fresh)         24081
+Node (reused)        259418
+String  (fresh)         700
+String (reused)       63901
+max-open-constraints      0
+metas                     0
+pointers  (fresh)         0
+pointers (reused)         0
+
+Finished README.
+Total time                 217,437ms
+Parsing                      1,300ms
+Parsing.Operators           10,492ms
+Import                       3,596ms
+Deserialization                  8ms
+Scoping                      9,092ms
+Typing                      55,399ms
+Termination                  1,744ms
+Termination.Graph              268ms
+Termination.RecCheck           584ms
+Termination.Compare            200ms
+Positivity                   4,624ms
+Injectivity                  1,236ms
+ProjectionLikeness             148ms
+Coverage                     2,016ms
+Highlighting                 8,464ms
+Serialization               90,853ms
+Serialization.Sort             808ms
+Serialization.BinaryEncode  18,277ms
+Serialization.Compress       3,636ms
+ModuleName                      24ms
+
+ 141,368,357,984 bytes allocated in the heap
+  16,321,623,848 bytes copied during GC
+     598,324,120 bytes maximum residency (39 sample(s))
+       7,262,752 bytes maximum slop
+            1381 MB total memory in use (17 MB lost due to fragmentation)
+
+                                    Tot time (elapsed)  Avg pause  Max pause
+  Gen  0      4233 colls,     0 par   47.67s   47.90s     0.0113s    0.4676s
+  Gen  1        39 colls,     0 par   23.03s   23.24s     0.5959s    3.6554s
+
+  INIT    time    0.00s  (  0.00s elapsed)
+  MUT     time  145.11s  (149.76s elapsed)
+  GC      time   70.70s  ( 71.15s elapsed)
+  EXIT    time    0.49s  (  0.50s elapsed)
+  Total   time  216.30s  (221.41s elapsed)
+
+  %GC     time      32.7%  (32.1% elapsed)
+
+  Alloc rate    974,247,984 bytes per MUT second
+
+  Productivity  67.3% of total user, 65.8% of total elapsed
+
+
+real	3m41.535s
+user	3m36.298s
+sys	0m1.768s
