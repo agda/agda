@@ -31,12 +31,14 @@ default : $(Tests)
 
 export TMPDIR=highlighting-tmp
 
-# Filter out absolute pathes
+# Filter out absolute pathes, make all whitespace equal, remove
+# "Linking..." messages since GHC 7.0 doesn't have them.
 filter=$(sed) -e 's"$(pwdPlusDelimiter)""g' \
               -e 's"$(pwd)""g' \
               -e 's" \"$(TMPDIR).*\"""' \
               -e 's"[^ (\"]*lib.prim"agda-default-include-path"g' \
               -e 's/\(\\n\| \)\+/ /g' \
+              -e '/Linking /d' \
      | $(clean)
 
 run_test=if test -f $*.in; \
