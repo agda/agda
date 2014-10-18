@@ -685,17 +685,15 @@ checkExpr e t0 =
               (v, ty) <- addLetBinding defaultArgInfo x quoted tmType (inferExpr e)
               blockTerm t' $ coerce v ty t'
         e0@(A.QuoteContext _ x e) -> do
-          ctx <- getContext
-          thisModule <- currentModule
---          Disabled let bindings for now, as there is no way to get your hands on the
---          associated terms using the current reflection mechanism.
---          lets <- envLetBindings <$> ask
---          let letNames = map (quoteName . qualify thisModule) $ Map.keys lets
-          let contextNames = map (\(Dom _ (nm,_)) -> quoteName $ qualify thisModule nm) ctx
-          let names = contextNames -- ++ letNames
-          nameList <- buildList <*> return names
-          ctxType <- el (list primQName)
-          (v, ctxType) <- addLetBinding defaultArgInfo x nameList ctxType (inferExpr e)
+          contextTypes <- map (fmap snd) <$> getContext
+          contextTypes <- etaContract =<< normalise contextTypes
+          {-let metas = allMetas contextTypes
+          case metas of
+            _:_ -> postponeTypeCheckingProblem (CheckExpr e0 t) $ andM $ map isInstantiatedMeta metas
+            []  -> do-}
+          quotedContext <- buildList <*> mapM quoteDom contextTypes
+          ctxType <- el $ list $ primArg <@> (unEl <$> agdaTypeType)
+          (v, ctxType) <- addLetBinding defaultArgInfo x quotedContext ctxType (inferExpr e)
           blockTerm t $ coerce v ctxType t
         A.ETel _   -> __IMPOSSIBLE__
 
