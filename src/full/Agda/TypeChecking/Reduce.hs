@@ -169,7 +169,7 @@ instance Instantiate Constraint where
   instantiate' (SortCmp cmp a b)    = uncurry (SortCmp cmp) <$> instantiate' (a,b)
   instantiate' (Guarded c pid)      = Guarded <$> instantiate' c <*> pure pid
   instantiate' (UnBlock m)          = return $ UnBlock m
-  instantiate' (FindInScope m args) = FindInScope m <$> mapM instantiate' args
+  instantiate' (FindInScope m b args) = FindInScope m b <$> mapM instantiate' args
   instantiate' (IsEmpty r t)        = IsEmpty r <$> instantiate' t
 
 instance (Ord k, Instantiate e) => Instantiate (Map k e) where
@@ -576,7 +576,7 @@ instance Reduce Constraint where
   reduce' (SortCmp cmp a b)     = uncurry (SortCmp cmp) <$> reduce' (a,b)
   reduce' (Guarded c pid)       = Guarded <$> reduce' c <*> pure pid
   reduce' (UnBlock m)           = return $ UnBlock m
-  reduce' (FindInScope m cands) = FindInScope m <$> mapM reduce' cands
+  reduce' (FindInScope m b cands) = FindInScope m b <$> mapM reduce' cands
   reduce' (IsEmpty r t)         = IsEmpty r <$> reduce' t
 
 instance (Ord k, Reduce e) => Reduce (Map k e) where
@@ -705,7 +705,7 @@ instance Simplify Constraint where
   simplify' (SortCmp cmp a b)     = uncurry (SortCmp cmp) <$> simplify' (a,b)
   simplify' (Guarded c pid)       = Guarded <$> simplify' c <*> pure pid
   simplify' (UnBlock m)           = return $ UnBlock m
-  simplify' (FindInScope m cands) = FindInScope m <$> mapM simplify' cands
+  simplify' (FindInScope m b cands) = FindInScope m b <$> mapM simplify' cands
   simplify' (IsEmpty r t)         = IsEmpty r <$> simplify' t
 
 instance Simplify Bool where
@@ -838,7 +838,7 @@ instance Normalise Constraint where
   normalise' (SortCmp cmp a b)     = uncurry (SortCmp cmp) <$> normalise' (a,b)
   normalise' (Guarded c pid)       = Guarded <$> normalise' c <*> pure pid
   normalise' (UnBlock m)           = return $ UnBlock m
-  normalise' (FindInScope m cands) = FindInScope m <$> mapM normalise' cands
+  normalise' (FindInScope m b cands) = FindInScope m b <$> mapM normalise' cands
   normalise' (IsEmpty r t)         = IsEmpty r <$> normalise' t
 
 instance Normalise Bool where
@@ -988,7 +988,7 @@ instance InstantiateFull Constraint where
     SortCmp cmp a b     -> uncurry (SortCmp cmp) <$> instantiateFull' (a,b)
     Guarded c pid       -> Guarded <$> instantiateFull' c <*> pure pid
     UnBlock m           -> return $ UnBlock m
-    FindInScope m cands -> FindInScope m <$> mapM instantiateFull' cands
+    FindInScope m b cands -> FindInScope m b <$> mapM instantiateFull' cands
     IsEmpty r t         -> IsEmpty r <$> instantiateFull' t
 
 instance InstantiateFull Elim where

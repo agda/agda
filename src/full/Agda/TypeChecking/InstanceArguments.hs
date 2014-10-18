@@ -110,8 +110,10 @@ initializeIFSMeta s t = do
   cands <- initialIFSCandidates t
   newIFSMeta s t cands
 
--- | @findInScope m (v,a)s@ tries to instantiate on of the types @a@s
+-- | @findInScope m b (v,a)s@ tries to instantiate on of the types @a@s
 --   of the candidate terms @v@s to the type @t@ of the metavariable @m@.
+--   (unless @b@ is @Just n@ and the metavariable @n@ is not instantiated,
+--    in which case we just abort).
 --   If successful, meta @m@ is solved with the instantiation of @v@.
 --   If unsuccessful, the constraint is regenerated, with possibly reduced
 --   candidate set.
@@ -124,14 +126,15 @@ findInScope m Nothing = do
   t <- getMetaType m
   cands <- initialIFSCandidates t
   case cands of
-    Nothing -> addConstraint $ FindInScope m Nothing
+    Nothing -> addConstraint $ FindInScope m Nothing Nothing
     Just {} -> findInScope m cands
-findInScope m (Just cands) = whenJustM (findInScope' m cands) $ addConstraint . FindInScope m . Just
+findInScope m (Just cands) =
+  whenJustM (findInScope' m cands) $ (\ (cands, b) -> addConstraint $ FindInScope m b $ Just cands)
 
 -- | Result says whether we need to add constraint, and if so, the set of
---   remaining candidates.
-findInScope' :: MetaId -> Candidates -> TCM (Maybe Candidates)
-findInScope' m cands = ifM (isFrozen m) (return (Just cands)) $ do
+--   remaining candidates and an eventual blocking metavariable.
+findInScope' :: MetaId -> Candidates -> TCM (Maybe (Candidates, Maybe MetaId))
+findInScope' m cands =
     -- Andreas, 2013-12-28 issue 1003:
     -- If instance meta is already solved, simply discard the constraint.
     ifM (isInstantiatedMeta m) (return Nothing) $ do
@@ -141,16 +144,18 @@ findInScope' m cands = ifM (isFrozen m) (return (Just cands)) $ do
     reportSDoc "tc.instance" 15 $ text "findInScope 3: t =" <+> prettyTCM t
     reportSLn "tc.instance" 70 $ "findInScope 3: t: " ++ show t
     mv <- lookupMeta m
+
+    -- If one of the arguments of the typeclass is a meta which is not rigidly
+    -- constrained, then don’t do anything because it may loop.
+    ifJustM (areThereNonRigidMetaArguments (unEl t)) (\ m -> return (Just (cands, Just m))) $ do
+
     -- If there are recursive instances, it's not safe to instantiate
     -- metavariables in the goal, so we freeze them before checking candidates.
     -- Metas that are rigidly constrained need not be frozen.
     isRec <- orM $ map (isRecursive . unEl . snd) cands
-    let shouldFreeze rigid m
-          | elem m rigid = return False
-          | otherwise    = not <$> isFrozen m
+    let shouldFreeze m = ifM (isRigid m) (return False) (not <$> isFrozen m)
     metas <- if not isRec then return [] else do
-      rigid <- rigidlyConstrainedMetas
-      filterM (shouldFreeze rigid) (allMetas t)
+      filterM shouldFreeze (allMetas t)
     forM_ metas $ \ m -> updateMetaVar m $ \ mv -> mv { mvFrozen = Frozen }
     cands <- checkCandidates m t cands
     reportSLn "tc.instance" 15 $
@@ -165,37 +170,19 @@ findInScope' m cands = ifM (isFrozen m) (return (Just cands)) $ do
 
       [(term, t')] -> do
         reportSDoc "tc.instance" 15 $ vcat
-          [ text "findInScope 5: found one candidate"
+          [ text "findInScope 5: solved by instance search using the only candidate"
           , nest 2 $ prettyTCM term
           , text "of type " <+> prettyTCM t'
           , text "for type" <+> prettyTCM t
           ]
 
-        -- if t' takes initial hidden arguments, apply them
-        ca <- liftTCM $ runExceptT $ checkArguments ExpandLast ExpandInstanceArguments (getRange mv) [] t' t
-        case ca of
-          Left _ -> __IMPOSSIBLE__
-          Right (args, t'') -> do
-            -- @args@ are the hidden arguments @t'@ takes, @t''@ is @t' `apply` args@
-{- TODO
-        (args, t'') <- implicitArgs (...) t'
-        do
--}
-            leqType t'' t
-            ctxArgs <- getContextArgs
-            v <- (`applyDroppingParameters` args) =<< reduce term
-            assignV DirEq m ctxArgs v
-            reportSDoc "tc.instance" 10 $ vcat
-              [ text "solved by instance search:"
-              , prettyTCM m <+> text ":=" <+> prettyTCM v
-              ]
-            return Nothing
+        return Nothing
 
       cs -> do
         reportSDoc "tc.instance" 15 $
           text ("findInScope 5: more than one candidate found: ") <+>
           prettyTCM (List.map fst cs)
-        return (Just cs)
+        return (Just (cs, Nothing))
     where
       -- | Check whether a type is a function type with an instance domain.
       isRecursive :: Term -> TCM Bool
@@ -245,16 +232,75 @@ rigidlyConstrainedMetas = do
         IsEmpty{}     -> return Nothing
         FindInScope{} -> return Nothing
 
+isRigid :: MetaId -> TCM Bool
+isRigid id = do
+  rigid <- rigidlyConstrainedMetas
+  return (elem id rigid)
+
+-- | Returns True if one of the arguments of @t@ is a meta which isn’t rigidly constrained
+areThereNonRigidMetaArguments :: Term -> TCM (Maybe MetaId)
+areThereNonRigidMetaArguments t = case ignoreSharing t of
+    Def n args -> areThereNonRigidMetaArgs args
+    Sort{}   -> __IMPOSSIBLE__
+    Var{}    -> __IMPOSSIBLE__
+    Con{}    -> __IMPOSSIBLE__
+    ExtLam{} -> __IMPOSSIBLE__
+    Lam{}    -> __IMPOSSIBLE__
+    Lit{}    -> __IMPOSSIBLE__
+    Level{}  -> __IMPOSSIBLE__
+    MetaV{}  -> __IMPOSSIBLE__
+    Pi{}     -> __IMPOSSIBLE__
+    Shared{} -> __IMPOSSIBLE__
+    DontCare{} -> __IMPOSSIBLE__
+  where
+    areThereNonRigidMetaArgs :: Elims -> TCM (Maybe MetaId)
+    areThereNonRigidMetaArgs [] = return Nothing
+    areThereNonRigidMetaArgs ((Proj _):_) = __IMPOSSIBLE__
+    areThereNonRigidMetaArgs ((Apply x):xs) = do
+      theRest <- areThereNonRigidMetaArgs xs
+      ifJustM (isNonRigidMeta $ unArg x) (\id -> return $ Just id) (areThereNonRigidMetaArgs xs)
+
+    isNonRigidMeta :: Term -> TCM (Maybe MetaId)
+    isNonRigidMeta (MetaV id _) = do ifM (not <$> isRigid id) (return (Just id)) (return Nothing)
+    isNonRigidMeta (Lam _ t) = isNonRigidMeta (unAbs t)
+    isNonRigidMeta _ = return Nothing
+
+-- | Apply the computation to every argument in turn by reseting the state every
+--   time. Return the list of the arguments giving the result True.
+--
+--   If the resulting list contains exactly one element, then the state is the
+--   same as the one obtained after running the corresponding computation. In
+--   all the other cases, the state is reseted.
+--   (used in instance search)
+filterResetingState :: Candidates -> (Candidate -> TCM Bool) -> TCM Candidates
+filterResetingState [] f = return []
+filterResetingState (x:xs) f = do
+  (r, s) <- localTCStateSaving (f x)
+  xs' <- filterResetingState xs f
+
+  if not r
+    then return xs'
+    else do
+      xs' <- dropSameCandidatesAs x xs'
+      if List.null xs'
+        then (do put s; return [x])
+        else return (x:xs')
+
+-- Drop all candidates which are judgmentally equal to the given one.
+dropSameCandidatesAs :: Candidate -> Candidates -> TCM Candidates
+dropSameCandidatesAs (v, a) cands = do
+    dropWhileM equal cands
+  where
+    equal (v',a') = dontAssignMetas $ ifNoConstraints_ (equalType a a' >> equalTerm a v v')
+                    {- then -} (return True)
+                    {- else -} (\ _ -> return False)
+                    `catchError` (\ _ -> return False)
+
 -- | Given a meta @m@ of type @t@ and a list of candidates @cands@,
 -- @checkCandidates m t cands@ returns a refined list of valid candidates.
 checkCandidates :: MetaId -> Type -> Candidates -> TCM Candidates
-checkCandidates m t cands = localTCState $ disableDestructiveUpdate $ do
-  -- for candidate checking, we don't take into account other IFS
-  -- constraints
-  dropConstraints (isIFSConstraint . clValue . theConstraint)
-  cands <- filterM (uncurry $ checkCandidateForMeta m t) cands
-  -- Drop all candidates which are equal to the first one
-  dropSameCandidates cands
+checkCandidates m t cands = {- localTCState $ -} disableDestructiveUpdate $ do
+  filterResetingState cands (uncurry $ checkCandidateForMeta m t)
   where
     checkCandidateForMeta :: MetaId -> Type -> Term -> Type -> TCM Bool
     checkCandidateForMeta m t term t' =
@@ -267,7 +313,7 @@ checkCandidates m t cands = localTCState $ disableDestructiveUpdate $ do
           , text "t'   =" <+> prettyTCM t'
           , text "term =" <+> prettyTCM term
           ]
-        localTCState $ do
+        do
            -- domi: we assume that nothing below performs direct IO (except
            -- for logging and such, I guess)
           ca <- runExceptT $ checkArguments ExpandLast ExpandInstanceArguments noRange [] t' t
@@ -303,19 +349,6 @@ checkCandidates m t cands = localTCState $ disableDestructiveUpdate $ do
     isIFSConstraint FindInScope{} = True
     isIFSConstraint UnBlock{}     = True -- otherwise test/fail/Issue723 loops
     isIFSConstraint _             = False
-
-    -- Drop all candidates which are judgmentally equal to the first one.
-    -- This is sufficient to reduce the list to a singleton should all be equal.
-    dropSameCandidates :: Candidates -> TCM Candidates
-    dropSameCandidates cands = do
-      case cands of
-        []            -> return cands
-        c@(v,a) : vas -> (c:) <$> dropWhileM equal vas
-          where
-            equal (v',a') = dontAssignMetas $ ifNoConstraints_ (equalType a a' >> equalTerm a v v')
-                              {- then -} (return True)
-                              {- else -} (\ _ -> return False)
-                            `catchError` (\ _ -> return False)
 
 -- | To preserve the invariant that a constructor is not applied to its
 --   parameter arguments, we explicitly check whether function term

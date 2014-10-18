@@ -218,13 +218,13 @@ instance PrettyTCM Constraint where
               OpenIFS{}  -> __IMPOSSIBLE__
               InstS{} -> __IMPOSSIBLE__
               InstV{} -> __IMPOSSIBLE__
-        FindInScope m Nothing -> do
+        FindInScope m b Nothing -> do
             t <- getMetaType m
-            sep [ text $ "Find in scope " ++ (show m) ++ " :" ++ (show t) ++ " (no candidate for now)"
+            sep [ text $ "Find in scope " ++ (show m) ++ " blocked on " ++ (show b) ++ " :" ++ (show t) ++ " (no candidate for now)"
                 ]
-        FindInScope m (Just cands) -> do
+        FindInScope m b (Just cands) -> do
             t <- getMetaType m
-            sep [ text $ "Find in scope " ++ (show m) ++ " :"
+            sep [ text $ "Find in scope " ++ (show m) ++ " blocked on " ++ (show b) ++ " :"
                 , nest 2 $ prettyTCM t
                 , sep $ flip map cands $ \(t,ty) ->
                            prettyTCM t <+> text ": " <+> prettyTCM ty

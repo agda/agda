@@ -278,7 +278,7 @@ instance Reify Constraint (OutputConstraint Expr Expr) where
           OpenIFS{}  -> __IMPOSSIBLE__
           InstS{} -> __IMPOSSIBLE__
           InstV{} -> __IMPOSSIBLE__
-    reify (FindInScope m mcands) = do
+    reify (FindInScope m b mcands) = do
       let cands = caseMaybe mcands [] (\ x -> x)
       m' <- reify (MetaV m [])
       ctxArgs <- getContextArgs

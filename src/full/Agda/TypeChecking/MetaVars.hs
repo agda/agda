@@ -204,7 +204,7 @@ newIFSMetaCtx s t vs cands = do
   reportSDoc "tc.meta.new" 50 $ fsep
     [ nest 2 $ text (show x) <+> text ":" <+> prettyTCM t
     ]
-  addConstraint $ FindInScope x cands
+  addConstraint $ FindInScope x Nothing cands
   return $ MetaV x $ map Apply vs
 
 

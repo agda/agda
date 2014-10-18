@@ -60,13 +60,19 @@ addConstraint c = do
         reportSDoc "tc.constr.add" 20 $ text "  simplified:" <+> prettyTCM c'
         solveConstraint_ c'
       else addConstraint' c'
-    -- the added constraint can cause IFS constraints to be solved
+    -- the added constraint can cause IFS constraints to be solved (but only
+    -- the constraints which aren’t blocked on an uninstantiated meta)
     unless (isIFSConstraint c) $
-       wakeConstraints (isIFSConstraint . clValue . theConstraint)
+       wakeConstraints (isWakeableIFSConstraint . clValue . theConstraint)
   where
+    isWakeableIFSConstraint :: Constraint -> TCM Bool
+    isWakeableIFSConstraint (FindInScope _ b _) = caseMaybe b (return False) (\m -> not <$> isInstantiatedMeta m)
+    isWakeableIFSConstraint _ = return False
+
     isIFSConstraint :: Constraint -> Bool
     isIFSConstraint FindInScope{} = True
-    isIFSConstraint _ = False
+    isIFSConstraint _             = False
+
     simpl :: Constraint -> TCM Constraint
     simpl c = do
       n <- genericLength <$> getContext
@@ -123,13 +129,13 @@ whenConstraints action handler =
 -- | Wake up the constraints depending on the given meta.
 wakeupConstraints :: MetaId -> TCM ()
 wakeupConstraints x = do
-  wakeConstraints (const True) -- (mentionsMeta x) -- TODO: needs fixing to cope with shared updates
+  wakeConstraints (return . const True) -- (mentionsMeta x) -- TODO: needs fixing to cope with shared updates
   solveAwakeConstraints
 
 -- | Wake up all constraints.
 wakeupConstraints_ :: TCM ()
 wakeupConstraints_ = do
-  wakeConstraints (const True)
+  wakeConstraints (return . const True)
   solveAwakeConstraints
 
 solveAwakeConstraints :: TCM ()
@@ -193,7 +199,8 @@ solveConstraint_ (UnBlock m)                =
       -- Open (whatever that means)
       Open -> __IMPOSSIBLE__
       OpenIFS -> __IMPOSSIBLE__
-solveConstraint_ (FindInScope m cands)      = findInScope m cands
+solveConstraint_ (FindInScope m b cands)      =
+  ifM (isFrozen m) (addConstraint $ FindInScope m b cands) (findInScope m cands)
 
 checkTypeCheckingProblem :: TypeCheckingProblem -> TCM Term
 checkTypeCheckingProblem p = case p of
