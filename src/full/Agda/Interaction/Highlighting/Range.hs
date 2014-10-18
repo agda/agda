@@ -31,7 +31,7 @@ import Agda.Utils.QuickCheck
 --
 -- Invariant: @'from' '<=' 'to'@.
 
-data Range = Range { from, to :: Integer }
+data Range = Range { from, to :: Int }
              deriving (Eq, Ord, Show, Typeable)
 
 -- | The 'Range' invariant.
@@ -72,12 +72,12 @@ empty r = to r <= from r
 
 -- | Converts a range to a list of positions.
 
-rangeToPositions :: Range -> [Integer]
+rangeToPositions :: Range -> [Int]
 rangeToPositions r = [from r .. to r - 1]
 
 -- | Converts several ranges to a list of positions.
 
-rangesToPositions :: Ranges -> [Integer]
+rangesToPositions :: Ranges -> [Int]
 rangesToPositions (Ranges rs) = concatMap rangeToPositions rs
 
 prop_rangesToPositions rs = sorted (rangesToPositions rs)
@@ -90,7 +90,7 @@ rToR (P.Range is) = Ranges (map iToR is)
   iToR (P.Interval { P.iStart = P.Pn { P.posPos = pos1 }
                    , P.iEnd   = P.Pn { P.posPos = pos2 }
                    }) =
-    Range { from = toInteger pos1, to = toInteger pos2 }
+    Range { from = fromIntegral pos1, to = fromIntegral pos2 }
 
 ------------------------------------------------------------------------
 -- Operations

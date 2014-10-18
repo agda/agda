@@ -41,6 +41,8 @@ import Data.Monoid
 import Control.Applicative ((<$>), (<*>))
 import Control.Monad
 import Agda.Utils.QuickCheck
+import Data.IntMap (IntMap)
+import qualified Data.IntMap as IntMap
 import Data.Map (Map)
 import qualified Data.Map as Map
 import Data.Typeable (Typeable)
@@ -108,7 +110,7 @@ data MetaInfo = MetaInfo
     -- something like that. It should contain useful information about
     -- the range (like the module containing a certain identifier, or
     -- the fixity of an operator).
-  , definitionSite :: Maybe (SC.TopLevelModuleName, Integer)
+  , definitionSite :: Maybe (SC.TopLevelModuleName, Int)
     -- ^ The definition site of the annotated thing, if applicable and
     --   known. File positions are counted from 1.
   }
@@ -118,7 +120,7 @@ data MetaInfo = MetaInfo
 --
 -- The first position in the file has number 1.
 
-newtype File = File { mapping :: Map Integer MetaInfo }
+newtype File = File { mapping :: IntMap MetaInfo }
   deriving (Eq, Show, Typeable)
 
 -- | Syntax highlighting information.
@@ -133,7 +135,7 @@ type HighlightingInfo = CompressedFile
 
 singleton :: Ranges -> MetaInfo -> File
 singleton rs m = File {
- mapping = Map.fromAscList [ (p, m) | p <- rangesToPositions rs ] }
+ mapping = IntMap.fromAscList [ (p, m) | p <- rangesToPositions rs ] }
 
 -- | Like 'singleton', but with several 'Ranges' instead of only one.
 
@@ -171,10 +173,10 @@ instance Monoid MetaInfo where
 
 merge :: File -> File -> File
 merge f1 f2 =
-  File { mapping = (Map.unionWith mappend `on` mapping) f1 f2 }
+  File { mapping = (IntMap.unionWith mappend `on` mapping) f1 f2 }
 
 instance Monoid File where
-  mempty  = File { mapping = Map.empty }
+  mempty  = File { mapping = IntMap.empty }
   mappend = merge
 
 ------------------------------------------------------------------------
@@ -182,13 +184,13 @@ instance Monoid File where
 
 -- | Returns the smallest position, if any, in the 'File'.
 
-smallestPos :: File -> Maybe Integer
-smallestPos = fmap (fst . fst) . Map.minViewWithKey . mapping
+smallestPos :: File -> Maybe Int
+smallestPos = fmap (fst . fst) . IntMap.minViewWithKey . mapping
 
 -- | Convert the 'File' to a map from file positions (counting from 1)
 -- to meta information.
 
-toMap :: File -> Map Integer MetaInfo
+toMap :: File -> IntMap MetaInfo
 toMap = mapping
 
 ------------------------------------------------------------------------
@@ -220,7 +222,7 @@ compressedFileInvariant (CompressedFile f)  =
 
 compress :: File -> CompressedFile
 compress f =
-  CompressedFile $ map join $ groupBy' p (Map.toAscList $ mapping f)
+  CompressedFile $ map join $ groupBy' p (IntMap.toAscList $ mapping f)
   where
   p (pos1, m1) (pos2, m2) = pos2 == pos1 + 1 && m1 == m2
   join pms = ( Range { from = head ps, to = last ps + 1 }
@@ -233,7 +235,7 @@ compress f =
 decompress :: CompressedFile -> File
 decompress =
   File .
-  Map.fromList .
+  IntMap.fromList .
   concat .
   map (\(r, m) -> [ (p, m) | p <- rangeToPositions r ]) .
   ranges
@@ -315,7 +317,7 @@ instance Monoid CompressedFile where
 -- where all the positions in @f1@ are @< p@, and all the positions
 -- in @f2@ are @>= p@.
 
-splitAtC :: Integer -> CompressedFile ->
+splitAtC :: Int -> CompressedFile ->
             (CompressedFile, CompressedFile)
 splitAtC p f = (CompressedFile f1, CompressedFile f2)
   where
@@ -337,11 +339,11 @@ prop_splitAtC p f =
   where
   (f1, f2) = splitAtC p f
 
-  positions = Map.keys . toMap . decompress
+  positions = IntMap.keys . toMap . decompress
 
 -- | Returns the smallest position, if any, in the 'CompressedFile'.
 
-smallestPosC :: CompressedFile -> Maybe Integer
+smallestPosC :: CompressedFile -> Maybe Int
 smallestPosC (CompressedFile [])           = Nothing
 smallestPosC (CompressedFile ((r, _) : _)) = Just (from r)
 
@@ -427,11 +429,11 @@ instance CoArbitrary MetaInfo where
     coarbitrary defSite
 
 instance Arbitrary File where
-  arbitrary = fmap (File . Map.fromList) $ listOf arbitrary
-  shrink    = map (File . Map.fromList) . shrink . Map.toList . toMap
+  arbitrary = fmap (File . IntMap.fromList) $ listOf arbitrary
+  shrink    = map (File . IntMap.fromList) . shrink . IntMap.toList . toMap
 
 instance CoArbitrary File where
-  coarbitrary (File rs) = coarbitrary (Map.toAscList rs)
+  coarbitrary (File rs) = coarbitrary (IntMap.toAscList rs)
 
 instance Arbitrary CompressedFile where
   arbitrary = do
