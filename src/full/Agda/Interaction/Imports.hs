@@ -44,7 +44,7 @@ import Agda.Syntax.Internal
 import Agda.TypeChecking.Errors
 import Agda.TypeChecking.Reduce
 import Agda.TypeChecking.Monad
--- import Agda.TypeChecking.Monad.Base.KillRange  -- killRange for Signature
+import Agda.TypeChecking.Monad.Base.KillRange  -- killRange for Signature
 import Agda.TypeChecking.Serialise
 import Agda.TypeChecking.Telescope
 import Agda.TypeChecking.Primitive
@@ -639,8 +639,10 @@ buildInterface file topLevel syntaxInfo previousHsImports pragmas = do
     let scope = scope' { scopeCurrent = m }
     -- Andreas, 2014-05-03: killRange did not result in significant reduction
     -- of .agdai file size, and lost a few seconds performance on library-test.
-    -- sig     <- killRange <$> getSignature
-    sig     <- getSignature
+    -- Andreas, Makoto, 2014-10-18 AIM XX: repeating the experiment
+    -- with discarding also the nameBindingSite in QName:
+    -- Saves 10% on serialization time (and file size)!
+    sig     <- killRange <$> getSignature
     builtin <- gets stLocalBuiltins
     ms      <- getImports
     mhs     <- mapM (\ m -> (m,) <$> moduleHash m) $ Set.toList ms

@@ -357,7 +357,9 @@ instance KillRange Name where
                   -- An experiment: what happens if we preserve
                   -- the range of the binding site, but kill all
                   -- other ranges before serialization?
-                  -- , nameBindingSite = noRange
+                  -- Andreas, Makoto, 2014-10-18 AIM XX
+                  -- Kill all ranges in signature, including nameBindingSite.
+                  , nameBindingSite = noRange
                   }
 
 instance KillRange ModuleName where
