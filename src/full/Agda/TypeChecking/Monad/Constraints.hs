@@ -46,7 +46,7 @@ solvingProblem pid m = verboseBracket "tc.constr.solve" 50 ("working on problem 
     (reportSLn "tc.constr.solve" 50 $ "problem " ++ show pid ++ " was not solved.")
     $ {- else -} do
       reportSLn "tc.constr.solve" 50 $ "problem " ++ show pid ++ " was solved!"
-      wakeConstraints (blockedOn pid . clValue . theConstraint)
+      wakeConstraints (return . blockedOn pid . clValue . theConstraint)
   return x
   where
     blockedOn pid (Guarded _ pid') = pid == pid'
@@ -64,14 +64,22 @@ getConstraintsForProblem pid = List.filter ((== pid) . constraintProblem) <$> ge
 getAwakeConstraints :: TCM Constraints
 getAwakeConstraints = gets stAwakeConstraints
 
-wakeConstraints :: (ProblemConstraint-> Bool) -> TCM ()
+wakeConstraints :: (ProblemConstraint-> TCM Bool) -> TCM ()
 wakeConstraints wake = do
-  (wakeup, sleepin) <- List.partition wake <$> gets stSleepingConstraints
+  c <- gets stSleepingConstraints
+  (wakeup, sleepin) <- partitionM wake c
   reportSLn "tc.constr.wake" 50 $
     "waking up         " ++ show (List.map constraintProblem wakeup) ++ "\n" ++
     "  still sleeping: " ++ show (List.map constraintProblem sleepin)
   modifySleepingConstraints $ const sleepin
   modifyAwakeConstraints (++ wakeup)
+
+partitionM :: (a -> TCM Bool) -> [a] -> TCM ([a], [a])
+partitionM f [] = return ([], [])
+partitionM f (x:xs) = do
+  b <- f x
+  (l, r) <- partitionM f xs
+  if b then return (x:l, r) else return (l, x:r)
 
 -- danger...
 dropConstraints :: (ProblemConstraint -> Bool) -> TCM ()

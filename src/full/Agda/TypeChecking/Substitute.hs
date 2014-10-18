@@ -687,7 +687,7 @@ instance Subst Constraint where
     LevelCmp cmp l1 l2       -> LevelCmp cmp (rf l1) (rf l2)
     Guarded c cs             -> Guarded (rf c) cs
     IsEmpty r a              -> IsEmpty r (rf a)
-    FindInScope m cands      -> FindInScope m (rf cands)
+    FindInScope m b cands    -> FindInScope m b (rf cands)
     UnBlock{}                -> c
     where
       rf x = applySubst rho x

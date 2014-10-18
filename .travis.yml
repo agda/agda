@@ -44,3 +44,9 @@ script:
 # Builds are loooong, we want to send an email as fast as possible.
 matrix:
   fast_finish: true
+
+# Every master and maintenance branches >= 2.4.3 must be here.  You can
+# also add your private branches if you want travis to test them.
+branches:
+  only:
+    - master
