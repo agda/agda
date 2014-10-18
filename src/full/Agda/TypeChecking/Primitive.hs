@@ -35,7 +35,7 @@ import Agda.TypeChecking.Reduce.Monad
 import Agda.TypeChecking.Substitute
 import Agda.TypeChecking.Errors
 import Agda.TypeChecking.Level
-import Agda.TypeChecking.Quote (quotingKit)
+import Agda.TypeChecking.Quote (QuotingKit, quoteTermWithKit, quoteTypeWithKit, quoteClauseWithKit, quotingKit)
 import Agda.TypeChecking.Pretty ()  -- instances only
 
 import Agda.Utils.Monad
@@ -122,12 +122,12 @@ instance ToTerm Bool where
         return $ \b -> if b then true else false
 
 instance ToTerm Term where
-    toTerm  = do (f, _, _) <- quotingKit; runReduceF f
-    toTermR = do (f, _, _) <- quotingKit; return f
+    toTerm  = do kit <- quotingKit; runReduceF (quoteTermWithKit kit)
+    toTermR = do kit <- quotingKit; return (quoteTermWithKit kit)
 
 instance ToTerm Type where
-    toTerm  = do (_, f, _) <- quotingKit; runReduceF f
-    toTermR = do (_, f, _) <- quotingKit; return f
+    toTerm  = do kit <- quotingKit; runReduceF (quoteTypeWithKit kit)
+    toTermR = do kit <- quotingKit; return (quoteTypeWithKit kit)
 
 instance ToTerm I.ArgInfo where
   toTerm = do
@@ -328,7 +328,7 @@ primQNameType = mkPrimFun1TCM (el primQName --> el primAgdaType)
 
 primQNameDefinition :: TCM PrimitiveImpl
 primQNameDefinition = do
-  (_, qType, qClause) <- quotingKit
+  kit                           <- quotingKit
   agdaFunDef                    <- primAgdaFunDef
   agdaFunDefCon                 <- primAgdaFunDefCon
   agdaDefinitionFunDef          <- primAgdaDefinitionFunDef
@@ -339,7 +339,9 @@ primQNameDefinition = do
   agdaDefinitionDataConstructor <- primAgdaDefinitionDataConstructor
   list        <- buildList
 
-  let defapp f xs  = apply f . map defaultArg <$> sequence xs
+  let qType        = quoteTypeWithKit kit
+      qClause      = quoteClauseWithKit kit
+      defapp f xs  = apply f . map defaultArg <$> sequence xs
       qFunDef t cs = defapp agdaFunDefCon [qType t, list <$> mapM qClause cs]
       qQName       = Lit . LitQName noRange
       con qn = do
