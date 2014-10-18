@@ -2,5 +2,5 @@ Issue1023.agda:28,1-29,41
 Termination checking failed for the following functions:
   noo
 Problematic calls:
-  noo FOne iso f
+  noo (Zero → WOne) iso f
     (at Issue1023.agda:29,27-30)

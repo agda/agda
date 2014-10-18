@@ -2,5 +2,5 @@ TerminationAndUnivalence.agda:31,1-32,41
 Termination checking failed for the following functions:
   noo
 Problematic calls:
-  noo FOne iso x
+  noo (⊥ → WOne) iso x
     (at TerminationAndUnivalence.agda:32,27-30)

@@ -1,3 +1,4 @@
 IrrelevantMatchRefl.agda:43,11-15
 D != D → D of type Set
-when checking that the expression refl has type K∞ ≡ abs (λ y → K∞)
+when checking that the expression refl has type
+subst (λ T → T) _ (_.δ K) (_.δ K) ≡ subst (λ T → T) _ (λ y → K∞)
