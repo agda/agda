@@ -7,3 +7,4 @@ Issue1168 : Issue1168.agda Issue1168.hs
 	$(AGDA) $@.agda
 	ghc -Wall -Werror -package Agda-$(VERSION) -o /tmp/$@ $@.hs
 	/tmp/$@
+	@rm /tmp/$@
