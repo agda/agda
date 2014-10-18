@@ -41,7 +41,14 @@ import Agda.Utils.String ( Str(Str), unStr )
 
 #include "../undefined.h"
 
-quotingKit :: TCM (Term -> ReduceM Term, Type -> ReduceM Term, Clause -> ReduceM Term)
+data QuotingKit = QuotingKit
+  { quoteTermWithKit   :: Term       -> ReduceM Term
+  , quoteTypeWithKit   :: Type       -> ReduceM Term
+  , quoteClauseWithKit :: Clause     -> ReduceM Term
+  , quoteDomWithKit    :: I.Dom Type -> ReduceM Term
+  }
+
+quotingKit :: TCM QuotingKit
 quotingKit = do
   hidden          <- primHidden
   instanceH       <- primInstance
@@ -201,7 +208,7 @@ quotingKit = do
           DontCare{} -> pure unsupported -- could be exposed at some point but we have to take care
           ExtLam{}   -> __IMPOSSIBLE__
 
-  return (quoteTerm, quoteType, quoteClause)
+  return $ QuotingKit quoteTerm quoteType quoteClause (quoteDom quoteType)
 
 quoteName :: QName -> Term
 quoteName x = Lit (LitQName noRange x)
@@ -211,13 +218,13 @@ quoteConName = quoteName . conName
 
 quoteTerm :: Term -> TCM Term
 quoteTerm v = do
-  (f, _, _) <- quotingKit
-  runReduceM (f v)
+  kit <- quotingKit
+  runReduceM (quoteTermWithKit kit v)
 
 quoteType :: Type -> TCM Term
 quoteType v = do
-  (_, f, _) <- quotingKit
-  runReduceM (f v)
+  kit <- quotingKit
+  runReduceM (quoteTypeWithKit kit v)
 
 agdaTermType :: TCM Type
 agdaTermType = El (mkType 0) <$> primAgdaTerm
