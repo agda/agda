@@ -37,4 +37,4 @@ $(LOG_DIR)/$(TAG)/% :
 	@$(INFO) >> $@
 
 clean :
-	@find . -name '*.agdai' -exec rm {} \;
+	@find . -type f -name '*.agdai' -delete
