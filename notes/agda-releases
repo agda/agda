@@ -142,3 +142,5 @@ followed:
     git checkout maint-$VERSION
     git push -u origin maint-$VERSION
 
+* Add maint-$VERSION to the branches whitelist in .travis.yml
+
