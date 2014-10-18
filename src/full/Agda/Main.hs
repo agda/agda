@@ -37,6 +37,7 @@ import Agda.Compiler.MAlonzo.Compiler as MAlonzo
 import Agda.Compiler.Epic.Compiler as Epic
 import Agda.Compiler.JS.Compiler as JS
 
+import Agda.Utils.Lens
 import Agda.Utils.Monad
 import Agda.Utils.Pretty (prettyShow)
 import Agda.Utils.String
@@ -90,6 +91,10 @@ runAgda = do
                        times
                 table = Boxes.hsep 1 Boxes.left [col1, col2]
             reportBenchmarkingLn $ Boxes.render table
+
+          -- Print accumulated statistics.
+          printStatistics 20 Nothing =<< use lensAccumStatistics
+
   where
     checkFile :: TCM ()
     checkFile = do
