@@ -24,7 +24,7 @@ all : remove_interface_files $(allagda) # $(alllagda)
 
 # Removing all the Agda inteface files.
 remove_interface_files :
-	find -name '*.agdai' | xargs rm -f
+	find . -name '*.agdai' | xargs rm -f
 
 #  --vim $(AGDA_TEST_FLAGS)
 
