@@ -739,6 +739,13 @@ unifyIndices flex a us vs = liftTCM $ do
                    -- that normalising gets rid of the occurrence.
           (|->?) = maybeAssign fallback
 
+      -- If one side is a literal and the other not, we convert the literal to
+      -- constructor form.
+      let isLit u = case ignoreSharing u of Lit{} -> True; _ -> False
+      (u, v) <- liftTCM $ if isLit u /= isLit v
+                then (,) <$> constructorForm u <*> constructorForm v
+                else return (u, v)
+
       liftTCM $ reportSDoc "tc.lhs.unify" 15 $
         sep [ text "unifyAtom"
             , nest 2 $ prettyTCM u <> if flexibleTerm u then text " (flexible)" else empty
