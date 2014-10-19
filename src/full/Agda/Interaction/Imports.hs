@@ -567,7 +567,7 @@ createInterface file mname =
 
       -- Move any remaining token highlighting to stSyntaxInfo.
       ifTopLevelAndHighlightingLevelIs NonInteractive $
-        printHighlightingInfo . stTokens =<< get
+        printHighlightingInfo =<< gets stTokens
       modify $ \st ->
         st { stTokens     = mempty
            , stSyntaxInfo = stSyntaxInfo st `mappend` stTokens st
