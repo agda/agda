@@ -7,7 +7,7 @@ module Agda.Interaction.Highlighting.Precise
     Aspect(..)
   , NameKind(..)
   , OtherAspect(..)
-  , MetaInfo(..)
+  , Aspects(..)
   , File
   , HighlightingInfo
     -- ** Creation
@@ -102,7 +102,7 @@ data OtherAspect
 -- | Meta information which can be associated with a
 -- character\/character range.
 
-data MetaInfo = MetaInfo
+data Aspects = Aspects
   { aspect       :: Maybe Aspect
   , otherAspects :: [OtherAspect]
   , note         :: Maybe String
@@ -120,7 +120,7 @@ data MetaInfo = MetaInfo
 --
 -- The first position in the file has number 1.
 
-newtype File = File { mapping :: IntMap MetaInfo }
+newtype File = File { mapping :: IntMap Aspects }
   deriving (Eq, Show, Typeable)
 
 -- | Syntax highlighting information.
@@ -133,13 +133,13 @@ type HighlightingInfo = CompressedFile
 -- | @'singleton' rs m@ is a file whose positions are those in @rs@,
 -- and in which every position is associated with @m@.
 
-singleton :: Ranges -> MetaInfo -> File
+singleton :: Ranges -> Aspects -> File
 singleton rs m = File {
  mapping = IntMap.fromAscList [ (p, m) | p <- rangesToPositions rs ] }
 
 -- | Like 'singleton', but with several 'Ranges' instead of only one.
 
-several :: [Ranges] -> MetaInfo -> File
+several :: [Ranges] -> Aspects -> File
 several rs m = mconcat $ map (\r -> singleton r m) rs
 
 ------------------------------------------------------------------------
@@ -147,8 +147,8 @@ several rs m = mconcat $ map (\r -> singleton r m) rs
 
 -- | Merges meta information.
 
-mergeMetaInfo :: MetaInfo -> MetaInfo -> MetaInfo
-mergeMetaInfo m1 m2 = MetaInfo
+mergeAspects :: Aspects -> Aspects -> Aspects
+mergeAspects m1 m2 = Aspects
   { aspect       = (mplus `on` aspect) m1 m2
   , otherAspects = nub $ ((++) `on` otherAspects) m1 m2
   , note         = case (note m1, note m2) of
@@ -161,13 +161,14 @@ mergeMetaInfo m1 m2 = MetaInfo
   , definitionSite = (mplus `on` definitionSite) m1 m2
   }
 
-instance Monoid MetaInfo where
-  mempty = MetaInfo { aspect         = Nothing
-                    , otherAspects   = []
-                    , note           = Nothing
-                    , definitionSite = Nothing
-                    }
-  mappend = mergeMetaInfo
+instance Monoid Aspects where
+  mempty = Aspects
+    { aspect         = Nothing
+    , otherAspects   = []
+    , note           = Nothing
+    , definitionSite = Nothing
+    }
+  mappend = mergeAspects
 
 -- | Merges files.
 
@@ -190,24 +191,24 @@ smallestPos = fmap (fst . fst) . IntMap.minViewWithKey . mapping
 -- | Convert the 'File' to a map from file positions (counting from 1)
 -- to meta information.
 
-toMap :: File -> IntMap MetaInfo
+toMap :: File -> IntMap Aspects
 toMap = mapping
 
 ------------------------------------------------------------------------
 -- Compressed files
 
 -- | A compressed 'File', in which consecutive positions with the same
--- 'MetaInfo' are stored together.
+-- 'Aspects' are stored together.
 
 newtype CompressedFile =
-  CompressedFile { ranges :: [(Range, MetaInfo)] }
+  CompressedFile { ranges :: [(Range, Aspects)] }
   deriving (Eq, Show, Typeable)
 
 -- | Invariant for compressed files.
 --
 -- Note that these files are not required to be /maximally/
 -- compressed, because ranges are allowed to be empty, and the
--- 'MetaInfo's in adjacent ranges are allowed to be equal.
+-- 'Aspects's in adjacent ranges are allowed to be equal.
 
 compressedFileInvariant :: CompressedFile -> Bool
 compressedFileInvariant (CompressedFile []) = True
@@ -263,7 +264,7 @@ noHighlightingInRange rs (CompressedFile hs) =
 -- | @'singletonC' rs m@ is a file whose positions are those in @rs@,
 -- and in which every position is associated with @m@.
 
-singletonC :: Ranges -> MetaInfo -> CompressedFile
+singletonC :: Ranges -> Aspects -> CompressedFile
 singletonC (Ranges rs) m =
   CompressedFile [(r, m) | r <- rs, not (empty r)]
 
@@ -272,7 +273,7 @@ prop_singleton rs m = singleton rs m == decompress (singletonC rs m)
 -- | Like 'singletonR', but with a list of 'Ranges' instead of a
 -- single one.
 
-severalC :: [Ranges] -> MetaInfo -> CompressedFile
+severalC :: [Ranges] -> Aspects -> CompressedFile
 severalC rss m = mconcat $ map (\rs -> singletonC rs m) rss
 
 prop_several rss m = several rss m == decompress (severalC rss m)
@@ -295,7 +296,7 @@ mergeC (CompressedFile f1) (CompressedFile f2) =
   -- Precondition: The ranges are overlapping.
   fuse (i1, m1) (i2, m2) =
     ( fix [ (Range { from = a, to = b }, ma)
-          , (Range { from = b, to = c }, mergeMetaInfo m1 m2)
+          , (Range { from = b, to = c }, mergeAspects m1 m2)
           ]
     , fix [ (Range { from = c, to = d }, md)
           ]
@@ -405,24 +406,24 @@ instance Arbitrary OtherAspect where
 instance CoArbitrary OtherAspect where
   coarbitrary = coarbitrary . fromEnum
 
-instance Arbitrary MetaInfo where
+instance Arbitrary Aspects where
   arbitrary = do
     aspect  <- arbitrary
     other   <- arbitrary
     note    <- maybeGen string
     defSite <- arbitrary
-    return (MetaInfo { aspect = aspect, otherAspects = other
+    return (Aspects { aspect = aspect, otherAspects = other
                      , note = note, definitionSite = defSite })
     where string = listOfElements "abcdefABCDEF/\\.\"'@()åäö\n"
 
-  shrink (MetaInfo a o n d) =
-    [ MetaInfo a o n d | a <- shrink a ] ++
-    [ MetaInfo a o n d | o <- shrink o ] ++
-    [ MetaInfo a o n d | n <- shrink n ] ++
-    [ MetaInfo a o n d | d <- shrink d ]
+  shrink (Aspects a o n d) =
+    [ Aspects a o n d | a <- shrink a ] ++
+    [ Aspects a o n d | o <- shrink o ] ++
+    [ Aspects a o n d | n <- shrink n ] ++
+    [ Aspects a o n d | d <- shrink d ]
 
-instance CoArbitrary MetaInfo where
-  coarbitrary (MetaInfo aspect otherAspects note defSite) =
+instance CoArbitrary Aspects where
+  coarbitrary (Aspects aspect otherAspects note defSite) =
     coarbitrary aspect .
     coarbitrary otherAspects .
     coarbitrary note .

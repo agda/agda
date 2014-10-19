@@ -645,7 +645,7 @@ nameToFile :: SourceToModule
               -- ^ The name qualifier (may be empty).
            -> C.Name
               -- ^ The base name.
-           -> (Bool -> MetaInfo)
+           -> (Bool -> Aspects)
               -- ^ Meta information to be associated with the name.
               -- The argument is 'True' iff the name is an operator.
            -> Maybe P.Range
@@ -671,19 +671,20 @@ nameToFile modMap file xs x m mR =
 
 -- | A variant of 'nameToFile' for qualified abstract names.
 
-nameToFileA :: SourceToModule
-               -- ^ Maps source file paths to module names.
-            -> AbsolutePath
-               -- ^ The file name of the current module. Used for
-               -- consistency checking.
-            -> A.QName
-               -- ^ The name.
-            -> Bool
-               -- ^ Should the binding site be included in the file?
-            -> (Bool -> MetaInfo)
-               -- ^ Meta information to be associated with the name.
-               -- ^ The argument is 'True' iff the name is an operator.
-            -> File
+nameToFileA
+  :: SourceToModule
+     -- ^ Maps source file paths to module names.
+  -> AbsolutePath
+     -- ^ The file name of the current module. Used for
+     -- consistency checking.
+  -> A.QName
+     -- ^ The name.
+  -> Bool
+     -- ^ Should the binding site be included in the file?
+  -> (Bool -> Aspects)
+     -- ^ Meta information to be associated with the name.
+     -- ^ The argument is 'True' iff the name is an operator.
+  -> File
 nameToFileA modMap file x include m =
   nameToFile modMap
              file

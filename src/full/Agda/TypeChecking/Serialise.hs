@@ -1288,11 +1288,11 @@ instance EmbPrj HP.OtherAspect where
     valu [6] = valu0 HP.UnsolvedConstraint
     valu _   = malformed
 
-instance EmbPrj HP.MetaInfo where
-  icod_ (HP.MetaInfo a b c d) = icode4' a b c d
+instance EmbPrj HP.Aspects where
+  icod_ (HP.Aspects a b c d) = icode4' a b c d
 
   value = vcase valu where
-    valu [a, b, c, d] = valu4 HP.MetaInfo a b c d
+    valu [a, b, c, d] = valu4 HP.Aspects a b c d
     valu _            = malformed
 
 instance EmbPrj Precedence where

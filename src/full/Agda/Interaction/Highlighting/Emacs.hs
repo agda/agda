@@ -40,7 +40,7 @@ import Agda.Utils.Impossible
 -- | Converts the 'aspect' and 'otherAspects' fields to atoms readable
 -- by the Emacs interface.
 
-toAtoms :: MetaInfo -> [String]
+toAtoms :: Aspects -> [String]
 toAtoms m = map toAtom (otherAspects m) ++ toAtoms' (aspect m)
   where
   toAtom x = map toLower (show x)
@@ -59,11 +59,11 @@ toAtoms m = map toAtom (otherAspects m) ++ toAtoms' (aspect m)
 -- | Shows meta information in such a way that it can easily be read
 -- by Emacs.
 
-showMetaInfo :: ModuleToSource
-                -- ^ Must contain a mapping for the definition site's
-                -- module, if any.
-             -> (Range, MetaInfo) -> Lisp String
-showMetaInfo modFile (r, m) =
+showAspects
+  :: ModuleToSource
+     -- ^ Must contain a mapping for the definition site's module, if any.
+  -> (Range, Aspects) -> Lisp String
+showAspects modFile (r, m) =
     L $ ((map (A . show) [from r, to r])
            ++
          [L $ map A $ toAtoms m]
@@ -94,7 +94,7 @@ lispifyHighlightingInfo h modFile = do
                     mi == mempty                       -> direct
     _                                                  -> indirect
   where
-  info     = map (showMetaInfo modFile) (ranges h)
+  info     = map (showAspects modFile) (ranges h)
 
   direct   = return $ L (A "agda2-highlight-add-annotations" :
                          map Q info)

@@ -154,7 +154,7 @@ code contents info =
   where
   infoMap = toMap (decompress info)
 
-  annotate :: Int -> MetaInfo -> Html -> Html
+  annotate :: Int -> Aspects -> Html -> Html
   annotate pos mi = anchor ! attributes
     where
     attributes =

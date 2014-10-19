@@ -68,7 +68,7 @@ type Tokens = [Token]
 
 data Token = Token
   { text     :: Text
-  , info     :: MetaInfo
+  , info     :: Aspects
   , position :: Int      -- ^ Is not used currently, but could
                          -- potentially be used for hyperlinks as in
                          -- the HTML output?
