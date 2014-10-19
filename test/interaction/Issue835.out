@@ -1,9 +1,9 @@
 Agda2> (agda2-status-action "")
 (agda2-info-action "*Type-checking*" "" nil)
 (agda2-highlight-clear)
-(agda2-info-action "*Type-checking*" "Checking Issue835 (Issue835.agda).\n" t)
-(agda2-info-action "*Type-checking*" "Finished Issue835.\n" t)
+(agda2-info-action "*Type-checking*" "Checking Issue835 (Issue835.agda). " t)
+(agda2-info-action "*Type-checking*" "Finished Issue835. " t)
 (agda2-status-action "")
-(agda2-info-action "*Constraints*" "Is empty: x ≡ y [ at Issue835.agda:12,3-5 ]\n" nil)
+(agda2-info-action "*Constraints*" "Is empty: x ≡ y [ at Issue835.agda:12,3-5 ] " nil)
 ((last . 1) . (agda2-goals-action '()))
 Agda2> 

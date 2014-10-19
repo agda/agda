@@ -1,9 +1,9 @@
 Agda2> (agda2-status-action "")
 (agda2-info-action "*Type-checking*" "" nil)
 (agda2-highlight-clear)
-(agda2-info-action "*Type-checking*" "Checking Issue1104 (Issue1104.agda).\n" t)
-(agda2-info-action "*Type-checking*" "Finished Issue1104.\n" t)
+(agda2-info-action "*Type-checking*" "Checking Issue1104 (Issue1104.agda). " t)
+(agda2-info-action "*Type-checking*" "Finished Issue1104. " t)
 (agda2-status-action "")
-(agda2-info-action "*All Goals*" "?0 : Set\n?1 : Set\n?2 : Set\n?3 : Set → Set → Set\n?4 : Set\n" nil)
+(agda2-info-action "*All Goals*" "?0 : Set ?1 : Set ?2 : Set ?3 : Set → Set → Set ?4 : Set " nil)
 ((last . 1) . (agda2-goals-action '(0 1 2 3 4)))
 Agda2> Agda2> 
