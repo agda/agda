@@ -202,23 +202,27 @@ rigidlyConstrainedMetas = do
   cs <- (++) <$> gets stSleepingConstraints <*> gets stAwakeConstraints
   catMaybes <$> mapM rigidMetas cs
   where
-    isRigid v =
-      case v of
-        Def f _ -> return True
-          -- def <- getConstInfo f
-          -- case theDef def of
-          --   Record{}   -> return True
-          --   Datatype{} -> return True
-          --   Axiom{}    -> return True
-          --   _
-        Con{} -> return True
-        Lit{} -> return True
-        Var{} -> return True
-        _ -> return False
+    isRigid v = do
+      bv <- reduceB v
+      case ignoreSharing <$> bv of
+        Blocked{}    -> return False
+        NotBlocked v -> case v of
+          MetaV{}    -> return False
+          Def f _    -> return True
+          Con{}      -> return True
+          Lit{}      -> return True
+          Var{}      -> return True
+          Sort{}     -> return True
+          Pi{}       -> return True
+          Level{}    -> return False
+          DontCare{} -> return False
+          Lam{}      -> __IMPOSSIBLE__
+          Shared{}   -> __IMPOSSIBLE__
+          ExtLam{}   -> __IMPOSSIBLE__
     rigidMetas c =
       case clValue $ theConstraint c of
         ValueCmp _ _ u v ->
-          case (u, v) of
+          case (ignoreSharing u, ignoreSharing v) of
             (MetaV m _, _) -> ifM (isRigid v) (return $ Just m) (return Nothing)
             (_, MetaV m _) -> ifM (isRigid u) (return $ Just m) (return Nothing)
             _              -> return Nothing
@@ -254,16 +258,17 @@ areThereNonRigidMetaArguments t = case ignoreSharing t of
     DontCare{} -> __IMPOSSIBLE__
   where
     areThereNonRigidMetaArgs :: Elims -> TCM (Maybe MetaId)
-    areThereNonRigidMetaArgs [] = return Nothing
-    areThereNonRigidMetaArgs ((Proj _):_) = __IMPOSSIBLE__
-    areThereNonRigidMetaArgs ((Apply x):xs) = do
-      theRest <- areThereNonRigidMetaArgs xs
-      ifJustM (isNonRigidMeta $ unArg x) (\id -> return $ Just id) (areThereNonRigidMetaArgs xs)
+    areThereNonRigidMetaArgs []             = return Nothing
+    areThereNonRigidMetaArgs (Proj _ : _)   = __IMPOSSIBLE__
+    areThereNonRigidMetaArgs (Apply x : xs) = do
+      ifJustM (isNonRigidMeta $ unArg x) (return . Just) (areThereNonRigidMetaArgs xs)
 
     isNonRigidMeta :: Term -> TCM (Maybe MetaId)
-    isNonRigidMeta (MetaV id _) = do ifM (not <$> isRigid id) (return (Just id)) (return Nothing)
-    isNonRigidMeta (Lam _ t) = isNonRigidMeta (unAbs t)
-    isNonRigidMeta _ = return Nothing
+    isNonRigidMeta v =
+      case ignoreSharing v of
+        MetaV i _ -> ifM (not <$> isRigid i) (return (Just i)) (return Nothing)
+        Lam _ t   -> isNonRigidMeta (unAbs t)
+        _         -> return Nothing
 
 -- | Apply the computation to every argument in turn by reseting the state every
 --   time. Return the list of the arguments giving the result True.
