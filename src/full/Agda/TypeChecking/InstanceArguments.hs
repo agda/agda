@@ -21,6 +21,7 @@ import Agda.TypeChecking.Pretty
 import Agda.TypeChecking.Substitute
 import Agda.TypeChecking.Reduce
 import Agda.TypeChecking.Telescope
+import Agda.TypeChecking.Free
 
 import {-# SOURCE #-} Agda.TypeChecking.Constraints
 import {-# SOURCE #-} Agda.TypeChecking.Rules.Term (checkArguments)
@@ -244,7 +245,18 @@ isRigid id = do
 -- | Returns True if one of the arguments of @t@ is a meta which isn’t rigidly constrained
 areThereNonRigidMetaArguments :: Term -> TCM (Maybe MetaId)
 areThereNonRigidMetaArguments t = case ignoreSharing t of
-    Def n args -> areThereNonRigidMetaArgs args
+    Def n args -> do
+      TelV tel _ <- telView . defType =<< getConstInfo n
+      let varOccs EmptyTel           = []
+          varOccs (ExtendTel _ btel) = occurrence 0 (freeVars tel) : varOccs tel
+            where tel = unAbs btel
+          rigid StronglyRigid = True
+          rigid Unguarded     = True
+          rigid WeaklyRigid   = True
+          rigid _             = False
+      reportSDoc "tc.instance.rigid" 70 $ text "class args:" <+> prettyTCM tel $$
+                                          nest 2 (text $ "used: " ++ show (varOccs tel))
+      areThereNonRigidMetaArgs [ arg | (o, arg) <- zip (varOccs tel) args, not $ rigid o ]
     Sort{}   -> __IMPOSSIBLE__
     Var{}    -> __IMPOSSIBLE__
     Con{}    -> __IMPOSSIBLE__
