@@ -308,7 +308,7 @@ dropSameCandidatesAs :: Candidate -> Candidates -> TCM Candidates
 dropSameCandidatesAs (v, a) cands = do
     dropWhileM equal cands
   where
-    equal (v',a') = dontAssignMetas $ ifNoConstraints_ (equalType a a' >> equalTerm a v v')
+    equal (v',a') = localTCState $ dontAssignMetas $ ifNoConstraints_ (equalType a a' >> equalTerm a v v')
                     {- then -} (return True)
                     {- else -} (\ _ -> return False)
                     `catchError` (\ _ -> return False)
