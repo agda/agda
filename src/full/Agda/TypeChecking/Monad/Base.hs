@@ -49,6 +49,7 @@ import Agda.Syntax.Internal as I
 import Agda.Syntax.Internal.Pattern ()
 import Agda.Syntax.Position
 import Agda.Syntax.Scope.Base
+import qualified Agda.Syntax.Info as Info
 
 import Agda.TypeChecking.CompiledClause
 
@@ -165,10 +166,10 @@ data PersistentTCState = PersistentTCSt
 -- | State relative to a loaded file
 type LFileState = TCState -- all of it
 
-data CachedDecl = EnterSection ModuleInfo ModuleName [A.TypedBindings]
+data CachedDecl = EnterSection Info.ModuleInfo ModuleName [A.TypedBindings]
+                | LeaveSection ModuleName
                 | Decl A.Declaration
                   -- ^ Never a Section
-                | LeaveSection ModuleName
                 | Pragmas PragmaOptions
                 -- no log for entering a ScopedDecl but we do want to enter.
 -- |

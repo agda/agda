@@ -412,7 +412,7 @@ cacheLFS :: CachedDecl-> TCM ()
 cacheLFS d = do
   reportSLn "cache" 10 $ "cacheLFS"
   l <- gets getFileState
-  modifyCachedState $ fmap (second (++ [(d,l)]))
+  l `seq` modifyCachedState $ fmap (second (++ [(d,l)]))
 
 restoreLFS :: LFileState -> TCM ()
 restoreLFS l = do

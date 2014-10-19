@@ -70,7 +70,25 @@ import Agda.Utils.Impossible
 -- | Cached checkDecl
 ccheckDecl :: A.Declaration -> TCM ()
 ccheckDecl d@A.ScopedDecl{} = checkDecl d
-ccheckDecl d@A.Section{} = checkDecl d
+ccheckDecl d@(A.Section minfo mname tbinds _) = do
+  e <- readCS
+  reportSLn "cache.decl" 10 $ "ccheckDecl: " ++ show (isJust e)
+  case e of
+    Just (EnterSection minfo' mname' tbinds', _)
+      | minfo == minfo' && mname == mname' && tbinds == tbinds' -> do
+        return ()
+    _ -> do
+      cleanCS
+  cacheLFS (EnterSection minfo mname tbinds)
+  checkDecl d
+  e' <- readCS
+  case e' of
+    Just (LeaveSection mname', _) | mname == mname' -> do
+      return ()
+    _ -> do
+      cleanCS
+  cacheLFS (LeaveSection mname)
+
 ccheckDecl d = do
     e <- readCS
     reportSLn "cache.decl" 10 $ "ccheckDecl: " ++ show (isJust e)
@@ -94,25 +112,19 @@ ccheckDecl d = do
         checkDeclWrap d
     cacheLFS (Decl d)
  where
-   compareDecl (A.Section minfo mname binds _) (A.Section minfo' mname' binds' _)
-     = __IMPOSSIBLE__ -- minfo == minfo' && mname == mname' && binds == binds'
+   compareDecl A.Section{} A.Section{} = __IMPOSSIBLE__
    compareDecl A.ScopedDecl{} A.ScopedDecl{} = __IMPOSSIBLE__
    compareDecl x y = x == y
-   checkDeclWrap d@A.RecDef{} = do
+   -- changes to CS inside a RecDef or Mutual ought not happen,
+   -- but they do happen, so we discard them.
+   ignoreChanges m = do
      cs <- getCachedState
      cleanCS
-     checkDecl d
-     -- changes to CS inside a RecDef ought not happen,
-     -- but they do happen, so we discard them.
+     m
      putCachedState cs
-   checkDeclWrap d@A.Mutual{} = do
-     cs <- getCachedState
-     cleanCS
-     checkDecl d
-     -- changes to CS inside a Mutual block ought not happen,
-     -- but they do happen, so we discard them.
-     putCachedState cs
-   checkDeclWrap d = checkDecl d
+   checkDeclWrap d@A.RecDef{} = ignoreChanges $ checkDecl d
+   checkDeclWrap d@A.Mutual{} = ignoreChanges $ checkDecl d
+   checkDeclWrap d            = checkDecl d
 
 -- | Type check a sequence of declarations.
 checkDecls :: [A.Declaration] -> TCM ()
