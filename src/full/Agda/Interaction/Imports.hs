@@ -533,7 +533,16 @@ createInterface file mname =
     let getOptions (A.OptionsPragma opts) = Just opts
         getOptions _                      = Nothing
         options = catMaybes $ map getOptions pragmas
-    mapM_ setOptionsFromPragma options -- TODO invalidate if pragmas change
+    mapM_ setOptionsFromPragma options
+
+    -- invalidate cache if pragmas change, TODO move
+    opts <- gets stPragmaOptions
+    me <- readCS
+    case me of
+      Just (Pragmas opts', _) | opts == opts'
+        -> return ()
+      _ -> cleanCS
+    cacheLFS (Pragmas opts)
 
     -- Scope checking.
     topLevel <- billTop Bench.Scoping $

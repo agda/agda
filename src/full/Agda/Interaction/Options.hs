@@ -123,7 +123,7 @@ data PragmaOptions = PragmaOptions
   , optCopatterns                :: Bool  -- ^ Allow definitions by copattern matching?
   , optPatternMatching           :: Bool  -- ^ Is pattern matching allowed in the current file?
   }
-  deriving Show
+  deriving (Show,Eq)
 
 -- | The options from an @OPTIONS@ pragma.
 --

@@ -169,6 +169,7 @@ data CachedDecl = EnterSection ModuleInfo ModuleName [A.TypedBindings]
                 | Decl A.Declaration
                   -- ^ Never a Section
                 | LeaveSection ModuleName
+                | Pragmas PragmaOptions
                 -- no log for entering a ScopedDecl but we do want to enter.
 -- |
 type CachedState = [(CachedDecl,LFileState)]

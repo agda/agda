@@ -89,6 +89,7 @@ ccheckDecl d = do
         cleanCS
         checkDeclWrap d
       _ -> do
+        reportSLn "cache.decl" 20 $ "cleaning!"
         cleanCS
         checkDeclWrap d
     cacheLFS (Decl d)
