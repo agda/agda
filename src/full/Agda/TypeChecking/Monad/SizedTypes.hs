@@ -108,12 +108,23 @@ builtinSizeHook s q e' t = do
 -- * Constructors
 ------------------------------------------------------------------------
 
+-- | The sort of built-in types @SIZE@ and @SIZELT@.
+sizeSort :: Sort
+sizeSort = mkType 0
+
+-- | The type of built-in types @SIZE@ and @SIZELT@.
+sizeUniv :: Type
+sizeUniv = sort $ sizeSort
+
+-- | The built-in type @SIZE@ with user-given name.
 sizeType_ :: QName -> Type
-sizeType_ size = El (mkType 0) $ Def size []
+sizeType_ size = El sizeSort $ Def size []
 
+-- | The built-in type @SIZE@.
 sizeType :: TCM Type
-sizeType = El (mkType 0) <$> primSize
+sizeType = El sizeSort <$> primSize
 
+-- | The name of @SIZESUC@.
 sizeSucName :: TCM (Maybe QName)
 sizeSucName = liftTCM $
   ifM (not . optSizedTypes <$> pragmaOptions) (return Nothing) $ do

@@ -17,8 +17,9 @@ import Control.Monad.State.Class
 import Data.Function
 import Data.Monoid
 import Data.Maybe
-import qualified Data.Map  as Map
-import qualified Data.List as List
+import qualified Data.IntMap as IntMap
+import qualified Data.Map    as Map
+import qualified Data.List   as List
 
 import System.FilePath
 import System.Directory
@@ -148,12 +149,12 @@ code contents info =
             (pos, map (snd . snd) cs, maybe mempty id mi)
           [] -> __IMPOSSIBLE__) $
   List.groupBy ((==) `on` fst) $
-  map (\(pos, c) -> (Map.lookup pos infoMap, (pos, c))) $
+  map (\(pos, c) -> (IntMap.lookup pos infoMap, (pos, c))) $
   zip [1..] contents
   where
   infoMap = toMap (decompress info)
 
-  annotate :: Integer -> MetaInfo -> Html -> Html
+  annotate :: Int -> Aspects -> Html -> Html
   annotate pos mi = anchor ! attributes
     where
     attributes =

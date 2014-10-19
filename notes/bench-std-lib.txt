@@ -2463,3 +2463,5400 @@ ModuleName               24 ms
 real	3m44.031s
 user	3m40.674s
 sys	0m2.928s
+
+
+
+===========================================================================
+
+2014-09-07
+
+Finished README.
+Total time           222,833 ms
+Parsing                1,276 ms
+Parsing.Operators      9,888 ms
+Import                 4,400 ms
+Deserialization           24 ms
+Scoping                8,756 ms
+Typing                49,715 ms
+Termination            1,796 ms
+Termination.Graph        196 ms
+Termination.RecCheck     532 ms
+Termination.Compare      256 ms
+Positivity             5,112 ms
+Injectivity              844 ms
+ProjectionLikeness       148 ms
+Coverage               1,712 ms
+Highlighting           7,600 ms
+Serialization        127,731 ms
+Serialization.Sort       920 ms
+ModuleName                24 ms
+
+ 140,853,143,208 bytes allocated in the heap
+  16,042,507,616 bytes copied during GC
+     394,876,856 bytes maximum residency (42 sample(s))
+       5,304,704 bytes maximum slop
+            1162 MB total memory in use (0 MB lost due to fragmentation)
+
+                                    Tot time (elapsed)  Avg pause  Max pause
+  Gen  0      1575 colls,     0 par   45.68s   46.05s     0.0292s    0.4089s
+  Gen  1        42 colls,     0 par   14.52s   14.56s     0.3467s    0.8748s
+
+  INIT    time    0.00s  (  0.00s elapsed)
+  MUT     time  161.28s  (163.19s elapsed)
+  GC      time   60.20s  ( 60.61s elapsed)
+  EXIT    time    0.03s  (  0.03s elapsed)
+  Total   time  221.52s  (223.84s elapsed)
+
+  %GC     time      27.2%  (27.1% elapsed)
+
+  Alloc rate    873,355,692 bytes per MUT second
+
+  Productivity  72.8% of total user, 72.1% of total elapsed
+
+
+real	3m43.962s
+user	3m41.522s
+sys	0m1.460s
+
+-- after refactoring of Free into Reader monad
+-- (no change expected)
+
+Finished README.
+Total time           222,437 ms
+Parsing                1,284 ms
+Parsing.Operators      9,580 ms
+Import                 3,968 ms
+Deserialization           12 ms
+Scoping                9,124 ms
+Typing                50,295 ms
+Termination            1,944 ms
+Termination.Graph        204 ms
+Termination.RecCheck     484 ms
+Termination.Compare      444 ms
+Positivity             5,480 ms
+Injectivity              760 ms
+ProjectionLikeness       172 ms
+Coverage               1,956 ms
+Highlighting           7,148 ms
+Serialization        126,827 ms
+Serialization.Sort       880 ms
+ModuleName                24 ms
+
+ 143,764,787,248 bytes allocated in the heap
+  16,412,471,264 bytes copied during GC
+     422,751,256 bytes maximum residency (43 sample(s))
+       5,211,104 bytes maximum slop
+            1219 MB total memory in use (0 MB lost due to fragmentation)
+
+                                    Tot time (elapsed)  Avg pause  Max pause
+  Gen  0      1581 colls,     0 par   44.82s   45.21s     0.0286s    0.4164s
+  Gen  1        43 colls,     0 par   14.56s   14.62s     0.3400s    0.9447s
+
+  INIT    time    0.00s  (  0.00s elapsed)
+  MUT     time  161.80s  (163.19s elapsed)
+  GC      time   59.38s  ( 59.83s elapsed)
+  EXIT    time    0.02s  (  0.02s elapsed)
+  Total   time  221.21s  (223.05s elapsed)
+
+  %GC     time      26.8%  (26.8% elapsed)
+
+  Alloc rate    888,522,381 bytes per MUT second
+
+  Productivity  73.2% of total user, 72.6% of total elapsed
+
+
+real	3m43.157s
+user	3m41.210s
+sys	0m1.356s
+
+-- After not returning bound variables in Free Finished Everything.
+
+Finished README.
+Total time           221,953 ms
+Parsing                1,260 ms
+Parsing.Operators      9,560 ms
+Import                 4,092 ms
+Deserialization           24 ms
+Scoping                8,972 ms
+Typing                49,899 ms
+Termination            2,804 ms
+Termination.Graph        208 ms
+Termination.RecCheck   1,356 ms
+Termination.Compare      476 ms
+Positivity             5,352 ms
+Injectivity              808 ms
+ProjectionLikeness       156 ms
+Coverage               1,920 ms
+Highlighting           6,220 ms
+Serialization        127,075 ms
+Serialization.Sort       908 ms
+ModuleName                24 ms
+
+ 143,466,267,472 bytes allocated in the heap
+  16,419,616,000 bytes copied during GC
+     422,751,184 bytes maximum residency (43 sample(s))
+       5,215,864 bytes maximum slop
+            1219 MB total memory in use (0 MB lost due to fragmentation)
+
+                                    Tot time (elapsed)  Avg pause  Max pause
+  Gen  0      1580 colls,     0 par   45.04s   45.47s     0.0288s    0.4112s
+  Gen  1        43 colls,     0 par   14.60s   14.64s     0.3405s    0.9250s
+
+  INIT    time    0.00s  (  0.00s elapsed)
+  MUT     time  161.00s  (163.61s elapsed)
+  GC      time   59.64s  ( 60.12s elapsed)
+  EXIT    time    0.03s  (  0.02s elapsed)
+  Total   time  220.68s  (223.76s elapsed)
+
+  %GC     time      27.0%  (26.9% elapsed)
+
+  Alloc rate    891,105,632 bytes per MUT second
+
+  Productivity  73.0% of total user, 72.0% of total elapsed
+
+
+real	3m43.882s
+user	3m40.678s
+sys	0m1.420s
+
+-- With strict context (Int)
+
+Finished README.
+Total time           221,545 ms
+Parsing                1,264 ms
+Parsing.Operators      9,628 ms
+Import                 4,028 ms
+Deserialization           24 ms
+Scoping                8,676 ms
+Typing                49,915 ms
+Termination            2,556 ms
+Termination.Graph        228 ms
+Termination.RecCheck   1,192 ms
+Termination.Compare      340 ms
+Positivity             5,416 ms
+Injectivity              752 ms
+ProjectionLikeness       152 ms
+Coverage               1,992 ms
+Highlighting           6,416 ms
+Serialization        126,939 ms
+Serialization.Sort       880 ms
+ModuleName                24 ms
+
+ 143,445,608,864 bytes allocated in the heap
+  16,418,682,328 bytes copied during GC
+     422,751,112 bytes maximum residency (43 sample(s))
+       5,227,832 bytes maximum slop
+            1219 MB total memory in use (0 MB lost due to fragmentation)
+
+                                    Tot time (elapsed)  Avg pause  Max pause
+  Gen  0      1580 colls,     0 par   45.09s   45.44s     0.0288s    0.4103s
+  Gen  1        43 colls,     0 par   14.59s   14.65s     0.3407s    0.9078s
+
+  INIT    time    0.00s  (  0.00s elapsed)
+  MUT     time  160.44s  (161.78s elapsed)
+  GC      time   59.68s  ( 60.10s elapsed)
+  EXIT    time    0.02s  (  0.02s elapsed)
+  Total   time  220.15s  (221.91s elapsed)
+
+  %GC     time      27.1%  (27.1% elapsed)
+
+  Alloc rate    894,087,368 bytes per MUT second
+
+  Productivity  72.9% of total user, 72.3% of total elapsed
+
+
+real	3m42.026s
+user	3m40.154s
+sys	0m1.528s
+Finished README.
+Total time           220,913 ms
+Parsing                1,288 ms
+Parsing.Operators      9,524 ms
+Import                 3,996 ms
+Deserialization            8 ms
+Scoping                8,904 ms
+Typing                49,991 ms
+Termination            2,596 ms
+Termination.Graph        344 ms
+Termination.RecCheck   1,220 ms
+Termination.Compare      376 ms
+Positivity             5,380 ms
+Injectivity              716 ms
+ProjectionLikeness       216 ms
+Coverage               1,952 ms
+Highlighting           6,216 ms
+Serialization        126,319 ms
+Serialization.Sort       940 ms
+ModuleName                24 ms
+
+ 143,445,608,312 bytes allocated in the heap
+  16,418,927,200 bytes copied during GC
+     422,751,160 bytes maximum residency (43 sample(s))
+       5,213,904 bytes maximum slop
+            1219 MB total memory in use (0 MB lost due to fragmentation)
+
+                                    Tot time (elapsed)  Avg pause  Max pause
+  Gen  0      1580 colls,     0 par   44.51s   44.87s     0.0284s    0.4063s
+  Gen  1        43 colls,     0 par   14.48s   14.55s     0.3384s    0.8998s
+
+  INIT    time    0.00s  (  0.00s elapsed)
+  MUT     time  160.61s  (161.86s elapsed)
+  GC      time   58.98s  ( 59.42s elapsed)
+  EXIT    time    0.02s  (  0.02s elapsed)
+  Total   time  219.62s  (221.31s elapsed)
+
+  %GC     time      26.9%  (26.8% elapsed)
+
+  Alloc rate    893,152,020 bytes per MUT second
+
+  Productivity  73.1% of total user, 72.6% of total elapsed
+
+
+real	3m41.409s
+user	3m39.622s
+sys	0m1.416s
+
+
+
+2014-10-16 AIM XX
+
+Huffman-only compression increases .agdai size by 30% but saves > 50 %
+of compression time.  (5 sec on std-lib).
+
+ Finished Everything.
+Finished README.
+Total time                 215,597ms
+Parsing                      1,304ms
+Parsing.Operators           10,452ms
+Import                       5,800ms
+Deserialization                 36ms
+Scoping                      9,020ms
+Typing                      50,631ms
+Termination                  1,828ms
+Termination.Graph              216ms
+Termination.RecCheck           496ms
+Termination.Compare            228ms
+Positivity                   4,548ms
+Injectivity                    752ms
+ProjectionLikeness             148ms
+Coverage                     2,200ms
+Highlighting                 6,368ms
+Serialization               95,829ms
+Serialization.Sort             964ms
+Serialization.BinaryEncode  17,509ms
+Serialization.Compress       4,280ms
+ModuleName                      24ms
+
+ 143,280,163,896 bytes allocated in the heap
+  16,076,672,192 bytes copied during GC
+     421,917,664 bytes maximum residency (44 sample(s))
+       6,044,976 bytes maximum slop
+            1218 MB total memory in use (0 MB lost due to fragmentation)
+
+                                    Tot time (elapsed)  Avg pause  Max pause
+  Gen  0      1854 colls,     0 par   45.51s   46.04s     0.0248s    0.4052s
+  Gen  1        44 colls,     0 par   14.10s   14.24s     0.3237s    0.8752s
+
+  INIT    time    0.00s  (  0.00s elapsed)
+  MUT     time  153.36s  (156.31s elapsed)
+  GC      time   59.61s  ( 60.28s elapsed)
+  EXIT    time    0.02s  (  0.03s elapsed)
+  Total   time  213.01s  (216.63s elapsed)
+
+  %GC     time      28.0%  (27.8% elapsed)
+
+  Alloc rate    934,263,561 bytes per MUT second
+
+  Productivity  72.0% of total user, 70.8% of total elapsed
+
+
+real	3m36.724s
+user	3m33.005s
+sys	0m2.716s
+
+
+After specializing icodeX to Integer, String, Double, Node.
+------------------------------------------------------------------------
+
+  Finished Universe.
+ Finished Everything.
+Finished README.
+Total time                 215,509ms
+Parsing                      1,292ms
+Parsing.Operators           10,916ms
+Import                       4,088ms
+Deserialization                 20ms
+Scoping                      8,684ms
+Typing                      50,087ms
+Termination                  1,844ms
+Termination.Graph              216ms
+Termination.RecCheck           508ms
+Termination.Compare            348ms
+Positivity                   5,132ms
+Injectivity                    732ms
+ProjectionLikeness             160ms
+Coverage                     2,288ms
+Highlighting                 7,092ms
+Serialization               97,366ms
+Serialization.Sort           1,200ms
+Serialization.BinaryEncode  18,557ms
+Serialization.Compress       4,132ms
+ModuleName                      24ms
+
+ 138,864,328,792 bytes allocated in the heap
+  16,214,969,216 bytes copied during GC
+     479,648,664 bytes maximum residency (45 sample(s))
+       5,928,496 bytes maximum slop
+            1171 MB total memory in use (0 MB lost due to fragmentation)
+
+                                    Tot time (elapsed)  Avg pause  Max pause
+  Gen  0      1663 colls,     0 par   45.62s   46.22s     0.0278s    0.4175s
+  Gen  1        45 colls,     0 par   14.44s   14.54s     0.3230s    1.0345s
+
+  INIT    time    0.00s  (  0.00s elapsed)
+  MUT     time  152.37s  (155.12s elapsed)
+  GC      time   60.06s  ( 60.76s elapsed)
+  EXIT    time    0.03s  (  0.03s elapsed)
+  Total   time  212.47s  (215.92s elapsed)
+
+  %GC     time      28.3%  (28.1% elapsed)
+
+  Alloc rate    911,365,449 bytes per MUT second
+
+  Productivity  71.7% of total user, 70.6% of total elapsed
+
+
+real	3m36.018s
+user	3m32.469s
+sys	0m3.168s
+
+
+After INLINE icode<nn>[']
+------------------------------------------------------------------------
+Finished README.
+Total time                 215,789ms
+Parsing                      1,292ms
+Parsing.Operators           10,440ms
+Import                       4,228ms
+Deserialization                 28ms
+Scoping                      8,948ms
+Typing                      50,175ms
+Termination                  2,048ms
+Termination.Graph              208ms
+Termination.RecCheck           432ms
+Termination.Compare            428ms
+Positivity                   4,328ms
+Injectivity                    744ms
+ProjectionLikeness             160ms
+Coverage                     2,312ms
+Highlighting                 7,464ms
+Serialization               96,422ms
+Serialization.Sort             944ms
+Serialization.BinaryEncode  19,589ms
+Serialization.Compress       3,856ms
+ModuleName                      24ms
+
+ 141,379,633,872 bytes allocated in the heap
+  16,330,082,400 bytes copied during GC
+     448,454,176 bytes maximum residency (45 sample(s))
+       6,032,632 bytes maximum slop
+            1163 MB total memory in use (0 MB lost due to fragmentation)
+
+                                    Tot time (elapsed)  Avg pause  Max pause
+  Gen  0      1666 colls,     0 par   45.15s   45.63s     0.0274s    0.4114s
+  Gen  1        45 colls,     0 par   14.32s   14.35s     0.3189s    0.9113s
+
+  INIT    time    0.00s  (  0.00s elapsed)
+  MUT     time  155.12s  (156.34s elapsed)
+  GC      time   59.47s  ( 59.98s elapsed)
+  EXIT    time    0.03s  (  0.03s elapsed)
+  Total   time  214.63s  (216.36s elapsed)
+
+  %GC     time      27.7%  (27.7% elapsed)
+
+  Alloc rate    911,434,673 bytes per MUT second
+
+  Productivity  72.3% of total user, 71.7% of total elapsed
+
+
+real	3m36.457s
+user	3m34.629s
+sys	0m1.292s
+
+
+After removing -O2  (but reverting INLINE icode)
+------------------------------------------------------------------------
+Finished README.
+Total time                 214,393ms
+Parsing                      1,268ms
+Parsing.Operators           11,148ms
+Import                       3,964ms
+Deserialization                 28ms
+Scoping                      8,812ms
+Typing                      50,215ms
+Termination                  1,816ms
+Termination.Graph              212ms
+Termination.RecCheck           528ms
+Termination.Compare            376ms
+Positivity                   4,324ms
+Injectivity                    764ms
+ProjectionLikeness             160ms
+Coverage                     2,344ms
+Highlighting                 7,008ms
+Serialization               96,814ms
+Serialization.Sort           1,140ms
+Serialization.BinaryEncode  18,589ms
+Serialization.Compress       4,036ms
+ModuleName                      24ms
+
+ 140,104,546,568 bytes allocated in the heap
+  16,220,714,584 bytes copied during GC
+     479,648,656 bytes maximum residency (45 sample(s))
+       5,905,712 bytes maximum slop
+            1189 MB total memory in use (0 MB lost due to fragmentation)
+
+                                    Tot time (elapsed)  Avg pause  Max pause
+  Gen  0      1662 colls,     0 par   45.35s   45.65s     0.0275s    0.4145s
+  Gen  1        45 colls,     0 par   14.36s   14.44s     0.3209s    1.0499s
+
+  INIT    time    0.00s  (  0.00s elapsed)
+  MUT     time  153.34s  (154.68s elapsed)
+  GC      time   59.71s  ( 60.09s elapsed)
+  EXIT    time    0.03s  (  0.03s elapsed)
+  Total   time  213.09s  (214.81s elapsed)
+
+  %GC     time      28.0%  (28.0% elapsed)
+
+  Alloc rate    913,699,986 bytes per MUT second
+
+  Productivity  72.0% of total user, 71.4% of total elapsed
+
+
+real	3m34.906s
+user	3m33.085s
+sys	0m1.436s
+
+
+2014-10-18 Hashmap reuse statistics for Serialize.
+
+======================================================================
+========================== Standard library ==========================
+======================================================================
+Ticks for Agda.Primitive
+Double  (fresh)         0
+Double (reused)         0
+Integer  (fresh)      148
+Integer (reused)      321
+Node  (fresh)         401
+Node (reused)        3584
+String  (fresh)        21
+String (reused)       785
+max-open-constraints    0
+max-open-metas          1
+metas                   5
+pointers  (fresh)       0
+pointers (reused)       0
+
+Checking README (/home/abel/agda/agda-stdlib/README.agda).
+ Checking Data.Bool (/home/abel/agda/agda-stdlib/src/Data/Bool.agda).
+  Checking Function (/home/abel/agda/agda-stdlib/src/Function.agda).
+   Checking Level (/home/abel/agda/agda-stdlib/src/Level.agda).
+Ticks for Level
+Double  (fresh)         0
+Double (reused)         0
+Integer  (fresh)      113
+Integer (reused)      632
+Node  (fresh)         640
+Node (reused)        7028
+String  (fresh)        17
+String (reused)      1117
+max-open-constraints    0
+max-open-metas          4
+metas                   5
+pointers  (fresh)       0
+pointers (reused)       0
+
+   Finished Level.
+Ticks for Function
+Double  (fresh)           0
+Double (reused)           0
+Integer  (fresh)       1446
+Integer (reused)       2404
+Node  (fresh)          4297
+Node (reused)         29099
+String  (fresh)          61
+String (reused)        3466
+attempted-constraints     3
+max-open-constraints      1
+max-open-metas           10
+metas                   170
+pointers  (fresh)         0
+pointers (reused)         0
+
+  Finished Function.
+  Checking Data.Unit (/home/abel/agda/agda-stdlib/src/Data/Unit.agda).
+   Checking Data.Sum (/home/abel/agda/agda-stdlib/src/Data/Sum.agda).
+    Checking Data.Maybe.Core (/home/abel/agda/agda-stdlib/src/Data/Maybe/Core.agda).
+Ticks for Data.Maybe.Core
+Double  (fresh)         0
+Double (reused)         0
+Integer  (fresh)      103
+Integer (reused)      754
+Node  (fresh)         604
+Node (reused)        7843
+String  (fresh)        25
+String (reused)      2198
+max-open-constraints    0
+max-open-metas          2
+metas                   7
+pointers  (fresh)       0
+pointers (reused)       0
+
+    Finished Data.Maybe.Core.
+Ticks for Data.Sum
+Double  (fresh)           0
+Double (reused)           0
+Integer  (fresh)        804
+Integer (reused)       3369
+Node  (fresh)          3662
+Node (reused)         38848
+String  (fresh)          83
+String (reused)        8084
+attempted-constraints    36
+max-open-constraints      8
+max-open-metas           18
+metas                   145
+pointers  (fresh)         0
+pointers (reused)         0
+
+   Finished Data.Sum.
+   Checking Relation.Nullary (/home/abel/agda/agda-stdlib/src/Relation/Nullary.agda).
+    Checking Relation.Nullary.Core (/home/abel/agda/agda-stdlib/src/Relation/Nullary/Core.agda).
+     Checking Data.Empty (/home/abel/agda/agda-stdlib/src/Data/Empty.agda).
+Ticks for Data.Empty
+Double  (fresh)         0
+Double (reused)         0
+Integer  (fresh)       92
+Integer (reused)      414
+Node  (fresh)         565
+Node (reused)        4901
+String  (fresh)        21
+String (reused)      1017
+max-open-constraints    0
+max-open-metas          2
+metas                   4
+pointers  (fresh)       0
+pointers (reused)       0
+
+     Finished Data.Empty.
+Ticks for Relation.Nullary.Core
+Double  (fresh)          0
+Double (reused)          0
+Integer  (fresh)       154
+Integer (reused)       975
+Node  (fresh)          867
+Node (reused)        10337
+String  (fresh)         30
+String (reused)       2890
+max-open-constraints     0
+max-open-metas           2
+metas                   13
+pointers  (fresh)        0
+pointers (reused)        0
+
+    Finished Relation.Nullary.Core.
+Ticks for Relation.Nullary
+Double  (fresh)         0
+Double (reused)         0
+Integer  (fresh)       72
+Integer (reused)      309
+Node  (fresh)         311
+Node (reused)        3448
+String  (fresh)         8
+String (reused)      1111
+max-open-constraints    0
+metas                   0
+pointers  (fresh)       0
+pointers (reused)       0
+
+   Finished Relation.Nullary.
+   Checking Relation.Binary (/home/abel/agda/agda-stdlib/src/Relation/Binary.agda).
+    Checking Data.Product (/home/abel/agda/agda-stdlib/src/Data/Product.agda).
+Ticks for Data.Product
+Double  (fresh)           0
+Double (reused)           0
+Integer  (fresh)       1918
+Integer (reused)       6345
+Node  (fresh)          6970
+Node (reused)         68703
+String  (fresh)         116
+String (reused)       12578
+attempted-constraints    33
+max-open-constraints      3
+max-open-metas           12
+metas                   298
+pointers  (fresh)         0
+pointers (reused)         0
+
+    Finished Data.Product.
+    Checking Relation.Binary.PropositionalEquality.Core (/home/abel/agda/agda-stdlib/src/Relation/Binary/PropositionalEquality/Core.agda).
+     Checking Relation.Binary.Core (/home/abel/agda/agda-stdlib/src/Relation/Binary/Core.agda).
+Ticks for Relation.Binary.Core
+Double  (fresh)            0
+Double (reused)            0
+Integer  (fresh)        2528
+Integer (reused)       12345
+Node  (fresh)           9562
+Node (reused)         128774
+String  (fresh)          165
+String (reused)        30975
+attempted-constraints     51
+max-open-constraints       2
+max-open-metas            15
+metas                    506
+pointers  (fresh)          0
+pointers (reused)          0
+
+     Finished Relation.Binary.Core.
+     Checking Relation.Binary.Consequences.Core (/home/abel/agda/agda-stdlib/src/Relation/Binary/Consequences/Core.agda).
+Ticks for Relation.Binary.Consequences.Core
+Double  (fresh)           0
+Double (reused)           0
+Integer  (fresh)        253
+Integer (reused)       2164
+Node  (fresh)          1995
+Node (reused)         25018
+String  (fresh)          89
+String (reused)        8810
+attempted-constraints     6
+max-open-constraints      2
+max-open-metas            6
+metas                    23
+pointers  (fresh)         0
+pointers (reused)         0
+
+     Finished Relation.Binary.Consequences.Core.
+Ticks for Relation.Binary.PropositionalEquality.Core
+Double  (fresh)           0
+Double (reused)           0
+Integer  (fresh)        371
+Integer (reused)       2976
+Node  (fresh)          2622
+Node (reused)         33261
+String  (fresh)          85
+String (reused)       11678
+attempted-constraints    14
+max-open-constraints      5
+max-open-metas            7
+metas                    60
+pointers  (fresh)         0
+pointers (reused)         0
+
+    Finished Relation.Binary.PropositionalEquality.Core.
+    Checking Relation.Binary.Consequences (/home/abel/agda/agda-stdlib/src/Relation/Binary/Consequences.agda).
+Ticks for Relation.Binary.Consequences
+Double  (fresh)            0
+Double (reused)            0
+Integer  (fresh)        1646
+Integer (reused)       12803
+Node  (fresh)           9881
+Node (reused)         144923
+String  (fresh)          199
+String (reused)        35712
+attempted-constraints    124
+max-open-constraints       6
+max-open-metas            10
+metas                    394
+pointers  (fresh)          0
+pointers (reused)          0
+
+    Finished Relation.Binary.Consequences.
+    Checking Relation.Binary.Indexed.Core (/home/abel/agda/agda-stdlib/src/Relation/Binary/Indexed/Core.agda).
+Ticks for Relation.Binary.Indexed.Core
+Double  (fresh)           0
+Double (reused)           0
+Integer  (fresh)        812
+Integer (reused)       9050
+Node  (fresh)          4853
+Node (reused)         88668
+String  (fresh)         111
+String (reused)       28380
+attempted-constraints    38
+max-open-constraints      4
+max-open-metas           19
+metas                   182
+pointers  (fresh)         0
+pointers (reused)         0
+
+    Finished Relation.Binary.Indexed.Core.
+Ticks for Relation.Binary
+Double  (fresh)             0
+Double (reused)             0
+Integer  (fresh)         3422
+Integer (reused)       177876
+Node  (fresh)           37023
+Node (reused)         1737401
+String  (fresh)           218
+String (reused)        380321
+attempted-constraints     189
+max-open-constraints        6
+max-open-metas             11
+metas                     675
+pointers  (fresh)           0
+pointers (reused)           0
+
+   Finished Relation.Binary.
+   Checking Relation.Binary.PropositionalEquality (/home/abel/agda/agda-stdlib/src/Relation/Binary/PropositionalEquality.agda).
+    Checking Function.Equality (/home/abel/agda/agda-stdlib/src/Function/Equality.agda).
+     Checking Relation.Binary.Indexed (/home/abel/agda/agda-stdlib/src/Relation/Binary/Indexed.agda).
+Ticks for Relation.Binary.Indexed
+Double  (fresh)            0
+Double (reused)            0
+Integer  (fresh)         615
+Integer (reused)       12140
+Node  (fresh)           6943
+Node (reused)         120483
+String  (fresh)          136
+String (reused)        35203
+attempted-constraints      4
+max-open-constraints       2
+max-open-metas             8
+metas                     56
+pointers  (fresh)          0
+pointers (reused)          0
+
+     Finished Relation.Binary.Indexed.
+Ticks for Function.Equality
+Double  (fresh)            0
+Double (reused)            0
+Integer  (fresh)        1626
+Integer (reused)       24131
+Node  (fresh)          11804
+Node (reused)         241359
+String  (fresh)          198
+String (reused)        61572
+attempted-constraints     61
+max-open-constraints       2
+max-open-metas            12
+metas                    365
+pointers  (fresh)          0
+pointers (reused)          0
+
+    Finished Function.Equality.
+    Checking Data.Unit.Core (/home/abel/agda/agda-stdlib/src/Data/Unit/Core.agda).
+Ticks for Data.Unit.Core
+Double  (fresh)          0
+Double (reused)          0
+Integer  (fresh)       243
+Integer (reused)       993
+Node  (fresh)         1095
+Node (reused)        10564
+String  (fresh)         31
+String (reused)       2818
+max-open-constraints     0
+max-open-metas           4
+metas                   20
+pointers  (fresh)        0
+pointers (reused)        0
+
+    Finished Data.Unit.Core.
+    Checking Relation.Binary.HeterogeneousEquality.Core (/home/abel/agda/agda-stdlib/src/Relation/Binary/HeterogeneousEquality/Core.agda).
+Ticks for Relation.Binary.HeterogeneousEquality.Core
+Double  (fresh)          0
+Double (reused)          0
+Integer  (fresh)       210
+Integer (reused)      1635
+Node  (fresh)         1363
+Node (reused)        17180
+String  (fresh)         58
+String (reused)       6668
+max-open-constraints     0
+max-open-metas           3
+metas                   18
+pointers  (fresh)        0
+pointers (reused)        0
+
+    Finished Relation.Binary.HeterogeneousEquality.Core.
+    Checking Relation.Binary.EqReasoning (/home/abel/agda/agda-stdlib/src/Relation/Binary/EqReasoning.agda).
+     Checking Relation.Binary.PreorderReasoning (/home/abel/agda/agda-stdlib/src/Relation/Binary/PreorderReasoning.agda).
+Ticks for Relation.Binary.PreorderReasoning
+Double  (fresh)            0
+Double (reused)            0
+Integer  (fresh)         755
+Integer (reused)       14786
+Node  (fresh)           7539
+Node (reused)         151785
+String  (fresh)          129
+String (reused)        41014
+attempted-constraints      1
+max-open-constraints       1
+max-open-metas             7
+metas                     55
+pointers  (fresh)          0
+pointers (reused)          0
+
+     Finished Relation.Binary.PreorderReasoning.
+Ticks for Relation.Binary.EqReasoning
+Double  (fresh)            0
+Double (reused)            0
+Integer  (fresh)         493
+Integer (reused)       14443
+Node  (fresh)           7078
+Node (reused)         146178
+String  (fresh)          127
+String (reused)        40311
+attempted-constraints      2
+max-open-constraints       1
+max-open-metas             5
+metas                     10
+pointers  (fresh)          0
+pointers (reused)          0
+
+    Finished Relation.Binary.EqReasoning.
+Ticks for Relation.Binary.PropositionalEquality
+Double  (fresh)            0
+Double (reused)            0
+Integer  (fresh)        2518
+Integer (reused)       29483
+Node  (fresh)          16946
+Node (reused)         304975
+String  (fresh)          287
+String (reused)        85968
+attempted-constraints     38
+max-open-constraints       4
+max-open-metas            24
+metas                    430
+pointers  (fresh)          0
+pointers (reused)          0
+
+   Finished Relation.Binary.PropositionalEquality.
+Ticks for Data.Unit
+Double  (fresh)            0
+Double (reused)            0
+Integer  (fresh)         807
+Integer (reused)       12883
+Node  (fresh)           8067
+Node (reused)         132872
+String  (fresh)          177
+String (reused)        36784
+attempted-constraints     13
+max-open-constraints       2
+max-open-metas            10
+metas                     61
+pointers  (fresh)          0
+pointers (reused)          0
+
+  Finished Data.Unit.
+Ticks for Data.Bool
+Double  (fresh)            0
+Double (reused)            0
+Integer  (fresh)         833
+Integer (reused)       13051
+Node  (fresh)           9241
+Node (reused)         137428
+String  (fresh)          216
+String (reused)        37958
+attempted-constraints      3
+max-open-constraints       2
+max-open-metas             6
+metas                     32
+pointers  (fresh)          0
+pointers (reused)          0
+
+ Finished Data.Bool.
+ Checking Data.Char (/home/abel/agda/agda-stdlib/src/Data/Char.agda).
+  Checking Data.Nat (/home/abel/agda/agda-stdlib/src/Data/Nat.agda).
+   Checking Function.Injection (/home/abel/agda/agda-stdlib/src/Function/Injection.agda).
+Ticks for Function.Injection
+Double  (fresh)            0
+Double (reused)            0
+Integer  (fresh)         885
+Integer (reused)       20631
+Node  (fresh)          10841
+Node (reused)         207665
+String  (fresh)          245
+String (reused)        49707
+attempted-constraints     28
+max-open-constraints       1
+max-open-metas            15
+metas                    173
+pointers  (fresh)          0
+pointers (reused)          0
+
+   Finished Function.Injection.
+   Checking Relation.Nullary.Decidable (/home/abel/agda/agda-stdlib/src/Relation/Nullary/Decidable.agda).
+    Checking Function.Equivalence (/home/abel/agda/agda-stdlib/src/Function/Equivalence.agda).
+Ticks for Function.Equivalence
+Double  (fresh)            0
+Double (reused)            0
+Integer  (fresh)        1574
+Integer (reused)       19780
+Node  (fresh)          12191
+Node (reused)         199851
+String  (fresh)          279
+String (reused)        47088
+attempted-constraints     93
+max-open-constraints       4
+max-open-metas            22
+metas                    390
+pointers  (fresh)          0
+pointers (reused)          0
+
+    Finished Function.Equivalence.
+Ticks for Relation.Nullary.Decidable
+Double  (fresh)            0
+Double (reused)            0
+Integer  (fresh)        1628
+Integer (reused)       24650
+Node  (fresh)          14821
+Node (reused)         254833
+String  (fresh)          286
+String (reused)        67793
+attempted-constraints     29
+max-open-constraints       2
+max-open-metas            14
+metas                    241
+pointers  (fresh)          0
+pointers (reused)          0
+
+   Finished Relation.Nullary.Decidable.
+   Checking Relation.Binary.PartialOrderReasoning (/home/abel/agda/agda-stdlib/src/Relation/Binary/PartialOrderReasoning.agda).
+Ticks for Relation.Binary.PartialOrderReasoning
+Double  (fresh)            0
+Double (reused)            0
+Integer  (fresh)         439
+Integer (reused)       16848
+Node  (fresh)           7440
+Node (reused)         167044
+String  (fresh)          125
+String (reused)        45258
+attempted-constraints      2
+max-open-constraints       1
+max-open-metas             7
+metas                     13
+pointers  (fresh)          0
+pointers (reused)          0
+
+   Finished Relation.Binary.PartialOrderReasoning.
+Ticks for Data.Nat
+Double  (fresh)            0
+Double (reused)            0
+Integer  (fresh)        2707
+Integer (reused)       32718
+Node  (fresh)          19504
+Node (reused)         357379
+String  (fresh)          310
+String (reused)        94880
+attempted-constraints     21
+max-open-constraints       3
+max-open-metas            12
+metas                    246
+pointers  (fresh)          0
+pointers (reused)          0
+
+  Finished Data.Nat.
+  Checking Data.Nat.Properties (/home/abel/agda/agda-stdlib/src/Data/Nat/Properties.agda).
+   Checking Algebra (/home/abel/agda/agda-stdlib/src/Algebra.agda).
+    Checking Algebra.FunctionProperties (/home/abel/agda/agda-stdlib/src/Algebra/FunctionProperties.agda).
+     Checking Algebra.FunctionProperties.Core (/home/abel/agda/agda-stdlib/src/Algebra/FunctionProperties/Core.agda).
+Ticks for Algebra.FunctionProperties.Core
+Double  (fresh)         0
+Double (reused)         0
+Integer  (fresh)      120
+Integer (reused)      411
+Node  (fresh)         594
+Node (reused)        4956
+String  (fresh)        21
+String (reused)      1183
+max-open-constraints    0
+max-open-metas          2
+metas                   9
+pointers  (fresh)       0
+pointers (reused)       0
+
+     Finished Algebra.FunctionProperties.Core.
+Ticks for Algebra.FunctionProperties
+Double  (fresh)           0
+Double (reused)           0
+Integer  (fresh)       1416
+Integer (reused)      13196
+Node  (fresh)          9196
+Node (reused)        142228
+String  (fresh)         182
+String (reused)       35158
+max-open-constraints      0
+max-open-metas            8
+metas                   160
+pointers  (fresh)         0
+pointers (reused)         0
+
+    Finished Algebra.FunctionProperties.
+    Checking Algebra.Structures (/home/abel/agda/agda-stdlib/src/Algebra/Structures.agda).
+Ticks for Algebra.Structures
+Double  (fresh)             0
+Double (reused)             0
+Integer  (fresh)         4798
+Integer (reused)       392229
+Node  (fresh)           74532
+Node (reused)         4026413
+String  (fresh)           299
+String (reused)        784917
+attempted-constraints     224
+max-open-constraints        2
+max-open-metas             25
+metas                     894
+pointers  (fresh)           0
+pointers (reused)           0
+
+    Finished Algebra.Structures.
+Ticks for Algebra
+Double  (fresh)             0
+Double (reused)             0
+Integer  (fresh)         4004
+Integer (reused)       310641
+Node  (fresh)           64410
+Node (reused)         3195439
+String  (fresh)           301
+String (reused)        501421
+attempted-constraints      93
+max-open-constraints        2
+max-open-metas              9
+metas                     606
+pointers  (fresh)           0
+pointers (reused)           0
+
+   Finished Algebra.
+   Checking Data.Nat.Properties.Simple (/home/abel/agda/agda-stdlib/src/Data/Nat/Properties/Simple.agda).
+Ticks for Data.Nat.Properties.Simple
+Double  (fresh)            0
+Double (reused)            0
+Integer  (fresh)        1477
+Integer (reused)       19823
+Node  (fresh)          10097
+Node (reused)         230988
+String  (fresh)          172
+String (reused)        68018
+attempted-constraints      4
+max-open-constraints       1
+max-open-metas            19
+metas                    301
+pointers  (fresh)          0
+pointers (reused)          0
+
+   Finished Data.Nat.Properties.Simple.
+   Checking Algebra.RingSolver.Simple (/home/abel/agda/agda-stdlib/src/Algebra/RingSolver/Simple.agda).
+    Checking Algebra.RingSolver.AlmostCommutativeRing (/home/abel/agda/agda-stdlib/src/Algebra/RingSolver/AlmostCommutativeRing.agda).
+     Checking Algebra.Morphism (/home/abel/agda/agda-stdlib/src/Algebra/Morphism.agda).
+      Checking Algebra.Properties.Group (/home/abel/agda/agda-stdlib/src/Algebra/Properties/Group.agda).
+Ticks for Algebra.Properties.Group
+Double  (fresh)            0
+Double (reused)            0
+Integer  (fresh)        1389
+Integer (reused)       40802
+Node  (fresh)          16619
+Node (reused)         411480
+String  (fresh)          265
+String (reused)        87907
+attempted-constraints     32
+max-open-constraints       2
+max-open-metas            18
+metas                    273
+pointers  (fresh)          0
+pointers (reused)          0
+
+      Finished Algebra.Properties.Group.
+Ticks for Algebra.Morphism
+Double  (fresh)            0
+Double (reused)            0
+Integer  (fresh)        1316
+Integer (reused)       90433
+Node  (fresh)          31024
+Node (reused)         958395
+String  (fresh)          372
+String (reused)       170683
+attempted-constraints     18
+max-open-constraints       2
+max-open-metas            11
+metas                    109
+pointers  (fresh)          0
+pointers (reused)          0
+
+     Finished Algebra.Morphism.
+     Checking Algebra.Properties.Ring (/home/abel/agda/agda-stdlib/src/Algebra/Properties/Ring.agda).
+      Checking Algebra.Properties.AbelianGroup (/home/abel/agda/agda-stdlib/src/Algebra/Properties/AbelianGroup.agda).
+Ticks for Algebra.Properties.AbelianGroup
+Double  (fresh)            0
+Double (reused)            0
+Integer  (fresh)        1019
+Integer (reused)       37672
+Node  (fresh)          14641
+Node (reused)         379071
+String  (fresh)          247
+String (reused)        81412
+attempted-constraints     20
+max-open-constraints       2
+max-open-metas            20
+metas                    163
+pointers  (fresh)          0
+pointers (reused)          0
+
+      Finished Algebra.Properties.AbelianGroup.
+Ticks for Algebra.Properties.Ring
+Double  (fresh)            0
+Double (reused)            0
+Integer  (fresh)        1280
+Integer (reused)       51742
+Node  (fresh)          16598
+Node (reused)         521914
+String  (fresh)          257
+String (reused)       108464
+attempted-constraints     38
+max-open-constraints       2
+max-open-metas            25
+metas                    259
+pointers  (fresh)          0
+pointers (reused)          0
+
+     Finished Algebra.Properties.Ring.
+Ticks for Algebra.RingSolver.AlmostCommutativeRing
+Double  (fresh)             0
+Double (reused)             0
+Integer  (fresh)         1979
+Integer (reused)       242043
+Node  (fresh)           48163
+Node (reused)         2354025
+String  (fresh)           373
+String (reused)        589968
+attempted-constraints      31
+max-open-constraints        2
+max-open-metas              9
+metas                     195
+pointers  (fresh)           0
+pointers (reused)           0
+
+    Finished Algebra.RingSolver.AlmostCommutativeRing.
+    Checking Algebra.RingSolver (/home/abel/agda/agda-stdlib/src/Algebra/RingSolver.agda).
+     Checking Algebra.RingSolver.Lemmas (/home/abel/agda/agda-stdlib/src/Algebra/RingSolver/Lemmas.agda).
+Ticks for Algebra.RingSolver.Lemmas
+Double  (fresh)             0
+Double (reused)             0
+Integer  (fresh)         2953
+Integer (reused)       114152
+Node  (fresh)           29708
+Node (reused)         1262930
+String  (fresh)           290
+String (reused)        332679
+attempted-constraints      84
+max-open-constraints        2
+max-open-metas             29
+metas                     712
+pointers  (fresh)           0
+pointers (reused)           0
+
+     Finished Algebra.RingSolver.Lemmas.
+     Checking Algebra.Operations (/home/abel/agda/agda-stdlib/src/Algebra/Operations.agda).
+Ticks for Algebra.Operations
+Double  (fresh)            0
+Double (reused)            0
+Integer  (fresh)        2472
+Integer (reused)       56863
+Node  (fresh)          27466
+Node (reused)         607394
+String  (fresh)          410
+String (reused)       125822
+attempted-constraints     51
+max-open-constraints       2
+max-open-metas            16
+metas                    347
+pointers  (fresh)          0
+pointers (reused)          0
+
+     Finished Algebra.Operations.
+     Checking Relation.Binary.Reflection (/home/abel/agda/agda-stdlib/src/Relation/Binary/Reflection.agda).
+      Checking Data.Fin (/home/abel/agda/agda-stdlib/src/Data/Fin.agda).
+Ticks for Data.Fin
+Double  (fresh)            0
+Double (reused)            0
+Integer  (fresh)        2657
+Integer (reused)       25557
+Node  (fresh)          17474
+Node (reused)         277544
+String  (fresh)          251
+String (reused)        67764
+attempted-constraints      8
+max-open-constraints       2
+max-open-metas             8
+metas                    283
+pointers  (fresh)          0
+pointers (reused)          0
+
+      Finished Data.Fin.
+      Checking Data.Vec (/home/abel/agda/agda-stdlib/src/Data/Vec.agda).
+       Checking Category.Applicative (/home/abel/agda/agda-stdlib/src/Category/Applicative.agda).
+        Checking Category.Applicative.Indexed (/home/abel/agda/agda-stdlib/src/Category/Applicative/Indexed.agda).
+         Checking Category.Functor (/home/abel/agda/agda-stdlib/src/Category/Functor.agda).
+Ticks for Category.Functor
+Double  (fresh)           0
+Double (reused)           0
+Integer  (fresh)        182
+Integer (reused)       1110
+Node  (fresh)          1432
+Node (reused)         13651
+String  (fresh)          50
+String (reused)        2584
+attempted-constraints     1
+max-open-constraints      1
+max-open-metas            6
+metas                    26
+pointers  (fresh)         0
+pointers (reused)         0
+
+         Finished Category.Functor.
+Ticks for Category.Applicative.Indexed
+Double  (fresh)            0
+Double (reused)            0
+Integer  (fresh)        1191
+Integer (reused)       23919
+Node  (fresh)          10985
+Node (reused)         276699
+String  (fresh)          171
+String (reused)        62976
+attempted-constraints     43
+max-open-constraints       2
+max-open-metas            19
+metas                    363
+pointers  (fresh)          0
+pointers (reused)          0
+
+        Finished Category.Applicative.Indexed.
+Ticks for Category.Applicative
+Double  (fresh)           0
+Double (reused)           0
+Integer  (fresh)        197
+Integer (reused)       4038
+Node  (fresh)          2570
+Node (reused)         44109
+String  (fresh)          61
+String (reused)       11613
+attempted-constraints     1
+max-open-constraints      1
+max-open-metas            4
+metas                    13
+pointers  (fresh)         0
+pointers (reused)         0
+
+       Finished Category.Applicative.
+       Checking Data.List (/home/abel/agda/agda-stdlib/src/Data/List.agda).
+        Checking Data.Maybe (/home/abel/agda/agda-stdlib/src/Data/Maybe.agda).
+         Checking Category.Monad (/home/abel/agda/agda-stdlib/src/Category/Monad.agda).
+          Checking Category.Monad.Indexed (/home/abel/agda/agda-stdlib/src/Category/Monad/Indexed.agda).
+Ticks for Category.Monad.Indexed
+Double  (fresh)            0
+Double (reused)            0
+Integer  (fresh)         942
+Integer (reused)       23734
+Node  (fresh)           7917
+Node (reused)         254070
+String  (fresh)          112
+String (reused)        65234
+attempted-constraints     12
+max-open-constraints       2
+max-open-metas            12
+metas                    203
+pointers  (fresh)          0
+pointers (reused)          0
+
+          Finished Category.Monad.Indexed.
+Ticks for Category.Monad
+Double  (fresh)            0
+Double (reused)            0
+Integer  (fresh)         476
+Integer (reused)       18608
+Node  (fresh)           6295
+Node (reused)         200302
+String  (fresh)           90
+String (reused)        48895
+attempted-constraints      3
+max-open-constraints       1
+max-open-metas             4
+metas                     39
+pointers  (fresh)          0
+pointers (reused)          0
+
+         Finished Category.Monad.
+         Checking Category.Monad.Identity (/home/abel/agda/agda-stdlib/src/Category/Monad/Identity.agda).
+Ticks for Category.Monad.Identity
+Double  (fresh)          0
+Double (reused)          0
+Integer  (fresh)       188
+Integer (reused)      1734
+Node  (fresh)         1423
+Node (reused)        18997
+String  (fresh)         53
+String (reused)       6111
+max-open-constraints     0
+max-open-metas           4
+metas                    6
+pointers  (fresh)        0
+pointers (reused)        0
+
+         Finished Category.Monad.Identity.
+         Checking Relation.Unary (/home/abel/agda/agda-stdlib/src/Relation/Unary.agda).
+Ticks for Relation.Unary
+Double  (fresh)            0
+Double (reused)            0
+Integer  (fresh)        2688
+Integer (reused)       19411
+Node  (fresh)          15164
+Node (reused)         207444
+String  (fresh)          253
+String (reused)        47682
+attempted-constraints     86
+max-open-constraints       5
+max-open-metas            20
+metas                    540
+pointers  (fresh)          0
+pointers (reused)          0
+
+         Finished Relation.Unary.
+Ticks for Data.Maybe
+Double  (fresh)            0
+Double (reused)            0
+Integer  (fresh)        2771
+Integer (reused)       35116
+Node  (fresh)          21349
+Node (reused)         359768
+String  (fresh)          329
+String (reused)        87586
+attempted-constraints     90
+max-open-constraints       4
+max-open-metas            14
+metas                    433
+pointers  (fresh)          0
+pointers (reused)          0
+
+        Finished Data.Maybe.
+Ticks for Data.List
+Double  (fresh)            0
+Double (reused)            0
+Integer  (fresh)        4694
+Integer (reused)       48208
+Node  (fresh)          33356
+Node (reused)         517450
+String  (fresh)          496
+String (reused)       114226
+attempted-constraints     53
+max-open-constraints       7
+max-open-metas            10
+metas                    669
+pointers  (fresh)          0
+pointers (reused)          0
+
+       Finished Data.List.
+Ticks for Data.Vec
+Double  (fresh)            0
+Double (reused)            0
+Integer  (fresh)        4148
+Integer (reused)       28736
+Node  (fresh)          21480
+Node (reused)         329244
+String  (fresh)          313
+String (reused)        74542
+attempted-constraints     41
+max-open-constraints       4
+max-open-metas            13
+metas                    734
+pointers  (fresh)          0
+pointers (reused)          0
+
+      Finished Data.Vec.
+      Checking Data.Vec.N-ary (/home/abel/agda/agda-stdlib/src/Data/Vec/N-ary.agda).
+Ticks for Data.Vec.N-ary
+Double  (fresh)            0
+Double (reused)            0
+Integer  (fresh)        3460
+Integer (reused)       32381
+Node  (fresh)          21834
+Node (reused)         352370
+String  (fresh)          351
+String (reused)        90959
+attempted-constraints    194
+max-open-constraints       9
+max-open-metas            15
+metas                    768
+pointers  (fresh)          0
+pointers (reused)          0
+
+      Finished Data.Vec.N-ary.
+Ticks for Relation.Binary.Reflection
+Double  (fresh)            0
+Double (reused)            0
+Integer  (fresh)        1469
+Integer (reused)       35657
+Node  (fresh)          16611
+Node (reused)         396744
+String  (fresh)          362
+String (reused)        94361
+attempted-constraints     65
+max-open-constraints       5
+max-open-metas            21
+metas                    326
+pointers  (fresh)          0
+pointers (reused)          0
+
+     Finished Relation.Binary.Reflection.
+Ticks for Algebra.RingSolver
+Double  (fresh)             0
+Double (reused)             0
+Integer  (fresh)         9078
+Integer (reused)       228151
+Node  (fresh)           77200
+Node (reused)         2753471
+String  (fresh)           657
+String (reused)        560536
+attempted-constraints      94
+max-open-constraints        2
+max-open-metas             32
+metas                    1521
+pointers  (fresh)           0
+pointers (reused)           0
+
+    Finished Algebra.RingSolver.
+Ticks for Algebra.RingSolver.Simple
+Double  (fresh)            0
+Double (reused)            0
+Integer  (fresh)         559
+Integer (reused)       91976
+Node  (fresh)          22331
+Node (reused)         925604
+String  (fresh)          323
+String (reused)       242005
+attempted-constraints      6
+max-open-constraints       2
+max-open-metas             8
+metas                     20
+pointers  (fresh)          0
+pointers (reused)          0
+
+   Finished Algebra.RingSolver.Simple.
+Ticks for Data.Nat.Properties
+Double  (fresh)             0
+Double (reused)             0
+Integer  (fresh)         7644
+Integer (reused)       226768
+Node  (fresh)           68737
+Node (reused)         2360840
+String  (fresh)           643
+String (reused)        626097
+attempted-constraints      59
+max-open-constraints        2
+max-open-metas             18
+metas                    1348
+pointers  (fresh)           0
+pointers (reused)           0
+
+  Finished Data.Nat.Properties.
+  Checking Relation.Binary.On (/home/abel/agda/agda-stdlib/src/Relation/Binary/On.agda).
+Ticks for Relation.Binary.On
+Double  (fresh)            0
+Double (reused)            0
+Integer  (fresh)        3261
+Integer (reused)       62064
+Node  (fresh)          24791
+Node (reused)         621252
+String  (fresh)          230
+String (reused)       133509
+attempted-constraints    345
+max-open-constraints       2
+max-open-metas            13
+metas                    987
+pointers  (fresh)          0
+pointers (reused)          0
+
+  Finished Relation.Binary.On.
+  Checking Relation.Binary.PropositionalEquality.TrustMe (/home/abel/agda/agda-stdlib/src/Relation/Binary/PropositionalEquality/TrustMe.agda).
+Ticks for Relation.Binary.PropositionalEquality.TrustMe
+Double  (fresh)          0
+Double (reused)          0
+Integer  (fresh)       170
+Integer (reused)      1741
+Node  (fresh)         1474
+Node (reused)        19113
+String  (fresh)         62
+String (reused)       7508
+max-open-constraints     0
+max-open-metas           4
+metas                   16
+pointers  (fresh)        0
+pointers (reused)        0
+
+  Finished Relation.Binary.PropositionalEquality.TrustMe.
+Ticks for Data.Char
+Double  (fresh)            0
+Double (reused)            0
+Integer  (fresh)         849
+Integer (reused)       16543
+Node  (fresh)          11877
+Node (reused)         171952
+String  (fresh)          390
+String (reused)        50794
+attempted-constraints      6
+max-open-constraints       2
+max-open-metas             8
+metas                     49
+pointers  (fresh)          0
+pointers (reused)          0
+
+ Finished Data.Char.
+ Checking Data.Stream (/home/abel/agda/agda-stdlib/src/Data/Stream.agda).
+  Checking Coinduction (/home/abel/agda/agda-stdlib/src/Coinduction.agda).
+Ticks for Coinduction
+Double  (fresh)         0
+Double (reused)         0
+Integer  (fresh)      265
+Integer (reused)      720
+Node  (fresh)        1027
+Node (reused)        8087
+String  (fresh)        26
+String (reused)      1062
+max-open-constraints    0
+max-open-metas          4
+metas                  35
+pointers  (fresh)       0
+pointers (reused)       0
+
+  Finished Coinduction.
+  Checking Data.Colist (/home/abel/agda/agda-stdlib/src/Data/Colist.agda).
+   Checking Data.BoundedVec.Inefficient (/home/abel/agda/agda-stdlib/src/Data/BoundedVec/Inefficient.agda).
+Ticks for Data.BoundedVec.Inefficient
+Double  (fresh)          0
+Double (reused)          0
+Integer  (fresh)       450
+Integer (reused)      4966
+Node  (fresh)         3719
+Node (reused)        58801
+String  (fresh)        136
+String (reused)      17012
+max-open-constraints     0
+max-open-metas           4
+metas                   50
+pointers  (fresh)        0
+pointers (reused)        0
+
+   Finished Data.BoundedVec.Inefficient.
+   Checking Data.Conat (/home/abel/agda/agda-stdlib/src/Data/Conat.agda).
+Ticks for Data.Conat
+Double  (fresh)            0
+Double (reused)            0
+Integer  (fresh)         813
+Integer (reused)       15013
+Node  (fresh)           8860
+Node (reused)         155174
+String  (fresh)          197
+String (reused)        38779
+attempted-constraints     17
+max-open-constraints       3
+max-open-metas             9
+metas                     73
+pointers  (fresh)          0
+pointers (reused)          0
+
+   Finished Data.Conat.
+   Checking Data.List.NonEmpty (/home/abel/agda/agda-stdlib/src/Data/List/NonEmpty.agda).
+    Checking Data.Bool.Properties (/home/abel/agda/agda-stdlib/src/Data/Bool/Properties.agda).
+     Checking Algebra.Properties.BooleanAlgebra (/home/abel/agda/agda-stdlib/src/Algebra/Properties/BooleanAlgebra.agda).
+      Checking Algebra.Properties.DistributiveLattice (/home/abel/agda/agda-stdlib/src/Algebra/Properties/DistributiveLattice.agda).
+       Checking Algebra.Properties.Lattice (/home/abel/agda/agda-stdlib/src/Algebra/Properties/Lattice.agda).
+Ticks for Algebra.Properties.Lattice
+Double  (fresh)            0
+Double (reused)            0
+Integer  (fresh)        1939
+Integer (reused)       50212
+Node  (fresh)          23649
+Node (reused)         510171
+String  (fresh)          366
+String (reused)       118578
+attempted-constraints     41
+max-open-constraints       2
+max-open-metas            14
+metas                    342
+pointers  (fresh)          0
+pointers (reused)          0
+
+       Finished Algebra.Properties.Lattice.
+Ticks for Algebra.Properties.DistributiveLattice
+Double  (fresh)            0
+Double (reused)            0
+Integer  (fresh)        1756
+Integer (reused)       58056
+Node  (fresh)          24759
+Node (reused)         590233
+String  (fresh)          359
+String (reused)       134445
+attempted-constraints     33
+max-open-constraints       2
+max-open-metas            21
+metas                    234
+pointers  (fresh)          0
+pointers (reused)          0
+
+      Finished Algebra.Properties.DistributiveLattice.
+Ticks for Algebra.Properties.BooleanAlgebra
+Double  (fresh)             0
+Double (reused)             0
+Integer  (fresh)         9525
+Integer (reused)       296826
+Node  (fresh)           58456
+Node (reused)         2952237
+String  (fresh)           422
+String (reused)        642371
+attempted-constraints     291
+max-open-constraints        2
+max-open-metas             26
+metas                    2295
+pointers  (fresh)           0
+pointers (reused)           0
+
+     Finished Algebra.Properties.BooleanAlgebra.
+Ticks for Data.Bool.Properties
+Double  (fresh)             0
+Double (reused)             0
+Integer  (fresh)         3550
+Integer (reused)       296735
+Node  (fresh)           48700
+Node (reused)         2889302
+String  (fresh)           549
+String (reused)        736755
+attempted-constraints      48
+max-open-constraints        5
+max-open-metas             16
+metas                     547
+pointers  (fresh)           0
+pointers (reused)           0
+
+    Finished Data.Bool.Properties.
+Ticks for Data.List.NonEmpty
+Double  (fresh)            0
+Double (reused)            0
+Integer  (fresh)        4179
+Integer (reused)       56841
+Node  (fresh)          29091
+Node (reused)         629831
+String  (fresh)          515
+String (reused)       164189
+attempted-constraints    217
+max-open-constraints       7
+max-open-metas            37
+metas                   1006
+pointers  (fresh)          0
+pointers (reused)          0
+
+   Finished Data.List.NonEmpty.
+   Checking Function.Inverse (/home/abel/agda/agda-stdlib/src/Function/Inverse.agda).
+    Checking Function.Bijection (/home/abel/agda/agda-stdlib/src/Function/Bijection.agda).
+     Checking Function.Surjection (/home/abel/agda/agda-stdlib/src/Function/Surjection.agda).
+      Checking Function.LeftInverse (/home/abel/agda/agda-stdlib/src/Function/LeftInverse.agda).
+Ticks for Function.LeftInverse
+Double  (fresh)            0
+Double (reused)            0
+Integer  (fresh)        1492
+Integer (reused)       37523
+Node  (fresh)          15936
+Node (reused)         381137
+String  (fresh)          257
+String (reused)        88413
+attempted-constraints     78
+max-open-constraints       1
+max-open-metas            18
+metas                    476
+pointers  (fresh)          0
+pointers (reused)          0
+
+      Finished Function.LeftInverse.
+Ticks for Function.Surjection
+Double  (fresh)            0
+Double (reused)            0
+Integer  (fresh)        1237
+Integer (reused)       23894
+Node  (fresh)          12875
+Node (reused)         241532
+String  (fresh)          263
+String (reused)        55559
+attempted-constraints     48
+max-open-constraints       1
+max-open-metas            17
+metas                    274
+pointers  (fresh)          0
+pointers (reused)          0
+
+     Finished Function.Surjection.
+Ticks for Function.Bijection
+Double  (fresh)            0
+Double (reused)            0
+Integer  (fresh)        1105
+Integer (reused)       25225
+Node  (fresh)          12098
+Node (reused)         256137
+String  (fresh)          223
+String (reused)        56977
+attempted-constraints     46
+max-open-constraints       1
+max-open-metas            21
+metas                    277
+pointers  (fresh)          0
+pointers (reused)          0
+
+    Finished Function.Bijection.
+Ticks for Function.Inverse
+Double  (fresh)            0
+Double (reused)            0
+Integer  (fresh)        2115
+Integer (reused)       53305
+Node  (fresh)          20087
+Node (reused)         533739
+String  (fresh)          357
+String (reused)       103411
+attempted-constraints    153
+max-open-constraints       5
+max-open-metas            25
+metas                    657
+pointers  (fresh)          0
+pointers (reused)          0
+
+   Finished Function.Inverse.
+   Checking Relation.Binary.InducedPreorders (/home/abel/agda/agda-stdlib/src/Relation/Binary/InducedPreorders.agda).
+Ticks for Relation.Binary.InducedPreorders
+Double  (fresh)            0
+Double (reused)            0
+Integer  (fresh)         723
+Integer (reused)       13009
+Node  (fresh)           7906
+Node (reused)         134649
+String  (fresh)          182
+String (reused)        35752
+attempted-constraints     19
+max-open-constraints       4
+max-open-metas            12
+metas                     70
+pointers  (fresh)          0
+pointers (reused)          0
+
+   Finished Relation.Binary.InducedPreorders.
+   Checking Relation.Nullary.Negation (/home/abel/agda/agda-stdlib/src/Relation/Nullary/Negation.agda).
+    Checking Data.Fin.Dec (/home/abel/agda/agda-stdlib/src/Data/Fin/Dec.agda).
+     Checking Data.Vec.Equality (/home/abel/agda/agda-stdlib/src/Data/Vec/Equality.agda).
+Ticks for Data.Vec.Equality
+Double  (fresh)            0
+Double (reused)            0
+Integer  (fresh)        1629
+Integer (reused)       42969
+Node  (fresh)          18799
+Node (reused)         437137
+String  (fresh)          352
+String (reused)       115478
+attempted-constraints      5
+max-open-constraints       1
+max-open-metas            12
+metas                    276
+pointers  (fresh)          0
+pointers (reused)          0
+
+     Finished Data.Vec.Equality.
+     Checking Data.Fin.Subset (/home/abel/agda/agda-stdlib/src/Data/Fin/Subset.agda).
+      Checking Algebra.Properties.BooleanAlgebra.Expression (/home/abel/agda/agda-stdlib/src/Algebra/Properties/BooleanAlgebra/Expression.agda).
+       Checking Data.Vec.Properties (/home/abel/agda/agda-stdlib/src/Data/Vec/Properties.agda).
+        Checking Data.List.Any (/home/abel/agda/agda-stdlib/src/Data/List/Any.agda).
+         Checking Function.Related (/home/abel/agda/agda-stdlib/src/Function/Related.agda).
+Ticks for Function.Related
+Double  (fresh)            0
+Double (reused)            0
+Integer  (fresh)        4235
+Integer (reused)       61233
+Node  (fresh)          29216
+Node (reused)         629749
+String  (fresh)          318
+String (reused)       142569
+attempted-constraints    253
+max-open-constraints       4
+max-open-metas            22
+metas                   1143
+pointers  (fresh)          0
+pointers (reused)          0
+
+         Finished Function.Related.
+         Checking Relation.Binary.List.Pointwise (/home/abel/agda/agda-stdlib/src/Relation/Binary/List/Pointwise.agda).
+Ticks for Relation.Binary.List.Pointwise
+Double  (fresh)            0
+Double (reused)            0
+Integer  (fresh)        3446
+Integer (reused)       53898
+Node  (fresh)          25927
+Node (reused)         558108
+String  (fresh)          389
+String (reused)       152197
+attempted-constraints    246
+max-open-constraints       4
+max-open-metas            18
+metas                   1100
+pointers  (fresh)          0
+pointers (reused)          0
+
+         Finished Relation.Binary.List.Pointwise.
+Ticks for Data.List.Any
+Double  (fresh)            0
+Double (reused)            0
+Integer  (fresh)        2969
+Integer (reused)       55164
+Node  (fresh)          26303
+Node (reused)         567483
+String  (fresh)          488
+String (reused)       152886
+attempted-constraints    104
+max-open-constraints       4
+max-open-metas            20
+metas                    597
+pointers  (fresh)          0
+pointers (reused)          0
+
+        Finished Data.List.Any.
+        Checking Data.Fin.Properties (/home/abel/agda/agda-stdlib/src/Data/Fin/Properties.agda).
+Ticks for Data.Fin.Properties
+Double  (fresh)            0
+Double (reused)            0
+Integer  (fresh)        4111
+Integer (reused)       92668
+Node  (fresh)          43602
+Node (reused)         951452
+String  (fresh)          671
+String (reused)       236905
+attempted-constraints     88
+max-open-constraints       3
+max-open-metas            15
+metas                    736
+pointers  (fresh)          0
+pointers (reused)          0
+
+        Finished Data.Fin.Properties.
+        Checking Relation.Binary.HeterogeneousEquality (/home/abel/agda/agda-stdlib/src/Relation/Binary/HeterogeneousEquality.agda).
+Ticks for Relation.Binary.HeterogeneousEquality
+Double  (fresh)            0
+Double (reused)            0
+Integer  (fresh)        3449
+Integer (reused)       25223
+Node  (fresh)          19192
+Node (reused)         272225
+String  (fresh)          320
+String (reused)        79545
+attempted-constraints     38
+max-open-constraints       9
+max-open-metas            18
+metas                    611
+pointers  (fresh)          0
+pointers (reused)          0
+
+        Finished Relation.Binary.HeterogeneousEquality.
+Ticks for Data.Vec.Properties
+Double  (fresh)             0
+Double (reused)             0
+Integer  (fresh)         7155
+Integer (reused)       119891
+Node  (fresh)           61424
+Node (reused)         1285659
+String  (fresh)           852
+String (reused)        315272
+attempted-constraints     158
+max-open-constraints        5
+max-open-metas             18
+metas                    1846
+pointers  (fresh)           0
+pointers (reused)           0
+
+       Finished Data.Vec.Properties.
+       Checking Relation.Binary.Vec.Pointwise (/home/abel/agda/agda-stdlib/src/Relation/Binary/Vec/Pointwise.agda).
+        Checking Data.Plus (/home/abel/agda/agda-stdlib/src/Data/Plus.agda).
+Ticks for Data.Plus
+Double  (fresh)            0
+Double (reused)            0
+Integer  (fresh)        1249
+Integer (reused)       13354
+Node  (fresh)           9776
+Node (reused)         153517
+String  (fresh)          200
+String (reused)        37127
+attempted-constraints     71
+max-open-constraints       4
+max-open-metas            15
+metas                    272
+pointers  (fresh)          0
+pointers (reused)          0
+
+        Finished Data.Plus.
+Ticks for Relation.Binary.Vec.Pointwise
+Double  (fresh)            0
+Double (reused)            0
+Integer  (fresh)        3758
+Integer (reused)       71981
+Node  (fresh)          31529
+Node (reused)         762533
+String  (fresh)          495
+String (reused)       207944
+attempted-constraints    364
+max-open-constraints      15
+max-open-metas            48
+metas                   1197
+pointers  (fresh)          0
+pointers (reused)          0
+
+       Finished Relation.Binary.Vec.Pointwise.
+Ticks for Algebra.Properties.BooleanAlgebra.Expression
+Double  (fresh)             0
+Double (reused)             0
+Integer  (fresh)         3152
+Integer (reused)       330354
+Node  (fresh)           35442
+Node (reused)         3324608
+String  (fresh)           531
+String (reused)        864863
+attempted-constraints      42
+max-open-constraints        4
+max-open-metas             22
+metas                     859
+pointers  (fresh)           0
+pointers (reused)           0
+
+      Finished Algebra.Properties.BooleanAlgebra.Expression.
+Ticks for Data.Fin.Subset
+Double  (fresh)            0
+Double (reused)            0
+Integer  (fresh)        1360
+Integer (reused)       29852
+Node  (fresh)          19067
+Node (reused)         319158
+String  (fresh)          522
+String (reused)        83054
+attempted-constraints      3
+max-open-constraints       1
+max-open-metas             8
+metas                    102
+pointers  (fresh)          0
+pointers (reused)          0
+
+     Finished Data.Fin.Subset.
+     Checking Data.Fin.Subset.Properties (/home/abel/agda/agda-stdlib/src/Data/Fin/Subset/Properties.agda).
+Ticks for Data.Fin.Subset.Properties
+Double  (fresh)            0
+Double (reused)            0
+Integer  (fresh)        2759
+Integer (reused)       75101
+Node  (fresh)          33873
+Node (reused)         760902
+String  (fresh)          579
+String (reused)       209194
+attempted-constraints     29
+max-open-constraints       2
+max-open-metas            14
+metas                    536
+pointers  (fresh)          0
+pointers (reused)          0
+
+     Finished Data.Fin.Subset.Properties.
+Ticks for Data.Fin.Dec
+Double  (fresh)            0
+Double (reused)            0
+Integer  (fresh)        3015
+Integer (reused)       48124
+Node  (fresh)          27393
+Node (reused)         503211
+String  (fresh)          494
+String (reused)       130720
+attempted-constraints     66
+max-open-constraints       5
+max-open-metas            24
+metas                    434
+pointers  (fresh)          0
+pointers (reused)          0
+
+    Finished Data.Fin.Dec.
+Ticks for Relation.Nullary.Negation
+Double  (fresh)            0
+Double (reused)            0
+Integer  (fresh)        2482
+Integer (reused)       16090
+Node  (fresh)          13591
+Node (reused)         176179
+String  (fresh)          288
+String (reused)        44950
+attempted-constraints     75
+max-open-constraints       5
+max-open-metas            21
+metas                    512
+pointers  (fresh)          0
+pointers (reused)          0
+
+   Finished Relation.Nullary.Negation.
+Ticks for Data.Colist
+Double  (fresh)             0
+Double (reused)             0
+Integer  (fresh)         7392
+Integer (reused)       114114
+Node  (fresh)           55571
+Node (reused)         1241398
+String  (fresh)           742
+String (reused)        280095
+attempted-constraints     335
+max-open-constraints        8
+max-open-metas             28
+metas                    1830
+pointers  (fresh)           0
+pointers (reused)           0
+
+  Finished Data.Colist.
+Ticks for Data.Stream
+Double  (fresh)            0
+Double (reused)            0
+Integer  (fresh)        2310
+Integer (reused)       26916
+Node  (fresh)          18346
+Node (reused)         302896
+String  (fresh)          378
+String (reused)        72700
+attempted-constraints     32
+max-open-constraints       3
+max-open-metas            14
+metas                    421
+pointers  (fresh)          0
+pointers (reused)          0
+
+ Finished Data.Stream.
+ Checking Data.String (/home/abel/agda/agda-stdlib/src/Data/String.agda).
+  Checking Relation.Binary.List.StrictLex (/home/abel/agda/agda-stdlib/src/Relation/Binary/List/StrictLex.agda).
+Ticks for Relation.Binary.List.StrictLex
+Double  (fresh)             0
+Double (reused)             0
+Integer  (fresh)         4576
+Integer (reused)       101270
+Node  (fresh)           37878
+Node (reused)         1042526
+String  (fresh)           390
+String (reused)        284005
+attempted-constraints     191
+max-open-constraints        4
+max-open-metas             22
+metas                    1288
+pointers  (fresh)           0
+pointers (reused)           0
+
+  Finished Relation.Binary.List.StrictLex.
+Ticks for Data.String
+Double  (fresh)            0
+Double (reused)            0
+Integer  (fresh)        1176
+Integer (reused)       19825
+Node  (fresh)          14620
+Node (reused)         202784
+String  (fresh)          401
+String (reused)        58488
+attempted-constraints      7
+max-open-constraints       2
+max-open-metas             8
+metas                    102
+pointers  (fresh)          0
+pointers (reused)          0
+
+ Finished Data.String.
+ Checking Induction (/home/abel/agda/agda-stdlib/src/Induction.agda).
+Ticks for Induction
+Double  (fresh)           0
+Double (reused)           0
+Integer  (fresh)        635
+Integer (reused)       2867
+Node  (fresh)          3129
+Node (reused)         32006
+String  (fresh)          84
+String (reused)        5848
+attempted-constraints    28
+max-open-constraints      3
+max-open-metas            8
+metas                   140
+pointers  (fresh)         0
+pointers (reused)         0
+
+ Finished Induction.
+ Checking Induction.WellFounded (/home/abel/agda/agda-stdlib/src/Induction/WellFounded.agda).
+Ticks for Induction.WellFounded
+Double  (fresh)            0
+Double (reused)            0
+Integer  (fresh)        2113
+Integer (reused)       20803
+Node  (fresh)          14733
+Node (reused)         223165
+String  (fresh)          272
+String (reused)        50719
+attempted-constraints    108
+max-open-constraints       7
+max-open-metas            11
+metas                    402
+pointers  (fresh)          0
+pointers (reused)          0
+
+ Finished Induction.WellFounded.
+ Checking Induction.Nat (/home/abel/agda/agda-stdlib/src/Induction/Nat.agda).
+Ticks for Induction.Nat
+Double  (fresh)            0
+Double (reused)            0
+Integer  (fresh)        2238
+Integer (reused)       25283
+Node  (fresh)          15294
+Node (reused)         283512
+String  (fresh)          323
+String (reused)        73862
+attempted-constraints    187
+max-open-constraints       7
+max-open-metas            20
+metas                    411
+pointers  (fresh)          0
+pointers (reused)          0
+
+ Finished Induction.Nat.
+ Checking IO (/home/abel/agda/agda-stdlib/src/IO.agda).
+  Checking IO.Primitive (/home/abel/agda/agda-stdlib/src/IO/Primitive.agda).
+   Checking Foreign.Haskell (/home/abel/agda/agda-stdlib/src/Foreign/Haskell.agda).
+Ticks for Foreign.Haskell
+Double  (fresh)         0
+Double (reused)         0
+Integer  (fresh)       47
+Integer (reused)      277
+Node  (fresh)         188
+Node (reused)        2866
+String  (fresh)         5
+String (reused)       648
+max-open-constraints    0
+max-open-metas          1
+metas                   1
+pointers  (fresh)       0
+pointers (reused)       0
+
+   Finished Foreign.Haskell.
+Ticks for IO.Primitive
+Double  (fresh)          0
+Double (reused)          0
+Integer  (fresh)       395
+Integer (reused)      1322
+Node  (fresh)         1566
+Node (reused)        14800
+String  (fresh)         53
+String (reused)       3411
+max-open-constraints     0
+max-open-metas           4
+metas                   41
+pointers  (fresh)        0
+pointers (reused)        0
+
+  Finished IO.Primitive.
+Ticks for IO
+Double  (fresh)            0
+Double (reused)            0
+Integer  (fresh)        1268
+Integer (reused)       11414
+Node  (fresh)           9497
+Node (reused)         128068
+String  (fresh)          219
+String (reused)        23796
+attempted-constraints      6
+max-open-constraints       1
+max-open-metas            10
+metas                    182
+pointers  (fresh)          0
+pointers (reused)          0
+
+ Finished IO.
+ Checking README.Nat (/home/abel/agda/agda-stdlib/README/Nat.agda).
+Ticks for README.Nat
+Double  (fresh)            0
+Double (reused)            0
+Integer  (fresh)         952
+Integer (reused)       29905
+Node  (fresh)          15896
+Node (reused)         318590
+String  (fresh)          419
+String (reused)        78338
+attempted-constraints      1
+max-open-constraints       1
+max-open-metas            12
+metas                     55
+pointers  (fresh)          0
+pointers (reused)          0
+
+ Finished README.Nat.
+ Checking README.Integer (/home/abel/agda/agda-stdlib/README/Integer.agda).
+  Checking Data.Integer (/home/abel/agda/agda-stdlib/src/Data/Integer.agda).
+   Checking Data.Nat.Show (/home/abel/agda/agda-stdlib/src/Data/Nat/Show.agda).
+    Checking Data.Digit (/home/abel/agda/agda-stdlib/src/Data/Digit.agda).
+     Checking Data.Nat.DivMod (/home/abel/agda/agda-stdlib/src/Data/Nat/DivMod.agda).
+Ticks for Data.Nat.DivMod
+Double  (fresh)            0
+Double (reused)            0
+Integer  (fresh)        1508
+Integer (reused)       46260
+Node  (fresh)          14558
+Node (reused)         483720
+String  (fresh)          403
+String (reused)       135158
+attempted-constraints     31
+max-open-constraints       3
+max-open-metas            22
+metas                    184
+pointers  (fresh)          0
+pointers (reused)          0
+
+     Finished Data.Nat.DivMod.
+Ticks for Data.Digit
+Double  (fresh)            0
+Double (reused)            0
+Integer  (fresh)        1382
+Integer (reused)       27293
+Node  (fresh)          15425
+Node (reused)         295313
+String  (fresh)          469
+String (reused)        80468
+attempted-constraints    130
+max-open-constraints      14
+max-open-metas            16
+metas                    153
+pointers  (fresh)          0
+pointers (reused)          0
+
+    Finished Data.Digit.
+Ticks for Data.Nat.Show
+Double  (fresh)           0
+Double (reused)           0
+Integer  (fresh)        358
+Integer (reused)       4550
+Node  (fresh)          4911
+Node (reused)         55503
+String  (fresh)         214
+String (reused)       15715
+attempted-constraints     2
+max-open-constraints      1
+max-open-metas           10
+metas                    41
+pointers  (fresh)         0
+pointers (reused)         0
+
+   Finished Data.Nat.Show.
+   Checking Data.Sign (/home/abel/agda/agda-stdlib/src/Data/Sign.agda).
+Ticks for Data.Sign
+Double  (fresh)            0
+Double (reused)            0
+Integer  (fresh)         495
+Integer (reused)       11769
+Node  (fresh)           7257
+Node (reused)         122841
+String  (fresh)          158
+String (reused)        35200
+attempted-constraints      2
+max-open-constraints       2
+max-open-metas             6
+metas                     14
+pointers  (fresh)          0
+pointers (reused)          0
+
+   Finished Data.Sign.
+Ticks for Data.Integer
+Double  (fresh)            0
+Double (reused)            0
+Integer  (fresh)        2902
+Integer (reused)       41545
+Node  (fresh)          23401
+Node (reused)         444051
+String  (fresh)          335
+String (reused)       115434
+attempted-constraints     23
+max-open-constraints       3
+max-open-metas            23
+metas                    392
+pointers  (fresh)          0
+pointers (reused)          0
+
+  Finished Data.Integer.
+  Checking Data.Integer.Properties (/home/abel/agda/agda-stdlib/src/Data/Integer/Properties.agda).
+   Checking Data.Integer.Addition.Properties (/home/abel/agda/agda-stdlib/src/Data/Integer/Addition/Properties.agda).
+Ticks for Data.Integer.Addition.Properties
+Double  (fresh)            0
+Double (reused)            0
+Integer  (fresh)        1991
+Integer (reused)       68583
+Node  (fresh)          28439
+Node (reused)         727040
+String  (fresh)          471
+String (reused)       203765
+attempted-constraints     33
+max-open-constraints       1
+max-open-metas             9
+metas                    177
+pointers  (fresh)          0
+pointers (reused)          0
+
+   Finished Data.Integer.Addition.Properties.
+   Checking Data.Integer.Multiplication.Properties (/home/abel/agda/agda-stdlib/src/Data/Integer/Multiplication/Properties.agda).
+Ticks for Data.Integer.Multiplication.Properties
+Double  (fresh)            0
+Double (reused)            0
+Integer  (fresh)        1953
+Integer (reused)       62161
+Node  (fresh)          26785
+Node (reused)         648706
+String  (fresh)          494
+String (reused)       178707
+attempted-constraints     27
+max-open-constraints       3
+max-open-metas            10
+metas                    227
+pointers  (fresh)          0
+pointers (reused)          0
+
+   Finished Data.Integer.Multiplication.Properties.
+   Checking Data.Sign.Properties (/home/abel/agda/agda-stdlib/src/Data/Sign/Properties.agda).
+Ticks for Data.Sign.Properties
+Double  (fresh)          0
+Double (reused)          0
+Integer  (fresh)       261
+Integer (reused)      3793
+Node  (fresh)         2793
+Node (reused)        42215
+String  (fresh)         92
+String (reused)      13267
+max-open-constraints     0
+max-open-metas           9
+metas                   31
+pointers  (fresh)        0
+pointers (reused)        0
+
+   Finished Data.Sign.Properties.
+Ticks for Data.Integer.Properties
+Double  (fresh)             0
+Double (reused)             0
+Integer  (fresh)         5844
+Integer (reused)       379799
+Node  (fresh)           71251
+Node (reused)         3903863
+String  (fresh)           754
+String (reused)       1019261
+attempted-constraints      39
+max-open-constraints        3
+max-open-metas             14
+metas                     726
+pointers  (fresh)           0
+pointers (reused)           0
+
+  Finished Data.Integer.Properties.
+Ticks for README.Integer
+Double  (fresh)            0
+Double (reused)            0
+Integer  (fresh)        1071
+Integer (reused)       31390
+Node  (fresh)          15993
+Node (reused)         330449
+String  (fresh)          361
+String (reused)        79058
+attempted-constraints      1
+max-open-constraints       1
+max-open-metas            12
+metas                     59
+pointers  (fresh)          0
+pointers (reused)          0
+
+ Finished README.Integer.
+ Checking README.AVL (/home/abel/agda/agda-stdlib/README/AVL.agda).
+  Checking Data.AVL (/home/abel/agda/agda-stdlib/src/Data/AVL.agda).
+   Checking Data.DifferenceList (/home/abel/agda/agda-stdlib/src/Data/DifferenceList.agda).
+Ticks for Data.DifferenceList
+Double  (fresh)           0
+Double (reused)           0
+Integer  (fresh)        844
+Integer (reused)       4571
+Node  (fresh)          5099
+Node (reused)         54415
+String  (fresh)         164
+String (reused)       12745
+attempted-constraints    22
+max-open-constraints      5
+max-open-metas           10
+metas                   140
+pointers  (fresh)         0
+pointers (reused)         0
+
+   Finished Data.DifferenceList.
+Ticks for Data.AVL
+Double  (fresh)             0
+Double (reused)             0
+Integer  (fresh)         6528
+Integer (reused)       115477
+Node  (fresh)           50458
+Node (reused)         1302702
+String  (fresh)           490
+String (reused)        268342
+attempted-constraints      72
+max-open-constraints        4
+max-open-metas             14
+metas                     954
+pointers  (fresh)           0
+pointers (reused)           0
+
+  Finished Data.AVL.
+  Checking Data.AVL.IndexedMap (/home/abel/agda/agda-stdlib/src/Data/AVL/IndexedMap.agda).
+Ticks for Data.AVL.IndexedMap
+Double  (fresh)            0
+Double (reused)            0
+Integer  (fresh)        1144
+Integer (reused)       66341
+Node  (fresh)          23898
+Node (reused)         699777
+String  (fresh)          366
+String (reused)       143085
+attempted-constraints     52
+max-open-constraints       3
+max-open-metas            14
+metas                    190
+pointers  (fresh)          0
+pointers (reused)          0
+
+  Finished Data.AVL.IndexedMap.
+  Checking Data.AVL.Sets (/home/abel/agda/agda-stdlib/src/Data/AVL/Sets.agda).
+Ticks for Data.AVL.Sets
+Double  (fresh)            0
+Double (reused)            0
+Integer  (fresh)         847
+Integer (reused)       48733
+Node  (fresh)          21280
+Node (reused)         534806
+String  (fresh)          368
+String (reused)       115735
+attempted-constraints     26
+max-open-constraints       3
+max-open-metas            16
+metas                    123
+pointers  (fresh)          0
+pointers (reused)          0
+
+  Finished Data.AVL.Sets.
+Ticks for README.AVL
+Double  (fresh)            0
+Double (reused)            0
+Integer  (fresh)        1207
+Integer (reused)       78438
+Node  (fresh)          23542
+Node (reused)         778073
+String  (fresh)          536
+String (reused)       190415
+attempted-constraints     30
+max-open-constraints       5
+max-open-metas            17
+metas                    110
+pointers  (fresh)          0
+pointers (reused)          0
+
+ Finished README.AVL.
+ Checking README.Record (/home/abel/agda/agda-stdlib/README/Record.agda).
+  Checking Record (/home/abel/agda/agda-stdlib/src/Record.agda).
+Ticks for Record
+Double  (fresh)            0
+Double (reused)            0
+Integer  (fresh)        3231
+Integer (reused)       37970
+Node  (fresh)          23356
+Node (reused)         465799
+String  (fresh)          348
+String (reused)        94258
+attempted-constraints     35
+max-open-constraints       2
+max-open-metas            10
+metas                    390
+pointers  (fresh)          0
+pointers (reused)          0
+
+  Finished Record.
+Ticks for README.Record
+Double  (fresh)            0
+Double (reused)            0
+Integer  (fresh)         755
+Integer (reused)       24205
+Node  (fresh)          11645
+Node (reused)         248862
+String  (fresh)          230
+String (reused)        54584
+attempted-constraints      8
+max-open-constraints       2
+max-open-metas            10
+metas                     82
+pointers  (fresh)          0
+pointers (reused)          0
+
+ Finished README.Record.
+ Checking README.Case (/home/abel/agda/agda-stdlib/README/Case.agda).
+Ticks for README.Case
+Double  (fresh)           0
+Double (reused)           0
+Integer  (fresh)        358
+Integer (reused)       4380
+Node  (fresh)          4221
+Node (reused)         55083
+String  (fresh)         158
+String (reused)       14788
+attempted-constraints     3
+max-open-constraints      1
+max-open-metas            4
+metas                    29
+pointers  (fresh)         0
+pointers (reused)         0
+
+ Finished README.Case.
+ Checking Everything (/home/abel/agda/agda-stdlib/Everything.agda).
+  Checking Algebra.Monoid-solver (/home/abel/agda/agda-stdlib/src/Algebra/Monoid-solver.agda).
+Ticks for Algebra.Monoid-solver
+Double  (fresh)            0
+Double (reused)            0
+Integer  (fresh)        2008
+Integer (reused)       45649
+Node  (fresh)          24797
+Node (reused)         494688
+String  (fresh)          511
+String (reused)       105535
+attempted-constraints     17
+max-open-constraints       2
+max-open-metas            11
+metas                    298
+pointers  (fresh)          0
+pointers (reused)          0
+
+  Finished Algebra.Monoid-solver.
+  Checking Algebra.Props.AbelianGroup (/home/abel/agda/agda-stdlib/src/Algebra/Props/AbelianGroup.agda).
+Ticks for Algebra.Props.AbelianGroup
+Double  (fresh)            0
+Double (reused)            0
+Integer  (fresh)         600
+Integer (reused)       12660
+Node  (fresh)           8419
+Node (reused)         128336
+String  (fresh)          165
+String (reused)        27334
+attempted-constraints      1
+max-open-constraints       1
+max-open-metas             5
+metas                      7
+pointers  (fresh)          0
+pointers (reused)          0
+
+  Finished Algebra.Props.AbelianGroup.
+  Checking Algebra.Props.BooleanAlgebra (/home/abel/agda/agda-stdlib/src/Algebra/Props/BooleanAlgebra.agda).
+Ticks for Algebra.Props.BooleanAlgebra
+Double  (fresh)            0
+Double (reused)            0
+Integer  (fresh)         644
+Integer (reused)       23496
+Node  (fresh)          11194
+Node (reused)         234165
+String  (fresh)          201
+String (reused)        53805
+attempted-constraints      1
+max-open-constraints       1
+max-open-metas             5
+metas                      7
+pointers  (fresh)          0
+pointers (reused)          0
+
+  Finished Algebra.Props.BooleanAlgebra.
+  Checking Algebra.Props.DistributiveLattice (/home/abel/agda/agda-stdlib/src/Algebra/Props/DistributiveLattice.agda).
+Ticks for Algebra.Props.DistributiveLattice
+Double  (fresh)            0
+Double (reused)            0
+Integer  (fresh)         608
+Integer (reused)       11932
+Node  (fresh)           8749
+Node (reused)         124325
+String  (fresh)          175
+String (reused)        26764
+attempted-constraints      1
+max-open-constraints       1
+max-open-metas             5
+metas                      7
+pointers  (fresh)          0
+pointers (reused)          0
+
+  Finished Algebra.Props.DistributiveLattice.
+  Checking Algebra.Props.Group (/home/abel/agda/agda-stdlib/src/Algebra/Props/Group.agda).
+Ticks for Algebra.Props.Group
+Double  (fresh)            0
+Double (reused)            0
+Integer  (fresh)         599
+Integer (reused)       10900
+Node  (fresh)           8193
+Node (reused)         114218
+String  (fresh)          163
+String (reused)        23805
+attempted-constraints      1
+max-open-constraints       1
+max-open-metas             5
+metas                      7
+pointers  (fresh)          0
+pointers (reused)          0
+
+  Finished Algebra.Props.Group.
+  Checking Algebra.Props.Lattice (/home/abel/agda/agda-stdlib/src/Algebra/Props/Lattice.agda).
+Ticks for Algebra.Props.Lattice
+Double  (fresh)            0
+Double (reused)            0
+Integer  (fresh)         610
+Integer (reused)       10391
+Node  (fresh)           8313
+Node (reused)         109627
+String  (fresh)          169
+String (reused)        22839
+attempted-constraints      1
+max-open-constraints       1
+max-open-metas             5
+metas                      7
+pointers  (fresh)          0
+pointers (reused)          0
+
+  Finished Algebra.Props.Lattice.
+  Checking Algebra.Props.Ring (/home/abel/agda/agda-stdlib/src/Algebra/Props/Ring.agda).
+Ticks for Algebra.Props.Ring
+Double  (fresh)            0
+Double (reused)            0
+Integer  (fresh)         604
+Integer (reused)       14987
+Node  (fresh)           8780
+Node (reused)         147756
+String  (fresh)          175
+String (reused)        32114
+attempted-constraints      1
+max-open-constraints       1
+max-open-metas             5
+metas                      7
+pointers  (fresh)          0
+pointers (reused)          0
+
+  Finished Algebra.Props.Ring.
+  Checking Algebra.RingSolver.Natural-coefficients (/home/abel/agda/agda-stdlib/src/Algebra/RingSolver/Natural-coefficients.agda).
+Ticks for Algebra.RingSolver.Natural-coefficients
+Double  (fresh)             0
+Double (reused)             0
+Integer  (fresh)         1211
+Integer (reused)       140579
+Node  (fresh)           33914
+Node (reused)         1471920
+String  (fresh)           446
+String (reused)        316170
+attempted-constraints      11
+max-open-constraints        1
+max-open-metas             12
+metas                      82
+pointers  (fresh)           0
+pointers (reused)           0
+
+  Finished Algebra.RingSolver.Natural-coefficients.
+  Checking Category.Applicative.Predicate (/home/abel/agda/agda-stdlib/src/Category/Applicative/Predicate.agda).
+   Checking Category.Functor.Predicate (/home/abel/agda/agda-stdlib/src/Category/Functor/Predicate.agda).
+    Checking Relation.Unary.PredicateTransformer (/home/abel/agda/agda-stdlib/src/Relation/Unary/PredicateTransformer.agda).
+Ticks for Relation.Unary.PredicateTransformer
+Double  (fresh)            0
+Double (reused)            0
+Integer  (fresh)        1686
+Integer (reused)       15399
+Node  (fresh)          11128
+Node (reused)         161472
+String  (fresh)          245
+String (reused)        41465
+attempted-constraints     35
+max-open-constraints       3
+max-open-metas            12
+metas                    279
+pointers  (fresh)          0
+pointers (reused)          0
+
+    Finished Relation.Unary.PredicateTransformer.
+Ticks for Category.Functor.Predicate
+Double  (fresh)           0
+Double (reused)           0
+Integer  (fresh)        296
+Integer (reused)       3380
+Node  (fresh)          3114
+Node (reused)         36800
+String  (fresh)         118
+String (reused)        9449
+attempted-constraints    11
+max-open-constraints      2
+max-open-metas           14
+metas                    51
+pointers  (fresh)         0
+pointers (reused)         0
+
+   Finished Category.Functor.Predicate.
+Ticks for Category.Applicative.Predicate
+Double  (fresh)           0
+Double (reused)           0
+Integer  (fresh)        585
+Integer (reused)       7444
+Node  (fresh)          5265
+Node (reused)         84564
+String  (fresh)         158
+String (reused)       21188
+attempted-constraints    69
+max-open-constraints      4
+max-open-metas           16
+metas                   194
+pointers  (fresh)         0
+pointers (reused)         0
+
+  Finished Category.Applicative.Predicate.
+  Checking Category.Monad.Continuation (/home/abel/agda/agda-stdlib/src/Category/Monad/Continuation.agda).
+Ticks for Category.Monad.Continuation
+Double  (fresh)            0
+Double (reused)            0
+Integer  (fresh)         970
+Integer (reused)       24490
+Node  (fresh)           9964
+Node (reused)         256827
+String  (fresh)          136
+String (reused)        63283
+attempted-constraints     20
+max-open-constraints       2
+max-open-metas            12
+metas                    157
+pointers  (fresh)          0
+pointers (reused)          0
+
+  Finished Category.Monad.Continuation.
+  Checking Category.Monad.Partiality (/home/abel/agda/agda-stdlib/src/Category/Monad/Partiality.agda).
+Ticks for Category.Monad.Partiality
+Double  (fresh)             0
+Double (reused)             0
+Integer  (fresh)        13064
+Integer (reused)       305900
+Node  (fresh)           90059
+Node (reused)         3038830
+String  (fresh)           617
+String (reused)        775601
+attempted-constraints     598
+max-open-constraints        7
+max-open-metas             31
+metas                    3220
+pointers  (fresh)           0
+pointers (reused)           0
+
+  Finished Category.Monad.Partiality.
+  Checking Category.Monad.Partiality.All (/home/abel/agda/agda-stdlib/src/Category/Monad/Partiality/All.agda).
+Ticks for Category.Monad.Partiality.All
+Double  (fresh)            0
+Double (reused)            0
+Integer  (fresh)        3008
+Integer (reused)       46659
+Node  (fresh)          23994
+Node (reused)         475775
+String  (fresh)          370
+String (reused)       141052
+attempted-constraints    143
+max-open-constraints       5
+max-open-metas            13
+metas                    672
+pointers  (fresh)          0
+pointers (reused)          0
+
+  Finished Category.Monad.Partiality.All.
+  Checking Category.Monad.Predicate (/home/abel/agda/agda-stdlib/src/Category/Monad/Predicate.agda).
+Ticks for Category.Monad.Predicate
+Double  (fresh)            0
+Double (reused)            0
+Integer  (fresh)        1006
+Integer (reused)       23644
+Node  (fresh)          11775
+Node (reused)         256352
+String  (fresh)          268
+String (reused)        68404
+attempted-constraints     41
+max-open-constraints       5
+max-open-metas            18
+metas                    243
+pointers  (fresh)          0
+pointers (reused)          0
+
+  Finished Category.Monad.Predicate.
+  Checking Category.Monad.State (/home/abel/agda/agda-stdlib/src/Category/Monad/State.agda).
+Ticks for Category.Monad.State
+Double  (fresh)            0
+Double (reused)            0
+Integer  (fresh)        1815
+Integer (reused)       55371
+Node  (fresh)          18408
+Node (reused)         575571
+String  (fresh)          180
+String (reused)       137500
+attempted-constraints     57
+max-open-constraints       3
+max-open-metas            11
+metas                    348
+pointers  (fresh)          0
+pointers (reused)          0
+
+  Finished Category.Monad.State.
+  Checking Data.Bin (/home/abel/agda/agda-stdlib/src/Data/Bin.agda).
+Ticks for Data.Bin
+Double  (fresh)             0
+Double (reused)             0
+Integer  (fresh)         3921
+Integer (reused)       116465
+Node  (fresh)           45858
+Node (reused)         1209415
+String  (fresh)           698
+String (reused)        281672
+attempted-constraints      29
+max-open-constraints        2
+max-open-metas             13
+metas                     484
+pointers  (fresh)           0
+pointers (reused)           0
+
+  Finished Data.Bin.
+  Checking Data.Bool.Show (/home/abel/agda/agda-stdlib/src/Data/Bool/Show.agda).
+Ticks for Data.Bool.Show
+Double  (fresh)         0
+Double (reused)         0
+Integer  (fresh)       83
+Integer (reused)      770
+Node  (fresh)         884
+Node (reused)        9297
+String  (fresh)        30
+String (reused)      2784
+max-open-constraints    0
+max-open-metas          1
+metas                   2
+pointers  (fresh)       0
+pointers (reused)       0
+
+  Finished Data.Bool.Show.
+  Checking Data.BoundedVec (/home/abel/agda/agda-stdlib/src/Data/BoundedVec.agda).
+Ticks for Data.BoundedVec
+Double  (fresh)            0
+Double (reused)            0
+Integer  (fresh)         977
+Integer (reused)       12645
+Node  (fresh)           9414
+Node (reused)         145751
+String  (fresh)          338
+String (reused)        43553
+attempted-constraints      3
+max-open-constraints       1
+max-open-metas             6
+metas                    104
+pointers  (fresh)          0
+pointers (reused)          0
+
+  Finished Data.BoundedVec.
+  Checking Data.Cofin (/home/abel/agda/agda-stdlib/src/Data/Cofin.agda).
+Ticks for Data.Cofin
+Double  (fresh)           0
+Double (reused)           0
+Integer  (fresh)        449
+Integer (reused)       4487
+Node  (fresh)          3686
+Node (reused)         48301
+String  (fresh)         107
+String (reused)       11768
+attempted-constraints     8
+max-open-constraints      2
+max-open-metas            5
+metas                    37
+pointers  (fresh)         0
+pointers (reused)         0
+
+  Finished Data.Cofin.
+  Checking Data.Colist.Infinite-merge (/home/abel/agda/agda-stdlib/src/Data/Colist/Infinite-merge.agda).
+   Checking Function.Related.TypeIsomorphisms (/home/abel/agda/agda-stdlib/src/Function/Related/TypeIsomorphisms.agda).
+    Checking Relation.Binary.Product.Pointwise (/home/abel/agda/agda-stdlib/src/Relation/Binary/Product/Pointwise.agda).
+     Checking Relation.Nullary.Product (/home/abel/agda/agda-stdlib/src/Relation/Nullary/Product.agda).
+Ticks for Relation.Nullary.Product
+Double  (fresh)           0
+Double (reused)           0
+Integer  (fresh)        213
+Integer (reused)       1644
+Node  (fresh)          2020
+Node (reused)         20034
+String  (fresh)          74
+String (reused)        5490
+attempted-constraints     8
+max-open-constraints      2
+max-open-metas            6
+metas                    32
+pointers  (fresh)         0
+pointers (reused)         0
+
+     Finished Relation.Nullary.Product.
+Ticks for Relation.Binary.Product.Pointwise
+Double  (fresh)            0
+Double (reused)            0
+Integer  (fresh)        6316
+Integer (reused)       88991
+Node  (fresh)          39945
+Node (reused)         909297
+String  (fresh)          522
+String (reused)       225017
+attempted-constraints    491
+max-open-constraints       4
+max-open-metas            24
+metas                   2339
+pointers  (fresh)          0
+pointers (reused)          0
+
+    Finished Relation.Binary.Product.Pointwise.
+    Checking Relation.Binary.Sum (/home/abel/agda/agda-stdlib/src/Relation/Binary/Sum.agda).
+Ticks for Relation.Binary.Sum
+Double  (fresh)             0
+Double (reused)             0
+Integer  (fresh)         9347
+Integer (reused)       154485
+Node  (fresh)           62027
+Node (reused)         1609388
+String  (fresh)           578
+String (reused)        359245
+attempted-constraints    1091
+max-open-constraints       12
+max-open-metas             36
+metas                    3743
+pointers  (fresh)           0
+pointers (reused)           0
+
+    Finished Relation.Binary.Sum.
+Ticks for Function.Related.TypeIsomorphisms
+Double  (fresh)             0
+Double (reused)             0
+Integer  (fresh)         7628
+Integer (reused)       735311
+Node  (fresh)           80630
+Node (reused)         7377329
+String  (fresh)           816
+String (reused)       1781465
+attempted-constraints     926
+max-open-constraints       21
+max-open-metas             35
+metas                    2971
+pointers  (fresh)           0
+pointers (reused)           0
+
+   Finished Function.Related.TypeIsomorphisms.
+Ticks for Data.Colist.Infinite-merge
+Double  (fresh)             0
+Double (reused)             0
+Integer  (fresh)         3902
+Integer (reused)       104164
+Node  (fresh)           35897
+Node (reused)         1122904
+String  (fresh)           642
+String (reused)        274241
+attempted-constraints     757
+max-open-constraints       20
+max-open-metas             44
+metas                    1356
+pointers  (fresh)           0
+pointers (reused)           0
+
+  Finished Data.Colist.Infinite-merge.
+  Checking Data.Container (/home/abel/agda/agda-stdlib/src/Data/Container.agda).
+   Checking Data.M (/home/abel/agda/agda-stdlib/src/Data/M.agda).
+Ticks for Data.M
+Double  (fresh)           0
+Double (reused)           0
+Integer  (fresh)        297
+Integer (reused)       1111
+Node  (fresh)          1386
+Node (reused)         12208
+String  (fresh)          33
+String (reused)        2287
+attempted-constraints     6
+max-open-constraints      1
+max-open-metas            5
+metas                    41
+pointers  (fresh)         0
+pointers (reused)         0
+
+   Finished Data.M.
+   Checking Data.W (/home/abel/agda/agda-stdlib/src/Data/W.agda).
+Ticks for Data.W
+Double  (fresh)           0
+Double (reused)           0
+Integer  (fresh)        376
+Integer (reused)       1301
+Node  (fresh)          1689
+Node (reused)         14296
+String  (fresh)          40
+String (reused)        2963
+attempted-constraints     8
+max-open-constraints      1
+max-open-metas            5
+metas                    54
+pointers  (fresh)         0
+pointers (reused)         0
+
+   Finished Data.W.
+Ticks for Data.Container
+Double  (fresh)            0
+Double (reused)            0
+Integer  (fresh)        3722
+Integer (reused)       55156
+Node  (fresh)          25960
+Node (reused)         569075
+String  (fresh)          411
+String (reused)       128496
+attempted-constraints     79
+max-open-constraints       3
+max-open-metas            13
+metas                    733
+pointers  (fresh)          0
+pointers (reused)          0
+
+  Finished Data.Container.
+  Checking Data.Container.Any (/home/abel/agda/agda-stdlib/src/Data/Container/Any.agda).
+   Checking Data.Container.Combinator (/home/abel/agda/agda-stdlib/src/Data/Container/Combinator.agda).
+Ticks for Data.Container.Combinator
+Double  (fresh)            0
+Double (reused)            0
+Integer  (fresh)        3005
+Integer (reused)       41315
+Node  (fresh)          17547
+Node (reused)         429409
+String  (fresh)          268
+String (reused)       108417
+attempted-constraints    215
+max-open-constraints      13
+max-open-metas            23
+metas                    783
+pointers  (fresh)          0
+pointers (reused)          0
+
+   Finished Data.Container.Combinator.
+   Checking Relation.Binary.Sigma.Pointwise (/home/abel/agda/agda-stdlib/src/Relation/Binary/Sigma/Pointwise.agda).
+Ticks for Relation.Binary.Sigma.Pointwise
+Double  (fresh)             0
+Double (reused)             0
+Integer  (fresh)         6857
+Integer (reused)       134232
+Node  (fresh)           40982
+Node (reused)         1359363
+String  (fresh)           431
+String (reused)        360370
+attempted-constraints    1992
+max-open-constraints       23
+max-open-metas             43
+metas                    3576
+pointers  (fresh)           0
+pointers (reused)           0
+
+   Finished Relation.Binary.Sigma.Pointwise.
+Ticks for Data.Container.Any
+Double  (fresh)             0
+Double (reused)             0
+Integer  (fresh)         5138
+Integer (reused)       120817
+Node  (fresh)           41083
+Node (reused)         1312241
+String  (fresh)           620
+String (reused)        306961
+attempted-constraints    1615
+max-open-constraints       30
+max-open-metas             57
+metas                    2371
+pointers  (fresh)           0
+pointers (reused)           0
+
+  Finished Data.Container.Any.
+  Checking Data.Container.FreeMonad (/home/abel/agda/agda-stdlib/src/Data/Container/FreeMonad.agda).
+Ticks for Data.Container.FreeMonad
+Double  (fresh)           0
+Double (reused)           0
+Integer  (fresh)        674
+Integer (reused)       7970
+Node  (fresh)          6485
+Node (reused)         87152
+String  (fresh)         207
+String (reused)       24359
+attempted-constraints     9
+max-open-constraints      2
+max-open-metas            8
+metas                    87
+pointers  (fresh)         0
+pointers (reused)         0
+
+  Finished Data.Container.FreeMonad.
+  Checking Data.Container.Indexed (/home/abel/agda/agda-stdlib/src/Data/Container/Indexed.agda).
+   Checking Data.W.Indexed (/home/abel/agda/agda-stdlib/src/Data/W/Indexed.agda).
+    Checking Data.Container.Indexed.Core (/home/abel/agda/agda-stdlib/src/Data/Container/Indexed/Core.agda).
+Ticks for Data.Container.Indexed.Core
+Double  (fresh)           0
+Double (reused)           0
+Integer  (fresh)        614
+Integer (reused)       6098
+Node  (fresh)          4381
+Node (reused)         62265
+String  (fresh)         118
+String (reused)       18674
+attempted-constraints     8
+max-open-constraints      1
+max-open-metas           10
+metas                    98
+pointers  (fresh)         0
+pointers (reused)         0
+
+    Finished Data.Container.Indexed.Core.
+Ticks for Data.W.Indexed
+Double  (fresh)           0
+Double (reused)           0
+Integer  (fresh)        672
+Integer (reused)       8134
+Node  (fresh)          4728
+Node (reused)         81291
+String  (fresh)         117
+String (reused)       22357
+attempted-constraints    31
+max-open-constraints      5
+max-open-metas           12
+metas                   132
+pointers  (fresh)         0
+pointers (reused)         0
+
+   Finished Data.W.Indexed.
+   Checking Data.M.Indexed (/home/abel/agda/agda-stdlib/src/Data/M/Indexed.agda).
+Ticks for Data.M.Indexed
+Double  (fresh)           0
+Double (reused)           0
+Integer  (fresh)        503
+Integer (reused)       8902
+Node  (fresh)          5248
+Node (reused)         90529
+String  (fresh)         151
+String (reused)       23869
+attempted-constraints    16
+max-open-constraints      1
+max-open-metas           10
+metas                    99
+pointers  (fresh)         0
+pointers (reused)         0
+
+   Finished Data.M.Indexed.
+Ticks for Data.Container.Indexed
+Double  (fresh)             0
+Double (reused)             0
+Integer  (fresh)         5527
+Integer (reused)       142915
+Node  (fresh)           41675
+Node (reused)         1449402
+String  (fresh)           452
+String (reused)        401365
+attempted-constraints     334
+max-open-constraints        6
+max-open-metas             33
+metas                    2196
+pointers  (fresh)           0
+pointers (reused)           0
+
+  Finished Data.Container.Indexed.
+  Checking Data.Container.Indexed.Combinator (/home/abel/agda/agda-stdlib/src/Data/Container/Indexed/Combinator.agda).
+Ticks for Data.Container.Indexed.Combinator
+Double  (fresh)            0
+Double (reused)            0
+Integer  (fresh)        4804
+Integer (reused)       86394
+Node  (fresh)          29254
+Node (reused)         905539
+String  (fresh)          357
+String (reused)       253653
+attempted-constraints    540
+max-open-constraints      16
+max-open-metas            25
+metas                   1864
+pointers  (fresh)          0
+pointers (reused)          0
+
+  Finished Data.Container.Indexed.Combinator.
+  Checking Data.Container.Indexed.FreeMonad (/home/abel/agda/agda-stdlib/src/Data/Container/Indexed/FreeMonad.agda).
+Ticks for Data.Container.Indexed.FreeMonad
+Double  (fresh)            0
+Double (reused)            0
+Integer  (fresh)         903
+Integer (reused)       42015
+Node  (fresh)          13053
+Node (reused)         422870
+String  (fresh)          279
+String (reused)       135920
+attempted-constraints     54
+max-open-constraints       6
+max-open-metas            19
+metas                    203
+pointers  (fresh)          0
+pointers (reused)          0
+
+  Finished Data.Container.Indexed.FreeMonad.
+  Checking Data.Covec (/home/abel/agda/agda-stdlib/src/Data/Covec.agda).
+Ticks for Data.Covec
+Double  (fresh)            0
+Double (reused)            0
+Integer  (fresh)        2508
+Integer (reused)       34150
+Node  (fresh)          20163
+Node (reused)         374616
+String  (fresh)          361
+String (reused)        83701
+attempted-constraints    130
+max-open-constraints       7
+max-open-metas            17
+metas                    520
+pointers  (fresh)          0
+pointers (reused)          0
+
+  Finished Data.Covec.
+  Checking Data.DifferenceNat (/home/abel/agda/agda-stdlib/src/Data/DifferenceNat.agda).
+Ticks for Data.DifferenceNat
+Double  (fresh)          0
+Double (reused)          0
+Integer  (fresh)       283
+Integer (reused)      1856
+Node  (fresh)         2288
+Node (reused)        22402
+String  (fresh)         95
+String (reused)       5746
+max-open-constraints     0
+max-open-metas           6
+metas                   19
+pointers  (fresh)        0
+pointers (reused)        0
+
+  Finished Data.DifferenceNat.
+  Checking Data.DifferenceVec (/home/abel/agda/agda-stdlib/src/Data/DifferenceVec.agda).
+Ticks for Data.DifferenceVec
+Double  (fresh)           0
+Double (reused)           0
+Integer  (fresh)        883
+Integer (reused)       4707
+Node  (fresh)          5375
+Node (reused)         54224
+String  (fresh)         160
+String (reused)       12395
+attempted-constraints    10
+max-open-constraints      5
+max-open-metas            8
+metas                   153
+pointers  (fresh)         0
+pointers (reused)         0
+
+  Finished Data.DifferenceVec.
+  Checking Data.Fin.Props (/home/abel/agda/agda-stdlib/src/Data/Fin/Props.agda).
+Ticks for Data.Fin.Props
+Double  (fresh)          0
+Double (reused)          0
+Integer  (fresh)        57
+Integer (reused)       970
+Node  (fresh)          605
+Node (reused)        12283
+String  (fresh)         29
+String (reused)       4588
+max-open-constraints     0
+metas                    0
+pointers  (fresh)        0
+pointers (reused)        0
+
+  Finished Data.Fin.Props.
+  Checking Data.Fin.Subset.Props (/home/abel/agda/agda-stdlib/src/Data/Fin/Subset/Props.agda).
+Ticks for Data.Fin.Subset.Props
+Double  (fresh)          0
+Double (reused)          0
+Integer  (fresh)        67
+Integer (reused)      1903
+Node  (fresh)          863
+Node (reused)        20096
+String  (fresh)         49
+String (reused)       8499
+max-open-constraints     0
+metas                    0
+pointers  (fresh)        0
+pointers (reused)        0
+
+  Finished Data.Fin.Subset.Props.
+  Checking Data.Fin.Substitution (/home/abel/agda/agda-stdlib/src/Data/Fin/Substitution.agda).
+   Checking Data.Star (/home/abel/agda/agda-stdlib/src/Data/Star.agda).
+Ticks for Data.Star
+Double  (fresh)            0
+Double (reused)            0
+Integer  (fresh)        2203
+Integer (reused)       16462
+Node  (fresh)          12873
+Node (reused)         184209
+String  (fresh)          197
+String (reused)        41014
+attempted-constraints    249
+max-open-constraints       5
+max-open-metas            16
+metas                    786
+pointers  (fresh)          0
+pointers (reused)          0
+
+   Finished Data.Star.
+Ticks for Data.Fin.Substitution
+Double  (fresh)            0
+Double (reused)            0
+Integer  (fresh)        1731
+Integer (reused)       41114
+Node  (fresh)          13507
+Node (reused)         414619
+String  (fresh)          221
+String (reused)       115481
+attempted-constraints     14
+max-open-constraints       2
+max-open-metas            15
+metas                    251
+pointers  (fresh)          0
+pointers (reused)          0
+
+  Finished Data.Fin.Substitution.
+  Checking Data.Fin.Substitution.Example (/home/abel/agda/agda-stdlib/src/Data/Fin/Substitution/Example.agda).
+   Checking Data.Fin.Substitution.Lemmas (/home/abel/agda/agda-stdlib/src/Data/Fin/Substitution/Lemmas.agda).
+Ticks for Data.Fin.Substitution.Lemmas
+Double  (fresh)              0
+Double (reused)              0
+Integer  (fresh)          9193
+Integer (reused)       1722741
+Node  (fresh)           112645
+Node (reused)         17511083
+String  (fresh)            433
+String (reused)        5670537
+attempted-constraints      613
+max-open-constraints         6
+max-open-metas              37
+metas                     3679
+pointers  (fresh)            0
+pointers (reused)            0
+
+   Finished Data.Fin.Substitution.Lemmas.
+Ticks for Data.Fin.Substitution.Example
+Double  (fresh)            0
+Double (reused)            0
+Integer  (fresh)        1694
+Integer (reused)      134127
+Node  (fresh)          27345
+Node (reused)        1279639
+String  (fresh)          335
+String (reused)       458461
+max-open-constraints       0
+max-open-metas            18
+metas                    308
+pointers  (fresh)          0
+pointers (reused)          0
+
+  Finished Data.Fin.Substitution.Example.
+  Checking Data.Fin.Substitution.List (/home/abel/agda/agda-stdlib/src/Data/Fin/Substitution/List.agda).
+   Checking Data.List.Properties (/home/abel/agda/agda-stdlib/src/Data/List/Properties.agda).
+    Checking Data.List.All (/home/abel/agda/agda-stdlib/src/Data/List/All.agda).
+Ticks for Data.List.All
+Double  (fresh)            0
+Double (reused)            0
+Integer  (fresh)        1093
+Integer (reused)       10744
+Node  (fresh)           9223
+Node (reused)         117571
+String  (fresh)          275
+String (reused)        34272
+attempted-constraints     49
+max-open-constraints       4
+max-open-metas            15
+metas                    208
+pointers  (fresh)          0
+pointers (reused)          0
+
+    Finished Data.List.All.
+Ticks for Data.List.Properties
+Double  (fresh)             0
+Double (reused)             0
+Integer  (fresh)         9932
+Integer (reused)       239690
+Node  (fresh)           78435
+Node (reused)         2540870
+String  (fresh)           780
+String (reused)        591325
+attempted-constraints    1053
+max-open-constraints        9
+max-open-metas             31
+metas                    4155
+pointers  (fresh)           0
+pointers (reused)           0
+
+   Finished Data.List.Properties.
+Ticks for Data.Fin.Substitution.List
+Double  (fresh)            0
+Double (reused)            0
+Integer  (fresh)         932
+Integer (reused)       88544
+Node  (fresh)          22171
+Node (reused)         888752
+String  (fresh)          321
+String (reused)       318709
+attempted-constraints     15
+max-open-constraints       2
+max-open-metas            18
+metas                    111
+pointers  (fresh)          0
+pointers (reused)          0
+
+  Finished Data.Fin.Substitution.List.
+  Checking Data.Float (/home/abel/agda/agda-stdlib/src/Data/Float.agda).
+Ticks for Data.Float
+Double  (fresh)          0
+Double (reused)          0
+Integer  (fresh)       245
+Integer (reused)      3025
+Node  (fresh)         2607
+Node (reused)        31651
+String  (fresh)        102
+String (reused)       9960
+max-open-constraints     0
+max-open-metas           4
+metas                   14
+pointers  (fresh)        0
+pointers (reused)        0
+
+  Finished Data.Float.
+  Checking Data.Graph.Acyclic (/home/abel/agda/agda-stdlib/src/Data/Graph/Acyclic.agda).
+Ticks for Data.Graph.Acyclic
+Double  (fresh)            0
+Double (reused)            0
+Integer  (fresh)        3838
+Integer (reused)       39322
+Node  (fresh)          25488
+Node (reused)         406288
+String  (fresh)          536
+String (reused)       106689
+attempted-constraints     52
+max-open-constraints       3
+max-open-metas            26
+metas                    785
+pointers  (fresh)          0
+pointers (reused)          0
+
+  Finished Data.Graph.Acyclic.
+  Checking Data.Integer.Divisibility (/home/abel/agda/agda-stdlib/src/Data/Integer/Divisibility.agda).
+   Checking Data.Nat.Divisibility (/home/abel/agda/agda-stdlib/src/Data/Nat/Divisibility.agda).
+Ticks for Data.Nat.Divisibility
+Double  (fresh)             0
+Double (reused)             0
+Integer  (fresh)         3010
+Integer (reused)       114164
+Node  (fresh)           37182
+Node (reused)         1178444
+String  (fresh)           621
+String (reused)        311021
+attempted-constraints      30
+max-open-constraints        2
+max-open-metas             14
+metas                     450
+pointers  (fresh)           0
+pointers (reused)           0
+
+   Finished Data.Nat.Divisibility.
+   Checking Data.Nat.Coprimality (/home/abel/agda/agda-stdlib/src/Data/Nat/Coprimality.agda).
+    Checking Data.Nat.Primality (/home/abel/agda/agda-stdlib/src/Data/Nat/Primality.agda).
+Ticks for Data.Nat.Primality
+Double  (fresh)           0
+Double (reused)           0
+Integer  (fresh)        387
+Integer (reused)       6793
+Node  (fresh)          5627
+Node (reused)         79719
+String  (fresh)         209
+String (reused)       25710
+attempted-constraints     1
+max-open-constraints      1
+max-open-metas            7
+metas                    19
+pointers  (fresh)         0
+pointers (reused)         0
+
+    Finished Data.Nat.Primality.
+    Checking Data.Nat.GCD (/home/abel/agda/agda-stdlib/src/Data/Nat/GCD.agda).
+     Checking Induction.Lexicographic (/home/abel/agda/agda-stdlib/src/Induction/Lexicographic.agda).
+Ticks for Induction.Lexicographic
+Double  (fresh)            0
+Double (reused)            0
+Integer  (fresh)        1101
+Integer (reused)        9821
+Node  (fresh)           7354
+Node (reused)         112322
+String  (fresh)          186
+String (reused)        24396
+attempted-constraints     94
+max-open-constraints      13
+max-open-metas            15
+metas                    180
+pointers  (fresh)          0
+pointers (reused)          0
+
+     Finished Induction.Lexicographic.
+     Checking Data.Nat.GCD.Lemmas (/home/abel/agda/agda-stdlib/src/Data/Nat/GCD/Lemmas.agda).
+Ticks for Data.Nat.GCD.Lemmas
+Double  (fresh)             0
+Double (reused)             0
+Integer  (fresh)         4089
+Integer (reused)       223162
+Node  (fresh)           25976
+Node (reused)         2321360
+String  (fresh)           333
+String (reused)        630309
+attempted-constraints       1
+max-open-constraints        1
+max-open-metas             26
+metas                     759
+pointers  (fresh)           0
+pointers (reused)           0
+
+     Finished Data.Nat.GCD.Lemmas.
+Ticks for Data.Nat.GCD
+Double  (fresh)            0
+Double (reused)            0
+Integer  (fresh)        2705
+Integer (reused)       54864
+Node  (fresh)          21470
+Node (reused)         562367
+String  (fresh)          379
+String (reused)       155297
+attempted-constraints     37
+max-open-constraints       5
+max-open-metas            15
+metas                    321
+pointers  (fresh)          0
+pointers (reused)          0
+
+    Finished Data.Nat.GCD.
+Ticks for Data.Nat.Coprimality
+Double  (fresh)            0
+Double (reused)            0
+Integer  (fresh)        2764
+Integer (reused)       66252
+Node  (fresh)          34816
+Node (reused)         692337
+String  (fresh)          671
+String (reused)       185119
+attempted-constraints     42
+max-open-constraints       4
+max-open-metas            14
+metas                    395
+pointers  (fresh)          0
+pointers (reused)          0
+
+   Finished Data.Nat.Coprimality.
+Ticks for Data.Integer.Divisibility
+Double  (fresh)            0
+Double (reused)            0
+Integer  (fresh)         614
+Integer (reused)       15205
+Node  (fresh)          10587
+Node (reused)         163918
+String  (fresh)          333
+String (reused)        49779
+attempted-constraints      3
+max-open-constraints       1
+max-open-metas             7
+metas                     34
+pointers  (fresh)          0
+pointers (reused)          0
+
+  Finished Data.Integer.Divisibility.
+  Checking Data.List.All.Properties (/home/abel/agda/agda-stdlib/src/Data/List/All/Properties.agda).
+Ticks for Data.List.All.Properties
+Double  (fresh)            0
+Double (reused)            0
+Integer  (fresh)        2884
+Integer (reused)       44625
+Node  (fresh)          23847
+Node (reused)         494201
+String  (fresh)          457
+String (reused)       137745
+attempted-constraints    282
+max-open-constraints       7
+max-open-metas            27
+metas                    985
+pointers  (fresh)          0
+pointers (reused)          0
+
+  Finished Data.List.All.Properties.
+  Checking Data.List.Any.BagAndSetEquality (/home/abel/agda/agda-stdlib/src/Data/List/Any/BagAndSetEquality.agda).
+   Checking Data.List.Any.Properties (/home/abel/agda/agda-stdlib/src/Data/List/Any/Properties.agda).
+Ticks for Data.List.Any.Properties
+Double  (fresh)             0
+Double (reused)             0
+Integer  (fresh)        12088
+Integer (reused)       297490
+Node  (fresh)           92868
+Node (reused)         3224169
+String  (fresh)           970
+String (reused)        844678
+attempted-constraints    1536
+max-open-constraints       25
+max-open-metas             51
+metas                    4691
+pointers  (fresh)           0
+pointers (reused)           0
+
+   Finished Data.List.Any.Properties.
+Ticks for Data.List.Any.BagAndSetEquality
+Double  (fresh)             0
+Double (reused)             0
+Integer  (fresh)         5224
+Integer (reused)       163005
+Node  (fresh)           54882
+Node (reused)         1715564
+String  (fresh)           862
+String (reused)        454321
+attempted-constraints    1524
+max-open-constraints       26
+max-open-metas             41
+metas                    1927
+pointers  (fresh)           0
+pointers (reused)           0
+
+  Finished Data.List.Any.BagAndSetEquality.
+  Checking Data.List.Any.Membership (/home/abel/agda/agda-stdlib/src/Data/List/Any/Membership.agda).
+   Checking Relation.Binary.Properties.DecTotalOrder (/home/abel/agda/agda-stdlib/src/Relation/Binary/Properties/DecTotalOrder.agda).
+    Checking Relation.Binary.NonStrictToStrict (/home/abel/agda/agda-stdlib/src/Relation/Binary/NonStrictToStrict.agda).
+Ticks for Relation.Binary.NonStrictToStrict
+Double  (fresh)            0
+Double (reused)            0
+Integer  (fresh)        1488
+Integer (reused)       38702
+Node  (fresh)          17087
+Node (reused)         402894
+String  (fresh)          243
+String (reused)        91133
+attempted-constraints    121
+max-open-constraints       5
+max-open-metas            16
+metas                    353
+pointers  (fresh)          0
+pointers (reused)          0
+
+    Finished Relation.Binary.NonStrictToStrict.
+Ticks for Relation.Binary.Properties.DecTotalOrder
+Double  (fresh)            0
+Double (reused)            0
+Integer  (fresh)         525
+Integer (reused)       36516
+Node  (fresh)          10848
+Node (reused)         359563
+String  (fresh)          130
+String (reused)        97969
+attempted-constraints      7
+max-open-constraints       4
+max-open-metas             7
+metas                     35
+pointers  (fresh)          0
+pointers (reused)          0
+
+   Finished Relation.Binary.Properties.DecTotalOrder.
+Ticks for Data.List.Any.Membership
+Double  (fresh)             0
+Double (reused)             0
+Integer  (fresh)         5419
+Integer (reused)       241407
+Node  (fresh)           64664
+Node (reused)         2513054
+String  (fresh)           949
+String (reused)        654447
+attempted-constraints     498
+max-open-constraints       18
+max-open-metas             38
+metas                    2236
+pointers  (fresh)           0
+pointers (reused)           0
+
+  Finished Data.List.Any.Membership.
+  Checking Data.List.Countdown (/home/abel/agda/agda-stdlib/src/Data/List/Countdown.agda).
+Ticks for Data.List.Countdown
+Double  (fresh)             0
+Double (reused)             0
+Integer  (fresh)         4108
+Integer (reused)       110281
+Node  (fresh)           37087
+Node (reused)         1139011
+String  (fresh)           482
+String (reused)        291141
+attempted-constraints      57
+max-open-constraints        5
+max-open-metas             18
+metas                     576
+pointers  (fresh)           0
+pointers (reused)           0
+
+  Finished Data.List.Countdown.
+  Checking Data.List.NonEmpty.Properties (/home/abel/agda/agda-stdlib/src/Data/List/NonEmpty/Properties.agda).
+Ticks for Data.List.NonEmpty.Properties
+Double  (fresh)            0
+Double (reused)            0
+Integer  (fresh)         784
+Integer (reused)       21551
+Node  (fresh)          10740
+Node (reused)         227211
+String  (fresh)          278
+String (reused)        67004
+attempted-constraints     18
+max-open-constraints       1
+max-open-metas            20
+metas                    160
+pointers  (fresh)          0
+pointers (reused)          0
+
+  Finished Data.List.NonEmpty.Properties.
+  Checking Data.List.Reverse (/home/abel/agda/agda-stdlib/src/Data/List/Reverse.agda).
+Ticks for Data.List.Reverse
+Double  (fresh)           0
+Double (reused)           0
+Integer  (fresh)        740
+Integer (reused)      11039
+Node  (fresh)          8411
+Node (reused)        124370
+String  (fresh)         336
+String (reused)       37812
+max-open-constraints      0
+max-open-metas            7
+metas                    69
+pointers  (fresh)         0
+pointers (reused)         0
+
+  Finished Data.List.Reverse.
+  Checking Data.Nat.InfinitelyOften (/home/abel/agda/agda-stdlib/src/Data/Nat/InfinitelyOften.agda).
+Ticks for Data.Nat.InfinitelyOften
+Double  (fresh)            0
+Double (reused)            0
+Integer  (fresh)        1529
+Integer (reused)       42455
+Node  (fresh)          22622
+Node (reused)         455306
+String  (fresh)          588
+String (reused)       120087
+attempted-constraints     62
+max-open-constraints       6
+max-open-metas            25
+metas                    302
+pointers  (fresh)          0
+pointers (reused)          0
+
+  Finished Data.Nat.InfinitelyOften.
+  Checking Data.Nat.LCM (/home/abel/agda/agda-stdlib/src/Data/Nat/LCM.agda).
+Ticks for Data.Nat.LCM
+Double  (fresh)             0
+Double (reused)             0
+Integer  (fresh)         2291
+Integer (reused)       219885
+Node  (fresh)           32823
+Node (reused)         2297376
+String  (fresh)           633
+String (reused)        579436
+attempted-constraints      10
+max-open-constraints        3
+max-open-metas             19
+metas                     214
+pointers  (fresh)           0
+pointers (reused)           0
+
+  Finished Data.Nat.LCM.
+  Checking Data.Product.N-ary (/home/abel/agda/agda-stdlib/src/Data/Product/N-ary.agda).
+Ticks for Data.Product.N-ary
+Double  (fresh)            0
+Double (reused)            0
+Integer  (fresh)         902
+Integer (reused)       12613
+Node  (fresh)           9081
+Node (reused)         139392
+String  (fresh)          245
+String (reused)        39371
+attempted-constraints      9
+max-open-constraints       2
+max-open-metas             8
+metas                    131
+pointers  (fresh)          0
+pointers (reused)          0
+
+  Finished Data.Product.N-ary.
+  Checking Data.Rational (/home/abel/agda/agda-stdlib/src/Data/Rational.agda).
+Ticks for Data.Rational
+Double  (fresh)             0
+Double (reused)             0
+Integer  (fresh)         2760
+Integer (reused)       156156
+Node  (fresh)           39743
+Node (reused)         1586762
+String  (fresh)           641
+String (reused)        366581
+attempted-constraints      94
+max-open-constraints        5
+max-open-metas             19
+metas                     432
+pointers  (fresh)           0
+pointers (reused)           0
+
+  Finished Data.Rational.
+  Checking Data.ReflexiveClosure (/home/abel/agda/agda-stdlib/src/Data/ReflexiveClosure.agda).
+   Checking Relation.Binary.Simple (/home/abel/agda/agda-stdlib/src/Relation/Binary/Simple.agda).
+Ticks for Relation.Binary.Simple
+Double  (fresh)            0
+Double (reused)            0
+Integer  (fresh)         559
+Integer (reused)       10400
+Node  (fresh)           6765
+Node (reused)         108635
+String  (fresh)          151
+String (reused)        29926
+attempted-constraints      6
+max-open-constraints       2
+max-open-metas             7
+metas                     49
+pointers  (fresh)          0
+pointers (reused)          0
+
+   Finished Relation.Binary.Simple.
+Ticks for Data.ReflexiveClosure
+Double  (fresh)            0
+Double (reused)            0
+Integer  (fresh)         760
+Integer (reused)       11714
+Node  (fresh)           7898
+Node (reused)         124117
+String  (fresh)          171
+String (reused)        32361
+attempted-constraints     27
+max-open-constraints       2
+max-open-metas            10
+metas                    110
+pointers  (fresh)          0
+pointers (reused)          0
+
+  Finished Data.ReflexiveClosure.
+  Checking Data.Star.BoundedVec (/home/abel/agda/agda-stdlib/src/Data/Star/BoundedVec.agda).
+   Checking Data.Star.Nat (/home/abel/agda/agda-stdlib/src/Data/Star/Nat.agda).
+Ticks for Data.Star.Nat
+Double  (fresh)            0
+Double (reused)            0
+Integer  (fresh)         658
+Integer (reused)       13761
+Node  (fresh)           8272
+Node (reused)         143101
+String  (fresh)          195
+String (reused)        38913
+attempted-constraints      9
+max-open-constraints       2
+max-open-metas            14
+metas                     95
+pointers  (fresh)          0
+pointers (reused)          0
+
+   Finished Data.Star.Nat.
+   Checking Data.Star.Decoration (/home/abel/agda/agda-stdlib/src/Data/Star/Decoration.agda).
+Ticks for Data.Star.Decoration
+Double  (fresh)            0
+Double (reused)            0
+Integer  (fresh)        1673
+Integer (reused)       22372
+Node  (fresh)          12203
+Node (reused)         241271
+String  (fresh)          225
+String (reused)        63508
+attempted-constraints     70
+max-open-constraints       4
+max-open-metas            17
+metas                    510
+pointers  (fresh)          0
+pointers (reused)          0
+
+   Finished Data.Star.Decoration.
+   Checking Data.Star.Pointer (/home/abel/agda/agda-stdlib/src/Data/Star/Pointer.agda).
+Ticks for Data.Star.Pointer
+Double  (fresh)            0
+Double (reused)            0
+Integer  (fresh)        1688
+Integer (reused)       26978
+Node  (fresh)          13318
+Node (reused)         284750
+String  (fresh)          259
+String (reused)        75542
+attempted-constraints     55
+max-open-constraints       4
+max-open-metas            19
+metas                    454
+pointers  (fresh)          0
+pointers (reused)          0
+
+   Finished Data.Star.Pointer.
+   Checking Data.Star.List (/home/abel/agda/agda-stdlib/src/Data/Star/List.agda).
+Ticks for Data.Star.List
+Double  (fresh)           0
+Double (reused)           0
+Integer  (fresh)        213
+Integer (reused)       2373
+Node  (fresh)          2075
+Node (reused)         26780
+String  (fresh)          70
+String (reused)        8211
+attempted-constraints     5
+max-open-constraints      2
+max-open-metas           11
+metas                    40
+pointers  (fresh)         0
+pointers (reused)         0
+
+   Finished Data.Star.List.
+Ticks for Data.Star.BoundedVec
+Double  (fresh)            0
+Double (reused)            0
+Integer  (fresh)         869
+Integer (reused)       23810
+Node  (fresh)          11018
+Node (reused)         244452
+String  (fresh)          258
+String (reused)        65447
+attempted-constraints     19
+max-open-constraints       2
+max-open-metas            19
+metas                    147
+pointers  (fresh)          0
+pointers (reused)          0
+
+  Finished Data.Star.BoundedVec.
+  Checking Data.Star.Environment (/home/abel/agda/agda-stdlib/src/Data/Star/Environment.agda).
+Ticks for Data.Star.Environment
+Double  (fresh)           0
+Double (reused)           0
+Integer  (fresh)        419
+Integer (reused)       6173
+Node  (fresh)          4314
+Node (reused)         67938
+String  (fresh)         150
+String (reused)       20981
+attempted-constraints    12
+max-open-constraints      2
+max-open-metas           13
+metas                    91
+pointers  (fresh)         0
+pointers (reused)         0
+
+  Finished Data.Star.Environment.
+  Checking Data.Star.Fin (/home/abel/agda/agda-stdlib/src/Data/Star/Fin.agda).
+Ticks for Data.Star.Fin
+Double  (fresh)           0
+Double (reused)           0
+Integer  (fresh)        214
+Integer (reused)       3003
+Node  (fresh)          2139
+Node (reused)         32171
+String  (fresh)          78
+String (reused)        9390
+attempted-constraints    10
+max-open-constraints      2
+max-open-metas           11
+metas                    36
+pointers  (fresh)         0
+pointers (reused)         0
+
+  Finished Data.Star.Fin.
+  Checking Data.Star.Properties (/home/abel/agda/agda-stdlib/src/Data/Star/Properties.agda).
+Ticks for Data.Star.Properties
+Double  (fresh)            0
+Double (reused)            0
+Integer  (fresh)        2109
+Integer (reused)       23134
+Node  (fresh)          16066
+Node (reused)         267361
+String  (fresh)          257
+String (reused)        64853
+attempted-constraints    346
+max-open-constraints      10
+max-open-metas            22
+metas                    870
+pointers  (fresh)          0
+pointers (reused)          0
+
+  Finished Data.Star.Properties.
+  Checking Data.Star.Vec (/home/abel/agda/agda-stdlib/src/Data/Star/Vec.agda).
+Ticks for Data.Star.Vec
+Double  (fresh)            0
+Double (reused)            0
+Integer  (fresh)         911
+Integer (reused)       19409
+Node  (fresh)          10509
+Node (reused)         200015
+String  (fresh)          248
+String (reused)        55422
+attempted-constraints      5
+max-open-constraints       2
+max-open-metas            12
+metas                    111
+pointers  (fresh)          0
+pointers (reused)          0
+
+  Finished Data.Star.Vec.
+  Checking Irrelevance (/home/abel/agda/agda-stdlib/src/Irrelevance.agda).
+Ticks for Irrelevance
+Double  (fresh)         0
+Double (reused)         0
+Integer  (fresh)       81
+Integer (reused)      179
+Node  (fresh)         430
+Node (reused)        2185
+String  (fresh)        17
+String (reused)       337
+max-open-constraints    0
+max-open-metas          2
+metas                   6
+pointers  (fresh)       0
+pointers (reused)       0
+
+  Finished Irrelevance.
+  Checking Reflection (/home/abel/agda/agda-stdlib/src/Reflection.agda).
+Ticks for Reflection
+Double  (fresh)             0
+Double (reused)             0
+Integer  (fresh)         8521
+Integer (reused)        95944
+Node  (fresh)           56437
+Node (reused)         1052845
+String  (fresh)           566
+String (reused)        215365
+attempted-constraints     153
+max-open-constraints        5
+max-open-metas             19
+metas                    1432
+pointers  (fresh)           0
+pointers (reused)           0
+
+  Finished Reflection.
+  Checking Relation.Binary.Flip (/home/abel/agda/agda-stdlib/src/Relation/Binary/Flip.agda).
+Ticks for Relation.Binary.Flip
+Double  (fresh)            0
+Double (reused)            0
+Integer  (fresh)        3215
+Integer (reused)       86345
+Node  (fresh)          29193
+Node (reused)         828539
+String  (fresh)          248
+String (reused)       187399
+attempted-constraints    297
+max-open-constraints       2
+max-open-metas            13
+metas                   1008
+pointers  (fresh)          0
+pointers (reused)          0
+
+  Finished Relation.Binary.Flip.
+  Checking Relation.Binary.List.NonStrictLex (/home/abel/agda/agda-stdlib/src/Relation/Binary/List/NonStrictLex.agda).
+Ticks for Relation.Binary.List.NonStrictLex
+Double  (fresh)            0
+Double (reused)            0
+Integer  (fresh)        2212
+Integer (reused)       57915
+Node  (fresh)          20374
+Node (reused)         566249
+String  (fresh)          304
+String (reused)       154161
+attempted-constraints    107
+max-open-constraints       2
+max-open-metas            17
+metas                    817
+pointers  (fresh)          0
+pointers (reused)          0
+
+  Finished Relation.Binary.List.NonStrictLex.
+  Checking Relation.Binary.OrderMorphism (/home/abel/agda/agda-stdlib/src/Relation/Binary/OrderMorphism.agda).
+Ticks for Relation.Binary.OrderMorphism
+Double  (fresh)            0
+Double (reused)            0
+Integer  (fresh)         840
+Integer (reused)       14104
+Node  (fresh)           8117
+Node (reused)         146471
+String  (fresh)          182
+String (reused)        38464
+attempted-constraints     35
+max-open-constraints       2
+max-open-metas            19
+metas                    207
+pointers  (fresh)          0
+pointers (reused)          0
+
+  Finished Relation.Binary.OrderMorphism.
+  Checking Relation.Binary.Product.NonStrictLex (/home/abel/agda/agda-stdlib/src/Relation/Binary/Product/NonStrictLex.agda).
+   Checking Relation.Binary.Product.StrictLex (/home/abel/agda/agda-stdlib/src/Relation/Binary/Product/StrictLex.agda).
+    Checking Relation.Nullary.Sum (/home/abel/agda/agda-stdlib/src/Relation/Nullary/Sum.agda).
+Ticks for Relation.Nullary.Sum
+Double  (fresh)          0
+Double (reused)          0
+Integer  (fresh)       328
+Integer (reused)      2173
+Node  (fresh)         2277
+Node (reused)        24663
+String  (fresh)         55
+String (reused)       6884
+max-open-constraints     0
+max-open-metas           5
+metas                   30
+pointers  (fresh)        0
+pointers (reused)        0
+
+    Finished Relation.Nullary.Sum.
+Ticks for Relation.Binary.Product.StrictLex
+Double  (fresh)            0
+Double (reused)            0
+Integer  (fresh)        4164
+Integer (reused)       70555
+Node  (fresh)          27906
+Node (reused)         754845
+String  (fresh)          349
+String (reused)       179018
+attempted-constraints    483
+max-open-constraints       7
+max-open-metas            21
+metas                   1454
+pointers  (fresh)          0
+pointers (reused)          0
+
+   Finished Relation.Binary.Product.StrictLex.
+Ticks for Relation.Binary.Product.NonStrictLex
+Double  (fresh)            0
+Double (reused)            0
+Integer  (fresh)        2483
+Integer (reused)       61630
+Node  (fresh)          23038
+Node (reused)         622211
+String  (fresh)          307
+String (reused)       148546
+attempted-constraints    266
+max-open-constraints       6
+max-open-metas            24
+metas                    825
+pointers  (fresh)          0
+pointers (reused)          0
+
+  Finished Relation.Binary.Product.NonStrictLex.
+  Checking Relation.Binary.Properties.Poset (/home/abel/agda/agda-stdlib/src/Relation/Binary/Properties/Poset.agda).
+Ticks for Relation.Binary.Properties.Poset
+Double  (fresh)            0
+Double (reused)            0
+Integer  (fresh)         516
+Integer (reused)       26980
+Node  (fresh)           9181
+Node (reused)         264279
+String  (fresh)          128
+String (reused)        73493
+attempted-constraints      8
+max-open-constraints       4
+max-open-metas             7
+metas                     29
+pointers  (fresh)          0
+pointers (reused)          0
+
+  Finished Relation.Binary.Properties.Poset.
+  Checking Relation.Binary.Properties.Preorder (/home/abel/agda/agda-stdlib/src/Relation/Binary/Properties/Preorder.agda).
+Ticks for Relation.Binary.Properties.Preorder
+Double  (fresh)            0
+Double (reused)            0
+Integer  (fresh)         520
+Integer (reused)       14281
+Node  (fresh)           7501
+Node (reused)         146906
+String  (fresh)          164
+String (reused)        40962
+attempted-constraints     13
+max-open-constraints       3
+max-open-metas            18
+metas                     52
+pointers  (fresh)          0
+pointers (reused)          0
+
+  Finished Relation.Binary.Properties.Preorder.
+  Checking Relation.Binary.Properties.StrictPartialOrder (/home/abel/agda/agda-stdlib/src/Relation/Binary/Properties/StrictPartialOrder.agda).
+   Checking Relation.Binary.StrictToNonStrict (/home/abel/agda/agda-stdlib/src/Relation/Binary/StrictToNonStrict.agda).
+Ticks for Relation.Binary.StrictToNonStrict
+Double  (fresh)            0
+Double (reused)            0
+Integer  (fresh)        1517
+Integer (reused)       25822
+Node  (fresh)          15653
+Node (reused)         281828
+String  (fresh)          239
+String (reused)        69320
+attempted-constraints     74
+max-open-constraints       2
+max-open-metas             9
+metas                    266
+pointers  (fresh)          0
+pointers (reused)          0
+
+   Finished Relation.Binary.StrictToNonStrict.
+Ticks for Relation.Binary.Properties.StrictPartialOrder
+Double  (fresh)            0
+Double (reused)            0
+Integer  (fresh)         542
+Integer (reused)       26291
+Node  (fresh)           8908
+Node (reused)         257566
+String  (fresh)          123
+String (reused)        72033
+attempted-constraints      8
+max-open-constraints       4
+max-open-metas             7
+metas                     39
+pointers  (fresh)          0
+pointers (reused)          0
+
+  Finished Relation.Binary.Properties.StrictPartialOrder.
+  Checking Relation.Binary.Properties.StrictTotalOrder (/home/abel/agda/agda-stdlib/src/Relation/Binary/Properties/StrictTotalOrder.agda).
+Ticks for Relation.Binary.Properties.StrictTotalOrder
+Double  (fresh)            0
+Double (reused)            0
+Integer  (fresh)         562
+Integer (reused)       36226
+Node  (fresh)          10994
+Node (reused)         360235
+String  (fresh)          136
+String (reused)        99111
+attempted-constraints      8
+max-open-constraints       4
+max-open-metas             9
+metas                     27
+pointers  (fresh)          0
+pointers (reused)          0
+
+  Finished Relation.Binary.Properties.StrictTotalOrder.
+  Checking Relation.Binary.Properties.TotalOrder (/home/abel/agda/agda-stdlib/src/Relation/Binary/Properties/TotalOrder.agda).
+Ticks for Relation.Binary.Properties.TotalOrder
+Double  (fresh)            0
+Double (reused)            0
+Integer  (fresh)         471
+Integer (reused)       15613
+Node  (fresh)           7254
+Node (reused)         155825
+String  (fresh)          128
+String (reused)        43852
+attempted-constraints      6
+max-open-constraints       2
+max-open-metas             8
+metas                     33
+pointers  (fresh)          0
+pointers (reused)          0
+
+  Finished Relation.Binary.Properties.TotalOrder.
+  Checking Relation.Binary.Props.DecTotalOrder (/home/abel/agda/agda-stdlib/src/Relation/Binary/Props/DecTotalOrder.agda).
+Ticks for Relation.Binary.Props.DecTotalOrder
+Double  (fresh)            0
+Double (reused)            0
+Integer  (fresh)         437
+Integer (reused)       19932
+Node  (fresh)           7418
+Node (reused)         199119
+String  (fresh)          115
+String (reused)        56546
+attempted-constraints      1
+max-open-constraints       1
+max-open-metas             7
+metas                     10
+pointers  (fresh)          0
+pointers (reused)          0
+
+  Finished Relation.Binary.Props.DecTotalOrder.
+  Checking Relation.Binary.Props.Poset (/home/abel/agda/agda-stdlib/src/Relation/Binary/Props/Poset.agda).
+Ticks for Relation.Binary.Props.Poset
+Double  (fresh)           0
+Double (reused)           0
+Integer  (fresh)        413
+Integer (reused)       8931
+Node  (fresh)          5481
+Node (reused)         92845
+String  (fresh)         111
+String (reused)       26766
+attempted-constraints     1
+max-open-constraints      1
+max-open-metas            7
+metas                    10
+pointers  (fresh)         0
+pointers (reused)         0
+
+  Finished Relation.Binary.Props.Poset.
+  Checking Relation.Binary.Props.Preorder (/home/abel/agda/agda-stdlib/src/Relation/Binary/Props/Preorder.agda).
+Ticks for Relation.Binary.Props.Preorder
+Double  (fresh)           0
+Double (reused)           0
+Integer  (fresh)        415
+Integer (reused)       8923
+Node  (fresh)          5469
+Node (reused)         92815
+String  (fresh)         112
+String (reused)       26765
+attempted-constraints     1
+max-open-constraints      1
+max-open-metas            7
+metas                    10
+pointers  (fresh)         0
+pointers (reused)         0
+
+  Finished Relation.Binary.Props.Preorder.
+  Checking Relation.Binary.Props.StrictPartialOrder (/home/abel/agda/agda-stdlib/src/Relation/Binary/Props/StrictPartialOrder.agda).
+Ticks for Relation.Binary.Props.StrictPartialOrder
+Double  (fresh)            0
+Double (reused)            0
+Integer  (fresh)         434
+Integer (reused)       16212
+Node  (fresh)           6724
+Node (reused)         161498
+String  (fresh)          113
+String (reused)        46608
+attempted-constraints      1
+max-open-constraints       1
+max-open-metas             7
+metas                     10
+pointers  (fresh)          0
+pointers (reused)          0
+
+  Finished Relation.Binary.Props.StrictPartialOrder.
+  Checking Relation.Binary.Props.StrictTotalOrder (/home/abel/agda/agda-stdlib/src/Relation/Binary/Props/StrictTotalOrder.agda).
+Ticks for Relation.Binary.Props.StrictTotalOrder
+Double  (fresh)            0
+Double (reused)            0
+Integer  (fresh)         449
+Integer (reused)       21926
+Node  (fresh)           7738
+Node (reused)         220382
+String  (fresh)          115
+String (reused)        62909
+attempted-constraints      1
+max-open-constraints       1
+max-open-metas             7
+metas                     10
+pointers  (fresh)          0
+pointers (reused)          0
+
+  Finished Relation.Binary.Props.StrictTotalOrder.
+  Checking Relation.Binary.Props.TotalOrder (/home/abel/agda/agda-stdlib/src/Relation/Binary/Props/TotalOrder.agda).
+Ticks for Relation.Binary.Props.TotalOrder
+Double  (fresh)           0
+Double (reused)           0
+Integer  (fresh)        412
+Integer (reused)       9050
+Node  (fresh)          5531
+Node (reused)         93976
+String  (fresh)         113
+String (reused)       27076
+attempted-constraints     1
+max-open-constraints      1
+max-open-metas            7
+metas                    10
+pointers  (fresh)         0
+pointers (reused)         0
+
+  Finished Relation.Binary.Props.TotalOrder.
+  Checking Relation.Binary.SetoidReasoning (/home/abel/agda/agda-stdlib/src/Relation/Binary/SetoidReasoning.agda).
+Ticks for Relation.Binary.SetoidReasoning
+Double  (fresh)            0
+Double (reused)            0
+Integer  (fresh)         777
+Integer (reused)       10665
+Node  (fresh)           6718
+Node (reused)         111895
+String  (fresh)          131
+String (reused)        31938
+attempted-constraints     18
+max-open-constraints       1
+max-open-metas             5
+metas                     75
+pointers  (fresh)          0
+pointers (reused)          0
+
+  Finished Relation.Binary.SetoidReasoning.
+  Checking Relation.Binary.StrictPartialOrderReasoning (/home/abel/agda/agda-stdlib/src/Relation/Binary/StrictPartialOrderReasoning.agda).
+Ticks for Relation.Binary.StrictPartialOrderReasoning
+Double  (fresh)            0
+Double (reused)            0
+Integer  (fresh)         443
+Integer (reused)       13063
+Node  (fresh)           6617
+Node (reused)         132085
+String  (fresh)          124
+String (reused)        37937
+attempted-constraints      2
+max-open-constraints       2
+max-open-metas             7
+metas                     13
+pointers  (fresh)          0
+pointers (reused)          0
+
+  Finished Relation.Binary.StrictPartialOrderReasoning.
+  Checking Relation.Nullary.Implication (/home/abel/agda/agda-stdlib/src/Relation/Nullary/Implication.agda).
+Ticks for Relation.Nullary.Implication
+Double  (fresh)         0
+Double (reused)         0
+Integer  (fresh)      190
+Integer (reused)      867
+Node  (fresh)        1171
+Node (reused)        9514
+String  (fresh)        30
+String (reused)      2903
+max-open-constraints    0
+max-open-metas          4
+metas                  14
+pointers  (fresh)       0
+pointers (reused)       0
+
+  Finished Relation.Nullary.Implication.
+  Checking Relation.Nullary.Universe (/home/abel/agda/agda-stdlib/src/Relation/Nullary/Universe.agda).
+Ticks for Relation.Nullary.Universe
+Double  (fresh)            0
+Double (reused)            0
+Integer  (fresh)        2388
+Integer (reused)       42616
+Node  (fresh)          23608
+Node (reused)         460198
+String  (fresh)          431
+String (reused)       132667
+attempted-constraints     51
+max-open-constraints       2
+max-open-metas            17
+metas                    392
+pointers  (fresh)          0
+pointers (reused)          0
+
+  Finished Relation.Nullary.Universe.
+  Checking Size (/home/abel/agda/agda-stdlib/src/Size.agda).
+Ticks for Size
+Double  (fresh)         0
+Double (reused)         0
+Integer  (fresh)       88
+Integer (reused)      175
+Node  (fresh)         274
+Node (reused)        2116
+String  (fresh)         9
+String (reused)       253
+max-open-constraints    0
+max-open-metas          1
+metas                   4
+pointers  (fresh)       0
+pointers (reused)       0
+
+  Finished Size.
+  Checking Universe (/home/abel/agda/agda-stdlib/src/Universe.agda).
+Ticks for Universe
+Double  (fresh)           0
+Double (reused)           0
+Integer  (fresh)        283
+Integer (reused)       2931
+Node  (fresh)          2550
+Node (reused)         32604
+String  (fresh)          71
+String (reused)        5409
+attempted-constraints     8
+max-open-constraints      4
+max-open-metas            7
+metas                    32
+pointers  (fresh)         0
+pointers (reused)         0
+
+  Finished Universe.
+Ticks for Everything
+Double  (fresh)            0
+Double (reused)            0
+Integer  (fresh)        2699
+Integer (reused)      130382
+Node  (fresh)          90858
+Node (reused)        1315446
+String  (fresh)         2245
+String (reused)       443242
+max-open-constraints       0
+metas                      0
+pointers  (fresh)          0
+pointers (reused)          0
+
+ Finished Everything.
+Ticks for README
+Double  (fresh)           0
+Double (reused)           0
+Integer  (fresh)       1425
+Integer (reused)      27049
+Node  (fresh)         24051
+Node (reused)        282209
+String  (fresh)         700
+String (reused)       71935
+max-open-constraints      0
+metas                     0
+pointers  (fresh)         0
+pointers (reused)         0
+
+Finished README.
+Total time                 228,250ms
+Parsing                      1,340ms
+Parsing.Operators           10,644ms
+Import                       4,600ms
+Deserialization                 28ms
+Scoping                      9,048ms
+Typing                      52,155ms
+Termination                  1,728ms
+Termination.Graph              236ms
+Termination.RecCheck           508ms
+Termination.Compare            292ms
+Positivity                   6,292ms
+Injectivity                    768ms
+ProjectionLikeness             132ms
+Coverage                     1,896ms
+Highlighting                 7,172ms
+Serialization               99,686ms
+Serialization.Sort             936ms
+Serialization.BinaryEncode  20,621ms
+Serialization.Compress       3,760ms
+ModuleName                      24ms
+
+ 150,045,371,000 bytes allocated in the heap
+  17,538,401,152 bytes copied during GC
+     419,898,624 bytes maximum residency (46 sample(s))
+       5,744,216 bytes maximum slop
+            1163 MB total memory in use (0 MB lost due to fragmentation)
+
+                                    Tot time (elapsed)  Avg pause  Max pause
+  Gen  0      1733 colls,     0 par   49.69s   49.97s     0.0288s    0.4426s
+  Gen  1        46 colls,     0 par   15.72s   15.74s     0.3422s    0.9108s
+
+  INIT    time    0.00s  (  0.00s elapsed)
+  MUT     time  161.51s  (162.97s elapsed)
+  GC      time   65.41s  ( 65.71s elapsed)
+  EXIT    time    0.02s  (  0.03s elapsed)
+  Total   time  226.95s  (228.72s elapsed)
+
+  %GC     time      28.8%  (28.7% elapsed)
+
+  Alloc rate    929,015,474 bytes per MUT second
+
+  Productivity  71.2% of total user, 70.6% of total elapsed
+
+
+real	3m48.838s
+user	3m46.954s
+sys	0m1.444s
+
+
+
+Will KillRange Signature
+------------------------------------------------------------------------
+
+  Checking Size (/home/abel/agda/agda-stdlib/src/Size.agda).
+Ticks for Size
+Double  (fresh)         0
+Double (reused)         0
+Integer  (fresh)       88
+Integer (reused)      175
+Node  (fresh)         285
+Node (reused)        1925
+String  (fresh)         9
+String (reused)       213
+max-open-constraints    0
+max-open-metas          1
+metas                   4
+pointers  (fresh)       0
+pointers (reused)       0
+
+  Finished Size.
+  Checking Universe (/home/abel/agda/agda-stdlib/src/Universe.agda).
+Ticks for Universe
+Double  (fresh)           0
+Double (reused)           0
+Integer  (fresh)        283
+Integer (reused)       2931
+Node  (fresh)          2422
+Node (reused)         28547
+String  (fresh)          71
+String (reused)        4173
+attempted-constraints     8
+max-open-constraints      4
+max-open-metas            7
+metas                    32
+pointers  (fresh)         0
+pointers (reused)         0
+
+  Finished Universe.
+Ticks for Everything
+Double  (fresh)            0
+Double (reused)            0
+Integer  (fresh)        2699
+Integer (reused)      130382
+Node  (fresh)          91091
+Node (reused)        1200229
+String  (fresh)         2245
+String (reused)       369272
+max-open-constraints       0
+metas                      0
+pointers  (fresh)          0
+pointers (reused)          0
+
+ Finished Everything.
+Ticks for README
+Double  (fresh)           0
+Double (reused)           0
+Integer  (fresh)       1425
+Integer (reused)      27049
+Node  (fresh)         24081
+Node (reused)        259418
+String  (fresh)         700
+String (reused)       63901
+max-open-constraints      0
+metas                     0
+pointers  (fresh)         0
+pointers (reused)         0
+
+Finished README.
+Total time                 217,437ms
+Parsing                      1,300ms
+Parsing.Operators           10,492ms
+Import                       3,596ms
+Deserialization                  8ms
+Scoping                      9,092ms
+Typing                      55,399ms
+Termination                  1,744ms
+Termination.Graph              268ms
+Termination.RecCheck           584ms
+Termination.Compare            200ms
+Positivity                   4,624ms
+Injectivity                  1,236ms
+ProjectionLikeness             148ms
+Coverage                     2,016ms
+Highlighting                 8,464ms
+Serialization               90,853ms
+Serialization.Sort             808ms
+Serialization.BinaryEncode  18,277ms
+Serialization.Compress       3,636ms
+ModuleName                      24ms
+
+ 141,368,357,984 bytes allocated in the heap
+  16,321,623,848 bytes copied during GC
+     598,324,120 bytes maximum residency (39 sample(s))
+       7,262,752 bytes maximum slop
+            1381 MB total memory in use (17 MB lost due to fragmentation)
+
+                                    Tot time (elapsed)  Avg pause  Max pause
+  Gen  0      4233 colls,     0 par   47.67s   47.90s     0.0113s    0.4676s
+  Gen  1        39 colls,     0 par   23.03s   23.24s     0.5959s    3.6554s
+
+  INIT    time    0.00s  (  0.00s elapsed)
+  MUT     time  145.11s  (149.76s elapsed)
+  GC      time   70.70s  ( 71.15s elapsed)
+  EXIT    time    0.49s  (  0.50s elapsed)
+  Total   time  216.30s  (221.41s elapsed)
+
+  %GC     time      32.7%  (32.1% elapsed)
+
+  Alloc rate    974,247,984 bytes per MUT second
+
+  Productivity  67.3% of total user, 65.8% of total elapsed
+
+
+real	3m41.535s
+user	3m36.298s
+sys	0m1.768s
+
+
+Collecting statistics about frequency of nodes (by type) in interface
+------------------------------------------------------------------------
+
+ Finished Everything.
+Finished README.
+Total time                 508,883ms
+Parsing                      4,884ms
+Parsing.Operators           11,224ms
+Import                       5,044ms
+Deserialization                 20ms
+Scoping                      9,460ms
+Typing                      59,891ms
+Termination                  1,996ms
+Termination.Graph              260ms
+Termination.RecCheck           520ms
+Termination.Compare            324ms
+Positivity                   5,004ms
+Injectivity                    904ms
+ProjectionLikeness             148ms
+Coverage                     2,576ms
+Highlighting                 7,436ms
+Serialization              367,578ms
+Serialization.Sort             768ms
+Serialization.BinaryEncode  17,905ms
+Serialization.Compress       3,588ms
+ModuleName                      28ms
+
+Accumlated statistics
+Double  (fresh)                                                    0
+Double (reused)                                                    0
+Integer  (fresh)                                             461,937
+Integer (reused)                                          14,008,517
+Node  (fresh)                                              3,729,371
+Node (reused)                                            114,550,466
+String  (fresh)                                               66,532
+String (reused)                                           19,462,807
+attempted-constraints                                         24,401
+equal terms                                                  147,261
+icode ()                                                      27,984
+icode (Bool,(Arg Term (Type' Term)))                           1,064
+icode (Int,Int)                                                   41
+icode (ModuleName,Scope)                                      13,510
+icode (ModuleName,Section)                                     1,946
+icode (ModuleName,Word64)                                      1,859
+icode (Name,LocalVar)                                            184
+icode (Name,[AbstractModule])                                 15,626
+icode (Name,[AbstractName])                                  164,241
+icode (NameSpaceId,NameSpace)                                 54,040
+icode (QName,(WithArity CompiledClauses))                      4,865
+icode (QName,([Arg Expr Name],(Pattern' Expr)))                    2
+icode (QName,Definition)                                      15,783
+icode (QName,ModuleName)                                       1,403
+icode (Range,MetaInfo)                                       210,240
+icode (TermHead,Clause)                                          808
+icode (TopLevelModuleName,Integer)                           111,583
+icode ([Arg Expr Name],(Pattern' Expr))                            2
+icode ([Char],(Builtin ([Char],QName)))                          103
+icode ([Char],QName)                                              18
+icode Abs (ClauseBodyF Term)                                  80,068
+icode Abs (Tele (Dom Term (Type' Term)))                      85,967
+icode Abs (Type' Term)                                       130,560
+icode Abs Term                                                48,051
+icode AbsolutePath                                         6,000,666
+icode AbstractModule                                          15,668
+icode AbstractName                                           166,100
+icode AmbiguousQName                                               4
+icode Arg () (Named (Ranged [Char]) Int)                       1,741
+icode Arg Expr (Named (Ranged [Char]) (Pattern' Expr))             6
+icode Arg Expr Name                                                3
+icode Arg Term (Named (Ranged [Char]) Pattern)                88,057
+icode Arg Term (Type' Term)                                   18,606
+icode Arg Term DisplayTerm                                     3,196
+icode Arg Term QName                                             376
+icode Arg Term Term                                        1,661,660
+icode Arg Term [Char]                                         72,270
+icode ArgInfo ()                                               1,741
+icode ArgInfo Expr                                                 9
+icode ArgInfo Term                                         2,127,109
+icode Aspect                                                 210,240
+icode Bool                                                   189,227
+icode Builtin ([Char],QName)                                     103
+icode Case CompiledClauses                                     2,929
+icode Char                                                        36
+icode Clause                                                  17,542
+icode ClauseBodyF Term                                        97,610
+icode CompiledClauses                                         19,614
+icode CompiledRepresentation                                  15,783
+icode CompressedFile                                             227
+icode ConHead                                                 93,797
+icode CtxId                                                   20,362
+icode Definition                                              15,783
+icode Defn                                                    15,783
+icode Delayed                                                 14,664
+icode DisplayForm                                              5,630
+icode DisplayTerm                                              9,737
+icode Dom Term (Type' Term)                                  216,527
+icode Drop Permutation                                           261
+icode Elim' Term                                           1,670,134
+icode Fixity                                               4,274,166
+icode Fixity'                                              4,274,166
+icode FunctionInverse' Clause                                 14,664
+icode GenPart                                                  4,023
+icode HashMap QName Definition                                   227
+icode HaskellRepresentation                                       36
+icode Hiding                                               2,128,859
+icode Induction                                              106,376
+icode Int                                                  1,677,573
+icode Int32                                               18,021,953
+icode Integer                                             14,470,454
+icode Interface                                                  227
+icode Interval' (Maybe AbsolutePath)                       3,000,333
+icode IsAbstract                                              15,757
+icode KindOfName                                             166,100
+icode Level                                                  533,482
+icode LevelAtom                                              411,010
+icode Literal                                                  9,549
+icode LocalVar                                                   184
+icode Map Literal CompiledClauses                              2,929
+icode Map ModuleName Scope                                       454
+icode Map ModuleName Section                                     227
+icode Map Name [AbstractModule]                               54,040
+icode Map Name [AbstractName]                                 54,040
+icode Map QName (WithArity CompiledClauses)                    2,929
+icode Map QName ([Arg Expr Name],(Pattern' Expr))                227
+icode Map QName ModuleName                                    13,510
+icode Map TermHead Clause                                        478
+icode Map [Char] (Builtin ([Char],QName))                        227
+icode Maybe (Arg Term (Type' Term))                           17,542
+icode Maybe (Bool,(Arg Term (Type' Term)))                     7,056
+icode Maybe (Int,Int)                                         14,664
+icode Maybe (Ranged [Char])                                   89,804
+icode Maybe (TopLevelModuleName,Integer)                     210,240
+icode Maybe AbsolutePath                                   6,000,666
+icode Maybe Aspect                                           210,240
+icode Maybe Bool                                              14,664
+icode Maybe Clause                                               382
+icode Maybe CompiledClauses                                   17,611
+icode Maybe Exp                                               15,783
+icode Maybe HaskellExport                                     15,783
+icode Maybe HaskellRepresentation                             15,783
+icode Maybe Induction                                            121
+icode Maybe NameKind                                         115,634
+icode Maybe Projection                                        14,664
+icode Maybe QName                                             33,030
+icode Maybe [Char]                                           226,023
+icode MetaInfo                                               210,240
+icode ModuleName                                           1,084,747
+icode MutualId                                                15,783
+icode Name                                                 9,110,302
+icode NameId                                               4,611,383
+icode NameKind                                               115,634
+icode NamePart                                             5,100,727
+icode NameSpace                                               54,040
+icode NameSpaceId                                             54,040
+icode Named (Ranged [Char]) (Pattern' Expr)                        6
+icode Named (Ranged [Char]) Int                                1,741
+icode Named (Ranged [Char]) Pattern                           88,057
+icode Occurrence                                              63,382
+icode Open DisplayForm                                         5,630
+icode OtherAspect                                                720
+icode Pattern                                                 88,057
+icode Pattern' Expr                                                8
+icode Permutation                                             18,064
+icode PlusLevel                                              432,162
+icode Polarity                                                63,379
+icode Position' (Maybe AbsolutePath)                       6,000,666
+icode Precedence                                                 227
+icode Projection                                               2,583
+icode QName                                                1,389,064
+icode Range                                                  210,240
+icode Range' (Maybe AbsolutePath)                         13,495,124
+icode Ranged [Char]                                           83,565
+icode Relevance                                            2,128,859
+icode Scope                                                   13,510
+icode ScopeInfo                                                  227
+icode Section                                                  1,946
+icode Set [Char]                                                 227
+icode Signature                                                  227
+icode Sort                                                   419,697
+icode Tele (Dom Term (Type' Term))                           105,576
+icode Term                                                 2,567,151
+icode TermHead                                                   808
+icode TopLevelModuleName                                   6,112,249
+icode Type' Term                                             381,597
+icode WhyInScope                                             528,033
+icode WithArity CompiledClauses                                4,865
+icode Word64                                                   2,086
+icode [()]                                                     1,741
+icode [(Literal,CompiledClauses)]                              2,929
+icode [(ModuleName,Scope)]                                       454
+icode [(ModuleName,Section)]                                     227
+icode [(ModuleName,Word64)]                                      227
+icode [(Name,LocalVar)]                                          227
+icode [(Name,[AbstractModule])]                               54,040
+icode [(Name,[AbstractName])]                                 54,040
+icode [(NameSpaceId,NameSpace)]                               13,510
+icode [(QName,(WithArity CompiledClauses))]                    2,929
+icode [(QName,([Arg Expr Name],(Pattern' Expr)))]                227
+icode [(QName,Definition)]                                       227
+icode [(QName,ModuleName)]                                    13,510
+icode [(Range,MetaInfo)]                                         227
+icode [(TermHead,Clause)]                                        478
+icode [([Char],(Builtin ([Char],QName)))]                        227
+icode [AbstractModule]                                        15,626
+icode [AbstractName]                                         164,242
+icode [Arg Expr (Named (Ranged [Char]) (Pattern' Expr))]           4
+icode [Arg Expr Name]                                              2
+icode [Arg Term (Named (Ranged [Char]) Pattern)]              24,598
+icode [Arg Term DisplayTerm]                                     807
+icode [Arg Term QName]                                           121
+icode [Arg Term Term]                                         85,838
+icode [Arg Term [Char]]                                       16,285
+icode [Char]                                              19,529,339
+icode [Clause]                                                14,682
+icode [CtxId]                                                  5,630
+icode [DisplayTerm]                                              359
+icode [Elim' Term]                                         2,113,904
+icode [Expr]                                                       9
+icode [GenPart]                                            4,274,166
+icode [Int]                                                   18,064
+icode [Interval' (Maybe AbsolutePath)]                    13,495,124
+icode [ModuleName]                                            13,510
+icode [NamePart]                                           4,498,919
+icode [Name]                                               1,084,747
+icode [Occurrence]                                            15,783
+icode [Open DisplayForm]                                      15,783
+icode [OtherAspect]                                          210,240
+icode [PlusLevel]                                            533,482
+icode [Polarity]                                              15,783
+icode [QName]                                                109,108
+icode [RewriteRule]                                           15,783
+icode [Term]                                               2,132,739
+icode [[Char]]                                             6,112,477
+icode [[[Char]]]                                                 227
+max-open-constraints                                             806
+max-open-metas                                                 3,189
+metas                                                        105,898
+pointers  (fresh)                                                  0
+pointers (reused)                                                  0
+unequal terms                                                152,929
+
+ 251,644,177,024 bytes allocated in the heap
+  21,195,274,144 bytes copied during GC
+     566,113,528 bytes maximum residency (50 sample(s))
+       7,002,376 bytes maximum slop
+            1283 MB total memory in use (16 MB lost due to fragmentation)
+
+                                    Tot time (elapsed)  Avg pause  Max pause
+  Gen  0      4786 colls,     0 par   78.20s   78.74s     0.0165s    0.4085s
+  Gen  1        50 colls,     0 par   40.76s   40.95s     0.8190s    4.0209s
+
+  INIT    time    0.00s  (  0.00s elapsed)
+  MUT     time  387.40s  (390.15s elapsed)
+  GC      time  118.96s  (119.69s elapsed)
+  EXIT    time    0.58s  (  0.58s elapsed)
+  Total   time  506.94s  (510.43s elapsed)
+
+  %GC     time      23.5%  (23.4% elapsed)
+
+  Alloc rate    649,571,550 bytes per MUT second
+
+  Productivity  76.5% of total user, 76.0% of total elapsed
+
+
+real	8m30.563s
+user	8m26.944s
+sys	0m2.664s
+
+
+
+After removing iInsideScope
+------------------------------------------------------------------------
+  Finished Universe.
+ Finished Everything.
+Finished README.
+Total time                 401,229ms
+Parsing                      1,364ms
+Parsing.Operators           11,016ms
+Import                       4,580ms
+Deserialization                 16ms
+Scoping                      9,624ms
+Typing                      58,499ms
+Termination                  2,100ms
+Termination.Graph              248ms
+Termination.RecCheck           732ms
+Termination.Compare            204ms
+Positivity                   4,576ms
+Injectivity                    904ms
+ProjectionLikeness             188ms
+Coverage                     2,652ms
+Highlighting                 7,692ms
+Serialization              274,625ms
+Serialization.Sort             464ms
+Serialization.BinaryEncode  12,788ms
+Serialization.Compress       1,676ms
+ModuleName                      24ms
+
+Accumlated statistics
+Double  (fresh)                                                   0
+Double (reused)                                                   0
+Integer  (fresh)                                            411,263
+Integer (reused)                                         11,021,103
+Node  (fresh)                                             2,072,398
+Node (reused)                                            86,053,270
+String  (fresh)                                              28,124
+String (reused)                                          11,747,768
+attempted-constraints                                        24,401
+equal terms                                                 147,261
+icode ()                                                     27,984
+icode (Bool,(Arg Term (Type' Term)))                          1,064
+icode (Int,Int)                                                  41
+icode (ModuleName,Scope)                                        895
+icode (ModuleName,Section)                                    1,946
+icode (ModuleName,Word64)                                     1,859
+icode (Name,[AbstractModule])                                   441
+icode (Name,[AbstractName])                                   6,482
+icode (NameSpaceId,NameSpace)                                 3,580
+icode (QName,(WithArity CompiledClauses))                     4,865
+icode (QName,([Arg Expr Name],(Pattern' Expr)))                   2
+icode (QName,Definition)                                     15,783
+icode (Range,MetaInfo)                                      210,240
+icode (TermHead,Clause)                                         808
+icode (TopLevelModuleName,Integer)                          111,583
+icode ([Arg Expr Name],(Pattern' Expr))                           2
+icode ([Char],(Builtin ([Char],QName)))                         103
+icode ([Char],QName)                                             18
+icode Abs (ClauseBodyF Term)                                 80,068
+icode Abs (Tele (Dom Term (Type' Term)))                     85,967
+icode Abs (Type' Term)                                      130,560
+icode Abs Term                                               48,051
+icode AbsolutePath                                        3,129,812
+icode AbstractModule                                            441
+icode AbstractName                                            6,597
+icode AmbiguousQName                                              4
+icode Arg () (Named (Ranged [Char]) Int)                        933
+icode Arg Expr (Named (Ranged [Char]) (Pattern' Expr))            6
+icode Arg Expr Name                                               3
+icode Arg Term (Named (Ranged [Char]) Pattern)               88,057
+icode Arg Term (Type' Term)                                  18,606
+icode Arg Term DisplayTerm                                    3,196
+icode Arg Term QName                                            376
+icode Arg Term Term                                       1,661,660
+icode Arg Term [Char]                                        72,270
+icode ArgInfo ()                                                933
+icode ArgInfo Expr                                                9
+icode ArgInfo Term                                        2,127,109
+icode Aspect                                                210,240
+icode Bool                                                  176,612
+icode Builtin ([Char],QName)                                    103
+icode Case CompiledClauses                                    2,929
+icode Char                                                       36
+icode Clause                                                 17,542
+icode ClauseBodyF Term                                       97,610
+icode CompiledClauses                                        19,614
+icode CompiledRepresentation                                 15,783
+icode CompressedFile                                            227
+icode ConHead                                                93,797
+icode CtxId                                                  20,362
+icode Definition                                             15,783
+icode Defn                                                   15,783
+icode Delayed                                                14,664
+icode DisplayForm                                             5,630
+icode DisplayTerm                                             9,737
+icode Dom Term (Type' Term)                                 216,527
+icode Drop Permutation                                          261
+icode Elim' Term                                          1,670,134
+icode Fixity                                              3,397,352
+icode Fixity'                                             3,397,352
+icode FunctionInverse' Clause                                14,664
+icode GenPart                                                 1,843
+icode HashMap QName Definition                                  227
+icode HaskellRepresentation                                      36
+icode Hiding                                              2,128,051
+icode Induction                                             106,376
+icode Int                                                 1,676,455
+icode Int32                                               9,409,391
+icode Integer                                            11,432,366
+icode Interface                                                 227
+icode Interval' (Maybe AbsolutePath)                      1,564,906
+icode IsAbstract                                             15,757
+icode KindOfName                                              6,597
+icode Level                                                 533,482
+icode LevelAtom                                             411,010
+icode Literal                                                 9,549
+icode Map Literal CompiledClauses                             2,929
+icode Map ModuleName Scope                                      454
+icode Map ModuleName Section                                    227
+icode Map Name [AbstractModule]                               3,580
+icode Map Name [AbstractName]                                 3,580
+icode Map QName (WithArity CompiledClauses)                   2,929
+icode Map QName ([Arg Expr Name],(Pattern' Expr))               227
+icode Map QName ModuleName                                      895
+icode Map TermHead Clause                                       478
+icode Map [Char] (Builtin ([Char],QName))                       227
+icode Maybe (Arg Term (Type' Term))                          17,542
+icode Maybe (Bool,(Arg Term (Type' Term)))                    7,056
+icode Maybe (Int,Int)                                        14,664
+icode Maybe (Ranged [Char])                                  88,996
+icode Maybe (TopLevelModuleName,Integer)                    210,240
+icode Maybe AbsolutePath                                  3,129,812
+icode Maybe Aspect                                          210,240
+icode Maybe Bool                                             14,664
+icode Maybe Clause                                              382
+icode Maybe CompiledClauses                                  17,611
+icode Maybe Exp                                              15,783
+icode Maybe HaskellExport                                    15,783
+icode Maybe HaskellRepresentation                            15,783
+icode Maybe Induction                                           121
+icode Maybe NameKind                                        115,634
+icode Maybe Projection                                       14,664
+icode Maybe QName                                            33,030
+icode Maybe [Char]                                          226,023
+icode MetaInfo                                              210,240
+icode ModuleName                                            855,382
+icode MutualId                                               15,783
+icode Name                                                6,814,256
+icode NameId                                              3,530,746
+icode NameKind                                              115,634
+icode NamePart                                            3,718,531
+icode NameSpace                                               3,580
+icode NameSpaceId                                             3,580
+icode Named (Ranged [Char]) (Pattern' Expr)                       6
+icode Named (Ranged [Char]) Int                                 933
+icode Named (Ranged [Char]) Pattern                          88,057
+icode Occurrence                                             63,382
+icode Open DisplayForm                                        5,630
+icode OtherAspect                                               720
+icode Pattern                                                88,057
+icode Pattern' Expr                                               8
+icode Permutation                                            18,064
+icode PlusLevel                                             432,162
+icode Polarity                                               63,379
+icode Position' (Maybe AbsolutePath)                      3,129,812
+icode Precedence                                                227
+icode Projection                                              2,583
+icode QName                                                 860,271
+icode Range                                                 210,240
+icode Range' (Maybe AbsolutePath)                        10,322,264
+icode Ranged [Char]                                          83,565
+icode Relevance                                           2,128,051
+icode Scope                                                     895
+icode ScopeInfo                                                 227
+icode Section                                                 1,946
+icode Set [Char]                                                227
+icode Signature                                                 227
+icode Sort                                                  419,697
+icode Tele (Dom Term (Type' Term))                          105,576
+icode Term                                                2,567,151
+icode TermHead                                                  808
+icode TopLevelModuleName                                  3,241,395
+icode Type' Term                                            381,597
+icode WhyInScope                                             19,034
+icode WithArity CompiledClauses                               4,865
+icode Word64                                                  2,086
+icode [()]                                                      933
+icode [(Literal,CompiledClauses)]                             2,929
+icode [(ModuleName,Scope)]                                      454
+icode [(ModuleName,Section)]                                    227
+icode [(ModuleName,Word64)]                                     227
+icode [(Name,LocalVar)]                                         227
+icode [(Name,[AbstractModule])]                               3,580
+icode [(Name,[AbstractName])]                                 3,580
+icode [(NameSpaceId,NameSpace)]                                 895
+icode [(QName,(WithArity CompiledClauses))]                   2,929
+icode [(QName,([Arg Expr Name],(Pattern' Expr)))]               227
+icode [(QName,Definition)]                                      227
+icode [(QName,ModuleName)]                                      895
+icode [(Range,MetaInfo)]                                        227
+icode [(TermHead,Clause)]                                       478
+icode [([Char],(Builtin ([Char],QName)))]                       227
+icode [AbstractModule]                                          441
+icode [AbstractName]                                          6,482
+icode [Arg Expr (Named (Ranged [Char]) (Pattern' Expr))]          4
+icode [Arg Expr Name]                                             2
+icode [Arg Term (Named (Ranged [Char]) Pattern)]             24,598
+icode [Arg Term DisplayTerm]                                    807
+icode [Arg Term QName]                                          121
+icode [Arg Term Term]                                        85,838
+icode [Arg Term [Char]]                                      16,285
+icode [Char]                                             11,775,892
+icode [Clause]                                               14,682
+icode [CtxId]                                                 5,630
+icode [DisplayTerm]                                             359
+icode [Elim' Term]                                        2,113,904
+icode [Expr]                                                      9
+icode [GenPart]                                           3,397,352
+icode [Int]                                                  18,064
+icode [Interval' (Maybe AbsolutePath)]                   10,322,264
+icode [ModuleName]                                              895
+icode [NamePart]                                          3,283,510
+icode [Name]                                                855,382
+icode [Occurrence]                                           15,783
+icode [Open DisplayForm]                                     15,783
+icode [OtherAspect]                                         210,240
+icode [PlusLevel]                                           533,482
+icode [Polarity]                                             15,783
+icode [QName]                                               109,108
+icode [RewriteRule]                                          15,783
+icode [Term]                                              2,132,739
+icode [[Char]]                                            3,241,623
+icode [[[Char]]]                                                227
+max-open-constraints                                            806
+max-open-metas                                                3,189
+metas                                                       105,898
+pointers  (fresh)                                                 0
+pointers (reused)                                                 0
+unequal terms                                               152,929
+
+ 210,959,534,512 bytes allocated in the heap
+  15,619,327,216 bytes copied during GC
+     626,502,040 bytes maximum residency (33 sample(s))
+       7,020,960 bytes maximum slop
+            1308 MB total memory in use (0 MB lost due to fragmentation)
+
+                                    Tot time (elapsed)  Avg pause  Max pause
+  Gen  0     11630 colls,     0 par   58.04s   58.38s     0.0050s    0.4102s
+  Gen  1        33 colls,     0 par   33.53s   33.74s     1.0223s    4.4044s
+
+  INIT    time    0.00s  (  0.00s elapsed)
+  MUT     time  307.68s  (309.94s elapsed)
+  GC      time   91.57s  ( 92.12s elapsed)
+  EXIT    time    0.38s  (  0.38s elapsed)
+  Total   time  399.64s  (402.45s elapsed)
+
+  %GC     time      22.9%  (22.9% elapsed)
+
+  Alloc rate    685,638,701 bytes per MUT second
+
+  Productivity  77.1% of total user, 76.5% of total elapsed
+
+
+real	6m42.581s
+user	6m39.645s
+sys	0m2.112s
+
+
+Without iInsideScope and statistics:
+------------------------------------------------------------------------
+
+ Finished Everything.
+Finished README.
+Total time                 190,035ms
+Parsing                      1,252ms
+Parsing.Operators           11,200ms
+Import                       2,804ms
+Deserialization                  4ms
+Scoping                      9,832ms
+Typing                      51,915ms
+Termination                  1,792ms
+Termination.Graph              236ms
+Termination.RecCheck           564ms
+Termination.Compare            228ms
+Positivity                   8,520ms
+Injectivity                    832ms
+ProjectionLikeness             164ms
+Coverage                     2,036ms
+Highlighting                 6,840ms
+Serialization               81,013ms
+Serialization.Sort             412ms
+Serialization.BinaryEncode   8,024ms
+Serialization.Compress       1,576ms
+ModuleName                      24ms
+
+ 126,348,361,928 bytes allocated in the heap
+  13,047,982,960 bytes copied during GC
+     657,615,728 bytes maximum residency (31 sample(s))
+       7,384,192 bytes maximum slop
+            1312 MB total memory in use (16 MB lost due to fragmentation)
+
+                                    Tot time (elapsed)  Avg pause  Max pause
+  Gen  0      6495 colls,     0 par   37.36s   37.70s     0.0058s    0.4181s
+  Gen  1        31 colls,     0 par   21.67s   21.80s     0.7034s    4.1436s
+
+  INIT    time    0.00s  (  0.00s elapsed)
+  MUT     time  129.57s  (134.19s elapsed)
+  GC      time   59.03s  ( 59.51s elapsed)
+  EXIT    time    0.53s  (  0.53s elapsed)
+  Total   time  189.14s  (194.24s elapsed)
+
+  %GC     time      31.2%  (30.6% elapsed)
+
+  Alloc rate    975,120,061 bytes per MUT second
+
+  Productivity  68.8% of total user, 67.0% of total elapsed
+
+
+real	3m14.364s
+user	3m9.136s
+sys	0m1.560s
+
+saves 27 seconds!
+
+
+Using IntMap in Highlighting.Generate
+------------------------------------------------------------------------
+
+Finished README.
+Total time                 188,195ms
+Parsing                      1,284ms
+Parsing.Operators           10,836ms
+Import                       2,684ms
+Deserialization                 52ms
+Scoping                      9,276ms
+Typing                      51,855ms
+Termination                  1,832ms
+Termination.Graph              284ms
+Termination.RecCheck           492ms
+Termination.Compare            236ms
+Positivity                   4,224ms
+Injectivity                    760ms
+ProjectionLikeness             156ms
+Coverage                     2,096ms
+Highlighting                 6,776ms
+Serialization               80,377ms
+Serialization.Sort             376ms
+Serialization.BinaryEncode  11,316ms
+Serialization.Compress       1,656ms
+ModuleName                      20ms
+
+ 125,739,897,680 bytes allocated in the heap
+  12,720,528,000 bytes copied during GC
+     593,079,696 bytes maximum residency (29 sample(s))
+       6,475,968 bytes maximum slop
+            1306 MB total memory in use (0 MB lost due to fragmentation)
+
+                                    Tot time (elapsed)  Avg pause  Max pause
+  Gen  0      4883 colls,     0 par   36.93s   37.27s     0.0076s    0.3663s
+  Gen  1        29 colls,     0 par   20.95s   21.08s     0.7271s    3.7767s
+
+  INIT    time    0.00s  (  0.00s elapsed)
+  MUT     time  128.84s  (132.03s elapsed)
+  GC      time   57.88s  ( 58.35s elapsed)
+  EXIT    time    0.45s  (  0.45s elapsed)
+  Total   time  187.18s  (190.84s elapsed)
+
+  %GC     time      30.9%  (30.6% elapsed)
+
+  Alloc rate    975,968,155 bytes per MUT second
+
+  Productivity  69.1% of total user, 67.7% of total elapsed
+
+
+real	3m10.966s
+user	3m7.176s
+sys	0m1.592s
+
+
+Store no highlighting information in the state (so serialize none)
+------------------------------------------------------------------------
+
+  Finished Everything.
+Finished README.
+Total time                 160,870ms
+Parsing                      1,296ms
+Parsing.Operators           10,852ms
+Import                       2,400ms
+Deserialization                 24ms
+Scoping                      9,040ms
+Typing                      54,207ms
+Termination                  1,724ms
+Termination.Graph              224ms
+Termination.RecCheck           500ms
+Termination.Compare            232ms
+Positivity                   7,764ms
+Injectivity                    764ms
+ProjectionLikeness             180ms
+Coverage                     2,176ms
+Highlighting                 6,552ms
+Serialization               51,647ms
+Serialization.Sort             296ms
+Serialization.BinaryEncode   7,136ms
+Serialization.Compress       2,496ms
+ModuleName                      24ms
+
+ 119,598,861,496 bytes allocated in the heap
+   9,196,836,160 bytes copied during GC
+     567,800,168 bytes maximum residency (25 sample(s))
+       4,268,824 bytes maximum slop
+            1276 MB total memory in use (0 MB lost due to fragmentation)
+
+                                    Tot time (elapsed)  Avg pause  Max pause
+  Gen  0      1295 colls,     0 par   29.12s   29.34s     0.0227s    0.3632s
+  Gen  1        25 colls,     0 par   14.37s   14.50s     0.5800s    3.6106s
+
+  INIT    time    0.00s  (  0.00s elapsed)
+  MUT     time  116.00s  (117.35s elapsed)
+  GC      time   43.49s  ( 43.84s elapsed)
+  EXIT    time    0.33s  (  0.33s elapsed)
+  Total   time  159.83s  (161.53s elapsed)
+
+  %GC     time      27.2%  (27.1% elapsed)
+
+  Alloc rate    1,030,995,746 bytes per MUT second
+
+  Productivity  72.8% of total user, 72.0% of total elapsed
+
+
+real	2m41.657s
+user	2m39.826s
+sys	0m1.496s

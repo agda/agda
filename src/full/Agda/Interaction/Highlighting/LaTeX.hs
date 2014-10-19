@@ -21,8 +21,9 @@ import qualified Data.Text.IO       as T
 import qualified Data.Text.Encoding as E
 import qualified Data.ByteString    as BS
 
-import qualified Data.List as List
-import qualified Data.Map  as Map
+import qualified Data.IntMap as IntMap
+import qualified Data.List   as List
+import qualified Data.Map    as Map
 
 import Paths_Agda
 
@@ -67,8 +68,8 @@ type Tokens = [Token]
 
 data Token = Token
   { text     :: Text
-  , info     :: MetaInfo
-  , position :: Integer  -- ^ Is not used currently, but could
+  , info     :: Aspects
+  , position :: Int      -- ^ Is not used currently, but could
                          -- potentially be used for hyperlinks as in
                          -- the HTML output?
   }
@@ -530,7 +531,7 @@ toLaTeX source hi
   . map (\xs -> case xs of
                     (mi, (pos, _)) : _ ->
                         Token { text     = T.pack $ map (\(_, (_, c)) -> c) xs
-                              , info     = maybe mempty id mi
+                              , info     = fromMaybe mempty mi
                               , position = pos
                               }
                     []                 -> __IMPOSSIBLE__)
@@ -541,7 +542,7 @@ toLaTeX source hi
 
   -- Look up the meta info at each position in the highlighting info.
   . map (\(pos, char) ->
-        (Map.lookup pos infoMap, (pos, char)))
+        (IntMap.lookup pos infoMap, (pos, char)))
 
   -- Add position in file to each character.
   . zip [1..]

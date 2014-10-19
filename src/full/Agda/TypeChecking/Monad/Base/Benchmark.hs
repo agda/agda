@@ -49,6 +49,10 @@ data Phase
     -- ^ Subphase for 'Import'.
   | Sort
     -- ^ Subphase for 'Serialize'.
+  | BinaryEncode
+    -- ^ Subphase for 'Serialize'.
+  | Compress
+    -- ^ Subphase for 'Serialize'.
   | Operators
     -- ^ Subphase for 'Parsing'.
   | BuildParser
@@ -56,9 +60,10 @@ data Phase
   deriving (Eq, Ord, Show, Enum, Bounded)
 
 -- | Account we can bill computation time to.
+--   A word of 'Phase's.
 type Account = [Phase]
 
--- | Benchmark structure is a trie, mapping phases (and subphases)
+-- | Benchmark structure is a trie, mapping accounts (phases and subphases)
 --   to CPU time spent on their performance.
 type Benchmark = Trie Phase CPUTime
 

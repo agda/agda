@@ -47,7 +47,7 @@ import Control.Monad.Trans
 import Control.Monad.State
 import Control.Monad.Reader
 import Control.Applicative
-import Control.Arrow ((***))
+import Control.Arrow ((***), first, second)
 import Data.Monoid
 import Data.Generics.Geniplate
 import Agda.Utils.FileName
@@ -157,10 +157,10 @@ generateAndPrintSyntaxInfo decl hlLevel = do
 
     let (from, to) = case P.rangeToInterval (P.getRange decl) of
           Nothing -> __IMPOSSIBLE__
-          Just i  -> let conv = toInteger . P.posPos in
-                     (conv $ P.iStart i, conv $ P.iEnd i)
+          Just i  -> ( fromIntegral $ P.posPos $ P.iStart i
+                     , fromIntegral $ P.posPos $ P.iEnd i)
     (prevTokens, (curTokens, postTokens)) <-
-      (id *** splitAtC to) . splitAtC from . stTokens <$> get
+      (second (splitAtC to)) . splitAtC from . stTokens <$> get
 
     -- theRest needs to be placed before nameInfo here since record
     -- field declarations contain QNames. constructorInfo also needs
@@ -646,7 +646,7 @@ nameToFile :: SourceToModule
               -- ^ The name qualifier (may be empty).
            -> C.Name
               -- ^ The base name.
-           -> (Bool -> MetaInfo)
+           -> (Bool -> Aspects)
               -- ^ Meta information to be associated with the name.
               -- The argument is 'True' iff the name is an operator.
            -> Maybe P.Range
@@ -668,23 +668,24 @@ nameToFile modMap file xs x m mR =
     r <- mR
     P.Pn { P.srcFile = Just f, P.posPos = p } <- P.rStart r
     mod <- Map.lookup f modMap
-    return (mod, toInteger p)
+    return (mod, fromIntegral p)
 
 -- | A variant of 'nameToFile' for qualified abstract names.
 
-nameToFileA :: SourceToModule
-               -- ^ Maps source file paths to module names.
-            -> AbsolutePath
-               -- ^ The file name of the current module. Used for
-               -- consistency checking.
-            -> A.QName
-               -- ^ The name.
-            -> Bool
-               -- ^ Should the binding site be included in the file?
-            -> (Bool -> MetaInfo)
-               -- ^ Meta information to be associated with the name.
-               -- ^ The argument is 'True' iff the name is an operator.
-            -> File
+nameToFileA
+  :: SourceToModule
+     -- ^ Maps source file paths to module names.
+  -> AbsolutePath
+     -- ^ The file name of the current module. Used for
+     -- consistency checking.
+  -> A.QName
+     -- ^ The name.
+  -> Bool
+     -- ^ Should the binding site be included in the file?
+  -> (Bool -> Aspects)
+     -- ^ Meta information to be associated with the name.
+     -- ^ The argument is 'True' iff the name is an operator.
+  -> File
 nameToFileA modMap file x include m =
   nameToFile modMap
              file

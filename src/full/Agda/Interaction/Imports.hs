@@ -24,8 +24,11 @@ import Data.Maybe
 import Data.Monoid (mempty, mappend)
 import Data.Map (Map)
 import Data.Set (Set)
+
 import System.Directory (doesFileExist, getModificationTime, removeFile)
 import System.FilePath ((</>))
+
+import qualified Text.PrettyPrint.Boxes as Boxes
 
 import Paths_Agda (getDataFileName)
 
@@ -41,7 +44,7 @@ import Agda.Syntax.Internal
 import Agda.TypeChecking.Errors
 import Agda.TypeChecking.Reduce
 import Agda.TypeChecking.Monad
--- import Agda.TypeChecking.Monad.Base.KillRange  -- killRange for Signature
+import Agda.TypeChecking.Monad.Base.KillRange  -- killRange for Signature
 import Agda.TypeChecking.Serialise
 import Agda.TypeChecking.Telescope
 import Agda.TypeChecking.Primitive
@@ -59,7 +62,9 @@ import Agda.Interaction.Highlighting.Vim
 
 import Agda.Utils.Except ( MonadError(catchError, throwError) )
 import Agda.Utils.FileName
+import Agda.Utils.Lens
 import Agda.Utils.Monad
+import Agda.Utils.Null (unlessNullM)
 import Agda.Utils.IO.Binary
 import Agda.Utils.Pretty
 import Agda.Utils.Fresh
@@ -562,7 +567,7 @@ createInterface file mname =
 
       -- Move any remaining token highlighting to stSyntaxInfo.
       ifTopLevelAndHighlightingLevelIs NonInteractive $
-        printHighlightingInfo . stTokens =<< get
+        printHighlightingInfo =<< gets stTokens
       modify $ \st ->
         st { stTokens     = mempty
            , stSyntaxInfo = stSyntaxInfo st `mappend` stTokens st
@@ -602,14 +607,14 @@ createInterface file mname =
       return (i, SomeWarnings $ Warnings unsolvedMetas unsolvedConstraints)
 
     -- Profiling: Print statistics.
+    printStatistics 30 (Just mname) =<< getStatistics
+
+    -- Get the statistics of the current module
+    -- and add it to the accumulated statistics.
+    localStatistics <- getStatistics
+    lensAccumStatistics %= Map.unionWith (+) localStatistics
     verboseS "profile" 1 $ do
-      stats <- Map.toList <$> getStatistics
-      case stats of
-        []      -> return ()
-        _       -> reportS "profile" 1 $ unlines $
-          [ "Ticks for " ++ show (pretty mname) ] ++
-          [ "  " ++ s ++ " = " ++ show n
-          | (s, n) <- sortBy (compare `on` snd) stats ]
+      reportSLn "import.iface" 5 $ "Accumulated statistics."
 
     return r
 
@@ -634,8 +639,10 @@ buildInterface file topLevel syntaxInfo previousHsImports pragmas = do
     let scope = scope' { scopeCurrent = m }
     -- Andreas, 2014-05-03: killRange did not result in significant reduction
     -- of .agdai file size, and lost a few seconds performance on library-test.
-    -- sig     <- killRange <$> getSignature
-    sig     <- getSignature
+    -- Andreas, Makoto, 2014-10-18 AIM XX: repeating the experiment
+    -- with discarding also the nameBindingSite in QName:
+    -- Saves 10% on serialization time (and file size)!
+    sig     <- killRange <$> getSignature
     builtin <- gets stLocalBuiltins
     ms      <- getImports
     mhs     <- mapM (\ m -> (m,) <$> moduleHash m) $ Set.toList ms

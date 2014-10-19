@@ -126,6 +126,7 @@ data TCState =
            -- pragmas only affect this field.
          , stStatistics        :: Statistics
            -- ^ Counters to collect various statistics about meta variables etc.
+           --   Only for current file.
          , stMutualBlocks      :: Map MutualId (Set QName)
          , stLocalBuiltins     :: BuiltinThings PrimFun
          , stImportedBuiltins  :: BuiltinThings PrimFun
@@ -149,6 +150,7 @@ data PersistentTCState = PersistentTCSt
   , stBenchmark         :: !Benchmark
     -- ^ Structure to track how much CPU time was spent on which Agda phase.
     --   Needs to be a strict field to avoid space leaks!
+  , stAccumStatistics   :: !Statistics
   }
 
 -- | Empty persistent state.
@@ -159,6 +161,7 @@ initPersistentState = PersistentTCSt
   , stDecodedModules            = Map.empty
   , stInteractionOutputCallback = defaultInteractionOutputCallback
   , stBenchmark                 = Benchmark.empty
+  , stAccumStatistics           = Map.empty
   }
 
 data FreshThings =

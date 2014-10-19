@@ -898,7 +898,7 @@ subtypingForSizeLt dir   x mvar t args v cont = do
       -- so we cannot fall back to the original handler.
       let xArgs = MetaV x $ map Apply args
           v'    = Def qSizeLt [Apply $ Arg ai yArgs]
-          c     = dirToCmp (`ValueCmp` set0) dir xArgs v'
+          c     = dirToCmp (`ValueCmp` sizeUniv) dir xArgs v'
       catchConstraint c $ cont v'
     _ -> fallback
 

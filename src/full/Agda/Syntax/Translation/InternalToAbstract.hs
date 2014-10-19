@@ -231,7 +231,7 @@ reifyDisplayFormP lhs@(A.SpineLHS i f ps wps) =
       (f, vs, ds0) -> (f, vs, ds0 ++ ds1 ++ map (DTerm . unArg) ds2)
     flattenWith (DDef f vs) = (f, vs, [])     -- .^ hacky, but we should only hit this when printing debug info
     flattenWith (DTerm (I.Def f es)) =
-      let vs = maybe __IMPOSSIBLE__ id $ mapM isApplyElim es
+      let vs = fromMaybe __IMPOSSIBLE__ $ mapM isApplyElim es
       in (f, map (fmap DTerm) vs, [])
     flattenWith _ = __IMPOSSIBLE__
 
@@ -276,10 +276,10 @@ reifyDisplayFormP lhs@(A.SpineLHS i f ps wps) =
             I.Con c vs ->
               apps (A.Con (AmbQ [conName c])) =<< argsToExpr vs
             I.Def f es -> do
-              let vs = maybe __IMPOSSIBLE__ id $ mapM isApplyElim es
+              let vs = fromMaybe __IMPOSSIBLE__ $ mapM isApplyElim es
               apps (A.Def f) =<< argsToExpr vs
             I.Var n es -> do
-              let vs = maybe __IMPOSSIBLE__ id $ mapM isApplyElim es
+              let vs = fromMaybe __IMPOSSIBLE__ $ mapM isApplyElim es
               -- Andreas, 2014-06-11  Issue 1177
               -- due to β-normalization in substitution,
               -- even the pattern variables @n < len@ can be
