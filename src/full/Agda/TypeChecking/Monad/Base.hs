@@ -164,7 +164,7 @@ data PersistentTCState = PersistentTCSt
   }
 
 -- | State relative to a loaded file
-type LFileState = TCState -- all of it
+type LFileState = TCState -- most of it, see Agda.Typechecking.Monad.Caching
 
 data CachedDecl = EnterSection Info.ModuleInfo ModuleName [A.TypedBindings]
                 | LeaveSection ModuleName
@@ -172,7 +172,8 @@ data CachedDecl = EnterSection Info.ModuleInfo ModuleName [A.TypedBindings]
                   -- ^ Never a Section
                 | Pragmas PragmaOptions
                 -- no log for entering a ScopedDecl but we do want to enter.
--- |
+
+-- | A log of what the type checker does and states after the action is completed.
 type CachedState = [(CachedDecl,LFileState)]
 
 
