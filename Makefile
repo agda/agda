@@ -41,10 +41,12 @@ CABAL_CMD=cabal
 override CABAL_OPTS+=$(CABAL_OPTIONS)
 
 # Options used by cabal install.
-override CABAL_OPTS+=--builddir=dist/$(VERSION)
+override CABAL_OPTS+=
 #  -f old-time
 #  -f epic
 
+# --program-suffix is not for the executable name in dist/build/,
+# only for installing it into .cabal/bin
 override CABAL_OPTS+=--program-suffix=-$(VERSION)
 
 # If you want to make use of parallel compilation with ghc>=7.8,
