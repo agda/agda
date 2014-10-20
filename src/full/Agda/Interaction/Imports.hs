@@ -75,6 +75,13 @@ import qualified Agda.Utils.Trie as Trie
 #include "../undefined.h"
 import Agda.Utils.Impossible
 
+-- | Are we loading the interface for the user-loaded file
+--   or for an import?
+data MainInterface
+  = MainInterface     -- ^ Interface for main file.
+  | NotMainInterface  -- ^ Interface for imported file.
+  deriving (Eq, Show)
+
 -- | Merge an interface into the current proof state.
 mergeInterface :: Interface -> TCM ()
 mergeInterface i = do
@@ -198,19 +205,24 @@ typeCheckMain f = do
 
   -- Now do the type checking via getInterface.
   m <- moduleName f
-  getInterface' m True
+  getInterface' m MainInterface
 
--- | Tries to return the interface associated to the given module. The
--- time stamp of the relevant interface file is also returned. May
--- type check the module. An error is raised if a warning is
--- encountered.
+-- | Tries to return the interface associated to the given (imported) module.
+--   The time stamp of the relevant interface file is also returned.
+--   Calls itself recursively for the imports of the given module.
+--   May type check the module.
+--   An error is raised if a warning is encountered.
+--
+--   Do not use this for the main file, use 'typeCheckMain' instead.
 
 getInterface :: ModuleName -> TCM Interface
 getInterface = getInterface_ . toTopLevelModuleName
 
+-- | See 'getInterface'.
+
 getInterface_ :: C.TopLevelModuleName -> TCM Interface
 getInterface_ x = do
-  (i, wt) <- getInterface' x False
+  (i, wt) <- getInterface' x NotMainInterface
   case wt of
     SomeWarnings w  -> warningsToError w
     NoWarnings      -> return i
@@ -219,13 +231,14 @@ getInterface_ x = do
 -- encountered then they are returned instead of being turned into
 -- errors.
 
-getInterface' :: C.TopLevelModuleName
-              -> Bool  -- ^ If type checking is necessary, should all
-                       -- state changes inflicted by 'createInterface'
-                       -- be preserved?
-              -> TCM (Interface, MaybeWarnings)
-getInterface' x includeStateChanges =
-  withIncreasedModuleNestingLevel $
+getInterface'
+  :: C.TopLevelModuleName
+  -> MainInterface
+     -- ^ If type checking is necessary,
+     --   should all state changes inflicted by 'createInterface' be preserved?
+  -> TCM (Interface, MaybeWarnings)
+getInterface' x isMain = do
+  withIncreasedModuleNestingLevel $ do
   -- Preserve the pragma options unless includeStateChanges is True.
   bracket_ (stPragmaOptions <$> get)
            (unless includeStateChanges . setPragmaOptions) $ do
@@ -254,8 +267,11 @@ getInterface' x includeStateChanges =
       "  " ++ render (pretty x) ++ " is " ++
       (if uptodate then "" else "not ") ++ "up-to-date."
 
+    -- Andreas, 2014-10-20 AIM XX:
+    -- Always retype-check the main file to get the iInsideScope
+    -- which is no longer serialized.
     (stateChangesIncluded, (i, wt)) <-
-      if uptodate then skip file else typeCheckThe file
+      if uptodate && isMain == NotMainInterface then skip file else typeCheckThe file
 
     -- Ensure that the given module name matches the one in the file.
     let topLevelName = toTopLevelModuleName $ iModuleName i
@@ -283,6 +299,8 @@ getInterface' x includeStateChanges =
     return (i, wt)
 
     where
+      includeStateChanges = isMain == MainInterface
+
       isCached file = do
         let ifile = filePath $ toIFile file
         exist <- liftIO $ doesFileExistCaseSensitive ifile
@@ -478,6 +496,11 @@ readInterface file = do
 writeInterface :: FilePath -> Interface -> TCM ()
 writeInterface file i = do
     reportSLn "import.iface.write" 5  $ "Writing interface file " ++ file ++ "."
+    -- Andreas, Makoto, 2014-10-18 AIM XX:
+    -- iInsideScope is bloating the interface files, so we do not serialize it?
+    i <- return $
+      i { iInsideScope  = emptyScopeInfo
+        }
     encodeFile file i
     reportSLn "import.iface.write" 5 $ "Wrote interface file."
     reportSLn "import.iface.write" 50 $ "  hash = " ++ show (iFullHash i) ++ ""

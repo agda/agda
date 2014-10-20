@@ -306,10 +306,15 @@ data Interface = Interface
   , iModuleName      :: ModuleName
     -- ^ Module name of this interface.
   , iScope           :: Map ModuleName Scope
+    -- ^ Scope defined by this module.
   , iInsideScope     :: ScopeInfo
     -- ^ Scope after we loaded this interface.
     --   Used in 'Agda.Interaction.BasicOps.AtTopLevel'
     --   and     'Agda.Interaction.CommandLine.CommandLine.interactionLoop'.
+    --
+    --   Andreas, AIM XX: For performance reason, this field is
+    --   not serialized, so if you deserialize an interface, @iInsideScope@
+    --   will be empty.  You need to type-check the file to get @iInsideScope@.
   , iSignature       :: Signature
   , iBuiltin         :: BuiltinThings (String, QName)
   , iHaskellImports  :: Set String
