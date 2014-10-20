@@ -171,7 +171,7 @@ alreadyVisited x getIface = do
 --   or the file passed on the command line.
 --
 --   First, the primitive modules are imported.
---   Then, 'typeCheck' is called to do the main work.
+--   Then, @getInterface'@ is called to do the main work.
 
 typeCheckMain :: AbsolutePath -> TCM (Interface, MaybeWarnings)
 typeCheckMain f = do
@@ -195,14 +195,8 @@ typeCheckMain f = do
           moduleName $ mkAbsolute $
             libpath </> "prim" </> "Agda" </> "Primitive.agda"
   reportSLn "import.main" 10 $ "Done importing the primitive modules."
-  typeCheck f
 
--- | Type checks the given module (if necessary).
---
---   Called recursively for imported modules.
-
-typeCheck :: AbsolutePath -> TCM (Interface, MaybeWarnings)
-typeCheck f = do
+  -- Now do the type checking via getInterface.
   m <- moduleName f
   getInterface' m True
 
