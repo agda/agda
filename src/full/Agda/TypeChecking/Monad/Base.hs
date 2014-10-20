@@ -1669,7 +1669,7 @@ instance Error TypeError where
 data TCErr = TypeError TCState (Closure TypeError)
            | Exception Range String
            | IOException Range E.IOException
-           | PatternErr  TCState -- ^ for pattern violations
+           | PatternErr  -- TCState -- ^ for pattern violations
            {- AbortAssign TCState -- ^ used to abort assignment to meta when there are instantiations -- UNUSED -}
   deriving (Typeable)
 
@@ -1681,14 +1681,14 @@ instance Show TCErr where
     show (TypeError _ e) = show (envRange $ clEnv e) ++ ": " ++ show (clValue e)
     show (Exception r s) = show r ++ ": " ++ s
     show (IOException r e) = show r ++ ": " ++ show e
-    show (PatternErr _)  = "Pattern violation (you shouldn't see this)"
+    show PatternErr{}  = "Pattern violation (you shouldn't see this)"
     {- show (AbortAssign _) = "Abort assignment (you shouldn't see this)" -- UNUSED -}
 
 instance HasRange TCErr where
     getRange (TypeError _ cl)  = envRange $ clEnv cl
     getRange (Exception r _)   = r
     getRange (IOException r _) = r
-    getRange (PatternErr s)    = noRange
+    getRange PatternErr{}      = noRange
     {- getRange (AbortAssign s)   = noRange -- UNUSED -}
 
 instance Exception TCErr
@@ -1762,10 +1762,13 @@ instance MonadError TCErr (TCMT IO) where
     oldState <- liftIO (readIORef r)
     unTCM m r e `E.catch` \err -> do
       -- Reset the state, but do not forget changes to the persistent
-      -- component.
-      liftIO $ do
-        newState <- readIORef r
-        writeIORef r $ oldState { stPersistent = stPersistent newState }
+      -- component. Not for pattern violations.
+      case err of
+        PatternErr -> return ()
+        _          ->
+          liftIO $ do
+            newState <- readIORef r
+            writeIORef r $ oldState { stPersistent = stPersistent newState }
       unTCM (h err) r e
 
 -- | Preserve the state of the failing computation.
@@ -1867,9 +1870,7 @@ instance MonadIO m => MonadIO (TCMT m) where
       handleException   r s = throwIO $ Exception r s
 
 patternViolation :: TCM a
-patternViolation = do
-    s <- get
-    throwError $ PatternErr s
+patternViolation = throwError PatternErr
 
 internalError :: MonadTCM tcm => String -> tcm a
 internalError s = typeError $ InternalError s

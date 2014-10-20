@@ -176,9 +176,7 @@ compareTerm cmp a u v = do
         "shortcut successful\n  result: " ++ show u
     -- Should be ok with catchError_ but catchError is much safer since we don't
     -- rethrow errors.
-    m `orelse` h = m `catchError` \err -> case err of
-                    PatternErr s -> put s >> h
-                    _            -> h
+    orelse m h = catchError m (\_ -> h)
 
 unifyPointers :: Comparison -> Term -> Term -> TCM () -> TCM ()
 unifyPointers _ _ _ action = action
@@ -469,7 +467,7 @@ compareAtom cmp t m n =
                             r = assign rid y yArgs m
 
                     try m h = m `catchError_` \err -> case err of
-                      PatternErr s -> put s >> h
+                      PatternErr{} -> h
                       _            -> throwError err
 
                 -- First try the one with the highest priority. If that doesn't

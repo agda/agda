@@ -120,7 +120,7 @@ give ii mr e = liftTCM $ do
   -- Try to give mi := e
   giveExpr mi e `catchError` \ err -> case err of
     -- Turn PatternErr into proper error:
-    PatternErr _ -> do
+    PatternErr{} -> do
       err <- withInteractionId ii $ TP.text "Failed to give" TP.<+> prettyTCM e
       typeError $ GenericError $ show err
     _ -> throwError err

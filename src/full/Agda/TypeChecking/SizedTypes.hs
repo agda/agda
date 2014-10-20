@@ -360,7 +360,7 @@ computeSizeConstraint c =
         (b, m) <- sizeExpr v
         return $ Just $ Leq a (m - n) b
       `catchError` \ err -> case err of
-        PatternErr _ -> return Nothing
+        PatternErr{} -> return Nothing
         _            -> throwError err
     _ -> __IMPOSSIBLE__
 
