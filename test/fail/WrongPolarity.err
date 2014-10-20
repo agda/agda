@@ -1,3 +1,4 @@
-WrongPolarity.agda:24,1-25,36
-Contradictory size constraint ↑ i =< i : Size
-when checking the definition of dumpNat
+WrongPolarity.agda:25,23-36
+↑ i !=< i of type Size
+when checking that the expression dumpNat {i} n has type
+Sink (Nat {↑ i})

@@ -1,3 +1,6 @@
-WrongSizeAssignment.agda:21,16-20
-∞ != ∞ ^ of type Size
-when checking that the expression zero has type N {∞ ^}
+WrongSizeAssignment.agda:24,1-25,23
+Termination checking failed for the following functions:
+  f
+Problematic calls:
+  f {i} (suc {i ^} (lift {i ^} x))
+    (at WrongSizeAssignment.agda:25,7-8)

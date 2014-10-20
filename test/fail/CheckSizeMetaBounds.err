@@ -1,2 +1,4 @@
-CheckSizeMetaBounds.agda:22,1-24,30
-Contradictory size constraint ↑ ∞ =< .i : Size
+CheckSizeMetaBounds.agda:24,17-20
+∞ !=< .i of type Size
+when checking that (magic n) are valid arguments to a function of
+type {j : Size< .i} → Nat → Nat

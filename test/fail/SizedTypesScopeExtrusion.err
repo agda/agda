@@ -1,2 +1,3 @@
-SizedTypesScopeExtrusion.agda:27,1-28,42
-Contradictory size constraint ∞ =< i : Size
+SizedTypesScopeExtrusion.agda:28,41-42
+∞ !=< i of type Size
+when checking that the expression x has type Nat
