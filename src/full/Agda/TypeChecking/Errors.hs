@@ -119,7 +119,7 @@ tcErrString err = show (getRange err) ++ " " ++ case err of
     TypeError _ cl  -> errorString $ clValue cl
     Exception r s   -> show r ++ " " ++ s
     IOException r e -> show r ++ " " ++ show e
-    PatternErr _    -> "PatternErr"
+    PatternErr{}    -> "PatternErr"
     {- AbortAssign _   -> "AbortAssign" -- UNUSED -}
 
 errorString :: TypeError -> String
@@ -270,7 +270,7 @@ instance PrettyTCM TCErr where
             sayWhen (envRange $ clEnv e) (envCall $ clEnv e) $ prettyTCM e
         Exception r s   -> sayWhere r $ fwords s
         IOException r e -> sayWhere r $ fwords $ show e
-        PatternErr _    -> sayWhere err $ panic "uncaught pattern violation"
+        PatternErr{}    -> sayWhere err $ panic "uncaught pattern violation"
         {- AbortAssign _   -> sayWhere err $ panic "uncaught aborted assignment" -- UNUSED -}
 
 instance PrettyTCM CallInfo where
