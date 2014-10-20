@@ -571,7 +571,7 @@ createInterface file mname =
     cs <- gets (stCachedState . stPersistent)
     reportSLn "import.flow" 10 $ "before:" ++ show mname ++ ": " ++ (maybe "empty" (show . length . fst) cs) ++ " , " ++ show (length ds)
 
-    billTop Bench.Typing $ mapM_ checkDeclCached ds >> storeWrittenCS
+    billTop Bench.Typing $ mapM_ checkDeclCached ds `finally` storeWrittenCS
 
     cs <- gets (stCachedState . stPersistent)
     reportSLn "import.flow" 10 $ "after:" ++ show mname ++ ": " ++ (maybe "empty" (show . length . fst) cs) ++ " , " ++ show (length ds)
