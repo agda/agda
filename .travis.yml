@@ -27,7 +27,7 @@ install:
   # Get the std-lib
   - make std-lib
   # GO GO GO
-  - cabal install --only-dependencies -j
+  - cabal install --only-dependencies -j --force-reinstalls
   - make install-fix-agda-whitespace
 
 script:
