@@ -77,12 +77,12 @@ interaction prompt cmds eval = loop
 
 -- | The interaction loop.
 interactionLoop :: TCM (Maybe Interface) -> IM ()
-interactionLoop typeCheck =
+interactionLoop doTypeCheck =
     do  liftTCM reload
         interaction "Main> " commands evalTerm
     where
         reload = do
-            mi <- typeCheck
+            mi <- doTypeCheck
             -- Note that mi is Nothing if (1) there is no input file or
             -- (2) the file type checked with unsolved metas and
             -- --allow-unsolved-metas was used. In the latter case the
