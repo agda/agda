@@ -111,6 +111,7 @@ main = do
               dynFlags <- getSessionDynFlags
               setSessionDynFlags $
                 dynFlags {
+                  includePaths = ["."],
 #if MIN_VERSION_ghc(7,2,1)
                   settings = (settings dynFlags) { sOpt_P
 #else
