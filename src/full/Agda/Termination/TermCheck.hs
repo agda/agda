@@ -1253,7 +1253,9 @@ compareTerm' v0 p = do
     -- checking succeed, then we should not fail.
     -- Thus, we assume the meta will be instantiated with the
     -- deepest variable in @p@.
-    (MetaV{}, p) -> return $ Order.decr $ patternDepth p
+    -- For sized types, the depth is maximally context length - 1,
+    -- which is the number of SIZELT hypotheses one can have in a context.
+    (MetaV{}, p) -> Order.decr . max (patternDepth p) . pred <$> getContextSize
 
     (t, p) | isSubTerm t p -> return Order.le
 
