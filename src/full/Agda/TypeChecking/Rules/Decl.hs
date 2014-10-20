@@ -68,11 +68,11 @@ import Agda.Utils.Size
 import Agda.Utils.Impossible
 
 -- | Cached checkDecl
-ccheckDecl :: A.Declaration -> TCM ()
-ccheckDecl d@A.ScopedDecl{} = checkDecl d
-ccheckDecl d@(A.Section minfo mname tbinds _) = do
+checkDeclCached :: A.Declaration -> TCM ()
+checkDeclCached d@A.ScopedDecl{} = checkDecl d
+checkDeclCached d@(A.Section minfo mname tbinds _) = do
   e <- readCS
-  reportSLn "cache.decl" 10 $ "ccheckDecl: " ++ show (isJust e)
+  reportSLn "cache.decl" 10 $ "checkDeclCached: " ++ show (isJust e)
   case e of
     Just (EnterSection minfo' mname' tbinds', _)
       | minfo == minfo' && mname == mname' && tbinds == tbinds' -> do
@@ -89,9 +89,9 @@ ccheckDecl d@(A.Section minfo mname tbinds _) = do
       cleanCS
   cacheLFS (LeaveSection mname)
 
-ccheckDecl d = do
+checkDeclCached d = do
     e <- readCS
-    reportSLn "cache.decl" 10 $ "ccheckDecl: " ++ show (isJust e)
+    reportSLn "cache.decl" 10 $ "checkDeclCached: " ++ show (isJust e)
     case e of
       (Just (Decl d',s)) | compareDecl d d' -> do
 
@@ -164,7 +164,7 @@ checkDecl d = traceCall (SetRange (getRange d)) $ do
       A.Apply i x modapp rd rm -> meta $ checkSectionApplication i x modapp rd rm
       A.Import i x             -> none $ checkImport i x
       A.Pragma i p             -> none $ checkPragma i p
-      A.ScopedDecl scope ds    -> none $ setScope scope >> mapM_ ccheckDecl ds -- what's the purpouse? Ulf?
+      A.ScopedDecl scope ds    -> none $ setScope scope >> mapM_ checkDeclCached ds
       A.FunDef i x delayed cs  -> impossible $ check x i $ checkFunDef delayed i x cs
       A.DataDef i x ps cs      -> impossible $ check x i $ checkDataDef i x ps cs
       A.RecDef i x ind c ps tel cs -> mutual mi [d] $ check x i $ do
@@ -612,7 +612,7 @@ checkSection i x tel ds =
       dtel' <- prettyTCM =<< lookupSection x
       reportSLn "tc.mod.check" 10 $ "checking section " ++ show dx ++ " " ++ show dtel
       reportSLn "tc.mod.check" 10 $ "    actual tele: " ++ show dtel'
-    withCurrentModule x $ mapM_ ccheckDecl ds
+    withCurrentModule x $ mapM_ checkDeclCached ds
 
 -- | Helper for 'checkSectionApplication'.
 --
