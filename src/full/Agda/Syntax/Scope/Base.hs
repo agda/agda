@@ -56,7 +56,14 @@ data Scope = Scope
       }
   deriving (Typeable)
 
-data NameSpaceId = PrivateNS | PublicNS | ImportedNS | OnlyQualifiedNS
+-- | See 'Agda.Syntax.Common.Access'.
+data NameSpaceId
+  = PrivateNS        -- ^ Things not exported by this module.
+  | PublicNS         -- ^ Things exported by this module.
+  | ImportedNS       -- ^ Things not exported by this module.
+  | OnlyQualifiedNS  -- ^ Visible (as qualified) from outside,
+                     --   but not exported when opening the module.
+                     --   Used for qualified constructors.
   deriving (Typeable, Eq, Bounded, Enum)
 
 type ScopeNameSpaces = [(NameSpaceId, NameSpace)]
