@@ -3,7 +3,8 @@ Working with Git (from 2014-06-15)
 * Maintenance branches.
 
   For old releases (starting with 2.4.0) there are maintenance branches
-  maint-X.Y.Z. Bug fixes should be based on the appropriate maintenance branch
+  maint-$VERSION, where e.g. VERSION=2.4.0.
+  Bug fixes should be based on the appropriate maintenance branch
   whenever possible. See below.
 
 * Branches should be used generously when fixing bugs and adding features.
@@ -11,17 +12,29 @@ Working with Git (from 2014-06-15)
   branch rather than the master branch.  For instance, fixing issue 1234 would
   work as follows:
 
-    git checkout maint-2.4.0
-    git checkout -b issue1234 # create a new branch based on maint-2.4.0
+    git checkout maint-$VERSION
+    git checkout -b issue1234 # create a new branch based on maint-$VERSION
     ... work on issue 1234 ...
     git commit -p             # record some patches
 
-    # If you have commit rights
-    git checkout maint-2.4.0
-    git merge issue1234       # merge into maint-2.4.0
+    ... working for a long time on issue 1234 ...
+    git rebase maint-$VERSION # get fresh upstream patches, keep own work on top
+    git commit -p             # record some more patches
+
+    make install-bin test     # ensure compilation and tests
+
+    # Done!  If you have commit rights:
+
+    ## Merge into maint
+    git checkout maint-$VERSION
+    git merge issue1234       # merge into maint-$VERSION
+    make install-bin test     # ensure compilation and tests
     git push
+
+    ## Merge into master
     git checkout master
     git merge issue1234       # merge into master
+    make install-bin test     # ensure compilation and tests
     git push
     git branch -d issue1234   # delete the branch
 
@@ -31,34 +44,34 @@ Working with Git (from 2014-06-15)
     Go to https://github.com/agda/agda and click the green button next to the
     branch dropdown.
 
-  For new features replace maint-2.4.0 with master above.
+  For new features replace maint-$VERSION with master above.
 
   The above procedure has the drawback that with each checkout, many
   source files are touched and recompilation is slow.  Here is an
   alternative workflow, if you have commit rights and two local
-  repositories, one on master and one on maint-2.4.0 (both up-to-date).
+  repositories, one on master and one on maint-$VERSION (both up-to-date).
 
-    maint-2.4.0$  git checkout -b issue1234
-    maint-2.4.0$  git commit ...
-    maint-2.4.0$  git checkout maint-2.4.0
-    maint-2.4.0$  git merge issue1234
-    maint-2.4.0$  make install-bin test
-    maint-2.4.0$  git push
-    maint-2.4.0$  git branch -d issue1234
+    maint$  git checkout -b issue1234
+    maint$  git commit ...
+    maint$  git checkout maint-$VERSION
+    maint$  git merge issue1234
+    maint$  make install-bin test
+    maint$  git push
+    maint$  git branch -d issue1234
 
-    # Now fast-forward maint-2.4.0 branch without checking it out.
-    # Merge it into master (assuming maint-2.4.0 is a `subset' of master).
+    # Now fast-forward maint-$VERSION branch without checking it out.
+    # Merge it into master (assuming maint-$VERSION is a `subset' of master).
 
-    master$       git fetch origin maint-2.4.0:maint-2.4.0
-    master$       git pull
-    master$       git merge maint-2.4.0
-    master$       make install-bin test
-    master$       git push
+    master$ git fetch origin maint-$VERSION:maint-$VERSION
+    master$ git pull
+    master$ git merge maint-$VERSION
+    master$ make install-bin test
+    master$ git push
 
     # Fast-forward master
 
-    maint-2.4.0$  git fetch origin master:master
-    maint-2.4.0$  git pull
+    maint$  git fetch origin master:master
+    maint$  git pull
 
 Testing and documentation
 
