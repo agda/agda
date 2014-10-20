@@ -125,7 +125,7 @@ sizeMaxView v = do
   max <- getBuiltinDefName builtinSizeMax
   let loop v = do
       v <- reduce v
-      case v of
+      case ignoreSharing v of
         Def x []                   | Just x == inf -> return $ [DSizeInf]
         Def x [Apply u]            | Just x == suc -> maxViewSuc_ (fromJust suc) <$> loop (unArg u)
         Def x [Apply u1, Apply u2] | Just x == max -> maxViewMax <$> loop (unArg u1) <*> loop (unArg u2)
