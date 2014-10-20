@@ -762,7 +762,7 @@ type GoalCommand = InteractionId -> Range -> String -> Interaction
 --
 -- If type checking completes without any exceptions having been
 -- encountered then the command @cmd r@ is executed, where @r@ is the
--- result of 'Imp.typeCheck'.
+-- result of 'Imp.typeCheckMain'.
 
 cmd_load' :: FilePath -> [FilePath]
           -> Bool -- ^ Allow unsolved meta-variables?
