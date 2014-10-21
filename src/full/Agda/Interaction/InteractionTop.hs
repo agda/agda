@@ -808,6 +808,9 @@ cmd_load' file includes unsolvedOK cmd = do
     -- Remove any prior syntax highlighting.
     putResponse Resp_ClearHighlighting
 
+    -- We activate the cache only when agda is used interactively
+    lift activateLoadedFileCache
+
     ok <- lift $ Imp.typeCheckMain f
 
     -- The module type checked. If the file was not changed while the

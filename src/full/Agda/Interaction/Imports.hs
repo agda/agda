@@ -199,8 +199,6 @@ typeCheckMain f = do
             libpath </> "prim" </> "Agda" </> "Primitive.agda"
   reportSLn "import.main" 10 $ "Done importing the primitive modules."
 
-  activateLoadedFileCache
-
   -- Now do the type checking via getInterface.
   m <- moduleName f
   getInterface' m MainInterface
