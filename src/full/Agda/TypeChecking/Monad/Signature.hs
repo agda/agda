@@ -229,8 +229,8 @@ applySection new ptel old ts rd rm = do
     -- produce out-of-scope constructors.
     copyName x = Map.findWithDefault x x rd
 
-    argsToUse x = do
-      let m = mnameFromList $ commonPrefix (mnameToList old) (mnameToList $ qnameModule x)
+    argsToUse new = do
+      let m = mnameFromList $ commonPrefix (mnameToList old) (mnameToList new)
       reportSLn "tc.mod.apply" 80 $ "Common prefix: " ++ show m
       let ms = tail . map mnameFromList . inits . mnameToList $ m
       ps <- sequence [ maybe 0 secFreeVars <$> getSection m | m <- ms ]
@@ -240,7 +240,7 @@ applySection new ptel old ts rd rm = do
     copyDef :: Args -> (QName, QName) -> TCM ()
     copyDef ts (x, y) = do
       def <- getConstInfo x
-      np  <- argsToUse x
+      np  <- argsToUse (qnameModule x)
       copyDef' np def
       where
         copyDef' np d = do
@@ -349,11 +349,15 @@ applySection new ptel old ts rd rm = do
 
     copySec :: Args -> (ModuleName, ModuleName) -> TCM ()
     copySec ts (x, y) = do
+      np  <- argsToUse x
       tel <- lookupSection x
-      let fv = size tel - size ts
+      let fv = size tel - np
       reportSLn "tc.mod.apply" 80 $ "Copying section " ++ show x ++ " to " ++ show y
       reportSLn "tc.mod.apply" 80 $ "  free variables: " ++ show fv
-      addCtxTel (apply tel ts) $ addSection y fv
+      reportSLn "tc.mod.apply" 80 $ "  ts  = " ++ show ts
+      reportSLn "tc.mod.apply" 80 $ "  tel = " ++ show tel
+      reportSLn "tc.mod.apply" 80 $ "  np  = " ++ show np
+      addCtxTel (apply tel $ take np ts) $ addSection y fv
 
 addDisplayForm :: QName -> DisplayForm -> TCM ()
 addDisplayForm x df = do
