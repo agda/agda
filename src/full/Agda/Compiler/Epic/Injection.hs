@@ -39,6 +39,7 @@ import Agda.Compiler.Epic.Interface as Interface
 
 #include "undefined.h"
 import Agda.Utils.Impossible
+import Agda.Utils.Lens
 
 -- | Find potentially injective functions, solve constraints to fix some constructor
 --   tags and make functions whose constraints are fulfilled injections
@@ -67,11 +68,9 @@ findInjection defs = do
         (_,x):_  -> Just x
 
 replaceFunCC :: QName -> CompiledClauses -> Compile TCM ()
-replaceFunCC name cc = do
-    lift $ modify $ \s ->
-        s { stSignature = (stSignature s) { sigDefinitions = HM.adjust replaceDef name (sigDefinitions (stSignature s)) }
-          , stImports   = (stImports   s) { sigDefinitions = HM.adjust replaceDef name (sigDefinitions (stImports   s)) }
-          }
+replaceFunCC name cc = lift $ do
+    stSignature %= \sig -> sig {sigDefinitions = HM.adjust replaceDef name (sigDefinitions sig)}
+    stImports   %= \imp -> imp {sigDefinitions = HM.adjust replaceDef name (sigDefinitions imp)}
   where
     replaceDef :: Definition -> Definition
     replaceDef def = case theDef def of

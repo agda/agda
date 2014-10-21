@@ -27,12 +27,13 @@ import qualified Agda.Utils.HashMap as HM
 
 #include "undefined.h"
 import Agda.Utils.Impossible
+import Agda.Utils.Lens
 
 -- | Get a list of all the datatypes that look like nats. The [QName] is on the
 --   form [zeroConstr, sucConstr]
 getNatish :: Compile TCM [(ForcedArgs, [QName])]
 getNatish = do
-  sig <- lift (gets (sigDefinitions . stImports))
+  sig <- lift (sigDefinitions <$> use stImports)
   let defs = HM.toList sig
   fmap catMaybes $ forM defs $ \(q, def) ->
     case theDef def of
@@ -50,7 +51,7 @@ isNatish q d = do -- A datatype ...
                 z <- zip constrs <$> mapM getForcedArgs constrs
                 case sortBy (compare `on` nrRel . snd) z of
                   [(cz,fz), (cs,fs)] -> do
-                    sig <- lift (gets (sigDefinitions . stImports))
+                    sig <- lift (sigDefinitions <$> use stImports)
                     let ts = defType $ sig HM.! cs
                         nr = dataPars d
                     return $ do

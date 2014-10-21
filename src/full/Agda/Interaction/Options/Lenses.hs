@@ -14,6 +14,8 @@ import Agda.TypeChecking.Monad.Base
 import Agda.TypeChecking.Monad.State
 import Agda.Interaction.Options
 
+import Agda.Utils.Lens
+
 ---------------------------------------------------------------------------
 -- * Pragma options
 ---------------------------------------------------------------------------
@@ -32,8 +34,8 @@ instance LensPragmaOptions CommandLineOptions where
   setPragmaOptions opts st = st { optPragmaOptions = opts }
 
 instance LensPragmaOptions TCState where
-  getPragmaOptions = stPragmaOptions
-  setPragmaOptions opts st = st { stPragmaOptions = opts }
+  getPragmaOptions = (^.stPragmaOptions)
+  setPragmaOptions = set stPragmaOptions
 
 modifyPragmaOptions :: (PragmaOptions -> PragmaOptions) -> TCM ()
 modifyPragmaOptions = modify . mapPragmaOptions
@@ -83,7 +85,7 @@ instance LensCommandLineOptions PersistentTCState where
   setCommandLineOptions opts st = st { stPersistentOptions = opts }
 
 instance LensCommandLineOptions TCState where
-  getCommandLineOptions = getCommandLineOptions . stPersistent
+  getCommandLineOptions = getCommandLineOptions . stPersistentState
   mapCommandLineOptions = updatePersistentState . mapCommandLineOptions
 
 modifyCommandLineOptions :: (CommandLineOptions -> CommandLineOptions) -> TCM ()

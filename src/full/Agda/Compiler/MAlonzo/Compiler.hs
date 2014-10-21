@@ -47,6 +47,7 @@ import Agda.TypeChecking.Telescope
 import Agda.TypeChecking.Level (reallyUnLevelView)
 
 import Agda.Utils.FileName
+import Agda.Utils.Lens
 import Agda.Utils.Monad
 import Agda.Utils.Pretty (prettyShow)
 import qualified Agda.Utils.IO.UTF8 as UTF8
@@ -118,7 +119,7 @@ imports = (++) <$> hsImps <*> imps where
   decl m = HS.ImportDecl dummy m True False Nothing Nothing Nothing
 #endif
   mnames :: TCM [ModuleName]
-  mnames = (++) <$> (Set.elems <$> gets stImportedModules)
+  mnames = (++) <$> (Set.elems <$> use stImportedModules)
                 <*> (List.map fst . iImportedModules <$> curIF)
 
   uniq :: [HS.ModuleName] -> [HS.ModuleName]

@@ -33,6 +33,7 @@ import Agda.Compiler.Epic.CompileState
 
 #include "undefined.h"
 import Agda.Utils.Impossible
+import Agda.Utils.Lens
 
 normaliseStatic :: CompiledClauses -> Compile TCM CompiledClauses
 normaliseStatic = evaluateCC
@@ -55,7 +56,7 @@ evaluateCC ccs = case ccs of
 
 etaExpand :: Term -> Compile TCM Term
 etaExpand def@(Def n ts) = do
-    defs <- lift (gets (sigDefinitions . stImports))
+    defs <- lift (sigDefinitions <$> use stImports)
     let f   = maybe __IMPOSSIBLE__ theDef (HM.lookup n defs)
         len = length . clausePats . head .  funClauses $ f
         toEta :: Num a => a
@@ -116,7 +117,7 @@ instance Evaluate Term where
 -}
     isStatic :: QName -> Compile TCM Bool
     isStatic q = do
-      defs <- lift (gets (sigDefinitions . stImports))
+      defs <- lift (sigDefinitions <$> use stImports)
       return $ case fmap theDef $ HM.lookup q defs of
           Nothing -> False
           Just (f@Function{}) -> funStatic f

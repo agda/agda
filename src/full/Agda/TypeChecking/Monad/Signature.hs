@@ -42,6 +42,7 @@ import Agda.Utils.Monad
 import Agda.Utils.Size
 import Agda.Utils.Permutation
 import Agda.Utils.Pretty
+import Agda.Utils.Lens
 import Agda.Utils.List
 import qualified Agda.Utils.HashMap as HMap
 
@@ -428,8 +429,8 @@ class (Functor m, Applicative m, Monad m) => HasConstInfo m where
 
 instance HasConstInfo (TCMT IO) where
   getConstInfo q = join $ pureTCM $ \st env ->
-    let defs  = sigDefinitions $ stSignature st
-        idefs = sigDefinitions $ stImports st
+    let defs  = sigDefinitions $ st^.stSignature
+        idefs = sigDefinitions $ st^.stImports
     in case catMaybes [HMap.lookup q defs, HMap.lookup q idefs] of
         []  -> fail $ "Unbound name: " ++ show q ++ " " ++ showQNameId q
         [d] -> mkAbs env d

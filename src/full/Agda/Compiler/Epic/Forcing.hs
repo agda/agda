@@ -38,6 +38,7 @@ import qualified Agda.Compiler.Epic.FromAgda as FA
 
 #include "undefined.h"
 import Agda.Utils.Impossible
+import Agda.Utils.Lens
 
 -- | Returns how many parameters a datatype has
 dataParameters :: QName -> Compile TCM Nat
@@ -46,7 +47,7 @@ dataParameters = lift . dataParametersTCM
 -- | Returns how many parameters a datatype has
 dataParametersTCM :: QName -> TCM Nat
 dataParametersTCM name = do
-    m <- (gets (sigDefinitions . stImports))
+    m <- (sigDefinitions <$> use stImports)
     return $ maybe __IMPOSSIBLE__ (defnPars . theDef) (HM.lookup name m)
   where
     defnPars :: Defn -> Nat
@@ -150,7 +151,7 @@ takeTele _ _ = __IMPOSSIBLE__
 -- | Main function for removing pattern matching on forced variables
 remForced :: [Fun] -> Compile TCM [Fun]
 remForced fs = do
-    defs <- lift (gets (sigDefinitions . stImports))
+    defs <- lift (sigDefinitions  <$> use stImports)
     forM fs $ \f -> case f of
         Fun{} -> case funQName f >>= flip HM.lookup defs of
             Nothing -> __IMPOSSIBLE__
