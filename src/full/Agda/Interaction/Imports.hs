@@ -535,14 +535,6 @@ createInterface file mname =
         options = catMaybes $ map getOptions pragmas
     mapM_ setOptionsFromPragma options
 
-    -- invalidate cache if pragmas change, TODO move
-    opts <- gets stPragmaOptions
-    me <- readCS
-    case me of
-      Just (Pragmas opts', _) | opts == opts'
-        -> return ()
-      _ -> cleanCS
-    cacheLFS (Pragmas opts)
 
     -- Scope checking.
     topLevel <- billTop Bench.Scoping $
@@ -568,13 +560,24 @@ createInterface file mname =
 
     -- Type checking.
 
-    cs <- gets (stCachedState . stPersistent)
-    reportSLn "import.flow" 10 $ "before:" ++ show mname ++ ": " ++ (maybe "empty" (show . length . fst) cs) ++ " , " ++ show (length ds)
+    -- cs <- gets (stCachedState . stPersistent)
+    -- reportSLn "import.flow" 10 $ "before:" ++ show mname ++ ": " ++ (maybe "empty" (show . length . fst) cs) ++ " , " ++ show (length ds)
+
+    -- invalidate cache if pragmas change, TODO move
+    opts <- gets stPragmaOptions
+    me <- readCS
+    case me of
+      Just (Pragmas opts', _) | opts == opts'
+        -> return ()
+      _ -> do
+        reportSLn "cache" 10 $ "pragma changed: " ++ show (isJust me)
+        cleanCS
+    cacheLFS (Pragmas opts)
 
     billTop Bench.Typing $ mapM_ checkDeclCached ds `finally` storeWrittenCS
 
-    cs <- gets (stCachedState . stPersistent)
-    reportSLn "import.flow" 10 $ "after:" ++ show mname ++ ": " ++ (maybe "empty" (show . length . fst) cs) ++ " , " ++ show (length ds)
+    -- cs <- gets (stCachedState . stPersistent)
+    -- reportSLn "import.flow" 10 $ "after:" ++ show mname ++ ": " ++ (maybe "empty" (show . length . fst) cs) ++ " , " ++ show (length ds)
 
     -- Ulf, 2013-11-09: Since we're rethrowing the error, leave it up to the
     -- code that handles that error to reset the state.

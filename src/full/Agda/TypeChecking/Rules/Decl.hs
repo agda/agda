@@ -91,21 +91,15 @@ checkDeclCached d@(A.Section minfo mname tbinds _) = do
 
 checkDeclCached d = do
     e <- readCS
-    reportSLn "cache.decl" 10 $ "checkDeclCached: " ++ show (isJust e)
+
+    let b = isJust e in b `seq` reportSLn "cache.decl" 10 $ "checkDeclCached: " ++ show b
     case e of
       (Just (Decl d',s)) | compareDecl d d' -> do
 
         reportSLn "cache.decl" 10 $ "restoring!"
-        reportSLn "cache.decl" 20 $ show d
-        reportSLn "cache.decl" 20 $ "----------------------------------------------"
+        -- reportSLn "cache.decl" 20 $ show d
+        -- reportSLn "cache.decl" 20 $ "----------------------------------------------"
         restoreLFS s
-        | otherwise -> do
-        reportSLn "cache.decl" 20 $ "stored: " ++ show d'
-        reportSLn "cache.decl" 20 $ "----------------------------------------------"
-        reportSLn "cache.decl" 20 $ "new: " ++ show d
-
-        cleanCS
-        checkDeclWrap d
       _ -> do
         reportSLn "cache.decl" 20 $ "cleaning!"
         cleanCS
