@@ -69,6 +69,7 @@ import Agda.Utils.IO.Binary
 import Agda.Utils.Pretty
 import Agda.Utils.Time
 import Agda.Utils.Hash
+import qualified Agda.Utils.HashMap as HMap
 import qualified Agda.Utils.Trie as Trie
 
 #include "undefined.h"
@@ -595,6 +596,14 @@ createInterface file mname =
     syntaxInfo <- use stSyntaxInfo
     i <- billTop Bench.Serialization $ do
       buildInterface file topLevel syntaxInfo previousHsImports options
+
+    reportSLn "tc.top" 101 $ concat $
+      "Signature:\n" :
+      [ show x ++ "\n  type: " ++ show (defType def)
+               ++ "\n  def:  " ++ show cc ++ "\n"
+      | (x, def) <- HMap.toList $ sigDefinitions $ iSignature i,
+        Function{ funCompiled = cc } <- [theDef def]
+      ]
 
     -- TODO: It would be nice if unsolved things were highlighted
     -- after every mutual block.
