@@ -18,3 +18,4 @@ DOC_DIR			= $(TOP)/doc
 HADDOCK_DIR		= $(DOC_DIR)/haddock
 
 AGDA_BIN		?= $(TOP)/dist/build/agda/agda
+AGDA_BIN		:= $(abspath $(AGDA_BIN))
