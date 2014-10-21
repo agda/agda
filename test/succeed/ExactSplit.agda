@@ -17,7 +17,7 @@ data ℕ : Set where
 
 _+_ : ℕ → ℕ → ℕ
 zero    + n    = zero
-(suc m) + n    = suc (m + n) 
+(suc m) + n    = suc (m + n)
 
 eq : ℕ → ℕ → Bool
 eq zero    zero    = true
@@ -28,7 +28,7 @@ eq _       _       = false
 -- See also fail/ExactSplitMin.agda
 min : ℕ → ℕ → ℕ
 min zero    y       = zero
-{-# CATCHALL #-} 
+{-# CATCHALL #-}
 min x       zero    = zero
 min (suc x) (suc y) = suc (min x y)
 
