@@ -1,7 +1,11 @@
-dist
-html
-Everything.agda
+# Keep this file in alphabetic order please!
+
+.*.swp
 *.agdai
 *.agda.el
 *.lagda.el
-.*.swp
+*.hi
+*.o
+dist
+Everything.agda
+html
