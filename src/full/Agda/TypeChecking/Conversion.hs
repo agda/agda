@@ -179,16 +179,18 @@ compareTerm cmp a u v = do
     orelse m h = catchError m (\_ -> h)
 
 unifyPointers :: Comparison -> Term -> Term -> TCM () -> TCM ()
-unifyPointers _ _ _ action = action
--- unifyPointers cmp _ _ action | cmp /= CmpEq = action
--- unifyPointers _ u v action = do
---   old <- gets stDirty
---   modify $ \s -> s { stDirty = False }
---   action
---   (u, v) <- instantiate (u, v)
---   dirty <- gets stDirty
---   modify $ \s -> s { stDirty = old }
---   when (not dirty) $ forceEqualTerms u v
+-- unifyPointers _ _ _ action = action
+unifyPointers cmp _ _ action | cmp /= CmpEq = action
+unifyPointers _ u v action = do
+  old <- gets stDirty
+  modify $ \s -> s { stDirty = False }
+  action
+  (u, v) <- instantiate (u, v)
+  dirty <- gets stDirty
+  modify $ \s -> s { stDirty = old }
+  if dirty then verboseS "profile.sharing" 20 (tick "unifyPtr: dirty")
+           else verboseS "profile.sharing" 20 (tick "unifyPtr: clean") >>
+                forceEqualTerms u v
 
 -- | Try to assign meta.  If meta is projected, try to eta-expand
 --   and run conversion check again.
