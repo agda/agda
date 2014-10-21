@@ -21,7 +21,7 @@ import Agda.Utils.Size (size)
 patternsToElims :: Permutation -> [I.Arg Pattern] -> TCM [Elim]
 patternsToElims perm ps = evalStateT (mapM build ps) xs
   where
-    xs   = permute (invertP perm) $ downFrom (size perm)
+    xs   = permute (invertP __IMPOSSIBLE__ perm) $ downFrom (size perm)
 
     tick :: StateT [Int] TCM Int
     tick = do x : xs <- get; put xs; return x

@@ -563,7 +563,7 @@ openClause perm ps body = do
     -- length of the telescope
     n    = size perm
     -- the variables as a map from the body variables to the clause telescope
-    xs   = permute (invertP perm) $ downFrom (size perm)
+    xs   = permute (invertP __IMPOSSIBLE__ perm) $ downFrom (size perm)
 
     tick = do x : xs <- get; put xs; return x
 

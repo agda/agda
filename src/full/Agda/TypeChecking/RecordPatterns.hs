@@ -458,7 +458,7 @@ translateRecordPatterns clause = do
       -- order (i.e. the type signature for the variable which occurs
       -- first in the list of patterns comes first).
       flattenedOldTel =
-        permute (invertP $ compactP $ clausePerm clause) $
+        permute (invertP __IMPOSSIBLE__ $ compactP $ clausePerm clause) $
         zip (teleNames $ clauseTel clause) $
         flattenTel $
         clauseTel clause

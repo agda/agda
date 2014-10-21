@@ -73,7 +73,7 @@ instance IsProjP Pattern where
 patternsToElims :: Permutation -> [I.NamedArg Pattern] -> Elims
 patternsToElims perm aps = evalState (argPatsToElims aps) xs
   where
-    xs   = permute (invertP perm) $ downFrom (size perm)
+    xs   = permute (invertP __IMPOSSIBLE__ perm) $ downFrom (size perm)
 
     tick :: State [Int] Int
     tick = do x : xs <- get; put xs; return x
@@ -93,7 +93,7 @@ patternsToElims perm aps = evalState (argPatsToElims aps) xs
 patternsToElims :: Permutation -> [I.NamedArg Pattern] -> [Elim]
 patternsToElims perm ps = evalState (mapM build' ps) xs
   where
-    xs   = permute (invertP perm) $ downFrom (size perm)
+    xs   = permute (invertP __IMPOSSIBLE__ perm) $ downFrom (size perm)
 
     tick :: State [Int] Int
     tick = do x : xs <- get; put xs; return x
