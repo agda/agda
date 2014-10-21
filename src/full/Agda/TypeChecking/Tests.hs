@@ -15,7 +15,7 @@ import Agda.Utils.Size
 import Agda.Utils.Permutation
 import Agda.Utils.TestHelpers
 
-#include "../undefined.h"
+#include "undefined.h"
 import Agda.Utils.Impossible
 
 ---------------------------------------------------------------------------
