@@ -4,6 +4,7 @@
 module Agda.Utils.VarSet
   ( VarSet
   , union, unions, member, empty, delete, singleton, fromList, toList, isSubsetOf, Set.null
+  , intersection, difference
   , Agda.Utils.VarSet.subtract
   )
   where
