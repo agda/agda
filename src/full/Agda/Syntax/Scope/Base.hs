@@ -59,8 +59,8 @@ data Scope = Scope
 -- | See 'Agda.Syntax.Common.Access'.
 data NameSpaceId
   = PrivateNS        -- ^ Things not exported by this module.
-  | PublicNS         -- ^ Things exported by this module.
-  | ImportedNS       -- ^ Things not exported by this module.
+  | PublicNS         -- ^ Things defined and exported by this module.
+  | ImportedNS       -- ^ Things from open public, exported by this module.
   | OnlyQualifiedNS  -- ^ Visible (as qualified) from outside,
                      --   but not exported when opening the module.
                      --   Used for qualified constructors.
@@ -521,9 +521,14 @@ renameCanonicalNames renD renM = mapScope_ renameD renameM
     renameD = Map.map $ map $ over lensAnameName $ \ x -> Map.findWithDefault x x renD
     renameM = Map.map $ map $ over lensAmodName  $ \ x -> Map.findWithDefault x x renM
 
--- | Restrict the private name space of a scope
+-- | Remove private name space of a scope.
+--
+--   Should be a right identity for 'exportedNamesInScope'.
+--   @exportedNamesInScope . restrictPrivate == exportedNamesInscope@.
 restrictPrivate :: Scope -> Scope
-restrictPrivate s = setNameSpace PrivateNS emptyNameSpace $ s { scopeImports = Map.empty }
+restrictPrivate s
+  = setNameSpace PrivateNS  emptyNameSpace
+  $ s { scopeImports = Map.empty }
 
 -- | Remove names that can only be used qualified (when opening a scope)
 removeOnlyQualified :: Scope -> Scope
@@ -540,8 +545,10 @@ inScopeBecause f = mapScope_ mapName mapMod
 publicModules :: ScopeInfo -> Map A.ModuleName Scope
 publicModules scope = Map.filterWithKey (\ m _ -> reachable m) allMods
   where
+    -- Get all modules in the ScopeInfo.
     allMods   = Map.map restrictPrivate $ scopeModules scope
     root      = scopeCurrent scope
+
     modules s = map amodName $ concat $ Map.elems $ allNamesInScope s
 
     chase m = m : concatMap chase ms
@@ -561,7 +568,6 @@ everythingInScope scope = allThingsInScope $ mergeScopes $
 -- qualified by modules in the first argument.
 flattenScope :: [[C.Name]] -> ScopeInfo -> Map C.QName [AbstractName]
 flattenScope ms scope =
-  -- Map.filterKeys (\q -> elem (init $ C.qnameParts q) ([]:ms)) $
   Map.unionWith (++)
     (build ms allNamesInScope root)
     imported
@@ -780,7 +786,7 @@ instance Show NameSpace where
       pr (x, y) = show x ++ " --> " ++ show y
 
 instance Show Scope where
-  show (scope @ Scope { scopeName = name, scopeParents = parents, scopeImports = imps }) =
+  show (scope@Scope{ scopeName = name, scopeParents = parents, scopeImports = imps }) =
     unlines $
       [ "* scope " ++ show name ] ++ ind (
         concat [ blockOfLines (show nsid) (lines $ show $ scopeNameSpace nsid scope)
