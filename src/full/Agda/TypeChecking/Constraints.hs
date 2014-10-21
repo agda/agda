@@ -25,7 +25,6 @@ import {-# SOURCE #-} Agda.TypeChecking.Empty
 -- import {-# SOURCE #-} Agda.TypeChecking.UniversePolymorphism -- RETIRED
 
 import Agda.Utils.Except ( MonadError(throwError) )
-import Agda.Utils.Fresh
 import Agda.Utils.Maybe
 import Agda.Utils.Monad
 
@@ -42,7 +41,7 @@ catchConstraint c v = liftTCM $
         -- a lot slower (+20% total time on standard library). How is that possible??
         -- The problem is most likely that there are internal catchErrors which forgets the
         -- state. catchError should preserve the state on pattern violations.
-       PatternErr s -> put s >> addConstraint c
+       PatternErr{} -> addConstraint c
        _            -> throwError err
 
 addConstraint :: Constraint -> TCM ()

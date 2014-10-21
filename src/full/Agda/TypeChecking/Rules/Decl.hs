@@ -7,7 +7,7 @@ module Agda.TypeChecking.Rules.Decl where
 
 import Control.Monad
 import Control.Monad.Reader
-import Control.Monad.State (modify)
+import Control.Monad.State (modify, gets)
 
 import qualified Data.Foldable as Fold
 import Data.Maybe
@@ -71,40 +71,35 @@ import Agda.Utils.Impossible
 checkDeclCached :: A.Declaration -> TCM ()
 checkDeclCached d@A.ScopedDecl{} = checkDecl d
 checkDeclCached d@(A.Section minfo mname tbinds _) = do
-  e <- readCS
+  e <- readFromCachedLog
   reportSLn "cache.decl" 10 $ "checkDeclCached: " ++ show (isJust e)
   case e of
     Just (EnterSection minfo' mname' tbinds', _)
       | minfo == minfo' && mname == mname' && tbinds == tbinds' -> do
         return ()
     _ -> do
-      cleanCS
-  cacheLFS (EnterSection minfo mname tbinds)
+      cleanCachedLog
+  writeToCurrentLog $ EnterSection minfo mname tbinds
   checkDecl d
-  e' <- readCS
+  e' <- readFromCachedLog
   case e' of
     Just (LeaveSection mname', _) | mname == mname' -> do
       return ()
     _ -> do
-      cleanCS
-  cacheLFS (LeaveSection mname)
+      cleanCachedLog
+  writeToCurrentLog $ LeaveSection mname
 
 checkDeclCached d = do
-    e <- readCS
+    e <- readFromCachedLog
 
     let b = isJust e in b `seq` reportSLn "cache.decl" 10 $ "checkDeclCached: " ++ show b
     case e of
       (Just (Decl d',s)) | compareDecl d d' -> do
-
-        reportSLn "cache.decl" 10 $ "restoring!"
-        -- reportSLn "cache.decl" 20 $ show d
-        -- reportSLn "cache.decl" 20 $ "----------------------------------------------"
-        restoreLFS s
+        restorePostScopeState s
       _ -> do
-        reportSLn "cache.decl" 20 $ "cleaning!"
-        cleanCS
+        cleanCachedLog
         checkDeclWrap d
-    cacheLFS (Decl d)
+    writeToCurrentLog $ Decl d
  where
    compareDecl A.Section{} A.Section{} = __IMPOSSIBLE__
    compareDecl A.ScopedDecl{} A.ScopedDecl{} = __IMPOSSIBLE__
@@ -112,10 +107,10 @@ checkDeclCached d = do
    -- changes to CS inside a RecDef or Mutual ought not happen,
    -- but they do happen, so we discard them.
    ignoreChanges m = do
-     cs <- getCachedState
-     cleanCS
+     cs <- gets $ stLoadedFileCache . stPersistentState
+     cleanCachedLog
      m
-     putCachedState cs
+     modifyPersistentState $ \st -> st{stLoadedFileCache = cs}
    checkDeclWrap d@A.RecDef{} = ignoreChanges $ checkDecl d
    checkDeclWrap d@A.Mutual{} = ignoreChanges $ checkDecl d
    checkDeclWrap d            = checkDecl d

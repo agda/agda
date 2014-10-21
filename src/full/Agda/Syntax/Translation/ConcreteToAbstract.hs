@@ -53,7 +53,8 @@ import Agda.Syntax.Scope.Base
 import Agda.Syntax.Scope.Monad
 
 import Agda.TypeChecking.Monad.Base (TypeError(..), Call(..), typeError,
-                                     TCErr(..), extendedLambdaName)
+                                     TCErr(..), extendedLambdaName, fresh,
+                                     freshName, freshName_, freshNoName)
 import Agda.TypeChecking.Monad.Benchmark (billTo, billTop, reimburseTop)
 import qualified Agda.TypeChecking.Monad.Benchmark as Bench
 import Agda.TypeChecking.Monad.Trace (traceCall, setCurrentRange)
@@ -70,7 +71,6 @@ import Agda.Interaction.Options
 import Agda.Utils.Except ( MonadError(catchError, throwError) )
 import Agda.Utils.FileName
 import Agda.Utils.Functor
-import Agda.Utils.Fresh
 import Agda.Utils.List
 import Agda.Utils.Monad
 import Agda.Utils.Null
@@ -873,13 +873,17 @@ data TopLevelInfo = TopLevelInfo
 topLevelModuleName :: TopLevelInfo -> A.ModuleName
 topLevelModuleName topLevel = scopeCurrent (insideScope topLevel)
 
--- Top-level declarations are always (import|open)* module
+-- | Top-level declarations are always
+--   @
+--     (import|open)*         -- a bunch of possibly opened imports
+--     module ThisModule ...  -- the top-level module of this file
+--   @
 instance ToAbstract (TopLevel [C.Declaration]) TopLevelInfo where
     toAbstract (TopLevel file ds) =
       -- A file is a bunch of preliminary decls (imports etc.)
       -- plus a single module decl.
       case splitAt (length ds - 1) ds of
-        (ds', [C.Module r m0 tel ds]) -> do
+        (outsideDecls, [C.Module r m0 tel insideDecls]) -> do
           -- If the module name is _ compute the name from the file path
           m <- if isNoName m0
                 then return $ C.QName $ C.Name noRange [Id $ stringToRawName $ rootName file]
@@ -892,10 +896,12 @@ instance ToAbstract (TopLevel [C.Declaration]) TopLevelInfo where
                   return m0
           setTopLevelModule m
           am           <- toAbstract (NewModuleQName m)
-          ds'          <- toAbstract ds'
-          (scope0, ds) <- scopeCheckModule r m am tel $ toAbstract ds
-          scope        <- getScope
-          return $ TopLevelInfo (ds' ++ ds) scope scope0
+          -- Scope check the declarations outside
+          outsideDecls <- toAbstract outsideDecls
+          (insideScope, insideDecls) <- scopeCheckModule r m am tel $
+             toAbstract insideDecls
+          outsideScope <- getScope
+          return $ TopLevelInfo (outsideDecls ++ insideDecls) outsideScope insideScope
         _ -> __IMPOSSIBLE__
 
 -- | runs Syntax.Concrete.Definitions.niceDeclarations on main module

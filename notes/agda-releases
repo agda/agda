@@ -129,7 +129,7 @@ followed:
 
     Agda.cabal (twice)
     src/data/emacs-mode/agda2-mode.el
-    mk/paths.mk
+    mk/version.mk
     test/interaction/Issue1244a.out
     test/interaction/Issue1244b.out
 

@@ -29,6 +29,7 @@ import {-# SOURCE #-} Agda.TypeChecking.MetaVars
 import {-# SOURCE #-} Agda.TypeChecking.Conversion
 
 import Agda.Utils.Except ( MonadError(catchError, throwError), runExceptT )
+import Agda.Utils.Lens
 import Agda.Utils.Maybe
 import Agda.Utils.Monad
 
@@ -200,7 +201,7 @@ findInScope' m cands =
 -- search, since the constraint limits the solution space.
 rigidlyConstrainedMetas :: TCM [MetaId]
 rigidlyConstrainedMetas = do
-  cs <- (++) <$> gets stSleepingConstraints <*> gets stAwakeConstraints
+  cs <- (++) <$> use stSleepingConstraints <*> use stAwakeConstraints
   catMaybes <$> mapM rigidMetas cs
   where
     isRigid v = do

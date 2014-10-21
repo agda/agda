@@ -1,7 +1,7 @@
 ## Tags ###################################################################
 
 hTags=../hTags/dist/build/hTags/hTags
-hTags_include=../../dist/$(VERSION)/build/autogen/cabal_macros.h
+hTags_include=../../dist/build/autogen/cabal_macros.h
 
 $(hTags) : $(wildcard ../hTags/*.hs)
 	$(MAKE) -C ../hTags
@@ -14,8 +14,10 @@ tags : $(src_files) $(hTags) $(hTags_include)
 TAGS : $(src_files) $(hTags) $(hTags_include)
 	$(hTags) -i$(hTags_include) -e $(src_files)
 
+src_files=$(shell find . -name '*.hs' -o -name '*.lhs')
+
 # Andreas: create tags for everything exept Auto and Compilers
-ignore = $(patsubst ./%,%,$(shell $(FIND) ./Agda/Auto ./Agda/Compiler -name '*.hs' -o -name '*.lhs'))
+ignore = $(patsubst ./%,%,$(shell find ./Agda/Auto ./Agda/Compiler -name '*.hs' -o -name '*.lhs'))
 tag_files = $(filter-out $(ignore),$(src_files))
 
 mytags :  $(tag_files) $(hTags) $(hTags_include)

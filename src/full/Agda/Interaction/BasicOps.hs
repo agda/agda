@@ -51,6 +51,7 @@ import qualified Agda.TypeChecking.Pretty as TP
 
 import Agda.Utils.Except ( Error(strMsg), MonadError(catchError, throwError) )
 import Agda.Utils.Functor
+import Agda.Utils.Lens
 import Agda.Utils.List
 import Agda.Utils.Maybe
 import Agda.Utils.Monad
@@ -120,7 +121,7 @@ give ii mr e = liftTCM $ do
   -- Try to give mi := e
   giveExpr mi e `catchError` \ err -> case err of
     -- Turn PatternErr into proper error:
-    PatternErr _ -> do
+    PatternErr{} -> do
       err <- withInteractionId ii $ TP.text "Failed to give" TP.<+> prettyTCM e
       typeError $ GenericError $ show err
     _ -> throwError err
@@ -719,7 +720,7 @@ introTactic pmLambda ii = do
 atTopLevel :: TCM a -> TCM a
 atTopLevel m = inConcreteMode $ do
   let err = typeError $ GenericError "The file has not been loaded yet."
-  caseMaybeM (gets stCurrentModule) err $ \ current -> do
+  caseMaybeM (use stCurrentModule) err $ \ current -> do
     caseMaybeM (getVisitedModule $ toTopLevelModuleName current) __IMPOSSIBLE__ $ \ mi -> do
       let scope = iInsideScope $ miInterface mi
       tel <- lookupSection current

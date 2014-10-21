@@ -29,7 +29,7 @@ import Agda.TypeChecking.Monad.Context
 import Agda.TypeChecking.Substitute
 
 import Agda.Utils.Functor ((<.>))
-import Agda.Utils.Fresh
+import Agda.Utils.Lens
 import Agda.Utils.Maybe
 import Agda.Utils.Monad
 import Agda.Utils.Permutation
@@ -45,10 +45,10 @@ dontAssignMetas = local $ \ env -> env { envAssignMetas = False }
 
 -- | Get the meta store.
 getMetaStore :: TCM MetaStore
-getMetaStore = gets stMetaStore
+getMetaStore = use stMetaStore
 
 modifyMetaStore :: (MetaStore -> MetaStore) -> TCM ()
-modifyMetaStore f = modify $ \ st -> st { stMetaStore = f (stMetaStore st) }
+modifyMetaStore f = stMetaStore %= f
 
 -- | Lookup a meta variable
 lookupMeta :: MetaId -> TCM MetaVariable
@@ -182,7 +182,7 @@ updateMetaVarRange mi r = updateMetaVar mi (setRange r)
 
 modifyInteractionPoints :: (InteractionPoints -> InteractionPoints) -> TCM ()
 modifyInteractionPoints f =
-  modify $ \ s -> s { stInteractionPoints = f (stInteractionPoints s) }
+  stInteractionPoints %= f
 
 -- | Register an interaction point during scope checking.
 --   If there is no interaction id yet, create one.
@@ -191,7 +191,7 @@ registerInteractionPoint r maybeId = do
   ii <- case maybeId of
     Just i  -> return $ InteractionId i
     Nothing -> fresh
-  m <- gets stInteractionPoints
+  m <- use stInteractionPoints
   let ip = InteractionPoint { ipRange = r, ipMeta = Nothing }
   case Map.insertLookupWithKey (\ key new old -> old) ii ip m of
     -- If the interaction point is already present, we keep the old ip.
@@ -206,7 +206,7 @@ registerInteractionPoint r maybeId = do
 -- | Hook up meta variable to interaction point.
 connectInteractionPoint :: InteractionId -> MetaId -> TCM ()
 connectInteractionPoint ii mi = do
-  m <- gets stInteractionPoints
+  m <- use stInteractionPoints
   let ip = InteractionPoint { ipRange = __IMPOSSIBLE__, ipMeta = Just mi }
   -- The interaction point needs to be present already, we just set the meta.
   case Map.insertLookupWithKey (\ key new old -> new { ipRange = ipRange old }) ii ip m of
@@ -221,15 +221,15 @@ removeInteractionPoint ii = do
 
 -- | Get a list of interaction ids.
 getInteractionPoints :: TCM [InteractionId]
-getInteractionPoints = Map.keys <$> gets stInteractionPoints
+getInteractionPoints = Map.keys <$> use stInteractionPoints
 
 -- | Get all metas that correspond to interaction ids.
 getInteractionMetas :: TCM [MetaId]
-getInteractionMetas = mapMaybe ipMeta . Map.elems <$> gets stInteractionPoints
+getInteractionMetas = mapMaybe ipMeta . Map.elems <$> use stInteractionPoints
 
 -- | Get all metas that correspond to interaction ids.
 getInteractionIdsAndMetas :: TCM [(InteractionId,MetaId)]
-getInteractionIdsAndMetas = mapMaybe f . Map.toList <$> gets stInteractionPoints
+getInteractionIdsAndMetas = mapMaybe f . Map.toList <$> use stInteractionPoints
   where f (ii, ip) = (ii,) <$> ipMeta ip
 
 -- | Does the meta variable correspond to an interaction point?
@@ -241,7 +241,7 @@ isInteractionMeta x = lookup x . map swap <$> getInteractionIdsAndMetas
 -- | Get the information associated to an interaction point.
 lookupInteractionPoint :: InteractionId -> TCM InteractionPoint
 lookupInteractionPoint ii =
-  fromMaybeM err $ Map.lookup ii <$> gets stInteractionPoints
+  fromMaybeM err $ Map.lookup ii <$> use stInteractionPoints
   where
     err  = fail $ "no such interaction point: " ++ show ii
 
@@ -266,7 +266,7 @@ newMeta' inst mi p perm j = do
       mv = MetaVar mi p perm j' inst Set.empty Instantiable
   -- printing not available (import cycle)
   -- reportSDoc "tc.meta.new" 50 $ text "new meta" <+> prettyTCM j'
-  modify $ \st -> st { stMetaStore = Map.insert x mv $ stMetaStore st }
+  stMetaStore %= Map.insert x mv
   return x
 
 -- | Get the 'Range' for an interaction point.

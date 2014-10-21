@@ -22,11 +22,12 @@ import Agda.Interaction.Options
 import Agda.Syntax.Internal
 import Agda.Syntax.Concrete(TopLevelModuleName)
 import Agda.Syntax.Common
-import Agda.TypeChecking.Monad (TCM, internalError, defType, theDef, getConstInfo, sigDefinitions, stImports, stPersistentOptions, stPersistent)
+import Agda.TypeChecking.Monad (TCM, internalError, defType, theDef, getConstInfo, sigDefinitions, stImports, stPersistentOptions, stPersistentState)
 import qualified Agda.TypeChecking.Monad as TM
 import Agda.TypeChecking.Reduce
 
 import qualified Agda.Utils.HashMap as HM
+import Agda.Utils.Lens
 
 #include "undefined.h"
 import Agda.Utils.Impossible
@@ -68,7 +69,7 @@ getsEI f = gets (f . curModule)
 -- | Returns the type of a definition given its name
 getType :: QName -> Compile TCM Type
 getType q = do
-    map <- lift (gets (sigDefinitions . stImports))
+    map <- lift (sigDefinitions <$> use stImports)
     return $ maybe __IMPOSSIBLE__ defType (HM.lookup q map)
 
 -- | Create a name which can be used in Epic code from a QName.
@@ -110,7 +111,7 @@ assignConstrTag' constr constrs = do
 
 getConData :: QName -> Compile TCM QName
 getConData con = do
-    lmap <- lift (gets (TM.sigDefinitions . TM.stImports))
+    lmap <- lift (TM.sigDefinitions <$> use TM.stImports)
     case HM.lookup con lmap of
         Just def -> case theDef def of
             c@(TM.Constructor{}) -> return $ TM.conData c
@@ -119,7 +120,7 @@ getConData con = do
 
 getDataCon :: QName -> Compile TCM [QName]
 getDataCon con = do
-    lmap <- lift (gets (TM.sigDefinitions . TM.stImports))
+    lmap <- lift (TM.sigDefinitions <$> use TM.stImports)
     case HM.lookup con lmap of
         Just def -> case theDef def of
             d@(TM.Datatype{}) -> return $ TM.dataCons d
@@ -186,7 +187,7 @@ getForcedArgs q = lookInterface (Map.lookup q . forcedArgs) __IMPOSSIBLE__
 
 putForcedArgs :: QName -> ForcedArgs -> Compile TCM ()
 putForcedArgs n f = do
-  b <- lift $ gets (optForcing . stPersistentOptions . stPersistent)
+  b <- lift $ gets (optForcing . stPersistentOptions . stPersistentState)
   let f' | b = f
          | otherwise = replicate (length f) NotForced
   modifyEI $ \s -> s {forcedArgs = Map.insert n f' $ forcedArgs s}

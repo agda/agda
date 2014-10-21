@@ -44,8 +44,8 @@ import Agda.Utils.Impossible
 
 resetState :: TCM ()
 resetState = do
-    pers <- gets stPersistent
-    put $ initState { stPersistent = pers }
+    pers <- gets stPersistentState
+    put $ initState { stPersistentState = pers }
 
 -- | Resets all of the type checking state.
 --
@@ -82,14 +82,16 @@ localTCStateSaving compute = do
 
 
 ---------------------------------------------------------------------------
--- * Lens for persistent state and its fields
+-- * Lens for persistent states and its fields
 ---------------------------------------------------------------------------
 
 lensPersistentState :: Lens' PersistentTCState TCState
-lensPersistentState f s = f (stPersistent s) <&> \ p -> s { stPersistent = p }
+lensPersistentState f s =
+  f (stPersistentState s) <&> \ p -> s { stPersistentState = p }
 
-updatePersistentState :: (PersistentTCState -> PersistentTCState) -> (TCState -> TCState)
-updatePersistentState f s = s { stPersistent = f (stPersistent s) }
+updatePersistentState
+  :: (PersistentTCState -> PersistentTCState) -> (TCState -> TCState)
+updatePersistentState f s = s { stPersistentState = f (stPersistentState s) }
 
 modifyPersistentState :: (PersistentTCState -> PersistentTCState) -> TCM ()
 modifyPersistentState = modify . updatePersistentState
@@ -109,7 +111,7 @@ lensAccumStatistics =  lensPersistentState . lensAccumStatisticsP
 
 -- | Get the current scope.
 getScope :: TCM ScopeInfo
-getScope = gets stScope
+getScope = use stScope
 
 -- | Set the current scope.
 setScope :: ScopeInfo -> TCM ()
@@ -117,7 +119,7 @@ setScope scope = modifyScope (const scope)
 
 -- | Modify the current scope.
 modifyScope :: (ScopeInfo -> ScopeInfo) -> TCM ()
-modifyScope f = modify $ \ s -> s { stScope = f (stScope s) }
+modifyScope f = stScope %= f
 
 -- | Run a computation in a local scope.
 withScope :: ScopeInfo -> TCM a -> TCM (a, ScopeInfo)
@@ -160,22 +162,22 @@ printScope tag v s = verboseS ("scope." ++ tag) v $ do
 -- ** Lens for 'stSignature' and 'stImports'
 
 modifySignature :: (Signature -> Signature) -> TCM ()
-modifySignature f = modify $ \s -> s { stSignature = f $ stSignature s }
+modifySignature f = stSignature %= f
 
 modifyImportedSignature :: (Signature -> Signature) -> TCM ()
-modifyImportedSignature f = modify $ \s -> s { stImports = f $ stImports s }
+modifyImportedSignature f = stImports %= f
 
 getSignature :: TCM Signature
-getSignature = gets stSignature
+getSignature = use stSignature
 
 getImportedSignature :: TCM Signature
-getImportedSignature = gets stImports
+getImportedSignature = use stImports
 
 setSignature :: Signature -> TCM ()
 setSignature sig = modifySignature $ const sig
 
 setImportedSignature :: Signature -> TCM ()
-setImportedSignature sig = modify $ \s -> s { stImports = sig }
+setImportedSignature sig = stImports .= sig
 
 -- | Run some computation in a different signature, restore original signature.
 withSignature :: Signature -> TCM a -> TCM a
@@ -224,21 +226,16 @@ updateFunClauses f _                              = __IMPOSSIBLE__
 -- implementation of 'setTopLevelModule' should be changed.
 
 setTopLevelModule :: C.QName -> TCM ()
-setTopLevelModule x =
-  modify $ \s -> s
-    { stFreshThings = (stFreshThings s)
-      { fName = NameId 0 $ hashString (show x)
-      }
-    }
+setTopLevelModule x = stFreshNameId .= NameId 0 (hashString (show x))
 
 -- | Use a different top-level module for a computation. Used when generating
 --   names for imported modules.
 withTopLevelModule :: C.QName -> TCM a -> TCM a
 withTopLevelModule x m = do
-  next <- gets $ fName . stFreshThings
+  next <- use stFreshNameId
   setTopLevelModule x
   y <- m
-  modify $ \s -> s { stFreshThings = (stFreshThings s) { fName = next } }
+  stFreshNameId .= next
   return y
 
 ---------------------------------------------------------------------------
@@ -247,12 +244,11 @@ withTopLevelModule x m = do
 
 -- | Tell the compiler to import the given Haskell module.
 addHaskellImport :: String -> TCM ()
-addHaskellImport i =
-  modify $ \s -> s { stHaskellImports = Set.insert i $ stHaskellImports s }
+addHaskellImport i = stHaskellImports %= Set.insert i
 
 -- | Get the Haskell imports.
 getHaskellImports :: TCM (Set String)
-getHaskellImports = gets stHaskellImports
+getHaskellImports = use stHaskellImports
 
 ---------------------------------------------------------------------------
 -- * Interaction output callback
@@ -260,7 +256,7 @@ getHaskellImports = gets stHaskellImports
 
 getInteractionOutputCallback :: TCM InteractionOutputCallback
 getInteractionOutputCallback
-  = gets $ stInteractionOutputCallback . stPersistent
+  = gets $ stInteractionOutputCallback . stPersistentState
 
 appInteractionOutputCallback :: Response -> TCM ()
 appInteractionOutputCallback r
@@ -275,17 +271,17 @@ setInteractionOutputCallback cb
 ---------------------------------------------------------------------------
 
 getPatternSyns :: TCM PatternSynDefns
-getPatternSyns = gets stPatternSyns
+getPatternSyns = use stPatternSyns
 
 setPatternSyns :: PatternSynDefns -> TCM ()
 setPatternSyns m = modifyPatternSyns (const m)
 
 -- | Lens for 'stPatternSyns'.
 modifyPatternSyns :: (PatternSynDefns -> PatternSynDefns) -> TCM ()
-modifyPatternSyns f = modify $ \s -> s { stPatternSyns = f (stPatternSyns s) }
+modifyPatternSyns f = stPatternSyns %= f
 
 getPatternSynImports :: TCM PatternSynDefns
-getPatternSynImports = gets stPatternSynImports
+getPatternSynImports = use stPatternSynImports
 
 lookupPatternSyn :: QName -> TCM PatternSynDefn
 lookupPatternSyn x = do
@@ -304,7 +300,7 @@ lookupPatternSyn x = do
 
 -- | Lens getter for 'Benchmark' from 'TCState'.
 theBenchmark :: TCState -> Benchmark
-theBenchmark = stBenchmark . stPersistent
+theBenchmark = stBenchmark . stPersistentState
 
 -- | Lens map for 'Benchmark'.
 updateBenchmark :: (Benchmark -> Benchmark) -> TCState -> TCState
@@ -339,7 +335,7 @@ freshTCM m = do
     Right (a, s) -> do
       -- Keep only the benchmark info from the final state of the subcomp.
       modifyBenchmark $ const $ theBenchmark s
-      lensAccumStatistics .= (lensAccumStatistics ^. s)
+      lensAccumStatistics .= (s^.lensAccumStatistics)
       return $ Right a
 
 ---------------------------------------------------------------------------
@@ -355,13 +351,13 @@ addSignatureInstances sig = do
 
 -- | Lens for 'stInstanceDefs'.
 updateInstanceDefs :: (TempInstanceTable -> TempInstanceTable) -> (TCState -> TCState)
-updateInstanceDefs f s = s { stInstanceDefs = f $ stInstanceDefs s }
+updateInstanceDefs = over stInstanceDefs
 
 modifyInstanceDefs :: (TempInstanceTable -> TempInstanceTable) -> TCM ()
 modifyInstanceDefs = modify . updateInstanceDefs
 
 getAllInstanceDefs :: TCM TempInstanceTable
-getAllInstanceDefs = gets stInstanceDefs
+getAllInstanceDefs = use stInstanceDefs
 
 getAnonInstanceDefs :: TCM [QName]
 getAnonInstanceDefs = snd <$> getAllInstanceDefs

@@ -3,6 +3,7 @@
 {-# LANGUAGE CPP              #-}
 {-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE TupleSections    #-}
+{-# LANGUAGE RankNTypes       #-}
 
 module Agda.TypeChecking.Reduce.Monad
   ( constructorForm
@@ -31,13 +32,14 @@ import Agda.Syntax.Position
 import Agda.Syntax.Internal
 import Agda.TypeChecking.Monad hiding
   ( enterClosure, underAbstraction_, underAbstraction, addCtx, mkContextEntry,
-    isInstantiatedMeta, verboseS, reportSDoc, reportSLn, typeOfConst, lookupMeta, instantiateDef )
+    isInstantiatedMeta, verboseS, reportSDoc, reportSLn, typeOfConst, lookupMeta,
+    instantiateDef )
 import Agda.TypeChecking.Monad.Builtin hiding ( constructorForm )
 import Agda.TypeChecking.Substitute
 import Agda.Interaction.Options
 
-import Agda.Utils.Fresh
 import qualified Agda.Utils.HashMap as HMap
+import Agda.Utils.Lens
 import Agda.Utils.Monad
 import Agda.Utils.Pretty
 
@@ -47,6 +49,9 @@ import Agda.Utils.Impossible
 gets :: (TCState -> a) -> ReduceM a
 gets f = f . redSt <$> ReduceM ask
 
+useR :: Lens' a TCState -> ReduceM a
+useR l = gets (^.l)
+
 askR :: ReduceM ReduceEnv
 askR = ReduceM ask
 
@@ -54,15 +59,15 @@ localR :: (ReduceEnv -> ReduceEnv) -> ReduceM a -> ReduceM a
 localR f = ReduceM . local f . unReduceM
 
 instance HasOptions ReduceM where
-  pragmaOptions      = gets stPragmaOptions
+  pragmaOptions      = useR stPragmaOptions
   commandLineOptions = do
-    p  <- gets stPragmaOptions
-    cl <- gets $ stPersistentOptions . stPersistent
+    p  <- useR stPragmaOptions
+    cl <- gets $ stPersistentOptions . stPersistentState
     return $ cl{ optPragmaOptions = p }
 
 instance HasBuiltins ReduceM where
-  getBuiltinThing b = liftM2 mplus (Map.lookup b <$> gets stLocalBuiltins)
-                                   (Map.lookup b <$> gets stImportedBuiltins)
+  getBuiltinThing b = liftM2 mplus (Map.lookup b <$> useR stLocalBuiltins)
+                                   (Map.lookup b <$> useR stImportedBuiltins)
 
 constructorForm :: Term -> ReduceM Term
 constructorForm v = do
@@ -74,9 +79,9 @@ enterClosure :: Closure a -> (a -> ReduceM b) -> ReduceM b
 enterClosure (Closure sig env scope x) f = localR (mapRedEnvSt inEnv inState) (f x)
   where
     inEnv   e = env { envAllowDestructiveUpdate = envAllowDestructiveUpdate e }
-    inState s = s { stScope = scope }   -- TODO: use the signature here? would that fix parts of issue 118?
+    inState s = set stScope scope s   -- TODO: use the signature here? would that fix parts of issue 118?
 
-withFreshR :: HasFresh i FreshThings => (i -> ReduceM a) -> ReduceM a
+withFreshR :: HasFresh i => (i -> ReduceM a) -> ReduceM a
 withFreshR f = do
   s <- gets id
   let (i, s') = nextFresh s
@@ -112,7 +117,7 @@ underAbstraction_ :: Subst a => Abs a -> (a -> ReduceM b) -> ReduceM b
 underAbstraction_ = underAbstraction dummyDom
 
 lookupMeta :: MetaId -> ReduceM MetaVariable
-lookupMeta i = fromMaybe __IMPOSSIBLE__ . Map.lookup i <$> gets stMetaStore
+lookupMeta i = fromMaybe __IMPOSSIBLE__ . Map.lookup i <$> useR stMetaStore
 
 isInstantiatedMeta :: MetaId -> ReduceM Bool
 isInstantiatedMeta i = do
@@ -159,8 +164,8 @@ traceSLn k n s = applyWhenVerboseS k n (trace s)
 
 instance HasConstInfo ReduceM where
   getConstInfo q = ReduceM $ ReaderT $ \(ReduceEnv env st) -> Identity $
-    let defs  = sigDefinitions $ stSignature st
-        idefs = sigDefinitions $ stImports st
+    let defs  = sigDefinitions $ st^.stSignature
+        idefs = sigDefinitions $ st^.stImports
     in case catMaybes [HMap.lookup q defs, HMap.lookup q idefs] of
         []  -> trace ("Unbound name: " ++ show q ++ " " ++ showQNameId q) __IMPOSSIBLE__
         [d] -> mkAbs env d

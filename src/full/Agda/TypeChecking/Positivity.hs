@@ -75,8 +75,7 @@ checkStrictlyPositive qs = disableDestructiveUpdate $ do
   let sccs = Graph.sccs gstar
   reportSDoc "tc.pos.graph.sccs" 15 $ text $ "  sccs = " ++ show sccs
   forM_ sccs $ \ scc -> setMut [ q | DefNode q <- scc ]
-  whenM positivityCheckEnabled $
-    mapM_ (checkPos g) $ Set.toList qs
+  mapM_ (checkPos g) $ Set.toList qs
   reportSDoc "tc.pos.tick" 100 $ text "checked positivity"
 
   where
@@ -91,14 +90,16 @@ checkStrictlyPositive qs = disableDestructiveUpdate $ do
           loops      = filter (critical dr) $ Graph.allPaths (critical dr) (DefNode q) (DefNode q) g
 
       -- if we have a negative loop, raise error
-      forM_ [ how | Edge o how <- loops, o <= JustPos ] $ \ how -> do
+      whenM positivityCheckEnabled $ do
+        forM_ [ how | Edge o how <- loops, o <= JustPos ] $ \ how -> do
           err <- fsep $
             [prettyTCM q] ++ pwords "is not strictly positive, because it occurs" ++
             [prettyTCM how]
-          setCurrentRange (getRange q) $ typeError $ GenericError (show err)
+          setCurrentRange (getRange q) $ typeError $ GenericDocError err
 
       -- if we find an unguarded record, mark it as such
-      case headMay [ how | Edge o how <- loops, o <= StrictPos ] of
+      when (dr == IsRecord) $ do
+       case headMay [ how | Edge o how <- loops, o <= StrictPos ] of
         Just how -> do
           reportSDoc "tc.pos.record" 5 $ sep
             [ prettyTCM q <+> text "is not guarded, because it occurs"
@@ -115,7 +116,7 @@ checkStrictlyPositive qs = disableDestructiveUpdate $ do
           recursiveRecord q
           checkInduction q
 
-    checkInduction q = do
+    checkInduction q = whenM positivityCheckEnabled $ do
       -- Check whether the recursive record has been declared as
       -- 'Inductive' or 'Coinductive'.  Otherwise, error.
       unlessM (isJust . recInduction . theDef <$> getConstInfo q) $ do

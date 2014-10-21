@@ -79,6 +79,10 @@ library
     , base >= 4.2 && < 4.8
     , binary >= 0.6 && < 0.8
     , boxes >= 0.1.3 && < 0.2
+    -- NFData ByteString is only available from bytestring >= 0.10
+    -- but bytestring-0.10 is not accepted by travis build for ghc <= 7.4
+    -- as it breaks the accompanying haskell-platform
+    -- even though it builds with older ghcs.
     , bytestring >= 0.9.0.1 && < 0.11
     , containers >= 0.1 && < 0.6
     , data-hash == 0.2.0.0
@@ -333,7 +337,6 @@ library
                     Agda.Utils.Either
                     Agda.Utils.Favorites
                     Agda.Utils.FileName
-                    Agda.Utils.Fresh
                     Agda.Utils.Functor
                     Agda.Utils.Function
                     Agda.Utils.Geniplate

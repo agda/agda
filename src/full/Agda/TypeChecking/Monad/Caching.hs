@@ -1,100 +1,105 @@
-module Agda.TypeChecking.Monad.Caching where
+{-# LANGUAGE CPP                        #-}
+{-# LANGUAGE PatternGuards              #-}
+module Agda.TypeChecking.Monad.Caching
+  ( -- * Log reading/writing operations
+    writeToCurrentLog
+  , readFromCachedLog
+  , cleanCachedLog
+  , cacheCurrentLog
+
+    -- * Activating
+  , activateLoadedFileCache
+
+    -- * Restoring the 'PostScopeState'
+  , restorePostScopeState
+  ) where
 
 import Control.Arrow ((***), first, second)
 import Control.Applicative
 import qualified Control.Exception as E
 import Control.Monad.State
 import Data.Set (Set)
-import Data.Map as Map
+import qualified Data.Map as Map
 import qualified Data.Set as Set
 import Data.Maybe (fromMaybe)
 
 import Agda.TypeChecking.Monad.Base
 import Agda.TypeChecking.Monad.Options
 
+import Agda.Utils.Lens
 
--- | Extracts the current loaded file state.
-getFileState :: TCState -> LFileState
-getFileState s = s { stPersistent = initPersistentState }
+#include "undefined.h"
+import Agda.Utils.Impossible
 
-updateFileState :: LFileState -> TCState -> TCState
-updateFileState l s = l
-  {
-    stPersistent = stPersistent s
-  , stFreshThings = (stFreshThings l) { fInteraction = fInteraction (stFreshThings s)}
-  , stInteractionPoints = stInteractionPoints l `mergeIP` stInteractionPoints s
-  , stTokens = stTokens s
-  , stImports = stImports s
-  , stScope = stScope s
-  }
+
+-- | Writes a 'TypeCheckAction' to the current log, using the current
+-- 'PostScopeState'
+writeToCurrentLog :: TypeCheckAction -> TCM ()
+writeToCurrentLog d = do
+  reportSLn "cache" 10 $ "cachePostScopeState"
+  l <- gets stPostScopeState
+  modifyCache $ fmap $ \lfc -> lfc{ lfcCurrent = (d, l) : lfcCurrent lfc}
+
+restorePostScopeState :: PostScopeState -> TCM ()
+restorePostScopeState pss = do
+  reportSLn "cache" 10 $ "restorePostScopeState"
+  modify $ \s ->
+    let ipoints = s^.stInteractionPoints
+        pss' = pss{stPostInteractionPoints = stPostInteractionPoints pss `mergeIP` ipoints}
+    in  s{stPostScopeState = pss'}
   where
     mergeIP lm sm = Map.mapWithKey (\k v -> fromMaybe v (Map.lookup k lm)) sm
 
--- | Caches the current loaded file state.
--- The argument is supposed to be what was just typechecked.
-cacheLFS :: CachedDecl-> TCM ()
-cacheLFS d = do
-  reportSLn "cache" 10 $ "cacheLFS"
-  l <- gets getFileState
-  l `seq` modifyCachedState $ fmap (second (++ [(d,l)]))
-
-restoreLFS :: LFileState -> TCM ()
-restoreLFS l = do
-  reportSLn "cache" 10 $ "restoreLFS"
-  modify $ updateFileState l
-
-modifyCachedState :: (Maybe (CachedState,CachedState) -> Maybe (CachedState,CachedState)) -> TCM ()
-modifyCachedState f = do
+modifyCache
+  :: (Maybe LoadedFileCache -> Maybe LoadedFileCache)
+  -> TCM ()
+modifyCache f = do
   modify $ \s -> s
-    { stPersistent = let p = stPersistent s
-                     in p { stCachedState = f (stCachedState p)}
+    { stPersistentState = let p = stPersistentState s
+                          in p { stLoadedFileCache = f (stLoadedFileCache p)}
     }
-  forceCS
 
-getCachedState :: TCM (Maybe (CachedState,CachedState))
-getCachedState = do
-  gets (stCachedState . stPersistent)
+getCache :: TCM (Maybe LoadedFileCache)
+getCache = do
+  gets (stLoadedFileCache . stPersistentState)
 
-putCachedState :: (Maybe (CachedState,CachedState)) -> TCM ()
-putCachedState cs = do
-  modifyCachedState (const cs)
+putCache :: Maybe LoadedFileCache -> TCM ()
+putCache cs = modifyCache $ const cs
 
-forceCS :: TCM ()
-forceCS = do
-  s <- get
-  case s of
-    TCSt { stPersistent = PersistentTCSt { stCachedState = cs } }
-      -> maybe (return ()) (\ xs -> length (fst xs) `seq` length (snd xs) `seq` return ()) cs
-
--- | Reads the next entry in the CS, returns Nothing when empty
-readCS :: TCM (Maybe (CachedDecl,LFileState))
-readCS = do
-  reportSLn "cache" 10 $ "readCS"
-  s <- get
-  let p = stPersistent s
-      cs = stCachedState p
-      putTail r = put (s { stPersistent = p { stCachedState = fmap (first (const r)) cs } })
-  case cs of
-    Just ((e:r),_w) -> do
-      putTail r
-      return (Just e)
+-- | Reads the next entry in the cached type check log, if present.
+readFromCachedLog :: TCM (Maybe (TypeCheckAction, PostScopeState))
+readFromCachedLog = do
+  reportSLn "cache" 10 $ "getCachedTypeCheckAction"
+  mbCache <- getCache
+  case mbCache of
+    Just lfc | (entry : entries) <- lfcCached lfc -> do
+      putCache $ Just lfc{lfcCached = entries}
+      return (Just entry)
     _ -> do
       return Nothing
 
 -- | Empties the "to read" CachedState. To be used when it gets invalid.
-cleanCS :: TCM ()
-cleanCS = do
-  reportSLn "cache" 10 $ "cleanCS"
-  modifyCachedState (fmap (first (const [])))
+cleanCachedLog :: TCM ()
+cleanCachedLog = do
+  reportSLn "cache" 10 $ "cleanCachedLog"
+  modifyCache $ fmap $ \lfc -> lfc{lfcCached = []}
 
--- | Activates caching into CachedState. Clears the written log.
-activateCS :: TCM ()
-activateCS = do
-  reportSLn "cache" 10 $ "activateCS"
-  modifyCachedState $ Just . fromMaybe ([],[]) . fmap (second (const []))
+-- | Makes sure that the 'stLoadedFileCache' is 'Just', with a clean
+-- current log. Crashes is 'stLoadedFileCache' is already active with a
+-- dirty log.  Should be called when we start typechecking the current
+-- file.
+activateLoadedFileCache :: TCM ()
+activateLoadedFileCache = do
+  reportSLn "cache" 10 $ "activateLoadedFileCache"
+  modifyCache $ \mbLfc -> case mbLfc of
+    Nothing                          -> Just $ LoadedFileCache [] []
+    Just lfc | null (lfcCurrent lfc) -> Just lfc
+    _                                -> __IMPOSSIBLE__
 
--- | Replaces the "to read" CS with the written one.
-storeWrittenCS :: TCM ()
-storeWrittenCS = do
-  reportSLn "cache" 10 $ "storeWritten"
-  modifyCachedState $ fmap (\(_r,w) -> (w,[]))
+-- | Caches the current type check log.  Discardes the old cache.  Does
+-- nothing if caching is inactive.
+cacheCurrentLog :: TCM ()
+cacheCurrentLog = do
+  reportSLn "cache" 10 $ "cacheCurrentTypeCheckLog"
+  modifyCache $ fmap $ \lfc ->
+    lfc{lfcCached = reverse (lfcCurrent lfc), lfcCurrent = []}

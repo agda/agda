@@ -16,6 +16,7 @@ import Agda.TypeChecking.Monad.Base
 import Agda.TypeChecking.Substitute
 
 import Agda.Utils.Except ( Error, MonadError(catchError) )
+import Agda.Utils.Lens
 import Agda.Utils.Monad (when_)
 import Agda.Utils.Maybe
 import Agda.Utils.Tuple
@@ -40,11 +41,11 @@ litType l = case l of
     el t = El (mkType 0) t
 
 instance MonadIO m => HasBuiltins (TCMT m) where
-  getBuiltinThing b = liftM2 mplus (Map.lookup b <$> gets stLocalBuiltins)
-                      (Map.lookup b <$> gets stImportedBuiltins)
+  getBuiltinThing b = liftM2 mplus (Map.lookup b <$> use stLocalBuiltins)
+                      (Map.lookup b <$> use stImportedBuiltins)
 
 setBuiltinThings :: BuiltinThings PrimFun -> TCM ()
-setBuiltinThings b = modify $ \s -> s { stLocalBuiltins = b }
+setBuiltinThings b = stLocalBuiltins .= b
 
 bindBuiltinName :: String -> Term -> TCM ()
 bindBuiltinName b x = do
@@ -52,14 +53,11 @@ bindBuiltinName b x = do
         case builtin of
             Just (Builtin y) -> typeError $ DuplicateBuiltinBinding b y x
             Just (Prim _)    -> typeError $ NoSuchBuiltinName b
-            Nothing          -> modify $ \st ->
-              st { stLocalBuiltins =
-                    Map.insert b (Builtin x) $ stLocalBuiltins st
-                 }
+            Nothing          -> stLocalBuiltins %= Map.insert b (Builtin x)
 
 bindPrimitive :: String -> PrimFun -> TCM ()
 bindPrimitive b pf = do
-  builtin <- gets stLocalBuiltins
+  builtin <- use stLocalBuiltins
   setBuiltinThings $ Map.insert b (Prim pf) builtin
 
 getBuiltin :: String -> TCM Term

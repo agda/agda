@@ -44,6 +44,7 @@ import Agda.Auto.CaseSplit
 
 import Agda.Utils.Except ( runExceptT, MonadError(catchError) )
 import Agda.Utils.Impossible
+import Agda.Utils.Lens
 
 #include "undefined.h"
 
@@ -351,8 +352,8 @@ auto ii rng argstr = liftTCM $ do
 
              hits <- if elem "-a" hints then do
                st <- liftTCM $ join $ pureTCM $ \st _ -> return st
-               let defs = sigDefinitions $ stSignature st
-                   idefs = sigDefinitions $ stImports st
+               let defs = sigDefinitions $ st^.stSignature
+                   idefs = sigDefinitions $ st^.stImports
                    alldefs = HMap.keys defs ++ HMap.keys idefs
                liftM catMaybes $ mapM (\n ->
                  case thisdefinfo of

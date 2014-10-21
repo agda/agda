@@ -39,6 +39,7 @@ import Agda.TypeChecking.Monad (TCM)
 import qualified Agda.TypeChecking.Monad as TCM
 
 import Agda.Utils.FileName (filePath)
+import Agda.Utils.Lens
 import qualified Agda.Utils.IO.UTF8 as UTF8
 import Agda.Utils.Pretty
 import Agda.Utils.Tuple
@@ -97,7 +98,7 @@ generatePage
   -> HighlightingInfo      -- ^ Syntax highlighting info for the module.
   -> TCM ()
 generatePage dir mod highlighting = do
-  mf <- Map.lookup mod . TCM.stModuleToSource <$> get
+  mf <- Map.lookup mod <$> use TCM.stModuleToSource
   case mf of
     Nothing -> __IMPOSSIBLE__
     Just f  -> do

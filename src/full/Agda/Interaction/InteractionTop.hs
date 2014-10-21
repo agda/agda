@@ -82,6 +82,7 @@ import Agda.Utils.Except
 import Agda.Utils.FileName
 import Agda.Utils.Hash
 import qualified Agda.Utils.HashMap as HMap
+import Agda.Utils.Lens
 import Agda.Utils.Monad
 import Agda.Utils.Pretty
 import Agda.Utils.String
@@ -254,12 +255,12 @@ runInteraction (IOTCM current highlighting highlightingMethod cmd)
         meta    <- lift $ computeUnsolvedMetaWarnings
         constr  <- lift $ computeUnsolvedConstraints
         err     <- lift $ errorHighlighting e
-        modFile <- lift $ gets stModuleToSource
+        modFile <- lift $ use stModuleToSource
         let info = compress $ mconcat
                      -- Errors take precedence over unsolved things.
                      [err, meta, constr]
         s <- lift $ prettyError e
-        x <- lift . gets $ optShowImplicit . stPragmaOptions
+        x <- lift $ optShowImplicit <$> use stPragmaOptions
         mapM_ putResponse $
             [ Resp_DisplayInfo $ Info_Error s ] ++
             tellEmacsToJumpToError (getRange e) ++
@@ -598,7 +599,7 @@ interpret (Cmd_load_highlighting_info source) = do
               sourceH <- liftIO $ hashFile absSource
               if sourceH == iSourceHash (miInterface mi)
                then do
-                modFile <- gets stModuleToSource
+                modFile <- use stModuleToSource
                 return $ Just (iHighlighting $ miInterface mi, modFile)
                else
                 return Nothing
@@ -762,7 +763,7 @@ type GoalCommand = InteractionId -> Range -> String -> Interaction
 --
 -- If type checking completes without any exceptions having been
 -- encountered then the command @cmd r@ is executed, where @r@ is the
--- result of 'Imp.typeCheck'.
+-- result of 'Imp.typeCheckMain'.
 
 cmd_load' :: FilePath -> [FilePath]
           -> Bool -- ^ Allow unsolved meta-variables?
