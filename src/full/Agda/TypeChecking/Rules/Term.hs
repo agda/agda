@@ -307,6 +307,7 @@ checkAbsurdLambda i h e t = do
                     , namedClausePats = [Arg info' $ Named (Just $ unranged $ absName b) $ VarP "()"]
                     , clauseBody      = Bind $ NoAbs "()" NoBody
                     , clauseType      = Just $ setRelevance rel $ defaultArg $ absBody b
+                    , clauseCatchall  = False
                     }
                   ]
               , funCompiled       = Just Fail
@@ -580,7 +581,7 @@ checkExpr e t0 =
                   A.QuestionMark{}                 -> True
                   _                                -> False
 
-                hiddenLHS (A.Clause (A.LHS _ (A.LHSHead _ (a : _)) _) _ _) = notVisible a
+                hiddenLHS (A.Clause (A.LHS _ (A.LHSHead _ (a : _)) _) _ _ _) = notVisible a
                 hiddenLHS _ = False
 
         -- a meta variable without arguments: type check directly for efficiency
@@ -1099,7 +1100,7 @@ checkHeadApplication e t hd args = do
                        reverse ctx
           clause = A.Clause (A.LHS (A.LHSRange noRange) (A.LHSHead c' pats) [])
                             (A.RHS $ unAppView (A.Application (A.Con (AmbQ [c])) args'))
-                            []
+                            [] False
 
       reportSDoc "tc.term.expr.coind" 15 $ vcat $
           [ text "The coinductive constructor application"

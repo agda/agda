@@ -146,6 +146,7 @@ errorString err = case err of
     CoverageCantSplitOn{}                    -> "CoverageCantSplitOn"
     CoverageCantSplitIrrelevantType{}        -> "CoverageCantSplitIrrelevantType"
     CoverageCantSplitType{}                  -> "CoverageCantSplitType"
+    CoverageNoExactSplit{}                   -> "CoverageNoExactSplit"
     CyclicModuleDependency{}                 -> "CyclicModuleDependency"
     DataMustEndInSort{}                      -> "DataMustEndInSort"
 -- UNUSED:    DataTooManyParameters{}                  -> "DataTooManyParameters"
@@ -761,6 +762,9 @@ instance PrettyTCM TypeError where
 
             CoverageCantSplitType a -> fsep $
               pwords "Cannot split on argument of non-datatype" ++ [prettyTCM a]
+
+            CoverageNoExactSplit f cs -> fsep $
+              pwords "Exact splitting is enabled, but not all clauses can be preserved as definitional equalities in the translation to a case tree"
 
             SplitError e -> prettyTCM e
 

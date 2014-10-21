@@ -122,6 +122,7 @@ data PragmaOptions = PragmaOptions
   , optWithoutK                  :: Bool
   , optCopatterns                :: Bool  -- ^ Allow definitions by copattern matching?
   , optPatternMatching           :: Bool  -- ^ Is pattern matching allowed in the current file?
+  , optExactSplit                :: Bool
   }
   deriving Show
 
@@ -194,6 +195,7 @@ defaultPragmaOptions = PragmaOptions
   , optWithoutK                  = False
   , optCopatterns                = False
   , optPatternMatching           = True
+  , optExactSplit                = False
   }
 
 -- | The default termination depth.
@@ -313,6 +315,7 @@ withKFlag                    o = return $ o { optWithoutK                  = Fal
 withoutKFlag                 o = return $ o { optWithoutK                  = True  }
 copatternsFlag               o = return $ o { optCopatterns                = True  }
 noPatternMatchingFlag        o = return $ o { optPatternMatching           = False }
+exactSplitFlag               o = return $ o { optExactSplit                = True  }
 
 interactiveFlag  o = return $ o { optInteractive    = True
                                 , optPragmaOptions  = (optPragmaOptions o)
@@ -455,6 +458,8 @@ pragmaOptions =
                     "enable definitions by copattern matching"
     , Option []     ["no-pattern-matching"] (NoArg noPatternMatchingFlag)
                     "disable pattern matching completely"
+    , Option []     ["exact-split"] (NoArg exactSplitFlag)
+                    "require all clauses in a definition by pattern matching to hold as definitional equalities (except those marked as CATCHALL)"
     ]
 
 -- | Used for printing usage info.

@@ -1198,9 +1198,9 @@ instance EmbPrj Agda.Syntax.Common.IsAbstract where
                            valu _   = malformed
 
 instance EmbPrj I.Clause where
-  icod_ (Clause a b c d e f) = icode6' a b c d e f
-  value = vcase valu where valu [a, b, c, d, e, f] = valu6 Clause a b c d e f
-                           valu _                  = malformed
+  icod_ (Clause a b c d e f g) = icode7' a b c d e f g
+  value = vcase valu where valu [a, b, c, d, e, f, g] = valu7 Clause a b c d e f g
+                           valu _                     = malformed
 
 instance EmbPrj I.ClauseBody where
   icod_ (Body   a) = icode1 0 a

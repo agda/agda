@@ -46,7 +46,7 @@ nonOverlappingCompleteMatches cs ps perm
 -}
 
 -- | Match the given patterns against a list of clauses
-match :: [Clause] -> [Arg Pattern] -> Permutation -> Match Nat
+match :: [Clause] -> [Arg Pattern] -> Permutation -> Match (Nat,[MPat])
 match cs ps perm = foldr choice No $ zipWith matchIt [0..] cs
   where
     mps = buildMPatterns perm ps
@@ -93,6 +93,12 @@ buildMPatterns perm ps = evalState (mapM (traverse build) ps) xs
     buildT (Var i [])     = return (VarMP i)
     buildT _              = return WildMP
 
+isTrivialMPattern :: MPat -> Bool
+isTrivialMPattern VarMP{} = True
+isTrivialMPattern ConMP{} = False
+isTrivialMPattern LitMP{} = False
+isTrivialMPattern WildMP{} = True
+isTrivialMPattern ProjMP{} = False -- or True?
 
 -- | If matching is inconclusive (@Block@) we want to know which
 --   variables are blocking the match.
@@ -149,14 +155,14 @@ choice (Block x) _         = Block x
 choice BlockP    m         = BlockP
 choice No        m         = m
 
-type MatchLit = Literal -> MPat -> Match ()
+type MatchLit = Literal -> MPat -> Match [MPat]
 
 noMatchLit :: MatchLit
 noMatchLit _ _ = No
 
 yesMatchLit :: MatchLit
-yesMatchLit _ VarMP{}  = Yes ()
-yesMatchLit _ WildMP{} = Yes ()
+yesMatchLit _ q@VarMP{}  = Yes [q]
+yesMatchLit _ q@WildMP{} = Yes [q]
 yesMatchLit _ _        = No
 
 -- | Check if a clause could match given generously chosen literals
@@ -168,8 +174,8 @@ matchLits c ps perm =
 
 -- | @matchClause mlit qs i c@ checks whether clause @c@ number @i@
 --   covers a split clause with patterns @qs@.
-matchClause :: MatchLit -> [Arg MPat] -> Nat -> Clause -> Match Nat
-matchClause mlit qs i c = i <$ matchPats mlit (clausePats c) qs
+matchClause :: MatchLit -> [Arg MPat] -> Nat -> Clause -> Match (Nat,[MPat])
+matchClause mlit qs i c = (\q -> (i,q)) <$> matchPats mlit (clausePats c) qs
 
 -- | @matchPats mlit ps qs@ checks whether a function clause with patterns
 --   @ps@ covers a split clause with patterns @qs@.
@@ -184,7 +190,7 @@ matchClause mlit qs i c = i <$ matchPats mlit (clausePats c) qs
 --     F true = Set
 --     F      = \ x -> Set
 --   @
-matchPats :: MatchLit -> [Arg Pattern] -> [Arg MPat] -> Match ()
+matchPats :: MatchLit -> [Arg Pattern] -> [Arg MPat] -> Match [MPat]
 matchPats mlit ps qs = mconcat $ properMatchesLeft :
     zipWith (matchPat mlit) (map unArg ps) (map unArg qs) ++
     [ projPatternsLeft ]
@@ -192,11 +198,11 @@ matchPats mlit ps qs = mconcat $ properMatchesLeft :
     projPatternsLeft =
       let psrest = map unArg $ drop (length qs) ps
       in  if null $ mapMaybe isProjP psrest -- not $ any properlyMatching psrest
-            then Yes ()  -- no proj. patterns left
+            then Yes []  -- no proj. patterns left
             else BlockP  -- proj. patterns left
     properMatchesLeft =
       if any (properMatch . unArg) $ drop (length ps) qs
-      then No else Yes ()
+      then No else Yes []
     properMatch ConMP{} = True
     properMatch LitMP{} = True
     properMatch _       = False
@@ -235,11 +241,11 @@ instance Monoid a => Monoid (Match a) where
 --   @No@ means it does not cover.
 --   @Block [x]@ means @p@ is a proper instance of @q@ and could become
 --   a cover if @q@ was split on variable @x@.
-matchPat :: MatchLit -> Pattern -> MPat -> Match ()
-matchPat _    (VarP _) _ = Yes ()
-matchPat _    (DotP _) _ = Yes ()
+matchPat :: MatchLit -> Pattern -> MPat -> Match [MPat]
+matchPat _    (VarP _) q = Yes [q]
+matchPat _    (DotP _) q = Yes [q]
 matchPat mlit (LitP l) q = mlit l q
-matchPat _    (ProjP d) (ProjMP d') = if d == d' then Yes () else No
+matchPat _    (ProjP d) (ProjMP d') = if d == d' then Yes [] else No
 matchPat _    (ProjP d) _ = __IMPOSSIBLE__
 -- matchPat mlit (ConP c (Just _) ps) q | recordPattern ps = Yes ()  -- Andreas, 2012-07-25 record patterns always match!
 matchPat mlit (ConP c _ ps) q = case q of

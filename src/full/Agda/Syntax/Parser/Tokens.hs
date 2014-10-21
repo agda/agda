@@ -28,7 +28,7 @@ data Keyword
         | KwQuoteGoal | KwQuoteContext | KwQuote | KwQuoteTerm
         | KwUnquote | KwUnquoteDecl | KwUnquoteDef
         | KwSyntax
-        | KwPatternSyn | KwTactic
+        | KwPatternSyn | KwTactic | KwCATCHALL
     deriving (Eq, Show)
 
 layoutKeywords :: [Keyword]

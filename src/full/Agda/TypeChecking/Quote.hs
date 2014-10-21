@@ -552,7 +552,8 @@ instance Unquote Clause where
                , clausePerm      = Perm n vs
                , namedClausePats = ps
                , clauseBody      = mkBody n b
-               , clauseType      = Nothing }
+               , clauseType      = Nothing
+               , clauseCatchall  = False }
         where
           ps = map (fmap unnamed) ps0
           n  = vars True ps  -- with dot patterns

@@ -90,7 +90,7 @@ isAlias cs t =
   where
     isMeta (MetaV x _) = Just x
     isMeta _           = Nothing
-    trivialClause [A.Clause (A.LHS i (A.LHSHead f []) []) (A.RHS e) []] = Just e
+    trivialClause [A.Clause (A.LHS i (A.LHSHead f []) []) (A.RHS e) [] _] = Just e
     trivialClause _ = Nothing
 
 -- | Check a trivial definition of the form @f = e@
@@ -131,6 +131,7 @@ checkAlias t' ai delayed i name e = do
                           , namedClausePats = []
                           , clauseBody      = Body v
                           , clauseType      = Just $ Arg ai t
+                          , clauseCatchall  = False
                           } ]
                       , funCompiled       = Just $ Done [] v
                       , funDelayed        = delayed
@@ -355,9 +356,9 @@ patchUpTrailingImplicits _ _ _ = __IMPOSSIBLE__
 -- | Insert some patterns in the in with-clauses LHS of the given RHS
 insertPatterns :: [A.Pattern] -> A.RHS -> A.RHS
 insertPatterns pats (A.WithRHS aux es cs) = A.WithRHS aux es (map insertToClause cs)
-    where insertToClause (A.Clause (A.LHS i lhscore ps) rhs ds)
+    where insertToClause (A.Clause (A.LHS i lhscore ps) rhs ds catchall)
 --              = A.Clause (A.LHS i x (aps ++ map (Arg NotHidden . unnamed) pats) (ps)) (insertPatterns pats rhs) ds
-              = A.Clause (A.LHS i lhscore (pats ++ ps)) (insertPatterns pats rhs) ds
+              = A.Clause (A.LHS i lhscore (pats ++ ps)) (insertPatterns pats rhs) ds catchall
 insertPatterns pats (A.RewriteRHS qs eqs rhs wh) = A.RewriteRHS qs eqs (insertPatterns pats rhs) wh
 insertPatterns pats rhs = rhs
 
@@ -392,7 +393,7 @@ checkClause :: Type -> A.SpineClause -> TCM Clause
 checkClause t c@(A.Clause lhs rhs0 wh) = do
     let A.SpineLHS i x aps withPats = A.lhsToSpine lhs
 -}
-checkClause t c@(A.Clause (A.SpineLHS i x aps withPats) rhs0 wh) = do
+checkClause t c@(A.Clause (A.SpineLHS i x aps withPats) rhs0 wh catchall) = do
     unless (null withPats) $
       typeError $ UnexpectedWithPatterns withPats
     traceCall (CheckClause t c) $ do
@@ -513,7 +514,7 @@ checkClause t c@(A.Clause (A.SpineLHS i x aps withPats) rhs0 wh) = do
                                     -- Note: handleRHS (A.RewriteRHS _ eqs _ _)
                                     -- is defined by induction on eqs.
                                     (A.RewriteRHS names eqs (insertPatterns pats rhs) inner)
-                                    outer]
+                                    outer False]
                          pats = [A.DotP patNoRange underscore, -- rewriteToExpr,
                                  A.ConP cinfo (AmbQ [conName reflCon]) []]
                      reportSDoc "tc.rewrite.top" 25 $ vcat
@@ -646,6 +647,7 @@ checkClause t c@(A.Clause (A.SpineLHS i x aps withPats) rhs0 wh) = do
                , namedClausePats = ps
                , clauseBody      = body
                , clauseType      = Just trhs
+               , clauseCatchall  = catchall
                }
 {-
 checkClause t (A.Clause (A.LHS _ _ ps@(_ : _)) _ _) = typeError $ UnexpectedWithPatterns ps

@@ -1,0 +1,4 @@
+ExactSplitMin.agda:11,1-17
+Exact splitting is enabled, but not all clauses can be preserved as
+definitional equalities in the translation to a case tree
+when checking the definition of min

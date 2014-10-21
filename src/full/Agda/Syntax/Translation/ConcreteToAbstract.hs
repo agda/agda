@@ -117,9 +117,9 @@ annotateExpr m = do
   return $ ScopedExpr s e
 
 expandEllipsis :: C.Pattern -> [C.Pattern] -> C.Clause -> C.Clause
-expandEllipsis _ _ c@(C.Clause _ C.LHS{} _ _ _) = c
-expandEllipsis p ps (C.Clause x (C.Ellipsis _ ps' eqs es) rhs wh wcs) =
-  C.Clause x (C.LHS p (ps ++ ps') eqs es) rhs wh wcs
+expandEllipsis _ _ c@(C.Clause _ _ C.LHS{} _ _ _) = c
+expandEllipsis p ps (C.Clause x catchall (C.Ellipsis _ ps' eqs es) rhs wh wcs) =
+  C.Clause x catchall (C.LHS p (ps ++ ps') eqs es) rhs wh wcs
 
 -- | Make sure that each variable occurs only once.
 checkPatternLinearity :: [A.Pattern' e] -> ScopeM ()
@@ -600,7 +600,7 @@ instance ToAbstract C.Expr A.Expr where
             insertHead (C.Ellipsis r wps eqs with) = C.Ellipsis r wps eqs with
         scdef <- toAbstract (C.FunDef r [] defaultFixity' ConcreteDef TerminationCheck cname
                                (map (\(lhs,rhs,wh) -> -- wh = NoWhere, see parser for more info
-                                      C.Clause cname (insertHead lhs) rhs wh []) cs))
+                                      C.Clause cname False (insertHead lhs) rhs wh []) cs))
         case scdef of
           (A.ScopedDecl si [A.FunDef di qname' NotDelayed cs]) -> do
             setScope si
@@ -946,7 +946,7 @@ instance ToAbstract LetDef [A.LetBinding] where
                     return [ A.LetBind (LetRange $ getRange d) info x t e ]
 
             -- irrefutable let binding, like  (x , y) = rhs
-            NiceFunClause r PublicAccess ConcreteDef termCheck d@(C.FunClause lhs@(C.LHS p [] [] []) (C.RHS rhs) NoWhere) -> do
+            NiceFunClause r PublicAccess ConcreteDef termCheck catchall d@(C.FunClause lhs@(C.LHS p [] [] []) (C.RHS rhs) NoWhere) -> do
               mp  <- setCurrentRange (getRange p) $ (Right <$> parsePattern p) `catchError` (return . Left)
               case mp of
                 Right p -> do
@@ -962,7 +962,7 @@ instance ToAbstract LetDef [A.LetBinding] where
                     Just x  -> toAbstract $ LetDef $ NiceMutual r termCheck
                       [ C.FunSig r defaultFixity' PublicAccess NotInstanceDef defaultArgInfo termCheck x (C.Underscore (getRange x) Nothing)
                       , C.FunDef r __IMPOSSIBLE__ __IMPOSSIBLE__ ConcreteDef __IMPOSSIBLE__ __IMPOSSIBLE__
-                        [C.Clause x lhs (C.RHS rhs) NoWhere []]
+                        [C.Clause x catchall lhs (C.RHS rhs) NoWhere []]
                       ]
                   where
                     definedName (C.IdentP (C.QName x)) = Just x
@@ -1001,7 +1001,7 @@ instance ToAbstract LetDef [A.LetBinding] where
 
             _   -> notAValidLetBinding d
         where
-            letToAbstract (C.Clause top clhs@(C.LHS p [] [] []) (C.RHS rhs) NoWhere []) = do
+            letToAbstract (C.Clause top catchall clhs@(C.LHS p [] [] []) (C.RHS rhs) NoWhere []) = do
 {-
                 p    <- parseLHS top p
                 localToAbstract (snd $ lhsArgs p) $ \args ->
@@ -1112,7 +1112,7 @@ instance ToAbstract NiceDeclaration A.Declaration where
         return [ A.FunDef (mkDefInfo x f PublicAccess a r) x' delayed cs ]
 
   -- Uncategorized function clauses
-    C.NiceFunClause r acc abs termCheck (C.FunClause lhs rhs wcls) ->
+    C.NiceFunClause r acc abs termCheck catchall (C.FunClause lhs rhs wcls) ->
       typeError $ GenericError $
         "Missing type signature for left hand side " ++ show lhs
     C.NiceFunClause{} -> __IMPOSSIBLE__
@@ -1388,10 +1388,11 @@ instance ToAbstract C.Pragma [A.Pragma] where
         _       -> fail "Bad ETA pragma"
     -- Termination checking pragmes are handled by the nicifier
     toAbstract C.TerminationCheckPragma{} = __IMPOSSIBLE__
+    toAbstract C.CatchallPragma{}         = __IMPOSSIBLE__
 
 instance ToAbstract C.Clause A.Clause where
-    toAbstract (C.Clause top C.Ellipsis{} _ _ _) = fail "bad '...'" -- TODO: errors message
-    toAbstract (C.Clause top lhs@(C.LHS p wps eqs with) rhs wh wcs) = withLocalVars $ do
+    toAbstract (C.Clause top _ C.Ellipsis{} _ _ _) = fail "bad '...'" -- TODO: errors message
+    toAbstract (C.Clause top catchall lhs@(C.LHS p wps eqs with) rhs wh wcs) = withLocalVars $ do
       -- Andreas, 2012-02-14: need to reset local vars before checking subclauses
       vars <- getLocalVars
       let wcs' = for wcs $ \ c -> do
@@ -1406,13 +1407,13 @@ instance ToAbstract C.Clause A.Clause where
       if not (null eqs)
         then do
           rhs <- toAbstract =<< toAbstractCtx TopCtx (RightHandSide eqs with wcs' rhs whds)
-          return $ A.Clause lhs' rhs []
+          return $ A.Clause lhs' rhs [] catchall
         else do
           -- the right hand side is checked inside the module of the local definitions
           (rhs, ds) <- whereToAbstract (getRange wh) whname whds $
                         toAbstractCtx TopCtx (RightHandSide eqs with wcs' rhs [])
           rhs <- toAbstract rhs
-          return $ A.Clause lhs' rhs ds
+          return $ A.Clause lhs' rhs ds catchall
 
 whereToAbstract :: Range -> Maybe C.Name -> [C.Declaration] -> ScopeM a -> ScopeM (a, [A.Declaration])
 whereToAbstract _ _ [] inner = do

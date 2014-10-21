@@ -48,5 +48,6 @@ Usage: agda [OPTIONS...] [FILE]
           --without-K                                 disable the K rule in pattern matching
           --copatterns                                enable definitions by copattern matching
           --no-pattern-matching                       disable pattern matching completely
+          --exact-split                               require all clauses in a definition by pattern matching to hold as definitional equalities (except those marked as CATCHALL)
 
 Plugins:

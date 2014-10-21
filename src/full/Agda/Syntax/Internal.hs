@@ -269,6 +269,7 @@ data Clause = Clause
       --   Used, e.g., by @TermCheck@.
       --   Can be 'Irrelevant' if we encountered an irrelevant projection
       --   pattern on the lhs.
+    , clauseCatchall  :: Bool
     }
   deriving (Typeable, Show)
 
@@ -768,7 +769,7 @@ instance KillRange Permutation where
   killRange = id
 
 instance KillRange Clause where
-  killRange (Clause r tel perm ps body t) = killRange6 Clause r tel perm ps body t
+  killRange (Clause r tel perm ps body t catchall) = killRange7 Clause r tel perm ps body t catchall
 
 instance KillRange a => KillRange (ClauseBodyF a) where
   killRange = fmap killRange

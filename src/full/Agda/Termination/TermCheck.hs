@@ -635,8 +635,8 @@ termClause' clause = do
 introHiddenLambdas :: MonadTCM tcm => Clause -> tcm Clause
 introHiddenLambdas clause = liftTCM $ do
   case clause of
-    Clause range ctel perm ps body Nothing -> return clause
-    Clause range ctel perm ps body (Just t)-> do
+    Clause range ctel perm ps body Nothing catchall  -> return clause
+    Clause range ctel perm ps body (Just t) catchall -> do
       case removeHiddenLambdas body of
         -- nobody or no hidden lambdas
         ([], _) -> return clause
@@ -651,7 +651,7 @@ introHiddenLambdas clause = liftTCM $ do
           let ctel' = telFromList $ telToList ctel ++ telToList ttel
               ps'   = ps ++ map toPat axs
               perm' = liftP n perm
-          return $ Clause range ctel' perm' ps' body' $ Just (t $> t')
+          return $ Clause range ctel' perm' ps' body' (Just (t $> t')) catchall
   where
     toPat (Common.Arg (Common.ArgInfo h r c) x) =
            Common.Arg (Common.ArgInfo h r []) $ namedVarP x

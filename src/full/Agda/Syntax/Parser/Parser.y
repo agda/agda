@@ -110,6 +110,7 @@ import Agda.Utils.Tuple
     'NON_TERMINATING' { TokKeyword KwNON_TERMINATING $$ }
     'TERMINATING'   { TokKeyword KwTERMINATING $$ }
     'MEASURE'       { TokKeyword KwMEASURE $$ }
+    'CATCHALL'      { TokKeyword KwCATCHALL $$ }
     'COMPILED'      { TokKeyword KwCOMPILED $$ }
     'COMPILED_EXPORT'      { TokKeyword KwCOMPILED_EXPORT $$ }
     'COMPILED_DATA' { TokKeyword KwCOMPILED_DATA $$ }
@@ -231,6 +232,7 @@ Token
     | 'NON_TERMINATING' { TokKeyword KwNON_TERMINATING $1 }
     | 'TERMINATING'   { TokKeyword KwTERMINATING $1 }
     | 'MEASURE'       { TokKeyword KwMEASURE $1 }
+    | 'CATCHALL'      { TokKeyword KwCATCHALL $1 }
     | 'quoteGoal'     { TokKeyword KwQuoteGoal $1 }
     | 'quoteContext'     { TokKeyword KwQuoteContext $1 }
     | 'quote'         { TokKeyword KwQuote $1 }
@@ -1248,6 +1250,7 @@ DeclarationPragma
   | NonTerminatingPragma     { $1 }
   | NoTerminationCheckPragma { $1 }
   | MeasurePragma            { $1 }
+  | CatchallPragma           { $1 }
   | OptionsPragma            { $1 }
     -- Andreas, 2014-03-06
     -- OPTIONS pragma not allowed everywhere, but don't give parse error.
@@ -1328,6 +1331,12 @@ MeasurePragma
   : '{-#' 'MEASURE' PragmaName '#-}'
     { let r = getRange ($1, $2, $3, $4) in
       TerminationCheckPragma r (TerminationMeasure r $3) }
+
+CatchallPragma :: { Pragma }
+CatchallPragma
+  : '{-#' 'CATCHALL' '#-}'
+    { CatchallPragma (getRange ($1,$2,$3)) }
+
 
 ImportPragma :: { Pragma }
 ImportPragma

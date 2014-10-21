@@ -1791,6 +1791,7 @@ data TypeError
         | CoverageCantSplitOn QName Telescope Args Args
         | CoverageCantSplitIrrelevantType Type
         | CoverageCantSplitType Type
+        | CoverageNoExactSplit QName Clause
         | WithoutKError Type Term Term
         | SplitError SplitError
     -- Positivity errors

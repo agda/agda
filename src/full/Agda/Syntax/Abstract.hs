@@ -237,6 +237,7 @@ data Clause' lhs = Clause
   { clauseLHS        :: lhs
   , clauseRHS        :: RHS
   , clauseWhereDecls :: [Declaration]
+  , clauseCatchall   :: Bool
   } deriving (Typeable, Show, Functor, Foldable, Traversable)
 
 type Clause = Clause' LHS
@@ -486,7 +487,7 @@ instance HasRange (LHSCore' e) where
     getRange (LHSProj d ps1 lhscore ps2) = d `fuseRange` ps1 `fuseRange` lhscore `fuseRange` ps2
 
 instance HasRange a => HasRange (Clause' a) where
-    getRange (Clause lhs rhs ds) = getRange (lhs,rhs,ds)
+    getRange (Clause lhs rhs ds catchall) = getRange (lhs,rhs,ds)
 
 instance HasRange RHS where
     getRange AbsurdRHS                = noRange
@@ -607,7 +608,7 @@ instance KillRange e => KillRange (LHSCore' e) where
   killRange (LHSProj a b c d) = killRange4 LHSProj a b c d
 
 instance KillRange a => KillRange (Clause' a) where
-  killRange (Clause lhs rhs ds) = killRange3 Clause lhs rhs ds
+  killRange (Clause lhs rhs ds catchall) = killRange4 Clause lhs rhs ds catchall
 
 instance KillRange RHS where
   killRange AbsurdRHS                = AbsurdRHS
@@ -685,7 +686,7 @@ instance AllNames Declaration where
   allNames (ScopedDecl _ decls)       = allNames decls
 
 instance AllNames Clause where
-  allNames (Clause _ rhs decls) = allNames rhs >< allNames decls
+  allNames (Clause _ rhs decls _) = allNames rhs >< allNames decls
 
 instance AllNames RHS where
   allNames (RHS e)                   = allNames e

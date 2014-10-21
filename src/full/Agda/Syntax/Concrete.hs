@@ -380,6 +380,7 @@ data Pragma
   | ImpossiblePragma       !Range
   | EtaPragma              !Range QName
   | TerminationCheckPragma !Range (TerminationCheck Name)
+  | CatchallPragma         !Range
   deriving (Typeable)
 
 ---------------------------------------------------------------------------
@@ -585,6 +586,7 @@ instance HasRange Pragma where
   getRange (ImpossiblePragma r)         = r
   getRange (EtaPragma r _)              = r
   getRange (TerminationCheckPragma r _) = r
+  getRange (CatchallPragma r)           = r
 
 instance HasRange UsingOrHiding where
   getRange (Using xs)  = getRange xs
@@ -739,6 +741,7 @@ instance KillRange Pragma where
   killRange (ImpossiblePragma _)          = ImpossiblePragma noRange
   killRange (EtaPragma _ q)               = killRange1 (EtaPragma noRange) q
   killRange (TerminationCheckPragma _ t)  = TerminationCheckPragma noRange (killRange t)
+  killRange (CatchallPragma _)            = CatchallPragma noRange
 
 instance KillRange Renaming where
   killRange (Renaming i n _) = killRange2 (\i n -> Renaming i n noRange) i n

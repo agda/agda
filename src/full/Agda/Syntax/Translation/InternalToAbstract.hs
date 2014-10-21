@@ -765,8 +765,8 @@ instance (DotVars a, DotVars b) => DotVars (a, b) where
   dotVars (x, y) = Set.union (dotVars x) (dotVars y)
 
 instance DotVars A.Clause where
-  dotVars (A.Clause _ rhs []) = dotVars rhs
-  dotVars (A.Clause _ rhs (_:_)) = __IMPOSSIBLE__ -- cannot contain where clauses?
+  dotVars (A.Clause _ rhs [] _) = dotVars rhs
+  dotVars (A.Clause _ rhs (_:_) _) = __IMPOSSIBLE__ -- cannot contain where clauses?
 
 instance DotVars A.Pattern where
   dotVars p = case p of
@@ -870,7 +870,7 @@ reifyPatterns tel perm ps = evalStateT (reifyArgs ps) 0
         where ci = flip ConPatInfo patNoRange $ maybe False fst mt
 
 instance Reify NamedClause A.Clause where
-  reify (QNamed f (I.Clause _ tel perm ps body _)) = addCtxTel tel $ do
+  reify (QNamed f (I.Clause _ tel perm ps body _ catchall)) = addCtxTel tel $ do
     ps  <- reifyPatterns tel perm ps
     lhs <- liftTCM $ reifyDisplayFormP $ SpineLHS info f ps [] -- LHS info (LHSHead f ps) []
     nfv <- getDefFreeVars f `catchError` \_ -> return 0
@@ -878,7 +878,7 @@ instance Reify NamedClause A.Clause where
     reportSLn "reify.clause" 60 $ "reifying NamedClause, lhs = " ++ show lhs
     rhs <- reify $ renameP (reverseP perm) <$> body
     reportSLn "reify.clause" 60 $ "reifying NamedClause, rhs = " ++ show rhs
-    let result = A.Clause (spineToLhs lhs) rhs []
+    let result = A.Clause (spineToLhs lhs) rhs [] catchall
     reportSLn "reify.clause" 60 $ "reified NamedClause, result = " ++ show result
     return result
     where

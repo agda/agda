@@ -93,7 +93,7 @@ data NiceDeclaration
         | NicePragma Range Pragma
         | NiceRecSig Range Fixity' Access Name [LamBinding] Expr
         | NiceDataSig Range Fixity' Access Name [LamBinding] Expr
-        | NiceFunClause Range Access IsAbstract TerminationCheck Declaration
+        | NiceFunClause Range Access IsAbstract TerminationCheck Catchall Declaration
           -- ^ a uncategorized function clause, could be a function clause
           --   without type signature or a pattern lhs (e.g. for irrefutable let)x
         | FunSig Range Fixity' Access IsInstance ArgInfo TerminationCheck Name Expr
@@ -110,6 +110,8 @@ type TerminationCheck = Common.TerminationCheck Measure
 -- | Termination measure is, for now, a variable name.
 type Measure = Name
 
+type Catchall = Bool
+
 -- | Only 'Axiom's.
 type NiceConstructor = NiceTypeSignature
 
@@ -118,7 +120,7 @@ type NiceTypeSignature  = NiceDeclaration
 
 -- | One clause in a function definition. There is no guarantee that the 'LHS'
 --   actually declares the 'Name'. We will have to check that later.
-data Clause = Clause Name LHS RHS WhereClause [Clause]
+data Clause = Clause Name Catchall LHS RHS WhereClause [Clause]
     deriving (Typeable, Show)
 
 -- | The exception type.
@@ -146,6 +148,7 @@ data DeclarationException
         | PragmaNoTerminationCheck Range
           -- ^ Pragma @{-# NO_TERMINATION_CHECK #-}@ has been replaced
           --   by {-# TERMINATING #-} and {-# NON_TERMINATING #-}.
+        | InvalidCatchallPragma Range
     deriving (Typeable)
 
 instance HasRange DeclarationException where
@@ -168,6 +171,7 @@ instance HasRange DeclarationException where
     getRange (InvalidTerminationCheckPragma r) = r
     getRange (InvalidMeasureMutual r)      = r
     getRange (PragmaNoTerminationCheck r)  = r
+    getRange (InvalidCatchallPragma r)     = r
 
 instance HasRange NiceDeclaration where
   getRange (Axiom r _ _ _ _ _ _)           = r
@@ -186,7 +190,7 @@ instance HasRange NiceDeclaration where
   getRange (NiceRecSig r _ _ _ _ _)        = r
   getRange (NiceDataSig r _ _ _ _ _)       = r
   getRange (NicePatternSyn r _ _ _ _)      = r
-  getRange (NiceFunClause r _ _ _ _)       = r
+  getRange (NiceFunClause r _ _ _ _ _)     = r
   getRange (NiceUnquoteDecl r _ _ _ _ _ _) = r
   getRange (NiceUnquoteDef r _ _ _ _ _ _)  = r
 
@@ -235,6 +239,8 @@ instance Show DeclarationException where
     pwords "Termination checking pragmas can only precede a mutual block or a function definition."
   show (InvalidMeasureMutual _) = show $ fsep $
     pwords "In a mutual block, either all functions must have the same (or no) termination checking pragma."
+  show (InvalidCatchallPragma _) = show $ fsep $
+    pwords "The CATCHALL pragma can only preceed a function clause."
   show (NotAllowedInMutual nd) = show $ fsep $
     [text $ decl nd] ++ pwords "are not allowed in mutual blocks"
     where
@@ -527,7 +533,9 @@ niceDeclarations ds = do
     nice (Pragma (TerminationCheckPragma r tc) : d@TypeSig{} : ds) =
       niceTypeSig tc d ds
     nice (Pragma (TerminationCheckPragma r tc) : d@FunClause{} : ds) | notMeasure tc =
-      niceFunClause tc d ds
+      niceFunClause tc False d ds
+    nice (Pragma (CatchallPragma r) : d@FunClause{} : ds) =
+      niceFunClause TerminationCheck True d ds
     nice (Pragma (TerminationCheckPragma r tc) : ds@(UnquoteDecl{} : _)) | notMeasure tc = do
       NiceUnquoteDecl r f p a _ x e : ds <- nice ds
       return $ NiceUnquoteDecl r f p a tc x e : ds
@@ -540,7 +548,7 @@ niceDeclarations ds = do
     nice (d:ds) = do
       case d of
         TypeSig{} -> niceTypeSig TerminationCheck d ds
-        FunClause{} -> niceFunClause TerminationCheck d ds
+        FunClause{} -> niceFunClause TerminationCheck False d ds
         Field x t                     -> (++) <$> niceAxioms [ d ] <*> nice ds
         DataSig r CoInductive x tel t -> throwError (Codata r)
         Data r CoInductive x tel t cs -> throwError (Codata r)
@@ -608,10 +616,12 @@ niceDeclarations ds = do
           throwError $ PragmaNoTerminationCheck r
         Pragma (TerminationCheckPragma r _) ->
           throwError $ InvalidTerminationCheckPragma r
+        Pragma (CatchallPragma r) ->
+          throwError $ InvalidCatchallPragma r
         Pragma p            -> (NicePragma (getRange p) p :) <$> nice ds
 
-    niceFunClause :: TerminationCheck -> Declaration -> [Declaration] -> Nice [NiceDeclaration]
-    niceFunClause termCheck d@(FunClause lhs _ _) ds = do
+    niceFunClause :: TerminationCheck -> Catchall -> Declaration -> [Declaration] -> Nice [NiceDeclaration]
+    niceFunClause termCheck catchall d@(FunClause lhs _ _) ds = do
           xs <- map snd . filter (isFunName . fst) <$> use loneSigs
           -- for each type signature 'x' waiting for clauses, we try
           -- if we have some clauses for 'x'
@@ -636,12 +646,12 @@ niceDeclarations ds = do
               -- A missing type signature error might be raise in ConcreteToAbstract
               _ -> do
                 ds <- nice ds
-                return $ NiceFunClause (getRange d) PublicAccess ConcreteDef termCheck d : ds
+                return $ NiceFunClause (getRange d) PublicAccess ConcreteDef termCheck catchall d : ds
 
             -- case: clauses match exactly one of the sigs
             [(x,(fits,rest))] -> do
                removeLoneSig x
-               cs  <- mkClauses x $ expandEllipsis fits
+               cs  <- mkClauses x (expandEllipsis fits) False
                ds1 <- nice rest
                fx  <- getFixity x
                d   <- return $ FunDef (getRange fits) fits fx ConcreteDef termCheck x cs
@@ -649,7 +659,7 @@ niceDeclarations ds = do
 
             -- case: clauses match more than one sigs (ambiguity)
             l -> throwError $ AmbiguousFunClauses lhs (map fst l) -- "ambiguous function clause; cannot assign it uniquely to one type signature"
-    niceFunClause _ _ _ = __IMPOSSIBLE__
+    niceFunClause _ _ _ _ = __IMPOSSIBLE__
 
     niceTypeSig :: TerminationCheck -> Declaration -> [Declaration] -> Nice [NiceDeclaration]
     niceTypeSig termCheck d@(TypeSig info x t) ds = do
@@ -704,7 +714,7 @@ niceDeclarations ds = do
 
     -- Create a function definition.
     mkFunDef info termCheck x mt ds0 = do
-      cs <- mkClauses x $ expandEllipsis ds0
+      cs <- mkClauses x (expandEllipsis ds0) False
       f  <- getFixity x
       return [ FunSig (fuseRange x t) f PublicAccess NotInstanceDef info termCheck x t
              , FunDef (getRange ds0) ds0 f ConcreteDef termCheck x cs ]
@@ -724,6 +734,7 @@ niceDeclarations ds = do
       d : expand p ps ds
       where
         expand _ _ [] = []
+        expand p ps (d@(Pragma (CatchallPragma r)) : ds) = d : expand p ps ds
         expand p ps (FunClause (Ellipsis _ ps' eqs []) rhs wh : ds) =
           FunClause (LHS p (ps ++ ps') eqs []) rhs wh : expand p ps ds
         expand p ps (FunClause (Ellipsis _ ps' eqs es) rhs wh : ds) =
@@ -737,14 +748,18 @@ niceDeclarations ds = do
 
 
     -- Turn function clauses into nice function clauses.
-    mkClauses :: Name -> [Declaration] -> Nice [Clause]
-    mkClauses _ [] = return []
-    mkClauses x (FunClause lhs@(LHS _ _ _ []) rhs wh : cs) =
-      (Clause x lhs rhs wh [] :) <$> mkClauses x cs
-    mkClauses x (FunClause lhs@(LHS _ ps _ es) rhs wh : cs) = do
+    mkClauses :: Name -> [Declaration] -> Catchall -> Nice [Clause]
+    mkClauses _ [] _ = return []
+    mkClauses x (Pragma (CatchallPragma r) : cs) True  = throwError $ InvalidCatchallPragma r
+    mkClauses x (Pragma (CatchallPragma r) : cs) False = do
+      when (null cs) $ throwError $ InvalidCatchallPragma r
+      mkClauses x cs True
+    mkClauses x (FunClause lhs@(LHS _ _ _ []) rhs wh : cs) catchall =
+      (Clause x catchall lhs rhs wh [] :) <$> mkClauses x cs False
+    mkClauses x (FunClause lhs@(LHS _ ps _ es) rhs wh : cs) catchall = do
       when (null with) $ throwError $ MissingWithClauses x
-      wcs <- mkClauses x with
-      (Clause x lhs rhs wh wcs :) <$> mkClauses x cs'
+      wcs <- mkClauses x with False
+      (Clause x catchall lhs rhs wh wcs :) <$> mkClauses x cs' False
       where
         (with, cs') = span subClause cs
 
@@ -755,12 +770,13 @@ niceDeclarations ds = do
           length ps' >= length ps + length es
         subClause (FunClause (Ellipsis _ ps' _ _) _ _) = True
         subClause _                                  = __IMPOSSIBLE__
-    mkClauses x (FunClause lhs@Ellipsis{} rhs wh : cs) =
-      (Clause x lhs rhs wh [] :) <$> mkClauses x cs   -- Will result in an error later.
-    mkClauses _ _ = __IMPOSSIBLE__
+    mkClauses x (FunClause lhs@Ellipsis{} rhs wh : cs) catchall =
+      (Clause x catchall lhs rhs wh [] :) <$> mkClauses x cs False   -- Will result in an error later.
+    mkClauses _ _ _ = __IMPOSSIBLE__
 
     -- for finding clauses for a type sig in mutual blocks
     couldBeFunClauseOf :: Maybe Fixity' -> Name -> Declaration -> Bool
+    couldBeFunClauseOf mFixity x (Pragma (CatchallPragma{})) = True
     couldBeFunClauseOf mFixity x (FunClause Ellipsis{} _ _) = True
     couldBeFunClauseOf mFixity x (FunClause (LHS p _ _ _) _ _) =
       let
@@ -814,7 +830,7 @@ niceDeclarations ds = do
         -- Check that there are no declarations that aren't allowed in old style mutual blocks
         case filter notAllowedInMutual ds of
           []  -> return ()
-          (NiceFunClause _ _ _ _ (FunClause lhs _ _)):_ -> throwError $ MissingTypeSignature lhs
+          (NiceFunClause _ _ _ _ s_ (FunClause lhs _ _)):_ -> throwError $ MissingTypeSignature lhs
           d:_ -> throwError $ NotAllowedInMutual d
         let tcs = map termCheck ds
         tc <- combineTermChecks r tcs
@@ -876,7 +892,7 @@ niceDeclarations ds = do
         FunDef r ds f a tc x cs          -> (\ a -> FunDef r ds f a tc x)  <$> setAbstract a <*> mapM mkAbstractClause cs
         DataDef r f a x ps cs            -> (\ a -> DataDef r f a x ps)    <$> setAbstract a <*> mapM mkAbstract cs
         RecDef r f a x i c ps cs         -> (\ a -> RecDef r f a x i c ps) <$> setAbstract a <*> mapM mkAbstract cs
-        NiceFunClause r p a termCheck d  -> (\ a -> NiceFunClause r p a termCheck d) <$> setAbstract a
+        NiceFunClause r p a termCheck catchall d  -> (\ a -> NiceFunClause r p a termCheck catchall d) <$> setAbstract a
         -- no effect on fields or primitives, the InAbstract field there is unused
         NiceField r f p _ x e            -> return $ NiceField r f p AbstractDef x e
         PrimitiveFunction r f p _ x e    -> return $ PrimitiveFunction r f p AbstractDef x e
@@ -899,9 +915,9 @@ niceDeclarations ds = do
       ConcreteDef -> dirty $ AbstractDef
 
     mkAbstractClause :: Updater Clause
-    mkAbstractClause (Clause x lhs rhs wh with) = do
+    mkAbstractClause (Clause x catchall lhs rhs wh with) = do
         wh <- mkAbstractWhere wh
-        Clause x lhs rhs wh <$> mapM mkAbstractClause with
+        Clause x catchall lhs rhs wh <$> mapM mkAbstractClause with
 
     mkAbstractWhere :: Updater WhereClause
     mkAbstractWhere  NoWhere         = return $ NoWhere
@@ -931,7 +947,7 @@ niceDeclarations ds = do
         FunSig r f p i rel tc x e        -> (\ p -> FunSig r f p i rel tc x e) <$> setPrivate p
         NiceRecSig r f p x ls t          -> (\ p -> NiceRecSig r f p x ls t) <$> setPrivate p
         NiceDataSig r f p x ls t         -> (\ p -> NiceDataSig r f p x ls t) <$> setPrivate p
-        NiceFunClause r p a termCheck d  -> (\ p -> NiceFunClause r p a termCheck d) <$> setPrivate p
+        NiceFunClause r p a termCheck catchall d -> (\ p -> NiceFunClause r p a termCheck catchall d) <$> setPrivate p
         NiceUnquoteDecl r f p a t x e    -> (\ p -> NiceUnquoteDecl r f p a t x e) <$> setPrivate p
         NiceUnquoteDef r f p a t x e     -> (\ p -> NiceUnquoteDef r f p a t x e) <$> setPrivate p
         NicePragma _ _                   -> return $ d
@@ -950,9 +966,9 @@ niceDeclarations ds = do
     -- Andreas, 2012-11-22: Q: is this necessary?
     -- Are where clauses not always private?
     mkPrivateClause :: Updater Clause
-    mkPrivateClause (Clause x lhs rhs wh with) = do
+    mkPrivateClause (Clause x catchall lhs rhs wh with) = do
         wh <- mkPrivateWhere wh
-        Clause x lhs rhs wh <$> mapM mkPrivateClause with
+        Clause x catchall lhs rhs wh <$> mapM mkPrivateClause with
 
     mkPrivateWhere :: Updater WhereClause
     mkPrivateWhere  NoWhere         = return $ NoWhere
@@ -1087,7 +1103,7 @@ notSoNiceDeclaration d =
       NicePragma _ p                   -> Pragma p
       NiceRecSig r _ _ x bs e          -> RecordSig r x bs e
       NiceDataSig r _ _ x bs e         -> DataSig r Inductive x bs e
-      NiceFunClause _ _ _ _ d          -> d
+      NiceFunClause _ _ _ _ _ d        -> d
       FunSig _ _ _ _ rel tc x e        -> TypeSig rel x e
       FunDef r [d] _ _ _ _ _           -> d
       FunDef r ds _ _ _ _ _            -> Mutual r ds -- Andreas, 2012-04-07 Hack!

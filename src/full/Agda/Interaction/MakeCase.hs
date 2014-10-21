@@ -151,6 +151,7 @@ makeCase hole rng s = withInteractionId hole $ do
       , namedClausePats = scPats c
       , clauseBody      = clauseBody clause
       , clauseType      = scTarget c
+      , clauseCatchall  = False
       }
 
   -- Finds the new variable corresponding to an old one, if any.
@@ -175,15 +176,15 @@ makeAbsurdClause f (SClause tel perm ps _ t) = do
   withCurrentModule (qnameModule f) $ do
     -- Normalise the dot patterns
     ps <- addCtxTel tel $ normalise ps
-    inContext [] $ reify $ QNamed f $ Clause noRange tel perm ps NoBody t
+    inContext [] $ reify $ QNamed f $ Clause noRange tel perm ps NoBody t False
 
 -- | Make a clause with a question mark as rhs.
 makeAbstractClause :: QName -> SplitClause -> TCM A.Clause
 makeAbstractClause f cl = do
-  A.Clause lhs _ _ <- makeAbsurdClause f cl
+  A.Clause lhs _ _ _ <- makeAbsurdClause f cl
   let ii = __IMPOSSIBLE__  -- No interaction point since we never type check this
   let info = A.emptyMetaInfo -- metaNumber = Nothing in order to print as ?, not ?n
-  return $ A.Clause lhs (A.RHS $ A.QuestionMark info ii) []
+  return $ A.Clause lhs (A.RHS $ A.QuestionMark info ii) [] False
 
 deBruijnIndex :: A.Expr -> TCM Nat
 deBruijnIndex e = do

@@ -567,7 +567,7 @@ modifyAbstractExpr = f
   f e = e
 
 modifyAbstractClause :: A.Clause -> A.Clause
-modifyAbstractClause (A.Clause lhs (A.RHS e) decls) = A.Clause lhs (A.RHS (modifyAbstractExpr e)) decls
+modifyAbstractClause (A.Clause lhs (A.RHS e) decls catchall) = A.Clause lhs (A.RHS (modifyAbstractExpr e)) decls catchall
 modifyAbstractClause cl = cl
 
 -- ---------------------------------
@@ -673,6 +673,7 @@ frommyClause (ids, pats, mrhs) = do
    , I.namedClausePats = applySubst (renamingR $ compactP cperm) ps
    , I.clauseBody  = applySubst (renamingR cperm) <$> body
    , I.clauseType  = Nothing -- TODO: compute clause type
+   , I.clauseCatchall = False
    }
 
 contains_constructor :: [CSPat O] -> Bool

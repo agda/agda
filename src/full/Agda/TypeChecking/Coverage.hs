@@ -173,14 +173,19 @@ cover f cs sc@(SClause tel perm ps _ target) = do
     , nest 2 $ text "ps   =" <+> text (show ps)
     ]
   let ups = map (fmap namedThing) ps
+  exactSplitEnabled <- optExactSplit <$> pragmaOptions
   case match cs ups perm of
-    Yes i          -> do
+    Yes (i,mps)
+     | not exactSplitEnabled || (clauseCatchall (cs !! i) || all isTrivialMPattern mps)
+     -> do
       reportSLn "tc.cover.cover" 10 $ "pattern covered by clause " ++ show i
       -- Check if any earlier clauses could match with appropriate literals
       let is = [ j | (j, c) <- zip [0..i-1] cs, matchLits c ups perm ]
       reportSLn "tc.cover.cover"  10 $ "literal matches: " ++ show is
       return (SplittingDone (size tel), Set.fromList (i : is), [])
-    No       ->  do
+    Yes (i,_) -> setCurrentRange (getRange (cs !! i)) $
+                   typeError $ CoverageNoExactSplit f (cs !! i)
+    No        ->  do
       reportSLn "tc.cover" 20 $ "pattern is not covered"
       return (SplittingDone (size tel), Set.empty, [ps])
 
