@@ -547,9 +547,9 @@ createInterface file mname =
 
     -- Scope checking.
     topLevel <- billTop Bench.Scoping $
-      concreteToAbstract_ (TopLevel file top) -- THE scope checking
+      concreteToAbstract_ (TopLevel file top)
 
-    let ds = topLevelDecls topLevel           -- THE declarations
+    let ds = topLevelDecls topLevel
 
     -- Highlighting from scope checker.
     billTop Bench.Highlighting $ do
@@ -558,14 +558,6 @@ createInterface file mname =
       printHighlightingInfo fileTokenInfo
       mapM_ (\ d -> generateAndPrintSyntaxInfo d Partial) ds
 
-    -- flow <- gets stFlow
-    -- reportSLn "import.flow" 10 $ show mname ++ ": " ++ show (isJust flow)
-    -- case flow of
-    --   Nothing -> do
-    --     billTop Bench.Typing $ checkDecls ds      -- TODO prune ds
-
-    --   Just st -> do
-    --     modify $ \s -> st { stFlow = Just st }
 
     -- Type checking.
 

@@ -384,4 +384,3 @@ addNamedInstance x n = do
   -- Add x to n's instances.
   modifyInstanceDefs $ mapFst $ Map.insertWith (++) n [x]
 
-
