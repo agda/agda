@@ -51,6 +51,7 @@ import Agda.TypeChecking.Rules.LHS                 ( checkLeftHandSide, LHSResul
 import {-# SOURCE #-} Agda.TypeChecking.Rules.Decl ( checkDecls )
 
 import Agda.Utils.Except ( MonadError(catchError, throwError) )
+import Agda.Utils.Lens
 import Agda.Utils.Size
 import Agda.Utils.Permutation
 import Agda.Utils.Monad
@@ -437,7 +438,7 @@ checkClause t c@(A.Clause (A.SpineLHS i x aps withPats) rhs0 wh) = do
                           -- 1. rewriting with a reflexive equality to happen rarely,
                           -- 2. especially with ?-holes in the rewrite expression
                           -- 3. and a large overall number of ?s.
-                          let sameIP = (==) `on` stInteractionPoints
+                          let sameIP = (==) `on` (^.stInteractionPoints)
                           when (sameIP st st') $ put st
                           handleRHS $ A.RewriteRHS names eqs rhs wh
 

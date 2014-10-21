@@ -38,6 +38,7 @@ import qualified Agda.Syntax.Literal as L
 import qualified Agda.Syntax.Parser as Pa
 import qualified Agda.Syntax.Parser.Tokens as T
 import qualified Agda.Syntax.Position as P
+import Agda.Utils.Lens
 import Agda.Utils.List
 import Agda.Utils.TestHelpers
 import Agda.Utils.HashMap (HashMap)
@@ -101,7 +102,7 @@ highlightAsTypeChecked rPre r m
 
 printHighlightingInfo :: MonadTCM tcm => HighlightingInfo -> tcm ()
 printHighlightingInfo x = do
-  modToSrc <- gets stModuleToSource
+  modToSrc <- use stModuleToSource
   liftTCM $ reportSLn "highlighting" 50 $
     "Printing highlighting info:\n" ++ show x ++ "\n" ++
     "  modToSrc = " ++ show modToSrc
@@ -160,7 +161,7 @@ generateAndPrintSyntaxInfo decl hlLevel = do
           Just i  -> ( fromIntegral $ P.posPos $ P.iStart i
                      , fromIntegral $ P.posPos $ P.iEnd i)
     (prevTokens, (curTokens, postTokens)) <-
-      (second (splitAtC to)) . splitAtC from . stTokens <$> get
+      (second (splitAtC to)) . splitAtC from <$> use stTokens
 
     -- theRest needs to be placed before nameInfo here since record
     -- field declarations contain QNames. constructorInfo also needs
@@ -176,10 +177,8 @@ generateAndPrintSyntaxInfo decl hlLevel = do
                      curTokens
 
     case hlLevel of
-      Full{} -> modify (\st ->
-                  st { stSyntaxInfo = syntaxInfo `mappend` stSyntaxInfo st
-                     , stTokens     = prevTokens `mappend` postTokens
-                     })
+      Full{} -> do stSyntaxInfo %= mappend syntaxInfo
+                   stTokens     .= prevTokens `mappend` postTokens
       _      -> return ()
 
     ifTopLevelAndHighlightingLevelIs NonInteractive $
@@ -362,9 +361,9 @@ nameKinds :: Level
           -> A.Declaration
           -> TCM NameKinds
 nameKinds hlLevel decl = do
-  imported <- fix . stImports <$> get
+  imported <- fix <$> use stImports
   local    <- case hlLevel of
-    Full{} -> fix . stSignature <$> get
+    Full{} -> fix <$> use stSignature
     _      -> return HMap.empty
       -- Traverses the syntax tree and constructs a map from qualified
       -- names to name kinds. TODO: Handle open public.

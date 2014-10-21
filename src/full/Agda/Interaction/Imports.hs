@@ -67,7 +67,6 @@ import Agda.Utils.Monad
 import Agda.Utils.Null (unlessNullM)
 import Agda.Utils.IO.Binary
 import Agda.Utils.Pretty
-import Agda.Utils.Fresh
 import Agda.Utils.Time
 import Agda.Utils.Hash
 import qualified Agda.Utils.Trie as Trie
@@ -107,8 +106,7 @@ mergeInterface i = do
     reportSLn "import.iface.merge" 20 $
       "  Rebinding primitives " ++ show prim
     prim <- Map.fromList <$> mapM rebind prim
-    modify $ \st -> st { stImportedBuiltins = stImportedBuiltins st `Map.union` prim
-                       }
+    stImportedBuiltins %= (`Map.union` prim)
     where
         rebind (x, q) = do
             PrimImpl _ pf <- lookupPrimitiveFunction x
@@ -117,12 +115,10 @@ mergeInterface i = do
 addImportedThings ::
   Signature -> BuiltinThings PrimFun -> Set String -> A.PatternSynDefns -> TCM ()
 addImportedThings isig ibuiltin hsImports patsyns = do
-  modify $ \st -> st
-    { stImports          = unionSignatures [stImports st, isig]
-    , stImportedBuiltins = Map.union (stImportedBuiltins st) ibuiltin
-    , stHaskellImports   = Set.union (stHaskellImports st) hsImports
-    , stPatternSynImports = Map.union (stPatternSynImports st) patsyns
-    }
+  stImports %= \imp -> unionSignatures [imp, isig]
+  stImportedBuiltins %= \imp -> Map.union imp ibuiltin
+  stHaskellImports %= \imp -> Set.union imp hsImports
+  stPatternSynImports %= \imp -> Map.union imp patsyns
   addSignatureInstances isig
 
 -- | Scope checks the given module. A proper version of the module
@@ -240,10 +236,10 @@ getInterface'
 getInterface' x isMain = do
   withIncreasedModuleNestingLevel $ do
   -- Preserve the pragma options unless includeStateChanges is True.
-  bracket_ (stPragmaOptions <$> get)
+  bracket_ (use stPragmaOptions)
            (unless includeStateChanges . setPragmaOptions) $ do
    -- Forget the pragma options (locally).
-   setCommandLineOptions . stPersistentOptions . stPersistent =<< get
+   setCommandLineOptions . stPersistentOptions . stPersistentState =<< get
 
    alreadyVisited x $ addImportCycleCheck x $ do
     file <- findFile x  -- requires source to exist
@@ -289,7 +285,7 @@ getInterface' x isMain = do
         ifTopLevelAndHighlightingLevelIs NonInteractive $
           highlightFromInterface i file
 
-    modify (\s -> s { stCurrentModule = Just $ iModuleName i })
+    stCurrentModule .= Just (iModuleName i)
 
     -- Interfaces are only stored if no warnings were encountered.
     case wt of
@@ -392,12 +388,12 @@ getInterface' x isMain = do
             nesting  <- asks envModuleNestingLevel
             range    <- asks envRange
             call     <- asks envCall
-            mf       <- gets stModuleToSource
+            mf       <- use stModuleToSource
             vs       <- getVisitedModules
             ds       <- getDecodedModules
-            opts     <- stPersistentOptions . stPersistent <$> get
+            opts     <- stPersistentOptions . stPersistentState <$> get
             isig     <- getImportedSignature
-            ibuiltin <- gets stImportedBuiltins
+            ibuiltin <- use stImportedBuiltins
             ipatsyns <- getPatternSynImports
             ho       <- getInteractionOutputCallback
             -- Every interface is treated in isolation. Note: Changes
@@ -419,16 +415,15 @@ getInterface' x isMain = do
                      setDecodedModules ds
                      setCommandLineOptions opts
                      setInteractionOutputCallback ho
-                     modify $ \s -> s { stModuleToSource     = mf
-                                      }
+                     stModuleToSource .= mf
                      setVisitedModules vs
                      addImportedThings isig ibuiltin Set.empty ipatsyns
 
                      r  <- withMsgs $ createInterface file x
-                     mf <- gets stModuleToSource
+                     mf <- use stModuleToSource
                      ds <- getDecodedModules
                      return (r, do
-                        modify $ \s -> s { stModuleToSource = mf }
+                        stModuleToSource .= mf
                         setDecodedModules ds
                         case r of
                           (i, NoWarnings) -> storeDecodedModule i
@@ -524,9 +519,9 @@ createInterface
   -> TCM (Interface, MaybeWarnings)
 createInterface file mname =
   local (\e -> e { envCurrentPath = file }) $ do
-    modFile       <- stModuleToSource <$> get
+    modFile       <- use stModuleToSource
     fileTokenInfo <- billTop Bench.Highlighting $ generateTokenInfo file
-    modify $ \st -> st { stTokens = fileTokenInfo }
+    stTokens .= fileTokenInfo
 
     reportSLn "import.iface.create" 5 $
       "Creating interface for " ++ render (pretty mname) ++ "."
@@ -583,12 +578,10 @@ createInterface file mname =
     billTop Bench.Highlighting $ do
 
       -- Move any remaining token highlighting to stSyntaxInfo.
-      ifTopLevelAndHighlightingLevelIs NonInteractive $
-        printHighlightingInfo =<< gets stTokens
-      modify $ \st ->
-        st { stTokens     = mempty
-           , stSyntaxInfo = stSyntaxInfo st `mappend` stTokens st
-           }
+      toks <- use stTokens
+      ifTopLevelAndHighlightingLevelIs NonInteractive $ printHighlightingInfo toks
+      stTokens .= mempty
+      stSyntaxInfo %= \inf -> inf `mappend` toks
 
       whenM (optGenerateVimFile <$> commandLineOptions) $
         -- Generate Vim file.
@@ -599,7 +592,7 @@ createInterface file mname =
     reportSLn "scope.top" 50 $ "SCOPE " ++ show (insideScope topLevel)
 
     -- Serialization.
-    syntaxInfo <- stSyntaxInfo <$> get
+    syntaxInfo <- use stSyntaxInfo
     i <- billTop Bench.Serialization $ do
       buildInterface file topLevel syntaxInfo previousHsImports options
 
@@ -660,7 +653,7 @@ buildInterface file topLevel syntaxInfo previousHsImports pragmas = do
     -- with discarding also the nameBindingSite in QName:
     -- Saves 10% on serialization time (and file size)!
     sig     <- killRange <$> getSignature
-    builtin <- gets stLocalBuiltins
+    builtin <- use stLocalBuiltins
     ms      <- getImports
     mhs     <- mapM (\ m -> (m,) <$> moduleHash m) $ Set.toList ms
     hsImps  <- getHaskellImports

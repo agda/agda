@@ -22,7 +22,6 @@ import Agda.TypeChecking.Monad.Base
 import Agda.TypeChecking.Substitute
 import Agda.TypeChecking.Monad.Open
 
-import Agda.Utils.Fresh
 import Agda.Utils.Functor
 import Agda.Utils.List ((!!!), downFrom)
 import Agda.Utils.Monad

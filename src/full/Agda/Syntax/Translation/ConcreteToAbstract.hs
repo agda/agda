@@ -53,7 +53,8 @@ import Agda.Syntax.Scope.Base
 import Agda.Syntax.Scope.Monad
 
 import Agda.TypeChecking.Monad.Base (TypeError(..), Call(..), typeError,
-                                     TCErr(..), extendedLambdaName)
+                                     TCErr(..), extendedLambdaName, fresh,
+                                     freshName, freshName_, freshNoName)
 import Agda.TypeChecking.Monad.Benchmark (billTo, billTop, reimburseTop)
 import qualified Agda.TypeChecking.Monad.Benchmark as Bench
 import Agda.TypeChecking.Monad.Trace (traceCall, setCurrentRange)
@@ -70,7 +71,6 @@ import Agda.Interaction.Options
 import Agda.Utils.Except ( MonadError(catchError, throwError) )
 import Agda.Utils.FileName
 import Agda.Utils.Functor
-import Agda.Utils.Fresh
 import Agda.Utils.List
 import Agda.Utils.Monad
 import Agda.Utils.Null

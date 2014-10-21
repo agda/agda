@@ -32,7 +32,6 @@ import Agda.Syntax.Fixity
 import Agda.Syntax.Concrete.Name (IsNoName(..))
 import qualified Agda.Syntax.Concrete.Name as C
 
-import Agda.Utils.Fresh
 -- import Agda.Utils.Function
 import Agda.Utils.Pretty
 import Agda.Utils.Size
@@ -204,35 +203,6 @@ isSubModuleOf x y = xs /= ys && isPrefixOf ys xs
 
 isInModule :: QName -> ModuleName -> Bool
 isInModule q m = mnameToList m `isPrefixOf` qnameToList q
-
-freshName :: (MonadState s m, HasFresh NameId s) => Range -> String -> m Name
-freshName r s = do
-  i <- fresh
-  return $ mkName r i s
-
-freshNoName :: (MonadState s m, HasFresh NameId s) => Range -> m Name
-freshNoName r =
-    do  i <- fresh
-        return $ Name i (C.NoName noRange i) r defaultFixity'
-
-freshNoName_ :: (MonadState s m, HasFresh NameId s) => m Name
-freshNoName_ = freshNoName noRange
-
--- | Create a fresh name from @a@.
-class FreshName a where
-  freshName_ :: (MonadState s m, HasFresh NameId s) => a -> m Name
-
-instance FreshName (Range, String) where
-  freshName_ = uncurry freshName
-
-instance FreshName String where
-  freshName_ = freshName noRange
-
-instance FreshName Range where
-  freshName_ = freshNoName
-
-instance FreshName () where
-  freshName_ () = freshNoName_
 
 -- | Get the next version of the concrete name. For instance, @nextName "x" = "x₁"@.
 --   The name must not be a 'NoName'.

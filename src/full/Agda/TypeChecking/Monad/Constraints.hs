@@ -16,6 +16,7 @@ import Agda.TypeChecking.Monad.Base
 import Agda.TypeChecking.Monad.Closure
 import Agda.TypeChecking.Monad.Options
 
+import Agda.Utils.Lens
 import Agda.Utils.List
 import Agda.Utils.Monad
 
@@ -62,11 +63,11 @@ getConstraintsForProblem pid = List.filter ((== pid) . constraintProblem) <$> ge
 
 -- | Get the awake constraints
 getAwakeConstraints :: TCM Constraints
-getAwakeConstraints = gets stAwakeConstraints
+getAwakeConstraints = use stAwakeConstraints
 
 wakeConstraints :: (ProblemConstraint-> Bool) -> TCM ()
 wakeConstraints wake = do
-  (wakeup, sleepin) <- List.partition wake <$> gets stSleepingConstraints
+  (wakeup, sleepin) <- List.partition wake <$> use stSleepingConstraints
   reportSLn "tc.constr.wake" 50 $
     "waking up         " ++ show (List.map constraintProblem wakeup) ++ "\n" ++
     "  still sleeping: " ++ show (List.map constraintProblem sleepin)
@@ -82,7 +83,7 @@ dropConstraints crit = do
 
 putAllConstraintsToSleep :: TCM ()
 putAllConstraintsToSleep = do
-  awakeOnes <- gets stAwakeConstraints
+  awakeOnes <- use stAwakeConstraints
   modifySleepingConstraints $ (++ awakeOnes)
   modifyAwakeConstraints    $ const []
 
@@ -96,7 +97,7 @@ takeAwakeConstraint = do
       return $ Just c
 
 getAllConstraints :: TCM Constraints
-getAllConstraints = gets $ \s -> stAwakeConstraints s ++ stSleepingConstraints s
+getAllConstraints = gets $ \s -> s^.stAwakeConstraints ++ s^.stSleepingConstraints
 
 withConstraint :: (Constraint -> TCM a) -> ProblemConstraint -> TCM a
 withConstraint f (PConstr pid c) = do
@@ -116,7 +117,8 @@ buildConstraint c = flip buildProblemConstraint c =<< currentProblem
 addConstraint' :: Constraint -> TCM ()
 addConstraint' c = do
     pc <- build
-    modify $ \s -> s { stDirty = True, stSleepingConstraints = pc : stSleepingConstraints s }
+    stDirty .= True
+    stSleepingConstraints %= (pc :)
   where
     build | isBlocking c = buildConstraint c
           | otherwise    = buildProblemConstraint 0 c
@@ -147,10 +149,10 @@ isSolvingConstraints = asks envSolvingConstraints
 ---------------------------------------------------------------------------
 
 mapAwakeConstraints :: (Constraints -> Constraints) -> TCState -> TCState
-mapAwakeConstraints f s = s { stAwakeConstraints = f (stAwakeConstraints s) }
+mapAwakeConstraints = over stAwakeConstraints
 
 mapSleepingConstraints :: (Constraints -> Constraints) -> TCState -> TCState
-mapSleepingConstraints f s = s { stSleepingConstraints = f (stSleepingConstraints s) }
+mapSleepingConstraints = over stSleepingConstraints
 
 modifyAwakeConstraints  :: (Constraints -> Constraints) -> TCM ()
 modifyAwakeConstraints = modify . mapAwakeConstraints

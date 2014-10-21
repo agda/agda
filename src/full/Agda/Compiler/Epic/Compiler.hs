@@ -214,7 +214,7 @@ setEpicDir mainI = do
     let tm = toTopLevelModuleName $ iModuleName mainI
     f <- lift $ findFile tm
     compileDir' <- lift $ gets (fromMaybe (filePath $ CN.projectRoot f tm) .
-                                  optCompileDir . stPersistentOptions . stPersistent)
+                                  optCompileDir . stPersistentOptions . stPersistentState)
     compileDir <- liftIO $ canonicalizePath compileDir'
     liftIO $ setCurrentDirectory compileDir
     liftIO $ createDirectoryIfMissing False "Epic"

@@ -328,7 +328,7 @@ runGetState g s n = feed (B.runGetIncremental g) (L.toChunks s)
 
 decode :: EmbPrj a => L.ByteString -> TCM (Maybe a)
 decode s = do
-  mf   <- stModuleToSource <$> get
+  mf   <- use stModuleToSource
   incs <- getIncludeDirs
 
   -- Note that B.runGetState and G.decompress can raise errors if the
@@ -358,7 +358,7 @@ decode s = do
 
   case mf of
     Nothing -> return ()
-    Just mf -> modify $ \s -> s { stModuleToSource = mf }
+    Just mf -> stModuleToSource .= mf
 
   case r of
     Right x   -> return (Just x)
@@ -1423,7 +1423,7 @@ icodeX dict counter key = do
       modifyIORef' c $ over lensReuse (+1)
       return i
     Nothing -> do
-      fresh <- (lensFresh ^.) <$> do readModifyIORef' c $ over lensFresh (+1)
+      fresh <- (^.lensFresh) <$> do readModifyIORef' c $ over lensFresh (+1)
       H.insert d key fresh
       return fresh
 
@@ -1442,7 +1442,7 @@ icodeInteger key = do
       modifyIORef' c $ over lensReuse (+1)
       return i
     Nothing -> do
-      fresh <- (lensFresh ^.) <$> do readModifyIORef' c $ over lensFresh (+1)
+      fresh <- (^.lensFresh) <$> do readModifyIORef' c $ over lensFresh (+1)
       H.insert d key fresh
       return fresh
 
@@ -1457,7 +1457,7 @@ icodeDouble key = do
       modifyIORef' c $ over lensReuse (+1)
       return i
     Nothing -> do
-      fresh <- (lensFresh ^.) <$> do readModifyIORef' c $ over lensFresh (+1)
+      fresh <- (^.lensFresh) <$> do readModifyIORef' c $ over lensFresh (+1)
       H.insert d key fresh
       return fresh
 
@@ -1472,7 +1472,7 @@ icodeString key = do
       modifyIORef' c $ over lensReuse (+1)
       return i
     Nothing -> do
-      fresh <- (lensFresh ^.) <$> do readModifyIORef' c $ over lensFresh (+1)
+      fresh <- (^.lensFresh) <$> do readModifyIORef' c $ over lensFresh (+1)
       H.insert d key fresh
       return fresh
 
@@ -1487,7 +1487,7 @@ icodeN key = do
       modifyIORef' c $ over lensReuse (+1)
       return i
     Nothing -> do
-      fresh <- (lensFresh ^.) <$> do readModifyIORef' c $ over lensFresh (+1)
+      fresh <- (^.lensFresh) <$> do readModifyIORef' c $ over lensFresh (+1)
       H.insert d key fresh
       return fresh
 

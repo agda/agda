@@ -35,6 +35,7 @@ import Agda.Utils.Except
   , runExceptT
   )
 
+import Agda.Utils.Lens
 import Agda.Utils.List (takeWhileJust)
 import Agda.Utils.Maybe
 import Agda.Utils.Monad
@@ -81,8 +82,7 @@ successful).  This way, we do not duplicate work.
 -}
 
 modifyOccursCheckDefs :: (Set QName -> Set QName) -> TCM ()
-modifyOccursCheckDefs f = modify $ \ st ->
-  st { stOccursCheckDefs = f (stOccursCheckDefs st) }
+modifyOccursCheckDefs f = stOccursCheckDefs %= f
 
 -- | Set the names of definitions to be looked at
 --   to the defs in the current mutual block.
@@ -94,7 +94,7 @@ initOccursCheck mv = modifyOccursCheckDefs . const =<<
 
 -- | Is a def in the list of stuff to be checked?
 defNeedsChecking :: QName -> TCM Bool
-defNeedsChecking d = Set.member d <$> gets stOccursCheckDefs
+defNeedsChecking d = Set.member d <$> use stOccursCheckDefs
 
 -- | Remove a def from the list of defs to be looked at.
 tallyDef :: QName -> TCM ()

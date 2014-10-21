@@ -17,6 +17,7 @@ import Agda.Syntax.Internal
 import Agda.TypeChecking.Monad
 import Agda.TypeChecking.Monad.Builtin
 
+import Agda.Utils.Lens
 import Agda.Utils.Monad
 import Agda.Utils.Pretty
 
@@ -28,14 +29,13 @@ import Agda.Utils.Impossible
 --------------------------------------------------
 
 setInterface :: Interface -> TCM ()
-setInterface i = modify $ \s -> s
-  { stImportedModules = Set.empty
-  , stCurrentModule   = Just $ iModuleName i
-  }
+setInterface i = do
+  stImportedModules .= Set.empty
+  stCurrentModule   .= Just (iModuleName i)
 
 curIF :: TCM Interface
 curIF = do
-  mName <- stCurrentModule <$> get
+  mName <- use stCurrentModule
   case mName of
     Nothing   -> __IMPOSSIBLE__
     Just name -> do

@@ -18,6 +18,7 @@ import Agda.TypeChecking.Monad.Base
 import Agda.TypeChecking.Monad.Options
 import Agda.TypeChecking.Monad.State
 
+import Agda.Utils.Lens
 import Agda.Utils.Maybe
 import Agda.Utils.Null
 import Agda.Utils.Pretty
@@ -25,11 +26,11 @@ import Agda.Utils.String
 
 -- | Get the statistics.
 getStatistics :: TCM Statistics
-getStatistics = gets stStatistics
+getStatistics = use stStatistics
 
 -- | Modify the statistics via given function.
 modifyStatistics :: (Statistics -> Statistics) -> TCM ()
-modifyStatistics f = modify $ \ s -> s { stStatistics = f (stStatistics s) }
+modifyStatistics f = stStatistics %= f
 
 -- | Increase specified counter by @1@.
 tick :: String -> TCM ()

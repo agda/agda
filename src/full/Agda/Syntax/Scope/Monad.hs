@@ -33,7 +33,6 @@ import Agda.TypeChecking.Monad.State
 import Agda.TypeChecking.Monad.Options
 
 import qualified Agda.Utils.AssocList as AssocList
-import Agda.Utils.Fresh
 import Agda.Utils.Function
 import Agda.Utils.List
 import Agda.Utils.Maybe

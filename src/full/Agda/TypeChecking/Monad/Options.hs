@@ -28,6 +28,7 @@ import Agda.Interaction.Response
 import Agda.Utils.Except ( MonadError(catchError) )
 import Agda.Utils.FileName
 import Agda.Utils.Monad
+import Agda.Utils.Lens
 import Agda.Utils.List
 import Agda.Utils.Trie (Trie)
 import qualified Agda.Utils.Trie as Trie
@@ -45,7 +46,7 @@ setPragmaOptions opts = do
   case checkOpts (clo { optPragmaOptions = opts }) of
     Left err   -> __IMPOSSIBLE__
     Right opts -> do
-      modify $ \s -> s { stPragmaOptions = (optPragmaOptions opts) }
+      stPragmaOptions .= optPragmaOptions opts
 
 -- | Sets the command line options (both persistent and pragma options
 -- are updated).
@@ -80,11 +81,11 @@ class (Functor m, Applicative m, Monad m) => HasOptions m where
   commandLineOptions :: m CommandLineOptions
 
 instance MonadIO m => HasOptions (TCMT m) where
-  pragmaOptions = gets stPragmaOptions
+  pragmaOptions = use stPragmaOptions
 
   commandLineOptions = do
-    p  <- stPragmaOptions <$> get
-    cl <- stPersistentOptions . stPersistent <$> get
+    p  <- use stPragmaOptions
+    cl <- stPersistentOptions . stPersistentState <$> get
     return $ cl { optPragmaOptions = p }
 
 setOptionsFromPragma :: OptionsPragma -> TCM ()

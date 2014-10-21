@@ -69,7 +69,6 @@ import Agda.Utils.Except
   , runExceptT
   )
 
-import Agda.Utils.Fresh
 import Agda.Utils.Functor (($>))
 import Agda.Utils.Maybe
 import Agda.Utils.Monad
