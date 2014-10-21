@@ -101,9 +101,7 @@ composeP p1 (Perm n xs) = Perm n $ permute p1 xs
 invertP :: Int -> Permutation -> Permutation
 invertP err p@(Perm n xs) = Perm (size xs) $ map inv [0..n - 1]
   where
-    inv x = case findIndex (x ==) xs of
-              Just y -> y
-              Nothing -> err
+    inv x = fromMaybe err (findIndex (x ==) xs)
 
 -- | Turn a possible non-surjective permutation into a surjective permutation.
 compactP :: Permutation -> Permutation
