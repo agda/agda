@@ -146,13 +146,14 @@ latex-test :
 .PHONY : std-lib
 std-lib :
 	if [ ! -d $@ ]; then \
-	   git clone https://github.com/agda/agda-stdlib.git $@; \
+	   git clone https://github.com/agda/agda-stdlib.git \
+	       --branch $(VERSION) --single-branch $@; \
 	fi
 
 .PHONY : up-to-date-std-lib
 up-to-date-std-lib : std-lib
 	@(cd std-lib && \
-	  git fetch && git checkout master && git merge origin/master && \
+	  git fetch && git checkout $(VERSION) && git merge origin/$(VERSION) && \
 	  make setup)
 
 .PHONY : library-test
