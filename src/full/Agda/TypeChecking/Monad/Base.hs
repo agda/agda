@@ -2021,6 +2021,13 @@ catchError_ m h = TCM $ \r e ->
   unTCM m r e
   `E.catch` \err -> unTCM (h err) r e
 
+finally_ :: TCM a -> TCM a -> TCM a
+finally_ m f = do
+  m `catchError_` \err -> do
+    f
+    throwError err
+  f
+
 {-# SPECIALIZE INLINE mapTCMT :: (forall a. IO a -> IO a) -> TCM a -> TCM a #-}
 mapTCMT :: (forall a. m a -> n a) -> TCMT m a -> TCMT n a
 mapTCMT f (TCM m) = TCM $ \s e -> f (m s e)
