@@ -1,4 +1,5 @@
-{-# LANGUAGE CPP, GeneralizedNewtypeDeriving #-}
+{-# LANGUAGE CPP #-}
+{-# LANGUAGE GeneralizedNewtypeDeriving #-}
 
 {-# OPTIONS_GHC -fwarn-missing-signatures #-}
 #if defined(__GLASGOW_HASKELL__) && __GLASGOW_HASKELL__ >= 702
@@ -64,4 +65,3 @@ measureTime m = do
   x     <- m
   stop  <- liftIO $ getCPUTime
   return (x, CPUTime $ stop - start)
-

@@ -283,7 +283,7 @@ clausePats = map (fmap namedThing) . namedClausePats
 -- clauseArgs cl = evalState (argsToTerms $ namedClausePats cl) xs
 --   where
 --     perm = clausePerm cl
---     xs   = permute (invertP perm) $ downFrom (size perm)
+--     xs   = permute (invertP __IMPOSSIBLE__ perm) $ downFrom (size perm)
 --
 --     next = do x : xs <- get; put xs; return x
 --

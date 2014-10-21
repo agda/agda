@@ -12,6 +12,7 @@ import Control.Monad.State (evalState, get, put)
 import Control.Monad.Writer (execWriterT, tell)
 
 import Data.Char
+import Data.List (intercalate)
 import Data.Maybe (fromMaybe)
 import Data.Traversable (traverse)
 
@@ -38,6 +39,8 @@ import Agda.Utils.Impossible
 import Agda.Utils.Monad ( ifM )
 import Agda.Utils.Permutation ( Permutation(Perm) )
 import Agda.Utils.String ( Str(Str), unStr )
+import Agda.Utils.VarSet (VarSet)
+import qualified Agda.Utils.VarSet as Set
 
 #include "undefined.h"
 
@@ -541,7 +544,7 @@ instance Unquote Clause where
           __IMPOSSIBLE__
       Con c [x, y] -> do
         choice
-          [ (c `isCon` primAgdaClauseClause, mkClause . Just <$> unquoteN y <*> unquoteN x) ]
+          [ (c `isCon` primAgdaClauseClause, checkClause =<< mkClause . Just <$> unquoteN y <*> unquoteN x) ]
           __IMPOSSIBLE__
       _ -> unquoteFailed "Pattern" "not a constructor" t
     where
@@ -577,6 +580,22 @@ instance Unquote Clause where
           computePerm DotP{}        = () <$ next
           computePerm LitP{}        = return ()
           computePerm ProjP{}       = return ()
+
+      checkClause :: I.Clause -> TCM I.Clause
+      checkClause cl@Clause{ clausePerm = Perm n vs , clauseBody = body } = do
+        let freevs    = allVars $ freeVars $ fromMaybe __IMPOSSIBLE__ $ getBody body
+            propervs  = Set.fromList $ map ((n-1)-) vs
+            dottedvs  = Set.difference (Set.fromList [0..n-1]) propervs
+            offending = Set.intersection freevs dottedvs
+        Agda.TypeChecking.Monad.reportSDoc "tc.unquote.clause.dotvars" 30 $ vcat
+          [ text $ "checkClause "
+          , nest 2 $ text $ "free vars:      " ++ show freevs
+          , nest 2 $ text $ "dotted vars:    " ++ show dottedvs
+          , nest 2 $ text $ "offending vars: " ++ show offending
+          ]
+        if Set.null offending
+          then return cl
+          else unquoteFailed "Clause" ("the right-hand side contains variables that are referring to a dot pattern.\nOffending De Bruijn indices: " ++ intercalate ", " (map show (Set.toList offending))) t
 
 instance Unquote UnquotedFunDef where
   unquote t = do

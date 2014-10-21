@@ -849,7 +849,7 @@ reifyPatterns tel perm ps = evalStateT (reifyArgs ps) 0
 
     translate = (vars !!)
       where
-        vars = permute (invertP perm) [0..]
+        vars = permute (invertP __IMPOSSIBLE__ perm) [0..]
 
     reifyPat :: I.Pattern -> StateT Nat TCM A.Pattern
     reifyPat p = case p of

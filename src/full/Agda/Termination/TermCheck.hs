@@ -464,9 +464,11 @@ setMasks :: Type -> TerM a -> TerM a
 setMasks t cont = do
   (ds, d) <- liftTCM $ do
     TelV tel core <- telView t
+    -- Check argument types
     ds <- forM (telToList tel) $ \ t -> do
       TelV _ t <- telView $ snd $ unDom t
       (isJust <$> isDataOrRecord (unEl t)) `or2M` (isJust <$> isSizeType t)
+    -- Check result types
     d  <- isJust <.> isDataOrRecord . unEl $ core
     unless d $
       reportSLn "term.mask" 20 $ "result type is not data or record type, ignoring guardedness for --without-K"
@@ -547,8 +549,10 @@ stripCoConstructors p = do
 
 -- | Masks all non-data/record type patterns if --without-K.
 maskNonDataArgs :: [DeBruijnPat] -> TerM [DeBruijnPat]
-maskNonDataArgs ps = do
-  zipWith (\ p d -> if d then p else unusedVar) ps <$> terGetMaskArgs
+maskNonDataArgs ps = zipWith mask ps <$> terGetMaskArgs
+  where
+    mask p@ProjDBP{} _ = p
+    mask p           d = if d then p else unusedVar
 
 -- | cf. 'TypeChecking.Coverage.Match.buildMPatterns'
 openClause :: Permutation -> [Pattern] -> ClauseBody -> TerM ([DeBruijnPat], Maybe Term)
@@ -564,7 +568,7 @@ openClause perm ps body = do
     -- length of the telescope
     n    = size perm
     -- the variables as a map from the body variables to the clause telescope
-    xs   = permute (invertP perm) $ downFrom (size perm)
+    xs   = permute (invertP __IMPOSSIBLE__ perm) $ downFrom (size perm)
 
     tick = do x : xs <- get; put xs; return x
 

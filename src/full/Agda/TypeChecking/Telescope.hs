@@ -62,7 +62,7 @@ renaming :: Permutation -> Substitution
 renaming p = gamma'
   where
     n      = size p
-    gamma  = permute (reverseP $ invertP $ reverseP p) $ map var [0..]
+    gamma  = permute (reverseP $ invertP __IMPOSSIBLE__ $ reverseP p) $ map var [0..]
     gamma' = gamma ++# raiseS n
 
 -- | If @permute π : [a]Γ -> [a]Δ@, then @substs (renamingR π) : Term Δ -> Term Γ@

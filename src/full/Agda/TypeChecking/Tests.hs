@@ -1,5 +1,7 @@
 {-# OPTIONS_GHC -fwarn-missing-signatures #-}
 
+{-# LANGUAGE CPP                #-}
+
 module Agda.TypeChecking.Tests where
 
 import qualified Agda.Utils.VarSet as Set
@@ -12,6 +14,9 @@ import Agda.TypeChecking.Substitute
 import Agda.Utils.Size
 import Agda.Utils.Permutation
 import Agda.Utils.TestHelpers
+
+#include "../undefined.h"
+import Agda.Utils.Impossible
 
 ---------------------------------------------------------------------------
 -- * Tests for "Agda.Utils.Permutation"
@@ -64,7 +69,7 @@ prop_splitTelescopePermScope conf =
       conf2 = conf1 { tcFreeVariables = map (size tel2 +) (tcFreeVariables conf1) }
       conf' = conf  { tcFreeVariables = map (size tel +) (tcFreeVariables conf) ++ vs }
   in  forAllShrink (genC conf') (shrinkC conf') $ \t ->
-      isWellScoped conf2 (applySubst (renamingR $ invertP perm) (t :: Term))
+      isWellScoped conf2 (applySubst (renamingR $ invertP __IMPOSSIBLE__ perm) (t :: Term))
 
 {-
 -- | The permutation generated when splitting a telescope correctly translates
@@ -79,8 +84,8 @@ prop_splitTelescopePermInv conf =
       conf2 = extendWithTelConf tel' conf
   in  forAll (wellScopedTerm conf1) $ \t1 ->
       forAll (wellScopedTerm conf2) $ \t2 ->
-  let t1' = rename (invertP perm) $ rename perm t1
-      t2' = rename perm $ rename (invertP perm) t2
+  let t1' = rename (invertP __IMPOSSIBLE__ perm) $ rename perm t1
+      t2' = rename perm $ rename (invertP __IMPOSSIBLE__ perm) t2
   in  t1 == t1' && t2 == t2'
 -}
 
