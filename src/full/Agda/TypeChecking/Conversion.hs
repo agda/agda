@@ -117,20 +117,21 @@ compareTerm cmp a u v = do
     , nest 2 $ prettyTCM u <+> prettyTCM cmp <+> prettyTCM v
     , nest 2 $ text ":" <+> prettyTCM a
     ]
-  -- Check syntactic equality first. This actually saves us quite a bit of work.
+  -- Check pointer equality first.
+  let checkPointerEquality def | not $ null $ List.intersect (pointerChain u) (pointerChain v) = do
+        verboseS "profile.sharing" 10 $ tick "pointer equality"
+        return ()
+      checkPointerEquality def = def
+  checkPointerEquality $ do
+  -- Check syntactic equality. This actually saves us quite a bit of work.
   ((u, v), equal) <- checkSyntacticEquality u v
 {- OLD CODE, traverses the *full* terms u v at each step, even if they
    are different somewhere.  Leads to infeasibility in issue 854.
   (u, v) <- instantiateFull (u, v)
   let equal = u == v
 -}
-  if equal then unifyPointers cmp u v $ verboseS "profile.sharing" 20 $ tick "equal terms" else do
+  unifyPointers cmp u v $ if equal then verboseS "profile.sharing" 20 $ tick "equal terms" else do
   verboseS "profile.sharing" 20 $ tick "unequal terms"
-  let checkPointerEquality def | not $ null $ List.intersect (pointerChain u) (pointerChain v) = do
-        verboseS "profile.sharing" 10 $ tick "pointer equality"
-        return ()
-      checkPointerEquality def = def
-  checkPointerEquality $ do
   reportSDoc "tc.conv.term" 15 $ sep
     [ text "compareTerm (not syntactically equal)"
     , nest 2 $ prettyTCM u <+> prettyTCM cmp <+> prettyTCM v
