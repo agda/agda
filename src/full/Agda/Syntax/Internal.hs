@@ -384,8 +384,12 @@ data Substitution
   | Term :# Substitution    -- ---------------------
                             --   Γ ⊢ u :# ρ : Δ, A
 
-    -- First argument is __IMPOSSIBLE__  --         Γ ⊢ ρ : Δ
-  | Strengthen Empty Substitution        -- ---------------------------
+    -- First argument is __IMPOSSIBLE__ -- we insert it when
+    -- constructing a Substitution so that applying Strengthen fails we
+    -- get the site which constructed the substitution, not the thing
+    -- that tried to apply it.
+  | Strengthen Empty Substitution        --         Γ ⊢ ρ : Δ
+                                         -- ---------------------------
                                          --   Γ ⊢ Strengthen ρ : Δ, A
 
                             --        Γ ⊢ ρ : Δ
