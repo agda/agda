@@ -210,3 +210,8 @@ A precompiled version of Emacs 24.3, with the necessary mathematical
 fonts, is available at http://homepage.cs.uiowa.edu/~astump/agda/
 
 [agdawiki]: http://wiki.portal.chalmers.se/agda/pmwiki.php
+
+Hacking on Agda
+---------------
+
+Head to [`HACKING`](https://github.com/agda/agda/blob/master/HACKING)
