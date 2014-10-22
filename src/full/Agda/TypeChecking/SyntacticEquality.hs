@@ -33,7 +33,7 @@ import Agda.TypeChecking.Substitute
 
 import Agda.Utils.Monad (ifM)
 
-#include "../undefined.h"
+#include "undefined.h"
 import Agda.Utils.Impossible
 
 -- | Syntactic equality check for terms.

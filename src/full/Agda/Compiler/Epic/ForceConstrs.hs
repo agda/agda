@@ -15,7 +15,7 @@ import qualified Agda.Syntax.Common   as S
 import qualified Agda.Syntax.Internal as T
 import Agda.TypeChecking.Monad (TCM)
 
-#include "../../undefined.h"
+#include "undefined.h"
 import Agda.Utils.Impossible
 
 -- | Check which arguments are forced

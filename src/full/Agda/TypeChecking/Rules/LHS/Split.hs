@@ -56,7 +56,7 @@ import Agda.Utils.Permutation
 import Agda.Utils.Tuple
 import qualified Agda.Utils.Pretty as P
 
-#include "../../../undefined.h"
+#include "undefined.h"
 import Agda.Utils.Impossible
 
 -- | Split a problem at the first constructor pattern which is

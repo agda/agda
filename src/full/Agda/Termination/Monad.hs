@@ -49,7 +49,7 @@ import qualified Agda.Utils.Pretty as P
 import Agda.Utils.VarSet (VarSet)
 import qualified Agda.Utils.VarSet as VarSet
 
-#include "../undefined.h"
+#include "undefined.h"
 import Agda.Utils.Impossible
 
 -- | The mutual block we are checking.

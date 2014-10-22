@@ -38,7 +38,7 @@ import Agda.Utils.Size
 import Agda.Utils.Tuple
 import qualified Agda.Utils.VarSet as VarSet
 
-#include "../../undefined.h"
+#include "undefined.h"
 import Agda.Utils.Impossible
 
 ---------------------------------------------------------------------------

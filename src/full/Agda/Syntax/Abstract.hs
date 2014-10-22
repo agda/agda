@@ -46,7 +46,7 @@ import Agda.Syntax.Scope.Base
 import Agda.Utils.Geniplate
 import Agda.Utils.Tuple
 
-#include "../undefined.h"
+#include "undefined.h"
 import Agda.Utils.Impossible
 
 type Color      = Expr

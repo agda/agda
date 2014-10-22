@@ -49,7 +49,7 @@ import Agda.Utils.Monad
 import Agda.Utils.Null hiding (empty)
 import qualified Agda.Utils.Pretty as P
 
-#include "../undefined.h"
+#include "undefined.h"
 import Agda.Utils.Impossible
 
 ---------------------------------------------------------------------------

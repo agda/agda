@@ -23,7 +23,7 @@ import Agda.Utils.Permutation
 import Agda.Utils.Size (size)
 import Agda.Utils.Tuple
 
-#include "../../undefined.h"
+#include "undefined.h"
 import Agda.Utils.Impossible
 
 -- * Tools for clauses

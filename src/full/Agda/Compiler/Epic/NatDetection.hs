@@ -25,7 +25,7 @@ import Agda.Compiler.Epic.Interface
 
 import qualified Agda.Utils.HashMap as HM
 
-#include "../../undefined.h"
+#include "undefined.h"
 import Agda.Utils.Impossible
 import Agda.Utils.Lens
 

@@ -40,7 +40,7 @@ import Agda.Utils.Lens
 import Agda.Utils.List
 import qualified Agda.Utils.Map as Map
 
-#include "../../undefined.h"
+#include "undefined.h"
 import Agda.Utils.Impossible
 
 -- * Scope representation

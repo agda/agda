@@ -71,7 +71,7 @@ import Agda.Utils.Time
 import Agda.Utils.Hash
 import qualified Agda.Utils.Trie as Trie
 
-#include "../undefined.h"
+#include "undefined.h"
 import Agda.Utils.Impossible
 
 -- | Are we loading the interface for the user-loaded file

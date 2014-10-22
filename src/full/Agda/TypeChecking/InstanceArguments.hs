@@ -32,7 +32,7 @@ import Agda.Utils.Lens
 import Agda.Utils.Maybe
 import Agda.Utils.Monad
 
-#include "../undefined.h"
+#include "undefined.h"
 import Agda.Utils.Impossible
 
 -- | A candidate solution for an instance meta is a term with its type.

@@ -69,7 +69,7 @@ import Agda.Syntax.Literal
 
 import Agda.Syntax.Concrete.Name
 
-#include "../undefined.h"
+#include "undefined.h"
 import Agda.Utils.Impossible
 
 type Color      = Expr

@@ -92,7 +92,7 @@ import Agda.Utils.Permutation
 
 import Agda.Utils.Except ( ExceptT, MonadError(throwError), runExceptT )
 
-#include "../undefined.h"
+#include "undefined.h"
 import Agda.Utils.Impossible
 
 -- | Compatibility with @bytestring < 0.10@ which does not implement

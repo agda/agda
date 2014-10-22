@@ -67,6 +67,7 @@ flag epic
 
 library
   hs-source-dirs:   src/full
+  include-dirs:     src/full
   if flag(epic)
     build-depends:  epic >= 0.1.13 && < 0.10
 

@@ -88,7 +88,7 @@ import Agda.Utils.Pretty
 import Agda.Utils.String
 import Agda.Utils.Time
 
-#include "../undefined.h"
+#include "undefined.h"
 import Agda.Utils.Impossible
 
 ------------------------------------------

@@ -28,7 +28,7 @@ import Agda.Utils.Functor
 import Agda.Utils.Pretty
 import Agda.Utils.Size
 
-#include "../undefined.h"
+#include "undefined.h"
 import Agda.Utils.Impossible
 
 

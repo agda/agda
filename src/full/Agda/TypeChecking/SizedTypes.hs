@@ -33,7 +33,7 @@ import Agda.Utils.Tuple
 
 import qualified Agda.Utils.Warshall as W
 
-#include "../undefined.h"
+#include "undefined.h"
 import Agda.Utils.Impossible
 
 ------------------------------------------------------------------------

@@ -42,7 +42,7 @@ import Agda.Utils.String ( Str(Str), unStr )
 import Agda.Utils.VarSet (VarSet)
 import qualified Agda.Utils.VarSet as Set
 
-#include "../undefined.h"
+#include "undefined.h"
 
 data QuotingKit = QuotingKit
   { quoteTermWithKit   :: Term       -> ReduceM Term

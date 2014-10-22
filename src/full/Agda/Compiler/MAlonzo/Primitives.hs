@@ -21,7 +21,7 @@ import Agda.TypeChecking.Pretty
 import Agda.Utils.Monad
 import qualified Agda.Utils.HashMap as HMap
 
-#include "../../undefined.h"
+#include "undefined.h"
 import Agda.Utils.Impossible
 
 {- OLD

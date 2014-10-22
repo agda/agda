@@ -29,7 +29,7 @@ import Agda.Utils.Monad
 import Agda.Utils.Size
 import Agda.Utils.Permutation
 
-#include "../undefined.h"
+#include "undefined.h"
 import Agda.Utils.Impossible
 
 -- | View for a @Def f (Apply a : es)@ where @isProjection f@.

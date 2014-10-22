@@ -15,7 +15,7 @@ import Agda.Utils.Size
 import Agda.Utils.Monad
 import Agda.Interaction.Options
 
-#include "../undefined.h"
+#include "undefined.h"
 import Agda.Utils.Impossible
 
 addForcingAnnotations :: Type -> TCM Type

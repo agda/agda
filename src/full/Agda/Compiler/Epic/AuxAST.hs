@@ -13,7 +13,7 @@ import Agda.Syntax.Abstract.Name
 
 import Agda.Compiler.Epic.Interface
 
-#include "../../undefined.h"
+#include "undefined.h"
 import Agda.Utils.Impossible
 
 type Comment  = String

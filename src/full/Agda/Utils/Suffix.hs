@@ -7,7 +7,7 @@ module Agda.Utils.Suffix where
 
 import Data.Char
 
-#include "../undefined.h"
+#include "undefined.h"
 import Agda.Utils.Impossible
 
 ------------------------------------------------------------------------

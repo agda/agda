@@ -74,7 +74,7 @@ import Agda.Utils.QuickCheck hiding (label)
 import Agda.Utils.TestHelpers
 import Agda.Utils.Tuple
 
-#include "../undefined.h"
+#include "undefined.h"
 import Agda.Utils.Impossible
 
 ------------------------------------------------------------------------

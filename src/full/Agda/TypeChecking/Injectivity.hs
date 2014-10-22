@@ -36,7 +36,7 @@ import Agda.Utils.List
 import Agda.Utils.Functor
 import Agda.Utils.Permutation
 
-#include "../undefined.h"
+#include "undefined.h"
 import Agda.Utils.Impossible
 
 headSymbol :: Term -> TCM (Maybe TermHead)

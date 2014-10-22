@@ -27,7 +27,7 @@ import Agda.Utils.QuickCheck hiding (Args)
 import Agda.Utils.TestHelpers
 import qualified Agda.Utils.VarSet as Set
 
-#include "../../undefined.h"
+#include "undefined.h"
 import Agda.Utils.Impossible
 
 data TermConfiguration = TermConf

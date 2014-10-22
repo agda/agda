@@ -22,7 +22,7 @@ import Agda.Utils.List
 import Agda.Utils.Permutation
 import Agda.Utils.Size
 
-#include "../../../undefined.h"
+#include "undefined.h"
 import Agda.Utils.Impossible
 
 -- | Instantiate a telescope with a substitution. Might reorder the telescope.

@@ -26,7 +26,7 @@ import Agda.TypeChecking.Monad.Builtin
 
 import Agda.Utils.Functor
 
-#include "../../undefined.h"
+#include "undefined.h"
 import Agda.Utils.Impossible
 
 -- | Expand literal integer pattern into suc/zero constructor patterns.

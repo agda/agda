@@ -4,6 +4,7 @@
 :set -idist/build
 :set -Idist/build/autogen
 :set -Idist/build
+:set -Isrc/full
 :set -optP-include
 :set -optPdist/build/autogen/cabal_macros.h
 :set -pgmPcpphs
@@ -22,7 +23,7 @@
 :set -fwarn-tabs
 :set -fwarn-overlapping-patterns
 :set -fwarn-unrecognised-pragmas
-:set -fwarn-warnings-deprecations -pgmPcpphs -optP--cpp -Werror
+:set -fwarn-warnings-deprecations
 :set -fwarn-dodgy-exports
 :set -fwarn-wrong-do-bind
 :set -fwarn-identities

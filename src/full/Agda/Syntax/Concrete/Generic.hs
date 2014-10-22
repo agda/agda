@@ -20,7 +20,7 @@ import Data.Foldable
 import Agda.Syntax.Common hiding (Arg)
 import Agda.Syntax.Concrete
 
-#include "../../undefined.h"
+#include "undefined.h"
 import Agda.Utils.Impossible
 
 -- | Generic traversals for concrete expressions.

@@ -18,7 +18,7 @@ import Agda.TypeChecking.Monad.Base (TCErr(Exception))
 import Agda.Utils.ReadP
 import Agda.Utils.Monad
 
-#include "../../../undefined.h"
+#include "undefined.h"
 import Agda.Utils.Impossible
 
 data ExprView e

@@ -43,7 +43,7 @@ import Agda.Utils.Permutation
 import Agda.Utils.Size
 import qualified Agda.Utils.VarSet as VarSet
 
-#include "../../undefined.h"
+#include "undefined.h"
 import Agda.Utils.Impossible
 
 {- To address issue 585 (meta var occurrences in mutual defs)

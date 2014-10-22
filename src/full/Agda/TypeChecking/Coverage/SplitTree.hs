@@ -20,7 +20,7 @@ import Agda.Syntax.Abstract.Name
 
 import Agda.Utils.Monad
 
-#include "../../undefined.h"
+#include "undefined.h"
 import Agda.Utils.Impossible
 
 type SplitTree  = SplitTree'  QName

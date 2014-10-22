@@ -20,7 +20,7 @@ import Agda.TypeChecking.Substitute
 import Agda.Utils.List (splitExactlyAt)
 import Agda.Utils.Impossible
 
-#include "../undefined.h"
+#include "undefined.h"
 
 piAbstractTerm :: Term -> Type -> Type -> Type
 piAbstractTerm v a b = fun a (abstractTerm v b)

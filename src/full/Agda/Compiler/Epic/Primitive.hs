@@ -27,7 +27,7 @@ import Agda.Compiler.Epic.NatDetection
 import Agda.Utils.List
 import Agda.Utils.Impossible
 
-#include "../../undefined.h"
+#include "undefined.h"
 
 {- Stacken, Heapen -- Optimizern -}
 
