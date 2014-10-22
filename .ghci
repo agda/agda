@@ -1,0 +1,35 @@
+:set -hide-package Agda
+:set -isrc/full
+:set -idist/build/autogen
+:set -idist/build
+:set -Idist/build/autogen
+:set -Idist/build
+:set -optP-include
+:set -optPdist/build/autogen/cabal_macros.h
+:set -pgmPcpphs
+:set -optP--cpp
+
+
+:set -fwarn-deprecated-flags
+:set -fwarn-dodgy-foreign-imports
+:set -fwarn-dodgy-imports
+:set -fwarn-duplicate-exports
+:set -fwarn-hi-shadowing
+:set -fwarn-incomplete-patterns
+:set -fwarn-missing-fields
+:set -fwarn-missing-methods
+:set -fwarn-monomorphism-restriction
+:set -fwarn-tabs
+:set -fwarn-overlapping-patterns
+:set -fwarn-unrecognised-pragmas
+:set -fwarn-warnings-deprecations -pgmPcpphs -optP--cpp -Werror
+:set -fwarn-dodgy-exports
+:set -fwarn-wrong-do-bind
+:set -fwarn-identities
+:set -fwarn-pointless-pragmas
+:set -fwarn-amp
+:set -fwarn-duplicate-constraints
+:set -fwarn-empty-enumerations
+:set -fwarn-overflowed-literals
+:set -fwarn-typed-holes
+:set -fwarn-inline-rule-shadowing

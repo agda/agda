@@ -590,7 +590,7 @@ checkClause t c@(A.Clause (A.SpineLHS i x aps withPats) rhs0 wh catchall) = do
                   -- and Δ₁ ⊢ vs : as
                   (vs, as) <- do
                     let -- We know that as does not depend on Δ₂
-                        rho = parallelS (replicate (size delta2) __IMPOSSIBLE__)
+                        rho = compactS __IMPOSSIBLE__ (replicate (size delta2) Nothing)
                     return $ applySubst rho $ renameP (reverseP perm') (vs, as)
 
 
