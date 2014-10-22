@@ -835,10 +835,11 @@ assignMeta' m x t n ids v = do
     -- ALT 2: O(m)
     let assocToList i l = case l of
           _           | i >= m -> []
-          ((j,u) : l) | i == j -> u              : assocToList (i+1) l
-          _                    -> __IMPOSSIBLE__ : assocToList (i+1) l
+          ((j,u) : l) | i == j -> Just u  : assocToList (i+1) l
+          _                    -> Nothing : assocToList (i+1) l
         ivs = assocToList 0 ids
-    return $ applySubst (ivs ++# raiseS n)  v
+        rho = prependS __IMPOSSIBLE__ ivs $ raiseS n
+    return $ applySubst rho v
 
   -- Metas are top-level so we do the assignment at top-level.
   inTopContext $ do

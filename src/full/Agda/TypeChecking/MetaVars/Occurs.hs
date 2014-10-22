@@ -597,7 +597,7 @@ killedType :: [(I.Dom (ArgName, Type), Bool)] -> Type -> ([I.Arg Bool], Type)
 killedType [] b = ([], b)
 killedType ((arg@(Dom info _), kill) : kills) b
   | dontKill  = (Arg info False : args, mkPi arg b') -- OLD: telePi (telFromList [arg]) b')
-  | otherwise = (Arg info True  : args, subst __IMPOSSIBLE__ b')
+  | otherwise = (Arg info True  : args, strengthen __IMPOSSIBLE__ b')
   where
     (args, b') = killedType kills b
     dontKill = not kill || 0 `freeIn` b'

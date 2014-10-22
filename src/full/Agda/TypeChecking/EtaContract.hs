@@ -77,7 +77,7 @@ etaOnce v = case v of
           | (isIrrelevant info || isVar0 v)
                     && allowed imp info
                     && not (freeIn 0 u) ->
-            return $ subst __IMPOSSIBLE__ u
+            return $ strengthen __IMPOSSIBLE__ u
         _ -> return v
     where
       isVar0 (Shared p)               = __IMPOSSIBLE__ -- isVar0 (derefPtr p)
