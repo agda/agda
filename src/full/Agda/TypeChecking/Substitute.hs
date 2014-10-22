@@ -6,12 +6,14 @@
 {-# LANGUAGE FlexibleInstances    #-}
 {-# LANGUAGE PatternGuards        #-}
 {-# LANGUAGE OverlappingInstances #-}
-{-# LANGUAGE RankNTypes           #-}
 {-# LANGUAGE StandaloneDeriving   #-}
 {-# LANGUAGE TupleSections        #-}
 {-# LANGUAGE TypeSynonymInstances #-}
 
-module Agda.TypeChecking.Substitute where
+module Agda.TypeChecking.Substitute
+  ( module Agda.TypeChecking.Substitute
+  , Substitution(..)
+  ) where
 
 import Control.Arrow ((***), first, second)
 
@@ -33,6 +35,7 @@ import Agda.TypeChecking.Monad.Base as Base
 import Agda.TypeChecking.Free as Free
 import Agda.TypeChecking.CompiledClause
 
+import Agda.Utils.Empty
 import Agda.Utils.List
 import Agda.Utils.Monad
 import Agda.Utils.Permutation
@@ -477,69 +480,7 @@ abstractArgs args x = abstract tel x
 -- * Explicit substitutions
 ---------------------------------------------------------------------------
 
--- | Substitutions.
-
-infixr 4 :#
-data Substitution
-
-  = IdS                     -- Γ ⊢ IdS : Γ
-
-  | EmptyS                  -- Γ ⊢ EmptyS : ()
-
-                            --      Γ ⊢ ρ : Δ
-  | Wk !Int Substitution    -- -------------------
-                            -- Γ, Ψ ⊢ Wk |Ψ| ρ : Δ
-
-                            -- Γ ⊢ u : Aρ  Γ ⊢ ρ : Δ
-  | Term :# Substitution    -- ---------------------
-                            --   Γ ⊢ u :# ρ : Δ, A
-
-    -- First argument is __IMPOSSIBLE__     --         Γ ⊢ ρ : Δ
-  | Strengthen (forall a. a) Substitution   -- ---------------------------
-                                            --   Γ ⊢ Strengthen ρ : Δ, A
-
-                            --        Γ ⊢ ρ : Δ
-  | Lift !Int Substitution  -- -------------------------
-                            -- Γ, Ψρ ⊢ Lift |Ψ| ρ : Δ, Ψ
-
-instance Eq Substitution where
-  IdS            == IdS            = True
-  EmptyS         == EmptyS         = True
-  Wk n s         == Wk m t         = n == m && s == t
-  (u :# s)       == (v :# t)       = u == v && s == t
-  Strengthen _ s == Strengthen _ t = s == t
-  Lift n s       == Lift m t       = n == m && s == t
-  _              == _              = False
-
-instance Ord Substitution where
-  compare IdS IdS = EQ
-  compare IdS _   = LT
-  compare _ IdS   = GT
-  compare EmptyS EmptyS = EQ
-  compare EmptyS _ = LT
-  compare _ EmptyS = GT
-  compare (Wk n s) (Wk m t) = compare (n, s) (m, t)
-  compare Wk{} _ = LT
-  compare _ Wk{} = GT
-  compare (u :# s) (v :# t) = compare (u, s) (v, t)
-  compare (:#){} _ = LT
-  compare _ (:#){} = GT
-  compare (Strengthen _ s) (Strengthen _ t) = compare s t
-  compare Strengthen{} _ = LT
-  compare _ Strengthen{} = GT
-  compare (Lift n s) (Lift m t) = compare (n, s) (m, t)
-
-instance Show Substitution where
-  showsPrec p s =
-    case s of
-      IdS            -> showString "IdS"
-      EmptyS         -> showString "EmptyS"
-      Wk n s         -> showWords 9 [ showString "Wk", shows n, showsPrec 10 s ]
-      u :# s         -> showWords 4 [ showsPrec 5 u, showString ":#", showsPrec 4 s ]
-      Strengthen _ s -> showWords 9 [ showString "Strengthen", showString "undefined", showsPrec 10 s ]
-      Lift n s       -> showWords 9 [ showString "Lift", shows n, showsPrec 10 s ]
-    where
-      showWords c ss = showParen (p > c) $ foldr (.) id $ intersperse (showString " ") ss
+-- See TypeChecking.Monad.Base for the definition.
 
 idS :: Substitution
 idS = IdS
@@ -607,7 +548,7 @@ infixr 4 ++#
 (++#) :: [Term] -> Substitution -> Substitution
 us ++# rho = foldr consS rho us
 
-prependS :: (forall a. a) -> [Maybe Term] -> Substitution -> Substitution
+prependS :: Empty -> [Maybe Term] -> Substitution -> Substitution
 prependS err us rho = foldr f rho us
   where
     f Nothing  rho = Strengthen err rho
@@ -616,7 +557,7 @@ prependS err us rho = foldr f rho us
 parallelS :: [Term] -> Substitution
 parallelS us = us ++# idS
 
-compactS :: (forall a. a) -> [Maybe Term] -> Substitution
+compactS :: Empty -> [Maybe Term] -> Substitution
 compactS err us = prependS err us idS
 
 lookupS :: Substitution -> Nat -> Term
@@ -629,7 +570,7 @@ lookupS rho i = case rho of
              | i < 0     -> __IMPOSSIBLE__
              | otherwise -> lookupS rho (i - 1)
   Strengthen err rho
-             | i == 0    -> err
+             | i == 0    -> absurd err
              | i < 0     -> __IMPOSSIBLE__
              | otherwise -> lookupS rho (i - 1)
   Lift n rho | i < n     -> var i
@@ -661,7 +602,7 @@ raiseFrom n k = applySubst (liftS n $ raiseS k)
 subst :: Subst t => Term -> t -> t
 subst u t = substUnder 0 u t
 
-strengthen :: Subst t => (forall a. a) -> t -> t
+strengthen :: Subst t => Empty -> t -> t
 strengthen err = applySubst (compactS err [Nothing])
 
 substUnder :: Subst t => Nat -> Term -> t -> t
@@ -930,7 +871,7 @@ lazyAbsApp (Abs   _ v) u = applySubst (u :# IdS) v
 lazyAbsApp (NoAbs _ v) _ = v
 
 -- | Instantiate an abstraction that doesn't use its argument.
-noabsApp :: Subst t => (forall a. a) -> Abs t -> t
+noabsApp :: Subst t => Empty -> Abs t -> t
 noabsApp err (Abs   _ v) = strengthen err v
 noabsApp _   (NoAbs _ v) = v
 
@@ -1009,6 +950,9 @@ instance GetBody Clause where
 
 deriving instance (Subst a, Eq a) => Eq (Tele a)
 deriving instance (Subst a, Ord a) => Ord (Tele a)
+
+deriving instance Eq Substitution
+deriving instance Ord Substitution
 
 deriving instance Eq Sort
 deriving instance Ord Sort

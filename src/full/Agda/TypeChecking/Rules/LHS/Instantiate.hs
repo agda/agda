@@ -5,7 +5,7 @@
 module Agda.TypeChecking.Rules.LHS.Instantiate where
 
 import Agda.Syntax.Common
-import Agda.Syntax.Internal as I
+import Agda.Syntax.Internal as I hiding (Substitution)
 import qualified Agda.Syntax.Abstract as A
 import Agda.Syntax.Abstract.Views ( asView )
 
