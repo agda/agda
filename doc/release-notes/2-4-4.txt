@@ -108,6 +108,11 @@ Goal and error display
 Type checking
 =============
 
+* Call-by-need evaluation.
+
+  Compile-time evaluation (during type checking and from the Emacs mode) is now
+  using call-by-need rather than call-by-name.
+
 Compiler backends
 =================
 
