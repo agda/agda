@@ -9,7 +9,6 @@
 :set -pgmPcpphs
 :set -optP--cpp
 
-
 :set -fwarn-deprecated-flags
 :set -fwarn-dodgy-foreign-imports
 :set -fwarn-dodgy-imports
@@ -22,7 +21,7 @@
 :set -fwarn-tabs
 :set -fwarn-overlapping-patterns
 :set -fwarn-unrecognised-pragmas
-:set -fwarn-warnings-deprecations -pgmPcpphs -optP--cpp -Werror
+:set -fwarn-warnings-deprecations
 :set -fwarn-dodgy-exports
 :set -fwarn-wrong-do-bind
 :set -fwarn-identities
