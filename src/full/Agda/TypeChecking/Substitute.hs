@@ -554,6 +554,8 @@ raiseS :: Int -> Substitution
 raiseS n = wkS n idS
 
 consS :: Term -> Substitution -> Substitution
+consS (Var n []) (Wk m rho)
+  | n + 1 == m = wkS (m - 1) (liftS 1 rho)
 consS u rho = seq u (u :# rho)
 
 singletonS :: Term -> Substitution
