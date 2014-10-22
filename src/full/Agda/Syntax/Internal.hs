@@ -36,6 +36,7 @@ import qualified Agda.Syntax.Common as Common
 import Agda.Syntax.Literal
 import Agda.Syntax.Abstract.Name
 
+import Agda.Utils.Empty
 import Agda.Utils.Functor
 import Agda.Utils.Geniplate
 import Agda.Utils.List
@@ -360,6 +361,36 @@ properlyMatching LitP{} = True
 properlyMatching (ConP _ mt ps) = isNothing mt || -- not a record cons
   List.any (properlyMatching . namedArg) ps  -- or one of subpatterns is a proper m
 properlyMatching ProjP{} = True
+
+-----------------------------------------------------------------------------
+-- * Explicit substitutions
+-----------------------------------------------------------------------------
+
+-- | Substitutions.
+
+infixr 4 :#
+data Substitution
+
+  = IdS                     -- Γ ⊢ IdS : Γ
+
+  | EmptyS                  -- Γ ⊢ EmptyS : ()
+
+                            --      Γ ⊢ ρ : Δ
+  | Wk !Int Substitution    -- -------------------
+                            -- Γ, Ψ ⊢ Wk |Ψ| ρ : Δ
+
+                            -- Γ ⊢ u : Aρ  Γ ⊢ ρ : Δ
+  | Term :# Substitution    -- ---------------------
+                            --   Γ ⊢ u :# ρ : Δ, A
+
+    -- First argument is __IMPOSSIBLE__  --         Γ ⊢ ρ : Δ
+  | Strengthen Empty Substitution        -- ---------------------------
+                                         --   Γ ⊢ Strengthen ρ : Δ, A
+
+                            --        Γ ⊢ ρ : Δ
+  | Lift !Int Substitution  -- -------------------------
+                            -- Γ, Ψρ ⊢ Lift |Ψ| ρ : Δ, Ψ
+  deriving (Show)
 
 ---------------------------------------------------------------------------
 -- * Absurd Lambda

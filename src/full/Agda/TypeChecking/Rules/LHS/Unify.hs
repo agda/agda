@@ -29,7 +29,7 @@ import Data.Traversable (Traversable,traverse)
 import Agda.Interaction.Options (optInjectiveTypeConstructors)
 
 import Agda.Syntax.Common
-import Agda.Syntax.Internal as I
+import Agda.Syntax.Internal as I hiding (Substitution)
 import Agda.Syntax.Literal
 import Agda.Syntax.Position
 

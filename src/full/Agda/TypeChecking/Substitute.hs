@@ -10,7 +10,10 @@
 {-# LANGUAGE TupleSections        #-}
 {-# LANGUAGE TypeSynonymInstances #-}
 
-module Agda.TypeChecking.Substitute where
+module Agda.TypeChecking.Substitute
+  ( module Agda.TypeChecking.Substitute
+  , Substitution(..)
+  ) where
 
 import Control.Arrow ((***), first, second)
 
@@ -475,31 +478,7 @@ abstractArgs args x = abstract tel x
 -- * Explicit substitutions
 ---------------------------------------------------------------------------
 
--- | Substitutions.
-
-infixr 4 :#
-data Substitution
-
-  = IdS                     -- Γ ⊢ IdS : Γ
-
-  | EmptyS                  -- Γ ⊢ EmptyS : ()
-
-                            --      Γ ⊢ ρ : Δ
-  | Wk !Int Substitution    -- -------------------
-                            -- Γ, Ψ ⊢ Wk |Ψ| ρ : Δ
-
-                            -- Γ ⊢ u : Aρ  Γ ⊢ ρ : Δ
-  | Term :# Substitution    -- ---------------------
-                            --   Γ ⊢ u :# ρ : Δ, A
-
-    -- First argument is __IMPOSSIBLE__  --         Γ ⊢ ρ : Δ
-  | Strengthen Empty Substitution        -- ---------------------------
-                                         --   Γ ⊢ Strengthen ρ : Δ, A
-
-                            --        Γ ⊢ ρ : Δ
-  | Lift !Int Substitution  -- -------------------------
-                            -- Γ, Ψρ ⊢ Lift |Ψ| ρ : Δ, Ψ
-  deriving (Eq, Ord, Show)
+-- See TypeChecking.Monad.Base for the definition.
 
 idS :: Substitution
 idS = IdS
@@ -969,6 +948,9 @@ instance GetBody Clause where
 
 deriving instance (Subst a, Eq a) => Eq (Tele a)
 deriving instance (Subst a, Ord a) => Ord (Tele a)
+
+deriving instance Eq Substitution
+deriving instance Ord Substitution
 
 deriving instance Eq Sort
 deriving instance Ord Sort
