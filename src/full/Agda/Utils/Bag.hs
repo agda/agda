@@ -9,6 +9,7 @@ module Agda.Utils.Bag where
 import Prelude hiding (null, map)
 
 import Control.Applicative hiding (empty)
+import Text.Show.Functions ()
 
 import Data.Foldable (Foldable(foldMap))
 import Data.Functor.Identity
