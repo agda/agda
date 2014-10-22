@@ -53,6 +53,20 @@ Language
     Term.pi     : Arg Type → Abs Type → Term
     Pattern.var : String   → Pattern
 
+* QuoteContext.
+
+  The `quoteContext' keyword now returns a reflected representation of the current context as
+  a term of type `List (Arg Type)'. For example:
+
+    test : (n : Nat) (x y : Fin n) → (quoteContext) ≡
+      arg₀ (el (lit 0) (def (quote Fin) (arg₀ (var 1 []) ∷ []))) ∷
+      arg₀ (el (lit 0) (def (quote Fin) (arg₀ (var 0 []) ∷ []))) ∷
+      arg₀ (el (lit 0) (def (quote Nat) [])) ∷ []
+    test n x y = refl
+
+  In addition, tactics now take an additional argument for the current context, i.e. instead
+  of type `Term → Term', they should now have type `List (Arg Type) → Term → Term'.
+
 * Large indices.
 
   Force constructor arguments no longer count towards the size of a datatype.

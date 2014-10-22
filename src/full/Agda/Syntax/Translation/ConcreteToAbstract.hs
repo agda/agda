@@ -692,7 +692,7 @@ instance ToAbstract C.Expr A.Expr where
         g  <- freshName r "g"
         let re = ExprRange (getRange e)
         e : es <- toAbstract (e : es)
-        let tac = A.App re e (defaultNamedArg $ A.Var g)
+        let tac = A.App re (A.App re e (defaultNamedArg $ A.QuoteContext re)) (defaultNamedArg $ A.Var g)
         return $ A.QuoteGoal (ExprRange r) g $ foldl (A.App re) (A.Unquote re) (map defaultNamedArg $ tac : es)
 
   -- DontCare
