@@ -563,7 +563,6 @@ Expr2
     | 'let' Declarations 'in' Expr { Let (getRange ($1,$2,$3,$4)) $2 $4 }
     | Expr3                        { $1 }
     | 'quoteGoal' Id 'in' Expr     { QuoteGoal (getRange ($1,$2,$3,$4)) $2 $4 }
-    | 'quoteContext'               { QuoteContext (getRange $1) }
     | 'tactic' Application3               { Tactic (getRange ($1, $2)) (RawApp (getRange $2) $2) [] }
     | 'tactic' Application3 '|' WithExprs { Tactic (getRange ($1, $2, $3, $4)) (RawApp (getRange $2) $2) $4 }
 
@@ -599,6 +598,7 @@ Expr3NoCurly
     | 'Set'                             { Set (getRange $1) }
     | 'quote'                           { Quote (getRange $1) }
     | 'quoteTerm'                       { QuoteTerm (getRange $1) }
+    | 'quoteContext'                    { QuoteContext (getRange $1) }
     | 'unquote'                         { Unquote (getRange $1) }
     | setN                              { SetN (getRange (fst $1)) (snd $1) }
     | '{{' Expr DoubleCloseBrace                        { InstanceArg (getRange ($1,$2,$3))

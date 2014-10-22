@@ -58,7 +58,7 @@ Language
   The `quoteContext' keyword now returns a reflected representation of the current context as
   a term of type `List (Arg Type)'. For example:
 
-    test : (n : Nat) (x y : Fin n) → (quoteContext) ≡
+    test : (n : Nat) (x y : Fin n) → quoteContext ≡
       arg₀ (el (lit 0) (def (quote Fin) (arg₀ (var 1 []) ∷ []))) ∷
       arg₀ (el (lit 0) (def (quote Fin) (arg₀ (var 0 []) ∷ []))) ∷
       arg₀ (el (lit 0) (def (quote Nat) [])) ∷ []
