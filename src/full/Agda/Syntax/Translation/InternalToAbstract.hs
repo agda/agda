@@ -328,7 +328,7 @@ reifyTerm expandAnonDefs0 v = do
             r  <- getConstructorData x
             xs <- getRecordFieldNames r
             vs <- map unArg <$> reifyIArgs vs
-            return $ A.Rec exprInfo $ map (unArg *** id) $ filter keep $ zip xs vs
+            return $ A.Rec exprInfo $ map (Left . uncurry A.Assign . (unArg *** id)) $ filter keep $ zip xs vs
           False -> reifyDisplayForm x vs $ do
             ci <- getConstInfo x
             let Constructor{conPars = np} = theDef ci
@@ -764,6 +764,9 @@ instance DotVars a => DotVars [a] where
 instance (DotVars a, DotVars b) => DotVars (a, b) where
   dotVars (x, y) = Set.union (dotVars x) (dotVars y)
 
+instance (DotVars a, DotVars b) => DotVars (Either a b) where
+  dotVars = either dotVars dotVars
+
 instance DotVars A.Clause where
   dotVars (A.Clause _ rhs [] _) = dotVars rhs
   dotVars (A.Clause _ rhs (_:_) _) = __IMPOSSIBLE__ -- cannot contain where clauses?
@@ -807,8 +810,8 @@ instance DotVars A.Expr where
     A.Set _ _              -> Set.empty
     A.Prop _               -> Set.empty
     A.Let _ _ _            -> __IMPOSSIBLE__
-    A.Rec _ es             -> dotVars $ map snd es
-    A.RecUpdate _ e es     -> dotVars (e, map snd es)
+    A.Rec _ es             -> dotVars es
+    A.RecUpdate _ e es     -> dotVars (e, es)
     A.ETel _               -> __IMPOSSIBLE__
     A.QuoteGoal {}         -> __IMPOSSIBLE__
     A.QuoteContext {}      -> __IMPOSSIBLE__
@@ -817,6 +820,12 @@ instance DotVars A.Expr where
     A.Unquote {}           -> __IMPOSSIBLE__
     A.DontCare v           -> dotVars v
     A.PatternSyn n         -> Set.empty
+
+instance DotVars A.Assign where
+  dotVars (A.Assign _ e) = dotVars e
+
+instance DotVars A.ModuleName where
+  dotVars _ = Set.empty
 
 instance DotVars RHS where
   dotVars (RHS e) = dotVars e

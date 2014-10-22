@@ -205,6 +205,9 @@ instance HasRange a => HasRange (Maybe a) where
     getRange Nothing  = noRange
     getRange (Just a) = getRange a
 
+instance (HasRange a, HasRange b) => HasRange (Either a b) where
+    getRange = either getRange getRange
+
 -- | If it is also possible to set the range, this is the class.
 --
 --   Instances should satisfy @'getRange' ('setRange' r x) == r@.

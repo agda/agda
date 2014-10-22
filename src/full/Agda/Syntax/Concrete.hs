@@ -24,6 +24,10 @@ module Agda.Syntax.Concrete
   , TypedBindings'(..)
   , TypedBinding
   , TypedBinding'(..)
+  , RecordAssignment
+  , RecordAssignments
+  , FieldAssignment(..)
+  , ModuleAssignment(..)
   , ColoredTypedBinding(..)
   , BoundName(..), mkBoundName_, mkBoundName
   , Telescope -- (..)
@@ -37,6 +41,7 @@ module Agda.Syntax.Concrete
   , ImportDirective(..), UsingOrHiding(..), ImportedName(..)
   , Renaming(..), AsName(..)
   , defaultImportDir
+  , isDefaultImportDir
   , OpenShortHand(..), RewriteEqn, WithExpr
   , LHS(..), Pattern(..), LHSCore(..)
   , RHS, RHS'(..), WhereClause, WhereClause'(..)
@@ -56,6 +61,7 @@ module Agda.Syntax.Concrete
   where
 
 import Control.DeepSeq
+import Data.Functor
 import Data.Typeable (Typeable)
 import Data.Foldable (Foldable)
 import Data.Traversable (Traversable)
@@ -71,6 +77,7 @@ import Agda.Syntax.Concrete.Name
 
 #include "undefined.h"
 import Agda.Utils.Impossible
+import Agda.Utils.Lens
 
 type Color      = Expr
 type Arg a      = Common.Arg Color a
@@ -88,6 +95,28 @@ data OpApp e
 fromOrdinary :: e -> OpApp e -> e
 fromOrdinary d (Ordinary e) = e
 fromOrdinary d _            = d
+
+data FieldAssignment   = FieldAssignment  Name Expr
+  deriving (Typeable)
+data ModuleAssignment  = ModuleAssignment QName [Expr] ImportDirective
+  deriving (Typeable)
+type RecordAssignment  = Either FieldAssignment ModuleAssignment
+type RecordAssignments = [RecordAssignment]
+
+nameFieldA :: Lens' Name FieldAssignment
+nameFieldA f (FieldAssignment x e) = (\x' -> FieldAssignment x' e) <$> f x
+
+exprFieldA :: Lens' Expr FieldAssignment
+exprFieldA f (FieldAssignment x e) = FieldAssignment x <$> f e
+
+qnameModA :: Lens' QName ModuleAssignment
+qnameModA f (ModuleAssignment q es i) = (\q' -> ModuleAssignment q' es i) <$> f q
+
+exprModA :: Lens' [Expr] ModuleAssignment
+exprModA f (ModuleAssignment q es i) = (\es' -> ModuleAssignment q es' i) <$> f es
+
+importDirModA :: Lens' ImportDirective ModuleAssignment
+importDirModA f (ModuleAssignment q es i) = (\i' -> ModuleAssignment q es i') <$> f i
 
 -- | Concrete expressions. Should represent exactly what the user wrote.
 data Expr
@@ -109,8 +138,8 @@ data Expr
   | Set !Range                                 -- ^ ex: @Set@
   | Prop !Range                                -- ^ ex: @Prop@
   | SetN !Range Integer                        -- ^ ex: @Set0, Set1, ..@
-  | Rec !Range [(Name, Expr)]                  -- ^ ex: @record {x = a; y = b}@
-  | RecUpdate !Range Expr [(Name, Expr)]       -- ^ ex: @record e {x = a; y = b}@
+  | Rec !Range RecordAssignments               -- ^ ex: @record {x = a; y = b}@, or @record { x = a; M1; M2 }@
+  | RecUpdate !Range Expr [FieldAssignment]    -- ^ ex: @record e {x = a; y = b}@
   | Let !Range [Declaration] Expr              -- ^ ex: @let Ds in e@
   | Paren !Range Expr                          -- ^ ex: @(e)@
   | Absurd !Range                              -- ^ ex: @()@ or @{}@, only in patterns
@@ -273,6 +302,10 @@ data ImportDirective = ImportDirective
 -- | Default is directive is @private@ (use everything, but do not export).
 defaultImportDir :: ImportDirective
 defaultImportDir = ImportDirective noRange (Hiding []) [] False
+
+isDefaultImportDir :: ImportDirective -> Bool
+isDefaultImportDir (ImportDirective _ (Hiding []) [] False) = True
+isDefaultImportDir _                                        = False
 
 data UsingOrHiding
   = Hiding [ImportedName]
@@ -534,6 +567,12 @@ instance HasRange ModuleApplication where
   getRange (SectionApp r _ _) = r
   getRange (RecordModuleIFS r _) = r
 
+instance HasRange FieldAssignment where
+  getRange (FieldAssignment a b) = fuseRange a b
+
+instance HasRange ModuleAssignment where
+  getRange (ModuleAssignment a b c) = fuseRange a b `fuseRange` c
+
 instance HasRange Declaration where
   getRange (TypeSig _ x t)         = fuseRange x t
   getRange (Field x t)             = fuseRange x t
@@ -619,6 +658,12 @@ instance HasRange Pattern where
   getRange (HiddenP r _)      = r
   getRange (InstanceP r _)    = r
   getRange (DotP r _)         = r
+
+instance KillRange FieldAssignment where
+  killRange (FieldAssignment a b) = killRange2 FieldAssignment a b
+
+instance KillRange ModuleAssignment where
+  killRange (ModuleAssignment a b c) = killRange3 ModuleAssignment a b c
 
 instance KillRange AsName where
   killRange (AsName n _) = killRange1 (flip AsName noRange) n

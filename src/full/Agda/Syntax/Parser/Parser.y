@@ -608,26 +608,46 @@ Expr3NoCurly
     | '{{' DoubleCloseBrace             { let r = fuseRange $1 $2 in InstanceArg r $ unnamed $ Absurd r }
     | Id '@' Expr3                      { As (getRange ($1,$2,$3)) $1 $3 }
     | '.' Expr3                         { Dot (fuseRange $1 $2) $2 }
-    | 'record' '{' FieldAssignments '}' { Rec (getRange ($1,$2,$3,$4)) $3 }
+--  | 'record' '{' RecordAssignments '}' { Rec (getRange ($1,$2,$3,$4)) $3 }
+    | 'record' '{' FieldAssignments '}' { Rec (getRange ($1,$2,$3,$4)) (map Left $3) }
     | 'record' Expr3NoCurly '{' FieldAssignments '}' { RecUpdate (getRange ($1,$2,$3,$4,$5)) $2 $4 }
 
 Expr3
     : Expr3Curly                        { $1 }
     | Expr3NoCurly                      { $1 }
 
-FieldAssignments :: { [(Name, Expr)] }
+RecordAssignments :: { RecordAssignments }
+RecordAssignments
+  : {- empty -}        { [] }
+  | RecordAssignments1 { $1 }
+
+RecordAssignments1 :: { RecordAssignments }
+RecordAssignments1
+  : RecordAssignment                        { [$1] }
+  | RecordAssignment ';' RecordAssignments1 { $1 : $3 }
+
+RecordAssignment :: { RecordAssignment }
+RecordAssignment
+  : FieldAssignment  { Left  $1 }
+  | ModuleAssignment { Right $1 }
+
+ModuleAssignment :: { ModuleAssignment }
+ModuleAssignment
+  : ModuleName OpenArgs ImportDirective  { ModuleAssignment $1 $2 $3 }
+
+FieldAssignments :: { [FieldAssignment] }
 FieldAssignments
   : {- empty -}       { [] }
   | FieldAssignments1 { $1 }
 
-FieldAssignments1 :: { [(Name, Expr)] }
+FieldAssignments1 :: { [FieldAssignment] }
 FieldAssignments1
   : FieldAssignment                       { [$1] }
   | FieldAssignment ';' FieldAssignments1 { $1 : $3 }
 
-FieldAssignment :: { (Name, Expr) }
+FieldAssignment :: { FieldAssignment }
 FieldAssignment
-  : Id '=' Expr   { ($1, $3) }
+  : Id '=' Expr   { FieldAssignment $1 $3 }
 
 {--------------------------------------------------------------------------
     Bindings

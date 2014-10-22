@@ -231,9 +231,10 @@ generateAndPrintSyntaxInfo decl hlLevel = do
                            (A.nameBindingSite n))
 
     getVarAndField :: A.Expr -> File
-    getVarAndField (A.Var x)    = bound x
-    getVarAndField (A.Rec _ fs) = mconcat $ map (field [] . fst) fs
-    getVarAndField _            = mempty
+    getVarAndField (A.Var x)            = bound x
+    getVarAndField (A.Rec       _ fs)   = mconcat [ field [] x | Left (A.Assign x _) <- fs ]
+    getVarAndField (A.RecUpdate _ _ fs) = mconcat [ field [] x |      (A.Assign x _) <- fs ]
+    getVarAndField _                    = mempty
 
     -- Ulf, 2014-04-09: It would be nicer to have it on Named_ a, but
     -- you can't have polymorphic functions in universeBi.

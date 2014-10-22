@@ -67,6 +67,11 @@ instance ExprLike a => ExprLike (Maybe a) where
   traverseExpr = traverse . traverseExpr
   foldExpr     = foldMap  . foldExpr
 
+instance (ExprLike a, ExprLike b) => ExprLike (Either a b) where
+  mapExpr f      = either (Left . mapExpr f) (Right . mapExpr f)
+  traverseExpr f = either (fmap Left . traverseExpr f) (fmap Right . traverseExpr f)
+  foldExpr f     = either (foldExpr f) (foldExpr f)
+
 instance ExprLike a => ExprLike (TypedBinding' a) where
   mapExpr      = fmap     . mapExpr
   traverseExpr = traverse . traverseExpr
@@ -131,6 +136,16 @@ instance ExprLike Expr where
      DontCare e         -> f $ DontCare               $ mapE e
      Equal{}            -> f $ e0
    where mapE e = mapExpr f e
+
+instance ExprLike FieldAssignment where
+  mapExpr      f (FieldAssignment x e) = FieldAssignment x (mapExpr f e)
+  traverseExpr f (FieldAssignment x e) = (\e' -> FieldAssignment x e') <$> traverseExpr f e
+  foldExpr     f (FieldAssignment _ e) = foldExpr f e
+
+instance ExprLike ModuleAssignment where
+  mapExpr      f (ModuleAssignment m es i) = ModuleAssignment m (mapExpr f es) i
+  traverseExpr f (ModuleAssignment m es i) = (\es' -> ModuleAssignment m es' i) <$> traverseExpr f es
+  foldExpr     f (ModuleAssignment m es i) = foldExpr f es
 
 instance ExprLike a => ExprLike (OpApp a) where
   mapExpr f e0 = case e0 of

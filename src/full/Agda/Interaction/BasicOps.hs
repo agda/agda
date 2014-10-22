@@ -20,7 +20,7 @@ import Data.Traversable hiding (mapM, forM)
 
 import qualified Agda.Syntax.Concrete as C -- ToDo: Remove with instance of ToConcrete
 import Agda.Syntax.Position
-import Agda.Syntax.Abstract as A hiding (Open, Apply)
+import Agda.Syntax.Abstract as A hiding (Open, Apply, Assign)
 import Agda.Syntax.Abstract.Views as A
 import Agda.Syntax.Common
 import Agda.Syntax.Info (ExprInfo(..),MetaInfo(..),emptyMetaInfo)

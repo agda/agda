@@ -329,6 +329,10 @@ instance (ToAbstract c1 a1, ToAbstract c2 a2, ToAbstract c3 a3) =>
 instance ToAbstract c a => ToAbstract [c] [a] where
     toAbstract = mapM toAbstract
 
+instance (ToAbstract c1 a1, ToAbstract c2 a2) =>
+         ToAbstract (Either c1 c2) (Either a1 a2) where
+    toAbstract = either (fmap Left . toAbstract) (fmap Right . toAbstract)
+
 instance ToAbstract c a => ToAbstract (Maybe c) (Maybe a) where
     toAbstract Nothing  = return Nothing
     toAbstract (Just x) = Just <$> toAbstract x
@@ -351,16 +355,6 @@ instance ToAbstract (NewName C.BoundName) A.Name where
     y <- freshAbstractName fx x
     bindVariable x y
     return y
-
-nameExpr :: AbstractName -> A.Expr
-nameExpr d = mk (anameKind d) $ anameName d
-  where
-    mk DefName        x = A.Def x
-    mk FldName        x = A.Proj x
-    mk ConName        x = A.Con $ AmbQ [x]
-    mk PatternSynName x = A.PatternSyn x
-    mk QuotableName   x = A.App i (A.Quote i) (defaultNamedArg $ A.Def x)
-      where i = ExprRange (getRange x)
 
 instance ToAbstract OldQName A.Expr where
   toAbstract (OldQName x) = do
@@ -649,22 +643,21 @@ instance ToAbstract C.Expr A.Expr where
       e0@(C.Let _ ds e) ->
         ifM isInsideDotPattern (typeError $ GenericError $ "Let-expressions are not allowed in dot patterns") $
         localToAbstract (LetDefs ds) $ \ds' -> do
-        e        <- toAbstractCtx TopCtx e
-        let info = ExprRange (getRange e0)
-        return $ A.Let info ds' e
+          e <- toAbstractCtx TopCtx e
+          let info = ExprRange (getRange e0)
+          return $ A.Let info ds' e
 
   -- Record construction
       C.Rec r fs  -> do
-        let (xs, es) = unzip fs
-        es <- toAbstractCtx TopCtx es
-        return $ A.Rec (ExprRange r) $ zip xs es
+        fs' <- toAbstractCtx TopCtx fs
+        let ds'  = [ d | Right (_, ds) <- fs', d <- ds ]
+            fs'' = map (either Left (Right . fst)) fs'
+            i    = ExprRange r
+        return $ A.mkLet i ds' (A.Rec i fs'')
 
   -- Record update
       C.RecUpdate r e fs -> do
-        let (xs, es) = unzip fs
-        e <- toAbstract e
-        es <- toAbstractCtx TopCtx es
-        return $ A.RecUpdate (ExprRange r) e $ zip xs es
+        A.RecUpdate (ExprRange r) <$> toAbstract e <*> toAbstractCtx TopCtx fs
 
   -- Parenthesis
       C.Paren _ e -> toAbstractCtx TopCtx e
@@ -702,6 +695,21 @@ instance ToAbstract C.Expr A.Expr where
 
   -- DontCare
       C.DontCare e -> A.DontCare <$> toAbstract e
+
+instance ToAbstract C.ModuleAssignment (A.ModuleName, [A.LetBinding]) where
+  toAbstract (C.ModuleAssignment m es i)
+    | null es && isDefaultImportDir i = (\x-> (x, [])) <$> toAbstract (OldModuleName m)
+    | otherwise = do
+        x <- C.NoName (getRange m) <$> fresh
+        r <- checkModuleMacro LetApply (getRange (m, es, i)) PublicAccess x
+                          (C.SectionApp (getRange (m , es)) [] (RawApp (fuseRange m es) (Ident m : es)))
+                          DontOpen i
+        case r of
+          (LetApply _ m' _ _ _ : _) -> return (m', r)
+          _                         -> __IMPOSSIBLE__
+
+instance ToAbstract C.FieldAssignment A.Assign where
+  toAbstract (C.FieldAssignment x e) = A.Assign x <$> toAbstract e
 
 instance ToAbstract C.LamBinding A.LamBinding where
   toAbstract (C.DomainFree info x) = A.DomainFree <$> toAbstract info <*> toAbstract (NewName x)

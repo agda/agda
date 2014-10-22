@@ -41,6 +41,7 @@ import Agda.Utils.Except
   , ExceptT
   , MonadError(catchError, throwError)
   )
+import Agda.Utils.Lens
 
 import Agda.Utils.Impossible
 #include "undefined.h"
@@ -561,8 +562,8 @@ modifyAbstractExpr = f
   f (A.Lam i (A.DomainFree info n) _) | show (A.nameConcrete n) == abslamvarname =
         A.AbsurdLam i $ Common.argInfoHiding info
   f (A.Lam i b e) = A.Lam i b (f e)
-  f (A.Rec i xs) = A.Rec i (map (\(n, e) -> (n, f e)) xs)
-  f (A.RecUpdate i e xs) = A.RecUpdate i (f e) (map (\(n, e) -> (n, f e)) xs)
+  f (A.Rec i xs) = A.Rec i (map (either (Left . over A.exprAssign f) Right) xs)
+  f (A.RecUpdate i e xs) = A.RecUpdate i (f e) (map (over A.exprAssign f) xs)
   f (A.ScopedExpr i e) = A.ScopedExpr i (f e)
   f e = e
 

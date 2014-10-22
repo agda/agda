@@ -45,6 +45,7 @@ import Agda.Syntax.Scope.Base
 
 import Agda.Utils.Geniplate
 import Agda.Utils.Tuple
+import Agda.Utils.Lens
 
 #include "undefined.h"
 import Agda.Utils.Impossible
@@ -90,7 +91,7 @@ data Expr
   | Prop ExprInfo                      -- ^ @Prop@ (no longer supported, used as dummy type).
   | Let  ExprInfo [LetBinding] Expr    -- ^ @let bs in e@.
   | ETel Telescope                     -- ^ Only used when printing telescopes.
-  | Rec  ExprInfo Assigns              -- ^ Record construction.
+  | Rec  ExprInfo RecordAssigns        -- ^ Record construction.
   | RecUpdate ExprInfo Expr Assigns    -- ^ Record update.
   | ScopedExpr ScopeInfo Expr          -- ^ Scope annotation.
   | QuoteGoal ExprInfo Name Expr       -- ^ Binds @Name@ to current type in @Expr@.
@@ -102,8 +103,17 @@ data Expr
   deriving (Typeable, Show, Eq)
 
 -- | Record field assignment @f = e@.
-type Assign  = (C.Name, Expr)
+data Assign  = Assign { _fieldAssign :: C.Name, _exprAssign :: Expr }
+  deriving (Typeable, Show, Eq)
 type Assigns = [Assign]
+type RecordAssign  = Either Assign ModuleName
+type RecordAssigns = [RecordAssign]
+
+fieldAssign :: Lens' C.Name Assign
+fieldAssign f (Assign x e) = (\x' -> Assign x' e) <$> f x
+
+exprAssign :: Lens' Expr Assign
+exprAssign f (Assign x e) = Assign x <$> f e
 
 -- | Is a type signature a `postulate' or a function signature?
 data Axiom
@@ -487,6 +497,9 @@ instance HasRange (LHSCore' e) where
 instance HasRange a => HasRange (Clause' a) where
     getRange (Clause lhs rhs ds catchall) = getRange (lhs,rhs,ds)
 
+instance HasRange Assign where
+    getRange (Assign a b) = fuseRange a b
+
 instance HasRange RHS where
     getRange AbsurdRHS                = noRange
     getRange (RHS e)                  = getRange e
@@ -519,6 +532,9 @@ instance KillRange LamBinding where
 instance KillRange TypedBindings where
   killRange (TypedBindings r b) = TypedBindings (killRange r) (killRange b)
 
+instance KillRange Assign where
+  killRange (Assign a b) = killRange2 Assign a b
+
 instance KillRange TypedBinding where
   killRange (TBind r xs e) = killRange3 TBind r xs e
   killRange (TLet r lbs)   = killRange2 TLet r lbs
@@ -541,10 +557,8 @@ instance KillRange Expr where
   killRange (Set i n)              = Set (killRange i) n
   killRange (Prop i)               = killRange1 Prop i
   killRange (Let i ds e)           = killRange3 Let i ds e
-  killRange (Rec i fs)             = Rec (killRange i) (map (id -*- killRange) fs)
-  killRange (RecUpdate i e fs)     = RecUpdate (killRange i)
-                                               (killRange e)
-                                               (map (id -*- killRange) fs)
+  killRange (Rec i fs)             = killRange2 Rec i fs
+  killRange (RecUpdate i e fs)     = killRange3 RecUpdate i e fs
   killRange (ETel tel)             = killRange1 ETel tel
   killRange (ScopedExpr s e)       = killRange1 (ScopedExpr s) e
   killRange (QuoteGoal i x e)      = killRange3 QuoteGoal i x e
@@ -711,8 +725,8 @@ instance AllNames Expr where
   allNames Prop{}                  = Seq.empty
   allNames (Let _ lbs e)           = allNames lbs >< allNames e
   allNames ETel{}                  = __IMPOSSIBLE__
-  allNames (Rec _ fields)          = allNames $ map snd fields
-  allNames (RecUpdate _ e fs)      = allNames e >< allNames (map snd fs)
+  allNames (Rec _ fields)          = allNames [ e | Left (Assign _ e) <- fields ]
+  allNames (RecUpdate _ e fs)      = allNames e >< allNames (map (view exprAssign) fs)
   allNames (ScopedExpr _ e)        = allNames e
   allNames (QuoteGoal _ _ e)       = allNames e
   allNames (QuoteContext _)        = Seq.empty
@@ -774,8 +788,23 @@ instance AnyAbstract Declaration where
   anyAbstract (RecSig i _ _ _)       = defAbstract i == AbstractDef
   anyAbstract _                      = __IMPOSSIBLE__
 
+-- | Turn an 'AbstractName' to an expression.
+nameExpr :: AbstractName -> Expr
+nameExpr d = mk (anameKind d) $ anameName d
+  where
+    mk DefName        x = Def x
+    mk FldName        x = Proj x
+    mk ConName        x = Con $ AmbQ [x]
+    mk PatternSynName x = PatternSyn x
+    mk QuotableName   x = App i (Quote i) (defaultNamedArg $ Def x)
+      where i = ExprRange (getRange x)
+
 app :: Expr -> [NamedArg Expr] -> Expr
 app = foldl (App (ExprRange noRange))
+
+mkLet :: ExprInfo -> [LetBinding] -> Expr -> Expr
+mkLet i [] e = e
+mkLet i ds e = Let i ds e
 
 patternToExpr :: Pattern -> Expr
 patternToExpr (VarP x)            = Var x
@@ -836,9 +865,9 @@ substExpr s e = case e of
   Let  i ls e           -> Let i (substLetBindings s ls)
                                  (substExpr s e)
   ETel t                -> e
-  Rec  i nes            -> Rec i (fmap (fmap (substExpr s)) nes)
+  Rec  i nes            -> Rec i (fmap (either (Left . over exprAssign (substExpr s)) Right) nes)
   RecUpdate i e nes     -> RecUpdate i (substExpr s e)
-                                       (fmap (fmap (substExpr s)) nes)
+                                       (fmap (over exprAssign (substExpr s)) nes)
   -- XXX: Do we need to do more with ScopedExprs?
   ScopedExpr si e       -> ScopedExpr si (substExpr s e)
   QuoteGoal i n e       -> QuoteGoal i n (substExpr s e)

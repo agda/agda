@@ -222,8 +222,8 @@ pathToRecord pps =
       Rec ei <$> mapM abstractions pes
 
         where
-          abstractions :: (ProjEntry, Expr) -> ScopeM (C.Name, Expr)
-          abstractions (ProjEntry p xs, e) = (C.unqualify $ qnameToConcrete p,) <$>
+          abstractions :: (ProjEntry, Expr) -> ScopeM RecordAssign
+          abstractions (ProjEntry p xs, e) = Left . Assign (C.unqualify $ qnameToConcrete p) <$>
             foldr abstract (return e) xs
 
           abstract :: NamedArg Name -> ScopeM Expr -> ScopeM Expr
@@ -286,8 +286,8 @@ instance Rename Expr where
       Prop{}                -> e
       Let i bs e            -> Let i (rename rho bs) (rename rho e)
       ETel tel              -> ETel (rename rho tel)
-      Rec i fes             -> Rec i $ map (id -*- rename rho) fes
-      RecUpdate i e fes     -> RecUpdate i (rename rho e) $ map (id -*- rename rho) fes
+      Rec i fes             -> Rec i $ rename rho fes
+      RecUpdate i e fes     -> RecUpdate i (rename rho e) (rename rho fes)
       ScopedExpr i e        -> ScopedExpr i (rename rho e)
       QuoteGoal i n e       -> QuoteGoal i n (rename rho e)
       QuoteContext i        -> e
@@ -296,6 +296,12 @@ instance Rename Expr where
       Unquote i             -> e
       DontCare e            -> DontCare (rename rho e)
       PatternSyn n          -> e
+
+instance Rename ModuleName where
+  rename rho x = x
+
+instance Rename Assign where
+  rename rho (Assign x e) = Assign x (rename rho e)
 
 instance Rename LetBinding where
   rename rho e =
@@ -355,6 +361,9 @@ instance Rename a => Rename (Named n a) where
 
 instance Rename a => Rename [a] where
   rename rho = map (rename rho)
+
+instance (Rename a, Rename b) => Rename (Either a b) where
+  rename rho = either (Left . rename rho) (Right . rename rho)
 
 
 

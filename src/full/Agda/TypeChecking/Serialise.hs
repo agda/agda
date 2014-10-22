@@ -113,7 +113,7 @@ returnForcedByteString bs = return $! bs
 -- 32-bit machines). Word64 does not have these problems.
 
 currentInterfaceVersion :: Word64
-currentInterfaceVersion = 20141018 * 10 + 0
+currentInterfaceVersion = 20141022 * 10 + 0
 
 -- | Constructor tag (maybe omitted) and argument indices.
 
@@ -453,6 +453,13 @@ instance (EmbPrj a, EmbPrj b, EmbPrj c) => EmbPrj (a, b, c) where
   value = vcase valu where valu [a, b, c] = valu3 (,,) a b c
                            valu _         = malformed
 
+instance (EmbPrj a, EmbPrj b) => EmbPrj (Either a b) where
+  icod_ (Left  x) = icode1 0 x
+  icod_ (Right x) = icode1 1 x
+  value = vcase valu where valu [0, x] = valu1 Left  x
+                           valu [1, x] = valu1 Right x
+                           valu _   = malformed
+
 instance EmbPrj a => EmbPrj (Maybe a) where
   icod_ Nothing  = icode0'
   icod_ (Just x) = icode1' x
@@ -655,6 +662,11 @@ instance EmbPrj A.Name where
   icod_ (A.Name a b c d) = icode4' a b c d
   value = vcase valu where valu [a, b, c, d] = valu4 A.Name a b c d
                            valu _            = malformed
+
+instance EmbPrj A.Assign where
+  icod_ (A.Assign a b) = icode2' a b
+  value = vcase valu where valu [a, b] = valu2 A.Assign a b
+                           valu _      = malformed
 
 instance (EmbPrj s, EmbPrj t) => EmbPrj (Named s t) where
   icod_ (Named a b) = icode2' a b

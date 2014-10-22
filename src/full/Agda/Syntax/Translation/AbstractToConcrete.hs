@@ -293,6 +293,15 @@ instance ToConcrete a c => ToConcrete [a] [c] where
     toConcrete     = mapM toConcrete
     bindToConcrete = thread bindToConcrete
 
+instance (ToConcrete a1 c1, ToConcrete a2 c2) => ToConcrete (Either a1 a2) (Either c1 c2) where
+    toConcrete = either (fmap Left . toConcrete) (fmap Right . toConcrete)
+    bindToConcrete (Left x) ret =
+        bindToConcrete x $ \x ->
+        ret (Left x)
+    bindToConcrete (Right y) ret =
+        bindToConcrete y $ \y ->
+        ret (Right y)
+
 instance (ToConcrete a1 c1, ToConcrete a2 c2) => ToConcrete (a1,a2) (c1,c2) where
     toConcrete (x,y) = liftM2 (,) (toConcrete x) (toConcrete y)
     bindToConcrete (x,y) ret =
@@ -473,16 +482,11 @@ instance ToConcrete A.Expr C.Expr where
 
     toConcrete (A.Rec i fs) =
       bracket appBrackets $ do
-        let (xs, es) = unzip fs
-        es <- toConcreteCtx TopCtx es
-        return $ C.Rec (getRange i) $ zip xs es
+        C.Rec (getRange i) . map (fmap (\x -> ModuleAssignment x [] defaultImportDir)) <$> toConcreteCtx TopCtx fs
 
     toConcrete (A.RecUpdate i e fs) =
       bracket appBrackets $ do
-        let (xs, es) = unzip fs
-        e <- toConcrete e
-        es <- toConcreteCtx TopCtx es
-        return $ C.RecUpdate (getRange i) e $ zip xs es
+        C.RecUpdate (getRange i) <$> toConcrete e <*> toConcreteCtx TopCtx fs
 
     toConcrete (A.ETel tel) = do
       tel <- concat <$> toConcrete tel
@@ -517,6 +521,9 @@ makeDomainFree b@(A.DomainFull (A.TypedBindings r (Common.Arg info (A.TBind _ [x
     A.Underscore MetaInfo{metaNumber = Nothing} -> A.DomainFree info x
     _ -> b
 makeDomainFree b = b
+
+instance ToConcrete A.Assign C.FieldAssignment where
+    toConcrete (Assign x e) = FieldAssignment x <$> toConcrete e
 
 -- Binder instances -------------------------------------------------------
 

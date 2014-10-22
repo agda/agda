@@ -15,6 +15,7 @@ import Control.Monad.Trans
 import Control.Monad.Reader
 
 import Data.Maybe
+import Data.Either (partitionEithers , lefts)
 import Data.List hiding (sort)
 import qualified Data.Map as Map
 import Data.Traversable (sequenceA)
@@ -31,7 +32,10 @@ import Agda.Syntax.Fixity
 import Agda.Syntax.Internal as I
 import Agda.Syntax.Position
 import Agda.Syntax.Literal
-import Agda.Syntax.Scope.Base (emptyScopeInfo)
+import Agda.Syntax.Scope.Base ( ThingsInScope, AbstractName
+                              , emptyScopeInfo
+                              , exportedNamesInScope)
+import Agda.Syntax.Scope.Monad (getNamedScope)
 import Agda.Syntax.Translation.InternalToAbstract (reify)
 
 import Agda.TypeChecking.Monad
@@ -70,6 +74,7 @@ import Agda.Utils.Except
   )
 
 import Agda.Utils.Functor (($>))
+import Agda.Utils.Lens
 import Agda.Utils.Maybe
 import Agda.Utils.Monad
 import Agda.Utils.Permutation
@@ -364,10 +369,30 @@ checkExtendedLambda i di qname cs e t = do
 -- * Records
 ---------------------------------------------------------------------------
 
+expandModuleAssigns :: [Either A.Assign A.ModuleName] -> [C.Name] -> TCM A.Assigns
+expandModuleAssigns mfs exs = do
+  let (fs , ms) = partitionEithers mfs
+      exs' = exs \\ map (view A.fieldAssign) fs
+  fs' <- forM exs' $ \ f -> do
+    pms <- forM ms $ \ m -> do
+       modScope <- getNamedScope m
+       let names :: ThingsInScope AbstractName
+           names = exportedNamesInScope modScope
+       return $
+        case Map.lookup f names of
+          Just [n] -> Just (m, A.Assign f (A.nameExpr n))
+          _        -> Nothing
+
+    case catMaybes pms of
+      []        -> return Nothing
+      [(_, fa)] -> return (Just fa)
+      mfas      -> typeError $ GenericError $ "Ambiguity: the field " ++ show f ++ " appears in the following modules " ++ show (map fst mfas)
+  return (fs ++ catMaybes fs')
+
 -- | @checkRecordExpression fs e t@ checks record construction against type @t@.
 -- Precondition @e = Rec _ fs@.
-checkRecordExpression :: A.Assigns -> A.Expr -> Type -> TCM Term
-checkRecordExpression fs e t = do
+checkRecordExpression :: A.RecordAssigns  -> A.Expr -> Type -> TCM Term
+checkRecordExpression mfs e t = do
   reportSDoc "tc.term.rec" 10 $ sep
     [ text "checking record expression"
     , prettyA e
@@ -387,6 +412,7 @@ checkRecordExpression fs e t = do
 
       def <- getRecordDef r
       let axs  = recordFieldNames def
+          exs  = filter notHidden axs
           xs   = map unArg axs
           ftel = recTel def
           con  = killRange $ recConHead def
@@ -396,18 +422,19 @@ checkRecordExpression fs e t = do
         , text $ "  con = " ++ show con
         ]
       scope  <- getScope
+      fs <- expandModuleAssigns mfs (map unArg exs)
       let arg x e =
             case [ a | a <- axs, unArg a == x ] of
               [a] -> unnamed e <$ a
               _   -> defaultNamedArg e -- we only end up here if the field names are bad
       let meta x = A.Underscore $ A.MetaInfo (getRange e) scope Nothing (show x)
           missingExplicits = [ (unArg a, [unnamed . meta <$> a])
-                             | a <- axs, notHidden a
-                             , notElem (unArg a) (map fst fs) ]
+                             | a <- exs
+                             , unArg a `notElem` map (view A.fieldAssign) fs ]
       -- In es omitted explicit fields are replaced by underscores
       -- (from missingExplicits). Omitted implicit or instance fields
       -- are still left out and inserted later by checkArguments_.
-      es   <- concat <$> orderFields r [] xs ([ (x, [arg x e]) | (x, e) <- fs ] ++
+      es   <- concat <$> orderFields r [] xs ([ (x, [arg x e]) | A.Assign x e <- fs ] ++
                                               missingExplicits)
       let tel = ftel `apply` vs
       args <- checkArguments_ ExpandLast (getRange e)
@@ -417,14 +444,14 @@ checkRecordExpression fs e t = do
       reportSDoc "tc.term.rec" 20 $ text $ "finished record expression"
       return $ Con con args
     MetaV _ _ -> do
-      let fields = map fst fs
+      let fields = [ x | Left (A.Assign x _) <- mfs ]
       rs <- findPossibleRecords fields
       case rs of
           -- If there are no records with the right fields we might as well fail right away.
-        [] -> case fs of
-          []       -> typeError $ GenericError "There are no records in scope"
-          [(f, _)] -> typeError $ GenericError $ "There is no known record with the field " ++ show f
-          _        -> typeError $ GenericError $ "There is no known record with the fields " ++ unwords (map show fields)
+        [] -> case fields of
+          []  -> typeError $ GenericError "There are no records in scope"
+          [f] -> typeError $ GenericError $ "There is no known record with the field " ++ show f
+          _   -> typeError $ GenericError $ "There is no known record with the fields " ++ unwords (map show fields)
           -- If there's only one record with the appropriate fields, go with that.
         [r] -> do
           def <- getConstInfo r
@@ -472,9 +499,9 @@ checkRecordUpdate ei recexpr fs e t = do
         axs <- getRecordFieldNames r
         scope <- getScope
         let xs = map unArg axs
-        es <- orderFields r Nothing xs $ map (\(x, e) -> (x, Just e)) fs
+        es <- orderFields r Nothing xs $ map (\(A.Assign x e) -> (x, Just e)) fs
         let es' = zipWith (replaceFields name ei) projs es
-        checkExpr (A.Rec ei [ (x, e) | (x, Just e) <- zip xs es' ]) t
+        checkExpr (A.Rec ei [ Left (A.Assign x e) | (x, Just e) <- zip xs es' ]) t
     MetaV _ _ -> do
       inferred <- inferExpr recexpr >>= reduce . snd
       case ignoreSharing $ unEl inferred of
