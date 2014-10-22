@@ -52,6 +52,7 @@ import Agda.Utils.Monad
 import Agda.Utils.Maybe
 import Agda.Utils.Size
 import Agda.Utils.Tuple
+import Agda.Utils.Lens
 
 #include "undefined.h"
 import Agda.Utils.Impossible
@@ -180,18 +181,24 @@ compareTerm cmp a u v = do
     orelse m h = catchError m (\_ -> h)
 
 unifyPointers :: Comparison -> Term -> Term -> TCM () -> TCM ()
--- unifyPointers _ _ _ action = action
-unifyPointers cmp _ _ action | cmp /= CmpEq = action
-unifyPointers _ u v action = do
-  old <- gets stDirty
-  modify $ \s -> s { stDirty = False }
-  action
-  (u, v) <- instantiate (u, v)
-  dirty <- gets stDirty
-  modify $ \s -> s { stDirty = old }
-  if dirty then verboseS "profile.sharing" 20 (tick "unifyPtr: dirty")
-           else verboseS "profile.sharing" 20 (tick "unifyPtr: clean") >>
-                forceEqualTerms u v
+unifyPointers _ _ _ action = action
+-- unifyPointers cmp _ _ action | cmp /= CmpEq = action
+-- unifyPointers _ u v action = do
+--   reportSLn "tc.ptr.unify" 50 $ "Maybe unifying pointers\n  u = " ++ show u ++ "\n  v = " ++ show v
+--   old <- use stDirty
+--   stDirty .= False
+--   action
+--   reportSLn "tc.ptr.unify" 50 $ "Finished comparison\n  u = " ++ show u ++ "\n  v = " ++ show v
+--   (u, v) <- instantiate (u, v)
+--   reportSLn "tc.ptr.unify" 50 $ "After instantiation\n  u = " ++ show u ++ "\n  v = " ++ show v
+--   dirty <- use stDirty
+--   stDirty .= old
+--   if dirty then verboseS "profile.sharing" 20 (tick "unifyPtr: dirty")
+--            else do
+--             verboseS "profile.sharing" 20 (tick "unifyPtr: clean")
+--             reportSLn "tc.ptr.unify" 80 $ "Unifying\n  u = " ++ show u ++ "\n  v = " ++ show v
+--             forceEqualTerms u v
+--             reportSLn "tc.ptr.unify" 80 $ "After unification\n  u = " ++ show u ++ "\n  v = " ++ show v
 
 -- | Try to assign meta.  If meta is projected, try to eta-expand
 --   and run conversion check again.
