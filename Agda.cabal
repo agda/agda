@@ -332,6 +332,7 @@ library
                     Agda.Utils.BiMap
                     Agda.Utils.Char
                     Agda.Utils.Cluster
+                    Agda.Utils.Empty
                     Agda.Utils.Except
                     Agda.Utils.Either
                     Agda.Utils.Favorites
