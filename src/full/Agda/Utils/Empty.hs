@@ -6,7 +6,7 @@ module Agda.Utils.Empty where
 
 import Agda.Utils.Impossible
 
-#include "undefined.h"
+#include "../undefined.h"
 
 data Empty
 
