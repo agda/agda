@@ -5,5 +5,5 @@ checkClause
 Issue1303.agda:13,1-23,7
 Unable to unquote the term (clause (arg₀ dot ∷ arg₀ (con (quote
 box) (arg₀ var ∷ [])) ∷ []) (var 1 [])) of type Clause. Reason: the
-right-hand side uses variables that are referring to a dot pattern.
-Offending De Bruijn indices: 1.
+right-hand side contains variables that are referring to a dot
+pattern. Offending De Bruijn indices: 1.
