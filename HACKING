@@ -84,8 +84,8 @@ Testing and documentation
   test/interaction. When adding test cases under test/fail, remember
   to record the error messages (.err files) after running make test.
 
-* Run the test-suite, using make test (which does not work properly
-  unless you run autoreconf and ./configure first).
+* Run the test-suite, using make test.  Maybe you want to `cabal build'
+  first as well.
 
 * Tests under test/fail can fail if an error message has changed.
   You will be asked whether to accept the new error message.
@@ -129,6 +129,27 @@ Some Agda Hacking Lore
 
   Calls to error can make Agda fail with an error message in the *ghci*
   buffer.
+
+Haskell-mode and the agda codebase
+
+* If you're using a recent haskell-mode (use `M-x package-install
+  haskell-mode' to be sure, what's packaged by debian is not enough),
+  and you're editing an Haskell file, you can load it up in by tapping
+  `C-c C-l', and agreeing to emacs proposals about paths and whatsnot.
+
+  You can toggle from :load to :reload with `C-u C-c C-l', which you
+  probably want since otherwise you'll load up the world each time.
+
+  You have semantic jumps with `M-.'.  No more pesky T.A.G.S.!
+
+  You can jump to errors and warnings with `C-x `'.  You can probably do
+  many other things, emacs is your oyster.
+
+  One little caveat: GHCi needs some generated files to work.  To make
+  sure you have them, you can issue `cabal build' and kill it when it
+  starts compiling modules.  There doesn't seem to be a programmatic way
+  to instruct cabal to do so.  They're pretty stable so you don't have
+  to do that often.
 
 Emacs mode
 
@@ -178,3 +199,4 @@ you know how to port these tips to git, update this file.
   be changed by adding the following line to _darcs/prefs/defaults:
 
     ALL test
+
