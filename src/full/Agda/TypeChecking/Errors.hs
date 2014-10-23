@@ -801,10 +801,10 @@ instance PrettyTCM TypeError where
                   pwords $ "Unable to unquote the argument. It should be `" ++ msg ++ "'."
                 (ConInsteadOfDef x def con) -> do
                   c   <- prettyTCM x
-                  fsep $ pwords $ "Use " ++ con ++ " instead of " ++ def ++ " for constructor" ++ show c
+                  fsep $ pwords $ "Use " ++ con ++ " instead of " ++ def ++ " for constructor " ++ show c
                 (DefInsteadOfCon x def con) -> do
                   f   <- prettyTCM x
-                  fsep $ pwords $ "Use " ++ def ++ " instead of " ++ con ++ " for non-constructor" ++ show f
+                  fsep $ pwords $ "Use " ++ def ++ " instead of " ++ con ++ " for non-constructor " ++ show f
                 (BadConstructor kind reason t) -> do
                   doc <- prettyTCM t
                   vcat [ fsep $ pwords $ "Unable to unquote the term (" ++ show doc ++ ") of type " ++ kind ++ "."
