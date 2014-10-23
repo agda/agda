@@ -108,9 +108,17 @@ parseVariables ii rng ss = do
   xs <- forM (downFrom n) $ \ i -> do
     (,i) . P.render <$> prettyTCM (var i)
 
+  -- Get number of module parameters.  These cannot be split on.
+  fv <- getModuleFreeVars =<< currentModule
+  let numSplittableVars = n - fv
+
   -- Resolve each string to a variable.
   forM ss $ \ s -> do
     let failNotVar = typeError $ GenericError $ "Not a (splittable) variable: " ++ s
+        done i
+          | i < numSplittableVars = return i
+          | otherwise             = failNotVar
+
     -- Note: the range in the concrete name is only approximate.
     resName <- resolveName $ C.QName $ C.Name r $ C.stringNameParts s
     case resName of
@@ -126,7 +134,7 @@ parseVariables ii rng ss = do
       VarName x -> do
         (v, _) <- getVarInfo x
         case ignoreSharing v of
-          Var i [] -> return i
+          Var i [] -> done i
           _        -> failNotVar
 
       -- If s is not a name, compare it to the printed variable representation.
@@ -134,7 +142,7 @@ parseVariables ii rng ss = do
       UnknownName -> do
         case filter ((s ==) . fst) xs of
           []      -> typeError $ GenericError $ "Unbound variable " ++ s
-          [(_,i)] -> return i
+          [(_,i)] -> done i
           -- Issue 1325: Variable names in context can be ambiguous.
           _       -> typeError $ GenericError $ "Ambiguous variable " ++ s
 
