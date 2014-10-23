@@ -446,7 +446,7 @@ updateSharedFM f v0@(Shared p) = do
   flip traverse fv $ \v ->
     case derefPtr (setPtr v p) of
       Var _ [] -> return v
-      _        -> compressPointerChain v0 `pseq` return v0
+      _        -> return $! compressPointerChain v0
 updateSharedFM f v = f v
 
 updateSharedM :: Monad m => (Term -> m Term) -> Term -> m Term
@@ -454,14 +454,14 @@ updateSharedM f v0@(Shared p) = do
   v <- f (derefPtr p)
   case derefPtr (setPtr v p) of
     Var _ [] -> return v
-    _        -> compressPointerChain v0 `pseq` return v0
+    _        -> return $! compressPointerChain v0
 updateSharedM f v = f v
 
 updateShared :: (Term -> Term) -> Term -> Term
 updateShared f v0@(Shared p) =
   case derefPtr (setPtr (f $ derefPtr p) p) of
     v@(Var _ []) -> v
-    _            -> compressPointerChain v0 `pseq` v0
+    _            -> compressPointerChain v0
 updateShared f v = f v
 
 pointerChain :: Term -> [Ptr Term]
@@ -469,14 +469,16 @@ pointerChain (Shared p) = p : pointerChain (derefPtr p)
 pointerChain _          = []
 
 -- Redirect all top-level pointers to point to the last pointer. So, after
--- compression there are at most two top-level indirections.
+-- compression there are at most two top-level indirections. Then return the
+-- inner-most pointer so we have only one pointer for the result.
 compressPointerChain :: Term -> Term
 compressPointerChain v =
   case reverse $ pointerChain v of
     p:_:ps@(_:_) -> setPointers (Shared p) ps
+    p:_:_        -> (Shared p)
     _            -> v
   where
-    setPointers _ [] = v
+    setPointers u [] = u
     setPointers u (p : ps) =
       setPtr u p `seq` setPointers u ps
 
