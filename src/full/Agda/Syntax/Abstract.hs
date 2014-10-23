@@ -56,12 +56,6 @@ type NamedArg a = Common.NamedArg Color a
 type ArgInfo    = Common.ArgInfo Color
 type Args       = [NamedArg Expr]
 
--- instance Eq Color where
---   Var x == Var y = x == y
---   Def x == Def y = x == y
---   -- TODO guilhem:
---   _ == _         = __IMPOSSIBLE__
-
 instance Ord Color where
   Var x <= Var y = x <= y
   Def x <= Def y = x <= y
@@ -264,25 +258,6 @@ data SpineLHS = SpineLHS
   }
   deriving (Typeable, Show, Eq)
 
--- | Literal equality of patterns, ignoring dot patterns
-instance Eq (Pattern' e) where
-  p == p' =
-    case (p,p') of
-      ((VarP x)             , (VarP x')             ) -> x === x'
-      ((ConP _ x ps)        , (ConP _ x' ps')       ) -> x == x' && ps == ps'
-      ((DefP _ x ps)        , (DefP _ x' ps')       ) -> x == x' && ps == ps'
-      ((WildP _)            , (WildP _)             ) -> True
-      ((AsP _ x p)          , (AsP _ x' p')         ) -> x === x' && p == p'
-      ((DotP _ _)           , (DotP _ _)            ) -> True
-      (AbsurdP{}            , AbsurdP{}             ) -> True
-      ((LitP l)             , (LitP l')             ) -> l == l'
-      (ImplicitP{}          , ImplicitP{}           ) -> True
-      ((PatternSynP _ x ps) , (PatternSynP _ x' ps')) -> x == x' && ps == ps'
-      (_                    , _                     ) -> False
-    where (Name _ (C.Name _ x) _ _) === (Name _ (C.Name _ x') _ _) = True
-          (Name _ C.NoName{}   _ _) === (Name _ C.NoName{}    _ _) = True
-          _                           === _                            = False
-
 
 instance Eq LHS where
   (LHS _ core wps) == (LHS _ core' wps') = core == core' && wps == wps'
@@ -402,7 +377,7 @@ data Pattern' e
   | ImplicitP PatInfo
     -- ^ Generated at type checking for implicit arguments.
   | PatternSynP PatInfo QName [NamedArg (Pattern' e)]
-  deriving (Typeable, Show, Functor, Foldable, Traversable)
+  deriving (Typeable, Show, Functor, Foldable, Traversable, Eq)
 
 type Pattern  = Pattern' Expr
 type Patterns = [NamedArg Pattern]

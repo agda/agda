@@ -80,8 +80,7 @@ data ModuleInfo = ModuleInfo
     -- ^ Retained for @abstractToConcrete@ of 'ModuleMacro'.
   }
   deriving (Typeable, Eq)
-instance Eq ImportDirective where -- TODO Andrea
-  x == y = True
+
 deriving instance (Show OpenShortHand, Show ImportDirective) => Show ModuleInfo
 
 instance HasRange ModuleInfo where
@@ -187,29 +186,19 @@ instance KillRange LHSInfo where
     Pattern information
  --------------------------------------------------------------------------}
 
--- | For a general pattern we can either remember just the source code
---   position or the entire concrete pattern it came from.
+-- | For a general pattern we remember the source code position.
 data PatInfo
   = PatRange Range
-  | PatSource Range (Precedence -> Pattern)
-      -- ^ Even if we store the original pattern we have to know
-      --   whether to put parenthesis around it.
-  deriving (Typeable)
-
-instance Eq PatInfo where -- TODO
-  a == b = True
+  deriving (Typeable, Eq)
 
 instance Show PatInfo where
   show (PatRange r) = "PatRange " ++ show r
-  show (PatSource r _) = "PatSource " ++ show r
 
 instance HasRange PatInfo where
   getRange (PatRange r)    = r
-  getRange (PatSource r _) = r
 
 instance KillRange PatInfo where
   killRange (PatRange r)    = PatRange noRange
-  killRange (PatSource r f) = PatSource noRange f
 
 -- | Empty range for patterns.
 patNoRange :: PatInfo
