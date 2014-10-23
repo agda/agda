@@ -18,7 +18,7 @@ import Prelude hiding (null)
 import Control.Monad.State
 
 import Data.Function
-import Data.List (nub, sortBy)
+import Data.List (nub, sortBy, intercalate)
 import Data.Maybe
 import qualified Data.Map as Map (empty)
 
@@ -249,6 +249,7 @@ errorString err = case err of
     UnsolvedMetas{}                          -> "UnsolvedMetas"
     SolvedButOpenHoles{}                     -> "SolvedButOpenHoles"
     UnusedVariableInPatternSynonym           -> "UnusedVariableInPatternSynonym"
+    UnquoteFailed{}                          -> "UnquoteFailed"
     WithClausePatternMismatch{}              -> "WithClausePatternMismatch"
     WithoutKError{}                          -> "WithoutKError"
     WrongHidingInApplication{}               -> "WrongHidingInApplication"
@@ -799,6 +800,34 @@ instance PrettyTCM TypeError where
                     com (_:_) = comma
             IFSNoCandidateInScope t -> fsep $
                 pwords "No variable of type" ++ [prettyTCM t] ++ pwords "was found in scope."
+            UnquoteFailed e -> case e of
+                (BadVisibility msg arg) -> fsep $
+                  pwords $ "Unable to unquote the argument. It should be `" ++ msg ++ "'."
+                (ConInsteadOfDef x def con) -> do
+                  c   <- prettyTCM x
+                  fsep $ pwords $ "Use " ++ con ++ " instead of " ++ def ++ " for constructor " ++ show c
+                (DefInsteadOfCon x def con) -> do
+                  f   <- prettyTCM x
+                  fsep $ pwords $ "Use " ++ def ++ " instead of " ++ con ++ " for non-constructor " ++ show f
+                (BadConstructor kind reason t) -> do
+                  doc <- prettyTCM t
+                  vcat [ fsep $ pwords $ "Unable to unquote the term (" ++ show doc ++ ") of type " ++ kind ++ "."
+                       , fsep $ pwords $ "Reason: " ++ reason ++ "." ]
+                (NotAConstructor kind t) -> do
+                  doc <- prettyTCM t
+                  vcat [ fsep $ pwords $ "Unable to unquote the term (" ++ show doc ++ ") of type " ++ kind ++ "."
+                       , fsep $ pwords $ "Reason: not a constructor." ]
+                (NotALiteral kind t) -> do
+                  doc <- prettyTCM t
+                  vcat [ fsep $ pwords $ "Unable to unquote the term (" ++ show doc ++ ") of type " ++ kind ++ "."
+                       , fsep $ pwords $ "Reason: not a literal value." ]
+                (RhsUsesDottedVar ixs t) -> do
+                  doc <- prettyTCM t
+                  vcat [ fsep $ pwords $ "Unable to unquote the term (" ++ show doc ++ ") of type Clause."
+                       , fsep $ pwords "Reason: the right-hand side contains variables that are referring to a dot pattern."
+                       , fsep $ pwords $ "Offending De Bruijn indices: " ++ intercalate ", " (map show ixs) ++ "." ]
+                (BlockedOnMeta m) -> __IMPOSSIBLE__
+                (UnquotePanic err) -> __IMPOSSIBLE__
             SafeFlagPostulate e -> fsep $
                 pwords "Cannot postulate" ++ [pretty e] ++ pwords "with safe flag"
             SafeFlagPragma xs ->

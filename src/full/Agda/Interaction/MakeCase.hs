@@ -14,9 +14,12 @@ import Data.Traversable
 
 import Agda.Syntax.Common
 import Agda.Syntax.Position
+import qualified Agda.Syntax.Concrete as C
 import qualified Agda.Syntax.Abstract as A
 import qualified Agda.Syntax.Info as A
 import Agda.Syntax.Internal
+import Agda.Syntax.Scope.Monad (resolveName, ResolvedName(..))
+import Agda.Syntax.Translation.ConcreteToAbstract
 import Agda.Syntax.Translation.InternalToAbstract
 
 import Agda.TypeChecking.Monad
@@ -38,8 +41,11 @@ import qualified Agda.Utils.HashMap as HMap
 #include "undefined.h"
 import Agda.Utils.Impossible
 
-data CaseContext = FunctionDef | ExtendedLambda Int Int
-                 deriving (Eq)
+data CaseContext
+  = FunctionDef
+  | ExtendedLambda Int Int
+  deriving (Eq)
+
 -- | Find the clause whose right hand side is the given meta
 -- BY SEARCHING THE WHOLE SIGNATURE. Returns
 -- the original clause, before record patterns have been translated
@@ -84,21 +90,54 @@ findClause m = do
       MetaV m' _  -> m == m'
       _           -> False
 
+
 -- | Parse variables (visible or hidden), returning their de Bruijn indices.
 --   Used in 'makeCase'.
+
 parseVariables :: InteractionId -> Range -> [String] -> TCM [Int]
 parseVariables ii rng ss = do
+
+  -- Get into the context of the meta.
   mId <- lookupInteractionId ii
   updateMetaVarRange mId rng
   mi  <- getMetaInfo <$> lookupMeta mId
-  enterClosure mi $ \ _r -> do
-    n  <- getContextSize
-    xs <- forM (downFrom n) $ \ i -> do
-      (,i) . P.render <$> prettyTCM (var i)
-    forM ss $ \ s -> do
-      case lookup s xs of
-        Nothing -> typeError $ GenericError $ "Unbound variable " ++ s
-        Just i  -> return i
+  enterClosure mi $ \ r -> do
+
+  -- Get printed representation of variables in context.
+  n  <- getContextSize
+  xs <- forM (downFrom n) $ \ i -> do
+    (,i) . P.render <$> prettyTCM (var i)
+
+  -- Resolve each string to a variable.
+  forM ss $ \ s -> do
+    let failNotVar = typeError $ GenericError $ "Not a (splittable) variable: " ++ s
+    -- Note: the range in the concrete name is only approximate.
+    resName <- resolveName $ C.QName $ C.Name r $ C.stringNameParts s
+    case resName of
+
+      -- Fail if s is a name, but not of a variable.
+      DefinedName{}       -> failNotVar
+      FieldName{}         -> failNotVar
+      ConstructorName{}   -> failNotVar
+      PatternSynResName{} -> failNotVar
+
+      -- If s is a variable name in scope, get its de Bruijn index
+      -- via the type checker.
+      VarName x -> do
+        (v, _) <- getVarInfo x
+        case ignoreSharing v of
+          Var i [] -> return i
+          _        -> failNotVar
+
+      -- If s is not a name, compare it to the printed variable representation.
+      -- This fallback is to enable splitting on hidden variables.
+      UnknownName -> do
+        case filter ((s ==) . fst) xs of
+          []      -> typeError $ GenericError $ "Unbound variable " ++ s
+          [(_,i)] -> return i
+          -- Issue 1325: Variable names in context can be ambiguous.
+          _       -> typeError $ GenericError $ "Ambiguous variable " ++ s
+
 
 -- | Entry point for case splitting tactic.
 makeCase :: InteractionId -> Range -> String -> TCM (CaseContext , [A.Clause])

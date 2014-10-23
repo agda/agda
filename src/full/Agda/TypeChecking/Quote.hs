@@ -10,9 +10,9 @@ module Agda.TypeChecking.Quote where
 import Control.Applicative
 import Control.Monad.State (evalState, get, put)
 import Control.Monad.Writer (execWriterT, tell)
+import Control.Monad.Trans (lift)
 
 import Data.Char
-import Data.List (intercalate)
 import Data.Maybe (fromMaybe)
 import Data.Traversable (traverse)
 
@@ -29,12 +29,13 @@ import Agda.TypeChecking.Free
 import Agda.TypeChecking.Level
 import Agda.TypeChecking.Monad
 import Agda.TypeChecking.Monad.Builtin
+import Agda.TypeChecking.Monad.Exception
 import Agda.TypeChecking.Pretty
 import Agda.TypeChecking.Reduce
 import Agda.TypeChecking.Reduce.Monad
 import Agda.TypeChecking.Substitute
 
-import Agda.Utils.Except ( MonadError(catchError) )
+import Agda.Utils.Except
 import Agda.Utils.Impossible
 import Agda.Utils.Monad ( ifM )
 import Agda.Utils.Permutation ( Permutation(Perm) )
@@ -250,57 +251,60 @@ agdaTypeType = El (mkType 0) <$> primAgdaType
 qNameType :: TCM Type
 qNameType = El (mkType 0) <$> primQName
 
-isCon :: ConHead -> TCM Term -> TCM Bool
-isCon con tm = do t <- tm
+type UnquoteM = ExceptionT UnquoteError TCM
+
+runUnquoteM :: UnquoteM a -> TCM (Either UnquoteError a)
+runUnquoteM = runExceptionT
+
+isCon :: ConHead -> TCM Term -> UnquoteM Bool
+isCon con tm = do t <- lift tm
                   case ignoreSharing t of
                     Con con' _ -> return (con == con')
                     _ -> return False
 
-unquoteFailedGeneric :: String -> TCM a
+{-unquoteFailedGeneric :: String -> UnquoteM a
 unquoteFailedGeneric msg = typeError . GenericError $ "Unable to unquote the " ++ msg
 
 unquoteFailed :: String -> String -> Term -> TCM a
 unquoteFailed kind msg t = do doc <- prettyTCM t
                               unquoteFailedGeneric $ "term (" ++ show doc ++ ") of type " ++ kind ++ ".\nReason: " ++ msg ++ "."
-
+-}
 class Unquote a where
-  unquote :: Term -> TCM a
+  unquote :: Term -> UnquoteM a
 
-unquoteH :: Unquote a => I.Arg Term -> TCM a
+unquoteH :: Unquote a => I.Arg Term -> UnquoteM a
 unquoteH a | isHidden a && isRelevant a =
     unquote $ unArg a
-unquoteH _ = unquoteFailedGeneric "argument. It should be `hidden'."
+unquoteH a = throwException $ BadVisibility "hidden"  a
 
-unquoteN :: Unquote a => I.Arg Term -> TCM a
+unquoteN :: Unquote a => I.Arg Term -> UnquoteM a
 unquoteN a | notHidden a && isRelevant a =
     unquote $ unArg a
-unquoteN _ = unquoteFailedGeneric "argument. It should be `visible'"
+unquoteN a = throwException $ BadVisibility "visible" a
 
 choice :: Monad m => [(m Bool, m a)] -> m a -> m a
 choice [] dflt = dflt
 choice ((mb, mx) : mxs) dflt = ifM mb mx $ choice mxs dflt
 
-ensureDef :: QName -> TCM QName
+ensureDef :: QName -> UnquoteM QName
 ensureDef x = do
   i <- (theDef <$> getConstInfo x) `catchError` \_ -> return Axiom  -- for recursive unquoteDecl
   case i of
     Constructor{} -> do
-      def <- prettyTCM =<< primAgdaTermDef
-      con <- prettyTCM =<< primAgdaTermCon
-      c   <- prettyTCM x
-      setCurrentRange (getRange x) $ typeError $ GenericError $ "Use " ++ show con ++ " instead of " ++ show def ++ " for constructor " ++ show c
+      def <- lift $ prettyTCM =<< primAgdaTermDef
+      con <- lift $ prettyTCM =<< primAgdaTermCon
+      throwException $ ConInsteadOfDef x (show def) (show con)
     _ -> return x
 
-ensureCon :: QName -> TCM QName
+ensureCon :: QName -> UnquoteM QName
 ensureCon x = do
   i <- (theDef <$> getConstInfo x) `catchError` \_ -> return Axiom  -- for recursive unquoteDecl
   case i of
     Constructor{} -> return x
     _ -> do
-      def <- prettyTCM =<< primAgdaTermDef
-      con <- prettyTCM =<< primAgdaTermCon
-      f   <- prettyTCM x
-      setCurrentRange (getRange x) $ typeError $ GenericError $ "Use " ++ show def ++ " instead of " ++ show con ++ " for non-constructor " ++ show f
+      def <- lift $ prettyTCM =<< primAgdaTermDef
+      con <- lift $ prettyTCM =<< primAgdaTermCon
+      throwException $ DefInsteadOfCon x (show def) (show con)
 
 pickName :: Type -> String
 pickName a =
@@ -313,23 +317,25 @@ pickName a =
 
 instance Unquote I.ArgInfo where
   unquote t = do
-    t <- reduce t
+    t <- lift $ reduce t
     case ignoreSharing t of
       Con c [h,r] -> do
         choice
           [(c `isCon` primArgArgInfo, ArgInfo <$> unquoteN h <*> unquoteN r <*> return [])]
-          (unquoteFailed "ArgInfo" "arity 2 and not the `arginfo' constructor" t)
-      _ -> unquoteFailed "ArgInfo" "not of arity 2" t
+          (throwException $ BadConstructor "ArgInfo" "arity 2 and not the `arginfo' constructor" t)
+      Con c _ -> throwException $ BadConstructor "ArgInfo" "not of arity 2" t
+      _ -> throwException $ NotAConstructor "ArgInfo" t
 
 instance Unquote a => Unquote (I.Arg a) where
   unquote t = do
-    t <- reduce t
+    t <- lift $ reduce t
     case ignoreSharing t of
       Con c [info,x] -> do
         choice
           [(c `isCon` primArgArg, Arg <$> unquoteN info <*> unquoteN x)]
-          (unquoteFailed "Arg" "arity 2 and not the `arg' constructor" t)
-      _ -> unquoteFailed "Arg" "not of arity 2" t
+          (throwException $ BadConstructor "Arg" "arity 2 and not the `arg' constructor" t)
+      Con c _ -> throwException $ BadConstructor "Arg" "not of arity 2" t
+      _ -> throwException $ NotAConstructor "Arg" t
 
 -- Andreas, 2013-10-20: currently, post-fix projections are not part of the
 -- quoted syntax.
@@ -338,105 +344,105 @@ instance Unquote a => Unquote (Elim' a) where
 
 instance Unquote Integer where
   unquote t = do
-    t <- reduce t
+    t <- lift $ reduce t
     case ignoreSharing t of
       Lit (LitInt _ n) -> return n
-      _ -> unquoteFailed "Integer" "not a literal integer" t
+      _ -> throwException $ NotALiteral "Integer" t
 
 instance Unquote Double where
   unquote t = do
-    t <- reduce t
+    t <- lift $ reduce t
     case ignoreSharing t of
       Lit (LitFloat _ x) -> return x
-      _ -> unquoteFailed "Float" "not a literal float" t
+      _ -> throwException $ NotALiteral "Float" t
 
 instance Unquote Char where
   unquote t = do
-    t <- reduce t
+    t <- lift $ reduce t
     case ignoreSharing t of
       Lit (LitChar _ x) -> return x
-      _ -> unquoteFailed "Char" "not a literal char" t
+      _ -> throwException $ NotALiteral "Char" t
 
 instance Unquote Str where
   unquote t = do
-    t <- reduce t
+    t <- lift $ reduce t
     case ignoreSharing t of
       Lit (LitString _ x) -> return (Str x)
-      _ -> unquoteFailed "String" "not a literal string" t
+      _ -> throwException $ NotALiteral "String" t
 
-unquoteString :: Term -> TCM String
+unquoteString :: Term -> UnquoteM String
 unquoteString x = unStr <$> unquote x
 
-unquoteNString :: I.Arg Term -> TCM String
+unquoteNString :: I.Arg Term -> UnquoteM String
 unquoteNString x = unStr <$> unquoteN x
 
 instance Unquote a => Unquote [a] where
   unquote t = do
-    t <- reduce t
+    t <- lift $ reduce t
     case ignoreSharing t of
       Con c [x,xs] -> do
         choice
           [(c `isCon` primCons, (:) <$> unquoteN x <*> unquoteN xs)]
-          (unquoteFailed "List" "arity 2 and not the `∷' constructor" t)
+          (throwException $ BadConstructor "List" "arity 2 and not the `∷' constructor" t)
       Con c [] -> do
         choice
           [(c `isCon` primNil, return [])]
-          (unquoteFailed "List" "arity 0 and not the `[]' constructor" t)
-      _ -> unquoteFailed "List" "neither `[]' nor `∷'" t
+          (throwException $ BadConstructor "List" "arity 0 and not the `[]' constructor" t)
+      Con c _ -> throwException $ BadConstructor "List" "neither `[]' nor `∷'" t
+      _ -> throwException $ NotAConstructor "List" t
 
 instance Unquote Hiding where
   unquote t = do
-    t <- reduce t
-    let err = unquoteFailed "Hiding" "neither `hidden' nor `visible'" t
+    t <- lift $ reduce t
     case ignoreSharing t of
       Con c [] -> do
         choice
           [(c `isCon` primHidden,  return Hidden)
           ,(c `isCon` primInstance, return Instance)
           ,(c `isCon` primVisible, return NotHidden)]
-          err
-      Con c vs -> unquoteFailed "Hiding" "the value is a constructor, but its arity is not 0" t
-      _        -> err
+          (throwException $ BadConstructor "Hiding" "neither `hidden' nor `visible'" t)
+      Con c vs -> throwException $ BadConstructor "Hiding" "the value is a constructor, but its arity is not 0" t
+      _        -> throwException $ NotAConstructor "Hiding" t
 
 instance Unquote Relevance where
   unquote t = do
-    t <- reduce t
-    let err = unquoteFailed "Relevance" "neither `relevant' or `irrelevant'" t
+    t <- lift $ reduce t
     case ignoreSharing t of
       Con c [] -> do
         choice
           [(c `isCon` primRelevant,   return Relevant)
           ,(c `isCon` primIrrelevant, return Irrelevant)]
-          err
-      Con c vs -> unquoteFailed "Relevance" "the value is a constructor, but its arity is not 0" t
-      _        -> err
+          (throwException $ BadConstructor "Relevance" "neither `relevant' or `irrelevant'" t)
+      Con c vs -> throwException $ BadConstructor "Relevance" "the value is a constructor, but its arity is not 0" t
+      _        -> throwException $ NotAConstructor "Relevance" t
 
 instance Unquote QName where
   unquote t = do
-    t <- reduce t
+    t <- lift $ reduce t
     case ignoreSharing t of
       Lit (LitQName _ x) -> return x
-      _                  -> unquoteFailed "QName" "not a literal qname value" t
+      _                  -> throwException $ NotALiteral "QName" t
 
 instance Unquote ConHead where
-  unquote t = getConHead =<< ensureCon =<< unquote t
+  unquote t = lift . getConHead =<< ensureCon =<< unquote t
 
 instance Unquote a => Unquote (Abs a) where
   unquote t = do
-    t <- reduce t
+    t <- lift $ reduce t
     case ignoreSharing t of
       Con c [x,y] -> do
         choice
           [(c `isCon` primAbsAbs, Abs <$> (hint <$> unquoteNString x) <*> unquoteN y)]
-          (unquoteFailed "Abs" "arity 2 and not the `abs' constructor (ABSABS builtin)" t)
-      _ -> unquoteFailed "Abs" "not an arity 2 constructor" t
+          (throwException $ BadConstructor "Abs" "arity 2 and not the `abs' constructor (ABSABS builtin)" t)
+      Con c _ -> throwException $ BadConstructor "Abs" "not an arity 2 constructor" t
+      _ -> throwException $ NotAConstructor "Abs" t
 
     where hint x | not (null x) = x
                  | otherwise    = "_"
 
 instance Unquote Sort where
   unquote t = do
-    t <- reduce t
+    t <- lift $ reduce t
     case ignoreSharing t of
       Con c [] -> do
         choice
@@ -446,25 +452,27 @@ instance Unquote Sort where
         choice
           [(c `isCon` primAgdaSortSet, Type <$> unquoteN u)
           ,(c `isCon` primAgdaSortLit, Type . levelMax . (:[]) . ClosedLevel <$> unquoteN u)]
-          (unquoteFailed "Sort" "arity 1 and not the `set' or the `lit' constructors" t)
-      _ -> unquoteFailed "Sort" "not of arity 0 nor 1" t
+          (throwException $ BadConstructor "Sort" "arity 1 and not the `set' or the `lit' constructors" t)
+      Con c _ -> throwException $ BadConstructor "Sort" "not of arity 0 nor 1" t
+      _ -> throwException $ NotAConstructor "Sort" t
 
 instance Unquote Level where
   unquote l = Max . (:[]) . Plus 0 . UnreducedLevel <$> unquote l
 
 instance Unquote Type where
   unquote t = do
-    t <- reduce t
+    t <- lift $ reduce t
     case ignoreSharing t of
       Con c [s, u] -> do
         choice
           [(c `isCon` primAgdaTypeEl, El <$> unquoteN s <*> unquoteN u)]
-          (unquoteFailed "Type" "arity 2 and not the `el' constructor" t)
-      _ -> unquoteFailed "Type" "not of arity 2" t
+          (throwException $ BadConstructor "Type" "arity 2 and not the `el' constructor" t)
+      Con c _ -> throwException $ BadConstructor "Type" "not of arity 2" t
+      _ -> throwException $ NotAConstructor "Type" t
 
 instance Unquote Literal where
   unquote t = do
-    t <- reduce t
+    t <- lift $ reduce t
     case ignoreSharing t of
       Con c [x] ->
         choice
@@ -473,23 +481,24 @@ instance Unquote Literal where
           , (c `isCon` primAgdaLitChar,   LitChar   noRange <$> unquoteN x)
           , (c `isCon` primAgdaLitString, LitString noRange <$> unquoteNString x)
           , (c `isCon` primAgdaLitQName,  LitQName  noRange <$> unquoteN x) ]
-          (unquoteFailed "Literal" "not a literal constructor" t)
-      _ -> unquoteFailed "Literal" "not a literal constructor" t
+          (throwException $ BadConstructor "Literal" "not a literal constructor" t)
+      Con c _ -> throwException $ BadConstructor "Literal" "not a literal constructor" t
+      _ -> throwException $ NotAConstructor "Literal" t
 
 instance Unquote Term where
   unquote t = do
-    t <- reduce t
+    t <- lift $ reduce t
     case ignoreSharing t of
       Con c [] ->
         choice
           [(c `isCon` primAgdaTermUnsupported, pure hackReifyToMeta)]
-          (unquoteFailed "Term" "arity 0 and not the `unsupported' constructor" t)
+          (throwException $ BadConstructor "Term" "arity 0 and not the `unsupported' constructor" t)
 
       Con c [x] -> do
         choice
           [ (c `isCon` primAgdaTermSort,   Sort <$> unquoteN x)
           , (c `isCon` primAgdaTermLit,    Lit <$> unquoteN x) ]
-          (unquoteFailed "Term" "bad constructor" t)
+          (throwException $ BadConstructor "Term" "bad constructor" t)
 
       Con c [x, y] ->
         choice
@@ -499,7 +508,7 @@ instance Unquote Term where
           , (c `isCon` primAgdaTermLam,    Lam    <$> (flip setHiding defaultArgInfo <$> unquoteN x) <*> unquoteN y)
           , (c `isCon` primAgdaTermPi,     mkPi   <$> (domFromArg                    <$> unquoteN x) <*> unquoteN y)
           , (c `isCon` primAgdaTermExtLam, ExtLam <$> unquoteN x <*> unquoteN y) ]
-          (unquoteFailed "Term" "bad term constructor" t)
+          (throwException $ BadConstructor "Term" "bad term constructor" t)
         where
           mkPi a (Abs "_" b) = Pi a (Abs x b)
             where x | 0 `freeIn` b = pickName (unDom a)
@@ -507,13 +516,13 @@ instance Unquote Term where
           mkPi a b@Abs{} = Pi a b
           mkPi _ NoAbs{} = __IMPOSSIBLE__
 
-      Con{} -> unquoteFailed "Term" "neither arity 0 nor 1 nor 2" t
-      Lit{} -> unquoteFailed "Term" "unexpected literal" t
-      _ -> unquoteFailed "Term" "not a constructor" t
+      Con{} -> throwException $ BadConstructor "Term" "neither arity 0 nor 1 nor 2" t
+      Lit{} -> throwException $ BadConstructor "Term" "unexpected literal" t
+      _ -> throwException $ NotAConstructor "Term" t
 
 instance Unquote Pattern where
   unquote t = do
-    t <- reduce t
+    t <- lift $ reduce t
     case ignoreSharing t of
       Con c [] -> do
         choice
@@ -530,13 +539,14 @@ instance Unquote Pattern where
         choice
           [ (c `isCon` primAgdaPatCon, flip ConP Nothing <$> unquoteN x <*> (map (fmap unnamed) <$> unquoteN y)) ]
           __IMPOSSIBLE__
-      _ -> unquoteFailed "Pattern" "not a constructor" t
+      Con c _ -> throwException $ BadConstructor "Pattern" "neither arity 0 nor 1 nor 2" t
+      _ -> throwException $ NotAConstructor "Pattern" t
 
 data UnquotedFunDef = UnQFun Type [Clause]
 
 instance Unquote Clause where
   unquote t = do
-    t <- reduce t
+    t <- lift $ reduce t
     case ignoreSharing t of
       Con c [x] -> do
         choice
@@ -546,7 +556,8 @@ instance Unquote Clause where
         choice
           [ (c `isCon` primAgdaClauseClause, checkClause =<< mkClause . Just <$> unquoteN y <*> unquoteN x) ]
           __IMPOSSIBLE__
-      _ -> unquoteFailed "Pattern" "not a constructor" t
+      Con c _ -> throwException $ BadConstructor "Clause" "neither arity 1 nor 2" t
+      _ -> throwException $ NotAConstructor "Clause" t
     where
       mkClause :: Maybe Term -> [I.Arg Pattern] -> I.Clause
       mkClause b ps0 =
@@ -581,7 +592,7 @@ instance Unquote Clause where
           computePerm LitP{}        = return ()
           computePerm ProjP{}       = return ()
 
-      checkClause :: I.Clause -> TCM I.Clause
+      checkClause :: I.Clause -> UnquoteM I.Clause
       checkClause cl@Clause{ clausePerm = Perm n vs , clauseBody = body } = do
         let freevs    = allVars $ freeVars $ fromMaybe __IMPOSSIBLE__ $ getBody body
             propervs  = Set.fromList $ map ((n-1)-) vs
@@ -595,17 +606,18 @@ instance Unquote Clause where
           ]
         if Set.null offending
           then return cl
-          else unquoteFailed "Clause" ("the right-hand side contains variables that are referring to a dot pattern.\nOffending De Bruijn indices: " ++ intercalate ", " (map show (Set.toList offending))) t
+          else throwException $ RhsUsesDottedVar (Set.toList offending) t
 
 instance Unquote UnquotedFunDef where
   unquote t = do
-    t <- reduce t
+    t <- lift $ reduce t
     case ignoreSharing t of
       Con c [x, y] -> do
         choice
           [ (c `isCon` primAgdaFunDefCon, UnQFun <$> unquoteN x <*> unquoteN y) ]
           __IMPOSSIBLE__
-      _ -> unquoteFailed "Pattern" "not a constructor" t
+      Con c _ -> throwException $ BadConstructor "Pattern" "not of arity 2" t
+      _ -> throwException $ NotAConstructor "Pattern" t
 
 reifyUnquoted :: Reify a e => a -> TCM e
 reifyUnquoted = nowReifyingUnquoted . disableDisplayForms . withShowAllArguments . reify
