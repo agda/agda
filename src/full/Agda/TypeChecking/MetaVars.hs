@@ -182,7 +182,7 @@ newTypeMeta_  = newTypeMeta =<< (workOnTypes $ newSortMeta)
 --   lambdas in front of it.
 newIFSMeta :: MetaNameSuggestion -> Type -> Maybe [(Term, Type)] -> TCM Term
 newIFSMeta s t cands = do
-  let TelV tel t' = telView' t
+  TelV tel t' <- telView t
   addCtxTel tel $ do
     vs  <- getContextArgs
     ctx <- getContextTelescope
@@ -197,8 +197,8 @@ newIFSMetaCtx s t vs cands = do
     ]
   i0 <- createMetaInfo
   let i = i0 { miNameSuggestion = s }
-  let TelV tel _ = telView' t
-      perm = idP (size tel)
+  TelV tel _ <- telView t
+  let perm = idP (size tel)
   x <- newMeta' OpenIFS i normalMetaPriority perm (HasType () t)
   reportSDoc "tc.meta.new" 50 $ fsep
     [ nest 2 $ text (show x) <+> text ":" <+> prettyTCM t
@@ -235,8 +235,8 @@ newValueMeta' b t = do
 newValueMetaCtx' :: RunMetaOccursCheck -> Type -> Args -> TCM Term
 newValueMetaCtx' b t vs = do
   i <- createMetaInfo' b
-  let TelV tel a = telView' t
-      perm = idP (size tel)
+  TelV tel a <- telView t
+  let perm = idP (size tel)
   x <- newMeta i normalMetaPriority perm (HasType () t)
   reportSDoc "tc.meta.new" 50 $ fsep
     [ text "new meta:"
