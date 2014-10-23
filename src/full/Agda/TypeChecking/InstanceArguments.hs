@@ -108,6 +108,7 @@ initialIFSCandidates t = do
 --   with suggested name @s@.
 initializeIFSMeta :: String -> Type -> TCM Term
 initializeIFSMeta s t = do
+  t <- reduce t  -- see Issue 1321
   cands <- initialIFSCandidates t
   newIFSMeta s t cands
 
