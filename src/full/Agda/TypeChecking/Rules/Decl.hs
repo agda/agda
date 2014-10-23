@@ -186,22 +186,25 @@ checkUnquoteDecl mi i x e = do
   fundef <- primAgdaFunDef
   v      <- checkExpr e $ El (mkType 0) fundef
   reportSDoc "tc.unquote.decl" 20 $ text "unquoteDecl: Checked term"
-  UnQFun a cs <- unquote v
-  reportSDoc "tc.unquote.decl" 20 $
-    vcat $ text "unquoteDecl: Unquoted term"
-         : [ nest 2 $ text (show c) | c <- cs ]
-  -- Add x to signature, otherwise reification gets unhappy.
-  addConstant x $ defaultDefn defaultArgInfo x a emptyFunction
-  a <- reifyUnquoted a
-  reportSDoc "tc.unquote.decl" 10 $
-    vcat [ text "unquoteDecl" <+> prettyTCM x <+> text "-->"
-         , prettyTCM x <+> text ":" <+> prettyA a ]
-  cs <- mapM (reifyUnquoted . QNamed x) cs
-  reportSDoc "tc.unquote.decl" 10 $ vcat $ map prettyA cs
-  let ds = [ A.Axiom A.FunSig i defaultArgInfo x a   -- TODO other than defaultArg
-           , A.FunDef i x NotDelayed cs ]
-  xs <- checkMutual mi ds
-  return $ Just $ mutualChecks mi (A.Mutual mi ds) ds xs
+  uv <- runUnquoteM $ unquote v
+  case uv of
+    Left err -> typeError $ UnquoteFailed err
+    Right (UnQFun a cs) -> do
+      reportSDoc "tc.unquote.decl" 20 $
+        vcat $ text "unquoteDecl: Unquoted term"
+             : [ nest 2 $ text (show c) | c <- cs ]
+      -- Add x to signature, otherwise reification gets unhappy.
+      addConstant x $ defaultDefn defaultArgInfo x a emptyFunction
+      a <- reifyUnquoted a
+      reportSDoc "tc.unquote.decl" 10 $
+        vcat [ text "unquoteDecl" <+> prettyTCM x <+> text "-->"
+             , prettyTCM x <+> text ":" <+> prettyA a ]
+      cs <- mapM (reifyUnquoted . QNamed x) cs
+      reportSDoc "tc.unquote.decl" 10 $ vcat $ map prettyA cs
+      let ds = [ A.Axiom A.FunSig i defaultArgInfo x a   -- TODO other than defaultArg
+               , A.FunDef i x NotDelayed cs ]
+      xs <- checkMutual mi ds
+      return $ Just $ mutualChecks mi (A.Mutual mi ds) ds xs
 
 -- | Instantiate all metas in 'Definition' associated to 'QName'. --   Makes sense after freezing metas.
 --   Some checks, like free variable analysis, are not in 'TCM', --   so they will be more precise (see issue 1099) after meta instantiation.

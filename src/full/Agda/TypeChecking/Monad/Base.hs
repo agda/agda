@@ -1664,6 +1664,21 @@ instance Error SplitError where
   noMsg  = strMsg ""
   strMsg = GenericSplitError
 
+data UnquoteError
+  = BadVisibility String (I.Arg I.Term)
+  | ConInsteadOfDef QName String String
+  | DefInsteadOfCon QName String String
+  | BadConstructor String String I.Term -- ^ @BadConstructor kind reason term@
+  | NotAConstructor String I.Term       -- ^ @NotAConstructor kind term@
+  | NotALiteral String I.Term
+  | RhsUsesDottedVar [Int] I.Term
+  | BlockedOnMeta MetaId
+  | UnquotePanic String
+  deriving (Show)
+
+instance Error UnquoteError where
+  strMsg msg = UnquotePanic msg
+
 data TypeError
         = InternalError String
         | NotImplemented String
@@ -1849,6 +1864,8 @@ data TypeError
     -- Usage errors
     -- Implicit From Scope errors
         | IFSNoCandidateInScope Type
+    -- Reflection errors
+        | UnquoteFailed UnquoteError
     -- Safe flag errors
         | SafeFlagPostulate C.Name
         | SafeFlagPragma [String]
