@@ -80,6 +80,20 @@ localTCStateSaving compute = do
   return (result, newState)
 
 
+-- | Same as 'localTCState' but also returns the state in which we were just
+--   before reverting it.
+localTCStateSaving :: TCM a -> TCM (a, TCState)
+localTCStateSaving compute = do
+  state <- get
+  result <- compute
+  newState <- get
+  do
+    b <- getBenchmark
+    put state
+    modifyBenchmark $ const b
+  return (result, newState)
+
+
 ---------------------------------------------------------------------------
 -- * Lens for persistent states and its fields
 ---------------------------------------------------------------------------
