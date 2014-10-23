@@ -771,6 +771,9 @@ telToList (ExtendTel arg tel) = fmap (absName tel,) arg : telToList (absBody tel
   -- Andreas, 2013-12-14: This would work also for 'NoAbs',
   -- since 'absBody' raises.
 
+telToArgs :: Telescope -> [Arg ArgName]
+telToArgs tel = [ Common.Arg (domInfo d) (fst $ unDom d) | d <- telToList tel ]
+
 -- | Turn a typed binding @(x1 .. xn : A)@ into a telescope.
 bindsToTel' :: (Name -> a) -> [Name] -> Dom Type -> ListTel' a
 bindsToTel' f []     t = []
@@ -791,6 +794,9 @@ mkPi :: Dom (ArgName, Type) -> Type -> Type
 mkPi (Common.Dom info (x, a)) b = el $ Pi (Common.Dom info a) (mkAbs x b)
   where
     el = El $ dLub (getSort a) (Abs x (getSort b)) -- dLub checks x freeIn
+
+mkLam :: Arg ArgName -> Term -> Term
+mkLam a v = Lam (argInfo a) (Abs (unArg a) v)
 
 telePi' :: (Abs Type -> Abs Type) -> Telescope -> Type -> Type
 telePi' reAbs = telePi where

@@ -615,14 +615,15 @@ performKill kills m a = do
   etaExpandMetaSafe m'
   let vars = reverse [ Arg info (var i) | (i, Arg info False) <- zip [0..] kills ]
       lam b a = Lam (argInfo a) (Abs "v" b)
-      u       = foldl' lam (MetaV m' $ map Apply vars) kills
+      tel     = map ("v" <$) (reverse kills)
+      u       = MetaV m' $ map Apply vars
 {- OLD CODE
       hs   = reverse [ argHiding a | a <- kills ]
       lam h b = Lam h (Abs "v" b)
       u       = foldr lam (MetaV m' vars) hs
 -}
   dbg m' u
-  assignTerm m u
+  assignTerm m tel u
   where
     dbg m' u = reportSDoc "tc.meta.kill" 10 $ vcat
       [ text "actual killing"
