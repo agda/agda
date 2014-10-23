@@ -98,8 +98,8 @@ giveExpr mi e = do
         TP.text "give: instantiated meta type =" TP.<+> prettyTCM t'
       v <- checkExpr e t'
       case mvInstantiation mv of
-          InstV v' -> unlessM ((Irrelevant ==) <$> asks envRelevance) $
-                        equalTerm t' v (v' `apply` ctx)
+          InstV _ v' -> unlessM ((Irrelevant ==) <$> asks envRelevance) $
+                        equalTerm t' v (applySubst (parallelS $ reverse $ map unArg ctx) v')
           _        -> updateMeta mi v
       reify v
 

@@ -717,7 +717,7 @@ data Frozen
     deriving (Eq, Show)
 
 data MetaInstantiation
-        = InstV Term         -- ^ solved by term
+        = InstV [Arg String] Term -- ^ solved by term (abstracted over some free variables)
         | InstS Term         -- ^ solved by @Lam .. Sort s@
         | Open               -- ^ unsolved
         | OpenIFS            -- ^ open, to be instantiated as "implicit from scope"
@@ -731,7 +731,7 @@ data TypeCheckingProblem
   deriving (Typeable)
 
 instance Show MetaInstantiation where
-  show (InstV t) = "InstV (" ++ show t ++ ")"
+  show (InstV tel t) = "InstV " ++ show tel ++ " (" ++ show t ++ ")"
   show (InstS s) = "InstS (" ++ show s ++ ")"
   show Open      = "Open"
   show OpenIFS   = "OpenIFS"

@@ -182,12 +182,12 @@ solveConstraint_ (UnBlock m)                =
       BlockedConst t -> do
         reportSDoc "tc.constr.blocked" 15 $
           text ("blocked const " ++ show m ++ " :=") <+> prettyTCM t
-        assignTerm m t
+        assignTerm m [] t
       PostponedTypeCheckingProblem cl unblock -> enterClosure cl $ \prob -> do
         ifNotM unblock (addConstraint $ UnBlock m) $ do
           tel <- getContextTelescope
           v   <- liftTCM $ checkTypeCheckingProblem prob
-          assignTerm m $ teleLam tel v
+          assignTerm m (telToArgs tel) v
       -- Andreas, 2009-02-09, the following were IMPOSSIBLE cases
       -- somehow they pop up in the context of sized types
       --
