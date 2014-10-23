@@ -7,7 +7,7 @@ module Agda.TypeChecking.Rules.Decl where
 
 import Control.Monad
 import Control.Monad.Reader
-import Control.Monad.State (modify)
+import Control.Monad.State (modify, gets)
 
 import qualified Data.Foldable as Fold
 import Data.Maybe
@@ -67,6 +67,54 @@ import Agda.Utils.Size
 #include "undefined.h"
 import Agda.Utils.Impossible
 
+-- | Cached checkDecl
+checkDeclCached :: A.Declaration -> TCM ()
+checkDeclCached d@A.ScopedDecl{} = checkDecl d
+checkDeclCached d@(A.Section minfo mname tbinds _) = do
+  e <- readFromCachedLog
+  reportSLn "cache.decl" 10 $ "checkDeclCached: " ++ show (isJust e)
+  case e of
+    Just (EnterSection minfo' mname' tbinds', _)
+      | minfo == minfo' && mname == mname' && tbinds == tbinds' -> do
+        return ()
+    _ -> do
+      cleanCachedLog
+  writeToCurrentLog $ EnterSection minfo mname tbinds
+  checkDecl d
+  e' <- readFromCachedLog
+  case e' of
+    Just (LeaveSection mname', _) | mname == mname' -> do
+      return ()
+    _ -> do
+      cleanCachedLog
+  writeToCurrentLog $ LeaveSection mname
+
+checkDeclCached d = do
+    e <- readFromCachedLog
+
+    let b = isJust e in b `seq` reportSLn "cache.decl" 10 $ "checkDeclCached: " ++ show b
+    case e of
+      (Just (Decl d',s)) | compareDecl d d' -> do
+        restorePostScopeState s
+      _ -> do
+        cleanCachedLog
+        checkDeclWrap d
+    writeToCurrentLog $ Decl d
+ where
+   compareDecl A.Section{} A.Section{} = __IMPOSSIBLE__
+   compareDecl A.ScopedDecl{} A.ScopedDecl{} = __IMPOSSIBLE__
+   compareDecl x y = x == y
+   -- changes to CS inside a RecDef or Mutual ought not happen,
+   -- but they do happen, so we discard them.
+   ignoreChanges m = do
+     cs <- gets $ stLoadedFileCache . stPersistentState
+     cleanCachedLog
+     m
+     modifyPersistentState $ \st -> st{stLoadedFileCache = cs}
+   checkDeclWrap d@A.RecDef{} = ignoreChanges $ checkDecl d
+   checkDeclWrap d@A.Mutual{} = ignoreChanges $ checkDecl d
+   checkDeclWrap d            = checkDecl d
+
 -- | Type check a sequence of declarations.
 checkDecls :: [A.Declaration] -> TCM ()
 checkDecls ds = do
@@ -105,7 +153,7 @@ checkDecl d = traceCall (SetRange (getRange d)) $ do
       A.Apply i x modapp rd rm -> meta $ checkSectionApplication i x modapp rd rm
       A.Import i x             -> none $ checkImport i x
       A.Pragma i p             -> none $ checkPragma i p
-      A.ScopedDecl scope ds    -> none $ setScope scope >> checkDecls ds
+      A.ScopedDecl scope ds    -> none $ setScope scope >> mapM_ checkDeclCached ds
       A.FunDef i x delayed cs  -> impossible $ check x i $ checkFunDef delayed i x cs
       A.DataDef i x ps cs      -> impossible $ check x i $ checkDataDef i x ps cs
       A.RecDef i x ind c ps tel cs -> mutual mi [d] $ check x i $ do
@@ -553,7 +601,7 @@ checkSection i x tel ds =
       dtel' <- prettyTCM =<< lookupSection x
       reportSLn "tc.mod.check" 10 $ "checking section " ++ show dx ++ " " ++ show dtel
       reportSLn "tc.mod.check" 10 $ "    actual tele: " ++ show dtel'
-    withCurrentModule x $ checkDecls ds
+    withCurrentModule x $ mapM_ checkDeclCached ds
 
 -- | Helper for 'checkSectionApplication'.
 --

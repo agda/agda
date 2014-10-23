@@ -268,7 +268,7 @@ data ImportDirective = ImportDirective
   , renaming       :: [Renaming]
   , publicOpen     :: Bool -- ^ Only for @open@. Exports the opened names from the current module.
   }
-  deriving (Typeable)
+  deriving (Typeable, Eq)
 
 -- | Default is directive is @private@ (use everything, but do not export).
 defaultImportDir :: ImportDirective
@@ -277,7 +277,7 @@ defaultImportDir = ImportDirective noRange (Hiding []) [] False
 data UsingOrHiding
   = Hiding [ImportedName]
   | Using  [ImportedName]
-  deriving (Typeable)
+  deriving (Typeable, Eq)
 
 -- | An imported name can be a module or a defined name
 data ImportedName
@@ -297,7 +297,7 @@ data Renaming = Renaming
   , renToRange :: Range
     -- ^ The range of the \"to\" keyword.  Retained for highlighting purposes.
   }
-  deriving (Typeable)
+  deriving (Typeable, Eq)
 
 data AsName = AsName
   { asName  :: Name

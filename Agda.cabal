@@ -266,6 +266,7 @@ library
                     Agda.TypeChecking.Monad.Base.KillRange
                     Agda.TypeChecking.Monad.Benchmark
                     Agda.TypeChecking.Monad.Builtin
+                    Agda.TypeChecking.Monad.Caching
                     Agda.TypeChecking.Monad.Closure
                     Agda.TypeChecking.Monad.Constraints
                     Agda.TypeChecking.Monad.Context

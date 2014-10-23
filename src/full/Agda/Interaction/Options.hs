@@ -124,7 +124,7 @@ data PragmaOptions = PragmaOptions
   , optPatternMatching           :: Bool  -- ^ Is pattern matching allowed in the current file?
   , optExactSplit                :: Bool
   }
-  deriving Show
+  deriving (Show,Eq)
 
 -- | The options from an @OPTIONS@ pragma.
 --

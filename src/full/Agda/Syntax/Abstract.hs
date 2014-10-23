@@ -56,12 +56,6 @@ type NamedArg a = Common.NamedArg Color a
 type ArgInfo    = Common.ArgInfo Color
 type Args       = [NamedArg Expr]
 
-instance Eq Color where
-  Var x == Var y = x == y
-  Def x == Def y = x == y
-  -- TODO guilhem:
-  _ == _         = __IMPOSSIBLE__
-
 instance Ord Color where
   Var x <= Var y = x <= y
   Def x <= Def y = x <= y
@@ -105,7 +99,7 @@ data Expr
   | QuoteTerm ExprInfo                 -- ^ Quote a term.
   | Unquote ExprInfo                   -- ^ The splicing construct: unquote ...
   | DontCare Expr                      -- ^ For printing @DontCare@ from @Syntax.Internal@.
-  deriving (Typeable, Show)
+  deriving (Typeable, Show, Eq)
 
 -- | Record field assignment @f = e@.
 type Assign  = (C.Name, Expr)
@@ -146,7 +140,7 @@ data Declaration
   | UnquoteDecl MutualInfo DefInfo QName Expr
   | UnquoteDef  DefInfo QName Expr
   | ScopedDecl ScopeInfo [Declaration]  -- ^ scope annotation
-  deriving (Typeable, Show)
+  deriving (Typeable, Show, Eq)
 
 class GetDefInfo a where
   getDefInfo :: a -> Maybe DefInfo
@@ -168,7 +162,7 @@ data ModuleApplication
       -- ^ @tel. M args@:  applies @M@ to @args@ and abstracts @tel@.
     | RecordModuleIFS ModuleName
       -- ^ @M {{...}}@
-  deriving (Typeable, Show)
+  deriving (Typeable, Show, Eq)
 
 data Pragma
   = OptionsPragma [String]
@@ -182,7 +176,7 @@ data Pragma
   | CompiledJSPragma QName String
   | StaticPragma QName
   | EtaPragma QName
-  deriving (Typeable, Show)
+  deriving (Typeable, Show, Eq)
 
 -- | Bindings that are valid in a @let@.
 data LetBinding
@@ -194,7 +188,7 @@ data LetBinding
     -- ^ @LetApply mi newM (oldM args) renaming moduleRenaming@.
   | LetOpen ModuleInfo ModuleName
     -- ^ only for highlighting and abstractToConcrete
-  deriving (Typeable, Show)
+  deriving (Typeable, Show, Eq)
 
 -- | Only 'Axiom's.
 type TypeSignature  = Declaration
@@ -205,12 +199,12 @@ type Field          = TypeSignature
 data LamBinding
   = DomainFree ArgInfo Name   -- ^ . @x@ or @{x}@ or @.x@ or @.{x}@
   | DomainFull TypedBindings  -- ^ . @(xs:e)@ or @{xs:e}@ or @(let Ds)@
-  deriving (Typeable, Show)
+  deriving (Typeable, Show, Eq)
 
 -- | Typed bindings with hiding information.
 data TypedBindings = TypedBindings Range (Arg TypedBinding)
             -- ^ . @(xs : e)@ or @{xs : e}@
-  deriving (Typeable, Show)
+  deriving (Typeable, Show, Eq)
 
 -- | A typed binding. Appears in dependent function spaces, typed lambdas, and
 --   telescopes. I might be tempting to simplify this to only bind a single
@@ -226,7 +220,7 @@ data TypedBinding
     -- ^ As in telescope @(x y z : A)@ or type @(x y z : A) -> B@.
   | TLet Range [LetBinding]
     -- ^
-  deriving (Typeable, Show)
+  deriving (Typeable, Show, Eq)
 
 type Telescope  = [TypedBindings]
 
@@ -238,7 +232,7 @@ data Clause' lhs = Clause
   , clauseRHS        :: RHS
   , clauseWhereDecls :: [Declaration]
   , clauseCatchall   :: Bool
-  } deriving (Typeable, Show, Functor, Foldable, Traversable)
+  } deriving (Typeable, Show, Functor, Foldable, Traversable, Eq)
 
 type Clause = Clause' LHS
 type SpineClause = Clause' SpineLHS
@@ -252,7 +246,7 @@ data RHS
       -- ^ The 'QName's are the names of the generated with functions.
       --   One for each 'Expr'.
       --   The RHS shouldn't be another @RewriteRHS@.
-  deriving (Typeable, Show)
+  deriving (Typeable, Show, Eq)
 
 -- | The lhs of a clause in spine view (inside-out).
 --   Projection patterns are contained in @spLhsPats@,
@@ -263,7 +257,11 @@ data SpineLHS = SpineLHS
   , spLhsPats     :: [NamedArg Pattern]  -- ^ Function parameters (patterns).
   , spLhsWithPats :: [Pattern]           -- ^ @with@ patterns (after @|@).
   }
-  deriving (Typeable, Show)
+  deriving (Typeable, Show, Eq)
+
+
+instance Eq LHS where
+  (LHS _ core wps) == (LHS _ core' wps') = core == core' && wps == wps'
 
 -- | The lhs of a clause in focused (projection-application) view (outside-in).
 --   Projection patters are represented as 'LHSProj's.
@@ -292,7 +290,7 @@ data LHSCore' e
              , lhsPatsRight  :: [NamedArg (Pattern' e)]
                -- ^ Further applied to patterns.
              }
-  deriving (Typeable, Show, Functor, Foldable, Traversable)
+  deriving (Typeable, Show, Functor, Foldable, Traversable, Eq)
 
 type LHSCore = LHSCore' Expr
 
@@ -380,7 +378,7 @@ data Pattern' e
   | ImplicitP PatInfo
     -- ^ Generated at type checking for implicit arguments.
   | PatternSynP PatInfo QName [NamedArg (Pattern' e)]
-  deriving (Typeable, Show, Functor, Foldable, Traversable)
+  deriving (Typeable, Show, Functor, Foldable, Traversable, Eq)
 
 type Pattern  = Pattern' Expr
 type Patterns = [NamedArg Pattern]

@@ -13,6 +13,7 @@ import Control.Monad.State
 import Data.Set (Set)
 import Data.Map as Map
 import qualified Data.Set as Set
+import Data.Maybe (fromMaybe)
 
 -- import {-# SOURCE #-} Agda.Interaction.Response
 import Agda.Interaction.Response
@@ -382,3 +383,4 @@ addNamedInstance x n = do
   modifySignature $ updateDefinition x $ \ d -> d { defInstance = Just n }
   -- Add x to n's instances.
   modifyInstanceDefs $ mapFst $ Map.insertWith (++) n [x]
+

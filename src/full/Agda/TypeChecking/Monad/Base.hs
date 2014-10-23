@@ -50,6 +50,7 @@ import Agda.Syntax.Internal.Pattern ()
 import Agda.Syntax.Fixity
 import Agda.Syntax.Position
 import Agda.Syntax.Scope.Base
+import qualified Agda.Syntax.Info as Info
 
 import Agda.TypeChecking.CompiledClause
 
@@ -100,7 +101,6 @@ data PreScopeState = PreScopeState
   { stPreTokens             :: CompressedFile -- from lexer
     -- ^ Highlighting info for tokens (but not those tokens for
     -- which highlighting exists in 'stSyntaxInfo').
-  , stPreInteractionPoints  :: InteractionPoints -- scope checker first
   , stPreImports            :: Signature  -- XX populated by scopec hecker
     -- ^ Imported declared identifiers.
     --   Those most not be serialized!
@@ -171,7 +171,41 @@ data PersistentTCState = PersistentTCSt
     -- ^ Structure to track how much CPU time was spent on which Agda phase.
     --   Needs to be a strict field to avoid space leaks!
   , stAccumStatistics   :: !Statistics
+  , stLoadedFileCache   :: !(Maybe LoadedFileCache)
+    -- ^ Cached typechecking state from the last loaded file.
+    --   Should be Nothing when checking imports.
   }
+
+data LoadedFileCache = LoadedFileCache
+  { lfcCached  :: !CachedTypeCheckLog
+  , lfcCurrent :: !CurrentTypeCheckLog
+  }
+
+-- | A log of what the type checker does and states after the action is
+-- completed.  The cached version is stored first executed action first.
+type CachedTypeCheckLog = [(TypeCheckAction, PostScopeState)]
+
+-- | Like 'CachedTypeCheckLog', but storing the log for an ongoing type
+-- checking of a module.  Stored in reverse order (last performed action
+-- first).
+type CurrentTypeCheckLog = [(TypeCheckAction, PostScopeState)]
+
+-- | A complete log for a module will look like this:
+--
+--   * 'Pragmas'
+--
+--   * 'EnterSection', entering the main module.
+--
+--   * 'Decl'/'EnterSection'/'LeaveSection', for declarations and nested
+--     modules
+--
+--   * 'LeaveSection', leaving the main module.
+data TypeCheckAction
+  = EnterSection Info.ModuleInfo ModuleName [A.TypedBindings]
+  | LeaveSection ModuleName
+  | Decl A.Declaration
+    -- ^ Never a Section or ScopeDecl
+  | Pragmas PragmaOptions
 
 -- | Empty persistent state.
 
@@ -182,6 +216,7 @@ initPersistentState = PersistentTCSt
   , stInteractionOutputCallback = defaultInteractionOutputCallback
   , stBenchmark                 = Benchmark.empty
   , stAccumStatistics           = Map.empty
+  , stLoadedFileCache           = Nothing
   }
 
 -- | Empty state of type checker.
@@ -189,7 +224,6 @@ initPersistentState = PersistentTCSt
 initPreScopeState :: PreScopeState
 initPreScopeState = PreScopeState
   { stPreTokens               = mempty
-  , stPreInteractionPoints    = Map.empty
   , stPreImports              = emptySignature
   , stPreImportedModules      = Set.empty
   , stPreModuleToSource       = Map.empty
@@ -2001,6 +2035,13 @@ catchError_ :: TCM a -> (TCErr -> TCM a) -> TCM a
 catchError_ m h = TCM $ \r e ->
   unTCM m r e
   `E.catch` \err -> unTCM (h err) r e
+
+finally_ :: TCM a -> TCM a -> TCM a
+finally_ m f = do
+  m `catchError_` \err -> do
+    f
+    throwError err
+  f
 
 {-# SPECIALIZE INLINE mapTCMT :: (forall a. IO a -> IO a) -> TCM a -> TCM a #-}
 mapTCMT :: (forall a. m a -> n a) -> TCMT m a -> TCMT n a

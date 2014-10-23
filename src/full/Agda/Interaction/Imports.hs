@@ -366,6 +366,7 @@ getInterface' x isMain = do
                 return (False, (i, NoWarnings))
 
       typeCheckThe file = do
+          unless includeStateChanges cleanCachedLog
           let withMsgs = bracket_
                 (chaseMsg "Checking" $ Just $ filePath file)
                 (const $ chaseMsg "Finished" Nothing)
@@ -544,6 +545,7 @@ createInterface file mname =
         options = catMaybes $ map getOptions pragmas
     mapM_ setOptionsFromPragma options
 
+
     -- Scope checking.
     topLevel <- billTop Bench.Scoping $
       concreteToAbstract_ (TopLevel file top)
@@ -557,8 +559,21 @@ createInterface file mname =
       printHighlightingInfo fileTokenInfo
       mapM_ (\ d -> generateAndPrintSyntaxInfo d Partial) ds
 
+
     -- Type checking.
-    billTop Bench.Typing $ checkDecls ds
+
+    -- invalidate cache if pragmas change, TODO move
+    opts <- use stPragmaOptions
+    me <- readFromCachedLog
+    case me of
+      Just (Pragmas opts', _) | opts == opts'
+        -> return ()
+      _ -> do
+        reportSLn "cache" 10 $ "pragma changed: " ++ show (isJust me)
+        cleanCachedLog
+    writeToCurrentLog $ Pragmas opts
+
+    billTop Bench.Typing $ mapM_ checkDeclCached ds `finally_` cacheCurrentLog
 
     -- Ulf, 2013-11-09: Since we're rethrowing the error, leave it up to the
     -- code that handles that error to reset the state.

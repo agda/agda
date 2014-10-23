@@ -36,7 +36,7 @@ import Agda.Utils.Maybe.Strict
 --
 --   With the strict 'Maybe' type, 'Trie' is also strict in 'v'.
 data Trie k v = Trie !(Maybe v) !(Map k (Trie k v))
-  deriving Show
+  deriving (Show, Eq)
 
 -- | Empty trie.
 empty :: Trie k v
