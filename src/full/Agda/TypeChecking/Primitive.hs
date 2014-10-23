@@ -214,10 +214,11 @@ instance FromTerm Bool where
         true  <- primTrue
         false <- primFalse
         fromReducedTerm $ \t -> case t of
-            _   | t === true  -> Just True
-                | t === false -> Just False
+            _   | t =?= true  -> Just True
+                | t =?= false -> Just False
                 | otherwise   -> Nothing
         where
+            a =?= b = ignoreSharing a === ignoreSharing b
             Def x [] === Def y []   = x == y
             Con x [] === Con y []   = x == y
             Var n [] === Var m []   = n == m
@@ -241,11 +242,8 @@ instance (ToTerm a, FromTerm a) => FromTerm [a] where
       mkList nil cons toA fromA t = do
         b <- reduceB' t
         let t = ignoreBlocking b
-        let arg = Arg (ArgInfo { argInfoHiding = getHiding t
-                               , argInfoRelevance = getRelevance t
-                               , argInfoColors = argColors t
-                               })
-        case unArg t of
+        let arg = (<$ t)
+        case ignoreSharing $ unArg t of
           Con c []
             | c == nil  -> return $ YesReduction NoSimplification []
           Con c [x,xs]
