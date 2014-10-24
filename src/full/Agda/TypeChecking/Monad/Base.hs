@@ -1440,6 +1440,7 @@ data TCEnv =
           , envAnonymousModules    :: [(ModuleName, Nat)] -- ^ anonymous modules and their number of free variables
           , envImportPath          :: [C.TopLevelModuleName] -- ^ to detect import cycles
           , envMutualBlock         :: Maybe MutualId -- ^ the current (if any) mutual block
+          , envTerminationCheck    :: TerminationCheck ()  -- ^ are we inside the scope of a termination pragma
           , envSolvingConstraints  :: Bool
                 -- ^ Are we currently in the process of solving active constraints?
           , envAssignMetas         :: Bool
@@ -1525,6 +1526,7 @@ initEnv = TCEnv { envContext             = []
                 , envAnonymousModules    = []
                 , envImportPath          = []
                 , envMutualBlock         = Nothing
+                , envTerminationCheck    = TerminationCheck
                 , envSolvingConstraints  = False
                 , envActiveProblems      = [0]
                 , envAssignMetas         = True
