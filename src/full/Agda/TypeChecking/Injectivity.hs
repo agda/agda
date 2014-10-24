@@ -36,7 +36,7 @@ import Agda.Utils.List
 import Agda.Utils.Functor
 import Agda.Utils.Permutation
 
-#include "../undefined.h"
+#include "undefined.h"
 import Agda.Utils.Impossible
 
 headSymbol :: Term -> TCM (Maybe TermHead)
@@ -129,6 +129,8 @@ functionInverse v = case ignoreSharing v of
 data InvView = Inv QName [Elim] (Map TermHead Clause)
              | NoInv
 
+data MaybeAbort = Abort | KeepGoing
+
 useInjectivity :: Comparison -> Type -> Term -> Term -> TCM ()
 useInjectivity cmp a u v = do
   reportSDoc "tc.inj.use" 30 $ fsep $
@@ -182,7 +184,7 @@ useInjectivity cmp a u v = do
     invert org f ftype inv args (Just h) = case Map.lookup h inv of
       Nothing -> typeError $ UnequalTerms cmp u v a
       Just cl@Clause{ clauseTel  = tel
-                    , clausePerm = perm } -> do
+                    , clausePerm = perm } -> maybeAbort $ do
           let ps = clausePats cl
           -- These are what dot patterns should be instantiated at
           ms <- map unArg <$> newTelMeta tel
@@ -223,21 +225,21 @@ useInjectivity cmp a u v = do
           org <- reduce org
           h <- headSymbol org
           case h of
-            Just h  -> compareTerm cmp a u v
+            Just h  -> KeepGoing <$ compareTerm cmp a u v
             Nothing -> do
-             reportSDoc "tc.inj.invert" 30 $ vcat
-               [ text "aborting inversion;" <+> prettyTCM org
-               , text "plainly," <+> text (show org)
-               , text "has TermHead" <+> text (show h)
-               , text "which does not expose a constructor"
-               ]
-             patternViolation
-        `catchError` \err -> case err of
-          TypeError   {} -> throwError err
-          Exception   {} -> throwError err
-          IOException {} -> throwError err
-          PatternErr  {} -> fallBack
-          {- AbortAssign {} -> fallBack -- UNUSED -}
+              reportSDoc "tc.inj.invert" 30 $ vcat
+                [ text "aborting inversion;" <+> prettyTCM org
+                , text "plainly," <+> text (show org)
+                , text "has TermHead" <+> text (show h)
+                , text "which does not expose a constructor"
+                ]
+              return Abort
+
+    maybeAbort m = do
+      (a, s) <- localTCStateSaving m
+      case a of
+        KeepGoing -> put s
+        Abort     -> fallBack
 
     nextMeta = do
       m : ms <- get

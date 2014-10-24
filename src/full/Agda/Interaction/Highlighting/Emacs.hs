@@ -31,7 +31,7 @@ import Data.Monoid
 import qualified System.Directory as D
 import qualified System.IO as IO
 
-#include "../../undefined.h"
+#include "undefined.h"
 import Agda.Utils.Impossible
 
 ------------------------------------------------------------------------

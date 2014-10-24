@@ -42,7 +42,7 @@ import Agda.Utils.Monad
 import Agda.Utils.Pretty (pretty)
 import Agda.Utils.String ( Str(Str), unStr )
 
-#include "../undefined.h"
+#include "undefined.h"
 import Agda.Utils.Impossible
 import Debug.Trace
 

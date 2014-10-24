@@ -68,7 +68,7 @@ import Agda.Utils.Monad
 import Agda.Utils.Pretty
 import Agda.Utils.Update
 
-#include "../../undefined.h"
+#include "undefined.h"
 import Agda.Utils.Impossible
 
 {--------------------------------------------------------------------------

@@ -16,7 +16,7 @@ import Agda.Compiler.JS.Syntax
     LocalId(LocalId), MemberId )
 import Agda.Compiler.JS.Substitution ( shiftFrom )
 
-#include "../../undefined.h"
+#include "undefined.h"
 import Agda.Utils.Impossible ( Impossible(Impossible), throwImpossible )
 
 -- ECMAScript doesn't support pattern-mathching case, so

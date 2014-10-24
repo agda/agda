@@ -29,7 +29,7 @@ import Agda.TypeChecking.Reduce
 import qualified Agda.Utils.HashMap as HM
 import Agda.Utils.Lens
 
-#include "../../undefined.h"
+#include "undefined.h"
 import Agda.Utils.Impossible
 
 -- | Stuff we need in our compiler

@@ -27,7 +27,7 @@ import Agda.Utils.Except
 
 import Agda.Utils.List
 
-#include "../undefined.h"
+#include "undefined.h"
 import Agda.Utils.Impossible
 
 -- Conditionals and monads ------------------------------------------------

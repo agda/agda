@@ -33,7 +33,7 @@ import Agda.Utils.Except ( MonadError(catchError) )
 import Agda.Utils.Maybe
 import Agda.Utils.Size
 
-#include "../../undefined.h"
+#include "undefined.h"
 import Agda.Utils.Impossible
 
 ---------------------------------------------------------------------------

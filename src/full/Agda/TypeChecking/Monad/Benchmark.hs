@@ -24,7 +24,7 @@ import Agda.Utils.Monad
 import Agda.Utils.Pretty (Doc)
 import Agda.Utils.Time
 
-#include "../../undefined.h"
+#include "undefined.h"
 import Agda.Utils.Impossible
 
 -- | Check whether benchmarking is activated.

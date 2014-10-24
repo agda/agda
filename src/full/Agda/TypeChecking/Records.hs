@@ -34,7 +34,7 @@ import qualified Agda.Utils.HashMap as HMap
 import Agda.Utils.Pretty (prettyShow)
 import Agda.Utils.Size
 
-#include "../undefined.h"
+#include "undefined.h"
 import Agda.Utils.Impossible
 
 -- | Order the fields of a record construction.

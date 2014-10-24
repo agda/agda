@@ -80,7 +80,7 @@ import Agda.Utils.Permutation
 import Agda.Utils.Pretty
 import Agda.Utils.Time
 
-#include "../../undefined.h"
+#include "undefined.h"
 import Agda.Utils.Impossible
 
 ---------------------------------------------------------------------------
@@ -713,7 +713,7 @@ data Frozen
     deriving (Eq, Show)
 
 data MetaInstantiation
-        = InstV Term         -- ^ solved by term
+        = InstV [Arg String] Term -- ^ solved by term (abstracted over some free variables)
         | InstS Term         -- ^ solved by @Lam .. Sort s@
         | Open               -- ^ unsolved
         | OpenIFS            -- ^ open, to be instantiated as "implicit from scope"
@@ -727,7 +727,7 @@ data TypeCheckingProblem
   deriving (Typeable)
 
 instance Show MetaInstantiation where
-  show (InstV t) = "InstV (" ++ show t ++ ")"
+  show (InstV tel t) = "InstV " ++ show tel ++ " (" ++ show t ++ ")"
   show (InstS s) = "InstS (" ++ show s ++ ")"
   show Open      = "Open"
   show OpenIFS   = "OpenIFS"
@@ -1440,6 +1440,7 @@ data TCEnv =
           , envAnonymousModules    :: [(ModuleName, Nat)] -- ^ anonymous modules and their number of free variables
           , envImportPath          :: [C.TopLevelModuleName] -- ^ to detect import cycles
           , envMutualBlock         :: Maybe MutualId -- ^ the current (if any) mutual block
+          , envTerminationCheck    :: TerminationCheck ()  -- ^ are we inside the scope of a termination pragma
           , envSolvingConstraints  :: Bool
                 -- ^ Are we currently in the process of solving active constraints?
           , envAssignMetas         :: Bool
@@ -1525,6 +1526,7 @@ initEnv = TCEnv { envContext             = []
                 , envAnonymousModules    = []
                 , envImportPath          = []
                 , envMutualBlock         = Nothing
+                , envTerminationCheck    = TerminationCheck
                 , envSolvingConstraints  = False
                 , envActiveProblems      = [0]
                 , envAssignMetas         = True
@@ -1663,6 +1665,21 @@ data SplitError = NotADatatype (Closure Type) -- ^ neither data type nor record
 instance Error SplitError where
   noMsg  = strMsg ""
   strMsg = GenericSplitError
+
+data UnquoteError
+  = BadVisibility String (I.Arg I.Term)
+  | ConInsteadOfDef QName String String
+  | DefInsteadOfCon QName String String
+  | BadConstructor String String I.Term -- ^ @BadConstructor kind reason term@
+  | NotAConstructor String I.Term       -- ^ @NotAConstructor kind term@
+  | NotALiteral String I.Term
+  | RhsUsesDottedVar [Int] I.Term
+  | BlockedOnMeta MetaId
+  | UnquotePanic String
+  deriving (Show)
+
+instance Error UnquoteError where
+  strMsg msg = UnquotePanic msg
 
 data TypeError
         = InternalError String
@@ -1849,6 +1866,8 @@ data TypeError
     -- Usage errors
     -- Implicit From Scope errors
         | IFSNoCandidateInScope Type
+    -- Reflection errors
+        | UnquoteFailed UnquoteError
     -- Safe flag errors
         | SafeFlagPostulate C.Name
         | SafeFlagPragma [String]

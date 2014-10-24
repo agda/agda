@@ -21,7 +21,7 @@ import Data.Typeable (Typeable)
 import Agda.Utils.Size
 import Agda.Utils.List ((!!!))
 
-#include "../undefined.h"
+#include "undefined.h"
 import Agda.Utils.Impossible
 
 -- | Partial permutations. Examples:
@@ -57,9 +57,13 @@ instance Sized Permutation where
 --   Agda typing:
 --   @permute (Perm {m} n is) : Vec A m -> Vec A n@
 permute :: Permutation -> [a] -> [a]
-permute (Perm _ is) xs = map (xs !!!!) is
+permute p xs = map (fromMaybe __IMPOSSIBLE__) (safePermute p xs)
+
+safePermute :: Permutation -> [a] -> [Maybe a]
+safePermute (Perm _ is) xs = map (xs !!!!) is
   where
-    xs !!!! n = fromMaybe __IMPOSSIBLE__ (xs !!! n)
+    xs !!!! n | n < 0     = Nothing
+              | otherwise = xs !!! n
 
 -- | Identity permutation.
 idP :: Int -> Permutation

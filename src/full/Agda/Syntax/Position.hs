@@ -87,7 +87,7 @@ import Agda.Utils.Pretty ( (<>), Pretty(pretty) )
 import Agda.Utils.TestHelpers
 import Agda.Utils.QuickCheck
 
-#include "../undefined.h"
+#include "undefined.h"
 import Agda.Utils.Impossible
 
 {--------------------------------------------------------------------------

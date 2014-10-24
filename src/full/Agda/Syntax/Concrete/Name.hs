@@ -28,7 +28,7 @@ import Agda.Syntax.Position
 import Agda.Utils.FileName
 import Agda.Utils.Pretty
 
-#include "../../undefined.h"
+#include "undefined.h"
 import Agda.Utils.Impossible
 
 {-| A name is a non-empty list of alternating 'Id's and 'Hole's. A normal name

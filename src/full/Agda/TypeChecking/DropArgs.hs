@@ -15,7 +15,7 @@ import Agda.TypeChecking.CompiledClause
 
 import Agda.Utils.Permutation
 
-#include "../undefined.h"
+#include "undefined.h"
 import Agda.Utils.Impossible
 
 ---------------------------------------------------------------------------

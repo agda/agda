@@ -56,7 +56,7 @@ import Agda.Utils.Either
 import Agda.Utils.ReadP
 import Agda.Utils.List
 
-#include "../../undefined.h"
+#include "undefined.h"
 import Agda.Utils.Impossible
 
 ---------------------------------------------------------------------------

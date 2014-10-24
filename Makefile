@@ -367,3 +367,20 @@ check-whitespace :
 install-fix-agda-whitespace :
 	cd src/fix-agda-whitespace && \
 	$(CABAL_CMD) install $(CABAL_OPTS)
+
+########################################################################
+# HPC
+
+.PHONY: hpc-build
+hpc-build:
+	cabal clean
+	cabal configure --enable-library-coverage
+	cabal build
+
+agda.tix: ./examples/agda.tix ./test/succeed/agda.tix ./test/compiler/agda.tix ./test/api/agda.tix ./test/interaction/agda.tix ./test/fail/agda.tix ./test/fail/Epic/agda.tix ./test/lib-succeed/agda.tix ./std-lib/agda.tix
+	hpc sum --output=$@ $^
+
+.PHONY: hpc
+hpc: hpc-build test agda.tix
+	hpc report --hpcdir=dist/hpc/mix/Agda-2.4.2.1 agda.tix
+	hpc markup --hpcdir=dist/hpc/mix/Agda-2.4.2.1 agda --destdir=hpc-report

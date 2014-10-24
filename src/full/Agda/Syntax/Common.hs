@@ -28,7 +28,7 @@ import Agda.Utils.Functor
 import Agda.Utils.Pretty
 import Agda.Utils.Size
 
-#include "../undefined.h"
+#include "undefined.h"
 import Agda.Utils.Impossible
 
 
@@ -597,7 +597,7 @@ data TerminationCheck m
     -- ^ Treat as terminating (unsafe).  Same effect as 'NoTerminationCheck'.
   | TerminationMeasure !Range m
     -- ^ Skip termination checking but use measure instead.
-    deriving (Typeable, Show, Eq)
+    deriving (Typeable, Show, Eq, Functor)
 
 instance KillRange m => KillRange (TerminationCheck m) where
   killRange (TerminationMeasure _ m) = TerminationMeasure noRange (killRange m)

@@ -37,7 +37,7 @@ import Agda.Utils.Functor (($>))
 import Agda.Utils.Monad
 import Agda.Utils.Size
 
-#include "../undefined.h"
+#include "undefined.h"
 import Agda.Utils.Impossible
 
 -- | Entry point for e.g. checking WithFunctionType.

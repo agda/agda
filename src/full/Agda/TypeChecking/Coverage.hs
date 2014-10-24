@@ -56,7 +56,7 @@ import Agda.Utils.Permutation
 import Agda.Utils.Size
 import Agda.Utils.Tuple
 
-#include "../undefined.h"
+#include "undefined.h"
 import Agda.Utils.Impossible
 
 data SplitClause = SClause

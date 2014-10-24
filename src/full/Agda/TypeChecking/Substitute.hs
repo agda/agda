@@ -10,9 +10,12 @@
 {-# LANGUAGE TupleSections        #-}
 {-# LANGUAGE TypeSynonymInstances #-}
 
-module Agda.TypeChecking.Substitute where
+module Agda.TypeChecking.Substitute
+  ( module Agda.TypeChecking.Substitute
+  , Substitution(..)
+  ) where
 
-import Control.Arrow ((***))
+import Control.Arrow ((***), first, second)
 
 import Data.Function
 import Data.Functor
@@ -32,13 +35,14 @@ import Agda.TypeChecking.Monad.Base as Base
 import Agda.TypeChecking.Free as Free
 import Agda.TypeChecking.CompiledClause
 
+import Agda.Utils.Empty
 import Agda.Utils.List
 import Agda.Utils.Monad
 import Agda.Utils.Permutation
 import Agda.Utils.Size
 import Agda.Utils.Tuple
 
-#include "../undefined.h"
+#include "undefined.h"
 import Agda.Utils.Impossible
 
 ---------------------------------------------------------------------------
@@ -64,7 +68,7 @@ instance Apply Term where
       Con c args  -> conApp c args es
       Lam _ b     ->
         case es of
-          Apply a : es0 -> absApp b (unArg a) `applyE` es0
+          Apply a : es0 -> lazyAbsApp b (unArg a) `applyE` es0
           _             -> __IMPOSSIBLE__
       MetaV x es' -> MetaV x (es' ++ es)
       Shared p    -> Shared $ applyE p es
@@ -144,7 +148,7 @@ instance Apply a => Apply (Ptr a) where
 instance Subst a => Apply (Tele a) where
   apply tel               []       = tel
   apply EmptyTel          _        = __IMPOSSIBLE__
-  apply (ExtendTel _ tel) (t : ts) = absApp tel (unArg t) `apply` ts
+  apply (ExtendTel _ tel) (t : ts) = lazyAbsApp tel (unArg t) `apply` ts
 
 instance Apply Definition where
   apply (Defn info x t pol occ df m c rew inst d) args =
@@ -270,12 +274,12 @@ instance Apply FunctionInverse where
 
 instance Apply ClauseBody where
   apply  b       []       = b
-  apply (Bind b) (a:args) = absApp b (unArg a) `apply` args
+  apply (Bind b) (a:args) = lazyAbsApp b (unArg a) `apply` args
   apply (Body v) args     = Body $ v `apply` args
   apply  NoBody   _       = NoBody
   applyE  b       []             = b
 
-  applyE (Bind b) (Apply a : es) = absApp b (unArg a) `applyE` es
+  applyE (Bind b) (Apply a : es) = lazyAbsApp b (unArg a) `applyE` es
   applyE (Bind b) (Proj{}  : es) = __IMPOSSIBLE__
   applyE (Body v) es             = Body $ v `applyE` es
   applyE  NoBody   _             = NoBody
@@ -333,7 +337,7 @@ instance Abstract Permutation where
 -- reduction.
 piApply :: Type -> Args -> Type
 piApply t []                      = t
-piApply (El _ (Pi  _ b)) (a:args) = absApp b (unArg a) `piApply` args
+piApply (El _ (Pi  _ b)) (a:args) = lazyAbsApp b (unArg a) `piApply` args
 piApply (El s (Shared p)) args    = piApply (El s $ derefPtr p) args
 piApply t args                    =
   trace ("piApply t = " ++ show t ++ "\n  args = " ++ show args) __IMPOSSIBLE__
@@ -474,27 +478,7 @@ abstractArgs args x = abstract tel x
 -- * Explicit substitutions
 ---------------------------------------------------------------------------
 
--- | Substitutions.
-
-infixr 4 :#
-data Substitution
-
-  = IdS                     -- Γ ⊢ IdS : Γ
-
-  | EmptyS                  -- Γ ⊢ EmptyS : ()
-
-                            --      Γ ⊢ ρ : Δ
-  | Wk !Int Substitution    -- -------------------
-                            -- Γ, Ψ ⊢ Wk |Ψ| ρ : Δ
-
-                            -- Γ ⊢ u : Aρ  Γ ⊢ ρ : Δ
-  | Term :# Substitution    -- ---------------------
-                            --   Γ ⊢ u :# ρ : Δ, A
-
-                            --        Γ ⊢ ρ : Δ
-  | Lift !Int Substitution  -- -------------------------
-                            -- Γ, Ψρ ⊢ Lift |Ψ| ρ : Δ, Ψ
-  deriving (Eq, Ord, Show)
+-- See TypeChecking.Monad.Base for the definition.
 
 idS :: Substitution
 idS = IdS
@@ -508,8 +492,13 @@ wkS n rho        = Wk n rho
 raiseS :: Int -> Substitution
 raiseS n = wkS n idS
 
+consS :: Term -> Substitution -> Substitution
+consS (Var n []) (Wk m rho)
+  | n + 1 == m = wkS (m - 1) (liftS 1 rho)
+consS u rho = seq u (u :# rho)
+
 singletonS :: Term -> Substitution
-singletonS u = u :# idS
+singletonS u = consS u idS
 
 liftS :: Int -> Substitution -> Substitution
 liftS 0 rho          = rho
@@ -518,13 +507,14 @@ liftS k (Lift n rho) = Lift (n + k) rho
 liftS k rho          = Lift k rho
 
 dropS :: Int -> Substitution -> Substitution
-dropS 0 rho          = rho
-dropS n IdS          = raiseS n
-dropS n (Wk m rho)   = wkS m (dropS n rho)
-dropS n (u :# rho)   = dropS (n - 1) rho
-dropS n (Lift 0 rho) = __IMPOSSIBLE__
-dropS n (Lift m rho) = wkS 1 $ dropS (n - 1) $ liftS (m - 1) rho
-dropS n EmptyS       = __IMPOSSIBLE__
+dropS 0 rho                = rho
+dropS n IdS                = raiseS n
+dropS n (Wk m rho)         = wkS m (dropS n rho)
+dropS n (u :# rho)         = dropS (n - 1) rho
+dropS n (Strengthen _ rho) = dropS (n - 1) rho
+dropS n (Lift 0 rho)       = __IMPOSSIBLE__
+dropS n (Lift m rho)       = wkS 1 $ dropS (n - 1) $ liftS (m - 1) rho
+dropS n EmptyS             = __IMPOSSIBLE__
 
 -- | @applySubst (ρ `composeS` σ) v == applySubst ρ (applySubst σ v)@
 composeS :: Substitution -> Substitution -> Substitution
@@ -533,6 +523,7 @@ composeS IdS sgm = sgm
 composeS rho EmptyS = EmptyS
 composeS rho (Wk n sgm) = composeS (dropS n rho) sgm
 composeS rho (u :# sgm) = applySubst rho u :# composeS rho sgm
+composeS rho (Strengthen err sgm) = Strengthen err (composeS rho sgm)
 composeS rho (Lift 0 sgm) = __IMPOSSIBLE__
 composeS (u :# rho) (Lift n sgm) = u :# composeS rho (liftS (n - 1) sgm)
 composeS rho (Lift n sgm) = lookupS rho 0 :# composeS rho (wkS 1 (liftS (n - 1) sgm))
@@ -541,21 +532,31 @@ composeS rho (Lift n sgm) = lookupS rho 0 :# composeS rho (wkS 1 (liftS (n - 1) 
 --   Γ ⊢ σ : Δ
 --   Γ ⊢ δ : Θσ
 splitS :: Int -> Substitution -> (Substitution, Substitution)
-splitS 0 rho          = (rho, EmptyS)
-splitS n (u :# rho)   = id *** (u :#) $ splitS (n - 1) rho
-splitS n (Lift 0 _)   = __IMPOSSIBLE__
-splitS n (Wk m rho)   = wkS m *** wkS m $ splitS n rho
-splitS n IdS          = (raiseS n, liftS n EmptyS)
-splitS n (Lift m rho) = wkS 1 *** liftS 1 $ splitS (n - 1) (liftS (m - 1) rho)
-splitS n EmptyS       = __IMPOSSIBLE__
+splitS 0 rho                  = (rho, EmptyS)
+splitS n (u :# rho)           = second (u :#) $ splitS (n - 1) rho
+splitS n (Strengthen err rho) = second (Strengthen err) $ splitS (n - 1) rho
+splitS n (Lift 0 _)           = __IMPOSSIBLE__
+splitS n (Wk m rho)           = wkS m *** wkS m $ splitS n rho
+splitS n IdS                  = (raiseS n, liftS n EmptyS)
+splitS n (Lift m rho)         = wkS 1 *** liftS 1 $ splitS (n - 1) (liftS (m - 1) rho)
+splitS n EmptyS               = __IMPOSSIBLE__
 
 infixr 4 ++#
 
 (++#) :: [Term] -> Substitution -> Substitution
-us ++# rho = foldr (:#) rho us
+us ++# rho = foldr consS rho us
+
+prependS :: Empty -> [Maybe Term] -> Substitution -> Substitution
+prependS err us rho = foldr f rho us
+  where
+    f Nothing  rho = Strengthen err rho
+    f (Just u) rho = consS u rho
 
 parallelS :: [Term] -> Substitution
 parallelS us = us ++# idS
+
+compactS :: Empty -> [Maybe Term] -> Substitution
+compactS err us = prependS err us idS
 
 lookupS :: Substitution -> Nat -> Term
 lookupS rho i = case rho of
@@ -564,6 +565,10 @@ lookupS rho i = case rho of
                             if  j < 0 then __IMPOSSIBLE__ else var j
   Wk n rho               -> applySubst (raiseS n) (lookupS rho i)
   u :# rho   | i == 0    -> u
+             | i < 0     -> __IMPOSSIBLE__
+             | otherwise -> lookupS rho (i - 1)
+  Strengthen err rho
+             | i == 0    -> absurd err
              | i < 0     -> __IMPOSSIBLE__
              | otherwise -> lookupS rho (i - 1)
   Lift n rho | i < n     -> var i
@@ -594,6 +599,9 @@ raiseFrom n k = applySubst (liftS n $ raiseS k)
 
 subst :: Subst t => Term -> t -> t
 subst u t = substUnder 0 u t
+
+strengthen :: Subst t => Empty -> t -> t
+strengthen err = applySubst (compactS err [Nothing])
 
 substUnder :: Subst t => Nat -> Term -> t -> t
 substUnder n u = applySubst (liftS n (singletonS u))
@@ -763,6 +771,9 @@ telToList (ExtendTel arg tel) = fmap (absName tel,) arg : telToList (absBody tel
   -- Andreas, 2013-12-14: This would work also for 'NoAbs',
   -- since 'absBody' raises.
 
+telToArgs :: Telescope -> [Arg ArgName]
+telToArgs tel = [ Common.Arg (domInfo d) (fst $ unDom d) | d <- telToList tel ]
+
 -- | Turn a typed binding @(x1 .. xn : A)@ into a telescope.
 bindsToTel' :: (Name -> a) -> [Name] -> Dom Type -> ListTel' a
 bindsToTel' f []     t = []
@@ -783,6 +794,9 @@ mkPi :: Dom (ArgName, Type) -> Type -> Type
 mkPi (Common.Dom info (x, a)) b = el $ Pi (Common.Dom info a) (mkAbs x b)
   where
     el = El $ dLub (getSort a) (Abs x (getSort b)) -- dLub checks x freeIn
+
+mkLam :: Arg ArgName -> Term -> Term
+mkLam a v = Lam (argInfo a) (Abs (unArg a) v)
 
 telePi' :: (Abs Type -> Abs Type) -> Telescope -> Type -> Type
 telePi' reAbs = telePi where
@@ -836,7 +850,7 @@ dLub s1 (NoAbs _ s2) = sLub s1 s2
 dLub s1 b@(Abs _ s2) = case occurrence 0 $ freeVars s2 of
   Flexible      -> DLub s1 b
   Irrelevantly  -> DLub s1 b
-  NoOccurrence  -> sLub s1 (absApp b __IMPOSSIBLE__)
+  NoOccurrence  -> sLub s1 (noabsApp __IMPOSSIBLE__ b)
 --  Free.Unused   -> sLub s1 (absApp b __IMPOSSIBLE__) -- triggers Issue784
   Free.Unused   -> DLub s1 b
   StronglyRigid -> Inf
@@ -848,10 +862,22 @@ dLub s1 b@(Abs _ s2) = case occurrence 0 $ freeVars s2 of
 --   and things we couldn't do before we could define 'absBody'
 ---------------------------------------------------------------------------
 
--- | Instantiate an abstraction
+-- | Instantiate an abstraction. Strict in the term.
 absApp :: Subst t => Abs t -> Term -> t
 absApp (Abs   _ v) u = subst u v
 absApp (NoAbs _ v) _ = v
+
+-- | Instantiate an abstraction. Lazy in the term, which allow it to be
+--   __IMPOSSIBLE__ in the case where the variable shouldn't be used but we
+--   cannot use 'noabsApp'. Used in Apply.
+lazyAbsApp :: Subst t => Abs t -> Term -> t
+lazyAbsApp (Abs   _ v) u = applySubst (u :# IdS) v
+lazyAbsApp (NoAbs _ v) _ = v
+
+-- | Instantiate an abstraction that doesn't use its argument.
+noabsApp :: Subst t => Empty -> Abs t -> t
+noabsApp err (Abs   _ v) = strengthen err v
+noabsApp _   (NoAbs _ v) = v
 
 absBody :: Subst t => Abs t -> t
 absBody (Abs   _ v) = v
@@ -928,6 +954,9 @@ instance GetBody Clause where
 
 deriving instance (Subst a, Eq a) => Eq (Tele a)
 deriving instance (Subst a, Ord a) => Ord (Tele a)
+
+deriving instance Eq Substitution
+deriving instance Ord Substitution
 
 deriving instance Eq Sort
 deriving instance Ord Sort
@@ -1112,15 +1141,17 @@ unLevelAtom (BlockedLevel _ v) = v
 ---------------------------------------------------------------------------
 
 instance Sized Substitution where
-  size IdS          = 1
-  size EmptyS       = 1
-  size (Wk _ rho)   = 1 + size rho
-  size (t :# rho)   = 1 + size t + size rho
-  size (Lift _ rho) = 1 + size rho
+  size IdS                = 1
+  size EmptyS             = 1
+  size (Wk _ rho)         = 1 + size rho
+  size (t :# rho)         = 1 + size t + size rho
+  size (Strengthen _ rho) = 1 + size rho
+  size (Lift _ rho)       = 1 + size rho
 
 instance KillRange Substitution where
-  killRange IdS          = IdS
-  killRange EmptyS       = EmptyS
-  killRange (Wk n rho)   = killRange1 (Wk n) rho
-  killRange (t :# rho)   = killRange2 (:#) t rho
-  killRange (Lift n rho) = killRange1 (Lift n) rho
+  killRange IdS                  = IdS
+  killRange EmptyS               = EmptyS
+  killRange (Wk n rho)           = killRange1 (Wk n) rho
+  killRange (t :# rho)           = killRange2 (:#) t rho
+  killRange (Strengthen err rho) = killRange1 (Strengthen err) rho
+  killRange (Lift n rho)         = killRange1 (Lift n) rho

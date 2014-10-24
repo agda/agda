@@ -29,7 +29,7 @@ import Data.Traversable (Traversable,traverse)
 import Agda.Interaction.Options (optInjectiveTypeConstructors)
 
 import Agda.Syntax.Common
-import Agda.Syntax.Internal as I
+import Agda.Syntax.Internal as I hiding (Substitution)
 import Agda.Syntax.Literal
 import Agda.Syntax.Position
 
@@ -63,7 +63,7 @@ import Agda.Utils.Maybe
 import Agda.Utils.Size
 import Agda.Utils.Monad
 
-#include "../../../undefined.h"
+#include "undefined.h"
 import Agda.Utils.Impossible
 
 newtype Unify a = U { unUnify :: ReaderT UnifyEnv (WriterT UnifyOutput (ExceptionT UnifyException (StateT UnifyState TCM))) a }

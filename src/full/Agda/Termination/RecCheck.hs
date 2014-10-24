@@ -58,8 +58,8 @@ anyDefs names a = do
   -- Prepare function to lookup metas outside of TCM
   st <- getMetaStore
   let lookup x = case mvInstantiation <$> Map.lookup x st of
-        Just (InstV v) -> Just v
-        _              -> Nothing
+        Just (InstV _ v) -> Just v    -- TODO: ignoring the lambdas might be bad?
+        _                -> Nothing
       -- we collect only those used definitions that are in @names@
       emb d = if d `elem` names then [d] else []
   -- get all the Defs that are in names

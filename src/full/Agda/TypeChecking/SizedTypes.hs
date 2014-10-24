@@ -33,7 +33,7 @@ import Agda.Utils.Tuple
 
 import qualified Agda.Utils.Warshall as W
 
-#include "../undefined.h"
+#include "undefined.h"
 import Agda.Utils.Impossible
 
 ------------------------------------------------------------------------
@@ -508,10 +508,9 @@ oldSolver metas cs = do
                 term (W.SizeVar j n) | j < ar = plus (var $ ar - j - 1) n
                 term _                        = __IMPOSSIBLE__
 
-                lam _ v = Lam defaultArgInfo $ Abs "s" v -- hiding does not matter
-
-                -- convert size expression to term and abstract
-                v = flip (foldr lam) [0..ar-1] $ term e
+                tel = replicate ar $ defaultArg "s"
+                -- convert size expression to term
+                v = term e
 
             reportSDoc "tc.size.solve" 20 $ sep
               [ text (show m) <+> text ":="
@@ -522,7 +521,7 @@ oldSolver metas cs = do
             let isInf (W.SizeConst W.Infinite) = True
                 isInf _                        = False
             unlessM ((isJust <$> isInteractionMeta m) `and2M` return (isInf e)) $
-              assignTerm m v
+              assignTerm m tel v
 
       mapM_ inst $ Map.toList sol
       return True

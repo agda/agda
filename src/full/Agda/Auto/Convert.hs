@@ -43,7 +43,7 @@ import Agda.Utils.Except
   )
 
 import Agda.Utils.Impossible
-#include "../undefined.h"
+#include "undefined.h"
 
 
 norm :: Normalise t => t -> MB.TCM t

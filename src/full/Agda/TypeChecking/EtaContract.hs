@@ -21,7 +21,7 @@ import {-# SOURCE #-} Agda.TypeChecking.Records
 import {-# SOURCE #-} Agda.TypeChecking.Datatypes
 import Agda.Utils.Monad
 
-#include "../undefined.h"
+#include "undefined.h"
 import Agda.Utils.Impossible
 
 -- TODO: move to Agda.Syntax.Internal.SomeThing
@@ -77,7 +77,7 @@ etaOnce v = case v of
           | (isIrrelevant info || isVar0 v)
                     && allowed imp info
                     && not (freeIn 0 u) ->
-            return $ subst __IMPOSSIBLE__ u
+            return $ strengthen __IMPOSSIBLE__ u
         _ -> return v
     where
       isVar0 (Shared p)               = __IMPOSSIBLE__ -- isVar0 (derefPtr p)

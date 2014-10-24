@@ -9,6 +9,7 @@ import Prelude hiding (mapM)
 import Control.Arrow ((***))
 import Control.Applicative
 import Control.Monad.State hiding (forM, mapM)
+import Control.Monad.Reader hiding (forM, mapM)
 
 import Data.Function
 import Data.List hiding (sort)
@@ -56,7 +57,7 @@ import Agda.Utils.Size
 import Agda.Utils.Permutation
 import Agda.Utils.Monad
 
-#include "../../undefined.h"
+#include "undefined.h"
 import Agda.Utils.Impossible
 
 ---------------------------------------------------------------------------
@@ -241,6 +242,18 @@ checkFunDef' t ai delayed extlam with i name cs =
               , nest 2 $ text (show cc)
               ]
 
+        -- If there was a pragma for this definition, we can set the
+        -- funTerminates field directly.
+        terminates <- do
+          tc <- asks envTerminationCheck
+          let t = case tc of
+                    NonTerminating -> Just False
+                    Terminating    -> Just True
+                    _              -> Nothing
+          reportSLn "tc.fundef" 30 $ "funTerminates of " ++ show name ++ " set to " ++ show t ++
+                                     "\n  tc = " ++ show tc
+          return t
+
         -- Add the definition
         addConstant name $
           defaultDefn ai name t $
@@ -254,7 +267,7 @@ checkFunDef' t ai delayed extlam with i name cs =
              , funProjection     = Nothing
              , funStatic         = False
              , funCopy           = False
-             , funTerminates     = Nothing
+             , funTerminates     = terminates
              , funExtLam         = extlam
              , funWith           = with
              , funCopatternLHS   = isCopatternLHS cs
@@ -589,7 +602,7 @@ checkClause t c@(A.Clause (A.SpineLHS i x aps withPats) rhs0 wh) = do
                   -- and Δ₁ ⊢ vs : as
                   (vs, as) <- do
                     let -- We know that as does not depend on Δ₂
-                        rho = parallelS (replicate (size delta2) __IMPOSSIBLE__)
+                        rho = compactS __IMPOSSIBLE__ (replicate (size delta2) Nothing)
                     return $ applySubst rho $ renameP (reverseP perm') (vs, as)
 
 

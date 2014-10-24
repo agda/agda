@@ -15,7 +15,7 @@ import Data.Traversable
 import Agda.Interaction.Options
 import Agda.Interaction.Options.Lenses
 
-import Agda.Syntax.Internal as I
+import Agda.Syntax.Internal as I hiding (Substitution)
 import Agda.Syntax.Internal.Pattern
 import Agda.Syntax.Abstract (IsProjP(..))
 import qualified Agda.Syntax.Abstract as A
@@ -53,7 +53,7 @@ import Agda.Utils.Monad
 import Agda.Utils.Permutation
 import Agda.Utils.Size
 
-#include "../../undefined.h"
+#include "undefined.h"
 import Agda.Utils.Impossible
 
 -- | Compute the set of flexible patterns in a list of patterns. The result is

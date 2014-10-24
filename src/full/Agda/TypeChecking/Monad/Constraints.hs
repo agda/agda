@@ -20,7 +20,7 @@ import Agda.Utils.Lens
 import Agda.Utils.List
 import Agda.Utils.Monad
 
-#include "../../undefined.h"
+#include "undefined.h"
 import Agda.Utils.Impossible
 
 -- | Get the current problem

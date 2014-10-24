@@ -30,7 +30,7 @@ import Agda.Compiler.Epic.Static
 
 import Agda.Compiler.Epic.Epic
 
-#include "../../undefined.h"
+#include "undefined.h"
 import Agda.Utils.Impossible
 
 -- | Convert from Agda's internal representation to our auxiliary AST.

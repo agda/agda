@@ -62,7 +62,7 @@ import Agda.Utils.Monad
 import Agda.Utils.Null
 import Agda.Utils.Tuple
 
-#include "../../undefined.h"
+#include "undefined.h"
 import Agda.Utils.Impossible
 
 -- Environment ------------------------------------------------------------

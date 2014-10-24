@@ -59,7 +59,7 @@ import Data.Maybe
 import Data.List ((\\), isPrefixOf)
 import qualified Data.Foldable as Fold (toList, fold, foldMap)
 
-#include "../../undefined.h"
+#include "undefined.h"
 import Agda.Utils.Impossible
 
 -- | @highlightAsTypeChecked rPre r m@ runs @m@ and returns its

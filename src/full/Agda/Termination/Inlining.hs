@@ -72,7 +72,7 @@ import Agda.Utils.Permutation
 import Agda.Utils.Size
 
 import Agda.Utils.Impossible
-#include "../undefined.h"
+#include "undefined.h"
 
 inlineWithClauses :: QName -> Clause -> TCM [Clause]
 inlineWithClauses f cl = inTopContext $ do

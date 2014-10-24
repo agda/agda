@@ -67,6 +67,7 @@ flag epic
 
 library
   hs-source-dirs:   src/full
+  include-dirs:     src/full
   if flag(epic)
     build-depends:  epic >= 0.1.13 && < 0.10
 
@@ -331,6 +332,7 @@ library
                     Agda.Utils.BiMap
                     Agda.Utils.Char
                     Agda.Utils.Cluster
+                    Agda.Utils.Empty
                     Agda.Utils.Except
                     Agda.Utils.Either
                     Agda.Utils.Favorites

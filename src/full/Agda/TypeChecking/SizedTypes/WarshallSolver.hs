@@ -32,7 +32,7 @@ import Agda.Utils.Graph.AdjacencyMap.Unidirectional
 -- (Edge'(..), allNodes, emptyGraph, insertEdge, graphToList, graphFromList, nodes, lookupEdge, outgoing, incoming, diagonal, transClos)
 import qualified Agda.Utils.Graph.AdjacencyMap.Unidirectional as Graph
 
-#include "../../undefined.h"
+#include "undefined.h"
 import Agda.Utils.Impossible
 
 type Graph r f a = Graph.Graph (Node r f) (Node r f) a

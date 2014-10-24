@@ -62,7 +62,7 @@ import Agda.Utils.Pretty hiding (empty)
 import Agda.Utils.QuickCheck hiding (label)
 import Agda.Utils.TestHelpers
 
-#include "../undefined.h"
+#include "undefined.h"
 import Agda.Utils.Impossible
 
 ------------------------------------------------------------------------

@@ -4,6 +4,7 @@
 :set -idist/build
 :set -Idist/build/autogen
 :set -Idist/build
+:set -Isrc/full
 :set -optP-include
 :set -optPdist/build/autogen/cabal_macros.h
 :set -pgmPcpphs

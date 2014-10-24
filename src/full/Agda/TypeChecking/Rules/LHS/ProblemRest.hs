@@ -21,7 +21,7 @@ import Agda.Utils.Functor (($>))
 import Agda.Utils.Size
 import Agda.Utils.Permutation
 
-#include "../../../undefined.h"
+#include "undefined.h"
 import Agda.Utils.Impossible
 
 -- MOVED from LHS:

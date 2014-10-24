@@ -76,7 +76,7 @@ import Agda.Utils.Permutation
 import Agda.Utils.Size
 import Agda.Utils.Tuple
 
-#include "../../undefined.h"
+#include "undefined.h"
 import Agda.Utils.Impossible
 
 ---------------------------------------------------------------------------
@@ -780,12 +780,16 @@ checkApplication hd args e t = do
           checkHeadApplication e t e $ map convColor args
       where
         unquoteTerm qv = do
-          v <- unquote =<< checkExpr qv =<< el primAgdaTerm
-          e <- reifyUnquoted (v :: Term)
-          reportSDoc "tc.unquote.term" 10 $
-            vcat [ text "unquote" <+> prettyTCM qv
-                 , nest 2 $ text "-->" <+> prettyA e ]
-          return (killRange e)
+          qv <- checkExpr qv =<< el primAgdaTerm
+          mv <- runUnquoteM $ unquote qv
+          case mv of
+            Left err -> typeError $ UnquoteFailed err
+            Right v  -> do
+              e <- reifyUnquoted (v :: Term)
+              reportSDoc "tc.unquote.term" 10 $
+                vcat [ text "unquote" <+> prettyTCM qv
+                     , nest 2 $ text "-->" <+> prettyA e ]
+              return (killRange e)
 
     -- Subcase: defined symbol or variable.
     _ -> checkHeadApplication e t hd $ map convColor args

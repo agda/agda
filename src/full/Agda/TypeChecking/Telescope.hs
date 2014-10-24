@@ -24,7 +24,7 @@ import Agda.Utils.Tuple
 import Agda.Utils.VarSet (VarSet)
 import qualified Agda.Utils.VarSet as Set
 
-#include "../undefined.h"
+#include "undefined.h"
 import Agda.Utils.Impossible
 
 data OutputTypeName
@@ -62,8 +62,8 @@ renaming :: Permutation -> Substitution
 renaming p = gamma'
   where
     n      = size p
-    gamma  = permute (reverseP $ invertP __IMPOSSIBLE__ $ reverseP p) $ map var [0..]
-    gamma' = gamma ++# raiseS n
+    gamma  = safePermute (reverseP $ invertP (-1) $ reverseP p) $ map var [0..]
+    gamma' = prependS __IMPOSSIBLE__ gamma (raiseS n)
 
 -- | If @permute π : [a]Γ -> [a]Δ@, then @substs (renamingR π) : Term Δ -> Term Γ@
 renamingR :: Permutation -> Substitution

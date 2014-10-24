@@ -14,7 +14,7 @@ import Data.Maybe (mapMaybe)
 import Agda.Auto.NarrowingSearch
 import Agda.Auto.Syntax
 
-#include "../undefined.h"
+#include "undefined.h"
 import Agda.Utils.Impossible
 
 instance Refinable (ArgList o) (RefInfo o) where

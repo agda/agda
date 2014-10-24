@@ -25,7 +25,7 @@ import Agda.Syntax.Literal
 
 import Agda.Utils.Pretty
 
-#include "../undefined.h"
+#include "undefined.h"
 import Agda.Utils.Impossible
 
 data WithArity c = WithArity { arity :: Int, content :: c }

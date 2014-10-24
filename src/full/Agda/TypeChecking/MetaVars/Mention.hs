@@ -11,7 +11,7 @@ import Agda.Syntax.Internal as I
 import Agda.TypeChecking.Monad
 
 import Agda.Utils.Impossible
-#include "../../undefined.h"
+#include "undefined.h"
 
 class MentionsMeta t where
   mentionsMeta :: MetaId -> t -> Bool

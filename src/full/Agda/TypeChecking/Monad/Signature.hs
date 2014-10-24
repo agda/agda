@@ -28,6 +28,7 @@ import Agda.TypeChecking.Monad.Base
 import Agda.TypeChecking.Monad.Context
 import Agda.TypeChecking.Monad.Options
 import Agda.TypeChecking.Monad.Env
+import Agda.TypeChecking.Monad.Exception ( ExceptionT )
 import Agda.TypeChecking.Monad.Mutual
 import Agda.TypeChecking.Monad.Open
 import Agda.TypeChecking.Monad.State
@@ -44,9 +45,10 @@ import Agda.Utils.Permutation
 import Agda.Utils.Pretty
 import Agda.Utils.Lens
 import Agda.Utils.List
+import Agda.Utils.Except ( Error )
 import qualified Agda.Utils.HashMap as HMap
 
-#include "../../undefined.h"
+#include "undefined.h"
 import Agda.Utils.Impossible
 
 -- | Add a constant to the signature. Lifts the definition to top level.
@@ -456,6 +458,9 @@ instance HasConstInfo (TCMT IO) where
 
           init' [] = {-'-} __IMPOSSIBLE__
           init' xs = init xs
+
+instance (HasConstInfo m, Error err) => HasConstInfo (ExceptionT err m) where
+  getConstInfo = lift . getConstInfo
 
 {-# INLINE getConInfo #-}
 {-# SPECIALIZE getConstInfo :: QName -> TCM Definition #-}

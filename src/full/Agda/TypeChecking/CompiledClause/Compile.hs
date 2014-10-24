@@ -23,7 +23,7 @@ import Agda.TypeChecking.Pretty
 import Agda.Utils.Functor (($>))
 import Agda.Utils.List
 
-#include "../../undefined.h"
+#include "undefined.h"
 import Agda.Utils.Impossible
 
 -- | Process function clauses into case tree.

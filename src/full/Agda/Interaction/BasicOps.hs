@@ -59,7 +59,7 @@ import Agda.Utils.Pretty
 import Agda.Utils.Permutation
 import Agda.Utils.Size
 
-#include "../undefined.h"
+#include "undefined.h"
 import Agda.Utils.Impossible
 
 -- | Parses an expression.
@@ -98,8 +98,8 @@ giveExpr mi e = do
         TP.text "give: instantiated meta type =" TP.<+> prettyTCM t'
       v <- checkExpr e t'
       case mvInstantiation mv of
-          InstV v' -> unlessM ((Irrelevant ==) <$> asks envRelevance) $
-                        equalTerm t' v (v' `apply` ctx)
+          InstV _ v' -> unlessM ((Irrelevant ==) <$> asks envRelevance) $
+                        equalTerm t' v (applySubst (parallelS $ reverse $ map unArg ctx) v')
           _        -> updateMeta mi v
       reify v
 
@@ -488,7 +488,7 @@ metaHelperType norm ii rng s = case words s of
           a' = renameP (reverseP perm) a
       (vs, as) <- do
         let -- We know that as does not depend on Δ₂
-            rho = parallelS (replicate (size delta2) __IMPOSSIBLE__)
+            rho = compactS __IMPOSSIBLE__ (replicate (size delta2) Nothing)
         return $ applySubst rho $ renameP (reverseP perm) (vs, as)
       a <- local (\e -> e { envPrintDomainFreePi = True }) $ do
         reify =<< cleanupType arity args =<< normalForm norm =<< withFunctionType delta1 vs as delta2 a'
@@ -515,7 +515,7 @@ metaHelperType norm ii rng s = case words s of
         b | absName b == "w"   -> I.Pi a b
         NoAbs _ b              -> unEl b
         Abs s b | 0 `freeIn` b -> I.Pi (hide a) (Abs s b)
-                | otherwise    -> subst __IMPOSSIBLE__ (unEl b)
+                | otherwise    -> strengthen __IMPOSSIBLE__ (unEl b)
       _ -> v  -- todo: handle if goal type is a Pi
 
     -- renameVars = onNames (stringToArgName <.> renameVar . argNameToString)

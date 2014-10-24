@@ -22,7 +22,7 @@ import Agda.TypeChecking.Level
 import Agda.Utils.List
 import Agda.Utils.Maybe
 
-#include "../undefined.h"
+#include "undefined.h"
 import Agda.Utils.Impossible
 
 -- | Find a matching display form for @q vs@.
@@ -120,7 +120,7 @@ instance Match a => Match (Elim' a) where
 
 instance Match Term where
   match p v = case (ignoreSharing p, ignoreSharing v) of
-    (Var 0 [], v)                  -> return [subst __IMPOSSIBLE__ v]
+    (Var 0 [], v)                  -> return [strengthen __IMPOSSIBLE__ v]
     (Var i ps, Var j vs) | i == j  -> match ps vs
     (Def c ps, Def d vs) | c == d  -> match ps vs
     (Con c ps, Con d vs) | c == d  -> match ps vs

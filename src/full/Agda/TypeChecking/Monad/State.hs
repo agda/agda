@@ -36,7 +36,7 @@ import Agda.Utils.Monad (bracket_)
 import Agda.Utils.Pretty
 import Agda.Utils.Tuple
 
-#include "../../undefined.h"
+#include "undefined.h"
 import Agda.Utils.Impossible
 
 -- | Resets the non-persistent part of the type checking state.
@@ -65,6 +65,20 @@ localTCState = bracket_ get $ \ s -> do
    b <- getBenchmark
    put s
    modifyBenchmark $ const b
+
+-- | Same as 'localTCState' but also returns the state in which we were just
+--   before reverting it.
+localTCStateSaving :: TCM a -> TCM (a, TCState)
+localTCStateSaving compute = do
+  state <- get
+  result <- compute
+  newState <- get
+  do
+    b <- getBenchmark
+    put state
+    modifyBenchmark $ const b
+  return (result, newState)
+
 
 ---------------------------------------------------------------------------
 -- * Lens for persistent states and its fields

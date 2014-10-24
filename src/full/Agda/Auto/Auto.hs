@@ -46,7 +46,7 @@ import Agda.Utils.Except ( runExceptT, MonadError(catchError) )
 import Agda.Utils.Impossible
 import Agda.Utils.Lens
 
-#include "../undefined.h"
+#include "undefined.h"
 
 insertAbsurdPattern :: String -> String
 insertAbsurdPattern [] = []

@@ -43,7 +43,7 @@ import Agda.Utils.Permutation
 import Agda.Utils.Size
 import qualified Agda.Utils.VarSet as VarSet
 
-#include "../../undefined.h"
+#include "undefined.h"
 import Agda.Utils.Impossible
 
 {- To address issue 585 (meta var occurrences in mutual defs)
@@ -597,7 +597,7 @@ killedType :: [(I.Dom (ArgName, Type), Bool)] -> Type -> ([I.Arg Bool], Type)
 killedType [] b = ([], b)
 killedType ((arg@(Dom info _), kill) : kills) b
   | dontKill  = (Arg info False : args, mkPi arg b') -- OLD: telePi (telFromList [arg]) b')
-  | otherwise = (Arg info True  : args, subst __IMPOSSIBLE__ b')
+  | otherwise = (Arg info True  : args, strengthen __IMPOSSIBLE__ b')
   where
     (args, b') = killedType kills b
     dontKill = not kill || 0 `freeIn` b'
@@ -615,14 +615,15 @@ performKill kills m a = do
   etaExpandMetaSafe m'
   let vars = reverse [ Arg info (var i) | (i, Arg info False) <- zip [0..] kills ]
       lam b a = Lam (argInfo a) (Abs "v" b)
-      u       = foldl' lam (MetaV m' $ map Apply vars) kills
+      tel     = map ("v" <$) (reverse kills)
+      u       = MetaV m' $ map Apply vars
 {- OLD CODE
       hs   = reverse [ argHiding a | a <- kills ]
       lam h b = Lam h (Abs "v" b)
       u       = foldr lam (MetaV m' vars) hs
 -}
   dbg m' u
-  assignTerm m u
+  assignTerm m tel u
   where
     dbg m' u = reportSDoc "tc.meta.kill" 10 $ vcat
       [ text "actual killing"

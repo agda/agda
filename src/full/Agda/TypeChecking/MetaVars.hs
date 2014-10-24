@@ -56,7 +56,7 @@ import Agda.Utils.Tuple
 import Agda.Utils.Permutation
 import qualified Agda.Utils.VarSet as Set
 
-#include "../undefined.h"
+#include "undefined.h"
 import Agda.Utils.Impossible
 
 -- | Find position of a value in a list.
@@ -101,16 +101,16 @@ isEtaExpandable x = do
 --   The instantiation should not be an 'InstV' or 'InstS' and the 'MetaId'
 --   should point to something 'Open' or a 'BlockedConst'.
 --   Further, the meta variable may not be 'Frozen'.
-assignTerm :: MetaId -> Term -> TCM ()
-assignTerm x t = do
+assignTerm :: MetaId -> [I.Arg ArgName] -> Term -> TCM ()
+assignTerm x tel v = do
      -- verify (new) invariants
     whenM (isFrozen x) __IMPOSSIBLE__
-    assignTerm' x t
+    assignTerm' x tel v
 
 -- | Skip frozen check.  Used for eta expanding frozen metas.
-assignTerm' :: MetaId -> Term -> TCM ()
-assignTerm' x t = do
-    reportSLn "tc.meta.assign" 70 $ show x ++ " := " ++ show t
+assignTerm' :: MetaId -> [I.Arg ArgName] -> Term -> TCM ()
+assignTerm' x tel v = do
+    reportSLn "tc.meta.assign" 70 $ show x ++ " := " ++ show v ++ "\n  in " ++ show tel
      -- verify (new) invariants
     whenM (not <$> asks envAssignMetas) __IMPOSSIBLE__
 
@@ -128,14 +128,14 @@ assignTerm' x t = do
     -- dontAssignMetas $ do
     --   checkInternal t . jMetaType . mvJudgement =<< lookupMeta x
 
-    let i = metaInstance (killRange t)
+    let i = metaInstance tel v
     verboseS "profile.metas" 10 $ liftTCM $ tickMax "max-open-metas" . size =<< getOpenMetas
     modifyMetaStore $ ins x i
     etaExpandListeners x
     wakeupConstraints x
     reportSLn "tc.meta.assign" 20 $ "completed assignment of " ++ show x
   where
-    metaInstance = InstV
+    metaInstance tel v = InstV tel v
     ins x i store = Map.adjust (inst i) x store
     inst i mv = mv { mvInstantiation = i }
 
@@ -182,7 +182,7 @@ newTypeMeta_  = newTypeMeta =<< (workOnTypes $ newSortMeta)
 --   lambdas in front of it.
 newIFSMeta :: MetaNameSuggestion -> Type -> Maybe [(Term, Type)] -> TCM Term
 newIFSMeta s t cands = do
-  let TelV tel t' = telView' t
+  TelV tel t' <- telView t
   addCtxTel tel $ do
     vs  <- getContextArgs
     ctx <- getContextTelescope
@@ -197,8 +197,8 @@ newIFSMetaCtx s t vs cands = do
     ]
   i0 <- createMetaInfo
   let i = i0 { miNameSuggestion = s }
-  let TelV tel _ = telView' t
-      perm = idP (size tel)
+  TelV tel _ <- telView t
+  let perm = idP (size tel)
   x <- newMeta' OpenIFS i normalMetaPriority perm (HasType () t)
   reportSDoc "tc.meta.new" 50 $ fsep
     [ nest 2 $ text (show x) <+> text ":" <+> prettyTCM t
@@ -235,8 +235,8 @@ newValueMeta' b t = do
 newValueMetaCtx' :: RunMetaOccursCheck -> Type -> Args -> TCM Term
 newValueMetaCtx' b t vs = do
   i <- createMetaInfo' b
-  let TelV tel a = telView' t
-      perm = idP (size tel)
+  TelV tel a <- telView t
+  let perm = idP (size tel)
   x <- newMeta i normalMetaPriority perm (HasType () t)
   reportSDoc "tc.meta.new" 50 $ fsep
     [ text "new meta:"
@@ -460,7 +460,7 @@ etaExpandMeta kinds m = whenM (isEtaExpandable m) $ do
       ifM (isEtaRecord r) {- then -} (do
         let ps = fromMaybe __IMPOSSIBLE__ $ allApplyElims es
         let expand = do
-              u <- abstract tel <$> do withMetaInfo' meta $ newRecordMetaCtx r ps tel $ teleArgs tel
+              u <- withMetaInfo' meta $ newRecordMetaCtx r ps tel $ teleArgs tel
               inTopContext $ do
                 verboseS "tc.meta.eta" 15 $ do
                   du <- prettyTCM u
@@ -468,7 +468,7 @@ etaExpandMeta kinds m = whenM (isEtaExpandable m) $ do
                 -- Andreas, 2012-03-29: No need for occurrence check etc.
                 -- we directly assign the solution for the meta
                 -- 2012-05-23: We also bypass the check for frozen.
-                noConstraints $ assignTerm' m u  -- should never produce any constraints
+                noConstraints $ assignTerm' m (telToArgs tel) u  -- should never produce any constraints
         if Records `elem` kinds then
           expand
          else if (SingletonRecords `elem` kinds) then do
@@ -485,7 +485,7 @@ etaExpandMeta kinds m = whenM (isEtaExpandable m) $ do
         reportSLn "tc.meta.eta" 20 $ "Expanding level meta to 0 (type-in-type)"
         -- Andreas, 2012-03-30: No need for occurrence check etc.
         -- we directly assign the solution for the meta
-        noConstraints $ assignTerm m (abstract tel $ Level $ Max [])
+        noConstraints $ assignTerm m (telToArgs tel) (Level $ Max [])
      ) $ {- else -} dontExpand
     _ -> dontExpand
 
@@ -724,15 +724,16 @@ attemptInertRHSImprovement m args v = do
   -- Solve the meta with _M := \ xs -> D (_Y1 xs) .. (_Yn xs), for fresh metas
   -- _Yi.
   metaArgs <- inTopContext $ addCtxTel tel $ newArgsMeta a
-  let varArgs  = map Apply $ reverse $ zipWith (\i a -> var i <$ a) [0..] (reverse args)
-      sol      = foldr (\a -> Lam (argInfo a) . Abs "x") (mkRHS metaArgs) args
+  let varArgs = map Apply $ reverse $ zipWith (\i a -> var i <$ a) [0..] (reverse args)
+      sol     = mkRHS metaArgs
+      argTel  = map ("x" <$) args
   reportSDoc "tc.meta.inert" 30 $ nest 2 $ vcat
     [ text "a       =" <+> prettyTCM a
     , text "tel     =" <+> prettyTCM tel
     , text "metas   =" <+> prettyList (map prettyTCM metaArgs)
     , text "sol     =" <+> prettyTCM sol
     ]
-  assignTerm m sol
+  assignTerm m argTel sol
   patternViolation  -- throwing a pattern violation here lets the constraint
                     -- machinery worry about restarting the comparison.
   where
@@ -835,10 +836,11 @@ assignMeta' m x t n ids v = do
     -- ALT 2: O(m)
     let assocToList i l = case l of
           _           | i >= m -> []
-          ((j,u) : l) | i == j -> u              : assocToList (i+1) l
-          _                    -> __IMPOSSIBLE__ : assocToList (i+1) l
+          ((j,u) : l) | i == j -> Just u  : assocToList (i+1) l
+          _                    -> Nothing : assocToList (i+1) l
         ivs = assocToList 0 ids
-    return $ applySubst (ivs ++# raiseS n)  v
+        rho = prependS __IMPOSSIBLE__ ivs $ raiseS n
+    return $ applySubst rho v
 
   -- Metas are top-level so we do the assignment at top-level.
   inTopContext $ do
@@ -858,12 +860,10 @@ assignMeta' m x t n ids v = do
     when (size tel' < n)
        patternViolation -- WAS: __IMPOSSIBLE__
 
-    -- The solution.
-    let u = killRange $ abstract tel' v'
     -- Perform the assignment (and wake constraints).
     reportSDoc "tc.meta.assign" 10 $
-      text "solving" <+> prettyTCM x <+> text ":=" <+> prettyTCM u
-    assignTerm x u
+      text "solving" <+> prettyTCM x <+> text ":=" <+> prettyTCM (abstract tel' v')
+    assignTerm x (telToArgs tel') v'
 
 
 -- | Turn the assignment problem @_X args <= SizeLt u@ into

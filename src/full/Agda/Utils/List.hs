@@ -27,7 +27,7 @@ import Agda.Utils.TestHelpers
 -- because cabal-only CPP directive
 import Agda.Utils.Tuple
 
-#include "../undefined.h"
+#include "undefined.h"
 import Agda.Utils.Impossible
 
 -- | Case distinction for lists, with list first.

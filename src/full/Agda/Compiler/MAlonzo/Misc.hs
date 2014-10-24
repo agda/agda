@@ -21,7 +21,7 @@ import Agda.Utils.Lens
 import Agda.Utils.Monad
 import Agda.Utils.Pretty
 
-#include "../../undefined.h"
+#include "undefined.h"
 import Agda.Utils.Impossible
 
 --------------------------------------------------

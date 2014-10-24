@@ -22,7 +22,7 @@ import Agda.TypeChecking.Free
 import Agda.Utils.Except ( MonadError(catchError) )
 import Agda.Utils.Impossible
 
-#include "../undefined.h"
+#include "undefined.h"
 
 type HaskellKind = String
 

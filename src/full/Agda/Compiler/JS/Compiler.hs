@@ -68,7 +68,7 @@ import Agda.Compiler.JS.Substitution
 import Agda.Compiler.JS.Case ( Tag(Tag), Case(Case), Patt(VarPatt,Tagged), lambda )
 import Agda.Compiler.JS.Pretty ( pretty )
 
-#include "../../undefined.h"
+#include "undefined.h"
 import Agda.Utils.Impossible ( Impossible(Impossible), throwImpossible )
 
 --------------------------------------------------

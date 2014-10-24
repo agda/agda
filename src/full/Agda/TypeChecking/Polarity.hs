@@ -31,7 +31,7 @@ import Agda.Utils.Monad
 import Agda.Utils.Permutation
 import Agda.Utils.Size
 
-#include "../undefined.h"
+#include "undefined.h"
 import Agda.Utils.Impossible
 
 ------------------------------------------------------------------------
