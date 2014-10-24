@@ -14,6 +14,58 @@ Pragmas and options
 Language
 ========
 
+* Building records from modules.
+
+  The "record { <fields> }" syntax is now extended to accept module names as
+  well. Fields are thus defined using the corresponding definitions from the
+  given module.
+
+  For instance assuming this record type R and module M:
+
+  record R : Set where
+    field
+      x : X
+      y : Y
+      z : Z
+
+  module M where
+    x = {! ... !}
+    y = {! ... !}
+
+  r : R
+  r = record { M; z = {! ... !} }
+
+  Previously one had to write `record { x = M.x; y = M.y; z = {! ... !} }`.
+
+  More precisely this construction now supports any combination of explicit
+  field definitons and applied modules.
+
+  If a field is both given explicitly and available in one of the modules,
+  then the explicit one takes precedence.
+
+  If a field is available in more than one module then this is ambiguous
+  and therefor rejected. As a consquence the order of assignemnts does
+  not matter.
+
+  The modules can be both applied to arguments and have import directives
+  such as `hiding`, `using`, and `renaming`. In particular this construct
+  subsumes the record update construction.
+
+  Here is an example of record update:
+
+  -- Record update. Same as: record r { y = {! ... !} }
+  r2 : R
+  r2 = record { R r; y = {! ... !} }
+
+  A contrived example showing the use of hiding/renaming:
+
+  module M2 (a : A) where
+    w = {! ... !}
+    z = {! ... !}
+
+  r3 : A → R
+  r3 a = record { M hiding (y); M2 a renaming (w to y) }
+
 * Unquoting function definitions.
 
   There is a new declaration
