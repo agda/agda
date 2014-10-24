@@ -778,7 +778,10 @@ checkApplication hd args e t = do
           qv <- checkExpr qv =<< el primAgdaTerm
           mv <- runUnquoteM $ unquote qv
           case mv of
-            Left (BlockedOnMeta m) -> postponeTypeCheckingProblem (CheckExpr e t) (isInstantiatedMeta m)
+            Left (BlockedOnMeta m) -> do
+              r <- getRange <$> lookupMeta m
+              setCurrentRange r $
+                postponeTypeCheckingProblem (CheckExpr e t) (isInstantiatedMeta m)
             Left err -> typeError $ UnquoteFailed err
             Right v  -> do
               e <- reifyUnquoted (v :: Term)
