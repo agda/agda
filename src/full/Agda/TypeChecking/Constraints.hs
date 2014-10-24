@@ -198,8 +198,7 @@ solveConstraint_ (UnBlock m)                =
       -- Open (whatever that means)
       Open -> __IMPOSSIBLE__
       OpenIFS -> __IMPOSSIBLE__
-solveConstraint_ (FindInScope m b cands)      =
-  ifM (isFrozen m) (addConstraint $ FindInScope m b cands) (findInScope m cands)
+solveConstraint_ (FindInScope m b cands)      = findInScope m cands
 
 checkTypeCheckingProblem :: TypeCheckingProblem -> TCM Term
 checkTypeCheckingProblem p = case p of

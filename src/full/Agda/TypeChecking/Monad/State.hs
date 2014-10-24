@@ -71,12 +71,12 @@ localTCState = disableDestructiveUpdate . bracket_ get (\ s -> do
 --   before reverting it.
 localTCStateSaving :: TCM a -> TCM (a, TCState)
 localTCStateSaving compute = do
-  state <- get
+  oldState <- get
   result <- compute
   newState <- get
   do
     b <- getBenchmark
-    put state
+    put oldState
     modifyBenchmark $ const b
   return (result, newState)
 

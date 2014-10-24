@@ -137,7 +137,7 @@ findInScope m (Just cands) =
 -- | Result says whether we need to add constraint, and if so, the set of
 --   remaining candidates and an eventual blocking metavariable.
 findInScope' :: MetaId -> Candidates -> TCM (Maybe (Candidates, Maybe MetaId))
-findInScope' m cands =
+findInScope' m cands = ifM (isFrozen m) (return (Just (cands, Nothing))) $ do
     -- Andreas, 2013-12-28 issue 1003:
     -- If instance meta is already solved, simply discard the constraint.
     ifM (isInstantiatedMeta m) (return Nothing) $ do
@@ -152,18 +152,9 @@ findInScope' m cands =
     -- constrained, then don’t do anything because it may loop.
     ifJustM (areThereNonRigidMetaArguments (unEl t)) (\ m -> return (Just (cands, Just m))) $ do
 
-    -- If there are recursive instances, it's not safe to instantiate
-    -- metavariables in the goal, so we freeze them before checking candidates.
-    -- Metas that are rigidly constrained need not be frozen.
-    isRec <- orM $ map (isRecursive . unEl . snd) cands
-    let shouldFreeze m = ifM (isRigid m) (return False) (not <$> isFrozen m)
-    metas <- if not isRec then return [] else do
-      filterM shouldFreeze (allMetas t)
-    forM_ metas $ \ m -> updateMetaVar m $ \ mv -> mv { mvFrozen = Frozen }
     cands <- checkCandidates m t cands
     reportSLn "tc.instance" 15 $
       "findInScope 4: cands left: " ++ show (length cands)
-    unfreezeMeta metas
     case cands of
 
       [] -> do
@@ -179,7 +170,7 @@ findInScope' m cands =
           , text "for type" <+> prettyTCM t
           ]
 
-        return Nothing
+        return Nothing  -- We’re done
 
       cs -> do
         reportSDoc "tc.instance" 15 $
@@ -290,35 +281,31 @@ areThereNonRigidMetaArguments t = case ignoreSharing t of
 --   If the resulting list contains exactly one element, then the state is the
 --   same as the one obtained after running the corresponding computation. In
 --   all the other cases, the state is reseted.
---   (used in instance search)
 filterResetingState :: Candidates -> (Candidate -> TCM Bool) -> TCM Candidates
-filterResetingState [] f = return []
-filterResetingState (x:xs) f = do
-  (r, s) <- localTCStateSaving (f x)
-  xs' <- filterResetingState xs f
+filterResetingState cands f = disableDestructiveUpdate $ do
+  result <- mapM (\c -> do bs <- localTCStateSaving (f c); return (c, bs)) cands
+  result <- dropSameCandidates result
+  case List.filter (\ (c, (b, s)) -> b) result of
+    [(c, (_, s))] -> do put s; return [c]
+    l -> return (map (\ (c, (b, s)) -> c) l)
 
-  if not r
-    then return xs'
-    else do
-      xs' <- dropSameCandidatesAs x xs'
-      if List.null xs'
-        then (do put s; return [x])
-        else return (x:xs')
-
--- Drop all candidates which are judgmentally equal to the given one.
-dropSameCandidatesAs :: Candidate -> Candidates -> TCM Candidates
-dropSameCandidatesAs (v, a) cands = do
-    dropWhileM equal cands
-  where
-    equal (v',a') = localTCState $ dontAssignMetas $ ifNoConstraints_ (equalType a a' >> equalTerm a v v')
-                    {- then -} (return True)
-                    {- else -} (\ _ -> return False)
-                    `catchError` (\ _ -> return False)
+-- Drop all candidates which are judgmentally equal to the first one.
+-- This is sufficient to reduce the list to a singleton should all be equal.
+dropSameCandidates :: [(Candidate, a)] -> TCM [(Candidate, a)]
+dropSameCandidates cands = do
+  case cands of
+    []            -> return cands
+    ((v,a), d) : vas -> (((v,a), d):) <$> dropWhileM equal vas
+      where
+        equal ((v',a'), _) = dontAssignMetas $ ifNoConstraints_ (equalType a a' >> equalTerm a v v')
+                             {- then -} (return True)
+                             {- else -} (\ _ -> return False)
+                             `catchError` (\ _ -> return False)
 
 -- | Given a meta @m@ of type @t@ and a list of candidates @cands@,
 -- @checkCandidates m t cands@ returns a refined list of valid candidates.
 checkCandidates :: MetaId -> Type -> Candidates -> TCM Candidates
-checkCandidates m t cands = {- localTCState $ -} disableDestructiveUpdate $ do
+checkCandidates m t cands = disableDestructiveUpdate $ do
   filterResetingState cands (uncurry $ checkCandidateForMeta m t)
   where
     checkCandidateForMeta :: MetaId -> Type -> Term -> Type -> TCM Bool

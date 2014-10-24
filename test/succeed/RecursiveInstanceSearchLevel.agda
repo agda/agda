@@ -46,3 +46,6 @@ test₁ A = check-level 1 ((a b : Trunc 2 A) → (a , (b , 3)) ≡ (b , (a , 4))
 
 test₂ : (A : Set) → Set
 test₂ A = check-level 2 ((a b : Trunc 2 A) → (a , (b , 3)) ≡ (b , (a , 4)))
+
+test₃ : {n : Nat} {A : Set} {B : A → Set} {{_ : {a : A} → has-level n (B a)}} → Nat → has-level n ((a : A) → B a)
+test₃ r = Π-level
