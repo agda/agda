@@ -262,13 +262,12 @@ isCon con tm = do t <- lift tm
                     Con con' _ -> return (con == con')
                     _ -> return False
 
-{-unquoteFailedGeneric :: String -> UnquoteM a
-unquoteFailedGeneric msg = typeError . GenericError $ "Unable to unquote the " ++ msg
+reduceQuotedTerm :: Term -> UnquoteM Term
+reduceQuotedTerm t = ifBlocked t
+                       (\m _ -> throwException $ BlockedOnMeta m)
+                       (\  t -> return t)
 
-unquoteFailed :: String -> String -> Term -> TCM a
-unquoteFailed kind msg t = do doc <- prettyTCM t
-                              unquoteFailedGeneric $ "term (" ++ show doc ++ ") of type " ++ kind ++ ".\nReason: " ++ msg ++ "."
--}
+
 class Unquote a where
   unquote :: Term -> UnquoteM a
 
@@ -317,7 +316,7 @@ pickName a =
 
 instance Unquote I.ArgInfo where
   unquote t = do
-    t <- lift $ reduce t
+    t <- reduceQuotedTerm t
     case ignoreSharing t of
       Con c [h,r] -> do
         choice
@@ -328,7 +327,7 @@ instance Unquote I.ArgInfo where
 
 instance Unquote a => Unquote (I.Arg a) where
   unquote t = do
-    t <- lift $ reduce t
+    t <- reduceQuotedTerm t
     case ignoreSharing t of
       Con c [info,x] -> do
         choice
@@ -344,28 +343,28 @@ instance Unquote a => Unquote (Elim' a) where
 
 instance Unquote Integer where
   unquote t = do
-    t <- lift $ reduce t
+    t <- reduceQuotedTerm t
     case ignoreSharing t of
       Lit (LitInt _ n) -> return n
       _ -> throwException $ NotALiteral "Integer" t
 
 instance Unquote Double where
   unquote t = do
-    t <- lift $ reduce t
+    t <- reduceQuotedTerm t
     case ignoreSharing t of
       Lit (LitFloat _ x) -> return x
       _ -> throwException $ NotALiteral "Float" t
 
 instance Unquote Char where
   unquote t = do
-    t <- lift $ reduce t
+    t <- reduceQuotedTerm t
     case ignoreSharing t of
       Lit (LitChar _ x) -> return x
       _ -> throwException $ NotALiteral "Char" t
 
 instance Unquote Str where
   unquote t = do
-    t <- lift $ reduce t
+    t <- reduceQuotedTerm t
     case ignoreSharing t of
       Lit (LitString _ x) -> return (Str x)
       _ -> throwException $ NotALiteral "String" t
@@ -378,7 +377,7 @@ unquoteNString x = unStr <$> unquoteN x
 
 instance Unquote a => Unquote [a] where
   unquote t = do
-    t <- lift $ reduce t
+    t <- reduceQuotedTerm t
     case ignoreSharing t of
       Con c [x,xs] -> do
         choice
@@ -393,7 +392,7 @@ instance Unquote a => Unquote [a] where
 
 instance Unquote Hiding where
   unquote t = do
-    t <- lift $ reduce t
+    t <- reduceQuotedTerm t
     case ignoreSharing t of
       Con c [] -> do
         choice
@@ -406,7 +405,7 @@ instance Unquote Hiding where
 
 instance Unquote Relevance where
   unquote t = do
-    t <- lift $ reduce t
+    t <- reduceQuotedTerm t
     case ignoreSharing t of
       Con c [] -> do
         choice
@@ -418,7 +417,7 @@ instance Unquote Relevance where
 
 instance Unquote QName where
   unquote t = do
-    t <- lift $ reduce t
+    t <- reduceQuotedTerm t
     case ignoreSharing t of
       Lit (LitQName _ x) -> return x
       _                  -> throwException $ NotALiteral "QName" t
@@ -428,7 +427,7 @@ instance Unquote ConHead where
 
 instance Unquote a => Unquote (Abs a) where
   unquote t = do
-    t <- lift $ reduce t
+    t <- reduceQuotedTerm t
     case ignoreSharing t of
       Con c [x,y] -> do
         choice
@@ -442,7 +441,7 @@ instance Unquote a => Unquote (Abs a) where
 
 instance Unquote Sort where
   unquote t = do
-    t <- lift $ reduce t
+    t <- reduceQuotedTerm t
     case ignoreSharing t of
       Con c [] -> do
         choice
@@ -461,7 +460,7 @@ instance Unquote Level where
 
 instance Unquote Type where
   unquote t = do
-    t <- lift $ reduce t
+    t <- reduceQuotedTerm t
     case ignoreSharing t of
       Con c [s, u] -> do
         choice
@@ -472,7 +471,7 @@ instance Unquote Type where
 
 instance Unquote Literal where
   unquote t = do
-    t <- lift $ reduce t
+    t <- reduceQuotedTerm t
     case ignoreSharing t of
       Con c [x] ->
         choice
@@ -487,7 +486,7 @@ instance Unquote Literal where
 
 instance Unquote Term where
   unquote t = do
-    t <- lift $ reduce t
+    t <- reduceQuotedTerm t
     case ignoreSharing t of
       Con c [] ->
         choice
@@ -522,7 +521,7 @@ instance Unquote Term where
 
 instance Unquote Pattern where
   unquote t = do
-    t <- lift $ reduce t
+    t <- reduceQuotedTerm t
     case ignoreSharing t of
       Con c [] -> do
         choice
@@ -546,7 +545,7 @@ data UnquotedFunDef = UnQFun Type [Clause]
 
 instance Unquote Clause where
   unquote t = do
-    t <- lift $ reduce t
+    t <- reduceQuotedTerm t
     case ignoreSharing t of
       Con c [x] -> do
         choice
@@ -610,7 +609,7 @@ instance Unquote Clause where
 
 instance Unquote UnquotedFunDef where
   unquote t = do
-    t <- lift $ reduce t
+    t <- reduceQuotedTerm t
     case ignoreSharing t of
       Con c [x, y] -> do
         choice

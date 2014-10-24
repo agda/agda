@@ -767,23 +767,25 @@ checkApplication hd args e t = do
     -- Subcase: unquote
     A.Unquote _
       | [arg] <- args -> do
-          e <- unquoteTerm (namedArg arg)
-          checkExpr e t
+          unquoteTerm (namedArg arg) $ \e ->
+            checkExpr e t
       | arg : args <- args -> do
-          e <- unquoteTerm (namedArg arg)
-          checkHeadApplication e t e $ map convColor args
+          unquoteTerm (namedArg arg) $ \e ->
+            checkHeadApplication e t e $ map convColor args
       where
-        unquoteTerm qv = do
+        unquoteTerm :: A.Expr -> (A.Expr -> TCM Term) -> TCM Term
+        unquoteTerm qv cont = do
           qv <- checkExpr qv =<< el primAgdaTerm
           mv <- runUnquoteM $ unquote qv
           case mv of
+            Left (BlockedOnMeta m) -> postponeTypeCheckingProblem (CheckExpr e t) (isInstantiatedMeta m)
             Left err -> typeError $ UnquoteFailed err
             Right v  -> do
               e <- reifyUnquoted (v :: Term)
               reportSDoc "tc.unquote.term" 10 $
                 vcat [ text "unquote" <+> prettyTCM qv
                      , nest 2 $ text "-->" <+> prettyA e ]
-              return (killRange e)
+              cont (killRange e)
 
     -- Subcase: defined symbol or variable.
     _ -> checkHeadApplication e t hd $ map convColor args

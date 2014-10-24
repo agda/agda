@@ -822,7 +822,7 @@ instance PrettyTCM TypeError where
                   vcat [ fsep $ pwords $ "Unable to unquote the term (" ++ show doc ++ ") of type Clause."
                        , fsep $ pwords "Reason: the right-hand side contains variables that are referring to a dot pattern."
                        , fsep $ pwords $ "Offending De Bruijn indices: " ++ intercalate ", " (map show ixs) ++ "." ]
-                (BlockedOnMeta m) -> __IMPOSSIBLE__
+                (BlockedOnMeta m) -> fsep $ pwords $ "Unquote failed because of unsolved meta variables."
                 (UnquotePanic err) -> __IMPOSSIBLE__
             SafeFlagPostulate e -> fsep $
                 pwords "Cannot postulate" ++ [pretty e] ++ pwords "with safe flag"
