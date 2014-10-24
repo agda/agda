@@ -6,6 +6,8 @@ module Agda.Utils.Size
   , sizeThing
   ) where
 
+import Prelude hiding (null)
+
 import Data.IntMap (IntMap)
 import qualified Data.IntMap as IntMap
 import Data.IntSet (IntSet)
@@ -16,7 +18,9 @@ import Data.Set (Set)
 import qualified Data.Set as Set
 import Data.Sequence (Seq)
 import qualified Data.Sequence as Seq
-import Data.List
+import qualified Data.List as List
+
+import Agda.Utils.Null
 
 -- | The size of an object.
 --
@@ -27,7 +31,7 @@ class Sized a where
   size :: Integral n => a -> n
 
 instance Sized [a] where
-  size = genericLength
+  size = List.genericLength
 
 instance Sized (IntMap a) where
   size = fromIntegral . IntMap.size
@@ -53,10 +57,14 @@ data SizedThing a = SizedThing
   , sizedThing :: a
   }
 
+-- | Cache the size of an object.
+sizeThing :: Sized a => a -> SizedThing a
+sizeThing a = SizedThing (size a) a
+
 -- | Return the cached size.
 instance Sized (SizedThing a) where
   size = fromIntegral . theSize
 
--- | Cache the size of an object.
-sizeThing :: Sized a => a -> SizedThing a
-sizeThing a = SizedThing (size a) a
+instance Null a => Null (SizedThing a) where
+  empty = SizedThing 0 empty
+  null  = null . sizedThing
