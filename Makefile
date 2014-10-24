@@ -7,7 +7,7 @@ PROFVERB=7
 # Various paths and commands
 
 CABAL_CMD=cabal
-CABAL_OPTS=
+override CABAL_OPTS+=$(CABAL_OPTIONS)
 TOP=.
 
 # mk/path.mk uses TOP, so include after definition of TOP!
@@ -19,14 +19,6 @@ include ./mk/paths.mk
 default: install-bin
 
 ## Cabal-based installation ###############################################
-
-# If you want to make use of parallel compilation with ghc>=7.8,
-# enable the flag below, or set the "jobs" field in your
-# ".cabal/config".
-#
-# ifeq ($(HAVE_GHC_7_7),Yes)
-# override CABAL_OPTS+=--ghc-option=-j3
-# endif
 
 .PHONY : install
 install: install-bin compile-emacs-mode setup-emacs-mode
