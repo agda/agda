@@ -8,7 +8,7 @@
 module Agda.TypeChecking.Quote where
 
 import Control.Applicative
-import Control.Monad.State (evalState, get, put)
+import Control.Monad.State (runState, get, put)
 import Control.Monad.Writer (execWriterT, tell)
 import Control.Monad.Trans (lift)
 
@@ -307,7 +307,7 @@ ensureCon x = do
 
 pickName :: Type -> String
 pickName a =
-  case unEl a of
+  case ignoreSharing (unEl a) of
     Pi{}   -> "f"
     Sort{} -> "A"
     Def d _ | c:_ <- show (qnameName d),
@@ -569,20 +569,15 @@ instance Unquote Clause where
                , clauseCatchall  = False }
         where
           ps = map (fmap unnamed) ps0
-          n  = vars True ps  -- with dot patterns
-          n' = vars False ps -- without dot patterns
           dummyTel 0 = EmptyTel
           dummyTel n = ExtendTel (defaultDom typeDontCare) (Abs "x" $ dummyTel (n - 1))
           mkBody 0 b = maybe NoBody Body b
           mkBody n b = Bind $ Abs "x" $ mkBody (n - 1) b
-          vars d ps = sum $ map (vars' d . namedArg) ps
-          vars' d (ConP _ _ ps) = vars d ps
-          vars' d VarP{}      = 1
-          vars' d DotP{}      = if d then 1 else 0
-          vars' d LitP{}      = 0
-          vars' d ProjP{}     = 0
 
-          vs = evalState (execWriterT $ mapM_ (computePerm . namedArg) ps) 0
+          -- n  is the number of variables *including* dot patterns
+          -- n' is the number of variables *excluding* dot patterns
+          (vs, n) = runState (execWriterT $ mapM_ (computePerm . namedArg) ps) 0
+          n' = length vs
           next = do n <- get; put (n + 1); return n
 
           computePerm (ConP _ _ ps) = mapM_ (computePerm . namedArg) ps
