@@ -293,7 +293,7 @@ ensureCon x = do
 
 pickName :: Type -> String
 pickName a =
-  case unEl a of
+  case ignoreSharing (unEl a) of
     Pi{}   -> "f"
     Sort{} -> "A"
     Def d _ | c:_ <- show (qnameName d),
