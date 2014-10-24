@@ -805,10 +805,6 @@ instance PrettyTCM TypeError where
                 (DefInsteadOfCon x def con) -> do
                   f   <- prettyTCM x
                   fsep $ pwords $ "Use " ++ def ++ " instead of " ++ con ++ " for non-constructor " ++ show f
-                (BadConstructor kind reason t) -> do
-                  doc <- prettyTCM t
-                  vcat [ fsep $ pwords $ "Unable to unquote the term (" ++ show doc ++ ") of type " ++ kind ++ "."
-                       , fsep $ pwords $ "Reason: " ++ reason ++ "." ]
                 (NotAConstructor kind t) -> do
                   doc <- prettyTCM t
                   vcat [ fsep $ pwords $ "Unable to unquote the term (" ++ show doc ++ ") of type " ++ kind ++ "."

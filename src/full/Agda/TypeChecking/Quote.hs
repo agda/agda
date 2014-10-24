@@ -307,8 +307,8 @@ instance Unquote I.ArgInfo where
       Con c [h,r] -> do
         choice
           [(c `isCon` primArgArgInfo, ArgInfo <$> unquoteN h <*> unquoteN r <*> return [])]
-          (throwException $ BadConstructor "ArgInfo" "arity 2 and not the `arginfo' constructor" t)
-      Con c _ -> throwException $ BadConstructor "ArgInfo" "not of arity 2" t
+          __IMPOSSIBLE__
+      Con c _ -> __IMPOSSIBLE__
       _ -> throwException $ NotAConstructor "ArgInfo" t
 
 instance Unquote a => Unquote (I.Arg a) where
@@ -318,8 +318,8 @@ instance Unquote a => Unquote (I.Arg a) where
       Con c [info,x] -> do
         choice
           [(c `isCon` primArgArg, Arg <$> unquoteN info <*> unquoteN x)]
-          (throwException $ BadConstructor "Arg" "arity 2 and not the `arg' constructor" t)
-      Con c _ -> throwException $ BadConstructor "Arg" "not of arity 2" t
+          __IMPOSSIBLE__
+      Con c _ -> __IMPOSSIBLE__
       _ -> throwException $ NotAConstructor "Arg" t
 
 -- Andreas, 2013-10-20: currently, post-fix projections are not part of the
@@ -362,12 +362,12 @@ instance Unquote a => Unquote [a] where
       Con c [x,xs] -> do
         choice
           [(c `isCon` primCons, (:) <$> unquoteN x <*> unquoteN xs)]
-          (throwException $ BadConstructor "List" "arity 2 and not the `∷' constructor" t)
+          __IMPOSSIBLE__
       Con c [] -> do
         choice
           [(c `isCon` primNil, return [])]
-          (throwException $ BadConstructor "List" "arity 0 and not the `[]' constructor" t)
-      Con c _ -> throwException $ BadConstructor "List" "neither `[]' nor `∷'" t
+          __IMPOSSIBLE__
+      Con c _ -> __IMPOSSIBLE__
       _ -> throwException $ NotAConstructor "List" t
 
 instance Unquote Hiding where
@@ -379,8 +379,8 @@ instance Unquote Hiding where
           [(c `isCon` primHidden,  return Hidden)
           ,(c `isCon` primInstance, return Instance)
           ,(c `isCon` primVisible, return NotHidden)]
-          (throwException $ BadConstructor "Hiding" "neither `hidden' nor `visible'" t)
-      Con c vs -> throwException $ BadConstructor "Hiding" "the value is a constructor, but its arity is not 0" t
+          __IMPOSSIBLE__
+      Con c vs -> __IMPOSSIBLE__
       _        -> throwException $ NotAConstructor "Hiding" t
 
 instance Unquote Relevance where
@@ -391,8 +391,8 @@ instance Unquote Relevance where
         choice
           [(c `isCon` primRelevant,   return Relevant)
           ,(c `isCon` primIrrelevant, return Irrelevant)]
-          (throwException $ BadConstructor "Relevance" "neither `relevant' or `irrelevant'" t)
-      Con c vs -> throwException $ BadConstructor "Relevance" "the value is a constructor, but its arity is not 0" t
+          __IMPOSSIBLE__
+      Con c vs -> __IMPOSSIBLE__
       _        -> throwException $ NotAConstructor "Relevance" t
 
 instance Unquote QName where
@@ -420,8 +420,8 @@ instance Unquote Sort where
         choice
           [(c `isCon` primAgdaSortSet, Type <$> unquoteN u)
           ,(c `isCon` primAgdaSortLit, Type . levelMax . (:[]) . ClosedLevel <$> unquoteN u)]
-          (throwException $ BadConstructor "Sort" "arity 1 and not the `set' or the `lit' constructors" t)
-      Con c _ -> throwException $ BadConstructor "Sort" "not of arity 0 nor 1" t
+          __IMPOSSIBLE__
+      Con c _ -> __IMPOSSIBLE__
       _ -> throwException $ NotAConstructor "Sort" t
 
 instance Unquote Level where
@@ -434,8 +434,8 @@ instance Unquote Type where
       Con c [s, u] -> do
         choice
           [(c `isCon` primAgdaTypeEl, El <$> unquoteN s <*> unquoteN u)]
-          (throwException $ BadConstructor "Type" "arity 2 and not the `el' constructor" t)
-      Con c _ -> throwException $ BadConstructor "Type" "not of arity 2" t
+          __IMPOSSIBLE__
+      Con c _ -> __IMPOSSIBLE__
       _ -> throwException $ NotAConstructor "Type" t
 
 instance Unquote Literal where
@@ -449,8 +449,8 @@ instance Unquote Literal where
           , (c `isCon` primAgdaLitChar,   LitChar   noRange <$> unquoteN x)
           , (c `isCon` primAgdaLitString, LitString noRange . unStr <$> unquoteN x)
           , (c `isCon` primAgdaLitQName,  LitQName  noRange <$> unquoteN x) ]
-          (throwException $ BadConstructor "Literal" "not a literal constructor" t)
-      Con c _ -> throwException $ BadConstructor "Literal" "not a literal constructor" t
+          __IMPOSSIBLE__
+      Con c _ -> __IMPOSSIBLE__
       _ -> throwException $ NotAConstructor "Literal" t
 
 instance Unquote Term where
@@ -460,13 +460,13 @@ instance Unquote Term where
       Con c [] ->
         choice
           [(c `isCon` primAgdaTermUnsupported, pure hackReifyToMeta)]
-          (throwException $ BadConstructor "Term" "arity 0 and not the `unsupported' constructor" t)
+          __IMPOSSIBLE__
 
       Con c [x] -> do
         choice
           [ (c `isCon` primAgdaTermSort,   Sort <$> unquoteN x)
           , (c `isCon` primAgdaTermLit,    Lit <$> unquoteN x) ]
-          (throwException $ BadConstructor "Term" "bad constructor" t)
+          __IMPOSSIBLE__
 
       Con c [x, y] ->
         choice
@@ -476,7 +476,7 @@ instance Unquote Term where
           , (c `isCon` primAgdaTermLam, Lam <$> (flip setHiding defaultArgInfo <$> unquoteN x) <*> unquoteN y)
           , (c `isCon` primAgdaTermPi,  mkPi <$> (domFromArg <$> unquoteN x) <*> unquoteN y)
           , (c `isCon` primAgdaTermExtLam, mkExtLam <$> unquoteN x <*> unquoteN y) ]
-          (throwException $ BadConstructor "Term" "bad term constructor" t)
+          __IMPOSSIBLE__
         where
           mkExtLam = ExtLam
           mkPi a (Abs _ b) = Pi a (Abs x b)
@@ -484,8 +484,8 @@ instance Unquote Term where
                     | otherwise    = "_"
           mkPi _ NoAbs{} = __IMPOSSIBLE__
 
-      Con{} -> throwException $ BadConstructor "Term" "neither arity 0 nor 1 nor 2" t
-      Lit{} -> throwException $ BadConstructor "Term" "unexpected literal" t
+      Con{} -> __IMPOSSIBLE__
+      Lit{} -> __IMPOSSIBLE__
       _ -> throwException $ NotAConstructor "Term" t
 
 instance Unquote Pattern where
@@ -507,7 +507,7 @@ instance Unquote Pattern where
         choice
           [ (c `isCon` primAgdaPatCon, flip ConP Nothing <$> unquoteN x <*> (map (fmap unnamed) <$> unquoteN y)) ]
           __IMPOSSIBLE__
-      Con c _ -> throwException $ BadConstructor "Pattern" "neither arity 0 nor 1 nor 2" t
+      Con c _ -> __IMPOSSIBLE__
       _ -> throwException $ NotAConstructor "Pattern" t
 
 data UnquotedFunDef = UnQFun Type [Clause]
@@ -524,7 +524,7 @@ instance Unquote Clause where
         choice
           [ (c `isCon` primAgdaClauseClause, checkClause =<< mkClause . Just <$> unquoteN y <*> unquoteN x) ]
           __IMPOSSIBLE__
-      Con c _ -> throwException $ BadConstructor "Clause" "neither arity 1 nor 2" t
+      Con c _ -> __IMPOSSIBLE__
       _ -> throwException $ NotAConstructor "Clause" t
     where
       mkClause :: Maybe Term -> [I.Arg Pattern] -> I.Clause
@@ -583,7 +583,7 @@ instance Unquote UnquotedFunDef where
         choice
           [ (c `isCon` primAgdaFunDefCon, UnQFun <$> unquoteN x <*> unquoteN y) ]
           __IMPOSSIBLE__
-      Con c _ -> throwException $ BadConstructor "Pattern" "not of arity 2" t
+      Con c _ -> __IMPOSSIBLE__
       _ -> throwException $ NotAConstructor "Pattern" t
 
 reifyUnquoted :: Reify a e => a -> TCM e
