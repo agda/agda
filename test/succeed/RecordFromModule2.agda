@@ -16,9 +16,9 @@ r : R
 r = record { M; z = zz } where postulate zz : Z
 
 -- Record update. Same as: record r { y = ... }
-r2 : R                                       
+r2 : R
 r2 = record { R r; y = y } where postulate y : Y
-                                             
+
 module M2 (a : A) where
  postulate
   w : Y
