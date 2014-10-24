@@ -1711,7 +1711,6 @@ data UnquoteError
   = BadVisibility String (I.Arg I.Term)
   | ConInsteadOfDef QName String String
   | DefInsteadOfCon QName String String
-  | BadConstructor String String I.Term -- ^ @BadConstructor kind reason term@
   | NotAConstructor String I.Term       -- ^ @NotAConstructor kind term@
   | NotALiteral String I.Term
   | RhsUsesDottedVar [Int] I.Term
