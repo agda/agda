@@ -363,6 +363,11 @@ primQNameDefinition = do
         redReturn =<< con x
       _ -> __IMPOSSIBLE__
 
+primDataNumberOfParameters :: TCM PrimitiveImpl
+primDataNumberOfParameters =
+  mkPrimFun1TCM (el primAgdaDataDef --> el primNat)
+                (fmap (toInteger . dataPars . theDef) . getConstInfo)
+
 primDataConstructors :: TCM PrimitiveImpl
 primDataConstructors =
   mkPrimFun1TCM (el primAgdaDataDef --> el (list primQName))
@@ -621,9 +626,10 @@ primitiveFunctions = Map.fromList
     , "primShowString"      |-> mkPrimFun1 (Str . show . pretty . LitString noRange . unStr)
 
     -- Reflection
-    , "primQNameType"       |-> primQNameType
-    , "primQNameDefinition" |-> primQNameDefinition
-    , "primDataConstructors"|-> primDataConstructors
+    , "primQNameType"              |-> primQNameType
+    , "primQNameDefinition"        |-> primQNameDefinition
+    , "primDataNumberOfParameters" |-> primDataNumberOfParameters
+    , "primDataConstructors"       |-> primDataConstructors
 
     -- Other stuff
     , "primTrustMe"         |-> primTrustMe

@@ -160,11 +160,12 @@ data Definition : Set where
 {-# BUILTIN AGDADEFINITIONPRIMITIVE       prim            #-}
 
 primitive
-  primQNameType         : QName → Type
-  primQNameDefinition   : QName → Definition
-  primDataConstructors  : DataDef   → List QName
---primRecordConstructor : RecordDef → QName
---primRecordFields      : RecordDef → List QName
+  primQNameType              : QName → Type
+  primQNameDefinition        : QName → Definition
+  primDataNumberOfParameters : DataDef → ℕ
+  primDataConstructors       : DataDef   → List QName
+--primRecordConstructor      : RecordDef → QName
+--primRecordFields           : RecordDef → List QName
 
 type : QName → Type
 type = primQNameType
