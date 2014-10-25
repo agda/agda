@@ -712,6 +712,7 @@ instance EmbPrj A.Expr where
   icod_ (A.Quote _)             = icode0 22
   icod_ (A.QuoteTerm _)         = icode0 23
   icod_ (A.Unquote _)           = icode0 24
+  icod_ (A.Tactic _ _ _ _)      = __IMPOSSIBLE__
   icod_ (A.DontCare a)          = icode1 25 a
   icod_ (A.PatternSyn a)        = icode1 26 a
   icod_ (A.Proj a)              = icode1 27 a

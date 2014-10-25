@@ -503,6 +503,13 @@ instance ToConcrete A.Expr C.Expr where
     toConcrete (A.Quote i) = return $ C.Quote (getRange i)
     toConcrete (A.QuoteTerm i) = return $ C.QuoteTerm (getRange i)
     toConcrete (A.Unquote i) = return $ C.Unquote (getRange i)
+    toConcrete (A.Tactic i e xs ys) = do
+      e' <- toConcrete e
+      xs' <- toConcrete xs
+      ys' <- toConcrete ys
+      let r      = getRange i
+          rawtac = foldl (C.App r) e' xs'
+      return $ C.Tactic (getRange i) rawtac (map namedArg ys')
 
     -- Andreas, 2012-04-02: TODO!  print DontCare as irrAxiom
     -- Andreas, 2010-10-05 print irrelevant things as ordinary things

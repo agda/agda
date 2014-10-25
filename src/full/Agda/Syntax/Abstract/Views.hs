@@ -98,6 +98,7 @@ instance ExprLike Expr where
       Quote{}              -> m
       QuoteTerm{}          -> m
       Unquote{}            -> m
+      Tactic _ e xs ys     -> m `mappend` fold e `mappend` fold xs `mappend` fold ys
       DontCare e           -> m `mappend` fold e
    where
      m    = f e
@@ -132,6 +133,7 @@ instance ExprLike Expr where
       Quote{}                 -> f e
       QuoteTerm{}             -> f e
       Unquote{}               -> f e
+      Tactic ei e xs ys       -> f =<< Tactic ei <$> trav e <*> trav xs <*> trav ys
       DontCare e              -> f =<< DontCare <$> trav e
       PatternSyn{}            -> f e
 

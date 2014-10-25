@@ -99,6 +99,8 @@ data Expr
   | Quote ExprInfo                     -- ^ Quote an identifier 'QName'.
   | QuoteTerm ExprInfo                 -- ^ Quote a term.
   | Unquote ExprInfo                   -- ^ The splicing construct: unquote ...
+  | Tactic ExprInfo Expr [NamedArg Expr] [NamedArg Expr]
+                                       -- ^ @tactic e x1 .. xn | y1 | .. | yn@
   | DontCare Expr                      -- ^ For printing @DontCare@ from @Syntax.Internal@.
   deriving (Typeable, Show, Eq)
 
@@ -449,6 +451,7 @@ instance HasRange Expr where
     getRange (Quote i)             = getRange i
     getRange (QuoteTerm i)         = getRange i
     getRange (Unquote i)           = getRange i
+    getRange (Tactic i _ _ _)      = getRange i
     getRange (DontCare{})          = noRange
     getRange (PatternSyn x)        = getRange x
 
@@ -566,6 +569,7 @@ instance KillRange Expr where
   killRange (Quote i)              = killRange1 Quote i
   killRange (QuoteTerm i)          = killRange1 QuoteTerm i
   killRange (Unquote i)            = killRange1 Unquote i
+  killRange (Tactic i e xs ys)     = killRange4 Tactic i e xs ys
   killRange (DontCare e)           = DontCare e
   killRange (PatternSyn x)         = killRange1 PatternSyn x
 
@@ -733,6 +737,7 @@ instance AllNames Expr where
   allNames Quote{}                 = Seq.empty
   allNames QuoteTerm{}             = Seq.empty
   allNames Unquote{}               = Seq.empty
+  allNames (Tactic _ e xs ys)      = allNames e >< allNames xs >< allNames ys
   allNames DontCare{}              = Seq.empty
   allNames (PatternSyn x)          = Seq.empty
 
@@ -875,6 +880,9 @@ substExpr s e = case e of
   Quote i               -> e
   QuoteTerm i           -> e
   Unquote i             -> e
+  Tactic i e xs ys      -> Tactic i (substExpr s e)
+                                    (fmap (fmap (fmap (substExpr s))) xs)
+                                    (fmap (fmap (fmap (substExpr s))) ys)
   DontCare e            -> DontCare (substExpr s e)
   PatternSyn x          -> e
 

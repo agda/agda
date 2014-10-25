@@ -294,6 +294,7 @@ instance Rename Expr where
       Quote i               -> e
       QuoteTerm i           -> e
       Unquote i             -> e
+      Tactic i e xs ys      -> Tactic i (rename rho e) (rename rho xs) (rename rho ys)
       DontCare e            -> DontCare (rename rho e)
       PatternSyn n          -> e
 

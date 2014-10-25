@@ -702,25 +702,60 @@ checkExpr e t0 =
             (internalError "DontCare may only appear in irrelevant contexts")
 
         e0@(A.QuoteGoal _ x e) -> do
-          t' <- etaContract =<< normalise t
-          let metas = allMetas t'
-          case metas of
-            _:_ -> postponeTypeCheckingProblem (CheckExpr e0 t') $ andM $ map isInstantiatedMeta metas
-            []  -> do
-              quoted <- quoteTerm (unEl t')
+          qg <- quoteGoal t
+          case qg of
+            Left metas -> postponeTypeCheckingProblem (CheckExpr e0 t) $ andM $ map isInstantiatedMeta metas
+            Right quoted -> do
               tmType <- agdaTermType
               (v, ty) <- addLetBinding defaultArgInfo x quoted tmType (inferExpr e)
-              blockTerm t' $ coerce v ty t'
+              coerce v ty t
         e0@(A.QuoteContext _) -> do
-          contextTypes <- map (fmap snd) <$> getContext
-          contextTypes <- etaContract =<< normalise contextTypes
-          quotedContext <- buildList <*> mapM quoteDom contextTypes
-          ctxType <- el $ list $ primArg <@> (unEl <$> agdaTypeType)
-          coerce quotedContext ctxType t
+          qc <- quoteContext
+          case qc of
+            Left metas -> postponeTypeCheckingProblem (CheckExpr e0 t) $ andM $ map isInstantiatedMeta metas
+            Right quotedContext -> do
+              ctxType <- el $ list $ primArg <@> (unEl <$> agdaTypeType)
+              coerce quotedContext ctxType t
+        e0@(A.Tactic i e xs ys) -> do
+          qc <- quoteContext
+          qg <- quoteGoal t
+          let postpone metas = postponeTypeCheckingProblem (CheckExpr e0 t) $ andM $ map isInstantiatedMeta metas
+          case (qc, qg) of
+            (Left metas1, Left metas2) -> postpone $ metas1 ++ metas2
+            (Left metas , Right _    ) -> postpone $ metas
+            (Right _    , Left metas ) -> postpone $ metas
+            (Right quotedCtx, Right quotedGoal) -> do
+              quotedCtx  <- defaultNamedArg <$> reify quotedCtx
+              quotedGoal <- defaultNamedArg <$> reify quotedGoal
+              let tac    = foldl (A.App i) (A.App i (A.App i e quotedCtx) quotedGoal) xs
+                  result = foldl (A.App i) (A.Unquote i) (defaultNamedArg tac : ys)
+              checkExpr result t
+
         A.ETel _   -> __IMPOSSIBLE__
 
         -- Application
         _   | Application hd args <- appView e -> checkApplication hd args e t
+
+quoteGoal :: Type -> TCM (Either [MetaId] Term)
+quoteGoal t = do
+  t' <- etaContract =<< normalise t
+  let metas = allMetas t'
+  case metas of
+    _:_ -> return $ Left metas
+    []  -> do
+      quotedGoal <- quoteTerm (unEl t')
+      return $ Right quotedGoal
+
+quoteContext :: TCM (Either [MetaId] Term)
+quoteContext = do
+  contextTypes  <- map (fmap snd) <$> getContext
+  contextTypes  <- etaContract =<< normalise contextTypes
+  let metas = allMetas contextTypes
+  case metas of
+    _:_ -> return $ Left metas
+    []  -> do
+      quotedContext <- buildList <*> mapM quoteDom contextTypes
+      return $ Right quotedContext
 
 -- | @checkApplication hd args e t@ checks an application.
 --   Precondition: @Application hs args = appView e@
