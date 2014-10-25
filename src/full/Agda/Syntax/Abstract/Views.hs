@@ -20,6 +20,8 @@ import Agda.Syntax.Common hiding (Arg, Dom, NamedArg)
 import Agda.Syntax.Abstract as A
 import Agda.Syntax.Info
 
+import Agda.Utils.Either
+
 data AppView = Application Expr [NamedArg Expr]
 
 -- | Gather applications to expose head and spine.
@@ -156,8 +158,8 @@ instance ExprLike Assign where
 
 instance (ExprLike a, ExprLike b) => ExprLike (Either a b) where
   foldExpr f = either (foldExpr f) (foldExpr f)
-  traverseExpr f = either (fmap Left  . traverseExpr f)
-                          (fmap Right . traverseExpr f)
+  traverseExpr f = traverseEither (traverseExpr f)
+                                  (traverseExpr f)
 
 instance ExprLike ModuleName where
   foldExpr f _ = mempty

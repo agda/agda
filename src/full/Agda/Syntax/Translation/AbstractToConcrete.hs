@@ -58,6 +58,7 @@ import Agda.TypeChecking.Monad.Base  (TCM, NamedMeta(..))
 import Agda.TypeChecking.Monad.Options
 
 import qualified Agda.Utils.AssocList as AssocList
+import Agda.Utils.Either
 import Agda.Utils.Monad
 import Agda.Utils.Null
 import Agda.Utils.Tuple
@@ -294,7 +295,7 @@ instance ToConcrete a c => ToConcrete [a] [c] where
     bindToConcrete = thread bindToConcrete
 
 instance (ToConcrete a1 c1, ToConcrete a2 c2) => ToConcrete (Either a1 a2) (Either c1 c2) where
-    toConcrete = either (fmap Left . toConcrete) (fmap Right . toConcrete)
+    toConcrete = traverseEither toConcrete toConcrete
     bindToConcrete (Left x) ret =
         bindToConcrete x $ \x ->
         ret (Left x)

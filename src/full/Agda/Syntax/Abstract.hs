@@ -43,9 +43,10 @@ import Agda.Syntax.Abstract.Name as A (QNamed)
 import Agda.Syntax.Literal
 import Agda.Syntax.Scope.Base
 
+import Agda.Utils.Either
 import Agda.Utils.Geniplate
-import Agda.Utils.Tuple
 import Agda.Utils.Lens
+import Agda.Utils.Tuple
 
 #include "undefined.h"
 import Agda.Utils.Impossible
@@ -870,7 +871,7 @@ substExpr s e = case e of
   Let  i ls e           -> Let i (substLetBindings s ls)
                                  (substExpr s e)
   ETel t                -> e
-  Rec  i nes            -> Rec i (fmap (either (Left . over exprAssign (substExpr s)) Right) nes)
+  Rec  i nes            -> Rec i (fmap (mapLeft (over exprAssign (substExpr s))) nes)
   RecUpdate i e nes     -> RecUpdate i (substExpr s e)
                                        (fmap (over exprAssign (substExpr s)) nes)
   -- XXX: Do we need to do more with ScopedExprs?

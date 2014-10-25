@@ -39,6 +39,7 @@ import Agda.Syntax.Fixity
 import Agda.Syntax.Notation
 import Agda.Syntax.Literal
 
+import Agda.Utils.Either hiding (tests)
 import Agda.Utils.Hash
 import Agda.Utils.List (spanJust)
 import Agda.Utils.Monad
@@ -825,7 +826,7 @@ DomainFreeBindingAbsurd
     | '.' BId           { Left [DomainFree (setRelevance Irrelevant $ defaultArgInfo) $ mkBoundName_ $2]  }
     | '..' BId          { Left [DomainFree (setRelevance NonStrict $ defaultArgInfo) $ mkBoundName_ $2]  }
     | '{' CommaBIdAndAbsurds '}'
-         { either (Left . map (DomainFree (setHiding Hidden $ defaultArgInfo) . mkBoundName_)) Right $2 }
+         { mapLeft (map (DomainFree (setHiding Hidden $ defaultArgInfo) . mkBoundName_)) $2 }
     | '{{' CommaBIds DoubleCloseBrace { Left $ map (DomainFree (setHiding Instance $ defaultArgInfo) . mkBoundName_) $2 }
     | '.' '{' CommaBIds '}' { Left $ map (DomainFree (setHiding Hidden $ setRelevance Irrelevant $ defaultArgInfo) . mkBoundName_) $3 }
     | '.' '{{' CommaBIds DoubleCloseBrace { Left $ map (DomainFree (setHiding Instance $ setRelevance Irrelevant $ defaultArgInfo) . mkBoundName_) $3 }

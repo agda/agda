@@ -36,6 +36,7 @@ import Agda.Auto.Syntax
 
 import Agda.Auto.CaseSplit hiding (lift)
 
+import Agda.Utils.Either
 import Agda.Utils.Except
   ( Error(strMsg)
   , ExceptT
@@ -562,7 +563,7 @@ modifyAbstractExpr = f
   f (A.Lam i (A.DomainFree info n) _) | show (A.nameConcrete n) == abslamvarname =
         A.AbsurdLam i $ Common.argInfoHiding info
   f (A.Lam i b e) = A.Lam i b (f e)
-  f (A.Rec i xs) = A.Rec i (map (either (Left . over A.exprAssign f) Right) xs)
+  f (A.Rec i xs) = A.Rec i (map (mapLeft (over A.exprAssign f)) xs)
   f (A.RecUpdate i e xs) = A.RecUpdate i (f e) (map (over A.exprAssign f) xs)
   f (A.ScopedExpr i e) = A.ScopedExpr i (f e)
   f e = e

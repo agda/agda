@@ -59,7 +59,7 @@ instance MonadTrans (ExceptionT err) where
   lift = ExceptionT . liftM Right
 
 instance Functor f => Functor (ExceptionT err f) where
-  fmap f = ExceptionT . fmap (either Left (Right . f)) . runExceptionT
+  fmap f = ExceptionT . fmap (fmap f) . runExceptionT
 
 instance (Error err, Applicative m, Monad m) => Applicative (ExceptionT err m) where
   pure  = return

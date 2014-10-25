@@ -7,6 +7,7 @@
 module Agda.Utils.Either
   ( whileLeft, caseEitherM
   , mapEither, mapLeft, mapRight
+  , traverseEither
   , isLeft, isRight
   , allRight
   , tests
@@ -48,6 +49,11 @@ mapLeft f = mapEither f id
 
 mapRight :: (b -> d) -> Either a b -> Either a d
 mapRight = mapEither id
+
+-- | 'Either' is bitraversable.
+
+traverseEither :: Functor f => (a -> f c) -> (b -> f d) -> Either a b -> f (Either c d)
+traverseEither f g = either (fmap Left . f) (fmap Right . g)
 
 -- | Returns 'True' iff the argument is @'Right' x@ for some @x@.
 

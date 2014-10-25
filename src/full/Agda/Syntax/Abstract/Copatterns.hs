@@ -33,6 +33,7 @@ import Agda.Syntax.Position
 import Agda.Syntax.Scope.Monad
 
 import Agda.TypeChecking.Monad.Base (TypeError(..), typeError)
+import Agda.Utils.Either
 import Agda.Utils.Tuple
 
 #include "undefined.h"
@@ -364,7 +365,7 @@ instance Rename a => Rename [a] where
   rename rho = map (rename rho)
 
 instance (Rename a, Rename b) => Rename (Either a b) where
-  rename rho = either (Left . rename rho) (Right . rename rho)
+  rename rho = mapEither (rename rho) (rename rho)
 
 
 

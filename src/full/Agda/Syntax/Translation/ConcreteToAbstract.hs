@@ -68,6 +68,7 @@ import Agda.Interaction.FindFile (checkModuleName)
 import {-# SOURCE #-} Agda.Interaction.Imports (scopeCheckImport)
 import Agda.Interaction.Options
 
+import Agda.Utils.Either
 import Agda.Utils.Except ( MonadError(catchError, throwError) )
 import Agda.Utils.FileName
 import Agda.Utils.Functor
@@ -332,7 +333,7 @@ instance ToAbstract c a => ToAbstract [c] [a] where
 
 instance (ToAbstract c1 a1, ToAbstract c2 a2) =>
          ToAbstract (Either c1 c2) (Either a1 a2) where
-    toAbstract = either (fmap Left . toAbstract) (fmap Right . toAbstract)
+    toAbstract = traverseEither toAbstract toAbstract
 
 instance ToAbstract c a => ToAbstract (Maybe c) (Maybe a) where
     toAbstract Nothing  = return Nothing
@@ -652,7 +653,7 @@ instance ToAbstract C.Expr A.Expr where
       C.Rec r fs  -> do
         fs' <- toAbstractCtx TopCtx fs
         let ds'  = [ d | Right (_, ds) <- fs', d <- ds ]
-            fs'' = map (either Left (Right . fst)) fs'
+            fs'' = map (mapRight fst) fs'
             i    = ExprRange r
         return $ A.mkLet i ds' (A.Rec i fs'')
 

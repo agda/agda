@@ -20,6 +20,8 @@ import Data.Foldable
 import Agda.Syntax.Common hiding (Arg)
 import Agda.Syntax.Concrete
 
+import Agda.Utils.Either
+
 #include "undefined.h"
 import Agda.Utils.Impossible
 
@@ -68,8 +70,8 @@ instance ExprLike a => ExprLike (Maybe a) where
   foldExpr     = foldMap  . foldExpr
 
 instance (ExprLike a, ExprLike b) => ExprLike (Either a b) where
-  mapExpr f      = either (Left . mapExpr f) (Right . mapExpr f)
-  traverseExpr f = either (fmap Left . traverseExpr f) (fmap Right . traverseExpr f)
+  mapExpr f      = mapEither (mapExpr f) (mapExpr f)
+  traverseExpr f = traverseEither (traverseExpr f) (traverseExpr f)
   foldExpr f     = either (foldExpr f) (foldExpr f)
 
 instance ExprLike a => ExprLike (TypedBinding' a) where
