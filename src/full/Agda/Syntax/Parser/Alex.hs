@@ -25,6 +25,7 @@ import Agda.Syntax.Position
 import Agda.Syntax.Parser.Monad
 
 import Agda.Utils.Monad
+import Agda.Utils.Tuple
 
 -- | This is what the lexer manipulates.
 data AlexInput = AlexInput
@@ -58,7 +59,7 @@ alexGetByte :: AlexInput -> Maybe (Word8, AlexInput)
 alexGetByte ai =
   -- Note that we ensure that every character presented to Alex fits
   -- in seven bits.
-  (fromIntegral . fromEnum *** id) <$> alexGetChar ai
+  mapFst (fromIntegral . fromEnum) <$> alexGetChar ai
 
 {--------------------------------------------------------------------------
     Monad operations

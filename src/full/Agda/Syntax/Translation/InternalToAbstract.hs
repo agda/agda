@@ -328,7 +328,7 @@ reifyTerm expandAnonDefs0 v = do
             r  <- getConstructorData x
             xs <- getRecordFieldNames r
             vs <- map unArg <$> reifyIArgs vs
-            return $ A.Rec exprInfo $ map (Left . uncurry A.Assign . (unArg *** id)) $ filter keep $ zip xs vs
+            return $ A.Rec exprInfo $ map (Left . uncurry A.Assign . mapFst unArg) $ filter keep $ zip xs vs
           False -> reifyDisplayForm x vs $ do
             ci <- getConstInfo x
             let Constructor{conPars = np} = theDef ci

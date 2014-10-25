@@ -17,7 +17,6 @@ module Agda.TypeChecking.RecordPatterns
   ) where
 
 import Control.Applicative
-import Control.Arrow ((***))
 import Control.Monad.Fix
 import Control.Monad.Reader
 import Control.Monad.State
@@ -45,6 +44,7 @@ import qualified Agda.Utils.Map as Map
 import Agda.Utils.Maybe
 import Agda.Utils.Permutation hiding (dropFrom)
 import Agda.Utils.Size
+import Agda.Utils.Tuple
 
 #include "undefined.h"
 import Agda.Utils.Impossible
@@ -467,7 +467,7 @@ translateRecordPatterns clause = do
       -- of the new RHS, in textual left-to-right order, and with
       -- Nothing in place of dot patterns.
       newTel' =
-        map (fmap (id *** applySubst rhsSubst')) $
+        map (fmap (mapSnd (applySubst rhsSubst'))) $
         translateTel cs $
         flattenedOldTel
 
@@ -500,7 +500,7 @@ translateRecordPatterns clause = do
         uncurry unflattenTel . unzip $
         map (maybe __IMPOSSIBLE__ id) $
         permute newPerm $
-        map (fmap (id *** applySubst lhsSubst')) $
+        map (fmap (mapSnd (applySubst lhsSubst'))) $
         newTel'
 
       -- New clause.

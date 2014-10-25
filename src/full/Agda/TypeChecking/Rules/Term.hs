@@ -1076,9 +1076,9 @@ checkConstructorApplication org t c args = do
           (map (const dummyUnderscore) ps, args)
     splitArgs (p:ps) (arg : args)
       | elem mname [Nothing, Just p] =
-          (arg :) *** id $ splitArgs ps args
+          mapFst (arg :) $ splitArgs ps args
       | otherwise =
-          (dummyUnderscore :) *** id $ splitArgs ps (arg:args)
+          mapFst (dummyUnderscore :) $ splitArgs ps (arg:args)
       where
         mname = nameOf (unArg arg)
 

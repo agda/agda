@@ -17,7 +17,6 @@ module Agda.Syntax.Internal
 
 import Prelude hiding (foldr, mapM, null)
 
-import Control.Arrow ((***))
 import Control.Applicative
 import Control.Monad.Identity hiding (mapM)
 import Control.Monad.State hiding (mapM)
@@ -45,6 +44,7 @@ import Agda.Utils.Permutation
 import Agda.Utils.Pointer
 import Agda.Utils.Size
 import Agda.Utils.Pretty
+import Agda.Utils.Tuple
 
 #include "undefined.h"
 import Agda.Utils.Impossible
@@ -652,7 +652,7 @@ allApplyElims = mapM isApplyElim
 
 -- | Split at first non-'Apply'
 splitApplyElims :: Elims -> (Args, Elims)
-splitApplyElims (Apply u : es) = (u :) *** id $ splitApplyElims es
+splitApplyElims (Apply u : es) = mapFst (u :) $ splitApplyElims es
 splitApplyElims es             = ([], es)
 
 class IsProjElim e where

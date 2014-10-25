@@ -22,7 +22,6 @@ module Agda.Syntax.Parser.LexActions
     ) where
 
 import Data.Char
-import Control.Arrow
 
 import Agda.Syntax.Parser.Lexer
 import Agda.Syntax.Parser.Alex
@@ -195,7 +194,7 @@ symbol s = withInterval_ (TokSymbol s)
 -- | Parse a literal.
 literal :: Read a => (Range -> a -> Literal) -> LexAction Token
 literal lit =
-  withInterval' read (TokLiteral . uncurry lit . (getRange *** id))
+  withInterval' read (TokLiteral . uncurry lit . mapFst getRange)
 
 -- | Parse an identifier. Identifiers can be qualified (see 'Name').
 --   Example: @Foo.Bar.f@

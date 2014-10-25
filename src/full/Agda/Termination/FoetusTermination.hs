@@ -31,6 +31,7 @@ import Agda.Termination.Order
 import Agda.Termination.Matrix
 
 import Agda.Utils.QuickCheck
+import Agda.Utils.Tuple
 
 -- | @'terminates' cs@ checks if the functions represented by @cs@
 -- terminate. The call graph @cs@ should have one entry ('Call') per
@@ -60,12 +61,9 @@ terminates cs | ok        = Right perms
   lexs = [ (i, lexOrder $ fromDiagonals rb)
          | (i, rb) <- recursionBehaviours cs ]
 
-  ok = all (isRight . snd) lexs
-  perms = Map.fromList $
-          map (id *** (\(Right x) -> x)) $ filter (isRight . snd) lexs
-  problems = Map.fromList $
-             map (id *** (\(Left x) -> (id *** Set.map snd) x)) $
-             filter (isLeft . snd) lexs
+  ok       = all (isRight . snd) lexs
+  perms    = Map.fromList [ (x, y)             | (x, Right y) <- lexs ]
+  problems = Map.fromList [ (x, Set.map snd y) | (x, Left  y) <- lexs ]
 
 -- | Completes the call graph and computes the corresponding recursion
 -- behaviours.

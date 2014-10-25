@@ -16,8 +16,6 @@ module Agda.Termination.Lexicographic
   , Agda.Termination.Lexicographic.tests
   ) where
 
-import Control.Arrow
-
 import Data.List
 import Data.Map (Map, (!))
 import qualified Data.Map as Map
@@ -35,6 +33,7 @@ import Agda.Utils.Either
 import Agda.Utils.List
 import Agda.Utils.QuickCheck
 import Agda.Utils.TestHelpers
+import Agda.Utils.Tuple
 
 -- | A lexicographic ordering for the recursion behaviour of a
 -- given function is a permutation of the argument indices which can
@@ -95,7 +94,7 @@ instance (Arbitrary call, Arbitrary arg, Ord arg, Ord call)
 
 instance (CoArbitrary call, CoArbitrary arg) => CoArbitrary (RecBehaviour call arg) where
   coarbitrary (RB c cs s) =
-    coarbitrary (map (id *** Map.toList) $ Map.toList c) .
+    coarbitrary (map (mapSnd Map.toList) $ Map.toList c) .
     coarbitrary (Set.toList cs) .
     coarbitrary s
 
@@ -208,7 +207,7 @@ lexOrder rb | noCallsLeft rb = Right []
     Right ps -> Right $ n : ps
   where
   okColumns = map fst $ filter snd $
-              map (id *** okColumn) $
+              map (mapSnd okColumn) $
               Map.toList $ columns rb
 
 prop_lexOrder :: RecBehaviour Integer Integer -> Property
