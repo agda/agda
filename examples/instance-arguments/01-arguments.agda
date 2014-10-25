@@ -3,10 +3,10 @@
 module 01-arguments where
 
 data T : Set where
-  tt : T
+  instance tt : T
 
 data A : Set where
-  mkA : A
+  instance mkA : A
   mkA2 : T → A
 
 giveA : ⦃ a : A ⦄ → A
