@@ -1,6 +1,6 @@
 
 record ⊤ : Set where
-  constructor tt
+  instance constructor tt
 
 data ⊥ : Set where
 

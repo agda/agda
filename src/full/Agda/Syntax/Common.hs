@@ -553,6 +553,12 @@ instance KillRange IsAbstract where
 data IsInstance = InstanceDef | NotInstanceDef
     deriving (Typeable, Show, Eq, Ord)
 
+instance KillRange IsInstance where
+  killRange = id
+
+instance HasRange IsInstance where
+  getRange _ = noRange
+
 type Nat    = Int
 type Arity  = Nat
 

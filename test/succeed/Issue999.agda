@@ -1,7 +1,7 @@
 
 module _ (P : Set) where
 
-data ⊤ : Set where tt : ⊤
+data ⊤ : Set where instance tt : ⊤
 
 foo : ⊤ → Set
 foo tt = ⊤

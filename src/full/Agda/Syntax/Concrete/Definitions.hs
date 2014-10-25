@@ -99,7 +99,7 @@ data NiceDeclaration
         | FunSig Range Fixity' Access IsInstance ArgInfo TerminationCheck Name Expr
         | FunDef  Range [Declaration] Fixity' IsAbstract TerminationCheck Name [Clause] -- ^ block of function clauses (we have seen the type signature before)
         | DataDef Range Fixity' IsAbstract Name [LamBinding] [NiceConstructor]
-        | RecDef Range Fixity' IsAbstract Name (Maybe (Ranged Induction)) (Maybe (ThingWithFixity Name)) [LamBinding] [NiceDeclaration]
+        | RecDef Range Fixity' IsAbstract Name (Maybe (Ranged Induction)) (Maybe (ThingWithFixity Name, IsInstance)) [LamBinding] [NiceDeclaration]
         | NicePatternSyn Range Fixity' Name [Arg Name] Pattern
         | NiceUnquoteDecl Range Fixity' Access IsAbstract TerminationCheck Name Expr
         | NiceUnquoteDef Range Fixity' Access IsAbstract TerminationCheck Name Expr
@@ -466,7 +466,7 @@ niceDeclarations ds = do
       DataSig _ _ x _ _    -> [x]
       Data _ _ x _ _ cs    -> x : concatMap declaredNames cs
       RecordSig _ x _ _    -> [x]
-      Record _ x _ c _ _ _ -> x : foldMap (:[]) c
+      Record _ x _ c _ _ _ -> x : foldMap (:[]) (fst <$> c)
       Infix _ _            -> []
       Syntax _ _           -> []
       PatternSyn _ x _ _   -> [x]
@@ -566,7 +566,7 @@ niceDeclarations ds = do
           (NiceRecSig r fx PublicAccess x tel t :) <$> nice ds
         Record r x i c tel t cs -> do
           t <- defaultTypeSig (RecName $ parameters tel) x t
-          c <- traverse (\c -> ThingWithFixity c <$> getFixity c) c
+          c <- traverse (\(cname, cinst) -> do fix <- getFixity cname; return (ThingWithFixity cname fix, cinst)) c
           (++) <$> dataOrRec (\x1 x2 x3 x4 -> RecDef x1 x2 x3 x4 i c) NiceRecSig
                              niceDeclarations r x tel t (Just cs)
                <*> nice ds
@@ -1109,7 +1109,7 @@ notSoNiceDeclaration d =
       FunDef r ds _ _ _ _ _            -> Mutual r ds -- Andreas, 2012-04-07 Hack!
       DataDef r _ _ x bs cs            -> Data r Inductive x bs Nothing $ map notSoNiceDeclaration cs
       RecDef r _ _ x i c bs ds         -> Record r x i (unThing <$> c) bs Nothing $ map notSoNiceDeclaration ds
-        where unThing (ThingWithFixity c _) = c
+        where unThing (ThingWithFixity c _, inst) = (c, inst)
       NicePatternSyn r _ n as p        -> PatternSyn r n as p
       NiceUnquoteDecl r _ _ _ _ x e    -> UnquoteDecl r x e
       NiceUnquoteDef r _ _ _ _ x e     -> UnquoteDef r x e

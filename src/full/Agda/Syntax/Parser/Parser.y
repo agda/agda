@@ -1001,15 +1001,15 @@ RHS : '=' Expr      { JustRHS (RHS $2) }
 -- Data declaration. Can be local.
 Data :: { Declaration }
 Data : 'data' Id TypedUntypedBindings ':' Expr 'where'
-            Constructors        { Data (getRange ($1,$2,$3,$4,$5,$6,$7)) Inductive $2 $3 (Just $5) $7 }
+            Declarations0       { Data (getRange ($1,$2,$3,$4,$5,$6,$7)) Inductive $2 $3 (Just $5) $7 }
      | 'codata' Id TypedUntypedBindings ':' Expr 'where'
-            Constructors        { Data (getRange ($1,$2,$3,$4,$5,$6,$7)) CoInductive $2 $3 (Just $5) $7 }
+            Declarations0       { Data (getRange ($1,$2,$3,$4,$5,$6,$7)) CoInductive $2 $3 (Just $5) $7 }
 
   -- New cases when we already had a DataSig.  Then one can omit the sort.
      | 'data' Id TypedUntypedBindings 'where'
-            Constructors        { Data (getRange ($1,$2,$3,$4,$5)) Inductive $2 $3 Nothing $5 }
+            Declarations0       { Data (getRange ($1,$2,$3,$4,$5)) Inductive $2 $3 Nothing $5 }
      | 'codata' Id TypedUntypedBindings 'where'
-            Constructors        { Data (getRange ($1,$2,$3,$4,$5)) CoInductive $2 $3 Nothing $5 }
+            Declarations0       { Data (getRange ($1,$2,$3,$4,$5)) CoInductive $2 $3 Nothing $5 }
 
 -- Data type signature. Found in mutual blocks.
 DataSig :: { Declaration }
@@ -1035,8 +1035,9 @@ RecordSig : 'record' Expr3NoCurly TypedUntypedBindings ':' Expr
   {% exprToName $2 >>= \ n -> return $ RecordSig (getRange ($1,$2,$3,$4,$5)) n $3 $5 }
 
 -- Declaration of record constructor name.
-RecordConstructorName :: { Name }
-RecordConstructorName : 'constructor' Id { $2 }
+RecordConstructorName :: { (Name, IsInstance) }
+RecordConstructorName :                  'constructor' Id        { ($2, NotInstanceDef) }
+                      | 'instance' vopen 'constructor' Id vclose { ($4, InstanceDef) }
 
 -- Fixity declarations.
 Infix :: { Declaration }
@@ -1397,14 +1398,8 @@ ArgTypeSignatures1
     : ArgTypeSignatures1 semi ArgTypeSigs { reverse $3 ++ $1 }
     | ArgTypeSigs                         { reverse $1 }
 
--- Constructors are type signatures. But constructor lists can be empty.
-Constructors :: { [Constructor] }
-Constructors
-    : vopen close    { [] }
-    | TypeSignatures { $1 }
-
 -- Record declarations, including an optional record constructor name.
-RecordDeclarations :: { (Maybe (Ranged Induction), Maybe Name, [Declaration]) }
+RecordDeclarations :: { (Maybe (Ranged Induction), Maybe (Name, IsInstance), [Declaration]) }
 RecordDeclarations
     : vopen                                          close { (Nothing, Nothing, []) }
     | vopen RecordConstructorName                    close { (Nothing, Just $2, []) }
@@ -1426,7 +1421,7 @@ Declarations :: { [Declaration] }
 Declarations
     : vopen Declarations1 close { $2 }
 
--- Arbitrary declarations
+-- Arbitrary declarations (possibly empty)
 Declarations0 :: { [Declaration] }
 Declarations0
     : vopen close  { [] }

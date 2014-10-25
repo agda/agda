@@ -378,7 +378,7 @@ instance Pretty Declaration where
                     pType Nothing  =
                               text "where"
                     pInd = maybeToList $ text . show . rangedThing <$> ind
-                    pCon = maybeToList $ (text "constructor" <+>) . pretty <$> con
+                    pCon = maybeToList $ (text "constructor" <+>) . pretty <$> fst <$> con
             Infix f xs  ->
                 pretty f <+> (fsep $ punctuate comma $ map pretty xs)
             Syntax n xs -> text "syntax" <+> pretty n <+> text "..."

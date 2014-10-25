@@ -37,7 +37,6 @@ module Agda.Syntax.Concrete
   , ModuleApplication(..)
   , TypeSignature
   , TypeSignatureOrInstanceBlock
-  , Constructor
   , ImportDirective(..), UsingOrHiding(..), ImportedName(..)
   , Renaming(..), AsName(..)
   , defaultImportDir
@@ -350,9 +349,6 @@ type TypeSignature = Declaration
 -- | Just type signatures or instance blocks.
 type TypeSignatureOrInstanceBlock = Declaration
 
--- | A data constructor declaration is just a type signature.
-type Constructor = TypeSignature
-
 {-| The representation type of a declaration. The comments indicate
     which type in the intended family the constructor targets.
 -}
@@ -363,9 +359,9 @@ data Declaration
   | Field Name (Arg Expr) -- ^ Record field, can be hidden and/or irrelevant.
   | FunClause LHS RHS WhereClause
   | DataSig     !Range Induction Name [LamBinding] Expr -- ^ lone data signature in mutual block
-  | Data        !Range Induction Name [LamBinding] (Maybe Expr) [Constructor]
+  | Data        !Range Induction Name [LamBinding] (Maybe Expr) [TypeSignatureOrInstanceBlock]
   | RecordSig   !Range Name [LamBinding] Expr -- ^ lone record signature in mutual block
-  | Record      !Range Name (Maybe (Ranged Induction)) (Maybe Name) [LamBinding] (Maybe Expr) [Declaration]
+  | Record      !Range Name (Maybe (Ranged Induction)) (Maybe (Name, IsInstance)) [LamBinding] (Maybe Expr) [Declaration]
     -- ^ The optional name is a name for the record constructor.
   | Infix Fixity [Name]
   | Syntax      Name Notation -- ^ notation declaration for a name

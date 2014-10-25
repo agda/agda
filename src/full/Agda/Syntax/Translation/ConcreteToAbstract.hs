@@ -75,6 +75,7 @@ import Agda.Utils.List
 import Agda.Utils.Monad
 import Agda.Utils.Null
 import Agda.Utils.Pretty
+import Agda.Utils.Maybe
 
 #include "undefined.h"
 import Agda.Utils.Impossible
@@ -1176,9 +1177,10 @@ instance ToAbstract NiceDeclaration A.Declaration where
           printScope "rec" 15 "checked fields"
           return afields
         bindModule p x m
-        cm' <- mapM (\(ThingWithFixity c f) -> bindConstructorName m c f a p YesRec) cm
+        cm' <- mapM (\(ThingWithFixity c f, _) -> bindConstructorName m c f a p YesRec) cm
+        let inst = caseMaybe cm NotInstanceDef snd
         printScope "rec" 15 "record complete"
-        return [ A.RecDef (mkDefInfo x f PublicAccess a r) x' ind cm' pars contel afields ]
+        return [ A.RecDef (mkDefInfoInstance x f PublicAccess a inst r) x' ind cm' pars contel afields ]
 
     NiceModule r p a x@(C.QName name) tel ds ->
       traceCall (ScopeCheckDeclaration $ NiceModule r p a x tel []) $ do

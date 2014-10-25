@@ -161,9 +161,9 @@ checkRecDef i name ind con ps contel fields =
                          , conAbstr  = Info.defAbstract conInfo
                          , conInd    = conInduction
                          }
-
       -- Declare the constructor as eligible for instance search
-      addNamedInstance conName name
+      when (Info.defInstance i == InstanceDef) $ do
+        addNamedInstance conName name
 
       -- Check that the fields fit inside the sort
       let dummy = Sort Prop  -- We're only interested in the sort here

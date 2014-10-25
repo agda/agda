@@ -2,7 +2,7 @@
 module Issue674 where
 
 record unit : Set where
-  constructor tt
+  instance constructor tt
 
 module A ⦃ t : unit ⦄ (i : unit) where
   id : unit → unit
