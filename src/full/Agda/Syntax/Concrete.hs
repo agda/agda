@@ -95,27 +95,31 @@ fromOrdinary :: e -> OpApp e -> e
 fromOrdinary d (Ordinary e) = e
 fromOrdinary d _            = d
 
-data FieldAssignment   = FieldAssignment  Name Expr
+data FieldAssignment   = FieldAssignment { _nameFieldA :: Name, _exprFieldA :: Expr }
   deriving (Typeable)
-data ModuleAssignment  = ModuleAssignment QName [Expr] ImportDirective
+data ModuleAssignment  = ModuleAssignment
+                           { _qnameModA     :: QName
+                           , _exprModA      :: [Expr]
+                           , _importDirModA :: ImportDirective
+                           }
   deriving (Typeable)
 type RecordAssignment  = Either FieldAssignment ModuleAssignment
 type RecordAssignments = [RecordAssignment]
 
 nameFieldA :: Lens' Name FieldAssignment
-nameFieldA f (FieldAssignment x e) = (\x' -> FieldAssignment x' e) <$> f x
+nameFieldA f r = f (_nameFieldA r) <&> \x -> r { _nameFieldA = x }
 
 exprFieldA :: Lens' Expr FieldAssignment
-exprFieldA f (FieldAssignment x e) = FieldAssignment x <$> f e
+exprFieldA f r = f (_exprFieldA r) <&> \x -> r { _exprFieldA = x }
 
 qnameModA :: Lens' QName ModuleAssignment
-qnameModA f (ModuleAssignment q es i) = (\q' -> ModuleAssignment q' es i) <$> f q
+qnameModA f r = f (_qnameModA r) <&> \x -> r { _qnameModA = x }
 
 exprModA :: Lens' [Expr] ModuleAssignment
-exprModA f (ModuleAssignment q es i) = (\es' -> ModuleAssignment q es' i) <$> f es
+exprModA f r = f (_exprModA r) <&> \x -> r { _exprModA = x }
 
 importDirModA :: Lens' ImportDirective ModuleAssignment
-importDirModA f (ModuleAssignment q es i) = (\i' -> ModuleAssignment q es i') <$> f i
+importDirModA f r = f (_importDirModA r) <&> \x -> r { _importDirModA = x }
 
 -- | Concrete expressions. Should represent exactly what the user wrote.
 data Expr

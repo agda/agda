@@ -113,10 +113,10 @@ type RecordAssign  = Either Assign ModuleName
 type RecordAssigns = [RecordAssign]
 
 fieldAssign :: Lens' C.Name Assign
-fieldAssign f (Assign x e) = (\x' -> Assign x' e) <$> f x
+fieldAssign f r = f (_fieldAssign r) <&> \x -> r {_fieldAssign = x}
 
 exprAssign :: Lens' Expr Assign
-exprAssign f (Assign x e) = Assign x <$> f e
+exprAssign f r = f (_exprAssign r) <&> \x -> r {_exprAssign = x}
 
 -- | Is a type signature a `postulate' or a function signature?
 data Axiom
