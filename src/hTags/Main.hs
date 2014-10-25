@@ -48,8 +48,8 @@ instance MonadIO Ghc where
 fileLoc :: FilePath -> RealSrcLoc
 fileLoc file = mkRealSrcLoc (mkFastString file) 1 0
 #else
-fileLoc :: FilePath -> SrcLoc
-fileLoc file = mkSrcLoc (mkZFastString file) 1 0
+fileLoc :: FilePath -> RealSrcLoc
+fileLoc file = mkRealSrcLoc (mkZFastString file) 1 0
 #endif
 
 filePState :: DynFlags -> FilePath -> IO PState
