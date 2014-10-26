@@ -422,6 +422,7 @@ isAbsurdPatternName x = x == absurdPatternName
 -- * Pointers and Sharing
 ---------------------------------------------------------------------------
 
+-- | Remove top-level @Shared@ data constructors.
 ignoreSharing :: Term -> Term
 ignoreSharing (Shared p) = ignoreSharing $ derefPtr p
 ignoreSharing v          = v
