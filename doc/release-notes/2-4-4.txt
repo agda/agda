@@ -38,13 +38,13 @@ Language
   Previously one had to write `record { x = M.x; y = M.y; z = {! ... !} }`.
 
   More precisely this construction now supports any combination of explicit
-  field definitons and applied modules.
+  field definitions and applied modules.
 
   If a field is both given explicitly and available in one of the modules,
   then the explicit one takes precedence.
 
   If a field is available in more than one module then this is ambiguous
-  and therefor rejected. As a consquence the order of assignemnts does
+  and therefore rejected. As a consequence the order of assignments does
   not matter.
 
   The modules can be both applied to arguments and have import directives
