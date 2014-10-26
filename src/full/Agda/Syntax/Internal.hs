@@ -1,3 +1,5 @@
+{-# OPTIONS_GHC -fwarn-missing-signatures #-}
+
 {-# LANGUAGE CPP                        #-}
 {-# LANGUAGE DeriveDataTypeable         #-}
 {-# LANGUAGE DeriveFoldable             #-}
@@ -499,8 +501,13 @@ typeDontCare = El Prop (Sort Prop)
 topSort :: Type
 topSort = El Inf (Sort Inf)
 
-prop      = sort Prop
-sort s    = El (sSuc s) $ Sort s
+prop :: Type
+prop = sort Prop
+
+sort :: Sort -> Type
+sort s = El (sSuc s) $ Sort s
+
+varSort :: Int -> Sort
 varSort n = Type $ Max [Plus 0 $ NeutralLevel $ Var n []]
 
 -- | Get the next higher sort.
@@ -510,11 +517,13 @@ sSuc Inf             = Inf
 sSuc (DLub a b)      = DLub (sSuc a) (fmap sSuc b)
 sSuc (Type l)        = Type $ levelSuc l
 
+levelSuc :: Level -> Level
 levelSuc (Max []) = Max [ClosedLevel 1]
 levelSuc (Max as) = Max $ map inc as
   where inc (ClosedLevel n) = ClosedLevel (n + 1)
         inc (Plus n l)      = Plus (n + 1) l
 
+mkType :: Integer -> Sort
 mkType n = Type $ Max [ClosedLevel n | n > 0]
 
 impossibleTerm :: String -> Int -> Term
