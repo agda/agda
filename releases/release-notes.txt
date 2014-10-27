@@ -64,7 +64,7 @@ Important changes since 0.8:
 * Reflection API
 
   Agda 2.4.2 added support for literals, function definitions, pattern
-  matching lambdas and absurd clause/patterns (see Agda A.B.C release
+  matching lambdas and absurd clause/patterns (see Agda release
   notes). The new supported entities were added to the Reflection.agda
   module.
 
