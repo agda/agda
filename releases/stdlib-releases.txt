@@ -20,7 +20,8 @@ procedure can be followed:
 
   make test
 
-* Finish the release notes in the release-notes.txt file.
+* Finish the release notes (e.g. remove the TODOs) in the
+  releases/release-notes.txt file.
 
 * Update the copyright year range in the LICENSE file, if necessary.
 
