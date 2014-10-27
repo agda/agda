@@ -1,0 +1,10 @@
+NOTE: Put drafts of release notes here that might be included in some
+future release. Don't remove this message please!
+------------------------------------------------------------------------------
+
+* Reflection API
+
+  Agda (TODO version) reflection interface now exposes the name hint
+  (as a string) for variables (see Agda release notes). In
+  consequence, a new type Abs was added, and the types Clause,
+  Pattern, Term and Type and were modified in Reflection.agda.
