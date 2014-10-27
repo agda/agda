@@ -635,7 +635,7 @@ checkExpr e t0 =
               text "against" <+> prettyTCM t
             coerce (Sort $ Type n) (sort $ sSuc $ Type n) t
 
-        A.App i q (Arg ai e)
+        e0@(A.App i q (Arg ai e))
           | A.Quote _ <- unScope q, visible ai -> do
           let quoted (A.Def x) = return x
               quoted (A.Proj x) = return x
@@ -649,9 +649,14 @@ checkExpr e t0 =
 
           | A.QuoteTerm _ <- unScope q ->
              do (et, _)   <- inferExpr (namedThing e)
-                q         <- quoteTerm =<< etaContract =<< normalise et
-                ty        <- el primAgdaTerm
-                coerce q ty t
+                et'       <- etaContract =<< normalise et
+                let metas = allMetas et'
+                case metas of
+                  _:_ -> postponeTypeCheckingProblem (CheckExpr e0 t) $ andM $ map isInstantiatedMeta metas
+                  []  -> do
+                    q  <- quoteTerm et'
+                    ty <- el primAgdaTerm
+                    coerce q ty t
 
         A.Quote _ -> typeError $ GenericError "quote must be applied to a defined name"
         A.QuoteTerm _ -> typeError $ GenericError "quoteTerm must be applied to a term"
