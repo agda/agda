@@ -7,4 +7,4 @@ future release. Don't remove this message please!
   Agda (TODO version) reflection interface now exposes the name hint
   (as a string) for variables (see Agda release notes). In
   consequence, a new type Abs was added, and the types Clause,
-  Pattern, Term and Type and were modified in Reflection.agda.
+  Pattern, Term and Type were modified in Reflection.agda.
