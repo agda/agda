@@ -756,7 +756,6 @@ instance PrettyTCM TypeError where
                            pwords "unification problems (inferred index ≟ expected index):"
                   ] ++
                   zipWith (\c g -> nest 2 $ prettyTCM c <+> text "≟" <+> prettyTCM g) cIxs gIxs)
-
             CoverageCantSplitIrrelevantType a -> fsep $
               pwords "Cannot split on argument of irrelevant datatype" ++ [prettyTCM a]
 
@@ -800,24 +799,22 @@ instance PrettyTCM TypeError where
                 (BadVisibility msg arg) -> fsep $
                   pwords $ "Unable to unquote the argument. It should be `" ++ msg ++ "'."
                 (ConInsteadOfDef x def con) -> do
-                  c   <- prettyTCM x
-                  fsep $ pwords $ "Use " ++ con ++ " instead of " ++ def ++ " for constructor " ++ show c
+                  fsep $ pwords ("Use " ++ con ++ " instead of " ++ def ++ " for constructor") ++ [prettyTCM x]
                 (DefInsteadOfCon x def con) -> do
-                  f   <- prettyTCM x
-                  fsep $ pwords $ "Use " ++ def ++ " instead of " ++ con ++ " for non-constructor " ++ show f
-                (NotAConstructor kind t) -> do
-                  doc <- prettyTCM t
-                  vcat [ fsep $ pwords $ "Unable to unquote the term (" ++ show doc ++ ") of type " ++ kind ++ "."
-                       , fsep $ pwords $ "Reason: not a constructor." ]
-                (NotALiteral kind t) -> do
-                  doc <- prettyTCM t
-                  vcat [ fsep $ pwords $ "Unable to unquote the term (" ++ show doc ++ ") of type " ++ kind ++ "."
-                       , fsep $ pwords $ "Reason: not a literal value." ]
-                (RhsUsesDottedVar ixs t) -> do
-                  doc <- prettyTCM t
-                  vcat [ fsep $ pwords $ "Unable to unquote the term (" ++ show doc ++ ") of type Clause."
-                       , fsep $ pwords "Reason: the right-hand side contains variables that are referring to a dot pattern."
-                       , fsep $ pwords $ "Offending De Bruijn indices: " ++ intercalate ", " (map show ixs) ++ "." ]
+                  fsep $ pwords ("Use " ++ def ++ " instead of " ++ con ++ " for non-constructor") ++ [prettyTCM x]
+                (NotAConstructor kind t) ->
+                  fwords "Unable to unquote the term"
+                  $$ nest 2 (prettyTCM t)
+                  $$ fwords ("of type " ++ kind ++ ". Reason: not a constructor.")
+                (NotALiteral kind t) ->
+                  fwords "Unable to unquote the term"
+                  $$ nest 2 (prettyTCM t)
+                  $$ fwords ("of type " ++ kind ++ ". Reason: not a literal value.")
+                (RhsUsesDottedVar ixs t) ->
+                  fwords "Unable to unquote the term"
+                  $$ nest 2 (prettyTCM t)
+                  $$ fwords "of type Clause. Reason: the right-hand side contains variables that are referring to a dot pattern."
+                  $$ fwords ("Offending De Bruijn indices: " ++ intercalate ", " (map show ixs) ++ ".")
                 (BlockedOnMeta m) -> __IMPOSSIBLE__
                 (UnquotePanic err) -> __IMPOSSIBLE__
             SafeFlagPostulate e -> fsep $
