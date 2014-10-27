@@ -808,61 +808,69 @@ substPattern s p = case p of
                                 -- pattern synonyms (already gone), and
                                 -- @-patterns (not supported anyways).
 
-substExpr :: [(Name, Expr)] -> Expr -> Expr
-substExpr s e = case e of
-  Var n                 -> fromMaybe e (lookup n s)
-  Def _                 -> e
-  Proj{}                -> e
-  Con _                 -> e
-  Lit _                 -> e
-  QuestionMark{}        -> e
-  Underscore   _        -> e
-  App  i e e'           -> App i (substExpr s e)
-                                 (fmap (fmap (substExpr s)) e')
-  WithApp i e es        -> WithApp i (substExpr s e)
-                                     (fmap (substExpr s) es)
-  Lam  i lb e           -> Lam i lb (substExpr s e)
-  AbsurdLam i h         -> e
-  ExtendedLam i di n cs -> __IMPOSSIBLE__   -- Maybe later...
-  Pi   i t e            -> Pi i (fmap (substTypedBindings s) t)
-                                (substExpr s e)
-  Fun  i ae e           -> Fun i (fmap (substExpr s) ae)
-                                 (substExpr s e)
-  Set  i n              -> e
-  Prop i                -> e
-  Let  i ls e           -> Let i (substLetBindings s ls)
-                                 (substExpr s e)
-  ETel t                -> e
-  Rec  i nes            -> Rec i (fmap (fmap (substExpr s)) nes)
-  RecUpdate i e nes     -> RecUpdate i (substExpr s e)
-                                       (fmap (fmap (substExpr s)) nes)
-  -- XXX: Do we need to do more with ScopedExprs?
-  ScopedExpr si e       -> ScopedExpr si (substExpr s e)
-  QuoteGoal i n e       -> QuoteGoal i n (substExpr s e)
-  QuoteContext i n e    -> QuoteContext i n (substExpr s e)
-  Quote i               -> e
-  QuoteTerm i           -> e
-  Unquote i             -> e
-  DontCare e            -> DontCare (substExpr s e)
-  PatternSyn x          -> e
+class SubstExpr a where
+  substExpr :: [(Name, Expr)] -> a -> a
 
-substLetBindings :: [(Name, Expr)] -> [LetBinding] -> [LetBinding]
-substLetBindings s = fmap (substLetBinding s)
+instance SubstExpr a => SubstExpr [a] where
+  substExpr = fmap . substExpr
 
-substLetBinding :: [(Name, Expr)] -> LetBinding -> LetBinding
-substLetBinding s lb = case lb of
-  LetBind i r n e e' -> LetBind i r n (substExpr s e) (substExpr s e')
-  LetPatBind i p e   -> LetPatBind i p (substExpr s e) -- Andreas, 2012-06-04: what about the pattern p
-  _                  -> lb -- Nicolas, 2013-11-11: what about "LetApply" there is experessions in there
+instance SubstExpr a => SubstExpr (Arg a) where
+  substExpr = fmap . substExpr
 
-substTypedBindings :: [(Name, Expr)] -> TypedBindings -> TypedBindings
-substTypedBindings s (TypedBindings r atb) = TypedBindings r
-    (fmap (substTypedBinding s) atb)
+instance SubstExpr a => SubstExpr (Common.Named name a) where
+  substExpr = fmap . substExpr
 
-substTypedBinding :: [(Name, Expr)] -> TypedBinding -> TypedBinding
-substTypedBinding s tb = case tb of
-  TBind r ns e -> TBind r ns $ substExpr s e
-  TLet r lbs   -> TLet r $ substLetBindings s lbs
+instance (SubstExpr a, SubstExpr b) => SubstExpr (a, b) where
+  substExpr s (x, y) = (substExpr s x, substExpr s y)
+
+instance SubstExpr C.Name where
+  substExpr _ = id
+
+instance SubstExpr Expr where
+  substExpr s e = case e of
+    Var n                 -> fromMaybe e (lookup n s)
+    Def _                 -> e
+    Proj{}                -> e
+    Con _                 -> e
+    Lit _                 -> e
+    QuestionMark{}        -> e
+    Underscore   _        -> e
+    App  i e e'           -> App i (substExpr s e) (substExpr s e')
+    WithApp i e es        -> WithApp i (substExpr s e) (substExpr s es)
+    Lam  i lb e           -> Lam i lb (substExpr s e)
+    AbsurdLam i h         -> e
+    ExtendedLam i di n cs -> __IMPOSSIBLE__   -- Maybe later...
+    Pi   i t e            -> Pi i (substExpr s t) (substExpr s e)
+    Fun  i ae e           -> Fun i (substExpr s ae) (substExpr s e)
+    Set  i n              -> e
+    Prop i                -> e
+    Let  i ls e           -> Let i (substExpr s ls) (substExpr s e)
+    ETel t                -> e
+    Rec  i nes            -> Rec i (substExpr s nes)
+    RecUpdate i e nes     -> RecUpdate i (substExpr s e) (substExpr s nes)
+    -- XXX: Do we need to do more with ScopedExprs?
+    ScopedExpr si e       -> ScopedExpr si (substExpr s e)
+    QuoteGoal i n e       -> QuoteGoal i n (substExpr s e)
+    QuoteContext i n e    -> QuoteContext i n (substExpr s e)
+    Quote i               -> e
+    QuoteTerm i           -> e
+    Unquote i             -> e
+    DontCare e            -> DontCare (substExpr s e)
+    PatternSyn x          -> e
+
+instance SubstExpr LetBinding where
+  substExpr s lb = case lb of
+    LetBind i r n e e' -> LetBind i r n (substExpr s e) (substExpr s e')
+    LetPatBind i p e   -> LetPatBind i p (substExpr s e) -- Andreas, 2012-06-04: what about the pattern p
+    _                  -> lb -- Nicolas, 2013-11-11: what about "LetApply" there is experessions in there
+
+instance SubstExpr TypedBindings where
+  substExpr s (TypedBindings r atb) = TypedBindings r (substExpr s atb)
+
+instance SubstExpr TypedBinding where
+  substExpr s tb = case tb of
+    TBind r ns e -> TBind r ns $ substExpr s e
+    TLet r lbs   -> TLet r $ substExpr s lbs
 
 -- TODO: more informative failure
 insertImplicitPatSynArgs :: HasRange a => (Range -> a) -> Range -> [Arg Name] -> [NamedArg a] ->
