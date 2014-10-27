@@ -1,3 +1,2 @@
-Panic: Agda cannot find the Epic compiler. This can perhaps be
-fixed by running 'cabal install epic'. See the README for more
-information.
+
+Panic: Where is main? :(
