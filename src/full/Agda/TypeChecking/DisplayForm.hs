@@ -56,7 +56,7 @@ displayForm q vs = do
       , "result      : " ++ show (foldr (const . Just) Nothing ms)
       ]
     -- Return the first display form that matches.
-    return $ headMay ms
+    return $ headMaybe ms
 
 --  Andreas, 2014-06-11: The following error swallowing
 --  is potentially harmful, making debugging harder.

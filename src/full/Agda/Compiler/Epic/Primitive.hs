@@ -115,16 +115,16 @@ natPrimTF filt [zero, suc] = PrimTF
         -- Assuming only the first two branches are relevant when casing on Nats
         (Branch _ n vs e:Branch _ _n' vs'' e'':_) ->
             if n == zero
-               then primNatCaseZS ce e  (headDef __IMPOSSIBLE__ vs'') e''
-               else primNatCaseZS ce e'' (headDef __IMPOSSIBLE__ vs) e
+               then primNatCaseZS ce e  (headWithDefault __IMPOSSIBLE__ vs'') e''
+               else primNatCaseZS ce e'' (headWithDefault __IMPOSSIBLE__ vs) e
         (Branch _ n vs e:Default e'':_) ->
             if n == zero
                then primNatCaseZD ce e e'' -- zero
-               else primNatCaseZS ce e'' (headDef __IMPOSSIBLE__ vs) e -- suc
+               else primNatCaseZS ce e'' (headWithDefault __IMPOSSIBLE__ vs) e -- suc
         [ Branch _ n vs e ] ->
             if n == zero
               then e
-              else lett (headDef __IMPOSSIBLE__ vs) (App prPred [ce]) e
+              else lett (headWithDefault __IMPOSSIBLE__ vs) (App prPred [ce]) e
         _ -> __IMPOSSIBLE__
   }
 natPrimTF _ _ = __IMPOSSIBLE__
