@@ -43,8 +43,7 @@ listCase n c (x:xs) = c x xs
 
 -- | Head function (safe).
 headMay :: [a] -> Maybe a
-headMay []      = Nothing
-headMay (x : _) = Just x
+headMay = listToMaybe
 
 -- | Head function (safe). Returns a value on empty lists.
 --
