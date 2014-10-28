@@ -276,7 +276,7 @@ bindName acc kind x y = do
     ConstructorName [] -> __IMPOSSIBLE__
     ConstructorName ds
       | kind == ConName && all ((==ConName) . anameKind) ds -> return [ AbsName y kind Defined ]
-      | otherwise -> typeError $ ClashingDefinition (C.QName x) $ anameName (headDef __IMPOSSIBLE__ ds)
+      | otherwise -> typeError $ ClashingDefinition (C.QName x) $ anameName (headWithDefault __IMPOSSIBLE__ ds)
     PatternSynResName n -> typeError $ ClashingDefinition (C.QName x) $ anameName n
     UnknownName         -> return [AbsName y kind Defined]
   modifyCurrentScope $ addNamesToScope (localNameSpace acc) x ys

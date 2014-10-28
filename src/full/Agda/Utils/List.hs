@@ -42,20 +42,20 @@ listCase n c []     = n
 listCase n c (x:xs) = c x xs
 
 -- | Head function (safe).
-headMay :: [a] -> Maybe a
-headMay = listToMaybe
+headMaybe :: [a] -> Maybe a
+headMaybe = listToMaybe
 
 -- | Head function (safe). Returns a value on empty lists.
 --
--- > headDef 42 []      = 42
--- > headDef 42 [1,2,3] = 1
-headDef :: a -> [a] -> a
-headDef def = fromMaybe def . headMay
+-- > headWithDefault 42 []      = 42
+-- > headWithDefault 42 [1,2,3] = 1
+headWithDefault :: a -> [a] -> a
+headWithDefault def = fromMaybe def . headMaybe
 
 -- | Last element (safe).
-lastMay :: [a] -> Maybe a
-lastMay [] = Nothing
-lastMay xs = Just $ last xs
+lastMaybe :: [a] -> Maybe a
+lastMaybe [] = Nothing
+lastMaybe xs = Just $ last xs
 
 -- | Opposite of cons @(:)@, safe.
 uncons :: [a] -> Maybe (a, [a])

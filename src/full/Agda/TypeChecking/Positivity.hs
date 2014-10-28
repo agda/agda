@@ -99,7 +99,7 @@ checkStrictlyPositive qs = disableDestructiveUpdate $ do
 
       -- if we find an unguarded record, mark it as such
       when (dr == IsRecord) $ do
-       case headMay [ how | Edge o how <- loops, o <= StrictPos ] of
+       case headMaybe [ how | Edge o how <- loops, o <= StrictPos ] of
         Just how -> do
           reportSDoc "tc.pos.record" 5 $ sep
             [ prettyTCM q <+> text "is not guarded, because it occurs"

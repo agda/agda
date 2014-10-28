@@ -63,7 +63,7 @@ import Agda.Syntax.Concrete.Pretty ()
 
 import Agda.Utils.Except ( Error(noMsg, strMsg), MonadError(throwError) )
 import Agda.Utils.Lens
-import Agda.Utils.List (headMay, isSublistOf)
+import Agda.Utils.List (headMaybe, isSublistOf)
 import Agda.Utils.Monad
 import Agda.Utils.Pretty
 import Agda.Utils.Update
@@ -753,7 +753,7 @@ niceDeclarations ds = do
 --          trace ("xStrings = " ++ show xStrings) $
 --          trace ("patStrings = " ++ show patStrings) $
 --          trace ("mFixity = " ++ show mFixity) $
-      case (headMay pns, mFixity) of
+      case (headMaybe pns, mFixity) of
         -- first identifier in the patterns is the fun.symbol?
         (Just y, _) | x == y -> True -- trace ("couldBe since y = " ++ show y) $ True
         -- are the parts of x contained in p
