@@ -75,7 +75,7 @@ checkDeclCached d@(A.Section minfo mname tbinds _) = do
   reportSLn "cache.decl" 10 $ "checkDeclCached: " ++ show (isJust e)
   case e of
     Just (EnterSection minfo' mname' tbinds', _)
-      | minfo == minfo' && mname == mname' && tbinds == tbinds' -> do
+      | killRange minfo == killRange minfo' && mname == mname' && tbinds == tbinds' -> do
         return ()
     _ -> do
       cleanCachedLog
