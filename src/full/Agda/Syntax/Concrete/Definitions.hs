@@ -66,6 +66,7 @@ import Agda.Utils.Lens
 import Agda.Utils.List (headMaybe, isSublistOf)
 import Agda.Utils.Monad
 import Agda.Utils.Pretty
+import Agda.Utils.Tuple
 import Agda.Utils.Update
 
 #include "undefined.h"
@@ -746,7 +747,6 @@ niceDeclarations ds = do
         expand _ _ (_ : ds) = __IMPOSSIBLE__
     expandEllipsis (_ : ds) = __IMPOSSIBLE__
 
-
     -- Turn function clauses into nice function clauses.
     mkClauses :: Name -> [Declaration] -> Catchall -> Nice [Clause]
     mkClauses _ [] _ = return []
@@ -761,15 +761,22 @@ niceDeclarations ds = do
       wcs <- mkClauses x with False
       (Clause x catchall lhs rhs wh wcs :) <$> mkClauses x cs' False
       where
-        (with, cs') = span subClause cs
+        (with, cs') = subClauses cs
 
         -- A clause is a subclause if the number of with-patterns is
         -- greater or equal to the current number of with-patterns plus the
         -- number of with arguments.
-        subClause (FunClause (LHS _ ps' _ _) _ _)      =
-          length ps' >= length ps + length es
-        subClause (FunClause (Ellipsis _ ps' _ _) _ _) = True
-        subClause _                                  = __IMPOSSIBLE__
+        subClauses :: [Declaration] -> ([Declaration],[Declaration])
+        subClauses (c@(FunClause (LHS _ ps' _ _) _ _) : cs)
+         | length ps' >= length ps + length es = mapFst (c:) (subClauses cs)
+         | otherwise                           = ([], c:cs)
+        subClauses (c@(FunClause (Ellipsis _ ps' _ _) _ _) : cs)
+         = mapFst (c:) (subClauses cs)
+        subClauses (c@(Pragma (CatchallPragma r)) : cs) = case subClauses cs of
+          ([], cs') -> ([], c:cs')
+          (cs, cs') -> (c:cs, cs')
+        subClauses [] = ([],[])
+        subClauses _  = __IMPOSSIBLE__
     mkClauses x (FunClause lhs@Ellipsis{} rhs wh : cs) catchall =
       (Clause x catchall lhs rhs wh [] :) <$> mkClauses x cs False   -- Will result in an error later.
     mkClauses _ _ _ = __IMPOSSIBLE__
