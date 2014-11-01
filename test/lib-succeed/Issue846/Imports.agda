@@ -37,4 +37,4 @@ winner : ℕ → Strategy → Strategy → Bool
 winner n p1 p2 = evenList (play n p1 p2)
 
 postulate
-  opt-is-opt : ∀ n s → n mod 7 ≢ 1' → winner n opt s ≡ true ‌‌
+  opt-is-opt : ∀ n s → n mod 7 ≢ 1' → winner n opt s ≡ true
