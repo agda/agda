@@ -33,7 +33,6 @@ import Agda.Syntax.Literal
 
 import Agda.Utils.List
 import Agda.Utils.Tuple
-import Agda.Utils.Unicode
 
 {--------------------------------------------------------------------------
     Scan functions
@@ -105,8 +104,8 @@ foolAlex inp = inp { lexInput = map fool $ lexInput inp }
     where
         fool c
             | isSpace c && not (c `elem` "\t\n") = ' '
-            | isUnicodeId c = if isAlpha c then 'z' else '+'
-            | otherwise     = c
+            | isPrint c && not (isAscii c)       = if isAlpha c then 'z' else '+'
+            | otherwise = c
 
 {--------------------------------------------------------------------------
     Lex actions
