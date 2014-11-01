@@ -34,13 +34,16 @@ import Agda.Syntax.Literal
 
 }
 
+-- Unicode is not handled by the following regular expressions.
+-- Instead, unicode characters are translated to 7-bit ASCII
+-- by Agda.Syntax.Parser.LexActions.foolAlex in a preprocessing pass.
+
 $digit       = 0-9
 $hexdigit    = [ $digit a-f A-F ]
 $alpha       = [ A-Z a-z _ ]
 $op          = [ \- \! \# \$ \% \& \* \+ \/ \< \= \> \^ \| \~ \? \` \[ \] \, \: ]
 $idstart     = [ $digit $alpha $op ]
 $idchar      = [ $idstart ' \\ ]
-$endcomment  = ~ [ $idchar ]
 $nonalpha    = $idchar # $alpha
 $nonalphanum = $nonalpha # $digit
 $white_notab = $white # \t
