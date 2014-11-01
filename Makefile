@@ -382,5 +382,5 @@ agda.tix: ./examples/agda.tix ./test/succeed/agda.tix ./test/compiler/agda.tix .
 
 .PHONY: hpc
 hpc: hpc-build test agda.tix
-	hpc report --hpcdir=dist/hpc/mix/Agda-2.4.2.1 agda.tix
-	hpc markup --hpcdir=dist/hpc/mix/Agda-2.4.2.1 agda --destdir=hpc-report
+	hpc report --hpcdir=dist/hpc/mix/Agda-$(VERSION) agda.tix
+	hpc markup --hpcdir=dist/hpc/mix/Agda-$(VERSION) agda --destdir=hpc-report
