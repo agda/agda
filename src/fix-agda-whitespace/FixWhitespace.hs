@@ -43,6 +43,7 @@ excludedFiles =
   [ "Whitespace.agda"    -- in test/succeed
   , "Tabs.agda"          -- in test/fail
   , "TabsInPragmas.agda" -- in test/fail
+  , "Lexer.hs"           -- could be in src/full/Agda/Syntax/Parser
   ]
 
 -- Auxiliary functions.
