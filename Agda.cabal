@@ -372,7 +372,6 @@ library
                     Agda.Utils.Time
                     Agda.Utils.Trie
                     Agda.Utils.Tuple
-                    Agda.Utils.Unicode
                     Agda.Utils.Update
                     Agda.Utils.VarSet
                     Agda.Utils.Warshall

@@ -11,7 +11,22 @@ module Agda.Utils.IO.UTF8
 import qualified System.IO as IO
 import Control.Applicative
 
-import Agda.Utils.Unicode
+-- | Converts many character sequences which may be interpreted as
+-- line or paragraph separators into '\n'.
+
+convertLineEndings :: String -> String
+-- ASCII:
+convertLineEndings ('\x000D' : '\x000A' : s) = '\n' : convertLineEndings s  -- CR LF
+convertLineEndings ('\x000A'            : s) = '\n' : convertLineEndings s  -- LF  (Line feed)
+convertLineEndings ('\x000D'            : s) = '\n' : convertLineEndings s  -- CR  (Carriage return)
+convertLineEndings ('\x000C'            : s) = '\n' : convertLineEndings s  -- FF  (Form feed)
+-- Unicode:
+convertLineEndings ('\x0085'            : s) = '\n' : convertLineEndings s  -- NEXT LINE
+convertLineEndings ('\x2028'            : s) = '\n' : convertLineEndings s  -- LINE SEPARATOR
+convertLineEndings ('\x2029'            : s) = '\n' : convertLineEndings s  -- PARAGRAPH SEPARATOR
+-- Not a line ending:
+convertLineEndings (c                   : s) = c    : convertLineEndings s
+convertLineEndings ""                        = ""
 
 -- | Reads a UTF8-encoded text file and converts all Unicode line
 -- endings into '\n'.
