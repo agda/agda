@@ -22,6 +22,7 @@ import Control.Monad.Identity
 import Control.Monad.Reader
 import Control.Monad.State
 
+import qualified Data.Char as Char
 import Data.Foldable (Foldable)
 import Data.Function
 import Data.List as List
@@ -699,9 +700,14 @@ interpret (Cmd_goal_type_context norm ii rng s) =
   cmd_goal_type_context_and empty norm ii rng s
 
 interpret (Cmd_goal_type_context_infer norm ii rng s) = do
-  typ <- lift $ B.withInteractionId ii $
-           prettyATop =<< B.typeInMeta ii norm =<< B.parseExprIn ii rng s
-  cmd_goal_type_context_and (text "Have:" <+> typ) norm ii rng s
+  -- In case of the empty expression to type, don't fail with
+  -- a stupid parse error, but just fall back to
+  -- Cmd_goal_type_context.
+  have <- if all Char.isSpace s then return empty else do
+    typ <- lift $ B.withInteractionId ii $
+      prettyATop =<< B.typeInMeta ii norm =<< B.parseExprIn ii rng s
+    return $ text "Have:" <+> typ
+  cmd_goal_type_context_and have norm ii rng s
 
 interpret (Cmd_show_module_contents norm ii rng s) =
   liftCommandMT (B.withInteractionId ii) $ showModuleContents norm rng s
