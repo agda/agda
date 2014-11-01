@@ -6,6 +6,7 @@
 module Agda.Syntax.Parser.Alex
     ( -- * Alex requirements
       AlexInput(..)
+    , lensLexInput
     , alexInputPrevChar
     , alexGetChar, alexGetByte
       -- * Lex actions
@@ -24,14 +25,19 @@ import Data.Word
 import Agda.Syntax.Position
 import Agda.Syntax.Parser.Monad
 
+import Agda.Utils.Lens
 import Agda.Utils.Monad
 
 -- | This is what the lexer manipulates.
 data AlexInput = AlexInput
-                    { lexPos        :: !Position    -- ^ current position
-                    , lexInput      :: String       -- ^ current input
-                    , lexPrevChar   :: !Char        -- ^ previously read character
-                    }
+  { lexPos      :: !Position    -- ^ current position
+  , lexInput    :: String       -- ^ current input
+  , lexPrevChar :: !Char        -- ^ previously read character
+  }
+
+-- | A lens for 'lexInput'.
+lensLexInput :: Lens' String AlexInput
+lensLexInput f r = f (lexInput r) <&> \ s -> r { lexInput = s }
 
 -- | Get the previously lexed character. Same as 'lexPrevChar'. Alex needs this
 --   to be defined to handle \"patterns with a left-context\".
