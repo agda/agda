@@ -817,7 +817,7 @@ of new goals."
   "Refine the pattern variables given in the goal.
 Assumes that <clause> = {!<variables>!} is on one line."
   (interactive)
-  (agda2-goal-cmd "Cmd_make_case" "pattern variables to case"))
+  (agda2-goal-cmd "Cmd_make_case" "pattern variables to case (empty for split on result)"))
 
 (defun agda2-make-case-action (newcls)
   "Replace the line at point with new clauses NEWCLS and reload."
