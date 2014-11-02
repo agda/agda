@@ -14,7 +14,6 @@ import Control.Applicative hiding (empty)
 import Control.Monad.Trans ( lift )
 
 import Data.Maybe (fromMaybe)
-import Data.Monoid (mempty, mappend)
 import Data.List hiding (null)
 import Data.Traversable hiding (mapM, sequence)
 

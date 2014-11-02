@@ -10,7 +10,6 @@ module Agda.TypeChecking.Rules.LHS.Problem where
 
 import Prelude hiding (null)
 
-import Data.Monoid ( Monoid(mappend,mempty) )
 import Data.Foldable
 import Data.Traversable
 
@@ -222,16 +221,3 @@ instance Null a => Null (Problem' a) where
   null p = null (problemInPat p) && null (problemRest p)
   empty  = Problem empty empty empty empty
 
--- | 'ProblemRest' is a right dominant monoid.
---   @pr1 \`mappend\` pr2 = pr2@ unless @pr2 = mempty@, then it is @pr1@.
---   Basically, this means that the left 'ProblemRest' is discarded, so
---   use it wisely!
-instance Monoid ProblemRest where
-  mempty = ProblemRest [] (defaultArg typeDontCare)
-  mappend pr (ProblemRest [] _) = pr
-  mappend _  pr                 = pr
-
-instance Monoid p => Monoid (Problem' p) where
-  mempty = Problem [] mempty EmptyTel mempty
-  Problem ps1 qs1 tel1 pr1 `mappend` Problem ps2 qs2 tel2 pr2 =
-    Problem (ps1 ++ ps2) (mappend qs1 qs2) (abstract tel1 tel2) (mappend pr1 pr2)
