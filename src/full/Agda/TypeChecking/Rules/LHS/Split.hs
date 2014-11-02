@@ -152,11 +152,11 @@ splitProblem mf (Problem ps (perm, qs) tel pr) = do
     -- patterns but no types for them?  Impossible.
     splitP ps       []            EmptyTel               = __IMPOSSIBLE__
     -- pattern with type?  Let's get to work:
-    splitP (p : ps) ((i, q) : qs) tel0@(ExtendTel a tel) = do
+    splitP (p : ps) ((i, q) : qs) tel0@(ExtendTel dom@(Dom ai a) tel) = do
       liftTCM $ reportSDoc "tc.lhs.split" 30 $ sep
         [ text "splitP looking at pattern"
-        , nest 2 $ text "p =" <+> prettyA p
-        , nest 2 $ text "a =" <+> prettyTCM a
+        , nest 2 $ text "p   =" <+> prettyA p
+        , nest 2 $ text "dom =" <+> prettyTCM dom
         ]
       let tryAgain = splitP (p : ps) ((i, q) : qs) tel0
       p <- lift $ expandLitPattern p
@@ -175,16 +175,16 @@ splitProblem mf (Problem ps (perm, qs) tel pr) = do
           -- not indexed.
 
           -- Andreas, 2010-09-07 cannot split on irrelevant args
-          when (unusableRelevance $ getRelevance a) $
-            typeError $ SplitOnIrrelevant p a
+          when (unusableRelevance $ getRelevance ai) $
+            typeError $ SplitOnIrrelevant p dom
 
           -- Succeed if the split type is (already) equal to the type of the literal.
-          ifNotM (lift $ tryConversion $ equalType (unDom a) =<< litType lit)
+          ifNotM (lift $ tryConversion $ equalType a =<< litType lit)
             {- then -} keepGoing $
             {- else -} return $ Split
               { splitLPats   = mempty
               , splitAsNames = xs
-              , splitFocus   = argFromDom $ fmap (LitFocus lit q i) a
+              , splitFocus   = Arg ai $ LitFocus lit q i a
               , splitRPats   = fmap (\ tel -> Problem ps () tel __IMPOSSIBLE__) tel
               }
 
@@ -204,7 +204,7 @@ splitProblem mf (Problem ps (perm, qs) tel pr) = do
                   if ok then tryAgain else keepGoing
                 | otherwise = keepGoing
           -- ifBlockedType reduces the type
-          ifBlockedType (unDom a) (const tryInstantiate) $ \ a' -> do
+          ifBlockedType a (const tryInstantiate) $ \ a' -> do
           case ignoreSharing $ unEl a' of
 
             -- Subcase: split type is a Def
@@ -215,9 +215,9 @@ splitProblem mf (Problem ps (perm, qs) tel pr) = do
               -- We cannot split on (shape-)irrelevant non-records.
               -- Andreas, 2011-10-04 unless allowed by option
               unless (defIsRecord def) $
-                when (unusableRelevance $ getRelevance a) $
+                when (unusableRelevance $ getRelevance ai) $
                 unlessM (liftTCM $ optExperimentalIrrelevance <$> pragmaOptions) $
-                typeError $ SplitOnIrrelevant p a
+                typeError $ SplitOnIrrelevant p dom
 
               -- Check that we are at record or data type and return
               -- the number of parameters.
@@ -229,7 +229,7 @@ splitProblem mf (Problem ps (perm, qs) tel pr) = do
                 Nothing -> keepGoing
                 Just np -> do
                   let vs = fromMaybe __IMPOSSIBLE__ $ allApplyElims es
-                  liftTCM $ traceCall (CheckPattern p EmptyTel (unDom a)) $ do  -- TODO: wrong telescope
+                  liftTCM $ traceCall (CheckPattern p EmptyTel a) $ do  -- TODO: wrong telescope
                   -- Check that we construct something in the right datatype
                   c <- do
                       cs' <- mapM canonicalName cs
@@ -248,7 +248,7 @@ splitProblem mf (Problem ps (perm, qs) tel pr) = do
                   let (pars, ixs) = genericSplitAt np vs
                   reportSDoc "tc.lhs.split" 10 $ vcat
                     [ sep [ text "splitting on"
-                          , nest 2 $ fsep [ prettyA p, text ":", prettyTCM a ]
+                          , nest 2 $ fsep [ prettyA p, text ":", prettyTCM dom ]
                           ]
                     , nest 2 $ text "pars =" <+> fsep (punctuate comma $ map prettyTCM pars)
                     , nest 2 $ text "ixs  =" <+> fsep (punctuate comma $ map prettyTCM ixs)
@@ -269,7 +269,7 @@ splitProblem mf (Problem ps (perm, qs) tel pr) = do
                   return $ Split
                     { splitLPats   = mempty
                     , splitAsNames = xs
-                    , splitFocus   = argFromDom $ fmap (Focus c (A.patImplicit ci) args (getRange p) q i d pars ixs) a
+                    , splitFocus   = Arg ai $ Focus c (A.patImplicit ci) args (getRange p) q i d pars ixs a
                     , splitRPats   = fmap (\ tel -> Problem ps () tel __IMPOSSIBLE__) tel
                     }
             -- Subcase: split type is not a Def
@@ -279,11 +279,11 @@ splitProblem mf (Problem ps (perm, qs) tel pr) = do
       where
         -- Try to split on next argument.
         keepGoing = do
-          r <- underAbstraction a tel $ \tel -> splitP ps qs tel
+          r <- underAbstraction dom tel $ \tel -> splitP ps qs tel
           case r of
             SplitRest{} -> return r
             Split p1 xs foc p2 -> do
-              let p0 = Problem [p] () (ExtendTel a (EmptyTel <$ tel)) mempty
+              let p0 = Problem [p] () (ExtendTel dom (EmptyTel <$ tel)) mempty
               return $ Split (mappend p0 p1) xs foc p2
 
 -- | @checkParsIfUnambiguous [c] d pars@ checks that the data/record type
