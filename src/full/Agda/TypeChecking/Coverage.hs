@@ -265,8 +265,11 @@ isDatatype ind at = do
           | otherwise -> do
               let (ps, is) = genericSplitAt np args
               return (d, ps, is, cs)
-        Record{recPars = np, recConHead = con} ->
-          return (d, args, [], [conName con])
+        Record{recPars = np, recConHead = con, recInduction = i}
+          | i == Just CoInductive && ind /= CoInductive ->
+              throw CoinductiveDatatype
+          | otherwise ->
+              return (d, args, [], [conName con])
         _ -> throw NotADatatype
     _ -> throw NotADatatype
 
