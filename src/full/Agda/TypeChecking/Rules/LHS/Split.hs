@@ -4,7 +4,9 @@
 {-# LANGUAGE PatternGuards       #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 
-module Agda.TypeChecking.Rules.LHS.Split where
+module Agda.TypeChecking.Rules.LHS.Split
+  ( splitProblem
+  ) where
 
 import Control.Applicative
 import Control.Monad.Trans ( lift )
@@ -111,22 +113,6 @@ splitProblem mf (Problem ps (perm, qs) tel pr) = do
             -- It could be a meta, but since we cannot postpone lhs checking, we crash here.
             caseMaybeM (lift $ isRecordType $ unArg b) notRecord $ \(r, vs, def) -> case def of
               Record{ recFields = fs } -> do
-                {- NO LONGER NEEDED, BUT KEEP
-                -- normalize projection name (could be from a module app)
-                d <- lift $ do
-                  v <- stripLambdas =<< normalise (Def d [])
-                  case v of
-                    Def d _ -> return d
-                    _       -> do
-                      reportSDoc "impossible" 10 $ sep
-                        [ text   "unexpected result " <+> prettyTCM v
-                        , text $ "when normalizing projection " ++ show d
-                        ]
-                      reportSDoc "impossible" 50 $ sep
-                        [ text $ "raw: " ++ show v
-                        ]
-                      __IMPOSSIBLE__
-                -}
                 lift $ reportSDoc "tc.lhs.split" 20 $ sep
                   [ text $ "we are of record type r  = " ++ show r
                   , text   "applied to parameters vs = " <+> prettyTCM vs
@@ -142,7 +128,7 @@ splitProblem mf (Problem ps (perm, qs) tel pr) = do
                 let self = defaultArg $ Def f (map Apply fvs) `applyE` es
                 -- get the type of projection d applied to "self"
                 dType <- lift $ defType <$> getConstInfo d  -- full type!
-                -- dType <- lift $ typeOfConst d  -- WRONG: we apply to parameters ourselves!!
+
                 lift $ reportSDoc "tc.lhs.split" 20 $ sep
                   [ text "we are              self = " <+> prettyTCM (unArg self)
                   , text "being projected by dType = " <+> prettyTCM dType
@@ -151,12 +137,6 @@ splitProblem mf (Problem ps (perm, qs) tel pr) = do
               _ -> __IMPOSSIBLE__
     -- if there are no more patterns left in the problem rest, there is nothing to split:
     splitRest _ = throwError $ NothingToSplit
-
-    -- Stripping initial lambdas from a normalized term
-    stripLambdas :: Term -> TCM Term
-    stripLambdas v = case ignoreSharing v of
-        Lam _ b -> addContext (absName b) $ stripLambdas (absBody b)
-        v       -> return v
 
     -- | In @splitP aps iqs tel@,
     --   @aps@ are the user patterns on which we are splitting (inPats),
@@ -183,7 +163,6 @@ splitProblem mf (Problem ps (perm, qs) tel pr) = do
       case asView $ namedArg p of
 
         -- Case: projection pattern.  That's an error.
-        --(_, p') | Just{} <- isProjP p' -> do
         (_, A.DefP _ d ps) -> typeError $
           if null ps
           then CannotEliminateWithPattern p (telePi tel0 $ unArg $ restType pr)
