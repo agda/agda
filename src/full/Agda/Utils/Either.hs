@@ -6,6 +6,7 @@ module Agda.Utils.Either
   ( whileLeft, caseEitherM
   , mapEither, mapLeft, mapRight
   , isLeft, isRight
+  , fromLeft, fromRight
   , allRight
   , tests
   ) where
@@ -55,6 +56,14 @@ isRight (Left  _) = False
 isLeft :: Either a b -> Bool
 isLeft (Right _) = False
 isLeft (Left _)  = True
+
+-- | Analogue of 'Data.Maybe.fromMaybe'.
+fromLeft :: (b -> a) -> Either a b -> a
+fromLeft = either id
+
+-- | Analogue of 'Data.Maybe.fromMaybe'.
+fromRight :: (a -> b) -> Either a b -> b
+fromRight f = either f id
 
 -- | Returns @'Just' <input with tags stripped>@ if all elements are
 -- to the right, and otherwise 'Nothing'.

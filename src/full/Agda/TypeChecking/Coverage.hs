@@ -48,6 +48,7 @@ import Agda.TypeChecking.Irrelevance
 
 import Agda.Interaction.Options
 
+import Agda.Utils.Either
 import Agda.Utils.Functor (for, ($>))
 import Agda.Utils.List
 import Agda.Utils.Maybe
@@ -534,7 +535,7 @@ split ind sc x = fmap (blendInAbsurdClause (splitDbIndexToLevel sc x)) <$>
     split' ind sc x
   where
     blendInAbsurdClause :: Nat -> Either SplitClause Covering -> Covering
-    blendInAbsurdClause n = either (const $ Covering n []) id
+    blendInAbsurdClause n = fromRight (const $ Covering n [])
 
     splitDbIndexToLevel :: SplitClause -> BlockingVar -> Nat
     splitDbIndexToLevel sc@SClause{ scTel = tel, scPerm = perm } x =
