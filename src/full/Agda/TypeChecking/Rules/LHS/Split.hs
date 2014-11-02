@@ -151,14 +151,16 @@ splitProblem mf (Problem ps (perm, qs) tel pr) = do
     splitP []        _            _                      = splitRest pr
     -- patterns but no types for them?  Impossible.
     splitP ps       []            EmptyTel               = __IMPOSSIBLE__
+    -- (we can never have an ExtendTel without Abs)
+    splitP _        _            (ExtendTel _ NoAbs{})   = __IMPOSSIBLE__
     -- pattern with type?  Let's get to work:
-    splitP (p : ps) ((i, q) : qs) tel0@(ExtendTel dom@(Dom ai a) tel) = do
+    splitP ps0@(p : ps) qs0@((i, q) : qs) tel0@(ExtendTel dom@(Dom ai a) xtel@(Abs x tel)) = do
       liftTCM $ reportSDoc "tc.lhs.split" 30 $ sep
         [ text "splitP looking at pattern"
         , nest 2 $ text "p   =" <+> prettyA p
         , nest 2 $ text "dom =" <+> prettyTCM dom
         ]
-      let tryAgain = splitP (p : ps) ((i, q) : qs) tel0
+      let tryAgain = splitP ps0 qs0 tel0
       p <- lift $ expandLitPattern p
       case asView $ namedArg p of
 
@@ -185,7 +187,7 @@ splitProblem mf (Problem ps (perm, qs) tel pr) = do
               { splitLPats   = mempty
               , splitAsNames = xs
               , splitFocus   = Arg ai $ LitFocus lit q i a
-              , splitRPats   = fmap (\ tel -> Problem ps () tel __IMPOSSIBLE__) tel
+              , splitRPats   = Abs x  $ Problem ps () tel __IMPOSSIBLE__
               }
 
         -- Case: constructor pattern
@@ -270,7 +272,7 @@ splitProblem mf (Problem ps (perm, qs) tel pr) = do
                     { splitLPats   = mempty
                     , splitAsNames = xs
                     , splitFocus   = Arg ai $ Focus c (A.patImplicit ci) args (getRange p) q i d pars ixs a
-                    , splitRPats   = fmap (\ tel -> Problem ps () tel __IMPOSSIBLE__) tel
+                    , splitRPats   = Abs x  $ Problem ps () tel __IMPOSSIBLE__
                     }
             -- Subcase: split type is not a Def
             _   -> keepGoing
@@ -279,11 +281,11 @@ splitProblem mf (Problem ps (perm, qs) tel pr) = do
       where
         -- Try to split on next argument.
         keepGoing = do
-          r <- underAbstraction dom tel $ \tel -> splitP ps qs tel
+          r <- underAbstraction dom xtel $ \ tel -> splitP ps qs tel
           case r of
             SplitRest{} -> return r
             Split p1 xs foc p2 -> do
-              let p0 = Problem [p] () (ExtendTel dom (EmptyTel <$ tel)) mempty
+              let p0 = Problem [p] () (sgTel (x, dom)) mempty
               return $ Split (mappend p0 p1) xs foc p2
 
 -- | @checkParsIfUnambiguous [c] d pars@ checks that the data/record type
