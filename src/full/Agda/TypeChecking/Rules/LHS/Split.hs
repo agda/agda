@@ -167,6 +167,7 @@ splitProblem mf (Problem ps (perm, qs) tel pr) = do
           if null ps
           then CannotEliminateWithPattern p (telePi tel0 $ unArg $ restType pr)
           else IllformedProjectionPattern $ namedArg p
+
         -- Case: literal pattern
         (xs, p@(A.LitP lit))  -> do
           -- Note that, in the presence of --without-K, this branch is
@@ -208,14 +209,18 @@ splitProblem mf (Problem ps (perm, qs) tel pr) = do
 
             -- Subcase: split type is a Def
             Def d es    -> do
-              def <- liftTCM $ theDef <$> getConstInfo d
-              unless (defIsRecord def) $
-                -- cannot split on irrelevant or non-strict things
-                when (unusableRelevance $ getRelevance a) $ do
-                  -- Andreas, 2011-10-04 unless allowed by option
-                  allowed <- liftTCM $ optExperimentalIrrelevance <$> pragmaOptions
-                  unless allowed $ typeError $ SplitOnIrrelevant p a
 
+              def <- liftTCM $ theDef <$> getConstInfo d
+
+              -- We cannot split on (shape-)irrelevant non-records.
+              -- Andreas, 2011-10-04 unless allowed by option
+              unless (defIsRecord def) $
+                when (unusableRelevance $ getRelevance a) $
+                unlessM (liftTCM $ optExperimentalIrrelevance <$> pragmaOptions) $
+                typeError $ SplitOnIrrelevant p a
+
+              -- Check that we are at record or data type and return
+              -- the number of parameters.
               let mp = case def of
                         Datatype{dataPars = np} -> Just np
                         Record{recPars = np}    -> Just np
@@ -241,13 +246,13 @@ splitProblem mf (Problem ps (perm, qs) tel pr) = do
                           typeError $ CantResolveOverloadedConstructorsTargetingSameDatatype d cs
 
                   let (pars, ixs) = genericSplitAt np vs
-                  reportSDoc "tc.lhs.split" 10 $
-                    vcat [ sep [ text "splitting on"
-                               , nest 2 $ fsep [ prettyA p, text ":", prettyTCM a ]
-                               ]
-                         , nest 2 $ text "pars =" <+> fsep (punctuate comma $ map prettyTCM pars)
-                         , nest 2 $ text "ixs  =" <+> fsep (punctuate comma $ map prettyTCM ixs)
-                         ]
+                  reportSDoc "tc.lhs.split" 10 $ vcat
+                    [ sep [ text "splitting on"
+                          , nest 2 $ fsep [ prettyA p, text ":", prettyTCM a ]
+                          ]
+                    , nest 2 $ text "pars =" <+> fsep (punctuate comma $ map prettyTCM pars)
+                    , nest 2 $ text "ixs  =" <+> fsep (punctuate comma $ map prettyTCM ixs)
+                    ]
 
                   -- Andreas, 2013-03-22 fixing issue 279
                   -- To resolve ambiguous constructors, Agda always looks up
@@ -272,6 +277,7 @@ splitProblem mf (Problem ps (perm, qs) tel pr) = do
         -- Case: neither literal nor constructor pattern
         p -> keepGoing
       where
+        -- Try to split on next argument.
         keepGoing = do
           r <- underAbstraction a tel $ \tel -> splitP ps qs tel
           case r of
