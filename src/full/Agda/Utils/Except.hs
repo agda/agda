@@ -1,6 +1,8 @@
 {-# OPTIONS_GHC -fwarn-missing-signatures #-}
 
 {-# LANGUAGE CPP #-}
+{-# LANGUAGE FlexibleInstances    #-}
+{-# LANGUAGE TypeSynonymInstances #-}
 
 ------------------------------------------------------------------------------
 -- | Wrapper for Control.Monad.Except from the mtl package
@@ -14,7 +16,11 @@ module Agda.Utils.Except
   , runExceptT
   ) where
 
+------------------------------------------------------------------------
 #if MIN_VERSION_mtl(2,2,1)
+-- New mtl, reexport ExceptT, define class Error for backward compat.
+------------------------------------------------------------------------
+
 import Control.Monad.Except
 
 -- | We cannot define data constructors synonymous, so we define the
@@ -33,17 +39,14 @@ class Error a where
   strMsg _ = noMsg
 
 -- | A string can be thrown as an error.
-instance ErrorList a => Error [a] where
-    strMsg = listMsg
+instance Error String where
+    strMsg = id
 
--- | Workaround so that we can have a Haskell 98 instance @'Error' 'String'@.
-class ErrorList a where
-    listMsg :: String -> [a]
-
-instance ErrorList Char where
-    listMsg = id
-
+------------------------------------------------------------------------
 #else
+-- Old mtl, need to define ExceptT from ErrorT
+------------------------------------------------------------------------
+
 import Control.Monad.Error
 
 type ExceptT = ErrorT
@@ -57,4 +60,5 @@ mkExceptT = ErrorT
 -- | 'runExcept' function using mtl 2.1.*.
 runExceptT ::  ExceptT e m a -> m (Either e a)
 runExceptT = runErrorT
+
 #endif

@@ -177,6 +177,11 @@ data Tele a = EmptyTel
 
 type Telescope = Tele (Dom Type)
 
+instance Null (Tele a) where
+  null EmptyTel    = True
+  null ExtendTel{} = False
+  empty = EmptyTel
+
 mapAbsNamesM :: Applicative m => (ArgName -> m ArgName) -> Tele a -> m (Tele a)
 mapAbsNamesM f EmptyTel                  = pure EmptyTel
 mapAbsNamesM f (ExtendTel a (Abs x b))   = ExtendTel a <$> (Abs <$> f x <*> mapAbsNamesM f b)
@@ -540,8 +545,14 @@ impossibleTerm file line = Lit $ LitString noRange $ unlines
   , "Location of the error: " ++ file ++ ":" ++ show line
   ]
 
-sgTel :: Dom (ArgName, Type) -> Telescope
-sgTel (Common.Dom ai (x, t)) = ExtendTel (Common.Dom ai t) $ Abs x EmptyTel
+class SgTel a where
+  sgTel :: a -> Telescope
+
+instance SgTel (ArgName, Dom Type) where
+  sgTel (x, dom) = ExtendTel dom $ Abs x EmptyTel
+
+instance SgTel (Dom (ArgName, Type)) where
+  sgTel (Common.Dom ai (x, t)) = ExtendTel (Common.Dom ai t) $ Abs x EmptyTel
 
 hackReifyToMeta :: Term
 hackReifyToMeta = DontCare $ Lit $ LitInt noRange (-42)

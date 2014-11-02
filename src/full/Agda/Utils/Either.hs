@@ -1,5 +1,3 @@
-{-# LANGUAGE CPP #-}
-
 ------------------------------------------------------------------------
 -- | Utilities for the 'Either' type
 ------------------------------------------------------------------------
@@ -9,6 +7,7 @@ module Agda.Utils.Either
   , mapEither, mapLeft, mapRight
   , traverseEither
   , isLeft, isRight
+  , fromLeft, fromRight
   , allRight
   , tests
   ) where
@@ -17,9 +16,6 @@ import Control.Applicative
 
 import Agda.Utils.QuickCheck
 import Agda.Utils.TestHelpers
-
-#include "undefined.h"
-import Agda.Utils.Impossible
 
 -- | Loop while we have an exception.
 
@@ -31,9 +27,9 @@ whileLeft test left right = loop where
       Right c -> right a c
 
 -- | Monadic version of 'either' with a different argument ordering.
+
 caseEitherM :: Monad m => m (Either a b) -> (a -> m c) -> (b -> m c) -> m c
 caseEitherM mm f g = either f g =<< mm
-
 
 -- | 'Either' is a bifunctor.
 
@@ -56,16 +52,24 @@ traverseEither :: Functor f => (a -> f c) -> (b -> f d) -> Either a b -> f (Eith
 traverseEither f g = either (fmap Left . f) (fmap Right . g)
 
 -- | Returns 'True' iff the argument is @'Right' x@ for some @x@.
-
+--   Note: from @base >= 4.7.0.0@ already present in @Data.Either@.
 isRight :: Either a b -> Bool
 isRight (Right _) = True
 isRight (Left  _) = False
 
 -- | Returns 'True' iff the argument is @'Left' x@ for some @x@.
-
+--   Note: from @base >= 4.7.0.0@ already present in @Data.Either@.
 isLeft :: Either a b -> Bool
 isLeft (Right _) = False
 isLeft (Left _)  = True
+
+-- | Analogue of 'Data.Maybe.fromMaybe'.
+fromLeft :: (b -> a) -> Either a b -> a
+fromLeft = either id
+
+-- | Analogue of 'Data.Maybe.fromMaybe'.
+fromRight :: (a -> b) -> Either a b -> b
+fromRight f = either f id
 
 -- | Returns @'Just' <input with tags stripped>@ if all elements are
 -- to the right, and otherwise 'Nothing'.
@@ -86,45 +90,9 @@ allRight (Right b : xs) = (b:) <$> allRight xs
 prop_allRight xs =
   allRight xs ==
     if all isRight xs then
-      Just (map fromRight xs)
+      Just $ map (\ (Right x) -> x) xs
      else
       Nothing
-  where
-  fromRight (Right x) = x
-  fromRight (Left _)  = __IMPOSSIBLE__
-
-{- Andreas, 2012-12-01 I do not know why it makes sense to copy
-   the input (only extra work for the garbage collector...
-   So I disable the code below...
-
--- | Returns @'Right' <input with tags stripped>@ if all elements are
--- to the right, and otherwise @Left <input>@:
---
--- @
---  allRight xs ==
---    if all isRight xs then
---      Right (map (\(Right x) -> x) xs)
---     else
---      Left xs
--- @
-
-allRight :: [Either a b] -> Either [Either a b] [b]
-allRight []              = Right []
-allRight xs@(Left _ : _) = Left xs
-allRight (Right b : xs)  = case allRight xs of
-  Left  xs -> Left (Right b : xs)
-  Right bs -> Right (b : bs)
-
-prop_allRight xs =
-  allRight xs ==
-    if all isRight xs then
-      Right (map fromRight xs)
-     else
-      Left xs
-  where
-  fromRight (Right x) = x
-  fromRight (Left _)  = __IMPOSSIBLE__
--}
 
 ------------------------------------------------------------------------
 -- All tests

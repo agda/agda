@@ -8,7 +8,8 @@
 
 module Agda.TypeChecking.Rules.LHS.Problem where
 
-import Data.Monoid ( Monoid(mappend,mempty) )
+import Prelude hiding (null)
+
 import Data.Foldable
 import Data.Traversable
 
@@ -20,9 +21,10 @@ import Agda.Syntax.Internal.Pattern
 import qualified Agda.Syntax.Abstract as A
 
 import Agda.TypeChecking.Substitute as S
-import Agda.TypeChecking.Pretty
+import Agda.TypeChecking.Pretty hiding (empty)
 
 import Agda.Utils.Except ( Error(noMsg, strMsg) )
+import Agda.Utils.Null
 import Agda.Utils.Permutation
 
 type Substitution   = [Maybe Term]
@@ -129,15 +131,41 @@ data Focus
     }
   | LitFocus Literal OneHolePatterns Int Type
 
+-- | Result of 'splitProblem':  Determines position for the next split.
 data SplitProblem
 
-  = Split ProblemPart [Name] (I.Arg Focus) (Abs ProblemPart)
-    -- ^ Split on constructor pattern.
-    --   The @[Name]@s give the as-bindings for the focus.
+  = -- | Split on constructor pattern.
+    Split
+      { splitLPats   :: ProblemPart
+        -- ^ The typed user patterns left of the split position.
+        --   Invariant: @'problemRest' == empty@.
+      , splitAsNames :: [Name]
+        -- ^ The as-bindings for the focus.
+      , splitFocus   :: I.Arg Focus
+        -- ^ How to split the variable at the split position.
+      , splitRPats   :: Abs ProblemPart
+        -- ^ The typed user patterns right of the split position.
+      }
 
-  | SplitRest { splitProjection :: I.Arg QName, splitRestType :: Type }
-    -- ^ Split on projection pattern.
-    --   The projection could be belonging to an irrelevant record field.
+  | -- | Split on projection pattern.
+    SplitRest
+      { splitProjection :: I.Arg QName
+        -- ^ The projection could be belonging to an irrelevant record field.
+      , splitRestType   :: Type
+      }
+
+-- | Put a typed pattern on the very left of a @SplitProblem@.
+consSplitProblem
+  :: A.NamedArg A.Pattern -- ^ @p@ A pattern.
+  -> ArgName              -- ^ @x@ The name of the argument (from its type).
+  -> I.Dom Type           -- ^ @t@ Its type.
+  -> SplitProblem         -- ^ The split problem, containing 'splitLPats' @ps;xs:ts@.
+  -> SplitProblem         -- ^ The result, now containing 'splitLPats' @(p,ps);(x,xs):(t,ts)@.
+consSplitProblem p x dom s@SplitRest{}              = s
+consSplitProblem p x dom s@Split{ splitLPats = ps } = s{ splitLPats = consProblem' ps }
+  where
+  consProblem' (Problem ps () tel pr) =
+    Problem (p:ps) () (ExtendTel dom $ Abs x tel) pr
 
 data SplitError
   = NothingToSplit
@@ -185,16 +213,11 @@ instance Error SplitError where
   noMsg  = NothingToSplit
   strMsg = SplitPanic
 
--- | 'ProblemRest' is a right dominant monoid.
---   @pr1 \`mappend\` pr2 = pr2@ unless @pr2 = mempty@, then it is @pr1@.
---   Basically, this means that the left 'ProblemRest' is discarded, so
---   use it wisely!
-instance Monoid ProblemRest where
-  mempty = ProblemRest [] (defaultArg typeDontCare)
-  mappend pr (ProblemRest [] _) = pr
-  mappend _  pr                 = pr
+instance Null ProblemRest where
+  null  = null . restPats
+  empty = ProblemRest { restPats = [], restType = defaultArg typeDontCare }
 
-instance Monoid p => Monoid (Problem' p) where
-  mempty = Problem [] mempty EmptyTel mempty
-  Problem ps1 qs1 tel1 pr1 `mappend` Problem ps2 qs2 tel2 pr2 =
-    Problem (ps1 ++ ps2) (mappend qs1 qs2) (abstract tel1 tel2) (mappend pr1 pr2)
+instance Null a => Null (Problem' a) where
+  null p = null (problemInPat p) && null (problemRest p)
+  empty  = Problem empty empty empty empty
+

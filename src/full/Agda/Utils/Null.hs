@@ -30,6 +30,14 @@ class Null a where
   null  :: a -> Bool
   -- ^ Satisfying @null empty == True@.
 
+instance Null () where
+  empty  = ()
+  null _ = True
+
+instance (Null a, Null b) => Null (a,b) where
+  empty      = (empty, empty)
+  null (a,b) = null a && null b
+
 instance Null ByteString where
   empty = ByteString.empty
   null  = ByteString.null

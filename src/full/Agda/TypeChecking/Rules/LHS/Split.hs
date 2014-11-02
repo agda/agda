@@ -4,13 +4,17 @@
 {-# LANGUAGE PatternGuards       #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 
-module Agda.TypeChecking.Rules.LHS.Split where
+module Agda.TypeChecking.Rules.LHS.Split
+  ( splitProblem
+  ) where
 
-import Control.Applicative
+import Prelude hiding (null)
+
+import Control.Applicative hiding (empty)
 import Control.Monad.Trans ( lift )
+
 import Data.Maybe (fromMaybe)
-import Data.Monoid (mempty, mappend)
-import Data.List
+import Data.List hiding (null)
 import Data.Traversable hiding (mapM, sequence)
 
 import Agda.Interaction.Options
@@ -35,7 +39,7 @@ import Agda.TypeChecking.Free
 import Agda.TypeChecking.Irrelevance
 import Agda.TypeChecking.MetaVars
 import Agda.TypeChecking.Patterns.Abstract
-import Agda.TypeChecking.Pretty
+import Agda.TypeChecking.Pretty hiding (empty)
 import Agda.TypeChecking.Records
 import Agda.TypeChecking.Reduce
 import Agda.TypeChecking.Substitute
@@ -44,7 +48,7 @@ import Agda.TypeChecking.Rules.LHS.Problem
 
 import Agda.Utils.Except
   ( ExceptT
-  , MonadError(catchError, throwError)
+  , MonadError(throwError)
   , runExceptT
   )
 
@@ -52,6 +56,7 @@ import Agda.Utils.Functor ((<.>))
 import Agda.Utils.List
 import Agda.Utils.Maybe
 import Agda.Utils.Monad
+import Agda.Utils.Null
 import Agda.Utils.Permutation
 import Agda.Utils.Tuple
 import qualified Agda.Utils.Pretty as P
@@ -111,22 +116,6 @@ splitProblem mf (Problem ps (perm, qs) tel pr) = do
             -- It could be a meta, but since we cannot postpone lhs checking, we crash here.
             caseMaybeM (lift $ isRecordType $ unArg b) notRecord $ \(r, vs, def) -> case def of
               Record{ recFields = fs } -> do
-                {- NO LONGER NEEDED, BUT KEEP
-                -- normalize projection name (could be from a module app)
-                d <- lift $ do
-                  v <- stripLambdas =<< normalise (Def d [])
-                  case v of
-                    Def d _ -> return d
-                    _       -> do
-                      reportSDoc "impossible" 10 $ sep
-                        [ text   "unexpected result " <+> prettyTCM v
-                        , text $ "when normalizing projection " ++ show d
-                        ]
-                      reportSDoc "impossible" 50 $ sep
-                        [ text $ "raw: " ++ show v
-                        ]
-                      __IMPOSSIBLE__
-                -}
                 lift $ reportSDoc "tc.lhs.split" 20 $ sep
                   [ text $ "we are of record type r  = " ++ show r
                   , text   "applied to parameters vs = " <+> prettyTCM vs
@@ -142,7 +131,7 @@ splitProblem mf (Problem ps (perm, qs) tel pr) = do
                 let self = defaultArg $ Def f (map Apply fvs) `applyE` es
                 -- get the type of projection d applied to "self"
                 dType <- lift $ defType <$> getConstInfo d  -- full type!
-                -- dType <- lift $ typeOfConst d  -- WRONG: we apply to parameters ourselves!!
+
                 lift $ reportSDoc "tc.lhs.split" 20 $ sep
                   [ text "we are              self = " <+> prettyTCM (unArg self)
                   , text "being projected by dType = " <+> prettyTCM dType
@@ -152,18 +141,16 @@ splitProblem mf (Problem ps (perm, qs) tel pr) = do
     -- if there are no more patterns left in the problem rest, there is nothing to split:
     splitRest _ = throwError $ NothingToSplit
 
-    -- Stripping initial lambdas from a normalized term
-    stripLambdas :: Term -> TCM Term
-    stripLambdas v = case ignoreSharing v of
-        Lam _ b -> addContext (absName b) $ stripLambdas (absBody b)
-        v       -> return v
-
     -- | In @splitP aps iqs tel@,
     --   @aps@ are the user patterns on which we are splitting (inPats),
     --   @ips@ are the one-hole patterns of the current split state (outPats)
     --   in one-to-one correspondence with the pattern variables
     --   recorded in @tel@.
-    splitP :: [A.NamedArg A.Pattern] -> [(Int, OneHolePatterns)] -> Telescope -> ExceptT SplitError TCM SplitProblem
+    splitP :: [A.NamedArg A.Pattern]
+           -> [(Int, OneHolePatterns)]
+           -> Telescope
+           -> ExceptT SplitError TCM SplitProblem
+
     -- the next two cases violate the one-to-one correspondence of qs and tel
     splitP _        []           (ExtendTel _ _)         = __IMPOSSIBLE__
     splitP _        (_:_)         EmptyTel               = __IMPOSSIBLE__
@@ -171,46 +158,55 @@ splitProblem mf (Problem ps (perm, qs) tel pr) = do
     splitP []        _            _                      = splitRest pr
     -- patterns but no types for them?  Impossible.
     splitP ps       []            EmptyTel               = __IMPOSSIBLE__
+    -- (we can never have an ExtendTel without Abs)
+    splitP _        _            (ExtendTel _ NoAbs{})   = __IMPOSSIBLE__
+
     -- pattern with type?  Let's get to work:
-    splitP (p : ps) ((i, q) : qs) tel0@(ExtendTel a tel) = do
+    splitP ps0@(p : ps) qs0@((i, q) : qs) tel0@(ExtendTel dom@(Dom ai a) xtel@(Abs x tel)) = do
+
       liftTCM $ reportSDoc "tc.lhs.split" 30 $ sep
         [ text "splitP looking at pattern"
-        , nest 2 $ text "p =" <+> prettyA p
-        , nest 2 $ text "a =" <+> prettyTCM a
+        , nest 2 $ text "p   =" <+> prettyA p
+        , nest 2 $ text "dom =" <+> prettyTCM dom
         ]
-      let tryAgain = splitP (p : ps) ((i, q) : qs) tel0
+
+      -- Possible reinvokations:
+      let -- 1. Redo this argument (after meta instantiation).
+          tryAgain = splitP ps0 qs0 tel0
+          -- 2. Try to split on next argument.
+          keepGoing = consSplitProblem p x dom <$> do
+            underAbstraction dom xtel $ \ tel -> splitP ps qs tel
+
       p <- lift $ expandLitPattern p
       case asView $ namedArg p of
 
         -- Case: projection pattern.  That's an error.
-        --(_, p') | Just{} <- isProjP p' -> do
         (_, A.DefP _ d ps) -> typeError $
           if null ps
           then CannotEliminateWithPattern p (telePi tel0 $ unArg $ restType pr)
           else IllformedProjectionPattern $ namedArg p
-        -- Case: literal pattern
+
+        -- Case: literal pattern.
         (xs, p@(A.LitP lit))  -> do
           -- Note that, in the presence of --without-K, this branch is
           -- based on the assumption that the types of literals are
           -- not indexed.
 
           -- Andreas, 2010-09-07 cannot split on irrelevant args
-          when (unusableRelevance $ getRelevance a) $
-            typeError $ SplitOnIrrelevant p a
-          b <- lift $ litType lit
-          ok <- lift $ do
-              noConstraints (equalType (unDom a) b)
-              return True
-            `catchError` \_ -> return False
-          if ok
-            then return $
-              Split mempty
-                    xs
-                    (argFromDom $ fmap (LitFocus lit q i) a)
-                    (fmap (\ tel -> Problem ps () tel __IMPOSSIBLE__) tel)
-            else keepGoing
+          when (unusableRelevance $ getRelevance ai) $
+            typeError $ SplitOnIrrelevant p dom
 
-        -- Case: constructor pattern
+          -- Succeed if the split type is (already) equal to the type of the literal.
+          ifNotM (lift $ tryConversion $ equalType a =<< litType lit)
+            {- then -} keepGoing $
+            {- else -} return $ Split
+              { splitLPats   = empty
+              , splitAsNames = xs
+              , splitFocus   = Arg ai $ LitFocus lit q i a
+              , splitRPats   = Abs x  $ Problem ps () tel __IMPOSSIBLE__
+              }
+
+        -- Case: constructor pattern.
         (xs, p@(A.ConP ci (A.AmbQ cs) args)) -> do
           let tryInstantiate a'
                 | [c] <- cs = do
@@ -221,24 +217,27 @@ splitProblem mf (Problem ps (perm, qs) tel pr) = do
                     dt     <- defType <$> getConstInfo d
                     vs     <- newArgsMeta dt
                     Sort s <- ignoreSharing . unEl <$> reduce (apply dt vs)
-                    (True <$ noConstraints (equalType a' (El s $ Def d $ map Apply vs)))
-                      `catchError` \_ -> return False
+                    tryConversion $ equalType a' (El s $ Def d $ map Apply vs)
                   if ok then tryAgain else keepGoing
                 | otherwise = keepGoing
           -- ifBlockedType reduces the type
-          ifBlockedType (unDom a) (const tryInstantiate) $ \ a' -> do
+          ifBlockedType a (const tryInstantiate) $ \ a' -> do
           case ignoreSharing $ unEl a' of
 
-            -- Subcase: split type is a Def
+            -- Subcase: split type is a Def.
             Def d es    -> do
-              def <- liftTCM $ theDef <$> getConstInfo d
-              unless (defIsRecord def) $
-                -- cannot split on irrelevant or non-strict things
-                when (unusableRelevance $ getRelevance a) $ do
-                  -- Andreas, 2011-10-04 unless allowed by option
-                  allowed <- liftTCM $ optExperimentalIrrelevance <$> pragmaOptions
-                  unless allowed $ typeError $ SplitOnIrrelevant p a
 
+              def <- liftTCM $ theDef <$> getConstInfo d
+
+              -- We cannot split on (shape-)irrelevant non-records.
+              -- Andreas, 2011-10-04 unless allowed by option
+              unless (defIsRecord def) $
+                when (unusableRelevance $ getRelevance ai) $
+                unlessM (liftTCM $ optExperimentalIrrelevance <$> pragmaOptions) $
+                typeError $ SplitOnIrrelevant p dom
+
+              -- Check that we are at record or data type and return
+              -- the number of parameters.
               let mp = case def of
                         Datatype{dataPars = np} -> Just np
                         Record{recPars = np}    -> Just np
@@ -247,7 +246,7 @@ splitProblem mf (Problem ps (perm, qs) tel pr) = do
                 Nothing -> keepGoing
                 Just np -> do
                   let vs = fromMaybe __IMPOSSIBLE__ $ allApplyElims es
-                  liftTCM $ traceCall (CheckPattern p EmptyTel (unDom a)) $ do  -- TODO: wrong telescope
+                  liftTCM $ traceCall (CheckPattern p EmptyTel a) $ do  -- TODO: wrong telescope
                   -- Check that we construct something in the right datatype
                   c <- do
                       cs' <- mapM canonicalName cs
@@ -264,13 +263,13 @@ splitProblem mf (Problem ps (perm, qs) tel pr) = do
                           typeError $ CantResolveOverloadedConstructorsTargetingSameDatatype d cs
 
                   let (pars, ixs) = genericSplitAt np vs
-                  reportSDoc "tc.lhs.split" 10 $
-                    vcat [ sep [ text "splitting on"
-                               , nest 2 $ fsep [ prettyA p, text ":", prettyTCM a ]
-                               ]
-                         , nest 2 $ text "pars =" <+> fsep (punctuate comma $ map prettyTCM pars)
-                         , nest 2 $ text "ixs  =" <+> fsep (punctuate comma $ map prettyTCM ixs)
-                         ]
+                  reportSDoc "tc.lhs.split" 10 $ vcat
+                    [ sep [ text "splitting on"
+                          , nest 2 $ fsep [ prettyA p, text ":", prettyTCM dom ]
+                          ]
+                    , nest 2 $ text "pars =" <+> fsep (punctuate comma $ map prettyTCM pars)
+                    , nest 2 $ text "ixs  =" <+> fsep (punctuate comma $ map prettyTCM ixs)
+                    ]
 
                   -- Andreas, 2013-03-22 fixing issue 279
                   -- To resolve ambiguous constructors, Agda always looks up
@@ -284,31 +283,18 @@ splitProblem mf (Problem ps (perm, qs) tel pr) = do
                   -- but the extra check here is non-invasive to the existing code.
                   checkParsIfUnambiguous cs d pars
 
-                  --whenM (optWithoutK <$> pragmaOptions) $
-                  --  wellFormedIndices a'
-
-                  return $ Split mempty
-                                 xs
-                                 (argFromDom $ fmap (Focus c (A.patImplicit ci) args (getRange p) q i d pars ixs) a)
-                                 (fmap (\ tel -> Problem ps () tel __IMPOSSIBLE__) tel)
-            -- Subcase: split type is not a Def
+                  return $ Split
+                    { splitLPats   = empty
+                    , splitAsNames = xs
+                    , splitFocus   = Arg ai $ Focus c (A.patImplicit ci) args (getRange p) q i d pars ixs a
+                    , splitRPats   = Abs x  $ Problem ps () tel __IMPOSSIBLE__
+                    }
+            -- Subcase: split type is not a Def.
             _   -> keepGoing
-        -- Case: neither literal nor constructor pattern
-        p -> keepGoing
-      where
-        keepGoing = do
-          r <- underAbstraction a tel $ \tel -> splitP ps qs tel
-          case r of
-            SplitRest{} -> return r
-            Split p1 xs foc p2 -> do
-              let p0 = Problem [p] () (ExtendTel a (EmptyTel <$ tel)) mempty
-              return $ Split (mappend p0 p1) xs foc p2
-{- OLD
-        keepGoing = do
-          let p0 = Problem [p] () (ExtendTel a (EmptyTel <$ tel)) mempty
-          Split p1 xs foc p2 <- underAbstraction a tel $ \tel -> splitP ps qs tel
-          return $ Split (mappend p0 p1) xs foc p2
--}
+
+        -- Case: neither literal nor constructor pattern.
+        _ -> keepGoing
+
 
 -- | @checkParsIfUnambiguous [c] d pars@ checks that the data/record type
 --   behind @c@ is has initial parameters (coming e.g. from a module instantiation)
@@ -330,150 +316,3 @@ checkParsIfUnambiguous [c] d pars = do
       compareArgs [] t (Def d []) vs (take (length vs) pars)
     _ -> __IMPOSSIBLE__
 checkParsIfUnambiguous _ _ _ = return ()
-
--- | Takes a type, which must be a data or record type application,
--- and checks that the indices are constructors (or literals) applied
--- to distinct variables which do not occur free in the parameters.
--- For the purposes of this check parameters count as constructor
--- arguments; parameters are reconstructed from the given type.
---
--- Precondition: The type must be a data or record type application.
-
-wellFormedIndices :: Type -> TCM ()
-wellFormedIndices t = do
-  t <- reduce t
-
-  reportSDoc "tc.lhs.split.well-formed" 10 $
-    fsep [ text "Checking if indices are well-formed:"
-         , nest 2 $ prettyTCM t
-         ]
-
-  (pars, ixs) <- normalise =<< case ignoreSharing $ unEl t of
-    Def d es -> do
-      let args = fromMaybe __IMPOSSIBLE__ $ allApplyElims es
-      def       <- getConstInfo d
-      typedArgs <- args `withTypesFrom` defType def
-
-{- OLD
-      let noPars = case theDef def of
-            Datatype { dataPars = n } -> n
-            Record   { recPars  = n } -> n
-            _                         -> __IMPOSSIBLE__
-          (pars, ixs) = genericSplitAt noPars typedArgs
-      return (map fst pars, ixs)
--}
-      -- Andreas, 2013-05-30:
-      -- 1. treat non-linear parameters as indices
-      -- 2. ignore big parameters
-      let (noPars, smallPars, nonLinPars) = case theDef def of
-            Datatype { dataPars = n, dataSmallPars = Perm _ sps, dataNonLinPars = nl }
-                                      -> (n, sps, permPicks $ doDrop nl)
-            Record   { recPars  = n } -> (n, [0..n-1], []) -- TODO: smallness for record pars
-            _                         -> __IMPOSSIBLE__
-          (pars0, ixs0) = genericSplitAt noPars typedArgs
-          -- Andreas, 2013-05-30 take only the small parameters
-          pars = map (pars0 !!) (smallPars \\ nonLinPars)
-          -- add the non-linear parameters to the indices
-          ixs  = map (pars0 !!) nonLinPars ++ ixs0
-      return (map fst pars, ixs)
-
-    _ -> __IMPOSSIBLE__
-
-  mvs <- constructorApplications ixs
-  vs  <- case mvs of
-           Nothing -> typeError $
-                        IndicesNotConstructorApplications (map fst ixs)
-           Just vs -> return vs
-
-  unless (fastDistinct vs) $
-    typeError $ IndexVariablesNotDistinct vs (map fst ixs)
-
-  case map fst $ filter snd $ zip vs (map (`freeIn` pars) vs) of
-    [] -> return ()
-    vs ->
-      typeError $ IndicesFreeInParameters vs (map fst ixs) pars
-
-  where
-  -- | If the term consists solely of constructors (or literals)
-  -- applied to variables (after parameter reconstruction), then the
-  -- variables are returned, and otherwise nothing.
-  constructorApplication :: Term
-                         -> Type  -- ^ The term's type.
-                         -> TCM (Maybe [Nat])
-  constructorApplication (Var x [])      _ = return (Just [x])
-  constructorApplication (Lit {})        _ = return (Just [])
-  constructorApplication (Shared p)      t  = constructorApplication (derefPtr p) t
-  constructorApplication (Con c conArgs) (El _ (Def d es)) = do
-    let dataArgs = fromMaybe __IMPOSSIBLE__ $ allApplyElims es
-    conDef  <- getConInfo c
-    dataDef <- getConstInfo d
-
-{- OLD
-    let noPars = case theDef dataDef of
-          Datatype { dataPars = n } -> n
-          Record   { recPars  = n } -> n
-          _                         -> __IMPOSSIBLE__
-        pars    = genericTake noPars dataArgs
-        allArgs = pars ++ conArgs
-
-    reportSDoc "tc.lhs.split.well-formed" 20 $
-      fsep [ text "Reconstructed parameters:"
-           , nest 2 $
-               prettyTCM (Con c []) <+>
-               text "(:" <+> prettyTCM (defType conDef) <> text ")" <+>
-               text "<<" <+> prettyTCM pars <+> text ">>" <+>
-               prettyTCM conArgs
-           ]
-
-    constructorApplications =<< allArgs `withTypesFrom` defType conDef
--}
-
-    let (noPars, smallPars) = case theDef dataDef of
-          Datatype { dataPars = n, dataSmallPars = Perm _ is }
-                                    -> (n, is)
-          Record   { recPars  = n } -> (n, [0..n-1])
-          _                         -> __IMPOSSIBLE__
-
-        dataPars = take noPars dataArgs
-
-    allArgs <- (dataPars ++ conArgs) `withTypesFrom` defType conDef
-
-    -- skip big parameters during reconstruction
-    let ixs  = drop noPars allArgs
-        pars = map (allArgs !!) smallPars
-
-    reportSDoc "tc.lhs.split.well-formed" 20 $
-      fsep [ text "Reconstructed parameters:"
-           , nest 2 $
-               prettyTCM (Con c []) <+>
-               text "(:" <+> prettyTCM (defType conDef) <> text ")" <+>
-               text "<<" <+> prettyTCM (map fst pars) <+> text ">>" <+>
-               prettyTCM conArgs
-           ]
-
-    constructorApplications $ pars ++ ixs
-
-  constructorApplication _ _ = return Nothing
-
-  constructorApplications :: [(I.Arg Term, I.Dom Type)] -> TCM (Maybe [Nat])
-  constructorApplications args = do
-    xs <- mapM (\(e, t) -> do
-                   t <- reduce (unDom t)
-                   constructorApplication (unArg e) (ignoreSharingType t))
-               args
-    return (concat <$> sequence xs)
-
--- | @args \`withTypesFrom\` t@ returns the arguments @args@ paired up
--- with their types, taken from @t@, which is assumed to be a @length
--- args@-ary pi.
---
--- Precondition: @t@ has to start with @length args@ pis.
-
-withTypesFrom :: Args -> Type -> TCM [(I.Arg Term, I.Dom Type)]
-[]           `withTypesFrom` _ = return []
-(arg : args) `withTypesFrom` t = do
-  t <- reduce t
-  case ignoreSharing $ unEl t of
-    Pi a b -> ((arg, a) :) <$>
-              args `withTypesFrom` absApp b (unArg arg)
-    _      -> __IMPOSSIBLE__
