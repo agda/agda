@@ -36,6 +36,7 @@ import Agda.TypeChecking.Free as Free
 import Agda.TypeChecking.CompiledClause
 
 import Agda.Utils.Empty
+import Agda.Utils.Functor
 import Agda.Utils.List
 import Agda.Utils.Monad
 import Agda.Utils.Permutation
@@ -348,21 +349,21 @@ piApply t args                    =
 
 -- | @(abstract args v) `apply` args --> v[args]@.
 class Abstract t where
-    abstract :: Telescope -> t -> t
+  abstract :: Telescope -> t -> t
 
 instance Abstract Term where
-    abstract = teleLam
+  abstract = teleLam
 
 instance Abstract Type where
-    abstract = telePi_
+  abstract = telePi_
 
 instance Abstract Sort where
-    abstract EmptyTel s = s
-    abstract _        s = __IMPOSSIBLE__
+  abstract EmptyTel s = s
+  abstract _        s = __IMPOSSIBLE__
 
 instance Abstract Telescope where
-  abstract  EmptyTel            tel = tel
-  abstract (ExtendTel arg tel') tel = ExtendTel arg $ fmap (`abstract` tel) tel'
+  EmptyTel           `abstract` tel = tel
+  ExtendTel arg xtel `abstract` tel = ExtendTel arg $ xtel <&> (`abstract` tel)
 
 instance Abstract Definition where
   abstract tel (Defn info x t pol occ df m c rews inst d) =
