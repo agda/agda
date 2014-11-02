@@ -177,6 +177,11 @@ data Tele a = EmptyTel
 
 type Telescope = Tele (Dom Type)
 
+instance Null (Tele a) where
+  null EmptyTel    = True
+  null ExtendTel{} = False
+  empty = EmptyTel
+
 mapAbsNamesM :: Applicative m => (ArgName -> m ArgName) -> Tele a -> m (Tele a)
 mapAbsNamesM f EmptyTel                  = pure EmptyTel
 mapAbsNamesM f (ExtendTel a (Abs x b))   = ExtendTel a <$> (Abs <$> f x <*> mapAbsNamesM f b)
