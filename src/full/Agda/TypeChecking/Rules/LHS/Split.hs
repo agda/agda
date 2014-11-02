@@ -48,7 +48,7 @@ import Agda.TypeChecking.Rules.LHS.Problem
 
 import Agda.Utils.Except
   ( ExceptT
-  , MonadError(catchError, throwError)
+  , MonadError(throwError)
   , runExceptT
   )
 
@@ -146,7 +146,11 @@ splitProblem mf (Problem ps (perm, qs) tel pr) = do
     --   @ips@ are the one-hole patterns of the current split state (outPats)
     --   in one-to-one correspondence with the pattern variables
     --   recorded in @tel@.
-    splitP :: [A.NamedArg A.Pattern] -> [(Int, OneHolePatterns)] -> Telescope -> ExceptT SplitError TCM SplitProblem
+    splitP :: [A.NamedArg A.Pattern]
+           -> [(Int, OneHolePatterns)]
+           -> Telescope
+           -> ExceptT SplitError TCM SplitProblem
+
     -- the next two cases violate the one-to-one correspondence of qs and tel
     splitP _        []           (ExtendTel _ _)         = __IMPOSSIBLE__
     splitP _        (_:_)         EmptyTel               = __IMPOSSIBLE__
@@ -156,14 +160,23 @@ splitProblem mf (Problem ps (perm, qs) tel pr) = do
     splitP ps       []            EmptyTel               = __IMPOSSIBLE__
     -- (we can never have an ExtendTel without Abs)
     splitP _        _            (ExtendTel _ NoAbs{})   = __IMPOSSIBLE__
+
     -- pattern with type?  Let's get to work:
     splitP ps0@(p : ps) qs0@((i, q) : qs) tel0@(ExtendTel dom@(Dom ai a) xtel@(Abs x tel)) = do
+
       liftTCM $ reportSDoc "tc.lhs.split" 30 $ sep
         [ text "splitP looking at pattern"
         , nest 2 $ text "p   =" <+> prettyA p
         , nest 2 $ text "dom =" <+> prettyTCM dom
         ]
-      let tryAgain = splitP ps0 qs0 tel0
+
+      -- Possible reinvokations:
+      let -- 1. Redo this argument (after meta instantiation).
+          tryAgain = splitP ps0 qs0 tel0
+          -- 2. Try to split on next argument.
+          keepGoing = consSplitProblem p x dom <$> do
+            underAbstraction dom xtel $ \ tel -> splitP ps qs tel
+
       p <- lift $ expandLitPattern p
       case asView $ namedArg p of
 
@@ -173,7 +186,7 @@ splitProblem mf (Problem ps (perm, qs) tel pr) = do
           then CannotEliminateWithPattern p (telePi tel0 $ unArg $ restType pr)
           else IllformedProjectionPattern $ namedArg p
 
-        -- Case: literal pattern
+        -- Case: literal pattern.
         (xs, p@(A.LitP lit))  -> do
           -- Note that, in the presence of --without-K, this branch is
           -- based on the assumption that the types of literals are
@@ -193,7 +206,7 @@ splitProblem mf (Problem ps (perm, qs) tel pr) = do
               , splitRPats   = Abs x  $ Problem ps () tel __IMPOSSIBLE__
               }
 
-        -- Case: constructor pattern
+        -- Case: constructor pattern.
         (xs, p@(A.ConP ci (A.AmbQ cs) args)) -> do
           let tryInstantiate a'
                 | [c] <- cs = do
@@ -204,15 +217,14 @@ splitProblem mf (Problem ps (perm, qs) tel pr) = do
                     dt     <- defType <$> getConstInfo d
                     vs     <- newArgsMeta dt
                     Sort s <- ignoreSharing . unEl <$> reduce (apply dt vs)
-                    (True <$ noConstraints (equalType a' (El s $ Def d $ map Apply vs)))
-                      `catchError` \_ -> return False
+                    tryConversion $ equalType a' (El s $ Def d $ map Apply vs)
                   if ok then tryAgain else keepGoing
                 | otherwise = keepGoing
           -- ifBlockedType reduces the type
           ifBlockedType a (const tryInstantiate) $ \ a' -> do
           case ignoreSharing $ unEl a' of
 
-            -- Subcase: split type is a Def
+            -- Subcase: split type is a Def.
             Def d es    -> do
 
               def <- liftTCM $ theDef <$> getConstInfo d
@@ -277,14 +289,12 @@ splitProblem mf (Problem ps (perm, qs) tel pr) = do
                     , splitFocus   = Arg ai $ Focus c (A.patImplicit ci) args (getRange p) q i d pars ixs a
                     , splitRPats   = Abs x  $ Problem ps () tel __IMPOSSIBLE__
                     }
-            -- Subcase: split type is not a Def
+            -- Subcase: split type is not a Def.
             _   -> keepGoing
-        -- Case: neither literal nor constructor pattern
-        p -> keepGoing
-      where
-        -- Try to split on next argument.
-        keepGoing = consSplitProblem p x dom <$> do
-          underAbstraction dom xtel $ \ tel -> splitP ps qs tel
+
+        -- Case: neither literal nor constructor pattern.
+        _ -> keepGoing
+
 
 -- | @checkParsIfUnambiguous [c] d pars@ checks that the data/record type
 --   behind @c@ is has initial parameters (coming e.g. from a module instantiation)
