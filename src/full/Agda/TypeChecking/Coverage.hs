@@ -3,7 +3,18 @@
 {-# LANGUAGE PatternGuards    #-}
 {-# LANGUAGE TupleSections    #-}
 
-module Agda.TypeChecking.Coverage where
+{-| Coverage checking, case splitting, and splitting for refine tactics.
+
+ -}
+
+module Agda.TypeChecking.Coverage
+  ( SplitClause(..), clauseToSplitClause, fixTarget
+  , Covering(..), splitClauses
+  , coverageCheck
+  , splitClauseWithAbsurd
+  , splitLast
+  , splitResult
+  ) where
 
 import Control.Monad
 import Control.Monad.Trans ( lift )
@@ -111,18 +122,6 @@ clauseToSplitClause cl = SClause
   }
 
 type CoverM = ExceptionT SplitError TCM
-
--- | Old top-level function for checking pattern coverage.
---   DEPRECATED
-checkCoverage :: QName -> TCM ()
-checkCoverage f = do
-  d <- getConstInfo f
-  case theDef d of
-    Function{ funProjection = Nothing, funClauses = cs@(_:_) } -> do
-      coverageCheck f (defType d) cs
-      return ()
-    Function{ funProjection = Just _ } -> __IMPOSSIBLE__
-    _ -> __IMPOSSIBLE__
 
 -- | Top-level function for checking pattern coverage.
 coverageCheck :: QName -> Type -> [Clause] -> TCM SplitTree
@@ -512,6 +511,8 @@ splitClauseWithAbsurd :: Clause -> Nat -> TCM (Either SplitError (Either SplitCl
 splitClauseWithAbsurd c x = split' Inductive (clauseToSplitClause c) (BlockingVar x Nothing)
 
 -- | Entry point from @TypeChecking.Empty@ and @Interaction.BasicOps@.
+--   @splitLast CoInductive@ is used in the @refine@ tactics.
+
 splitLast :: Induction -> Telescope -> [I.NamedArg Pattern] -> TCM (Either SplitError Covering)
 splitLast ind tel ps = split ind sc (BlockingVar 0 Nothing)
   where sc = SClause tel (idP $ size tel) ps __IMPOSSIBLE__ Nothing
