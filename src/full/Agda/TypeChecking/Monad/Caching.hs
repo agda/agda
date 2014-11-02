@@ -45,10 +45,11 @@ restorePostScopeState pss = do
   reportSLn "cache" 10 $ "restorePostScopeState"
   modify $ \s ->
     let ipoints = s^.stInteractionPoints
-        pss' = pss{stPostInteractionPoints = stPostInteractionPoints pss `mergeIP` ipoints}
+        pss' = pss{stPostInteractionPoints = stPostInteractionPoints pss `mergeIPMap` ipoints}
     in  s{stPostScopeState = pss'}
   where
-    mergeIP lm sm = Map.mapWithKey (\k v -> fromMaybe v (Map.lookup k lm)) sm
+    mergeIPMap lm sm = Map.mapWithKey (\k v -> maybe v (`mergeIP` v) (Map.lookup k lm)) sm
+    mergeIP li si = si {ipMeta = ipMeta li}
 
 modifyCache
   :: (Maybe LoadedFileCache -> Maybe LoadedFileCache)
