@@ -176,18 +176,16 @@ splitProblem mf (Problem ps (perm, qs) tel pr) = do
           -- Andreas, 2010-09-07 cannot split on irrelevant args
           when (unusableRelevance $ getRelevance a) $
             typeError $ SplitOnIrrelevant p a
-          b <- lift $ litType lit
-          ok <- lift $ do
-              noConstraints (equalType (unDom a) b)
-              return True
-            `catchError` \_ -> return False
-          if ok
-            then return $
-              Split mempty
-                    xs
-                    (argFromDom $ fmap (LitFocus lit q i) a)
-                    (fmap (\ tel -> Problem ps () tel __IMPOSSIBLE__) tel)
-            else keepGoing
+
+          -- Succeed if the split type is (already) equal to the type of the literal.
+          ifNotM (lift $ tryConversion $ equalType (unDom a) =<< litType lit)
+            {- then -} keepGoing $
+            {- else -} return $ Split
+              { splitLPats   = mempty
+              , splitAsNames = xs
+              , splitFocus   = argFromDom $ fmap (LitFocus lit q i) a
+              , splitRPats   = fmap (\ tel -> Problem ps () tel __IMPOSSIBLE__) tel
+              }
 
         -- Case: constructor pattern
         (xs, p@(A.ConP ci (A.AmbQ cs) args)) -> do
@@ -263,10 +261,12 @@ splitProblem mf (Problem ps (perm, qs) tel pr) = do
                   -- but the extra check here is non-invasive to the existing code.
                   checkParsIfUnambiguous cs d pars
 
-                  return $ Split mempty
-                                 xs
-                                 (argFromDom $ fmap (Focus c (A.patImplicit ci) args (getRange p) q i d pars ixs) a)
-                                 (fmap (\ tel -> Problem ps () tel __IMPOSSIBLE__) tel)
+                  return $ Split
+                    { splitLPats   = mempty
+                    , splitAsNames = xs
+                    , splitFocus   = argFromDom $ fmap (Focus c (A.patImplicit ci) args (getRange p) q i d pars ixs) a
+                    , splitRPats   = fmap (\ tel -> Problem ps () tel __IMPOSSIBLE__) tel
+                    }
             -- Subcase: split type is not a Def
             _   -> keepGoing
         -- Case: neither literal nor constructor pattern

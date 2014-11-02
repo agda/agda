@@ -129,15 +129,29 @@ data Focus
     }
   | LitFocus Literal OneHolePatterns Int Type
 
+-- | Result of 'splitProblem':  Determines position for the next split.
 data SplitProblem
 
-  = Split ProblemPart [Name] (I.Arg Focus) (Abs ProblemPart)
-    -- ^ Split on constructor pattern.
-    --   The @[Name]@s give the as-bindings for the focus.
+  = -- | Split on constructor pattern.
+    Split
+      { splitLPats   :: ProblemPart
+        -- ^ The typed user patterns left of the split position.
+        --   Invariant: @'problemRest' == empty@.
+      , splitAsNames :: [Name]
+        -- ^ The as-bindings for the focus.
+      , splitFocus   :: I.Arg Focus
+        -- ^ How to split the variable at the split position.
+      , splitRPats   :: Abs ProblemPart
+        -- ^ The typed user patterns right of the split position.
+      }
 
-  | SplitRest { splitProjection :: I.Arg QName, splitRestType :: Type }
-    -- ^ Split on projection pattern.
-    --   The projection could be belonging to an irrelevant record field.
+  | -- | Split on projection pattern.
+    SplitRest
+      { splitProjection :: I.Arg QName
+        -- ^ The projection could be belonging to an irrelevant record field.
+      , splitRestType   :: Type
+      }
+
 
 data SplitError
   = NothingToSplit
