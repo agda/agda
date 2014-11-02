@@ -280,13 +280,8 @@ splitProblem mf (Problem ps (perm, qs) tel pr) = do
         p -> keepGoing
       where
         -- Try to split on next argument.
-        keepGoing = do
-          r <- underAbstraction dom xtel $ \ tel -> splitP ps qs tel
-          case r of
-            SplitRest{} -> return r
-            Split p1 xs foc p2 -> do
-              let p0 = Problem [p] () (sgTel (x, dom)) mempty
-              return $ Split (mappend p0 p1) xs foc p2
+        keepGoing = consSplitProblem p x dom <$> do
+          underAbstraction dom xtel $ \ tel -> splitP ps qs tel
 
 -- | @checkParsIfUnambiguous [c] d pars@ checks that the data/record type
 --   behind @c@ is has initial parameters (coming e.g. from a module instantiation)

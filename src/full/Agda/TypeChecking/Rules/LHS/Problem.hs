@@ -152,6 +152,18 @@ data SplitProblem
       , splitRestType   :: Type
       }
 
+-- | Put a typed pattern on the very left of a @SplitProblem@.
+consSplitProblem
+  :: A.NamedArg A.Pattern -- ^ @p@ A pattern.
+  -> ArgName              -- ^ @x@ The name of the argument (from its type).
+  -> I.Dom Type           -- ^ @t@ Its type.
+  -> SplitProblem         -- ^ The split problem, containing 'splitLPats' @ps;xs:ts@.
+  -> SplitProblem         -- ^ The result, now containing 'splitLPats' @(p,ps);(x,xs):(t,ts)@.
+consSplitProblem p x dom s@SplitRest{}              = s
+consSplitProblem p x dom s@Split{ splitLPats = ps } = s{ splitLPats = consProblem' ps }
+  where
+  consProblem' (Problem ps () tel pr) =
+    Problem (p:ps) () (ExtendTel dom $ Abs x tel) pr
 
 data SplitError
   = NothingToSplit
