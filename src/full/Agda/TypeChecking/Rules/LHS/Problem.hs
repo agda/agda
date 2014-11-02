@@ -8,6 +8,8 @@
 
 module Agda.TypeChecking.Rules.LHS.Problem where
 
+import Prelude hiding (null)
+
 import Data.Monoid ( Monoid(mappend,mempty) )
 import Data.Foldable
 import Data.Traversable
@@ -20,9 +22,10 @@ import Agda.Syntax.Internal.Pattern
 import qualified Agda.Syntax.Abstract as A
 
 import Agda.TypeChecking.Substitute as S
-import Agda.TypeChecking.Pretty
+import Agda.TypeChecking.Pretty hiding (empty)
 
 import Agda.Utils.Except ( Error(noMsg, strMsg) )
+import Agda.Utils.Null
 import Agda.Utils.Permutation
 
 type Substitution   = [Maybe Term]
@@ -210,6 +213,14 @@ instance PrettyTCM AsBinding where
 instance Error SplitError where
   noMsg  = NothingToSplit
   strMsg = SplitPanic
+
+instance Null ProblemRest where
+  null  = null . restPats
+  empty = ProblemRest { restPats = [], restType = defaultArg typeDontCare }
+
+instance Null a => Null (Problem' a) where
+  null p = null (problemInPat p) && null (problemRest p)
+  empty  = Problem empty empty empty empty
 
 -- | 'ProblemRest' is a right dominant monoid.
 --   @pr1 \`mappend\` pr2 = pr2@ unless @pr2 = mempty@, then it is @pr1@.

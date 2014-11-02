@@ -8,11 +8,14 @@ module Agda.TypeChecking.Rules.LHS.Split
   ( splitProblem
   ) where
 
-import Control.Applicative
+import Prelude hiding (null)
+
+import Control.Applicative hiding (empty)
 import Control.Monad.Trans ( lift )
+
 import Data.Maybe (fromMaybe)
 import Data.Monoid (mempty, mappend)
-import Data.List
+import Data.List hiding (null)
 import Data.Traversable hiding (mapM, sequence)
 
 import Agda.Interaction.Options
@@ -37,7 +40,7 @@ import Agda.TypeChecking.Free
 import Agda.TypeChecking.Irrelevance
 import Agda.TypeChecking.MetaVars
 import Agda.TypeChecking.Patterns.Abstract
-import Agda.TypeChecking.Pretty
+import Agda.TypeChecking.Pretty hiding (empty)
 import Agda.TypeChecking.Records
 import Agda.TypeChecking.Reduce
 import Agda.TypeChecking.Substitute
@@ -54,6 +57,7 @@ import Agda.Utils.Functor ((<.>))
 import Agda.Utils.List
 import Agda.Utils.Maybe
 import Agda.Utils.Monad
+import Agda.Utils.Null
 import Agda.Utils.Permutation
 import Agda.Utils.Tuple
 import qualified Agda.Utils.Pretty as P
@@ -184,7 +188,7 @@ splitProblem mf (Problem ps (perm, qs) tel pr) = do
           ifNotM (lift $ tryConversion $ equalType a =<< litType lit)
             {- then -} keepGoing $
             {- else -} return $ Split
-              { splitLPats   = mempty
+              { splitLPats   = empty
               , splitAsNames = xs
               , splitFocus   = Arg ai $ LitFocus lit q i a
               , splitRPats   = Abs x  $ Problem ps () tel __IMPOSSIBLE__
@@ -269,7 +273,7 @@ splitProblem mf (Problem ps (perm, qs) tel pr) = do
                   checkParsIfUnambiguous cs d pars
 
                   return $ Split
-                    { splitLPats   = mempty
+                    { splitLPats   = empty
                     , splitAsNames = xs
                     , splitFocus   = Arg ai $ Focus c (A.patImplicit ci) args (getRange p) q i d pars ixs a
                     , splitRPats   = Abs x  $ Problem ps () tel __IMPOSSIBLE__
