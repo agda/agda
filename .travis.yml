@@ -33,7 +33,7 @@ install:
   - make install-fix-agda-whitespace
 
 script:
-  - cabal configure --disable-library-profiling -v2
+  - cabal configure -v2
   - cabal build -v2
   - cabal install -v2
   # Right now haddock doesn't work, presumably because it consumes too
