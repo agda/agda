@@ -19,8 +19,6 @@ install:
   - cabal install happy
   # New new alex for us
   - cabal install alex
-  # And cpphs
-  - cabal install cpphs
   # And epic
   - sudo apt-get install libgc-dev
   - cabal install epic
