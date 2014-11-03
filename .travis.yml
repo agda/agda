@@ -16,6 +16,7 @@ install:
   - sudo apt-get install time
   # With old GHCs, we get an old cabal-install
   - cabal install cabal-install
+  - export PATH=$HOME/.cabal/bin:$PATH
   # New happy needed for haskell-src-exts
   - cabal install happy
   # New new alex for us
