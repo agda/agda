@@ -7,7 +7,8 @@ ghc:
   - 7.8.3
   - 7.6.3
   - 7.4.2
-  - 7.2.2
+  # Travis have no GHC 7.2.2 installed.
+  # - 7.2.2
   - 7.0.4
 
 install:
