@@ -17,6 +17,8 @@ install:
   # With old GHCs, we get an old cabal-install
   - cabal install cabal-install
   - export PATH=$HOME/.cabal/bin:$PATH
+  # Showing Cabal configuration
+  - cat $HOME/.cabal/config
   # New happy needed for haskell-src-exts
   - cabal install happy
   # New new alex for us
