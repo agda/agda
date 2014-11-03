@@ -244,7 +244,7 @@ instance Monoid a => Monoid (Match a) where
 --   a cover if @q@ was split on variable @x@.
 matchPat :: MatchLit -> Pattern -> MPat -> Match [MPat]
 matchPat _    (VarP _) q = Yes [q]
-matchPat _    (DotP _) q = Yes [q]
+matchPat _    (DotP _) q = Yes []
 matchPat mlit (LitP l) q = mlit l q
 matchPat _    (ProjP d) (ProjMP d') = if d == d' then Yes [] else No
 matchPat _    (ProjP d) _ = __IMPOSSIBLE__
