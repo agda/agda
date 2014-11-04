@@ -14,8 +14,11 @@ module Agda.Interaction.Highlighting.Generate
   , highlightAsTypeChecked
   , computeUnsolvedMetaWarnings
   , computeUnsolvedConstraints
+  , storeDisambiguatedName
   , Agda.Interaction.Highlighting.Generate.tests
   ) where
+
+import Prelude hiding (null)
 
 import Agda.Interaction.FindFile
 import Agda.Interaction.Response (Response(Resp_HighlightingInfo))
@@ -58,6 +61,12 @@ import qualified Data.Map as Map
 import Data.Maybe
 import Data.List ((\\), isPrefixOf)
 import qualified Data.Foldable as Fold (toList, fold, foldMap)
+import Data.IntMap (IntMap)
+import qualified Data.IntMap as IntMap
+
+import Agda.Utils.Functor
+import Agda.Utils.Maybe
+import Agda.Utils.Null
 
 #include "undefined.h"
 import Agda.Utils.Impossible
@@ -695,6 +704,16 @@ nameToFileA modMap file x include m =
 concreteBase      = A.nameConcrete . A.qnameName
 concreteQualifier = map A.nameConcrete . A.mnameToList . A.qnameModule
 bindingSite       = A.nameBindingSite . A.qnameName
+
+-- | Remember a name disambiguation (during type checking).
+--   To be used later during syntax highlighting.
+storeDisambiguatedName :: A.QName -> TCM ()
+storeDisambiguatedName q = whenJust (start $ P.getRange q) $ \ i ->
+  stDisambiguatedNames %= IntMap.insert i q
+  where
+    start (P.Range [])    = Nothing
+    start (P.Range (i:_)) = Just $ fromIntegral $ P.posPos $ P.iStart i
+    -- TODO: Move start to Agda.Syntax.Position
 
 ------------------------------------------------------------------------
 -- All tests
