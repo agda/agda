@@ -245,6 +245,10 @@ instance Monoid a => Monoid (Match a) where
 matchPat :: MatchLit -> Pattern -> MPat -> Match [MPat]
 matchPat _    (VarP _) q = Yes [q]
 matchPat _    (DotP _) q = Yes []
+-- Jesper, 2014-11-04: putting 'Yes [q]' here triggers issue 1333.
+-- Not checking for trivial MPats should be safe here, as dot patterns are
+-- guaranteed to match if the rest of the pattern does, so some extra splitting
+-- on them doesn't change the reduction behaviour.
 matchPat mlit (LitP l) q = mlit l q
 matchPat _    (ProjP d) (ProjMP d') = if d == d' then Yes [] else No
 matchPat _    (ProjP d) _ = __IMPOSSIBLE__
