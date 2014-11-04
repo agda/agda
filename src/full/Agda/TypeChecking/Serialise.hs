@@ -4,7 +4,7 @@
 -- -O2 does not have any noticable effect on runtime
 -- but sabotages cabal repl with -Werror
 -- (due to a conflict with --interactive wraning)
--- {-# OPTIONS_GHC -O2                       #-}
+-- {-# OPTIONS_GHC -O2                      #-}
 
 {-# LANGUAGE CPP                       #-}
 {-# LANGUAGE ExistentialQuantification #-}
