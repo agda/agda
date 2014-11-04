@@ -445,95 +445,24 @@ generateConstructorInfo
   -> A.Declaration
   -> TCM File
 generateConstructorInfo modMap file kinds decl = do
-  -- Extract all defined names from the declaration.
-  let names = Fold.toList (A.allNames decl)
 
-  -- Look up the corresponding declarations in the internal syntax.
-  defMap <- M.sigDefinitions <$> M.getSignature
-  let defs = catMaybes $ map (flip HMap.lookup defMap) names
+  -- Get boundaries of current declaration.
+  -- @noRange@ should be impossible, but in case of @noRange@
+  -- it makes sense to return the empty File.
+  ifNull (P.getRange decl) (return mempty) $ \ (P.Range is) -> do
+  let start = fromIntegral $ P.posPos $ P.iStart $ head is
+      end   = fromIntegral $ P.posPos $ P.iEnd   $ last is
 
-  -- Instantiate meta variables.
-  clauses <- R.instantiateFull $ concatMap M.defClauses defs
-  types   <- R.instantiateFull $ map defType defs
-
-  let -- Find all patterns and terms.
-      patterns = universeBi (types, clauses)
-      terms    = universeBi (types, clauses)
-
-      -- Find all constructors in the patterns and terms.
-      constrs = filter ((/= P.noRange) . P.getRange) $
-                concatMap getConstructorP patterns ++
-                concatMap getConstructor  terms
-
-  -- Find all constructors in right-hand sides of delayed definitions.
-  delayed <- evalStateT (getDelayed terms) HSet.empty
+  -- Get all disambiguated names that fall within the range of decl.
+  m0 <- use stDisambiguatedNames
+  let (_, m1) = IntMap.split (pred start) m0
+      (m2, _) = IntMap.split end m1
+      constrs = IntMap.elems m2
 
   -- Return suitable syntax highlighting information.
-  return $ Fold.fold $ fmap (generate modMap file kinds . mkAmb)
-                            (delayed ++ constrs)
-  where
-  mkAmb q = A.AmbQ [q]
+  let files = for constrs $ \ q -> generate modMap file kinds $ A.AmbQ [q]
+  return $ Fold.fold files
 
-  -- Finds names corresponding to delayed definitions occurring at the
-  -- top of the given terms, as well as in the found definition's
-  -- right-hand sides. Only definitions from the current file are
-  -- considered.
-  --
-  -- Constructors occurring in the delayed definitions' right-hand
-  -- sides are returned.
-  --
-  -- The set is used to avoid inspecting the same definition multiple
-  -- times.
-
-  getDelayed :: [I.Term] -> StateT (HashSet A.QName) TCM [A.QName]
-  getDelayed ts = concat <$> mapM getT ts
-    where
-    getT t = do
-      lift $ reportSDoc "highlighting.delayed" 50 $
-        text "Inspecting sub-term:" <+> prettyTCM t
-
-      seen <- get
-      case t of
-        I.Def q _ | not (q `HSet.member` seen)
-                      &&
-                    fmap P.srcFile (P.rStart (P.getRange q)) ==
-                      Just (Just file)
-                  -> getQ q
-        _         -> return []
-
-    getQ q = do
-      lift $ reportSDoc "highlighting.delayed" 30 $
-        text "Inspecting name:" <+> prettyTCM q
-
-      def <- lift $ getConstInfo q
-      case defDelayed def of
-        NotDelayed -> return []
-        Delayed    -> do
-          lift $ reportSDoc "highlighting.delayed" 10 $
-            text "Found delayed definition:" <+> prettyTCM q
-
-          -- Mark the definition as seen.
-          modify (HSet.insert q)
-
-          -- All sub-terms in the delayed definition's right-hand
-          -- sides.
-          terms <- universeBi . concat . map (getRHS . I.clauseBody) <$>
-                     lift (R.instantiateFull $ defClauses def)
-
-          -- Find the constructors and continue the search.
-          (concatMap getConstructor terms ++) <$> getDelayed terms
-
-    getRHS (I.Body v)   = [v]
-    getRHS I.NoBody     = []
-    getRHS (I.Bind b)   = getRHS (I.unAbs b)
-
-  getConstructorP :: I.Pattern -> [A.QName]
-  getConstructorP (I.ConP c _ _) = [I.conName c]
-  getConstructorP _              = []
-
-  getConstructor :: I.Term -> [A.QName]
-  getConstructor (I.Con q _) = [I.conName q]
-  getConstructor _           = []
 
 -- | Prints syntax highlighting info for an error.
 
