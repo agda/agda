@@ -3,12 +3,16 @@ language: haskell
 # We build with all the latest GHC versions for each 7.X, so we reduce
 # build times, possibly avoid compiler bugs and still test all the major
 # interface changes.
+
+# Travis have no GHC 7.2.2 installed because it is considered a technology
+# preview (as per https://www.haskell.org/ghc/download_ghc_7_2_2). If
+# necessary, we could use use the approach described in
+# https://github.com/hvr/multi-ghc-travis.
+
 ghc:
   - 7.8.3
   - 7.6.3
   - 7.4.2
-  # Travis have no GHC 7.2.2 installed.
-  # - 7.2.2
   - 7.0.4
 
 install:
