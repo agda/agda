@@ -7807,6 +7807,8 @@ user	3m7.176s
 sys	0m1.592s
 
 
+
+
 Store no highlighting information in the state (so serialize none)
 ------------------------------------------------------------------------
 
@@ -8654,3 +8656,166 @@ unequal terms                                               153,084
 
 396.99user 2.20system 6:40.14elapsed 99%CPU (0avgtext+0avgdata 5542640maxresident)k
 24inputs+27752outputs (0major+354131minor)pagefaults 0swaps
+
+
+2014-11-04  Deactivated constructor disambiguation for highlighting
+-------------------------------------------------------------------
+
+Finished README.
+Total time                 195,012ms
+Parsing                      1,408ms
+Parsing.Operators           14,216ms
+Import                       3,036ms
+Deserialization                 20ms
+Scoping                     10,824ms
+Typing                      61,303ms
+Termination                  2,840ms
+Termination.Graph              268ms
+Termination.RecCheck         1,304ms
+Termination.Compare            460ms
+Positivity                   4,048ms
+Injectivity                    948ms
+ProjectionLikeness             252ms
+Coverage                     2,252ms
+Highlighting                 1,020ms
+Serialization               76,144ms
+Serialization.Sort             376ms
+Serialization.BinaryEncode  11,928ms
+Serialization.Compress       1,768ms
+ModuleName                      28ms
+
+ 122,046,609,728 bytes allocated in the heap
+  11,866,444,856 bytes copied during GC
+     638,121,896 bytes maximum residency (30 sample(s))
+       7,214,280 bytes maximum slop
+            1286 MB total memory in use (15 MB lost due to fragmentation)
+
+                                    Tot time (elapsed)  Avg pause  Max pause
+  Gen  0      4493 colls,     0 par   36.75s   36.90s     0.0082s    0.4175s
+  Gen  1        30 colls,     0 par   27.11s   27.26s     0.9086s    4.4603s
+
+  INIT    time    0.00s  (  0.00s elapsed)
+  MUT     time  130.01s  (131.21s elapsed)
+  GC      time   63.86s  ( 64.16s elapsed)
+  EXIT    time    0.58s  (  0.58s elapsed)
+  Total   time  194.45s  (195.96s elapsed)
+
+  %GC     time      32.8%  (32.7% elapsed)
+
+  Alloc rate    938,732,397 bytes per MUT second
+
+  Productivity  67.2% of total user, 66.6% of total elapsed
+
+
+real	3m16.133s
+user	3m14.452s
+sys	0m1.304s
+
+
+2014-11-04  Do constructor disambiguation during type checking
+--------------------------------------------------------------
+
+ Finished Everything.
+Finished README.
+Total time                 194,856ms
+Parsing                      1,376ms
+Parsing.Operators           13,664ms
+Import                       3,068ms
+Deserialization                 24ms
+Scoping                     11,068ms
+Typing                      57,659ms
+Termination                  2,556ms
+Termination.Graph              224ms
+Termination.RecCheck         1,104ms
+Termination.Compare            328ms
+Positivity                   8,072ms
+Injectivity                    932ms
+ProjectionLikeness             168ms
+Coverage                     2,300ms
+Highlighting                   988ms
+Serialization               80,113ms
+Serialization.Sort             412ms
+Serialization.BinaryEncode   8,120ms
+Serialization.Compress       1,808ms
+ModuleName                      28ms
+
+ 122,078,411,856 bytes allocated in the heap
+  11,990,849,520 bytes copied during GC
+     638,488,592 bytes maximum residency (30 sample(s))
+       7,516,072 bytes maximum slop
+            1282 MB total memory in use (15 MB lost due to fragmentation)
+
+                                    Tot time (elapsed)  Avg pause  Max pause
+  Gen  0      4973 colls,     0 par   36.93s   37.24s     0.0075s    0.4159s
+  Gen  1        30 colls,     0 par   26.54s   26.75s     0.8917s    4.3250s
+
+  INIT    time    0.00s  (  0.00s elapsed)
+  MUT     time  129.86s  (131.45s elapsed)
+  GC      time   63.47s  ( 63.99s elapsed)
+  EXIT    time    0.60s  (  0.60s elapsed)
+  Total   time  193.94s  (196.05s elapsed)
+
+  %GC     time      32.7%  (32.6% elapsed)
+
+  Alloc rate    940,076,286 bytes per MUT second
+
+  Productivity  67.3% of total user, 66.5% of total elapsed
+
+
+real	3m16.196s
+user	3m13.936s
+sys	0m1.664s
+
+
+Without   t <- instantiateFull t  in TypeChecking.Rules.Def
+------------------------------------------------------------------------
+
+Finished README.
+Total time                 195,536ms
+Parsing                      1,404ms
+Parsing.Operators           14,024ms
+Import                       3,092ms
+Deserialization                 24ms
+Scoping                     10,480ms
+Typing                      53,051ms
+Termination                  2,776ms
+Termination.Graph              368ms
+Termination.RecCheck         1,312ms
+Termination.Compare            268ms
+Positivity                   8,212ms
+Injectivity                    904ms
+ProjectionLikeness             208ms
+Coverage                     2,148ms
+Highlighting                 1,024ms
+Serialization               81,289ms
+Serialization.Sort             376ms
+Serialization.BinaryEncode  11,764ms
+Serialization.Compress       1,820ms
+ModuleName                      28ms
+
+ 122,090,910,456 bytes allocated in the heap
+  11,908,810,632 bytes copied during GC
+     640,081,224 bytes maximum residency (30 sample(s))
+       7,314,104 bytes maximum slop
+            1279 MB total memory in use (0 MB lost due to fragmentation)
+
+                                    Tot time (elapsed)  Avg pause  Max pause
+  Gen  0      4642 colls,     0 par   36.86s   37.24s     0.0080s    0.4179s
+  Gen  1        30 colls,     0 par   27.10s   27.29s     0.9097s    4.4415s
+
+  INIT    time    0.00s  (  0.00s elapsed)
+  MUT     time  130.08s  (132.19s elapsed)
+  GC      time   63.96s  ( 64.53s elapsed)
+  EXIT    time    0.59s  (  0.59s elapsed)
+  Total   time  194.63s  (197.32s elapsed)
+
+  %GC     time      32.9%  (32.7% elapsed)
+
+  Alloc rate    938,611,040 bytes per MUT second
+
+  Productivity  67.1% of total user, 66.2% of total elapsed
+
+
+real	3m17.461s
+user	3m14.632s
+sys	0m1.632s
