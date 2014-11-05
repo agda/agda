@@ -30,6 +30,8 @@ import Control.Applicative
 
 import Data.Function
 import Data.Int
+import Data.IntMap (IntMap)
+import qualified Data.IntMap as IntMap
 import qualified Data.List as List
 import Data.Maybe
 import Data.Map as Map
@@ -124,9 +126,15 @@ data PreScopeState = PreScopeState
   , stPreFreshNameId        :: NameId
   }
 
+type DisambiguatedNames = IntMap A.QName
+
 data PostScopeState = PostScopeState
   { stPostSyntaxInfo          :: CompressedFile
     -- ^ Highlighting info.
+  , stPostDisambiguatedNames  :: !DisambiguatedNames
+    -- ^ Disambiguation carried out by the type checker.
+    --   Maps position of first name character to disambiguated @'A.QName'@
+    --   for each @'A.AmbiguousQName'@ already passed by the type checker.
   , stPostMetaStore           :: MetaStore
   , stPostInteractionPoints   :: InteractionPoints -- scope checker first
   , stPostAwakeConstraints    :: Constraints
@@ -171,6 +179,7 @@ data PersistentTCState = PersistentTCSt
     -- ^ Structure to track how much CPU time was spent on which Agda phase.
     --   Needs to be a strict field to avoid space leaks!
   , stAccumStatistics   :: !Statistics
+    -- ^ Should be strict field.
   }
 
 -- | Empty persistent state.
@@ -206,9 +215,10 @@ initPreScopeState = PreScopeState
 
 initPostScopeState :: PostScopeState
 initPostScopeState = PostScopeState
-  { stPostMetaStore            = Map.empty
+  { stPostSyntaxInfo           = mempty
+  , stPostDisambiguatedNames   = IntMap.empty
+  , stPostMetaStore            = Map.empty
   , stPostInteractionPoints    = Map.empty
-  , stPostSyntaxInfo           = mempty
   , stPostAwakeConstraints     = []
   , stPostSleepingConstraints  = []
   , stPostDirty                = False
@@ -305,6 +315,11 @@ stSyntaxInfo :: Lens' CompressedFile TCState
 stSyntaxInfo f s =
   f (stPostSyntaxInfo (stPostScopeState s)) <&>
   \x -> s {stPostScopeState = (stPostScopeState s) {stPostSyntaxInfo = x}}
+
+stDisambiguatedNames :: Lens' DisambiguatedNames TCState
+stDisambiguatedNames f s =
+  f (stPostDisambiguatedNames (stPostScopeState s)) <&>
+  \x -> s {stPostScopeState = (stPostScopeState s) {stPostDisambiguatedNames = x}}
 
 stMetaStore :: Lens' MetaStore TCState
 stMetaStore f s =

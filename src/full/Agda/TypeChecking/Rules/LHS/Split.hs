@@ -18,6 +18,7 @@ import Data.List hiding (null)
 import Data.Traversable hiding (mapM, sequence)
 
 import Agda.Interaction.Options
+import Agda.Interaction.Highlighting.Generate (storeDisambiguatedName)
 
 import Agda.Syntax.Common
 import Agda.Syntax.Literal
@@ -257,7 +258,11 @@ splitProblem mf (Problem ps (perm, qs) tel pr) = do
                             _                       -> __IMPOSSIBLE__
                       cs0 <- cons <$> getConstInfo d'
                       case [ c | (c, c') <- zip cs cs', elem c' cs0 ] of
-                        [c]   -> return c
+                        [c]   -> do
+                          -- If constructor pattern was ambiguous,
+                          -- remember our choice for highlighting info.
+                          when (length cs >= 2) $ storeDisambiguatedName c
+                          return c
                         []    -> typeError $ ConstructorPatternInWrongDatatype (head cs) d
                         cs    -> -- if there are more than one we give up (they might have different types)
                           typeError $ CantResolveOverloadedConstructorsTargetingSameDatatype d cs
