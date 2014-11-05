@@ -21,6 +21,7 @@ import qualified Data.Map as Map
 import Data.Traversable (sequenceA)
 
 import Agda.Interaction.Options
+import Agda.Interaction.Highlighting.Generate (storeDisambiguatedName)
 
 import qualified Agda.Syntax.Abstract as A
 import Agda.Syntax.Abstract.Views as A
@@ -791,16 +792,18 @@ checkApplication hd args e t = do
       -- Type error
       let badCon t = typeError $ DoesNotConstructAnElementOf (head cs) t
       -- Lets look at the target type at this point
-      let getCon = do
+      let getCon :: TCM (Maybe ConHead)
+          getCon = do
           TelV tel t1 <- telView t
           addCtxTel tel $ do
            reportSDoc "tc.check.term.con" 40 $ nest 2 $
              text "target type: " <+> prettyTCM t1
            ifBlockedType t1 (\ m t -> return Nothing) $ \ t' ->
-             (isDataOrRecord (unEl t') >>=) $ maybe (badCon t') $ \ d ->
+             caseMaybeM (isDataOrRecord $ unEl t') (badCon t') $ \ d ->
                case [ c | (d', c) <- dcs, d == d' ] of
                  [c] -> do
                    reportSLn "tc.check.term" 40 $ "  decided on: " ++ show c
+                   storeDisambiguatedName $ conName c
                    return $ Just c
                  []  -> badCon $ t' $> Def d []
                  cs  -> typeError $ CantResolveOverloadedConstructorsTargetingSameDatatype d $ map conName cs

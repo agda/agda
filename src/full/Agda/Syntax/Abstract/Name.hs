@@ -78,9 +78,9 @@ newtype ModuleName = MName { mnameToList :: [Name] }
 -- | Ambiguous qualified names. Used for overloaded constructors.
 --
 -- Invariant: All the names in the list must have the same concrete,
--- unqualified name.
+-- unqualified name.  (This implies that they all have the same 'Range').
 newtype AmbiguousQName = AmbQ { unAmbQ :: [QName] }
-  deriving (Typeable, HasRange, Show, Eq)
+  deriving (Typeable, Show, Eq)
 
 -- | A module is anonymous if the qualification path ends in an underscore.
 isAnonymousModuleName :: ModuleName -> Bool
@@ -305,6 +305,12 @@ instance HasRange ModuleName where
 
 instance HasRange QName where
   getRange q = getRange (qnameModule q, qnameName q)
+
+-- | The range of an @AmbiguousQName@ is the range of any of its
+--   disambiguations (they are the same concrete name).
+instance HasRange AmbiguousQName where
+  getRange (AmbQ [])    = noRange
+  getRange (AmbQ (c:_)) = getRange c
 
 -- ** SetRange
 
