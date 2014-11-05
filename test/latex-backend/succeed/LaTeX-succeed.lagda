@@ -4,7 +4,7 @@
 
 \begin{document}
 
-\AgdaHide
+\AgdaHide{
 \begin{code}
 module LaTeX-succeed where
 \end{code}
