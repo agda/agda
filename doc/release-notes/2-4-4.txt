@@ -11,6 +11,29 @@ Installation and infrastructure
 Pragmas and options
 ===================
 
+* New option --exact-split.
+
+  The --exact-split flag causes Agda to raise an error whenever a clause in a
+  definition by pattern matching cannot be made to hold definitionally (i.e. as
+  a reduction rule). Specific clauses can be excluded from this check by means
+  of the {-# CATCHALL #-} pragma.
+
+  For instance, the following definition will be rejected as the second clause
+  cannot be made to hold definitionally:
+
+    min : Nat → Nat → Nat
+    min zero    y       = zero
+    min x       zero    = zero
+    min (suc x) (suc y) = suc (min x y)
+
+  Catchall clauses have to be marked as such, for instance:
+
+    eq : Nat → Nat → Bool
+    eq zero    zero    = true
+    eq (suc m) (suc n) = eq m n
+    {-# CATCHALL #-}
+    eq _       _       = false
+
 Language
 ========
 
@@ -130,29 +153,6 @@ Language
   This gets rid of the asymmetry that the version of equality which indexes
   only on the second argument could be small, but not the version above which
   indexes on both arguments.
-
-* New option --exact-split.
-
-  The --exact-split flag causes Agda to raise an error whenever a clause in a
-  definition by pattern matching cannot be made to hold definitionally (i.e. as 
-  a reduction rule). Specific clauses can be excluded from this check by means
-  of the {-# CATCHALL #-} pragma.
-
-  For instance, the following definition will be rejected as the second clause
-  cannot be made to hold definitionally:
-
-    min : Nat → Nat → Nat
-    min zero    y       = zero
-    min x       zero    = zero
-    min (suc x) (suc y) = suc (min x y)
-
-  Catchall clauses have to be marked as such, for instance:
-
-    eq : Nat → Nat → Bool
-    eq zero    zero    = true
-    eq (suc m) (suc n) = eq m n
-    {-# CATCHALL #-}
-    eq _       _       = false
 
 Goal and error display
 ======================
