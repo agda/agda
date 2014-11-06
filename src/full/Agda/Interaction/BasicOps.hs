@@ -94,6 +94,7 @@ giveExpr mi e = do
       -- Thus, we can safely apply its type to the context variables.
       ctx <- getContextArgs
       let t' = t `piApply` permute (takeP (length ctx) $ mvPermutation mv) ctx
+      traceCall (CheckExprCall e t') $ do
       reportSDoc "interaction.give" 20 $
         TP.text "give: instantiated meta type =" TP.<+> prettyTCM t'
       v <- checkExpr e t'
@@ -154,7 +155,7 @@ refine ii mr e = do
     tryRefine nrOfMetas r scope e = try nrOfMetas e
       where
         try :: Int -> Expr -> TCM Expr
-        try 0 e = throwError (strMsg "Can not refine")
+        try 0 e = throwError $ strMsg "Cannot refine"
         try n e = give ii (Just r) e `catchError` (\_ -> try (n-1) =<< appMeta e)
 
         -- Apply A.Expr to a new meta
