@@ -82,10 +82,9 @@ matchDisplayForm :: DisplayForm -> Args -> MaybeT TCM DisplayTerm
 matchDisplayForm (Display _ ps v) vs
   | length ps > length vs = mzero
   | otherwise             = do
+      let (vs0, vs1) = splitAt (length ps) vs
       us <- match ps $ raise 1 $ map unArg vs0
       return $ applySubst (parallelS $ reverse us) v `apply` vs1
-  where
-    (vs0, vs1) = splitAt (length ps) vs
 
 -- | Class @Match@ for matching a term @p@ in the role of a pattern
 --   against a term @v@.

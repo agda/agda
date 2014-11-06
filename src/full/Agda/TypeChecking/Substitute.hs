@@ -481,7 +481,7 @@ abstractArgs args x = abstract tel x
 -- * Explicit substitutions
 ---------------------------------------------------------------------------
 
--- See TypeChecking.Monad.Base for the definition.
+-- See Syntax.Internal for the definition.
 
 idS :: Substitution
 idS = IdS

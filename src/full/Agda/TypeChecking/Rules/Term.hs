@@ -614,7 +614,18 @@ checkExpr e t0 =
                 hiddenLHS _ = False
 
         -- a meta variable without arguments: type check directly for efficiency
-        A.QuestionMark i ii -> checkMeta (newQuestionMark ii) t0 i -- Andreas, 2013-05-22 use unreduced type t0!
+        A.QuestionMark i ii -> do
+          reportSDoc "tc.interaction" 20 $ sep
+            [ text "Found interaction point"
+            , text (show ii)
+            , text ":"
+            , prettyTCM t0
+            ]
+          reportSDoc "tc.interaction" 40 $ sep
+            [ text "Raw:"
+            , text (show t0)
+            ]
+          checkMeta (newQuestionMark ii) t0 i -- Andreas, 2013-05-22 use unreduced type t0!
         A.Underscore i   -> checkMeta (newValueMeta RunMetaOccursCheck) t0 i
 
         A.WithApp _ e es -> typeError $ NotImplemented "type checking of with application"
@@ -1393,12 +1404,31 @@ inferOrCheck e mt = case e of
       return (v,t)
 -}
 
+-- | Check whether a de Bruijn index is bound by a module telescope.
+isModuleFreeVar :: Int -> TCM Bool
+isModuleFreeVar i = do
+  nfv <- getModuleFreeVars =<< currentModule
+  n   <- getContextSize
+  -- The first de Bruijn index that points to a module
+  -- free variable.
+  let firstModuleVar = n - nfv
+  when (firstModuleVar < 0) __IMPOSSIBLE__
+  return $ i >= firstModuleVar
+
 -- | Infer the type of an expression, and if it is of the form
 --   @{tel} -> D vs@ for some datatype @D@ then insert the hidden
 --   arguments.  Otherwise, leave the type polymorphic.
 inferExprForWith :: A.Expr -> TCM (Term, Type)
-inferExprForWith e = do
-  (v, t) <- inferExpr e
+inferExprForWith e = traceCall (InferExpr e) $ do
+  -- With wants type and term fully instantiated!
+  (v, t) <- instantiateFull =<< inferExpr e
+  v0 <- reduce v
+  -- Andreas 2014-11-06, issue 1342.
+  -- Check that we do not `with` on a module parameter!
+  case ignoreSharing v0 of
+    Var i [] -> whenM (isModuleFreeVar i) $ typeError $ WithOnFreeVariable e
+    _        -> return ()
+  -- Possibly insert hidden arguments.
   TelV tel t0 <- telViewUpTo' (-1) ((NotHidden /=) . getHiding) t
   case ignoreSharing $ unEl t0 of
     Def d vs -> do
