@@ -100,6 +100,10 @@ giveExpr mi e = do
       v <- checkExpr e t'
       case mvInstantiation mv of
         InstV _ v' -> unlessM ((Irrelevant ==) <$> asks envRelevance) $ do
+          reportSDoc "interaction.give" 20 $ TP.sep
+            [ TP.text "meta was already set to value v' = " TP.<+> prettyTCM v'
+            , TP.text "now comparing it to given value v = " TP.<+> prettyTCM v
+            ]
           equalTerm t' v v'  -- Note: v' lives in context of meta
         _ -> updateMeta mi v
       reify v

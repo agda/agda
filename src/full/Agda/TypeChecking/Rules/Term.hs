@@ -586,7 +586,18 @@ checkExpr e t0 =
                 hiddenLHS _ = False
 
         -- a meta variable without arguments: type check directly for efficiency
-        A.QuestionMark i ii -> checkMeta (newQuestionMark ii) t0 i -- Andreas, 2013-05-22 use unreduced type t0!
+        A.QuestionMark i ii -> do
+          reportSDoc "tc.interaction" 20 $ sep
+            [ text "Found interaction point"
+            , text (show ii)
+            , text ":"
+            , prettyTCM t0
+            ]
+          reportSDoc "tc.interaction" 40 $ sep
+            [ text "Raw:"
+            , text (show t0)
+            ]
+          checkMeta (newQuestionMark ii) t0 i -- Andreas, 2013-05-22 use unreduced type t0!
         A.Underscore i   -> checkMeta (newValueMeta RunMetaOccursCheck) t0 i
 
         A.WithApp _ e es -> typeError $ NotImplemented "type checking of with application"
