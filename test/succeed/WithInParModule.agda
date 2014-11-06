@@ -24,17 +24,20 @@ g (suc n) with g n
 g (suc n) | zero  = n
 g (suc n) | suc _ = n
 
-data T : Set where
-  tt : T
+-- Andreas, 2014-11-06 outlawing with on module parameter.
+-- The following will trigger an error:
 
-module A (x : T) where
-  h : T
-  h with x
-  h | y = y
+-- data T : Set where
+--   tt : T
 
-postulate
-  C : T -> Set
+-- module A (x : T) where
+--   h : T
+--   h with x  -- illegal!
+--   h | y = y
 
-test : C (A.h tt) -> C tt
-test x = x
+-- postulate
+--   C : T -> Set
+
+-- test : C (A.h tt) -> C tt
+-- test x = x
 

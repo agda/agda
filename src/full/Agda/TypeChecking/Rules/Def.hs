@@ -445,14 +445,17 @@ checkClause t c@(A.Clause (A.SpineLHS i x aps withPats) rhs0 wh) = do
                     ]
                   reportSDoc "tc.with.top" 30 $
                     prettyA c
-                  -- Infer the types of the with expressions
-                  vas <- mapM inferExprForWith es
-                  (vs0, as) <- instantiateFull (unzip vas)
-                  (vs, as)  <- normalise (vs0, as)
+                  reportSDoc "tc.with.top" 20 $ do
+                    m  <- currentModule
+                    nfv <- getModuleFreeVars m
+                    sep [ text "with function module:" <+>
+                          prettyList (map prettyTCM $ mnameToList m)
+                        ,  text $ "free variables: " ++ show nfv
+                        ]
 
-                  -- Invent a clever name for the with function
-                  m <- currentModule
-                  reportSDoc "tc.with.top" 20 $ text "with function module:" <+> prettyList (map prettyTCM $ mnameToList m)
+                  -- Infer the types of the with expressions
+                  (vs0, as) <- unzip <$> mapM inferExprForWith es
+                  (vs, as)  <- normalise (vs0, as)
 
                   -- Split the telescope into the part needed to type the with arguments
                   -- and all the other stuff
@@ -481,8 +484,8 @@ checkClause t c@(A.Clause (A.SpineLHS i x aps withPats) rhs0 wh) = do
 
                   -- All the context variables
                   us <- getContextArgs
-                  let n    = size us
-                      m    = size delta
+                  let n = size us
+                      m = size delta
                       -- First the variables bound outside this definition
                       (us0, us1') = genericSplitAt (n - m) us
                       -- Then permute the rest and grab those needed to for the with arguments

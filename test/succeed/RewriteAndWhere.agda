@@ -5,12 +5,12 @@ open import Common.Equality
 data ℕ : Set where
   zero : ℕ
 
-good : (a b : ℕ) → a ≡ b → b ≡ a
-good a b eq with a | eq
-... | .b | refl = foo
-  where
-    foo : b ≡ b
-    foo = refl
+-- good : (a b : ℕ) → a ≡ b → b ≡ a
+-- good a b eq with a | eq
+-- ... | .b | refl = foo
+--   where
+--     foo : b ≡ b
+--     foo = refl
 
 mutual
   aux : (a b : ℕ)(w : ℕ) → w ≡ b → b ≡ w
@@ -27,7 +27,12 @@ bad : (a b : ℕ) → a ≡ b → b ≡ a
 bad a b eq rewrite eq = foo
   where
     foo : b ≡ b
-    foo rewrite sym eq = bar
-      where
-        bar : a ≡ a
-        bar = refl
+    foo = refl
+    -- Andreas, 2014-11-06: this rewrite is trying to touch
+    -- variable b bound in pattern of parent function, which is
+    -- illegal.
+    --
+    -- foo rewrite sym eq = bar
+    --   where
+    --     bar : a ≡ a
+    --     bar = refl

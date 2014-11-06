@@ -240,6 +240,7 @@ errorString err = case err of
 --    UnequalTelescopes{}                      -> "UnequalTelescopes" -- UNUSED
     UnequalColors{}                          -> "UnequalTelescopes"
     HeterogeneousEquality{}                  -> "HeterogeneousEquality"
+    WithOnFreeVariable{}                     -> "WithOnFreeVariable"
     UnexpectedWithPatterns{}                 -> "UnexpectedWithPatterns"
     UninstantiatedDotPattern{}               -> "UninstantiatedDotPattern"
     UninstantiatedModule{}                   -> "UninstantiatedModule"
@@ -492,6 +493,9 @@ instance PrettyTCM TypeError where
             DuplicateFields xs -> fsep $
                 pwords "Duplicate fields" ++ punctuate comma (map pretty xs) ++
                 pwords "in record"
+            WithOnFreeVariable e -> fsep $
+              pwords "Cannot `with` on variable " ++ [prettyA e] ++
+              pwords " bound in a module telescope (or patterns of a parent clause)"
             UnexpectedWithPatterns ps -> fsep $
               pwords "Unexpected with patterns" ++ (punctuate (text " |") $ map prettyA ps)
             WithClausePatternMismatch p q -> fsep $
