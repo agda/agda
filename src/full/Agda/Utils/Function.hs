@@ -1,6 +1,24 @@
 {-# OPTIONS_GHC -fwarn-missing-signatures #-}
 
+{-# LANGUAGE TupleSections #-}
+
 module Agda.Utils.Function where
+
+-- | Repeat something while a condition on some state is true.
+--   Return the last state (including the changes of the last
+--   transition, even if the condition became false then).
+
+repeatWhile :: (a -> (Bool, a)) -> a -> a
+repeatWhile f = loop where
+  loop a = if again then loop a' else a'
+    where (again, a') = f a
+
+-- | Monadic version of 'repeatWhile'.
+repeatWhileM :: (Monad m) => (a -> m (Bool, a)) -> a -> m a
+repeatWhileM f = loop where
+  loop a = do
+    (again, a') <- f a
+    if again then loop a' else return a'
 
 -- | A version of the trampoline function.
 --
@@ -9,17 +27,20 @@ module Agda.Utils.Function where
 --   upon @Nothing@.
 --
 --   @usualTrampoline f = trampolineWhile $ \ a -> maybe (False,a) (True,) (f a)@.
+--
+--   @trampolineWhile@ is very similar to @repeatWhile@, only that
+--   it discards the state on which the condition went @False@,
+--   and returns the last state on which the condition was @True@.
 trampolineWhile :: (a -> (Bool, a)) -> a -> a
-trampolineWhile f = loop where
-  loop a = if again then loop a' else a'
-    where (again, a') = f a
+trampolineWhile f = repeatWhile $ \ a ->
+  let (again, a') = f a
+  in (again,) $ if again then a' else a
 
 -- | Monadic version of 'trampolineWhile'.
 trampolineWhileM :: (Monad m) => (a -> m (Bool, a)) -> a -> m a
-trampolineWhileM f = loop where
-  loop a = do
-    (again, a') <- f a
-    if again then loop a' else return a'
+trampolineWhileM f = repeatWhileM $ \ a -> do
+  (again, a') <- f a
+  return $ (again,) $ if again then a' else a
 
 -- | More general trampoline, which allows some final computation
 --   from iteration state @a@ into result type @b@.
@@ -27,7 +48,7 @@ trampoline :: (a -> Either b a) -> a -> b
 trampoline f = loop where
   loop a = either id loop $ f a
 
--- | Monadic verison of 'trampoline'.
+-- | Monadic version of 'trampoline'.
 trampolineM :: Monad m => (a -> m (Either b a)) -> a -> m b
 trampolineM f = loop where
   loop a = either return loop =<< f a
