@@ -240,7 +240,7 @@ combineNewOldCallGraph (CallGraph new) (CallGraph old) = CallGraph -*- CallGraph
 -- h@ are present in the graph, then @f -> h@ should also be present.
 
 complete :: (?cutoff :: CutOff) => Monoid cinfo => CallGraph cinfo -> CallGraph cinfo
-complete cs = trampolineWhile (mapFst (not . null) . completionStep cs) cs
+complete cs = repeatWhile (mapFst (not . null) . completionStep cs) cs
 
 completionStep :: (?cutoff :: CutOff) => Monoid cinfo =>
   CallGraph cinfo -> CallGraph cinfo -> (CallGraph cinfo, CallGraph cinfo)
