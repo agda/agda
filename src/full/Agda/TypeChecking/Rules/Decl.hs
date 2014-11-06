@@ -53,7 +53,7 @@ import Agda.TypeChecking.Telescope
 import Agda.TypeChecking.Rules.Term
 import Agda.TypeChecking.Rules.Data    ( checkDataDef )
 import Agda.TypeChecking.Rules.Record  ( checkRecDef )
-import Agda.TypeChecking.Rules.Def     ( checkFunDef )
+import Agda.TypeChecking.Rules.Def     ( checkFunDef, useTerPragma )
 import Agda.TypeChecking.Rules.Builtin ( bindBuiltin )
 
 import Agda.Termination.TermCheck
@@ -243,7 +243,8 @@ checkUnquoteDecl mi i x e = do
         vcat $ text "unquoteDecl: Unquoted term"
              : [ nest 2 $ text (show c) | c <- cs ]
       -- Add x to signature, otherwise reification gets unhappy.
-      addConstant x $ defaultDefn defaultArgInfo x a emptyFunction
+      addConstant x =<< do
+        useTerPragma $ defaultDefn defaultArgInfo x a emptyFunction
       a <- reifyUnquoted $ killRange a
       reportSDoc "tc.unquote.decl" 10 $
         vcat [ text "unquoteDecl" <+> prettyTCM x <+> text "-->"
@@ -432,8 +433,8 @@ checkAxiom funSig i info0 x e = do
     ]
   -- Not safe. See Issue 330
   -- t <- addForcingAnnotations t
-  addConstant x $
-    defaultDefn info x t $
+  addConstant x =<< do
+    useTerPragma $ defaultDefn info x t $
       case funSig of
         A.FunSig   -> emptyFunction
         A.NoFunSig -> Axiom    -- NB: used also for data and record type sigs

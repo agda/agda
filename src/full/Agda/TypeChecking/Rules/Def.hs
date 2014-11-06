@@ -243,21 +243,11 @@ checkFunDef' t ai delayed extlam with i name cs =
               , nest 2 $ text (show cc)
               ]
 
-        -- If there was a pragma for this definition, we can set the
-        -- funTerminates field directly.
-        terminates <- do
-          tc <- asks envTerminationCheck
-          let t = case tc of
-                    NonTerminating -> Just False
-                    Terminating    -> Just True
-                    _              -> Nothing
-          reportSLn "tc.fundef" 30 $ "funTerminates of " ++ show name ++ " set to " ++ show t ++
-                                     "\n  tc = " ++ show tc
-          return t
-
         -- Add the definition
-        addConstant name $
-          defaultDefn ai name t $
+        addConstant name =<< do
+          -- If there was a pragma for this definition, we can set the
+          -- funTerminates field directly.
+          useTerPragma $ defaultDefn ai name t $
              Function
              { funClauses        = cs
              , funCompiled       = Just cc
@@ -268,7 +258,7 @@ checkFunDef' t ai delayed extlam with i name cs =
              , funProjection     = Nothing
              , funStatic         = False
              , funCopy           = False
-             , funTerminates     = terminates
+             , funTerminates     = Nothing
              , funExtLam         = extlam
              , funWith           = with
              , funCopatternLHS   = isCopatternLHS cs
@@ -284,93 +274,27 @@ checkFunDef' t ai delayed extlam with i name cs =
     where
         npats = size . clausePats
 
-{- BEGIN RETIRING implicit argument insertion
+-- | Set 'funTerminates' according to termination info in 'TCEnv',
+--   which comes from a possible termination pragma.
+useTerPragma :: Definition -> TCM Definition
+useTerPragma def@Defn{ defName = name, theDef = fun@Function{}} = do
+  tc <- asks envTerminationCheck
+  let terminates = case tc of
+        NonTerminating -> Just False
+        Terminating    -> Just True
+        _              -> Nothing
+  reportSLn "tc.fundef" 30 $ unlines $
+    [ "funTerminates of " ++ show name ++ " set to " ++ show terminates
+    , "  tc = " ++ show tc
+    ]
+  return $ def { theDef = fun { funTerminates = terminates }}
+useTerPragma def = return def
 
-{- | Ensure that all clauses have the same number of trailing implicits.
-Example:
-
-@
-  test : Bool → {A B : Set} → Set
-  test true  {A}     = A
-  test false {B = B} = B
-@
-
-@trailingImplicits@ patches these clauses to
-
-@
-  test : Bool → {A B : Set} → Set
-  test true  {A} {_}     = A
-  test false {_} {B = B} = B
-@
-
-such that the arity of the clauses of @test@ is uniform.
--}
--- TODO: how does this work with copatterns/flex arity?
-trailingImplicits :: Type -> [A.SpineClause] -> TCM [A.SpineClause]
-trailingImplicits t []       = __IMPOSSIBLE__
--- Andreas, 2013-10-01: don't do anything if there are projection copatterns
-trailingImplicits t cs | hasProjP cs = return cs
-  where
-    hasProjP = any (any (isJust . A.isProjP) . A.spLhsPats . A.clauseLHS)
-trailingImplicits t cs@(c:_) = do
-  pps@((ps,ips):_) <- mapM splitTrailingImplicits cs
-  -- compute the trailing implicits from type t
-  TelV tel t0 <- telView t
-  let -- number of non-hidden patterns
-      nh  = genericLength $ filter ((NotHidden ==) . getHiding) ps
-      -- drop nh non-hidden domains from t
-      l   = dropNonHidden nh $ telToList tel
-      -- take the hidden domains immediately after the dropped stuff
-      is   = takeWhile ((NotHidden /=) . getHiding) l
-      itel = telFromList is
-      -- get the trailing implicit patterns
-      ipss = map snd pps
-  -- complete the implicit pattern lists
-  ipss <- mapM (\ ps -> insertImplicitPatterns DontExpandLast ps itel) ipss
-  let longest = head $ sortBy (compare `on` ((0-) . length)) ipss
-      pps' = zip (map fst pps) ipss
-  return $ zipWith (patchUpTrailingImplicits longest) pps' cs
-
--- | @dropNonHidden n tel@ drops @n@ non-hidden domains from @tel@,
---   including all hidden domains that come before the @n@th non-hidden one.
-dropNonHidden :: Nat -> [I.Dom (String, Type)] -> [I.Dom (String, Type)]
-dropNonHidden 0 l = l
-dropNonHidden n l = case dropWhile ((NotHidden /=) . getHiding) l of
-  []    -> [] -- or raise a type checking error "too many arguments in lhs"
-  (_:l) -> dropNonHidden (n-1) l
-
--- | @splitTrailingImplicits c@ returns the patterns of clause @c@
---   as pair @(ps, ips)@ where @ips@ are the trailing implicit patterns
---   and @ps@ is the rest.
-splitTrailingImplicits :: A.SpineClause -> TCM (A.Patterns, A.Patterns)
-splitTrailingImplicits (A.Clause (A.SpineLHS _ _ _ wps@(_ : _)) _ _) =
-  typeError $ UnexpectedWithPatterns wps
-splitTrailingImplicits (A.Clause (A.SpineLHS _ _ aps []) _ _) = do
-  let (ips, ps) = span isHidden $ reverse aps
-  return (reverse ps, reverse ips)
-
--- | @patchUpTrailingImplicits should (ps, is) c@ takes a clause @c@ whose
---   patterns are split into @(ps, is)@ where @is@ are the trailing
---   implicit patterns and @ps@ the rest.  @is@ has already been patched
---   with omitted implicit patterns (which can occur if named implicit patterns
---   are there originally).  @should@ is an extension of @is@.
---   The returned clause contains an extension of @is@ by new wildcards
---   to match @should@.
-patchUpTrailingImplicits :: A.Patterns -> (A.Patterns, A.Patterns) -> A.SpineClause -> A.SpineClause
-patchUpTrailingImplicits should (ps, is) c | length is >= length should = c
-patchUpTrailingImplicits should (ps, is) (A.Clause (A.SpineLHS i x aps []) rhs0 wh) =
-  let imp  = hide $ defaultArg $ Named Nothing $ A.ImplicitP $ Info.patNoRange
-      imps = replicate (length should - length is) imp
-  in  A.Clause (A.SpineLHS i x (ps ++ is ++ imps) []) rhs0 wh
-patchUpTrailingImplicits _ _ _ = __IMPOSSIBLE__
-
--- END RETIRING implicit argument insertion -}
 
 -- | Insert some patterns in the in with-clauses LHS of the given RHS
 insertPatterns :: [A.Pattern] -> A.RHS -> A.RHS
 insertPatterns pats (A.WithRHS aux es cs) = A.WithRHS aux es (map insertToClause cs)
     where insertToClause (A.Clause (A.LHS i lhscore ps) rhs ds catchall)
---              = A.Clause (A.LHS i x (aps ++ map (Arg NotHidden . unnamed) pats) (ps)) (insertPatterns pats rhs) ds
               = A.Clause (A.LHS i lhscore (pats ++ ps)) (insertPatterns pats rhs) ds catchall
 insertPatterns pats (A.RewriteRHS qs eqs rhs wh) = A.RewriteRHS qs eqs (insertPatterns pats rhs) wh
 insertPatterns pats rhs = rhs
@@ -395,17 +319,7 @@ data WithFunctionProblem
     }
 
 -- | Type check a function clause.
-{-
-checkClause :: Type -> A.Clause -> TCM Clause
-checkClause t c@(A.Clause (A.LHS i (A.LHSProj{}) []) rhs0 wh) =
-  typeError $ NotImplemented "type checking definitions by copatterns"
-checkClause t c@(A.Clause (A.LHS i (A.LHSHead x aps) []) rhs0 wh) =
--}
 checkClause :: Type -> A.SpineClause -> TCM Clause
-{-
-checkClause t c@(A.Clause lhs rhs0 wh) = do
-    let A.SpineLHS i x aps withPats = A.lhsToSpine lhs
--}
 checkClause t c@(A.Clause (A.SpineLHS i x aps withPats) rhs0 wh catchall) = do
     unless (null withPats) $
       typeError $ UnexpectedWithPatterns withPats
@@ -465,21 +379,6 @@ checkClause t c@(A.Clause (A.SpineLHS i x aps withPats) rhs0 wh catchall) = do
                      equality <- primEqualityName
                      Con reflCon [] <- ignoreSharing <$> primRefl
 
-                     -- Andreas, 2014-05-17  Issue 1110:
-                     -- Rewriting with REFL has no effect, but gives an
-                     -- incomprehensible error message about the generated
-                     -- with clause. Thus, we rather do simply nothing if
-                     -- rewriting with REFL is attempted.
-
-                     -- OBSOLETE:
-                     -- let isRefl v = isRefl' . ignoreSharing =<< reduce v
-                     --     isRefl' (Con c _) | c == reflCon = return True
-                     --     isRefl' (Lam h t)                = isRefl $ unAbs t
-                     --     isRefl' (DontCare t)             = isRefl t
-                     --     isRefl' _                        = return False
-
-                     -- ifM (isRefl proof) recurse $ {- else -} do
-
                      -- Check that the type is actually an equality (lhs ≡ rhs)
                      -- and extract lhs, rhs, and their type.
 
@@ -528,8 +427,8 @@ checkClause t c@(A.Clause (A.SpineLHS i x aps withPats) rhs0 wh catchall) = do
                                     -- is defined by induction on eqs.
                                     (A.RewriteRHS names eqs (insertPatterns pats rhs) inner)
                                     outer False]
-                         pats = [A.DotP patNoRange underscore, -- rewriteToExpr,
-                                 A.ConP cinfo (AmbQ [conName reflCon]) []]
+                         pats = [ A.DotP patNoRange underscore
+                                , A.ConP cinfo (AmbQ [conName reflCon]) []]
                      reportSDoc "tc.rewrite.top" 25 $ vcat
                                          [ text "rewrite"
                                          , text "  from  = " <+> prettyTCM rewriteFromExpr
@@ -580,13 +479,7 @@ checkClause t c@(A.Clause (A.SpineLHS i x aps withPats) rhs0 wh catchall) = do
                     ]
 
                   -- Create the body of the original function
-{- OLD
-                  ctx <- getContextTelescope
-                  let n    = size ctx
-                      m    = size delta
-                      -- All the context variables
-                      us   = [ Arg h r (var i) | (i, Arg h r _) <- zip [n - 1,n - 2..0] $ telToList ctx ]
--}
+
                   -- All the context variables
                   us <- getContextArgs
                   let n    = size us
@@ -608,7 +501,8 @@ checkClause t c@(A.Clause (A.SpineLHS i x aps withPats) rhs0 wh catchall) = do
 
 
                   -- Andreas, 2013-02-26 add with-name to signature for printing purposes
-                  addConstant aux (Defn defaultArgInfo aux typeDontCare [] [] [] 0 noCompiledRep [] Nothing emptyFunction)
+                  addConstant aux =<< do
+                    useTerPragma $ Defn defaultArgInfo aux typeDontCare [] [] [] 0 noCompiledRep [] Nothing emptyFunction
 
                   -- Andreas, 2013-02-26 separate msgs to see which goes wrong
                   reportSDoc "tc.with.top" 20 $
@@ -626,17 +520,6 @@ checkClause t c@(A.Clause (A.SpineLHS i x aps withPats) rhs0 wh catchall) = do
                   reportSDoc "tc.with.top" 20 $
                     text "              body" <+> (addCtxTel delta $ prettyTCM $ mkBody v)
 
-{-
-                  reportSDoc "tc.with.top" 20 $ vcat
-                    [ text "    with arguments" <+> do escapeContext (size delta2) $ prettyList (map prettyTCM vs)
-                    , text "             types" <+> do escapeContext (size delta2) $ prettyList (map prettyTCM as)
-                    , text "with function call" <+> prettyTCM v
-                    , text "           context" <+> (prettyTCM =<< getContextTelescope)
-                    , text "             delta" <+> do escapeContext (size delta) $ prettyTCM delta
-                    , text "                fv" <+> text (show fv)
-                    , text "              body" <+> (addCtxTel delta $ prettyTCM $ mkBody v)
-                    ]
--}
                   gamma <- maybe (typeError $ NotImplemented "with clauses for functions with unfolding arity") return mgamma
                   return (mkBody v, WithFunction x aux gamma delta1 delta2 vs as t' ps perm' perm finalPerm cs)
           in handleRHS rhs0
@@ -662,9 +545,7 @@ checkClause t c@(A.Clause (A.SpineLHS i x aps withPats) rhs0 wh catchall) = do
                , clauseType      = Just trhs
                , clauseCatchall  = catchall
                }
-{-
-checkClause t (A.Clause (A.LHS _ _ ps@(_ : _)) _ _) = typeError $ UnexpectedWithPatterns ps
--}
+
 
 checkWithFunction :: WithFunctionProblem -> TCM ()
 checkWithFunction NoWithFunction = return ()
@@ -740,7 +621,8 @@ checkWithFunction (WithFunction f aux gamma delta1 delta2 vs as b qs perm' perm 
       , prettyList $ map prettyTCM ts
       , prettyTCM dt
       ]
-  addConstant aux (Defn defaultArgInfo aux auxType [] [] [df] 0 noCompiledRep [] Nothing emptyFunction)
+  addConstant aux =<< do
+    useTerPragma $ Defn defaultArgInfo aux auxType [] [] [df] 0 noCompiledRep [] Nothing emptyFunction
   -- solveSizeConstraints -- Andreas, 2012-10-16 does not seem necessary
 
   reportSDoc "tc.with.top" 10 $ sep
@@ -793,21 +675,3 @@ containsAbsurdPattern p = case p of
     A.ConP _ _ ps -> any (containsAbsurdPattern . namedArg) ps
     A.DefP _ _ _  -> False  -- projection pattern
     A.PatternSynP _ _ _ -> __IMPOSSIBLE__ -- False
-
-{- UNUSED
-actualConstructor :: QName -> TCM QName
-actualConstructor c = do
---    v <- constructorForm =<< normalise (Con c [])
-    v <- constructorForm =<< getConTerm c
-    case ignoreSharing v of
-        Con c _ -> return $ conName c
-        _       -> actualConstructor =<< stripLambdas v
-    where
-        stripLambdas v = case ignoreSharing v of
-            Con c _ -> return c
-            Lam info b -> do
-                x <- freshName_ $ absName b
-                addCtx x (Dom info $ sort Prop) $
-                         stripLambdas (absBody b)
-            _       -> typeError $ GenericError $ "Not a constructor: " ++ show c
--}
