@@ -72,20 +72,19 @@ lcm i j with gcd′ i j
 lcm .(q₁ * d) .(q₂ * d) | (d , gcd-* q₁ q₂ q₁-q₂-coprime) =
   ( q₁ * q₂ * d
   , record { commonMultiple = (mult₁ q₁ q₂ d , mult₂ q₁ q₂ d)
-           ; least          = least
+           ; least          = least d
            }
   )
   where
-  least : ∀ {m} → q₁ * d ∣ m × q₂ * d ∣ m → q₁ * q₂ * d ∣ m
-  least div with d
-  least (divides q₃ refl , _) | zero = begin
+  least : ∀ d {m} → q₁ * d ∣ m × q₂ * d ∣ m → q₁ * q₂ * d ∣ m
+  least zero (divides q₃ refl , _) = begin
     q₁ * q₂ * 0    ∣⟨ (q₁ * q₂ * 0) ∣0 ⟩
     0              ≡⟨ solve 2 (λ a b → con 0  :=  a :* (b :* con 0))
                               refl q₃ q₁ ⟩
     q₃ * (q₁ * 0)  ∎
     where open ∣-Reasoning
-  least {m} (divides q₃ eq₃ , divides q₄ eq₄) | suc d =
-    q₁q₂d′∣m q₂∣q₃
+  least (suc d) {m} (divides q₃ eq₃ , divides q₄ eq₄) =
+    q₁q₂d′∣m q₃ eq₃ q₂∣q₃
     where
     open PropEq.≡-Reasoning
     d′ = suc d
@@ -99,9 +98,8 @@ lcm .(q₁ * d) .(q₂ * d) | (d , gcd-* q₁ q₂ q₁-q₂-coprime) =
                  q₄ * (q₂ * d′)  ≡⟨ PropEq.sym (lem₂ q₄ q₂ d′) ⟩
                  q₄ *  q₂ * d′   ∎))
 
-    q₁q₂d′∣m : q₂ ∣ q₃ → q₁ * q₂ * d′ ∣ m
-    q₁q₂d′∣m q₂∣q₃             with q₃      | eq₃
-    q₁q₂d′∣m (divides q₅ refl) | .(q₅ * q₂) | eq₃′ =
+    q₁q₂d′∣m : ∀ q₃ → m ≡ q₃ * (q₁ * d′) → q₂ ∣ q₃ → q₁ * q₂ * d′ ∣ m
+    q₁q₂d′∣m .(q₅ * q₂) eq₃′ (divides q₅ refl) =
       divides q₅ (begin
         m                    ≡⟨ eq₃′ ⟩
         q₅ * q₂ * (q₁ * d′)  ≡⟨ solve 4 (λ q₁ q₂ q₅ d′ → q₅ :* q₂ :* (q₁ :* d′)

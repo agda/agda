@@ -146,24 +146,17 @@ module _ {A : Set} where
   decidable : ∀ {P _≈_ _<_} →
               Dec P → Decidable _≈_ → Decidable _<_ →
               Decidable (Lex P _≈_ _<_)
-  decidable {P} {_≈_} {_<_} dec-P dec-≈ dec-< = dec
-    where
-    dec : Decidable (Lex P _≈_ _<_)
-    dec []       []       with dec-P
-    ...                   | yes p = yes (base p)
-    ...                   | no ¬p = no helper
-      where
-      helper : ¬ Lex P _≈_ _<_ [] []
-      helper (base p) = ¬p p
-    dec []       (y ∷ ys) = yes halt
-    dec (x ∷ xs) []       = no (λ ())
-    dec (x ∷ xs) (y ∷ ys) with dec-< x y
-    ... | yes x<y = yes (this x<y)
-    ... | no ¬x<y with dec-≈ x y
-    ...           | no ¬x≈y = no (¬≤-this ¬x≈y ¬x<y)
-    ...           | yes x≈y with dec xs ys
-    ...                     | yes xs⊴ys = yes (next x≈y xs⊴ys)
-    ...                     | no ¬xs⊴ys = no (¬≤-next ¬x<y ¬xs⊴ys)
+  decidable (yes p) dec-≈ dec-< []       []       = yes (base p)
+  decidable (no ¬p) dec-≈ dec-< []       []       = no λ{(base p) → ¬p p}
+  decidable dec-P   dec-≈ dec-< []       (y ∷ ys) = yes halt
+  decidable dec-P   dec-≈ dec-< (x ∷ xs) []       = no (λ ())
+  decidable dec-P   dec-≈ dec-< (x ∷ xs) (y ∷ ys) with dec-< x y
+  ... | yes x<y = yes (this x<y)
+  ... | no ¬x<y with dec-≈ x y
+  ...           | no ¬x≈y = no (¬≤-this ¬x≈y ¬x<y)
+  ...           | yes x≈y with decidable dec-P dec-≈ dec-< xs ys
+  ...                     | yes xs⊴ys = yes (next x≈y xs⊴ys)
+  ...                     | no ¬xs⊴ys = no (¬≤-next ¬x<y ¬xs⊴ys)
 
   <-decidable :
     ∀ {_≈_ _<_} →
