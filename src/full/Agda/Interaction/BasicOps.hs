@@ -98,9 +98,9 @@ giveExpr mi e = do
         TP.text "give: instantiated meta type =" TP.<+> prettyTCM t'
       v <- checkExpr e t'
       case mvInstantiation mv of
-          InstV _ v' -> unlessM ((Irrelevant ==) <$> asks envRelevance) $
-                        equalTerm t' v (applySubst (parallelS $ reverse $ map unArg ctx) v')
-          _        -> updateMeta mi v
+        InstV _ v' -> unlessM ((Irrelevant ==) <$> asks envRelevance) $ do
+          equalTerm t' v v'  -- Note: v' lives in context of meta
+        _ -> updateMeta mi v
       reify v
 
 -- | Try to fill hole by expression.
