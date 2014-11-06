@@ -1,0 +1,4 @@
+Issue1342.agda:29,10-11
+Cannot 'with' on variable x bound in a module telescope (or
+patterns of a parent clause)
+when inferring the type of x
