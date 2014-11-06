@@ -61,7 +61,7 @@ import Agda.TypeChecking.Rules.LHS (checkLeftHandSide, LHSResult(..))
 
 import {-# SOURCE #-} Agda.TypeChecking.Empty (isEmptyType)
 import {-# SOURCE #-} Agda.TypeChecking.Rules.Decl (checkSectionApplication)
-import {-# SOURCE #-} Agda.TypeChecking.Rules.Def (checkFunDef,checkFunDef')
+import {-# SOURCE #-} Agda.TypeChecking.Rules.Def (checkFunDef, checkFunDef', useTerPragma)
 
 import Agda.Utils.Except
   ( Error(noMsg, strMsg)
@@ -341,8 +341,9 @@ checkExtendedLambda i di qname cs e t = do
      let info = setRelevance rel defaultArgInfo
      -- Andreas, 2013-12-28: add extendedlambda as @Function@, not as @Axiom@;
      -- otherwise, @addClause@ in @checkFunDef'@ fails (see issue 1009).
-     addConstant qname $
-       (defaultDefn info qname t emptyFunction) { defMutual = j }
+     addConstant qname =<< do
+       useTerPragma $
+         (defaultDefn info qname t emptyFunction) { defMutual = j }
      reportSDoc "tc.term.exlam" 50 $
        text "extended lambda's implementation \"" <> prettyTCM qname <>
        text "\" has type: " $$ prettyTCM t -- <+> text " where clauses: " <+> text (show cs)
@@ -1100,9 +1101,11 @@ checkHeadApplication e t hd args = do
       -- If we are in irrelevant position, add definition irrelevantly.
       -- TODO: is this sufficient?
       rel <- asks envRelevance
-      addConstant c' (Defn (setRelevance rel defaultArgInfo)
-                           c' t [] [] (defaultDisplayForm c')
-                  i noCompiledRep [] Nothing $ emptyFunction)
+      addConstant c' =<< do
+        let ai = setRelevance rel defaultArgInfo
+        useTerPragma $
+          Defn ai c' t [] [] (defaultDisplayForm c') i noCompiledRep [] Nothing $
+          emptyFunction
 
       -- Define and type check the fresh function.
       ctx <- getContext >>= mapM (\d -> flip Dom (unDom d) <$> reify (domInfo d))

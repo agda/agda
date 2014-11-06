@@ -242,21 +242,11 @@ checkFunDef' t ai delayed extlam with i name cs =
               , nest 2 $ text (show cc)
               ]
 
-        -- If there was a pragma for this definition, we can set the
-        -- funTerminates field directly.
-        terminates <- do
-          tc <- asks envTerminationCheck
-          let t = case tc of
-                    NonTerminating -> Just False
-                    Terminating    -> Just True
-                    _              -> Nothing
-          reportSLn "tc.fundef" 30 $ "funTerminates of " ++ show name ++ " set to " ++ show t ++
-                                     "\n  tc = " ++ show tc
-          return t
-
         -- Add the definition
-        addConstant name $
-          defaultDefn ai name t $
+        addConstant name =<< do
+          -- If there was a pragma for this definition, we can set the
+          -- funTerminates field directly.
+          useTerPragma $ defaultDefn ai name t $
              Function
              { funClauses        = cs
              , funCompiled       = Just cc
@@ -267,7 +257,7 @@ checkFunDef' t ai delayed extlam with i name cs =
              , funProjection     = Nothing
              , funStatic         = False
              , funCopy           = False
-             , funTerminates     = terminates
+             , funTerminates     = Nothing
              , funExtLam         = extlam
              , funWith           = with
              , funCopatternLHS   = isCopatternLHS cs
@@ -282,6 +272,23 @@ checkFunDef' t ai delayed extlam with i name cs =
               ]
     where
         npats = size . clausePats
+
+-- | Set 'funTerminates' according to termination info in 'TCEnv',
+--   which comes from a possible termination pragma.
+useTerPragma :: Definition -> TCM Definition
+useTerPragma def@Defn{ defName = name, theDef = fun@Function{}} = do
+  tc <- asks envTerminationCheck
+  let terminates = case tc of
+        NonTerminating -> Just False
+        Terminating    -> Just True
+        _              -> Nothing
+  reportSLn "tc.fundef" 30 $ unlines $
+    [ "funTerminates of " ++ show name ++ " set to " ++ show terminates
+    , "  tc = " ++ show tc
+    ]
+  return $ def { theDef = fun { funTerminates = terminates }}
+useTerPragma def = return def
+
 
 -- | Insert some patterns in the in with-clauses LHS of the given RHS
 insertPatterns :: [A.Pattern] -> A.RHS -> A.RHS
@@ -493,7 +500,8 @@ checkClause t c@(A.Clause (A.SpineLHS i x aps withPats) rhs0 wh) = do
 
 
                   -- Andreas, 2013-02-26 add with-name to signature for printing purposes
-                  addConstant aux (Defn defaultArgInfo aux typeDontCare [] [] [] 0 noCompiledRep [] Nothing emptyFunction)
+                  addConstant aux =<< do
+                    useTerPragma $ Defn defaultArgInfo aux typeDontCare [] [] [] 0 noCompiledRep [] Nothing emptyFunction
 
                   -- Andreas, 2013-02-26 separate msgs to see which goes wrong
                   reportSDoc "tc.with.top" 20 $
@@ -611,7 +619,8 @@ checkWithFunction (WithFunction f aux gamma delta1 delta2 vs as b qs perm' perm 
       , prettyList $ map prettyTCM ts
       , prettyTCM dt
       ]
-  addConstant aux (Defn defaultArgInfo aux auxType [] [] [df] 0 noCompiledRep [] Nothing emptyFunction)
+  addConstant aux =<< do
+    useTerPragma $ Defn defaultArgInfo aux auxType [] [] [df] 0 noCompiledRep [] Nothing emptyFunction
   -- solveSizeConstraints -- Andreas, 2012-10-16 does not seem necessary
 
   reportSDoc "tc.with.top" 10 $ sep
