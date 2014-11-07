@@ -200,7 +200,9 @@ checkUnquoteDecl mi i x e = do
       reportSDoc "tc.unquote.decl" 10 $
         vcat [ text "unquoteDecl" <+> prettyTCM x <+> text "-->"
              , prettyTCM x <+> text ":" <+> prettyA a ]
-      cs <- mapM (reifyUnquoted . QNamed x) cs
+      tel <- getContextTelescope
+      let tel' = replaceEmptyName "r" $ killRange tel
+      cs <- mapM (reifyUnquoted . QNamed x . abstract tel) cs
       reportSDoc "tc.unquote.decl" 10 $ vcat $ map prettyA cs
       let ds = [ A.Axiom A.FunSig i defaultArgInfo x a   -- TODO other than defaultArg
                , A.FunDef i x NotDelayed cs ]
