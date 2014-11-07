@@ -814,11 +814,6 @@ instance PrettyTCM TypeError where
                   fwords "Unable to unquote the term"
                   $$ nest 2 (prettyTCM t)
                   $$ fwords ("of type " ++ kind ++ ". Reason: not a literal value.")
-                (RhsUsesDottedVar ixs t) ->
-                  fwords "Unable to unquote the term"
-                  $$ nest 2 (prettyTCM t)
-                  $$ fwords "of type Clause. Reason: the right-hand side contains variables that are referring to a dot pattern."
-                  $$ fwords ("Offending De Bruijn indices: " ++ intercalate ", " (map show ixs) ++ ".")
                 (BlockedOnMeta m) -> fsep $ pwords $ "Unquote failed because of unsolved meta variables."
                 (UnquotePanic err) -> __IMPOSSIBLE__
             SafeFlagPostulate e -> fsep $

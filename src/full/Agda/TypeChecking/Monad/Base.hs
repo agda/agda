@@ -1728,7 +1728,6 @@ data UnquoteError
   | DefInsteadOfCon QName String String
   | NotAConstructor String I.Term       -- ^ @NotAConstructor kind term@
   | NotALiteral String I.Term
-  | RhsUsesDottedVar [Int] I.Term
   | BlockedOnMeta MetaId
   | UnquotePanic String
   deriving (Show)
