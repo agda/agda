@@ -316,6 +316,7 @@ withoutKFlag                 o = return $ o { optWithoutK                  = Tru
 copatternsFlag               o = return $ o { optCopatterns                = True  }
 noPatternMatchingFlag        o = return $ o { optPatternMatching           = False }
 exactSplitFlag               o = return $ o { optExactSplit                = True  }
+noExactSplitFlag             o = return $ o { optExactSplit                = False }
 
 interactiveFlag  o = return $ o { optInteractive    = True
                                 , optPragmaOptions  = (optPragmaOptions o)
@@ -460,6 +461,8 @@ pragmaOptions =
                     "disable pattern matching completely"
     , Option []     ["exact-split"] (NoArg exactSplitFlag)
                     "require all clauses in a definition by pattern matching to hold as definitional equalities (except those marked as CATCHALL)"
+    , Option []     ["no-exact-split"] (NoArg noExactSplitFlag)
+                    "do not require all clauses in a definition by pattern matching to hold as definitional equalities (ignore those marked as CATCHALL)"
     ]
 
 -- | Used for printing usage info.
