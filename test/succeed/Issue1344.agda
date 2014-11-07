@@ -9,19 +9,19 @@ works : (b : Bool) → Box b → Bool
 works b (box .b) = unquote (var 0 [])
 
 works₂ : (b : Bool) → Box b → Bool
-unquoteDef works₂ = clause 
-  ( arg (argInfo visible relevant) (var "b") 
-  ∷ arg (argInfo visible relevant) (con (quote box) 
-        (arg (argInfo visible relevant) dot ∷ [])) 
-  ∷ []) 
+unquoteDef works₂ = clause
+  ( arg (argInfo visible relevant) (var "b")
+  ∷ arg (argInfo visible relevant) (con (quote box)
+        (arg (argInfo visible relevant) dot ∷ []))
+  ∷ [])
   (var 0 []) ∷ []
 
 works₃ : (b : Bool) → Box b → (x y : Bool) → Bool
-unquoteDef works₃ = clause 
-  ( arg (argInfo visible relevant) (var "b") 
-  ∷ arg (argInfo visible relevant) (con (quote box) 
-        (arg (argInfo visible relevant) dot ∷ [])) 
+unquoteDef works₃ = clause
+  ( arg (argInfo visible relevant) (var "b")
+  ∷ arg (argInfo visible relevant) (con (quote box)
+        (arg (argInfo visible relevant) dot ∷ []))
   ∷ arg (argInfo visible relevant) (var "x")
   ∷ arg (argInfo visible relevant) (var "y")
-  ∷ []) 
+  ∷ [])
   (var 2 []) ∷ []
