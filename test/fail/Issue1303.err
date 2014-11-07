@@ -1,15 +1,3 @@
-checkClause 
-  free vars:      fromList [1]
-  dotted vars:    fromList [1]
-  offending vars: fromList [1]
 Issue1303.agda:13,1-23,7
-Unable to unquote the term
-  clause
-  (arg (argInfo visible relevant) dot ∷
-   arg (argInfo visible relevant)
-   (con (quote box) (arg₀ (var "dot") ∷ []))
-   ∷ [])
-  (var 1 [])
-of type Clause. Reason: the right-hand side contains variables that
-are referring to a dot pattern.
-Offending De Bruijn indices: 1.
+Panic: unbound variable @1
+when checking that the expression @1 has type Set

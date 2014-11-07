@@ -34,11 +34,12 @@ import Agda.TypeChecking.Pretty
 import Agda.TypeChecking.Reduce
 import Agda.TypeChecking.Reduce.Monad
 import Agda.TypeChecking.Substitute
+import Agda.TypeChecking.Telescope
 
 import Agda.Utils.Except
 import Agda.Utils.Impossible
 import Agda.Utils.Monad ( ifM )
-import Agda.Utils.Permutation ( Permutation(Perm) )
+import Agda.Utils.Permutation ( Permutation(Perm), compactP )
 import Agda.Utils.String ( Str(Str), unStr )
 import Agda.Utils.VarSet (VarSet)
 import qualified Agda.Utils.VarSet as Set
@@ -553,7 +554,7 @@ instance Unquote Clause where
           __IMPOSSIBLE__
       Con c [x, y] -> do
         choice
-          [ (c `isCon` primAgdaClauseClause, checkClause =<< mkClause . Just <$> unquoteN y <*> unquoteN x) ]
+          [ (c `isCon` primAgdaClauseClause, mkClause . Just <$> unquoteN y <*> unquoteN x) ]
           __IMPOSSIBLE__
       Con c _ -> __IMPOSSIBLE__
       _ -> throwException $ NotAConstructor "Clause" t
@@ -562,7 +563,7 @@ instance Unquote Clause where
       mkClause b ps0 =
         Clause { clauseRange     = noRange
                , clauseTel       = dummyTel n'
-               , clausePerm      = Perm n vs
+               , clausePerm      = cperm
                , namedClausePats = ps
                , clauseBody      = mkBody n b
                , clauseType      = Nothing
@@ -571,8 +572,9 @@ instance Unquote Clause where
           ps = map (fmap unnamed) ps0
           dummyTel 0 = EmptyTel
           dummyTel n = ExtendTel (defaultDom typeDontCare) (Abs "x" $ dummyTel (n - 1))
-          mkBody 0 b = maybe NoBody Body b
+          mkBody 0 b = maybe NoBody Body (applySubst (renamingR cperm) b)
           mkBody n b = Bind $ Abs "x" $ mkBody (n - 1) b
+          cperm      = Perm n vs
 
           -- n  is the number of variables *including* dot patterns
           -- n' is the number of variables *excluding* dot patterns
@@ -585,22 +587,6 @@ instance Unquote Clause where
           computePerm DotP{}        = () <$ next
           computePerm LitP{}        = return ()
           computePerm ProjP{}       = return ()
-
-      checkClause :: I.Clause -> UnquoteM I.Clause
-      checkClause cl@Clause{ clausePerm = Perm n vs , clauseBody = body } = do
-        let freevs    = allVars $ freeVars $ fromMaybe __IMPOSSIBLE__ $ getBody body
-            propervs  = Set.fromList $ map ((n-1)-) vs
-            dottedvs  = Set.difference (Set.fromList [0..n-1]) propervs
-            offending = Set.intersection freevs dottedvs
-        Agda.TypeChecking.Monad.reportSDoc "tc.unquote.clause.dotvars" 30 $ vcat
-          [ text $ "checkClause "
-          , nest 2 $ text $ "free vars:      " ++ show freevs
-          , nest 2 $ text $ "dotted vars:    " ++ show dottedvs
-          , nest 2 $ text $ "offending vars: " ++ show offending
-          ]
-        if Set.null offending
-          then return cl
-          else throwException $ RhsUsesDottedVar (Set.toList offending) t
 
 instance Unquote UnquotedFunDef where
   unquote t = do
