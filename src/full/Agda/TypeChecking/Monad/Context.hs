@@ -206,6 +206,7 @@ getContextArgs :: MonadTCM tcm => tcm Args
 getContextArgs = reverse . zipWith mkArg [0..] <$> getContext
   where mkArg i (Common.Dom info _) = Common.Arg info $ var i
 
+-- | Generate @[var (n - 1), ..., var 0]@ for all declarations in the context.
 {-# SPECIALIZE getContextTerms :: TCM [Term] #-}
 getContextTerms :: MonadTCM tcm => tcm [Term]
 getContextTerms = map var . downFrom <$> getContextSize

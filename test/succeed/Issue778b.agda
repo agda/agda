@@ -13,5 +13,5 @@ data D : (Nat → Nat) → Set where
 test : (f : Nat → Nat) → D f → Nat
 test .pred (d x) = bla
   where bla : Nat
-        bla with x
-        ... | (d y) = test pred y
+        bla with (d x)  -- Andreas, 2014-11-06 "with x" has been outlawed.
+        ... | (d (d y)) = test pred y

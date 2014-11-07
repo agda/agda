@@ -94,13 +94,18 @@ giveExpr mi e = do
       -- Thus, we can safely apply its type to the context variables.
       ctx <- getContextArgs
       let t' = t `piApply` permute (takeP (length ctx) $ mvPermutation mv) ctx
+      traceCall (CheckExprCall e t') $ do
       reportSDoc "interaction.give" 20 $
         TP.text "give: instantiated meta type =" TP.<+> prettyTCM t'
       v <- checkExpr e t'
       case mvInstantiation mv of
-          InstV _ v' -> unlessM ((Irrelevant ==) <$> asks envRelevance) $
-                        equalTerm t' v (applySubst (parallelS $ reverse $ map unArg ctx) v')
-          _        -> updateMeta mi v
+        InstV _ v' -> unlessM ((Irrelevant ==) <$> asks envRelevance) $ do
+          reportSDoc "interaction.give" 20 $ TP.sep
+            [ TP.text "meta was already set to value v' = " TP.<+> prettyTCM v'
+            , TP.text "now comparing it to given value v = " TP.<+> prettyTCM v
+            ]
+          equalTerm t' v v'  -- Note: v' lives in context of meta
+        _ -> updateMeta mi v
       reify v
 
 -- | Try to fill hole by expression.
@@ -154,7 +159,7 @@ refine ii mr e = do
     tryRefine nrOfMetas r scope e = try nrOfMetas e
       where
         try :: Int -> Expr -> TCM Expr
-        try 0 e = throwError (strMsg "Can not refine")
+        try 0 e = throwError $ strMsg "Cannot refine"
         try n e = give ii (Just r) e `catchError` (\_ -> try (n-1) =<< appMeta e)
 
         -- Apply A.Expr to a new meta
