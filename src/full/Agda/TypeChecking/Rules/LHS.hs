@@ -335,19 +335,19 @@ checkLeftHandSide
      -- ^ Continuation.
   -> TCM a
 checkLeftHandSide c f ps a ret = do
-  problem <- problemFromPats ps a
+  problem0 <- problemFromPats ps a
   -- Andreas, 2013-03-15 deactivating the following test allows
   -- flexible arity
   -- unless (noProblemRest problem) $ typeError $ TooManyArgumentsInLHS a
-  let mgamma = if noProblemRest problem then Just $ problemTel problem else Nothing
+  let mgamma = if noProblemRest problem0 then Just $ problemTel problem0 else Nothing
 
   -- doing the splits:
-  LHSState (Problem ps (perm, qs) delta rest) sigma dpi asb
-    <- checkLHS $ LHSState problem idS [] []
+  LHSState problem@(Problem ps (perm, qs) delta rest) sigma dpi asb
+    <- checkLHS f $ LHSState problem0 idS [] []
 
   unless (null $ restPats rest) $ typeError $ TooManyArgumentsInLHS a
 
-  let b' = restType rest
+  noShadowingOfConstructors c problem
 
   noPatternMatchingOnCodata qs
 
@@ -362,6 +362,8 @@ checkLeftHandSide c f ps a ret = do
            , text "qs    = " <+> text (show qs)
            ]
          ]
+
+  let b' = restType rest
   bindLHSVars (filter (isNothing . isProjP) ps) delta $ bindAsPatterns asb $ do
     reportSDoc "tc.lhs.top" 10 $ text "bound pattern variables"
     reportSDoc "tc.lhs.top" 10 $ nest 2 $ text "type  = " <+> prettyTCM b'
@@ -374,334 +376,332 @@ checkLeftHandSide c f ps a ret = do
         xs  = [ stringToArgName $ "h" ++ show n | n <- [0..n - 1] ]
     applyRelevanceToContext (getRelevance b') $ do
       ret $ LHSResult mgamma delta rho xs qs b' perm
-  where
-    -- the loop: split at a variable in the problem until problem is solved
-    checkLHS :: LHSState -> TCM LHSState
-    checkLHS st@(LHSState problem sigma dpi asb) = do
-      problem <- insertImplicitProblem problem  -- inserting implicits no longer preserve solvedness
-      if isSolvedProblem problem                -- since we might insert eta expanded record patterns
-        then do
-          noShadowingOfConstructors c problem
-          return $ st { lhsProblem = problem }
-        else do
-        unlessM (optPatternMatching <$> gets getPragmaOptions) $
-          typeError $ GenericError $ "Pattern matching is disabled"
-        sp <- splitProblem f problem
-        reportSDoc "tc.lhs.split" 20 $ text "splitting completed"
-        case sp of
-          Left NothingToSplit   -> do
-            reportSLn "tc.lhs.split" 50 $ "checkLHS: nothing to split in problem " ++ show problem
-            nothingToSplitError problem
-          Left (SplitPanic err) -> do
-            reportSLn "impossible" 10 $ "checkLHS: panic: " ++ err
-            __IMPOSSIBLE__
 
-          -- Split problem rest (projection pattern)
-          Right (SplitRest projPat projType) -> do
+-- | The loop (tail-recursive): split at a variable in the problem until problem is solved
+checkLHS
+  :: Maybe QName       -- ^ The name of the definition we are checking.
+  -> LHSState          -- ^ The current state.
+  -> TCM LHSState      -- ^ The final state after all splitting is completed
+checkLHS f st@(LHSState problem sigma dpi asb) = do
 
-            -- Compute the new problem
-            let Problem ps1 (iperm, ip) delta (ProblemRest (p:ps2) b) = problem
-                -- ps'      = ps1 ++ [p]
-                ps'      = ps1 -- drop the projection pattern (already splitted)
-                rest     = ProblemRest ps2 (projPat $> projType)
-                ip'      = ip ++ [fmap (Named Nothing . ProjP) projPat]
-                problem' = Problem ps' (iperm, ip') delta rest
-            -- Jump the trampolin
-            st' <- updateProblemRest (LHSState problem' sigma dpi asb)
-            -- If the field is irrelevant, we need to continue in irr. cxt.
-            -- (see Issue 939).
-            applyRelevanceToContext (getRelevance projPat) $ do
-              checkLHS st'
+  problem <- insertImplicitProblem problem
+  -- Note: inserting implicits no longer preserve solvedness,
+  -- since we might insert eta expanded record patterns.
+  if isSolvedProblem problem then return $ st { lhsProblem = problem } else do
 
+  unlessM (optPatternMatching <$> gets getPragmaOptions) $
+    typeError $ GenericError $ "Pattern matching is disabled"
 
-          -- Split on literal pattern
-          Right (Split p0 xs (Arg _ (LitFocus lit iph hix a)) p1) -> do
+  sp <- splitProblem f problem
+  reportSDoc "tc.lhs.split" 20 $ text "splitting completed"
+  case sp of
+    Left NothingToSplit   -> do
+      reportSLn "tc.lhs.split" 50 $ "checkLHS: nothing to split in problem " ++ show problem
+      nothingToSplitError problem
+    Left (SplitPanic err) -> do
+      reportSLn "impossible" 10 $ "checkLHS: panic: " ++ err
+      __IMPOSSIBLE__
 
-            -- plug the hole with a lit pattern
-            let ip    = plugHole (LitP lit) iph
-                iperm = expandP hix 0 $ fst (problemOutPat problem)
+    -- Split problem rest (projection pattern)
+    Right (SplitRest projPat projType) -> do
 
-            -- substitute the literal in p1 and sigma and dpi and asb
-            let delta1 = problemTel p0
-                delta2 = absApp (fmap problemTel p1) (Lit lit)
-                rho    = liftS (size delta2) $ singletonS (Lit lit)
-                -- rho    = [ var i | i <- [0..size delta2 - 1] ]
-                --       ++ [ raise (size delta2) $ Lit lit ]
-                --       ++ [ var i | i <- [size delta2 ..] ]
-                sigma'   = applySubst rho sigma
-                dpi'     = applySubst rho dpi
-                asb0     = applySubst rho asb
-                ip'      = applySubst rho ip
-                rest'    = applySubst rho (problemRest problem)
+      -- Compute the new problem
+      let Problem ps1 (iperm, ip) delta (ProblemRest (p:ps2) b) = problem
+          -- ps'      = ps1 ++ [p]
+          ps'      = ps1 -- drop the projection pattern (already splitted)
+          rest     = ProblemRest ps2 (projPat $> projType)
+          ip'      = ip ++ [fmap (Named Nothing . ProjP) projPat]
+          problem' = Problem ps' (iperm, ip') delta rest
+      -- Jump the trampolin
+      st' <- updateProblemRest (LHSState problem' sigma dpi asb)
+      -- If the field is irrelevant, we need to continue in irr. cxt.
+      -- (see Issue 939).
+      applyRelevanceToContext (getRelevance projPat) $ do
+        checkLHS f st'
 
-            -- Compute the new problem
-            let ps'      = problemInPat p0 ++ problemInPat (absBody p1)
-                delta'   = abstract delta1 delta2
-                problem' = Problem ps' (iperm, ip') delta' rest'
-                asb'     = raise (size delta2) (map (\x -> AsB x (Lit lit) a) xs) ++ asb0
-            st' <- updateProblemRest (LHSState problem' sigma' dpi' asb')
-            checkLHS st'
+    -- Split on literal pattern
+    Right (Split p0 xs (Arg _ (LitFocus lit iph hix a)) p1) -> do
 
-          -- Split on constructor pattern
-          Right (Split p0 xs (Arg info
-                  ( Focus { focusCon      = c
-                          , focusImplicit = impl
-                          , focusConArgs  = qs
-                          , focusRange    = r
-                          , focusOutPat   = iph
-                          , focusHoleIx   = hix
-                          , focusDatatype = d
-                          , focusParams   = vs
-                          , focusIndices  = ws
-                          , focusType     = a
-                          }
-                  )) p1
-                ) -> traceCall (CheckPattern (A.ConP (ConPatInfo impl $ PatRange r) (A.AmbQ [c]) qs)
-                                             (problemTel p0)
-                                             (El Prop $ Def d $ map Apply $ vs ++ ws)) $ do
+      -- plug the hole with a lit pattern
+      let ip    = plugHole (LitP lit) iph
+          iperm = expandP hix 0 $ fst (problemOutPat problem)
 
-            let delta1 = problemTel p0
-            let typeOfSplitVar = Arg info a
+      -- substitute the literal in p1 and sigma and dpi and asb
+      let delta1 = problemTel p0
+          delta2 = absApp (fmap problemTel p1) (Lit lit)
+          rho    = liftS (size delta2) $ singletonS (Lit lit)
+          -- rho    = [ var i | i <- [0..size delta2 - 1] ]
+          --       ++ [ raise (size delta2) $ Lit lit ]
+          --       ++ [ var i | i <- [size delta2 ..] ]
+          sigma'   = applySubst rho sigma
+          dpi'     = applySubst rho dpi
+          asb0     = applySubst rho asb
+          ip'      = applySubst rho ip
+          rest'    = applySubst rho (problemRest problem)
 
-            reportSDoc "tc.lhs.split" 10 $ sep
-              [ text "checking lhs"
-              , nest 2 $ text "tel =" <+> prettyTCM (problemTel problem)
-              , nest 2 $ text "rel =" <+> (text $ show $ argInfoRelevance info)
-              ]
+      -- Compute the new problem
+      let ps'      = problemInPat p0 ++ problemInPat (absBody p1)
+          delta'   = abstract delta1 delta2
+          problem' = Problem ps' (iperm, ip') delta' rest'
+          asb'     = raise (size delta2) (map (\x -> AsB x (Lit lit) a) xs) ++ asb0
+      st' <- updateProblemRest (LHSState problem' sigma' dpi' asb')
+      checkLHS f st'
 
-            reportSDoc "tc.lhs.split" 15 $ sep
-              [ text "split problem"
-              , nest 2 $ vcat
-                [ text "delta1 = " <+> prettyTCM delta1
-                , text "typeOfSplitVar =" <+> prettyTCM typeOfSplitVar
-                , text "focusOutPat =" <+> (text . show) iph
-                , text "delta2 = " <+> prettyTCM (problemTel $ absBody p1)
-                ]
-              ]
+    -- Split on constructor pattern
+    Right (Split p0 xs (Arg info
+            ( Focus { focusCon      = c
+                    , focusImplicit = impl
+                    , focusConArgs  = qs
+                    , focusRange    = r
+                    , focusOutPat   = iph
+                    , focusHoleIx   = hix
+                    , focusDatatype = d
+                    , focusParams   = vs
+                    , focusIndices  = ws
+                    , focusType     = a
+                    }
+            )) p1
+          ) -> traceCall (CheckPattern (A.ConP (ConPatInfo impl $ PatRange r) (A.AmbQ [c]) qs)
+                                       (problemTel p0)
+                                       (El Prop $ Def d $ map Apply $ vs ++ ws)) $ do
 
-{-
-            c <- conSrcCon . theDef <$> getConstInfo c
-            Con c' [] <- ignoreSharing <$> (constructorForm =<< normalise (Con c []))
-            c  <- return $ c' `withRangeOf` c
--}
-            c <- (`withRangeOf` c) <$> getConForm c
-            ca <- defType <$> getConInfo c
+      let delta1 = problemTel p0
+      let typeOfSplitVar = Arg info a
 
-            reportSDoc "tc.lhs.split" 20 $ nest 2 $ vcat
-              [ text "ca =" <+> prettyTCM ca
-              , text "vs =" <+> prettyList (map prettyTCM vs)
-              ]
+      reportSDoc "tc.lhs.split" 10 $ sep
+        [ text "checking lhs"
+        , nest 2 $ text "tel =" <+> prettyTCM (problemTel problem)
+        , nest 2 $ text "rel =" <+> (text $ show $ argInfoRelevance info)
+        ]
 
-            -- Lookup the type of the constructor at the given parameters
-            let a = ca `piApply` vs
-
-            -- It will end in an application of the datatype
-            (gamma', ca, d', us) <- do
-              TelV gamma' ca@(El _ def) <- telView a
-              let Def d' es = ignoreSharing def
-                  Just us   = allApplyElims es
-              return (gamma', ca, d', us)
-
-            -- This should be the same datatype as we split on
-            unless (d == d') $ typeError $ ShouldBeApplicationOf ca d'
+      reportSDoc "tc.lhs.split" 15 $ sep
+        [ text "split problem"
+        , nest 2 $ vcat
+          [ text "delta1 = " <+> prettyTCM delta1
+          , text "typeOfSplitVar =" <+> prettyTCM typeOfSplitVar
+          , text "focusOutPat =" <+> (text . show) iph
+          , text "delta2 = " <+> prettyTCM (problemTel $ absBody p1)
+          ]
+        ]
 
 {-
-            reportSDoc "tc.lhs.top" 20 $ nest 2 $ vcat
-              [ text "gamma' =" <+> text (show gamma')
-              ]
+      c <- conSrcCon . theDef <$> getConstInfo c
+      Con c' [] <- ignoreSharing <$> (constructorForm =<< normalise (Con c []))
+      c  <- return $ c' `withRangeOf` c
 -}
+      c <- (`withRangeOf` c) <$> getConForm c
+      ca <- defType <$> getConInfo c
 
-            -- Andreas 2010-09-07  propagate relevance info to new vars
-            gamma' <- return $ fmap (applyRelevance $ argInfoRelevance info) gamma'
-{-
-            reportSDoc "tc.lhs.top" 20 $ nest 2 $ vcat
-              [ text "gamma' =" <+> text (show gamma')
+      reportSDoc "tc.lhs.split" 20 $ nest 2 $ vcat
+        [ text "ca =" <+> prettyTCM ca
+        , text "vs =" <+> prettyList (map prettyTCM vs)
+        ]
+
+      -- Lookup the type of the constructor at the given parameters
+      let a = ca `piApply` vs
+
+      -- It will end in an application of the datatype
+      (gamma', ca, d', us) <- do
+        TelV gamma' ca@(El _ def) <- telView a
+        let Def d' es = ignoreSharing def
+            Just us   = allApplyElims es
+        return (gamma', ca, d', us)
+
+      -- This should be the same datatype as we split on
+      unless (d == d') $ typeError $ ShouldBeApplicationOf ca d'
+
+      -- reportSDoc "tc.lhs.top" 20 $ nest 2 $ vcat
+      --   [ text "gamma' =" <+> text (show gamma')
+      --   ]
+
+      -- Andreas 2010-09-07  propagate relevance info to new vars
+      gamma' <- return $ fmap (applyRelevance $ argInfoRelevance info) gamma'
+
+      -- Insert implicit patterns
+      qs' <- insertImplicitPatterns ExpandLast qs gamma'
+
+      unless (size qs' == size gamma') $
+        typeError $ WrongNumberOfConstructorArguments (conName c) (size gamma') (size qs')
+
+      let gamma = useNamesFromPattern qs' gamma'
+
+      -- Get the type of the datatype.
+      da <- (`piApply` vs) . defType <$> getConstInfo d
+
+      -- Compute the flexible variables
+      flex <- flexiblePatterns (problemInPat p0 ++ qs')
+
+      -- Compute the constructor indices by dropping the parameters
+      let us' = drop (size vs) us
+
+      reportSDoc "tc.lhs.top" 15 $ addCtxTel delta1 $
+        sep [ text "preparing to unify"
+            , nest 2 $ vcat
+              [ text "c      =" <+> prettyTCM c <+> text ":" <+> prettyTCM a
+              , text "d      =" <+> prettyTCM d <+> text ":" <+> prettyTCM da
+              , text "gamma  =" <+> prettyTCM gamma
+              , text "gamma' =" <+> prettyTCM gamma'
+              , text "vs     =" <+> brackets (fsep $ punctuate comma $ map prettyTCM vs)
+              , text "us'    =" <+> brackets (fsep $ punctuate comma $ map prettyTCM us')
+              , text "ws     =" <+> brackets (fsep $ punctuate comma $ map prettyTCM ws)
               ]
--}
-            -- Insert implicit patterns
-            qs' <- insertImplicitPatterns ExpandLast qs gamma'
+            ]
 
-            unless (size qs' == size gamma') $
-              typeError $ WrongNumberOfConstructorArguments (conName c) (size gamma') (size qs')
+      -- Unify constructor target and given type (in Δ₁Γ)
+      sub0 <- addCtxTel (delta1 `abstract` gamma) $
+              unifyIndices_ flex (raise (size gamma) da) us' (raise (size gamma) ws)
 
-            let gamma = useNamesFromPattern qs' gamma'
+      -- We should substitute c ys for x in Δ₂ and sigma
+      let ys     = teleArgs gamma
+          delta2 = absApp (raise (size gamma) $ fmap problemTel p1) (Con c ys)
+          rho0   = liftS (size delta2) $ Con c ys :# raiseS (size gamma)
+          -- rho0 = [ var i | i <- [0..size delta2 - 1] ]
+          --     ++ [ raise (size delta2) $ Con c ys ]
+          --     ++ [ var i | i <- [size delta2 + size gamma ..] ]
+          sigma0 = applySubst rho0 sigma
+          dpi0   = applySubst rho0 dpi
+          asb0   = applySubst rho0 asb
+          rest0  = applySubst rho0 (problemRest problem)
 
-            -- Get the type of the datatype.
-            da <- (`piApply` vs) . defType <$> getConstInfo d
+      reportSDoc "tc.lhs.top" 15 $ addCtxTel (delta1 `abstract` gamma) $ nest 2 $ vcat
+        [ text "delta2 =" <+> prettyTCM delta2
+        , text "sub0   =" <+> brackets (fsep $ punctuate comma $ map (maybe (text "_") prettyTCM) sub0)
+        ]
+      reportSDoc "tc.lhs.top" 15 $ addCtxTel (delta1 `abstract` gamma `abstract` delta2) $
+        nest 2 $ vcat
+          [ text "dpi0 = " <+> brackets (fsep $ punctuate comma $ map prettyTCM dpi0)
+          , text "asb0 = " <+> brackets (fsep $ punctuate comma $ map prettyTCM asb0)
+          ]
 
-            -- Compute the flexible variables
-            flex <- flexiblePatterns (problemInPat p0 ++ qs')
+      -- Andreas, 2010-09-09, save the type a of record pattern.
+      -- It is relative to delta1, but it should be relative to
+      -- all variables which will be bound by patterns.
+      -- Thus, it has to be raised by 1 (the "hole" variable)
+      -- plus the length of delta2 (the variables coming after the hole).
+      storedPatternType <- ifM (isJust <$> isRecord d)
+        (return $ Just (impl, raise (1 + size delta2) typeOfSplitVar))
+        (return $ Nothing)
 
-            -- Compute the constructor indices by dropping the parameters
-            let us' = drop (size vs) us
+      -- Plug the hole in the out pattern with c ys
+      let ysp = map (argFromDom . fmap (namedVarP . fst)) $ telToList gamma
+          ip  = plugHole (ConP c storedPatternType ysp) iph
+          ip0 = applySubst rho0 ip
 
-            reportSDoc "tc.lhs.top" 15 $ addCtxTel delta1 $
-              sep [ text "preparing to unify"
-                  , nest 2 $ vcat
-                    [ text "c      =" <+> prettyTCM c <+> text ":" <+> prettyTCM a
-                    , text "d      =" <+> prettyTCM d <+> text ":" <+> prettyTCM da
-                    , text "gamma  =" <+> prettyTCM gamma
-                    , text "gamma' =" <+> prettyTCM gamma'
-                    , text "vs     =" <+> brackets (fsep $ punctuate comma $ map prettyTCM vs)
-                    , text "us'    =" <+> brackets (fsep $ punctuate comma $ map prettyTCM us')
-                    , text "ws     =" <+> brackets (fsep $ punctuate comma $ map prettyTCM ws)
-                    ]
-                  ]
+      -- Δ₁Γ ⊢ sub0, we need something in Δ₁ΓΔ₂
+      -- Also needs to be padded with Nothing's to have the right length.
+      let pad n xs x = xs ++ replicate (max 0 $ n - size xs) x
+          newTel = problemTel p0 `abstract` (gamma `abstract` delta2)
+          sub    = replicate (size delta2) Nothing ++
+                   pad (size delta1 + size gamma) (raise (size delta2) sub0) Nothing
 
-            -- Unify constructor target and given type (in Δ₁Γ)
-            sub0 <- addCtxTel (delta1 `abstract` gamma) $
-                    unifyIndices_ flex (raise (size gamma) da) us' (raise (size gamma) ws)
+      reportSDoc "tc.lhs.top" 15 $ nest 2 $ vcat
+        [ text "newTel =" <+> prettyTCM newTel
+        , addCtxTel newTel $ text "sub =" <+> brackets (fsep $ punctuate comma $ map (maybe (text "_") prettyTCM) sub)
+        , text "ip   =" <+> text (show ip)
+        , text "ip0  =" <+> text (show ip0)
+        ]
+      reportSDoc "tc.lhs.top" 15 $ nest 2 $ vcat
+        [ text "rho0 =" <+> text (show rho0)
+        ]
 
-            -- We should substitute c ys for x in Δ₂ and sigma
-            let ys     = teleArgs gamma
-                delta2 = absApp (raise (size gamma) $ fmap problemTel p1) (Con c ys)
-                rho0   = liftS (size delta2) $ Con c ys :# raiseS (size gamma)
-                -- rho0 = [ var i | i <- [0..size delta2 - 1] ]
-                --     ++ [ raise (size delta2) $ Con c ys ]
-                --     ++ [ var i | i <- [size delta2 + size gamma ..] ]
-                sigma0 = applySubst rho0 sigma
-                dpi0   = applySubst rho0 dpi
-                asb0   = applySubst rho0 asb
-                rest0  = applySubst rho0 (problemRest problem)
-
-            reportSDoc "tc.lhs.top" 15 $ addCtxTel (delta1 `abstract` gamma) $ nest 2 $ vcat
-              [ text "delta2 =" <+> prettyTCM delta2
-              , text "sub0   =" <+> brackets (fsep $ punctuate comma $ map (maybe (text "_") prettyTCM) sub0)
-              ]
-            reportSDoc "tc.lhs.top" 15 $ addCtxTel (delta1 `abstract` gamma `abstract` delta2) $
-              nest 2 $ vcat
-                [ text "dpi0 = " <+> brackets (fsep $ punctuate comma $ map prettyTCM dpi0)
-                , text "asb0 = " <+> brackets (fsep $ punctuate comma $ map prettyTCM asb0)
-                ]
-
-            -- Andreas, 2010-09-09, save the type a of record pattern.
-            -- It is relative to delta1, but it should be relative to
-            -- all variables which will be bound by patterns.
-            -- Thus, it has to be raised by 1 (the "hole" variable)
-            -- plus the length of delta2 (the variables coming after the hole).
-            storedPatternType <- ifM (isJust <$> isRecord d)
-              (return $ Just (impl, raise (1 + size delta2) typeOfSplitVar))
-              (return $ Nothing)
-
-            -- Plug the hole in the out pattern with c ys
-            let ysp = map (argFromDom . fmap (namedVarP . fst)) $ telToList gamma
-                ip  = plugHole (ConP c storedPatternType ysp) iph
-                ip0 = applySubst rho0 ip
-
-            -- Δ₁Γ ⊢ sub0, we need something in Δ₁ΓΔ₂
-            -- Also needs to be padded with Nothing's to have the right length.
-            let pad n xs x = xs ++ replicate (max 0 $ n - size xs) x
-                newTel = problemTel p0 `abstract` (gamma `abstract` delta2)
-                sub    = replicate (size delta2) Nothing ++
-                         pad (size delta1 + size gamma) (raise (size delta2) sub0) Nothing
-
-            reportSDoc "tc.lhs.top" 15 $ nest 2 $ vcat
-              [ text "newTel =" <+> prettyTCM newTel
-              , addCtxTel newTel $ text "sub =" <+> brackets (fsep $ punctuate comma $ map (maybe (text "_") prettyTCM) sub)
-              , text "ip   =" <+> text (show ip)
-              , text "ip0  =" <+> text (show ip0)
-              ]
-            reportSDoc "tc.lhs.top" 15 $ nest 2 $ vcat
-              [ text "rho0 =" <+> text (show rho0)
-              ]
-
-            -- Instantiate the new telescope with the given substitution
-            (delta', perm, rho, instTypes) <- instantiateTel sub newTel
+      -- Instantiate the new telescope with the given substitution
+      (delta', perm, rho, instTypes) <- instantiateTel sub newTel
 
 
-            reportSDoc "tc.lhs.inst" 12 $
-              vcat [ sep [ text "instantiateTel"
-                         , nest 4 $ brackets $ fsep $ punctuate comma $ map (maybe (text "_") prettyTCM) sub
-                         , nest 4 $ prettyTCM newTel
-                         ]
-                   , nest 2 $ text "delta' =" <+> prettyTCM delta'
-                   , nest 2 $ text "perm   =" <+> text (show perm)
-                   , nest 2 $ text "itypes =" <+> fsep (punctuate comma $ map prettyTCM instTypes)
+      reportSDoc "tc.lhs.inst" 12 $
+        vcat [ sep [ text "instantiateTel"
+                   , nest 4 $ brackets $ fsep $ punctuate comma $ map (maybe (text "_") prettyTCM) sub
+                   , nest 4 $ prettyTCM newTel
                    ]
+             , nest 2 $ text "delta' =" <+> prettyTCM delta'
+             , nest 2 $ text "perm   =" <+> text (show perm)
+             , nest 2 $ text "itypes =" <+> fsep (punctuate comma $ map prettyTCM instTypes)
+             ]
 
 {-          -- Andreas, 2010-09-09
-            -- temporary error message to find non-id perms
-            let sorted (Perm _ xs) = xs == List.sort xs
-            unless (sorted (perm)) $ typeError $ GenericError $ "detected proper permutation " ++ show perm
+      -- temporary error message to find non-id perms
+      let sorted (Perm _ xs) = xs == List.sort xs
+      unless (sorted (perm)) $ typeError $ GenericError $ "detected proper permutation " ++ show perm
 -}
-            -- Compute the new dot pattern instantiations
-            let ps0'   = problemInPat p0 ++ qs' ++ problemInPat (absBody p1)
+      -- Compute the new dot pattern instantiations
+      let ps0'   = problemInPat p0 ++ qs' ++ problemInPat (absBody p1)
 
-            reportSDoc "tc.lhs.top" 15 $ nest 2 $ vcat
-              [ text "subst rho sub =" <+> brackets (fsep $ punctuate comma $ map (maybe (text "_") prettyTCM) (applySubst rho sub))
-              , text "ps0'  =" <+> brackets (fsep $ punctuate comma $ map prettyA ps0')
-              ]
+      reportSDoc "tc.lhs.top" 15 $ nest 2 $ vcat
+        [ text "subst rho sub =" <+> brackets (fsep $ punctuate comma $ map (maybe (text "_") prettyTCM) (applySubst rho sub))
+        , text "ps0'  =" <+> brackets (fsep $ punctuate comma $ map prettyA ps0')
+        ]
 
-            newDpi <- dotPatternInsts ps0' (applySubst rho sub) instTypes
+      newDpi <- dotPatternInsts ps0' (applySubst rho sub) instTypes
 
-            -- The final dpis and asbs are the new ones plus the old ones substituted by ρ
-            let dpi' = applySubst rho dpi0 ++ newDpi
-                asb' = applySubst rho $ asb0 ++ raise (size delta2) (map (\x -> AsB x (Con c ys) ca) xs)
+      -- The final dpis and asbs are the new ones plus the old ones substituted by ρ
+      let dpi' = applySubst rho dpi0 ++ newDpi
+          asb' = applySubst rho $ asb0 ++ raise (size delta2) (map (\x -> AsB x (Con c ys) ca) xs)
 
-            reportSDoc "tc.lhs.top" 15 $ nest 2 $ vcat
-              [ text "dpi' = " <+> brackets (fsep $ punctuate comma $ map prettyTCM dpi')
-              , text "asb' = " <+> brackets (fsep $ punctuate comma $ map prettyTCM asb')
-              ]
+      reportSDoc "tc.lhs.top" 15 $ nest 2 $ vcat
+        [ text "dpi' = " <+> brackets (fsep $ punctuate comma $ map prettyTCM dpi')
+        , text "asb' = " <+> brackets (fsep $ punctuate comma $ map prettyTCM asb')
+        ]
 
-            -- Apply the substitution to the type
-            let sigma'   = applySubst rho sigma0
-                rest'    = applySubst rho rest0
+      -- Apply the substitution to the type
+      let sigma'   = applySubst rho sigma0
+          rest'    = applySubst rho rest0
 
-            reportSDoc "tc.lhs.inst" 15 $
-              nest 2 $ text "ps0 = " <+> brackets (fsep $ punctuate comma $ map prettyA ps0')
+      reportSDoc "tc.lhs.inst" 15 $
+        nest 2 $ text "ps0 = " <+> brackets (fsep $ punctuate comma $ map prettyA ps0')
 
-            -- Permute the in patterns
-            let ps'  = permute perm ps0'
+      -- Permute the in patterns
+      let ps'  = permute perm ps0'
 
-           -- Compute the new permutation of the out patterns. This is the composition of
-            -- the new permutation with the expansion of the old permutation to
-            -- reflect the split.
-            let perm'  = expandP hix (size gamma) $ fst (problemOutPat problem)
-                iperm' = perm `composeP` perm'
+     -- Compute the new permutation of the out patterns. This is the composition of
+      -- the new permutation with the expansion of the old permutation to
+      -- reflect the split.
+      let perm'  = expandP hix (size gamma) $ fst (problemOutPat problem)
+          iperm' = perm `composeP` perm'
 
-            -- Instantiate the out patterns
-            let ip'    = instantiatePattern sub perm' ip0
-                newip  = applySubst rho ip'
+      -- Instantiate the out patterns
+      let ip'    = instantiatePattern sub perm' ip0
+          newip  = applySubst rho ip'
 
-            -- Construct the new problem
-            let problem' = Problem ps' (iperm', newip) delta' rest'
+      -- Construct the new problem
+      let problem' = Problem ps' (iperm', newip) delta' rest'
 
-            reportSDoc "tc.lhs.top" 12 $ sep
-              [ text "new problem"
-              , nest 2 $ vcat
-                [ text "ps'    = " <+> fsep (map prettyA ps')
-                , text "delta' = " <+> prettyTCM delta'
-                ]
-              ]
+      reportSDoc "tc.lhs.top" 12 $ sep
+        [ text "new problem"
+        , nest 2 $ vcat
+          [ text "ps'    = " <+> fsep (map prettyA ps')
+          , text "delta' = " <+> prettyTCM delta'
+          ]
+        ]
 
-            reportSDoc "tc.lhs.top" 14 $ nest 2 $ vcat
-              [ text "perm'  =" <+> text (show perm')
-              , text "iperm' =" <+> text (show iperm')
-              ]
-            reportSDoc "tc.lhs.top" 14 $ nest 2 $ vcat
-              [ text "ip'    =" <+> text (show ip')
-              , text "newip  =" <+> text (show newip)
-              ]
+      reportSDoc "tc.lhs.top" 14 $ nest 2 $ vcat
+        [ text "perm'  =" <+> text (show perm')
+        , text "iperm' =" <+> text (show iperm')
+        ]
+      reportSDoc "tc.lhs.top" 14 $ nest 2 $ vcat
+        [ text "ip'    =" <+> text (show ip')
+        , text "newip  =" <+> text (show newip)
+        ]
 
-            -- if rest type reduces,
-            -- extend the split problem by previously not considered patterns
-            st'@(LHSState problem'@(Problem ps' (iperm', ip') delta' rest')
-                          sigma' dpi' asb')
-              <- updateProblemRest $ LHSState problem' sigma' dpi' asb'
+      -- if rest type reduces,
+      -- extend the split problem by previously not considered patterns
+      st'@(LHSState problem'@(Problem ps' (iperm', ip') delta' rest')
+                    sigma' dpi' asb')
+        <- updateProblemRest $ LHSState problem' sigma' dpi' asb'
 
-            reportSDoc "tc.lhs.top" 12 $ sep
-              [ text "new problem from rest"
-              , nest 2 $ vcat
-                [ text "ps'    = " <+> fsep (map prettyA ps')
-                , text "delta' = " <+> prettyTCM delta'
-                , text "ip'    =" <+> text (show ip')
-                , text "iperm' =" <+> text (show iperm')
-                ]
-              ]
-            -- Continue splitting
-            checkLHS st'
+      reportSDoc "tc.lhs.top" 12 $ sep
+        [ text "new problem from rest"
+        , nest 2 $ vcat
+          [ text "ps'    = " <+> fsep (map prettyA ps')
+          , text "delta' = " <+> prettyTCM delta'
+          , text "ip'    =" <+> text (show ip')
+          , text "iperm' =" <+> text (show iperm')
+          ]
+        ]
+      -- Continue splitting
+      checkLHS f st'
 
--- Ensures that we are not performing pattern matching on codata.
+
+-- | Ensures that we are not performing pattern matching on codata.
 
 noPatternMatchingOnCodata :: [I.NamedArg Pattern] -> TCM ()
 noPatternMatchingOnCodata = mapM_ (check . namedArg)
