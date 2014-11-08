@@ -1,8 +1,11 @@
 import Control.Monad
+
 import Data.Char as Char
+import Data.Functor
 import Data.Text (Text)
 import qualified Data.Text as Text
 import qualified Data.Text.IO as Text  -- Strict IO.
+
 import System.Directory ( getCurrentDirectory )
 import System.Environment
 import System.Exit
@@ -52,6 +55,7 @@ excludedFiles =
 filesFilter :: FindClause Bool
 filesFilter = foldr1 (||?) (map (extension ==?) extensions)
           &&? foldr1 (&&?) (map (fileName /=?) excludedFiles)
+          &&? ((head <$> fileName) /=? '.')  -- exclude hidden files
 
 -- ASR (12 June 2014). Adapted from the examples of fileManip 0.3.6.2.
 --
