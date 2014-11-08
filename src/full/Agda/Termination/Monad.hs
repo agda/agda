@@ -434,7 +434,11 @@ data DeBruijnPat' a
     -- ^ The name refers to either an ordinary
     --   constructor or the successor function on sized types.
   | LitDBP Literal
+    -- ^ Literal.  Also abused to censor part of a pattern.
+  | TermDBP Term
+    -- ^ Part of dot pattern that cannot be converted into a pattern.
   | ProjDBP QName
+    -- ^ Projection pattern.
   deriving (Functor, Show)
 
 instance IsProjP (DeBruijnPat' a) where
@@ -442,9 +446,10 @@ instance IsProjP (DeBruijnPat' a) where
   isProjP _           = Nothing
 
 instance PrettyTCM DeBruijnPat where
-  prettyTCM (VarDBP i)    = text $ show i
-  prettyTCM (ConDBP c ps) = parens (prettyTCM c <+> hsep (map prettyTCM ps))
+  prettyTCM (VarDBP i)    = prettyTCM $ var i
+  prettyTCM (ConDBP c ps) = parens $ do prettyTCM c <+> hsep (map prettyTCM ps)
   prettyTCM (LitDBP l)    = prettyTCM l
+  prettyTCM (TermDBP v)   = parens $ prettyTCM v
   prettyTCM (ProjDBP d)   = prettyTCM d
 
 -- | How long is the path to the deepest variable?
@@ -454,6 +459,7 @@ patternDepth p =
     ConDBP _ ps -> succ $ maximum $ 0 : map patternDepth ps
     VarDBP{}    -> 0
     LitDBP{}    -> 0
+    TermDBP{}   -> 0
     ProjDBP{}   -> 0
 
 
@@ -486,6 +492,7 @@ instance UsableSizeVars DeBruijnPat where
       VarDBP i    -> ifM terGetUseSizeLt (return $ VarSet.singleton i) (return $ mempty)
       ConDBP c ps -> conUseSizeLt c $ usableSizeVars ps
       LitDBP{}    -> return mempty
+      TermDBP{}   -> return mempty
       ProjDBP{}   -> return mempty
 
 instance UsableSizeVars [DeBruijnPat] where

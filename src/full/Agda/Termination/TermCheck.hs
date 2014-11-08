@@ -517,18 +517,27 @@ matchingTarget conf t = maybe (return True) (match t) (currentTarget conf)
 -}
 
 -- | Convert a term (from a dot pattern) to a DeBruijn pattern.
+--
+--   The term is first normalized and stripped of all non-coinductive projections.
 
 termToDBP :: Term -> TerM DeBruijnPat
 termToDBP t = ifNotM terGetUseDotPatterns (return unusedVar) $ {- else -} do
-  suc <- terGetSizeSuc
-  t <- liftTCM $ stripAllProjections =<< constructorForm t
-  case ignoreSharing t of
-    Var i []    -> return $ VarDBP i
-    Con c args  -> ConDBP (conName c) <$> mapM (termToDBP . unArg) args
-    Def s [Apply arg] | Just s == suc
-                -> ConDBP s . (:[]) <$> termToDBP (unArg arg)
-    Lit l       -> return $ LitDBP l
-    _           -> return unusedVar
+    suc <- terGetSizeSuc
+    let
+      loop :: Term -> TCM DeBruijnPat
+      loop t = do
+        t <- constructorForm t
+        case ignoreSharing t of
+          -- Constructors.
+          Con c args  -> ConDBP (conName c) <$> mapM (loop . unArg) args
+          Def s [Apply arg] | Just s == suc
+                      -> ConDBP s . (:[]) <$> loop (unArg arg)
+          DontCare t  -> __IMPOSSIBLE__  -- removed by stripAllProjections
+          -- Leaves.
+          Var i []    -> return $ VarDBP i
+          Lit l       -> return $ LitDBP l
+          t           -> return $ TermDBP t
+    liftTCM $ loop =<< stripAllProjections =<< normalise t
 
 
 -- | Masks coconstructor patterns in a deBruijn pattern.
@@ -544,6 +553,7 @@ stripCoConstructors p = do
     -- The remaining (atomic) patterns cannot contain coconstructors, obviously.
     VarDBP{}  -> return p
     LitDBP{}  -> return p
+    TermDBP{} -> return p  -- Can contain coconstructors, but they do not count here.
     ProjDBP{} -> return p
 
 -- | Masks all non-data/record type patterns if --without-K.
@@ -1131,12 +1141,13 @@ offsetFromConstructor :: MonadTCM tcm => QName -> tcm Int
 offsetFromConstructor c = maybe 1 (const 0) <$> do
   liftTCM $ isRecordConstructor c
 
--- | Compute the sub patterns of a 'DeBruijnPat'.
+-- | Compute the proper subpatterns of a 'DeBruijnPat'.
 subPatterns :: DeBruijnPat -> [DeBruijnPat]
 subPatterns p = case p of
-  VarDBP _    -> []
   ConDBP c ps -> ps ++ concatMap subPatterns ps
+  VarDBP _    -> []
   LitDBP _    -> []
+  TermDBP _   -> []
   ProjDBP _   -> []
 
 compareTerm :: Term -> DeBruijnPat -> TerM Order
@@ -1202,11 +1213,11 @@ instance StripAllProjections Term where
 --   Precondition: top meta variable resolved
 
 compareTerm' :: Term -> DeBruijnPat -> TerM Order
-compareTerm' v0 p = do
+compareTerm' v p = do
   suc  <- terGetSizeSuc
   cutoff <- terGetCutOff
   let ?cutoff = cutoff
-  let v = ignoreSharing v0
+  v <- return $ ignoreSharing v
   case (v, p) of
 
     -- Andreas, 2013-11-20 do not drop projections,
@@ -1311,13 +1322,14 @@ compareConArgs ts ps = do
 
 compareVar :: Nat -> DeBruijnPat -> TerM Order
 compareVar i (VarDBP j)    = compareVarVar i j
-compareVar i (LitDBP _)    = return $ Order.unknown
-compareVar i (ProjDBP _)   = return $ Order.unknown
 compareVar i (ConDBP c ps) = do
   cutoff <- terGetCutOff
   let ?cutoff = cutoff
   decrease <$> offsetFromConstructor c
            <*> (Order.supremum <$> mapM (compareVar i) ps)
+compareVar i LitDBP{}  = return $ Order.unknown
+compareVar i TermDBP{} = return $ Order.unknown
+compareVar i ProjDBP{} = return $ Order.unknown
 
 -- | Compare two variables.
 --
