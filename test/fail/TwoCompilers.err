@@ -49,5 +49,6 @@ Usage: agda [OPTIONS...] [FILE]
           --copatterns                                enable definitions by copattern matching
           --no-pattern-matching                       disable pattern matching completely
           --exact-split                               require all clauses in a definition by pattern matching to hold as definitional equalities (except those marked as CATCHALL)
+          --no-exact-split                            do not require all clauses in a definition by pattern matching to hold as definitional equalities (ignore those marked as CATCHALL)
 
 Plugins:

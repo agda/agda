@@ -34,6 +34,11 @@ Pragmas and options
     {-# CATCHALL #-}
     eq _       _       = false
 
+* New option: --no-exact-split.
+
+  This option can be used to override a global --exact-split in a
+  file, by adding a pragma {-# OPTIONS --no-exact-split #-}.
+
 Language
 ========
 
