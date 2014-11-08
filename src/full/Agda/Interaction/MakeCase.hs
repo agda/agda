@@ -32,6 +32,7 @@ import Agda.TheTypeChecker
 
 import Agda.Interaction.BasicOps
 
+import Agda.Utils.Functor
 import Agda.Utils.List
 import Agda.Utils.Monad
 import qualified Agda.Utils.Pretty as P
@@ -165,10 +166,13 @@ makeCase hole rng s = withInteractionId hole $ do
   let vars = words s
   if null vars then do
     -- split result
-    res <- splitResult f =<< fixTarget (clauseToSplitClause clause)
-    case res of
-      Nothing  -> typeError $ GenericError $ "Cannot split on result here"
-      Just cov -> (casectxt,) <$> do mapM (makeAbstractClause f) $ splitClauses cov
+    (newPats, sc) <- fixTarget (clauseToSplitClause clause)
+    res <- splitResult f sc
+    scs <- case res of
+      Nothing  -> if newPats then return [sc] else
+        typeError $ GenericError $ "Cannot split on result here"
+      Just cov -> mapM (snd <.> fixTarget) $ splitClauses cov
+    (casectxt,) <$> mapM (makeAbstractClause f) scs
   else do
     -- split on variables
     vars <- parseVariables hole rng vars
