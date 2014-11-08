@@ -1271,25 +1271,31 @@ compareTerm' v p = do
     -- which is the number of SIZELT hypotheses one can have in a context.
     (MetaV{}, p) -> Order.decr . max (patternDepth p) . pred <$> getContextSize
 
-    (t, p) | isSubTerm t p -> return Order.le
+    (t, p) -> return $ subTerm t p
 
-    _ -> return Order.unknown
-
--- TODO: isSubTerm should compute a size difference (Order)
-isSubTerm :: Term -> DeBruijnPat -> Bool
-isSubTerm t p = equal t p || properSubTerm t p
+-- | @subTerm@ computes a size difference (Order)
+subTerm :: (?cutoff :: CutOff) => Term -> DeBruijnPat -> Order
+subTerm t p = if equal t p then Order.le else properSubTerm t p
   where
     equal (Shared p) dbp = equal (derefPtr p) dbp
     equal (Con c ts) (ConDBP c' ps) =
       and $ (conName c == c')
           : (length ts == length ps)
           : zipWith equal (map unArg ts) ps
-    equal (Var i []) (VarDBP j) = i == j
-    equal (Lit l) (LitDBP l') = l == l'
+    equal (Var i []) (VarDBP i') = i == i'
+    equal (Lit l)    (LitDBP l') = l == l'
+    -- Terms.
+    -- Checking for identity here is very fragile.
+    -- However, we cannot do much more, as we are not allowed to normalize t.
+    -- (It might diverge, and we are just in the process of termination checking.)
+    equal t         (TermDBP t') = t == t'
     equal _ _ = False
 
-    properSubTerm t (ConDBP _ ps) = any (isSubTerm t) ps
-    properSubTerm _ _ = False
+    properSubTerm t (ConDBP _ ps) = decrease 1 $ supremum $ map (subTerm t) ps
+    properSubTerm _ _ = Order.unknown
+
+isSubTerm :: (?cutoff :: CutOff) => Term -> DeBruijnPat -> Bool
+isSubTerm t p = nonIncreasing $ subTerm t p
 
 compareConArgs :: Args -> [DeBruijnPat] -> TerM Order
 compareConArgs ts ps = do
