@@ -1,6 +1,0 @@
-BadTermination.agda:14,1-16,27
-Termination checking failed for the following functions:
-  f
-Problematic calls:
-  f inf d₂
-    (at BadTermination.agda:16,19-20)
