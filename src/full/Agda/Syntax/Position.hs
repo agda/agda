@@ -1,3 +1,5 @@
+{-# OPTIONS_GHC -fwarn-missing-signatures #-}
+
 {-# LANGUAGE CPP                        #-}
 {-# LANGUAGE DeriveDataTypeable         #-}
 {-# LANGUAGE DeriveFoldable             #-}
@@ -119,6 +121,7 @@ positionInvariant :: Position' a -> Bool
 positionInvariant p =
   posPos p > 0 && posLine p > 0 && posCol p > 0
 
+importantPart :: Position' a -> (a, Int32)
 importantPart p = (srcFile p, posPos p)
 
 instance Eq a => Eq (Position' a) where
@@ -565,12 +568,16 @@ makeInterval s
   | Set.null s = Set.empty
   | otherwise  = Set.fromList [Set.findMin s .. Set.findMax s]
 
+prop_iLength :: Interval' Integer -> Bool
 prop_iLength i = iLength i >= 0
 
+prop_startPos :: Maybe AbsolutePath -> Bool
 prop_startPos = positionInvariant . startPos
 
+prop_noRange :: Bool
 prop_noRange = rangeInvariant noRange
 
+prop_takeI_dropI :: Interval' Integer -> Property
 prop_takeI_dropI i =
   forAll (choose (0, toInteger $ iLength i)) $ \n ->
     let s = genericReplicate n ' '
@@ -581,17 +588,20 @@ prop_takeI_dropI i =
     intervalInvariant d &&
     fuseIntervals t d == i
 
+prop_rangeToInterval :: Range' Integer -> Bool
 prop_rangeToInterval (Range []) = True
 prop_rangeToInterval r =
   intervalInvariant i &&
   iPositions i == makeInterval (rPositions r)
   where Just i = rangeToInterval r
 
+prop_continuous :: Range -> Bool
 prop_continuous r =
   rangeInvariant cr &&
   rPositions cr == makeInterval (rPositions r)
   where cr = continuous r
 
+prop_fuseIntervals :: Interval' Integer -> Property
 prop_fuseIntervals i1 =
   forAll (intervalInSameFileAs i1) $ \i2 ->
     let i = fuseIntervals i1 i2 in
@@ -605,8 +615,10 @@ prop_fuseRanges r1 r2 =
   rPositions r == Set.union (rPositions r1) (rPositions r2)
   where r = fuseRanges r1 r2
 
+prop_beginningOf :: Range -> Bool
 prop_beginningOf r = rangeInvariant (beginningOf r)
 
+prop_beginningOfFile :: Range -> Bool
 prop_beginningOfFile r = rangeInvariant (beginningOfFile r)
 
 instance Arbitrary a => Arbitrary (Position' a) where
@@ -628,8 +640,10 @@ setFile f (Interval p1 p2) =
 -- | Generates an interval located in the same file as the given
 -- interval.
 
+intervalInSameFileAs :: Interval' Integer -> Gen (Interval' Integer)
 intervalInSameFileAs i = setFile (srcFile $ iStart i) <$> arbitrary
 
+prop_intervalInSameFileAs :: Interval' Integer -> Property
 prop_intervalInSameFileAs i =
   forAll (intervalInSameFileAs i) $ \i' ->
     intervalInvariant i' &&
@@ -652,9 +666,14 @@ instance (Ord a, Arbitrary a) => Arbitrary (Range' a) where
       | otherwise            = i1 : fuse (i2 : is)
     fuse is = is
 
+prop_positionInvariant :: Position' Integer -> Bool
 prop_positionInvariant = positionInvariant
+
+prop_intervalInvariant :: Interval' Integer -> Bool
 prop_intervalInvariant = intervalInvariant
-prop_rangeInvariant    = rangeInvariant
+
+prop_rangeInvariant :: Range -> Bool
+prop_rangeInvariant = rangeInvariant
 
 instance Show (Position' Integer) where show = show . fmap Just
 instance Show (Interval' Integer) where show = show . fmap Just

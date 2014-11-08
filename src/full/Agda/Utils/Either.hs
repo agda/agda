@@ -1,3 +1,5 @@
+{-# OPTIONS_GHC -fwarn-missing-signatures #-}
+
 ------------------------------------------------------------------------
 -- | Utilities for the 'Either' type
 ------------------------------------------------------------------------
@@ -81,6 +83,7 @@ allRight []             = Just []
 allRight (Left  _ : _ ) = Nothing
 allRight (Right b : xs) = (b:) <$> allRight xs
 
+prop_allRight :: Eq b => [Either t b] -> Bool
 prop_allRight xs =
   allRight xs ==
     if all isRight xs then

@@ -1,5 +1,6 @@
+{-# OPTIONS_GHC -fwarn-missing-signatures #-}
+
 -- {-# LANGUAGE FlexibleInstances   #-}
-{-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE TemplateHaskell     #-}
 -- {-# LANGUAGE TupleSections       #-}
 
@@ -55,29 +56,38 @@ cluster' acs = runEquivM id const $ do
 -- instance Show (Int -> (C, [C])) where
 --   show f = "function " ++ show (map (\ x -> (x, f x)) [-10..10])
 
+isSingleton, exactlyTwo, atLeastTwo :: [a] -> Bool
 isSingleton x = length x == 1
 exactlyTwo  x = length x == 2
 atLeastTwo  x = length x >= 2
 
+prop_cluster_empty :: Bool
 prop_cluster_empty =
   null (cluster (const (0,[])) [])
 
-prop_cluster_permutation f (as :: [Int]) =
+prop_cluster_permutation :: (Int -> (C, [C])) -> [Int] -> Bool
+prop_cluster_permutation f as =
   sort as == sort (concat (cluster f as))
 
+prop_cluster_single :: a -> [a] -> Bool
 prop_cluster_single a as =
   isSingleton $ cluster (const (0,[])) $ (a:as)
 
+prop_cluster_idem :: (a -> (C, [C])) -> a -> [a] -> Bool
 prop_cluster_idem f a as =
   isSingleton $ cluster f $ head $ cluster f (a:as)
 
-prop_two_clusters (as :: [Int]) =
+prop_two_clusters :: [Int] -> Bool
+prop_two_clusters as =
   atLeastTwo $ cluster (\ x -> (x, [x])) (-1:1:as)
 
+test :: [[String]]
 test = cluster (\ (x:y:_) -> (ord x,[ord y]))
          ["anabel","bond","babel","hurz","furz","kurz"]
-test1 = cluster (\ (x:y:_) -> (ord x,[]))
-         ["anabel","bond","babel","hurz","furz","kurz"]
+
+test1 :: [[String]]
+test1 = cluster (\ (x:_:_) -> (ord x,[]))
+          ["anabel","bond","babel","hurz","furz","kurz"]
 
 ------------------------------------------------------------------------
 -- * All tests

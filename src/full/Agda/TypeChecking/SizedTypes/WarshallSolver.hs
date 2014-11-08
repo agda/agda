@@ -1,3 +1,5 @@
+{-# OPTIONS_GHC -fwarn-missing-signatures #-}
+
 {-# LANGUAGE CPP                       #-}
 {-# LANGUAGE FlexibleInstances         #-}
 {-# LANGUAGE MultiParamTypeClasses     #-}
@@ -41,13 +43,23 @@ type Key r f = Edge' r f ()
 type Nodes r f = Graph.Nodes (Node r f)
 type LabelledEdge r f = Edge' r f Label
 
-src  = Graph.source
+src :: Edge s t e -> s
+src = Graph.source
+
+dest :: Edge s t e -> t
 dest = Graph.target
 
+lookupEdge :: (Ord s, Ord t) => Graph.Graph s t e -> s -> t -> Maybe e
 lookupEdge g s t = Graph.lookup s t g
+
+graphToList :: (Ord s, Ord t) => Graph.Graph s t e -> [Edge s t e]
 graphToList = Graph.toList
+
+graphFromList :: (Ord s, Ord t) => [Edge s t e] -> Graph.Graph s t e
 graphFromList = Graph.fromList
 
+insertEdge :: (Ord s, Ord t, MeetSemiLattice e, Top e) =>
+              Edge s t e -> Graph.Graph s t e -> Graph.Graph s t e
 insertEdge e g
   | isTop (label e) = g
   | otherwise       = Graph.insertEdgeWith meet e g
@@ -291,6 +303,7 @@ instance (Show r, Show f, Show a, Ord r, Ord f, Dioid a) => Dioid (Edge' r f a) 
 -- | A graph forest.
 type Graphs r f a = [Graph r f a]
 
+emptyGraphs :: Graphs r f a
 emptyGraphs = []
 
 -- | Split a list of graphs @gs@ into those that mention node @n@ and those that do not.
@@ -547,6 +560,7 @@ instance Plus (SizeExpr' r f) Label (SizeExpr' r f) where
 -- | Lower or upper bound for a flexible variable
 type Bound r f = Map f (Set (SizeExpr' r f))
 
+emptyBound :: Bound r f
 emptyBound = Map.empty
 
 data Bounds r f = Bounds
@@ -636,10 +650,11 @@ largest hg ns
      Return these edges as a map from target notes to a list of edges.
      We assume the graph is reflexive-transitive.
  -}
-commonSuccs :: (Ord r, Ord f, Dioid a) => Graph r f a -> [Node r f] -> Map (Node r f) [Edge' r f a]
-commonSuccs hg srcs = intersectAll $  map (buildmap . outgoing hg) srcs
+commonSuccs :: (Ord r, Ord f, Dioid a) =>
+               Graph r f a -> [Node r f] -> Map (Node r f) [Edge' r f a]
+commonSuccs hg srcs = intersectAll $ map (buildmap . outgoing hg) srcs
   where
-   buildmap = Map.fromList . map (\ e -> (dest e, [e]))
+   buildmap            = Map.fromList . map (\ e -> (dest e, [e]))
    intersectAll []     = Map.empty
    intersectAll (m:ms) = foldl (Map.intersectionWith (++)) m ms
 
@@ -656,7 +671,8 @@ commonPreds hg tgts = intersectAll $  map (buildmap . incoming hg) tgts
    intersectAll (m:ms) = foldl (Map.intersectionWith (++)) m ms
 
 -- | Compute the sup of two different rigids or a rigid and a constant.
-lub' :: forall r f . (Ord r, Ord f, Show r, Show f) => HypGraph r f -> (Node r f, Offset) -> (Node r f, Offset) -> Maybe (SizeExpr' r f)
+lub' :: forall r f . (Ord r, Ord f, Show r, Show f) =>
+        HypGraph r f -> (Node r f, Offset) -> (Node r f, Offset) -> Maybe (SizeExpr' r f)
 lub' hg (node1, n) (node2, m) = do
   let sucs     = commonSuccs hg [node1, node2]
       sucNodes = smallest hg $ Map.keys sucs
@@ -884,6 +900,7 @@ verifySolution hg cs sol = do
 
 -- * Tests
 
+testSuccs :: Ord f => Map (Node [Char] f) [Edge' [Char] f Label]
 testSuccs = commonSuccs hg [n1,n2]
   where
     n1 = NodeRigid "i"
@@ -899,7 +916,9 @@ testSuccs = commonSuccs hg [n1,n2]
          , Graph.Edge n2 n4 $ Label Le 5
          , Graph.Edge n2 n5 $ Label Le 6
          ]
+
 -- testLub = smallest hg $ Map.keys $ commonSuccs hg [n1,n2] --
+testLub :: (Show f, Ord f) => Maybe (SizeExpr' [Char] f)
 testLub = lub hg (Rigid "i" 0) (Rigid "j" 2)
   where
     n1 = NodeRigid "i"

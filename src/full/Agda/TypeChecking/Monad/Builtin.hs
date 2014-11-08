@@ -1,3 +1,5 @@
+{-# OPTIONS_GHC -fwarn-missing-signatures #-}
+
 {-# LANGUAGE CPP #-}
 
 module Agda.TypeChecking.Monad.Builtin where
@@ -128,8 +130,10 @@ primInteger, primFloat, primChar, primString, primBool, primTrue, primFalse,
     primAgdaDefinitionPostulate, primAgdaDefinitionPrimitive, primAgdaDefinitionDataConstructor,
     primAgdaFunDef, primAgdaFunDefCon, primAgdaClause, primAgdaClauseClause, primAgdaClauseAbsurd,
     primAgdaPattern, primAgdaPatCon, primAgdaPatVar, primAgdaPatDot,
-    primAgdaDataDef, primAgdaRecordDef
+    primAgdaDataDef, primAgdaRecordDef, primAgdaPatLit, primAgdaPatProj,
+    primAgdaPatAbsurd
     :: TCM Term
+
 primInteger      = getBuiltin builtinInteger
 primFloat        = getBuiltin builtinFloat
 primChar         = getBuiltin builtinChar
@@ -223,77 +227,105 @@ primAgdaDefinitionPostulate       = getBuiltin builtinAgdaDefinitionPostulate
 primAgdaDefinitionPrimitive       = getBuiltin builtinAgdaDefinitionPrimitive
 primAgdaDefinition                = getBuiltin builtinAgdaDefinition
 
-builtinNat          = "NATURAL"
-builtinSuc          = "SUC"
-builtinZero         = "ZERO"
-builtinNatPlus      = "NATPLUS"
-builtinNatMinus     = "NATMINUS"
-builtinNatTimes     = "NATTIMES"
-builtinNatDivSucAux = "NATDIVSUCAUX"
-builtinNatModSucAux = "NATMODSUCAUX"
-builtinNatEquals    = "NATEQUALS"
-builtinNatLess      = "NATLESS"
-builtinInteger      = "INTEGER"
-builtinFloat        = "FLOAT"
-builtinChar         = "CHAR"
-builtinString       = "STRING"
-builtinBool         = "BOOL"
-builtinTrue         = "TRUE"
-builtinFalse        = "FALSE"
-builtinList         = "LIST"
-builtinNil          = "NIL"
-builtinCons         = "CONS"
-builtinIO           = "IO"
-builtinSize         = "SIZE"
-builtinSizeLt       = "SIZELT"
-builtinSizeSuc      = "SIZESUC"
-builtinSizeInf      = "SIZEINF"
-builtinSizeMax      = "SIZEMAX"
-builtinInf          = "INFINITY"
-builtinSharp        = "SHARP"
-builtinFlat         = "FLAT"
-builtinEquality     = "EQUALITY"
-builtinRefl         = "REFL"
-builtinRewrite      = "REWRITE"
-builtinLevelMax     = "LEVELMAX"
-builtinLevel        = "LEVEL"
-builtinLevelZero    = "LEVELZERO"
-builtinLevelSuc     = "LEVELSUC"
-builtinIrrAxiom     = "IRRAXIOM"
-builtinQName        = "QNAME"
-builtinAgdaSort     = "AGDASORT"
-builtinAgdaSortSet  = "AGDASORTSET"
-builtinAgdaSortLit  = "AGDASORTLIT"
-builtinAgdaSortUnsupported = "AGDASORTUNSUPPORTED"
-builtinAgdaType     = "AGDATYPE"
-builtinAgdaTypeEl   = "AGDATYPEEL"
-builtinHiding       = "HIDING"
-builtinHidden       = "HIDDEN"
-builtinInstance     = "INSTANCE"
-builtinVisible      = "VISIBLE"
-builtinRelevance    = "RELEVANCE"
-builtinRelevant     = "RELEVANT"
-builtinIrrelevant   = "IRRELEVANT"
-builtinArg          = "ARG"
-builtinArgInfo      = "ARGINFO"
-builtinArgArgInfo   = "ARGARGINFO"
-builtinArgArg       = "ARGARG"
-builtinAgdaTerm         = "AGDATERM"
-builtinAgdaTermVar      = "AGDATERMVAR"
-builtinAgdaTermLam      = "AGDATERMLAM"
-builtinAgdaTermExtLam   = "AGDATERMEXTLAM"
-builtinAgdaTermDef      = "AGDATERMDEF"
-builtinAgdaTermCon      = "AGDATERMCON"
-builtinAgdaTermPi       = "AGDATERMPI"
-builtinAgdaTermSort     = "AGDATERMSORT"
-builtinAgdaTermLit      = "AGDATERMLIT"
-builtinAgdaTermUnsupported = "AGDATERMUNSUPPORTED"
-builtinAgdaLiteral   = "AGDALITERAL"
-builtinAgdaLitNat    = "AGDALITNAT"
-builtinAgdaLitFloat  = "AGDALITFLOAT"
-builtinAgdaLitChar   = "AGDALITCHAR"
-builtinAgdaLitString = "AGDALITSTRING"
-builtinAgdaLitQName  = "AGDALITQNAME"
+builtinNat, builtinSuc, builtinZero, builtinNatPlus, builtinNatMinus,
+  builtinNatTimes, builtinNatDivSucAux, builtinNatModSucAux, builtinNatEquals,
+  builtinNatLess, builtinInteger, builtinFloat, builtinChar, builtinString,
+  builtinBool, builtinTrue, builtinFalse, builtinList, builtinNil,
+  builtinCons, builtinIO, builtinSize, builtinSizeLt, builtinSizeSuc,
+  builtinSizeInf, builtinSizeMax, builtinInf, builtinSharp, builtinFlat,
+  builtinEquality, builtinRefl, builtinRewrite, builtinLevelMax,
+  builtinLevel, builtinLevelZero, builtinLevelSuc, builtinIrrAxiom,
+  builtinQName, builtinAgdaSort, builtinAgdaSortSet, builtinAgdaSortLit,
+  builtinAgdaSortUnsupported, builtinAgdaType, builtinAgdaTypeEl,
+  builtinHiding, builtinHidden, builtinInstance, builtinVisible,
+  builtinRelevance, builtinRelevant, builtinIrrelevant, builtinArg,
+  builtinArgInfo, builtinArgArgInfo, builtinArgArg, builtinAgdaTerm,
+  builtinAgdaTermVar, builtinAgdaTermLam, builtinAgdaTermExtLam,
+  builtinAgdaTermDef, builtinAgdaTermCon, builtinAgdaTermPi,
+  builtinAgdaTermSort, builtinAgdaTermLit, builtinAgdaTermUnsupported,
+  builtinAgdaLiteral, builtinAgdaLitNat, builtinAgdaLitFloat,
+  builtinAgdaLitChar, builtinAgdaLitString, builtinAgdaLitQName,
+  builtinAgdaFunDef, builtinAgdaFunDefCon, builtinAgdaClause,
+  builtinAgdaClauseClause, builtinAgdaClauseAbsurd, builtinAgdaPattern,
+  builtinAgdaPatVar, builtinAgdaPatCon, builtinAgdaPatDot, builtinAgdaPatLit,
+  builtinAgdaPatProj, builtinAgdaPatAbsurd, builtinAgdaDataDef,
+  builtinAgdaRecordDef, builtinAgdaDefinitionFunDef,
+  builtinAgdaDefinitionDataDef, builtinAgdaDefinitionRecordDef,
+  builtinAgdaDefinitionDataConstructor, builtinAgdaDefinitionPostulate,
+  builtinAgdaDefinitionPrimitive, builtinAgdaDefinition
+  :: String
+
+builtinNat                           = "NATURAL"
+builtinSuc                           = "SUC"
+builtinZero                          = "ZERO"
+builtinNatPlus                       = "NATPLUS"
+builtinNatMinus                      = "NATMINUS"
+builtinNatTimes                      = "NATTIMES"
+builtinNatDivSucAux                  = "NATDIVSUCAUX"
+builtinNatModSucAux                  = "NATMODSUCAUX"
+builtinNatEquals                     = "NATEQUALS"
+builtinNatLess                       = "NATLESS"
+builtinInteger                       = "INTEGER"
+builtinFloat                         = "FLOAT"
+builtinChar                          = "CHAR"
+builtinString                        = "STRING"
+builtinBool                          = "BOOL"
+builtinTrue                          = "TRUE"
+builtinFalse                         = "FALSE"
+builtinList                          = "LIST"
+builtinNil                           = "NIL"
+builtinCons                          = "CONS"
+builtinIO                            = "IO"
+builtinSize                          = "SIZE"
+builtinSizeLt                        = "SIZELT"
+builtinSizeSuc                       = "SIZESUC"
+builtinSizeInf                       = "SIZEINF"
+builtinSizeMax                       = "SIZEMAX"
+builtinInf                           = "INFINITY"
+builtinSharp                         = "SHARP"
+builtinFlat                          = "FLAT"
+builtinEquality                      = "EQUALITY"
+builtinRefl                          = "REFL"
+builtinRewrite                       = "REWRITE"
+builtinLevelMax                      = "LEVELMAX"
+builtinLevel                         = "LEVEL"
+builtinLevelZero                     = "LEVELZERO"
+builtinLevelSuc                      = "LEVELSUC"
+builtinIrrAxiom                      = "IRRAXIOM"
+builtinQName                         = "QNAME"
+builtinAgdaSort                      = "AGDASORT"
+builtinAgdaSortSet                   = "AGDASORTSET"
+builtinAgdaSortLit                   = "AGDASORTLIT"
+builtinAgdaSortUnsupported           = "AGDASORTUNSUPPORTED"
+builtinAgdaType                      = "AGDATYPE"
+builtinAgdaTypeEl                    = "AGDATYPEEL"
+builtinHiding                        = "HIDING"
+builtinHidden                        = "HIDDEN"
+builtinInstance                      = "INSTANCE"
+builtinVisible                       = "VISIBLE"
+builtinRelevance                     = "RELEVANCE"
+builtinRelevant                      = "RELEVANT"
+builtinIrrelevant                    = "IRRELEVANT"
+builtinArg                           = "ARG"
+builtinArgInfo                       = "ARGINFO"
+builtinArgArgInfo                    = "ARGARGINFO"
+builtinArgArg                        = "ARGARG"
+builtinAgdaTerm                      = "AGDATERM"
+builtinAgdaTermVar                   = "AGDATERMVAR"
+builtinAgdaTermLam                   = "AGDATERMLAM"
+builtinAgdaTermExtLam                = "AGDATERMEXTLAM"
+builtinAgdaTermDef                   = "AGDATERMDEF"
+builtinAgdaTermCon                   = "AGDATERMCON"
+builtinAgdaTermPi                    = "AGDATERMPI"
+builtinAgdaTermSort                  = "AGDATERMSORT"
+builtinAgdaTermLit                   = "AGDATERMLIT"
+builtinAgdaTermUnsupported           = "AGDATERMUNSUPPORTED"
+builtinAgdaLiteral                   = "AGDALITERAL"
+builtinAgdaLitNat                    = "AGDALITNAT"
+builtinAgdaLitFloat                  = "AGDALITFLOAT"
+builtinAgdaLitChar                   = "AGDALITCHAR"
+builtinAgdaLitString                 = "AGDALITSTRING"
+builtinAgdaLitQName                  = "AGDALITQNAME"
 builtinAgdaFunDef                    = "AGDAFUNDEF"
 builtinAgdaFunDefCon                 = "AGDAFUNDEFCON"
 builtinAgdaClause                    = "AGDACLAUSE"

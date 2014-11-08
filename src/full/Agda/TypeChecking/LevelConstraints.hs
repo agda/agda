@@ -1,3 +1,4 @@
+{-# OPTIONS_GHC -fwarn-missing-signatures #-}
 
 module Agda.TypeChecking.LevelConstraints ( simplifyLevelConstraint ) where
 
@@ -33,6 +34,7 @@ simplifyLevelConstraint n new old =
 data Leq = PlusLevel :=< PlusLevel
   deriving (Show, Eq)
 
+inequalities :: Constraint -> [Leq]
 inequalities (LevelCmp CmpEq (Max [a, b]) (Max [c]))
   | a == c = [b :=< a]
   | b == c = [a :=< b]

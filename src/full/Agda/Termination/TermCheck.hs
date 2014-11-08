@@ -1,3 +1,5 @@
+{-# OPTIONS_GHC -fwarn-missing-signatures #-}
+
 {-# LANGUAGE CPP                        #-}
 {-# LANGUAGE FlexibleInstances          #-}
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
@@ -95,7 +97,6 @@ type Calls = CallGraph CallPath
 --   Must be 'Pointed' and a 'Monoid'.
 
 type Result = [TerminationError]
-
 
 -- | Termination check a single declaration.
 
@@ -285,6 +286,10 @@ termMutual' = do
         show (names) ++ " does termination check"
       return mempty
 
+-- ASR (08 November 2014). The type the function could be
+--
+-- @Either a b -> TerM (Either a b)@.
+billToTerGraph :: a -> TerM a
 billToTerGraph = billPureTo [Benchmark.Termination, Benchmark.Graph]
 
 -- | @reportCalls@ for debug printing.

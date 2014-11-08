@@ -1,3 +1,5 @@
+{-# OPTIONS_GHC -fwarn-missing-signatures #-}
+
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
 
 {- | Construct a graph from constraints
@@ -115,8 +117,9 @@ instance Show Node where
   show (Rigid (RConst Infinite))   = "#"
   show (Rigid (RConst (Finite n))) = show n
 
+infinite :: Rigid -> Bool
 infinite (RConst Infinite) = True
-infinite _ = False
+infinite _                 = False
 
 -- | @isBelow r w r'@
 --   checks, if @r@ and @r'@ are connected by @w@ (meaning @w@ not infinite),
@@ -145,6 +148,7 @@ instance Show Constraint where
 
 type Constraints = [Constraint]
 
+emptyConstraints :: Constraints
 emptyConstraints = []
 
 -- graph (matrix) ------------------------------------------------
@@ -158,6 +162,7 @@ data Graph = Graph
   }
 
 -- | The empty graph: no nodes, edges are all undefined (infinity weight).
+initGraph :: Graph
 initGraph = Graph Map.empty Map.empty Map.empty 0 (\ x y -> Infinite)
 
 -- | The Graph Monad, for constructing a graph iteratively.
@@ -236,7 +241,10 @@ instance (Show a, Show b, Show c) => Show (LegendMatrix a b c) where
 --   which is either a constant or a @v + n@ for a rigid variable @v@.
 type Solution = Map Int SizeExpr
 
+emptySolution :: Solution
 emptySolution = Map.empty
+
+extendSolution :: Solution -> Int -> SizeExpr -> Solution
 extendSolution subst k v = Map.insert k v subst
 
 data SizeExpr = SizeVar RigidId Int   -- ^ e.g. x + 5
@@ -455,6 +463,7 @@ edges g = do
   return (i, j, e)
 
 -- | Check that no edges get longer when completing a graph.
+prop_smaller :: Nat -> Property
 prop_smaller n' =
   forAll (genGraph_ n) $ \g ->
   let g' = warshallG g in
@@ -466,21 +475,30 @@ prop_smaller n' =
     Nothing =< _ = False
     Just x  =< y = x <= y
 
+newEdge :: Nat -> Nat -> Distance -> AdjList Nat Distance ->
+           AdjList Nat Distance
 newEdge i j e = Map.insertWith (++) i [(j, e)]
 
-genPath :: Nat -> Nat -> Nat -> AdjList Nat Distance -> Gen (AdjList Nat Distance)
+genPath :: Nat -> Nat -> Nat -> AdjList Nat Distance ->
+           Gen (AdjList Nat Distance)
 genPath n i j g = do
   es <- listOf $ (,) <$> node <*> edge
   v  <- edge
   return $ addPath i (es ++ [(j, v)]) g
   where
+    edge :: Gen Distance
     edge = Dist <$> natural
+
+    node :: Gen Nat
     node = choose (0, n - 1)
-    addPath _ [] g = g
-    addPath i ((j, v):es) g =
-      newEdge i j v $ addPath j es g
+
+    addPath :: Nat -> [(Nat, Distance)] -> AdjList Nat Distance ->
+               AdjList Nat Distance
+    addPath _ []          g = g
+    addPath i ((j, v):es) g = newEdge i j v $ addPath j es g
 
 -- | Check that all transitive edges are added.
+prop_path :: Nat -> Property
 prop_path n' =
   forAll (genGraph_ n) $ \g ->
   forAll (two $ choose (0, n - 1)) $ \(i, j) ->
@@ -495,6 +513,7 @@ mapNodes f = Map.map f' . Map.mapKeys f
     f' es = [ (f n, e) | (n,e) <- es ]
 
 -- | Check that no edges are added between components.
+prop_disjoint :: Nat -> Property
 prop_disjoint n' =
   forAll (two $ genGraph_ n) $ \(g1, g2) ->
   let g  = Map.union (mapNodes Left g1) (mapNodes Right g2)
@@ -507,6 +526,7 @@ prop_disjoint n' =
     isLeft = either (const True) (const False)
     isRight = not . isLeft
 
+prop_stable :: Nat -> Property
 prop_stable n' =
   forAll (genGraph_ n) $ \g ->
   let g' = warshallG g in

@@ -1,3 +1,5 @@
+{-# OPTIONS_GHC -fwarn-missing-signatures #-}
+
 {-# LANGUAGE DeriveDataTypeable #-}
 
 -- | Types used for precise syntax highlighting.
@@ -245,6 +247,7 @@ decompress =
   map (\(r, m) -> [ (p, m) | p <- rangeToPositions r ]) .
   ranges
 
+prop_compress :: File -> Bool
 prop_compress f =
   compressedFileInvariant c
   &&
@@ -272,6 +275,7 @@ singletonC :: Ranges -> Aspects -> CompressedFile
 singletonC (Ranges rs) m =
   CompressedFile [(r, m) | r <- rs, not (empty r)]
 
+prop_singleton :: Ranges -> Aspects -> Bool
 prop_singleton rs m = singleton rs m == decompress (singletonC rs m)
 
 -- | Like 'singletonR', but with a list of 'Ranges' instead of a
@@ -280,6 +284,7 @@ prop_singleton rs m = singleton rs m == decompress (singletonC rs m)
 severalC :: [Ranges] -> Aspects -> CompressedFile
 severalC rss m = mconcat $ map (\rs -> singletonC rs m) rss
 
+prop_several :: [Ranges] -> Aspects -> Bool
 prop_several rss m = several rss m == decompress (severalC rss m)
 
 -- | Merges compressed files.
@@ -311,6 +316,7 @@ mergeC (CompressedFile f1) (CompressedFile f2) =
              [(from i1, m1), (to i1, m1), (from i2, m2), (to i2, m2)]
     fix = filter (not . empty . fst)
 
+prop_merge :: File -> File -> Bool
 prop_merge f1 f2 =
   merge f1 f2 == decompress (mergeC (compress f1) (compress f2))
 
@@ -337,6 +343,7 @@ splitAtC p f = (CompressedFile f1, CompressedFile f2)
           toP      = Range { from = from r, to = p    }
           fromP    = Range { from = p,      to = to r }
 
+prop_splitAtC :: Int -> CompressedFile -> Bool
 prop_splitAtC p f =
   all (<  p) (positions f1) &&
   all (>= p) (positions f2) &&
@@ -352,6 +359,7 @@ smallestPosC :: CompressedFile -> Maybe Int
 smallestPosC (CompressedFile [])           = Nothing
 smallestPosC (CompressedFile ((r, _) : _)) = Just (from r)
 
+prop_smallestPos :: CompressedFile -> Bool
 prop_smallestPos f = smallestPos (decompress f) == smallestPosC f
 
 ------------------------------------------------------------------------

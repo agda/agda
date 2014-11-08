@@ -1,3 +1,5 @@
+{-# OPTIONS_GHC -fwarn-missing-signatures #-}
+
 {-# LANGUAGE CPP          #-}
 {-# LANGUAGE ViewPatterns #-}
 
@@ -95,6 +97,7 @@ emptyState = State
 ------------------------------------------------------------------------
 -- * Some helpers.
 
+(<+>) :: Text -> Text -> Text
 (<+>) = T.append
 
 isInfixOf' :: Text -> Text -> Maybe (Text, Text)
@@ -248,24 +251,40 @@ output text = do
 -- Polytable, http://www.ctan.org/pkg/polytable, is used for code
 -- alignment, similar to lhs2TeX's approach.
 
+nl, beginCode, endCode :: Text
 nl        = T.pack "%\n"
 beginCode = T.pack "\\begin{code}"
 endCode   = T.pack "\\end{code}"
 
-ptOpen     = T.pack "\\>"
-ptOpen'  i = ptOpen <+> T.pack ("[" ++ show i ++ "]")
-ptClose    = T.pack "\\<"
-ptClose' i = ptClose <+> T.pack ("[" ++ show i ++ "]")
-ptNL       = nl <+> T.pack "\\\\\n"
+ptOpen :: Text
+ptOpen = T.pack "\\>"
 
-cmdPrefix   = T.pack "\\Agda"
-cmdArg    x = T.singleton '{' <+> x <+> T.singleton '}'
+ptOpen' :: Show a => a -> Text
+ptOpen' i = ptOpen <+> T.pack ("[" ++ show i ++ "]")
+
+ptClose :: Text
+ptClose = T.pack "\\<"
+
+ptClose' :: Show a => a -> Text
+ptClose' i = ptClose <+> T.pack ("[" ++ show i ++ "]")
+
+ptNL :: Text
+ptNL = nl <+> T.pack "\\\\\n"
+
+cmdPrefix :: Text
+cmdPrefix = T.pack "\\Agda"
+
+cmdArg :: Text -> Text
+cmdArg x = T.singleton '{' <+> x <+> T.singleton '}'
+
+cmdIndent :: Show a => a -> Text
 cmdIndent i = cmdPrefix <+> T.pack "Indent" <+>
                   cmdArg (T.pack (show i)) <+> cmdArg T.empty
 
-infixl'     = T.pack "infixl"
-infix'      = T.pack "infix"
-infixr'     = T.pack "infixr"
+infixl', infix', infixr' :: Text
+infixl' = T.pack "infixl"
+infix'  = T.pack "infix"
+infixr' = T.pack "infixr"
 
 ------------------------------------------------------------------------
 -- * Automaton.
@@ -476,6 +495,7 @@ spaces (_                              : ss) = __IMPOSSIBLE__
 ------------------------------------------------------------------------
 -- * Main.
 
+defaultStyFile :: String
 defaultStyFile = "agda.sty"
 
 -- | The only exported function. It's (only) called in @Main.hs@.

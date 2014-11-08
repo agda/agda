@@ -1,3 +1,5 @@
+{-# OPTIONS_GHC -fwarn-missing-signatures #-}
+
 {-# LANGUAGE CPP              #-}
 {-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE PatternGuards    #-}
@@ -552,6 +554,7 @@ split ind sc x = fmap (blendInAbsurdClause (splitDbIndexToLevel sc x)) <$>
 -- | Convert a de Bruijn index relative to a telescope to a de Buijn level.
 --   The result should be the argument (counted from left, starting with 0)
 --   to split at (dot patterns included!).
+dbIndexToLevel :: Telescope -> Permutation -> Int -> Nat
 dbIndexToLevel tel perm x = if n < 0 then __IMPOSSIBLE__ else n
   where n = if k < 0 then __IMPOSSIBLE__ else permute perm [0..] !! k
         k = size tel - x - 1
@@ -646,6 +649,7 @@ split' ind sc@(SClause tel perm ps _ target) (BlockingVar x mcons) = liftTCM $ r
     _  -> return $ Right $ Covering xDBLevel ns
 
   where
+    xDBLevel :: Nat
     xDBLevel = dbIndexToLevel tel perm x
 
     inContextOfT :: MonadTCM tcm => tcm a -> tcm a

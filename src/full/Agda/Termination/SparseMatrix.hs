@@ -1,3 +1,5 @@
+{-# OPTIONS_GHC -fwarn-missing-signatures #-}
+
 {-# LANGUAGE CPP                    #-}
 {-# LANGUAGE DeriveFoldable         #-}
 {-# LANGUAGE DeriveFunctor          #-}
@@ -563,6 +565,7 @@ matrix :: (Arbitrary i, Integral i, Arbitrary b, HasZero b)
   => Size i -> Gen (Matrix i b)
 matrix sz = matrixUsingRowGen sz (\n -> vectorOf (fromIntegral n) arbitrary)
 
+prop_matrix :: Size Int -> Property
 prop_matrix sz = forAll (matrix sz :: Gen TM) $ \ m -> size m == sz
 
 -- | Generate a matrix of arbitrary size.
@@ -605,10 +608,10 @@ prop_diagonal :: TM -> Bool
 prop_diagonal m@(Matrix (Size r c) _) =
     length (diagonal m) == min r c
 
-prop_diagonal' n =
-  forAll natural $ \n ->
-  forAll (matrix (Size n n) :: Gen TM) $ \m ->
-    length (diagonal m) == n
+-- prop_diagonal' n =
+--   forAll natural $ \n ->
+--   forAll (matrix (Size n n) :: Gen TM) $ \m ->
+--     length (diagonal m) == n
 
 -- | Transposing twice is the identity.
 
@@ -647,6 +650,7 @@ prop_zipMatrices_correct m1 m2 =
 
 -- | Matrix addition is well-defined, associative and commutative.
 
+prop_add :: Size Int -> Property
 prop_add sz =
   forAll (three (matrix sz :: Gen TM)) $ \(m1, m2, m3) ->
     let m' = add (+) m1 m2 in
@@ -693,6 +697,7 @@ prop_interAssocWith_correct xs ys =
 
 -- | Matrix multiplication is well-defined and associative.
 
+prop_mul :: Size Int -> Property
 prop_mul sz =
   mapSize (`div` 2) $
   forAll (two natural) $ \(c2, c3) ->

@@ -1,3 +1,5 @@
+{-# OPTIONS_GHC -fwarn-missing-signatures #-}
+
 {-# LANGUAGE CPP                        #-}
 {-# LANGUAGE DeriveDataTypeable         #-}
 {-# LANGUAGE DeriveFoldable             #-}
@@ -86,7 +88,9 @@ instance HasConstInfo Unify where
 data UnifyMayPostpone = MayPostpone | MayNotPostpone
 
 type UnifyEnv = UnifyMayPostpone
-emptyUEnv   = MayPostpone
+
+emptyUEnv :: UnifyEnv
+emptyUEnv = MayPostpone
 
 noPostponing :: Unify a -> Unify a
 noPostponing (U (ReaderT f)) = U . ReaderT . const $ f MayNotPostpone
@@ -142,6 +146,7 @@ data UnifyState = USt { uniSub    :: Sub
                       , uniConstr :: [Equality]
                       }
 
+emptyUState :: UnifyState
 emptyUState = USt Map.empty []
 
 -- | Throw-away error message.

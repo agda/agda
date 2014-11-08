@@ -1,3 +1,5 @@
+{-# OPTIONS_GHC -fwarn-missing-signatures #-}
+
 {-# LANGUAGE DeriveFunctor              #-}
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
 {-# LANGUAGE TupleSections              #-}
@@ -130,6 +132,7 @@ nodes g = Map.keysSet (unGraph g)
 fromNodes :: Ord n => [n] -> Graph n e
 fromNodes = Graph . Map.fromList . map (, Map.empty)
 
+prop_nodes_fromNodes :: Ord n => [n] -> Bool
 prop_nodes_fromNodes ns = nodes (fromNodes ns) == Set.fromList ns
 
 -- | Constructs a graph from a list of edges.  O(e)
@@ -280,6 +283,7 @@ transitiveClosure g = List.foldl' extend g $ sccs' g
       Just es -> Graph $ Map.singleton a $ Map.map (otimes w) es
       Nothing -> empty
 
+prop_transitiveClosure :: (Eq e, SemiRing e, Ord n) => Graph n e -> Property
 prop_transitiveClosure g = label sccInfo $
   transitiveClosure g == transitiveClosure1 g
   where

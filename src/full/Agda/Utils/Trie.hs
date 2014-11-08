@@ -1,5 +1,7 @@
 -- | Strict tries (based on 'Data.Map.Strict' and 'Agda.Utils.Maybe.Strict').
 
+{-# OPTIONS_GHC -fwarn-missing-signatures #-}
+
 {-# LANGUAGE CPP                        #-}
 {-# LANGUAGE BangPatterns               #-}
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
@@ -140,6 +142,7 @@ modelPath ks (Model xs) =
   $ nubBy ((==) `on` fst)
   $ filter (flip isPrefixOf ks . fst) xs
 
+prop_path :: [Key] -> Model -> Property
 prop_path ks m =
   collect (length $ modelPath ks m) $
   lookupPath ks (modelToTrie m) == modelPath ks m

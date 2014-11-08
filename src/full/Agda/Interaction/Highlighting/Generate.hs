@@ -1,3 +1,5 @@
+{-# OPTIONS_GHC -fwarn-missing-signatures #-}
+
 {-# LANGUAGE CPP              #-}
 {-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE RelaxedPolyRec   #-}
@@ -630,9 +632,14 @@ nameToFileA modMap file x include m =
              m
              (if include then Just $ bindingSite x else Nothing)
 
-concreteBase      = A.nameConcrete . A.qnameName
+concreteBase :: I.QName -> C.Name
+concreteBase = A.nameConcrete . A.qnameName
+
+concreteQualifier :: I.QName -> [C.Name]
 concreteQualifier = map A.nameConcrete . A.mnameToList . A.qnameModule
-bindingSite       = A.nameBindingSite . A.qnameName
+
+bindingSite :: I.QName -> P.Range
+bindingSite = A.nameBindingSite . A.qnameName
 
 -- | Remember a name disambiguation (during type checking).
 --   To be used later during syntax highlighting.

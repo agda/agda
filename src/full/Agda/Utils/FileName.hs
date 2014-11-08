@@ -1,3 +1,5 @@
+{-# OPTIONS_GHC -fwarn-missing-signatures #-}
+
 {-# LANGUAGE CPP                #-}
 {-# LANGUAGE DeriveDataTypeable #-}
 
@@ -75,6 +77,11 @@ mkAbsolute f
       AbsolutePath $ ByteString.pack $ dropTrailingPathSeparator $ normalise f
   | otherwise    = __IMPOSSIBLE__
 
+#if mingw32_HOST_OS
+prop_mkAbsolute :: FilePath -> Propertty
+#else
+prop_mkAbsolute :: FilePath -> Bool
+#endif
 prop_mkAbsolute f =
   let path = rootPath ++ f
   in
@@ -83,6 +90,7 @@ prop_mkAbsolute f =
 #endif
       absolutePathInvariant $ mkAbsolute $ path
 
+rootPath :: FilePath
 #if mingw32_HOST_OS
 rootPath = joinDrive "C:" [pathSeparator]
 #else
@@ -148,6 +156,7 @@ instance Arbitrary AbsolutePath where
 ------------------------------------------------------------------------
 -- All tests
 
+tests :: IO Bool
 tests = runTests "Agda.Utils.FileName"
   [ quickCheck' absolutePathInvariant
   , quickCheck' prop_mkAbsolute

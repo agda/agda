@@ -1,3 +1,4 @@
+-- {-# OPTIONS_GHC -fwarn-missing-signatures #-}
 -- {-# OPTIONS -fwarn-unused-binds #-}
 
 {-# LANGUAGE CPP                    #-}

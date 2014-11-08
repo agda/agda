@@ -1,3 +1,5 @@
+{-# OPTIONS_GHC -fwarn-missing-signatures #-}
+
 {-# LANGUAGE CPP                #-}
 {-# LANGUAGE DeriveDataTypeable #-}
 {-# LANGUAGE DeriveFoldable     #-}
@@ -61,10 +63,17 @@ data CompiledClauses
     -- ^ Absurd case.
   deriving (Typeable)
 
+emptyBranches :: Case CompiledClauses
 emptyBranches = Branches Map.empty Map.empty Nothing
+
+litCase :: Literal -> c -> Case c
 litCase l x = Branches Map.empty (Map.singleton l x) Nothing
+
+conCase :: QName -> WithArity c -> Case c
 conCase c x = Branches (Map.singleton c x) Map.empty Nothing
-catchAll x  = Branches Map.empty Map.empty (Just x)
+
+catchAll :: c -> Case c
+catchAll x = Branches Map.empty Map.empty (Just x)
 
 instance Monoid c => Monoid (WithArity c) where
   mempty = WithArity __IMPOSSIBLE__ mempty

@@ -1,3 +1,5 @@
+{-# OPTIONS_GHC -fwarn-missing-signatures #-}
+
 {-# LANGUAGE CPP #-}
 
 module Agda.Compiler.MAlonzo.Primitives where
@@ -130,6 +132,10 @@ declsForPrim = xForPrim $
     decls cs n1 b1 n2 b2 =
       do cs' <- mapM pconName cs
          return $ zipWith (\ n -> fakeDS n . repl cs') [n1, n2] [b1, b2]
+
+mazNatToInteger, mazIntegerToNat, mazNatToInt, mazIntToNat, mazCharToInteger,
+  mazListToHList, mazHListToList, mazListToString, mazStringToList,
+  mazBoolToHBool, mazHBoolToBool :: String
 
 mazNatToInteger  = "mazNatToInteger"
 mazIntegerToNat  = "mazIntegerToNat"
@@ -270,9 +276,9 @@ primBody s = maybe unimplemented (either (hsVarUQ . HS.Ident) id <$>) $
 
   lam x t = Lam (setHiding Hidden defaultArgInfo) (Abs x t)
 
-
 ----------------------
 
+repl :: [String] -> String -> String
 repl subs = go where
   go ('<':'<':c:'>':'>':s) | 0 <= i && i < length subs = subs !! i ++ go s
      where i = ord c - ord '0'
@@ -296,5 +302,5 @@ hasCompiledData (s:_) = toB =<< getBuiltin s where
   toB _         = return False
 hasCompiledData _    = return False
 
-
+bltQual' :: String -> String -> TCM String
 bltQual' b s = prettyPrint <$> bltQual b s
