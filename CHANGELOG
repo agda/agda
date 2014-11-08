@@ -128,6 +128,45 @@ Type checking
 
   See issues 1023, 1264, 1292.
 
+Termination checking
+====================
+
+* The termination checker can now recognize simple subterms in dot
+  patterns.
+
+    data Subst : (d : Nat) → Set where
+      c₁ : ∀ {d} → Subst d → Subst d
+      c₂ : ∀ {d₁ d₂} → Subst d₁ → Subst d₂ → Subst (suc d₁ + d₂)
+
+    postulate
+      comp : ∀ {d₁ d₂} → Subst d₁ → Subst d₂ → Subst (d₁ + d₂)
+
+    lookup : ∀ d → Nat → Subst d → Set₁
+    lookup d             zero    (c₁ ρ)             = Set
+    lookup d             (suc v) (c₁ ρ)             = lookup d v ρ
+    lookup .(suc d₁ + d₂) v      (c₂ {d₁} {d₂} ρ σ) = lookup (d₁ + d₂) v (comp ρ σ)
+
+  The dot pattern here is actually normalized, so it is
+
+    suc (d₁ + d₂)
+
+  and the corresponding recursive call argument is (d₁ + d₂).
+  In such simple cases, Agda can now recognize that the pattern is
+  constructor applied to call argument, which is valid descent.
+
+  Note however, that Agda only looks for syntactic equality when
+  identifying subterms, since she is not allowed to normalize terms on
+  the rhs during termination checking.
+
+  Actually writing the dot pattern has no effect, this works as well,
+  and looks pretty magical... ;-)
+
+    hidden : ∀{d} → Nat → Subst d → Set₁
+    hidden zero    (c₁ ρ)   = Set
+    hidden (suc v) (c₁ ρ)   = hidden v ρ
+    hidden v       (c₂ ρ σ) = hidden v (comp ρ σ)
+
+
 Bug fixes
 =========
 
