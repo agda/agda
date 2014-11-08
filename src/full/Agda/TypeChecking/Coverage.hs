@@ -60,7 +60,7 @@ import Agda.TypeChecking.Irrelevance
 import Agda.Interaction.Options
 
 import Agda.Utils.Either
-import Agda.Utils.Functor (for, ($>))
+import Agda.Utils.Functor
 import Agda.Utils.List
 import Agda.Utils.Maybe
 import Agda.Utils.Monad
@@ -191,8 +191,11 @@ cover f cs sc@(SClause tel perm ps _ target) = do
       let done = return (SplittingDone (size tel), Set.empty, [ps])
       caseMaybeM (splitResult f sc) done $ \ (Covering n scs) -> do
         (projs, (trees, useds, psss)) <- mapSnd unzip3 . unzip <$> do
-          forM scs $ \ (proj, sc') -> (proj,) <$> do cover f cs =<< fixTarget sc'
-          -- OR: mapM (traverseF $ cover f cs <=< fixTarget) scs
+          mapM (traverseF $ cover f cs <=< (snd <.> fixTarget)) scs
+          -- OR:
+          -- forM scs $ \ (proj, sc') -> (proj,) <$> do
+          --   cover f cs =<< do
+          --     snd <$> fixTarget sc'
         let tree = SplitAt n $ zip projs trees
         return (tree, Set.unions useds, concat psss)
 
@@ -272,11 +275,12 @@ isDatatype ind at = do
         _ -> throw NotADatatype
     _ -> throw NotADatatype
 
--- | update the target type, add more patterns to split clause
--- if target becomes a function type.
-fixTarget :: SplitClause -> TCM SplitClause
+-- | Update the target type, add more patterns to split clause
+--   if target becomes a function type.
+--   Returns @True@ if new patterns were added.
+fixTarget :: SplitClause -> TCM (Bool, SplitClause)
 fixTarget sc@SClause{ scTel = sctel, scPerm = perm, scPats = ps, scSubst = sigma, scTarget = target } =
-  caseMaybe target (return sc) $ \ a -> do
+  caseMaybe target (return (False, sc)) $ \ a -> do
     reportSDoc "tc.cover.target" 20 $ sep
       [ text "split clause telescope: " <+> prettyTCM sctel
       , text "old permutation       : " <+> prettyTCM perm
@@ -313,7 +317,7 @@ fixTarget sc@SClause{ scTel = sctel, scPerm = perm, scPats = ps, scSubst = sigma
       [ text "new split clause"
       , prettyTCM sc'
       ]
-    return $ if n == 0 then sc { scTarget = newTarget } else sc'
+    return $ if n == 0 then (False, sc { scTarget = newTarget }) else (True, sc')
 
 -- | @computeNeighbourhood delta1 delta2 perm d pars ixs hix hps con@
 --
@@ -603,8 +607,9 @@ split' ind sc@(SClause tel perm ps _ target) (BlockingVar x mcons) = liftTCM $ r
   ns <- catMaybes <$> do
     forM cons $ \ con ->
       fmap (con,) <$> do
-        Trav.mapM (\sc -> lift $ fixTarget $ sc { scTarget = target }) =<< do
-          computeNeighbourhood delta1 n delta2 perm d pars ixs hix hps con
+        msc <- computeNeighbourhood delta1 n delta2 perm d pars ixs hix hps con
+        Trav.forM msc $ \ sc -> lift $ snd <$> fixTarget sc{ scTarget = target }
+
   case ns of
     []  -> do
       let absurd = VarP "()"
