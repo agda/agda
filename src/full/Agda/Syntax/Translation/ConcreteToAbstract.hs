@@ -515,6 +515,49 @@ toAbstractLam r bs e ctx = do
   where
     mkLam b e = A.Lam (ExprRange $ fuseRange b e) b e
 
+-- | Scope check extended lambda expression.
+scopeCheckExtendedLam :: Range -> [(C.LHS, C.RHS, WhereClause)] -> ScopeM A.Expr
+scopeCheckExtendedLam r cs = do
+  whenM isInsideDotPattern $
+    typeError $ GenericError "Extended lambdas are not allowed in dot patterns"
+
+  -- Find an unused name for the extended lambda definition.
+  cname <- nextlamname r 0 extendedLambdaName
+  name  <- freshAbstractName_ cname
+  reportSLn "scope.extendedLambda" 10 $ "new extended lambda name: " ++ show name
+  qname <- qualifyName_ name
+  bindName PrivateAccess DefName cname qname
+
+  -- Compose a function definition an scope check it.
+  let
+    insertApp (C.RawAppP r es) = C.RawAppP r $ IdentP (C.QName cname) : es
+    insertApp (C.IdentP q    ) = C.RawAppP r $ IdentP (C.QName cname) : [C.IdentP q]
+      where r = getRange q
+    insertApp _ = __IMPOSSIBLE__
+    d = C.FunDef r [] defaultFixity' ConcreteDef TerminationCheck cname $
+          for cs $ \ (lhs, rhs, wh) -> -- wh == NoWhere, see parser for more info
+            C.Clause cname (mapLhsOriginalPattern insertApp lhs) rhs wh []
+  scdef <- toAbstract d
+
+  -- Create the abstract syntax for the extended lambda.
+  case scdef of
+    A.ScopedDecl si [A.FunDef di qname' NotDelayed cs] -> do
+      setScope si  -- This turns into an A.ScopedExpr si $ A.ExtendedLam...
+      return $ A.ExtendedLam (ExprRange r) di qname' cs
+    _ -> __IMPOSSIBLE__
+
+  where
+    -- Get a concrete name that is not yet in scope.
+    nextlamname :: Range -> Int -> String -> ScopeM C.Name
+    nextlamname r i s = do
+      let cname = C.Name r [Id $ stringToRawName $ s ++ show i]
+      rn <- resolveName $ C.QName cname
+      case rn of
+        UnknownName -> return cname
+        _           -> nextlamname r (i+1) s
+
+
+
 instance ToAbstract C.Expr A.Expr where
   toAbstract e =
     traceCall (ScopeCheckExpr e) $ annotateExpr $ case e of
@@ -586,36 +629,9 @@ instance ToAbstract C.Expr A.Expr where
       C.Lam r bs e -> toAbstractLam r bs e TopCtx
 
   -- Extended Lambda
-      C.ExtendedLam r cs ->
-        ifM isInsideDotPattern (typeError $ GenericError "Extended lambdas are not allowed in dot patterns") $ do
-        cname <- nextlamname r 0 extendedLambdaName
-        name  <- freshAbstractName_ cname
-        reportSLn "scope.extendedLambda" 10 $ "new extended lambda name: " ++ show name
-        qname <- qualifyName_ name
-        bindName PrivateAccess DefName cname qname
-        let insertApp (C.RawAppP r es) = C.RawAppP r ((IdentP (C.QName cname)) : es)
-            insertApp (C.IdentP q) = C.RawAppP (getRange q) ((IdentP (C.QName cname)) : [C.IdentP q])
-            insertApp _ = __IMPOSSIBLE__
-            insertHead (C.LHS p wps eqs with) = C.LHS (insertApp p) wps eqs with
-            insertHead (C.Ellipsis r wps eqs with) = C.Ellipsis r wps eqs with
-        scdef <- toAbstract (C.FunDef r [] defaultFixity' ConcreteDef TerminationCheck cname
-                               (map (\(lhs,rhs,wh) -> -- wh = NoWhere, see parser for more info
-                                      C.Clause cname (insertHead lhs) rhs wh []) cs))
-        case scdef of
-          (A.ScopedDecl si [A.FunDef di qname' NotDelayed cs]) -> do
-            setScope si
-            return $ A.ExtendedLam (ExprRange r) di qname' cs
-          _ -> __IMPOSSIBLE__
-          where
-            nextlamname :: Range -> Int -> String -> ScopeM C.Name
-            nextlamname r i s = do
-              let cname_pre = C.Name r [Id $ stringToRawName $ s ++ show i]
-              rn <- resolveName (C.QName cname_pre)
-              case rn of
-                UnknownName -> return $ cname_pre
-                _           -> nextlamname r (i+1) s
+      C.ExtendedLam r cs -> scopeCheckExtendedLam r cs
 
--- Irrelevant non-dependent function type
+  -- Relevant and irrelevant non-dependent function type
 
       C.Fun r e1 e2 -> do
         Common.Arg info (e0, dotted) <- traverse (toAbstractDot FunctionSpaceDomainCtx) $ mkArg e1
