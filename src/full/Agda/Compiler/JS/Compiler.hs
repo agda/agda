@@ -1,3 +1,5 @@
+{-# OPTIONS_GHC -fwarn-missing-signatures #-}
+
 {-# LANGUAGE CPP            #-}
 {-# LANGUAGE NamedFieldPuns #-}
 
@@ -113,7 +115,8 @@ compile i = do
 -- Naming
 --------------------------------------------------
 
-prefix  = "jAgda"
+prefix :: [Char]
+prefix = "jAgda"
 
 jsMod :: ModuleName -> GlobalId
 jsMod m = GlobalId (prefix : map show (mnameToList m))

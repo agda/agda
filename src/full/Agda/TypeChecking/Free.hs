@@ -1,3 +1,5 @@
+{-# OPTIONS_GHC -fwarn-missing-signatures #-}
+
 {-# LANGUAGE CPP                  #-}
 {-# LANGUAGE FlexibleInstances    #-}
 {-# LANGUAGE TypeSynonymInstances #-}
@@ -208,6 +210,7 @@ data FreeConf = FreeConf
     -- ^ Under how many binders have we stepped?
   }
 
+initFreeConf :: FreeConf
 initFreeConf = FreeConf
   { fcIgnoreSorts = IgnoreNot
   , fcContext     = 0

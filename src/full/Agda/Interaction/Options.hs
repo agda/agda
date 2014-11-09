@@ -1,3 +1,5 @@
+{-# OPTIONS_GHC -fwarn-missing-signatures #-}
+
 {-# LANGUAGE CPP #-}
 
 #if __GLASGOW_HASKELL__ <= 706
@@ -68,36 +70,36 @@ type IncludeDirs = Either [FilePath] [AbsolutePath]
      -- interpreted as @["."]@ (see
      -- 'Agda.TypeChecking.Monad.Options.makeIncludeDirsAbsolute').
 
-data CommandLineOptions =
-    Options { optProgramName          :: String
-            , optInputFile            :: Maybe FilePath
-            , optIncludeDirs          :: IncludeDirs
-            , optShowVersion          :: Bool
-            , optShowHelp             :: Bool
-            , optInteractive          :: Bool
-            , optRunTests             :: Bool
-            , optGHCiInteraction      :: Bool
-            , optCompile              :: Bool
-            , optCompileNoMain        :: Bool
-            , optEpicCompile          :: Bool
-            , optJSCompile            :: Bool
-            , optCompileDir           :: Maybe FilePath
-              -- ^ In the absence of a path the project root is used.
-            , optGenerateVimFile      :: Bool
-            , optGenerateLaTeX        :: Bool
-            , optGenerateHTML         :: Bool
-            , optDependencyGraph      :: Maybe FilePath
-            , optLaTeXDir             :: FilePath
-            , optHTMLDir              :: FilePath
-            , optCSSFile              :: Maybe FilePath
-            , optIgnoreInterfaces     :: Bool
-            , optForcing              :: Bool
-            , optGhcFlags             :: [String]
-            , optPragmaOptions        :: PragmaOptions
-            , optEpicFlags            :: [String]
-            , optSafe                 :: Bool
-            }
-    deriving Show
+data CommandLineOptions = Options
+  { optProgramName      :: String
+  , optInputFile        :: Maybe FilePath
+  , optIncludeDirs      :: IncludeDirs
+  , optShowVersion      :: Bool
+  , optShowHelp         :: Bool
+  , optInteractive      :: Bool
+  , optRunTests         :: Bool
+  , optGHCiInteraction  :: Bool
+  , optCompile          :: Bool
+  , optCompileNoMain    :: Bool
+  , optEpicCompile      :: Bool
+  , optJSCompile        :: Bool
+  , optCompileDir       :: Maybe FilePath
+  -- ^ In the absence of a path the project root is used.
+  , optGenerateVimFile  :: Bool
+  , optGenerateLaTeX    :: Bool
+  , optGenerateHTML     :: Bool
+  , optDependencyGraph  :: Maybe FilePath
+  , optLaTeXDir         :: FilePath
+  , optHTMLDir          :: FilePath
+  , optCSSFile          :: Maybe FilePath
+  , optIgnoreInterfaces :: Bool
+  , optForcing          :: Bool
+  , optGhcFlags         :: [String]
+  , optPragmaOptions    :: PragmaOptions
+  , optEpicFlags        :: [String]
+  , optSafe             :: Bool
+  }
+  deriving Show
 
 -- | Options which can be set in a pragma.
 
@@ -145,34 +147,34 @@ defaultInteractionOptions :: PragmaOptions
 defaultInteractionOptions = defaultPragmaOptions
 
 defaultOptions :: CommandLineOptions
-defaultOptions =
-    Options { optProgramName          = "agda"
-            , optInputFile            = Nothing
-            , optIncludeDirs          = Left []
-            , optShowVersion          = False
-            , optShowHelp             = False
-            , optInteractive          = False
-            , optRunTests             = False
-            , optGHCiInteraction      = False
-            , optCompile              = False
-            , optCompileNoMain        = False
-            , optEpicCompile          = False
-            , optJSCompile            = False
-            , optCompileDir           = Nothing
-            , optGenerateVimFile      = False
-            , optGenerateLaTeX        = False
-            , optGenerateHTML         = False
-            , optDependencyGraph      = Nothing
-            , optLaTeXDir             = defaultLaTeXDir
-            , optHTMLDir              = defaultHTMLDir
-            , optCSSFile              = Nothing
-            , optIgnoreInterfaces     = False
-            , optForcing              = True
-            , optGhcFlags             = []
-            , optPragmaOptions        = defaultPragmaOptions
-            , optEpicFlags            = []
-            , optSafe                 = False
-            }
+defaultOptions = Options
+  { optProgramName      = "agda"
+  , optInputFile        = Nothing
+  , optIncludeDirs      = Left []
+  , optShowVersion      = False
+  , optShowHelp         = False
+  , optInteractive      = False
+  , optRunTests         = False
+  , optGHCiInteraction  = False
+  , optCompile          = False
+  , optCompileNoMain    = False
+  , optEpicCompile      = False
+  , optJSCompile        = False
+  , optCompileDir       = Nothing
+  , optGenerateVimFile  = False
+  , optGenerateLaTeX    = False
+  , optGenerateHTML     = False
+  , optDependencyGraph  = Nothing
+  , optLaTeXDir         = defaultLaTeXDir
+  , optHTMLDir          = defaultHTMLDir
+  , optCSSFile          = Nothing
+  , optIgnoreInterfaces = False
+  , optForcing          = True
+  , optGhcFlags         = []
+  , optPragmaOptions    = defaultPragmaOptions
+  , optEpicFlags        = []
+  , optSafe             = False
+  }
 
 defaultPragmaOptions :: PragmaOptions
 defaultPragmaOptions = PragmaOptions
@@ -200,16 +202,20 @@ defaultPragmaOptions = PragmaOptions
 
 -- | The default termination depth.
 
+defaultCutOff :: CutOff
 defaultCutOff = CutOff 0 -- minimum value
 
 -- | The default output directory for LaTeX.
 
+defaultLaTeXDir :: String
 defaultLaTeXDir = "latex"
 
 -- | The default output directory for HTML.
 
+defaultHTMLDir :: String
 defaultHTMLDir = "html"
 
+prop_defaultOptions :: Bool
 prop_defaultOptions = case checkOpts defaultOptions of
   Left  _ -> False
   Right _ -> True
@@ -284,60 +290,150 @@ inputFlag f o =
         Nothing  -> return $ o { optInputFile = Just f }
         Just _   -> throwError "only one input file allowed"
 
-versionFlag                  o = return $ o { optShowVersion               = True  }
-helpFlag                     o = return $ o { optShowHelp                  = True  }
-safeFlag                     o = return $ o { optSafe                      = True  }
-proofIrrelevanceFlag         o = return $ o { optProofIrrelevance          = True  }
-experimentalIrrelevanceFlag  o = return $ o { optExperimentalIrrelevance   = True  }
-noIrrelevantProjectionsFlag  o = return $ o { optIrrelevantProjections     = False }
-ignoreInterfacesFlag         o = return $ o { optIgnoreInterfaces          = True  }
-allowUnsolvedFlag            o = return $ o { optAllowUnsolved             = True  }
-showImplicitFlag             o = return $ o { optShowImplicit              = True  }
-showIrrelevantFlag           o = return $ o { optShowIrrelevant            = True  }
-runTestsFlag                 o = return $ o { optRunTests                  = True  }
-ghciInteractionFlag          o = return $ o { optGHCiInteraction           = True  }
-vimFlag                      o = return $ o { optGenerateVimFile           = True  }
-latexFlag                    o = return $ o { optGenerateLaTeX             = True  }
-latexDirFlag               d o = return $ o { optLaTeXDir                  = d     }
-noPositivityFlag             o = return $ o { optDisablePositivity         = True  }
-dontTerminationCheckFlag     o = return $ o { optTerminationCheck          = False }
-dontCompletenessCheckFlag    o = return $ o { optCompletenessCheck         = False }
-dontUniverseCheckFlag        o = return $ o { optUniverseCheck             = False
-                                            , optUniversePolymorphism      = False }
-sizedTypes                   o = return $ o { optSizedTypes                = True  }
-noSizedTypes                 o = return $ o { optSizedTypes                = False  }
-injectiveTypeConstructorFlag o = return $ o { optInjectiveTypeConstructors = True  }
-guardingTypeConstructorFlag  o = return $ o { optGuardingTypeConstructors  = True  }
-universePolymorphismFlag     o = return $ o { optUniversePolymorphism      = True  }
-noUniversePolymorphismFlag   o = return $ o { optUniversePolymorphism      = False }
-noForcingFlag                o = return $ o { optForcing                   = False }
-withKFlag                    o = return $ o { optWithoutK                  = False }
-withoutKFlag                 o = return $ o { optWithoutK                  = True  }
-copatternsFlag               o = return $ o { optCopatterns                = True  }
-noPatternMatchingFlag        o = return $ o { optPatternMatching           = False }
-exactSplitFlag               o = return $ o { optExactSplit                = True  }
-noExactSplitFlag             o = return $ o { optExactSplit                = False }
+versionFlag :: Flag CommandLineOptions
+versionFlag o = return $ o { optShowVersion = True }
 
+helpFlag :: Flag CommandLineOptions
+helpFlag o = return $ o { optShowHelp = True }
+
+safeFlag :: Flag CommandLineOptions
+safeFlag o = return $ o { optSafe = True }
+
+proofIrrelevanceFlag :: Flag PragmaOptions
+proofIrrelevanceFlag o = return $ o { optProofIrrelevance = True }
+
+experimentalIrrelevanceFlag :: Flag PragmaOptions
+experimentalIrrelevanceFlag o = return $ o { optExperimentalIrrelevance = True }
+
+noIrrelevantProjectionsFlag :: Flag PragmaOptions
+noIrrelevantProjectionsFlag o = return $ o { optIrrelevantProjections = False }
+
+ignoreInterfacesFlag :: Flag CommandLineOptions
+ignoreInterfacesFlag o = return $ o { optIgnoreInterfaces = True }
+
+allowUnsolvedFlag :: Flag PragmaOptions
+allowUnsolvedFlag o = return $ o { optAllowUnsolved = True }
+
+showImplicitFlag :: Flag PragmaOptions
+showImplicitFlag o = return $ o { optShowImplicit = True }
+
+showIrrelevantFlag :: Flag PragmaOptions
+showIrrelevantFlag o = return $ o { optShowIrrelevant = True }
+
+runTestsFlag :: Flag CommandLineOptions
+runTestsFlag o = return $ o { optRunTests = True }
+
+ghciInteractionFlag :: Flag CommandLineOptions
+ghciInteractionFlag o = return $ o { optGHCiInteraction = True }
+
+vimFlag :: Flag CommandLineOptions
+vimFlag o = return $ o { optGenerateVimFile = True }
+
+latexFlag :: Flag CommandLineOptions
+latexFlag o = return $ o { optGenerateLaTeX = True }
+
+latexDirFlag :: FilePath -> Flag CommandLineOptions
+latexDirFlag d o = return $ o { optLaTeXDir = d }
+
+noPositivityFlag :: Flag PragmaOptions
+noPositivityFlag o = return $ o { optDisablePositivity = True }
+
+dontTerminationCheckFlag :: Flag PragmaOptions
+dontTerminationCheckFlag o = return $ o { optTerminationCheck = False }
+
+dontCompletenessCheckFlag :: Flag PragmaOptions
+dontCompletenessCheckFlag o = return $ o { optCompletenessCheck = False }
+
+dontUniverseCheckFlag :: Flag PragmaOptions
+dontUniverseCheckFlag o = return $ o { optUniverseCheck        = False
+                                     , optUniversePolymorphism = False
+                                     }
+
+sizedTypes :: Flag PragmaOptions
+sizedTypes o = return $ o { optSizedTypes = True }
+
+noSizedTypes :: Flag PragmaOptions
+noSizedTypes o = return $ o { optSizedTypes = False }
+
+injectiveTypeConstructorFlag :: Flag PragmaOptions
+injectiveTypeConstructorFlag o = return $ o { optInjectiveTypeConstructors = True }
+
+guardingTypeConstructorFlag :: Flag PragmaOptions
+guardingTypeConstructorFlag o = return $ o { optGuardingTypeConstructors = True }
+
+universePolymorphismFlag :: Flag PragmaOptions
+universePolymorphismFlag o = return $ o { optUniversePolymorphism = True }
+
+noUniversePolymorphismFlag :: Flag PragmaOptions
+noUniversePolymorphismFlag  o = return $ o { optUniversePolymorphism = False }
+
+noForcingFlag :: Flag CommandLineOptions
+noForcingFlag o = return $ o { optForcing = False }
+
+withKFlag :: Flag PragmaOptions
+withKFlag o = return $ o { optWithoutK = False }
+
+withoutKFlag :: Flag PragmaOptions
+withoutKFlag o = return $ o { optWithoutK = True }
+
+copatternsFlag :: Flag PragmaOptions
+copatternsFlag o = return $ o { optCopatterns = True }
+
+noPatternMatchingFlag :: Flag PragmaOptions
+noPatternMatchingFlag o = return $ o { optPatternMatching = False }
+
+exactSplitFlag :: Flag PragmaOptions
+exactSplitFlag o = return $ o { optExactSplit = True }
+
+noExactSplitFlag :: Flag PragmaOptions
+noExactSplitFlag o = return $ o { optExactSplit = False }
+
+interactiveFlag :: Flag CommandLineOptions
 interactiveFlag  o = return $ o { optInteractive    = True
                                 , optPragmaOptions  = (optPragmaOptions o)
-                                                        { optAllowUnsolved = True }
+                                                      { optAllowUnsolved = True }
                                 }
-compileFlag        o = return $ o { optCompile    = True }
-compileFlagNoMain  o = return $ o { optCompileNoMain = True }
-compileEpicFlag    o = return $ o { optEpicCompile = True}
-compileJSFlag      o = return $ o { optJSCompile = True}
-compileDirFlag f   o = return $ o { optCompileDir = Just f }
-ghcFlag        f   o = return $ o { optGhcFlags   = optGhcFlags o  ++ [f] }  -- NOTE: Quadratic in number of flags.
-epicFlagsFlag  s   o = return $ o { optEpicFlags  = optEpicFlags o ++ [s] }  -- NOTE: Quadratic in number of flags.
 
-htmlFlag      o = return $ o { optGenerateHTML = True }
-dependencyGraphFlag f o = return $ o { optDependencyGraph  = Just f }
-htmlDirFlag d o = return $ o { optHTMLDir      = d }
-cssFlag     f o = return $ o { optCSSFile      = Just f }
+compileFlag :: Flag CommandLineOptions
+compileFlag o = return $ o { optCompile = True }
 
+compileFlagNoMain :: Flag CommandLineOptions
+compileFlagNoMain o = return $ o { optCompileNoMain = True }
+
+compileEpicFlag :: Flag CommandLineOptions
+compileEpicFlag o = return $ o { optEpicCompile = True}
+
+compileJSFlag :: Flag CommandLineOptions
+compileJSFlag  o = return $ o { optJSCompile = True }
+
+compileDirFlag :: FilePath -> Flag CommandLineOptions
+compileDirFlag f o = return $ o { optCompileDir = Just f }
+
+-- NOTE: Quadratic in number of flags.
+ghcFlag :: String -> Flag CommandLineOptions
+ghcFlag f o = return $ o { optGhcFlags = optGhcFlags o ++ [f] }
+
+-- NOTE: Quadratic in number of flags.
+epicFlagsFlag :: String -> Flag CommandLineOptions
+epicFlagsFlag s o = return $ o { optEpicFlags = optEpicFlags o ++ [s] }
+
+htmlFlag :: Flag CommandLineOptions
+htmlFlag o = return $ o { optGenerateHTML = True }
+
+dependencyGraphFlag :: FilePath -> Flag CommandLineOptions
+dependencyGraphFlag f o = return $ o { optDependencyGraph = Just f }
+
+htmlDirFlag :: FilePath -> Flag CommandLineOptions
+htmlDirFlag d o = return $ o { optHTMLDir = d }
+
+cssFlag :: FilePath -> Flag CommandLineOptions
+cssFlag f o = return $ o { optCSSFile = Just f }
+
+includeFlag :: FilePath -> Flag CommandLineOptions
 includeFlag d o = return $ o { optIncludeDirs = Left (d : ds) }
   where ds = either id (const []) $ optIncludeDirs o
 
+verboseFlag :: String -> Flag PragmaOptions
 verboseFlag s o =
     do  (k,n) <- parseVerbose s
         return $ o { optVerbose = Trie.insert k n $ optVerbose o }
@@ -349,6 +445,7 @@ verboseFlag s o =
         return (init ss, n)
     usage = throwError "argument to verbose should be on the form x.y.z:N or N"
 
+terminationDepthFlag :: String -> Flag PragmaOptions
 terminationDepthFlag s o =
     do k <- readM s `catchError` \_ -> usage
        when (k < 1) $ usage -- or: turn termination checking off for 0

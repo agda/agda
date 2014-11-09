@@ -1,3 +1,5 @@
+{-# OPTIONS_GHC -fwarn-missing-signatures #-}
+
 {-# LANGUAGE CPP                 #-}
 {-# LANGUAGE DeriveFunctor       #-}
 {-# LANGUAGE ScopedTypeVariables #-}
@@ -26,8 +28,10 @@ import Agda.Utils.Impossible
 
 -- | If matching is inconclusive (@DontKnow@) we want to know whether
 --   it is due to a particular meta variable.
-data Match a = Yes Simplification [a] | No | DontKnow (Maybe MetaId)
-  deriving (Functor)
+data Match a = Yes Simplification [a]
+             | No
+             | DontKnow (Maybe MetaId)
+  deriving Functor
 
 instance Monoid (Match a) where
     mempty = Yes mempty []
@@ -207,5 +211,9 @@ matchPattern (Arg h' r' (ConP c _ ps))     (Arg h Irrelevant v) = do
           Blocked x _             -> return (DontKnow $ Just x, Arg info v)
           _                       -> return (DontKnow Nothing, Arg info v)
 
+-- ASR (08 November 2014). The type of the function could be
+--
+-- @(Match Term, [I.Arg Term]) -> (Match Term, [I.Arg Term])@.
+yesSimplification :: (Match a, b) -> (Match a, b)
 yesSimplification (Yes _ vs, us) = (Yes YesSimplification vs, us)
 yesSimplification r              = r

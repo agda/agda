@@ -1,3 +1,5 @@
+{-# OPTIONS_GHC -fwarn-missing-signatures #-}
+
 {-# LANGUAGE CPP                  #-}
 {-# LANGUAGE FlexibleInstances    #-}
 {-# LANGUAGE PatternGuards        #-}
@@ -253,6 +255,8 @@ newTelMeta :: Telescope -> TCM Args
 newTelMeta tel = newArgsMeta (abstract tel $ El Prop $ Sort Prop)
 
 type Condition = I.Dom Type -> Abs Type -> Bool
+
+trueCondition :: Condition
 trueCondition _ _ = True
 
 newArgsMeta :: Type -> TCM Args
@@ -1152,10 +1156,6 @@ inverseSubst args = map (mapFst unArg) <$> loop (zip args terms)
     cons a@(Arg info i, t) vars = a :
       -- filter out duplicate irrelevants
       filter (not . (\ a@(Arg info j, t) -> isIrrelevant info && i == j)) vars
-
-
-
-
 
 -- | Used in 'Agda.Interaction.BasicOps.giveExpr'.
 updateMeta :: MetaId -> Term -> TCM ()

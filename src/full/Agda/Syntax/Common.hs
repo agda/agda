@@ -1,3 +1,5 @@
+{-# OPTIONS_GHC -fwarn-missing-signatures #-}
+
 {-# LANGUAGE CPP                        #-}
 {-# LANGUAGE DeriveDataTypeable         #-}
 {-# LANGUAGE DeriveFoldable             #-}
@@ -30,7 +32,6 @@ import Agda.Utils.Size
 
 #include "undefined.h"
 import Agda.Utils.Impossible
-
 
 ---------------------------------------------------------------------------
 -- * Delayed
@@ -322,7 +323,8 @@ isHiddenArg arg = argHiding arg /= NotHidden
 mapArgInfo :: (ArgInfo c -> ArgInfo c') -> Arg c a -> Arg c' a
 mapArgInfo f arg = arg { argInfo = f $ argInfo arg }
 
-argColors    = argInfoColors    . argInfo
+argColors :: Arg c a -> [c]
+argColors = argInfoColors . argInfo
 
 mapArgColors :: ([c] -> [c']) -> Arg c a -> Arg c' a
 mapArgColors = mapArgInfo . mapArgInfoColors
@@ -416,7 +418,8 @@ instance LensRelevance (Dom c e) where
 mapDomInfo :: (ArgInfo c -> ArgInfo c') -> Dom c a -> Dom c' a
 mapDomInfo f arg = arg { domInfo = f $ domInfo arg }
 
-domColors    = argInfoColors    . domInfo
+domColors :: Dom c a -> [c]
+domColors = argInfoColors . domInfo
 
 argFromDom :: Dom c a -> Arg c a
 argFromDom (Dom i a) = Arg i a

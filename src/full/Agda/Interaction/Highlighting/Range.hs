@@ -1,3 +1,5 @@
+{-# OPTIONS_GHC -fwarn-missing-signatures #-}
+
 {-# LANGUAGE DeriveDataTypeable #-}
 
 -- | Ranges.
@@ -80,6 +82,7 @@ rangeToPositions r = [from r .. to r - 1]
 rangesToPositions :: Ranges -> [Int]
 rangesToPositions (Ranges rs) = concatMap rangeToPositions rs
 
+prop_rangesToPositions :: Ranges -> Bool
 prop_rangesToPositions rs = sorted (rangesToPositions rs)
 
 -- | Converts a 'P.Range' to a 'Ranges'.
@@ -115,6 +118,7 @@ minus (Ranges rs1) (Ranges rs2) = Ranges (m rs1 rs2)
     | to y < to x     = m (Range { from = to y, to = to x } : xs) ys
     | otherwise       = m xs (y:ys)
 
+prop_minus :: Ranges -> Ranges -> Bool
 prop_minus xs ys =
   rangesToPositions (xs `minus` ys) ==
   rangesToPositions xs \\ rangesToPositions ys

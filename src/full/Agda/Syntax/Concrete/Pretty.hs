@@ -204,16 +204,17 @@ instance Pretty LamBinding where
     pretty (DomainFull b)   = pretty b
 
 instance Pretty TypedBindings where
-    pretty (TypedBindings _ a) =
-        pRelevance (argInfo a) $ bracks $ pretty $ WithColors (argColors a) $ unArg a
-        where
-            bracks = case getHiding a of
-                        Hidden                       -> braces'
-                        Instance                     -> dbraces
-                        NotHidden | isMeta (unArg a) -> id
-                                  | otherwise        -> parens
-            isMeta (TBind _ _ (Underscore _ Nothing)) = True
-            isMeta _ = False
+  pretty (TypedBindings _ a) =
+    pRelevance (argInfo a) $ bracks $ pretty $ WithColors (argColors a) $ unArg a
+      where
+        bracks = case getHiding a of
+                   Hidden                       -> braces'
+                   Instance                     -> dbraces
+                   NotHidden | isMeta (unArg a) -> id
+                             | otherwise        -> parens
+
+        isMeta (TBind _ _ (Underscore _ Nothing)) = True
+        isMeta _ = False
 
 newtype Tel = Tel Telescope
 

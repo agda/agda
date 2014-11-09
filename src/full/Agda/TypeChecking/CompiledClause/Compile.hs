@@ -75,7 +75,6 @@ compileWithSplitTree t cs = case t of
     -- after end of split tree, continue with left-to-right strategy
 
   where
-
     compiles :: SplitTrees -> Case Cls -> Case CompiledClauses
     compiles ts br@Branches{ conBranches = cons
                            , litBranches = lits

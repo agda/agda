@@ -53,12 +53,17 @@ data ExpRefInfo o = ExpRefInfo {eriMain :: Maybe (RefInfo o), eriUnifs :: [RefIn
 
                                }
 
-getinfo = f (ExpRefInfo {eriMain = Nothing, eriUnifs = [], eriInfTypeUnknown = False, eriIsEliminand = False, eriUsedVars = Nothing,
-                         eriIotaStep = Nothing, eriPickSubsVar = False
-
-                         , eriEqRState = Nothing
-
-                        })
+getinfo :: [RefInfo o] -> ExpRefInfo o
+getinfo = f (ExpRefInfo {eriMain = Nothing
+                        , eriUnifs = []
+                        , eriInfTypeUnknown = False
+                        , eriIsEliminand = False
+                        , eriUsedVars = Nothing
+                        , eriIotaStep = Nothing
+                        , eriPickSubsVar = False
+                        , eriEqRState = Nothing
+                        }
+            )
  where
   f i [] = i
   f i (x@RIMainInfo{} : xs) = f (i {eriMain = Just x}) xs
@@ -259,7 +264,6 @@ instance Refinable (Exp o) (RefInfo o) where
       HNSort _ -> generics
    _ -> __IMPOSSIBLE__
 
-
 extraref meta seenuids c = (costAppExtraRef, app (head seenuids) (Const c))
  where
    app muid elr = do p <- newPlaceholder
@@ -282,7 +286,14 @@ instance Refinable (ConstRef o) (RefInfo o) where
 
 
 -- ---------------------------------
-costIotaStep, costAppExtraRef, costIncrease :: Int
+
+costIncrease, costUnificationOccurs, costUnification, costAppVar,
+  costAppVarUsed, costAppHint, costAppHintUsed, costAppRecCall,
+  costAppRecCallUsed, costAppConstructor, costAppConstructorSingle,
+  costAppExtraRef, costLam, costLamUnfold, costPi, costSort, costIotaStep,
+  costInferredTypeUnkown, costAbsurdLam
+  :: Int
+
 costIncrease = 1000
 costUnificationOccurs = 100 -- 1000001 -- 1 -- 100
 costUnification = 0000
@@ -303,17 +314,18 @@ costIotaStep = 3000 -- 1000005 -- 2 -- 100
 costInferredTypeUnkown = 1000006 -- 100
 costAbsurdLam = 0
 
+costEqStep, costEqEnd, costEqSym, costEqCong :: Int
 costEqStep = 2000
 costEqEnd = 0
 costEqSym = 0
 costEqCong = 500
 
-
-prioNo, prioTypeUnknown, prioTypecheckArgList, prioInferredTypeUnknown, prioCompBeta, prioCompBetaStructured, prioCompareArgList, prioCompIota, prioCompChoice, prioCompUnif, prioCompCopy, prioNoIota, prioAbsurdLambda :: Int
+prioNo, prioTypeUnknown, prioTypecheckArgList, prioInferredTypeUnknown,
+  prioCompBeta, prioCompBetaStructured, prioCompareArgList, prioCompIota,
+  prioCompChoice, prioCompUnif, prioCompCopy, prioNoIota, prioAbsurdLambda
+  :: Int
 prioNo = (-1)
 prioTypeUnknown = 0
-prioTypecheck False = 1000
-prioTypecheck True = 0
 prioTypecheckArgList = 3000
 prioInferredTypeUnknown = 4000
 prioCompBeta = 4000
@@ -328,6 +340,9 @@ prioAbsurdLambda = 1000
 
 prioProjIndex = 3000 :: Int
 
+prioTypecheck :: Bool -> Int
+prioTypecheck False = 1000
+prioTypecheck True = 0
 
 -- ---------------------------------
 
