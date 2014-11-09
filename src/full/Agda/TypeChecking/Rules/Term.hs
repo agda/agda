@@ -361,7 +361,7 @@ checkExtendedLambda i di qname cs e t = do
      let (hid, notHid) = partition isHidden argsNoParam
      abstract (A.defAbstract di) $ checkFunDef' t info NotDelayed
                                                 (Just (length hid, length notHid)) Nothing di qname cs
-     reduce $ (Def qname [] `apply` args)
+     return $ Def qname $ map Apply args
   where
     -- Concrete definitions cannot use information about abstract things.
     abstract ConcreteDef = inConcreteMode
