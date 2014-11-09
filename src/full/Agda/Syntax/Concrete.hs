@@ -46,6 +46,8 @@ module Agda.Syntax.Concrete
   , topLevelModuleName
     -- * Pattern tools
   , patternHead, patternNames
+    -- * Lenses
+  , mapLhsOriginalPattern
     -- * Concrete instances
   , Color
   , Arg
@@ -68,6 +70,8 @@ import Agda.Syntax.Notation
 import Agda.Syntax.Literal
 
 import Agda.Syntax.Concrete.Name
+
+import Agda.Utils.Lens
 
 #include "undefined.h"
 import Agda.Utils.Impossible
@@ -396,6 +400,15 @@ topLevelModuleName (_, []) = __IMPOSSIBLE__
 topLevelModuleName (_, ds) = case last ds of
   Module _ n _ _ -> toTopLevelModuleName n
   _              -> __IMPOSSIBLE__
+
+{--------------------------------------------------------------------------
+    Lenses
+ --------------------------------------------------------------------------}
+
+mapLhsOriginalPattern :: (Pattern -> Pattern) -> LHS -> LHS
+mapLhsOriginalPattern f lhs@Ellipsis{}                    = lhs
+mapLhsOriginalPattern f lhs@LHS{ lhsOriginalPattern = p } =
+  lhs { lhsOriginalPattern = f p }
 
 {--------------------------------------------------------------------------
     Views
