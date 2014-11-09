@@ -470,8 +470,7 @@ mkArg' info e                   = Common.Arg (setHiding NotHidden info) e
 
 -- | By default, arguments are @Relevant@.
 mkArg :: C.Expr -> C.Arg C.Expr
--- mkArg (C.Dot _ e) = mkArg' Irrelevant e
-mkArg e           = mkArg' defaultArgInfo e
+mkArg e = mkArg' defaultArgInfo e
 
 
 -- | Parse a possibly dotted C.Expr as A.Expr.  Bool = True if dotted.
@@ -595,15 +594,6 @@ instance ToAbstract C.Expr A.Expr where
           parseApplication es
         toAbstract e
 
-{- Andreas, 2010-09-06 STALE COMMENT
-  -- Dots are used in dot patterns and in irrelevant function space .A n -> B
-  -- we propagate dots out from the head of applications
-
-      C.Dot r e1 -> do
-        t1 <- toAbstract e1
-        return $ A.Dot t1
--}
-
   -- Application
       C.App r e1 e2 -> do
         e1 <- toAbstractCtx FunctionCtx e1
@@ -619,7 +609,7 @@ instance ToAbstract C.Expr A.Expr where
         es <- mapM (toAbstractCtx WithArgCtx) es
         return $ A.WithApp (ExprRange r) e es
 
-  -- Malplaced hidden argument
+  -- Misplaced hidden argument
       C.HiddenArg _ _ -> nothingAppliedToHiddenArg e
       C.InstanceArg _ _ -> nothingAppliedToInstanceArg e
 
@@ -640,16 +630,7 @@ instance ToAbstract C.Expr A.Expr where
         e2 <- toAbstractCtx TopCtx e2
         return $ A.Fun (ExprRange r) e1 e2
 
-{-
--- Other function types
-
-      C.Fun r e1 e2 -> do
-        e1 <- toAbstractCtx FunctionSpaceDomainCtx $ mkArg e1
-        e2 <- toAbstractCtx TopCtx e2
-        let info = ExprRange r
-        return $ A.Fun info e1 e2
--}
-
+  -- Dependent function type
       e0@(C.Pi tel e) ->
         localToAbstract tel $ \tel -> do
         e    <- toAbstractCtx TopCtx e
