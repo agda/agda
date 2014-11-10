@@ -1,3 +1,5 @@
+{-# OPTIONS_GHC -fwarn-missing-signatures #-}
+
 {-# LANGUAGE CPP                    #-}
 {-# LANGUAGE FlexibleInstances      #-}
 {-# LANGUAGE FunctionalDependencies #-}
@@ -84,11 +86,19 @@ import Agda.ImpossibleTest (impossibleTest)
     Exceptions
  --------------------------------------------------------------------------}
 
-notAModuleExpr e            = typeError $ NotAModuleExpr e
-notAnExpression e           = typeError $ NotAnExpression e
-notAValidLetBinding d       = typeError $ NotAValidLetBinding d
+-- notAModuleExpr e = typeError $ NotAModuleExpr e
+
+notAnExpression :: C.Expr -> ScopeM A.Expr
+notAnExpression e = typeError $ NotAnExpression e
+
+nothingAppliedToHiddenArg :: C.Expr -> ScopeM A.Expr
 nothingAppliedToHiddenArg e = typeError $ NothingAppliedToHiddenArg e
+
+nothingAppliedToInstanceArg :: C.Expr -> ScopeM A.Expr
 nothingAppliedToInstanceArg e = typeError $ NothingAppliedToInstanceArg e
+
+notAValidLetBinding :: NiceDeclaration -> ScopeM a
+notAValidLetBinding d = typeError $ NotAValidLetBinding d
 
 -- Debugging
 
@@ -286,7 +296,7 @@ concreteToAbstract scope x = withScope_ scope (toAbstract x)
 -- | Things that can be translated to abstract syntax are instances of this
 --   class.
 class ToAbstract concrete abstract | concrete -> abstract where
-    toAbstract    :: concrete -> ScopeM abstract
+    toAbstract :: concrete -> ScopeM abstract
 
 -- | This function should be used instead of 'toAbstract' for things that need
 --   to keep track of precedences to make sure that we don't forget about it.
@@ -1284,6 +1294,8 @@ instance ToAbstract NiceDeclaration A.Declaration where
 data IsRecordCon = YesRec | NoRec
 data ConstrDecl = ConstrDecl IsRecordCon A.ModuleName IsAbstract Access C.NiceDeclaration
 
+bindConstructorName :: ModuleName -> C.Name -> Fixity'-> IsAbstract ->
+                       Access -> IsRecordCon -> ScopeM A.QName
 bindConstructorName m x f a p record = do
   -- The abstract name is the qualified one
   y <- withCurrentModule m $ freshAbstractQName f x

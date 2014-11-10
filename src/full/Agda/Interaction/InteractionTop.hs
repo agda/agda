@@ -1,3 +1,5 @@
+{-# OPTIONS_GHC -fwarn-missing-signatures #-}
+
 {-# LANGUAGE CPP                   #-}
 {-# LANGUAGE DeriveFoldable        #-}
 {-# LANGUAGE DeriveFunctor         #-}
@@ -963,6 +965,8 @@ cmd_helper_function norm ii r s = B.withInteractionId ii $ inTopContext $
 -- | Displays the current goal, the given document, and the current
 -- context.
 
+cmd_goal_type_context_and :: Doc -> B.Rewrite -> InteractionId -> Range ->
+                             String -> StateT CommandState (TCMT IO) ()
 cmd_goal_type_context_and doc norm ii _ _ = do
   goal <- lift $ B.withInteractionId ii $ prettyTypeOfMeta norm ii
   ctx  <- lift $ prettyContext norm True ii
@@ -1131,6 +1135,7 @@ refreshStr taken s = go nameModifiers where
                 if s' `elem` taken then go mods else (s':taken, s')
   go _        = __IMPOSSIBLE__
 
+nameModifiers :: [String]
 nameModifiers = "" : "'" : "''" : [show i | i <-[3..]]
 
 

@@ -1,3 +1,5 @@
+{-# OPTIONS_GHC -fwarn-missing-signatures #-}
+
 {-# LANGUAGE CPP #-}
 
 module Agda.Auto.Convert where
@@ -56,7 +58,11 @@ data TMode = TMAll -- can be extended to distinguish between different modes (al
  deriving Eq
 
 type MapS a b = (Map a b, [a])
+
+initMapS :: MapS a b
 initMapS = (Map.empty, [])
+
+popMapS :: (S -> (a, [b])) -> ((a, [b]) -> S -> S) -> TOM (Maybe b)
 popMapS r w = do (m, xs) <- gets r
                  case xs of
                   [] -> return Nothing
@@ -236,6 +242,7 @@ getConst iscon name mode = do
      modify (\s -> s {sConsts = (Map.insert name (mode, c) cmap, name : snd (sConsts s))})
      return c
 
+getdfv :: I.MetaId -> A.QName -> MB.TCM Common.Nat
 getdfv mainm name = do
  mv <- lookupMeta mainm
  withMetaInfo (getMetaInfo mv) $ getDefFreeVars name
@@ -275,6 +282,7 @@ copatternsNotImplemented :: MB.TCM a
 copatternsNotImplemented = MB.typeError $ MB.NotImplemented $
   "The Agda synthesizer (Agsy) does not support copatterns yet"
 
+tomyClauses :: [I.Clause] -> TOM [([Pat O], MExp O)]
 tomyClauses [] = return []
 tomyClauses (cl:cls) = do
  cl' <- tomyClause cl
@@ -283,6 +291,7 @@ tomyClauses (cl:cls) = do
   Just cl' -> cl' : cls'
   Nothing -> cls'
 
+tomyClause :: I.Clause -> TOM (Maybe ([Pat O], MExp O))
 tomyClause cl@(I.Clause {I.clausePerm = Perm n ps, I.clauseBody = body}) = do
  let pats = I.clausePats cl
  pats' <- mapM tomyPat pats
@@ -291,6 +300,8 @@ tomyClause cl@(I.Clause {I.clausePerm = Perm n ps, I.clauseBody = body}) = do
            Just (body', _) -> Just (pats', body')
            Nothing -> Nothing
 
+
+tomyPat :: I.Arg I.Pattern -> TOM (Pat O)
 tomyPat p = case Common.unArg p of
  I.ProjP _ -> lift $ copatternsNotImplemented
  I.VarP n -> return $ PatVar (show n)
@@ -305,6 +316,7 @@ tomyPat p = case Common.unArg p of
   return $ PatConApp c (replicate npar PatExp ++ pats')
  I.LitP _ -> throwError $ strMsg "Auto: Literals in patterns are not supported"
 
+tomyBody :: I.ClauseBodyF I.Term -> TOM (Maybe (MExp O, Int))
 tomyBody (I.Body t) = do
  t <- lift $ norm t
  t' <- tomyExp t
@@ -414,12 +426,14 @@ tomyExp v0 =
     I.Shared p -> tomyExp $ I.derefPtr p
     I.ExtLam{} -> __IMPOSSIBLE__
 
+tomyExps :: I.Args -> TOM (MM (ArgList O) (RefInfo O))
 tomyExps [] = return $ NotM ALNil
 tomyExps (Common.Arg info a : as) = do
  a' <- tomyExp a
  as' <- tomyExps as
  return $ NotM $ ALCons (cnvh info) a' as'
 
+tomyIneq :: MB.Comparison -> Bool
 tomyIneq MB.CmpEq = False
 tomyIneq MB.CmpLeq = True
 
@@ -442,6 +456,7 @@ fmExp m (I.DontCare _) = False
 fmExp m (I.Shared p) = fmExp m $ I.derefPtr p
 fmExp m I.ExtLam{} = __IMPOSSIBLE__
 
+fmExps :: I.MetaId -> I.Args -> Bool
 fmExps m [] = False
 fmExps m (a : as) = fmExp m (Common.unArg a) || fmExps m as
 
@@ -455,10 +470,13 @@ fmLevel m (I.Plus _ l) = case l of
 
 -- ---------------------------------------------
 
+cnvh :: Common.LensHiding a => a -> FMode
 cnvh info = case Common.getHiding info of
     Common.NotHidden -> NotHidden
     Common.Instance  -> Instance
     Common.Hidden    -> Hidden
+
+icnvh :: FMode -> I.ArgInfo
 icnvh h = (Common.setHiding h' Common.defaultArgInfo)
     where
     h' = case h of
@@ -468,6 +486,7 @@ icnvh h = (Common.setHiding h' Common.defaultArgInfo)
 
 -- ---------------------------------------------
 
+frommy :: MExp O -> ExceptT String IO I.Term
 frommy = frommyExp
 
 frommyType :: MExp O -> ExceptT String IO I.Type
@@ -551,6 +570,7 @@ frommyExps ndrop (NotM as) trm =
 
 -- --------------------------------
 
+abslamvarname :: String
 abslamvarname = "\0absurdlambda"
 
 modifyAbstractExpr :: A.Expr -> A.Expr

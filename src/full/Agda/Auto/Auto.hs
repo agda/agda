@@ -1,4 +1,6 @@
-{-# LANGUAGE CPP #-}
+{-# OPTIONS_GHC -fwarn-missing-signatures #-}
+
+{-# LANGUAGE CPP           #-}
 {-# LANGUAGE TupleSections #-}
 
 module Agda.Auto.Auto (auto) where
@@ -67,6 +69,10 @@ getName (A.Proj qname) = Just (False, qname)
 getName (A.Con qname) = Just (True, head $ I.unAmbQ qname)
 getName _ = Nothing
 
+dispmsg :: String ->
+           TCM (Either [(InteractionId, String)]
+                       (Either [String] String)
+               , Maybe String)
 dispmsg msg = return (Left [], Just msg)
 
 -- | Entry point for Auto tactic (Agsy).
@@ -413,6 +419,8 @@ auto ii rng argstr = do
     agsyinfo ticks = ""
 
 -- Get the functions and axioms defined in the same module as @def@.
+autohints :: AutoHintMode -> I.MetaId -> Maybe AN.QName ->
+             TCM [(Bool, AN.QName)]
 autohints AHMModule mi (Just def) = do
   scope <- clScope . getMetaInfo <$> lookupMeta mi
   let names     = Scope.nsNames $ Scope.everythingInScope scope
@@ -428,9 +436,11 @@ autohints AHMModule mi (Just def) = do
 
 autohints _ _ _ = return []
 
+insuffsols :: Int -> String
 insuffsols 0 = "No solution found"
 insuffsols n = "Only " ++ show n ++ " solution(s) found"
 
+insuffcands :: Int -> String
 insuffcands 0 = "No candidate found"
 insuffcands n = "Only " ++ show n ++ " candidate(s) found"
 

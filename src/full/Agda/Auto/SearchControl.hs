@@ -1,3 +1,5 @@
+{-# OPTIONS_GHC -fwarn-missing-signatures #-}
+
 {-# LANGUAGE CPP                   #-}
 {-# LANGUAGE FlexibleInstances     #-}
 {-# LANGUAGE MultiParamTypeClasses #-}
@@ -264,6 +266,8 @@ instance Refinable (Exp o) (RefInfo o) where
       HNSort _ -> generics
    _ -> __IMPOSSIBLE__
 
+extraref :: UId o -> [Maybe (UId o)] -> ConstRef o ->
+            (Int, StateT (IORef [SubConstraints (RefInfo o)], Int) IO (Exp o))
 extraref meta seenuids c = (costAppExtraRef, app (head seenuids) (Const c))
  where
    app muid elr = do p <- newPlaceholder
@@ -322,7 +326,8 @@ costEqCong = 500
 
 prioNo, prioTypeUnknown, prioTypecheckArgList, prioInferredTypeUnknown,
   prioCompBeta, prioCompBetaStructured, prioCompareArgList, prioCompIota,
-  prioCompChoice, prioCompUnif, prioCompCopy, prioNoIota, prioAbsurdLambda
+  prioCompChoice, prioCompUnif, prioCompCopy, prioNoIota, prioAbsurdLambda,
+  prioProjIndex
   :: Int
 prioNo = (-1)
 prioTypeUnknown = 0
@@ -338,7 +343,7 @@ prioCompareArgList = 7000 -- 5 -- 2
 prioNoIota = 500 -- 500
 prioAbsurdLambda = 1000
 
-prioProjIndex = 3000 :: Int
+prioProjIndex = 3000
 
 prioTypecheck :: Bool -> Int
 prioTypecheck False = 1000

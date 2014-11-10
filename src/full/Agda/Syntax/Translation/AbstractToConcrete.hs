@@ -1,4 +1,4 @@
--- {-# OPTIONS_GHC -fwarn-missing-signatures #-}
+{-# OPTIONS_GHC -fwarn-missing-signatures #-}
 -- {-# OPTIONS -fwarn-unused-binds #-}
 
 {-# LANGUAGE CPP                    #-}
@@ -830,9 +830,13 @@ instance ToConcrete RangeAndPragma C.Pragma where
 
 -- Left hand sides --------------------------------------------------------
 
+noImplicitArgs :: A.Patterns -> A.Patterns
 noImplicitArgs = filter (noImplicit . namedArg)
+
+noImplicitPats :: [A.Pattern] -> [A.Pattern]
 noImplicitPats = filter noImplicit
 
+noImplicit :: A.Pattern -> Bool
 noImplicit (A.ImplicitP _) = False
 noImplicit _               = True
 
