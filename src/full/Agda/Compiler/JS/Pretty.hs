@@ -1,5 +1,3 @@
-{-# OPTIONS_GHC -fwarn-missing-signatures #-}
-
 module Agda.Compiler.JS.Pretty where
 
 import Prelude hiding ( null )

@@ -1,5 +1,3 @@
-{-# OPTIONS_GHC -fwarn-missing-signatures #-}
-
 module Agda.Compiler.JS.Parser where
 
 -- This is a simple parser for the ECMAScript FFI, which parses a

@@ -1,5 +1,3 @@
-{-# OPTIONS_GHC -fwarn-missing-signatures #-}
-
 {-# LANGUAGE MultiParamTypeClasses #-}
 
 module Agda.TypeChecking.SizedTypes.Utils where

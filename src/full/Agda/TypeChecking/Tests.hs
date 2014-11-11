@@ -1,6 +1,4 @@
-{-# OPTIONS_GHC -fwarn-missing-signatures #-}
-
-{-# LANGUAGE CPP                #-}
+{-# LANGUAGE CPP #-}
 
 module Agda.TypeChecking.Tests where
 

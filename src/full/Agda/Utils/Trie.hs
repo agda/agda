@@ -1,12 +1,10 @@
--- | Strict tries (based on 'Data.Map.Strict' and 'Agda.Utils.Maybe.Strict').
-
-{-# OPTIONS_GHC -fwarn-missing-signatures #-}
-
 {-# LANGUAGE CPP                        #-}
 {-# LANGUAGE BangPatterns               #-}
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
 {-# LANGUAGE PatternGuards              #-}
 {-# LANGUAGE TupleSections              #-}
+
+-- | Strict tries (based on 'Data.Map.Strict' and 'Agda.Utils.Maybe.Strict').
 
 module Agda.Utils.Trie
   ( Trie

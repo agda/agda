@@ -1,5 +1,3 @@
-{-# OPTIONS_GHC -fwarn-missing-signatures #-}
-
 module Agda.TypeChecking.Monad.Debug where
 
 import Control.Monad.Trans ( MonadIO(liftIO) )

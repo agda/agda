@@ -1,13 +1,11 @@
--- | Finite bijections (implemented as a pair of maps).
-
-{-# OPTIONS_GHC -fwarn-missing-signatures #-}
-
 {-# LANGUAGE DeriveDataTypeable         #-}
 {-# LANGUAGE FlexibleInstances          #-}
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
 {-# LANGUAGE PatternGuards              #-}
 {-# LANGUAGE TemplateHaskell            #-}
 {-# LANGUAGE TupleSections              #-}
+
+-- | Finite bijections (implemented as a pair of maps).
 
 module Agda.Utils.BiMap where
 

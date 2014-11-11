@@ -1,5 +1,3 @@
-{-# OPTIONS_GHC -fwarn-missing-signatures #-}
-
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
 
 module Agda.Utils.Update

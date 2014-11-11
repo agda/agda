@@ -1,6 +1,3 @@
-{-# OPTIONS_GHC -fno-warn-orphans         #-}
-{-# OPTIONS_GHC -fwarn-missing-signatures #-}
-
 {-# LANGUAGE CPP                #-}
 {-# LANGUAGE DeriveDataTypeable #-}
 
@@ -10,6 +7,8 @@
 
 {-# LANGUAGE MultiParamTypeClasses #-}
 {-# LANGUAGE StandaloneDeriving    #-}
+
+{-# OPTIONS_GHC -fno-warn-orphans #-}
 
 -- | A strict version of the 'Maybe' type.
 --

@@ -1,5 +1,3 @@
-{-# OPTIONS_GHC -fwarn-missing-signatures #-}
-
 -- | Collect statistics.
 
 module Agda.TypeChecking.Monad.Statistics

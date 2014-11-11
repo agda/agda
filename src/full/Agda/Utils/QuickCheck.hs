@@ -1,5 +1,3 @@
-{-# OPTIONS_GHC -fwarn-missing-signatures #-}
-
 module Agda.Utils.QuickCheck
   ( module Test.QuickCheck
   , module Agda.Utils.QuickCheck

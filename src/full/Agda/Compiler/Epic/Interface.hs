@@ -1,5 +1,3 @@
-{-# OPTIONS_GHC -fwarn-missing-signatures #-}
-
 {-# LANGUAGE DeriveDataTypeable #-}
 
 -- | Epic interface data structure, which is serialisable and stored for each
