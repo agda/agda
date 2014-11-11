@@ -1,5 +1,3 @@
-{-# OPTIONS_GHC -fwarn-missing-signatures #-}
-
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
 
 {- | Construct a graph from constraints

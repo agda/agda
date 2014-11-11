@@ -20,15 +20,17 @@ import Agda.Utils.Impossible
 abspatvarname :: String
 abspatvarname = "\0absurdPattern"
 
+costCaseSplitVeryHigh, costCaseSplitHigh, costCaseSplitLow, costAddVarDepth
+  :: Nat
 costCaseSplitVeryHigh = 10000
-costCaseSplitHigh = 5000
-costCaseSplitLow = 2000
-costAddVarDepth = 1000
-
+costCaseSplitHigh     = 5000
+costCaseSplitLow      = 2000
+costAddVarDepth       = 1000
 
 data HI a = HI FMode a
-drophid = map (\(HI _ x) -> x)
 
+drophid :: [HI a] -> [a]
+drophid = map (\(HI _ x) -> x)
 
 type CSPat o = HI (CSPatI o)
 type CSCtx o = [HI (MId, MExp o)]
@@ -195,6 +197,7 @@ caseSplitSearch' branchsearch depthinterval depth recdef ctx tt pats = do
                return $ concat (map (\sol -> map (\sol2 -> sol ++ sol2) sols2) sols)
        _ -> return [] -- split failed "scrut type is not datatype"
      _ -> return [] -- split failed "scrut type is not datatype"
+
 infertypevar :: CSCtx o -> Nat -> MExp o
 infertypevar ctx v = snd $ (drophid ctx) !! v
 replace :: Nat -> Nat -> MExp o -> MExp o -> MExp o
@@ -243,19 +246,17 @@ betareduce e args = case rm args of
 
  ALProj{} -> __IMPOSSIBLE__
 
-
  ALConPar as -> __IMPOSSIBLE__
 
-
+concatargs :: MM (ArgList o) (RefInfo o) -> MArgList o -> MArgList o
 concatargs xs ys = case rm xs of
- ALNil -> ys
- ALCons hid x xs -> mm $ ALCons hid x (concatargs xs ys)
+  ALNil -> ys
 
- ALProj{} -> __IMPOSSIBLE__
+  ALCons hid x xs -> mm $ ALCons hid x (concatargs xs ys)
 
+  ALProj{} -> __IMPOSSIBLE__
 
- ALConPar as -> mm $ ALConPar (concatargs xs ys)
-
+  ALConPar as -> mm $ ALConPar (concatargs xs ys)
 
 eqelr :: Elr o -> Elr o -> Bool
 eqelr (Var v1) (Var v2) = v1 == v2
@@ -437,8 +438,8 @@ freevars = f 0
 
    ALConPar es -> fs n es
 
-
-applyperm :: [Nat] -> CSCtx o -> MExp o -> [CSPat o] -> (CSCtx o, MExp o, [CSPat o])
+applyperm :: [Nat] -> CSCtx o -> MExp o -> [CSPat o] ->
+             (CSCtx o, MExp o, [CSPat o])
 applyperm perm ctx tt pats =
  let ctx1 = map (\(HI hid (id, t)) -> HI hid (id, rename (ren perm) t)) ctx
      ctx2 = map (\i -> ctx1 !! i) perm
@@ -447,6 +448,7 @@ applyperm perm ctx tt pats =
      pats' = map (renamep (ren perm)) pats
  in (ctx3, tt', pats')
 
+ren :: [Nat] -> Nat -> Int
 ren n i = let Just j = findIndex (== i) n in j
 
 rename :: (Nat -> Nat) -> MExp o -> MExp o

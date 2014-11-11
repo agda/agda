@@ -1,5 +1,3 @@
-{-# OPTIONS_GHC -fwarn-missing-signatures #-}
-
 -- | Text IO using the UTF8 character encoding.
 
 module Agda.Utils.IO.UTF8

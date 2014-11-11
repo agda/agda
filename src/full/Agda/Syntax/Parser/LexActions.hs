@@ -1,5 +1,3 @@
-{-# OPTIONS_GHC -fwarn-missing-signatures #-}
-
 -- {-# LANGUAGE CPP #-}
 
 {-| This module contains the building blocks used to construct the lexer.

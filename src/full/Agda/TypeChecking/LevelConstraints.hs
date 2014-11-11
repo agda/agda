@@ -1,5 +1,3 @@
-{-# OPTIONS_GHC -fwarn-missing-signatures #-}
-
 module Agda.TypeChecking.LevelConstraints ( simplifyLevelConstraint ) where
 
 import Agda.Syntax.Common (Nat)

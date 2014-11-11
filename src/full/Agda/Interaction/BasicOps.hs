@@ -198,8 +198,8 @@ evalInMeta ii e =
 data Rewrite =  AsIs | Instantiated | HeadNormal | Simplified | Normalised
     deriving (Read)
 
---normalForm :: Rewrite -> Term -> TCM Term
-normalForm AsIs      t = return t
+normalForm :: Rewrite -> Type -> TCM Type
+normalForm AsIs         t = return t
 normalForm Instantiated t = return t   -- reify does instantiation
 normalForm HeadNormal   t = {- etaContract =<< -} reduce t
 normalForm Simplified   t = {- etaContract =<< -} simplify t
@@ -433,6 +433,8 @@ typeOfMetaMI norm mi =
         withMetaInfo (getMetaInfo mv) $
           rewriteJudg mv (mvJudgement mv)
    where
+    rewriteJudg :: MetaVariable -> Judgement Type MetaId ->
+                   TCM (OutputConstraint Expr NamedMeta)
     rewriteJudg mv (HasType i t) = do
       ms <- getMetaNameSuggestion i
       t <- normalForm norm t

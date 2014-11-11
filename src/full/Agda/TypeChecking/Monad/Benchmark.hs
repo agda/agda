@@ -1,5 +1,3 @@
-{-# OPTIONS_GHC -fwarn-missing-signatures #-}
-
 {-# LANGUAGE CPP #-}
 
 -- | Measure CPU time for individual phases of the Agda pipeline.

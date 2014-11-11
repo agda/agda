@@ -1,4 +1,5 @@
 {-# LANGUAGE CPP                  #-}
+{-# LANGUAGE FlexibleContexts     #-}
 {-# LANGUAGE FlexibleInstances    #-}
 {-# LANGUAGE TypeSynonymInstances #-}
 {-# LANGUAGE UndecidableInstances #-}
@@ -34,41 +35,59 @@ import Agda.Utils.Impossible
 type Doc = P.Doc
 
 empty, comma, colon, equals :: TCM Doc
+empty  = return P.empty
+comma  = return P.comma
+colon  = return P.colon
+equals = return P.equals
 
-empty      = return P.empty
-comma      = return P.comma
-colon      = return P.colon
-equals     = return P.equals
-pretty x   = return $ P.pretty x
-prettyA x  = P.prettyA x
+pretty :: P.Pretty a => a -> TCM P.Doc
+pretty x = return $ P.pretty x
+
+prettyA :: (P.Pretty c, ToConcrete a c) => a -> TCM Doc
+prettyA x = P.prettyA x
+
+prettyAs :: (P.Pretty c, ToConcrete a [c]) => a -> TCM Doc
 prettyAs x = P.prettyAs x
+
 text :: String -> TCM Doc
-text s     = return $ P.text s
-pwords s   = map return $ P.pwords s
-fwords s   = return $ P.fwords s
-sep, fsep, hsep, vcat :: [TCM Doc] -> TCM Doc
-sep ds     = P.sep <$> sequence ds
-fsep ds    = P.fsep <$> sequence ds
-hsep ds    = P.hsep <$> sequence ds
-hcat ds    = P.hcat <$> sequence ds
-vcat ds    = P.vcat <$> sequence ds
+text s = return $ P.text s
+
+pwords :: String ->  [TCM Doc]
+pwords s = map return $ P.pwords s
+
+fwords :: String -> TCM Doc
+fwords s  = return $ P.fwords s
+
+sep, fsep, hsep, hcat, vcat :: [TCM Doc] -> TCM Doc
+sep ds  = P.sep <$> sequence ds
+fsep ds = P.fsep <$> sequence ds
+hsep ds = P.hsep <$> sequence ds
+hcat ds = P.hcat <$> sequence ds
+vcat ds = P.vcat <$> sequence ds
+
 ($$), ($+$), (<>), (<+>) :: TCM Doc -> TCM Doc -> TCM Doc
-d1 $$ d2   = (P.$$) <$> d1 <*> d2
-d1 $+$ d2  = (P.$+$) <$> d1 <*> d2
-d1 <> d2   = (P.<>) <$> d1 <*> d2
-d1 <+> d2  = (P.<+>) <$> d1 <*> d2
+d1 $$ d2  = (P.$$) <$> d1 <*> d2
+d1 $+$ d2 = (P.$+$) <$> d1 <*> d2
+d1 <> d2  = (P.<>) <$> d1 <*> d2
+d1 <+> d2 = (P.<+>) <$> d1 <*> d2
+
+nest :: Int -> TCM Doc -> TCM Doc
 nest n d   = P.nest n <$> d
+
+braces, dbraces, brackets, parens :: TCM Doc -> TCM Doc
 braces d   = P.braces <$> d
 dbraces d  = P.dbraces <$> d
 brackets d = P.brackets <$> d
 parens d   = P.parens <$> d
 
+prettyList :: [TCM Doc] -> TCM Doc
 prettyList ds = brackets $ fsep $ punctuate comma ds
 
+punctuate :: TCM Doc -> [TCM Doc] -> [TCM Doc]
 punctuate _ [] = []
 punctuate d ds = zipWith (<>) ds (replicate n d ++ [empty])
-    where
-        n = length ds - 1
+  where
+    n = length ds - 1
 
 ---------------------------------------------------------------------------
 -- * The PrettyTCM class

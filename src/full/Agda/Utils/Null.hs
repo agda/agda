@@ -1,5 +1,3 @@
-{-# OPTIONS_GHC -fwarn-missing-signatures #-}
-
 -- | Overloaded @null@ and @empty@ for collections and sequences.
 
 module Agda.Utils.Null where

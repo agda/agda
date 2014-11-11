@@ -1,5 +1,3 @@
-{-# OPTIONS_GHC -fwarn-missing-signatures #-}
-
 {-# LANGUAGE CPP #-}
 
 -- | Functions which give precise syntax highlighting info to Emacs.

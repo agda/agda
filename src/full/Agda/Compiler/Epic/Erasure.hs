@@ -1,5 +1,3 @@
-{-# OPTIONS_GHC -fwarn-missing-signatures #-}
-
 {-# LANGUAGE CPP #-}
 
 -- | Some arguments to functions (types in particular) will not be used in the

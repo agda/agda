@@ -1,5 +1,3 @@
-{-# OPTIONS_GHC -fwarn-missing-signatures #-}
-
 {-# LANGUAGE CPP #-}
 
 {-| Split tree for transforming pattern clauses into case trees.

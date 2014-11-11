@@ -1,5 +1,3 @@
-{-# OPTIONS_GHC -fwarn-missing-signatures #-}
-
 {- Checking for recursion:
 
    - We detect truly (co)recursive definitions by computing the

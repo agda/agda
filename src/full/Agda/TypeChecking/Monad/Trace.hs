@@ -1,5 +1,3 @@
-{-# OPTIONS_GHC -fwarn-missing-signatures #-}
-
 module Agda.TypeChecking.Monad.Trace where
 
 import Prelude hiding (null)

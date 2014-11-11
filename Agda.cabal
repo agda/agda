@@ -395,6 +395,7 @@ library
                     -fwarn-incomplete-patterns
                     -fwarn-missing-fields
                     -fwarn-missing-methods
+                    -fwarn-missing-signatures
                     -fwarn-monomorphism-restriction
                     -fwarn-tabs
                     -fwarn-overlapping-patterns

@@ -1,9 +1,8 @@
-{-# OPTIONS_GHC -fwarn-missing-signatures #-}
-{-# OPTIONS_GHC -fno-warn-orphans         #-}
-
 {-# LANGUAGE CPP                  #-}
 {-# LANGUAGE FlexibleInstances    #-}
 {-# LANGUAGE TypeSynonymInstances #-}
+
+{-# OPTIONS_GHC -fno-warn-orphans #-}
 
 {-| Pretty printer for the concrete syntax.
 -}

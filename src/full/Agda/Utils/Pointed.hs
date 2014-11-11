@@ -1,5 +1,3 @@
-{-# OPTIONS_GHC -fwarn-missing-signatures #-}
-
 module Agda.Utils.Pointed where
 
 import Data.Set

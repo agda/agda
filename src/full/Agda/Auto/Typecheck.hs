@@ -149,8 +149,8 @@ traversePi v t =
   HNPi _ _ _ _ (Abs _ ot) -> traversePi (v - 1) (subi (NotM $ App Nothing (NotM OKVal) (Var v) (NotM ALNil)) ot)
   _ -> mbret hnt
 
-
-tcargs :: Nat -> Bool -> Ctx o -> CExp o -> MArgList o -> MExp o -> Bool -> (CExp o -> MExp o -> EE (MyPB o)) -> EE (MyPB o)
+tcargs :: Nat -> Bool -> Ctx o -> CExp o -> MArgList o -> MExp o -> Bool ->
+          (CExp o -> MExp o -> EE (MyPB o)) -> EE (MyPB o)
 tcargs ndfv isdep ctx ityp@(TrBr ityptrs iityp) args elimtrm isconstructor cont = mmpcase (True, prioTypecheckArgList, (Just $ RICheckElim $ isdep || isconstructor)) args $ \args' -> case args' of
  ALNil -> cont ityp elimtrm
  ALCons hid a as ->
@@ -193,23 +193,26 @@ tcargs ndfv isdep ctx ityp@(TrBr ityptrs iityp) args elimtrm isconstructor cont 
  where
   t = TrBr ityptrs
 
-
+addend :: FMode -> MExp o -> MM (Exp o) blk -> MM (Exp o) blk
 addend hid a (NotM (App uid okh elr as)) = NotM $ App uid okh elr (f as)
- where f (NotM ALNil) = NotM $ ALCons hid a (NotM $ ALNil)
-       f (NotM (ALCons hid a as)) = NotM $ ALCons hid a (f as)
-       f _ = __IMPOSSIBLE__
+ where
+   f (NotM ALNil)             = NotM $ ALCons hid a (NotM $ ALNil)
+   f (NotM (ALCons hid a as)) = NotM $ ALCons hid a (f as)
+   f _                        = __IMPOSSIBLE__
 addend _ _ _ = __IMPOSSIBLE__
-copyarg _ = False
 
+copyarg :: MExp o -> Bool
+copyarg _ = False
 
 -- ---------------------------------
 
-
 type HNNBlks o = [HNExp o]
 
+noblks :: HNNBlks o
 noblks = []
-addblk = (:)
 
+addblk :: HNExp o -> HNNBlks o -> HNNBlks o
+addblk = (:)
 
 hnn :: ICExp o -> EE (MyMB (HNExp o) o)
 hnn e = mbcase (hnn_blks e) $ \(hne, _) -> mbret hne
@@ -684,7 +687,8 @@ checkeliminand = f [] []
 
 -- ---------------------------------
 
-
+maybeor :: Bool -> Int -> IO (PB (RefInfo o)) -> IO (PB (RefInfo o)) ->
+           IO (PB (RefInfo o))
 maybeor _ _ mainalt _ = mainalt
 
 iotapossmeta :: ICExp o -> ICArgList o -> EE Bool

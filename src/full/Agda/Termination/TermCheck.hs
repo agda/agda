@@ -1,5 +1,3 @@
-{-# OPTIONS_GHC -fwarn-missing-signatures #-}
-
 {-# LANGUAGE CPP                        #-}
 {-# LANGUAGE FlexibleInstances          #-}
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
@@ -287,7 +285,7 @@ termMutual' = do
         show (names) ++ " does termination check"
       return mempty
 
--- ASR (08 November 2014). The type the function could be
+-- ASR (08 November 2014). The type of the function could be
 --
 -- @Either a b -> TerM (Either a b)@.
 billToTerGraph :: a -> TerM a

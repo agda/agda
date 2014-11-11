@@ -1,5 +1,3 @@
-{-# OPTIONS_GHC -fwarn-missing-signatures #-}
-
 module Agda.TypeChecking.Monad.Imports where
 
 import Control.Monad.State

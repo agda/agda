@@ -1,5 +1,3 @@
-{-# OPTIONS_GHC -fwarn-missing-signatures #-}
-
 {-# LANGUAGE FlexibleContexts #-}
 
 module Agda.TypeChecking.Monad.Env where

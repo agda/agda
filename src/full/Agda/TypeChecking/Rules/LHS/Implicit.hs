@@ -72,13 +72,17 @@ expandImplicitPattern' a p
          return $ Just p'
   | otherwise = return Nothing
 
+implicitP :: Named_ A.Pattern
 implicitP = unnamed $ A.ImplicitP $ PatRange $ noRange
 
 -- | Insert implicit patterns in a list of patterns.
-insertImplicitPatterns :: ExpandHidden -> [A.NamedArg A.Pattern] -> Telescope -> TCM [A.NamedArg A.Pattern]
-insertImplicitPatterns exh ps tel = insertImplicitPatternsT exh ps (telePi tel typeDontCare)
+insertImplicitPatterns :: ExpandHidden -> [A.NamedArg A.Pattern] ->
+                          Telescope -> TCM [A.NamedArg A.Pattern]
+insertImplicitPatterns exh ps tel =
+  insertImplicitPatternsT exh ps (telePi tel typeDontCare)
 
-insertImplicitPatternsT :: ExpandHidden -> [A.NamedArg A.Pattern] -> Type -> TCM [A.NamedArg A.Pattern]
+insertImplicitPatternsT :: ExpandHidden -> [A.NamedArg A.Pattern] -> Type ->
+                           TCM [A.NamedArg A.Pattern]
 insertImplicitPatternsT DontExpandLast [] a = return []
 insertImplicitPatternsT exh            ps a = do
   TelV tel b <- telViewUpTo' (-1) (not . visible) a

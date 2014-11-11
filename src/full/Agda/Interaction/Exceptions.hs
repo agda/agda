@@ -1,5 +1,3 @@
-{-# OPTIONS_GHC -fwarn-missing-signatures #-}
-
 {-| This module defines the exception handler.
 -}
 module Agda.Interaction.Exceptions where

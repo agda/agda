@@ -1,7 +1,6 @@
-{-# LANGUAGE CPP #-}
+{-# LANGUAGE CPP                        #-}
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
 
-{-# OPTIONS_GHC -fwarn-missing-signatures #-}
 #if defined(__GLASGOW_HASKELL__) && __GLASGOW_HASKELL__ >= 702
 {-# OPTIONS_GHC -fno-warn-identities #-}
 #endif

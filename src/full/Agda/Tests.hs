@@ -1,5 +1,3 @@
-{-# OPTIONS_GHC -fwarn-missing-signatures #-}
-
 -- | Responsible for running all internal tests.
 module Agda.Tests (testSuite) where
 

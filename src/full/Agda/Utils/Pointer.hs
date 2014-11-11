@@ -1,6 +1,4 @@
-{-# OPTIONS_GHC -fwarn-missing-signatures #-}
-
-{-# LANGUAGE BangPatterns #-}
+{-# LANGUAGE BangPatterns       #-}
 {-# LANGUAGE DeriveDataTypeable #-}
 
 module Agda.Utils.Pointer

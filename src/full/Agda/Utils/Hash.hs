@@ -1,5 +1,3 @@
-{-# OPTIONS_GHC -fwarn-missing-signatures #-}
-
 {-| Instead of checking time-stamps we compute a hash of the module source and
     store it in the interface file. This module contains the functions to do
     that. -}

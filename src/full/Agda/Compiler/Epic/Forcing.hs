@@ -55,8 +55,8 @@ dataParametersTCM name = do
     defnPars (Record   {recPars  = p}) = p
     defnPars d                         = 0 -- error (show d) -- __IMPOSSIBLE__ -- Not so sure about this.
 
-report n s = do
-  lift $ reportSDoc "epic.forcing" n s
+report :: Int -> TCM P.Doc -> Compile TCM ()
+report n s = lift $ reportSDoc "epic.forcing" n s
 
 piApplyM' :: Type -> Args -> TCM Type
 piApplyM' t as = do
@@ -139,11 +139,14 @@ insertTele er n ins term (ExtendTel x xs) = do
     return (ExtendTel x $ Abs (absName xs) xs' , typ)
 
 -- TODO: restore fields in ConHead
-mkCon c n = I.Con (I.ConHead c Inductive []) [ defaultArg $ I.Var (fromIntegral i) [] | i <- [n - 1, n - 2 .. 0] ]
+mkCon :: QName -> Int -> Term
+mkCon c n = I.Con (I.ConHead c Inductive [])
+                  [ defaultArg $ I.Var i [] | i <- [n - 1, n - 2 .. 0] ]
 
 unifyI :: Telescope -> FlexibleVars -> Type -> Args -> Args -> Compile TCM [Maybe Term]
 unifyI tele flex typ a1 a2 = lift $ addCtxTel tele $ unifyIndices_ flex typ a1 a2
 
+takeTele :: Int -> Telescope -> Telescope
 takeTele 0 _ = EmptyTel
 takeTele n (ExtendTel t ts) = ExtendTel t $ Abs (absName ts) $ takeTele (n-1) (unAbs ts)
 takeTele _ _ = __IMPOSSIBLE__

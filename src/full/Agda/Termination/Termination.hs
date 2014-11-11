@@ -1,5 +1,3 @@
-{-# OPTIONS_GHC -fwarn-missing-signatures #-}
-
 {-# LANGUAGE ImplicitParams #-}
 
 -- | Termination checker, based on

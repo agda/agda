@@ -1,6 +1,3 @@
--- {-# OPTIONS_GHC -fwarn-missing-signatures #-}
--- {-# OPTIONS -fwarn-unused-binds #-}
-
 {-# LANGUAGE CPP                    #-}
 {-# LANGUAGE FlexibleInstances      #-}
 {-# LANGUAGE FunctionalDependencies #-}
@@ -9,6 +6,8 @@
 {-# LANGUAGE TupleSections          #-}
 {-# LANGUAGE TypeSynonymInstances   #-}
 {-# LANGUAGE UndecidableInstances   #-}
+
+-- {-# OPTIONS -fwarn-unused-binds #-}
 
 {-| The translation of abstract syntax to concrete syntax has two purposes.
     First it allows us to pretty print abstract syntax values without having to
@@ -845,9 +844,13 @@ instance ToConcrete RangeAndPragma C.Pragma where
 
 -- Left hand sides --------------------------------------------------------
 
+noImplicitArgs :: A.Patterns -> A.Patterns
 noImplicitArgs = filter (noImplicit . namedArg)
+
+noImplicitPats :: [A.Pattern] -> [A.Pattern]
 noImplicitPats = filter noImplicit
 
+noImplicit :: A.Pattern -> Bool
 noImplicit (A.ImplicitP _) = False
 noImplicit _               = True
 
