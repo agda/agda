@@ -164,7 +164,8 @@ coverageCheck f t cs = do
 -- | @cover f cs (SClause _ _ ps _) = return (splitTree, used, pss)@.
 --   checks that the list of clauses @cs@ covers the given split clause.
 --   Returns the @splitTree@, the @used@ clauses, and missing cases @pss@.
-cover :: QName -> [Clause] -> SplitClause -> TCM (SplitTree, Set Nat, [[I.NamedArg Pattern]])
+cover :: QName -> [Clause] -> SplitClause ->
+         TCM (SplitTree, Set Nat, [[I.NamedArg Pattern]])
 cover f cs sc@(SClause tel perm ps _ target) = do
   reportSDoc "tc.cover.cover" 10 $ vcat
     [ text "checking coverage of pattern:"
@@ -183,8 +184,10 @@ cover f cs sc@(SClause tel perm ps _ target) = do
       let is = [ j | (j, c) <- zip [0..i-1] cs, matchLits c ups perm ]
       reportSLn "tc.cover.cover"  10 $ "literal matches: " ++ show is
       return (SplittingDone (size tel), Set.fromList (i : is), [])
-    Yes (i,_) -> setCurrentRange (getRange (cs !! i)) $
-                   typeError $ CoverageNoExactSplit f (cs !! i)
+
+     | otherwise -> setCurrentRange (getRange (cs !! i)) $
+                      typeError $ CoverageNoExactSplit f (cs !! i)
+
     No        ->  do
       reportSLn "tc.cover" 20 $ "pattern is not covered"
       return (SplittingDone (size tel), Set.empty, [ps])
