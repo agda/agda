@@ -6,7 +6,7 @@
 
 \RequirePackage{ifxetex, ifluatex, xifthen, xcolor, polytable, etoolbox}
 
-% http://tex.stackexchange.com/questions/47576/combining-ifxetex-and-ifluatex-with-the-logical-or-operation
+% https://tex.stackexchange.com/questions/47576/combining-ifxetex-and-ifluatex-with-the-logical-or-operation
 \newif\ifxetexorluatex
 \ifxetex
   \xetexorluatextrue
@@ -22,7 +22,7 @@
 \ifxetexorluatex
 
     % Hack to get the amsthm package working.
-    % http://tex.stackexchange.com/questions/130491/xelatex-error-paragraph-ended-before-tempa-was-complete
+    % https://tex.stackexchange.com/questions/130491/xelatex-error-paragraph-ended-before-tempa-was-complete
     \let\AgdaOpenBracket\[\let\AgdaCloseBracket\]
     \RequirePackage{fontspec}
     \let\[\AgdaOpenBracket\let\]\AgdaCloseBracket
@@ -33,6 +33,11 @@
     \setmainfont[Ligatures=TeX]{xits-regular.otf}
     \setmathfont{xits-math.otf}
 
+    % Make mathcal and mathscr appear as different.
+    % https://tex.stackexchange.com/questions/120065/xetex-what-happened-to-mathcal-and-mathscr
+    \setmathfont[range={\mathcal,\mathbfcal},StylisticSet=1]{xits-math.otf}
+    \setmathfont[range=\mathscr]{xits-math.otf}
+
     \providecommand{\DeclareUnicodeCharacter}[2]{\relax}
 
 % pdfLaTeX
@@ -41,7 +46,7 @@
     \RequirePackage[safe]{tipa} % See page 12 of the tipa manual for what
                                 % safe does.
 
-    % http://tex.stackexchange.com/questions/1774/how-to-insert-pipe-symbol-in-latex
+    % https://tex.stackexchange.com/questions/1774/how-to-insert-pipe-symbol-in-latex
     \RequirePackage[T1]{fontenc}
     \RequirePackage[utf8x]{inputenc}
 \fi
