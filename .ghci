@@ -33,3 +33,4 @@
 :set -fwarn-overflowed-literals
 :set -fwarn-typed-holes
 :set -fwarn-inline-rule-shadowing
+:set -fwarn-missing-signatures
