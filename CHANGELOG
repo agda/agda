@@ -166,6 +166,14 @@ Termination checking
     hidden (suc v) (c₁ ρ)   = hidden v ρ
     hidden v       (c₂ ρ σ) = hidden v (comp ρ σ)
 
+Tools
+=====
+
+LaTeX-backend
+-------------
+
+* Fixed the issue of identifiers containing operators being typeset with
+  excessive math spacing.
 
 Bug fixes
 =========
