@@ -936,7 +936,8 @@ instance Error ProjVarExc where
   noMsg = __IMPOSSIBLE__
 
 instance NoProjectedVar Term where
-  noProjectedVar (Var i es) | Just qs@(_:_) <- mapM isProjElim es = Left $ ProjVarExc i qs
+  noProjectedVar (Var i es)
+    | qs@(_:_) <- takeWhileJust id $ map isProjElim es = Left $ ProjVarExc i qs
   noProjectedVar _ = return ()
 
 instance NoProjectedVar a => NoProjectedVar (I.Arg a) where
