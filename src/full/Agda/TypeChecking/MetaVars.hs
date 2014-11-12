@@ -938,7 +938,8 @@ instance Error ProjVarExc where
 instance NoProjectedVar Term where
   noProjectedVar v =
     case ignoreSharing v of
-      Var i es | Just qs@(_:_) <- mapM isProjElim es -> Left $ ProjVarExc i qs
+      Var i es | qs@(_:_) <- takeWhileJust id $ map isProjElim es
+        -> Left $ ProjVarExc i qs
       _ -> return ()
 
 instance NoProjectedVar a => NoProjectedVar (I.Arg a) where
