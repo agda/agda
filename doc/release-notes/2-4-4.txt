@@ -177,10 +177,10 @@ Tools
 =====
 
 LaTeX-backend
-=============
+-------------
 
-* The default font has been changed to XITS (which is part of TeXlive):
+* The default font has been changed to XITS (which is part of TeX Live):
 
     http://www.ctan.org/tex-archive/fonts/xits/
 
-  This font is more complete with respect to unicode.
+  This font is more complete with respect to Unicode.
