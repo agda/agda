@@ -8819,3 +8819,157 @@ ModuleName                      28ms
 real	3m17.461s
 user	3m14.632s
 sys	0m1.632s
+
+
+2014-11-10 master, with ghc-7.6
+------------------------------------------------------------------------
+
+Finished README.
+Total time                 283,057ms
+Parsing                      1,488ms
+Parsing.Operators           13,904ms
+Import                       2,772ms
+Deserialization                 40ms
+Scoping                     11,112ms
+Typing                     130,844ms
+Termination                  2,236ms
+Termination.Graph              256ms
+Termination.RecCheck           524ms
+Termination.Compare            396ms
+Positivity                   7,008ms
+Injectivity                  4,760ms
+ProjectionLikeness             600ms
+Coverage                     5,464ms
+Highlighting                 1,048ms
+Serialization               89,657ms
+Serialization.Sort             384ms
+Serialization.BinaryEncode   6,868ms
+Serialization.Compress       1,356ms
+ModuleName                      28ms
+
+ 125,708,437,080 bytes allocated in the heap
+  12,879,084,368 bytes copied during GC
+     568,489,336 bytes maximum residency (32 sample(s))
+       5,913,480 bytes maximum slop
+            1261 MB total memory in use (15 MB lost due to fragmentation)
+
+                                    Tot time (elapsed)  Avg pause  Max pause
+  Gen  0      1131 colls,     0 par   36.69s   36.90s     0.0326s    0.3218s
+  Gen  1        32 colls,     0 par   20.29s   20.43s     0.6386s    3.9345s
+
+  INIT    time    0.00s  (  0.00s elapsed)
+  MUT     time  224.53s  (231.58s elapsed)
+  GC      time   56.98s  ( 57.33s elapsed)
+  EXIT    time    0.50s  (  0.50s elapsed)
+  Total   time  282.02s  (289.42s elapsed)
+
+  %GC     time      20.2%  (19.8% elapsed)
+
+  Alloc rate    559,883,593 bytes per MUT second
+
+  Productivity  79.8% of total user, 77.8% of total elapsed
+
+
+No problem with master on ghc-7.8!
+------------------------------------------------------------------------
+
+Finished README.
+Total time                 183,075ms
+Parsing                      1,336ms
+Parsing.Operators           10,696ms
+Import                       3,280ms
+Deserialization                 12ms
+Scoping                      9,312ms
+Typing                      64,964ms
+Termination                  2,116ms
+Termination.Graph              264ms
+Termination.RecCheck           492ms
+Termination.Compare            320ms
+Positivity                   7,120ms
+Injectivity                    992ms
+ProjectionLikeness             304ms
+Coverage                     2,384ms
+Highlighting                   836ms
+Serialization               66,792ms
+Serialization.Sort             400ms
+Serialization.BinaryEncode   7,536ms
+Serialization.Compress       1,800ms
+ModuleName                      20ms
+
+ 122,286,747,520 bytes allocated in the heap
+  14,580,664,344 bytes copied during GC
+     559,218,144 bytes maximum residency (34 sample(s))
+       4,922,168 bytes maximum slop
+            1328 MB total memory in use (0 MB lost due to fragmentation)
+
+                                    Tot time (elapsed)  Avg pause  Max pause
+  Gen  0      1331 colls,     0 par   37.19s   37.57s     0.0282s    0.3455s
+  Gen  1        34 colls,     0 par   15.93s   16.12s     0.4741s    3.4936s
+
+  INIT    time    0.00s  (  0.00s elapsed)
+  MUT     time  128.35s  (132.49s elapsed)
+  GC      time   53.12s  ( 53.69s elapsed)
+  EXIT    time    0.48s  (  0.48s elapsed)
+  Total   time  181.96s  (186.68s elapsed)
+
+  %GC     time      29.2%  (28.8% elapsed)
+
+  Alloc rate    952,744,950 bytes per MUT second
+
+  Productivity  70.8% of total user, 69.0% of total elapsed
+
+181.96user 1.73system 3:06.81elapsed 98%CPU (0avgtext+0avgdata 5504912maxresident)k
+22240inputs+28280outputs (0major+351768minor)pagefaults 0swaps
+
+maint with ghc-7.8
+------------------------------------------------------------------------
+
+Finished README.
+Total time                 189,179ms
+Parsing                      1,328ms
+Parsing.Operators           11,624ms
+Import                       2,468ms
+Deserialization                 16ms
+Scoping                     12,280ms
+Typing                      51,831ms
+Termination                  2,812ms
+Termination.Graph              216ms
+Termination.RecCheck         1,440ms
+Termination.Compare            292ms
+Positivity                   4,628ms
+Injectivity                    776ms
+ProjectionLikeness             172ms
+Coverage                     2,068ms
+Highlighting                   836ms
+Serialization               82,417ms
+Serialization.Sort             424ms
+Serialization.BinaryEncode  11,492ms
+Serialization.Compress       1,748ms
+ModuleName                      20ms
+
+ 118,079,069,576 bytes allocated in the heap
+  12,125,797,416 bytes copied during GC
+     643,116,728 bytes maximum residency (31 sample(s))
+       5,074,584 bytes maximum slop
+            1296 MB total memory in use (0 MB lost due to fragmentation)
+
+                                    Tot time (elapsed)  Avg pause  Max pause
+  Gen  0      3187 colls,     0 par   36.81s   37.17s     0.0117s    0.4279s
+  Gen  1        31 colls,     0 par   25.43s   25.58s     0.8250s    4.1056s
+
+  INIT    time    0.00s  (  0.00s elapsed)
+  MUT     time  125.66s  (126.77s elapsed)
+  GC      time   62.24s  ( 62.74s elapsed)
+  EXIT    time    0.40s  (  0.40s elapsed)
+  Total   time  188.31s  (189.92s elapsed)
+
+  %GC     time      33.1%  (33.0% elapsed)
+
+  Alloc rate    939,642,132 bytes per MUT second
+
+  Productivity  66.9% of total user, 66.4% of total elapsed
+
+
+real	3m10.064s
+user	3m8.308s
+sys	0m1.412s
