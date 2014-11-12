@@ -176,3 +176,11 @@ Compiler backends
 Tools
 =====
 
+LaTeX-backend
+=============
+
+* The default font has been changed to XITS (which is part of TeXlive):
+
+    http://www.ctan.org/tex-archive/fonts/xits/
+
+  This font is more complete with respect to unicode.
