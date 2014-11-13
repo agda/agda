@@ -66,9 +66,9 @@ followed:
   changes above first.)
 
     VERSION=<version>
-    git tag $VERSION
     cabal configure && cabal sdist && cabal check
     cabal install
+    git tag -a $VERSION -m "Agda $VERSION release"
 
 * Ensure that the package builds properly (with multiple versions of ghc if
   possible).

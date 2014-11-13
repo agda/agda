@@ -63,9 +63,9 @@ followed:
   changes above first.)
 
     VERSION=<version>
-    git tag -a $VERSION -m "Agda $VERSION maintenance release"
     cabal configure && cabal sdist && cabal check
     cabal install
+    git tag -a $VERSION -m "Agda $VERSION maintenance release"
     git archive --prefix=Agda-$VERSION/ -o Agda-$VERSION.tar HEAD
     gzip Agda-$VERSION.tar
 
