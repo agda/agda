@@ -90,10 +90,6 @@ followed:
     cd $BASE
     cabal upload dist/Agda-$VERSION.tar.gz
 
-* Upload the archived tar-ball to code.haskell.org.
-
-    scp Agda-$VERSION.tar.gz code.haskell.org:/srv/code/Agda/
-
 * Update the Agda Wiki:
 
   ** Update the Download page:
