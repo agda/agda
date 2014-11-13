@@ -16,8 +16,12 @@ followed:
     cd agda.release
     git checkout maint-$MAJORVERSION
 
-* Clone the standard library
-    git clone git@github.com:Agda/agda-stdlib std-lib
+* Clone the standard library branch related to the Agda bugfix
+  version. Use the branch used by the `std-lib` target rule in the
+  Makefile file. For example,
+
+  (git clone https://github.com/agda/agda-stdlib.git --branch 2.4.2.1 \
+      --single-branch std-lib)
 
 * Finish the CHANGELOG.
 
