@@ -1,10 +1,5 @@
 2014-07-29, adapted from agda-releases
 
-[NOTE: The standard library does not have to be released with
-maintenance releases of Agda.  Instructions concerning the standard
-library are outdated.  Skip the steps talking about tagging or
-releasing the standard library.]
-
 When releasing a bugfix version of Agda, the following procedure can be
 followed:
 
@@ -97,17 +92,7 @@ followed:
 
   ** Update the Release Notes page (under Documentation).
 
-  ** If necessary, update the Standard Library page.
-
   ** Update the Main page.
-
-* Release the standard library:
-
-  cd std-lib
-  git tag v$VERSION
-  git push --tags
-
-* Update the Standard Library page on the wiki.
 
 * Announce the release of the new version on the Agda mailing list.
 
