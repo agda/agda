@@ -56,6 +56,8 @@ import Data.Typeable ( cast, Typeable, typeOf, TypeRep )
 import qualified Codec.Compression.GZip as G
 
 import qualified Agda.Compiler.Epic.Interface as Epic
+import qualified Agda.Compiler.UHC.CoreSyntax as CR
+import qualified UHC.Util.Serialize as UU
 
 import Agda.Syntax.Common
 import Agda.Syntax.Concrete.Name as C
@@ -152,11 +154,13 @@ lensReuse f r = f (farReuse r) <&> \ i -> r { farReuse = i }
 data Dict = Dict
   { nodeD        :: !(HashTable Node    Int32)
   , stringD      :: !(HashTable String  Int32)
+  , bstringD     :: !(HashTable L.ByteString Int32)
   , integerD     :: !(HashTable Integer Int32)
   , doubleD      :: !(HashTable Double  Int32)
   , termD        :: !(HashTable (Ptr Term) Int32)
   , nodeC        :: !(IORef FreshAndReuse)  -- counters for fresh indexes
   , stringC      :: !(IORef FreshAndReuse)
+  , bstringC     :: !(IORef FreshAndReuse)
   , integerC     :: !(IORef FreshAndReuse)
   , doubleC      :: !(IORef FreshAndReuse)
   , termC        :: !(IORef FreshAndReuse)
@@ -181,6 +185,8 @@ emptyDict collectStats fileMod = Dict
   <*> H.new
   <*> H.new
   <*> H.new
+  <*> H.new
+  <*> newIORef farEmpty
   <*> newIORef farEmpty
   <*> newIORef farEmpty
   <*> newIORef farEmpty
@@ -200,6 +206,7 @@ type Memo = HashTable (Int32, TypeRep) U    -- (node index, type rep)
 data St = St
   { nodeE     :: !(Array Int32 Node)
   , stringE   :: !(Array Int32 String)
+  , bstringE  :: !(Array Int32 L.ByteString)
   , integerE  :: !(Array Int32 Integer)
   , doubleE   :: !(Array Int32 Double)
   , nodeMemo  :: !Memo
@@ -252,11 +259,12 @@ encode :: EmbPrj a => a -> TCM L.ByteString
 encode a = do
     collectStats <- hasVerbosity "profile.serialize" 20
     fileMod <- sourceToModule
-    newD@(Dict nD sD iD dD _ nC sC iC dC tC stats _ _) <- liftIO $
+    newD@(Dict nD sD bD iD dD _ nC sC bC iC dC tC stats _ _) <- liftIO $
       emptyDict collectStats fileMod
     root <- liftIO $ runReaderT (icode a) newD
     nL <- benchSort $ l nD
     sL <- benchSort $ l sD
+    bL <- benchSort $ l bD
     iL <- benchSort $ l iD
     dL <- benchSort $ l dD
     -- Record reuse statistics.
@@ -265,6 +273,7 @@ encode a = do
     verboseS "profile.serialize" 10 $ do
       statistics "Integer"  iC
       statistics "String"   sC
+      statistics "ByteString" bC
       statistics "Double"   dC
       statistics "Node"     nC
     when collectStats $ do
@@ -273,7 +282,7 @@ encode a = do
       modifyStatistics $ Map.union stats
     -- Encode hashmaps and root, and compress.
     bits1 <- Bench.billTo [ Bench.Serialization, Bench.BinaryEncode ] $
-      returnForcedByteString $ B.encode (root, nL, sL, iL, dL)
+      returnForcedByteString $ B.encode (root, nL, sL, bL, iL, dL)
     let compressParams = G.defaultCompressParams
           { G.compressLevel    = G.bestSpeed
           , G.compressStrategy = G.huffmanOnlyStrategy
@@ -342,7 +351,7 @@ decode s = do
      then noResult "Wrong interface version."
      else do
 
-      ((r, nL, sL, iL, dL), s, _) <-
+      ((r, nL, sL, bL, iL, dL), s, _) <-
         return $ runGetState B.get (G.decompress s) 0
       if s /= L.empty
          -- G.decompress seems to throw away garbage at the end, so
@@ -350,7 +359,7 @@ decode s = do
        then noResult "Garbage at end."
        else do
 
-        st <- St (ar nL) (ar sL) (ar iL) (ar dL)
+        st <- St (ar nL) (ar sL) (ar bL) (ar iL) (ar dL)
                 <$> liftIO H.new
                 <*> return mf <*> return incs
         (r, st) <- runStateT (runExceptT (value r)) st
@@ -412,6 +421,10 @@ instance EmbPrj String where
 #endif
   icod_   = icodeString
   value i = (! i) `fmap` gets stringE
+
+instance EmbPrj L.ByteString where
+  icod_   = icodeX bstringD bstringC
+  value i = (! i) `fmap` gets bstringE
 
 instance EmbPrj Integer where
   icod_   = icodeInteger
@@ -1153,6 +1166,21 @@ instance EmbPrj JS.MemberId where
   icod_ (JS.MemberId l) = icode l
   value n = JS.MemberId `fmap` value n
 
+instance EmbPrj CoreRepresentation where
+  icod_ (CrType a)     = icode1' a
+  icod_ (CrDefn a)     = icode1 1 a
+  icod_ (CrConstr a)   = icode1 2 a
+
+  value = vcase valu where
+    valu [a]       = valu1 CrType a
+    valu [1, a]    = valu1 CrDefn a
+    valu [2, a]    = valu1 CrConstr a
+    valu _      = malformed
+
+instance EmbPrj CR.CoreExpr where
+  icod_ = icode . B.runPut . UU.serialize
+  value n = value n >>= return . (B.runGet UU.unserialize)
+
 instance EmbPrj Polarity where
   icod_ Covariant     = icode0'
   icod_ Contravariant = icode0 1
@@ -1184,8 +1212,8 @@ instance EmbPrj Occurrence where
     valu _   = malformed
 
 instance EmbPrj CompiledRepresentation where
-  icod_ (CompiledRep a b c d) = icode4' a b c d
-  value = vcase valu where valu [a, b, c, d] = valu4 CompiledRep a b c d
+  icod_ (CompiledRep a b c d e) = icode5' a b c d e
+  value = vcase valu where valu [a, b, c, d, e] = valu5 CompiledRep a b c d e
                            valu _         = malformed
 
 instance EmbPrj Defn where

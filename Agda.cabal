@@ -44,6 +44,9 @@ data-files:         Agda.css
                     EpicInclude/AgdaPrelude.e
                     EpicInclude/stdagda.c
                     EpicInclude/stdagda.h
+                    uhc-agda-base/LICENSE
+                    uhc-agda-base/uhc-agda-base.cabal
+                    uhc-agda-base/src/UHC/Agda/*.hs
                     agda.sty
                     postprocess-latex.pl
                     lib/prim/Agda/Primitive.agda
@@ -62,6 +65,12 @@ flag epic
   manual:  True
   description:
     Install the Epic compiler.
+
+flag uhc
+  default: False
+  manual:  True
+  description:
+    Install the UHC backend.
 
 library
   hs-source-dirs:   src/full
@@ -142,6 +151,10 @@ library
     alex >= 3.1.0 && < 3.2
     , happy >= 1.19.4 && < 2
 
+  -- required to make the code compile, as the EH library is not present when the uhc backend is disabled
+  if flag(uhc)
+    cpp-options:    -DUHC_BACKEND
+
   exposed-modules:  Agda.Auto.Auto
                     Agda.Auto.CaseSplit
                     Agda.Auto.Convert
@@ -180,6 +193,9 @@ library
                     Agda.ImpossibleTest
                     Agda.Interaction.BasicOps
                     Agda.Interaction.CommandLine
+                    Agda.Compiler.UHC.Compiler
+                    Agda.Compiler.UHC.CoreSyntax
+                    Agda.Compiler.UHC.Interface
                     Agda.Interaction.EmacsCommand
                     Agda.Interaction.EmacsTop
                     Agda.Interaction.Exceptions
@@ -405,6 +421,18 @@ library
                     Agda.Utils.VarSet
                     Agda.Utils.Warshall
                     Agda.Version
+
+  if flag(uhc)
+    -- using exposed-modules here doesn't work for some reason. other-modules
+    -- should be fine, as we don't intend to expose the backend internals.
+    other-modules:
+                    Agda.Compiler.UHC.AuxAST
+--                    Agda.Compiler.UHC.CaseOpts
+                    Agda.Compiler.UHC.CompileState
+                    Agda.Compiler.UHC.Core
+                    Agda.Compiler.UHC.FromAgda
+                    Agda.Compiler.UHC.Primitives
+
 
   other-modules:    Paths_Agda
 

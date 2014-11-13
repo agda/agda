@@ -188,6 +188,8 @@ data Pragma
   | CompiledDataPragma QName String [String]
   | CompiledEpicPragma QName String
   | CompiledJSPragma QName String
+  | CompiledCorePragma QName String
+  | CompiledCoreDataPragma QName String [String]
   | StaticPragma QName
   | EtaPragma QName
   deriving (Typeable, Show, Eq)

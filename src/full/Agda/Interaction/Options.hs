@@ -90,6 +90,10 @@ data CommandLineOptions = Options
   , optCompileNoMain    :: Bool
   , optEpicCompile      :: Bool
   , optJSCompile        :: Bool
+  , optUHCCompile       :: Bool
+  , optUHCEhcBin        :: Maybe FilePath
+  , optUHCTextualCore   :: Bool
+  , optUHCCallUHC       :: Bool
   , optCompileDir       :: Maybe FilePath
   -- ^ In the absence of a path the project root is used.
   , optGenerateVimFile  :: Bool
@@ -167,6 +171,10 @@ defaultOptions = Options
   , optCompileNoMain    = False
   , optEpicCompile      = False
   , optJSCompile        = False
+  , optUHCCompile       = False
+  , optUHCEhcBin        = Nothing
+  , optUHCTextualCore   = False
+  , optUHCCallUHC       = True
   , optCompileDir       = Nothing
   , optGenerateVimFile  = False
   , optGenerateLaTeX    = False
@@ -258,6 +266,12 @@ checkOpts opts
   | (not . null . optEpicFlags $ opts)
       && not (optEpicCompile opts) =
       Left "Cannot set Epic flags without using the Epic backend.\n"
+  | (isJust $ optUHCEhcBin opts)
+      && not (optUHCCompile opts) =
+      Left "Cannot set ehc binary without using UHC backend.\n"
+  | (optUHCTextualCore opts)
+      && not (optUHCCompile opts) =
+      Left "Cannot set --uhc-textual-core without using UHC backend.\n"
   | otherwise = Right opts
   where
   atMostOne bs = length (filter ($ opts) bs) <= 1
@@ -413,6 +427,9 @@ compileEpicFlag o = return $ o { optEpicCompile = True}
 compileJSFlag :: Flag CommandLineOptions
 compileJSFlag  o = return $ o { optJSCompile = True }
 
+compileUHCFlag :: Flag CommandLineOptions
+compileUHCFlag o = return $ o { optUHCCompile = True}
+
 compileDirFlag :: FilePath -> Flag CommandLineOptions
 compileDirFlag f o = return $ o { optCompileDir = Just f }
 
@@ -423,6 +440,15 @@ ghcFlag f o = return $ o { optGhcFlags = optGhcFlags o ++ [f] }
 -- NOTE: Quadratic in number of flags.
 epicFlagsFlag :: String -> Flag CommandLineOptions
 epicFlagsFlag s o = return $ o { optEpicFlags = optEpicFlags o ++ [s] }
+
+uhcEhcBinFlag :: String -> Flag CommandLineOptions
+uhcEhcBinFlag s o = return $ o { optUHCEhcBin  = Just s }
+
+uhcTextualCoreFlag :: Flag CommandLineOptions
+uhcTextualCoreFlag o = return $ o { optUHCTextualCore = True }
+
+uhcCallUHCFlag :: Flag CommandLineOptions
+uhcCallUHCFlag o = return $ o { optUHCCallUHC = False }
 
 htmlFlag :: Flag CommandLineOptions
 htmlFlag o = return $ o { optGenerateHTML = True }
@@ -478,6 +504,10 @@ standardOptions =
                     "when compiling using the MAlonzo backend (experimental), do not treat the requested module as the main module of a program"
     , Option []     ["epic"] (NoArg compileEpicFlag) "compile program using the Epic backend"
     , Option []     ["js"] (NoArg compileJSFlag) "compile program using the JS backend"
+    , Option []     ["uhc"] (NoArg compileUHCFlag) "compile program using the UHC backend"
+    , Option []     ["uhc-ehc-bin"] (ReqArg uhcEhcBinFlag "EHC") "The ehc binary to use when compiling with the uhc backend."
+    , Option []     ["uhc-textual-core"] (NoArg uhcTextualCoreFlag) "Use textual core as intermediate representation instead of binary core."
+    , Option []     ["uhc-dont-call-uhc"] (NoArg uhcCallUHCFlag) "Don't call uhc, just write the UHC Core files."
     , Option []     ["compile-dir"] (ReqArg compileDirFlag "DIR")
                     ("directory for compiler output (default: the project root)")
     , Option []     ["ghc-flag"] (ReqArg ghcFlag "GHC-FLAG")

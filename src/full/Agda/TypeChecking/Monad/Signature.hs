@@ -22,6 +22,7 @@ import Agda.Syntax.Internal as I
 import Agda.Syntax.Position
 
 import qualified Agda.Compiler.JS.Parser as JS
+import qualified Agda.Compiler.UHC.CoreSyntax as CR
 
 import Agda.TypeChecking.Monad.Base
 import Agda.TypeChecking.Monad.Context
@@ -119,6 +120,28 @@ addJSCode q jsDef =
       typeError (CompilationError ("Failed to parse ECMAScript (..." ++ s ++ ") for " ++ show q))
   where
     addJS e crep = crep { compiledJS = e }
+
+addCoreCode :: QName -> String -> TCM ()
+addCoreCode q crDef =
+  case CR.parseCoreExpr crDef of
+    Right x -> modifySignature $ updateDefinition q $ updateDefCompiledRep $ addCore x
+    Left er -> typeError (CompilationError ("Failed to parse UHC Core for " ++ show q ++ ": " ++ er))
+  where
+    addCore e crep = crep { compiledCore = Just $ CrDefn e }
+
+addCoreConstr :: QName -> String -> String -> TCM ()
+addCoreConstr q crTy crCo =
+  case CR.parseCoreConstr crCo of
+    Right x -> modifySignature $ updateDefinition q $ updateDefCompiledRep $ addCore x
+    Left er -> typeError (CompilationError ("Failed to parse UHC Core constructor for " ++ show q ++ ": " ++ er))
+  where
+    addCore (crCtor, crTag) crep = crep {compiledCore = Just $ CrConstr (crTy, crCtor, crTag) }
+
+addCoreType :: QName -> String -> TCM ()
+addCoreType q crTy = modifySignature $ updateDefinition q $ updateDefCompiledRep $ addCr
+  -- TODO: sanity checking
+  where
+    addCr crep = crep { compiledCore = Just $ CrType crTy }
 
 markStatic :: QName -> TCM ()
 markStatic q = modifySignature $ updateDefinition q $ mark
