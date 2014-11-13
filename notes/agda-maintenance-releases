@@ -59,6 +59,13 @@ followed:
       emacs --batch -L . -f batch-byte-compile *.el; \
       rm -f *.elc)
 
+* Run the test-suite:
+
+    autoconf
+    ./configure
+    make install
+    make test
+
 * Tag and build source distributions. (Do not forget to record the
   changes above first.)
 
@@ -66,21 +73,14 @@ followed:
     cabal configure && cabal sdist && cabal check
     cabal install
     git tag -a $VERSION -m "Agda $VERSION maintenance release"
-    git archive --prefix=Agda-$VERSION/ -o Agda-$VERSION.tar HEAD
-    gzip Agda-$VERSION.tar
 
 * Ensure that all the packages build properly.
 
     BASE=`pwd`
     cd ${TMPDIR:-/tmp}
-    tar xzf $BASE/Agda-$VERSION.tar.gz
-    cd Agda-$VERSION
-    autoconf
-    ./configure
-    make install CABAL_OPTIONS="--prefix=$PWD/usr"
-    make test
     tar xzf $BASE/dist/Agda-$VERSION.tar.gz
     cd Agda-$VERSION
+    cabal configure
     cabal install
 
   Do not forget to test the Emacs mode.

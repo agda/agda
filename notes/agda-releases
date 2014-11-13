@@ -79,7 +79,6 @@ followed:
     cd Agda-$VERSION
     cabal configure
     cabal install
-    cd $BASE
 
   Do not forget to test the Emacs mode.
 
