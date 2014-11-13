@@ -92,21 +92,6 @@ followed:
   git push
   git push --tags
 
-* Update the Agda Wiki:
-
-  ** Update the Download page:
-
-     *** Move the current version information to the old releases
-         section.
-
-     *** Update the last release information.
-
-  ** Update the Release Notes page (under Documentation).
-
-  ** Update the Main page.
-
-* Announce the release of the new version on the Agda mailing list.
-
 * Remove the "this" source-repository section from the Cabal
   file. (This would be unnecessary if we had two repositories, one
   stable and one for development.)
@@ -153,3 +138,17 @@ followed:
 
 * Add maint-$VERSION to the branches whitelist in .travis.yml
 
+* Update the Agda Wiki:
+
+  ** Update the Download page:
+
+     *** Move the current version information to the old releases
+         section.
+
+     *** Update the last release information.
+
+  ** Update the Release Notes page (under Documentation).
+
+  ** Update the Main page.
+
+* Announce the release of the new version on the Agda mailing list.

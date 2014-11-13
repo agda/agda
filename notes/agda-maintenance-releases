@@ -90,21 +90,6 @@ followed:
     cd $BASE
     cabal upload dist/Agda-$VERSION.tar.gz
 
-* Update the Agda Wiki:
-
-  ** Update the Download page:
-
-     *** Move the current version information to the old releases
-         section.
-
-     *** Update the last release information.
-
-  ** Update the Release Notes page (under Documentation).
-
-  ** Update the Main page.
-
-* Announce the release of the new version on the Agda mailing list.
-
 * Update the version numbers in:
 
   Agda.cabal (thrice),
@@ -133,3 +118,18 @@ followed:
 * Push master
 
     git push
+
+* Update the Agda Wiki:
+
+  ** Update the Download page:
+
+     *** Move the current version information to the old releases
+         section.
+
+     *** Update the last release information.
+
+  ** Update the Release Notes page (under Documentation).
+
+  ** Update the Main page.
+
+* Announce the release of the new version on the Agda mailing list.
