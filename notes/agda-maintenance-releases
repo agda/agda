@@ -8,6 +8,11 @@ releasing the standard library.]
 When releasing a bugfix version of Agda, the following procedure can be
 followed:
 
+* Update in the bug tracker the milestone field of open issues to the
+  next Agda version. (If the label for the next milestone version
+  (e.g. Milestone-2.4.6) does not exist, create an issue asking for
+  it).
+
 * Get a clean Agda repository.
 
     MAJORVERSION=<current-Agda-version-eg-2.4.0>
