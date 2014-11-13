@@ -16,6 +16,9 @@ followed:
   Makefile file. For example,
 
     git clone git@github.com:Agda/agda-stdlib std-lib
+
+* Create Everything.agda in the standard library
+
     cd std-lib
     make Everything.agda
     cd ..

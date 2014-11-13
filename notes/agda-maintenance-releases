@@ -23,6 +23,12 @@ followed:
   (git clone https://github.com/agda/agda-stdlib.git --branch 2.4.2.1 \
       --single-branch std-lib)
 
+* Create Everything.agda in the standard library
+
+    cd std-lib
+    make Everything.agda
+    cd ..
+
 * Finish the CHANGELOG.
 
 * Update the README, if necessary.
