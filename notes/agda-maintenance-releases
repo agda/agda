@@ -1,12 +1,12 @@
-2014-07-29, adapted from agda-releases
-
-[NOTE: The standard library does not have to be released with
-maintenance releases of Agda.  Instructions concerning the standard
-library are outdated.  Skip the steps talking about tagging or
-releasing the standard library.]
+2014-11-13, adapted from agda-releases
 
 When releasing a bugfix version of Agda, the following procedure can be
 followed:
+
+* Update in the bug tracker the milestone field of open issues to the
+  next Agda version. (If the label for the next milestone version
+  (e.g. Milestone-2.4.6) does not exist, create an issue asking for
+  it).
 
 * Get a clean Agda repository.
 
@@ -16,14 +16,31 @@ followed:
     cd agda.release
     git checkout maint-$MAJORVERSION
 
-* Clone the standard library
-    git clone git@github.com:Agda/agda-stdlib std-lib
+* Clone the standard library branch related to the Agda bugfix
+  version. Use the branch used by the `std-lib` target rule in the
+  Makefile file. For example,
+
+  (git clone https://github.com/agda/agda-stdlib.git --branch 2.4.2.1 \
+      --single-branch std-lib)
+
+* Create Everything.agda in the standard library
+
+    cd std-lib
+    make Everything.agda
+    cd ..
 
 * Finish the CHANGELOG.
 
-* Update the README, if necessary.
+* Update the README.md, if necessary.
 
 * Update the LICENSE file, if necessary.
+
+* Add a second source-repository section to Agda.cabal:
+
+    source-repository this
+      type:     git
+      location: https://github.com/agda/agda
+      tag:      $VERSION
 
 * Remove -Werror from Agda.cabal.
 
@@ -42,32 +59,28 @@ followed:
       emacs --batch -L . -f batch-byte-compile *.el; \
       rm -f *.elc)
 
-* In Agda.cabal add to "source-repository this"
+* Run the test-suite:
 
-    tag: $VERSION
+    autoconf
+    ./configure
+    make install
+    make test
 
 * Tag and build source distributions. (Do not forget to record the
   changes above first.)
 
     VERSION=<version>
-    git tag -a $VERSION -m "Agda $VERSION maintenance release"
     cabal configure && cabal sdist && cabal check
     cabal install
-    git archive --prefix=Agda-$VERSION/ -o Agda-$VERSION.tar HEAD
-    gzip Agda-$VERSION.tar
+    git tag -a $VERSION -m "Agda $VERSION maintenance release"
 
 * Ensure that all the packages build properly.
 
     BASE=`pwd`
     cd ${TMPDIR:-/tmp}
-    tar xzf $BASE/Agda-$VERSION.tar.gz
-    cd Agda-$VERSION
-    autoconf
-    ./configure
-    make install CABAL_OPTIONS="--prefix=$PWD/usr"
-    make test
     tar xzf $BASE/dist/Agda-$VERSION.tar.gz
     cd Agda-$VERSION
+    cabal configure
     cabal install
 
   Do not forget to test the Emacs mode.
@@ -77,43 +90,19 @@ followed:
     cd $BASE
     cabal upload dist/Agda-$VERSION.tar.gz
 
-* Upload the archived tar-ball to code.haskell.org.
+* Remove the "this" source-repository section from the Cabal
+  file. (This would be unnecessary if we had two repositories, one
+  stable and one for development.)
 
-    scp Agda-$VERSION.tar.gz code.haskell.org:/srv/code/Agda/
-
-* Update the Agda Wiki:
-
-  ** Update the Download page:
-
-     *** Move the current version information to the old releases
-         section.
-
-     *** Update the last release information.
-
-  ** Update the Release Notes page (under Documentation).
-
-  ** If necessary, update the Standard Library page.
-
-  ** Update the Main page.
-
-* Release the standard library:
-
-  cd std-lib
-  git tag v$VERSION
-  git push --tags
-
-* Update the Standard Library page on the wiki.
-
-* Announce the release of the new version on the Agda mailing list.
+* Turn -Werror back on.
 
 * Update the version numbers in:
 
-  Agda.cabal (thrice),
+  Agda.cabal (twice),
   src/data/emacs-mode/agda2-mode.el, and
   mk/paths.mk.
-
-* Remove the tag from the "this" source-repository section from the Cabal
-  file.
+  test/interaction/Issue1244a.out
+  test/interaction/Issue1244b.out
 
 * Add a new header to CHANGELOG.
 
@@ -127,10 +116,25 @@ followed:
 * Restore version numbers in 'master'
   (possibly by just resolving the merge conflicts).
 
-    Agda.cabal (thrice),
+    Agda.cabal (twice),
     src/data/emacs-mode/agda2-mode.el, and
     mk/paths.mk.
 
 * Push master
 
     git push
+
+* Update the Agda Wiki:
+
+  ** Update the Download page:
+
+     *** Move the current version information to the old releases
+         section.
+
+     *** Update the last release information.
+
+  ** Update the Release Notes page (under Documentation).
+
+  ** Update the Main page.
+
+* Announce the release of the new version on the Agda mailing list.

@@ -1,14 +1,24 @@
 When releasing a new version of Agda, the following procedure can be
 followed:
 
+* Update in the bug tracker the milestone field of open issues to the
+  next Agda version. (If the label for the next milestone version
+  (e.g. Milestone-2.4.6) does not exist, create an issue asking for
+  it).
+
 * Get a clean Agda repository.
 
     git clone git@github.com:agda/agda Agda.release
     cd Agda.release
 
-* Clone the standard library
+* Clone the standard library branch related to the Agda new
+  version. Use the branch used by the `std-lib` target rule in the
+  Makefile file. For example,
 
     git clone git@github.com:Agda/agda-stdlib std-lib
+
+* Create Everything.agda in the standard library
+
     cd std-lib
     make Everything.agda
     cd ..
@@ -56,9 +66,9 @@ followed:
   changes above first.)
 
     VERSION=<version>
-    git tag $VERSION
     cabal configure && cabal sdist && cabal check
     cabal install
+    git tag -a $VERSION -m "Agda $VERSION release"
 
 * Ensure that the package builds properly (with multiple versions of ghc if
   possible).
@@ -69,7 +79,6 @@ followed:
     cd Agda-$VERSION
     cabal configure
     cabal install
-    cd $BASE
 
   Do not forget to test the Emacs mode.
 
@@ -83,26 +92,11 @@ followed:
   git push
   git push --tags
 
-* Update the Agda Wiki:
-
-  ** Update the Download page:
-
-     *** Move the current version information to the old releases
-         section.
-
-     *** Update the last release information.
-
-  ** Update the Release Notes page (under Documentation).
-
-  ** Update the Main page.
-
-* Announce the release of the new version on the Agda mailing list.
-
 * Remove the "this" source-repository section from the Cabal
   file. (This would be unnecessary if we had two repositories, one
   stable and one for development.)
 
-  Turn -Werror back on.
+* Turn -Werror back on.
 
 * Create a maintenance branch
 
@@ -144,3 +138,17 @@ followed:
 
 * Add maint-$VERSION to the branches whitelist in .travis.yml
 
+* Update the Agda Wiki:
+
+  ** Update the Download page:
+
+     *** Move the current version information to the old releases
+         section.
+
+     *** Update the last release information.
+
+  ** Update the Release Notes page (under Documentation).
+
+  ** Update the Main page.
+
+* Announce the release of the new version on the Agda mailing list.
