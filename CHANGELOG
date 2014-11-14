@@ -36,9 +36,9 @@ Important changes since 0.8.1:
   ** The primitive function for showing names, primShowQName, is now
      exposed as Reflection.showName.
 
-* TODO: Remove the modules Foo.Props.Bar (see release notes for
-  version 0.8.1). It should be enough revert the commit
-  https://github.com/pepijnkokke/agda-stdlib/commit/1c06ece58e0940a24dbb50a3c8c7811dbe08b8a5
+* Removed compatibility modules for Props -> Properties rename
+
+  Use Foo.Properties.Bar instead of Foo.Props.Bar.
 
 ------------------------------------------------------------------------
 -- Version 0.8.1
