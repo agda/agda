@@ -90,14 +90,15 @@ followed:
     cd $BASE
     cabal upload dist/Agda-$VERSION.tar.gz
 
+* Remove the "this" source-repository section from the Cabal
+  file. (This would be unnecessary if we had two repositories, one
+  stable and one for development.)
+
 * Update the version numbers in:
 
   Agda.cabal (thrice),
   src/data/emacs-mode/agda2-mode.el, and
   mk/paths.mk.
-
-* Remove the tag from the "this" source-repository section from the Cabal
-  file.
 
 * Add a new header to CHANGELOG.
 
