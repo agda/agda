@@ -99,12 +99,24 @@ giveExpr mi e = do
         TP.text "give: instantiated meta type =" TP.<+> prettyTCM t'
       v <- checkExpr e t'
       case mvInstantiation mv of
-        InstV _ v' -> unlessM ((Irrelevant ==) <$> asks envRelevance) $ do
+        InstV xs v' -> unlessM ((Irrelevant ==) <$> asks envRelevance) $ do
           reportSDoc "interaction.give" 20 $ TP.sep
             [ TP.text "meta was already set to value v' = " TP.<+> prettyTCM v'
+              TP.<+> TP.text " with free variables " TP.<+> return (fsep $ map pretty xs)
             , TP.text "now comparing it to given value v = " TP.<+> prettyTCM v
+            , TP.text "in context " TP.<+> inTopContext (prettyTCM ctx)
             ]
-          equalTerm t' v v'  -- Note: v' lives in context of meta
+          -- The number of free variables should be at least the size of the context
+          -- (Ideally, if we implemented contextual type theory, it should be the same.)
+          when (length xs < size ctx) __IMPOSSIBLE__
+          -- if there are more free variables than the context has
+          -- we need to abstract over the additional ones (xs2)
+          let (_xs1, xs2) = splitAt (size ctx) xs
+          v' <- return $ foldr (\ (Arg ai x) -> I.Lam ai . I.Abs x) v' xs2
+          reportSDoc "interaction.give" 20 $ TP.sep
+            [ TP.text "in meta context, v' = " TP.<+> prettyTCM v'
+            ]
+          equalTerm t' v v'  -- Note: v' now lives in context of meta
         _ -> updateMeta mi v
       reify v
 
