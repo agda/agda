@@ -4,6 +4,10 @@
 # Profiling verbosity for library-test
 PROFVERB=7
 
+# Agda standard library branch
+
+STD_LIB_BRANCH = 2.4.2.1
+
 SHELL=bash
 ## Includes ###############################################################
 
@@ -264,13 +268,15 @@ latex-test :
 std-lib :
 	if [ ! -d $@ ]; then \
 	   git clone https://github.com/agda/agda-stdlib.git \
-	       --branch $(VERSION) --single-branch $@; \
+	       --branch $(STD_LIB_BRANCH) --single-branch $@; \
 	fi
 
 .PHONY : up-to-date-std-lib
 up-to-date-std-lib : std-lib
 	@(cd std-lib && \
-	  git fetch && git checkout $(VERSION) && git merge origin/$(VERSION) && \
+	  git fetch && \
+          git checkout $(STD_LIB_BRANCH) && \
+          git merge origin/$(STD_LIB_BRANCH) && \
 	  make setup)
 
 .PHONY : library-test
