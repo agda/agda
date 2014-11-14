@@ -116,7 +116,7 @@ followed:
 * Restore version numbers in 'master'
   (possibly by just resolving the merge conflicts).
 
-    Agda.cabal (thrice),
+    Agda.cabal (twice),
     src/data/emacs-mode/agda2-mode.el, and
     mk/paths.mk.
 
