@@ -106,6 +106,10 @@ followed:
 
 * Add a new header to CHANGELOG.
 
+ASR (13 November 2014). I didn't use the following three steps. I used
+the procedure described in HACKING for merging the maintenance branch
+into the master branch.
+
 * Push all changes and merge into 'master' branch.
 
     git push --tags
