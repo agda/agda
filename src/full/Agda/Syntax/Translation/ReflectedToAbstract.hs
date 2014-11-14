@@ -66,22 +66,19 @@ instance ToAbstract r a => ToAbstract (R.Arg r) (A.NamedArg a) where
 instance ToAbstract [R.Arg Term] [A.NamedArg Expr] where
   toAbstract = traverse toAbstract
 
---instance ToAbstract r a => ToAbstract (R.Dom r) (A.Dom a) where
---  toAbstract (C.Dom i x) = C.Dom <$> toAbstract i <*> toAbstract x
-
-instance ToAbstract r Expr => ToAbstract (R.Dom r) (Name -> A.TypedBindings) where
-  toAbstract (C.Dom i x) = do
+instance ToAbstract r Expr => ToAbstract (R.Dom r, Name) (A.TypedBindings) where
+  toAbstract (C.Dom i x, name) = do
     dom <- toAbstract x
     i   <- toAbstract i
-    return $ \name -> TypedBindings noRange $ C.Arg i $ TBind noRange [name] dom
+    return $ TypedBindings noRange $ C.Arg i $ TBind noRange [name] dom
 
-instance ToAbstract Elim (Expr -> Expr) where
-  toAbstract (Apply arg) = do
+instance ToAbstract (Expr, Elim) Expr where
+  toAbstract (f, Apply arg) = do
     arg <- toAbstract arg
-    return $ \f -> App (ExprRange noRange) f arg
+    return $ App (ExprRange noRange) f arg
 
-instance ToAbstract Elims (Expr -> Expr) where
-  toAbstract elims = foldl (flip (.)) id <$> mapM toAbstract elims
+instance ToAbstract (Expr, Elims) Expr where
+  toAbstract (f, elims) = foldM (curry toAbstract) f elims
 
 instance ToAbstract r a => ToAbstract (R.Abs r) (a, Name) where
   toAbstract (Abs s x) = withName s' $ \name -> (,) <$> toAbstract x <*> return name
@@ -99,9 +96,9 @@ instance ToAbstract Term Expr where
     R.Var i es -> do
       let fallback = withName ("@" ++ show i) return
       name <- fromMaybeM fallback $ askName i
-      return (A.Var name) <**> toAbstract es
-    R.Con c es -> return (A.Con (AmbQ [killRange c])) <**> toAbstract es
-    R.Def f es -> return (A.Def $ killRange f) <**> toAbstract es
+      toAbstract (A.Var name, es)
+    R.Con c es -> toAbstract (A.Con (AmbQ [killRange c]), es)
+    R.Def f es -> toAbstract (A.Def (killRange f), es)
     R.Lam h t  -> do
       (e, name) <- toAbstract t
       let info  = setHiding h defaultArgInfo
@@ -112,11 +109,11 @@ instance ToAbstract Term Expr where
           cname   = nameConcrete name
           defInfo = mkDefInfo cname defaultFixity' PublicAccess ConcreteDef noRange
       cs <- toAbstract $ map (QNamed qname) cs
-      return (A.ExtendedLam exprNoRange defInfo qname cs) <**> toAbstract es
+      toAbstract (A.ExtendedLam exprNoRange defInfo qname cs, es)
     R.Pi a b   -> do
-      a         <- toAbstract a
       (b, name) <- toAbstract b
-      return $ A.Pi exprNoRange [a name] b
+      a         <- toAbstract (a, name)
+      return $ A.Pi exprNoRange [a] b
     R.Sort s   -> toAbstract s
     R.Lit l    -> toAbstract l
     R.Unknown  -> return $ Underscore emptyMetaInfo
