@@ -1,8 +1,29 @@
 ------------------------------------------------------------------------
--- Release notes for Agda standard library version 0.8.2
+-- Release notes for Agda standard library version X.Y
 ------------------------------------------------------------------------
 
-The library has been tested using Agda version TODO.
+The library has been tested using Agda version A.B.C.
+
+Note that no guarantees are made about backwards or forwards
+compatibility, the library is still at an experimental stage.
+
+If you want to compile the library using the MAlonzo compiler, then
+you should first install some supporting Haskell code, for instance as
+follows:
+
+  cd ffi
+  cabal install
+
+Currently the library does not support the Epic or JavaScript compiler
+backends.
+
+Important changes since 0.9.1:
+
+------------------------------------------------------------------------
+-- Release notes for Agda standard library version 0.9
+------------------------------------------------------------------------
+
+The library has been tested using Agda version 2.4.2.1.
 
 Note that no guarantees are made about backwards or forwards
 compatibility, the library is still at an experimental stage.
@@ -36,9 +57,9 @@ Important changes since 0.8.1:
   ** The primitive function for showing names, primShowQName, is now
      exposed as Reflection.showName.
 
-* TODO: Remove the modules Foo.Props.Bar (see release notes for
-  version 0.8.1). It should be enough revert the commit
-  https://github.com/pepijnkokke/agda-stdlib/commit/1c06ece58e0940a24dbb50a3c8c7811dbe08b8a5
+* Removed compatibility modules for Props -> Properties rename
+
+  Use Foo.Properties.Bar instead of Foo.Props.Bar.
 
 ------------------------------------------------------------------------
 -- Version 0.8.1

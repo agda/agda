@@ -20,21 +20,21 @@ procedure can be followed:
 
   make test
 
-* If necessary, copy the contents of releases/future-version.txt to
-  releases/releases-notes.txt. Remove the contents from
-  releases/future-version.txt
+* If necessary, copy the contents of notes/future-version.txt to
+  CHANGELOG. Remove the contents from notes/future-version.txt
 
-* Finish the release notes (e.g. remove the TODOs) in the
-  releases/release-notes.txt file.
+* Finish the CHANGELOG.
 
 * Update the copyright year range in the LICENSE file, if necessary.
 
 * Tag version X.Y (do not forget to record the changes above first):
 
-  git tag -a vX.Y -m "Agda standard library vX.Y"
+  VERSION=X.Y
+  git tag -a v$VERSION -m "Agda standard library v$VERSION"
 
-* Removed release-specific information from README.agda (do not forget
-  to record the changes).
+* Removed release-specific information from README.agda.
+
+* Add a new header to CHANGELOG (do not forget to record the changes).
 
 * Push all the changes and the new tag (requires Git >= 1.8.3):
 
