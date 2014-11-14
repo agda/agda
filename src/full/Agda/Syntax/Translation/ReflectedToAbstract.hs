@@ -1,0 +1,167 @@
+{-# OPTIONS_GHC -fwarn-missing-signatures #-}
+
+{-# LANGUAGE CPP                    #-}
+{-# LANGUAGE FlexibleInstances      #-}
+{-# LANGUAGE FunctionalDependencies #-}
+{-# LANGUAGE MultiParamTypeClasses  #-}
+{-# LANGUAGE ScopedTypeVariables    #-}
+{-# LANGUAGE TypeSynonymInstances   #-}
+{-# LANGUAGE UndecidableInstances   #-}
+
+module Agda.Syntax.Translation.ReflectedToAbstract where
+
+import Control.Applicative
+import Control.Monad.Reader
+import Control.Monad.Writer
+
+import Data.Traversable as Trav hiding (mapM)
+
+import Agda.Syntax.Fixity
+import Agda.Syntax.Literal
+import Agda.Syntax.Position
+import Agda.Syntax.Info
+import Agda.Syntax.Common as C
+import Agda.Syntax.Abstract as A hiding (Apply)
+import Agda.Syntax.Reflected as R
+
+import Agda.TypeChecking.Monad as M hiding (MetaInfo)
+
+import Agda.Utils.Maybe
+import Agda.Utils.List
+
+#include "undefined.h"
+import Agda.Utils.Impossible
+
+type Names = [Name]
+
+type WithNames a = ReaderT Names TCM a
+-- Note: we only need the TCM for fresh names
+
+-- | Adds a new unique name to the current context.
+withName :: String -> (Name -> WithNames a) -> WithNames a
+withName s f = do
+  name <- freshName_ s
+  local (name:) $ f name
+
+-- | Returns the name of the variable with the given de Bruijn index.
+askName :: Int -> WithNames (Maybe Name)
+askName i = reader (!!! i)
+
+class ToAbstract r a | r -> a where
+  toAbstract :: r -> WithNames a
+
+-- | Translate reflected syntax to abstract, using the names from the current typechecking context.
+toAbstract_ :: (ToAbstract r a) => r -> TCM a
+toAbstract_ x = runReaderT (toAbstract x) =<< getContextNames
+
+instance ToAbstract r a => ToAbstract (Named name r) (Named name a) where
+  toAbstract = traverse toAbstract
+
+instance ToAbstract r a => ToAbstract (C.ArgInfo r) (C.ArgInfo a) where
+  toAbstract = traverse toAbstract
+
+instance ToAbstract r a => ToAbstract (R.Arg r) (A.NamedArg a) where
+  toAbstract (C.Arg i x) = C.Arg <$> toAbstract i <*> toAbstract (unnamed x)
+
+instance ToAbstract [R.Arg Term] [A.NamedArg Expr] where
+  toAbstract = traverse toAbstract
+
+--instance ToAbstract r a => ToAbstract (R.Dom r) (A.Dom a) where
+--  toAbstract (C.Dom i x) = C.Dom <$> toAbstract i <*> toAbstract x
+
+instance ToAbstract r Expr => ToAbstract (R.Dom r) (Name -> A.TypedBindings) where
+  toAbstract (C.Dom i x) = do
+    dom <- toAbstract x
+    i   <- toAbstract i
+    return $ \name -> TypedBindings noRange $ C.Arg i $ TBind noRange [name] dom
+
+instance ToAbstract Elim (Expr -> Expr) where
+  toAbstract (Apply arg) = do
+    arg <- toAbstract arg
+    return $ \f -> App (ExprRange noRange) f arg
+
+instance ToAbstract Elims (Expr -> Expr) where
+  toAbstract elims = foldl (flip (.)) id <$> mapM toAbstract elims
+
+instance ToAbstract r a => ToAbstract (R.Abs r) (a, Name) where
+  toAbstract (Abs s x) = withName s' $ \name -> (,) <$> toAbstract x <*> return name
+    where s' = if (isNoName s) then "z" else s -- TODO: only do this when var is free
+
+instance ToAbstract Literal Expr where
+  toAbstract l@(LitInt    {}) = return (A.Lit l)
+  toAbstract l@(LitFloat  {}) = return (A.Lit l)
+  toAbstract l@(LitString {}) = return (A.Lit l)
+  toAbstract l@(LitChar   {}) = return (A.Lit l)
+  toAbstract l@(LitQName  {}) = return (A.Lit l)
+
+instance ToAbstract Term Expr where
+  toAbstract t = case t of
+    R.Var i es -> do
+      let fallback = withName ("@" ++ show i) return
+      name <- fromMaybeM fallback $ askName i
+      return (A.Var name) <**> toAbstract es
+    R.Con c es -> return (A.Con (AmbQ [killRange c])) <**> toAbstract es
+    R.Def f es -> return (A.Def $ killRange f) <**> toAbstract es
+    R.Lam h t  -> do
+      (e, name) <- toAbstract t
+      let info  = setHiding h defaultArgInfo
+      return $ A.Lam exprNoRange (DomainFree info name) e
+    R.ExtLam cs es -> do
+      name <- freshName_ "extlam"
+      let qname   = qnameFromList [name]
+          cname   = nameConcrete name
+          defInfo = mkDefInfo cname defaultFixity' PublicAccess ConcreteDef noRange
+      cs <- toAbstract $ map (QNamed qname) cs
+      return (A.ExtendedLam exprNoRange defInfo qname cs) <**> toAbstract es
+    R.Pi a b   -> do
+      a         <- toAbstract a
+      (b, name) <- toAbstract b
+      return $ A.Pi exprNoRange [a name] b
+    R.Sort s   -> toAbstract s
+    R.Lit l    -> toAbstract l
+    R.Unknown  -> return $ Underscore emptyMetaInfo
+
+instance ToAbstract Type Expr where
+  toAbstract (El _ x) = toAbstract x
+
+mkSet :: Expr -> Expr
+mkSet e = App exprNoRange (A.Set exprNoRange 0) $ defaultNamedArg e
+
+instance ToAbstract Sort Expr where
+  toAbstract (SetS x) = mkSet <$> toAbstract x
+  toAbstract (LitS x) = return $ A.Set exprNoRange x
+  toAbstract UnknownS = return $ mkSet $ Underscore emptyMetaInfo
+
+instance ToAbstract R.Pattern (A.Pattern, Names) where
+  toAbstract pat = case pat of
+    R.ConP c args -> do
+      (args, names) <- toAbstract args
+      return (A.ConP (ConPatInfo False patNoRange) (AmbQ [killRange c]) args, names)
+    R.DotP    -> return (A.DotP patNoRange (Underscore emptyMetaInfo), [])
+    R.VarP s  -> withName s' $ \name -> return $ (A.VarP name, [name])
+      where s' = if (isNoName s) then "z" else s --TODO: only do this when var is free
+    R.LitP l  -> return (A.LitP l, [])
+    R.AbsurdP -> return (A.AbsurdP patNoRange, [])
+    R.ProjP p -> return (A.DefP patNoRange p [], [])
+
+instance ToAbstract [R.Arg R.Pattern] ([A.NamedArg A.Pattern], Names) where
+  toAbstract pats = do
+    patsAndNames <- mapM toAbstract pats
+    let pats = (fmap . fmap . fmap) fst patsAndNames
+        names = concat $ fmap (snd . namedThing . unArg) patsAndNames
+    return (pats, names)
+
+instance ToAbstract (QNamed R.Clause) A.Clause where
+  toAbstract (QNamed name (R.Clause pats rhs)) = do
+    (pats, names) <- toAbstract pats
+    rhs <- local (names++) $ toAbstract rhs
+    let lhs = spineToLhs $ SpineLHS (LHSRange noRange) name pats []
+    return $ A.Clause lhs (RHS rhs) [] False
+  toAbstract (QNamed name (R.AbsurdClause pats)) = do
+    (pats, _) <- toAbstract pats
+    let lhs = spineToLhs $ SpineLHS (LHSRange noRange) name pats []
+    return $ A.Clause lhs AbsurdRHS [] False
+
+instance ToAbstract [QNamed R.Clause] [A.Clause] where
+  toAbstract = traverse toAbstract
+

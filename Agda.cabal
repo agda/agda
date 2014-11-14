@@ -213,11 +213,13 @@ library
                     Agda.Syntax.Parser.Tokens
                     Agda.Syntax.Parser
                     Agda.Syntax.Position
+                    Agda.Syntax.Reflected
                     Agda.Syntax.Scope.Base
                     Agda.Syntax.Scope.Monad
                     Agda.Syntax.Translation.AbstractToConcrete
                     Agda.Syntax.Translation.ConcreteToAbstract
                     Agda.Syntax.Translation.InternalToAbstract
+                    Agda.Syntax.Translation.ReflectedToAbstract
                     Agda.Termination.CallGraph
                     Agda.Termination.CallMatrix
                     Agda.Termination.CutOff

@@ -16,6 +16,7 @@ import Data.Traversable (traverse)
 
 import Agda.Syntax.Common
 import Agda.Syntax.Internal as I
+import qualified Agda.Syntax.Reflected as R
 import Agda.Syntax.Literal
 import Agda.Syntax.Position
 import Agda.Syntax.Translation.InternalToAbstract
@@ -71,7 +72,7 @@ reduceQuotedTerm t = ifBlocked t
 
 
 class Unquote a where
-  unquote :: Term -> UnquoteM a
+  unquote :: I.Term -> UnquoteM a
 
 unquoteH :: Unquote a => I.Arg Term -> UnquoteM a
 unquoteH a | isHidden a && isRelevant a =
@@ -107,16 +108,16 @@ ensureCon x = do
       con <- lift $ prettyTCM =<< primAgdaTermCon
       throwException $ DefInsteadOfCon x (show def) (show con)
 
-pickName :: Type -> String
+pickName :: R.Type -> String
 pickName a =
-  case ignoreSharing (unEl a) of
-    Pi{}   -> "f"
-    Sort{} -> "A"
-    Def d _ | c:_ <- show (qnameName d),
+  case R.unEl a of
+    R.Pi{}   -> "f"
+    R.Sort{} -> "A"
+    R.Def d _ | c:_ <- show (qnameName d),
               isAlpha c -> [toLower c]
-    _    -> "_"
+    _        -> "_"
 
-instance Unquote I.ArgInfo where
+instance Unquote R.ArgInfo where
   unquote t = do
     t <- reduceQuotedTerm t
     case ignoreSharing t of
@@ -127,7 +128,7 @@ instance Unquote I.ArgInfo where
       Con c _ -> __IMPOSSIBLE__
       _ -> throwException $ NotAConstructor "ArgInfo" t
 
-instance Unquote a => Unquote (I.Arg a) where
+instance Unquote a => Unquote (R.Arg a) where
   unquote t = do
     t <- reduceQuotedTerm t
     case ignoreSharing t of
@@ -140,8 +141,8 @@ instance Unquote a => Unquote (I.Arg a) where
 
 -- Andreas, 2013-10-20: currently, post-fix projections are not part of the
 -- quoted syntax.
-instance Unquote a => Unquote (Elim' a) where
-  unquote t = Apply <$> unquote t
+instance Unquote R.Elim where
+  unquote t = R.Apply <$> unquote t
 
 instance Unquote Integer where
   unquote t = do
@@ -224,16 +225,13 @@ instance Unquote QName where
       Lit (LitQName _ x) -> return x
       _                  -> throwException $ NotALiteral "QName" t
 
-instance Unquote ConHead where
-  unquote t = lift . getConHead =<< ensureCon =<< unquote t
-
-instance Unquote a => Unquote (Abs a) where
+instance Unquote a => Unquote (R.Abs a) where
   unquote t = do
     t <- reduceQuotedTerm t
     case ignoreSharing t of
       Con c [x,y] -> do
         choice
-          [(c `isCon` primAbsAbs, Abs <$> (hint <$> unquoteNString x) <*> unquoteN y)]
+          [(c `isCon` primAbsAbs, R.Abs <$> (hint <$> unquoteNString x) <*> unquoteN y)]
           __IMPOSSIBLE__
       Con c _ -> __IMPOSSIBLE__
       _ -> throwException $ NotAConstructor "Abs" t
@@ -241,32 +239,32 @@ instance Unquote a => Unquote (Abs a) where
     where hint x | not (null x) = x
                  | otherwise    = "_"
 
-instance Unquote Sort where
+instance Unquote a => Unquote (R.Dom a) where
+  unquote t = domFromArg <$> unquote t
+
+instance Unquote R.Sort where
   unquote t = do
     t <- reduceQuotedTerm t
     case ignoreSharing t of
       Con c [] -> do
         choice
-          [(c `isCon` primAgdaSortUnsupported, pure $ Type $ Max [Plus 0 $ UnreducedLevel $ hackReifyToMeta])]
+          [(c `isCon` primAgdaSortUnsupported, return R.UnknownS)]
           __IMPOSSIBLE__
       Con c [u] -> do
         choice
-          [(c `isCon` primAgdaSortSet, Type <$> unquoteN u)
-          ,(c `isCon` primAgdaSortLit, Type . levelMax . (:[]) . ClosedLevel <$> unquoteN u)]
+          [(c `isCon` primAgdaSortSet, R.SetS <$> unquoteN u)
+          ,(c `isCon` primAgdaSortLit, R.LitS <$> unquoteN u)]
           __IMPOSSIBLE__
       Con c _ -> __IMPOSSIBLE__
       _ -> throwException $ NotAConstructor "Sort" t
 
-instance Unquote Level where
-  unquote l = Max . (:[]) . Plus 0 . UnreducedLevel <$> unquote l
-
-instance Unquote Type where
+instance Unquote R.Type where
   unquote t = do
     t <- reduceQuotedTerm t
     case ignoreSharing t of
       Con c [s, u] -> do
         choice
-          [(c `isCon` primAgdaTypeEl, El <$> unquoteN s <*> unquoteN u)]
+          [(c `isCon` primAgdaTypeEl, R.El <$> unquoteN s <*> unquoteN u)]
           __IMPOSSIBLE__
       Con c _ -> __IMPOSSIBLE__
       _ -> throwException $ NotAConstructor "Type" t
@@ -286,119 +284,87 @@ instance Unquote Literal where
       Con c _ -> __IMPOSSIBLE__
       _ -> throwException $ NotAConstructor "Literal" t
 
-instance Unquote Term where
+instance Unquote R.Term where
   unquote t = do
     t <- reduceQuotedTerm t
     case ignoreSharing t of
       Con c [] ->
         choice
-          [(c `isCon` primAgdaTermUnsupported, pure hackReifyToMeta)]
+          [(c `isCon` primAgdaTermUnsupported, return R.Unknown)]
           __IMPOSSIBLE__
 
       Con c [x] -> do
         choice
-          [ (c `isCon` primAgdaTermSort,   Sort <$> unquoteN x)
-          , (c `isCon` primAgdaTermLit,    Lit <$> unquoteN x) ]
+          [ (c `isCon` primAgdaTermSort,   R.Sort <$> unquoteN x)
+          , (c `isCon` primAgdaTermLit,    R.Lit  <$> unquoteN x) ]
           __IMPOSSIBLE__
 
       Con c [x, y] ->
         choice
-          [ (c `isCon` primAgdaTermVar,    Var    <$> (fromInteger <$> unquoteN x) <*> unquoteN y)
-          , (c `isCon` primAgdaTermCon,    Con    <$> unquoteN x <*> unquoteN y)
-          , (c `isCon` primAgdaTermDef,    Def    <$> (ensureDef =<< unquoteN x) <*> unquoteN y)
-          , (c `isCon` primAgdaTermLam,    Lam    <$> (flip setHiding defaultArgInfo <$> unquoteN x) <*> unquoteN y)
-          , (c `isCon` primAgdaTermPi,     mkPi   <$> (domFromArg                    <$> unquoteN x) <*> unquoteN y)
-          , (c `isCon` primAgdaTermExtLam, ExtLam <$> unquoteN x <*> unquoteN y) ]
+          [ (c `isCon` primAgdaTermVar,    R.Var    <$> (fromInteger <$> unquoteN x) <*> unquoteN y)
+          , (c `isCon` primAgdaTermCon,    R.Con    <$> (ensureCon =<< unquoteN x) <*> unquoteN y)
+          , (c `isCon` primAgdaTermDef,    R.Def    <$> (ensureDef =<< unquoteN x) <*> unquoteN y)
+          , (c `isCon` primAgdaTermLam,    R.Lam    <$> unquoteN x <*> unquoteN y)
+          , (c `isCon` primAgdaTermPi,     mkPi     <$> unquoteN x <*> unquoteN y)
+          , (c `isCon` primAgdaTermExtLam, R.ExtLam <$> unquoteN x <*> unquoteN y) ]
           __IMPOSSIBLE__
         where
-          mkPi a (Abs "_" b) = Pi a (Abs x b)
-            where x | 0 `freeIn` b = pickName (unDom a)
-                    | otherwise    = "_"
-          mkPi a b@Abs{} = Pi a b
-          mkPi _ NoAbs{} = __IMPOSSIBLE__
+          mkPi :: R.Dom R.Type -> R.Abs R.Type -> R.Term
+          -- TODO: implement Free for reflected syntax so this works again
+          --mkPi a (R.Abs "_" b) = R.Pi a (R.Abs x b)
+          --  where x | 0 `freeIn` b = pickName (unDom a)
+          --          | otherwise    = "_"
+          mkPi a (R.Abs "_" b) = R.Pi a (R.Abs (pickName (unDom a)) b)
+          mkPi a b = R.Pi a b
 
       Con{} -> __IMPOSSIBLE__
       Lit{} -> __IMPOSSIBLE__
       _ -> throwException $ NotAConstructor "Term" t
 
-instance Unquote Pattern where
+instance Unquote R.Pattern where
   unquote t = do
     t <- reduceQuotedTerm t
     case ignoreSharing t of
       Con c [] -> do
         choice
-          [ (c `isCon` primAgdaPatAbsurd, pure (VarP "()"))
-          , (c `isCon` primAgdaPatDot,    pure (DotP hackReifyToMeta))
+          [ (c `isCon` primAgdaPatAbsurd, return R.AbsurdP)
+          , (c `isCon` primAgdaPatDot,    return R.DotP)
           ] __IMPOSSIBLE__
       Con c [x] -> do
         choice
-          [ (c `isCon` primAgdaPatVar,  VarP  <$> unquoteNString x)
-          , (c `isCon` primAgdaPatProj, ProjP <$> unquoteN x)
-          , (c `isCon` primAgdaPatLit,  LitP  <$> unquoteN x) ]
+          [ (c `isCon` primAgdaPatVar,  R.VarP  <$> unquoteNString x)
+          , (c `isCon` primAgdaPatProj, R.ProjP <$> unquoteN x)
+          , (c `isCon` primAgdaPatLit,  R.LitP  <$> unquoteN x) ]
           __IMPOSSIBLE__
       Con c [x, y] -> do
         choice
-          [ (c `isCon` primAgdaPatCon, flip ConP Nothing <$> unquoteN x <*> (map (fmap unnamed) <$> unquoteN y)) ]
+          [ (c `isCon` primAgdaPatCon, R.ConP <$> unquoteN x <*> unquoteN y) ]
           __IMPOSSIBLE__
       Con c _ -> __IMPOSSIBLE__
       _ -> throwException $ NotAConstructor "Pattern" t
 
-data UnquotedFunDef = UnQFun Type [Clause]
-
-instance Unquote Clause where
+instance Unquote R.Clause where
   unquote t = do
     t <- reduceQuotedTerm t
     case ignoreSharing t of
       Con c [x] -> do
         choice
-          [ (c `isCon` primAgdaClauseAbsurd, mkClause Nothing <$> unquoteN x) ]
+          [ (c `isCon` primAgdaClauseAbsurd, R.AbsurdClause <$> unquoteN x) ]
           __IMPOSSIBLE__
       Con c [x, y] -> do
         choice
-          [ (c `isCon` primAgdaClauseClause, mkClause . Just <$> unquoteN y <*> unquoteN x) ]
+          [ (c `isCon` primAgdaClauseClause, R.Clause <$> unquoteN x <*> unquoteN y) ]
           __IMPOSSIBLE__
       Con c _ -> __IMPOSSIBLE__
       _ -> throwException $ NotAConstructor "Clause" t
-    where
-      mkClause :: Maybe Term -> [I.Arg Pattern] -> I.Clause
-      mkClause b ps0 =
-        Clause { clauseRange     = noRange
-               , clauseTel       = dummyTel n'
-               , clausePerm      = cperm
-               , namedClausePats = ps
-               , clauseBody      = mkBody n b
-               , clauseType      = Nothing
-               , clauseCatchall  = False }
-        where
-          ps = map (fmap unnamed) ps0
-          dummyTel 0 = EmptyTel
-          dummyTel n = ExtendTel (defaultDom typeDontCare) (Abs "x" $ dummyTel (n - 1))
-          mkBody 0 b = maybe NoBody Body (applySubst (renamingR cperm) b)
-          mkBody n b = Bind $ Abs "x" $ mkBody (n - 1) b
-          cperm      = Perm n vs
 
-          -- n  is the number of variables *including* dot patterns
-          -- n' is the number of variables *excluding* dot patterns
-          (vs, n) = runState (execWriterT $ mapM_ (computePerm . namedArg) ps) 0
-          n' = length vs
-          next = do n <- get; put (n + 1); return n
-
-          computePerm (ConP _ _ ps) = mapM_ (computePerm . namedArg) ps
-          computePerm VarP{}        = tell . (:[]) =<< next
-          computePerm DotP{}        = () <$ next
-          computePerm LitP{}        = return ()
-          computePerm ProjP{}       = return ()
-
-instance Unquote UnquotedFunDef where
+instance Unquote R.Definition where
   unquote t = do
     t <- reduceQuotedTerm t
     case ignoreSharing t of
       Con c [x, y] -> do
         choice
-          [ (c `isCon` primAgdaFunDefCon, UnQFun <$> unquoteN x <*> unquoteN y) ]
+          [ (c `isCon` primAgdaFunDefCon, R.FunDef <$> unquoteN x <*> unquoteN y) ]
           __IMPOSSIBLE__
       Con c _ -> __IMPOSSIBLE__
       _ -> throwException $ NotAConstructor "Pattern" t
-
-reifyUnquoted :: Reify a e => a -> TCM e
-reifyUnquoted = nowReifyingUnquoted . disableDisplayForms . withShowAllArguments . reify
