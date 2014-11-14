@@ -388,7 +388,6 @@ instance HasPolarity Term where
     MetaV _ ts -> map (const Invariant) <$> polarities i ts
     Shared p   -> polarities i $ derefPtr p
     DontCare t -> polarities i t -- return []
-    ExtLam{}   -> __IMPOSSIBLE__
 
 instance HasPolarity Level where
   polarities i (Max as) = polarities i as

@@ -105,7 +105,6 @@ instance Evaluate Term where
     Level l      -> return term
     DontCare i   -> return term
     Shared{}     -> updateSharedTermT evaluate term
-    ExtLam{}     -> __IMPOSSIBLE__
     where
 {-
     evaluateTerms :: Args -> Compile TCM Args

@@ -210,7 +210,6 @@ rigidlyConstrainedMetas = do
           DontCare{} -> return False
           Lam{}      -> __IMPOSSIBLE__
           Shared{}   -> __IMPOSSIBLE__
-          ExtLam{}   -> __IMPOSSIBLE__
     rigidMetas c =
       case clValue $ theConstraint c of
         ValueCmp _ _ u v ->
@@ -251,7 +250,6 @@ areThereNonRigidMetaArguments t = case ignoreSharing t of
     Sort{}   -> __IMPOSSIBLE__
     Var{}    -> __IMPOSSIBLE__
     Con{}    -> __IMPOSSIBLE__
-    ExtLam{} -> __IMPOSSIBLE__
     Lam{}    -> __IMPOSSIBLE__
     Lit{}    -> __IMPOSSIBLE__
     Level{}  -> __IMPOSSIBLE__

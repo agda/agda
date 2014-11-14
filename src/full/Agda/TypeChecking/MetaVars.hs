@@ -771,7 +771,6 @@ attemptInertRHSImprovement m args v = do
         Level{}    -> notInert
         MetaV{}    -> notInert
         DontCare{} -> notInert
-        ExtLam{}   -> __IMPOSSIBLE__
         Shared{}   -> __IMPOSSIBLE__
 
     ensureNeutral :: Term -> Term -> TCM ()
@@ -799,7 +798,6 @@ attemptInertRHSImprovement m args v = do
             MetaV{}    -> notNeutral v
             Con{}      -> notNeutral v
             Lam{}      -> notNeutral v
-            ExtLam{}   -> __IMPOSSIBLE__
             Shared{}   -> __IMPOSSIBLE__
 
 
@@ -1138,7 +1136,6 @@ inverseSubst args = map (mapFst unArg) <$> loop (zip args terms)
         Arg _ Pi{}       -> neutralArg
         Arg _ Sort{}     -> neutralArg
         Arg _ Level{}    -> neutralArg
-        Arg _ ExtLam{}   -> __IMPOSSIBLE__
 
         Arg info (Shared p) -> isVarOrIrrelevant vars (Arg info $ derefPtr p, t)
 

@@ -72,7 +72,6 @@ instance AbstractTerm Term where
       MetaV m vs  -> MetaV m $ absT vs
       DontCare mv -> DontCare $ absT mv
       Shared p    -> Shared $ absT p
-      ExtLam{}    -> __IMPOSSIBLE__
       where
         absT x = abstractTerm u x
 

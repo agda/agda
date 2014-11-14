@@ -424,7 +424,6 @@ tomyExp v0 =
         _ -> tomyExp t
     I.DontCare _ -> return $ NotM $ dontCare
     I.Shared p -> tomyExp $ I.derefPtr p
-    I.ExtLam{} -> __IMPOSSIBLE__
 
 tomyExps :: I.Args -> TOM (MM (ArgList O) (RefInfo O))
 tomyExps [] = return $ NotM ALNil
@@ -454,7 +453,6 @@ fmExp m (I.Sort _) = False
 fmExp m (I.MetaV mid _) = mid == m
 fmExp m (I.DontCare _) = False
 fmExp m (I.Shared p) = fmExp m $ I.derefPtr p
-fmExp m I.ExtLam{} = __IMPOSSIBLE__
 
 fmExps :: I.MetaId -> I.Args -> Bool
 fmExps m [] = False
@@ -779,7 +777,6 @@ findClauseDeep m = do
       I.MetaV m' _  -> m == m'
       I.DontCare _ -> False
       I.Shared{} -> __IMPOSSIBLE__
-      I.ExtLam{} -> __IMPOSSIBLE__
     findMetas = any (findMeta . Common.unArg)
     findMetat (I.El _ e) = findMeta e
     toplevel e =

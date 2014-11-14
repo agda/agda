@@ -136,4 +136,3 @@ haskellType t = fromType t
         Shared p   -> fromTerm $ derefPtr p
         MetaV{}    -> err
         DontCare{} -> err
-        ExtLam{}   -> __IMPOSSIBLE__

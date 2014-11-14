@@ -483,7 +483,6 @@ instance ShrinkC Term Term where
                     (MetaV m <$> shrinkC conf (NoType es))
     DontCare _   -> []
     Shared{}     -> __IMPOSSIBLE__
-    ExtLam _ _   -> __IMPOSSIBLE__
     where
       validType t
         | not (tcIsType conf) = True
@@ -516,7 +515,6 @@ instance KillVar Term where
     MetaV m args           -> MetaV m     $ killVar i args
     DontCare mv            -> DontCare    $ killVar i mv
     Shared{}               -> __IMPOSSIBLE__
-    ExtLam _ _             -> __IMPOSSIBLE__
 
 instance KillVar Type where
   killVar i (El s t) = El s $ killVar i t

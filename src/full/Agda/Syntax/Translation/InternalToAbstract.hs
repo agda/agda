@@ -416,9 +416,6 @@ reifyTerm expandAnonDefs0 v = do
         apps x' =<< reifyIArgs vs
       I.DontCare v -> A.DontCare <$> reifyTerm expandAnonDefs v
       I.Shared p   -> reifyTerm expandAnonDefs $ derefPtr p
-      I.ExtLam cls args -> do
-        x <- freshName_ "extlam"
-        reifyExtLam (qnameFromList [x]) 0 cls (map (fmap unnamed) args)
     where
       -- Andreas, 2012-10-20  expand a copy in an anonymous module
       -- to improve error messages.

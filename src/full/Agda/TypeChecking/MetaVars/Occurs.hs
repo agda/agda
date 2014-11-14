@@ -240,7 +240,6 @@ instance Occurs Term where
         Pi a b      -> uncurry Pi <$> occ (leaveTop ctx) (a,b)
         Sort s      -> Sort <$> occ (leaveTop ctx) s
         v@Shared{}  -> updateSharedTerm (occ ctx) v
-        ExtLam{}    -> __IMPOSSIBLE__
         MetaV m' es -> do
             -- Check for loop
             --   don't fail hard on this, since we might still be on the top-level
@@ -306,7 +305,6 @@ instance Occurs Term where
       Pi a b     -> metaOccurs m (a,b)
       Sort s     -> metaOccurs m s
       Shared p   -> metaOccurs m $ derefPtr p
-      ExtLam{}   -> __IMPOSSIBLE__
       MetaV m' vs | m == m' -> patternViolation' 50 $ "Found occurrence of " ++ show m
                   | otherwise -> metaOccurs m vs
 
@@ -509,7 +507,6 @@ hasBadRigid xs t = do
     Lit{}        -> failure -- matchable
     MetaV{}      -> failure -- potentially matchable
     Shared p     -> __IMPOSSIBLE__
-    ExtLam{}     -> __IMPOSSIBLE__
 
 -- | Check whether a term @Def f es@ is finally stuck.
 --   Currently, we give only a crude approximation.
