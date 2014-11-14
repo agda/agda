@@ -94,6 +94,8 @@ followed:
   file. (This would be unnecessary if we had two repositories, one
   stable and one for development.)
 
+* Turn -Werror back on.
+
 * Update the version numbers in:
 
   Agda.cabal (thrice),

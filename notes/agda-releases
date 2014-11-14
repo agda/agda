@@ -96,7 +96,7 @@ followed:
   file. (This would be unnecessary if we had two repositories, one
   stable and one for development.)
 
-  Turn -Werror back on.
+* Turn -Werror back on.
 
 * Create a maintenance branch
 
