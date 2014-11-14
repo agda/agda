@@ -327,6 +327,7 @@ library
                     Agda.TypeChecking.Test.Generators
                     Agda.TypeChecking.Tests
 --                    Agda.TypeChecking.UniversePolymorphism -- RETIRED
+                    Agda.TypeChecking.Unquote
                     Agda.TypeChecking.With
                     Agda.Utils.AssocList
                     Agda.Utils.Bag
