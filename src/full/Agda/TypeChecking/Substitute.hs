@@ -740,11 +740,6 @@ instance Subst ClauseBody where
   applySubst rho (Bind b) = Bind $ applySubst rho b
   applySubst _   NoBody   = NoBody
 
-instance Subst Clause where
-  -- NOTE: This only happens when reifying extended lambdas, in which case there are
-  -- no interesting dot patterns and we don't care about the type.
-  applySubst rho c = c { clauseBody = applySubst rho $ clauseBody c }
-
 ---------------------------------------------------------------------------
 -- * Telescopes
 ---------------------------------------------------------------------------

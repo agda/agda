@@ -551,13 +551,6 @@ instance SgTel (ArgName, Dom Type) where
 instance SgTel (Dom (ArgName, Type)) where
   sgTel (Common.Dom ai (x, t)) = ExtendTel (Common.Dom ai t) $ Abs x EmptyTel
 
-hackReifyToMeta :: Term
-hackReifyToMeta = DontCare $ Lit $ LitInt noRange (-42)
-
-isHackReifyToMeta :: Term -> Bool
-isHackReifyToMeta (DontCare (Lit (LitInt r (-42)))) = r == noRange
-isHackReifyToMeta _ = False
-
 ---------------------------------------------------------------------------
 -- * Handling blocked terms.
 ---------------------------------------------------------------------------
