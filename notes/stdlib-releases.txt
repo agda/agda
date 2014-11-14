@@ -29,7 +29,8 @@ procedure can be followed:
 
 * Tag version X.Y (do not forget to record the changes above first):
 
-  git tag -a vX.Y -m "Agda standard library vX.Y"
+  VERSION=X.Y
+  git tag -a v$VERSION -m "Agda standard library v$VERSION"
 
 * Removed release-specific information from README.agda.
 
