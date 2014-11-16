@@ -76,7 +76,7 @@ mkAbsolute f
   | otherwise    = __IMPOSSIBLE__
 
 #if mingw32_HOST_OS
-prop_mkAbsolute :: FilePath -> Propertty
+prop_mkAbsolute :: FilePath -> Property
 #else
 prop_mkAbsolute :: FilePath -> Bool
 #endif
