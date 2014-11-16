@@ -4,7 +4,6 @@ cabal-version:   >= 1.8
 build-type:      Simple
 description:     Fixes whitespace issues for Agda sources.
 tested-with:     GHC == 7.0.4
-                 GHC == 7.2.2
                  GHC == 7.4.2
                  GHC == 7.6.3
                  GHC == 7.8.3
