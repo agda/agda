@@ -74,7 +74,8 @@ followed:
     cabal install
     git tag -a $VERSION -m "Agda $VERSION maintenance release"
 
-* Ensure that all the packages build properly.
+* Ensure that the package builds properly (with multiple versions of GHC if
+  possible) in Linux, MacOS X and Windows.
 
     BASE=`pwd`
     cd ${TMPDIR:-/tmp}
