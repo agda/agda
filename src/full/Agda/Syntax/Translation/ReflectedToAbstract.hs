@@ -145,7 +145,7 @@ instance ToAbstract [R.Arg R.Pattern] ([A.NamedArg A.Pattern], Names) where
   toAbstract pats = do
     patsAndNames <- mapM toAbstract pats
     let pats = (fmap . fmap . fmap) fst patsAndNames
-        names = concat $ fmap (snd . namedThing . unArg) patsAndNames
+        names = foldl (flip (++)) [] $ fmap (snd . namedThing . unArg) patsAndNames
     return (pats, names)
 
 instance ToAbstract (QNamed R.Clause) A.Clause where
