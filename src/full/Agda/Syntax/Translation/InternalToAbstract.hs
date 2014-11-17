@@ -184,8 +184,7 @@ reifyDisplayFormP lhs@(A.SpineLHS i f ps wps) =
     -- But apparently, it has no influence...
     -- Ulf, can you add an explanation?
     md <- liftTCM $ -- addContext (replicate (length ps) "x") $
-      displayForm f vs `catchError` \_ -> return Nothing
-        -- unquoted extended lambdas use fake names, so catch errors here
+      displayForm f vs
     reportSLn "reify.display" 20 $
       "display form of " ++ show f ++ " " ++ show ps ++ " " ++ show wps ++ ":\n  " ++ show md
     case md of
@@ -308,7 +307,6 @@ reifyTerm expandAnonDefs0 v = do
     let expandAnonDefs = expandAnonDefs0 && hasDisplayForms
     v <- unSpine <$> instantiate v
     case v of
-      _ | isHackReifyToMeta v -> return $ A.Underscore emptyMetaInfo
       I.Var n es   -> do
           let vs = fromMaybe __IMPOSSIBLE__ $ allApplyElims es
           x  <- liftTCM $ nameOfBV n `catchError` \_ -> freshName_ ("@" ++ show n)
@@ -349,10 +347,7 @@ reifyTerm expandAnonDefs0 v = do
             -- (see for example the parameter {i} to Data.Star.Star, which is also
             -- the first argument to the cons).
             -- @data Star {i}{I : Set i} ... where cons : {i :  I} ...@
-            -- Ulf, 2014-07-19: Don't do any of this if we're reifying an
-            -- unquoted term (issue 1237).
-            unquote <- isReifyingUnquoted
-            if np == 0 || unquote then apps h es else do
+            if np == 0 then apps h es else do
               -- Get name of first argument from type of constructor.
               -- Here, we need the reducing version of @telView@
               -- because target of constructor could be a definition
@@ -416,9 +411,6 @@ reifyTerm expandAnonDefs0 v = do
         apps x' =<< reifyIArgs vs
       I.DontCare v -> A.DontCare <$> reifyTerm expandAnonDefs v
       I.Shared p   -> reifyTerm expandAnonDefs $ derefPtr p
-      I.ExtLam cls args -> do
-        x <- freshName_ "extlam"
-        reifyExtLam (qnameFromList [x]) 0 cls (map (fmap unnamed) args)
     where
       -- Andreas, 2012-10-20  expand a copy in an anonymous module
       -- to improve error messages.

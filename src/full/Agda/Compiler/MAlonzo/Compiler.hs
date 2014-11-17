@@ -418,7 +418,6 @@ term tm0 = case unSpine $ ignoreSharing tm0 of
   MetaV _ _  -> mazerror "hit MetaV"
   DontCare _ -> return $ rtmError $ "hit DontCare"
   Shared{}   -> __IMPOSSIBLE__
-  ExtLam{}   -> __IMPOSSIBLE__
   where apps =  foldM (\h a -> HS.App h <$> term' a)
 
 -- | Irrelevant arguments are replaced by Haskells' ().

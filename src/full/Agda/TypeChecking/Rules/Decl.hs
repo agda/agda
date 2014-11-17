@@ -21,10 +21,12 @@ import Agda.Interaction.Highlighting.Generate
 
 import qualified Agda.Syntax.Abstract as A
 import Agda.Syntax.Internal as I
+import qualified Agda.Syntax.Reflected as R
 import qualified Agda.Syntax.Info as Info
 import Agda.Syntax.Position
 import Agda.Syntax.Common
 import Agda.Syntax.Translation.InternalToAbstract
+import Agda.Syntax.Translation.ReflectedToAbstract
 
 import Agda.TypeChecking.Monad
 import Agda.TypeChecking.Monad.Builtin
@@ -41,6 +43,7 @@ import Agda.TypeChecking.Pretty
 import Agda.TypeChecking.Primitive hiding (Nat)
 import Agda.TypeChecking.ProjectionLike
 import Agda.TypeChecking.Quote
+import Agda.TypeChecking.Unquote
 import Agda.TypeChecking.Records
 import Agda.TypeChecking.Reduce
 import Agda.TypeChecking.Rewriting
@@ -237,25 +240,25 @@ checkUnquoteDecl mi i x e = do
   uv <- runUnquoteM $ unquote v
   case uv of
     Left err -> typeError $ UnquoteFailed err
-    Right (UnQFun a cs) -> do
+    Right (R.FunDef a cs) -> do
       reportSDoc "tc.unquote.decl" 20 $
         vcat $ text "unquoteDecl: Unquoted term"
              : [ nest 2 $ text (show c) | c <- cs ]
-      -- Add x to signature, otherwise reification gets unhappy.
-      addConstant x =<< do
-        useTerPragma $ defaultDefn defaultArgInfo x a emptyFunction
-      a <- reifyUnquoted $ killRange a
+      a <- toAbstract_ a
       reportSDoc "tc.unquote.decl" 10 $
         vcat [ text "unquoteDecl" <+> prettyTCM x <+> text "-->"
              , prettyTCM x <+> text ":" <+> prettyA a ]
-      tel <- getContextTelescope
-      let tel' = replaceEmptyName "r" $ killRange tel
-      cs <- mapM (reifyUnquoted . QNamed x . abstract tel) $ killRange cs
+      cs <- mapM (toAbstract_ . (QNamed x)) cs
       reportSDoc "tc.unquote.decl" 10 $ vcat $ map prettyA cs
       let ds = [ A.Axiom A.FunSig i defaultArgInfo x a   -- TODO other than defaultArg
                , A.FunDef i x NotDelayed cs ]
       xs <- checkMutual mi ds
       return $ Just $ mutualChecks mi (A.Mutual mi ds) ds xs
+    Right R.DataDef         -> __IMPOSSIBLE__
+    Right R.RecordDef       -> __IMPOSSIBLE__
+    Right R.DataConstructor -> __IMPOSSIBLE__
+    Right R.Axiom           -> __IMPOSSIBLE__
+    Right R.Primitive       -> __IMPOSSIBLE__
 
 checkUnquoteDef :: Info.DefInfo -> QName -> A.Expr -> TCM ()
 checkUnquoteDef i x e = do
@@ -264,16 +267,14 @@ checkUnquoteDef i x e = do
   clause <- primAgdaClause
   v      <- checkExpr e $ El (mkType 0) $ list `apply` [defaultArg clause]
   reportSDoc "tc.unquote.def" 20 $ text "unquoteDef: Checked term"
-  uv <- runUnquoteM $ unquote v :: TCM (Either UnquoteError [Clause])
+  uv <- runUnquoteM $ unquote v :: TCM (Either UnquoteError [R.Clause])
   case uv of
     Left err -> typeError $ UnquoteFailed err
     Right cs -> do
       reportSDoc "tc.unquote.def" 20 $
         vcat $ text "unquoteDef: Unquoted term"
              : [ nest 2 $ text (show c) | c <- cs ]
-      tel <- getContextTelescope
-      let tel' = replaceEmptyName "r" $ killRange tel
-      cs <- mapM (reifyUnquoted . QNamed x . abstract tel) $ killRange cs
+      cs <- mapM (toAbstract_ . (QNamed x)) cs
       reportSDoc "tc.unquote.def" 10 $ vcat $ map prettyA cs
       checkFunDef NotDelayed i x cs
 

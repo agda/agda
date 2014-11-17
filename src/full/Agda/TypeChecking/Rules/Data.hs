@@ -432,4 +432,3 @@ isCoinductive t = do
     MetaV {} -> return Nothing
     Shared{} -> __IMPOSSIBLE__
     DontCare{} -> __IMPOSSIBLE__
-    ExtLam{}   -> __IMPOSSIBLE__

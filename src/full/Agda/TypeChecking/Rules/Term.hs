@@ -31,11 +31,13 @@ import Agda.Syntax.Fixity
 import Agda.Syntax.Internal as I
 import Agda.Syntax.Position
 import Agda.Syntax.Literal
+import qualified Agda.Syntax.Reflected as R
 import Agda.Syntax.Scope.Base ( ThingsInScope, AbstractName
                               , emptyScopeInfo
                               , exportedNamesInScope)
 import Agda.Syntax.Scope.Monad (getNamedScope)
 import Agda.Syntax.Translation.InternalToAbstract (reify)
+import Agda.Syntax.Translation.ReflectedToAbstract (toAbstract_)
 
 import Agda.TypeChecking.Monad
 import Agda.TypeChecking.Monad.Builtin
@@ -54,6 +56,7 @@ import Agda.TypeChecking.Patterns.Abstract
 import Agda.TypeChecking.Pretty
 import Agda.TypeChecking.Primitive
 import Agda.TypeChecking.Quote
+import Agda.TypeChecking.Unquote
 import Agda.TypeChecking.RecordPatterns
 import Agda.TypeChecking.Records
 import Agda.TypeChecking.Reduce
@@ -865,11 +868,11 @@ checkApplication hd args e t = do
                 postponeTypeCheckingProblem (CheckExpr e t) (isInstantiatedMeta m)
             Left err -> typeError $ UnquoteFailed err
             Right v  -> do
-              e <- reifyUnquoted (v :: Term)
+              e <- toAbstract_ (v :: R.Term)
               reportSDoc "tc.unquote.term" 10 $
                 vcat [ text "unquote" <+> prettyTCM qv
                      , nest 2 $ text "-->" <+> prettyA e ]
-              cont (killRange e)
+              cont e
 
     -- Subcase: defined symbol or variable.
     _ -> checkHeadApplication e t hd $ map convColor args

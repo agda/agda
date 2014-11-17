@@ -42,7 +42,6 @@ getOutputTypeName t = do
       Var{}    -> return NoOutputTypeName
       -- Not base types:
       Con{}    -> __IMPOSSIBLE__
-      ExtLam{} -> __IMPOSSIBLE__
       Lam{}    -> __IMPOSSIBLE__
       Lit{}    -> __IMPOSSIBLE__
       Level{}  -> __IMPOSSIBLE__

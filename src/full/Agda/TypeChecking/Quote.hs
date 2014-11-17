@@ -214,7 +214,6 @@ quotingKit = do
           Shared p   -> quoteTerm $ derefPtr p
           MetaV{}    -> pure unsupported
           DontCare{} -> pure unsupported -- could be exposed at some point but we have to take care
-          ExtLam{}   -> __IMPOSSIBLE__
   return $ QuotingKit quoteTerm quoteType quoteClause (quoteDom quoteType)
 
 quoteString :: String -> Term

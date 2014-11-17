@@ -219,6 +219,11 @@ getContextTelescope = telFromList' nameToArgName . reverse <$> getContext
 getContextId :: MonadTCM tcm => tcm [CtxId]
 getContextId = asks $ map ctxId . envContext
 
+-- | Get the names of all declarations in the context.
+{-# SPECIALIZE getContextNames :: TCM [Name] #-}
+getContextNames :: MonadTCM tcm => tcm [Name]
+getContextNames = map (fst . unDom) <$> getContext
+
 -- | get type of bound variable (i.e. deBruijn index)
 --
 {-# SPECIALIZE lookupBV :: Nat -> TCM (Dom (Name, Type)) #-}

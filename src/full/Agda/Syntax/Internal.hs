@@ -108,7 +108,6 @@ instance LensConName ConHead where
 --
 data Term = Var {-# UNPACK #-} !Int Elims -- ^ @x es@ neutral
           | Lam ArgInfo (Abs Term)        -- ^ Terms are beta normal. Relevance is ignored
-          | ExtLam [Clause] Args          -- ^ Only used by unquote --> reify. Should never appear elsewhere.
           | Lit Literal
           | Def QName Elims               -- ^ @f es@, possibly a delta/iota-redex
           | Con ConHead Args              -- ^ @c vs@
@@ -552,13 +551,6 @@ instance SgTel (ArgName, Dom Type) where
 instance SgTel (Dom (ArgName, Type)) where
   sgTel (Common.Dom ai (x, t)) = ExtendTel (Common.Dom ai t) $ Abs x EmptyTel
 
-hackReifyToMeta :: Term
-hackReifyToMeta = DontCare $ Lit $ LitInt noRange (-42)
-
-isHackReifyToMeta :: Term -> Bool
-isHackReifyToMeta (DontCare (Lit (LitInt r (-42)))) = r == noRange
-isHackReifyToMeta _ = False
-
 ---------------------------------------------------------------------------
 -- * Handling blocked terms.
 ---------------------------------------------------------------------------
@@ -645,7 +637,6 @@ hasElims v =
     Sort{}     -> Nothing
     Level{}    -> Nothing
     DontCare{} -> Nothing
-    ExtLam{}   -> Nothing
     Shared{}   -> __IMPOSSIBLE__
 
 {- PROBABLY USELESS
@@ -738,7 +729,6 @@ instance Sized Term where
     Sort s      -> 1
     DontCare mv -> size mv
     Shared p    -> size (derefPtr p)
-    ExtLam{}    -> __IMPOSSIBLE__
 
 instance Sized Type where
   size = size . unEl
@@ -787,7 +777,6 @@ instance KillRange Term where
     Sort s      -> killRange1 Sort s
     DontCare mv -> killRange1 DontCare mv
     Shared p    -> Shared $ updatePtr killRange p
-    ExtLam c vs -> killRange2 ExtLam c vs
 
 instance KillRange Level where
   killRange (Max as) = killRange1 Max as
@@ -883,7 +872,6 @@ instance Pretty Term where
       MetaV x els -> text (show x) `pApp` els
       DontCare v  -> pretty v
       Shared{}    -> __IMPOSSIBLE__
-      ExtLam{}    -> __IMPOSSIBLE__
     where
       pApp d els = mparens (not (null els) && p > 9) $
                    d <+> fsep (map (prettyPrec 10) els)
