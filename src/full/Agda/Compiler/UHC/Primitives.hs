@@ -8,7 +8,6 @@ module Agda.Compiler.UHC.Primitives
   , builtinConSpecToCoreConstr )
 where
 
-import Agda.Compiler.UHC.Interface
 import Agda.Compiler.UHC.CoreSyntax
 import Agda.TypeChecking.Monad
 import Agda.TypeChecking.Monad.Builtin
@@ -22,10 +21,12 @@ import Control.Applicative
 import Data.Map as M
 import Data.Maybe (catMaybes)
 
+import EH99.Core.API
+
 -- | Primitives defined for the UHC backend. Maps primitive names to the AName of the function to call.
-primFunctions :: Map String AName
+primFunctions :: Map String HsName
 primFunctions = M.fromList
-    [(n, ANmCore $ "UHC.Agda.Builtins." ++ n) | n <-
+    [(n, mkHsName ["UHC", "Agda", "Builtins"] n) | n <-
         [
         -- String
           "primStringAppend"

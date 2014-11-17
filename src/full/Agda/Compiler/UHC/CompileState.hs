@@ -2,7 +2,24 @@
 
 -- | Contains the state monad that the compiler works in and some functions
 --   for tampering with the state.
-module Agda.Compiler.UHC.CompileState where
+module Agda.Compiler.UHC.CompileState
+  ( CompileT
+  , runCompileT
+  , uhcError
+
+  , addConMap
+
+  , getCoreName
+  , getConstrInfo
+  , getConstrTag
+  , getConstrArity
+
+  , getCurrentModule
+
+  , constructorArity
+  , replaceAt
+  )
+where
 
 import Control.Applicative
 import Control.Monad.State
@@ -15,7 +32,7 @@ import Data.Set(Set)
 import qualified Data.Set as S
 
 import Agda.Compiler.UHC.AuxAST as AuxAST
-import Agda.Compiler.UHC.Interface
+import Agda.Compiler.UHC.ModuleInfo
 import Agda.Interaction.Options
 import Agda.Syntax.Internal
 import Agda.Syntax.Concrete(TopLevelModuleName)
@@ -23,6 +40,7 @@ import Agda.Syntax.Common
 import Agda.TypeChecking.Monad (MonadTCM, TCM, internalError, defType, theDef, getConstInfo, sigDefinitions, stImports, stPersistentOptions, stPersistentState)
 import qualified Agda.TypeChecking.Monad as TM
 import Agda.TypeChecking.Reduce
+import Agda.Compiler.UHC.Naming
 
 import qualified Agda.Utils.HashMap as HM
 import Agda.Utils.Lens
@@ -32,30 +50,57 @@ import Agda.Utils.Impossible
 
 -- | Stuff we need in our compiler
 data CompileState = CompileState
-    { nameSupply      :: [AName]
-    , compiledModules :: Map TopLevelModuleName (EInterface, Set FilePath)
-    , curModule       :: EInterface
-    , importedModules :: EInterface
-    , curFun          :: String
+    { curModule       :: ModuleName
+    , moduleInterface :: AModuleInterface    -- ^ Contains the interface of all imported and the currently compiling module.
+--    , compiledModules :: Map TopLevelModuleName (EInterface, Set FilePath)
+--    , curModule       :: EInterface
+--    , importedModules :: EInterface
+--    , curFun          :: String
     } deriving Show
 
--- | The initial (empty) state
-initCompileState :: CompileState
-initCompileState = CompileState
-    { nameSupply        = map (ANmAgda . ('h':) . show) [0 :: Integer ..]
-    , compiledModules   = M.empty
-    , curModule         = mempty
-    , importedModules   = mempty
-    , curFun            = undefined
-    }
-
 -- | Compiler monad
-type Compile = StateT CompileState
+type CompileT = StateT CompileState
+
+-- | The initial (empty) state
+runCompileT :: Monad m
+    => ModuleName   -- ^ The module to compile.
+    -> [AModuleInfo] -- ^ Imported module info (non-transitive).
+    -> NameMap      -- ^ NameMap for the current module (non-transitive).
+    -> CompileT m a
+    -> m (a, AModuleInfo)
+runCompileT mod impMods nmMp comp = do
+  (result, state') <- runStateT comp initial
+
+  let modInfo = AModuleInfo
+        { amiModule = mod
+        , amiInterface = moduleInterface state'
+        , amiCurNameMp = nmMp
+        }
+
+  return (result, modInfo) 
+  where initial = CompileState
+            { curModule     = mod
+            , moduleInterface   = mappend
+                (mempty { amifNameMp = nmMp})
+                (mconcat $ map amiInterface impMods)
+            }
+
+addConMap :: Monad m => M.Map QName AConInfo -> CompileT m ()
+addConMap conMp = addInterface (mempty { amifConMp = conMp })
+
+-- | Adds the given interface.
+addInterface :: Monad m => AModuleInterface -> CompileT m ()
+addInterface iface = modifyInterface (mappend iface)
+
+modifyInterface :: Monad m => (AModuleInterface -> AModuleInterface) -> CompileT m ()
+modifyInterface f = modify (\s -> s { moduleInterface = f (moduleInterface s )})
+
+
 
 -- | When normal errors are not enough
-epicError :: MonadTCM m => String -> Compile m a
-epicError = lift . internalError
-
+uhcError :: MonadTCM m => String -> CompileT m a
+uhcError = lift . internalError
+{-
 -- | Modify the state of the current module's Epic Interface
 modifyEI :: MonadTCM m => (EInterface -> EInterface) -> Compile m ()
 modifyEI f = modify $ \s -> s {curModule = f (curModule s)}
@@ -69,36 +114,31 @@ getType :: MonadTCM m => QName -> Compile m Type
 getType q = do
     map <- lift (sigDefinitions <$> use stImports)
     return $ maybe __IMPOSSIBLE__ defType (HM.lookup q map)
+-}
 
--- | Create a name which can be used in Epic code from a QName.
-unqname :: QName -> AName
-unqname qn = ANmAgda $ show qn
---case nameId $ qnameName qn of
---    NameId name modul -> 'd' : show modul
---                     ++ "_" ++ show name
+getCoreName :: Monad m => QName -> CompileT m HsName
+getCoreName qnm = do
+  nmMp <- gets (amifNameMp . moduleInterface)
+  return $ cnName $ qnameToCoreName nmMp qnm
+
+getConstrInfo :: MonadTCM m => QName -> CompileT m AConInfo
+getConstrInfo n = M.findWithDefault __IMPOSSIBLE__ n <$> gets (amifConMp . moduleInterface)
+
+getConstrTag :: MonadTCM m => QName -> CompileT m Tag
+getConstrTag n = xconTag . aciDataCon <$> getConstrInfo n
+
+getConstrArity :: MonadTCM m => QName -> CompileT m Int
+getConstrArity n = xconArity . aciDataCon <$> getConstrInfo n
+
+getCurrentModule :: Monad m => CompileT m ModuleName
+getCurrentModule = gets curModule
 
 -- * State modifiers
-
-resetNameSupply :: MonadTCM m => Compile m ()
-resetNameSupply = modify $ \s -> s {nameSupply = nameSupply initCompileState}
-
-getDelayed :: MonadTCM m => QName -> Compile m Bool
+{-getDelayed :: MonadTCM m => QName -> Compile m Bool
 getDelayed q = lookInterface (M.lookup q . defDelayed) (return False)
 
 putDelayed :: MonadTCM m => QName -> Bool -> Compile m ()
 putDelayed q d = modifyEI $ \s -> s {defDelayed = M.insert q d (defDelayed s)}
-
-newName :: MonadTCM m => Compile m AName
-newName = do
-    n:ns <- gets nameSupply
-    modify $ \s -> s { nameSupply = ns}
-    return n
-
--- | Derives a new unique (agda) name from the given name.
-newName1 :: MonadTCM m => AName -> Compile m AName
-newName1 np = do
-  n' <- newName
-  return $ ANmAgda (aNmName np ++ "_" ++ aNmName n')
 
 putConstrTag :: MonadTCM m => QName -> Tag -> Compile m ()
 putConstrTag q t = modifyEI $ \s -> s { constrTags = M.insert q t $ constrTags s }
@@ -144,13 +184,13 @@ getConstrTag' con = do
         Just x -> return (Just x)
         Nothing -> do
             imps <- gets importedModules
-            return $ M.lookup con (constrTags imps)
+            return $ M.lookup con (constrTags imps)-}
 
-addDefName :: MonadTCM m => QName -> Compile m ()
+{-addDefName :: MonadTCM m => QName -> Compile m ()
 addDefName q = do
-    modifyEI $ \s -> s {definitions = S.insert (unqname q) $ definitions s }
+    modifyEI $ \s -> s {definitions = S.insert (unqname q) $ definitions s }-}
 
-topBindings :: MonadTCM m => Compile m (Set AName)
+{-topBindings :: MonadTCM m => Compile m (Set HsName)
 topBindings = S.union <$> gets (definitions . importedModules) <*> gets (definitions . curModule)
 
 getConArity :: MonadTCM m => QName -> Compile m Int
@@ -160,11 +200,12 @@ putConArity :: MonadTCM m => QName -> Int -> Compile m ()
 putConArity n p = modifyEI $ \s -> s { conArity = M.insert n p (conArity s) }
 
 putMain :: MonadTCM m => QName -> Compile m ()
-putMain m = modifyEI $ \s -> s { mainName = Just m }
+putMain m = modifyEI $ \s -> s { mainName = Just m }-}
 
-getMain :: MonadTCM m => Compile m AName
-getMain = maybe (epicError "Where is main? :(") (return . unqname) =<< getsEI mainName
+--getMain :: MonadTCM m => Compile m HsName
+--getMain = maybe (epicError "Where is main? :(") (return . unqname) =<< getsEI mainName
 
+{-
 lookInterface :: MonadTCM m => (EInterface -> Maybe a) -> Compile m a -> Compile m a
 lookInterface f def = do
     cur <- gets curModule
@@ -196,14 +237,17 @@ putForcedArgs n f = do
   let f' | b = f
          | otherwise = replicate (length f) NotForced
   modifyEI $ \s -> s {forcedArgs = M.insert n f' $ forcedArgs s}
-
+-}
+-- TODO What does this have to do with CompileState? Move
 replaceAt :: Int -- ^ replace at
           -> [a] -- ^ to replace
           -> [a] -- ^ replace with
           -> [a] -- ^ result?
 replaceAt n xs inserts = let (as, _:bs) = splitAt n xs in as ++ inserts ++ bs
 
--- | Copy pasted from MAlonzo, HAHA!!!
+
+-- TODO this has nothing todo with the CompileState.., move
+-- | Copy pasted from MAlonzo, then Epic, HAHA!!!
 --   Move somewhere else!
 constructorArity :: Num a => QName -> TCM a
 constructorArity q = do
@@ -213,10 +257,3 @@ constructorArity q = do
     TM.Constructor{ TM.conPars = np } -> return . fromIntegral $ arity a - np
     _ -> internalError $ "constructorArity: non constructor: " ++ show q
 
--- | Bind an expression to a fresh variable name
-bindExpr :: MonadTCM m => Expr -> (AName -> Compile m Expr) -> Compile m Expr
-bindExpr expr f = case expr of
-  AuxAST.Var v -> f v
-  _     -> do
-      v <- newName
-      lett v expr <$> f v

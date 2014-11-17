@@ -6,6 +6,7 @@ import Control.Applicative
 import Agda.TypeChecking.Monad
 
 import Agda.Compiler.UHC.AuxAST
+import Agda.Compiler.UHC.AuxASTUtil
 import Agda.Compiler.UHC.CompileState
 
 caseOpts :: [Fun] -> Compile TCM [Fun]

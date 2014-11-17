@@ -1,55 +1,62 @@
 {-# LANGUAGE CPP #-}
 -- | Intermediate abstract syntax tree used in the compiler. Pretty close to
 --   UHC Core syntax.
-module Agda.Compiler.UHC.AuxAST where
+module Agda.Compiler.UHC.AuxAST
+  ( module Agda.Compiler.UHC.AuxAST
+  , HsName
+  )
+where
 
 import Data.Set (Set)
 import qualified Data.Set as S
 
 import Agda.Syntax.Abstract.Name
 
+import EH99.Core.API (HsName)
 import Agda.Compiler.UHC.CoreSyntax (CoreExpr, CoreConstr)
-import Agda.Compiler.UHC.Interface
 
 #include "undefined.h"
 import Agda.Utils.Impossible
 
+type Tag = Int
 type Comment  = String
 type Inline   = Bool
 
 data AMod
   = AMod
-      { xmodName    :: String
+      { xmodName    :: ModuleName
       , xmodDataTys :: [ADataTy]
       , xmodFunDefs :: [Fun]
       }
 
 data ADataTy
   = ADataTy
-      { xdatName     :: AName
+      { xdatName     :: HsName
       , xdatQName    :: QName
       , xdatCons     :: [ADataCon]
       }
+  deriving (Eq, Ord, Show)
 
 data ADataCon
   = ADataCon
       { xconArity    :: Int
-      , xconLocalName :: String -- constructor name without module/datatype part
+      , xconFullName :: HsName  -- ^ Fully qualified constructor name.
       , xconQName    :: QName
       , xconTag      :: Tag
       }
+  deriving (Eq, Ord, Show)
 
 data Fun
   = Fun
       { xfunInline  :: Inline
-      , xfunName    :: AName
+      , xfunName    :: HsName
       , xfunQName   :: Maybe QName
       , xfunComment :: Comment
-      , xfunArgs    :: [AName]
+      , xfunArgs    :: [HsName]
       , xfunExpr    :: Expr
       }
   | CoreFun
-      { xfunName     :: AName
+      { xfunName     :: HsName
       , xfunQName    :: Maybe QName
       , xfunComment  :: Comment
       , xfunCoreExpr :: CoreExpr
@@ -66,24 +73,25 @@ data Lit
 
 
 data Expr
-  = Var AName
+  = Var HsName
   | Lit Lit
-  | Lam AName Expr
-  | Con Tag QName [Expr]
-  | App AName [Expr]
+  | Lam HsName Expr
+  | Con ADataTy ADataCon [Expr]
+  | App HsName [Expr]
   | Case Expr [Branch]
-  | Let AName Expr Expr
+  | Let HsName Expr Expr
   | UNIT
   | IMPOSSIBLE
   deriving (Show, Ord, Eq)
 
+-- TODO we should move brDataTy to Case (branches have to be on the same datatype)
 data Branch
-  = Branch  {brTag  :: Tag, brName :: QName, brVars :: [AName], brExpr :: Expr}
-  | CoreBranch {brCoreCon :: CoreConstr, brVars :: [AName], brExpr :: Expr}
+  = Branch  {brDataTy :: ADataTy, brCon  :: ADataCon, brName :: QName, brVars :: [HsName], brExpr :: Expr}
+  | CoreBranch {brCoreCon :: CoreConstr, brVars :: [HsName], brExpr :: Expr}
   | Default {brExpr :: Expr}
   deriving (Show, Ord, Eq)
 
-getBrVars :: Branch -> [AName]
+getBrVars :: Branch -> [HsName]
 getBrVars (Branch {brVars = vs}) = vs
 getBrVars (CoreBranch {brVars = vs}) = vs
 getBrVars _                      = []
@@ -92,14 +100,14 @@ getBrVars _                      = []
 -- * Some smart constructors
 
 -- | Smart constructor for let expressions to avoid unneceessary lets
-lett :: AName -> Expr -> Expr -> Expr
+lett :: HsName -> Expr -> Expr -> Expr
 lett v (Var v') e' = subst v v' e'
 lett v e        e' = if v `elem` fv e' then Let v e e' else e'
 
 -- | If casing on the same expression in a sub-expression, we know what branch to
 --   pick
-casee :: Expr -> [Branch] -> Expr
-casee x brs = Case x [br{brExpr = casingE br (brExpr br)} | br <- brs]
+casee :: ADataTy -> Expr -> [Branch] -> Expr
+casee ty x brs = Case x [br{brExpr = casingE br (brExpr br)} | br <- brs]
   where
     casingE br expr = let rec = casingE br in case expr of
       Var v -> Var v
@@ -117,11 +125,11 @@ casee x brs = Case x [br{brExpr = casingE br (brExpr br)} | br <- brs]
 --      Lazy e      -> Lazy (rec e)
       UNIT        -> UNIT
       IMPOSSIBLE  -> IMPOSSIBLE
-    sameCon (Branch {brTag = t1}) (Branch {brTag = t2}) = t1 == t2
+    sameCon (Branch {brCon = c1}) (Branch {brCon = c2}) = c1 == c2
     sameCon _                     _                     = False
 
 -- | Smart constructor for applications to avoid empty applications
-apps :: AName -> [Expr] -> Expr
+apps :: HsName -> [Expr] -> Expr
 apps v [] = Var v
 apps v as = App v as
 
@@ -129,8 +137,8 @@ apps v as = App v as
 -- * Substitution
 
 -- | Substitution
-subst :: AName  -- ^ Substitute this ...
-      -> AName  -- ^ with this ...
+subst :: HsName  -- ^ Substitute this ...
+      -> HsName  -- ^ with this ...
       -> Expr -- ^ in this.
       -> Expr
 subst var var' expr = case expr of
@@ -151,17 +159,17 @@ subst var var' expr = case expr of
     UNIT       -> UNIT
     IMPOSSIBLE -> IMPOSSIBLE
 
-substs :: [(AName, AName)] -> Expr -> Expr
+substs :: [(HsName, HsName)] -> Expr -> Expr
 substs ss e = foldr (uncurry subst) e ss
 
-substBranch :: AName -> AName -> Branch -> Branch
+substBranch :: HsName -> HsName -> Branch -> Branch
 substBranch x e br = br { brExpr = subst x e (brExpr br) }
 
 -- | Get the free variables in an expression
-fv :: Expr -> [AName]
+fv :: Expr -> [HsName]
 fv = S.toList . fv'
   where
-    fv' :: Expr -> Set AName
+    fv' :: Expr -> Set HsName
     fv' expr = case expr of
       Var v    -> S.singleton v
       Lit _    -> S.empty
@@ -175,8 +183,8 @@ fv = S.toList . fv'
       UNIT       -> S.empty
       IMPOSSIBLE -> S.empty
 
-    fvBr :: Branch -> Set AName
+    fvBr :: Branch -> Set HsName
     fvBr b = case b of
-      Branch _ _ vs e -> fv' e S.\\ S.fromList vs
+      Branch _ _ _ vs e -> fv' e S.\\ S.fromList vs
       CoreBranch _ vs e -> fv' e S.\\ S.fromList vs
       Default e       -> fv' e

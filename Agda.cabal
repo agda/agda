@@ -427,10 +427,13 @@ library
     -- should be fine, as we don't intend to expose the backend internals.
     other-modules:
                     Agda.Compiler.UHC.AuxAST
+                    Agda.Compiler.UHC.AuxASTUtil
 --                    Agda.Compiler.UHC.CaseOpts
                     Agda.Compiler.UHC.CompileState
                     Agda.Compiler.UHC.Core
                     Agda.Compiler.UHC.FromAgda
+                    Agda.Compiler.UHC.ModuleInfo
+                    Agda.Compiler.UHC.Naming
                     Agda.Compiler.UHC.Primitives
 
 

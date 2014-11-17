@@ -35,10 +35,9 @@ import Agda.TypeChecking.Serialise
 import Agda.Utils.FileName
 import qualified Agda.Utils.HashMap as HMap
 
-import Agda.Compiler.UHC.Interface
-
 #ifdef UHC_BACKEND
 import Agda.Compiler.UHC.CompileState
+import Agda.Compiler.UHC.ModuleInfo
 --import qualified Agda.Compiler.UHC.CaseOpts     as COpts
 --import qualified Agda.Compiler.UHC.ForceConstrs as ForceC
 import Agda.Compiler.UHC.Core
@@ -49,11 +48,12 @@ import qualified Agda.Compiler.UHC.FromAgda     as FAgda
 --import qualified Agda.Compiler.UHC.Primitive    as Prim
 --import qualified Agda.Compiler.UHC.Smashing     as Smash
 import Agda.Compiler.UHC.CoreSyntax (ehcOpts)
+import Agda.Compiler.UHC.Naming
 
 import UHC.Util.Pretty
 import UHC.Util.Serialize
 
-import EH99.Base.HsName
+import EH99.Core.API
 import EH99.Module.ImportExport (ModEntRel)
 import qualified EH99.HI as HI
 import qualified EH99.Core as EC
@@ -67,7 +67,7 @@ import Agda.Utils.Impossible
 
 type CoreCode = String
 
-compileUHCAgdaBase :: Compile TCM ()
+compileUHCAgdaBase :: TCM ()
 compileUHCAgdaBase = do
 
     --debug
@@ -94,7 +94,7 @@ compileUHCAgdaBase = do
                 let vers = showVersion version
                     pkgName = "uhc-agda-base-" ++ vers
                     hsFiles = ["src/UHC/Agda/Builtins.hs"]
-                lift $ reportSLn "uhc" 10 $ unlines $
+                reportSLn "uhc" 10 $ unlines $
                     [ "Compiling " ++ pkgName ++ ", installing into package db " ++ pkgDbDir ++ "."
                     ]
 
@@ -108,7 +108,7 @@ compileUHCAgdaBase = do
 
 
                 liftIO $ setCurrentDirectory pwd
-        ExitFailure _ -> lift $ internalError $ unlines
+        ExitFailure _ -> internalError $ unlines
             [ "Agda couldn't find the UHC user package directory."
             ]
     {-
@@ -126,14 +126,18 @@ compilerMain inter = do
 
     let epic_exist = ExitSuccess -- PH TODO do check for uhc
     case epic_exist of
-        ExitSuccess -> flip evalStateT initCompileState $ do
+        ExitSuccess -> do
             compileUHCAgdaBase
 
             setUHCDir inter
-            _ <- compileModule inter
-            main <- getMain
+            modInfo <- compileModule inter
+            main <- getMain inter
 
-            runUhcMain main (iModuleName inter)
+            -- get core name from modInfo
+            let crMain = cnName $ qnameToCoreName (amifNameMp $ amiInterface modInfo) main
+
+            runUhcMain crMain (iModuleName inter)
+            return ()
 
         ExitFailure _ -> internalError $ unlines
            [ "Agda cannot find the UHC compiler."
@@ -141,38 +145,33 @@ compilerMain inter = do
 --           , "See the README for more information."
            ]
 
-outFile :: CN.TopLevelModuleName -> Compile TCM FilePath
+outFile :: CN.TopLevelModuleName -> TCM FilePath
 outFile mod = do
   let (dir, fn) = splitFileName . foldl1 (</>) $ CN.moduleNameParts mod
       fp  | dir == "./"  = fn
           | otherwise = dir </> fn
   liftIO $ createDirectoryIfMissing True dir
   return $ fp
-  where
-  repldot c = map (\c' -> if c' == '.' then c else c')
+  where repldot c = map (\c' -> if c' == '.' then c else c')
 
-{-
- - PH: TODO fix missing instance error (did that code actually compile for the epic backend?)
-readEInterface :: FilePath -> Compile TCM EInterface
-readEInterface file = fromMaybe __IMPOSSIBLE__
-                   <$> lift (decode =<< liftTCM (liftIO (BS.readFile file)))
--}
-
-compileModule :: Interface -> Compile TCM (EInterface, Set FilePath)
+compileModule :: Interface -> TCM AModuleInfo
 compileModule i = do
-    cm <- gets compiledModules
-    let moduleName = toTopLevelModuleName $ iModuleName i
-    file  <- outFile moduleName
-    case M.lookup moduleName cm of
-        Just eifs -> return eifs
+--    cm <- gets compiledModules
+    let moduleName = iModuleName i
+    let topModuleName = toTopLevelModuleName moduleName
+    file  <- outFile topModuleName
+--    case M.lookup moduleName cm of
+    case Nothing of
+        Just x -> __IMPOSSIBLE__
+--        Just eifs -> return eifs
         Nothing  -> do
             imports <- map miInterface . catMaybes
-                                      <$> mapM (lift . getVisitedModule . toTopLevelModuleName . fst)
+                                      <$> mapM (getVisitedModule . toTopLevelModuleName . fst)
                                                (iImportedModules i)
-            (ifaces, limps) <- mapAndUnzipM compileModule imports
-            let imps = S.unions limps
-            modify $ \s -> s { importedModules = importedModules s `mappend` mconcat ifaces }
-            ifile <- maybe __IMPOSSIBLE__ filePath <$> lift (findInterfaceFile moduleName)
+            modInfos <- mapM compileModule imports
+--            let imps = S.unions limps
+--            modify $ \s -> s { importedModules = importedModules s `mappend` mconcat ifaces }
+--            ifile <- maybe __IMPOSSIBLE__ filePath <$> lift (findInterfaceFile moduleName)
 --            let eifFile = file <.> "aei"
 --            uptodate <- liftIO $ isNewerThan eifFile ifile
 -- PH : TODO see missing instance problem in readEInterface
@@ -184,29 +183,22 @@ compileModule i = do
                     modify $ \s -> s { curModule = eif }
                     return (eif, S.insert file imps)
                 False -> do-}
-            (eif, imps') <- do
-                    lift $ reportSLn "" 1 $
+            modInfo <- do
+                    reportSLn "" 1 $
                         "Compiling: " ++ show (iModuleName i)
-                    resetNameSupply
-                    initialAnalysis i
+--                    initialAnalysis i
                     let defns = HMap.toList $ sigDefinitions $ iSignature i
-                    (code, expExprs, hiImps) <- compileDefns moduleName imports defns
-                    hi <- createHI moduleName expExprs hiImps
-                    -- HACK
+                    (code, expExprs, hiImps, modInfo) <- compileDefns moduleName modInfos defns
+                    hi <- createHI topModuleName expExprs hiImps
                     runUHC file hi code
-                    eif <- gets curModule
--- PH : TODO see missing instance problem in readEInterface
-{-                    lift $ do
-                        bif <- encode eif
-                        liftIO $ BS.writeFile eifFile bif-}
-                    return (eif, S.insert file imps)
-            modify $ \s -> s { compiledModules = (M.insert moduleName (eif, imps') (compiledModules s))}
-            return (eif, imps')
+--                    eif <- gets curModule
+                    return modInfo
+            return modInfo
 
-createHI :: CN.TopLevelModuleName -> ModEntRel -> S.Set HsName -> Compile TCM HI.HIInfo
+createHI :: CN.TopLevelModuleName -> ModEntRel -> S.Set HsName -> TCM HI.HIInfo
 createHI mod expExprs hiImps = do
   let hi = (HI.emptyHIInfo {
-                                 HI.hiiModuleNm             = mkHsName modName
+                                 HI.hiiModuleNm             = mkHsName1 modName
                                , HI.hiiSrcTimeStamp         = Sig.timestamp
                                , HI.hiiSrcSig               = Sig.sig
                                , HI.hiiSrcVersionMajor      = Cfg.verMajor Cfg.version
@@ -221,10 +213,20 @@ createHI mod expExprs hiImps = do
   return hi
   where modName = L.intercalate "." (CN.moduleNameParts mod)
 
+getMain :: MonadTCM m => Interface -> m QName
+getMain iface = case concatMap f defs of
+    [] -> typeError $ GenericError $ "Could not find main."
+    [x] -> return x
+    _   -> __IMPOSSIBLE__
+  where defs = HMap.toList $ sigDefinitions $ iSignature iface
+        f (qn, def) = case theDef def of
+            (Function{}) | "main" == show (qnameName qn) -> [qn]
+            _   -> []
+
 -- | Before running the compiler, we need to store some things in the state,
 --   namely constructor tags, constructor irrelevancies and the delayed field
 --   in functions (for coinduction).
-initialAnalysis :: Interface -> Compile TCM ()
+{-initialAnalysis :: Interface -> TCM ()
 initialAnalysis inter = do
 -- TODO PH : fix natish
 --  Prim.initialPrims
@@ -257,23 +259,26 @@ initialAnalysis inter = do
           Nothing -> putDelayed q True
           _       -> return ()
       _ -> return ()
+-}
 
-idPrint :: String -> (a -> Compile TCM b) -> a -> Compile TCM b
+idPrint :: String -> (a -> TCM b) -> a -> TCM b
 idPrint s m x = do
-  lift $ reportSLn "epic.phases" 10 s
+  reportSLn "uhc.phases" 10 s
   m x
 
 -- | Perform the chain of compilation stages, from definitions to epic code
-compileDefns :: CN.TopLevelModuleName
-    -> [Interface] -- ^ top level imports
-    -> [(QName, Definition)] -> Compile TCM (EC.CModule, ModEntRel, S.Set HsName)
-compileDefns mod imps defs = do
+compileDefns :: ModuleName
+    -> [AModuleInfo] -- ^ top level imports
+    -> [(QName, Definition)] -> TCM (EC.CModule, ModEntRel, S.Set HsName, AModuleInfo)
+compileDefns mod modImps defs = do
     -- We need to handle sharp (coinduction) differently, so we get it here.
-    msharp <- lift $ getBuiltin' builtinSharp
-    let modName = L.intercalate "." (CN.moduleNameParts mod)
-    amod   <- return defs
+    msharp <- getBuiltin' builtinSharp
+--    let modName = L.intercalate "." (CN.moduleNameParts mod)
+
+    (amod, modInfo) <- idPrint "fromAgda" (FAgda.fromAgdaModule msharp mod modImps) defs
+    amod'   <- return amod
 --               >>= idPrint "findInjection" ID.findInjection
-               >>= idPrint "fromAgda"   (FAgda.fromAgdaModule msharp modName)
+--               >>= idPrint "fromAgda"   (FAgda.fromAgdaModule msharp modName modImps)
 --               >>= idPrint "forcing"     Forcing.remForced
 --               >>= idPrint "irr"         ForceC.forceConstrs
 --               >>= idPrint "primitivise" Prim.primitivise
@@ -281,32 +286,33 @@ compileDefns mod imps defs = do
 --               >>= idPrint "erasure"     Eras.erasure
 --               >>= idPrint "caseOpts"    COpts.caseOpts
                >>= idPrint "done" return
-    lift $ reportSLn "uhc" 10 $ "Done generating AuxAST for \"" ++ show mod ++ "\"."
-    crMod <- toCore amod imps
-    lift $ reportSLn "uhc" 10 $ "Done generating Core for \"" ++ show mod ++ "\"."
-    return crMod
+    reportSLn "uhc" 10 $ "Done generating AuxAST for \"" ++ show mod ++ "\"."
+    (crMod, hsExps) <- toCore amod' modImps
+    let modEntRel =  getExportedExprs modInfo
+    reportSLn "uhc" 10 $ "Done generating Core for \"" ++ show mod ++ "\"."
+    return (crMod, modEntRel, hsExps, modInfo)
 
-writeCoreFile :: String -> EC.CModule -> Compile TCM FilePath
+writeCoreFile :: String -> EC.CModule -> TCM FilePath
 writeCoreFile f mod = do
-  useTextual <- optUHCTextualCore <$> lift commandLineOptions
+  useTextual <- optUHCTextualCore <$> commandLineOptions
   if useTextual then do
     let f' = f <.> ".tcr"
-    lift $ reportSLn "uhc" 10 $ "Writing textual core to \"" ++ show f' ++ "\"."
+    reportSLn "uhc" 10 $ "Writing textual core to \"" ++ show f' ++ "\"."
     liftIO $ putPPFile f' (EP.ppCModule ehcOpts mod) 200
     return f'
   else do
     let f' = f <.> ".bcr"
-    lift $ reportSLn "uhc" 10 $ "Writing binary core to \"" ++ show f' ++ "\"."
+    reportSLn "uhc" 10 $ "Writing binary core to \"" ++ show f' ++ "\"."
     liftIO $ putSerializeFile f' mod
     return f'
 
 -- | Change the current directory to Epic folder, create it if it doesn't already
 --   exist.
-setUHCDir :: Interface -> Compile (TCMT IO) ()
+setUHCDir :: Interface -> TCM ()
 setUHCDir mainI = do
     let tm = toTopLevelModuleName $ iModuleName mainI
-    f <- lift $ findFile tm
-    compileDir' <- lift $ gets (fromMaybe (filePath $ CN.projectRoot f tm) .
+    f <- findFile tm
+    compileDir' <- gets (fromMaybe (filePath $ CN.projectRoot f tm) .
                                   optCompileDir . stPersistentOptions . stPersistentState)
     compileDir <- liftIO $ canonicalizePath compileDir'
     liftIO $ setCurrentDirectory compileDir
@@ -317,7 +323,7 @@ setUHCDir mainI = do
 --
 -- The program is written to the file @../m@, where m is the last
 -- component of the given module name.
-runUHC :: FilePath -> HI.HIInfo -> EC.CModule -> Compile TCM ()
+runUHC :: FilePath -> HI.HIInfo -> EC.CModule -> TCM ()
 runUHC fp hi code = do
     fp' <- writeCoreFile fp code
     liftIO $ putSerializeFile (fp <.> "hi") hi
@@ -325,7 +331,7 @@ runUHC fp hi code = do
     callUHC False fp'
 
 -- | Create the Epic main file, which calls the Agda main function
-runUhcMain :: AName -> ModuleName -> Compile TCM ()
+runUhcMain :: HsName -> ModuleName -> TCM ()
 runUhcMain mainName modNm = do
     let fp = "Main"
     let mod = createMainModule (show modNm) mainName
@@ -333,19 +339,19 @@ runUhcMain mainName modNm = do
 
     callUHC True fp'
 
-callUHC :: Bool -> FilePath -> Compile TCM ()
+callUHC :: Bool -> FilePath -> TCM ()
 callUHC isMain fp = callUHC1 $ catMaybes
     [ if isMain then Nothing else Just "--compile-only"
     , Just fp]
 
-callUHC1 :: [String] -> Compile TCM ()
+callUHC1 :: [String] -> TCM ()
 callUHC1 args = do
     ehcBin <- getEhcBin
-    doCall <- optUHCCallUHC <$> lift commandLineOptions
-    when doCall (lift $ callCompiler ehcBin args)
+    doCall <- optUHCCallUHC <$> commandLineOptions
+    when doCall (callCompiler ehcBin args)
 
-getEhcBin :: Compile TCM FilePath
-getEhcBin = fromMaybe ("ehc") . optUHCEhcBin <$> lift commandLineOptions
+getEhcBin :: TCM FilePath
+getEhcBin = fromMaybe ("ehc") . optUHCEhcBin <$> commandLineOptions
 
 #else
 
