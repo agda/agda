@@ -361,6 +361,7 @@ library
                     Agda.Utils.Null
                     Agda.Utils.PartialOrd
                     Agda.Utils.Permutation
+                    Agda.Utils.Permutation.Tests
                     Agda.Utils.Pointer
                     Agda.Utils.Pointed
                     Agda.Utils.Pretty

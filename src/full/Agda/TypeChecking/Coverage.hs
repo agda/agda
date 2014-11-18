@@ -1,3 +1,5 @@
+{-# OPTIONS_GHC -fwarn-unused-imports #-}
+
 {-# LANGUAGE CPP              #-}
 {-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE PatternGuards    #-}
@@ -42,9 +44,8 @@ import Agda.TypeChecking.Monad.Context
 
 import Agda.TypeChecking.Rules.LHS.Problem (FlexibleVar(..),flexibleVarFromHiding)
 import Agda.TypeChecking.Rules.LHS.Unify
-import Agda.TypeChecking.Rules.LHS.Instantiate
-import Agda.TypeChecking.Rules.LHS
-import qualified Agda.TypeChecking.Rules.LHS.Split as Split
+import Agda.TypeChecking.Rules.LHS.Instantiate (instantiateTel)
+import Agda.TypeChecking.Rules.LHS (instantiatePattern)
 
 import Agda.TypeChecking.Coverage.Match
 import Agda.TypeChecking.Coverage.SplitTree
