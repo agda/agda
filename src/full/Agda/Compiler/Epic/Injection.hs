@@ -10,6 +10,8 @@ module Agda.Compiler.Epic.Injection where
 import Control.Monad.State
 import Control.Monad.Reader
 
+import Data.IntMap (IntMap)
+import qualified Data.IntMap as IntMap
 import Data.List
 import Data.Map (Map)
 import qualified Data.Map as Map
@@ -219,7 +221,7 @@ solve newNames xs = do
             _         -> __IMPOSSIBLE__
         case Map.toList eqs of
             (c, Same n) : _ -> do
-                let grp = eqGroups tags !!!! n
+                let grp = fromMaybe __IMPOSSIBLE__ $ IntMap.lookup n $ eqGroups tags
                 tag <- assignConstrTag' c (Set.toList grp)
                 updateTags . fromMaybe __IMPOSSIBLE__ =<< setTag n tag tags { constrGroup = eqs }
             _              -> return ()
@@ -334,13 +336,13 @@ data TagEq
   deriving Eq
 
 data Tags = Tags
-    { eqGroups    :: Map Int (Set QName)
+    { eqGroups    :: IntMap (Set QName)
     , constrGroup :: Map QName TagEq
     }
 
 initialTags :: Map QName Tag -> [QName] -> Tags
 initialTags setTags newNames = Tags
-    { eqGroups    = Map.fromList $ zip [0..] (map Set.singleton newNames)
+    { eqGroups    = IntMap.fromList $ zip [0..] (map Set.singleton newNames)
     , constrGroup = Map.map IsTag setTags `Map.union` Map.fromList (zip newNames (map Same [0..]))
     }
 
@@ -358,19 +360,21 @@ unify c1 c2 ts = do
 
 setTag :: Int -> Tag -> Tags -> Compile TCM (Maybe Tags)
 setTag gid tag ts = return $ Just $ ts
-    { constrGroup = foldr (\c -> Map.insert c (IsTag tag)) (constrGroup ts) (Set.toList $ eqGroups ts !!!! gid)}
+    { constrGroup = foldr (\ c -> Map.insert c (IsTag tag))
+                          (constrGroup ts)
+                          (Set.toList $ fromMaybe __IMPOSSIBLE__ $ IntMap.lookup gid $ eqGroups ts) }
 
 mergeGroups :: Int -> Int -> Tags -> Compile TCM (Maybe Tags)
 mergeGroups n1 n2 ts = do
-    let g1s = eqGroups ts !!!! n1
-        g2s = eqGroups ts !!!! n2
+    let g1s = fromMaybe __IMPOSSIBLE__ $ IntMap.lookup n1 $ eqGroups ts
+        g2s = fromMaybe __IMPOSSIBLE__ $ IntMap.lookup n2 $ eqGroups ts
         gs  = Set.union g1s g2s
         g1l = Set.toList g1s
         g2l = Set.toList g2s
     ifNotM (andM $ zipWith unifiable g1l g2l)
         (return Nothing) $
         return $ Just $ ts
-            { eqGroups    = Map.delete n2 $ Map.insert n1 gs (eqGroups ts)
+            { eqGroups    = IntMap.delete n2 $ IntMap.insert n1 gs (eqGroups ts)
             , constrGroup = Map.fromList [ (e2, Same n1) | e2 <- g2l ] `Map.union` constrGroup ts
             }
 
