@@ -32,6 +32,7 @@ import Agda.Utils.Graph.AdjacencyMap          as UtilGrap   (tests)
 import Agda.Utils.Graph.AdjacencyMap.Unidirectional as UtilGraphUni (tests)
 import Agda.Utils.List                        as UtilList   (tests)
 import Agda.Utils.PartialOrd                  as UtilPOrd   (tests)
+import Agda.Utils.Permutation.Tests           as UtilPerm   (tests)
 import Agda.Utils.Warshall                    as UtilWarsh  (tests)
 
 testSuite :: IO Bool
@@ -39,6 +40,7 @@ testSuite = runTests "QuickCheck test suite:"
   [ Irrel.tests
   , SizedTypes.tests
   , UtilFav.tests
+  , UtilPerm.tests
   , UtilPOrd.tests
   , CompEnco.tests
   , InteEmac.tests
