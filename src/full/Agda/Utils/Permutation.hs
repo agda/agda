@@ -159,7 +159,9 @@ topoSort parent xs = fmap (Perm (size xs)) $ topo g
         xs = [ x | (x, []) <- g ]
         remove x g = [ (y, filter (/= x) ys) | (y, ys) <- g, x /= y ]
 
+------------------------------------------------------------------------
 -- * Drop (apply) and undrop (abstract)
+------------------------------------------------------------------------
 
 -- | Delayed dropping which allows undropping.
 data Drop a = Drop
@@ -189,3 +191,7 @@ instance DoDrop Permutation where
     Perm (n + m) $ [0..m-1] ++ map (+ m) (List.drop k xs)
     where m = -k
   unDrop m = dropMore (-m) -- allow picking up more than dropped
+
+------------------------------------------------------------------------
+-- * Properties, see 'Agda.Utils.Permutation.Tests'
+------------------------------------------------------------------------
