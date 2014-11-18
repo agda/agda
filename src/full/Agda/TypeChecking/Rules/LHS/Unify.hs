@@ -18,6 +18,8 @@ import Control.Monad.State
 import Control.Monad.Reader
 import Control.Monad.Writer (WriterT(..), MonadWriter(..), Monoid(..))
 
+import Data.IntMap (IntMap)
+import qualified Data.IntMap as IntMap
 import Data.Map (Map)
 import qualified Data.Map as Map
 import Data.List hiding (sort)
@@ -127,7 +129,7 @@ ifClean m t e = do
     Possibly ->   e
 
 data Equality = Equal TypeHH Term Term
-type Sub = Map Nat Term
+type Sub = IntMap Term
 
 data UnifyException
   = ConstructorMismatch Type Term Term
@@ -140,12 +142,13 @@ instance Error UnifyException where
   noMsg  = strMsg ""
   strMsg = GenericUnifyException
 
-data UnifyState = USt { uniSub    :: Sub
-                      , uniConstr :: [Equality]
-                      }
+data UnifyState = USt
+  { uniSub    :: Sub
+  , uniConstr :: [Equality]
+  }
 
 emptyUState :: UnifyState
-emptyUState = USt Map.empty []
+emptyUState = USt IntMap.empty []
 
 -- | Throw-away error message.
 projectionMismatch :: QName -> QName -> Unify a
@@ -253,7 +256,7 @@ occursCheck i u a = do
 i |-> (u, a) = do
   occursCheck i u a
   liftTCM $ reportSDoc "tc.lhs.unify.assign" 15 $ prettyTCM (var i) <+> text ":=" <+> prettyTCM u
-  modSub $ Map.insert i (killRange u)
+  modSub $ IntMap.insert i (killRange u)
   -- Apply substitution to itself (issue 552)
   rho  <- onSub id
   rho' <- traverse ureduce rho
@@ -264,8 +267,8 @@ makeSubstitution sub
   | Map.null sub = idS
   | otherwise    = map val [0 .. highestIndex] ++# raiseS (highestIndex + 1)
   where
-    highestIndex = fst $ Map.findMax sub
-    val i = maybe (var i) id $ Map.lookup i sub
+    highestIndex = fst $ IntMap.findMax sub
+    val i = fromMaybe (var i) $ IntMap.lookup i sub
 
 -- | Apply the current substitution on a term and reduce to weak head normal form.
 class UReduce t where
@@ -491,7 +494,7 @@ unifyIndices flex a us vs = liftTCM $ do
       Right _                               -> do
         checkEqualities $ applySubst (makeSubstitution s) eqs
         let n = maximum $ (-1) : flex'
-        return $ Unifies $ flattenSubstitution [ Map.lookup i s | i <- [0..n] ]
+        return $ Unifies $ flattenSubstitution [ IntMap.lookup i s | i <- [0..n] ]
   `catchError` \err -> case err of
      TypeError _ (Closure {clValue = WithoutKError{}}) -> throwError err
      _                                                 -> return $ DontKnow err
