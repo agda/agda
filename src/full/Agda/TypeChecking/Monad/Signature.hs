@@ -131,11 +131,11 @@ addCoreCode q crDef =
 
 addCoreConstr :: QName -> String -> String -> TCM ()
 addCoreConstr q crTy crCo =
-  case CR.parseCoreConstr crCo of
+  case CR.parseCoreConstr crTy crCo of
     Right x -> modifySignature $ updateDefinition q $ updateDefCompiledRep $ addCore x
     Left er -> typeError (CompilationError ("Failed to parse UHC Core constructor for " ++ show q ++ ": " ++ er))
   where
-    addCore (crCtor, crTag) crep = crep {compiledCore = Just $ CrConstr (crTy, crCtor, crTag) }
+    addCore (tyNm, conNm, conTag) crep = crep {compiledCore = Just $ CrConstr tyNm conNm conTag }
 
 addCoreType :: QName -> String -> TCM ()
 addCoreType q crTy = modifySignature $ updateDefinition q $ updateDefCompiledRep $ addCr

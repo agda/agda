@@ -47,20 +47,14 @@ import qualified Agda.Compiler.UHC.FromAgda     as FAgda
 --import qualified Agda.Compiler.UHC.NatDetection as ND
 --import qualified Agda.Compiler.UHC.Primitive    as Prim
 --import qualified Agda.Compiler.UHC.Smashing     as Smash
-import Agda.Compiler.UHC.CoreSyntax (ehcOpts)
 import Agda.Compiler.UHC.Naming
+import Agda.Compiler.UHC.AuxAST
 
 import UHC.Util.Pretty
 import UHC.Util.Serialize
 
-import EH99.Core.API
-import EH99.Module.ImportExport (ModEntRel)
-import qualified EH99.HI as HI
-import qualified EH99.Core as EC
-import qualified EH99.Core.Pretty as EP
-import qualified EH99.Opts as EO
-import qualified EH99.Config as Cfg
-import qualified EH99.SourceCodeSig as Sig
+import UHC.Util.AssocL
+import UHC.Light.Compiler.Core.API as EC
 
 #include "undefined.h"
 import Agda.Utils.Impossible
@@ -69,14 +63,6 @@ type CoreCode = String
 
 compileUHCAgdaBase :: TCM ()
 compileUHCAgdaBase = do
-
-    --debug
-{-    hi <- liftIO (getSerializeFile "/home/philipp/Projects/uu/exp1/src/examples/HelloDat/UHC/Test.hi" :: IO HI.HIInfo)
-    liftIO $ putStrLn $ unlines $ map show
-            [ HI.hiiExps hi
-            , HI.hiiHiddenExps hi
-            ]
--}
 
     -- TODO only compile uhc-agda-base when we have to
     dataDir <- (</> "uhc-agda-base") <$> liftIO getDataDir
@@ -134,7 +120,7 @@ compilerMain inter = do
             main <- getMain inter
 
             -- get core name from modInfo
-            let crMain = cnName $ qnameToCoreName (amifNameMp $ amiInterface modInfo) main
+            let crMain = cnName $ fromJust $ qnameToCoreName (amifNameMp $ amiInterface modInfo) main
 
             runUhcMain crMain (iModuleName inter)
             return ()
@@ -188,30 +174,13 @@ compileModule i = do
                         "Compiling: " ++ show (iModuleName i)
 --                    initialAnalysis i
                     let defns = HMap.toList $ sigDefinitions $ iSignature i
-                    (code, expExprs, hiImps, modInfo) <- compileDefns moduleName modInfos defns
-                    hi <- createHI topModuleName expExprs hiImps
-                    runUHC file hi code
+                    (code, modInfo, amod) <- compileDefns moduleName modInfos defns
+
+                    runUHC file code
 --                    eif <- gets curModule
                     return modInfo
             return modInfo
 
-createHI :: CN.TopLevelModuleName -> ModEntRel -> S.Set HsName -> TCM HI.HIInfo
-createHI mod expExprs hiImps = do
-  let hi = (HI.emptyHIInfo {
-                                 HI.hiiModuleNm             = mkHsName1 modName
-                               , HI.hiiSrcTimeStamp         = Sig.timestamp
-                               , HI.hiiSrcSig               = Sig.sig
-                               , HI.hiiSrcVersionMajor      = Cfg.verMajor Cfg.version
-                               , HI.hiiSrcVersionMinor      = Cfg.verMinor Cfg.version
-                               , HI.hiiSrcVersionMinorMinor = Cfg.verMinorMinor Cfg.version
-                               , HI.hiiSrcVersionSvn        = Cfg.verSvnRevision Cfg.version
-                               , HI.hiiExps                 = expExprs
-                               , HI.hiiHIDeclImpModS        = hiImps
-                               , HI.hiiHIUsedImpModS        = hiImps
-    })
-  liftIO $ putStrLn $ show (HI.hiiModuleNm hi, HI.hiiExps hi)
-  return hi
-  where modName = L.intercalate "." (CN.moduleNameParts mod)
 
 getMain :: MonadTCM m => Interface -> m QName
 getMain iface = case concatMap f defs of
@@ -269,7 +238,7 @@ idPrint s m x = do
 -- | Perform the chain of compilation stages, from definitions to epic code
 compileDefns :: ModuleName
     -> [AModuleInfo] -- ^ top level imports
-    -> [(QName, Definition)] -> TCM (EC.CModule, ModEntRel, S.Set HsName, AModuleInfo)
+    -> [(QName, Definition)] -> TCM (EC.CModule, AModuleInfo, AMod)
 compileDefns mod modImps defs = do
     -- We need to handle sharp (coinduction) differently, so we get it here.
     msharp <- getBuiltin' builtinSharp
@@ -287,24 +256,26 @@ compileDefns mod modImps defs = do
 --               >>= idPrint "caseOpts"    COpts.caseOpts
                >>= idPrint "done" return
     reportSLn "uhc" 10 $ "Done generating AuxAST for \"" ++ show mod ++ "\"."
-    (crMod, hsExps) <- toCore amod' modImps
-    let modEntRel =  getExportedExprs modInfo
+    crMod <- toCore amod' modInfo modImps
+--    let modEntRel =  getExportedExprs modInfo
     reportSLn "uhc" 10 $ "Done generating Core for \"" ++ show mod ++ "\"."
-    return (crMod, modEntRel, hsExps, modInfo)
+    return (crMod, modInfo, amod')
 
 writeCoreFile :: String -> EC.CModule -> TCM FilePath
 writeCoreFile f mod = do
   useTextual <- optUHCTextualCore <$> commandLineOptions
-  if useTextual then do
+
+  -- dump textual core, useful for debugging.
+  when useTextual (do
     let f' = f <.> ".tcr"
     reportSLn "uhc" 10 $ "Writing textual core to \"" ++ show f' ++ "\"."
-    liftIO $ putPPFile f' (EP.ppCModule ehcOpts mod) 200
-    return f'
-  else do
-    let f' = f <.> ".bcr"
-    reportSLn "uhc" 10 $ "Writing binary core to \"" ++ show f' ++ "\"."
-    liftIO $ putSerializeFile f' mod
-    return f'
+    liftIO $ putPPFile f' (EC.printModule defaultEHCOpts mod) 200
+    )
+
+  let f' = f <.> ".bcr"
+  reportSLn "uhc" 10 $ "Writing binary core to \"" ++ show f' ++ "\"."
+  liftIO $ putSerializeFile f' mod
+  return f'
 
 -- | Change the current directory to Epic folder, create it if it doesn't already
 --   exist.
@@ -323,10 +294,10 @@ setUHCDir mainI = do
 --
 -- The program is written to the file @../m@, where m is the last
 -- component of the given module name.
-runUHC :: FilePath -> HI.HIInfo -> EC.CModule -> TCM ()
-runUHC fp hi code = do
+runUHC :: FilePath -> EC.CModule -> TCM ()
+runUHC fp code = do
     fp' <- writeCoreFile fp code
-    liftIO $ putSerializeFile (fp <.> "hi") hi
+--    liftIO $ putSerializeFile (fp <.> "hi") hi
     -- this is a hack, fix this for supporting multiple agda modules
     callUHC False fp'
 

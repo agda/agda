@@ -1169,15 +1169,19 @@ instance EmbPrj JS.MemberId where
 instance EmbPrj CoreRepresentation where
   icod_ (CrType a)     = icode1' a
   icod_ (CrDefn a)     = icode1 1 a
-  icod_ (CrConstr a)   = icode1 2 a
+  icod_ (CrConstr a b c) = icode3 2 a b c
 
   value = vcase valu where
     valu [a]       = valu1 CrType a
     valu [1, a]    = valu1 CrDefn a
-    valu [2, a]    = valu1 CrConstr a
+    valu [2, a, b, c] = valu3 CrConstr a b c
     valu _      = malformed
 
 instance EmbPrj CR.CoreExpr where
+  icod_ = icode . B.runPut . UU.serialize
+  value n = value n >>= return . (B.runGet UU.unserialize)
+
+instance EmbPrj CR.HsName where
   icod_ = icode . B.runPut . UU.serialize
   value n = value n >>= return . (B.runGet UU.unserialize)
 

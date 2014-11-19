@@ -1073,7 +1073,7 @@ data HaskellExport = HsExport HaskellType String deriving (Show, Typeable)
 
 data CoreRepresentation
       = CrDefn CoreCode -- ^ Core code for functions.
-      | CrConstr CR.CoreConstr -- ^ Core constructor for agda constructor.
+      | CrConstr CR.HsName CR.HsName Int -- ^ Core constructor for agda constructor. Datatype name, Constructor name, Constructor tag.
       | CrType CoreType -- ^ Core type for an agda type.
     deriving (Typeable, Show)
 

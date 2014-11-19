@@ -12,8 +12,8 @@ import qualified Data.Set as S
 
 import Agda.Syntax.Abstract.Name
 
-import EH99.Core.API (HsName)
-import Agda.Compiler.UHC.CoreSyntax (CoreExpr, CoreConstr)
+import UHC.Light.Compiler.Core.API (HsName, CTag)
+import Agda.Compiler.UHC.CoreSyntax (CoreExpr)
 
 #include "undefined.h"
 import Agda.Utils.Impossible
@@ -31,18 +31,24 @@ data AMod
 
 data ADataTy
   = ADataTy
-      { xdatName     :: HsName
+      { xdatName     :: Maybe HsName -- ^ Datatype core name. Nothing for unit datatype.
       , xdatQName    :: QName
       , xdatCons     :: [ADataCon]
+      , xdatImplType :: ADataImplType
       }
+  deriving (Eq, Ord, Show)
+
+data ADataImplType
+  = ADataImplNormal  -- normal agda datatype
+  | ADataImplBuiltin String
+  | ADataImplForeign -- COMPILED_CORE pragma
   deriving (Eq, Ord, Show)
 
 data ADataCon
   = ADataCon
-      { xconArity    :: Int
-      , xconFullName :: HsName  -- ^ Fully qualified constructor name.
-      , xconQName    :: QName
-      , xconTag      :: Tag
+      { xconQName    :: QName
+      , xconArity    :: Int
+      , xconCTag     :: CTag
       }
   deriving (Eq, Ord, Show)
 
@@ -60,6 +66,7 @@ data Fun
       , xfunQName    :: Maybe QName
       , xfunComment  :: Comment
       , xfunCoreExpr :: CoreExpr
+      , xfunArity    :: Int -- TODO check if still used, remove if not
       }
   deriving (Eq, Show)
 
@@ -80,20 +87,27 @@ data Expr
   | App HsName [Expr]
   | Case Expr [Branch]
   | Let HsName Expr Expr
-  | UNIT
+  | UNIT    -- ^ Used for internally generated unit values. If an Agda datatype is bound to the
+            -- Unit builtin, two representations of unit exists, but will be compiled to the same
+            -- thing.
   | IMPOSSIBLE
   deriving (Show, Ord, Eq)
 
 -- TODO we should move brDataTy to Case (branches have to be on the same datatype)
 data Branch
-  = Branch  {brDataTy :: ADataTy, brCon  :: ADataCon, brName :: QName, brVars :: [HsName], brExpr :: Expr}
-  | CoreBranch {brCoreCon :: CoreConstr, brVars :: [HsName], brExpr :: Expr}
+  = Branch  {brCon  :: ADataCon, brName :: QName, brVars :: [HsName], brExpr :: Expr}
+--  | CoreBranch {brCoreCon :: CoreConstr, brVars :: [HsName], brExpr :: Expr}
   | Default {brExpr :: Expr}
   deriving (Show, Ord, Eq)
 
+-- TODO check if still used, remove if not
+funArity :: Fun -> Int
+funArity (Fun {xfunArgs = args}) = length args
+funArity (CoreFun {xfunArity = ar}) = ar
+
 getBrVars :: Branch -> [HsName]
 getBrVars (Branch {brVars = vs}) = vs
-getBrVars (CoreBranch {brVars = vs}) = vs
+--getBrVars (CoreBranch {brVars = vs}) = vs
 getBrVars _                      = []
 
 --------------------------------------------------------------------------------
@@ -185,6 +199,6 @@ fv = S.toList . fv'
 
     fvBr :: Branch -> Set HsName
     fvBr b = case b of
-      Branch _ _ _ vs e -> fv' e S.\\ S.fromList vs
-      CoreBranch _ vs e -> fv' e S.\\ S.fromList vs
+      Branch _ _ vs e -> fv' e S.\\ S.fromList vs
+--      CoreBranch _ vs e -> fv' e S.\\ S.fromList vs
       Default e       -> fv' e

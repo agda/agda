@@ -10,6 +10,7 @@ import Data.Char
 import qualified Data.Map as M
 import Data.Maybe
 import Data.List
+import Data.Either
 
 import Agda.Syntax.Common
 import Agda.Syntax.Internal hiding (Term(..))
@@ -24,7 +25,7 @@ import Agda.Utils.List
 import Agda.TypeChecking.Monad.Builtin
 import Agda.Syntax.Scope.Base
 
-import Agda.Compiler.UHC.CoreSyntax (CoreConstr)
+import Agda.Compiler.UHC.CoreSyntax
 import Agda.Compiler.UHC.AuxAST
 import Agda.Compiler.UHC.AuxASTUtil
 import Agda.Compiler.UHC.CompileState
@@ -33,7 +34,7 @@ import Agda.Compiler.UHC.Primitives
 import Agda.Compiler.UHC.Core
 import Agda.Compiler.UHC.Naming
 
-import EH99.Core.API as CA
+import UHC.Light.Compiler.Core.API as CA
 
 #include "undefined.h"
 import Agda.Utils.Impossible
@@ -46,8 +47,8 @@ fromAgdaModule :: Maybe T.Term
     -> TCM (AMod, AModuleInfo)
 fromAgdaModule msharp modNm modImps defs = do
 
-  defNames <- collectNames defs
   btins <- getBuiltins
+  defNames <- collectNames btins defs
   nameMp <- assignCoreNames modNm defNames
   
   (mod', modInfo') <- runCompileT modNm modImps nameMp (do
@@ -56,7 +57,7 @@ fromAgdaModule msharp modNm modImps defs = do
 
     lift $ reportSLn "uhc" 20 "Translate datatypes..."
     -- Translate and add datatype information
-    dats <- translateDataTypes defs --btins
+    dats <- translateDataTypes btins defs
     let conMp = buildConMp dats
     addConMap conMp
 
@@ -78,8 +79,8 @@ fromAgdaModule msharp modNm modImps defs = do
         datToConInfo dt = [(xconQName con, AConInfo dt con) | con <- xdatCons dt]
 
 -- | Collect module-level names.
-collectNames :: [(QName, Definition)] -> TCM [AgdaName]
-collectNames defs = do
+collectNames :: BuiltinCache -> [(QName, Definition)] -> TCM [AgdaName]
+collectNames btins defs = do
 {-  scope <- lift getScope
   modScope <- (scopeModules scope M.!) <$> getCurrentModule
   lift $ printScope "TEST" 20 "TEST"
@@ -87,8 +88,8 @@ collectNames defs = do
   -- TODO we ignore sub modules here right now. In the future, what should we do here?
   let scope' = exportedNamesInScope modScope-}
 
-  return $ map collectName defs
-  where collectName :: (QName, Definition) -> AgdaName
+  return $ catMaybes $ map collectName defs
+  where collectName :: (QName, Definition) -> Maybe AgdaName
         collectName (qnm, def) =
             let ty = case theDef def of
                     (Datatype {}) -> EtDatatype
@@ -97,27 +98,40 @@ collectNames defs = do
                     (Record {}) -> EtConstructor
                     (Axiom {})  -> EtFunction
                     (Primitive {}) -> EtFunction
-            in AgdaName
+                isBtin = isBuiltin btins qnm
+                isForeign = isJust $ compiledCore $ defCompiledRep def
+            in -- builtin/foreign constructors already have a core-level representation, so we don't need any fresh names
+               -- but for the datatypes themselves we still want to create the type-dummy function
+               if ty == EtConstructor && (isForeign || isBtin) then Nothing
+               else Just AgdaName
                 { anName = qnm
                 , anType = ty
                 , anNeedsAgdaExport = True -- TODO, only set this to true for things which are actually exported
-                , anCoreExport = AceWanted -- TODO, add pragma to set this to No/Required
+                , anCoreExport = if (isForeign || isBtin) && ty /= EtFunction
+                        then AceNo      -- it doesn't make sense to export foreign/builtin datatypes on the core level
+                        else AceWanted -- TODO, add pragma to set this to No/Required
+                , anForceName = Nothing -- TODO add pragma to force name
                 }
 
 
 -- TODO builtins.....
-translateDataTypes :: [(QName, Definition)] -> CompileT TCM [ADataTy]
-translateDataTypes defs = do
+translateDataTypes :: BuiltinCache -> [(QName, Definition)] -> CompileT TCM [ADataTy]
+translateDataTypes btins defs = do
   -- first, collect all constructors
   constrMp <- M.unionsWith (++)
     <$> mapM (\(n, def) ->
         case theDef def of
             d@(Constructor {}) -> do
-                con <- ADataCon
-                        <$> lift (constructorArity n)
-                        <*> getCoreName n
-                        <*> pure n
-                        <*> pure (-1) -- will be set in the next stage
+                let foreign = compiledCore $ defCompiledRep def
+                arity <- lift $ constructorArity n
+                let conFun = ADataCon n arity
+                con <- case (n `M.lookup` (btccCtors btins), foreign) of
+                    (Just (_, ctag), Nothing) -> return $ Right (conFun ctag)
+                    (Nothing, Just (CrConstr dt con tag)) -> return $ Right (conFun $ mkCTag dt con tag arity)
+                    (Nothing, Nothing)   -> do
+                        conCrNm <- getCoreName1 n
+                        return $ Left (\tyCrNm tag -> conFun (mkCTag tyCrNm conCrNm tag arity))
+                    _ -> __IMPOSSIBLE__ -- being builtin and foreign at the same time makes no sense
                 return $ M.singleton (conData d) [con]
             _ -> return M.empty
         ) defs
@@ -125,13 +139,19 @@ translateDataTypes defs = do
   catMaybes <$> mapM
     (\(n, def) -> case theDef def of
         (Datatype {}) -> do
-            let cons  = zip [0..] $ M.findWithDefault [] n constrMp
-            let cons' = map (\(i, con) -> con { xconTag = i }) cons
-            Just <$>
-              (ADataTy
-                <$> getCoreName n
-                <*> pure n
-                <*> pure cons')
+            let cons = M.findWithDefault [] n constrMp
+            let foreign = compiledCore $ defCompiledRep def
+            case (n `M.lookup` (btccTys btins), foreign, partitionEithers cons) of
+              (Just (btin, tyNm), Nothing, ([], cons')) -> do -- builtins
+                    return $ Just (ADataTy tyNm n cons' (ADataImplBuiltin btin))
+              (Nothing, Just (CrType tyNm), ([], cons')) -> do -- foreign datatypes (COMPILED_CORE_DATA)
+                    return $ Just (ADataTy (Just $ mkHsName1 tyNm) n cons' ADataImplForeign)
+              (Nothing, Nothing, (cons', [])) -> do
+                    tyCrNm <- getCoreName1 n
+                    -- build ctags, assign tag numbers
+                    let cons'' = map (\((conFun), i) -> conFun tyCrNm i) (zip cons' [0..])
+                    return $ Just (ADataTy (Just tyCrNm) n cons'' ADataImplNormal)
+              _ -> __IMPOSSIBLE__ -- datatype is builtin <=> all constructors have to be builtin
         _ -> return Nothing
     ) defs
 
@@ -139,12 +159,12 @@ translateDataTypes defs = do
 -- | Translate an Agda definition to an Epic function where applicable
 translateDefn :: BuiltinCache -> Maybe T.Term -> (QName, Definition) -> FreshNameT (CompileT TCM) (Maybe Fun)
 translateDefn btins msharp (n, defini) = do
-  n' <- lift $ getCoreName n
+  crName <- lift $ getCoreName n
   let crRep = compiledCore $ defCompiledRep defini
   case theDef defini of
     d@(Datatype {}) -> do -- become functions returning unit
         vars <- replicateM (dataPars d + dataIxs d) freshLocalName
-        return . return $ Fun True n' (Just n) ("datatype: " ++ show n) vars UNIT
+        return . return $ Fun True (fromJust crName) (Just n) ("datatype: " ++ show n) vars UNIT
     f@(Function{}) -> do
         let projArgs = projectionArgs f
             cc       = fromMaybe __IMPOSSIBLE__ $ funCompiled f
@@ -167,53 +187,41 @@ translateDefn btins msharp (n, defini) = do
         lift $ reportSDoc "" 5 $ text $ show pres -- (fmap prettyEpicFun res)-}
         return res
     Constructor{} -> do -- become functions returning a constructor with their tag
-        arit <- lift . lift $ constructorArity n
-        tag   <- lift $ getConstrTag n
-        case (crRep, n `M.lookup` (btccCtors btins)) of
-          (Just (CrConstr (dt, ctr, tg)), Nothing) -> mkCrCtorFun n (ConNamed dt ctr tg) arit
-          (Just _, Just _)       -> error $ "Compiled core must not be specified for builtin " ++ show n
-          (Just _, Nothing)      -> error "Compiled core must be def, something went wrong."
-          (Nothing, Just btcon) -> mkCrCtorFun n btcon arit
-          (Nothing, Nothing)     -> return <$> mkCon n
+
+
+        case crName of
+          (Just crNm) -> do
+                conInfo <- lift $ getConstrInfo n
+                let conCon = aciDataCon conInfo
+                    arity = xconArity conCon
+
+                vars <- replicateM arity freshLocalName
+                return $ Just $ Fun True (ctagCtorName $ xconCTag conCon) (Just n)
+                        ("constructor: " ++ show n) vars (Con (aciDataType conInfo) conCon (map Var vars))
+          Nothing -> return Nothing -- either foreign or builtin type. We can just assume existence of the wrapper functions then.
+
         -- Sharp has to use the primSharp function from AgdaPrelude.e
 {-        case msharp of
           Just (T.Def sharp []) | sharp == n -> return <$> mkFun n n' "primSharp" 3
           _    -> return <$> mkCon n tag arit-}
     r@(Record{}) -> do
         vars <- replicateM (recPars r) freshLocalName
-        return . return $ Fun True n' (Just n) ("record: " ++ show n) vars UNIT
+        return . return $ Fun True (fromJust crName) (Just n) ("record: " ++ show n) vars UNIT
     a@(Axiom{}) -> do -- Axioms get their code from COMPILED_CORE pragmas
         case crRep of
             -- TODO generate proper core errors
-            Nothing -> return . return $ CoreFun n' (Just n) ("AXIOM_UNDEFINED: " ++ show n)
-                $ coreImpossible ("Axiom " ++ show n ++ " used but has no computation.")
-            Just (CrDefn x)  -> return . return $ CoreFun n' (Just n) ("COMPILED_CORE: " ++ show n) x
+            Nothing -> return . return $ CoreFun (fromJust crName) (Just n) ("AXIOM_UNDEFINED: " ++ show n)
+                (coreImpossible $ "Axiom " ++ show n ++ " used but has no computation.") 0 -- TODO can we set arity to 0 here? not sure if we can..., maybe pass around arity info for Axiom?
+            Just (CrDefn x)  -> return . return $ CoreFun (fromJust crName) (Just n) ("COMPILED_CORE: " ++ show n) x 2 -- TODO HACK JUST FOR TESTIN
             _       -> error "Compiled core must be def, something went wrong."
     p@(Primitive{}) -> do -- Primitives use primitive functions from UHC.Agda.Builtins of the same name.
 
       let ar = arity $ defType defini
       case primName p `M.lookup` primFunctions of
         Nothing     -> error $ "Primitive " ++ show (primName p) ++ " declared, but no such primitive exists."
-        (Just anm)  -> return <$> mkFunGen n (const $ App anm) ("primitive: " ++) n' (primName p) ar
+        (Just anm)  -> return <$> mkFunGen n (const $ App anm) ("primitive: " ++) (fromJust crName) (primName p) ar
   where
     modOf = reverse . dropWhile (/='.') . reverse
-    mkCrCtorFun :: QName -> BuiltinConSpec -> Int -> FreshNameT (CompileT TCM) (Maybe Fun)
-    mkCrCtorFun n (ConNamed dt ctr _) arit = do
-        -- UHC generates a wrapper function for all datatypes, so just call that one
-        let ctorFun = (modOf dt) ++ ctr
-        name <- lift $ getCoreName n
-        Just <$> mkFunGen n (const $ App $ CA.mkHsName1 ctorFun) (const $ "constructor: " ++ show n) name ctr arit
-    mkCrCtorFun n (ConUnit) 0 = do
-        name <- lift $ getCoreName n
-        return $ return $ Fun True name (Just n) "Unit constructor function" [] UNIT
-    mkCrCtorFun _ _ _ = __IMPOSSIBLE__
-    mkCon :: QName -> FreshNameT (CompileT TCM) Fun
-    mkCon q = do
-        name <- lift $ getCoreName q
-        conInfo <- lift $ getConstrInfo q
-        let conCon = aciDataCon conInfo
-        let conFun = Con (aciDataType conInfo) conCon
-        mkFunGen q (const conFun) (const $ "constructor: " ++ show q) name (xconTag conCon) (xconArity conCon)
     mkFunGen :: QName                    -- ^ Original name
             -> (name -> [Expr] -> Expr) -- ^ combinator
             -> (name -> String)         -- ^ make comment
@@ -291,7 +299,7 @@ compileClauses :: BuiltinCache
                 -> Int -- ^ Number of arguments in the definition
                 -> CC.CompiledClauses -> FreshNameT (CompileT TCM) Fun
 compileClauses btins qnm nargs c = do
-  crName <- lift $ getCoreName qnm
+  crName <- lift $ getCoreName1 qnm
   vars <- replicateM nargs freshLocalName
   e    <- compileClauses' vars Nothing c
   return $ Fun False crName (Just qnm) ("function: " ++ show qnm) vars e
@@ -323,20 +331,12 @@ compileClauses btins qnm nargs c = do
                    _ -> lift $ uhcError $ "case on literal not supported: " ++ show l
            -- Con branch
            else forM (M.toList (CC.conBranches nc)) $ \(b, CC.WithArity ar cc) -> do
-               def <- lift . lift $ getConstInfo b
-               let crr = defCoreDef def
-               arit  <- lift $ getConstrArity b -- Andreas, 2012-10-12: is the constructor arity @ar@ from Agda the same as the one from the Epic backen?
-               vars <- replicateM arit freshLocalName
+
+               conInfo <- lift $ getConstrInfo b
+               let arity = xconArity $ aciDataCon conInfo
+               vars <- replicateM arity freshLocalName
                cc'  <- compileClauses' (replaceAt casedvar env vars) omniDefault cc
-               case (b `M.lookup` (btccCtors btins), crr, theDef def) of
-                   (Just btCon, Nothing, Constructor{}) -> do
-                       return $ CoreBranch (builtinConSpecToCoreConstr btCon) vars cc'
-                   (Nothing, Just (CrConstr crCon), Constructor{}) -> do
-                       return $ CoreBranch crCon vars cc'
-                   (Nothing, Nothing, _) -> do
-                       constr <- lift $ getConstrInfo b
-                       return $ Branch (aciDataType constr) (aciDataCon constr) b vars cc'
-                   _ -> __IMPOSSIBLE__
+               return $ Branch (aciDataCon conInfo) b vars cc'
 
 
 -- always use the original name for a constructor even when it's redefined.
@@ -359,7 +359,7 @@ compileClauses btins qnm nargs c = do
 --   from patternmatching. Agda terms are in de Bruijn so we just check the new
 --   names in the position.
 substTerm :: [HsName] -> T.Term -> FreshNameT (CompileT TCM) Expr
-substTerm env term = case T.unSpine term of
+substTerm env term = case T.ignoreSharing $ T.unSpine term of
     T.Var ind es -> do
       let args = fromMaybe __IMPOSSIBLE__ $ allApplyElims es
       case length env <= ind of
@@ -376,7 +376,7 @@ substTerm env term = case T.unSpine term of
     T.Level l -> substTerm env =<< (lift . lift) (reallyUnLevelView l)
     T.Def q es -> do
       let args = fromMaybe __IMPOSSIBLE__ $ allApplyElims es
-      name <- lift $ getCoreName q
+      name <- lift $ getCoreName1 q
 --      del <- getDelayed q
       def <- theDef <$> (lift . lift) (getConstInfo q)
       let nr = projectionArgs def
@@ -392,7 +392,7 @@ substTerm env term = case T.unSpine term of
         True  -> Lazy f
         False -> f-}
     T.Con c args -> do
-        con <- lift $ getCoreName $ conName c
+        con <- lift $ getConstrFun $ conName c
         apps con <$> mapM (substTerm env . unArg) args
     T.Shared p -> substTerm env $ derefPtr p
     T.Pi _ _ -> return UNIT
@@ -408,4 +408,20 @@ substLit lit = case lit of
   TL.LitChar   _ c -> return $ LChar c
   TL.LitFloat  _ f -> return $ LFloat f
   _ -> uhcError $ "literal not supported: " ++ show lit
+
+-- | Returns the expression to use to build a value of the given datatype/constructor.
+-- The returned expression may be fully or partially applied.
+getConstrFun :: MonadTCM m => QName -> CompileT m HsName
+getConstrFun conNm = do
+  conInfo <- getConstrInfo conNm
+  let conDef = aciDataCon conInfo
+      tyDef = aciDataType conInfo
+
+  case xdatImplType tyDef of
+    (ADataImplBuiltin bltin) | bltin == builtinUnit -> return $ builtinUnitCtor -- already fully applied
+    _ -> return $ ctagCtorName $ xconCTag conDef
+
+
+ctagCtorName :: CTag -> HsName
+ctagCtorName = destructCTag __IMPOSSIBLE__ (\_ x _ _ -> x)
 

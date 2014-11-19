@@ -10,9 +10,10 @@ module Agda.Compiler.UHC.CompileState
   , addConMap
 
   , getCoreName
+  , getCoreName1
   , getConstrInfo
-  , getConstrTag
-  , getConstrArity
+--  , getConstrTag
+--  , getConstrArity
 
   , getCurrentModule
 
@@ -116,19 +117,22 @@ getType q = do
     return $ maybe __IMPOSSIBLE__ defType (HM.lookup q map)
 -}
 
-getCoreName :: Monad m => QName -> CompileT m HsName
+getCoreName :: Monad m => QName -> CompileT m (Maybe HsName)
 getCoreName qnm = do
   nmMp <- gets (amifNameMp . moduleInterface)
-  return $ cnName $ qnameToCoreName nmMp qnm
+  return $ (cnName <$> qnameToCoreName nmMp qnm)
 
-getConstrInfo :: MonadTCM m => QName -> CompileT m AConInfo
+getCoreName1 :: Monad m => QName -> CompileT m HsName
+getCoreName1 nm = getCoreName nm >>= return . fromJust
+
+getConstrInfo :: (Functor m, Monad m) => QName -> CompileT m AConInfo
 getConstrInfo n = M.findWithDefault __IMPOSSIBLE__ n <$> gets (amifConMp . moduleInterface)
 
-getConstrTag :: MonadTCM m => QName -> CompileT m Tag
+{-getConstrTag :: MonadTCM m => QName -> CompileT m Tag
 getConstrTag n = xconTag . aciDataCon <$> getConstrInfo n
 
 getConstrArity :: MonadTCM m => QName -> CompileT m Int
-getConstrArity n = xconArity . aciDataCon <$> getConstrInfo n
+getConstrArity n = xconArity . aciDataCon <$> getConstrInfo n-}
 
 getCurrentModule :: Monad m => CompileT m ModuleName
 getCurrentModule = gets curModule

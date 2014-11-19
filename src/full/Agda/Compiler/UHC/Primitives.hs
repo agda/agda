@@ -3,11 +3,15 @@
 module Agda.Compiler.UHC.Primitives
   ( primFunctions
   , BuiltinCache (..)
-  , BuiltinConSpec (..)
+--  , BuiltinConSpec (..)
   , getBuiltins
-  , builtinConSpecToCoreConstr )
+--  , builtinConSpecToCoreConstr
+  , isBuiltin
+  , builtinUnitCtor
+  )
 where
 
+import Data.List
 import Agda.Compiler.UHC.CoreSyntax
 import Agda.TypeChecking.Monad
 import Agda.TypeChecking.Monad.Builtin
@@ -18,13 +22,13 @@ import Agda.Utils.Impossible
 
 
 import Control.Applicative
-import Data.Map as M
-import Data.Maybe (catMaybes)
+import qualified Data.Map as M
+import Data.Maybe
 
-import EH99.Core.API
+import UHC.Light.Compiler.Core.API
 
 -- | Primitives defined for the UHC backend. Maps primitive names to the AName of the function to call.
-primFunctions :: Map String HsName
+primFunctions :: M.Map String HsName
 primFunctions = M.fromList
     [(n, mkHsName ["UHC", "Agda", "Builtins"] n) | n <-
         [
@@ -38,51 +42,76 @@ primFunctions = M.fromList
     ]
 
 
-data BuiltinConSpec
+{-data BuiltinConSpec
   = ConNamed { conSpecDt :: String, conSpecCtor :: String, conSpecTag :: Int }
-  | ConUnit
+  | ConUnit-}
+
+type BuiltinName = String
 
 data BuiltinCache
   = BuiltinCache
-    { btccCtors :: M.Map T.QName BuiltinConSpec
-    , btccTys   :: M.Map T.QName ()
+    { btccCtors :: M.Map T.QName (BuiltinName, CTag)
+    , btccTys   :: M.Map T.QName (BuiltinName, Maybe HsName) -- unit has no core-level datatype
     }
 
+isBuiltin :: BuiltinCache -> T.QName -> Bool
+isBuiltin btins qnm = qnm `M.member` (btccCtors btins) || qnm `M.member` (btccTys btins)
+
+-- | Returns the defined builtins.
+--
+-- If the constructors are defined for a builtin, the builtin for the corresponding
+-- is guarantueed to be defined too.
 getBuiltins :: (HasBuiltins m, MonadTCM m) => m BuiltinCache
 getBuiltins = BuiltinCache
     <$> (mapM btinCtorToQName btinCtors >>= return . M.fromList . catMaybes)
     <*> (mapM btinTyToQName btinTys >>= return . M.fromList . catMaybes)
-  where btinTys   =
-          [ (builtinNat,    ())
-          , (builtinList,   ())
-          , (builtinBool,   ())
-          , (builtinUnit,   ())
+  where btinCtors :: [(String, CTag)]
+        btinCtors = concatMap (\(a,b,c) -> c) btinTys
+        btinTys :: [(String, Maybe HsName, [(String, CTag)])]
+        btinTys = map (\(btin, dtNm, cons) ->
+                            (btin, Just (mkHsName1 dtNm), map (\(cbtin, cNm, cTag, cArity) ->
+                                    (cbtin, mkCTag (mkHsName1 dtNm) (mkHsCtorNm dtNm cNm) cTag cArity)) cons)
+                      ) btinAgdaTys
+                    ++ map (\(btin, cons) -> (btin, ctagDataTyNm $ snd $ head cons, cons)) btinHsTys
+        btinAgdaTys =
+          [ (builtinNat, "UHC.Agda.Builtins.Nat",
+                [ (builtinSuc, "Suc", 0, 1)
+                , (builtinZero, "Zero", 1, 0)
+                ])
           ]
-        btinCtors =
-          [ (builtinSuc,    (ConNamed "UHC.Agda.Builtins.Nat" "Suc" 0))
-          , (builtinZero,   (ConNamed "UHC.Agda.Builtins.Nat" "Zero" 1))
+        btinHsTys =
+          [ (builtinBool, 
+                [ (builtinTrue, ctagTrue defaultEHCOpts)
+                , (builtinFalse, ctagFalse defaultEHCOpts)
+                ])
+--          , (builtinList
 --          TODO the Agda List type takes a type argument, Haskells doesn't
 --          , (builtinNil,    (ConNamed "UHC.Base.[]" "[]" 1))
 --          , (builtinCons,   (ConNamed "UHC.Base.[]" ":" 0))
-          , (builtinTrue,   (ConNamed "UHC.Base.Bool" "True" 1))
-          , (builtinFalse,  (ConNamed "UHC.Base.Bool" "False" 0))
-          , (builtinUnitCons, (ConUnit))
+          , (builtinUnit, [(builtinUnitCons, ctagUnit)])
           ]
         btinToQName f (b, sp) = do
             bt <- getBuiltin' b
 --            liftIO $ putStrLn $ show b ++ " - " ++ show bt
-            return $ maybe Nothing (\x -> Just (x, sp)) (f bt)
-        btinCtorToQName = btinToQName (\x -> case x of
-            (Just (T.Con conHd [])) -> Just (T.conName conHd)
-            _                       -> Nothing
-            )
-        btinTyToQName = btinToQName (\x -> case x of
+            return $ maybe Nothing (\x -> Just (x, (b, sp))) (f bt)
+        btinCtorToQName = btinToQName (maybe Nothing (\x -> case T.ignoreSharing x of
+            (T.Con conHd []) -> Just (T.conName conHd)
+            _                -> __IMPOSSIBLE__
+            ))
+        btinTyToQName (a,b,c) = btinToQName (maybe Nothing (\x -> case T.ignoreSharing x of
             -- TODO should we allow elims?
-            (Just (T.Def nm []))    -> Just nm
-            _                       -> Nothing
-            )
+            (T.Def nm [])    -> Just nm
+            _                -> __IMPOSSIBLE__
+            )) (a,b)
+        ctagDataTyNm :: CTag -> Maybe HsName
+        ctagDataTyNm = destructCTag Nothing (\dt _ _ _ -> Just dt)
+        -- hs generated constructor are not datatype-prefixed
+        mkHsCtorNm :: String -> String -> HsName
+        mkHsCtorNm dt con = mkHsName1 ((dropWhileEnd (/='.') dt) ++ con)
 
-builtinConSpecToCoreConstr :: BuiltinConSpec -> CoreConstr
+builtinUnitCtor :: HsName
+builtinUnitCtor = mkHsName1 "UHC.Agda.Builtins.unit"
+{-builtinConSpecToCoreConstr :: BuiltinConSpec -> CoreConstr
 builtinConSpecToCoreConstr (ConNamed dt ctor tag) = (dt, ctor, tag)
 builtinConSpecToCoreConstr (ConUnit) = __IMPOSSIBLE__
-
+-}

@@ -15,6 +15,8 @@ module UHC.Agda.Builtins
     -- Char
   , primCharToNat
   , primCharEquality
+
+  , unit
   )
 where
 
@@ -31,6 +33,15 @@ primDebugNatToInteger (Suc n) = 1 + primDebugNatToInteger n
 -- TODO should this actually be a prim? if so, rename
 primDebugIntegerToString :: Integer -> String
 primDebugIntegerToString i = show i
+
+
+-- ====================
+-- Misc
+-- ====================
+
+-- | Unit wrapper function (instead of dropping a dummy function inside each module).
+unit :: ()
+unit = ()
 
 -- ====================
 -- Nat

@@ -46,7 +46,7 @@ import Data.Monoid
 import Agda.Syntax.Abstract.Name
 import Agda.TypeChecking.Monad
 
-import EH99.Core.API
+import UHC.Light.Compiler.Core.API
 
 #include "undefined.h"
 import Agda.Utils.Impossible
@@ -69,6 +69,7 @@ data AgdaName
   , anType :: EntityType
   , anNeedsAgdaExport :: Bool       -- ^ If true, this item needs to be exported on the Agda level.
   , anCoreExport :: AgdaCoreExport  -- ^ If true, this item wants to be exported on the Core level.
+  , anForceName :: Maybe HsName     -- ^ Forces use of the given name.
   }
   deriving (Eq, Ord, Show)
 
@@ -81,6 +82,10 @@ data CoreName
   }
   deriving (Show)
 
+-- | Contains the mapping between Agda and Core names.
+--
+-- The mapping is authorative for functions. For constructors and datatypes,
+-- you must consult the constructor mapping instead (see ModuleInfo).
 data NameMap
   = NameMap
   { mapping :: M.Map QName CoreName }
@@ -131,8 +136,8 @@ assignCoreNames modNm ans = do
 
 
 
-qnameToCoreName :: NameMap -> QName -> CoreName
-qnameToCoreName nmMp qnm = (mapping nmMp) M.! qnm
+qnameToCoreName :: NameMap -> QName -> Maybe CoreName
+qnameToCoreName nmMp qnm = qnm `M.lookup` (mapping nmMp)
 
 
 -- | Returns all names of the given type defined in the given `NameMap`.
@@ -162,12 +167,15 @@ findClashes nms = (concat $ M.elems ok, clashes)
 handlerDropExport :: MonadTCM m => (HsName, [(AgdaName, CoreName)]) -> AssignM m [(AgdaName, CoreName)]
 handlerDropExport (crNm, clashes) = do
   -- first, set all aceWanted to not export, then see if there is still a clash
-  firstStage <- mapM (\(anm, crm) -> case anCoreExport anm of
-        AceNo -> __IMPOSSIBLE__ -- should have a fresh ident in that case, which cannot clash
-        AceWanted -> do
-            fnm <- freshCrName anm
-            return (anm, crm { cnName = fnm, cnCoreExported = False })
-        AceRequired -> return (anm,crm)) clashes
+  firstStage <- mapM (\(anm, crm) -> case anForceName anm of
+        Just x -> return (anm, crm) -- has forced name, can't change it
+        Nothing -> case anCoreExport anm of
+                    AceNo -> __IMPOSSIBLE__ -- automatic names cannot clash...
+                    AceWanted -> do
+                        fnm <- freshCrName anm
+                        return (anm, crm { cnName = fnm, cnCoreExported = False })
+                    AceRequired -> return (anm,crm)) clashes
+
   -- now, check if there are still clashes in the aceRequired items
   let (_, clashes') = findClashes firstStage
 
@@ -186,10 +194,13 @@ handlerDropExport (crNm, clashes) = do
 -- name clashes in the generated names, which will be recitified by 'resolveClashes'.
 assignNameProper :: (Monad m, Functor m) => AgdaName -> AssignM m CoreName
 assignNameProper anm = do
-  nm <- case anCoreExport anm of
-    AceNo -> freshCrName anm
-    AceWanted -> crHsName
-    AceRequired -> crHsName
+  nm <- case anForceName anm of
+    (Just x) -> return x
+    Nothing -> case anCoreExport anm of
+            AceNo -> freshCrName anm
+            AceWanted -> crHsName
+            AceRequired -> crHsName
+
   return $ CoreName { cnName = nm
                     , cnType = anType anm
                     , cnAgdaExported = anNeedsAgdaExport anm

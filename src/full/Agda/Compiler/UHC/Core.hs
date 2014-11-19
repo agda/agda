@@ -6,13 +6,13 @@ module Agda.Compiler.UHC.Core
   , coreImpossible
   , mkHsName
   , createMainModule
-  , getExportedExprs
+--  , getExportedExprs
   ) where
 
 import Data.Char
 import Data.List
 import qualified Data.Map as M
-import Data.Maybe (fromJust, catMaybes)
+import Data.Maybe (fromJust, catMaybes, fromMaybe)
 import Control.Applicative
 import qualified Data.Set as S
 
@@ -27,13 +27,11 @@ import Agda.Compiler.UHC.AuxAST hiding (apps)
 import Agda.Compiler.UHC.Naming
 import Agda.Compiler.UHC.ModuleInfo
 
-import EH99.Core.API
-import EH99.Base.HsName
-import EH99.Base.Common
-import EH99.Module.ImportExport
+import UHC.Light.Compiler.Core.API
 
 import Agda.Compiler.UHC.CoreSyntax
 
+#include "undefined.h"
 import Agda.Utils.Impossible
 
 opts :: EHCOpts
@@ -41,23 +39,29 @@ opts = defaultEHCOpts
 
 
 createMainModule :: String -> HsName -> CModule
-createMainModule mainMod main = makeModule (mkHsName [] "Main") [makeImport $ mkHsName1 x | x <-
+createMainModule mainMod main = mkModule (mkHsName [] "Main") [] [mkImport $ mkHsName1 x | x <-
         [ "UHC.Run"
-        , mainMod ]] [] (makeMain main)
+        , mainMod ]] [] (mkMain main)
 
-getExportedExprs :: AModuleInfo -> ModEntRel
+getExports :: AModuleInfo -> [CExport]
+getExports modInfo = map (mkExport . cnName) expFuns
+  where funs = M.elems $ getNameMappingFor (amiCurNameMp modInfo) EtFunction
+        expFuns = filter (\x -> cnAgdaExported x || cnCoreExported x) funs
+
+{-getExportedExprs :: AModuleInfo -> ModEntRel
 getExportedExprs mod = S.unions $ map f (M.elems $ getNameMappingFor nmMp EtFunction)
   where f nm | (cnAgdaExported nm || cnCoreExported nm) = mkEntRel (cnName nm)
         f _ = S.empty
         nmMp = amiCurNameMp mod
         mkEntRel :: HsName -> ModEntRel
         mkEntRel nm = S.singleton (snd $ hsnInitLast nm, ModEnt IdOcc_Val (IdOcc nm IdOcc_Val) S.empty Range_Unknown)
+-}
 
-
-toCore :: AMod
+toCore :: AMod      -- ^ The current module to compile.
+    -> AModuleInfo  -- ^ Info about current module.
     -> [AModuleInfo] -- ^ Top level imports
-    -> TCM (CModule, S.Set HsName)
-toCore mod modImps = do
+    -> TCM CModule
+toCore mod modInfo modImps = do
 
   -- first, collect all qnames from the module. Then run the name assigner
 
@@ -69,55 +73,59 @@ toCore mod modImps = do
         [ "UHC.Base"
         , "UHC.Agda.Builtins"
         ] ++ map (show . amiModule ) modImps]
-  let impsCr = map makeImport imps
-  let cmod = makeModule (hsnFromString $ show $ xmodName mod) impsCr cMetaDeclL funs
-  let hiImps = S.fromList imps
-  return (cmod, hiImps)
+  let impsCr = map mkImport imps
+      exps = getExports modInfo
+      cmod = mkModule (mkHsName1 $ show $ xmodName mod) exps impsCr cMetaDeclL funs
+--  let hiImps = S.fromList imps
+  return cmod
 
 funsToCore :: Monad m => [Fun] -> FreshNameT m CExpr
 funsToCore funs = do
   binds <- mapM funToBind funs
-  let body = acoreLetRec binds (acoreInt opts 0)
+  let body = mkLetRec binds (mkInt opts 0)
   return body
 
 buildCMetaDeclL :: [ADataTy] -> [CDeclMeta]
-buildCMetaDeclL dts = map f dts
-    where f :: ADataTy -> CDeclMeta
-          f d@(ADataTy{}) = makeMetaData (xdatName d) (map g (xdatCons d))
+buildCMetaDeclL dts = catMaybes $ map f dts
+    where f :: ADataTy -> Maybe CDeclMeta
+          -- foreign/builtin datatypes are defined somewhere else. For normal datatypes, core name is always defined.
+          f d@(ADataTy{xdatImplType = ADataImplNormal}) = Just $ mkMetaData (fromJust $ xdatName d) (map g (xdatCons d))
+          f _ = Nothing
           g :: ADataCon -> CDataCon
-          g c@(ADataCon{}) = makeMetaDataCon (xconFullName c) (xconTag c) (xconArity c)
+          g c@(ADataCon{}) =
+                                -- can return Nothing for the tuple/record/() ctag, but should never happen
+                              fromMaybe __IMPOSSIBLE__ $ mkMetaDataConFromCTag (xconCTag c)
 
 
 funToBind :: Monad m => Fun -> FreshNameT m CBind
 funToBind (Fun _ name mqname comment vars e) = do -- TODO what is mqname?
   e' <- exprToCore e
-  let body = acoreLam vars e'
-  return $ acoreBind1 name body
-funToBind (CoreFun name _ _ crExpr) = return $ acoreBind1 name crExpr
+  let body = mkLam vars e'
+  return $ mkBind1 name body
+funToBind (CoreFun name _ _ crExpr _) = return $ mkBind1 name crExpr
 
 exprToCore :: Monad m => Expr -> FreshNameT m CExpr
-exprToCore (Var v)      = return $ acoreVar v
+exprToCore (Var v)      = return $ mkVar v
 exprToCore (Lit l)      = return $ litToCore l
-exprToCore (Lam v body) = exprToCore body >>= return . acoreLam [v]
+exprToCore (Lam v body) = exprToCore body >>= return . mkLam [v]
 exprToCore (Con ty con es) = do
     es' <- mapM exprToCore es
-    let ctag = mkCTag ty con
-    return $ acoreTagTup ctag es'
+    return $ mkTagTup (xconCTag con) es'
 exprToCore (App fv es)   = do
     es' <- mapM exprToCore es
-    let fv' = acoreVar fv
-    return $ acoreApp fv' es'
+    let fv' = mkVar fv
+    return $ mkApp fv' es'
 exprToCore (Case e brs) = do
     var <- freshLocalName
     (def, branches) <- branchesToCore brs
-    let cas = acoreCaseDflt (acoreVar var) branches (Just def)
+    let cas = mkCaseDflt (mkVar var) branches (Just def)
     e' <- exprToCore e
-    return $ acoreLet1Strict var e' cas
+    return $ mkLet1Strict var e' cas
 exprToCore (Let v e1 e2) = do
     e1' <- exprToCore e1
     e2' <- exprToCore e2
-    return $ acoreLet1Plain v e1' e2'
-exprToCore UNIT         = return $ acoreUnit opts
+    return $ mkLet1Plain v e1' e2'
+exprToCore UNIT         = return $ mkUnit opts
 exprToCore IMPOSSIBLE   = return $ coreImpossible ""
 
 branchesToCore :: Monad m => [Branch] -> FreshNameT m (CExpr, [CAlt])
@@ -128,44 +136,31 @@ branchesToCore brs = do
 
     return (def, concat brs')
     where
-          f (Branch ty con _ vars e)  = do
-            let ctag = mkCTag ty con
-            let patFlds = [acorePatFldBind (hsnFromString "", acoreInt opts i) (acoreBind1Nm1 v) | (i, v) <- zip [0..] vars]
+          f (Branch con _ vars e)  = do
+            -- TODO can we do mkHsName [] "" here?
+            let patFlds = [mkPatFldBind (mkHsName [] "", mkInt opts i) (mkBind1Nm1 v) | (i, v) <- zip [0..] vars]
             e' <- exprToCore e
-            return [acoreAlt (acorePatCon ctag acorePatRestEmpty patFlds) e']
-          f (CoreBranch con vars e) = do
+            return [mkAlt (mkPatCon (xconCTag con) mkPatRestEmpty patFlds) e']
+{-          f (CoreBranch con vars e) = do
             let ctag = conSpecToTag con
-            let patFlds = [acorePatFldBind (hsnFromString "", acoreInt opts i) (acoreBind1Nm1 v) | (i, v) <- zip [0..] vars]
+            -- TODO can we do mkHsName [] "" here?
+            let patFlds = [mkPatFldBind (mkHsName [] "", mkInt opts i) (mkBind1Nm1 v) | (i, v) <- zip [0..] vars]
             e' <- exprToCore e
-            return [acoreAlt (acorePatCon ctag acorePatRestEmpty patFlds) e']
+            return [mkAlt (mkPatCon ctag mkPatRestEmpty patFlds) e']-}
           f (Default e) = return []
           -- UHC resets the tags for some constructors, but only those wo are defined in the same module. So just set it anyway, to be safe.
-          conSpecToTag (dt, ctor, tag) = CTag (mkHsName1 dt) (mkHsName1 $ (modNm dt) ++ "." ++ ctor) tag (-1) (-1)
+          conSpecToTag (dt, ctor, tag) = mkCTag (mkHsName1 dt) (mkHsName1 $ (modNm dt) ++ "." ++ ctor) tag
           modNm s = reverse $ tail $ dropWhile (/= '.') $ reverse s
           isDefault (Default _) = True
           isDefault _ = False
 
---qnameTypeName :: QName -> HsName
---qnameTypeName = toCoreName . unqname . qnameFromList . init . qnameToList
-
---qnameCtorName :: QName -> HsName
---qnameCtorName = mkHsName . show . last . qnameToList
-
-mkCTag :: ADataTy -> ADataCon -> CTag
-mkCTag ty con = CTag (xdatName ty) (xconFullName con) (xconTag con) (-1) (-1)
-
-{-
-mkCTag :: Tag
--> HsName -> CTag
-mkCTag t nm = CTag (qnameTypeName qn) (qnameCtorName qn) t (-1) (-1)
--}
 
 litToCore :: Lit -> CExpr
 -- should we put this into a let?
-litToCore (LInt i) = acoreApp (acoreVar $ mkHsName ["UHC", "Agda", "Builtins"] "primIntegerToNat") [acoreBuiltinInteger opts i]
-litToCore (LString s) = acoreBuiltinString opts s
+litToCore (LInt i) = mkApp (mkVar $ mkHsName ["UHC", "Agda", "Builtins"] "primIntegerToNat") [mkInteger opts i]
+litToCore (LString s) = mkString opts s
 litToCore l = error $ "Not implemented literal: " ++ show l
 
 coreImpossible :: String -> CExpr
-coreImpossible msg = acoreBuiltinError opts $ "BUG! Impossible code reached. " ++ msg
+coreImpossible msg = mkError opts $ "BUG! Impossible code reached. " ++ msg
 

@@ -3,11 +3,10 @@
 -- E.g. parsing Core pragmas uses the `parseCoreCode` function.
 module Agda.Compiler.UHC.CoreSyntax
   ( CoreExpr,
-    CoreConstr,
     parseCoreExpr,
     printCoreExpr,
     parseCoreConstr,
-    ehcOpts
+    HsName
   )
 
 where
@@ -18,28 +17,19 @@ where
 
 import Data.Maybe
 import Data.List
-import EH99.Opts.Base
-
-import UHC.Util.Pretty
-
-import qualified EH99.Core.Pretty as EP
-
-import EH99.Opts
-import EH99.Core
-import EH99.Core.Parser
-import EH99.Base.Common
-import UHC.Util.ParseUtils
-
 import Data.List (intercalate)
+
+
+
+import UHC.Light.Compiler.Core.API as CA
+
+import UHC.Util.ParseUtils
+import UHC.Util.Pretty
 import UHC.Util.ScanUtils
-import EH99.Scanner.Common
-import EH99.Base.HsName
+import UU.Scanner.Position
 
 #endif
 
-
--- Datatype, ctor name, tag
-type CoreConstr = (String, String, Int)
 
 #ifndef UHC_BACKEND
 
@@ -60,23 +50,22 @@ type CoreExpr = CExpr
 
 
 -- TODO should work with just the defaultEHCOpts, I guess?
-ehcOpts :: EHCOpts
-ehcOpts = defaultEHCOpts { ehcOptCoreOpts = [ CoreOpt_Dump ] }
+--ehcOpts :: EHCOpts
+--ehcOpts = defaultEHCOpts { ehcOptCoreOpts = [ CoreOpt_Dump ] }
 
 -- TODO very adhoc, do proper parsing instead
-parseCoreConstr :: String -> Either String (String, Int)
-parseCoreConstr xs@('(':xss) | last xs == ')' = Right (s1, read $ tail s2)
+parseCoreConstr :: String   -- ^ datatype name
+    -> String   -- ^ Constructor specification (eg. "(Nil,0)").
+    -> Either String (HsName, HsName, Int)
+parseCoreConstr ty xs@('(':xss) | last xs == ')' = Right (mkHsName1 ty, mkHsName1 s1, read $ tail s2)
   where s = init xss
         (s1, s2) = splitAt (fromJust $ elemIndex ',' s) s
-parseCoreConstr xs = Left $ "Parse failed: " ++ xs
+parseCoreConstr _ xs = Left $ "Parse failed: " ++ xs
 
 parseCoreExpr :: String -> Either String CoreExpr
-parseCoreExpr str = case errs of
-    [] -> Right res
-    _  -> Left $ "Parsing core code failed:\n" ++ (intercalate "\n" $ map show errs)
-  where scanOpts = coreScanOpts ehcOpts
-        tokens = scan scanOpts (initPos str) str
-        (res, errs) = parseToResMsgs pCExpr tokens
+parseCoreExpr str = case CA.parseExpr defaultEHCOpts str of
+    (Left errs) -> Left $ "Parsing core code failed:\n" ++ (intercalate "\n" errs)
+    (Right res) -> Right res
 
 printCoreExpr :: CoreExpr -> String
 printCoreExpr e = disp (pp e) 200 ""
