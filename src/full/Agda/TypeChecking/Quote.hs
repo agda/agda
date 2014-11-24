@@ -205,7 +205,12 @@ quotingKit = do
               qx Function{ funCompiled = Just Fail, funClauses = [cl] } =
                     extlam !@ list [quoteClause $ dropArgs (length (clausePats cl) - 1) cl]
               qx _ = def !@! quoteName x
-          Con x ts   -> con !@! quoteConName x @@ quoteArgs ts
+          Con x ts   -> do
+            Constructor{conPars = np} <- theDef <$> getConstInfo (conName x)
+            let par  = arg !@ (arginfo !@ pure hidden @@ pure relevant) @@ pure unsupported
+                pars = replicate np $ par
+                args = list $ pars ++ map (quoteArg quoteTerm) ts
+            con !@! quoteConName x @@ args
           Pi t u     -> pi !@  quoteDom quoteType t
                             @@ quoteAbs quoteType u
           Level l    -> quoteTerm (unlevelWithKit lkit l)

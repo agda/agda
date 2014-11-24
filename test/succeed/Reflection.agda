@@ -21,11 +21,9 @@ open import Common.Level
 unEl : Type → Term
 unEl (el _ t) = t
 
-argᵛʳ : ∀{A} → A → Arg A
-argᵛʳ = arg (argInfo visible relevant)
+pattern argᵛʳ x = arg (argInfo visible relevant) x
 
-argʰʳ : ∀{A} → A → Arg A
-argʰʳ = arg (argInfo hidden relevant)
+pattern argʰʳ x = arg (argInfo hidden relevant) x
 
 el₀ : Term → Type
 el₀ = el (lit 0)
@@ -59,9 +57,8 @@ test₂ X = quoteGoal t in
 
 infixr 40 _`∷_
 
-_`∷_ : Term → Term → Term
-x `∷ xs = con (quote _∷_) (argᵛʳ x ∷ argᵛʳ xs ∷ [])
-pattern `[]    = con (quote []) []
+pattern _`∷_ x xs = con (quote _∷_) (argʰʳ unknown ∷ argᵛʳ x ∷ argᵛʳ xs ∷ [])
+pattern `[]    = con (quote []) (argʰʳ unknown ∷ [])
 pattern `true  = con (quote true) []
 pattern `false = con (quote false) []
 
