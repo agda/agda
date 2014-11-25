@@ -80,6 +80,8 @@ checkRecDef i name ind con ps contel fields =
       reportSDoc "tc.rec" 15 $ text "checking fields"
       -- WRONG: contype <- workOnTypes $ killRange <$> (instantiateFull =<< isType_ contel)
       contype <- killRange <$> (instantiateFull =<< isType_ contel)
+      reportSDoc "tc.rec" 20 $ vcat
+        [ text "contype = " <+> prettyTCM contype ]
 
       -- compute the field telescope (does not include record parameters)
       let TelV ftel _ = telView' contype
@@ -97,6 +99,9 @@ checkRecDef i name ind con ps contel fields =
         Sort s  -> return s
         _       -> typeError $ ShouldBeASort t0
       gamma <- getContextTelescope  -- the record params (incl. module params)
+      reportSDoc "tc.rec" 20 $ vcat
+        [ text "gamma = " <+> inTopContext (prettyTCM gamma) ]
+
       -- record type (name applied to parameters)
       let rect = El s $ Def name $ map Apply $ teleArgs gamma
 
