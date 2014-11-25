@@ -42,9 +42,9 @@ type A = Int
 
 -- | Extend a list by indefinitely many elements.
 withStream :: Testable b
-  => ([A] -> b) -- ^ Stream function.
-  -> [A]               -- ^ Initial segment.
-  -> A                 -- ^ Default element, appended ad infinitum.
+  => ([a] -> b)  -- ^ Stream function.
+  -> [a]         -- ^ Initial segment.
+  -> a           -- ^ Default element, appended ad infinitum.
   -> b
 withStream k as a = k $ as ++ repeat a
 
@@ -98,6 +98,13 @@ prop_invertP_left p err = withStream $ \ xs -> let ys = permute p xs in
 prop_reverseP :: Permutation -> [A] -> A -> Bool
 prop_reverseP p@(Perm n _) = withStream $ \ xs0 -> let xs = take n xs0 in
   permute (reverseP p) xs == reverse (permute p (reverse xs))
+
+-- | @permute p . inversePermute p = id@
+prop_inversePermute :: Permutation -> [Maybe A] -> Maybe A -> Bool
+prop_inversePermute p@(Perm _ is) = withStream $ \ xs0 ->
+  let xs = take (length is) xs0
+      ys = inversePermute p xs
+  in  permute p ys == xs
 
 -- Template Haskell hack to make the following $quickCheckAll work
 -- under ghc-7.8.

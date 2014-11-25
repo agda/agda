@@ -3,11 +3,16 @@
 {-# LANGUAGE DeriveFoldable     #-}
 {-# LANGUAGE DeriveFunctor      #-}
 {-# LANGUAGE DeriveTraversable  #-}
+{-# LANGUAGE FlexibleInstances  #-}
+{-# LANGUAGE MultiParamTypeClasses #-}
+{-# LANGUAGE TupleSections      #-}
 
 module Agda.Utils.Permutation where
 
 import Prelude hiding (drop)
 
+import Data.IntMap (IntMap)
+import qualified Data.IntMap as IntMap
 import Data.List hiding (drop)
 import qualified Data.List as List
 import Data.Maybe
@@ -16,8 +21,9 @@ import Data.Foldable (Foldable)
 import Data.Traversable (Traversable)
 import Data.Typeable (Typeable)
 
-import Agda.Utils.Size
+import Agda.Utils.Functor
 import Agda.Utils.List ((!!!))
+import Agda.Utils.Size
 
 #include "undefined.h"
 import Agda.Utils.Impossible
@@ -62,6 +68,33 @@ safePermute (Perm _ is) xs = map (xs !!!!) is
   where
     xs !!!! n | n < 0     = Nothing
               | otherwise = xs !!! n
+
+-- |  Invert a Permutation on a partial finite int map.
+-- @inversePermute perm f = f'@
+-- such that @permute perm f' = f@
+--
+-- Example, with map represented as @[Maybe a]@:
+-- @
+--   f    = [Nothing, Just a, Just b ]
+--   perm = Perm 4 [3,0,2]
+--   f'   = [ Just a , Nothing , Just b , Nothing ]
+-- @
+-- Zipping @perm@ with @f@ gives @[(0,a),(2,b)]@, after compression
+-- with @catMaybes@.  This is an @IntMap@ which can easily
+-- written out into a substitution again.
+
+class InversePermute a b where
+  inversePermute :: Permutation -> a -> b
+
+instance InversePermute [Maybe a] [(Int,a)] where
+  inversePermute (Perm n is) = catMaybes . zipWith (\ i ma -> (i,) <$> ma) is
+
+instance InversePermute [Maybe a] (IntMap a) where
+  inversePermute p = IntMap.fromList . inversePermute p
+
+instance InversePermute [Maybe a] [Maybe a] where
+  inversePermute p@(Perm n _) = tabulate . inversePermute p
+    where tabulate m = for [0..n-1] $ \ i -> IntMap.lookup i m
 
 -- | Identity permutation.
 idP :: Int -> Permutation
