@@ -2,8 +2,22 @@
 -- Release notes for Agda version 2.4.2.2
 ------------------------------------------------------------------------
 
-Important changes since 2.4.1:
+Important changes since 2.4.2.1:
 
+* For best performance, compile Agda with ghc-7.8.
+  Agda is significantly slower if compiled with ghc-7.6.
+  [Issue 1347]
+
+Bug fixes
+=========
+
+* Compilation on Windows fixed.
+
+* Other issues fixed ( see https://code.google.com/p/agda/issues )
+  1353
+  1360
+  1366
+  1369
 
 ------------------------------------------------------------------------
 -- Release notes for Agda version 2.4.2.1
