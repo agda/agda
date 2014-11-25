@@ -103,28 +103,60 @@ dotPatternInsts ps s as = dpi (map namedArg ps) (reverse s) as
 
         _           -> __IMPOSSIBLE__
 
-instantiatePattern :: Substitution -> Permutation -> [I.NamedArg Pattern] -> [I.NamedArg Pattern]
+
+-- | In an internal pattern, replace some pattern variables
+--   by dot patterns, according to the given substitution.
+instantiatePattern
+  :: Substitution
+     -- ^ Partial substitution for the pattern variables,
+     --   given in order of the clause telescope,
+     --   (not in the order of occurrence in the patterns).
+  -> Permutation
+     -- ^ Map from the pattern variables to the telescope variables.
+  -> [I.NamedArg Pattern]
+     -- ^ Input patterns.
+  -> [I.NamedArg Pattern]
+     -- ^ Output patterns, with some @VarP@ replaced by @DotP@
+     --   according to the @Substitution@.
 instantiatePattern sub perm ps
-  | length sub /= length hps = error $ unlines [ "instantiatePattern:"
-                                               , "  sub  = " ++ show sub
-                                               , "  perm = " ++ show perm
-                                               , "  ps   = " ++ show ps
-                                               ]
+  | length sub /= length hps = error $ unlines
+      [ "instantiatePattern:"
+      , "  sub  = " ++ show sub
+      , "  perm = " ++ show perm
+      , "  ps   = " ++ show ps
+      ]
   | otherwise  = foldr merge ps $ zipWith inst (reverse sub) hps
   where
+    -- For each pattern variable get a copy of the patterns
+    -- focusing on this variable.
+    -- Order them in the dependency (telescope) order.
     hps = permute perm $ allHoles ps
+    -- If we do not want to substitute a variable, we
+    -- throw away the corresponding one-hole pattern.
     inst Nothing  hps = Nothing
+    -- If we want to substitute, we replace the variable
+    -- by the dot pattern.
     inst (Just t) hps = Just $ plugHole (DotP t) hps
 
+    -- If we did not instantiate a variable, we can keep the original
+    -- patterns in this iteration.
     merge Nothing   ps = ps
+    -- Otherwise, we merge the changes in @qs@ into @ps@.
+    -- This means we walk simultaneously through @qs@ and @ps@
+    -- and expect them to be the same everywhere except that
+    -- a @q@ can be a @DotP@ and the corresponding @p@ a @VarP@.
+    -- In this case, we take the @DotP@.
+    -- Apparently, the other way round can also happen (why?).
     merge (Just qs) ps = zipWith mergeA qs ps
       where
         mergeA a1 a2 = fmap (mergeP (namedArg a1) (namedArg a2) <$) a1
         mergeP (DotP s)  (DotP t)
           | s == t                    = DotP s
           | otherwise                 = __IMPOSSIBLE__
+        -- interesting cases:
         mergeP (DotP t)  (VarP _)     = DotP t
         mergeP (VarP _)  (DotP t)     = DotP t
+        -- the rest is homomorphical
         mergeP (DotP _)  _            = __IMPOSSIBLE__
         mergeP _         (DotP _)     = __IMPOSSIBLE__
         mergeP (ConP c1 mt1 ps) (ConP c2 mt2 qs)
@@ -159,13 +191,6 @@ isSolvedProblem problem = null (restPats $ problemRest problem) &&
     isSolved (A.ImplicitP _) = True
     isSolved (A.AbsurdP _)   = True
     isSolved _               = False
-{-
-    isVar (A.VarP _)      = True
-    isVar (A.WildP _)     = True
-    isVar (A.ImplicitP _) = True
-    isVar (A.AbsurdP _)   = True
-    isVar _               = False
--}
 
 -- | For each user-defined pattern variable in the 'Problem', check
 -- that the corresponding data type (if any) does not contain a
