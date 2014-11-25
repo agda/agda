@@ -575,7 +575,9 @@ checkLHS f st@(LHSState problem sigma dpi asb) = do
       --   ]
 
       -- Andreas 2010-09-07  propagate relevance info to new vars
-      gamma' <- return $ fmap (applyRelevance $ argInfoRelevance info) gamma'
+      -- Andreas 2014-11-25  clear 'Forced' and 'Unused'
+      let updRel = ignoreForced . composeRelevance (getRelevance info)
+      gamma' <- return $ mapRelevance updRel <$> gamma'
 
       -- Insert implicit patterns
       qs' <- insertImplicitPatterns ExpandLast qs gamma'
