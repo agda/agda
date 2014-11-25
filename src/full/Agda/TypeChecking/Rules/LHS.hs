@@ -376,6 +376,16 @@ data LHSResult = LHSResult
   , lhsPermutation :: Permutation       -- ^ The permutation from pattern vars to @Δ@.
   }
 
+instance InstantiateFull LHSResult where
+  instantiateFull' (LHSResult mtel tel sub xs ps t perm) = LHSResult
+    <$> instantiateFull' mtel
+    <*> instantiateFull' tel
+    <*> instantiateFull' sub
+    <*> return xs
+    <*> instantiateFull' ps
+    <*> instantiateFull' t
+    <*> return perm
+
 -- | Check a LHS. Main function.
 --
 --   @checkLeftHandSide a ps a ret@ checks that user patterns @ps@ eliminate
