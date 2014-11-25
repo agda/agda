@@ -83,11 +83,11 @@ Language
 
   Even though this code looks right, Agda complains about the type
   expression `∀ u → unit ≡ dx u`.  If you ask Agda what should go
-  there instead, she happily tells you that she wants
-  `∀ u → unit ≡ dx u`.  Women!  In fact what you do not see and she
+  there instead, it happily tells you that it wants
+  `∀ u → unit ≡ dx u`. In fact what you do not see and Agda
   will never show you is that the two expressions actually differ in
   the invisible first argument to `dx`, which is visible only outside
-  module `M`.  What she wants is an invisible `unit` after `dx`, but all
+  module `M`.  What Agda wants is an invisible `unit` after `dx`, but all
   you can write is an invisible `x` (which is inserted behind the
   scenes).
 
@@ -176,7 +176,7 @@ Termination checking
   constructor applied to call argument, which is valid descent.
 
   Note however, that Agda only looks for syntactic equality when
-  identifying subterms, since she is not allowed to normalize terms on
+  identifying subterms, since it is not allowed to normalize terms on
   the rhs during termination checking.
 
   Actually writing the dot pattern has no effect, this works as well,
