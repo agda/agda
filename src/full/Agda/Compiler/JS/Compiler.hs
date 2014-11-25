@@ -25,7 +25,7 @@ import Agda.Syntax.Abstract.Name
     mnameToList, qnameName, qnameModule, isInModule, nameId )
 import Agda.Syntax.Internal
   ( Name, Args, Type,
-    Clause, Pattern(VarP,DotP,LitP,ConP,ProjP),
+    Clause, Pattern, Pattern'(VarP,DotP,LitP,ConP,ProjP),
     ClauseBodyF(Body,NoBody,Bind),ClauseBody,
     Term(Var,Lam,Lit,Level,Def,Con,Pi,Sort,MetaV,DontCare,Shared),
     unSpine, allApplyElims,

@@ -325,16 +325,23 @@ nameToPatVarName = nameToArgName
 --     This also meshes well with the fact that values (i.e.
 --     the arguments we are matching with) use @QName@.
 --
-data Pattern
-  = VarP PatVarName
-    -- ^ The @PatVarName@ is a name suggestion.
+data Pattern' x
+  = VarP x
+    -- ^ @x@
   | DotP Term
-  | ConP ConHead ConPatternInfo [NamedArg Pattern]
-    -- ^ The @Pattern@s do not contain any projection copatterns.
+    -- ^ @.t@
+  | ConP ConHead ConPatternInfo [NamedArg (Pattern' x)]
+    -- ^ @c ps@
+    --   The subpatterns do not contain any projection copatterns.
   | LitP Literal
+    -- ^ E.g. @5@, @"hello"@.
   | ProjP QName
     -- ^ Projection copattern.  Can only appear by itself.
-  deriving (Typeable, Show)
+  deriving (Typeable, Show, Functor, Foldable, Traversable)
+
+type Pattern = Pattern' PatVarName
+    -- ^ The @PatVarName@ is a name suggestion.
+
 
 namedVarP :: PatVarName -> Named (Ranged PatVarName) Pattern
 namedVarP x = Named named $ VarP x
@@ -933,4 +940,3 @@ instance Pretty a => Pretty (Arg a) where
       NotHidden -> prettyPrec p
       Hidden    -> braces . pretty
       Instance  -> braces . braces . pretty
-
