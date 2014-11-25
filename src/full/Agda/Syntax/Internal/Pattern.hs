@@ -1,6 +1,11 @@
-{-# LANGUAGE CPP                  #-}
-{-# LANGUAGE FlexibleInstances    #-}
-{-# LANGUAGE OverlappingInstances #-}
+{-# LANGUAGE CPP                    #-}
+{-# LANGUAGE FlexibleContexts       #-}
+{-# LANGUAGE FlexibleInstances      #-}
+{-# LANGUAGE FunctionalDependencies #-}
+{-# LANGUAGE MultiParamTypeClasses  #-}
+{-# LANGUAGE OverlappingInstances   #-}
+{-# LANGUAGE TupleSections          #-}
+{-# LANGUAGE UndecidableInstances   #-}  -- because of func. deps.
 
 module Agda.Syntax.Internal.Pattern where
 
@@ -57,55 +62,75 @@ instance FunArity [Clause] where
 
 -- * Tools for patterns
 
+-- | Label the pattern variables from left to right
+--   using one label for each variable pattern and one for each dot pattern.
+class LabelPatVars a b i | b -> i where
+  labelPatVars :: a -> State [i] b
+  -- ^ Intended, but unpractical due to the absence of type-level lambda, is:
+  --   @labelPatVars :: f (Pattern' x) -> State [i] (f (Pattern' (i,x)))@
+
+instance LabelPatVars a b i => LabelPatVars (Arg c a) (Arg c b) i where
+  labelPatVars = traverse labelPatVars
+
+instance LabelPatVars a b i => LabelPatVars (Named x a) (Named x b) i where
+  labelPatVars = traverse labelPatVars
+
+instance LabelPatVars a b i => LabelPatVars [a] [b] i where
+  labelPatVars = traverse labelPatVars
+
+instance LabelPatVars (Pattern' x) (Pattern' (i,x)) i where
+  labelPatVars p =
+    case p of
+      VarP x       -> VarP . (,x) <$> next
+      DotP t       -> DotP t <$ next
+      ConP c mt ps -> ConP c mt <$> labelPatVars ps
+      LitP l       -> return $ LitP l
+      ProjP q      -> return $ ProjP q
+    where next = do (x:xs) <- get; put xs; return x
+
+-- | Augment pattern variables with their de Bruijn index.
+{-# SPECIALIZE numberPatVars :: Permutation -> [NamedArg (Pattern' x)] -> [(NamedArg (Pattern' (Int, x)))] #-}
+numberPatVars :: LabelPatVars a b Int => Permutation -> a -> b
+numberPatVars perm ps = evalState (labelPatVars ps) $
+  permute (invertP __IMPOSSIBLE__ perm) $ downFrom $ size perm
+
 instance IsProjP Pattern where
   isProjP (ProjP d) = Just d
   isProjP _         = Nothing
 
--- Special case of Agda.Syntax.Abstract.IsProjP (Arg...)
--- instance IsProjP (Common.Arg c Pattern) where
---   isProjP = isProjP . unArg
-
-{- NOTE: The following definition does not work, since Elim' already
-   contains Arg.  Otherwise, we could have fixed it using traverseF.
-
-patternsToElims :: Permutation -> [I.NamedArg Pattern] -> Elims
-patternsToElims perm aps = evalState (argPatsToElims aps) xs
-  where
-    xs   = permute (invertP __IMPOSSIBLE__ perm) $ downFrom (size perm)
-
-    tick :: State [Int] Int
-    tick = do x : xs <- get; put xs; return x
-
-    argPatsToElims :: [I.NamedArg Pattern] -> State [Int] Elims
-    argPatsToElims = traverse $ traverse $ patToElim . namedThing
-
-    patToElim :: Pattern -> State [Int] (Elim' Term)
-    patToElim p = case p of
-      VarP _      -> Apply . flip var <$> tick
-      DotP v      -> Apply v <$ tick   -- dot patterns count as variables
-      ConP c _ ps -> Apply . Con c . map argFromElim <$> argPatsToElims ps
-      LitP l      -> pure $ Apply $ Lit l
-      ProjP d     -> pure $ Proj d
--}
-
 patternsToElims :: Permutation -> [I.NamedArg Pattern] -> [Elim]
-patternsToElims perm ps = evalState (mapM build' ps) xs
+patternsToElims perm ps = map build' $ numberPatVars perm ps
   where
-    xs   = permute (invertP __IMPOSSIBLE__ perm) $ downFrom (size perm)
 
-    tick :: State [Int] Int
-    tick = do x : xs <- get; put xs; return x
-
-    build' :: NamedArg Pattern -> State [Int] Elim
+    build' :: NamedArg (Pattern' (Int, PatVarName)) -> Elim
     build' = build . fmap namedThing
 
-    build :: I.Arg Pattern -> State [Int] Elim
-    build (Arg ai (VarP _)     ) = Apply . Arg ai . var <$> tick
-    build (Arg ai (ConP c _ ps)) =
-      Apply . Arg ai . Con c <$> mapM (argFromElim <.> build') ps
-    build (Arg ai (DotP t)     ) = Apply (Arg ai t) <$ tick
-    build (Arg ai (LitP l)     ) = return $ Apply $ Arg ai $ Lit l
-    build (Arg ai (ProjP dest) ) = return $ Proj  $ dest
+    build :: I.Arg (Pattern' (Int, PatVarName)) -> Elim
+    build (Arg ai (VarP (i, _))) = Apply $ Arg ai $ var i
+    build (Arg ai (ConP c _ ps)) = Apply $ Arg ai $ Con c $
+      map (argFromElim . build') ps
+    build (Arg ai (DotP t)     ) = Apply $ Arg ai t
+    build (Arg ai (LitP l)     ) = Apply $ Arg ai $ Lit l
+    build (Arg ai (ProjP dest) ) = Proj  $ dest
+
+-- patternsToElims :: Permutation -> [I.NamedArg Pattern] -> [Elim]
+-- patternsToElims perm ps = evalState (mapM build' ps) xs
+--   where
+--     xs   = permute (invertP __IMPOSSIBLE__ perm) $ downFrom (size perm)
+
+--     tick :: State [Int] Int
+--     tick = do x : xs <- get; put xs; return x
+
+--     build' :: NamedArg Pattern -> State [Int] Elim
+--     build' = build . fmap namedThing
+
+--     build :: I.Arg Pattern -> State [Int] Elim
+--     build (Arg ai (VarP _)     ) = Apply . Arg ai . var <$> tick
+--     build (Arg ai (ConP c _ ps)) =
+--       Apply . Arg ai . Con c <$> mapM (argFromElim <.> build') ps
+--     build (Arg ai (DotP t)     ) = Apply (Arg ai t) <$ tick
+--     build (Arg ai (LitP l)     ) = return $ Apply $ Arg ai $ Lit l
+--     build (Arg ai (ProjP dest) ) = return $ Proj  $ dest
 
 -- * One hole patterns
 
