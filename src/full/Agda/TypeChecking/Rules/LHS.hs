@@ -442,10 +442,9 @@ checkLeftHandSide c f ps a ret = do
     mapM_ checkDotPattern dpi
 
     let rho = renamingR perm -- I'm not certain about this...
-        Perm n _ = perm
-        xs  = [ stringToArgName $ "h" ++ show n | n <- [0..n - 1] ]
-    applyRelevanceToContext (getRelevance b') $ do
-      ret $ LHSResult mgamma delta rho xs qs b' perm
+        xs  = [ stringToArgName $ "h" ++ show n | n <- [0..permRange perm - 1] ]
+    lhsResult <- return $ LHSResult mgamma delta rho xs qs b' perm
+    applyRelevanceToContext (getRelevance b') $ ret lhsResult
 
 -- | The loop (tail-recursive): split at a variable in the problem until problem is solved
 checkLHS
