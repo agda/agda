@@ -2,11 +2,13 @@
 
 module Agda.TypeChecking.Rules.LHS where
 
+import Prelude hiding (mapM)
+
 import Data.Maybe
 
 import Control.Applicative
-import Control.Monad
-import Control.Monad.State
+import Control.Monad hiding (mapM)
+import Control.Monad.State hiding (mapM)
 
 import Data.Traversable
 
@@ -179,6 +181,41 @@ instantiatePattern sub perm ps
           | otherwise                 = __IMPOSSIBLE__
         mergeP ProjP{} _              = __IMPOSSIBLE__
         mergeP _       ProjP{}        = __IMPOSSIBLE__
+
+
+-- | In an internal pattern, replace some pattern variables
+--   by dot patterns, according to the given substitution.
+instantiatePattern'
+  :: Substitution
+     -- ^ Partial substitution for the pattern variables,
+     --   given in order of the clause telescope,
+     --   (not in the order of occurrence in the patterns).
+  -> Permutation
+     -- ^ Map from the pattern variables to the telescope variables.
+  -> [I.NamedArg Pattern]
+     -- ^ Input patterns.
+  -> [I.NamedArg Pattern]
+     -- ^ Output patterns, with some @VarP@ replaced by @DotP@
+     --   according to the @Substitution@.
+instantiatePattern' sub perm ps = evalState (mapM goArg ps) 0
+  where
+    -- get a partial substitution from pattern variables to terms
+    sub'    = inversePermute perm sub
+    -- get next pattern variable
+    next    = do n <- get; put (n+1); return n
+    goArg   = traverse goNamed
+    goNamed = traverse goPat
+    goPat p = case p of
+      VarP x       -> replace p
+      DotP t       -> replace p
+      ConP c mt ps -> ConP c mt <$> mapM goArg ps
+      LitP{}       -> return p
+      ProjP{}      -> return p
+    replace p = do
+      i <- next
+      return $ fromMaybe p $ DotP <$> sub' !! i
+
+
 
 -- | Check if a problem is solved. That is, if the patterns are all variables.
 isSolvedProblem :: Problem -> Bool
