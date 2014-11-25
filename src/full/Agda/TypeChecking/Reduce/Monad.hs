@@ -30,8 +30,7 @@ import Agda.Syntax.Position
 import Agda.Syntax.Internal
 import Agda.TypeChecking.Monad hiding
   ( enterClosure, underAbstraction_, underAbstraction, addCtx, mkContextEntry,
-    isInstantiatedMeta, verboseS, reportSDoc, reportSLn, typeOfConst, lookupMeta,
-    instantiateDef )
+    isInstantiatedMeta, verboseS, reportSDoc, reportSLn, typeOfConst, lookupMeta )
 import Agda.TypeChecking.Monad.Builtin hiding ( constructorForm )
 import Agda.TypeChecking.Substitute
 import Agda.Interaction.Options
