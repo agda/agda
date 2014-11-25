@@ -205,7 +205,7 @@ relevantInIgnoringNonvariant i t (p:ps) = do
 
 -- | Record information that an argument is unused in 'Relevance'.
 mkUnused :: Relevance -> Relevance
-mkUnused Relevant = UnusedArg   -- commenting out this line switches of 'UnusedArg' polarity machinery
+mkUnused Relevant = UnusedArg   -- commenting out this line switches off 'UnusedArg' polarity machinery
 mkUnused r        = r  -- 'Irrelevant' is more informative than 'UnusedArg'.
 
 -- | Improve 'Relevance' information in a type by polarity information.
