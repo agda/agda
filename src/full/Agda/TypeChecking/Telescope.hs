@@ -20,7 +20,7 @@ import Agda.Utils.Permutation
 import Agda.Utils.Size
 import Agda.Utils.Tuple
 import Agda.Utils.VarSet (VarSet)
-import qualified Agda.Utils.VarSet as Set
+import qualified Agda.Utils.VarSet as VarSet
 
 #include "undefined.h"
 import Agda.Utils.Impossible
@@ -112,24 +112,33 @@ teleArgs tel = [ Common.Arg info (var i) | (i, Common.Dom info _) <- zip (downFr
 
 -- | A telescope split in two.
 data SplitTel = SplitTel
-      { firstPart  :: Telescope
-      , secondPart :: Telescope
-      , splitPerm  :: Permutation
-      }
+  { firstPart  :: Telescope
+  , secondPart :: Telescope
+  , splitPerm  :: Permutation
+    -- ^ The permutation takes us from the original telescope to
+    --   @firstPart ++ secondPart@.
+  }
 
 -- | Split a telescope into the part that defines the given variables and the
 --   part that doesn't.
-splitTelescope :: VarSet -> Telescope -> SplitTel
+--
+--   See 'Agda.TypeChecking.Tests.prop_splitTelescope'.
+splitTelescope
+  :: VarSet     -- ^ A set of de Bruijn indices.
+  -> Telescope  -- ^ Original telescope.
+  -> SplitTel   -- ^ @firstPart@ mentions the given variables, @secondPart@ not.
 splitTelescope fv tel = SplitTel tel1 tel2 perm
   where
     names = teleNames tel
     ts0   = flattenTel tel
-
     n     = size tel
 
     -- We start with a rough split into fv and the rest. This will most likely
     -- not be correct so we patch it up later with reorderTel.
-    is    = map (n - 1 -) $ filter (< n) $ reverse $ Set.toList fv
+
+    -- Convert given de Bruijn indices into ascending list of de Bruijn levels.
+    is    = map (n - 1 -) $ dropWhile (>= n) $ VarSet.toDescList fv
+    -- Compute the complement (de Bruijn levels not mentioned in @fv@).
     isC   = [0..n - 1] \\ is
     perm0 = Perm n $ is ++ isC
 
@@ -145,9 +154,8 @@ splitTelescope fv tel = SplitTel tel1 tel2 perm
 
     tel'  = unflattenTel (permute perm names) ts2
 
-    Perm _ js = perm
-    m         = genericLength $ takeWhile (`notElem` is) (reverse js)
-    (tel1, tel2) = telFromList -*- telFromList $ genericSplitAt (n - m) $ telToList tel'
+    m            = length $ takeWhile (`notElem` is) $ reverse $ permPicks perm
+    (tel1, tel2) = telFromList -*- telFromList $ splitAt (n - m) $ telToList tel'
 
 telView :: Type -> TCM TelView
 telView = telViewUpTo (-1)
