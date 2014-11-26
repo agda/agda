@@ -70,7 +70,7 @@ followed:
   changes above first.)
 
     VERSION=<version>
-    cabal configure && cabal sdist && cabal check
+    cabal sdist && cabal check
     cabal install
     git tag -a $VERSION -m "Agda $VERSION maintenance release"
 
@@ -81,7 +81,6 @@ followed:
     cd ${TMPDIR:-/tmp}
     tar xzf $BASE/dist/Agda-$VERSION.tar.gz
     cd Agda-$VERSION
-    cabal configure
     cabal install
 
   Do not forget to test the Emacs mode.
