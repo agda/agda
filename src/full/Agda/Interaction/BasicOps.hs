@@ -87,7 +87,7 @@ giveExpr mi e = do
       metaTypeCheck mv (mvJudgement mv)
   where
     metaTypeCheck mv IsSort{}      = __IMPOSSIBLE__
-    metaTypeCheck mv (HasType _ t) = do
+    metaTypeCheck mv (HasType _ t) = disableDestructiveUpdate $ do
       reportSDoc "interaction.give" 20 $
         TP.text "give: meta type =" TP.<+> prettyTCM t
       -- Here, we must be in the same context where the meta was created.
@@ -798,4 +798,3 @@ whyInScope s = do
   return ( lookup x $ map (first C.QName) $ scopeLocals scope
          , scopeLookup x scope
          , scopeLookup x scope )
-
