@@ -8,6 +8,10 @@ Important changes since 2.4.2.X:
 Installation and infrastructure
 ===============================
 
+* For best performance, compile Agda with ghc-7.8.
+  Agda is significantly slower if compiled with ghc-7.6.
+  [Issue 1347]
+
 Pragmas and options
 ===================
 
