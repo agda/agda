@@ -28,6 +28,7 @@ import Agda.TypeChecking.Monad as M hiding (MetaInfo)
 
 import Agda.Utils.Maybe
 import Agda.Utils.List
+import Agda.Utils.Functor
 
 #include "undefined.h"
 import Agda.Utils.Impossible
@@ -41,7 +42,11 @@ type WithNames a = ReaderT Names TCM a
 withName :: String -> (Name -> WithNames a) -> WithNames a
 withName s f = do
   name <- freshName_ s
-  local (name:) $ f name
+  ctx  <- asks $ map nameConcrete
+  let name' = head $ filter (notTaken ctx) $ iterate nextName name
+  local (name:) $ f name'
+  where
+    notTaken xs x = isNoName x || nameConcrete x `notElem` xs
 
 -- | Returns the name of the variable with the given de Bruijn index.
 askName :: Int -> WithNames (Maybe Name)
@@ -129,33 +134,34 @@ instance ToAbstract Sort Expr where
   toAbstract (LitS x) = return $ A.Set exprNoRange x
   toAbstract UnknownS = return $ mkSet $ Underscore emptyMetaInfo
 
-instance ToAbstract R.Pattern (A.Pattern, Names) where
+instance ToAbstract R.Pattern (Names, A.Pattern) where
   toAbstract pat = case pat of
     R.ConP c args -> do
-      (args, names) <- toAbstract args
-      return (A.ConP (ConPatInfo False patNoRange) (AmbQ [killRange c]) args, names)
-    R.DotP    -> return (A.DotP patNoRange (Underscore emptyMetaInfo), [])
-    R.VarP s  -> withName s' $ \name -> return $ (A.VarP name, [name])
+      (names, args) <- toAbstractPats args
+      return (names, A.ConP (ConPatInfo False patNoRange) (AmbQ [killRange c]) args)
+    R.DotP    -> return ([], A.DotP patNoRange (Underscore emptyMetaInfo))
+    R.VarP s  -> withName s' $ \name -> return ([name], A.VarP name)
       where s' = if (isNoName s) then "z" else s --TODO: only do this when var is free
-    R.LitP l  -> return (A.LitP l, [])
-    R.AbsurdP -> return (A.AbsurdP patNoRange, [])
-    R.ProjP p -> return (A.DefP patNoRange p [], [])
+    R.LitP l  -> return ([], A.LitP l)
+    R.AbsurdP -> return ([], A.AbsurdP patNoRange)
+    R.ProjP p -> return ([], A.DefP patNoRange p [])
 
-instance ToAbstract [R.Arg R.Pattern] ([A.NamedArg A.Pattern], Names) where
-  toAbstract pats = do
-    patsAndNames <- mapM toAbstract pats
-    let pats = (fmap . fmap . fmap) fst patsAndNames
-        names = foldl (flip (++)) [] $ fmap (snd . namedThing . unArg) patsAndNames
-    return (pats, names)
+toAbstractPats :: [R.Arg R.Pattern] -> WithNames (Names, [A.NamedArg A.Pattern])
+toAbstractPats pats = case pats of
+    []   -> return ([], [])
+    p:ps -> do
+      (names,  p)  <- (distributeF . fmap distributeF) <$> toAbstract p
+      (namess, ps) <- local (names++) $ toAbstractPats ps
+      return (namess++names, p:ps)
 
 instance ToAbstract (QNamed R.Clause) A.Clause where
   toAbstract (QNamed name (R.Clause pats rhs)) = do
-    (pats, names) <- toAbstract pats
-    rhs <- local (names++) $ toAbstract rhs
+    (names, pats) <- toAbstractPats pats
+    rhs           <- local (names++) $ toAbstract rhs
     let lhs = spineToLhs $ SpineLHS (LHSRange noRange) name pats []
     return $ A.Clause lhs (RHS rhs) [] False
   toAbstract (QNamed name (R.AbsurdClause pats)) = do
-    (pats, _) <- toAbstract pats
+    (_, pats) <- toAbstractPats pats
     let lhs = spineToLhs $ SpineLHS (LHSRange noRange) name pats []
     return $ A.Clause lhs AbsurdRHS [] False
 
