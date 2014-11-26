@@ -934,6 +934,17 @@ instance InstantiateFull LevelAtom where
           (BlockedLevel m <$> instantiateFull' v)
     UnreducedLevel v -> UnreducedLevel <$> instantiateFull' v
 
+instance InstantiateFull Substitution where
+  instantiateFull' sigma =
+    case sigma of
+      IdS                  -> return IdS
+      EmptyS               -> return EmptyS
+      Wk   n sigma         -> Wk   n         <$> instantiateFull' sigma
+      Lift n sigma         -> Lift n         <$> instantiateFull' sigma
+      Strengthen bot sigma -> Strengthen bot <$> instantiateFull' sigma
+      t :# sigma           -> (:#) <$> instantiateFull' t
+                                   <*> instantiateFull' sigma
+
 instance InstantiateFull Bool where
     instantiateFull' = return
 

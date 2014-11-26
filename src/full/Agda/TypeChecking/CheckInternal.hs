@@ -176,11 +176,24 @@ checkDef' f a es t = do
 -}
 
 checkSpine :: Type -> Term -> Elims -> Type -> TCM ()
-checkSpine a self es t = inferSpine a self es >>= (`subtype` t)
+checkSpine a self es t = do
+  reportSDoc "tc.check.internal" 20 $ sep
+    [ text "checking spine "
+    , text "("
+    , prettyTCM self
+    , text " : "
+    , prettyTCM a
+    , text ")"
+    , prettyTCM es
+    , text " : "
+    , prettyTCM t
+    ]
+  inferSpine a self es >>= (`subtype` t)
 
 checkArgs :: Type -> Term -> Args -> Type -> TCM ()
 checkArgs a self vs t = checkSpine a self (map Apply vs) t
 
+-- | @checkArgInfo actual expected@.
 checkArgInfo :: I.ArgInfo -> I.ArgInfo -> TCM ()
 checkArgInfo ai ai' = do
   checkHiding    (getHiding ai)     (getHiding ai')

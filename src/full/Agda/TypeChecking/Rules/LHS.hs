@@ -375,6 +375,16 @@ data LHSResult = LHSResult
   , lhsPermutation :: Permutation       -- ^ The permutation from pattern vars to @Δ@.
   }
 
+instance InstantiateFull LHSResult where
+  instantiateFull' (LHSResult mtel tel sub xs ps t perm) = LHSResult
+    <$> instantiateFull' mtel
+    <*> instantiateFull' tel
+    <*> instantiateFull' sub
+    <*> return xs
+    <*> instantiateFull' ps
+    <*> instantiateFull' t
+    <*> return perm
+
 -- | Check a LHS. Main function.
 --
 --   @checkLeftHandSide a ps a ret@ checks that user patterns @ps@ eliminate
@@ -431,10 +441,9 @@ checkLeftHandSide c f ps a ret = do
     mapM_ checkDotPattern dpi
 
     let rho = renamingR perm -- I'm not certain about this...
-        Perm n _ = perm
-        xs  = [ stringToArgName $ "h" ++ show n | n <- [0..n - 1] ]
-    applyRelevanceToContext (getRelevance b') $ do
-      ret $ LHSResult mgamma delta rho xs qs b' perm
+        xs  = [ stringToArgName $ "h" ++ show n | n <- [0..permRange perm - 1] ]
+    lhsResult <- return $ LHSResult mgamma delta rho xs qs b' perm
+    applyRelevanceToContext (getRelevance b') $ ret lhsResult
 
 -- | The loop (tail-recursive): split at a variable in the problem until problem is solved
 checkLHS
