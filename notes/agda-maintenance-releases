@@ -137,4 +137,6 @@ followed:
 
   ** Update the Main page.
 
+  ** Update the standard library page (tested with Agda $VERSION).
+
 * Announce the release of the new version on the Agda mailing list.
