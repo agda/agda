@@ -111,9 +111,9 @@ ASR (13 November 2014). I didn't use the following three steps. I used
 the procedure described in HACKING for merging the maintenance branch
 into the master branch.
 
-* Push all changes and merge into 'master' branch.
+* Push all changes and merge into 'master' branch (requires Git >= 1.8.3).
 
-    git push --tags
+    git push --follow-tags
 
     git checkout master
     git merge maint-$MAJORVERSION
