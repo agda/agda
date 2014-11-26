@@ -1,8 +1,4 @@
 
-<<<<<<< HEAD
-=======
-VERSION			= 2.4.2.3
->>>>>>> maint-2.4.2
 MACRO_DIR		= $(TOP)/macros
 
 SRC_DIR			= $(TOP)/src
