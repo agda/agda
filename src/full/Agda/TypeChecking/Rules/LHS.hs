@@ -2,11 +2,13 @@
 
 module Agda.TypeChecking.Rules.LHS where
 
+import Prelude hiding (mapM)
+
 import Data.Maybe
 
 import Control.Applicative
-import Control.Monad
-import Control.Monad.State
+import Control.Monad hiding (mapM)
+import Control.Monad.State hiding (mapM)
 
 import Data.Traversable
 
@@ -103,28 +105,60 @@ dotPatternInsts ps s as = dpi (map namedArg ps) (reverse s) as
 
         _           -> __IMPOSSIBLE__
 
-instantiatePattern :: Substitution -> Permutation -> [I.NamedArg Pattern] -> [I.NamedArg Pattern]
+
+-- | In an internal pattern, replace some pattern variables
+--   by dot patterns, according to the given substitution.
+instantiatePattern
+  :: Substitution
+     -- ^ Partial substitution for the pattern variables,
+     --   given in order of the clause telescope,
+     --   (not in the order of occurrence in the patterns).
+  -> Permutation
+     -- ^ Map from the pattern variables to the telescope variables.
+  -> [I.NamedArg Pattern]
+     -- ^ Input patterns.
+  -> [I.NamedArg Pattern]
+     -- ^ Output patterns, with some @VarP@ replaced by @DotP@
+     --   according to the @Substitution@.
 instantiatePattern sub perm ps
-  | length sub /= length hps = error $ unlines [ "instantiatePattern:"
-                                               , "  sub  = " ++ show sub
-                                               , "  perm = " ++ show perm
-                                               , "  ps   = " ++ show ps
-                                               ]
+  | length sub /= length hps = error $ unlines
+      [ "instantiatePattern:"
+      , "  sub  = " ++ show sub
+      , "  perm = " ++ show perm
+      , "  ps   = " ++ show ps
+      ]
   | otherwise  = foldr merge ps $ zipWith inst (reverse sub) hps
   where
+    -- For each pattern variable get a copy of the patterns
+    -- focusing on this variable.
+    -- Order them in the dependency (telescope) order.
     hps = permute perm $ allHoles ps
+    -- If we do not want to substitute a variable, we
+    -- throw away the corresponding one-hole pattern.
     inst Nothing  hps = Nothing
+    -- If we want to substitute, we replace the variable
+    -- by the dot pattern.
     inst (Just t) hps = Just $ plugHole (DotP t) hps
 
+    -- If we did not instantiate a variable, we can keep the original
+    -- patterns in this iteration.
     merge Nothing   ps = ps
+    -- Otherwise, we merge the changes in @qs@ into @ps@.
+    -- This means we walk simultaneously through @qs@ and @ps@
+    -- and expect them to be the same everywhere except that
+    -- a @q@ can be a @DotP@ and the corresponding @p@ a @VarP@.
+    -- In this case, we take the @DotP@.
+    -- Apparently, the other way round can also happen (why?).
     merge (Just qs) ps = zipWith mergeA qs ps
       where
         mergeA a1 a2 = fmap (mergeP (namedArg a1) (namedArg a2) <$) a1
         mergeP (DotP s)  (DotP t)
           | s == t                    = DotP s
           | otherwise                 = __IMPOSSIBLE__
+        -- interesting cases:
         mergeP (DotP t)  (VarP _)     = DotP t
         mergeP (VarP _)  (DotP t)     = DotP t
+        -- the rest is homomorphical
         mergeP (DotP _)  _            = __IMPOSSIBLE__
         mergeP _         (DotP _)     = __IMPOSSIBLE__
         mergeP (ConP c1 mt1 ps) (ConP c2 mt2 qs)
@@ -148,6 +182,41 @@ instantiatePattern sub perm ps
         mergeP ProjP{} _              = __IMPOSSIBLE__
         mergeP _       ProjP{}        = __IMPOSSIBLE__
 
+
+-- | In an internal pattern, replace some pattern variables
+--   by dot patterns, according to the given substitution.
+instantiatePattern'
+  :: Substitution
+     -- ^ Partial substitution for the pattern variables,
+     --   given in order of the clause telescope,
+     --   (not in the order of occurrence in the patterns).
+  -> Permutation
+     -- ^ Map from the pattern variables to the telescope variables.
+  -> [I.NamedArg Pattern]
+     -- ^ Input patterns.
+  -> [I.NamedArg Pattern]
+     -- ^ Output patterns, with some @VarP@ replaced by @DotP@
+     --   according to the @Substitution@.
+instantiatePattern' sub perm ps = evalState (mapM goArg ps) 0
+  where
+    -- get a partial substitution from pattern variables to terms
+    sub'    = inversePermute perm sub
+    -- get next pattern variable
+    next    = do n <- get; put (n+1); return n
+    goArg   = traverse goNamed
+    goNamed = traverse goPat
+    goPat p = case p of
+      VarP x       -> replace p
+      DotP t       -> replace p
+      ConP c mt ps -> ConP c mt <$> mapM goArg ps
+      LitP{}       -> return p
+      ProjP{}      -> return p
+    replace p = do
+      i <- next
+      return $ fromMaybe p $ DotP <$> sub' !! i
+
+
+
 -- | Check if a problem is solved. That is, if the patterns are all variables.
 isSolvedProblem :: Problem -> Bool
 isSolvedProblem problem = null (restPats $ problemRest problem) &&
@@ -159,13 +228,6 @@ isSolvedProblem problem = null (restPats $ problemRest problem) &&
     isSolved (A.ImplicitP _) = True
     isSolved (A.AbsurdP _)   = True
     isSolved _               = False
-{-
-    isVar (A.VarP _)      = True
-    isVar (A.WildP _)     = True
-    isVar (A.ImplicitP _) = True
-    isVar (A.AbsurdP _)   = True
-    isVar _               = False
--}
 
 -- | For each user-defined pattern variable in the 'Problem', check
 -- that the corresponding data type (if any) does not contain a
@@ -313,6 +375,16 @@ data LHSResult = LHSResult
   , lhsPermutation :: Permutation       -- ^ The permutation from pattern vars to @Δ@.
   }
 
+instance InstantiateFull LHSResult where
+  instantiateFull' (LHSResult mtel tel sub xs ps t perm) = LHSResult
+    <$> instantiateFull' mtel
+    <*> instantiateFull' tel
+    <*> instantiateFull' sub
+    <*> return xs
+    <*> instantiateFull' ps
+    <*> instantiateFull' t
+    <*> return perm
+
 -- | Check a LHS. Main function.
 --
 --   @checkLeftHandSide a ps a ret@ checks that user patterns @ps@ eliminate
@@ -369,10 +441,9 @@ checkLeftHandSide c f ps a ret = do
     mapM_ checkDotPattern dpi
 
     let rho = renamingR perm -- I'm not certain about this...
-        Perm n _ = perm
-        xs  = [ stringToArgName $ "h" ++ show n | n <- [0..n - 1] ]
-    applyRelevanceToContext (getRelevance b') $ do
-      ret $ LHSResult mgamma delta rho xs qs b' perm
+        xs  = [ stringToArgName $ "h" ++ show n | n <- [0..permRange perm - 1] ]
+    lhsResult <- return $ LHSResult mgamma delta rho xs qs b' perm
+    applyRelevanceToContext (getRelevance b') $ ret lhsResult
 
 -- | The loop (tail-recursive): split at a variable in the problem until problem is solved
 checkLHS
@@ -512,7 +583,9 @@ checkLHS f st@(LHSState problem sigma dpi asb) = do
       --   ]
 
       -- Andreas 2010-09-07  propagate relevance info to new vars
-      gamma' <- return $ fmap (applyRelevance $ argInfoRelevance info) gamma'
+      -- Andreas 2014-11-25  clear 'Forced' and 'Unused'
+      let updRel = ignoreForced . composeRelevance (getRelevance info)
+      gamma' <- return $ mapRelevance updRel <$> gamma'
 
       -- Insert implicit patterns
       qs' <- insertImplicitPatterns ExpandLast qs gamma'

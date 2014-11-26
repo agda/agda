@@ -1,18 +1,29 @@
+{-# LANGUAGE CPP #-}
+
 -- | Var field implementation of sets of (small) natural numbers.
+
 module Agda.Utils.VarSet
   ( VarSet
-  , union, unions, member, empty, delete, singleton, fromList, toList, isSubsetOf, Set.null
+  , union, unions, member, empty, delete, singleton
+  , fromList, toList, toDescList
+  , isSubsetOf, IntSet.null
   , intersection, difference
   , Agda.Utils.VarSet.subtract
   )
   where
 
-import Data.IntSet as Set
+import Data.IntSet (IntSet)
+import Data.IntSet as IntSet
 
-type VarSet = Set.IntSet
+type VarSet = IntSet
 
 subtract :: Int -> VarSet -> VarSet
-subtract n s = Set.map (Prelude.subtract n) s
+subtract n = IntSet.map (Prelude.subtract n)
+
+#if !MIN_VERSION_containers(0,5,0)
+toDescList :: VarSet -> [Int]
+toDescList = reverse . toList
+#endif
 
 {-
 import Data.Bits

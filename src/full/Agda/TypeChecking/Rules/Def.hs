@@ -576,6 +576,10 @@ checkWithFunction (WithFunction f aux gamma delta1 delta2 vs as b qs perm' perm 
   reportSLn "tc.with.top" 20 "created with display form"
 
   -- Generate the type of the with function
+  delta1 <- normalise delta1 -- Issue 1332: checkInternal is picky about argInfo
+                             -- but module application is sloppy.
+                             -- We normalise to get rid of Def's coming
+                             -- from module applications.
   candidateType <- withFunctionType delta1 vs as delta2 b
   reportSDoc "tc.with.type" 10 $ sep [ text "candidate type:", nest 2 $ prettyTCM candidateType ]
   reportSDoc "tc.with.type" 50 $ sep [ text "candidate type:", nest 2 $ text $ show candidateType ]

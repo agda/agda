@@ -12,15 +12,19 @@
 
 module Agda.TypeChecking.Rules.LHS.Unify where
 
+import Prelude hiding (null)
+
 import Control.Arrow ((***))
 import Control.Applicative hiding (empty)
 import Control.Monad.State
 import Control.Monad.Reader
 import Control.Monad.Writer (WriterT(..), MonadWriter(..), Monoid(..))
 
+import Data.IntMap (IntMap)
+import qualified Data.IntMap as IntMap
 import Data.Map (Map)
 import qualified Data.Map as Map
-import Data.List hiding (sort)
+import Data.List hiding (null, sort)
 
 import Data.Typeable (Typeable)
 import Data.Foldable (Foldable)
@@ -41,7 +45,8 @@ import Agda.TypeChecking.Constraints
 import Agda.TypeChecking.DropArgs
 import Agda.TypeChecking.Level (reallyUnLevelView)
 import Agda.TypeChecking.Reduce
-import Agda.TypeChecking.Pretty
+import Agda.TypeChecking.Pretty hiding (empty)
+import qualified Agda.TypeChecking.Pretty as P
 import Agda.TypeChecking.Substitute hiding (Substitution)
 import qualified Agda.TypeChecking.Substitute as S
 import Agda.TypeChecking.Telescope
@@ -60,8 +65,9 @@ import Agda.Utils.Except
   )
 
 import Agda.Utils.Maybe
-import Agda.Utils.Size
 import Agda.Utils.Monad
+import Agda.Utils.Null
+import Agda.Utils.Size
 
 #include "undefined.h"
 import Agda.Utils.Impossible
@@ -83,6 +89,9 @@ instance MonadReader TCEnv Unify where
 instance HasConstInfo Unify where
   getConstInfo = U . lift . lift . lift . lift . getConstInfo
 
+-- UnifyEnv
+------------------------------------------------------------------------
+
 data UnifyMayPostpone = MayPostpone | MayNotPostpone
 
 type UnifyEnv = UnifyMayPostpone
@@ -91,16 +100,13 @@ emptyUEnv :: UnifyEnv
 emptyUEnv = MayPostpone
 
 noPostponing :: Unify a -> Unify a
-noPostponing (U (ReaderT f)) = U . ReaderT . const $ f MayNotPostpone
+noPostponing = U . local (const MayNotPostpone) . unUnify
 
 askPostpone :: Unify UnifyMayPostpone
-askPostpone = U . ReaderT $ return
+askPostpone = U $ ask
 
 -- | Output the result of unification (success or maybe).
 type UnifyOutput = Unifiable
-
-emptyUOutput :: UnifyOutput
-emptyUOutput = mempty
 
 -- | Were two terms unifiable or did we have to postpone some equation such that we are not sure?
 data Unifiable
@@ -127,7 +133,7 @@ ifClean m t e = do
     Possibly ->   e
 
 data Equality = Equal TypeHH Term Term
-type Sub = Map Nat Term
+type Sub = IntMap Term
 
 data UnifyException
   = ConstructorMismatch Type Term Term
@@ -140,12 +146,13 @@ instance Error UnifyException where
   noMsg  = strMsg ""
   strMsg = GenericUnifyException
 
-data UnifyState = USt { uniSub    :: Sub
-                      , uniConstr :: [Equality]
-                      }
+data UnifyState = USt
+  { uniSub    :: Sub
+  , uniConstr :: [Equality]
+  }
 
 emptyUState :: UnifyState
-emptyUState = USt Map.empty []
+emptyUState = USt IntMap.empty []
 
 -- | Throw-away error message.
 projectionMismatch :: QName -> QName -> Unify a
@@ -163,8 +170,8 @@ instance Subst Equality where
   applySubst rho (Equal a s t) =
     Equal (applySubst rho a) (applySubst rho s) (applySubst rho t)
 
-onSub :: (Sub -> a) -> Unify a
-onSub f = U $ gets $ f . uniSub
+getSub :: Unify Sub
+getSub = U $ gets uniSub
 
 modSub :: (Sub -> Sub) -> Unify ()
 modSub f = U $ modify $ \s -> s { uniSub = f $ uniSub s }
@@ -253,19 +260,19 @@ occursCheck i u a = do
 i |-> (u, a) = do
   occursCheck i u a
   liftTCM $ reportSDoc "tc.lhs.unify.assign" 15 $ prettyTCM (var i) <+> text ":=" <+> prettyTCM u
-  modSub $ Map.insert i (killRange u)
+  modSub $ IntMap.insert i (killRange u)
   -- Apply substitution to itself (issue 552)
-  rho  <- onSub id
+  rho  <- getSub
   rho' <- traverse ureduce rho
   modSub $ const rho'
 
 makeSubstitution :: Sub -> S.Substitution
 makeSubstitution sub
-  | Map.null sub = idS
-  | otherwise    = map val [0 .. highestIndex] ++# raiseS (highestIndex + 1)
+  | null sub  = idS
+  | otherwise = map val [0 .. highestIndex] ++# raiseS (highestIndex + 1)
   where
-    highestIndex = fst $ Map.findMax sub
-    val i = maybe (var i) id $ Map.lookup i sub
+    highestIndex = fst $ IntMap.findMax sub
+    val i = fromMaybe (var i) $ IntMap.lookup i sub
 
 -- | Apply the current substitution on a term and reduce to weak head normal form.
 class UReduce t where
@@ -273,7 +280,7 @@ class UReduce t where
 
 instance UReduce Term where
   ureduce u = doEtaContractImplicit $ do
-    rho <- onSub makeSubstitution
+    rho <- makeSubstitution <$> getSub
 -- Andreas, 2013-10-24 the following call to 'normalise' is problematic
 -- (see issue 924).  Instead, we only normalize if unifyAtomHH is undecided.
 --    liftTCM $ etaContract =<< normalise (applySubst rho u)
@@ -338,11 +345,15 @@ flattenSubstitution s = foldr instantiate s is
       where
         Just u = s !! i
 
+    -- @inst i u v@ replaces index @i@ in @v@ by @u@, without removing the index.
     inst :: Nat -> Term -> Term -> Term
     inst i u v = applySubst us v
       where us = [var j | j <- [0..i - 1] ] ++# u :# raiseS (i + 1)
 
-data UnificationResult = Unifies Substitution | NoUnify Type Term Term | DontKnow TCErr
+data UnificationResult
+  = Unifies Substitution
+  | NoUnify Type Term Term
+  | DontKnow TCErr
 
 -- | Are we in a homogeneous (one type) or heterogeneous (two types) situation?
 data HomHet a
@@ -491,7 +502,7 @@ unifyIndices flex a us vs = liftTCM $ do
       Right _                               -> do
         checkEqualities $ applySubst (makeSubstitution s) eqs
         let n = maximum $ (-1) : flex'
-        return $ Unifies $ flattenSubstitution [ Map.lookup i s | i <- [0..n] ]
+        return $ Unifies $ flattenSubstitution [ IntMap.lookup i s | i <- [0..n] ]
   `catchError` \err -> case err of
      TypeError _ (Closure {clValue = WithoutKError{}}) -> throwError err
      _                                                 -> return $ DontKnow err
@@ -751,9 +762,9 @@ unifyIndices flex a us vs = liftTCM $ do
 
       liftTCM $ reportSDoc "tc.lhs.unify" 15 $
         sep [ text "unifyAtom"
-            , nest 2 $ prettyTCM u <> if flexibleTerm u then text " (flexible)" else empty
+            , nest 2 $ prettyTCM u <> if flexibleTerm u then text " (flexible)" else P.empty
             , nest 2 $ text "=?="
-            , nest 2 $ prettyTCM v <> if flexibleTerm v then text " (flexible)" else empty
+            , nest 2 $ prettyTCM v <> if flexibleTerm v then text " (flexible)" else P.empty
             , nest 2 $ text ":" <+> prettyTCM aHH
             ]
       liftTCM $ reportSDoc "tc.lhs.unify" 60 $
