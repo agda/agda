@@ -96,6 +96,8 @@ followed:
 
 * Turn -Werror back on.
 
+* Add a new header to CHANGELOG.
+
 * Update the version numbers in:
 
   Agda.cabal (twice),
@@ -103,8 +105,6 @@ followed:
   mk/paths.mk.
   test/interaction/Issue1244a.out
   test/interaction/Issue1244b.out
-
-* Add a new header to CHANGELOG.
 
 ASR (13 November 2014). I didn't use the following three steps. I used
 the procedure described in HACKING for merging the maintenance branch
