@@ -30,7 +30,14 @@
 
     \tracinglostchars=2 % If the font is missing some symbol, then say
                         % so in the compilation output.
-    \setmainfont[Ligatures=TeX]{xits-regular.otf}
+    \setmainfont
+      [ Ligatures      = TeX
+      , BoldItalicFont = xits-bolditalic.otf
+      , BoldFont       = xits-bold.otf
+      , ItalicFont     = xits-italic.otf
+      ]
+      {xits-regular.otf}
+
     \setmathfont{xits-math.otf}
 
     % Make mathcal and mathscr appear as different.

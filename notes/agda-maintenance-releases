@@ -20,7 +20,7 @@ followed:
   version. Use the branch used by the `std-lib` target rule in the
   Makefile file. For example,
 
-  (git clone https://github.com/agda/agda-stdlib.git --branch 2.4.2.1 \
+    (git clone https://github.com/agda/agda-stdlib.git --branch 2.4.2.1 \
       --single-branch std-lib)
 
 * Create Everything.agda in the standard library
@@ -70,7 +70,7 @@ followed:
   changes above first.)
 
     VERSION=<version>
-    cabal configure && cabal sdist && cabal check
+    cabal sdist && cabal check
     cabal install
     git tag -a $VERSION -m "Agda $VERSION maintenance release"
 
@@ -81,7 +81,6 @@ followed:
     cd ${TMPDIR:-/tmp}
     tar xzf $BASE/dist/Agda-$VERSION.tar.gz
     cd Agda-$VERSION
-    cabal configure
     cabal install
 
   Do not forget to test the Emacs mode.
@@ -97,6 +96,8 @@ followed:
 
 * Turn -Werror back on.
 
+* Add a new header to CHANGELOG.
+
 * Update the version numbers in:
 
   Agda.cabal (twice),
@@ -105,15 +106,9 @@ followed:
   test/interaction/Issue1244a.out
   test/interaction/Issue1244b.out
 
-* Add a new header to CHANGELOG.
+* Push all changes and merge into 'master' branch (requires Git >= 1.8.3).
 
-ASR (13 November 2014). I didn't use the following three steps. I used
-the procedure described in HACKING for merging the maintenance branch
-into the master branch.
-
-* Push all changes and merge into 'master' branch.
-
-    git push --tags
+    git push --follow-tags
 
     git checkout master
     git merge maint-$MAJORVERSION
@@ -141,5 +136,7 @@ into the master branch.
   ** Update the Release Notes page (under Documentation).
 
   ** Update the Main page.
+
+  ** Update the standard library page (tested with Agda $VERSION).
 
 * Announce the release of the new version on the Agda mailing list.
