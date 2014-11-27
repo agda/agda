@@ -418,7 +418,7 @@ fixity = do
 
     -- Operations followed by newlines.
     (ops, nls) | otherwise      -> do
-        output $ escape ops
+        output $ (T.pack " " <+>) $ T.unwords $ map ((cmdPrefix <+> T.pack "FixityOp" <+>) . cmdArg . escape) $ T.words ops
         spaces (T.group nls)
 
 

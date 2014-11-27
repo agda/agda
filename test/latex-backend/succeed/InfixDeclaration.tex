@@ -1,0 +1,23 @@
+\documentclass{article}
+\usepackage{agda}
+\setmainfont[Ligatures=TeX]{XITS}
+\setmathfont{XITS Math}
+
+\begin{document}
+
+\begin{code}%
+\>\AgdaKeyword{module} \AgdaModule{InfixDeclaration} \AgdaKeyword{where}\<%
+\\
+%
+\\
+\>\AgdaKeyword{infix} \AgdaNumber{5} \AgdaFixityOp{\_>>\_} \AgdaFixityOp{\_<<\_}\<%
+\\
+%
+\\
+\>\AgdaKeyword{data} \AgdaDatatype{\_>>\_} \AgdaSymbol{:} \AgdaPrimitiveType{Set} \AgdaKeyword{where}\<%
+\\
+\>\AgdaKeyword{data} \AgdaDatatype{\_<<\_} \AgdaSymbol{:} \AgdaPrimitiveType{Set} \AgdaKeyword{where}\<%
+\\
+\>\<%
+\end{code}
+\end{document}
