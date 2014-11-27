@@ -348,6 +348,8 @@ primQNameDefinition = do
           Datatype{}    -> defapp agdaDefinitionDataDef   [pure $ qQName qn]
           Record{}      -> defapp agdaDefinitionRecordDef [pure $ qQName qn]
           Axiom{}       -> defapp agdaDefinitionPostulate []
+          Primitive{primClauses = cs} | not $ null cs
+                        -> defapp agdaDefinitionFunDef    [qFunDef (defType def) cs]
           Primitive{}   -> defapp agdaDefinitionPrimitive []
           Constructor{} -> defapp agdaDefinitionDataConstructor []
 
