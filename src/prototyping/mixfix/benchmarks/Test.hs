@@ -97,8 +97,9 @@ test p g s es =
     toToken cs              = Name cs
 
 main = do
-  [which] <- fmap (map read) getArgs
-  tests which
+  which <- fmap (map read) getArgs
+  if length which == 1 then tests $ head which else
+    putStrLn $ "expected a single number as parameter"
 
 ------------------------------------------------------------------------
 -- Example precedence graph
