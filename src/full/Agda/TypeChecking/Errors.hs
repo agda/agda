@@ -861,7 +861,7 @@ prettyInEqual t1 t2 = do
   d2 <- prettyTCM t2
   (d1, d2,) <$> do
      -- if printed differently, no extra explanation needed
-    if P.render d1 /= P.render d2 then return P.empty else do
+    if P.render d1 /= P.render d2 then empty else do
       (v1, v2) <- instantiate (t1, t2)
       case (ignoreSharing v1, ignoreSharing v2) of
         (I.Var i1 _, I.Var i2 _)
@@ -873,11 +873,11 @@ prettyInEqual t1 t2 = do
         (I.Def{}, I.Var{}) -> varDef
         (I.Var{}, I.Con{}) -> varCon
         (I.Con{}, I.Var{}) -> varCon
-        _                  -> return P.empty
+        _                  -> empty
   where
-    varDef     = return $ P.parens $ P.fwords "because one is a variable and one a defined identifier"
-    varCon     = return $ P.parens $ P.fwords "because one is a variable and one a constructor"
-    varVar i j = return $ P.parens $ P.fwords $ "because one has deBruijn index " ++ show i ++ " and the other " ++ show j
+    varDef     = parens $ fwords "because one is a variable and one a defined identifier"
+    varCon     = parens $ fwords "because one is a variable and one a constructor"
+    varVar i j = parens $ fwords $ "because one has deBruijn index " ++ show i ++ " and the other " ++ show j
 
 class PrettyUnequal a where
   prettyUnequal :: a -> TCM Doc -> a -> TCM Doc
