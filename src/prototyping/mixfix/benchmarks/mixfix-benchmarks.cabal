@@ -7,10 +7,11 @@ description:     Some benchmarks
 executable mixfix-benchmarks
   hs-source-dirs:   .
   main-is:          Test.hs
-  build-depends:    base >= 4.2 && < 4.7,
-                    QuickCheck == 2.4.*,
-                    mtl >= 2.0 && < 2.2,
+  build-depends:    base >= 4.2 && < 4.8,
+                    array >= 0.5,
+                    QuickCheck >= 2.4,
+                    mtl >= 2.1.1 && < 2.3,
                     fgl == 5.4.*,
                     containers >= 0.4 && < 0.6,
-                    ghc-prim >= 0.2 && < 0.4,
+                    ghc-prim >= 0.2 && < 0.7,
                     incremental-parser == 0.2.*
