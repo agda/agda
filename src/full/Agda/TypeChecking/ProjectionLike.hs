@@ -85,7 +85,7 @@ reduceProjectionLike v = do
 --   This does just one layer, such that the top spine contains
 --   the projection-like functions as projections.
 --   Used in 'compareElims' in @TypeChecking.Conversion@
---   and in 'Agda.TypeChecking.CheckInternal'.
+--   and in "Agda.TypeChecking.CheckInternal".
 --
 --   If the 'Bool' is 'True', a lone projection like function will be
 --   turned into a lambda-abstraction, expecting the principal argument.

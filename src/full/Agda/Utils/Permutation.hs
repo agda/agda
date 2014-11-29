@@ -226,5 +226,5 @@ instance DoDrop Permutation where
   unDrop m = dropMore (-m) -- allow picking up more than dropped
 
 ------------------------------------------------------------------------
--- * Properties, see 'Agda.Utils.Permutation.Tests'
+-- * Properties, see "Agda.Utils.Permutation.Tests".
 ------------------------------------------------------------------------

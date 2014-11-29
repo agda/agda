@@ -1,4 +1,4 @@
--- | Examples how to use 'Agda.Utils.Lens'.
+-- | Examples how to use "Agda.Utils.Lens".
 
 module Agda.Utils.Lens.Examples where
 

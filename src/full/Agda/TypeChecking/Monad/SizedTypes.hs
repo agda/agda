@@ -3,8 +3,8 @@
 {-# LANGUAGE TupleSections #-}
 
 -- | Stuff for sized types that does not require modules
---   'Agda.TypeChecking.Reduce' or 'Agda.TypeChecking.Constraints'
---   (which import 'Agda.TypeChecking.Monad').
+--   "Agda.TypeChecking.Reduce" or "Agda.TypeChecking.Constraints"
+--   (which import "Agda.TypeChecking.Monad").
 
 module Agda.TypeChecking.Monad.SizedTypes where
 

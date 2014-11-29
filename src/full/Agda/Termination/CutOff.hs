@@ -1,6 +1,6 @@
--- | Defines 'CutOff' type which is used in 'Agda.Interaction.Options'.
+-- | Defines 'CutOff' type which is used in "Agda.Interaction.Options".
 --   This module's purpose is to eliminate the dependency of
---   'Agda.TypeChecking.Monad.Base' on the termination checker and
+--   "Agda.TypeChecking.Monad.Base" on the termination checker and
 --   everything it imports.
 
 module Agda.Termination.CutOff where

@@ -120,7 +120,7 @@ makeInstance = setHiding Instance
 ---------------------------------------------------------------------------
 
 -- | A function argument can be relevant or irrelevant.
---   See 'Agda.TypeChecking.Irrelevance'.
+--   See "Agda.TypeChecking.Irrelevance".
 data Relevance
   = Relevant    -- ^ The argument is (possibly) relevant at compile-time.
   | NonStrict   -- ^ The argument may never flow into evaluation position.
@@ -526,7 +526,7 @@ type RString = Ranged RawName
 ---------------------------------------------------------------------------
 
 -- | Functions can be defined in both infix and prefix style. See
---   'Agda.Syntax.Concrete.LHS'.
+--   "Agda.Syntax.Concrete.LHS".
 data IsInfix = InfixDef | PrefixDef
     deriving (Typeable, Show, Eq, Ord)
 

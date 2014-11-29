@@ -474,7 +474,7 @@ solveSizeConstraints = whenM haveSizedTypes $ do
       forM_ cs0 $ \ cl -> enterClosure cl solveConstraint
 
 
--- | Old solver for size constraints using 'Agda.Utils.Warshall'.
+-- | Old solver for size constraints using "Agda.Utils.Warshall".
 oldSolver
   :: [(MetaId, Int)]   -- ^ Size metas and their arity.
   -> [SizeConstraint]  -- ^ Size constraints (in preprocessed form).
