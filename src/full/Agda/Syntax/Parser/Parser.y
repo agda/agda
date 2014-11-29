@@ -980,13 +980,13 @@ Declaration
 -- Type signatures of the form "n1 n2 n3 ... : Type", with at least
 -- one bound name.
 TypeSigs :: { [Declaration] }
-TypeSigs : SpaceIds ':' Expr { map (flip (TypeSig defaultArgInfo) $3) $1 }
+TypeSigs : SpaceIds ':' Expr { map (\ x -> TypeSig defaultArgInfo x $3) $1 }
 
 -- A variant of TypeSigs where any sub-sequence of names can be marked
 -- as hidden or irrelevant using braces and dots:
 -- {n1 .n2} n3 .n4 {n5} .{n6 n7} ... : Type.
 ArgTypeSigs :: { [Arg Declaration] }
-ArgTypeSigs : ArgIds ':' Expr { map (fmap (flip (TypeSig defaultArgInfo) $3)) $1 }
+ArgTypeSigs : ArgIds ':' Expr { map (fmap (\ x -> TypeSig defaultArgInfo x $3)) $1 }
 
 -- Function declarations. The left hand side is parsed as an expression to allow
 -- declarations like 'x::xs ++ ys = e', when '::' has higher precedence than '++'.

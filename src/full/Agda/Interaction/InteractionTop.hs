@@ -234,7 +234,10 @@ runInteraction (IOTCM current highlighting highlightingMethod cmd)
       -- If an independent command fails we should reset theCurrentFile (Issue853).
       let sErr | independent cmd = s { theCurrentFile = Nothing }
                | otherwise       = s
-      (x, s') <- lift (runStateT m s `catchError_` \e -> runStateT (h e) sErr)
+      (x, s') <- lift $ do
+           disableDestructiveUpdate (runStateT m s)
+         `catchError_` \ e ->
+           runStateT (h e) sErr
       put s'
       return x
 
