@@ -2,7 +2,7 @@
 {-# LANGUAGE OverlappingInstances #-}
 {-# LANGUAGE TypeSynonymInstances #-}
 
--- | 'KillRange' instances for data structures from 'Agda.TypeChecking.Monad.Base'.
+-- | 'KillRange' instances for data structures from "Agda.TypeChecking.Monad.Base".
 
 -- Andreas, 2014-05-03
 module Agda.TypeChecking.Monad.Base.KillRange where

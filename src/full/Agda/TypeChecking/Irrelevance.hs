@@ -20,7 +20,7 @@ import Agda.Utils.QuickCheck
 import Agda.Utils.TestHelpers
 
 -- | data 'Relevance'
---   see 'Agda.Syntax.Common'
+--   see "Agda.Syntax.Common".
 
 irrelevantOrUnused :: Relevance -> Bool
 irrelevantOrUnused Irrelevant = True

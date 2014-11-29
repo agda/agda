@@ -4,7 +4,7 @@
 {-# LANGUAGE PatternGuards              #-}
 {-# LANGUAGE TupleSections              #-}
 
--- | Strict tries (based on 'Data.Map.Strict' and 'Agda.Utils.Maybe.Strict').
+-- | Strict tries (based on "Data.Map.Strict" and "Agda.Utils.Maybe.Strict").
 
 module Agda.Utils.Trie
   ( Trie

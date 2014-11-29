@@ -61,7 +61,7 @@ deepUnScope = mapExpr unScope
 -- * Traversal
 
 -- | Apply an expression rewriting to every subexpression, inside-out.
---   See 'Agda.Syntax.Internal.Generic'
+--   See "Agda.Syntax.Internal.Generic".
 class ExprLike a where
   foldExpr :: Monoid m => (Expr -> m) -> a -> m
   traverseExpr :: (Monad m, Applicative m) => (Expr -> m Expr) -> a -> m a
