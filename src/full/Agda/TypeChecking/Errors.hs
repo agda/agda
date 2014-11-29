@@ -366,9 +366,13 @@ instance PrettyTCM TypeError where
                    pwords "(did you supply too many arguments?)"
             TooManyArgumentsInLHS a -> fsep $
               pwords "Left hand side gives too many arguments to a function of type" ++ [prettyTCM a]
+
             WrongNumberOfConstructorArguments c expect given -> fsep $
-              pwords "The constructor" ++ [prettyTCM c] ++ pwords "expects" ++
-              [text (show expect)] ++ pwords "arguments (including hidden ones), but has been given" ++ [text (show given)] ++ pwords "(including hidden ones)"
+              pwords "The constructor" ++ [prettyTCM c] ++
+              pwords "expects" ++ [text (show expect)] ++
+              pwords "arguments (including hidden ones), but has been given"
+              ++ [text (show given)] ++ pwords "(including hidden ones)"
+
             CantResolveOverloadedConstructorsTargetingSameDatatype d cs -> fsep $
               pwords ("Can't resolve overloaded constructors targeting the same datatype ("
               ++ show (qnameToConcrete d) ++ "):")
@@ -910,83 +914,109 @@ instance PrettyTCM SplitError where
       pwords "Split failed:" ++ pwords s
 
 instance PrettyTCM Call where
-    prettyTCM c = case c of
-        CheckClause t cl _  -> fsep $
-            pwords "when checking that the clause"
-            ++ [AP.prettyA cl] ++ pwords "has type" ++ [prettyTCM t]
-        CheckPattern p tel t _ -> addCtxTel tel $ fsep $
-            pwords "when checking that the pattern"
-            ++ [prettyA p] ++ pwords "has type" ++ [prettyTCM t]
-        CheckLetBinding b _ -> fsep $
-            pwords "when checking the let binding" ++ [AP.prettyA b]
-        InferExpr e _ -> fsep $
-            pwords "when inferring the type of" ++ [prettyA e]
-        CheckExprCall e t _ -> fsep $
-            pwords "when checking that the expression"
-            ++ [prettyA e] ++ pwords "has type" ++ [prettyTCM t]
-        IsTypeCall e s _ -> fsep $
-            pwords "when checking that the expression"
-            ++ [prettyA e] ++ pwords "is a type of sort" ++ [prettyTCM s]
-        IsType_ e _ -> fsep $
-            pwords "when checking that the expression"
-            ++ [prettyA e] ++ pwords "is a type"
-        CheckArguments r es t0 t1 _ -> fsep $
-            pwords "when checking that" ++
-            map hPretty es ++ pwords "are valid arguments to a function of type" ++ [prettyTCM t0]
-        CheckRecDef _ x ps cs _ ->
-            fsep $ pwords "when checking the definition of" ++ [prettyTCM x]
-        CheckDataDef _ x ps cs _ ->
-            fsep $ pwords "when checking the definition of" ++ [prettyTCM x]
-        CheckConstructor d _ _ (A.Axiom _ _ _ c _) _ -> fsep $
-            pwords "when checking the constructor" ++ [prettyTCM c] ++
-            pwords "in the declaration of" ++ [prettyTCM d]
-        CheckConstructor _ _ _ _ _ -> __IMPOSSIBLE__
-        CheckFunDef _ f _ _ ->
-            fsep $ pwords "when checking the definition of" ++ [prettyTCM f]
-        CheckPragma _ p _ ->
-            fsep $ pwords "when checking the pragma" ++ [prettyA $ RangeAndPragma noRange p]
-        CheckPrimitive _ x e _ -> fsep $
-            pwords "when checking that the type of the primitive function" ++
-            [prettyTCM x] ++ pwords "is" ++ [prettyA e]
-        CheckWithFunctionType e _ -> fsep $
-            pwords "when checking that the type" ++
-            [prettyA e] ++ pwords "of the generated with function is well-formed"
-        CheckDotPattern e v _ -> fsep $
-            pwords "when checking that the given dot pattern" ++ [prettyA e] ++
-            pwords "matches the inferred value" ++ [prettyTCM v]
-        CheckPatternShadowing c _ -> fsep $
-            pwords "when checking the clause" ++ [AP.prettyA c]
-        InferVar x _ ->
-            fsep $ pwords "when inferring the type of" ++ [prettyTCM x]
-        InferDef _ x _ ->
-            fsep $ pwords "when inferring the type of" ++ [prettyTCM x]
-        CheckIsEmpty r t _ ->
-            fsep $ pwords "when checking that" ++ [prettyTCM t] ++ pwords "has no constructors"
-        ScopeCheckExpr e _ ->
-            fsep $ pwords "when scope checking" ++ [pretty e]
-        ScopeCheckDeclaration d _ ->
-            fwords "when scope checking the declaration" $$
-            nest 2 (pretty $ simpleDecl d)
-        ScopeCheckLHS x p _ ->
-            fsep $ pwords "when scope checking the left-hand side" ++ [pretty p] ++
-                   pwords "in the definition of" ++ [pretty x]
-        NoHighlighting _ -> empty
-        SetRange r _ ->
-            fsep (pwords "when doing something at") <+> prettyTCM r
-        CheckSectionApplication _ m1 modapp _ -> fsep $
-          pwords "when checking the module application" ++
-          [prettyA $ A.Apply info m1 modapp Map.empty Map.empty]
-          where
-            info = A.ModuleInfo noRange noRange Nothing Nothing Nothing
+  prettyTCM c = case c of
+    CheckClause t cl _  -> fsep $
+      pwords "when checking that the clause"
+      ++ [AP.prettyA cl] ++ pwords "has type" ++ [prettyTCM t]
 
-        where
-            hPretty :: I.Arg (Named_ Expr) -> TCM Doc
-            hPretty a = do
-                info <- reify $ argInfo a
-                pretty =<< (abstractToConcreteCtx (hiddenArgumentCtx (getHiding a))
-                         $ Common.Arg info $ unArg a)
+    CheckPattern p tel t _ -> addCtxTel tel $ fsep $
+      pwords "when checking that the pattern"
+      ++ [prettyA p] ++ pwords "has type" ++ [prettyTCM t]
 
-            simpleDecl = D.notSoNiceDeclaration
+    CheckLetBinding b _ -> fsep $
+      pwords "when checking the let binding" ++ [AP.prettyA b]
+
+    InferExpr e _ -> fsep $ pwords "when inferring the type of" ++ [prettyA e]
+
+    CheckExprCall e t _ -> fsep $
+      pwords "when checking that the expression"
+      ++ [prettyA e] ++ pwords "has type" ++ [prettyTCM t]
+
+    IsTypeCall e s _ -> fsep $
+      pwords "when checking that the expression"
+      ++ [prettyA e] ++ pwords "is a type of sort" ++ [prettyTCM s]
+
+    IsType_ e _ -> fsep $
+      pwords "when checking that the expression"
+      ++ [prettyA e] ++ pwords "is a type"
+
+    CheckArguments r es t0 t1 _ -> fsep $
+      pwords "when checking that" ++
+      map hPretty es ++ pwords "are valid arguments to a function of type"
+      ++ [prettyTCM t0]
+
+    CheckRecDef _ x ps cs _ ->
+      fsep $ pwords "when checking the definition of" ++ [prettyTCM x]
+
+    CheckDataDef _ x ps cs _ ->
+      fsep $ pwords "when checking the definition of" ++ [prettyTCM x]
+
+    CheckConstructor d _ _ (A.Axiom _ _ _ c _) _ -> fsep $
+      pwords "when checking the constructor" ++ [prettyTCM c] ++
+      pwords "in the declaration of" ++ [prettyTCM d]
+
+    CheckConstructor _ _ _ _ _ -> __IMPOSSIBLE__
+
+    CheckFunDef _ f _ _ ->
+      fsep $ pwords "when checking the definition of" ++ [prettyTCM f]
+
+    CheckPragma _ p _ ->
+      fsep $ pwords "when checking the pragma"
+             ++ [prettyA $ RangeAndPragma noRange p]
+
+    CheckPrimitive _ x e _ -> fsep $
+      pwords "when checking that the type of the primitive function" ++
+      [prettyTCM x] ++ pwords "is" ++ [prettyA e]
+
+    CheckWithFunctionType e _ -> fsep $
+      pwords "when checking that the type" ++
+      [prettyA e] ++ pwords "of the generated with function is well-formed"
+
+    CheckDotPattern e v _ -> fsep $
+      pwords "when checking that the given dot pattern" ++ [prettyA e] ++
+      pwords "matches the inferred value" ++ [prettyTCM v]
+
+    CheckPatternShadowing c _ -> fsep $
+      pwords "when checking the clause" ++ [AP.prettyA c]
+
+    InferVar x _ ->
+      fsep $ pwords "when inferring the type of" ++ [prettyTCM x]
+
+    InferDef _ x _ ->
+      fsep $ pwords "when inferring the type of" ++ [prettyTCM x]
+
+    CheckIsEmpty r t _ ->
+      fsep $ pwords "when checking that" ++ [prettyTCM t] ++
+             pwords "has no constructors"
+
+    ScopeCheckExpr e _ -> fsep $ pwords "when scope checking" ++ [pretty e]
+
+    ScopeCheckDeclaration d _ ->
+      fwords "when scope checking the declaration" $$
+      nest 2 (pretty $ simpleDecl d)
+
+    ScopeCheckLHS x p _ ->
+      fsep $ pwords "when scope checking the left-hand side" ++ [pretty p] ++
+             pwords "in the definition of" ++ [pretty x]
+
+    NoHighlighting _ -> empty
+
+    SetRange r _ -> fsep (pwords "when doing something at") <+> prettyTCM r
+
+    CheckSectionApplication _ m1 modapp _ -> fsep $
+      pwords "when checking the module application" ++
+      [prettyA $ A.Apply info m1 modapp Map.empty Map.empty]
+      where
+      info = A.ModuleInfo noRange noRange Nothing Nothing Nothing
+
+    where
+    hPretty :: I.Arg (Named_ Expr) -> TCM Doc
+    hPretty a = do
+      info <- reify $ argInfo a
+      pretty =<< (abstractToConcreteCtx (hiddenArgumentCtx (getHiding a))
+              $ Common.Arg info $ unArg a)
+
+    simpleDecl = D.notSoNiceDeclaration
 
 ---------------------------------------------------------------------------
 -- * Natural language
