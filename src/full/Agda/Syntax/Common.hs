@@ -526,7 +526,7 @@ type RString = Ranged RawName
 ---------------------------------------------------------------------------
 
 -- | Functions can be defined in both infix and prefix style. See
---   "Agda.Syntax.Concrete.LHS".
+--   'Agda.Syntax.Concrete.LHS'.
 data IsInfix = InfixDef | PrefixDef
     deriving (Typeable, Show, Eq, Ord)
 

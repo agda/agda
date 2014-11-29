@@ -54,7 +54,7 @@ data Scope = Scope
       }
   deriving (Typeable)
 
--- | See "Agda.Syntax.Common.Access".
+-- | See 'Agda.Syntax.Common.Access'.
 data NameSpaceId
   = PrivateNS        -- ^ Things not exported by this module.
   | PublicNS         -- ^ Things defined and exported by this module.

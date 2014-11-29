@@ -3,7 +3,7 @@
 {-# LANGUAGE TypeSynonymInstances #-}
 
 -- | Generic traversal and reduce for concrete syntax,
---   in the style of 'Agda.Syntax.Internal.Generic'.
+--   in the style of "Agda.Syntax.Internal.Generic".
 --
 --   However, here we use the terminology of 'Data.Traversable'.
 
