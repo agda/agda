@@ -63,6 +63,7 @@ type CoreCode = String
 
 compileUHCAgdaBase :: TCM ()
 compileUHCAgdaBase = do
+    -- TODO we should not do this in the data directory, it may be read only...
 
     -- TODO only compile uhc-agda-base when we have to
     dataDir <- (</> "uhc-agda-base") <$> liftIO getDataDir
@@ -145,6 +146,7 @@ compileModule i = do
 --    cm <- gets compiledModules
     let moduleName = iModuleName i
     let topModuleName = toTopLevelModuleName moduleName
+    inFile <- findFile topModuleName
     file  <- outFile topModuleName
 --    case M.lookup moduleName cm of
     case Nothing of
@@ -157,30 +159,65 @@ compileModule i = do
             modInfos <- mapM compileModule imports
 --            let imps = S.unions limps
 --            modify $ \s -> s { importedModules = importedModules s `mappend` mconcat ifaces }
---            ifile <- maybe __IMPOSSIBLE__ filePath <$> lift (findInterfaceFile moduleName)
---            let eifFile = file <.> "aei"
---            uptodate <- liftIO $ isNewerThan eifFile ifile
--- PH : TODO see missing instance problem in readEInterface
-{-            (eif, imps') <- case uptodate of
-                True  -> do
-                    lift $ reportSLn "" 1 $
-                        show (iModuleName i) ++ " : no compilation is needed."
-                    eif <- readEInterface eifFile
-                    modify $ \s -> s { curModule = eif }
-                    return (eif, S.insert file imps)
-                False -> do-}
-            modInfo <- do
+            ifile <- maybe __IMPOSSIBLE__ filePath <$> findInterfaceFile topModuleName
+            let uifFile = file <.> "aui"
+            uptodate <- liftIO $ isNewerThan uifFile ifile
+            reportSLn "UHC" 15 $ "Interface file " ++ uifFile ++ " is uptodate: " ++ show uptodate
+            modInfo <- case uptodate of
+              True  -> do
+                    reportSLn "" 5 $
+                        show moduleName ++ " : UHC backend interface file is up to date."
+                    uif <- readModInfoFile uifFile
+                    case uif of
+                      Nothing -> do
+                        reportSLn "" 5 $
+                            show moduleName ++ " : Could not read UHC interface file, will compile this module from scratch."
+                        return Nothing
+                      Just uif' -> do
+                        -- now check if the versions inside modInfos match with the dep info
+                        let deps = amiDepsVersion uif'
+                        if depsMatch deps modInfos then do
+                          reportSLn "" 1 $
+                            show moduleName ++ " : module didn't change, skipping it."
+                          return $ Just uif'
+                        else
+                          return Nothing
+              False -> return Nothing
+
+            case modInfo of
+              Just x  -> return x
+              Nothing -> do
                     reportSLn "" 1 $
                         "Compiling: " ++ show (iModuleName i)
 --                    initialAnalysis i
                     let defns = HMap.toList $ sigDefinitions $ iSignature i
                     (code, modInfo, amod) <- compileDefns moduleName modInfos defns
-
                     runUHC file code
---                    eif <- gets curModule
+                    -- TODO enable again, but we ahve to properly handle output dirs first...
+--                    writeModInfoFile uifFile modInfo
                     return modInfo
-            return modInfo
 
+  where depsMatch :: [(ModuleName, ModVersion)] -> [AModuleInfo] -> Bool
+        depsMatch modDeps otherMods = all (checkDep otherMods) modDeps
+        checkDep :: [AModuleInfo] -> (ModuleName, ModVersion) -> Bool
+        checkDep otherMods (nm, v) = case find ((nm==) . amiModule) otherMods of
+                    Just v' -> (amiVersion v') == v
+                    Nothing -> False
+
+readModInfoFile :: String -> TCM (Maybe AModuleInfo)
+readModInfoFile f = do
+  modInfo <- liftIO (BS.readFile f) >>= decode
+  return $ maybe Nothing (\mi ->
+    if amiFileVersion mi == currentModInfoVersion
+        && amiAgdaVersion mi == currentInterfaceVersion then
+      Just mi
+    else
+      Nothing) modInfo
+
+writeModInfoFile :: String -> AModuleInfo -> TCM ()
+writeModInfoFile f mi = do
+  mi' <- encode mi
+  liftIO $ BS.writeFile f mi'
 
 getMain :: MonadTCM m => Interface -> m QName
 getMain iface = case concatMap f defs of
@@ -297,11 +334,9 @@ setUHCDir mainI = do
 runUHC :: FilePath -> EC.CModule -> TCM ()
 runUHC fp code = do
     fp' <- writeCoreFile fp code
---    liftIO $ putSerializeFile (fp <.> "hi") hi
-    -- this is a hack, fix this for supporting multiple agda modules
     callUHC False fp'
 
--- | Create the Epic main file, which calls the Agda main function
+-- | Create the UHC Core main file, which calls the Agda main function
 runUhcMain :: HsName -> ModuleName -> TCM ()
 runUhcMain mainName modNm = do
     let fp = "Main"
@@ -322,7 +357,7 @@ callUHC1 args = do
     when doCall (callCompiler ehcBin args)
 
 getEhcBin :: TCM FilePath
-getEhcBin = fromMaybe ("ehc") . optUHCEhcBin <$> commandLineOptions
+getEhcBin = fromMaybe ("uhc") . optUHCEhcBin <$> commandLineOptions
 
 #else
 

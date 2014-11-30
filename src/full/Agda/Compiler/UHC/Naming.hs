@@ -1,4 +1,4 @@
-{-# LANGUAGE CPP, DoAndIfThenElse #-}
+{-# LANGUAGE CPP, DoAndIfThenElse, DeriveDataTypeable #-}
 -- | Converts Agda names to Haskell/Core names.
 --
 -- There are the following type of names in Agda:
@@ -20,7 +20,7 @@
 --   level (or a type error will be emitted).
 
 module Agda.Compiler.UHC.Naming
-  ( NameMap
+  ( NameMap (..) -- we have to export the constructor for the EmbPrj instance in Typechecking/Serialise.
   , AgdaName (..)
   , CoreName (..)
   , EntityType (..)
@@ -42,6 +42,7 @@ import qualified Data.Map as M
 import Control.Monad.State
 import Control.Applicative
 import Data.Monoid
+import Data.Typeable (Typeable)
 
 import Agda.Syntax.Abstract.Name
 import Agda.TypeChecking.Monad
@@ -55,7 +56,7 @@ data EntityType
   = EtDatatype
   | EtConstructor
   | EtFunction
-  deriving (Eq, Ord, Show)
+  deriving (Eq, Ord, Show, Typeable)
 
 data AgdaCoreExport
   = AceNo       -- ^ Don't export.
@@ -80,7 +81,7 @@ data CoreName
   , cnAgdaExported :: Bool  -- ^ True if the name is exported on the Agda level.
   , cnCoreExported :: Bool  -- ^ True if the name is exported on the Core level.
   }
-  deriving (Show)
+  deriving (Show, Typeable)
 
 -- | Contains the mapping between Agda and Core names.
 --
@@ -89,7 +90,7 @@ data CoreName
 data NameMap
   = NameMap
   { mapping :: M.Map QName CoreName }
-  deriving (Show)
+  deriving (Show, Typeable)
 
 instance Monoid NameMap where
   mempty = NameMap M.empty

@@ -26,6 +26,7 @@ module Agda.TypeChecking.Serialise
   ( encode, encodeFile, encodeInterface
   , decode, decodeFile, decodeInterface, decodeHashes
   , EmbPrj
+  , currentInterfaceVersion
   )
   where
 
@@ -54,9 +55,14 @@ import qualified Data.List as List
 import Data.Function
 import Data.Typeable ( cast, Typeable, typeOf, TypeRep )
 import qualified Codec.Compression.GZip as G
+import Data.Time.Clock
+import Data.Ratio
 
 import qualified Agda.Compiler.Epic.Interface as Epic
 import qualified Agda.Compiler.UHC.CoreSyntax as CR
+import qualified Agda.Compiler.UHC.ModuleInfo as UHC
+import qualified Agda.Compiler.UHC.AuxAST as UHCA
+import qualified Agda.Compiler.UHC.Naming as UHCN
 import qualified UHC.Util.Serialize as UU
 
 import Agda.Syntax.Common
@@ -455,6 +461,12 @@ instance EmbPrj Double where
   icod_   = icodeDouble
   value i = (! i) `fmap` gets doubleE
 
+instance EmbPrj Rational where
+  icod_ r = icode2' (numerator r) (denominator r)
+  value = vcase valu where
+    valu [a, b] = valu2 (%) a b
+    valu _      = malformed
+
 instance EmbPrj () where
   icod_ () = icode0'
   value = vcase valu where valu [] = valu0 ()
@@ -490,6 +502,12 @@ instance EmbPrj Bool where
   value = vcase valu where valu []  = valu0 True
                            valu [0] = valu0 False
                            valu _   = malformed
+
+instance EmbPrj NominalDiffTime where
+  icod_ a = icode1' (toRational a)
+  value = vcase valu where
+    valu [a] = valu1 fromRational a
+    valu _   = malformed
 
 instance EmbPrj AbsolutePath where
   icod_ file = do
@@ -1473,6 +1491,74 @@ instance EmbPrj Epic.Tag where
     valu [0, a] = valu1 Epic.Tag a
     valu [1, a] = valu1 Epic.PrimTag a
     valu _      = malformed
+
+-- Used by UHC backend. Will be stored in a seperate file,
+-- not part of the .agdai files. Should be moved somewhere else.
+instance EmbPrj UHC.AModuleInfo where
+  icod_ (UHC.AModuleInfo a b c d e f g) = icode7' a b c d e f g
+  value = vcase valu where
+    valu [a, b, c, d, e, f, g] = valu7 UHC.AModuleInfo a b c d e f g
+    valu _ = malformed
+
+instance EmbPrj UHC.AModuleInterface where
+  icod_ (UHC.AModuleInterface a b) = icode2' a b
+  value = vcase valu where
+    valu [a, b] = valu2 UHC.AModuleInterface a b
+    valu _      = malformed
+
+instance EmbPrj UHC.AConInfo where
+  icod_ (UHC.AConInfo a b) = icode2' a b
+  value = vcase valu where
+    valu [a, b] = valu2 UHC.AConInfo a b
+    valu _      = malformed
+
+instance EmbPrj UHCA.ADataTy where
+  icod_ (UHCA.ADataTy a b c d) = icode4' a b c d
+  value = vcase valu where
+    valu [a, b, c, d] = valu4 UHCA.ADataTy a b c d
+    valu _            = malformed
+
+instance EmbPrj UHCA.ADataCon where
+  icod_ (UHCA.ADataCon a b c) = icode3' a b c
+  value = vcase valu where
+    valu [a, b, c] = valu3 UHCA.ADataCon a b c
+    valu _         = malformed
+
+instance EmbPrj UHCA.ADataImplType where
+  icod_ (UHCA.ADataImplNormal)      = icode0 0
+  icod_ (UHCA.ADataImplBuiltin a)   = icode1 1 a
+  icod_ (UHCA.ADataImplForeign)     = icode0 2
+  value = vcase valu where
+    valu [0]    = valu0 UHCA.ADataImplNormal
+    valu [1, a] = valu1 UHCA.ADataImplBuiltin a
+    valu [2]    = valu0 UHCA.ADataImplForeign
+    valu _      = malformed
+
+instance EmbPrj UHCN.NameMap where
+  icod_ (UHCN.NameMap a) = icode1' a
+  value = vcase valu where
+    valu [a] = valu1 UHCN.NameMap a
+    valu _   = malformed
+
+instance EmbPrj UHCA.CTag where
+  icod_ = icode . B.runPut . UU.serialize
+  value n = value n >>= return . (B.runGet UU.unserialize)
+
+instance EmbPrj UHCN.CoreName where
+  icod_ (UHCN.CoreName a b c d) = icode4' a b c d
+  value = vcase valu where
+    valu [a, b, c, d] = valu4 UHCN.CoreName a b c d
+    valu _            = malformed
+
+instance EmbPrj UHCN.EntityType where
+  icod_ UHCN.EtDatatype     = icode0 0
+  icod_ UHCN.EtConstructor  = icode0 1
+  icod_ UHCN.EtFunction     = icode0 2
+  value = vcase valu where
+    valu [0] = valu0 UHCN.EtDatatype
+    valu [1] = valu0 UHCN.EtConstructor
+    valu [2] = valu0 UHCN.EtFunction
+    valu _   = malformed
 
 -- Specializing icodeX leads to Warning like
 -- src/full/Agda/TypeChecking/Serialise.hs:1297:1: Warning:

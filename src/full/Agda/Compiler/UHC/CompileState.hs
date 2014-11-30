@@ -31,6 +31,7 @@ import Data.Maybe
 import Data.Monoid
 import Data.Set(Set)
 import qualified Data.Set as S
+import Data.Time.Clock.POSIX
 
 import Agda.Compiler.UHC.AuxAST as AuxAST
 import Agda.Compiler.UHC.ModuleInfo
@@ -42,6 +43,7 @@ import Agda.TypeChecking.Monad (MonadTCM, TCM, internalError, defType, theDef, g
 import qualified Agda.TypeChecking.Monad as TM
 import Agda.TypeChecking.Reduce
 import Agda.Compiler.UHC.Naming
+import Agda.TypeChecking.Serialise (currentInterfaceVersion)
 
 import qualified Agda.Utils.HashMap as HM
 import Agda.Utils.Lens
@@ -63,7 +65,7 @@ data CompileState = CompileState
 type CompileT = StateT CompileState
 
 -- | The initial (empty) state
-runCompileT :: Monad m
+runCompileT :: MonadIO m
     => ModuleName   -- ^ The module to compile.
     -> [AModuleInfo] -- ^ Imported module info (non-transitive).
     -> NameMap      -- ^ NameMap for the current module (non-transitive).
@@ -72,10 +74,16 @@ runCompileT :: Monad m
 runCompileT mod impMods nmMp comp = do
   (result, state') <- runStateT comp initial
 
+  version <- liftIO getPOSIXTime
+
   let modInfo = AModuleInfo
-        { amiModule = mod
+        { amiFileVersion = currentModInfoVersion
+        , amiAgdaVersion = currentInterfaceVersion
+        , amiModule = mod
         , amiInterface = moduleInterface state'
         , amiCurNameMp = nmMp
+        , amiVersion = version
+        , amiDepsVersion = [ (amiModule m, amiVersion m) |  m <- impMods]
         }
 
   return (result, modInfo) 

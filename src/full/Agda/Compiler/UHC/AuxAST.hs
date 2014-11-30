@@ -1,14 +1,17 @@
 {-# LANGUAGE CPP #-}
+{-# LANGUAGE DeriveDataTypeable #-}
 -- | Intermediate abstract syntax tree used in the compiler. Pretty close to
 --   UHC Core syntax.
 module Agda.Compiler.UHC.AuxAST
   ( module Agda.Compiler.UHC.AuxAST
+  , CTag
   , HsName
   )
 where
 
 import Data.Set (Set)
 import qualified Data.Set as S
+import Data.Typeable (Typeable)
 
 import Agda.Syntax.Abstract.Name
 
@@ -36,13 +39,13 @@ data ADataTy
       , xdatCons     :: [ADataCon]
       , xdatImplType :: ADataImplType
       }
-  deriving (Eq, Ord, Show)
+  deriving (Eq, Ord, Show, Typeable)
 
 data ADataImplType
   = ADataImplNormal  -- normal agda datatype
   | ADataImplBuiltin String
   | ADataImplForeign -- COMPILED_CORE pragma
-  deriving (Eq, Ord, Show)
+  deriving (Eq, Ord, Show, Typeable)
 
 data ADataCon
   = ADataCon
@@ -50,7 +53,7 @@ data ADataCon
       , xconArity    :: Int
       , xconCTag     :: CTag
       }
-  deriving (Eq, Ord, Show)
+  deriving (Eq, Ord, Show, Typeable)
 
 data Fun
   = Fun
