@@ -369,14 +369,15 @@ instance PrettyTCM TypeError where
 
             WrongNumberOfConstructorArguments c expect given -> fsep $
               pwords "The constructor" ++ [prettyTCM c] ++
-              pwords "expects" ++ [text (show expect)] ++
+              pwords "expects" ++ [prettyTCM expect] ++
               pwords "arguments (including hidden ones), but has been given"
-              ++ [text (show given)] ++ pwords "(including hidden ones)"
+              ++ [prettyTCM given] ++ pwords "(including hidden ones)"
 
             CantResolveOverloadedConstructorsTargetingSameDatatype d cs -> fsep $
-              pwords ("Can't resolve overloaded constructors targeting the same datatype ("
-              ++ show (qnameToConcrete d) ++ "):")
+              pwords "Can't resolve overloaded constructors targeting the same datatype"
+              ++ [(parens $ prettyTCM (qnameToConcrete d)) <> colon]
               ++ map pretty cs
+
             DoesNotConstructAnElementOf c t -> fsep $
               pwords "The constructor" ++ [prettyTCM c] ++
               pwords "does not construct an element of" ++ [prettyTCM t]
@@ -541,21 +542,28 @@ instance PrettyTCM TypeError where
             AbsurdPatternRequiresNoRHS ps -> fwords $
                 "The right-hand side must be omitted if there " ++
                 "is an absurd pattern, () or {}, in the left-hand side."
+
             LocalVsImportedModuleClash m -> fsep $
-                pwords "The module" ++ [text $ show m] ++
-                pwords "can refer to either a local module or an imported module"
+              pwords "The module" ++ [prettyTCM m] ++
+              pwords "can refer to either a local module or an imported module"
+
             SolvedButOpenHoles -> text "Module cannot be imported since it has open interaction points"
             UnsolvedMetas rs ->
                 fsep ( pwords "Unsolved metas at the following locations:" )
                 $$ nest 2 (vcat $ map prettyTCM rs)
+
             UnsolvedConstraints cs ->
-                fsep ( pwords "Failed to solve the following constraints:" )
-                $$ nest 2 (vcat $ map prettyConstraint cs)
+              fsep ( pwords "Failed to solve the following constraints:" )
+              $$ nest 2 (vcat $ map prettyConstraint cs)
+
               where prettyConstraint :: ProblemConstraint -> TCM Doc
                     prettyConstraint c = f (prettyTCM c)
                       where
-                        r   = getRange c
-                        f d = if null (show r) then d else d $$ nest 4 (text "[ at" <+> prettyTCM r  <+> text "]")
+                      r   = getRange c
+                      f d = if P.pretty r == P.empty
+                            then d
+                            else d $$ nest 4 (text "[ at" <+> prettyTCM r <+> text "]")
+
             CyclicModuleDependency ms ->
                 fsep (pwords "cyclic module dependency:")
                 $$ nest 2 (vcat $ map pretty ms)
@@ -574,10 +582,12 @@ instance PrettyTCM TypeError where
                        [pretty x] ++
                        pwords "could refer to any of the following files:"
                      ) $$ nest 2 (vcat $ map (text . filePath) files)
+
             ClashingFileNamesFor x files ->
-                fsep ( pwords "Multiple possible sources for module" ++ [text $ show x] ++
-                       pwords "found:"
-                     ) $$ nest 2 (vcat $ map (text . filePath) files)
+              fsep ( pwords "Multiple possible sources for module"
+                     ++ [prettyTCM x] ++ pwords "found:"
+                   ) $$ nest 2 (vcat $ map (text . filePath) files)
+
             ModuleDefinedInOtherFile mod file file' -> fsep $
               pwords "You tried to load" ++ [text (filePath file)] ++
               pwords "which defines the module" ++ [pretty mod <> text "."] ++
@@ -589,16 +599,21 @@ instance PrettyTCM TypeError where
               $$ nest 2 (vcat $ map (text . filePath) files)
             BothWithAndRHS -> fsep $
               pwords "Unexpected right hand side"
+
             NotInScope xs ->
-                fsep (pwords "Not in scope:") $$ nest 2 (vcat $ map name xs)
+              fsep (pwords "Not in scope:") $$ nest 2 (vcat $ map name xs)
+              where
+              name x = fsep [ pretty x
+                            , text "at" <+> prettyTCM (getRange x)
+                            , suggestion (P.prettyShow x)
+                            ]
+              suggestion s
+                | elem ':' s    = parens $ text "did you forget space around the ':'?"
+                | elem "->" two = parens $ text "did you forget space around the '->'?"
+                | otherwise     = empty
                 where
-                  name x = fsep [ pretty x, text "at" <+> prettyTCM (getRange x), suggestion (show x) ]
-                  suggestion s
-                    | elem ':' s    = parens $ text "did you forget space around the ':'?"
-                    | elem "->" two = parens $ text "did you forget space around the '->'?"
-                    | otherwise     = empty
-                    where
-                      two = zipWith (\a b -> [a,b]) s (tail s)
+                  two = zipWith (\a b -> [a,b]) s (tail s)
+
             NoSuchModule x -> fsep $
                 pwords "No such module" ++ [pretty x]
             AmbiguousName x ys -> vcat
@@ -774,31 +789,34 @@ instance PrettyTCM TypeError where
               pwords "Cannot eliminate reflexive equation" ++ [prettyTCM u] ++ pwords "=" ++ [prettyTCM v] ++ pwords "of type" ++ [prettyTCM a] ++ pwords "because K has been disabled."
 
             NotStrictlyPositive d ocs -> fsep $
-                pwords "The datatype" ++ [prettyTCM d] ++ pwords "is not strictly positive, because"
-                ++ prettyOcc "it" ocs
-                where
-                    prettyOcc _ [] = []
-                    prettyOcc it (OccCon d c r : ocs) = concat
-                        [ pwords it, pwords "occurs", prettyR r
-                        , pwords "in the constructor", [prettyTCM c], pwords "of"
-                        , [prettyTCM d <> com ocs], prettyOcc "which" ocs
-                        ]
-                    prettyOcc it (OccClause f n r : ocs) = concat
-                        [ pwords it, pwords "occurs", prettyR r
-                        , pwords "in the", [th n], pwords "clause of"
-                        , [prettyTCM f <> com ocs], prettyOcc "which" ocs
-                        ]
-                    prettyR NonPositively = pwords "negatively"
-                    prettyR (ArgumentTo i q) =
-                        pwords "as the" ++ [th i] ++
-                        pwords "argument to" ++ [prettyTCM q]
-                    th 0 = text "first"
-                    th 1 = text "second"
-                    th 2 = text "third"
-                    th n = text (show $ n - 1) <> text "th"
+              pwords "The datatype" ++ [prettyTCM d] ++ pwords "is not strictly positive, because"
+              ++ prettyOcc "it" ocs
+              where
+                prettyOcc _ [] = []
+                prettyOcc it (OccCon d c r : ocs) = concat
+                  [ pwords it, pwords "occurs", prettyR r
+                  , pwords "in the constructor", [prettyTCM c], pwords "of"
+                  , [prettyTCM d <> com ocs], prettyOcc "which" ocs
+                  ]
+                prettyOcc it (OccClause f n r : ocs) = concat
+                  [ pwords it, pwords "occurs", prettyR r
+                  , pwords "in the", [th n], pwords "clause of"
+                  , [prettyTCM f <> com ocs], prettyOcc "which" ocs
+                  ]
 
-                    com []    = empty
-                    com (_:_) = comma
+                prettyR NonPositively = pwords "negatively"
+                prettyR (ArgumentTo i q) =
+                  pwords "as the" ++ [th i] ++
+                  pwords "argument to" ++ [prettyTCM q]
+
+                th 0 = text "first"
+                th 1 = text "second"
+                th 2 = text "third"
+                th n = prettyTCM (n - 1) <> text "th"
+
+                com []    = empty
+                com (_:_) = comma
+
             IFSNoCandidateInScope t -> fsep $
                 pwords "No variable of type" ++ [prettyTCM t] ++ pwords "was found in scope."
             UnquoteFailed e -> case e of
@@ -820,7 +838,7 @@ instance PrettyTCM TypeError where
                   fwords "Unable to unquote the term"
                   $$ nest 2 (prettyTCM t)
                   $$ fwords "of type Clause. Reason: the right-hand side contains variables that are referring to a dot pattern."
-                  $$ fwords ("Offending De Bruijn indices: " ++ intercalate ", " (map show ixs) ++ ".")
+                  $$ fwords ("Offending De Bruijn indices: " ++ intercalate ", " (map P.prettyShow ixs) ++ ".")
                 (BlockedOnMeta m) -> __IMPOSSIBLE__
                 (UnquotePanic err) -> __IMPOSSIBLE__
             SafeFlagPostulate e -> fsep $
@@ -852,8 +870,8 @@ instance PrettyTCM TypeError where
             prettyPat n (I.ConP c _ args) =
               mpar n args $
                 prettyTCM c <+> fsep (map (prettyArg . fmap namedThing) args)
-            prettyPat _ (I.LitP l) = text (show l)
-            prettyPat _ (I.ProjP p) = text (show p)
+            prettyPat _ (I.LitP l) = prettyTCM l
+            prettyPat _ (I.ProjP p) = prettyTCM p
 
 notCmp :: Comparison -> TCM Doc
 notCmp cmp = text $ "!" ++ show cmp
