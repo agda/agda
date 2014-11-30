@@ -22,11 +22,11 @@ import Text.PrettyPrint hiding (TextDetails(Str))
 --   implement 'pretty' as @pretty a = text $ ... a ...@.
 
 class Pretty a where
-    pretty      :: a -> Doc
-    prettyPrec  :: Int -> a -> Doc
+  pretty      :: a -> Doc
+  prettyPrec  :: Int -> a -> Doc
 
-    pretty      = prettyPrec 0
-    prettyPrec  = const pretty
+  pretty      = prettyPrec 0
+  prettyPrec  = const pretty
 
 -- | Use instead of 'show' when printing to world.
 
@@ -36,22 +36,22 @@ prettyShow = render . pretty
 -- * Pretty instances
 
 instance Pretty Int where
-    pretty = text . show
+  pretty = text . show
 
 instance Pretty Int32 where
-    pretty = text . show
+  pretty = text . show
 
 instance Pretty Integer where
-    pretty = text . show
+  pretty = text . show
 
 instance Pretty Char where
-    pretty c = text [c]
+  pretty c = text [c]
 
 instance Pretty String where
-    pretty = text
+  pretty = text
 
 instance Pretty Doc where
-    pretty = id
+  pretty = id
 
 -- * 'Doc' utilities
 

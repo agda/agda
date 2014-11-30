@@ -83,7 +83,7 @@ import Test.QuickCheck.All
 import Agda.Utils.FileName hiding (tests)
 import Agda.Utils.Maybe
 import Agda.Utils.Null
-import Agda.Utils.Pretty ( (<>), Pretty(pretty) )
+import Agda.Utils.Pretty as P
 import Agda.Utils.TestHelpers
 import Agda.Utils.QuickCheck
 
@@ -385,24 +385,29 @@ instance (KillRange a, KillRange b) => KillRange (Either a b) where
 -- instead.  Later, simply derive Show for these types:
 
 instance Show a => Show (Position' (Maybe a)) where
-    show (Pn Nothing  _ l c) = show l ++ "," ++ show c
-    show (Pn (Just f) _ l c) = show f ++ ":" ++ show l ++ "," ++ show c
+  show (Pn Nothing  _ l c) = show l ++ "," ++ show c
+  show (Pn (Just f) _ l c) = show f ++ ":" ++ show l ++ "," ++ show c
 
 instance Show a => Show (Interval' (Maybe a)) where
-    show (Interval s e) = file ++ start ++ "-" ++ end
-        where
-            f   = srcFile s
-            sl  = posLine s
-            el  = posLine e
-            sc  = posCol s
-            ec  = posCol e
-            file = case f of
-                     Nothing -> ""
-                     Just f  -> show f ++ ":"
-            start = show sl ++ "," ++ show sc
-            end
-                | sl == el  = show ec
-                | otherwise = show el ++ "," ++ show ec
+  show (Interval s e) = file ++ start ++ "-" ++ end
+    where
+      f  = srcFile s
+      sl = posLine s
+      el = posLine e
+      sc = posCol s
+      ec = posCol e
+
+      file :: String
+      file = case f of
+               Nothing -> ""
+               Just f  -> show f ++ ":"
+
+      start :: String
+      start = show sl ++ "," ++ show sc
+
+      end :: String
+      end | sl == el  = show ec
+          | otherwise = show el ++ "," ++ show ec
 
 instance Show a => Show (Range' (Maybe a)) where
   show r = case rangeToInterval r of
@@ -414,9 +419,35 @@ instance Show a => Show (Range' (Maybe a)) where
 ------------------------------------------------------------------------
 
 instance Pretty a => Pretty (Position' (Maybe a)) where
-    pretty (Pn Nothing  _ l c) = pretty l <> pretty "," <> pretty c
-    pretty (Pn (Just f) _ l c) =
-      pretty f <> pretty ":" <> pretty l <> pretty "," <> pretty c
+  pretty (Pn Nothing  _ l c) = pretty l <> pretty "," <> pretty c
+  pretty (Pn (Just f) _ l c) =
+    pretty f <> pretty ":" <> pretty l <> pretty "," <> pretty c
+
+instance Pretty a => Pretty (Interval' (Maybe a)) where
+  pretty (Interval s e) = file <> start <> pretty "-" <> end
+    where
+      f  = srcFile s
+      sl = posLine s
+      el = posLine e
+      sc = posCol s
+      ec = posCol e
+
+      file :: Doc
+      file = case f of
+               Nothing -> P.empty
+               Just f  -> pretty f <> colon
+
+      start :: Doc
+      start = pretty sl <> comma <> pretty sc
+
+      end :: Doc
+        | sl == el  = pretty ec
+        | otherwise = pretty el <> comma <> pretty ec
+
+instance Pretty a => Pretty (Range' (Maybe a)) where
+  pretty r = case rangeToInterval r of
+    Nothing -> P.empty
+    Just i  -> pretty i
 
 {--------------------------------------------------------------------------
     Functions on postitions and ranges

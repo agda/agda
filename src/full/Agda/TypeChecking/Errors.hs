@@ -4,12 +4,12 @@
 {-# LANGUAGE TypeSynonymInstances #-}
 
 module Agda.TypeChecking.Errors
-    ( prettyError
-    , PrettyTCM(..)
-    , tcErrString
-    , Warnings(..)
-    , warningsToError
-    ) where
+  ( prettyError
+  , PrettyTCM(..)
+  , tcErrString
+  , Warnings(..)
+  , warningsToError
+  ) where
 
 import Prelude hiding (null)
 
@@ -29,7 +29,7 @@ import qualified Agda.Syntax.Concrete as C
 import qualified Agda.Syntax.Concrete.Definitions as D
 import Agda.Syntax.Abstract as A
 import Agda.Syntax.Internal as I
-import qualified Agda.Syntax.Abstract.Pretty as P
+import qualified Agda.Syntax.Abstract.Pretty as AP
 import Agda.Syntax.Translation.InternalToAbstract
 import Agda.Syntax.Translation.AbstractToConcrete
 import Agda.Syntax.Scope.Monad (isDatatypeModule)
@@ -367,13 +367,18 @@ instance PrettyTCM TypeError where
                    pwords "(did you supply too many arguments?)"
             TooManyArgumentsInLHS a -> fsep $
               pwords "Left hand side gives too many arguments to a function of type" ++ [prettyTCM a]
+
             WrongNumberOfConstructorArguments c expect given -> fsep $
-              pwords "The constructor" ++ [prettyTCM c] ++ pwords "expects" ++
-              [text (show expect)] ++ pwords "arguments (including hidden ones), but has been given" ++ [text (show given)] ++ pwords "(including hidden ones)"
+              pwords "The constructor" ++ [prettyTCM c] ++
+              pwords "expects" ++ [prettyTCM expect] ++
+              pwords "arguments (including hidden ones), but has been given"
+              ++ [prettyTCM given] ++ pwords "(including hidden ones)"
+
             CantResolveOverloadedConstructorsTargetingSameDatatype d cs -> fsep $
-              pwords ("Can't resolve overloaded constructors targeting the same datatype ("
-              ++ show (qnameToConcrete d) ++ "):")
+              pwords "Can't resolve overloaded constructors targeting the same datatype"
+              ++ [(parens $ prettyTCM (qnameToConcrete d)) <> colon]
               ++ map pretty cs
+
             DoesNotConstructAnElementOf c t -> fsep $
               pwords "The constructor" ++ [prettyTCM c] ++
               pwords "does not construct an element of" ++ [prettyTCM t]
@@ -430,7 +435,7 @@ instance PrettyTCM TypeError where
             ShouldBeEmpty t ps -> fsep (
                 [prettyTCM t] ++
                 pwords "should be empty, but the following constructor patterns are valid:"
-              ) $$ nest 2 (vcat $ map (showPat 0) ps)
+              ) $$ nest 2 (vcat $ map (prettyPat 0) ps)
 
             ShouldBeASort t -> fsep $
                 [prettyTCM t] ++ pwords "should be a sort, but it isn't"
@@ -538,21 +543,28 @@ instance PrettyTCM TypeError where
             AbsurdPatternRequiresNoRHS ps -> fwords $
                 "The right-hand side must be omitted if there " ++
                 "is an absurd pattern, () or {}, in the left-hand side."
+
             LocalVsImportedModuleClash m -> fsep $
-                pwords "The module" ++ [text $ show m] ++
-                pwords "can refer to either a local module or an imported module"
+              pwords "The module" ++ [prettyTCM m] ++
+              pwords "can refer to either a local module or an imported module"
+
             SolvedButOpenHoles -> text "Module cannot be imported since it has open interaction points"
             UnsolvedMetas rs ->
                 fsep ( pwords "Unsolved metas at the following locations:" )
                 $$ nest 2 (vcat $ map prettyTCM rs)
+
             UnsolvedConstraints cs ->
-                fsep ( pwords "Failed to solve the following constraints:" )
-                $$ nest 2 (vcat $ map prettyConstraint cs)
+              fsep ( pwords "Failed to solve the following constraints:" )
+              $$ nest 2 (vcat $ map prettyConstraint cs)
+
               where prettyConstraint :: ProblemConstraint -> TCM Doc
                     prettyConstraint c = f (prettyTCM c)
                       where
-                        r   = getRange c
-                        f d = if null (show r) then d else d $$ nest 4 (text "[ at" <+> prettyTCM r  <+> text "]")
+                      r   = getRange c
+                      f d = if P.pretty r == P.empty
+                            then d
+                            else d $$ nest 4 (text "[ at" <+> prettyTCM r <+> text "]")
+
             CyclicModuleDependency ms ->
                 fsep (pwords "cyclic module dependency:")
                 $$ nest 2 (vcat $ map pretty ms)
@@ -571,10 +583,12 @@ instance PrettyTCM TypeError where
                        [pretty x] ++
                        pwords "could refer to any of the following files:"
                      ) $$ nest 2 (vcat $ map (text . filePath) files)
+
             ClashingFileNamesFor x files ->
-                fsep ( pwords "Multiple possible sources for module" ++ [text $ show x] ++
-                       pwords "found:"
-                     ) $$ nest 2 (vcat $ map (text . filePath) files)
+              fsep ( pwords "Multiple possible sources for module"
+                     ++ [prettyTCM x] ++ pwords "found:"
+                   ) $$ nest 2 (vcat $ map (text . filePath) files)
+
             ModuleDefinedInOtherFile mod file file' -> fsep $
               pwords "You tried to load" ++ [text (filePath file)] ++
               pwords "which defines the module" ++ [pretty mod <> text "."] ++
@@ -586,16 +600,21 @@ instance PrettyTCM TypeError where
               $$ nest 2 (vcat $ map (text . filePath) files)
             BothWithAndRHS -> fsep $
               pwords "Unexpected right hand side"
+
             NotInScope xs ->
-                fsep (pwords "Not in scope:") $$ nest 2 (vcat $ map name xs)
+              fsep (pwords "Not in scope:") $$ nest 2 (vcat $ map name xs)
+              where
+              name x = fsep [ pretty x
+                            , text "at" <+> prettyTCM (getRange x)
+                            , suggestion (P.prettyShow x)
+                            ]
+              suggestion s
+                | elem ':' s    = parens $ text "did you forget space around the ':'?"
+                | elem "->" two = parens $ text "did you forget space around the '->'?"
+                | otherwise     = empty
                 where
-                  name x = fsep [ pretty x, text "at" <+> prettyTCM (getRange x), suggestion (show x) ]
-                  suggestion s
-                    | elem ':' s    = parens $ text "did you forget space around the ':'?"
-                    | elem "->" two = parens $ text "did you forget space around the '->'?"
-                    | otherwise     = empty
-                    where
-                      two = zipWith (\a b -> [a,b]) s (tail s)
+                  two = zipWith (\a b -> [a,b]) s (tail s)
+
             NoSuchModule x -> fsep $
                 pwords "No such module" ++ [pretty x]
             AmbiguousName x ys -> vcat
@@ -742,7 +761,7 @@ instance PrettyTCM TypeError where
                 where
                   display ps = do
                     ps <- nicify f ps
-                    prettyTCM f <+> fsep (map showArg ps)
+                    prettyTCM f <+> fsep (map prettyArg ps)
 
                   nicify f ps = do
                     showImp <- showImplicitArguments
@@ -774,31 +793,34 @@ instance PrettyTCM TypeError where
               pwords "Cannot eliminate reflexive equation" ++ [prettyTCM u] ++ pwords "=" ++ [prettyTCM v] ++ pwords "of type" ++ [prettyTCM a] ++ pwords "because K has been disabled."
 
             NotStrictlyPositive d ocs -> fsep $
-                pwords "The datatype" ++ [prettyTCM d] ++ pwords "is not strictly positive, because"
-                ++ prettyOcc "it" ocs
-                where
-                    prettyOcc _ [] = []
-                    prettyOcc it (OccCon d c r : ocs) = concat
-                        [ pwords it, pwords "occurs", prettyR r
-                        , pwords "in the constructor", [prettyTCM c], pwords "of"
-                        , [prettyTCM d <> com ocs], prettyOcc "which" ocs
-                        ]
-                    prettyOcc it (OccClause f n r : ocs) = concat
-                        [ pwords it, pwords "occurs", prettyR r
-                        , pwords "in the", [th n], pwords "clause of"
-                        , [prettyTCM f <> com ocs], prettyOcc "which" ocs
-                        ]
-                    prettyR NonPositively = pwords "negatively"
-                    prettyR (ArgumentTo i q) =
-                        pwords "as the" ++ [th i] ++
-                        pwords "argument to" ++ [prettyTCM q]
-                    th 0 = text "first"
-                    th 1 = text "second"
-                    th 2 = text "third"
-                    th n = text (show $ n - 1) <> text "th"
+              pwords "The datatype" ++ [prettyTCM d] ++ pwords "is not strictly positive, because"
+              ++ prettyOcc "it" ocs
+              where
+                prettyOcc _ [] = []
+                prettyOcc it (OccCon d c r : ocs) = concat
+                  [ pwords it, pwords "occurs", prettyR r
+                  , pwords "in the constructor", [prettyTCM c], pwords "of"
+                  , [prettyTCM d <> com ocs], prettyOcc "which" ocs
+                  ]
+                prettyOcc it (OccClause f n r : ocs) = concat
+                  [ pwords it, pwords "occurs", prettyR r
+                  , pwords "in the", [th n], pwords "clause of"
+                  , [prettyTCM f <> com ocs], prettyOcc "which" ocs
+                  ]
 
-                    com []    = empty
-                    com (_:_) = comma
+                prettyR NonPositively = pwords "negatively"
+                prettyR (ArgumentTo i q) =
+                  pwords "as the" ++ [th i] ++
+                  pwords "argument to" ++ [prettyTCM q]
+
+                th 0 = text "first"
+                th 1 = text "second"
+                th 2 = text "third"
+                th n = prettyTCM (n - 1) <> text "th"
+
+                com []    = empty
+                com (_:_) = comma
+
             IFSNoCandidateInScope t -> fsep $
                 pwords "No variable of type" ++ [prettyTCM t] ++ pwords "was found in scope."
             UnquoteFailed e -> case e of
@@ -835,18 +857,20 @@ instance PrettyTCM TypeError where
               | n > 0 && not (null args) = parens
               | otherwise                = id
 
-            showArg :: I.Arg I.Pattern -> TCM Doc
-            showArg (Common.Arg info x) = case getHiding info of
-                    Hidden -> braces $ showPat 0 x
-                    Instance -> dbraces $ showPat 0 x
-                    NotHidden -> showPat 1 x
+            prettyArg :: I.Arg I.Pattern -> TCM Doc
+            prettyArg (Common.Arg info x) = case getHiding info of
+              Hidden    -> braces $ prettyPat 0 x
+              Instance  -> dbraces $ prettyPat 0 x
+              NotHidden -> prettyPat 1 x
 
-            showPat :: Integer -> I.Pattern -> TCM Doc
-            showPat _ (I.VarP _)        = text "_"
-            showPat _ (I.DotP _)        = text "._"
-            showPat n (I.ConP c _ args) = mpar n args $ prettyTCM c <+> fsep (map (showArg . fmap namedThing) args)
-            showPat _ (I.LitP l)        = text (show l)
-            showPat _ (I.ProjP p)       = text (show p)
+            prettyPat :: Integer -> I.Pattern -> TCM Doc
+            prettyPat _ (I.VarP _) = text "_"
+            prettyPat _ (I.DotP _) = text "._"
+            prettyPat n (I.ConP c _ args) =
+              mpar n args $
+                prettyTCM c <+> fsep (map (prettyArg . fmap namedThing) args)
+            prettyPat _ (I.LitP l) = prettyTCM l
+            prettyPat _ (I.ProjP p) = prettyTCM p
 
 notCmp :: Comparison -> TCM Doc
 notCmp cmp = text $ "!" ++ show cmp
@@ -860,7 +884,7 @@ prettyInEqual t1 t2 = do
   d2 <- prettyTCM t2
   (d1, d2,) <$> do
      -- if printed differently, no extra explanation needed
-    if P.render d1 /= P.render d2 then return P.empty else do
+    if P.render d1 /= P.render d2 then empty else do
       (v1, v2) <- instantiate (t1, t2)
       case (ignoreSharing v1, ignoreSharing v2) of
         (I.Var i1 _, I.Var i2 _)
@@ -872,11 +896,11 @@ prettyInEqual t1 t2 = do
         (I.Def{}, I.Var{}) -> varDef
         (I.Var{}, I.Con{}) -> varCon
         (I.Con{}, I.Var{}) -> varCon
-        _                  -> return P.empty
+        _                  -> empty
   where
-    varDef     = return $ P.parens $ P.fwords "because one is a variable and one a defined identifier"
-    varCon     = return $ P.parens $ P.fwords "because one is a variable and one a constructor"
-    varVar i j = return $ P.parens $ P.fwords $ "because one has deBruijn index " ++ show i ++ " and the other " ++ show j
+    varDef     = parens $ fwords "because one is a variable and one a defined identifier"
+    varCon     = parens $ fwords "because one is a variable and one a constructor"
+    varVar i j = parens $ fwords $ "because one has deBruijn index " ++ show i ++ " and the other " ++ show j
 
 class PrettyUnequal a where
   prettyUnequal :: a -> TCM Doc -> a -> TCM Doc
@@ -909,83 +933,109 @@ instance PrettyTCM SplitError where
       pwords "Split failed:" ++ pwords s
 
 instance PrettyTCM Call where
-    prettyTCM c = case c of
-        CheckClause t cl _  -> fsep $
-            pwords "when checking that the clause"
-            ++ [P.prettyA cl] ++ pwords "has type" ++ [prettyTCM t]
-        CheckPattern p tel t _ -> addCtxTel tel $ fsep $
-            pwords "when checking that the pattern"
-            ++ [prettyA p] ++ pwords "has type" ++ [prettyTCM t]
-        CheckLetBinding b _ -> fsep $
-            pwords "when checking the let binding" ++ [P.prettyA b]
-        InferExpr e _ -> fsep $
-            pwords "when inferring the type of" ++ [prettyA e]
-        CheckExprCall e t _ -> fsep $
-            pwords "when checking that the expression"
-            ++ [prettyA e] ++ pwords "has type" ++ [prettyTCM t]
-        IsTypeCall e s _ -> fsep $
-            pwords "when checking that the expression"
-            ++ [prettyA e] ++ pwords "is a type of sort" ++ [prettyTCM s]
-        IsType_ e _ -> fsep $
-            pwords "when checking that the expression"
-            ++ [prettyA e] ++ pwords "is a type"
-        CheckArguments r es t0 t1 _ -> fsep $
-            pwords "when checking that" ++
-            map hPretty es ++ pwords "are valid arguments to a function of type" ++ [prettyTCM t0]
-        CheckRecDef _ x ps cs _ ->
-            fsep $ pwords "when checking the definition of" ++ [prettyTCM x]
-        CheckDataDef _ x ps cs _ ->
-            fsep $ pwords "when checking the definition of" ++ [prettyTCM x]
-        CheckConstructor d _ _ (A.Axiom _ _ _ c _) _ -> fsep $
-            pwords "when checking the constructor" ++ [prettyTCM c] ++
-            pwords "in the declaration of" ++ [prettyTCM d]
-        CheckConstructor _ _ _ _ _ -> __IMPOSSIBLE__
-        CheckFunDef _ f _ _ ->
-            fsep $ pwords "when checking the definition of" ++ [prettyTCM f]
-        CheckPragma _ p _ ->
-            fsep $ pwords "when checking the pragma" ++ [prettyA $ RangeAndPragma noRange p]
-        CheckPrimitive _ x e _ -> fsep $
-            pwords "when checking that the type of the primitive function" ++
-            [prettyTCM x] ++ pwords "is" ++ [prettyA e]
-        CheckWithFunctionType e _ -> fsep $
-            pwords "when checking that the type" ++
-            [prettyA e] ++ pwords "of the generated with function is well-formed"
-        CheckDotPattern e v _ -> fsep $
-            pwords "when checking that the given dot pattern" ++ [prettyA e] ++
-            pwords "matches the inferred value" ++ [prettyTCM v]
-        CheckPatternShadowing c _ -> fsep $
-            pwords "when checking the clause" ++ [P.prettyA c]
-        InferVar x _ ->
-            fsep $ pwords "when inferring the type of" ++ [prettyTCM x]
-        InferDef _ x _ ->
-            fsep $ pwords "when inferring the type of" ++ [prettyTCM x]
-        CheckIsEmpty r t _ ->
-            fsep $ pwords "when checking that" ++ [prettyTCM t] ++ pwords "has no constructors"
-        ScopeCheckExpr e _ ->
-            fsep $ pwords "when scope checking" ++ [pretty e]
-        ScopeCheckDeclaration d _ ->
-            fwords "when scope checking the declaration" $$
-            nest 2 (pretty $ simpleDecl d)
-        ScopeCheckLHS x p _ ->
-            fsep $ pwords "when scope checking the left-hand side" ++ [pretty p] ++
-                   pwords "in the definition of" ++ [pretty x]
-        NoHighlighting _ -> empty
-        SetRange r _ ->
-            fsep (pwords "when doing something at") <+> prettyTCM r
-        CheckSectionApplication _ m1 modapp _ -> fsep $
-          pwords "when checking the module application" ++
-          [prettyA $ A.Apply info m1 modapp Map.empty Map.empty]
-          where
-            info = A.ModuleInfo noRange noRange Nothing Nothing Nothing
+  prettyTCM c = case c of
+    CheckClause t cl _  -> fsep $
+      pwords "when checking that the clause"
+      ++ [AP.prettyA cl] ++ pwords "has type" ++ [prettyTCM t]
 
-        where
-            hPretty :: I.Arg (Named_ Expr) -> TCM Doc
-            hPretty a = do
-                info <- reify $ argInfo a
-                pretty =<< (abstractToConcreteCtx (hiddenArgumentCtx (getHiding a))
-                         $ Common.Arg info $ unArg a)
+    CheckPattern p tel t _ -> addCtxTel tel $ fsep $
+      pwords "when checking that the pattern"
+      ++ [prettyA p] ++ pwords "has type" ++ [prettyTCM t]
 
-            simpleDecl = D.notSoNiceDeclaration
+    CheckLetBinding b _ -> fsep $
+      pwords "when checking the let binding" ++ [AP.prettyA b]
+
+    InferExpr e _ -> fsep $ pwords "when inferring the type of" ++ [prettyA e]
+
+    CheckExprCall e t _ -> fsep $
+      pwords "when checking that the expression"
+      ++ [prettyA e] ++ pwords "has type" ++ [prettyTCM t]
+
+    IsTypeCall e s _ -> fsep $
+      pwords "when checking that the expression"
+      ++ [prettyA e] ++ pwords "is a type of sort" ++ [prettyTCM s]
+
+    IsType_ e _ -> fsep $
+      pwords "when checking that the expression"
+      ++ [prettyA e] ++ pwords "is a type"
+
+    CheckArguments r es t0 t1 _ -> fsep $
+      pwords "when checking that" ++
+      map hPretty es ++ pwords "are valid arguments to a function of type"
+      ++ [prettyTCM t0]
+
+    CheckRecDef _ x ps cs _ ->
+      fsep $ pwords "when checking the definition of" ++ [prettyTCM x]
+
+    CheckDataDef _ x ps cs _ ->
+      fsep $ pwords "when checking the definition of" ++ [prettyTCM x]
+
+    CheckConstructor d _ _ (A.Axiom _ _ _ c _) _ -> fsep $
+      pwords "when checking the constructor" ++ [prettyTCM c] ++
+      pwords "in the declaration of" ++ [prettyTCM d]
+
+    CheckConstructor _ _ _ _ _ -> __IMPOSSIBLE__
+
+    CheckFunDef _ f _ _ ->
+      fsep $ pwords "when checking the definition of" ++ [prettyTCM f]
+
+    CheckPragma _ p _ ->
+      fsep $ pwords "when checking the pragma"
+             ++ [prettyA $ RangeAndPragma noRange p]
+
+    CheckPrimitive _ x e _ -> fsep $
+      pwords "when checking that the type of the primitive function" ++
+      [prettyTCM x] ++ pwords "is" ++ [prettyA e]
+
+    CheckWithFunctionType e _ -> fsep $
+      pwords "when checking that the type" ++
+      [prettyA e] ++ pwords "of the generated with function is well-formed"
+
+    CheckDotPattern e v _ -> fsep $
+      pwords "when checking that the given dot pattern" ++ [prettyA e] ++
+      pwords "matches the inferred value" ++ [prettyTCM v]
+
+    CheckPatternShadowing c _ -> fsep $
+      pwords "when checking the clause" ++ [AP.prettyA c]
+
+    InferVar x _ ->
+      fsep $ pwords "when inferring the type of" ++ [prettyTCM x]
+
+    InferDef _ x _ ->
+      fsep $ pwords "when inferring the type of" ++ [prettyTCM x]
+
+    CheckIsEmpty r t _ ->
+      fsep $ pwords "when checking that" ++ [prettyTCM t] ++
+             pwords "has no constructors"
+
+    ScopeCheckExpr e _ -> fsep $ pwords "when scope checking" ++ [pretty e]
+
+    ScopeCheckDeclaration d _ ->
+      fwords "when scope checking the declaration" $$
+      nest 2 (pretty $ simpleDecl d)
+
+    ScopeCheckLHS x p _ ->
+      fsep $ pwords "when scope checking the left-hand side" ++ [pretty p] ++
+             pwords "in the definition of" ++ [pretty x]
+
+    NoHighlighting _ -> empty
+
+    SetRange r _ -> fsep (pwords "when doing something at") <+> prettyTCM r
+
+    CheckSectionApplication _ m1 modapp _ -> fsep $
+      pwords "when checking the module application" ++
+      [prettyA $ A.Apply info m1 modapp Map.empty Map.empty]
+      where
+      info = A.ModuleInfo noRange noRange Nothing Nothing Nothing
+
+    where
+    hPretty :: I.Arg (Named_ Expr) -> TCM Doc
+    hPretty a = do
+      info <- reify $ argInfo a
+      pretty =<< (abstractToConcreteCtx (hiddenArgumentCtx (getHiding a))
+              $ Common.Arg info $ unArg a)
+
+    simpleDecl = D.notSoNiceDeclaration
 
 ---------------------------------------------------------------------------
 -- * Natural language

@@ -17,8 +17,8 @@ import Agda.Syntax.Translation.InternalToAbstract
 import Agda.Syntax.Translation.AbstractToConcrete
 import qualified Agda.Syntax.Abstract as A
 import qualified Agda.Syntax.Concrete as C
-import qualified Agda.Syntax.Abstract.Pretty as P
-import qualified Agda.Syntax.Concrete.Pretty as P
+import qualified Agda.Syntax.Abstract.Pretty as AP
+import qualified Agda.Syntax.Concrete.Pretty as CP
 
 import Agda.TypeChecking.Monad
 
@@ -44,19 +44,19 @@ pretty :: P.Pretty a => a -> TCM P.Doc
 pretty x = return $ P.pretty x
 
 prettyA :: (P.Pretty c, ToConcrete a c) => a -> TCM Doc
-prettyA x = P.prettyA x
+prettyA x = AP.prettyA x
 
 prettyAs :: (P.Pretty c, ToConcrete a [c]) => a -> TCM Doc
-prettyAs x = P.prettyAs x
+prettyAs x = AP.prettyAs x
 
 text :: String -> TCM Doc
 text s = return $ P.text s
 
-pwords :: String ->  [TCM Doc]
+pwords :: String -> [TCM Doc]
 pwords s = map return $ P.pwords s
 
 fwords :: String -> TCM Doc
-fwords s  = return $ P.fwords s
+fwords s = return $ P.fwords s
 
 sep, fsep, hsep, hcat, vcat :: [TCM Doc] -> TCM Doc
 sep ds  = P.sep <$> sequence ds
@@ -76,7 +76,7 @@ nest n d   = P.nest n <$> d
 
 braces, dbraces, brackets, parens :: TCM Doc -> TCM Doc
 braces d   = P.braces <$> d
-dbraces d  = P.dbraces <$> d
+dbraces d  = CP.dbraces <$> d
 brackets d = P.brackets <$> d
 parens d   = P.parens <$> d
 
@@ -94,10 +94,10 @@ punctuate d ds = zipWith (<>) ds (replicate n d ++ [empty])
 ---------------------------------------------------------------------------
 
 class PrettyTCM a where
-    prettyTCM :: a -> TCM Doc
+  prettyTCM :: a -> TCM Doc
 
 instance PrettyTCM a => PrettyTCM (Closure a) where
-    prettyTCM cl = enterClosure cl prettyTCM
+  prettyTCM cl = enterClosure cl prettyTCM
 
 instance PrettyTCM a => PrettyTCM [a] where
   prettyTCM = prettyList . map prettyTCM
@@ -115,17 +115,15 @@ instance PrettyTCM NamedClause where prettyTCM x = prettyA =<< reify x
 instance PrettyTCM Level where prettyTCM x = prettyA =<< reify (Level x)
 instance PrettyTCM Permutation where prettyTCM = text . show
 
-instance PrettyTCM Position where
-  prettyTCM p = do
-    text $ show p
+-- ASR (30 November 2014). Not used.
+-- instance PrettyTCM Position where
+--   prettyTCM = pretty
 
-instance PrettyTCM Interval where
-  prettyTCM i = do
-    text $ show i
+-- instance PrettyTCM Interval where
+--   prettyTCM = pretty
 
 instance PrettyTCM Range where
-  prettyTCM r = do
-    text $ show r
+  prettyTCM = pretty
 
 instance PrettyTCM ClauseBody where
   prettyTCM b = do
@@ -144,21 +142,21 @@ instance (PrettyTCM a, PrettyTCM b) => PrettyTCM (Judgement a b) where
 
 instance PrettyTCM MetaId where
   prettyTCM x = do
-   mn <- getMetaNameSuggestion x
-   text $ show (NamedMeta mn x)
+    mn <- getMetaNameSuggestion x
+    text $ show (NamedMeta mn x)
 
 instance PrettyTCM a => PrettyTCM (Blocked a) where
   prettyTCM (Blocked x a) = text "[" <+> prettyTCM a <+> text "]" <> text (show x)
   prettyTCM (NotBlocked x) = prettyTCM x
 
 instance (Reify a e, ToConcrete e c, P.Pretty c) => PrettyTCM (Named_ a) where
-    prettyTCM x = prettyA =<< reify x
+  prettyTCM x = prettyA =<< reify x
 
 instance (Reify a e, ToConcrete e c, P.Pretty c) => PrettyTCM (Arg a) where
-    prettyTCM x = prettyA =<< reify x
+  prettyTCM x = prettyA =<< reify x
 
 instance (Reify a e, ToConcrete e c, P.Pretty c) => PrettyTCM (Dom a) where
-    prettyTCM x = prettyA =<< reify x
+  prettyTCM x = prettyA =<< reify x
 
 -- instance (Reify a e, ToConcrete e c, P.Pretty c, PrettyTCM a) => PrettyTCM (Elim' a) where
 instance PrettyTCM Elim where
@@ -169,10 +167,13 @@ instance PrettyTCM a => PrettyTCM (MaybeReduced a) where
   prettyTCM = prettyTCM . ignoreReduced
 
 instance PrettyTCM A.Expr where
-    prettyTCM = prettyA
+  prettyTCM = prettyA
 
 instance PrettyTCM C.Name where
   prettyTCM = text . show
+
+instance PrettyTCM C.QName where
+  prettyTCM = pretty
 
 instance PrettyTCM Relevance where
   prettyTCM Irrelevant = text "."
@@ -259,13 +260,13 @@ instance PrettyTCM TypeCheckingProblem where
         , nest 2 $ text ":?" <+> prettyTCM t1 ]
 
 instance PrettyTCM Literal where
-  prettyTCM = text . show
+  prettyTCM = pretty
 
 instance PrettyTCM Name where
-    prettyTCM x = P.pretty <$> abstractToConcrete_ x
+  prettyTCM x = P.pretty <$> abstractToConcrete_ x
 
 instance PrettyTCM QName where
-    prettyTCM x = P.pretty <$> abstractToConcrete_ x
+  prettyTCM x = P.pretty <$> abstractToConcrete_ x
 
 instance PrettyTCM ModuleName where
   prettyTCM x = P.pretty <$> abstractToConcrete_ x
@@ -283,21 +284,21 @@ newtype PrettyContext = PrettyContext Context
 
 instance PrettyTCM PrettyContext where
   prettyTCM (PrettyContext ctx) = P.fsep . reverse <$> pr (map ctxEntry ctx)
-      where
-          pr :: [Dom (Name, Type)] -> TCM [P.Doc]
-          pr []            = return []
-          pr (Common.Dom info (x,t) : ctx) = escapeContext 1 $ do
-              d    <- prettyTCM t
-              x    <- prettyTCM x
-              dctx <- pr ctx
-              -- TODO guilhem: show colors
-              return $ P.pRelevance info' (par (P.hsep [ x, P.text ":", d])) : dctx
-            where
-              info' = mapArgInfoColors (const []) info
-              par = case argInfoHiding info of
-                     NotHidden -> P.parens
-                     Hidden    -> P.braces
-                     Instance  -> P.dbraces
+    where
+    pr :: [Dom (Name, Type)] -> TCM [P.Doc]
+    pr []            = return []
+    pr (Common.Dom info (x,t) : ctx) = escapeContext 1 $ do
+      d    <- prettyTCM t
+      x    <- prettyTCM x
+      dctx <- pr ctx
+      -- TODO guilhem: show colors
+      return $ CP.pRelevance info' (par (P.hsep [ x, P.text ":", d])) : dctx
+        where
+        info' = mapArgInfoColors (const []) info
+        par = case argInfoHiding info of
+          NotHidden -> P.parens
+          Hidden    -> P.braces
+          Instance  -> CP.dbraces
 
 instance PrettyTCM Context where
   prettyTCM = prettyTCM . PrettyContext

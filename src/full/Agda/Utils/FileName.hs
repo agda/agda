@@ -27,6 +27,7 @@ import qualified Data.ByteString.Char8 as ByteString
 import Data.Function
 import Data.Typeable (Typeable)
 
+import Agda.Utils.Pretty
 import Agda.Utils.TestHelpers
 import Agda.Utils.QuickCheck
 
@@ -53,6 +54,9 @@ filePath = ByteString.unpack . byteStringPath
 
 instance Show AbsolutePath where
   show = filePath
+
+instance Pretty AbsolutePath where
+  pretty = text . filePath
 
 -- | The paths have to be absolute, valid and normalised, without
 -- trailing path separators.
