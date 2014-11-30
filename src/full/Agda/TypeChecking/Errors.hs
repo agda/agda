@@ -433,7 +433,7 @@ instance PrettyTCM TypeError where
             ShouldBeEmpty t ps -> fsep (
                 [prettyTCM t] ++
                 pwords "should be empty, but the following constructor patterns are valid:"
-              ) $$ nest 2 (vcat $ map (showPat 0) ps)
+              ) $$ nest 2 (vcat $ map (prettyPat 0) ps)
 
             ShouldBeASort t -> fsep $
                 [prettyTCM t] ++ pwords "should be a sort, but it isn't"
@@ -745,7 +745,7 @@ instance PrettyTCM TypeError where
                 where
                   display ps = do
                     ps <- nicify f ps
-                    prettyTCM f <+> fsep (map showArg ps)
+                    prettyTCM f <+> fsep (map prettyArg ps)
 
                   nicify f ps = do
                     showImp <- showImplicitArguments
@@ -840,18 +840,20 @@ instance PrettyTCM TypeError where
               | n > 0 && not (null args) = parens
               | otherwise                = id
 
-            showArg :: I.Arg I.Pattern -> TCM Doc
-            showArg (Common.Arg info x) = case getHiding info of
-                    Hidden -> braces $ showPat 0 x
-                    Instance -> dbraces $ showPat 0 x
-                    NotHidden -> showPat 1 x
+            prettyArg :: I.Arg I.Pattern -> TCM Doc
+            prettyArg (Common.Arg info x) = case getHiding info of
+              Hidden    -> braces $ prettyPat 0 x
+              Instance  -> dbraces $ prettyPat 0 x
+              NotHidden -> prettyPat 1 x
 
-            showPat :: Integer -> I.Pattern -> TCM Doc
-            showPat _ (I.VarP _)        = text "_"
-            showPat _ (I.DotP _)        = text "._"
-            showPat n (I.ConP c _ args) = mpar n args $ prettyTCM c <+> fsep (map (showArg . fmap namedThing) args)
-            showPat _ (I.LitP l)        = text (show l)
-            showPat _ (I.ProjP p)       = text (show p)
+            prettyPat :: Integer -> I.Pattern -> TCM Doc
+            prettyPat _ (I.VarP _) = text "_"
+            prettyPat _ (I.DotP _) = text "._"
+            prettyPat n (I.ConP c _ args) =
+              mpar n args $
+                prettyTCM c <+> fsep (map (prettyArg . fmap namedThing) args)
+            prettyPat _ (I.LitP l) = text (show l)
+            prettyPat _ (I.ProjP p) = text (show p)
 
 notCmp :: Comparison -> TCM Doc
 notCmp cmp = text $ "!" ++ show cmp
