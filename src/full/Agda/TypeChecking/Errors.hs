@@ -4,12 +4,12 @@
 {-# LANGUAGE TypeSynonymInstances #-}
 
 module Agda.TypeChecking.Errors
-    ( prettyError
-    , PrettyTCM(..)
-    , tcErrString
-    , Warnings(..)
-    , warningsToError
-    ) where
+  ( prettyError
+  , PrettyTCM(..)
+  , tcErrString
+  , Warnings(..)
+  , warningsToError
+  ) where
 
 import Prelude hiding (null)
 

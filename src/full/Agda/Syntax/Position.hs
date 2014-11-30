@@ -382,24 +382,24 @@ instance (KillRange a, KillRange b) => KillRange (Either a b) where
 -- instead.  Later, simply derive Show for these types:
 
 instance Show a => Show (Position' (Maybe a)) where
-    show (Pn Nothing  _ l c) = show l ++ "," ++ show c
-    show (Pn (Just f) _ l c) = show f ++ ":" ++ show l ++ "," ++ show c
+  show (Pn Nothing  _ l c) = show l ++ "," ++ show c
+  show (Pn (Just f) _ l c) = show f ++ ":" ++ show l ++ "," ++ show c
 
 instance Show a => Show (Interval' (Maybe a)) where
-    show (Interval s e) = file ++ start ++ "-" ++ end
-        where
-            f   = srcFile s
-            sl  = posLine s
-            el  = posLine e
-            sc  = posCol s
-            ec  = posCol e
-            file = case f of
-                     Nothing -> ""
-                     Just f  -> show f ++ ":"
-            start = show sl ++ "," ++ show sc
-            end
-                | sl == el  = show ec
-                | otherwise = show el ++ "," ++ show ec
+  show (Interval s e) = file ++ start ++ "-" ++ end
+    where
+      f   = srcFile s
+      sl  = posLine s
+      el  = posLine e
+      sc  = posCol s
+      ec  = posCol e
+      file = case f of
+               Nothing -> ""
+               Just f  -> show f ++ ":"
+      start = show sl ++ "," ++ show sc
+      end
+        | sl == el  = show ec
+        | otherwise = show el ++ "," ++ show ec
 
 instance Show a => Show (Range' (Maybe a)) where
   show r = case rangeToInterval r of
@@ -411,9 +411,9 @@ instance Show a => Show (Range' (Maybe a)) where
 ------------------------------------------------------------------------
 
 instance Pretty a => Pretty (Position' (Maybe a)) where
-    pretty (Pn Nothing  _ l c) = pretty l <> pretty "," <> pretty c
-    pretty (Pn (Just f) _ l c) =
-      pretty f <> pretty ":" <> pretty l <> pretty "," <> pretty c
+  pretty (Pn Nothing  _ l c) = pretty l <> pretty "," <> pretty c
+  pretty (Pn (Just f) _ l c) =
+    pretty f <> pretty ":" <> pretty l <> pretty "," <> pretty c
 
 {--------------------------------------------------------------------------
     Functions on postitions and ranges
