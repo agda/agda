@@ -285,6 +285,7 @@ fixTarget sc@SClause{ scTel = sctel, scPerm = perm, scPats = ps, scSubst = sigma
       [ text "split clause telescope: " <+> prettyTCM sctel
       , text "old permutation       : " <+> prettyTCM perm
       , text "old patterns          : " <+> sep (map (prettyTCM . namedArg) ps)
+      , text "substitution          : " <+> text (show sigma)
       ]
     reportSDoc "tc.cover.target" 30 $ sep
       [ text "target type before substitution (variables may be wrong): " <+> do
@@ -313,6 +314,23 @@ fixTarget sc@SClause{ scTel = sctel, scPerm = perm, scPats = ps, scSubst = sigma
           , scSubst  = liftS n $ sigma
           , scTarget = newTarget
           }
+    -- Separate debug printing to find cause of crash (Issue 1374)
+    reportSDoc "tc.cover.target" 30 $ sep
+      [ text "new split clause telescope   : " <+> prettyTCM sctel'
+      ]
+    reportSDoc "tc.cover.target" 30 $ sep
+      [ text "new split clause permutation : " <+> prettyTCM perm'
+      ]
+    reportSDoc "tc.cover.target" 30 $ sep
+      [ text "new split clause patterns    : " <+> sep (map (prettyTCM . namedArg) ps')
+      ]
+    reportSDoc "tc.cover.target" 30 $ sep
+      [ text "new split clause substitution: " <+> text (show $ scSubst sc')
+      ]
+    reportSDoc "tc.cover.target" 30 $ sep
+      [ text "new split clause target      : " <+> do
+          addContext sctel' $ prettyTCM $ fromJust newTarget
+      ]
     reportSDoc "tc.cover.target" 20 $ sep
       [ text "new split clause"
       , prettyTCM sc'
@@ -740,8 +758,9 @@ instance PrettyTCM SplitClause where
       , text "target       = " <+> do
           caseMaybe target empty $ \ t -> do
             addContext tel $ prettyTCM t
-      , text "subst target = " <+> do
-          caseMaybe target empty $ \ t -> do
-            addContext tel $ prettyTCM $ applySubst sigma t
+      -- Triggers crash (see Issue 1374).
+      -- , text "subst target = " <+> do
+      --     caseMaybe target empty $ \ t -> do
+      --       addContext tel $ prettyTCM $ applySubst sigma t
       ]
     ]
