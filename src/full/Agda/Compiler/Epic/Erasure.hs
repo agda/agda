@@ -24,7 +24,7 @@ import Agda.Compiler.Epic.Interface
 
 import Agda.TypeChecking.Monad.Base (TCM)
 import qualified Agda.Syntax.Internal as SI
-import qualified Agda.Syntax.Common   as SC
+import qualified Agda.Syntax.Common   as Common
 import Agda.TypeChecking.Monad (reportSDoc)
 import Agda.TypeChecking.Pretty as P
 
@@ -133,19 +133,18 @@ initiate f@(EpicFun {funName = name, funQName = mqname}) = case mqname of
     Nothing -> return ()
 
 initialRels :: SI.Type -> Relevance -> [Relevance]
-initialRels ty rel =
-    case SI.ignoreSharing $ SI.unEl ty of
-        SI.Pi  a b -> mkRel a : initialRels (SI.unAbs b) rel
-        _       -> []
+initialRels ty rel = case SI.ignoreSharing $ SI.unEl ty of
+  SI.Pi  a b -> mkRel a : initialRels (SI.unAbs b) rel
+  _          -> []
   where
     mkRel :: SI.Dom SI.Type -> Relevance
-    mkRel a | ignoreForced (SC.getRelevance a) = Irr
-    mkRel a = case SI.ignoreSharing $ SI.unEl (SC.unDom a) of
+    mkRel a | ignoreForced (Common.getRelevance a) = Irr
+    mkRel a = case SI.ignoreSharing $ SI.unEl (Common.unDom a) of
        SI.Sort _ -> Irr
        _         -> rel
 
-ignoreForced :: SC.Relevance -> Bool
-ignoreForced SC.Relevant = False
+ignoreForced :: Common.Relevance -> Bool
+ignoreForced Common.Relevant = False
 ignoreForced _           = True
 
 -- | Calculate if a variable is relevant in an expression

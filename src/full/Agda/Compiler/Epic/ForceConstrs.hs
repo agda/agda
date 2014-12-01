@@ -9,7 +9,7 @@ import Agda.Compiler.Epic.AuxAST
 import Agda.Compiler.Epic.CompileState
 import Agda.Compiler.Epic.Interface
 
-import qualified Agda.Syntax.Common   as S
+import qualified Agda.Syntax.Common   as Common
 import qualified Agda.Syntax.Internal as T
 import Agda.TypeChecking.Monad (TCM)
 
@@ -20,15 +20,15 @@ import Agda.Utils.Impossible
 makeForcedArgs :: T.Type -> ForcedArgs
 makeForcedArgs (T.El _ term) = case T.ignoreSharing term of
     T.Pi  arg ab  -> isRel arg : makeForcedArgs (T.unAbs ab)
-    _ -> []
+    _             -> []
   where
     isRel :: T.Dom T.Type -> Forced
-    isRel arg = case S.getRelevance arg of
-      S.Relevant   -> NotForced
-      S.Irrelevant -> Forced
-      S.UnusedArg  -> Forced
-      S.NonStrict  -> Forced -- can never be executed
-      S.Forced     -> Forced -- It can be inferred
+    isRel arg = case Common.getRelevance arg of
+      Common.Relevant   -> NotForced
+      Common.Irrelevant -> Forced
+      Common.UnusedArg  -> Forced
+      Common.NonStrict  -> Forced  -- can never be executed
+      Common.Forced     -> Forced  -- It can be inferred
 
 -- | Remove forced arguments from constructors and branches
 forceConstrs :: [Fun] -> Compile TCM [Fun]

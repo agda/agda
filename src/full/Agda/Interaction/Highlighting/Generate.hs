@@ -33,7 +33,7 @@ import Agda.TypeChecking.Pretty
 import qualified Agda.TypeChecking.Reduce as R
 import qualified Agda.Syntax.Abstract as A
 import Agda.Syntax.Common (Delayed(..))
-import qualified Agda.Syntax.Common as SC
+import qualified Agda.Syntax.Common as Common
 import qualified Agda.Syntax.Concrete as C
 import qualified Agda.Syntax.Info as SI
 import qualified Agda.Syntax.Internal as I
@@ -223,8 +223,10 @@ generateAndPrintSyntaxInfo decl hlLevel = do
     bound n = nameToFile modMap file [] (A.nameConcrete n)
                          (\isOp -> mempty { aspect = Just $ Name (Just Bound) isOp })
                          (Just $ A.nameBindingSite n)
+
     patsyn n = nameToFileA modMap file n True $ \isOp ->
-                  mempty { aspect = Just $ Name (Just $ Constructor SC.Inductive) isOp }
+                  mempty { aspect = Just $ Name (Just $ Constructor Common.Inductive) isOp }
+
     field m n = nameToFile modMap file m n
                            (\isOp -> mempty { aspect = Just $ Name (Just Field) isOp })
                            Nothing
@@ -232,6 +234,7 @@ generateAndPrintSyntaxInfo decl hlLevel = do
                           n
                           (\isOp -> mempty { aspect = Just $ Name (Just Module) isOp })
                           Nothing
+
     mod isTopLevelModule n =
       nameToFile modMap file []
                  (A.nameConcrete n)
@@ -247,7 +250,7 @@ generateAndPrintSyntaxInfo decl hlLevel = do
 
     -- Ulf, 2014-04-09: It would be nicer to have it on Named_ a, but
     -- you can't have polymorphic functions in universeBi.
-    getNamedArg :: SC.RString -> File
+    getNamedArg :: Common.RString -> File
     getNamedArg x = singleton (rToR $ P.getRange x) mempty{ aspect = Just $ Name (Just Argument) False }
 
     getLet :: A.LetBinding -> File
@@ -265,7 +268,7 @@ generateAndPrintSyntaxInfo decl hlLevel = do
     getTyped A.TLet{}         = mempty
 
     getPatSynArgs :: A.Declaration -> File
-    getPatSynArgs (A.PatternSynDef _ xs _) = mconcat $ map (bound . SC.unArg) xs
+    getPatSynArgs (A.PatternSynDef _ xs _) = mconcat $ map (bound . Common.unArg) xs
     getPatSynArgs _                        = mempty
 
     getPattern :: A.Pattern -> File
@@ -417,7 +420,7 @@ nameKinds hlLevel decl = do
   declToKind (A.Pragma {})          = id
   declToKind (A.ScopedDecl {})      = id
   declToKind (A.Open {})            = id
-  declToKind (A.PatternSynDef q _ _) = insert q (Constructor SC.Inductive)
+  declToKind (A.PatternSynDef q _ _) = insert q (Constructor Common.Inductive)
   declToKind (A.FunDef  _ q _ _)    = insert q Function
   declToKind (A.UnquoteDecl _ _ q _) = insert q Function
   declToKind (A.UnquoteDef _ q _)    = insert q Function
@@ -425,13 +428,13 @@ nameKinds hlLevel decl = do
   declToKind (A.DataDef _ q _ cs)   = \m ->
                                       insert q Datatype $
                                       foldr (\d -> insert (A.axiomName d)
-                                                          (Constructor SC.Inductive))
+                                                          (Constructor Common.Inductive))
                                             m cs
   declToKind (A.RecSig _ q _ _)     = insert q Record
   declToKind (A.RecDef _ q _ c _ _ _) = insert q Record .
                                       case c of
                                         Nothing -> id
-                                        Just q  -> insert q (Constructor SC.Inductive)
+                                        Just q  -> insert q (Constructor Common.Inductive)
 
 -- | Generates syntax highlighting information for all constructors
 -- occurring in patterns and expressions in the given declaration.
