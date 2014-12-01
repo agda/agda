@@ -282,7 +282,7 @@ etaExpandBoundVar i = do
       ys  = zipWith (\ f i -> f $> var i) fs $ downFrom m
       u   = Con (recConHead def) ys
   -- @Γ₁, Γ' ⊢ τ₀ : Γ₁, x:_@
-      tau0 = u :# raiseS m
+      tau0 = consS u $ raiseS m
   -- @Γ₁, Γ', Γ₂ ⊢ τ₀ : Γ₁, x:_, Γ₂@
       tau  = liftS (size gamma2) tau0
 

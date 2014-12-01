@@ -123,7 +123,7 @@ substForDot = makeSubst 0 0 . reverse . calcDots
   where
     makeSubst i accum [] = raiseS (i + accum)
     makeSubst i accum (True  : ps) = makeSubst i (accum +1) ps
-    makeSubst i accum (False : ps) = var (i + accum) :# makeSubst (i+1) accum ps
+    makeSubst i accum (False : ps) = consS (var $ i + accum) $ makeSubst (i+1) accum ps
 
     calcDots = concatMap calcDots' . map namedArg
     calcDots' p = case p of
@@ -186,8 +186,8 @@ litInt LitInt{} = True
 litInt _        = False
 
 insertAt :: (Nat,Term) -> Term -> Term
-insertAt (index, ins) =
-  applySubst ([var i | i <- [0 .. index - 1]] ++# ins :# raiseS (index + 1))
+insertAt (index, ins) = applySubst $
+  [var i | i <- [0 .. index - 1]] ++# consS ins (raiseS $ index + 1)
 
 solve :: [QName] -> [((QName, InjectiveFun), [(QName,QName)])] -> Compile TCM [(QName, InjectiveFun)]
 solve newNames xs = do
