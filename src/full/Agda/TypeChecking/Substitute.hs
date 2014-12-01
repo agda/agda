@@ -865,7 +865,7 @@ absApp (NoAbs _ v) _ = v
 --   __IMPOSSIBLE__ in the case where the variable shouldn't be used but we
 --   cannot use 'noabsApp'. Used in Apply.
 lazyAbsApp :: Subst t => Abs t -> Term -> t
-lazyAbsApp (Abs   _ v) u = applySubst (u :# IdS) v
+lazyAbsApp (Abs   _ v) u = applySubst (u :# IdS) v  -- Note: do not use consS here!
 lazyAbsApp (NoAbs _ v) _ = v
 
 -- | Instantiate an abstraction that doesn't use its argument.

@@ -559,7 +559,7 @@ appDefE' v cls es = goCls cls $ map ignoreReduced es
     --   Δ.A ⊢ b : B
     app :: [Term] -> ClauseBody -> Substitution -> Term
     app []       (Body v)           sigma = applySubst sigma v
-    app (v : vs) (Bind (Abs   _ b)) sigma = app vs b (v :# sigma) -- CBN
+    app (v : vs) (Bind (Abs   _ b)) sigma = app vs b $ consS v sigma -- CBN
     app (v : vs) (Bind (NoAbs _ b)) sigma = app vs b sigma
     app  _        NoBody            sigma = __IMPOSSIBLE__
     app (_ : _)  (Body _)           sigma = __IMPOSSIBLE__
@@ -942,8 +942,8 @@ instance InstantiateFull Substitution where
       Wk   n sigma         -> Wk   n         <$> instantiateFull' sigma
       Lift n sigma         -> Lift n         <$> instantiateFull' sigma
       Strengthen bot sigma -> Strengthen bot <$> instantiateFull' sigma
-      t :# sigma           -> (:#) <$> instantiateFull' t
-                                   <*> instantiateFull' sigma
+      t :# sigma           -> consS <$> instantiateFull' t
+                                    <*> instantiateFull' sigma
 
 instance InstantiateFull Bool where
     instantiateFull' = return

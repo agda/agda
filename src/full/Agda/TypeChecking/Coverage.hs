@@ -30,7 +30,6 @@ import qualified Data.Traversable as Trav
 import Agda.Syntax.Position
 import qualified Agda.Syntax.Common as Common
 import Agda.Syntax.Common hiding (Arg,Dom)
-import qualified Agda.Syntax.Common as C
 import Agda.Syntax.Internal as I
 import Agda.Syntax.Internal.Pattern
 
@@ -294,6 +293,7 @@ fixTarget sc@SClause{ scTel = sctel, scPerm = perm, scPats = ps, scSubst = sigma
       [ text "split clause telescope: " <+> prettyTCM sctel
       , text "old permutation       : " <+> prettyTCM perm
       , text "old patterns          : " <+> sep (map (prettyTCM . namedArg) ps)
+      , text "substitution          : " <+> text (show sigma)
       ]
     reportSDoc "tc.cover.target" 30 $ sep
       [ text "target type before substitution (variables may be wrong): " <+> do
@@ -322,6 +322,23 @@ fixTarget sc@SClause{ scTel = sctel, scPerm = perm, scPats = ps, scSubst = sigma
           , scSubst  = liftS n $ sigma
           , scTarget = newTarget
           }
+    -- Separate debug printing to find cause of crash (Issue 1374)
+    reportSDoc "tc.cover.target" 30 $ sep
+      [ text "new split clause telescope   : " <+> prettyTCM sctel'
+      ]
+    reportSDoc "tc.cover.target" 30 $ sep
+      [ text "new split clause permutation : " <+> prettyTCM perm'
+      ]
+    reportSDoc "tc.cover.target" 30 $ sep
+      [ text "new split clause patterns    : " <+> sep (map (prettyTCM . namedArg) ps')
+      ]
+    reportSDoc "tc.cover.target" 30 $ sep
+      [ text "new split clause substitution: " <+> text (show $ scSubst sc')
+      ]
+    reportSDoc "tc.cover.target" 30 $ sep
+      [ text "new split clause target      : " <+> do
+          addContext sctel' $ prettyTCM $ fromJust newTarget
+      ]
     reportSDoc "tc.cover.target" 20 $ sep
       [ text "new split clause"
       , prettyTCM sc'
@@ -419,7 +436,7 @@ computeNeighbourhood delta1 n delta2 perm d pars ixs hix hps c = do
       debugTel "delta2'" delta2'
 
       -- Compute a substitution ρ : Δ₁ΓΔ₂' → Δ₁(x:D)Δ₂'
-      let rho = liftS (size delta2') $ conv :# raiseS (size gamma)
+      let rho = liftS (size delta2') $ consS conv $ raiseS (size gamma)
              --    [ Var i [] | i <- [0..size delta2' - 1] ]
              -- ++ [ raise (size delta2') conv ]
              -- ++ [ Var i [] | i <- [size delta2' + size gamma ..] ]
@@ -593,8 +610,8 @@ split' ind sc@(SClause tel perm ps _ target) (BlockingVar x mcons) = liftTCM $ r
   -- Split the telescope at the variable
   -- t = type of the variable,  Δ₁ ⊢ t
   (n, t, delta1, delta2) <- do
-    let (tel1, C.Dom info (n, t) : tel2) = genericSplitAt (size tel - x - 1) $ telToList tel
-    return (n, C.Dom info t, telFromList tel1, telFromList tel2)
+    let (tel1, Common.Dom info (n, t) : tel2) = genericSplitAt (size tel - x - 1) $ telToList tel
+    return (n, Common.Dom info t, telFromList tel1, telFromList tel2)
 
   -- Compute the one hole context of the patterns at the variable
   (hps, hix) <- do
@@ -749,8 +766,9 @@ instance PrettyTCM SplitClause where
       , text "target       = " <+> do
           caseMaybe target empty $ \ t -> do
             addContext tel $ prettyTCM t
-      , text "subst target = " <+> do
-          caseMaybe target empty $ \ t -> do
-            addContext tel $ prettyTCM $ applySubst sigma t
+      -- Triggers crash (see Issue 1374).
+      -- , text "subst target = " <+> do
+      --     caseMaybe target empty $ \ t -> do
+      --       addContext tel $ prettyTCM $ applySubst sigma t
       ]
     ]

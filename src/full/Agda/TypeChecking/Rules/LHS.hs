@@ -624,7 +624,7 @@ checkLHS f st@(LHSState problem sigma dpi asb) = do
       -- We should substitute c ys for x in Δ₂ and sigma
       let ys     = teleArgs gamma
           delta2 = absApp (raise (size gamma) $ fmap problemTel p1) (Con c ys)
-          rho0   = liftS (size delta2) $ Con c ys :# raiseS (size gamma)
+          rho0   = liftS (size delta2) $ consS (Con c ys) $ raiseS (size gamma)
           -- rho0 = [ var i | i <- [0..size delta2 - 1] ]
           --     ++ [ raise (size delta2) $ Con c ys ]
           --     ++ [ var i | i <- [size delta2 + size gamma ..] ]
