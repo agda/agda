@@ -40,7 +40,7 @@ comma  = return P.comma
 colon  = return P.colon
 equals = return P.equals
 
-pretty :: P.Pretty a => a -> TCM P.Doc
+pretty :: P.Pretty a => a -> TCM Doc
 pretty x = return $ P.pretty x
 
 prettyA :: (P.Pretty c, ToConcrete a c) => a -> TCM Doc
