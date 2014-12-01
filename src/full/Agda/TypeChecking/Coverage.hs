@@ -30,7 +30,6 @@ import qualified Data.Traversable as Trav
 import Agda.Syntax.Position
 import qualified Agda.Syntax.Common as Common
 import Agda.Syntax.Common hiding (Arg,Dom)
-import qualified Agda.Syntax.Common as C
 import Agda.Syntax.Internal as I
 import Agda.Syntax.Internal.Pattern
 
@@ -585,8 +584,8 @@ split' ind sc@(SClause tel perm ps _ target) (BlockingVar x mcons) = liftTCM $ r
   -- Split the telescope at the variable
   -- t = type of the variable,  Δ₁ ⊢ t
   (n, t, delta1, delta2) <- do
-    let (tel1, C.Dom info (n, t) : tel2) = genericSplitAt (size tel - x - 1) $ telToList tel
-    return (n, C.Dom info t, telFromList tel1, telFromList tel2)
+    let (tel1, Common.Dom info (n, t) : tel2) = genericSplitAt (size tel - x - 1) $ telToList tel
+    return (n, Common.Dom info t, telFromList tel1, telFromList tel2)
 
   -- Compute the one hole context of the patterns at the variable
   (hps, hix) <- do
