@@ -44,6 +44,8 @@ import Agda.Utils.Except ( MonadError(catchError, throwError) )
 import Agda.Utils.FileName
 import qualified Agda.Utils.IO.UTF8 as UTF8
 
+import Agda.Utils.Pretty ( prettyShow )
+
 {--------------------------------------------------------------------------
     The parse monad
  --------------------------------------------------------------------------}
@@ -148,7 +150,7 @@ instance Show ParseError where
       , errPrevToken err ++ "<ERROR>\n" ++ take 30 (errInput err) ++ "..."
       ]
     where
-      pos = show (errPos err)
+      pos = prettyShow (errPos err)
 
 --    showInp ""  = "at end of file"
 --    showInp t   = "on input " ++ elide 5 t
