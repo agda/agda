@@ -40,7 +40,7 @@ comma  = return P.comma
 colon  = return P.colon
 equals = return P.equals
 
-pretty :: P.Pretty a => a -> TCM P.Doc
+pretty :: P.Pretty a => a -> TCM Doc
 pretty x = return $ P.pretty x
 
 prettyA :: (P.Pretty c, ToConcrete a c) => a -> TCM Doc
@@ -170,7 +170,7 @@ instance PrettyTCM A.Expr where
   prettyTCM = prettyA
 
 instance PrettyTCM C.Name where
-  prettyTCM = text . show
+  prettyTCM = pretty
 
 instance PrettyTCM C.QName where
   prettyTCM = pretty

@@ -52,6 +52,10 @@ newtype AbsolutePath = AbsolutePath { byteStringPath :: ByteString }
 filePath :: AbsolutePath -> FilePath
 filePath = ByteString.unpack . byteStringPath
 
+-- TODO: 'Show' should output Haskell-parseable representations.
+-- The following instance is deprecated, and Pretty should be used
+-- instead.  Later, simply derive Show for this types.
+
 instance Show AbsolutePath where
   show = filePath
 

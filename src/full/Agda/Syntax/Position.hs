@@ -382,8 +382,10 @@ instance (KillRange a, KillRange b) => KillRange (Either a b) where
 
 -- TODO: 'Show' should output Haskell-parseable representations.
 -- The following instances are deprecated, and Pretty should be used
--- instead.  Later, simply derive Show for these types:
+-- instead.  Later, simply derive Show for these types.
 
+-- ASR (02 December 2014). This instance is not used anymore (module
+-- the test suite) when reporting errors. See Issue 1293.
 instance Show a => Show (Position' (Maybe a)) where
   show (Pn Nothing  _ l c) = show l ++ "," ++ show c
   show (Pn (Just f) _ l c) = show f ++ ":" ++ show l ++ "," ++ show c

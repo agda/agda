@@ -44,6 +44,8 @@ import Agda.Utils.Except ( MonadError(catchError, throwError) )
 import Agda.Utils.FileName
 import qualified Agda.Utils.IO.UTF8 as UTF8
 
+import Agda.Utils.Pretty ( prettyShow )
+
 {--------------------------------------------------------------------------
     The parse monad
  --------------------------------------------------------------------------}
@@ -109,55 +111,58 @@ data ParseResult a  = ParseOk ParseState a
  --------------------------------------------------------------------------}
 
 instance Monad Parser where
-    return x    = P $ \s -> ParseOk s x
-    P m >>= f   = P $ \s -> case m s of
-                                ParseFailed e   -> ParseFailed e
-                                ParseOk s' x    -> unP (f x) s'
-    fail msg    = P $ \s -> ParseFailed $
-                                ParseError  { errPos        = parseLastPos s
-                                            , errInput      = parseInp s
-                                            , errPrevToken  = parsePrevToken s
-                                            , errMsg        = msg
-                                            }
+  return x = P $ \s -> ParseOk s x
+
+  P m >>= f = P $ \s -> case m s of
+                          ParseFailed e -> ParseFailed e
+                          ParseOk s' x  -> unP (f x) s'
+
+  fail msg = P $ \s -> ParseFailed $
+                         ParseError  { errPos       = parseLastPos s
+                                     , errInput     = parseInp s
+                                     , errPrevToken = parsePrevToken s
+                                     , errMsg       = msg
+                                     }
 
 instance Functor Parser where
-    fmap = liftM
+  fmap = liftM
 
 instance Applicative Parser where
-    pure = return
-    (<*>) = ap
+  pure  = return
+  (<*>) = ap
 
 instance MonadError ParseError Parser where
-    throwError e        = P $ \_ -> ParseFailed e
-    P m `catchError` h  = P $ \s -> case m s of
-                                        ParseFailed err -> unP (h err) s
-                                        m'              -> m'
+  throwError e = P $ \_ -> ParseFailed e
+
+  P m `catchError` h = P $ \s -> case m s of
+                                   ParseFailed err -> unP (h err) s
+                                   m'              -> m'
 
 instance MonadState ParseState Parser where
-    get     = P $ \s -> ParseOk s s
-    put s   = P $ \_ -> ParseOk s ()
+  get   = P $ \s -> ParseOk s s
+  put s = P $ \_ -> ParseOk s ()
 
 instance Show ParseError where
-    show err =
-        unlines
-            [ pos ++ ": " ++ errMsg err
-            --, replicate (length pos + 2) ' ' ++ "on '" ++ errPrevToken err ++ "'"
-            , errPrevToken err ++ "<ERROR>\n" ++ take 30 (errInput err) ++ "..."
-            ]
-        where
-            pos = show (errPos err)
+  show err =
+    unlines
+      [ pos ++ ": " ++ errMsg err
+        --, replicate (length pos + 2) ' ' ++ "on '" ++ errPrevToken err ++ "'"
+      , errPrevToken err ++ "<ERROR>\n" ++ take 30 (errInput err) ++ "..."
+      ]
+    where
+      pos = prettyShow (errPos err)
 
---          showInp ""  = "at end of file"
---          showInp t   = "on input " ++ elide 5 t
+--    showInp ""  = "at end of file"
+--    showInp t   = "on input " ++ elide 5 t
 --
---          elide 3 s
---              | length (take 4 s) < 4 = s
---              | otherwise                 = "..."
---          elide n (c:s)                   = c : elide (n - 1) s
---          elide _ ""              = ""
+--    elide 3 s
+--        | length (take 4 s) < 4 = s
+--        | otherwise                 = "..."
+--    elide n (c:s)                   = c : elide (n - 1) s
+--    elide _ ""              = ""
 
 instance HasRange ParseError where
-    getRange err = posToRange (errPos err) (errPos err)
+  getRange err = posToRange (errPos err) (errPos err)
 
 {--------------------------------------------------------------------------
     Running the parser
