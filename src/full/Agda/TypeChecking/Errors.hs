@@ -278,9 +278,9 @@ instance PrettyTCM CallInfo where
     let call = prettyTCM $ callInfoCall c
         r    = callInfoRange c
 
-    case show r of
-      "" -> call
-      _  -> call $$ nest 2 (text "(at" <+> prettyTCM r <> text ")")
+    if P.pretty r == P.empty
+      then call
+      else call $$ nest 2 (text "(at" <+> prettyTCM r <> text ")")
 
 -- | Drops the filename component of the qualified name.
 dropTopLevelModule :: QName -> QName

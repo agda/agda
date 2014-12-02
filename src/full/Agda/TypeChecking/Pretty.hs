@@ -170,7 +170,7 @@ instance PrettyTCM A.Expr where
   prettyTCM = prettyA
 
 instance PrettyTCM C.Name where
-  prettyTCM = text . show
+  prettyTCM = pretty
 
 instance PrettyTCM C.QName where
   prettyTCM = pretty
