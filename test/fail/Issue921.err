@@ -1,0 +1,11 @@
+Issue921.agda:47,1-111,17
+Termination checking failed for the following functions:
+  _ctx-⇛_, _⋯_, xtc._⇛_∣_, xtc._⇛_, xtc.eq, Tm, weaken, _○_,
+  pullback-var, pullback, weaken-○-scope
+Problematic calls:
+  weaken Δ ○ snd xtc.eq ms
+    (at Issue921.agda:84,78-79)
+  pullback x₁ m
+    (at Issue921.agda:90,81-89)
+  pullback-var
+    (at Issue921.agda:102,99-111)
