@@ -54,7 +54,7 @@ filePath = ByteString.unpack . byteStringPath
 
 -- TODO: 'Show' should output Haskell-parseable representations.
 -- The following instance is deprecated, and Pretty should be used
--- instead.  Later, simply derive Show for this types.
+-- instead.  Later, simply derive Show for this type.
 
 instance Show AbsolutePath where
   show = filePath
