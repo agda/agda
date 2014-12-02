@@ -43,6 +43,7 @@ prettyShow = render . pretty
 
 -- * Pretty instances
 
+instance Pretty Bool    where pretty = text . show
 instance Pretty Int     where pretty = text . show
 instance Pretty Int32   where pretty = text . show
 instance Pretty Integer where pretty = text . show
