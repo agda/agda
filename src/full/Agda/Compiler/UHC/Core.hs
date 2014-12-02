@@ -44,9 +44,15 @@ createMainModule mainMod main = mkModule (mkHsName [] "Main") [] [mkImport $ mkH
         , mainMod ]] [] (mkMain main)
 
 getExports :: AModuleInfo -> [CExport]
-getExports modInfo = map (mkExport . cnName) expFuns
+getExports modInfo = map (mkExport . cnName) (expFuns ++ expConFuns)
   where funs = M.elems $ getNameMappingFor (amiCurNameMp modInfo) EtFunction
-        expFuns = filter (\x -> cnAgdaExported x || cnCoreExported x) funs
+        expFuns = filter needsExport funs
+        -- there is a function for each datatype, named as the datatype itself.
+        -- This is used as type-dummy, returning always unit.
+        -- We need to export those too.
+        cons = M.elems $ getNameMappingFor (amiCurNameMp modInfo) EtDatatype
+        expConFuns = filter needsExport cons
+        needsExport x = cnAgdaExported x || cnCoreExported x
 
 {-getExportedExprs :: AModuleInfo -> ModEntRel
 getExportedExprs mod = S.unions $ map f (M.elems $ getNameMappingFor nmMp EtFunction)
