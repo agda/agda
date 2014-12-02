@@ -622,6 +622,7 @@ termClause' clause = do
         dbpats <- mapM stripCoConstructors dbpats
         dbpats <- maskNonDataArgs dbpats
         terSetPatterns dbpats $ do
+        terSetSizeDepth tel $ do
         reportBody v
   {-
   -- if we are checking a delayed definition, we treat it as if there were
@@ -1270,9 +1271,9 @@ compareTerm' v p = do
     -- checking succeed, then we should not fail.
     -- Thus, we assume the meta will be instantiated with the
     -- deepest variable in @p@.
-    -- For sized types, the depth is maximally context length - 1,
-    -- which is the number of SIZELT hypotheses one can have in a context.
-    (MetaV{}, p) -> Order.decr . max (patternDepth p) . pred <$> getContextSize
+    -- For sized types, the depth is maximally
+    -- the number of SIZELT hypotheses one can have in a context.
+    (MetaV{}, p) -> Order.decr . max (patternDepth p) . pred <$> terAsks _terSizeDepth
 
     (t, p) -> return $ subTerm t p
 

@@ -1,4 +1,4 @@
-{-# OPTIONS -v reify:80 #-}
+-- {-# OPTIONS -v reify:80 #-}
 
 open import Common.Prelude
 open import Common.Reflection

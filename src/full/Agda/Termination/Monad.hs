@@ -37,9 +37,11 @@ import Agda.TypeChecking.Monad
 import Agda.TypeChecking.Monad.Builtin
 import Agda.TypeChecking.Pretty
 import Agda.TypeChecking.Records
+import Agda.TypeChecking.Reduce
 import Agda.TypeChecking.Substitute
 
 import Agda.Utils.Except ( MonadError(catchError, throwError) )
+import Agda.Utils.Lens
 import Agda.Utils.Maybe
 import Agda.Utils.Monad
 import Agda.Utils.Pretty (Pretty)
@@ -105,6 +107,10 @@ data TerEnv = TerEnv
     -- ^ Only consider the 'True' arguments for establishing termination.
   , terMaskResult :: Bool
     -- ^ Only consider guardedness if 'True'.
+  , _terSizeDepth :: Int  -- lazy by intention!
+    -- ^ How many @SIZELT@ relations do we have in the context
+    --   (= clause telescope).  Used to approximate termination
+    --   for metas in call args.
   , terPatterns :: [DeBruijnPat]
     -- ^ The patterns of the clause we are checking.
   , terPatternsRaise :: !Int
@@ -151,6 +157,7 @@ defaultTerEnv = TerEnv
   , terDelayed                  = NotDelayed
   , terMaskArgs                 = repeat True    -- use all arguments
   , terMaskResult               = True           -- use result
+  , _terSizeDepth               = __IMPOSSIBLE__ -- needs to be set!
   , terPatterns                 = __IMPOSSIBLE__ -- needs to be set!
   , terPatternsRaise            = 0
   , terGuarded                  = le -- not initially guarded
@@ -316,6 +323,11 @@ terUnguarded = terSetGuarded unknown
 -- | Should the codomain part of a function type preserve guardedness?
 terPiGuarded :: TerM a -> TerM a
 terPiGuarded m = ifM terGetGuardingTypeConstructors m $ terUnguarded m
+
+-- | Lens for '_terSizeDepth'.
+
+terSizeDepth :: Lens' Int TerEnv
+terSizeDepth f e = f (_terSizeDepth e) <&> \ i -> e { _terSizeDepth = i }
 
 -- | Lens for 'terUsableVars'.
 
@@ -522,3 +534,22 @@ instance Pretty CallPath where
     where
       cis   = init cis0
       arrow = P.text "-->"
+
+-- * Size depth estimation
+
+-- | A very crude way of estimating the @SIZELT@ chains
+--   @i > j > k@ in context.  Returns 3 in this case.
+--   Overapproximates.
+
+-- TODO: more precise analysis, constructing a tree
+-- of relations between size variables.
+terSetSizeDepth :: Telescope -> TerM a -> TerM a
+terSetSizeDepth tel cont = do
+  n <- liftTCM $ sum <$> do
+    forM (telToList tel) $ \ dom -> do
+      a <- reduce $ snd $ unDom dom
+      ifM (isJust <$> isSizeType a) (return 1) {- else -} $ do
+      case ignoreSharing $ unEl a of
+        MetaV{} -> return 1
+        _       -> return 0
+  terLocal (set terSizeDepth n) cont
