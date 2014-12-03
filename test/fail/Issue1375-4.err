@@ -1,6 +1,6 @@
 Issue1375-4.agda:14,1-19,25
 Termination checking failed for the following functions:
-  weakenType, weaken
+  weakenType
 Problematic calls:
   weakenType (?1 ty ty') type
     (at Issue1375-4.agda:16,46-56)
