@@ -46,7 +46,7 @@ import Agda.Termination.CutOff
 import Agda.Termination.Monad
 import Agda.Termination.CallGraph hiding (null)
 import qualified Agda.Termination.CallGraph as CallGraph
-import Agda.Termination.CallMatrix hiding (null)
+import Agda.Termination.CallMatrix hiding (null, singleton)
 import Agda.Termination.Order     as Order
 import qualified Agda.Termination.SparseMatrix as Matrix
 import Agda.Termination.Termination (endos, idempotent)
@@ -79,8 +79,8 @@ import Agda.Utils.Maybe
 import Agda.Utils.Monad -- (mapM', forM', ifM, or2M, and2M)
 import Agda.Utils.Null
 import Agda.Utils.Permutation
-import Agda.Utils.Pointed
 import Agda.Utils.Pretty (render)
+import Agda.Utils.Singleton
 import Agda.Utils.VarSet (VarSet)
 import qualified Agda.Utils.VarSet as VarSet
 
@@ -275,10 +275,10 @@ termMutual' = do
   names <- terGetUserNames
   case r of
     Left calls -> do
-      return $ point $ TerminationError
-                { termErrFunctions = names
-                , termErrCalls     = callInfos calls
-                }
+      return $ singleton $ TerminationError
+        { termErrFunctions = names
+        , termErrCalls     = callInfos calls
+        }
     Right{} -> do
       liftTCM $ reportSLn "term.warn.yes" 2 $
         show (names) ++ " does termination check"
@@ -400,13 +400,13 @@ termFunction name = do
    names <- terGetUserNames
    case r of
      Left calls -> do
-       return $ point $ TerminationError
+       return $ singleton $ TerminationError
          { termErrFunctions = if name `elem` names then [name] else []
          , termErrCalls     = calls
          }
      Right () -> do
        liftTCM $ reportSLn "term.warn.yes" 2 $
-         show (name) ++ " does termination check"
+         show name ++ " does termination check"
        return mempty
   where
     reportTarget r = liftTCM $

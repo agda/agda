@@ -360,11 +360,11 @@ library
                     Agda.Utils.Permutation
                     Agda.Utils.Permutation.Tests
                     Agda.Utils.Pointer
-                    Agda.Utils.Pointed
                     Agda.Utils.Pretty
                     Agda.Utils.QuickCheck
                     Agda.Utils.ReadP
                     Agda.Utils.SemiRing
+                    Agda.Utils.Singleton
                     Agda.Utils.Size
                     Agda.Utils.String
                     Agda.Utils.Suffix
