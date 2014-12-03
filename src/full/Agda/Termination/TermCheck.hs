@@ -22,9 +22,10 @@ module Agda.Termination.TermCheck
 
 import Prelude hiding (null)
 
-import Control.Applicative
+import Control.Applicative hiding (empty)
 import Control.Monad.State
 
+import Data.Foldable (toList)
 import Data.List hiding (null)
 import qualified Data.List as List
 import Data.Maybe (mapMaybe, isJust, fromMaybe)
@@ -34,7 +35,7 @@ import Data.Set (Set)
 import qualified Data.Set as Set
 import Data.Traversable (traverse)
 
-import Agda.Syntax.Abstract (IsProjP(..))
+import Agda.Syntax.Abstract (IsProjP(..), AllNames(..))
 import qualified Agda.Syntax.Abstract as A
 import Agda.Syntax.Internal as I
 import qualified Agda.Syntax.Info as Info
@@ -44,9 +45,9 @@ import Agda.Syntax.Literal (Literal(LitString))
 
 import Agda.Termination.CutOff
 import Agda.Termination.Monad
-import Agda.Termination.CallGraph hiding (null)
+import Agda.Termination.CallGraph hiding (toList)
 import qualified Agda.Termination.CallGraph as CallGraph
-import Agda.Termination.CallMatrix hiding (null)
+import Agda.Termination.CallMatrix hiding (toList)
 import Agda.Termination.Order     as Order
 import qualified Agda.Termination.SparseMatrix as Matrix
 import Agda.Termination.Termination (endos, idempotent)
@@ -55,7 +56,7 @@ import Agda.Termination.RecCheck
 import Agda.Termination.Inlining
 
 import Agda.TypeChecking.Monad
-import Agda.TypeChecking.Pretty
+import Agda.TypeChecking.Pretty hiding (empty)
 import Agda.TypeChecking.Reduce (reduce, normalise, instantiate, instantiateFull)
 import Agda.TypeChecking.Records -- (isRecordConstructor, isInductiveRecord)
 import Agda.TypeChecking.Telescope
@@ -79,8 +80,8 @@ import Agda.Utils.Maybe
 import Agda.Utils.Monad -- (mapM', forM', ifM, or2M, and2M)
 import Agda.Utils.Null
 import Agda.Utils.Permutation
-import Agda.Utils.Pointed
 import Agda.Utils.Pretty (render)
+import Agda.Utils.Singleton
 import Agda.Utils.VarSet (VarSet)
 import qualified Agda.Utils.VarSet as VarSet
 
@@ -92,7 +93,7 @@ import Agda.Utils.Impossible
 type Calls = CallGraph CallPath
 
 -- | The result of termination checking a module.
---   Must be 'Pointed' and a 'Monoid'.
+--   Must be a 'Monoid' and have 'Singleton'.
 
 type Result = [TerminationError]
 
@@ -227,7 +228,7 @@ termMutual i ds = if names == [] then return mempty else
          (runTerm $ termMutual')
 
      -- record result of termination check in signature
-     let terminates = List.null res
+     let terminates = null res
      forM_ allNames $ \ q -> setTerminates q terminates
      return res
 
@@ -275,15 +276,17 @@ termMutual' = do
   -- the names the user has declared.  This is for error reporting.
   names <- terGetUserNames
   case r of
-    Left calls -> do
-      return $ point $ TerminationError
-                { termErrFunctions = names
-                , termErrCalls     = callInfos calls
-                }
+    Left calls -> return $ singleton $ terminationError names $ callInfos calls
     Right{} -> do
       liftTCM $ reportSLn "term.warn.yes" 2 $
         show (names) ++ " does termination check"
       return mempty
+
+-- | Smart constructor for 'TerminationError'.
+--   Removes 'termErrFunctions' that are not mentioned in 'termErrCalls'.
+terminationError :: [QName] -> [CallInfo] -> TerminationError
+terminationError names calls = TerminationError names' calls
+  where names' = names `intersect` toList (allNames calls)
 
 -- ASR (08 November 2014). The type of the function could be
 --
@@ -326,7 +329,7 @@ reportCalls no calls = do
          step cs = do
            let (new, cs') = completionStep cs0 cs
            report " New call matrices " new
-           return $ if CallGraph.null new then Left () else Right cs'
+           return $ if null new then Left () else Right cs'
      report " Initial call matrices " cs0
      trampolineM step cs0
 
@@ -400,14 +403,10 @@ termFunction name = do
 
    names <- terGetUserNames
    case r of
-     Left calls -> do
-       return $ point $ TerminationError
-         { termErrFunctions = if name `elem` names then [name] else []
-         , termErrCalls     = calls
-         }
+     Left calls -> return $ singleton $ terminationError ([name] `intersect` names) calls
      Right () -> do
        liftTCM $ reportSLn "term.warn.yes" 2 $
-         show (name) ++ " does termination check"
+         show name ++ " does termination check"
        return mempty
   where
     reportTarget r = liftTCM $
@@ -458,7 +457,7 @@ termDef name = terSetCurrent name $ do
     Function{ funClauses = cls, funDelayed = delayed } ->
       terSetDelayed delayed $ forM' cls $ termClause
 
-    _ -> return CallGraph.empty
+    _ -> return empty
 
 -- | Mask arguments and result for termination checking
 --   according to type of function.
@@ -617,7 +616,7 @@ termClause' clause = do
     ps <- liftTCM $ normalise $ map unArg argPats'
     (dbpats, res) <- openClause perm ps body
     case res of
-      Nothing -> return CallGraph.empty
+      Nothing -> return empty
       Just v -> do
         dbpats <- mapM stripCoConstructors dbpats
         dbpats <- maskNonDataArgs dbpats
@@ -706,7 +705,7 @@ instance ExtractCalls a => ExtractCalls (I.Dom a) where
   extract = extract . unDom
 
 instance ExtractCalls a => ExtractCalls (Elim' a) where
-  extract Proj{}    = return CallGraph.empty
+  extract Proj{}    = return empty
   extract (Apply a) = extract $ unArg a
 
 instance ExtractCalls a => ExtractCalls [a] where
@@ -728,8 +727,8 @@ instance ExtractCalls Sort where
       reportSDoc "term.sort" 50 $
         text ("s = " ++ show s)
     case s of
-      Prop       -> return CallGraph.empty
-      Inf        -> return CallGraph.empty
+      Prop       -> return empty
+      Inf        -> return empty
       Type t     -> terUnguarded $ extract t  -- no guarded levels
       DLub s1 s2 -> extract (s1, s2)
 
@@ -969,14 +968,14 @@ instance ExtractCalls Term where
          <*> terPiGuarded (extract b)
 
       -- Literal.
-      Lit l -> return CallGraph.empty
+      Lit l -> return empty
 
       -- Sort.
       Sort s -> extract s
 
       -- Unsolved metas are not considered termination problems, there
       -- will be a warning for them anyway.
-      MetaV x args -> return CallGraph.empty
+      MetaV x args -> return empty
 
       -- Erased and not-yet-erased proof.
       DontCare t -> extract t

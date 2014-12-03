@@ -1,3 +1,5 @@
+-- RETIRED in favor of Agda.Utils.Singleton
+
 module Agda.Utils.Pointed where
 
 import Data.Set

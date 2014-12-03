@@ -34,9 +34,11 @@ import qualified Agda.Termination.Semiring as Semiring
 import Agda.Utils.Favorites (Favorites)
 import qualified Agda.Utils.Favorites as Fav
 import Agda.Utils.Monad
+import Agda.Utils.Null
 import Agda.Utils.PartialOrd hiding (tests)
 import Agda.Utils.Pretty hiding ((<>))
 import Agda.Utils.QuickCheck
+import Agda.Utils.Singleton
 import Agda.Utils.TestHelpers
 
 ------------------------------------------------------------------------
@@ -181,30 +183,17 @@ noAug m = CallMatrixAug m mempty
 -- * Sets of incomparable call matrices augmented with path information.
 ------------------------------------------------------------------------
 
+-- | Sets of incomparable call matrices augmented with path information.
+--   Use overloaded 'null', 'empty', 'singleton', 'mappend'.
 newtype CMSet cinfo = CMSet { cmSet :: Favorites (CallMatrixAug cinfo) }
-  deriving (Show, Arbitrary, CoArbitrary, Monoid)
+  deriving ( Show, Arbitrary, CoArbitrary
+           , Monoid, Null, Singleton (CallMatrixAug cinfo) )
 
 -- | Call matrix set product is the Cartesian product.
 
 instance Monoid cinfo => CallComb (CMSet cinfo) where
   CMSet as >*< CMSet bs = CMSet $ Fav.fromList $
     [ a >*< b | a <- Fav.toList as, b <- Fav.toList bs ]
-
--- | An empty call matrix set.
-
-empty :: CMSet cinfo
-empty = mempty
--- empty = CMSet $ Fav.empty
-
--- | Call matrix is empty?
-
-null ::  CMSet cinfo -> Bool
-null (CMSet as) = Fav.null as
-
--- | A singleton call matrix set.
-
-singleton :: CallMatrixAug cinfo -> CMSet cinfo
-singleton = CMSet . Fav.singleton
 
 -- | Insert into a call matrix set.
 

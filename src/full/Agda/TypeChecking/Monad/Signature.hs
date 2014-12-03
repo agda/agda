@@ -35,6 +35,7 @@ import {-# SOURCE #-} Agda.TypeChecking.CompiledClause.Compile
 import {-# SOURCE #-} Agda.TypeChecking.Polarity
 import {-# SOURCE #-} Agda.TypeChecking.ProjectionLike
 
+import Agda.Utils.Functor
 import Agda.Utils.Map as Map
 import Agda.Utils.Maybe
 import Agda.Utils.Monad
@@ -234,7 +235,7 @@ applySection new ptel old ts rd rm = do
       let m = mnameFromList $ commonPrefix (mnameToList old) (mnameToList new)
       reportSLn "tc.mod.apply" 80 $ "Common prefix: " ++ show m
       let ms = tail . map mnameFromList . inits . mnameToList $ m
-      ps <- sequence [ maybe 0 secFreeVars <$> getSection m | m <- ms ]
+      ps <- mapM (maybe 0 secFreeVars <.> getSection) ms
       reportSLn "tc.mod.apply" 80 $ "  params: " ++ show (zip ms ps)
       return $ sum ps
 
@@ -259,8 +260,7 @@ applySection new ptel old ts rd rm = do
           -- Issue1238: the copied def should be an 'instance' if the original
           -- def is one. Skip constructors since the original constructor will
           -- still work as an instance.
-          unless isCon $ flip (maybe (return ())) inst $ \c -> addNamedInstance y c
-
+          unless isCon $ whenJust inst $ \ c -> addNamedInstance y c
           unless (isCon || size ptel > 0) $ do
             addDisplayForms y
           where

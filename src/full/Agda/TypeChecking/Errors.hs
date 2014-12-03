@@ -1071,8 +1071,8 @@ instance PrettyTCM SplitError where
       pwords "because it has no constructor"
  -}
 
-    CantSplit c tel cIxs gIxs flex ->
-      prettyTCM (CoverageCantSplitOn c tel cIxs gIxs)
+    CantSplit c tel cIxs gIxs ->
+      prettyTCM $ CoverageCantSplitOn c tel cIxs gIxs
 
     GenericSplitError s -> fsep $ pwords "Split failed:" ++ pwords s
 

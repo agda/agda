@@ -32,8 +32,8 @@ import Data.IntMap (IntMap)
 import qualified Data.IntMap as IntMap
 import qualified Data.List as List
 import Data.Maybe
-import Data.Map as Map
-import Data.Set as Set
+import Data.Map as Map hiding (singleton)
+import Data.Set as Set hiding (singleton)
 import Data.Typeable (Typeable)
 import Data.Foldable
 import Data.Traversable
@@ -45,6 +45,7 @@ import qualified Agda.Syntax.Common as Common
 import qualified Agda.Syntax.Concrete as C
 import qualified Agda.Syntax.Concrete.Definitions as D
 import qualified Agda.Syntax.Abstract as A
+import Agda.Syntax.Abstract (AllNames)
 import Agda.Syntax.Internal as I
 import Agda.Syntax.Internal.Pattern ()
 import Agda.Syntax.Fixity
@@ -74,11 +75,12 @@ import Agda.Utils.Except
   )
 
 import Agda.Utils.FileName
-import Agda.Utils.HashMap as HMap
+import Agda.Utils.HashMap as HMap hiding (singleton)
 import Agda.Utils.Hash
 import Agda.Utils.Lens
 import Agda.Utils.Permutation
 import Agda.Utils.Pretty
+import Agda.Utils.Singleton
 import Agda.Utils.Time
 
 #include "undefined.h"
@@ -1676,7 +1678,7 @@ data OccPos = NonPositively | ArgumentTo Nat QName
 
 data CallInfo = CallInfo
   { callInfoTarget :: QName
-    -- ^ Target function name pretty-printed.
+    -- ^ Target function name.
   , callInfoRange :: Range
     -- ^ Range of the target function.
   , callInfoCall :: Closure Term
@@ -1688,6 +1690,23 @@ data CallInfo = CallInfo
 -- | We only 'show' the name of the callee.
 instance Show   CallInfo where show   = show . callInfoTarget
 instance Pretty CallInfo where pretty = text . show
+instance AllNames CallInfo where allNames = singleton . callInfoTarget
+
+-- UNUSED, but keep!
+-- -- | Call pathes are sequences of 'CallInfo's starting from a 'callSource'.
+-- data CallPath = CallPath
+--   { callSource :: QName
+--     -- ^ The originator of the first call.
+--   , callInfos :: [CallInfo]
+--     -- ^ The calls, in order from source to final target.
+--   }
+--   deriving (Show)
+
+-- -- | 'CallPath'es can be connected, but there is no empty callpath.
+-- --   Thus, they form a semigroup, but we choose to abuse 'Monoid'.
+-- instance Monoid CallPath where
+--   mempty = __IMPOSSIBLE__
+--   mappend (CallPath src cs) (CallPath _ cs') = CallPath src $ cs ++ cs'
 
 -- | Information about a mutual block which did not pass the
 -- termination checker.
@@ -1700,15 +1719,20 @@ data TerminationError = TerminationError
     -- ^ The problematic call sites.
   } deriving (Typeable, Show)
 
-
-data SplitError = NotADatatype (Closure Type) -- ^ neither data type nor record
-                | IrrelevantDatatype (Closure Type)   -- ^ data type, but in irrelevant position
-                | CoinductiveDatatype (Closure Type)  -- ^ coinductive data type
-{- UNUSED
-                | NoRecordConstructor Type  -- ^ record type, but no constructor
- -}
-                | CantSplit QName Telescope Args Args [Term]
-                | GenericSplitError String
+-- | Error when splitting a pattern variable into possible constructor patterns.
+data SplitError
+  = NotADatatype        (Closure Type)  -- ^ Neither data type nor record.
+  | IrrelevantDatatype  (Closure Type)  -- ^ Data type, but in irrelevant position.
+  | CoinductiveDatatype (Closure Type)  -- ^ Split on codata not allowed.
+  -- UNUSED, but keep!
+  -- -- | NoRecordConstructor Type  -- ^ record type, but no constructor
+  | CantSplit
+    { cantSplitConName  :: QName        -- ^ Constructor.
+    , cantSplitTel      :: Telescope    -- ^ Context for indices.
+    , cantSplitConIdx   :: Args         -- ^ Inferred indices (from type of constructor).
+    , cantSplitGivenIdx :: Args         -- ^ Expected indices (from checking pattern).
+    }
+  | GenericSplitError String
   deriving (Show)
 
 instance Error SplitError where

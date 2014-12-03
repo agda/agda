@@ -23,7 +23,7 @@ import qualified Data.List as List
 
 import Agda.Interaction.Options
 
-import Agda.Syntax.Abstract (QName,IsProjP(..))
+import Agda.Syntax.Abstract (QName, IsProjP(..), AllNames)
 import Agda.Syntax.Common   (Delayed(..), Induction(..), Dom(..))
 import Agda.Syntax.Internal
 import Agda.Syntax.Literal
@@ -525,7 +525,7 @@ instance UsableSizeVars [DeBruijnPat] where
 --   Performance-wise, I could not see a difference between Set and list.
 
 newtype CallPath = CallPath { callInfos :: [CallInfo] }
-  deriving (Show, Monoid)
+  deriving (Show, Monoid, AllNames)
 
 -- | Only show intermediate nodes.  (Drop last 'CallInfo').
 instance Pretty CallPath where

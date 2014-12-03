@@ -41,7 +41,7 @@ import Agda.TypeChecking.Monad.Options
 import Agda.TypeChecking.Monad.Exception
 import Agda.TypeChecking.Monad.Context
 
-import Agda.TypeChecking.Rules.LHS.Problem (FlexibleVar(..),flexibleVarFromHiding)
+import Agda.TypeChecking.Rules.LHS.Problem (flexibleVarFromHiding)
 import Agda.TypeChecking.Rules.LHS.Unify
 import Agda.TypeChecking.Rules.LHS.Instantiate (instantiateTel)
 import Agda.TypeChecking.Rules.LHS (instantiatePattern)
@@ -216,7 +216,7 @@ cover f cs sc@(SClause tel perm ps _ target) = do
       r <- altM1 (split Inductive sc) xs
       case r of
         Left err  -> case err of
-          CantSplit c tel us vs _ -> typeError $ CoverageCantSplitOn c tel us vs
+          CantSplit c tel us vs   -> typeError $ CoverageCantSplitOn c tel us vs
           NotADatatype a          -> enterClosure a $ typeError . CoverageCantSplitType
           IrrelevantDatatype a    -> enterClosure a $ typeError . CoverageCantSplitIrrelevantType
           CoinductiveDatatype a   -> enterClosure a $ typeError . CoverageCantSplitType
@@ -426,7 +426,6 @@ computeNeighbourhood delta1 n delta2 perm d pars ixs hix hps c = do
     DontKnow _    -> do
       debugCantSplit
       throwException $ CantSplit (conName con) (delta1 `abstract` gamma) conIxs givenIxs
-                                 (map (var . flexVar) flex)
     Unifies sub   -> do
       debugSubst "sub" sub
 
