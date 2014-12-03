@@ -1642,7 +1642,7 @@ data OccPos = NonPositively | ArgumentTo Nat QName
 
 data CallInfo = CallInfo
   { callInfoTarget :: QName
-    -- ^ Target function name pretty-printed.
+    -- ^ Target function name.
   , callInfoRange :: Range
     -- ^ Range of the target function.
   , callInfoCall :: Closure Term
@@ -1655,6 +1655,22 @@ data CallInfo = CallInfo
 instance Show   CallInfo where show   = show . callInfoTarget
 instance Pretty CallInfo where pretty = text . show
 instance AllNames CallInfo where allNames = singleton . callInfoTarget
+
+-- UNUSED, but keep!
+-- -- | Call pathes are sequences of 'CallInfo's starting from a 'callSource'.
+-- data CallPath = CallPath
+--   { callSource :: QName
+--     -- ^ The originator of the first call.
+--   , callInfos :: [CallInfo]
+--     -- ^ The calls, in order from source to final target.
+--   }
+--   deriving (Show)
+
+-- -- | 'CallPath'es can be connected, but there is no empty callpath.
+-- --   Thus, they form a semigroup, but we choose to abuse 'Monoid'.
+-- instance Monoid CallPath where
+--   mempty = __IMPOSSIBLE__
+--   mappend (CallPath src cs) (CallPath _ cs') = CallPath src $ cs ++ cs'
 
 -- | Information about a mutual block which did not pass the
 -- termination checker.
