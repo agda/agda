@@ -1,3 +1,5 @@
+-- UNUSED
+
 {-# LANGUAGE DeriveFoldable #-}
 
 -- {-# LANGUAGE GeneralizedNewtypeDeriving #-}
