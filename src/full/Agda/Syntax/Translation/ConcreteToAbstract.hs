@@ -1390,7 +1390,7 @@ instance ToAbstract C.Pragma [A.Pragma] where
     toAbstract C.TerminationCheckPragma{} = __IMPOSSIBLE__
 
 instance ToAbstract C.Clause A.Clause where
-    toAbstract (C.Clause top C.Ellipsis{} _ _ _) = fail "bad '...'" -- TODO: errors message
+    toAbstract (C.Clause top C.Ellipsis{} _ _ _) = fail "bad '...'" -- TODO: error message
     toAbstract (C.Clause top lhs@(C.LHS p wps eqs with) rhs wh wcs) = withLocalVars $ do
       -- Andreas, 2012-02-14: need to reset local vars before checking subclauses
       vars <- getLocalVars
@@ -1441,17 +1441,18 @@ whereToAbstract r whname whds inner = do
   return (x, ds)
 
 data RightHandSide = RightHandSide
-  { rhsRewriteEqn :: [C.RewriteEqn]  -- ^ @rewrite e@ (many)
-  , rhsWithExpr   :: [C.WithExpr]    -- ^ @with e@ (many)
+  { rhsRewriteEqn :: [C.RewriteEqn]    -- ^ @rewrite e@ (many)
+  , rhsWithExpr   :: [C.WithExpr]      -- ^ @with e@ (many)
   , rhsSubclauses :: [ScopeM C.Clause] -- ^ the subclauses spawned by a with (monadic because we need to reset the local vars before checking these clauses)
   , rhs           :: C.RHS
   , rhsWhereDecls :: [C.Declaration]
   }
 
-data AbstractRHS = AbsurdRHS'
-                 | WithRHS' [A.Expr] [ScopeM C.Clause]  -- ^ The with clauses haven't been translated yet
-                 | RHS' A.Expr
-                 | RewriteRHS' [A.Expr] AbstractRHS [A.Declaration]
+data AbstractRHS
+  = AbsurdRHS'
+  | WithRHS' [A.Expr] [ScopeM C.Clause]  -- ^ The with clauses haven't been translated yet
+  | RHS' A.Expr
+  | RewriteRHS' [A.Expr] AbstractRHS [A.Declaration]
 
 qualifyName_ :: A.Name -> ScopeM A.QName
 qualifyName_ x = do
