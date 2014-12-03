@@ -126,11 +126,6 @@ annotateExpr m = do
   s <- getScope
   return $ ScopedExpr s e
 
-expandEllipsis :: C.Pattern -> [C.Pattern] -> C.Clause -> C.Clause
-expandEllipsis _ _ c@(C.Clause _ _ C.LHS{} _ _ _) = c
-expandEllipsis p ps (C.Clause x catchall (C.Ellipsis _ ps' eqs es) rhs wh wcs) =
-  C.Clause x catchall (C.LHS p (ps ++ ps') eqs es) rhs wh wcs
-
 -- | Make sure that each variable occurs only once.
 checkPatternLinearity :: [A.Pattern' e] -> ScopeM ()
 checkPatternLinearity ps = unlessNull (duplicates xs) $ \ ys -> do
@@ -1413,7 +1408,7 @@ instance ToAbstract C.Clause A.Clause where
       vars <- getLocalVars
       let wcs' = for wcs $ \ c -> do
            setLocalVars vars
-           return $ expandEllipsis p wps c
+           return c
       lhs' <- toAbstract (LeftHandSide top p wps)
       printLocals 10 "after lhs:"
       let (whname, whds) = case wh of
