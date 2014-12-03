@@ -44,7 +44,7 @@ isEmptyType r t = do
 
       case r of
         Left err  -> case err of
-          CantSplit c tel us vs _ -> postpone
+          CantSplit c tel us vs   -> postpone
           -- Andreas, 2012-03-15: allow postponement of emptyness check
           -- OLD CODE: traceCall (CheckIsEmpty t) $ typeError $ CoverageCantSplitOn c tel us vs
           _                       -> typeError $ ShouldBeEmpty t []

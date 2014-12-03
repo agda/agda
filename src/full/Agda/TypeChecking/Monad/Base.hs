@@ -1664,15 +1664,20 @@ data TerminationError = TerminationError
     -- ^ The problematic call sites.
   } deriving (Typeable, Show)
 
-
-data SplitError = NotADatatype (Closure Type) -- ^ neither data type nor record
-                | IrrelevantDatatype (Closure Type)   -- ^ data type, but in irrelevant position
-                | CoinductiveDatatype (Closure Type)  -- ^ coinductive data type
-{- UNUSED
-                | NoRecordConstructor Type  -- ^ record type, but no constructor
- -}
-                | CantSplit QName Telescope Args Args [Term]
-                | GenericSplitError String
+-- | Error when splitting a pattern variable into possible constructor patterns.
+data SplitError
+  = NotADatatype        (Closure Type)  -- ^ Neither data type nor record.
+  | IrrelevantDatatype  (Closure Type)  -- ^ Data type, but in irrelevant position.
+  | CoinductiveDatatype (Closure Type)  -- ^ Split on codata not allowed.
+  -- UNUSED, but keep!
+  -- -- | NoRecordConstructor Type  -- ^ record type, but no constructor
+  | CantSplit
+    { cantSplitConName  :: QName        -- ^ Constructor.
+    , cantSplitTel      :: Telescope    -- ^ Context for indices.
+    , cantSplitConIdx   :: Args         -- ^ Inferred indices (from type of constructor).
+    , cantSplitGivenIdx :: Args         -- ^ Expected indices (from checking pattern).
+    }
+  | GenericSplitError String
   deriving (Show)
 
 instance Error SplitError where
