@@ -32,8 +32,8 @@ import Data.IntMap (IntMap)
 import qualified Data.IntMap as IntMap
 import qualified Data.List as List
 import Data.Maybe
-import Data.Map as Map
-import Data.Set as Set
+import Data.Map as Map hiding (singleton)
+import Data.Set as Set hiding (singleton)
 import Data.Typeable (Typeable)
 import Data.Foldable
 import Data.Traversable
@@ -45,6 +45,7 @@ import qualified Agda.Syntax.Common as Common
 import qualified Agda.Syntax.Concrete as C
 import qualified Agda.Syntax.Concrete.Definitions as D
 import qualified Agda.Syntax.Abstract as A
+import Agda.Syntax.Abstract (AllNames)
 import Agda.Syntax.Internal as I
 import Agda.Syntax.Internal.Pattern ()
 import Agda.Syntax.Fixity
@@ -73,11 +74,12 @@ import Agda.Utils.Except
   )
 
 import Agda.Utils.FileName
-import Agda.Utils.HashMap as HMap
+import Agda.Utils.HashMap as HMap hiding (singleton)
 import Agda.Utils.Hash
 import Agda.Utils.Lens
 import Agda.Utils.Permutation
 import Agda.Utils.Pretty
+import Agda.Utils.Singleton
 import Agda.Utils.Time
 
 #include "undefined.h"
@@ -1652,6 +1654,7 @@ data CallInfo = CallInfo
 -- | We only 'show' the name of the callee.
 instance Show   CallInfo where show   = show . callInfoTarget
 instance Pretty CallInfo where pretty = text . show
+instance AllNames CallInfo where allNames = singleton . callInfoTarget
 
 -- | Information about a mutual block which did not pass the
 -- termination checker.

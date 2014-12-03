@@ -25,6 +25,7 @@ import Prelude hiding (null)
 import Control.Applicative
 import Control.Monad.State
 
+import Data.Foldable (toList)
 import Data.List hiding (null)
 import qualified Data.List as List
 import Data.Maybe (mapMaybe, isJust, fromMaybe)
@@ -34,7 +35,7 @@ import Data.Set (Set)
 import qualified Data.Set as Set
 import Data.Traversable (traverse)
 
-import Agda.Syntax.Abstract (IsProjP(..))
+import Agda.Syntax.Abstract (IsProjP(..), AllNames(..))
 import qualified Agda.Syntax.Abstract as A
 import Agda.Syntax.Internal as I
 import qualified Agda.Syntax.Info as Info
@@ -44,9 +45,9 @@ import Agda.Syntax.Literal (Literal(LitString))
 
 import Agda.Termination.CutOff
 import Agda.Termination.Monad
-import Agda.Termination.CallGraph hiding (null)
+import Agda.Termination.CallGraph hiding (null, toList)
 import qualified Agda.Termination.CallGraph as CallGraph
-import Agda.Termination.CallMatrix hiding (null, singleton)
+import Agda.Termination.CallMatrix hiding (null, singleton, toList)
 import Agda.Termination.Order     as Order
 import qualified Agda.Termination.SparseMatrix as Matrix
 import Agda.Termination.Termination (endos, idempotent)
@@ -274,15 +275,17 @@ termMutual' = do
   -- the names the user has declared.  This is for error reporting.
   names <- terGetUserNames
   case r of
-    Left calls -> do
-      return $ singleton $ TerminationError
-        { termErrFunctions = names
-        , termErrCalls     = callInfos calls
-        }
+    Left calls -> return $ singleton $ terminationError names $ callInfos calls
     Right{} -> do
       liftTCM $ reportSLn "term.warn.yes" 2 $
         show (names) ++ " does termination check"
       return mempty
+
+-- | Smart constructor for 'TerminationError'.
+--   Removes 'termErrFunctions' that are not mentioned in 'termErrCalls'.
+terminationError :: [QName] -> [CallInfo] -> TerminationError
+terminationError names calls = TerminationError names' calls
+  where names' = names `intersect` toList (allNames calls)
 
 -- ASR (08 November 2014). The type of the function could be
 --
@@ -399,11 +402,7 @@ termFunction name = do
 
    names <- terGetUserNames
    case r of
-     Left calls -> do
-       return $ singleton $ TerminationError
-         { termErrFunctions = if name `elem` names then [name] else []
-         , termErrCalls     = calls
-         }
+     Left calls -> return $ singleton $ terminationError ([name] `intersect` names) calls
      Right () -> do
        liftTCM $ reportSLn "term.warn.yes" 2 $
          show name ++ " does termination check"
