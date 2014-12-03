@@ -1402,14 +1402,12 @@ instance ToAbstract C.Pragma [A.Pragma] where
     toAbstract C.CatchallPragma{}         = __IMPOSSIBLE__
 
 instance ToAbstract C.Clause A.Clause where
-    toAbstract (C.Clause top _ C.Ellipsis{} _ _ _) = fail "bad '...'" -- TODO: errors message
+    toAbstract (C.Clause top _ C.Ellipsis{} _ _ _) = fail "bad '...'" -- TODO: error message
     toAbstract (C.Clause top catchall lhs@(C.LHS p wps eqs with) rhs wh wcs) = withLocalVars $ do
       -- Andreas, 2012-02-14: need to reset local vars before checking subclauses
       vars <- getLocalVars
-      let wcs' = for wcs $ \ c -> do
-           setLocalVars vars
-           return c
-      lhs' <- toAbstract (LeftHandSide top p wps)
+      let wcs' = for wcs $ \ c -> setLocalVars vars $> c
+      lhs' <- toAbstract $ LeftHandSide top p wps
       printLocals 10 "after lhs:"
       let (whname, whds) = case wh of
             NoWhere        -> (Nothing, [])
@@ -1427,16 +1425,12 @@ instance ToAbstract C.Clause A.Clause where
           return $ A.Clause lhs' rhs ds catchall
 
 whereToAbstract :: Range -> Maybe C.Name -> [C.Declaration] -> ScopeM a -> ScopeM (a, [A.Declaration])
-whereToAbstract _ _ [] inner = do
-  x <- inner
-  return (x, [])
+whereToAbstract _ _      []   inner = (,[]) <$> inner
 whereToAbstract r whname whds inner = do
-  m <- maybe (nameConcrete <$> freshNoName noRange) return whname
-  m <- if (maybe False isNoName whname)
-       then do
-         (i :: NameId) <- fresh
-         return (C.NoName (getRange m) i)
-       else return m
+  -- Create a fresh concrete name if there isn't (a proper) one.
+  m <- case whname of
+         Just m | not (isNoName m) -> return m
+         _                         -> C.NoName (getRange whname) <$> fresh
   let acc = maybe PrivateAccess (const PublicAccess) whname  -- unnamed where's are private
   let tel = []
   old <- getCurrentModule
@@ -1447,23 +1441,25 @@ whereToAbstract r whname whds inner = do
   setCurrentModule old
   bindModule acc m am
   -- Issue 848: if the module was anonymous (module _ where) open it public
-  when (maybe False isNoName whname) $
+  let anonymous = maybe False isNoName whname
+  when anonymous $
     openModule_ (C.QName m) $
       defaultImportDir { publicOpen = True }
   return (x, ds)
 
 data RightHandSide = RightHandSide
-  { rhsRewriteEqn :: [C.RewriteEqn]  -- ^ @rewrite e@ (many)
-  , rhsWithExpr   :: [C.WithExpr]    -- ^ @with e@ (many)
+  { rhsRewriteEqn :: [C.RewriteEqn]    -- ^ @rewrite e@ (many)
+  , rhsWithExpr   :: [C.WithExpr]      -- ^ @with e@ (many)
   , rhsSubclauses :: [ScopeM C.Clause] -- ^ the subclauses spawned by a with (monadic because we need to reset the local vars before checking these clauses)
   , rhs           :: C.RHS
   , rhsWhereDecls :: [C.Declaration]
   }
 
-data AbstractRHS = AbsurdRHS'
-                 | WithRHS' [A.Expr] [ScopeM C.Clause]  -- ^ The with clauses haven't been translated yet
-                 | RHS' A.Expr
-                 | RewriteRHS' [A.Expr] AbstractRHS [A.Declaration]
+data AbstractRHS
+  = AbsurdRHS'
+  | WithRHS' [A.Expr] [ScopeM C.Clause]  -- ^ The with clauses haven't been translated yet
+  | RHS' A.Expr
+  | RewriteRHS' [A.Expr] AbstractRHS [A.Declaration]
 
 qualifyName_ :: A.Name -> ScopeM A.QName
 qualifyName_ x = do

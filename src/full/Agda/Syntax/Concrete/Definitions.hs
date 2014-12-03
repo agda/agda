@@ -80,29 +80,33 @@ import Agda.Utils.Impossible
     modifiers have been distributed to the individual declarations.
 -}
 data NiceDeclaration
-        = Axiom Range Fixity' Access IsInstance ArgInfo Name Expr
-            -- ^ Axioms and functions can be declared irrelevant. (Hiding should be NotHidden)
-        | NiceField Range Fixity' Access IsAbstract Name (Arg Expr)
-        | PrimitiveFunction Range Fixity' Access IsAbstract Name Expr
-        | NiceMutual Range TerminationCheck [NiceDeclaration]
-        | NiceModule Range Access IsAbstract QName Telescope [Declaration]
-        | NiceModuleMacro Range Access Name ModuleApplication OpenShortHand ImportDirective
-        | NiceOpen Range QName ImportDirective
-        | NiceImport Range QName (Maybe AsName) OpenShortHand ImportDirective
-        | NicePragma Range Pragma
-        | NiceRecSig Range Fixity' Access Name [LamBinding] Expr
-        | NiceDataSig Range Fixity' Access Name [LamBinding] Expr
-        | NiceFunClause Range Access IsAbstract TerminationCheck Catchall Declaration
-          -- ^ a uncategorized function clause, could be a function clause
-          --   without type signature or a pattern lhs (e.g. for irrefutable let)x
-        | FunSig Range Fixity' Access IsInstance ArgInfo TerminationCheck Name Expr
-        | FunDef  Range [Declaration] Fixity' IsAbstract TerminationCheck Name [Clause] -- ^ block of function clauses (we have seen the type signature before)
-        | DataDef Range Fixity' IsAbstract Name [LamBinding] [NiceConstructor]
-        | RecDef Range Fixity' IsAbstract Name (Maybe (Ranged Induction)) (Maybe (ThingWithFixity Name, IsInstance)) [LamBinding] [NiceDeclaration]
-        | NicePatternSyn Range Fixity' Name [Arg Name] Pattern
-        | NiceUnquoteDecl Range Fixity' Access IsAbstract TerminationCheck Name Expr
-        | NiceUnquoteDef Range Fixity' Access IsAbstract TerminationCheck Name Expr
-    deriving (Typeable, Show)
+  = Axiom Range Fixity' Access IsInstance ArgInfo Name Expr
+      -- ^ Axioms and functions can be declared irrelevant. (Hiding should be NotHidden)
+  | NiceField Range Fixity' Access IsAbstract Name (Arg Expr)
+  | PrimitiveFunction Range Fixity' Access IsAbstract Name Expr
+  | NiceMutual Range TerminationCheck [NiceDeclaration]
+  | NiceModule Range Access IsAbstract QName Telescope [Declaration]
+  | NiceModuleMacro Range Access Name ModuleApplication OpenShortHand ImportDirective
+  | NiceOpen Range QName ImportDirective
+  | NiceImport Range QName (Maybe AsName) OpenShortHand ImportDirective
+  | NicePragma Range Pragma
+  | NiceRecSig Range Fixity' Access Name [LamBinding] Expr
+  | NiceDataSig Range Fixity' Access Name [LamBinding] Expr
+  | NiceFunClause Range Access IsAbstract TerminationCheck Catchall Declaration
+    -- ^ An uncategorized function clause, could be a function clause
+    --   without type signature or a pattern lhs (e.g. for irrefutable let).
+    --   The 'Declaration' is the actual 'FunClause'.
+  | FunSig Range Fixity' Access IsInstance ArgInfo TerminationCheck Name Expr
+  | FunDef  Range [Declaration] Fixity' IsAbstract TerminationCheck Name [Clause]
+      -- ^ Block of function clauses (we have seen the type signature before).
+      --   The 'Declaration's are the original declarations that were processed
+      --   into this 'FunDef' and are only used in 'notSoNiceDeclaration'.
+  | DataDef Range Fixity' IsAbstract Name [LamBinding] [NiceConstructor]
+  | RecDef Range Fixity' IsAbstract Name (Maybe (Ranged Induction)) (Maybe (ThingWithFixity Name, IsInstance)) [LamBinding] [NiceDeclaration]
+  | NicePatternSyn Range Fixity' Name [Arg Name] Pattern
+  | NiceUnquoteDecl Range Fixity' Access IsAbstract TerminationCheck Name Expr
+  | NiceUnquoteDef Range Fixity' Access IsAbstract TerminationCheck Name Expr
+  deriving (Typeable, Show)
 
 type TerminationCheck = Common.TerminationCheck Measure
 
