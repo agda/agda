@@ -2,6 +2,7 @@
 {-# LANGUAGE DeriveFoldable             #-}
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
 {-# LANGUAGE NoImplicitPrelude          #-}
+{-# LANGUAGE ScopedTypeVariables        #-}
 {-# LANGUAGE TemplateHaskell            #-}
 
 -- | Maintaining a list of favorites of some partially ordered type.
@@ -34,8 +35,10 @@ import System.IO
 import Text.Show
 import Test.QuickCheck.All
 
+import Agda.Utils.Null
 import Agda.Utils.PartialOrd hiding (tests)
 import Agda.Utils.QuickCheck
+import Agda.Utils.Singleton
 import Agda.Utils.TestHelpers
 import Agda.Utils.Tuple
 
@@ -44,24 +47,12 @@ import Agda.Utils.Impossible
 
 -- | A list of incomparable favorites.
 newtype Favorites a = Favorites { toList :: [a] }
-  deriving (Foldable, Show, CoArbitrary)
+  deriving (Foldable, Show, CoArbitrary, Null, Singleton a)
 
 -- | Equality checking is a bit expensive, since we need to sort!
 --   Maybe use a 'Set' of favorites in the first place?
 instance Ord a => Eq (Favorites a) where
   as == bs = Set.fromList (toList as) == Set.fromList (toList bs)
-
--- | No favories yet?
-null :: Favorites a -> Bool
-null = List.null . toList
-
--- | No favorites yet.  Poor me!
-empty :: Favorites a
-empty = Favorites []
-
--- | You are my one and only, darling!
-singleton :: a -> Favorites a
-singleton a = Favorites [a]
 
 -- | Result of comparing a candidate with the current favorites.
 data CompareResult a
@@ -152,10 +143,10 @@ instance (PartialOrd a, Arbitrary a) => Arbitrary (Favorites a) where
   arbitrary = fromList <$> arbitrary
 
 property_null_empty :: Bool
-property_null_empty = null empty
+property_null_empty = null (empty :: Favorites ())
 
-property_not_null_singleton :: a -> Bool
-property_not_null_singleton = not . null . singleton
+property_not_null_singleton :: forall a. a -> Bool
+property_not_null_singleton x = not $ null (singleton x :: Favorites a)
 
 -- Remember: less is better!
 

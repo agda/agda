@@ -23,8 +23,6 @@ module Agda.Termination.CallGraph
   , targetNodes
   , fromList
   , toList
-  , empty
-  , null
   , union
   , insert
   , complete, completionStep
@@ -65,10 +63,12 @@ import Agda.Utils.List hiding (tests)
 import Agda.Utils.Map
 import Agda.Utils.Maybe
 import Agda.Utils.Monad
+import Agda.Utils.Null
 import Agda.Utils.PartialOrd
 import Agda.Utils.Pretty hiding (empty)
 import qualified Agda.Utils.Pretty as P
 import Agda.Utils.QuickCheck hiding (label)
+import Agda.Utils.Singleton
 import Agda.Utils.TestHelpers
 import Agda.Utils.Tuple
 
@@ -96,7 +96,7 @@ callMatrixSet = label
 
 -- | Make a call with a single matrix.
 mkCall :: Node -> Node -> CallMatrix -> cinfo -> Call cinfo
-mkCall s t m cinfo = Edge s t $ CMSet.singleton $ CallMatrixAug m cinfo
+mkCall s t m cinfo = Edge s t $ singleton $ CallMatrixAug m cinfo
 
 -- | Make a call with empty @cinfo@.
 mkCall' :: Monoid cinfo => Node -> Node -> CallMatrix -> Call cinfo
@@ -145,15 +145,10 @@ toList = Graph.edges . theCallGraph
 fromList :: Monoid cinfo => [Call cinfo] -> CallGraph cinfo
 fromList = CallGraph . Graph.fromListWith CMSet.union
 
--- | Creates an empty call graph.
-
-empty :: CallGraph cinfo
-empty = CallGraph Graph.empty
-
--- | Check whether the call graph is completely disconnected.
-
-null :: CallGraph cinfo -> Bool
-null = List.all (CMSet.null . label) . toList
+-- | 'null' checks whether the call graph is completely disconnected.
+instance Null (CallGraph cinfo) where
+  empty = CallGraph Graph.empty
+  null  = List.all (null . label) . toList
 
 -- | Takes the union of two call graphs.
 
@@ -202,7 +197,7 @@ instance (Monoid a, CombineNewOld a, Ord s, Ord t) => CombineNewOld (Graph s t a
         -- -- | otherwise      = __IMPOSSIBLE__
 
       -- Filter unlabelled edges from the resulting new graph.
-      -- filt = Graph.filterEdges (not . CMSet.null)
+      -- filt = Graph.filterEdges (not . null)
 
 -- | Call graph combination.
 --
@@ -263,7 +258,7 @@ completionStep gOrig gThis = combineNewOldCallGraph gOrig gThis
 instance Pretty cinfo => Pretty (CallGraph cinfo) where
   pretty = vcat . map prettyCall . toList
     where
-    prettyCall e = if CMSet.null (callMatrixSet e) then P.empty else align 20 $
+    prettyCall e = if null (callMatrixSet e) then P.empty else align 20 $
       [ ("Source:",    text $ show $ source e)
       , ("Target:",    text $ show $ target e)
       , ("Matrix:",    pretty $ callMatrixSet e)

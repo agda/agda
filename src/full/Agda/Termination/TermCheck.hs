@@ -22,7 +22,7 @@ module Agda.Termination.TermCheck
 
 import Prelude hiding (null)
 
-import Control.Applicative
+import Control.Applicative hiding (empty)
 import Control.Monad.State
 
 import Data.Foldable (toList)
@@ -45,9 +45,9 @@ import Agda.Syntax.Literal (Literal(LitString))
 
 import Agda.Termination.CutOff
 import Agda.Termination.Monad
-import Agda.Termination.CallGraph hiding (null, toList)
+import Agda.Termination.CallGraph hiding (toList)
 import qualified Agda.Termination.CallGraph as CallGraph
-import Agda.Termination.CallMatrix hiding (null, singleton, toList)
+import Agda.Termination.CallMatrix hiding (toList)
 import Agda.Termination.Order     as Order
 import qualified Agda.Termination.SparseMatrix as Matrix
 import Agda.Termination.Termination (endos, idempotent)
@@ -56,7 +56,7 @@ import Agda.Termination.RecCheck
 import Agda.Termination.Inlining
 
 import Agda.TypeChecking.Monad
-import Agda.TypeChecking.Pretty
+import Agda.TypeChecking.Pretty hiding (empty)
 import Agda.TypeChecking.Reduce (reduce, normalise, instantiate, instantiateFull)
 import Agda.TypeChecking.Records -- (isRecordConstructor, isInductiveRecord)
 import Agda.TypeChecking.Telescope
@@ -93,7 +93,7 @@ import Agda.Utils.Impossible
 type Calls = CallGraph CallPath
 
 -- | The result of termination checking a module.
---   Must be 'Pointed' and a 'Monoid'.
+--   Must be a 'Monoid' and have 'Singleton'.
 
 type Result = [TerminationError]
 
@@ -227,7 +227,7 @@ termMutual i ds = if names == [] then return mempty else
          (runTerm $ termMutual')
 
      -- record result of termination check in signature
-     let terminates = List.null res
+     let terminates = null res
      forM_ allNames $ \ q -> setTerminates q terminates
      return res
 
@@ -328,7 +328,7 @@ reportCalls no calls = do
          step cs = do
            let (new, cs') = completionStep cs0 cs
            report " New call matrices " new
-           return $ if CallGraph.null new then Left () else Right cs'
+           return $ if null new then Left () else Right cs'
      report " Initial call matrices " cs0
      trampolineM step cs0
 
@@ -456,7 +456,7 @@ termDef name = terSetCurrent name $ do
     Function{ funClauses = cls, funDelayed = delayed } ->
       terSetDelayed delayed $ forM' cls $ termClause
 
-    _ -> return CallGraph.empty
+    _ -> return empty
 
 -- | Mask arguments and result for termination checking
 --   according to type of function.
@@ -615,7 +615,7 @@ termClause' clause = do
     ps <- liftTCM $ normalise $ map unArg argPats'
     (dbpats, res) <- openClause perm ps body
     case res of
-      Nothing -> return CallGraph.empty
+      Nothing -> return empty
       Just v -> do
         dbpats <- mapM stripCoConstructors dbpats
         dbpats <- maskNonDataArgs dbpats
@@ -704,7 +704,7 @@ instance ExtractCalls a => ExtractCalls (I.Dom a) where
   extract = extract . unDom
 
 instance ExtractCalls a => ExtractCalls (Elim' a) where
-  extract Proj{}    = return CallGraph.empty
+  extract Proj{}    = return empty
   extract (Apply a) = extract $ unArg a
 
 instance ExtractCalls a => ExtractCalls [a] where
@@ -726,8 +726,8 @@ instance ExtractCalls Sort where
       reportSDoc "term.sort" 50 $
         text ("s = " ++ show s)
     case s of
-      Prop       -> return CallGraph.empty
-      Inf        -> return CallGraph.empty
+      Prop       -> return empty
+      Inf        -> return empty
       Type t     -> terUnguarded $ extract t  -- no guarded levels
       DLub s1 s2 -> extract (s1, s2)
 
@@ -967,14 +967,14 @@ instance ExtractCalls Term where
          <*> terPiGuarded (extract b)
 
       -- Literal.
-      Lit l -> return CallGraph.empty
+      Lit l -> return empty
 
       -- Sort.
       Sort s -> extract s
 
       -- Unsolved metas are not considered termination problems, there
       -- will be a warning for them anyway.
-      MetaV x args -> return CallGraph.empty
+      MetaV x args -> return empty
 
       -- Erased and not-yet-erased proof.
       DontCare t -> extract t
