@@ -672,6 +672,21 @@ instance HasRange Pattern where
   getRange (InstanceP r _)    = r
   getRange (DotP r _)         = r
 
+instance SetRange Pattern where
+  setRange r (IdentP x)       = IdentP (setRange r x)
+  setRange r (AppP p q)       = AppP (setRange r p) (setRange r q)
+  setRange r (OpAppP _ x ps)  = OpAppP r x ps
+  setRange r (RawAppP _ ps)   = RawAppP r ps
+  setRange r (ParenP _ p)     = ParenP r p
+  setRange r (WildP _)        = WildP r
+  setRange r (AsP _ x p)      = AsP r (setRange r x) p
+  setRange r (AbsurdP _)      = AbsurdP r
+  setRange r (LitP l)         = LitP (setRange r l)
+  setRange r (QuoteP _)       = QuoteP r
+  setRange r (HiddenP _ p)    = HiddenP r p
+  setRange r (InstanceP _ p)  = InstanceP r p
+  setRange r (DotP _ e)       = DotP r e
+
 instance KillRange FieldAssignment where
   killRange (FieldAssignment a b) = killRange2 FieldAssignment a b
 

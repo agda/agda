@@ -277,6 +277,9 @@ instance Decoration (Arg c) where
 instance HasRange a => HasRange (Arg c a) where
     getRange = getRange . unArg
 
+instance SetRange a => SetRange (Arg c a) where
+  setRange r = fmap $ setRange r
+
 instance (KillRange c, KillRange a) => KillRange (Arg c a) where
   killRange (Arg info a) = killRange2 Arg info a
 
@@ -453,6 +456,9 @@ instance Decoration (Named name) where
 
 instance HasRange a => HasRange (Named name a) where
     getRange = getRange . namedThing
+
+instance SetRange a => SetRange (Named name a) where
+  setRange r = fmap $ setRange r
 
 instance (KillRange name, KillRange a) => KillRange (Named name a) where
   killRange (Named n a) = Named (killRange n) (killRange a)

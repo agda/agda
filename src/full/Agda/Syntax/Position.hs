@@ -218,6 +218,9 @@ class HasRange t => SetRange t where
 instance SetRange Range where
   setRange = const
 
+instance SetRange a => SetRange [a] where
+  setRange r = fmap $ setRange r
+
 -- | Killing the range of an object sets all range information to 'noRange'.
 class KillRange a where
   killRange :: KillRangeT a

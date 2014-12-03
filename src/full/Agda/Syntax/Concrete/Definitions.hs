@@ -734,10 +734,10 @@ niceDeclarations ds = do
       where
         expand _ _ [] = []
         expand p ps (d@(Pragma (CatchallPragma r)) : ds) = d : expand p ps ds
-        expand p ps (FunClause (Ellipsis _ ps' eqs []) rhs wh : ds) =
-          FunClause (LHS p (ps ++ ps') eqs []) rhs wh : expand p ps ds
-        expand p ps (FunClause (Ellipsis _ ps' eqs es) rhs wh : ds) =
-          FunClause (LHS p (ps ++ ps') eqs es) rhs wh : expand p (ps ++ ps') ds
+        expand p ps (FunClause (Ellipsis r ps' eqs []) rhs wh : ds) =
+          FunClause (LHS (setRange r p) ((setRange r ps) ++ ps') eqs []) rhs wh : expand p ps ds
+        expand p ps (FunClause (Ellipsis r ps' eqs es) rhs wh : ds) =
+          FunClause (LHS (setRange r p) ((setRange r ps) ++ ps') eqs es) rhs wh : expand p (ps ++ ps') ds
         expand p ps (d@(FunClause (LHS _ _ _ []) _ _) : ds) =
           d : expand p ps ds
         expand _ _ (d@(FunClause (LHS p ps _ (_ : _)) _ _) : ds) =
