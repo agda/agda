@@ -525,7 +525,9 @@ interpret Cmd_metas = do -- CL.showMetas []
   hms <- lift $ B.typesOfHiddenMetas B.Simplified
   if not $ null ims && null hms
     then do
-      di <- lift $ forM ims $ \i -> B.withInteractionId (B.outputFormId $ B.OutputForm noRange 0 i) (showATop i)
+      di <- lift $ forM ims $ \ i ->
+        B.withInteractionId (B.outputFormId $ B.OutputForm noRange 0 i) $
+          showATop i
       dh <- lift $ mapM showA' hms
       display_info $ Info_AllGoals $ unlines $ di ++ dh
     else do
