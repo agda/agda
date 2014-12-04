@@ -483,9 +483,14 @@ typesOfHiddenMetas norm = liftTCM $ do
   store <- Map.filterWithKey (openAndImplicit is) <$> getMetaStore
   mapM (typeOfMetaMI norm) $ Map.keys store
   where
-  openAndImplicit is x (MetaVar{mvInstantiation = M.Open}) = x `notElem` is
-  openAndImplicit is x (MetaVar{mvInstantiation = M.BlockedConst _}) = True
-  openAndImplicit _  _ _                                    = False
+  openAndImplicit is x m =
+    case mvInstantiation m of
+      M.InstV{} -> False
+      M.InstS{} -> False
+      M.Open    -> x `notElem` is
+      M.OpenIFS -> x `notElem` is  -- OR: True !?
+      M.BlockedConst{} -> True
+      M.PostponedTypeCheckingProblem{} -> False
 
 metaHelperType :: Rewrite -> InteractionId -> Range -> String -> TCM (OutputConstraint' Expr Expr)
 metaHelperType norm ii rng s = case words s of
