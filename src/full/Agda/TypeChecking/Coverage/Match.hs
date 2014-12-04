@@ -72,8 +72,10 @@ data MPat
   = VarMP Nat    -- ^ De Bruijn index (usually, rightmost variable in patterns is 0).
   | ConMP ConHead [Arg MPat]
   | LitMP Literal
+  | DotMP MPat   -- ^ For keeping track of the original dot positions.
   | WildMP       -- ^ For dot patterns that cannot be turned into patterns.
   | ProjMP QName -- ^ Projection copattern.
+  deriving (Show)
 
 buildMPatterns :: Permutation -> [Arg Pattern] -> [Arg MPat]
 buildMPatterns perm ps = evalState (mapM (traverse build) ps) xs
@@ -83,7 +85,7 @@ buildMPatterns perm ps = evalState (mapM (traverse build) ps) xs
 
     build (VarP _)        = VarMP <$> tick
     build (ConP con _ ps) = ConMP con <$> mapM (traverse build . fmap namedThing) ps
-    build (DotP t)        = tick *> buildT t
+    build (DotP t)        = DotMP <$> (tick *> buildT t)
     build (LitP l)        = return $ LitMP l
     build (ProjP dest)    = return $ ProjMP dest
 
@@ -96,6 +98,7 @@ isTrivialMPattern :: MPat -> Bool
 isTrivialMPattern VarMP{} = True
 isTrivialMPattern ConMP{} = False
 isTrivialMPattern LitMP{} = False
+isTrivialMPattern DotMP{} = True
 isTrivialMPattern WildMP{} = True
 isTrivialMPattern ProjMP{} = False -- or True?
 
@@ -247,6 +250,7 @@ matchPat _    (DotP _) q = Yes []
 -- Not checking for trivial MPats should be safe here, as dot patterns are
 -- guaranteed to match if the rest of the pattern does, so some extra splitting
 -- on them doesn't change the reduction behaviour.
+matchPat mlit p (DotMP q) = matchPat mlit p q
 matchPat mlit (LitP l) q = mlit l q
 matchPat _    (ProjP d) (ProjMP d') = if d == d' then Yes [] else No
 matchPat _    (ProjP d) _ = __IMPOSSIBLE__
@@ -259,6 +263,7 @@ matchPat mlit (ConP c _ ps) q = case q of
     | otherwise -> No
   LitMP _  -> __IMPOSSIBLE__
   ProjMP _ -> __IMPOSSIBLE__
+  DotMP _  -> __IMPOSSIBLE__
 
 {- UNUSED
 class RecordPattern a where

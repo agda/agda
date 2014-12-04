@@ -185,7 +185,12 @@ cover f cs sc@(SClause tel perm ps _ target) = do
       reportSLn "tc.cover.cover"  10 $ "literal matches: " ++ show is
       return (SplittingDone (size tel), Set.fromList (i : is), [])
 
-     | otherwise -> setCurrentRange (getRange (cs !! i)) $
+     | otherwise -> do
+         reportSDoc "tc.cover.cover" 10 $ vcat
+           [ text $ "pattern covered by clause " ++ show i ++ " but case splitting was not exact. remaining mpats: "
+           , nest 2 $ vcat $ map (text . show) mps
+           ]
+         setCurrentRange (getRange (cs !! i)) $
                       typeError $ CoverageNoExactSplit f (cs !! i)
 
     No        ->  do
