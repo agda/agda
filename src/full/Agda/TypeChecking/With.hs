@@ -8,11 +8,12 @@ import Control.Monad
 import Control.Monad.State
 
 import Data.List
-import Data.Maybe (fromMaybe)
-import qualified Data.Traversable as T (traverse)
+import Data.Maybe
+import qualified Data.Traversable as Trav (traverse)
 
 import Agda.Syntax.Common
 import Agda.Syntax.Internal as I
+import Agda.Syntax.Internal.Pattern
 import qualified Agda.Syntax.Abstract as A
 import Agda.Syntax.Abstract.Views
 import Agda.Syntax.Info
@@ -345,21 +346,38 @@ withDisplayForm f aux delta1 delta2 n qs perm@(Perm m _) lhsPerm = do
     --     -- We had the wrong permutation and we used it incorrectly. Should work now.
     --     term i = maybe wild var $ findIndex (Just i ==) rho
 
+-- Andreas, 2014-12-05 refactored using numberPatVars
 -- Andreas, 2013-02-28 modeled after Coverage/Match/buildMPatterns
 -- The permutation is the one of the original clause.
 patsToTerms :: Permutation -> [I.NamedArg Pattern] -> [I.Arg DisplayTerm]
-patsToTerms perm ps = evalState (toTerms ps) xs
+patsToTerms perm ps = toTerms $ numberPatVars perm ps
   where
-    xs   = permute (invertP __IMPOSSIBLE__ perm) $ downFrom (size perm)
-    tick = do x : xs <- get; put xs; return x
+    toTerms :: [I.NamedArg DeBruijnPattern] -> [I.Arg DisplayTerm]
+    toTerms = map $ fmap $ toTerm . namedThing
 
-    toTerms :: [I.NamedArg Pattern] -> State [Nat] [I.Arg DisplayTerm]
-    toTerms ps = mapM (T.traverse $ toTerm . namedThing) ps
-
-    toTerm :: Pattern -> State [Nat] DisplayTerm
+    toTerm :: DeBruijnPattern -> DisplayTerm
     toTerm p = case p of
       ProjP d     -> __IMPOSSIBLE__ -- TODO: convert spine to non-spine ... DDef d . defaultArg
-      VarP _      -> DTerm . var <$> tick
-      DotP t      -> DDot t <$ tick
-      ConP c _ ps -> DCon c <$> toTerms ps
-      LitP l      -> return $ DTerm (Lit l)
+      VarP (i, x) -> DTerm  $ var i
+      DotP t      -> DDot   $ t
+      ConP c _ ps -> DCon c $ toTerms ps
+      LitP l      -> DTerm  $ Lit l
+
+-- -- Andreas, 2013-02-28 modeled after Coverage/Match/buildMPatterns
+-- -- The permutation is the one of the original clause.
+-- patsToTerms :: Permutation -> [I.NamedArg Pattern] -> [I.Arg DisplayTerm]
+-- patsToTerms perm ps = evalState (toTerms ps) xs
+--   where
+--     xs   = permute (invertP __IMPOSSIBLE__ perm) $ downFrom (size perm)
+--     tick = do x : xs <- get; put xs; return x
+
+--     toTerms :: [I.NamedArg Pattern] -> State [Nat] [I.Arg DisplayTerm]
+--     toTerms ps = mapM (Trav.traverse $ toTerm . namedThing) ps
+
+--     toTerm :: Pattern -> State [Nat] DisplayTerm
+--     toTerm p = case p of
+--       ProjP d     -> __IMPOSSIBLE__ -- TODO: convert spine to non-spine ... DDef d . defaultArg
+--       VarP _      -> DTerm . var <$> tick
+--       DotP t      -> DDot t <$ tick
+--       ConP c _ ps -> DCon c <$> toTerms ps
+--       LitP l      -> return $ DTerm (Lit l)
