@@ -38,8 +38,6 @@ import Agda.Utils.Size
 #include "undefined.h"
 import Agda.Utils.Impossible
 
--- showPat moved to TypeChecking.Pretty as prettyTCM instance
-
 withFunctionType :: Telescope -> [Term] -> [Type] -> Telescope -> Type -> TCM Type
 withFunctionType delta1 vs as delta2 b = {-dontEtaContractImplicit $-} do
   (vas, b) <- addCtxTel delta1 $ do
@@ -66,20 +64,6 @@ withFunctionType delta1 vs as delta2 b = {-dontEtaContractImplicit $-} do
   return $ telePi_ delta1 $ foldr (uncurry piAbstractTerm) b vas
 
 -- | Compute the clauses for the with-function given the original patterns.
-{- OLD
-buildWithFunction :: QName -> Telescope -> [I.Arg Pattern] -> Permutation ->
-                     Nat -> Nat -> [A.Clause] -> TCM [A.Clause]
-buildWithFunction aux gamma qs perm n1 n cs = mapM buildWithClause cs
-  where
-    buildWithClause (A.Clause (A.LHS i (A.LHSProj{}) wps) rhs wh) =
-      typeError $ NotImplemented "with clauses for definitions by copatterns"
-    buildWithClause (A.Clause (A.LHS i (A.LHSHead _ ps) wps) rhs wh) = do
-      let (wps0, wps1) = genericSplitAt n wps
-          ps0          = map defaultNamedArg wps0
-      rhs <- buildRHS rhs
-      (ps1, ps2)  <- genericSplitAt n1 <$> stripWithClausePatterns gamma qs perm ps
-      let result = A.Clause (A.LHS i (A.LHSHead aux (ps1 ++ ps0 ++ ps2)) wps1) rhs wh
--}
 buildWithFunction :: QName -> Telescope -> [I.NamedArg Pattern] -> Permutation ->
                      Nat -> Nat -> [A.SpineClause] -> TCM [A.SpineClause]
 buildWithFunction aux gamma qs perm n1 n cs = mapM buildWithClause cs
@@ -212,18 +196,8 @@ stripWithClausePatterns gamma qs perm ps = do
 
 
           A.ConP _ (A.AmbQ cs') ps' -> do
-{- OLD
-            Con c' [] <- ignoreSharing <$> (constructorForm =<< reduce (Con c []))
-            c <- return $ c' `withRangeOf` c
--}
             c <- (`withRangeOf` c) <$> do getConForm $ conName c
             cs' <- mapM getConForm cs'
-{- OLD
-            let getCon (Con c []) = c
-                getCon (Shared p) = getCon (derefPtr p)
-                getCon _ = __IMPOSSIBLE__
-            cs' <- map getCon <$> (mapM constructorForm =<< mapM (\c' -> reduce $ Con c' []) cs')
--}
             unless (elem c cs') mismatch
 
             -- The type is a datatype
@@ -231,8 +205,6 @@ stripWithClausePatterns gamma qs perm ps = do
             let us = fromMaybe __IMPOSSIBLE__ $ allApplyElims es
 
             -- Compute the argument telescope for the constructor
--- ALREADY normal:
---            Con c []    <- ignoreSharing <$> (constructorForm =<< normalise (Con c []))
             Defn {defType = ct, theDef = Constructor{conPars = np}}  <- getConInfo c
             let ct' = ct `apply` genericTake np us
             TelV tel' _ <- telView ct'
@@ -247,7 +219,6 @@ stripWithClausePatterns gamma qs perm ps = do
 
             -- Compute the new telescope
             let v     = Con c [ Arg info (var i) | (i, Arg info _) <- zip (downFrom $ size qs') qs' ]
---            let v     = Con c $ reverse [ Arg h r (var i) | (i, Arg h r _) <- zip [0..] $ reverse qs' ]
                 tel'' = tel' `abstract` absApp (raise (size tel') tel) v
 
             reportSDoc "tc.with.strip" 15 $ sep
@@ -287,8 +258,6 @@ stripWithClausePatterns gamma qs perm ps = do
           _ -> mismatch
       where
         mismatch = typeError $ WithClausePatternMismatch (namedArg p0) (namedArg q)
-    -- UNREACHABLE:
-    -- strip tel ps qs = error $ "huh? " ++ show (size tel) ++ " " ++ show (size ps) ++ " " ++ show (size qs)
 
 -- | Construct the display form for a with function. It will display
 --   applications of the with function as applications to the original function.
@@ -390,34 +359,3 @@ patsToTerms perm ps = evalState (toTerms ps) xs
       DotP t      -> DDot t <$ tick
       ConP c _ ps -> DCon c <$> toTerms ps
       LitP l      -> return $ DTerm (Lit l)
-
-{- OLD
--- Andreas, 2013-02-28: this translation does not take the permutation
--- into account.  I replaced it with a new one (see above).
--- There are so many similar implementations to translate patterns in Agda,
--- opportunity for some refactoring!?
-
-patsToTerms :: [I.Arg Pattern] -> [I.Arg DisplayTerm]
-patsToTerms ps = evalState (toTerms ps) 0
-  where
-    mapMr f xs = reverse <$> mapM f (reverse xs)
-
-    nextVar :: State Nat Nat
-    nextVar = do
-      i <- get
-      put (i + 1)
-      return i
-
-    toTerms :: [I.Arg Pattern] -> State Nat [I.Arg DisplayTerm]
-    toTerms ps = mapMr toArg ps
-
-    toArg :: I.Arg Pattern -> State Nat (I.Arg DisplayTerm)
-    toArg = T.mapM toTerm
-
-    toTerm :: Pattern -> State Nat DisplayTerm
-    toTerm p = case p of
-      VarP _      -> nextVar >>= \i -> return $ DTerm (var i)
-      DotP t      -> return $ DDot t
-      ConP c _ ps -> DCon c <$> toTerms ps
-      LitP l      -> return $ DTerm (Lit l)
--}
