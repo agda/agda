@@ -326,20 +326,22 @@ withDisplayForm f aux delta1 delta2 n qs perm@(Perm m _) lhsPerm = do
 
   return display
   where
-    -- Note: The upper bound (m - 1) was previously commented out. I
-    -- restored it in order to make the substitution finite.
-    -- Andreas, 2013-02-28: Who is "I"?
-    sub top rho wild = parallelS $ map term [0 .. m - 1] ++ topTerms
+    -- Ulf, 2014-02-19: We need to rename the module parameters as well! (issue1035)
+    sub top rho wild = map term [0 .. m - 1] ++# raiseS (length qs)
       where
-        -- Ulf, 2014-02-19: We need to rename the module parameters as well! (issue1035)
-        newVars  = genericLength qs
-        topTerms = [ var (i + newVars) | i <- [0..top - 1] ]
-        -- thinking required.. but ignored
-        -- dropping the reverse seems to work better
-        -- Andreas, 2010-09-09: I DISAGREE.
-        -- Ulf, 2011-09-02: Thinking done. Neither was correct.
-        -- We had the wrong permutation and we used it incorrectly. Should work now.
         term i = maybe wild var $ findIndex (Just i ==) rho
+    -- OLD
+    -- sub top rho wild = parallelS $ map term [0 .. m - 1] ++ topTerms
+    --   where
+    --     -- Ulf, 2014-02-19: We need to rename the module parameters as well! (issue1035)
+    --     newVars  = length qs
+    --     topTerms = [ var (i + newVars) | i <- [0..top - 1] ]
+    --     -- thinking required.. but ignored
+    --     -- dropping the reverse seems to work better
+    --     -- Andreas, 2010-09-09: I DISAGREE.
+    --     -- Ulf, 2011-09-02: Thinking done. Neither was correct.
+    --     -- We had the wrong permutation and we used it incorrectly. Should work now.
+    --     term i = maybe wild var $ findIndex (Just i ==) rho
 
 -- Andreas, 2013-02-28 modeled after Coverage/Match/buildMPatterns
 -- The permutation is the one of the original clause.
