@@ -29,7 +29,7 @@ import Agda.TypeChecking.Datatypes
 import Agda.TypeChecking.EtaContract
 import Agda.TypeChecking.Telescope
 
-import Agda.Utils.Functor ((<.>))
+import Agda.Utils.Functor
 import Agda.Utils.List
 import Agda.Utils.Monad
 import Agda.Utils.Permutation
@@ -229,7 +229,8 @@ stripWithClausePatterns gamma qs perm ps = do
 
             -- Insert implicit patterns (just for the constructor arguments)
             psi' <- insertImplicitPatterns ExpandLast ps' tel'
-            unless (size psi' == size tel') $ typeError $ WrongNumberOfConstructorArguments (conName c) (size tel') (size psi')
+            unless (size psi' == size tel') $ typeError $
+              WrongNumberOfConstructorArguments (conName c) (size tel') (size psi')
 
             -- Do it again for everything (is this necessary?)
             psi' <- insertImplicitPatterns ExpandLast (psi' ++ ps) tel''
@@ -280,31 +281,32 @@ withDisplayForm f aux delta1 delta2 n qs perm@(Perm m _) lhsPerm = do
   let arity0 = n + size delta1 + size delta2
   -- The currently free variables have to be added to the front.
   topArgs <- raise arity0 <$> getContextArgs
-  let top    = genericLength topArgs
+  let top    = length topArgs
       arity  = arity0 + top
 
   -- Build the rhs of the display form.
-  x <- freshNoName_
-  let wild = Def (qualify (mnameFromList []) x) []
-      -- Building the arguments to the with function
-      (ys0, ys1) = splitAt (size delta1) (permute perm $ map Just [m - 1, m - 2..0])
-      ys = reverse $ ys0 ++ genericReplicate n Nothing ++ ys1
+  wild <- freshNoName_ <&> \ x -> Def (qualify_ x) []
+  let -- Convert the parent patterns to terms.
+      tqs0       = patsToTerms lhsPerm qs
+      -- Build a substitution to replace the parent pattern vars
+      -- by the pattern vars of the with-function.
+      (ys0, ys1) = splitAt (size delta1) $ permute perm $ downFrom m
+      ys         = reverse $ map Just ys0 ++ replicate n Nothing ++ map Just ys1
+      rho        = sub top ys wild
+      tqs        = applySubst rho tqs0
+      -- Build the arguments to the with function.
+      vs         = map (fmap DTerm) topArgs ++ tqs
+      withArgs   = map var $ take n $ downFrom $ size delta2 + n
+      dt         = DWithApp (DDef f vs) (map DTerm withArgs) []
 
-  let tqs = patsToTerms lhsPerm qs
-      vs = map (fmap DTerm) topArgs ++ applySubst (sub top ys wild) tqs
-      withArgs = map var $ genericTake n $ downFrom $ size delta2 + n
-      dt = DWithApp (DDef f vs) (map DTerm withArgs) []
-
-  -- Build the lhs of the display form.
+  -- Build the lhs of the display form and finish.
   -- @var 0@ is the pattern variable (hole).
-  let pats = genericReplicate arity (var 0)
+  let display = Display arity (replicate arity $ var 0) dt
 
-  let display = Display arity pats dt
-      addFullCtx = addCtxTel delta1
-                 . flip (foldr addCtxString_) (map ("w" ++) $ map show [1..n])
+  -- Debug printing.
+  let addFullCtx = addCtxTel delta1
+                 . flip (foldr addContext) (for [1..n] $ \ i -> "w" ++ show i)
                  . addCtxTel delta2
-          -- Andreas 2012-09-17: this seems to be the right order of contexts
-
   reportSDoc "tc.with.display" 20 $ vcat
     [ text "withDisplayForm"
     , nest 2 $ vcat
@@ -319,17 +321,17 @@ withDisplayForm f aux delta1 delta2 n qs perm@(Perm m _) lhsPerm = do
       , text "dt     =" <+> do addFullCtx $ prettyTCM dt
       , text "ys     =" <+> text (show ys)
       , text "raw    =" <+> text (show display)
-      , text "qsToTm =" <+> prettyTCM tqs -- ctx would be permuted form of delta1 ++ delta2
-      , text "sub qs =" <+> prettyTCM (applySubst (sub top ys wild) tqs)
+      , text "qsToTm =" <+> prettyTCM tqs0 -- ctx would be permuted form of delta1 ++ delta2
+      , text "sub qs =" <+> prettyTCM tqs
       ]
     ]
 
   return display
   where
     -- Ulf, 2014-02-19: We need to rename the module parameters as well! (issue1035)
-    sub top rho wild = map term [0 .. m - 1] ++# raiseS (length qs)
+    sub top ys wild = map term [0 .. m - 1] ++# raiseS (length qs)
       where
-        term i = maybe wild var $ findIndex (Just i ==) rho
+        term i = maybe wild var $ findIndex (Just i ==) ys
     -- OLD
     -- sub top rho wild = parallelS $ map term [0 .. m - 1] ++ topTerms
     --   where
