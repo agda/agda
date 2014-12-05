@@ -99,6 +99,11 @@ inject≤ : ∀ {m n} → Fin m → m N≤ n → Fin n
 inject≤ zero    (Nat.s≤s le) = zero
 inject≤ (suc i) (Nat.s≤s le) = suc (inject≤ i le)
 
+-- A strengthening injection into the minimal Fin fibre.
+strengthen : ∀ {n} (i : Fin n) → Fin′ (suc i)
+strengthen zero    = zero
+strengthen (suc i) = suc (strengthen i)
+
 ------------------------------------------------------------------------
 -- Operations
 

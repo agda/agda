@@ -75,6 +75,14 @@ to-from : ∀ n → toℕ (fromℕ n) ≡ n
 to-from zero    = refl
 to-from (suc n) = cong suc (to-from n)
 
+from-to : ∀ {n} (i : Fin n) → fromℕ (toℕ i) ≡ strengthen i
+from-to zero    = refl
+from-to (suc i) = cong suc (from-to i)
+
+toℕ-strengthen : ∀ {n} (i : Fin n) → toℕ (strengthen i) ≡ toℕ i
+toℕ-strengthen zero    = refl
+toℕ-strengthen (suc i) = cong suc (toℕ-strengthen i)
+
 toℕ-injective : ∀ {n} {i j : Fin n} → toℕ i ≡ toℕ j → i ≡ j
 toℕ-injective {zero}  {}      {}      _
 toℕ-injective {suc n} {zero}  {zero}  eq = refl
