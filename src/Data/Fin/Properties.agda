@@ -217,6 +217,18 @@ reverse-involutive {n} i = toℕ-injective (begin
     n ∸ suc (n ∸ suc (toℕ i)) ≡⟨ lem₂ n i ⟩
     toℕ i                     ∎
 
+-- Lemma: reverse {suc n} (suc i) ≡ reverse n i  (in ℕ).
+
+reverse-suc : ∀{n}{i : Fin n} → toℕ (reverse (suc i)) ≡ toℕ (reverse i)
+reverse-suc {n}{i} = begin
+  toℕ (reverse (suc i))      ≡⟨ reverse-prop (suc i) ⟩
+  suc n ∸ suc (toℕ (suc i))  ≡⟨⟩
+  n ∸ toℕ (suc i)            ≡⟨⟩
+  n ∸ suc (toℕ i)            ≡⟨ P.sym (reverse-prop i) ⟩
+  toℕ (reverse i)            ∎
+  where
+  open P.≡-Reasoning
+
 -- If there is an injection from a type to a finite set, then the type
 -- has decidable equality.
 
