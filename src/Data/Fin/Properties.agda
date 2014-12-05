@@ -97,14 +97,14 @@ prop-toℕ-≤ (suc {n = suc n} i)  = s≤s (prop-toℕ-≤ i)
 prop-toℕ-≤′ : ∀ {n} (i : Fin n) → toℕ i ℕ≤ N.pred n
 prop-toℕ-≤′ i = N.<⇒≤pred (bounded i)
 
+-- Lemma:  n - i ≤ n.
 nℕ-ℕi≤n : ∀ n i → n ℕ-ℕ i ℕ≤ n
-nℕ-ℕi≤n n       zero     = begin n ∎
-  where open N.≤-Reasoning
+nℕ-ℕi≤n n       zero     = begin n ∎  where open N.≤-Reasoning
 nℕ-ℕi≤n zero    (suc ())
 nℕ-ℕi≤n (suc n) (suc i)  = begin
-  n ℕ-ℕ i ≤⟨ nℕ-ℕi≤n n i ⟩
-  n       ≤⟨ N.n≤1+n n ⟩
-  suc n   ∎
+  n ℕ-ℕ i  ≤⟨ nℕ-ℕi≤n n i ⟩
+  n        ≤⟨ N.n≤1+n n ⟩
+  suc n    ∎
   where open N.≤-Reasoning
 
 inject-lemma : ∀ {n} {i : Fin n} (j : Fin′ i) →
