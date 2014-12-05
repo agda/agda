@@ -26,6 +26,8 @@ open import Relation.Binary.PropositionalEquality as P
 open import Category.Functor
 open import Category.Applicative
 
+open DecTotalOrder N.decTotalOrder using () renaming (refl to ℕ≤-refl)
+
 ------------------------------------------------------------------------
 -- Properties
 
@@ -99,7 +101,7 @@ prop-toℕ-≤′ i = N.<⇒≤pred (bounded i)
 
 -- Lemma:  n - i ≤ n.
 nℕ-ℕi≤n : ∀ n i → n ℕ-ℕ i ℕ≤ n
-nℕ-ℕi≤n n       zero     = begin n ∎  where open N.≤-Reasoning
+nℕ-ℕi≤n n       zero     = ℕ≤-refl
 nℕ-ℕi≤n zero    (suc ())
 nℕ-ℕi≤n (suc n) (suc i)  = begin
   n ℕ-ℕ i  ≤⟨ nℕ-ℕi≤n n i ⟩
@@ -159,8 +161,7 @@ toℕ-fromℕ≤ (s≤s (s≤s m<n)) = cong suc (toℕ-fromℕ≤ (s≤s m<n))
 infixl 6 _+′_
 
 _+′_ : ∀ {m n} (i : Fin m) (j : Fin n) → Fin (N.pred m ℕ+ n)
-i +′ j = inject≤ (i + j) (N._+-mono_ (prop-toℕ-≤ i) ≤-refl)
-  where open DecTotalOrder N.decTotalOrder renaming (refl to ≤-refl)
+i +′ j = inject≤ (i + j) (N._+-mono_ (prop-toℕ-≤ i) ℕ≤-refl)
 
 -- reverse {n} "i" = "n ∸ 1 ∸ i".
 
