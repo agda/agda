@@ -126,6 +126,11 @@ inject≤-lemma : ∀ {m n} (i : Fin m) (le : m ℕ≤ n) →
 inject≤-lemma zero    (N.s≤s le) = refl
 inject≤-lemma (suc i) (N.s≤s le) = cong suc (inject≤-lemma i le)
 
+-- Lemma:  inject≤ i n≤n ≡ i.
+inject≤-refl : ∀ {n} (i : Fin n) (n≤n : n ℕ≤ n) → inject≤ i n≤n ≡ i
+inject≤-refl zero    (s≤s _  ) = refl
+inject≤-refl (suc i) (s≤s n≤n) = cong suc (inject≤-refl i n≤n)
+
 ≺⇒<′ : _≺_ ⇒ N._<′_
 ≺⇒<′ (n ≻toℕ i) = N.≤⇒≤′ (bounded i)
 
