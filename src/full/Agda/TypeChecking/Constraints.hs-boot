@@ -7,3 +7,4 @@ solveConstraint        :: Constraint -> TCM ()
 solveAwakeConstraints' :: Bool -> TCM ()
 noConstraints          :: TCM a -> TCM a
 ifNoConstraints_       :: TCM () -> TCM a -> (ProblemId -> TCM a) -> TCM a
+guardConstraint        :: Constraint -> TCM () -> TCM ()

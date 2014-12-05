@@ -325,17 +325,16 @@ checkCandidates m t cands = disableDestructiveUpdate $ do
               reportSDoc "tc.instance" 20 $
                 text "instance search: checking" <+> prettyTCM t''
                 <+> text "<=" <+> prettyTCM t
-              -- if constraints remain, we abort, but keep the candidate
-              flip (ifNoConstraints_ $ leqType t'' t) (const $ return True) $ do
-              --tel <- getContextTelescope
-              ctxArgs <- getContextArgs
+              ctxElims <- map Apply <$> getContextArgs
               v <- (`applyDroppingParameters` args) =<< reduce term
               reportSDoc "tc.instance" 15 $ vcat
                 [ text "instance search: attempting"
                 , nest 2 $ prettyTCM m <+> text ":=" <+> prettyTCM v
                 ]
-              assign DirEq m ctxArgs v
---              assign m ctxArgs (term `apply` args)
+              -- if constraints remain, we abort, but keep the candidate
+              -- Jesper, 05-12-2014: When we abort, we should add a constraint to
+              -- instantiate the meta at a later time (see issue 1377).
+              guardConstraint (ValueCmp CmpEq t'' (MetaV m ctxElims) v) $ leqType t'' t
               -- make a pass over constraints, to detect cases where some are made
               -- unsolvable by the assignment, but don't do this for FindInScope's
               -- to prevent loops. We currently also ignore UnBlock constraints
