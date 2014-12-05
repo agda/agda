@@ -155,6 +155,11 @@ toℕ-fromℕ≤ : ∀ {m n} (m<n : m ℕ< n) → toℕ (fromℕ≤ m<n) ≡ m
 toℕ-fromℕ≤ (s≤s z≤n)       = refl
 toℕ-fromℕ≤ (s≤s (s≤s m<n)) = cong suc (toℕ-fromℕ≤ (s≤s m<n))
 
+-- fromℕ is a special case of fromℕ≤.
+fromℕ-def : ∀ n → fromℕ n ≡ fromℕ≤ ℕ≤-refl
+fromℕ-def zero    = refl
+fromℕ-def (suc n) = cong suc (fromℕ-def n)
+
 ------------------------------------------------------------------------
 -- Operations
 
