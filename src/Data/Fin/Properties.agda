@@ -85,10 +85,17 @@ bounded : ∀ {n} (i : Fin n) → toℕ i ℕ< n
 bounded zero    = s≤s z≤n
 bounded (suc i) = s≤s (bounded i)
 
-prop-toℕ-≤ : ∀ {n} (x : Fin n) → toℕ x ℕ≤ N.pred n
+prop-toℕ-≤ : ∀ {n} (i : Fin n) → toℕ i ℕ≤ N.pred n
 prop-toℕ-≤ zero                 = z≤n
 prop-toℕ-≤ (suc {n = zero}  ())
 prop-toℕ-≤ (suc {n = suc n} i)  = s≤s (prop-toℕ-≤ i)
+
+-- A simpler implementation of prop-toℕ-≤,
+-- however, with a different reduction behavior.
+-- If no one needs the reduction behavior of prop-toℕ-≤,
+-- it can be removed in favor of prop-toℕ-≤′.
+prop-toℕ-≤′ : ∀ {n} (i : Fin n) → toℕ i ℕ≤ N.pred n
+prop-toℕ-≤′ i = N.<⇒≤pred (bounded i)
 
 nℕ-ℕi≤n : ∀ n i → n ℕ-ℕ i ℕ≤ n
 nℕ-ℕi≤n n       zero     = begin n ∎

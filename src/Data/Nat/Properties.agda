@@ -289,6 +289,9 @@ n≤1+n _ = ≤-step ≤-refl
   suc m ≤⟨ le ⟩
   n     □
 
+<⇒≤pred : ∀ {m n} → m < n → m ≤ pred n
+<⇒≤pred (s≤s le) = le
+
 ¬i+1+j≤i : ∀ i {j} → ¬ i + suc j ≤ i
 ¬i+1+j≤i zero    ()
 ¬i+1+j≤i (suc i) le = ¬i+1+j≤i i (≤-pred le)
