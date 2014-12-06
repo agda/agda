@@ -92,7 +92,6 @@ match' ((c, es, patch) : stack) = do
       -- otherwise, just apply instantiation to body
       -- apply the result to any extra arguments
       | otherwise -> yes $ applySubst (toSubst es0) t `applyE` map ignoreReduced es1
---      | otherwise -> yes $ applySubst (toSubst args0) t `apply` map ignoreReduced args1
       where
         n              = length xs
         m              = length es
@@ -115,13 +114,6 @@ match' ((c, es, patch) : stack) = do
 --        (args0, MaybeRed red (Arg info v0) : args1) -> do
         (es0, MaybeRed red e0 : es1) -> do
           -- get the reduced form of @e0@
-{-
-          w  <- case red of
-                  Reduced b  -> return $ v0 <$ b
-                  NotReduced -> unfoldCorecursion v0
-          let v = ignoreBlocking w
-              args'  = args0 ++ [MaybeRed red $ Arg info v] ++ args1
--}
           eb :: Blocked Elim <- do
                 case red of
                   Reduced b  -> return $ e0 <$ b

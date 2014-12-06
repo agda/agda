@@ -150,15 +150,6 @@ matchPattern p u = case (p, u) of
         Blocked x _            -> return (DontKnow $ Just x        , arg')
         _                      -> return (DontKnow Nothing         , arg')
 
-{- Andreas, 2012-04-02 NO LONGER UP-TO-DATE
-matchPattern (Arg h' r' (ConP c _ ps))     (Arg h Irrelevant v) = do
-          -- Andreas, 2010-09-07 matching a record constructor against
-          -- something irrelevant will just continue matching against
-          -- irrelevant stuff
-                (m, vs) <- matchPatterns ps $
-                  repeat $ Arg NotHidden Irrelevant $ DontCare __IMPOSSIBLE__
-                return (m, Arg h Irrelevant $ Con c vs)
--}
 
   -- Case record pattern: always succeed!
   -- This case is necessary if we want to use the clauses before
@@ -189,17 +180,6 @@ matchPattern (Arg h' r' (ConP c _ ps))     (Arg h Irrelevant v) = do
         let v = ignoreBlocking w
         case ignoreSharing <$> w of
 
-{- Andreas, 2013-10-27 the following considered HARMFUL:
-          -- Andreas, 2010-09-07 matching a record constructor against
-          -- something irrelevant will just continue matching against
-          -- irrelevant stuff
-          -- NotBlocked (Sort Prop)
-          _  | isIrrelevant info -> do
-                (m, vs) <- matchPatterns ps $
-                  repeat $ setRelevance Irrelevant $ defaultArg $ Sort Prop
-                    -- repeat looks very bad here (non-termination!)
-                return (m, Arg info $ Con c vs)
--}
           NotBlocked (Con c' vs)
             | c == c'            -> do
                 (m, vs) <- yesSimplification <$> matchPatterns ps vs
