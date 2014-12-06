@@ -127,10 +127,9 @@ matchCopattern :: Pattern -> Elim -> ReduceM (Match Term, Elim)
 matchCopattern (ProjP p) elim@(Proj q)
   | p == q    = return (Yes YesSimplification [], elim)
   | otherwise = return (No                      , elim)
-matchCopattern (ProjP p) elim@Apply{}
-              = __IMPOSSIBLE__ -- return (DontKnow Nothing, elim)
-matchCopattern _ elim@Proj{} = __IMPOSSIBLE__ -- return (DontKnow Nothing, elim)
-matchCopattern p (Apply v)   = mapSnd Apply <$> matchPattern p v
+matchCopattern ProjP{} Apply{}   = __IMPOSSIBLE__
+matchCopattern _       Proj{}    = __IMPOSSIBLE__
+matchCopattern p       (Apply v) = mapSnd Apply <$> matchPattern p v
 
 matchPatterns :: [I.NamedArg Pattern] -> [I.Arg Term] -> ReduceM (Match Term, [I.Arg Term])
 matchPatterns ps vs = do

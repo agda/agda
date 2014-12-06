@@ -77,7 +77,6 @@ match' ((c, es, patch) : stack) = do
          , text $ "trying clause " ++ show c
          ]
   let no blocking es = return $ NoReduction $ blocking $ patch $ map ignoreReduced es
---      noBlocked x es = return $ NoReduction $ Blocked x  $ patch $ map ignoreReduced es
       yes t            = flip YesReduction t <$> asks envSimplification
 
   -- traceSLn "reduce.compiled" 95 "CompiledClause.Match.match'" $ do
@@ -101,8 +100,6 @@ match' ((c, es, patch) : stack) = do
         -- at least the first @n@ elims must be @Apply@s, so we can
         -- turn them into a subsitution
         toSubst        = parallelS . reverse . map (unArg . argFromElim . ignoreReduced)
---        (args0, args1) = splitAt n $ map (fmap $ fmap shared) args
---        (args0, es1)   = takeArgsFromElims n $ map (fmap $ fmap shared) args
         -- Andreas, 2013-05-21 why introduce sharing only here,
         -- and not in underapplied case also?
         (es0, es1)     = splitAt n $ map (fmap $ fmap shared) es
@@ -114,7 +111,6 @@ match' ((c, es, patch) : stack) = do
         -- if the @n@th elimination is not supplied, no match
         (_, []) -> no (NotBlocked Underapplied) es
         -- if the @n@th elimination is @e0@
---        (args0, MaybeRed red (Arg info v0) : args1) -> do
         (es0, MaybeRed red e0 : es1) -> do
           -- get the reduced form of @e0@
           eb :: Blocked Elim <- do

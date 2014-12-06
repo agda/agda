@@ -524,7 +524,6 @@ appDefE' v cls es = goCls cls $ map ignoreReduced es
     goCls :: [Clause] -> [Elim] -> ReduceM (Reduced (Blocked Term) Term)
     goCls cl es = do
       reportSLn "tc.reduce'" 95 $ "Reduce.goCls tries reduction, #clauses = " ++ show (length cl)
-      let cantReduce es = return $ NoReduction $ notBlocked $ v `applyE` es
       case cl of
         -- Andreas, 2013-10-26  In case of an incomplete match,
         -- we just do not reduce.  This allows adding single function
