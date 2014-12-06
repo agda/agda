@@ -526,9 +526,6 @@ isNeutral b f es = liftTCM $ do
       NotBlocked AbsurdMatch _ -> yes
       _                        -> no
     _          -> no
-      -- TODO: more precise analysis
-      -- We need to check whether a function is stuck on a variable
-      -- (not meta variable), but the API does not help us...
 
 -- This could be optimized, by not computing the whole variable set
 -- at once, but allow early failure
