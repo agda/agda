@@ -28,6 +28,10 @@ class Null a where
   null  :: a -> Bool
   -- ^ Satisfying @null empty == True@.
 
+  -- Starting with ghc 7.2, we could have LANGUAGE DefaultSignatures
+  -- default null :: Eq a => a -> Bool
+  -- null = (== empty)
+
 instance Null () where
   empty  = ()
   null _ = True
