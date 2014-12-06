@@ -2,6 +2,17 @@
 {-# LANGUAGE FlexibleInstances    #-}
 {-# LANGUAGE TypeSynonymInstances #-}
 
+{- | The occurs check for unification.  Does pruning on the fly.
+
+  When hitting a meta variable:
+
+  - Compute flex/rigid for its arguments.
+  - Compare to allowed variables.
+  - Mark arguments with rigid occurrences of disallowed variables for deletion.
+  - Attempt to delete marked arguments.
+  - We don't need to check for success, we can just continue occurs checking.
+-}
+
 module Agda.TypeChecking.MetaVars.Occurs where
 
 import Control.Applicative
@@ -611,16 +622,3 @@ performKill kills m a = do
         , text "inst    :" <+> text (show m) <+> text ":=" <+> prettyTCM u
         ]
       ]
-
-{-
-
-  When hitting a meta variable:
-
-  - Compute flex/rigid for its arguments
-  - Compare to allowed variables
-  - Mark arguments with rigid occurrences of disallowed
-    variables for deletion
-  - Attempt to delete marked arguments
-  - We don't need to check for success, we can just
-    continue occurs checking.
--}
