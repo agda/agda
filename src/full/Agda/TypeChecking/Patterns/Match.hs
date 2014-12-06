@@ -4,6 +4,8 @@
 
 module Agda.TypeChecking.Patterns.Match where
 
+import Prelude hiding (null)
+
 import Data.Monoid
 import Data.Traversable (traverse)
 
@@ -18,6 +20,7 @@ import Agda.TypeChecking.Pretty
 
 import Agda.Utils.Functor (for, ($>))
 import Agda.Utils.Monad
+import Agda.Utils.Null
 import Agda.Utils.Size
 import Agda.Utils.Tuple
 
@@ -31,22 +34,29 @@ data Match a = Yes Simplification [a]
              | DontKnow (Blocked ())
   deriving Functor
 
-instance Monoid (Match a) where
-    mempty = Yes mempty []
+instance Null (Match a) where
+  empty = Yes empty empty
+  null (Yes simpl as) = null simpl && null as
+  null _              = False
 
-    Yes s us   `mappend` Yes s' vs        = Yes (s `mappend` s') (us ++ vs)
-    Yes _ _    `mappend` No               = No
-    Yes _ _    `mappend` DontKnow m       = DontKnow m
-    No         `mappend` _                = No
+-- 'mappend' is UNUSED.
+--
+-- instance Monoid (Match a) where
+--     mempty = Yes mempty []
 
-    -- @NotBlocked (StuckOn e)@ means blocked by a variable.
-    -- In this case, no instantiation of
-    -- meta-variables will make progress.
-    DontKnow b `mappend` DontKnow b'      = DontKnow $ b `mappend` b'
+--     Yes s us   `mappend` Yes s' vs        = Yes (s `mappend` s') (us ++ vs)
+--     Yes _ _    `mappend` No               = No
+--     Yes _ _    `mappend` DontKnow m       = DontKnow m
+--     No         `mappend` _                = No
 
-    -- One could imagine DontKnow _ `mappend` No = No, but would break the
-    -- equivalence to case-trees.
-    DontKnow m `mappend` _                = DontKnow m
+--     -- @NotBlocked (StuckOn e)@ means blocked by a variable.
+--     -- In this case, no instantiation of
+--     -- meta-variables will make progress.
+--     DontKnow b `mappend` DontKnow b'      = DontKnow $ b `mappend` b'
+
+--     -- One could imagine DontKnow _ `mappend` No = No, but would break the
+--     -- equivalence to case-trees.
+--     DontKnow m `mappend` _                = DontKnow m
 
 -- | Instead of 'zipWithM', we need to use this lazy version
 --   of combining pattern matching computations.
@@ -73,7 +83,7 @@ foldMatch match = loop where
   loop :: [p] -> [v] -> ReduceM (Match Term, [v])
   loop ps0 vs0 = do
   case (ps0, vs0) of
-    ([], []) -> return (mempty, [])
+    ([], []) -> return (empty, [])
     (p : ps, v : vs) -> do
       (r, v') <- match p v
       case r of
