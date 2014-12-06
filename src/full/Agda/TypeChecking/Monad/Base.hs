@@ -16,6 +16,8 @@
 
 module Agda.TypeChecking.Monad.Base where
 
+import Prelude hiding (null)
+
 import Control.Arrow ((***), first, second)
 import qualified Control.Concurrent as C
 import Control.DeepSeq
@@ -24,7 +26,7 @@ import Control.Monad.State
 import Control.Monad.Reader
 import Control.Monad.Writer
 import Control.Monad.Trans.Maybe
-import Control.Applicative
+import Control.Applicative hiding (empty)
 
 import Data.Function
 import Data.Int
@@ -32,8 +34,10 @@ import Data.IntMap (IntMap)
 import qualified Data.IntMap as IntMap
 import qualified Data.List as List
 import Data.Maybe
-import Data.Map as Map hiding (singleton)
-import Data.Set as Set hiding (singleton)
+import Data.Map (Map)
+import qualified Data.Map as Map -- hiding (singleton, null, empty)
+import Data.Set (Set)
+import qualified Data.Set as Set -- hiding (singleton, null, empty)
 import Data.Typeable (Typeable)
 import Data.Foldable
 import Data.Traversable
@@ -78,6 +82,7 @@ import Agda.Utils.FileName
 import Agda.Utils.HashMap as HMap hiding (singleton)
 import Agda.Utils.Hash
 import Agda.Utils.Lens
+import Agda.Utils.Null
 import Agda.Utils.Permutation
 import Agda.Utils.Pretty
 import Agda.Utils.Singleton
@@ -1201,7 +1206,7 @@ defIsDataOrRecord Datatype{} = True
 defIsDataOrRecord _          = False
 
 newtype Fields = Fields [(C.Name, Type)]
-  deriving (Typeable)
+  deriving (Typeable, Null)
 
 -- | Did we encounter a simplifying reduction?
 --   In terms of CIC, that would be a iota-reduction.
@@ -1212,6 +1217,10 @@ newtype Fields = Fields [(C.Name, Type)]
 
 data Simplification = YesSimplification | NoSimplification
   deriving (Typeable, Eq, Show)
+
+instance Null Simplification where
+  empty = NoSimplification
+  null  = (== NoSimplification)
 
 instance Monoid Simplification where
   mempty = NoSimplification
@@ -1243,8 +1252,8 @@ notReduced x = MaybeRed NotReduced x
 
 reduced :: Blocked (Arg Term) -> MaybeReduced (Arg Term)
 reduced b = case fmap ignoreSharing <$> b of
-  NotBlocked (Common.Arg _ (MetaV x _)) -> MaybeRed (Reduced $ Blocked x ()) v
-  _                                     -> MaybeRed (Reduced $ () <$ b)      v
+  NotBlocked _ (Common.Arg _ (MetaV x _)) -> MaybeRed (Reduced $ Blocked x ()) v
+  _                                       -> MaybeRed (Reduced $ () <$ b)      v
   where
     v = ignoreBlocking b
 

@@ -8,6 +8,8 @@
 -}
 module Agda.Syntax.Concrete.Pretty where
 
+import Prelude hiding (null)
+
 import Data.Char
 import Data.Functor
 import Data.Maybe
@@ -20,6 +22,7 @@ import Agda.Syntax.Literal
 import Agda.Syntax.Notation
 import Agda.Syntax.Position
 
+import Agda.Utils.Null
 import Agda.Utils.Pretty
 import Agda.Utils.String
 

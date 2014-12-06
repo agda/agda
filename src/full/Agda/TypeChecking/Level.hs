@@ -145,9 +145,9 @@ levelView' a = do
     mkAtom a = do
       b <- reduceB' a
       return $ case ignoreSharing <$> b of
-        NotBlocked (MetaV m as) -> atom $ MetaLevel m as
-        NotBlocked _            -> atom $ NeutralLevel (ignoreBlocking b)
-        Blocked m _             -> atom $ BlockedLevel m (ignoreBlocking b)
+        NotBlocked _ (MetaV m as) -> atom $ MetaLevel m as
+        NotBlocked r _            -> atom $ NeutralLevel r $ ignoreBlocking b
+        Blocked m _               -> atom $ BlockedLevel m $ ignoreBlocking b
 
     atom a = Max [Plus 0 a]
 

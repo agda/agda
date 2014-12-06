@@ -131,9 +131,10 @@ instance SynEq LevelAtom where
     l  <- lift (unBlock =<< instantiate l)
     case (l, l') of
       (MetaLevel m vs  , MetaLevel m' vs'  ) | m == m' -> MetaLevel m    <$$> synEq vs vs'
-      (NeutralLevel v  , NeutralLevel v'   )           -> NeutralLevel   <$$> synEq v v'
       (UnreducedLevel v, UnreducedLevel v' )           -> UnreducedLevel <$$> synEq v v'
-      (BlockedLevel m v, BlockedLevel m' v') | m == m' -> BlockedLevel m <$$> synEq v v'
+      -- The reason for being blocked should not matter for equality.
+      (NeutralLevel r v, NeutralLevel r' v')           -> NeutralLevel r <$$> synEq v v'
+      (BlockedLevel m v, BlockedLevel m' v')           -> BlockedLevel m <$$> synEq v v'
       _ -> inequal (l, l')
     where
       unBlock l =

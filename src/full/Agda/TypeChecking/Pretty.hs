@@ -6,6 +6,8 @@
 
 module Agda.TypeChecking.Pretty where
 
+import Prelude hiding (null)
+
 import Control.Applicative hiding (empty)
 
 import Agda.Syntax.Position
@@ -22,8 +24,9 @@ import qualified Agda.Syntax.Concrete.Pretty as CP
 
 import Agda.TypeChecking.Monad
 
-import qualified Agda.Utils.Pretty as P
+import Agda.Utils.Null
 import Agda.Utils.Permutation (Permutation)
+import qualified Agda.Utils.Pretty as P
 
 #include "undefined.h"
 import Agda.Utils.Impossible
@@ -34,8 +37,11 @@ import Agda.Utils.Impossible
 
 type Doc = P.Doc
 
-empty, comma, colon, equals :: TCM Doc
-empty  = return P.empty
+instance Null (TCM Doc) where
+  empty = return empty
+  null = __IMPOSSIBLE__
+
+comma, colon, equals :: TCM Doc
 comma  = return P.comma
 colon  = return P.colon
 equals = return P.equals
@@ -147,7 +153,7 @@ instance PrettyTCM MetaId where
 
 instance PrettyTCM a => PrettyTCM (Blocked a) where
   prettyTCM (Blocked x a) = text "[" <+> prettyTCM a <+> text "]" <> text (show x)
-  prettyTCM (NotBlocked x) = prettyTCM x
+  prettyTCM (NotBlocked _ x) = prettyTCM x
 
 instance (Reify a e, ToConcrete e c, P.Pretty c) => PrettyTCM (Named_ a) where
   prettyTCM x = prettyA =<< reify x

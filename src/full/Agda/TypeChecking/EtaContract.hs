@@ -80,7 +80,7 @@ etaOnce v = case v of
       isVar0 (Shared p)               = isVar0 (derefPtr p)
       isVar0 (Var 0 [])               = True
       isVar0 (Level (Max [Plus 0 l])) = case l of
-        NeutralLevel v   -> isVar0 v
+        NeutralLevel _ v -> isVar0 v
         UnreducedLevel v -> isVar0 v
         BlockedLevel{}   -> False
         MetaLevel{}      -> False

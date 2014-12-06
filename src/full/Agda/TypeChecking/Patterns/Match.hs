@@ -4,6 +4,8 @@
 
 module Agda.TypeChecking.Patterns.Match where
 
+import Prelude hiding (null)
+
 import Data.Monoid
 import Data.Traversable (traverse)
 
@@ -18,6 +20,7 @@ import Agda.TypeChecking.Pretty
 
 import Agda.Utils.Functor (for, ($>))
 import Agda.Utils.Monad
+import Agda.Utils.Null
 import Agda.Utils.Size
 import Agda.Utils.Tuple
 
@@ -28,24 +31,32 @@ import Agda.Utils.Impossible
 --   it is due to a particular meta variable.
 data Match a = Yes Simplification [a]
              | No
-             | DontKnow (Maybe MetaId)
+             | DontKnow (Blocked ())
   deriving Functor
 
-instance Monoid (Match a) where
-    mempty = Yes mempty []
+instance Null (Match a) where
+  empty = Yes empty empty
+  null (Yes simpl as) = null simpl && null as
+  null _              = False
 
-    Yes s us   `mappend` Yes s' vs        = Yes (s `mappend` s') (us ++ vs)
-    Yes _ _    `mappend` No               = No
-    Yes _ _    `mappend` DontKnow m       = DontKnow m
-    No         `mappend` _                = No
+-- 'mappend' is UNUSED.
+--
+-- instance Monoid (Match a) where
+--     mempty = Yes mempty []
 
-    -- Nothing means blocked by a variable.  In this case no instantiation of
-    -- meta-variables will make progress.
-    DontKnow _ `mappend` DontKnow Nothing = DontKnow Nothing
+--     Yes s us   `mappend` Yes s' vs        = Yes (s `mappend` s') (us ++ vs)
+--     Yes _ _    `mappend` No               = No
+--     Yes _ _    `mappend` DontKnow m       = DontKnow m
+--     No         `mappend` _                = No
 
-    -- One could imagine DontKnow _ `mappend` No = No, but would break the
-    -- equivalence to case-trees.
-    DontKnow m `mappend` _                = DontKnow m
+--     -- @NotBlocked (StuckOn e)@ means blocked by a variable.
+--     -- In this case, no instantiation of
+--     -- meta-variables will make progress.
+--     DontKnow b `mappend` DontKnow b'      = DontKnow $ b `mappend` b'
+
+--     -- One could imagine DontKnow _ `mappend` No = No, but would break the
+--     -- equivalence to case-trees.
+--     DontKnow m `mappend` _                = DontKnow m
 
 -- | Instead of 'zipWithM', we need to use this lazy version
 --   of combining pattern matching computations.
@@ -66,13 +77,13 @@ instance Monoid (Match a) where
 -- upon failure, no further matching is performed.
 
 foldMatch
-  :: forall a b . (a -> b -> ReduceM (Match Term, b))
-  -> [a] -> [b] -> ReduceM (Match Term, [b])
+  :: forall p v . (p -> v -> ReduceM (Match Term, v))
+  -> [p] -> [v] -> ReduceM (Match Term, [v])
 foldMatch match = loop where
-  loop :: [a] -> [b] -> ReduceM (Match Term, [b])
+  loop :: [p] -> [v] -> ReduceM (Match Term, [v])
   loop ps0 vs0 = do
   case (ps0, vs0) of
-    ([], []) -> return (mempty, [])
+    ([], []) -> return (empty, [])
     (p : ps, v : vs) -> do
       (r, v') <- match p v
       case r of
@@ -116,10 +127,9 @@ matchCopattern :: Pattern -> Elim -> ReduceM (Match Term, Elim)
 matchCopattern (ProjP p) elim@(Proj q)
   | p == q    = return (Yes YesSimplification [], elim)
   | otherwise = return (No                      , elim)
-matchCopattern (ProjP p) elim@Apply{}
-              = return (DontKnow Nothing, elim)
-matchCopattern _ elim@Proj{} = return (DontKnow Nothing, elim)
-matchCopattern p (Apply v)   = mapSnd Apply <$> matchPattern p v
+matchCopattern ProjP{} Apply{}   = __IMPOSSIBLE__
+matchCopattern _       Proj{}    = __IMPOSSIBLE__
+matchCopattern p       (Apply v) = mapSnd Apply <$> matchPattern p v
 
 matchPatterns :: [I.NamedArg Pattern] -> [I.Arg Term] -> ReduceM (Match Term, [I.Arg Term])
 matchPatterns ps vs = do
@@ -143,22 +153,13 @@ matchPattern p u = case (p, u) of
     w <- reduceB' v
     let arg' = arg $> ignoreBlocking w
     case ignoreSharing <$> w of
-        NotBlocked (Lit l')
-            | l == l'          -> return (Yes YesSimplification [] , arg')
-            | otherwise        -> return (No                       , arg')
-        NotBlocked (MetaV x _) -> return (DontKnow $ Just x        , arg')
-        Blocked x _            -> return (DontKnow $ Just x        , arg')
-        _                      -> return (DontKnow Nothing         , arg')
-
-{- Andreas, 2012-04-02 NO LONGER UP-TO-DATE
-matchPattern (Arg h' r' (ConP c _ ps))     (Arg h Irrelevant v) = do
-          -- Andreas, 2010-09-07 matching a record constructor against
-          -- something irrelevant will just continue matching against
-          -- irrelevant stuff
-                (m, vs) <- matchPatterns ps $
-                  repeat $ Arg NotHidden Irrelevant $ DontCare __IMPOSSIBLE__
-                return (m, Arg h Irrelevant $ Con c vs)
--}
+      NotBlocked _ (Lit l')
+          | l == l'            -> return (Yes YesSimplification []    , arg')
+          | otherwise          -> return (No                          , arg')
+      NotBlocked _ (MetaV x _) -> return (DontKnow $ Blocked x ()     , arg')
+      Blocked x _              -> return (DontKnow $ Blocked x ()     , arg')
+      NotBlocked r t           -> return (DontKnow $ NotBlocked r' () , arg')
+        where r' = stuckOn (Apply arg') r
 
   -- Case record pattern: always succeed!
   -- This case is necessary if we want to use the clauses before
@@ -180,35 +181,24 @@ matchPattern (Arg h' r' (ConP c _ ps))     (Arg h Irrelevant v) = do
         --    an axiom at this stage (if we are checking the
         --    projection functions for a record type).
         w <- case ignoreSharing <$> w of
-               NotBlocked (Def f es) ->
+               NotBlocked r (Def f es) ->   -- Andreas, 2014-06-12 TODO: r == ReallyNotBlocked sufficient?
                  unfoldDefinitionE True reduceB' (Def f []) f es
                    -- reduceB is used here because some constructors
                    -- are actually definitions which need to be
                    -- unfolded (due to open public).
                _ -> return w
         let v = ignoreBlocking w
+            arg = Arg info v  -- the reduced argument
         case ignoreSharing <$> w of
-
-{- Andreas, 2013-10-27 the following considered HARMFUL:
-          -- Andreas, 2010-09-07 matching a record constructor against
-          -- something irrelevant will just continue matching against
-          -- irrelevant stuff
-          -- NotBlocked (Sort Prop)
-          _  | isIrrelevant info -> do
-                (m, vs) <- matchPatterns ps $
-                  repeat $ setRelevance Irrelevant $ defaultArg $ Sort Prop
-                    -- repeat looks very bad here (non-termination!)
-                return (m, Arg info $ Con c vs)
--}
-          NotBlocked (Con c' vs)
-            | c == c'            -> do
+          NotBlocked _ (Con c' vs)
+            | c == c'               -> do
                 (m, vs) <- yesSimplification <$> matchPatterns ps vs
                 return (m, Arg info $ Con c' vs)
-            | otherwise           -> return (No, Arg info v) -- NOTE: v the reduced thing(shadowing!). Andreas, 2013-07-03
-          NotBlocked (MetaV x vs) -> return (DontKnow $ Just x, Arg info v)
-          Blocked x _             -> return (DontKnow $ Just x, Arg info v)
-          _                       -> return (DontKnow Nothing, Arg info v)
-
+            | otherwise             -> return (No                          , arg)
+          NotBlocked _ (MetaV x vs) -> return (DontKnow $ Blocked x ()     , arg)
+          Blocked x _               -> return (DontKnow $ Blocked x ()     , arg)
+          NotBlocked r _            -> return (DontKnow $ NotBlocked r' () , arg)
+            where r' = stuckOn (Apply arg) r
 -- ASR (08 November 2014). The type of the function could be
 --
 -- @(Match Term, [I.Arg Term]) -> (Match Term, [I.Arg Term])@.

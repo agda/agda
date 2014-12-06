@@ -213,7 +213,7 @@ data ArgInfo c = ArgInfo
 instance KillRange c => KillRange (ArgInfo c) where
   killRange (ArgInfo h r cs) = killRange3 ArgInfo h r cs
 
-{- FAILED to define a less for ArgInfo, since it is parametrized by c
+{- FAILED to define a lens for ArgInfo, since it is parametrized by c
 
    can't instantiate the following to f c = Arg c e
    since Haskell does not have lambda abstraction

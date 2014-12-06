@@ -319,8 +319,8 @@ checkLevel (Max ls) = mapM_ checkPlusLevel ls
       lvl <- levelType
       case l of
         MetaLevel x es   -> checkInternal (MetaV x es) lvl
-        BlockedLevel x v -> checkInternal v lvl
-        NeutralLevel v   -> checkInternal v lvl
+        BlockedLevel _ v -> checkInternal v lvl
+        NeutralLevel _ v -> checkInternal v lvl
         UnreducedLevel v -> checkInternal v lvl
 
 -- | Type of a term or sort meta.

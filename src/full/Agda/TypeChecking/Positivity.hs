@@ -7,6 +7,8 @@
 -- | Check that a datatype is strictly positive.
 module Agda.TypeChecking.Positivity where
 
+import Prelude hiding (null)
+
 import Control.Applicative hiding (empty)
 import Control.DeepSeq
 import Control.Monad.Reader
@@ -15,7 +17,7 @@ import Data.Set (Set)
 import qualified Data.Set as Set
 import Data.Map (Map)
 import qualified Data.Map as Map
-import Data.List as List
+import Data.List as List hiding (null)
 import Data.Maybe (mapMaybe, fromMaybe)
 
 import Agda.Syntax.Position
@@ -34,6 +36,7 @@ import Agda.Utils.Size
 import Agda.Utils.List
 import Agda.Utils.Maybe
 import Agda.Utils.Monad
+import Agda.Utils.Null
 import Agda.Utils.SemiRing
 import qualified Agda.Utils.Graph.AdjacencyMap as Graph
 import Agda.Utils.Graph.AdjacencyMap (Graph)
@@ -378,7 +381,7 @@ instance ComputeOccurrences Clause where
       matching (i, _     ) = Just (occursAs Matched $ here (AnArg i))
 -}
 
-      walk _         NoBody     = return $ Map.empty
+      walk _         NoBody     = return empty
       walk []        (Body v)   = occurrences v
       walk (i : pis) (Bind b)   = withExtendedOccEnv i $ walk pis $ absBody b
       walk []        Bind{}     = __IMPOSSIBLE__
@@ -406,7 +409,7 @@ instance ComputeOccurrences Term where
     Var i args -> do
       vars <- asks vars
       occs <- occurrences args
-      return $ maybe Map.empty here (index vars i)
+      return $ maybe empty here (index vars i)
                >+< occursAs VarArg occs
     Def d args   -> do
       inf <- asks inf
@@ -424,9 +427,9 @@ instance ComputeOccurrences Term where
       return $ occursAs LeftOfArrow oa >+< ob
     Lam _ b      -> occurrences b
     Level l      -> occurrences l
-    Lit{}        -> return $ Map.empty
-    Sort{}       -> return $ Map.empty
-    DontCare _   -> return $ Map.empty -- Andreas, 2011-09-09: do we need to check for negative occurrences in irrelevant positions?
+    Lit{}        -> return empty
+    Sort{}       -> return empty
+    DontCare _   -> return empty -- Andreas, 2011-09-09: do we need to check for negative occurrences in irrelevant positions?
     Shared p     -> occurrences $ derefPtr p
     where
       -- Apparently some development version of GHC chokes if the
@@ -439,21 +442,21 @@ instance ComputeOccurrences Level where
   occurrences (Max as) = occurrences as
 
 instance ComputeOccurrences PlusLevel where
-  occurrences ClosedLevel{} = return $ Map.empty
+  occurrences ClosedLevel{} = return empty
   occurrences (Plus _ l)    = occurrences l
 
 instance ComputeOccurrences LevelAtom where
   occurrences l = case l of
     MetaLevel _ vs   -> occursAs MetaArg <$> occurrences vs
     BlockedLevel _ v -> occurrences v
-    NeutralLevel v   -> occurrences v
+    NeutralLevel _ v -> occurrences v
     UnreducedLevel v -> occurrences v
 
 instance ComputeOccurrences Type where
   occurrences (El _ v) = occurrences v
 
 instance ComputeOccurrences a => ComputeOccurrences (Tele a) where
-  occurrences EmptyTel        = return $ Map.empty
+  occurrences EmptyTel        = return empty
   occurrences (ExtendTel a b) = occurrences (a, b)
 
 instance ComputeOccurrences a => ComputeOccurrences (Abs a) where
@@ -461,7 +464,7 @@ instance ComputeOccurrences a => ComputeOccurrences (Abs a) where
   occurrences (NoAbs _ b) = occurrences b
 
 instance ComputeOccurrences a => ComputeOccurrences (Elim' a) where
-  occurrences Proj{}    = return $ Map.empty
+  occurrences Proj{}    = return empty
   occurrences (Apply a) = occurrences a
 
 instance ComputeOccurrences a => ComputeOccurrences (I.Arg a) where
@@ -514,9 +517,9 @@ computeOccurrences q = do
       getOccurrences vars =<< instantiateFull tel'
 
     -- Arguments to other kinds of definitions are hard-wired.
-    Constructor{} -> return Map.empty
-    Axiom{}       -> return Map.empty
-    Primitive{}   -> return Map.empty
+    Constructor{} -> return empty
+    Axiom{}       -> return empty
+    Primitive{}   -> return empty
 
 -- | Eta expand a clause to have the given number of variables.
 --   Warning: doesn't update telescope or permutation!

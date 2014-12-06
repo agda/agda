@@ -56,7 +56,7 @@ import Agda.Termination.RecCheck
 import Agda.Termination.Inlining
 
 import Agda.TypeChecking.Monad
-import Agda.TypeChecking.Pretty hiding (empty)
+import Agda.TypeChecking.Pretty
 import Agda.TypeChecking.Reduce (reduce, normalise, instantiate, instantiateFull)
 import Agda.TypeChecking.Records -- (isRecordConstructor, isInductiveRecord)
 import Agda.TypeChecking.Telescope
@@ -998,7 +998,7 @@ instance ExtractCalls PlusLevel where
 instance ExtractCalls LevelAtom where
   extract (MetaLevel x es)   = extract es
   extract (BlockedLevel x t) = extract t
-  extract (NeutralLevel t)   = extract t
+  extract (NeutralLevel _ t) = extract t
   extract (UnreducedLevel t) = extract t
 
 -- | Rewrite type @tel -> Size< u@ to @tel -> Size@.

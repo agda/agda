@@ -45,8 +45,7 @@ import Agda.TypeChecking.Constraints
 import Agda.TypeChecking.DropArgs
 import Agda.TypeChecking.Level (reallyUnLevelView)
 import Agda.TypeChecking.Reduce
-import Agda.TypeChecking.Pretty hiding (empty)
-import qualified Agda.TypeChecking.Pretty as P
+import Agda.TypeChecking.Pretty
 import Agda.TypeChecking.Substitute hiding (Substitution)
 import qualified Agda.TypeChecking.Substitute as S
 import Agda.TypeChecking.Telescope
@@ -762,9 +761,9 @@ unifyIndices flex a us vs = liftTCM $ do
 
       liftTCM $ reportSDoc "tc.lhs.unify" 15 $
         sep [ text "unifyAtom"
-            , nest 2 $ prettyTCM u <> if flexibleTerm u then text " (flexible)" else P.empty
+            , nest 2 $ prettyTCM u <> if flexibleTerm u then text " (flexible)" else empty
             , nest 2 $ text "=?="
-            , nest 2 $ prettyTCM v <> if flexibleTerm v then text " (flexible)" else P.empty
+            , nest 2 $ prettyTCM v <> if flexibleTerm v then text " (flexible)" else empty
             , nest 2 $ text ":" <+> prettyTCM aHH
             ]
       liftTCM $ reportSDoc "tc.lhs.unify" 60 $

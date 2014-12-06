@@ -66,7 +66,7 @@ module Agda.Syntax.Position
 
 import Prelude hiding (null)
 
-import Control.Applicative
+import Control.Applicative hiding (empty)
 import Control.Monad
 
 import Data.Foldable (Foldable)
@@ -83,7 +83,7 @@ import Test.QuickCheck.All
 import Agda.Utils.FileName hiding (tests)
 import Agda.Utils.Maybe
 import Agda.Utils.Null
-import Agda.Utils.Pretty as P
+import Agda.Utils.Pretty
 import Agda.Utils.TestHelpers
 import Agda.Utils.QuickCheck
 
@@ -439,7 +439,7 @@ instance Pretty a => Pretty (Interval' (Maybe a)) where
 
       file :: Doc
       file = case f of
-               Nothing -> P.empty
+               Nothing -> empty
                Just f  -> pretty f <> colon
 
       start :: Doc
@@ -451,7 +451,7 @@ instance Pretty a => Pretty (Interval' (Maybe a)) where
 
 instance Pretty a => Pretty (Range' (Maybe a)) where
   pretty r = case rangeToInterval r of
-    Nothing -> P.empty
+    Nothing -> empty
     Just i  -> pretty i
 
 {--------------------------------------------------------------------------

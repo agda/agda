@@ -42,7 +42,7 @@ instance MentionsMeta LevelAtom where
     MetaLevel m vs   -> x == m || mentionsMeta x vs
     BlockedLevel m _ -> x == m    -- if it's blocked on a different meta it doesn't matter if it mentions the meta somewhere else
     UnreducedLevel l -> mentionsMeta x l
-    NeutralLevel l   -> mentionsMeta x l
+    NeutralLevel _ l -> mentionsMeta x l
 
 instance MentionsMeta Type where
     mentionsMeta x (El s t) = mentionsMeta x (s, t)

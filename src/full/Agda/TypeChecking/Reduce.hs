@@ -37,6 +37,7 @@ import {-# SOURCE #-} Agda.TypeChecking.CompiledClause.Match
 
 import Agda.TypeChecking.Reduce.Monad
 
+import Agda.Utils.Functor
 import Agda.Utils.Monad
 import Agda.Utils.HashMap (HashMap)
 import Agda.Utils.Maybe
@@ -190,14 +191,17 @@ instance (Ord k, Instantiate e) => Instantiate (Map k e) where
 -- * Reduction to weak head normal form.
 ---------------------------------------------------------------------------
 
+-- | Case on whether a term is blocked on a meta (or is a meta).
+--   That means it can change its shape when the meta is instantiated.
 ifBlocked :: MonadTCM tcm =>  Term -> (MetaId -> Term -> tcm a) -> (Term -> tcm a) -> tcm a
 ifBlocked t blocked unblocked = do
   t <- liftTCM $ reduceB t
   case ignoreSharing <$> t of
-    Blocked m _            -> blocked m (ignoreBlocking t)
-    NotBlocked (MetaV m _) -> blocked m (ignoreBlocking t)
-    NotBlocked _           -> unblocked (ignoreBlocking t)
+    Blocked m _              -> blocked m (ignoreBlocking t)
+    NotBlocked _ (MetaV m _) -> blocked m (ignoreBlocking t)
+    NotBlocked{}             -> unblocked (ignoreBlocking t)
 
+-- | Case on whether a type is blocked on a meta (or is a meta).
 ifBlockedType :: MonadTCM tcm => Type -> (MetaId -> Type -> tcm a) -> (Type -> tcm a) -> tcm a
 ifBlockedType (El s t) blocked unblocked =
   ifBlocked t (\ m v -> blocked m $ El s v) (\ v -> unblocked $ El s v)
@@ -244,7 +248,7 @@ instance Reduce PlusLevel where
 instance Reduce LevelAtom where
   reduceB' l = case l of
     MetaLevel m vs   -> fromTm (MetaV m vs)
-    NeutralLevel v   -> return $ NotBlocked $ NeutralLevel v
+    NeutralLevel r v -> return $ NotBlocked r $ NeutralLevel r v
     BlockedLevel m v ->
       ifM (isInstantiatedMeta m) (fromTm v) (return $ Blocked m $ BlockedLevel m v)
     UnreducedLevel v -> fromTm v
@@ -253,9 +257,9 @@ instance Reduce LevelAtom where
         bv <- reduceB' v
         let v = ignoreBlocking bv
         case ignoreSharing <$> bv of
-          NotBlocked (MetaV m vs) -> return $ NotBlocked $ MetaLevel m vs
-          Blocked m _             -> return $ Blocked m  $ BlockedLevel m v
-          NotBlocked _            -> return $ NotBlocked $ NeutralLevel v
+          NotBlocked r (MetaV m vs) -> return $ NotBlocked r $ MetaLevel m vs
+          Blocked m _               -> return $ Blocked m    $ BlockedLevel m v
+          NotBlocked r _            -> return $ NotBlocked r $ NeutralLevel r v
 
 
 instance (Subst t, Reduce t) => Reduce (Abs t) where
@@ -373,14 +377,14 @@ unfoldDefinition' unfoldDelayed keepGoing v0 f es =
           reduceNormalE keepGoing v0 f (map notReduced es)
                        dontUnfold
                        (defClauses info) (defCompiled info)
-        else retSimpl $ notBlocked v
+        else retSimpl $ notBlocked v  -- Andrea(s), 2014-12-05 OK?
 
   where
     retSimpl v = (,v) <$> getSimplification
 
     reducePrimitive x v0 f es pf dontUnfold cls mcc
       | genericLength es < ar
-                  = retSimpl $ notBlocked $ v0 `applyE` es -- not fully applied
+                  = retSimpl $ NotBlocked Underapplied $ v0 `applyE` es -- not fully applied
       | otherwise = {-# SCC "reducePrimitive" #-} do
           let (es1,es2) = genericSplitAt ar es
               args1     = fromMaybe __IMPOSSIBLE__ $ mapM isApplyElim es1
@@ -407,7 +411,7 @@ unfoldDefinition' unfoldDelayed keepGoing v0 f es =
     reduceNormalE :: (Term -> ReduceM (Simplification, Blocked Term)) -> Term -> QName -> [MaybeReduced Elim] -> Bool -> [Clause] -> Maybe CompiledClauses -> ReduceM (Simplification, Blocked Term)
     reduceNormalE keepGoing v0 f es dontUnfold def mcc = {-# SCC "reduceNormal" #-} do
       case def of
-        _ | dontUnfold -> defaultResult
+        _ | dontUnfold -> defaultResult -- non-terminating or delayed
         [] -> defaultResult -- no definition for head
         cls -> do
             ev <- appDefE_ f v0 cls mcc es
@@ -424,7 +428,7 @@ unfoldDefinition' unfoldDelayed keepGoing v0 f es =
                 traceSDoc "tc.reduce'"  95 (text "    result" <+> prettyTCM v) $ do
                 traceSDoc "tc.reduce'" 100 (text "    raw   " <+> text (show v)) $ do
                 keepGoing v
-      where defaultResult = retSimpl $ notBlocked $ vfull
+      where defaultResult = retSimpl $ NotBlocked AbsurdMatch vfull
             vfull         = v0 `applyE` map ignoreReduced es
 
 -- | Reduce a non-primitive definition if it is a copy linking to another def.
@@ -519,14 +523,15 @@ appDefE' v cls es = goCls cls $ map ignoreReduced es
     goCls :: [Clause] -> [Elim] -> ReduceM (Reduced (Blocked Term) Term)
     goCls cl es = do
       reportSLn "tc.reduce'" 95 $ "Reduce.goCls tries reduction, #clauses = " ++ show (length cl)
-      let cantReduce es = return $ NoReduction $ notBlocked $ v `applyE` es
       case cl of
         -- Andreas, 2013-10-26  In case of an incomplete match,
-        -- we just do not reduce'.  This allows adding single function
+        -- we just do not reduce.  This allows adding single function
         -- clauses after they have been type-checked, to type-check
         -- the remaining clauses (see Issue 907).
-        [] -> cantReduce es -- WAS: typeError $ IncompletePatternMatching v es
-        cl @ Clause { clauseBody = body } : cls -> do
+        -- Andrea(s), 2014-12-05:  We return 'MissingClauses' here, since this
+        -- is the most conservative reason.
+        [] -> return $ NoReduction $ NotBlocked MissingClauses $ v `applyE` es
+        cl@Clause{ clauseBody = body } : cls -> do
           let pats = namedClausePats cl
               n    = length pats
           -- if clause is underapplied, skip to next clause
@@ -535,9 +540,8 @@ appDefE' v cls es = goCls cls $ map ignoreReduced es
             (m, es0) <- matchCopatterns pats es0
             es <- return $ es0 ++ es1
             case m of
-              No                -> goCls cls es
-              DontKnow Nothing  -> cantReduce es
-              DontKnow (Just m) -> return $ NoReduction $ blocked m $ v `applyE` es
+              No         -> goCls cls es
+              DontKnow b -> return $ NoReduction $ b $> v `applyE` es
               Yes simpl vs -- vs is the subst. for the variables bound in body
                 | isJust (getBodyUnraised body)  -- clause has body?
                                 -> return $ YesReduction simpl $
@@ -545,7 +549,7 @@ appDefE' v cls es = goCls cls $ map ignoreReduced es
                     -- of the original arguments!
                     -- Andreas, 2013-05-19 isn't this done now?
                     app vs body EmptyS `applyE` es1
-                | otherwise     -> cantReduce es
+                | otherwise     -> return $ NoReduction $ NotBlocked AbsurdMatch $ v `applyE` es
 
     -- Build an explicit substitution from arguments
     -- and execute it using parallel substitution.
@@ -605,7 +609,7 @@ instance Simplify Term where
     v <- instantiate' v
     case v of
       Def f vs   -> do
-        let keepGoing v = (,NotBlocked v) <$> getSimplification
+        let keepGoing v = (,notBlocked v) <$> getSimplification  -- Andrea(s), 2014-12-05 OK?
         (simpl, v) <- unfoldDefinition' False keepGoing (Def f []) f vs
         reportSDoc "tc.simplify'" 20 $
           text ("simplify': unfolding definition returns " ++ show simpl)
@@ -625,8 +629,8 @@ instance Simplify Term where
       Shared{}   -> updateSharedTerm simplify' v
 
 simplifyBlocked' :: Simplify t => Blocked t -> ReduceM t
-simplifyBlocked' (Blocked _ t)  = return t
-simplifyBlocked' (NotBlocked t) = simplify' t
+simplifyBlocked' (Blocked _ t) = return t
+simplifyBlocked' (NotBlocked _ t) = simplify' t  -- Andrea(s), 2014-12-05 OK?
 
 instance Simplify Type where
     simplify' (El s t) = El <$> simplify' s <*> simplify' t
@@ -656,7 +660,7 @@ instance Simplify LevelAtom where
     case l of
       MetaLevel m vs   -> MetaLevel m <$> simplify' vs
       BlockedLevel m v -> BlockedLevel m <$> simplify' v
-      NeutralLevel v   -> NeutralLevel   <$> simplify' v -- ??
+      NeutralLevel r v -> NeutralLevel r <$> simplify' v -- ??
       UnreducedLevel v -> UnreducedLevel <$> simplify' v -- ??
 
 instance (Subst t, Simplify t) => Simplify (Abs t) where
@@ -788,7 +792,7 @@ instance Normalise LevelAtom where
     case l of
       MetaLevel m vs   -> MetaLevel m <$> normalise' vs
       BlockedLevel m v -> BlockedLevel m <$> normalise' v
-      NeutralLevel v   -> NeutralLevel <$> normalise' v
+      NeutralLevel r v -> NeutralLevel r <$> normalise' v
       UnreducedLevel{} -> __IMPOSSIBLE__    -- I hope
 
 instance Normalise ClauseBody where
@@ -927,7 +931,7 @@ instance InstantiateFull LevelAtom where
       case ignoreSharing v of
         MetaV m vs -> return $ MetaLevel m vs
         _          -> return $ UnreducedLevel v
-    NeutralLevel v -> NeutralLevel <$> instantiateFull' v
+    NeutralLevel r v -> NeutralLevel r <$> instantiateFull' v
     BlockedLevel m v ->
       ifM (isInstantiatedMeta m)
           (UnreducedLevel <$> instantiateFull' v)

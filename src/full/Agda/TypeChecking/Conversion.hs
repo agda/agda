@@ -259,17 +259,17 @@ compareTerm' cmp a m n =
               --    isNeutral Blocked{}          = False
                   isNeutral = isNeutral' . fmap ignoreSharing
                   isMeta    = isMeta'    . fmap ignoreSharing
-                  isNeutral' (NotBlocked Con{}) = return False
+                  isNeutral' (NotBlocked _ Con{}) = return False
               -- Andreas, 2013-09-18: this is expensive:
               -- should only do this when copatterns are on
-                  isNeutral' (NotBlocked (Def q _)) = do
+                  isNeutral' (NotBlocked r (Def q _)) = do    -- Andreas, 2014-12-06 optimize this using r !!
                     d <- getConstInfo q
                     return $ case d of
                       Defn {theDef = Function {funCopatternLHS = True}} -> False -- a def by copattern can reduce if projected
                       _                                                 -> True
-                  isNeutral' _                  = return True
-                  isMeta' (NotBlocked MetaV{})  = True
-                  isMeta' _                     = False
+                  isNeutral' _                   = return True
+                  isMeta' (NotBlocked _ MetaV{}) = True
+                  isMeta' _                      = False
 
               reportSDoc "tc.conv.term" 30 $ prettyTCM a <+> text "is eta record type"
               m <- reduceB m
@@ -408,7 +408,7 @@ compareAtom cmp t m n =
                                     , text ":" <+> prettyTCM t ]
       -- Andreas: what happens if I cut out the eta expansion here?
       -- Answer: Triggers issue 245, does not resolve 348
-      (mb',nb') <- ifM (asks envCompareBlocked) ((NotBlocked -*- NotBlocked) <$> reduce (m,n)) $ do
+      (mb',nb') <- ifM (asks envCompareBlocked) ((notBlocked -*- notBlocked) <$> reduce (m,n)) $ do
         mb' <- etaExpandBlocked =<< reduceB m
         nb' <- etaExpandBlocked =<< reduceB n
         return (mb', nb')
@@ -449,7 +449,7 @@ compareAtom cmp t m n =
       case (ignoreSharing <$> mb, ignoreSharing <$> nb) of
         -- equate two metas x and y.  if y is the younger meta,
         -- try first y := x and then x := y
-        (NotBlocked (MetaV x xArgs), NotBlocked (MetaV y yArgs))
+        (NotBlocked _ (MetaV x xArgs), NotBlocked _ (MetaV y yArgs))
             | x == y ->
               case intersectVars xArgs yArgs of
                 -- all relevant arguments are variables
@@ -483,8 +483,8 @@ compareAtom cmp t m n =
                 try solve1 solve2
 
         -- one side a meta, the other an unblocked term
-        (NotBlocked (MetaV x es), _) -> assign dir x es n
-        (_, NotBlocked (MetaV x es)) -> assign rid x es m
+        (NotBlocked _ (MetaV x es), _) -> assign dir x es n
+        (_, NotBlocked _ (MetaV x es)) -> assign rid x es m
         (Blocked{}, Blocked{})  -> checkSyntacticEquality
         (Blocked{}, _)    -> useInjectivity cmp t m n
         (_,Blocked{})     -> useInjectivity cmp t m n
@@ -1097,7 +1097,7 @@ leqLevel a b = liftTCM $ do
         meta (Plus _ MetaLevel{}) = True
         meta _                    = False
 
-        unneutral (Plus _ (NeutralLevel v)) = v
+        unneutral (Plus _ (NeutralLevel _ v)) = v
         unneutral _ = __IMPOSSIBLE__
 
         constant (ClosedLevel n) = n
@@ -1256,7 +1256,7 @@ equalLevel a b = do
         hasMeta ClosedLevel{}               = False
         hasMeta (Plus _ MetaLevel{})        = True
         hasMeta (Plus _ (BlockedLevel _ v)) = not $ null $ allMetas v
-        hasMeta (Plus _ (NeutralLevel   v)) = not $ null $ allMetas v
+        hasMeta (Plus _ (NeutralLevel _ v)) = not $ null $ allMetas v
         hasMeta (Plus _ (UnreducedLevel v)) = not $ null $ allMetas v
 
         isThisMeta x (Plus _ (MetaLevel y _)) = x == y
@@ -1317,8 +1317,8 @@ equalSort s1 s2 =
         isInf notok ClosedLevel{} = notok
         isInf notok (Plus _ l) = case l of
           MetaLevel x es          -> assignE DirEq x es (Sort Inf) $ equalAtom topSort
-          NeutralLevel (Shared p) -> isInf notok (Plus 0 $ NeutralLevel $ derefPtr p)
-          NeutralLevel (Sort Inf) -> return ()
+          NeutralLevel r (Shared p) -> isInf notok (Plus 0 $ NeutralLevel r $ derefPtr p)
+          NeutralLevel _ (Sort Inf) -> return ()
           _                       -> notok
 
 ---------------------------------------------------------------------------

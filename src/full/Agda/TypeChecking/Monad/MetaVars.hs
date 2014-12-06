@@ -385,7 +385,7 @@ instance UnFreezeMeta PlusLevel where
 instance UnFreezeMeta LevelAtom where
   unfreezeMeta (MetaLevel x _)    = unfreezeMeta x
   unfreezeMeta (BlockedLevel _ t) = unfreezeMeta t
-  unfreezeMeta (NeutralLevel t)   = unfreezeMeta t
+  unfreezeMeta (NeutralLevel _ t) = unfreezeMeta t
   unfreezeMeta (UnreducedLevel t) = unfreezeMeta t
 
 instance UnFreezeMeta a => UnFreezeMeta [a] where

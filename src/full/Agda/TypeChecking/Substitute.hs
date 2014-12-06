@@ -648,7 +648,7 @@ instance Subst PlusLevel where
 instance Subst LevelAtom where
   applySubst rho (MetaLevel m vs)   = MetaLevel m    $ applySubst rho vs
   applySubst rho (BlockedLevel m v) = BlockedLevel m $ applySubst rho v
-  applySubst rho (NeutralLevel v)   = UnreducedLevel $ applySubst rho v
+  applySubst rho (NeutralLevel _ v) = UnreducedLevel $ applySubst rho v
   applySubst rho (UnreducedLevel v) = UnreducedLevel $ applySubst rho v
 
 instance Subst Bool where
@@ -962,6 +962,10 @@ deriving instance Eq PlusLevel
 deriving instance Ord LevelAtom
 deriving instance Eq Elim
 deriving instance Ord Elim
+deriving instance Eq NotBlocked
+deriving instance Ord NotBlocked
+deriving instance Eq t => Eq (Blocked t)
+deriving instance Ord t => Ord (Blocked t)
 
 deriving instance Eq Constraint
 
@@ -1074,7 +1078,7 @@ levelMax as0 = Max $ ns ++ List.sort bs
 
     expandAtom l = case l of
       BlockedLevel _ v -> expandTm v
-      NeutralLevel v   -> expandTm v
+      NeutralLevel _ v -> expandTm v
       UnreducedLevel v -> expandTm v
       MetaLevel{}      -> [Plus 0 l]
       where
@@ -1104,7 +1108,7 @@ levelSort (Max as)
   where
     isInf ClosedLevel{}        = False
     isInf (Plus _ l)           = infAtom l
-    infAtom (NeutralLevel a)   = infTm a
+    infAtom (NeutralLevel _ a) = infTm a
     infAtom (UnreducedLevel a) = infTm a
     infAtom MetaLevel{}        = False
     infAtom BlockedLevel{}     = False
@@ -1124,7 +1128,7 @@ levelTm l =
 
 unLevelAtom :: LevelAtom -> Term
 unLevelAtom (MetaLevel x es)   = MetaV x es
-unLevelAtom (NeutralLevel v)   = v
+unLevelAtom (NeutralLevel _ v) = v
 unLevelAtom (UnreducedLevel v) = v
 unLevelAtom (BlockedLevel _ v) = v
 

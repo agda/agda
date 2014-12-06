@@ -291,7 +291,7 @@ instance Free PlusLevel where
 instance Free LevelAtom where
   freeVars' l = case l of
     MetaLevel _ vs   -> flexible <$> freeVars' vs
-    NeutralLevel v   -> freeVars' v
+    NeutralLevel _ v -> freeVars' v
     BlockedLevel _ v -> freeVars' v
     UnreducedLevel v -> freeVars' v
 

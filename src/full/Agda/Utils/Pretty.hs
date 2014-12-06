@@ -10,7 +10,15 @@ module Agda.Utils.Pretty
 
 import Data.Function
 import Data.Int ( Int32 )
-import Text.PrettyPrint hiding (TextDetails(Str))
+import Data.Monoid
+
+import Text.PrettyPrint hiding (TextDetails(Str), empty)
+
+import Agda.Utils.Null
+
+instance Null Doc where
+  empty = mempty
+  null  = (== mempty)
 
 -- * Pretty class
 

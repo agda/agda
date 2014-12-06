@@ -26,6 +26,7 @@ import Data.Foldable
 import Data.Function
 import qualified Data.List as List
 import Data.Maybe
+import Data.Monoid
 import Data.Traversable
 import Data.Typeable (Typeable)
 
@@ -225,7 +226,7 @@ data PlusLevel = ClosedLevel Integer
 data LevelAtom
   = MetaLevel MetaId Elims
   | BlockedLevel MetaId Term
-  | NeutralLevel Term
+  | NeutralLevel NotBlocked Term
   | UnreducedLevel Term
     -- ^ Introduced by 'instantiate', removed by 'reduce'.
   deriving (Show, Typeable)
@@ -235,16 +236,112 @@ data LevelAtom
 newtype MetaId = MetaId { metaId :: Nat }
     deriving (Eq, Ord, Num, Real, Enum, Integral, Typeable)
 
--- | Something where a meta variable may block reduction.
-data Blocked t = Blocked MetaId t
-               | NotBlocked t
-    deriving (Typeable, Eq, Ord, Functor, Foldable, Traversable)
+-- | Even if we are not stuck on a meta during reduction
+--   we can fail to reduce a definition by pattern matching
+--   for another reason.
+data NotBlocked
+  = StuckOn Elim
+    -- ^ The 'Elim' is neutral and block a pattern match.
+  | Underapplied
+    -- ^ Not enough arguments were supplied to complete the matching.
+  | AbsurdMatch
+    -- ^ We matched an absurd clause, results in a neutral 'Def'.
+  | MissingClauses
+    -- ^ We ran out of clauses, all considered clauses
+    --   produced an actual mismatch.
+    --   This can happen when try to reduce a function application
+    --   but we are still missing some function clauses.
+    --   See "Agda.TypeChecking.Patterns.Match".
+  | ReallyNotBlocked
+    -- ^ Reduction was not blocked, we reached a whnf
+    --   which can be anything but a stuck @'Def'@.
+  deriving (Show, Typeable)
 
+-- | 'ReallyNotBlocked' is the unit.
+--   'MissingClauses' is dominant.
+--   @'StuckOn'{}@ should be propagated, if tied, we take the left.
+instance Monoid NotBlocked where
+  -- ReallyNotBlocked is neutral
+  mempty                       = ReallyNotBlocked
+  ReallyNotBlocked `mappend` b = b
+  -- MissingClauses is dominant (absorptive)
+  b@MissingClauses `mappend` _ = b
+  _ `mappend` b@MissingClauses = b
+  -- StuckOn is second strongest
+  b@StuckOn{}      `mappend` _ = b
+  _ `mappend` b@StuckOn{}      = b
+  b `mappend` _                = b
+
+-- | Something where a meta variable may block reduction.
+data Blocked t
+  = Blocked    { theBlockingMeta :: MetaId    , ignoreBlocking :: t }
+  | NotBlocked { blockingStatus  :: NotBlocked, ignoreBlocking :: t }
+  deriving (Typeable, Show, Functor, Foldable, Traversable)
+  -- deriving (Typeable, Eq, Ord, Functor, Foldable, Traversable)
+
+-- | Blocking by a meta is dominant.
 instance Applicative Blocked where
   pure = notBlocked
-  Blocked x f  <*> e = Blocked x $ f (ignoreBlocking e)
-  NotBlocked f <*> e = f <$> e
+  f <*> e = ((f $> ()) `mappend` (e $> ())) $> ignoreBlocking f (ignoreBlocking e)
 
+-- -- | Blocking by a meta is dominant.
+-- instance Applicative Blocked where
+--   pure = notBlocked
+--   Blocked x f     <*> e                = Blocked x $ f (ignoreBlocking e)
+--   NotBlocked nb f <*> Blocked    x   e = Blocked x $ f e
+--   NotBlocked nb f <*> NotBlocked nb' e = NotBlocked (nb `mappend` nb') $ f e
+
+-- | @'Blocked' t@ without the @t@.
+type Blocked_ = Blocked ()
+
+instance Monoid Blocked_ where
+  mempty = notBlocked ()
+  -- ReallyNotBlocked is neutral
+  NotBlocked ReallyNotBlocked _ `mappend` b = b
+  b `mappend` NotBlocked ReallyNotBlocked _ = b
+  -- StuckOn is strongest
+  b@(NotBlocked StuckOn{} _) `mappend` _ = b
+  _ `mappend` b@(NotBlocked StuckOn{} _) = b
+  -- Blocked is weakest
+  b@Blocked{} `mappend` Blocked{} = b
+  Blocked{} `mappend` b = b
+  b `mappend` Blocked{} = b
+  -- For the other cases, we take the left
+  b `mappend` _ = b
+
+-- | When trying to reduce @f es@, on match failed on one
+--   elimination @e ∈ es@ that came with info @r :: NotBlocked@.
+--   @stuckOn e r@ produces the new @NotBlocked@ info.
+--
+--   'MissingClauses' must be propagated, as this is blockage
+--   that can be lifted in the future (as more clauses are added).
+--
+--   @'StuckOn' e0@ is also propagated, since it provides more
+--   precise information as @StuckOn e@ (as @e0@ is the original
+--   reason why reduction got stuck and usually a subterm of @e@).
+--   An information like @StuckOn (Apply (Arg info (Var i [])))@
+--   (stuck on a variable) could be used by the lhs/coverage checker
+--   to trigger a split on that (pattern) variable.
+--
+--   In the remaining cases for @r@, we are terminally stuck
+--   due to @StuckOn e@.  Propagating @'AbsurdMatch'@ does not
+--   seem useful.
+--
+--   'Underapplied' must not be propagated, as this would mean
+--   that @f es@ is underapplied, which is not the case (it is stuck).
+--   Note that 'Underapplied' can only arise when projection patterns were
+--   missing to complete the original match (in @e@).
+--   (Missing ordinary pattern would mean the @e@ is of function type,
+--   but we cannot match against something of function type.)
+stuckOn :: Elim -> NotBlocked -> NotBlocked
+stuckOn e r =
+  case r of
+    MissingClauses   -> r
+    StuckOn{}        -> r
+    Underapplied     -> r'
+    AbsurdMatch      -> r'
+    ReallyNotBlocked -> r'
+  where r' = StuckOn e
 
 ---------------------------------------------------------------------------
 -- * Definitions
@@ -525,7 +622,7 @@ sort :: Sort -> Type
 sort s = El (sSuc s) $ Sort s
 
 varSort :: Int -> Sort
-varSort n = Type $ Max [Plus 0 $ NeutralLevel $ Var n []]
+varSort n = Type $ Max [Plus 0 $ NeutralLevel mempty $ Var n []]
 
 -- | Get the next higher sort.
 sSuc :: Sort -> Sort
@@ -564,17 +661,13 @@ instance SgTel (Dom (ArgName, Type)) where
 
 blockingMeta :: Blocked t -> Maybe MetaId
 blockingMeta (Blocked m _) = Just m
-blockingMeta (NotBlocked _) = Nothing
+blockingMeta NotBlocked{}  = Nothing
 
 blocked :: MetaId -> a -> Blocked a
 blocked x = Blocked x
 
 notBlocked :: a -> Blocked a
-notBlocked = NotBlocked
-
-ignoreBlocking :: Blocked a -> a
-ignoreBlocking (Blocked _ x) = x
-ignoreBlocking (NotBlocked x) = x
+notBlocked = NotBlocked ReallyNotBlocked
 
 ---------------------------------------------------------------------------
 -- * Simple operations on terms and types.
@@ -714,10 +807,10 @@ instance Show a => Show (Abs a) where
 instance Show MetaId where
     show (MetaId n) = "_" ++ show n
 
-instance Show t => Show (Blocked t) where
-  showsPrec p (Blocked m x) = showParen (p > 0) $
-    showString "Blocked " . shows m . showString " " . showsPrec 10 x
-  showsPrec p (NotBlocked x) = showsPrec p x
+-- instance Show t => Show (Blocked t) where
+--   showsPrec p (Blocked m x) = showParen (p > 0) $
+--     showString "Blocked " . shows m . showString " " . showsPrec 10 x
+--   showsPrec p (NotBlocked x) = showsPrec p x
 
 ---------------------------------------------------------------------------
 -- * Sized instances.
@@ -750,7 +843,7 @@ instance Sized PlusLevel where
 instance Sized LevelAtom where
   size (MetaLevel _   vs) = 1 + Prelude.sum (map size vs)
   size (BlockedLevel _ v) = size v
-  size (NeutralLevel   v) = size v
+  size (NeutralLevel _ v) = size v
   size (UnreducedLevel v) = size v
 
 instance Sized (Tele a) where
@@ -795,7 +888,7 @@ instance KillRange PlusLevel where
 instance KillRange LevelAtom where
   killRange (MetaLevel n as)   = killRange1 (MetaLevel n) as
   killRange (BlockedLevel m v) = killRange1 (BlockedLevel m) v
-  killRange (NeutralLevel v)   = killRange1 NeutralLevel v
+  killRange (NeutralLevel r v) = killRange1 (NeutralLevel r) v
   killRange (UnreducedLevel v) = killRange1 UnreducedLevel v
 
 instance KillRange Type where
@@ -910,7 +1003,7 @@ instance Pretty LevelAtom where
     case a of
       MetaLevel x els  -> prettyPrec p (MetaV x els)
       BlockedLevel _ v -> prettyPrec p v
-      NeutralLevel v   -> prettyPrec p v
+      NeutralLevel _ v -> prettyPrec p v
       UnreducedLevel v -> prettyPrec p v
 
 instance Pretty Sort where

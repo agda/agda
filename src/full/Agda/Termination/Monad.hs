@@ -13,7 +13,9 @@
 
 module Agda.Termination.Monad where
 
-import Control.Applicative
+import Prelude hiding (null)
+
+import Control.Applicative hiding (empty)
 import Control.Monad.Reader
 import Control.Monad.Writer
 import Control.Monad.State
@@ -44,6 +46,7 @@ import Agda.Utils.Except ( MonadError(catchError, throwError) )
 import Agda.Utils.Lens
 import Agda.Utils.Maybe
 import Agda.Utils.Monad
+import Agda.Utils.Null
 import Agda.Utils.Pretty (Pretty)
 import qualified Agda.Utils.Pretty as P
 import Agda.Utils.VarSet (VarSet)
@@ -529,7 +532,7 @@ newtype CallPath = CallPath { callInfos :: [CallInfo] }
 
 -- | Only show intermediate nodes.  (Drop last 'CallInfo').
 instance Pretty CallPath where
-  pretty (CallPath cis0) = if List.null cis then P.empty else
+  pretty (CallPath cis0) = if null cis then empty else
     P.hsep (map (\ ci -> arrow P.<+> P.pretty ci) cis) P.<+> arrow
     where
       cis   = init cis0

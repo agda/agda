@@ -157,17 +157,17 @@ instance TermLike PlusLevel where
 instance TermLike LevelAtom where
   traverseTerm f l = case l of
     MetaLevel m vs   -> MetaLevel m $ traverseTerm f vs
-    NeutralLevel v   -> NeutralLevel $ traverseTerm f v
+    NeutralLevel r v -> NeutralLevel r $ traverseTerm f v
     BlockedLevel m v -> BlockedLevel m $ traverseTerm f v
     UnreducedLevel v -> UnreducedLevel $ traverseTerm f v
   traverseTermM f l = case l of
     MetaLevel m vs   -> MetaLevel m <$> traverseTermM f vs
-    NeutralLevel v   -> NeutralLevel <$> traverseTermM f v
+    NeutralLevel r v -> NeutralLevel r <$> traverseTermM f v
     BlockedLevel m v -> BlockedLevel m <$> traverseTermM f v
     UnreducedLevel v -> UnreducedLevel <$> traverseTermM f v
   foldTerm f l = case l of
     MetaLevel m vs   -> foldTerm f vs
-    NeutralLevel v   -> foldTerm f v
+    NeutralLevel _ v -> foldTerm f v
     BlockedLevel _ v -> foldTerm f v
     UnreducedLevel v -> foldTerm f v
 

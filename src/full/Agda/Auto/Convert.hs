@@ -462,7 +462,7 @@ fmLevel :: I.MetaId -> I.PlusLevel -> Bool
 fmLevel m I.ClosedLevel{} = False
 fmLevel m (I.Plus _ l) = case l of
   I.MetaLevel m' _   -> m == m'
-  I.NeutralLevel v   -> fmExp m v
+  I.NeutralLevel _ v -> fmExp m v
   I.BlockedLevel _ v -> fmExp m v
   I.UnreducedLevel v -> fmExp m v
 

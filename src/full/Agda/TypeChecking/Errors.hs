@@ -18,7 +18,6 @@ import Control.Monad.State
 import Data.Function
 import Data.List (nub, sortBy, intercalate)
 import Data.Maybe
-import qualified Data.Map as Map (empty)
 
 import Agda.Syntax.Common hiding (Arg, Dom, NamedArg)
 import qualified Agda.Syntax.Common as Common
@@ -44,7 +43,7 @@ import Agda.Utils.Except ( MonadError(catchError) )
 import Agda.Utils.FileName
 import Agda.Utils.Function
 import Agda.Utils.Monad
-import Agda.Utils.Null hiding (empty)
+import Agda.Utils.Null
 import qualified Agda.Utils.Pretty as P
 
 #include "undefined.h"
@@ -278,8 +277,7 @@ instance PrettyTCM CallInfo where
   prettyTCM c = do
     let call = prettyTCM $ callInfoCall c
         r    = callInfoRange c
-
-    if P.pretty r == P.empty
+    if null $ P.pretty r
       then call
       else call $$ nest 2 (text "(at" <+> prettyTCM r <> text ")")
 
@@ -637,7 +635,7 @@ instance PrettyTCM TypeError where
             prettyConstraint c = f (prettyTCM c)
               where
               r   = getRange c
-              f d = if P.pretty r == P.empty
+              f d = if null $ P.pretty r
                     then d
                     else d $$ nest 4 (text "[ at" <+> prettyTCM r <+> text "]")
 
@@ -1168,7 +1166,7 @@ instance PrettyTCM Call where
 
     CheckSectionApplication _ m1 modapp _ -> fsep $
       pwords "when checking the module application" ++
-      [prettyA $ A.Apply info m1 modapp Map.empty Map.empty]
+      [prettyA $ A.Apply info m1 modapp empty empty]
       where
       info = A.ModuleInfo noRange noRange Nothing Nothing Nothing
 

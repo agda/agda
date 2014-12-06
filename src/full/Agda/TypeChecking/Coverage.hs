@@ -18,13 +18,15 @@ module Agda.TypeChecking.Coverage
   , splitResult
   ) where
 
+import Prelude hiding (null)
+
 import Control.Monad
 import Control.Monad.Trans ( lift )
 import Control.Applicative hiding (empty)
 
-import Data.List
-import qualified Data.Set as Set
+import Data.List hiding (null)
 import Data.Set (Set)
+import qualified Data.Set as Set
 import qualified Data.Traversable as Trav
 
 import Agda.Syntax.Position
@@ -64,6 +66,7 @@ import Agda.Utils.Functor
 import Agda.Utils.List
 import Agda.Utils.Maybe
 import Agda.Utils.Monad
+import Agda.Utils.Null
 import Agda.Utils.Permutation
 import Agda.Utils.Size
 import Agda.Utils.Tuple

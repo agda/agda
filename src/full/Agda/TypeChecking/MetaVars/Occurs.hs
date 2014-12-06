@@ -2,6 +2,17 @@
 {-# LANGUAGE FlexibleInstances    #-}
 {-# LANGUAGE TypeSynonymInstances #-}
 
+{- | The occurs check for unification.  Does pruning on the fly.
+
+  When hitting a meta variable:
+
+  - Compute flex/rigid for its arguments.
+  - Compare to allowed variables.
+  - Mark arguments with rigid occurrences of disallowed variables for deletion.
+  - Attempt to delete marked arguments.
+  - We don't need to check for success, we can just continue occurs checking.
+-}
+
 module Agda.TypeChecking.MetaVars.Occurs where
 
 import Control.Applicative
@@ -114,7 +125,7 @@ defArgs NoUnfold  _   = Flex
 defArgs YesUnfold ctx = weakly ctx
 
 unfold :: UnfoldStrategy -> Term -> TCM (Blocked Term)
-unfold NoUnfold  v = NotBlocked <$> instantiate v
+unfold NoUnfold  v = notBlocked <$> instantiate v
 unfold YesUnfold v = reduceB v
 
 -- | Leave the top position.
@@ -208,7 +219,7 @@ instance Occurs Term where
     -- occurs' ctx $ ignoreBlocking v  -- fails test/succeed/DontPruneBlocked
     case v of
       -- Don't fail on blocked terms or metas
-      NotBlocked v        -> occurs' ctx v
+      NotBlocked _ v      -> occurs' ctx v
       -- Blocked _ v@MetaV{} -> occurs' ctx v  -- does not help with issue 856
       Blocked _ v         -> occurs' Flex v
     where
@@ -252,10 +263,9 @@ instance Occurs Term where
             -- I guess the error was there from times when occurrence check
             -- was done after the "lhs=linear variables" check, but now
             -- occurrence check comes first.
-            {-
-            when (m == m') $ if ctx == Top then patternViolation else
-              abort ctx $ MetaOccursInItself m'
-            -}
+            -- WAS:
+            -- when (m == m') $ if ctx == Top then patternViolation else
+            --   abort ctx $ MetaOccursInItself m'
             when (m == m') $ patternViolation' 50 $ "occursCheck failed: Found " ++ show m
 
             -- The arguments of a meta are in a flexible position
@@ -272,7 +282,6 @@ instance Occurs Term where
                     "oops, pattern violation for " ++ show m'
                   -- Andreas, 2014-03-02, see issue 1070:
                   -- Do not prune when meta is projected!
-                  -- WAS: let vs = takeWhileJust isApplyElim es
                   caseMaybe (allApplyElims es) (throwError err) $ \ vs -> do
                   killResult <- prune m' vs (takeRelevant xs)
                   if (killResult == PrunedEverything)
@@ -359,16 +368,16 @@ instance Occurs LevelAtom where
       MetaLevel m' args -> do
         MetaV m' args <- ignoreSharing <$> occurs red ctx m xs (MetaV m' args)
         return $ MetaLevel m' args
-      NeutralLevel v    -> NeutralLevel    <$> occurs red ctx m xs v
+      NeutralLevel r v  -> NeutralLevel r  <$> occurs red ctx m xs v
       BlockedLevel m' v -> BlockedLevel m' <$> occurs red Flex m xs v
       UnreducedLevel v  -> UnreducedLevel  <$> occurs red ctx m xs v
 
   metaOccurs m l = do
     l <- instantiate l
     case l of
-      MetaLevel m' args -> metaOccurs m (MetaV m' args)
-      NeutralLevel v    -> metaOccurs m v
-      BlockedLevel m v  -> metaOccurs m v
+      MetaLevel m' args -> metaOccurs m $ MetaV m' args
+      NeutralLevel _ v  -> metaOccurs m v
+      BlockedLevel _ v  -> metaOccurs m v
       UnreducedLevel v  -> metaOccurs m v
 
 
@@ -456,14 +465,6 @@ prune m' vs xs = do
       , text "kills =" <+> text (show kills)
       ]
     ]
-{- Andreas, 2011-05-11 REDUNDANT CODE
-  reportSLn "tc.meta.kill" 20 $
-    "attempting to prune meta " ++ show m' ++ "\n" ++
-    "  kills: " ++ show kills
-  if not (or kills)
-    then return False -- nothing to kill
-    else do
--}
   killArgs kills m'
 
 -- | @hasBadRigid xs v = Just True@ iff one of the rigid variables in @v@ is not in @xs@.
@@ -477,7 +478,8 @@ hasBadRigid :: [Nat] -> Term -> ExceptT () TCM Bool
 hasBadRigid xs t = do
   -- We fail if we encounter a matchable argument.
   let failure = throwError ()
-  t <- liftTCM $ reduce t
+  tb <- liftTCM $ reduceB t
+  let t = ignoreBlocking tb
   case ignoreSharing t of
     Var x _      -> return $ notElem x xs
     -- Issue 1153: A lambda has to be considered matchable.
@@ -487,7 +489,7 @@ hasBadRigid xs t = do
     -- The following types of arguments cannot be eliminated by a pattern
     -- match: data, record, Pi, levels, sorts
     -- Thus, their offending rigid variables are bad.
-    v@(Def f es) -> ifNotM (isNeutral f es) failure $ {- else -} do
+    v@(Def f es) -> ifNotM (isNeutral tb f es) failure $ {- else -} do
       return $ es `rigidVarsNotContainedIn` xs
     -- Andreas, 2012-05-03: There is room for further improvement.
     -- We could also consider a defined f which is not blocked by a meta.
@@ -510,15 +512,20 @@ hasBadRigid xs t = do
 
 -- | Check whether a term @Def f es@ is finally stuck.
 --   Currently, we give only a crude approximation.
-isNeutral :: MonadTCM tcm => QName -> Elims -> tcm Bool
-isNeutral f es = liftTCM $ do
+isNeutral :: MonadTCM tcm => Blocked t -> QName -> Elims -> tcm Bool
+isNeutral b f es = liftTCM $ do
   let yes = return True
+      no  = return False
   def <- getConstInfo f
   case theDef def of
     Axiom{}    -> yes
     Datatype{} -> yes
     Record{}   -> yes
-    _          -> return False
+    Function{} -> case b of
+      NotBlocked StuckOn{}   _ -> yes
+      NotBlocked AbsurdMatch _ -> yes
+      _                        -> no
+    _          -> no
       -- TODO: more precise analysis
       -- We need to check whether a function is stuck on a variable
       -- (not meta variable), but the API does not help us...
@@ -547,11 +554,7 @@ killArgs kills m = do
   mv <- lookupMeta m
   allowAssign <- asks envAssignMetas
   if mvFrozen mv == Frozen || not allowAssign then return PrunedNothing else do
-{- Andreas 2011-04-26, allow pruning in MetaS
-  case mvJudgement mv of
-    IsSort _    -> return False
-    HasType _ a -> do
--}
+      -- Andreas 2011-04-26, we allow pruning in MetaV and MetaS
       let a = jMetaType $ mvJudgement mv
       TelV tel b <- telView' <$> instantiateFull a
       let args         = zip (telToList tel) (kills ++ repeat False)
@@ -563,7 +566,6 @@ killArgs kills m = do
         -- Only successful if all occurrences were killed
         -- Andreas, 2011-05-09 more precisely, check that at least
         -- the in 'kills' prescribed kills were carried out
-        -- OLD CODE: return (map unArg kills' == kills)
         return $ if (and $ zipWith implies kills $ map unArg kills')
                    then PrunedEverything
                    else PrunedSomething
@@ -591,7 +593,7 @@ killArgs kills m = do
 killedType :: [(I.Dom (ArgName, Type), Bool)] -> Type -> ([I.Arg Bool], Type)
 killedType [] b = ([], b)
 killedType ((arg@(Dom info _), kill) : kills) b
-  | dontKill  = (Arg info False : args, mkPi arg b') -- OLD: telePi (telFromList [arg]) b')
+  | dontKill  = (Arg info False : args, mkPi arg b')
   | otherwise = (Arg info True  : args, strengthen __IMPOSSIBLE__ b')
   where
     (args, b') = killedType kills b
@@ -612,11 +614,6 @@ performKill kills m a = do
       lam b a = Lam (argInfo a) (Abs "v" b)
       tel     = map ("v" <$) (reverse kills)
       u       = MetaV m' $ map Apply vars
-{- OLD CODE
-      hs   = reverse [ argHiding a | a <- kills ]
-      lam h b = Lam h (Abs "v" b)
-      u       = foldr lam (MetaV m' vars) hs
--}
   dbg m' u
   assignTerm m tel u
   where
@@ -628,16 +625,3 @@ performKill kills m a = do
         , text "inst    :" <+> text (show m) <+> text ":=" <+> prettyTCM u
         ]
       ]
-
-{-
-
-  When hitting a meta variable:
-
-  - Compute flex/rigid for its arguments
-  - Compare to allowed variables
-  - Mark arguments with rigid occurrences of disallowed
-    variables for deletion
-  - Attempt to delete marked arguments
-  - We don't need to check for success, we can just
-    continue occurs checking.
--}

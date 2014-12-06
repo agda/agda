@@ -89,8 +89,12 @@ instance LabelPatVars (Pattern' x) (Pattern' (i,x)) i where
       ProjP q      -> return $ ProjP q
     where next = do (x:xs) <- get; put xs; return x
 
+-- | Type used in
+type DeBruijnPattern = Pattern' (Int, PatVarName)
+
 -- | Augment pattern variables with their de Bruijn index.
-{-# SPECIALIZE numberPatVars :: Permutation -> [NamedArg (Pattern' x)] -> [(NamedArg (Pattern' (Int, x)))] #-}
+{-# SPECIALIZE numberPatVars :: Permutation -> [NamedArg (Pattern' x)] -> [NamedArg (Pattern' (Int, x))] #-}
+{-# SPECIALIZE numberPatVars :: Permutation -> [NamedArg Pattern] -> [NamedArg DeBruijnPattern] #-}
 numberPatVars :: LabelPatVars a b Int => Permutation -> a -> b
 numberPatVars perm ps = evalState (labelPatVars ps) $
   permute (invertP __IMPOSSIBLE__ perm) $ downFrom $ size perm

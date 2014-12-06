@@ -967,13 +967,16 @@ instance EmbPrj PlusLevel where
                            valu _      = malformed
 
 instance EmbPrj LevelAtom where
-  icod_ (NeutralLevel a)   = icode1' a
+  icod_ (NeutralLevel _ a) = icode1' a
   icod_ (UnreducedLevel a) = icode1 1 a
   icod_ MetaLevel{}        = __IMPOSSIBLE__
   icod_ BlockedLevel{}     = __IMPOSSIBLE__
-  value = vcase valu where valu [a]    = valu1 NeutralLevel a
-                           valu [1, a] = valu1 UnreducedLevel a
-                           valu _      = malformed
+  value = vcase valu where
+    valu [a]    = valu1 UnreducedLevel a -- we forget that we are a NeutralLevel,
+                                         -- since we do not want do (de)serialize
+                                         -- the reason for neutrality
+    valu [1, a] = valu1 UnreducedLevel a
+    valu _      = malformed
 
 instance EmbPrj I.Sort where
   icod_ (Type  a  ) = icode1' a

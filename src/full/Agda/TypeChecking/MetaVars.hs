@@ -785,8 +785,8 @@ attemptInertRHSImprovement m args v = do
               patternViolation
             | otherwise  = return ()
       case fmap ignoreSharing b of
-        Blocked{}    -> notNeutral v
-        NotBlocked v ->
+        Blocked{}      -> notNeutral v
+        NotBlocked r v ->                      -- Andrea(s) 2014-12-06 can r be useful?
           case v of
             Var x _    -> checkRHS (Var x [])
             Def f _    -> checkRHS (Def f [])
@@ -1020,38 +1020,13 @@ checkLinearity ids0 = do
         (return [p])
         (throwError ())
 
-{- UNNECESSARILY COMPLICATED
--- | Turn non-det substitution into proper substitution, if possible.
---   Writes a list of non-linear variables that need to be pruned.
---   If a non-linear variable is @elemFVs@, hence, not prunable,
---   the error is thrown.
-checkLinearity :: (Nat -> Bool) -> SubstCand -> ErrorT () (WriterT [Nat] TCM) SubstCand
-checkLinearity elemFVs ids0 = do
-  let ids = sortBy (compare `on` fst) ids0
-  let grps = groupOn fst ids
-  concat <$> mapM makeLinear grps
-  where
-    -- | Non-determinism can be healed if type is singleton. [Issue 593]
-    --   (Same as for irrelevance.)
-    makeLinear :: SubstCand -> ErrorT () TCM SubstCand
-    makeLinear []                = __IMPOSSIBLE__
-    makeLinear grp@[_]           = return grp
-    makeLinear grp@(p@(i,t) : _) = do
-      ifM ((Right True ==) <$> do isSingletonTypeModuloRelevance =<< typeOfBV i)
-        {- then -} (return [p])
-        {- else -} $ do
-        ifM (elemFVs i)
-          {- then -} (throwError ())          -- non-prunable non-linear var
-          {- else -} (tell [i] >> return grp) -- possibly prunable non-lin var
--}
-
 -- Intermediate result in the following function
 type Res = [(I.Arg Nat, Term)]
 
 -- | Exceptions raised when substitution cannot be inverted.
 data InvertExcept
   = CantInvert                -- ^ Cannot recover.
-  | NeutralArg                -- ^ A neutral arg: can't invert, but maybe prune.
+  | NeutralArg                -- ^ A potentially neutral arg: can't invert, but can try pruning.
   | ProjectedVar Int [QName]  -- ^ Try to eta-expand var to remove projs.
 
 instance Error InvertExcept where
@@ -1100,20 +1075,13 @@ inverseSubst args = map (mapFst unArg) <$> loop (zip args terms)
           case isRC of
             Just (_, Record{ recFields = fs })
               | length fs == length vs -> do
-                let aux (Arg _ v) (Arg info' f) =
-                      (Arg (ArgInfo { argInfoColors = argInfoColors info -- TODO guilhem
-                                    , argInfoHiding = min (argInfoHiding info)
-                                                          (argInfoHiding info')
-                                    , argInfoRelevance = max (argInfoRelevance info)
-                                                             (argInfoRelevance info')
-                                    })
-                           v,) -- OLD: (stripDontCare v),
-                       $ t `applyE` [Proj f]
+                let aux (Arg _ v) (Arg info' f) = (Arg ai v,) $ t `applyE` [Proj f] where
+                     ai = ArgInfo
+                       { argInfoColors    = argInfoColors info -- TODO guilhem
+                       , argInfoHiding    = min (getHiding info) (getHiding info')
+                       , argInfoRelevance = max (getRelevance info) (getRelevance info')
+                       }
                 res <- loop $ zipWith aux vs fs
--- Andreas, 2013-09-22, applyDef not needed after all
--- since f (because taken from recFields) is the original record projection.
---                        <$> do liftTCM $ applyDef f (defaultArg t)
---                res <- loop =<< zipWithM aux vs fs
                 return $ res `append` vars
               | otherwise -> fallback
             Just _  -> __IMPOSSIBLE__
@@ -1127,9 +1095,9 @@ inverseSubst args = map (mapFst unArg) <$> loop (zip args terms)
         Arg _ DontCare{}                                    -> return vars
 
         -- Distinguish args that can be eliminated (Con,Lit,Lam,unsure) ==> failure
-        -- from those that can only put somewhere as a whole ==> return Nothing
+        -- from those that can only put somewhere as a whole ==> neutralArg
         Arg _ Var{}      -> neutralArg
-        Arg _ Def{}      -> failure
+        Arg _ Def{}      -> neutralArg  -- Note that this Def{} is in normal form and might be prunable.
         Arg _ Lam{}      -> failure
         Arg _ Lit{}      -> failure
         Arg _ MetaV{}    -> failure

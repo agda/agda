@@ -99,7 +99,7 @@ instance AbstractTerm PlusLevel where
 instance AbstractTerm LevelAtom where
   abstractTerm u l = case l of
     MetaLevel m vs   -> MetaLevel m    $ abstractTerm u vs
-    NeutralLevel v   -> NeutralLevel   $ abstractTerm u v
+    NeutralLevel r v -> NeutralLevel r $ abstractTerm u v
     BlockedLevel _ v -> UnreducedLevel $ abstractTerm u v -- abstracting might remove the blockage
     UnreducedLevel v -> UnreducedLevel $ abstractTerm u v
 
