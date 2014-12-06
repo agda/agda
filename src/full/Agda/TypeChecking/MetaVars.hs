@@ -1075,15 +1075,12 @@ inverseSubst args = map (mapFst unArg) <$> loop (zip args terms)
           case isRC of
             Just (_, Record{ recFields = fs })
               | length fs == length vs -> do
-                let aux (Arg _ v) (Arg info' f) =
-                      (Arg (ArgInfo { argInfoColors = argInfoColors info -- TODO guilhem
-                                    , argInfoHiding = min (argInfoHiding info)
-                                                          (argInfoHiding info')
-                                    , argInfoRelevance = max (argInfoRelevance info)
-                                                             (argInfoRelevance info')
-                                    })
-                           v,) -- OLD: (stripDontCare v),
-                       $ t `applyE` [Proj f]
+                let aux (Arg _ v) (Arg info' f) = (Arg ai v,) $ t `applyE` [Proj f] where
+                     ai = ArgInfo
+                       { argInfoColors    = argInfoColors info -- TODO guilhem
+                       , argInfoHiding    = min (getHiding info) (getHiding info')
+                       , argInfoRelevance = max (getRelevance info) (getRelevance info')
+                       }
                 res <- loop $ zipWith aux vs fs
                 return $ res `append` vars
               | otherwise -> fallback
