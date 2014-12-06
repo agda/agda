@@ -1026,7 +1026,7 @@ type Res = [(I.Arg Nat, Term)]
 -- | Exceptions raised when substitution cannot be inverted.
 data InvertExcept
   = CantInvert                -- ^ Cannot recover.
-  | NeutralArg                -- ^ A neutral arg: can't invert, but maybe prune.
+  | NeutralArg                -- ^ A potentially neutral arg: can't invert, but can try pruning.
   | ProjectedVar Int [QName]  -- ^ Try to eta-expand var to remove projs.
 
 instance Error InvertExcept where
@@ -1095,9 +1095,9 @@ inverseSubst args = map (mapFst unArg) <$> loop (zip args terms)
         Arg _ DontCare{}                                    -> return vars
 
         -- Distinguish args that can be eliminated (Con,Lit,Lam,unsure) ==> failure
-        -- from those that can only put somewhere as a whole ==> return Nothing
+        -- from those that can only put somewhere as a whole ==> neutralArg
         Arg _ Var{}      -> neutralArg
-        Arg _ Def{}      -> failure
+        Arg _ Def{}      -> neutralArg  -- Note that this Def{} is in normal form and might be prunable.
         Arg _ Lam{}      -> failure
         Arg _ Lit{}      -> failure
         Arg _ MetaV{}    -> failure

@@ -480,7 +480,8 @@ hasBadRigid :: [Nat] -> Term -> ExceptT () TCM Bool
 hasBadRigid xs t = do
   -- We fail if we encounter a matchable argument.
   let failure = throwError ()
-  t <- liftTCM $ reduce t
+  tb <- liftTCM $ reduceB t
+  let t = ignoreBlocking tb
   case ignoreSharing t of
     Var x _      -> return $ notElem x xs
     -- Issue 1153: A lambda has to be considered matchable.
@@ -490,7 +491,7 @@ hasBadRigid xs t = do
     -- The following types of arguments cannot be eliminated by a pattern
     -- match: data, record, Pi, levels, sorts
     -- Thus, their offending rigid variables are bad.
-    v@(Def f es) -> ifNotM (isNeutral f es) failure $ {- else -} do
+    v@(Def f es) -> ifNotM (isNeutral tb f es) failure $ {- else -} do
       return $ es `rigidVarsNotContainedIn` xs
     -- Andreas, 2012-05-03: There is room for further improvement.
     -- We could also consider a defined f which is not blocked by a meta.
@@ -514,15 +515,20 @@ hasBadRigid xs t = do
 
 -- | Check whether a term @Def f es@ is finally stuck.
 --   Currently, we give only a crude approximation.
-isNeutral :: MonadTCM tcm => QName -> Elims -> tcm Bool
-isNeutral f es = liftTCM $ do
+isNeutral :: MonadTCM tcm => Blocked t -> QName -> Elims -> tcm Bool
+isNeutral b f es = liftTCM $ do
   let yes = return True
+      no  = return False
   def <- getConstInfo f
   case theDef def of
     Axiom{}    -> yes
     Datatype{} -> yes
     Record{}   -> yes
-    _          -> return False
+    Function{} -> case b of
+      NotBlocked StuckOn{}   _ -> yes
+      NotBlocked AbsurdMatch _ -> yes
+      _                        -> no
+    _          -> no
       -- TODO: more precise analysis
       -- We need to check whether a function is stuck on a variable
       -- (not meta variable), but the API does not help us...
