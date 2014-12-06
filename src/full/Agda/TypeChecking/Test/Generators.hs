@@ -433,8 +433,8 @@ instance ShrinkC a b => ShrinkC (I.Dom a) (I.Dom b) where
   noShrink = fmap noShrink
 
 instance ShrinkC a b => ShrinkC (Blocked a) (Blocked b) where
-  shrinkC conf (Blocked m x)  = Blocked m <$> shrinkC conf x
-  shrinkC conf (NotBlocked x) = NotBlocked <$> shrinkC conf x
+  shrinkC conf (Blocked m x)    = Blocked m <$> shrinkC conf x
+  shrinkC conf (NotBlocked r x) = NotBlocked r <$> shrinkC conf x
   noShrink = fmap noShrink
 
 instance ShrinkC a b => ShrinkC (Elim' a) (Elim' b) where

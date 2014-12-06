@@ -27,9 +27,9 @@ isEmptyType r t = do
   tb <- reduceB t
   let t = ignoreBlocking tb
       postpone = addConstraint (IsEmpty r t)
-  case ignoreSharing . unEl <$> tb of
+  case ignoreSharing . unEl <$> tb of  -- TODO: rewrite this using ifBlocked[Type]
     -- if t is blocked or a meta, we cannot decide emptyness now. postpone
-    NotBlocked MetaV{} -> postpone
+    NotBlocked _ MetaV{} -> postpone
     Blocked{}          -> postpone
     _                  -> do
     -- from the current context xs:ts, create a pattern list

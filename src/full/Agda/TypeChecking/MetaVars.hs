@@ -786,8 +786,8 @@ attemptInertRHSImprovement m args v = do
               patternViolation
             | otherwise  = return ()
       case fmap ignoreSharing b of
-        Blocked{}    -> notNeutral v
-        NotBlocked v ->
+        Blocked{}      -> notNeutral v
+        NotBlocked r v ->                      -- Andrea(s) 2014-12-06 can r be useful?
           case v of
             Var x _    -> checkRHS (Var x [])
             Def f _    -> checkRHS (Def f [])

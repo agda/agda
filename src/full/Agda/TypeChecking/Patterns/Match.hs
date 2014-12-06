@@ -28,7 +28,7 @@ import Agda.Utils.Impossible
 --   it is due to a particular meta variable.
 data Match a = Yes Simplification [a]
              | No
-             | DontKnow (Maybe MetaId)
+             | DontKnow (Blocked ())
   deriving Functor
 
 instance Monoid (Match a) where
@@ -39,9 +39,10 @@ instance Monoid (Match a) where
     Yes _ _    `mappend` DontKnow m       = DontKnow m
     No         `mappend` _                = No
 
-    -- Nothing means blocked by a variable.  In this case no instantiation of
+    -- @NotBlocked (StuckOn e)@ means blocked by a variable.
+    -- In this case, no instantiation of
     -- meta-variables will make progress.
-    DontKnow _ `mappend` DontKnow Nothing = DontKnow Nothing
+    DontKnow b `mappend` DontKnow b'      = DontKnow $ b `mappend` b'
 
     -- One could imagine DontKnow _ `mappend` No = No, but would break the
     -- equivalence to case-trees.
@@ -66,10 +67,10 @@ instance Monoid (Match a) where
 -- upon failure, no further matching is performed.
 
 foldMatch
-  :: forall a b . (a -> b -> ReduceM (Match Term, b))
-  -> [a] -> [b] -> ReduceM (Match Term, [b])
+  :: forall p v . (p -> v -> ReduceM (Match Term, v))
+  -> [p] -> [v] -> ReduceM (Match Term, [v])
 foldMatch match = loop where
-  loop :: [a] -> [b] -> ReduceM (Match Term, [b])
+  loop :: [p] -> [v] -> ReduceM (Match Term, [v])
   loop ps0 vs0 = do
   case (ps0, vs0) of
     ([], []) -> return (mempty, [])
@@ -117,8 +118,8 @@ matchCopattern (ProjP p) elim@(Proj q)
   | p == q    = return (Yes YesSimplification [], elim)
   | otherwise = return (No                      , elim)
 matchCopattern (ProjP p) elim@Apply{}
-              = return (DontKnow Nothing, elim)
-matchCopattern _ elim@Proj{} = return (DontKnow Nothing, elim)
+              = __IMPOSSIBLE__ -- return (DontKnow Nothing, elim)
+matchCopattern _ elim@Proj{} = __IMPOSSIBLE__ -- return (DontKnow Nothing, elim)
 matchCopattern p (Apply v)   = mapSnd Apply <$> matchPattern p v
 
 matchPatterns :: [I.NamedArg Pattern] -> [I.Arg Term] -> ReduceM (Match Term, [I.Arg Term])
@@ -143,13 +144,13 @@ matchPattern p u = case (p, u) of
     w <- reduceB' v
     let arg' = arg $> ignoreBlocking w
     case ignoreSharing <$> w of
-        NotBlocked (Lit l')
-            | l == l'          -> return (Yes YesSimplification [] , arg')
-            | otherwise        -> return (No                       , arg')
-        NotBlocked (MetaV x _) -> return (DontKnow $ Just x        , arg')
-        Blocked x _            -> return (DontKnow $ Just x        , arg')
-        _                      -> return (DontKnow Nothing         , arg')
-
+      NotBlocked _ (Lit l')
+          | l == l'            -> return (Yes YesSimplification []    , arg')
+          | otherwise          -> return (No                          , arg')
+      NotBlocked _ (MetaV x _) -> return (DontKnow $ Blocked x ()     , arg')
+      Blocked x _              -> return (DontKnow $ Blocked x ()     , arg')
+      NotBlocked r t           -> return (DontKnow $ NotBlocked r' () , arg')
+        where r' = r `mappend` StuckOn (Apply arg')
 
   -- Case record pattern: always succeed!
   -- This case is necessary if we want to use the clauses before
@@ -171,24 +172,24 @@ matchPattern p u = case (p, u) of
         --    an axiom at this stage (if we are checking the
         --    projection functions for a record type).
         w <- case ignoreSharing <$> w of
-               NotBlocked (Def f es) ->
+               NotBlocked r (Def f es) ->   -- Andreas, 2014-06-12 TODO: r == ReallyNotBlocked sufficient?
                  unfoldDefinitionE True reduceB' (Def f []) f es
                    -- reduceB is used here because some constructors
                    -- are actually definitions which need to be
                    -- unfolded (due to open public).
                _ -> return w
         let v = ignoreBlocking w
+            arg = Arg info v  -- the reduced argument
         case ignoreSharing <$> w of
-
-          NotBlocked (Con c' vs)
-            | c == c'            -> do
+          NotBlocked _ (Con c' vs)
+            | c == c'               -> do
                 (m, vs) <- yesSimplification <$> matchPatterns ps vs
                 return (m, Arg info $ Con c' vs)
-            | otherwise           -> return (No, Arg info v) -- NOTE: v the reduced thing(shadowing!). Andreas, 2013-07-03
-          NotBlocked (MetaV x vs) -> return (DontKnow $ Just x, Arg info v)
-          Blocked x _             -> return (DontKnow $ Just x, Arg info v)
-          _                       -> return (DontKnow Nothing, Arg info v)
-
+            | otherwise             -> return (No                          , arg)
+          NotBlocked _ (MetaV x vs) -> return (DontKnow $ Blocked x ()     , arg)
+          Blocked x _               -> return (DontKnow $ Blocked x ()     , arg)
+          NotBlocked r _            -> return (DontKnow $ NotBlocked r' () , arg)
+            where r' = r `mappend` StuckOn (Apply arg)
 -- ASR (08 November 2014). The type of the function could be
 --
 -- @(Match Term, [I.Arg Term]) -> (Match Term, [I.Arg Term])@.

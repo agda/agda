@@ -1205,8 +1205,8 @@ notReduced x = MaybeRed NotReduced x
 
 reduced :: Blocked (Arg Term) -> MaybeReduced (Arg Term)
 reduced b = case fmap ignoreSharing <$> b of
-  NotBlocked (Common.Arg _ (MetaV x _)) -> MaybeRed (Reduced $ Blocked x ()) v
-  _                                     -> MaybeRed (Reduced $ () <$ b)      v
+  NotBlocked _ (Common.Arg _ (MetaV x _)) -> MaybeRed (Reduced $ Blocked x ()) v
+  _                                       -> MaybeRed (Reduced $ () <$ b)      v
   where
     v = ignoreBlocking b
 

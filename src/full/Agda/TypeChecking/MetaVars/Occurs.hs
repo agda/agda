@@ -114,7 +114,7 @@ defArgs NoUnfold  _   = Flex
 defArgs YesUnfold ctx = weakly ctx
 
 unfold :: UnfoldStrategy -> Term -> TCM (Blocked Term)
-unfold NoUnfold  v = NotBlocked <$> instantiate v
+unfold NoUnfold  v = notBlocked <$> instantiate v
 unfold YesUnfold v = reduceB v
 
 -- | Leave the top position.
@@ -208,7 +208,7 @@ instance Occurs Term where
     -- occurs' ctx $ ignoreBlocking v  -- fails test/succeed/DontPruneBlocked
     case v of
       -- Don't fail on blocked terms or metas
-      NotBlocked v        -> occurs' ctx v
+      NotBlocked _ v      -> occurs' ctx v
       -- Blocked _ v@MetaV{} -> occurs' ctx v  -- does not help with issue 856
       Blocked _ v         -> occurs' Flex v
     where
@@ -361,16 +361,16 @@ instance Occurs LevelAtom where
       MetaLevel m' args -> do
         MetaV m' args <- ignoreSharing <$> occurs red ctx m xs (MetaV m' args)
         return $ MetaLevel m' args
-      NeutralLevel v    -> NeutralLevel    <$> occurs red ctx m xs v
+      NeutralLevel r v  -> NeutralLevel r  <$> occurs red ctx m xs v
       BlockedLevel m' v -> BlockedLevel m' <$> occurs red Flex m xs v
       UnreducedLevel v  -> UnreducedLevel  <$> occurs red ctx m xs v
 
   metaOccurs m l = do
     l <- instantiate l
     case l of
-      MetaLevel m' args -> metaOccurs m (MetaV m' args)
-      NeutralLevel v    -> metaOccurs m v
-      BlockedLevel m v  -> metaOccurs m v
+      MetaLevel m' args -> metaOccurs m $ MetaV m' args
+      NeutralLevel _ v  -> metaOccurs m v
+      BlockedLevel _ v  -> metaOccurs m v
       UnreducedLevel v  -> metaOccurs m v
 
 

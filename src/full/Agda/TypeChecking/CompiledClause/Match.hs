@@ -5,8 +5,11 @@ module Agda.TypeChecking.CompiledClause.Match where
 
 import Control.Applicative
 import Control.Monad.Reader (asks)
-import qualified Data.Map as Map
+
 import Data.List
+import Data.Monoid
+import qualified Data.Map as Map
+
 import Debug.Trace (trace)
 
 import Agda.Syntax.Internal
@@ -73,8 +76,8 @@ match' ((c, es, patch) : stack) = do
                sep $ prettyTCM f : map prettyTCM es
          , text $ "trying clause " ++ show c
          ]
-  let no          es = return $ NoReduction $ NotBlocked $ patch $ map ignoreReduced es
-      noBlocked x es = return $ NoReduction $ Blocked x  $ patch $ map ignoreReduced es
+  let no blocking es = return $ NoReduction $ blocking $ patch $ map ignoreReduced es
+--      noBlocked x es = return $ NoReduction $ Blocked x  $ patch $ map ignoreReduced es
       yes t            = flip YesReduction t <$> asks envSimplification
 
   -- traceSLn "reduce.compiled" 95 "CompiledClause.Match.match'" $ do
@@ -83,7 +86,7 @@ match' ((c, es, patch) : stack) = do
   case c of
 
     -- impossible case
-    Fail -> no es
+    Fail -> no (NotBlocked AbsurdMatch) es
 
     -- done matching
     Done xs t
@@ -109,7 +112,7 @@ match' ((c, es, patch) : stack) = do
     Case n bs -> do
       case genericSplitAt n es of
         -- if the @n@th elimination is not supplied, no match
-        (_, []) -> no es
+        (_, []) -> no (NotBlocked Underapplied) es
         -- if the @n@th elimination is @e0@
 --        (args0, MaybeRed red (Arg info v0) : args1) -> do
         (es0, MaybeRed red e0 : es1) -> do
@@ -155,11 +158,11 @@ match' ((c, es, patch) : stack) = do
 
           -- Now do the matching on the @n@ths argument:
           case fmap ignoreSharing <$> eb of
-            Blocked x _            -> noBlocked x es'
-            NotBlocked (Apply (Arg info (MetaV x _))) -> noBlocked x es'
+            Blocked x _            -> no (Blocked x) es'
+            NotBlocked _ (Apply (Arg info (MetaV x _))) -> no (Blocked x) es'
 
             -- In case of a literal, try also its constructor form
-            NotBlocked (Apply (Arg info v@(Lit l))) -> performedSimplification $ do
+            NotBlocked _ (Apply (Arg info v@(Lit l))) -> performedSimplification $ do
               cv <- constructorForm v
               let cFrame stack = case ignoreSharing cv of
                     Con c vs -> conFrame c vs stack
@@ -167,14 +170,16 @@ match' ((c, es, patch) : stack) = do
               match' $ litFrame l $ cFrame $ catchAllFrame stack
 
             -- In case of a constructor, push the conFrame
-            NotBlocked (Apply (Arg info (Con c vs))) -> performedSimplification $
+            NotBlocked _ (Apply (Arg info (Con c vs))) -> performedSimplification $
               match' $ conFrame c vs $ catchAllFrame $ stack
 
             -- In case of a projection, push the litFrame
-            NotBlocked (Proj p) -> performedSimplification $
+            NotBlocked _ (Proj p) -> performedSimplification $
               match' $ projFrame p $ stack
 
-            NotBlocked _ -> no es'
+            -- Otherwise, we are stuck.  If we were stuck before,
+            -- we keep the old reason, otherwise we give reason StuckOn here.
+            NotBlocked blocked e -> no (NotBlocked $ blocked `mappend` StuckOn e) es'
 
 -- If we reach the empty stack, then pattern matching was incomplete
 match' [] = do  {- new line here since __IMPOSSIBLE__ does not like the ' in match' -}
@@ -185,7 +190,7 @@ match' [] = do  {- new line here since __IMPOSSIBLE__ does not like the ' in mat
 -- Andreas, 2013-03-20 recursive invokations of unfoldCorecursion
 -- need also to instantiate metas, see Issue 826.
 unfoldCorecursionE :: Elim -> ReduceM (Blocked Elim)
-unfoldCorecursionE e@(Proj f)           = return $ NotBlocked e
+unfoldCorecursionE e@(Proj f)           = return $ notBlocked e
 unfoldCorecursionE (Apply (Arg info v)) = fmap (Apply . Arg info) <$>
   unfoldCorecursion v
 

@@ -447,7 +447,7 @@ instance ComputeOccurrences LevelAtom where
   occurrences l = case l of
     MetaLevel _ vs   -> occursAs MetaArg <$> occurrences vs
     BlockedLevel _ v -> occurrences v
-    NeutralLevel v   -> occurrences v
+    NeutralLevel _ v -> occurrences v
     UnreducedLevel v -> occurrences v
 
 instance ComputeOccurrences Type where

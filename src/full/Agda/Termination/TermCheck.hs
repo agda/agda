@@ -998,7 +998,7 @@ instance ExtractCalls PlusLevel where
 instance ExtractCalls LevelAtom where
   extract (MetaLevel x es)   = extract es
   extract (BlockedLevel x t) = extract t
-  extract (NeutralLevel t)   = extract t
+  extract (NeutralLevel _ t) = extract t
   extract (UnreducedLevel t) = extract t
 
 -- | Rewrite type @tel -> Size< u@ to @tel -> Size@.
