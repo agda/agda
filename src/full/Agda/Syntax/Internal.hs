@@ -241,19 +241,36 @@ newtype MetaId = MetaId { metaId :: Nat }
 --   we can fail to reduce a definition by pattern matching
 --   for another reason.
 data NotBlocked
-  = StuckOn Elim      -- ^ The 'Elim' is neutral and block a pattern match.
-  | Underapplied      -- ^ Not enough arguments were supplied to complete the matching.
-  | AbsurdMatch       -- ^ We matched an absurd clause, result a neutral 'Def'.
-  | ReallyNotBlocked  -- ^ Reduction was not blocked, we reached a whnf
-                      --   which can be anything but a stuck @'Def'@.
+  = StuckOn Elim
+    -- ^ The 'Elim' is neutral and block a pattern match.
+  | Underapplied
+    -- ^ Not enough arguments were supplied to complete the matching.
+  | AbsurdMatch
+    -- ^ We matched an absurd clause, results in a neutral 'Def'.
+  | MissingClauses
+    -- ^ We ran out of clauses, all considered clauses
+    --   produced an actual mismatch.
+    --   This can happen when try to reduce a function application
+    --   but we are still missing some function clauses.
+    --   See "Agda.TypeChecking.Patterns.Match".
+  | ReallyNotBlocked
+    -- ^ Reduction was not blocked, we reached a whnf
+    --   which can be anything but a stuck @'Def'@.
   deriving (Show, Typeable)
 
--- | @StuckOn{}@ should be propagated, if tied, we take the left.
+-- | 'ReallyNotBlocked' is the unit.
+--   'MissingClauses' is dominant.
+--   @'StuckOn'{}@ should be propagated, if tied, we take the left.
 instance Monoid NotBlocked where
+  -- ReallyNotBlocked is neutral
   mempty                       = ReallyNotBlocked
   ReallyNotBlocked `mappend` b = b
-  StuckOn e        `mappend` _ = StuckOn e
-  _ `mappend` StuckOn e        = StuckOn e
+  -- MissingClauses is dominant (absorptive)
+  b@MissingClauses `mappend` _ = b
+  _ `mappend` b@MissingClauses = b
+  -- StuckOn is second strongest
+  b@StuckOn{}      `mappend` _ = b
+  _ `mappend` b@StuckOn{}      = b
   b `mappend` _                = b
 
 -- | Something where a meta variable may block reduction.

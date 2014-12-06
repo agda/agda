@@ -529,9 +529,9 @@ appDefE' v cls es = goCls cls $ map ignoreReduced es
         -- we just do not reduce.  This allows adding single function
         -- clauses after they have been type-checked, to type-check
         -- the remaining clauses (see Issue 907).
-        -- Andrea(s), 2014-12-05:  We return 'Underapplied' here, since this
+        -- Andrea(s), 2014-12-05:  We return 'MissingClauses' here, since this
         -- is the most conservative reason.
-        [] -> return $ NoReduction $ NotBlocked Underapplied $ v `applyE` es
+        [] -> return $ NoReduction $ NotBlocked MissingClauses $ v `applyE` es
         cl@Clause{ clauseBody = body } : cls -> do
           let pats = namedClausePats cl
               n    = length pats
