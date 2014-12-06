@@ -159,7 +159,7 @@ matchPattern p u = case (p, u) of
       NotBlocked _ (MetaV x _) -> return (DontKnow $ Blocked x ()     , arg')
       Blocked x _              -> return (DontKnow $ Blocked x ()     , arg')
       NotBlocked r t           -> return (DontKnow $ NotBlocked r' () , arg')
-        where r' = r `mappend` StuckOn (Apply arg')
+        where r' = stuckOn (Apply arg') r
 
   -- Case record pattern: always succeed!
   -- This case is necessary if we want to use the clauses before
@@ -198,7 +198,7 @@ matchPattern p u = case (p, u) of
           NotBlocked _ (MetaV x vs) -> return (DontKnow $ Blocked x ()     , arg)
           Blocked x _               -> return (DontKnow $ Blocked x ()     , arg)
           NotBlocked r _            -> return (DontKnow $ NotBlocked r' () , arg)
-            where r' = r `mappend` StuckOn (Apply arg)
+            where r' = stuckOn (Apply arg) r
 -- ASR (08 November 2014). The type of the function could be
 --
 -- @(Match Term, [I.Arg Term]) -> (Match Term, [I.Arg Term])@.

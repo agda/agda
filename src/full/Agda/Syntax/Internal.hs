@@ -310,6 +310,40 @@ instance Monoid Blocked_ where
   -- For the other cases, we take the left
   b `mappend` _ = b
 
+-- | When trying to reduce @f es@, on match failed on one
+--   elimination @e ∈ es@ that came with info @r :: NotBlocked@.
+--   @stuckOn e r@ produces the new @NotBlocked@ info.
+--
+--   'MissingClauses' must be propagated, as this is blockage
+--   that can be lifted in the future (as more clauses are added).
+--
+--   @'StuckOn' e0@ is also propagated, since it provides more
+--   precise information as @StuckOn e@ (as @e0@ is the original
+--   reason why reduction got stuck and usually a subterm of @e@).
+--   An information like @StuckOn (Apply (Arg info (Var i [])))@
+--   (stuck on a variable) could be used by the lhs/coverage checker
+--   to trigger a split on that (pattern) variable.
+--
+--   In the remaining cases for @r@, we are terminally stuck
+--   due to @StuckOn e@.  Propagating @'AbsurdMatch'@ does not
+--   seem useful.
+--
+--   'Underapplied' must not be propagated, as this would mean
+--   that @f es@ is underapplied, which is not the case (it is stuck).
+--   Note that 'Underapplied' can only arise when projection patterns were
+--   missing to complete the original match (in @e@).
+--   (Missing ordinary pattern would mean the @e@ is of function type,
+--   but we cannot match against something of function type.)
+stuckOn :: Elim -> NotBlocked -> NotBlocked
+stuckOn e r =
+  case r of
+    MissingClauses   -> r
+    StuckOn{}        -> r
+    Underapplied     -> r'
+    AbsurdMatch      -> r'
+    ReallyNotBlocked -> r'
+  where r' = StuckOn e
+
 ---------------------------------------------------------------------------
 -- * Definitions
 ---------------------------------------------------------------------------

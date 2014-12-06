@@ -14,6 +14,7 @@ import Debug.Trace (trace)
 
 import Agda.Syntax.Internal
 import Agda.Syntax.Common
+
 import Agda.TypeChecking.CompiledClause
 import Agda.TypeChecking.Monad hiding (reportSDoc, reportSLn)
 import Agda.TypeChecking.Pretty
@@ -77,7 +78,7 @@ match' ((c, es, patch) : stack) = do
          , text $ "trying clause " ++ show c
          ]
   let no blocking es = return $ NoReduction $ blocking $ patch $ map ignoreReduced es
-      yes t            = flip YesReduction t <$> asks envSimplification
+      yes t          = flip YesReduction t <$> asks envSimplification
 
   -- traceSLn "reduce.compiled" 95 "CompiledClause.Match.match'" $ do
   debug $ do
@@ -175,7 +176,7 @@ match' ((c, es, patch) : stack) = do
 
             -- Otherwise, we are stuck.  If we were stuck before,
             -- we keep the old reason, otherwise we give reason StuckOn here.
-            NotBlocked blocked e -> no (NotBlocked $ blocked `mappend` StuckOn e) es'
+            NotBlocked blocked e -> no (NotBlocked $ stuckOn e blocked) es'
 
 -- If we reach the empty stack, then pattern matching was incomplete
 match' [] = do  {- new line here since __IMPOSSIBLE__ does not like the ' in match' -}
