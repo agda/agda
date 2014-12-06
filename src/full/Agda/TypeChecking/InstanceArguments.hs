@@ -198,7 +198,7 @@ rigidlyConstrainedMetas = do
       bv <- reduceB v
       case ignoreSharing <$> bv of
         Blocked{}    -> return False
-        NotBlocked v -> case v of
+        NotBlocked _ v -> case v of
           MetaV{}    -> return False
           Def f _    -> return True
           Con{}      -> return True
