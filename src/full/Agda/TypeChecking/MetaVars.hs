@@ -1020,31 +1020,6 @@ checkLinearity ids0 = do
         (return [p])
         (throwError ())
 
-{- UNNECESSARILY COMPLICATED
--- | Turn non-det substitution into proper substitution, if possible.
---   Writes a list of non-linear variables that need to be pruned.
---   If a non-linear variable is @elemFVs@, hence, not prunable,
---   the error is thrown.
-checkLinearity :: (Nat -> Bool) -> SubstCand -> ErrorT () (WriterT [Nat] TCM) SubstCand
-checkLinearity elemFVs ids0 = do
-  let ids = sortBy (compare `on` fst) ids0
-  let grps = groupOn fst ids
-  concat <$> mapM makeLinear grps
-  where
-    -- | Non-determinism can be healed if type is singleton. [Issue 593]
-    --   (Same as for irrelevance.)
-    makeLinear :: SubstCand -> ErrorT () TCM SubstCand
-    makeLinear []                = __IMPOSSIBLE__
-    makeLinear grp@[_]           = return grp
-    makeLinear grp@(p@(i,t) : _) = do
-      ifM ((Right True ==) <$> do isSingletonTypeModuloRelevance =<< typeOfBV i)
-        {- then -} (return [p])
-        {- else -} $ do
-        ifM (elemFVs i)
-          {- then -} (throwError ())          -- non-prunable non-linear var
-          {- else -} (tell [i] >> return grp) -- possibly prunable non-lin var
--}
-
 -- Intermediate result in the following function
 type Res = [(I.Arg Nat, Term)]
 
@@ -1110,10 +1085,6 @@ inverseSubst args = map (mapFst unArg) <$> loop (zip args terms)
                            v,) -- OLD: (stripDontCare v),
                        $ t `applyE` [Proj f]
                 res <- loop $ zipWith aux vs fs
--- Andreas, 2013-09-22, applyDef not needed after all
--- since f (because taken from recFields) is the original record projection.
---                        <$> do liftTCM $ applyDef f (defaultArg t)
---                res <- loop =<< zipWithM aux vs fs
                 return $ res `append` vars
               | otherwise -> fallback
             Just _  -> __IMPOSSIBLE__

@@ -253,10 +253,9 @@ instance Occurs Term where
             -- I guess the error was there from times when occurrence check
             -- was done after the "lhs=linear variables" check, but now
             -- occurrence check comes first.
-            {-
-            when (m == m') $ if ctx == Top then patternViolation else
-              abort ctx $ MetaOccursInItself m'
-            -}
+            -- WAS:
+            -- when (m == m') $ if ctx == Top then patternViolation else
+            --   abort ctx $ MetaOccursInItself m'
             when (m == m') $ patternViolation' 50 $ "occursCheck failed: Found " ++ show m
 
             -- The arguments of a meta are in a flexible position
@@ -273,7 +272,6 @@ instance Occurs Term where
                     "oops, pattern violation for " ++ show m'
                   -- Andreas, 2014-03-02, see issue 1070:
                   -- Do not prune when meta is projected!
-                  -- WAS: let vs = takeWhileJust isApplyElim es
                   caseMaybe (allApplyElims es) (throwError err) $ \ vs -> do
                   killResult <- prune m' vs (takeRelevant xs)
                   if (killResult == PrunedEverything)
@@ -458,14 +456,6 @@ prune m' vs xs = do
       , text "kills =" <+> text (show kills)
       ]
     ]
-{- Andreas, 2011-05-11 REDUNDANT CODE
-  reportSLn "tc.meta.kill" 20 $
-    "attempting to prune meta " ++ show m' ++ "\n" ++
-    "  kills: " ++ show kills
-  if not (or kills)
-    then return False -- nothing to kill
-    else do
--}
   killArgs kills m'
 
 -- | @hasBadRigid xs v = Just True@ iff one of the rigid variables in @v@ is not in @xs@.
@@ -550,11 +540,7 @@ killArgs kills m = do
   mv <- lookupMeta m
   allowAssign <- asks envAssignMetas
   if mvFrozen mv == Frozen || not allowAssign then return PrunedNothing else do
-{- Andreas 2011-04-26, allow pruning in MetaS
-  case mvJudgement mv of
-    IsSort _    -> return False
-    HasType _ a -> do
--}
+      -- Andreas 2011-04-26, we allow pruning in MetaV and MetaS
       let a = jMetaType $ mvJudgement mv
       TelV tel b <- telView' <$> instantiateFull a
       let args         = zip (telToList tel) (kills ++ repeat False)
@@ -566,7 +552,6 @@ killArgs kills m = do
         -- Only successful if all occurrences were killed
         -- Andreas, 2011-05-09 more precisely, check that at least
         -- the in 'kills' prescribed kills were carried out
-        -- OLD CODE: return (map unArg kills' == kills)
         return $ if (and $ zipWith implies kills $ map unArg kills')
                    then PrunedEverything
                    else PrunedSomething
@@ -594,7 +579,7 @@ killArgs kills m = do
 killedType :: [(I.Dom (ArgName, Type), Bool)] -> Type -> ([I.Arg Bool], Type)
 killedType [] b = ([], b)
 killedType ((arg@(Dom info _), kill) : kills) b
-  | dontKill  = (Arg info False : args, mkPi arg b') -- OLD: telePi (telFromList [arg]) b')
+  | dontKill  = (Arg info False : args, mkPi arg b')
   | otherwise = (Arg info True  : args, strengthen __IMPOSSIBLE__ b')
   where
     (args, b') = killedType kills b
@@ -615,11 +600,6 @@ performKill kills m a = do
       lam b a = Lam (argInfo a) (Abs "v" b)
       tel     = map ("v" <$) (reverse kills)
       u       = MetaV m' $ map Apply vars
-{- OLD CODE
-      hs   = reverse [ argHiding a | a <- kills ]
-      lam h b = Lam h (Abs "v" b)
-      u       = foldr lam (MetaV m' vars) hs
--}
   dbg m' u
   assignTerm m tel u
   where
