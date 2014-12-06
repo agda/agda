@@ -38,7 +38,7 @@ import Agda.TypeChecking.Free
 import Agda.TypeChecking.Irrelevance
 import Agda.TypeChecking.MetaVars
 import Agda.TypeChecking.Patterns.Abstract
-import Agda.TypeChecking.Pretty hiding (empty)
+import Agda.TypeChecking.Pretty
 import Agda.TypeChecking.Records
 import Agda.TypeChecking.Reduce
 import Agda.TypeChecking.Substitute

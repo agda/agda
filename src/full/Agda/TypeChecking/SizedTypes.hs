@@ -3,8 +3,10 @@
 
 module Agda.TypeChecking.SizedTypes where
 
+import Prelude hiding (null)
+
 import Data.Function
-import Data.List
+import Data.List hiding (null)
 import qualified Data.Map as Map
 
 import Agda.Interaction.Options
@@ -26,6 +28,7 @@ import Agda.Utils.Except ( MonadError(catchError, throwError) )
 import Agda.Utils.List
 import Agda.Utils.Maybe
 import Agda.Utils.Monad
+import Agda.Utils.Null
 import Agda.Utils.Size
 import Agda.Utils.Tuple
 

@@ -56,7 +56,7 @@ import Agda.Termination.RecCheck
 import Agda.Termination.Inlining
 
 import Agda.TypeChecking.Monad
-import Agda.TypeChecking.Pretty hiding (empty)
+import Agda.TypeChecking.Pretty
 import Agda.TypeChecking.Reduce (reduce, normalise, instantiate, instantiateFull)
 import Agda.TypeChecking.Records -- (isRecordConstructor, isInductiveRecord)
 import Agda.TypeChecking.Telescope

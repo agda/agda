@@ -19,7 +19,7 @@ import Agda.Syntax.Internal.Pattern
 import qualified Agda.Syntax.Abstract as A
 
 import Agda.TypeChecking.Substitute as S
-import Agda.TypeChecking.Pretty hiding (empty)
+import Agda.TypeChecking.Pretty
 
 import Agda.Utils.Except ( Error(noMsg, strMsg) )
 import Agda.Utils.Null

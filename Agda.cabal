@@ -102,7 +102,7 @@ library
     , mtl >= 2.1.1 && <= 2.1.3.1 || >= 2.2.1 && < 2.3
     , parallel >= 3.2.0.4 && < 3.3
     -- , parsec >= 3.1 && < 3.2,  -- only for Agda.TypeChecking.SizedTypes.Parser, which is not included
-    , pretty >= 1.0 && < 1.2
+    , pretty >= 1.1 && < 1.2
     , process >= 1.0.1.0 && < 1.3
     , QuickCheck >= 2.7.5 && < 2.8
     , STMonadTrans >= 0.3.2 && < 0.4

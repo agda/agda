@@ -29,10 +29,12 @@ module Agda.Termination.CallGraph
   , Agda.Termination.CallGraph.tests
   ) where
 
+import Prelude hiding (null)
+
 import Data.Function
 import Data.Map (Map, (!))
 import qualified Data.Map as Map
-import Data.List hiding (union, insert)
+import Data.List hiding (union, insert, null)
 import Data.Monoid
 
 import Data.Foldable (Foldable)
@@ -57,8 +59,9 @@ import Agda.Utils.List hiding (tests)
 import Agda.Utils.Map
 import Agda.Utils.Maybe
 import Agda.Utils.Monad
+import Agda.Utils.Null
 import Agda.Utils.PartialOrd
-import Agda.Utils.Pretty hiding (empty)
+import Agda.Utils.Pretty
 import Agda.Utils.QuickCheck hiding (label)
 import Agda.Utils.TestHelpers
 
