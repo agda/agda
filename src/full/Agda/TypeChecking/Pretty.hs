@@ -102,8 +102,6 @@ punctuate d ds = zipWith (<>) ds (replicate n d ++ [empty])
 class PrettyTCM a where
   prettyTCM :: a -> TCM Doc
 
--- ASR (02 December 2014). The following instances could be removed by
--- replacing 'prettyTCM' by 'pretty' in the caller.
 instance PrettyTCM Bool     where prettyTCM = pretty
 instance PrettyTCM C.Name   where prettyTCM = pretty
 instance PrettyTCM C.QName  where prettyTCM = pretty
