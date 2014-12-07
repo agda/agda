@@ -1,6 +1,8 @@
-{-# LANGUAGE CPP                  #-}
-{-# LANGUAGE FlexibleInstances    #-}
-{-# LANGUAGE TypeSynonymInstances #-}
+{-# LANGUAGE CPP                       #-}
+{-# LANGUAGE FlexibleContexts          #-}
+{-# LANGUAGE FlexibleInstances         #-}
+{-# LANGUAGE NoMonomorphismRestriction #-}
+{-# LANGUAGE TypeSynonymInstances      #-}
 
 {- | The occurs check for unification.  Does pruning on the fly.
 
@@ -20,8 +22,10 @@ import Control.Monad
 import Control.Monad.Reader
 import Control.Monad.State
 
+import Data.Foldable (foldMap)
 import Data.List
 import Data.Maybe
+import Data.Monoid
 import Data.Set (Set)
 import qualified Data.Set as Set
 
@@ -462,7 +466,8 @@ prune m' vs xs = do
     [ text "attempting kills"
     , nest 2 $ vcat
       [ text "m'    =" <+> text (show m')
-      , text "xs    =" <+> text (show xs)
+      -- , text "xs    =" <+> text (show xs)
+      , text "xs    =" <+> prettyList (map (prettyTCM . var) xs)
       , text "vs    =" <+> prettyList (map prettyTCM vs)
       , text "kills =" <+> text (show kills)
       ]
@@ -492,12 +497,12 @@ hasBadRigid xs t = do
     -- match: data, record, Pi, levels, sorts
     -- Thus, their offending rigid variables are bad.
     v@(Def f es) -> ifNotM (isNeutral tb f es) failure $ {- else -} do
-      return $ es `rigidVarsNotContainedIn` xs
+      es `rigidVarsNotContainedIn` xs
     -- Andreas, 2012-05-03: There is room for further improvement.
     -- We could also consider a defined f which is not blocked by a meta.
-    Pi a b       -> return $ (a,b) `rigidVarsNotContainedIn` xs
-    Level v      -> return $ v `rigidVarsNotContainedIn` xs
-    Sort s       -> return $ s `rigidVarsNotContainedIn` xs
+    Pi a b       -> (a,b) `rigidVarsNotContainedIn` xs
+    Level v      -> v `rigidVarsNotContainedIn` xs
+    Sort s       -> s `rigidVarsNotContainedIn` xs
     -- Since constructors can be eliminated by pattern-matching,
     -- offending variables under a constructor could be removed by
     -- the right instantiation of the meta variable.
@@ -530,11 +535,113 @@ isNeutral b f es = liftTCM $ do
       _                        -> no
     _          -> no
 
--- This could be optimized, by not computing the whole variable set
--- at once, but allow early failure
-rigidVarsNotContainedIn :: Free a => a -> [Nat] -> Bool
-rigidVarsNotContainedIn v xs =
-  not $ rigidVars (freeVars v) `VarSet.isSubsetOf` VarSet.fromList xs
+-- | Check whether any of the variables (given as de Bruijn indices)
+--   occurs *definitely* in the term in a rigid position.
+--   Reduces the term successively to remove variables in dead subterms.
+--   This fixes issue 1386.
+rigidVarsNotContainedIn :: (MonadTCM tcm, FoldRigid a) => a -> [Nat] -> tcm Bool
+rigidVarsNotContainedIn v is = liftTCM $ do
+  n0 <- getContextSize
+  let -- allowed variables as de Bruijn levels
+      levels = Set.fromList $ map (n0-1 -) is
+      -- test if index is forbidden by converting it to level
+      test i = do
+        n <- getContextSize
+        -- get de Bruijn level for i
+        let l = n-1 - i
+            -- If l >= n0 then it is a bound variable and can be
+            -- ignored.  Otherwise, it has to be in the allowed levels.
+            forbidden = l < n0 && not (l `Set.member` levels)
+        when forbidden $
+          reportSLn "tc.meta.kill" 20 $
+            "found forbidden de Bruijn level " ++ show l
+        return $ Any forbidden
+  getAny <$> foldRigid id test v
+
+-- | Short-cutting disjunction forms a monoid.
+instance Monoid (TCM Any) where
+  mempty = return mempty
+  ma `mappend` mb = Any <$> do (getAny <$> ma) `or2M` (getAny <$> mb)
+
+-- | Collect the *definitely* rigid variables in a monoid.
+--   We need to successively reduce the expression to do this.
+
+class FoldRigid a where
+--  foldRigid :: (MonadTCM tcm, Monoid (tcm m)) => (tcm m -> tcm m) -> (Nat -> tcm m) -> a -> tcm m
+  foldRigid :: (Monoid (TCM m)) => (TCM m -> TCM m) -> (Nat -> TCM m) -> a -> TCM m
+
+instance FoldRigid Term where
+  foldRigid abs f t = do
+    b <- liftTCM $ reduceB t
+    case ignoreSharing $ ignoreBlocking b of
+      Var i es   -> f i `mappend` fold es
+      Lam _ t    -> fold t
+      Lit{}      -> mempty
+      Def f es   -> case b of
+        Blocked{}                   -> mempty
+        NotBlocked MissingClauses _ -> mempty
+        _        -> fold es
+      Con _ ts   -> fold ts
+      Pi a b     -> fold (a,b)
+      Sort s     -> fold s
+      Level l    -> fold l
+      MetaV{}    -> mempty
+      DontCare{} -> mempty
+      Shared{}   -> __IMPOSSIBLE__
+      ExtLam{}   -> __IMPOSSIBLE__
+    where fold = foldRigid abs f
+
+instance FoldRigid Type where
+  foldRigid abs f (El s t) = foldRigid abs f (s,t)
+
+instance FoldRigid Sort where
+  foldRigid abs f s =
+    case s of
+      Type l     -> fold l
+      Prop       -> mempty
+      Inf        -> mempty
+      DLub s1 s2 -> fold (s1, s2)
+    where fold = foldRigid abs f
+
+instance FoldRigid Level where
+  foldRigid abs f (Max ls) = foldRigid abs f ls
+
+instance FoldRigid PlusLevel where
+  foldRigid abs f ClosedLevel{} = mempty
+  foldRigid abs f (Plus _ l)    = foldRigid abs f l
+
+instance FoldRigid LevelAtom where
+  foldRigid abs f l =
+    case l of
+      MetaLevel{} -> mempty
+      NeutralLevel MissingClauses _ -> mempty
+      NeutralLevel _              l -> fold l
+      BlockedLevel _              l -> fold l
+      UnreducedLevel              l -> fold l
+    where fold = foldRigid abs f
+
+instance (Subst a, FoldRigid a) => FoldRigid (Abs a) where
+  foldRigid abs f b = underAbstraction_ b $ foldRigid abs f
+
+instance FoldRigid a => FoldRigid (I.Arg a) where
+  foldRigid abs f a =
+    case getRelevance a of
+      Irrelevant -> mempty
+      UnusedArg  -> mempty
+      _          -> foldRigid abs f $ unArg a
+
+instance FoldRigid a => FoldRigid (I.Dom a) where
+  foldRigid abs f dom = foldRigid abs f $ unDom dom
+
+instance FoldRigid a => FoldRigid (Elim' a) where
+  foldRigid abs f (Apply a) = foldRigid abs f a
+  foldRigid abs f Proj{}    = mempty
+
+instance FoldRigid a => FoldRigid [a] where
+  foldRigid abs f = foldMap $ foldRigid abs f
+
+instance (FoldRigid a, FoldRigid b) => FoldRigid (a,b) where
+  foldRigid abs f (a,b) = foldRigid abs f a `mappend` foldRigid abs f b
 
 
 data PruneResult
