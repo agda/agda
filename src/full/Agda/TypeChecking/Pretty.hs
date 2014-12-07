@@ -102,6 +102,17 @@ punctuate d ds = zipWith (<>) ds (replicate n d ++ [empty])
 class PrettyTCM a where
   prettyTCM :: a -> TCM Doc
 
+-- ASR (02 December 2014). The following instances could be removed by
+-- replacing 'prettyTCM' by 'pretty' in the caller.
+instance PrettyTCM Bool     where prettyTCM = pretty
+instance PrettyTCM C.Name   where prettyTCM = pretty
+instance PrettyTCM C.QName  where prettyTCM = pretty
+-- instance PrettyTCM Interval where prettyTCM = pretty
+instance PrettyTCM Literal  where prettyTCM = pretty
+instance PrettyTCM Nat      where prettyTCM = pretty
+-- instance PrettyTCM Position where prettyTCM = pretty
+instance PrettyTCM Range    where prettyTCM = pretty
+
 instance PrettyTCM a => PrettyTCM (Closure a) where
   prettyTCM cl = enterClosure cl prettyTCM
 
@@ -111,8 +122,6 @@ instance PrettyTCM a => PrettyTCM [a] where
 instance (PrettyTCM a, PrettyTCM b) => PrettyTCM (a,b) where
   prettyTCM (a, b) = parens $ prettyTCM a <> comma <> prettyTCM b
 
-instance PrettyTCM Nat where prettyTCM = text . show
-instance PrettyTCM Bool where prettyTCM = text . show
 instance PrettyTCM Term where prettyTCM x = prettyA =<< reify x
 instance PrettyTCM Type where prettyTCM x = prettyA =<< reify x
 instance PrettyTCM Sort where prettyTCM x = prettyA =<< reify x
@@ -120,16 +129,6 @@ instance PrettyTCM DisplayTerm where prettyTCM x = prettyA =<< reify x
 instance PrettyTCM NamedClause where prettyTCM x = prettyA =<< reify x
 instance PrettyTCM Level where prettyTCM x = prettyA =<< reify (Level x)
 instance PrettyTCM Permutation where prettyTCM = text . show
-
--- ASR (30 November 2014). Not used.
--- instance PrettyTCM Position where
---   prettyTCM = pretty
-
--- instance PrettyTCM Interval where
---   prettyTCM = pretty
-
-instance PrettyTCM Range where
-  prettyTCM = pretty
 
 instance PrettyTCM ClauseBody where
   prettyTCM b = do
@@ -174,12 +173,6 @@ instance PrettyTCM a => PrettyTCM (MaybeReduced a) where
 
 instance PrettyTCM A.Expr where
   prettyTCM = prettyA
-
-instance PrettyTCM C.Name where
-  prettyTCM = pretty
-
-instance PrettyTCM C.QName where
-  prettyTCM = pretty
 
 instance PrettyTCM Relevance where
   prettyTCM Irrelevant = text "."
@@ -264,9 +257,6 @@ instance PrettyTCM TypeCheckingProblem where
     sep [ parens $ text "_ :" <+> prettyTCM t0
         , nest 2 $ prettyList $ map prettyA es
         , nest 2 $ text ":?" <+> prettyTCM t1 ]
-
-instance PrettyTCM Literal where
-  prettyTCM = pretty
 
 instance PrettyTCM Name where
   prettyTCM x = P.pretty <$> abstractToConcrete_ x

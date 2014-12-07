@@ -43,23 +43,19 @@ prettyShow = render . pretty
 
 -- * Pretty instances
 
-instance Pretty Int where
-  pretty = text . show
-
-instance Pretty Int32 where
-  pretty = text . show
-
-instance Pretty Integer where
-  pretty = text . show
+instance Pretty Bool    where pretty = text . show
+instance Pretty Int     where pretty = text . show
+instance Pretty Int32   where pretty = text . show
+instance Pretty Integer where pretty = text . show
 
 instance Pretty Char where
   pretty c = text [c]
 
-instance Pretty String where
-  pretty = text
-
 instance Pretty Doc where
   pretty = id
+
+instance Pretty String where
+  pretty = text
 
 -- * 'Doc' utilities
 

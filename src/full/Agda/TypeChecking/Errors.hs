@@ -948,6 +948,7 @@ instance PrettyTCM TypeError where
       ConInsteadOfDef x def con -> fsep $
         pwords ("Use " ++ con ++ " instead of " ++ def ++ " for constructor") ++
         [prettyTCM x]
+
       DefInsteadOfCon x def con -> fsep $
         pwords ("Use " ++ def ++ " instead of " ++ con ++ " for non-constructor")
         ++ [prettyTCM x]
