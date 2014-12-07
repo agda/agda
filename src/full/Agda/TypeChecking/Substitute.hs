@@ -699,9 +699,9 @@ instance Subst Constraint where
     where
       rf x = applySubst rho x
 
-instance Subst Elim where
+instance Subst a => Subst (Elim' a) where
   applySubst rho e = case e of
-    Apply v -> Apply (applySubst rho v)
+    Apply v -> Apply $ applySubst rho v
     Proj{}  -> e
 
 instance Subst a => Subst (Abs a) where
@@ -946,9 +946,6 @@ instance GetBody Clause where
 -- * Syntactic equality and order
 ---------------------------------------------------------------------------
 
-deriving instance (Subst a, Eq a) => Eq (Tele a)
-deriving instance (Subst a, Ord a) => Ord (Tele a)
-
 deriving instance Eq Substitution
 deriving instance Ord Substitution
 
@@ -960,12 +957,15 @@ deriving instance Eq Level
 deriving instance Ord Level
 deriving instance Eq PlusLevel
 deriving instance Ord LevelAtom
-deriving instance Eq Elim
-deriving instance Ord Elim
 deriving instance Eq NotBlocked
 deriving instance Ord NotBlocked
 deriving instance Eq t => Eq (Blocked t)
 deriving instance Ord t => Ord (Blocked t)
+
+deriving instance (Subst a, Eq a) => Eq (Elim' a)
+deriving instance (Subst a, Ord a) => Ord (Elim' a)
+deriving instance (Subst a, Eq a) => Eq (Tele a)
+deriving instance (Subst a, Ord a) => Ord (Tele a)
 
 deriving instance Eq Constraint
 
