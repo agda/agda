@@ -585,7 +585,6 @@ instance FoldRigid Term where
       MetaV{}    -> mempty
       DontCare{} -> mempty
       Shared{}   -> __IMPOSSIBLE__
-      ExtLam{}   -> __IMPOSSIBLE__
     where fold = foldRigid abs f
 
 instance FoldRigid Type where
