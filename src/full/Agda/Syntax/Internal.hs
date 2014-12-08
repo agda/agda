@@ -703,6 +703,12 @@ instance Suggest String String where
 instance Suggest (Abs a) (Abs b) where
   suggest b1 b2 = suggest (absName b1) (absName b2)
 
+instance Suggest String (Abs b) where
+  suggest x b = suggest x (absName b)
+
+instance Suggest Name (Abs b) where
+  suggest n b = suggest (nameToArgName n) (absName b)
+
 ---------------------------------------------------------------------------
 -- * Eliminations.
 ---------------------------------------------------------------------------
