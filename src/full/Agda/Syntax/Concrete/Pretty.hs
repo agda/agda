@@ -67,28 +67,19 @@ arrow, lambda :: Doc
 arrow  = text "\x2192"
 lambda = text "\x03bb"
 
-pHidden :: Pretty a => ArgInfo -> a -> Doc
-pHidden i = bracks h . pretty
-  where bracks Hidden   = braces'
-        bracks Instance = dbraces
-        bracks NotHidden= id
-        h = argInfoHiding i
+-- | @prettyHiding info visible doc@ puts the correct braces
+--   around @doc@ according to info @info@ and returns
+--   @visible doc@ if the we deal with a visible thing.
+prettyHiding :: LensHiding a => a -> (Doc -> Doc) -> Doc -> Doc
+prettyHiding a parens =
+  case getHiding a of
+    Hidden    -> braces'
+    Instance  -> dbraces
+    NotHidden -> parens
 
-pRelevance :: Pretty a => ArgInfo -> a -> Doc
-pRelevance i a =
-  let d = pretty a
-  in  if render d == "_" then d else pretty (argInfoRelevance i) <> d
-{-
-pRelevance Forced     a = pretty a
-pRelevance UnusedArg  a = pretty a
-pRelevance Relevant   a = pretty a
-pRelevance Irrelevant a =
-  let d = pretty a
-  in  if render d == "_" then d else text "." <> d
-pRelevance NonStrict a =
-  let d = pretty a
-  in  if render d == "_" then d else text ".." <> d
--}
+prettyRelevance :: LensRelevance a => a -> Doc -> Doc
+prettyRelevance a d =
+  if render d == "_" then d else pretty (getRelevance a) <> d
 
 instance (Pretty a, Pretty b) => Pretty (a, b) where
     pretty (a, b) = parens $ pretty a <> comma <+> pretty b
@@ -196,21 +187,18 @@ instance Pretty BoundName where
 
 instance Pretty LamBinding where
     -- TODO guilhem: colors are unused (colored syntax disallowed)
-    pretty (DomainFree i x) = pRelevance i $ pHidden i $ pretty x
+    pretty (DomainFree i x) = prettyRelevance i $ prettyHiding i id $ pretty x
     pretty (DomainFull b)   = pretty b
 
 instance Pretty TypedBindings where
-  pretty (TypedBindings _ a) =
-    pRelevance (argInfo a) $ bracks $ pretty $ WithColors (argColors a) $ unArg a
+  pretty (TypedBindings _ a) = prettyRelevance a $ prettyHiding a p $
+    pretty $ WithColors (argColors a) $ unArg a
       where
-        bracks = case getHiding a of
-                   Hidden                       -> braces'
-                   Instance                     -> dbraces
-                   NotHidden | isMeta (unArg a) -> id
-                             | otherwise        -> parens
+        p | isUnderscore (unArg a) = id
+          | otherwise        = parens
 
-        isMeta (TBind _ _ (Underscore _ Nothing)) = True
-        isMeta _ = False
+        isUnderscore (TBind _ _ (Underscore _ Nothing)) = True
+        isUnderscore _ = False
 
 newtype Tel = Tel Telescope
 
@@ -308,13 +296,13 @@ instance Pretty Declaration where
     pretty d =
         case d of
             TypeSig i x e ->
-                sep [ pRelevance i $ pretty x <+> pColors ":" (argInfoColors i)
+                sep [ prettyRelevance i $ pretty x <+> pColors ":" (argInfoColors i)
                     , nest 2 $ pretty e
                     ]
             Field x (Common.Arg i e) ->
                 sep [ text "field"
-                    , nest 2 $ pRelevance i $ pHidden i $
-                               TypeSig (i {argInfoRelevance = Relevant}) x e
+                    , nest 2 $ prettyRelevance i $ prettyHiding i id $
+                        pretty $ TypeSig (i {argInfoRelevance = Relevant}) x e
                     ]
             FunClause lhs rhs wh ->
                 sep [ pretty lhs
@@ -481,7 +469,7 @@ instance Pretty e => Pretty (Arg e) where
  -- Andreas 2010-09-24: and in record fields
     pretty a = -- pRelevance r $
                -- TODO guilhem: print colors
-               pHidden (argInfo a) $ unArg a
+               prettyHiding (argInfo a) id $ pretty $ unArg a
 
 instance Pretty e => Pretty (Named_ e) where
     pretty (Named Nothing e) = pretty e

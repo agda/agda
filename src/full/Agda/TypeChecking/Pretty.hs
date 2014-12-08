@@ -280,19 +280,12 @@ instance PrettyTCM PrettyContext where
   prettyTCM (PrettyContext ctx) = P.fsep . reverse <$> pr (map ctxEntry ctx)
     where
     pr :: [Dom (Name, Type)] -> TCM [P.Doc]
-    pr []            = return []
+    pr []                            = return []
     pr (Common.Dom info (x,t) : ctx) = escapeContext 1 $ do
-      d    <- prettyTCM t
-      x    <- prettyTCM x
-      dctx <- pr ctx
       -- TODO guilhem: show colors
-      return $ CP.pRelevance info' (par (P.hsep [ x, P.text ":", d])) : dctx
-        where
-        info' = mapArgInfoColors (const []) info
-        par = case argInfoHiding info of
-          NotHidden -> P.parens
-          Hidden    -> P.braces
-          Instance  -> CP.dbraces
+      d <- CP.prettyRelevance info . CP.prettyHiding info P.parens <$> do
+             prettyTCM x <+> text ":" <+> prettyTCM t
+      (d :) <$> pr ctx
 
 instance PrettyTCM Context where
   prettyTCM = prettyTCM . PrettyContext
