@@ -98,6 +98,8 @@ checkDeclCached d = do
     case e of
       (Just (Decl d',s)) | compareDecl d d' -> do
         restorePostScopeState s
+        reportSLn "cache.decl" 50 $ "range: " ++ show (getRange d')
+        printSyntaxInfo (getRange d')
       _ -> do
         cleanCachedLog
         checkDeclWrap d

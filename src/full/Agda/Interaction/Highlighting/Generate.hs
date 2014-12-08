@@ -8,6 +8,7 @@ module Agda.Interaction.Highlighting.Generate
   ( Level(..)
   , generateAndPrintSyntaxInfo
   , generateTokenInfo, generateTokenInfoFromString
+  , printSyntaxInfo
   , printErrorInfo, errorHighlighting
   , printUnsolvedInfo
   , printHighlightingInfo
@@ -467,6 +468,12 @@ generateConstructorInfo modMap file kinds decl = do
   -- Return suitable syntax highlighting information.
   let files = for constrs $ \ q -> generate modMap file kinds $ A.AmbQ [q]
   return $ Fold.fold files
+
+printSyntaxInfo :: P.Range -> TCM ()
+printSyntaxInfo r = do
+  syntaxInfo <- use stSyntaxInfo
+  ifTopLevelAndHighlightingLevelIs NonInteractive $
+      printHighlightingInfo (selectC r syntaxInfo)
 
 
 -- | Prints syntax highlighting info for an error.

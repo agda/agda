@@ -12,6 +12,7 @@ module Agda.Interaction.Highlighting.Range
   , rangeToPositions
   , rangesToPositions
   , rToR
+  , rangeToEndPoints
   , minus
   , Agda.Interaction.Highlighting.Range.tests
   ) where
@@ -92,6 +93,13 @@ rToR (P.Range is) = Ranges (map iToR is)
                    , P.iEnd   = P.Pn { P.posPos = pos2 }
                    }) =
     Range { from = fromIntegral pos1, to = fromIntegral pos2 }
+
+rangeToEndPoints :: P.Range -> Maybe (Int,Int)
+rangeToEndPoints r =
+  case P.rangeToInterval r of
+          Nothing -> Nothing
+          Just i  -> Just ( fromIntegral $ P.posPos $ P.iStart i
+                          , fromIntegral $ P.posPos $ P.iEnd i)
 
 ------------------------------------------------------------------------
 -- Operations

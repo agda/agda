@@ -26,6 +26,7 @@ module Agda.Interaction.Highlighting.Precise
   , singletonC
   , severalC
   , splitAtC
+  , selectC
     -- ** Inspection
   , smallestPosC
     -- * Tests
@@ -35,10 +36,12 @@ module Agda.Interaction.Highlighting.Precise
 import Agda.Utils.TestHelpers
 import Agda.Utils.String
 import Agda.Utils.List hiding (tests)
+import Data.Maybe
 import Data.List
 import Data.Function
 import Data.Monoid
 import Control.Applicative ((<$>), (<*>))
+import Control.Arrow ((***), first, second)
 import Control.Monad
 import Agda.Utils.QuickCheck
 import Data.IntMap (IntMap)
@@ -47,6 +50,7 @@ import Data.Map (Map)
 import qualified Data.Map as Map
 import Data.Typeable (Typeable)
 
+import qualified Agda.Syntax.Position as P
 import qualified Agda.Syntax.Common as Common
 import qualified Agda.Syntax.Concrete as SC
 
@@ -350,6 +354,15 @@ prop_splitAtC p f =
   (f1, f2) = splitAtC p f
 
   positions = IntMap.keys . toMap . decompress
+
+
+selectC :: P.Range -> CompressedFile -> CompressedFile
+selectC r cf = cf'
+  where
+    empty         = (0,0)
+    (from, to)    = fromMaybe empty (rangeToEndPoints r)
+    (_, (cf', _)) = (second (splitAtC to)) . splitAtC from $ cf
+
 
 -- | Returns the smallest position, if any, in the 'CompressedFile'.
 
