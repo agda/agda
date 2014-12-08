@@ -348,7 +348,8 @@ runUhcMain mainName modNm = do
 callUHC :: Bool -> FilePath -> TCM ()
 callUHC isMain fp = callUHC1 $ catMaybes
     [ if isMain then Nothing else Just "--compile-only"
-    , Just fp]
+    -- TODO we use Operwholecore right now as work around because UHC Core can't export datatypes yet
+    , Just "-Operwholecore", Just fp]
 
 callUHC1 :: [String] -> TCM ()
 callUHC1 args = do

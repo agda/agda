@@ -131,7 +131,7 @@ getCoreName qnm = do
   return $ (cnName <$> qnameToCoreName nmMp qnm)
 
 getCoreName1 :: Monad m => QName -> CompileT m HsName
-getCoreName1 nm = getCoreName nm >>= return . fromJust
+getCoreName1 nm = getCoreName nm >>= return . (fromMaybe __IMPOSSIBLE__)
 
 getConstrInfo :: (Functor m, Monad m) => QName -> CompileT m AConInfo
 getConstrInfo n = M.findWithDefault __IMPOSSIBLE__ n <$> gets (amifConMp . moduleInterface)

@@ -95,7 +95,7 @@ buildCMetaDeclL :: [ADataTy] -> [CDeclMeta]
 buildCMetaDeclL dts = catMaybes $ map f dts
     where f :: ADataTy -> Maybe CDeclMeta
           -- foreign/builtin datatypes are defined somewhere else. For normal datatypes, core name is always defined.
-          f d@(ADataTy{xdatImplType = ADataImplNormal}) = Just $ mkMetaData (fromJust $ xdatName d) (map g (xdatCons d))
+          f d@(ADataTy{xdatImplType = ADataImplNormal}) = Just $ mkMetaData (fromMaybe __IMPOSSIBLE__ $ xdatName d) (map g (xdatCons d))
           f _ = Nothing
           g :: ADataCon -> CDataCon
           g c@(ADataCon{}) =

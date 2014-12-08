@@ -1,10 +1,13 @@
 module UHC.Agda.Builtins
-  ( -- Temp Debug
-    primDebugNatToInteger
-  , primDebugIntegerToString
+  ( -- Integer
+    primShowInteger
     --  Nat
   , Nat (..)
   , primIntegerToNat
+  , primNatToInteger
+  , primNatMinus
+  , primNatPlus
+  , primNatTimes
     -- IO
   , primPutStrLn
   , primReturn
@@ -12,9 +15,13 @@ module UHC.Agda.Builtins
     -- String
   , primStringAppend
   , primStringEquality
+  , primStringFromList
+  , primStringToList
     -- Char
   , primCharToNat
   , primCharEquality
+    -- Float
+  , primShowFloat
 
   , unit
   )
@@ -26,13 +33,8 @@ import Prelude
 -- ====================
 
 -- TODO should this actually be a prim? if so, rename
-primDebugNatToInteger :: Nat -> Integer
-primDebugNatToInteger (Zero) = 0
-primDebugNatToInteger (Suc n) = 1 + primDebugNatToInteger n
-
--- TODO should this actually be a prim? if so, rename
-primDebugIntegerToString :: Integer -> String
-primDebugIntegerToString i = show i
+primShowInteger :: Integer -> String
+primShowInteger = show
 
 
 -- ====================
@@ -52,10 +54,27 @@ unit = ()
 
 data Nat = Zero | Suc Nat
 
+primNatToInteger :: Nat -> Integer
+primNatToInteger (Zero) = 0
+primNatToInteger (Suc n) = 1 + primNatToInteger n
+
 primIntegerToNat :: Integer -> Nat
 primIntegerToNat i | i < 0  = error "Negative integers cannot be converted to Nat."
 primIntegerToNat i | i == 0 = Zero
 primIntegerToNat i | i > 0  = Suc (primIntegerToNat (i - 1))
+
+primNatPlus :: Nat -> Nat -> Nat
+primNatPlus Zero b = b
+primNatPlus (Suc a) b = Suc (a `primNatPlus` b)
+
+primNatTimes :: Nat -> Nat -> Nat
+primNatTimes Zero b = Zero
+primNatTimes (Suc a) b = (a `primNatTimes` b) `primNatPlus` b
+
+primNatMinus :: Nat -> Nat -> Nat
+primNatMinus a Zero = a
+primNatMinus (Suc a) (Suc b) = a `primNatMinus` b
+primNatMinus Zero _ = Zero
 
 -- ====================
 -- IO
@@ -77,6 +96,12 @@ primBind = (>>=)
 -- String
 -- ====================
 
+primStringFromList :: [Char] -> String
+primStringFromList = id
+
+primStringToList :: String -> [Char]
+primStringToList = id
+
 primStringAppend :: String -> String -> String
 primStringAppend = (++)
 
@@ -92,3 +117,9 @@ primCharToNat c = primIntegerToNat (read [c] :: Integer)
 
 primCharEquality :: Char -> Char -> Bool
 primCharEquality = (==)
+
+-- ====================
+-- Float
+-- ====================
+primShowFloat :: Float -> String
+primShowFloat = show

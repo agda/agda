@@ -32,12 +32,24 @@ primFunctions :: M.Map String HsName
 primFunctions = M.fromList
     [(n, mkHsName ["UHC", "Agda", "Builtins"] n) | n <-
         [
+        -- Integer
+          "primShowInteger"
+        -- Nat
+        , "primNatPlus"
+        , "primNatTimes"
+        , "primNatMinus"
+        , "primNatToInteger"
+        , "primIntegerToNat"
         -- String
-          "primStringAppend"
+        , "primStringAppend"
         , "primStringEquality"
+        , "primStringFromList"
+        , "primStringToList"
         -- Char
         , "primCharToNat"
         , "primCharEquality"
+        -- Float
+        , "primShowFloat"
         ]
     ]
 

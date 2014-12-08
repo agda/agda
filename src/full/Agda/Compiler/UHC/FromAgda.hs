@@ -164,7 +164,7 @@ translateDefn btins msharp (n, defini) = do
   case theDef defini of
     d@(Datatype {}) -> do -- become functions returning unit
         vars <- replicateM (dataPars d + dataIxs d) freshLocalName
-        return . return $ Fun True (fromJust crName) (Just n) ("datatype: " ++ show n) vars UNIT
+        return . return $ Fun True (fromMaybe __IMPOSSIBLE__ crName) (Just n) ("datatype: " ++ show n) vars UNIT
     f@(Function{}) -> do
         let projArgs = projectionArgs f
             cc       = fromMaybe __IMPOSSIBLE__ $ funCompiled f
@@ -206,20 +206,20 @@ translateDefn btins msharp (n, defini) = do
           _    -> return <$> mkCon n tag arit-}
     r@(Record{}) -> do
         vars <- replicateM (recPars r) freshLocalName
-        return . return $ Fun True (fromJust crName) (Just n) ("record: " ++ show n) vars UNIT
+        return . return $ Fun True (fromMaybe __IMPOSSIBLE__ crName) (Just n) ("record: " ++ show n) vars UNIT
     a@(Axiom{}) -> do -- Axioms get their code from COMPILED_CORE pragmas
         case crRep of
             -- TODO generate proper core errors
-            Nothing -> return . return $ CoreFun (fromJust crName) (Just n) ("AXIOM_UNDEFINED: " ++ show n)
+            Nothing -> return . return $ CoreFun (fromMaybe __IMPOSSIBLE__ crName) (Just n) ("AXIOM_UNDEFINED: " ++ show n)
                 (coreImpossible $ "Axiom " ++ show n ++ " used but has no computation.") 0 -- TODO can we set arity to 0 here? not sure if we can..., maybe pass around arity info for Axiom?
-            Just (CrDefn x)  -> return . return $ CoreFun (fromJust crName) (Just n) ("COMPILED_CORE: " ++ show n) x 2 -- TODO HACK JUST FOR TESTIN
+            Just (CrDefn x)  -> return . return $ CoreFun (fromMaybe __IMPOSSIBLE__ crName) (Just n) ("COMPILED_CORE: " ++ show n) x 2 -- TODO HACK JUST FOR TESTIN
             _       -> error "Compiled core must be def, something went wrong."
     p@(Primitive{}) -> do -- Primitives use primitive functions from UHC.Agda.Builtins of the same name.
 
       let ar = arity $ defType defini
       case primName p `M.lookup` primFunctions of
         Nothing     -> error $ "Primitive " ++ show (primName p) ++ " declared, but no such primitive exists."
-        (Just anm)  -> return <$> mkFunGen n (const $ App anm) ("primitive: " ++) (fromJust crName) (primName p) ar
+        (Just anm)  -> return <$> mkFunGen n (const $ App anm) ("primitive: " ++) (fromMaybe __IMPOSSIBLE__ crName) (primName p) ar
   where
     modOf = reverse . dropWhile (/='.') . reverse
     mkFunGen :: QName                    -- ^ Original name
