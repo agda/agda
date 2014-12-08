@@ -49,7 +49,7 @@ import Agda.Utils.Impossible
 --   checked.
 checkDataDef :: Info.DefInfo -> QName -> [A.LamBinding] -> [A.Constructor] -> TCM ()
 checkDataDef i name ps cs =
-    traceCall (CheckDataDef (getRange i) (qnameName name) ps cs) $ do -- TODO!! (qnameName)
+    traceCall (CheckDataDef (getRange name) (qnameName name) ps cs) $ do -- TODO!! (qnameName)
         let countPars A.DomainFree{} = 1
             countPars (A.DomainFull (A.TypedBindings _ (Arg _ b))) = case b of
               A.TLet{}       -> 0

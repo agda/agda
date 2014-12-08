@@ -690,7 +690,7 @@ niceDeclarations ds = do
       f   <- getFixity x
       return $
          [mkSig (fuseRange x t) f PublicAccess x tel t | Just t <- [mt] ] ++
-         [mkDef (getRange x) f ConcreteDef x (concatMap dropType tel) ds | Just ds <- [mds] ]
+         [mkDef r f ConcreteDef x (concatMap dropType tel) ds | Just ds <- [mds] ]
       where
         dropType (DomainFull (TypedBindings r (Common.Arg i (TBind _ xs _)))) =
           map (DomainFree i) xs
