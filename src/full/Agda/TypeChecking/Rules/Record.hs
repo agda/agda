@@ -62,7 +62,7 @@ checkRecDef
   -> [A.Field]                 -- ^ Field signatures.
   -> TCM ()
 checkRecDef i name ind con ps contel fields =
-  traceCall (CheckRecDef (getRange i) (qnameName name) ps fields) $ do
+  traceCall (CheckRecDef (getRange name) (qnameName name) ps fields) $ do
     reportSDoc "tc.rec" 10 $ vcat
       [ text "checking record def" <+> prettyTCM name
       , nest 2 $ text "ps ="     <+> prettyList (map prettyAs ps)
