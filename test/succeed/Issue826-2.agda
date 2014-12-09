@@ -8,7 +8,7 @@ data D : Set where
   c : ∞ D → D
 
 delay : D → ∞ D
-delay = ♯_
+delay x = ♯ x
 
 data P : D → Set where
   o : (x : ∞ D) → P (♭ x) → P (c x)
