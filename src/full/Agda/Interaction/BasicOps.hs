@@ -277,21 +277,19 @@ instance Reify Constraint (OutputConstraint Expr Expr) where
         return $ Guard o pid
     reify (UnBlock m) = do
         mi <- mvInstantiation <$> lookupMeta m
+        m' <- reify (MetaV m [])
         case mi of
           BlockedConst t -> do
             e  <- reify t
-            m' <- reify (MetaV m [])
             return $ Assign m' e
           PostponedTypeCheckingProblem cl _ -> enterClosure cl $ \p -> case p of
             CheckExpr e a -> do
                 a  <- reify a
-                m' <- reify (MetaV m [])
                 return $ TypedAssign m' e a
             CheckArgs _ _ _ args t0 t1 _ -> do
               t0 <- reify t0
               t1 <- reify t1
-              m  <- reify (MetaV m [])
-              return $ PostponedCheckArgs m (map (namedThing . unArg) args) t0 t1
+              return $ PostponedCheckArgs m' (map (namedThing . unArg) args) t0 t1
           Open{}  -> __IMPOSSIBLE__
           OpenIFS{}  -> __IMPOSSIBLE__
           InstS{} -> __IMPOSSIBLE__
