@@ -404,6 +404,16 @@ instance IsProjP a => IsProjP (Named n a) where
     Instances
  --------------------------------------------------------------------------}
 
+instance LensHiding TypedBindings where
+  getHiding   (TypedBindings _ a) = getHiding a
+  mapHiding f (TypedBindings r a) = TypedBindings r $ mapHiding f a
+
+instance LensHiding LamBinding where
+  getHiding   (DomainFree ai _) = getHiding ai
+  getHiding   (DomainFull tb)   = getHiding tb
+  mapHiding f (DomainFree ai x) = mapHiding f ai `DomainFree` x
+  mapHiding f (DomainFull tb)   = DomainFull $ mapHiding f tb
+
 instance HasRange LamBinding where
     getRange (DomainFree _ x) = getRange x
     getRange (DomainFull b)   = getRange b
