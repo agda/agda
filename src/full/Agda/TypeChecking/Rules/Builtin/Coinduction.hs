@@ -23,6 +23,7 @@ import Agda.TypeChecking.Positivity.Occurrence
 import Agda.TypeChecking.Primitive
 import Agda.TypeChecking.Reduce
 import Agda.TypeChecking.Substitute
+import Agda.TypeChecking.Telescope
 import Agda.TypeChecking.Rules.Builtin
 import Agda.TypeChecking.Rules.Term
 
@@ -68,27 +69,27 @@ bindBuiltinInf e = bindPostulatedName builtinInf e $ \inf _ ->
 bindBuiltinSharp :: A.Expr -> TCM ()
 bindBuiltinSharp e =
   bindPostulatedName builtinSharp e $ \sharp sharpDefn -> do
-    sharpE    <- instantiateFull =<< checkExpr (A.Def sharp) =<< typeOfSharp
+    sharpType <- typeOfSharp
+    TelV fieldTel _ <- telView sharpType
+    sharpE    <- instantiateFull =<< checkExpr (A.Def sharp) sharpType
     Def inf _ <- ignoreSharing <$> primInf
     infDefn   <- getConstInfo inf
     addConstant (defName infDefn) $
       infDefn { defPolarity       = [] -- not monotone
               , defArgOccurrences = [Unused, StrictPos]
-              , theDef = Datatype
-                  { dataPars           = 2
-                  , dataSmallPars      = Perm 2 []
-                  , dataNonLinPars     = Drop 0 $ Perm 2 []
-                  , dataIxs            = 0
-                  , dataInduction      = CoInductive
-                  , dataClause         = Nothing
-                  , dataCons           = [sharp]
-                  , dataSort           = varSort 1
-{-
-                  , dataPolarity       = [Invariant, Invariant]
-                  , dataArgOccurrences = [Unused, StrictPos]
--}
-                  , dataMutual         = []
-                  , dataAbstr          = ConcreteDef
+              , theDef = Record
+                  { recPars           = 2
+                  , recInduction      = Just CoInductive
+                  , recClause         = Nothing
+                  , recConHead        = ConHead sharp CoInductive []  -- flat is added later
+                  , recConType        = sharpType
+                  , recNamedCon       = True
+                  , recFields         = []  -- flat is added later
+                  , recTel            = fieldTel
+                  , recRecursive      = False
+                  , recEtaEquality    = False
+                  , recMutual         = []
+                  , recAbstr          = ConcreteDef
                   }
               }
     addConstant sharp $
@@ -140,10 +141,10 @@ bindBuiltinFlat e =
                                Map.empty
                                Nothing
         projection = Projection
-          { projProper   = Nothing
+          { projProper   = Just flat
           , projFromType = inf
           , projIndex    = 3
-          , projDropPars = teleNoAbs (take 2 $ telToList tel) $ Def flat []
+          , projDropPars = teleNoAbs (take 2 $ telToList tel) $ Lam defaultArgInfo $ Abs "x" $ Var 0 [Proj flat]
           , projArgInfo  = defaultArgInfo
           }
     addConstant flat $
@@ -169,6 +170,8 @@ bindBuiltinFlat e =
     -- register flat as record field for constructor sharp
     modifySignature $ updateDefinition sharp $ updateTheDef $ \ def ->
       def { conSrcCon = sharpCon }
+    modifySignature $ updateDefinition inf $ updateTheDef $ \ def ->
+      def { recConHead = sharpCon, recFields = [defaultArg flat] }
     return flatE
 
 -- The coinductive primitives.

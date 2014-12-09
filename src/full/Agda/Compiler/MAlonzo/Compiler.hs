@@ -5,7 +5,7 @@
 
 module Agda.Compiler.MAlonzo.Compiler where
 
-import Prelude hiding (mapM_, mapM, sequence)
+import Prelude hiding (mapM_, mapM, sequence, concat)
 
 import Control.Applicative
 import Control.Monad.Reader hiding (mapM_, forM_, mapM, forM, sequence)
@@ -519,14 +519,18 @@ clause q maybeName (i, isLast, Clause{ namedClausePats = ps, clauseBody = b }) =
 -- argpatts aps xs = hps
 -- xs is alist of haskell *variables* in form of patterns (because of wildcard)
 argpatts :: [I.NamedArg Pattern] -> [HS.Pat] -> TCM [HS.Pat]
-argpatts ps0 bvs = evalStateT (mapM pat' ps0) bvs
+argpatts ps0 bvs = evalStateT (List.concat <$> mapM pat' ps0) bvs
   where
-  pat :: Pattern -> StateT [HS.Pat] TCM HS.Pat
-  pat   (ProjP _  ) = lift $ typeError $ NotImplemented $ "Compilation of copatterns"
-  pat   (VarP _   ) = do v <- gets head; modify tail; return v
+  pat :: Pattern -> StateT [HS.Pat] TCM [HS.Pat]
+  pat   (ProjP p  ) = do
+    kit <- lift coinductionKit
+    -- Sharps and flats are erased from compiled code
+    if Just p == fmap nameOfFlat kit then return [] else
+      lift $ typeError $ NotImplemented $ "Compilation of copatterns"
+  pat   (VarP _   ) = do v <- gets head; modify tail; return [v]
   pat   (DotP _   ) = pat (VarP dummy) -- WHY NOT: return HS.PWildCard -- SEE ABOVE
-  pat   (LitP (LitQName _ x)) = return $ litqnamepat x
-  pat   (LitP l   ) = return $ HS.PLit HS.Signless $ hslit l
+  pat   (LitP (LitQName _ x)) = return [ litqnamepat x ]
+  pat   (LitP l   ) = return [ HS.PLit HS.Signless $ hslit l ]
 
   pat p@(ConP c _ ps) = do
     -- Note that irr is applied once for every subpattern, so in the
@@ -537,8 +541,8 @@ argpatts ps0 bvs = evalStateT (mapM pat' ps0) bvs
         tilde = if tildesEnabled && irrefutable
                 then HS.PParen . HS.PIrrPat
                 else id
-    (tilde . HS.PParen) <$>
-      (HS.PApp <$> lift (conhqn $ conName c) <*> mapM pat' ps)
+    ((:[]) . tilde . HS.PParen) <$>
+      (HS.PApp <$> lift (conhqn $ conName c) <*> (List.concat <$> mapM pat' ps))
 
   {- Andreas, 2013-02-15 this triggers Issue 794,
      because it fails to count the variables bound in p,
@@ -549,7 +553,7 @@ argpatts ps0 bvs = evalStateT (mapM pat' ps0) bvs
   -- do not match against irrelevant stuff
   pat' a | isIrrelevant a = return $ HS.PWildCard
 -}
-  pat' :: I.NamedArg Pattern -> StateT [HS.Pat] TCM HS.Pat
+  pat' :: I.NamedArg Pattern -> StateT [HS.Pat] TCM [HS.Pat]
   pat' a = pat $ namedArg a
 
   tildesEnabled = False
