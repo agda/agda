@@ -217,20 +217,25 @@ data TypedBindings = TypedBindings Range (Arg TypedBinding)
             -- ^ . @(xs : e)@ or @{xs : e}@
   deriving (Typeable, Show, Eq)
 
--- | A typed binding. Appears in dependent function spaces, typed lambdas, and
---   telescopes. I might be tempting to simplify this to only bind a single
---   name at a time. This would mean that we would have to typecheck the type
---   several times (@(x y : A)@ vs. @(x : A)(y : A)@).
---   In most cases this wouldn't really be a problem, but it's good
---   principle to not do extra work unless you have to.
+-- | A typed binding.  Appears in dependent function spaces, typed lambdas, and
+--   telescopes.  It might be tempting to simplify this to only bind a single
+--   name at a time, and translate, say, @(x y : A)@ to @(x : A)(y : A)@
+--   before type-checking.  However, this would be slightly problematic:
 --
---   (Andreas, 2013-12-10: The more serious problem would that the translation
---   from @(x y : ?)@ to @(x : ?) (y : ?)@ duplicates the hole @?@.
+--     1. We would have to typecheck the type @A@ several times.
+--
+--     2. If @A@ contains a meta variable or hole, it would be duplicated
+--        by such a translation.
+--
+--   While 1. is only slightly inefficient, 2. would be an outright bug.
+--   Duplicating @A@ could not be done naively, we would have to make sure
+--   that the metas of the copy are aliases of the metas of the original.
+
 data TypedBinding
   = TBind Range [Name] Expr
     -- ^ As in telescope @(x y z : A)@ or type @(x y z : A) -> B@.
   | TLet Range [LetBinding]
-    -- ^
+    -- ^ E.g. @(let x = e)@ or @(let open M)@.
   deriving (Typeable, Show, Eq)
 
 type Telescope  = [TypedBindings]
@@ -411,6 +416,16 @@ instance IsProjP a => IsProjP (Named n a) where
 {--------------------------------------------------------------------------
     Instances
  --------------------------------------------------------------------------}
+
+instance LensHiding TypedBindings where
+  getHiding   (TypedBindings _ a) = getHiding a
+  mapHiding f (TypedBindings r a) = TypedBindings r $ mapHiding f a
+
+instance LensHiding LamBinding where
+  getHiding   (DomainFree ai _) = getHiding ai
+  getHiding   (DomainFull tb)   = getHiding tb
+  mapHiding f (DomainFree ai x) = mapHiding f ai `DomainFree` x
+  mapHiding f (DomainFull tb)   = DomainFull $ mapHiding f tb
 
 instance HasRange LamBinding where
     getRange (DomainFree _ x) = getRange x
@@ -941,4 +956,3 @@ insertImplicitPatSynArgs wild r ns as = matchArgs r ns as
     matchArgs r (n:ns) as = do
       (p, as) <- matchNextArg r n as
       first ((unArg n, p) :) <$> matchArgs (getRange p) ns as
-
