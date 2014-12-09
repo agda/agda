@@ -296,14 +296,11 @@ instance Reify Constraint (OutputConstraint Expr Expr) where
           OpenIFS{}  -> __IMPOSSIBLE__
           InstS{} -> __IMPOSSIBLE__
           InstV{} -> __IMPOSSIBLE__
-    reify (FindInScope m mcands) = do
-      let cands = caseMaybe mcands [] (\ x -> x)
-      m' <- reify (MetaV m [])
-      ctxArgs <- getContextArgs
-      t <- getMetaType m
-      t' <- reify t
-      cands' <- mapM (\(tm,ty) -> (,) <$> reify tm <*> reify ty) cands
-      return $ FindInScopeOF m' t' cands' -- IFSTODO
+    reify (FindInScope m mcands) = FindInScopeOF
+      <$> (reify $ MetaV m [])
+      <*> (reify =<< getMetaType m)
+      <*> (forM (fromMaybe [] mcands) $ \ (tm, ty) -> do
+            (,) <$> reify tm <*> reify ty)
     reify (IsEmpty r a) = IsEmptyType <$> reify a
 
 -- ASR TODO (28 December 2014): This function will be unnecessary when
