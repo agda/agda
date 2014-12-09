@@ -165,6 +165,7 @@ litToCore :: Lit -> CExpr
 -- should we put this into a let?
 litToCore (LInt i) = mkApp (mkVar $ mkHsName ["UHC", "Agda", "Builtins"] "primIntegerToNat") [mkInteger opts i]
 litToCore (LString s) = mkString opts s
+litToCore (LChar c) = mkChar c
 litToCore l = error $ "Not implemented literal: " ++ show l
 
 coreImpossible :: String -> CExpr

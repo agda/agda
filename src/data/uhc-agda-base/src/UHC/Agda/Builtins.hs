@@ -1,6 +1,10 @@
 module UHC.Agda.Builtins
   ( -- Integer
     primShowInteger
+    -- Levels
+  , primLevelZero
+  , primLevelSuc
+  , primLevelMax
     --  Nat
   , Nat (..)
   , primIntegerToNat
@@ -9,6 +13,7 @@ module UHC.Agda.Builtins
   , primNatPlus
   , primNatTimes
     -- IO
+  , primPutStr
   , primPutStrLn
   , primReturn
   , primBind
@@ -29,13 +34,24 @@ where
 
 import Prelude
 -- ====================
--- Temporary Debug Stuff
+-- Integer
 -- ====================
 
--- TODO should this actually be a prim? if so, rename
 primShowInteger :: Integer -> String
 primShowInteger = show
 
+-- ====================
+-- LEvels
+-- ====================
+
+primLevelZero :: ()
+primLevelZero = ()
+
+primLevelSuc :: () -> ()
+primLevelSuc _ = ()
+
+primLevelMax :: () -> () -> ()
+primLevelMax _ _ = ()
 
 -- ====================
 -- Misc
@@ -82,6 +98,9 @@ primNatMinus Zero _ = Zero
 
 -- Calling haskell functions with class constraints from Agda
 -- isn't supported yet, so just remove the class constraints on return/bind
+
+primPutStr :: String -> IO ()
+primPutStr = putStr
 
 primPutStrLn :: String -> IO ()
 primPutStrLn = putStrLn

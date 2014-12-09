@@ -3,9 +3,7 @@
 module Agda.Compiler.UHC.Primitives
   ( primFunctions
   , BuiltinCache (..)
---  , BuiltinConSpec (..)
   , getBuiltins
---  , builtinConSpecToCoreConstr
   , isBuiltin
   , builtinUnitCtor
   )
@@ -32,8 +30,12 @@ primFunctions :: M.Map String HsName
 primFunctions = M.fromList
     [(n, mkHsName ["UHC", "Agda", "Builtins"] n) | n <-
         [
+        -- Level
+          "primLevelMax"
+        , "primLevelZero"
+        , "primLevelSuc"
         -- Integer
-          "primShowInteger"
+        , "primShowInteger"
         -- Nat
         , "primNatPlus"
         , "primNatTimes"
@@ -53,10 +55,6 @@ primFunctions = M.fromList
         ]
     ]
 
-
-{-data BuiltinConSpec
-  = ConNamed { conSpecDt :: String, conSpecCtor :: String, conSpecTag :: Int }
-  | ConUnit-}
 
 type BuiltinName = String
 
@@ -96,10 +94,12 @@ getBuiltins = BuiltinCache
                 [ (builtinTrue, ctagTrue defaultEHCOpts)
                 , (builtinFalse, ctagFalse defaultEHCOpts)
                 ])
---          , (builtinList
---          TODO the Agda List type takes a type argument, Haskells doesn't
---          , (builtinNil,    (ConNamed "UHC.Base.[]" "[]" 1))
---          , (builtinCons,   (ConNamed "UHC.Base.[]" ":" 0))
+          -- TODO are we actually guarantueed that the Agda List type always has a suitable definition?
+          -- if not, we should instead use COMPILED_CORE pragmas.
+          , (builtinList,
+                [ (builtinNil,    ctagNil defaultEHCOpts)
+                , (builtinCons,   ctagCons defaultEHCOpts)
+                ])
           , (builtinUnit, [(builtinUnitCons, ctagUnit)])
           ]
         btinToQName f (b, sp) = do
@@ -123,7 +123,3 @@ getBuiltins = BuiltinCache
 
 builtinUnitCtor :: HsName
 builtinUnitCtor = mkHsName1 "UHC.Agda.Builtins.unit"
-{-builtinConSpecToCoreConstr :: BuiltinConSpec -> CoreConstr
-builtinConSpecToCoreConstr (ConNamed dt ctor tag) = (dt, ctor, tag)
-builtinConSpecToCoreConstr (ConUnit) = __IMPOSSIBLE__
--}

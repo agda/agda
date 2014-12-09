@@ -334,7 +334,9 @@ setUHCDir mainI = do
 runUHC :: FilePath -> EC.CModule -> TCM ()
 runUHC fp code = do
     fp' <- writeCoreFile fp code
-    callUHC False fp'
+    return ()
+    -- TODO rename the function, as UHC will take care of following the dep chain
+--    callUHC False fp'
 
 -- | Create the UHC Core main file, which calls the Agda main function
 runUhcMain :: HsName -> ModuleName -> TCM ()
@@ -343,7 +345,8 @@ runUhcMain mainName modNm = do
     let mod = createMainModule (show modNm) mainName
     fp' <- writeCoreFile fp mod
 
-    callUHC True fp'
+    -- TODO we use Operwholecore right now as work around because UHC Core can't export datatypes yet
+    callUHC1 ["-Operwholecore", "--output=" ++ (show $ last $ mnameToList modNm), fp']
 
 callUHC :: Bool -> FilePath -> TCM ()
 callUHC isMain fp = callUHC1 $ catMaybes
