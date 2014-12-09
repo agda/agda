@@ -387,17 +387,21 @@ data CoinductionKit = CoinductionKit
 
 -- | Tries to build a 'CoinductionKit'.
 
-coinductionKit :: TCM (Maybe CoinductionKit)
-coinductionKit = (do
+coinductionKit' :: TCM CoinductionKit
+coinductionKit' = do
   Def inf   _ <- ignoreSharing <$> primInf
   Def sharp _ <- ignoreSharing <$> primSharp
   Def flat  _ <- ignoreSharing <$> primFlat
-  return $ Just $ CoinductionKit
+  return $ CoinductionKit
     { nameOfInf   = inf
     , nameOfSharp = sharp
     , nameOfFlat  = flat
-    })
-    `catchError` \_ -> return Nothing
+    }
+
+coinductionKit :: TCM (Maybe CoinductionKit)
+coinductionKit =
+  (Just <$> coinductionKit')
+  `catchError` \_ -> return Nothing
 
 ------------------------------------------------------------------------
 -- * Builtin equality
