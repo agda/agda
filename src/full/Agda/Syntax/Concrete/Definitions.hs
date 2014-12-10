@@ -152,6 +152,7 @@ data DeclarationException
           -- ^ Pragma @{-# NO_TERMINATION_CHECK #-}@ has been replaced
           --   by {-# TERMINATING #-} and {-# NON_TERMINATING #-}.
         | InvalidCatchallPragma Range
+        | UnquoteDefRequiresSignature Name
     deriving (Typeable)
 
 instance HasRange DeclarationException where
@@ -175,6 +176,7 @@ instance HasRange DeclarationException where
     getRange (InvalidMeasureMutual r)      = r
     getRange (PragmaNoTerminationCheck r)  = r
     getRange (InvalidCatchallPragma r)     = r
+    getRange (UnquoteDefRequiresSignature x) = getRange x
 
 instance HasRange NiceDeclaration where
   getRange (Axiom r _ _ _ _ _ _)           = r
@@ -244,6 +246,8 @@ instance Show DeclarationException where
     pwords "In a mutual block, either all functions must have the same (or no) termination checking pragma."
   show (InvalidCatchallPragma _) = show $ fsep $
     pwords "The CATCHALL pragma can only preceed a function clause."
+  show (UnquoteDefRequiresSignature x) = show $ fsep $
+    pwords "Missing type signature for unquoteDef" ++ [pretty x]
   show (NotAllowedInMutual nd) = show $ fsep $
     [text $ decl nd] ++ pwords "are not allowed in mutual blocks"
     where
@@ -612,8 +616,11 @@ niceDeclarations ds = do
 
         UnquoteDef r x e -> do
           fx <- getFixity x
-          removeLoneSig x
-          (NiceUnquoteDef r fx PublicAccess ConcreteDef TerminationCheck x e :) <$> nice ds
+          ifM (elem x <$> map snd . filter (isFunName . fst) <$> use loneSigs)
+          {- then -} (do
+            removeLoneSig x
+            (NiceUnquoteDef r fx PublicAccess ConcreteDef TerminationCheck x e :) <$> nice ds)
+          {- else -} (throwError $ UnquoteDefRequiresSignature x)
 
         Pragma (TerminationCheckPragma r NoTerminationCheck) ->
           throwError $ PragmaNoTerminationCheck r
