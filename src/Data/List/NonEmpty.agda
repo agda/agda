@@ -7,7 +7,7 @@
 module Data.List.NonEmpty where
 
 open import Category.Monad
-open import Data.Bool
+open import Data.Bool using (Bool; false; true; not; T)
 open import Data.Bool.Properties
 open import Data.List as List using (List; []; _∷_)
 open import Data.Maybe using (nothing; just)

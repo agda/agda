@@ -19,7 +19,7 @@ module Data.AVL
   (isStrictTotalOrder : IsStrictTotalOrder _≡_ _<_)
   where
 
-open import Data.Bool
+open import Data.Bool using (Bool)
 import Data.DifferenceList as DiffList
 open import Data.Empty
 open import Data.List as List using (List)

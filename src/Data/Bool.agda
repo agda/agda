@@ -22,15 +22,7 @@ infix  0 if_then_else_
 ------------------------------------------------------------------------
 -- The boolean type
 
-data Bool : Set where
-  true  : Bool
-  false : Bool
-
-{-# BUILTIN BOOL  Bool  #-}
-{-# BUILTIN TRUE  true  #-}
-{-# BUILTIN FALSE false #-}
-
-{-# COMPILED_DATA Bool Bool True False #-}
+open import Data.Bool.Core public
 
 ------------------------------------------------------------------------
 -- Some operations

@@ -8,7 +8,7 @@ module Data.Colist where
 
 open import Category.Monad
 open import Coinduction
-open import Data.Bool using (Bool; true; false)
+open import Data.Bool.Core using (Bool; true; false)
 open import Data.BoundedVec.Inefficient as BVec
   using (BoundedVec; []; _∷_)
 open import Data.Conat using (Coℕ; zero; suc)
