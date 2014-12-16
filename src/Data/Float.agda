@@ -6,7 +6,7 @@
 
 module Data.Float where
 
-open import Data.Bool hiding (_≟_)
+open import Data.Bool.Core using (Bool; false; true)
 open import Relation.Nullary.Decidable
 open import Relation.Nullary
 open import Relation.Binary.PropositionalEquality as PropEq using (_≡_)

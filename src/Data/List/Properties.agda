@@ -12,7 +12,7 @@ module Data.List.Properties where
 open import Algebra
 import Algebra.Monoid-solver
 open import Category.Monad
-open import Data.Bool
+open import Data.Bool using (Bool; false; true; not)
 open import Data.List as List
 open import Data.List.All using (All; []; _∷_)
 open import Data.Maybe using (Maybe; just; nothing)

@@ -7,7 +7,7 @@
 module Data.Char.Core where
 
 open import Data.Nat using (ℕ)
-open import Data.Bool using (Bool; true; false)
+open import Data.Bool.Core using (Bool)
 
 ------------------------------------------------------------------------
 -- The type

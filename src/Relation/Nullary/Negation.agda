@@ -8,7 +8,7 @@ module Relation.Nullary.Negation where
 
 open import Relation.Nullary
 open import Relation.Unary
-open import Data.Bool
+open import Data.Bool using (Bool; false; true; if_then_else_)
 open import Data.Empty
 open import Function
 open import Data.Product as Prod

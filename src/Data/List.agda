@@ -8,7 +8,7 @@ module Data.List where
 
 open import Data.Nat
 open import Data.Sum as Sum using (_⊎_; inj₁; inj₂)
-open import Data.Bool
+open import Data.Bool using (Bool; false; true; not; _∧_; _∨_; if_then_else_)
 open import Data.Maybe using (Maybe; nothing; just)
 open import Data.Product as Prod using (_×_; _,_)
 open import Function

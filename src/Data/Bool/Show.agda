@@ -6,8 +6,8 @@
 
 module Data.Bool.Show where
 
-open import Data.Bool
-open import Data.String hiding (show)
+open import Data.Bool.Core using (Bool; false; true)
+open import Data.String.Core using (String)
 
 show : Bool → String
 show true  = "true"
