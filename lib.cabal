@@ -3,6 +3,7 @@ version:         0.9
 cabal-version:   >= 1.8
 build-type:      Simple
 description:     Helper programs.
+license:         MIT
 
 executable GenerateEverything
   hs-source-dirs:   .
