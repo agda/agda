@@ -12,10 +12,8 @@ open import Relation.Binary
 open import Relation.Binary.PropositionalEquality as PropEq
   using (_≡_; refl)
 
--- Some types and operations are defined in
--- Data.Unit.Core and Data.Unit.Minimal.
+-- Some types are defined in Data.Unit.Minimal.
 
-open import Data.Unit.Core    public
 open import Data.Unit.Minimal public
 
 ------------------------------------------------------------------------

@@ -17,7 +17,9 @@ follows:
 Currently the library does not support the Epic or JavaScript compiler
 backends.
 
-Important changes since 0.9.1:
+Important changes since 0.9:
+
+* Renamed Data.Unit.Core to Data.Unit.NonEta
 
 ------------------------------------------------------------------------
 -- Release notes for Agda standard library version 0.9
