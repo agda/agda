@@ -16,7 +16,7 @@ open import Data.Fin as Fin
   using (Fin; Fin′; zero; suc; #_; toℕ) renaming (_ℕ-ℕ_ to _-_)
 open import Data.Fin.Properties as FP using (_≟_)
 open import Data.Product as Prod using (∃; _×_; _,_)
-open import Data.Maybe using (Maybe; nothing; just)
+open import Data.Maybe.Minimal using (Maybe; nothing; just)
 open import Data.Empty
 open import Data.Unit.Minimal using (⊤; tt)
 open import Data.Vec as Vec using (Vec; []; _∷_)

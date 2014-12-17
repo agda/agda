@@ -15,7 +15,7 @@ open import Category.Monad
 open import Data.Bool.Minimal using (Bool; false; true; not)
 open import Data.List as List
 open import Data.List.All using (All; []; _∷_)
-open import Data.Maybe using (Maybe; just; nothing)
+open import Data.Maybe.Minimal using (Maybe; just; nothing)
 open import Data.Nat
 open import Data.Nat.Properties
 open import Data.Product as Prod hiding (map)
