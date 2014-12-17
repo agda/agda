@@ -9,7 +9,7 @@ module Relation.Binary.PropositionalEquality where
 open import Function
 open import Function.Equality using (Π; _⟶_; ≡-setoid)
 open import Data.Product
-open import Data.Unit.Core
+open import Data.Unit.NonEta
 open import Level
 open import Relation.Binary
 import Relation.Binary.Indexed as I

@@ -9,7 +9,7 @@ module Relation.Binary.HeterogeneousEquality where
 open import Data.Product
 open import Function
 open import Function.Inverse using (Inverse)
-open import Data.Unit.Core
+open import Data.Unit.NonEta
 open import Level
 open import Relation.Nullary
 open import Relation.Binary
