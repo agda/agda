@@ -8,7 +8,7 @@ module Relation.Binary.Product.Pointwise where
 
 open import Data.Product as Prod
 open import Data.Sum
-open import Data.Unit using (⊤)
+open import Data.Unit.Minimal using (⊤)
 open import Function
 open import Function.Equality as F using (_⟶_; _⟨$⟩_)
 open import Function.Equivalence as Eq

@@ -12,19 +12,11 @@ open import Relation.Binary
 open import Relation.Binary.PropositionalEquality as PropEq
   using (_≡_; refl)
 
--- Some types and operations are defined in Data.Unit.Core.
+-- Some types and operations are defined in
+-- Data.Unit.Core and Data.Unit.Minimal.
 
-open import Data.Unit.Core public
-
-------------------------------------------------------------------------
--- A unit type defined as a record type
-
--- Note that the name of this type is "\top", not T.
-
-record ⊤ : Set where
-  constructor tt
-
-record _≤_ (x y : ⊤) : Set where
+open import Data.Unit.Core    public
+open import Data.Unit.Minimal public
 
 ------------------------------------------------------------------------
 -- Operations

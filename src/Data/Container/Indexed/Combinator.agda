@@ -9,7 +9,7 @@ module Data.Container.Indexed.Combinator where
 open import Level
 open import Data.Container.Indexed
 open import Data.Empty using (⊥; ⊥-elim)
-open import Data.Unit using (⊤)
+open import Data.Unit.Minimal using (⊤)
 open import Data.Product as Prod hiding (Σ) renaming (_×_ to _⟨×⟩_)
 open import Data.Sum renaming (_⊎_ to _⟨⊎⟩_)
 open import Function as F hiding (id; const) renaming (_∘_ to _⟨∘⟩_)

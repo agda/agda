@@ -8,7 +8,7 @@ module Relation.Binary.Sum where
 
 open import Data.Sum as Sum
 open import Data.Product
-open import Data.Unit using (⊤)
+open import Data.Unit.Minimal using (⊤)
 open import Data.Empty
 open import Function
 open import Function.Equality as F using (_⟶_; _⟨$⟩_)
