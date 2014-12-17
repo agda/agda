@@ -7,7 +7,8 @@ open import Function public
 open import Data.List using (List; []; _∷_; _++_; [_]; filter) renaming (map to mapL)
 open import Data.List.Any public using (Any; here; there) renaming (map to mapA; any to anyA)
 open import Data.Product public using (Σ; Σ-syntax; proj₁; proj₂; _,_; _×_) renaming (map to mapΣ)
-open import Data.Unit public using (⊤; Unit; unit)
+open import Data.Unit public using (⊤)
+open import Data.Unit.NonEta public using (Unit; unit)
 open import Data.Empty public using (⊥; ⊥-elim)
 open import Relation.Binary.Core public
 open import Relation.Nullary.Core public
