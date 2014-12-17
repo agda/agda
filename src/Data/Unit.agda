@@ -12,10 +12,6 @@ open import Relation.Binary
 open import Relation.Binary.PropositionalEquality as PropEq
   using (_≡_; refl)
 
--- Some types and operations are defined in Data.Unit.Core.
-
-open import Data.Unit.Core public
-
 ------------------------------------------------------------------------
 -- A unit type defined as a record type
 
