@@ -71,7 +71,7 @@ open import Relation.Binary.PropositionalEquality using (_≡_; refl)
 
 -- Searching for a key.
 
-open import Data.Bool using (true; false)
+open import Data.Bool.Minimal using (true; false)
 open import Data.Maybe as Maybe using (just; nothing)
 
 q₀ : lookup 2 t₂ ≡ just v₂
