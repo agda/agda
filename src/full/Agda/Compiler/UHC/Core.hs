@@ -29,7 +29,7 @@ import Agda.Compiler.UHC.ModuleInfo
 
 import UHC.Light.Compiler.Core.API
 
-import Agda.Compiler.UHC.CoreSyntax
+--import Agda.Compiler.UHC.Pragmas.Base
 
 #include "undefined.h"
 import Agda.Utils.Impossible
@@ -147,12 +147,6 @@ branchesToCore brs = do
             let patFlds = [mkPatFldBind (mkHsName [] "", mkInt opts i) (mkBind1Nm1 v) | (i, v) <- zip [0..] vars]
             e' <- exprToCore e
             return [mkAlt (mkPatCon (xconCTag con) mkPatRestEmpty patFlds) e']
-{-          f (CoreBranch con vars e) = do
-            let ctag = conSpecToTag con
-            -- TODO can we do mkHsName [] "" here?
-            let patFlds = [mkPatFldBind (mkHsName [] "", mkInt opts i) (mkBind1Nm1 v) | (i, v) <- zip [0..] vars]
-            e' <- exprToCore e
-            return [mkAlt (mkPatCon ctag mkPatRestEmpty patFlds) e']-}
           f (Default e) = return []
           -- UHC resets the tags for some constructors, but only those wo are defined in the same module. So just set it anyway, to be safe.
           conSpecToTag (dt, ctor, tag) = mkCTag (mkHsName1 dt) (mkHsName1 $ (modNm dt) ++ "." ++ ctor) tag
@@ -166,7 +160,8 @@ litToCore :: Lit -> CExpr
 litToCore (LInt i) = mkApp (mkVar $ mkHsName ["UHC", "Agda", "Builtins"] "primIntegerToNat") [mkInteger opts i]
 litToCore (LString s) = mkString opts s
 litToCore (LChar c) = mkChar c
-litToCore l = error $ "Not implemented literal: " ++ show l
+-- TODO this is just a dirty work around
+litToCore (LFloat f) = mkApp (mkVar $ mkHsName ["UHC", "Agda", "Builtins"] "primMkFloat") [mkString opts (show f)]
 
 coreImpossible :: String -> CExpr
 coreImpossible msg = mkError opts $ "BUG! Impossible code reached. " ++ msg

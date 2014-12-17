@@ -16,7 +16,7 @@ import Data.Set (Set)
 import Data.Sequence ((|>))
 
 import Agda.Compiler.HaskellTypes
-
+import Agda.Compiler.UHC.Pragmas.Parse
 import Agda.Interaction.Options
 import Agda.Interaction.Highlighting.Generate
 
@@ -570,7 +570,9 @@ checkPragma r p =
         A.CompiledCorePragma x cr -> do
           def <- getConstInfo x
           case theDef def of
-            Axiom{} -> addCoreCode x cr
+            Axiom{} -> case parseCoreExpr cr of
+                    Left msg -> typeError $ GenericError $ "Could not parse COMPILED_CORE pragma: " ++ msg
+                    Right cr -> addCoreCode x cr
             _ -> typeError $ GenericError "COMPILED_CORE directive only works on postulates" -- only allow postulates for the time being
         A.CompiledCoreDataPragma x crd crcs -> do
           -- TODO mostly copy-paste from the CompiledDataPragma, should be refactored into a seperate function
@@ -596,9 +598,10 @@ checkPragma r p =
                                 " constructors, but " ++ only ++ n_forms_are ++ " given [" ++ unwords crcs ++ "]")
                   typeError $ GenericError $ show err
               | otherwise -> do
-                addCoreType x crd
                 -- Remark: core pragmas are not type-checked
-                sequence_ $ zipWith3 addCoreConstr cs (repeat crd) crcs
+                (dt', cons') <- parseCoreData crd crcs
+                addCoreType x dt'
+                sequence_ $ zipWith addCoreConstr cs cons'
             _ -> typeError $ GenericError "COMPILED_CORE_DATA on non datatype"
         A.StaticPragma x -> do
           def <- getConstInfo x

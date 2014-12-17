@@ -27,6 +27,7 @@ module UHC.Agda.Builtins
   , primCharEquality
     -- Float
   , primShowFloat
+  , primMkFloat
 
   , unit
   )
@@ -140,5 +141,9 @@ primCharEquality = (==)
 -- ====================
 -- Float
 -- ====================
-primShowFloat :: Float -> String
-primShowFloat = show
+primShowFloat :: Double -> String
+-- GHC drops trailing zeroes, UHC doesn't seem to do so. Quich fix for now...
+primShowFloat = reverse . dropWhile (=='0') . reverse . show
+
+primMkFloat :: String -> Double
+primMkFloat = read

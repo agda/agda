@@ -22,7 +22,7 @@ import Agda.Syntax.Internal as I
 import Agda.Syntax.Position
 
 import qualified Agda.Compiler.JS.Parser as JS
-import qualified Agda.Compiler.UHC.CoreSyntax as CR
+import qualified Agda.Compiler.UHC.Pragmas.Base as CR
 
 import Agda.TypeChecking.Monad.Base
 import Agda.TypeChecking.Monad.Context
@@ -121,23 +121,17 @@ addJSCode q jsDef =
   where
     addJS e crep = crep { compiledJS = e }
 
-addCoreCode :: QName -> String -> TCM ()
-addCoreCode q crDef =
-  case CR.parseCoreExpr crDef of
-    Right x -> modifySignature $ updateDefinition q $ updateDefCompiledRep $ addCore x
-    Left er -> typeError (CompilationError ("Failed to parse UHC Core for " ++ show q ++ ": " ++ er))
+addCoreCode :: QName -> CR.CoreExpr -> TCM ()
+addCoreCode q crDef =  modifySignature $ updateDefinition q $ updateDefCompiledRep $ addCore crDef
   where
     addCore e crep = crep { compiledCore = Just $ CrDefn e }
 
-addCoreConstr :: QName -> String -> String -> TCM ()
-addCoreConstr q crTy crCo =
-  case CR.parseCoreConstr crTy crCo of
-    Right x -> modifySignature $ updateDefinition q $ updateDefCompiledRep $ addCore x
-    Left er -> typeError (CompilationError ("Failed to parse UHC Core constructor for " ++ show q ++ ": " ++ er))
+addCoreConstr :: QName -> CR.CoreConstr -> TCM ()
+addCoreConstr q con = modifySignature $ updateDefinition q $ updateDefCompiledRep $ addCore
   where
-    addCore (tyNm, conNm, conTag) crep = crep {compiledCore = Just $ CrConstr tyNm conNm conTag }
+    addCore crep = crep {compiledCore = Just $ CrConstr con }
 
-addCoreType :: QName -> String -> TCM ()
+addCoreType :: QName -> CR.CoreType -> TCM ()
 addCoreType q crTy = modifySignature $ updateDefinition q $ updateDefCompiledRep $ addCr
   -- TODO: sanity checking
   where

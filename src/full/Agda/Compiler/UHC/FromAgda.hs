@@ -25,7 +25,7 @@ import Agda.Utils.List
 import Agda.TypeChecking.Monad.Builtin
 import Agda.Syntax.Scope.Base
 
-import Agda.Compiler.UHC.CoreSyntax
+import Agda.Compiler.UHC.Pragmas.Base
 import Agda.Compiler.UHC.AuxAST
 import Agda.Compiler.UHC.AuxASTUtil
 import Agda.Compiler.UHC.CompileState
@@ -127,7 +127,7 @@ translateDataTypes btins defs = do
                 let conFun = ADataCon n arity
                 con <- case (n `M.lookup` (btccCtors btins), foreign) of
                     (Just (_, ctag), Nothing) -> return $ Right (conFun ctag)
-                    (Nothing, Just (CrConstr dt con tag)) -> return $ Right (conFun $ mkCTag dt con tag arity)
+                    (Nothing, Just (CrConstr crcon)) -> return $ Right (conFun $ coreConstrToCTag crcon arity)
                     (Nothing, Nothing)   -> do
                         conCrNm <- getCoreName1 n
                         return $ Left (\tyCrNm tag -> conFun (mkCTag tyCrNm conCrNm tag arity))
@@ -139,13 +139,16 @@ translateDataTypes btins defs = do
   catMaybes <$> mapM
     (\(n, def) -> case theDef def of
         (Datatype {}) -> do
-            let cons = M.findWithDefault [] n constrMp
             let foreign = compiledCore $ defCompiledRep def
+            let cons = M.findWithDefault [] n constrMp
             case (n `M.lookup` (btccTys btins), foreign, partitionEithers cons) of
               (Just (btin, tyNm), Nothing, ([], cons')) -> do -- builtins
                     return $ Just (ADataTy tyNm n cons' (ADataImplBuiltin btin))
-              (Nothing, Just (CrType tyNm), ([], cons')) -> do -- foreign datatypes (COMPILED_CORE_DATA)
-                    return $ Just (ADataTy (Just $ mkHsName1 tyNm) n cons' ADataImplForeign)
+              (Nothing, Just (CrType crty), ([], cons')) -> do -- foreign datatypes (COMPILED_CORE_DATA)
+                    let (tyNm, impl) = case crty of
+                                CTMagic tyNm nm -> (tyNm, ADataImplMagic nm)
+                                CTNormal tyNm -> (tyNm, ADataImplForeign)
+                    return $ Just (ADataTy tyNm n cons' impl)
               (Nothing, Nothing, (cons', [])) -> do
                     tyCrNm <- getCoreName1 n
                     -- build ctags, assign tag numbers
@@ -418,7 +421,7 @@ getConstrFun conNm = do
       tyDef = aciDataType conInfo
 
   case xdatImplType tyDef of
-    (ADataImplBuiltin bltin) | bltin == builtinUnit -> return $ builtinUnitCtor -- already fully applied
+    (ADataImplMagic nm) | nm == "UNIT" -> return $ builtinUnitCtor -- already fully applied
     _ -> return $ ctagCtorName $ xconCTag conDef
 
 

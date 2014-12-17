@@ -59,7 +59,7 @@ import Data.Time.Clock
 import Data.Ratio
 
 import qualified Agda.Compiler.Epic.Interface as Epic
-import qualified Agda.Compiler.UHC.CoreSyntax as CR
+import qualified Agda.Compiler.UHC.Pragmas.Base as CR
 import qualified Agda.Compiler.UHC.ModuleInfo as UHC
 import qualified Agda.Compiler.UHC.AuxAST as UHCA
 import qualified Agda.Compiler.UHC.Naming as UHCN
@@ -1185,15 +1185,31 @@ instance EmbPrj JS.MemberId where
   value n = JS.MemberId `fmap` value n
 
 instance EmbPrj CoreRepresentation where
-  icod_ (CrType a)     = icode1' a
-  icod_ (CrDefn a)     = icode1 1 a
-  icod_ (CrConstr a b c) = icode3 2 a b c
+  icod_ (CrDefn a)   = icode1 1 a
+  icod_ (CrType a)   = icode1 2 a
+  icod_ (CrConstr a) = icode1 3 a
 
   value = vcase valu where
-    valu [a]       = valu1 CrType a
-    valu [1, a]    = valu1 CrDefn a
-    valu [2, a, b, c] = valu3 CrConstr a b c
+    valu [1, a] = valu1 CrDefn a
+    valu [2, a] = valu1 CrType a
+    valu [3, a] = valu1 CrConstr a
     valu _      = malformed
+
+instance EmbPrj CR.CoreType where
+  icod_ (CR.CTMagic a b) = icode2 1 a b
+  icod_ (CR.CTNormal a)  = icode1 2 a
+  value = vcase valu where
+    valu [1, a, b] = valu2 CR.CTMagic a b
+    valu [2, a]    = valu1 CR.CTNormal a
+    valu _         = malformed
+
+instance EmbPrj CR.CoreConstr where
+  icod_ (CR.CCMagic a) = icode1 1 a
+  icod_ (CR.CCNormal a b c) = icode3 2 a b c
+  value = vcase valu where
+    valu [1, a]       = valu1 CR.CCMagic a
+    valu [2, a, b, c] = valu3 CR.CCNormal a b c
+    valu _            = malformed
 
 instance EmbPrj CR.CoreExpr where
   icod_ = icode . B.runPut . UU.serialize
@@ -1525,13 +1541,15 @@ instance EmbPrj UHCA.ADataCon where
     valu _         = malformed
 
 instance EmbPrj UHCA.ADataImplType where
-  icod_ (UHCA.ADataImplNormal)      = icode0 0
-  icod_ (UHCA.ADataImplBuiltin a)   = icode1 1 a
-  icod_ (UHCA.ADataImplForeign)     = icode0 2
+  icod_ (UHCA.ADataImplNormal)    = icode0 0
+  icod_ (UHCA.ADataImplBuiltin a) = icode1 1 a
+  icod_ (UHCA.ADataImplMagic a)   = icode1 2 a
+  icod_ (UHCA.ADataImplForeign)   = icode0 3
   value = vcase valu where
     valu [0]    = valu0 UHCA.ADataImplNormal
     valu [1, a] = valu1 UHCA.ADataImplBuiltin a
-    valu [2]    = valu0 UHCA.ADataImplForeign
+    valu [2, a] = valu1 UHCA.ADataImplMagic a
+    valu [3]    = valu0 UHCA.ADataImplForeign
     valu _      = malformed
 
 instance EmbPrj UHCN.NameMap where

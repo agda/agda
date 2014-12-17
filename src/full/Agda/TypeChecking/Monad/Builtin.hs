@@ -107,7 +107,6 @@ constructorForm' pZero pSuc v = case ignoreSharing v of
 ---------------------------------------------------------------------------
 
 primInteger, primFloat, primChar, primString, primBool, primTrue, primFalse,
-    primUnit, primUnitCons,
     primList, primNil, primCons, primIO, primNat, primSuc, primZero,
     primNatPlus, primNatMinus, primNatTimes, primNatDivSucAux, primNatModSucAux,
     primNatEquality, primNatLess,
@@ -141,8 +140,6 @@ primString       = getBuiltin builtinString
 primBool         = getBuiltin builtinBool
 primTrue         = getBuiltin builtinTrue
 primFalse        = getBuiltin builtinFalse
-primUnit         = getBuiltin builtinUnit
-primUnitCons     = getBuiltin builtinUnitCons
 primList         = getBuiltin builtinList
 primNil          = getBuiltin builtinNil
 primCons         = getBuiltin builtinCons
@@ -232,7 +229,7 @@ primAgdaDefinitionPostulate       = getBuiltin builtinAgdaDefinitionPostulate
 primAgdaDefinitionPrimitive       = getBuiltin builtinAgdaDefinitionPrimitive
 primAgdaDefinition                = getBuiltin builtinAgdaDefinition
 
-builtinUnit, builtinUnitCons, builtinNat, builtinSuc, builtinZero, builtinNatPlus, builtinNatMinus,
+builtinNat, builtinSuc, builtinZero, builtinNatPlus, builtinNatMinus,
   builtinNatTimes, builtinNatDivSucAux, builtinNatModSucAux, builtinNatEquals,
   builtinNatLess, builtinInteger, builtinFloat, builtinChar, builtinString,
   builtinBool, builtinTrue, builtinFalse,
@@ -263,8 +260,6 @@ builtinUnit, builtinUnitCons, builtinNat, builtinSuc, builtinZero, builtinNatPlu
   builtinAgdaDefinitionPrimitive, builtinAgdaDefinition
   :: String
 
-builtinUnit                          = "UNIT"
-builtinUnitCons                      = "UNITCONS"
 builtinNat                           = "NATURAL"
 builtinSuc                           = "SUC"
 builtinZero                          = "ZERO"

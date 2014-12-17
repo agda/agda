@@ -68,7 +68,7 @@ import Agda.Interaction.Highlighting.Precise
   (CompressedFile, HighlightingInfo)
 
 import qualified Agda.Compiler.JS.Syntax as JS
-import qualified Agda.Compiler.UHC.CoreSyntax as CR
+import qualified Agda.Compiler.UHC.Pragmas.Base as CR
 
 import Agda.TypeChecking.Monad.Base.Benchmark (Benchmark)
 import qualified Agda.TypeChecking.Monad.Base.Benchmark as Benchmark
@@ -1061,8 +1061,6 @@ type HaskellCode = String
 type HaskellType = String
 type EpicCode    = String
 type JSCode      = JS.Exp
-type CoreCode    = CR.CoreExpr
-type CoreType    = String
 
 data HaskellRepresentation
       = HsDefn HaskellType HaskellCode
@@ -1072,9 +1070,9 @@ data HaskellRepresentation
 data HaskellExport = HsExport HaskellType String deriving (Show, Typeable)
 
 data CoreRepresentation
-      = CrDefn CoreCode -- ^ Core code for functions.
-      | CrConstr CR.HsName CR.HsName Int -- ^ Core constructor for agda constructor. Datatype name, Constructor name, Constructor tag.
-      | CrType CoreType -- ^ Core type for an agda type.
+      = CrDefn CR.CoreExpr -- ^ Core code for functions.
+      | CrType CR.CoreType -- ^ Core type for agda type.
+      | CrConstr CR.CoreConstr  -- ^ Core constructor for agda constructor.
     deriving (Typeable, Show)
 
 -- | Polarity for equality and subtype checking.

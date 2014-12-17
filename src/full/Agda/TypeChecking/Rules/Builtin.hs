@@ -58,7 +58,6 @@ coreBuiltins = map (\ (x, z) -> BuiltinInfo x z)
   , (builtinArgInfo            |-> BuiltinData tset [builtinArgArgInfo])
   , (builtinBool               |-> BuiltinData tset [builtinTrue, builtinFalse])
   , (builtinNat                |-> BuiltinData tset [builtinZero, builtinSuc])
-  , (builtinUnit               |-> BuiltinData tset [builtinUnitCons])
   , (builtinAgdaLiteral        |-> BuiltinData tset [builtinAgdaLitNat, builtinAgdaLitFloat,
                                                      builtinAgdaLitChar, builtinAgdaLitString,
                                                      builtinAgdaLitQName])
@@ -392,27 +391,6 @@ bindBuiltinNat t = do
         _ -> __IMPOSSIBLE__
     _ -> __IMPOSSIBLE__
 
-bindBuiltinUnit :: Term -> TCM ()
-bindBuiltinUnit t = do
-  t' <- etaContract =<< normalise t
-  case ignoreSharing t' of
-    Def un _ -> do
-      def <- theDef <$> getConstInfo un
-      case def of
-        Datatype { dataCons = [cons] } -> do
-          bindBuiltinName builtinUnit t
-          let getArity c = arity <$> (normalise . defType =<< getConstInfo c)
-          a1 <- getArity cons
-          if a1 > 0 then
-            typeError $ GenericError $ "Builtin UNIT must have one constructor with zero arguments."
-            else do
-              let tun = el primUnit
-                  rerange = setRange (getRange un)
-              bindBuiltinInfo (BuiltinInfo builtinUnitCons $ BuiltinDataCons tun)
-                              (A.Con $ AmbQ [rerange cons])
-        _ -> __IMPOSSIBLE__
-    _ -> __IMPOSSIBLE__
-
 bindBuiltinInfo :: BuiltinInfo -> A.Expr -> TCM ()
 bindBuiltinInfo i (A.ScopedExpr scope e) = setScope scope >> bindBuiltinInfo i e
 bindBuiltinInfo (BuiltinInfo s d) e = do
@@ -421,10 +399,7 @@ bindBuiltinInfo (BuiltinInfo s d) e = do
         e' <- checkExpr e =<< t
         let n = length cs
         inductiveCheck s n e'
-        case () of
-          _ | s == builtinNat   -> bindBuiltinNat e'
-          _ | s == builtinUnit  -> bindBuiltinUnit e'
-          _                     -> bindBuiltinName s e'
+        if s == builtinNat then bindBuiltinNat e' else bindBuiltinName s e'
 
       BuiltinDataCons t -> do
 

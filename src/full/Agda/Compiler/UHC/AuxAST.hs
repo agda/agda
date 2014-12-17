@@ -6,6 +6,7 @@ module Agda.Compiler.UHC.AuxAST
   ( module Agda.Compiler.UHC.AuxAST
   , CTag
   , HsName
+  , CExpr
   )
 where
 
@@ -15,8 +16,7 @@ import Data.Typeable (Typeable)
 
 import Agda.Syntax.Abstract.Name
 
-import UHC.Light.Compiler.Core.API (HsName, CTag)
-import Agda.Compiler.UHC.CoreSyntax (CoreExpr)
+import UHC.Light.Compiler.Core.API (HsName, CTag, CExpr)
 
 #include "undefined.h"
 import Agda.Utils.Impossible
@@ -24,6 +24,7 @@ import Agda.Utils.Impossible
 type Tag = Int
 type Comment  = String
 type Inline   = Bool
+type CType = Maybe HsName -- Nothing for Unit, else the name
 
 data AMod
   = AMod
@@ -34,7 +35,7 @@ data AMod
 
 data ADataTy
   = ADataTy
-      { xdatName     :: Maybe HsName -- ^ Datatype core name. Nothing for unit datatype.
+      { xdatName     :: CType
       , xdatQName    :: QName
       , xdatCons     :: [ADataCon]
       , xdatImplType :: ADataImplType
@@ -43,7 +44,9 @@ data ADataTy
 
 data ADataImplType
   = ADataImplNormal  -- normal agda datatype
-  | ADataImplBuiltin String
+  | ADataImplBuiltin String -- Builtins. Argument is builtin name.
+  | ADataImplMagic String -- special data types. COMPILED_CORE_DATA when
+                              -- using one of the special builtin types, eg __UNIT__.
   | ADataImplForeign -- COMPILED_CORE pragma
   deriving (Eq, Ord, Show, Typeable)
 
@@ -68,7 +71,7 @@ data Fun
       { xfunName     :: HsName
       , xfunQName    :: Maybe QName
       , xfunComment  :: Comment
-      , xfunCoreExpr :: CoreExpr
+      , xfunCoreExpr :: CExpr
       , xfunArity    :: Int -- TODO check if still used, remove if not
       }
   deriving (Eq, Show)

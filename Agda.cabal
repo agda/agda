@@ -194,8 +194,8 @@ library
                     Agda.Interaction.BasicOps
                     Agda.Interaction.CommandLine
                     Agda.Compiler.UHC.Compiler
-                    Agda.Compiler.UHC.CoreSyntax
-                    Agda.Compiler.UHC.Interface
+                    Agda.Compiler.UHC.Pragmas.Base
+                    Agda.Compiler.UHC.Pragmas.Parse
                     Agda.Interaction.EmacsCommand
                     Agda.Interaction.EmacsTop
                     Agda.Interaction.Exceptions

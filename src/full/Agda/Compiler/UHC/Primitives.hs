@@ -6,11 +6,15 @@ module Agda.Compiler.UHC.Primitives
   , getBuiltins
   , isBuiltin
   , builtinUnitCtor
+  , MagicName
+  , getMagicTypes
+  , MagicConstrInfo
+  , MagicTypeInfo
   )
 where
 
 import Data.List
-import Agda.Compiler.UHC.CoreSyntax
+import Agda.Compiler.UHC.AuxAST
 import Agda.TypeChecking.Monad
 import Agda.TypeChecking.Monad.Builtin
 import qualified Agda.Syntax.Internal as T
@@ -55,9 +59,13 @@ primFunctions = M.fromList
         ]
     ]
 
-
+-- | Name of a builtin.
 type BuiltinName = String
 
+-- | name of a magic, differently translated datatype/constructor
+type MagicName = String
+
+-- only used for Nat right now.
 data BuiltinCache
   = BuiltinCache
     { btccCtors :: M.Map T.QName (BuiltinName, CTag)
@@ -81,27 +89,7 @@ getBuiltins = BuiltinCache
         btinTys = map (\(btin, dtNm, cons) ->
                             (btin, Just (mkHsName1 dtNm), map (\(cbtin, cNm, cTag, cArity) ->
                                     (cbtin, mkCTag (mkHsName1 dtNm) (mkHsCtorNm dtNm cNm) cTag cArity)) cons)
-                      ) btinAgdaTys
-                    ++ map (\(btin, cons) -> (btin, ctagDataTyNm $ snd $ head cons, cons)) btinHsTys
-        btinAgdaTys =
-          [ (builtinNat, "UHC.Agda.Builtins.Nat",
-                [ (builtinSuc, "Suc", 0, 1)
-                , (builtinZero, "Zero", 1, 0)
-                ])
-          ]
-        btinHsTys =
-          [ (builtinBool, 
-                [ (builtinTrue, ctagTrue defaultEHCOpts)
-                , (builtinFalse, ctagFalse defaultEHCOpts)
-                ])
-          -- TODO are we actually guarantueed that the Agda List type always has a suitable definition?
-          -- if not, we should instead use COMPILED_CORE pragmas.
-          , (builtinList,
-                [ (builtinNil,    ctagNil defaultEHCOpts)
-                , (builtinCons,   ctagCons defaultEHCOpts)
-                ])
-          , (builtinUnit, [(builtinUnitCons, ctagUnit)])
-          ]
+                      ) primAgdaTys1
         btinToQName f (b, sp) = do
             bt <- getBuiltin' b
 --            liftIO $ putStrLn $ show b ++ " - " ++ show bt
@@ -115,11 +103,55 @@ getBuiltins = BuiltinCache
             (T.Def nm [])    -> Just nm
             _                -> __IMPOSSIBLE__
             )) (a,b)
-        ctagDataTyNm :: CTag -> Maybe HsName
-        ctagDataTyNm = destructCTag Nothing (\dt _ _ _ -> Just dt)
         -- hs generated constructor are not datatype-prefixed
         mkHsCtorNm :: String -> String -> HsName
         mkHsCtorNm dt con = mkHsName1 ((dropWhileEnd (/='.') dt) ++ con)
+
+
+type MagicConstrInfo = M.Map MagicName CTag -- maps primitive names to ctags
+type MagicTypeInfo = M.Map MagicName (Maybe HsName, MagicConstrInfo) -- maps types to the cr name
+-- (or nothing for unit) and to their constructors.
+
+getMagicTypes :: MagicTypeInfo
+getMagicTypes = M.fromList (map f primCrTys1)
+  where f :: (MagicName, [(MagicName, CTag)]) -> (MagicName, (Maybe HsName, MagicConstrInfo))
+        f (dtMgcNm, constrs) = let dtCrNm = ctagDataTyNm $ snd $ head constrs
+                                in (dtMgcNm, (dtCrNm, M.fromList constrs))
+-- | Returns the name of the datatype or 'Nothing' for the unit datatype.
+ctagDataTyNm :: CTag -> Maybe HsName
+ctagDataTyNm = destructCTag Nothing (\dt _ _ _ -> Just dt)
+
+
+-- don't expose this. we might wan't to replace the Nat translation by something more clever in the future.
+primAgdaTys1 :: [(String -- builtin name
+    , String -- dt cr name
+    , [(String, String, Int, Int)]
+    )]
+primAgdaTys1 =
+          [ (builtinNat, "UHC.Agda.Builtins.Nat",
+                [ (builtinSuc, "Suc", 0, 1)
+                , (builtinZero, "Zero", 1, 0)
+                ])
+          ]
+
+primCrTys1 :: [(
+      MagicName    -- the name of the dt in COMPILED_CORE_DATA pragmas
+    , [(MagicName, CTag)] -- constructors. (COMPILED_CORE_DATA nm, ctag)
+    )]
+primCrTys1 =
+          [( "BOOL",
+                [ ("TRUE",   ctagTrue defaultEHCOpts)
+                , ("FALSE",  ctagFalse defaultEHCOpts)
+                ])
+          -- TODO are we actually guarantueed that the Agda List type always has a suitable definition?
+          -- if not, we should instead use COMPILED_CORE pragmas.
+          , ("LIST",
+                [ ("NIL",  ctagNil defaultEHCOpts)
+                , ("CONS", ctagCons defaultEHCOpts)
+                ])
+          , ("UNIT",
+                [("UNIT", ctagUnit)])
+          ]
 
 builtinUnitCtor :: HsName
 builtinUnitCtor = mkHsName1 "UHC.Agda.Builtins.unit"
