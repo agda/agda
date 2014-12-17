@@ -13,8 +13,7 @@ open import Data.Product
 open import Data.Sum
 open import Level
 open import Relation.Nullary
-open import Relation.Binary using (Setoid; IsEquivalence)
-open import Relation.Binary.PropositionalEquality using (_≡_)
+open import Relation.Binary.Core using (_≡_)
 
 ------------------------------------------------------------------------
 -- Unary relations
