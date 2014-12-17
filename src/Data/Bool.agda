@@ -6,53 +6,15 @@
 
 module Data.Bool where
 
-open import Function
-open import Data.Unit using (⊤)
-open import Data.Empty
-open import Level
 open import Relation.Nullary
 open import Relation.Binary
 open import Relation.Binary.PropositionalEquality as PropEq
   using (_≡_; refl)
 
-infixr 6 _∧_
-infixr 5 _∨_ _xor_
-infix  0 if_then_else_
-
 ------------------------------------------------------------------------
--- The boolean type
+-- The boolean type and some operations
 
-open import Data.Bool.Core public
-
-------------------------------------------------------------------------
--- Some operations
-
-not : Bool → Bool
-not true  = false
-not false = true
-
--- A function mapping true to an inhabited type and false to an empty
--- type.
-
-T : Bool → Set
-T true  = ⊤
-T false = ⊥
-
-if_then_else_ : ∀ {a} {A : Set a} → Bool → A → A → A
-if true  then t else f = t
-if false then t else f = f
-
-_∧_ : Bool → Bool → Bool
-true  ∧ b = b
-false ∧ b = false
-
-_∨_ : Bool → Bool → Bool
-true  ∨ b = true
-false ∨ b = b
-
-_xor_ : Bool → Bool → Bool
-true  xor b = not b
-false xor b = b
+open import Data.Bool.Minimal public
 
 ------------------------------------------------------------------------
 -- Queries

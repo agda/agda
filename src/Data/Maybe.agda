@@ -16,7 +16,7 @@ open import Data.Maybe.Core public
 ------------------------------------------------------------------------
 -- Some operations
 
-open import Data.Bool using (Bool; true; false; not)
+open import Data.Bool.Minimal using (Bool; true; false; not)
 open import Data.Unit.Minimal using (⊤)
 open import Function
 open import Relation.Nullary
@@ -159,7 +159,7 @@ decSetoid D = record
 ------------------------------------------------------------------------
 -- Any and All
 
-open Data.Bool using (T)
+open Data.Bool.Minimal using (T)
 open import Data.Empty using (⊥)
 import Relation.Nullary.Decidable as Dec
 open import Relation.Unary as U
