@@ -17,7 +17,7 @@ open import Data.Maybe.Core public
 -- Some operations
 
 open import Data.Bool using (Bool; true; false; not)
-open import Data.Unit using (⊤)
+open import Data.Unit.Minimal using (⊤)
 open import Function
 open import Relation.Nullary
 

@@ -12,15 +12,9 @@ open import Relation.Binary
 open import Relation.Binary.PropositionalEquality as PropEq
   using (_≡_; refl)
 
-------------------------------------------------------------------------
--- A unit type defined as a record type
+-- Some types are defined in Data.Unit.Minimal.
 
--- Note that the name of this type is "\top", not T.
-
-record ⊤ : Set where
-  constructor tt
-
-record _≤_ (x y : ⊤) : Set where
+open import Data.Unit.Minimal public
 
 ------------------------------------------------------------------------
 -- Operations
