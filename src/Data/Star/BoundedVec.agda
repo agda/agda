@@ -15,7 +15,7 @@ open import Data.Star.Pointer
 open import Data.Star.List using (List)
 open import Data.Unit
 open import Function
-import Data.Maybe as Maybe
+import Data.Maybe.Minimal as Maybe
 open import Relation.Binary
 open import Relation.Binary.Consequences
 

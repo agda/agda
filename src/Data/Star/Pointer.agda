@@ -9,7 +9,7 @@ module Data.Star.Pointer where
 open import Data.Star
 open import Data.Star.Decoration
 open import Relation.Binary
-open import Data.Maybe using (Maybe; nothing; just)
+open import Data.Maybe.Minimal using (Maybe; nothing; just)
 open import Data.Unit
 open import Function
 open import Level

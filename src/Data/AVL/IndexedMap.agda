@@ -18,7 +18,7 @@ module Data.AVL.IndexedMap
 import Data.AVL
 open import Data.Bool
 open import Data.List as List using (List)
-open import Data.Maybe as Maybe
+open import Data.Maybe.Minimal as Maybe
 open import Function
 open import Level
 
