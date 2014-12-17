@@ -121,7 +121,18 @@ exprToCore (App fv es)   = do
     es' <- mapM exprToCore es
     let fv' = mkVar fv
     return $ mkApp fv' es'
-exprToCore (Case e brs) = do
+exprToCore (Case e brs) | isPrimCase brs = do
+  e' <- exprToCore e
+  var <- freshLocalName
+  def <- case getDefault brs of
+        Nothing -> return $ mkError opts "Non-exhaustive case didn't match any alternative."
+        Just x -> exprToCore (brExpr x)
+  
+  
+  css <- buildPrimCases eq (mkVar var) (filter (not . isDefault) brs) def
+  return $ mkLet1Strict var e' css
+  where eq = mkVar $ mkHsName ["UHC", "Agda", "Builtins"] "primCharEquality"
+exprToCore (Case e brs) | otherwise = do
     var <- freshLocalName
     (def, branches) <- branchesToCore brs
     let cas = mkCaseDflt (mkVar var) branches (Just def)
@@ -133,6 +144,52 @@ exprToCore (Let v e1 e2) = do
     return $ mkLet1Plain v e1' e2'
 exprToCore UNIT         = return $ mkUnit opts
 exprToCore IMPOSSIBLE   = return $ coreImpossible ""
+
+buildPrimCases :: Monad m
+    => CExpr -- ^ equality function
+    -> CExpr    -- ^ case scrutinee (in WHNF)
+    -> [Branch]
+    -> CExpr    -- ^ default value
+    -> FreshNameT m CExpr
+buildPrimCases _ _ [] def = return def
+buildPrimCases eq scr (b:brs) def = do
+    var <- freshLocalName
+    e' <- exprToCore (brExpr b)
+    rec' <- buildPrimCases eq scr brs def
+
+    let eqTest = mkApp eq [scr, mkChar (brChar b)]
+
+    return $ mkLet1Strict var eqTest (mkIfThenElse (mkVar var) e' rec')
+
+-- move to UHC Core API
+mkIfThenElse :: CExpr -> CExpr -> CExpr -> CExpr
+mkIfThenElse c t e = mkCaseDflt c [b1, b2] Nothing
+  where b1 = mkAlt (mkPatCon (ctagTrue opts) mkPatRestEmpty []) t
+        b2 = mkAlt (mkPatCon (ctagFalse opts) mkPatRestEmpty []) e
+
+
+-- | Returns true if all branches are primitive (e.g. BrChar). Default
+-- branches are ignored.
+isPrimCase :: [Branch] -> Bool
+isPrimCase [] = False
+isPrimCase xs = case () of
+    _ | all id ip -> True
+    _ | all not ip -> False
+    _ -> __IMPOSSIBLE__
+  where ip = map isPrim xs'
+        isPrim (BrChar {})  = True
+        isPrim (Branch {}) = False
+        isPrim (Default {}) = __IMPOSSIBLE__
+        xs' = filter (not . isDefault) xs
+
+isDefault :: Branch -> Bool
+isDefault (Default {}) = True
+isDefault _ = False
+
+getDefault ::[Branch] -> Maybe Branch
+getDefault [] = Nothing
+getDefault ((d@(Default {})):_) = Just d
+getDefault (_:bs) = getDefault bs
 
 branchesToCore :: Monad m => [Branch] -> FreshNameT m (CExpr, [CAlt])
 branchesToCore brs = do
@@ -147,6 +204,7 @@ branchesToCore brs = do
             let patFlds = [mkPatFldBind (mkHsName [] "", mkInt opts i) (mkBind1Nm1 v) | (i, v) <- zip [0..] vars]
             e' <- exprToCore e
             return [mkAlt (mkPatCon (xconCTag con) mkPatRestEmpty patFlds) e']
+          f (BrChar {}) = __IMPOSSIBLE__
           f (Default e) = return []
           -- UHC resets the tags for some constructors, but only those wo are defined in the same module. So just set it anyway, to be safe.
           conSpecToTag (dt, ctor, tag) = mkCTag (mkHsName1 dt) (mkHsName1 $ (modNm dt) ++ "." ++ ctor) tag

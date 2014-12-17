@@ -136,9 +136,7 @@ translateDataTypes btins defs = do
             _ -> return M.empty
         ) defs
 
-  catMaybes <$> mapM
-    (\(n, def) -> case theDef def of
-        (Datatype {}) -> do
+  let handleDataRecDef = (\n def -> do
             let foreign = compiledCore $ defCompiledRep def
             let cons = M.findWithDefault [] n constrMp
             case (n `M.lookup` (btccTys btins), foreign, partitionEithers cons) of
@@ -155,6 +153,12 @@ translateDataTypes btins defs = do
                     let cons'' = map (\((conFun), i) -> conFun tyCrNm i) (zip cons' [0..])
                     return $ Just (ADataTy (Just tyCrNm) n cons'' ADataImplNormal)
               _ -> __IMPOSSIBLE__ -- datatype is builtin <=> all constructors have to be builtin
+              )
+
+  catMaybes <$> mapM
+    (\(n, def) -> case theDef def of
+        (Record{}) -> handleDataRecDef n def
+        (Datatype {}) -> handleDataRecDef n def
         _ -> return Nothing
     ) defs
 
@@ -330,6 +334,7 @@ compileClauses btins qnm nargs c = do
            then forM (M.toList (CC.litBranches nc)) $ \(l, cc) -> do
                cc' <- compileClauses' (replaceAt casedvar env []) omniDefault cc
                case l of
+                   TL.LitChar _ cha -> return $ BrChar cha cc'
                    -- TODO: Handle other literals
                    _ -> lift $ uhcError $ "case on literal not supported: " ++ show l
            -- Con branch

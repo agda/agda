@@ -102,19 +102,14 @@ data Expr
 -- TODO we should move brDataTy to Case (branches have to be on the same datatype)
 data Branch
   = Branch  {brCon  :: ADataCon, brName :: QName, brVars :: [HsName], brExpr :: Expr}
---  | CoreBranch {brCoreCon :: CoreConstr, brVars :: [HsName], brExpr :: Expr}
+  | BrChar  {brChar :: Char, brExpr :: Expr}
   | Default {brExpr :: Expr}
   deriving (Show, Ord, Eq)
 
--- TODO check if still used, remove if not
-funArity :: Fun -> Int
-funArity (Fun {xfunArgs = args}) = length args
-funArity (CoreFun {xfunArity = ar}) = ar
-
 getBrVars :: Branch -> [HsName]
 getBrVars (Branch {brVars = vs}) = vs
---getBrVars (CoreBranch {brVars = vs}) = vs
-getBrVars _                      = []
+getBrVars (BrChar {})            = []
+getBrVars (Default {})              = []
 
 --------------------------------------------------------------------------------
 -- * Some smart constructors
@@ -142,7 +137,6 @@ casee ty x brs = Case x [br{brExpr = casingE br (brExpr br)} | br <- brs]
                  | otherwise -> Case (rec e) [b {brExpr = rec (brExpr b)} | b <- brs]
 --      If e1 e2 e3 -> If (rec e1) (rec e2) (rec e3)
       Let v e1 e2 -> Let v (rec e1) (rec e2)
---      Lazy e      -> Lazy (rec e)
       UNIT        -> UNIT
       IMPOSSIBLE  -> IMPOSSIBLE
     sameCon (Branch {brCon = c1}) (Branch {brCon = c2}) = c1 == c2
@@ -175,7 +169,6 @@ subst var var' expr = case expr of
 --                 in If (s a) (s b) (s c)
     Let v e e' | var == v  -> Let v (subst var var' e) e'
                | otherwise -> Let v (subst var var' e) (subst var var' e')
---    Lazy e     -> Lazy (subst var var' e)
     UNIT       -> UNIT
     IMPOSSIBLE -> IMPOSSIBLE
 
@@ -199,12 +192,11 @@ fv = S.toList . fv'
       Case e brs -> fv' e `S.union` S.unions (map fvBr brs)
 --      If a b c   -> S.unions (map fv' [a,b,c])
       Let v e e' -> fv' e `S.union` (S.delete v $ fv' e')
---      Lazy e     -> fv' e
       UNIT       -> S.empty
       IMPOSSIBLE -> S.empty
 
     fvBr :: Branch -> Set HsName
     fvBr b = case b of
       Branch _ _ vs e -> fv' e S.\\ S.fromList vs
---      CoreBranch _ vs e -> fv' e S.\\ S.fromList vs
+      BrChar _ e -> fv' e
       Default e       -> fv' e

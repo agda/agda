@@ -304,7 +304,7 @@ writeCoreFile f mod = do
 
   -- dump textual core, useful for debugging.
   when useTextual (do
-    let f' = f <.> ".tcr"
+    let f' = f <.> ".dbg.tcr"
     reportSLn "uhc" 10 $ "Writing textual core to \"" ++ show f' ++ "\"."
     liftIO $ putPPFile f' (EC.printModule defaultEHCOpts mod) 200
     )
