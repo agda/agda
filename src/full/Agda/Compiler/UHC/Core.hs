@@ -121,23 +121,29 @@ exprToCore (App fv es)   = do
     es' <- mapM exprToCore es
     let fv' = mkVar fv
     return $ mkApp fv' es'
-exprToCore (Case e brs) | isPrimCase brs = do
+exprToCore (Case e brs def CTChar) = do
   e' <- exprToCore e
   var <- freshLocalName
-  def <- case getDefault brs of
+  def' <- case def of
         Nothing -> return $ mkError opts "Non-exhaustive case didn't match any alternative."
-        Just x -> exprToCore (brExpr x)
+        Just x -> exprToCore x
   
-  
-  css <- buildPrimCases eq (mkVar var) (filter (not . isDefault) brs) def
+  css <- buildPrimCases eq (mkVar var) brs def'
   return $ mkLet1Strict var e' css
   where eq = mkVar $ mkHsName ["UHC", "Agda", "Builtins"] "primCharEquality"
-exprToCore (Case e brs) | otherwise = do
-    var <- freshLocalName
-    (def, branches) <- branchesToCore brs
-    let cas = mkCaseDflt (mkVar var) branches (Just def)
-    e' <- exprToCore e
-    return $ mkLet1Strict var e' cas
+exprToCore (Case e brs def (CTCon dt)) = do
+  caseScr <- freshLocalName
+  defVar <- freshLocalName
+  def <- case def of
+        Nothing -> return $ mkError opts "Non-exhaustive case didn't match any alternative."
+        Just x -> exprToCore x
+
+
+  branches <- branchesToCore brs
+  defBranches <- defaultBranches dt brs (mkVar defVar)
+  let cas = mkCase (mkVar caseScr) (branches ++ defBranches)
+  e' <- exprToCore e
+  return $ mkLet1Plain defVar def (mkLet1Strict caseScr e' cas)
 exprToCore (Let v e1 e2) = do
     e1' <- exprToCore e1
     e2' <- exprToCore e2
@@ -163,54 +169,34 @@ buildPrimCases eq scr (b:brs) def = do
 
 -- move to UHC Core API
 mkIfThenElse :: CExpr -> CExpr -> CExpr -> CExpr
-mkIfThenElse c t e = mkCaseDflt c [b1, b2] Nothing
+mkIfThenElse c t e = mkCase c [b1, b2]
   where b1 = mkAlt (mkPatCon (ctagTrue opts) mkPatRestEmpty []) t
         b2 = mkAlt (mkPatCon (ctagFalse opts) mkPatRestEmpty []) e
 
-
--- | Returns true if all branches are primitive (e.g. BrChar). Default
--- branches are ignored.
-isPrimCase :: [Branch] -> Bool
-isPrimCase [] = False
-isPrimCase xs = case () of
-    _ | all id ip -> True
-    _ | all not ip -> False
-    _ -> __IMPOSSIBLE__
-  where ip = map isPrim xs'
-        isPrim (BrChar {})  = True
-        isPrim (Branch {}) = False
-        isPrim (Default {}) = __IMPOSSIBLE__
-        xs' = filter (not . isDefault) xs
-
-isDefault :: Branch -> Bool
-isDefault (Default {}) = True
-isDefault _ = False
-
-getDefault ::[Branch] -> Maybe Branch
-getDefault [] = Nothing
-getDefault ((d@(Default {})):_) = Just d
-getDefault (_:bs) = getDefault bs
-
-branchesToCore :: Monad m => [Branch] -> FreshNameT m (CExpr, [CAlt])
+branchesToCore :: Monad m => [Branch] -> FreshNameT m [CAlt]
 branchesToCore brs = do
-    let defs = filter isDefault brs
-    def <- if null defs then return (coreImpossible "Default branch reached, but doesn't exit.") else let (Default x) = head defs in exprToCore x
     brs' <- mapM f brs
-
-    return (def, concat brs')
+    return brs'
     where
-          f (Branch con _ vars e)  = do
+          f (BrCon con _ vars e)  = do
             -- TODO can we do mkHsName [] "" here?
             let patFlds = [mkPatFldBind (mkHsName [] "", mkInt opts i) (mkBind1Nm1 v) | (i, v) <- zip [0..] vars]
             e' <- exprToCore e
-            return [mkAlt (mkPatCon (xconCTag con) mkPatRestEmpty patFlds) e']
-          f (BrChar {}) = __IMPOSSIBLE__
-          f (Default e) = return []
-          -- UHC resets the tags for some constructors, but only those wo are defined in the same module. So just set it anyway, to be safe.
-          conSpecToTag (dt, ctor, tag) = mkCTag (mkHsName1 dt) (mkHsName1 $ (modNm dt) ++ "." ++ ctor) tag
-          modNm s = reverse $ tail $ dropWhile (/= '.') $ reverse s
-          isDefault (Default _) = True
-          isDefault _ = False
+            return $ mkAlt (mkPatCon (xconCTag con) mkPatRestEmpty patFlds) e'
+          f _ = __IMPOSSIBLE__
+
+-- | Constructs an alternative for all constructors not explicitly matched by a branch.
+defaultBranches :: Monad m => ADataTy -> [Branch] -> CExpr -> FreshNameT m [CAlt]
+defaultBranches dt brs def = mapM mkAlt' missingCons
+  where missingCons = (map xconCTag $ xdatCons dt) \\ (map (xconCTag . brCon) brs)
+        mkAlt' ctg = do
+                patFlds <- mkPatFlds ctg
+                -- TODO investigate if we could use PatRest_Var instead for this
+                return $ mkAlt (mkPatCon ctg mkPatRestEmpty patFlds) def
+        mkPatFlds ctg = do
+                let ar = getCTagArity ctg
+                dummyVars <- replicateM ar freshLocalName
+                return [mkPatFldBind (mkHsName [] "", mkInt opts i) (mkBind1Nm1 v) | (i, v) <- zip [0..] dummyVars]
 
 
 litToCore :: Lit -> CExpr

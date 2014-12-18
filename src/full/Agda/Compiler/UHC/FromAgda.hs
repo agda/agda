@@ -124,7 +124,7 @@ translateDataTypes btins defs = do
             d@(Constructor {}) -> do
                 let foreign = compiledCore $ defCompiledRep def
                 arity <- lift $ constructorArity n
-                let conFun = ADataCon n arity
+                let conFun = ADataCon n
                 con <- case (n `M.lookup` (btccCtors btins), foreign) of
                     (Just (_, ctag), Nothing) -> return $ Right (conFun ctag)
                     (Nothing, Just (CrConstr crcon)) -> return $ Right (conFun $ coreConstrToCTag crcon arity)
@@ -187,7 +187,7 @@ translateDefn btins msharp (n, defini) = do
         lift . lift $ reportSDoc "uhc.fromagda" 5 $ text "type:" <+> (text . show) ty
 
         lift . lift $ reportSDoc "uhc.fromagda" 5 $ text "ccs: " <+> (text . show) ccs
-        res <- return <$> compileClauses btins n len ccs
+        res <- return <$> compileClauses n len ccs
 {-        pres <- case res of
           Nothing -> return Nothing
           Just  c -> return <$> prettyEpicFun c
@@ -301,67 +301,60 @@ reverseCCBody c cc = case cc of
 --   we have to add the catchAllBranch to each inner case (here we are calling
 --   it omniDefault). To avoid code duplication it is first bound by a let
 --   expression.
-compileClauses :: BuiltinCache
-                -> QName
+compileClauses :: QName
                 -> Int -- ^ Number of arguments in the definition
                 -> CC.CompiledClauses -> FreshNameT (CompileT TCM) Fun
-compileClauses btins qnm nargs c = do
+compileClauses qnm nargs c = do
   crName <- lift $ getCoreName1 qnm
   vars <- replicateM nargs freshLocalName
   e    <- compileClauses' vars Nothing c
   return $ Fun False crName (Just qnm) ("function: " ++ show qnm) vars e
   where
-    compileClauses' :: [HsName] -> Maybe HsName -> CC.CompiledClauses -> FreshNameT (CompileT TCM) Expr
+    compileClauses' :: [HsName] -> Maybe Expr -> CC.CompiledClauses -> FreshNameT (CompileT TCM) Expr
     compileClauses' env omniDefault cc = case cc of
         CC.Case n nc -> case length env <= n of
            True -> __IMPOSSIBLE__
            False -> case CC.catchAllBranch nc of
-            Nothing -> Case (Var (fromMaybe __IMPOSSIBLE__ $ env !!! n)) <$>
-                         compileCase btins env omniDefault n nc
+            Nothing -> let cont = Case (Var (fromMaybe __IMPOSSIBLE__ $ env !!! n))
+                        in compileCase env omniDefault n nc cont
             Just de -> do
                 def <- compileClauses' env omniDefault de
                 bindExpr def $ \ var ->
-                  Case (Var (fromMaybe __IMPOSSIBLE__ $ env !!! n)) <$>
-                    compileCase btins env (Just var) n nc
+                  let cont = Case (Var (fromMaybe __IMPOSSIBLE__ $ env !!! n))
+                   in compileCase env (Just $ Var var) n nc cont
         CC.Done _ t -> substTerm ({- reverse -} env) t
         CC.Fail     -> return IMPOSSIBLE
 
-    compileCase :: BuiltinCache -> [HsName] -> Maybe HsName -> Int -> CC.Case CC.CompiledClauses
-                -> FreshNameT (CompileT TCM) [Branch]
-    compileCase btins env omniDefault casedvar nc = do
-        cb <- if M.null (CC.conBranches nc)
-           -- Lit branch
-           then forM (M.toList (CC.litBranches nc)) $ \(l, cc) -> do
-               cc' <- compileClauses' (replaceAt casedvar env []) omniDefault cc
-               case l of
-                   TL.LitChar _ cha -> return $ BrChar cha cc'
-                   -- TODO: Handle other literals
-                   _ -> lift $ uhcError $ "case on literal not supported: " ++ show l
-           -- Con branch
-           else forM (M.toList (CC.conBranches nc)) $ \(b, CC.WithArity ar cc) -> do
+    compileCase :: [HsName] -> Maybe Expr -> Int -> CC.Case CC.CompiledClauses
+                -> ([Branch] -> Maybe Expr -> CaseType -> a) -- ^ continuation
+                -> FreshNameT (CompileT TCM) a
+    compileCase env omniDefault casedvar nc cont = do
+        (cb, cty) <- case (M.toList $ CC.litBranches nc, M.toList $ CC.conBranches nc) of
+            ([], []) -> __IMPOSSIBLE__ -- can this actually happen? just fail for now.
+            (lbs, []) -> do
+                -- Lit branch
+                brs <- forM lbs $ \(l, cc) -> do
+                   cc' <- compileClauses' (replaceAt casedvar env []) omniDefault cc
+                   case l of
+                       TL.LitChar _ cha -> return $ BrChar cha cc'
+                       -- TODO: Handle other literals
+                       _ -> lift $ uhcError $ "case on literal not supported: " ++ show l
+                return (brs, CTChar)
+            ([], cbs) -> do
+                -- Con branch
+                brs <- forM cbs $ \(b, CC.WithArity ar cc) -> do
 
-               conInfo <- lift $ getConstrInfo b
-               let arity = xconArity $ aciDataCon conInfo
-               vars <- replicateM arity freshLocalName
-               cc'  <- compileClauses' (replaceAt casedvar env vars) omniDefault cc
-               return $ Branch (aciDataCon conInfo) b vars cc'
+                    conInfo <- lift $ getConstrInfo b
+                    let arity = xconArity $ aciDataCon conInfo
+                    vars <- replicateM arity freshLocalName
+                    cc'  <- compileClauses' (replaceAt casedvar env vars) omniDefault cc
+                    return $ BrCon (aciDataCon conInfo) (Just b) vars cc'
+                -- get datatype info from first branch
+                fstConInfo <- lift $ getConstrInfo $ fst $ head cbs
+                return (brs, CTCon $ aciDataType fstConInfo)
+            _ -> __IMPOSSIBLE__ -- having both constructor and lit branches for the same argument doesn't make sense
 
-
--- always use the original name for a constructor even when it's redefined.
--- conhqn :: QName -> TCM HS.QName
--- conhqn q = do
---     cq  <- canonicalName q
---         def <- getConstInfo cq
---             hsr <- compiledHaskell . defCompiledRep <$> getConstInfo cq
---                 case (compiledHaskell (defCompiledRep def), theDef def) of
---                       (Just (HsDefn _ hs), Constructor{}) -> return $ HS.UnQual $ HS.Ident hs
---                             _                                   -> xhqn "C" cq
---
-
-        case omniDefault of
-            Nothing -> return cb
-            Just cc -> do
-              return $ cb ++ [Default (Var cc)]
+        return $ cont cb omniDefault cty
 
 -- | Translate the actual Agda terms, with an environment of all the bound variables
 --   from patternmatching. Agda terms are in de Bruijn so we just check the new

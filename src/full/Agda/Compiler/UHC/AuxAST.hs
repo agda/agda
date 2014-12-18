@@ -16,7 +16,7 @@ import Data.Typeable (Typeable)
 
 import Agda.Syntax.Abstract.Name
 
-import UHC.Light.Compiler.Core.API (HsName, CTag, CExpr)
+import UHC.Light.Compiler.Core.API (HsName, CTag, CExpr, destructCTag)
 
 #include "undefined.h"
 import Agda.Utils.Impossible
@@ -53,7 +53,6 @@ data ADataImplType
 data ADataCon
   = ADataCon
       { xconQName    :: QName
-      , xconArity    :: Int
       , xconCTag     :: CTag
       }
   deriving (Eq, Ord, Show, Typeable)
@@ -84,6 +83,10 @@ data Lit
   deriving (Show, Ord, Eq)
 
 
+data CaseType
+  = CTCon ADataTy
+  | CTChar
+  deriving (Show, Ord, Eq)
 
 data Expr
   = Var HsName
@@ -91,7 +94,7 @@ data Expr
   | Lam HsName Expr
   | Con ADataTy ADataCon [Expr]
   | App HsName [Expr]
-  | Case Expr [Branch]
+  | Case Expr [Branch] (Maybe Expr) CaseType -- case possibly with default
   | Let HsName Expr Expr
   | UNIT    -- ^ Used for internally generated unit values. If an Agda datatype is bound to the
             -- Unit builtin, two representations of unit exists, but will be compiled to the same
@@ -101,15 +104,22 @@ data Expr
 
 -- TODO we should move brDataTy to Case (branches have to be on the same datatype)
 data Branch
-  = Branch  {brCon  :: ADataCon, brName :: QName, brVars :: [HsName], brExpr :: Expr}
+  = BrCon   {brCon  :: ADataCon, brName :: Maybe QName, brVars :: [HsName], brExpr :: Expr}
   | BrChar  {brChar :: Char, brExpr :: Expr}
-  | Default {brExpr :: Expr}
   deriving (Show, Ord, Eq)
 
+-- | Returns the arity of a constructor.
+xconArity :: ADataCon -> Int
+xconArity = getCTagArity . xconCTag
+
+getCTagArity :: CTag -> Int
+-- for records/datatypes, we can always extract the arity. If there is no arity,
+-- it is the unit constructor, so just return zero.
+getCTagArity = destructCTag 0 (\_ _ _ ar -> ar)
+
 getBrVars :: Branch -> [HsName]
-getBrVars (Branch {brVars = vs}) = vs
+getBrVars (BrCon {brVars = vs}) = vs
 getBrVars (BrChar {})            = []
-getBrVars (Default {})              = []
 
 --------------------------------------------------------------------------------
 -- * Some smart constructors
@@ -119,10 +129,11 @@ lett :: HsName -> Expr -> Expr -> Expr
 lett v (Var v') e' = subst v v' e'
 lett v e        e' = if v `elem` fv e' then Let v e e' else e'
 
+--   TODO we should use the type information from inside the case statement to also handle defaults and literals.
 -- | If casing on the same expression in a sub-expression, we know what branch to
 --   pick
-casee :: ADataTy -> Expr -> [Branch] -> Expr
-casee ty x brs = Case x [br{brExpr = casingE br (brExpr br)} | br <- brs]
+casee :: ADataTy -> Expr -> [Branch] -> Maybe Expr -> CaseType -> Expr
+casee ty x brs def cty = Case x [br{brExpr = casingE br (brExpr br)} | br <- brs] def cty
   where
     casingE br expr = let rec = casingE br in case expr of
       Var v -> Var v
@@ -130,16 +141,15 @@ casee ty x brs = Case x [br{brExpr = casingE br (brExpr br)} | br <- brs]
       Lam v e -> Lam v (rec e)
       Con t n es -> Con t n (map rec es)
       App v es   -> App v (map rec es)
-      Case e brs | expr == e -> case filter (sameCon br) brs of
-        []  -> Case (rec e) [b {brExpr = rec (brExpr b)} | b <- brs]
+      Case e brs def' cty' | expr == e -> case filter (sameCon br) brs of
+        []  -> Case (rec e) [b {brExpr = rec (brExpr b)} | b <- brs] (fmap rec def') cty'
         [b] -> substs (getBrVars br `zip` getBrVars b) (brExpr b)
         _   -> __IMPOSSIBLE__
-                 | otherwise -> Case (rec e) [b {brExpr = rec (brExpr b)} | b <- brs]
---      If e1 e2 e3 -> If (rec e1) (rec e2) (rec e3)
+                 | otherwise -> Case (rec e) [b {brExpr = rec (brExpr b)} | b <- brs] (fmap rec def') cty'
       Let v e1 e2 -> Let v (rec e1) (rec e2)
       UNIT        -> UNIT
       IMPOSSIBLE  -> IMPOSSIBLE
-    sameCon (Branch {brCon = c1}) (Branch {brCon = c2}) = c1 == c2
+    sameCon (BrCon {brCon = c1}) (BrCon {brCon = c2}) = c1 == c2
     sameCon _                     _                     = False
 
 -- | Smart constructor for applications to avoid empty applications
@@ -164,9 +174,7 @@ subst var var' expr = case expr of
     Con t q es -> Con t q (map (subst var var') es)
     App v es   | var == v  -> App var' (map (subst var var') es)
                | otherwise -> App v    (map (subst var var') es)
-    Case e brs -> Case (subst var var' e) (map (substBranch var var') brs)
---    If a b c -> let s = subst var var'
---                 in If (s a) (s b) (s c)
+    Case e brs def ty -> Case (subst var var' e) (map (substBranch var var') brs) (fmap (subst var var') def) ty
     Let v e e' | var == v  -> Let v (subst var var' e) e'
                | otherwise -> Let v (subst var var' e) (subst var var' e')
     UNIT       -> UNIT
@@ -189,14 +197,12 @@ fv = S.toList . fv'
       Lam v e1 -> S.delete v (fv' e1)
       Con _ _ es -> S.unions (map fv' es)
       App v es -> S.insert v $ S.unions (map fv' es)
-      Case e brs -> fv' e `S.union` S.unions (map fvBr brs)
---      If a b c   -> S.unions (map fv' [a,b,c])
+      Case e brs def _ -> fv' e `S.union` S.unions (map fvBr brs) `S.union` (maybe S.empty fv' def)
       Let v e e' -> fv' e `S.union` (S.delete v $ fv' e')
       UNIT       -> S.empty
       IMPOSSIBLE -> S.empty
 
     fvBr :: Branch -> Set HsName
     fvBr b = case b of
-      Branch _ _ vs e -> fv' e S.\\ S.fromList vs
+      BrCon _ _ vs e -> fv' e S.\\ S.fromList vs
       BrChar _ e -> fv' e
-      Default e       -> fv' e

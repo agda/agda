@@ -1535,9 +1535,9 @@ instance EmbPrj UHCA.ADataTy where
     valu _            = malformed
 
 instance EmbPrj UHCA.ADataCon where
-  icod_ (UHCA.ADataCon a b c) = icode3' a b c
+  icod_ (UHCA.ADataCon a b) = icode2' a b
   value = vcase valu where
-    valu [a, b, c] = valu3 UHCA.ADataCon a b c
+    valu [a, b] = valu2 UHCA.ADataCon a b
     valu _         = malformed
 
 instance EmbPrj UHCA.ADataImplType where
