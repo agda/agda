@@ -1,11 +1,8 @@
-{-# LANGUAGE CPP #-}
-
-#if defined(__GLASGOW_HASKELL__) && __GLASGOW_HASKELL__ >= 702
-{-# OPTIONS_GHC -fno-warn-identities #-}
-#endif
--- To avoid warning on derived Integral instance for CPUTime
-
+{-# LANGUAGE CPP                        #-}
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
+
+-- To avoid warning on derived Integral instance for CPUTime.
+{-# OPTIONS_GHC -fno-warn-identities #-}
 
 -- | Time-related utilities.
 
