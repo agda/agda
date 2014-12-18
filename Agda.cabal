@@ -383,40 +383,31 @@ library
                     Agda.Auto.SearchControl
                     Agda.Auto.CaseSplit
   other-modules:    Paths_Agda
+
   -- This conditional is required by GHC <= 7.4.2.
   if true
-    ghc-options:    -w
-                    -fwarn-deprecated-flags
-                    -fwarn-dodgy-foreign-imports
-                    -fwarn-dodgy-imports
-                    -fwarn-duplicate-exports
-                    -fwarn-hi-shadowing
-                    -fwarn-incomplete-patterns
-                    -fwarn-missing-fields
-                    -fwarn-missing-methods
-                    -fwarn-missing-signatures
-                    -fwarn-monomorphism-restriction
-                    -fwarn-tabs
-                    -fwarn-overlapping-patterns
-                    -fwarn-unrecognised-pragmas
-                    -fwarn-warnings-deprecations
+    ghc-options: -w
+                 -Werror
+                 -fwarn-deprecated-flags
+                 -fwarn-dodgy-foreign-imports
+                 -fwarn-dodgy-imports
+                 -fwarn-duplicate-exports
+                 -fwarn-hi-shadowing
+                 -fwarn-incomplete-patterns
+                 -fwarn-missing-fields
+                 -fwarn-missing-methods
+                 -fwarn-missing-signatures
+                 -fwarn-monomorphism-restriction
+                 -fwarn-tabs
+                 -fwarn-overlapping-patterns
+                 -fwarn-unrecognised-pragmas
+                 -fwarn-warnings-deprecations
 
   if flag(cpphs)
     build-tools: cpphs >= 1.18.6 && < 1.19
     ghc-options: -pgmPcpphs -optP--cpp
 
-  -- The Cabal-generated module Paths_Agda triggers a warning under
-  -- GHC 7.2.1/7.2.2 (at least when certain versions of Cabal are
-  -- used).
-  --
-  -- Issue 1103: Some files (e.g. Syntax.Scope.Monad,
-  -- Termination.SparseMatrix and Utils.Cluster) trigger a warning
-  -- under GHC 7.0.4.  -Werror is for developers only, who are assumed
-  -- to use a recent GHC.
-  if impl(ghc > 7.2.2)
-     ghc-options: -Werror
-
-  if impl(ghc >= 7.2)
+  if impl(ghc >= 7.4.2)
     ghc-options: -fwarn-dodgy-exports
                  -fwarn-identities
                  -fwarn-wrong-do-bind
@@ -459,4 +450,3 @@ executable agda-mode
     , directory >= 1.0 && < 1.3
     , filepath >= 1.1 && < 1.4
     , process >= 1.0.1.0 && < 1.3
-
