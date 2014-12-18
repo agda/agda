@@ -111,11 +111,8 @@ imports = (++) <$> hsImps <*> imps where
            ((++) <$> importsForPrim <*> (List.map mazMod <$> mnames))
 
   decl :: HS.ModuleName -> HS.ImportDecl
-#if MIN_VERSION_haskell_src_exts(1,16,0)
   decl m = HS.ImportDecl dummy m True False False Nothing Nothing Nothing
-#else
-  decl m = HS.ImportDecl dummy m True False Nothing Nothing Nothing
-#endif
+
   mnames :: TCM [ModuleName]
   mnames = (++) <$> (Set.elems <$> use stImportedModules)
                 <*> (List.map fst . iImportedModules <$> curIF)
@@ -282,11 +279,8 @@ checkCover q ty n cs = do
         (a, _) <- conArityAndPars c
         Just (HsDefn _ hsc) <- compiledHaskell . defCompiledRep <$> getConstInfo c
         let pat = HS.PApp (HS.UnQual $ HS.Ident hsc) $ genericReplicate a HS.PWildCard
-#if MIN_VERSION_haskell_src_exts(1,16,0)
         return $ HS.Alt dummy pat (HS.UnGuardedRhs $ HS.unit_con) (HS.BDecls [])
-#else
-        return $ HS.Alt dummy pat (HS.UnGuardedAlt $ HS.unit_con) (HS.BDecls [])
-#endif
+
   cs <- mapM makeClause cs
   let rhs = case cs of
               [] -> fakeExp "()" -- There is no empty case statement in Haskell
@@ -336,11 +330,8 @@ argpatts ps0 bvs = evalStateT (mapM pat' ps0) bvs
   pat   (ProjP _  ) = lift $ typeError $ NotImplemented $ "Compilation of copatterns"
   pat   (VarP _   ) = do v <- gets head; modify tail; return v
   pat   (DotP _   ) = pat (VarP dummy) -- WHY NOT: return HS.PWildCard -- SEE ABOVE
-#if MIN_VERSION_haskell_src_exts(1,16,0)
   pat   (LitP l   ) = return $ HS.PLit HS.Signless $ hslit l
-#else
-  pat   (LitP l   ) = return $ HS.PLit $ hslit l
-#endif
+
   pat p@(ConP c _ ps) = do
     -- Note that irr is applied once for every subpattern, so in the
     -- worst case it is quadratic in the size of the pattern. I
@@ -459,11 +450,7 @@ condecl q = do
 
 cdecl :: QName -> Nat -> HS.ConDecl
 cdecl q n = HS.ConDecl (unqhname "C" q)
-#if MIN_VERSION_haskell_src_exts(1,16,0)
             [ HS.TyVar $ ihname "a" i | i <- [0 .. n - 1] ]
-#else
-            [ HS.UnBangedTy $ HS.TyVar $ ihname "a" i | i <- [0 .. n - 1] ]
-#endif
 
 tvaldecl :: QName
          -> Induction
@@ -557,23 +544,12 @@ rteModule = ok $ parse $ unlines
   where
     parse :: String -> HS.ParseResult HS.Module
     parse = HS.parseModuleWithMode
-              HS.defaultParseMode{HS.extensions = [explicitForAll]}
+              HS.defaultParseMode
+                { HS.extensions = [ HS.EnableExtension HS.ExplicitForAll ] }
 
     ok :: HS.ParseResult HS.Module -> HS.Module
     ok (HS.ParseOk d)   = d
     ok HS.ParseFailed{} = __IMPOSSIBLE__
-
-explicitForAll :: HS.Extension
-explicitForAll =
--- GHC 7.0.1 cannot parse the following CPP conditional
--- error: missing binary operator before token "("
-#if MIN_VERSION_haskell_src_exts(1,14,0)
-  HS.EnableExtension HS.ExplicitForAll
-#elif MIN_VERSION_haskell_src_exts(1,12,0)
-  HS.ExplicitForAll
-#else
-  HS.ExplicitForall
-#endif
 
 compileDir :: TCM FilePath
 compileDir = do

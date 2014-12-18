@@ -32,8 +32,7 @@ description:
   Note that the Agda library does not follow the package versioning
   policy, because it is not intended to be used by third-party
   packages.
-tested-with:        GHC == 7.0.4
-                    GHC == 7.4.2
+tested-with:        GHC == 7.4.2
                     GHC == 7.6.3
                     GHC == 7.8.3
 extra-source-files: src/full/undefined.h
@@ -79,9 +78,9 @@ library
     , binary >= 0.6 && < 0.8
     , boxes >= 0.1.3 && < 0.2
     -- NFData ByteString is only available from bytestring >= 0.10
-    -- but bytestring-0.10 is not accepted by travis build for ghc <= 7.4
+    -- but bytestring-0.10 is not accepted by travis build for GHC <= 7.4
     -- as it breaks the accompanying haskell-platform
-    -- even though it builds with older ghcs.
+    -- even though it builds with older GHCs.
     , bytestring >= 0.9.0.1 && < 0.11
     , containers >= 0.1 && < 0.6
     , data-hash == 0.2.0.0
@@ -95,7 +94,7 @@ library
     , hashable >= 1.1.2.3 && < 1.2 || >= 1.2.1.0 && < 1.3
     , hashtables >= 1.0 && < 1.3
     , haskeline >= 0.7 && < 0.8
-    , haskell-src-exts >= 1.9.6 && < 1.17
+    , haskell-src-exts >= 1.16.0.1 && < 1.17
     -- mtl-2.1 contains a severe bug.
     --
     -- mtl >= 2.2 && < 2.2.1 doesn't export Control.Monad.Except.
@@ -387,52 +386,45 @@ library
                     Agda.Auto.SearchControl
                     Agda.Auto.CaseSplit
   other-modules:    Paths_Agda
+
   -- This conditional is required by GHC <= 7.4.2.
   if true
-    ghc-options:    -w
-                    -fwarn-deprecated-flags
-                    -fwarn-dodgy-foreign-imports
-                    -fwarn-dodgy-imports
-                    -fwarn-duplicate-exports
-                    -fwarn-hi-shadowing
-                    -fwarn-incomplete-patterns
-                    -fwarn-missing-fields
-                    -fwarn-missing-methods
-                    -fwarn-missing-signatures
-                    -fwarn-monomorphism-restriction
-                    -fwarn-tabs
-                    -fwarn-overlapping-patterns
-                    -fwarn-unrecognised-pragmas
-                    -fwarn-warnings-deprecations
+    ghc-options: -w
+                 -Werror
+                 -fwarn-deprecated-flags
+                 -fwarn-dodgy-foreign-imports
+                 -fwarn-dodgy-imports
+                 -fwarn-duplicate-exports
+                 -fwarn-hi-shadowing
+                 -fwarn-incomplete-patterns
+                 -fwarn-missing-fields
+                 -fwarn-missing-methods
+                 -fwarn-missing-signatures
+                 -fwarn-monomorphism-restriction
+                 -fwarn-tabs
+                 -fwarn-overlapping-patterns
+                 -fwarn-unrecognised-pragmas
+                 -fwarn-warnings-deprecations
 
   if flag(cpphs)
     build-tools: cpphs >= 1.18.6 && < 1.19
     ghc-options: -pgmPcpphs -optP--cpp
 
-  -- The Cabal-generated module Paths_Agda triggers a warning under
-  -- GHC 7.2.1/7.2.2 (at least when certain versions of Cabal are
-  -- used).
-  --
-  -- Issue 1103: Some files (e.g. Syntax.Scope.Monad,
-  -- Termination.SparseMatrix and Utils.Cluster) trigger a warning
-  -- under GHC 7.0.4.  -Werror is for developers only, who are assumed
-  -- to use a recent GHC.
-  if impl(ghc > 7.2.2)
-     ghc-options:    -Werror
-  if impl(ghc >= 6.12)
-    ghc-options:    -fwarn-dodgy-exports
-                    -fwarn-wrong-do-bind
-  if impl(ghc >= 7.2)
-    ghc-options:    -fwarn-identities
+  if impl(ghc >= 7.4.2)
+    ghc-options: -fwarn-dodgy-exports
+                 -fwarn-identities
+                 -fwarn-wrong-do-bind
+
   if impl(ghc >= 7.6.3)
-    ghc-options:    -fwarn-pointless-pragmas
+    ghc-options: -fwarn-pointless-pragmas
+
   if impl(ghc >= 7.8)
-    ghc-options:    -fwarn-amp
-                    -fwarn-duplicate-constraints
-                    -fwarn-empty-enumerations
-                    -fwarn-overflowed-literals
-                    -fwarn-typed-holes
-                    -fwarn-inline-rule-shadowing
+    ghc-options: -fwarn-amp
+                 -fwarn-duplicate-constraints
+                 -fwarn-empty-enumerations
+                 -fwarn-overflowed-literals
+                 -fwarn-typed-holes
+                 -fwarn-inline-rule-shadowing
 
   ghc-prof-options: -auto-all
 
@@ -461,4 +453,3 @@ executable agda-mode
     , directory >= 1.0 && < 1.3
     , filepath >= 1.1 && < 1.4
     , process >= 1.0.1.0 && < 1.3
-
