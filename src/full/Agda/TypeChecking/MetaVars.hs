@@ -363,6 +363,7 @@ postponeTypeCheckingProblem_ p = do
   where
     unblock (CheckExpr _ t)           = unblockedTester t
     unblock (CheckArgs _ _ _ _ t _ _) = unblockedTester t
+    unblock (CheckLambda _ _ t)       = unblockedTester t
 
 -- | Create a postponed type checking problem @e : t@ that waits for conditon
 --   @unblock@.  A new meta is created in the current context that has as
@@ -396,6 +397,7 @@ postponeTypeCheckingProblem p unblock = do
 problemType :: TypeCheckingProblem -> Type
 problemType (CheckExpr _ t) = t
 problemType (CheckArgs _ _ _ _ _ t _) = t
+problemType (CheckLambda _ _ t) = t
 
 -- | Eta expand metavariables listening on the current meta.
 etaExpandListeners :: MetaId -> TCM ()

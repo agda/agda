@@ -286,6 +286,13 @@ instance Reify Constraint (OutputConstraint Expr Expr) where
             CheckExpr e a -> do
                 a  <- reify a
                 return $ TypedAssign m' e a
+            CheckLambda (Arg ai (xs, mt)) body target -> do
+              domType <- maybe (return underscore) reify mt
+              target  <- reify target
+              let bs = TypedBindings noRange $ Arg (mapArgInfoColors (const []) ai) $
+                       TBind noRange xs domType
+                  e  = A.Lam Info.exprNoRange (DomainFull bs) body
+              return $ TypedAssign m' e target
             CheckArgs _ _ _ args t0 t1 _ -> do
               t0 <- reify t0
               t1 <- reify t1
