@@ -17,7 +17,7 @@ module Agda.Compiler.UHC.CompileState
 
   , getCurrentModule
 
-  , constructorArity
+  , conArityAndPars
   , replaceAt
   )
 where
@@ -40,6 +40,8 @@ import Agda.Syntax.Internal
 import Agda.Syntax.Concrete(TopLevelModuleName)
 import Agda.Syntax.Common
 import Agda.TypeChecking.Monad (MonadTCM, TCM, internalError, defType, theDef, getConstInfo, sigDefinitions, stImports, stPersistentOptions, stPersistentState)
+import Agda.TypeChecking.Substitute
+import Agda.TypeChecking.Telescope
 import qualified Agda.TypeChecking.Monad as TM
 import Agda.TypeChecking.Reduce
 import Agda.Compiler.UHC.Naming
@@ -115,7 +117,7 @@ getCoreName1 :: Monad m => QName -> CompileT m HsName
 getCoreName1 nm = getCoreName nm >>= return . (fromMaybe __IMPOSSIBLE__)
 
 getConstrInfo :: (Functor m, Monad m) => QName -> CompileT m AConInfo
-getConstrInfo n = M.findWithDefault __IMPOSSIBLE__ n <$> gets (amifConMp . moduleInterface)
+getConstrInfo n = M.findWithDefault (error $ show n) n <$> gets (amifConMp . moduleInterface)
 
 
 getCurrentModule :: Monad m => CompileT m ModuleName
@@ -129,14 +131,14 @@ replaceAt :: Int -- ^ replace at
 replaceAt n xs inserts = let (as, _:bs) = splitAt n xs in as ++ inserts ++ bs
 
 
--- TODO this has nothing todo with the CompileState.., move
--- | Copy pasted from MAlonzo, then Epic, HAHA!!!
+
+-- | Copy pasted from MAlonzo....
 --   Move somewhere else!
-constructorArity :: Num a => QName -> TCM a
-constructorArity q = do
+conArityAndPars :: QName -> TCM (Nat, Nat)
+conArityAndPars q = do
   def <- getConstInfo q
-  a <- normalise $ defType def
-  case theDef def of
-    TM.Constructor{ TM.conPars = np } -> return . fromIntegral $ arity a - np
-    _ -> internalError $ "constructorArity: non constructor: " ++ show q
+  TelV tel _ <- telView $ defType def
+  let TM.Constructor{ TM.conPars = np } = theDef def
+      n = genericLength (telToList tel)
+  return (n - np, np)
 

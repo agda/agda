@@ -55,7 +55,7 @@ fromAgdaModule msharp modNm modImps defs = do
 
     lift $ reportSLn "uhc" 25 $ "NameMap for " ++ show modNm ++ ":\n" ++ show nameMp
 
-    lift $ reportSLn "uhc" 20 "Translate datatypes..."
+    lift $ reportSLn "uhc" 10 "Translate datatypes..."
     -- Translate and add datatype information
     dats <- translateDataTypes btins defs
     let conMp = buildConMp dats
@@ -114,7 +114,6 @@ collectNames btins defs = do
                 }
 
 
--- TODO builtins.....
 translateDataTypes :: BuiltinCache -> [(QName, Definition)] -> CompileT TCM [ADataTy]
 translateDataTypes btins defs = do
   -- first, collect all constructors
@@ -123,7 +122,7 @@ translateDataTypes btins defs = do
         case theDef def of
             d@(Constructor {}) -> do
                 let foreign = compiledCore $ defCompiledRep def
-                arity <- lift $ constructorArity n
+                arity <- lift $ (fst <$> conArityAndPars n)
                 let conFun = ADataCon n
                 con <- case (n `M.lookup` (btccCtors btins), foreign) of
                     (Just (_, ctag), Nothing) -> return $ Right (conFun ctag)
@@ -182,11 +181,11 @@ translateDefn btins msharp (n, defini) = do
         -- forcing <- lift $ gets (optForcing . stPersistentOptions)
         lift . lift $ reportSDoc "uhc.fromagda" 5 $ text "compiling fun:" <+> prettyTCM n
         lift . lift $ reportSDoc "uhc.fromagda" 5 $ text "len:" <+> (text . show) len
-        lift . lift $ reportSDoc "uhc.fromagda" 5 $ text "pats:" <+> (text . show) (clausePats
+        lift . lift $ reportSDoc "uhc.fromagda" 15 $ text "pats:" <+> (text . show) (clausePats
                     $ head $ funClauses f)
-        lift . lift $ reportSDoc "uhc.fromagda" 5 $ text "type:" <+> (text . show) ty
+        lift . lift $ reportSDoc "uhc.fromagda" 15 $ text "type:" <+> (text . show) ty
 
-        lift . lift $ reportSDoc "uhc.fromagda" 5 $ text "ccs: " <+> (text . show) ccs
+        lift . lift $ reportSDoc "uhc.fromagda" 15 $ text "ccs: " <+> (text . show) ccs
         res <- return <$> compileClauses n len ccs
 {-        pres <- case res of
           Nothing -> return Nothing

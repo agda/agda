@@ -1,5 +1,10 @@
 {-# LANGUAGE CPP, DoAndIfThenElse #-}
 -- | UHC compiler backend.
+
+-- In the long term, it would be nice if we could use e.g. shake to build individual Agda modules. The problem with that is that
+-- some parts need to be in the TCM Monad, which doesn't easily work in shake. We would need a way to extract the information
+-- out of the TCM monad, so that we can pass it to the compilation function without pulling in the TCM Monad. Another minor
+-- problem might be error reporting?
 module Agda.Compiler.UHC.Compiler(compilerMain) where
 
 import Control.Applicative
@@ -61,6 +66,14 @@ import Agda.Utils.Impossible
 
 type CoreCode = String
 
+-- we should use a proper build system to ensure that things get only built once instead....
+-- but better than nothing
+type CompModT = StateT CompiledModules
+type CompiledModules = M.Map ModuleName AModuleInfo
+
+putCompModule :: Monad m => AModuleInfo -> CompModT m ()
+putCompModule mod = modify (M.insert (amiModule mod) mod)
+
 compileUHCAgdaBase :: TCM ()
 compileUHCAgdaBase = do
     -- TODO we should not do this in the data directory, it may be read only...
@@ -117,7 +130,7 @@ compilerMain inter = do
             compileUHCAgdaBase
 
             setUHCDir inter
-            modInfo <- compileModule inter
+            modInfo <- evalStateT (compileModule inter) M.empty
             main <- getMain inter
 
             -- get core name from modInfo
@@ -141,43 +154,39 @@ outFile mod = do
   return $ fp
   where repldot c = map (\c' -> if c' == '.' then c else c')
 
-compileModule :: Interface -> TCM AModuleInfo
+compileModule :: Interface -> CompModT TCM AModuleInfo
 compileModule i = do
---    cm <- gets compiledModules
+    cm <- get
     let moduleName = iModuleName i
     let topModuleName = toTopLevelModuleName moduleName
-    inFile <- findFile topModuleName
-    file  <- outFile topModuleName
---    case M.lookup moduleName cm of
-    case Nothing of
-        Just x -> __IMPOSSIBLE__
---        Just eifs -> return eifs
+    inFile <- lift $ findFile topModuleName
+    file  <- lift $ outFile topModuleName
+    case M.lookup moduleName cm of
+        Just x -> return x
         Nothing  -> do
             imports <- map miInterface . catMaybes
-                                      <$> mapM (getVisitedModule . toTopLevelModuleName . fst)
-                                               (iImportedModules i)
+                                      <$> lift (mapM (getVisitedModule . toTopLevelModuleName . fst)
+                                                     (iImportedModules i))
             modInfos <- mapM compileModule imports
---            let imps = S.unions limps
---            modify $ \s -> s { importedModules = importedModules s `mappend` mconcat ifaces }
-            ifile <- maybe __IMPOSSIBLE__ filePath <$> findInterfaceFile topModuleName
+            ifile <- maybe __IMPOSSIBLE__ filePath <$> lift (findInterfaceFile topModuleName)
             let uifFile = file <.> "aui"
             uptodate <- liftIO $ isNewerThan uifFile ifile
-            reportSLn "UHC" 15 $ "Interface file " ++ uifFile ++ " is uptodate: " ++ show uptodate
+            lift $ reportSLn "UHC" 15 $ "Interface file " ++ uifFile ++ " is uptodate: " ++ show uptodate
             modInfo <- case uptodate of
               True  -> do
-                    reportSLn "" 5 $
+                    lift $ reportSLn "" 5 $
                         show moduleName ++ " : UHC backend interface file is up to date."
-                    uif <- readModInfoFile uifFile
+                    uif <- lift $ readModInfoFile uifFile
                     case uif of
                       Nothing -> do
-                        reportSLn "" 5 $
+                        lift $ reportSLn "" 5 $
                             show moduleName ++ " : Could not read UHC interface file, will compile this module from scratch."
                         return Nothing
                       Just uif' -> do
                         -- now check if the versions inside modInfos match with the dep info
                         let deps = amiDepsVersion uif'
                         if depsMatch deps modInfos then do
-                          reportSLn "" 1 $
+                          lift $ reportSLn "" 1 $
                             show moduleName ++ " : module didn't change, skipping it."
                           return $ Just uif'
                         else
@@ -185,16 +194,18 @@ compileModule i = do
               False -> return Nothing
 
             case modInfo of
-              Just x  -> return x
+              Just x  -> putCompModule x >> return x
               Nothing -> do
-                    reportSLn "" 1 $
+                    lift $ reportSLn "" 1 $
                         "Compiling: " ++ show (iModuleName i)
 --                    initialAnalysis i
                     let defns = HMap.toList $ sigDefinitions $ iSignature i
-                    (code, modInfo, amod) <- compileDefns moduleName modInfos defns
-                    runUHC file code
-                    -- TODO enable again, but we ahve to properly handle output dirs first...
---                    writeModInfoFile uifFile modInfo
+                    (code, modInfo, amod) <- lift $ compileDefns moduleName modInfos defns
+                    lift $ do
+                        writeCoreFile file code
+                        writeModInfoFile uifFile modInfo
+
+                    putCompModule modInfo
                     return modInfo
 
   where depsMatch :: [(ModuleName, ModVersion)] -> [AModuleInfo] -> Bool
