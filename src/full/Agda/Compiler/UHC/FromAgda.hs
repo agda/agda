@@ -1,6 +1,14 @@
 {-# LANGUAGE CPP #-}
 
 -- | Convert from Agda's internal representation to our auxiliary AST.
+--
+--
+-- The coinduction kit is translated the same way as in MAlonzo:
+-- flat = id
+-- sharp = id
+-- -> There is no runtime representation of Coinductive values.
+-- The coinduction kit is always a postulate, so we don't have to
+-- worry about clauses trying to pattern match on Infinity-values.
 module Agda.Compiler.UHC.FromAgda where
 
 import Control.Applicative
@@ -40,18 +48,18 @@ import UHC.Light.Compiler.Core.API as CA
 import Agda.Utils.Impossible
 
 -- | Convert from Agda's internal representation to our auxiliary AST.
-fromAgdaModule :: Maybe T.Term
-    -> ModuleName
+fromAgdaModule :: ModuleName
     -> [AModuleInfo]     -- Module info of imported modules.
     -> [(QName, Definition)]
     -> TCM (AMod, AModuleInfo)
-fromAgdaModule msharp modNm modImps defs = do
+fromAgdaModule modNm modImps defs = do
+  kit <- coinductionKit
 
   btins <- getBuiltins
   defNames <- collectNames btins defs
   nameMp <- assignCoreNames modNm defNames
   
-  (mod', modInfo') <- runCompileT modNm modImps nameMp (do
+  (mod', modInfo') <- runCompileT kit modNm modImps nameMp (do
 
     lift $ reportSLn "uhc" 25 $ "NameMap for " ++ show modNm ++ ":\n" ++ show nameMp
 
@@ -64,7 +72,7 @@ fromAgdaModule msharp modNm modImps defs = do
     lift $ reportSLn "uhc" 25 $ "Constructor Map for " ++ show modNm ++ ":\n" ++ show conMp
 
 
-    funs <- evalFreshNameT "nl.uu.agda.from-agda" (catMaybes <$> mapM (translateDefn btins msharp) defs)
+    funs <- evalFreshNameT "nl.uu.agda.from-agda" (catMaybes <$> mapM (translateDefn btins) defs)
 
     return $ AMod { xmodName = modNm
                   , xmodFunDefs = funs
@@ -116,6 +124,7 @@ collectNames btins defs = do
 
 translateDataTypes :: BuiltinCache -> [(QName, Definition)] -> CompileT TCM [ADataTy]
 translateDataTypes btins defs = do
+  kit <- getCoinductionKit
   -- first, collect all constructors
   constrMp <- M.unionsWith (++)
     <$> mapM (\(n, def) ->
@@ -157,21 +166,27 @@ translateDataTypes btins defs = do
   catMaybes <$> mapM
     (\(n, def) -> case theDef def of
         (Record{}) -> handleDataRecDef n def
-        (Datatype {}) -> handleDataRecDef n def
-        _ -> return Nothing
+        -- coinduction kit gets erased in the translation to AuxAST
+        (Datatype {}) | Just n /= (nameOfInf <$> kit)
+                -> handleDataRecDef n def
+        _       -> return Nothing
     ) defs
 
 
 -- | Translate an Agda definition to an Epic function where applicable
-translateDefn :: BuiltinCache -> Maybe T.Term -> (QName, Definition) -> FreshNameT (CompileT TCM) (Maybe Fun)
-translateDefn btins msharp (n, defini) = do
+translateDefn :: BuiltinCache -> (QName, Definition) -> FreshNameT (CompileT TCM) (Maybe Fun)
+translateDefn btins (n, defini) = do
   crName <- lift $ getCoreName n
   let crRep = compiledCore $ defCompiledRep defini
+  kit <- lift getCoinductionKit
   case theDef defini of
     d@(Datatype {}) -> do -- become functions returning unit
         vars <- replicateM (dataPars d + dataIxs d) freshLocalName
         return . return $ Fun True (fromMaybe __IMPOSSIBLE__ crName) (Just n) ("datatype: " ++ show n) vars UNIT
-    f@(Function{}) -> do
+    f@(Function{}) | Just n == (nameOfFlat <$> kit) -> do
+        -- ignore the two type arguments
+        Just <$> mkIdentityFun n "coind-sharp" 2
+    f@(Function{}) | otherwise -> do
         let projArgs = projectionArgs f
             cc       = fromMaybe __IMPOSSIBLE__ $ funCompiled f
         -- let projArgs = maybe 0 (pred . projIndex) (funProjection f)
@@ -192,8 +207,9 @@ translateDefn btins msharp (n, defini) = do
           Just  c -> return <$> prettyEpicFun c
         lift $ reportSDoc "" 5 $ text $ show pres -- (fmap prettyEpicFun res)-}
         return res
-    Constructor{} -> do -- become functions returning a constructor with their tag
-
+    Constructor{} | Just n == (nameOfSharp <$> kit) -> do
+        Just <$> mkIdentityFun n "coind-sharp" 0
+    Constructor{} | otherwise -> do -- become functions returning a constructor with their tag
 
         case crName of
           (Just crNm) -> do
@@ -227,6 +243,15 @@ translateDefn btins msharp (n, defini) = do
         Nothing     -> error $ "Primitive " ++ show (primName p) ++ " declared, but no such primitive exists."
         (Just anm)  -> return <$> mkFunGen n (const $ App anm) ("primitive: " ++) (fromMaybe __IMPOSSIBLE__ crName) (primName p) ar
   where
+    -- | Produces an identity function, optionally ignoring the first n arguments.
+    mkIdentityFun :: Monad m => QName
+        -> String -- ^ comment
+        -> Int      -- ^ How many arguments to ignore.
+        -> FreshNameT (CompileT m) Fun
+    mkIdentityFun nm comment ignArgs = do
+        crName <- lift $ getCoreName1 nm
+        xs <- replicateM (ignArgs + 1) freshLocalName
+        return $ Fun False crName (Just n) comment xs (Var $ last xs)
     modOf = reverse . dropWhile (/='.') . reverse
     mkFunGen :: QName                    -- ^ Original name
             -> (name -> [Expr] -> Expr) -- ^ combinator
@@ -413,13 +438,20 @@ substLit lit = case lit of
 -- The returned expression may be fully or partially applied.
 getConstrFun :: MonadTCM m => QName -> CompileT m HsName
 getConstrFun conNm = do
-  conInfo <- getConstrInfo conNm
-  let conDef = aciDataCon conInfo
-      tyDef = aciDataType conInfo
+  kit <- getCoinductionKit
 
-  case xdatImplType tyDef of
-    (ADataImplMagic nm) | nm == "UNIT" -> return $ builtinUnitCtor -- already fully applied
-    _ -> return $ ctagCtorName $ xconCTag conDef
+  case (Just conNm) == (nameOfSharp <$> kit) of
+    True -> getCoreName1 conNm
+    False -> do
+            -- we can't just use getCoreName here, because foreign constructors
+            -- are not part of the name map.
+            conInfo <- getConstrInfo conNm
+            let conDef = aciDataCon conInfo
+                tyDef = aciDataType conInfo
+
+            case xdatImplType tyDef of
+              (ADataImplMagic nm) | nm == "UNIT" -> return $ builtinUnitCtor -- already fully applied
+              _ -> return $ ctagCtorName $ xconCTag conDef
 
 
 ctagCtorName :: CTag -> HsName

@@ -14,6 +14,7 @@ module Agda.Compiler.UHC.CompileState
   , getConstrInfo
 --  , getConstrTag
 --  , getConstrArity
+  , getCoinductionKit
 
   , getCurrentModule
 
@@ -42,6 +43,7 @@ import Agda.Syntax.Common
 import Agda.TypeChecking.Monad (MonadTCM, TCM, internalError, defType, theDef, getConstInfo, sigDefinitions, stImports, stPersistentOptions, stPersistentState)
 import Agda.TypeChecking.Substitute
 import Agda.TypeChecking.Telescope
+import Agda.TypeChecking.Monad.Builtin
 import qualified Agda.TypeChecking.Monad as TM
 import Agda.TypeChecking.Reduce
 import Agda.Compiler.UHC.Naming
@@ -57,19 +59,21 @@ import Agda.Utils.Impossible
 data CompileState = CompileState
     { curModule       :: ModuleName
     , moduleInterface :: AModuleInterface    -- ^ Contains the interface of all imported and the currently compiling module.
-    } deriving Show
+    , coinductionKit' :: Maybe CoinductionKit
+    }
 
 -- | Compiler monad
 type CompileT = StateT CompileState
 
 -- | The initial (empty) state
 runCompileT :: MonadIO m
-    => ModuleName   -- ^ The module to compile.
+    => Maybe CoinductionKit
+    -> ModuleName   -- ^ The module to compile.
     -> [AModuleInfo] -- ^ Imported module info (non-transitive).
     -> NameMap      -- ^ NameMap for the current module (non-transitive).
     -> CompileT m a
     -> m (a, AModuleInfo)
-runCompileT mod impMods nmMp comp = do
+runCompileT coind mod impMods nmMp comp = do
   (result, state') <- runStateT comp initial
 
   version <- liftIO getPOSIXTime
@@ -90,6 +94,7 @@ runCompileT mod impMods nmMp comp = do
             , moduleInterface   = mappend
                 (mempty { amifNameMp = nmMp})
                 (mconcat $ map amiInterface impMods)
+            , coinductionKit' = coind
             }
 
 addConMap :: Monad m => M.Map QName AConInfo -> CompileT m ()
@@ -119,6 +124,8 @@ getCoreName1 nm = getCoreName nm >>= return . (fromMaybe __IMPOSSIBLE__)
 getConstrInfo :: (Functor m, Monad m) => QName -> CompileT m AConInfo
 getConstrInfo n = M.findWithDefault (error $ show n) n <$> gets (amifConMp . moduleInterface)
 
+getCoinductionKit :: Monad m => CompileT m (Maybe CoinductionKit)
+getCoinductionKit = gets coinductionKit'
 
 getCurrentModule :: Monad m => CompileT m ModuleName
 getCurrentModule = gets curModule

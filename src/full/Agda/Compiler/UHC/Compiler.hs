@@ -288,11 +288,9 @@ compileDefns :: ModuleName
     -> [AModuleInfo] -- ^ top level imports
     -> [(QName, Definition)] -> TCM (EC.CModule, AModuleInfo, AMod)
 compileDefns mod modImps defs = do
-    -- We need to handle sharp (coinduction) differently, so we get it here.
-    msharp <- getBuiltin' builtinSharp
 --    let modName = L.intercalate "." (CN.moduleNameParts mod)
 
-    (amod, modInfo) <- idPrint "fromAgda" (FAgda.fromAgdaModule msharp mod modImps) defs
+    (amod, modInfo) <- idPrint "fromAgda" (FAgda.fromAgdaModule mod modImps) defs
     amod'   <- return amod
 --               >>= idPrint "findInjection" ID.findInjection
 --               >>= idPrint "fromAgda"   (FAgda.fromAgdaModule msharp modName modImps)
