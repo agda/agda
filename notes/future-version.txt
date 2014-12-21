@@ -16,3 +16,5 @@ future release. Don't remove this message please!
   Data.Fin.Properties.fromℕ≤≡fromℕ≤″.
 
 * The functions in Data.Nat.DivMod have been optimised.
+
+* Support for the UHC backend has been added.

@@ -28,6 +28,8 @@ postulate
 
 {-# COMPILED return (\_ _ -> return)    #-}
 {-# COMPILED _>>=_  (\_ _ _ _ -> (>>=)) #-}
+{-# COMPILED_UHC return (\_ _ x -> UHC.Agda.Builtins.primReturn x) #-}
+{-# COMPILED_UHC _>>=_ (\_ _ _ _ x y -> UHC.Agda.Builtins.primBind x y) #-}
 
 ------------------------------------------------------------------------
 -- Simple lazy IO
@@ -61,3 +63,10 @@ postulate
 {-# COMPILED putStr         putStr                #-}
 {-# COMPILED putStrLn       putStrLn              #-}
 {-# COMPILED readFiniteFile IO.FFI.readFiniteFile #-}
+{-# COMPILED_UHC getContents    (UHC.Agda.Builtins.primGetContents) #-}
+{-# COMPILED_UHC readFile       (UHC.Agda.Builtins.primReadFile) #-}
+{-# COMPILED_UHC writeFile      (UHC.Agda.Builtins.primWriteFile) #-}
+{-# COMPILED_UHC appendFile     (UHC.Agda.Builtins.primAppendFile) #-}
+{-# COMPILED_UHC putStr         (UHC.Agda.Builtins.primPutStr) #-}
+{-# COMPILED_UHC putStrLn       (UHC.Agda.Builtins.primPutStrLn) #-}
+{-# COMPILED_UHC readFiniteFile (UHC.Agda.Builtins.primReadFiniteFile) #-}

@@ -29,6 +29,8 @@ data Bool : Set where
 {-# COMPILED_JS true  true  #-}
 {-# COMPILED_JS false false #-}
 
+{-# COMPILED_DATA_UHC Bool __BOOL__ __TRUE__ __FALSE__ #-}
+
 ------------------------------------------------------------------------
 -- Some operations
 

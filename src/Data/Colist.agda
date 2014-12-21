@@ -45,6 +45,7 @@ data Colist {a} (A : Set a) : Set a where
 
 {-# IMPORT Data.FFI #-}
 {-# COMPILED_DATA Colist Data.FFI.AgdaList [] (:) #-}
+{-# COMPILED_DATA_UHC Colist __LIST__ __NIL__ __CONS__ #-}
 
 data Any {a p} {A : Set a} (P : A → Set p) :
          Colist A → Set (a ⊔ p) where

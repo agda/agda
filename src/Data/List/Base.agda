@@ -28,7 +28,7 @@ data List {a} (A : Set a) : Set a where
 
 {-# IMPORT Data.FFI #-}
 {-# COMPILED_DATA List Data.FFI.AgdaList [] (:) #-}
-
+{-# COMPILED_DATA_UHC List __LIST__ __NIL__ __CONS__ #-}
 ------------------------------------------------------------------------
 -- Some operations
 
