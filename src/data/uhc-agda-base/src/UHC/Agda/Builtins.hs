@@ -13,18 +13,24 @@ module UHC.Agda.Builtins
   , primNatPlus
   , primNatTimes
     -- IO
-  , primPutStr
-  , primPutStrLn
   , primReturn
   , primBind
+  , primGetContents
+  , primReadFile
+  , primWriteFile
+  , primAppendFile
+  , primPutStr
+  , primPutStrLn
     -- String
   , primStringAppend
   , primStringEquality
   , primStringFromList
   , primStringToList
+  , primShowString
     -- Char
   , primCharToNat
   , primCharEquality
+  , primShowChar
     -- Float
   , primShowFloat
   , primMkFloat
@@ -100,17 +106,31 @@ primNatMinus Zero _ = Zero
 -- Calling haskell functions with class constraints from Agda
 -- isn't supported yet, so just remove the class constraints on return/bind
 
-primPutStr :: String -> IO ()
-primPutStr = putStr
-
-primPutStrLn :: String -> IO ()
-primPutStrLn = putStrLn
 
 primReturn :: a -> IO a
 primReturn = return
 
 primBind :: IO a -> (a -> IO b) -> IO b
 primBind = (>>=)
+
+primGetContents :: IO String
+primGetContents = getContents
+
+primReadFile :: FilePath -> IO String
+primReadFile = readFile
+
+primWriteFile :: FilePath -> String -> IO ()
+primWriteFile = writeFile
+
+primAppendFile :: FilePath -> String -> IO ()
+primAppendFile = appendFile
+
+primPutStr :: String -> IO ()
+primPutStr = putStr
+
+primPutStrLn :: String -> IO ()
+primPutStrLn = putStrLn
+
 
 -- ====================
 -- String
@@ -128,6 +148,9 @@ primStringAppend = (++)
 primStringEquality :: String -> String -> Bool
 primStringEquality = (==)
 
+primShowString :: String -> String
+primShowString = id
+
 -- ====================
 -- Char
 -- ====================
@@ -137,6 +160,9 @@ primCharToNat c = primIntegerToNat (read [c] :: Integer)
 
 primCharEquality :: Char -> Char -> Bool
 primCharEquality = (==)
+
+primShowChar :: Char -> String
+primShowChar c = [c]
 
 -- ====================
 -- Float

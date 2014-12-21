@@ -49,6 +49,7 @@ import Agda.TypeChecking.Monad
 
 import UHC.Light.Compiler.Core.API
 
+
 #include "undefined.h"
 import Agda.Utils.Impossible
 
@@ -199,28 +200,31 @@ assignNameProper anm = do
     (Just x) -> return x
     Nothing -> case anCoreExport anm of
             AceNo -> freshCrName anm
-            AceWanted -> crHsName
-            AceRequired -> crHsName
+            -- TODO either remove this part, or make it work. Just disabled for now,
+            -- to make everything else work.
+            AceWanted -> __IMPOSSIBLE__
+            AceRequired -> __IMPOSSIBLE__
 
   return $ CoreName { cnName = nm
                     , cnType = anType anm
                     , cnAgdaExported = anNeedsAgdaExport anm
                     , cnCoreExported = anCoreExport anm /= AceNo
                     }
-  where crHsName = (do
+{-  where crHsName = (do
             modS <- map show . mnameToList <$> gets asAgdaModuleName
             locName <- map show <$> (unqualifyQ $ anName anm)
             return $ mkHsName modS (localCrIdent (anType anm) locName)
-            )
+            )-}
 
 -- | Creates a unique fresh core name. (not core exportable)
-freshCrName :: Monad m => AgdaName -> AssignM m HsName
+freshCrName :: (Functor m, Monad m) => AgdaName -> AssignM m HsName
 freshCrName anm = do
   i <- gets asNextIdent
   modify (\s -> s { asNextIdent = i + 1 } )
 
   modNm <- gets asAgdaModuleName
-  locName <- unqualifyQ (anName anm)
+  -- we don't really care about the original name, we just keep it for easier debugging
+  locName <- either id id <$> unqualifyQ (anName anm)
 
   let modS = map show (mnameToList modNm)
 
@@ -240,14 +244,16 @@ localCrIdent et as =
         capitalize _      = __IMPOSSIBLE__
 
 -- | Returns the names inside a QName, with the module prefix stripped away.
-unqualifyQ :: Monad m => QName -> AssignM m [Name]
+-- If the name is not module-qualified, returns the full name as left. (TODO investigate when this happens)
+unqualifyQ :: Monad m => QName -> AssignM m (Either [Name] [Name])
 unqualifyQ qnm = do
   mod <- gets asAgdaModuleName
   let modNs = mnameToList mod 
       qnms = qnameToList qnm
   case stripPrefix modNs qnms of
-    Nothing -> __IMPOSSIBLE__
-    Just nm -> return nm
+    -- not sure when the name doesn't have a module prefix... just force generation of a name for the time being
+    Nothing -> return $ Left qnms
+    Just nm -> return $ Right nm
 
 ------------------------------------
 ---- local fresh names

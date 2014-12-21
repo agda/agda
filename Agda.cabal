@@ -428,6 +428,7 @@ library
     other-modules:
                     Agda.Compiler.UHC.AuxAST
                     Agda.Compiler.UHC.AuxASTUtil
+                    Agda.Compiler.UHC.Builtins
 --                    Agda.Compiler.UHC.CaseOpts
                     Agda.Compiler.UHC.CompileState
                     Agda.Compiler.UHC.Core

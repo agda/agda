@@ -1,4 +1,4 @@
-{-# LANGUAGE CPP #-}
+{-# LANGUAGE CPP, DoAndIfThenElse #-}
 
 -- | Convert from Agda's internal representation to our auxiliary AST.
 --
@@ -38,6 +38,7 @@ import Agda.Compiler.UHC.AuxAST
 import Agda.Compiler.UHC.AuxASTUtil
 import Agda.Compiler.UHC.CompileState
 import Agda.Compiler.UHC.ModuleInfo
+import Agda.Compiler.UHC.Builtins
 import Agda.Compiler.UHC.Primitives
 import Agda.Compiler.UHC.Core
 import Agda.Compiler.UHC.Naming
@@ -56,23 +57,24 @@ fromAgdaModule modNm modImps defs = do
   kit <- coinductionKit
 
   btins <- getBuiltins
+
+  reportSLn "uhc" 15 "Building name database..."
   defNames <- collectNames btins defs
   nameMp <- assignCoreNames modNm defNames
+  reportSLn "uhc" 25 $ "NameMap for " ++ show modNm ++ ":\n" ++ show nameMp
+
   
-  (mod', modInfo') <- runCompileT kit modNm modImps nameMp (do
-
-    lift $ reportSLn "uhc" 25 $ "NameMap for " ++ show modNm ++ ":\n" ++ show nameMp
-
+  (mod', modInfo') <- runCompileT kit btins modNm modImps nameMp (do
     lift $ reportSLn "uhc" 10 "Translate datatypes..."
     -- Translate and add datatype information
-    dats <- translateDataTypes btins defs
+    dats <- translateDataTypes defs
     let conMp = buildConMp dats
     addConMap conMp
 
     lift $ reportSLn "uhc" 25 $ "Constructor Map for " ++ show modNm ++ ":\n" ++ show conMp
 
 
-    funs <- evalFreshNameT "nl.uu.agda.from-agda" (catMaybes <$> mapM (translateDefn btins) defs)
+    funs <- evalFreshNameT "nl.uu.agda.from-agda" (catMaybes <$> mapM translateDefn defs)
 
     return $ AMod { xmodName = modNm
                   , xmodFunDefs = funs
@@ -108,22 +110,24 @@ collectNames btins defs = do
                     (Primitive {}) -> EtFunction
                 isBtin = isBuiltin btins qnm
                 isForeign = isJust $ compiledCore $ defCompiledRep def
-            in -- builtin/foreign constructors already have a core-level representation, so we don't need any fresh names
-               -- but for the datatypes themselves we still want to create the type-dummy function
-               if ty == EtConstructor && (isForeign || isBtin) then Nothing
+            -- builtin/foreign constructors already have a core-level representation, so we don't need any fresh names
+            -- but for the datatypes themselves we still want to create the type-dummy function
+            in if ty == EtConstructor && (isForeign || isBtin) then Nothing
                else Just AgdaName
                 { anName = qnm
                 , anType = ty
                 , anNeedsAgdaExport = True -- TODO, only set this to true for things which are actually exported
-                , anCoreExport = if (isForeign || isBtin) && ty /= EtFunction
+                -- TODO we should either remove this or make it work... just disable core export for the time being...
+                , anCoreExport = AceNo {-if (isForeign || isBtin) && ty /= EtFunction
                         then AceNo      -- it doesn't make sense to export foreign/builtin datatypes on the core level
-                        else AceWanted -- TODO, add pragma to set this to No/Required
+                        else AceWanted -- TODO, add pragma to set this to No/Required-}
                 , anForceName = Nothing -- TODO add pragma to force name
                 }
 
 
-translateDataTypes :: BuiltinCache -> [(QName, Definition)] -> CompileT TCM [ADataTy]
-translateDataTypes btins defs = do
+translateDataTypes :: [(QName, Definition)] -> CompileT TCM [ADataTy]
+translateDataTypes defs = do
+  btins <- getBuiltinCache
   kit <- getCoinductionKit
   -- first, collect all constructors
   constrMp <- M.unionsWith (++)
@@ -174,8 +178,8 @@ translateDataTypes btins defs = do
 
 
 -- | Translate an Agda definition to an Epic function where applicable
-translateDefn :: BuiltinCache -> (QName, Definition) -> FreshNameT (CompileT TCM) (Maybe Fun)
-translateDefn btins (n, defini) = do
+translateDefn :: (QName, Definition) -> FreshNameT (CompileT TCM) (Maybe Fun)
+translateDefn (n, defini) = do
   crName <- lift $ getCoreName n
   let crRep = compiledCore $ defCompiledRep defini
   kit <- lift getCoinductionKit
@@ -241,7 +245,9 @@ translateDefn btins (n, defini) = do
       let ar = arity $ defType defini
       case primName p `M.lookup` primFunctions of
         Nothing     -> error $ "Primitive " ++ show (primName p) ++ " declared, but no such primitive exists."
-        (Just anm)  -> return <$> mkFunGen n (const $ App anm) ("primitive: " ++) (fromMaybe __IMPOSSIBLE__ crName) (primName p) ar
+        (Just expr) -> do
+                expr' <- lift expr
+                return $ Just $ CoreFun (fromMaybe __IMPOSSIBLE__ crName) (Just n) ("primitive: " ++ primName p) expr' ar --mkFunGen n (const $ App anm) ("primitive: " ++) (fromMaybe __IMPOSSIBLE__ crName) (primName p) ar
   where
     -- | Produces an identity function, optionally ignoring the first n arguments.
     mkIdentityFun :: Monad m => QName
@@ -434,26 +440,4 @@ substLit lit = case lit of
   TL.LitFloat  _ f -> return $ LFloat f
   _ -> uhcError $ "literal not supported: " ++ show lit
 
--- | Returns the expression to use to build a value of the given datatype/constructor.
--- The returned expression may be fully or partially applied.
-getConstrFun :: MonadTCM m => QName -> CompileT m HsName
-getConstrFun conNm = do
-  kit <- getCoinductionKit
-
-  case (Just conNm) == (nameOfSharp <$> kit) of
-    True -> getCoreName1 conNm
-    False -> do
-            -- we can't just use getCoreName here, because foreign constructors
-            -- are not part of the name map.
-            conInfo <- getConstrInfo conNm
-            let conDef = aciDataCon conInfo
-                tyDef = aciDataType conInfo
-
-            case xdatImplType tyDef of
-              (ADataImplMagic nm) | nm == "UNIT" -> return $ builtinUnitCtor -- already fully applied
-              _ -> return $ ctagCtorName $ xconCTag conDef
-
-
-ctagCtorName :: CTag -> HsName
-ctagCtorName = destructCTag __IMPOSSIBLE__ (\_ x _ _ -> x)
 

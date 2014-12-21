@@ -12,9 +12,11 @@ module Agda.Compiler.UHC.CompileState
   , getCoreName
   , getCoreName1
   , getConstrInfo
+  , getConstrFun
 --  , getConstrTag
 --  , getConstrArity
   , getCoinductionKit
+  , getBuiltinCache
 
   , getCurrentModule
 
@@ -35,7 +37,9 @@ import qualified Data.Set as S
 import Data.Time.Clock.POSIX
 
 import Agda.Compiler.UHC.AuxAST as AuxAST
+import Agda.Compiler.UHC.AuxASTUtil
 import Agda.Compiler.UHC.ModuleInfo
+import Agda.Compiler.UHC.Builtins
 import Agda.Interaction.Options
 import Agda.Syntax.Internal
 import Agda.Syntax.Concrete(TopLevelModuleName)
@@ -60,6 +64,7 @@ data CompileState = CompileState
     { curModule       :: ModuleName
     , moduleInterface :: AModuleInterface    -- ^ Contains the interface of all imported and the currently compiling module.
     , coinductionKit' :: Maybe CoinductionKit
+    , builtins :: BuiltinCache
     }
 
 -- | Compiler monad
@@ -68,12 +73,13 @@ type CompileT = StateT CompileState
 -- | The initial (empty) state
 runCompileT :: MonadIO m
     => Maybe CoinductionKit
+    -> BuiltinCache
     -> ModuleName   -- ^ The module to compile.
     -> [AModuleInfo] -- ^ Imported module info (non-transitive).
     -> NameMap      -- ^ NameMap for the current module (non-transitive).
     -> CompileT m a
     -> m (a, AModuleInfo)
-runCompileT coind mod impMods nmMp comp = do
+runCompileT coind btins mod impMods nmMp comp = do
   (result, state') <- runStateT comp initial
 
   version <- liftIO getPOSIXTime
@@ -95,6 +101,7 @@ runCompileT coind mod impMods nmMp comp = do
                 (mempty { amifNameMp = nmMp})
                 (mconcat $ map amiInterface impMods)
             , coinductionKit' = coind
+            , builtins = btins
             }
 
 addConMap :: Monad m => M.Map QName AConInfo -> CompileT m ()
@@ -130,6 +137,9 @@ getCoinductionKit = gets coinductionKit'
 getCurrentModule :: Monad m => CompileT m ModuleName
 getCurrentModule = gets curModule
 
+getBuiltinCache :: Monad m => CompileT m BuiltinCache
+getBuiltinCache = gets builtins
+
 -- TODO What does this have to do with CompileState? Move
 replaceAt :: Int -- ^ replace at
           -> [a] -- ^ to replace
@@ -148,4 +158,24 @@ conArityAndPars q = do
   let TM.Constructor{ TM.conPars = np } = theDef def
       n = genericLength (telToList tel)
   return (n - np, np)
+
+
+-- | Returns the expression to use to build a value of the given datatype/constructor.
+-- The returned expression may be fully or partially applied.
+getConstrFun :: MonadTCM m => QName -> CompileT m HsName
+getConstrFun conNm = do
+  kit <- getCoinductionKit
+
+  case (Just conNm) == (nameOfSharp <$> kit) of
+    True -> getCoreName1 conNm
+    False -> do
+            -- we can't just use getCoreName here, because foreign constructors
+            -- are not part of the name map.
+            conInfo <- getConstrInfo conNm
+            let conDef = aciDataCon conInfo
+                tyDef = aciDataType conInfo
+
+            case xdatImplType tyDef of
+              (ADataImplMagic nm) | nm == "UNIT" -> return $ builtinUnitCtor -- already fully applied
+              _ -> return $ ctagCtorName $ xconCTag conDef
 
