@@ -67,6 +67,8 @@ maintenance branch is maint-2.4.0.
 
   `cabal configure && cabal haddock`
 
+* Add X.Y.Z to the `.travis.yml` file.
+
 * If necessary, commit your changes.
 
 * Push to the master branch.
