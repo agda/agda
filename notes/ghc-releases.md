@@ -14,6 +14,10 @@ maintenance branch is maint-2.4.0.
 * Install the tools in the `build-tools` field of the `Agda.cabal`
   file.
 
+* Install Agda using GHC X.Y.Z.
+
+  `make install-bin`
+
 * Run the test-suite, using `make test` (which does not work properly
   unless you run `autoreconf` and `./configure` first).
 
@@ -33,6 +37,7 @@ maintenance branch is maint-2.4.0.
 * Test the hTags program:
 
   ````bash
+  cd src/hTags/ && cabal clean
   rm -f src/full/TAGS
   make TAGS
   ````
@@ -43,7 +48,7 @@ maintenance branch is maint-2.4.0.
 
 * Merge the ghc-X.Y.Z branch in the maint-2.4.0 branch and push it:
 
-  ````bash
+````bash
   git merge ghc-X.Y.Z
   git push
   ````
@@ -66,6 +71,8 @@ maintenance branch is maint-2.4.0.
   version 1.20.0.3 using version 1.20.0.2 of the Cabal library):
 
   `cabal configure && cabal haddock`
+
+* Add X.Y.Z to the `.travis.yml` file.
 
 * If necessary, commit your changes.
 
