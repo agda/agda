@@ -4,6 +4,7 @@ cabal-version:   >= 1.8
 build-type:      Simple
 description:     Helper programs.
 license:         MIT
+tested-with:     GHC == 7.8.4
 
 executable GenerateEverything
   hs-source-dirs:   .
