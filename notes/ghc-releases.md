@@ -37,6 +37,7 @@ maintenance branch is maint-2.4.0.
 * Test the hTags program:
 
   ````bash
+  cd src/hTags/ && cabal clean
   rm -f src/full/TAGS
   make TAGS
   ````
@@ -47,7 +48,7 @@ maintenance branch is maint-2.4.0.
 
 * Merge the ghc-X.Y.Z branch in the maint-2.4.0 branch and push it:
 
-  ````bash
+````bash
   git merge ghc-X.Y.Z
   git push
   ````
