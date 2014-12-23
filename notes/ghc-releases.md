@@ -14,6 +14,10 @@ maintenance branch is maint-2.4.0.
 * Install the tools in the `build-tools` field of the `Agda.cabal`
   file.
 
+* Install Agda using GHC X.Y.Z.
+
+  `make install-bin`
+
 * Run the test-suite, using `make test` (which does not work properly
   unless you run `autoreconf` and `./configure` first).
 
