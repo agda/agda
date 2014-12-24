@@ -19,10 +19,10 @@ import Agda.Utils.Impossible
 type Prio = Int
 
 class Trav a blk | a -> blk where
- traverse :: Monad m => (forall b . Trav b blk => MM b blk -> m ()) -> a -> m ()
+  trav :: Monad m => (forall b . Trav b blk => MM b blk -> m ()) -> a -> m ()
 
 instance Trav a blk => Trav (MM a blk) blk where
- traverse f me = f me
+  trav f me = f me
 
 data Term blk = forall a . Trav a blk => Term a
 

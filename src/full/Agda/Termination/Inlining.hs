@@ -1,4 +1,5 @@
-{-# LANGUAGE CPP #-}
+{-# LANGUAGE CPP              #-}
+{-# LANGUAGE FlexibleContexts #-}  -- It will be required by GHC 7.10.
 
 -- Author:  Ulf Norell
 -- Created: 2013-11-09

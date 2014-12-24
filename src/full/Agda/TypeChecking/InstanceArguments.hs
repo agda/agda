@@ -1,4 +1,5 @@
-{-# LANGUAGE CPP #-}
+{-# LANGUAGE CPP              #-}
+{-# LANGUAGE FlexibleContexts #-}  -- This will be required by GHC 7.10.
 
 module Agda.TypeChecking.InstanceArguments where
 

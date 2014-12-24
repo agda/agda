@@ -350,33 +350,27 @@ prioTypecheck True = 0
 -- ---------------------------------
 
 instance Trav a blk => Trav [a] blk where
- traverse _ [] = return ()
- traverse f (x:xs) = traverse f x >> traverse f xs
+  trav _ []     = return ()
+  trav f (x:xs) = trav f x >> trav f xs
 
 instance Trav (MId, CExp o) (RefInfo o) where
- traverse f (_, ce) = traverse f ce
+  trav f (_, ce) = trav f ce
 
 instance Trav (TrBr a o) (RefInfo o) where
- traverse f (TrBr es _) = traverse f es
+  trav f (TrBr es _) = trav f es
 
 instance Trav (Exp o) (RefInfo o) where
- traverse f e = case e of
-  App _ _ _ args -> traverse f args
-  Lam _ (Abs _ b) -> traverse f b
-  Pi _ _ _ it (Abs _ ot) -> traverse f it >> traverse f ot
-  Sort _ -> return ()
-
-  AbsurdLambda{} -> return ()
-
+  trav f e = case e of
+    App _ _ _ args          -> trav f args
+    Lam _ (Abs _ b)        -> trav f b
+    Pi _ _ _ it (Abs _ ot) -> trav f it >> trav f ot
+    Sort _                 -> return ()
+    AbsurdLambda{}         -> return ()
 
 instance Trav (ArgList o) (RefInfo o) where
- traverse _ ALNil = return ()
- traverse f (ALCons _ arg args) = traverse f arg >> traverse f args
-
- traverse f (ALProj eas _ _ as) = traverse f eas >> traverse f as
-
-
- traverse f (ALConPar args) = traverse f args
-
+  trav _ ALNil               = return ()
+  trav f (ALCons _ arg args) = trav f arg >> trav f args
+  trav f (ALProj eas _ _ as) = trav f eas >> trav f as
+  trav f (ALConPar args)     = trav f args
 
 -- ---------------------------------
