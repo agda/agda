@@ -66,6 +66,7 @@ prettyError err = liftTCM $ show <$> prettyError' err []
     | otherwise = applyUnless (null errs) (text "panic: error when printing error!" $$) $ do
         (prettyTCM err $$ vcat (map (text . ("when printing error " ++) . tcErrString) errs))
         `catchError` \ err' -> prettyError' err' (err:errs)
+
 ---------------------------------------------------------------------------
 -- * Warnings
 ---------------------------------------------------------------------------
@@ -88,7 +89,6 @@ warningsToError :: Warnings -> TCM a
 warningsToError (Warnings [] [])     = typeError $ SolvedButOpenHoles
 warningsToError (Warnings w@(_:_) _) = typeError $ UnsolvedMetas w
 warningsToError (Warnings _ w@(_:_)) = typeError $ UnsolvedConstraints w
-
 
 ---------------------------------------------------------------------------
 -- * Helpers
@@ -798,11 +798,11 @@ instance PrettyTCM TypeError where
 
         isOrdinary :: C.OpApp e -> Bool
         isOrdinary (C.Ordinary _) = True
-        isOrdinary _ = False
+        isOrdinary _              = False
 
         fromOrdinary :: C.OpApp e -> e
         fromOrdinary (C.Ordinary e) = e
-        fromOrdinary _ = __IMPOSSIBLE__
+        fromOrdinary _              = __IMPOSSIBLE__
 
     BadArgumentsToPatternSynonym x -> fsep $
       pwords "Bad arguments to pattern synonym " ++ [prettyTCM x]
@@ -847,7 +847,7 @@ instance PrettyTCM TypeError where
         unambiguousP (C.ParenP r x)     = C.ParenP r $ unambiguousP x
         unambiguousP (C.AsP r n x)      = C.AsP r n $ unambiguousP x
         unambiguousP (C.OpAppP r op xs) = foldl C.AppP (C.IdentP op) xs
-        unambiguousP e = e
+        unambiguousP e                  = e
 
 {- UNUSED
     AmbiguousParseForPatternSynonym p ps -> fsep (
