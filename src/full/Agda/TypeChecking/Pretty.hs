@@ -180,7 +180,7 @@ instance PrettyTCM Relevance where
   prettyTCM UnusedArg  = empty
 
 instance PrettyTCM Comparison where
-  prettyTCM CmpEq  = text "=="
+  prettyTCM CmpEq  = text "="
   prettyTCM CmpLeq = text "=<"
 
 instance PrettyTCM ProblemConstraint where

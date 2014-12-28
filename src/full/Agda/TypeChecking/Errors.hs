@@ -1012,7 +1012,7 @@ instance PrettyTCM TypeError where
     prettyPat _ (I.ProjP p) = prettyTCM p
 
 notCmp :: Comparison -> TCM Doc
-notCmp cmp = text $ "!" ++ show cmp
+notCmp cmp = text "!" <> prettyTCM cmp
 
 -- | Print two terms that are supposedly unequal.
 --   If they print to the same identifier, add some explanation

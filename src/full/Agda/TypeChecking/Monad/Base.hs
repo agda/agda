@@ -635,6 +635,12 @@ instance HasRange Constraint where
 data Comparison = CmpEq | CmpLeq
   deriving (Eq, Typeable)
 
+-- TODO: 'Show' should output Haskell-parseable representations.
+-- The following instance is deprecated, and Pretty[TCM] should be used
+-- instead. Later, simply derive Show for this type.
+
+-- ASR (27 December 2014). This instance is not used anymore (module
+-- the test suite) when reporting errors. See Issue 1293.
 instance Show Comparison where
   show CmpEq  = "="
   show CmpLeq = "=<"
