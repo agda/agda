@@ -1037,9 +1037,14 @@ prettyInEqual t1 t2 = do
         (I.Con{}, I.Var{}) -> varCon
         _                  -> empty
   where
-    varDef     = parens $ fwords "because one is a variable and one a defined identifier"
-    varCon     = parens $ fwords "because one is a variable and one a constructor"
-    varVar i j = parens $ fwords $ "because one has deBruijn index " ++ show i ++ " and the other " ++ show j
+    varDef, varCon :: TCM Doc
+    varDef = parens $ fwords "because one is a variable and one a defined identifier"
+    varCon = parens $ fwords "because one is a variable and one a constructor"
+
+    varVar :: Int -> Int -> TCM Doc
+    varVar i j = parens $ fwords $
+                   "because one has deBruijn index " ++ show i
+                   ++ " and the other " ++ show j
 
 class PrettyUnequal a where
   prettyUnequal :: a -> TCM Doc -> a -> TCM Doc
