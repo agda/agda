@@ -14,6 +14,7 @@ open import Data.Sum
 open import Level
 open import Relation.Nullary
 open import Relation.Binary using (Setoid; IsEquivalence)
+open import Relation.Binary.PropositionalEquality using (_≡_)
 
 ------------------------------------------------------------------------
 -- Unary relations
@@ -51,6 +52,10 @@ module _ {a} {A : Set a} -- The universe of discourse.
 
   ∅-Empty : Empty ∅
   ∅-Empty x ()
+
+  -- The singleton set.
+  ｛_｝ : A → Pred A a
+  ｛ x ｝ = _≡_ x
 
   -- The universe, i.e. the subset containing all elements in A.
 

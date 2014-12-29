@@ -21,14 +21,6 @@ open import Relation.Unary.PredicateTransformer using (Pt)
 
 ------------------------------------------------------------------------
 
-｛_｝×_ : ∀ {i a} {I : Set i} → I → Set a → Pred I _
-｛ i ｝× A = λ j → i ≡ j × A
-
-｛_｝ : ∀ {i} {I : Set i} → I → Pred I i
-｛ i ｝ = λ j → j ∈ ｛ i ｝× ⊤
-
-------------------------------------------------------------------------
-
 record RawPMonad {i ℓ} {I : Set i} (M : Pt I (i ⊔ ℓ)) :
                  Set (suc i ⊔ suc ℓ) where
 
@@ -61,10 +53,10 @@ record RawPMonad {i ℓ} {I : Set i} (M : Pt I (i ⊔ ℓ)) :
 
   -- ``Angelic'' operations (the player knows the state).
 
-  rawIMonad : RawIMonad (λ i j A → i ∈ M (｛ j ｝× A))
+  rawIMonad : RawIMonad (λ i j A → i ∈ M (const A ∩ ｛ j ｝))
   rawIMonad = record
-    { return = λ x → return? (refl , x)
-    ; _>>=_  = λ m k → m ?>= λ { {._} (refl , x) → k x }
+    { return = λ x → return? (x , refl)
+    ; _>>=_  = λ m k → m ?>= λ { {._} (x , refl) → k x }
     }
 
   open RawIMonad rawIMonad public
