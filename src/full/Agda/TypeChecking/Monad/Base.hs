@@ -486,8 +486,18 @@ instance HasFresh Int where
 newtype ProblemId = ProblemId Nat
   deriving (Typeable, Eq, Ord, Enum, Real, Integral, Num)
 
+-- TODO: 'Show' should output Haskell-parseable representations.
+-- The following instance is deprecated, and Pretty[TCM] should be used
+-- instead. Later, simply derive Show for this type.
+
+-- ASR (28 December 2014). This instance is not used anymore (module
+-- the test suite) when reporting errors. See Issue 1293.
+
 instance Show ProblemId where
   show (ProblemId n) = show n
+
+instance Pretty ProblemId where
+  pretty (ProblemId n) = pretty n
 
 instance HasFresh ProblemId where
   freshLens = stFreshProblemId
@@ -682,6 +692,10 @@ data Comparison = CmpEq | CmpLeq
 instance Show Comparison where
   show CmpEq  = "="
   show CmpLeq = "=<"
+
+instance Pretty Comparison where
+  pretty CmpEq  = text "="
+  pretty CmpLeq = text "=<"
 
 -- | An extension of 'Comparison' to @>=@.
 data CompareDirection = DirEq | DirLeq | DirGeq

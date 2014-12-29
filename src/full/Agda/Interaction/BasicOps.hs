@@ -306,15 +306,17 @@ instance Reify Constraint (OutputConstraint Expr Expr) where
       return $ FindInScopeOF m' t' cands' -- IFSTODO
     reify (IsEmpty r a) = IsEmptyType <$> reify a
 
+-- ASR TODO (28 December 2014): This function will be unnecessary when
+-- using a Pretty instance for OutputConstraint instead of the Show
+-- instance.
 showComparison :: Comparison -> String
-showComparison CmpEq  = " = "
-showComparison CmpLeq = " =< "
+showComparison cmp = " " ++ prettyShow cmp ++ " "
 
 instance (Show a,Show b) => Show (OutputForm a b) where
   show o =
     case o of
       OutputForm r 0   c -> show c ++ range r
-      OutputForm r pid c -> "[" ++ show pid ++ "] " ++ show c ++ range r
+      OutputForm r pid c -> "[" ++ prettyShow pid ++ "] " ++ show c ++ range r
     where
       range r | null s    = ""
               | otherwise = " [ at " ++ s ++ " ]"
@@ -330,7 +332,7 @@ instance (Show a,Show b) => Show (OutputConstraint a b) where
     show (CmpLevels cmp t t')   = show t ++ showComparison cmp ++ show t'
     show (CmpTeles  cmp t t')   = show t ++ showComparison cmp ++ show t'
     show (CmpSorts cmp s s')    = show s ++ showComparison cmp ++ show s'
-    show (Guard o pid)          = show o ++ " [blocked by problem " ++ show pid ++ "]"
+    show (Guard o pid)          = show o ++ " [blocked by problem " ++ prettyShow pid ++ "]"
     show (Assign m e)           = show m ++ " := " ++ show e
     show (TypedAssign m e a)    = show m ++ " := " ++ show e ++ " :? " ++ show a
     show (PostponedCheckArgs m es t0 t1) = show m ++ " := (_ : " ++ show t0 ++ ") " ++ unwords (map (paren . show) es)
