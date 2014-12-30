@@ -459,21 +459,23 @@ CommaBIds : CommaBIdAndAbsurds {
 
 CommaBIdAndAbsurds :: { Either [Name] [Expr] }
 CommaBIdAndAbsurds : Application {%
-    let getName (Ident (QName x)) = Just x
+    let getName :: Expr -> Maybe Name
+        getName (Ident (QName x)) = Just x
         getName (Underscore r _)  = Just (Name r [Hole])
         getName _                 = Nothing
 
-        containsAbsurd (Absurd _) = True
-        containsAbsurd (HiddenArg _ (Named _ e)) = containsAbsurd e
-        containsAbsurd (InstanceArg _ (Named _ e)) = containsAbsurd e
-        containsAbsurd (Paren _ expr)    = containsAbsurd expr
-        containsAbsurd (RawApp _ exprs)    = any containsAbsurd exprs
-        containsAbsurd _          = False
+        isAbsurd :: Expr -> Bool
+        isAbsurd (Absurd _)                  = True
+        isAbsurd (HiddenArg _ (Named _ e))   = isAbsurd e
+        isAbsurd (InstanceArg _ (Named _ e)) = isAbsurd e
+        isAbsurd (Paren _ expr)              = isAbsurd expr
+        isAbsurd (RawApp _ exprs)            = any isAbsurd exprs
+        isAbsurd _                           = False
     in
-    if isJust $ find containsAbsurd $1 then return $ Right $1 else
-    case partition isJust $ map getName $1 of
-        (good, []) -> return $ Left $ map fromJust good
-        _          -> fail $ "expected sequence of bound identifiers"
+    if any isAbsurd $1 then return $ Right $1 else
+    case mapM getName $1 of
+        Just good -> return $ Left good
+        Nothing   -> fail $ "expected sequence of bound identifiers"
     }
 
 
