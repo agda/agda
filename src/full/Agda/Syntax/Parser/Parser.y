@@ -456,15 +456,6 @@ CommaBIds : CommaBIdAndAbsurds {
       Left ns -> ns
       Right _ -> fail $ "expected sequence of bound identifiers, not absurd pattern"
     }
-{-
-    let getName (Ident (QName x)) = Just x
-        getName (Underscore r _)  = Just (Name r [Hole])
-        getName _                 = Nothing
-    in
-    case partition isJust $ map getName $1 of
-        (good, []) -> return $ map fromJust good
-        _          -> fail $ "expected sequence of bound identifiers"
--}
 
 CommaBIdAndAbsurds :: { Either [Name] [Expr] }
 CommaBIdAndAbsurds : Application {%
@@ -814,13 +805,6 @@ DomainFreeBindingAbsurd
     Modules and imports
  --------------------------------------------------------------------------}
 
--- You can rename imports
--- ImportImportDirective :: { (Maybe AsName, ImportDirective) }
--- ImportImportDirective
---     : ImportDirective            { (Nothing, $1) }
---     | id Id ImportDirective {% isName "as" $1 >>
---                                return (Just (AsName $2 (getRange (fst $1))), $3) }
-
 -- Import directives
 ImportDirective :: { ImportDirective }
 ImportDirective : ImportDirectives {% mergeImportDirectives $1 }
@@ -841,7 +825,6 @@ UsingOrHiding
         -- using can have an empty list
     | 'hiding' '(' CommaImportNames ')'  { (Hiding $3 , getRange ($1,$2,$3,$4)) }
         -- if you want to hide nothing that's fine, isn't it?
---    | 'hiding' '(' CommaImportNames1 ')' { (Hiding $3 , getRange ($1,$2,$3,$4)) }
 
 RenamingDir :: { ([Renaming] , Range) }
 RenamingDir
