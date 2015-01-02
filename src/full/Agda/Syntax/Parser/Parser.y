@@ -639,32 +639,41 @@ TypedBindingss
 -- Andreas, 2011-04-27: or ..(x1 .. xn : A) or ..{y1 .. ym : B}
 TypedBindings :: { TypedBindings }
 TypedBindings
-    : '.' '(' TBind ')'    { TypedBindings (getRange ($2,$3,$4))
-                                           (setRelevance Irrelevant $ defaultColoredArg $3) }
-    | '.' '{' TBind '}'    { TypedBindings (getRange ($2,$3,$4))
-                                           (hide $ setRelevance Irrelevant $ defaultColoredArg $3) }
-    | '.' '{{' TBind DoubleCloseBrace  { TypedBindings (getRange ($2,$3,$4))
-                                                       (makeInstance $ setRelevance Irrelevant $ defaultColoredArg $3) }
-    | '..' '(' TBind ')'    { TypedBindings (getRange ($2,$3,$4))
-                                            (setRelevance NonStrict $ defaultColoredArg $3) }
-    | '..' '{' TBind '}'    { TypedBindings (getRange ($2,$3,$4))
-                                            (hide $ setRelevance NonStrict $ defaultColoredArg $3) }
-    | '..' '{{' TBind DoubleCloseBrace  { TypedBindings (getRange ($2,$3,$4))
-                                                        (makeInstance $ setRelevance NonStrict $ defaultColoredArg $3) }
-    | '(' TBind ')'        { TypedBindings (getRange ($1,$2,$3))
-                                           (defaultColoredArg $2) }
-    | '{{' TBind DoubleCloseBrace      { TypedBindings (getRange ($1,$2,$3))
-                                                       (makeInstance $ defaultColoredArg $2) }
-    | '{' TBind '}'        { TypedBindings (getRange ($1,$2,$3))
-                                           (hide $ defaultColoredArg $2) }
+    : '.' '(' TBind ')'    { setRange (getRange ($2,$3,$4)) $
+                             setRelevance Irrelevant $3 }
+    | '.' '{' TBind '}'    { setRange (getRange ($2,$3,$4)) $
+                             setHiding Hidden $
+                             setRelevance Irrelevant $3 }
+    | '.' '{{' TBind DoubleCloseBrace
+                           { setRange (getRange ($2,$3,$4)) $
+                             setHiding Instance $
+                             setRelevance Irrelevant $3 }
+    | '..' '(' TBind ')'   { setRange (getRange ($2,$3,$4)) $
+                             setRelevance NonStrict $3 }
+    | '..' '{' TBind '}'   { setRange (getRange ($2,$3,$4)) $
+                             setHiding Hidden $
+                             setRelevance NonStrict $3 }
+    | '..' '{{' TBind DoubleCloseBrace
+                           { setRange (getRange ($2,$3,$4)) $
+                             setHiding Instance $
+                             setRelevance NonStrict $3 }
+    | '(' TBind ')'        { setRange (getRange ($1,$2,$3)) $2 }
+    | '{{' TBind DoubleCloseBrace
+                           { setRange (getRange ($1,$2,$3)) $
+                             setHiding Instance $2 }
+    | '{' TBind '}'        { setRange (getRange ($1,$2,$3)) $
+                             setHiding Hidden $2 }
     | '(' Open ')'               { tLet (getRange ($1,$3)) $2 }
     | '(' 'let' Declarations ')' { tLet (getRange ($1,$4)) $3 }
 
 
 -- x1 .. xn : A
 -- x1 .. xn :{i1 i2 ..} A
-TBind :: { ( [Color], TypedBinding ) }
-TBind : CommaBIds ':' Expr              { ( [], TBind (getRange ($1,$2,$3))    (map mkBoundName_ $1) $3 ) }
+TBind :: { TypedBindings }
+TBind : CommaBIds ':' Expr  {
+    let r = getRange ($1,$2,$3) -- the range is approximate only for TypedBindings
+    in TypedBindings r $ defaultArg $ TBind r (map mkBoundName_ $1) $3
+  }
 -- | Colors are not yet allowed in the syntax.
 --      | CommaBIds ':{' Colors '}' Expr  { ( $3, TBind (getRange ($1,$2,$3,$4,$5)) (map mkBoundName_ $1) $5 ) }
 {-

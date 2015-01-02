@@ -522,6 +522,17 @@ instance HasRange Expr where
 --     getRange (TeleBind bs) = getRange bs
 --     getRange (TeleFun x y) = fuseRange x y
 
+instance LensHiding TypedBindings where
+  getHiding   (TypedBindings _ b) = getHiding b
+  mapHiding f (TypedBindings r b) = TypedBindings r $ mapHiding f b
+
+instance LensRelevance TypedBindings where
+  getRelevance   (TypedBindings _ b) = getRelevance b
+  mapRelevance f (TypedBindings r b) = TypedBindings r $ mapRelevance f b
+
+instance SetRange TypedBindings where
+  setRange r (TypedBindings _ b) = TypedBindings r b
+
 instance HasRange TypedBindings where
   getRange (TypedBindings r _) = r
 
