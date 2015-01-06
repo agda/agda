@@ -223,8 +223,8 @@ Extensionality a b =
 ------------------------------------------------------------------------
 -- The old inspect on steroids
 
--- The old inspect on steroids idiom has been deprecated, and may be removed in
--- the future. Use simplified inspect on steroids instead
+-- The old inspect on steroids idiom has been deprecated, and may be
+-- removed in the future. Use simplified inspect on steroids instead.
 
 module Deprecated-inspect-on-steroids where
 
@@ -247,14 +247,15 @@ module Deprecated-inspect-on-steroids where
 ------------------------------------------------------------------------
 -- Simplified inspect on steroids
 
--- Simplified inspect on steroids can be used when you want to pattern match on
--- the result r of some expression e, and you also need to "remember"
--- that r ≡ e.
+-- Simplified inspect on steroids can be used when you want to pattern
+-- match on the result r of some expression e, and you also need to
+-- "remember" that r ≡ e.
 
 record Reveal_·_is_ {a b} {A : Set a} {B : A → Set b}
-  (f : (x : A) → B x) (x : A) (y : B x) : Set (a ⊔ b) where
-    constructor [_]
-    field eq : f x ≅ y
+                    (f : (x : A) → B x) (x : A) (y : B x) :
+                    Set (a ⊔ b) where
+  constructor [_]
+  field eq : f x ≅ y
 
 inspect : ∀ {a b} {A : Set a} {B : A → Set b}
           (f : (x : A) → B x) (x : A) → Reveal f · x is f x
