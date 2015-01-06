@@ -6,7 +6,7 @@
 
 module Reflection where
 
-open import Data.Bool.Minimal using (Bool; false; true)
+open import Data.Bool.Base using (Bool; false; true)
 open import Data.List using (List); open Data.List.List
 open import Data.Nat using (ℕ) renaming (_≟_ to _≟-ℕ_)
 open import Data.Nat.Show renaming (show to showNat)

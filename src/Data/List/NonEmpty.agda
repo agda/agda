@@ -7,10 +7,10 @@
 module Data.List.NonEmpty where
 
 open import Category.Monad
-open import Data.Bool.Minimal using (Bool; false; true; not; T)
+open import Data.Bool.Base using (Bool; false; true; not; T)
 open import Data.Bool.Properties
 open import Data.List as List using (List; []; _∷_)
-open import Data.Maybe.Minimal using (nothing; just)
+open import Data.Maybe.Base using (nothing; just)
 open import Data.Nat as Nat
 open import Data.Product using (∃; proj₁; proj₂; _,_; ,_)
 open import Data.Sum as Sum using (_⊎_; inj₁; inj₂)

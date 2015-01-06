@@ -6,7 +6,7 @@
 
 module Data.List.All.Properties where
 
-open import Data.Bool.Minimal using (Bool; T)
+open import Data.Bool.Base using (Bool; T)
 open import Data.Bool.Properties
 open import Data.Empty
 open import Data.List as List

@@ -8,12 +8,12 @@ module Data.Colist where
 
 open import Category.Monad
 open import Coinduction
-open import Data.Bool.Minimal using (Bool; true; false)
+open import Data.Bool.Base using (Bool; true; false)
 open import Data.BoundedVec.Inefficient as BVec
   using (BoundedVec; []; _∷_)
 open import Data.Conat using (Coℕ; zero; suc)
 open import Data.Empty using (⊥)
-open import Data.Maybe.Minimal using (Maybe; nothing; just; Is-just)
+open import Data.Maybe.Base using (Maybe; nothing; just; Is-just)
 open import Data.Nat using (ℕ; zero; suc; _≥′_; ≤′-refl; ≤′-step)
 open import Data.Nat.Properties using (s≤′s)
 open import Data.List using (List; []; _∷_)

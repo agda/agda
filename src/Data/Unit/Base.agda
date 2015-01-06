@@ -3,7 +3,7 @@
 --
 -- The unit type and the total relation on unit
 ------------------------------------------------------------------------
-module Data.Unit.Minimal where
+module Data.Unit.Base where
 
 ------------------------------------------------------------------------
 -- A unit type defined as a record type

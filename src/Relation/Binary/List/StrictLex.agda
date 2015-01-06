@@ -12,7 +12,7 @@
 module Relation.Binary.List.StrictLex where
 
 open import Data.Empty
-open import Data.Unit.Minimal using (⊤; tt)
+open import Data.Unit.Base using (⊤; tt)
 open import Function
 open import Data.Product
 open import Data.Sum

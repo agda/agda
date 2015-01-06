@@ -12,10 +12,10 @@ module Data.List.Properties where
 open import Algebra
 import Algebra.Monoid-solver
 open import Category.Monad
-open import Data.Bool.Minimal using (Bool; false; true; not)
+open import Data.Bool.Base using (Bool; false; true; not)
 open import Data.List as List
 open import Data.List.All using (All; []; _∷_)
-open import Data.Maybe.Minimal using (Maybe; just; nothing)
+open import Data.Maybe.Base using (Maybe; just; nothing)
 open import Data.Nat
 open import Data.Nat.Properties
 open import Data.Product as Prod hiding (map)

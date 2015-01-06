@@ -6,7 +6,7 @@
 
 -- The definitions in this file are reexported by Data.Maybe.
 
-module Data.Maybe.Minimal where
+module Data.Maybe.Base where
 
 open import Level
 
@@ -20,8 +20,8 @@ data Maybe {a} (A : Set a) : Set a where
 ------------------------------------------------------------------------
 -- Some operations
 
-open import Data.Bool.Minimal using (Bool; true; false; not)
-open import Data.Unit.Minimal using (⊤)
+open import Data.Bool.Base using (Bool; true; false; not)
+open import Data.Unit.Base using (⊤)
 open import Function
 open import Relation.Nullary
 
@@ -71,7 +71,7 @@ map f = maybe (just ∘ f) nothing
 ------------------------------------------------------------------------
 -- Any and All
 
-open Data.Bool.Minimal using (T)
+open Data.Bool.Base using (T)
 open import Data.Empty using (⊥)
 
 data Any {a p} {A : Set a} (P : A → Set p) : Maybe A → Set (a ⊔ p) where

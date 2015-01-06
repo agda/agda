@@ -3,9 +3,9 @@
 --
 -- The type for booleans and some operations
 ------------------------------------------------------------------------
-module Data.Bool.Minimal where
+module Data.Bool.Base where
 
-open import Data.Unit.Minimal using (⊤)
+open import Data.Unit.Base using (⊤)
 open import Data.Empty
 
 infixr 6 _∧_

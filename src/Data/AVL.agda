@@ -19,11 +19,11 @@ module Data.AVL
   (isStrictTotalOrder : IsStrictTotalOrder _≡_ _<_)
   where
 
-open import Data.Bool.Minimal using (Bool)
+open import Data.Bool.Base using (Bool)
 import Data.DifferenceList as DiffList
 open import Data.Empty
 open import Data.List as List using (List)
-open import Data.Maybe.Minimal hiding (map)
+open import Data.Maybe.Base hiding (map)
 open import Data.Nat hiding (_<_; compare; _⊔_)
 open import Data.Product hiding (map)
 open import Data.Unit

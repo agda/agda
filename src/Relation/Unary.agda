@@ -8,7 +8,7 @@ module Relation.Unary where
 
 open import Data.Empty
 open import Function
-open import Data.Unit.Minimal using (⊤)
+open import Data.Unit.Base using (⊤)
 open import Data.Product
 open import Data.Sum
 open import Level

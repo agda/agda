@@ -8,7 +8,7 @@ module Data.Char where
 
 open import Data.Nat using (ℕ)
 import Data.Nat.Properties as NatProp
-open import Data.Bool.Minimal using (Bool; true; false)
+open import Data.Bool.Base using (Bool; true; false)
 open import Relation.Nullary
 open import Relation.Nullary.Decidable
 open import Relation.Binary

@@ -14,7 +14,7 @@ open import Relation.Binary.PropositionalEquality as PropEq
 ------------------------------------------------------------------------
 -- The boolean type and some operations
 
-open import Data.Bool.Minimal public
+open import Data.Bool.Base public
 
 ------------------------------------------------------------------------
 -- Queries
