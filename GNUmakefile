@@ -1,6 +1,7 @@
 AGDA=agda
 
 test: Everything.agda
+	fix-agda-whitespace --check
 	$(AGDA) -i. -isrc README.agda
 
 setup: Everything.agda agda-lib-ffi
