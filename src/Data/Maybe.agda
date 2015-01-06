@@ -13,7 +13,7 @@ open import Relation.Nullary
 ------------------------------------------------------------------------
 -- The type and some operations
 
-open import Data.Maybe.Minimal public
+open import Data.Maybe.Base public
 
 ------------------------------------------------------------------------
 -- Maybe monad

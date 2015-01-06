@@ -7,7 +7,7 @@
 module Data.Char.Core where
 
 open import Data.Nat using (ℕ)
-open import Data.Bool.Minimal using (Bool)
+open import Data.Bool.Base using (Bool)
 
 ------------------------------------------------------------------------
 -- The type

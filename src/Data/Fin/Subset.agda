@@ -25,7 +25,7 @@ infix 4 _∈_ _∉_ _⊆_ _⊈_
 
 -- Sides.
 
-open import Data.Bool.Minimal public
+open import Data.Bool.Base public
   using () renaming (Bool to Side; true to inside; false to outside)
 
 -- Partitions a finite set into two parts, the inside and the outside.

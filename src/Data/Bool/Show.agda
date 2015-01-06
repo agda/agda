@@ -6,7 +6,7 @@
 
 module Data.Bool.Show where
 
-open import Data.Bool.Minimal using (Bool; false; true)
+open import Data.Bool.Base using (Bool; false; true)
 open import Data.String.Core using (String)
 
 show : Bool → String

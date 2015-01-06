@@ -12,7 +12,7 @@ module Data.List.Any.Properties where
 open import Algebra
 import Algebra.FunctionProperties as FP
 open import Category.Monad
-open import Data.Bool.Minimal using (Bool; false; true; T)
+open import Data.Bool.Base using (Bool; false; true; T)
 open import Data.Bool.Properties
 open import Data.Empty
 open import Data.List as List

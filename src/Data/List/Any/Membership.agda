@@ -13,7 +13,7 @@ module Data.List.Any.Membership where
 
 open import Algebra
 open import Category.Monad
-open import Data.Bool.Minimal using (Bool; false; true; T)
+open import Data.Bool.Base using (Bool; false; true; T)
 open import Data.Empty
 open import Function
 open import Function.Equality using (_⟨$⟩_)

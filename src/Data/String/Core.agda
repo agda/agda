@@ -7,7 +7,7 @@
 module Data.String.Core where
 
 open import Data.List using (List)
-open import Data.Bool.Minimal using (Bool)
+open import Data.Bool.Base using (Bool)
 open import Data.Char.Core using (Char)
 
 ------------------------------------------------------------------------
