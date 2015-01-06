@@ -221,15 +221,47 @@ Extensionality a b =
 
 
 ------------------------------------------------------------------------
--- Inspect on steroids
+-- The old inspect on steroids
 
--- Inspect on steroids can be used when you want to pattern match on
--- the result r of some expression e, and you also need to "remember"
--- that r ≡ e.
+-- The old inspect on steroids idiom has been deprecated, and may be
+-- removed in the future. Use simplified inspect on steroids instead.
 
-data Reveal_is_ {a} {A : Set a} (x : Hidden A) (y : A) : Set a where
-  [_] : (eq : reveal x ≅ y) → Reveal x is y
+module Deprecated-inspect-on-steroids where
+
+  -- Inspect on steroids can be used when you want to pattern match on
+  -- the result r of some expression e, and you also need to "remember"
+  -- that r ≡ e.
+
+  data Reveal_is_ {a} {A : Set a} (x : Hidden A) (y : A) : Set a where
+    [_] : (eq : reveal x ≡ y) → Reveal x is y
+
+  inspect : ∀ {a b} {A : Set a} {B : A → Set b}
+            (f : (x : A) → B x) (x : A) → Reveal (hide f x) is (f x)
+  inspect f x = [ refl ]
+
+  -- Example usage:
+
+  -- f x y with g x | inspect g x
+  -- f x y | c z | [ eq ] = ...
+
+------------------------------------------------------------------------
+-- Simplified inspect on steroids
+
+-- Simplified inspect on steroids can be used when you want to pattern
+-- match on the result r of some expression e, and you also need to
+-- "remember" that r ≡ e.
+
+record Reveal_·_is_ {a b} {A : Set a} {B : A → Set b}
+                    (f : (x : A) → B x) (x : A) (y : B x) :
+                    Set (a ⊔ b) where
+  constructor [_]
+  field eq : f x ≅ y
 
 inspect : ∀ {a b} {A : Set a} {B : A → Set b}
-          (f : (x : A) → B x) (x : A) → Reveal (hide f x) is (f x)
+          (f : (x : A) → B x) (x : A) → Reveal f · x is f x
 inspect f x = [ refl ]
+
+-- Example usage:
+
+-- f x y with g x | inspect g x
+-- f x y | c z | [ eq ] = ...
