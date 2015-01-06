@@ -9,7 +9,7 @@ open import Data.Sum
 
 open import Data.Bool
 
-open import Data.Maybe.Minimal
+open import Data.Maybe.Base
 
 import Data.Nat as ℕ
 open import Data.Nat using (ℕ)
