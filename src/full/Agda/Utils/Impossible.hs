@@ -7,7 +7,7 @@
 module Agda.Utils.Impossible where
 
 import Control.Exception as E
-import Data.Typeable
+import Data.Typeable ( Typeable )
 
 -- | \"Impossible\" errors, annotated with a file name and a line
 -- number corresponding to the source code location of the error.

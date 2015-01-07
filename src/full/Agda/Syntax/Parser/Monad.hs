@@ -32,7 +32,7 @@ module Agda.Syntax.Parser.Monad
 
 import Control.Exception
 import Data.Int
-import Data.Typeable
+import Data.Typeable ( Typeable )
 
 import Control.Monad.State
 import Control.Applicative

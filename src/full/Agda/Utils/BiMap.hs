@@ -20,7 +20,7 @@ import Data.Map (Map)
 import qualified Data.Map as Map
 import Data.Maybe
 import Data.Tuple
-import Data.Typeable
+import Data.Typeable ( Typeable )
 
 import Test.QuickCheck
 import Test.QuickCheck.All

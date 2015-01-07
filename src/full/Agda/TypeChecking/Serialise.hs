@@ -49,7 +49,7 @@ import qualified Data.Binary.Get as B
 import qualified Data.Binary.Put as B
 import qualified Data.List as List
 import Data.Function
-import Data.Typeable
+import Data.Typeable ( cast, Typeable, typeOf, TypeRep )
 import qualified Codec.Compression.GZip as G
 
 import qualified Agda.Compiler.Epic.Interface as Epic
