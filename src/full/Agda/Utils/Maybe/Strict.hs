@@ -39,14 +39,15 @@ import qualified Prelude             as Lazy
 import           Control.Applicative (pure, (<$>))
 import           Control.DeepSeq     (NFData (..))
 import           Data.Binary         (Binary (..))
-#if MIN_VERSION_base(4,7,0)
-import           Data.Data           (Data (..), Typeable)
-#else
-import           Data.Data           (Data (..), Typeable1 (..))
-#endif
+import           Data.Data           (Data (..))
 import           Data.Monoid         (Monoid (..))
 import           Data.Foldable       (Foldable (..))
 import           Data.Traversable    (Traversable (..))
+#if MIN_VERSION_base(4,7,0)
+import           Data.Typeable       (Typeable)
+#else
+import           Data.Typeable       (Typeable1)
+#endif
 import           Data.Strict.Maybe   (Maybe (Nothing, Just), fromJust,
                                       fromMaybe, isJust, isNothing, maybe)
 #if __GLASGOW_HASKELL__ >= 706

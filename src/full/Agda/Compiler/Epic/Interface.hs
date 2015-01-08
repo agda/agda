@@ -10,7 +10,7 @@ import Data.Function
 import Data.Map(Map)
 import Data.Monoid
 import Data.Set (Set)
-import Data.Typeable
+import Data.Typeable ( Typeable )
 
 import Agda.Syntax.Common (Nat)
 import Agda.Syntax.Internal

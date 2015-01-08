@@ -15,7 +15,7 @@ import Data.Hashable
 import Data.IORef
 import Data.Traversable
 import System.IO.Unsafe
-import Data.Typeable
+import Data.Typeable ( Typeable )
 
 data Ptr a = Ptr { ptrTag :: !Integer
                  , ptrRef :: !(IORef a) }
