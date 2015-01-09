@@ -6,7 +6,7 @@
 
 module Relation.Nullary.Decidable where
 
-open import Data.Bool
+open import Data.Bool.Base using (Bool; false; true; not; T)
 open import Data.Empty
 open import Data.Product hiding (map)
 open import Data.Unit

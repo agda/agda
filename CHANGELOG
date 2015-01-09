@@ -17,7 +17,28 @@ follows:
 Currently the library does not support the Epic or JavaScript compiler
 backends.
 
-Important changes since 0.9.1:
+Important changes since 0.9:
+
+* Renamed Data.Unit.Core to Data.Unit.NonEta
+
+* Inspect on steroids has been simplified (see
+  Relation.Binary.PropositionalEquality and
+  Relation.Binary.HeterogeneousEquality).
+
+  The old version has been deprecated (see the above modules) and it
+  will be removed in the next release.
+
+* Using Data.X.Base modules.
+
+  The Data.X.Base modules are used for cheaply importing a data type
+  and the most common definitions. The use of these modules reduce
+  type-checking and compilation times.
+
+  At the moment, the modules added are:
+
+  Data.Bool.Base
+  Data.Maybe.Base
+  Data.Unit.Base
 
 ------------------------------------------------------------------------
 -- Release notes for Agda standard library version 0.9

@@ -7,7 +7,7 @@
 module Data.Sum where
 
 open import Function
-open import Data.Maybe.Core
+open import Data.Maybe.Base using (Maybe; just; nothing)
 open import Level
 
 ------------------------------------------------------------------------

@@ -4,9 +4,7 @@
 -- Some unit types
 ------------------------------------------------------------------------
 
--- The definitions in this file are reexported by Data.Unit.
-
-module Data.Unit.Core where
+module Data.Unit.NonEta where
 
 open import Level
 

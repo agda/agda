@@ -3,6 +3,7 @@ version:         0.0.2
 cabal-version:   >= 1.8
 build-type:      Simple
 description:     Auxiliary Haskell code used by Agda's standard library.
+tested-with:     GHC == 7.8.4
 
 library
   build-depends:    base >= 3.0.3.1 && < 4.8
