@@ -8,7 +8,7 @@ module Agda.TypeChecking.Rules.LHS.Problem where
 
 import Prelude hiding (null)
 
-import Data.Foldable
+import Data.Foldable ( Foldable )
 import Data.Traversable
 
 import Agda.Syntax.Common

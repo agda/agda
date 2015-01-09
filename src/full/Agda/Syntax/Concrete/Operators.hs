@@ -52,7 +52,11 @@ import Agda.TypeChecking.Monad.Options
 
 import Agda.Utils.Either
 import Agda.Utils.ReadP
+#if MIN_VERSION_base(4,8,0)
+import Agda.Utils.List hiding ( uncons )
+#else
 import Agda.Utils.List
+#endif
 
 #include "undefined.h"
 import Agda.Utils.Impossible
