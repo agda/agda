@@ -241,14 +241,6 @@ data LHSCore
 
 instance NFData LHSCore
 
-{- TRASH
-lhsCoreToPattern :: LHSCore -> Pattern
-lhsCoreToPattern (LHSHead f args) = OpAppP (fuseRange f args) (unqualify f) args
-lhsCoreToPattern (LHSProj d ps1 lhscore ps2) = OpAppP (fuseRange d ps) (unqualify) ps
-  where p = lhsCoreToPattern lhscore
-        ps = ps1 ++ p : ps2
--}
-
 type RHS = RHS' Expr
 data RHS' e
   = AbsurdRHS -- ^ No right hand side because of absurd match.
