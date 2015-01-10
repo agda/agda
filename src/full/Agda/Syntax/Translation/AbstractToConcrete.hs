@@ -121,37 +121,6 @@ abstractToConcreteCtx ctx x = do
 abstractToConcrete_ :: ToConcrete a c => a -> TCM c
 abstractToConcrete_ = runAbsToCon . toConcrete
 
-{-
--- | We make the translation monadic for modularity purposes.
-type AbsToCon = Reader Env
-
-runAbsToCon :: AbsToCon a -> TCM a
-runAbsToCon m = do
-  scope <- getScope
-  return $ runReader m (makeEnv scope)
-
-abstractToConcreteEnv :: ToConcrete a c => Env -> a -> TCM c
-abstractToConcreteEnv flags a = return $ runReader (toConcrete a) flags
-
-{- Andreas, 2013-02-26 discontinue non-monadic version in favor of debug msg.
-abstractToConcrete :: ToConcrete a c => Env -> a -> c
-abstractToConcrete flags a = runReader (toConcrete a) flags
--}
-
-abstractToConcreteCtx :: ToConcrete a c => Precedence -> a -> TCM c
-abstractToConcreteCtx ctx x = do
-  scope <- getScope
-  let scope' = scope { scopePrecedence = ctx }
-  return $ abstractToConcrete (makeEnv scope') x
-  where
-    scope = (currentScope defaultEnv) { scopePrecedence = ctx }
-
-abstractToConcrete_ :: ToConcrete a c => a -> TCM c
-abstractToConcrete_ x = do
-  scope <- getScope
-  return $ abstractToConcrete (makeEnv scope) x
--}
-
 -- Dealing with names -----------------------------------------------------
 
 -- | Names in abstract syntax are fully qualified, but the concrete syntax
@@ -847,28 +816,9 @@ instance ToConcrete A.LHS C.LHS where
       bindToConcreteCtx TopCtx lhscore $ \lhs ->
         bindToConcreteCtx TopCtx (noImplicitPats wps) $ \wps ->
           ret $ C.LHS lhs wps [] []
-{-
-    bindToConcrete (A.LHS i (A.LHSHead x args) wps) ret = do
-      bindToConcreteCtx TopCtx (A.DefP info x args) $ \lhs ->
-        bindToConcreteCtx TopCtx (noImplicitPats wps) $ \wps ->
-          ret $ C.LHS lhs wps [] []
-      where info = PatRange (getRange i)
--}
 
 instance ToConcrete A.LHSCore C.Pattern where
     bindToConcrete = bindToConcrete . lhsCoreToPattern
-{-
-    bindToConcrete (A.LHSHead x args) ret = do
-      bindToConcreteCtx TopCtx (A.DefP info x args) $ \ lhs ->
-        ret $ lhs
-      where info = PatRange noRange -- seems to be unused anyway
-    bindToConcrete (A.LHSProj d ps1 lhscore ps2) ret = do
-      d <- toConcrete d
-      bindToConcrete ps1 $ \ ps1 ->
-        bindToConcrete lhscore $ \ p ->
-          bindToConcrete ps2 $ \ ps2 ->
-            ret $ makePattern d ps1 p ps2
-  -}
 
 appBrackets' :: [arg] -> Precedence -> Bool
 appBrackets' []    _   = False
