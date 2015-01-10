@@ -47,6 +47,7 @@ import Control.Monad.State
 import Data.Foldable hiding (concatMap, mapM_, notElem, elem, all)
 import qualified Data.Map as Map
 import Data.Map (Map)
+import Data.Maybe
 import Data.Monoid ( Monoid(mappend, mempty) )
 import Data.List as List
 import Data.Traversable (traverse)
@@ -658,9 +659,10 @@ niceDeclarations ds = do
     dataOrRec mkDef mkSig niceD r x tel mt mcs = do
       mds <- traverse niceD mcs
       f   <- getFixity x
-      return $
-         [mkSig (fuseRange x t) f PublicAccess x tel t | Just t <- [mt] ] ++
-         [mkDef r f ConcreteDef x (concatMap dropType tel) ds | Just ds <- [mds] ]
+      return $ catMaybes $
+        [ mt <&> \ t -> mkSig (fuseRange x t) f PublicAccess x tel t
+        , mkDef r f ConcreteDef x (concatMap dropType tel) <$> mds
+        ]
       where
         dropType (DomainFull (TypedBindings r (Common.Arg i (TBind _ xs _)))) =
           map (DomainFree i) xs
