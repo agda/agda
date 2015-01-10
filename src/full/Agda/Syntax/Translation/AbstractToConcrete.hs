@@ -261,6 +261,23 @@ toConcreteTop = toConcreteCtx TopCtx
 -- | Translate something in the top context.
 bindToConcreteTop :: ToConcrete a c => a -> (c -> AbsToCon b) -> AbsToCon b
 bindToConcreteTop = bindToConcreteCtx TopCtx
+
+-- | Translate something in a context indicated by 'Hiding' info.
+toConcreteHiding :: (LensHiding h, ToConcrete a c) => h -> a -> AbsToCon c
+toConcreteHiding h =
+  case getHiding h of
+    NotHidden -> toConcrete
+    Hidden    -> toConcreteTop
+    Instance  -> toConcreteTop
+
+-- | Translate something in a context indicated by 'Hiding' info.
+bindToConcreteHiding :: (LensHiding h, ToConcrete a c) => h -> a -> (c -> AbsToCon b) -> AbsToCon b
+bindToConcreteHiding h =
+  case getHiding h of
+    NotHidden -> bindToConcrete
+    Hidden    -> bindToConcreteTop
+    Instance  -> bindToConcreteTop
+
 -- General instances ------------------------------------------------------
 
 instance ToConcrete a c => ToConcrete [a] [c] where
@@ -289,15 +306,14 @@ instance ToConcrete (Common.ArgInfo ac) C.ArgInfo where
                     return $ info { argInfoColors = [] } -- TODO: zapping ignoring colours
 
 instance ToConcrete a c => ToConcrete (Common.Arg ac a) (C.Arg c) where
-    toConcrete (Common.Arg info x) = liftM2 Common.Arg (toConcrete info) (f x)
-      where f = case getHiding info of
-                  Hidden    -> toConcreteCtx TopCtx
-                  Instance  -> toConcreteCtx TopCtx
-                  NotHidden -> toConcrete
+    toConcrete (Common.Arg info x) = Common.Arg
+      <$> toConcrete info
+      <*> toConcreteHiding info x
 
-    bindToConcrete (Common.Arg info x) ret = do info <- toConcrete info
-                                                bindToConcreteCtx (hiddenArgumentCtx $ getHiding info) x $
-                                                                  ret . Common.Arg info
+    bindToConcrete (Common.Arg info x) ret = do
+      info <- toConcrete info
+      bindToConcreteCtx (hiddenArgumentCtx $ getHiding info) x $
+        ret . Common.Arg info
 
 instance ToConcrete a c => ToConcrete (Named name a) (Named name c) where
     toConcrete (Named n x) = Named n <$> toConcrete x
