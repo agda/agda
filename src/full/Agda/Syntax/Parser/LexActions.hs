@@ -69,6 +69,7 @@ lexToken =
 
 postToken :: Token -> Token
 postToken (TokId (r, "\x03bb")) = TokSymbol SymLambda r
+postToken (TokId (r, "\x2026")) = TokSymbol SymEllipsis r
 postToken (TokId (r, "\x2192")) = TokSymbol SymArrow r
 postToken (TokId (r, "\x2983")) = TokSymbol SymDoubleOpenBrace r
 postToken (TokId (r, "\x2984")) = TokSymbol SymDoubleCloseBrace r
