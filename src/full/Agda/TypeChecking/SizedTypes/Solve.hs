@@ -92,7 +92,13 @@ import Agda.Utils.Cluster
 import Agda.Utils.Except ( MonadError(catchError) )
 import Agda.Utils.Function
 import Agda.Utils.Functor
+
+#if MIN_VERSION_base(4,8,0)
+import Agda.Utils.List hiding ( uncons )
+#else
 import Agda.Utils.List
+#endif
+
 import Agda.Utils.Maybe
 import Agda.Utils.Monad
 import Agda.Utils.Size

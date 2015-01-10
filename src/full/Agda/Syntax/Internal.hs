@@ -22,7 +22,7 @@ import Control.Monad.Identity hiding (mapM)
 import Control.Monad.State hiding (mapM)
 import Control.Parallel
 
-import Data.Foldable
+import Data.Foldable ( Foldable )
 import Data.Function
 import qualified Data.List as List
 import Data.Maybe

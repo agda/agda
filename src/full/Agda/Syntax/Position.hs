@@ -357,7 +357,11 @@ instance KillRange Bool where
 instance KillRange Int where
   killRange = id
 
+#if __GLASGOW_HASKELL__ >= 710
+instance {-# OVERLAPPABLE #-} KillRange a => KillRange [a] where
+#else
 instance KillRange a => KillRange [a] where
+#endif
   killRange = map killRange
 
 instance (KillRange a, KillRange b) => KillRange (a, b) where

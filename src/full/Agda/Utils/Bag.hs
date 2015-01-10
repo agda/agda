@@ -19,7 +19,7 @@ import qualified Data.Map as Map
 import Data.Monoid
 import Data.Set (Set)
 import qualified Data.Set as Set
-import qualified Data.Traversable as Trav
+import Data.Traversable
 
 import Agda.Utils.Functor
 import Agda.Utils.QuickCheck
@@ -128,12 +128,13 @@ map f = Bag . Map.fromListWith (++) . List.map ff . Map.elems . bag
     ff (a : as) = (b, b : List.map f as) where b = f a
     ff []       = __IMPOSSIBLE__
 
-traverse :: forall a b m . (Applicative m, Ord b) => (a -> m b) -> Bag a -> m (Bag b)
-traverse f = (Bag . Map.fromListWith (++)) <.> Trav.traverse trav . Map.elems . bag
+traverse' :: forall a b m . (Applicative m, Ord b) =>
+             (a -> m b) -> Bag a -> m (Bag b)
+traverse' f = (Bag . Map.fromListWith (++)) <.> traverse trav' . Map.elems . bag
   where
-    trav :: [a] -> m (b, [b])
-    trav (a : as) = (\ b bs -> (b, b:bs)) <$> f a <*> Trav.traverse f as
-    trav []       = __IMPOSSIBLE__
+    trav' :: [a] -> m (b, [b])
+    trav' (a : as) = (\ b bs -> (b, b:bs)) <$> f a <*> traverse f as
+    trav' []       = __IMPOSSIBLE__
 
 ------------------------------------------------------------------------
 -- * Instances
@@ -195,7 +196,7 @@ prop_map_compose :: (Ord a, Ord b, Ord c) =>
 prop_map_compose f g b = map f (map g b) == map (f . g) b
 
 prop_traverse_id :: Ord a => Bag a -> Bool
-prop_traverse_id b = traverse Identity b == Identity b
+prop_traverse_id b = traverse' Identity b == Identity b
 
 ------------------------------------------------------------------------
 -- * All tests

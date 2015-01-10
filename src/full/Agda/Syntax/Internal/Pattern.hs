@@ -3,10 +3,13 @@
 {-# LANGUAGE FlexibleInstances      #-}
 {-# LANGUAGE FunctionalDependencies #-}
 {-# LANGUAGE MultiParamTypeClasses  #-}
-{-# LANGUAGE OverlappingInstances   #-}
 {-# LANGUAGE TupleSections          #-}
 {-# LANGUAGE TypeSynonymInstances   #-}
 {-# LANGUAGE UndecidableInstances   #-}  -- because of func. deps.
+
+#if __GLASGOW_HASKELL__ <= 708
+{-# LANGUAGE OverlappingInstances #-}
+#endif
 
 module Agda.Syntax.Internal.Pattern where
 
@@ -49,7 +52,12 @@ class FunArity a where
   funArity :: a -> Int
 
 -- | Get the number of initial 'Apply' patterns.
+
+#if __GLASGOW_HASKELL__ >= 710
+instance {-# OVERLAPPABLE #-} IsProjP p => FunArity [p] where
+#else
 instance IsProjP p => FunArity [p] where
+#endif
   funArity = length . takeWhile (isNothing . isProjP)
 
 -- | Get the number of initial 'Apply' patterns in a clause.
@@ -57,7 +65,11 @@ instance FunArity Clause where
   funArity = funArity . clausePats
 
 -- | Get the number of common initial 'Apply' patterns in a list of clauses.
+#if __GLASGOW_HASKELL__ >= 710
+instance {-# OVERLAPPING #-} FunArity [Clause] where
+#else
 instance FunArity [Clause] where
+#endif
   funArity []  = 0
   funArity cls = minimum $ map funArity cls
 

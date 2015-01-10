@@ -2,12 +2,15 @@
 {-# LANGUAGE FlexibleInstances      #-}
 {-# LANGUAGE FunctionalDependencies #-}
 {-# LANGUAGE MultiParamTypeClasses  #-}
-{-# LANGUAGE OverlappingInstances   #-}
 {-# LANGUAGE PatternGuards          #-}
 {-# LANGUAGE ScopedTypeVariables    #-}
 {-# LANGUAGE TypeSynonymInstances   #-}
 {-# LANGUAGE TupleSections          #-}
 {-# LANGUAGE UndecidableInstances   #-}
+
+#if __GLASGOW_HASKELL__ <= 708
+{-# LANGUAGE OverlappingInstances #-}
+#endif
 
 {-| Translation from "Agda.Syntax.Concrete" to "Agda.Syntax.Abstract". Involves scope analysis,
     figuring out infix operator precedences and tidying up definitions.
@@ -332,8 +335,12 @@ instance (ToAbstract c1 a1, ToAbstract c2 a2, ToAbstract c3 a3) =>
         where
             flatten (x,(y,z)) = (x,y,z)
 
+#if __GLASGOW_HASKELL__ >= 710
+instance {-# OVERLAPPABLE #-} ToAbstract c a => ToAbstract [c] [a] where
+#else
 instance ToAbstract c a => ToAbstract [c] [a] where
-    toAbstract = mapM toAbstract
+#endif
+  toAbstract = mapM toAbstract
 
 instance (ToAbstract c1 a1, ToAbstract c2 a2) =>
          ToAbstract (Either c1 c2) (Either a1 a2) where
@@ -919,7 +926,11 @@ niceDecls ds = case runNice $ niceDeclarations ds of
   Left e   -> throwError $ Exception (getRange e) (show e)
   Right ds -> return ds
 
+#if __GLASGOW_HASKELL__ >= 710
+instance {-# OVERLAPPING #-} ToAbstract [C.Declaration] [A.Declaration] where
+#else
 instance ToAbstract [C.Declaration] [A.Declaration] where
+#endif
   toAbstract ds = do
     -- don't allow to switch off termination checker in --safe mode
     ds <- ifM (optSafe <$> commandLineOptions) (mapM noNoTermCheck ds) (return ds)

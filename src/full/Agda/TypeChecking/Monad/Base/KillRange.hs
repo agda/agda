@@ -1,6 +1,10 @@
+{-# LANGUAGE CPP                  #-}
 {-# LANGUAGE FlexibleInstances    #-}
-{-# LANGUAGE OverlappingInstances #-}
 {-# LANGUAGE TypeSynonymInstances #-}
+
+#if __GLASGOW_HASKELL__ <= 708
+{-# LANGUAGE OverlappingInstances #-}
+#endif
 
 -- | 'KillRange' instances for data structures from "Agda.TypeChecking.Monad.Base".
 
@@ -111,7 +115,11 @@ instance KillRange a => KillRange (Drop a) where
   killRange = fmap killRange
 
 -- | Overlaps with @KillRange [a]@.
+#if __GLASGOW_HASKELL__ >= 710
+instance {-# OVERLAPPING #-} KillRange String where
+#else
 instance KillRange String where
+#endif
   killRange = id
 
 -- | Remove ranges in keys and values of a map.
