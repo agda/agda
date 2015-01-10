@@ -65,7 +65,7 @@ class Functor t => Decoration t where
 dmap :: Decoration t => (a -> b) -> t a -> t b
 dmap f = runIdentity . traverseF (Identity . f)
 
--- | Any decoration is a lens.  @set@ is a special case of @fmap@.
+-- | Any decoration is a lens.  @set@ is a special case of @dmap@.
 dget :: Decoration t => t a -> a
 dget = getConstant . traverseF Constant
 
