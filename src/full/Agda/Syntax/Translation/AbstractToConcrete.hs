@@ -254,6 +254,13 @@ toConcreteCtx p x = withPrecedence p $ toConcrete x
 bindToConcreteCtx :: ToConcrete a c => Precedence -> a -> (c -> AbsToCon b) -> AbsToCon b
 bindToConcreteCtx p x ret = withPrecedence p $ bindToConcrete x ret
 
+-- | Translate something in the top context.
+toConcreteTop :: ToConcrete a c => a -> AbsToCon c
+toConcreteTop = toConcreteCtx TopCtx
+
+-- | Translate something in the top context.
+bindToConcreteTop :: ToConcrete a c => a -> (c -> AbsToCon b) -> AbsToCon b
+bindToConcreteTop = bindToConcreteCtx TopCtx
 -- General instances ------------------------------------------------------
 
 instance ToConcrete a c => ToConcrete [a] [c] where
@@ -361,7 +368,7 @@ instance ToConcrete A.Expr C.Expr where
         $ case lamView e of
             (bs, e) ->
                 bindToConcrete (map makeDomainFree bs) $ \bs -> do
-                    e  <- toConcreteCtx TopCtx e
+                    e  <- toConcreteTop e
                     return $ C.Lam (getRange i) (concat bs) e
         where
             lamView (A.Lam _ b@(A.DomainFree _ _) e) =
@@ -405,7 +412,7 @@ instance ToConcrete A.Expr C.Expr where
       (tel, e) ->
         bracket piBrackets
         $ bindToConcrete tel $ \b' -> do
-             e' <- toConcreteCtx TopCtx e
+             e' <- toConcreteTop e
              return $ C.Pi (concat b') e'
       where
         piTel (A.Pi _ tel e) = (tel ++) -*- id $ piTel e
@@ -414,7 +421,7 @@ instance ToConcrete A.Expr C.Expr where
     toConcrete (A.Fun i a b) =
         bracket piBrackets
         $ do a' <- toConcreteCtx (if irr then DotPatternCtx else FunctionSpaceDomainCtx) a
-             b' <- toConcreteCtx TopCtx b
+             b' <- toConcreteTop b
              return $ C.Fun (getRange i) (addRel a' $ mkArg a') b'
         where
             irr        = getRelevance a `elem` [Irrelevant, NonStrict]
@@ -435,20 +442,20 @@ instance ToConcrete A.Expr C.Expr where
     toConcrete (A.Let i ds e) =
         bracket lamBrackets
         $ bindToConcrete ds $ \ds' -> do
-             e'  <- toConcreteCtx TopCtx e
+             e'  <- toConcreteTop e
              return $ C.Let (getRange i) (concat ds') e'
 
     toConcrete (A.Rec i fs) =
       bracket appBrackets $ do
         let (xs, es) = unzip fs
-        es <- toConcreteCtx TopCtx es
+        es <- toConcreteTop es
         return $ C.Rec (getRange i) $ zip xs es
 
     toConcrete (A.RecUpdate i e fs) =
       bracket appBrackets $ do
         let (xs, es) = unzip fs
         e <- toConcrete e
-        es <- toConcreteCtx TopCtx es
+        es <- toConcreteTop es
         return $ C.RecUpdate (getRange i) e $ zip xs es
 
     toConcrete (A.ETel tel) = do
@@ -475,7 +482,7 @@ instance ToConcrete A.Expr C.Expr where
     -- Andreas, 2010-10-05 print irrelevant things as ordinary things
     toConcrete (A.DontCare e) = C.Dot r . C.Paren r  <$> toConcrete e
        where r = getRange e
---    toConcrete (A.DontCare e) = C.DontCare <$> toConcreteCtx TopCtx e
+--    toConcrete (A.DontCare e) = C.DontCare <$> toConcreteTop e
 {-
     -- Andreas, 2010-09-21 abuse C.Underscore to print irrelevant things
     toConcrete (A.DontCare) = return $ C.Underscore noRange Nothing
@@ -522,9 +529,9 @@ instance ToConcrete A.TypedBindings [C.TypedBindings] where
 
 instance ToConcrete A.TypedBinding C.TypedBinding where
     bindToConcrete (A.TBind r xs e) ret =
-        e <- toConcreteCtx TopCtx e
         ret (C.TBind r (map mkBoundName_ xs) e)
         bindToConcrete xs $ \ xs -> do
+        e <- toConcreteTop e
     bindToConcrete (A.TLet r lbs) ret =
         bindToConcrete lbs $ \ ds -> do
         ret $ C.TLet r $ concat ds
@@ -636,7 +643,7 @@ instance ToConcrete (Constr A.Constructor) C.Declaration where
     withScope scope $ toConcrete (Constr d)
   toConcrete (Constr (A.Axiom _ i info x t)) = do
     x' <- unsafeQNameToName <$> toConcrete x
-    t' <- toConcreteCtx TopCtx t
+    t' <- toConcreteTop t
     info <- toConcrete info
     return $ C.TypeSig info x' t'
   toConcrete (Constr d) = head <$> toConcrete d
@@ -647,7 +654,7 @@ instance ToConcrete a C.LHS => ToConcrete (A.Clause' a) [C.Declaration] where
         case lhs of
           C.LHS p wps _ _ -> do
             bindToConcrete (AsWhereDecls wh)  $ \wh' -> do
-                (rhs', eqs, with, wcs) <- toConcreteCtx TopCtx rhs
+                (rhs', eqs, with, wcs) <- toConcreteTop rhs
                 return $ FunClause (C.LHS p wps eqs with) rhs' wh' : wcs
           C.Ellipsis {} -> __IMPOSSIBLE__
           -- TODO: Is the case above impossible? Previously there was
@@ -673,7 +680,7 @@ instance ToConcrete A.Declaration [C.Declaration] where
     x' <- unsafeQNameToName <$> toConcrete x
     withAbstractPrivate i $
       withInfixDecl i x'  $ do
-      t' <- toConcreteCtx TopCtx t
+      t' <- toConcreteTop t
       info <- toConcrete info
       return [C.Postulate (getRange i) [C.TypeSig info x' t']]
 
@@ -681,14 +688,14 @@ instance ToConcrete A.Declaration [C.Declaration] where
     x' <- unsafeQNameToName <$> toConcrete x
     withAbstractPrivate i $
       withInfixDecl i x'  $ do
-      t' <- toConcreteCtx TopCtx t
+      t' <- toConcreteTop t
       return [C.Field x' t']
 
   toConcrete (A.Primitive i x t) = do
     x' <- unsafeQNameToName <$> toConcrete x
     withAbstractPrivate i $
       withInfixDecl i x'  $ do
-      t' <- toConcreteCtx TopCtx t
+      t' <- toConcreteTop t
       return [C.Primitive (getRange i) [C.TypeSig defaultArgInfo x' t']]
         -- Primitives are always relevant.
 
@@ -699,7 +706,7 @@ instance ToConcrete A.Declaration [C.Declaration] where
     withAbstractPrivate i $
     bindToConcrete bs $ \tel' -> do
       x' <- unsafeQNameToName <$> toConcrete x
-      t' <- toConcreteCtx TopCtx t
+      t' <- toConcreteTop t
       return [ C.DataSig (getRange i) Inductive x' (map C.DomainFull $ concat tel') t' ]
 
   toConcrete (A.DataDef i x bs cs) =
@@ -712,7 +719,7 @@ instance ToConcrete A.Declaration [C.Declaration] where
     withAbstractPrivate i $
     bindToConcrete bs $ \tel' -> do
       x' <- unsafeQNameToName <$> toConcrete x
-      t' <- toConcreteCtx TopCtx t
+      t' <- toConcreteTop t
       return [ C.RecordSig (getRange i) x' (map C.DomainFull $ concat tel') t' ]
 
   toConcrete (A.RecDef  i x ind c bs t cs) =
