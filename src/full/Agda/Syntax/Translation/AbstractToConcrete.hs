@@ -77,14 +77,12 @@ defaultEnv = Env { takenNames   = Set.empty
                  }
 
 makeEnv :: ScopeInfo -> Env
-makeEnv scope = Env { takenNames   = taken
+makeEnv scope = Env { takenNames   = Set.union vars defs
                     , currentScope = scope
                     }
   where
-    ns    = everythingInScope scope
-    taken = Set.union vars defs
     vars  = Set.fromList $ map fst $ scopeLocals scope
-    defs  = Set.fromList [ x | (x, _) <- Map.toList $ nsNames ns ]
+    defs  = Map.keysSet $ nsNames $ everythingInScope scope
 
 currentPrecedence :: AbsToCon Precedence
 currentPrecedence = asks $ scopePrecedence . currentScope
@@ -524,12 +522,12 @@ instance ToConcrete A.TypedBindings [C.TypedBindings] where
 
 instance ToConcrete A.TypedBinding C.TypedBinding where
     bindToConcrete (A.TBind r xs e) ret =
-        bindToConcrete xs $ \xs -> do
         e <- toConcreteCtx TopCtx e
         ret (C.TBind r (map mkBoundName_ xs) e)
+        bindToConcrete xs $ \ xs -> do
     bindToConcrete (A.TLet r lbs) ret =
-        bindToConcrete lbs $ \ds -> do
-          ret (C.TLet r (concat ds))
+        bindToConcrete lbs $ \ ds -> do
+        ret $ C.TLet r $ concat ds
 
 instance ToConcrete LetBinding [C.Declaration] where
     bindToConcrete (LetBind i info x t e) ret =
@@ -767,12 +765,8 @@ data RangeAndPragma = RangeAndPragma Range A.Pragma
 instance ToConcrete RangeAndPragma C.Pragma where
     toConcrete (RangeAndPragma r p) = case p of
         A.OptionsPragma xs  -> return $ C.OptionsPragma r xs
-        A.BuiltinPragma b x -> do
-          x <- toConcrete x
-          return $ C.BuiltinPragma r b x
-        A.RewritePragma x -> do
-          x <- toConcrete x
-          return $ C.RewritePragma r x
+        A.BuiltinPragma b x -> C.BuiltinPragma r b <$> toConcrete x
+        A.RewritePragma x   -> C.RewritePragma r <$> toConcrete x
         A.CompiledTypePragma x hs -> do
           x <- toConcrete x
           return $ C.CompiledTypePragma r x hs
@@ -791,10 +785,8 @@ instance ToConcrete RangeAndPragma C.Pragma where
         A.CompiledJSPragma x e -> do
           x <- toConcrete x
           return $ C.CompiledJSPragma r x e
-        A.StaticPragma x -> do
-            x <- toConcrete x
-            return $ C.StaticPragma r x
-        A.EtaPragma x -> C.EtaPragma r <$> toConcrete x
+        A.StaticPragma x -> C.StaticPragma r <$> toConcrete x
+        A.EtaPragma x    -> C.EtaPragma    r <$> toConcrete x
 
 -- Left hand sides --------------------------------------------------------
 
