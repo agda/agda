@@ -42,7 +42,7 @@ data Name
   | NoName !Range NameId    -- ^ @_@.
   deriving (Typeable)
 
-instance NFData Name
+instance NFData Name where rnf x = seq x ()
 
 instance Underscore Name where
   underscore = NoName noRange __IMPOSSIBLE__

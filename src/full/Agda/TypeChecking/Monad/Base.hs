@@ -1047,7 +1047,7 @@ data Occurrence
   | Unused    --  ^ No occurrence.
   deriving (Typeable, Show, Eq, Ord)
 
-instance NFData Occurrence
+instance NFData Occurrence where rnf x = seq x ()
 
 -- | Additional information for projection 'Function's.
 data Projection = Projection
