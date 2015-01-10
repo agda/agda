@@ -22,6 +22,7 @@ import Agda.Syntax.Literal
 import Agda.Syntax.Notation
 import Agda.Syntax.Position
 
+import Agda.Utils.Functor
 import Agda.Utils.Null
 import Agda.Utils.Pretty
 import Agda.Utils.String
@@ -86,6 +87,9 @@ instance (Pretty a, Pretty b) => Pretty (a, b) where
 
 instance Pretty (ThingWithFixity Name) where
     pretty (ThingWithFixity n _) = pretty n
+
+instance Pretty a => Pretty (WithHiding a) where
+  pretty w = prettyHiding w id $ pretty $ dget w
 
 instance Pretty Relevance where
   pretty Forced     = empty
@@ -244,7 +248,7 @@ instance Pretty TypedBinding where
 smashTel :: Telescope -> Telescope
 smashTel (TypedBindings r (Common.Arg i  (TBind r' xs e)) :
           TypedBindings _ (Common.Arg i' (TBind _  ys e')) : tel)
-  | show i == show i' && show e == show e' && all isUnnamed (xs ++ ys) =
+  | show i == show i' && show e == show e' && all (isUnnamed . dget) (xs ++ ys) =
     smashTel (TypedBindings r (Common.Arg i (TBind r' (xs ++ ys) e)) : tel)
   where
     isUnnamed x = boundLabel x == boundName x

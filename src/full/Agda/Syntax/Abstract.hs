@@ -232,7 +232,7 @@ data TypedBindings = TypedBindings Range (Arg TypedBinding)
 --   that the metas of the copy are aliases of the metas of the original.
 
 data TypedBinding
-  = TBind Range [Name] Expr
+  = TBind Range [WithHiding Name] Expr
     -- ^ As in telescope @(x y z : A)@ or type @(x y z : A) -> B@.
   | TLet Range [LetBinding]
     -- ^ E.g. @(let x = e)@ or @(let open M)@.

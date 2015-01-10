@@ -277,33 +277,35 @@ instance Reify Constraint (OutputConstraint Expr Expr) where
         return $ Guard o pid
     reify (UnBlock m) = do
         mi <- mvInstantiation <$> lookupMeta m
+        m' <- reify (MetaV m [])
         case mi of
           BlockedConst t -> do
             e  <- reify t
-            m' <- reify (MetaV m [])
             return $ Assign m' e
           PostponedTypeCheckingProblem cl _ -> enterClosure cl $ \p -> case p of
             CheckExpr e a -> do
                 a  <- reify a
-                m' <- reify (MetaV m [])
                 return $ TypedAssign m' e a
+            CheckLambda (Arg ai (xs, mt)) body target -> do
+              domType <- maybe (return underscore) reify mt
+              target  <- reify target
+              let bs = TypedBindings noRange $ Arg (mapArgInfoColors (const []) ai) $
+                       TBind noRange xs domType
+                  e  = A.Lam Info.exprNoRange (DomainFull bs) body
+              return $ TypedAssign m' e target
             CheckArgs _ _ _ args t0 t1 _ -> do
               t0 <- reify t0
               t1 <- reify t1
-              m  <- reify (MetaV m [])
-              return $ PostponedCheckArgs m (map (namedThing . unArg) args) t0 t1
+              return $ PostponedCheckArgs m' (map (namedThing . unArg) args) t0 t1
           Open{}  -> __IMPOSSIBLE__
           OpenIFS{}  -> __IMPOSSIBLE__
           InstS{} -> __IMPOSSIBLE__
           InstV{} -> __IMPOSSIBLE__
-    reify (FindInScope m b mcands) = do
-      let cands = caseMaybe mcands [] (\ x -> x)
-      m' <- reify (MetaV m [])
-      ctxArgs <- getContextArgs
-      t <- getMetaType m
-      t' <- reify t
-      cands' <- mapM (\(tm,ty) -> (,) <$> reify tm <*> reify ty) cands
-      return $ FindInScopeOF m' t' cands' -- IFSTODO
+    reify (FindInScope m _b mcands) = FindInScopeOF
+      <$> (reify $ MetaV m [])
+      <*> (reify =<< getMetaType m)
+      <*> (forM (fromMaybe [] mcands) $ \ (tm, ty) -> do
+            (,) <$> reify tm <*> reify ty)
     reify (IsEmpty r a) = IsEmptyType <$> reify a
 
 -- ASR TODO (28 December 2014): This function will be unnecessary when

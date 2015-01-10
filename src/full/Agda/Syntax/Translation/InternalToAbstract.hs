@@ -397,7 +397,7 @@ reifyTerm expandAnonDefs0 v = do
         where
           mkPi b (Common.Arg info a) = do
             (x, b) <- reify b
-            return $ A.Pi exprInfo [TypedBindings noRange $ Common.Arg info (TBind noRange [x] a)] b
+            return $ A.Pi exprInfo [TypedBindings noRange $ Common.Arg info (TBind noRange [pure x] a)] b
           -- We can omit the domain type if it doesn't have any free variables
           -- and it's mentioned in the target type.
           domainFree a b = do
@@ -934,7 +934,7 @@ instance Reify I.Telescope A.Telescope where
     Common.Arg info e <- reify arg
     (x,bs)  <- reify tel
     let r = getRange e
-    return $ TypedBindings r (Common.Arg info (TBind r [x] e)) : bs
+    return $ TypedBindings r (Common.Arg info (TBind r [pure x] e)) : bs
 
 instance Reify I.ArgInfo A.ArgInfo where
     reify i = flip (mapArgInfoColors.const) i <$> reify (argInfoColors i)

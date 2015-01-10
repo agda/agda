@@ -802,6 +802,14 @@ data MetaInstantiation
 data TypeCheckingProblem
   = CheckExpr A.Expr Type
   | CheckArgs ExpandHidden ExpandInstances Range [I.NamedArg A.Expr] Type Type (Args -> Type -> TCM Term)
+  | CheckLambda (Arg ([WithHiding Name], Maybe Type)) A.Expr Type
+    -- ^ @(λ (xs : t₀) → e) : t@
+    --   This is not an instance of 'CheckExpr' as the domain type
+    --   has already been checked.
+    --   For example, when checking
+    --     @(λ (x y : Fin _) → e) : (x : Fin n) → ?@
+    --   we want to postpone @(λ (y : Fin n) → e) : ?@ where @Fin n@
+    --   is a 'Type' rather than an 'A.Expr'.
   deriving (Typeable)
 
 instance Show MetaInstantiation where

@@ -9,6 +9,28 @@ Installation and infrastructure
 
 * Removed support for GHC 7.0.4.
 
+Language
+========
+
+* Typed bindings can now contain hiding information [Issue 1391].
+  This means you can now write
+
+    assoc : (xs {ys zs} : List A) → ((xs ++ ys) ++ zs) ≡ (xs ++ (ys ++ zs))
+
+  instead of the longer
+
+    assoc : (xs : List A) {ys zs : List A} → ...
+
+  It also works with irrelevance
+
+    .(xs {ys zs} : List A) → ...
+
+  but of course does not make sense if there is hiding information already.
+  Thus, this is (still) a parse error:
+
+    {xs {ys zs} : List A} → ...
+
+
 ------------------------------------------------------------------------
 -- Release notes for Agda version 2.4.2.2
 ------------------------------------------------------------------------

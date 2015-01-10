@@ -75,7 +75,7 @@ instance ToAbstract r Expr => ToAbstract (R.Dom r, Name) (A.TypedBindings) where
   toAbstract (C.Dom i x, name) = do
     dom <- toAbstract x
     i   <- toAbstract i
-    return $ TypedBindings noRange $ C.Arg i $ TBind noRange [name] dom
+    return $ TypedBindings noRange $ C.Arg i $ TBind noRange [pure name] dom
 
 instance ToAbstract (Expr, Elim) Expr where
   toAbstract (f, Apply arg) = do
@@ -167,4 +167,3 @@ instance ToAbstract (QNamed R.Clause) A.Clause where
 
 instance ToAbstract [QNamed R.Clause] [A.Clause] where
   toAbstract = traverse toAbstract
-

@@ -268,7 +268,7 @@ checkConstructor _ _ _ _ _ = __IMPOSSIBLE__ -- constructors are axioms
 bindParameters :: [A.LamBinding] -> Type -> (Telescope -> Type -> TCM a) -> TCM a
 bindParameters [] a ret = ret EmptyTel a
 bindParameters (A.DomainFull (A.TypedBindings _ (Arg info (A.TBind _ xs _))) : bs) a ret =
-  bindParameters ([ A.DomainFree info x | x <- xs ] ++ bs) a ret
+  bindParameters (map (mergeHiding . fmap (A.DomainFree info)) xs ++ bs) a ret
 bindParameters (A.DomainFull (A.TypedBindings _ (Arg info (A.TLet _ lbs))) : bs) a ret =
   __IMPOSSIBLE__
 bindParameters ps0@(A.DomainFree info x : ps) (El _ (Pi arg@(Dom info' a) b)) ret

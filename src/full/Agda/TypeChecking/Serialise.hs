@@ -871,6 +871,11 @@ instance EmbPrj a => EmbPrj (Elim' a) where
                            valu [0, a] = valu1 Proj a
                            valu _      = malformed
 
+instance EmbPrj a => EmbPrj (WithHiding a) where
+  icod_ (WithHiding a b) = icode2' a b
+  value = vcase valu where valu [a, b] = valu2 WithHiding a b
+                           valu _      = malformed
+
 instance (EmbPrj a, EmbPrj c) => EmbPrj (Agda.Syntax.Common.Arg c a) where
   icod_ (Arg i e) = icode2' i e
   value = vcase valu where valu [i, e] = valu2 Arg i e

@@ -13,9 +13,9 @@ V = 0
 # Getting all agda files
 # Issue1241/TheTest must be excluded, since it is custom (see below).
 excluded=./Issue1241/TheTest.lagda ./Epic.agda
-allagda=$(patsubst %.agda,%.test,$(filter-out $(excluded),$(shell find . -name "*.agda")))
+allagda=$(patsubst %.agda,%.test,$(filter-out $(excluded),$(shell find . -name "*.agda" | sort)))
 # allagda=$(patsubst %.agda,%.test,$(shell find . -name "*.agda"))
-alllagda=$(patsubst %.lagda,%.test,$(filter-out $(excluded),$(shell find . -name "*.lagda")))
+alllagda=$(patsubst %.lagda,%.test,$(filter-out $(excluded),$(shell find . -name "*.lagda" | sort)))
 
 default : all
 all : $(allagda) $(alllagda)

@@ -194,11 +194,14 @@ data LamBinding' a
 
 -- | A sequence of typed bindings with hiding information. Appears in dependent
 --   function spaces, typed lambdas, and telescopes.
+--
+--   If the individual binding contains hiding information as well, the
+--   'Hiding' in @TypedBindings@ must be the unit 'NotHidden'.
 
 type TypedBindings = TypedBindings' TypedBinding
 
 data TypedBindings' a = TypedBindings !Range (Arg a)
-     -- ^ . @(xs : e)@ or @{xs : e}@
+     -- ^ . @(xs : e)@ or @{xs : e}@ or something like @(x {y} _ : e)@.
   deriving (Typeable, Functor, Foldable, Traversable)
 
 data BoundName = BName
@@ -219,7 +222,7 @@ mkBoundName x f = BName x x f
 type TypedBinding = TypedBinding' Expr
 
 data TypedBinding' e
-  = TBind !Range [BoundName] e  -- ^ Binding @(x1 ... xn : A)@.
+  = TBind !Range [WithHiding BoundName] e  -- ^ Binding @(x1 ... xn : A)@.
   | TLet  !Range [Declaration]  -- ^ Let binding @(let Ds)@ or @(open M args)@.
   deriving (Typeable, Functor, Foldable, Traversable)
 
@@ -272,14 +275,6 @@ data LHSCore
   deriving (Typeable)
 
 instance NFData LHSCore
-
-{- TRASH
-lhsCoreToPattern :: LHSCore -> Pattern
-lhsCoreToPattern (LHSHead f args) = OpAppP (fuseRange f args) (unqualify f) args
-lhsCoreToPattern (LHSProj d ps1 lhscore ps2) = OpAppP (fuseRange d ps) (unqualify) ps
-  where p = lhsCoreToPattern lhscore
-        ps = ps1 ++ p : ps2
--}
 
 type RHS = RHS' Expr
 data RHS' e
@@ -510,6 +505,26 @@ patternNames p =
     Instances
  --------------------------------------------------------------------------}
 
+-- Lenses
+------------------------------------------------------------------------
+
+instance LensRelevance TypedBindings where
+  getRelevance   (TypedBindings _ b) = getRelevance b
+  mapRelevance f (TypedBindings r b) = TypedBindings r $ mapRelevance f b
+
+instance LensHiding TypedBindings where
+  getHiding   (TypedBindings _ b) = getHiding b
+  mapHiding f (TypedBindings r b) = TypedBindings r $ mapHiding f b
+
+instance LensHiding LamBinding where
+  getHiding   (DomainFree ai _) = getHiding ai
+  getHiding   (DomainFull a)    = getHiding a
+  mapHiding f (DomainFree ai x) = DomainFree (mapHiding f ai) x
+  mapHiding f (DomainFull a)    = DomainFull $ mapHiding f a
+
+-- HasRange instances
+------------------------------------------------------------------------
+
 instance HasRange e => HasRange (OpApp e) where
   getRange e = case e of
     Ordinary e -> getRange e
@@ -672,6 +687,12 @@ instance HasRange Pattern where
   getRange (InstanceP r _)    = r
   getRange (DotP r _)         = r
 
+-- SetRange instances
+------------------------------------------------------------------------
+
+instance SetRange TypedBindings where
+  setRange r (TypedBindings _ b) = TypedBindings r b
+
 instance SetRange Pattern where
   setRange r (IdentP x)       = IdentP (setRange r x)
   setRange r (AppP p q)       = AppP (setRange r p) (setRange r q)
@@ -686,6 +707,9 @@ instance SetRange Pattern where
   setRange r (HiddenP _ p)    = HiddenP r p
   setRange r (InstanceP _ p)  = InstanceP r p
   setRange r (DotP _ e)       = DotP r e
+
+-- KillRange instances
+------------------------------------------------------------------------
 
 instance KillRange FieldAssignment where
   killRange (FieldAssignment a b) = killRange2 FieldAssignment a b

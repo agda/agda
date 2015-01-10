@@ -16,11 +16,10 @@ import Agda.TypeChecking.Reduce
 import Agda.TypeChecking.Substitute
 import Agda.TypeChecking.LevelConstraints
 
-import {-# SOURCE #-} Agda.TypeChecking.Rules.Term (checkExpr, checkArguments')
+import {-# SOURCE #-} Agda.TypeChecking.Rules.Term
 import {-# SOURCE #-} Agda.TypeChecking.Conversion
 import {-# SOURCE #-} Agda.TypeChecking.MetaVars
 import {-# SOURCE #-} Agda.TypeChecking.Empty
--- import {-# SOURCE #-} Agda.TypeChecking.UniversePolymorphism -- RETIRED
 
 import Agda.Utils.Except ( MonadError(throwError) )
 import Agda.Utils.Maybe
@@ -202,3 +201,4 @@ checkTypeCheckingProblem :: TypeCheckingProblem -> TCM Term
 checkTypeCheckingProblem p = case p of
   CheckExpr e t                  -> checkExpr e t
   CheckArgs eh ei r args t0 t1 k -> checkArguments' eh ei r args t0 t1 k
+  CheckLambda args body target   -> checkPostponedLambda args body target

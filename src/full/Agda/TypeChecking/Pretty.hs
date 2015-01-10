@@ -9,6 +9,7 @@ module Agda.TypeChecking.Pretty where
 import Prelude hiding (null)
 
 import Control.Applicative hiding (empty)
+import Data.Maybe
 
 import Agda.Syntax.Position
 import Agda.Syntax.Common hiding (Arg, Dom, NamedArg, ArgInfo)
@@ -24,6 +25,7 @@ import qualified Agda.Syntax.Concrete.Pretty as CP
 
 import Agda.TypeChecking.Monad
 
+import Agda.Utils.Maybe
 import Agda.Utils.Null
 import Agda.Utils.Permutation (Permutation)
 import qualified Agda.Utils.Pretty as P
@@ -253,6 +255,22 @@ instance PrettyTCM TypeCheckingProblem where
     sep [ parens $ text "_ :" <+> prettyTCM t0
         , nest 2 $ prettyList $ map prettyA es
         , nest 2 $ text ":?" <+> prettyTCM t1 ]
+  prettyTCM (CheckLambda (Common.Arg ai (xs, mt)) e t) =
+    sep [ return CP.lambda <+>
+          (CP.prettyRelevance ai .
+           CP.prettyHiding ai (if isNothing mt && length xs == 1 then id
+                               else P.parens) <$> do
+            fsep $
+              map prettyTCM xs ++
+              caseMaybe mt [] (\ a -> [text ":", prettyTCM a])) <+>
+          return CP.arrow <+>
+          prettyTCM e <+>
+          text ":?"
+        , prettyTCM t
+        ]
+
+instance PrettyTCM a => PrettyTCM (WithHiding a) where
+  prettyTCM (WithHiding h a) = CP.prettyHiding h id <$> prettyTCM a
 
 instance PrettyTCM Name where
   prettyTCM x = P.pretty <$> abstractToConcrete_ x

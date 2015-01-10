@@ -265,7 +265,7 @@ generateAndPrintSyntaxInfo decl hlLevel = do
     getLam (A.DomainFull {})  = mempty
 
     getTyped :: A.TypedBinding -> File
-    getTyped (A.TBind _ xs _) = mconcat $ map bound xs
+    getTyped (A.TBind _ xs _) = mconcat $ map (bound . dget) xs
     getTyped A.TLet{}         = mempty
 
     getPatSynArgs :: A.Declaration -> File

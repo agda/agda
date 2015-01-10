@@ -35,10 +35,11 @@ import Control.Applicative hiding (empty)
 import Control.Monad.Reader
 
 import Data.List as List hiding (null)
-import Data.Maybe
 import qualified Data.Map as Map
-import qualified Data.Set as Set
+import Data.Maybe
+import Data.Monoid
 import Data.Set (Set)
+import qualified Data.Set as Set
 import Data.Traversable (traverse)
 
 import Agda.Syntax.Common hiding (Arg, Dom, NamedArg)
@@ -59,6 +60,7 @@ import Agda.TypeChecking.Monad.Options
 
 import qualified Agda.Utils.AssocList as AssocList
 import Agda.Utils.Either
+import Agda.Utils.Functor
 import Agda.Utils.Monad
 import Agda.Utils.Null
 import Agda.Utils.Tuple
@@ -78,14 +80,12 @@ defaultEnv = Env { takenNames   = Set.empty
                  }
 
 makeEnv :: ScopeInfo -> Env
-makeEnv scope = Env { takenNames   = taken
+makeEnv scope = Env { takenNames   = Set.union vars defs
                     , currentScope = scope
                     }
   where
-    ns    = everythingInScope scope
-    taken = Set.union vars defs
     vars  = Set.fromList $ map fst $ scopeLocals scope
-    defs  = Set.fromList [ x | (x, _) <- Map.toList $ nsNames ns ]
+    defs  = Map.keysSet $ nsNames $ everythingInScope scope
 
 currentPrecedence :: AbsToCon Precedence
 currentPrecedence = asks $ scopePrecedence . currentScope
@@ -121,37 +121,6 @@ abstractToConcreteCtx ctx x = do
 
 abstractToConcrete_ :: ToConcrete a c => a -> TCM c
 abstractToConcrete_ = runAbsToCon . toConcrete
-
-{-
--- | We make the translation monadic for modularity purposes.
-type AbsToCon = Reader Env
-
-runAbsToCon :: AbsToCon a -> TCM a
-runAbsToCon m = do
-  scope <- getScope
-  return $ runReader m (makeEnv scope)
-
-abstractToConcreteEnv :: ToConcrete a c => Env -> a -> TCM c
-abstractToConcreteEnv flags a = return $ runReader (toConcrete a) flags
-
-{- Andreas, 2013-02-26 discontinue non-monadic version in favor of debug msg.
-abstractToConcrete :: ToConcrete a c => Env -> a -> c
-abstractToConcrete flags a = runReader (toConcrete a) flags
--}
-
-abstractToConcreteCtx :: ToConcrete a c => Precedence -> a -> TCM c
-abstractToConcreteCtx ctx x = do
-  scope <- getScope
-  let scope' = scope { scopePrecedence = ctx }
-  return $ abstractToConcrete (makeEnv scope') x
-  where
-    scope = (currentScope defaultEnv) { scopePrecedence = ctx }
-
-abstractToConcrete_ :: ToConcrete a c => a -> TCM c
-abstractToConcrete_ x = do
-  scope <- getScope
-  return $ abstractToConcrete (makeEnv scope) x
--}
 
 -- Dealing with names -----------------------------------------------------
 
@@ -288,6 +257,30 @@ toConcreteCtx p x = withPrecedence p $ toConcrete x
 bindToConcreteCtx :: ToConcrete a c => Precedence -> a -> (c -> AbsToCon b) -> AbsToCon b
 bindToConcreteCtx p x ret = withPrecedence p $ bindToConcrete x ret
 
+-- | Translate something in the top context.
+toConcreteTop :: ToConcrete a c => a -> AbsToCon c
+toConcreteTop = toConcreteCtx TopCtx
+
+-- | Translate something in the top context.
+bindToConcreteTop :: ToConcrete a c => a -> (c -> AbsToCon b) -> AbsToCon b
+bindToConcreteTop = bindToConcreteCtx TopCtx
+
+-- | Translate something in a context indicated by 'Hiding' info.
+toConcreteHiding :: (LensHiding h, ToConcrete a c) => h -> a -> AbsToCon c
+toConcreteHiding h =
+  case getHiding h of
+    NotHidden -> toConcrete
+    Hidden    -> toConcreteTop
+    Instance  -> toConcreteTop
+
+-- | Translate something in a context indicated by 'Hiding' info.
+bindToConcreteHiding :: (LensHiding h, ToConcrete a c) => h -> a -> (c -> AbsToCon b) -> AbsToCon b
+bindToConcreteHiding h =
+  case getHiding h of
+    NotHidden -> bindToConcrete
+    Hidden    -> bindToConcreteTop
+    Instance  -> bindToConcreteTop
+
 -- General instances ------------------------------------------------------
 
 instance ToConcrete a c => ToConcrete [a] [c] where
@@ -325,15 +318,19 @@ instance ToConcrete (Common.ArgInfo ac) C.ArgInfo where
                     return $ info { argInfoColors = [] } -- TODO: zapping ignoring colours
 
 instance ToConcrete a c => ToConcrete (Common.Arg ac a) (C.Arg c) where
-    toConcrete (Common.Arg info x) = liftM2 Common.Arg (toConcrete info) (f x)
-      where f = case getHiding info of
-                  Hidden    -> toConcreteCtx TopCtx
-                  Instance  -> toConcreteCtx TopCtx
-                  NotHidden -> toConcrete
+    toConcrete (Common.Arg info x) = Common.Arg
+      <$> toConcrete info
+      <*> toConcreteHiding info x
 
-    bindToConcrete (Common.Arg info x) ret = do info <- toConcrete info
-                                                bindToConcreteCtx (hiddenArgumentCtx $ getHiding info) x $
-                                                                  ret . Common.Arg info
+    bindToConcrete (Common.Arg info x) ret = do
+      info <- toConcrete info
+      bindToConcreteCtx (hiddenArgumentCtx $ getHiding info) x $
+        ret . Common.Arg info
+
+instance ToConcrete a c => ToConcrete (WithHiding a) (WithHiding c) where
+  toConcrete     (WithHiding h a) = WithHiding h <$> toConcreteHiding h a
+  bindToConcrete (WithHiding h a) ret = bindToConcreteHiding h a $ \ a ->
+    ret $ WithHiding h a
 
 instance ToConcrete a c => ToConcrete (Named name a) (Named name c) where
     toConcrete (Named n x) = Named n <$> toConcrete x
@@ -404,7 +401,7 @@ instance ToConcrete A.Expr C.Expr where
         $ case lamView e of
             (bs, e) ->
                 bindToConcrete (map makeDomainFree bs) $ \bs -> do
-                    e  <- toConcreteCtx TopCtx e
+                    e  <- toConcreteTop e
                     return $ C.Lam (getRange i) (concat bs) e
         where
             lamView (A.Lam _ b@(A.DomainFree _ _) e) =
@@ -448,7 +445,7 @@ instance ToConcrete A.Expr C.Expr where
       (tel, e) ->
         bracket piBrackets
         $ bindToConcrete tel $ \b' -> do
-             e' <- toConcreteCtx TopCtx e
+             e' <- toConcreteTop e
              return $ C.Pi (concat b') e'
       where
         piTel (A.Pi _ tel e) = (tel ++) -*- id $ piTel e
@@ -457,7 +454,7 @@ instance ToConcrete A.Expr C.Expr where
     toConcrete (A.Fun i a b) =
         bracket piBrackets
         $ do a' <- toConcreteCtx (if irr then DotPatternCtx else FunctionSpaceDomainCtx) a
-             b' <- toConcreteCtx TopCtx b
+             b' <- toConcreteTop b
              return $ C.Fun (getRange i) (addRel a' $ mkArg a') b'
         where
             irr        = getRelevance a `elem` [Irrelevant, NonStrict]
@@ -478,16 +475,16 @@ instance ToConcrete A.Expr C.Expr where
     toConcrete (A.Let i ds e) =
         bracket lamBrackets
         $ bindToConcrete ds $ \ds' -> do
-             e'  <- toConcreteCtx TopCtx e
+             e'  <- toConcreteTop e
              return $ C.Let (getRange i) (concat ds') e'
 
     toConcrete (A.Rec i fs) =
       bracket appBrackets $ do
-        C.Rec (getRange i) . map (fmap (\x -> ModuleAssignment x [] defaultImportDir)) <$> toConcreteCtx TopCtx fs
+        C.Rec (getRange i) . map (fmap (\x -> ModuleAssignment x [] defaultImportDir)) <$> toConcreteTop fs
 
     toConcrete (A.RecUpdate i e fs) =
       bracket appBrackets $ do
-        C.RecUpdate (getRange i) <$> toConcrete e <*> toConcreteCtx TopCtx fs
+        C.RecUpdate (getRange i) <$> toConcrete e <*> toConcreteTop fs
 
     toConcrete (A.ETel tel) = do
       tel <- concat <$> toConcrete tel
@@ -516,7 +513,7 @@ instance ToConcrete A.Expr C.Expr where
     -- Andreas, 2010-10-05 print irrelevant things as ordinary things
     toConcrete (A.DontCare e) = C.Dot r . C.Paren r  <$> toConcrete e
        where r = getRange e
---    toConcrete (A.DontCare e) = C.DontCare <$> toConcreteCtx TopCtx e
+--    toConcrete (A.DontCare e) = C.DontCare <$> toConcreteTop e
 {-
     -- Andreas, 2010-09-21 abuse C.Underscore to print irrelevant things
     toConcrete (A.DontCare) = return $ C.Underscore noRange Nothing
@@ -524,9 +521,9 @@ instance ToConcrete A.Expr C.Expr where
     toConcrete (A.PatternSyn n) = C.Ident <$> toConcrete n
 
 makeDomainFree :: A.LamBinding -> A.LamBinding
-makeDomainFree b@(A.DomainFull (A.TypedBindings r (Common.Arg info (A.TBind _ [x] t)))) =
+makeDomainFree b@(A.DomainFull (A.TypedBindings r (Common.Arg info (A.TBind _ [WithHiding h x] t)))) =
   case unScope t of
-    A.Underscore MetaInfo{metaNumber = Nothing} -> A.DomainFree info x
+    A.Underscore MetaInfo{metaNumber = Nothing} -> A.DomainFree (mapHiding (mappend h) info) x
     _ -> b
 makeDomainFree b = b
 
@@ -558,20 +555,20 @@ instance ToConcrete A.TypedBindings [C.TypedBindings] where
       tbinds r e xs = [ C.TBind r xs e ]
 
       tbind r e xs =
-        case span (\x -> boundLabel x == boundName x) xs of
+        case span ((\ x -> boundLabel x == boundName x) . dget) xs of
           (xs, x:ys) -> tbinds r e xs ++ [ C.TBind r [x] e ] ++ tbind r e ys
           (xs, [])   -> tbinds r e xs
 
-      label x y = y { boundLabel = nameConcrete x }
+      label x = fmap $ \ y -> y { boundLabel = nameConcrete $ dget x }
 
 instance ToConcrete A.TypedBinding C.TypedBinding where
     bindToConcrete (A.TBind r xs e) ret =
-        bindToConcrete xs $ \xs -> do
-        e <- toConcreteCtx TopCtx e
-        ret (C.TBind r (map mkBoundName_ xs) e)
+        bindToConcrete xs $ \ xs -> do
+        e <- toConcreteTop e
+        ret $ C.TBind r (map (fmap mkBoundName_) xs) e
     bindToConcrete (A.TLet r lbs) ret =
-        bindToConcrete lbs $ \ds -> do
-          ret (C.TLet r (concat ds))
+        bindToConcrete lbs $ \ ds -> do
+        ret $ C.TLet r $ concat ds
 
 instance ToConcrete LetBinding [C.Declaration] where
     bindToConcrete (LetBind i info x t e) ret =
@@ -680,7 +677,7 @@ instance ToConcrete (Constr A.Constructor) C.Declaration where
     withScope scope $ toConcrete (Constr d)
   toConcrete (Constr (A.Axiom _ i info x t)) = do
     x' <- unsafeQNameToName <$> toConcrete x
-    t' <- toConcreteCtx TopCtx t
+    t' <- toConcreteTop t
     info <- toConcrete info
     return $ C.TypeSig info x' t'
   toConcrete (Constr d) = head <$> toConcrete d
@@ -691,7 +688,7 @@ instance ToConcrete a C.LHS => ToConcrete (A.Clause' a) [C.Declaration] where
         case lhs of
           C.LHS p wps _ _ -> do
             bindToConcrete (AsWhereDecls wh)  $ \wh' -> do
-                (rhs', eqs, with, wcs) <- toConcreteCtx TopCtx rhs
+                (rhs', eqs, with, wcs) <- toConcreteTop rhs
                 return $ FunClause (C.LHS p wps eqs with) rhs' wh' : wcs
           C.Ellipsis {} -> __IMPOSSIBLE__
           -- TODO: Is the case above impossible? Previously there was
@@ -717,7 +714,7 @@ instance ToConcrete A.Declaration [C.Declaration] where
     x' <- unsafeQNameToName <$> toConcrete x
     withAbstractPrivate i $
       withInfixDecl i x'  $ do
-      t' <- toConcreteCtx TopCtx t
+      t' <- toConcreteTop t
       info <- toConcrete info
       return [C.Postulate (getRange i) [C.TypeSig info x' t']]
 
@@ -725,14 +722,14 @@ instance ToConcrete A.Declaration [C.Declaration] where
     x' <- unsafeQNameToName <$> toConcrete x
     withAbstractPrivate i $
       withInfixDecl i x'  $ do
-      t' <- toConcreteCtx TopCtx t
+      t' <- toConcreteTop t
       return [C.Field x' t']
 
   toConcrete (A.Primitive i x t) = do
     x' <- unsafeQNameToName <$> toConcrete x
     withAbstractPrivate i $
       withInfixDecl i x'  $ do
-      t' <- toConcreteCtx TopCtx t
+      t' <- toConcreteTop t
       return [C.Primitive (getRange i) [C.TypeSig defaultArgInfo x' t']]
         -- Primitives are always relevant.
 
@@ -743,7 +740,7 @@ instance ToConcrete A.Declaration [C.Declaration] where
     withAbstractPrivate i $
     bindToConcrete bs $ \tel' -> do
       x' <- unsafeQNameToName <$> toConcrete x
-      t' <- toConcreteCtx TopCtx t
+      t' <- toConcreteTop t
       return [ C.DataSig (getRange i) Inductive x' (map C.DomainFull $ concat tel') t' ]
 
   toConcrete (A.DataDef i x bs cs) =
@@ -756,7 +753,7 @@ instance ToConcrete A.Declaration [C.Declaration] where
     withAbstractPrivate i $
     bindToConcrete bs $ \tel' -> do
       x' <- unsafeQNameToName <$> toConcrete x
-      t' <- toConcreteCtx TopCtx t
+      t' <- toConcreteTop t
       return [ C.RecordSig (getRange i) x' (map C.DomainFull $ concat tel') t' ]
 
   toConcrete (A.RecDef  i x ind c bs t cs) =
@@ -813,12 +810,8 @@ data RangeAndPragma = RangeAndPragma Range A.Pragma
 instance ToConcrete RangeAndPragma C.Pragma where
     toConcrete (RangeAndPragma r p) = case p of
         A.OptionsPragma xs  -> return $ C.OptionsPragma r xs
-        A.BuiltinPragma b x -> do
-          x <- toConcrete x
-          return $ C.BuiltinPragma r b x
-        A.RewritePragma x -> do
-          x <- toConcrete x
-          return $ C.RewritePragma r x
+        A.BuiltinPragma b x -> C.BuiltinPragma r b <$> toConcrete x
+        A.RewritePragma x   -> C.RewritePragma r <$> toConcrete x
         A.CompiledTypePragma x hs -> do
           x <- toConcrete x
           return $ C.CompiledTypePragma r x hs
@@ -837,10 +830,8 @@ instance ToConcrete RangeAndPragma C.Pragma where
         A.CompiledJSPragma x e -> do
           x <- toConcrete x
           return $ C.CompiledJSPragma r x e
-        A.StaticPragma x -> do
-            x <- toConcrete x
-            return $ C.StaticPragma r x
-        A.EtaPragma x -> C.EtaPragma r <$> toConcrete x
+        A.StaticPragma x -> C.StaticPragma r <$> toConcrete x
+        A.EtaPragma x    -> C.EtaPragma    r <$> toConcrete x
 
 -- Left hand sides --------------------------------------------------------
 
@@ -862,28 +853,9 @@ instance ToConcrete A.LHS C.LHS where
       bindToConcreteCtx TopCtx lhscore $ \lhs ->
         bindToConcreteCtx TopCtx (noImplicitPats wps) $ \wps ->
           ret $ C.LHS lhs wps [] []
-{-
-    bindToConcrete (A.LHS i (A.LHSHead x args) wps) ret = do
-      bindToConcreteCtx TopCtx (A.DefP info x args) $ \lhs ->
-        bindToConcreteCtx TopCtx (noImplicitPats wps) $ \wps ->
-          ret $ C.LHS lhs wps [] []
-      where info = PatRange (getRange i)
--}
 
 instance ToConcrete A.LHSCore C.Pattern where
     bindToConcrete = bindToConcrete . lhsCoreToPattern
-{-
-    bindToConcrete (A.LHSHead x args) ret = do
-      bindToConcreteCtx TopCtx (A.DefP info x args) $ \ lhs ->
-        ret $ lhs
-      where info = PatRange noRange -- seems to be unused anyway
-    bindToConcrete (A.LHSProj d ps1 lhscore ps2) ret = do
-      d <- toConcrete d
-      bindToConcrete ps1 $ \ ps1 ->
-        bindToConcrete lhscore $ \ p ->
-          bindToConcrete ps2 $ \ ps2 ->
-            ret $ makePattern d ps1 p ps2
-  -}
 
 appBrackets' :: [arg] -> Precedence -> Bool
 appBrackets' []    _   = False
