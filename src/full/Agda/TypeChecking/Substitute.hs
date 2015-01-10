@@ -160,10 +160,18 @@ instance Apply RewriteRule where
   apply (RewriteRule q gamma lhs rhs t) args =
     RewriteRule q (apply gamma args) lhs rhs t
 
+#if __GLASGOW_HASKELL__ >= 710
+instance {-# OVERLAPPING #-} Apply [Base.Occurrence] where
+#else
 instance Apply [Base.Occurrence] where
+#endif
   apply occ args = List.drop (length args) occ
 
+#if __GLASGOW_HASKELL__ >= 710
+instance {-# OVERLAPPING #-} Apply [Polarity] where
+#else
 instance Apply [Polarity] where
+#endif
   apply pol args = List.drop (length args) pol
 
 instance Apply Projection where
@@ -293,7 +301,11 @@ instance Apply DisplayTerm where
   apply (DDef c vs)        args = DDef c $ vs ++ map (fmap DTerm) args
   apply (DWithApp v ws args') args = DWithApp v ws $ args' ++ args
 
+#if __GLASGOW_HASKELL__ >= 710
+instance {-# OVERLAPPABLE #-} Apply t => Apply [t] where
+#else
 instance Apply t => Apply [t] where
+#endif
   apply  ts args = map (`apply` args) ts
   applyE ts es   = map (`applyE` es) ts
 
@@ -377,11 +389,19 @@ instance Abstract RewriteRule where
   abstract tel (RewriteRule q gamma lhs rhs t) =
     RewriteRule q (abstract tel gamma) lhs rhs t
 
+#if __GLASGOW_HASKELL__ >= 710
+instance {-# OVERLAPPING #-} Abstract [Base.Occurrence] where
+#else
 instance Abstract [Base.Occurrence] where
+#endif
   abstract tel []  = []
   abstract tel occ = replicate (size tel) Mixed ++ occ -- TODO: check occurrence
 
+#if __GLASGOW_HASKELL__ >= 710
+instance {-# OVERLAPPING #-} Abstract [Polarity] where
+#else
 instance Abstract [Polarity] where
+#endif
   abstract tel []  = []
   abstract tel pol = replicate (size tel) Invariant ++ pol -- TODO: check polarity
 
@@ -459,7 +479,11 @@ instance Abstract ClauseBody where
   abstract EmptyTel          b = b
   abstract (ExtendTel _ tel) b = Bind $ fmap (`abstract` b) tel
 
+#if __GLASGOW_HASKELL__ >= 710
+instance {-# OVERLAPPABLE #-} Abstract t => Abstract [t] where
+#else
 instance Abstract t => Abstract [t] where
+#endif
   abstract tel = map (abstract tel)
 
 instance Abstract t => Abstract (Maybe t) where

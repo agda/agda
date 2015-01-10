@@ -92,7 +92,11 @@ addCtx x a ret = do
 class AddContext b where
   addContext :: MonadTCM tcm => b -> tcm a -> tcm a
 
+#if __GLASGOW_HASKELL__ >= 710
+instance {-# OVERLAPPABLE #-} AddContext a => AddContext [a] where
+#else
 instance AddContext a => AddContext [a] where
+#endif
   addContext = flip (foldr addContext)
 
 instance AddContext (Name, Dom Type) where
@@ -117,7 +121,11 @@ instance AddContext (Dom (String, Type)) where
 instance AddContext Name where
   addContext x = addContext (x, dummyDom)
 
+#if __GLASGOW_HASKELL__ >= 710
+instance {-# OVERLAPPING #-} AddContext String where
+#else
 instance AddContext String where
+#endif
   addContext s = addContext (s, dummyDom)
 
 instance AddContext Telescope where
