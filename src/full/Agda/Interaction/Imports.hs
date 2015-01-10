@@ -1,5 +1,6 @@
-{-# LANGUAGE CPP           #-}
-{-# LANGUAGE TupleSections #-}
+{-# LANGUAGE CPP              #-}
+{-# LANGUAGE FlexibleContexts #-}  -- This will be required by GHC 7.10.
+{-# LANGUAGE TupleSections    #-}
 
 {-| This module deals with finding imported modules and loading their
     interface files.

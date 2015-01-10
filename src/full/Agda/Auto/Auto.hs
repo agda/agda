@@ -1,5 +1,6 @@
-{-# LANGUAGE CPP           #-}
-{-# LANGUAGE TupleSections #-}
+{-# LANGUAGE CPP              #-}
+{-# LANGUAGE FlexibleContexts #-}  -- This will be required by GHC 7.10.
+{-# LANGUAGE TupleSections    #-}
 
 module Agda.Auto.Auto (auto) where
 
