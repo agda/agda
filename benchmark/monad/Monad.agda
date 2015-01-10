@@ -5,7 +5,7 @@
 open import Relation.Binary
 open import Relation.Binary.OrderMorphism
 open import Relation.Binary.PropositionalEquality
-import Relation.Binary.Props.StrictTotalOrder as STOProps
+import Relation.Binary.Properties.StrictTotalOrder as STOProps
 open import Data.Product
 open import Level
 
@@ -35,13 +35,13 @@ module Monad
                                   ; isStrictTotalOrder = posOrdered })
              MonoFun = PosPoset ⇒-Poset PosPoset in
          MonoFun -> Result -> Set}
-  {_≈_ _<_ : Rel (∃₂ Key) zero}
-  (keyOrdered : IsStrictTotalOrder _≈_ _<_)
+  {_≋_ _<_ : Rel (∃₂ Key) zero}
+  (keyOrdered : IsStrictTotalOrder _≋_ _<_)
 
   -- Furthermore the underlying equality needs to be strong enough.
 
-  (funsEqual    : _≈_ =[ proj₁ ]⇒ _≡_)
-  (resultsEqual : _≈_ =[ (\rfk -> proj₁ (proj₂ rfk)) ]⇒ _≡_)
+  (funsEqual    : _≋_ =[ proj₁ ]⇒ _≡_)
+  (resultsEqual : _≋_ =[ (\rfk -> proj₁ (proj₂ rfk)) ]⇒ _≡_)
 
   where
 
@@ -96,7 +96,7 @@ shuffle ((pos , f , r) , key k .pos) = (pos , f , r , k)
 -- Equality and order.
 
 Eq : Rel (∃ MemoTableKey) _
-Eq = _≡_ ×-Rel _≈_  on  shuffle
+Eq = _≡_ ×-Rel _≋_  on  shuffle
 
 Lt : Rel (∃ MemoTableKey) _
 Lt = ×-Lex _≡_ _<P_ _<_  on  shuffle

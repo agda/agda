@@ -5,7 +5,7 @@
 open import Relation.Binary
 open import Relation.Binary.OrderMorphism
 open import Relation.Binary.PropositionalEquality
-import Relation.Binary.Props.StrictTotalOrder as STOProps
+import Relation.Binary.Properties.StrictTotalOrder as STOProps
 open import Data.Product
 open import Level
 
