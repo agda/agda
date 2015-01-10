@@ -475,6 +475,26 @@ patternNames p =
     Instances
  --------------------------------------------------------------------------}
 
+-- Lenses
+------------------------------------------------------------------------
+
+instance LensRelevance TypedBindings where
+  getRelevance   (TypedBindings _ b) = getRelevance b
+  mapRelevance f (TypedBindings r b) = TypedBindings r $ mapRelevance f b
+
+instance LensHiding TypedBindings where
+  getHiding   (TypedBindings _ b) = getHiding b
+  mapHiding f (TypedBindings r b) = TypedBindings r $ mapHiding f b
+
+instance LensHiding LamBinding where
+  getHiding   (DomainFree ai _) = getHiding ai
+  getHiding   (DomainFull a)    = getHiding a
+  mapHiding f (DomainFree ai x) = DomainFree (mapHiding f ai) x
+  mapHiding f (DomainFull a)    = DomainFull $ mapHiding f a
+
+-- HasRange instances
+------------------------------------------------------------------------
+
 instance HasRange e => HasRange (OpApp e) where
   getRange e = case e of
     Ordinary e -> getRange e
@@ -521,17 +541,6 @@ instance HasRange Expr where
 -- instance HasRange Telescope where
 --     getRange (TeleBind bs) = getRange bs
 --     getRange (TeleFun x y) = fuseRange x y
-
-instance LensHiding TypedBindings where
-  getHiding   (TypedBindings _ b) = getHiding b
-  mapHiding f (TypedBindings r b) = TypedBindings r $ mapHiding f b
-
-instance LensRelevance TypedBindings where
-  getRelevance   (TypedBindings _ b) = getRelevance b
-  mapRelevance f (TypedBindings r b) = TypedBindings r $ mapRelevance f b
-
-instance SetRange TypedBindings where
-  setRange r (TypedBindings _ b) = TypedBindings r b
 
 instance HasRange TypedBindings where
   getRange (TypedBindings r _) = r
@@ -640,6 +649,12 @@ instance HasRange Pattern where
   getRange (InstanceP r _)    = r
   getRange (DotP r _)         = r
 
+-- SetRange instances
+------------------------------------------------------------------------
+
+instance SetRange TypedBindings where
+  setRange r (TypedBindings _ b) = TypedBindings r b
+
 instance SetRange Pattern where
   setRange r (IdentP x)       = IdentP (setRange r x)
   setRange r (AppP p q)       = AppP (setRange r p) (setRange r q)
@@ -654,6 +669,9 @@ instance SetRange Pattern where
   setRange r (HiddenP _ p)    = HiddenP r p
   setRange r (InstanceP _ p)  = InstanceP r p
   setRange r (DotP _ e)       = DotP r e
+
+-- KillRange instances
+------------------------------------------------------------------------
 
 instance KillRange AsName where
   killRange (AsName n _) = killRange1 (flip AsName noRange) n
