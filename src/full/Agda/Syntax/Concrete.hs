@@ -162,11 +162,14 @@ data LamBinding' a
 
 -- | A sequence of typed bindings with hiding information. Appears in dependent
 --   function spaces, typed lambdas, and telescopes.
+--
+--   If the individual binding contains hiding information as well, the
+--   'Hiding' in @TypedBindings@ must be the unit 'NotHidden'.
 
 type TypedBindings = TypedBindings' TypedBinding
 
 data TypedBindings' a = TypedBindings !Range (Arg a)
-     -- ^ . @(xs : e)@ or @{xs : e}@
+     -- ^ . @(xs : e)@ or @{xs : e}@ or something like @(x {y} _ : e)@.
   deriving (Typeable, Functor, Foldable, Traversable)
 
 data BoundName = BName
@@ -187,7 +190,7 @@ mkBoundName x f = BName x x f
 type TypedBinding = TypedBinding' Expr
 
 data TypedBinding' e
-  = TBind !Range [BoundName] e  -- ^ Binding @(x1 ... xn : A)@.
+  = TBind !Range [WithHiding BoundName] e  -- ^ Binding @(x1 ... xn : A)@.
   | TLet  !Range [Declaration]  -- ^ Let binding @(let Ds)@ or @(open M args)@.
   deriving (Typeable, Functor, Foldable, Traversable)
 

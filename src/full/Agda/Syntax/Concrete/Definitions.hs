@@ -664,9 +664,10 @@ niceDeclarations ds = do
         , mkDef r f ConcreteDef x (concatMap dropType tel) <$> mds
         ]
       where
-        dropType (DomainFull (TypedBindings r (Common.Arg i (TBind _ xs _)))) =
-          map (DomainFree i) xs
-        dropType (DomainFull (TypedBindings _ (Common.Arg _ TLet{}))) = []
+        dropType :: LamBinding -> [LamBinding]
+        dropType (DomainFull (TypedBindings _r (Common.Arg ai (TBind _ xs _)))) =
+          map (mergeHiding . fmap (DomainFree ai)) xs
+        dropType (DomainFull (TypedBindings _r (Common.Arg _ TLet{}))) = []
         dropType b@DomainFree{} = [b]
 
     -- Translate axioms

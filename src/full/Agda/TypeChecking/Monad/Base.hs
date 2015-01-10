@@ -764,7 +764,7 @@ data MetaInstantiation
 data TypeCheckingProblem
   = CheckExpr A.Expr Type
   | CheckArgs ExpandHidden ExpandInstances Range [I.NamedArg A.Expr] Type Type (Args -> Type -> TCM Term)
-  | CheckLambda (Arg ([Name], Maybe Type)) A.Expr Type
+  | CheckLambda (Arg ([WithHiding Name], Maybe Type)) A.Expr Type
     -- ^ @(λ (xs : t₀) → e) : t@
     --   This is not an instance of 'CheckExpr' as the domain type
     --   has already been checked.

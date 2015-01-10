@@ -169,7 +169,7 @@ recordConstructorType fields = build fs
       build (NiceModuleMacro r p x modapp open dir{ publicOpen = False } : fs)
 
     build (NiceField r f _ _ x (Common.Arg info e) : fs) =
-        C.Pi [C.TypedBindings r $ Common.Arg info (C.TBind r [mkBoundName x f] e)] $ build fs
+        C.Pi [C.TypedBindings r $ Common.Arg info (C.TBind r [pure $ mkBoundName x f] e)] $ build fs
       where r = getRange x
     build (d : fs)                     = C.Let (getRange d) [notSoNiceDeclaration d] $
                                            build fs
@@ -720,7 +720,7 @@ instance ToAbstract C.LamBinding A.LamBinding where
 makeDomainFull :: C.LamBinding -> C.TypedBindings
 makeDomainFull (C.DomainFull b)      = b
 makeDomainFull (C.DomainFree info x) =
-  C.TypedBindings r $ Common.Arg info $ C.TBind r [x] $ C.Underscore r Nothing
+  C.TypedBindings r $ Common.Arg info $ C.TBind r [pure x] $ C.Underscore r Nothing
   where r = getRange x
 
 instance ToAbstract C.TypedBindings A.TypedBindings where
@@ -729,7 +729,7 @@ instance ToAbstract C.TypedBindings A.TypedBindings where
 instance ToAbstract C.TypedBinding A.TypedBinding where
   toAbstract (C.TBind r xs t) = do
     t' <- toAbstractCtx TopCtx t
-    xs' <- toAbstract (map NewName xs)
+    xs' <- toAbstract $ map (fmap NewName) xs
     return $ A.TBind r xs' t'
   toAbstract (C.TLet r ds) = A.TLet r <$> toAbstract (LetDefs ds)
 

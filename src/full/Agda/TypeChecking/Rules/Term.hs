@@ -14,6 +14,7 @@ import Control.Monad.Trans
 import Control.Monad.Reader
 
 import Data.Maybe
+import Data.Monoid (mappend)
 import Data.List hiding (sort)
 import qualified Data.Map as Map
 import Data.Traversable (sequenceA)
@@ -197,7 +198,9 @@ checkTypedBinding lamOrPi info (A.TBind i xs e) ret = do
     allowed <- optExperimentalIrrelevance <$> pragmaOptions
     t <- modEnv lamOrPi allowed $ isType_ e
     let info' = mapRelevance (modRel lamOrPi allowed) info
-    addCtxs xs (convColor $ Dom info' t) $ ret $ bindsToTel xs (convColor $ Dom info t)
+        dom :: I.Dom Type
+        dom = convColor $ Dom info' t
+    addContext (xs, dom) $ ret $ bindsWithHidingToTel xs (convColor $ Dom info t)
     where
         -- if we are checking a typed lambda, we resurrect before we check the
         -- types, but do not modify the new context entries
@@ -236,23 +239,29 @@ checkLambda (Arg info (A.TBind _ xs typ)) body target = do
       -- body, we first unify (xs : argsT) → ?t₁ with the target type. If this
       -- is inconclusive we need to block the resulting term so we create a
       -- fresh problem for the check.
-      t1 <- addCtxs xs argsT $ workOnTypes newTypeMeta_
-      let tel = telFromList $ bindsToTel xs argsT
+      let tel = telFromList $ bindsWithHidingToTel xs argsT
+      -- DONT USE tel for addContext, as it loses NameIds.
+      -- WRONG: t1 <- addContext tel $ workOnTypes newTypeMeta_
+      t1 <- addContext (xs, argsT) $ workOnTypes newTypeMeta_
       -- Do not coerce hidden lambdas
-      if (getHiding info /= NotHidden) then do
+      if notVisible info || any notVisible xs then do
         pid <- newProblem_ $ leqType (telePi tel t1) target
         -- Now check body : ?t₁
-        v <- addCtxs xs argsT $ checkExpr body t1
+        -- WRONG: v <- addContext tel $ checkExpr body t1
+        v <- addContext (xs, argsT) $ checkExpr body t1
         -- Block on the type comparison
         blockTermOnProblem target (teleLam tel v) pid
        else do
         -- Now check body : ?t₁
-        v <- addCtxs xs argsT $ checkExpr body t1
+        -- WRONG: v <- addContext tel $ checkExpr body t1
+        v <- addContext (xs, argsT) $ checkExpr body t1
         -- Block on the type comparison
         coerce (teleLam tel v) (telePi tel t1) target
 
     useTargetType tel@(ExtendTel arg (Abs y EmptyTel)) btyp = do
         verboseS "tc.term.lambda" 5 $ tick "lambda-with-target-type"
+        -- merge in the hiding info of the TBind
+        info <- return $ mapHiding (mappend h) info
         unless (getHiding arg == getHiding info) $ typeError $ WrongHidingInLambda target
         -- Andreas, 2011-10-01 ignore relevance in lambda if not explicitly given
         let r  = getRelevance info
@@ -266,22 +275,23 @@ checkLambda (Arg info (A.TBind _ xs typ)) body target = do
         v <- add y (Dom (setRelevance r' info) argT) $ checkExpr body btyp
         blockTermOnProblem target (Lam info $ Abs (nameToArgName x) v) pid
       where
-        [x] = xs
+        [WithHiding h x] = xs
         add y dom | isNoName x = addContext (y, dom)
                   | otherwise  = addContext (x, dom)
     useTargetType _ _ = __IMPOSSIBLE__
 
 -- | Checking a lambda whose domain type has already been checked.
-checkPostponedLambda :: I.Arg ([Name], Maybe Type) -> A.Expr -> Type -> TCM Term
+checkPostponedLambda :: I.Arg ([WithHiding Name], Maybe Type) -> A.Expr -> Type -> TCM Term
 checkPostponedLambda args@(Arg _    ([]    , _ )) body target = do
   checkExpr body target
-checkPostponedLambda args@(Arg info (x : xs, mt)) body target = do
+checkPostponedLambda args@(Arg info (WithHiding h x : xs, mt)) body target = do
   let postpone _ t = postponeTypeCheckingProblem_ $ CheckLambda args body t
-  insertHiddenLambdas (getHiding info) target postpone $ \ t@(El _ (Pi dom b)) -> do
+      lamHiding = mappend h $ getHiding info
+  insertHiddenLambdas lamHiding target postpone $ \ t@(El _ (Pi dom b)) -> do
     -- Andreas, 2011-10-01 ignore relevance in lambda if not explicitly given
     let r     = getRelevance info -- relevance of lambda
         r'    = getRelevance dom  -- relevance of function type
-        info' = setRelevance r' info
+        info' = setHiding lamHiding $ setRelevance r' info
     when (r == Irrelevant && r' /= r) $
       typeError $ WrongIrrelevanceInLambda target
     -- We only need to block the final term on the argument type
@@ -875,7 +885,7 @@ checkApplication hd args e t = do
 --   by inserting an underscore for the missing type.
 domainFree :: A.ArgInfo -> A.Name -> A.LamBinding
 domainFree info x =
-  A.DomainFull $ A.TypedBindings r $ Arg info $ A.TBind r [x] $ A.Underscore underscoreInfo
+  A.DomainFull $ A.TypedBindings r $ Arg info $ A.TBind r [pure x] $ A.Underscore underscoreInfo
   where
     r = getRange x
     underscoreInfo = A.MetaInfo

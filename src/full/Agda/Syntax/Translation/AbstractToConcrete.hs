@@ -513,9 +513,9 @@ instance ToConcrete A.Expr C.Expr where
     toConcrete (A.PatternSyn n) = C.Ident <$> toConcrete n
 
 makeDomainFree :: A.LamBinding -> A.LamBinding
-makeDomainFree b@(A.DomainFull (A.TypedBindings r (Common.Arg info (A.TBind _ [x] t)))) =
+makeDomainFree b@(A.DomainFull (A.TypedBindings r (Common.Arg info (A.TBind _ [WithHiding h x] t)))) =
   case unScope t of
-    A.Underscore MetaInfo{metaNumber = Nothing} -> A.DomainFree info x
+    A.Underscore MetaInfo{metaNumber = Nothing} -> A.DomainFree (mapHiding (mappend h) info) x
     _ -> b
 makeDomainFree b = b
 
@@ -544,17 +544,17 @@ instance ToConcrete A.TypedBindings [C.TypedBindings] where
       tbinds r e xs = [ C.TBind r xs e ]
 
       tbind r e xs =
-        case span (\x -> boundLabel x == boundName x) xs of
+        case span ((\ x -> boundLabel x == boundName x) . dget) xs of
           (xs, x:ys) -> tbinds r e xs ++ [ C.TBind r [x] e ] ++ tbind r e ys
           (xs, [])   -> tbinds r e xs
 
-      label x y = y { boundLabel = nameConcrete x }
+      label x = fmap $ \ y -> y { boundLabel = nameConcrete $ dget x }
 
 instance ToConcrete A.TypedBinding C.TypedBinding where
     bindToConcrete (A.TBind r xs e) ret =
-        ret (C.TBind r (map mkBoundName_ xs) e)
         bindToConcrete xs $ \ xs -> do
         e <- toConcreteTop e
+        ret $ C.TBind r (map (fmap mkBoundName_) xs) e
     bindToConcrete (A.TLet r lbs) ret =
         bindToConcrete lbs $ \ ds -> do
         ret $ C.TLet r $ concat ds

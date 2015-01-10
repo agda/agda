@@ -242,7 +242,7 @@ instance Pretty TypedBinding where
 smashTel :: Telescope -> Telescope
 smashTel (TypedBindings r (Common.Arg i  (TBind r' xs e)) :
           TypedBindings _ (Common.Arg i' (TBind _  ys e')) : tel)
-  | show i == show i' && show e == show e' && all isUnnamed (xs ++ ys) =
+  | show i == show i' && show e == show e' && all (isUnnamed . dget) (xs ++ ys) =
     smashTel (TypedBindings r (Common.Arg i (TBind r' (xs ++ ys) e)) : tel)
   where
     isUnnamed x = boundLabel x == boundName x
