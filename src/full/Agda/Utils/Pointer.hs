@@ -74,4 +74,4 @@ instance Ord (Ptr a) where
 instance Hashable (Ptr a) where
   hashWithSalt salt = (hashWithSalt salt) . ptrTag
 
-instance NFData (Ptr a) where
+instance NFData (Ptr a) where rnf x = seq x ()

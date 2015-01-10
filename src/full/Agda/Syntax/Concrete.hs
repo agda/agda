@@ -163,7 +163,7 @@ data Expr
   | Equal !Range Expr Expr                     -- ^ ex: @a = b@, used internally in the parser
   deriving (Typeable)
 
-instance NFData Expr
+instance NFData Expr where rnf x = seq x ()
 
 -- | Concrete patterns. No literals in patterns at the moment.
 data Pattern
@@ -182,7 +182,7 @@ data Pattern
   | LitP Literal                            -- ^ @0@, @1@, etc.
   deriving (Typeable)
 
-instance NFData Pattern
+instance NFData Pattern where rnf x = seq x ()
 
 -- | A lambda binding is either domain free or typed.
 type LamBinding = LamBinding' TypedBindings
@@ -274,7 +274,7 @@ data LHSCore
              }
   deriving (Typeable)
 
-instance NFData LHSCore
+instance NFData LHSCore where rnf x = seq x ()
 
 type RHS = RHS' Expr
 data RHS' e
