@@ -17,6 +17,7 @@ import Data.ByteString.Char8 (ByteString)
 import qualified Data.ByteString.Char8 as ByteString
 import Data.Foldable
 import Data.Hashable
+import Data.Monoid
 import Data.Traversable
 import Data.Typeable (Typeable)
 
@@ -73,8 +74,38 @@ instance CoArbitrary Induction where
 data Hiding  = Hidden | Instance | NotHidden
   deriving (Typeable, Show, Eq, Ord)
 
+-- | 'Hiding' is an idempotent partial monoid, with unit 'NotHidden'.
+--   'Instance' and 'NotHidden' are incompatible.
+instance Monoid Hiding where
+  mempty = NotHidden
+  mappend NotHidden h         = h
+  mappend h         NotHidden = h
+  mappend Hidden    Hidden    = Hidden
+  mappend Instance  Instance  = Instance
+  mappend _         _         = __IMPOSSIBLE__
+
 instance KillRange Hiding where
   killRange = id
+
+-- | Decorating something with 'Hiding' information.
+data WithHiding a = WithHiding Hiding a
+  deriving (Typeable, Eq, Ord, Show, Functor, Foldable, Traversable)
+
+instance Decoration WithHiding where
+  traverseF f (WithHiding h a) = WithHiding h <$> f a
+
+instance Applicative WithHiding where
+  pure = WithHiding mempty
+  WithHiding h f <*> WithHiding h' a = WithHiding (mappend h h') (f a)
+
+instance HasRange a => HasRange (WithHiding a) where
+  getRange = getRange . dget
+
+instance SetRange a => SetRange (WithHiding a) where
+  setRange = fmap . setRange
+
+instance KillRange a => KillRange (WithHiding a) where
+  killRange = fmap killRange
 
 -- | A lens to access the 'Hiding' attribute in data structures.
 --   Minimal implementation: @getHiding@ and one of @setHiding@ or @mapHiding@.
@@ -92,6 +123,15 @@ instance LensHiding Hiding where
   getHiding = id
   setHiding = const
   mapHiding = id
+
+instance LensHiding (WithHiding a) where
+  getHiding   (WithHiding h _) = h
+  setHiding h (WithHiding _ a) = WithHiding h a
+  mapHiding f (WithHiding h a) = WithHiding (f h) a
+
+-- | Monoidal composition of 'Hiding' information in some data.
+mergeHiding :: LensHiding a => WithHiding a -> a
+mergeHiding (WithHiding h a) = mapHiding (mappend h) a
 
 -- | @isHidden@ does not apply to 'Instance', only to 'Hidden'.
 isHidden :: LensHiding a => a -> Bool

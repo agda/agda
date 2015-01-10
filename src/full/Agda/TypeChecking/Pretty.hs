@@ -269,6 +269,9 @@ instance PrettyTCM TypeCheckingProblem where
         , prettyTCM t
         ]
 
+instance PrettyTCM a => PrettyTCM (WithHiding a) where
+  prettyTCM (WithHiding h a) = CP.prettyHiding h id <$> prettyTCM a
+
 instance PrettyTCM Name where
   prettyTCM x = P.pretty <$> abstractToConcrete_ x
 

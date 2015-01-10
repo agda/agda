@@ -23,6 +23,7 @@ import Data.Functor
 import Data.List hiding (sort, drop)
 import qualified Data.List as List
 import Data.Map (Map)
+import Data.Monoid
 import Data.Typeable (Typeable)
 
 import Debug.Trace (trace)
@@ -807,6 +808,15 @@ bindsToTel' f (x:xs) t = fmap (f x,) t : bindsToTel' f xs (raise 1 t)
 
 bindsToTel :: [Name] -> Dom Type -> ListTel
 bindsToTel = bindsToTel' nameToArgName
+
+-- | Turn a typed binding @(x1 .. xn : A)@ into a telescope.
+bindsWithHidingToTel' :: (Name -> a) -> [WithHiding Name] -> Dom Type -> ListTel' a
+bindsWithHidingToTel' f []                    t = []
+bindsWithHidingToTel' f (WithHiding h x : xs) t =
+  fmap (f x,) (mapHiding (mappend h) t) : bindsWithHidingToTel' f xs (raise 1 t)
+
+bindsWithHidingToTel :: [WithHiding Name] -> Dom Type -> ListTel
+bindsWithHidingToTel = bindsWithHidingToTel' nameToArgName
 
 telView' :: Type -> TelView
 telView' t = case ignoreSharing $ unEl t of

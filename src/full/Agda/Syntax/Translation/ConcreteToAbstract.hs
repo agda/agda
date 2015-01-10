@@ -1552,6 +1552,9 @@ instance ToAbstract C.LHSCore (A.LHSCore' C.Expr) where
         args2 <- toAbstract ps2
         return $ A.LHSProj d args1 l args2
 
+instance ToAbstract c a => ToAbstract (WithHiding c) (WithHiding a) where
+  toAbstract (WithHiding h a) = WithHiding h <$> toAbstractHiding h a
+
 instance ToAbstract c a => ToAbstract (C.Arg c) (A.Arg a) where
     toAbstract (Common.Arg info e) =
         Common.Arg <$> toAbstract info <*> toAbstractHiding info e

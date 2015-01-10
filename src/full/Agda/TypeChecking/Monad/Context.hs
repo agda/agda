@@ -13,6 +13,7 @@ import Control.Monad.Reader
 
 import Data.List hiding (sort)
 import qualified Data.Map as Map
+import Data.Monoid
 
 import Agda.Syntax.Abstract.Name
 import Agda.Syntax.Common hiding (Arg, Dom, NamedArg, ArgInfo)
@@ -108,6 +109,12 @@ instance AddContext (Dom (Name, Type)) where
 
 instance AddContext ([Name], Dom Type) where
   addContext (xs, dom) = addContext (bindsToTel' id xs dom)
+
+instance AddContext ([WithHiding Name], Dom Type) where
+  addContext ([]                 , dom) = id
+  addContext (WithHiding h x : xs, dom) =
+    addContext (x , mapHiding (mappend h) dom) .
+    addContext (xs, raise 1 dom)
 
 instance AddContext (String, Dom Type) where
   addContext (s, dom) ret = do

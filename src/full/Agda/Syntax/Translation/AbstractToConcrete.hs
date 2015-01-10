@@ -35,10 +35,11 @@ import Control.Applicative hiding (empty)
 import Control.Monad.Reader
 
 import Data.List as List hiding (null)
-import Data.Maybe
 import qualified Data.Map as Map
-import qualified Data.Set as Set
+import Data.Maybe
+import Data.Monoid
 import Data.Set (Set)
+import qualified Data.Set as Set
 import Data.Traversable (traverse)
 
 import Agda.Syntax.Common hiding (Arg, Dom, NamedArg)
@@ -58,6 +59,7 @@ import Agda.TypeChecking.Monad.Base  (TCM, NamedMeta(..))
 import Agda.TypeChecking.Monad.Options
 
 import qualified Agda.Utils.AssocList as AssocList
+import Agda.Utils.Functor
 import Agda.Utils.Monad
 import Agda.Utils.Null
 import Agda.Utils.Tuple
@@ -314,6 +316,11 @@ instance ToConcrete a c => ToConcrete (Common.Arg ac a) (C.Arg c) where
       info <- toConcrete info
       bindToConcreteCtx (hiddenArgumentCtx $ getHiding info) x $
         ret . Common.Arg info
+
+instance ToConcrete a c => ToConcrete (WithHiding a) (WithHiding c) where
+  toConcrete     (WithHiding h a) = WithHiding h <$> toConcreteHiding h a
+  bindToConcrete (WithHiding h a) ret = bindToConcreteHiding h a $ \ a ->
+    ret $ WithHiding h a
 
 instance ToConcrete a c => ToConcrete (Named name a) (Named name c) where
     toConcrete (Named n x) = Named n <$> toConcrete x
