@@ -301,6 +301,12 @@ toAbstractCtx :: ToAbstract concrete abstract =>
                  Precedence -> concrete -> ScopeM abstract
 toAbstractCtx ctx c = withContextPrecedence ctx $ toAbstract c
 
+toAbstractTopCtx :: ToAbstract c a => c -> ScopeM a
+toAbstractTopCtx = toAbstractCtx TopCtx
+
+toAbstractHiding :: (LensHiding h, ToAbstract c a) => h -> c -> ScopeM a
+toAbstractHiding h = toAbstractCtx $ hiddenArgumentCtx $ getHiding h
+
 setContextCPS :: Precedence -> (a -> ScopeM b) ->
                  ((a -> ScopeM b) -> ScopeM b) -> ScopeM b
 setContextCPS p ret f = do
@@ -324,8 +330,7 @@ localToAbstract' x ret = do
   withScope scope $ ret =<< toAbstract x
 
 instance (ToAbstract c1 a1, ToAbstract c2 a2) => ToAbstract (c1,c2) (a1,a2) where
-  toAbstract (x,y) =
-    (,) <$> toAbstract x <*> toAbstract y
+  toAbstract (x,y) = (,) <$> toAbstract x <*> toAbstract y
 
 instance (ToAbstract c1 a1, ToAbstract c2 a2, ToAbstract c3 a3) =>
          ToAbstract (c1,c2,c3) (a1,a2,a3) where
@@ -341,8 +346,7 @@ instance ToAbstract c a => ToAbstract [c] [a] where
   toAbstract = mapM toAbstract
 
 instance ToAbstract c a => ToAbstract (Maybe c) (Maybe a) where
-    toAbstract Nothing  = return Nothing
-    toAbstract (Just x) = Just <$> toAbstract x
+  toAbstract = traverse toAbstract
 
 -- Names ------------------------------------------------------------------
 
@@ -727,9 +731,7 @@ instance ToAbstract C.TypedBinding A.TypedBinding where
     t' <- toAbstractCtx TopCtx t
     xs' <- toAbstract (map NewName xs)
     return $ A.TBind r xs' t'
-  toAbstract (C.TLet r ds) = do
-    ds' <- toAbstract (LetDefs ds)
-    return $ A.TLet r ds'
+  toAbstract (C.TLet r ds) = A.TLet r <$> toAbstract (LetDefs ds)
 
 -- | Scope check a module (top level function).
 --
@@ -1552,7 +1554,7 @@ instance ToAbstract C.LHSCore (A.LHSCore' C.Expr) where
 
 instance ToAbstract c a => ToAbstract (C.Arg c) (A.Arg a) where
     toAbstract (Common.Arg info e) =
-        Common.Arg <$> toAbstract info <*> toAbstractCtx (hiddenArgumentCtx $ getHiding info) e
+        Common.Arg <$> toAbstract info <*> toAbstractHiding info e
 
 instance ToAbstract c a => ToAbstract (Named name c) (Named name a) where
     toAbstract (Named n e) = Named n <$> toAbstract e
