@@ -163,6 +163,9 @@ Language
   only on the second argument could be small, but not the version above which
   indexes on both arguments.
 
+* Unicode ellipsis character is allowed for the ellipsis token ... in
+  `with` expressions.
+
 Goal and error display
 ======================
 
