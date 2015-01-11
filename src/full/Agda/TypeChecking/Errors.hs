@@ -5,7 +5,6 @@
 
 module Agda.TypeChecking.Errors
   ( prettyError
-  , PrettyTCM(..)
   , tcErrString
   , Warnings(..)
   , warningsToError
