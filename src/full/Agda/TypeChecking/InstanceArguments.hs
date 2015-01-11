@@ -343,10 +343,12 @@ checkCandidates m t cands = disableDestructiveUpdate $ do
               solveAwakeConstraints' True
               return True
       where
+        handle :: TCErr -> TCM Bool
         handle err = do
           reportSDoc "tc.instance" 50 $
             text "assignment failed:" <+> prettyTCM err
           return False
+
     isIFSConstraint :: Constraint -> Bool
     isIFSConstraint FindInScope{} = True
     isIFSConstraint UnBlock{}     = True -- otherwise test/fail/Issue723 loops

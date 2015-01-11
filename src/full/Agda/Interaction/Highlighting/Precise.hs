@@ -462,7 +462,7 @@ instance CoArbitrary File where
 instance Arbitrary CompressedFile where
   arbitrary = do
     rs <- (\ns1 ns2 -> toRanges $ sort $
-                         ns1 ++ concatMap (\n -> [n, succ n]) ns2) <$>
+                         ns1 ++ concatMap (\n -> [n, succ n]) (ns2 :: [Int])) <$>
             arbitrary <*> arbitrary
     CompressedFile <$> mapM (\r -> (,) r <$> arbitrary) rs
     where
