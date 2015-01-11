@@ -63,6 +63,6 @@ primFunctions = M.fromList $
             let reflNm = case T.ignoreSharing bt of
                     (T.Con conHd []) -> T.conName conHd
                     _                -> __IMPOSSIBLE__
-            
+
             mkVar <$> getConstrFun reflNm
 

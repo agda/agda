@@ -63,7 +63,7 @@ fromAgdaModule modNm modImps defs = do
   nameMp <- assignCoreNames modNm defNames
   reportSLn "uhc" 25 $ "NameMap for " ++ show modNm ++ ":\n" ++ show nameMp
 
-  
+
   (mod', modInfo') <- runCompileT kit btins modNm modImps nameMp (do
     lift $ reportSLn "uhc" 10 "Translate datatypes..."
     -- Translate and add datatype information
@@ -439,5 +439,4 @@ substLit lit = case lit of
   TL.LitChar   _ c -> return $ LChar c
   TL.LitFloat  _ f -> return $ LFloat f
   _ -> uhcError $ "literal not supported: " ++ show lit
-
 

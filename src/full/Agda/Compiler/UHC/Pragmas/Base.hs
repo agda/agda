@@ -47,4 +47,3 @@ coreConstrToCTag :: CoreConstr
 coreConstrToCTag (CCMagic ctg) _ = ctg
 coreConstrToCTag (CCNormal dt con tg) ar = mkCTag dt con tg ar
 
-

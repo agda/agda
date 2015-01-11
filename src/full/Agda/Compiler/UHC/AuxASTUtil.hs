@@ -25,4 +25,4 @@ bindExpr expr f =
         return $ lett v expr body
 
 ctagCtorName :: CTag -> HsName
-ctagCtorName = destructCTag __IMPOSSIBLE__ (\_ x _ _ -> x)                
+ctagCtorName = destructCTag __IMPOSSIBLE__ (\_ x _ _ -> x)

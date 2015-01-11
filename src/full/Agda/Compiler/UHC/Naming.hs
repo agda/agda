@@ -7,7 +7,7 @@
 -- - constructor names
 --
 -- All names in a Agda module are passed to the `assignCoreNames` function,
--- which will determine the Core name for each module-level Agda name. 
+-- which will determine the Core name for each module-level Agda name.
 --
 -- The strategy is to "haskellify" all names. This may lead to clashes
 -- between multiple entities. The assignCoreNames may assign arbitrary
@@ -94,7 +94,7 @@ data CoreName
 data NameMap
   = NameMap
   { entMapping :: M.Map QName CoreName -- ^ maps entities (functions, datatypes, constructors)
-  , modMapping :: M.Map ModuleName ([String], HsName) -- we need the string representation to 
+  , modMapping :: M.Map ModuleName ([String], HsName) -- we need the string representation to
     -- compute the correct module file name. Maybe we could extract this from the HsName?
   }
   deriving (Show, Typeable)
@@ -135,7 +135,7 @@ assignCoreNames modNm ans = do
     -- functions can only clash between themselves, the same goes for datatypes and constructors.
     -- So we don't have to worry about clashes between entities of a different type.
     -- (because we are in a Haskell-like naming system)
-    
+
     -- First, do the functions, try drop clashing ones
     funs' <- zip funs <$> mapM assignNameProper funs
     funs'' <- resolveClashes handlerDropExport funs'
@@ -146,7 +146,7 @@ assignCoreNames modNm ans = do
     -- we could also resort to prefixing constructor with the datatype names, would that be a good idea?
     cons' <- zip cons <$> mapM assignNameProper cons
     cons'' <- resolveClashes handlerDropExport cons'
-    
+
     let entMp = M.fromList [(anName anm, cnm) | (anm, cnm) <- (funs'' ++ dts'' ++ cons'')]
         modMp = M.singleton modNm (crModNm, mkHsName (init crModNm) (last crModNm))
     return $ NameMap entMp modMp
@@ -206,7 +206,7 @@ handlerDropExport (crNm, clashes) = do
   -- now, check if there are still clashes in the aceRequired items
   let (_, clashes') = findClashes firstStage
 
-  let showEnts = (\clsh -> intercalate ", " $ map (show . anName . fst) clsh) 
+  let showEnts = (\clsh -> intercalate ", " $ map (show . anName . fst) clsh)
 
   if M.null clashes' then do
     lift $ reportSLn "uhc" 10 $
@@ -214,7 +214,7 @@ handlerDropExport (crNm, clashes) = do
     return firstStage
   else do
     -- clashes should have exactly one item at key crNm now
-    lift $ typeError $ GenericError $ 
+    lift $ typeError $ GenericError $
         "The generated Core name (" ++ show crNm ++ ") for the following entities clash: " ++ showEnts (clashes' M.! crNm)
 
 -- | Assigns the proper names for entities. There might be
@@ -272,7 +272,7 @@ localCrIdent et as =
 unqualifyQ :: Monad m => QName -> AssignM m (Either [Name] [Name])
 unqualifyQ qnm = do
   mod <- gets asAgdaModuleName
-  let modNs = mnameToList mod 
+  let modNs = mnameToList mod
       qnms = qnameToList qnm
   case stripPrefix modNs qnms of
     -- not sure when the name doesn't have a module prefix... just force generation of a name for the time being
@@ -297,13 +297,13 @@ evalFreshNameT :: Monad m
     -> m a
 evalFreshNameT prefix comp = evalStateT comp (FreshNameState 0 prefix)
 
--- | Create a new local identifier (e.g. lambda parameter). 
+-- | Create a new local identifier (e.g. lambda parameter).
 freshLocalName :: Monad m => FreshNameT m HsName
-freshLocalName = do 
+freshLocalName = do
   i <- gets nameSupply
   prefix' <- gets prefix
   modify (\s -> s { nameSupply = i + 1 } )
-  return $ mkUniqueHsName prefix' [] ("gen_loc_" ++ show i) 
+  return $ mkUniqueHsName prefix' [] ("gen_loc_" ++ show i)
 
 -- | Create a new local identifier (e.g. lambda parameter). Tries to incorporate
 -- the given name into the new one, but this is not guarantueed.

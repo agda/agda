@@ -94,7 +94,7 @@ runCompileT coind btins mod impMods nmMp comp = do
         , amiDepsVersion = [ (amiModule m, amiVersion m) |  m <- impMods]
         }
 
-  return (result, modInfo) 
+  return (result, modInfo)
   where initial = CompileState
             { curModule     = mod
             , moduleInterface   = mappend

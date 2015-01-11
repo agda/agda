@@ -83,7 +83,7 @@ toCore mod modInfo modImps = do
         ]] ++ map (mnmToCrNm . amiModule) modImps
   let impsCr = map mkImport imps
       exps = getExports modInfo
-      crModNm = mnmToCrNm $ xmodName mod 
+      crModNm = mnmToCrNm $ xmodName mod
       cmod = mkModule crModNm exps impsCr cMetaDeclL funs
 --  let hiImps = S.fromList imps
   return cmod
@@ -132,7 +132,7 @@ exprToCore (Case e brs def CTChar) = do
   def' <- case def of
         Nothing -> return $ mkError opts "Non-exhaustive case didn't match any alternative."
         Just x -> exprToCore x
-  
+
   css <- buildPrimCases eq (mkVar var) brs def'
   return $ mkLet1Strict var e' css
   where eq = mkVar $ mkHsName ["UHC", "Agda", "Builtins"] "primCharEquality"

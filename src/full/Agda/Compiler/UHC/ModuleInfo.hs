@@ -27,7 +27,7 @@ currentModInfoVersion = 20141022 * 10 + 0
 
 data AModuleInfo
   = AModuleInfo
-  { amiFileVersion :: Word64 
+  { amiFileVersion :: Word64
   , amiAgdaVersion :: Word64 -- same version as in Typechecking/Serialise
   , amiModule :: ModuleName
   , amiInterface :: AModuleInterface    -- ^ Contains linking information (transitive).
