@@ -38,20 +38,22 @@ opts :: EHCOpts
 opts = defaultEHCOpts
 
 
-createMainModule :: String -> HsName -> CModule
-createMainModule mainMod main = mkModule (mkHsName [] "Main") [] [mkImport $ mkHsName1 x | x <-
-        [ "UHC.Run"
-        , mainMod ]] [] (mkMain main)
+createMainModule :: AModuleInfo -> HsName -> CModule
+createMainModule mainMod main = mkModule (mkHsName [] "Main") [] [mkImport $ mkHsName1 "UHC.Run", mkImport mainMod'] [] (mkMain main)
+  where mainMod' = snd $ fromMaybe __IMPOSSIBLE__ $ mnameToCoreName (amiCurNameMp mainMod) (amiModule mainMod)
 
 getExports :: AModuleInfo -> [CExport]
-getExports modInfo = map (mkExport . cnName) (expFuns ++ expConFuns)
-  where funs = M.elems $ getNameMappingFor (amiCurNameMp modInfo) EtFunction
-        expFuns = filter needsExport funs
+getExports modInfo = map (mkExport . cnName) (expFuns ++ expDtFuns ++ expConFuns)
+  where expFuns = getExportsFor EtFunction
         -- there is a function for each datatype, named as the datatype itself.
         -- This is used as type-dummy, returning always unit.
         -- We need to export those too.
-        cons = M.elems $ getNameMappingFor (amiCurNameMp modInfo) EtDatatype
-        expConFuns = filter needsExport cons
+        expDtFuns = getExportsFor EtDatatype
+        -- and the constructor wrapper functions
+        expConFuns = getExportsFor EtConstructor
+
+        getExportsFor ty = let items = M.elems $ getNameMappingFor (amiCurNameMp modInfo) ty
+                            in filter needsExport items
         needsExport x = cnAgdaExported x || cnCoreExported x
 
 {-getExportedExprs :: AModuleInfo -> ModEntRel
@@ -78,12 +80,15 @@ toCore mod modInfo modImps = do
   let imps = [ mkHsName1 x | x <-
         [ "UHC.Base"
         , "UHC.Agda.Builtins"
-        ] ++ map (show . amiModule ) modImps]
+        ]] ++ map (mnmToCrNm . amiModule) modImps
   let impsCr = map mkImport imps
       exps = getExports modInfo
-      cmod = mkModule (mkHsName1 $ show $ xmodName mod) exps impsCr cMetaDeclL funs
+      crModNm = mnmToCrNm $ xmodName mod 
+      cmod = mkModule crModNm exps impsCr cMetaDeclL funs
 --  let hiImps = S.fromList imps
   return cmod
+  where mnmToCrNm :: ModuleName -> HsName
+        mnmToCrNm mnm = snd (fromMaybe __IMPOSSIBLE__ $ mnameToCoreName (amifNameMp $ amiInterface modInfo) mnm)
 
 funsToCore :: Monad m => [Fun] -> FreshNameT m CExpr
 funsToCore funs = do

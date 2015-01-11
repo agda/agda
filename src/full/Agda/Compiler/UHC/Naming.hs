@@ -28,6 +28,7 @@ module Agda.Compiler.UHC.Naming
   , assignCoreNames
 
   , qnameToCoreName
+  , mnameToCoreName
   , getNameMappingFor
 
   , FreshNameT
@@ -48,7 +49,6 @@ import Agda.Syntax.Abstract.Name
 import Agda.TypeChecking.Monad
 
 import UHC.Light.Compiler.Core.API
-
 
 #include "undefined.h"
 import Agda.Utils.Impossible
@@ -88,14 +88,23 @@ data CoreName
 --
 -- The mapping is authorative for functions. For constructors and datatypes,
 -- you must consult the constructor mapping instead (see ModuleInfo).
+--
+-- (We sitll assign core names here for normal constructors/datatypes, but builtin/foreign
+-- datatypes/constructors are not always present in the naming db)
 data NameMap
   = NameMap
-  { mapping :: M.Map QName CoreName }
+  { entMapping :: M.Map QName CoreName -- ^ maps entities (functions, datatypes, constructors)
+  , modMapping :: M.Map ModuleName ([String], HsName) -- we need the string representation to 
+    -- compute the correct module file name. Maybe we could extract this from the HsName?
+  }
   deriving (Show, Typeable)
 
 instance Monoid NameMap where
-  mempty = NameMap M.empty
-  mappend x y = NameMap { mapping = mapping x `M.union` mapping y }
+  mempty = NameMap M.empty M.empty
+  mappend x y = NameMap
+        { entMapping = entMapping x `M.union` entMapping y
+        , modMapping = modMapping x `M.union` modMapping y
+        }
 
 type AssignM = StateT AssignState
 
@@ -103,6 +112,7 @@ data AssignState
   = AssignState
   { asNextIdent :: Integer
   , asAgdaModuleName :: ModuleName
+  , asCoreModuleName :: [String]
   }
 
 -- | Assign core names for module-level declarations.
@@ -112,7 +122,18 @@ assignCoreNames :: MonadTCM m
     -> m NameMap
 assignCoreNames modNm ans = do
   nmMp <- evalStateT (do
+
+    -- let's compute the module name
+    -- All agda modules live in their own namespace in Agda.XXX, to avoid
+    -- clashes with existing haskell modules. (e.g. Data.List) with confusing error messages.
+    -- If we don't wan't this, we would have to avoid loading the HS base libraries
+    -- or would need package-specific imports. As we don't have this in UHC right now,
+    -- this is the best we can do.
+    let crModNm = "Agda" : (map show $ mnameToList modNm)
+    modify (\x -> x {asCoreModuleName = crModNm} )
+
     -- functions can only clash between themselves, the same goes for datatypes and constructors.
+    -- So we don't have to worry about clashes between entities of a different type.
     -- (because we are in a Haskell-like naming system)
     
     -- First, do the functions, try drop clashing ones
@@ -126,8 +147,10 @@ assignCoreNames modNm ans = do
     cons' <- zip cons <$> mapM assignNameProper cons
     cons'' <- resolveClashes handlerDropExport cons'
     
-    return $ NameMap $ M.fromList [(anName anm, cnm) | (anm, cnm) <- (funs'' ++ dts'' ++ cons'')]
-    ) (AssignState 0 modNm)
+    let entMp = M.fromList [(anName anm, cnm) | (anm, cnm) <- (funs'' ++ dts'' ++ cons'')]
+        modMp = M.singleton modNm (crModNm, mkHsName (init crModNm) (last crModNm))
+    return $ NameMap entMp modMp
+    ) (AssignState 0 modNm __IMPOSSIBLE__)
 
   reportSLn "uhc.naming" 20 $ "Naming database:\n" ++ show nmMp
   return nmMp
@@ -139,12 +162,14 @@ assignCoreNames modNm ans = do
 
 
 qnameToCoreName :: NameMap -> QName -> Maybe CoreName
-qnameToCoreName nmMp qnm = qnm `M.lookup` (mapping nmMp)
+qnameToCoreName nmMp qnm = qnm `M.lookup` (entMapping nmMp)
 
+mnameToCoreName :: NameMap -> ModuleName -> Maybe ([String], HsName)
+mnameToCoreName nmMp mnm = mnm `M.lookup` (modMapping nmMp)
 
 -- | Returns all names of the given type defined in the given `NameMap`.
 getNameMappingFor :: NameMap -> EntityType -> M.Map QName CoreName
-getNameMappingFor nmMp ty = M.filter ((ty ==) . cnType) $ mapping nmMp
+getNameMappingFor nmMp ty = M.filter ((ty ==) . cnType) $ entMapping nmMp
 
 
 -- | Resolves name clases between core names. The returned result is free from clashes.
@@ -222,11 +247,10 @@ freshCrName anm = do
   i <- gets asNextIdent
   modify (\s -> s { asNextIdent = i + 1 } )
 
-  modNm <- gets asAgdaModuleName
   -- we don't really care about the original name, we just keep it for easier debugging
   locName <- either id id <$> unqualifyQ (anName anm)
 
-  let modS = map show (mnameToList modNm)
+  modS <- gets asCoreModuleName
 
   let identName = ("gen_mod_" ++ show i):(map show locName)
 

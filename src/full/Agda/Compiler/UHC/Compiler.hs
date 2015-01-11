@@ -136,7 +136,7 @@ compilerMain inter = do
             -- get core name from modInfo
             let crMain = cnName $ fromJust $ qnameToCoreName (amifNameMp $ amiInterface modInfo) main
 
-            runUhcMain crMain (iModuleName inter)
+            runUhcMain modInfo crMain
             return ()
 
         ExitFailure _ -> internalError $ unlines
@@ -145,9 +145,18 @@ compilerMain inter = do
 --           , "See the README for more information."
            ]
 
-outFile :: CN.TopLevelModuleName -> TCM FilePath
-outFile mod = do
-  let (dir, fn) = splitFileName . foldl1 (</>) $ CN.moduleNameParts mod
+auiFile :: CN.TopLevelModuleName -> TCM FilePath
+auiFile mod = do
+  let (dir, fn) = splitFileName . foldl1 (</>) $ ("Cache" : (CN.moduleNameParts mod))
+      fp  | dir == "./"  = fn
+          | otherwise = dir </> fn
+  liftIO $ createDirectoryIfMissing True dir
+  return $ fp
+  where repldot c = map (\c' -> if c' == '.' then c else c')
+
+outFile :: [String] -> TCM FilePath
+outFile modParts = do
+  let (dir, fn) = splitFileName $ foldl1 (</>) modParts
       fp  | dir == "./"  = fn
           | otherwise = dir </> fn
   liftIO $ createDirectoryIfMissing True dir
@@ -156,11 +165,15 @@ outFile mod = do
 
 compileModule :: Interface -> CompModT TCM AModuleInfo
 compileModule i = do
+    -- we can't use the Core module name to get the name of the aui file,
+    -- as we don't know the Core module name before we loaded/compiled the file.
+    -- (well, we could just compute the module name and use that, that's
+    -- probably better? )
     cm <- get
     let moduleName = iModuleName i
     let topModuleName = toTopLevelModuleName moduleName
     inFile <- lift $ findFile topModuleName
-    file  <- lift $ outFile topModuleName
+    auiFile <- lift $ auiFile topModuleName
     case M.lookup moduleName cm of
         Just x -> return x
         Nothing  -> do
@@ -169,7 +182,7 @@ compileModule i = do
                                                      (iImportedModules i))
             modInfos <- mapM compileModule imports
             ifile <- maybe __IMPOSSIBLE__ filePath <$> lift (findInterfaceFile topModuleName)
-            let uifFile = file <.> "aui"
+            let uifFile = auiFile <.> "aui"
             uptodate <- liftIO $ isNewerThan uifFile ifile
             lift $ reportSLn "UHC" 15 $ "Interface file " ++ uifFile ++ " is uptodate: " ++ show uptodate
             modInfo <- case uptodate of
@@ -202,7 +215,9 @@ compileModule i = do
                     let defns = HMap.toList $ sigDefinitions $ iSignature i
                     (code, modInfo, amod) <- lift $ compileDefns moduleName modInfos defns
                     lift $ do
-                        writeCoreFile file code
+                        let modParts = fst $ fromMaybe __IMPOSSIBLE__ $ mnameToCoreName (amiCurNameMp modInfo) moduleName
+                        crFile <- outFile modParts
+                        writeCoreFile crFile code
                         writeModInfoFile uifFile modInfo
 
                     putCompModule modInfo
@@ -348,14 +363,14 @@ runUHC fp code = do
 --    callUHC False fp'
 
 -- | Create the UHC Core main file, which calls the Agda main function
-runUhcMain :: HsName -> ModuleName -> TCM ()
-runUhcMain mainName modNm = do
+runUhcMain :: AModuleInfo -> HsName -> TCM ()
+runUhcMain mainMod mainName = do
     let fp = "Main"
-    let mod = createMainModule (show modNm) mainName
+    let mod = createMainModule mainMod mainName
     fp' <- writeCoreFile fp mod
 
     -- TODO we use Operwholecore right now as work around because UHC Core can't export datatypes yet
-    callUHC1 ["-Operwholecore", "--output=" ++ (show $ last $ mnameToList modNm), fp']
+    callUHC1 ["-Operwholecore", "--output=" ++ (show $ last $ mnameToList $ amiModule mainMod), fp']
 
 callUHC :: Bool -> FilePath -> TCM ()
 callUHC isMain fp = callUHC1 $ catMaybes

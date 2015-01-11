@@ -1553,10 +1553,10 @@ instance EmbPrj UHCA.ADataImplType where
     valu _      = malformed
 
 instance EmbPrj UHCN.NameMap where
-  icod_ (UHCN.NameMap a) = icode1' a
+  icod_ (UHCN.NameMap a b) = icode2' a b
   value = vcase valu where
-    valu [a] = valu1 UHCN.NameMap a
-    valu _   = malformed
+    valu [a, b] = valu2 UHCN.NameMap a b
+    valu _      = malformed
 
 instance EmbPrj UHCA.CTag where
   icod_ = icode . B.runPut . UU.serialize
