@@ -992,7 +992,7 @@ showModuleContents :: B.Rewrite -> Range -> String -> CommandM ()
 showModuleContents norm rng s = do
   (modules, types) <- lift $ B.moduleContents norm rng s
   types' <- lift $ forM types $ \ (x, t) -> do
-     t <- prettyTCM t
+     t <- TCP.prettyTCM t
      return (show x, text ":" <+> t)
   display_info $ Info_ModuleContents $
     text "Modules" $$
@@ -1032,7 +1032,7 @@ whyInScope s = do
           where
             asVar :: TCM Doc
             asVar = do
-              TCP.text "* a variable bound at" TCP.<+> prettyTCM (nameBindingSite $ localVar x)
+              TCP.text "* a variable bound at" TCP.<+> TCP.prettyTCM (nameBindingSite $ localVar x)
             shadowing :: LocalVar -> TCM Doc
             shadowing LocalVar{}    = TCP.text "shadowing"
             shadowing ShadowedVar{} = TCP.text "in conflict with"
@@ -1061,20 +1061,20 @@ whyInScope s = do
           TCP.nest 2 (pWhy (nameBindingSite $ qnameName $ mnameToQName $ amodName a) (amodLineage a))
 
         pWhy :: Range -> WhyInScope -> TCM Doc
-        pWhy r Defined = TCP.text "- its definition at" TCP.<+> prettyTCM r
+        pWhy r Defined = TCP.text "- its definition at" TCP.<+> TCP.prettyTCM r
         pWhy r (Opened (C.QName x) w) | isNoName x = pWhy r w
         pWhy r (Opened m w) =
           TCP.text "- the opening of"
           TCP.<+> TCP.text (show m)
           TCP.<+> TCP.text "at"
-          TCP.<+> prettyTCM (getRange m)
+          TCP.<+> TCP.prettyTCM (getRange m)
           TCP.$$
           pWhy r w
         pWhy r (Applied m w) =
           TCP.text "- the application of"
           TCP.<+> TCP.text (show m)
           TCP.<+> TCP.text "at"
-          TCP.<+> prettyTCM (getRange m)
+          TCP.<+> TCP.prettyTCM (getRange m)
           TCP.$$
           pWhy r w
 
