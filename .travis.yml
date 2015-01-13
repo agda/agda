@@ -42,7 +42,7 @@ script:
   # Right now haddock doesn't work, presumably because it consumes too
   # much memory.
   # - cabal haddock
-  - yes q | make check-whitespace succeed fail interaction examples library-test lib-succeed compiler-test epic-test api-test tests
+  - yes q | make check-whitespace succeed fail interaction examples library-test lib-succeed compiler-test epic-test api-test tests benchmark
   # Travis doesn't have latex, not sure if we should install it
   # - make latex-test
 
