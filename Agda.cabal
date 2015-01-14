@@ -408,7 +408,7 @@ library
 
   if flag(cpphs)
     build-tools: cpphs >= 1.18.6 && < 1.19
-    ghc-options: -pgmPcpphs -optP--cpp
+    ghc-options: -pgmP cpphs -optP --cpp
 
   if impl(ghc >= 7.4.2)
     ghc-options: -fwarn-dodgy-exports

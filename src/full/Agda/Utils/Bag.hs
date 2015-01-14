@@ -130,11 +130,11 @@ map f = Bag . Map.fromListWith (++) . List.map ff . Map.elems . bag
 
 traverse' :: forall a b m . (Applicative m, Ord b) =>
              (a -> m b) -> Bag a -> m (Bag b)
-traverse' f = (Bag . Map.fromListWith (++)) <.> traverse trav' . Map.elems . bag
+traverse' f = (Bag . Map.fromListWith (++)) <.> traverse trav . Map.elems . bag
   where
-    trav' :: [a] -> m (b, [b])
-    trav' (a : as) = (\ b bs -> (b, b:bs)) <$> f a <*> traverse f as
-    trav' []       = __IMPOSSIBLE__
+    trav :: [a] -> m (b, [b])
+    trav (a : as) = (\ b bs -> (b, b:bs)) <$> f a <*> traverse f as
+    trav []       = __IMPOSSIBLE__
 
 ------------------------------------------------------------------------
 -- * Instances
