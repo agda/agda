@@ -330,7 +330,8 @@ checkClause t c@(A.Clause (A.SpineLHS i x aps withPats) rhs0 wh) = do
       TelV htel t0 <- telViewUpTo' (-1) (not . visible) $ unArg trhs
       let n = size htel
           aps' = convColor aps
-      (body, with) <- addCtxTel htel $ checkWhere (size delta + n) wh $ escapeContext (size htel) $ let
+          checkWhere' wh = addCtxTel htel . checkWhere (size delta + n) wh . escapeContext (size htel)
+      (body, with) <- checkWhere' wh $ let
           -- for the body, we remove the implicits again
           handleRHS rhs =
               case rhs of
@@ -345,7 +346,10 @@ checkClause t c@(A.Clause (A.SpineLHS i x aps withPats) rhs0 wh) = do
                               -> return (NoBody, NoWithFunction)
                   | otherwise -> typeError $ NoRHSRequiresAbsurdPattern aps'
                 A.RewriteRHS [] rhs [] -> handleRHS rhs
-                A.RewriteRHS [] _ (_:_) -> __IMPOSSIBLE__
+                -- Andreas, 2014-01-17, Issue 1402:
+                -- If the rewrites are discarded since lhs=rhs, then
+                -- we can actually have where clauses.
+                A.RewriteRHS [] rhs wh -> checkWhere' wh $ handleRHS rhs
                 A.RewriteRHS ((qname,eq):qes) rhs wh -> do
 
                      -- Action for skipping this rewrite.
