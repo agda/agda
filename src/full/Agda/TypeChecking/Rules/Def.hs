@@ -293,7 +293,7 @@ insertPatterns :: [A.Pattern] -> A.RHS -> A.RHS
 insertPatterns pats (A.WithRHS aux es cs) = A.WithRHS aux es (map insertToClause cs)
     where insertToClause (A.Clause (A.LHS i lhscore ps) rhs ds)
               = A.Clause (A.LHS i lhscore (pats ++ ps)) (insertPatterns pats rhs) ds
-insertPatterns pats (A.RewriteRHS qs eqs rhs wh) = A.RewriteRHS qs eqs (insertPatterns pats rhs) wh
+insertPatterns pats (A.RewriteRHS qes rhs wh) = A.RewriteRHS qes (insertPatterns pats rhs) wh
 insertPatterns pats rhs = rhs
 
 -- | Parameters for creating a @with@-function.
@@ -344,11 +344,9 @@ checkClause t c@(A.Clause (A.SpineLHS i x aps withPats) rhs0 wh) = do
                   | any (containsAbsurdPattern . namedArg) aps
                               -> return (NoBody, NoWithFunction)
                   | otherwise -> typeError $ NoRHSRequiresAbsurdPattern aps'
-                A.RewriteRHS [] (_:_) _ _ -> __IMPOSSIBLE__
-                A.RewriteRHS (_:_) [] _ _ -> __IMPOSSIBLE__
-                A.RewriteRHS [] [] rhs [] -> handleRHS rhs
-                A.RewriteRHS [] [] _ (_:_) -> __IMPOSSIBLE__
-                A.RewriteRHS (qname:names) (eq:eqs) rhs wh -> do
+                A.RewriteRHS [] rhs [] -> handleRHS rhs
+                A.RewriteRHS [] _ (_:_) -> __IMPOSSIBLE__
+                A.RewriteRHS ((qname,eq):qes) rhs wh -> do
 
                      -- Action for skipping this rewrite.
                      -- We do not want to create unsolved metas in case of
@@ -365,7 +363,7 @@ checkClause t c@(A.Clause (A.SpineLHS i x aps withPats) rhs0 wh) = do
                           -- 3. and a large overall number of ?s.
                           let sameIP = (==) `on` (^.stInteractionPoints)
                           when (sameIP st st') $ put st
-                          handleRHS $ A.RewriteRHS names eqs rhs wh
+                          handleRHS $ A.RewriteRHS qes rhs wh
 
                      -- Get value and type of rewrite-expression.
 
@@ -414,7 +412,7 @@ checkClause t c@(A.Clause (A.SpineLHS i x aps withPats) rhs0 wh) = do
                       disableDisplayForms $ withShowAllArguments $ reify
                         (rewriteFrom,   rewriteTo,    rewriteType    , proof)
                      let (inner, outer) -- the where clauses should go on the inner-most with
-                           | null eqs  = ([], wh)
+                           | null qes  = ([], wh)
                            | otherwise = (wh, [])
                          -- Andreas, 2014-03-05 kill range of copied patterns
                          -- since they really do not have a source location.
@@ -422,7 +420,7 @@ checkClause t c@(A.Clause (A.SpineLHS i x aps withPats) rhs0 wh) = do
                                   [A.Clause (A.LHS i (A.LHSHead x (killRange aps)) pats)
                                     -- Note: handleRHS (A.RewriteRHS _ eqs _ _)
                                     -- is defined by induction on eqs.
-                                    (A.RewriteRHS names eqs (insertPatterns pats rhs) inner)
+                                    (A.RewriteRHS qes (insertPatterns pats rhs) inner)
                                     outer]
                          pats = [ A.DotP patNoRange underscore
                                 , A.ConP cinfo (AmbQ [conName reflCon]) []]
