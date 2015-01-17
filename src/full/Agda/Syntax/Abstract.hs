@@ -258,7 +258,7 @@ data RHS
   | AbsurdRHS
   | WithRHS QName [Expr] [Clause]
       -- ^ The 'QName' is the name of the with function.
-  | RewriteRHS [QName] [Expr] RHS [Declaration]
+  | RewriteRHS [(QName, Expr)] RHS [Declaration]
       -- ^ The 'QName's are the names of the generated with functions.
       --   One for each 'Expr'.
       --   The RHS shouldn't be another @RewriteRHS@.
@@ -521,7 +521,7 @@ instance HasRange RHS where
     getRange AbsurdRHS                = noRange
     getRange (RHS e)                  = getRange e
     getRange (WithRHS _ e cs)         = fuseRange e cs
-    getRange (RewriteRHS _ es rhs wh) = getRange (es, rhs, wh)
+    getRange (RewriteRHS xes rhs wh)  = getRange (map snd xes, rhs, wh)
 
 instance HasRange LetBinding where
     getRange (LetBind  i _ _ _ _     ) = getRange i
@@ -644,7 +644,7 @@ instance KillRange RHS where
   killRange AbsurdRHS                = AbsurdRHS
   killRange (RHS e)                  = killRange1 RHS e
   killRange (WithRHS q e cs)         = killRange3 WithRHS q e cs
-  killRange (RewriteRHS x es rhs wh) = killRange4 RewriteRHS x es rhs wh
+  killRange (RewriteRHS xes rhs wh)  = killRange3 RewriteRHS xes rhs wh
 
 instance KillRange LetBinding where
   killRange (LetBind    i info a b c) = killRange5 LetBind  i info a b c
@@ -722,7 +722,7 @@ instance AllNames RHS where
   allNames (RHS e)                   = allNames e
   allNames AbsurdRHS{}               = Seq.empty
   allNames (WithRHS q _ cls)         = q <| allNames cls
-  allNames (RewriteRHS qs _ rhs cls) = Seq.fromList qs >< allNames rhs >< allNames cls
+  allNames (RewriteRHS qes rhs cls) = Seq.fromList (map fst qes) >< allNames rhs >< allNames cls
 
 instance AllNames Expr where
   allNames Var{}                   = Seq.empty

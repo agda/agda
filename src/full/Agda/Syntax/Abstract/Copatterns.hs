@@ -264,6 +264,10 @@ class Rename e where
   rename' :: NameMap -> e -> e
   rename' rho = rename (flip lookup rho)
 
+-- | 'QName's are not renamed.
+instance Rename QName where
+  rename _ q = q
+
 instance Rename Expr where
   rename rho e =
     case e of
@@ -333,19 +337,13 @@ instance Rename RHS where
       RHS e                 -> RHS (rename rho e)
       AbsurdRHS             -> e
       WithRHS n es cs       -> WithRHS n (rename rho es) (rename rho cs)
-      RewriteRHS ns es r ds -> RewriteRHS ns (rename rho es) (rename rho r) (rename rho ds)
+      RewriteRHS nes r ds   -> RewriteRHS (rename rho nes) (rename rho r) (rename rho ds)
 
 instance Rename LHS where
   rename rho (LHS i core ps) = LHS i (rename rho core) (rename rho ps)
 
 instance Rename LHSCore where
   rename rho = fmap (rename rho) -- only rename in dot patterns
-{-
-  rename rho = ren where
-    ren e = case e of
-      LHSHead f ps           -> LHSHead f (ren ps)
-      LHSProj d ps1 core ps2 -> LHSProj d (ren ps1) (ren core) (ren ps2)
--}
 
 instance Rename Pattern where
   rename rho = fmap (rename rho) -- only rename in dot patterns
@@ -365,7 +363,8 @@ instance Rename a => Rename [a] where
 instance (Rename a, Rename b) => Rename (Either a b) where
   rename rho = mapEither (rename rho) (rename rho)
 
-
+instance (Rename a, Rename b) => Rename (a, b) where
+  rename rho (a,b) = (rename rho a, rename rho b)
 
 
 -- | Alpha-Equivalence of patterns, ignoring dot patterns
@@ -414,4 +413,3 @@ instance (Eq n, Alpha a) => Alpha (Named n a) where
 
 instance Alpha a => Alpha [a] where
   alpha' l l' = guard (length l == length l') >> zipWithM_ alpha' l l'
-

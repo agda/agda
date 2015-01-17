@@ -84,7 +84,7 @@ buildWithFunction aux gamma qs perm n1 n cs = mapM buildWithClause cs
     buildRHS rhs@A.AbsurdRHS             = return rhs
     buildRHS (A.WithRHS q es cs)         = A.WithRHS q es <$>
       mapM (A.spineToLhs <.> buildWithClause . A.lhsToSpine) cs
-    buildRHS (A.RewriteRHS q eqs rhs wh) = flip (A.RewriteRHS q eqs) wh <$> buildRHS rhs
+    buildRHS (A.RewriteRHS qes rhs wh) = flip (A.RewriteRHS qes) wh <$> buildRHS rhs
 
 {-| @stripWithClausePatterns Γ qs π ps = ps'@
 

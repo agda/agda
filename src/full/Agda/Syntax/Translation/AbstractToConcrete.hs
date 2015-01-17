@@ -645,12 +645,12 @@ instance ToConcrete A.RHS (C.RHS, [C.Expr], [C.Expr], [C.Declaration]) where
       es <- toConcrete es
       cs <- concat <$> toConcrete cs
       return (C.AbsurdRHS, [], es, cs)
-    toConcrete (A.RewriteRHS _ eqs rhs wh) = do
+    toConcrete (A.RewriteRHS xeqs rhs wh) = do
       wh <- declsToConcrete wh
       (rhs, eqs', es, whs) <- toConcrete rhs
       unless (null eqs')
         __IMPOSSIBLE__
-      eqs <- toConcrete eqs
+      eqs <- toConcrete $ map snd xeqs
       return (rhs, eqs, es, wh ++ whs)
 
 instance ToConcrete (Maybe A.QName) (Maybe C.Name) where

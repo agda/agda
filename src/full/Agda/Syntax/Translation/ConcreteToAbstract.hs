@@ -1491,7 +1491,7 @@ instance ToAbstract AbstractRHS A.RHS where
   toAbstract (RewriteRHS' eqs rhs wh) = do
     auxs <- replicateM (length eqs) $ withFunctionName "rewrite-"
     rhs  <- toAbstract rhs
-    return $ RewriteRHS auxs eqs rhs wh
+    return $ RewriteRHS (zip auxs eqs) rhs wh
   toAbstract (WithRHS' es cs) = do
     aux <- withFunctionName "with-"
     A.WithRHS aux es <$> do toAbstract =<< sequence cs

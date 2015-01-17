@@ -227,7 +227,7 @@ instance ExprLike RHS where
       RHS e                  -> fold e
       AbsurdRHS{}            -> mempty
       WithRHS _ es cs        -> fold es `mappend` fold cs
-      RewriteRHS _ es rhs ds -> fold es `mappend` fold rhs `mappend` fold ds
+      RewriteRHS xes rhs ds  -> fold xes `mappend` fold rhs `mappend` fold ds
     where fold e = foldExpr f e
 
   traverseExpr f rhs =
@@ -235,7 +235,7 @@ instance ExprLike RHS where
       RHS e                   -> RHS <$> trav e
       AbsurdRHS{}             -> pure rhs
       WithRHS x es cs         -> WithRHS x <$> trav es <*> trav cs
-      RewriteRHS xs es rhs ds -> RewriteRHS xs <$> trav es <*> trav rhs <*> trav ds
+      RewriteRHS xes rhs ds   -> RewriteRHS <$> trav xes <*> trav rhs <*> trav ds
     where trav e = traverseExpr f e
 
 instance ExprLike Declaration where

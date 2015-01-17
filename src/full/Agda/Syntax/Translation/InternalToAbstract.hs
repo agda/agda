@@ -822,7 +822,7 @@ instance DotVars RHS where
   dotVars (RHS e) = dotVars e
   dotVars AbsurdRHS = Set.empty
   dotVars (WithRHS _ es clauses) = __IMPOSSIBLE__ -- NZ
-  dotVars (RewriteRHS _ es rhs _) = __IMPOSSIBLE__ -- NZ
+  dotVars (RewriteRHS xes rhs _) = __IMPOSSIBLE__ -- NZ
 
 instance DotVars TypedBindings where
   dotVars (TypedBindings _ bs) = dotVars bs
