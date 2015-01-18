@@ -292,15 +292,9 @@ useTerPragma def = return def
 -- | Insert some patterns in the in with-clauses LHS of the given RHS
 insertPatterns :: [A.Pattern] -> A.RHS -> A.RHS
 insertPatterns pats (A.WithRHS aux es cs) = A.WithRHS aux es (map insertToClause cs)
-<<<<<<< HEAD
     where insertToClause (A.Clause (A.LHS i lhscore ps) rhs ds catchall)
               = A.Clause (A.LHS i lhscore (pats ++ ps)) (insertPatterns pats rhs) ds catchall
-insertPatterns pats (A.RewriteRHS qs eqs rhs wh) = A.RewriteRHS qs eqs (insertPatterns pats rhs) wh
-=======
-    where insertToClause (A.Clause (A.LHS i lhscore ps) rhs ds)
-              = A.Clause (A.LHS i lhscore (pats ++ ps)) (insertPatterns pats rhs) ds
 insertPatterns pats (A.RewriteRHS qes rhs wh) = A.RewriteRHS qes (insertPatterns pats rhs) wh
->>>>>>> maint-2.4.2
 insertPatterns pats rhs = rhs
 
 -- | Parameters for creating a @with@-function.
@@ -431,13 +425,8 @@ checkClause t c@(A.Clause (A.SpineLHS i x aps withPats) rhs0 wh catchall) = do
                                   [A.Clause (A.LHS i (A.LHSHead x (killRange aps)) pats)
                                     -- Note: handleRHS (A.RewriteRHS _ eqs _ _)
                                     -- is defined by induction on eqs.
-<<<<<<< HEAD
-                                    (A.RewriteRHS names eqs (insertPatterns pats rhs) inner)
-                                    outer False]
-=======
                                     (A.RewriteRHS qes (insertPatterns pats rhs) inner)
-                                    outer]
->>>>>>> maint-2.4.2
+                                    outer False]
                          pats = [ A.DotP patNoRange underscore
                                 , A.ConP cinfo (AmbQ [conName reflCon]) []]
                      reportSDoc "tc.rewrite.top" 25 $ vcat
