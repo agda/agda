@@ -583,8 +583,7 @@ checkLHS f st@(LHSState problem sigma dpi asb) = do
       --   ]
 
       -- Andreas 2010-09-07  propagate relevance info to new vars
-      -- Andreas 2014-11-25  clear 'Forced' and 'Unused'
-      let updRel = ignoreForced . composeRelevance (getRelevance info)
+      let updRel = composeRelevance (getRelevance info)
       gamma' <- return $ mapRelevance updRel <$> gamma'
 
       -- Insert implicit patterns
@@ -620,6 +619,10 @@ checkLHS f st@(LHSState problem sigma dpi asb) = do
       -- Unify constructor target and given type (in Δ₁Γ)
       sub0 <- addCtxTel (delta1 `abstract` gamma) $
               unifyIndices_ flex (raise (size gamma) da) us' (raise (size gamma) ws)
+
+      -- Andreas 2014-11-25  clear 'Forced' and 'Unused'
+      -- Andreas 2015-01-19  ... only after unification
+      gamma <- return $ mapRelevance ignoreForced <$> gamma
 
       -- We should substitute c ys for x in Δ₂ and sigma
       let ys     = teleArgs gamma

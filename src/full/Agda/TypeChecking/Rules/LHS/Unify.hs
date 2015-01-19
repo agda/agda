@@ -220,6 +220,13 @@ forceHom (Het a1 a2) = a1 <$ do noConstraints $ equalType a1 a2
 makeHom :: TypeHH -> TCM (Maybe Type)
 makeHom aHH = (Just <$> forceHom aHH) `catchError` \ err -> return Nothing
 
+-- | Try to make a possibly heterogeneous term situation homogeneous.
+tryHom :: TypeHH -> Term -> Term -> TCM TermHH
+tryHom aHH u v = do
+     a <- forceHom aHH
+     Hom u <$ checkEquality a u v
+   `catchError` \ err -> return $ Het u v
+
 addEquality :: Type -> Term -> Term -> Unify ()
 addEquality a = addEqualityHH (Hom a)
 
@@ -560,7 +567,7 @@ unifyIndices flex a us vs = liftTCM $ do
         -- , nest 2 $ parens (prettyTCM tel0)
         , nest 2 $ prettyList $ map prettyTCM us0
         , nest 2 $ prettyList $ map prettyTCM vs0
-        , nest 2 $ text "at telescope" <+> prettyTCM bHH <+> text "..."
+        , nest 2 $ text "at telescope" <+> prettyTCM bHH <+> text ("(" ++ show (getRelevance a) ++ ") ...")
         ]
       liftTCM $ reportSDoc "tc.lhs.unify" 25 $
         (text $ "tel0 = " ++ show tel0)
@@ -570,7 +577,9 @@ unifyIndices flex a us vs = liftTCM $ do
       -- in case of dependent function type, we cannot postpone
       -- unification of u and v, otherwise us or vs might be ill-typed
       -- skip irrelevant parts
-      uHH <- if isIrrelevant a then return $ Hom u else
+      uHH <- if getRelevance a == Irrelevant then return $ Hom u else
+             -- Andreas, 2014-01-19 forced constructor arguments are not unified
+             if getRelevance a == Forced     then liftTCM $ tryHom bHH u v else
                ifClean (unifyHH bHH u v) (return $ Hom u) (return $ Het u v)
 
       liftTCM $ reportSDoc "tc.lhs.unify" 25 $

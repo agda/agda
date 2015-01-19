@@ -30,6 +30,31 @@ Language
 
     {xs {ys zs} : List A} → ...
 
+Type checking
+=============
+
+* Forced constructor arguments are no longer generating unification
+  constraints [Issue 1406].
+
+    data Fin : (n : Nat) → Set where
+      zero : {n : Nat}             → Fin (suc n)
+      suc  : {n : Nat} (i : Fin n) → Fin (suc n)
+
+   Here, the hidden argument `{n : Nat}` is forced in both
+   constructors by the target type `Fin (suc n)`.
+   After the fix of issue 1406, the following no longer passes:
+
+    data HEq (A : Set) (a : A) : (B : Set) (b : B) → Set1 where
+      refl : HEq A a A a
+
+    inj-Fin-≅ : ∀ {n m} {i : Fin n} {j : Fin m} → HEq (Fin n) i (Fin m) j → n ≡ m
+    inj-Fin-≅ {i = zero} {j = zero} refl = ...
+
+  The match on `refl` requires us to unify `zero {n} : Fin (suc n)`
+  with `zero {m} : Fin (suc m)`.  Since `{n}` and `{m}` are forced, they
+  will not be unified.  Since we do not have injectivity of type
+  constructors, they will also not be unified by the constraint
+  `Fin (suc n) = Fin (suc m)`.
 
 ------------------------------------------------------------------------
 -- Release notes for Agda version 2.4.2.2

@@ -1,0 +1,4 @@
+Issue1406.agda:26,3-34
+The type of the constructor does not fit in the sort of the
+datatype, since Set₁ is not less or equal than Set
+when checking the constructor sing in the declaration of SING
