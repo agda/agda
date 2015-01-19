@@ -1,4 +1,3 @@
-Issue1406.agda:26,3-34
-The type of the constructor does not fit in the sort of the
-datatype, since Set₁ is not less or equal than Set
-when checking the constructor sing in the declaration of SING
+Issue1406.agda:33,24-28
+F x != G x of type Set
+when checking that the pattern refl has type HEq (sing F) (sing G)
