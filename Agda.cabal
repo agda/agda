@@ -125,7 +125,7 @@ library
 
   build-tools:
     alex >= 3.1.0 && < 3.2
-    , happy >= 1.19.3 && < 2
+    , happy >= 1.19.4 && < 2
 
   exposed-modules:  Agda.Main
                     Agda.ImpossibleTest
