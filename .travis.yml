@@ -21,7 +21,7 @@ install:
   - sudo ./deploy.sh
   # generating Everything.agda
   - cabal install filemanip
-  - cd $HOME/build/gallais/agda-stdlib
+  - cd $HOME/build/agda/agda-stdlib
   - runghc GenerateEverything.hs
 
 script:
@@ -37,7 +37,7 @@ after_success:
   - git init
   - git config --global user.name "Travis CI bot"
   - git config --global user.email "travis-ci-bot@travis.fake"
-  - git remote add upstream https://$GH_TOKEN@github.com/gallais/agda-stdlib.git &>/dev/null
+  - git remote add upstream https://$GH_TOKEN@github.com/agda/agda-stdlib.git &>/dev/null
   - git fetch upstream && git reset upstream/gh-pages
   - git add -f \*.html
   - git commit -m "Automatic HTML update via Travis"
