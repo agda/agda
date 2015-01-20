@@ -40,7 +40,6 @@ import Agda.TypeChecking.Serialise
 import Agda.Utils.FileName
 import qualified Agda.Utils.HashMap as HMap
 
-#ifdef UHC_BACKEND
 import Agda.Compiler.UHC.CompileState
 import Agda.Compiler.UHC.ModuleInfo
 --import qualified Agda.Compiler.UHC.CaseOpts     as COpts
@@ -387,10 +386,3 @@ callUHC1 args = do
 getEhcBin :: TCM FilePath
 getEhcBin = fromMaybe ("uhc") . optUHCEhcBin <$> commandLineOptions
 
-#else
-
--- UHC backend has not been compiled
-compilerMain :: Interface -> TCM ()
-compilerMain inter = error "UHC Backend disabled."
-
-#endif
