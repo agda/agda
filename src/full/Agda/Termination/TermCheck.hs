@@ -450,7 +450,7 @@ termDef name = terSetCurrent name $ do
   applyWhen withoutKEnabled (setMasks t) $ do
 
   -- If the result should be disregarded, set all calls to unguarded.
-  applyUnlessM terGetMaskResult terUnguarded $ do
+  applyWhenM terGetMaskResult terUnguarded $ do
 
   case theDef def of
     Function{ funClauses = cls, funDelayed = delayed } ->
@@ -468,13 +468,19 @@ setMasks t cont = do
     -- Check argument types
     ds <- forM (telToList tel) $ \ t -> do
       TelV _ t <- telView $ snd $ unDom t
-      (isJust <$> isDataOrRecord (unEl t)) `or2M` (isJust <$> isSizeType t)
+      d <- (isNothing <$> isDataOrRecord (unEl t)) `or2M` (isJust <$> isSizeType t)
+      when d $
+        reportSDoc "term.mask" 20 $ do
+          text "argument type "
+            <+> prettyTCM t
+            <+> text " is not data or record type, ignoring structural descent for --without-K"
+      return d
     -- Check result types
-    d  <- isJust <.> isDataOrRecord . unEl $ core
-    unless d $
+    d  <- isNothing <.> isDataOrRecord . unEl $ core
+    when d $
       reportSLn "term.mask" 20 $ "result type is not data or record type, ignoring guardedness for --without-K"
     return (ds, d)
-  terSetMaskArgs (ds ++ repeat False) $ terSetMaskResult d $ cont
+  terSetMaskArgs (ds ++ repeat True) $ terSetMaskResult d $ cont
 
 {- Termination check clauses:
 
@@ -563,7 +569,7 @@ maskNonDataArgs :: [DeBruijnPat] -> TerM [DeBruijnPat]
 maskNonDataArgs ps = zipWith mask ps <$> terGetMaskArgs
   where
     mask p@ProjDBP{} _ = p
-    mask p           d = if d then p else unusedVar
+    mask p           d = if d then unusedVar else p
 
 -- | cf. 'TypeChecking.Coverage.Match.buildMPatterns'
 openClause :: Permutation -> [Pattern] -> ClauseBody -> TerM ([DeBruijnPat], Maybe Term)

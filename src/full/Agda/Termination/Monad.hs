@@ -107,14 +107,14 @@ data TerEnv = TerEnv
   , terDelayed :: Delayed
     -- ^ Are we checking a delayed definition?
   , terMaskArgs :: [Bool]
-    -- ^ Only consider the 'True' arguments for establishing termination.
+    -- ^ Only consider the 'notMasked' 'False' arguments for establishing termination.
   , terMaskResult :: Bool
-    -- ^ Only consider guardedness if 'True'.
+    -- ^ Only consider guardedness if 'False' (not masked).
   , _terSizeDepth :: Int  -- lazy by intention!
     -- ^ How many @SIZELT@ relations do we have in the context
     --   (= clause telescope).  Used to approximate termination
     --   for metas in call args.
-  , terPatterns :: [DeBruijnPat]
+  , terPatterns :: MaskedDeBruijnPats
     -- ^ The patterns of the clause we are checking.
   , terPatternsRaise :: !Int
     -- ^ Number of additional binders we have gone under
@@ -158,8 +158,8 @@ defaultTerEnv = TerEnv
   , terCurrent                  = __IMPOSSIBLE__ -- needs to be set!
   , terTarget                   = Nothing
   , terDelayed                  = NotDelayed
-  , terMaskArgs                 = repeat True    -- use all arguments
-  , terMaskResult               = True           -- use result
+  , terMaskArgs                 = repeat False   -- use all arguments (mask none)
+  , terMaskResult               = False          -- use result (do not mask)
   , _terSizeDepth               = __IMPOSSIBLE__ -- needs to be set!
   , terPatterns                 = __IMPOSSIBLE__ -- needs to be set!
   , terPatternsRaise            = 0
