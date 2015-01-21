@@ -402,7 +402,9 @@ substTerm env term = case T.ignoreSharing $ T.unSpine term of
        Lam name <$> substTerm (name : env) te
     T.Lam _ (NoAbs _ te) -> do
        name <- freshLocalName
-       Lam name <$> substTerm env te
+       -- the MAlonzo backend counts NoAbs variables towards the de-bruijn indexes,
+       -- let's just do that here as well. But is this correct?
+       Lam name <$> substTerm (__IMPOSSIBLE__ : env) te
     T.Lit l -> Lit <$> lift (substLit l)
     T.Level l -> substTerm env =<< (lift . lift) (reallyUnLevelView l)
     T.Def q es -> do
