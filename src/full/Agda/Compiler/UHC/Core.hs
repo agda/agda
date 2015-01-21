@@ -123,8 +123,8 @@ exprToCore (Con ty con es) = do
     es' <- mapM exprToCore es
     return $ mkTagTup (xconCTag con) es'
 exprToCore (App fv es)   = do
+    fv' <- exprToCore fv
     es' <- mapM exprToCore es
-    let fv' = mkVar fv
     return $ mkApp fv' es'
 exprToCore (Case e brs def CTChar) = do
   e' <- exprToCore e

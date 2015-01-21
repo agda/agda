@@ -395,7 +395,7 @@ substTerm env term = case T.ignoreSharing $ T.unSpine term of
       let args = fromMaybe __IMPOSSIBLE__ $ allApplyElims es
       case length env <= ind of
         True  -> __IMPOSSIBLE__
-        False -> apps (fromMaybe __IMPOSSIBLE__ $ env !!! ind) <$>
+        False -> apps1 (fromMaybe __IMPOSSIBLE__ $ env !!! ind) <$>
                    mapM (substTerm env . unArg) args
     T.Lam _ (Abs _ te) -> do
        name <- freshLocalName
@@ -416,7 +416,7 @@ substTerm env term = case T.ignoreSharing $ T.unSpine term of
                 Function{funProjection = Just p} -> pred $ projIndex p
                 _ -> 0
  -}
-      f <- apps name . (replicate nr UNIT ++) <$> mapM (substTerm env . unArg) args
+      f <- apps1 name . (replicate nr UNIT ++) <$> mapM (substTerm env . unArg) args
       -- TODO PH can we do that here?
       return  f
         {-$ case del of
@@ -424,7 +424,7 @@ substTerm env term = case T.ignoreSharing $ T.unSpine term of
         False -> f-}
     T.Con c args -> do
         con <- lift $ getConstrFun $ conName c
-        apps con <$> mapM (substTerm env . unArg) args
+        apps1 con <$> mapM (substTerm env . unArg) args
     T.Shared p -> substTerm env $ derefPtr p
     T.Pi _ _ -> return UNIT
     T.Sort _  -> return UNIT

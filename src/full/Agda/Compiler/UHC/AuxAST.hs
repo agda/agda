@@ -93,7 +93,7 @@ data Expr
   | Lit Lit
   | Lam HsName Expr
   | Con ADataTy ADataCon [Expr]
-  | App HsName [Expr]
+  | App Expr [Expr]
   | Case Expr [Branch] (Maybe Expr) CaseType -- case possibly with default
   | Let HsName Expr Expr
   | UNIT    -- ^ Used for internally generated unit values. If an Agda datatype is bound to the
@@ -153,9 +153,12 @@ casee ty x brs def cty = Case x [br{brExpr = casingE br (brExpr br)} | br <- brs
     sameCon _                     _                     = False
 
 -- | Smart constructor for applications to avoid empty applications
-apps :: HsName -> [Expr] -> Expr
-apps v [] = Var v
+apps :: Expr -> [Expr] -> Expr
+apps v [] = v
 apps v as = App v as
+
+apps1 :: HsName -> [Expr] -> Expr
+apps1 v = apps (Var v)
 
 --------------------------------------------------------------------------------
 -- * Substitution
@@ -172,8 +175,7 @@ subst var var' expr = case expr of
     Lam v e    | var == v  -> Lam v e
                | otherwise -> Lam v (subst var var' e)
     Con t q es -> Con t q (map (subst var var') es)
-    App v es   | var == v  -> App var' (map (subst var var') es)
-               | otherwise -> App v    (map (subst var var') es)
+    App v es   -> App (subst var var' v) (map (subst var var') es)
     Case e brs def ty -> Case (subst var var' e) (map (substBranch var var') brs) (fmap (subst var var') def) ty
     Let v e e' | var == v  -> Let v (subst var var' e) e'
                | otherwise -> Let v (subst var var' e) (subst var var' e')
@@ -196,7 +198,7 @@ fv = S.toList . fv'
       Lit _    -> S.empty
       Lam v e1 -> S.delete v (fv' e1)
       Con _ _ es -> S.unions (map fv' es)
-      App v es -> S.insert v $ S.unions (map fv' es)
+      App v es -> S.unions (fv' v : map fv' es)
       Case e brs def _ -> fv' e `S.union` S.unions (map fvBr brs) `S.union` (maybe S.empty fv' def)
       Let v e e' -> fv' e `S.union` (S.delete v $ fv' e')
       UNIT       -> S.empty
