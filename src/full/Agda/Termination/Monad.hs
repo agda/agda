@@ -1,5 +1,7 @@
 {-# LANGUAGE CPP                        #-}
 {-# LANGUAGE DeriveFunctor              #-}
+{-# LANGUAGE DeriveFoldable             #-}
+{-# LANGUAGE DeriveTraversable          #-}
 {-# LANGUAGE FlexibleInstances          #-}
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
 {-# LANGUAGE MultiParamTypeClasses      #-}
@@ -20,8 +22,10 @@ import Control.Monad.Reader
 import Control.Monad.Writer
 import Control.Monad.State
 
+import Data.Foldable (Foldable)
 import Data.Functor ((<$>))
 import qualified Data.List as List
+import Data.Traversable (Traversable)
 
 import Agda.Interaction.Options
 
@@ -43,6 +47,8 @@ import Agda.TypeChecking.Reduce
 import Agda.TypeChecking.Substitute
 
 import Agda.Utils.Except ( MonadError(catchError, throwError) )
+import Agda.Utils.Function
+import Agda.Utils.Functor
 import Agda.Utils.Lens
 import Agda.Utils.Maybe
 import Agda.Utils.Monad
@@ -302,10 +308,13 @@ terGetMaskResult = terAsks terMaskResult
 terSetMaskResult :: Bool -> TerM a -> TerM a
 terSetMaskResult b = terLocal $ \ e -> e { terMaskResult = b }
 
-terGetPatterns :: TerM DeBruijnPats
-terGetPatterns = raiseDBP <$> terAsks terPatternsRaise <*> terAsks terPatterns
+terGetPatterns :: TerM (MaskedDeBruijnPats)
+terGetPatterns = do
+  n   <- terAsks terPatternsRaise
+  mps <- terAsks terPatterns
+  return $ if n == 0 then mps else map (fmap (fmap (n +))) mps
 
-terSetPatterns :: DeBruijnPats -> TerM a -> TerM a
+terSetPatterns :: MaskedDeBruijnPats -> TerM a -> TerM a
 terSetPatterns ps = terLocal $ \ e -> e { terPatterns = ps }
 
 terRaise :: TerM a -> TerM a
@@ -515,6 +524,45 @@ instance UsableSizeVars DeBruijnPats where
       []               -> return mempty
       (ProjDBP q : ps) -> projUseSizeLt q $ usableSizeVars ps
       (p         : ps) -> mappend <$> usableSizeVars p <*> usableSizeVars ps
+
+instance UsableSizeVars (Masked DeBruijnPat) where
+  usableSizeVars (Masked m p) = do
+    let none = return mempty
+    case p of
+      VarDBP i    -> ifM terGetUseSizeLt (return $ VarSet.singleton i) {- else -} none
+      ConDBP c ps -> if m then none else conUseSizeLt c $ usableSizeVars ps
+      LitDBP{}    -> none
+      TermDBP{}   -> none
+      ProjDBP{}   -> none
+
+instance UsableSizeVars MaskedDeBruijnPats where
+  usableSizeVars ps =
+    case ps of
+      []                          -> return mempty
+      (Masked _ (ProjDBP q) : ps) -> projUseSizeLt q $ usableSizeVars ps
+      (p                    : ps) -> mappend <$> usableSizeVars p <*> usableSizeVars ps
+
+-- * Masked patterns (which are not eligible for structural descent, only for size descent)
+
+type MaskedDeBruijnPats = [Masked DeBruijnPat]
+
+data Masked a = Masked
+  { getMask   :: Bool  -- ^ True if thing not eligible for structural descent.
+  , getMasked :: a     -- ^ Thing.
+  } deriving (Eq, Ord, Show, Functor, Foldable, Traversable)
+
+masked :: a -> Masked a
+masked = Masked True
+
+notMasked :: a -> Masked a
+notMasked = Masked False
+
+instance Decoration Masked where
+  traverseF f (Masked m a) = Masked m <$> f a
+
+-- | Print masked things in double parentheses.
+instance PrettyTCM a => PrettyTCM (Masked a) where
+  prettyTCM (Masked m a) = applyWhen m (parens . parens) $ prettyTCM a
 
 -- * Call pathes
 
