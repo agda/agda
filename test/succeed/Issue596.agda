@@ -6,12 +6,6 @@ open import Common.Level
 open import Common.Equality
 open import Common.Prelude renaming (Nat to ℕ)
 
-infixl 7 _*_
-
-_*_ : ℕ → ℕ → ℕ
-zero  * n = zero
-suc m * n = n + (m * n)
-
 -- inlined from Data.Product
 
 record Σ {a b} (A : Set a) (B : A → Set b) : Set (a ⊔ b) where

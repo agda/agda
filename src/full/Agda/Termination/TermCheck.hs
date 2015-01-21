@@ -451,7 +451,7 @@ termDef name = terSetCurrent name $ do
   applyWhen withoutKEnabled (setMasks t) $ do
 
   -- If the result should be disregarded, set all calls to unguarded.
-  applyUnlessM terGetMaskResult terUnguarded $ do
+  applyWhenM terGetMaskResult terUnguarded $ do
 
   case theDef def of
     Function{ funClauses = cls, funDelayed = delayed } ->
@@ -469,13 +469,19 @@ setMasks t cont = do
     -- Check argument types
     ds <- forM (telToList tel) $ \ t -> do
       TelV _ t <- telView $ snd $ unDom t
-      (isJust <$> isDataOrRecord (unEl t)) `or2M` (isJust <$> isSizeType t)
+      d <- (isNothing <$> isDataOrRecord (unEl t)) `or2M` (isJust <$> isSizeType t)
+      when d $
+        reportSDoc "term.mask" 20 $ do
+          text "argument type "
+            <+> prettyTCM t
+            <+> text " is not data or record type, ignoring structural descent for --without-K"
+      return d
     -- Check result types
-    d  <- isJust <.> isDataOrRecord . unEl $ core
-    unless d $
+    d  <- isNothing <.> isDataOrRecord . unEl $ core
+    when d $
       reportSLn "term.mask" 20 $ "result type is not data or record type, ignoring guardedness for --without-K"
     return (ds, d)
-  terSetMaskArgs (ds ++ repeat False) $ terSetMaskResult d $ cont
+  terSetMaskArgs (ds ++ repeat True) $ terSetMaskResult d $ cont
 
 {- Termination check clauses:
 
@@ -560,11 +566,11 @@ stripCoConstructors p = do
     ProjDBP{} -> return p
 
 -- | Masks all non-data/record type patterns if --without-K.
-maskNonDataArgs :: [DeBruijnPat] -> TerM [DeBruijnPat]
+maskNonDataArgs :: [DeBruijnPat] -> TerM [Masked DeBruijnPat]
 maskNonDataArgs ps = zipWith mask ps <$> terGetMaskArgs
   where
-    mask p@ProjDBP{} _ = p
-    mask p           d = if d then p else unusedVar
+    mask p@ProjDBP{} _ = Masked False p
+    mask p           d = Masked d     p
 
 -- | cf. 'TypeChecking.Coverage.Match.buildMPatterns'
 openClause :: Permutation -> [Pattern] -> ClauseBody -> TerM ([DeBruijnPat], Maybe Term)
@@ -619,8 +625,8 @@ termClause' clause = do
       Nothing -> return empty
       Just v -> do
         dbpats <- mapM stripCoConstructors dbpats
-        dbpats <- maskNonDataArgs dbpats
-        terSetPatterns dbpats $ do
+        mdbpats <- maskNonDataArgs dbpats
+        terSetPatterns mdbpats $ do
         terSetSizeDepth tel $ do
         reportBody v
   {-
@@ -1035,7 +1041,7 @@ compareArgs es = do
 
   -- Count the number of coinductive projection(pattern)s in caller and callee
   projsCaller <- genericLength <$> do
-    filterM isCoinductiveProjection $ mapMaybe isProjP pats
+    filterM isCoinductiveProjection $ mapMaybe (isProjP . getMasked) pats
     -- filterM (not <.> isProjectionButNotCoinductive) $ mapMaybe isProjP pats
   projsCallee <- genericLength <$> do
     filterM isCoinductiveProjection $ mapMaybe isProjElim es
@@ -1063,7 +1069,7 @@ annotatePatsWithUseSizeLt = loop where
 
 -- | @compareElim e dbpat@
 
-compareElim :: Elim -> DeBruijnPat -> TerM Order
+compareElim :: Elim -> Masked DeBruijnPat -> TerM Order
 compareElim e p = do
   liftTCM $ do
     reportSDoc "term.compare" 30 $ sep
@@ -1075,11 +1081,11 @@ compareElim e p = do
       [ nest 2 $ text $ "e = " ++ show e
       , nest 2 $ text $ "p = " ++ show p
       ]
-  case (e, p) of
+  case (e, getMasked p) of
     (Proj d, ProjDBP d')           -> compareProj d d'
     (Proj{}, _         )           -> return Order.unknown
     (Apply{}, ProjDBP{})           -> return Order.unknown
-    (Apply arg, p)                 -> compareTerm (unArg arg) p
+    (Apply arg, _)                 -> compareTerm (unArg arg) p
 
 -- | In dependent records, the types of later fields may depend on the
 --   values of earlier fields.  Thus when defining an inhabitant of a
@@ -1153,7 +1159,7 @@ subPatterns p = case p of
   TermDBP _   -> []
   ProjDBP _   -> []
 
-compareTerm :: Term -> DeBruijnPat -> TerM Order
+compareTerm :: Term -> Masked DeBruijnPat -> TerM Order
 compareTerm t p = do
 --   reportSDoc "term.compare" 25 $
 --     text " comparing term " <+> prettyTCM t <+>
@@ -1215,8 +1221,8 @@ instance StripAllProjections Term where
 --
 --   Precondition: top meta variable resolved
 
-compareTerm' :: Term -> DeBruijnPat -> TerM Order
-compareTerm' v p = do
+compareTerm' :: Term -> Masked DeBruijnPat -> TerM Order
+compareTerm' v mp@(Masked m p) = do
   suc  <- terGetSizeSuc
   cutoff <- terGetCutOff
   let ?cutoff = cutoff
@@ -1225,44 +1231,11 @@ compareTerm' v p = do
 
     -- Andreas, 2013-11-20 do not drop projections,
     -- in any case not coinductive ones!:
-    (Var i es, p) | Just{} <- allApplyElims es ->
-      compareVar i p
+    (Var i es, _) | Just{} <- allApplyElims es ->
+      compareVar i mp
 
-    (DontCare t, p) ->
-      compareTerm' t p
-
-    (Lit l, LitDBP l')
-      | l == l'     -> return Order.le
-      | otherwise   -> return Order.unknown
-
-    (Lit l, p) -> do
-      v <- liftTCM $ constructorForm v
-      case ignoreSharing v of
-        Lit{}       -> return Order.unknown
-        v           -> compareTerm' v p
-
-    -- Andreas, 2011-04-19 give subterm priority over matrix order
-
-    (Con{}, ConDBP c ps) | any (isSubTerm v) ps ->
-      decrease <$> offsetFromConstructor c <*> return Order.le
-
-    (Con c ts, ConDBP c' ps) | conName c == c'->
-      compareConArgs ts ps
-
-    (Def s [Apply t], ConDBP s' [p]) | s == s' && Just s == suc ->
-      compareTerm' (unArg t) p
-
-    -- new cases for counting constructors / projections
-    -- register also increase
-    (Def s [Apply t], p) | Just s == suc ->
-      -- Andreas, 2012-10-19 do not cut off here
-      increase 1 <$> compareTerm' (unArg t) p
-
-    (Con c [], p) -> return Order.le
-
-    (Con c ts, p) -> do
-      increase <$> offsetFromConstructor (conName c)
-               <*> (infimum <$> mapM (\ t -> compareTerm' (unArg t) p) ts)
+    (DontCare t, _) ->
+      compareTerm' t mp
 
     -- Andreas, 2014-09-22, issue 1281:
     -- For metas, termination checking should be optimistic.
@@ -1272,7 +1245,49 @@ compareTerm' v p = do
     -- deepest variable in @p@.
     -- For sized types, the depth is maximally
     -- the number of SIZELT hypotheses one can have in a context.
-    (MetaV{}, p) -> Order.decr . max (patternDepth p) . pred <$> terAsks _terSizeDepth
+    (MetaV{}, p) -> Order.decr . max (if m then 0 else patternDepth p) . pred <$>
+       terAsks _terSizeDepth
+
+    -- Successor on both sides cancel each other.
+    -- We ignore the mask for sizes.
+    (Def s [Apply t], ConDBP s' [p]) | s == s' && Just s == suc ->
+      compareTerm' (unArg t) (notMasked p)
+
+    -- Register also size increase.
+    (Def s [Apply t], p) | Just s == suc ->
+      -- Andreas, 2012-10-19 do not cut off here
+      increase 1 <$> compareTerm' (unArg t) mp
+
+    -- In all cases that do not concern sizes,
+    -- we cannot continue if pattern is masked.
+
+    _ | m -> return Order.unknown
+
+    (Lit l, LitDBP l')
+      | l == l'     -> return Order.le
+      | otherwise   -> return Order.unknown
+
+    (Lit l, _) -> do
+      v <- liftTCM $ constructorForm v
+      case ignoreSharing v of
+        Lit{}       -> return Order.unknown
+        v           -> compareTerm' v mp
+
+    -- Andreas, 2011-04-19 give subterm priority over matrix order
+
+    (Con{}, ConDBP c ps) | any (isSubTerm v) ps ->
+      decrease <$> offsetFromConstructor c <*> return Order.le
+
+    (Con c ts, ConDBP c' ps) | conName c == c'->
+      compareConArgs ts ps
+
+    (Con c [], _) -> return Order.le
+
+    -- new case for counting constructors / projections
+    -- register also increase
+    (Con c ts, _) -> do
+      increase <$> offsetFromConstructor (conName c)
+               <*> (infimum <$> mapM (\ t -> compareTerm' (unArg t) mp) ts)
 
     (t, p) -> return $ subTerm t p
 
@@ -1310,9 +1325,9 @@ compareConArgs ts ps = do
     (0,0) -> return Order.le        -- c <= c
     (0,1) -> return Order.unknown   -- c not<= c x
     (1,0) -> __IMPOSSIBLE__
-    (1,1) -> compareTerm' (unArg (head ts)) (head ps)
+    (1,1) -> compareTerm' (unArg (head ts)) (notMasked (head ps))
     (_,_) -> foldl (Order..*.) Order.le <$>
-               zipWithM compareTerm' (map unArg ts) ps
+               zipWithM compareTerm' (map unArg ts) (map notMasked ps)
        -- corresponds to taking the size, not the height
        -- allows examples like (x, y) < (Succ x, y)
 {- version which does an "order matrix"
@@ -1329,25 +1344,34 @@ compareConArgs ts ps = do
 --               else Order.infimum (zipWith compareTerm' (map unArg ts) ps)
 -}
 
-compareVar :: Nat -> DeBruijnPat -> TerM Order
-compareVar i (VarDBP j)    = compareVarVar i j
-compareVar i (ConDBP c ps) = do
+compareVar :: Nat -> Masked DeBruijnPat -> TerM Order
+compareVar i (Masked m p) = do
+  suc    <- terGetSizeSuc
   cutoff <- terGetCutOff
   let ?cutoff = cutoff
-  decrease <$> offsetFromConstructor c
-           <*> (Order.supremum <$> mapM (compareVar i) ps)
-compareVar i LitDBP{}  = return $ Order.unknown
-compareVar i TermDBP{} = return $ Order.unknown
-compareVar i ProjDBP{} = return $ Order.unknown
+  let no = return Order.unknown
+  case p of
+    ProjDBP{}   -> no
+    LitDBP{}    -> no
+    TermDBP{}   -> no
+    VarDBP j    -> compareVarVar i (Masked m j)
+    ConDBP s [p] | Just s == suc -> decrease 1 <$> compareVar i (notMasked p)
+    ConDBP c ps -> if m then no else do
+      decrease <$> offsetFromConstructor c
+               <*> (Order.supremum <$> mapM (compareVar i . notMasked) ps)
 
 -- | Compare two variables.
 --
 --   The first variable comes from a term, the second from a pattern.
-compareVarVar :: Nat -> Nat -> TerM Order
-compareVarVar i j
-  | i == j    = return Order.le
+compareVarVar :: Nat -> Masked Nat -> TerM Order
+compareVarVar i (Masked m j)
+  | i == j    = if not m then return Order.le else liftTCM $
+      -- If j is a size, we ignore the mask.
+      ifM (isJust <$> do isSizeType =<< reduce =<< typeOfBV j)
+        {- then -} (return Order.le)
+        {- else -} (return Order.unknown)
   | otherwise = ifNotM ((i `VarSet.member`) <$> terGetUsableVars) (return Order.unknown) $ {- else -} do
       res <- isBounded i
       case res of
         BoundedNo  -> return Order.unknown
-        BoundedLt v -> decrease 1 <$> compareTerm' v (VarDBP j)
+        BoundedLt v -> decrease 1 <$> compareTerm' v (Masked  m (VarDBP j))
