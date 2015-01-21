@@ -904,7 +904,10 @@ function g es = ifM (terGetInlineWithFunctions `and2M` do isJust <$> isWithFunct
          -- So we build a closure such that we can print the call
          -- whenever we really need to.
          -- This saves 30s (12%) on the std-lib!
-         doc <- liftTCM $ buildClosure gArgs
+         -- Andreas, 2015-01-21 Issue 1410: Go to the module where g is defined
+         -- otherwise its free variables with be prepended to the call
+         -- in the error message.
+         doc <- liftTCM $ withCurrentModule (qnameModule g) $ buildClosure gArgs
 
          let src  = fromMaybe __IMPOSSIBLE__ $ List.elemIndex f names
              tgt  = gInd
