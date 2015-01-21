@@ -21,7 +21,7 @@ main = do
   header  <- readFileUTF8 headerFile
   modules <- filter isLibraryModule . List.sort <$>
                find always
-                    (extension ==? ".agda" ||? extension ==? ".lagda")
+                    (extension ==? ".agda" ||? extension ==? ".lagda") 
                     srcDir
   headers <- mapM extractHeader modules
 
@@ -48,8 +48,9 @@ usage = unlines
 
 isLibraryModule :: FilePath -> Bool
 isLibraryModule f =
-  takeExtension f `elem` [".agda", ".lagda"] &&
-  dropExtension (takeFileName f) /= "Core"
+  takeExtension f `elem` [".agda", ".lagda"]
+  && dropExtension (takeFileName f) /= "Core"
+  && dropExtension (takeFileName f) /= "index"
 
 -- | Reads a module and extracts the header.
 
