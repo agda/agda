@@ -162,8 +162,15 @@ constructorMismatch :: Type -> Term -> Term -> Unify a
 constructorMismatch a u v = throwException $ ConstructorMismatch a u v
 
 constructorMismatchHH :: TypeHH -> Term -> Term -> Unify a
-constructorMismatchHH aHH = constructorMismatch (leftHH aHH)
-  -- do not report heterogenity
+constructorMismatchHH aHH u v = ifM (canCompare aHH)
+                                (constructorMismatch (leftHH aHH) u v) -- do not report heterogenity
+                                (throwException (UnclearOccurrence (leftHH aHH) u v))
+  where
+    -- Comparing constructors at different types is incompatible with univalence
+    canCompare (Het s t) = ifM (liftTCM $ optWithoutK <$> pragmaOptions)
+                               (liftTCM $ tryConversion $ equalType s t)  -- no constraints left
+                               (return True)
+    canCompare Hom{} = return True
 
 instance Subst Equality where
   applySubst rho (Equal a s t) =
