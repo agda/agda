@@ -500,15 +500,16 @@ class UsableSizeVars a where
   usableSizeVars :: a -> TerM VarSet
 
 instance UsableSizeVars DeBruijnPat where
-  usableSizeVars p =
+  usableSizeVars p = do
+    let none = return mempty
     case p of
-      VarDBP i    -> ifM terGetUseSizeLt (return $ VarSet.singleton i) (return $ mempty)
+      VarDBP i    -> ifM terGetUseSizeLt (return $ VarSet.singleton i) {- else -} none
       ConDBP c ps -> conUseSizeLt c $ usableSizeVars ps
-      LitDBP{}    -> return mempty
-      TermDBP{}   -> return mempty
-      ProjDBP{}   -> return mempty
+      LitDBP{}    -> none
+      TermDBP{}   -> none
+      ProjDBP{}   -> none
 
-instance UsableSizeVars [DeBruijnPat] where
+instance UsableSizeVars DeBruijnPats where
   usableSizeVars ps =
     case ps of
       []               -> return mempty
