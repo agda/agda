@@ -1,0 +1,8 @@
+Issue1023-MaskNonData.agda:28,1-32,30
+Termination checking failed for the following functions:
+  auoo
+Problematic calls:
+  noo FOne iso f
+    (at Issue1023-MaskNonData.agda:29,17-20)
+  auoo w
+    (at Issue1023-MaskNonData.agda:32,24-28)
