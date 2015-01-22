@@ -367,15 +367,12 @@ runUhcMain mainMod mainName = do
     let fp = "Main"
     let mod = createMainModule mainMod mainName
     fp' <- writeCoreFile fp mod
-
-    -- TODO we use Operwholecore right now as work around because UHC Core can't export datatypes yet
-    callUHC1 ["--output=" ++ (show $ last $ mnameToList $ amiModule mainMod), fp']
+    -- TODO drop the RTS args as soon as we don't need the additional memory anymore
+    callUHC1 ["--output=" ++ (show $ last $ mnameToList $ amiModule mainMod), fp', "+RTS", "-K8g", "-RTS"]
 
 callUHC :: Bool -> FilePath -> TCM ()
 callUHC isMain fp = callUHC1 $ catMaybes
-    [ if isMain then Nothing else Just "--compile-only"
-    -- TODO we use Operwholecore right now as work around because UHC Core can't export datatypes yet
-    , Just fp]
+    [ if isMain then Nothing else Just "--compile-only", Just fp]
 
 callUHC1 :: [String] -> TCM ()
 callUHC1 args = do
