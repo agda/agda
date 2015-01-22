@@ -369,13 +369,13 @@ runUhcMain mainMod mainName = do
     fp' <- writeCoreFile fp mod
 
     -- TODO we use Operwholecore right now as work around because UHC Core can't export datatypes yet
-    callUHC1 ["-Operwholecore", "--output=" ++ (show $ last $ mnameToList $ amiModule mainMod), fp']
+    callUHC1 ["--output=" ++ (show $ last $ mnameToList $ amiModule mainMod), fp']
 
 callUHC :: Bool -> FilePath -> TCM ()
 callUHC isMain fp = callUHC1 $ catMaybes
     [ if isMain then Nothing else Just "--compile-only"
     -- TODO we use Operwholecore right now as work around because UHC Core can't export datatypes yet
-    , Just "-Operwholecore", Just fp]
+    , Just fp]
 
 callUHC1 :: [String] -> TCM ()
 callUHC1 args = do
