@@ -195,17 +195,18 @@ translateDefn (n, defini) = do
             cc       = fromMaybe __IMPOSSIBLE__ $ funCompiled f
         -- let projArgs = maybe 0 (pred . projIndex) (funProjection f)
         let ccs = reverseCCBody projArgs cc
-        let len   = (+ projArgs) . length . clausePats . head .  funClauses $ f
+        let clens = map (length . clausePats) (funClauses f)
+            len   = minimum clens
             ty    = (defType defini)
         -- forcing <- lift $ gets (optForcing . stPersistentOptions)
         lift . lift $ reportSDoc "uhc.fromagda" 5 $ text "compiling fun:" <+> prettyTCM n
-        lift . lift $ reportSDoc "uhc.fromagda" 5 $ text "len:" <+> (text . show) len
-        lift . lift $ reportSDoc "uhc.fromagda" 15 $ text "pats:" <+> (text . show) (clausePats
-                    $ head $ funClauses f)
+        lift . lift $ reportSDoc "uhc.fromagda" 5 $ text "lens:" <+> (text . show) (len, clens)
+        lift . lift $ reportSDoc "uhc.fromagda" 15 $ text "pats:" <+> (text . show) (map clausePats
+                    $ funClauses f)
         lift . lift $ reportSDoc "uhc.fromagda" 15 $ text "type:" <+> (text . show) ty
 
         lift . lift $ reportSDoc "uhc.fromagda" 15 $ text "ccs: " <+> (text . show) ccs
-        res <- return <$> compileClauses n len ccs
+        res <- return <$> compileClauses n len projArgs ccs
 {-        pres <- case res of
           Nothing -> return Nothing
           Just  c -> return <$> prettyEpicFun c
@@ -331,28 +332,44 @@ reverseCCBody c cc = case cc of
 --   we have to add the catchAllBranch to each inner case (here we are calling
 --   it omniDefault). To avoid code duplication it is first bound by a let
 --   expression.
+--
+--   Please also note that the clauses of a function don't need to have
+--   the same number of arguments.
 compileClauses :: QName
                 -> Int -- ^ Number of arguments in the definition
+                -> Int -- ^ Number of projection arguments.
                 -> CC.CompiledClauses -> FreshNameT (CompileT TCM) Fun
-compileClauses qnm nargs c = do
+compileClauses qnm clsArgs projArgs c = do
   crName <- lift $ getCoreName1 qnm
-  vars <- replicateM nargs freshLocalName
+  vars <- replicateM (clsArgs + projArgs) freshLocalName
   e    <- compileClauses' vars Nothing c
   return $ Fun False crName (Just qnm) ("function: " ++ show qnm) vars e
   where
     compileClauses' :: [HsName] -> Maybe Expr -> CC.CompiledClauses -> FreshNameT (CompileT TCM) Expr
     compileClauses' env omniDefault cc = case cc of
-        CC.Case n nc -> case length env <= n of
-           True -> __IMPOSSIBLE__
-           False -> case CC.catchAllBranch nc of
-            Nothing -> let cont = Case (Var (fromMaybe __IMPOSSIBLE__ $ env !!! n))
-                        in compileCase env omniDefault n nc cont
-            Just de -> do
-                def <- compileClauses' env omniDefault de
-                bindExpr def $ \ var ->
-                  let cont = Case (Var (fromMaybe __IMPOSSIBLE__ $ env !!! n))
-                   in compileCase env (Just $ Var var) n nc cont
-        CC.Done _ t -> substTerm ({- reverse -} env) t
+        CC.Case n nc -> do
+            (env', tf) <- case length env <= n of
+               True ->
+                    -- happens if clauses have different number of arguments.
+                    addLambdas env ((n - length env) + 1)
+               False -> return (env, id)
+            case CC.catchAllBranch nc of
+                Nothing -> let cont = Case (Var (fromMaybe __IMPOSSIBLE__ $ env' !!! n))
+                            in tf <$> compileCase env' omniDefault n nc cont
+                Just de -> do
+                    def <- compileClauses' env' omniDefault de
+                    body <- bindExpr def $ \ var ->
+                      let cont = Case (Var (fromMaybe __IMPOSSIBLE__ $ env' !!! n))
+                       in compileCase env' (Just $ Var var) n nc cont
+                    return $ tf body
+        CC.Done ps t -> do
+                -- requiring additional lambdas happens if clauses have different number of arguments.
+                let nLams = length ps - (length env - projArgs)
+                if nLams >= 0 then do
+                    (env', tf) <- addLambdas env nLams
+                    tf <$> substTerm env' t
+                else
+                    __IMPOSSIBLE__
         CC.Fail     -> return IMPOSSIBLE
 
     compileCase :: [HsName] -> Maybe Expr -> Int -> CC.Case CC.CompiledClauses
@@ -385,6 +402,16 @@ compileClauses qnm nargs c = do
             _ -> __IMPOSSIBLE__ -- having both constructor and lit branches for the same argument doesn't make sense
 
         return $ cont cb omniDefault cty
+
+    -- creates new lambas and puts the new arguments into the environment
+    addLambdas :: [HsName] -> Int -> FreshNameT (CompileT TCM) ([HsName], (Expr -> Expr))
+    addLambdas env n | n == 0 = return (env, id)
+    addLambdas env n | n > 0 = do
+        args <- replicateM n freshLocalName
+        let tf = foldl1 (.) (map Lam args)
+        return (env ++ args, tf)
+    addLambdas env n | otherwise = __IMPOSSIBLE__
+    
 
 -- | Translate the actual Agda terms, with an environment of all the bound variables
 --   from patternmatching. Agda terms are in de Bruijn so we just check the new
