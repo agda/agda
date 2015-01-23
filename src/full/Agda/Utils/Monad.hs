@@ -28,6 +28,10 @@ import Agda.Utils.List
 #include "undefined.h"
 import Agda.Utils.Impossible
 
+-- | Binary bind.
+(==<<) :: Monad m => (a -> b -> m c) -> (m a, m b) -> m c
+k ==<< (ma, mb) = ma >>= \ a -> k a =<< mb
+
 -- Conditionals and monads ------------------------------------------------
 
 -- | @when_@ is just @Control.Monad.when@ with a more general type.
