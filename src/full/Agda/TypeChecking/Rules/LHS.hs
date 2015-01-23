@@ -464,15 +464,12 @@ checkLHS f st@(LHSState problem sigma dpi asb) = do
   sp <- splitProblem f problem
   reportSDoc "tc.lhs.split" 20 $ text "splitting completed"
   case sp of
-    Left NothingToSplit   -> do
+    Nothing   -> do
       reportSLn "tc.lhs.split" 50 $ "checkLHS: nothing to split in problem " ++ show problem
       nothingToSplitError problem
-    Left (SplitPanic err) -> do
-      reportSLn "impossible" 10 $ "checkLHS: panic: " ++ err
-      __IMPOSSIBLE__
 
     -- Split problem rest (projection pattern)
-    Right (SplitRest projPat projType) -> do
+    Just (SplitRest projPat projType) -> do
 
       -- Compute the new problem
       let Problem ps1 (iperm, ip) delta (ProblemRest (p:ps2) b) = problem
@@ -489,7 +486,7 @@ checkLHS f st@(LHSState problem sigma dpi asb) = do
         checkLHS f st'
 
     -- Split on literal pattern
-    Right (Split p0 xs (Arg _ (LitFocus lit iph hix a)) p1) -> do
+    Just (Split p0 xs (Arg _ (LitFocus lit iph hix a)) p1) -> do
 
       -- plug the hole with a lit pattern
       let ip    = plugHole (LitP lit) iph
@@ -517,7 +514,7 @@ checkLHS f st@(LHSState problem sigma dpi asb) = do
       checkLHS f st'
 
     -- Split on constructor pattern
-    Right (Split p0 xs (Arg info
+    Just (Split p0 xs (Arg info
             ( Focus { focusCon      = c
                     , focusImplicit = impl
                     , focusConArgs  = qs

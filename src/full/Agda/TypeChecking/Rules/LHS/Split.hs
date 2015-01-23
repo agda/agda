@@ -10,6 +10,7 @@ import Prelude hiding (null)
 
 import Control.Applicative hiding (empty)
 import Control.Monad.Trans ( lift )
+import Control.Monad.Trans.Maybe
 
 import Data.Maybe (fromMaybe)
 import Data.List hiding (null)
@@ -28,7 +29,7 @@ import qualified Agda.Syntax.Abstract as A
 import Agda.Syntax.Abstract.Views (asView)
 import qualified Agda.Syntax.Info as A
 
-import Agda.TypeChecking.Monad hiding (SplitError)
+import Agda.TypeChecking.Monad
 import Agda.TypeChecking.Monad.Builtin
 
 import Agda.TypeChecking.Constraints
@@ -44,12 +45,6 @@ import Agda.TypeChecking.Reduce
 import Agda.TypeChecking.Substitute
 
 import Agda.TypeChecking.Rules.LHS.Problem
-
-import Agda.Utils.Except
-  ( ExceptT
-  , MonadError(throwError)
-  , runExceptT
-  )
 
 import Agda.Utils.Functor ((<.>))
 import Agda.Utils.List
@@ -75,7 +70,7 @@ import Agda.Utils.Impossible
 splitProblem ::
   Maybe QName -- ^ The definition we are checking at the moment.
   -> Problem  -- ^ The current state of the lhs patterns.
-  -> TCM (Either SplitError SplitProblem)
+  -> TCM (Maybe SplitProblem)
 splitProblem mf (Problem ps (perm, qs) tel pr) = do
     reportSLn "tc.lhs.split" 20 $ "initiating splitting"
       ++ maybe "" ((" for definition " ++) . show) mf
@@ -85,11 +80,11 @@ splitProblem mf (Problem ps (perm, qs) tel pr) = do
       , nest 2 $ text "perm =" <+> prettyTCM perm
       , nest 2 $ text "tel  =" <+> prettyTCM tel
       ]
-    runExceptT $
+    runMaybeT $
       splitP ps (permute perm $ zip [0..] $ allHoles qs) tel
   where
     -- Result splitting
-    splitRest :: ProblemRest -> ExceptT SplitError TCM SplitProblem
+    splitRest :: ProblemRest -> MaybeT TCM SplitProblem
     splitRest (ProblemRest (p : ps) b) | Just f <- mf = do
       let failure   = lift $ typeError $ CannotEliminateWithPattern p $ unArg b
           notProjP  = lift $ typeError $ NotAProjectionPattern p
@@ -138,7 +133,7 @@ splitProblem mf (Problem ps (perm, qs) tel pr) = do
                 return $ SplitRest argd $ dType `apply` (vs ++ [self])
               _ -> __IMPOSSIBLE__
     -- if there are no more patterns left in the problem rest, there is nothing to split:
-    splitRest _ = throwError $ NothingToSplit
+    splitRest _ = mzero
 
     -- | In @splitP aps iqs tel@,
     --   @aps@ are the user patterns on which we are splitting (inPats),
@@ -148,7 +143,7 @@ splitProblem mf (Problem ps (perm, qs) tel pr) = do
     splitP :: [A.NamedArg A.Pattern]
            -> [(Int, OneHolePatterns)]
            -> Telescope
-           -> ExceptT SplitError TCM SplitProblem
+           -> MaybeT TCM SplitProblem
 
     -- the next two cases violate the one-to-one correspondence of qs and tel
     splitP _        []           (ExtendTel _ _)         = __IMPOSSIBLE__
