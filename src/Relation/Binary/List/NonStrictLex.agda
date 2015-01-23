@@ -15,7 +15,7 @@ open import Data.Empty
 open import Function
 open import Data.Unit.Base using (⊤; tt)
 open import Data.Product
-open import Data.List
+open import Data.List.Base
 open import Level
 open import Relation.Nullary
 open import Relation.Binary

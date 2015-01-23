@@ -17,7 +17,7 @@ module Data.AVL.IndexedMap
 
 import Data.AVL
 open import Data.Bool
-open import Data.List as List using (List)
+open import Data.List.Base as List using (List)
 open import Data.Maybe.Base as Maybe
 open import Function
 open import Level

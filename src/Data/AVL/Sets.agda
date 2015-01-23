@@ -14,7 +14,7 @@ module Data.AVL.Sets
 
 import Data.AVL as AVL
 open import Data.Bool
-open import Data.List as List using (List)
+open import Data.List.Base as List using (List)
 open import Data.Maybe.Base as Maybe
 open import Data.Product as Prod using (_×_; _,_; proj₁)
 open import Data.Unit

@@ -22,7 +22,7 @@ module Data.AVL
 open import Data.Bool.Base using (Bool)
 import Data.DifferenceList as DiffList
 open import Data.Empty
-open import Data.List as List using (List)
+open import Data.List.Base as List using (List)
 open import Data.Maybe.Base hiding (map)
 open import Data.Nat.Base hiding (_<_; _⊔_)
 open import Data.Product hiding (map)

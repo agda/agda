@@ -12,7 +12,7 @@ open import Data.String as String using (String)
 open import Data.Digit
 open import Data.Product using (proj₁)
 open import Function
-open import Data.List
+open import Data.List.Base
 
 -- showInBase b n is a string containing the representation of n in
 -- base b.
