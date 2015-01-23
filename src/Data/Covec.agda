@@ -7,7 +7,7 @@
 module Data.Covec where
 
 open import Coinduction
-open import Data.Nat using (ℕ; zero; suc)
+open import Data.Nat.Base using (ℕ; zero; suc)
 open import Data.Conat as Coℕ using (Coℕ; zero; suc; _+_)
 open import Data.Cofin using (Cofin; zero; suc)
 open import Data.Vec using (Vec; []; _∷_)

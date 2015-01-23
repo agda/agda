@@ -10,7 +10,7 @@
 
 module Data.Graph.Acyclic where
 
-open import Data.Nat as Nat using (ℕ; zero; suc; _<′_)
+open import Data.Nat.Base as Nat using (ℕ; zero; suc; _<′_)
 import Data.Nat.Properties as Nat
 open import Data.Fin as Fin
   using (Fin; Fin′; zero; suc; #_; toℕ) renaming (_ℕ-ℕ_ to _-_)

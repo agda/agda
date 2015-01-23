@@ -18,7 +18,7 @@ open import Function.Injection
   using (Injection; module Injection)
 open import Data.List
 open import Data.List.Any as Any using (here; there)
-open import Data.Nat using (ℕ; zero; suc)
+open import Data.Nat.Base using (ℕ; zero; suc)
 open import Data.Product
 open import Data.Sum
 open import Relation.Nullary

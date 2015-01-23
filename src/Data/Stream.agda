@@ -9,7 +9,7 @@ module Data.Stream where
 open import Coinduction
 open import Data.Colist using (Colist; []; _∷_)
 open import Data.Vec    using (Vec;    []; _∷_)
-open import Data.Nat using (ℕ; zero; suc)
+open import Data.Nat.Base using (ℕ; zero; suc)
 open import Relation.Binary
 open import Relation.Binary.PropositionalEquality as P using (_≡_)
 

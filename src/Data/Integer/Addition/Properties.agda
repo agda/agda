@@ -10,7 +10,7 @@ open import Algebra
 import Algebra.FunctionProperties
 open import Algebra.Structures
 open import Data.Integer hiding (suc)
-open import Data.Nat using (suc; zero) renaming (_+_ to _ℕ+_)
+open import Data.Nat.Base using (suc; zero) renaming (_+_ to _ℕ+_)
 import Data.Nat.Properties as ℕ
 open import Relation.Binary.PropositionalEquality
 

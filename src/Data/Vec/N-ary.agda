@@ -6,7 +6,7 @@
 
 module Data.Vec.N-ary where
 
-open import Data.Nat hiding (_⊔_)
+open import Data.Nat.Base hiding (_⊔_)
 open import Data.Product as Prod
 open import Data.Vec
 open import Function

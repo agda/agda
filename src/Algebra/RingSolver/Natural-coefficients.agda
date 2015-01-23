@@ -18,7 +18,7 @@ module Algebra.RingSolver.Natural-coefficients
 
 import Algebra.RingSolver
 open import Algebra.RingSolver.AlmostCommutativeRing
-open import Data.Nat as ℕ
+open import Data.Nat.Base as ℕ
 open import Data.Product using (module Σ)
 open import Function
 import Relation.Binary.EqReasoning

@@ -13,7 +13,7 @@ import Data.Fin.Properties as Fin
 open import Data.List
 open import Data.Maybe as Maybe
   using (Maybe; decToMaybe; From-just; from-just)
-open import Data.Nat using (ℕ)
+open import Data.Nat.Base using (ℕ)
 open import Data.Product
 open import Data.Vec using (Vec; lookup)
 open import Function using (_∘_; _$_)

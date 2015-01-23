@@ -6,7 +6,7 @@
 
 module Data.Nat.Properties.Simple where
 
-open import Data.Nat as Nat
+open import Data.Nat.Base as Nat
 open import Function
 open import Relation.Binary.PropositionalEquality as PropEq
   using (_≡_; _≢_; refl; sym; cong; cong₂)
