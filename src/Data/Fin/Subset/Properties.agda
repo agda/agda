@@ -11,7 +11,7 @@ import Algebra.Properties.BooleanAlgebra as BoolProp
 open import Data.Empty using (⊥-elim)
 open import Data.Fin using (Fin); open Data.Fin.Fin
 open import Data.Fin.Subset
-open import Data.Nat using (ℕ)
+open import Data.Nat.Base using (ℕ)
 open import Data.Product
 open import Data.Sum as Sum
 open import Data.Vec hiding (_∈_)

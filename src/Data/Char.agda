@@ -6,7 +6,7 @@
 
 module Data.Char where
 
-open import Data.Nat using (ℕ)
+open import Data.Nat.Base using (ℕ)
 import Data.Nat.Properties as NatProp
 open import Data.Bool.Base using (Bool; true; false)
 open import Relation.Nullary

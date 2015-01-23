@@ -8,7 +8,7 @@ module Data.Cofin where
 
 open import Coinduction
 open import Data.Conat as Conat using (Coℕ; suc; ∞ℕ)
-open import Data.Nat using (ℕ; zero; suc)
+open import Data.Nat.Base using (ℕ; zero; suc)
 open import Data.Fin using (Fin; zero; suc)
 
 ------------------------------------------------------------------------

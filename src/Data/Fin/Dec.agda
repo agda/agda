@@ -8,7 +8,7 @@ module Data.Fin.Dec where
 
 open import Function
 import Data.Bool as Bool
-open import Data.Nat hiding (_<_)
+open import Data.Nat.Base hiding (_<_)
 open import Data.Vec hiding (_∈_)
 open import Data.Vec.Equality as VecEq
   using () renaming (module PropositionalEquality to PropVecEq)

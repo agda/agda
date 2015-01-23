@@ -9,7 +9,7 @@ module Data.DifferenceVec where
 open import Data.DifferenceNat
 open import Data.Vec as V using (Vec)
 open import Function
-import Data.Nat as N
+import Data.Nat.Base as N
 
 infixr 5 _∷_ _++_
 
