@@ -9,7 +9,7 @@ module Relation.Binary.List.Pointwise where
 open import Function
 open import Function.Inverse using (Inverse)
 open import Data.Product hiding (map)
-open import Data.List hiding (map)
+open import Data.List.Base hiding (map)
 open import Level
 open import Relation.Nullary
 import Relation.Nullary.Decidable as Dec using (map′)

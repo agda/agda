@@ -9,7 +9,7 @@
 module Data.BoundedVec.Inefficient where
 
 open import Data.Nat
-open import Data.List
+open import Data.List.Base
 
 ------------------------------------------------------------------------
 -- The type

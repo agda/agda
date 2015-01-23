@@ -6,7 +6,7 @@
 
 module Data.List.Reverse where
 
-open import Data.List
+open import Data.List.Base
 open import Data.Nat
 import Data.Nat.Properties as Nat
 open import Induction.Nat

@@ -6,7 +6,7 @@
 
 module Data.String where
 
-open import Data.List as List using (_∷_; []; List)
+open import Data.List.Base as List using (_∷_; []; List)
 open import Data.Vec as Vec using (Vec)
 open import Data.Colist as Colist using (Colist)
 open import Data.Char as Char using (Char)

@@ -9,7 +9,7 @@
 
 open import Data.Bool.Base using (if_then_else_)
 open import Data.Empty
-open import Data.List
+open import Data.List.Base
 open import Data.Product hiding (proj₁; proj₂)
 open import Data.Unit
 open import Function

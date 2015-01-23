@@ -7,7 +7,7 @@
 module Reflection where
 
 open import Data.Bool.Base using (Bool; false; true)
-open import Data.List using (List); open Data.List.List
+open import Data.List.Base using (List); open Data.List.Base.List
 open import Data.Nat using (ℕ) renaming (_≟_ to _≟-ℕ_)
 open import Data.Nat.Show renaming (show to showNat)
 open import Data.Float using (Float) renaming (_≟_ to _≟f_; show to showFloat)

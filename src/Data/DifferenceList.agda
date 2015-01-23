@@ -6,7 +6,7 @@
 
 module Data.DifferenceList where
 
-open import Data.List as L using (List)
+open import Data.List.Base as L using (List)
 open import Function
 open import Data.Nat
 

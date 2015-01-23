@@ -11,7 +11,7 @@ open import Data.Fin.Substitution.Lemmas
 
 module Data.Fin.Substitution.List {T} (lemmas₄ : Lemmas₄ T) where
 
-open import Data.List
+open import Data.List.Base
 open import Data.List.Properties
 open import Data.Fin.Substitution
 import Function as Fun

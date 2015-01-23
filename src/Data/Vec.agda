@@ -9,7 +9,7 @@ module Data.Vec where
 open import Category.Applicative
 open import Data.Nat
 open import Data.Fin using (Fin; zero; suc)
-open import Data.List as List using (List)
+open import Data.List.Base as List using (List)
 open import Data.Product as Prod using (∃; ∃₂; _×_; _,_)
 open import Function
 open import Relation.Binary.PropositionalEquality using (_≡_; refl)

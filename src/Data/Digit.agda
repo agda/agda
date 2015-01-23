@@ -12,7 +12,7 @@ open SemiringSolver
 open import Data.Fin as Fin using (Fin; zero; suc; toℕ)
 open import Relation.Nullary.Decidable
 open import Data.Char using (Char)
-open import Data.List
+open import Data.List.Base
 open import Data.Product
 open import Data.Vec as Vec using (Vec; _∷_; [])
 open import Induction.Nat

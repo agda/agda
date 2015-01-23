@@ -11,7 +11,7 @@ import Algebra.Properties.BooleanAlgebra as BoolAlgProp
 import Algebra.Properties.BooleanAlgebra.Expression as BAExpr
 import Data.Bool.Properties as BoolProp
 open import Data.Fin
-open import Data.List as List using (List)
+open import Data.List.Base as List using (List)
 open import Data.Nat
 open import Data.Product
 open import Data.Vec using (Vec; _∷_; _[_]=_)
