@@ -1,5 +1,8 @@
-{-# LANGUAGE DeriveFunctor #-}
-{-# LANGUAGE TupleSections #-}
+{-# LANGUAGE DeriveFunctor         #-}
+{-# LANGUAGE FlexibleInstances     #-}
+{-# LANGUAGE MultiParamTypeClasses #-}
+{-# LANGUAGE TupleSections         #-}
+{-# LANGUAGE UndecidableInstances  #-}  -- Due to limitations of funct.dep.
 
 -- | @ListT@ done right,
 --   see https://www.haskell.org/haskellwiki/ListT_done_right_alternative
@@ -13,6 +16,8 @@ module Agda.Utils.ListT where
 import Control.Applicative
 import Control.Arrow
 import Control.Monad
+import Control.Monad.Reader
+import Control.Monad.State
 import Control.Monad.Trans
 
 import Data.Functor
@@ -98,3 +103,14 @@ instance (Functor m, Applicative m, Monad m) => Monad (ListT m) where
 
 instance MonadTrans ListT where
   lift = sgMListT
+
+instance (Applicative m, MonadIO m) => MonadIO (ListT m) where
+  liftIO = lift . liftIO
+
+instance (Applicative m, MonadReader r m) => MonadReader r (ListT m) where
+  ask     = lift ask
+  local f = ListT . local f . runListT
+
+instance (Applicative m, MonadState s m) => MonadState s (ListT m) where
+  get = lift get
+  put = lift . put
