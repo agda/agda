@@ -49,6 +49,7 @@ import Agda.TypeChecking.Rules.LHS.Instantiate
 import Agda.TypeChecking.Rules.Data
 
 import Agda.Utils.Functor (($>))
+import Agda.Utils.ListT
 import Agda.Utils.Monad
 import Agda.Utils.Permutation
 import Agda.Utils.Size
@@ -461,7 +462,7 @@ checkLHS f st@(LHSState problem sigma dpi asb) = do
   unlessM (optPatternMatching <$> gets getPragmaOptions) $
     typeError $ GenericError $ "Pattern matching is disabled"
 
-  sp <- splitProblem f problem
+  sp <- runListT $ splitProblem f problem
   reportSDoc "tc.lhs.split" 20 $ text "splitting completed"
   case sp of
     Nothing   -> do
@@ -469,7 +470,7 @@ checkLHS f st@(LHSState problem sigma dpi asb) = do
       nothingToSplitError problem
 
     -- Split problem rest (projection pattern)
-    Just (SplitRest projPat projType) -> do
+    Just (SplitRest projPat projType, _) -> do
 
       -- Compute the new problem
       let Problem ps1 (iperm, ip) delta (ProblemRest (p:ps2) b) = problem
@@ -486,7 +487,7 @@ checkLHS f st@(LHSState problem sigma dpi asb) = do
         checkLHS f st'
 
     -- Split on literal pattern
-    Just (Split p0 xs (Arg _ (LitFocus lit iph hix a)) p1) -> do
+    Just (Split p0 xs (Arg _ (LitFocus lit iph hix a)) p1, _) -> do
 
       -- plug the hole with a lit pattern
       let ip    = plugHole (LitP lit) iph
@@ -526,7 +527,7 @@ checkLHS f st@(LHSState problem sigma dpi asb) = do
                     , focusIndices  = ws
                     , focusType     = a
                     }
-            )) p1
+            )) p1, _
           ) -> traceCall (CheckPattern (A.ConP (ConPatInfo impl $ PatRange r) (A.AmbQ [c]) qs)
                                        (problemTel p0)
                                        (El Prop $ Def d $ map Apply $ vs ++ ws)) $ do
