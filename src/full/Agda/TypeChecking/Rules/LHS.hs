@@ -551,11 +551,6 @@ checkLHS f st@(LHSState problem sigma dpi asb) = do
           ]
         ]
 
-{-
-      c <- conSrcCon . theDef <$> getConstInfo c
-      Con c' [] <- ignoreSharing <$> (constructorForm =<< normalise (Con c []))
-      c  <- return $ c' `withRangeOf` c
--}
       c <- (`withRangeOf` c) <$> getConForm c
       ca <- defType <$> getConInfo c
 
