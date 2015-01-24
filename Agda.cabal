@@ -351,6 +351,7 @@ library
                     Agda.Utils.Lens.Examples
                     Agda.Utils.List
                     Agda.Utils.ListT
+                    Agda.Utils.ListT.Tests
                     Agda.Utils.Map
                     Agda.Utils.Maybe
                     Agda.Utils.Maybe.Strict
