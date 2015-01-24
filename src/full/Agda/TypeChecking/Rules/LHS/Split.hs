@@ -297,8 +297,8 @@ splitProblem mf (Problem ps (perm, qs) tel pr) = do
 -- | @checkParsIfUnambiguous [c] d pars@ checks that the data/record type
 --   behind @c@ is has initial parameters (coming e.g. from a module instantiation)
 --   that coincide with an prefix of @pars@.
-checkParsIfUnambiguous :: [QName] -> QName -> Args -> TCM ()
-checkParsIfUnambiguous [c] d pars = do
+checkParsIfUnambiguous :: MonadTCM tcm => [QName] -> QName -> Args -> tcm ()
+checkParsIfUnambiguous [c] d pars = liftTCM $ do
   dc <- getConstructorData c
   a  <- reduce (Def dc [])
   case ignoreSharing a of
