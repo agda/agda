@@ -71,6 +71,15 @@ import Agda.Utils.Size
 #include "undefined.h"
 import Agda.Utils.Impossible
 
+-- | Result of 'unifyIndices'.
+type UnificationResult = UnificationResult' Substitution
+
+data UnificationResult' a
+  = Unifies  a      -- ^ Unification succeeded.
+  | NoUnify  TCErr  -- ^ Terms are not unifiable.
+  | DontKnow TCErr  -- ^ Some other error happened, unification got stuck.
+  deriving (Typeable, Show, Functor, Foldable, Traversable)
+
 -- | Monad for unification.
 newtype Unify a = U { unUnify ::
   ReaderT UnifyEnv (
@@ -369,11 +378,6 @@ flattenSubstitution s = foldr instantiate s is
     inst i u v = applySubst us v
       where us = [ var j | j <- [0..i - 1] ] ++# consS u (raiseS $ i + 1)
 
-data UnificationResult
-  = Unifies Substitution
-  | NoUnify Type Term Term
-  | DontKnow TCErr
-
 -- | Are we in a homogeneous (one type) or heterogeneous (two types) situation?
 data HomHet a
   = Hom a    -- ^ homogeneous
@@ -491,7 +495,7 @@ unifyIndices_ flex a us vs = liftTCM $ do
   case r of
     Unifies sub   -> return sub
     DontKnow err  -> throwError err
-    NoUnify a u v -> typeError $ UnequalTerms CmpEq u v a
+    NoUnify  err  -> throwError err
 
 unifyIndices :: MonadTCM tcm => FlexibleVars -> Type -> Args -> Args -> tcm UnificationResult
 unifyIndices flex a us vs = liftTCM $ do
@@ -512,9 +516,9 @@ unifyIndices flex a us vs = liftTCM $ do
           recheckEqualities
 
     case r of
-      Left (ConstructorMismatch     a u v)  -> return $ NoUnify a u v
+      Left (ConstructorMismatch     a u v)  -> noUnify a u v
       -- Andreas 2011-04-14:
-      Left (StronglyRigidOccurrence a u v)  -> return $ NoUnify a u v
+      Left (StronglyRigidOccurrence a u v)  -> noUnify a u v
       Left (UnclearOccurrence a u v)        -> typeError $ UnequalTerms CmpEq u v a
       Left (WithoutKException       a u v)  -> typeError $ WithoutKError a u v
       Left (GenericUnifyException     err)  -> typeError $ GenericError err
@@ -526,6 +530,8 @@ unifyIndices flex a us vs = liftTCM $ do
      TypeError _ (Closure {clValue = WithoutKError{}}) -> throwError err
      _                                                 -> return $ DontKnow err
   where
+    noUnify a u v = NoUnify <$> do typeError_ $ UnequalTerms CmpEq u v a
+
     flex'      = map flexVar flex
     flexible i = i `elem` flex'
     findFlexible i = find ((i ==) . flexVar) flex

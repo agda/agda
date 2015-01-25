@@ -415,10 +415,9 @@ computeNeighbourhood delta1 n delta2 perm d pars ixs hix hps c = do
        unifyIndices flex (raise (size gamma) dtype) conIxs givenIxs
 
   case r of
-    NoUnify _ _ _ -> do
-      debugNoUnify
-      return Nothing
     DontKnow _    -> do
+    NoUnify {} -> debugNoUnify $> Nothing
+
       debugCantSplit
       throwException $ CantSplit (conName con) (delta1 `abstract` gamma) conIxs givenIxs
     Unifies sub   -> do
