@@ -10,6 +10,7 @@ import Prelude hiding (null)
 
 import Control.Applicative hiding (empty)
 import Control.Monad.Trans ( lift )
+import Control.Monad.Trans.Maybe
 
 import Data.Maybe (fromMaybe)
 import Data.List hiding (null)
@@ -28,7 +29,7 @@ import qualified Agda.Syntax.Abstract as A
 import Agda.Syntax.Abstract.Views (asView)
 import qualified Agda.Syntax.Info as A
 
-import Agda.TypeChecking.Monad hiding (SplitError)
+import Agda.TypeChecking.Monad
 import Agda.TypeChecking.Monad.Builtin
 
 import Agda.TypeChecking.Constraints
@@ -45,14 +46,9 @@ import Agda.TypeChecking.Substitute
 
 import Agda.TypeChecking.Rules.LHS.Problem
 
-import Agda.Utils.Except
-  ( ExceptT
-  , MonadError(throwError)
-  , runExceptT
-  )
-
 import Agda.Utils.Functor ((<.>))
 import Agda.Utils.List
+import Agda.Utils.ListT
 import Agda.Utils.Maybe
 import Agda.Utils.Monad
 import Agda.Utils.Null
@@ -75,8 +71,9 @@ import Agda.Utils.Impossible
 splitProblem ::
   Maybe QName -- ^ The definition we are checking at the moment.
   -> Problem  -- ^ The current state of the lhs patterns.
-  -> TCM (Either SplitError SplitProblem)
+  -> ListT TCM SplitProblem
 splitProblem mf (Problem ps (perm, qs) tel pr) = do
+  lift $ do
     reportSLn "tc.lhs.split" 20 $ "initiating splitting"
       ++ maybe "" ((" for definition " ++) . show) mf
     reportSDoc "tc.lhs.split" 30 $ sep
@@ -85,11 +82,10 @@ splitProblem mf (Problem ps (perm, qs) tel pr) = do
       , nest 2 $ text "perm =" <+> prettyTCM perm
       , nest 2 $ text "tel  =" <+> prettyTCM tel
       ]
-    runExceptT $
-      splitP ps (permute perm $ zip [0..] $ allHoles qs) tel
+  splitP ps (permute perm $ zip [0..] $ allHoles qs) tel
   where
     -- Result splitting
-    splitRest :: ProblemRest -> ExceptT SplitError TCM SplitProblem
+    splitRest :: ProblemRest -> ListT TCM SplitProblem
     splitRest (ProblemRest (p : ps) b) | Just f <- mf = do
       let failure   = lift $ typeError $ CannotEliminateWithPattern p $ unArg b
           notProjP  = lift $ typeError $ NotAProjectionPattern p
@@ -138,7 +134,7 @@ splitProblem mf (Problem ps (perm, qs) tel pr) = do
                 return $ SplitRest argd $ dType `apply` (vs ++ [self])
               _ -> __IMPOSSIBLE__
     -- if there are no more patterns left in the problem rest, there is nothing to split:
-    splitRest _ = throwError $ NothingToSplit
+    splitRest _ = mzero
 
     -- | In @splitP aps iqs tel@,
     --   @aps@ are the user patterns on which we are splitting (inPats),
@@ -148,7 +144,7 @@ splitProblem mf (Problem ps (perm, qs) tel pr) = do
     splitP :: [A.NamedArg A.Pattern]
            -> [(Int, OneHolePatterns)]
            -> Telescope
-           -> ExceptT SplitError TCM SplitProblem
+           -> ListT TCM SplitProblem
 
     -- the next two cases violate the one-to-one correspondence of qs and tel
     splitP _        []           (ExtendTel _ _)         = __IMPOSSIBLE__
@@ -198,12 +194,13 @@ splitProblem mf (Problem ps (perm, qs) tel pr) = do
           -- Succeed if the split type is (already) equal to the type of the literal.
           ifNotM (lift $ tryConversion $ equalType a =<< litType lit)
             {- then -} keepGoing $
-            {- else -} return $ Split
+            {- else -} return Split
               { splitLPats   = empty
               , splitAsNames = xs
               , splitFocus   = Arg ai $ LitFocus lit q i a
               , splitRPats   = Abs x  $ Problem ps () tel __IMPOSSIBLE__
               }
+              `mplus` keepGoing
 
         -- Case: constructor pattern.
         (xs, p@(A.ConP ci (A.AmbQ cs) args)) -> do
@@ -245,9 +242,9 @@ splitProblem mf (Problem ps (perm, qs) tel pr) = do
                 Nothing -> keepGoing
                 Just np -> do
                   let vs = fromMaybe __IMPOSSIBLE__ $ allApplyElims es
-                  liftTCM $ traceCall (CheckPattern p EmptyTel a) $ do  -- TODO: wrong telescope
+                  traceCall (CheckPattern p EmptyTel a) $ do  -- TODO: wrong telescope
                   -- Check that we construct something in the right datatype
-                  c <- do
+                  c <- lift $ do
                       cs' <- mapM canonicalName cs
                       d'  <- canonicalName d
                       let cons def = case theDef def of
@@ -266,7 +263,7 @@ splitProblem mf (Problem ps (perm, qs) tel pr) = do
                           typeError $ CantResolveOverloadedConstructorsTargetingSameDatatype d cs
 
                   let (pars, ixs) = genericSplitAt np vs
-                  reportSDoc "tc.lhs.split" 10 $ vcat
+                  lift $ reportSDoc "tc.lhs.split" 10 $ vcat
                     [ sep [ text "splitting on"
                           , nest 2 $ fsep [ prettyA p, text ":", prettyTCM dom ]
                           ]
@@ -286,12 +283,12 @@ splitProblem mf (Problem ps (perm, qs) tel pr) = do
                   -- but the extra check here is non-invasive to the existing code.
                   checkParsIfUnambiguous cs d pars
 
-                  return $ Split
+                  (return Split
                     { splitLPats   = empty
                     , splitAsNames = xs
                     , splitFocus   = Arg ai $ Focus c (A.patImplicit ci) args (getRange p) q i d pars ixs a
                     , splitRPats   = Abs x  $ Problem ps () tel __IMPOSSIBLE__
-                    }
+                    }) `mplus` keepGoing
             -- Subcase: split type is not a Def.
             _   -> keepGoing
 
@@ -302,8 +299,8 @@ splitProblem mf (Problem ps (perm, qs) tel pr) = do
 -- | @checkParsIfUnambiguous [c] d pars@ checks that the data/record type
 --   behind @c@ is has initial parameters (coming e.g. from a module instantiation)
 --   that coincide with an prefix of @pars@.
-checkParsIfUnambiguous :: [QName] -> QName -> Args -> TCM ()
-checkParsIfUnambiguous [c] d pars = do
+checkParsIfUnambiguous :: MonadTCM tcm => [QName] -> QName -> Args -> tcm ()
+checkParsIfUnambiguous [c] d pars = liftTCM $ do
   dc <- getConstructorData c
   a  <- reduce (Def dc [])
   case ignoreSharing a of

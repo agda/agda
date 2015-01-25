@@ -8,6 +8,7 @@ import Data.Maybe
 
 import Control.Applicative
 import Control.Monad hiding (mapM)
+import Control.Monad.Except hiding (mapM)
 import Control.Monad.State hiding (mapM)
 
 import Data.Traversable
@@ -49,6 +50,7 @@ import Agda.TypeChecking.Rules.LHS.Instantiate
 import Agda.TypeChecking.Rules.Data
 
 import Agda.Utils.Functor (($>))
+import Agda.Utils.ListT
 import Agda.Utils.Monad
 import Agda.Utils.Permutation
 import Agda.Utils.Size
@@ -460,18 +462,17 @@ checkLHS f st@(LHSState problem sigma dpi asb) = do
   unlessM (optPatternMatching <$> gets getPragmaOptions) $
     typeError $ GenericError $ "Pattern matching is disabled"
 
-  sp <- splitProblem f problem
+  sp <- runListT $ splitProblem f problem
   reportSDoc "tc.lhs.split" 20 $ text "splitting completed"
-  case sp of
-    Left NothingToSplit   -> do
+  foldListT trySplit nothingToSplit $ ListT $ return sp
+  where
+
+    nothingToSplit = do
       reportSLn "tc.lhs.split" 50 $ "checkLHS: nothing to split in problem " ++ show problem
       nothingToSplitError problem
-    Left (SplitPanic err) -> do
-      reportSLn "impossible" 10 $ "checkLHS: panic: " ++ err
-      __IMPOSSIBLE__
 
     -- Split problem rest (projection pattern)
-    Right (SplitRest projPat projType) -> do
+    trySplit (SplitRest projPat projType) _ = do
 
       -- Compute the new problem
       let Problem ps1 (iperm, ip) delta (ProblemRest (p:ps2) b) = problem
@@ -488,7 +489,7 @@ checkLHS f st@(LHSState problem sigma dpi asb) = do
         checkLHS f st'
 
     -- Split on literal pattern
-    Right (Split p0 xs (Arg _ (LitFocus lit iph hix a)) p1) -> do
+    trySplit (Split p0 xs (Arg _ (LitFocus lit iph hix a)) p1) _ = do
 
       -- plug the hole with a lit pattern
       let ip    = plugHole (LitP lit) iph
@@ -516,8 +517,33 @@ checkLHS f st@(LHSState problem sigma dpi asb) = do
       checkLHS f st'
 
     -- Split on constructor pattern
-    Right (Split p0 xs (Arg info
-            ( Focus { focusCon      = c
+
+    trySplit (Split p0 xs focus@(Arg info Focus{}) p1) tryNextSplit = do
+      res <- trySplitConstructor p0 xs focus p1
+      case res of
+        -- Success.  Continue checking LHS.
+        Unifies st'    -> checkLHS f st'
+        -- Mismatch.  Report and abort.
+        NoUnify  tcerr -> throwError tcerr
+        -- Unclear situation.  Try next split.
+        -- If no split works, give error from first split.
+        -- This is conservative, but might not be the best behavior.
+        -- It might be better to collect all the errors and print all of them.
+        DontKnow tcerr -> tryNextSplit `catchError` \ _ -> throwError tcerr
+
+    whenUnifies
+      :: UnificationResult' a
+      -> (a -> TCM (UnificationResult' b))
+      -> TCM (UnificationResult' b)
+    whenUnifies res cont = do
+      case res of
+        Unifies a      -> cont a
+        NoUnify  tcerr -> return $ NoUnify  tcerr
+        DontKnow tcerr -> return $ DontKnow tcerr
+
+    trySplitConstructor p0 xs (Arg info LitFocus{}) p1 = __IMPOSSIBLE__
+    trySplitConstructor p0 xs (Arg info
+             (Focus { focusCon      = c
                     , focusImplicit = impl
                     , focusConArgs  = qs
                     , focusRange    = r
@@ -528,8 +554,8 @@ checkLHS f st@(LHSState problem sigma dpi asb) = do
                     , focusIndices  = ws
                     , focusType     = a
                     }
-            )) p1
-          ) -> traceCall (CheckPattern (A.ConP (ConPatInfo impl $ PatRange r) (A.AmbQ [c]) qs)
+             )) p1 = do
+      traceCall (CheckPattern (A.ConP (ConPatInfo impl $ PatRange r) (A.AmbQ [c]) qs)
                                        (problemTel p0)
                                        (El Prop $ Def d $ map Apply $ vs ++ ws)) $ do
 
@@ -552,11 +578,6 @@ checkLHS f st@(LHSState problem sigma dpi asb) = do
           ]
         ]
 
-{-
-      c <- conSrcCon . theDef <$> getConstInfo c
-      Con c' [] <- ignoreSharing <$> (constructorForm =<< normalise (Con c []))
-      c  <- return $ c' `withRangeOf` c
--}
       c <- (`withRangeOf` c) <$> getConForm c
       ca <- defType <$> getConInfo c
 
@@ -617,8 +638,9 @@ checkLHS f st@(LHSState problem sigma dpi asb) = do
             ]
 
       -- Unify constructor target and given type (in Δ₁Γ)
-      sub0 <- addCtxTel (delta1 `abstract` gamma) $
-              unifyIndices_ flex (raise (size gamma) da) us' (raise (size gamma) ws)
+      res <- addCtxTel (delta1 `abstract` gamma) $
+              unifyIndices flex (raise (size gamma) da) us' (raise (size gamma) ws)
+      whenUnifies res $ \ sub0 -> do
 
       -- Andreas 2014-11-25  clear 'Forced' and 'Unused'
       -- Andreas 2015-01-19  ... only after unification
@@ -770,8 +792,7 @@ checkLHS f st@(LHSState problem sigma dpi asb) = do
           , text "iperm' =" <+> text (show iperm')
           ]
         ]
-      -- Continue splitting
-      checkLHS f st'
+      return $ Unifies st'
 
 
 -- | Ensures that we are not performing pattern matching on codata.

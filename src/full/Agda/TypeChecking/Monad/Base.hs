@@ -82,6 +82,7 @@ import Agda.Utils.FileName
 import Agda.Utils.HashMap as HMap hiding (singleton)
 import Agda.Utils.Hash
 import Agda.Utils.Lens
+import Agda.Utils.ListT
 import Agda.Utils.Null
 import Agda.Utils.Permutation
 import Agda.Utils.Pretty
@@ -2144,6 +2145,9 @@ instance MonadIO m => MonadTCM (TCMT m) where
     liftTCM = mapTCMT liftIO
 
 instance MonadTCM tcm => MonadTCM (MaybeT tcm) where
+  liftTCM = lift . liftTCM
+
+instance MonadTCM tcm => MonadTCM (ListT tcm) where
   liftTCM = lift . liftTCM
 
 instance (Error err, MonadTCM tcm) => MonadTCM (ExceptT err tcm) where

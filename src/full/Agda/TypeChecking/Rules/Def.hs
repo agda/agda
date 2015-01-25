@@ -322,7 +322,7 @@ checkClause t c@(A.Clause (A.SpineLHS i x aps withPats) rhs0 wh catchall) = do
     unless (null withPats) $
       typeError $ UnexpectedWithPatterns withPats
     traceCall (CheckClause t c) $ do
-    aps <- (traverse . traverse . traverse) expandPatternSynonyms aps
+    aps <- expandPatternSynonyms aps
     checkLeftHandSide (CheckPatternShadowing c) (Just x) aps t $ \ (LHSResult mgamma delta sub xs ps trhs perm) -> do
       -- Note that we might now be in irrelevant context,
       -- in case checkLeftHandSide walked over an irrelevant projection pattern.

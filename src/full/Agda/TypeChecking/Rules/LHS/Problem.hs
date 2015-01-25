@@ -165,11 +165,6 @@ consSplitProblem p x dom s@Split{ splitLPats = ps } = s{ splitLPats = consProble
   consProblem' (Problem ps () tel pr) =
     Problem (p:ps) () (ExtendTel dom $ Abs x tel) pr
 
-data SplitError
-  = NothingToSplit
-  | SplitPanic String
-    -- ^ __IMPOSSIBLE__, only there to make this instance of 'Error'.
-
 data DotPatternInst = DPI A.Expr Term (I.Dom Type)
 data AsBinding      = AsB Name Term Type
 
@@ -206,10 +201,6 @@ instance PrettyTCM AsBinding where
     sep [ prettyTCM x <> text "@" <> parens (prettyTCM v)
         , nest 2 $ text ":" <+> prettyTCM a
         ]
-
-instance Error SplitError where
-  noMsg  = NothingToSplit
-  strMsg = SplitPanic
 
 instance Null ProblemRest where
   null  = null . restPats
