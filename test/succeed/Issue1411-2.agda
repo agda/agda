@@ -1,5 +1,5 @@
 -- Andreas, 2014-01-24, Issue 1411
--- First split might not succeed in the unifier, 
+-- First split might not succeed in the unifier,
 -- so try later splits also.
 
 -- {-# OPTIONS -v tc.lhs:10 #-}
