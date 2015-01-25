@@ -71,8 +71,14 @@ import Agda.Utils.Size
 #include "undefined.h"
 import Agda.Utils.Impossible
 
-newtype Unify a = U { unUnify :: ReaderT UnifyEnv (WriterT UnifyOutput (ExceptionT UnifyException (StateT UnifyState TCM))) a }
-  deriving (Monad, MonadIO, Functor, Applicative, MonadException UnifyException, MonadWriter UnifyOutput)
+-- | Monad for unification.
+newtype Unify a = U { unUnify ::
+  ReaderT UnifyEnv (
+  WriterT UnifyOutput (
+  ExceptionT UnifyException (
+  StateT UnifyState TCM))) a
+  } deriving ( Monad, MonadIO, Functor, Applicative
+             , MonadException UnifyException, MonadWriter UnifyOutput)
 
 instance MonadTCM Unify where
   liftTCM = U . lift . lift . lift . lift
