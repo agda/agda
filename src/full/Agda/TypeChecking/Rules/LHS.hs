@@ -518,7 +518,32 @@ checkLHS f st@(LHSState problem sigma dpi asb) = do
       checkLHS f st'
 
     -- Split on constructor pattern
-    trySplit (Split p0 xs (Arg info
+
+    trySplit (Split p0 xs focus@(Arg info Focus{}) p1) tryNextSplit = do
+      res <- trySplitConstructor p0 xs focus p1
+      case res of
+        -- Success.  Continue checking LHS.
+        Unifies st'    -> checkLHS f st'
+        -- Mismatch.  Report and abort.
+        NoUnify  tcerr -> throwError tcerr
+        -- Unclear situation.  Try next split.
+        -- If no split works, give error from first split.
+        -- This is conservative, but might not be the best behavior.
+        -- It might be better to collect all the errors and print all of them.
+        DontKnow tcerr -> tryNextSplit `catchError` \ _ -> throwError tcerr
+
+    whenUnifies
+      :: UnificationResult' a
+      -> (a -> TCM (UnificationResult' b))
+      -> TCM (UnificationResult' b)
+    whenUnifies res cont = do
+      case res of
+        Unifies a      -> cont a
+        NoUnify  tcerr -> return $ NoUnify  tcerr
+        DontKnow tcerr -> return $ DontKnow tcerr
+
+    trySplitConstructor p0 xs (Arg info LitFocus{}) p1 = __IMPOSSIBLE__
+    trySplitConstructor p0 xs (Arg info
              (Focus { focusCon      = c
                     , focusImplicit = impl
                     , focusConArgs  = qs
@@ -530,8 +555,7 @@ checkLHS f st@(LHSState problem sigma dpi asb) = do
                     , focusIndices  = ws
                     , focusType     = a
                     }
-             )) p1) tryNextSplit =
-      (checkLHS f =<<) $ (`catchError` \ _ -> tryNextSplit) $ do
+             )) p1 = do
       traceCall (CheckPattern (A.ConP (ConPatInfo impl $ PatRange r) (A.AmbQ [c]) qs)
                                        (problemTel p0)
                                        (El Prop $ Def d $ map Apply $ vs ++ ws)) $ do
@@ -615,8 +639,9 @@ checkLHS f st@(LHSState problem sigma dpi asb) = do
             ]
 
       -- Unify constructor target and given type (in Δ₁Γ)
-      sub0 <- addCtxTel (delta1 `abstract` gamma) $
-              unifyIndices_ flex (raise (size gamma) da) us' (raise (size gamma) ws)
+      res <- addCtxTel (delta1 `abstract` gamma) $
+              unifyIndices flex (raise (size gamma) da) us' (raise (size gamma) ws)
+      whenUnifies res $ \ sub0 -> do
 
       -- Andreas 2014-11-25  clear 'Forced' and 'Unused'
       -- Andreas 2015-01-19  ... only after unification
@@ -768,7 +793,7 @@ checkLHS f st@(LHSState problem sigma dpi asb) = do
           , text "iperm' =" <+> text (show iperm')
           ]
         ]
-      return st'
+      return $ Unifies st'
 
 
 -- | Ensures that we are not performing pattern matching on codata.
