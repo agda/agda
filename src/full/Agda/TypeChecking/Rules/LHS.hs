@@ -8,6 +8,7 @@ import Data.Maybe
 
 import Control.Applicative
 import Control.Monad hiding (mapM)
+import Control.Monad.Except hiding (mapM)
 import Control.Monad.State hiding (mapM)
 
 import Data.Traversable
@@ -464,13 +465,15 @@ checkLHS f st@(LHSState problem sigma dpi asb) = do
 
   sp <- runListT $ splitProblem f problem
   reportSDoc "tc.lhs.split" 20 $ text "splitting completed"
-  case sp of
-    Nothing   -> do
+  foldListT trySplit nothingToSplit $ ListT $ return sp
+  where
+
+    nothingToSplit = do
       reportSLn "tc.lhs.split" 50 $ "checkLHS: nothing to split in problem " ++ show problem
       nothingToSplitError problem
 
     -- Split problem rest (projection pattern)
-    Just (SplitRest projPat projType, _) -> do
+    trySplit (SplitRest projPat projType) _ = do
 
       -- Compute the new problem
       let Problem ps1 (iperm, ip) delta (ProblemRest (p:ps2) b) = problem
@@ -487,7 +490,7 @@ checkLHS f st@(LHSState problem sigma dpi asb) = do
         checkLHS f st'
 
     -- Split on literal pattern
-    Just (Split p0 xs (Arg _ (LitFocus lit iph hix a)) p1, _) -> do
+    trySplit (Split p0 xs (Arg _ (LitFocus lit iph hix a)) p1) _ = do
 
       -- plug the hole with a lit pattern
       let ip    = plugHole (LitP lit) iph
@@ -515,8 +518,8 @@ checkLHS f st@(LHSState problem sigma dpi asb) = do
       checkLHS f st'
 
     -- Split on constructor pattern
-    Just (Split p0 xs (Arg info
-            ( Focus { focusCon      = c
+    trySplit (Split p0 xs (Arg info
+             (Focus { focusCon      = c
                     , focusImplicit = impl
                     , focusConArgs  = qs
                     , focusRange    = r
@@ -527,8 +530,9 @@ checkLHS f st@(LHSState problem sigma dpi asb) = do
                     , focusIndices  = ws
                     , focusType     = a
                     }
-            )) p1, _
-          ) -> traceCall (CheckPattern (A.ConP (ConPatInfo impl $ PatRange r) (A.AmbQ [c]) qs)
+             )) p1) tryNextSplit =
+      (checkLHS f =<<) $ (`catchError` \ _ -> tryNextSplit) $ do
+      traceCall (CheckPattern (A.ConP (ConPatInfo impl $ PatRange r) (A.AmbQ [c]) qs)
                                        (problemTel p0)
                                        (El Prop $ Def d $ map Apply $ vs ++ ws)) $ do
 
@@ -764,8 +768,7 @@ checkLHS f st@(LHSState problem sigma dpi asb) = do
           , text "iperm' =" <+> text (show iperm')
           ]
         ]
-      -- Continue splitting
-      checkLHS f st'
+      return st'
 
 
 -- | Ensures that we are not performing pattern matching on codata.
