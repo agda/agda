@@ -49,6 +49,13 @@ Important changes since 0.9:
   The singleton set is also used to define generic operations
   (Plotkin and Power's terminology) in Data.Container.Indexed.FreeMonad.
 
+* Proved properties of Data.List.gfilter.  The following definitions
+  have been added to Data.List.Properties:
+
+    gfilter-just      : ... → gfilter just xs ≡ xs
+    gfilter-nothing   : ... → gfilter (λ _ → nothing) xs ≡ []
+    gfilter-concatMap : ... → gfilter f ≗ concatMap (fromMaybe ∘ f)
+
 ------------------------------------------------------------------------
 -- Release notes for Agda standard library version 0.9
 ------------------------------------------------------------------------
