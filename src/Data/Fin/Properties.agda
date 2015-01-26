@@ -26,6 +26,8 @@ open import Relation.Binary.PropositionalEquality as P
 open import Category.Functor
 open import Category.Applicative
 
+open DecTotalOrder N.decTotalOrder using () renaming (refl to ℕ≤-refl)
+
 ------------------------------------------------------------------------
 -- Properties
 
@@ -73,6 +75,14 @@ to-from : ∀ n → toℕ (fromℕ n) ≡ n
 to-from zero    = refl
 to-from (suc n) = cong suc (to-from n)
 
+from-to : ∀ {n} (i : Fin n) → fromℕ (toℕ i) ≡ strengthen i
+from-to zero    = refl
+from-to (suc i) = cong suc (from-to i)
+
+toℕ-strengthen : ∀ {n} (i : Fin n) → toℕ (strengthen i) ≡ toℕ i
+toℕ-strengthen zero    = refl
+toℕ-strengthen (suc i) = cong suc (toℕ-strengthen i)
+
 toℕ-injective : ∀ {n} {i j : Fin n} → toℕ i ≡ toℕ j → i ≡ j
 toℕ-injective {zero}  {}      {}      _
 toℕ-injective {suc n} {zero}  {zero}  eq = refl
@@ -85,19 +95,26 @@ bounded : ∀ {n} (i : Fin n) → toℕ i ℕ< n
 bounded zero    = s≤s z≤n
 bounded (suc i) = s≤s (bounded i)
 
-prop-toℕ-≤ : ∀ {n} (x : Fin n) → toℕ x ℕ≤ N.pred n
+prop-toℕ-≤ : ∀ {n} (i : Fin n) → toℕ i ℕ≤ N.pred n
 prop-toℕ-≤ zero                 = z≤n
 prop-toℕ-≤ (suc {n = zero}  ())
 prop-toℕ-≤ (suc {n = suc n} i)  = s≤s (prop-toℕ-≤ i)
 
+-- A simpler implementation of prop-toℕ-≤,
+-- however, with a different reduction behavior.
+-- If no one needs the reduction behavior of prop-toℕ-≤,
+-- it can be removed in favor of prop-toℕ-≤′.
+prop-toℕ-≤′ : ∀ {n} (i : Fin n) → toℕ i ℕ≤ N.pred n
+prop-toℕ-≤′ i = N.<⇒≤pred (bounded i)
+
+-- Lemma:  n - i ≤ n.
 nℕ-ℕi≤n : ∀ n i → n ℕ-ℕ i ℕ≤ n
-nℕ-ℕi≤n n       zero     = begin n ∎
-  where open N.≤-Reasoning
+nℕ-ℕi≤n n       zero     = ℕ≤-refl
 nℕ-ℕi≤n zero    (suc ())
 nℕ-ℕi≤n (suc n) (suc i)  = begin
-  n ℕ-ℕ i ≤⟨ nℕ-ℕi≤n n i ⟩
-  n       ≤⟨ N.n≤1+n n ⟩
-  suc n   ∎
+  n ℕ-ℕ i  ≤⟨ nℕ-ℕi≤n n i ⟩
+  n        ≤⟨ N.n≤1+n n ⟩
+  suc n    ∎
   where open N.≤-Reasoning
 
 inject-lemma : ∀ {n} {i : Fin n} (j : Fin′ i) →
@@ -118,6 +135,11 @@ inject≤-lemma : ∀ {m n} (i : Fin m) (le : m ℕ≤ n) →
                 toℕ (inject≤ i le) ≡ toℕ i
 inject≤-lemma zero    (N.s≤s le) = refl
 inject≤-lemma (suc i) (N.s≤s le) = cong suc (inject≤-lemma i le)
+
+-- Lemma:  inject≤ i n≤n ≡ i.
+inject≤-refl : ∀ {n} (i : Fin n) (n≤n : n ℕ≤ n) → inject≤ i n≤n ≡ i
+inject≤-refl zero    (s≤s _  ) = refl
+inject≤-refl (suc i) (s≤s n≤n) = cong suc (inject≤-refl i n≤n)
 
 ≺⇒<′ : _≺_ ⇒ N._<′_
 ≺⇒<′ (n ≻toℕ i) = N.≤⇒≤′ (bounded i)
@@ -141,14 +163,18 @@ toℕ-fromℕ≤ : ∀ {m n} (m<n : m ℕ< n) → toℕ (fromℕ≤ m<n) ≡ m
 toℕ-fromℕ≤ (s≤s z≤n)       = refl
 toℕ-fromℕ≤ (s≤s (s≤s m<n)) = cong suc (toℕ-fromℕ≤ (s≤s m<n))
 
+-- fromℕ is a special case of fromℕ≤.
+fromℕ-def : ∀ n → fromℕ n ≡ fromℕ≤ ℕ≤-refl
+fromℕ-def zero    = refl
+fromℕ-def (suc n) = cong suc (fromℕ-def n)
+
 ------------------------------------------------------------------------
 -- Operations
 
 infixl 6 _+′_
 
 _+′_ : ∀ {m n} (i : Fin m) (j : Fin n) → Fin (N.pred m ℕ+ n)
-i +′ j = inject≤ (i + j) (N._+-mono_ (prop-toℕ-≤ i) ≤-refl)
-  where open DecTotalOrder N.decTotalOrder renaming (refl to ≤-refl)
+i +′ j = inject≤ (i + j) (N._+-mono_ (prop-toℕ-≤ i) ℕ≤-refl)
 
 -- reverse {n} "i" = "n ∸ 1 ∸ i".
 
@@ -204,6 +230,18 @@ reverse-involutive {n} i = toℕ-injective (begin
     n ∸ suc (toℕ (reverse i)) ≡⟨ cong (λ ξ → n ∸ suc ξ) (reverse-prop i) ⟩
     n ∸ suc (n ∸ suc (toℕ i)) ≡⟨ lem₂ n i ⟩
     toℕ i                     ∎
+
+-- Lemma: reverse {suc n} (suc i) ≡ reverse n i  (in ℕ).
+
+reverse-suc : ∀{n}{i : Fin n} → toℕ (reverse (suc i)) ≡ toℕ (reverse i)
+reverse-suc {n}{i} = begin
+  toℕ (reverse (suc i))      ≡⟨ reverse-prop (suc i) ⟩
+  suc n ∸ suc (toℕ (suc i))  ≡⟨⟩
+  n ∸ toℕ (suc i)            ≡⟨⟩
+  n ∸ suc (toℕ i)            ≡⟨ P.sym (reverse-prop i) ⟩
+  toℕ (reverse i)            ∎
+  where
+  open P.≡-Reasoning
 
 -- If there is an injection from a type to a finite set, then the type
 -- has decidable equality.
