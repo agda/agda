@@ -40,9 +40,9 @@ Important changes since 0.9:
   Data.Maybe.Base
   Data.Unit.Base
 
-* Add singleton sets to Relation.Unary
+* Added singleton sets to Relation.Unary.
 
-  There use to be an isomorphic definition of singleton sets in
+  There used to be an isomorphic definition of singleton sets in
   Monad.Predicate, this has been removed and the module has been
   cleaned up accordingly.
 
