@@ -17,6 +17,7 @@ open import Data.Product
 open import Data.W.Indexed
 open import Relation.Unary
 open import Relation.Unary.PredicateTransformer
+open import Relation.Binary.PropositionalEquality
 
 ------------------------------------------------------------------------
 
@@ -54,5 +55,11 @@ rawPMonad {C = C} = record
 leaf : ∀ {ℓ} {O : Set ℓ} {C : Container O O ℓ ℓ} {X : Pred O ℓ} →
        ⟦ C ⟧ X ⊆ C ⋆ X
 leaf (c , k) = do (c , return? ∘ k)
+  where
+  open RawPMonad rawPMonad
+
+generic : ∀ {ℓ} {O : Set ℓ} {C : Container O O ℓ ℓ} {o}
+          (c : Command C o) → o ∈ C ⋆ ⋃[ r ∶ Response C c ] ｛ next C c r ｝
+generic c = do (c , λ r → return? (r , refl))
   where
   open RawPMonad rawPMonad

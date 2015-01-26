@@ -264,6 +264,24 @@ filter-filters P dec (x ∷ xs) with dec x
 filter-filters P dec (x ∷ xs) | yes px = px ∷ filter-filters P dec xs
 filter-filters P dec (x ∷ xs) | no ¬px = filter-filters P dec xs
 
+-- Gfilter.
+
+gfilter-just : ∀ {a} {A : Set a} (xs : List A) → gfilter just xs ≡ xs
+gfilter-just []       = refl
+gfilter-just (x ∷ xs) = P.cong (_∷_ x) (gfilter-just xs)
+
+gfilter-nothing : ∀ {a} {A : Set a} (xs : List A) →
+  gfilter {B = A} (λ _ → nothing) xs ≡ []
+gfilter-nothing []       = refl
+gfilter-nothing (x ∷ xs) = gfilter-nothing xs
+
+gfilter-concatMap : ∀ {a b} {A : Set a} {B : Set b} (f : A → Maybe B) →
+  gfilter f ≗ concatMap (fromMaybe ∘ f)
+gfilter-concatMap f [] = refl
+gfilter-concatMap f (x ∷ xs) with f x
+gfilter-concatMap f (x ∷ xs) | just y  = P.cong (_∷_ y) (gfilter-concatMap f xs)
+gfilter-concatMap f (x ∷ xs) | nothing = gfilter-concatMap f xs
+
 -- Inits, tails, and scanr.
 
 scanr-defn : ∀ {a b} {A : Set a} {B : Set b}

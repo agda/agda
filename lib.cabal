@@ -9,12 +9,12 @@ tested-with:     GHC == 7.8.4
 executable GenerateEverything
   hs-source-dirs:   .
   main-is:          GenerateEverything.hs
-  build-depends:    base >= 4.2 && < 4.8,
+  build-depends:    base >= 4.2 && < 4.9,
                     filemanip == 0.3.*,
                     filepath >= 1.1 && < 1.4
 
 executable AllNonAsciiChars
   hs-source-dirs:   .
   main-is:          AllNonAsciiChars.hs
-  build-depends:    base >= 4.2 && < 4.8,
+  build-depends:    base >= 4.2 && < 4.9,
                     filemanip == 0.3.*
