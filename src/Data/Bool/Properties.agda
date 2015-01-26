@@ -7,7 +7,6 @@
 module Data.Bool.Properties where
 
 open import Data.Bool as Bool
-open import Data.Fin
 open import Function
 open import Function.Equality using (_⟨$⟩_)
 open import Function.Equivalence
