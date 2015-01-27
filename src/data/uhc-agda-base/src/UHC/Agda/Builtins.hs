@@ -35,11 +35,15 @@ module UHC.Agda.Builtins
   , primShowFloat
   , primMkFloat
 
+    -- Debugging
+  , primTrace
+
   , unit
   )
 where
 
 import Prelude
+import Debug.Trace
 -- ====================
 -- Integer
 -- ====================
@@ -173,3 +177,9 @@ primShowFloat = reverse . dropWhile (=='0') . reverse . show
 
 primMkFloat :: String -> Double
 primMkFloat = read
+
+-- ====================
+-- Debugging
+-- ====================
+primTrace :: String -> b -> b
+primTrace = trace
