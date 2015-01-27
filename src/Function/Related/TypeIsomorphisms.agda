@@ -27,7 +27,7 @@ open import Relation.Binary
 open import Relation.Binary.Product.Pointwise
 open import Relation.Binary.PropositionalEquality as P using (_≡_; _≗_)
 open import Relation.Binary.Sum
-open import Relation.Nullary
+open import Relation.Nullary hiding (module Dec)
 open import Relation.Nullary.Decidable as Dec using (True)
 
 ------------------------------------------------------------------------
