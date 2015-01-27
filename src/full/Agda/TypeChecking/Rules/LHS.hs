@@ -8,7 +8,6 @@ import Data.Maybe
 
 import Control.Applicative
 import Control.Monad hiding (mapM)
-import Control.Monad.Except hiding (mapM)
 import Control.Monad.State hiding (mapM)
 
 import Data.Traversable
@@ -49,6 +48,7 @@ import Agda.TypeChecking.Rules.LHS.Implicit
 import Agda.TypeChecking.Rules.LHS.Instantiate
 import Agda.TypeChecking.Rules.Data
 
+import Agda.Utils.Except (MonadError(..))
 import Agda.Utils.Functor (($>))
 import Agda.Utils.ListT
 import Agda.Utils.Monad
