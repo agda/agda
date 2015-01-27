@@ -60,11 +60,7 @@ instance Pretty String where
 
 -- * 'Doc' utilities
 
--- ASR TODO (11 January 2015). We should use the
--- MIN_VERSION_pretty(A,B,C) Cabal macro. It is not possible because
--- GHC 7.10.1 RC1 was shipped with an incorrect version of the pretty
--- library. This should be fixed in the offical release of GHC 7.10.
-#if __GLASGOW_HASKELL__ <= 708
+#if !MIN_VERSION_pretty(1,1,2)
 instance Eq Doc where
   (==) = (==) `on` render
 #endif
