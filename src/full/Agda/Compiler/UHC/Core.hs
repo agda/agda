@@ -1,4 +1,4 @@
-{-# LANGUAGE CPP #-}
+{-# LANGUAGE CPP, DoAndIfThenElse #-}
 
 -- | Convert the AuxAST code to UHC Core code.
 module Agda.Compiler.UHC.Core
@@ -22,8 +22,9 @@ import Control.Monad.IO.Class
 import Control.Monad.Trans.Class (lift)
 import Control.Monad.State.Class
 import Control.Monad.State
+import Control.Monad.Reader
 
-import Agda.Compiler.UHC.AuxAST hiding (apps)
+import Agda.Compiler.UHC.AuxAST --hiding (apps)
 import Agda.Compiler.UHC.Naming
 import Agda.Compiler.UHC.ModuleInfo
 
@@ -37,6 +38,9 @@ import Agda.Utils.Impossible
 opts :: EHCOpts
 opts = defaultEHCOpts
 
+-- stores tracing level
+--type ToCoreT = ReaderT Int
+type ToCoreT m = FreshNameT (ReaderT Int m)
 
 createMainModule :: AModuleInfo -> HsName -> CModule
 createMainModule mainMod main = mkModule (mkHsName [] "Main") [] [mkImport $ mkHsName1 "UHC.Run", mkImport mainMod'] [] (mkMain main)
@@ -73,7 +77,7 @@ toCore mod modInfo modImps = do
 
   -- first, collect all qnames from the module. Then run the name assigner
 
-  funs <- evalFreshNameT "nl.uu.agda.to_core" $ funsToCore (xmodFunDefs mod)
+  funs <- flip runReaderT 100 $ evalFreshNameT "nl.uu.agda.to_core" $ funsToCore (xmodFunDefs mod)
 
   let cMetaDeclL = buildCMetaDeclL (xmodDataTys mod)
   -- import resolution fails if we just use hsnFromString, as it produces a _Base hsname, but the Map used for the lookups stores _Modf names. Is this a bug?
@@ -90,7 +94,7 @@ toCore mod modInfo modImps = do
   where mnmToCrNm :: ModuleName -> HsName
         mnmToCrNm mnm = snd (fromMaybe __IMPOSSIBLE__ $ mnameToCoreName (amifNameMp $ amiInterface modInfo) mnm)
 
-funsToCore :: Monad m => [Fun] -> FreshNameT m CExpr
+funsToCore :: Monad m => [Fun] -> ToCoreT m CExpr
 funsToCore funs = do
   binds <- mapM funToBind funs
   let body = mkLetRec binds (mkInt opts 0)
@@ -108,14 +112,23 @@ buildCMetaDeclL dts = catMaybes $ map f dts
                               fromMaybe __IMPOSSIBLE__ $ mkMetaDataConFromCTag (xconCTag c)
 
 
-funToBind :: Monad m => Fun -> FreshNameT m CBind
+funToBind :: Monad m => Fun -> ToCoreT m CBind
 funToBind (Fun _ name mqname comment vars e) = do -- TODO what is mqname?
   e' <- exprToCore e
-  let body = mkLam vars e'
-  return $ mkBind1 name body
+
+  body <- coreTrace1 5 ("Eval fun: " ++ show name) $ mkLam vars e'
+
+  ifTracing 10
+    (do
+      vars' <- replicateM (length vars) freshLocalName
+      
+      let body' = (mkApp body [coreTrace ("Eval arg: " ++ show name ++ " :: " ++ show i) (mkVar v) | (v, i) <- zip vars' [0..]])
+      return $ mkBind1 name $ mkLam vars' body'
+      )
+    (return $ mkBind1 name body)
 funToBind (CoreFun name _ _ crExpr _) = return $ mkBind1 name crExpr
 
-exprToCore :: Monad m => Expr -> FreshNameT m CExpr
+exprToCore :: Monad m => Expr -> ToCoreT m CExpr
 exprToCore (Var v)      = return $ mkVar v
 exprToCore (Lit l)      = return $ litToCore l
 exprToCore (Lam v body) = exprToCore body >>= return . mkLam [v]
@@ -161,7 +174,7 @@ buildPrimCases :: Monad m
     -> CExpr    -- ^ case scrutinee (in WHNF)
     -> [Branch]
     -> CExpr    -- ^ default value
-    -> FreshNameT m CExpr
+    -> ToCoreT m CExpr
 buildPrimCases _ _ [] def = return def
 buildPrimCases eq scr (b:brs) def = do
     var <- freshLocalName
@@ -178,7 +191,7 @@ mkIfThenElse c t e = mkCase c [b1, b2]
   where b1 = mkAlt (mkPatCon (ctagTrue opts) mkPatRestEmpty []) t
         b2 = mkAlt (mkPatCon (ctagFalse opts) mkPatRestEmpty []) e
 
-branchesToCore :: Monad m => [Branch] -> FreshNameT m [CAlt]
+branchesToCore :: Monad m => [Branch] -> ToCoreT m [CAlt]
 branchesToCore brs = do
     brs' <- mapM f brs
     return brs'
@@ -191,7 +204,7 @@ branchesToCore brs = do
           f _ = __IMPOSSIBLE__
 
 -- | Constructs an alternative for all constructors not explicitly matched by a branch.
-defaultBranches :: Monad m => ADataTy -> [Branch] -> CExpr -> FreshNameT m [CAlt]
+defaultBranches :: Monad m => ADataTy -> [Branch] -> CExpr -> ToCoreT m [CAlt]
 defaultBranches dt brs def = mapM mkAlt' missingCons
   where missingCons = (map xconCTag $ xdatCons dt) \\ (map (xconCTag . brCon) brs)
         mkAlt' ctg = do
@@ -211,6 +224,21 @@ litToCore (LString s) = mkString opts s
 litToCore (LChar c) = mkChar c
 -- TODO this is just a dirty work around
 litToCore (LFloat f) = mkApp (mkVar $ mkHsName ["UHC", "Agda", "Builtins"] "primMkFloat") [mkString opts (show f)]
+
+ifTracing :: Monad m => Int -> ToCoreT m a -> ToCoreT m a -> ToCoreT m a
+ifTracing lvl i e = do
+  t <- ask
+  if lvl <= t then i else e
+
+coreTrace1 :: Monad m => Int -> String -> CExpr ->  ToCoreT m CExpr
+coreTrace1 lvl msg e = do
+  t <- ask
+  if lvl <= t then
+    return $ coreTrace msg e
+  else return e
+
+coreTrace :: String -> CExpr -> CExpr
+coreTrace msg x = mkApp (mkVar $ mkHsName ["UHC", "Agda", "Builtins"] "primTrace") [mkString opts msg, x]
 
 coreImpossible :: String -> CExpr
 coreImpossible msg = mkError opts $ "BUG! Impossible code reached. " ++ msg
