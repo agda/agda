@@ -8,7 +8,7 @@
 
 module Data.BoundedVec.Inefficient where
 
-open import Data.Nat
+open import Data.Nat.Base
 open import Data.List.Base
 
 ------------------------------------------------------------------------
