@@ -58,13 +58,16 @@ fromAgdaModule modNm modImps defs = do
 
   btins <- getBuiltins
 
+  let conInstMp = getInstantiationMap defs
+  reportSLn "uhc" 25 $ "Instantiation Map for " ++ show modNm ++ ":\n" ++ show conInstMp
+
   reportSLn "uhc" 15 "Building name database..."
-  defNames <- collectNames btins defs
+  defNames <- collectNames conInstMp btins defs
   nameMp <- assignCoreNames modNm defNames
   reportSLn "uhc" 25 $ "NameMap for " ++ show modNm ++ ":\n" ++ show nameMp
 
 
-  (mod', modInfo') <- runCompileT kit btins modNm modImps nameMp (do
+  (mod', modInfo') <- runCompileT kit btins modNm modImps nameMp conInstMp (do
     lift $ reportSLn "uhc" 10 "Translate datatypes..."
     -- Translate and add datatype information
     dats <- translateDataTypes defs
@@ -89,14 +92,16 @@ fromAgdaModule modNm modImps defs = do
         datToConInfo dt = [(xconQName con, AConInfo dt con) | con <- xdatCons dt]
 
 -- | Collect module-level names.
-collectNames :: BuiltinCache -> [(QName, Definition)] -> TCM [AgdaName]
-collectNames btins defs = do
+collectNames :: ConInstMp -> BuiltinCache -> [(QName, Definition)] -> TCM [AgdaName]
+collectNames conInstMp btins defs = do
 {-  scope <- lift getScope
   modScope <- (scopeModules scope M.!) <$> getCurrentModule
   lift $ printScope "TEST" 20 "TEST"
 
   -- TODO we ignore sub modules here right now. In the future, what should we do here?
   let scope' = exportedNamesInScope modScope-}
+
+  -- TODO we should also ignore instantiated datatypes / constructors
 
   return $ catMaybes $ map collectName defs
   where collectName :: (QName, Definition) -> Maybe AgdaName
@@ -112,19 +117,34 @@ collectNames btins defs = do
                 isForeign = isJust $ compiledCore $ defCompiledRep def
             -- builtin/foreign constructors already have a core-level representation, so we don't need any fresh names
             -- but for the datatypes themselves we still want to create the type-dummy function
-            in if ty == EtConstructor && (isForeign || isBtin) then Nothing
-               else Just AgdaName
-                { anName = qnm
-                , anType = ty
-                , anNeedsAgdaExport = True -- TODO, only set this to true for things which are actually exported
-                -- TODO we should either remove this or make it work... just disable core export for the time being...
-                , anCoreExport = AceNo {-if (isForeign || isBtin) && ty /= EtFunction
-                        then AceNo      -- it doesn't make sense to export foreign/builtin datatypes on the core level
-                        else AceWanted -- TODO, add pragma to set this to No/Required-}
-                , anForceName = Nothing -- TODO add pragma to force name
-                }
+            in case theDef def of
+                  _ | ty == EtConstructor && (isForeign || isBtin) -> Nothing
+                  (Constructor {}) | (M.findWithDefault (error $ show qnm) qnm conInstMp) /= qnm -> Nothing -- constructor is instantiated
+                  _ | otherwise -> Just AgdaName
+                        { anName = qnm
+                        , anType = ty
+                        , anNeedsAgdaExport = True -- TODO, only set this to true for things which are actually exported
+                        -- TODO we should either remove this or make it work... just disable core export for the time being...
+                        , anCoreExport = AceNo {-if (isForeign || isBtin) && ty /= EtFunction
+                                then AceNo      -- it doesn't make sense to export foreign/builtin datatypes on the core level
+                                else AceWanted -- TODO, add pragma to set this to No/Required-}
+                        , anForceName = Nothing -- TODO add pragma to force name
+                        }
+
+-- | A mapping from constructor names
+-- to the actual ctor implementation names. Different names for a constructor can
+-- happen when instantiated modules are used.
+getInstantiationMap :: [(QName, Definition)] -> ConInstMp
+getInstantiationMap defs =
+  M.unions $ map (\(n, def) ->
+        case theDef def of
+            Constructor {conSrcCon = srcCon} -> M.singleton n (conName srcCon)
+            Record {recConHead = conHd} -> M.singleton n (conName conHd)
+            _ -> M.empty
+        ) defs
 
 
+-- | Collects all datatype information for non-instantiated datatypes.
 translateDataTypes :: [(QName, Definition)] -> CompileT TCM [ADataTy]
 translateDataTypes defs = do
   btins <- getBuiltinCache
@@ -169,12 +189,21 @@ translateDataTypes defs = do
 
   catMaybes <$> mapM
     (\(n, def) -> case theDef def of
+        x | isDtInstantiated x -> do
+                    lift $ reportSLn "uhc.fromAgda" 30 $ "Datatype " ++ show n ++ " is instantiated, skipping it."
+                    return Nothing
         (Record{}) -> handleDataRecDef n def
         -- coinduction kit gets erased in the translation to AuxAST
         (Datatype {}) | Just n /= (nameOfInf <$> kit)
                 -> handleDataRecDef n def
         _       -> return Nothing
     ) defs
+
+
+isDtInstantiated :: Defn -> Bool
+isDtInstantiated (d@Datatype {dataClause = Just _}) = True
+isDtInstantiated (r@Record {recClause = Just _}) = True
+isDtInstantiated _ = False
 
 
 -- | Translate an Agda definition to an Epic function where applicable
@@ -214,17 +243,27 @@ translateDefn (n, defini) = do
         return res
     Constructor{} | Just n == (nameOfSharp <$> kit) -> do
         Just <$> mkIdentityFun n "coind-sharp" 0
-    Constructor{} | otherwise -> do -- become functions returning a constructor with their tag
+    c@(Constructor{}) | otherwise -> do -- become functions returning a constructor with their tag
 
         case crName of
           (Just crNm) -> do
-                conInfo <- lift $ getConstrInfo n
-                let conCon = aciDataCon conInfo
-                    arity = xconArity conCon
+                -- check if the constructor is in an instantiated module
+                -- There will be no constructor info entry, if it is indeed an instantiated constructor.
+--                conInfo' <- lift $ getConstrInfo n
+                isInst <- lift $ isConstrInstantiated n
+                case isInst of
+                  True -> return Nothing -- we will directly call the proper ctor
+{-                    -- just call the actual constructor function
+                    realCon <- lift $ getConstrFun (conName $ conSrcCon c)
+                    return $ Just $ Fun True crNm (Just n) ("inst. constructor: " ++ show n) [] (Var realCon)-}
+                  False -> do
+                    conInfo <- lift $ getConstrInfo n
+                    let conCon = aciDataCon conInfo
+                        arity = xconArity conCon
 
-                vars <- replicateM arity freshLocalName
-                return $ Just $ Fun True (ctagCtorName $ xconCTag conCon) (Just n)
-                        ("constructor: " ++ show n) vars (Con (aciDataType conInfo) conCon (map Var vars))
+                    vars <- replicateM arity freshLocalName
+                    return $ Just $ Fun True (ctagCtorName $ xconCTag conCon) (Just n)
+                            ("constructor: " ++ show n) vars (Con (aciDataType conInfo) conCon (map Var vars))
           Nothing -> return Nothing -- either foreign or builtin type. We can just assume existence of the wrapper functions then.
 
         -- Sharp has to use the primSharp function from AgdaPrelude.e

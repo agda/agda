@@ -1517,10 +1517,10 @@ instance EmbPrj UHC.AModuleInfo where
     valu _ = malformed
 
 instance EmbPrj UHC.AModuleInterface where
-  icod_ (UHC.AModuleInterface a b) = icode2' a b
+  icod_ (UHC.AModuleInterface a b c) = icode3' a b c
   value = vcase valu where
-    valu [a, b] = valu2 UHC.AModuleInterface a b
-    valu _      = malformed
+    valu [a, b, c] = valu3 UHC.AModuleInterface a b c
+    valu _         = malformed
 
 instance EmbPrj UHC.AConInfo where
   icod_ (UHC.AConInfo a b) = icode2' a b

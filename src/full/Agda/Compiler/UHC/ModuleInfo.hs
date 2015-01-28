@@ -5,6 +5,7 @@ module Agda.Compiler.UHC.ModuleInfo
   , AModuleInterface (..)
   , AConInfo (..)
   , ModVersion
+  , ConInstMp
   , currentModInfoVersion
   )
 where
@@ -19,6 +20,10 @@ import Agda.Syntax.Internal
 import Agda.Compiler.UHC.Naming
 import Agda.Compiler.UHC.AuxAST
 import Data.Word
+
+-- | Maps constructor names to their actual implementation names.
+-- Used for instantiated modules.
+type ConInstMp = M.Map QName QName
 
 type ModVersion = POSIXTime
 
@@ -43,6 +48,7 @@ data AModuleInterface
   = AModuleInterface
   { amifConMp :: M.Map QName AConInfo  -- ^ Maps agda constructor qnames to types/constructor. (accumulating)
   , amifNameMp :: NameMap    -- ^ Maps Agda module-level names to core name. (accumulating)
+  , amifConInstMp :: ConInstMp
   }
   deriving (Show, Typeable)
 
@@ -57,8 +63,10 @@ instance Monoid AModuleInterface where
   mempty = AModuleInterface
             { amifConMp = M.empty
             , amifNameMp = mempty
+            , amifConInstMp = M.empty
             }
   mappend x y = AModuleInterface
         { amifConMp = amifConMp x `M.union` amifConMp y
         , amifNameMp = amifNameMp x `mappend` amifNameMp y
+        , amifConInstMp = amifConInstMp x `M.union` amifConInstMp y
         }

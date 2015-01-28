@@ -13,6 +13,7 @@ module Agda.Compiler.UHC.CompileState
   , getCoreName1
   , getConstrInfo
   , getConstrFun
+  , isConstrInstantiated
 --  , getConstrTag
 --  , getConstrArity
   , getCoinductionKit
@@ -59,6 +60,7 @@ import Agda.Utils.Lens
 #include "undefined.h"
 import Agda.Utils.Impossible
 
+
 -- | Stuff we need in our compiler
 data CompileState = CompileState
     { curModule       :: ModuleName
@@ -77,9 +79,10 @@ runCompileT :: MonadIO m
     -> ModuleName   -- ^ The module to compile.
     -> [AModuleInfo] -- ^ Imported module info (non-transitive).
     -> NameMap      -- ^ NameMap for the current module (non-transitive).
+    -> ConInstMp
     -> CompileT m a
     -> m (a, AModuleInfo)
-runCompileT coind btins mod impMods nmMp comp = do
+runCompileT coind btins mod impMods nmMp conIMp comp = do
   (result, state') <- runStateT comp initial
 
   version <- liftIO getPOSIXTime
@@ -95,10 +98,11 @@ runCompileT coind btins mod impMods nmMp comp = do
         }
 
   return (result, modInfo)
-  where initial = CompileState
+  where initialModIface = mempty { amifNameMp = nmMp, amifConInstMp = conIMp }
+        initial = CompileState
             { curModule     = mod
             , moduleInterface   = mappend
-                (mempty { amifNameMp = nmMp})
+                initialModIface
                 (mconcat $ map amiInterface impMods)
             , coinductionKit' = coind
             , builtins = btins
@@ -129,7 +133,12 @@ getCoreName1 :: Monad m => QName -> CompileT m HsName
 getCoreName1 nm = getCoreName nm >>= return . (fromMaybe __IMPOSSIBLE__)
 
 getConstrInfo :: (Functor m, Monad m) => QName -> CompileT m AConInfo
-getConstrInfo n = M.findWithDefault (error $ show n) n <$> gets (amifConMp . moduleInterface)
+getConstrInfo n = do
+  instMp <- gets (amifConInstMp . moduleInterface)
+  M.findWithDefault __IMPOSSIBLE__ (M.findWithDefault (error $ show n) n instMp) <$> gets (amifConMp . moduleInterface)
+
+isConstrInstantiated :: (Functor m, Monad m) => QName -> CompileT m Bool
+isConstrInstantiated n =  ((n /=) . M.findWithDefault __IMPOSSIBLE__ n) <$> gets (amifConInstMp . moduleInterface)
 
 getCoinductionKit :: Monad m => CompileT m (Maybe CoinductionKit)
 getCoinductionKit = gets coinductionKit'
