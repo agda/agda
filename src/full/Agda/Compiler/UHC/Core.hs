@@ -23,6 +23,7 @@ import Control.Monad.Trans.Class (lift)
 import Control.Monad.State.Class
 import Control.Monad.State
 import Control.Monad.Reader
+import Agda.Interaction.Options
 
 import Agda.Compiler.UHC.AuxAST --hiding (apps)
 import Agda.Compiler.UHC.Naming
@@ -75,12 +76,11 @@ toCore :: AMod      -- ^ The current module to compile.
     -> TCM CModule
 toCore mod modInfo modImps = do
 
-  -- first, collect all qnames from the module. Then run the name assigner
-
-  funs <- flip runReaderT 100 $ evalFreshNameT "nl.uu.agda.to_core" $ funsToCore (xmodFunDefs mod)
+  traceLvl <- optUHCTraceLevel <$> commandLineOptions
+  funs <- flip runReaderT traceLvl $ evalFreshNameT "nl.uu.agda.to_core" $ funsToCore (xmodFunDefs mod)
 
   let cMetaDeclL = buildCMetaDeclL (xmodDataTys mod)
-  -- import resolution fails if we just use hsnFromString, as it produces a _Base hsname, but the Map used for the lookups stores _Modf names. Is this a bug?
+
   let imps = [ mkHsName1 x | x <-
         [ "UHC.Base"
         , "UHC.Agda.Builtins"

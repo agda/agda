@@ -94,6 +94,7 @@ data CommandLineOptions = Options
   , optUHCEhcBin        :: Maybe FilePath
   , optUHCTextualCore   :: Bool
   , optUHCCallUHC       :: Bool
+  , optUHCTraceLevel    :: Int
   , optCompileDir       :: Maybe FilePath
   -- ^ In the absence of a path the project root is used.
   , optGenerateVimFile  :: Bool
@@ -175,6 +176,7 @@ defaultOptions = Options
   , optUHCEhcBin        = Nothing
   , optUHCTextualCore   = False
   , optUHCCallUHC       = True
+  , optUHCTraceLevel    = 0
   , optCompileDir       = Nothing
   , optGenerateVimFile  = False
   , optGenerateLaTeX    = False
@@ -450,6 +452,10 @@ uhcTextualCoreFlag o = return $ o { optUHCTextualCore = True }
 uhcCallUHCFlag :: Flag CommandLineOptions
 uhcCallUHCFlag o = return $ o { optUHCCallUHC = False }
 
+uhcTraceLevelFlag :: String -> Flag CommandLineOptions
+-- TODO proper parsing and error handling
+uhcTraceLevelFlag i o = return $ o { optUHCTraceLevel = read i }
+
 htmlFlag :: Flag CommandLineOptions
 htmlFlag o = return $ o { optGenerateHTML = True }
 
@@ -508,6 +514,7 @@ standardOptions =
     , Option []     ["uhc-ehc-bin"] (ReqArg uhcEhcBinFlag "EHC") "The ehc binary to use when compiling with the uhc backend."
     , Option []     ["uhc-textual-core"] (NoArg uhcTextualCoreFlag) "Use textual core as intermediate representation instead of binary core."
     , Option []     ["uhc-dont-call-uhc"] (NoArg uhcCallUHCFlag) "Don't call uhc, just write the UHC Core files."
+    , Option []     ["uhc-gen-trace"] (ReqArg uhcTraceLevelFlag "TRACE") "Add tracing code to generated executable."
     , Option []     ["compile-dir"] (ReqArg compileDirFlag "DIR")
                     ("directory for compiler output (default: the project root)")
     , Option []     ["ghc-flag"] (ReqArg ghcFlag "GHC-FLAG")
