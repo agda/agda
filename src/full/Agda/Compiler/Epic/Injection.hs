@@ -215,7 +215,7 @@ solve newNames xs = do
         let (hasTags, eqs) = Map.partition isTag (constrGroup tags)
             isTag (IsTag _) = True
             isTag _         = False
-        forM (Map.toList hasTags) $ \ (c, tagged) -> case tagged of
+        forM_ (Map.toList hasTags) $ \ (c, tagged) -> case tagged of
             IsTag tag -> putCon c tag
             _         -> __IMPOSSIBLE__
         case Map.toList eqs of

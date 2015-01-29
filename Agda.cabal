@@ -397,15 +397,16 @@ library
                     Agda.Auto.CaseSplit
   other-modules:    Paths_Agda
 
-  -- This conditional is required by GHC <= 7.4.2.
-  if true
+  if impl(ghc >= 7.4.2)
     ghc-options: -w
                  -Werror
                  -fwarn-deprecated-flags
+                 -fwarn-dodgy-exports
                  -fwarn-dodgy-foreign-imports
                  -fwarn-dodgy-imports
                  -fwarn-duplicate-exports
                  -fwarn-hi-shadowing
+                 -fwarn-identities
                  -fwarn-incomplete-patterns
                  -fwarn-missing-fields
                  -fwarn-missing-methods
@@ -415,10 +416,6 @@ library
                  -fwarn-overlapping-patterns
                  -fwarn-unrecognised-pragmas
                  -fwarn-warnings-deprecations
-
-  if impl(ghc >= 7.4.2)
-    ghc-options: -fwarn-dodgy-exports
-                 -fwarn-identities
                  -fwarn-wrong-do-bind
 
   if impl(ghc >= 7.6.3)
