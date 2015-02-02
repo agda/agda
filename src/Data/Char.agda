@@ -16,16 +16,9 @@ import Relation.Binary.On as On
 open import Relation.Binary.PropositionalEquality as PropEq using (_≡_)
 open import Relation.Binary.PropositionalEquality.TrustMe
 
-open import Data.String.Core using (String; primShowChar)
-import Data.Char.Core as Core
-open Core public using (Char)
-open Core
-
-show : Char → String
-show = primShowChar
-
-toNat : Char → ℕ
-toNat = primCharToNat
+open import Data.String.Base using (String)
+open import Data.Char.Base
+open        Data.Char.Base public using (Char; show; toNat)
 
 -- Informative equality test.
 

@@ -6,7 +6,7 @@
 
 module Relation.Binary.PropositionalEquality.TrustMe where
 
-open import Relation.Binary.PropositionalEquality
+open import Relation.Binary.Core using (_≡_)
 
 private
  primitive

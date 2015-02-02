@@ -11,7 +11,7 @@ open import Relation.Nullary.Decidable
 open import Relation.Nullary
 open import Relation.Binary.PropositionalEquality as PropEq using (_≡_)
 open import Relation.Binary.PropositionalEquality.TrustMe
-open import Data.String using (String)
+open import Data.String.Base using (String)
 
 postulate
   Float : Set
