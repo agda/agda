@@ -6,7 +6,7 @@
 
 module IO.Primitive where
 
-open import Data.Char
+open import Data.Char.Base
 open import Data.String
 open import Foreign.Haskell
 

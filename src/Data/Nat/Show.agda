@@ -8,7 +8,7 @@ module Data.Nat.Show where
 
 open import Data.Nat
 open import Relation.Nullary.Decidable using (True)
-open import Data.String as String using (String)
+open import Data.String.Base as String using (String)
 open import Data.Digit
 open import Data.Product using (proj₁)
 open import Function
