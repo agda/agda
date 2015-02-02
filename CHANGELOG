@@ -21,6 +21,12 @@ Important changes since 0.9:
 
 * Renamed Data.Unit.Core to Data.Unit.NonEta
 
+* Removed Data.String.Core.
+  The module Data.String.Base now contains these definitions.
+
+* Removed Relation.Nullary.Core.
+  The module Relation.Nullary now contains these definitions directly.
+
 * Inspect on steroids has been simplified (see
   Relation.Binary.PropositionalEquality and
   Relation.Binary.HeterogeneousEquality).
@@ -36,9 +42,25 @@ Important changes since 0.9:
 
   At the moment, the modules added are:
 
+  Data.Unit.Base
   Data.Bool.Base
   Data.Maybe.Base
-  Data.Unit.Base
+  Data.Nat.Base
+  Data.List.Base
+  Data.String.Base
+  Data.Char.Base
+
+  These modules are also cheap to import and can be considered basic:
+
+  Level
+  Function
+  Data.Empty
+  Relation.Nullary
+  Data.Product
+  Data.Sum
+  Data.BoundedVec.Inefficient
+  Relation.Binary
+  Relation.Binary.PropositionalEquality.TrustMe
 
 * Added singleton sets to Relation.Unary.
 
