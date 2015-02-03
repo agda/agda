@@ -95,6 +95,18 @@ Important changes since 0.9:
    reverse-suc : ∀{n}{i : Fin n} → toℕ (reverse (suc i)) ≡ toℕ (reverse i)
    inject≤-refl : ∀ {n} (i : Fin n) (n≤n : n ℕ≤ n) → inject≤ i n≤n ≡ i
 
+* Data.AVL.Height-invariants._∼_ was replaced by _∼_⊔_, following
+  Conor McBride's principle of pushing information into indices rather
+  than pulling information out.
+
+  Some lemmas in Data.AVL.Height-invariants (1+, max∼max and
+  max-lemma) were removed.
+
+  The implementations of some functions in Data.AVL were simplified.
+  This could mean that they, and other functions depending on them (in
+  Data.AVL, Data.AVL.IndexedMap and Data.AVL.Sets), reduce in a
+  different way than they used to.
+
 ------------------------------------------------------------------------
 -- Release notes for Agda standard library version 0.9
 ------------------------------------------------------------------------
