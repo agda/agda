@@ -1542,14 +1542,12 @@ instance EmbPrj UHCA.ADataCon where
 
 instance EmbPrj UHCA.ADataImplType where
   icod_ (UHCA.ADataImplNormal)    = icode0 0
-  icod_ (UHCA.ADataImplBuiltin a) = icode1 1 a
-  icod_ (UHCA.ADataImplMagic a)   = icode1 2 a
-  icod_ (UHCA.ADataImplForeign)   = icode0 3
+  icod_ (UHCA.ADataImplMagic a)   = icode1 1 a
+  icod_ (UHCA.ADataImplForeign)   = icode0 2
   value = vcase valu where
     valu [0]    = valu0 UHCA.ADataImplNormal
-    valu [1, a] = valu1 UHCA.ADataImplBuiltin a
-    valu [2, a] = valu1 UHCA.ADataImplMagic a
-    valu [3]    = valu0 UHCA.ADataImplForeign
+    valu [1, a] = valu1 UHCA.ADataImplMagic a
+    valu [2]    = valu0 UHCA.ADataImplForeign
     valu _      = malformed
 
 instance EmbPrj UHCN.NameMap where

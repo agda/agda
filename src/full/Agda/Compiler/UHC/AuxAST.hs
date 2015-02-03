@@ -44,7 +44,6 @@ data ADataTy
 
 data ADataImplType
   = ADataImplNormal  -- normal agda datatype
-  | ADataImplBuiltin String -- Builtins. Argument is builtin name.
   | ADataImplMagic String -- special data types. COMPILED_CORE_DATA when
                               -- using one of the special builtin types, eg __UNIT__.
   | ADataImplForeign -- COMPILED_CORE pragma

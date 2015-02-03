@@ -17,7 +17,6 @@ module Agda.Compiler.UHC.CompileState
 --  , getConstrTag
 --  , getConstrArity
   , getCoinductionKit
-  , getBuiltinCache
 
   , getCurrentModule
 
@@ -66,7 +65,6 @@ data CompileState = CompileState
     { curModule       :: ModuleName
     , moduleInterface :: AModuleInterface    -- ^ Contains the interface of all imported and the currently compiling module.
     , coinductionKit' :: Maybe CoinductionKit
-    , builtins :: BuiltinCache
     }
 
 -- | Compiler monad
@@ -75,14 +73,13 @@ type CompileT = StateT CompileState
 -- | The initial (empty) state
 runCompileT :: MonadIO m
     => Maybe CoinductionKit
-    -> BuiltinCache
     -> ModuleName   -- ^ The module to compile.
     -> [AModuleInfo] -- ^ Imported module info (non-transitive).
     -> NameMap      -- ^ NameMap for the current module (non-transitive).
     -> ConInstMp
     -> CompileT m a
     -> m (a, AModuleInfo)
-runCompileT coind btins mod impMods nmMp conIMp comp = do
+runCompileT coind mod impMods nmMp conIMp comp = do
   (result, state') <- runStateT comp initial
 
   version <- liftIO getPOSIXTime
@@ -105,7 +102,6 @@ runCompileT coind btins mod impMods nmMp conIMp comp = do
                 initialModIface
                 (mconcat $ map amiInterface impMods)
             , coinductionKit' = coind
-            , builtins = btins
             }
 
 addConMap :: Monad m => M.Map QName AConInfo -> CompileT m ()
@@ -145,9 +141,6 @@ getCoinductionKit = gets coinductionKit'
 
 getCurrentModule :: Monad m => CompileT m ModuleName
 getCurrentModule = gets curModule
-
-getBuiltinCache :: Monad m => CompileT m BuiltinCache
-getBuiltinCache = gets builtins
 
 -- TODO What does this have to do with CompileState? Move
 replaceAt :: Int -- ^ replace at

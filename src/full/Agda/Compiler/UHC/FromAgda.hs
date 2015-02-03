@@ -56,18 +56,16 @@ fromAgdaModule :: ModuleName
 fromAgdaModule modNm modImps defs = do
   kit <- coinductionKit
 
-  btins <- getBuiltins
-
   let conInstMp = getInstantiationMap defs
   reportSLn "uhc" 25 $ "Instantiation Map for " ++ show modNm ++ ":\n" ++ show conInstMp
 
   reportSLn "uhc" 15 "Building name database..."
-  defNames <- collectNames conInstMp btins defs
+  defNames <- collectNames conInstMp defs
   nameMp <- assignCoreNames modNm defNames
   reportSLn "uhc" 25 $ "NameMap for " ++ show modNm ++ ":\n" ++ show nameMp
 
 
-  (mod', modInfo') <- runCompileT kit btins modNm modImps nameMp conInstMp (do
+  (mod', modInfo') <- runCompileT kit modNm modImps nameMp conInstMp (do
     lift $ reportSLn "uhc" 10 "Translate datatypes..."
     -- Translate and add datatype information
     dats <- translateDataTypes defs
@@ -92,8 +90,8 @@ fromAgdaModule modNm modImps defs = do
         datToConInfo dt = [(xconQName con, AConInfo dt con) | con <- xdatCons dt]
 
 -- | Collect module-level names.
-collectNames :: ConInstMp -> BuiltinCache -> [(QName, Definition)] -> TCM [AgdaName]
-collectNames conInstMp btins defs = do
+collectNames :: ConInstMp -> [(QName, Definition)] -> TCM [AgdaName]
+collectNames conInstMp defs = do
 {-  scope <- lift getScope
   modScope <- (scopeModules scope M.!) <$> getCurrentModule
   lift $ printScope "TEST" 20 "TEST"
@@ -113,12 +111,11 @@ collectNames conInstMp btins defs = do
                     (Record {}) -> EtConstructor
                     (Axiom {})  -> EtFunction
                     (Primitive {}) -> EtFunction
-                isBtin = isBuiltin btins qnm
                 isForeign = isJust $ compiledCore $ defCompiledRep def
             -- builtin/foreign constructors already have a core-level representation, so we don't need any fresh names
             -- but for the datatypes themselves we still want to create the type-dummy function
             in case theDef def of
-                  _ | ty == EtConstructor && (isForeign || isBtin) -> Nothing
+                  _ | ty == EtConstructor && isForeign -> Nothing
                   (Constructor {}) | (M.findWithDefault (error $ show qnm) qnm conInstMp) /= qnm -> Nothing -- constructor is instantiated
                   _ | otherwise -> Just AgdaName
                         { anName = qnm
@@ -147,7 +144,6 @@ getInstantiationMap defs =
 -- | Collects all datatype information for non-instantiated datatypes.
 translateDataTypes :: [(QName, Definition)] -> CompileT TCM [ADataTy]
 translateDataTypes defs = do
-  btins <- getBuiltinCache
   kit <- getCoinductionKit
   -- first, collect all constructors
   constrMp <- M.unionsWith (++)
@@ -157,13 +153,12 @@ translateDataTypes defs = do
                 let foreign = compiledCore $ defCompiledRep def
                 arity <- lift $ (fst <$> conArityAndPars n)
                 let conFun = ADataCon n
-                con <- case (n `M.lookup` (btccCtors btins), foreign) of
-                    (Just (_, ctag), Nothing) -> return $ Right (conFun ctag)
-                    (Nothing, Just (CrConstr crcon)) -> return $ Right (conFun $ coreConstrToCTag crcon arity)
-                    (Nothing, Nothing)   -> do
+                con <- case foreign of
+                    (Just (CrConstr crcon)) -> return $ Right (conFun $ coreConstrToCTag crcon arity)
+                    (Nothing)   -> do
                         conCrNm <- getCoreName1 n
                         return $ Left (\tyCrNm tag -> conFun (mkCTag tyCrNm conCrNm tag arity))
-                    _ -> __IMPOSSIBLE__ -- being builtin and foreign at the same time makes no sense
+                    _ -> __IMPOSSIBLE__
                 return $ M.singleton (conData d) [con]
             _ -> return M.empty
         ) defs
@@ -171,15 +166,13 @@ translateDataTypes defs = do
   let handleDataRecDef = (\n def -> do
             let foreign = compiledCore $ defCompiledRep def
             let cons = M.findWithDefault [] n constrMp
-            case (n `M.lookup` (btccTys btins), foreign, partitionEithers cons) of
-              (Just (btin, tyNm), Nothing, ([], cons')) -> do -- builtins
-                    return $ Just (ADataTy tyNm n cons' (ADataImplBuiltin btin))
-              (Nothing, Just (CrType crty), ([], cons')) -> do -- foreign datatypes (COMPILED_CORE_DATA)
+            case (foreign, partitionEithers cons) of
+              (Just (CrType crty), ([], cons')) -> do -- foreign datatypes (COMPILED_CORE_DATA)
                     let (tyNm, impl) = case crty of
                                 CTMagic tyNm nm -> (tyNm, ADataImplMagic nm)
                                 CTNormal tyNm -> (tyNm, ADataImplForeign)
                     return $ Just (ADataTy tyNm n cons' impl)
-              (Nothing, Nothing, (cons', [])) -> do
+              (Nothing, (cons', [])) -> do
                     tyCrNm <- getCoreName1 n
                     -- build ctags, assign tag numbers
                     let cons'' = map (\((conFun), i) -> conFun tyCrNm i) (zip cons' [0..])
