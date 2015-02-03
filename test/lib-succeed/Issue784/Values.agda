@@ -11,7 +11,7 @@ open import Data.Unit public using (⊤)
 open import Data.Unit.NonEta public using (Unit; unit)
 open import Data.Empty public using (⊥; ⊥-elim)
 open import Relation.Binary.Core public
-open import Relation.Nullary.Core public
+open import Relation.Nullary public
 import Level
 
 open import Relation.Binary.PropositionalEquality public hiding ([_]) renaming (cong to ≡-cong; cong₂ to ≡-cong₂)
