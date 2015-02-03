@@ -22,6 +22,9 @@ module Agda.Compiler.UHC.CompileState
 
   , conArityAndPars
   , replaceAt
+
+  -- internal use only
+  , CompileState (..)
   )
 where
 
@@ -70,7 +73,8 @@ data CompileState = CompileState
 -- | Compiler monad
 type CompileT = StateT CompileState
 
--- | The initial (empty) state
+-- | Used to run the Agda-to-AuxAST transformation.
+-- During this transformation, 
 runCompileT :: MonadIO m
     => Maybe CoinductionKit
     -> ModuleName   -- ^ The module to compile.

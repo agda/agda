@@ -203,6 +203,7 @@ library
                     Agda.Compiler.UHC.Pragmas.Base
                     Agda.Compiler.UHC.Pragmas.Parse
                     Agda.Compiler.UHC.Primitives
+                    Agda.Compiler.UHC.Smashing
                     Agda.Interaction.EmacsCommand
                     Agda.Interaction.EmacsTop
                     Agda.Interaction.Exceptions

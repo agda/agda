@@ -52,8 +52,9 @@ import Agda.Utils.Impossible
 fromAgdaModule :: ModuleName
     -> [AModuleInfo]     -- Module info of imported modules.
     -> [(QName, Definition)]
-    -> TCM (AMod, AModuleInfo)
-fromAgdaModule modNm modImps defs = do
+    -> (AMod -> CompileT TCM a) -- continuation, normally program transforms
+    -> TCM (a, AModuleInfo)
+fromAgdaModule modNm modImps defs cont = do
   kit <- coinductionKit
 
   let conInstMp = getInstantiationMap defs
@@ -77,10 +78,11 @@ fromAgdaModule modNm modImps defs = do
 
     funs <- evalFreshNameT "nl.uu.agda.from-agda" (catMaybes <$> mapM translateDefn defs)
 
-    return $ AMod { xmodName = modNm
+    let mod = AMod { xmodName = modNm
                   , xmodFunDefs = funs
                   , xmodDataTys = dats
                   }
+    cont mod
     )
 
   return (mod', modInfo')

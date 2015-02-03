@@ -41,6 +41,7 @@ import Agda.Utils.FileName
 import qualified Agda.Utils.HashMap as HMap
 
 import Agda.Compiler.UHC.CompileState
+import Agda.Compiler.UHC.Transform
 import Agda.Compiler.UHC.ModuleInfo
 --import qualified Agda.Compiler.UHC.CaseOpts     as COpts
 --import qualified Agda.Compiler.UHC.ForceConstrs as ForceC
@@ -50,7 +51,7 @@ import qualified Agda.Compiler.UHC.FromAgda     as FAgda
 --import qualified Agda.Compiler.UHC.Injection    as ID
 --import qualified Agda.Compiler.UHC.NatDetection as ND
 --import qualified Agda.Compiler.UHC.Primitive    as Prim
---import qualified Agda.Compiler.UHC.Smashing     as Smash
+import qualified Agda.Compiler.UHC.Smashing     as Smash
 import Agda.Compiler.UHC.Naming
 import Agda.Compiler.UHC.AuxAST
 
@@ -292,9 +293,9 @@ initialAnalysis inter = do
       _ -> return ()
 -}
 
-idPrint :: String -> (a -> TCM b) -> a -> TCM b
+idPrint :: String -> Transform -> Transform
 idPrint s m x = do
-  reportSLn "uhc.phases" 10 s
+  lift $ reportSLn "uhc.phases" 10 s
   m x
 
 -- | Perform the chain of compilation stages, from definitions to epic code
@@ -304,8 +305,10 @@ compileDefns :: ModuleName
 compileDefns mod modImps defs = do
 --    let modName = L.intercalate "." (CN.moduleNameParts mod)
 
-    (amod, modInfo) <- idPrint "fromAgda" (FAgda.fromAgdaModule mod modImps) defs
-    amod'   <- return amod
+--    (amod, modInfo) <- 
+    (amod', modInfo) <- FAgda.fromAgdaModule mod modImps defs $ \mod ->
+                   return mod
+               >>= idPrint "smashing"      Smash.smash'em
 --               >>= idPrint "findInjection" ID.findInjection
 --               >>= idPrint "fromAgda"   (FAgda.fromAgdaModule msharp modName modImps)
 --               >>= idPrint "forcing"     Forcing.remForced
