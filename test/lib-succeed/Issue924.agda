@@ -26,7 +26,7 @@ open import Data.List using (List)
 
 open import Data.Vec
 
-open import Relation.Nullary.Core
+open import Relation.Nullary
 open import Relation.Binary.PropositionalEquality
 open ≡-Reasoning
 
