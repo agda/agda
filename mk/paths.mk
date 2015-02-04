@@ -1,3 +1,4 @@
+include $(TOP)/mk/version.mk
 
 MACRO_DIR		= $(TOP)/macros
 
@@ -8,7 +9,7 @@ CORE_SRC_DIR	= $(SRC_DIR)/core
 TRANSL_SRC_DIR	= $(SRC_DIR)/transl
 COMPAT_SRC_DIR	= $(SRC_DIR)/compat
 
-BUILD_DIR       = dist-$(VERSION)
+BUILD_DIR       = $(TOP)/dist-$(VERSION)
 
 OUT_DIR			= $(TOP)/out
 FULL_OUT_DIR	= $(OUT_DIR)/full
@@ -18,5 +19,5 @@ TRANSL_OUT_DIR	= $(OUT_DIR)/transl
 DOC_DIR			= $(TOP)/doc
 HADDOCK_DIR		= $(DOC_DIR)/haddock
 
-AGDA_BIN		?= $(TOP)/$(BUILD_DIR)/build/agda/agda
+AGDA_BIN		?= $(BUILD_DIR)/build/agda/agda
 AGDA_BIN		:= $(abspath $(AGDA_BIN))

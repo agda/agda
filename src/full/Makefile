@@ -1,10 +1,12 @@
 ## Tags ###################################################################
 
-include ../../mk/paths.mk
+TOP=../..
+
+include $(TOP)/mk/paths.mk
 
 hTags=../hTags/dist/build/hTags/hTags
-hTags_include=../../$(BUILD_DIR)/build/autogen/cabal_macros.h ./undefined.h
-hTags_flags=-i ../../$(BUILD_DIR)/build/autogen/cabal_macros.h -I ./
+hTags_include=$(BUILD_DIR)/build/autogen/cabal_macros.h ./undefined.h
+hTags_flags=-i $(BUILD_DIR)/build/autogen/cabal_macros.h -I ./
 
 $(hTags) : $(wildcard ../hTags/*.hs)
 	$(MAKE) -C ../hTags

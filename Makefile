@@ -7,9 +7,7 @@ PROFVERB=7
 # Various paths and commands
 
 TOP=.
-include ./mk/version.mk
-# mk/path.mk uses TOP and VERSION, so include after the definition of
-# TOP, and after including mk/version.mk.
+# mk/path.mk uses TOP, so include after the definition of TOP.
 include ./mk/paths.mk
 
 CABAL_OPTIONS=--builddir=$(BUILD_DIR)
