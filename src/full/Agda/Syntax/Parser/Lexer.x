@@ -95,6 +95,7 @@ tokens :-
 <pragma_>   "COMPILED_JS"          { keyword KwCOMPILED_JS }
 <pragma_>   "COMPILED_CORE"        { keyword KwCOMPILED_CORE }
 <pragma_>   "COMPILED_CORE_DATA"   { keyword KwCOMPILED_CORE_DATA }
+<pragma_>   "DONT_SMASH"           { keyword KwDONT_SMASH }
 <pragma_>   "STATIC"               { keyword KwSTATIC }
 <pragma_>   "IMPORT"               { keyword KwIMPORT }
 <pragma_>   "IMPOSSIBLE"           { keyword KwIMPOSSIBLE }

@@ -213,7 +213,8 @@ compileModule i = do
                         "Compiling: " ++ show (iModuleName i)
 --                    initialAnalysis i
                     let defns = HMap.toList $ sigDefinitions $ iSignature i
-                    (code, modInfo, amod) <- lift $ compileDefns moduleName modInfos defns
+                    opts <- lift commandLineOptions
+                    (code, modInfo, amod) <- lift $ compileDefns moduleName modInfos opts defns
                     lift $ do
                         let modParts = fst $ fromMaybe __IMPOSSIBLE__ $ mnameToCoreName (amiCurNameMp modInfo) moduleName
                         crFile <- outFile modParts
@@ -301,14 +302,15 @@ idPrint s m x = do
 -- | Perform the chain of compilation stages, from definitions to epic code
 compileDefns :: ModuleName
     -> [AModuleInfo] -- ^ top level imports
+    -> CommandLineOptions
     -> [(QName, Definition)] -> TCM (EC.CModule, AModuleInfo, AMod)
-compileDefns mod modImps defs = do
+compileDefns mod modImps opts defs = do
 --    let modName = L.intercalate "." (CN.moduleNameParts mod)
 
 --    (amod, modInfo) <- 
     (amod', modInfo) <- FAgda.fromAgdaModule mod modImps defs $ \mod ->
                    return mod
-               >>= idPrint "smashing"      Smash.smash'em
+               >>= optim optOptimSmashing "smashing"      Smash.smash'em
 --               >>= idPrint "findInjection" ID.findInjection
 --               >>= idPrint "fromAgda"   (FAgda.fromAgdaModule msharp modName modImps)
 --               >>= idPrint "forcing"     Forcing.remForced
@@ -323,6 +325,9 @@ compileDefns mod modImps defs = do
 --    let modEntRel =  getExportedExprs modInfo
     reportSLn "uhc" 10 $ "Done generating Core for \"" ++ show mod ++ "\"."
     return (crMod, modInfo, amod')
+  where optim :: (CommandLineOptions -> Bool) -> String -> Transform -> Transform
+        optim p s m x | p opts = idPrint s m x
+                      | otherwise = return x
 
 writeCoreFile :: String -> EC.CModule -> TCM FilePath
 writeCoreFile f mod = do

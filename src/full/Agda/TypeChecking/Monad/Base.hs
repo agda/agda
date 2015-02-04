@@ -1158,6 +1158,8 @@ data Defn = Axiom
               --   checker.
             , funStatic         :: Bool
               -- ^ Should calls to this function be normalised at compile-time?
+            , funSmashable      :: Bool
+              -- ^ Are we allowed to smash this function?
             , funCopy           :: Bool
               -- ^ Has this function been created by a module
                                    -- instantiation?
@@ -1233,6 +1235,7 @@ emptyFunction = Function
   , funDelayed     = NotDelayed
   , funProjection  = Nothing
   , funStatic      = False
+  , funSmashable   = True
   , funCopy        = False
   , funTerminates  = Nothing
   , funExtLam      = Nothing

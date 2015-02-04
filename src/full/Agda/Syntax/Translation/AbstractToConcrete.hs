@@ -839,6 +839,7 @@ instance ToConcrete RangeAndPragma C.Pragma where
         A.CompiledCoreDataPragma x crd crcs -> do
           x <- toConcrete x
           return $ C.CompiledCoreDataPragma r x crd crcs
+        A.DontSmashPragma x -> C.DontSmashPragma r <$> toConcrete x
         A.StaticPragma x -> C.StaticPragma r <$> toConcrete x
         A.EtaPragma x    -> C.EtaPragma    r <$> toConcrete x
 

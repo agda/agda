@@ -1419,6 +1419,12 @@ instance ToAbstract C.Pragma [A.Pragma] where
       case e of
         A.Def x -> return [ A.CompiledCoreDataPragma x crd crcs ]
         _       -> fail $ "Bad compiled type: " ++ show x  -- TODO: error message
+    toAbstract (C.DontSmashPragma _ x) = do
+        e <- toAbstract $ OldQName x
+        y <- case e of
+            A.Def x -> return x
+            _       -> __IMPOSSIBLE__
+        return [ A.DontSmashPragma y ]
     toAbstract (C.StaticPragma _ x) = do
         e <- toAbstract $ OldQName x Nothing
         y <- case e of

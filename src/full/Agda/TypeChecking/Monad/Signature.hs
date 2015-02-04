@@ -137,6 +137,13 @@ addCoreType q crTy = modifySignature $ updateDefinition q $ updateDefCompiledRep
   where
     addCr crep = crep { compiledCore = Just $ CrType crTy }
 
+markDontSmash :: QName -> TCM ()
+markDontSmash q = modifySignature $ updateDefinition q $ mark
+  where
+    mark def@Defn{theDef = fun@Function{}} =
+      def{theDef = fun{funSmashable = False}}
+    mark def = def
+
 markStatic :: QName -> TCM ()
 markStatic q = modifySignature $ updateDefinition q $ mark
   where
@@ -345,6 +352,7 @@ applySection new ptel old ts rd rm = do
                         , funAbstr          = ConcreteDef
                         , funProjection     = proj
                         , funStatic         = False
+                        , funSmashable      = True
                         , funCopy           = True
                         , funTerminates     = Just True
                         , funExtLam         = extlam

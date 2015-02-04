@@ -190,6 +190,7 @@ data Pragma
   | CompiledJSPragma QName String
   | CompiledCorePragma QName String
   | CompiledCoreDataPragma QName String [String]
+  | DontSmashPragma QName
   | StaticPragma QName
   | EtaPragma QName
   deriving (Typeable, Show, Eq)

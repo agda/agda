@@ -603,6 +603,11 @@ checkPragma r p =
                 addCoreType x dt'
                 sequence_ $ zipWith addCoreConstr cs cons'
             _ -> typeError $ GenericError "COMPILED_CORE_DATA on non datatype"
+        A.DontSmashPragma x -> do
+          def <- getConstInfo x
+          case theDef def of
+            Function{} -> markDontSmash x
+            _          -> typeError $ GenericError "DONT_SMASH directive only works on functions"
         A.StaticPragma x -> do
           def <- getConstInfo x
           case theDef def of

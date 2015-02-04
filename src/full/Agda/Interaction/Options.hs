@@ -95,6 +95,7 @@ data CommandLineOptions = Options
   , optUHCTextualCore   :: Bool
   , optUHCCallUHC       :: Bool
   , optUHCTraceLevel    :: Int
+  , optOptimSmashing    :: Bool
   , optCompileDir       :: Maybe FilePath
   -- ^ In the absence of a path the project root is used.
   , optGenerateVimFile  :: Bool
@@ -177,6 +178,7 @@ defaultOptions = Options
   , optUHCTextualCore   = False
   , optUHCCallUHC       = True
   , optUHCTraceLevel    = 0
+  , optOptimSmashing    = True
   , optCompileDir       = Nothing
   , optGenerateVimFile  = False
   , optGenerateLaTeX    = False
@@ -456,6 +458,9 @@ uhcTraceLevelFlag :: String -> Flag CommandLineOptions
 -- TODO proper parsing and error handling
 uhcTraceLevelFlag i o = return $ o { optUHCTraceLevel = read i }
 
+optimNoSmashing :: Flag CommandLineOptions
+optimNoSmashing o = return $ o {optOptimSmashing = False }
+
 htmlFlag :: Flag CommandLineOptions
 htmlFlag o = return $ o { optGenerateHTML = True }
 
@@ -515,6 +520,7 @@ standardOptions =
     , Option []     ["uhc-textual-core"] (NoArg uhcTextualCoreFlag) "Use textual core as intermediate representation instead of binary core."
     , Option []     ["uhc-dont-call-uhc"] (NoArg uhcCallUHCFlag) "Don't call uhc, just write the UHC Core files."
     , Option []     ["uhc-gen-trace"] (ReqArg uhcTraceLevelFlag "TRACE") "Add tracing code to generated executable."
+    , Option []     ["no-smashing"] (NoArg optimNoSmashing) "Don't apply the smashing optimization."
     , Option []     ["compile-dir"] (ReqArg compileDirFlag "DIR")
                     ("directory for compiler output (default: the project root)")
     , Option []     ["ghc-flag"] (ReqArg ghcFlag "GHC-FLAG")

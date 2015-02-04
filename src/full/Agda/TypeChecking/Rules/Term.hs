@@ -422,6 +422,7 @@ checkAbsurdLambda i h e t = do
               , funAbstr          = ConcreteDef
               , funMutual         = []
               , funProjection     = Nothing
+              , funSmashable      = False -- there is no body anyway, smashing doesn't make sense
               , funStatic         = False
               , funCopy           = False
               , funTerminates     = Just True

@@ -423,6 +423,7 @@ data Pragma
   | CompiledJSPragma       !Range QName String
   | CompiledCorePragma !Range QName String
   | CompiledCoreDataPragma  !Range QName String [String]
+  | DontSmashPragma        !Range QName
   | StaticPragma           !Range QName
   | ImportPragma           !Range String
     -- ^ Invariant: The string must be a valid Haskell module name.
@@ -667,6 +668,7 @@ instance HasRange Pragma where
   getRange (CompiledJSPragma r _ _)     = r
   getRange (CompiledCorePragma r _ _)   = r
   getRange (CompiledCoreDataPragma r _ _ _) = r
+  getRange (DontSmashPragma r _)        = r
   getRange (StaticPragma r _)           = r
   getRange (ImportPragma r _)           = r
   getRange (ImpossiblePragma r)         = r
@@ -854,6 +856,7 @@ instance KillRange Pragma where
   killRange (CompiledJSPragma _ q s)      = killRange1 (\q -> CompiledJSPragma noRange q s) q
   killRange (CompiledCorePragma _ q s)    = killRange1 (\q -> CompiledCorePragma noRange q s) q
   killRange (CompiledCoreDataPragma _ q s ss) = killRange1 (\q -> CompiledCoreDataPragma noRange q s ss) q
+  killRange (DontSmashPragma _ q)         = killRange1 (DontSmashPragma noRange) q
   killRange (StaticPragma _ q)            = killRange1 (StaticPragma noRange) q
   killRange (ImportPragma _ s)            = ImportPragma noRange s
   killRange (ImpossiblePragma _)          = ImpossiblePragma noRange

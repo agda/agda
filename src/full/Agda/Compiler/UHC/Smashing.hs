@@ -55,7 +55,7 @@ smashFuns funs = do
     funs' <- evalFreshNameT "nl.uu.agda.smashing" $ forM funs $ \f -> case f of
       AA.Fun{} -> case xfunQName f >>= flip HM.lookup defs of
 
-          Just (def@(Defn {theDef = (Function {})})) -> do
+          Just (def@(Defn {theDef = (Function { funSmashable = True })})) -> do
               lift $ lift $ reportSLn "uhc.smashing" 10 $ "running on:" ++ (show (xfunQName f))
               minfered <- runMaybeT $ smashable (length (xfunArgs f) + defnPars (theDef def)) (defType def)
               case minfered of
@@ -96,7 +96,7 @@ inferable visited dat args = do
             [c] -> inferableArgs c (dataPars d)
             _   -> fail'
       r@Record{}   -> inferableArgs (recCon r) (recPars r)
-      f@Function{} -> do
+      f@Function{ funSmashable = True } -> do
         term <- lift $ lift $ lift $ normalise $ Def dat $ map SI.Apply args
         inferableTerm visited' term
       d -> do

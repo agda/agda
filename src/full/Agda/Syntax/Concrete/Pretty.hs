@@ -446,6 +446,8 @@ instance Pretty Pragma where
       hsep [ text "COMPILED_CORE", pretty x, text e ]
     pretty (CompiledCoreDataPragma _ x crd crcs) =
       hsep $ [ text "COMPILED_CORE_DATA", pretty x] ++ map text (crd : crcs)
+    pretty (DontSmashPragma _ i) =
+      hsep $ [text "DONT_SMASH", pretty i]
     pretty (StaticPragma _ i) =
       hsep $ [text "STATIC", pretty i]
     pretty (ImportPragma _ i) =
