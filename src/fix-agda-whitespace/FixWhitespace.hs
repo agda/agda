@@ -9,17 +9,8 @@ import qualified Data.Text.IO as Text  -- Strict IO.
 import System.Directory ( getCurrentDirectory )
 import System.Environment
 import System.Exit
+import System.FilePath
 import System.FilePath.Find
-  ( (||?)
-  , (&&?)
-  , (==?)
-  , (/=?)
-  , extension
-  , fileName
-  , find
-  , FindClause
-  , RecursionPredicate
-  )
 import System.IO
 
 -- Configuration parameters.
@@ -28,15 +19,22 @@ extensions :: [String]
 extensions =
   [".agda", ".cabal", ".el", ".hs", ".hs-boot", ".lhs", ".md", ".x", ".y"]
 
--- ASR (16 June 2014). In test/succeed/LineEndings/ we test that Agda
--- can handle various kinds of whitespace (pointed out by Nils), so we
--- exclude this directory.
---
--- ASR (26 September 2014) TODO: The directory Compiler/MAlonzo from
--- Agda source code shouldn't be excluded.
-excludedDirs :: [String]
-excludedDirs =
- ["_darcs", ".git", "dist", "LineEndings", "MAlonzo", "std-lib", "bugs"]
+-- In test/succeed/LineEndings/ we test that Agda can handle various
+-- kinds of whitespace, so we exclude this directory.
+validDir
+  :: FilePath
+     -- ^ The base directory.
+  -> RecursionPredicate
+validDir base =
+ filePath ==? (base </> "src/full/Agda/Compiler/MAlonzo")
+   ||?
+ foldr1 (&&?)
+   (map (fileName /=?) ["dist", "MAlonzo"]
+      ++
+    map (\d -> filePath /=? base </> d)
+        [ "_darcs", ".git", "std-lib", "test/bugs"
+        , "test/succeed/LineEndings"
+        ])
 
 -- Andreas (24 Sep 2014).
 -- | The following files are exempt from the whitespace check,
@@ -57,13 +55,6 @@ filesFilter = foldr1 (||?) (map (extension ==?) extensions)
           &&? foldr1 (&&?) (map (fileName /=?) excludedFiles)
           &&? ((head <$> fileName) /=? '.')  -- exclude hidden files
 
--- ASR (12 June 2014). Adapted from the examples of fileManip 0.3.6.2.
---
--- A recursion control predicate that will avoid recursing into the
--- @excludeDirs@ directories list.
-nonRCS :: RecursionPredicate
-nonRCS = (`notElem` excludedDirs) `liftM` fileName
-
 -- Modes.
 
 data Mode
@@ -79,8 +70,8 @@ main = do
     ["--check"] -> return Check
     _           -> hPutStr stderr usage >> exitFailure
 
-  dir <- getCurrentDirectory
-  changes <- mapM (fix mode) =<< find nonRCS filesFilter dir
+  base <- getCurrentDirectory
+  changes <- mapM (fix mode) =<< find (validDir base) filesFilter base
 
   when (or changes && mode == Check) exitFailure
 
