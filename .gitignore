@@ -20,7 +20,8 @@ cabal.sandbox.config
 config.log
 config.status
 configure
-dist
+dist/
+dist-*/
 Epic
 examples/compiler/main
 MAlonzo

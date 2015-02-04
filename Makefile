@@ -6,12 +6,16 @@ PROFVERB=7
 
 # Various paths and commands
 
+TOP=.
+include ./mk/version.mk
+# mk/path.mk uses TOP and VERSION, so include after the definition of
+# TOP, and after including mk/version.mk.
+include ./mk/paths.mk
+
+CABAL_OPTIONS=--builddir=$(BUILD_DIR)
+
 CABAL_CMD=cabal
 override CABAL_OPTS+=$(CABAL_OPTIONS)
-TOP=.
-
-# mk/path.mk uses TOP, so include after definition of TOP!
-include ./mk/paths.mk
 
 ## Default target #########################################################
 
@@ -59,13 +63,13 @@ setup-emacs-mode : install-bin
 
 .PHONY : doc
 doc:
-	cabal configure
-	cabal haddock
+	$(CABAL_CMD) configure $(CABAL_OPTS)
+	$(CABAL_CMD) haddock $(CABAL_OPTS)
 
 ## Making the full language ###############################################
 
 $(AGDA_BIN):
-	cabal build
+	$(CABAL_CMD) build $(CABAL_OPTS)
 
 .PHONY : full
 full : $(AGDA_BIN)
@@ -198,7 +202,7 @@ benchmark :
 
 .PHONY : clean
 clean :
-	cabal clean
+	$(CABAL_CMD) clean $(CABAL_OPTS)
 
 ## Whitespace-related #####################################################
 
@@ -223,14 +227,14 @@ install-fix-agda-whitespace :
 
 .PHONY: hpc-build
 hpc-build:
-	cabal clean
-	cabal configure --enable-library-coverage
-	cabal build
+	$(CABAL_CMD) clean $(CABAL_OPTS)
+	$(CABAL_CMD) configure --enable-library-coverage $(CABAL_OPTS)
+	$(CABAL_CMD) build $(CABAL_OPTS)
 
 agda.tix: ./examples/agda.tix ./test/succeed/agda.tix ./test/compiler/agda.tix ./test/api/agda.tix ./test/interaction/agda.tix ./test/fail/agda.tix ./test/fail/Epic/agda.tix ./test/lib-succeed/agda.tix ./std-lib/agda.tix
 	hpc sum --output=$@ $^
 
 .PHONY: hpc
 hpc: hpc-build test agda.tix
-	hpc report --hpcdir=dist/hpc/mix/Agda-$(VERSION) agda.tix
-	hpc markup --hpcdir=dist/hpc/mix/Agda-$(VERSION) agda --destdir=hpc-report
+	hpc report --hpcdir=$(BUILD_DIR)/hpc/mix/Agda-$(VERSION) agda.tix
+	hpc markup --hpcdir=$(BUILD_DIR)/hpc/mix/Agda-$(VERSION) agda --destdir=hpc-report

@@ -12,7 +12,7 @@ import System.Directory
 import System.FilePath
 
 import Paths_Agda (getDataFileName)
--- NB: find Paths_Agda.hs in dist/build/autogen/
+-- NB: find Paths_Agda.hs in $(BUILD_DIR)/build/autogen/
 
 import Agda.Syntax.Concrete
 import {-# SOURCE #-} Agda.TypeChecking.Errors
