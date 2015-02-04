@@ -14,7 +14,8 @@ autom4te.cache
 config.log
 config.status
 configure
-dist
+dist/
+dist-*/
 Epic
 examples/compiler/main
 MAlonzo

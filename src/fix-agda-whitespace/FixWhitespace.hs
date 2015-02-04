@@ -29,7 +29,9 @@ validDir base =
  filePath ==? (base </> "src/full/Agda/Compiler/MAlonzo")
    ||?
  foldr1 (&&?)
-   (map (fileName /=?) ["dist", "MAlonzo"]
+   ([ fileName /~? "dist*"
+    , fileName /=? "MAlonzo"
+    ]
       ++
     map (\d -> filePath /=? base </> d)
         [ "_darcs", ".git", "std-lib", "test/bugs"

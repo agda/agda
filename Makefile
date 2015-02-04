@@ -49,8 +49,10 @@ override CABAL_OPTS+=
 #  -f old-time
 #  -f epic
 
-# --program-suffix is not for the executable name in dist/build/,
-# only for installing it into .cabal/bin
+override CABAL_OPTS+=--builddir=$(BUILD_DIR)
+
+# --program-suffix is not for the executable name in
+# $(BUILD_DIR)/build/, only for installing it into .cabal/bin
 override CABAL_OPTS+=--program-suffix=-$(VERSION)
 
 # If you want to make use of parallel compilation with ghc>=7.8,
@@ -138,23 +140,23 @@ $(SETUP) : Setup.hs
 
 endif
 
-CONFIG	= dist/setup-config
+CONFIG	= $(BUILD_DIR)/setup-config
 CABAL		= Agda.cabal
-BUILD		= dist/build-complete
-INPLACE = dist/installed-inplace
+BUILD		= $(BUILD_DIR)/build-complete
+INPLACE = $(BUILD_DIR)/installed-inplace
 SOURCES = $(shell $(FIND) $(FULL_SRC_DIR) -name '*hs') \
 					$(shell $(FIND) $(FULL_SRC_DIR) -name '*.y') \
 					$(shell $(FIND) $(FULL_SRC_DIR) -name '*.x')
 
 $(CONFIG) : $(CABAL) $(SETUP)
-	$(RUNSETUP) configure
+	$(RUNSETUP) configure $(CABAL_OPTS)
 
 $(BUILD) : $(CONFIG) $(SOURCES)
-	$(RUNSETUP) build
+	$(RUNSETUP) build $(CABAL_OPTS)
 	@date > $@
 
 $(INPLACE) : $(BUILD)
-	$(RUNSETUP) register --user --inplace
+	$(RUNSETUP) register --user --inplace $(CABAL_OPTS)
 	@date > $@
 
 $(AGDA_BIN) : $(INPLACE) $(MAIN_SRC_DIR)/Main.hs
@@ -331,7 +333,7 @@ benchmark :
 clean :
 	$(MAKE) -C $(HADDOCK_DIR) clean
 	rm -rf $(OUT_DIR)
-	rm -rf dist
+	rm -rf $(BUILD_DIR)
 
 .PHONY : veryclean
 veryclean :
@@ -379,14 +381,14 @@ install-fix-agda-whitespace :
 
 .PHONY: hpc-build
 hpc-build:
-	cabal clean
-	cabal configure --enable-library-coverage
-	cabal build
+	$(CABAL_CMD) clean $(CABAL_OPTS)
+	$(CABAL_CMD) configure --enable-library-coverage $(CABAL_OPTS)
+	$(CABAL_CMD) build $(CABAL_OPTS)
 
 agda.tix: ./examples/agda.tix ./test/succeed/agda.tix ./test/compiler/agda.tix ./test/api/agda.tix ./test/interaction/agda.tix ./test/fail/agda.tix ./test/fail/Epic/agda.tix ./test/lib-succeed/agda.tix ./std-lib/agda.tix
 	hpc sum --output=$@ $^
 
 .PHONY: hpc
 hpc: hpc-build test agda.tix
-	hpc report --hpcdir=dist/hpc/mix/Agda-$(VERSION) agda.tix
-	hpc markup --hpcdir=dist/hpc/mix/Agda-$(VERSION) agda --destdir=hpc-report
+	hpc report --hpcdir=$(BUILD_DIR)/hpc/mix/Agda-$(VERSION) agda.tix
+	hpc markup --hpcdir=$(BUILD_DIR)/hpc/mix/Agda-$(VERSION) agda --destdir=hpc-report
