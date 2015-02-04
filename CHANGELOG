@@ -42,25 +42,25 @@ Important changes since 0.9:
 
   At the moment, the modules added are:
 
-  Data.Unit.Base
   Data.Bool.Base
+  Data.Char.Base
+  Data.List.Base
   Data.Maybe.Base
   Data.Nat.Base
-  Data.List.Base
   Data.String.Base
-  Data.Char.Base
+  Data.Unit.Base
 
   These modules are also cheap to import and can be considered basic:
 
-  Level
-  Function
+  Data.BoundedVec.Inefficient
   Data.Empty
-  Relation.Nullary
   Data.Product
   Data.Sum
-  Data.BoundedVec.Inefficient
+  Function
+  Level
   Relation.Binary
   Relation.Binary.PropositionalEquality.TrustMe
+  Relation.Nullary
 
 * Added singleton sets to Relation.Unary.
 
@@ -94,7 +94,6 @@ Important changes since 0.9:
    fromℕ-def      : ∀ n → fromℕ n ≡ fromℕ≤ ℕ≤-refl
    reverse-suc : ∀{n}{i : Fin n} → toℕ (reverse (suc i)) ≡ toℕ (reverse i)
    inject≤-refl : ∀ {n} (i : Fin n) (n≤n : n ℕ≤ n) → inject≤ i n≤n ≡ i
-
 
 ------------------------------------------------------------------------
 -- Release notes for Agda standard library version 0.9
