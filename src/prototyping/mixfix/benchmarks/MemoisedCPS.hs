@@ -26,13 +26,13 @@
 module MemoisedCPS (Parser, parse) where
 
 import Control.Applicative
-import Control.Monad.State.Lazy
+import Control.Monad.State.Strict
 import Data.Array
 import Data.List
-import qualified Data.IntMap as IntMap
-import Data.IntMap (IntMap)
-import qualified Data.Map as Map
-import Data.Map (Map)
+import qualified Data.IntMap.Strict as IntMap
+import Data.IntMap.Strict (IntMap)
+import qualified Data.HashMap.Strict as Map
+import Data.HashMap.Strict (HashMap)
 
 import qualified Parser
 
@@ -42,7 +42,7 @@ type Pos = Int
 
 -- | State monad used by the parser.
 
-type M k r tok b = State (IntMap (Map k (Value k r tok b)))
+type M k r tok b = State (IntMap (HashMap k (Value k r tok b)))
 
 -- | Continuations.
 
@@ -51,7 +51,7 @@ type Cont k r tok b a = Pos -> a -> M k r tok b [b]
 -- | Memoised values.
 
 data Value k r tok b = Value
-  { results       :: IntMap [r]
+  { results       :: !(IntMap [r])
   , continuations :: [Cont k r tok b r]
   }
 
@@ -95,7 +95,7 @@ instance Parser.Parser (Parser k r tok) k r tok where
   sym c = P $ \input i k ->
     let c' = input ! i in
     if inRange (bounds input) i && c == c' then
-      k (i + 1) c'
+      (k $! (i + 1)) c'
      else
       return []
 
@@ -106,7 +106,7 @@ instance Parser.Parser (Parser k r tok) k r tok where
 
         lookupTable   = fmap (\m -> Map.lookup key =<<
                                     IntMap.lookup i m) get
-        insertTable v = modify $ alter i Map.empty (Map.insert key v)
+        insertTable v = modify' $ alter i Map.empty (Map.insert key v)
 
     v <- lookupTable
     case v of

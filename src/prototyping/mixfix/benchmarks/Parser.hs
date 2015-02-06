@@ -8,6 +8,7 @@ module Parser where
 
 import Control.Applicative
 import Data.Foldable
+import Data.Hashable
 
 class Alternative p => Parser p k r' tok
       | p -> tok, p -> k, p -> r' where
@@ -17,7 +18,7 @@ class Alternative p => Parser p k r' tok
   -- key. (Parameterised parsers need separate keys for separate
   -- inputs.)
 
-  memoise :: (Ord k, Ord r') => k -> p r' -> p r'
+  memoise :: (Hashable k, Ord k, Ord r') => k -> p r' -> p r'
   memoise _ p = p
 
   choice :: [p r] -> p r
