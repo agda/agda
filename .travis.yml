@@ -10,7 +10,7 @@ language: haskell
 # https://github.com/hvr/multi-ghc-travis.
 
 ghc:
-  - 7.8.3
+  - 7.8.4
   - 7.6.3
   - 7.4.2
 
