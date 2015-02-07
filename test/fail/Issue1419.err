@@ -1,0 +1,7 @@
+Issue1419.agda:12,20-21
+Ambiguous module name M. It could refer to any one of
+  A.M
+  B.M
+(hint: Use C-c C-w (in Emacs) if you want to know why)
+when scope checking the declaration
+  module N (let open M) where
