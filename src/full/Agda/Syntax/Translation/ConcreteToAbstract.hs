@@ -463,7 +463,8 @@ instance ToAbstract NewModuleQName A.ModuleName where
         toAbs m' q
 
 instance ToAbstract OldModuleName A.ModuleName where
-  toAbstract (OldModuleName q) = amodName <$> resolveModule q
+  toAbstract (OldModuleName q) = setCurrentRange (getRange q) $ do
+    amodName <$> resolveModule q
 
 -- Expressions ------------------------------------------------------------
 
