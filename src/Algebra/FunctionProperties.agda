@@ -51,7 +51,7 @@ Zero : A → Op₂ A → Set _
 Zero z ∙ = LeftZero z ∙ × RightZero z ∙
 
 LeftInverse : A → Op₁ A → Op₂ A → Set _
-LeftInverse e _⁻¹ _∙_ = ∀ x → (x ⁻¹ ∙ x) ≈ e
+LeftInverse e _⁻¹ _∙_ = ∀ x → ((x ⁻¹) ∙ x) ≈ e
 
 RightInverse : A → Op₁ A → Op₂ A → Set _
 RightInverse e _⁻¹ _∙_ = ∀ x → (x ∙ (x ⁻¹)) ≈ e

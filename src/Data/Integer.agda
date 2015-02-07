@@ -11,7 +11,7 @@ open import Data.Nat as ℕ
 import Data.Nat.Show as ℕ
 open import Data.Sign as Sign using (Sign) renaming (_*_ to _S*_)
 open import Data.Product as Prod
-open import Data.String using (String; _++_)
+open import Data.String.Base using (String; _++_)
 open import Function
 open import Data.Sum as Sum
 open import Relation.Nullary

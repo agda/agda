@@ -108,52 +108,29 @@ module Height-invariants where
   i ⊕ zero  -1 = 0
   i ⊕ suc n -1 = i ⊕ n
 
-  infix 4 _∼_
+  infix 4 _∼_⊔_
 
-  -- If m ∼ n, then the difference between m and n is at most 1. _∼_
-  -- is used to record the balance factor of the AVL trees, and also
-  -- to ensure that the absolute value of the balance factor is never
-  -- more than 1.
+  -- If i ∼ j ⊔ m, then the difference between i and j is at most 1,
+  -- and the maximum of i and j is m. _∼_⊔_ is used to record the
+  -- balance factor of the AVL trees, and also to ensure that the
+  -- absolute value of the balance factor is never more than 1.
 
-  data _∼_ : ℕ → ℕ → Set where
-    ∼+ : ∀ {n} →     n ∼ 1 + n
-    ∼0 : ∀ {n} →     n ∼ n
-    ∼- : ∀ {n} → 1 + n ∼ n
-
-  -- The maximum of m and n.
-
-  max : ∀ {m n} → m ∼ n → ℕ
-  max (∼+ {n}) = 1 + n
-  max (∼0 {n}) =     n
-  max (∼- {n}) = 1 + n
+  data _∼_⊔_ : ℕ → ℕ → ℕ → Set where
+    ∼+ : ∀ {n} →     n ∼ 1 + n ⊔ 1 + n
+    ∼0 : ∀ {n} →     n ∼ n     ⊔ n
+    ∼- : ∀ {n} → 1 + n ∼ n     ⊔ 1 + n
 
   -- Some lemmas.
 
-  1+ : ∀ {m n} → m ∼ n → 1 + m ∼ 1 + n
-  1+ ∼+ = ∼+
-  1+ ∼0 = ∼0
-  1+ ∼- = ∼-
-
-  max∼ : ∀ {i j} (bal : i ∼ j) → max bal ∼ i
+  max∼ : ∀ {i j m} → i ∼ j ⊔ m → m ∼ i ⊔ m
   max∼ ∼+ = ∼-
   max∼ ∼0 = ∼0
   max∼ ∼- = ∼0
 
-  ∼max : ∀ {i j} (bal : i ∼ j) → j ∼ max bal
+  ∼max : ∀ {i j m} → i ∼ j ⊔ m → j ∼ m ⊔ m
   ∼max ∼+ = ∼0
   ∼max ∼0 = ∼0
   ∼max ∼- = ∼+
-
-  max∼max : ∀ {i j} (bal : i ∼ j) → max (max∼ bal) ∼ max (∼max bal)
-  max∼max ∼+ = ∼0
-  max∼max ∼0 = ∼0
-  max∼max ∼- = ∼0
-
-  max-lemma : ∀ {m n} (bal : m ∼ n) →
-              1 + max (1+ (max∼max bal)) ≡ 2 + max bal
-  max-lemma ∼+ = P.refl
-  max-lemma ∼0 = P.refl
-  max-lemma ∼- = P.refl
 
 ------------------------------------------------------------------------
 -- AVL trees
@@ -175,11 +152,12 @@ module Indexed where
 
   data Tree (l u : Key⁺) : ℕ → Set (k ⊔ v ⊔ ℓ) where
     leaf : (l<u : l <⁺ u) → Tree l u 0
-    node : ∀ {hˡ hʳ}
+    node : ∀ {hˡ hʳ h}
            (k : KV)
            (lk : Tree l [ proj₁ k ] hˡ)
-           (ku : Tree [ proj₁ k ] u hʳ) (bal : hˡ ∼ hʳ) →
-           Tree l u (1 + max bal)
+           (ku : Tree [ proj₁ k ] u hʳ)
+           (bal : hˡ ∼ hʳ ⊔ h) →
+           Tree l u (suc h)
 
   -- Cast operations. Logarithmic in the size of the tree, if we don't
   -- count the time needed to construct the new proofs in the leaf
@@ -202,50 +180,48 @@ module Indexed where
   -- Various constant-time functions which construct trees out of
   -- smaller pieces, sometimes using rotation.
 
-  joinˡ⁺ : ∀ {l u hˡ hʳ} →
+  joinˡ⁺ : ∀ {l u hˡ hʳ h} →
            (k : KV) →
            (∃ λ i → Tree l [ proj₁ k ] (i ⊕ hˡ)) →
            Tree [ proj₁ k ] u hʳ →
-           (bal : hˡ ∼ hʳ) →
-           ∃ λ i → Tree l u (i ⊕ (1 + max bal))
+           (bal : hˡ ∼ hʳ ⊔ h) →
+           ∃ λ i → Tree l u (i ⊕ (1 + h))
   joinˡ⁺ k₆ (1# , node k₂ t₁
                     (node k₄ t₃ t₅ bal)
-                                ∼+) t₇ ∼-  = (0# , P.subst (Tree _ _) (max-lemma bal)
-                                                     (node k₄
-                                                           (node k₂ t₁ t₃ (max∼ bal))
-                                                           (node k₆ t₅ t₇ (∼max bal))
-                                                           (1+ (max∼max bal))))
+                                ∼+) t₇ ∼-  = (0# , node k₄
+                                                        (node k₂ t₁ t₃ (max∼ bal))
+                                                        (node k₆ t₅ t₇ (∼max bal))
+                                                        ∼0)
   joinˡ⁺ k₄ (1# , node k₂ t₁ t₃ ∼-) t₅ ∼-  = (0# , node k₂ t₁ (node k₄ t₃ t₅ ∼0) ∼0)
   joinˡ⁺ k₄ (1# , node k₂ t₁ t₃ ∼0) t₅ ∼-  = (1# , node k₂ t₁ (node k₄ t₃ t₅ ∼-) ∼+)
   joinˡ⁺ k₂ (1# , t₁)               t₃ ∼0  = (1# , node k₂ t₁ t₃ ∼-)
   joinˡ⁺ k₂ (1# , t₁)               t₃ ∼+  = (0# , node k₂ t₁ t₃ ∼0)
   joinˡ⁺ k₂ (0# , t₁)               t₃ bal = (0# , node k₂ t₁ t₃ bal)
 
-  joinʳ⁺ : ∀ {l u hˡ hʳ} →
+  joinʳ⁺ : ∀ {l u hˡ hʳ h} →
            (k : KV) →
            Tree l [ proj₁ k ] hˡ →
            (∃ λ i → Tree [ proj₁ k ] u (i ⊕ hʳ)) →
-           (bal : hˡ ∼ hʳ) →
-           ∃ λ i → Tree l u (i ⊕ (1 + max bal))
+           (bal : hˡ ∼ hʳ ⊔ h) →
+           ∃ λ i → Tree l u (i ⊕ (1 + h))
   joinʳ⁺ k₂ t₁ (1# , node k₆
                        (node k₄ t₃ t₅ bal)
-                                t₇ ∼-) ∼+  = (0# , P.subst (Tree _ _) (max-lemma bal)
-                                                     (node k₄
-                                                           (node k₂ t₁ t₃ (max∼ bal))
-                                                           (node k₆ t₅ t₇ (∼max bal))
-                                                           (1+ (max∼max bal))))
+                                t₇ ∼-) ∼+  = (0# , node k₄
+                                                        (node k₂ t₁ t₃ (max∼ bal))
+                                                        (node k₆ t₅ t₇ (∼max bal))
+                                                        ∼0)
   joinʳ⁺ k₂ t₁ (1# , node k₄ t₃ t₅ ∼+) ∼+  = (0# , node k₄ (node k₂ t₁ t₃ ∼0) t₅ ∼0)
   joinʳ⁺ k₂ t₁ (1# , node k₄ t₃ t₅ ∼0) ∼+  = (1# , node k₄ (node k₂ t₁ t₃ ∼+) t₅ ∼-)
   joinʳ⁺ k₂ t₁ (1# , t₃)               ∼0  = (1# , node k₂ t₁ t₃ ∼+)
   joinʳ⁺ k₂ t₁ (1# , t₃)               ∼-  = (0# , node k₂ t₁ t₃ ∼0)
   joinʳ⁺ k₂ t₁ (0# , t₃)               bal = (0# , node k₂ t₁ t₃ bal)
 
-  joinˡ⁻ : ∀ {l u} hˡ {hʳ} →
+  joinˡ⁻ : ∀ {l u} hˡ {hʳ h} →
            (k : KV) →
            (∃ λ i → Tree l [ proj₁ k ] (i ⊕ hˡ -1)) →
            Tree [ proj₁ k ] u hʳ →
-           (bal : hˡ ∼ hʳ) →
-           ∃ λ i → Tree l u (i ⊕ max bal)
+           (bal : hˡ ∼ hʳ ⊔ h) →
+           ∃ λ i → Tree l u (i ⊕ h)
   joinˡ⁻ zero    k₂ (0# , t₁) t₃ bal = (1# , node k₂ t₁ t₃ bal)
   joinˡ⁻ zero    k₂ (1# , t₁) t₃ bal = (1# , node k₂ t₁ t₃ bal)
   joinˡ⁻ (suc _) k₂ (0# , t₁) t₃ ∼+  = joinʳ⁺ k₂ t₁ (1# , t₃) ∼+
@@ -253,12 +229,12 @@ module Indexed where
   joinˡ⁻ (suc _) k₂ (0# , t₁) t₃ ∼-  = (0# , node k₂ t₁ t₃ ∼0)
   joinˡ⁻ (suc _) k₂ (1# , t₁) t₃ bal = (1# , node k₂ t₁ t₃ bal)
 
-  joinʳ⁻ : ∀ {l u hˡ} hʳ →
+  joinʳ⁻ : ∀ {l u hˡ} hʳ {h} →
            (k : KV) →
            Tree l [ proj₁ k ] hˡ →
            (∃ λ i → Tree [ proj₁ k ] u (i ⊕ hʳ -1)) →
-           (bal : hˡ ∼ hʳ) →
-           ∃ λ i → Tree l u (i ⊕ max bal)
+           (bal : hˡ ∼ hʳ ⊔ h) →
+           ∃ λ i → Tree l u (i ⊕ h)
   joinʳ⁻ zero    k₂ t₁ (0# , t₃) bal = (1# , node k₂ t₁ t₃ bal)
   joinʳ⁻ zero    k₂ t₁ (1# , t₃) bal = (1# , node k₂ t₁ t₃ bal)
   joinʳ⁻ (suc _) k₂ t₁ (0# , t₃) ∼-  = joinˡ⁺ k₂ (1# , t₁) t₃ ∼-
@@ -291,9 +267,9 @@ module Indexed where
   -- Another joining function. Logarithmic in the size of either of
   -- the input trees (which need to have almost equal heights).
 
-  join : ∀ {l m u hˡ hʳ} →
-         Tree l m hˡ → Tree m u hʳ → (bal : hˡ ∼ hʳ) →
-         ∃ λ i → Tree l u (i ⊕ max bal)
+  join : ∀ {l m u hˡ hʳ h} →
+         Tree l m hˡ → Tree m u hʳ → (bal : hˡ ∼ hʳ ⊔ h) →
+         ∃ λ i → Tree l u (i ⊕ h)
   join t₁ (leaf m<u) ∼0 = (0# , castʳ t₁ m<u)
   join t₁ (leaf m<u) ∼- = (0# , castʳ t₁ m<u)
   join {hʳ = suc _} t₁ t₂₃ bal with headTail t₂₃

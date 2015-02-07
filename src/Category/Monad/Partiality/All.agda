@@ -68,7 +68,7 @@ module Reasoning {a p ℓ}
                  {_∼_ : A → A → Set ℓ}
                  (resp : P Respects flip _∼_) where
 
-  infix  2 finally
+  infix  3 finally
   infixr 2 _≡⟨_⟩_ _∼⟨_⟩_
 
   _≡⟨_⟩_ : ∀ x {y} → x ≡ y → All P y → All P x

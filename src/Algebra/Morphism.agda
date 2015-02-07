@@ -27,7 +27,7 @@ module Definitions {f t ℓ}
   Homomorphic₀ ⟦_⟧ ∙ ∘ = ⟦ ∙ ⟧ ≈ ∘
 
   Homomorphic₁ : Morphism → Fun₁ From → Op₁ To → Set _
-  Homomorphic₁ ⟦_⟧ ∙_ ∘_ = ∀ x → ⟦ ∙ x ⟧ ≈ ∘ ⟦ x ⟧
+  Homomorphic₁ ⟦_⟧ ∙_ ∘_ = ∀ x → ⟦ ∙ x ⟧ ≈ (∘ ⟦ x ⟧)
 
   Homomorphic₂ : Morphism → Fun₂ From → Op₂ To → Set _
   Homomorphic₂ ⟦_⟧ _∙_ _∘_ =

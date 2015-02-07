@@ -329,7 +329,7 @@ module _ {a ℓ} {A : Set a} {_∼_ : A → A → Set ℓ} where
       module Pre {k}  = Preorder (preorder′ isEquivalence k)
       module S {k eq} = Setoid (setoid isEquivalence k {eq})
 
-    infix  2 _∎
+    infix  3 _∎
     infixr 2 _≡⟨_⟩_ _≅⟨_⟩_ _≳⟨_⟩_ _≈⟨_⟩_
 
     _≡⟨_⟩_ : ∀ {k} x {y z : A ⊥} → x ≡ y → Rel k y z → Rel k x z
@@ -638,7 +638,7 @@ module AlternativeEquality {a ℓ} where
   open Equality.Rel
 
   infix  4 _∣_≅P_ _∣_≳P_ _∣_≈P_
-  infix  2 _∎
+  infix  3 _∎
   infixr 2 _≡⟨_⟩_ _≅⟨_⟩_ _≳⟨_⟩_ _≳⟨_⟩≅_ _≳⟨_⟩≈_ _≈⟨_⟩≅_ _≈⟨_⟩≲_
   infixl 1 _>>=_
 

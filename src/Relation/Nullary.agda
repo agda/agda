@@ -8,14 +8,18 @@
 
 module Relation.Nullary where
 
-import Relation.Nullary.Core as Core
+open import Data.Empty
+open import Level
 
-------------------------------------------------------------------------
--- Negation
+-- Negation.
 
-open Core public using (¬_)
+infix 3 ¬_
 
-------------------------------------------------------------------------
--- Decidable relations
+¬_ : ∀ {ℓ} → Set ℓ → Set ℓ
+¬ P = P → ⊥
 
-open Core public using (Dec; yes; no)
+-- Decidable relations.
+
+data Dec {p} (P : Set p) : Set p where
+  yes : ( p :   P) → Dec P
+  no  : (¬p : ¬ P) → Dec P

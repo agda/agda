@@ -20,9 +20,7 @@ import Relation.Binary.On as On
 open import Relation.Binary.PropositionalEquality as PropEq using (_≡_)
 open import Relation.Binary.PropositionalEquality.TrustMe
 
-import Data.String.Core as Core
-open Core public using (String)
-open Core
+open import Data.String.Base public
 
 -- Possibly infinite strings.
 
@@ -32,35 +30,11 @@ Costring = Colist Char
 ------------------------------------------------------------------------
 -- Operations
 
-infixr 5 _++_
-
-_++_ : String → String → String
-_++_ = primStringAppend
-
-toList : String → List Char
-toList = primStringToList
-
-fromList : List Char → String
-fromList = primStringFromList
-
-toList∘fromList : ∀ s → toList (fromList s) ≡ s
-toList∘fromList s = trustMe
-
-fromList∘toList : ∀ s → fromList (toList s) ≡ s
-fromList∘toList s = trustMe
-
 toVec : (s : String) → Vec Char (List.length (toList s))
 toVec s = Vec.fromList (toList s)
 
 toCostring : String → Costring
 toCostring = Colist.fromList ∘ toList
-
-unlines : List String → String
-unlines []       = ""
-unlines (x ∷ xs) = x ++ "\n" ++ unlines xs
-
-show : String → String
-show = primShowString
 
 -- Informative equality test.
 

@@ -31,7 +31,7 @@ open _-Raw-AlmostCommutative⟶_ morphism renaming (⟦_⟧ to ⟦_⟧′)
 import Algebra.Operations as Ops; open Ops semiring
 
 open import Relation.Binary
-open import Relation.Nullary.Core
+open import Relation.Nullary
 import Relation.Binary.EqReasoning as EqR; open EqR setoid
 import Relation.Binary.PropositionalEquality as PropEq
 import Relation.Binary.Reflection as Reflection

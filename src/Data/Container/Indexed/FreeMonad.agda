@@ -59,7 +59,8 @@ leaf (c , k) = do (c , return? ∘ k)
   open RawPMonad rawPMonad
 
 generic : ∀ {ℓ} {O : Set ℓ} {C : Container O O ℓ ℓ} {o}
-          (c : Command C o) → o ∈ C ⋆ ⋃[ r ∶ Response C c ] ｛ next C c r ｝
+          (c : Command C o) →
+          o ∈ C ⋆ (⋃[ r ∶ Response C c ] ｛ next C c r ｝)
 generic c = do (c , λ r → return? (r , refl))
   where
   open RawPMonad rawPMonad

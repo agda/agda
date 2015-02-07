@@ -37,7 +37,7 @@ finally _ _ = id
 syntax finally x y x∼⁺y = x ∼⁺⟨ x∼⁺y ⟩∎ y ∎
 
 infixr 2 _∼⁺⟨_⟩_
-infix  2 finally
+infix  3 finally
 
 -- Map.
 

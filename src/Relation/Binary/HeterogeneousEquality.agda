@@ -170,7 +170,7 @@ module ≅-Reasoning where
   -- heterogeneous equalities, hence the code duplication here.
 
   infix  4 _IsRelatedTo_
-  infix  2 _∎
+  infix  3 _∎
   infixr 2 _≅⟨_⟩_ _≡⟨_⟩_ _≡⟨⟩_
   infix  1 begin_
 

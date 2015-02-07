@@ -21,6 +21,12 @@ Important changes since 0.9:
 
 * Renamed Data.Unit.Core to Data.Unit.NonEta
 
+* Removed Data.String.Core.
+  The module Data.String.Base now contains these definitions.
+
+* Removed Relation.Nullary.Core.
+  The module Relation.Nullary now contains these definitions directly.
+
 * Inspect on steroids has been simplified (see
   Relation.Binary.PropositionalEquality and
   Relation.Binary.HeterogeneousEquality).
@@ -37,8 +43,24 @@ Important changes since 0.9:
   At the moment, the modules added are:
 
   Data.Bool.Base
+  Data.Char.Base
+  Data.List.Base
   Data.Maybe.Base
+  Data.Nat.Base
+  Data.String.Base
   Data.Unit.Base
+
+  These modules are also cheap to import and can be considered basic:
+
+  Data.BoundedVec.Inefficient
+  Data.Empty
+  Data.Product
+  Data.Sum
+  Function
+  Level
+  Relation.Binary
+  Relation.Binary.PropositionalEquality.TrustMe
+  Relation.Nullary
 
 * Added singleton sets to Relation.Unary.
 
@@ -73,6 +95,20 @@ Important changes since 0.9:
    reverse-suc : ∀{n}{i : Fin n} → toℕ (reverse (suc i)) ≡ toℕ (reverse i)
    inject≤-refl : ∀ {n} (i : Fin n) (n≤n : n ℕ≤ n) → inject≤ i n≤n ≡ i
 
+* Data.AVL.Height-invariants._∼_ was replaced by _∼_⊔_, following
+  Conor McBride's principle of pushing information into indices rather
+  than pulling information out.
+
+  Some lemmas in Data.AVL.Height-invariants (1+, max∼max and
+  max-lemma) were removed.
+
+  The implementations of some functions in Data.AVL were simplified.
+  This could mean that they, and other functions depending on them (in
+  Data.AVL, Data.AVL.IndexedMap and Data.AVL.Sets), reduce in a
+  different way than they used to.
+
+* The fixity of all _∎ and finally operators was changed from infix 2
+  to infix 3.
 
 ------------------------------------------------------------------------
 -- Release notes for Agda standard library version 0.9

@@ -74,14 +74,14 @@ concat-∈↔ {a} {x = x} {xss} =
   where open Related.EquationalReasoning
 
 ⊛-∈↔ : ∀ {ℓ} {A B : Set ℓ} (fs : List (A → B)) {xs y} →
-       (∃₂ λ f x → f ∈ fs × x ∈ xs × y ≡ f x) ↔ y ∈ fs ⊛ xs
+       (∃₂ λ f x → f ∈ fs × x ∈ xs × y ≡ f x) ↔ y ∈ (fs ⊛ xs)
 ⊛-∈↔ {ℓ} fs {xs} {y} =
   (∃₂ λ f x → f ∈ fs × x ∈ xs × y ≡ f x)       ↔⟨ Σ.cong {a₁ = ℓ} {b₁ = ℓ} {b₂ = ℓ} Inv.id (∃∃↔∃∃ {a = ℓ} {b = ℓ} {p = ℓ} _) ⟩
   (∃ λ f → f ∈ fs × ∃ λ x → x ∈ xs × y ≡ f x)  ↔⟨ Σ.cong {a₁ = ℓ} {b₁ = ℓ} {b₂ = ℓ}
                                                          Inv.id ((_ ∎) ⟨ ×⊎.*-cong {ℓ = ℓ} ⟩ Any↔ {a = ℓ} {p = ℓ}) ⟩
   (∃ λ f → f ∈ fs × Any (_≡_ y ∘ f) xs)        ↔⟨ Any↔ {a = ℓ} {p = ℓ} ⟩
   Any (λ f → Any (_≡_ y ∘ f) xs) fs            ↔⟨ ⊛↔ ⟩
-  y ∈ fs ⊛ xs                                  ∎
+  y ∈ (fs ⊛ xs)                                ∎
   where open Related.EquationalReasoning
 
 ⊗-∈↔ : ∀ {A B : Set} {xs ys} {x : A} {y : B} →
