@@ -15,11 +15,12 @@ import Agda.Syntax.Scope.Base
 import Agda.Syntax.Internal as I
 
 import Agda.TypeChecking.Errors ()
+import Agda.TypeChecking.Implicit (implicitArgs)
 import Agda.TypeChecking.Irrelevance
 import Agda.TypeChecking.Monad
 import Agda.TypeChecking.Pretty
-import Agda.TypeChecking.Substitute
 import Agda.TypeChecking.Reduce
+import Agda.TypeChecking.Substitute
 import Agda.TypeChecking.Telescope
 
 import {-# SOURCE #-} Agda.TypeChecking.Constraints
@@ -173,25 +174,18 @@ findInScope' m cands = ifM (isFrozen m) (return (Just cands)) $ do
           , text "for type" <+> prettyTCM t
           ]
 
-        -- if t' takes initial hidden arguments, apply them
-        ca <- liftTCM $ runExceptT $ checkArguments ExpandLast ExpandInstanceArguments (getRange mv) [] t' t
-        case ca of
-          Left _ -> __IMPOSSIBLE__
-          Right (args, t'') -> do
-            -- @args@ are the hidden arguments @t'@ takes, @t''@ is @t' `apply` args@
-{- TODO
-        (args, t'') <- implicitArgs (...) t'
-        do
--}
-            leqType t'' t
-            ctxArgs <- getContextArgs
-            v <- (`applyDroppingParameters` args) =<< reduce term
-            assignV DirEq m ctxArgs v
-            reportSDoc "tc.instance" 10 $ vcat
-              [ text "solved by instance search:"
-              , prettyTCM m <+> text ":=" <+> prettyTCM v
-              ]
-            return Nothing
+        -- If t' takes initial hidden and instance arguments, apply them.
+        -- Taking also instance arguments facilitates recursive instance search.
+        (args, t'') <- implicitArgs (-1) notVisible t'
+        leqType t'' t
+        ctxArgs <- getContextArgs
+        v <- (`applyDroppingParameters` args) =<< reduce term
+        assignV DirEq m ctxArgs v
+        reportSDoc "tc.instance" 10 $ vcat
+          [ text "solved by instance search:"
+          , prettyTCM m <+> text ":=" <+> prettyTCM v
+          ]
+        return Nothing
 
       cs -> do
         reportSDoc "tc.instance" 15 $
@@ -269,33 +263,33 @@ checkCandidates m t cands = localTCState $ disableDestructiveUpdate $ do
           , text "t'   =" <+> prettyTCM t'
           , text "term =" <+> prettyTCM term
           ]
+        -- domi: we assume that nothing below performs direct IO
+        -- (except for logging and such, I guess)
         localTCState $ do
-           -- domi: we assume that nothing below performs direct IO (except
-           -- for logging and such, I guess)
-          ca <- runExceptT $ checkArguments ExpandLast ExpandInstanceArguments noRange [] t' t
-          case ca of
-            Left _ -> return False
-            Right (args, t'') -> do
-              reportSDoc "tc.instance" 20 $
-                text "instance search: checking" <+> prettyTCM t''
-                <+> text "<=" <+> prettyTCM t
-              -- if constraints remain, we abort, but keep the candidate
-              flip (ifNoConstraints_ $ leqType t'' t) (const $ return True) $ do
-              --tel <- getContextTelescope
-              ctxArgs <- getContextArgs
-              v <- (`applyDroppingParameters` args) =<< reduce term
-              reportSDoc "tc.instance" 15 $ vcat
-                [ text "instance search: attempting"
-                , nest 2 $ prettyTCM m <+> text ":=" <+> prettyTCM v
-                ]
-              assign DirEq m ctxArgs v
---              assign m ctxArgs (term `apply` args)
-              -- make a pass over constraints, to detect cases where some are made
-              -- unsolvable by the assignment, but don't do this for FindInScope's
-              -- to prevent loops. We currently also ignore UnBlock constraints
-              -- to be on the safe side.
-              solveAwakeConstraints' True
-              return True
+
+          -- Apply hidden and instance arguments (recursive inst. search!).
+          (args, t'') <- implicitArgs (-1) notVisible t'
+
+          reportSDoc "tc.instance" 20 $
+            text "instance search: checking" <+> prettyTCM t''
+            <+> text "<=" <+> prettyTCM t
+          -- if constraints remain, we abort, but keep the candidate
+          flip (ifNoConstraints_ $ leqType t'' t) (const $ return True) $ do
+
+          ctxArgs <- getContextArgs
+          v <- (`applyDroppingParameters` args) =<< reduce term
+          reportSDoc "tc.instance" 15 $ vcat
+            [ text "instance search: attempting"
+            , nest 2 $ prettyTCM m <+> text ":=" <+> prettyTCM v
+            ]
+          assign DirEq m ctxArgs v
+--          assign m ctxArgs (term `apply` args)
+          -- make a pass over constraints, to detect cases where some are made
+          -- unsolvable by the assignment, but don't do this for FindInScope's
+          -- to prevent loops. We currently also ignore UnBlock constraints
+          -- to be on the safe side.
+          solveAwakeConstraints' True
+          return True
       where
         handle :: TCErr -> TCM Bool
         handle err = do
