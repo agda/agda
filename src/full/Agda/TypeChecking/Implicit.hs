@@ -53,26 +53,6 @@ implicitNamedArgs n expand t0 = do
     newMeta Instance = initializeIFSMeta
     newMeta _        = __IMPOSSIBLE__
 
-{- UNUSED, BUT DONT REMOVE (Andreas, 2012-07-31)
-introImplicits :: (Hiding -> Bool) -> Type -> (Int -> Type -> TCM a) -> TCM a
-introImplicits expand t cont = do
-  TelV tel t0 <- telViewUpTo' (-1) (expand . domHiding) t
-  addCtxTel tel $ cont (size tel) t0
--}
-
-{- POINTLESS, NEEDS TO BE CONTINUATION-PASSING
--- | @introImplicits expand t@ introduces domain types of @t@
---   into the context, as long as @expand@ holds on them.
-introImplicits :: (Hiding -> Bool) -> Type -> TCM (Int, Type)
-introImplicits expand t = do
-  t <- reduce t
-  case unEl t of
-    Pi dom@(Dom h rel a) b | expand h ->
-      addCtxString (absName b) dom $ do
-        mapFst (+1) <$> introImplicits expand (absBody b)
-    _ -> return (0, t)
--}
-
 ---------------------------------------------------------------------------
 
 data ImplicitInsertion
