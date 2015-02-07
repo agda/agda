@@ -269,7 +269,7 @@ module EquationalReasoning where
   sym {equivalence} = Eq.sym
   sym {bijection}   = Inv.sym
 
-  infix  2 _∎
+  infix  3 _∎
   infixr 2 _∼⟨_⟩_ _↔⟨_⟩_ _↔⟨⟩_ _≡⟨_⟩_
 
   _∼⟨_⟩_ : ∀ {k x y z} (X : Set x) {Y : Set y} {Z : Set z} →

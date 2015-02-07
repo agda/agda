@@ -31,7 +31,7 @@ module Relation.Binary.SetoidReasoning where
 
 infix 1 begin⟨_⟩_
 infixr 2 _≈⟨_⟩_ _≡⟨_⟩_
-infix 2 _∎
+infix 3 _∎
 
 begin⟨_⟩_ : ∀ {c l} (S : Setoid c l) → {x y : Carrier S} → _IsRelatedTo_ S x y → _≈_ S x y
 begin⟨_⟩_ S p = EqR.begin_ S p
