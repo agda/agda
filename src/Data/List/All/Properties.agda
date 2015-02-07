@@ -108,7 +108,7 @@ private
 -- Three lemmas relating Any, All and negation.
 
 ¬Any↠All¬ : ∀ {a p} {A : Set a} {P : A → Set p} {xs} →
-            ¬ Any P xs ↠ All (¬_ ∘ P) xs
+            (¬ Any P xs) ↠ All (¬_ ∘ P) xs
 ¬Any↠All¬ {P = P} = record
   { to         = P.→-to-⟶ (to _)
   ; surjective = record
@@ -147,7 +147,7 @@ Any¬→¬All (here  ¬p) = ¬p           ∘ All.head
 Any¬→¬All (there ¬p) = Any¬→¬All ¬p ∘ All.tail
 
 Any¬⇔¬All : ∀ {a p} {A : Set a} {P : A → Set p} {xs} →
-            Decidable P → Any (¬_ ∘ P) xs ⇔ ¬ All P xs
+            Decidable P → Any (¬_ ∘ P) xs ⇔ (¬ All P xs)
 Any¬⇔¬All {P = P} dec = record
   { to   = P.→-to-⟶ Any¬→¬All
   ; from = P.→-to-⟶ (from _)

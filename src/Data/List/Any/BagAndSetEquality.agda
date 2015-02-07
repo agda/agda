@@ -113,7 +113,8 @@ concat-cong {a} {xss₁ = xss₁} {xss₂} xss₁≈xss₂ {x} =
 -- _⊛_ is a congruence.
 
 ⊛-cong : ∀ {ℓ k} {A B : Set ℓ} {fs₁ fs₂ : List (A → B)} {xs₁ xs₂} →
-         fs₁ ∼[ k ] fs₂ → xs₁ ∼[ k ] xs₂ → fs₁ ⊛ xs₁ ∼[ k ] fs₂ ⊛ xs₂
+         fs₁ ∼[ k ] fs₂ → xs₁ ∼[ k ] xs₂ →
+         (fs₁ ⊛ xs₁) ∼[ k ] (fs₂ ⊛ xs₂)
 ⊛-cong fs₁≈fs₂ xs₁≈xs₂ =
   >>=-cong fs₁≈fs₂ λ f →
   >>=-cong xs₁≈xs₂ λ x →
@@ -195,7 +196,7 @@ empty-unique {xs = _ ∷ _} ∷∼[] with ⇒→ ∷∼[] (here P.refl)
 
 ⊛-left-distributive :
   ∀ {ℓ} {A B : Set ℓ} (fs : List (A → B)) xs₁ xs₂ →
-  fs ⊛ (xs₁ ++ xs₂) ∼[ bag ] (fs ⊛ xs₁) ++ (fs ⊛ xs₂)
+  (fs ⊛ (xs₁ ++ xs₂)) ∼[ bag ] (fs ⊛ xs₁) ++ (fs ⊛ xs₂)
 ⊛-left-distributive {B = B} fs xs₁ xs₂ = begin
   fs ⊛ (xs₁ ++ xs₂)                         ≡⟨ P.refl ⟩
   (fs >>= λ f → xs₁ ++ xs₂ >>= return ∘ f)  ≡⟨ (LP.Monad.cong (P.refl {x = fs}) λ f →
