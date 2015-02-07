@@ -47,9 +47,9 @@ data Parens : Set where
 infixr 5 _·_
 
 _·_ : Parens -> Parens -> Parens
-ε    · ys = ys
-≪ xs · ys = ≪ (xs · ys)
-≫ xs · ys = ≫ (xs · ys)
+ε      · ys = ys
+(≪ xs) · ys = ≪ (xs · ys)
+(≫ xs) · ys = ≫ (xs · ys)
 
 ·ass : (xs : Parens){ys zs : Parens} -> xs · (ys · zs) ≡ (xs · ys) · zs
 ·ass ε      = refl
@@ -232,4 +232,3 @@ complete xs0 p0 = parse init εS xs0 p0
 
   parse init       _ (≫ zs) ()
   parse init       s ε      tt = subst _∈S ·unitR s
-

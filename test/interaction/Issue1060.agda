@@ -26,7 +26,7 @@ sym refl = refl
 trans : ∀ {a}{A : Set a}{x y z : A} → x ≡ y → y ≡ z → x ≡ z
 trans refl refl = refl
 
-infix  2 _∎
+infix  3 _∎
 infixr 2 _≡⟨_⟩_
 infix  1 begin_
 

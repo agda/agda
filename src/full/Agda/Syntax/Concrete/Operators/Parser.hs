@@ -1,4 +1,5 @@
 {-# LANGUAGE CPP                 #-}
+{-# LANGUAGE DeriveGeneric       #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 
 module Agda.Syntax.Concrete.Operators.Parser where
@@ -6,7 +7,10 @@ module Agda.Syntax.Concrete.Operators.Parser where
 import Control.Applicative
 import Control.Exception (throw)
 
+import Data.Hashable
 import Data.Maybe
+
+import GHC.Generics (Generic)
 
 import Agda.Syntax.Position
 import Agda.Syntax.Common hiding (Arg, Dom, NamedArg)
@@ -21,7 +25,12 @@ import Agda.Utils.Monad
 #include "undefined.h"
 import Agda.Utils.Impossible
 
-type Parser tok a = MemoisedCPS.Parser () tok tok a
+data MemoKey = Node Integer | PostLefts Integer
+  deriving (Eq, Generic)
+
+instance Hashable MemoKey
+
+type Parser tok a = MemoisedCPS.Parser MemoKey tok tok a
 
 data ExprView e
     = LocalV QName
@@ -129,32 +138,12 @@ rebuildBinding (WildV e) =
   DomainFree defaultArgInfo $ mkBoundName_ $ Name noRange [Hole]
 rebuildBinding e = throw $ Exception (getRange e) "Expected variable name in binding position"
 
--- | Parse using the appropriate fixity, given a parser parsing the
--- operator part, the name of the operator, and a parser of
+-- | Parse a \"nonfix\" operator application, given a parser parsing
+-- the operator part, the name of the operator, and a parser of
 -- subexpressions.
-infixP, infixrP, infixlP, postfixP, prefixP,nonfixP ::
+nonfixP ::
   IsExpr e =>
   Parser e (NewNotation,Range,[e]) -> Parser e e -> Parser e e
-prefixP op p = do
-    fs <- many (preop op)
-    e  <- p
-    return $ foldr ( $ ) e fs
-
-postfixP op p = do
-    e <- p
-    fs <- many (postop op)
-    return $ foldl (flip ( $ )) e fs
-
-infixlP op p = chainl1 p (binop op)
-infixrP op p = chainr1 p (binop op)
-infixP  op p = do
-    e <- p
-    restP e
-    where
-        restP x = return x <|> do
-            f <- binop op
-            f x <$> p
-
 nonfixP op p = do
   (nsyn,r,es) <- op
   return $ rebuild nsyn r es

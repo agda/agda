@@ -46,6 +46,51 @@ Pragmas and options
 Language
 ========
 
+* A long-standing operator fixity bug has been fixed. As a consequence
+  some programs that used to parse no longer do.
+
+  Previously each precedence level was (incorrectly) split up into
+  five separate ones, ordered as follows, with the earlier ones
+  binding less tightly than the later ones:
+
+    - Non-associative operators.
+
+    - Left associative operators.
+
+    - Right associative operators.
+
+    - Prefix operators.
+
+    - Postfix operators.
+
+  Now this problem has been addressed. It is no longer possible to mix
+  operators of a given precedence level but different associativity.
+  However, prefix and right associative operators are seen as having
+  the same associativity, and similarly for postfix and left
+  associative operators.
+
+  Examples
+  --------
+
+  The following code is no longer accepted:
+
+    infixl 6 _+_
+    infix  6 _∸_
+
+    rejected : ℕ
+    rejected = 1 + 0 ∸ 1
+
+  However, the following previously rejected code is accepted:
+
+    infixr 4 _,_
+    infix  4 ,_
+
+    ,_ : {A : Set} {B : A → Set} {x : A} → B x → Σ A B
+    , y = _ , y
+
+    accepted : Σ ℕ λ i → Σ ℕ λ j → Σ (i ≡ j) λ _ → Σ ℕ λ k → j ≡ k
+    accepted = 5 , , refl , , refl
+
 * Building records from modules.
 
   The "record { <fields> }" syntax is now extended to accept module names as

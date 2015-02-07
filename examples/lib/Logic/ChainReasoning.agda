@@ -10,7 +10,7 @@ module Mono where
     (trans : (x y z : A) -> x == y -> y == z -> x == z)
     where
 
-    infix 2 chain>_
+    infix 3 chain>_
     infixl 2 _===_
     infix 3 _by_
 
@@ -31,7 +31,7 @@ module Poly where
     (trans : {A : Set}(x y z : A) -> x == y -> y == z -> x == z)
     where
 
-    infix 2 chain>_
+    infix 3 chain>_
     infixl 2 _===_
     infix 3 _by_
 
@@ -50,7 +50,7 @@ module Poly where
     (trans : {A B C : Set}(x : A)(y : B)(z : C) -> x == y -> y == z -> x == z)
     where
 
-    infix 2 chain>_
+    infix 3 chain>_
     infixl 2 _===_
     infix 3 _by_
 
@@ -69,7 +69,7 @@ module Poly where
     (trans : {A B C : Set1}(x : A)(y : B)(z : C) -> x == y -> y == z -> x == z)
     where
 
-    infix 2 chain>_
+    infix 3 chain>_
     infixl 2 _===_
     infix 3 _by_
 
@@ -81,4 +81,3 @@ module Poly where
 
     _by_ : {A B : Set1}{x : A}(y : B) -> x == y -> x == y
     y by eq = eq
-

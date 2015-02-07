@@ -143,26 +143,6 @@ data UseBoundNames = UseBoundNames | DontUseBoundNames
     The effect is that operator parts (that are not constructor parts)
     can be used as atomic names in the pattern (so they can be
     rebound). See test/succeed/OpBind.agda for an example.
-
-    To avoid problems with operators of the same precedence but different
-    associativity we decide (completely arbitrary) to fix the precedences of
-    operators with the same given precedence in the following order (from
-    loosest to hardest):
-
-    - non-associative
-
-    - left associative
-
-    - right associative
-
-    - prefix
-
-    - postfix
-
-    This has the effect that if you mix operators with the same precedence but
-    different associativity the parser won't complain. One could argue that
-    this is a Bad Thing, but since it's not trivial to implement the check it
-    will stay this way until people start complaining about it.
 -}
 buildParsers :: forall e. IsExpr e => Range -> FlatScope -> UseBoundNames -> ScopeM (Parsers e)
 buildParsers r flat use = do
@@ -187,7 +167,7 @@ buildParsers r flat use = do
     let chain = foldr ( $ )
 
     return $ Data.Function.fix $ \p -> Parsers
-        { pTop    = chain (pApp p) (concatMap (mkP (pTop p)) (order fix))
+        { pTop    = chain (pApp p) (map (mkP (pTop p)) (order fix))
         , pApp    = appP (pNonfix p) (pArgs p)
         , pArgs   = argsP (pNonfix p)
         , pNonfix = chain (pAtom p) (map (nonfixP . opP (pTop p)) non)
@@ -219,27 +199,42 @@ buildParsers r flat use = do
         order :: [NewNotation] -> [[NewNotation]]
         order = groupBy ((==) `on` level) . sortBy (compare `on` level)
 
-        -- | Each element of the returned list takes the parser for an
-        -- expression of higher precedence as parameter.
-        mkP :: Parser e e -> [NewNotation] -> [Parser e e -> Parser e e]
-        mkP p0 ops = case concat [infx, inlfx, inrfx, prefx, postfx] of
-            []      -> [id]
-            fs      -> fs
+        mkP :: Parser e e
+            -> [NewNotation]
+            -> Parser e e
+               -- ^ A parser for an expression of higher precedence.
+            -> Parser e e
+        mkP p0 []           higher = __IMPOSSIBLE__
+        mkP p0 ops@(op : _) higher =
+            memoise (Node (level op)) $
+              Fold.asum [higher, nonAssoc, preRights, postLefts]
             where
-                inlfx   = fixP infixlP  isinfixl
-                inrfx   = fixP infixrP  isinfixr
-                infx    = fixP infixP   isinfix
-                prefx   = fixP prefixP  isprefix
-                postfx  = fixP postfixP ispostfix
+            choice f = Fold.asum . map (f . opP p0)
 
-                fixP :: (Parser e (NewNotation,Range,[e]) ->
-                           Parser e e -> Parser e e) ->
-                        (NewNotation -> Bool) ->
-                        [Parser e e -> Parser e e]
-                fixP f g =
-                    case filter g ops of
-                        []  -> []
-                        ops -> [ f $ Fold.asum $ map (opP p0) ops ]
+            nonAssoc = do
+              x <- higher
+              f <- choice binop (filter isinfix ops)
+              y <- higher
+              return (f x y)
+
+            preRight =
+              choice preop (filter isprefix ops)
+              <|>
+              flip ($) <$> higher
+                       <*> choice binop (filter isinfixr ops)
+
+            preRights =
+              preRight <*> (preRights <|> higher)
+
+            postLeft =
+              choice postop (filter ispostfix ops)
+              <|>
+              flip <$> choice binop (filter isinfixl ops)
+                   <*> higher
+
+            postLefts =
+              memoise (PostLefts (level op)) $
+                flip ($) <$> (postLefts <|> higher) <*> postLeft
 
 
 ---------------------------------------------------------------------------

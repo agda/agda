@@ -132,7 +132,7 @@ NonRepetitiveTypes ℓ = Σ[ t ∈ Types ℓ ] NonRepetitiveNames t
 
 ∪-assoc : ∀ {l} {A : Set l} (x y z : List A) → (x ∪ y) ∪ z ≡ x ∪ (y ∪ z)
 ∪-assoc [] y z = refl
-∪-assoc (x ∷ xs) y z = ≡-elim′ (λ e → x ∷ e ≡ x ∷ xs ∪ (y ∪ z)) (≡-sym $ ∪-assoc xs y z) refl
+∪-assoc (x ∷ xs) y z = ≡-elim′ (λ e → x ∷ e ≡ (x ∷ xs) ∪ (y ∪ z)) (≡-sym $ ∪-assoc xs y z) refl
 
 ≡⇒≋ : ∀ {ℓ} {A : Set ℓ} {x y : List A} → x ≡ y → x ≋ y
 ≡⇒≋ refl = refl
@@ -373,7 +373,7 @@ x∪y⊆x̀∪ỳ : ∀ {ℓ} {A : Set ℓ} {x x̀ y ỳ : List A} → x ⊆ x̀
 x∪y⊆x̀∪ỳ {x = []} {x̀ = []} _ y⊆ỳ = y⊆ỳ
 x∪y⊆x̀∪ỳ {x = []} {x̀ = _ ∷ t̀} _ y⊆ỳ = there ∘ x∪y⊆x̀∪ỳ ([]⊆x t̀) y⊆ỳ
 x∪y⊆x̀∪ỳ {x = h ∷ t} {x̀ = x̀} {y = y} {ỳ = ỳ} x⊆x̀ y⊆ỳ = f where
-    f : h ∷ t ∪ y ⊆ x̀ ∪ ỳ
+    f : (h ∷ t) ∪ y ⊆ x̀ ∪ ỳ
     f {e} (here {x = .h} e≡h) = e∈x⇒e∈x∪y ỳ (x⊆x̀ $ here e≡h)
     f {e} (there {xs = .(t ∪ y)} p) = x∪y⊆x̀∪ỳ (x∪y⊆z⇒y⊆z [ h ] t x⊆x̀) y⊆ỳ p
 
@@ -388,9 +388,9 @@ t≋t∖n∪t∩n [] _ = refl
 t≋t∖n∪t∩n (h ∷ t) n with n ∋! proj₁ h
 ... | false = e∷x≋e∷y h $ t≋t∖n∪t∩n t n
 ... | true = ≋-trans p₁ p₂ where
-           p₁ : h ∷ t ≋ h ∷ (t ∖∖ n) ∪ filter-∈ t n
+           p₁ : h ∷ t ≋ (h ∷ (t ∖∖ n)) ∪ filter-∈ t n
            p₁ = e∷x≋e∷y h $ t≋t∖n∪t∩n t n
-           p₂ : h ∷ (t ∖∖ n) ∪ filter-∈ t n ≋ (t ∖∖ n) ∪ h ∷ filter-∈ t n
+           p₂ : (h ∷ (t ∖∖ n)) ∪ filter-∈ t n ≋ (t ∖∖ n) ∪ (h ∷ filter-∈ t n)
            p₂ = ≋-del-ins-r [] h (t ∖∖ n) (filter-∈ t n)
 
 e₁∈x⇒e₂∉x⇒e≢e₂ : ∀ {ℓ} {A : Set ℓ} {e₁ e₂ : A} {x : List A} → e₁ ∈ x → e₂ ∉ x → e₁ ≢ e₂
@@ -484,7 +484,7 @@ a∈x⇒x≋y⇒a∈y a∈x x≋y = x⊆y≋z (e∈l⇒[e]⊆l a∈x) x≋y (her
 x⊆z⇒y⊆z⇒x∪y⊆z : ∀ {ℓ} {A : Set ℓ} {x y z : List A} → x ⊆ z → y ⊆ z → x ∪ y ⊆ z
 x⊆z⇒y⊆z⇒x∪y⊆z {x = []} _ y⊆z = y⊆z
 x⊆z⇒y⊆z⇒x∪y⊆z {x = h ∷ t} {y = y} {z = z} x⊆z y⊆z = f where
-    f : h ∷ t ∪ y ⊆ z
+    f : (h ∷ t) ∪ y ⊆ z
     f {e} (here e≡h) = x⊆z $ here e≡h
     f {e} (there e∈t∪y) = x⊆z⇒y⊆z⇒x∪y⊆z (x∪y⊆z⇒y⊆z [ h ] t x⊆z) y⊆z e∈t∪y
 
@@ -690,7 +690,7 @@ x⊆y⇒∃x̀,y≋x∪x̀ {x = h ∷ t} {y = y} (h∉t ∷ nr-t) nr-y h∷t⊆y
         p₁ = x⊆e∷y⇒e∉x⇒x⊆y (x⊆y≋z (x∪y⊆z⇒y⊆z [ h ] t h∷t⊆y) y≋h∷ỳ) h∉t
         nr-ỳ = nr-x∪y⇒nr-y [ h ] ỳ $ nr-x≋y y≋h∷ỳ nr-y
         t̀ , ỳ≋t∪t̀ = x⊆y⇒∃x̀,y≋x∪x̀ nr-t nr-ỳ p₁
-        p₂ : h ∷ ỳ ≋ h ∷ t ∪ t̀
+        p₂ : h ∷ ỳ ≋ (h ∷ t) ∪ t̀
         p₂ = y≋ỳ⇒x∪y≋x∪ỳ [ h ] ỳ≋t∪t̀
      in t̀ , ≋-trans y≋h∷ỳ p₂
 

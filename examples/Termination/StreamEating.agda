@@ -36,7 +36,7 @@ data SP (A B : Set) : Set where
 -- and an inner recursion on SP A B
 eat : ∀ {A B} → SP A B → Stream A → Stream B
 eat (get f)    (a ∷ as) = eat (f a) (♭ as)
-eat (put b sp) as       = b ∷ ♯ eat (♭ sp) as
+eat (put b sp) as       = b ∷ (♯ eat (♭ sp) as)
 
 _∘_ : ∀ {A B C} → SP B C → SP A B → SP A C
 get f₁    ∘ put x sp₂ = f₁ x ∘ ♭ sp₂
