@@ -279,22 +279,24 @@ areThereNonRigidMetaArguments t = case ignoreSharing t of
 --   If the resulting list contains exactly one element, then the state is the
 --   same as the one obtained after running the corresponding computation. In
 --   all the other cases, the state is reseted.
-filterResetingState :: Candidates -> (Candidate -> TCM Bool) -> TCM Candidates
-filterResetingState cands f = disableDestructiveUpdate $ do
+filterResetingState :: MetaId -> Candidates -> (Candidate -> TCM Bool) -> TCM Candidates
+filterResetingState m cands f = disableDestructiveUpdate $ do
   result <- mapM (\c -> do bs <- localTCStateSaving (f c); return (c, bs)) cands
-  result <- dropSameCandidates result
+  result <- dropSameCandidates m result
   case List.filter (\ (c, (b, s)) -> b) result of
     [(c, (_, s))] -> do put s; return [c]
     l -> return (map (\ (c, (b, s)) -> c) l)
 
 -- Drop all candidates which are judgmentally equal to the first one.
 -- This is sufficient to reduce the list to a singleton should all be equal.
-dropSameCandidates :: [(Candidate, a)] -> TCM [(Candidate, a)]
-dropSameCandidates cands = do
+dropSameCandidates :: MetaId -> [(Candidate, a)] -> TCM [(Candidate, a)]
+dropSameCandidates m cands = do
+  rel <- getMetaRelevance <$> lookupMeta m
   case cands of
     []            -> return cands
     ((v,a), d) : vas -> (((v,a), d):) <$> dropWhileM equal vas
       where
+        equal _ | isIrrelevant rel = return True
         equal ((v',a'), _) = dontAssignMetas $ ifNoConstraints_ (equalType a a' >> equalTerm a v v')
                              {- then -} (return True)
                              {- else -} (\ _ -> return False)
@@ -304,7 +306,7 @@ dropSameCandidates cands = do
 -- @checkCandidates m t cands@ returns a refined list of valid candidates.
 checkCandidates :: MetaId -> Type -> Candidates -> TCM Candidates
 checkCandidates m t cands = disableDestructiveUpdate $ do
-  filterResetingState cands (uncurry $ checkCandidateForMeta m t)
+  filterResetingState m cands (uncurry $ checkCandidateForMeta m t)
   where
     checkCandidateForMeta :: MetaId -> Type -> Term -> Type -> TCM Bool
     checkCandidateForMeta m t term t' =
