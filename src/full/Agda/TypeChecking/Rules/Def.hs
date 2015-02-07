@@ -393,7 +393,7 @@ checkClause t c@(A.Clause (A.SpineLHS i x aps withPats) rhs0 wh) = do
                                return (El (getSort t') rewriteType, rewriteFrom, rewriteTo)
                          _ -> do
                           err <- text "Cannot rewrite by equation of type" <+> prettyTCM t'
-                          typeError $ GenericError $ show err
+                          typeError $ GenericDocError err
 
                      -- Andreas, 2014-05-17  Issue 1110:
                      -- Rewriting with a reflexive equation has no effect, but gives an

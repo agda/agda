@@ -49,7 +49,7 @@ instance IsPrefixOf Term where
       (Def   f us, Def   g vs) | f == g  -> us `isPrefixOf` vs
       (Con   c us, Con   d vs) | c == d  -> us `isPrefixOf` vs
       (MetaV x us, MetaV y vs) | x == y  -> us `isPrefixOf` vs
-      _ -> guard (u == v) >> return []
+      (u, v) -> guard (u == v) >> return []
 
 class AbstractTerm a where
   -- | @subst u . abstractTerm u == id@
