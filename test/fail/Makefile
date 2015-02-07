@@ -130,12 +130,14 @@ customised/NestedProjectRoots : % : %.err
 			 false; \
 		fi
 
+FFI_clean=$(clean) | $(sed) -e 's/:[[:digit:]]\+$$//'
+
 customised/FFI.err : %.err : %.agda
 	@echo "$*.agda"
 	@if ($(AGDA_BIN) --compile -v0 --ignore-interfaces -icustomised $*.agda) > $*.tmp; \
 		then echo "Unexpected success"; rm -f $*.tmp; false; \
     else if [ -s $*.tmp ]; \
-		then cat $*.tmp | $(clean) > $@; cat $@; rm -f $*.tmp; true; \
+		then cat $*.tmp | $(FFI_clean) > $@; cat $@; rm -f $*.tmp; true; \
 		else rm -f $@ $*.tmp; false; \
 		fi; \
 	fi
@@ -145,7 +147,7 @@ customised/FFI : % : %.err
 	@echo $*.agda
 	-@rm -rf customised/MAlonzo
 	-@$(AGDA_BIN) --compile -v0 --ignore-interfaces -icustomised $*.agda \
-	    | $(clean) > $*.err.tmp
+	    | $(FFI_clean) > $*.err.tmp
 	@echo `cat $*.err.tmp` > $*.err.tmp.2
 	@echo `cat $*.err` > $*.err.tmp.3
 	@if cmp $*.err.tmp.2 $*.err.tmp.3; \

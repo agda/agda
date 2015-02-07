@@ -1,11 +1,10 @@
-
 Compilation error:
 
-customised/MAlonzo/Code/FFI.hs:14
+customised/MAlonzo/Code/FFI.hs
     Not in scope: 'nothing'
 
-customised/MAlonzo/Code/FFI.hs:18
+customised/MAlonzo/Code/FFI.hs
     Not in scope: 'nothing'
 
-customised/MAlonzo/Code/FFI.hs:27
+customised/MAlonzo/Code/FFI.hs
     Not in scope: 'nothing'
