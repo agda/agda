@@ -123,6 +123,10 @@ initializeIFSMeta s t = do
 --   its type again.
 findInScope :: MetaId -> Maybe Candidates -> TCM ()
 findInScope m Nothing = do
+  -- Andreas, 2015-02-07: New metas should be created with range of the
+  -- current instance meta, thus, we set the range.
+  mv <- lookupMeta m
+  setCurrentRange mv $ do
   reportSLn "tc.instance" 20 $ "The type of the FindInScope constraint isn't known, trying to find it again."
   t <- getMetaType m
   cands <- initialIFSCandidates t
@@ -138,12 +142,15 @@ findInScope' m cands = ifM (isFrozen m) (return (Just cands)) $ do
     -- Andreas, 2013-12-28 issue 1003:
     -- If instance meta is already solved, simply discard the constraint.
     ifM (isInstantiatedMeta m) (return Nothing) $ do
+    -- Andreas, 2015-02-07: New metas should be created with range of the
+    -- current instance meta, thus, we set the range.
+    mv <- lookupMeta m
+    setCurrentRange mv $ do
     reportSLn "tc.instance" 15 $
       "findInScope 2: constraint: " ++ show m ++ "; candidates left: " ++ show (length cands)
     t <- normalise =<< getMetaTypeInContext m
     reportSDoc "tc.instance" 15 $ text "findInScope 3: t =" <+> prettyTCM t
     reportSLn "tc.instance" 70 $ "findInScope 3: t: " ++ show t
-    mv <- lookupMeta m
     -- If there are recursive instances, it's not safe to instantiate
     -- metavariables in the goal, so we freeze them before checking candidates.
     -- Metas that are rigidly constrained need not be frozen.
@@ -253,7 +260,11 @@ checkCandidates m t cands = localTCState $ disableDestructiveUpdate $ do
   dropSameCandidates cands
   where
     checkCandidateForMeta :: MetaId -> Type -> Term -> Type -> TCM Bool
-    checkCandidateForMeta m t term t' =
+    checkCandidateForMeta m t term t' = do
+      -- Andreas, 2015-02-07: New metas should be created with range of the
+      -- current instance meta, thus, we set the range.
+      mv <- lookupMeta m
+      setCurrentRange mv $ do
       verboseBracket "tc.instance" 20 ("checkCandidateForMeta " ++ show m) $ do
       liftTCM $ flip catchError handle $ do
         reportSLn "tc.instance" 70 $ "  t: " ++ show t ++ "\n  t':" ++ show t' ++ "\n  term: " ++ show term ++ "."
