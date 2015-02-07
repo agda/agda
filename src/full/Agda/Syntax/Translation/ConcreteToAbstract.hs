@@ -443,7 +443,7 @@ checkForModuleClash x = do
   ms <- scopeLookup (C.QName x) <$> getScope
   unless (null ms) $ do
     reportSLn "scope.clash" 20 $ "clashing modules ms = " ++ show ms
-    setCurrentRange (getRange x) $
+    setCurrentRange x $
       typeError $ ShadowedModule x $
                 map ((`withRangeOf` x) . amodName) ms
 
@@ -467,7 +467,7 @@ instance ToAbstract NewModuleQName A.ModuleName where
         toAbs m' q
 
 instance ToAbstract OldModuleName A.ModuleName where
-  toAbstract (OldModuleName q) = setCurrentRange (getRange q) $ do
+  toAbstract (OldModuleName q) = setCurrentRange q $ do
     amodName <$> resolveModule q
 
 -- Expressions ------------------------------------------------------------
@@ -965,7 +965,7 @@ instance ToAbstract LetDef [A.LetBinding] where
 
             -- irrefutable let binding, like  (x , y) = rhs
             NiceFunClause r PublicAccess ConcreteDef termCheck d@(C.FunClause lhs@(C.LHS p [] [] []) (C.RHS rhs) NoWhere) -> do
-              mp  <- setCurrentRange (getRange p) $ (Right <$> parsePattern p) `catchError` (return . Left)
+              mp  <- setCurrentRange p $ (Right <$> parsePattern p) `catchError` (return . Left)
               case mp of
                 Right p -> do
                   rhs <- toAbstract rhs
@@ -1025,7 +1025,7 @@ instance ToAbstract LetDef [A.LetBinding] where
                 localToAbstract (snd $ lhsArgs p) $ \args ->
 -}
                 (x, args) <- do
-                  res <- setCurrentRange (getRange p) $ parseLHS top p
+                  res <- setCurrentRange p $ parseLHS top p
                   case res of
                     C.LHSHead x args -> return (x, args)
                     C.LHSProj{} -> typeError $ GenericError $ "copatterns not allowed in let bindings"
@@ -1144,7 +1144,7 @@ instance ToAbstract NiceDeclaration A.Declaration where
                dups = nub $ cs \\ nub cs
                bad  = filter (`elem` dups) cs
            unless (distinct cs) $
-             setCurrentRange (getRange bad) $
+             setCurrentRange bad $
                 typeError $ DuplicateConstructors dups
 
         pars <- toAbstract pars
@@ -1219,7 +1219,7 @@ instance ToAbstract NiceDeclaration A.Declaration where
       ps <- toAbstract p
       return $ map (A.Pragma r) ps
 
-    NiceImport r x as open dir -> traceCall (SetRange r) $ do
+    NiceImport r x as open dir -> setCurrentRange r $ do
       notPublicWithoutOpen open dir
 
       -- First scope check the imported module and return its name and
