@@ -770,7 +770,6 @@ interpret (Cmd_compute ignore ii rng s) = do
 
 interpret Cmd_show_version = display_info Info_Version
 
-type GoalCommand = InteractionId -> Range -> String -> Interaction
 
 -- | @cmd_load' m includes cmd cmd2@ loads the module in file @m@,
 -- using @includes@ as the include directories.
