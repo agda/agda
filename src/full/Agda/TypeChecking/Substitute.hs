@@ -988,8 +988,6 @@ deriving instance Ord Substitution
 
 deriving instance Eq Sort
 deriving instance Ord Sort
-deriving instance Eq Type
-deriving instance Ord Type
 deriving instance Eq Level
 deriving instance Ord Level
 deriving instance Eq PlusLevel
@@ -1016,7 +1014,14 @@ instance Ord PlusLevel where
 instance Eq LevelAtom where
   (==) = (==) `on` unLevelAtom
 
--- | Syntactic equality, ignores stuff below @DontCare@.
+-- | Syntactic 'Type' equality, ignores sort annotations.
+instance Eq a => Eq (Type' a) where
+  (==) = (==) `on` unEl
+
+instance Ord a => Ord (Type' a) where
+  compare = compare `on` unEl
+
+-- | Syntactic 'Term' equality, ignores stuff below @DontCare@ and sharing.
 instance Eq Term where
   Var x vs   == Var x' vs'   = x == x' && vs == vs'
   Lam h v    == Lam h' v'    = h == h' && v  == v'

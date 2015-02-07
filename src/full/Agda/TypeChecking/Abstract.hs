@@ -49,14 +49,14 @@ instance IsPrefixOf Term where
       (Def   f us, Def   g vs) | f == g  -> us `isPrefixOf` vs
       (Con   c us, Con   d vs) | c == d  -> us `isPrefixOf` vs
       (MetaV x us, MetaV y vs) | x == y  -> us `isPrefixOf` vs
-      _ -> guard (u == v) >> return []
+      (u, v) -> guard (u == v) >> return []
 
 class AbstractTerm a where
   -- | @subst u . abstractTerm u == id@
   abstractTerm :: Term -> a -> a
 
 instance AbstractTerm Term where
-  abstractTerm u v | Just es <- u `isPrefixOf` v = Var 0 $ raise 1 es
+  abstractTerm u v | Just es <- u `isPrefixOf` v = Var 0 $ absT es
                    | otherwise                   =
     case v of
 -- Andreas, 2013-10-20: the original impl. works only at base types
