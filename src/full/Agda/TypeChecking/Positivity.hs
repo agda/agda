@@ -96,7 +96,7 @@ checkStrictlyPositive qs = disableDestructiveUpdate $ do
           err <- fsep $
             [prettyTCM q] ++ pwords "is not strictly positive, because it occurs" ++
             [prettyTCM how]
-          setCurrentRange (getRange q) $ typeError $ GenericDocError err
+          setCurrentRange q $ typeError $ GenericDocError err
 
       -- if we find an unguarded record, mark it as such
       when (dr == IsRecord) $ do
@@ -121,7 +121,7 @@ checkStrictlyPositive qs = disableDestructiveUpdate $ do
       -- Check whether the recursive record has been declared as
       -- 'Inductive' or 'Coinductive'.  Otherwise, error.
       unlessM (isJust . recInduction . theDef <$> getConstInfo q) $ do
-        traceCall (SetRange $ nameBindingSite $ qnameName q) $ do
+        setCurrentRange (nameBindingSite $ qnameName q) $ do
           typeError . GenericDocError =<<
             text "Recursive record" <+> prettyTCM q <+>
             text "needs to be declared as either inductive or coinductive"

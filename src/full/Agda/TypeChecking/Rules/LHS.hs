@@ -271,7 +271,7 @@ noShadowingOfConstructors mkCall problem =
           Datatype { dataCons = cs } -> do
             case filter ((A.nameConcrete x ==) . A.nameConcrete . A.qnameName) cs of
               []      -> return ()
-              (c : _) -> setCurrentRange (getRange x) $
+              (c : _) -> setCurrentRange x $
                 typeError $ PatternShadowsConstructor x c
           Axiom       {} -> return ()
           Function    {} -> return ()

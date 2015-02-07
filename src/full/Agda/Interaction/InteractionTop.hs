@@ -523,33 +523,11 @@ interpret Cmd_constraints =
     display_info . Info_Constraints . unlines . map show =<< lift B.getConstraints
 
 interpret Cmd_metas = do -- CL.showMetas []
-  ims <- lift $ B.typesOfVisibleMetas B.AsIs
-  -- Show unsolved implicit arguments simplified.
-  hms <- lift $ B.typesOfHiddenMetas B.Simplified
-  if not $ null ims && null hms
-    then do
-      di <- lift $ forM ims $ \ i ->
-        B.withInteractionId (B.outputFormId $ B.OutputForm noRange 0 i) $
-          showATop i
-      dh <- lift $ mapM showA' hms
-      display_info $ Info_AllGoals $ unlines $ di ++ dh
-    else do
-      cs <- lift B.getConstraints
-      if null cs
-        then display_info $ Info_AllGoals ""
-        else interpret Cmd_constraints
-  where
-    metaId (B.OfType i _) = i
-    metaId (B.JustType i) = i
-    metaId (B.JustSort i) = i
-    metaId (B.Assign i e) = i
-    metaId _ = __IMPOSSIBLE__
-    showA' :: B.OutputConstraint A.Expr NamedMeta -> TCM String
-    showA' m = do
-      let i = nmid $ metaId m
-      r <- getMetaRange i
-      d <- B.withMetaId i (showATop m)
-      return $ d ++ "  [ at " ++ show r ++ " ]"
+  ms <- lift $ showOpenMetas
+  -- If we do not have open metas, but open constaints, display those.
+  ifM (return (null ms) `and2M` do not . null <$> lift B.getConstraints)
+    {-then-} (interpret Cmd_constraints)
+    {-else-} (display_info $ Info_AllGoals $ unlines ms)
 
 interpret (Cmd_show_module_contents_toplevel norm s) =
   liftCommandMT B.atTopLevel $ showModuleContents norm noRange s
@@ -770,7 +748,29 @@ interpret (Cmd_compute ignore ii rng s) = do
 
 interpret Cmd_show_version = display_info Info_Version
 
-type GoalCommand = InteractionId -> Range -> String -> Interaction
+-- | Print open metas nicely.
+showOpenMetas :: TCM [String]
+showOpenMetas = do
+  ims <- B.typesOfVisibleMetas B.AsIs
+  di <- forM ims $ \ i ->
+    B.withInteractionId (B.outputFormId $ B.OutputForm noRange 0 i) $
+      showATop i
+  -- Show unsolved implicit arguments simplified.
+  dh <- mapM showA' =<< B.typesOfHiddenMetas B.Simplified
+  return $ di ++ dh
+  where
+    metaId (B.OfType i _) = i
+    metaId (B.JustType i) = i
+    metaId (B.JustSort i) = i
+    metaId (B.Assign i e) = i
+    metaId _ = __IMPOSSIBLE__
+    showA' :: B.OutputConstraint A.Expr NamedMeta -> TCM String
+    showA' m = do
+      let i = nmid $ metaId m
+      r <- getMetaRange i
+      d <- B.withMetaId i (showATop m)
+      return $ d ++ "  [ at " ++ show r ++ " ]"
+
 
 -- | @cmd_load' m includes cmd cmd2@ loads the module in file @m@,
 -- using @includes@ as the include directories.

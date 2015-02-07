@@ -146,7 +146,7 @@ checkDataDef i name ps cs =
         -- Prop contain at most one element.
         do  proofIrr <- proofIrrelevance
             case (proofIrr, s, cs) of
-                (True, Prop, _:_:_) -> setCurrentRange (getRange cons) $
+                (True, Prop, _:_:_) -> setCurrentRange cons $
                                          typeError PropMustBeSingleton
                 _                   -> return ()
 

@@ -29,7 +29,6 @@ import Data.Set (Set)
 import qualified Data.Set as Set
 import qualified Data.Traversable as Trav
 
-import Agda.Syntax.Position
 import qualified Agda.Syntax.Common as Common
 import Agda.Syntax.Common hiding (Arg,Dom)
 import Agda.Syntax.Internal as I
@@ -152,14 +151,14 @@ coverageCheck f t cs = do
   whenM (optCompletenessCheck <$> pragmaOptions) $
     -- report an error if there are uncovered cases
     unless (null pss) $
-        setCurrentRange (getRange cs) $
+        setCurrentRange cs $
           typeError $ CoverageFailure f (map (map $ fmap namedThing) pss)
   -- is = indices of unreachable clauses
   let is = Set.toList $ Set.difference (Set.fromList [0..genericLength cs - 1]) used
   -- report an error if there are unreachable clauses
   unless (null is) $ do
       let unreached = map (cs !!) is
-      setCurrentRange (getRange unreached) $
+      setCurrentRange unreached $
         typeError $ UnreachableClauses f (map clausePats unreached)
   return splitTree
 
@@ -193,8 +192,8 @@ cover f cs sc@(SClause tel perm ps _ target) = do
            [ text $ "pattern covered by clause " ++ show i ++ " but case splitting was not exact. remaining mpats: "
            , nest 2 $ vcat $ map (text . show) mps
            ]
-         setCurrentRange (getRange (cs !! i)) $
-                      typeError $ CoverageNoExactSplit f (cs !! i)
+         setCurrentRange (cs !! i) $
+           typeError $ CoverageNoExactSplit f (cs !! i)
 
     No        ->  do
       reportSLn "tc.cover" 20 $ "pattern is not covered"

@@ -97,5 +97,8 @@ traceCallCPS_ mkCall ret cc =
 getCurrentRange :: TCM Range
 getCurrentRange = asks envRange
 
-setCurrentRange :: Range -> TCM a -> TCM a
-setCurrentRange r = applyUnless (null r) $ traceCall $ SetRange r
+-- | Sets the current range (for error messages etc.) to the range
+--   of the given object, if it has a range (i.e., its range is not 'noRange').
+setCurrentRange :: HasRange x => x -> TCM a -> TCM a
+setCurrentRange x = applyUnless (null r) $ traceCall $ SetRange r
+  where r = getRange x

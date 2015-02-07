@@ -176,7 +176,7 @@ termMutual :: Info.MutualInfo -> [A.Declaration] -> TCM Result
 termMutual i ds = if names == [] then return mempty else
 
   -- We set the range to avoid panics when printing error messages.
-  traceCall (SetRange (Info.mutualRange i)) $ do
+  setCurrentRange i $ do
 
   -- Get set of mutually defined names from the TCM.
   -- This includes local and auxiliary functions introduced

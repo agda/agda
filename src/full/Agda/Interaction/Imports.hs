@@ -53,6 +53,7 @@ import qualified Agda.TypeChecking.Monad.Benchmark as Bench
 import Agda.TheTypeChecker
 
 import Agda.Interaction.FindFile
+import {-# SOURCE #-} Agda.Interaction.InteractionTop (showOpenMetas)
 import Agda.Interaction.Options
 import qualified Agda.Interaction.Options.Lenses as Lens
 import Agda.Interaction.Highlighting.Precise (HighlightingInfo)
@@ -622,7 +623,10 @@ createInterface file mname =
     -- TODO: It would be nice if unsolved things were highlighted
     -- after every mutual block.
 
-    unsolvedMetas       <- List.nub <$> (mapM getMetaRange =<< getOpenMetas)
+    openMetas           <- getOpenMetas
+    unless (null openMetas) $ do
+      reportSLn "import.metas" 10 . unlines =<< showOpenMetas
+    unsolvedMetas       <- List.nub <$> mapM getMetaRange openMetas
     unsolvedConstraints <- getAllConstraints
     interactionPoints   <- getInteractionPoints
 

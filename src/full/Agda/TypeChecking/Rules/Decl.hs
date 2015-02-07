@@ -130,7 +130,7 @@ checkDecls ds = do
 -- | Type check a single declaration.
 
 checkDecl :: A.Declaration -> TCM ()
-checkDecl d = traceCall (SetRange (getRange d)) $ do
+checkDecl d = setCurrentRange d $ do
     reportSDoc "tc.decl" 10 $ vcat
       [ text "checking declaration"
       , prettyA d
@@ -383,7 +383,7 @@ checkPositivity_ names = reimburseTop Bench.Typing $ billTop Bench.Positivity $ 
 --   for the old coinduction.)
 checkCoinductiveRecords :: [A.Declaration] -> TCM ()
 checkCoinductiveRecords ds = forM_ ds $ \ d -> case d of
-  A.RecDef _ q (Just (Ranged r CoInductive)) _ _ _ _ -> traceCall (SetRange r) $ do
+  A.RecDef _ q (Just (Ranged r CoInductive)) _ _ _ _ -> setCurrentRange r $ do
     unlessM (isRecursiveRecord q) $ typeError $ GenericError $
       "Only recursive records can be coinductive"
   _ -> return ()
