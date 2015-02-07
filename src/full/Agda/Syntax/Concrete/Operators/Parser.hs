@@ -3,6 +3,7 @@
 
 module Agda.Syntax.Concrete.Operators.Parser where
 
+import Control.Applicative
 import Control.Exception (throw)
 
 import Data.Maybe
@@ -13,11 +14,14 @@ import Agda.Syntax.Fixity
 import Agda.Syntax.Notation
 import Agda.Syntax.Concrete
 import Agda.TypeChecking.Monad.Base (TCErr(Exception))
-import Agda.Utils.ReadP
+import qualified Agda.Utils.Parser.MemoisedCPS as MemoisedCPS
+import Agda.Utils.Parser.MemoisedCPS hiding (Parser)
 import Agda.Utils.Monad
 
 #include "undefined.h"
 import Agda.Utils.Impossible
+
+type Parser tok a = MemoisedCPS.Parser () tok tok a
 
 data ExprView e
     = LocalV QName
@@ -46,24 +50,28 @@ instance IsExpr e => HasRange (ExprView e) where
 -- Specific combinators
 
 -- | Parse a specific identifier as a NamePart
-partP :: IsExpr e => [Name] -> RawName -> ReadP e Range
+partP :: IsExpr e => [Name] -> RawName -> Parser e Range
 partP ms s = do
-    tok <- get
+    tok <- token
     case isLocal tok of
       Just p  -> return p
-      Nothing -> pfail
+      Nothing -> empty
     where
         str = show (foldr Qual (QName (Name noRange [Id s])) ms)
         isLocal e = case exprView e of
             LocalV y | str == show y -> Just (getRange y)
             _                        -> Nothing
 
-binop :: IsExpr e => ReadP e (NewNotation,Range,[e]) -> ReadP e (e -> e -> e)
+binop ::
+  IsExpr e =>
+  Parser e (NewNotation,Range,[e]) -> Parser e (e -> e -> e)
 binop middleP = do
   (nsyn,r,es) <- middleP
   return $ \x y -> rebuild nsyn r (x : es ++ [y])
 
-preop, postop :: IsExpr e => ReadP e (NewNotation,Range,[e]) -> ReadP e (e -> e)
+preop, postop ::
+  IsExpr e =>
+  Parser e (NewNotation,Range,[e]) -> Parser e (e -> e)
 preop middleP = do
   (nsyn,r,es) <- middleP
   return $ \x -> rebuild nsyn r (es ++ [x])
@@ -79,7 +87,8 @@ postop middleP = do
 -- Note: it would be better to take the decision of "postprocessing" at the same
 -- place as where the holes are discarded, however that would require a dependently
 -- typed function (or duplicated code)
-opP :: IsExpr e => ReadP e e -> NewNotation -> ReadP e (NewNotation,Range,[e])
+opP :: IsExpr e =>
+       Parser e e -> NewNotation -> Parser e (NewNotation,Range,[e])
 opP p nsyn@(NewNotation q _ syn) = do
   (range,es) <- worker (init $ qnameParts q) $ removeExternalHoles syn
   return (nsyn,range,es)
@@ -123,7 +132,9 @@ rebuildBinding e = throw $ Exception (getRange e) "Expected variable name in bin
 -- | Parse using the appropriate fixity, given a parser parsing the
 -- operator part, the name of the operator, and a parser of
 -- subexpressions.
-infixP, infixrP, infixlP, postfixP, prefixP,nonfixP :: IsExpr e => ReadP e (NewNotation,Range,[e]) -> ReadP e e -> ReadP e e
+infixP, infixrP, infixlP, postfixP, prefixP,nonfixP ::
+  IsExpr e =>
+  Parser e (NewNotation,Range,[e]) -> Parser e e -> Parser e e
 prefixP op p = do
     fs <- many (preop op)
     e  <- p
@@ -140,17 +151,17 @@ infixP  op p = do
     e <- p
     restP e
     where
-        restP x = return x +++ do
+        restP x = return x <|> do
             f <- binop op
             f x <$> p
 
 nonfixP op p = do
   (nsyn,r,es) <- op
   return $ rebuild nsyn r es
- +++ p
+ <|> p
 
-argsP :: IsExpr e => ReadP e e -> ReadP e [NamedArg e]
-argsP p = many (nothidden +++ hidden +++ instanceH)
+argsP :: IsExpr e => Parser e e -> Parser e [NamedArg e]
+argsP p = many (nothidden <|> hidden <|> instanceH)
     where
         isHidden (HiddenArgV _) = True
         isHidden _              = False
@@ -161,19 +172,19 @@ argsP p = many (nothidden +++ hidden +++ instanceH)
         nothidden = defaultArg . unnamed <$> do
             e <- p
             case exprView e of
-                HiddenArgV   _ -> pfail
-                InstanceArgV _ -> pfail
+                HiddenArgV   _ -> empty
+                InstanceArgV _ -> empty
                 _              -> return e
 
         instanceH = do
-            InstanceArgV e <- exprView <$> satisfy (isInstance . exprView)
+            InstanceArgV e <- exprView <$> sat (isInstance . exprView)
             return $ makeInstance $ defaultArg e
 
         hidden = do
-            HiddenArgV e <- exprView <$> satisfy (isHidden . exprView)
+            HiddenArgV e <- exprView <$> sat (isHidden . exprView)
             return $ hide $ defaultArg e
 
-appP :: IsExpr e => ReadP e e -> ReadP e [NamedArg e] -> ReadP e e
+appP :: IsExpr e => Parser e e -> Parser e [NamedArg e] -> Parser e e
 appP p pa = do
     h  <- p
     es <- pa
@@ -181,9 +192,9 @@ appP p pa = do
     where
         app e = unExprView . AppV e
 
-atomP :: IsExpr e => (QName -> Bool) -> ReadP e e
+atomP :: IsExpr e => (QName -> Bool) -> Parser e e
 atomP p = do
-    e <- get
+    e <- token
     case exprView e of
-        LocalV x | not (p x) -> pfail
+        LocalV x | not (p x) -> empty
         _                    -> return e

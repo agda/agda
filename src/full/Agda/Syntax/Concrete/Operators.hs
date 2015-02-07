@@ -22,6 +22,7 @@ import Control.Applicative
 import Control.Monad
 
 import Data.Either (partitionEithers)
+import qualified Data.Foldable as Fold
 import Data.Function
 import Data.List
 import Data.Maybe
@@ -51,7 +52,7 @@ import Agda.TypeChecking.Monad.State (getScope)
 import Agda.TypeChecking.Monad.Options
 
 import Agda.Utils.Either
-import Agda.Utils.ReadP
+import Agda.Utils.Parser.MemoisedCPS hiding (Parser)
 #if MIN_VERSION_base(4,8,0)
 import Agda.Utils.List hiding ( uncons )
 #else
@@ -127,11 +128,11 @@ localNames flat = do
 --   but @pArgs@ is used to convert module application
 --   from concrete to abstract syntax.
 data Parsers e = Parsers
-  { pTop    :: ReadP e e
-  , pApp    :: ReadP e e
-  , pArgs   :: ReadP e [NamedArg e]
-  , pNonfix :: ReadP e e
-  , pAtom   :: ReadP e e
+  { pTop    :: Parser e e
+  , pApp    :: Parser e e
+  , pArgs   :: Parser e [NamedArg e]
+  , pNonfix :: Parser e e
+  , pAtom   :: Parser e e
   }
 
 data UseBoundNames = UseBoundNames | DontUseBoundNames
@@ -220,7 +221,7 @@ buildParsers r flat use = do
 
         -- | Each element of the returned list takes the parser for an
         -- expression of higher precedence as parameter.
-        mkP :: ReadP e e -> [NewNotation] -> [ReadP e e -> ReadP e e]
+        mkP :: Parser e e -> [NewNotation] -> [Parser e e -> Parser e e]
         mkP p0 ops = case concat [infx, inlfx, inrfx, prefx, postfx] of
             []      -> [id]
             fs      -> fs
@@ -231,11 +232,14 @@ buildParsers r flat use = do
                 prefx   = fixP prefixP  isprefix
                 postfx  = fixP postfixP ispostfix
 
-                fixP :: (ReadP e (NewNotation,Range,[e]) -> ReadP e e -> ReadP e e) -> (NewNotation -> Bool) -> [ReadP e e -> ReadP e e]
+                fixP :: (Parser e (NewNotation,Range,[e]) ->
+                           Parser e e -> Parser e e) ->
+                        (NewNotation -> Bool) ->
+                        [Parser e e -> Parser e e]
                 fixP f g =
                     case filter g ops of
                         []  -> []
-                        ops -> [ f $ choice $ map (opP p0) ops ]
+                        ops -> [ f $ Fold.asum $ map (opP p0) ops ]
 
 
 ---------------------------------------------------------------------------
@@ -335,7 +339,7 @@ patternAppView p = case p of
 ---------------------------------------------------------------------------
 
 -- | Returns the list of possible parses.
-parsePat :: ReadP Pattern Pattern -> Pattern -> [Pattern]
+parsePat :: Parser Pattern Pattern -> Pattern -> [Pattern]
 parsePat prs p = case p of
     AppP p (Common.Arg info q) ->
         fullParen' <$> (AppP <$> parsePat prs p <*> (Common.Arg info <$> traverse (parsePat prs) q))

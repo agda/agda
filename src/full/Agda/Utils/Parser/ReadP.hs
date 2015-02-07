@@ -28,7 +28,7 @@
 
 -----------------------------------------------------------------------------
 
-module Agda.Utils.ReadP
+module Agda.Utils.Parser.ReadP
   (
   -- * The 'ReadP' type
   ReadP,      -- :: * -> *; instance Functor, Monad, MonadPlus

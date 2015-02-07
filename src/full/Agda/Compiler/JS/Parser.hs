@@ -12,7 +12,7 @@ import Data.Char ( isLetter, isAlphaNum, isDigit )
 import Data.Map ( Map, fromList, union, empty )
 import qualified Data.Map as M
 
-import Agda.Utils.ReadP
+import Agda.Utils.Parser.ReadP
   ( ReadP, (+++), (<++), between, char, choice, look, many,
     munch, munch1, parse', pfail, satisfy, sepBy, string, skipSpaces )
 

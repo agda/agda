@@ -28,8 +28,9 @@ SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 --------------------------------------------------------------------------------
 
-The file src/full/Agda/Utils/ReadP.hs is Copyright (c) The University of
-Glasgow 2002 and is licensed under a BSD-like license as follows:
+The file src/full/Agda/Utils/Parser/ReadP.hs is Copyright (c) The
+University of Glasgow 2002 and is licensed under a BSD-like license as
+follows:
 
 Redistribution and use in source and binary forms, with or without
 modification, are permitted provided that the following conditions are met:
