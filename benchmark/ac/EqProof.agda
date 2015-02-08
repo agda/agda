@@ -6,7 +6,7 @@ module EqProof
   (trans : {x y z : A} -> x == y -> y == z -> x == z)
   where
 
-  infix 2 eqProof>_
+  infix 3 eqProof>_
   infixl 2 _===_
   infix 3 _by_
 
@@ -18,4 +18,3 @@ module EqProof
 
   _by_ : {x : A}(y : A) -> x == y -> x == y
   y by eq = eq
-
