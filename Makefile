@@ -91,7 +91,7 @@ TAGS :
 quick : install-O0-bin quicktest
 
 .PHONY : test
-test : check-whitespace succeed fail interaction latex-test examples library-test lib-succeed compiler-test epic-test api-test tests
+test : check-whitespace succeed fail interaction latex-test examples library-test lib-succeed compiler-test epic-test api-test tests benchmark-without-logs
 
 .PHONY : quicktest
 quicktest : succeed fail
@@ -198,6 +198,10 @@ api-test :
 .PHONY : benchmark
 benchmark :
 	@$(MAKE) -C benchmark
+
+.PHONY : benchmark-without-logs
+benchmark-without-logs :
+	@$(MAKE) -C benchmark without-creating-logs
 
 ## Clean ##################################################################
 

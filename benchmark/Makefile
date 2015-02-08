@@ -3,10 +3,12 @@ AGDA = agda
 
 include tests.mk
 
-TAG			= $(shell echo `date +"%Y%m%d-%H.%M"`-`hostname -s`)
+# Note: The use of ":=" rather than "=" ensures that the right-hand
+# side of TAG is not expanded multiple times.
+TAG := $(shell echo `date +"%Y%m%d-%H.%M"`-`hostname -s`)
 LOG_DIR = logs
-PROC_INFO = $(shell which procinfo)
-HOST_INFO = $(shell which hostinfo)
+PROC_INFO := $(shell which procinfo)
+HOST_INFO := $(shell which hostinfo)
 
 ifeq ($(HOST_INFO),)
 ifeq ($(PROC_INFO),)
@@ -24,6 +26,10 @@ logFiles = $(patsubst %,$(logDir)/%,$(allTests))
 verbose = -v0 -v profile:100
 
 all : clean $(logDir) $(logFiles)
+
+# If an error is encountered, then the logs are not removed.
+without-creating-logs : all
+	rm -r $(logDir)
 
 $(logDir) :
 	@mkdir -p $@
