@@ -412,7 +412,9 @@ checkClause t c@(A.Clause (A.SpineLHS i x aps withPats) rhs0 wh) = do
                      let cinfo      = ConPatInfo False patNoRange
                          underscore = A.Underscore Info.emptyMetaInfo
 
-                     (rewriteFromExpr,rewriteToExpr,rewriteTypeExpr, proofExpr) <-
+                     -- Andreas, 2015-02-09 Issue 1421: kill ranges
+                     -- as reify puts in ranges that may point to other files.
+                     (rewriteFromExpr,rewriteToExpr,rewriteTypeExpr, proofExpr) <- killRange <$> do
                       disableDisplayForms $ withShowAllArguments $ reify
                         (rewriteFrom,   rewriteTo,    rewriteType    , proof)
                      let (inner, outer) -- the where clauses should go on the inner-most with
