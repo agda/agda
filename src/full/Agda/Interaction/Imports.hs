@@ -660,7 +660,10 @@ buildInterface file topLevel syntaxInfo previousHsImports pragmas = do
     ms      <- getImports
     mhs     <- mapM (\ m -> (m,) <$> moduleHash m) $ Set.toList ms
     hsImps  <- getHaskellImports
-    patsyns <- getPatternSyns
+    -- Andreas, 2015-02-09 kill ranges in pattern synonyms before
+    -- serialization to avoid error locations pointing to external files
+    -- when expanding a pattern synoym.
+    patsyns <- killRange <$> getPatternSyns
     h       <- liftIO $ hashFile file
     let builtin' = Map.mapWithKey (\ x b -> (x,) . primFunName <$> b) builtin
     reportSLn "import.iface" 7 "  instantiating all meta variables"
