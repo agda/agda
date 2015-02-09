@@ -567,11 +567,11 @@ instance KillRange Expr where
   killRange (App i e1 e2)          = killRange3 App i e1 e2
   killRange (WithApp i e es)       = killRange3 WithApp i e es
   killRange (Lam i b e)            = killRange3 Lam i b e
-  killRange (AbsurdLam i h)        = killRange1 AbsurdLam i h
+  killRange (AbsurdLam i h)        = killRange2 AbsurdLam i h
   killRange (ExtendedLam i n d ps) = killRange4 ExtendedLam i n d ps
   killRange (Pi i a b)             = killRange3 Pi i a b
   killRange (Fun i a b)            = killRange3 Fun i a b
-  killRange (Set i n)              = Set (killRange i) n
+  killRange (Set i n)              = killRange2 Set i n
   killRange (Prop i)               = killRange1 Prop i
   killRange (Let i ds e)           = killRange3 Let i ds e
   killRange (Rec i fs)             = killRange2 Rec i fs
@@ -584,7 +584,7 @@ instance KillRange Expr where
   killRange (QuoteTerm i)          = killRange1 QuoteTerm i
   killRange (Unquote i)            = killRange1 Unquote i
   killRange (Tactic i e xs ys)     = killRange4 Tactic i e xs ys
-  killRange (DontCare e)           = DontCare e
+  killRange (DontCare e)           = killRange1 DontCare e
   killRange (PatternSyn x)         = killRange1 PatternSyn x
 
 instance KillRange Declaration where

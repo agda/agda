@@ -209,4 +209,4 @@ instance KillRange Fixity where
   killRange (NonAssoc   _ n) = NonAssoc   noRange n
 
 instance KillRange Fixity' where
-  killRange (Fixity' f n) = killRange1 (flip Fixity' n) f
+  killRange (Fixity' f n) = killRange2 Fixity' f n

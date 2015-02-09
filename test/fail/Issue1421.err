@@ -1,0 +1,26 @@
+Issue1421.agda:9,13-34
+Unsolved metas at the following locations:
+  Issue1421/Lib.agda:42,25-26
+  Issue1421/Lib.agda:42,21-24
+  Issue1421/Lib.agda:42,27-30
+  Issue1421/Lib.agda:57,19-28
+  Issue1421/Lib.agda:60,129-130
+  Issue1421/Lib.agda:60,127-130
+  Issue1421/Lib.agda:60,127-132
+  Issue1421/Lib.agda:61,12-15
+  Issue1421/Lib.agda:61,18-21
+  Issue1421/Lib.agda:61,16-17
+  Issue1421/Lib.agda:65,143-148
+  Issue1421/Lib.agda:65,143-155
+  Issue1421/Lib.agda:65,143-163
+  Issue1421/Lib.agda:68,136-141
+  Issue1421/Lib.agda:68,136-148
+  Issue1421/Lib.agda:68,136-156
+  Issue1421/Lib.agda:69,27-40
+  Issue1421/Lib.agda:74,13-18
+  Issue1421/Lib.agda:75,31-46
+  Issue1421/Lib.agda:75,52-53
+  Issue1421/Lib.agda:75,31-53
+  Issue1421/Lib.agda:76,24-40
+when scope checking the declaration
+  open import Issue1421.Lib as Core

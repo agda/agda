@@ -68,6 +68,8 @@ import Data.Foldable (Foldable)
 import Data.Function
 import Data.Int
 import Data.List hiding (null)
+import Data.Map (Map)
+import qualified Data.Map as Map
 import Data.Set (Set)
 import qualified Data.Set as Set
 import Data.Traversable (Traversable)
@@ -357,6 +359,9 @@ instance KillRange Bool where
 instance KillRange Int where
   killRange = id
 
+instance KillRange Integer where
+  killRange = id
+
 #if __GLASGOW_HASKELL__ >= 710
 instance {-# OVERLAPPABLE #-} KillRange a => KillRange [a] where
 #else
@@ -364,12 +369,23 @@ instance KillRange a => KillRange [a] where
 #endif
   killRange = map killRange
 
+#if __GLASGOW_HASKELL__ >= 710
+instance {-# OVERLAPPABLE #-} KillRange a => KillRange (Map k a) where
+#else
+instance KillRange a => KillRange (Map k a) where
+#endif
+  killRange = fmap killRange
+
 instance (KillRange a, KillRange b) => KillRange (a, b) where
   killRange (x, y) = (killRange x, killRange y)
 
 instance (KillRange a, KillRange b, KillRange c) =>
          KillRange (a, b, c) where
   killRange (x, y, z) = killRange3 (,,) x y z
+
+instance (KillRange a, KillRange b, KillRange c, KillRange d) =>
+         KillRange (a, b, c, d) where
+  killRange (x, y, z, u) = killRange4 (,,,) x y z u
 
 instance KillRange a => KillRange (Maybe a) where
   killRange = fmap killRange

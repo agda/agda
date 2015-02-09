@@ -614,6 +614,9 @@ type Arity  = Nat
 data NameId = NameId Integer Integer
     deriving (Eq, Ord, Typeable)
 
+instance KillRange NameId where
+  killRange = id
+
 instance Show NameId where
   show (NameId x i) = show x ++ "@" ++ show i
 
