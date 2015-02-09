@@ -326,23 +326,25 @@ instance SetRange ModuleName where
 -- ** KillRange
 
 instance KillRange Name where
-  killRange x = x { nameConcrete = killRange $ nameConcrete x
-                  -- Andreas, 2014-03-30
-                  -- An experiment: what happens if we preserve
-                  -- the range of the binding site, but kill all
-                  -- other ranges before serialization?
-                  -- Andreas, Makoto, 2014-10-18 AIM XX
-                  -- Kill all ranges in signature, including nameBindingSite.
-                  , nameBindingSite = noRange
-                  }
+  killRange (Name a b c d) = killRange4 Name a b c d
+  -- killRange x = x { nameConcrete = killRange $ nameConcrete x
+  --                 -- Andreas, 2014-03-30
+  --                 -- An experiment: what happens if we preserve
+  --                 -- the range of the binding site, but kill all
+  --                 -- other ranges before serialization?
+  --                 -- Andreas, Makoto, 2014-10-18 AIM XX
+  --                 -- Kill all ranges in signature, including nameBindingSite.
+  --                 , nameBindingSite = noRange
+  --                 }
 
 instance KillRange ModuleName where
   killRange (MName xs) = MName $ killRange xs
 
 instance KillRange QName where
-  killRange q = q { qnameModule = killRange $ qnameModule q
-                  , qnameName   = killRange $ qnameName   q
-                  }
+  killRange (QName a b) = killRange2 QName a b
+  -- killRange q = q { qnameModule = killRange $ qnameModule q
+  --                 , qnameName   = killRange $ qnameName   q
+  --                 }
 
 instance KillRange AmbiguousQName where
   killRange (AmbQ xs) = AmbQ $ killRange xs
