@@ -23,6 +23,7 @@ import Data.Maybe
 import Data.Typeable (Typeable)
 
 import Agda.Syntax.Common
+import Agda.Syntax.Position
 
 import Agda.Utils.Except ( MonadError(throwError) )
 import Agda.Utils.List
@@ -55,6 +56,12 @@ data GenPart
     -- ^ Argument is where the expression should go.
   | IdPart RawName
   deriving (Typeable, Show, Eq)
+
+instance KillRange GenPart where
+  killRange p = case p of
+    IdPart x     -> IdPart x
+    BindHole i   -> BindHole i
+    NormalHole x -> NormalHole $ killRange x
 
 -- | Get a flat list of identifier parts of a notation.
 stringParts :: Notation -> [RawName]
