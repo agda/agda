@@ -1494,7 +1494,10 @@ isModuleFreeVar i = do
 --   @{tel} -> D vs@ for some datatype @D@ then insert the hidden
 --   arguments.  Otherwise, leave the type polymorphic.
 inferExprForWith :: A.Expr -> TCM (Term, Type)
-inferExprForWith e = traceCall (InferExpr e) $ do
+inferExprForWith e = do
+  reportSDoc "tc.with.infer" 20 $ text "inferExprforWith " <+> prettyTCM e
+  reportSLn  "tc.with.infer" 80 $ "inferExprforWith " ++ show e
+  traceCall (InferExpr e) $ do
   -- With wants type and term fully instantiated!
   (v, t) <- instantiateFull =<< inferExpr e
   v0 <- reduce v

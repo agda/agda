@@ -413,7 +413,9 @@ checkClause t c@(A.Clause (A.SpineLHS i x aps withPats) rhs0 wh catchall) = do
                      let cinfo      = ConPatInfo False patNoRange
                          underscore = A.Underscore Info.emptyMetaInfo
 
-                     (rewriteFromExpr,rewriteToExpr,rewriteTypeExpr, proofExpr) <-
+                     -- Andreas, 2015-02-09 Issue 1421: kill ranges
+                     -- as reify puts in ranges that may point to other files.
+                     (rewriteFromExpr,rewriteToExpr,rewriteTypeExpr, proofExpr) <- killRange <$> do
                       disableDisplayForms $ withShowAllArguments $ reify
                         (rewriteFrom,   rewriteTo,    rewriteType    , proof)
                      let (inner, outer) -- the where clauses should go on the inner-most with
@@ -430,13 +432,13 @@ checkClause t c@(A.Clause (A.SpineLHS i x aps withPats) rhs0 wh catchall) = do
                          pats = [ A.DotP patNoRange underscore
                                 , A.ConP cinfo (AmbQ [conName reflCon]) []]
                      reportSDoc "tc.rewrite.top" 25 $ vcat
-                                         [ text "rewrite"
-                                         , text "  from  = " <+> prettyTCM rewriteFromExpr
-                                         , text "  to    = " <+> prettyTCM rewriteToExpr
-                                         , text "  typ   = " <+> prettyTCM rewriteType
-                                         , text "  proof = " <+> prettyTCM proofExpr
-                                         , text "  equ   = " <+> prettyTCM t'
-                                         ]
+                       [ text "rewrite"
+                       , text "  from  = " <+> prettyTCM rewriteFromExpr
+                       , text "  to    = " <+> prettyTCM rewriteToExpr
+                       , text "  typ   = " <+> prettyTCM rewriteType
+                       , text "  proof = " <+> prettyTCM proofExpr
+                       , text "  equ   = " <+> prettyTCM t'
+                       ]
                      handleRHS newRhs
 
                 A.WithRHS aux es cs -> do
