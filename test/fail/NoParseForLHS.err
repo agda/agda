@@ -1,4 +1,6 @@
 NoParseForLHS.agda:12,1-12
 Could not parse the left-hand side wrong (! x)
+(an operator fixity bug has been fixed, so if the code used to
+parse, try adding some parentheses)
 when scope checking the left-hand side wrong (! x) in the
 definition of wrong

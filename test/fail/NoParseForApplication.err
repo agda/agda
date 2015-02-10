@@ -1,3 +1,5 @@
 NoParseForApplication.agda:12,11-14
 Could not parse the application ! x
+(an operator fixity bug has been fixed, so if the code used to
+parse, try adding some parentheses)
 when scope checking ! x

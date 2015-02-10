@@ -1,4 +1,6 @@
 PatternMatchingOnCodata.agda:31,1-11
 Could not parse the left-hand side my-♭ (♯ x)
+(an operator fixity bug has been fixed, so if the code used to
+parse, try adding some parentheses)
 when scope checking the left-hand side my-♭ (♯ x) in the definition
 of my-♭
