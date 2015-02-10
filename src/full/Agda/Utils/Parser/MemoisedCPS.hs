@@ -20,7 +20,10 @@
 -- the author of this module whether the change leads to more
 -- non-termination for grammars that are not cyclic.)
 
-{-# LANGUAGE FlexibleInstances, MultiParamTypeClasses, RankNTypes #-}
+{-# LANGUAGE CPP                   #-}
+{-# LANGUAGE FlexibleInstances     #-}
+{-# LANGUAGE MultiParamTypeClasses #-}
+{-# LANGUAGE RankNTypes            #-}
 
 module Agda.Utils.Parser.MemoisedCPS
   ( Parser
@@ -39,8 +42,13 @@ import Data.Array
 import Data.Hashable
 import qualified Data.HashMap.Strict as Map
 import Data.HashMap.Strict (HashMap)
+#if MIN_VERSION_containers(0,5,0)
 import qualified Data.IntMap.Strict as IntMap
 import Data.IntMap.Strict (IntMap)
+#else
+import qualified Data.IntMap as IntMap
+import Data.IntMap (IntMap)
+#endif
 import Data.List
 
 -- | Positions.
