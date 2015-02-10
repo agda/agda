@@ -123,7 +123,6 @@ rebuild (NewNotation name _ syn) r es = unExprView $ OpAppV (setRange r name) ex
     findExprFor :: Int -> NamedArg (OpApp e)
     findExprFor n =
       case [setArgColors [] $ fmap (e <$) m | (e, NormalHole m) <- filledHoles, namedArg m == n] of
-        []  -> __IMPOSSIBLE__
         [x] -> case [e | (e, BindHole m) <- filledHoles, m == n] of
                  [] -> (fmap . fmap) Ordinary x -- no variable to bind
                  vars ->
