@@ -940,6 +940,10 @@ coerceSize v t1 t2 = workOnTypes $ do
   let fallback = v <$ leqType t1 t2
   caseMaybeM (isSizeType t1) fallback $ \ b1 -> do
   caseMaybeM (isSizeType t2) fallback $ \ b2 -> do
+    -- Andreas, 2015-02-11 do not instantiate metas here (triggers issue 1203).
+    ifM (tryConversion $ dontAssignMetas $ leqType t1 t2) (return v) $ {- else -} do
+    -- A (most probably weaker) alternative is to just check syn.eq.
+    -- ifM (snd <$> checkSyntacticEquality t1 t2) (return v) $ {- else -} do
     case b2 of
       -- @t2 = Size@.  We are done!
       BoundedNo -> return v
