@@ -362,7 +362,7 @@ postponeTypeCheckingProblem_ p = do
   postponeTypeCheckingProblem p (unblock p)
   where
     unblock (CheckExpr _ t)           = unblockedTester t
-    unblock (CheckArgs _ _ _ _ t _ _) = unblockedTester t
+    unblock (CheckArgs _ _ _ _ t _ _) = unblockedTester t  -- The type of the head of the application.
     unblock (CheckLambda _ _ t)       = unblockedTester t
 
 -- | Create a postponed type checking problem @e : t@ that waits for conditon
@@ -394,10 +394,11 @@ postponeTypeCheckingProblem p unblock = do
   addConstraint (UnBlock m)
   return v
 
+-- | Type of the term that is produced by solving the 'TypeCheckingProblem'.
 problemType :: TypeCheckingProblem -> Type
-problemType (CheckExpr _ t) = t
-problemType (CheckArgs _ _ _ _ _ t _) = t
-problemType (CheckLambda _ _ t) = t
+problemType (CheckExpr _ t           ) = t
+problemType (CheckArgs _ _ _ _ _ t _ ) = t  -- The target type of the application.
+problemType (CheckLambda _ _ t       ) = t
 
 -- | Eta expand metavariables listening on the current meta.
 etaExpandListeners :: MetaId -> TCM ()
