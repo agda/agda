@@ -838,8 +838,9 @@ cmd_load' file includes unsolvedOK cmd = do
 
 -- | Set 'envCurrentPath' to 'theCurrentFile', if any.
 withCurrentFile :: CommandM a -> CommandM a
-withCurrentFile m = caseMaybeM (gets theCurrentFile) m $ \ (file, _) ->
-  local (\ e -> e { envCurrentPath = file }) m
+withCurrentFile m = do
+  mfile <- fmap fst <$> gets theCurrentFile
+  local (\ e -> e { envCurrentPath = mfile }) m
 
 -- | Available backends.
 
@@ -865,7 +866,7 @@ give_gen
   -> String
   -> GiveRefine
   -> CommandM ()
-give_gen ii rng s giveRefine = withCurrentFile $ do
+give_gen ii rng s giveRefine = do
   lift $ reportSLn "interaction.give" 20 $ "give_gen  " ++ s
   let give_ref =
         case giveRefine of

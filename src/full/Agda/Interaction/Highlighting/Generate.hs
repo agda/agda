@@ -148,7 +148,7 @@ data Level
 generateAndPrintSyntaxInfo :: A.Declaration -> Level -> TCM ()
 generateAndPrintSyntaxInfo decl _ | P.noRange == P.getRange decl = return ()
 generateAndPrintSyntaxInfo decl hlLevel = do
-  file <- asks envCurrentPath
+  file <- fromMaybe __IMPOSSIBLE__ <$> asks envCurrentPath
 
   reportSLn "import.iface.create" 15 $
       "Generating syntax info for " ++ filePath file ++ ' ' :
