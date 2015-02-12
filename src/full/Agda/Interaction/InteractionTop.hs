@@ -87,6 +87,7 @@ import Agda.Utils.FileName
 import Agda.Utils.Hash
 import qualified Agda.Utils.HashMap as HMap
 import Agda.Utils.Lens
+import Agda.Utils.Maybe
 import Agda.Utils.Monad
 import Agda.Utils.Null
 import Agda.Utils.Pretty
@@ -221,7 +222,7 @@ runInteraction (IOTCM current highlighting highlightingMethod cmd)
             when (not (independent cmd) && Just current /= (fst <$> cf)) $
                 lift $ typeError $ GenericError "Error: First load the file."
 
-            interpret cmd
+            withCurrentFile $ interpret cmd
 
             cf <- gets theCurrentFile
             when (Just current == (fst <$> cf)) $
@@ -593,7 +594,7 @@ interpret (Cmd_load_highlighting_info source) = do
                 return Nothing
     mapM_ putResponse resp
 
-interpret (Cmd_highlight ii rng s) = withCurrentFile $ do
+interpret (Cmd_highlight ii rng s) = do
   scope <- getOldInteractionScope ii
   removeOldInteractionScope ii
   handle $ do
@@ -835,10 +836,10 @@ cmd_load' file includes unsolvedOK cmd = do
 
     cmd ok
 
+-- | Set 'envCurrentPath' to 'theCurrentFile', if any.
 withCurrentFile :: CommandM a -> CommandM a
-withCurrentFile m = do
-  Just (file, _) <- gets $ theCurrentFile
-  local (\e -> e { envCurrentPath = file }) m
+withCurrentFile m = caseMaybeM (gets theCurrentFile) m $ \ (file, _) ->
+  local (\ e -> e { envCurrentPath = file }) m
 
 -- | Available backends.
 
