@@ -95,8 +95,8 @@ module Reasoning-≡ {a p} {A : Set a} {P : A → Set p}
 
 module Alternative {a p : Level} where
 
+  infix  3 _⟨_⟩P
   infixr 2 _≅⟨_⟩P_ _≳⟨_⟩P_
-  infix  2 _⟨_⟩P
 
   -- All "programs".
 
