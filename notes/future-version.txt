@@ -9,5 +9,6 @@ future release. Don't remove this message please!
   consequence, a new type Abs was added, and the types Clause,
   Pattern, Term and Type were modified in Reflection.agda.
 
-* The fixity of all _∎ and finally operators was changed from infix 2
-  to infix 3.
+* The fixity of all _∎ and finally operators, as well as
+  Category.Monad.Partiality.All._⟨_⟩P, was changed from infix 2 to
+  infix 3.
