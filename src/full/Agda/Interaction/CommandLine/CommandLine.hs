@@ -117,12 +117,19 @@ interactionLoop doTypeCheck =
                 (|>) = (,)
 
 continueAfter :: TCM a -> TCM (ExitCode b)
-continueAfter m = m >> return Continue
+continueAfter m = withCurrentFile $ do
+  m >> return Continue
+
+-- | Set 'envCurrentPath' to 'optInputFile'.
+withCurrentFile :: TCM a -> TCM a
+withCurrentFile cont = do
+  mpath <- getInputFile'
+  local (\ e -> e { envCurrentPath = mpath }) cont
 
 loadFile :: TCM () -> [String] -> TCM ()
-loadFile reload [file] =
-    do  setInputFile file
-        reload
+loadFile reload [file] = do
+  setInputFile file
+  withCurrentFile reload
 loadFile _ _ = liftIO $ putStrLn ":load file"
 
 showConstraints :: [String] -> TCM ()
