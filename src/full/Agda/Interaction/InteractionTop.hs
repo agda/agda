@@ -60,6 +60,7 @@ import Agda.Syntax.Scope.Base
 
 import Agda.Interaction.FindFile
 import Agda.Interaction.Options
+import Agda.Interaction.Options.Lenses as Lenses
 import Agda.Interaction.MakeCase
 import Agda.Interaction.Response hiding (Function, ExtendedLambda)
 import qualified Agda.Interaction.Response as R
@@ -772,8 +773,9 @@ showOpenMetas = do
       return $ d ++ "  [ at " ++ show r ++ " ]"
 
 
--- | @cmd_load' m includes cmd cmd2@ loads the module in file @m@,
--- using @includes@ as the include directories.
+-- | @cmd_load' file includes unsolvedOk cmd@
+--   loads the module in file @file@,
+--   using @includes@ as the include directories.
 --
 -- If type checking completes without any exceptions having been
 -- encountered then the command @cmd r@ is executed, where @r@ is the
@@ -786,7 +788,7 @@ cmd_load' :: FilePath -> [FilePath]
 cmd_load' file includes unsolvedOK cmd = do
     f <- liftIO $ absolute file
     ex <- liftIO $ doesFileExist $ filePath f
-    lift $ setIncludeDirs includes $
+    lift $ TM.setIncludeDirs includes $
       if ex then ProjectRoot f else CurrentDir
 
     -- Forget the previous "current file" and interaction points.
@@ -803,12 +805,9 @@ cmd_load' file includes unsolvedOK cmd = do
     opts <- lift $ commandLineOptions
     defaultOptions <- gets optionsOnReload
     setCommandLineOptions' $
-      defaultOptions { optIncludeDirs   = optIncludeDirs opts
-                     , optPragmaOptions =
-                         (optPragmaOptions defaultOptions)
-                           { optAllowUnsolved = unsolvedOK
-                           }
-                     }
+      Lenses.setIncludeDirs (optIncludeDirs opts) $
+      mapPragmaOptions (\ o -> o { optAllowUnsolved = unsolvedOK }) $
+      defaultOptions
 
     -- Reset the state, preserving options and decoded modules. Note
     -- that if the include directories have changed, then the decoded
