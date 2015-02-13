@@ -200,7 +200,10 @@ modSub f = U $ modify $ \s -> s { uniSub = f $ uniSub s }
 checkEqualities :: [Equality] -> TCM ()
 checkEqualities eqs = noConstraints $ mapM_ checkEq eqs
   where
-    checkEq (Equal (Hom a) s t) = equalTerm a s t
+    checkEq (Equal (Hom a) s t) =
+      ifM (optWithoutK <$> pragmaOptions)
+      {-then-} (typeError $ WithoutKError a s t)
+      {-else-} (equalTerm a s t)
     checkEq (Equal (Het a1 a2) s t) = typeError $ HeterogeneousEquality s a1 t a2
     -- Andreas, 2014-03-03:  Alternatively, one could try to get back
     -- to a homogeneous situation.  Unless there is a case where this
