@@ -3,10 +3,15 @@
 
 module Agda.TypeChecking.Monad.Options where
 
+import Prelude hiding (mapM)
+
 import Control.Applicative
-import Control.Monad.Reader
-import Control.Monad.State
+import Control.Monad.Reader hiding (mapM)
+import Control.Monad.State  hiding (mapM)
+
 import Data.Maybe
+import Data.Traversable
+
 import Text.PrettyPrint
 import System.Directory
 import System.FilePath
@@ -25,6 +30,7 @@ import Agda.Interaction.Response
 
 import Agda.Utils.Except ( MonadError(catchError) )
 import Agda.Utils.FileName
+import Agda.Utils.Maybe
 import Agda.Utils.Monad
 import Agda.Utils.Lens
 import Agda.Utils.List
@@ -216,11 +222,13 @@ setInputFile file =
 
 -- | Should only be run if 'hasInputFile'.
 getInputFile :: TCM AbsolutePath
-getInputFile =
-    do  mf <- optInputFile <$> commandLineOptions
-        case mf of
-            Just file -> liftIO $ absolute file
-            Nothing   -> __IMPOSSIBLE__
+getInputFile = fromMaybeM __IMPOSSIBLE__ $
+  getInputFile'
+
+-- | Return the 'optInputFile' as 'AbsolutePath', if any.
+getInputFile' :: TCM (Maybe AbsolutePath)
+getInputFile' = mapM (liftIO . absolute) =<< do
+  optInputFile <$> commandLineOptions
 
 hasInputFile :: TCM Bool
 hasInputFile = isJust <$> optInputFile <$> commandLineOptions

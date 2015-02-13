@@ -1525,9 +1525,10 @@ data TCEnv =
     TCEnv { envContext             :: Context
           , envLetBindings         :: LetBindings
           , envCurrentModule       :: ModuleName
-          , envCurrentPath         :: AbsolutePath
+          , envCurrentPath         :: Maybe AbsolutePath
             -- ^ The path to the file that is currently being
-            -- type-checked.
+            -- type-checked.  'Nothing' if we do not have a file
+            -- (like in interactive mode see @CommandLine@).
           , envAnonymousModules    :: [(ModuleName, Nat)] -- ^ anonymous modules and their number of free variables
           , envImportPath          :: [C.TopLevelModuleName] -- ^ to detect import cycles
           , envMutualBlock         :: Maybe MutualId -- ^ the current (if any) mutual block
@@ -1609,7 +1610,7 @@ initEnv :: TCEnv
 initEnv = TCEnv { envContext             = []
                 , envLetBindings         = Map.empty
                 , envCurrentModule       = noModuleName
-                , envCurrentPath         = __IMPOSSIBLE__
+                , envCurrentPath         = Nothing
                 , envAnonymousModules    = []
                 , envImportPath          = []
                 , envMutualBlock         = Nothing

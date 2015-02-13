@@ -520,7 +520,7 @@ createInterface
   -> C.TopLevelModuleName  -- ^ The expected module name.
   -> TCM (Interface, MaybeWarnings)
 createInterface file mname =
-  local (\e -> e { envCurrentPath = file }) $ do
+  local (\e -> e { envCurrentPath = Just file }) $ do
     modFile       <- use stModuleToSource
     fileTokenInfo <- billTop Bench.Highlighting $ generateTokenInfo file
     stTokens .= fileTokenInfo

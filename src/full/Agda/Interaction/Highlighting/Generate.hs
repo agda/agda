@@ -21,10 +21,29 @@ module Agda.Interaction.Highlighting.Generate
 
 import Prelude hiding (null)
 
+import Control.Monad
+import Control.Monad.Trans
+import Control.Monad.State
+import Control.Monad.Reader
+import Control.Applicative
+import Control.Arrow ((***), first, second)
+
+import Data.Monoid
+import Data.Generics.Geniplate
+import Data.HashSet (HashSet)
+import qualified Data.HashSet as HSet
+import qualified Data.Map as Map
+import Data.Maybe
+import Data.List ((\\), isPrefixOf)
+import qualified Data.Foldable as Fold (toList, fold, foldMap)
+import Data.IntMap (IntMap)
+import qualified Data.IntMap as IntMap
+
 import Agda.Interaction.FindFile
 import Agda.Interaction.Response (Response(Resp_HighlightingInfo))
 import Agda.Interaction.Highlighting.Precise hiding (tests)
 import Agda.Interaction.Highlighting.Range   hiding (tests)
+
 import qualified Agda.TypeChecking.Errors as E
 import Agda.TypeChecking.MetaVars (isBlockedTerm)
 import Agda.TypeChecking.Monad
@@ -32,6 +51,7 @@ import Agda.TypeChecking.Monad
 import qualified Agda.TypeChecking.Monad as M
 import Agda.TypeChecking.Pretty
 import qualified Agda.TypeChecking.Reduce as R
+
 import qualified Agda.Syntax.Abstract as A
 import Agda.Syntax.Common (Delayed(..))
 import qualified Agda.Syntax.Common as Common
@@ -42,32 +62,16 @@ import qualified Agda.Syntax.Literal as L
 import qualified Agda.Syntax.Parser as Pa
 import qualified Agda.Syntax.Parser.Tokens as T
 import qualified Agda.Syntax.Position as P
+
+import Agda.Utils.FileName
+import Agda.Utils.Functor
 import Agda.Utils.Lens
 import Agda.Utils.List
+import Agda.Utils.Maybe
+import Agda.Utils.Null
 import Agda.Utils.TestHelpers
 import Agda.Utils.HashMap (HashMap)
 import qualified Agda.Utils.HashMap as HMap
-import Control.Monad
-import Control.Monad.Trans
-import Control.Monad.State
-import Control.Monad.Reader
-import Control.Applicative
-import Control.Arrow ((***), first, second)
-import Data.Monoid
-import Data.Generics.Geniplate
-import Agda.Utils.FileName
-import Data.HashSet (HashSet)
-import qualified Data.HashSet as HSet
-import qualified Data.Map as Map
-import Data.Maybe
-import Data.List ((\\), isPrefixOf)
-import qualified Data.Foldable as Fold (toList, fold, foldMap)
-import Data.IntMap (IntMap)
-import qualified Data.IntMap as IntMap
-
-import Agda.Utils.Functor
-import Agda.Utils.Maybe
-import Agda.Utils.Null
 
 #include "undefined.h"
 import Agda.Utils.Impossible
@@ -145,7 +149,7 @@ data Level
 generateAndPrintSyntaxInfo :: A.Declaration -> Level -> TCM ()
 generateAndPrintSyntaxInfo decl _ | P.noRange == P.getRange decl = return ()
 generateAndPrintSyntaxInfo decl hlLevel = do
-  file <- asks envCurrentPath
+  file <- fromMaybe __IMPOSSIBLE__ <$> asks envCurrentPath
 
   reportSLn "import.iface.create" 15 $
       "Generating syntax info for " ++ filePath file ++ ' ' :

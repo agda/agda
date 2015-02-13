@@ -48,7 +48,7 @@ traceCall mkCall m = do
   -- outside the current file
   unlessNull callRange $ \ (Range is) ->
     unlessNull (mapMaybe srcFile $ map iStart is ++ map iEnd is) $ \ files -> do
-      currentFile <- asks envCurrentPath
+      whenJustM (asks envCurrentPath) $ \ currentFile -> do
       unlessNull (filter (/= currentFile) files) $ \ wrongFiles -> do
         reportSLn "impossible" 10 $
           "Someone is trying to set the current range to " ++ show callRange ++

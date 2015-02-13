@@ -91,7 +91,7 @@ TAGS :
 quick : install-O0-bin quicktest
 
 .PHONY : test
-test : check-whitespace succeed fail interaction latex-test examples library-test lib-succeed compiler-test epic-test api-test tests benchmark-without-logs
+test : check-whitespace succeed fail interaction interactive latex-test examples library-test lib-succeed compiler-test epic-test api-test tests benchmark-without-logs
 
 .PHONY : quicktest
 quicktest : succeed fail
@@ -117,6 +117,13 @@ interaction :
 	@echo "===================== Suite of interaction tests ====================="
 	@echo "======================================================================"
 	@$(MAKE) -C test/interaction
+
+.PHONY : interactive
+interactive :
+	@echo "======================================================================"
+	@echo "===================== Suite of interactive tests ====================="
+	@echo "======================================================================"
+	@$(MAKE) -C test/interactive
 
 .PHONY : examples
 examples :
