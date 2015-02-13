@@ -97,10 +97,10 @@ type Calls = CallGraph CallPath
 
 type Result = [TerminationError]
 
--- | Termination check a single declaration.
+-- | Entry point: Termination check a single declaration.
 
 termDecl :: A.Declaration -> TCM Result
-termDecl d = ignoreAbstractMode $ termDecl' d
+termDecl d = inTopContext $ ignoreAbstractMode $ termDecl' d
 
 
 -- | Termination check a sequence of declarations.
