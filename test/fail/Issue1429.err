@@ -1,0 +1,6 @@
+Issue1429.agda:6,3-7,22
+Termination checking failed for the following functions:
+  test
+Problematic calls:
+  test (f a)
+    (at Issue1429.agda:7,12-16)

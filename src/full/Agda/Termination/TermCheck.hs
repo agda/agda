@@ -97,10 +97,10 @@ type Calls = CallGraph CallPath
 
 type Result = [TerminationError]
 
--- | Termination check a single declaration.
+-- | Entry point: Termination check a single declaration.
 
 termDecl :: A.Declaration -> TCM Result
-termDecl d = ignoreAbstractMode $ termDecl' d
+termDecl d = inTopContext $ ignoreAbstractMode $ termDecl' d
 
 
 -- | Termination check a sequence of declarations.
@@ -113,28 +113,27 @@ termDecls ds = concat <$> mapM termDecl' ds
 --   (without necessarily ignoring @abstract@).
 
 termDecl' :: A.Declaration -> TCM Result
-termDecl' (A.ScopedDecl scope ds) = do
-  setScope scope
-  termDecls ds
 termDecl' d = case d of
     A.Axiom {}            -> return mempty
     A.Field {}            -> return mempty
     A.Primitive {}        -> return mempty
     A.Mutual _ ds
-      | [A.RecSig{}, A.RecDef _ r _ _ _ _ rds] <- unscopeDefs ds
-                          -> checkRecDef ds r rds
+      | [A.RecSig{}, A.RecDef _ _ _ _ _ _ rds] <- unscopeDefs ds
+                          -> termDecls rds
     A.Mutual i ds         -> termMutual i ds
-    A.Section _ x _ ds    -> termSection x ds
+    A.Section _ _ _ ds    -> termDecls ds
+        -- section structure can be ignored as we are termination checking
+        -- definitions lifted to the top-level
     A.Apply {}            -> return mempty
     A.Import {}           -> return mempty
     A.Pragma {}           -> return mempty
     A.Open {}             -> return mempty
     A.PatternSynDef {}    -> return mempty
         -- open and pattern synonym defs are just artifacts from the concrete syntax
-    A.ScopedDecl{}        -> __IMPOSSIBLE__
-        -- taken care of above
+    A.ScopedDecl _ ds     -> termDecls ds
+        -- scope is irrelevant as we are termination checking Syntax.Internal
     A.RecSig{}            -> return mempty
-    A.RecDef _ r _ _ _ _ ds -> checkRecDef [] r ds
+    A.RecDef _ r _ _ _ _ ds -> termDecls ds
     -- These should all be wrapped in mutual blocks
     A.FunDef{}  -> __IMPOSSIBLE__
     A.DataSig{} -> __IMPOSSIBLE__
@@ -143,31 +142,10 @@ termDecl' d = case d of
     A.UnquoteDecl{} -> __IMPOSSIBLE__
     A.UnquoteDef{}  -> __IMPOSSIBLE__
   where
-    setScopeFromDefs = mapM_ setScopeFromDef
-    setScopeFromDef (A.ScopedDecl scope d) = setScope scope
-    setScopeFromDef _ = return ()
-
     unscopeDefs = concatMap unscopeDef
 
     unscopeDef (A.ScopedDecl _ ds) = unscopeDefs ds
     unscopeDef d = [d]
-
-    checkRecDef ds r rds = do
-      setScopeFromDefs ds
-      termSection (mnameFromList $ qnameToList r) rds
-
-
--- | Termination check a module.
-
-termSection :: ModuleName -> [A.Declaration] -> TCM Result
-termSection x ds = do
-  tel <- lookupSection x
-  reportSDoc "term.section" 10 $
-    sep [ text "termination checking section"
-          , prettyTCM x
-          , prettyTCM tel
-          ]
-  withCurrentModule x $ addCtxTel tel $ termDecls ds
 
 
 -- | Termination check a bunch of mutually inductive recursive definitions.
