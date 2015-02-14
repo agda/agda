@@ -2,14 +2,7 @@
 
 module SizedTypesVarSwap where
 
-postulate
-  Size : Set
-  _^   : Size -> Size
-  ∞    : Size
-
-{-# BUILTIN SIZE Size  #-}
-{-# BUILTIN SIZESUC _^ #-}
-{-# BUILTIN SIZEINF ∞  #-}
+open import Common.Size renaming (↑_ to _^)
 
 data Nat : {size : Size} -> Set where
   zero : {size : Size} -> Nat {size ^}

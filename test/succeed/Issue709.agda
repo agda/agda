@@ -4,16 +4,7 @@
 -- {-# OPTIONS -v term:5 #-}
 module Issue709 where
 
-postulate
-  Size : Set
-  ∞     : Size
-  ↑_    : Size → Size
-  Size< : ..(_ : Size) → Set
-
-{-# BUILTIN SIZE Size #-}
-{-# BUILTIN SIZELT Size< #-}
-{-# BUILTIN SIZEINF ∞ #-}
-{-# BUILTIN SIZESUC ↑_ #-}
+open import Common.Size
 
 data Bool : Set where true false : Bool
 
