@@ -968,31 +968,30 @@ compareSort CmpLeq = leqSort
 
 -- | Check that the first sort is less or equal to the second.
 leqSort :: Sort -> Sort -> TCM ()
-leqSort s1 s2 =
-  ifM typeInType (return ()) $
-    catchConstraint (SortCmp CmpLeq s1 s2) $
-    do  (s1,s2) <- reduce (s1,s2)
-        let postpone = addConstraint (SortCmp CmpLeq s1 s2)
-        reportSDoc "tc.conv.sort" 30 $
-          sep [ text "leqSort"
-              , nest 2 $ fsep [ prettyTCM s1 <+> text "=<"
-                              , prettyTCM s2 ]
-              ]
-        case (s1, s2) of
+leqSort s1 s2 = catchConstraint (SortCmp CmpLeq s1 s2) $ do
+  (s1,s2) <- reduce (s1,s2)
+  let postpone = addConstraint (SortCmp CmpLeq s1 s2)
+      no       = typeError $ NotLeqSort s1 s2
+      yes      = return ()
+  reportSDoc "tc.conv.sort" 30 $
+    sep [ text "leqSort"
+        , nest 2 $ fsep [ prettyTCM s1 <+> text "=<"
+                        , prettyTCM s2 ]
+        ]
+  case (s1, s2) of
 
-            (Type a, Type b) -> leqLevel a b
+      (_       , Inf     ) -> yes
 
-            (Prop    , Prop    )             -> return ()
-            (Type _  , Prop    )             -> notLeq s1 s2
+      (Type a  , Type b  ) -> unlessM typeInType $ leqLevel a b
 
-            (Prop    , Type _  )             -> return ()
+      (Prop    , Prop    ) -> yes
+      (Prop    , Type _  ) -> yes
+      (Type _  , Prop    ) -> no
 
-            (_       , Inf     )             -> return ()
-            (Inf     , _       )             -> equalSort s1 s2
-            (DLub{}  , _       )             -> postpone
-            (_       , DLub{}  )             -> postpone
-    where
-        notLeq s1 s2 = typeError $ NotLeqSort s1 s2
+
+      (Inf     , _       ) -> unlessM typeInType $ equalSort s1 s2
+      (DLub{}  , _       ) -> unlessM typeInType $ postpone
+      (_       , DLub{}  ) -> unlessM typeInType $ postpone
 
 leqLevel :: Level -> Level -> TCM ()
 leqLevel a b = liftTCM $ do
@@ -1267,34 +1266,50 @@ equalLevel a b = do
 
 -- | Check that the first sort equal to the second.
 equalSort :: Sort -> Sort -> TCM ()
-equalSort s1 s2 =
+equalSort s1 s2 = do
   ifM typeInType (return ()) $
     catchConstraint (SortCmp CmpEq s1 s2) $ do
         (s1,s2) <- reduce (s1,s2)
         let postpone = addConstraint (SortCmp CmpEq s1 s2)
-        reportSDoc "tc.conv.sort" 30 $
-          sep [ text "equalSort"
-              , vcat [ nest 2 $ fsep [ prettyTCM s1 <+> text "=="
-                                     , prettyTCM s2 ]
-                     , nest 2 $ fsep [ text (show s1) <+> text "=="
-                                     , text (show s2) ]
-                     ]
-              ]
+            yes      = return ()
+            no       = typeError $ UnequalSorts s1 s2
+            -- Test whether a level is infinity.
+            isInf ClosedLevel{}   = no
+            isInf (Plus _ l) = case l of
+              MetaLevel x es -> assignE DirEq x es (Sort Inf) $ equalAtom topSort
+                -- Andreas, 2015-02-14
+                -- This seems to be a hack, as a level meta is instantiated
+                -- by a sort.
+              NeutralLevel _ v -> case ignoreSharing v of
+                Sort Inf -> yes
+                _        -> no
+              _ -> no
+
+        reportSDoc "tc.conv.sort" 30 $ sep
+          [ text "equalSort"
+          , vcat [ nest 2 $ fsep [ prettyTCM s1 <+> text "=="
+                                 , prettyTCM s2 ]
+                 , nest 2 $ fsep [ text (show s1) <+> text "=="
+                                 , text (show s2) ]
+                 ]
+          ]
+
         case (s1, s2) of
 
             (Type a  , Type b  ) -> equalLevel a b
 
-            (Prop    , Prop    ) -> return ()
-            (Type _  , Prop    ) -> notEq s1 s2
-            (Prop    , Type _  ) -> notEq s1 s2
 
-            (Inf     , Inf     )             -> return ()
-            (Inf     , Type (Max as@(_:_)))  -> mapM_ (isInf $ notEq s1 s2) as
-            (Type (Max as@(_:_)), Inf)       -> mapM_ (isInf $ notEq s1 s2) as
+            (Prop    , Prop    ) -> yes
+            (Type _  , Prop    ) -> no
+            (Prop    , Type _  ) -> no
+
+            (Inf     , Inf     )             -> yes
+            (Inf     , Type (Max as@(_:_)))  -> mapM_ isInf as
+            (Type (Max as@(_:_)), Inf)       -> mapM_ isInf as
             -- Andreas, 2014-06-27:
             -- @Type (Max [])@ (which is Set0) falls through to error.
-            (Inf     , _       )             -> notEq s1 s2
-            (_       , Inf     )             -> notEq s1 s2
+            (Inf     , _       )             -> no
+            (_       , Inf     )             -> no
 
             -- Andreas, 2014-06-27:  Why are there special cases for Set0?
             (DLub s1 s2, s0@(Type (Max []))) -> do
@@ -1305,15 +1320,6 @@ equalSort s1 s2 =
               underAbstraction_ s2 $ \s2 -> equalSort s0 s2
             (DLub{}  , _       )             -> postpone
             (_       , DLub{}  )             -> postpone
-    where
-        notEq s1 s2 = typeError $ UnequalSorts s1 s2
-
-        isInf notok ClosedLevel{} = notok
-        isInf notok (Plus _ l) = case l of
-          MetaLevel x es          -> assignE DirEq x es (Sort Inf) $ equalAtom topSort
-          NeutralLevel r (Shared p) -> isInf notok (Plus 0 $ NeutralLevel r $ derefPtr p)
-          NeutralLevel _ (Sort Inf) -> return ()
-          _                       -> notok
 
 ---------------------------------------------------------------------------
 -- * Definitions
