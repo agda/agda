@@ -198,7 +198,7 @@ data ResolvedName = VarName A.Name
                   | ConstructorName [AbstractName]
                   | PatternSynResName AbstractName
                   | UnknownName
-  deriving (Show)
+  deriving (Show, Eq)
 
 -- | Look up the abstract name referred to by a given concrete name.
 resolveName :: C.QName -> ScopeM ResolvedName

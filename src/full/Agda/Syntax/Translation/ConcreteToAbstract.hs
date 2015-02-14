@@ -1,4 +1,5 @@
 {-# LANGUAGE CPP                    #-}
+{-# LANGUAGE DoAndIfThenElse        #-}
 {-# LANGUAGE FlexibleInstances      #-}
 {-# LANGUAGE FunctionalDependencies #-}
 {-# LANGUAGE MultiParamTypeClasses  #-}
@@ -63,6 +64,7 @@ import Agda.TypeChecking.Monad.Base
   )
 import Agda.TypeChecking.Monad.Benchmark (billTo, billTop, reimburseTop)
 import qualified Agda.TypeChecking.Monad.Benchmark as Bench
+import Agda.TypeChecking.Monad.Builtin
 import Agda.TypeChecking.Monad.Trace (traceCall, setCurrentRange)
 import Agda.TypeChecking.Monad.State
 import Agda.TypeChecking.Monad.MetaVars (registerInteractionPoint)
@@ -1392,6 +1394,22 @@ instance ToAbstract C.Pragma [A.Pragma] where
             _       -> __IMPOSSIBLE__
         return [ A.StaticPragma y ]
     toAbstract (C.BuiltinPragma _ b e) = do
+      -- Andreas, 2015-02-14
+      -- Some builtins cannot be given a valid Agda type,
+      -- thus, they do not come with accompanying postulate or definition.
+      if b `elem` builtinsNoDef then do
+        case e of
+          C.Ident q@(C.QName x) -> do
+            unlessM ((UnknownName ==) <$> resolveName q) $ genericError $
+              "BUILTIN " ++ b ++ " declares an identifier " ++
+              "(no longer expects an already defined identifier)"
+            y <- freshAbstractQName defaultFixity' x
+            bindName PublicAccess DefName x y
+            return [ A.BuiltinNoDefPragma b y ]
+          _ -> genericError $
+            "Pragma BUILTIN " ++ b ++ ": expected unqualified identifier, " ++
+            "but found expression " ++ prettyShow e
+      else do
         e <- toAbstract e
         return [ A.BuiltinPragma b e ]
     toAbstract (C.ImportPragma _ i) = do
