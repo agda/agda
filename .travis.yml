@@ -45,6 +45,9 @@ script:
   - yes q | make BUILD_DIR=$PWD/dist check-whitespace succeed fail interaction examples library-test lib-succeed compiler-test epic-test api-test tests benchmark
   # Travis doesn't have latex, not sure if we should install it
   # - make latex-test
+  # Testing compilation with transformers 0.3.0.0 which is shipped with
+  # GHC 7.8.* (see issue 1156).
+  - if [ `ghc --numeric-version` == 7.8.4 ]; then cabal configure -v2 --constraint=transformers==0.3.0.0 && cabal -v2 build; fi
 
 # Builds are loooong, we want to send an email as fast as possible.
 matrix:
