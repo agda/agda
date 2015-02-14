@@ -1312,12 +1312,17 @@ equalSort s1 s2 = do
             (_       , Inf     )             -> no
 
             -- Andreas, 2014-06-27:  Why are there special cases for Set0?
-            (DLub s1 s2, s0@(Type (Max []))) -> do
-              equalSort s1 s0
-              underAbstraction_ s2 $ \s2 -> equalSort s2 s0
-            (s0@(Type (Max [])), DLub s1 s2) -> do
-              equalSort s0 s1
-              underAbstraction_ s2 $ \s2 -> equalSort s0 s2
+            -- Andreas, 2015-02-14:  Probably because s ⊔ s' = Set0
+            -- entailed that both s and s' are Set0.
+            -- This is no longer true if  SizeUniv ⊔ s = s
+
+            -- (DLub s1 s2, s0@(Type (Max []))) -> do
+            --   equalSort s1 s0
+            --   underAbstraction_ s2 $ \s2 -> equalSort s2 s0
+            -- (s0@(Type (Max [])), DLub s1 s2) -> do
+            --   equalSort s0 s1
+            --   underAbstraction_ s2 $ \s2 -> equalSort s0 s2
+
             (DLub{}  , _       )             -> postpone
             (_       , DLub{}  )             -> postpone
 
