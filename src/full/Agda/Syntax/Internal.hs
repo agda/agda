@@ -18,7 +18,7 @@ module Agda.Syntax.Internal
 import Prelude hiding (foldr, mapM, null)
 
 import Control.Arrow ((***))
-import Control.Applicative
+import Control.Applicative hiding (empty)
 import Control.Monad.Identity hiding (mapM)
 import Control.Monad.State hiding (mapM)
 import Control.Parallel
@@ -175,11 +175,6 @@ data Tele a = EmptyTel
   deriving (Typeable, Show, Functor, Foldable, Traversable)
 
 type Telescope = Tele (Dom Type)
-
-instance Null (Tele a) where
-  null EmptyTel    = True
-  null ExtendTel{} = False
-  empty = EmptyTel
 
 mapAbsNamesM :: Applicative m => (ArgName -> m ArgName) -> Tele a -> m (Tele a)
 mapAbsNamesM f EmptyTel                  = pure EmptyTel
@@ -800,6 +795,30 @@ swapElimArg :: Elim' (Common.Arg c a) -> Common.Arg c (Elim' a)
 swapElimArg (Apply (Common.Arg ai a)) = Common.Arg ai (Apply a)
 swapElimArg (Proj  d) = defaultArg (Proj  d)
 -}
+
+---------------------------------------------------------------------------
+-- * Null instances.
+---------------------------------------------------------------------------
+
+instance Null (Tele a) where
+  empty = EmptyTel
+  null EmptyTel    = True
+  null ExtendTel{} = False
+
+instance Null ClauseBody where
+  empty = NoBody
+  null NoBody = True
+  null _      = False
+
+-- | A 'null' clause is one with no patterns and no rhs.
+--   Should not exist in practice.
+instance Null Clause where
+  empty = Clause empty empty empty empty empty empty
+  null (Clause r tel perm pats body t)
+    =  null tel
+    && null pats
+    && null body
+
 
 ---------------------------------------------------------------------------
 -- * Show instances.
