@@ -9,26 +9,29 @@ import Control.Monad
 import Data.List (find)
 
 import qualified Agda.Syntax.Abstract as A
-import Agda.Syntax.Internal
 import Agda.Syntax.Common
+import Agda.Syntax.Internal
 import Agda.Syntax.Position
 
-import Agda.TypeChecking.EtaContract
 import Agda.TypeChecking.Monad
 import Agda.TypeChecking.Monad.Builtin
-import Agda.TypeChecking.Conversion
-import Agda.TypeChecking.Substitute
-import Agda.TypeChecking.Primitive
-import Agda.TypeChecking.Constraints
-import Agda.TypeChecking.Reduce
-import Agda.TypeChecking.Irrelevance
 import Agda.TypeChecking.Monad.SizedTypes ( builtinSizeHook )
+
+import Agda.TypeChecking.Conversion
+import Agda.TypeChecking.Constraints
+import Agda.TypeChecking.EtaContract
+import Agda.TypeChecking.Irrelevance
+import Agda.TypeChecking.Primitive
+import Agda.TypeChecking.Reduce
+import Agda.TypeChecking.Substitute
 import Agda.TypeChecking.Rules.Term ( checkExpr , inferExpr )
+
 import {-# SOURCE #-} Agda.TypeChecking.Rules.Builtin.Coinduction
 import {-# SOURCE #-} Agda.TypeChecking.Rewriting
 
 import Agda.Utils.Except ( MonadError(catchError) )
 import Agda.Utils.Maybe
+import Agda.Utils.Monad
 import Agda.Utils.Size
 
 #include "undefined.h"
@@ -447,15 +450,16 @@ bindBuiltinInfo (BuiltinInfo s d) e = do
 -- | Bind a builtin thing to an expression.
 bindBuiltin :: String -> A.Expr -> TCM ()
 bindBuiltin b e = do
-    top <- (== 0) . size <$> getContextTelescope
-    unless top $ typeError $ BuiltinInParameterisedModule b
-    bind b e
-    where
-        bind b e
-            | b == builtinZero = typeError $ GenericError "Builtin ZERO does no longer exist. It is now bound by BUILTIN NATURAL"
-            | b == builtinSuc  = typeError $ GenericError "Builtin SUC does no longer exist. It is now bound by BUILTIN NATURAL"
-            | b == builtinInf                                   = bindBuiltinInf e
-            | b == builtinSharp                                 = bindBuiltinSharp e
-            | b == builtinFlat                                  = bindBuiltinFlat e
-            | Just i <- find ((==b) . builtinName) coreBuiltins = bindBuiltinInfo i e
-            | otherwise                                         = typeError $ NoSuchBuiltinName b
+  unlessM ((0 ==) <$> getContextSize) $ typeError $ BuiltinInParameterisedModule b
+  case b of
+    _ | b == builtinZero  -> nowNat b
+    _ | b == builtinSuc   -> nowNat b
+    _ | b == builtinInf   -> bindBuiltinInf e
+    _ | b == builtinSharp -> bindBuiltinSharp e
+    _ | b == builtinFlat  -> bindBuiltinFlat e
+    _ | Just i <- find ((b ==) . builtinName) coreBuiltins -> bindBuiltinInfo i e
+    _ -> typeError $ NoSuchBuiltinName b
+  where
+    nowNat b = genericError $
+      "Builtin " ++ b ++ " does no longer exist. " ++
+      "It is now bound by BUILTIN " ++ builtinNat
