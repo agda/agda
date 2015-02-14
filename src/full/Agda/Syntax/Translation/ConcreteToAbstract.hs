@@ -45,6 +45,7 @@ import Agda.Syntax.Concrete as C hiding (topLevelModuleName)
 import Agda.Syntax.Concrete.Generic
 import Agda.Syntax.Concrete.Operators
 import Agda.Syntax.Abstract as A
+import Agda.Syntax.Abstract.Pretty
 import Agda.Syntax.Position
 import Agda.Syntax.Literal
 import Agda.Syntax.Common hiding (Arg, Dom, NamedArg, ArgInfo)
@@ -56,9 +57,10 @@ import Agda.Syntax.Notation
 import Agda.Syntax.Scope.Base
 import Agda.Syntax.Scope.Monad
 
-import Agda.TypeChecking.Monad.Base (TypeError(..), Call(..), typeError,
-                                     TCErr(..), extendedLambdaName, fresh,
-                                     freshName, freshName_, freshNoName)
+import Agda.TypeChecking.Monad.Base
+  ( TypeError(..) , Call(..) , typeError , genericError , TCErr(..)
+  , fresh , freshName , freshName_ , freshNoName , extendedLambdaName
+  )
 import Agda.TypeChecking.Monad.Benchmark (billTo, billTop, reimburseTop)
 import qualified Agda.TypeChecking.Monad.Benchmark as Bench
 import Agda.TypeChecking.Monad.Trace (traceCall, setCurrentRange)
@@ -405,9 +407,7 @@ instance ToAbstract PatName APatName where
       (UnknownName,     C.QName x)                          -> return $ Left x
       (ConstructorName ds, _)                               -> return $ Right (Left ds)
       (PatternSynResName d, _)                              -> return $ Right (Right d)
-      _                                                     ->
-        typeError $ GenericError $
-          "Cannot pattern match on " ++ show x ++ ", because it is not a constructor"
+      _ -> genericError $ "Cannot pattern match on non-constructor " ++ prettyShow x
     case z of
       Left x  -> do
         reportSLn "scope.pat" 10 $ "it was a var: " ++ show x
@@ -534,7 +534,7 @@ toAbstractLam r bs e ctx = do
 scopeCheckExtendedLam :: Range -> [(C.LHS, C.RHS, WhereClause)] -> ScopeM A.Expr
 scopeCheckExtendedLam r cs = do
   whenM isInsideDotPattern $
-    typeError $ GenericError "Extended lambdas are not allowed in dot patterns"
+    genericError "Extended lambdas are not allowed in dot patterns"
 
   -- Find an unused name for the extended lambda definition.
   cname <- nextlamname r 0 extendedLambdaName
@@ -660,7 +660,7 @@ instance ToAbstract C.Expr A.Expr where
 
   -- Let
       e0@(C.Let _ ds e) ->
-        ifM isInsideDotPattern (typeError $ GenericError $ "Let-expressions are not allowed in dot patterns") $
+        ifM isInsideDotPattern (genericError $ "Let-expressions are not allowed in dot patterns") $
         localToAbstract (LetDefs ds) $ \ds' -> do
         e        <- toAbstractCtx TopCtx e
         let info = ExprRange (getRange e0)
@@ -689,7 +689,7 @@ instance ToAbstract C.Expr A.Expr where
 
   -- Impossible things
       C.ETel _  -> __IMPOSSIBLE__
-      C.Equal{} -> typeError $ GenericError "Parse error: unexpected '='"
+      C.Equal{} -> genericError "Parse error: unexpected '='"
 
   -- Quoting
       C.QuoteGoal _ x e -> do
@@ -954,9 +954,9 @@ instance ToAbstract LetDef [A.LetBinding] where
         case d of
             NiceMutual _ _ d@[C.FunSig _ fx _ instanc info _ x t, C.FunDef _ _ _ abstract _ _ [cl]] ->
                 do  when (abstract == AbstractDef) $ do
-                      typeError $ GenericError $ "abstract not allowed in let expressions"
+                      genericError $ "abstract not allowed in let expressions"
                     when (instanc == InstanceDef) $ do
-                      typeError $ GenericError $ "Using instance is useless here, let expressions are always eligible for instance search."
+                      genericError $ "Using instance is useless here, let expressions are always eligible for instance search."
                     e <- letToAbstract cl
                     t <- toAbstract t
                     x <- toAbstract (NewName $ mkBoundName x fx)
@@ -1028,7 +1028,7 @@ instance ToAbstract LetDef [A.LetBinding] where
                   res <- setCurrentRange p $ parseLHS top p
                   case res of
                     C.LHSHead x args -> return (x, args)
-                    C.LHSProj{} -> typeError $ GenericError $ "copatterns not allowed in let bindings"
+                    C.LHSProj{} -> genericError $ "copatterns not allowed in let bindings"
 
                 localToAbstract args $ \args ->
                     do  rhs <- toAbstract rhs
@@ -1070,7 +1070,7 @@ instance ToAbstract NiceDeclaration A.Declaration where
 
   -- Fields
     C.NiceField r f p a x t -> do
-      unless (p == PublicAccess) $ typeError $ GenericError "Record fields can not be private"
+      unless (p == PublicAccess) $ genericError "Record fields can not be private"
       -- Interaction points for record fields have already been introduced
       -- when checking the type of the record constructor.
       -- To avoid introducing interaction points (IP) twice, we turn
@@ -1131,7 +1131,7 @@ instance ToAbstract NiceDeclaration A.Declaration where
 
   -- Uncategorized function clauses
     C.NiceFunClause r acc abs termCheck (C.FunClause lhs rhs wcls) ->
-      typeError $ GenericError $
+      genericError $
         "Missing type signature for left hand side " ++ show lhs
     C.NiceFunClause{} -> __IMPOSSIBLE__
 
@@ -1196,7 +1196,7 @@ instance ToAbstract NiceDeclaration A.Declaration where
         scopeCheckNiceModule r p name tel $ toAbstract ds
 
     NiceModule _ _ _ m@C.Qual{} _ _ ->
-      typeError $ GenericError $ "Local modules cannot have qualified names"
+      genericError $ "Local modules cannot have qualified names"
 
     NiceModuleMacro r p x modapp open dir ->
       checkModuleMacro Apply r p x modapp open dir
@@ -1343,24 +1343,24 @@ instance ToAbstract C.Pragma [A.Pragma] where
         A.Def x          -> return [ A.RewritePragma x ]
         A.Proj x         -> return [ A.RewritePragma x ]
         A.Con (AmbQ [x]) -> return [ A.RewritePragma x ]
-        A.Con x          -> fail $ "REWRITE used on ambiguous name " ++ show x
+        A.Con x          -> genericError $ "REWRITE used on ambiguous name " ++ show x
         _       -> __IMPOSSIBLE__
     toAbstract (C.CompiledTypePragma _ x hs) = do
       e <- toAbstract $ OldQName x
       case e of
         A.Def x -> return [ A.CompiledTypePragma x hs ]
-        _       -> fail $ "Bad compiled type: " ++ show x  -- TODO: error message
+        _       -> genericError $ "Bad compiled type: " ++ prettyShow x  -- TODO: error message
     toAbstract (C.CompiledDataPragma _ x hs hcs) = do
       e <- toAbstract $ OldQName x
       case e of
         A.Def x -> return [ A.CompiledDataPragma x hs hcs ]
-        _       -> fail $ "Not a datatype: " ++ show x  -- TODO: error message
+        _       -> genericError $ "Not a datatype: " ++ prettyShow x  -- TODO: error message
     toAbstract (C.CompiledPragma _ x hs) = do
       e <- toAbstract $ OldQName x
       y <- case e of
             A.Def x -> return x
             A.Proj x -> return x -- TODO: do we need to do s.th. special for projections? (Andreas, 2014-10-12)
-            A.Con _ -> fail "Use COMPILED_DATA for constructors" -- TODO
+            A.Con _ -> genericError "Use COMPILED_DATA for constructors" -- TODO
             _       -> __IMPOSSIBLE__
       return [ A.CompiledPragma y hs ]
     toAbstract (C.CompiledExportPragma _ x hs) = do
@@ -1381,7 +1381,8 @@ instance ToAbstract C.Pragma [A.Pragma] where
             A.Def x -> return x
             A.Proj x -> return x
             A.Con (AmbQ [x]) -> return x
-            A.Con x -> fail ("COMPILED_JS used on ambiguous name " ++ show x)
+            A.Con x -> genericError $
+              "COMPILED_JS used on ambiguous name " ++ prettyShow x
             _       -> __IMPOSSIBLE__
       return [ A.CompiledJSPragma y ep ]
     toAbstract (C.StaticPragma _ x) = do
@@ -1400,12 +1401,15 @@ instance ToAbstract C.Pragma [A.Pragma] where
       e <- toAbstract $ OldQName x
       case e of
         A.Def x -> return [ A.EtaPragma x ]
-        _       -> fail "Bad ETA pragma"
+        _       -> do
+         e <- showA e
+         genericError $ "Pragma ETA: expected identifier, " ++
+           "but found expression " ++ e
     -- Termination checking pragmes are handled by the nicifier
     toAbstract C.TerminationCheckPragma{} = __IMPOSSIBLE__
 
 instance ToAbstract C.Clause A.Clause where
-    toAbstract (C.Clause top C.Ellipsis{} _ _ _) = fail "bad '...'" -- TODO: error message
+    toAbstract (C.Clause top C.Ellipsis{} _ _ _) = genericError "bad '...'" -- TODO: error message
     toAbstract (C.Clause top lhs@(C.LHS p wps eqs with) rhs wh wcs) = withLocalVars $ do
       -- Andreas, 2012-02-14: need to reset local vars before checking subclauses
       vars <- getLocalVars
@@ -1545,7 +1549,7 @@ instance ToAbstract C.LHSCore (A.LHSCore' C.Expr) where
         d  <- case qx of
                 FieldName d -> return $ anameName d
                 UnknownName -> notInScope d
-                _           -> typeError $ GenericError $
+                _           -> genericError $
                   "head of copattern needs to be a field identifier, but "
                   ++ show d ++ " isn't one"
         args1 <- toAbstract ps1
@@ -1615,13 +1619,13 @@ instance ToAbstract C.Pattern (A.Pattern' C.Expr) where
       let quoted (A.Def x) = return x
           quoted (A.Proj x) = return x
           quoted (A.Con (AmbQ [x])) = return x
-          quoted (A.Con (AmbQ xs))  = typeError $ GenericError $ "quote: Ambigous name: " ++ show xs
+          quoted (A.Con (AmbQ xs))  = genericError $ "quote: Ambigous name: " ++ show xs
           quoted (A.ScopedExpr _ e) = quoted e
-          quoted _                  = typeError $ GenericError $ "quote: not a defined name"
+          quoted _                  = genericError $ "quote: not a defined name"
       A.LitP . LitQName (getRange x) <$> quoted e
 
     toAbstract (QuoteP r) =
-      typeError $ GenericError "quote must be applied to an identifier"
+      genericError "quote must be applied to an identifier"
 
     toAbstract p0@(AppP p q) = do
         (p', q') <- toAbstract (p,q)

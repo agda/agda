@@ -2179,6 +2179,9 @@ patternViolation = throwError PatternErr
 internalError :: MonadTCM tcm => String -> tcm a
 internalError s = typeError $ InternalError s
 
+genericError :: MonadTCM tcm => String -> tcm a
+genericError = typeError . GenericError
+
 {-# SPECIALIZE typeError :: TypeError -> TCM a #-}
 typeError :: MonadTCM tcm => TypeError -> tcm a
 typeError err = liftTCM $ throwError =<< typeError_ err
