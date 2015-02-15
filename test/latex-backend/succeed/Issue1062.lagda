@@ -14,12 +14,6 @@
 
 {-# OPTIONS --copatterns --sized-types #-}
 
-postulate
-  Size   : Set
-  Size<_ : Size → Set
-  ↑_     : Size → Size
-  ∞      : Size
-
 {-# BUILTIN SIZE    Size   #-}
 {-# BUILTIN SIZELT  Size<_ #-}
 {-# BUILTIN SIZESUC ↑_     #-}
