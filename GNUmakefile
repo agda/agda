@@ -8,12 +8,12 @@ setup: Everything.agda agda-lib-ffi
 
 .PHONY: Everything.agda
 Everything.agda:
-	cabal install
+	cabal clean && cabal install
 	GenerateEverything
 
 .PHONY: agda-lib-ffi
 agda-lib-ffi:
-	cd ffi && cabal install
+	cd ffi && cabal clean && cabal install
 
 .PHONY: listings
 listings: Everything.agda
