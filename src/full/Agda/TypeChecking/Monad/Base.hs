@@ -1825,8 +1825,13 @@ data TypeError
         | NotAProjectionPattern (A.NamedArg A.Pattern)
         | NotAProperTerm
         | SetOmegaNotValidType
+        | InvalidTypeSort Sort
+            -- ^ This sort is not a type expression.
         | InvalidType Term
             -- ^ This term is not a type expression.
+        | FunctionTypeInSizeUniv Term
+            -- ^ This term, a function type constructor, lives in
+            --   @SizeUniv@, which is not allowed.
         | SplitOnIrrelevant A.Pattern (Dom Type)
         | DefinitionIsIrrelevant QName
         | VariableIsIrrelevant Name

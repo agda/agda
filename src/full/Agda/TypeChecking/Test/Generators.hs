@@ -449,6 +449,7 @@ instance ShrinkC Sort Sort where
     Type n     -> [] -- No Level instance yet -- Type <$> shrinkC conf n
     Prop       -> __IMPOSSIBLE__
     Inf        -> []
+    SizeUniv   -> []
     DLub s1 s2 -> __IMPOSSIBLE__
   noShrink = id
 

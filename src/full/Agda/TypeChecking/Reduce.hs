@@ -233,6 +233,7 @@ instance Reduce Sort where
             Prop       -> return s
             Type s'    -> levelSort <$> reduce' s'
             Inf        -> return Inf
+            SizeUniv   -> return SizeUniv
 
 instance Reduce Elim where
   reduce' (Apply v) = Apply <$> reduce' v
@@ -649,6 +650,7 @@ instance Simplify Sort where
         Type s     -> levelSort <$> simplify' s
         Prop       -> return s
         Inf        -> return s
+        SizeUniv   -> return s
 
 instance Simplify Level where
   simplify' (Max as) = levelMax <$> simplify' as
@@ -758,6 +760,7 @@ instance Normalise Sort where
         Prop       -> return s
         Type s     -> levelSort <$> normalise' s
         Inf        -> return Inf
+        SizeUniv   -> return SizeUniv
 
 instance Normalise Type where
     normalise' (El s t) = El <$> normalise' s <*> normalise' t
@@ -899,6 +902,7 @@ instance InstantiateFull Sort where
             Prop       -> return s
             DLub s1 s2 -> dLub <$> instantiateFull' s1 <*> instantiateFull' s2
             Inf        -> return s
+            SizeUniv   -> return s
 
 instance InstantiateFull Type where
     instantiateFull' (El s t) =

@@ -967,6 +967,10 @@ compareSort CmpEq  = equalSort
 compareSort CmpLeq = leqSort
 
 -- | Check that the first sort is less or equal to the second.
+--
+--   We can put @SizeUniv@ below @Inf@, but otherwise, it is
+--   unrelated to the other universes.
+--
 leqSort :: Sort -> Sort -> TCM ()
 leqSort s1 s2 = catchConstraint (SortCmp CmpLeq s1 s2) $ do
   (s1,s2) <- reduce (s1,s2)
@@ -988,6 +992,9 @@ leqSort s1 s2 = catchConstraint (SortCmp CmpLeq s1 s2) $ do
       (Prop    , Type _  ) -> yes
       (Type _  , Prop    ) -> no
 
+      (SizeUniv, SizeUniv) -> yes
+      (SizeUniv, _       ) -> no
+      (_       , SizeUniv) -> no
 
       (Inf     , _       ) -> unlessM typeInType $ equalSort s1 s2
       (DLub{}  , _       ) -> unlessM typeInType $ postpone
@@ -1298,6 +1305,9 @@ equalSort s1 s2 = do
 
             (Type a  , Type b  ) -> equalLevel a b
 
+            (SizeUniv, SizeUniv) -> yes
+            (SizeUniv, _       ) -> no
+            (_       , SizeUniv) -> no
 
             (Prop    , Prop    ) -> yes
             (Type _  , Prop    ) -> no

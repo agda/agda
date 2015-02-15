@@ -203,6 +203,7 @@ data Sort
   = Type Level  -- ^ @Set ℓ@.
   | Prop        -- ^ Dummy sort.
   | Inf         -- ^ @Setω@.
+  | SizeUniv    -- ^ @SizeUniv@, a sort inhabited by type @Size@.
   | DLub Sort (Abs Sort)
     -- ^ Dependent least upper bound.
     --   If the free variable occurs in the second sort,
@@ -623,6 +624,7 @@ varSort n = Type $ Max [Plus 0 $ NeutralLevel mempty $ Var n []]
 sSuc :: Sort -> Sort
 sSuc Prop            = mkType 1
 sSuc Inf             = Inf
+sSuc SizeUniv        = SizeUniv
 sSuc (DLub a b)      = DLub (sSuc a) (fmap sSuc b)
 sSuc (Type l)        = Type $ levelSuc l
 
@@ -933,6 +935,7 @@ instance KillRange Sort where
   killRange s = case s of
     Prop       -> Prop
     Inf        -> Inf
+    SizeUniv   -> SizeUniv
     Type a     -> killRange1 Type a
     DLub s1 s2 -> killRange2 DLub s1 s2
 
@@ -1050,6 +1053,7 @@ instance Pretty Sort where
       Type l -> mparens (p > 9) $ text "Set" <+> prettyPrec 10 l
       Prop -> text "Prop"
       Inf -> text "Setω"
+      SizeUniv -> text "SizeUniv"
       DLub s b -> mparens (p > 9) $
         text "dlub" <+> prettyPrec 10 s
                     <+> parens (sep [ text ("λ " ++ show (absName b) ++ " ->")

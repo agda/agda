@@ -404,6 +404,7 @@ instance Occurs Sort where
       Type a     -> Type <$> occurs red ctx m xs a
       Prop       -> return s'
       Inf        -> return s'
+      SizeUniv   -> return s'
 
   metaOccurs m s = do
     s <- instantiate s
@@ -412,6 +413,7 @@ instance Occurs Sort where
       Type a     -> metaOccurs m a
       Prop       -> return ()
       Inf        -> return ()
+      SizeUniv   -> return ()
 
 instance Occurs a => Occurs (Elim' a) where
   occurs red ctx m xs e@Proj{}  = return e
@@ -602,6 +604,7 @@ instance FoldRigid Sort where
       Type l     -> fold l
       Prop       -> mempty
       Inf        -> mempty
+      SizeUniv   -> mempty
       DLub s1 s2 -> fold (s1, s2)
     where fold = foldRigid abs f
 

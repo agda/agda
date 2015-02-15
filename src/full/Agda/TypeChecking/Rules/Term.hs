@@ -735,12 +735,22 @@ checkExpr e t0 =
                    , nest 2 $ text "t   =" <+> prettyTCM t'
                    , nest 2 $ text "cxt =" <+> (prettyTCM =<< getContextTelescope)
                    ]
+            when (s == SizeUniv) $ do
+              -- Andreas, 2015-02-14
+              -- We have constructed a function type in SizeUniv
+              -- which is illegal to prevent issue 1428.
+              typeError $ FunctionTypeInSizeUniv v
             coerce v (sort s) t
         A.Fun _ (Arg info a) b -> do
             a' <- isType_ a
             b' <- isType_ b
             s <- reduce $ getSort a' `sLub` getSort b'
             let v = Pi (convColor $ Dom info a') (NoAbs underscore b')
+            when (s == SizeUniv) $ do
+              -- Andreas, 2015-02-14
+              -- We have constructed a function type in SizeUniv
+              -- which is illegal to prevent issue 1428.
+              typeError $ FunctionTypeInSizeUniv v
             coerce v (sort s) t
         A.Set _ n    -> do
           n <- ifM typeInType (return 0) (return n)

@@ -190,6 +190,8 @@ errorString err = case err of
   NotAProperTerm                           -> "NotAProperTerm"
   SetOmegaNotValidType{}                   -> "SetOmegaNotValidType"
   InvalidType{}                            -> "InvalidType"
+  InvalidTypeSort{}                        -> "InvalidTypeSort"
+  FunctionTypeInSizeUniv{}                 -> "FunctionTypeInSizeUniv"
   NotAValidLetBinding{}                    -> "NotAValidLetBinding"
   NotAnExpression{}                        -> "NotAnExpression"
   NotImplemented{}                         -> "NotImplemented"
@@ -487,7 +489,12 @@ instance PrettyTCM TypeError where
 
     SetOmegaNotValidType -> fwords "Setω is not a valid type"
 
+    InvalidTypeSort s -> fsep $ [prettyTCM s] ++ pwords "is not a valid type"
     InvalidType v -> fsep $ [prettyTCM v] ++ pwords "is not a valid type"
+
+    FunctionTypeInSizeUniv v -> fsep $
+      pwords "Functions may not return sizes, thus, function type " ++
+      [ prettyTCM v ] ++ pwords " is illegal"
 
     SplitOnIrrelevant p t -> fsep $
       pwords "Cannot pattern match" ++ [prettyA p] ++
