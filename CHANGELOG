@@ -30,6 +30,15 @@ Language
 
     {xs {ys zs} : List A} → ...
 
+* The builtins for sized types no longer need accompanying postulates.
+  The BUILTIN pragmas for size stuff now also declare the identifiers
+  they bind to.
+
+    {-# BUILTIN SIZE     Size     #-}  --  Size   : Set
+    {-# BUILTIN SIZELT   Size<_   #-}  --  Size<_ : Size → Set
+    {-# BUILTIN SIZESUC  ↑_       #-}  --  ↑_     : Size → Size
+    {-# BUILTIN SIZEINF  ∞        #-}  --  ∞      : Size
+
 Type checking
 =============
 

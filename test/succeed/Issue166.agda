@@ -1,17 +1,8 @@
-{-# OPTIONS --sized-types #-}
 -- {-# OPTIONS -v tc.polarity:15 #-}
 module Issue166 where
 
-postulate
-  Size : Set
-  ↑_   : Size → Size
-  ∞    : Size
-
-{-# BUILTIN SIZE    Size #-}
-{-# BUILTIN SIZESUC ↑_   #-}
-{-# BUILTIN SIZEINF ∞    #-}
-
-data ⊥ : Set where
+open import Common.Size
+open import Common.Prelude
 
 module M (A : Set) where
 

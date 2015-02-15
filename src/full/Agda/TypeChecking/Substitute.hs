@@ -663,6 +663,7 @@ instance Subst Sort where
     Type n     -> levelSort $ sub n
     Prop       -> Prop
     Inf        -> Inf
+    SizeUniv   -> SizeUniv
     DLub s1 s2 -> DLub (sub s1) (sub s2)
     where sub x = applySubst rho x
 
@@ -1090,6 +1091,8 @@ sLub s Prop = s
 sLub Prop s = s
 sLub Inf _ = Inf
 sLub _ Inf = Inf
+sLub SizeUniv s = s         -- one can freely quantify over sizes in any Set
+sLub _ SizeUniv = SizeUniv  -- but everything resulting in a size lives in the SizeUniv
 sLub (Type (Max as)) (Type (Max bs)) = Type $ levelMax (as ++ bs)
 sLub (DLub a b) c = DLub (sLub a c) b
 sLub a (DLub b c) = DLub (sLub a b) c

@@ -1,4 +1,4 @@
 CheckSizeMetaBounds.agda:24,17-20
 ∞ !=< .i of type Size
-when checking that (magic n) are valid arguments to a function of
+when checking that (magic n) is a valid argument to a function of
 type {j : Size< .i} → Nat → Nat

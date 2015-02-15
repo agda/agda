@@ -85,8 +85,8 @@ haveSizedTypes = do
   `catchError` \_ -> return False
 
 -- | Add polarity info to a SIZE builtin.
-builtinSizeHook :: String -> QName -> Term -> Type -> TCM ()
-builtinSizeHook s q e' t = do
+builtinSizeHook :: String -> QName -> Type -> TCM ()
+builtinSizeHook s q t = do
   when (s `elem` [builtinSizeLt, builtinSizeSuc]) $ do
     modifySignature $ updateDefinition q
       $ updateDefPolarity       (const [Covariant])

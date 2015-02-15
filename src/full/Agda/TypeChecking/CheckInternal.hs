@@ -128,6 +128,7 @@ checkInternal v t = do
         checkInternal (absBody vb) (absBody b)
     Pi a b     -> do
       s <- shouldBeSort t
+      when (s == SizeUniv) $ typeError $ FunctionTypeInSizeUniv v
       let st = sort s
       checkInternal (unEl $ unDom a) st
       addContext (absName b, a) $ do
@@ -303,6 +304,7 @@ checkSort s =
       -- the dummy Prop should not be part of a term we check
     Inf      -> typeError $ SetOmegaNotValidType
       -- we cannot have Setω on the lhs of the colon
+    SizeUniv -> typeError $ InvalidTypeSort s
     DLub a b -> do
       checkSort a
       addContext (absName b, defaultDom (sort a) :: I.Dom Type) $ do

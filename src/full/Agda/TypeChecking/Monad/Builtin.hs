@@ -110,12 +110,12 @@ primInteger, primFloat, primChar, primString, primBool, primTrue, primFalse,
     primList, primNil, primCons, primIO, primNat, primSuc, primZero,
     primNatPlus, primNatMinus, primNatTimes, primNatDivSucAux, primNatModSucAux,
     primNatEquality, primNatLess,
-    primSize, primSizeLt, primSizeSuc, primSizeInf,
+    primSizeUniv, primSize, primSizeLt, primSizeSuc, primSizeInf, primSizeMax,
     primInf, primSharp, primFlat,
     primEquality, primRefl,
     primRewrite, -- Name of rewrite relation
     primLevel, primLevelZero, primLevelSuc, primLevelMax,
-    primIrrAxiom, primSizeMax,
+    primIrrAxiom,
     -- builtins for reflection:
     primQName, primArgInfo, primArgArgInfo, primArg, primArgArg, primAbs, primAbsAbs, primAgdaTerm, primAgdaTermVar,
     primAgdaTermLam, primAgdaTermExtLam, primAgdaTermDef, primAgdaTermCon, primAgdaTermPi,
@@ -154,6 +154,7 @@ primNatDivSucAux = getBuiltin builtinNatDivSucAux
 primNatModSucAux = getBuiltin builtinNatModSucAux
 primNatEquality  = getBuiltin builtinNatEquals
 primNatLess      = getBuiltin builtinNatLess
+primSizeUniv     = getBuiltin builtinSizeUniv
 primSize         = getBuiltin builtinSize
 primSizeLt       = getBuiltin builtinSizeLt
 primSizeSuc      = getBuiltin builtinSizeSuc
@@ -231,9 +232,11 @@ primAgdaDefinition                = getBuiltin builtinAgdaDefinition
 builtinNat, builtinSuc, builtinZero, builtinNatPlus, builtinNatMinus,
   builtinNatTimes, builtinNatDivSucAux, builtinNatModSucAux, builtinNatEquals,
   builtinNatLess, builtinInteger, builtinFloat, builtinChar, builtinString,
-  builtinBool, builtinTrue, builtinFalse, builtinList, builtinNil,
-  builtinCons, builtinIO, builtinSize, builtinSizeLt, builtinSizeSuc,
-  builtinSizeInf, builtinSizeMax, builtinInf, builtinSharp, builtinFlat,
+  builtinBool, builtinTrue, builtinFalse,
+  builtinList, builtinNil, builtinCons, builtinIO,
+  builtinSizeUniv, builtinSize, builtinSizeLt,
+  builtinSizeSuc, builtinSizeInf, builtinSizeMax,
+  builtinInf, builtinSharp, builtinFlat,
   builtinEquality, builtinRefl, builtinRewrite, builtinLevelMax,
   builtinLevel, builtinLevelZero, builtinLevelSuc, builtinIrrAxiom,
   builtinQName, builtinAgdaSort, builtinAgdaSortSet, builtinAgdaSortLit,
@@ -278,6 +281,7 @@ builtinList                          = "LIST"
 builtinNil                           = "NIL"
 builtinCons                          = "CONS"
 builtinIO                            = "IO"
+builtinSizeUniv                      = "SIZEUNIV"
 builtinSize                          = "SIZE"
 builtinSizeLt                        = "SIZELT"
 builtinSizeSuc                       = "SIZESUC"
@@ -351,6 +355,27 @@ builtinAgdaDefinitionDataConstructor = "AGDADEFINITIONDATACONSTRUCTOR"
 builtinAgdaDefinitionPostulate       = "AGDADEFINITIONPOSTULATE"
 builtinAgdaDefinitionPrimitive       = "AGDADEFINITIONPRIMITIVE"
 builtinAgdaDefinition                = "AGDADEFINITION"
+
+-- | Builtins that come without a definition in Agda syntax.
+--   These are giving names to Agda internal concepts which
+--   cannot be assigned an Agda type.
+--
+--   An example would be a user-defined name for @Set@.
+--
+--     {-# BUILTIN TYPE Type #-}
+--
+--   The type of @Type@ would be @Type : Level → Setω@
+--   which is not valid Agda.
+
+builtinsNoDef :: [String]
+builtinsNoDef =
+  [ builtinSizeUniv
+  , builtinSize
+  , builtinSizeLt
+  , builtinSizeSuc
+  , builtinSizeInf
+  , builtinSizeMax
+  ]
 
 -- | The coinductive primitives.
 

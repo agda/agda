@@ -43,6 +43,7 @@ import Agda.Utils.FileName
 import Agda.Utils.Function
 import Agda.Utils.Monad
 import Agda.Utils.Null
+import Agda.Utils.Size
 import qualified Agda.Utils.Pretty as P
 
 #include "undefined.h"
@@ -190,6 +191,8 @@ errorString err = case err of
   NotAProperTerm                           -> "NotAProperTerm"
   SetOmegaNotValidType{}                   -> "SetOmegaNotValidType"
   InvalidType{}                            -> "InvalidType"
+  InvalidTypeSort{}                        -> "InvalidTypeSort"
+  FunctionTypeInSizeUniv{}                 -> "FunctionTypeInSizeUniv"
   NotAValidLetBinding{}                    -> "NotAValidLetBinding"
   NotAnExpression{}                        -> "NotAnExpression"
   NotImplemented{}                         -> "NotImplemented"
@@ -492,7 +495,12 @@ instance PrettyTCM TypeError where
 
     SetOmegaNotValidType -> fwords "Setω is not a valid type"
 
+    InvalidTypeSort s -> fsep $ [prettyTCM s] ++ pwords "is not a valid type"
     InvalidType v -> fsep $ [prettyTCM v] ++ pwords "is not a valid type"
+
+    FunctionTypeInSizeUniv v -> fsep $
+      pwords "Functions may not return sizes, thus, function type " ++
+      [ prettyTCM v ] ++ pwords " is illegal"
 
     SplitOnIrrelevant p t -> fsep $
       pwords "Cannot pattern match" ++ [prettyA p] ++
@@ -1123,8 +1131,10 @@ instance PrettyTCM Call where
 
     CheckArguments r es t0 t1 _ -> fsep $
       pwords "when checking that" ++
-      map hPretty es ++ pwords "are valid arguments to a function of type"
-      ++ [prettyTCM t0]
+      map hPretty es ++
+      pwords (singPlural es "is a valid argument" "are valid arguments") ++
+      pwords "to a function of type" ++
+      [prettyTCM t0]
 
     CheckRecDef _ x ps cs _ ->
       fsep $ pwords "when checking the definition of" ++ [prettyTCM x]
@@ -1232,3 +1242,6 @@ instance Verbalize a => Verbalize (Indefinite a) where
       w@(c:cs) | c `elem` ['a','e','i','o'] -> "an " ++ w
                | otherwise                  -> "a " ++ w
       -- Aarne Ranta would whip me if he saw this.
+
+singPlural :: Sized a => a -> c -> c -> c
+singPlural xs singular plural = if size xs == 1 then singular else plural

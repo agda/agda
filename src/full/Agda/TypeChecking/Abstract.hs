@@ -86,6 +86,7 @@ instance AbstractTerm Sort where
     Type n     -> Type $ absS n
     Prop       -> Prop
     Inf        -> Inf
+    SizeUniv   -> SizeUniv
     DLub s1 s2 -> DLub (absS s1) (absS s2)
     where absS x = abstractTerm u x
 

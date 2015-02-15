@@ -51,6 +51,7 @@ import Agda.Syntax.Internal as I
 import qualified Agda.Utils.VarSet as VSet
 
 import Agda.TypeChecking.Monad as M hiding (MetaInfo)
+import Agda.TypeChecking.Monad.Builtin
 import Agda.TypeChecking.Reduce
 import {-# SOURCE #-} Agda.TypeChecking.Records
 import Agda.TypeChecking.CompiledClause (CompiledClauses(Fail))
@@ -895,21 +896,24 @@ instance Reify Type Expr where
 
 instance Reify Sort Expr where
     reifyWhen = reifyWhenE
-    reify s =
-        do  s <- instantiateFull s
-            case s of
-                I.Type (I.Max [])                -> return $ A.Set exprInfo 0
-                I.Type (I.Max [I.ClosedLevel n]) -> return $ A.Set exprInfo n
-                I.Type a -> do
-                  a <- reify a
-                  return $ A.App exprInfo (A.Set exprInfo 0) (defaultNamedArg a)
-                I.Prop       -> return $ A.Prop exprInfo
-                I.Inf       -> A.Var <$> freshName_ ("Setω" :: String)
-                I.DLub s1 s2 -> do
-                  lub <- freshName_ ("dLub" :: String) -- TODO: hack
-                  (e1,e2) <- reify (s1, I.Lam defaultArgInfo $ fmap Sort s2)
-                  let app x y = A.App exprInfo x (defaultNamedArg y)
-                  return $ A.Var lub `app` e1 `app` e2
+    reify s = do
+      s <- instantiateFull s
+      case s of
+        I.Type (I.Max [])                -> return $ A.Set exprInfo 0
+        I.Type (I.Max [I.ClosedLevel n]) -> return $ A.Set exprInfo n
+        I.Type a -> do
+          a <- reify a
+          return $ A.App exprInfo (A.Set exprInfo 0) (defaultNamedArg a)
+        I.Prop       -> return $ A.Prop exprInfo
+        I.Inf       -> A.Var <$> freshName_ ("Setω" :: String)
+        I.SizeUniv  -> do
+          I.Def sizeU [] <- primSizeUniv
+          return $ A.Def sizeU
+        I.DLub s1 s2 -> do
+          lub <- freshName_ ("dLub" :: String) -- TODO: hack
+          (e1,e2) <- reify (s1, I.Lam defaultArgInfo $ fmap Sort s2)
+          let app x y = A.App exprInfo x (defaultNamedArg y)
+          return $ A.Var lub `app` e1 `app` e2
 
 instance Reify Level Expr where
   reifyWhen = reifyWhenE

@@ -810,8 +810,10 @@ data RangeAndPragma = RangeAndPragma Range A.Pragma
 instance ToConcrete RangeAndPragma C.Pragma where
     toConcrete (RangeAndPragma r p) = case p of
         A.OptionsPragma xs  -> return $ C.OptionsPragma r xs
-        A.BuiltinPragma b x -> C.BuiltinPragma r b <$> toConcrete x
-        A.RewritePragma x   -> C.RewritePragma r <$> toConcrete x
+        A.BuiltinPragma b e      -> C.BuiltinPragma r b <$> toConcrete e
+        A.BuiltinNoDefPragma b x -> C.BuiltinPragma r b . C.Ident <$>
+          toConcrete x
+        A.RewritePragma x        -> C.RewritePragma r <$> toConcrete x
         A.CompiledTypePragma x hs -> do
           x <- toConcrete x
           return $ C.CompiledTypePragma r x hs

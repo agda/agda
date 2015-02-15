@@ -178,6 +178,9 @@ data ModuleApplication
 data Pragma
   = OptionsPragma [String]
   | BuiltinPragma String Expr
+  | BuiltinNoDefPragma String QName
+    -- ^ Builtins that do not come with a definition,
+    --   but declare a name for an Agda concept.
   | RewritePragma QName
   | CompiledPragma QName String
   | CompiledExportPragma QName String

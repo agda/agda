@@ -713,6 +713,7 @@ instance ExtractCalls Sort where
     case s of
       Prop       -> return empty
       Inf        -> return empty
+      SizeUniv   -> return empty
       Type t     -> terUnguarded $ extract t  -- no guarded levels
       DLub s1 s2 -> extract (s1, s2)
 

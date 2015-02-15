@@ -1,34 +1,43 @@
-{-# LANGUAGE CPP           #-}
-{-# LANGUAGE PatternGuards #-}
-{-# LANGUAGE TupleSections #-}
+{-# LANGUAGE CPP                 #-}
+{-# LANGUAGE PatternGuards       #-}
+{-# LANGUAGE ScopedTypeVariables #-}
+{-# LANGUAGE TupleSections       #-}
 
-module Agda.TypeChecking.Rules.Builtin (bindBuiltin, bindPostulatedName) where
+module Agda.TypeChecking.Rules.Builtin
+  ( bindBuiltin
+  , bindBuiltinNoDef
+  , bindPostulatedName
+  ) where
 
-import Control.Applicative
+import Control.Applicative hiding (empty)
 import Control.Monad
 import Data.List (find)
 
 import qualified Agda.Syntax.Abstract as A
-import Agda.Syntax.Internal
 import Agda.Syntax.Common
+import Agda.Syntax.Internal
 import Agda.Syntax.Position
 
-import Agda.TypeChecking.EtaContract
 import Agda.TypeChecking.Monad
 import Agda.TypeChecking.Monad.Builtin
-import Agda.TypeChecking.Conversion
-import Agda.TypeChecking.Substitute
-import Agda.TypeChecking.Primitive
-import Agda.TypeChecking.Constraints
-import Agda.TypeChecking.Reduce
-import Agda.TypeChecking.Irrelevance
 import Agda.TypeChecking.Monad.SizedTypes ( builtinSizeHook )
+
+import Agda.TypeChecking.Conversion
+import Agda.TypeChecking.Constraints
+import Agda.TypeChecking.EtaContract
+import Agda.TypeChecking.Irrelevance
+import Agda.TypeChecking.Primitive
+import Agda.TypeChecking.Reduce
+import Agda.TypeChecking.Substitute
 import Agda.TypeChecking.Rules.Term ( checkExpr , inferExpr )
+
 import {-# SOURCE #-} Agda.TypeChecking.Rules.Builtin.Coinduction
 import {-# SOURCE #-} Agda.TypeChecking.Rewriting
 
 import Agda.Utils.Except ( MonadError(catchError) )
 import Agda.Utils.Maybe
+import Agda.Utils.Monad
+import Agda.Utils.Null
 import Agda.Utils.Size
 
 #include "undefined.h"
@@ -116,6 +125,7 @@ coreBuiltins = map (\ (x, z) -> BuiltinInfo x z)
   , (builtinVisible            |-> BuiltinDataCons thiding)
   , (builtinRelevant           |-> BuiltinDataCons trelevance)
   , (builtinIrrelevant         |-> BuiltinDataCons trelevance)
+  , (builtinSizeUniv           |-> builtinPostulate tset)
   , (builtinSize               |-> builtinPostulate tset)
   , (builtinSizeLt             |-> builtinPostulate (tsize --> tset))
   , (builtinSizeSuc            |-> builtinPostulate (tsize --> tsize))
@@ -435,7 +445,7 @@ bindBuiltinInfo (BuiltinInfo s d) e = do
             def <- ignoreAbstractMode $ getConstInfo q
             case theDef def of
               Axiom {} -> do
-                builtinSizeHook s q e' t'
+                builtinSizeHook s q t'
                 bindBuiltinName s e'
               _        -> err
           _ -> err
@@ -450,15 +460,39 @@ bindBuiltinInfo (BuiltinInfo s d) e = do
 -- | Bind a builtin thing to an expression.
 bindBuiltin :: String -> A.Expr -> TCM ()
 bindBuiltin b e = do
-    top <- (== 0) . size <$> getContextTelescope
-    unless top $ typeError $ BuiltinInParameterisedModule b
-    bind b e
-    where
-        bind b e
-            | b == builtinZero = typeError $ GenericError "Builtin ZERO does no longer exist. It is now bound by BUILTIN NATURAL"
-            | b == builtinSuc  = typeError $ GenericError "Builtin SUC does no longer exist. It is now bound by BUILTIN NATURAL"
-            | b == builtinInf                                   = bindBuiltinInf e
-            | b == builtinSharp                                 = bindBuiltinSharp e
-            | b == builtinFlat                                  = bindBuiltinFlat e
-            | Just i <- find ((==b) . builtinName) coreBuiltins = bindBuiltinInfo i e
-            | otherwise                                         = typeError $ NoSuchBuiltinName b
+  unlessM ((0 ==) <$> getContextSize) $ typeError $ BuiltinInParameterisedModule b
+  case b of
+    _ | b == builtinZero  -> nowNat b
+    _ | b == builtinSuc   -> nowNat b
+    _ | b == builtinInf   -> bindBuiltinInf e
+    _ | b == builtinSharp -> bindBuiltinSharp e
+    _ | b == builtinFlat  -> bindBuiltinFlat e
+    _ | Just i <- find ((b ==) . builtinName) coreBuiltins -> bindBuiltinInfo i e
+    _ -> typeError $ NoSuchBuiltinName b
+  where
+    nowNat b = genericError $
+      "Builtin " ++ b ++ " does no longer exist. " ++
+      "It is now bound by BUILTIN " ++ builtinNat
+
+
+-- | Bind a builtin thing to a new name.
+bindBuiltinNoDef :: String -> A.QName -> TCM ()
+bindBuiltinNoDef b q = do
+  unlessM ((0 ==) <$> getContextSize) $ typeError $ BuiltinInParameterisedModule b
+  case lookup b $ map (\ (BuiltinInfo b i) -> (b, i)) coreBuiltins of
+    Just (BuiltinPostulate rel mt) -> do
+      t <- mt
+      addConstant q $ defaultDefn (setRelevance rel defaultArgInfo) q t def
+      builtinSizeHook b q t
+      bindBuiltinName b $ Def q []
+      where
+        -- Andreas, 2015-02-14
+        -- Special treatment of SizeUniv, should maybe be a primitive.
+        def | b == builtinSizeUniv = emptyFunction
+                { funClauses = [ (empty :: Clause) { clauseBody = Body $ Sort SizeUniv } ]
+                , funTerminates = Just True
+                }
+            | otherwise = Axiom
+
+    Just{}  -> __IMPOSSIBLE__
+    Nothing -> __IMPOSSIBLE__ -- typeError $ NoSuchBuiltinName b

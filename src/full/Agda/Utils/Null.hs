@@ -1,3 +1,5 @@
+{-# LANGUAGE DefaultSignatures #-}
+
 -- | Overloaded @null@ and @empty@ for collections and sequences.
 
 module Agda.Utils.Null where
@@ -28,9 +30,8 @@ class Null a where
   null  :: a -> Bool
   -- ^ Satisfying @null empty == True@.
 
-  -- Starting with ghc 7.2, we could have LANGUAGE DefaultSignatures
-  -- default null :: Eq a => a -> Bool
-  -- null = (== empty)
+  default null :: Eq a => a -> Bool
+  null = (== empty)
 
 instance Null () where
   empty  = ()
@@ -68,10 +69,11 @@ instance Null (Set a) where
   empty = Set.empty
   null  = Set.null
 
--- instance Null (Maybe a) where
---   empty = Nothing
---   null Nothing  = True
---   null (Just a) = False
+-- | A 'Maybe' is 'null' when it corresponds to the empty list.
+instance Null (Maybe a) where
+  empty = Nothing
+  null Nothing  = True
+  null (Just a) = False
 
 -- * Testing for null.
 

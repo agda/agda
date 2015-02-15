@@ -288,6 +288,9 @@ instance Pretty ModuleName where
 instance Pretty QName where
   pretty = hcat . punctuate (text ".") . map pretty . qnameToList
 
+instance Pretty AmbiguousQName where
+  pretty (AmbQ qs) = hcat $ punctuate (text " | ") $ map pretty qs
+
 ------------------------------------------------------------------------
 -- * Range instances
 ------------------------------------------------------------------------

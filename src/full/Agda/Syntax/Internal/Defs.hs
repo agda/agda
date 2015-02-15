@@ -81,6 +81,7 @@ instance GetDefs Sort where
     Type l    -> getDefs l
     Prop      -> return ()
     Inf       -> return ()
+    SizeUniv  -> return ()
     DLub s s' -> getDefs s >> getDefs s'
 
 instance GetDefs Level where

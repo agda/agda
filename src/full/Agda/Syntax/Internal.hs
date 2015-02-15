@@ -17,7 +17,7 @@ module Agda.Syntax.Internal
 
 import Prelude hiding (foldr, mapM, null)
 
-import Control.Applicative
+import Control.Applicative hiding (empty)
 import Control.Monad.Identity hiding (mapM)
 import Control.Monad.State hiding (mapM)
 import Control.Parallel
@@ -175,11 +175,6 @@ data Tele a = EmptyTel
 
 type Telescope = Tele (Dom Type)
 
-instance Null (Tele a) where
-  null EmptyTel    = True
-  null ExtendTel{} = False
-  empty = EmptyTel
-
 mapAbsNamesM :: Applicative m => (ArgName -> m ArgName) -> Tele a -> m (Tele a)
 mapAbsNamesM f EmptyTel                  = pure EmptyTel
 mapAbsNamesM f (ExtendTel a (Abs x b))   = ExtendTel a <$> (Abs <$> f x <*> mapAbsNamesM f b)
@@ -203,13 +198,16 @@ replaceEmptyName x = mapAbsNames $ \ y -> if null y then x else y
 
 -- | Sorts.
 --
-data Sort = Type Level
-          | Prop  -- ignore me
-          | Inf
-          | DLub Sort (Abs Sort)
-            -- ^ if the free variable occurs in the second sort
-            --   the whole thing should reduce to Inf, otherwise
-            --   it's the normal Lub
+data Sort
+  = Type Level  -- ^ @Set ℓ@.
+  | Prop        -- ^ Dummy sort.
+  | Inf         -- ^ @Setω@.
+  | SizeUniv    -- ^ @SizeUniv@, a sort inhabited by type @Size@.
+  | DLub Sort (Abs Sort)
+    -- ^ Dependent least upper bound.
+    --   If the free variable occurs in the second sort,
+    --   the whole thing should reduce to Inf,
+    --   otherwise it's the normal lub.
   deriving (Typeable, Show)
 
 -- | A level is a maximum expression of 0..n 'PlusLevel' expressions
@@ -219,14 +217,19 @@ data Sort = Type Level
 newtype Level = Max [PlusLevel]
   deriving (Show, Typeable)
 
-data PlusLevel = ClosedLevel Integer
-               | Plus Integer LevelAtom
+data PlusLevel
+  = ClosedLevel Integer     -- ^ @n@, to represent @Setₙ@.
+  | Plus Integer LevelAtom  -- ^ @n + ℓ@.
   deriving (Show, Typeable)
 
+-- | An atomic term of type @Level@.
 data LevelAtom
   = MetaLevel MetaId Elims
+    -- ^ A meta variable targeting @Level@ under some eliminations.
   | BlockedLevel MetaId Term
+    -- ^ A term of type @Level@ whose reduction is blocked by a meta.
   | NeutralLevel NotBlocked Term
+    -- ^ A neutral term of type @Level@.
   | UnreducedLevel Term
     -- ^ Introduced by 'instantiate', removed by 'reduce'.
   deriving (Show, Typeable)
@@ -628,6 +631,7 @@ varSort n = Type $ Max [Plus 0 $ NeutralLevel mempty $ Var n []]
 sSuc :: Sort -> Sort
 sSuc Prop            = mkType 1
 sSuc Inf             = Inf
+sSuc SizeUniv        = SizeUniv
 sSuc (DLub a b)      = DLub (sSuc a) (fmap sSuc b)
 sSuc (Type l)        = Type $ levelSuc l
 
@@ -801,6 +805,30 @@ swapElimArg (Proj  d) = defaultArg (Proj  d)
 -}
 
 ---------------------------------------------------------------------------
+-- * Null instances.
+---------------------------------------------------------------------------
+
+instance Null (Tele a) where
+  empty = EmptyTel
+  null EmptyTel    = True
+  null ExtendTel{} = False
+
+instance Null ClauseBody where
+  empty = NoBody
+  null NoBody = True
+  null _      = False
+
+-- | A 'null' clause is one with no patterns and no rhs.
+--   Should not exist in practice.
+instance Null Clause where
+  empty = Clause empty empty empty empty empty empty False
+  null (Clause r tel perm pats body t catchall)
+    =  null tel
+    && null pats
+    && null body
+
+
+---------------------------------------------------------------------------
 -- * Show instances.
 ---------------------------------------------------------------------------
 
@@ -904,6 +932,7 @@ instance KillRange Sort where
   killRange s = case s of
     Prop       -> Prop
     Inf        -> Inf
+    SizeUniv   -> SizeUniv
     Type a     -> killRange1 Type a
     DLub s1 s2 -> killRange2 DLub s1 s2
 
@@ -1020,6 +1049,7 @@ instance Pretty Sort where
       Type l -> mparens (p > 9) $ text "Set" <+> prettyPrec 10 l
       Prop -> text "Prop"
       Inf -> text "Setω"
+      SizeUniv -> text "SizeUniv"
       DLub s b -> mparens (p > 9) $
         text "dlub" <+> prettyPrec 10 s
                     <+> parens (sep [ text ("λ " ++ show (absName b) ++ " ->")

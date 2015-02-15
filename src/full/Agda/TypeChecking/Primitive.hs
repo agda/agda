@@ -532,6 +532,12 @@ el t = El (mkType 0) <$> t
 tset :: TCM Type
 tset = return $ sort (mkType 0)
 
+tSetOmega :: TCM Type
+tSetOmega = return $ sort Inf
+
+tSizeUniv :: TCM Type
+tSizeUniv = return $ sort SizeUniv
+
 -- | Abbreviation: @argN = 'Arg' 'defaultArgInfo'@.
 argN :: e -> I.Arg e
 argN = Arg defaultArgInfo

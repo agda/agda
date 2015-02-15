@@ -141,6 +141,7 @@ quotingKit = do
       quoteSort (Type t) = quoteSortLevelTerm t
       quoteSort Prop     = pure unsupportedSort
       quoteSort Inf      = pure unsupportedSort
+      quoteSort SizeUniv = pure unsupportedSort
       quoteSort DLub{}   = pure unsupportedSort
 
       quoteType :: Type -> ReduceM Term

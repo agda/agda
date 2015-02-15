@@ -181,7 +181,9 @@ class Occurs t where
 
 -- | When assigning @m xs := v@, check that @m@ does not occur in @v@
 --   and that the free variables of @v@ are contained in @xs@.
-occursCheck :: MetaId -> Vars -> Term -> TCM Term
+occursCheck
+  :: (Occurs a, InstantiateFull a, PrettyTCM a)
+  => MetaId -> Vars -> a -> TCM a
 occursCheck m xs v = disableDestructiveUpdate $ liftTCM $ do
   mv <- lookupMeta m
   initOccursCheck mv
@@ -400,6 +402,7 @@ instance Occurs Sort where
       Type a     -> Type <$> occurs red ctx m xs a
       Prop       -> return s'
       Inf        -> return s'
+      SizeUniv   -> return s'
 
   metaOccurs m s = do
     s <- instantiate s
@@ -408,6 +411,7 @@ instance Occurs Sort where
       Type a     -> metaOccurs m a
       Prop       -> return ()
       Inf        -> return ()
+      SizeUniv   -> return ()
 
 instance Occurs a => Occurs (Elim' a) where
   occurs red ctx m xs e@Proj{}  = return e
@@ -596,6 +600,7 @@ instance FoldRigid Sort where
       Type l     -> fold l
       Prop       -> mempty
       Inf        -> mempty
+      SizeUniv   -> mempty
       DLub s1 s2 -> fold (s1, s2)
     where fold = foldRigid abs f
 

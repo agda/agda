@@ -702,6 +702,7 @@ assign dir x args v = do
                else "failed"
           patternViolation
 
+{- UNUSED
 -- | When faced with @_X us == D vs@ for an inert D we can solve this by
 --   @_X xs := D _Ys@ with new constraints @_Yi us == vi@. This is important
 --   for instance arguments, where knowing the head D might enable progress.
@@ -802,7 +803,7 @@ attemptInertRHSImprovement m args v = do
             Con{}      -> notNeutral v
             Lam{}      -> notNeutral v
             Shared{}   -> __IMPOSSIBLE__
-
+-- END UNUSED -}
 
 -- | @assignMeta m x t ids u@ solves @x ids = u@ for meta @x@ of type @t@,
 --   where term @u@ lives in a context of length @m@.

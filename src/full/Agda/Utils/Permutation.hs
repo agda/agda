@@ -9,11 +9,11 @@
 
 module Agda.Utils.Permutation where
 
-import Prelude hiding (drop)
+import Prelude hiding (drop, null)
 
 import Data.IntMap (IntMap)
 import qualified Data.IntMap as IntMap
-import Data.List hiding (drop)
+import Data.List hiding (drop, null)
 import qualified Data.List as List
 import Data.Maybe
 
@@ -23,6 +23,7 @@ import Data.Typeable (Typeable)
 
 import Agda.Utils.Functor
 import Agda.Utils.List ((!!!))
+import Agda.Utils.Null
 import Agda.Utils.Size
 
 #include "undefined.h"
@@ -52,6 +53,10 @@ instance Show Permutation where
 
 instance Sized Permutation where
   size (Perm _ xs) = size xs
+
+instance Null Permutation where
+  empty = Perm 0 []
+  null (Perm _ picks) = null picks
 
 -- | @permute [1,2,0] [x0,x1,x2] = [x1,x2,x0]@
 --   More precisely, @permute indices list = sublist@, generates @sublist@

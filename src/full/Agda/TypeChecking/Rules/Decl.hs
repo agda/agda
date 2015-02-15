@@ -57,7 +57,7 @@ import Agda.TypeChecking.Rules.Term
 import Agda.TypeChecking.Rules.Data    ( checkDataDef )
 import Agda.TypeChecking.Rules.Record  ( checkRecDef )
 import Agda.TypeChecking.Rules.Def     ( checkFunDef, useTerPragma )
-import Agda.TypeChecking.Rules.Builtin ( bindBuiltin )
+import Agda.TypeChecking.Rules.Builtin
 
 import Agda.Termination.TermCheck
 
@@ -473,6 +473,7 @@ checkPragma :: Range -> A.Pragma -> TCM ()
 checkPragma r p =
     traceCall (CheckPragma r p) $ case p of
         A.BuiltinPragma x e -> bindBuiltin x e
+        A.BuiltinNoDefPragma b x -> bindBuiltinNoDef b x
         A.RewritePragma q   -> addRewriteRule q
         A.CompiledTypePragma x hs -> do
           def <- getConstInfo x

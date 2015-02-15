@@ -52,6 +52,7 @@ instance MentionsMeta Sort where
     Type l     -> mentionsMeta x l
     Prop       -> False
     Inf        -> False
+    SizeUniv   -> False
     DLub s1 s2 -> mentionsMeta x (s1, s2)
 
 instance MentionsMeta t => MentionsMeta (Abs t) where

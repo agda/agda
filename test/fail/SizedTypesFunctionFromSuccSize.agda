@@ -2,20 +2,13 @@
 
 module SizedTypesFunctionFromSuccSize where
 
-postulate
-  Size : Set
-  _^   : Size -> Size
-  ∞    : Size
+open import Common.Size
 
-{-# BUILTIN SIZE   Size #-}
-{-# BUILTIN SIZESUC _^  #-}
-{-# BUILTIN SIZEINF ∞   #-}
+data Nat : {size : Size} → Set where
+  zero : {size : Size} → Nat {↑ size}
+  suc  : {size : Size} → Nat {size} → Nat {↑ size}
 
-data Nat : {size : Size} -> Set where
-  zero : {size : Size} -> Nat {size ^}
-  suc  : {size : Size} -> Nat {size} -> Nat {size ^}
-
-bad : {i : Size} -> Nat {i ^} -> Set
+bad : {i : Size} → Nat {↑ i} → Set
 bad zero    = bad zero
 bad (suc x) = Nat
 

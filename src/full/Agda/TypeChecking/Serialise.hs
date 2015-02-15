@@ -998,10 +998,12 @@ instance EmbPrj LevelAtom where
 instance EmbPrj I.Sort where
   icod_ (Type  a  ) = icode1' a
   icod_ Prop        = icode1 1 ()
+  icod_ SizeUniv    = icode1 3 ()
   icod_ Inf         = icode1 4 ()
   icod_ (DLub a b)  = __IMPOSSIBLE__
   value = vcase valu where valu [a]    = valu1 Type  a
                            valu [1, _] = valu0 Prop
+                           valu [3, _] = valu0 SizeUniv
                            valu [4, _] = valu0 Inf
                            valu _      = malformed
 

@@ -279,6 +279,7 @@ instance Free Sort where
       Type a     -> freeVars' a
       Prop       -> mempty
       Inf        -> mempty
+      SizeUniv   -> mempty
       DLub s1 s2 -> weakly <$> freeVars' (s1, s2)
 
 instance Free Level where
