@@ -95,7 +95,8 @@ isType e s =
 -- | Check that an expression is a type without knowing the sort.
 isType_ :: A.Expr -> TCM Type
 isType_ e =
-  traceCall (IsType_ e) $ sharedType <$>
+  traceCall (IsType_ e) $ sharedType <$> do
+  let fallback = isType e =<< do workOnTypes $ newSortMeta
   case unScope e of
     A.Fun i (Arg info t) b -> do
       a <- Dom info <$> isType_ t
@@ -121,9 +122,7 @@ isType_ e =
           applyRelevanceToContext NonStrict $
             checkExpr (namedThing l) lvl
         return $ sort (Type n)
-    _ -> do
-      s <- workOnTypes $ newSortMeta
-      isType e s
+    _ -> fallback
 
 -- | Check that an expression is a type which is equal to a given type.
 isTypeEqualTo :: A.Expr -> Type -> TCM Type
@@ -730,17 +729,19 @@ checkExpr e t0 =
                     tel <- instantiateFull tel
                     return $ telePi tel t
             let s = getSort t'
+                v = unEl t'
             when (s == Inf) $ reportSDoc "tc.term.sort" 20 $
               vcat [ text ("reduced to omega:")
                    , nest 2 $ text "t   =" <+> prettyTCM t'
                    , nest 2 $ text "cxt =" <+> (prettyTCM =<< getContextTelescope)
                    ]
-            coerce (unEl t') (sort s) t
+            coerce v (sort s) t
         A.Fun _ (Arg info a) b -> do
             a' <- isType_ a
             b' <- isType_ b
             s <- reduce $ getSort a' `sLub` getSort b'
-            coerce (Pi (convColor $ Dom info a') (NoAbs underscore b')) (sort s) t
+            let v = Pi (convColor $ Dom info a') (NoAbs underscore b')
+            coerce v (sort s) t
         A.Set _ n    -> do
           n <- ifM typeInType (return 0) (return n)
           coerce (Sort $ mkType n) (sort $ mkType $ n + 1) t
