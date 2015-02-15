@@ -181,7 +181,9 @@ class Occurs t where
 
 -- | When assigning @m xs := v@, check that @m@ does not occur in @v@
 --   and that the free variables of @v@ are contained in @xs@.
-occursCheck :: MetaId -> Vars -> Term -> TCM Term
+occursCheck
+  :: (Occurs a, InstantiateFull a, PrettyTCM a)
+  => MetaId -> Vars -> a -> TCM a
 occursCheck m xs v = liftTCM $ do
   mv <- lookupMeta m
   initOccursCheck mv
