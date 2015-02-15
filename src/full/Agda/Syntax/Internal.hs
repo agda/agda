@@ -199,13 +199,15 @@ replaceEmptyName x = mapAbsNames $ \ y -> if null y then x else y
 
 -- | Sorts.
 --
-data Sort = Type Level
-          | Prop  -- ignore me
-          | Inf
-          | DLub Sort (Abs Sort)
-            -- ^ if the free variable occurs in the second sort
-            --   the whole thing should reduce to Inf, otherwise
-            --   it's the normal Lub
+data Sort
+  = Type Level  -- ^ @Set ℓ@.
+  | Prop        -- ^ Dummy sort.
+  | Inf         -- ^ @Setω@.
+  | DLub Sort (Abs Sort)
+    -- ^ Dependent least upper bound.
+    --   If the free variable occurs in the second sort,
+    --   the whole thing should reduce to Inf,
+    --   otherwise it's the normal lub.
   deriving (Typeable, Show)
 
 -- | A level is a maximum expression of 0..n 'PlusLevel' expressions
@@ -215,14 +217,19 @@ data Sort = Type Level
 newtype Level = Max [PlusLevel]
   deriving (Show, Typeable)
 
-data PlusLevel = ClosedLevel Integer
-               | Plus Integer LevelAtom
+data PlusLevel
+  = ClosedLevel Integer     -- ^ @n@, to represent @Setₙ@.
+  | Plus Integer LevelAtom  -- ^ @n + ℓ@.
   deriving (Show, Typeable)
 
+-- | An atomic term of type @Level@.
 data LevelAtom
   = MetaLevel MetaId Elims
+    -- ^ A meta variable targeting @Level@ under some eliminations.
   | BlockedLevel MetaId Term
+    -- ^ A term of type @Level@ whose reduction is blocked by a meta.
   | NeutralLevel NotBlocked Term
+    -- ^ A neutral term of type @Level@.
   | UnreducedLevel Term
     -- ^ Introduced by 'instantiate', removed by 'reduce'.
   deriving (Show, Typeable)
