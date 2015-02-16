@@ -1,4 +1,10 @@
-{-# LANGUAGE CPP, DoAndIfThenElse, DeriveDataTypeable #-}
+{-# LANGUAGE CPP #-}
+{-# LANGUAGE DoAndIfThenElse #-}
+{-# LANGUAGE DeriveDataTypeable #-}
+{-# LANGUAGE GeneralizedNewtypeDeriving #-}
+{-# LANGUAGE FlexibleInstances #-}
+{-# LANGUAGE MultiParamTypeClasses #-}
+{-# LANGUAGE UndecidableInstances #-}
 -- | Converts Agda names to Haskell/Core names.
 --
 -- There are the following type of names in Agda:
@@ -41,6 +47,8 @@ import Data.Char
 import Data.List
 import qualified Data.Map as M
 import Control.Monad.State
+import Control.Monad.Reader
+import Control.Monad.Reader.Class
 import Control.Applicative
 import Data.Monoid
 import Data.Typeable (Typeable)
@@ -283,7 +291,9 @@ unqualifyQ qnm = do
 ---- local fresh names
 ------------------------------------
 
-type FreshNameT = StateT FreshNameState
+newtype FreshNameT m a = FreshNameT
+  { unFreshNameT :: StateT FreshNameState m a}
+  deriving (Monad, MonadTrans, Functor, MonadFix, MonadPlus, MonadIO, Applicative)
 
 data FreshNameState
   = FreshNameState
@@ -291,20 +301,27 @@ data FreshNameState
   , prefix :: String    -- prefix to use
   }
 
+
 evalFreshNameT :: Monad m
     => String    -- ^ The name prefix to use.
     -> FreshNameT m a
     -> m a
-evalFreshNameT prefix comp = evalStateT comp (FreshNameState 0 prefix)
+evalFreshNameT prefix comp = evalStateT (unFreshNameT comp) (FreshNameState 0 prefix)
 
--- | Create a new local identifier (e.g. lambda parameter).
 freshLocalName :: Monad m => FreshNameT m HsName
-freshLocalName = do
-  i <- gets nameSupply
-  prefix' <- gets prefix
-  modify (\s -> s { nameSupply = i + 1 } )
-  return $ mkUniqueHsName prefix' [] ("gen_loc_" ++ show i)
+freshLocalName = FreshNameT $ do
+    i <- gets nameSupply
+    prefix' <- gets prefix
+    modify (\s -> s { nameSupply = i + 1 } )
+    return $ mkUniqueHsName prefix' [] ("gen_loc_" ++ show i)
 
--- | Create a new local identifier (e.g. lambda parameter). Tries to incorporate
--- the given name into the new one, but this is not guarantueed.
---freshLocalName1 :: Monad m => FreshNameM m HsName
+instance MonadReader s m => MonadReader s (FreshNameT m) where
+  ask = lift ask
+  local f (FreshNameT x) = FreshNameT $ local f x
+
+instance MonadState s m => MonadState s (FreshNameT m) where
+  get = lift get
+  put = lift . put
+
+instance (MonadTCM tcm) => MonadTCM (FreshNameT tcm) where
+  liftTCM = lift . liftTCM

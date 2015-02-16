@@ -1,9 +1,12 @@
 {-# LANGUAGE CPP #-}
-
+{-# LANGUAGE GeneralizedNewtypeDeriving #-}
+{-# LANGUAGE FlexibleInstances #-}
+{-# LANGUAGE MultiParamTypeClasses #-}
+{-# LANGUAGE UndecidableInstances #-}
 -- | Contains the state monad that the compiler works in and some functions
 --   for tampering with the state.
 module Agda.Compiler.UHC.CompileState
-  ( CompileT
+  ( CompileT (..) -- we don't really want to export the ctor, but we need it in Transform
   , runCompileT
   , uhcError
 
@@ -30,6 +33,7 @@ where
 
 import Control.Applicative
 import Control.Monad.State
+import Control.Monad.Reader.Class
 import Data.List
 import Data.Map(Map)
 import qualified Data.Map as M
@@ -71,7 +75,8 @@ data CompileState = CompileState
     }
 
 -- | Compiler monad
-type CompileT = StateT CompileState
+newtype CompileT m a = CompileT { unCompileT :: StateT CompileState m a }
+  deriving (Monad, MonadIO, MonadTrans, Applicative, Functor)
 
 -- | Used to run the Agda-to-AuxAST transformation.
 -- During this transformation, 
@@ -84,7 +89,7 @@ runCompileT :: MonadIO m
     -> CompileT m a
     -> m (a, AModuleInfo)
 runCompileT coind mod impMods nmMp conIMp comp = do
-  (result, state') <- runStateT comp initial
+  (result, state') <- runStateT (unCompileT comp) initial
 
   version <- liftIO getPOSIXTime
 
@@ -108,6 +113,7 @@ runCompileT coind mod impMods nmMp conIMp comp = do
             , coinductionKit' = coind
             }
 
+
 addConMap :: Monad m => M.Map QName AConInfo -> CompileT m ()
 addConMap conMp = addInterface (mempty { amifConMp = conMp })
 
@@ -116,16 +122,16 @@ addInterface :: Monad m => AModuleInterface -> CompileT m ()
 addInterface iface = modifyInterface (mappend iface)
 
 modifyInterface :: Monad m => (AModuleInterface -> AModuleInterface) -> CompileT m ()
-modifyInterface f = modify (\s -> s { moduleInterface = f (moduleInterface s )})
+modifyInterface f = CompileT $ modify (\s -> s { moduleInterface = f (moduleInterface s )})
 
 
 
 -- | When normal errors are not enough
 uhcError :: MonadTCM m => String -> CompileT m a
-uhcError = lift . internalError
+uhcError = CompileT . lift . internalError
 
 getCoreName :: Monad m => QName -> CompileT m (Maybe HsName)
-getCoreName qnm = do
+getCoreName qnm = CompileT $ do
   nmMp <- gets (amifNameMp . moduleInterface)
   return $ (cnName <$> qnameToCoreName nmMp qnm)
 
@@ -133,18 +139,18 @@ getCoreName1 :: Monad m => QName -> CompileT m HsName
 getCoreName1 nm = getCoreName nm >>= return . (fromMaybe __IMPOSSIBLE__)
 
 getConstrInfo :: (Functor m, Monad m) => QName -> CompileT m AConInfo
-getConstrInfo n = do
+getConstrInfo n = CompileT $ do
   instMp <- gets (amifConInstMp . moduleInterface)
   M.findWithDefault __IMPOSSIBLE__ (M.findWithDefault (error $ show n) n instMp) <$> gets (amifConMp . moduleInterface)
 
 isConstrInstantiated :: (Functor m, Monad m) => QName -> CompileT m Bool
-isConstrInstantiated n =  ((n /=) . M.findWithDefault __IMPOSSIBLE__ n) <$> gets (amifConInstMp . moduleInterface)
+isConstrInstantiated n =  CompileT $ ((n /=) . M.findWithDefault __IMPOSSIBLE__ n) <$> gets (amifConInstMp . moduleInterface)
 
 getCoinductionKit :: Monad m => CompileT m (Maybe CoinductionKit)
-getCoinductionKit = gets coinductionKit'
+getCoinductionKit = CompileT $ gets coinductionKit'
 
 getCurrentModule :: Monad m => CompileT m ModuleName
-getCurrentModule = gets curModule
+getCurrentModule = CompileT $ gets curModule
 
 -- TODO What does this have to do with CompileState? Move
 replaceAt :: Int -- ^ replace at
@@ -185,3 +191,13 @@ getConstrFun conNm = do
               (ADataImplMagic nm) | nm == "UNIT" -> return $ builtinUnitCtor -- already fully applied
               _ -> return $ ctagCtorName $ xconCTag conDef
 
+instance MonadReader r m => MonadReader r (CompileT m) where
+  ask = lift ask
+  local f (CompileT x) = CompileT $ local f x
+
+instance MonadState s m => MonadState s (CompileT m) where
+  get = lift get
+  put = lift . put
+
+instance MonadTCM m => MonadTCM (CompileT m) where
+  liftTCM = lift . TM.liftTCM

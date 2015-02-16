@@ -66,7 +66,7 @@ type Transform = AMod -> TransformT TCM AMod
 
 runTransformT :: Monad m => AModuleInterface -> ModuleName -> TransformT m a -> m (a, AModuleInterface)
 runTransformT iface modNm comp = do
-  (result, state) <- runStateT comp initial
+  (result, state) <- runStateT (unCompileT comp) initial
   return (result, moduleInterface state)
   where initial = CompileState
             { curModule = modNm

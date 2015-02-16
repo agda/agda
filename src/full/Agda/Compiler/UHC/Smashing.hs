@@ -51,16 +51,16 @@ smash'em mod = do
 -- | Main function, smash as much as possible
 smashFuns :: [Fun] -> TransformT TCM [Fun]
 smashFuns funs = do
-    defs <- lift (sigDefinitions <$> use stImports)
+    defs <- (sigDefinitions <$> use stImports)
     funs' <- evalFreshNameT "nl.uu.agda.smashing" $ forM funs $ \f -> case f of
       AA.Fun{} -> case xfunQName f >>= flip HM.lookup defs of
 
           Just (def@(Defn {theDef = (Function { funSmashable = True })})) -> do
-              lift $ lift $ reportSLn "uhc.smashing" 10 $ "running on:" ++ (show (xfunQName f))
+              reportSLn "uhc.smashing" 10 $ "running on:" ++ (show (xfunQName f))
               minfered <- runMaybeT $ smashable (length (xfunArgs f) + defnPars (theDef def)) (defType def)
               case minfered of
                   Just infered -> do
-                      lift $ lift $ reportSDoc "smashing" 5 $ vcat
+                      reportSDoc "smashing" 5 $ vcat
                         [ prettyTCM (defName def) <+> text "is smashable"]
                       return f { xfunExpr = infered
                                , xfunInline = True
@@ -68,11 +68,11 @@ smashFuns funs = do
                                }
                   Nothing -> return f
           _ -> do
-              lift $ lift $ reportSDoc "uhc.smashing" 10 $ vcat
+              reportSDoc "uhc.smashing" 10 $ vcat
                 [ (text . show) f <+> text " was not found or is not eligible for smashing."]
               return f
       _ -> do
-        lift $ lift $ reportSLn "uhc.smashing" 10 $ "smashing!"
+        reportSLn "uhc.smashing" 10 $ "smashing!"
         return f
     return funs'
 
@@ -87,8 +87,8 @@ xs +++ ys = unflattenTel names $ map (raise (size ys)) (flattenTel xs) ++ flatte
 inferable :: Set QName -> QName -> [SI.Arg Term] ->  MaybeT (SmashT TCM) Expr
 inferable visited dat args | dat `Set.member` visited = fail'
 inferable visited dat args = do
-  lift $ lift $ lift $ reportSLn "uhc.smashing" 10 $ "  inferring:" ++ (show dat)
-  defs <- lift $ lift $ lift (sigDefinitions <$> use stImports)
+  reportSLn "uhc.smashing" 10 $ "  inferring:" ++ (show dat)
+  defs <- sigDefinitions <$> use stImports
   let def = fromMaybe __IMPOSSIBLE__ $ HM.lookup dat defs
   case theDef def of
       d@Datatype{} -> do
@@ -97,20 +97,20 @@ inferable visited dat args = do
             _   -> fail'
       r@Record{}   -> inferableArgs (recCon r) (recPars r)
       f@Function{ funSmashable = True } -> do
-        term <- lift $ lift $ lift $ normalise $ Def dat $ map SI.Apply args
+        term <- liftTCM $ normalise $ Def dat $ map SI.Apply args
         inferableTerm visited' term
       d -> do
-        lift $ lift $ lift $ reportSLn "uhc.smashing" 10 $ "  failed (inferable): " ++ (show d)
+        reportSLn "uhc.smashing" 10 $ "  failed (inferable): " ++ (show d)
         fail'
   where
     inferableArgs :: QName -> Nat -> MaybeT (SmashT TCM) Expr
     inferableArgs c pars = do
-        lift $ lift $ lift $ reportSLn "uhc.smashing" 10 $ "  inferring args for: " ++ show c
-        defs <- lift $ lift $ lift (sigDefinitions <$> use stImports)
+        reportSLn "uhc.smashing" 10 $ "  inferring args for: " ++ show c
+        defs <- sigDefinitions <$> use stImports
         let def = fromMaybe __IMPOSSIBLE__ $ HM.lookup c defs
         {-forc <- getForcedArgs c-}
-        TelV tel _ <- lift $ lift $ lift $ telView (defType def `apply` genericTake pars args)
-        lift $ lift $ lift $ reportSDoc "uhc.smashing" 10 $ nest 2 $ vcat
+        TelV tel _ <- liftTCM $ telView (defType def `apply` genericTake pars args)
+        reportSDoc "uhc.smashing" 10 $ nest 2 $ vcat
           [ text "inferableArgs!"
           , text "tele" <+> prettyTCM tel
           , text "constr:" <+> prettyTCM c
@@ -133,18 +133,18 @@ inferableTerm visited t = do
         --return $ buildLambda 1 t'
     Sort {}     -> return AA.UNIT
     t           -> do
-      lift $ lift $ lift $ reportSLn "uhc.smashing" 10 $ "  failed to infer: " ++ show t
+      reportSLn "uhc.smashing" 10 $ "  failed to infer: " ++ show t
       fail'
 
 -- | Find the only possible value for a certain type. If we fail return Nothing
 smashable :: Int -> Type -> MaybeT (SmashT TCM) Expr
 smashable origArity typ = do
-    defs <- lift $ lift $ lift $ sigDefinitions <$> use stImports
-    TelV tele retType <- lift $ lift $ lift $ telView typ
-    retType' <- lift $ lift $ return retType -- lift $ reduce retType
+    defs <- sigDefinitions <$> use stImports
+    TelV tele retType <- liftTCM $ telView typ
+    retType' <- return retType -- lift $ reduce retType
 
     inf <- inferableTerm Set.empty (unEl retType')
-    lift $ lift $ lift $ reportSDoc "uhc.smashing" 10 $ nest 2 $ vcat
+    reportSDoc "uhc.smashing" 10 $ nest 2 $ vcat
       [ text "Result is"
       , text "inf: " <+> (text . show) inf
       , text "type: " <+> prettyTCM retType'

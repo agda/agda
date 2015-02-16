@@ -296,7 +296,7 @@ initialAnalysis inter = do
 
 idPrint :: String -> Transform -> Transform
 idPrint s m x = do
-  lift $ reportSLn "uhc.phases" 10 s
+  reportSLn "uhc.phases" 10 s
   m x
 
 -- | Perform the chain of compilation stages, from definitions to epic code
