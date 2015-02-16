@@ -184,10 +184,16 @@ updateRewriteRules f def = def { defRewriteRules = f (defRewriteRules def) }
 --   tries to rewrite @v : t@ with @rew@, returning the reduct if successful.
 rewriteWith :: Maybe Type -> Term -> RewriteRule -> TCM (Maybe Term)
 rewriteWith mt v (RewriteRule q gamma lhs rhs b) = do
-  xs <- newTelMeta gamma
-  let sigma        = parallelS $ map unArg xs
-      (lhs', rhs', b') = applySubst sigma (lhs, rhs, b)
-  ok <- tryConversion $ do
+  -- Freeze all metas, remember which one where not frozen before.
+  -- This ensures that we do not instantiate metas while matching
+  -- on the rewrite lhs.
+  ms <- freezeMetas
+  res <- tryConversion' $ do
+
+    -- Create new metas for the lhs variables of the rewriting rule.
+    xs <- newTelMeta gamma
+    let sigma        = parallelS $ map unArg xs
+        (lhs', rhs', b') = applySubst sigma (lhs, rhs, b)
     -- Unify type and term with type and lhs of rewrite rule.
     whenJust mt $ \ t -> leqType t b'
     local (\ e -> e {envCompareBlocked = True}) $ equalTerm b' lhs' v
@@ -197,19 +203,23 @@ rewriteWith mt v (RewriteRule q gamma lhs rhs b) = do
         sep $ map prettyTCM xs
       -- The following error is caught immediately by tryConversion.
       typeError $ GenericError $ "free variables not bound by left hand side"
-  if ok then return $ Just rhs' else return Nothing
+    return rhs'
+
+  -- Thaw metas that were frozen by a call to this function.
+  unfreezeMetas' (`elem` ms)
+  return res
 
 -- | @rewrite t@ tries to rewrite a reduced term.
 rewrite :: Term -> TCM (Maybe Term)
 rewrite v = do
   case ignoreSharing v of
-    -- We only rewrite @Def@s.
-    Def f es -> do
-      -- Get the rewrite rules for f.
-      rews <- defRewriteRules <$> getConstInfo f
-      loop rews
-        where
-          loop [] = return Nothing
-          loop (rew:rews) = do
-            caseMaybeM (rewriteWith Nothing v rew) (loop rews) (return . Just)
+    -- We only rewrite @Def@s and @Con@s.
+    Def f _es -> rew f
+    Con c _vs -> rew $ conName c
     _ -> return Nothing
+  where
+    -- Try all rewrite rules for f.
+    rew f = loop =<< do defRewriteRules <$> getConstInfo f
+    loop []         = return Nothing
+    loop (rew:rews) = do
+      caseMaybeM (rewriteWith Nothing v rew) (loop rews) (return . Just)
