@@ -668,7 +668,8 @@ sortOfConst q =
             _                      -> fail $ "Expected " ++ show q ++ " to be a datatype."
 
 -- | Is it the name of a record projection?
-isProjection :: QName -> TCM (Maybe Projection)
+{-# SPECIALIZE isProjection :: QName -> TCM (Maybe Projection) #-}
+isProjection :: HasConstInfo m => QName -> m (Maybe Projection)
 isProjection qn = isProjection_ . theDef <$> getConstInfo qn
 
 isProjection_ :: Defn -> Maybe Projection
