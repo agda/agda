@@ -1,7 +1,8 @@
 {-# LANGUAGE CPP #-}
 
--- | Contains the state monad that the compiler works in and some functions
---   for tampering with the state.
+-- | Contains the state monad for transformations. Basically just exports
+-- the CompileT monad and related functions, but only the subset which
+-- can be safely used inside transformations.
 module Agda.Compiler.UHC.Transform
   ( uhcError
 
@@ -14,9 +15,6 @@ module Agda.Compiler.UHC.Transform
   , getConstrInfo
   , getConstrFun
   , isConstrInstantiated
---  , getConstrTag
---  , getConstrArity
---  , getCoinductionKit
 
   , getCurrentModule
 

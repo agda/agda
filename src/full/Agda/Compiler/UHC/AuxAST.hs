@@ -101,7 +101,6 @@ data Expr
   | IMPOSSIBLE
   deriving (Show, Ord, Eq)
 
--- TODO we should move brDataTy to Case (branches have to be on the same datatype)
 data Branch
   = BrCon   {brCon  :: ADataCon, brName :: Maybe QName, brVars :: [HsName], brExpr :: Expr}
   | BrChar  {brChar :: Char, brExpr :: Expr}

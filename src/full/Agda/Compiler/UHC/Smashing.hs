@@ -108,7 +108,6 @@ inferable visited dat args = do
         reportSLn "uhc.smashing" 10 $ "  inferring args for: " ++ show c
         defs <- sigDefinitions <$> use stImports
         let def = fromMaybe __IMPOSSIBLE__ $ HM.lookup c defs
-        {-forc <- getForcedArgs c-}
         TelV tel _ <- liftTCM $ telView (defType def `apply` genericTake pars args)
         reportSDoc "uhc.smashing" 10 $ nest 2 $ vcat
           [ text "inferableArgs!"
@@ -116,8 +115,7 @@ inferable visited dat args = do
           , text "constr:" <+> prettyTCM c
           ]
         conFun <- lift $ lift $ getConstrFun c
-        (apps1 conFun <$>) $ forM ({-notForced forc $-} flattenTel tel) (inferableTerm visited' . unEl . unDom)
---        (apps1 
+        (apps1 conFun <$>) $ forM (flattenTel tel) (inferableTerm visited' . unEl . unDom)
     visited' = Set.insert dat visited
 
 inferableTerm :: Set QName -> Term -> MaybeT (SmashT TCM) Expr
@@ -130,7 +128,6 @@ inferableTerm visited t = do
     Pi _   b    -> do
         t' <- inferableTerm visited (unEl $ unAbs b)
         lift $ buildLambda 1 t'
-        --return $ buildLambda 1 t'
     Sort {}     -> return AA.UNIT
     t           -> do
       reportSLn "uhc.smashing" 10 $ "  failed to infer: " ++ show t
@@ -141,7 +138,7 @@ smashable :: Int -> Type -> MaybeT (SmashT TCM) Expr
 smashable origArity typ = do
     defs <- sigDefinitions <$> use stImports
     TelV tele retType <- liftTCM $ telView typ
-    retType' <- return retType -- lift $ reduce retType
+    retType' <- return retType
 
     inf <- inferableTerm Set.empty (unEl retType')
     reportSDoc "uhc.smashing" 10 $ nest 2 $ vcat

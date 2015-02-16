@@ -94,15 +94,6 @@ fromAgdaModule modNm modImps defs cont = do
 -- | Collect module-level names.
 collectNames :: ConInstMp -> [(QName, Definition)] -> TCM [AgdaName]
 collectNames conInstMp defs = do
-{-  scope <- lift getScope
-  modScope <- (scopeModules scope M.!) <$> getCurrentModule
-  lift $ printScope "TEST" 20 "TEST"
-
-  -- TODO we ignore sub modules here right now. In the future, what should we do here?
-  let scope' = exportedNamesInScope modScope-}
-
-  -- TODO we should also ignore instantiated datatypes / constructors
-
   return $ catMaybes $ map collectName defs
   where collectName :: (QName, Definition) -> Maybe AgdaName
         collectName (qnm, def) =
@@ -213,12 +204,10 @@ translateDefn (n, defini) = do
     f@(Function{}) | otherwise -> do
         let projArgs = projectionArgs f
             cc       = fromMaybe __IMPOSSIBLE__ $ funCompiled f
-        -- let projArgs = maybe 0 (pred . projIndex) (funProjection f)
         let ccs = reverseCCBody projArgs cc
         let clens = map (length . clausePats) (funClauses f)
             len   = minimum clens
             ty    = (defType defini)
-        -- forcing <- lift $ gets (optForcing . stPersistentOptions)
         lift . lift $ reportSDoc "uhc.fromagda" 5 $ text "compiling fun:" <+> prettyTCM n
         lift . lift $ reportSDoc "uhc.fromagda" 5 $ text "lens:" <+> (text . show) (len, clens)
         lift . lift $ reportSDoc "uhc.fromagda" 15 $ text "pats:" <+> (text . show) (map clausePats
@@ -226,27 +215,20 @@ translateDefn (n, defini) = do
         lift . lift $ reportSDoc "uhc.fromagda" 15 $ text "type:" <+> (text . show) ty
 
         lift . lift $ reportSDoc "uhc.fromagda" 15 $ text "ccs: " <+> (text . show) ccs
-        res <- return <$> compileClauses n len projArgs ccs
-{-        pres <- case res of
-          Nothing -> return Nothing
-          Just  c -> return <$> prettyEpicFun c
-        lift $ reportSDoc "" 5 $ text $ show pres -- (fmap prettyEpicFun res)-}
-        return res
+        return <$> compileClauses n len projArgs ccs
+
     Constructor{} | Just n == (nameOfSharp <$> kit) -> do
         Just <$> mkIdentityFun n "coind-sharp" 0
+
     c@(Constructor{}) | otherwise -> do -- become functions returning a constructor with their tag
 
         case crName of
           (Just crNm) -> do
                 -- check if the constructor is in an instantiated module
                 -- There will be no constructor info entry, if it is indeed an instantiated constructor.
---                conInfo' <- lift $ getConstrInfo n
                 isInst <- lift $ isConstrInstantiated n
                 case isInst of
                   True -> return Nothing -- we will directly call the proper ctor
-{-                    -- just call the actual constructor function
-                    realCon <- lift $ getConstrFun (conName $ conSrcCon c)
-                    return $ Just $ Fun True crNm (Just n) ("inst. constructor: " ++ show n) [] (Var realCon)-}
                   False -> do
                     conInfo <- lift $ getConstrInfo n
                     let conCon = aciDataCon conInfo
@@ -257,16 +239,11 @@ translateDefn (n, defini) = do
                             ("constructor: " ++ show n) vars (Con (aciDataType conInfo) conCon (map Var vars))
           Nothing -> return Nothing -- either foreign or builtin type. We can just assume existence of the wrapper functions then.
 
-        -- Sharp has to use the primSharp function from AgdaPrelude.e
-{-        case msharp of
-          Just (T.Def sharp []) | sharp == n -> return <$> mkFun n n' "primSharp" 3
-          _    -> return <$> mkCon n tag arit-}
     r@(Record{}) -> do
         vars <- replicateM (recPars r) freshLocalName
         return . return $ Fun True (fromMaybe __IMPOSSIBLE__ crName) (Just n) ("record: " ++ show n) vars UNIT
     a@(Axiom{}) -> do -- Axioms get their code from COMPILED_CORE pragmas
         case crRep of
-            -- TODO generate proper core errors
             Nothing -> return . return $ CoreFun (fromMaybe __IMPOSSIBLE__ crName) (Just n) ("AXIOM_UNDEFINED: " ++ show n)
                 (coreImpossible $ "Axiom " ++ show n ++ " used but has no computation.") 0 -- TODO can we set arity to 0 here? not sure if we can..., maybe pass around arity info for Axiom?
             Just (CrDefn x)  -> return . return $ CoreFun (fromMaybe __IMPOSSIBLE__ crName) (Just n) ("COMPILED_CORE: " ++ show n) x 2 -- TODO HACK JUST FOR TESTIN
@@ -278,7 +255,7 @@ translateDefn (n, defini) = do
         Nothing     -> error $ "Primitive " ++ show (primName p) ++ " declared, but no such primitive exists."
         (Just expr) -> do
                 expr' <- lift expr
-                return $ Just $ CoreFun (fromMaybe __IMPOSSIBLE__ crName) (Just n) ("primitive: " ++ primName p) expr' ar --mkFunGen n (const $ App anm) ("primitive: " ++) (fromMaybe __IMPOSSIBLE__ crName) (primName p) ar
+                return $ Just $ CoreFun (fromMaybe __IMPOSSIBLE__ crName) (Just n) ("primitive: " ++ primName p) expr' ar
   where
     -- | Produces an identity function, optionally ignoring the first n arguments.
     mkIdentityFun :: Monad m => QName
@@ -300,24 +277,6 @@ translateDefn (n, defini) = do
     mkFunGen qn comb sh name primname arit = do
         vars <- replicateM arit freshLocalName
         return $ Fun True name (Just qn) (sh primname) vars (comb primname (map Var vars))
-
-{-    (@@) :: Expr -> [AName] -> Expr
-    e @@ [] = e
-    e @@ vs = let ts = map Var vs in case e of
-      Var var -> apps var ts
-      Lam var expr -> case vs of
-          v:vs' -> subst var v expr @@ vs'
-          []    -> __IMPOSSIBLE__
-      Con tag qName es -> Con tag qName (es ++ ts)
-      App var es       -> App var (es ++ ts)
-      Case expr bs     -> Case expr (map (flip appBranch vs) bs)
-      Let var el e'    -> lett var el (e' @@ vs)
-      Lit _lit         -> IMPOSSIBLE -- Right?
-      UNIT             -> IMPOSSIBLE
-      IMPOSSIBLE       -> IMPOSSIBLE
-
-    appBranch :: Branch -> [AName] -> Branch
-    appBranch b vs = b {brExpr = brExpr b @@ vs}-}
 
 
 reverseCCBody :: Int -> CC.CompiledClauses -> CC.CompiledClauses
@@ -465,20 +424,10 @@ substTerm env term = case T.ignoreSharing $ T.unSpine term of
     T.Def q es -> do
       let args = fromMaybe __IMPOSSIBLE__ $ allApplyElims es
       name <- lift $ getCoreName1 q
---      del <- getDelayed q
       def <- theDef <$> (lift . lift) (getConstInfo q)
       let nr = projectionArgs def
-{- MOVED to Signature.hs
-             case def of
-                Function{funProjection = Just p} -> pred $ projIndex p
-                _ -> 0
- -}
       f <- apps1 name . (replicate nr UNIT ++) <$> mapM (substTerm env . unArg) args
-      -- TODO PH can we do that here?
       return  f
-        {-$ case del of
-        True  -> Lazy f
-        False -> f-}
     T.Con c args -> do
         con <- lift $ getConstrFun $ conName c
         apps1 con <$> mapM (substTerm env . unArg) args

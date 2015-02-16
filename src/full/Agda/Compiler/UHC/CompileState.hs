@@ -17,8 +17,6 @@ module Agda.Compiler.UHC.CompileState
   , getConstrInfo
   , getConstrFun
   , isConstrInstantiated
---  , getConstrTag
---  , getConstrArity
   , getCoinductionKit
 
   , getCurrentModule

@@ -136,14 +136,12 @@ assignCoreNames modNm ans = do
     -- So we don't have to worry about clashes between entities of a different type.
     -- (because we are in a Haskell-like naming system)
 
-    -- First, do the functions, try drop clashing ones
     funs' <- zip funs <$> mapM assignNameProper funs
     funs'' <- resolveClashes handlerFail funs'
 
     dts' <- zip dts <$> mapM assignNameProper dts
     dts'' <- resolveClashes handlerFail dts'
 
-    -- we could also resort to prefixing constructor with the datatype names, would that be a good idea?
     cons' <- zip cons <$> mapM assignNameProper cons
     cons'' <- resolveClashes handlerFail cons'
 

@@ -69,8 +69,6 @@ primCrTys1 =
                 [ ("TRUE",   ctagTrue defaultEHCOpts)
                 , ("FALSE",  ctagFalse defaultEHCOpts)
                 ])
-          -- TODO are we actually guarantueed that the Agda List type always has a suitable definition?
-          -- if not, we should instead use COMPILED_CORE pragmas.
           , ("LIST",
                 [ ("NIL",  ctagNil defaultEHCOpts)
                 , ("CONS", ctagCons defaultEHCOpts)

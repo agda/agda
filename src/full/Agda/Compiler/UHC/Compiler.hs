@@ -43,14 +43,8 @@ import qualified Agda.Utils.HashMap as HMap
 import Agda.Compiler.UHC.CompileState
 import Agda.Compiler.UHC.Transform
 import Agda.Compiler.UHC.ModuleInfo
---import qualified Agda.Compiler.UHC.CaseOpts     as COpts
---import qualified Agda.Compiler.UHC.ForceConstrs as ForceC
 import Agda.Compiler.UHC.Core
 import qualified Agda.Compiler.UHC.FromAgda     as FAgda
---import qualified Agda.Compiler.UHC.Forcing      as Forcing
---import qualified Agda.Compiler.UHC.Injection    as ID
---import qualified Agda.Compiler.UHC.NatDetection as ND
---import qualified Agda.Compiler.UHC.Primitive    as Prim
 import qualified Agda.Compiler.UHC.Smashing     as Smash
 import Agda.Compiler.UHC.Naming
 import Agda.Compiler.UHC.AuxAST
@@ -77,7 +71,6 @@ putCompModule mod = modify (M.insert (amiModule mod) mod)
 compileUHCAgdaBase :: TCM ()
 compileUHCAgdaBase = do
     -- TODO we should not do this in the data directory, it may be read only...
-
     -- TODO only compile uhc-agda-base when we have to
     dataDir <- (</> "uhc-agda-base") <$> liftIO getDataDir
     pwd <- liftIO $ getCurrentDirectory
@@ -99,33 +92,24 @@ compileUHCAgdaBase = do
                     ]
 
 
-                -- TODO should we pass pkg-build-depends as well?
                 callUHC1 (  ["--odir=" ++ pkgDbDir ++""
                             , "--pkg-build=" ++ pkgName
                             , "--pkg-build-exposed=UHC.Agda.Builtins"
                             , "--pkg-expose=base-3.0.0.0"
-{-                            , "--pkg-expose=uhcbase-1.1.7.0"-}] ++ hsFiles)
+                            ] ++ hsFiles)
 
 
                 liftIO $ setCurrentDirectory pwd
         ExitFailure _ -> internalError $ unlines
             [ "Agda couldn't find the UHC user package directory."
             ]
-    {-
-    uptodate <- liftIO $ (prelude <.> "ei") `isNewerThan` (prelude <.> "e")
-    when (not uptodate) $ callEpic False [ "-c" , prelude <.> "e" ]-}
 
 -- | Compile an interface into an executable using Epic
 compilerMain :: Interface -> TCM ()
 compilerMain inter = do
-{-    (epic_exist, _, _) <-
-       liftIO $ readProcessWithExitCode
-                  "ghc-pkg"
-                  ["-v0", "field", "epic", "id"]
-                  ""-}
-
-    let epic_exist = ExitSuccess -- PH TODO do check for uhc
-    case epic_exist of
+    -- TODO do proper check for uhc existance
+    let uhc_exist = ExitSuccess
+    case uhc_exist of
         ExitSuccess -> do
             compileUHCAgdaBase
 
@@ -211,7 +195,6 @@ compileModule i = do
               Nothing -> do
                     lift $ reportSLn "" 1 $
                         "Compiling: " ++ show (iModuleName i)
---                    initialAnalysis i
                     let defns = HMap.toList $ sigDefinitions $ iSignature i
                     opts <- lift commandLineOptions
                     (code, modInfo, amod) <- lift $ compileDefns moduleName modInfos opts defns
@@ -256,44 +239,6 @@ getMain iface = case concatMap f defs of
             (Function{}) | "main" == show (qnameName qn) -> [qn]
             _   -> []
 
--- | Before running the compiler, we need to store some things in the state,
---   namely constructor tags, constructor irrelevancies and the delayed field
---   in functions (for coinduction).
-{-initialAnalysis :: Interface -> TCM ()
-initialAnalysis inter = do
--- TODO PH : fix natish
---  Prim.initialPrims
-  modify $ \s -> s {curModule = mempty}
-  let defs = HMap.toList $ sigDefinitions $ iSignature inter
-  forM_ defs $ \(q, def) -> do
-    addDefName q
-    case theDef def of
-      d@(Datatype {}) -> do
-        return ()
-        -- TODO PH : fix natish
---        saker <- ND.isNatish q d
-{-        case saker of
-            Just (_, [zer, suc]) -> do
-                putConstrTag zer (PrimTag "primZero")
-                putConstrTag suc (PrimTag "primSuc")
-             _ -> return () -}
-      Constructor {conPars = np} -> do
---        putForcedArgs q . drop np . ForceC.makeForcedArgs $ defType def
-        putConArity q =<< lift (constructorArity q)
-      f@(Function{}) -> do
-        when ("main" == show (qnameName q)) $ do
-            -- lift $ liftTCM $ checkTypeOfMain q (defType def)
-            putMain q
-        putDelayed q $ case funDelayed f of
-          Delayed -> True
-          NotDelayed -> False
-      a@(Axiom {}) -> do
-        case defEpicDef def of
-          Nothing -> putDelayed q True
-          _       -> return ()
-      _ -> return ()
--}
-
 idPrint :: String -> Transform -> Transform
 idPrint s m x = do
   reportSLn "uhc.phases" 10 s
@@ -305,24 +250,14 @@ compileDefns :: ModuleName
     -> CommandLineOptions
     -> [(QName, Definition)] -> TCM (EC.CModule, AModuleInfo, AMod)
 compileDefns mod modImps opts defs = do
---    let modName = L.intercalate "." (CN.moduleNameParts mod)
 
---    (amod, modInfo) <- 
     (amod', modInfo) <- FAgda.fromAgdaModule mod modImps defs $ \mod ->
                    return mod
                >>= optim optOptimSmashing "smashing"      Smash.smash'em
---               >>= idPrint "findInjection" ID.findInjection
---               >>= idPrint "fromAgda"   (FAgda.fromAgdaModule msharp modName modImps)
---               >>= idPrint "forcing"     Forcing.remForced
---               >>= idPrint "irr"         ForceC.forceConstrs
---               >>= idPrint "primitivise" Prim.primitivise
---               >>= idPrint "smash"       Smash.smash'em
---               >>= idPrint "erasure"     Eras.erasure
---               >>= idPrint "caseOpts"    COpts.caseOpts
                >>= idPrint "done" return
     reportSLn "uhc" 10 $ "Done generating AuxAST for \"" ++ show mod ++ "\"."
     crMod <- toCore amod' modInfo modImps
---    let modEntRel =  getExportedExprs modInfo
+
     reportSLn "uhc" 10 $ "Done generating Core for \"" ++ show mod ++ "\"."
     return (crMod, modInfo, amod')
   where optim :: (CommandLineOptions -> Bool) -> String -> Transform -> Transform
@@ -357,17 +292,6 @@ setUHCDir mainI = do
     liftIO $ setCurrentDirectory compileDir
     liftIO $ createDirectoryIfMissing False "UHC"
     liftIO $ setCurrentDirectory $ compileDir </> "UHC"
-
--- | Make a program from the given Epic code.
---
--- The program is written to the file @../m@, where m is the last
--- component of the given module name.
-runUHC :: FilePath -> EC.CModule -> TCM ()
-runUHC fp code = do
-    fp' <- writeCoreFile fp code
-    return ()
-    -- TODO rename the function, as UHC will take care of following the dep chain
---    callUHC False fp'
 
 -- | Create the UHC Core main file, which calls the Agda main function
 runUhcMain :: AModuleInfo -> HsName -> TCM ()

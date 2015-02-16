@@ -25,13 +25,12 @@ import Control.Monad.State
 import Control.Monad.Reader
 import Agda.Interaction.Options
 
-import Agda.Compiler.UHC.AuxAST --hiding (apps)
+import Agda.Compiler.UHC.AuxAST
 import Agda.Compiler.UHC.Naming
 import Agda.Compiler.UHC.ModuleInfo
 
 import UHC.Light.Compiler.Core.API
 
---import Agda.Compiler.UHC.Pragmas.Base
 
 #include "undefined.h"
 import Agda.Utils.Impossible
@@ -40,7 +39,6 @@ opts :: EHCOpts
 opts = defaultEHCOpts
 
 -- stores tracing level
---type ToCoreT = ReaderT Int
 type ToCoreT m = FreshNameT (ReaderT Int m)
 
 createMainModule :: AModuleInfo -> HsName -> CModule
@@ -61,14 +59,6 @@ getExports modInfo = map (mkExport . cnName) (expFuns ++ expDtFuns ++ expConFuns
                             in filter needsExport items
         needsExport x = cnAgdaExported x
 
-{-getExportedExprs :: AModuleInfo -> ModEntRel
-getExportedExprs mod = S.unions $ map f (M.elems $ getNameMappingFor nmMp EtFunction)
-  where f nm | (cnAgdaExported nm || cnCoreExported nm) = mkEntRel (cnName nm)
-        f _ = S.empty
-        nmMp = amiCurNameMp mod
-        mkEntRel :: HsName -> ModEntRel
-        mkEntRel nm = S.singleton (snd $ hsnInitLast nm, ModEnt IdOcc_Val (IdOcc nm IdOcc_Val) S.empty Range_Unknown)
--}
 
 toCore :: AMod      -- ^ The current module to compile.
     -> AModuleInfo  -- ^ Info about current module.
@@ -89,7 +79,6 @@ toCore mod modInfo modImps = do
       exps = getExports modInfo
       crModNm = mnmToCrNm $ xmodName mod
       cmod = mkModule crModNm exps impsCr cMetaDeclL funs
---  let hiImps = S.fromList imps
   return cmod
   where mnmToCrNm :: ModuleName -> HsName
         mnmToCrNm mnm = snd (fromMaybe __IMPOSSIBLE__ $ mnameToCoreName (amifNameMp $ amiInterface modInfo) mnm)
@@ -107,13 +96,12 @@ buildCMetaDeclL dts = catMaybes $ map f dts
           f d@(ADataTy{xdatImplType = ADataImplNormal}) = Just $ mkMetaData (fromMaybe __IMPOSSIBLE__ $ xdatName d) (map g (xdatCons d))
           f _ = Nothing
           g :: ADataCon -> CDataCon
-          g c@(ADataCon{}) =
-                                -- can return Nothing for the tuple/record/() ctag, but should never happen
-                              fromMaybe __IMPOSSIBLE__ $ mkMetaDataConFromCTag (xconCTag c)
+          -- mkMetaDataConFromCTag can return Nothing for the tuple/record/() ctag, but should never happen
+          g c@(ADataCon{}) = fromMaybe __IMPOSSIBLE__ $ mkMetaDataConFromCTag (xconCTag c)
 
 
 funToBind :: Monad m => Fun -> ToCoreT m CBind
-funToBind (Fun _ name mqname comment vars e) = do -- TODO what is mqname?
+funToBind (Fun _ name mqname comment vars e) = do
   e' <- exprToCore e
 
   body <- coreTrace1 5 ("Eval fun: " ++ show name) $ mkLam vars e'
@@ -218,7 +206,6 @@ defaultBranches dt brs def = mapM mkAlt' missingCons
 
 
 litToCore :: Lit -> CExpr
--- should we put this into a let?
 litToCore (LInt i) = mkApp (mkVar $ mkHsName ["UHC", "Agda", "Builtins"] "primIntegerToNat") [mkInteger opts i]
 litToCore (LString s) = mkString opts s
 litToCore (LChar c) = mkChar c
