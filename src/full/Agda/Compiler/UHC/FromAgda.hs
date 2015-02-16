@@ -245,17 +245,16 @@ translateDefn (n, defini) = do
     a@(Axiom{}) -> do -- Axioms get their code from COMPILED_CORE pragmas
         case crRep of
             Nothing -> return . return $ CoreFun (fromMaybe __IMPOSSIBLE__ crName) (Just n) ("AXIOM_UNDEFINED: " ++ show n)
-                (coreImpossible $ "Axiom " ++ show n ++ " used but has no computation.") 0 -- TODO can we set arity to 0 here? not sure if we can..., maybe pass around arity info for Axiom?
-            Just (CrDefn x)  -> return . return $ CoreFun (fromMaybe __IMPOSSIBLE__ crName) (Just n) ("COMPILED_CORE: " ++ show n) x 2 -- TODO HACK JUST FOR TESTIN
+                (coreImpossible $ "Axiom " ++ show n ++ " used but has no computation.")
+            Just (CrDefn x)  -> return . return $ CoreFun (fromMaybe __IMPOSSIBLE__ crName) (Just n) ("COMPILED_CORE: " ++ show n) x
             _       -> error "Compiled core must be def, something went wrong."
     p@(Primitive{}) -> do -- Primitives use primitive functions from UHC.Agda.Builtins of the same name.
 
-      let ar = arity $ defType defini
       case primName p `M.lookup` primFunctions of
         Nothing     -> error $ "Primitive " ++ show (primName p) ++ " declared, but no such primitive exists."
         (Just expr) -> do
                 expr' <- lift expr
-                return $ Just $ CoreFun (fromMaybe __IMPOSSIBLE__ crName) (Just n) ("primitive: " ++ primName p) expr' ar
+                return $ Just $ CoreFun (fromMaybe __IMPOSSIBLE__ crName) (Just n) ("primitive: " ++ primName p) expr'
   where
     -- | Produces an identity function, optionally ignoring the first n arguments.
     mkIdentityFun :: Monad m => QName

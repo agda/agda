@@ -114,7 +114,7 @@ funToBind (Fun _ name mqname comment vars e) = do
       return $ mkBind1 name $ mkLam vars' body'
       )
     (return $ mkBind1 name body)
-funToBind (CoreFun name _ _ crExpr _) = return $ mkBind1 name crExpr
+funToBind (CoreFun name _ _ crExpr) = return $ mkBind1 name crExpr
 
 exprToCore :: Monad m => Expr -> ToCoreT m CExpr
 exprToCore (Var v)      = return $ mkVar v

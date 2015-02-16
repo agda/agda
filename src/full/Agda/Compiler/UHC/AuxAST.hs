@@ -70,7 +70,6 @@ data Fun
       , xfunQName    :: Maybe QName
       , xfunComment  :: Comment
       , xfunCoreExpr :: CExpr
-      , xfunArity    :: Int -- TODO check if still used, remove if not
       }
   deriving (Eq, Show)
 
