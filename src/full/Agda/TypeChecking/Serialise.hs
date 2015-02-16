@@ -1561,10 +1561,10 @@ instance EmbPrj UHCA.CTag where
   value n = value n >>= return . (B.runGet UU.unserialize)
 
 instance EmbPrj UHCN.CoreName where
-  icod_ (UHCN.CoreName a b c d) = icode4' a b c d
+  icod_ (UHCN.CoreName a b c) = icode3' a b c
   value = vcase valu where
-    valu [a, b, c, d] = valu4 UHCN.CoreName a b c d
-    valu _            = malformed
+    valu [a, b, c] = valu3 UHCN.CoreName a b c
+    valu _         = malformed
 
 instance EmbPrj UHCN.EntityType where
   icod_ UHCN.EtDatatype     = icode0 0

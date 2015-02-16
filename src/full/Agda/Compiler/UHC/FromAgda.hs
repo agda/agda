@@ -123,10 +123,6 @@ collectNames conInstMp defs = do
                         { anName = qnm
                         , anType = ty
                         , anNeedsAgdaExport = True -- TODO, only set this to true for things which are actually exported
-                        -- TODO we should either remove this or make it work... just disable core export for the time being...
-                        , anCoreExport = AceNo {-if (isForeign || isBtin) && ty /= EtFunction
-                                then AceNo      -- it doesn't make sense to export foreign/builtin datatypes on the core level
-                                else AceWanted -- TODO, add pragma to set this to No/Required-}
                         , anForceName = Nothing -- TODO add pragma to force name
                         }
 

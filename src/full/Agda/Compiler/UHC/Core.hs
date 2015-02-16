@@ -59,7 +59,7 @@ getExports modInfo = map (mkExport . cnName) (expFuns ++ expDtFuns ++ expConFuns
 
         getExportsFor ty = let items = M.elems $ getNameMappingFor (amiCurNameMp modInfo) ty
                             in filter needsExport items
-        needsExport x = cnAgdaExported x || cnCoreExported x
+        needsExport x = cnAgdaExported x
 
 {-getExportedExprs :: AModuleInfo -> ModEntRel
 getExportedExprs mod = S.unions $ map f (M.elems $ getNameMappingFor nmMp EtFunction)

@@ -15,22 +15,21 @@
 -- All names in a Agda module are passed to the `assignCoreNames` function,
 -- which will determine the Core name for each module-level Agda name.
 --
--- The strategy is to "haskellify" all names. This may lead to clashes
--- between multiple entities. The assignCoreNames may assign arbitrary
--- Core names to Agda identifiers, and may also choose to not export
--- entities on the Core level if the anCoreExport is not set to required.
+-- At the moment, auto-generated names are used for all identifiers. Manual
+-- forcing of a Core name is possible, but currently not used.
 --
--- Invariants:
--- - If an Agda name is marked as Agda exported, the created Core name will always be exported on the Agda level.
--- - If an Agda name is marked as requiring Core export, the created Core name will always be export on the Core
---   level (or a type error will be emitted).
+-- If clashes in the names are found, an error is thrown. Unless a name is
+-- manually forced, this should never happen.
+--
+-- We also try to incorporate the original Agda name into the generated name
+-- as far as possible.
+--
 
 module Agda.Compiler.UHC.Naming
   ( NameMap (..) -- we have to export the constructor for the EmbPrj instance in Typechecking/Serialise.
   , AgdaName (..)
   , CoreName (..)
   , EntityType (..)
-  , AgdaCoreExport (..)
   , assignCoreNames
 
   , qnameToCoreName
@@ -45,6 +44,7 @@ where
 
 import Data.Char
 import Data.List
+import Data.Maybe (fromJust)
 import qualified Data.Map as M
 import Control.Monad.State
 import Control.Monad.Reader
@@ -67,18 +67,11 @@ data EntityType
   | EtFunction
   deriving (Eq, Ord, Show, Typeable)
 
-data AgdaCoreExport
-  = AceNo       -- ^ Don't export.
-  | AceWanted   -- ^ Export if possible, but not required.
-  | AceRequired -- ^ Export, fail if not possible.
-  deriving (Eq, Ord, Show)
-
 data AgdaName
   = AgdaName
   { anName :: QName
   , anType :: EntityType
   , anNeedsAgdaExport :: Bool       -- ^ If true, this item needs to be exported on the Agda level.
-  , anCoreExport :: AgdaCoreExport  -- ^ If true, this item wants to be exported on the Core level.
   , anForceName :: Maybe HsName     -- ^ Forces use of the given name.
   }
   deriving (Eq, Ord, Show)
@@ -88,7 +81,6 @@ data CoreName
   { cnName :: HsName        -- ^ The Core name.
   , cnType :: EntityType
   , cnAgdaExported :: Bool  -- ^ True if the name is exported on the Agda level.
-  , cnCoreExported :: Bool  -- ^ True if the name is exported on the Core level.
   }
   deriving (Show, Typeable)
 
@@ -146,14 +138,14 @@ assignCoreNames modNm ans = do
 
     -- First, do the functions, try drop clashing ones
     funs' <- zip funs <$> mapM assignNameProper funs
-    funs'' <- resolveClashes handlerDropExport funs'
+    funs'' <- resolveClashes handlerFail funs'
 
     dts' <- zip dts <$> mapM assignNameProper dts
-    dts'' <- resolveClashes handlerDropExport dts'
+    dts'' <- resolveClashes handlerFail dts'
 
     -- we could also resort to prefixing constructor with the datatype names, would that be a good idea?
     cons' <- zip cons <$> mapM assignNameProper cons
-    cons'' <- resolveClashes handlerDropExport cons'
+    cons'' <- resolveClashes handlerFail cons'
 
     let entMp = M.fromList [(anName anm, cnm) | (anm, cnm) <- (funs'' ++ dts'' ++ cons'')]
         modMp = M.singleton modNm (crModNm, mkHsName (init crModNm) (last crModNm))
@@ -182,7 +174,7 @@ getNameMappingFor nmMp ty = M.filter ((ty ==) . cnType) $ entMapping nmMp
 
 -- | Resolves name clases between core names. The returned result is free from clashes.
 resolveClashes :: MonadTCM m
-  => ((HsName, [(AgdaName, CoreName)]) -> AssignM TCM [(AgdaName, CoreName)])   -- ^ Clash handler. Given the clashing entities,
+  => ((HsName, [(AgdaName, CoreName)]) -> AssignM m [(AgdaName, CoreName)])   -- ^ Clash handler. Given the clashing entities,
                                                                             -- produce new core names which do not clash.
   -> [(AgdaName, CoreName)] -- ^ The initial names.
   -> AssignM m [(AgdaName, CoreName)]
@@ -191,7 +183,7 @@ resolveClashes handler nms =
   if M.null clashes then return nms else (updNames >>= resolveClashes handler)
   where (ok, clashes) = findClashes nms
         -- use ok part, and add handled entities
-        updNames = (ok ++) . concat <$> mapM handlerDropExport (M.toList clashes)
+        updNames = (ok ++) . concat <$> mapM handler (M.toList clashes)
 
 findClashes :: [(AgdaName, CoreName)]
     -> ([(AgdaName, CoreName)], M.Map HsName [(AgdaName, CoreName)]) -- ^ First item are the non-clashing names, second item are the clashing names.
@@ -199,31 +191,14 @@ findClashes nms = (concat $ M.elems ok, clashes)
   where crNmMp = M.unionsWith (++) [M.singleton (cnName cnm) [nm] | nm@(anm, cnm) <- nms]
         (ok, clashes) = M.partition ((<= 1) . length) crNmMp
 
-handlerDropExport :: MonadTCM m => (HsName, [(AgdaName, CoreName)]) -> AssignM m [(AgdaName, CoreName)]
-handlerDropExport (crNm, clashes) = do
-  -- first, set all aceWanted to not export, then see if there is still a clash
-  firstStage <- mapM (\(anm, crm) -> case anForceName anm of
-        Just x -> return (anm, crm) -- has forced name, can't change it
-        Nothing -> case anCoreExport anm of
-                    AceNo -> __IMPOSSIBLE__ -- automatic names cannot clash...
-                    AceWanted -> do
-                        fnm <- freshCrName anm
-                        return (anm, crm { cnName = fnm, cnCoreExported = False })
-                    AceRequired -> return (anm,crm)) clashes
+handlerFail :: MonadTCM m => (HsName, [(AgdaName, CoreName)]) -> AssignM m [(AgdaName, CoreName)]
+handlerFail (crNm, clashes) = do
+  -- clashes should have exactly one item at key crNm now
+  lift $ typeError $ GenericError $
+      "The Core names (" ++ show crNm ++ ") for the following entities clash: " ++ showEnts clashes
 
-  -- now, check if there are still clashes in the aceRequired items
-  let (_, clashes') = findClashes firstStage
-
-  let showEnts = (\clsh -> intercalate ", " $ map (show . anName . fst) clsh)
-
-  if M.null clashes' then do
-    lift $ reportSLn "uhc" 10 $
-        "Not exporting some entities due to clashing Core names (" ++ show crNm ++ "), entities: " ++ showEnts clashes
-    return firstStage
-  else do
-    -- clashes should have exactly one item at key crNm now
-    lift $ typeError $ GenericError $
-        "The generated Core name (" ++ show crNm ++ ") for the following entities clash: " ++ showEnts (clashes' M.! crNm)
+  __IMPOSSIBLE__
+  where showEnts = (\clsh -> intercalate ", " $ map (show . anName . fst) clsh)
 
 -- | Assigns the proper names for entities. There might be
 -- name clashes in the generated names, which will be recitified by 'resolveClashes'.
@@ -231,23 +206,12 @@ assignNameProper :: (Monad m, Functor m) => AgdaName -> AssignM m CoreName
 assignNameProper anm = do
   nm <- case anForceName anm of
     (Just x) -> return x
-    Nothing -> case anCoreExport anm of
-            AceNo -> freshCrName anm
-            -- TODO either remove this part, or make it work. Just disabled for now,
-            -- to make everything else work.
-            AceWanted -> __IMPOSSIBLE__
-            AceRequired -> __IMPOSSIBLE__
+    Nothing -> freshCrName anm
 
   return $ CoreName { cnName = nm
                     , cnType = anType anm
                     , cnAgdaExported = anNeedsAgdaExport anm
-                    , cnCoreExported = anCoreExport anm /= AceNo
                     }
-{-  where crHsName = (do
-            modS <- map show . mnameToList <$> gets asAgdaModuleName
-            locName <- map show <$> (unqualifyQ $ anName anm)
-            return $ mkHsName modS (localCrIdent (anType anm) locName)
-            )-}
 
 -- | Creates a unique fresh core name. (not core exportable)
 freshCrName :: (Functor m, Monad m) => AgdaName -> AssignM m HsName
