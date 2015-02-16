@@ -600,7 +600,7 @@ unifyIndices flex a us vs = liftTCM $ do
       -- unification of u and v, otherwise us or vs might be ill-typed
       -- skip irrelevant parts
       uHH <- if getRelevance a == Irrelevant then return $ Hom u else
-             -- Andreas, 2014-01-19 forced constructor arguments are not unified
+             -- Andreas, 2015-01-19 forced constructor arguments are not unified
              if getRelevance a == Forced     then liftTCM $ tryHom bHH u v else
                ifClean (unifyHH bHH u v) (return $ Hom u) (return $ Het u v)
 
@@ -830,18 +830,18 @@ unifyIndices flex a us vs = liftTCM $ do
           | c == c' -> do
               r <- liftTCM (dataOrRecordTypeHH' c aHH)
               case r of
-                Just (d, bHH) -> do
-                  bHH <- ureduce bHH
+                Just (d, b, parsIxsHH) -> do
+                  (b, parsIxsHH) <- ureduce (b, parsIxsHH)
                   -- Jesper, 2014-05-03: When --without-K is enabled, we reconstruct
                   -- datatype indices and unify them as well
                   withoutKEnabled <- liftTCM $ optWithoutK <$> pragmaOptions
-                  when withoutKEnabled (do
+                  when withoutKEnabled $ do
                       def   <- liftTCM $ getConstInfo d
-                      let parsHH  = fmap (\(b, pars, ixs) -> pars) bHH
-                          ixsHH   = fmap (\(b, pars, ixs) -> ixs) bHH
-                          dtypeHH = (defType def) `applyHH` parsHH
-                      unifyConstructorArgs dtypeHH (leftHH ixsHH) (rightHH ixsHH))
-                  let a'HH = fmap (\(b, pars, _) -> b `apply` pars) bHH
+                      let parsHH  = fst <$> parsIxsHH
+                          ixsHH   = snd <$> parsIxsHH
+                          dtypeHH = defType def `applyHH` parsHH
+                      unifyConstructorArgs dtypeHH (leftHH ixsHH) (rightHH ixsHH)
+                  let a'HH = (b `apply`) . fst <$> parsIxsHH
                   unifyConstructorArgs a'HH us vs
                 Nothing -> checkEqualityHH aHH u v
           | otherwise -> constructorMismatchHH aHH u v
@@ -1026,22 +1026,24 @@ dataOrRecordTypeHH c (Het a1 a2) = do
 dataOrRecordTypeHH' ::
      ConHead
   -> TypeHH
-  -> TCM (Maybe (QName, HomHet (Type, Args, Args)))
+  -> TCM (Maybe (QName, Type, HomHet (Args, Args)))
 dataOrRecordTypeHH' c (Hom a) = do
   r <- dataOrRecordType' c a
   case r of
-    Just (d, a', pars, ixs) -> return $ Just (d, Hom (a', pars, ixs))
+    Just (d, a', pars, ixs) -> return $ Just (d, a', Hom (pars, ixs))
     Nothing                 -> return $ Nothing
 dataOrRecordTypeHH' c (Het a1 a2) = do
   r1 <- dataOrRecordType' c a1
   r2 <- dataOrRecordType' c a2
-  return $ case (r1, r2) of
-    -- TODO: We should always have b1 == b2, check/force this in some way?
-    (Just (d1, b1, pars1, ixs1), Just (d2, b2, pars2, ixs2)) | d1 == d2 -> Just $
+  case (r1, r2) of
+    (Just (d1, b1, pars1, ixs1), Just (d2, b2, pars2, ixs2)) | d1 == d2 -> do
+      -- Same constructors have same types, of course.
+      unless (b1 == b2) __IMPOSSIBLE__
+      return $ Just $
         if null pars1 && null pars2 && null ixs1 && null ixs2
-          then (d1, Hom (b1, [], []))
-          else (d1, Het (b1, pars1, ixs1) (b2, pars2, ixs2))
-    _ -> Nothing
+          then (d1, b1, Hom ([], []))
+          else (d1, b1, Het (pars1, ixs1) (pars2, ixs2))
+    _ -> return Nothing
 
 
 -- | Return record type identifier if argument is a record type.
