@@ -56,7 +56,8 @@ unProjView pv =
     NoProjection v          -> v
 
 -- | Top-level 'ProjectionView' (no reduction).
-projView :: Term -> TCM ProjectionView
+{-# SPECIALIZE projView :: Term -> TCM ProjectionView #-}
+projView :: HasConstInfo m => Term -> m ProjectionView
 projView v = do
   let fallback = return $ NoProjection v
   case ignoreSharing v of

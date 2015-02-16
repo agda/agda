@@ -45,7 +45,7 @@ import Agda.TypeChecking.ProjectionLike (elimView)
 import Agda.Interaction.Options
 
 import Agda.Utils.Except ( MonadError(catchError, throwError) )
-import Agda.Utils.Functor (($>))
+import Agda.Utils.Functor
 import Agda.Utils.Monad
 import Agda.Utils.Maybe
 import Agda.Utils.Size
@@ -60,11 +60,19 @@ mlevel :: TCM (Maybe Term)
 mlevel = liftTCM $ (Just <$> primLevel) `catchError` \_ -> return Nothing
 -}
 
--- | Try whether a computation runs without errors or new constraints.
+-- | Try whether a computation runs without errors or new constraints
+--   (may create new metas, though).
 --   Restores state upon failure.
 tryConversion :: TCM () -> TCM Bool
-tryConversion m = (disableDestructiveUpdate $ noConstraints m $> True)
-  `catchError` \ _ -> return False
+tryConversion = isJust <.> tryConversion'
+
+-- | Try whether a computation runs without errors or new constraints
+--   (may create new metas, though).
+--   Return 'Just' the result upon success.
+--   Return 'Nothing' and restore state upon failure.
+tryConversion' :: TCM a -> TCM (Maybe a)
+tryConversion' m = (Just <$> do disableDestructiveUpdate $ noConstraints m)
+  `catchError` \ _ -> return Nothing
 
 -- | Check if to lists of arguments are the same (and all variables).
 --   Precondition: the lists have the same length.

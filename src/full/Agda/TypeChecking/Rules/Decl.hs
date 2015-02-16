@@ -137,7 +137,7 @@ checkDecl d = setCurrentRange d $ do
       ]
 
     -- Issue 418 fix: freeze metas before checking an abstract thing
-    when isAbstract freezeMetas
+    when_ isAbstract freezeMetas
 
     let -- What kind of final checks/computations should be performed
         -- if we're not inside a mutual block?
@@ -453,7 +453,7 @@ checkAxiom funSig i info0 x e = do
   traceCall (IsType_ e) $ solveSizeConstraints  -- need Range for error message
 
   -- Andreas, 2011-05-31, that freezing below is probably wrong:
-  -- when (Info.defAbstract i == AbstractDef) $ freezeMetas
+  -- when_ (Info.defAbstract i == AbstractDef) $ freezeMetas
 
 -- | Type check a primitive function declaration.
 checkPrimitive :: Info.DefInfo -> QName -> A.Expr -> TCM ()

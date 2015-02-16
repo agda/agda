@@ -8,6 +8,7 @@ module Agda.TypeChecking.Monad.MetaVars where
 import Control.Applicative
 import Control.Monad.State
 import Control.Monad.Reader
+import Control.Monad.Writer
 
 import qualified Data.Map as Map
 import qualified Data.Set as Set
@@ -332,17 +333,28 @@ clearMetaListeners m =
 -- * Freezing and unfreezing metas.
 ---------------------------------------------------------------------------
 
--- | Freeze all meta variables.
-freezeMetas :: TCM ()
-freezeMetas = modifyMetaStore $ Map.map freeze where
-  freeze :: MetaVariable -> MetaVariable
-  freeze mvar = mvar { mvFrozen = Frozen }
+-- | Freeze all meta variables and return the list of metas that got frozen.
+freezeMetas :: TCM [MetaId]
+freezeMetas = execWriterT $ stMetaStore %== Map.traverseWithKey freeze
+  where
+  freeze :: Monad m => MetaId -> MetaVariable -> WriterT [MetaId] m MetaVariable
+  freeze m mvar
+    | mvFrozen mvar == Frozen = return mvar
+    | otherwise = do
+        tell [m]
+        return $ mvar { mvFrozen = Frozen }
 
 -- | Thaw all meta variables.
 unfreezeMetas :: TCM ()
-unfreezeMetas = modifyMetaStore $ Map.map unfreeze where
-  unfreeze :: MetaVariable -> MetaVariable
-  unfreeze mvar = mvar { mvFrozen = Instantiable }
+unfreezeMetas = unfreezeMetas' $ const True
+
+-- | Thaw some metas, as indicated by the passed condition.
+unfreezeMetas' :: (MetaId -> Bool) -> TCM ()
+unfreezeMetas' cond = modifyMetaStore $ Map.mapWithKey unfreeze where
+  unfreeze :: MetaId -> MetaVariable -> MetaVariable
+  unfreeze m mvar
+    | cond m    = mvar { mvFrozen = Instantiable }
+    | otherwise = mvar
 
 isFrozen :: MetaId -> TCM Bool
 isFrozen x = do
