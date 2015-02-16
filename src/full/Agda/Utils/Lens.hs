@@ -10,6 +10,7 @@ module Agda.Utils.Lens
 
 import Control.Monad.State
 import Control.Monad.Reader
+import Control.Monad.Writer
 
 import Data.Functor.Constant
 import Data.Functor.Identity
@@ -45,16 +46,29 @@ over l f o = runIdentity $ l (Identity . f) o
 use :: MonadState o m => Lens' i o -> m i
 use l = gets (^. l)
 
-infix  4 .=
+infix 4 .=
 -- | Write a part of the state.
 (.=) :: MonadState o m => Lens' i o -> i -> m ()
 l .= i = modify $ set l i
 
-infix  4 %=
+infix 4 %=
 -- | Modify a part of the state.
 (%=) :: MonadState o m => Lens' i o -> (i -> i) -> m ()
 l %= f = modify $ over l f
 
+infix 4 %==
+-- | Modify a part of the state monadically.
+(%==) :: (MonadState o m, Functor m) => Lens' i o -> (i -> m i) -> m ()
+l %== f = put =<< l f =<< get
+
+infix 4 %%=
+-- | Modify a part of the state monadically, and return some result.
+(%%=) :: (MonadState o m, Functor m) => Lens' i o -> (i -> m (i, r)) -> m r
+l %%= f = do
+  o <- get
+  (o', r) <- runWriterT $ l (WriterT . f) o
+  put o'
+  return r
 
 -- * Read-only state accessors and modifiers.
 
