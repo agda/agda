@@ -46,7 +46,7 @@ import Data.Time.Clock.POSIX
 import Agda.Compiler.UHC.AuxAST as AuxAST
 import Agda.Compiler.UHC.AuxASTUtil
 import Agda.Compiler.UHC.ModuleInfo
-import Agda.Compiler.UHC.Builtins
+import Agda.Compiler.UHC.MagicTypes
 import Agda.Interaction.Options
 import Agda.Syntax.Internal
 import Agda.Syntax.Concrete(TopLevelModuleName)

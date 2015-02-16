@@ -38,7 +38,7 @@ import Agda.Compiler.UHC.AuxAST
 import Agda.Compiler.UHC.AuxASTUtil
 import Agda.Compiler.UHC.CompileState
 import Agda.Compiler.UHC.ModuleInfo
-import Agda.Compiler.UHC.Builtins
+import Agda.Compiler.UHC.MagicTypes
 import Agda.Compiler.UHC.Primitives
 import Agda.Compiler.UHC.Core
 import Agda.Compiler.UHC.Naming

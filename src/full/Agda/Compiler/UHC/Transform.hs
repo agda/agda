@@ -40,7 +40,6 @@ import Agda.Compiler.UHC.AuxAST as AuxAST
 import Agda.Compiler.UHC.AuxASTUtil
 import Agda.Compiler.UHC.ModuleInfo
 import Agda.Compiler.UHC.CompileState
-import Agda.Compiler.UHC.Builtins
 import Agda.Interaction.Options
 import Agda.Syntax.Internal
 import Agda.Syntax.Concrete(TopLevelModuleName)

@@ -7,7 +7,6 @@ where
 
 import Data.List
 import Agda.Compiler.UHC.AuxAST
-import Agda.Compiler.UHC.Builtins
 import Agda.Compiler.UHC.CompileState
 import Agda.TypeChecking.Monad
 import Agda.TypeChecking.Monad.Builtin

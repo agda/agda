@@ -1,6 +1,6 @@
 {-# LANGUAGE CPP #-}
--- | Defines some builtin functions/datatypes.
-module Agda.Compiler.UHC.Builtins
+-- | Defines some magic builtin datatypes.
+module Agda.Compiler.UHC.MagicTypes
 (   builtinUnitCtor
   , MagicName
   , getMagicTypes

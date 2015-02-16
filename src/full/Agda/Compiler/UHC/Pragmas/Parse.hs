@@ -20,7 +20,7 @@ import qualified Data.Map as M
 import Agda.TypeChecking.Monad
 import Agda.Compiler.UHC.AuxAST
 import Agda.Compiler.UHC.Pragmas.Base
-import Agda.Compiler.UHC.Builtins
+import Agda.Compiler.UHC.MagicTypes
 
 import UHC.Light.Compiler.Core.API as CA
 
