@@ -7,6 +7,7 @@ module Agda.Compiler.UHC.Pragmas.Base
     CoreType (..),
     CoreConstr (..),
     coreConstrToCTag,
+    setTag,
     HsName
   )
 
@@ -22,6 +23,10 @@ import Data.Typeable
 import Agda.Compiler.UHC.AuxAST
 
 import UHC.Light.Compiler.Core.API as CA
+
+#include "undefined.h"
+import Agda.Utils.Impossible
+
 
 type CoreTypeName = Maybe HsName -- nothing for unit, else the name.
 
@@ -40,6 +45,11 @@ data CoreConstr
   = CCMagic CTag -- special well-known type with fixed arity (e.g. Bool, List, etc.)
   | CCNormal HsName HsName Int -- datatype, constr, tag
   deriving (Eq, Show, Typeable)
+
+
+setTag :: CoreConstr -> Int -> CoreConstr
+setTag (CCNormal a b _) t = CCNormal a b t
+setTag _ _ = __IMPOSSIBLE__
 
 coreConstrToCTag :: CoreConstr
     -> Int -- ^ Arity
