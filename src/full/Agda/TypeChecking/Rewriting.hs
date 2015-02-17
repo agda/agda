@@ -121,13 +121,13 @@ relView t = do
 --   @rel us : (lhs rhs : A[us/Δ]) → Set i@.
 addRewriteRule :: QName -> TCM ()
 addRewriteRule q = do
-  let failureWrongTarget = typeError . GenericDocError =<< sep
+  let failureWrongTarget = typeError . GenericDocError =<< hsep
         [ prettyTCM q , text " does not target rewrite relation" ]
-  let failureMetas       = typeError . GenericDocError =<< sep
+  let failureMetas       = typeError . GenericDocError =<< hsep
         [ prettyTCM q , text " is not a legal rewrite rule, since it contains unsolved meta variables" ]
-  let failureFreeVars    = typeError . GenericDocError =<< sep
+  let failureFreeVars    = typeError . GenericDocError =<< hsep
         [ prettyTCM q , text " is not a legal rewrite rule, since not all variables are bound by the left hand side" ]
-  let failureIllegalRule = typeError . GenericDocError =<< sep
+  let failureIllegalRule = typeError . GenericDocError =<< hsep
         [ prettyTCM q , text " is not a legal rewrite rule" ]
   Def rel _ <- primRewrite
   -- We know that the type of rel is that of a relation.

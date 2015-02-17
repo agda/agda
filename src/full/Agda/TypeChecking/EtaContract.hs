@@ -56,7 +56,9 @@ binAppView t = case t of
       | otherwise          = noApp
 
 -- | Contracts all eta-redexes it sees without reducing.
-etaContract :: TermLike a => a -> TCM a
+{-# SPECIALIZE etaContract :: TermLike a => a -> TCM a #-}
+{-# SPECIALIZE etaContract :: TermLike a => a -> ReduceM a #-}
+etaContract :: (MonadReader TCEnv m, HasConstInfo m, TermLike a) => a -> m a
 etaContract = traverseTermM etaOnce
 
 {-# SPECIALIZE etaOnce :: Term -> TCM Term #-}

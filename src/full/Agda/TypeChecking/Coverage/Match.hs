@@ -38,10 +38,6 @@ instances (via substitutions @rhos@) of the split clause.
 In these substitutions, we look for a column that has only constructor patterns.
 We try to split on this column first.
 -}
-{-
-nonOverlappingCompleteMatches :: [Clause] -> [Arg Pattern] -> Permutation -> Match Nat
-nonOverlappingCompleteMatches cs ps perm
--}
 
 -- | Match the given patterns against a list of clauses
 match :: [Clause] -> [Arg Pattern] -> Permutation -> Match (Nat,[MPat])
