@@ -2,6 +2,9 @@
 {-# LANGUAGE DeriveFunctor       #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 
+-- | Pattern matcher used in the reducer for clauses that
+--   have not been compiled to case trees yet.
+
 module Agda.TypeChecking.Patterns.Match where
 
 import Prelude hiding (null)
