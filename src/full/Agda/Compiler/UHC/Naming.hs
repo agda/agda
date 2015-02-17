@@ -137,15 +137,12 @@ assignCoreNames modNm ans = do
     -- (because we are in a Haskell-like naming system)
 
     funs' <- zip funs <$> mapM assignNameProper funs
-    funs'' <- resolveClashes handlerFail funs'
 
     dts' <- zip dts <$> mapM assignNameProper dts
-    dts'' <- resolveClashes handlerFail dts'
 
     cons' <- zip cons <$> mapM assignNameProper cons
-    cons'' <- resolveClashes handlerFail cons'
 
-    let entMp = M.fromList [(anName anm, cnm) | (anm, cnm) <- (funs'' ++ dts'' ++ cons'')]
+    let entMp = M.fromList [(anName anm, cnm) | (anm, cnm) <- (funs' ++ dts' ++ cons')]
         modMp = M.singleton modNm (crModNm, mkHsName (init crModNm) (last crModNm))
     return $ NameMap entMp modMp
     ) (AssignState 0 modNm __IMPOSSIBLE__)
@@ -168,35 +165,6 @@ mnameToCoreName nmMp mnm = mnm `M.lookup` (modMapping nmMp)
 -- | Returns all names of the given type defined in the given `NameMap`.
 getNameMappingFor :: NameMap -> EntityType -> M.Map QName CoreName
 getNameMappingFor nmMp ty = M.filter ((ty ==) . cnType) $ entMapping nmMp
-
-
--- | Resolves name clases between core names. The returned result is free from clashes.
-resolveClashes :: MonadTCM m
-  => ((HsName, [(AgdaName, CoreName)]) -> AssignM m [(AgdaName, CoreName)])   -- ^ Clash handler. Given the clashing entities,
-                                                                            -- produce new core names which do not clash.
-  -> [(AgdaName, CoreName)] -- ^ The initial names.
-  -> AssignM m [(AgdaName, CoreName)]
-resolveClashes handler nms =
-  -- repeat untilt there is no longer any clash. (TODO how do we guarantuee termination??)
-  if M.null clashes then return nms else (updNames >>= resolveClashes handler)
-  where (ok, clashes) = findClashes nms
-        -- use ok part, and add handled entities
-        updNames = (ok ++) . concat <$> mapM handler (M.toList clashes)
-
-findClashes :: [(AgdaName, CoreName)]
-    -> ([(AgdaName, CoreName)], M.Map HsName [(AgdaName, CoreName)]) -- ^ First item are the non-clashing names, second item are the clashing names.
-findClashes nms = (concat $ M.elems ok, clashes)
-  where crNmMp = M.unionsWith (++) [M.singleton (cnName cnm) [nm] | nm@(anm, cnm) <- nms]
-        (ok, clashes) = M.partition ((<= 1) . length) crNmMp
-
-handlerFail :: MonadTCM m => (HsName, [(AgdaName, CoreName)]) -> AssignM m [(AgdaName, CoreName)]
-handlerFail (crNm, clashes) = do
-  -- clashes should have exactly one item at key crNm now
-  lift $ typeError $ GenericError $
-      "The Core names (" ++ show crNm ++ ") for the following entities clash: " ++ showEnts clashes
-
-  __IMPOSSIBLE__
-  where showEnts = (\clsh -> intercalate ", " $ map (show . anName . fst) clsh)
 
 -- | Assigns the proper names for entities. There might be
 -- name clashes in the generated names, which will be recitified by 'resolveClashes'.
