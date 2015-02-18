@@ -136,13 +136,14 @@ library
     alex >= 3.1.0 && < 3.2
     , happy >= 1.19.4 && < 2
 
-  exposed-modules:  Agda.Main
-                    Agda.ImpossibleTest
-                    Agda.Interaction.BasicOps
-                    Agda.Interaction.EmacsTop
-                    Agda.Interaction.InteractionTop
+  exposed-modules:  Agda.Auto.Auto
+                    Agda.Auto.CaseSplit
+                    Agda.Auto.Convert
+                    Agda.Auto.NarrowingSearch
+                    Agda.Auto.SearchControl
+                    Agda.Auto.Syntax
+                    Agda.Auto.Typecheck
                     Agda.Compiler.CallCompiler
-                    Agda.Compiler.HaskellTypes
                     Agda.Compiler.Epic.AuxAST
                     Agda.Compiler.Epic.CaseOpts
                     Agda.Compiler.Epic.Compiler
@@ -158,6 +159,7 @@ library
                     Agda.Compiler.Epic.Primitive
                     Agda.Compiler.Epic.Smashing
                     Agda.Compiler.Epic.Static
+                    Agda.Compiler.HaskellTypes
                     Agda.Compiler.JS.Case
                     Agda.Compiler.JS.Compiler
                     Agda.Compiler.JS.Syntax
@@ -169,8 +171,11 @@ library
                     Agda.Compiler.MAlonzo.Misc
                     Agda.Compiler.MAlonzo.Pretty
                     Agda.Compiler.MAlonzo.Primitives
+                    Agda.ImpossibleTest
+                    Agda.Interaction.BasicOps
                     Agda.Interaction.CommandLine
                     Agda.Interaction.EmacsCommand
+                    Agda.Interaction.EmacsTop
                     Agda.Interaction.Exceptions
                     Agda.Interaction.FindFile
                     Agda.Interaction.Highlighting.Dot
@@ -182,11 +187,13 @@ library
                     Agda.Interaction.Highlighting.Vim
                     Agda.Interaction.Highlighting.LaTeX
                     Agda.Interaction.Imports
+                    Agda.Interaction.InteractionTop
                     Agda.Interaction.Response
                     Agda.Interaction.MakeCase
                     Agda.Interaction.Monad
                     Agda.Interaction.Options
                     Agda.Interaction.Options.Lenses
+                    Agda.Main
                     Agda.Syntax.Abstract.Copatterns
                     Agda.Syntax.Abstract.Name
                     Agda.Syntax.Abstract.Pretty
@@ -387,13 +394,7 @@ library
                     Agda.Utils.VarSet
                     Agda.Utils.Warshall
                     Agda.Version
-                    Agda.Auto.Auto
-                    Agda.Auto.Convert
-                    Agda.Auto.Typecheck
-                    Agda.Auto.NarrowingSearch
-                    Agda.Auto.Syntax
-                    Agda.Auto.SearchControl
-                    Agda.Auto.CaseSplit
+
   other-modules:    Paths_Agda
 
   if impl(ghc >= 7.4.2)
