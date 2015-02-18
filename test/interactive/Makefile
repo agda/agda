@@ -4,7 +4,6 @@
 TOP=../..
 
 include $(TOP)/mk/paths.mk
-include $(TOP)/mk/config.mk
 
 AGDA = $(AGDA_BIN) -I -i. -i.. $(AGDA_TEST_FLAGS)
 
