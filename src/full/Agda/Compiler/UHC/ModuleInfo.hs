@@ -1,5 +1,6 @@
 {-# LANGUAGE DeriveDataTypeable #-}
--- | Contains all information required to link to this Agda module.
+-- | Contains all information required to link Agda modules.
+--
 module Agda.Compiler.UHC.ModuleInfo
   ( AModuleInfo (..)
   , AModuleInterface (..)
@@ -35,15 +36,16 @@ data AModuleInfo
   { amiFileVersion :: Word64
   , amiAgdaVersion :: Word64 -- same version as in Typechecking/Serialise
   , amiModule :: ModuleName
-  , amiInterface :: AModuleInterface    -- ^ Contains linking information (transitive).
-  , amiCurNameMp :: NameMap    -- ^ NameMap of just the current module.
+  , amiInterface :: AModuleInterface    -- ^ Contains linking information for the current module (non-transitive).
   , amiVersion :: ModVersion
-  , amiDepsVersion :: [(ModuleName, ModVersion)]
+  , amiDepsVersion :: [(ModuleName, ModVersion)] -- dependency versions for the current module (non-transitive)
   }
   deriving (Show, Typeable)
 
+
 -- | The interface of a module. Contains all information required to import
--- a module, including information from transitive imports.
+-- a module. Needs to be merged with the module interface of all imports
+-- of this module to get the actual interface to use.
 data AModuleInterface
   = AModuleInterface
   { amifConMp :: M.Map QName AConInfo  -- ^ Maps agda constructor qnames to types/constructor. (accumulating)

@@ -8,7 +8,7 @@ module Agda.Compiler.UHC.Transform
 
   , Transform
   , TransformT
-  , runTransformT
+--  , runTransformT
 
   , getCoreName
   , getCoreName1
@@ -61,14 +61,15 @@ type TransformT = CompileT
 
 type Transform = AMod -> TransformT TCM AMod
 
-runTransformT :: Monad m => AModuleInterface -> ModuleName -> TransformT m a -> m (a, AModuleInterface)
+{-runTransformT :: Monad m => AModuleInterface -> ModuleName -> TransformT m a -> m (a, AModuleInterface)
 runTransformT iface modNm comp = do
   (result, state) <- runStateT (unCompileT comp) initial
-  return (result, moduleInterface state)
+  return (result, iface) -- TODO this is an ugly hack....
   where initial = CompileState
             { curModule = modNm
             , moduleInterface = iface
+            , curModuleInterface = __IMPOSSIBLE__
             , coinductionKit' = __IMPOSSIBLE__
             }
 
-
+-}

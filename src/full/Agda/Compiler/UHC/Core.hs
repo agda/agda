@@ -43,7 +43,7 @@ type ToCoreT m = FreshNameT (ReaderT Int m)
 
 createMainModule :: AModuleInfo -> HsName -> CModule
 createMainModule mainMod main = mkModule (mkHsName [] "Main") [] [mkImport $ mkHsName1 "UHC.Run", mkImport mainMod'] [] (mkMain main)
-  where mainMod' = snd $ fromMaybe __IMPOSSIBLE__ $ mnameToCoreName (amiCurNameMp mainMod) (amiModule mainMod)
+  where mainMod' = snd $ fromMaybe __IMPOSSIBLE__ $ mnameToCoreName (amifNameMp $ amiInterface mainMod) (amiModule mainMod)
 
 getExports :: AModuleInfo -> [CExport]
 getExports modInfo = map (mkExport . cnName) (expFuns ++ expDtFuns ++ expConFuns)
@@ -55,16 +55,17 @@ getExports modInfo = map (mkExport . cnName) (expFuns ++ expDtFuns ++ expConFuns
         -- and the constructor wrapper functions
         expConFuns = getExportsFor EtConstructor
 
-        getExportsFor ty = let items = M.elems $ getNameMappingFor (amiCurNameMp modInfo) ty
+        getExportsFor ty = let items = M.elems $ getNameMappingFor (amifNameMp $ amiInterface modInfo) ty
                             in filter needsExport items
         needsExport x = cnAgdaExported x
 
 
 toCore :: AMod      -- ^ The current module to compile.
     -> AModuleInfo  -- ^ Info about current module.
+    -> AModuleInterface -- ^ Transitive interface.
     -> [AModuleInfo] -- ^ Top level imports
     -> TCM CModule
-toCore mod modInfo modImps = do
+toCore mod modInfo transModIface modImps = do
 
   traceLvl <- optUHCTraceLevel <$> commandLineOptions
   funs <- flip runReaderT traceLvl $ evalFreshNameT "nl.uu.agda.to_core" $ funsToCore (xmodFunDefs mod)
@@ -81,7 +82,7 @@ toCore mod modInfo modImps = do
       cmod = mkModule crModNm exps impsCr cMetaDeclL funs
   return cmod
   where mnmToCrNm :: ModuleName -> HsName
-        mnmToCrNm mnm = snd (fromMaybe __IMPOSSIBLE__ $ mnameToCoreName (amifNameMp $ amiInterface modInfo) mnm)
+        mnmToCrNm mnm = snd (fromMaybe __IMPOSSIBLE__ $ mnameToCoreName (amifNameMp transModIface) mnm)
 
 funsToCore :: Monad m => [Fun] -> ToCoreT m CExpr
 funsToCore funs = do

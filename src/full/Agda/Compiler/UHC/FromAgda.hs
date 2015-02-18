@@ -19,6 +19,7 @@ import qualified Data.Map as M
 import Data.Maybe
 import Data.List
 import Data.Either
+import qualified Data.Set as Set
 
 import Agda.Syntax.Common
 import Agda.Syntax.Internal hiding (Term(..))
@@ -51,10 +52,11 @@ import Agda.Utils.Impossible
 -- | Convert from Agda's internal representation to our auxiliary AST.
 fromAgdaModule :: ModuleName
     -> [AModuleInfo]     -- Module info of imported modules.
+    -> AModuleInterface  -- Transitive module interface.
     -> [(QName, Definition)]
     -> (AMod -> CompileT TCM a) -- continuation, normally program transforms
     -> TCM (a, AModuleInfo)
-fromAgdaModule modNm modImps defs cont = do
+fromAgdaModule modNm curModImps transModIface defs cont = do
   kit <- coinductionKit
 
   let conInstMp = getInstantiationMap defs
@@ -66,7 +68,7 @@ fromAgdaModule modNm modImps defs cont = do
   reportSLn "uhc" 25 $ "NameMap for " ++ show modNm ++ ":\n" ++ show nameMp
 
 
-  (mod', modInfo') <- runCompileT kit modNm modImps nameMp conInstMp (do
+  (mod', modInfo') <- runCompileT kit modNm curModImps transModIface nameMp conInstMp (do
     lift $ reportSLn "uhc" 10 "Translate datatypes..."
     -- Translate and add datatype information
     dats <- translateDataTypes defs

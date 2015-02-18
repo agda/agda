@@ -14,7 +14,7 @@ import Control.Monad.State
 import qualified Data.ByteString.Lazy as BS
 import qualified Data.Map as M
 import Data.Set(Set)
-import qualified Data.Set as S
+import qualified Data.Set as Set
 import Data.Maybe
 import Data.Monoid
 import System.Directory ( canonicalizePath, createDirectoryIfMissing
@@ -63,10 +63,10 @@ type CoreCode = String
 -- we should use a proper build system to ensure that things get only built once instead....
 -- but better than nothing
 type CompModT = StateT CompiledModules
-type CompiledModules = M.Map ModuleName AModuleInfo
+type CompiledModules = M.Map ModuleName (AModuleInfo, AModuleInterface)
 
-putCompModule :: Monad m => AModuleInfo -> CompModT m ()
-putCompModule mod = modify (M.insert (amiModule mod) mod)
+putCompModule :: Monad m => AModuleInfo -> AModuleInterface -> CompModT m ()
+putCompModule mod modTrans = modify (M.insert (amiModule mod) (mod, modTrans))
 
 compileUHCAgdaBase :: TCM ()
 compileUHCAgdaBase = do
@@ -114,7 +114,7 @@ compilerMain inter = do
             compileUHCAgdaBase
 
             setUHCDir inter
-            modInfo <- evalStateT (compileModule inter) M.empty
+            (modInfo, _) <- evalStateT (compileModule inter) M.empty
             main <- getMain inter
 
             -- get core name from modInfo
@@ -147,7 +147,9 @@ outFile modParts = do
   return $ fp
   where repldot c = map (\c' -> if c' == '.' then c else c')
 
-compileModule :: Interface -> CompModT TCM AModuleInfo
+-- | Compiles a module and it's imports. Returns the module info
+-- of this module, and the accumulating module interface.
+compileModule :: Interface -> CompModT TCM (AModuleInfo, AModuleInterface)
 compileModule i = do
     -- we can't use the Core module name to get the name of the aui file,
     -- as we don't know the Core module name before we loaded/compiled the file.
@@ -164,7 +166,7 @@ compileModule i = do
             imports <- map miInterface . catMaybes
                                       <$> lift (mapM (getVisitedModule . toTopLevelModuleName . fst)
                                                      (iImportedModules i))
-            modInfos <- mapM compileModule imports
+            (curModInfos, transModInfos) <- (fmap mconcat) . unzip <$> mapM compileModule imports
             ifile <- maybe __IMPOSSIBLE__ filePath <$> lift (findInterfaceFile topModuleName)
             let uifFile = auiFile <.> "aui"
             uptodate <- liftIO $ isNewerThan uifFile ifile
@@ -182,7 +184,7 @@ compileModule i = do
                       Just uif' -> do
                         -- now check if the versions inside modInfos match with the dep info
                         let deps = amiDepsVersion uif'
-                        if depsMatch deps modInfos then do
+                        if depsMatch deps curModInfos then do
                           lift $ reportSLn "" 1 $
                             show moduleName ++ " : module didn't change, skipping it."
                           return $ Just uif'
@@ -191,21 +193,22 @@ compileModule i = do
               False -> return Nothing
 
             case modInfo of
-              Just x  -> putCompModule x >> return x
+              Just x  -> let tmi' = transModInfos `mappend` (amiInterface x) in putCompModule x tmi' >> return (x, tmi')
               Nothing -> do
                     lift $ reportSLn "" 1 $
                         "Compiling: " ++ show (iModuleName i)
                     let defns = HMap.toList $ sigDefinitions $ iSignature i
                     opts <- lift commandLineOptions
-                    (code, modInfo, amod) <- lift $ compileDefns moduleName modInfos opts defns
+                    (code, modInfo, amod) <- lift $ compileDefns moduleName curModInfos transModInfos opts defns
                     lift $ do
-                        let modParts = fst $ fromMaybe __IMPOSSIBLE__ $ mnameToCoreName (amiCurNameMp modInfo) moduleName
+                        let modParts = fst $ fromMaybe __IMPOSSIBLE__ $ mnameToCoreName (amifNameMp $ amiInterface modInfo) moduleName
                         crFile <- outFile modParts
                         writeCoreFile crFile code
                         writeModInfoFile uifFile modInfo
 
-                    putCompModule modInfo
-                    return modInfo
+                    let tmi' = transModInfos `mappend` amiInterface modInfo
+                    putCompModule modInfo tmi'
+                    return (modInfo, tmi')
 
   where depsMatch :: [(ModuleName, ModVersion)] -> [AModuleInfo] -> Bool
         depsMatch modDeps otherMods = all (checkDep otherMods) modDeps
@@ -247,16 +250,17 @@ idPrint s m x = do
 -- | Perform the chain of compilation stages, from definitions to epic code
 compileDefns :: ModuleName
     -> [AModuleInfo] -- ^ top level imports
+    -> AModuleInterface -- ^ transitive iface
     -> CommandLineOptions
     -> [(QName, Definition)] -> TCM (EC.CModule, AModuleInfo, AMod)
-compileDefns mod modImps opts defs = do
+compileDefns mod curModImps transModIface opts defs = do
 
-    (amod', modInfo) <- FAgda.fromAgdaModule mod modImps defs $ \mod ->
+    (amod', modInfo) <- FAgda.fromAgdaModule mod curModImps transModIface defs $ \mod ->
                    return mod
                >>= optim optOptimSmashing "smashing"      Smash.smash'em
                >>= idPrint "done" return
     reportSLn "uhc" 10 $ "Done generating AuxAST for \"" ++ show mod ++ "\"."
-    crMod <- toCore amod' modInfo modImps
+    crMod <- toCore amod' modInfo (transModIface `mappend` (amiInterface modInfo)) curModImps
 
     reportSLn "uhc" 10 $ "Done generating Core for \"" ++ show mod ++ "\"."
     return (crMod, modInfo, amod')

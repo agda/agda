@@ -69,6 +69,7 @@ import Agda.Utils.Impossible
 data CompileState = CompileState
     { curModule       :: ModuleName
     , moduleInterface :: AModuleInterface    -- ^ Contains the interface of all imported and the currently compiling module.
+    , curModuleInterface :: AModuleInterface -- ^ Interface of the current module only.
     , coinductionKit' :: Maybe CoinductionKit
     }
 
@@ -81,12 +82,13 @@ newtype CompileT m a = CompileT { unCompileT :: StateT CompileState m a }
 runCompileT :: MonadIO m
     => Maybe CoinductionKit
     -> ModuleName   -- ^ The module to compile.
-    -> [AModuleInfo] -- ^ Imported module info (non-transitive).
-    -> NameMap      -- ^ NameMap for the current module (non-transitive).
+    -> [AModuleInfo] -- ^ Imported module info, non-transitive.
+    -> AModuleInterface -- ^ Imported module interface, transitive.
+    -> NameMap      -- ^ NameMap for the current module, non-transitive.
     -> ConInstMp
     -> CompileT m a
     -> m (a, AModuleInfo)
-runCompileT coind mod impMods nmMp conIMp comp = do
+runCompileT coind mod curImpMods transImpIface nmMp conIMp comp = do
   (result, state') <- runStateT (unCompileT comp) initial
 
   version <- liftIO getPOSIXTime
@@ -95,33 +97,30 @@ runCompileT coind mod impMods nmMp conIMp comp = do
         { amiFileVersion = currentModInfoVersion
         , amiAgdaVersion = currentInterfaceVersion
         , amiModule = mod
-        , amiInterface = moduleInterface state'
-        , amiCurNameMp = nmMp
+        , amiInterface = curModuleInterface state'
         , amiVersion = version
-        , amiDepsVersion = [ (amiModule m, amiVersion m) |  m <- impMods]
+        , amiDepsVersion = [ (amiModule m, amiVersion m) |  m <- curImpMods]
         }
 
   return (result, modInfo)
   where initialModIface = mempty { amifNameMp = nmMp, amifConInstMp = conIMp }
         initial = CompileState
             { curModule     = mod
-            , moduleInterface   = mappend
-                initialModIface
-                (mconcat $ map amiInterface impMods)
+            , moduleInterface =
+                initialModIface `mappend` transImpIface
+            , curModuleInterface = initialModIface
             , coinductionKit' = coind
             }
 
 
+-- | Add the given constructor map to the transitive interface, and set it
+-- as the constructor map for the current module.
 addConMap :: Monad m => M.Map QName AConInfo -> CompileT m ()
-addConMap conMp = addInterface (mempty { amifConMp = conMp })
-
--- | Adds the given interface.
-addInterface :: Monad m => AModuleInterface -> CompileT m ()
-addInterface iface = modifyInterface (mappend iface)
-
-modifyInterface :: Monad m => (AModuleInterface -> AModuleInterface) -> CompileT m ()
-modifyInterface f = CompileT $ modify (\s -> s { moduleInterface = f (moduleInterface s )})
-
+addConMap conMp = CompileT $ modify (\s -> s
+                    { moduleInterface = (moduleInterface s `mappend` ifaceConMp)
+                    , curModuleInterface = ( (curModuleInterface s) { amifConMp = conMp })
+                    })
+  where ifaceConMp = mempty { amifConMp = conMp }
 
 
 -- | When normal errors are not enough

@@ -1511,9 +1511,9 @@ instance EmbPrj Epic.Tag where
 -- Used by UHC backend. Will be stored in a seperate file,
 -- not part of the .agdai files. Should be moved somewhere else.
 instance EmbPrj UHC.AModuleInfo where
-  icod_ (UHC.AModuleInfo a b c d e f g) = icode7' a b c d e f g
+  icod_ (UHC.AModuleInfo a b c d e f) = icode6' a b c d e f
   value = vcase valu where
-    valu [a, b, c, d, e, f, g] = valu7 UHC.AModuleInfo a b c d e f g
+    valu [a, b, c, d, e, f] = valu6 UHC.AModuleInfo a b c d e f
     valu _ = malformed
 
 instance EmbPrj UHC.AModuleInterface where
