@@ -2,6 +2,6 @@ Issue147a.agda:10,9-12
 Don't know how to parse f x. Could mean any one of:
   f x
   f_ x
-(an operator fixity bug has been fixed, so if the code used to
-parse, try adding some parentheses)
+(the treatment of operators has changed, so code that used to parse
+may have to be changed)
 when scope checking f x

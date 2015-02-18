@@ -16,6 +16,7 @@ resp : forall {A}{B : A -> Set}{a a' : A} ->
 resp f refl = refl
 
 record Cat : Set1 where
+  infix 20 _○_
   field Obj : Set
         Hom : Obj -> Obj -> Set
         id : forall X -> Hom X X
@@ -63,4 +64,3 @@ _▪_ {D = D} A B =
                           (trans (resp (\g -> _○_ D g (η B X)) (law A))
                                  (assoc D))))
   }
-

@@ -1273,7 +1273,7 @@ checkHeadApplication e t hd args = do
       -- Define and type check the fresh function.
       ctx <- getContext >>= mapM (\d -> flip Dom (unDom d) <$> reify (domInfo d))
       args' <- mapM (\a -> flip Arg (unArg a) <$> reify (argInfo a)) args
-      let info   = A.mkDefInfo (A.nameConcrete $ A.qnameName c') defaultFixity'
+      let info   = A.mkDefInfo (A.nameConcrete $ A.qnameName c') noFixity'
                                PublicAccess ConcreteDef noRange
           pats   = map (\ (Dom info (n, _)) -> Arg info $ Named Nothing $ A.VarP n) $
                        reverse ctx

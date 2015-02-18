@@ -9,6 +9,8 @@ record ⊤ : Set where
 data _×_ (A : Set) (B : Set) : Set where
   _,_ : (x : A) (y : B) → A × B
 
+infixr 5 _≺_
+
 data Stream (A : Set) : Set where
   _≺_ : (x : A) (xs : ∞ (Stream A)) → Stream A
 

@@ -8,6 +8,8 @@ lz = lzero Common.Level.⊔ lzero
 
 module A where
 
+  infix 10 _,_
+
   data _×_ (A B : Set) : Set where
     _,_ : A → B → A × B
 
@@ -18,6 +20,8 @@ module A where
   pattern _+2 n = suc (suc n)
 
   module B where
+
+    infix 10 _₁ _₂
 
     _₁ : ∀ {A B} → A × B → A
     (x , y)₁ = x

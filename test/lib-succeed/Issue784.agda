@@ -18,9 +18,9 @@ _++ = inc-ℕ
 free = free-ℕ
 
 tr : (n : ℕ) → Transformer! [] [(_ , Pure (Exact $ suc n))]
-tr i = "r" := new i ⇒⟦ refl ⟧⇒  -- new ℕ(i)
-       "r" ++       ⇒⟦ refl ⟧⇒  -- r++
-       "j" := * "r" ⇒⟦ refl ⟧⇒  -- j := *r
+tr i = "r" := new i   ⇒⟦ refl ⟧⇒  -- new ℕ(i)
+       ("r" ++)       ⇒⟦ refl ⟧⇒  -- r++
+       "j" := (* "r") ⇒⟦ refl ⟧⇒  -- j := *r
        free "r"
 
 p : ∀ n → getExact (extract $ tr n) ≡ suc n

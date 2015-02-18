@@ -28,10 +28,10 @@ _!!_ : {A : Set}{n : Nat} → Vec A n → Fin n → A
 (x ∷ xs) !! (suc i) = xs !! i
 -- should be covering, no need for absurd clause
 
-test!!1 : ∀ {A}{n} (x : A) (xs : Vec A n) →   (x ∷ xs) !! zero    ≡ x
+test!!1 : ∀ {A}{n} (x : A) (xs : Vec A n) →   ((x ∷ xs) !! zero)    ≡ x
 test!!1 x xs = refl
 
-test!!2 : ∀ {A}{n} (x : A) (xs : Vec A n) i → (x ∷ xs) !! (suc i) ≡ xs !! i
+test!!2 : ∀ {A}{n} (x : A) (xs : Vec A n) i → ((x ∷ xs) !! (suc i)) ≡ (xs !! i)
 test!!2 x xs i = refl
 
 -- 2. Agda should prefer  to split on an argument that has only

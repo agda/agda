@@ -37,6 +37,8 @@ open import Algebra.Structures
 Byte : Set
 Byte = Fin 256
 
+infixr 8 _^_
+
 _^_ : ℕ → ℕ → ℕ
 _ ^ 0 = 1
 n ^ (ℕ.suc m) = n ℕ.* (n ^ m)

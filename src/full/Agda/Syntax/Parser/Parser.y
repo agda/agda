@@ -1077,9 +1077,9 @@ RecordConstructorName :                  'constructor' Id        { ($2, NotInsta
 
 -- Fixity declarations.
 Infix :: { Declaration }
-Infix : 'infix'  Int SpaceBIds  { Infix (NonAssoc (getRange ($1,$3)) $2) $3 }
-      | 'infixl' Int SpaceBIds  { Infix (LeftAssoc (getRange ($1,$3)) $2) $3 }
-      | 'infixr' Int SpaceBIds  { Infix (RightAssoc (getRange ($1,$3)) $2) $3 }
+ Infix : 'infix'  Int SpaceBIds  { Infix (NonAssoc (getRange ($1,$3)) (Related $2)) $3 }
+      | 'infixl' Int SpaceBIds  { Infix (LeftAssoc (getRange ($1,$3)) (Related $2)) $3 }
+      | 'infixr' Int SpaceBIds  { Infix (RightAssoc (getRange ($1,$3)) (Related $2)) $3 }
 
 -- Field declarations.
 Fields :: { [Declaration] }

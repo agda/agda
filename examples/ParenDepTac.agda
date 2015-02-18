@@ -61,6 +61,7 @@ _·_ : Parens -> Parens -> Parens
 ·unitR {≪ xs} = cong ≪_ ·unitR
 ·unitR {≫ xs} = cong ≫_ ·unitR
 
+infix 6 _≫' _≪'
 _≫' : Parens -> Parens
 xs ≫' = xs · ≫ ε
 _≪' : Parens -> Parens

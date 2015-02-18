@@ -506,7 +506,7 @@ reifyTerm expandAnonDefs0 v = do
         -- drop lambda lifted arguments
         cls <- mapM (reify . QNamed x . dropArgs n) $ cls
         let cx    = nameConcrete $ qnameName x
-            dInfo = mkDefInfo cx defaultFixity' PublicAccess ConcreteDef (getRange x)
+            dInfo = mkDefInfo cx noFixity' PublicAccess ConcreteDef (getRange x)
         napps (A.ExtendedLam exprInfo dInfo x cls) =<< reifyIArgs vs
 
 -- | @nameFirstIfHidden n (a1->...an->{x:a}->b) ({e} es) = {x = e} es@

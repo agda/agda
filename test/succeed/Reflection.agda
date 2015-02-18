@@ -98,7 +98,7 @@ mutual
   test₈ : dataDef ℕdef ≡ primQNameDefinition (quote ℕ)
   test₈ = refl
 
-test₉ : primDataConstructors ℕdef ≡ quote ℕ.zero ∷ quote ℕ.suc ∷ []
+test₉ : primDataConstructors ℕdef ≡ (quote ℕ.zero ∷ quote ℕ.suc ∷ [])
 test₉ = refl
 
 test₁₀ : primQNameDefinition (quote ℕ.zero) ≡ dataConstructor

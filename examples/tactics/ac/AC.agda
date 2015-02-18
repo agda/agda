@@ -141,9 +141,9 @@ module Semantics
         where
           spine : forall {x' xs' y' ys' zs} h -> _
           spine {x'}{xs'}{y'}{ys'}{zs} h =
-            eqProof> (x' * xs') * (y' * ys')
-                 === x' * (xs' * (y' * ys'))  by  sym assoc
-                 === x' * zs                  by  congL h
+            eqProof> ((x' * xs') * (y' * ys'))
+                 === (x' * (xs' * (y' * ys')))  by  sym assoc
+                 === (x' * zs)                  by  congL h
 
       more : IsFalse (x < y) -> _
       more x>=y = BoolEq.subst {false}{x < y} P x>=y
@@ -151,11 +151,11 @@ module Semantics
         where
           spine : forall {x' xs' y' ys' zs} h -> _
           spine {x'}{xs'}{y'}{ys'}{zs} h =
-            eqProof> (x' * xs') * (y' * ys')
-                 === (y' * ys') * (x' * xs')  by  comm
-                 === y' * (ys' * (x' * xs'))  by  sym assoc
-                 === y' * ((x' * xs') * ys')  by  congL comm
-                 === y' * zs              by  congL h
+            eqProof> ((x' * xs') * (y' * ys'))
+                 === ((y' * ys') * (x' * xs'))  by  comm
+                 === (y' * (ys' * (x' * xs')))  by  sym assoc
+                 === (y' * ((x' * xs') * ys'))  by  congL comm
+                 === (y' * zs)              by  congL h
 
   lem1 : {n : Nat} -> (e : Expr n) -> (ρ : Vec n A) -> eq[ e ≡ normalise e ↓ ] ρ
   lem1  zro    ρ = refl
@@ -258,4 +258,3 @@ _355 := \x' x'' x3 x4 x5 x6 x7 x8 x9 x10 x11 x12 x13 x14 x15 x16 x17 x18
 _n x xs y ys ρ x<y x xs y ys zs = xs * (y * ys) == zs : Set]
 
 -}
-

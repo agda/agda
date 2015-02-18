@@ -649,7 +649,7 @@ checkWithFunction (WithFunction f aux gamma delta1 delta2 vs as b qs perm' perm 
   checkFunDef' auxType defaultArgInfo NotDelayed Nothing (Just f) info aux cs
 
   where
-    info = Info.mkDefInfo (nameConcrete $ qnameName aux) defaultFixity' PublicAccess ConcreteDef (getRange cs)
+    info = Info.mkDefInfo (nameConcrete $ qnameName aux) noFixity' PublicAccess ConcreteDef (getRange cs)
 
 -- | Type check a where clause. The first argument is the number of variables
 --   bound in the left hand side.

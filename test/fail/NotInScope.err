@@ -2,4 +2,6 @@ NotInScope.agda:9,7-26
 Not in scope:
   thenn
   at NotInScope.agda:9,12-17
+(the treatment of operators has changed, so code that used to parse
+may have to be changed)
 when scope checking if x thenn x else x

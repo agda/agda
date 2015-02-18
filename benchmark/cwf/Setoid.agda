@@ -21,8 +21,9 @@ Resp _R_ _S_ f = forall x y -> x R y -> f x S f y
 
 mutual
 
-  infix 40 _=El=_ _=S=_ _=Fam=_
-  infix 60 _!_
+  infixr 10 _,_
+  infix  40 _=El=_ _=S=_ _=Fam=_
+  infix  60 _!_
 
   data Setoid : Set where
     nat : Setoid
@@ -216,6 +217,8 @@ data EqFam : Set -> Set where
 [ el ]     A = El A
 [ setoid ] _ = Setoid
 [ fam ]    A = Fam A
+
+infix 5 _==_
 
 _==_ : {I : Set}{eqf : EqFam I}{i j : I} -> [ eqf ] i -> [ eqf ] j -> Set
 _==_ {eqf = el    } x y = x =El= y

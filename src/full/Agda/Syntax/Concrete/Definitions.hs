@@ -404,7 +404,7 @@ checkLoneSigs xs =
 
 
 getFixity :: Name -> Nice Fixity'
-getFixity x = gets $ Map.findWithDefault defaultFixity' x . fixs
+getFixity x = gets $ Map.findWithDefault noFixity' x . fixs
 
 runNice :: Nice a -> Either DeclarationException a
 runNice nice = nice `evalStateT` initNiceEnv

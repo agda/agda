@@ -203,6 +203,7 @@ errorString err = case err of
   NothingAppliedToHiddenArg{}              -> "NothingAppliedToHiddenArg"
   NothingAppliedToInstanceArg{}            -> "NothingAppliedToInstanceArg"
   OverlappingProjects {}                   -> "OverlappingProjects"
+  OperatorChangeMessage {}                 -> "OperatorChangeMessage"
   PatternShadowsConstructor {}             -> "PatternShadowsConstructor"
   PropMustBeSingleton                      -> "PropMustBeSingleton"
   RepeatedVariablesInPattern{}             -> "RepeatedVariablesInPattern"
@@ -286,11 +287,6 @@ instance PrettyTCM CallInfo where
 -- | Drops the filename component of the qualified name.
 dropTopLevelModule :: QName -> QName
 dropTopLevelModule (QName (MName ns) n) = QName (MName (drop 1 ns)) n
-
-operatorFixityBugFixMessage :: TCM Doc
-operatorFixityBugFixMessage = fsep $ pwords $
-  "(an operator fixity bug has been fixed, so if the code used to " ++
-  "parse, try adding some parentheses)"
 
 instance PrettyTCM TypeError where
   prettyTCM err = case err of
@@ -789,15 +785,11 @@ instance PrettyTCM TypeError where
 
     NoParseForApplication es -> fsep (
       pwords "Could not parse the application" ++ [pretty $ C.RawApp noRange es])
-        $+$
-      operatorFixityBugFixMessage
 
     AmbiguousParseForApplication es es' -> fsep (
       pwords "Don't know how to parse" ++ [pretty_es <> (text ".")] ++
       pwords "Could mean any one of:"
       ) $$ nest 2 (vcat $ map pretty' es')
-        $+$
-      operatorFixityBugFixMessage
       where
         pretty_es :: TCM Doc
         pretty_es = pretty $ C.RawApp noRange es
@@ -832,13 +824,9 @@ instance PrettyTCM TypeError where
 
     NoParseForLHS IsLHS p -> fsep (
       pwords "Could not parse the left-hand side" ++ [pretty p])
-        $+$
-      operatorFixityBugFixMessage
 
     NoParseForLHS IsPatSyn p -> fsep (
       pwords "Could not parse the pattern synonym" ++ [pretty p])
-        $+$
-      operatorFixityBugFixMessage
 
 {- UNUSED
     NoParseForPatternSynonym p -> fsep $
@@ -849,8 +837,6 @@ instance PrettyTCM TypeError where
       pwords "Don't know how to parse" ++ [pretty_p <> text "."] ++
       pwords "Could mean any one of:"
       ) $$ nest 2 (vcat $ map pretty' ps)
-        $+$
-      operatorFixityBugFixMessage
       where
         pretty_p :: TCM Doc
         pretty_p = pretty p
@@ -871,6 +857,13 @@ instance PrettyTCM TypeError where
         unambiguousP (C.AsP r n x)      = C.AsP r n $ unambiguousP x
         unambiguousP (C.OpAppP r op xs) = foldl C.AppP (C.IdentP op) xs
         unambiguousP e                  = e
+
+    OperatorChangeMessage err ->
+      prettyTCM err
+        $+$
+      fsep (pwords $
+        "(the treatment of operators has changed, so code that used " ++
+        "to parse may have to be changed)")
 
 {- UNUSED
     AmbiguousParseForPatternSynonym p ps -> fsep (

@@ -12,6 +12,8 @@ data Fin : ℕ → Set where
   zero : ∀ {n}         → Fin (suc n)
   suc  : ∀ {n} → Fin n → Fin (suc n)
 
+infixr 5 _∷_
+
 data Vec (A : Set) : ℕ → Set where
   []  :                       Vec A zero
   _∷_ : ∀ {n} → A → Vec A n → Vec A (suc n)

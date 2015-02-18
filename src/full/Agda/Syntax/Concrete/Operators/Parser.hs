@@ -25,7 +25,12 @@ import Agda.Utils.Monad
 #include "undefined.h"
 import Agda.Utils.Impossible
 
-data MemoKey = Node Integer | PostLefts Integer
+data MemoKey = NodeK      (Either Integer Integer)
+             | PostLeftsK (Either Integer Integer)
+             | HigherK Integer
+             | TopK
+             | AppK
+             | NonfixK
   deriving (Eq, Generic)
 
 instance Hashable MemoKey
@@ -140,13 +145,10 @@ rebuildBinding e = throw $ Exception (getRange e) "Expected variable name in bin
 -- | Parse a \"nonfix\" operator application, given a parser parsing
 -- the operator part, the name of the operator, and a parser of
 -- subexpressions.
-nonfixP ::
-  IsExpr e =>
-  Parser e (NewNotation,Range,[e]) -> Parser e e -> Parser e e
-nonfixP op p = do
+nonfixP :: IsExpr e => Parser e (NewNotation,Range,[e]) -> Parser e e
+nonfixP op = do
   (nsyn,r,es) <- op
   return $ rebuild nsyn r es
- <|> p
 
 argsP :: IsExpr e => Parser e e -> Parser e [NamedArg e]
 argsP p = many (nothidden <|> hidden <|> instanceH)

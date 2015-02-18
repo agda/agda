@@ -460,9 +460,12 @@ instance Pretty Pragma where
     pretty (CatchallPragma _) = text "CATCHALL"
 
 instance Pretty Fixity where
-    pretty (LeftAssoc  _ n) = text "infixl" <+> text (show n)
-    pretty (RightAssoc _ n) = text "infixr" <+> text (show n)
-    pretty (NonAssoc   _ n) = text "infix"  <+> text (show n)
+    pretty (LeftAssoc  _ (Related n)) = text "infixl" <+> text (show n)
+    pretty (LeftAssoc  _ Unrelated)   = __IMPOSSIBLE__
+    pretty (RightAssoc _ (Related n)) = text "infixr" <+> text (show n)
+    pretty (RightAssoc _ Unrelated)   = __IMPOSSIBLE__
+    pretty (NonAssoc   _ (Related n)) = text "infix"  <+> text (show n)
+    pretty (NonAssoc   _ Unrelated)   = __IMPOSSIBLE__
 
 instance Pretty GenPart where
     pretty (IdPart x)   = text x
@@ -474,8 +477,8 @@ instance Pretty Notation where
 
 instance Pretty Fixity' where
     pretty (Fixity' fix nota)
-      | nota == defaultNotation = pretty fix
-      | otherwise               = text "syntax" <+> pretty nota
+      | nota == noNotation = pretty fix
+      | otherwise          = text "syntax" <+> pretty nota
 
 instance Pretty e => Pretty (Arg e) where
  -- Andreas 2010-09-21: do not print relevance in general, only in function types!

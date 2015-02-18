@@ -112,7 +112,7 @@ instance ToAbstract Term Expr where
       name <- freshName_ "extlam"
       let qname   = qnameFromList [name]
           cname   = nameConcrete name
-          defInfo = mkDefInfo cname defaultFixity' PublicAccess ConcreteDef noRange
+          defInfo = mkDefInfo cname noFixity' PublicAccess ConcreteDef noRange
       cs <- toAbstract $ map (QNamed qname) cs
       toAbstract (A.ExtendedLam exprNoRange defInfo qname cs, es)
     R.Pi a b   -> do

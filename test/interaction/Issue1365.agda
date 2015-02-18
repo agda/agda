@@ -110,7 +110,7 @@ do (p , k) = sup (inj₂ p , k)
 
 Hom : ∀ {I J} → Sig (I × J) → Pow (I × J) → Pow I → Sig J → Pow J → Set
 Hom Ω U V Ψ W = Alg  (const^C U ⊎^C Ω)
-                     ((V ∘ proj₁) ⇒ (Ψ ⋆ W ∘ proj₂))
+                     ((V ∘ proj₁) ⇒ ((Ψ ⋆ W) ∘ proj₂))
 
 _⋊_ : ∀ {I O} (C : I ▷ O) Z → (I × Z) ▷ (O × Z)
 (P ◃ A / s) ⋊ Z = (P ∘ proj₁) ◃ A / λ {oz} p a → s p a , proj₂ oz

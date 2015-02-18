@@ -69,7 +69,7 @@ module Imports where
   cong f refl = refl
 
   _≢′_ : ∀ {a} {A : Set a} → A → A → Set a
-  x ≢′ y = ¬ x ≡ y
+  x ≢′ y = ¬ (x ≡ y)
 
   -- wrapper to be able to use instance search
   data _≢_ {a} {A : Set a} (x y : A) : Set a where
@@ -96,7 +96,7 @@ module Imports where
 
   _*_ : ℕ → ℕ → ℕ
   zero  * n = zero
-  suc m * n = n + m * n
+  suc m * n = n + (m * n)
 
   _≟_ : (x y : ℕ) → Dec (x ≡ y)
   zero  ≟ zero   = yes refl
@@ -131,11 +131,11 @@ module Imports where
 
   data DivMod : ℕ → ℕ → Set where
     result : {divisor : ℕ} (q : ℕ) (r : Fin divisor) →
-             DivMod (toℕ r + q * divisor) divisor
+             DivMod (toℕ r + (q * divisor)) divisor
 
   data DivMod' (dividend divisor : ℕ) : Set where
     result : (q : ℕ) (r : Fin divisor)
-             (eq : dividend ≡ (toℕ r + q * divisor)) →
+             (eq : dividend ≡ (toℕ r + (q * divisor))) →
              DivMod' dividend divisor
 
   postulate

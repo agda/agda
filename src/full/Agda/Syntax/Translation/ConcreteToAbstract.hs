@@ -547,7 +547,7 @@ scopeCheckExtendedLam r cs = do
     insertApp (C.IdentP q    ) = C.RawAppP r $ IdentP (C.QName cname) : [C.IdentP q]
       where r = getRange q
     insertApp _ = __IMPOSSIBLE__
-    d = C.FunDef r [] defaultFixity' ConcreteDef TerminationCheck cname $
+    d = C.FunDef r [] noFixity' ConcreteDef TerminationCheck cname $
           for cs $ \ (lhs, rhs, wh) -> -- wh == NoWhere, see parser for more info
             C.Clause cname False (mapLhsOriginalPattern insertApp lhs) rhs wh []
   scdef <- toAbstract d
@@ -985,7 +985,7 @@ instance ToAbstract LetDef [A.LetBinding] where
                   case definedName p of
                     Nothing -> throwError err
                     Just x  -> toAbstract $ LetDef $ NiceMutual r termCheck
-                      [ C.FunSig r defaultFixity' PublicAccess NotInstanceDef defaultArgInfo termCheck x (C.Underscore (getRange x) Nothing)
+                      [ C.FunSig r noFixity' PublicAccess NotInstanceDef defaultArgInfo termCheck x (C.Underscore (getRange x) Nothing)
                       , C.FunDef r __IMPOSSIBLE__ __IMPOSSIBLE__ ConcreteDef __IMPOSSIBLE__ __IMPOSSIBLE__
                         [C.Clause x catchall lhs (C.RHS rhs) NoWhere []]
                       ]
@@ -1414,7 +1414,7 @@ instance ToAbstract C.Pragma [A.Pragma] where
             unlessM ((UnknownName ==) <$> resolveName q) $ genericError $
               "BUILTIN " ++ b ++ " declares an identifier " ++
               "(no longer expects an already defined identifier)"
-            y <- freshAbstractQName defaultFixity' x
+            y <- freshAbstractQName noFixity' x
             bindName PublicAccess DefName x y
             return [ A.BuiltinNoDefPragma b y ]
           _ -> genericError $

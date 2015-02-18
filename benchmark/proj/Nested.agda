@@ -30,10 +30,10 @@ Cat =
   ∃ λ (Hom : Obj → Obj → Set) →
   ∃ λ (id : ∀ X → Hom X X) →
   ∃ λ (_○_ : ∀ {X Y Z} → Hom Y Z → Hom X Y → Hom X Z) →
-  ∃ λ (idl : ∀ {X Y}{f : Hom X Y} → id Y ○ f ≡ f) →
-  ∃ λ (idr : ∀ {X Y}{f : Hom X Y} → f ○ id X ≡ f) →
+  ∃ λ (idl : ∀ {X Y}{f : Hom X Y} → (id Y ○ f) ≡ f) →
+  ∃ λ (idr : ∀ {X Y}{f : Hom X Y} → (f ○ id X) ≡ f) →
   ∃ λ (assoc : ∀ {W X Y Z}{f : Hom W X}{g : Hom X Y}{h : Hom Y Z} →
-                (h ○ g) ○ f ≡ h ○ (g ○ f)) →
+                ((h ○ g) ○ f) ≡ (h ○ (g ○ f))) →
   ⊤
 
 Obj : (C : Cat) → Set

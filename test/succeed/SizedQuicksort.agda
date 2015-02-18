@@ -19,7 +19,7 @@ _++_ : ∀{A} → List A → List A → List A
 partition : ∀{A i} (p : A → Bool) (l : List A {i}) → List A {i} × List A {i}
 partition p []       = [] , []
 partition p (x ∷ xs) = let l , r = partition p xs in
-  if p x then (x ∷ l , r) else (l , x ∷ r)
+  if p x then ((x ∷ l) , r) else (l , (x ∷ r))
 
 module Sort {A : Set} (_≤_ : A → A → Bool) where
 

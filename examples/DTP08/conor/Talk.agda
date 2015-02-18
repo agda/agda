@@ -42,6 +42,9 @@ data μ {I : Set}(C : Code I) : I -> Set where
   <_> : forall {i} -> ⟦ C ⟧ (μ C) i -> μ C i
 
 -- Who needs a primitive case-construct anyway?
+
+infix 0 case_of_
+
 case_of_ : {A : Set1}{ts : Enumeration} -> Enum ts -> Table A ts -> A
 case t of tbl = lookup tbl t
 

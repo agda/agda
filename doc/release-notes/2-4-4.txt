@@ -46,6 +46,42 @@ Pragmas and options
 Language
 ========
 
+Operator syntax
+---------------
+
+* The default fixity has changed.
+
+  The default fixity, used when no fixity declaration is given, was
+  previously infix 20 for operators, and infix -666 for syntax
+  declarations. Now operators and syntax declarations without an
+  associated fixity declaration are unrelated to all other operators.
+
+  As an example, the following code no longer parses:
+
+    infix 4 _≡_
+
+    data _≡_ {A : Set} (x : A) : A → Set where
+      refl : x ≡ x
+
+    LeftZero : {A : Set} → A → (A → A → A) → Set
+    LeftZero z _∙_ = ∀ x → z ∙ x ≡ z
+
+  Note that an operator without a fixity declaration is still related
+  to itself. This has no effect for infix operators, but it means that
+  a prefix (or postfix) operator can be applied directly to itself:
+
+    postulate
+      ℤ  : Set
+      n  : ℤ
+      -_ : ℤ → ℤ
+
+    ok : ℤ
+    ok = - - - - - - - n
+
+* If an overloaded operator is in scope with at least two distinct
+  fixities, then it gets the default fixity mentioned above [Issue
+  1436].
+
 * A long-standing operator fixity bug has been fixed. As a consequence
   some programs that used to parse no longer do.
 
@@ -90,6 +126,9 @@ Language
 
     accepted : Σ ℕ λ i → Σ ℕ λ j → Σ (i ≡ j) λ _ → Σ ℕ λ k → j ≡ k
     accepted = 5 , , refl , , refl
+
+Other changes
+-------------
 
 * Building records from modules.
 

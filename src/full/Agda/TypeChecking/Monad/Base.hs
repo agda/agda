@@ -511,7 +511,7 @@ freshName r s = do
 freshNoName :: (MonadState TCState m, HasFresh NameId) => Range -> m Name
 freshNoName r =
     do  i <- fresh
-        return $ Name i (C.NoName noRange i) r defaultFixity'
+        return $ Name i (C.NoName noRange i) r noFixity'
 
 freshNoName_ :: (MonadState TCState m, HasFresh NameId) => m Name
 freshNoName_ = freshNoName noRange
@@ -1976,6 +1976,7 @@ data TypeError
         | AmbiguousParseForApplication [C.Expr] [C.Expr]
         | NoParseForLHS LHSOrPatSyn C.Pattern
         | AmbiguousParseForLHS LHSOrPatSyn C.Pattern [C.Pattern]
+        | OperatorChangeMessage TypeError
 {- UNUSED
         | NoParseForPatternSynonym C.Pattern
         | AmbiguousParseForPatternSynonym C.Pattern [C.Pattern]

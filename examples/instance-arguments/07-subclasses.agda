@@ -113,6 +113,7 @@ neq a b = not $ eq a b
   where open Eq {{...}}
 
 record Ord₁ (A : Set) : Set where
+  infix 6 _<_
   field _<_ : A → A → Bool
         eqA : Eq A
 
@@ -124,6 +125,7 @@ instance
 
 
 record Ord₂ {A : Set} (eqA : Eq A) : Set where
+  infix 6 _<_
   field _<_ : A → A → Bool
 
 instance
@@ -132,6 +134,7 @@ instance
 
 
 record Ord₃ (A : Set) : Set where
+  infix 6 _<_
   field _<_ : A → A → Bool
         eqA : Eq A
   open Eq eqA public
@@ -143,6 +146,7 @@ instance
           eqNat = record { eq = primEqNat }
 
 record Ord₄ {A : Set} {{eqA : Eq A}} : Set where
+  infix 6 _<_
   field _<_ : A → A → Bool
   open Eq eqA public
 
@@ -201,4 +205,3 @@ module test₄′ where
   test₃ = eq true false
   test₄ : {A : Set} → {{ eqA : Eq A }} → {{ ordA : Ord₄ }} → A → A → Bool
   test₄ a b = a < b ∨ eq a b
-

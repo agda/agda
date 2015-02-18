@@ -9,6 +9,7 @@ open import Common.Equality
 
 record SemiG : Set1 where
  constructor _,_,_,_,_,_
+ infix 6 _+_
  field
    M    : Set
    unit : M

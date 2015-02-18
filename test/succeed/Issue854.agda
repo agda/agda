@@ -133,8 +133,8 @@ _↠_ : Set → Set → Container
 I ↠ O = I ◃ λ _ → O
 
 State : Set → Container
-State S  =   ⊤ ↠ S   -- get
-         ⊎C  S ↠ ⊤   -- put
+State S  =   (⊤ ↠ S)   -- get
+         ⊎C  (S ↠ ⊤)   -- put
 
 get : ∀ {S} → State S ⋆ S
 get = do (inj₁ tt , return)
@@ -147,7 +147,7 @@ Homo Σ X I Σ′ Y = AlgRec (Σ ⋆C X) (I → Σ′ ⋆ Y)
 
 Pseudohomo : Container → Set → Set → Container → Set → Set
 Pseudohomo Σ X I Σ′ Y =
-    ⟦ Σ ⋆C X ⟧ ((Σ ⊎C Σ′) ⋆ X × (I → Σ′ ⋆ Y)) → I → Σ′ ⋆ Y
+    ⟦ Σ ⋆C X ⟧ (((Σ ⊎C Σ′) ⋆ X) × (I → Σ′ ⋆ Y)) → I → Σ′ ⋆ Y
 
 state : ∀ {Σ S X} → Pseudohomo (State S) X S Σ (X × S)
 state (inj₁ x         , _)  = λ s  → return (x , s)  -- return

@@ -17,6 +17,7 @@ module Agda.Syntax.Concrete.Operators
     , parsePatternSyn
     ) where
 
+import Control.Arrow ((***))
 import Control.DeepSeq
 import Control.Applicative
 import Control.Monad
@@ -129,6 +130,8 @@ localNames flat = do
 --   from concrete to abstract syntax.
 data Parsers e = Parsers
   { pTop    :: Parser e e
+  , pNodes  :: Map Integer (Parser e e)
+  , pHigher :: Map Integer (Parser e e)
   , pApp    :: Parser e e
   , pArgs   :: Parser e [NamedArg e]
   , pNonfix :: Parser e e
@@ -164,17 +167,56 @@ buildParsers r flat use = do
         -- If string is a part of notation, it cannot be used as an identifier,
         -- unless it is also used as an identifier. See issue 307.
 
-    let chain = foldr ( $ )
+    let unrelatedOperators :: [NewNotation]
+        unrelatedOperators = filter ((== Unrelated) . level) fix
+
+        -- Highest level first.
+        relatedOperators :: [(Integer, [NewNotation])]
+        relatedOperators =
+          reverse .
+          map (\((l, n) : ns) -> (l, n : map snd ns)) .
+          groupBy ((==) `on` fst) .
+          sortBy (compare `on` fst) .
+          mapMaybe (\n -> case level n of
+                            Unrelated -> Nothing
+                            Related l -> Just (l, n)) $
+          fix
+
+        -- Same levels as in relatedOperators.
+        higher  :: [(Integer, [Integer])]
+        higher  = zip levels (init $ inits levels)
+                  where levels = map fst relatedOperators
 
     return $ Data.Function.fix $ \p -> Parsers
-        { pTop    = chain (pApp p) (map (mkP (pTop p)) (order fix))
-        , pApp    = appP (pNonfix p) (pArgs p)
+        { pTop    = memoise TopK $
+                    Fold.asum $
+                      pApp p :
+                      map (\(k, n) ->
+                              mkP (Left k) (pTop p) [n] (pApp p))
+                          (zip [0..] unrelatedOperators) ++
+                      Map.elems (pNodes p)
+        , pNodes  = Map.fromList $
+                      map (\(l, ns) ->
+                              (l, mkP (Right l) (pTop p) ns
+                                      (pHigher p Map.! l)))
+                          relatedOperators
+        , pHigher = Map.fromList $
+                      map (\(l, ls) ->
+                              (l, memoise (HigherK l) $
+                                  Fold.asum $
+                                    pApp p :
+                                    map (pNodes p Map.!) ls))
+                          higher
+        , pApp    = memoise AppK $ appP (pNonfix p) (pArgs p)
         , pArgs   = argsP (pNonfix p)
-        , pNonfix = chain (pAtom p) (map (nonfixP . opP (pTop p)) non)
+        , pNonfix = memoise NonfixK $
+                    Fold.asum $
+                      pAtom p :
+                      map (nonfixP . opP (pTop p)) non
         , pAtom   = atomP isAtom
         }
     where
-        level :: NewNotation -> Integer
+        level :: NewNotation -> PrecedenceLevel
         level = fixityLevel . notaFixity
 
         isinfixl, isinfixr, isinfix, nonfix, isprefix, ispostfix :: NewNotation -> Bool
@@ -195,19 +237,16 @@ buildParsers r flat use = do
         isInfix :: Notation -> Bool
         isInfix syn = notationKind syn == InfixNotation
 
-        -- | Group operators by precedence level
-        order :: [NewNotation] -> [[NewNotation]]
-        order = groupBy ((==) `on` level) . sortBy (compare `on` level)
-
-        mkP :: Parser e e
+        mkP :: Either Integer Integer
+               -- ^ Memoisation key.
+            -> Parser e e
             -> [NewNotation]
             -> Parser e e
                -- ^ A parser for an expression of higher precedence.
             -> Parser e e
-        mkP p0 []           higher = __IMPOSSIBLE__
-        mkP p0 ops@(op : _) higher =
-            memoise (Node (level op)) $
-              Fold.asum [higher, nonAssoc, preRights, postLefts]
+        mkP key p0 ops higher =
+            memoise (NodeK key) $
+              Fold.asum [nonAssoc, preRights, postLefts]
             where
             choice f = Fold.asum . map (f . opP p0)
 
@@ -233,7 +272,7 @@ buildParsers r flat use = do
                    <*> higher
 
             postLefts =
-              memoise (PostLefts (level op)) $
+              memoise (PostLeftsK key) $
                 flip ($) <$> (postLefts <|> higher) <*> postLeft
 
 
@@ -401,8 +440,10 @@ parseLHS' lhsOrPatSyn top p = do
     case [ res | p' <- force $ parsePat patP p
                , res <- validPattern (PatternCheckConfig top cons flds) p' ] of
         [(p,lhs)] -> return lhs
-        []        -> typeError $ NoParseForLHS lhsOrPatSyn p
-        rs        -> typeError $ AmbiguousParseForLHS lhsOrPatSyn p $
+        []        -> typeError $ OperatorChangeMessage $
+                                   NoParseForLHS lhsOrPatSyn p
+        rs        -> typeError $ OperatorChangeMessage $
+                                   AmbiguousParseForLHS lhsOrPatSyn p $
                        map (fullParen . fst) rs
     where
         getNames kinds flat = map fst $ getDefinedNames kinds flat
@@ -468,7 +509,7 @@ parseLHS top p = do
   res <- parseLHS' IsLHS (Just top) p
   case res of
     Right (f, lhs) -> return lhs
-    _ -> typeError $ NoParseForLHS IsLHS p
+    _ -> typeError $ OperatorChangeMessage $ NoParseForLHS IsLHS p
 
 -- | Parses a pattern.
 --   TODO: check the arities of constructors. There is a possible ambiguity with
@@ -487,7 +528,8 @@ parsePatternOrSyn lhsOrPatSyn p = do
   res <- parseLHS' lhsOrPatSyn Nothing p
   case res of
     Left p -> return p
-    _      -> typeError $ NoParseForLHS lhsOrPatSyn p
+    _      -> typeError $ OperatorChangeMessage $
+                            NoParseForLHS lhsOrPatSyn p
 
 -- | Helper function for 'parseLHS' and 'parsePattern'.
 validConPattern :: [QName] -> Pattern -> Bool
@@ -555,10 +597,12 @@ parseApplication es = do
           -- useful to say that to the user rather than just "failed".
           inScope <- partsInScope flat
           case [ x | Ident x <- es, not (Set.member x inScope) ] of
-              [] -> typeError $ NoParseForApplication es
-              xs -> typeError $ NotInScope xs
+              [] -> typeError $ OperatorChangeMessage $
+                                  NoParseForApplication es
+              xs -> typeError $ OperatorChangeMessage $ NotInScope xs
 
-        es' -> typeError $ AmbiguousParseForApplication es $ map fullParen es'
+        es' -> typeError $ OperatorChangeMessage $
+                 AmbiguousParseForApplication es $ map fullParen es'
 
 parseModuleIdentifier :: Expr -> ScopeM QName
 parseModuleIdentifier (Ident m) = return m
@@ -580,12 +624,14 @@ parseRawModuleApplication es = do
         [] -> do
           inScope <- partsInScope flat
           case [ x | Ident x <- es_args, not (Set.member x inScope) ] of
-              [] -> typeError $ NoParseForApplication es
-              xs -> typeError $ NotInScope xs
+              [] -> typeError $ OperatorChangeMessage $
+                                  NoParseForApplication es
+              xs -> typeError $ OperatorChangeMessage $ NotInScope xs
 
         ass -> do
           let f = fullParen . foldl (App noRange) (Ident m)
-          typeError $ AmbiguousParseForApplication es
+          typeError $ OperatorChangeMessage
+                    $ AmbiguousParseForApplication es
                     $ map f ass
 
 -- | Parse an expression into a module application

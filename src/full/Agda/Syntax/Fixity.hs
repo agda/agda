@@ -2,12 +2,14 @@
 {-# LANGUAGE DeriveFoldable     #-}
 {-# LANGUAGE DeriveFunctor      #-}
 {-# LANGUAGE DeriveTraversable  #-}
+{-# LANGUAGE PatternGuards      #-}
 
 {-| Definitions for fixity, precedence levels, and declared syntax.
 -}
 module Agda.Syntax.Fixity where
 
 import Data.Foldable
+import Data.Hashable
 import Data.List as List
 import Data.Traversable
 import Data.Typeable (Typeable)
@@ -81,30 +83,34 @@ syntaxOf (Name _ xs)  = mkSyn 0 xs
     mkSyn n (Hole : xs) = NormalHole (defaultNamedArg n) : mkSyn (1 + n) xs
     mkSyn n (Id x : xs) = IdPart x : mkSyn n xs
 
-defaultFixity' :: Fixity'
-defaultFixity' = Fixity' defaultFixity defaultNotation
+noFixity' :: Fixity'
+noFixity' = Fixity' noFixity noNotation
 
--- | Removes copies of @defaultFixity'@ from a list of fixities.
---   Never returns an empty list, though, rather a singleton list
---   consisting of @defaultFixity'@.
-interestingFixities :: [Fixity'] -> [Fixity']
-interestingFixities fixs = if null fixs' then [defaultFixity'] else fixs'
-  where fixs' = filter (not . (== defaultFixity')) fixs
-
--- | If different interesting fixities are available for the same symbol,
---   we take none of them.
+-- | If different interesting fixities are available for the same
+-- symbol, then we take none of them.
 chooseFixity :: [Fixity'] -> Fixity'
-chooseFixity fixs = if allEqual fixs' then head fixs' else defaultFixity'
-  where fixs' = interestingFixities fixs
+chooseFixity fixs
+  | allEqual interestingFixs = head interestingFixs
+  | otherwise                = noFixity'
+  where
+  interestingFixs
+    | null interestingFixs' = [noFixity']
+    | otherwise             = interestingFixs'
+    where interestingFixs' = filter (not . (== noFixity')) fixs
 
 -- * Fixity
+
+-- | Precedence levels for operators.
+
+data PrecedenceLevel = Unrelated | Related Integer
+  deriving (Eq, Show, Typeable)
 
 -- | Fixity of operators.
 
 data Fixity
-  = LeftAssoc  { fixityRange :: Range, fixityLevel :: Integer }
-  | RightAssoc { fixityRange :: Range, fixityLevel :: Integer }
-  | NonAssoc   { fixityRange :: Range, fixityLevel :: Integer }
+  = LeftAssoc  { fixityRange :: Range, fixityLevel :: PrecedenceLevel }
+  | RightAssoc { fixityRange :: Range, fixityLevel :: PrecedenceLevel }
+  | NonAssoc   { fixityRange :: Range, fixityLevel :: PrecedenceLevel }
   deriving (Typeable, Show)
 
 instance Eq Fixity where
@@ -115,21 +121,8 @@ instance Eq Fixity where
 
 -- For @instance Pretty Fixity@, see Agda.Syntax.Concrete.Pretty
 
--- | The default fixity. Currently defined to be @'NonAssoc' 20@.
-defaultFixity :: Fixity
-defaultFixity = NonAssoc noRange 20
-
--- | Hack used for @syntax@ facility.
 noFixity :: Fixity
-noFixity = NonAssoc noRange (negate 666)
-  -- Ts,ts,ts, why the number of the beast?  Revelation 13, 18
-  --
-  -- It's not the number of the beast, it's the negation of the
-  -- number of the beast, which must be a divine number, right?
-  --
-  -- The divine is not the negation of evil.
-  -- Evil is only the absense of the good and divine.
-
+noFixity = NonAssoc noRange Unrelated
 
 -- * Precendence
 
@@ -150,14 +143,18 @@ hiddenArgumentCtx Instance  = TopCtx
 -- | Do we need to bracket an operator application of the given fixity
 --   in a context with the given precedence.
 opBrackets :: Fixity -> Precedence -> Bool
-opBrackets (LeftAssoc _ n1)
-           (LeftOperandCtx   (LeftAssoc   _ n2)) | n1 >= n2       = False
-opBrackets (RightAssoc _ n1)
-           (RightOperandCtx  (RightAssoc  _ n2)) | n1 >= n2       = False
+opBrackets                  (LeftAssoc  _ (Related n1))
+           (LeftOperandCtx  (LeftAssoc  _ (Related n2))) | n1 >= n2 = False
+opBrackets                  (RightAssoc _ (Related n1))
+           (RightOperandCtx (RightAssoc _ (Related n2))) | n1 >= n2 = False
 opBrackets f1
-           (LeftOperandCtx  f2) | fixityLevel f1 > fixityLevel f2 = False
+           (LeftOperandCtx  f2) | Related f1 <- fixityLevel f1
+                                , Related f2 <- fixityLevel f2
+                                , f1 > f2 = False
 opBrackets f1
-           (RightOperandCtx f2) | fixityLevel f1 > fixityLevel f2 = False
+           (RightOperandCtx f2) | Related f1 <- fixityLevel f1
+                                , Related f2 <- fixityLevel f2
+                                , f1 > f2 = False
 opBrackets _ TopCtx = False
 opBrackets _ FunctionSpaceDomainCtx = False
 opBrackets _ InsideOperandCtx       = False

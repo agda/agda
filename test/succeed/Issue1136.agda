@@ -5,7 +5,7 @@
 open import Common.Size
 
 Size≤ : Size → Set
-Size≤ i = Size< ↑ i
+Size≤ i = Size< (↑ i)
 
 postulate
   Dom    : Size → Set
@@ -26,4 +26,3 @@ record ∞Dom i : Set where
 -- we cannot do the usual subtyping  Size< j <= Size≤ k,
 -- but we have to use the "singleton type property"
 --   k : Size< ↑ k
-

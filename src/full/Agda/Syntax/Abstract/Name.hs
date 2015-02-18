@@ -131,7 +131,7 @@ class MkName a where
   mkName_ = mkName noRange
 
 instance MkName String where
-  mkName r i s = Name i (C.Name noRange (C.stringNameParts s)) r defaultFixity'
+  mkName r i s = Name i (C.Name noRange (C.stringNameParts s)) r noFixity'
 
 
 qnameToList :: QName -> [Name]

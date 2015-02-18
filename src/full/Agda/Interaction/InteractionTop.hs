@@ -932,7 +932,7 @@ highlightExpr e =
     generateAndPrintSyntaxInfo decl Full
   where
     dummy = mkName_ (NameId 0 0) "dummy"
-    info  = mkDefInfo (nameConcrete dummy) defaultFixity' PublicAccess ConcreteDef (getRange e)
+    info  = mkDefInfo (nameConcrete dummy) noFixity' PublicAccess ConcreteDef (getRange e)
     decl  = A.Axiom NoFunSig info defaultArgInfo (qnameFromList [dummy]) e
 
 -- | Sorts interaction points based on their ranges.

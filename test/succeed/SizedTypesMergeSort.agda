@@ -80,7 +80,7 @@ module New where
 
     split : ∀ {A i} → List A {i} → List A {i} × List A {i}
     split []        = [] , []
-    split (x :: xs) = let l , r = split xs in x :: r , l
+    split (x :: xs) = let l , r = split xs in (x :: r) , l
 
 
     module Sort (A : Set) (_≤_ : A → A → Bool) where

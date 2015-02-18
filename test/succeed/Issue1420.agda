@@ -16,7 +16,7 @@ postulate
   ▶-def : ∀ A → ▷ (next A) ≡ ▶ A
 
   next∗ : ∀{A B : Set} (f : A → B) (a : A) →
-          next f ∗ next a ≡ next (f a)
+          (next f ∗ next a) ≡ next (f a)
 
   Name : Set
 

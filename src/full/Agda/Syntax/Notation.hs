@@ -154,7 +154,5 @@ mkNotation holes ids = do
       isAlternating [x]      = True
       isAlternating (x:y:xs) = isAHole x /= isAHole y && isAlternating (y:xs)
 
--- | No notation by default.
-defaultNotation, noNotation :: Notation
-defaultNotation = []
+noNotation :: Notation
 noNotation = []

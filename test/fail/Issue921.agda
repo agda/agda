@@ -50,6 +50,8 @@ _ctx-⇛_ : Ctx → Ctx → Set
 Tm : Σ Ctx Ty → Set
 Γ ctx-⇛ (Δ · A) = Σ {!!} {!!}
 
+infix 10 _*_
+
 postulate
   _*_  : {Γ Δ : Ctx} (m : Γ ctx-⇛ Δ) → Ty {!!} → Ty {!!}
 
@@ -77,6 +79,8 @@ module xtc where
 
 
 weaken : (Γ : Ctx) {T : Xtc Γ} → Γ ⋯ T ctx-⇛ Γ
+
+infix 10 _○_
 
 _○_ : {Γ Δ Θ : Ctx} → Δ ctx-⇛ Θ → Γ ctx-⇛ Δ → Γ ctx-⇛ Θ
 
@@ -109,4 +113,3 @@ weaken-○-scope {Γ} {Δ · A} {T} ((m , t) , ts) = {!!} where
                       (! (weaken-○-scope (m , t , ts)))
                       t
   helper3 = {!!}
-

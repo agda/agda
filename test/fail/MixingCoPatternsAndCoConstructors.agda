@@ -52,7 +52,7 @@ module Coinduction where
   open Stream
 
   weird'' : (n : ℕ) → Stream ℕ
-  weird'' zero    = zero ∷ ♯ weird'' zero
+  weird'' zero    = zero ∷ (♯ weird'' zero)
   weird'' (suc n) = n ∷ tail (weird'' n)
 
 
@@ -82,4 +82,3 @@ module CoList where
   force (down zero)    = []
   force (down (suc n)) = n ∷ delay (force (down n))
     -- weird detour: delay (force ... to test termination checker
-

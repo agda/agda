@@ -54,6 +54,8 @@ module Library where
   when true  x = x
   when false _ = nothing
 
+  infix 6 _≡_
+
   data _≡_ {a} {A : Set a} (x : A) : A -> Set where
     refl : x ≡ x
 

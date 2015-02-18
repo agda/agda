@@ -35,6 +35,8 @@ zipWith : ∀ {A B C n} -> (A -> B -> C) -> Vec A n -> Vec B n -> {u : Unit} -> 
 zipWith _ [] [] = []
 zipWith f (x :: xs) (y :: ys) = f x y :: zipWith f xs ys {u = unit}
 
+infix 10 _!_
+
 _!_ : ∀ {A n} -> Vec A n -> Fin n -> A
 x :: xs ! fz = x
 _ :: xs ! fs n = xs ! n

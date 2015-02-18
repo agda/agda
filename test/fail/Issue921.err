@@ -1,10 +1,10 @@
-Issue921.agda:47,1-111,17
+Issue921.agda:47,1-115,17
 Termination checking failed for the following functions:
   _○_, pullback-var, pullback
 Problematic calls:
   weaken Δ ○ snd xtc.eq ms
-    (at Issue921.agda:84,78-79)
+    (at Issue921.agda:88,78-79)
   pullback x₁ m
-    (at Issue921.agda:90,81-89)
+    (at Issue921.agda:94,81-89)
   pullback-var
-    (at Issue921.agda:102,99-111)
+    (at Issue921.agda:106,99-111)

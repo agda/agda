@@ -212,7 +212,7 @@ data BoundName = BName
   deriving (Typeable)
 
 mkBoundName_ :: Name -> BoundName
-mkBoundName_ x = mkBoundName x defaultFixity'
+mkBoundName_ x = mkBoundName x noFixity'
 
 mkBoundName :: Name -> Fixity' -> BoundName
 mkBoundName x f = BName x x f

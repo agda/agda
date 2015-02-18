@@ -70,7 +70,7 @@ _+⁺_ : ℚ⁺ → ℚ⁺ → ℚ⁺
 _+⁺_ = undefined
 
 -- the offending with-clause
-+⁺-idˡ : ∀ q → 0#⁺ +⁺ q ≡ q
++⁺-idˡ : ∀ q → (0#⁺ +⁺ q) ≡ q
 +⁺-idˡ (rat⁺ n d c) with lcm (suc zero) (suc d)
 ...                | q = undefined
 

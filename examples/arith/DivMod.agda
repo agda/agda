@@ -61,6 +61,8 @@ module Inductive where
   boundView (suc a) (suc .(toNat i)) | below i = below (suc i)
   boundView (suc a) (suc .(a + k))   | above k = above k
 
+  infix 4 _≤_
+
   data _≤_ : Nat -> Nat -> Set where
     leqZ : forall {n}            -> zero  ≤ n
     leqS : forall {n m} -> n ≤ m -> suc n ≤ suc m
@@ -97,4 +99,3 @@ _div_ a b {nz} = getQ (divMod a b {nz})
 
 _mod_ : (a b : Nat){nz : NonZero b} -> Nat
 _mod_ a b {nz} = getR (divMod a b {nz})
-

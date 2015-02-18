@@ -217,7 +217,7 @@ withInfixDecl :: DefInfo -> C.Name -> AbsToCon [C.Declaration] -> AbsToCon [C.De
 withInfixDecl i x m = do
   ds <- m
   return $ fixDecl ++ synDecl ++ ds
- where fixDecl = [C.Infix (theFixity $ defFixity i) [x] | theFixity (defFixity i) /= defaultFixity]
+ where fixDecl = [C.Infix (theFixity $ defFixity i) [x] | theFixity (defFixity i) /= noFixity]
        synDecl = [C.Syntax x (theNotation (defFixity i))]
 
 {- UNUSED

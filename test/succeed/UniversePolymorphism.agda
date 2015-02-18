@@ -65,7 +65,7 @@ nil : ∀ {a}{A : Set a} → List A
 nil = _ , []
 
 cons : ∀ {a}{A : Set a} → A → List A → List A
-cons x (_ , xs) = _ , x ∷ xs
+cons x (_ , xs) = _ , (x ∷ xs)
 
 AnyList : ∀ {i} → Set (lsuc i)
 AnyList {i} = Σ (Set i) (List {i})

@@ -179,9 +179,9 @@ freshAbstractName fx x = do
     , nameFixity      = fx
     }
 
--- | @freshAbstractName_ = freshAbstractName defaultFixity@
+-- | @freshAbstractName_ = freshAbstractName noFixity'@
 freshAbstractName_ :: C.Name -> ScopeM A.Name
-freshAbstractName_ = freshAbstractName defaultFixity'
+freshAbstractName_ = freshAbstractName noFixity'
 
 -- | Create a fresh abstract qualified name.
 freshAbstractQName :: Fixity' -> C.Name -> ScopeM A.QName

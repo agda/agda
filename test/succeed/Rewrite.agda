@@ -6,6 +6,8 @@ data Nat : Set where
   zero : Nat
   suc  : Nat → Nat
 
+infixl 6 _+_
+
 _+_ : Nat → Nat → Nat
 zero  + m = m
 suc n + m = suc (n + m)
@@ -124,24 +126,24 @@ foldl f z (x ∷ xs) = foldl f (f z x) xs
 
 module FoldAssoc
   {A : Set}(_∙_ : A → A → A)
-  (assoc : ∀ x y z → (x ∙ y) ∙ z ≡ x ∙ (y ∙ z)) where
+  (assoc : ∀ x y z → ((x ∙ y) ∙ z) ≡ (x ∙ (y ∙ z))) where
 
   smashr = foldr _∙_
   smashl = foldl _∙_
 
-  foldr-append : ∀ ∅ z xs ys → (∀ x → ∅ ∙ x ≡ x) →
-                 smashr z (xs ++ ys) ≡ smashr ∅ xs ∙ smashr z ys
+  foldr-append : ∀ ∅ z xs ys → (∀ x → (∅ ∙ x) ≡ x) →
+                 smashr z (xs ++ ys) ≡ (smashr ∅ xs ∙ smashr z ys)
   foldr-append ∅ z []       ys idl = sym (idl _)
   foldr-append ∅ z (x ∷ xs) ys idl rewrite assoc x (smashr ∅ xs) (smashr z ys)
                                          | foldr-append ∅ z xs ys idl
                                    = refl
 
-  foldl-plus : ∀ z₁ z₂ xs → smashl (z₁ ∙ z₂) xs ≡ z₁ ∙ smashl z₂ xs
+  foldl-plus : ∀ z₁ z₂ xs → smashl (z₁ ∙ z₂) xs ≡ (z₁ ∙ smashl z₂ xs)
   foldl-plus z₁ z₂ []       = refl
   foldl-plus z₁ z₂ (x ∷ xs) rewrite assoc z₁ z₂ x
                             = foldl-plus _ _ xs
 
-  foldr=foldl : ∀ ∅ → (∀ x → ∅ ∙ x ≡ x ∙ ∅) →
+  foldr=foldl : ∀ ∅ → (∀ x → (∅ ∙ x) ≡ (x ∙ ∅)) →
                 ∀ xs → foldr _∙_ ∅ xs ≡ foldl _∙_ ∅ xs
   foldr=foldl ∅ id []       = refl
   foldr=foldl ∅ id (x ∷ xs) rewrite id x
@@ -155,7 +157,7 @@ foldr-compose f z g []       = refl
 foldr-compose f z g (x ∷ xs) rewrite foldr-compose f z g xs = refl
 
 foldr-fusion : ∀ {A B C : Set} (f : B → C) (_⊕_ : A → B → B) (_⊗_ : A → C → C) (z : B) →
-               (∀ x y → f (x ⊕ y) ≡ x ⊗ f y) →
+               (∀ x y → f (x ⊕ y) ≡ (x ⊗ f y)) →
                ∀ xs → f (foldr _⊕_ z xs) ≡ foldr _⊗_ (f z) xs
 foldr-fusion f _⊕_ _⊗_ z distr []       = refl
 foldr-fusion f _⊕_ _⊗_ z distr (x ∷ xs)

@@ -15,6 +15,8 @@ _++_ : {A : Set}{n m : Nat} -> Vec A n -> Vec A m -> Vec A (n + m)
 []        ++ ys = ys
 (x :: xs) ++ ys = x :: xs ++ ys
 
+infix 10 _!_
+
 _!_ : forall {A n} -> Vec A n -> Fin n -> A
 []      ! ()
 x :: xs ! zero  = x
