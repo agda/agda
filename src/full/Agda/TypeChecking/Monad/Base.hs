@@ -551,7 +551,7 @@ data Interface = Interface
   , iInsideScope     :: ScopeInfo
     -- ^ Scope after we loaded this interface.
     --   Used in 'Agda.Interaction.BasicOps.AtTopLevel'
-    --   and     'Agda.Interaction.CommandLine.CommandLine.interactionLoop'.
+    --   and     'Agda.Interaction.CommandLine.interactionLoop'.
     --
     --   Andreas, AIM XX: For performance reason, this field is
     --   not serialized, so if you deserialize an interface, @iInsideScope@

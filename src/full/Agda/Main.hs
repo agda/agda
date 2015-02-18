@@ -18,7 +18,7 @@ import qualified Text.PrettyPrint.Boxes as Boxes
 import Agda.Syntax.Concrete.Pretty ()
 import Agda.Syntax.Abstract.Name (toTopLevelModuleName)
 
-import Agda.Interaction.CommandLine.CommandLine
+import Agda.Interaction.CommandLine
 import Agda.Interaction.Options
 import Agda.Interaction.Monad
 import Agda.Interaction.EmacsTop (mimicGHCi)

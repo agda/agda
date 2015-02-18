@@ -169,7 +169,7 @@ library
                     Agda.Compiler.MAlonzo.Misc
                     Agda.Compiler.MAlonzo.Pretty
                     Agda.Compiler.MAlonzo.Primitives
-                    Agda.Interaction.CommandLine.CommandLine
+                    Agda.Interaction.CommandLine
                     Agda.Interaction.EmacsCommand
                     Agda.Interaction.Exceptions
                     Agda.Interaction.FindFile

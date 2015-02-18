@@ -1,6 +1,6 @@
 {-# LANGUAGE CPP #-}
 
-module Agda.Interaction.CommandLine.CommandLine where
+module Agda.Interaction.CommandLine where
 
 import Control.Monad.Reader
 import Control.Applicative
