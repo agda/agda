@@ -1,5 +1,0 @@
-*.ps .*.swp
-*.pdf
-.DS_Store
-examples.tex lhs2TeXpreamble.tex
-exintro.tex
