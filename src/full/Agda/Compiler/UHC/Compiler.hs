@@ -304,7 +304,7 @@ runUhcMain mainMod mainName = do
     let mod = createMainModule mainMod mainName
     fp' <- writeCoreFile fp mod
     -- TODO drop the RTS args as soon as we don't need the additional memory anymore
-    callUHC1 ["--output=" ++ (show $ last $ mnameToList $ amiModule mainMod), fp', "+RTS", "-K8g", "-RTS"]
+    callUHC1 ["--output=" ++ (show $ last $ mnameToList $ amiModule mainMod), fp', "+RTS", "-K50m", "-RTS"]
 
 callUHC :: Bool -> FilePath -> TCM ()
 callUHC isMain fp = callUHC1 $ catMaybes
