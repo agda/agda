@@ -8,6 +8,7 @@ import Data.Char
 import Text.PrettyPrint hiding (char)
 import Text.Printf
 import Data.Monoid
+import System.Environment
 
 type Bytes = Integer
 type MegaBytes = Integer
@@ -196,4 +197,13 @@ time = stats (const True) (const True) [Attr "time" totalTime]
 mem  = stats (const True) (const True) [Attr "space" memoryInUse]
 
 summary = stats (const True) (const True) [Attr "stats" id]
+
+main = do
+  args <- getArgs
+  case args of
+    []  -> summary
+    [l] -> stats ((== l) . logDir) (const True) [Attr "stats" id]
+    _   -> do
+      prog <- getProgName
+      putStrLn $ "Usage: " ++ prog ++ " [LOG]"
 
