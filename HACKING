@@ -73,6 +73,26 @@ Working with Git (from 2014-06-15)
     maint$  git fetch origin master:master
     maint$  git pull
 
+* If you want to find the commit that introduced a regression that
+  caused Module-that-should-be-accepted to be rejected, then you can
+  try the following recipe:
+
+    git clone <agda repository> agda-bug
+    cd agda-bug
+    git checkout <suitable branch>
+    cabal sandbox init
+    git bisect start <bad commit> <good commit>
+    cp <some path>/Module-that-should-be-accepted.agda .
+    git bisect run sh -c \
+      "cabal install --disable-library-profiling \
+                     --disable-documentation || exit 125; \
+       .cabal-sandbox/bin/agda --ignore-interfaces \
+         Module-that-should-be-accepted.agda"
+
+  The recipe can be adapted to other situations as well. For instance,
+  the commit that introduced a performance regression can perhaps be
+  found using the timeout command.
+
 Testing and documentation
 
 * When you implement a new feature it needs to be documented in
