@@ -87,7 +87,7 @@ library
     -- as it breaks the accompanying haskell-platform
     -- even though it builds with older GHCs.
     , bytestring >= 0.9.0.1 && < 0.11
-    , containers >= 0.1 && < 0.6
+    , containers >= 0.5 && < 0.6
     , data-hash == 0.2.0.0
     , deepseq >= 1.3.0.0 && < 1.5
     , equivalence >= 0.2.5  && < 0.3
