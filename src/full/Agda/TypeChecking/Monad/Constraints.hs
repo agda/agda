@@ -63,7 +63,7 @@ getConstraintsForProblem pid = List.filter ((== pid) . constraintProblem) <$> ge
 getAwakeConstraints :: TCM Constraints
 getAwakeConstraints = use stAwakeConstraints
 
-wakeConstraints :: (ProblemConstraint-> Bool) -> TCM ()
+wakeConstraints :: (ProblemConstraint -> Bool) -> TCM ()
 wakeConstraints wake = do
   (wakeup, sleepin) <- List.partition wake <$> use stSleepingConstraints
   reportSLn "tc.constr.wake" 50 $
