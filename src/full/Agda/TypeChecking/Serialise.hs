@@ -1044,6 +1044,17 @@ instance EmbPrj Definition where
   value = vcase valu where valu [rel, a, b, c, d, e, f, g, h, i, j] = valu11 Defn rel a b c d e f g h i j
                            valu _                             = malformed
 
+instance EmbPrj NLPat where
+  icod_ (PVar a)   = icode1 0 a
+  icod_ (PWild)    = icode0 1
+  icod_ (PDef a b) = icode2 2 a b
+  icod_ (PTerm a)  = icode1 3 a
+  value = vcase valu where valu [0, a]    = valu1 PVar a
+                           valu [1]       = valu0 PWild
+                           valu [2, a, b] = valu2 PDef a b
+                           valu [3, a]    = valu1 PTerm a
+                           valu _         = malformed
+
 instance EmbPrj RewriteRule where
   icod_ (RewriteRule a b c d e) = icode5' a b c d e
   value = vcase valu where valu [a, b, c, d, e] = valu5 RewriteRule a b c d e
@@ -1351,7 +1362,6 @@ instance EmbPrj Precedence where
     valu [8]    = valu0 WithArgCtx
     valu [9]    = valu0 DotPatternCtx
     valu _      = malformed
-
 instance EmbPrj ScopeInfo where
   icod_ (ScopeInfo a b c d) = icode4' a b c d
   value = vcase valu where valu [a, b, c, d] = valu4 ScopeInfo a b c d

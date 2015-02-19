@@ -39,6 +39,12 @@ instance KillRange Definition where
     killRange11 Defn ai name t pols occs displ mut compiled rew inst def
     -- TODO clarify: Keep the range in the defName field?
 
+instance KillRange NLPat where
+  killRange (PVar x)   = killRange1 PVar x
+  killRange (PWild)    = PWild
+  killRange (PDef x y) = killRange2 PDef x y
+  killRange (PTerm x)  = killRange1 PTerm x
+
 instance KillRange RewriteRule where
   killRange (RewriteRule q gamma lhs rhs t) =
     killRange5 RewriteRule q gamma lhs rhs t

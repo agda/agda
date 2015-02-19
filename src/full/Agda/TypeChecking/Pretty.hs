@@ -318,6 +318,17 @@ instance PrettyTCM Pattern where
       showPat (LitP l)                  = text (show l)
       showPat (ProjP q)                 = text (show q)
 
+instance PrettyTCM (Elim' NLPat) where
+  prettyTCM (Apply v) = text "$" <+> prettyTCM (unArg v)
+  prettyTCM (Proj f)  = text "." <> prettyTCM f
+
+instance PrettyTCM NLPat where
+  prettyTCM (PVar x)    = text $ "@" ++ show x -- TODO
+  prettyTCM (PWild)     = text $ "_"
+  prettyTCM (PDef f es) = parens $
+    prettyTCM f <+> fsep (map prettyTCM es)
+  prettyTCM (PTerm t)   = text $ ".(" ++ show t ++ ")"
+
 instance PrettyTCM RewriteRule where
   prettyTCM (RewriteRule q gamma lhs rhs b) = inTopContext $ do
     prettyTCM q     <+> text " rule " <+> do

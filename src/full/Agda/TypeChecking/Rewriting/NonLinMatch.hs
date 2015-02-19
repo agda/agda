@@ -47,30 +47,18 @@ import Agda.Utils.Singleton
 #include "undefined.h"
 import Agda.Utils.Impossible
 
--- | Non-linear (non-constructor) first-order pattern.
-data NLPat
-  = PVar {-# UNPACK #-} !Int
-    -- ^ Matches anything (modulo non-linearity).
-  | PWild
-    -- ^ Matches anything (e.g. irrelevant terms).
-  | PDef QName PElims
-    -- ^ Matches @f es@
-  | PTerm Term
-    -- ^ Matches the term modulo β (ideally βη).
-type PElims = [Elim' NLPat]
-
 -- | Turn a term into a non-linear pattern, treating the
 --   free variables as pattern variables.
 
 class PatternFrom a b where
-  patternFrom :: a -> ReduceM b
+  patternFrom :: a -> TCM b
 
 instance (Traversable f, PatternFrom a b) => PatternFrom (f a) (f b) where
   patternFrom = traverse patternFrom
 
 instance PatternFrom Term NLPat where
   patternFrom v = do
-    v <- etaContract =<< reduce' v
+    v <- etaContract =<< reduce v
     let done = return $ PTerm v
     case ignoreSharing v of
       Var i [] -> return $ PVar i
@@ -82,9 +70,6 @@ instance PatternFrom Term NLPat where
       Pi{}     -> done
       Sort{}   -> done
       Level{}  -> done  -- TODO: unLevel and continue
-                        -- requires to refactor unLevel into ReduceM
-                        -- should be possible, as the level primitives
-                        -- can be assumed to be defined.
       DontCare{} -> return PWild
       MetaV{}    -> __IMPOSSIBLE__
       Shared{}   -> __IMPOSSIBLE__

@@ -958,6 +958,19 @@ defRelevance = argInfoRelevance . defArgInfo
 defColors :: Definition -> [Color]
 defColors = argInfoColors . defArgInfo
 
+-- | Non-linear (non-constructor) first-order pattern.
+data NLPat
+  = PVar {-# UNPACK #-} !Int
+    -- ^ Matches anything (modulo non-linearity).
+  | PWild
+    -- ^ Matches anything (e.g. irrelevant terms).
+  | PDef QName PElims
+    -- ^ Matches @f es@
+  | PTerm Term
+    -- ^ Matches the term modulo β (ideally βη).
+  deriving (Typeable, Show)
+type PElims = [Elim' NLPat]
+
 type RewriteRules = [RewriteRule]
 
 -- | Rewrite rules can be added independently from function clauses.
@@ -965,7 +978,7 @@ data RewriteRule = RewriteRule
   { rewName    :: QName      -- ^ Name of rewrite rule @q : Γ → lhs ≡ rhs@
                              --   where @≡@ is the rewrite relation.
   , rewContext :: Telescope  -- ^ @Γ@.
-  , rewLHS     :: Term       -- ^ @Γ ⊢ lhs : t@.
+  , rewLHS     :: NLPat      -- ^ @Γ ⊢ lhs : t@.
   , rewRHS     :: Term       -- ^ @Γ ⊢ rhs : t@.
   , rewType    :: Type       -- ^ @Γ ⊢ t@.
   }
