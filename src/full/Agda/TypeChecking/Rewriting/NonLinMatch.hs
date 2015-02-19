@@ -22,9 +22,12 @@ we seek a substitution Γ ⊢ σ : Δ such that
 
 module Agda.TypeChecking.Rewriting.NonLinMatch where
 
-import Control.Monad.Trans.Maybe
-import Control.Monad.Writer
+import Prelude hiding (sequence)
 
+import Control.Monad.Trans.Maybe
+import Control.Monad.Writer hiding (forM, sequence)
+
+import Data.Maybe
 import Data.Functor
 import Data.Traversable
 import Data.IntMap (IntMap)
@@ -36,8 +39,9 @@ import Agda.Syntax.Internal
 import Agda.TypeChecking.EtaContract
 import Agda.TypeChecking.Monad
 import Agda.TypeChecking.Reduce
+import Agda.TypeChecking.Substitute
 
-import Agda.Utils.Monad
+import Agda.Utils.Monad hiding (sequence)
 import Agda.Utils.Singleton
 
 #include "undefined.h"
@@ -102,6 +106,11 @@ instance Singleton (Int,Term) AmbSubst where
 -- | Monad for non-linear matching.
 type NLM = MaybeT (WriterT NLMOut ReduceM)
 
+runNLM :: NLM () -> ReduceM (Maybe NLMOut)
+runNLM nlm = do
+  (ok, sub) <- runWriterT $ runMaybeT nlm
+  return $ const sub <$> ok
+
 type NLMOut = (AmbSubst, PostponedEquations)
 
 type PostponedEquations = [(Term, Term)]
@@ -150,9 +159,44 @@ instance AmbMatch NLPat Term where
           _ -> no
       PTerm u -> tell (mempty, singleton (u,v))
 
+makeSubstitution :: IntMap Term -> Substitution
+makeSubstitution sub
+  | IntMap.null sub = idS
+  | otherwise       = map val [0 .. highestIndex] ++# raiseS (highestIndex + 1)
+  where
+    highestIndex = fst $ IntMap.findMax sub
+    val i = fromMaybe (var i) $ IntMap.lookup i sub
+
+disambiguateSubstitution :: AmbSubst -> ReduceM (Maybe Substitution)
+disambiguateSubstitution as = do
+  mvs <- forM (ambSubst as) $ \vs -> case vs of
+    [] -> __IMPOSSIBLE__ -- unbound variable
+    (v:vs) -> do
+      ok <- andM (equal v <$> vs)
+      if ok then return (Just v) else return Nothing
+  case sequence mvs of
+    Nothing -> return Nothing
+    Just vs -> return $ Just $ makeSubstitution vs
+
+checkPostponedEquations :: Substitution -> PostponedEquations -> ReduceM Bool
+checkPostponedEquations sub eqs = andM $ uncurry equal <$> applySubst sub eqs
+
+-- main function
+nonLinMatch :: (AmbMatch a b) => a -> b -> ReduceM (Maybe Substitution)
+nonLinMatch p v = do
+  x <- runNLM $ ambMatch p v
+  case x of
+    Nothing          -> return Nothing
+    Just (asub, eqs) -> do
+      msub <- disambiguateSubstitution asub
+      case msub of
+        Nothing -> return Nothing
+        Just sub -> ifM (checkPostponedEquations sub eqs)
+                      (return $ Just sub)
+                      (return Nothing)
+
 -- | Untyped βη-equality, does not handle things like empty record types.
 equal :: Term -> Term -> ReduceM Bool
 equal u v = do
   (u, v) <- etaContract =<< normalise' (u, v)
   return $ u == v
-
