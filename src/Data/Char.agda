@@ -22,6 +22,8 @@ open        Data.Char.Base public using (Char; show; toNat)
 
 -- Informative equality test.
 
+infix 4 _≟_
+
 _≟_ : Decidable {A = Char} _≡_
 s₁ ≟ s₂ with primCharEquality s₁ s₂
 ... | true  = yes trustMe

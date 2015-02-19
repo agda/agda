@@ -24,7 +24,7 @@ open EqR setoid
 
 -- Multiplication by natural number.
 
-infixr 7 _×_
+infixr 7 _×_ _×′_
 
 _×_ : ℕ → Carrier → Carrier
 0     × x = 0#

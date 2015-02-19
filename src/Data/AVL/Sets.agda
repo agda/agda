@@ -41,6 +41,8 @@ insert k = S.insert k _
 delete : Key → ⟨Set⟩ → ⟨Set⟩
 delete = S.delete
 
+infix 4 _∈?_
+
 _∈?_ : Key → ⟨Set⟩ → Bool
 _∈?_ = S._∈?_
 

@@ -12,3 +12,31 @@ future release. Don't remove this message please!
 * The fixity of all _∎ and finally operators, as well as
   Category.Monad.Partiality.All._⟨_⟩P, was changed from infix 2 to
   infix 3.
+
+* The fixity of Category.Monad.Partiality._≟-Kind_, Data.AVL._∈?_,
+  Data.AVL.IndexedMap._∈?_, Data.AVL.Sets._∈?_, Data.Bool._≟_,
+  Data.Char._≟_, Data.Float._≟_, Data.Nat._≤?_,
+  Data.Nat.Divisibility._∣?_, Data.Sign._≟_, Data.String._≟_,
+  Data.Unit._≟_, Data.Unit._≤?_,
+  Data.Vec.Equality.DecidableEquality._≟_ was changed from the default
+  to infix 4.
+
+* The fixity of all _≟<something>_ operators in Reflection is now
+  infix 4 (some of them already had this fixity).
+
+* The fixity of Algebra.Operations._×′_ was changed from the default
+  to infixr 7.
+
+* The fixity of Data.Fin.#_ was changed from the default to infix 10.
+
+* The fixity of Data.Nat.Divisibility.1∣_ and _∣0 was changed from the
+  default to infix 10.
+
+* The fixity of Data.Nat.DivMod._divMod_, _div_ and _mod_ was changed
+  from the default to infixl 7.
+
+* The fixity of Data.Product.Σ-syntax was changed from the default to
+  infix 2.
+
+* The fixity of Relation.Unary._~ was changed from the default to infix
+  10.

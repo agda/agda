@@ -54,17 +54,17 @@ gmap-cong f g g′ eq (x ◅ xs) = cong₂ _◅_ (eq x) (gmap-cong f g g′ eq x
 
 fold-◅◅ : ∀ {i p} {I : Set i}
           (P : Rel I p) (_⊕_ : Transitive P) (∅ : Reflexive P) →
-          (∀ {i j} (x : P i j) → ∅ ⊕ x ≡ x) →
+          (∀ {i j} (x : P i j) → (∅ ⊕ x) ≡ x) →
           (∀ {i j k l} (x : P i j) (y : P j k) (z : P k l) →
-             (x ⊕ y) ⊕ z ≡ x ⊕ (y ⊕ z)) →
+             ((x ⊕ y) ⊕ z) ≡ (x ⊕ (y ⊕ z))) →
           ∀ {i j k} (xs : Star P i j) (ys : Star P j k) →
-          fold P _⊕_ ∅ (xs ◅◅ ys) ≡ fold P _⊕_ ∅ xs ⊕ fold P _⊕_ ∅ ys
+          fold P _⊕_ ∅ (xs ◅◅ ys) ≡ (fold P _⊕_ ∅ xs ⊕ fold P _⊕_ ∅ ys)
 fold-◅◅ P _⊕_ ∅ left-unit assoc ε        ys = sym (left-unit _)
 fold-◅◅ P _⊕_ ∅ left-unit assoc (x ◅ xs) ys = begin
-  x ⊕  fold P _⊕_ ∅ (xs ◅◅ ys)              ≡⟨ cong (_⊕_ x) $
-                                                 fold-◅◅ P _⊕_ ∅ left-unit assoc xs ys ⟩
-  x ⊕ (fold P _⊕_ ∅ xs  ⊕ fold P _⊕_ ∅ ys)  ≡⟨ sym (assoc x _ _) ⟩
-  (x ⊕ fold P _⊕_ ∅ xs) ⊕ fold P _⊕_ ∅ ys   ∎
+  (x ⊕  fold P _⊕_ ∅ (xs ◅◅ ys))              ≡⟨ cong (_⊕_ x) $
+                                                   fold-◅◅ P _⊕_ ∅ left-unit assoc xs ys ⟩
+  (x ⊕ (fold P _⊕_ ∅ xs  ⊕ fold P _⊕_ ∅ ys))  ≡⟨ sym (assoc x _ _) ⟩
+  ((x ⊕ fold P _⊕_ ∅ xs) ⊕ fold P _⊕_ ∅ ys)   ∎
   where open PropEq.≡-Reasoning
 
 -- Reflexive transitive closures are preorders.

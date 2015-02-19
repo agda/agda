@@ -400,6 +400,11 @@ private
   absurd-clause₁ : ∀ {ps ps′} → absurd-clause ps ≡ absurd-clause ps′ → ps ≡ ps′
   absurd-clause₁ refl = refl
 
+infix 4 _≟-Visibility_ _≟-Relevance_ _≟-Arg-info_ _≟-Lit_ _≟-AbsTerm_
+        _≟-AbsType_ _≟-ArgTerm_ _≟-ArgType_ _≟-ArgPattern_ _≟-Args_
+        _≟-Clause_ _≟-Clauses_ _≟-Pattern_ _≟-ArgPatterns_ _≟_ _≟-Type_
+        _≟-Sort_
+
 _≟-Visibility_ : Decidable (_≡_ {A = Visibility})
 visible   ≟-Visibility visible   = yes refl
 hidden    ≟-Visibility hidden    = yes refl
@@ -451,8 +456,6 @@ name x ≟-Lit string x₁ = no (λ ())
 name x ≟-Lit name x₁ = Dec.map′ (cong name) name₁ (x ≟-Name x₁)
 
 mutual
-  infix 4 _≟_ _≟-Args_ _≟-ArgType_
-
   _≟-AbsTerm_ : Decidable (_≡_ {A = Abs Term})
   abs s a ≟-AbsTerm abs s′ a′ =
     Dec.map′ (cong₂′ abs)

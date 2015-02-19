@@ -147,13 +147,14 @@ module _ {a} {A : Set a} -- The universe of discourse.
 ------------------------------------------------------------------------
 -- Unary relation combinators
 
-infixr 2 _⟨×⟩_
-infixr 2 _⟨⊙⟩_
-infixr 1 _⟨⊎⟩_
-infixr 0 _⟨→⟩_
-infixl 9 _⟨·⟩_
-infixr 9 _⟨∘⟩_
-infixr 2 _//_ _\\_
+infixr  2 _⟨×⟩_
+infixr  2 _⟨⊙⟩_
+infixr  1 _⟨⊎⟩_
+infixr  0 _⟨→⟩_
+infixl  9 _⟨·⟩_
+infix  10 _~
+infixr  9 _⟨∘⟩_
+infixr  2 _//_ _\\_
 
 _⟨×⟩_ : ∀ {a b ℓ₁ ℓ₂} {A : Set a} {B : Set b} →
         Pred A ℓ₁ → Pred B ℓ₂ → Pred (A × B) _

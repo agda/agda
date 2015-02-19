@@ -28,6 +28,8 @@ open Σ public
 -- The syntax declaration below is attached to Σ-syntax, to make it
 -- easy to import Σ without the special syntax.
 
+infix 2 Σ-syntax
+
 Σ-syntax : ∀ {a b} (A : Set a) → (A → Set b) → Set (a ⊔ b)
 Σ-syntax = Σ
 
@@ -83,7 +85,7 @@ zip : ∀ {a b c p q r}
       (_∙_ : A → B → C) →
       (∀ {x y} → P x → Q y → R (x ∙ y)) →
       Σ A P → Σ B Q → Σ C R
-zip _∙_ _∘_ (a , p) (b , q) = (a ∙ b , p ∘ q)
+zip _∙_ _∘_ (a , p) (b , q) = ((a ∙ b) , (p ∘ q))
 
 swap : ∀ {a b} {A : Set a} {B : Set b} → A × B → B × A
 swap (x , y) = (y , x)

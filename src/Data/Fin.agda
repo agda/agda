@@ -58,6 +58,8 @@ fromℕ≤ (Nat.s≤s (Nat.s≤s m≤n)) = suc (fromℕ≤ (Nat.s≤s m≤n))
 
 -- # m = "m".
 
+infix 10 #_
+
 #_ : ∀ m {n} {m<n : True (suc m N≤? n)} → Fin n
 #_ _ {m<n = m<n} = fromℕ≤ (toWitness m<n)
 

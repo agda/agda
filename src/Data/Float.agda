@@ -25,6 +25,8 @@ primitive
 show : Float → String
 show = primShowFloat
 
+infix 4 _≟_
+
 _≟_ : (x y : Float) → Dec (x ≡ y)
 x ≟ y with primFloatEquality x y
 ... | true  = yes trustMe

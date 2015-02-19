@@ -73,7 +73,7 @@ open import Data.Product
 
 replace-equality :
   {_≈′_ : Rel Carrier dl₂} →
-  (∀ {x y} → x ≈ y ⇔ x ≈′ y) → DistributiveLattice _ _
+  (∀ {x y} → x ≈ y ⇔ (x ≈′ y)) → DistributiveLattice _ _
 replace-equality {_≈′_} ≈⇔≈′ = record
   { _≈_                   = _≈′_
   ; _∧_                   = _∧_

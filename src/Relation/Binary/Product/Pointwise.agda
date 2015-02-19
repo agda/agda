@@ -312,7 +312,7 @@ _×-⇔_ : ∀ {a b c d} {A : Set a} {B : Set b} {C : Set c} {D : Set d} →
         A ⇔ B → C ⇔ D → (A × C) ⇔ (B × D)
 _×-⇔_ {A = A} {B} {C} {D} A⇔B C⇔D =
   Inverse.equivalence (×-Rel↔≡ {A = B} {B = D}) ⟨∘⟩
-  A⇔B ×-equivalence C⇔D ⟨∘⟩
+  (A⇔B ×-equivalence C⇔D) ⟨∘⟩
   Eq.sym (Inverse.equivalence (×-Rel↔≡ {A = A} {B = C}))
   where open Eq using () renaming (_∘_ to _⟨∘⟩_)
 
@@ -331,7 +331,7 @@ _×-↣_ : ∀ {a b c d} {A : Set a} {B : Set b} {C : Set c} {D : Set d} →
         A ↣ B → C ↣ D → (A × C) ↣ (B × D)
 _×-↣_ {A = A} {B} {C} {D} A↣B C↣D =
   Inverse.injection (×-Rel↔≡ {A = B} {B = D}) ⟨∘⟩
-  A↣B ×-injection C↣D ⟨∘⟩
+  (A↣B ×-injection C↣D) ⟨∘⟩
   Inverse.injection (Inv.sym (×-Rel↔≡ {A = A} {B = C}))
   where open Inj using () renaming (_∘_ to _⟨∘⟩_)
 
@@ -360,7 +360,7 @@ _×-↞_ : ∀ {a b c d} {A : Set a} {B : Set b} {C : Set c} {D : Set d} →
         A ↞ B → C ↞ D → (A × C) ↞ (B × D)
 _×-↞_ {A = A} {B} {C} {D} A↞B C↞D =
   Inverse.left-inverse (×-Rel↔≡ {A = B} {B = D}) ⟨∘⟩
-  A↞B ×-left-inverse C↞D ⟨∘⟩
+  (A↞B ×-left-inverse C↞D) ⟨∘⟩
   Inverse.left-inverse (Inv.sym (×-Rel↔≡ {A = A} {B = C}))
   where open LeftInv using () renaming (_∘_ to _⟨∘⟩_)
 
@@ -385,7 +385,7 @@ _×-↠_ : ∀ {a b c d} {A : Set a} {B : Set b} {C : Set c} {D : Set d} →
         A ↠ B → C ↠ D → (A × C) ↠ (B × D)
 _×-↠_ {A = A} {B} {C} {D} A↠B C↠D =
   Inverse.surjection (×-Rel↔≡ {A = B} {B = D}) ⟨∘⟩
-  A↠B ×-surjection C↠D ⟨∘⟩
+  (A↠B ×-surjection C↠D) ⟨∘⟩
   Inverse.surjection (Inv.sym (×-Rel↔≡ {A = A} {B = C}))
   where open Surj using () renaming (_∘_ to _⟨∘⟩_)
 
@@ -413,7 +413,7 @@ _×-↔_ : ∀ {a b c d} {A : Set a} {B : Set b} {C : Set c} {D : Set d} →
         A ↔ B → C ↔ D → (A × C) ↔ (B × D)
 _×-↔_ {A = A} {B} {C} {D} A↔B C↔D =
   ×-Rel↔≡ {A = B} {B = D} ⟨∘⟩
-  A↔B ×-inverse C↔D ⟨∘⟩
+  (A↔B ×-inverse C↔D) ⟨∘⟩
   Inv.sym (×-Rel↔≡ {A = A} {B = C})
   where open Inv using () renaming (_∘_ to _⟨∘⟩_)
 

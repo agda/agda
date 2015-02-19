@@ -308,27 +308,27 @@ record IsRing
 
     zeroˡ : LeftZero 0# _*_
     zeroˡ x = begin
-        0# * x                                ≈⟨ sym $ proj₂ +-identity _ ⟩
-       (0# * x) +            0#               ≈⟨ refl ⟨ +-cong ⟩ sym (proj₂ -‿inverse _) ⟩
-       (0# * x) + ((0# * x)  + (- (0# * x)))  ≈⟨ sym $ +-assoc _ _ _ ⟩
-      ((0# * x) +  (0# * x)) + (- (0# * x))   ≈⟨ sym (proj₂ distrib _ _ _) ⟨ +-cong ⟩ refl ⟩
-             ((0# + 0#) * x) + (- (0# * x))   ≈⟨ (proj₂ +-identity _ ⟨ *-cong ⟩ refl)
-                                                   ⟨ +-cong ⟩
-                                                 refl ⟩
-                    (0# * x) + (- (0# * x))   ≈⟨ proj₂ -‿inverse _ ⟩
-                             0#               ∎
+        (0# * x)                                ≈⟨ sym $ proj₂ +-identity _ ⟩
+       ((0# * x) +            0#)               ≈⟨ refl ⟨ +-cong ⟩ sym (proj₂ -‿inverse _) ⟩
+       ((0# * x) + ((0# * x)  + (- (0# * x))))  ≈⟨ sym $ +-assoc _ _ _ ⟩
+      (((0# * x) +  (0# * x)) + (- (0# * x)))   ≈⟨ sym (proj₂ distrib _ _ _) ⟨ +-cong ⟩ refl ⟩
+             (((0# + 0#) * x) + (- (0# * x)))   ≈⟨ (proj₂ +-identity _ ⟨ *-cong ⟩ refl)
+                                                     ⟨ +-cong ⟩
+                                                   refl ⟩
+                    ((0# * x) + (- (0# * x)))   ≈⟨ proj₂ -‿inverse _ ⟩
+                             0#                 ∎
 
     zeroʳ : RightZero 0# _*_
     zeroʳ x = begin
-      x * 0#                                ≈⟨ sym $ proj₂ +-identity _ ⟩
-      (x * 0#) + 0#                         ≈⟨ refl ⟨ +-cong ⟩ sym (proj₂ -‿inverse _) ⟩
-      (x * 0#) + ((x * 0#) + (- (x * 0#)))  ≈⟨ sym $ +-assoc _ _ _ ⟩
-      ((x * 0#) + (x * 0#)) + (- (x * 0#))  ≈⟨ sym (proj₁ distrib _ _ _) ⟨ +-cong ⟩ refl ⟩
-      (x * (0# + 0#)) + (- (x * 0#))        ≈⟨ (refl ⟨ *-cong ⟩ proj₂ +-identity _)
-                                                 ⟨ +-cong ⟩
-                                               refl ⟩
-      (x * 0#) + (- (x * 0#))               ≈⟨ proj₂ -‿inverse _ ⟩
-      0#                                    ∎
+      (x * 0#)                                ≈⟨ sym $ proj₂ +-identity _ ⟩
+      ((x * 0#) + 0#)                         ≈⟨ refl ⟨ +-cong ⟩ sym (proj₂ -‿inverse _) ⟩
+      ((x * 0#) + ((x * 0#) + (- (x * 0#))))  ≈⟨ sym $ +-assoc _ _ _ ⟩
+      (((x * 0#) + (x * 0#)) + (- (x * 0#)))  ≈⟨ sym (proj₁ distrib _ _ _) ⟨ +-cong ⟩ refl ⟩
+      ((x * (0# + 0#)) + (- (x * 0#)))        ≈⟨ (refl ⟨ *-cong ⟩ proj₂ +-identity _)
+                                                   ⟨ +-cong ⟩
+                                                 refl ⟩
+      ((x * 0#) + (- (x * 0#)))               ≈⟨ proj₂ -‿inverse _ ⟩
+      0#                                      ∎
 
   isSemiringWithoutAnnihilatingZero
     : IsSemiringWithoutAnnihilatingZero ≈ _+_ _*_ 0# 1#

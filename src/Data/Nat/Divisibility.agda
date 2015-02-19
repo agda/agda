@@ -95,10 +95,14 @@ private module P = Poset poset
 
 -- 1 divides everything.
 
+infix 10 1∣_
+
 1∣_ : ∀ n → 1 ∣ n
 1∣ n = divides n (sym $ proj₂ CS.*-identity n)
 
 -- Everything divides 0.
+
+infix 10 _∣0
 
 _∣0 : ∀ n → n ∣ 0
 n ∣0 = divides 0 refl
@@ -195,6 +199,8 @@ nonZeroDivisor-lemma m (suc q) r r≢zero d =
   d' = subst (λ x → (1 + m) ∣ x) lem d
 
 -- Divisibility is decidable.
+
+infix 4 _∣?_
 
 _∣?_ : Decidable _∣_
 zero  ∣? zero                         = yes (0 ∣0)

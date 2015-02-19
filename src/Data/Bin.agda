@@ -66,12 +66,12 @@ toℕ = fromDigits ∘ toBits
 -- significant one.
 
 fromBits : List Bit → Bin
-fromBits []              = 0#
-fromBits (b        ∷ bs) with fromBits bs
-fromBits (b        ∷ bs) | bs′ 1# = (b ∷ bs′) 1#
-fromBits (zero     ∷ bs) | 0#     = 0#
-fromBits (1+ zero  ∷ bs) | 0#     = [] 1#
-fromBits (1+ 1+ () ∷ bs) | _
+fromBits []                = 0#
+fromBits (b          ∷ bs) with fromBits bs
+fromBits (b          ∷ bs) | bs′ 1# = (b ∷ bs′) 1#
+fromBits (zero       ∷ bs) | 0#     = 0#
+fromBits ((1+ zero)  ∷ bs) | 0#     = [] 1#
+fromBits ((1+ 1+ ()) ∷ bs) | _
 
 -- Converting from a natural number.
 
@@ -195,8 +195,8 @@ _≟_ = DecSetoid._≟_ decSetoid
 infixr 8 2^_
 
 2^_ : ℕ → Bin⁺
-2^ 0    = []
-2^ 1+ n = 0b ∷ 2^ n
+2^ 0      = []
+2^ (1+ n) = 0b ∷ 2^ n
 
 -- Base 2 logarithm (rounded downwards).
 
@@ -237,10 +237,10 @@ addBits c b₁ b₂ with c +′ (b₁ +′ b₂)
 ... | 1+ 1+ 1+ 1+ ()
 
 addCarryToBitList : Carry → List Bit → List Bit
-addCarryToBitList zero      bs             = bs
-addCarryToBitList (1+ zero) []             = 1b ∷ []
-addCarryToBitList (1+ zero) (zero    ∷ bs) = 1b ∷ bs
-addCarryToBitList (1+ zero) (1+ zero ∷ bs) = 0b ∷ addCarryToBitList 1b bs
+addCarryToBitList zero      bs               = bs
+addCarryToBitList (1+ zero) []               = 1b ∷ []
+addCarryToBitList (1+ zero) (zero      ∷ bs) = 1b ∷ bs
+addCarryToBitList (1+ zero) ((1+ zero) ∷ bs) = 0b ∷ addCarryToBitList 1b bs
 addCarryToBitList (1+ 1+ ()) _
 addCarryToBitList _ ((1+ 1+ ()) ∷ _)
 
@@ -260,13 +260,13 @@ m + n = fromBits (addBitLists 0b (toBits m) (toBits n))
 infixl 7 _*_
 
 _*_ : Bin → Bin → Bin
-0#                 * n = 0#
-[]              1# * n = n
+0#                  * n = 0#
+[]               1# * n = n
 -- (b + 2 * bs 1#) * n = b * n + 2 * (bs 1# * n)
-(b        ∷ bs) 1# * n with bs 1# * n
-(b        ∷ bs) 1# * n | 0#     = 0#
-(zero     ∷ bs) 1# * n | bs' 1# = (0b ∷ bs') 1#
-(1+ zero  ∷ bs) 1# * n | bs' 1# = n + (0b ∷ bs') 1#
+(b         ∷ bs) 1# * n with bs 1# * n
+(b         ∷ bs) 1# * n | 0#     = 0#
+(zero      ∷ bs) 1# * n | bs' 1# = (0b ∷ bs') 1#
+((1+ zero) ∷ bs) 1# * n | bs' 1# = n + (0b ∷ bs') 1#
 ((1+ 1+ ()) ∷ _) 1# * _ | _
 
 -- Successor.
@@ -282,10 +282,10 @@ suc n = [] 1# + n
 -- Predecessor.
 
 pred : Bin⁺ → Bin
-pred []              = 0#
-pred (zero     ∷ bs) = pred bs *2+1
-pred (1+ zero  ∷ bs) = (zero ∷ bs) 1#
-pred (1+ 1+ () ∷ bs)
+pred []                = 0#
+pred (zero       ∷ bs) = pred bs *2+1
+pred ((1+ zero)  ∷ bs) = (zero ∷ bs) 1#
+pred ((1+ 1+ ()) ∷ bs)
 
 -- downFrom n enumerates all numbers from n - 1 to 0. This function is
 -- linear in n. Analysis: fromℕ takes linear time, and the preds used

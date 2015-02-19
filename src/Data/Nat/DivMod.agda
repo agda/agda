@@ -54,6 +54,8 @@ private
 ------------------------------------------------------------------------
 -- Division
 
+infixl 7 _divMod_ _div_ _mod_
+
 -- A specification of integer division.
 
 record DivMod (dividend divisor : ℕ) : Set where

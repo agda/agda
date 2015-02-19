@@ -24,7 +24,7 @@ open import Data.Nat.Base public
 ------------------------------------------------------------------------
 -- Queries
 
-infix 4 _≟_
+infix 4 _≟_ _≤?_
 
 _≟_ : Decidable {A = ℕ} _≡_
 zero  ≟ zero   = yes refl

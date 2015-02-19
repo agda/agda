@@ -80,10 +80,10 @@ q₀ = refl
 q₁ : lookup 2 t₃ ≡ nothing
 q₁ = refl
 
-q₂ : 3 ∈? t₂ ≡ false
+q₂ : (3 ∈? t₂) ≡ false
 q₂ = refl
 
-q₃ : 1 ∈? t₄ ≡ true
+q₃ : (1 ∈? t₄) ≡ true
 q₃ = refl
 
 -- Turning a tree into a sorted list of key-value pairs.
