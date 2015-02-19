@@ -217,16 +217,16 @@ private
   mp : map f (a ∷⁺ b ∷⁺ [ c ]) ≡ f a ∷⁺ f b ∷⁺ [ f c ]
   mp = refl
 
-  right : foldr _⊕_ f (a ∷⁺ b ∷⁺ [ c ]) ≡ a ⊕ (b ⊕ f c)
+  right : foldr _⊕_ f (a ∷⁺ b ∷⁺ [ c ]) ≡ (a ⊕ (b ⊕ f c))
   right = refl
 
-  right₁ : foldr₁ _⊙_ (a ∷⁺ b ∷⁺ [ c ]) ≡ a ⊙ (b ⊙ c)
+  right₁ : foldr₁ _⊙_ (a ∷⁺ b ∷⁺ [ c ]) ≡ (a ⊙ (b ⊙ c))
   right₁ = refl
 
-  left : foldl _⊗_ f (a ∷⁺ b ∷⁺ [ c ]) ≡ (f a ⊗ b) ⊗ c
+  left : foldl _⊗_ f (a ∷⁺ b ∷⁺ [ c ]) ≡ ((f a ⊗ b) ⊗ c)
   left = refl
 
-  left₁ : foldl₁ _⊙_ (a ∷⁺ b ∷⁺ [ c ]) ≡ (a ⊙ b) ⊙ c
+  left₁ : foldl₁ _⊙_ (a ∷⁺ b ∷⁺ [ c ]) ≡ ((a ⊙ b) ⊙ c)
   left₁ = refl
 
   ⁺app⁺ : (a ∷⁺ b ∷⁺ [ c ]) ⁺++⁺ (b ∷⁺ [ c ]) ≡

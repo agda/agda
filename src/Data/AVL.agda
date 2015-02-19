@@ -375,6 +375,8 @@ lookup k (tree t) = Indexed.lookup k t
 map : ({k : Key} → Value k → Value k) → Tree → Tree
 map f (tree t) = tree $ Indexed.map f t
 
+infix 4 _∈?_
+
 _∈?_ : Key → Tree → Bool
 k ∈? t = is-just (lookup k t)
 

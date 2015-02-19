@@ -18,6 +18,8 @@ data Sign : Set where
 
 -- Decidable equality.
 
+infix 4 _≟_
+
 _≟_ : Decidable {A = Sign} _≡_
 - ≟ - = yes refl
 - ≟ + = no λ()

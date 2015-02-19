@@ -83,7 +83,7 @@ poset = record
 -- One can replace the underlying equality with an equivalent one.
 
 replace-equality : {_≈′_ : Rel Carrier l₂} →
-                   (∀ {x y} → x ≈ y ⇔ x ≈′ y) → Lattice _ _
+                   (∀ {x y} → x ≈ y ⇔ (x ≈′ y)) → Lattice _ _
 replace-equality {_≈′_} ≈⇔≈′ = record
   { _≈_       = _≈′_
   ; _∧_       = _∧_

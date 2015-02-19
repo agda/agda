@@ -188,10 +188,10 @@ equivalence-↠ :
 equivalence-↠ {B₁ = B₁} B₂ A₁↠A₂ B₁⇔B₂ =
   equivalence (Surjection.equivalence A₁↠A₂) B-to B-from
   where
-  B-to : ∀ {x} → B₁ at x ⟶ B₂ at (Surjection.to A₁↠A₂ ⟨$⟩ x)
+  B-to : ∀ {x} → _⟶_ (B₁ at x) (B₂ at (Surjection.to A₁↠A₂ ⟨$⟩ x))
   B-to = Equivalence.to B₁⇔B₂
 
-  B-from : ∀ {y} → B₂ at y ⟶ B₁ at (Surjection.from A₁↠A₂ ⟨$⟩ y)
+  B-from : ∀ {y} → _⟶_ (B₂ at y) (B₁ at (Surjection.from A₁↠A₂ ⟨$⟩ y))
   B-from = record
     { _⟨$⟩_ = λ x → Equivalence.from B₁⇔B₂ ⟨$⟩
                       P.subst (I.Setoid.Carrier B₂)

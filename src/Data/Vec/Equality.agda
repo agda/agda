@@ -64,6 +64,8 @@ module DecidableEquality {d₁ d₂} (D : DecSetoid d₁ d₂) where
   open Equality DS.setoid
   open import Relation.Nullary
 
+  infix 4 _≟_
+
   _≟_ : ∀ {n m} (xs : Vec A n) (ys : Vec A m) → Dec (xs ≈ ys)
   _≟_ []       []       = yes []-cong
   _≟_ []       (y ∷ ys) = no (λ())

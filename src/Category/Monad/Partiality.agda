@@ -77,6 +77,8 @@ data Kind : Set where
 
 -- Kind equality is decidable.
 
+infix 4 _≟-Kind_
+
 _≟-Kind_ : Decidable (_≡_ {A = Kind})
 _≟-Kind_ strong       strong       = yes P.refl
 _≟-Kind_ strong       (other k)    = no λ()
@@ -520,7 +522,7 @@ module _ {s ℓ} {A B : Set s}
 
     is-never : ∀ {x y} →
                x ⇓[ k≳ ]A y → (x >>= f) ⇑[ k≳ ]B →
-               ∃ λ z → y ∼A z × f z ⇑[ k≳ ]B
+               ∃ λ z → (y ∼A z) × f z ⇑[ k≳ ]B
     is-never (now    x∼y)  = λ fx⇑ → (_ , IsEqA.sym x∼y , fx⇑)
     is-never (laterˡ ≳now) = is-never ≳now ∘ later⁻¹
 

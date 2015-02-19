@@ -205,7 +205,7 @@ private
 
 sucs : ∀ {E N n} →
        Graph N E n → (i : Fin n) → List (E × Fin (n - suc i))
-sucs g i = successors $ head $ g [ i ]
+sucs g i = successors $ head (g [ i ])
 
 private
 

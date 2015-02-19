@@ -19,6 +19,8 @@ open import Data.Unit.Base public
 ------------------------------------------------------------------------
 -- Operations
 
+infix 4 _≟_ _≤?_
+
 _≟_ : Decidable {A = ⊤} _≡_
 _ ≟ _ = yes refl
 

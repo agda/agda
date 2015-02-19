@@ -38,6 +38,8 @@ toCostring = Colist.fromList ∘ toList
 
 -- Informative equality test.
 
+infix 4 _≟_
+
 _≟_ : Decidable {A = String} _≡_
 s₁ ≟ s₂ with primStringEquality s₁ s₂
 ... | true  = yes trustMe

@@ -61,6 +61,8 @@ delete k = AVL.delete (, k)
 lookup : ∀ {i} → Key i → Map → Maybe (Value i)
 lookup k m = AVL.lookup (, k) m
 
+infix 4 _∈?_
+
 _∈?_ : ∀ {i} → Key i → Map → Bool
 _∈?_ k = AVL._∈?_ (, k)
 
