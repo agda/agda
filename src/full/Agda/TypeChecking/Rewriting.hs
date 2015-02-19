@@ -1,4 +1,5 @@
 {-# LANGUAGE CPP #-}
+{-# LANGUAGE FlexibleInstances #-}
 
 -- | Rewriting with arbitrary rules.
 --
@@ -41,8 +42,15 @@
 
 module Agda.TypeChecking.Rewriting where
 
+import Prelude hiding (null)
+
 import Control.Monad
 import Control.Monad.Reader (local)
+
+import Data.Foldable
+import Data.IntSet (IntSet)
+import qualified Data.IntSet as IntSet
+import qualified Data.List as List
 
 import Agda.Syntax.Common
 import Agda.Syntax.Internal as I
@@ -58,8 +66,12 @@ import Agda.TypeChecking.Substitute
 import Agda.TypeChecking.Telescope
 import Agda.TypeChecking.Rewriting.NonLinMatch
 
+import qualified Agda.TypeChecking.Reduce.Monad as Red
+
 import Agda.Utils.Maybe
 import Agda.Utils.Monad
+import Agda.Utils.Null
+import Agda.Utils.Singleton
 import Agda.Utils.Size
 
 #include "undefined.h"
@@ -120,16 +132,10 @@ relView t = do
 --   to the signature where @B = A[us/Δ]@.
 --   Remember that @rel : Δ → A → A → Set i@, so
 --   @rel us : (lhs rhs : A[us/Δ]) → Set i@.
+--
+--   Makes only sense in empty context.
 addRewriteRule :: QName -> TCM ()
-addRewriteRule q = do
-  let failureWrongTarget = typeError . GenericDocError =<< hsep
-        [ prettyTCM q , text " does not target rewrite relation" ]
-  let failureMetas       = typeError . GenericDocError =<< hsep
-        [ prettyTCM q , text " is not a legal rewrite rule, since it contains unsolved meta variables" ]
-  let failureFreeVars    = typeError . GenericDocError =<< hsep
-        [ prettyTCM q , text " is not a legal rewrite rule, since not all variables are bound by the left hand side" ]
-  let failureIllegalRule = typeError . GenericDocError =<< hsep
-        [ prettyTCM q , text " is not a legal rewrite rule" ]
+addRewriteRule q = inTopContext $ do
   Def rel _ <- primRewrite
   -- We know that the type of rel is that of a relation.
   Just (RelView _tel delta a _a' _core) <- relView =<< do
@@ -141,6 +147,17 @@ addRewriteRule q = do
   -- Get rewrite rule (type of q).
   t <- defType <$> getConstInfo q
   TelV gamma core <- telView t
+
+  let failureWrongTarget = typeError . GenericDocError =<< hsep
+        [ prettyTCM q , text " does not target rewrite relation" ]
+  let failureMetas       = typeError . GenericDocError =<< hsep
+        [ prettyTCM q , text " is not a legal rewrite rule, since it contains unsolved meta variables" ]
+  let failureFreeVars xs = typeError . GenericDocError =<< do
+       addContext gamma $ hsep $
+        [ prettyTCM q , text " is not a legal rewrite rule, since the following variables are not bound by the left hand side: " , prettyList_ (map (prettyTCM . var) xs) ]
+  let failureIllegalRule = typeError . GenericDocError =<< hsep
+        [ prettyTCM q , text " is not a legal rewrite rule" ]
+
   -- Check that type of q targets rel.
   case ignoreSharing $ unEl core of
     Def rel' es@(_:_:_) | rel == rel' -> do
@@ -158,13 +175,23 @@ addRewriteRule q = do
       unless (null $ allMetas (telToList gamma, lhs, rhs, b)) failureMetas
       pat <- patternFrom lhs
       let rew = RewriteRule q gamma pat rhs b
-      reportSDoc "rewriting" 10 $
+      reportSDoc "rewriting" 10 $ addContext gamma $
         text "considering rewrite rule " <+> prettyTCM rew
-      -- Check whether lhs can be rewritten with itself.
-      -- Otherwise, there are unbound variables in either gamma or rhs.
-      addContext gamma $
-        unlessM (isJust <$> runReduceM (rewriteWith (Just b) lhs rew)) $
-          failureFreeVars
+
+      -- Check that all variables of Γ are pattern variables in the lhs.
+      unlessNull ([0 .. size gamma - 1] List.\\ IntSet.toList (nlPatVars pat)) failureFreeVars
+
+      -- -- check that FV(rhs) ⊆ nlPatVars(lhs)
+      -- unless (allVars (freeVars rhs) `IntSet.isSubsetOf` nlPatVars pat) $
+      --   failureFreeVars
+
+      -- NO LONGER WORKS:
+      -- -- Check whether lhs can be rewritten with itself.
+      -- -- Otherwise, there are unbound variables in either gamma or rhs.
+      -- addContext gamma $
+      --   unlessM (isJust <$> runReduceM (rewriteWith (Just b) lhs rew)) $
+      --     failureFreeVars
+
       -- Find head symbol f of the lhs.
       case ignoreSharing lhs of
         Def f _ -> do
@@ -186,8 +213,19 @@ updateRewriteRules f def = def { defRewriteRules = f (defRewriteRules def) }
 --   tries to rewrite @v : t@ with @rew@, returning the reduct if successful.
 rewriteWith :: Maybe Type -> Term -> RewriteRule -> ReduceM (Maybe Term)
 rewriteWith mt v (RewriteRule q gamma lhs rhs b) = do
-  sub <- nonLinMatch lhs v
-  return $ flip applySubst rhs <$> sub
+  Red.traceSDoc "rewriting" 95 (sep
+    [ text "attempting to rewrite term " <+> prettyTCM v
+    , text " with rule " <+> prettyTCM q
+    ]) $ do
+  let no = return Nothing
+  caseMaybeM (nonLinMatch lhs v) no $ \ sub -> do
+    let v' = applySubst sub rhs
+    Red.traceSDoc "rewriting" 90 (sep
+      [ text "rewrote " <+> prettyTCM v
+      , text " to " <+> prettyTCM v'
+      ]) $ do
+    return $ Just v'
+
   {- OLD CODE:
   -- Freeze all metas, remember which one where not frozen before.
   -- This ensures that we do not instantiate metas while matching
@@ -228,3 +266,21 @@ rewrite v = do
     loop []         = return Nothing
     loop (rew:rews) = do
       caseMaybeM (rewriteWith Nothing v rew) (loop rews) (return . Just)
+
+------------------------------------------------------------------------
+-- * Auxiliary functions
+------------------------------------------------------------------------
+
+class NLPatVars a where
+  nlPatVars :: a -> IntSet
+
+instance (Foldable f, NLPatVars a) => NLPatVars (f a) where
+  nlPatVars = foldMap nlPatVars
+
+instance NLPatVars NLPat where
+  nlPatVars p =
+    case p of
+      PVar i    -> singleton i
+      PDef _ es -> nlPatVars es
+      PWild     -> empty
+      PTerm{}   -> empty

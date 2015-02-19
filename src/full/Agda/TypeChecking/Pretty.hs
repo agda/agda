@@ -328,11 +328,11 @@ instance PrettyTCM (Elim' NLPat) where
   prettyTCM (Proj f)  = text "." <> prettyTCM f
 
 instance PrettyTCM NLPat where
-  prettyTCM (PVar x)    = text $ "@" ++ show x -- TODO
+  prettyTCM (PVar x)    = prettyTCM (var x)
   prettyTCM (PWild)     = text $ "_"
   prettyTCM (PDef f es) = parens $
     prettyTCM f <+> fsep (map prettyTCM es)
-  prettyTCM (PTerm t)   = text $ ".(" ++ show t ++ ")"
+  prettyTCM (PTerm t)   = text "." <> parens (prettyTCM t)
 
 instance PrettyTCM RewriteRule where
   prettyTCM (RewriteRule q gamma lhs rhs b) = inTopContext $ do
