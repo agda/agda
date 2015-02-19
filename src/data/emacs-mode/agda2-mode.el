@@ -15,8 +15,6 @@
 Note that the same version of the Agda executable must be used.")
 
 (require 'cl)
-(set (make-local-variable 'lisp-indent-function)
-     'common-lisp-indent-function)
 (require 'compile)
 (require 'pp)
 (require 'time-date)
@@ -33,6 +31,8 @@ Note that the same version of the Agda executable must be used.")
     (error nil))
   (unless (fboundp 'overlays-in) (load "overlay")) ; for Xemacs
   (unless (fboundp 'propertize)                    ; for Xemacs 21.4
+    ;; FIXME: XEmacs-21.4 (patch 22) does have `propertize' and so does Emacs-22
+    ;; (and agda2-mode doesn't work in Emacs-21, AFAICT).
     (defun propertize (string &rest properties)
       "Return a copy of STRING with text properties added.
 First argument is the string to copy.
@@ -41,12 +41,8 @@ properties to add to the result."
       (let ((str (copy-sequence string)))
         (add-text-properties 0 (length str) properties str)
         str)))
-  (unless (fboundp 'run-mode-hooks)
-    (fset 'run-mode-hooks 'run-hooks))  ; For Emacs versions < 21.
-  (unless (fboundp 'cl-labels)
-    (fset 'cl-labels 'labels))  ; For Emacs versions < 24.2.
-  (unless (fboundp 'cl-flet)
-    (fset 'cl-flet 'flet)))  ; For Emacs versions < 24.2.
+  (unless (fboundp 'prog-mode)          ;For Emacs<24.
+    (defalias 'prog-mode 'fundamental-mode)))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;;; Utilities
@@ -56,9 +52,10 @@ properties to add to the result."
 Or possibly (let* VARBIND (labels FUNCBIND BODY...))."
   (declare (debug ((&rest [&or symbolp (symbolp form)])
                    (&rest (cl-defun))
-                   body)))
-  `(let* ,varbind (cl-labels ,funcbind ,@body)))
-(put 'agda2-let 'lisp-indent-function 2)
+                   body))
+           (indent 2))
+  ;; Use cl-labels if available to avoid obsolescence warnings.
+  `(let* ,varbind (,(if (fboundp 'cl-labels) 'cl-labels 'labels) ,funcbind ,@body)))
 
 (defun agda2-chunkify (n xs)
   "Returns a list containing chunks of XS of length at most N.
@@ -382,9 +379,7 @@ Note that this variable is not buffer-local.")
 ;;;###autoload
 (modify-coding-system-alist 'file "\\.l?agda\\'" 'utf-8)
 ;;;###autoload
-(eval `(define-derived-mode agda2-mode
-  ,(if (fboundp 'prog-mode) 'prog-mode)
-  "Agda"
+(define-derived-mode agda2-mode prog-mode "Agda"
   "Major mode for Agda files.
 
 The following paragraph does not apply to Emacs 23 or newer.
@@ -445,7 +440,7 @@ Special commands:
  ;; including "mode: latex" is loaded chances are that the Agda mode
  ;; is activated before the LaTeX mode, and the LaTeX mode does not
  ;; seem to remove the text properties set by the Agda mode.
- (add-hook 'change-major-mode-hook 'agda2-quit nil 'local)))
+ (add-hook 'change-major-mode-hook 'agda2-quit nil 'local))
 
 (defun agda2-restart ()
   "Kill and restart the *agda2* buffer and load `agda2-toplevel-module'."
@@ -574,7 +569,13 @@ arrived. Otherwise highlighting annotations are
 reloaded from `agda2-highlighting-file', unless
 `agda2-highlighting-in-progress' is nil."
 
-
+  ;; Beware: the buffer may have been killed in the mean time.  E.g. when
+  ;; viewing an attachment containing Agda code in Gnus, Gnus will
+  ;; create a temp buffer, set it in agda2-mode, call font-lock-ensure on it
+  ;; (which won't know that it needs to wait for some process to reply), then
+  ;; extract the fontified text and kill the temp buffer; so when Agda
+  ;; finally answers, the temp buffer is long gone.
+  (when (buffer-live-p agda2-file-buffer)
   (let (;; The input lines in the current chunk.
         (lines (split-string chunk "\n"))
 
@@ -653,7 +654,7 @@ reloaded from `agda2-highlighting-file', unless
               (setq agda2-measure-data nil)
               (message "Load time: %s." elapsed)
               (when continuation
-                (funcall continuation elapsed)))))))))
+                (funcall continuation elapsed))))))))))
 
 (defun agda2-run-last-commands nil
   "Execute the last commands in the right order.
@@ -1222,6 +1223,15 @@ If there is any to load."
   "Is the current buffer a literate Agda buffer?"
   (equal (file-name-extension (buffer-name)) "lagda"))
 
+(defmacro agda2--case (exp &rest branches) ;FIXME: Use `pcase' instead!
+  (declare (debug t) (indent 1))
+  (let ((s (make-symbol "v")))
+    `(let ((,s ,exp))
+       (cond
+         ,@(mapcar (lambda (branch)
+                     `((equal ,s ,(car branch)) ,@(cdr branch)))
+                   branches)))))
+
 (defun agda2-goals-action (goals)
   "Annotates the goals in the current buffer with text properties.
 GOALS is a list of the buffer's goal numbers, in the order in
@@ -1269,34 +1279,33 @@ ways."
       (if literate (push 'outside stk))
       (goto-char (point-min))
       (while (and goals (safe-delims))
-        (cl-labels ((c (s) (equal s (match-string 0))))
-          (cond
-           ((c "\\begin{code}") (when (outside-code)               (pop stk)))
-           ((c "\\end{code}")   (when (not stk)                    (push 'outside stk)))
-           ((c "--")            (when (and (not stk)
-                                           (is-proper "--" t))     (end-of-line)))
-           ((c "{-")            (when (and (inside-code)
-                                           (not (inside-goal)))    (push nil           stk)))
-           ((c "-}")            (when (inside-comment)             (pop stk)))
-           ((c "{!")            (when (and (inside-code)
-                                           (not (inside-comment))) (push (- (point) 2) stk)))
-           ((c "!}")            (when (inside-goal)
-                                  (setq top (pop stk))
-                                  (unless stk (make top))))
-           ((c "?")             (progn
-                                  (when (and (not stk) (is-proper "?" nil))
-                                    (delete-char -1)
-                                    (insert "{!!}")
-                                    (make (- (point) 4)))))))))))
+        (agda2--case (match-string 0)
+          ("\\begin{code}" (when (outside-code)               (pop stk)))
+          ("\\end{code}"   (when (not stk)                    (push 'outside stk)))
+          ("--"            (when (and (not stk)
+                                      (is-proper "--" t))     (end-of-line)))
+          ("{-"            (when (and (inside-code)
+                                      (not (inside-goal)))    (push nil           stk)))
+          ("-}"            (when (inside-comment)             (pop stk)))
+          ("{!"            (when (and (inside-code)
+                                      (not (inside-comment))) (push (- (point) 2) stk)))
+          ("!}"            (when (inside-goal)
+                             (setq top (pop stk))
+                             (unless stk (make top))))
+          ("?"             (progn
+                             (when (and (not stk) (is-proper "?" nil))
+                               (delete-char -1)
+                               (insert "{!!}")
+                               (make (- (point) 4))))))))))
 
 (defun agda2-make-goal (p q n)
   "Make a goal with number N at <P>{!...!}<Q>.  Assume the region is clean."
   (annotation-preserve-mod-p-and-undo
-   (cl-flet ((atp (x ps) (add-text-properties x (1+ x) ps)))
-     (atp p       '(category agda2-delim1))
-     (atp (1+ p)  '(category agda2-delim2))
-     (atp (- q 2) '(category agda2-delim3))
-     (atp (1- q)  '(category agda2-delim4)))
+   (let ((atp (lambda (x ps) (add-text-properties x (1+ x) ps))))
+     (funcall atp p       '(category agda2-delim1))
+     (funcall atp (1+ p)  '(category agda2-delim2))
+     (funcall atp (- q 2) '(category agda2-delim3))
+     (funcall atp (1- q)  '(category agda2-delim4)))
    (let ((o (make-overlay p q nil t nil)))
      (overlay-put o 'modification-hooks '(agda2-protect-goal-markers))
      (overlay-put o 'agda2-gn           n)
@@ -1687,6 +1696,10 @@ VERSION is empty, then agda and agda-mode are used instead.)"
             (with-current-buffer buf
               (agda2-mode)))
           agda-buffers)))
+
+;; Local Variables:
+;; lisp-indent-function: common-lisp-indent-function
+;; End:
 
 (provide 'agda2-mode)
 ;;; agda2-mode.el ends here
