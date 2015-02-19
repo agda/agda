@@ -81,12 +81,22 @@ foldr {A = A} {B} c s (x ∷ xs) = foldr′ x xs
   foldr′ x []       = s x
   foldr′ x (y ∷ xs) = c x (foldr′ y xs)
 
+-- Right fold.
+
+foldr₁ : ∀ {a} {A : Set a} → (A → A → A) → List⁺ A → A
+foldr₁ f = foldr f id
+
 -- Left fold. Note that s is only applied to the first element (see
 -- the examples below).
 
 foldl : ∀ {a b} {A : Set a} {B : Set b} →
         (B → A → B) → (A → B) → List⁺ A → B
 foldl c s (x ∷ xs) = List.foldl c (s x) xs
+
+-- Left fold.
+
+foldl₁ : ∀ {a} {A : Set a} → (A → A → A) → List⁺ A → A
+foldl₁ f = foldl f id
 
 -- Append (several variants).
 
@@ -193,6 +203,7 @@ private
  module Examples {A B : Set}
                  (_⊕_ : A → B → B)
                  (_⊗_ : B → A → B)
+                 (_⊙_ : A → A → A)
                  (f : A → B)
                  (a b c : A)
                  where
@@ -209,8 +220,14 @@ private
   right : foldr _⊕_ f (a ∷⁺ b ∷⁺ [ c ]) ≡ a ⊕ (b ⊕ f c)
   right = refl
 
+  right₁ : foldr₁ _⊙_ (a ∷⁺ b ∷⁺ [ c ]) ≡ a ⊙ (b ⊙ c)
+  right₁ = refl
+
   left : foldl _⊗_ f (a ∷⁺ b ∷⁺ [ c ]) ≡ (f a ⊗ b) ⊗ c
   left = refl
+
+  left₁ : foldl₁ _⊙_ (a ∷⁺ b ∷⁺ [ c ]) ≡ (a ⊙ b) ⊙ c
+  left₁ = refl
 
   ⁺app⁺ : (a ∷⁺ b ∷⁺ [ c ]) ⁺++⁺ (b ∷⁺ [ c ]) ≡
           a ∷⁺ b ∷⁺ c ∷⁺ b ∷⁺ [ c ]
