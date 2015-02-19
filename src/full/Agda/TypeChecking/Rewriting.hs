@@ -56,6 +56,7 @@ import Agda.TypeChecking.Pretty
 import Agda.TypeChecking.Reduce
 import Agda.TypeChecking.Substitute
 import Agda.TypeChecking.Telescope
+import Agda.TypeChecking.Rewriting.NonLinMatch
 
 import Agda.Utils.Maybe
 import Agda.Utils.Monad
@@ -155,7 +156,8 @@ addRewriteRule q = do
       -- Normalize rhs: might be more efficient.
       rhs <- etaContract =<< normalise rhs
       unless (null $ allMetas (telToList gamma, lhs, rhs, b)) failureMetas
-      let rew = RewriteRule q gamma lhs rhs b
+      pat <- patternFrom lhs
+      let rew = RewriteRule q gamma pat rhs b
       reportSDoc "rewriting" 10 $
         text "considering rewrite rule " <+> prettyTCM rew
       -- Check whether lhs can be rewritten with itself.
@@ -184,6 +186,8 @@ updateRewriteRules f def = def { defRewriteRules = f (defRewriteRules def) }
 --   tries to rewrite @v : t@ with @rew@, returning the reduct if successful.
 rewriteWith :: Maybe Type -> Term -> RewriteRule -> TCM (Maybe Term)
 rewriteWith mt v (RewriteRule q gamma lhs rhs b) = do
+  return Nothing -- TODO
+  {- OLD CODE:
   -- Freeze all metas, remember which one where not frozen before.
   -- This ensures that we do not instantiate metas while matching
   -- on the rewrite lhs.
@@ -207,7 +211,7 @@ rewriteWith mt v (RewriteRule q gamma lhs rhs b) = do
 
   -- Thaw metas that were frozen by a call to this function.
   unfreezeMetas' (`elem` ms)
-  return res
+  return res-}
 
 -- | @rewrite t@ tries to rewrite a reduced term.
 rewrite :: Term -> TCM (Maybe Term)

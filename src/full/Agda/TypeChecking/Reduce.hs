@@ -1017,7 +1017,7 @@ instance InstantiateFull Constraint where
     FindInScope m b cands -> FindInScope m b <$> mapM instantiateFull' cands
     IsEmpty r t         -> IsEmpty r <$> instantiateFull' t
 
-instance InstantiateFull Elim where
+instance (InstantiateFull a) => InstantiateFull (Elim' a) where
   instantiateFull' (Apply v) = Apply <$> instantiateFull' v
   instantiateFull' (Proj f)  = pure $ Proj f
 
@@ -1050,6 +1050,12 @@ instance InstantiateFull Definition where
     instantiateFull' (Defn rel x t pol occ df i c rew inst d) = do
       (t, (df, d, rew)) <- instantiateFull' (t, (df, d, rew))
       return $ Defn rel x t pol occ df i c rew inst d
+
+instance InstantiateFull NLPat where
+  instantiateFull' (PVar x)   = return $ PVar x
+  instantiateFull' (PWild)    = return PWild
+  instantiateFull' (PDef x y) = PDef <$> instantiateFull' x <*> instantiateFull' y
+  instantiateFull' (PTerm x)  = PTerm <$> instantiateFull' x
 
 instance InstantiateFull RewriteRule where
   instantiateFull' (RewriteRule q gamma lhs rhs t) =
