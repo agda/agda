@@ -22,6 +22,7 @@ open import Relation.Binary.Consequences
 open import Relation.Binary.PropositionalEquality as PropEq
   using (_≡_; _≢_; refl; sym)
 open import Relation.Nullary
+open import Relation.Nullary.Decidable
 private
   module BitOrd = StrictTotalOrder (FP.strictTotalOrder 2)
 
@@ -305,10 +306,6 @@ downFrom n = helper n (fromℕ n)
 ------------------------------------------------------------------------
 -- Tests
 
--- The tests below have been commented out since (at least one version
--- of) Agda is too slow or memory-hungry to type check them.
-
-{-
 -- The tests below are run when this module is type checked.
 
 -- First some test helpers:
@@ -322,17 +319,17 @@ private
   nats = List.downFrom testLimit
 
   nats⁺ : List ℕ
-  nats⁺ = filter (λ n → decToBool (Nat._≤?_ 1 n)) nats
+  nats⁺ = filter (λ n → ⌊ 1 Nat.≤? n ⌋) nats
 
   natPairs : List (ℕ × ℕ)
-  natPairs = zip nats (reverse nats)
+  natPairs = List.zip nats (reverse nats)
 
   _=[_]_ : (ℕ → ℕ) → List ℕ → (Bin → Bin) → Set
-  f =[ ns ] g = map f ns ≡ map (toℕ ∘ g ∘ fromℕ) ns
+  f =[ ns ] g = List.map f ns ≡ List.map (toℕ ∘ g ∘ fromℕ) ns
 
   _=[_]₂_ : (ℕ → ℕ → ℕ) → List (ℕ × ℕ) → (Bin → Bin → Bin) → Set
   f =[ ps ]₂ g =
-    map (uncurry f) ps ≡ map (toℕ ∘ uncurry (g on fromℕ)) ps
+    List.map (uncurry f) ps ≡ List.map (toℕ ∘ uncurry (g on fromℕ)) ps
 
 -- And then the tests:
 
@@ -366,7 +363,6 @@ private
   test-pred : Nat.pred =[ nats⁺ ] (pred ∘ drop-1#)
   test-pred = refl
 
-  test-downFrom : map toℕ (downFrom testLimit) ≡
+  test-downFrom : List.map toℕ (downFrom testLimit) ≡
                   List.downFrom testLimit
   test-downFrom = refl
--}
