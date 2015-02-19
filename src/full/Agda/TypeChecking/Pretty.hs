@@ -88,8 +88,13 @@ dbraces d  = CP.dbraces <$> d
 brackets d = P.brackets <$> d
 parens d   = P.parens <$> d
 
+-- | Comma-separated list in brackets.
 prettyList :: [TCM Doc] -> TCM Doc
 prettyList ds = brackets $ fsep $ punctuate comma ds
+
+-- | 'prettyList' without the brackets.
+prettyList_ :: [TCM Doc] -> TCM Doc
+prettyList_ ds = fsep $ punctuate comma ds
 
 punctuate :: TCM Doc -> [TCM Doc] -> [TCM Doc]
 punctuate _ [] = []
