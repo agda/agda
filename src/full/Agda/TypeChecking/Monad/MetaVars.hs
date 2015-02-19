@@ -27,6 +27,7 @@ import Agda.TypeChecking.Monad.Options (reportSLn)
 import Agda.TypeChecking.Monad.Context
 import Agda.TypeChecking.Substitute
 
+import Agda.Utils.Map.Compat as MapC
 import Agda.Utils.Functor ((<.>))
 import Agda.Utils.Lens
 import Agda.Utils.Maybe
@@ -335,7 +336,7 @@ clearMetaListeners m =
 
 -- | Freeze all meta variables and return the list of metas that got frozen.
 freezeMetas :: TCM [MetaId]
-freezeMetas = execWriterT $ stMetaStore %== Map.traverseWithKey freeze
+freezeMetas = execWriterT $ stMetaStore %== MapC.traverseWithKey freeze
   where
   freeze :: Monad m => MetaId -> MetaVariable -> WriterT [MetaId] m MetaVariable
   freeze m mvar
