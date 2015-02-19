@@ -163,7 +163,7 @@ addRewriteRule q = do
       -- Check whether lhs can be rewritten with itself.
       -- Otherwise, there are unbound variables in either gamma or rhs.
       addContext gamma $
-        unlessM (isJust <$> rewriteWith (Just b) lhs rew) $
+        unlessM (isJust <$> runReduceM (rewriteWith (Just b) lhs rew)) $
           failureFreeVars
       -- Find head symbol f of the lhs.
       case ignoreSharing lhs of
@@ -184,9 +184,10 @@ updateRewriteRules f def = def { defRewriteRules = f (defRewriteRules def) }
 
 -- | @rewriteWith t v rew@
 --   tries to rewrite @v : t@ with @rew@, returning the reduct if successful.
-rewriteWith :: Maybe Type -> Term -> RewriteRule -> TCM (Maybe Term)
+rewriteWith :: Maybe Type -> Term -> RewriteRule -> ReduceM (Maybe Term)
 rewriteWith mt v (RewriteRule q gamma lhs rhs b) = do
-  return Nothing -- TODO
+  sub <- nonLinMatch lhs v
+  return $ flip applySubst rhs <$> sub
   {- OLD CODE:
   -- Freeze all metas, remember which one where not frozen before.
   -- This ensures that we do not instantiate metas while matching
@@ -214,7 +215,7 @@ rewriteWith mt v (RewriteRule q gamma lhs rhs b) = do
   return res-}
 
 -- | @rewrite t@ tries to rewrite a reduced term.
-rewrite :: Term -> TCM (Maybe Term)
+rewrite :: Term -> ReduceM (Maybe Term)
 rewrite v = do
   case ignoreSharing v of
     -- We only rewrite @Def@s and @Con@s.
