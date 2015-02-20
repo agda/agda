@@ -12,6 +12,8 @@ import Data.ByteString.Char8 (ByteString)
 import qualified Data.ByteString.Char8 as ByteString
 import Data.IntMap (IntMap)
 import qualified Data.IntMap as IntMap
+import Data.IntSet (IntSet)
+import qualified Data.IntSet as IntSet
 import qualified Data.List as List
 import Data.Map (Map)
 import qualified Data.Map as Map
@@ -56,6 +58,10 @@ instance Null (Bag a) where
 instance Null (IntMap a) where
   empty = IntMap.empty
   null  = IntMap.null
+
+instance Null IntSet where
+  empty = IntSet.empty
+  null  = IntSet.null
 
 instance Null (Map k a) where
   empty = Map.empty

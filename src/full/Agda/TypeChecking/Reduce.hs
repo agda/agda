@@ -31,13 +31,15 @@ import Agda.TypeChecking.Monad.Builtin hiding (getPrimitive, constructorForm)
 import Agda.TypeChecking.Substitute
 import Agda.TypeChecking.CompiledClause
 import Agda.TypeChecking.EtaContract
-import {-# SOURCE #-} Agda.TypeChecking.Pretty
-
-import {-# SOURCE #-} Agda.TypeChecking.Patterns.Match
-import {-# SOURCE #-} Agda.TypeChecking.CompiledClause.Match
 
 import Agda.TypeChecking.Reduce.Monad
 
+import {-# SOURCE #-} Agda.TypeChecking.CompiledClause.Match
+import {-# SOURCE #-} Agda.TypeChecking.Patterns.Match
+import {-# SOURCE #-} Agda.TypeChecking.Pretty
+import {-# SOURCE #-} Agda.TypeChecking.Rewriting
+
+import Agda.Utils.Function
 import Agda.Utils.Functor
 import Agda.Utils.Monad
 import Agda.Utils.HashMap (HashMap)
@@ -291,7 +293,7 @@ instance (Reduce a, Reduce b,Reduce c) => Reduce (a,b,c) where
     reduce' (x,y,z) = (,,) <$> reduce' x <*> reduce' y <*> reduce' z
 
 instance Reduce Term where
-  reduceB' v = {-# SCC "reduce'<Term>" #-} do
+  reduceB' = {-# SCC "reduce'<Term>" #-} rewriteAfter $ \ v -> do
     v <- instantiate' v
     let done = return $ notBlocked v
     case v of
@@ -316,6 +318,11 @@ instance Reduce Term where
       DontCare _ -> done
       Shared{}   -> updateSharedTermF reduceB' v
     where
+      rewriteAfter :: (Term -> ReduceM (Blocked Term)) -> Term -> ReduceM (Blocked Term)
+      rewriteAfter f = trampolineM $ \ v -> do
+        vb <- f v
+        caseMaybeM (rewrite $ ignoreBlocking vb) (return $ Left vb) $ \ u ->
+          return $ Right u
       -- NOTE: reduceNat can traverse the entire term.
       reduceNat v@Shared{} = updateSharedTerm reduceNat v
       reduceNat v@(Con c []) = do

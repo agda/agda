@@ -88,8 +88,13 @@ dbraces d  = CP.dbraces <$> d
 brackets d = P.brackets <$> d
 parens d   = P.parens <$> d
 
+-- | Comma-separated list in brackets.
 prettyList :: [TCM Doc] -> TCM Doc
 prettyList ds = brackets $ fsep $ punctuate comma ds
+
+-- | 'prettyList' without the brackets.
+prettyList_ :: [TCM Doc] -> TCM Doc
+prettyList_ ds = fsep $ punctuate comma ds
 
 punctuate :: TCM Doc -> [TCM Doc] -> [TCM Doc]
 punctuate _ [] = []
@@ -323,11 +328,11 @@ instance PrettyTCM (Elim' NLPat) where
   prettyTCM (Proj f)  = text "." <> prettyTCM f
 
 instance PrettyTCM NLPat where
-  prettyTCM (PVar x)    = text $ "@" ++ show x -- TODO
+  prettyTCM (PVar x)    = prettyTCM (var x)
   prettyTCM (PWild)     = text $ "_"
   prettyTCM (PDef f es) = parens $
     prettyTCM f <+> fsep (map prettyTCM es)
-  prettyTCM (PTerm t)   = text $ ".(" ++ show t ++ ")"
+  prettyTCM (PTerm t)   = text "." <> parens (prettyTCM t)
 
 instance PrettyTCM RewriteRule where
   prettyTCM (RewriteRule q gamma lhs rhs b) = inTopContext $ do
