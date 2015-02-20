@@ -38,6 +38,8 @@ postulate
   _∈_ : {A : Set} → A → List A → Set
   _⊆_ : {A : Set} → List A → List A → Set
 
+infixr 40 _∷_
+
 data All {A : Set}
          (P : A → Set) : List A → Set where
   []  : All P []
@@ -440,4 +442,3 @@ lsubst pfΓ pf (↑L M) N = ↑L (lsubst pfΓ pf M N)
 lsubst pfΓ pf (⊃L V Sp) N = ⊃L V (lsubst pfΓ pf Sp N)
 lsubst pfΓ pf (∧⁻L₁ Sp) N = ∧⁻L₁ (lsubst pfΓ pf Sp N)
 lsubst pfΓ pf (∧⁻L₂ Sp) N = ∧⁻L₂ (lsubst pfΓ pf Sp N)
-

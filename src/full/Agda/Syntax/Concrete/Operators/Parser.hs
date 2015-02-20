@@ -6,8 +6,10 @@ module Agda.Syntax.Concrete.Operators.Parser where
 import Control.Exception (throw)
 
 import Data.Maybe
+import Data.Set (Set)
 
 import Agda.Syntax.Position
+import qualified Agda.Syntax.Abstract.Name as A
 import Agda.Syntax.Common hiding (Arg, Dom, NamedArg)
 import Agda.Syntax.Fixity
 import Agda.Syntax.Notation
@@ -24,7 +26,9 @@ data ExprView e
     | WildV e
     | OtherV e
     | AppV e (NamedArg e)
-    | OpAppV QName [NamedArg (OpApp e)]
+    | OpAppV QName (Set A.Name) [NamedArg (OpApp e)]
+      -- ^ The 'QName' is possibly ambiguous, but it must correspond
+      -- to one of the names in the set.
     | HiddenArgV (Named_ e)
     | InstanceArgV (Named_ e)
     | LamV [LamBinding] e
@@ -79,8 +83,9 @@ postop middleP = do
 -- Note: it would be better to take the decision of "postprocessing" at the same
 -- place as where the holes are discarded, however that would require a dependently
 -- typed function (or duplicated code)
-opP :: IsExpr e => ReadP e e -> NewNotation -> ReadP e (NewNotation,Range,[e])
-opP p nsyn@(NewNotation q _ syn) = do
+opP :: IsExpr e =>
+       ReadP e e -> NewNotation -> ReadP e (NewNotation,Range,[e])
+opP p nsyn@(NewNotation q _ _ syn) = do
   (range,es) <- worker (init $ qnameParts q) $ removeExternalHoles syn
   return (nsyn,range,es)
  where worker ms [IdPart x] = do r <- partP ms x; return (r,[])
@@ -97,7 +102,8 @@ opP p nsyn@(NewNotation q _ syn) = do
 -- | Given a name with a syntax spec, and a list of parsed expressions
 -- fitting it, rebuild the expression.
 rebuild :: forall e. IsExpr e => NewNotation -> Range -> [e] -> e
-rebuild (NewNotation name _ syn) r es = unExprView $ OpAppV (setRange r name) exprs
+rebuild (NewNotation name names _ syn) r es =
+  unExprView $ OpAppV (setRange r name) names exprs
   where
     exprs = map findExprFor [0..lastHole]
     filledHoles = zip es (filter isAHole syn)

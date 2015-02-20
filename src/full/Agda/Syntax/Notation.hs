@@ -55,7 +55,7 @@ data GenPart
   | NormalHole (NamedArg () Int)
     -- ^ Argument is where the expression should go.
   | IdPart RawName
-  deriving (Typeable, Show, Eq)
+  deriving (Typeable, Show, Eq, Ord)
 
 instance KillRange GenPart where
   killRange p = case p of

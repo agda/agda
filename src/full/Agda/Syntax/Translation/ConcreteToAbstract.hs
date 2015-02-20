@@ -39,6 +39,8 @@ import Control.Monad.Reader hiding (mapM)
 import Data.Foldable (Foldable, traverse_)
 import Data.Traversable (mapM, traverse)
 import Data.List ((\\), nub, foldl')
+import Data.Set (Set)
+import qualified Data.Set as Set
 import qualified Data.Map as Map
 import Data.Maybe
 
@@ -638,7 +640,7 @@ instance ToAbstract C.Expr A.Expr where
         return $ A.App (ExprRange r) e1 e2
 
   -- Operator application
-      C.OpApp r op es -> toAbstractOpApp op es
+      C.OpApp r op ns es -> toAbstractOpApp op ns es
 
   -- With application
       C.WithApp r e es -> do
@@ -1678,17 +1680,18 @@ instance ToAbstract C.Pattern (A.Pattern' C.Expr) where
             r = getRange p0
             info = PatSource r $ \pr -> if appBrackets pr then ParenP r p0 else p0
 
-    toAbstract p0@(OpAppP r op ps) = do
+    toAbstract p0@(OpAppP r op ns ps) = do
         p <- toAbstract (IdentP op)
         ps <- toAbstract ps
         case p of
-          ConP        i x as -> return $ ConP (i {patInfo = info}) x
-                                    (as ++ ps)
-          DefP        _ x as -> return $ DefP info x
-                                    (as ++ ps)
-          PatternSynP _ x as -> return $ PatternSynP info x
-                                    (as ++ ps)
-          _                  -> __IMPOSSIBLE__
+          ConP i (AmbQ xs) as -> return $ ConP (i {patInfo = info})
+                                               (AmbQ $ filter (\q -> Set.member
+                                                                       (qnameName q) ns)
+                                                              xs)
+                                               (as ++ ps)
+          DefP        _ x  as -> return $ DefP info x (as ++ ps)
+          PatternSynP _ x  as -> return $ PatternSynP info x (as ++ ps)
+          _                   -> __IMPOSSIBLE__
         where
             r    = getRange p0
             info = PatSource r $ \pr -> if appBrackets pr then ParenP r p0 else p0
@@ -1717,11 +1720,11 @@ instance ToAbstract C.Pattern (A.Pattern' C.Expr) where
 
 -- | Turn an operator application into abstract syntax. Make sure to record the
 -- right precedences for the various arguments.
-toAbstractOpApp :: C.QName -> [C.NamedArg (OpApp C.Expr)] -> ScopeM A.Expr
-toAbstractOpApp op es = do
+toAbstractOpApp :: C.QName -> Set A.Name -> [C.NamedArg (OpApp C.Expr)] -> ScopeM A.Expr
+toAbstractOpApp op ns es = do
     -- Get the notation for the operator.
-    f  <- getFixity op
-    let parts = notation . oldToNewNotation $ (op, f)
+    nota <- getNotation op ns
+    let parts = notation nota
     -- We can throw away the @BindingHoles@, since binders
     -- have been preprocessed into @OpApp C.Expr@.
     let nonBindingParts = filter (not . isBindingHole) parts
@@ -1730,7 +1733,11 @@ toAbstractOpApp op es = do
     unless (length (filter isAHole nonBindingParts) == length es) __IMPOSSIBLE__
     -- Translate operator and its arguments (each in the right context).
     op <- toAbstract (OldQName op)
-    foldl' app op <$> left (theFixity f) nonBindingParts es
+    op <- return $ case op of
+            A.Con (AmbQ qs) -> A.Con $ AmbQ $
+                                 filter (\q -> Set.member (qnameName q) ns) qs
+            op              -> op
+    foldl' app op <$> left (notaFixity nota) nonBindingParts es
   where
     -- Build an application in the abstract syntax, with correct Range.
     app e arg = A.App (ExprRange (fuseRange e arg)) e (setArgColors [] arg)

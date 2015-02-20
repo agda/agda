@@ -17,6 +17,8 @@ import Data.List as List
 import Data.Map (Map)
 import qualified Data.Map as Map
 import Data.Maybe
+import Data.Set (Set)
+import qualified Data.Set as Set
 import Data.Traversable
 
 import Agda.Syntax.Common
@@ -244,19 +246,26 @@ resolveModule x = do
     []                -> typeError $ NoSuchModule x
     ms                -> typeError $ AmbiguousModule x (map amodName ms)
 
--- | Get the fixity of a name. The name is assumed to be in scope.
-getFixity :: C.QName -> ScopeM Fixity'
-getFixity x = do
+-- | Get the notation of a name. The name is assumed to be in scope.
+getNotation
+  :: C.QName
+  -> Set A.Name
+     -- ^ The name must correspond to one of the names in this set.
+  -> ScopeM NewNotation
+getNotation x ns = do
   r <- resolveName x
   case r of
-    VarName y           -> return $ nameFixity y
-    DefinedName _ d     -> return $ aFixity d
-    FieldName d         -> return $ aFixity d
-    ConstructorName ds  -> return $ chooseFixity $ map aFixity ds
-    PatternSynResName n -> return $ aFixity n
+    VarName y           -> return $ namesToNotation x y
+    DefinedName _ d     -> return $ notation d
+    FieldName d         -> return $ notation d
+    ConstructorName ds  -> case filter (Set.isSubsetOf ns . notaNames) $
+                                  mergeNotations $ map notation ds of
+                             [n] -> return n
+                             _   -> __IMPOSSIBLE__
+    PatternSynResName n -> return $ notation n
     UnknownName         -> __IMPOSSIBLE__
   where
-    aFixity = nameFixity . qnameName . anameName
+    notation = namesToNotation x . qnameName . anameName
 
 -- * Binding names
 

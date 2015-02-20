@@ -886,8 +886,9 @@ instance ToConcrete A.Pattern C.Pattern where
 
 data Hd = HdVar A.Name | HdCon A.QName | HdDef A.QName
 
-cOpApp :: Range -> C.QName -> [C.Expr] -> C.Expr
-cOpApp r n es = C.OpApp r n (map (defaultNamedArg . Ordinary) es)
+cOpApp :: Range -> C.QName -> A.Name -> [C.Expr] -> C.Expr
+cOpApp r x n es =
+  C.OpApp r x (Set.singleton n) (map (defaultNamedArg . Ordinary) es)
 
 tryToRecoverOpApp :: A.Expr -> AbsToCon C.Expr -> AbsToCon C.Expr
 tryToRecoverOpApp e def = recoverOpApp bracket cOpApp view e def
@@ -904,7 +905,9 @@ tryToRecoverOpApp e def = recoverOpApp bracket cOpApp view e def
 tryToRecoverOpAppP :: A.Pattern -> AbsToCon C.Pattern -> AbsToCon C.Pattern
 tryToRecoverOpAppP p def = recoverOpApp bracketP_ opApp view p def
   where
-    opApp r x ps = C.OpAppP r x (map defaultNamedArg ps)
+    opApp r x n ps =
+      C.OpAppP r x (Set.singleton n) (map defaultNamedArg ps)
+
     view p = case p of
       ConP _ (AmbQ (c:_)) ps -> Just (HdCon c, ps)
       DefP _ f            ps -> Just (HdDef f, ps)
@@ -912,7 +915,7 @@ tryToRecoverOpAppP p def = recoverOpApp bracketP_ opApp view p def
 
 recoverOpApp :: (ToConcrete a c, HasRange c)
   => ((Precedence -> Bool) -> AbsToCon c -> AbsToCon c)
-  -> (Range -> C.QName -> [c] -> c)
+  -> (Range -> C.QName -> A.Name -> [c] -> c)
   -> (a -> Maybe (Hd, [A.NamedArg a]))
   -> a
   -> AbsToCon c
@@ -933,19 +936,20 @@ recoverOpApp bracket opApp view e mDefault = case view e of
 
   doQNameHelper fixityHelper conHelper n as = do
     x <- toConcrete n
-    doQName (theFixity $ nameFixity $ fixityHelper n) (conHelper x) as
+    doQName (theFixity $ nameFixity n') (conHelper x) n' as
+    where n' = fixityHelper n
 
   -- fall-back (wrong number of arguments or no holes)
-  doQName _ n es
+  doQName _ x _ es
     | length xs == 1        = mDefault
     | length es /= numHoles = mDefault
     | null es               = mDefault
     where
-      xs       = C.nameParts $ C.unqualify n
+      xs       = C.nameParts $ C.unqualify x
       numHoles = length (filter (== Hole) xs)
 
   -- binary case
-  doQName fixity n as
+  doQName fixity x n as
     | Hole <- head xs
     , Hole <- last xs = do
         let a1  = head as
@@ -957,12 +961,12 @@ recoverOpApp bracket opApp view e mDefault = case view e of
         es <- mapM (toConcreteCtx InsideOperandCtx) as'
         en <- toConcreteCtx (RightOperandCtx fixity) an
         bracket (opBrackets fixity)
-          $ return $ opApp (getRange (e1, en)) n ([e1] ++ es ++ [en])
+          $ return $ opApp (getRange (e1, en)) x n ([e1] ++ es ++ [en])
     where
-      xs = C.nameParts $ C.unqualify n
+      xs = C.nameParts $ C.unqualify x
 
   -- prefix
-  doQName fixity n as
+  doQName fixity x n as
     | Hole <- last xs = do
         let an  = last as
             as' = case as of
@@ -971,24 +975,24 @@ recoverOpApp bracket opApp view e mDefault = case view e of
         es <- mapM (toConcreteCtx InsideOperandCtx) as'
         en <- toConcreteCtx (RightOperandCtx fixity) an
         bracket (opBrackets fixity)
-          $ return $ opApp (getRange (n, en)) n (es ++ [en])
+          $ return $ opApp (getRange (n, en)) x n (es ++ [en])
     where
-      xs = C.nameParts $ C.unqualify n
+      xs = C.nameParts $ C.unqualify x
 
   -- postfix
-  doQName fixity n as
+  doQName fixity x n as
     | Hole <- head xs = do
         let a1  = head as
             as' = tail as
         e1 <- toConcreteCtx (LeftOperandCtx fixity) a1
         es <- mapM (toConcreteCtx InsideOperandCtx) as'
         bracket (opBrackets fixity)
-          $ return $ opApp (getRange (e1, n)) n ([e1] ++ es)
+          $ return $ opApp (getRange (e1, n)) x n ([e1] ++ es)
     where
-      xs = C.nameParts $ C.unqualify n
+      xs = C.nameParts $ C.unqualify x
 
   -- roundfix
-  doQName _ n as = do
+  doQName _ x n as = do
     es <- mapM (toConcreteCtx InsideOperandCtx) as
     bracket roundFixBrackets
-      $ return $ opApp (getRange n) n es
+      $ return $ opApp (getRange x) x n es

@@ -1,4 +1,3 @@
-Issue1194d.agda:31,8-9
-Not in scope:
-  ⟦ at Issue1194d.agda:31,8-9
-when scope checking ⟦
+Issue1194d.agda:34,8-17
+Could not parse the application ! b + ! b
+when scope checking ! b + ! b
