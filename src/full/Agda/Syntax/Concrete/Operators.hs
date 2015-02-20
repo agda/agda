@@ -164,7 +164,8 @@ data UseBoundNames = UseBoundNames | DontUseBoundNames
     will stay this way until people start complaining about it.
 -}
 buildParsers :: forall e. IsExpr e => Range -> FlatScope -> UseBoundNames -> ScopeM (Parsers e)
-buildParsers r flat use = do
+buildParsers r flat use =
+  billSub [Bench.Parsing, Bench.Operators, Bench.BuildParser] $ do
     (names, ops) <- localNames flat
     let cons = getDefinedNames [ConName, PatternSynName] flat
     reportSLn "scope.operators" 50 $ unlines
@@ -544,9 +545,7 @@ parseApplication es = do
     -- Build the parser
     let ms = qualifierModules [ q | Ident q <- es ]
     flat <- flattenScope ms <$> getScope
-    -- Andreas, 2014-04-27 Time for building the parser is negligible
-    p <- -- billSub [Bench.Parsing, Bench.Operators, Bench.BuildParser] $
-      buildParsers (getRange es) flat UseBoundNames
+    p <- buildParsers (getRange es) flat UseBoundNames
 
     -- Parse
     case force $ parse (pTop p) es of
