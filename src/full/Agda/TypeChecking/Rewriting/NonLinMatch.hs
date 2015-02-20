@@ -183,14 +183,13 @@ instance AmbMatch NLPat Term where
     case p of
       PWild  -> yes
       PVar i -> tellSubst i v
-      PDef f ps -> do
-        v <- liftRed $ etaContract =<< reduce' v
+      PDef f ps ->
         case ignoreSharing v of
           Def f' es
-            | f == f'   -> ambMatch ps es
+            | f == f'   -> ambMatch ps =<< liftRed (reduce' =<< etaContract es)
             | otherwise -> no
           Con c vs
-            | f == conName c -> ambMatch ps (Apply <$> vs)
+            | f == conName c -> ambMatch ps =<< liftRed (reduce' =<< etaContract (Apply <$> vs))
             | otherwise -> no
           _ -> no
       PTerm u -> tellEq u v

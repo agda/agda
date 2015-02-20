@@ -201,8 +201,14 @@ addRewriteRule q = inTopContext $ do
 
 -- | Append rewrite rules to a definition.
 addRewriteRules :: QName -> RewriteRules -> TCM ()
-addRewriteRules f rews =
+addRewriteRules f rews = do
+  reportSDoc "rewriting" 10 $ text "rewrite rule ok, adding it to the definition of " <+> prettyTCM f
   modifySignature $ updateDefinition f $ updateRewriteRules $ (++ rews)
+  rules <- defRewriteRules <$> getConstInfo f
+  reportSDoc "rewriting" 20 $ vcat
+    [ text "rewrite rules for " <+> prettyTCM f <+> text ":"
+    , vcat (map prettyTCM rules)
+    ]
 
 -- | Lens for 'RewriteRules'.
 updateRewriteRules :: (RewriteRules -> RewriteRules) -> Definition -> Definition
