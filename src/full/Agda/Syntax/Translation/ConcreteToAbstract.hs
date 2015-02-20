@@ -39,6 +39,8 @@ import Control.Monad.Reader hiding (mapM)
 import Data.Foldable (Foldable, traverse_)
 import Data.Traversable (mapM, traverse)
 import Data.List ((\\), nub, foldl')
+import Data.Set (Set)
+import qualified Data.Set as Set
 import qualified Data.Map as Map
 import Data.Maybe
 
@@ -89,6 +91,26 @@ import Agda.Utils.Maybe
 #include "undefined.h"
 import Agda.Utils.Impossible
 import Agda.ImpossibleTest (impossibleTest)
+
+{--------------------------------------------------------------------------
+    Billing
+ --------------------------------------------------------------------------}
+
+-- | Moves some billing from scoping to parsing.
+
+-- NOTE: I suspect that some functions below are not called with the
+-- scoping account active, so reimbursing the scoping account isn't
+-- always correct (or rather, the scoping account should be activated
+-- by the callers). I don't intend to fix this. I think that the
+-- benchmarking machinery should keep track of what account is active,
+-- and do the reimbursing automatically. That way we can also handle
+-- billing in the callees, rather than the callers. I suspect that
+-- this would be less error prone.
+
+billToParser :: ScopeM a -> ScopeM a
+billToParser =
+  reimburseTop Bench.Scoping .
+  billTo [Bench.Parsing, Bench.Operators]
 
 {--------------------------------------------------------------------------
     Exceptions
@@ -197,7 +219,7 @@ checkModuleApplication (C.SectionApp _ tel e) m0 x dir' =
   -- For the following, set the current module to be m0.
   withCurrentModule m0 $ do
     -- Check that expression @e@ is of the form @m args@.
-    (m, args) <- parseModuleApplication e
+    (m, args) <- billToParser $ parseModuleApplication e
     -- Scope check the telescope (introduces bindings!).
     tel' <- toAbstract tel
     -- Scope check the old module name and the module args.
@@ -498,7 +520,7 @@ toAbstractDot prec e = do
         return (e, True)
 
       C.RawApp r es -> do
-        e <- parseApplication es
+        e <- billToParser $ parseApplication es
         toAbstractDot prec e
 
       C.Paren _ e -> toAbstractDot TopCtx e
@@ -604,8 +626,7 @@ instance ToAbstract C.Expr A.Expr where
 
   -- Raw application
       C.RawApp r es -> do
-        e <- reimburseTop Bench.Scoping $ billTo [Bench.Parsing, Bench.Operators] $
-          parseApplication es
+        e <- billToParser $ parseApplication es
         toAbstract e
 
   -- Application
@@ -615,7 +636,7 @@ instance ToAbstract C.Expr A.Expr where
         return $ A.App (ExprRange r) e1 e2
 
   -- Operator application
-      C.OpApp r op es -> toAbstractOpApp op es
+      C.OpApp r op ns es -> toAbstractOpApp op ns es
 
   -- With application
       C.WithApp r e es -> do
@@ -972,7 +993,10 @@ instance ToAbstract LetDef [A.LetBinding] where
 
             -- irrefutable let binding, like  (x , y) = rhs
             NiceFunClause r PublicAccess ConcreteDef termCheck catchall d@(C.FunClause lhs@(C.LHS p [] [] []) (C.RHS rhs) NoWhere) -> do
-              mp  <- setCurrentRange p $ (Right <$> parsePattern p) `catchError` (return . Left)
+              mp  <- setCurrentRange p $
+                       (Right <$> billToParser (parsePattern p))
+                         `catchError`
+                       (return . Left)
               case mp of
                 Right p -> do
                   rhs <- toAbstract rhs
@@ -1028,11 +1052,11 @@ instance ToAbstract LetDef [A.LetBinding] where
         where
             letToAbstract (C.Clause top catchall clhs@(C.LHS p [] [] []) (C.RHS rhs) NoWhere []) = do
 {-
-                p    <- parseLHS top p
+                p    <- billToParser $ parseLHS top p
                 localToAbstract (snd $ lhsArgs p) $ \args ->
 -}
                 (x, args) <- do
-                  res <- setCurrentRange p $ parseLHS top p
+                  res <- setCurrentRange p $ billToParser $ parseLHS top p
                   case res of
                     C.LHSHead x args -> return (x, args)
                     C.LHSProj{} -> genericError $ "copatterns not allowed in let bindings"
@@ -1291,7 +1315,7 @@ instance ToAbstract NiceDeclaration A.Declaration where
       y <- freshAbstractQName fx n
       bindName PublicAccess PatternSynName n y
       defn@(as, p) <- withLocalVars $ do
-         p  <- toAbstract =<< toAbstract =<< parsePatternSyn p
+         p  <- toAbstract =<< toAbstract =<< billToParser (parsePatternSyn p)
          checkPatternLinearity [p]
          as <- (traverse . mapM) (unVarName <=< resolveName . C.QName) as
          as <- (map . fmap) unBlind <$> toAbstract ((map . fmap) Blind as)
@@ -1546,7 +1570,7 @@ data LeftHandSide = LeftHandSide C.Name C.Pattern [C.Pattern]
 instance ToAbstract LeftHandSide A.LHS where
     toAbstract (LeftHandSide top lhs wps) =
       traceCall (ScopeCheckLHS top lhs) $ do
-        lhscore <- parseLHS top lhs
+        lhscore <- billToParser $ parseLHS top lhs
         reportSLn "scope.lhs" 5 $ "parsed lhs: " ++ show lhscore
         printLocals 10 "before lhs:"
         -- error if copattern parsed but no --copatterns option
@@ -1558,7 +1582,7 @@ instance ToAbstract LeftHandSide A.LHS where
         -- scope check patterns except for dot patterns
         lhscore <- toAbstract lhscore
         reportSLn "scope.lhs" 5 $ "parsed lhs patterns: " ++ show lhscore
-        wps  <- toAbstract =<< mapM parsePattern wps
+        wps  <- toAbstract =<< mapM (billToParser . parsePattern) wps
         checkPatternLinearity $ lhsCoreAllPatterns lhscore ++ wps
         printLocals 10 "checked pattern:"
         -- scope check dot patterns
@@ -1668,17 +1692,18 @@ instance ToAbstract C.Pattern (A.Pattern' C.Expr) where
             r = getRange p0
             info = PatRange r
 
-    toAbstract p0@(OpAppP r op ps) = do
+    toAbstract p0@(OpAppP r op ns ps) = do
         p <- toAbstract (IdentP op)
         ps <- toAbstract ps
         case p of
-          ConP        i x as -> return $ ConP (i {patInfo = info}) x
-                                    (as ++ ps)
-          DefP        _ x as -> return $ DefP info x
-                                    (as ++ ps)
-          PatternSynP _ x as -> return $ PatternSynP info x
-                                    (as ++ ps)
-          _                  -> __IMPOSSIBLE__
+          ConP i (AmbQ xs) as -> return $ ConP (i {patInfo = info})
+                                               (AmbQ $ filter (\q -> Set.member
+                                                                       (qnameName q) ns)
+                                                              xs)
+                                               (as ++ ps)
+          DefP        _ x  as -> return $ DefP info x (as ++ ps)
+          PatternSynP _ x  as -> return $ PatternSynP info x (as ++ ps)
+          _                   -> __IMPOSSIBLE__
         where
             r    = getRange p0
             info = PatRange r
@@ -1707,11 +1732,11 @@ instance ToAbstract C.Pattern (A.Pattern' C.Expr) where
 
 -- | Turn an operator application into abstract syntax. Make sure to record the
 -- right precedences for the various arguments.
-toAbstractOpApp :: C.QName -> [C.NamedArg (OpApp C.Expr)] -> ScopeM A.Expr
-toAbstractOpApp op es = do
+toAbstractOpApp :: C.QName -> Set A.Name -> [C.NamedArg (OpApp C.Expr)] -> ScopeM A.Expr
+toAbstractOpApp op ns es = do
     -- Get the notation for the operator.
-    f  <- getFixity op
-    let parts = notation . oldToNewNotation $ (op, f)
+    nota <- getNotation op ns
+    let parts = notation nota
     -- We can throw away the @BindingHoles@, since binders
     -- have been preprocessed into @OpApp C.Expr@.
     let nonBindingParts = filter (not . isBindingHole) parts
@@ -1720,7 +1745,11 @@ toAbstractOpApp op es = do
     unless (length (filter isAHole nonBindingParts) == length es) __IMPOSSIBLE__
     -- Translate operator and its arguments (each in the right context).
     op <- toAbstract (OldQName op)
-    foldl' app op <$> left (theFixity f) nonBindingParts es
+    op <- return $ case op of
+            A.Con (AmbQ qs) -> A.Con $ AmbQ $
+                                 filter (\q -> Set.member (qnameName q) ns) qs
+            op              -> op
+    foldl' app op <$> left (notaFixity nota) nonBindingParts es
   where
     -- Build an application in the abstract syntax, with correct Range.
     app e arg = A.App (ExprRange (fuseRange e arg)) e (setArgColors [] arg)

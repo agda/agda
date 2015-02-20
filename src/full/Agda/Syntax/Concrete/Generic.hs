@@ -107,7 +107,7 @@ instance ExprLike Expr where
      Underscore{}       -> f $ e0
      RawApp r es        -> f $ RawApp r               $ mapE es
      App r e es         -> f $ App r       (mapE e)   $ mapE es
-     OpApp r q es       -> f $ OpApp r q              $ mapE es
+     OpApp r q ns es    -> f $ OpApp r q ns           $ mapE es
      WithApp r e es     -> f $ WithApp r   (mapE e)   $ mapE es
      HiddenArg r e      -> f $ HiddenArg r            $ mapE e
      InstanceArg r e    -> f $ InstanceArg r          $ mapE e

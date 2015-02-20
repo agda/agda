@@ -3,6 +3,8 @@ open import Common.Prelude
 open import Common.Reflection
 open import Common.Equality
 
+infixr 40 _∷_
+
 data L (A : Set) : Set where
   [] : L A
   _∷_ : A → L A → L A

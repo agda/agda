@@ -67,6 +67,8 @@ import Data.Typeable (Typeable)
 import Data.Foldable (Foldable)
 import Data.Traversable (Traversable)
 import Data.List
+import Data.Set (Set)
+
 import Agda.Syntax.Position
 import Agda.Syntax.Common hiding (Arg, Dom, NamedArg, ArgInfo)
 import qualified Agda.Syntax.Common as Common
@@ -75,6 +77,7 @@ import Agda.Syntax.Notation
 import Agda.Syntax.Literal
 
 import Agda.Syntax.Concrete.Name
+import qualified Agda.Syntax.Abstract.Name as A
 
 import Agda.Utils.Lens
 
@@ -133,7 +136,14 @@ data Expr
   | Underscore !Range (Maybe String)           -- ^ ex: @_@ or @_A_5@
   | RawApp !Range [Expr]                       -- ^ before parsing operators
   | App !Range Expr (NamedArg Expr)            -- ^ ex: @e e@, @e {e}@, or @e {x = e}@
-  | OpApp !Range QName [NamedArg (OpApp Expr)] -- ^ ex: @e + e@
+  | OpApp !Range QName (Set A.Name)
+          [NamedArg (OpApp Expr)]              -- ^ ex: @e + e@
+                                               -- The 'QName' is
+                                               -- possibly ambiguous,
+                                               -- but it must
+                                               -- correspond to one of
+                                               -- the names in the
+                                               -- set.
   | WithApp !Range Expr [Expr]                 -- ^ ex: @e | e1 | .. | en@
   | HiddenArg !Range (Named_ Expr)             -- ^ ex: @{e}@ or @{x=e}@
   | InstanceArg !Range (Named_ Expr)           -- ^ ex: @{{e}}@ or @{{x=e}}@
@@ -171,7 +181,12 @@ data Pattern
   | QuoteP !Range                           -- ^ @quote@
   | AppP Pattern (NamedArg Pattern)         -- ^ @p p'@ or @p {x = p'}@
   | RawAppP !Range [Pattern]                -- ^ @p1..pn@ before parsing operators
-  | OpAppP !Range QName [NamedArg Pattern]  -- ^ eg: @p => p'@ for operator @_=>_@
+  | OpAppP !Range QName (Set A.Name)
+           [NamedArg Pattern]               -- ^ eg: @p => p'@ for operator @_=>_@
+                                            -- The 'QName' is possibly
+                                            -- ambiguous, but it must
+                                            -- correspond to one of
+                                            -- the names in the set.
   | HiddenP !Range (Named_ Pattern)         -- ^ @{p}@ or @{x = p}@
   | InstanceP !Range (Named_ Pattern)       -- ^ @{{p}}@ or @{{x = p}}@
   | ParenP !Range Pattern                   -- ^ @(p)@
@@ -470,7 +485,7 @@ patternHead p =
     AppP p p'              -> patternHead p
     RawAppP _ []           -> __IMPOSSIBLE__
     RawAppP _ (p:_)        -> patternHead p
-    OpAppP _ name ps       -> return $ unqualify name
+    OpAppP _ name _ ps     -> return $ unqualify name
     HiddenP _ (namedPat)   -> patternHead (namedThing namedPat)
     ParenP _ p             -> patternHead p
     WildP _                -> Nothing
@@ -490,7 +505,7 @@ patternNames p =
     IdentP x               -> [unqualify x]
     AppP p p'              -> concatMap patternNames [p, namedArg p']
     RawAppP _ ps           -> concatMap patternNames  ps
-    OpAppP _ name ps       -> unqualify name : concatMap (patternNames . namedArg) ps
+    OpAppP _ name _ ps     -> unqualify name : concatMap (patternNames . namedArg) ps
     HiddenP _ (namedPat)   -> patternNames (namedThing namedPat)
     ParenP _ p             -> patternNames p
     WildP _                -> []
@@ -539,7 +554,7 @@ instance HasRange Expr where
       Underscore r _     -> r
       App r _ _          -> r
       RawApp r _         -> r
-      OpApp r _ _        -> r
+      OpApp r _ _ _      -> r
       WithApp r _ _      -> r
       Lam r _ _          -> r
       AbsurdLam r _      -> r
@@ -675,7 +690,7 @@ instance HasRange AsName where
 instance HasRange Pattern where
   getRange (IdentP x)         = getRange x
   getRange (AppP p q)         = fuseRange p q
-  getRange (OpAppP r _ _)     = r
+  getRange (OpAppP r _ _ _)   = r
   getRange (RawAppP r _)      = r
   getRange (ParenP r _)       = r
   getRange (WildP r)          = r
@@ -694,19 +709,19 @@ instance SetRange TypedBindings where
   setRange r (TypedBindings _ b) = TypedBindings r b
 
 instance SetRange Pattern where
-  setRange r (IdentP x)       = IdentP (setRange r x)
-  setRange r (AppP p q)       = AppP (setRange r p) (setRange r q)
-  setRange r (OpAppP _ x ps)  = OpAppP r x ps
-  setRange r (RawAppP _ ps)   = RawAppP r ps
-  setRange r (ParenP _ p)     = ParenP r p
-  setRange r (WildP _)        = WildP r
-  setRange r (AsP _ x p)      = AsP r (setRange r x) p
-  setRange r (AbsurdP _)      = AbsurdP r
-  setRange r (LitP l)         = LitP (setRange r l)
-  setRange r (QuoteP _)       = QuoteP r
-  setRange r (HiddenP _ p)    = HiddenP r p
-  setRange r (InstanceP _ p)  = InstanceP r p
-  setRange r (DotP _ e)       = DotP r e
+  setRange r (IdentP x)         = IdentP (setRange r x)
+  setRange r (AppP p q)         = AppP (setRange r p) (setRange r q)
+  setRange r (OpAppP _ x ns ps) = OpAppP r x ns ps
+  setRange r (RawAppP _ ps)     = RawAppP r ps
+  setRange r (ParenP _ p)       = ParenP r p
+  setRange r (WildP _)          = WildP r
+  setRange r (AsP _ x p)        = AsP r (setRange r x) p
+  setRange r (AbsurdP _)        = AbsurdP r
+  setRange r (LitP l)           = LitP (setRange r l)
+  setRange r (QuoteP _)         = QuoteP r
+  setRange r (HiddenP _ p)      = HiddenP r p
+  setRange r (InstanceP _ p)    = InstanceP r p
+  setRange r (DotP _ e)         = DotP r e
 
 -- KillRange instances
 ------------------------------------------------------------------------
@@ -755,7 +770,7 @@ instance KillRange Expr where
   killRange (Underscore _ n)     = Underscore noRange n
   killRange (RawApp _ e)         = killRange1 (RawApp noRange) e
   killRange (App _ e a)          = killRange2 (App noRange) e a
-  killRange (OpApp _ n o)        = killRange2 (OpApp noRange) n o
+  killRange (OpApp _ n ns o)     = killRange3 (OpApp noRange) n ns o
   killRange (WithApp _ e es)     = killRange2 (WithApp noRange) e es
   killRange (HiddenArg _ n)      = killRange1 (HiddenArg noRange) n
   killRange (InstanceArg _ n)    = killRange1 (InstanceArg noRange) n
@@ -809,19 +824,19 @@ instance KillRange e => KillRange (OpApp e) where
   killRange (Ordinary e)                = killRange1 Ordinary e
 
 instance KillRange Pattern where
-  killRange (IdentP q)      = killRange1 IdentP q
-  killRange (AppP p n)      = killRange2 AppP p n
-  killRange (RawAppP _ p)   = killRange1 (RawAppP noRange) p
-  killRange (OpAppP _ n p)  = killRange2 (OpAppP noRange) n p
-  killRange (HiddenP _ n)   = killRange1 (HiddenP noRange) n
-  killRange (InstanceP _ n) = killRange1 (InstanceP noRange) n
-  killRange (ParenP _ p)    = killRange1 (ParenP noRange) p
-  killRange (WildP _)       = WildP noRange
-  killRange (AbsurdP _)     = AbsurdP noRange
-  killRange (AsP _ n p)     = killRange2 (AsP noRange) n p
-  killRange (DotP _ e)      = killRange1 (DotP noRange) e
-  killRange (LitP l)        = killRange1 LitP l
-  killRange (QuoteP _)      = QuoteP noRange
+  killRange (IdentP q)        = killRange1 IdentP q
+  killRange (AppP p n)        = killRange2 AppP p n
+  killRange (RawAppP _ p)     = killRange1 (RawAppP noRange) p
+  killRange (OpAppP _ n ns p) = killRange3 (OpAppP noRange) n ns p
+  killRange (HiddenP _ n)     = killRange1 (HiddenP noRange) n
+  killRange (InstanceP _ n)   = killRange1 (InstanceP noRange) n
+  killRange (ParenP _ p)      = killRange1 (ParenP noRange) p
+  killRange (WildP _)         = WildP noRange
+  killRange (AbsurdP _)       = AbsurdP noRange
+  killRange (AsP _ n p)       = killRange2 (AsP noRange) n p
+  killRange (DotP _ e)        = killRange1 (DotP noRange) e
+  killRange (LitP l)          = killRange1 LitP l
+  killRange (QuoteP _)        = QuoteP noRange
 
 instance KillRange Pragma where
   killRange (OptionsPragma _ s)           = OptionsPragma noRange s

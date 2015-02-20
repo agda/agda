@@ -53,8 +53,10 @@ Operator syntax
 
   The default fixity, used when no fixity declaration is given, was
   previously infix 20 for operators, and infix -666 for syntax
-  declarations. Now operators and syntax declarations without an
-  associated fixity declaration are unrelated to all other operators.
+  declarations. Now operators and notations (coming from syntax
+  declarations) without an associated fixity declaration are unrelated
+  to all other operators, and infix operators/notations are
+  non-associative.
 
   As an example, the following code no longer parses:
 
@@ -77,10 +79,6 @@ Operator syntax
 
     ok : ℤ
     ok = - - - - - - - n
-
-* If an overloaded operator is in scope with at least two distinct
-  fixities, then it gets the default fixity mentioned above [Issue
-  1436].
 
 * A long-standing operator fixity bug has been fixed. As a consequence
   some programs that used to parse no longer do.

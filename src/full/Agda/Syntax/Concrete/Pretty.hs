@@ -121,8 +121,8 @@ instance Pretty Expr where
 --                      sep [ pretty e1
 --                          , nest 2 $ fsep $ map pretty args
 --                          ]
-            RawApp _ es   -> fsep $ map pretty es
-            OpApp _ q es -> fsep $ prettyOpApp q es
+            RawApp _ es    -> fsep $ map pretty es
+            OpApp _ q _ es -> fsep $ prettyOpApp q es
 
             WithApp _ e es -> fsep $
               pretty e : map ((text "|" <+>) . pretty) es
@@ -497,19 +497,19 @@ instance Pretty [Pattern] where
 instance Pretty Pattern where
     pretty p =
         case p of
-            IdentP x      -> pretty x
-            AppP p1 p2    -> sep [ pretty p1, nest 2 $ pretty p2 ]
-            RawAppP _ ps  -> fsep $ map pretty ps
-            OpAppP _ q ps -> fsep $ prettyOpApp q ps
-            HiddenP _ p   -> braces' $ pretty p
-            InstanceP _ p -> dbraces $ pretty p
-            ParenP _ p    -> parens $ pretty p
-            WildP _       -> underscore
-            AsP _ x p     -> pretty x <> text "@" <> pretty p
-            DotP _ p      -> text "." <> pretty p
-            AbsurdP _     -> text "()"
-            LitP l        -> pretty l
-            QuoteP _      -> text "quote"
+            IdentP x        -> pretty x
+            AppP p1 p2      -> sep [ pretty p1, nest 2 $ pretty p2 ]
+            RawAppP _ ps    -> fsep $ map pretty ps
+            OpAppP _ q _ ps -> fsep $ prettyOpApp q ps
+            HiddenP _ p     -> braces' $ pretty p
+            InstanceP _ p   -> dbraces $ pretty p
+            ParenP _ p      -> parens $ pretty p
+            WildP _         -> underscore
+            AsP _ x p       -> pretty x <> text "@" <> pretty p
+            DotP _ p        -> text "." <> pretty p
+            AbsurdP _       -> text "()"
+            LitP l          -> pretty l
+            QuoteP _        -> text "quote"
 
 prettyOpApp :: Pretty a => QName -> [a] -> [Doc]
 prettyOpApp q es = prOp ms xs es

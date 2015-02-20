@@ -801,7 +801,7 @@ instance PrettyTCM TypeError where
           pretty $ if show p1 == show p2 then unambiguous e else e
 
         unambiguous :: C.Expr -> C.Expr
-        unambiguous (C.OpApp r op xs) | all (isOrdinary . namedArg) xs
+        unambiguous (C.OpApp r op _ xs) | all (isOrdinary . namedArg) xs
             = foldl (C.App r) (C.Ident op) $ (map . fmap . fmap) fromOrdinary xs
         unambiguous e = e
 
@@ -850,13 +850,13 @@ instance PrettyTCM TypeError where
         -- the entire pattern is shown, not just the ambiguous part,
         -- so we need to dig in order to find the OpAppP's.
         unambiguousP :: C.Pattern -> C.Pattern
-        unambiguousP (C.AppP x y)       = C.AppP (unambiguousP x) $ (fmap.fmap) unambiguousP y
-        unambiguousP (C.HiddenP r x)    = C.HiddenP r $ fmap unambiguousP x
-        unambiguousP (C.InstanceP r x)  = C.InstanceP r $ fmap unambiguousP x
-        unambiguousP (C.ParenP r x)     = C.ParenP r $ unambiguousP x
-        unambiguousP (C.AsP r n x)      = C.AsP r n $ unambiguousP x
-        unambiguousP (C.OpAppP r op xs) = foldl C.AppP (C.IdentP op) xs
-        unambiguousP e                  = e
+        unambiguousP (C.AppP x y)         = C.AppP (unambiguousP x) $ (fmap.fmap) unambiguousP y
+        unambiguousP (C.HiddenP r x)      = C.HiddenP r $ fmap unambiguousP x
+        unambiguousP (C.InstanceP r x)    = C.InstanceP r $ fmap unambiguousP x
+        unambiguousP (C.ParenP r x)       = C.ParenP r $ unambiguousP x
+        unambiguousP (C.AsP r n x)        = C.AsP r n $ unambiguousP x
+        unambiguousP (C.OpAppP r op _ xs) = foldl C.AppP (C.IdentP op) xs
+        unambiguousP e                    = e
 
     OperatorChangeMessage err ->
       prettyTCM err

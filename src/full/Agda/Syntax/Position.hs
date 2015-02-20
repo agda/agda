@@ -376,6 +376,13 @@ instance KillRange a => KillRange (Map k a) where
 #endif
   killRange = fmap killRange
 
+#if __GLASGOW_HASKELL__ >= 710
+instance {-# OVERLAPPABLE #-} KillRange a => KillRange (Set a) where
+#else
+instance (Ord a, KillRange a) => KillRange (Set a) where
+#endif
+  killRange = Set.map killRange
+
 instance (KillRange a, KillRange b) => KillRange (a, b) where
   killRange (x, y) = (killRange x, killRange y)
 

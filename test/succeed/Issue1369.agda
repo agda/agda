@@ -6,6 +6,8 @@
 open import Common.Prelude
 open import Common.Equality
 
+infixr 40 _∷_
+
 data Vec (A : Set) : Nat → Set where
   [] : Vec A zero
   _∷_ : {n : Nat} (x : A) (xs : Vec A n) → Vec A (suc n)

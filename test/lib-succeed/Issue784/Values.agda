@@ -112,6 +112,8 @@ _∖∖_ l n = filter (not ∘ _∋!_ n ∘ proj₁) l
 filter-∈ : ∀ {ℓ} {A : Set ℓ} → List (Named A) → Names → List (Named A)
 filter-∈ l n = filter (_∋!_ n ∘ proj₁) l
 
+infixr 5 _∷_
+
 data NonRepetitive {ℓ} {A : Set ℓ} : List A → Set ℓ where
   [] : NonRepetitive []
   _∷_ : ∀ {x xs} → x ∉ xs → NonRepetitive xs → NonRepetitive (x ∷ xs)

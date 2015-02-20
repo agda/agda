@@ -1,0 +1,3 @@
+Issue1194j.agda:21,10-11
+D₁ !=< D₂ of type Set
+when checking that the expression a has type D₂

@@ -27,7 +27,7 @@ module B where
 open A
 open B
 
--- Should fail, because the fixity of A.c differs from that of B.c.
+-- Should work, because parentheses are used.
 
 test : D₂
-test = ! b + ! b
+test = (! b) + (! b)

@@ -1,3 +1,4 @@
+{-# LANGUAGE CPP                #-}
 {-# LANGUAGE DeriveDataTypeable #-}
 {-# LANGUAGE DeriveFoldable     #-}
 {-# LANGUAGE DeriveFunctor      #-}
@@ -11,15 +12,21 @@ module Agda.Syntax.Fixity where
 import Data.Foldable
 import Data.Hashable
 import Data.List as List
+import Data.Set (Set)
+import qualified Data.Set as Set
 import Data.Traversable
 import Data.Typeable (Typeable)
 
 import Agda.Syntax.Position
 import Agda.Syntax.Common
+import {-# SOURCE #-} qualified Agda.Syntax.Abstract.Name as A
 import Agda.Syntax.Concrete.Name
 import Agda.Syntax.Notation
 
 import Agda.Utils.List
+
+#include "undefined.h"
+import Agda.Utils.Impossible
 
 -- * Notation coupled with 'Fixity'
 
@@ -38,27 +45,34 @@ data ThingWithFixity x = ThingWithFixity x Fixity'
 -- | All the notation information related to a name.
 data NewNotation = NewNotation
   { notaName   :: QName
-    -- ^ The concrete name the syntax or fixity belongs to.
+  , notaNames  :: Set A.Name
+    -- ^ The names the syntax and/or fixity belong to.
+    --
+    -- Invariant: The set is non-empty. Every name in the list matches
+    -- 'notaName'.
   , notaFixity :: Fixity
-    -- ^ Associativity and precedence (fixity) of the name.
+    -- ^ Associativity and precedence (fixity) of the names.
   , notation   :: Notation
-    -- ^ Syntax associated with the name.
+    -- ^ Syntax associated with the names.
   } deriving (Typeable, Show)
 
--- | If an operator has no specific notation, recover it from its name.
-oldToNewNotation :: (QName, Fixity') -> NewNotation
-oldToNewNotation (name, Fixity' f syn) = NewNotation
-  { notaName   = name
+-- | If an operator has no specific notation, then it is computed from
+-- its name.
+namesToNotation :: QName -> A.Name -> NewNotation
+namesToNotation q n = NewNotation
+  { notaName   = q
+  , notaNames  = Set.singleton n
   , notaFixity = f
-  , notation   = if null syn then syntaxOf $ unqualify name else syn
+  , notation   = if null syn then syntaxOf $ unqualify q else syn
   }
+  where Fixity' f syn = A.nameFixity n
 
 -- | Return the 'IdPart's of a notation, the first part qualified,
 --   the other parts unqualified.
 --   This allows for qualified use of operators, e.g.,
 --   @M.for x ∈ xs return e@, or @x ℕ.+ y@.
 notationNames :: NewNotation -> [QName]
-notationNames (NewNotation q _ parts) =
+notationNames (NewNotation q _ _ parts) =
   zipWith ($) (reQualify : repeat QName) [Name noRange [Id x] | IdPart x <- parts ]
   where
     -- The qualification of @q@.
@@ -86,17 +100,27 @@ syntaxOf (Name _ xs)  = mkSyn 0 xs
 noFixity' :: Fixity'
 noFixity' = Fixity' noFixity noNotation
 
--- | If different interesting fixities are available for the same
--- symbol, then we take none of them.
-chooseFixity :: [Fixity'] -> Fixity'
-chooseFixity fixs
-  | allEqual interestingFixs = head interestingFixs
-  | otherwise                = noFixity'
+-- | Merges all 'NewNotation's that have the same notation.
+--
+-- If all 'NewNotation's with a given notation have the same fixity,
+-- then this fixity is preserved, and otherwise it is replaced by
+-- 'noFixity'.
+--
+-- Precondition: No 'A.QName' may occur in more than one list element.
+-- Every 'NewNotation' must have the same 'notaName'.
+--
+-- Postcondition: No 'A.QName' occurs in more than one list element.
+mergeNotations :: [NewNotation] -> [NewNotation]
+mergeNotations = map (merge . fixFixities) . groupOn notation
   where
-  interestingFixs
-    | null interestingFixs' = [noFixity']
-    | otherwise             = interestingFixs'
-    where interestingFixs' = filter (not . (== noFixity')) fixs
+  fixFixities ns
+    | allEqual (map notaFixity ns) = ns
+    | otherwise                    =
+        map (\n -> n { notaFixity = noFixity }) ns
+
+  merge :: [NewNotation] -> NewNotation
+  merge []         = __IMPOSSIBLE__
+  merge ns@(n : _) = n { notaNames = Set.unions $ map notaNames ns }
 
 -- * Fixity
 

@@ -39,6 +39,22 @@ Language
     {-# BUILTIN SIZESUC  ↑_       #-}  --  ↑_     : Size → Size
     {-# BUILTIN SIZEINF  ∞        #-}  --  ∞      : Size
 
+* If only some instances of an overloaded constructor have a given
+  associated notation (coming from syntax declarations), then this
+  notation can only be resolved to the given instances of the
+  constructor, not to other instances [Issue 1194].
+
+  Previously, if different instances of an overloaded constructor had
+  /different/ associated notations, then none of the notations could
+  be used. Now all of them can be used.
+
+* If an overloaded operator is in scope with at least two distinct
+  fixities, then it gets the default fixity [Issue 1436].
+
+  Similarly, if two or more identical notations for a given overloaded
+  constructor are in scope, and these notations do not all have the
+  same fixity, then they get the default fixity.
+
 Type checking
 =============
 

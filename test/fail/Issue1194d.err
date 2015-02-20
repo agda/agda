@@ -1,4 +1,5 @@
-Issue1194d.agda:31,8-9
-Not in scope:
-  ⟦ at Issue1194d.agda:31,8-9
-when scope checking ⟦
+Issue1194d.agda:33,8-17
+Could not parse the application ! b + ! b
+(the treatment of operators has changed, so code that used to parse
+may have to be changed)
+when scope checking ! b + ! b
