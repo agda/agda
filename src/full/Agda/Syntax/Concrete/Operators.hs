@@ -73,21 +73,6 @@ billToParser = Bench.billTo [Bench.Parsing, Bench.Operators]
 -- * Building the parser
 ---------------------------------------------------------------------------
 
-partsInScope :: FlatScope -> ScopeM (Set QName)
-partsInScope flat = do
-    (names, ops) <- localNames flat
-    let xs = concatMap parts names ++ concatMap notationNames ops
-    return $ Set.fromList xs
-    where
-        qual xs x = foldr Qual (QName x) xs
-        parts q = parts' (init $ qnameParts q) (unqualify q)
-        parts' ms (NoName _ _)   = []
-        parts' ms x@(Name _ [_]) = [qual ms x]
-                                   -- The first part should be qualified, but not the rest
-        parts' ms x@(Name _ xs)  = qual ms x : qual ms (Name noRange [first]) : [ QName $ Name noRange [i] | i <- iparts ]
-          where
-            first:iparts = [ i | i@(Id {}) <- xs ]
-
 type FlatScope = Map QName [AbstractName]
 
 -- | Compute all defined names in scope and their fixities/notations.
@@ -557,14 +542,7 @@ parseApplication es  = billToParser $ do
     -- Parse
     case force $ parse (pTop p) es of
         [e] -> return e
-        [] -> do
-          -- When the parser fails and a name is not in scope, it is more
-          -- useful to say that to the user rather than just "failed".
-          inScope <- partsInScope flat
-          case [ x | Ident x <- es, not (Set.member x inScope) ] of
-              [] -> typeError $ NoParseForApplication es
-              xs -> typeError $ NotInScope xs
-
+        []  -> typeError $ NoParseForApplication es
         es' -> typeError $ AmbiguousParseForApplication es $ map fullParen es'
 
 parseModuleIdentifier :: Expr -> ScopeM QName
@@ -584,12 +562,7 @@ parseRawModuleApplication es = billToParser $ do
     -- Parse
     case {-force $-} parse (pArgs p) es_args of -- TODO: not sure about forcing
         [as] -> return (m, as)
-        [] -> do
-          inScope <- partsInScope flat
-          case [ x | Ident x <- es_args, not (Set.member x inScope) ] of
-              [] -> typeError $ NoParseForApplication es
-              xs -> typeError $ NotInScope xs
-
+        []   -> typeError $ NoParseForApplication es
         ass -> do
           let f = fullParen . foldl (App noRange) (Ident m)
           typeError $ AmbiguousParseForApplication es
