@@ -186,6 +186,12 @@ buildParsers r flat use =
         higher  = zip levels (init $ inits levels)
                   where levels = map fst relatedOperators
 
+    reportSLn "scope.operators" 50 $ unlines
+      [ "unrelatedOperators = " ++ show unrelatedOperators
+      , "relatedOperators   = " ++ show relatedOperators
+      , "higher             = " ++ show higher
+      ]
+
     return $ Data.Function.fix $ \p -> Parsers
         { pTop    = memoise TopK $
                     Fold.asum $
