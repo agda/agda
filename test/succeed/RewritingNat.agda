@@ -13,9 +13,9 @@ zero + n = n
 (suc m) + n = suc (m + n)
 
 plus0T : Set
-plus0T = ∀{x} → x + zero ≡ x
+plus0T = ∀{x} → (x + zero) ≡ x
 
-plusSucT = ∀{x y} → x + (suc y) ≡ suc (x + y)
+plusSucT = ∀{x y} → (x + (suc y)) ≡ suc (x + y)
 
 postulate
   plus0p : plus0T
