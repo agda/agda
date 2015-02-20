@@ -379,6 +379,7 @@ library
                     Agda.Utils.ListT
                     Agda.Utils.ListT.Tests
                     Agda.Utils.Map
+                    Agda.Utils.Map.Compat
                     Agda.Utils.Maybe
                     Agda.Utils.Maybe.Strict
                     Agda.Utils.Monad
