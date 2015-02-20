@@ -41,7 +41,7 @@ install-O2-bin :
 
 .PHONY : install-prof-bin
 install-prof-bin :
-	$(CABAL_CMD) install --enable-library-profiling --enable-executable-profiling \
+	$(CABAL_CMD) install --enable-library-profiling --enable-profiling \
                              --program-suffix=_p --disable-documentation $(CABAL_OPTS)
 
 .PHONY : compile-emacs-mode
