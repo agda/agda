@@ -40,6 +40,7 @@ import Agda.Syntax.Internal
 import Agda.TypeChecking.EtaContract
 import Agda.TypeChecking.Monad
 import Agda.TypeChecking.Reduce
+import Agda.TypeChecking.Reduce.Monad
 import Agda.TypeChecking.Substitute
 
 import Agda.Utils.Functor
@@ -183,16 +184,20 @@ instance AmbMatch NLPat Term where
     case p of
       PWild  -> yes
       PVar i -> tellSubst i v
-      PDef f ps ->
+      PDef f ps -> do
+        v <- liftRed $ constructorForm v
         case ignoreSharing v of
           Def f' es
-            | f == f'   -> ambMatch ps =<< liftRed (reduce' =<< etaContract es)
+            | f == f'   -> matchArgs ps es
             | otherwise -> no
           Con c vs
-            | f == conName c -> ambMatch ps =<< liftRed (reduce' =<< etaContract (Apply <$> vs))
+            | f == conName c -> matchArgs ps (Apply <$> vs)
             | otherwise -> no
           _ -> no
       PTerm u -> tellEq u v
+    where
+      matchArgs :: [Elim' NLPat] -> Elims -> NLM ()
+      matchArgs ps es = ambMatch ps =<< liftRed (etaContract =<< reduce' es)
 
 makeSubstitution :: IntMap Term -> Substitution
 makeSubstitution sub

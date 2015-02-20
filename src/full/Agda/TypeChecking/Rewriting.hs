@@ -196,6 +196,8 @@ addRewriteRule q = inTopContext $ do
         Def f _ -> do
           -- Add rewrite rule gamma ⊢ lhs ↦ rhs : b for f.
           addRewriteRules f [rew]
+        Con c _ -> do
+          addRewriteRules (conName c) [rew]
         _ -> failureIllegalRule
     _ -> failureWrongTarget
 
