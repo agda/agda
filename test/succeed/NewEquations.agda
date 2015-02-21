@@ -31,7 +31,7 @@ map-++ : ∀ {A B} {f : A → B} {xs ys : List A} → map f (xs ++ ys) ≡ (map 
 map-++ {xs = []} = refl
 map-++ {xs = x ∷ xs} = cong (_∷_ _) (map-++ {xs = xs})
 
-fold-map : ∀ {A B C} {f : A → B} {c : B → C → C} {n : C} {xs : List A} → 
+fold-map : ∀ {A B C} {f : A → B} {c : B → C → C} {n : C} {xs : List A} →
            fold c n (map f xs) ≡ fold (λ x → c (f x)) n xs
 fold-map {xs = []} = refl
 fold-map {c = c} {xs = x ∷ xs} = cong (c _) (fold-map {xs = xs})
@@ -42,9 +42,9 @@ fold-++ {xs = []} = refl
 fold-++ {c = c} {xs = x ∷ xs} = cong (c _) (fold-++ {xs = xs})
 
 {-# BUILTIN REWRITE _≡_ #-}
-{-# REWRITE ++-[] #-} 
+{-# REWRITE ++-[] #-}
 {-# REWRITE ++-assoc #-}
-{-# REWRITE map-id #-} 
+{-# REWRITE map-id #-}
 {-# REWRITE map-fuse #-}
 {-# REWRITE map-++ #-}
 {-# REWRITE fold-map #-}
@@ -52,7 +52,7 @@ fold-++ {c = c} {xs = x ∷ xs} = cong (c _) (fold-++ {xs = xs})
 
 record _×_ (A B : Set) : Set where
   constructor _,_
-  field 
+  field
     fst : A
     snd : B
 
@@ -60,5 +60,5 @@ swap : ∀ {A B} → A × B → B × A
 swap (x , y) = y , x
 
 test₁ : ∀ {A B} {xs : List (A × B)} → map swap (map swap xs) ≡ xs
-test₁ = refl 
+test₁ = refl
 
