@@ -458,7 +458,7 @@ nr-x∖y {x = x ∷ xs} (x∉xs ∷ nr-xs) y with x ∈? y
 x⊆y⇒e∉y⇒e∉x : ∀ {ℓ} {A : Set ℓ} {e : A} {x y : List A} → x ⊆ y → e ∉ y → e ∉ x
 x⊆y⇒e∉y⇒e∉x x⊆y e∉y e∈x = e∉y $ x⊆y e∈x
 
-e∈n-l⇒∃è,n-è≡e×è∈l : ∀ {ℓ} {A : Set ℓ} {e : String} {l : List (Named A)} → e ∈ names l → Σ[ è ∈ Named A ] e ≡ proj₁ è × è ∈ l
+e∈n-l⇒∃è,n-è≡e×è∈l : ∀ {ℓ} {A : Set ℓ} {e : String} {l : List (Named A)} → e ∈ names l → Σ[ è ∈ Named A ] (e ≡ proj₁ è × è ∈ l)
 e∈n-l⇒∃è,n-è≡e×è∈l {l = []} ()
 e∈n-l⇒∃è,n-è≡e×è∈l {l = h ∷ t} (here e≡n-h) = h , e≡n-h , here refl
 e∈n-l⇒∃è,n-è≡e×è∈l {l = h ∷ t} (there e∈n-t) with e∈n-l⇒∃è,n-è≡e×è∈l e∈n-t
