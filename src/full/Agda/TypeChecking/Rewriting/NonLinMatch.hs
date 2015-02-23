@@ -98,7 +98,7 @@ instance PatternFrom Term NLPat where
       Con c vs -> PDef (conName c) <$> patternFrom (Apply <$> vs)
       Pi{}     -> done
       Sort{}   -> done
-      Level{}  -> done  -- TODO: unLevel and continue
+      Level{}  -> return PWild   -- TODO: unLevel and continue
       DontCare{} -> return PWild
       MetaV{}    -> __IMPOSSIBLE__
       Shared{}   -> __IMPOSSIBLE__
