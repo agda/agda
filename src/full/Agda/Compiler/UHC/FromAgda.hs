@@ -44,7 +44,7 @@ import Agda.Compiler.UHC.Primitives
 import Agda.Compiler.UHC.Core
 import Agda.Compiler.UHC.Naming
 
-import UHC.Light.Compiler.Core.API as CA
+import Agda.Compiler.UHC.Bridge as CA
 
 #include "undefined.h"
 import Agda.Utils.Impossible

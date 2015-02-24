@@ -22,12 +22,7 @@ import Agda.Compiler.UHC.AuxAST
 import Agda.Compiler.UHC.Pragmas.Base
 import Agda.Compiler.UHC.MagicTypes
 
-import UHC.Light.Compiler.Core.API as CA
-
-import UHC.Util.ParseUtils
-import UHC.Util.Pretty
-import UHC.Util.ScanUtils
-import UU.Scanner.Position
+import Agda.Compiler.UHC.Bridge as CA
 
 #include "undefined.h"
 import Agda.Utils.Impossible

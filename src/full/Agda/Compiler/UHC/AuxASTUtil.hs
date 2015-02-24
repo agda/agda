@@ -6,8 +6,7 @@ module Agda.Compiler.UHC.AuxASTUtil
   )
 where
 
-import UHC.Light.Compiler.Core.API
-
+import Agda.Compiler.UHC.Bridge
 import Agda.Compiler.UHC.AuxAST
 import Agda.Compiler.UHC.Naming
 

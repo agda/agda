@@ -63,7 +63,7 @@ import qualified Agda.Compiler.UHC.Pragmas.Base as CR
 import qualified Agda.Compiler.UHC.ModuleInfo as UHC
 import qualified Agda.Compiler.UHC.AuxAST as UHCA
 import qualified Agda.Compiler.UHC.Naming as UHCN
-import qualified UHC.Util.Serialize as UU
+import qualified Agda.Compiler.UHC.Bridge as UHCB
 
 import Agda.Syntax.Common
 import Agda.Syntax.Concrete.Name as C
@@ -1212,12 +1212,12 @@ instance EmbPrj CR.CoreConstr where
     valu _            = malformed
 
 instance EmbPrj CR.CoreExpr where
-  icod_ = icode . B.runPut . UU.serialize
-  value n = value n >>= return . (B.runGet UU.unserialize)
+  icod_ = icode . B.runPut . UHCB.serialize
+  value n = value n >>= return . (B.runGet UHCB.unserialize)
 
 instance EmbPrj CR.HsName where
-  icod_ = icode . B.runPut . UU.serialize
-  value n = value n >>= return . (B.runGet UU.unserialize)
+  icod_ = icode . B.runPut . UHCB.serialize
+  value n = value n >>= return . (B.runGet UHCB.unserialize)
 
 instance EmbPrj Polarity where
   icod_ Covariant     = icode0'
@@ -1557,8 +1557,8 @@ instance EmbPrj UHCN.NameMap where
     valu _      = malformed
 
 instance EmbPrj UHCA.CTag where
-  icod_ = icode . B.runPut . UU.serialize
-  value n = value n >>= return . (B.runGet UU.unserialize)
+  icod_ = icode . B.runPut . UHCB.serialize
+  value n = value n >>= return . (B.runGet UHCB.unserialize)
 
 instance EmbPrj UHCN.CoreName where
   icod_ (UHCN.CoreName a b c) = icode3' a b c

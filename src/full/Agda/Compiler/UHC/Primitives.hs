@@ -21,7 +21,7 @@ import Control.Applicative
 import qualified Data.Map as M
 import Data.Maybe
 
-import UHC.Light.Compiler.Core.API
+import Agda.Compiler.UHC.Bridge
 
 -- | Primitives defined for the UHC backend. Maps primitive names to the core expression to be used as function body.
 primFunctions :: M.Map String ((CompileT TCM) CExpr)

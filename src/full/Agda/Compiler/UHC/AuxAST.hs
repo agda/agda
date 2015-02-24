@@ -16,7 +16,7 @@ import Data.Typeable (Typeable)
 
 import Agda.Syntax.Abstract.Name
 
-import UHC.Light.Compiler.Core.API (HsName, CTag, CExpr, destructCTag)
+import Agda.Compiler.UHC.Bridge (HsName, CTag, CExpr, destructCTag)
 
 #include "undefined.h"
 import Agda.Utils.Impossible

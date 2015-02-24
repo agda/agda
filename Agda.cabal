@@ -66,9 +66,21 @@ flag epic
   description:
     Install the Epic compiler.
 
+flag uhc
+  default: False
+  manual:  True
+  description:
+    Install the UHC compiler.
+
 library
   hs-source-dirs:   src/full
   include-dirs:     src/full
+
+  if flag(uhc)
+    build-depends:    uhc-light >= 1.1.8.2 && < 1.2 
+                    , uhc-util >= 0.1.3.7
+                    , uulib >= 0.9.16
+    cpp-options:    -DUHC_BACKEND
 
   if flag(epic)
     build-depends:  epic >= 0.1.13 && < 0.10
@@ -125,9 +137,6 @@ library
     , text >= 0.11 && < 1.3
     -- tranformers 0.4.0.0 was deprecated.
     , transformers >= 0.3 && < 0.4 || >= 0.4.1.0 && < 0.5
-    , uhc-light >= 1.1.8.2 && < 1.2
-    , uhc-util == 0.1.3.7
-    , uulib == 0.9.16
     , unordered-containers == 0.2.*
     , xhtml == 3000.2.*
     , zlib >= 0.4.0.1 && < 0.6
@@ -187,12 +196,11 @@ library
                     Agda.Compiler.MAlonzo.Misc
                     Agda.Compiler.MAlonzo.Pretty
                     Agda.Compiler.MAlonzo.Primitives
-                    Agda.ImpossibleTest
-                    Agda.Interaction.BasicOps
-                    Agda.Interaction.CommandLine
                     Agda.Compiler.UHC.Compiler
                     Agda.Compiler.UHC.AuxAST
                     Agda.Compiler.UHC.AuxASTUtil
+                    Agda.Compiler.UHC.Bridge
+                    Agda.Compiler.UHC.Compiler
                     Agda.Compiler.UHC.CompileState
                     Agda.Compiler.UHC.Core
                     Agda.Compiler.UHC.FromAgda
@@ -203,6 +211,9 @@ library
                     Agda.Compiler.UHC.Pragmas.Parse
                     Agda.Compiler.UHC.Primitives
                     Agda.Compiler.UHC.Smashing
+                    Agda.ImpossibleTest
+                    Agda.Interaction.BasicOps
+                    Agda.Interaction.CommandLine
                     Agda.Interaction.EmacsCommand
                     Agda.Interaction.EmacsTop
                     Agda.Interaction.Exceptions

@@ -21,8 +21,7 @@ import Data.List (intercalate)
 import Data.Typeable
 
 import Agda.Compiler.UHC.AuxAST
-
-import UHC.Light.Compiler.Core.API as CA
+import Agda.Compiler.UHC.Bridge as CA
 
 #include "undefined.h"
 import Agda.Utils.Impossible

@@ -40,6 +40,7 @@ import Agda.TypeChecking.Serialise
 import Agda.Utils.FileName
 import qualified Agda.Utils.HashMap as HMap
 
+import Agda.Compiler.UHC.Bridge as UB
 import Agda.Compiler.UHC.CompileState
 import Agda.Compiler.UHC.Transform
 import Agda.Compiler.UHC.ModuleInfo
@@ -48,12 +49,6 @@ import qualified Agda.Compiler.UHC.FromAgda     as FAgda
 import qualified Agda.Compiler.UHC.Smashing     as Smash
 import Agda.Compiler.UHC.Naming
 import Agda.Compiler.UHC.AuxAST
-
-import UHC.Util.Pretty
-import UHC.Util.Serialize
-
-import UHC.Util.AssocL
-import UHC.Light.Compiler.Core.API as EC
 
 #include "undefined.h"
 import Agda.Utils.Impossible
@@ -107,6 +102,7 @@ compileUHCAgdaBase = do
 -- | Compile an interface into an executable using Epic
 compilerMain :: Interface -> TCM ()
 compilerMain inter = do
+    when (not uhcBackendEnabled) $ internalError "Agda has been built without UHC support."
     -- TODO do proper check for uhc existance
     let uhc_exist = ExitSuccess
     case uhc_exist of
@@ -252,7 +248,7 @@ compileDefns :: ModuleName
     -> [AModuleInfo] -- ^ top level imports
     -> AModuleInterface -- ^ transitive iface
     -> CommandLineOptions
-    -> [(QName, Definition)] -> TCM (EC.CModule, AModuleInfo, AMod)
+    -> [(QName, Definition)] -> TCM (UB.CModule, AModuleInfo, AMod)
 compileDefns mod curModImps transModIface opts defs = do
 
     (amod', modInfo) <- FAgda.fromAgdaModule mod curModImps transModIface defs $ \mod ->
@@ -268,7 +264,7 @@ compileDefns mod curModImps transModIface opts defs = do
         optim p s m x | p opts = idPrint s m x
                       | otherwise = return x
 
-writeCoreFile :: String -> EC.CModule -> TCM FilePath
+writeCoreFile :: String -> UB.CModule -> TCM FilePath
 writeCoreFile f mod = do
   useTextual <- optUHCTextualCore <$> commandLineOptions
 
@@ -276,7 +272,7 @@ writeCoreFile f mod = do
   when useTextual (do
     let f' = f <.> ".dbg.tcr"
     reportSLn "uhc" 10 $ "Writing textual core to \"" ++ show f' ++ "\"."
-    liftIO $ putPPFile f' (EC.printModule defaultEHCOpts mod) 200
+    liftIO $ putPPFile f' (UB.printModule defaultEHCOpts mod) 200
     )
 
   let f' = f <.> ".bcr"

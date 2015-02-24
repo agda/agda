@@ -56,7 +56,7 @@ import Data.Typeable (Typeable)
 import Agda.Syntax.Abstract.Name
 import Agda.TypeChecking.Monad
 
-import UHC.Light.Compiler.Core.API
+import Agda.Compiler.UHC.Bridge
 
 #include "undefined.h"
 import Agda.Utils.Impossible

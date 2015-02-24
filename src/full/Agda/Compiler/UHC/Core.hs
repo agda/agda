@@ -29,7 +29,7 @@ import Agda.Compiler.UHC.AuxAST
 import Agda.Compiler.UHC.Naming
 import Agda.Compiler.UHC.ModuleInfo
 
-import UHC.Light.Compiler.Core.API
+import Agda.Compiler.UHC.Bridge
 
 
 #include "undefined.h"

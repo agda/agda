@@ -23,7 +23,7 @@ import Control.Applicative
 import qualified Data.Map as M
 import Data.Maybe
 
-import UHC.Light.Compiler.Core.API
+import Agda.Compiler.UHC.Bridge
 
 
 -- | name of a magic, differently translated datatype/constructor
