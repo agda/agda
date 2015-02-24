@@ -16,7 +16,7 @@ import Control.Monad.Identity
 import qualified Data.Map as Map
 import Data.List
 import Data.Maybe
-import Data.Traversable hiding (mapM, forM)
+import Data.Traversable hiding (mapM, forM, for)
 
 import qualified Agda.Syntax.Concrete as C -- ToDo: Remove with instance of ToConcrete
 import Agda.Syntax.Position
@@ -728,17 +728,15 @@ introTactic pmLambda ii = do
         Left err -> return []
         Right cov -> mapM showTCM $ concatMap (conName . scPats) $ splitClauses cov
 
+    introRec :: QName -> TCM [String]
     introRec d = do
       hfs <- getRecordFieldNames d
       fs <- ifM showImplicitArguments
             (return $ map unArg hfs)
             (return [ unArg a | a <- hfs, getHiding a == NotHidden ])
-      return
-        [ concat $
-            "record {" :
-            intersperse ";" (map (\ f -> show f ++ " = ?") fs) ++
-            ["}"]
-        ]
+      let e = C.Rec noRange $ for fs $ \ f ->
+            Left $ C.FieldAssignment f $ C.QuestionMark noRange Nothing
+      return [ prettyShow e ]
 
 -- | Runs the given computation as if in an anonymous goal at the end
 --   of the top-level module.
