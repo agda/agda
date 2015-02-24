@@ -1,0 +1,4 @@
+Issue1441.agda:13,3-55
+The type of the constructor does not fit in the sort of the
+datatype, since Set₂ is not less or equal than Set₁
+when checking the constructor sup' in the declaration of Tree'

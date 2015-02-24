@@ -48,7 +48,7 @@ allout=$(patsubst %.agda,%.err,$(allagda))
 default : all customised
 all : $(allstems)
 
-debug : 
+debug :
 	@echo $(allagda)
 
 # No error recorded
