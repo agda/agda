@@ -41,7 +41,7 @@ SHELL=bash
 excluded=
 # This is a placeholder for test cases you want to skip, e.g.
 # # Andreas 2013-10-27 skip over Epic testcase
-excluded=Issue390.agda
+# excluded=Issue390.agda
 allagda=$(filter-out $(excluded),$(shell ls *agda))
 allstems=$(patsubst %.agda,%,$(allagda))
 allout=$(patsubst %.agda,%.err,$(allagda))
@@ -51,7 +51,7 @@ allout=$(patsubst %.agda,%.err,$(allagda))
 default : all customised
 all : $(allstems)
 
-debug : 
+debug :
 	@echo $(allagda)
 
 # No error recorded
