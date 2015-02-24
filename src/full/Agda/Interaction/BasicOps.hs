@@ -729,17 +729,14 @@ introTactic pmLambda ii = do
         Left err -> return []
         Right cov -> mapM showTCM $ concatMap (conName . scPats) $ splitClauses cov
 
+    introRec :: QName -> TCM [String]
     introRec d = do
       hfs <- getRecordFieldNames d
       fs <- ifM showImplicitArguments
             (return $ map unArg hfs)
             (return [ unArg a | a <- hfs, getHiding a == NotHidden ])
-      return
-        [ concat $
-            "record {" :
-            intersperse ";" (map (\ f -> show f ++ " = ?") fs) ++
-            ["}"]
-        ]
+      let e = C.Rec noRange $ map (, C.QuestionMark noRange Nothing) fs
+      return [ prettyShow e ]
 
 -- | Runs the given computation as if in an anonymous goal at the end
 --   of the top-level module.
