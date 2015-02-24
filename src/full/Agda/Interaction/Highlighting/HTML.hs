@@ -5,6 +5,13 @@
 
 module Agda.Interaction.Highlighting.HTML
   ( generateHTML
+  -- Reused by PandocAgda
+  , defaultCSSFile
+  , generateHTMLWithPageGen
+  , generatePage
+  , page
+  , tokenStream
+  , code
   ) where
 
 import Control.Applicative
@@ -57,7 +64,22 @@ defaultCSSFile = "Agda.css"
 --   completed successfully.
 
 generateHTML :: TCM ()
-generateHTML = do
+generateHTML = generateHTMLWithPageGen pageGen
+  where
+  pageGen dir mod hinfo = generatePage renderer dir mod
+    where
+    renderer css _ contents = page css mod $ code $ tokenStream contents hinfo
+
+-- | Prepare information for HTML page generation.
+--
+--   The page generator receives the file path of the module,
+--   the top level module name of the module
+--   and the highlighting information of the module.
+
+generateHTMLWithPageGen
+  :: (FilePath -> C.TopLevelModuleName -> CompressedFile -> TCM ())  -- ^ Page generator
+  -> TCM ()
+generateHTMLWithPageGen generatePage = do
       options <- TCM.commandLineOptions
 
       -- There is a default directory given by 'defaultHTMLDir'
@@ -87,15 +109,14 @@ generateHTML = do
 modToFile :: C.TopLevelModuleName -> FilePath
 modToFile m = render (pretty m) <.> "html"
 
--- | Generates an HTML file with a highlighted, hyperlinked version of
--- the given module.
+-- | Generates a highlighted, hyperlinked version of the given module.
 
 generatePage
-  :: FilePath              -- ^ Directory in which to create files.
+  :: (FilePath -> FilePath -> String -> String)  -- ^ Page renderer
+  -> FilePath              -- ^ Directory in which to create files.
   -> C.TopLevelModuleName  -- ^ Module to be highlighted.
-  -> HighlightingInfo      -- ^ Syntax highlighting info for the module.
   -> TCM ()
-generatePage dir mod highlighting = do
+generatePage renderpage dir mod = do
   mf <- Map.lookup mod <$> use TCM.stModuleToSource
   case mf of
     Nothing -> __IMPOSSIBLE__
@@ -103,21 +124,20 @@ generatePage dir mod highlighting = do
       contents <- liftIO $ UTF8.readTextFile $ filePath f
       css      <- maybe defaultCSSFile id . optCSSFile <$>
                     TCM.commandLineOptions
-      let html = page css mod contents highlighting
+      let html = renderpage css (filePath f) contents
       TCM.reportSLn "html" 1 $ "Generating HTML for " ++
                                render (pretty mod) ++
                                " (" ++ target ++ ")."
-      liftIO $ UTF8.writeFile target (renderHtml html)
+      liftIO $ UTF8.writeFile target html
   where target = dir </> modToFile mod
 
 -- | Constructs the web page, including headers.
 
 page :: FilePath              -- ^ URL to the CSS file.
      -> C.TopLevelModuleName  -- ^ Module to be highlighted.
-     -> String                -- ^ The contents of the module.
-     -> CompressedFile        -- ^ Highlighting information.
      -> Html
-page css modName contents info =
+     -> String
+page css modName pagecontent = renderHtml $
   header (thetitle << render (pretty modName)
             +++
           meta ! [ httpequiv "Content-Type"
@@ -133,16 +153,15 @@ page css modName contents info =
                            , thetype "text/css"
                            ])
   +++
-  body << pre << code contents info
+  body << pre << pagecontent
 
--- | Constructs the HTML displaying the code.
+-- | Constructs token stream ready to print.
 
-code :: String         -- ^ The contents of the module.
+tokenStream
+     :: String         -- ^ The contents of the module.
      -> CompressedFile -- ^ Highlighting information.
-     -> Html
-code contents info =
-  mconcat $
-  map (\(pos, s, mi) -> annotate pos mi (stringToHtml s)) $
+     -> [(Int, String, Aspects)]  -- ^ (position, contents, info)
+tokenStream contents info =
   map (\cs -> case cs of
           (mi, (pos, _)) : _ ->
             (pos, map (snd . snd) cs, maybe mempty id mi)
@@ -153,6 +172,12 @@ code contents info =
   where
   infoMap = toMap (decompress info)
 
+-- | Constructs the HTML displaying the code.
+
+code :: [(Int, String, Aspects)]
+     -> Html
+code = mconcat . map (\(pos, s, mi) -> annotate pos mi (stringToHtml s))
+  where
   annotate :: Int -> Aspects -> Html -> Html
   annotate pos mi = anchor ! attributes
     where

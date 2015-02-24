@@ -59,17 +59,25 @@ runAgda = do
   let opts = parseStandardOptions argv
   case opts of
     Left err -> liftIO $ optionError err
-    Right opts
-      | optShowHelp opts    -> liftIO printUsage
-      | optShowVersion opts -> liftIO printVersion
-      | optRunTests opts    -> liftIO $ do
+    Right opts -> runAgdaWithOptions generateHTML progName opts
+
+-- | Run Agda with parsed command line options and with a custom HTML generator
+runAgdaWithOptions
+  :: TCM ()             -- ^ HTML generating action
+  -> String             -- ^ program name
+  -> CommandLineOptions -- ^ parsed command line options
+  -> TCM ()
+runAgdaWithOptions generateHTML progName opts
+      | optShowHelp opts    = liftIO printUsage
+      | optShowVersion opts = liftIO printVersion
+      | optRunTests opts    = liftIO $ do
           ok <- testSuite
           unless ok exitFailure
       | isNothing (optInputFile opts)
           && not (optInteractive opts)
           && not (optGHCiInteraction opts)
-                            -> liftIO printUsage
-      | otherwise           -> do
+                            = liftIO printUsage
+      | otherwise           = do
           setCommandLineOptions opts
           -- Main function.
           -- Bill everything to root of Benchmark trie.
@@ -179,10 +187,10 @@ optionError err = do
   printUsage
   exitFailure
 
--- | Main
-main :: IO ()
-main = do
-    r <- runTCMTop $ runAgda `catchError` \err -> do
+-- | Run a TCM action in IO; catch and pretty print errors.
+runTCMPrettyErrors :: TCM () -> IO ()
+runTCMPrettyErrors tcm = do
+    r <- runTCMTop $ tcm `catchError` \err -> do
       s <- prettyError err
       liftIO $ putStrLn s
       throwError err
@@ -192,3 +200,7 @@ main = do
   `catchImpossible` \e -> do
     putStr $ show e
     exitFailure
+
+-- | Main
+main :: IO ()
+main = runTCMPrettyErrors runAgda
