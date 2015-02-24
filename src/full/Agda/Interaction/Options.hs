@@ -26,6 +26,10 @@ module Agda.Interaction.Options
     , mapFlag
     , usage
     , tests
+    -- Reused by PandocAgda
+    , inputFlag
+    , standardOptions
+    , getOptSimple
     ) where
 
 import Control.Monad            ( when )
@@ -552,10 +556,14 @@ pragmaOptions =
 standardOptions_ :: [OptDescr ()]
 standardOptions_ = map (fmap $ const ()) standardOptions
 
--- | Don't export
-parseOptions' ::
-  [String] -> [OptDescr (Flag opts)] -> (String -> Flag opts) -> Flag opts
-parseOptions' argv opts fileArg = \defaults ->
+-- | Simple interface for System.Console.GetOpt
+--   Could be moved to Agda.Utils.Options (does not exist yet)
+getOptSimple
+  :: [String]               -- ^ command line argument words
+  -> [OptDescr (Flag opts)] -- ^ options handlers
+  -> (String -> Flag opts)  -- ^ handler of non-options (only one is allowed)
+  -> Flag opts              -- ^ combined opts data structure transformer
+getOptSimple argv opts fileArg = \defaults ->
     case getOpt (ReturnInOrder fileArg) opts argv of
         (o,_,[])    -> foldl (>>=) (return defaults) o
         (_,_,errs)  -> throwError $ concat errs
@@ -564,7 +572,7 @@ parseOptions' argv opts fileArg = \defaults ->
 parseStandardOptions :: [String] -> Either String CommandLineOptions
 parseStandardOptions argv =
   checkOpts =<<
-    parseOptions' argv standardOptions inputFlag defaultOptions
+    getOptSimple argv standardOptions inputFlag defaultOptions
 
 -- | Parse options from an options pragma.
 parsePragmaOptions
@@ -574,7 +582,7 @@ parsePragmaOptions
      -- ^ Command-line options which should be updated.
   -> Either String PragmaOptions
 parsePragmaOptions argv opts = do
-  ps <- parseOptions' argv pragmaOptions
+  ps <- getOptSimple argv pragmaOptions
           (\s _ -> throwError $ "Bad option in pragma: " ++ s)
           (optPragmaOptions opts)
   checkOpts (opts { optPragmaOptions = ps })
@@ -583,7 +591,7 @@ parsePragmaOptions argv opts = do
 -- | Parse options for a plugin.
 parsePluginOptions :: [String] -> [OptDescr (Flag opts)] -> Flag opts
 parsePluginOptions argv opts =
-  parseOptions' argv opts
+  getOptSimple argv opts
     (\s _ -> throwError $
                "Internal error: Flag " ++ s ++ " passed to a plugin")
 
