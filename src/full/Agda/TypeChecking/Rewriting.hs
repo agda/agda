@@ -265,15 +265,20 @@ rewrite :: Term -> ReduceM (Maybe Term)
 rewrite v = do
   case ignoreSharing v of
     -- We only rewrite @Def@s and @Con@s.
-    Def f _es -> rew f
-    Con c _vs -> rew $ conName c
+    Def f es -> rew f (Def f) es
+    Con c vs -> rew (conName c) (Con c . (fromMaybe __IMPOSSIBLE__) . allApplyElims) (Apply <$> vs)
     _ -> return Nothing
   where
     -- Try all rewrite rules for f.
-    rew f = loop =<< do defRewriteRules <$> getConstInfo f
-    loop []         = return Nothing
-    loop (rew:rews) = do
-      caseMaybeM (rewriteWith Nothing v rew) (loop rews) (return . Just)
+    rew f hd es = loop f hd es =<< do defRewriteRules <$> getConstInfo f
+    loop f hd es []         = return Nothing
+    loop f hd es (rew:rews)
+     | length es >= rewArity rew = do
+         let (es1, es2) = List.genericSplitAt (rewArity rew) es
+             v'         = hd es1
+         caseMaybeM (rewriteWith Nothing v' rew) (loop f hd es rews) $ \w ->
+           return $ Just $ w `applyE` es2
+     | otherwise = loop f hd es rews
 
 ------------------------------------------------------------------------
 -- * Auxiliary functions
@@ -292,3 +297,8 @@ instance NLPatVars NLPat where
       PDef _ es -> nlPatVars es
       PWild     -> empty
       PTerm{}   -> empty
+
+rewArity :: RewriteRule -> Int
+rewArity rew = case rewLHS rew of
+  PDef _f es -> length es
+  _          -> __IMPOSSIBLE__
