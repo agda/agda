@@ -30,7 +30,7 @@ import {-# SOURCE #-} Agda.TypeChecking.Monad.Options
 import Agda.Utils.Hash
 import qualified Agda.Utils.HashMap as HMap
 import Agda.Utils.Lens
-import Agda.Utils.Monad (bracket_)
+import Agda.Utils.Monad (bracket_, modify')
 import Agda.Utils.Pretty
 import Agda.Utils.Tuple
 
@@ -309,7 +309,7 @@ getBenchmark = gets $ theBenchmark
 
 -- | Lens modify for 'Benchmark'.
 modifyBenchmark :: (Benchmark -> Benchmark) -> TCM ()
-modifyBenchmark = modify . updateBenchmark
+modifyBenchmark = modify' . updateBenchmark
 
 -- | Run a fresh instance of the TCM (with initial state).
 --   'Benchmark' info is preserved.

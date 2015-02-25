@@ -2,6 +2,7 @@
 
 module Agda.TypeChecking.Monad.Base.Benchmark where
 
+import qualified Agda.Utils.Maybe.Strict as Strict
 import Agda.Utils.Trie as Trie
 import Agda.Utils.Time (CPUTime)
 
@@ -63,15 +64,31 @@ type Account = [Phase]
 
 -- | Benchmark structure is a trie, mapping accounts (phases and subphases)
 --   to CPU time spent on their performance.
-type Benchmark = Trie Phase CPUTime
+data Benchmark = Benchmark
+  { currentAccount :: !(Strict.Maybe Account)
+  , timings        :: !(Trie Phase CPUTime)
+  }
+
+-- | Semantic editor combinator.
+modifyCurrentAccount ::
+  (Strict.Maybe Account -> Strict.Maybe Account) ->
+  Benchmark -> Benchmark
+modifyCurrentAccount f b = b { currentAccount = f (currentAccount b) }
+
+-- | Semantic editor combinator.
+modifyTimings ::
+  (Trie Phase CPUTime -> Trie Phase CPUTime) ->
+  Benchmark -> Benchmark
+modifyTimings f b = b { timings = f (timings b) }
 
 -- | Initial benchmark structure (empty).
 empty :: Benchmark
-empty = Trie.empty
+empty =
+  Benchmark { currentAccount = Strict.Nothing, timings = Trie.empty }
 
 -- | Add to specified CPU time account.
 addCPUTime :: Account -> CPUTime -> Benchmark -> Benchmark
-addCPUTime = Trie.insertWith (+)
+addCPUTime acc t = modifyTimings (Trie.insertWith (+) acc t)
 
 -- -- | Lens modifier for specific entry in benchmark structure.
 -- mapCPUTime :: [Phase] → (CPUTime -> CPUTime) -> Benchmark -> Benchmark

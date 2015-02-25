@@ -6,6 +6,7 @@ module Agda.Main where
 
 import Control.Monad.State
 import Control.Applicative
+import Control.Arrow ((***))
 
 import qualified Data.List as List
 import Data.Maybe
@@ -85,18 +86,20 @@ runAgdaWithOptions generateHTML progName opts
 
           -- Print benchmarks.
           whenM benchmarking $ do
-            (accounts, times) <- List.unzip . Trie.toList <$> getBenchmark
+            let showAccount [] = "Miscellaneous"
+                showAccount ks = List.intercalate "." (map show ks)
+            (accounts, times) <-
+              List.unzip . map (showAccount *** id) .
+                Trie.toList . timings <$> getBenchmark
             -- Generate a table.
-            let showAccount [] = "Total time"
-                showAccount ks = List.concat . List.intersperse "." . map show $ ks
-                -- First column is accounts.
+            let -- First column is accounts.
                 col1 = Boxes.vcat Boxes.left $
-                       map (Boxes.text . showAccount) $
-                       accounts
+                       map Boxes.text $
+                       "Total" : accounts
                 -- Second column is times.
                 col2 = Boxes.vcat Boxes.right $
                        map (Boxes.text . prettyShow) $
-                       times
+                       sum times : times
                 table = Boxes.hsep 1 Boxes.left [col1, col2]
             reportBenchmarkingLn $ Boxes.render table
 

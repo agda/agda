@@ -47,7 +47,6 @@ import Agda.TypeChecking.Monad.Base.KillRange  -- killRange for Signature
 import Agda.TypeChecking.Serialise
 import Agda.TypeChecking.Telescope
 import Agda.TypeChecking.Primitive
-import Agda.TypeChecking.Monad.Benchmark (billTop, reimburseTop)
 import qualified Agda.TypeChecking.Monad.Benchmark as Bench
 
 import Agda.TheTypeChecker
@@ -133,7 +132,7 @@ scopeCheckImport x = do
         "  visited: " ++ intercalate ", " (map (render . pretty) visited)
     -- Since scopeCheckImport is called from the scope checker,
     -- we need to reimburse her account.
-    i <- reimburseTop Bench.Scoping $ getInterface x
+    i <- Bench.billTo [] $ getInterface x
     addImport x
     return (iModuleName i `withRangesOfQ` mnameToConcrete x, iScope i)
 
@@ -247,7 +246,7 @@ getInterface' x isMain = do
     reportSLn "import.iface" 10 $ "  Check for cycle"
     checkForImportCycle
 
-    uptodate <- billTop Bench.Import $ do
+    uptodate <- Bench.billTo [Bench.Import] $ do
       ignore <- ignoreInterfaces
       cached <- isCached file -- if it's cached ignoreInterfaces has no effect
                               -- to avoid typechecking a file more than once
@@ -281,7 +280,7 @@ getInterface' x isMain = do
                                  else "  New module. Let's check it out."
     unless (visited || stateChangesIncluded) $ do
       mergeInterface i
-      billTop Bench.Highlighting $
+      Bench.billTo [Bench.Highlighting] $
         ifTopLevelAndHighlightingLevelIs NonInteractive $
           highlightFromInterface i file
 
@@ -326,7 +325,7 @@ getInterface' x isMain = do
         let ifile = filePath $ toIFile file
         h <- fmap snd <$> getInterfaceFileHashes ifile
         mm <- getDecodedModule x
-        (cached, mi) <- billTop Bench.Deserialization $ case mm of
+        (cached, mi) <- Bench.billTo [Bench.Deserialization] $ case mm of
           Just mi ->
             if Just (iFullHash mi) /= h
             then do dropDecodedModule x
@@ -520,7 +519,8 @@ createInterface
 createInterface file mname =
   local (\e -> e { envCurrentPath = Just file }) $ do
     modFile       <- use stModuleToSource
-    fileTokenInfo <- billTop Bench.Highlighting $ generateTokenInfo file
+    fileTokenInfo <- Bench.billTo [Bench.Highlighting] $
+                       generateTokenInfo file
     stTokens .= fileTokenInfo
 
     reportSLn "import.iface.create" 5 $
@@ -533,7 +533,7 @@ createInterface file mname =
     previousHsImports <- getHaskellImports
 
     -- Parsing.
-    (pragmas, top) <- billTop Bench.Parsing $
+    (pragmas, top) <- Bench.billTo [Bench.Parsing] $
       liftIO $ parseFile' moduleParser file
 
     pragmas <- concat <$> concreteToAbstract_ pragmas
@@ -544,20 +544,20 @@ createInterface file mname =
     mapM_ setOptionsFromPragma options
 
     -- Scope checking.
-    topLevel <- billTop Bench.Scoping $
+    topLevel <- Bench.billTo [Bench.Scoping] $
       concreteToAbstract_ (TopLevel file top)
 
     let ds = topLevelDecls topLevel
 
     -- Highlighting from scope checker.
-    billTop Bench.Highlighting $ do
+    Bench.billTo [Bench.Highlighting] $ do
       ifTopLevelAndHighlightingLevelIs NonInteractive $ do
       -- Generate and print approximate syntax highlighting info.
       printHighlightingInfo fileTokenInfo
       mapM_ (\ d -> generateAndPrintSyntaxInfo d Partial) ds
 
     -- Type checking.
-    billTop Bench.Typing $ checkDecls ds
+    Bench.billTo [Bench.Typing] $ checkDecls ds
 
     -- Ulf, 2013-11-09: Since we're rethrowing the error, leave it up to the
     -- code that handles that error to reset the state.
@@ -575,7 +575,7 @@ createInterface file mname =
       tickN "metas" (fromIntegral n)
 
     -- Highlighting from type checker.
-    billTop Bench.Highlighting $ do
+    Bench.billTo [Bench.Highlighting] $ do
 
       -- Move any remaining token highlighting to stSyntaxInfo.
       toks <- use stTokens
@@ -593,7 +593,7 @@ createInterface file mname =
 
     -- Serialization.
     syntaxInfo <- use stSyntaxInfo
-    i <- billTop Bench.Serialization $ do
+    i <- Bench.billTo [Bench.Serialization] $ do
       buildInterface file topLevel syntaxInfo previousHsImports options
 
     -- TODO: It would be nice if unsolved things were highlighted
@@ -610,7 +610,7 @@ createInterface file mname =
       printUnsolvedInfo
 
     r <- if and [ null unsolvedMetas, null unsolvedConstraints, null interactionPoints ]
-     then billTop Bench.Serialization $ do
+     then Bench.billTo [Bench.Serialization] $ do
       -- The file was successfully type-checked (and no warnings were
       -- encountered), so the interface should be written out.
       let ifile = filePath $ toIFile file
