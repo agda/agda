@@ -1,16 +1,33 @@
+-- Let us assume that extensionality of functions cannot be proved
+-- inside "plain" Agda. In that case the code below shows that the
+-- REWRITE functionality is not a conservative extension, even if we
+-- only use propositional equality as the rewriting relation, and do
+-- not use any postulates.
+
 module RewriteExt where
 
 open import Common.Equality
 
 {-# BUILTIN REWRITE _≡_ #-}
 
-postulate
-  A B : Set
-  f g : A → B
-  fx⇢gx : ∀ x → f x ≡ g x
+data Unit : Set where
+  unit : Unit
 
-{-# REWRITE fx⇢gx #-}
+module _ {a b} {A : Set a} {B : A → Set b} {f g : (x : A) → B x}
+         (f≡g : ∀ x → f x ≡ g x) where
 
-test : f ≡ g
-test = refl
+  private
 
+    id : Unit → (x : A) → B x → B x
+    id unit _ x = x
+
+    f≡g′ : ∀ u x → id u x (f x) ≡ g x
+    f≡g′ unit = f≡g
+
+    {-# REWRITE f≡g′ #-}
+
+    ext′ : ∀ u → (λ x → id u x (f x)) ≡ g
+    ext′ u = refl
+
+  ext : f ≡ g
+  ext = ext′ unit
