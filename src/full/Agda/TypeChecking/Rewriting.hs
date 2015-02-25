@@ -1,5 +1,6 @@
-{-# LANGUAGE CPP #-}
+{-# LANGUAGE CPP               #-}
 {-# LANGUAGE FlexibleInstances #-}
+{-# LANGUAGE PatternGuards     #-}
 
 -- | Rewriting with arbitrary rules.
 --
@@ -266,19 +267,21 @@ rewrite v = do
   case ignoreSharing v of
     -- We only rewrite @Def@s and @Con@s.
     Def f es -> rew f (Def f) es
-    Con c vs -> rew (conName c) (Con c . (fromMaybe __IMPOSSIBLE__) . allApplyElims) (Apply <$> vs)
+    Con c vs -> rew (conName c) hd (Apply <$> vs)
+      where hd es = Con c $ fromMaybe __IMPOSSIBLE__ $ allApplyElims es
     _ -> return Nothing
   where
     -- Try all rewrite rules for f.
-    rew f hd es = loop f hd es =<< do defRewriteRules <$> getConstInfo f
-    loop f hd es []         = return Nothing
-    loop f hd es (rew:rews)
-     | length es >= rewArity rew = do
-         let (es1, es2) = List.genericSplitAt (rewArity rew) es
-             v'         = hd es1
-         caseMaybeM (rewriteWith Nothing v' rew) (loop f hd es rews) $ \w ->
-           return $ Just $ w `applyE` es2
-     | otherwise = loop f hd es rews
+    rew :: QName -> (Elims -> Term) -> Elims -> ReduceM (Maybe Term)
+    rew f hd es = loop =<< do defRewriteRules <$> getConstInfo f
+      where
+      loop [] = return Nothing
+      loop (rew:rews)
+       | let n = rewArity rew, length es >= n = do
+           let (es1, es2) = List.genericSplitAt n es
+           caseMaybeM (rewriteWith Nothing (hd es1) rew) (loop rews) $ \ w ->
+             return $ Just $ w `applyE` es2
+       | otherwise = loop rews
 
 ------------------------------------------------------------------------
 -- * Auxiliary functions
