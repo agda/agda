@@ -12,6 +12,7 @@ module Agda.TypeChecking.Reduce.Monad
   , lookupMeta
   , reportSDoc, reportSLn
   , traceSLn, traceSDoc
+  , askR, applyWhenVerboseS
   ) where
 
 import Control.Arrow ((***), first, second)

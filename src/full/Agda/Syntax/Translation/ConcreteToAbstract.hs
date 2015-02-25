@@ -1381,6 +1381,7 @@ instance ToAbstract C.Pragma [A.Pragma] where
         A.Proj x         -> return [ A.RewritePragma x ]
         A.Con (AmbQ [x]) -> return [ A.RewritePragma x ]
         A.Con x          -> genericError $ "REWRITE used on ambiguous name " ++ show x
+        A.Var x          -> genericError $ "REWRITE used on parameter " ++ show x ++ " instead of on a defined symbol"
         _       -> __IMPOSSIBLE__
     toAbstract (C.CompiledTypePragma _ x hs) = do
       e <- toAbstract $ OldQName x

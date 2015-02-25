@@ -27,6 +27,9 @@ import Prelude hiding (sequence)
 import Control.Monad.Trans.Maybe
 import Control.Monad.Writer hiding (forM, sequence)
 
+import Debug.Trace
+import System.IO.Unsafe
+
 import Data.Maybe
 import Data.Functor
 import Data.Traversable hiding (for)
@@ -38,6 +41,7 @@ import Agda.Syntax.Internal
 
 import Agda.TypeChecking.EtaContract
 import Agda.TypeChecking.Monad
+import Agda.TypeChecking.Pretty
 import Agda.TypeChecking.Reduce
 import Agda.TypeChecking.Reduce.Monad
 import Agda.TypeChecking.Substitute
@@ -98,7 +102,7 @@ instance PatternFrom Term NLPat where
       Con c vs -> PDef (conName c) <$> patternFrom (Apply <$> vs)
       Pi{}     -> done
       Sort{}   -> done
-      Level{}  -> done  -- TODO: unLevel and continue
+      Level{}  -> return PWild   -- TODO: unLevel and continue
       DontCare{} -> return PWild
       MetaV{}    -> __IMPOSSIBLE__
       Shared{}   -> __IMPOSSIBLE__
@@ -112,10 +116,20 @@ type NLMOut = (AmbSubst, PostponedEquations)
 liftRed :: ReduceM a -> NLM a
 liftRed = lift . lift
 
+instance HasOptions NLM where
+  pragmaOptions      = liftRed pragmaOptions
+  commandLineOptions = liftRed commandLineOptions
+
 runNLM :: NLM () -> ReduceM (Maybe NLMOut)
 runNLM nlm = do
   (ok, sub) <- runWriterT $ runMaybeT nlm
   return $ const sub <$> ok
+
+traceSDocNLM :: VerboseKey -> Int -> TCM Doc -> NLM a -> NLM a
+traceSDocNLM k n doc = applyWhenVerboseS k n $ \ cont -> do
+  ReduceEnv env st <- liftRed askR
+  trace (show $ fst $ unsafePerformIO $ runTCM env st doc) cont
+
 
 -- execNLM :: NLM a -> ReduceM (Maybe NLMOut)
 -- execNLM m = runMaybeT $ execWriterT m
@@ -163,7 +177,9 @@ class AmbMatch a b where
 instance AmbMatch a b => AmbMatch [a] [b] where
   ambMatch ps vs
     | length ps == length vs = zipWithM_ ambMatch ps vs
-    | otherwise              = mzero
+    | otherwise              = traceSDocNLM "rewriting" 100 (sep
+                                 [ text $ "mismatching number of arguments: " ++
+                                          show (length ps) ++ " vs " ++ show (length vs) ]) mzero
 
 instance AmbMatch a b => AmbMatch (Arg a) (Arg b) where
   ambMatch p v = ambMatch (unArg p) (unArg v)
@@ -172,14 +188,20 @@ instance AmbMatch a b => AmbMatch (Elim' a) (Elim' b) where
   ambMatch p v =
    case (p, v) of
      (Apply p, Apply v) -> ambMatch p v
-     (Proj x , Proj y ) -> unless (x == y) mzero
+     (Proj x , Proj y ) -> if x == y then return () else
+                             traceSDocNLM "rewriting" 100 (sep
+                               [ text "mismatch between projections " <+> prettyTCM x
+                               , text " and " <+> prettyTCM y ]) mzero
      (Apply{}, Proj{} ) -> __IMPOSSIBLE__
      (Proj{} , Apply{}) -> __IMPOSSIBLE__
 
 instance AmbMatch NLPat Term where
   ambMatch p v = do
     let yes = return ()
-        no  = mzero
+        no x y =
+          traceSDocNLM "rewriting" 100 (sep
+            [ text "mismatch between" <+> prettyTCM x
+            , text " and " <+> prettyTCM y]) mzero
     case p of
       PWild  -> yes
       PVar i -> tellSubst i v
@@ -188,11 +210,11 @@ instance AmbMatch NLPat Term where
         case ignoreSharing v of
           Def f' es
             | f == f'   -> matchArgs ps es
-            | otherwise -> no
+            | otherwise -> no f f'
           Con c vs
             | f == conName c -> matchArgs ps (Apply <$> vs)
-            | otherwise -> no
-          _ -> no
+            | otherwise -> no f c
+          _ -> no p v
       PTerm u -> tellEq u v
     where
       matchArgs :: [Elim' NLPat] -> Elims -> NLM ()
@@ -224,13 +246,19 @@ checkPostponedEquations sub eqs = andM $ for (applySubst sub eqs) $
 -- main function
 nonLinMatch :: (AmbMatch a b) => a -> b -> ReduceM (Maybe Substitution)
 nonLinMatch p v = do
-  let no = return Nothing
-  caseMaybeM (runNLM $ ambMatch p v) no $ \ (asub, eqs) -> do
-    caseMaybeM (disambiguateSubstitution asub) no $ \ sub -> do
-      ifM (checkPostponedEquations sub eqs) (return $ Just sub) no
+  let no msg = traceSDoc "rewriting" 100 (sep
+                [ text "matching failed during" <+> text msg ]) $ return Nothing
+  caseMaybeM (runNLM $ ambMatch p v) (no "ambiguous matching") $ \ (asub, eqs) -> do
+    caseMaybeM (disambiguateSubstitution asub) (no "disambiguation") $ \ sub -> do
+      ifM (checkPostponedEquations sub eqs) (return $ Just sub) (no "checking of postponed equations")
 
 -- | Untyped βη-equality, does not handle things like empty record types.
 equal :: Term -> Term -> ReduceM Bool
 equal u v = do
   (u, v) <- etaContract =<< normalise' (u, v)
-  return $ u == v
+  let ok = u == v
+  if ok then return True else
+    traceSDoc "rewriting" 100 (sep
+      [ text "mismatch between " <+> prettyTCM u
+      , text " and " <+> prettyTCM v
+      ]) $ return False
