@@ -1,5 +1,6 @@
-{-# LANGUAGE CPP #-}
+{-# LANGUAGE CPP               #-}
 {-# LANGUAGE FlexibleInstances #-}
+{-# LANGUAGE PatternGuards     #-}
 
 -- | Rewriting with arbitrary rules.
 --
@@ -264,15 +265,22 @@ rewrite :: Term -> ReduceM (Maybe Term)
 rewrite v = do
   case ignoreSharing v of
     -- We only rewrite @Def@s and @Con@s.
-    Def f _es -> rew f
-    Con c _vs -> rew $ conName c
+    Def f es -> rew f (Def f) es
+    Con c vs -> rew (conName c) hd (Apply <$> vs)
+      where hd es = Con c $ fromMaybe __IMPOSSIBLE__ $ allApplyElims es
     _ -> return Nothing
   where
     -- Try all rewrite rules for f.
-    rew f = loop =<< do defRewriteRules <$> getConstInfo f
-    loop []         = return Nothing
-    loop (rew:rews) = do
-      caseMaybeM (rewriteWith Nothing v rew) (loop rews) (return . Just)
+    rew :: QName -> (Elims -> Term) -> Elims -> ReduceM (Maybe Term)
+    rew f hd es = loop =<< do defRewriteRules <$> getConstInfo f
+      where
+      loop [] = return Nothing
+      loop (rew:rews)
+       | let n = rewArity rew, length es >= n = do
+           let (es1, es2) = List.genericSplitAt n es
+           caseMaybeM (rewriteWith Nothing (hd es1) rew) (loop rews) $ \ w ->
+             return $ Just $ w `applyE` es2
+       | otherwise = loop rews
 
 ------------------------------------------------------------------------
 -- * Auxiliary functions
@@ -291,3 +299,8 @@ instance NLPatVars NLPat where
       PDef _ es -> nlPatVars es
       PWild     -> empty
       PTerm{}   -> empty
+
+rewArity :: RewriteRule -> Int
+rewArity rew = case rewLHS rew of
+  PDef _f es -> length es
+  _          -> __IMPOSSIBLE__
