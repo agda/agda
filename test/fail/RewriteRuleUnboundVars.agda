@@ -4,7 +4,8 @@ open import Common.Equality
 {-# BUILTIN REWRITE _≡_ #-}
 
 postulate
-  boolTrivial : ∀ (b c : Bool) → b ≡ c
+  f : Bool → Bool
+  boolTrivial : ∀ (b c : Bool) → f b ≡ c
 
 {-# REWRITE boolTrivial #-}
 
