@@ -212,9 +212,10 @@ addRewriteRule q = inTopContext $ do
     _ -> failureWrongTarget
   where
     normaliseArgs :: Term -> TCM Term
-    normaliseArgs (Def f es) = Def f <$> do etaContract =<< normalise es
-    normaliseArgs (Con c vs) = Con c <$> do etaContract =<< normalise vs
-    normaliseArgs _          = __IMPOSSIBLE__
+    normaliseArgs v = case ignoreSharing v of
+      Def f es -> Def f <$> do etaContract =<< normalise es
+      Con c vs -> Con c <$> do etaContract =<< normalise vs
+      _ -> __IMPOSSIBLE__
 
     isNormal :: Term -> TCM Bool
     isNormal v = do
