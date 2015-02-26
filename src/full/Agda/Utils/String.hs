@@ -1,14 +1,10 @@
-module Agda.Utils.String
-  ( quote
-  , showIndex
-  , addFinalNewLine
-  , indent
-  , Str(..)
-  , showThousandSep
-  ) where
+module Agda.Utils.String where
 
+import Data.Char
 import Data.List
+
 import Numeric
+
 import Agda.Utils.List
 
 -- | 'quote' adds double quotes around the string, replaces newline
@@ -63,3 +59,15 @@ instance Show Str where
 
 showThousandSep :: Show a => a -> String
 showThousandSep = reverse . intercalate "," . chop 3 . reverse . show
+
+-- | Remove leading whitespace.
+ltrim :: String -> String
+ltrim = dropWhile isSpace
+
+-- | Remove trailing whitespace.
+rtrim :: String -> String
+rtrim = reverse . ltrim . reverse
+
+-- | Remove leading and trailing whitesapce.
+trim :: String -> String
+trim = rtrim . ltrim
