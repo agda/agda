@@ -153,9 +153,14 @@ addRewriteRule q = inTopContext $ do
         [ prettyTCM q , text " does not target rewrite relation" ]
   let failureMetas       = typeError . GenericDocError =<< hsep
         [ prettyTCM q , text " is not a legal rewrite rule, since it contains unsolved meta variables" ]
+  let failureNotDefOrCon = typeError . GenericDocError =<< hsep
+        [ prettyTCM q , text " is not a legal rewrite rule, since the left-hand side is neither a defined symbol nor a constructor" ]
   let failureFreeVars xs = typeError . GenericDocError =<< do
        addContext gamma $ hsep $
         [ prettyTCM q , text " is not a legal rewrite rule, since the following variables are not bound by the left hand side: " , prettyList_ (map (prettyTCM . var) xs) ]
+  let failureLhsReduction lhs = typeError . GenericDocError =<< do
+       addContext gamma $ hsep $
+        [ prettyTCM q , text " is not a legal rewrite rule, since the left-hand side " , prettyTCM lhs , text " has top-level reductions" ]
   let failureIllegalRule = typeError . GenericDocError =<< hsep
         [ prettyTCM q , text " is not a legal rewrite rule" ]
 
@@ -169,8 +174,17 @@ addRewriteRule q = inTopContext $ do
           (us, [lhs, rhs]) = splitAt (n - 2) vs
       unless (size delta == size us) __IMPOSSIBLE__
       let b  = applySubst (parallelS $ reverse us) a
+
+      -- Find head symbol f of the lhs.
+      f <- case ignoreSharing lhs of
+        Def f es -> return f
+        Con c vs -> return $ conName c
+        _        -> failureNotDefOrCon
+
       -- Normalize lhs: we do not want to match redexes.
-      lhs <- etaContract =<< normalise lhs
+      lhs <- normaliseArgs lhs
+      unlessM (isNormal lhs) $ failureLhsReduction lhs
+
       -- Normalize rhs: might be more efficient.
       rhs <- etaContract =<< normalise rhs
       unless (null $ allMetas (telToList gamma, lhs, rhs, b)) failureMetas
@@ -193,15 +207,20 @@ addRewriteRule q = inTopContext $ do
       --   unlessM (isJust <$> runReduceM (rewriteWith (Just b) lhs rew)) $
       --     failureFreeVars
 
-      -- Find head symbol f of the lhs.
-      case ignoreSharing lhs of
-        Def f _ -> do
-          -- Add rewrite rule gamma ⊢ lhs ↦ rhs : b for f.
-          addRewriteRules f [rew]
-        Con c _ -> do
-          addRewriteRules (conName c) [rew]
-        _ -> failureIllegalRule
+      -- Add rewrite rule gamma ⊢ lhs ↦ rhs : b for f.
+      addRewriteRules f [rew]
+
     _ -> failureWrongTarget
+  where
+    normaliseArgs :: Term -> TCM Term
+    normaliseArgs (Def f es) = Def f <$> do etaContract =<< normalise es
+    normaliseArgs (Con c vs) = Con c <$> do etaContract =<< normalise vs
+    normaliseArgs _          = __IMPOSSIBLE__
+
+    isNormal :: Term -> TCM Bool
+    isNormal v = do
+      v' <- normalise v
+      return $ v == v'
 
 -- | Append rewrite rules to a definition.
 addRewriteRules :: QName -> RewriteRules -> TCM ()
