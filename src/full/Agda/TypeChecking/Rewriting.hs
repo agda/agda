@@ -1,5 +1,6 @@
-{-# LANGUAGE CPP #-}
+{-# LANGUAGE CPP               #-}
 {-# LANGUAGE FlexibleInstances #-}
+{-# LANGUAGE PatternGuards     #-}
 
 -- | Rewriting with arbitrary rules.
 --
@@ -151,9 +152,14 @@ addRewriteRule q = inTopContext $ do
         [ prettyTCM q , text " does not target rewrite relation" ]
   let failureMetas       = typeError . GenericDocError =<< hsep
         [ prettyTCM q , text " is not a legal rewrite rule, since it contains unsolved meta variables" ]
+  let failureNotDefOrCon = typeError . GenericDocError =<< hsep
+        [ prettyTCM q , text " is not a legal rewrite rule, since the left-hand side is neither a defined symbol nor a constructor" ]
   let failureFreeVars xs = typeError . GenericDocError =<< do
        addContext gamma $ hsep $
         [ prettyTCM q , text " is not a legal rewrite rule, since the following variables are not bound by the left hand side: " , prettyList_ (map (prettyTCM . var) xs) ]
+  let failureLhsReduction lhs = typeError . GenericDocError =<< do
+       addContext gamma $ hsep $
+        [ prettyTCM q , text " is not a legal rewrite rule, since the left-hand side " , prettyTCM lhs , text " has top-level reductions" ]
   let failureIllegalRule = typeError . GenericDocError =<< hsep
         [ prettyTCM q , text " is not a legal rewrite rule" ]
 
@@ -167,8 +173,17 @@ addRewriteRule q = inTopContext $ do
           (us, [lhs, rhs]) = splitAt (n - 2) vs
       unless (size delta == size us) __IMPOSSIBLE__
       let b  = applySubst (parallelS $ reverse us) a
+
+      -- Find head symbol f of the lhs.
+      f <- case ignoreSharing lhs of
+        Def f es -> return f
+        Con c vs -> return $ conName c
+        _        -> failureNotDefOrCon
+
       -- Normalize lhs: we do not want to match redexes.
-      lhs <- etaContract =<< normalise lhs
+      lhs <- normaliseArgs lhs
+      unlessM (isNormal lhs) $ failureLhsReduction lhs
+
       -- Normalize rhs: might be more efficient.
       rhs <- etaContract =<< normalise rhs
       unless (null $ allMetas (telToList gamma, lhs, rhs, b)) failureMetas
@@ -191,15 +206,20 @@ addRewriteRule q = inTopContext $ do
       --   unlessM (isJust <$> runReduceM (rewriteWith (Just b) lhs rew)) $
       --     failureFreeVars
 
-      -- Find head symbol f of the lhs.
-      case ignoreSharing lhs of
-        Def f _ -> do
-          -- Add rewrite rule gamma ⊢ lhs ↦ rhs : b for f.
-          addRewriteRules f [rew]
-        Con c _ -> do
-          addRewriteRules (conName c) [rew]
-        _ -> failureIllegalRule
+      -- Add rewrite rule gamma ⊢ lhs ↦ rhs : b for f.
+      addRewriteRules f [rew]
+
     _ -> failureWrongTarget
+  where
+    normaliseArgs :: Term -> TCM Term
+    normaliseArgs (Def f es) = Def f <$> do etaContract =<< normalise es
+    normaliseArgs (Con c vs) = Con c <$> do etaContract =<< normalise vs
+    normaliseArgs _          = __IMPOSSIBLE__
+
+    isNormal :: Term -> TCM Bool
+    isNormal v = do
+      v' <- normalise v
+      return $ v == v'
 
 -- | Append rewrite rules to a definition.
 addRewriteRules :: QName -> RewriteRules -> TCM ()
@@ -264,15 +284,22 @@ rewrite :: Term -> ReduceM (Maybe Term)
 rewrite v = do
   case ignoreSharing v of
     -- We only rewrite @Def@s and @Con@s.
-    Def f _es -> rew f
-    Con c _vs -> rew $ conName c
+    Def f es -> rew f (Def f) es
+    Con c vs -> rew (conName c) hd (Apply <$> vs)
+      where hd es = Con c $ fromMaybe __IMPOSSIBLE__ $ allApplyElims es
     _ -> return Nothing
   where
     -- Try all rewrite rules for f.
-    rew f = loop =<< do defRewriteRules <$> getConstInfo f
-    loop []         = return Nothing
-    loop (rew:rews) = do
-      caseMaybeM (rewriteWith Nothing v rew) (loop rews) (return . Just)
+    rew :: QName -> (Elims -> Term) -> Elims -> ReduceM (Maybe Term)
+    rew f hd es = loop =<< do defRewriteRules <$> getConstInfo f
+      where
+      loop [] = return Nothing
+      loop (rew:rews)
+       | let n = rewArity rew, length es >= n = do
+           let (es1, es2) = List.genericSplitAt n es
+           caseMaybeM (rewriteWith Nothing (hd es1) rew) (loop rews) $ \ w ->
+             return $ Just $ w `applyE` es2
+       | otherwise = loop rews
 
 ------------------------------------------------------------------------
 -- * Auxiliary functions
@@ -291,3 +318,8 @@ instance NLPatVars NLPat where
       PDef _ es -> nlPatVars es
       PWild     -> empty
       PTerm{}   -> empty
+
+rewArity :: RewriteRule -> Int
+rewArity rew = case rewLHS rew of
+  PDef _f es -> length es
+  _          -> __IMPOSSIBLE__

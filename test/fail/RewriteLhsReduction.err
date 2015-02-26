@@ -1,0 +1,4 @@
+RewriteLhsReduction.agda:15,1-21
+f≡g'  is not a legal rewrite rule, since the left-hand side  f
+                                                             a  has top-level reductions
+when checking the pragma REWRITE f≡g'
